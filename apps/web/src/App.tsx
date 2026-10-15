@@ -2,6 +2,7 @@ import { Component, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Activity, ArrowUpRight, Cpu, Gamepad2, Pause, Play, Radio, RotateCcw, Shield, SlidersHorizontal, TriangleAlert } from 'lucide-react';
 import { CHANNELS, defaultCalibration, type GamepadCalibration } from '@mirage/input';
 import { StateFlag } from '@mirage/protocol';
+import { inspectCapabilities, type CapabilityReport } from './capabilities';
 import { FlightScene } from './FlightScene';
 import { SimulationRuntime, type ViewStats } from './runtime';
 
@@ -31,17 +32,24 @@ export default function App() {
   const runtime = useRef<SimulationRuntime | null>(null);
   const [stats, setStats] = useState(INITIAL);
   const [error, setError] = useState('');
+  const [capabilities, setCapabilities] = useState<CapabilityReport | null>(null);
   const [source, setSource] = useState<'demo' | 'usb'>('demo');
   const [throttle, setThrottle] = useState(0);
   const [calibration, setCalibration] = useState(defaultCalibration);
   const [devices, setDevices] = useState<{ index: number; name: string }[]>([]);
   useEffect(() => {
-    if (!crossOriginIsolated || typeof SharedArrayBuffer === 'undefined') {
-      setError('Shared memory requires HTTPS (or localhost), COOP: same-origin, and COEP: require-corp.'); return;
-    }
-    try { runtime.current = new SimulationRuntime(setStats); }
-    catch (e) { setError(String(e)); }
-    return () => { runtime.current?.dispose(); runtime.current = null; };
+    let cancelled = false;
+    const initialize = async () => {
+      try {
+        const report = await inspectCapabilities();
+        if (cancelled) return;
+        setCapabilities(report);
+        if (!report.demoEligible) { setError(report.blockers.join(' ')); return; }
+        runtime.current = new SimulationRuntime(setStats);
+      } catch (cause) { if (!cancelled) setError(String(cause)); }
+    };
+    void initialize();
+    return () => { cancelled = true; runtime.current?.dispose(); runtime.current = null; };
   }, []);
   useEffect(() => {
     const update = () => {
@@ -62,7 +70,7 @@ export default function App() {
       <section className="flight-panel">
         <div className="panel-heading"><span><span className="tiny-dot" /> FLIGHT FIELD</span><span>01 / EXTERNAL CAMERA</span></div>
         <div className="viewport">
-          <SceneBoundary><FlightScene runtime={runtime} /></SceneBoundary>
+          {capabilities?.demoEligible && <SceneBoundary><FlightScene runtime={runtime} /></SceneBoundary>}
           <div className="viewport-top"><span className="badge">DEMO QUAD / NED</span><span className="coordinates">N {runtime.current?.current.north.toFixed(1) ?? '0.0'} · E {runtime.current?.current.east.toFixed(1) ?? '0.0'}</span></div>
           <div className="reticle"><span /><span /></div>
           <div className="flight-label">MIRAGE TEST RANGE<small>Flat ground · simplified dynamics</small></div>
@@ -81,7 +89,7 @@ export default function App() {
       </section>
       <aside className="instructor-panel"><div className="panel-heading"><span>PILOT CONSOLE</span><Gamepad2 size={16} /></div>
         <div className="control-section"><div className="eyebrow">01 / INPUT SOURCE</div><h1>Flight controls</h1><p>Check the channels and arm at zero throttle.</p>
-          <div className="segmented"><button className={source === 'demo' ? 'selected' : ''} onClick={() => changeSource('demo')}>Demo input</button><button className={source === 'usb' ? 'selected' : ''} onClick={() => changeSource('usb')}>USB / EdgeTX</button></div>
+          <div className="segmented"><button className={source === 'demo' ? 'selected' : ''} onClick={() => changeSource('demo')}>Demo input</button><button className={source === 'usb' ? 'selected' : ''} disabled={!capabilities?.usbEligible} onClick={() => changeSource('usb')}>USB / EdgeTX</button></div>
           {source === 'usb' ? <div className="device-box"><label htmlFor="device">USB GAMEPAD</label><select id="device" aria-label="USB device" disabled={!devices.length} onChange={event => { runtime.current?.disarm(); if (runtime.current) runtime.current.gamepad.selectedIndex = Number(event.target.value); }}>
             {!devices.length && <option>Connect a transmitter and move a stick</option>}{devices.map(d => <option key={d.index} value={d.index}>{d.index}: {d.name}</option>)}</select>
             <small data-testid="input-status">{stats.inputStatus} {stats.device}</small></div> : <div className="device-box"><span className="status-dot live" /><span>Virtual collective throttle</span><small>Sticks centered. Select the USB tab to use a transmitter.</small></div>}
@@ -92,7 +100,11 @@ export default function App() {
           {source === 'usb' && <Calibration value={calibration} onChange={changeCalibration} />}
         </div>
         <div className="control-section diagnostics"><div className="eyebrow">02 / SYSTEM STATUS</div>
-          <div><span>Worker / SAB</span><b data-testid="worker-status">{stats.ready ? 'READY' : 'INITIALIZING'}</b></div>
+          <div><span>Worker / SAB</span><b data-testid="worker-status">{stats.ready ? 'READY' : error ? 'UNAVAILABLE' : 'INITIALIZING'}</b></div>
+          <div><span>Renderer</span><b data-testid="renderer-capability">{capabilities?.renderer === 'webgl2' ? 'WebGL2' : 'Unavailable'}</b></div>
+          <div><span>Gamepad API</span><b>{capabilities?.gamepad === 'available' ? 'Available' : 'Unavailable'}</b></div>
+          <div><span>Serial API</span><b data-testid="serial-capability">{capabilities?.serial === 'available' ? 'Available' : 'Unavailable'}</b></div>
+          <p>Serial API availability does not enable HITL. WebGPU and HITL integrations are planned.</p>
           <div><span>Ground contact</span><b>{stats.flags & StateFlag.OnGround ? 'GROUND' : 'AIRBORNE'}</b></div>
           <div><span>Input protection</span><b className={stats.flags & StateFlag.InputFailsafe ? 'muted' : ''}>{stats.flags & StateFlag.InputFailsafe ? 'DISARMED / STALE' : 'INPUT LIVE'}</b></div>
           {(error || stats.notice) && <p className="alert" role="alert"><TriangleAlert size={16} />{error || stats.notice}</p>}

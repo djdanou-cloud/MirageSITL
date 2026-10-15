@@ -6,6 +6,13 @@ describe('atomic shared memory ABI', () => {
   it('rejects incompatible versions and sizes', () => {
     expect(() => validateSharedMemory(new SharedArrayBuffer(8))).toThrow();
     const buffer = createSharedMemory();
+    expect(buffer.byteLength).toBe(32896);
+    expect(HEADER_WORDS * 4).toBe(64);
+    expect(CONTROL_OFFSET * 4).toBe(32832);
+    expect(Array.from(new Int32Array(buffer, 0, 16))).toEqual([
+      0x4d534954, 1, 256, 32, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    ]);
+    expect(() => validateSharedMemory(buffer)).not.toThrow();
     Atomics.store(new Int32Array(buffer), Header.Version, 2);
     expect(() => validateSharedMemory(buffer)).toThrow('ABI');
   });
@@ -21,6 +28,9 @@ describe('atomic shared memory ABI', () => {
     writer.publish(expected);
     expect(reader.latest(target)).toBe(true);
     expect(target).toEqual(expected);
+    // Frozen bytes independently packed from the ABI v1 table (little endian).
+    const actualHex = Array.from(new Uint8Array(buffer, 64, 128), byte => byte.toString(16).padStart(2, '0')).join('');
+    expect(actualHex).toBe('020000008403000000000000000002404eb7e60760e35641f96b0d000000abc000000000006046c00000003f000000bf0000003f0000003f00004841000060c00000803e0000c03f00002040000000bf0000803e000000bf0000403f0000003f0000444102000000f801c006450c7a4200000000000000000000000000000000');
   });
   it('wraps the ring, retains bounded history, and never reads a busy slot', () => {
     const buffer = createSharedMemory(), writer = new StateWriter(buffer), reader = new StateReader(buffer);

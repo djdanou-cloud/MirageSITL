@@ -1,0 +1,17 @@
+{
+  "gravityMps2": 9.80665,
+  "samples": [
+    {
+      "timeS": 0,
+      "downM": 0
+    },
+    {
+      "timeS": 1,
+      "downM": 4.903325
+    },
+    {
+      "timeS": 2,
+      "downM": 19.6133
+    }
+  ]
+}

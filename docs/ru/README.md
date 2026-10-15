@@ -1,6 +1,6 @@
 # MirageSITL
 
-<!-- source-sha256: 463ba529c3378642d5e2dd0c1e1f33a985f4be82f7dfa2b69a18648ebed42688 -->
+<!-- source-sha256: 7d61594193008615693b7fb3328f7c87a0634d22eda18d0bc34f9e879c715e0d -->
 
 Английский источник: [Source of truth](../../README.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -27,6 +27,16 @@ EKF/EW status, epochs сессий и sensor/actuator queues. V2 не реали
 JSBSim/BET WASM, ArduPilot SITL/HITL, РЭБ, фотореалистичный terrain,
 FPV/thermal и AAR запланированы. Текущая аэродинамика упрощена и не
 валидирована для подготовки пилотов.
+
+Основа Phase 0 добавляет детерминированные seeded streams, проверяемые по SHA-256
+манифесты синтетических fixtures и строгую проверку моделей/frame/inertia/rotors.
+Модели допускаются в неизменяемый реестр сессии; переключение модели runtime
+остаётся будущей задачей. Контракты сериализации описаны в руководстве архитектуры.
+
+При запуске проверяются secure context, isolation, SharedArrayBuffer, Worker и
+WebGL2. Без обязательных возможностей Start отключён с объяснением; без Gamepad
+отключён USB. Ошибка WebGPU probe сохраняет WebGL2. Доступность Serial API
+показывается отдельно: HITL и WebGPU rendering ещё не реализованы.
 
 ## Быстрый запуск
 
@@ -81,6 +91,7 @@ apps/web/             React UI, R3F view, Worker, runtime coordination
 packages/protocol/    ABI v1 and atomic readers/writers
 packages/physics/     Demo dynamics and bounded scheduler
 packages/input/       Gamepad adapter and calibration
+packages/test-support/ Fixture integrity/provenance and deterministic PRNG
 tests/                Unit and real-browser functional checks
 docs/                 English specifications, roadmap, architecture
 docs/ru/              Russian mirrors of system documentation

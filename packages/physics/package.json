@@ -1,1 +1,14 @@
-{"name":"@mirage/physics","version":"0.1.0","private":true,"type":"module","exports":"./src/index.ts","dependencies":{"@mirage/protocol":"0.1.0"}}
+{
+  "name": "@mirage/physics",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./model-manifest": "./src/model-manifest.ts"
+  },
+  "dependencies": {
+    "@mirage/protocol": "0.1.0",
+    "ajv": "8.20.0"
+  }
+}

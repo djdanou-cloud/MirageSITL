@@ -1,0 +1,195 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "MirageSITL model configuration v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "modelId",
+    "kind",
+    "units",
+    "worldFrame",
+    "bodyFrame",
+    "quaternionOrder",
+    "massKg",
+    "inertiaBodyKgM2",
+    "rotorCount",
+    "rotorCapacity",
+    "rotors"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "modelId": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 4294967295
+    },
+    "kind": {
+      "enum": [
+        "demo",
+        "bet",
+        "jsbsim"
+      ]
+    },
+    "units": {
+      "const": "SI"
+    },
+    "worldFrame": {
+      "const": "NED"
+    },
+    "bodyFrame": {
+      "const": "FRD"
+    },
+    "quaternionOrder": {
+      "const": "wxyz"
+    },
+    "massKg": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "inertiaBodyKgM2": {
+      "type": "array",
+      "minItems": 9,
+      "maxItems": 9,
+      "items": {
+        "type": "number"
+      }
+    },
+    "rotorCount": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 32
+    },
+    "rotorCapacity": {
+      "const": 32
+    },
+    "rotors": {
+      "type": "array",
+      "maxItems": 32,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "motorChannel",
+          "bladeCount",
+          "spinSign",
+          "radiusM",
+          "rootCutoutM",
+          "polarId",
+          "radialStationM",
+          "chordM",
+          "twistRad",
+          "quadratureWidthM",
+          "hubPositionBodyM",
+          "hubToBody",
+          "shaftInertiaKgM2",
+          "bearingViscousNmPerRadS",
+          "azimuthSamples"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 31
+          },
+          "motorChannel": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 31
+          },
+          "bladeCount": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 16
+          },
+          "spinSign": {
+            "enum": [
+              -1,
+              1
+            ]
+          },
+          "radiusM": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "rootCutoutM": {
+            "type": "number",
+            "minimum": 0
+          },
+          "polarId": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 4294967295
+          },
+          "radialStationM": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 64,
+            "items": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            }
+          },
+          "chordM": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 64,
+            "items": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            }
+          },
+          "twistRad": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 64,
+            "items": {
+              "type": "number"
+            }
+          },
+          "quadratureWidthM": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 64,
+            "items": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            }
+          },
+          "hubPositionBodyM": {
+            "type": "array",
+            "minItems": 3,
+            "maxItems": 3,
+            "items": {
+              "type": "number"
+            }
+          },
+          "hubToBody": {
+            "type": "array",
+            "minItems": 4,
+            "maxItems": 4,
+            "items": {
+              "type": "number"
+            }
+          },
+          "shaftInertiaKgM2": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "bearingViscousNmPerRadS": {
+            "type": "number",
+            "minimum": 0
+          },
+          "azimuthSamples": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 64
+          }
+        }
+      }
+    }
+  }
+}

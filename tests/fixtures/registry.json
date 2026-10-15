@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "fixtures": [
+    {
+      "path": "ballistic.json",
+      "manifest": {
+        "formatVersion": 1,
+        "id": "ballistic-ned-v1",
+        "sourceSha256": "fe2211cc6869ae087905ee4648bd3571e2fb200218c9ffdaf7a390b7ccccbb82",
+        "units": {
+          "timeS": "s",
+          "downM": "m"
+        },
+        "validityEnvelope": {
+          "timeS": {
+            "min": 0,
+            "max": 2
+          },
+          "downM": {
+            "min": 0,
+            "max": 20
+          }
+        },
+        "tolerance": {
+          "absolute": 1e-09,
+          "relative": 1e-09
+        },
+        "provenance": {
+          "kind": "synthetic",
+          "derivation": "Analytic down=0.5*9.80665*time^2; synthetic, not flight measurements."
+        }
+      }
+    },
+    {
+      "path": "models/demo-quad.json",
+      "manifest": {
+        "formatVersion": 1,
+        "id": "demo-quad-v1",
+        "sourceSha256": "29463fb6efca751426a7c1e5590efd0799d33a80a9b495526e27a0ff29119b2c",
+        "units": {
+          "massKg": "kg"
+        },
+        "validityEnvelope": {
+          "massKg": {
+            "min": 1.2,
+            "max": 1.2
+          }
+        },
+        "tolerance": {
+          "absolute": 1e-09,
+          "relative": 1e-09
+        },
+        "provenance": {
+          "kind": "synthetic",
+          "derivation": "Synthetic symmetric quad geometry for schema tests, not a calibrated airframe."
+        }
+      }
+    }
+  ]
+}

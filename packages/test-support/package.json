@@ -1,0 +1,7 @@
+{
+  "name": "@mirage/test-support",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": { "./fixtures": "./src/fixtures.ts", "./prng": "./src/prng.ts" }
+}

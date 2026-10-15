@@ -1,6 +1,6 @@
 # Архитектура MirageSITL
 
-<!-- source-sha256: eda090670f99143c92f1e885af48254ed1fbbebcd1c4ddd42fbc3cead98ce6f6 -->
+<!-- source-sha256: 9ac0ab4df5541cad3e1ad42cbb286f0d52e744ade4a370989aa58cb5901e99da -->
 
 Английский источник: [Source of truth](../architecture.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -26,6 +26,7 @@ JSBSim/BET, ArduPilot, EW и аппаратный HITL ещё не реализ�
 ```text
 apps/web/
   src/App.tsx                 # HUD, controls, calibration
+  src/capabilities.ts         # API checks and implemented mode eligibility
   src/runtime.ts              # Gamepad/rAF, lifecycle, SAB reads
   src/FlightScene.tsx         # Position/SLERP in R3F useFrame
   src/coordinates.ts          # NED to Three.js
@@ -34,6 +35,9 @@ apps/web/
 packages/
   protocol/src/index.ts       # ABI v1, types, SAB readers/writers
   physics/src/index.ts        # Demo dynamics and bounded scheduler
+  physics/src/model-manifest.ts # Verified configuration registry
+  physics/src/model.schema.json # Strict serialized model schema
+  test-support/src/           # Fixture verification and seeded streams
   input/src/index.ts          # Gamepad and channel calibration
 docs/
   PROJECT_ROADMAP.md          # English task source
@@ -240,3 +244,102 @@ frame time p50/p95/p99, worker step/deadline lateness, выполненные st
 dropped wall time, input age, sensor jitter, GPU memory и end-to-end latency.
 120 FPS — 8,33 мс/frame, 60 FPS — 16,67 мс; 1200 Гц — 0,833 мс/step
 с запасом. Облачный headless smoke не подтверждает эти бюджеты.
+
+## Контракты Phase 0: fixtures, возможности браузера и модели
+
+TASK-004–006 добавляют границы проверки конфигурации; новый физический backend
+не вводится. TASK-007 сохраняет работающий ABI v1. Тесты v1 фиксируют 32896 байт,
+заголовок 64 байта, 256 состояний по 128 байт и pilot mailbox со смещения 32832.
+V2 остаётся отдельной будущей миграцией.
+
+### Проверенные манифесты fixtures и детерминированные потоки
+
+`packages/test-support` экспортирует `./fixtures` и `./prng`. Реестр
+`tests/fixtures/registry.json` задаёт пути относительно `tests/fixtures/`.
+Оба эталонных payload явно синтетические: аналитические NED ballistic samples
+при постоянной гравитации и конфигурация демонстрационного квадрокоптера.
+Они служат воспроизводимыми программными эталонами, а не экспериментальным
+подтверждением аэродинамики.
+
+`verifyFixture(metadata, bytes)` делает снимки обоих входов до ожидания SHA-256,
+проверяет строгие метаданные formatVersion 1, сравнивает 64-символьный lowercase
+hash с точными байтами payload и возвращает глубоко замороженный манифест.
+Изменение пробелов требует нового hash. Размер payload ограничен 16 MiB.
+Каждая величина имеет разрешённую единицу и соответствующие конечные замкнутые
+границы; абсолютный и относительный допуски конечны и неотрицательны. Словарь
+единиц: `1`, `s`, `us`, `m`, `m/s`, `m/s^2`, `rad`, `rad/s`, `N`, `N*m`,
+`kg`, `kg*m^2`, `Pa`, `K`, `V`, `A`, `rev/min`, `gauss`.
+
+Provenance — строгий discriminated union. Синтетическим данным нужен derivation;
+измеренным — datasetId, license, разбираемый acquiredAt и HTTPS reference.
+Замена synthetic на measured с сохранением derivation отклоняется.
+Метаданные не доказывают факт измерения: перед использованием для physics gate
+нужно проверить внешний источник. Digest подтверждает целостность относительно
+доверенной записи реестра, но не подлинность произвольного переданного hash.
+
+`SeededRandom(seed, streamId)` принимает uint32, включая ноль. Версия —
+`mulberry32-mix32-v1`; reset воспроизводит последовательность. Начальное состояние:
+`mix32(seed ^ mix32(streamId ^ 0x9e3779b9))`, арифметика uint32. mix32 применяет
+xor shifts 16/15/15 и умножения на 0x21f0aaad и 0x735a2d97.
+Mulberry32 увеличивает состояние на 0x6d2b79f5. `nextUint32()` выдаёт [0, 2^32−1];
+`nextFloat()` делит на 2^32, получая [0,1). Для seed 123 / stream 7 закреплён ряд
+uint32: 1915834569, 2163859737, 2018986825, 2541224312, 3937151044.
+Раздельные экземпляры имеют независимое изменяемое состояние; это не
+криптографический генератор и не доказательство статистической независимости
+или непересечения потоков. Конструктор/reset проверяют параметры вне step;
+получение чисел не создаёт объектов. Назначение потоков датчикам относится
+к будущему контракту sensors/EW.
+
+### Допуск браузера перед запуском Worker
+
+`apps/web/src/capabilities.ts` предоставляет `CapabilityReport` и внедряемый
+`inspectCapabilities(environment?, timeoutMs?)`. Для текущего графического demo
+нужны secure context, cross-origin isolation, SharedArrayBuffer, Worker и
+успешное создание WebGL2 context. При отсутствии обязательных возможностей
+Start отключён, Worker/сцена не создаются, показано объяснение. READY по-прежнему
+требует подтверждения инициализации от настоящего Worker.
+Для USB дополнительно нужен Gamepad API. Наличие пульта, калибровка каналов и
+статус подключения остаются отдельными проверками ввода.
+
+WebGPU adapter probe обрабатывает rejection, null и таймаут одну секунду,
+сохраняя WebGL2. Временный WebGL2 probe освобождает context. Serial проверяется
+без запроса разрешения. Наличие API отличается от допуска режима:
+`hitlEligible` и `webgpuEligible` остаются false, поскольку интеграции ещё нет.
+Chromium tests подменяют доступность API и проверяют настоящий поддерживаемый
+Worker/renderer; оборудование ими не валидируется.
+
+### Допуск модели и неизменяемые ID сессии
+
+`@mirage/physics/model-manifest` — отдельный package export. Его схема AJV 8.20.0
+и асинхронный загрузчик не входят в граф импортов текущего demo Worker.
+Сериализованные `ModelDescriptor`/`RotorGeometry` используют readonly JSON arrays;
+это конфигурационное представление целевой геометрии, а не будущий typed-array
+WASM ABI из SPECS_SIMULATION_ENGINES. `VerifiedModel` хранит `{sha256, manifest}`
+раздельно, поэтому манифест не хеширует сам себя.
+
+`model.schema.json` использует JSON Schema draft-07, запрещает неизвестные поля
+и требует schemaVersion 1, units SI, world NED, body FRD, quaternion order wxyz,
+положительную конечную массу, row-major inertia из девяти значений,
+modelId в [1,2^32−1], kind demo/bet/jsbsim, rotorCapacity 32 и совпадающие
+rotorCount/rotors в [0,32]. Inertia должна быть точно симметричной и положительно
+определённой по Cholesky; проверка не исправляет тензор. Rotor IDs и motor
+channels — уникальные целые [0,31]. Число лопастей [1,16], azimuth samples
+[1,64], polar IDs — uint32.
+
+Для ротора нужны положительные radius/chords/shaft inertia/quadrature widths,
+неотрицательные cutout и bearing friction, spin sign ±1, конечная геометрия и
+единичный hub-to-body wxyz quaternion с допуском нормы 1e-6. Массивы radial station,
+chord, twist и width имеют одинаковую длину [1,64]. Stations строго возрастают
+внутри (cutout,radius); сумма widths равна radius−cutout с допуском 1e-9 м.
+Это проверка структурной допустимости, а не доступности polar или точности
+аэродинамики.
+
+`ModelRegistry.register(bytes, expectedSha256)` копирует не более 1 MiB,
+проверяет точные байты по доверенному SHA-256, декодирует строгий UTF-8 JSON,
+валидирует и замораживает снимок, затем допускает его в реестр сессии.
+Одинаковые ID/hash возвращают ту же запись; иной hash для существующего ID —
+коллизия. Ошибки hash/schema/physics не меняют реестр, в том числе когда вызывающий
+код изменяет исходные bytes во время hashing. `get(modelId)` возвращает
+проверенную неизменяемую запись. Переключение модели runtime появится в
+TASK-010; текущий demo этим реестром не переключается. Проверка конфигурации
+может выделять память; она не должна выполняться внутри physics step.

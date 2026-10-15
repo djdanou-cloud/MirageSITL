@@ -21,6 +21,7 @@ not yet been measured.
 ```text
 apps/web/
   src/App.tsx                 # HUD, controls, calibration
+  src/capabilities.ts         # API checks and implemented mode eligibility
   src/runtime.ts              # Gamepad/rAF, lifecycle, SAB reads
   src/FlightScene.tsx         # Position/SLERP in R3F useFrame
   src/coordinates.ts          # NED to Three.js
@@ -29,6 +30,9 @@ apps/web/
 packages/
   protocol/src/index.ts       # ABI v1, types, SAB readers/writers
   physics/src/index.ts        # Demo dynamics and bounded scheduler
+  physics/src/model-manifest.ts # Verified configuration registry
+  physics/src/model.schema.json # Strict serialized model schema
+  test-support/src/           # Fixture verification and seeded streams
   input/src/index.ts          # Gamepad and channel calibration
 docs/
   PROJECT_ROADMAP.md          # English task source
@@ -240,3 +244,98 @@ dropped wall time, input age, sensor jitter, GPU memory, and end-to-end
 latency. 120 FPS allows 8.33 ms/frame; 60 FPS allows 16.67 ms. A 1200 Hz
 physics step has 0.833 ms and needs headroom. Headless cloud smoke does
 not establish these performance budgets.
+
+## Phase 0 contracts: fixtures, capabilities, and models
+
+TASK-004–006 introduce configuration-time boundaries; they do not add a new
+physics backend. TASK-007 retains the running ABI v1. The v1 tests pin 32896
+bytes, a 64-byte header, 256 states of 128 bytes, and the pilot mailbox at byte
+32832. V2 remains a separate future migration.
+
+### Verified fixture manifests and deterministic streams
+
+`packages/test-support` exports `./fixtures` and `./prng`. The registry at
+`tests/fixtures/registry.json` records paths relative to `tests/fixtures/`.
+Its two reference payloads are explicitly synthetic: analytical NED ballistic
+samples under constant gravity and a demonstration quad configuration. They
+provide reproducible software oracles, not experimental aerodynamic evidence.
+
+`verifyFixture(metadata, bytes)` snapshots both inputs before awaiting SHA-256,
+validates strict formatVersion 1 metadata, compares the lowercase 64-character
+hash with the exact payload bytes, and returns a deeply frozen manifest.
+Whitespace changes require a new hash. Payloads are limited to 16 MiB.
+Each quantity has a recognized SI/unit token and matching finite closed bounds;
+absolute and relative tolerances must be finite and nonnegative. The unit
+vocabulary is `1`, `s`, `us`, `m`, `m/s`, `m/s^2`, `rad`, `rad/s`, `N`, `N*m`,
+`kg`, `kg*m^2`, `Pa`, `K`, `V`, `A`, `rev/min`, and `gauss`.
+
+Provenance is a strict discriminated union. Synthetic data requires a derivation;
+measured data requires datasetId, license, parseable acquiredAt, and an HTTPS
+reference. Relabeling synthetic metadata while retaining derivation is rejected.
+Metadata cannot prove a measurement occurred: review its external source before
+using it to satisfy a physics validation gate. A digest checks integrity against
+a trusted registry entry; it is not authentication of an arbitrary supplied hash.
+
+`SeededRandom(seed, streamId)` accepts uint32 values, including zero. Its version
+is `mulberry32-mix32-v1`; reset reproduces the sequence. Initial state is
+`mix32(seed ^ mix32(streamId ^ 0x9e3779b9))`, with uint32 arithmetic. mix32 applies
+xor shifts 16/15/15 and multiplication constants 0x21f0aaad and 0x735a2d97.
+Mulberry32 advances by 0x6d2b79f5. `nextUint32()` returns [0, 2^32−1];
+`nextFloat()` divides by 2^32 to produce [0,1). Seed 123 / stream 7 has the frozen
+uint32 sequence 1915834569, 2163859737, 2018986825, 2541224312, 3937151044.
+Separate instances have independent mutable state; this is neither cryptographic
+randomness nor a proof of statistically independent or nonoverlapping streams.
+Construction/reset validate outside the step; drawing numbers allocates no
+objects. Sensor stream assignment is part of the future sensor/EW contract.
+
+### Browser eligibility before Worker startup
+
+`apps/web/src/capabilities.ts` exposes `CapabilityReport` and injectable
+`inspectCapabilities(environment?, timeoutMs?)`. Secure context, cross-origin
+isolation, SharedArrayBuffer, Worker, and successful WebGL2 context creation
+are all required for the current graphical demo. Missing prerequisites keep
+Start disabled, suppress Worker/scene construction, and display an explanation.
+READY still requires the actual Worker's initialization acknowledgement.
+USB additionally requires Gamepad API availability. Transmitter presence,
+channel calibration, and connected status remain separate input checks.
+
+WebGPU adapter probing handles rejection, null, and a one-second timeout while
+preserving WebGL2. The temporary WebGL2 probe releases its context. Serial is
+probed without requesting permission. API availability is distinct from mode
+eligibility: `hitlEligible` and `webgpuEligible` remain false because those
+integrations do not exist yet. Chromium browser tests override API availability
+and exercise the real supported Worker/renderer; they do not validate hardware.
+
+### Model admission and immutable session IDs
+
+`@mirage/physics/model-manifest` is a separate package export. Its AJV 8.20.0
+schema and asynchronous loader stay outside the existing demo Worker import
+graph. Serialized `ModelDescriptor`/`RotorGeometry` use readonly JSON arrays;
+they are configuration representations of the target engine geometry, not the
+future typed-array WASM ABI in SPECS_SIMULATION_ENGINES. `VerifiedModel` holds
+`{sha256, manifest}` separately so the manifest never hashes itself.
+
+`model.schema.json` uses JSON Schema draft-07, forbids unknown properties, and
+requires schemaVersion 1, units SI, world NED, body FRD, quaternion order wxyz,
+positive finite mass, a nine-entry row-major inertia, modelId in [1,2^32−1],
+kind demo/bet/jsbsim, rotorCapacity 32, and matching rotorCount/rotors in [0,32].
+Inertia must be exactly symmetric and Cholesky positive definite; validation
+never repairs a tensor. Rotor IDs and motor channels are unique integers [0,31].
+Blades are [1,16], azimuth samples [1,64], and polar IDs uint32.
+
+Rotor validation requires positive radius/chords/shaft inertia/quadrature widths,
+nonnegative cutout and bearing friction, spin sign ±1, finite geometry, and a
+unit hub-to-body wxyz quaternion within 1e-6 in norm. Radial station, chord,
+twist, and width arrays have the same length [1,64]. Stations strictly increase
+inside (cutout,radius); widths sum to radius−cutout within 1e-9 m. This checks
+structural admissibility, not polar availability or aerodynamic validity.
+
+`ModelRegistry.register(bytes, expectedSha256)` snapshots at most 1 MiB, verifies
+raw bytes against a trusted SHA-256, decodes strict UTF-8 JSON, validates and
+freezes a snapshot, then admits it to the session registry. An identical ID/hash
+returns the same record; a different hash for an existing ID is a collision.
+Hash/schema/physics failures leave registry contents unchanged, including when
+the caller mutates its original bytes during hashing. `get(modelId)` returns
+the verified immutable record. Runtime model switching is introduced in
+TASK-010; the current demo is not switched by this registry. Configuration
+validation may allocate; none of this work belongs inside the physics step.

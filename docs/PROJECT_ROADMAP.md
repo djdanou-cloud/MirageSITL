@@ -135,30 +135,33 @@ copy Google content without rights.
 
 ### TASK-004 — Golden fixtures and seed registry
 
-- **Status:** TODO.
+- **Status:** DONE — Codex; baseline c26df78; 2026-10-15.
 - **Title & Description:** Define shared reference manifests with provenance and a deterministic PRNG.
 - **Dependencies:** TASK-002.
-- **Touched Files:** `packages/test-support/package.json`, `packages/test-support/src/fixtures.ts`, `packages/test-support/src/prng.ts`, `tests/fixtures.test.ts`, `tests/fixtures/registry.json`.
+- **Touched Files:** `packages/test-support/package.json`, `packages/test-support/src/fixtures.ts`, `packages/test-support/src/prng.ts`, `tests/fixtures.test.ts`, `tests/fixtures/registry.json`, `package-lock.json`, `tests/fixtures/ballistic.json`, `README.md`, `docs/ru/README.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
 - **Interfaces / Contracts:** FixtureManifest {id, sourceSha256, units, validityEnvelope, tolerance}; PRNG algorithm/version.
 - **DoD & Acceptance Criteria:** A known seed produces a frozen sequence; stream IDs are independent; invalid units/hashes fail validation; synthetic fixtures are never labeled experimental measurements.
+- **Evidence:** Owner Codex; baseline c26df78; 2026-10-15. tests/fixtures.test.ts: 4 PASS. Seed 123 / stream 7 matches the frozen mulberry32-mix32-v1 vector; separate states/reset/zero seed and float bounds verified. Both raw-byte fixture hashes, unit/envelope/tolerance rejection, and provenance discrimination pass. Fixtures remain explicitly synthetic.
 
 ### TASK-005 — Runtime capability gate
 
-- **Status:** TODO.
+- **Status:** DONE — Codex; baseline c26df78; 2026-10-15.
 - **Title & Description:** Detect SAB/WebGL2/WebGPU/Gamepad/Serial and expose eligible modes without false READY states.
 - **Dependencies:** TASK-001, TASK-002.
-- **Touched Files:** `apps/web/src/capabilities.ts`, `apps/web/src/App.tsx`, `tests/capabilities.test.ts`, `tests/browser/capabilities.spec.ts`.
+- **Touched Files:** `apps/web/src/capabilities.ts`, `apps/web/src/App.tsx`, `tests/capabilities.test.ts`, `tests/browser/capabilities.spec.ts`, `README.md`, `docs/ru/README.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
 - **Interfaces / Contracts:** CapabilityReport; mode eligibility.
 - **DoD & Acceptance Criteria:** Mocking each missing API produces an explicit disabled state; missing isolation blocks the Worker; WebGPU failure retains WebGL2 fallback.
+- **Evidence:** Owner Codex; baseline c26df78; 2026-10-15. tests/capabilities.test.ts: 7 PASS; tests/browser/capabilities.spec.ts: 7 PASS on system Chromium 154. Missing secure context/isolation/SAB/Worker/WebGL2 blocks Start; missing Gamepad disables USB. Rejected/absent/timed-out GPU probes preserve WebGL2. API presence never enables future HITL/WebGPU modes.
 
 ### TASK-006 — Model manifest schema
 
-- **Status:** TODO.
+- **Status:** DONE — Codex; baseline c26df78; 2026-10-15.
 - **Title & Description:** Validate model/frame/units/hash and configuration version before loading.
 - **Dependencies:** TASK-004.
-- **Touched Files:** `packages/physics/src/model-manifest.ts`, `packages/physics/src/model.schema.json`, `tests/model-manifest.test.ts`, `tests/fixtures/models/demo-quad.json`.
+- **Touched Files:** `packages/physics/src/model-manifest.ts`, `packages/physics/src/model.schema.json`, `tests/model-manifest.test.ts`, `tests/fixtures/models/demo-quad.json`, `packages/physics/package.json`, `package-lock.json`, `tests/fixtures/registry.json`, `README.md`, `docs/ru/README.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
 - **Interfaces / Contracts:** ModelDescriptor, RotorGeometry, session modelId-to-SHA registry; SPD inertia.
 - **DoD & Acceptance Criteria:** Positive/negative fixtures cover NaN, nonpositive mass, non-SPD inertia, duplicate motor IDs, rotorCount>32, and invalid quaternions; verify the hash before swapping.
+- **Evidence:** Owner Codex; baseline c26df78; 2026-10-15. tests/model-manifest.test.ts: 4 PASS. Schema/frame/units/count/NaN, symmetric positive-definite inertia, unique IDs/channels, quaternion and element validation exercised. Raw SHA-256 precedes registry admission; failed hash/schema/collision preserves the existing model. Byte mutation during hashing cannot alter the verified snapshot. Runtime switching remains TASK-010.
 
 ### TASK-084 — Agent rule discovery
 
@@ -173,12 +176,13 @@ copy Google content without rights.
 
 ### TASK-007 — Retain the ABI v1 baseline
 
-- **Status:** DONE — baseline e3bb6b4.
+- **Status:** DONE — Codex; baseline c26df78; 2026-10-15.
 - **Title & Description:** Preserve current reader/writer and lifecycle regressions as the migration baseline.
 - **Dependencies:** TASK-001.
-- **Touched Files:** `packages/protocol/src/index.ts`, `tests/protocol.test.ts`, `tests/browser/simulation.spec.ts`.
+- **Touched Files:** `packages/protocol/src/index.ts`, `tests/protocol.test.ts`, `tests/browser/simulation.spec.ts`, `README.md`, `docs/ru/README.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
 - **Interfaces / Contracts:** V1: 32896 bytes, 128-byte states, 400 Hz.
 - **DoD & Acceptance Criteria:** DONE baseline e3bb6b4: four existing protocol tests cover size/version, float64 roundtrip, ring overwrite, busy frames, and controls; the browser verifies lifecycle.
+- **Evidence:** Owner Codex; baseline c26df78; 2026-10-15. tests/protocol.test.ts: 4 PASS, including pinned 32896-byte size, header/mailbox offsets, and an independently packed 128-byte state golden. All four existing simulation browser tests pass, including real Worker fixed dt, stale input, lifecycle ACKs, USB failsafe, and mobile layout. V1 unchanged; no v2 runtime introduced. Full verification: frozen npm ci, npm run lint, npm run typecheck, npm run check:docs, npm run build exit 0; CI=true npm test: 40 PASS; CI=true CHROMIUM_PATH=/usr/bin/chromium npm run test:browser: 11 PASS; no failures/skips. JUnit: test-results/unit/junit.xml and test-results/browser/junit.xml. Node 24.19.0, Chromium 154.0.8037.57, Debian cloud/software rendering. English/Russian README, architecture and roadmap synchronized. No target-GPU/hardware performance claim.
 
 ### TASK-008 — ABI v2 constants and layout
 

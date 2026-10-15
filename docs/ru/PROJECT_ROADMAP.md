@@ -1,6 +1,6 @@
 # PROJECT_ROADMAP.md
 
-<!-- source-sha256: de76e855e571b925c1e4e22fbf083e01fb21d3ccb4f01593a790392582e0e971 -->
+<!-- source-sha256: 2c1092853648c2de95c37e25cbc358815035170624157544eb18315702d83cf4 -->
 
 Английский источник: [Source of truth](../PROJECT_ROADMAP.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -138,30 +138,33 @@ Google content без прав.
 
 ### TASK-004 — Golden fixtures и seed registry
 
-- **Status:** TODO.
+- **Status:** DONE — Codex; baseline c26df78; 2026-10-15.
 - **Title & Description:** Создать общий формат эталонов с provenance и детерминированным PRNG.
 - **Dependencies:** TASK-002.
-- **Touched Files:** `packages/test-support/package.json`, `packages/test-support/src/fixtures.ts`, `packages/test-support/src/prng.ts`, `tests/fixtures.test.ts`, `tests/fixtures/registry.json`.
+- **Touched Files:** `packages/test-support/package.json`, `packages/test-support/src/fixtures.ts`, `packages/test-support/src/prng.ts`, `tests/fixtures.test.ts`, `tests/fixtures/registry.json`, `package-lock.json`, `tests/fixtures/ballistic.json`, `README.md`, `docs/ru/README.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
 - **Interfaces / Contracts:** FixtureManifest {id, sourceSha256, units, validityEnvelope, tolerance}; PRNG algorithm/version.
 - **DoD & Acceptance Criteria:** Известный seed даёт frozen sequence; разные stream IDs независимы; неверные units/hash отклоняются; ни один synthetic fixture не помечен experimental measurement.
+- **Evidence:** Владелец Codex; baseline c26df78; 2026-10-15. tests/fixtures.test.ts: 4 PASS. Seed 123 / stream 7 совпадает с закреплённым вектором mulberry32-mix32-v1; проверены раздельные состояния/reset/нулевой seed и границы float. Проверены оба hash точных байтов, отклонение неверных units/envelope/tolerance и различение provenance. Fixtures явно синтетические.
 
 ### TASK-005 — Runtime capability gate
 
-- **Status:** TODO.
+- **Status:** DONE — Codex; baseline c26df78; 2026-10-15.
 - **Title & Description:** Определять SAB/WebGL2/WebGPU/Gamepad/Serial и выдавать доступные режимы без ложного READY.
 - **Dependencies:** TASK-001, TASK-002.
-- **Touched Files:** `apps/web/src/capabilities.ts`, `apps/web/src/App.tsx`, `tests/capabilities.test.ts`, `tests/browser/capabilities.spec.ts`.
+- **Touched Files:** `apps/web/src/capabilities.ts`, `apps/web/src/App.tsx`, `tests/capabilities.test.ts`, `tests/browser/capabilities.spec.ts`, `README.md`, `docs/ru/README.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
 - **Interfaces / Contracts:** CapabilityReport; mode eligibility.
 - **DoD & Acceptance Criteria:** Mock каждого отсутствующего API даёт понятный disabled state; отсутствие isolation блокирует worker; WebGPU failure сохраняет WebGL2 fallback.
+- **Evidence:** Владелец Codex; baseline c26df78; 2026-10-15. tests/capabilities.test.ts: 7 PASS; tests/browser/capabilities.spec.ts: 7 PASS на системном Chromium 154. Без secure context/isolation/SAB/Worker/WebGL2 Start отключён; без Gamepad отключён USB. Rejected/absent/timed-out GPU probes сохраняют WebGL2. Наличие API не включает будущие HITL/WebGPU modes.
 
 ### TASK-006 — Model manifest schema
 
-- **Status:** TODO.
+- **Status:** DONE — Codex; baseline c26df78; 2026-10-15.
 - **Title & Description:** Валидировать модели/рама/единицы/hash и версию конфигурации до загрузки.
 - **Dependencies:** TASK-004.
-- **Touched Files:** `packages/physics/src/model-manifest.ts`, `packages/physics/src/model.schema.json`, `tests/model-manifest.test.ts`, `tests/fixtures/models/demo-quad.json`.
+- **Touched Files:** `packages/physics/src/model-manifest.ts`, `packages/physics/src/model.schema.json`, `tests/model-manifest.test.ts`, `tests/fixtures/models/demo-quad.json`, `packages/physics/package.json`, `package-lock.json`, `tests/fixtures/registry.json`, `README.md`, `docs/ru/README.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
 - **Interfaces / Contracts:** ModelDescriptor, RotorGeometry, registry modelId→SHA; SPD inertia.
 - **DoD & Acceptance Criteria:** Positive/negative fixtures: NaN, масса<=0, не-SPD inertia, duplicate motor IDs, rotorCount>32 и invalid quaternion отвергаются; hash проверяется до swap.
+- **Evidence:** Владелец Codex; baseline c26df78; 2026-10-15. tests/model-manifest.test.ts: 4 PASS. Проверены schema/frame/units/count/NaN, симметричная положительно определённая inertia, уникальность IDs/channels, quaternion и элементы. Raw SHA-256 проверяется до допуска в реестр; ошибки hash/schema/collision сохраняют существующую модель. Изменение bytes во время hashing не меняет проверенный снимок. Переключение runtime остаётся TASK-010.
 
 ### TASK-084 — Обнаружение правил агентами
 
@@ -176,12 +179,13 @@ Google content без прав.
 
 ### TASK-007 — Закрепить ABI v1 baseline
 
-- **Status:** DONE — baseline e3bb6b4.
+- **Status:** DONE — Codex; baseline c26df78; 2026-10-15.
 - **Title & Description:** Сохранить существующие reader/writer и lifecycle regression как исходную точку миграции.
 - **Dependencies:** TASK-001.
-- **Touched Files:** `packages/protocol/src/index.ts`, `tests/protocol.test.ts`, `tests/browser/simulation.spec.ts`.
+- **Touched Files:** `packages/protocol/src/index.ts`, `tests/protocol.test.ts`, `tests/browser/simulation.spec.ts`, `README.md`, `docs/ru/README.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
 - **Interfaces / Contracts:** v1: 32896 bytes, 128-byte states, 400 Hz.
 - **DoD & Acceptance Criteria:** DONE baseline e3bb6b4: существующие 4 protocol tests проверяют size/version, float64 roundtrip, ring overwrite, busy frame и controls; lifecycle проверен браузером.
+- **Evidence:** Владелец Codex; baseline c26df78; 2026-10-15. tests/protocol.test.ts: 4 PASS, включая закреплённый размер 32896 байт, смещения header/mailbox и независимо упакованный golden состояния 128 байт. Все четыре прежних simulation browser tests пройдены: настоящий Worker fixed dt, устаревший ввод, lifecycle ACKs, USB failsafe и mobile layout. V1 сохранён; runtime v2 не добавлен. Полная проверка: frozen npm ci, npm run lint, npm run typecheck, npm run check:docs, npm run build exit 0; CI=true npm test: 40 PASS; CI=true CHROMIUM_PATH=/usr/bin/chromium npm run test:browser: 11 PASS; без failures/skips. JUnit: test-results/unit/junit.xml и test-results/browser/junit.xml. Node 24.19.0, Chromium 154.0.8037.57, Debian cloud/software rendering. README, architecture и roadmap синхронизированы EN/RU. Производительность целевых GPU/оборудования не заявляется.
 
 ### TASK-008 — Константы и layout ABI v2
 

@@ -22,6 +22,16 @@ JSBSim/BET WASM, ArduPilot SITL/HITL, EW, photorealistic terrain, FPV/thermal
 effects, and AAR are planned. The current aerodynamics are simplified and
 have not been validated for pilot training.
 
+The Phase 0 foundation adds deterministic seeded streams, SHA-256-verified
+synthetic fixture manifests, and strict model/frame/inertia/rotor validation.
+Models are admitted to an immutable session registry; runtime model switching
+remains a later task. See the architecture guide for the serialized contracts.
+
+Startup checks secure context, isolation, SharedArrayBuffer, Worker, and WebGL2.
+Missing requirements disable Start with an explanation; missing Gamepad disables
+USB input. Failed WebGPU probing preserves WebGL2. Serial API availability is
+reported separately: HITL and WebGPU rendering are not implemented.
+
 ## Quickstart
 
 Use Node.js **22.13+** or **24 LTS** (`.nvmrc` selects 24), npm 10+, and a
@@ -75,6 +85,7 @@ apps/web/             React UI, R3F view, Worker, runtime coordination
 packages/protocol/    ABI v1 and atomic readers/writers
 packages/physics/     Demo dynamics and bounded scheduler
 packages/input/       Gamepad adapter and calibration
+packages/test-support/ Fixture integrity/provenance and deterministic PRNG
 tests/                Unit and real-browser functional checks
 docs/                 English specifications, roadmap, architecture
 docs/ru/              Russian mirrors of system documentation
