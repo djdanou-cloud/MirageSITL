@@ -261,7 +261,14 @@ error cannot pass. TASK-008 adds the v2 layout constants, state and pilot
 codecs, header initialization, validation, and v1/v2 negotiation to
 packages/protocol. They are verified against `tests/fixtures/protocol/state-v2.hex`,
 golden records packed with Python struct from the specification tables
-independently of the TypeScript encoder. The running application remains on v1.
+independently of the TypeScript encoder. TASK-009 adds the section 4 bounded
+seqlock transport: StateWriterV2/StateReaderV2 with sample_id and head checks
+and at most three read attempts, PilotWriterV2/PilotReaderV2, header
+diagnostics, and epoch-safe render history (latestPair never pairs frames
+across an epoch, model, or tick gap). A real-thread stress test publishes
+1e6 frames in Node worker_threads and in a browser module Worker while the
+reader checks every field; removing the seqlock re-check makes it report torn
+frames. The running application remains on v1 until TASK-085.
 
 ### Verified fixture manifests and deterministic streams
 

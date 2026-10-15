@@ -1,6 +1,6 @@
 # PROJECT_ROADMAP.md
 
-<!-- source-sha256: e854e2e3bfc93f3dbf7878d90cdebcddc3f30c15b1491cbe8fafb450141cfb55 -->
+<!-- source-sha256: 1152d64f29ba7cd0623b79d47069c3612ee1b65bdddba5abf6c3ce2a9603eddb -->
 
 Английский источник: [Source of truth](../PROJECT_ROADMAP.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -86,7 +86,7 @@ CPU cache; фактическую доступность GPU memory считат
 | Phase | Sprint batches | Exit |
 | --- | --- | --- |
 | 0 Skeleton | S00a: 001,002,084; S00b: 003,004,005,006 | reproducible workspace, lint/CI/config gates |
-| 1 Shared Memory & Worker | S01a: 007,008,009; S01b: 010,011,012; S01c: 013,014,015 | ABI v2, clocks, transport and profiling |
+| 1 Shared Memory & Worker | S01a: 007,008,009; S01b: 010,011,012; S01c: 013,014,015,085 | ABI v2, clocks, transport and profiling |
 | 2 Aerodynamics & WASM | S02a: 016,017,018; S02b: 019,032,020; S02c: 021,022,023; S02d: 024,025,026; S02e: 027,028,029; S02f: 030,031,033 | BET/JSBSim backend and declared validity |
 | 3 ArduPilot & Radio Link | S03a: 034,035,036,037; S03b: 038,039,040,041; S03c: 042,043; S03d: 044,045,046,047; S03e: 048,049,050,051 | per-mode SITL/WASM/HITL evidence |
 | 4 EW & Sensor Faults | S04a: 052,053,054; S04b: 055,056,057; S04c: 058,059 | deterministic sensor faults + pinned EKF scenarios |
@@ -200,12 +200,13 @@ Google content без прав.
 
 ### TASK-009 — Атомарные v2 reader/writer
 
-- **Status:** TODO.
+- **Status:** DONE — Claude; baseline 0cc6d4c; 2026-10-15.
 - **Title & Description:** Реализовать bounded seqlock, публикацию sample_id и epoch-safe render history.
 - **Dependencies:** TASK-008.
-- **Touched Files:** `packages/protocol/src/atomic-v2.ts`, `packages/protocol/src/index.ts`, `apps/web/src/runtime.ts`, `apps/web/src/physics.worker.ts`, `tests/atomic-v2.test.ts`, `tests/browser/atomic-v2.spec.ts`.
+- **Touched Files:** `packages/protocol/src/atomic-v2.ts`, `packages/protocol/src/index.ts`, `tests/atomic-v2.test.ts`, `tests/browser/atomic-v2.spec.ts`, `tests/support/atomic-v2-stress.ts`, `tests/support/atomic-v2-stress.node-worker.ts`, `tests/support/atomic-v2-stress.browser-worker.ts`, `tests/tooling.test.ts`, `README.md`, `docs/ru/README.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `docs/SPECS_SHARED_MEMORY.md`, `docs/ru/SPECS_SHARED_MEMORY.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
 - **Interfaces / Contracts:** StateWriterV2/StateReaderV2; single writer; max 3 read attempts.
 - **DoD & Acceptance Criteria:** 1e6 concurrent publications без torn fields; interrupted writer возвращает miss без изменения output; counters/epochs/reset проверены; v1 tests сохранены до явного удаления compatibility.
+- **Evidence:** Владелец Claude; baseline 0cc6d4c; 2026-10-15. tests/atomic-v2.test.ts: 9 PASS: golden state публикуется как seqlock 2 плюс golden bytes с sample_id=published; состояния, нарушающие контракт, отклоняются без изменения общей памяти; переход ring и чтение по age; кадр, прерванный посреди записи, и несовпадение sample_id/head дают miss без изменения выхода; счётчики, runtime flags, epoch и частота; latestPair не связывает кадры через смену epoch, модели или пропуск tick, но связывает через перенос 32-битного tick; pilot mailbox round trip и miss при занятом mailbox; буферы v1 отклоняются. Конкурентность: 1e6 публикаций из writer в Node worker_threads при reader, чередующем новейший и старейший (перезаписываемый) слоты: 272286 успешных чтений, 0 разорванных, 0 NaN, 0 регрессий; tests/browser/atomic-v2.spec.ts в module Worker Chromium: 611561 чтение, 0 разорванных. Мутационные проверки: удаление повторной проверки seqlock дало разорванные кадры (3647 в браузере) и провалило оба стресс-теста; удаление проверки sample_id провалило детерминированный тест несовпадения head. tests/tooling.test.ts: случай typed lint получил явный timeout 30 s, поскольку стресс-тест вывел его за 5 s по умолчанию (измерено 5.1-6.1 s). npm run lint, npm run typecheck, npm run check:docs exit 0; CI=true npm test: 67 PASS в трёх подряд прогонах; CI=true npm run test:browser: 12 PASS (Playwright Chromium build 1194). Node 22.22.0. apps/web/src/runtime.ts и physics.worker.ts не переведены: WorkerInitV2 требует sensor/actuator buffers из TASK-013, поэтому миграция вынесена в новую TASK-085 вместо заглушки. Тесты v1 сохранены.
 
 ### TASK-010 — Control Protocol v2
 
@@ -260,6 +261,15 @@ Google content без прав.
 - **Touched Files:** `apps/web/src/FlightScene.tsx`, `apps/web/src/coordinates.ts`, `packages/protocol/src/interpolation.ts`, `tests/interpolation.test.ts`.
 - **Interfaces / Contracts:** Adjacent tick + same epoch/model, shortest-path quaternion SLERP.
 - **DoD & Acceptance Criteria:** q и -q не дают полный оборот; NED basis tests проходят; reset/teleport разрывает history; renderer не ждёт writer и не изменяет truth.
+
+### TASK-085 — Перевод Worker и Main на ABI v2
+
+- **Status:** TODO.
+- **Title & Description:** Перевести работающее приложение с ABI v1 и postMessage-протокола v1 на state ring v2, pilot mailbox, WorkerInitV2 и Control Protocol v2. Выделено из TASK-009/010, поскольку WorkerInitV2 требует sensor/actuator buffers из TASK-013.
+- **Dependencies:** TASK-009, TASK-010, TASK-013.
+- **Touched Files:** `apps/web/src/runtime.ts`, `apps/web/src/physics.worker.ts`, `apps/web/src/App.tsx`, `tests/browser/simulation.spec.ts`, `tests/browser/runtime-v2.spec.ts`.
+- **Interfaces / Contracts:** WorkerInitV2; StateWriterV2/StateReaderV2; PilotWriterV2/PilotReaderV2; ControlProcessorV2; SPECS_SHARED_MEMORY sections 3–6.
+- **DoD & Acceptance Criteria:** Browser tests жизненного цикла, устаревшего ввода, USB failsafe и fixed dt проходят на v2; устаревший epoch или изменённый device_generation снимает arm; рендер никогда не интерполирует через смену epoch; совместимость с v1 удаляется только по зафиксированному решению.
 
 ## Phase 2: Aerodynamics & WASM
 

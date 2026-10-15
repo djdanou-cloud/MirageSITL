@@ -1,6 +1,6 @@
 # Архитектура MirageSITL
 
-<!-- source-sha256: d83a7eff2456ad29764caaf55b0c85d73104e82bc25f8b53ee241d9099c4ea32 -->
+<!-- source-sha256: 3a6545d3250f1237c0419be3d6646f0185442cc965fb2203a79833864488ec60 -->
 
 Английский источник: [Source of truth](../architecture.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -261,7 +261,15 @@ encoder/decoder не может пройти проверку. TASK-008 доба
 константы layout v2, codecs state и pilot, инициализацию header, проверку и
 согласование v1/v2. Они сверяются с `tests/fixtures/protocol/state-v2.hex` —
 golden records, упакованными Python struct по таблицам спецификации независимо
-от TypeScript encoder. Работающее приложение остаётся на v1.
+от TypeScript encoder. TASK-009 добавляет ограниченный seqlock-транспорт
+раздела 4: StateWriterV2/StateReaderV2 с проверками sample_id и head и не
+более чем тремя попытками чтения, PilotWriterV2/PilotReaderV2, диагностику
+header и безопасную по epoch историю рендера (latestPair никогда не связывает
+кадры через смену epoch, модели или пропуск tick). Стресс-тест на реальных
+потоках публикует 1e6 кадров в Node worker_threads и в browser module Worker,
+пока reader проверяет каждое поле; удаление повторной проверки seqlock
+приводит к обнаружению разорванных кадров. Работающее приложение остаётся на
+v1 до TASK-085.
 
 ### Проверенные манифесты fixtures и детерминированные потоки
 

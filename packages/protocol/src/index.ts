@@ -3,6 +3,7 @@ import { ABI_VERSION_V2, validateSharedMemoryV2 } from './layout-v2.ts';
 export * from './layout-v2.ts';
 export * from './state-v2.ts';
 export * from './pilot-v2.ts';
+export * from './atomic-v2.ts';
 
 export const ABI_VERSION = 1;
 export const PHYSICS_HZ = 400;

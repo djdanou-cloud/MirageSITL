@@ -22,7 +22,9 @@ describe('strict tooling gates', () => {
       expect(rules).toContain(`@typescript-eslint/${name}`);
     }
     expect(results.some(result => result.fatalErrorCount > 0)).toBe(false);
-  });
+  // Typed linting builds a full TypeScript program (4-5 s alone; slower beside the ABI v2
+  // concurrency stress test), so this case needs more than vitest's 5 s default.
+  }, 30_000);
   it('retains strict compiler settings and diagnoses incompatible assignments', () => {
     const config = ts.readConfigFile(join(root, 'tsconfig.json'), filename => ts.sys.readFile(filename));
     const parsed = ts.parseJsonConfigFileContent(config.config, ts.sys, root);

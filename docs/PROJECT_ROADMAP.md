@@ -84,7 +84,7 @@ Retain the minimal existing UI until Phase 6.
 | Phase | Sprint batches | Exit |
 | --- | --- | --- |
 | 0 Skeleton | S00a: 001,002,084; S00b: 003,004,005,006 | Reproducible workspace, lint/CI/config gates |
-| 1 Shared Memory & Worker | S01a: 007,008,009; S01b: 010,011,012; S01c: 013,014,015 | ABI v2, clocks, transport, profiling |
+| 1 Shared Memory & Worker | S01a: 007,008,009; S01b: 010,011,012; S01c: 013,014,015,085 | ABI v2, clocks, transport, profiling |
 | 2 Aerodynamics & WASM | S02a: 016,017,018; S02b: 019,032,020; S02c: 021,022,023; S02d: 024,025,026; S02e: 027,028,029; S02f: 030,031,033 | BET/JSBSim backends with declared validity |
 | 3 ArduPilot & Radio Link | S03a: 034,035,036,037; S03b: 038,039,040,041; S03c: 042,043; S03d: 044,045,046,047; S03e: 048,049,050,051 | Per-mode SITL/WASM/HITL evidence |
 | 4 EW & Sensor Faults | S04a: 052,053,054; S04b: 055,056,057; S04c: 058,059 | Deterministic faults and pinned EKF scenarios |
@@ -197,12 +197,13 @@ copy Google content without rights.
 
 ### TASK-009 — Atomic v2 readers and writers
 
-- **Status:** TODO.
+- **Status:** DONE — Claude; baseline 0cc6d4c; 2026-10-15.
 - **Title & Description:** Implement bounded seqlock, sample_id publication, and epoch-safe render history.
 - **Dependencies:** TASK-008.
-- **Touched Files:** `packages/protocol/src/atomic-v2.ts`, `packages/protocol/src/index.ts`, `apps/web/src/runtime.ts`, `apps/web/src/physics.worker.ts`, `tests/atomic-v2.test.ts`, `tests/browser/atomic-v2.spec.ts`.
+- **Touched Files:** `packages/protocol/src/atomic-v2.ts`, `packages/protocol/src/index.ts`, `tests/atomic-v2.test.ts`, `tests/browser/atomic-v2.spec.ts`, `tests/support/atomic-v2-stress.ts`, `tests/support/atomic-v2-stress.node-worker.ts`, `tests/support/atomic-v2-stress.browser-worker.ts`, `tests/tooling.test.ts`, `README.md`, `docs/ru/README.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `docs/SPECS_SHARED_MEMORY.md`, `docs/ru/SPECS_SHARED_MEMORY.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
 - **Interfaces / Contracts:** StateWriterV2/StateReaderV2; single writer; at most three read attempts.
 - **DoD & Acceptance Criteria:** 1e6 concurrent publications produce no torn fields; an interrupted writer yields miss without mutating output; test counters/epochs/reset; retain v1 tests until compatibility removal is explicit.
+- **Evidence:** Owner Claude; baseline 0cc6d4c; 2026-10-15. tests/atomic-v2.test.ts: 9 PASS: golden state published as seqlock 2 plus golden bytes with sample_id=published; contract-violating states rejected without touching shared memory; ring wrap and age reads; a frame interrupted mid-write and a sample_id/head mismatch both miss without mutating output; counters, runtime flags, epoch, and rate; latestPair never pairs across epoch, model, or tick gaps but pairs across the 32-bit tick carry; pilot mailbox round trip and busy miss; v1 buffers refused. Concurrency: 1e6 publications from a Node worker_threads writer with a reader alternating newest and oldest (being-overwritten) slots: 272286 successful reads, 0 torn, 0 NaN, 0 regressions; tests/browser/atomic-v2.spec.ts in a Chromium module Worker: 611561 reads, 0 torn. Mutation checks: removing the seqlock re-check produced torn frames (3647 in the browser) and failed both stress tests; removing the sample_id check failed the deterministic head-mismatch test. tests/tooling.test.ts: the typed-lint case now has an explicit 30 s timeout because the stress test pushed it past the 5 s default (5.1-6.1 s measured). npm run lint, npm run typecheck, npm run check:docs exit 0; CI=true npm test: 67 PASS three consecutive runs; CI=true npm run test:browser: 12 PASS (Playwright Chromium build 1194). Node 22.22.0. apps/web/src/runtime.ts and physics.worker.ts are not migrated: WorkerInitV2 needs the TASK-013 sensor/actuator buffers, so the migration moved to new TASK-085 instead of a scaffold. v1 tests retained.
 
 ### TASK-010 — Control Protocol v2
 
@@ -257,6 +258,15 @@ copy Google content without rights.
 - **Touched Files:** `apps/web/src/FlightScene.tsx`, `apps/web/src/coordinates.ts`, `packages/protocol/src/interpolation.ts`, `tests/interpolation.test.ts`.
 - **Interfaces / Contracts:** Adjacent ticks in the same epoch/model; shortest-path quaternion SLERP.
 - **DoD & Acceptance Criteria:** q and -q do not cause a full rotation; NED basis tests pass; reset/teleport breaks history; rendering never waits for the writer or mutates truth.
+
+### TASK-085 — Migrate Worker and Main to ABI v2
+
+- **Status:** TODO.
+- **Title & Description:** Switch the running application from ABI v1 and the v1 postMessage protocol to the v2 state ring, pilot mailbox, WorkerInitV2, and Control Protocol v2. Split out of TASK-009/010 because WorkerInitV2 requires the TASK-013 sensor/actuator buffers.
+- **Dependencies:** TASK-009, TASK-010, TASK-013.
+- **Touched Files:** `apps/web/src/runtime.ts`, `apps/web/src/physics.worker.ts`, `apps/web/src/App.tsx`, `tests/browser/simulation.spec.ts`, `tests/browser/runtime-v2.spec.ts`.
+- **Interfaces / Contracts:** WorkerInitV2; StateWriterV2/StateReaderV2; PilotWriterV2/PilotReaderV2; ControlProcessorV2; SPECS_SHARED_MEMORY sections 3–6.
+- **DoD & Acceptance Criteria:** Lifecycle, stale-input, USB-failsafe, and fixed-dt browser tests pass on v2; a stale epoch or changed device_generation disarms; rendering never interpolates across epochs; v1 compatibility is removed only by a recorded decision.
 
 ## Phase 2: Aerodynamics & WASM
 
