@@ -207,12 +207,13 @@ copy Google content without rights.
 
 ### TASK-010 — Control Protocol v2
 
-- **Status:** TODO.
+- **Status:** DONE — Claude; baseline 3b1711b; 2026-10-15.
 - **Title & Description:** Validate lifecycle, weather, model, and fault commands with deterministic acknowledgements.
 - **Dependencies:** TASK-008, TASK-009.
-- **Touched Files:** `packages/protocol/src/control-v2.ts`, `packages/protocol/src/control-v2.schema.json`, `apps/web/src/physics.worker.ts`, `tests/control-v2.test.ts`.
+- **Touched Files:** `packages/protocol/src/control-v2.ts`, `packages/protocol/src/control-v2.schema.json`, `tests/control-v2.test.ts`, `packages/protocol/src/index.ts`, `package.json`, `package-lock.json`, `README.md`, `docs/ru/README.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `docs/SPECS_SHARED_MEMORY.md`, `docs/ru/SPECS_SHARED_MEMORY.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
 - **Interfaces / Contracts:** SPECS_SHARED_MEMORY section 6; unknown to ControlCommandV2; queued/applied/reject.
 - **DoD & Acceptance Criteria:** Every branch has positive/negative fixtures; stale epoch, duplicate IDs, past ticks, and queue 128+1 are handled as specified; a failed model swap retains the previous paused model.
+- **Evidence:** Owner Claude; baseline 3b1711b; 2026-10-15. tests/control-v2.test.ts: 72 PASS. 60 validation fixtures cover every command and effect branch (positive and negative: shape, additional/missing properties, NaN/Infinity/undefined, non-integers, enums, patterns, u32 bounds, every numeric envelope, drift norm, 16 KiB limit); the JSON Schema (Ajv 8.18.0, Ajv2020 strict) agrees with the TypeScript validator on all 55 JSON-representable cases except the documented drift-norm rule; the specification's JSON example is accepted. Processor: lifecycle ACKs and paused+disarmed rules, STALE_EPOCH, exact-duplicate replay without reapplication across an epoch change, different-payload reuse, high-water eviction after 128 IDs, malformed commands consuming no ID, past-tick and 10 s horizon rejection, application before the tick in receipt order with queued then applied ACKs, queue 128+1 OVERLOAD keeping older commands, cancellation on reset/dispose, failed model swap (ASSET_MISSING, previous model and epoch retained, paused) versus successful swap (new epoch), and no commit after dispose. Mutation checks: removing the queue limit, applying one tick late, and committing on a failed load each fail. Ajv is a dev dependency only (tests); frozen npm ci reproduces the lockfile. npm run lint, npm run typecheck, npm run check:docs, npm run build exit 0; CI=true npm test: 139 PASS. Node 22.22.0. apps/web/src/physics.worker.ts is not wired (TASK-085). Late/out-of-order ACK handling on Main belongs with TASK-085; allocation measurement of beforeTick belongs to TASK-014.
 
 ### TASK-011 — 400/800/1200 Hz clocks
 

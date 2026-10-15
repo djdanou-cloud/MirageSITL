@@ -1,6 +1,6 @@
 # PROJECT_ROADMAP.md
 
-<!-- source-sha256: 1152d64f29ba7cd0623b79d47069c3612ee1b65bdddba5abf6c3ce2a9603eddb -->
+<!-- source-sha256: 48015cd28a927ae6ae6e458f1a27e8b6516adc73642ca1febdcfe7de78161abe -->
 
 Английский источник: [Source of truth](../PROJECT_ROADMAP.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -210,12 +210,13 @@ Google content без прав.
 
 ### TASK-010 — Control Protocol v2
 
-- **Status:** TODO.
+- **Status:** DONE — Claude; baseline 3b1711b; 2026-10-15.
 - **Title & Description:** Валидировать lifecycle, weather, model и fault commands и детерминированные ACK.
 - **Dependencies:** TASK-008, TASK-009.
-- **Touched Files:** `packages/protocol/src/control-v2.ts`, `packages/protocol/src/control-v2.schema.json`, `apps/web/src/physics.worker.ts`, `tests/control-v2.test.ts`.
+- **Touched Files:** `packages/protocol/src/control-v2.ts`, `packages/protocol/src/control-v2.schema.json`, `tests/control-v2.test.ts`, `packages/protocol/src/index.ts`, `package.json`, `package-lock.json`, `README.md`, `docs/ru/README.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `docs/SPECS_SHARED_MEMORY.md`, `docs/ru/SPECS_SHARED_MEMORY.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
 - **Interfaces / Contracts:** SPECS_SHARED_MEMORY §6; unknown→ControlCommandV2; queued/applied/reject.
 - **DoD & Acceptance Criteria:** Каждая ветвь имеет positive/negative fixture; stale epoch, duplicate ID, past tick и очередь 128+1 отклоняются; failed model swap сохраняет прежнюю paused модель.
+- **Evidence:** Владелец Claude; baseline 3b1711b; 2026-10-15. tests/control-v2.test.ts: 72 PASS. 60 fixture проверки покрывают каждую ветвь команд и эффектов (положительные и отрицательные: форма, лишние/отсутствующие свойства, NaN/Infinity/undefined, нецелые числа, enums, patterns, границы u32, каждый числовой диапазон, норма дрейфа, лимит 16 KiB); JSON Schema (Ajv 8.18.0, Ajv2020 strict) совпадает с валидатором TypeScript во всех 55 случаях, представимых в JSON, кроме задокументированного правила нормы дрейфа; JSON-пример из спецификации принимается. Обработчик: ACK lifecycle-команд и правила paused+disarmed, STALE_EPOCH, повтор точного дубликата без повторного применения после смены epoch, повторное использование ID с другим payload, вытеснение high-water после 128 ID, некорректные команды не расходуют ID, отклонение прошедшего tick и горизонта 10 s, применение перед tick в порядке получения с ACK queued, затем applied, очередь 128+1 с OVERLOAD при сохранении старых команд, отмена при reset/dispose, неудачная смена модели (ASSET_MISSING, прежние модель и epoch сохранены, пауза) против успешной (новая epoch), отсутствие commit после dispose. Мутационные проверки: удаление лимита очереди, применение на tick позже и commit при неудачной загрузке проваливают тесты. Ajv — только dev-зависимость (тесты); frozen npm ci воспроизводит lockfile. npm run lint, npm run typecheck, npm run check:docs, npm run build exit 0; CI=true npm test: 139 PASS. Node 22.22.0. apps/web/src/physics.worker.ts не подключён (TASK-085). Обработка поздних/неупорядоченных ACK на Main относится к TASK-085; измерение аллокаций beforeTick — к TASK-014.
 
 ### TASK-011 — Частоты 400/800/1200
 

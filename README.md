@@ -17,7 +17,8 @@ throttle, arm/disarm, pause/reset, input failsafe, and scheduler drop counters.
 
 The current binary ABI is **v1**. Specifications define a separate **target v2**
 with EKF/EW status, session epochs, and sensor/actuator queues. The v2 layout, codecs,
-and atomic transport exist (TASK-008/009), but the running application still uses v1.
+atomic transport, and Control Protocol v2 processor exist (TASK-008/009/010), but the
+running application still uses v1 until TASK-085.
 
 JSBSim/BET WASM, ArduPilot SITL/HITL, EW, photorealistic terrain, FPV/thermal
 effects, and AAR are planned. The current aerodynamics are simplified and

@@ -268,7 +268,13 @@ diagnostics, and epoch-safe render history (latestPair never pairs frames
 across an epoch, model, or tick gap). A real-thread stress test publishes
 1e6 frames in Node worker_threads and in a browser module Worker while the
 reader checks every field; removing the seqlock re-check makes it report torn
-frames. The running application remains on v1 until TASK-085.
+frames. TASK-010 adds Control Protocol v2: `parseControlCommandV2` validates
+untrusted commands into normalized copies, `control-v2.schema.json` is the
+equivalent JSON Schema 2020-12 contract (an Ajv equivalence test covers more
+than 50 cases), and `ControlProcessorV2` implements deduplication, epochs, the
+128-command schedule applied before integrating each tick, lifecycle state
+rules, and atomic model swaps behind a `ControlTargetV2` interface with a
+preallocated outbox. The running application remains on v1 until TASK-085.
 
 ### Verified fixture manifests and deterministic streams
 

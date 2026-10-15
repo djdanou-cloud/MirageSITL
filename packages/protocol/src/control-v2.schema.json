@@ -1,0 +1,468 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mirage-sitl.invalid/schemas/control-v2.schema.json",
+  "title": "MirageSITL Worker Control Protocol v2 command",
+  "description": "Equivalent to parseControlCommandV2 in control-v2.ts except for rules JSON Schema cannot express: the 16 KiB serialized payload limit, the velocity-drift acceleration norm <= 0.3, and runtime checks (epoch, deduplication, tick horizon, rotor count).",
+  "$defs": {
+    "uint32": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 4294967295
+    },
+    "tickId": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "lo",
+        "hi"
+      ],
+      "properties": {
+        "lo": {
+          "$ref": "#/$defs/uint32"
+        },
+        "hi": {
+          "$ref": "#/$defs/uint32"
+        }
+      }
+    },
+    "effect": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "severity"
+          ],
+          "properties": {
+            "kind": {
+              "const": "gnss-jamming"
+            },
+            "severity": {
+              "type": "number",
+              "maximum": 1,
+              "minimum": 0
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "offsetNedM"
+          ],
+          "properties": {
+            "kind": {
+              "const": "position-step"
+            },
+            "offsetNedM": {
+              "type": "array",
+              "prefixItems": [
+                {
+                  "type": "number",
+                  "maximum": 10000,
+                  "minimum": -10000
+                },
+                {
+                  "type": "number",
+                  "maximum": 10000,
+                  "minimum": -10000
+                },
+                {
+                  "type": "number",
+                  "maximum": 10000,
+                  "minimum": -10000
+                }
+              ],
+              "items": false,
+              "minItems": 3
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "accelerationNedMps2",
+            "maxSpeedMps"
+          ],
+          "properties": {
+            "kind": {
+              "const": "velocity-drift"
+            },
+            "accelerationNedMps2": {
+              "type": "array",
+              "prefixItems": [
+                {
+                  "type": "number",
+                  "maximum": 0.3,
+                  "minimum": -0.3
+                },
+                {
+                  "type": "number",
+                  "maximum": 0.3,
+                  "minimum": -0.3
+                },
+                {
+                  "type": "number",
+                  "maximum": 0.3,
+                  "minimum": -0.3
+                }
+              ],
+              "items": false,
+              "minItems": 3
+            },
+            "maxSpeedMps": {
+              "type": "number",
+              "maximum": 20,
+              "exclusiveMinimum": 0
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "rotationRad",
+            "biasBodyGauss"
+          ],
+          "properties": {
+            "kind": {
+              "const": "magnetic"
+            },
+            "rotationRad": {
+              "type": "array",
+              "prefixItems": [
+                {
+                  "type": "number",
+                  "maximum": 3.141592653589793,
+                  "minimum": -3.141592653589793
+                },
+                {
+                  "type": "number",
+                  "maximum": 3.141592653589793,
+                  "minimum": -3.141592653589793
+                },
+                {
+                  "type": "number",
+                  "maximum": 3.141592653589793,
+                  "minimum": -3.141592653589793
+                }
+              ],
+              "items": false,
+              "minItems": 3
+            },
+            "biasBodyGauss": {
+              "type": "array",
+              "prefixItems": [
+                {
+                  "type": "number",
+                  "maximum": 2,
+                  "minimum": -2
+                },
+                {
+                  "type": "number",
+                  "maximum": 2,
+                  "minimum": -2
+                },
+                {
+                  "type": "number",
+                  "maximum": 2,
+                  "minimum": -2
+                }
+              ],
+              "items": false,
+              "minItems": 3
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "motorIndex",
+            "mode",
+            "remainingThrustFraction"
+          ],
+          "properties": {
+            "kind": {
+              "const": "motor-loss"
+            },
+            "motorIndex": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 31
+            },
+            "mode": {
+              "enum": [
+                "power-cut",
+                "instant-thrust-loss"
+              ]
+            },
+            "remainingThrustFraction": {
+              "type": "number",
+              "maximum": 1,
+              "minimum": 0
+            }
+          }
+        }
+      ]
+    }
+  },
+  "oneOf": [
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "protocolVersion",
+        "requestId",
+        "expectedEpoch",
+        "atTick",
+        "type",
+        "windNedMps",
+        "temperatureK",
+        "pressurePa",
+        "turbulenceRmsMps",
+        "seed"
+      ],
+      "properties": {
+        "protocolVersion": {
+          "const": 2
+        },
+        "requestId": {
+          "$ref": "#/$defs/uint32"
+        },
+        "expectedEpoch": {
+          "$ref": "#/$defs/uint32"
+        },
+        "atTick": {
+          "$ref": "#/$defs/tickId"
+        },
+        "type": {
+          "const": "weather.set"
+        },
+        "windNedMps": {
+          "type": "array",
+          "prefixItems": [
+            {
+              "type": "number",
+              "maximum": 100,
+              "minimum": -100
+            },
+            {
+              "type": "number",
+              "maximum": 100,
+              "minimum": -100
+            },
+            {
+              "type": "number",
+              "maximum": 100,
+              "minimum": -100
+            }
+          ],
+          "items": false,
+          "minItems": 3
+        },
+        "temperatureK": {
+          "type": "number",
+          "maximum": 340,
+          "minimum": 200
+        },
+        "pressurePa": {
+          "type": "number",
+          "maximum": 110000,
+          "minimum": 30000
+        },
+        "turbulenceRmsMps": {
+          "type": "number",
+          "maximum": 30,
+          "minimum": 0
+        },
+        "seed": {
+          "$ref": "#/$defs/uint32"
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "protocolVersion",
+        "requestId",
+        "expectedEpoch",
+        "atTick",
+        "type",
+        "faultId",
+        "enabled",
+        "effect",
+        "recovery"
+      ],
+      "properties": {
+        "protocolVersion": {
+          "const": 2
+        },
+        "requestId": {
+          "$ref": "#/$defs/uint32"
+        },
+        "expectedEpoch": {
+          "$ref": "#/$defs/uint32"
+        },
+        "atTick": {
+          "$ref": "#/$defs/tickId"
+        },
+        "type": {
+          "const": "fault.set"
+        },
+        "faultId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,64}$"
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "effect": {
+          "$ref": "#/$defs/effect"
+        },
+        "recovery": {
+          "enum": [
+            "hold-offset",
+            "step-to-truth"
+          ]
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "protocolVersion",
+        "requestId",
+        "expectedEpoch",
+        "type"
+      ],
+      "properties": {
+        "protocolVersion": {
+          "const": 2
+        },
+        "requestId": {
+          "$ref": "#/$defs/uint32"
+        },
+        "expectedEpoch": {
+          "$ref": "#/$defs/uint32"
+        },
+        "type": {
+          "enum": [
+            "sim.start",
+            "sim.pause",
+            "worker.dispose"
+          ]
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "protocolVersion",
+        "requestId",
+        "expectedEpoch",
+        "type",
+        "seed"
+      ],
+      "properties": {
+        "protocolVersion": {
+          "const": 2
+        },
+        "requestId": {
+          "$ref": "#/$defs/uint32"
+        },
+        "expectedEpoch": {
+          "$ref": "#/$defs/uint32"
+        },
+        "type": {
+          "const": "sim.reset"
+        },
+        "seed": {
+          "$ref": "#/$defs/uint32"
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "protocolVersion",
+        "requestId",
+        "expectedEpoch",
+        "type",
+        "hz",
+        "clockMode"
+      ],
+      "properties": {
+        "protocolVersion": {
+          "const": 2
+        },
+        "requestId": {
+          "$ref": "#/$defs/uint32"
+        },
+        "expectedEpoch": {
+          "$ref": "#/$defs/uint32"
+        },
+        "type": {
+          "const": "sim.configure"
+        },
+        "hz": {
+          "enum": [
+            400,
+            800,
+            1200
+          ]
+        },
+        "clockMode": {
+          "enum": [
+            "interactive",
+            "sitl-lockstep",
+            "hitl-realtime"
+          ]
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "protocolVersion",
+        "requestId",
+        "expectedEpoch",
+        "type",
+        "modelId",
+        "manifestSha256"
+      ],
+      "properties": {
+        "protocolVersion": {
+          "const": 2
+        },
+        "requestId": {
+          "$ref": "#/$defs/uint32"
+        },
+        "expectedEpoch": {
+          "$ref": "#/$defs/uint32"
+        },
+        "type": {
+          "const": "model.load"
+        },
+        "modelId": {
+          "$ref": "#/$defs/uint32"
+        },
+        "manifestSha256": {
+          "type": "string",
+          "pattern": "^[0-9a-fA-F]{64}$"
+        }
+      }
+    }
+  ]
+}

@@ -6,8 +6,9 @@ English is the source of truth. [Russian mirror](ru/SPECS_SHARED_MEMORY.md).
 **ABI v1 is implemented and used by the running application. The ABI v2
 layout, codecs, and atomic transport are implemented in `packages/protocol`
 (TASK-008/009) but the runtime does not use them yet; TASK-085 migrates the
-application. Control Protocol v2 is a target contract that is not implemented
-yet.** TASK-008/009 implement the v2 layout and transport;
+application. The Control Protocol v2 validator, JSON Schema, and command
+processor are implemented (TASK-010) but are not wired into the Worker yet
+(TASK-085).** TASK-008/009 implement the v2 layout and transport;
 TASK-010 implements commands. Do not assign EKF/EW meanings to v1 reserved
 words without changing the ABI version. Task IDs are defined in
 [PROJECT_ROADMAP.md](PROJECT_ROADMAP.md).
@@ -445,6 +446,17 @@ Normative runtime validation contract: TASK-010 implements JSON Schema
   initialization. A failure preserves the previous model in paused state,
   without a partial swap.
 * Runtime commands do not change terrain licensing, secrets, or network domains.
+* Implementation details (TASK-010, `ControlProcessorV2`): a command rejected
+  by validation (SCHEMA, or OUT_OF_RANGE found while validating fields) does
+  not consume its requestId and is not cached; its reject reports the
+  received requestId when that is a uint32, otherwise -1. A lifecycle ACK
+  reports the last integrated tick of the epoch in which it applied (0 after
+  reset/configure/model swap). `model.load` first returns `queued`, then a
+  final `applied` (new epoch), `ASSET_MISSING`, or `BAD_STATE`; while a load
+  is in flight every other command except `worker.dispose` is rejected with
+  BAD_STATE. Cancelled commands are rejected in due order. JSON Schema cannot
+  express the 16 KiB limit or the drift-norm limit; the TypeScript validator
+  enforces both.
 
 Valid JSON example, scheduled at one second with a 400 Hz physics clock:
 
