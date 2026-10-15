@@ -1,6 +1,6 @@
 # PROJECT_ROADMAP.md
 
-<!-- source-sha256: 48015cd28a927ae6ae6e458f1a27e8b6516adc73642ca1febdcfe7de78161abe -->
+<!-- source-sha256: 3d9e9555a306ec58e69abd6ca360b44393995c55ccbfff027a0071fb12da2652 -->
 
 Английский источник: [Source of truth](../PROJECT_ROADMAP.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -133,7 +133,7 @@ Google content без прав.
 - **Touched Files:** `.github/workflows/ci.yml`, `playwright.config.ts`, `README.md`, `docs/ru/README.md`, `CLAUDE.md`, `docs/ru/CLAUDE.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `package.json`, `package-lock.json`, `vitest.config.ts`, `.gitignore`, `tests/ci.test.ts`.
 - **Interfaces / Contracts:** Node 24, frozen npm lock; отдельно unit/browser/build jobs.
 - **DoD & Acceptance Criteria:** CI запускает ненулевое число тестов, сохраняет результаты/trace при ошибке; no-tests и failed job дают failure; секреты не нужны для synthetic lane.
-- **Evidence:** Owner Codex; baseline c8814c6; 2026-10-15. Созданы три независимых CI jobs; tests/ci.test.ts: 3 PASS, оба runner отклоняют zero-test runs. Локальные CI команды прошли: 25 unit, 4 browser, production build. Reports: test-results/unit/junit.xml и test-results/browser/junit.xml без skips/failures; build.log и apps/web/dist созданы. GitHub Actions API недоступен: proxy CONNECT 403; после push проверить первый hosted run. Synthetic jobs не требуют credentials или аппаратуры.
+- **Evidence:** Owner Codex; baseline c8814c6; 2026-10-15. Созданы три независимых CI jobs; tests/ci.test.ts: 3 PASS, оба runner отклоняют zero-test runs. Локальные CI команды прошли: 25 unit, 4 browser, production build. Reports: test-results/unit/junit.xml и test-results/browser/junit.xml без skips/failures; build.log и apps/web/dist созданы. GitHub Actions API недоступен: proxy CONNECT 403; после push проверить первый hosted run. Synthetic jobs не требуют credentials или аппаратуры. Проверка hosted CI (Claude, 2026-10-15): GitHub Actions теперь создаёт запуски, но каждая job завершается ошибкой без выполнения. Запуски 38804503643 (c26df78, push), 38806524546 (f13213b, push) и 38808881935 (1064a57, pull request djdanou-cloud/MirageSITL#1): все три job (unit, build, browser) завершились с failure через 2-3 s после старта, без шагов и без доступного лога (HTTP 404). Такая картина означает, что hosted runners не запускались (например, блокировка Actions из-за оплаты/лимита расходов или отключённые Actions), а не ошибку workflow или тестов. Разблокировка: владелец репозитория проверяет оплату аккаунта GitHub и настройки Actions репозитория, затем перезапускает workflow; изменения кода не требуются.
 
 
 ### TASK-004 — Golden fixtures и seed registry
