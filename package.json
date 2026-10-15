@@ -8,6 +8,7 @@
     "dev": "npm run dev -w @mirage/web",
     "build": "tsc --noEmit && npm run build -w @mirage/web",
     "test": "vitest run",
+    "check:docs": "node scripts/check-docs.mjs",
     "test:browser": "playwright test"
   },
   "devDependencies": {

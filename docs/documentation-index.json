@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "pairs": [
+    { "en": "README.md", "ru": "docs/ru/README.md" },
+    { "en": "CLAUDE.md", "ru": "docs/ru/CLAUDE.md" },
+    { "en": "docs/PROJECT_ROADMAP.md", "ru": "docs/ru/PROJECT_ROADMAP.md" },
+    { "en": "docs/SPECS_SHARED_MEMORY.md", "ru": "docs/ru/SPECS_SHARED_MEMORY.md" },
+    { "en": "docs/SPECS_SIMULATION_ENGINES.md", "ru": "docs/ru/SPECS_SIMULATION_ENGINES.md" },
+    { "en": "docs/architecture.md", "ru": "docs/ru/architecture.md" },
+    { "en": "docs/shared-memory.md", "ru": "docs/ru/shared-memory.md" }
+  ]
+}

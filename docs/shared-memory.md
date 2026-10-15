@@ -1,86 +1,90 @@
 # SharedArrayBuffer ABI v1
 
-Типизированный источник: [`packages/protocol/src/index.ts`](../packages/protocol/src/index.ts).
-Main создаёт SAB и передаёт в Worker через structured clone **без transfer
-list**. Нужны secure context, COOP/COEP и `crossOriginIsolated=true`.
-Проверяются byteLength/magic/version/размеры. В ABI нет ссылок JS/WASM.
+English source. [Russian mirror](ru/shared-memory.md).
+Typed source: [`packages/protocol/src/index.ts`](../packages/protocol/src/index.ts).
+Main creates the SAB and passes it through structured clone **without a
+transfer list**. A secure context, COOP/COEP, and `crossOriginIsolated=true`
+are required. Validate byteLength, magic, version, and sizes. The ABI contains
+no JavaScript/WASM references. This guide documents implemented **v1**;
+[SPECS_SHARED_MEMORY.md](SPECS_SHARED_MEMORY.md) separately defines target v2.
 
 ## Layout
 
-Индексы ниже — слова по 4 bytes. Размер:
-`64 + 256 × 128 + 64 = 32 896 bytes`. Float payload пакуется через локальный
-scratch DataView little-endian на целевых платформах; shared-память читается
-и пишется **только Atomics над Int32Array**, включая оба слова float64.
+Indices below are 4-byte words. Total size is
+`64 + 256 × 128 + 64 = 32,896 bytes`. Float payloads are packed through a
+local little-endian scratch DataView on target platforms. Access shared
+memory **only through Atomics on Int32Array**, including both halves of f64.
 
-| Область | Byte offset | Bytes | Writer |
+| Region | Byte offset | Bytes | Writer |
 | --- | ---: | ---: | --- |
-| Header | 0 | 64 | Main init; Worker counters |
-| State ring [256] | 64 | 32 768 | Worker |
-| Control mailbox | 32 832 | 64 | Main |
+| Header | 0 | 64 | Main initialization; Worker counters |
+| State ring [256] | 64 | 32,768 | Worker |
+| Control mailbox | 32,832 | 64 | Main |
 
 ### Header
 
-| Word | Тип | Значение |
+| Word | Type | Meaning |
 | --- | --- | --- |
 | 0 | u32 | magic `0x4d534954` |
 | 1 / 2 / 3 | u32 | version=1 / capacity=256 / stateWords=32 |
-| 4 | u32 | Published, число кадров; 0=пусто |
-| 5 | u32 | Overruns, события превышения catch-up budget |
-| 6 | u32 | DroppedSteps, отброшенные wall-clock интервалы |
-| 7–15 | reserved | нули |
+| 4 | u32 | Published, total frames; 0=empty |
+| 5 | u32 | Overruns, catch-up budget overruns |
+| 6 | u32 | DroppedSteps, discarded wall-clock intervals |
+| 7–15 | reserved | zero |
 
-Reset обнуляет tick/simTime/диагностику, но не Published. ABI v1 требует
-перезапуска сессии до wrap 32-bit Published/tick (~124 суток при 400 Гц).
+Reset clears tick/simTime/diagnostics but not Published. ABI v1 requires a
+new session before 32-bit Published/tick wrap, approximately 124 days at 400 Hz.
 
 ### State slot — 128 bytes
 
-| Word | Тип | Поле |
+| Word | Type | Field |
 | --- | --- | --- |
-| 0 | i32 | seqlock: нечётный=запись, чётный=завершено |
-| 1 | u32 | tick, интеграции после reset |
+| 0 | i32 | seqlock: odd=writing, even=committed |
+| 1 | u32 | tick, integrations since reset |
 | 2–3 | f64 | simTime, s |
 | 4–5 / 6–7 / 8–9 | 3×f64 | north/east/down, m |
 | 10–13 | 4×f32 | quaternion w,x,y,z, FRD -> NED |
 | 14–16 | 3×f32 | vn/ve/vd, m/s |
-| 17–19 | 3×f32 | an/ae/ad, m/s², инерциальное ускорение NED включая gravity |
+| 17–19 | 3×f32 | an/ae/ad, m/s², inertial NED acceleration including gravity |
 | 20–22 | 3×f32 | p/q/r body angular rates, rad/s |
 | 23 | f32 | spool [0,1], demo collective response |
 | 24 | f32 | batteryVoltage, V, demo estimate |
-| 25 | u32 | bit0 OnGround, bit1 InputFailsafe (включает disarmed) |
+| 25 | u32 | bit0 OnGround, bit1 InputFailsafe, including disarmed |
 | 26–27 | f64 | wallTimeMs, timeOrigin + scheduled deadline |
-| 28–31 | reserved | нули |
+| 28–31 | reserved | zero |
 
 ### Control mailbox — 64 bytes
 
-| Word | Тип | Поле |
+| Word | Type | Field |
 | --- | --- | --- |
 | 0 | i32 | seqlock |
-| 1 | reserved | ноль |
-| 2–3 | f64 | wallTimeMs, фактическое время опроса Main |
+| 1 | reserved | zero |
+| 2–3 | f64 | wallTimeMs, actual Main sample time |
 | 4 / 5 / 6 | 3×f32 | roll/pitch/yaw [-1,1] |
 | 7 | f32 | throttle [0,1] |
 | 8 | u32 | bit0 Connected, bit1 Armed |
-| 9–15 | reserved | нули |
+| 9–15 | reserved | zero |
 
-Последнее значение побеждает; нет очереди устаревших стиков. Worker
-повторно проверяет finite/range, flags и возраст [0,250] мс. При contention
-сохраняет последний целый input, который естественно устаревает.
+The newest value wins; there is no queue of old stick commands. Worker
+revalidates finite values, bounds, flags, and age [0,250] ms. On contention
+it retains the latest coherent input, which naturally becomes stale.
 
-## Публикация
+## Publication
 
-Один writer на область: Worker не пишет controls, Main не пишет state.
-State writer выбирает `slot=Published%256`, ставит нечётный seq, пишет
-payload атомарными store, ставит чётный seq, затем увеличивает Published.
-Reader проверяет чётный seq, копирует слова атомарными load в собственный
-scratch и снова проверяет seq/Published. Только при успехе декодирует
-scratch в output. Неудачное чтение не мутирует output. Максимум 3 попытки,
-затем предыдущий кадр; writer никогда не ждёт renderer.
+There is one writer per region: Worker does not write controls; Main does
+not write state. State writer chooses `slot=Published%256`, stores an odd
+sequence, writes payload using atomic stores, commits an even sequence, and
+then increments Published. Reader checks even sequence, atomically copies
+words into private scratch, and checks sequence/Published again. Only then
+does it decode scratch into output. Failed reads never mutate output.
+At most three attempts are allowed; otherwise retain the last frame.
+The writer never waits for rendering.
 
-`latest(out,age)` допускает историю до 255 кадров. Два вызова не являются
-одной транзакцией: renderer проверяет соседство tick, иначе показывает
-последний кадр. Прямой конкурентный доступ к shared Float64Array запрещён:
-одного seqlock недостаточно против разорванных float64. Все слова payload
-атомарны; ABA после полного wrap не поддерживается длительностью сессии.
+`latest(out,age)` supports up to 255 frames of history. Two calls are not one
+transaction: rendering checks adjacent ticks or uses the latest snapshot.
+Never access shared Float64Array directly: a seqlock alone does not prevent
+torn f64 values. Payload words are atomic; full-counter-wrap ABA is outside
+the supported session lifetime.
 
 ## Lifecycle
 
@@ -94,13 +98,13 @@ type PhysicsToMain =
   | { type: 'error'; message: string };
 ```
 
-Init публикует начальное состояние и ready, оставляет Worker paused.
-Start идемпотентен, не сбрасывает модель. Pause останавливает шаги.
-Reset также останавливает цикл и обнуляет модель/диагностику. Dispose
-возвращает ACK и закрывает Worker. RequestId связывает ACK с командой UI.
-Ошибки останавливают цикл. При unmount Main вправе terminate сразу.
+Init publishes initial state and ready while keeping the Worker paused.
+Start is idempotent and does not reset dynamics. Pause stops integration.
+Reset also stops integration and clears model/diagnostics. Dispose
+acknowledges and closes the Worker. RequestId associates ACK with the UI
+command. Errors stop the loop. Main may terminate immediately on unmount.
 
-Это доверенный внутрипроцессный API, не сетевой протокол авторизации.
-TypeScript не заменяет runtime validation будущих WS/MAVLink сообщений.
-Изменение порядка/единиц/полей требует нового ABI_VERSION; несовпадение
-блокирует запуск, не преобразуется молча.
+This is a trusted in-process API, not a network authorization protocol.
+TypeScript does not replace runtime validation of future WS/MAVLink data.
+Changes to field order/units/meaning require a new ABI_VERSION; mismatches
+block startup rather than being silently converted.

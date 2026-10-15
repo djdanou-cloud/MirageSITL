@@ -1,74 +1,137 @@
 # MirageSITL
 
-Первый этап веб-симулятора БПЛА: React 19 / Three.js, изолированный физический
-Worker с фиксированным шагом 400 Гц, SharedArrayBuffer и USB Gamepad.
+A browser-based UAV simulation and pilot-training project, starting with an
+isolated fixed-step physics loop and a usable flight laboratory.
 
-Реализованы 3D-сцена, запуск/пауза/сброс, коллективный газ, калибровка USB-осей,
-arm при нулевом газе, failsafe ввода и диагностика пропущенного времени.
+English is the repository source of truth. [Russian mirror](docs/ru/README.md).
+Source code, UI, comments, tests, logs, commits, and primary documentation use
+English. System documentation is maintained in both languages in the same change.
 
-JSBSim/BET WASM, ArduPilot SITL/HITL, EW, terrain/FPV/thermal и AAR — следующие
-этапы. Текущая модель упрощена и не валидирована для подготовки пилотов.
+## Current implementation
 
-## Запуск
+Milestone 01 provides React 19, React Three Fiber/Three.js, Vite, Tailwind CSS,
+and Lucide UI; a dedicated module Worker; fixed 400 Hz integration; atomic
+SharedArrayBuffer transport; USB Gamepad input; axis calibration; and a simplified
+quadrotor demonstration. The interface includes a 3D view, telemetry, collective
+throttle, arm/disarm, pause/reset, input failsafe, and scheduler drop counters.
 
-Node.js **22.12+** или **24 LTS**, npm 10+, современный Chrome/Edge на macOS/Windows.
+The current binary ABI is **v1**. Specifications define a separate **target v2**
+with EKF/EW status, session epochs, and sensor/actuator queues. V2 is not implemented.
+
+JSBSim/BET WASM, ArduPilot SITL/HITL, EW, photorealistic terrain, FPV/thermal
+effects, and AAR are planned. The current aerodynamics are simplified and
+have not been validated for pilot training.
+
+## Quickstart
+
+Use Node.js **22.12+** or **24 LTS** (`.nvmrc` selects 24), npm 10+, and a
+current Chrome/Edge browser on macOS/Windows. Future Web Serial HITL targets
+Chromium. Cloud tasks use the existing isolated checkout; do not create another
+Git worktree unless explicitly requested.
 
 ```bash
-cd /workspace/MirageSITL  # либо каталог вашего клона
+cd /workspace/MirageSITL
 npm ci
 npm run dev
 ```
 
-Локальный Vite-сервер использует порт 5173. Для SharedArrayBuffer нужны
-secure context (HTTPS или localhost), COOP и COEP. Удалённый HTTP по IP не
-подходит. Vite выставляет заголовки dev/preview; production-сервер должен
-также возвращать:
+For a local clone, replace the working directory with its actual path.
+The development server uses port 5173. SharedArrayBuffer requires a secure
+context: HTTPS or localhost. Remote HTTP by IP does not qualify. Vite dev and
+preview set these headers; production hosting must set them independently:
 
 ```text
 Cross-Origin-Opener-Policy: same-origin
 Cross-Origin-Embedder-Policy: require-corp
 ```
 
-Демо: **Запустить → Включить двигатели → поднять газ выше 50%**.
-Пауза отключает двигатели; перед повторным arm верните газ к нулю. Сброс
-останавливает симуляцию. Скрытие вкладки ставит полёт на паузу.
+If the cloud home cache is unwritable, add
+`--cache /workspace/.cache/mirage-npm` to `npm ci`.
 
-USB: включите joystick mode в EdgeTX/OpenTX, выберите USB-ввод и сдвиньте
-стик для обнаружения браузером. Выберите устройство, проверьте индексы и
-направления осей при выключенных двигателях. Default 0/1/3/2 не универсален;
-таблица калибровки меняет ось, min, центр, max и инверсию. Калибровка действует
-до перезагрузки. При отсутствии пульта доступен демо-ввод. Команды реальному
-полётному контроллеру этот прототип не отправляет.
+### Flying the demo
 
-## Проверки
+Select **Start → Arm motors → raise Demo throttle above 50%**. Spool response
+is intentionally delayed. Pause disarms; return throttle to zero before
+rearming. Reset stops and returns the model to the ground. Hiding the tab pauses
+the session.
+
+For EdgeTX/OpenTX, select USB joystick mode on the transmitter, choose the
+USB input tab, and move a stick so the browser can detect it. Select the device
+and verify channel directions while disarmed. Initial axis mapping 0/1/3/2
+is not universal. The calibration table sets axis, minimum, center, maximum,
+and inversion. Calibration lasts until page reload. Demo input works without
+hardware. This milestone sends no commands to a real flight controller.
+
+## Architecture summary
+
+```text
+Main Thread: Gamepad/calibration -> SAB pilot mailbox
+Physics Worker: fixed-step demo -> SAB state ring
+Main Thread: coherent snapshots -> interpolation -> R3F/HUD
+```
+
+```text
+apps/web/             React UI, R3F view, Worker, runtime coordination
+packages/protocol/    ABI v1 and atomic readers/writers
+packages/physics/     Demo dynamics and bounded scheduler
+packages/input/       Gamepad adapter and calibration
+tests/                Unit and real-browser functional checks
+docs/                 English specifications, roadmap, architecture
+docs/ru/              Russian mirrors of system documentation
+```
+
+Physics owns truth and simulation time. Main owns browser UI/input/rendering.
+High-rate data uses SAB; lifecycle/error messages use postMessage. The render
+ring is short-lived interpolation history, not an AAR archive. Future physics
+backends and autopilot adapters are defined in the specifications rather than
+represented by nonfunctional services.
+
+## Verification
 
 ```bash
+npm run check:docs
 npm test
 npm run build
-npx playwright install chromium  # один раз, если браузера ещё нет
+npx playwright install chromium
 npm run test:browser
 ```
 
-В облаке с системным Chromium:
+Install Playwright Chromium once only if needed. A prepared cloud machine can
+use its system browser instead:
 
 ```bash
 CHROMIUM_PATH=/usr/bin/chromium npm run test:browser
 ```
 
-Если домашний npm cache недоступен, добавьте к npm ci аргумент
-`--cache /workspace/.cache/mirage-npm`.
-Production smoke: после сборки `npm run preview -w @mirage/web`; проверить
-cross-origin isolation, ready, движение после arm и остановку на pause.
+Unit checks cover ABI, scheduler, demo dynamics, coordinates, and calibration.
+Browser checks exercise an actual Worker/SAB, takeoff, pause/reset, simulated
+USB connection/disconnection, and mobile layout. USB tests use a mock and do
+not validate a physical transmitter or Pixhawk.
 
-400 Гц — фиксированный интеграционный шаг, а не hard real-time гарантия
-браузера. Catch-up ограничен 8 шагами, потери времени видны в UI. 60–120 FPS
-и бюджеты на M4/RTX 4050 требуют отдельных измерений на целевых устройствах.
-Облачный headless smoke не подтверждает эти показатели.
+After building, `npm run preview -w @mirage/web` serves the production bundle
+on port 4173. Verify isolation, Worker READY, motion after arming, and stable
+ticks while paused. Dedicated lint/typecheck scripts and Rust/Cargo tooling
+are future tasks, not commands already installed by this milestone.
 
-## Архитектура
+400 Hz is a fixed **integration timestep**, not a browser hard real-time
+guarantee. Catch-up is bounded to eight steps and dropped wall intervals are
+visible in the UI. Target 60–120 FPS and 400–1200 Hz require production
+measurements on Apple Silicon M4 and RTX 4050. Cloud headless smoke cannot
+establish those budgets.
 
-* [Компоненты, границы интеграций и этапы](docs/architecture.md)
-* [Бинарный ABI общей памяти и сообщения Main ↔ Worker](docs/shared-memory.md)
+## System documentation
 
-Используйте текущий checkout: облачная задача изолирована, дополнительный
-Git worktree для запуска не нужен.
+| English source | Russian mirror |
+| --- | --- |
+| [README](README.md) | [README](docs/ru/README.md) |
+| [Project roadmap](docs/PROJECT_ROADMAP.md) | [Project roadmap](docs/ru/PROJECT_ROADMAP.md) |
+| [Shared-memory specification](docs/SPECS_SHARED_MEMORY.md) | [Shared-memory specification](docs/ru/SPECS_SHARED_MEMORY.md) |
+| [Simulation-engine specification](docs/SPECS_SIMULATION_ENGINES.md) | [Simulation-engine specification](docs/ru/SPECS_SIMULATION_ENGINES.md) |
+| [Architecture](docs/architecture.md) | [Architecture](docs/ru/architecture.md) |
+| [Implemented ABI v1 guide](docs/shared-memory.md) | [Implemented ABI v1 guide](docs/ru/shared-memory.md) |
+| [Agent instructions](CLAUDE.md) | [Agent instructions](docs/ru/CLAUDE.md) |
+
+When changing an English specification or guide, update its Russian mirror
+in the same task and run `npm run check:docs`. See CLAUDE.md for the complete
+workflow, zero-allocation rules, deterministic math requirements, and evidence
+needed to mark a task DONE.

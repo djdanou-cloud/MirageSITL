@@ -8,21 +8,21 @@ test('isolates shared memory, renders, takes off and pauses/resets', async ({ pa
   expect(await page.evaluate(() => crossOriginIsolated)).toBe(true);
   await expect(page.getByTestId('worker-status')).toHaveText('READY');
   await expect(page.locator('canvas')).toBeVisible();
-  await page.getByRole('button', { name: 'Запустить', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Пауза', exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Включить двигатели', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Отключить двигатели', exact: true })).toBeVisible();
-  await page.getByLabel('Демо-газ').fill('0.7');
-  await expect.poll(async () => Number(await page.getByTestId('altitude').innerText().then(t => t.replace('м', ''))), { timeout: 10000 }).toBeGreaterThan(0.5);
-  await page.getByRole('button', { name: 'Пауза', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Запустить', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Start', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Arm motors', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Disarm motors', exact: true })).toBeVisible();
+  await page.getByLabel('Demo throttle').fill('0.7');
+  await expect.poll(async () => Number(await page.getByTestId('altitude').innerText().then(t => t.replace('m', ''))), { timeout: 10000 }).toBeGreaterThan(0.5);
+  await page.getByRole('button', { name: 'Pause', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Start', exact: true })).toBeVisible();
   await page.waitForTimeout(300); // Allow UI stats to reflect the pause ACK.
   const tick = await page.getByTestId('tick').innerText();
   await page.waitForTimeout(250);
   expect(await page.getByTestId('tick').innerText()).toBe(tick);
-  await page.getByRole('button', { name: 'Сбросить полёт' }).click();
+  await page.getByRole('button', { name: 'Reset flight' }).click();
   await expect(page.getByTestId('tick')).toHaveText('0 ticks');
-  await expect(page.getByTestId('altitude')).toHaveText('0.0м');
+  await expect(page.getByTestId('altitude')).toHaveText('0.0m');
   expect(errors).toEqual([]);
   await page.screenshot({ path: '/tmp/mirage-desktop.png', fullPage: true });
 });
@@ -31,7 +31,8 @@ test('real worker keeps fixed dt, detects stale control and acknowledges lifecyc
   await page.goto('/');
   const result = await page.evaluate(async (protocolUrl) => {
     // Use the same Vite-transformed source modules as the application.
-    const p = await import(protocolUrl);
+    // This URL points to the checkout's own statically known protocol module.
+    const p = await import(protocolUrl) as typeof import('@mirage/protocol');
     const buffer = p.createSharedMemory();
     const reader = new p.StateReader(buffer), writer = new p.ControlWriter(buffer);
     const current = p.newState();
@@ -91,13 +92,13 @@ test('Gamepad API adapter drives USB channels and disarms on unplug', async ({ p
   await expect(page.getByTestId('worker-status')).toHaveText('READY');
   await page.getByRole('button', { name: 'USB / EdgeTX', exact: true }).click();
   await expect(page.getByTestId('input-status')).toContainText('connected EdgeTX');
-  await page.getByRole('button', { name: 'Запустить', exact: true }).click();
-  await page.getByRole('button', { name: 'Включить двигатели', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Отключить двигатели', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Start', exact: true }).click();
+  await page.getByRole('button', { name: 'Arm motors', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Disarm motors', exact: true })).toBeVisible();
   await page.evaluate(() => (window as unknown as { setTestThrottle: (v: number) => void }).setTestThrottle(0.4));
   await page.evaluate(() => (window as unknown as { unplugTestPad: () => void }).unplugTestPad());
   await expect(page.getByTestId('input-status')).toHaveText('disconnected ');
-  await expect(page.getByRole('button', { name: 'Включить двигатели', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Arm motors', exact: true })).toBeVisible();
 });
 
 test('mobile layout has no horizontal overflow', async ({ page }) => {

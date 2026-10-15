@@ -62,9 +62,9 @@ export class SimulationRuntime {
   setArmed(value: boolean): void {
     if (!value) { this.disarm(); return; }
     if (!this.running || this.pending) return;
-    if (this.input.throttle > 0.05) { this.notice = 'Перед включением двигателей опустите газ до 0%.'; return; }
+    if (this.input.throttle > 0.05) { this.notice = 'Lower throttle to 0% before arming.'; return; }
     if (this.source === 'usb' && this.gamepad.status !== 'connected') {
-      this.notice = 'Подключите USB-пульт и проверьте оси.'; return;
+      this.notice = 'Connect a USB transmitter and check its axes.'; return;
     }
     this.notice = ''; this.armed = true;
   }
