@@ -1,0 +1,26 @@
+{
+  "name": "@mirage/web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {"dev": "vite --host 0.0.0.0", "build": "vite build", "preview": "vite preview --host 0.0.0.0"},
+  "dependencies": {
+    "@mirage/input": "0.1.0",
+    "@mirage/physics": "0.1.0",
+    "@mirage/protocol": "0.1.0",
+    "@react-three/fiber": "9.4.0",
+    "lucide-react": "0.548.0",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "three": "0.180.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "4.1.16",
+    "@types/react": "19.2.2",
+    "@types/react-dom": "19.2.2",
+    "@types/three": "0.180.0",
+    "@vitejs/plugin-react": "5.0.4",
+    "tailwindcss": "4.1.16",
+    "vite": "7.3.7"
+  }
+}
