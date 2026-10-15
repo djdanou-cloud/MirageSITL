@@ -187,12 +187,13 @@ copy Google content without rights.
 
 ### TASK-008 — ABI v2 constants and layout
 
-- **Status:** TODO.
+- **Status:** DONE — Claude; baseline 695023c; 2026-10-15.
 - **Title & Description:** Introduce v2 independently of v1 and create a golden binary fixture.
 - **Dependencies:** TASK-006, TASK-007.
-- **Touched Files:** `packages/protocol/src/layout-v2.ts`, `packages/protocol/src/state-v2.ts`, `tests/layout-v2.test.ts`, `tests/fixtures/protocol/state-v2.hex`.
+- **Touched Files:** `packages/protocol/src/layout-v2.ts`, `packages/protocol/src/state-v2.ts`, `tests/layout-v2.test.ts`, `tests/fixtures/protocol/state-v2.hex`, `packages/protocol/src/pilot-v2.ts`, `packages/protocol/src/index.ts`, `tsconfig.json`, `tests/support/spec-layout.ts`, `tests/support/golden-v2.ts`, `tests/protocol-golden.test.ts`, `tests/fixtures/registry.json`, `README.md`, `docs/ru/README.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `docs/SPECS_SHARED_MEMORY.md`, `docs/ru/SPECS_SHARED_MEMORY.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
 - **Interfaces / Contracts:** SPECS_SHARED_MEMORY section 3; 49280 bytes; 192-byte state stride; TickId lo/hi.
 - **DoD & Acceptance Criteria:** Offset/size/alignment tests cover every field; bytes match the golden fixture; v2 validation rejects v1; reserved words are zero.
+- **Evidence:** Owner Claude; baseline 695023c; 2026-10-15. tests/layout-v2.test.ts: 11 PASS. Registered synthetic fixture abi-v2-golden (tests/fixtures/protocol/state-v2.hex, packed with Python struct from the section 3 tables independently of the TypeScript encoder, tolerance 0) matches the Header v2, State v2, and Pilot mailbox v2 tables field by field with full byte coverage; StateOffsetV2, PilotOffsetV2, and HeaderV2 cover every field; natural alignment holds in all 256 slots; StateCodecV2/PilotCodecV2 pack the golden values to the golden bytes and decode them back; createSharedMemoryV2 writes the golden header with zero ring and mailbox; validation rejects v1 buffers and 13 malformed header words; negotiateAbiVersion returns 1/2 and rejects a v1-sized buffer claiming version 2; tick carry, comparison, and 2^53 bounds; writer-side value contracts. Mutation checks: a symmetric battery voltage/current offset swap and a specification type change each fail. Extras beyond the listed files: pilot-v2.ts (the v2 mailbox is part of the same layout), index.ts re-exports, and tsconfig allowImportingTsExtensions (protocol modules use .ts imports so Node workers can load them for TASK-009). The shared specification parser now also backs the v1 golden test. npm run lint, npm run typecheck, npm run check:docs exit 0; CI=true npm test: 58 PASS. Node 22.22.0. The runtime still uses v1; English/Russian specification, README, architecture, and roadmap synchronized.
 
 ### TASK-009 — Atomic v2 readers and writers
 

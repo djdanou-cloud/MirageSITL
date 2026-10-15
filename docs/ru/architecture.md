@@ -1,6 +1,6 @@
 # Архитектура MirageSITL
 
-<!-- source-sha256: 5322e76ba0d4c17716c69601d5af829a74559753fcef36f0ffc15a2e8b494d80 -->
+<!-- source-sha256: d83a7eff2456ad29764caaf55b0c85d73104e82bc25f8b53ee241d9099c4ea32 -->
 
 Английский источник: [Source of truth](../architecture.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -257,7 +257,11 @@ TASK-004–006 добавляют границы проверки конфигу
 StateWriter и ControlWriter (header, два слота ring, нетронутые слоты,
 reserved words и mailbox), должен совпадать с образом, упакованным локальным
 DataView. Readers v1 не используются, поэтому симметричная ошибка смещений
-encoder/decoder не может пройти проверку. V2 остаётся отдельной будущей миграцией.
+encoder/decoder не может пройти проверку. TASK-008 добавляет в packages/protocol
+константы layout v2, codecs state и pilot, инициализацию header, проверку и
+согласование v1/v2. Они сверяются с `tests/fixtures/protocol/state-v2.hex` —
+golden records, упакованными Python struct по таблицам спецификации независимо
+от TypeScript encoder. Работающее приложение остаётся на v1.
 
 ### Проверенные манифесты fixtures и детерминированные потоки
 

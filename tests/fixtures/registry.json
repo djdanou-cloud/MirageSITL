@@ -110,6 +110,76 @@
           "derivation": "Hand-authored from the ABI v1 byte tables in docs/SPECS_SHARED_MEMORY.md; f32 values are exactly representable; bytes must match exactly. Not generated from encoder output."
         }
       }
+    },
+    {
+      "path": "protocol/state-v2.hex",
+      "manifest": {
+        "formatVersion": 1,
+        "id": "abi-v2-golden",
+        "sourceSha256": "1780aeb0a8b2e469620116ef600f175d6d63c75f0a958dd8c8d9a1e55ce053a6",
+        "units": {
+          "simTimeS": "s",
+          "positionM": "m",
+          "velocityMps": "m/s",
+          "accelerationMps2": "m/s^2",
+          "angularRateRadS": "rad/s",
+          "batteryVoltageV": "V",
+          "batteryCurrentA": "A",
+          "ambientPressurePa": "Pa",
+          "rotorSpeedRpm": "rev/min",
+          "normalizedValue": "1"
+        },
+        "validityEnvelope": {
+          "simTimeS": {
+            "min": 10737419.24,
+            "max": 10737419.24
+          },
+          "positionM": {
+            "min": -3456.0000004,
+            "max": 6000000.123456789
+          },
+          "velocityMps": {
+            "min": -3.5,
+            "max": 18.5
+          },
+          "accelerationMps2": {
+            "min": -9.75,
+            "max": 2.5
+          },
+          "angularRateRadS": {
+            "min": -0.5,
+            "max": 0.75
+          },
+          "batteryVoltageV": {
+            "min": 15.25,
+            "max": 15.25
+          },
+          "batteryCurrentA": {
+            "min": 21.125,
+            "max": 21.125
+          },
+          "ambientPressurePa": {
+            "min": 101325,
+            "max": 101325
+          },
+          "rotorSpeedRpm": {
+            "min": 6150.5,
+            "max": 6150.5
+          },
+          "normalizedValue": {
+            "min": -0.5,
+            "max": 0.75
+          }
+        },
+        "tolerance": {
+          "absolute": 0,
+          "relative": 0
+        },
+        "provenance": {
+          "kind": "synthetic",
+          "derivation": "Header v2, State v2, and Pilot mailbox v2 records packed with Python struct from the byte tables in docs/SPECS_SHARED_MEMORY.md section 3, independently of the TypeScript encoder; f32 values are exactly representable; bytes must match exactly."
+        }
+      }
     }
   ]
 }

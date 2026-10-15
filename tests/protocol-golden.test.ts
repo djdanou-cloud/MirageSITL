@@ -4,13 +4,13 @@ import { ControlWriter, SHARED_BYTES, StateWriter, createSharedMemory, newInput,
   type FlightState, type PilotInput } from '@mirage/protocol';
 import { verifyFixture } from '@mirage/test-support/fixtures';
 import registry from './fixtures/registry.json';
+import { WIDTH, assertCoverage, isWireType, regionRow, specFields, type WireType } from './support/spec-layout';
 
 // Independent ABI v1 oracle: a hand-authored fixture is cross-checked against the
 // byte tables in docs/SPECS_SHARED_MEMORY.md, then the real writers' raw shared
 // bytes are compared with bytes packed here by a local DataView. StateReader and
 // ControlReader are deliberately not used, so symmetric codec errors cannot hide.
 
-type WireType = 'u32' | 'f32' | 'f64';
 interface GoldenField {
   spec: string; offset: number; type: WireType; count: number;
   property?: string; value?: number;
@@ -20,24 +20,18 @@ interface GoldenRegion {
   fields: GoldenField[];
 }
 interface GoldenLayout { abiVersion: 1; totalBytes: number; regions: GoldenRegion[] }
-interface SpecField { spec: string; offset: number; type: WireType; count: number }
 
 const FIXTURE_ID = 'abi-v1-layout';
-const WIDTH: Record<WireType, number> = { u32: 4, f32: 4, f64: 8 };
-const spec = readFileSync(new URL('../docs/SPECS_SHARED_MEMORY.md', import.meta.url), 'utf8');
 
 function record(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-function wireType(value: unknown): value is WireType {
-  return value === 'u32' || value === 'f32' || value === 'f64';
 }
 function count(value: unknown): value is number {
   return typeof value === 'number' && Number.isInteger(value) && value >= 0;
 }
 function parseField(value: unknown): GoldenField {
   if (!record(value) || typeof value.spec !== 'string' || !count(value.offset) ||
-    !wireType(value.type) || !count(value.count) || value.count < 1) throw new Error('Invalid golden field');
+    !isWireType(value.type) || value.type === 'u64' || !count(value.count) || value.count < 1) throw new Error('Invalid golden field');
   const field: GoldenField = { spec: value.spec, offset: value.offset, type: value.type, count: value.count };
   if (value.property !== undefined) {
     if (typeof value.property !== 'string' || value.count !== 1) throw new Error(`Invalid property: ${field.spec}`);
@@ -65,55 +59,18 @@ function parseLayout(value: unknown): GoldenLayout {
   return { abiVersion: 1, totalBytes: value.totalBytes, regions };
 }
 
-/** Parses one "### <layout>" byte table from the English specification. */
-function specFields(layout: string): SpecField[] {
-  const start = spec.indexOf(`\n${layout} `);
-  if (start < 0) throw new Error(`Missing specification layout ${layout}`);
-  const section = spec.slice(start + 1).split('\n### ')[0]!.split('\n## ')[0]!;
-  const fields: SpecField[] = [];
-  for (const row of section.split('\n').filter(line => /^\| \d/.test(line))) {
-    const [offsets = '', typeCell = '', , names = ''] = row.split('|').slice(1, -1).map(cell => cell.trim());
-    const type = /^(u32|f32|f64)(?:\[(\d+)\]| × (\d+))?$/.exec(typeCell);
-    if (!type || !wireType(type[1])) throw new Error(`Unknown specification type ${typeCell}`);
-    const base = type[1], arrayLength = Number(type[2] ?? 1), repeated = Number(type[3] ?? 1);
-    if (offsets.includes('..')) {
-      const [first = NaN, last = NaN] = offsets.split('..').map(Number);
-      if (last + 1 - first !== arrayLength * WIDTH[base]) throw new Error(`Inconsistent range ${offsets}`);
-      fields.push({ spec: names, offset: first, type: base, count: arrayLength });
-      continue;
-    }
-    const starts = offsets.split(' / ').map(Number), labels = repeated > 1 ? names.split(' / ') : [names];
-    if (starts.length !== repeated || labels.length !== repeated) throw new Error(`Inconsistent row ${row}`);
-    starts.forEach((offset, i) => fields.push({ spec: labels[i]!, offset, type: base, count: 1 }));
-  }
-  return fields;
-}
-function regionRow(table: string): { offset: number; bytes: number } {
-  const row = new RegExp(`^\\| ${table} \\| ([\\d,]+) \\| ([\\d,]+) \\|`, 'm').exec(spec);
-  if (!row) throw new Error(`Missing region ${table}`);
-  return { offset: Number(row[1]!.replaceAll(',', '')), bytes: Number(row[2]!.replaceAll(',', '')) };
-}
-
 /** Throws unless the fixture describes exactly the specified regions, fields, and byte coverage. */
 function assertMatchesSpecification(layout: GoldenLayout): void {
   let covered = 0;
   for (const region of layout.regions) {
-    const row = regionRow(region.table);
+    const row = regionRow('## 2. Implemented ABI v1', region.table);
     if (row.offset !== region.absoluteOffset || row.bytes !== region.bytes * region.slots) {
       throw new Error(`Region ${region.table} differs from the specification`);
     }
     covered += row.bytes;
     const actual = region.fields.map(({ spec: name, offset, type, count: n }) => ({ spec: name, offset, type, count: n }));
     expect(actual, `${region.layout} fields`).toEqual(specFields(region.layout));
-    const bytes = new Set<number>();
-    for (const field of region.fields) {
-      for (let i = 0; i < field.count * WIDTH[field.type]; i++) {
-        const byte = field.offset + i;
-        if (byte >= region.bytes || bytes.has(byte)) throw new Error(`Overlap/out of range: ${field.spec}`);
-        bytes.add(byte);
-      }
-    }
-    if (bytes.size !== region.bytes) throw new Error(`Incomplete coverage: ${region.layout}`);
+    assertCoverage(region.fields, region.bytes, region.layout);
   }
   if (covered !== layout.totalBytes) throw new Error('Regions do not cover the shared buffer');
 }

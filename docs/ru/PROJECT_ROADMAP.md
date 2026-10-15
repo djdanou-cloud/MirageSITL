@@ -1,6 +1,6 @@
 # PROJECT_ROADMAP.md
 
-<!-- source-sha256: 60509d1751965b5c0aafca7249bc0883e100b8e1e4aca8596d19f469d91553cf -->
+<!-- source-sha256: e854e2e3bfc93f3dbf7878d90cdebcddc3f30c15b1491cbe8fafb450141cfb55 -->
 
 Английский источник: [Source of truth](../PROJECT_ROADMAP.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -190,12 +190,13 @@ Google content без прав.
 
 ### TASK-008 — Константы и layout ABI v2
 
-- **Status:** TODO.
+- **Status:** DONE — Claude; baseline 695023c; 2026-10-15.
 - **Title & Description:** Ввести v2 отдельно от v1 и golden двоичный fixture.
 - **Dependencies:** TASK-006, TASK-007.
-- **Touched Files:** `packages/protocol/src/layout-v2.ts`, `packages/protocol/src/state-v2.ts`, `tests/layout-v2.test.ts`, `tests/fixtures/protocol/state-v2.hex`.
+- **Touched Files:** `packages/protocol/src/layout-v2.ts`, `packages/protocol/src/state-v2.ts`, `tests/layout-v2.test.ts`, `tests/fixtures/protocol/state-v2.hex`, `packages/protocol/src/pilot-v2.ts`, `packages/protocol/src/index.ts`, `tsconfig.json`, `tests/support/spec-layout.ts`, `tests/support/golden-v2.ts`, `tests/protocol-golden.test.ts`, `tests/fixtures/registry.json`, `README.md`, `docs/ru/README.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `docs/SPECS_SHARED_MEMORY.md`, `docs/ru/SPECS_SHARED_MEMORY.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
 - **Interfaces / Contracts:** SPECS_SHARED_MEMORY §3; 49280 bytes; state stride 192, TickId lo/hi.
 - **DoD & Acceptance Criteria:** Все поля покрыты offset/size/alignment tests; golden побайтово совпадает; v1 не проходит v2 validation; reserved words нули.
+- **Evidence:** Владелец Claude; baseline 695023c; 2026-10-15. tests/layout-v2.test.ts: 11 PASS. Зарегистрированный синтетический fixture abi-v2-golden (tests/fixtures/protocol/state-v2.hex, упакован Python struct по таблицам раздела 3 независимо от TypeScript encoder, tolerance 0) поле за полем совпадает с таблицами Header v2, State v2 и Pilot mailbox v2 при полном покрытии байтов; StateOffsetV2, PilotOffsetV2 и HeaderV2 покрывают все поля; естественное выравнивание соблюдается во всех 256 слотах; StateCodecV2/PilotCodecV2 упаковывают golden значения в golden байты и декодируют их обратно; createSharedMemoryV2 записывает golden header при нулевых ring и mailbox; проверка отклоняет буферы v1 и 13 искажённых слов header; negotiateAbiVersion возвращает 1/2 и отклоняет буфер размера v1 с версией 2; перенос tick, сравнение и граница 2^53; контракты значений на стороне writer. Мутационные проверки: симметричная перестановка смещений напряжения/тока батареи и изменение типа в спецификации проваливают тесты. Сверх перечисленных файлов: pilot-v2.ts (mailbox v2 входит в тот же layout), реэкспорт в index.ts и tsconfig allowImportingTsExtensions (модули protocol используют импорты .ts, чтобы Node workers загружали их для TASK-009). Общий парсер спецификации теперь используется и в golden-тесте v1. npm run lint, npm run typecheck, npm run check:docs exit 0; CI=true npm test: 58 PASS. Node 22.22.0. Runtime по-прежнему использует v1; спецификация, README, architecture и roadmap синхронизированы EN/RU.
 
 ### TASK-009 — Атомарные v2 reader/writer
 

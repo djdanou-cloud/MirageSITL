@@ -1,14 +1,16 @@
 # SPECS_SHARED_MEMORY.md
 
-<!-- source-sha256: c63450957ce2573aca8fbf8d94ceabde8bed6563adfd8ebfa3a78ea399c8e844 -->
+<!-- source-sha256: 8470b8246f170c277800b9babc9c29f9a3d8d22d351b787d71c98d7ac1cf8650 -->
 
 Английский источник: [Source of truth](../SPECS_SHARED_MEMORY.md). Изменения спецификации обновляют оба языка в одной задаче.
 
 
 Версия документа: 1.0 · 2026-10-15. Базовый код: commit `e3bb6b4`.
 
-**ABI v1 — реализован. ABI v2 и Control Protocol v2 — целевые контракты, ещё
-не реализованы.** TASK-008/009 выполняют миграцию; TASK-010 — команды.
+**ABI v1 реализован и используется работающим приложением. Константы layout и
+codecs ABI v2 реализованы в `packages/protocol` (TASK-008), но runtime их пока
+не использует; транспорт v2 и Control Protocol v2 — целевые контракты, ещё не
+реализованы.** TASK-008/009 выполняют миграцию; TASK-010 — команды.
 Не добавлять EKF/EW в зарезервированные слова v1 без смены версии.
 Идентификаторы задач определены в [PROJECT_ROADMAP.md](PROJECT_ROADMAP.md).
 

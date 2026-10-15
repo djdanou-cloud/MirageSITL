@@ -257,7 +257,11 @@ SPECS_SHARED_MEMORY.md field by field, and every byte of the 32896-byte buffer
 written by StateWriter and ControlWriter (header, two ring slots, untouched
 slots, reserved words, and mailbox) must equal an image packed by a local
 DataView. The v1 readers are not used, so a symmetric encoder/decoder offset
-error cannot pass. V2 remains a separate future migration.
+error cannot pass. TASK-008 adds the v2 layout constants, state and pilot
+codecs, header initialization, validation, and v1/v2 negotiation to
+packages/protocol. They are verified against `tests/fixtures/protocol/state-v2.hex`,
+golden records packed with Python struct from the specification tables
+independently of the TypeScript encoder. The running application remains on v1.
 
 ### Verified fixture manifests and deterministic streams
 

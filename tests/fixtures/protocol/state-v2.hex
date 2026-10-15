@@ -1,0 +1,77 @@
+# ABI v2 golden records: Header v2, State v2 (one slot), Pilot mailbox v2. Little endian.
+# Synthetic values chosen to be exact in f32. Packed with Python struct from the byte tables in
+# docs/SPECS_SHARED_MEMORY.md section 3, independently of the TypeScript encoder.
+# seqlock words are 0 here: they belong to the atomic transport (TASK-009).
+# Columns: byte-offset type property hex-bytes | specification field label
+[header]
+0 u32 Magic 5449534d | magic = 0x4d534954
+4 u32 Version 02000000 | abi_version = 2
+8 u32 HeaderBytes 40000000 | header_bytes = 64
+12 u32 StateStride c0000000 | state_stride = 192
+16 u32 Capacity 00010000 | capacity = 256
+20 u32 Published 00000000 | published (Worker)
+24 u32 Overruns 00000000 | overruns (Worker)
+28 u32 DroppedSteps 00000000 | dropped_steps (Worker)
+32 u32 PhysicsHz 90010000 | physics_hz = 400, 800, or 1200
+36 u32 SessionEpoch 01000000 | session_epoch (Worker; initial value 1)
+40 u32 MaxCatchUp 08000000 | max_catch_up = 8
+44 u32 RuntimeFlags 00000000 | runtime_flags: bit0 Ready, bit1 Running, bit2 Fault
+48 u32 PilotOffset 40c00000 | pilot_offset = 49,216
+52 u32 PilotBytes 40000000 | pilot_bytes = 64
+56 u32[2] reserved 0000000000000000 | reserved_zero
+[state]
+0 u32 seqlock 00000000 | seqlock
+4 u32 sampleId 01000000 | sample_id, equal to published after this write
+8 u64 tickId 9001000001000000 | tick_id, integrations within this epoch
+16 f64 simTimeS 7b14ae67e17a6441 | sim_time = tick_id / physics_hz
+24 f64 northM 4eb7e60760e35641 | north
+32 f64 eastM f96b0d000000abc0 | east
+40 f64 downM 00000000006046c0 | down
+48 f32 qw 0000003f | qw
+52 f32 qx 000000bf | qx
+56 f32 qy 0000003f | qy
+60 f32 qz 000000bf | qz
+64 f32 vnMps 00004841 | vn
+68 f32 veMps 000060c0 | ve
+72 f32 vdMps 0000803e | vd
+76 f32 anMps2 0000c03f | an
+80 f32 aeMps2 00002040 | ae
+84 f32 adMps2 000040bf | ad
+88 f32 pRadS 0000003e | p
+92 f32 qRadS 000000bf | q
+96 f32 rRadS 0000403f | r
+100 f32 specificForceXBodyMps2 0000003f | ideal_specific_force_x
+104 f32 specificForceYBodyMps2 000080be | ideal_specific_force_y
+108 f32 specificForceZBodyMps2 00001cc1 | ideal_specific_force_z
+112 f32 trueAirspeedMps 00009441 | true_airspeed
+116 f32 batteryVoltage 00007441 | battery_voltage
+120 f32 batteryCurrentA 0000a941 | battery_current
+124 f32 ambientPressurePa 80e6c547 | ambient_pressure
+128 f64 scheduledWallTimeMs 0002c006450c7a42 | scheduled_wall_time_ms
+136 f32 groundClearanceM 00004641 | ground_clearance
+140 f32 referenceRotorRpm 0034c045 | reference_rotor_rpm; UI summary, not all rotor states
+144 u32 vehicleFlags 1c000000 | vehicle_flags
+148 u32 ekfFlags 15000000 | ekf_flags, normalized project flags
+152 u32 ewFlags 12000000 | ew_flags
+156 u32 sensorValidMask 2b000000 | sensor_valid_mask
+160 u32 epoch 03000000 | session_epoch
+164 u32 modelId efbe0000 | model_id
+168 u32 autopilotMode ffffffff | autopilot_mode; 0xffffffff = unknown
+172 u32 autopilotHealth 0b000000 | autopilot_health
+176 u64 lastActuatorTick feffffff00000000 | last_actuator_tick, meaningful when actuator is valid
+184 f32 autopilotStatusAgeMs 00001642 | autopilot_status_age_ms
+188 u32 reserved 00000000 | reserved_zero
+[pilot]
+0 u32 seqlock 00000000 | seqlock
+4 u32 expectedEpoch 03000000 | expected_session_epoch
+8 f64 sampledWallTimeMs 000000c4298c6741 | sampled_wall_time_ms
+16 f32 roll 000000bf | roll
+20 f32 pitch 0000803e | pitch
+24 f32 yaw 0000403f | yaw
+28 f32 throttle 0000c03e | throttle
+32 u32 flags 03000000 | bit0 Connected, bit1 Armed
+36 u32 calibratedModeSlot 05000000 | calibrated_mode_slot [0,5], 0xffffffff=unavailable
+40 u32 requestedMode ffffffff | requested_mode, 0xffffffff=no request
+44 u32 deviceGeneration 01000080 | device_generation, incremented when the device changes
+48 u32 inputSampleId 2a000000 | input_sample_id
+52 u32[3] reserved 000000000000000000000000 | reserved_zero

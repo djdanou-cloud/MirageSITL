@@ -3,8 +3,10 @@
 Document version: 1.0 · 2026-10-15. Runtime baseline: commit `e3bb6b4`.
 English is the source of truth. [Russian mirror](ru/SPECS_SHARED_MEMORY.md).
 
-**ABI v1 is implemented. ABI v2 and Control Protocol v2 are target contracts
-and are not implemented yet.** TASK-008/009 implement the migration;
+**ABI v1 is implemented and used by the running application. ABI v2 layout
+constants and codecs are implemented in `packages/protocol` (TASK-008) but the
+runtime does not use them yet; the v2 transport and Control Protocol v2 are
+target contracts that are not implemented yet.** TASK-008/009 implement the migration;
 TASK-010 implements commands. Do not assign EKF/EW meanings to v1 reserved
 words without changing the ABI version. Task IDs are defined in
 [PROJECT_ROADMAP.md](PROJECT_ROADMAP.md).

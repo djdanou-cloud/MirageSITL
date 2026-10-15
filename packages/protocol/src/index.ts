@@ -1,4 +1,9 @@
 /** ABI v1: single worker producer, single main-thread consumer. SI, NED / FRD. */
+import { ABI_VERSION_V2, validateSharedMemoryV2 } from './layout-v2.ts';
+export * from './layout-v2.ts';
+export * from './state-v2.ts';
+export * from './pilot-v2.ts';
+
 export const ABI_VERSION = 1;
 export const PHYSICS_HZ = 400;
 export const DT = 1 / PHYSICS_HZ;
@@ -60,6 +65,17 @@ export function validateSharedMemory(buffer: SharedArrayBuffer): void {
     Atomics.load(words, Header.Capacity) !== CAPACITY ||
     Atomics.load(words, Header.StateWords) !== STATE_WORDS)
     throw new Error('Shared memory ABI mismatch');
+}
+/**
+ * Negotiates the layout of an attached buffer from its version word and then
+ * fully validates that layout; a buffer is never interpreted as another version.
+ */
+export function negotiateAbiVersion(buffer: unknown): 1 | 2 {
+  if (!(buffer instanceof SharedArrayBuffer) || buffer.byteLength < 8) throw new Error('Invalid shared memory');
+  const version = Atomics.load(new Int32Array(buffer, 0, 2), Header.Version);
+  if (version === ABI_VERSION) { validateSharedMemory(buffer); return 1; }
+  if (version === ABI_VERSION_V2) { validateSharedMemoryV2(buffer); return 2; }
+  throw new Error('Unsupported shared memory ABI version');
 }
 
 // Atomic int32 transport of float bit patterns. Never concurrently access a
