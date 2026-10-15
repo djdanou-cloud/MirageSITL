@@ -1,6 +1,6 @@
 # PROJECT_ROADMAP.md
 
-<!-- source-sha256: 419a29e25abadb2fe007aa642c3294e1f1ff885ad49046bef282c3aa0bce5223 -->
+<!-- source-sha256: 60509d1751965b5c0aafca7249bc0883e100b8e1e4aca8596d19f469d91553cf -->
 
 Английский источник: [Source of truth](../PROJECT_ROADMAP.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -168,12 +168,13 @@ Google content без прав.
 
 ### TASK-084 — Обнаружение правил агентами
 
-- **Status:** TODO.
+- **Status:** DONE — Claude; baseline 1064a57; 2026-10-15.
 - **Title & Description:** Добавить тонкие entry points, которые направляют Codex/Cursor к единому CLAUDE.md.
 - **Dependencies:** TASK-001.
-- **Touched Files:** `AGENTS.md`, `.cursor/rules/project.mdc`, `tests/agent-config.test.ts`.
+- **Touched Files:** `AGENTS.md`, `.cursor/rules/project.mdc`, `tests/agent-config.test.ts`, `docs/ru/AGENTS.md`, `docs/documentation-index.json`, `tests/documentation-policy.test.ts`, `CLAUDE.md`, `docs/ru/CLAUDE.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
 - **Interfaces / Contracts:** CLAUDE.md — единый источник workflow; wrapper содержит ссылку, не копию правил.
 - **DoD & Acceptance Criteria:** Проверка читает оба entry point и разрешает root CLAUDE.md; Cursor rule alwaysApply=true; тест не утверждает автоматическое чтение файла любым неизвестным клиентом.
+- **Evidence:** Владелец Claude; baseline 1064a57; 2026-10-15. AGENTS.md (зарегистрированная пара EN/RU, поскольку check:docs требует пары для каждого Markdown-файла) и .cursor/rules/project.mdc ссылаются на корневой CLAUDE.md, не копируя его разделы правил; front matter Cursor задаёт alwaysApply: true. tests/agent-config.test.ts: 3 PASS (обе ссылки разрешаются в корневой CLAUDE.md, нет дублированных заголовков правил, нет утверждения, что названный клиент загружает файл автоматически). tests/documentation-policy.test.ts теперь вычисляет ожидаемое число пар и задач из реестра и roadmap вместо жёстко заданных чисел. Абзац CLAUDE.md об обнаружении правил и все затронутые зеркала синхронизированы; npm run check:docs exit 0.
 
 ## Phase 1: Shared Memory & Worker
 

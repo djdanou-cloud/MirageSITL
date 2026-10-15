@@ -165,12 +165,13 @@ copy Google content without rights.
 
 ### TASK-084 — Agent rule discovery
 
-- **Status:** TODO.
+- **Status:** DONE — Claude; baseline 1064a57; 2026-10-15.
 - **Title & Description:** Add thin entry points directing Codex/Cursor to the authoritative CLAUDE.md.
 - **Dependencies:** TASK-001.
-- **Touched Files:** `AGENTS.md`, `.cursor/rules/project.mdc`, `tests/agent-config.test.ts`.
+- **Touched Files:** `AGENTS.md`, `.cursor/rules/project.mdc`, `tests/agent-config.test.ts`, `docs/ru/AGENTS.md`, `docs/documentation-index.json`, `tests/documentation-policy.test.ts`, `CLAUDE.md`, `docs/ru/CLAUDE.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
 - **Interfaces / Contracts:** CLAUDE.md is the authoritative workflow; wrappers link to it rather than copying rules.
 - **DoD & Acceptance Criteria:** A check resolves root CLAUDE.md from both entry points; the Cursor rule sets alwaysApply=true; do not claim automatic discovery by an unknown client.
+- **Evidence:** Owner Claude; baseline 1064a57; 2026-10-15. AGENTS.md (registered EN/RU pair, because check:docs requires every Markdown file to be paired) and .cursor/rules/project.mdc link to root CLAUDE.md without copying its policy headings; the Cursor front matter sets alwaysApply: true. tests/agent-config.test.ts: 3 PASS (both links resolve to root CLAUDE.md, no duplicated policy headings, no claim that a named client loads a file automatically). tests/documentation-policy.test.ts now derives the expected pair/task counts from the registry and roadmap instead of hard-coding them. CLAUDE.md agent-discovery paragraph and all touched mirrors synchronized; npm run check:docs exit 0.
 
 ## Phase 1: Shared Memory & Worker
 

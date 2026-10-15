@@ -42,9 +42,9 @@ specification in root or elsewhere under `docs/`.
    English contract changes in a later task, update both languages again.
 
 Claude Code loads this root file through its own discovery mechanism. Do not
-assume Codex/Cursor automatically read CLAUDE.md: before TASK-084, open it
-explicitly. TASK-084 adds AGENTS.md and `.cursor/rules/project.mdc` as thin
-pointers rather than duplicate policy copies.
+assume Codex/Cursor automatically read CLAUDE.md. TASK-084 added AGENTS.md and
+`.cursor/rules/project.mdc` as thin pointers to this file rather than duplicate
+policy copies; if a client loads neither pointer, open this file explicitly.
 
 ## 2. Actual baseline and scope
 
