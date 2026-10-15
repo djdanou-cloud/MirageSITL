@@ -38,7 +38,21 @@ test('real worker keeps fixed dt, detects stale control and acknowledges lifecyc
     const current = p.newState();
     const worker = new Worker('/src/physics.worker.ts', { type: 'module' });
     const events: { type: string; command?: string; requestId?: number }[] = [];
-    worker.onmessage = event => events.push(event.data);
+    worker.onmessage = ({ data }: MessageEvent<unknown>) => {
+      if (typeof data !== 'object' || data === null || !('type' in data) || typeof data.type !== 'string') {
+        throw new Error('Invalid worker event');
+      }
+      const event: { type: string; command?: string; requestId?: number } = { type: data.type };
+      if ('command' in data) {
+        if (typeof data.command !== 'string') throw new Error('Invalid worker command');
+        event.command = data.command;
+      }
+      if ('requestId' in data) {
+        if (typeof data.requestId !== 'number') throw new Error('Invalid worker request ID');
+        event.requestId = data.requestId;
+      }
+      events.push(event);
+    };
     const waitFor = async (check: () => boolean) => {
       const until = performance.now() + 5000;
       while (!check()) {

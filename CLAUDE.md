@@ -74,10 +74,19 @@ npm run dev
 npm run build
 npm test
 npm run check:docs
+npm run lint
+npm run typecheck
 npx --no-install vitest run tests/protocol.test.ts
 npx --no-install tsc --noEmit
 CHROMIUM_PATH=/usr/bin/chromium npm run test:browser
 ```
+
+TASK-002 is implemented: `npm run lint` applies typed rules to TypeScript and
+recommended JavaScript rules to tooling; `npm run typecheck` runs strict tsc.
+TASK-003 adds independent GitHub Actions unit/browser/build jobs on pull
+requests and pushes to main. Unit JUnit results, browser JUnit/HTML/traces,
+and build output/logs are retained even after failure. Hosted execution must
+be checked separately from successful local jobs.
 
 `npm run build` already runs `tsc --noEmit` and Vite build. `npm test` means
 `vitest run`; select focused tests by an existing exact path. Omit CHROMIUM_PATH
@@ -91,8 +100,6 @@ them, after which dependent work must run them:
 
 | Command | Introduced by | Purpose |
 | --- | --- | --- |
-| `npm run lint` | TASK-002 | Typed ESLint; no-explicit-any and no-unsafe-* |
-| `npm run typecheck` | TASK-002 | Dedicated strict TypeScript gate |
 | `cargo check --manifest-path native/Cargo.toml --workspace --locked` | TASK-016 | Native Rust compilation |
 | `cargo test --manifest-path native/Cargo.toml --workspace --locked` | TASK-016 | Scalar reference tests |
 | `cargo check --manifest-path native/Cargo.toml -p mirage-bet --target wasm32-unknown-unknown --locked` | TASK-016 | WASM target compilation; use crate name mirage-bet |
@@ -164,7 +171,7 @@ Remaining: <none or exact external blocker>
 * Use strict and noUncheckedIndexedAccess. **No any**: explicit assertions,
   unsafe inferred values from imports/JSON, or lint suppression to bypass this
   rule. External data starts as unknown and becomes a domain type after schema/
-  type-guard validation. TASK-002 enforces repository-wide typed linting.
+  type-guard validation. TASK-002 implements repository-wide typed linting with ESLint 10 and typescript-eslint; inline suppression is disabled by the lint command.
 * `as unknown as T`, non-null assertions, and array-index assertions require
   a proven platform/bounds invariant, a test, and explanation. They cannot
   replace validation of external payloads. Trusted local module imports may

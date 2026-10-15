@@ -3,8 +3,13 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "workspaces": ["apps/*", "packages/*"],
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
+    "lint": "eslint . --max-warnings=0 --no-inline-config",
+    "typecheck": "tsc --noEmit",
     "dev": "npm run dev -w @mirage/web",
     "build": "tsc --noEmit && npm run build -w @mirage/web",
     "test": "vitest run",
@@ -12,10 +17,15 @@
     "test:browser": "playwright test"
   },
   "devDependencies": {
+    "@eslint/js": "10.0.1",
     "@playwright/test": "1.56.1",
     "@types/node": "24.10.0",
+    "eslint": "10.12.0",
+    "globals": "17.13.0",
     "typescript": "5.9.3",
+    "typescript-eslint": "8.71.2",
     "vite": "7.3.7",
-    "vitest": "4.1.11"
+    "vitest": "4.1.11",
+    "yaml": "2.9.1"
   }
 }

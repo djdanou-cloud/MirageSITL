@@ -24,7 +24,7 @@ have not been validated for pilot training.
 
 ## Quickstart
 
-Use Node.js **22.12+** or **24 LTS** (`.nvmrc` selects 24), npm 10+, and a
+Use Node.js **22.13+** or **24 LTS** (`.nvmrc` selects 24), npm 10+, and a
 current Chrome/Edge browser on macOS/Windows. Future Web Serial HITL targets
 Chromium. Cloud tasks use the existing isolated checkout; do not create another
 Git worktree unless explicitly requested.
@@ -90,6 +90,8 @@ represented by nonfunctional services.
 
 ```bash
 npm run check:docs
+npm run lint
+npm run typecheck
 npm test
 npm run build
 npx playwright install chromium
@@ -110,8 +112,12 @@ not validate a physical transmitter or Pixhawk.
 
 After building, `npm run preview -w @mirage/web` serves the production bundle
 on port 4173. Verify isolation, Worker READY, motion after arming, and stable
-ticks while paused. Dedicated lint/typecheck scripts and Rust/Cargo tooling
-are future tasks, not commands already installed by this milestone.
+ticks while paused. Dedicated lint/typecheck commands are available. Rust/Cargo tooling remains
+a future task. GitHub Actions runs independent unit, browser, and build jobs
+on pull requests and pushes to main. Unit JUnit reports, browser JUnit/HTML
+reports and failure traces, and build logs/artifacts are uploaded even after
+failure. The automated tooling checks include unsafe-type fixtures and
+nonzero exit status when either runner discovers no tests.
 
 400 Hz is a fixed **integration timestep**, not a browser hard real-time
 guarantee. Catch-up is bounded to eight steps and dropped wall intervals are

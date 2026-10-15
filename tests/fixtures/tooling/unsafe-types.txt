@@ -1,0 +1,8 @@
+export function unsafe(value: any) {
+  const parsed = JSON.parse('{"value":1}');
+  const callback = parsed.handler;
+  callback(value);
+  acceptNumber(parsed.value);
+  return parsed.value;
+}
+function acceptNumber(value: number): number { return value * 2; }

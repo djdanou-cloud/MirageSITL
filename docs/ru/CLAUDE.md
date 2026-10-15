@@ -1,6 +1,6 @@
 # CLAUDE.md — MirageSITL agent instructions
 
-<!-- source-sha256: 972d9c481b5278b2791b78daf40251d6cda5ad0c8e72368ea3f92fc2a596fbf1 -->
+<!-- source-sha256: 865d17b95c70a7cc8cf019e76839dfdf6985eb3e4a3f7158a4ad3b62e52a7c25 -->
 
 Английский источник: [Source of truth](../../CLAUDE.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -82,10 +82,18 @@ npm run dev
 npm run build
 npm test
 npm run check:docs
+npm run lint
+npm run typecheck
 npx --no-install vitest run tests/protocol.test.ts
 npx --no-install tsc --noEmit
 CHROMIUM_PATH=/usr/bin/chromium npm run test:browser
 ```
+
+TASK-002 реализован: `npm run lint` включает typed правила TypeScript и
+recommended JavaScript rules для tooling; `npm run typecheck` запускает strict tsc.
+TASK-003 добавляет независимые GitHub Actions unit/browser/build jobs для PR
+и push в main. JUnit unit, JUnit/HTML/traces браузера и build output/logs
+сохраняются после ошибок. Hosted execution проверяется отдельно от локальных jobs.
 
 `npm run build` уже выполняет `tsc --noEmit` и Vite build. `npm test` =
 `vitest run`; focused test выбирается существующим точным путём.
@@ -100,8 +108,6 @@ CHROMIUM_PATH=/usr/bin/chromium npm run test:browser
 
 | Команда | Появится | Назначение |
 | --- | --- | --- |
-| `npm run lint` | TASK-002 | typed ESLint; no-explicit-any + no-unsafe-* |
-| `npm run typecheck` | TASK-002 | отдельный strict TypeScript gate |
 | `cargo check --manifest-path native/Cargo.toml --workspace --locked` | TASK-016 | native Rust compile |
 | `cargo test --manifest-path native/Cargo.toml --workspace --locked` | TASK-016 | scalar reference tests |
 | `cargo check --manifest-path native/Cargo.toml -p mirage-bet --target wasm32-unknown-unknown --locked` | TASK-016 | WASM target compile; crate name закрепить как mirage-bet |
@@ -172,7 +178,7 @@ Remaining: <none or exact external blocker>
 * `strict`, `noUncheckedIndexedAccess`; **запрещён any**, включая type assertions,
   unsafe inferred any из dynamic imports/JSON и отключение lint для обхода.
   Внешнее значение — `unknown`; после schema/type guard становится domain
-  type. Legacy unsafe места устраняются TASK-002, не распространяются далее.
+  type. TASK-002 включает typed linting на ESLint 10/typescript-eslint; команда lint отключает inline suppression.
 * `as unknown as T`, non-null assertions и array index `!` допустимы только
   для доказанного инварианта платформы/buffer bounds с test и объяснением;
   не использовать как замену проверки внешнего payload.

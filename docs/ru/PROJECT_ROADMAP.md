@@ -1,6 +1,6 @@
 # PROJECT_ROADMAP.md
 
-<!-- source-sha256: 7a8e6280f34407d437672663097cfa2022f178c7c99dc21fc10f02d3e52bd327 -->
+<!-- source-sha256: de76e855e571b925c1e4e22fbf083e01fb21d3ccb4f01593a790392582e0e971 -->
 
 Английский источник: [Source of truth](../PROJECT_ROADMAP.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -105,30 +105,36 @@ Google content без прав.
 
 ### TASK-001 — Зафиксировать работающий skeleton
 
-- **Status:** DONE — baseline e3bb6b4.
+- **Status:** DONE — revalidated against baseline c8814c6.
 - **Title & Description:** Сохранить существующий React/Vite workspace и воспроизводимый demo flight.
 - **Dependencies:** нет.
 - **Touched Files:** `package.json`, `package-lock.json`, `apps/web/vite.config.ts`, `README.md`.
 - **Interfaces / Contracts:** React 19, Vite, npm workspaces; COOP/COEP.
 - **DoD & Acceptance Criteria:** DONE baseline e3bb6b4: npm ci, npm run build, 13 unit и 4 browser tests ранее пройдены; чистая установка не меняет lockfile.
+- **Evidence:** Owner Codex; baseline c8814c6; 2026-10-15. Чистый npm ci сохранил SHA-256 lockfile; build exit 0; 25 unit и 4 browser tests прошли без skips/failures.
+
 
 ### TASK-002 — Типизация и lint gate
 
-- **Status:** TODO.
+- **Status:** DONE — implemented and locally verified.
 - **Title & Description:** Добавить отдельные команды typecheck/lint и исключить explicit/implicit unsafe any, включая browser dynamic import.
 - **Dependencies:** TASK-001.
-- **Touched Files:** `package.json`, `package-lock.json`, `eslint.config.mjs`, `tsconfig.json`, `tests/browser/simulation.spec.ts`, `tests/tooling.test.ts`, `tests/fixtures/tooling/unsafe-types.txt`.
+- **Touched Files:** `package.json`, `package-lock.json`, `eslint.config.mjs`, `tsconfig.json`, `tests/browser/simulation.spec.ts`, `tests/tooling.test.ts`, `tests/fixtures/tooling/unsafe-types.txt`, `README.md`, `docs/ru/README.md`, `CLAUDE.md`, `docs/ru/CLAUDE.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
 - **Interfaces / Contracts:** unknown + runtime narrowing; strict/noUncheckedIndexedAccess; typed module imports.
 - **DoD & Acceptance Criteria:** npm run lint и npm run typecheck выполняются; negative lint fixture с explicit any и unsafe assignment отклоняется; не ослаблять strict ради existing кода.
+- **Evidence:** Owner Codex; baseline c8814c6; 2026-10-15. ESLint 10/typescript-eslint typed rules проходят без подавлений; npm run lint и npm run typecheck: exit 0. tests/tooling.test.ts: 3 PASS, проверены отрицательные any/unsafe fixtures и TS2322. Полный suite: 25 unit и 4 browser PASS.
+
 
 ### TASK-003 — Автоматический CI
 
-- **Status:** TODO.
+- **Status:** BLOCKED_EXTERNAL — implementation complete; hosted-run verification unavailable.
 - **Title & Description:** Запускать проверки на pull request без зависимости от аппаратуры или платных API.
 - **Dependencies:** TASK-002.
-- **Touched Files:** `.github/workflows/ci.yml`, `playwright.config.ts`.
+- **Touched Files:** `.github/workflows/ci.yml`, `playwright.config.ts`, `README.md`, `docs/ru/README.md`, `CLAUDE.md`, `docs/ru/CLAUDE.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `package.json`, `package-lock.json`, `vitest.config.ts`, `.gitignore`, `tests/ci.test.ts`.
 - **Interfaces / Contracts:** Node 24, frozen npm lock; отдельно unit/browser/build jobs.
 - **DoD & Acceptance Criteria:** CI запускает ненулевое число тестов, сохраняет результаты/trace при ошибке; no-tests и failed job дают failure; секреты не нужны для synthetic lane.
+- **Evidence:** Owner Codex; baseline c8814c6; 2026-10-15. Созданы три независимых CI jobs; tests/ci.test.ts: 3 PASS, оба runner отклоняют zero-test runs. Локальные CI команды прошли: 25 unit, 4 browser, production build. Reports: test-results/unit/junit.xml и test-results/browser/junit.xml без skips/failures; build.log и apps/web/dist созданы. GitHub Actions API недоступен: proxy CONNECT 403; после push проверить первый hosted run. Synthetic jobs не требуют credentials или аппаратуры.
+
 
 ### TASK-004 — Golden fixtures и seed registry
 

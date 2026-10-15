@@ -1,6 +1,6 @@
 # MirageSITL
 
-<!-- source-sha256: a7a10b12905a4110fa327864e79bac0a43320a473b786c4c3ad2ecbee593d0fa -->
+<!-- source-sha256: 463ba529c3378642d5e2dd0c1e1f33a985f4be82f7dfa2b69a18648ebed42688 -->
 
 Английский источник: [Source of truth](../../README.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -30,7 +30,7 @@ FPV/thermal и AAR запланированы. Текущая аэродинам
 
 ## Быстрый запуск
 
-Node.js **22.12+** или **24 LTS** (`.nvmrc` выбирает 24), npm 10+ и современный
+Node.js **22.13+** или **24 LTS** (`.nvmrc` выбирает 24), npm 10+ и современный
 Chrome/Edge на macOS/Windows. Будущий HITL Web Serial нацелен на Chromium.
 Облачная задача использует текущий изолированный checkout; новый Git worktree
 создаётся только по явному запросу.
@@ -96,6 +96,8 @@ Render ring хранит короткую историю интерполяци�
 
 ```bash
 npm run check:docs
+npm run lint
+npm run typecheck
 npm test
 npm run build
 npx playwright install chromium
@@ -116,8 +118,12 @@ Browser tests используют настоящий Worker/SAB, взлёт, pa
 
 После сборки `npm run preview -w @mirage/web` запускает production bundle
 на порту 4173. Проверьте isolation, Worker READY, движение после arm и
-неизменные ticks при pause. Отдельные lint/typecheck scripts и Rust/Cargo
-пока являются будущими задачами, а не установленными возможностями.
+неизменные ticks при pause. Отдельные lint/typecheck команды доступны; Rust/Cargo пока остаётся будущей
+задачей. GitHub Actions запускает независимые unit/browser/build jobs для PR
+и push в main. JUnit unit, JUnit/HTML и failure traces браузера, build logs
+и artifacts сохраняются даже после ошибок. Автоматические tooling checks
+проверяют unsafe-type fixtures и ненулевой exit status обоих runners при
+отсутствии найденных тестов.
 
 400 Гц — фиксированный **интеграционный шаг**, не hard real-time гарантия
 браузера. Catch-up ограничен 8 шагами, потери wall time видны в UI.

@@ -102,30 +102,36 @@ copy Google content without rights.
 
 ### TASK-001 — Preserve the working skeleton
 
-- **Status:** DONE — baseline e3bb6b4.
+- **Status:** DONE — revalidated against baseline c8814c6.
 - **Title & Description:** Retain the existing React/Vite workspace and reproducible demo flight.
 - **Dependencies:** none.
 - **Touched Files:** `package.json`, `package-lock.json`, `apps/web/vite.config.ts`, `README.md`.
 - **Interfaces / Contracts:** React 19, Vite, npm workspaces; COOP/COEP.
 - **DoD & Acceptance Criteria:** DONE baseline e3bb6b4: npm ci, npm run build, 13 unit and 4 browser tests previously passed; clean installation leaves the lockfile unchanged.
+- **Evidence:** Owner Codex; baseline c8814c6; 2026-10-15. Clean npm ci preserved the lockfile SHA-256; build exit 0; 25 unit and 4 browser tests passed, with no skips/failures.
+
 
 ### TASK-002 — Type and lint gates
 
-- **Status:** TODO.
+- **Status:** DONE — implemented and locally verified.
 - **Title & Description:** Add dedicated typecheck/lint commands and eliminate explicit or implicitly unsafe any, including the browser dynamic import.
 - **Dependencies:** TASK-001.
-- **Touched Files:** `package.json`, `package-lock.json`, `eslint.config.mjs`, `tsconfig.json`, `tests/browser/simulation.spec.ts`, `tests/tooling.test.ts`, `tests/fixtures/tooling/unsafe-types.txt`.
+- **Touched Files:** `package.json`, `package-lock.json`, `eslint.config.mjs`, `tsconfig.json`, `tests/browser/simulation.spec.ts`, `tests/tooling.test.ts`, `tests/fixtures/tooling/unsafe-types.txt`, `README.md`, `docs/ru/README.md`, `CLAUDE.md`, `docs/ru/CLAUDE.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
 - **Interfaces / Contracts:** unknown with runtime narrowing; strict/noUncheckedIndexedAccess; typed module imports.
 - **DoD & Acceptance Criteria:** npm run lint and npm run typecheck execute successfully; negative fixtures with explicit any and unsafe assignment fail; do not weaken strict settings to accommodate existing code.
+- **Evidence:** Owner Codex; baseline c8814c6; 2026-10-15. ESLint 10/typescript-eslint typed rules pass without suppression; npm run lint and npm run typecheck exit 0. tests/tooling.test.ts: 3 PASS; negative any/unsafe fixtures and TS2322 verified. Full suite: 25 unit and 4 browser PASS.
+
 
 ### TASK-003 — Automated CI
 
-- **Status:** TODO.
+- **Status:** BLOCKED_EXTERNAL — implementation complete; hosted-run verification unavailable.
 - **Title & Description:** Run pull-request checks without hardware or paid APIs.
 - **Dependencies:** TASK-002.
-- **Touched Files:** `.github/workflows/ci.yml`, `playwright.config.ts`.
+- **Touched Files:** `.github/workflows/ci.yml`, `playwright.config.ts`, `README.md`, `docs/ru/README.md`, `CLAUDE.md`, `docs/ru/CLAUDE.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `package.json`, `package-lock.json`, `vitest.config.ts`, `.gitignore`, `tests/ci.test.ts`.
 - **Interfaces / Contracts:** Node 24, frozen npm lock; separate unit/browser/build jobs.
 - **DoD & Acceptance Criteria:** CI runs nonzero test counts and retains results/failure traces; no-tests and failed jobs fail the pipeline; synthetic checks require no secrets.
+- **Evidence:** Owner Codex; baseline c8814c6; 2026-10-15. Three independent CI jobs implemented; tests/ci.test.ts: 3 PASS, including both runners rejecting zero tests. Local CI commands pass: 25 unit, 4 browser, production build. Reports: test-results/unit/junit.xml and test-results/browser/junit.xml, no skips/failures; build.log and apps/web/dist generated. Hosted Actions API read blocked by proxy CONNECT 403; inspect the first hosted run after push. No credentials or hardware required for synthetic jobs.
+
 
 ### TASK-004 — Golden fixtures and seed registry
 
