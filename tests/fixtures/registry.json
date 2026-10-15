@@ -55,6 +55,61 @@
           "derivation": "Synthetic symmetric quad geometry for schema tests, not a calibrated airframe."
         }
       }
+    },
+    {
+      "path": "abi/v1-layout.json",
+      "manifest": {
+        "formatVersion": 1,
+        "id": "abi-v1-layout",
+        "sourceSha256": "00a2e97d75521263f4348199c5e0086dd720949cffc92185cdaf97fbd1fd8be0",
+        "units": {
+          "simTimeS": "s",
+          "positionM": "m",
+          "velocityMps": "m/s",
+          "accelerationMps2": "m/s^2",
+          "angularRateRadS": "rad/s",
+          "batteryVoltageV": "V",
+          "normalizedValue": "1"
+        },
+        "validityEnvelope": {
+          "simTimeS": {
+            "min": 308.64,
+            "max": 308.64
+          },
+          "positionM": {
+            "min": -3456.0000004,
+            "max": 6000000.123456789
+          },
+          "velocityMps": {
+            "min": -3.5,
+            "max": 12.5
+          },
+          "accelerationMps2": {
+            "min": -0.75,
+            "max": 2.5
+          },
+          "angularRateRadS": {
+            "min": -0.5,
+            "max": 0.75
+          },
+          "batteryVoltageV": {
+            "min": 12.125,
+            "max": 12.125
+          },
+          "normalizedValue": {
+            "min": -0.5,
+            "max": 0.75
+          }
+        },
+        "tolerance": {
+          "absolute": 0,
+          "relative": 0
+        },
+        "provenance": {
+          "kind": "synthetic",
+          "derivation": "Hand-authored from the ABI v1 byte tables in docs/SPECS_SHARED_MEMORY.md; f32 values are exactly representable; bytes must match exactly. Not generated from encoder output."
+        }
+      }
     }
   ]
 }

@@ -250,15 +250,23 @@ not establish these performance budgets.
 TASK-004–006 introduce configuration-time boundaries; they do not add a new
 physics backend. TASK-007 retains the running ABI v1. The v1 tests pin 32896
 bytes, a 64-byte header, 256 states of 128 bytes, and the pilot mailbox at byte
-32832. V2 remains a separate future migration.
+32832. `tests/protocol-golden.test.ts` adds an independent oracle: the
+registered, hand-authored fixture `tests/fixtures/abi/v1-layout.json` must
+match the header, state, and pilot mailbox v1 byte tables in
+SPECS_SHARED_MEMORY.md field by field, and every byte of the 32896-byte buffer
+written by StateWriter and ControlWriter (header, two ring slots, untouched
+slots, reserved words, and mailbox) must equal an image packed by a local
+DataView. The v1 readers are not used, so a symmetric encoder/decoder offset
+error cannot pass. V2 remains a separate future migration.
 
 ### Verified fixture manifests and deterministic streams
 
 `packages/test-support` exports `./fixtures` and `./prng`. The registry at
 `tests/fixtures/registry.json` records paths relative to `tests/fixtures/`.
-Its two reference payloads are explicitly synthetic: analytical NED ballistic
-samples under constant gravity and a demonstration quad configuration. They
-provide reproducible software oracles, not experimental aerodynamic evidence.
+Its three reference payloads are explicitly synthetic: analytical NED
+ballistic samples under constant gravity, a demonstration quad configuration,
+and the hand-authored ABI v1 byte layout. They provide reproducible software
+oracles, not experimental aerodynamic evidence.
 
 `verifyFixture(metadata, bytes)` snapshots both inputs before awaiting SHA-256,
 validates strict formatVersion 1 metadata, compares the lowercase 64-character

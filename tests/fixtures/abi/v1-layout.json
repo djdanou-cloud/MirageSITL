@@ -1,0 +1,73 @@
+{
+  "abiVersion": 1,
+  "totalBytes": 32896,
+  "scenario": "createSharedMemory(); StateWriter.publish(state) twice; ControlWriter.publish(input) once.",
+  "regions": [
+    {
+      "table": "Header",
+      "layout": "### Header v1",
+      "absoluteOffset": 0,
+      "bytes": 64,
+      "fields": [
+        { "spec": "magic", "offset": 0, "type": "u32", "count": 1, "value": 1297303892 },
+        { "spec": "abi_version = 1", "offset": 4, "type": "u32", "count": 1, "value": 1 },
+        { "spec": "capacity = 256", "offset": 8, "type": "u32", "count": 1, "value": 256 },
+        { "spec": "state_words = 32", "offset": 12, "type": "u32", "count": 1, "value": 32 },
+        { "spec": "published", "offset": 16, "type": "u32", "count": 1, "value": 2 },
+        { "spec": "overruns", "offset": 20, "type": "u32", "count": 1, "value": 0 },
+        { "spec": "dropped_steps", "offset": 24, "type": "u32", "count": 1, "value": 0 },
+        { "spec": "reserved_zero", "offset": 28, "type": "u32", "count": 9 }
+      ]
+    },
+    {
+      "table": "State ring",
+      "layout": "### State v1",
+      "absoluteOffset": 64,
+      "bytes": 128,
+      "slots": 256,
+      "fields": [
+        { "spec": "seqlock", "offset": 0, "type": "u32", "count": 1, "value": 2 },
+        { "spec": "tick (v1 tick_id)", "offset": 4, "type": "u32", "count": 1, "property": "tick", "value": 123456 },
+        { "spec": "sim_time", "offset": 8, "type": "f64", "count": 1, "property": "simTime", "value": 308.64 },
+        { "spec": "north", "offset": 16, "type": "f64", "count": 1, "property": "north", "value": 6000000.123456789 },
+        { "spec": "east", "offset": 24, "type": "f64", "count": 1, "property": "east", "value": -3456.0000004 },
+        { "spec": "down", "offset": 32, "type": "f64", "count": 1, "property": "down", "value": -44.75 },
+        { "spec": "qw", "offset": 40, "type": "f32", "count": 1, "property": "qw", "value": 0.5 },
+        { "spec": "qx", "offset": 44, "type": "f32", "count": 1, "property": "qx", "value": -0.5 },
+        { "spec": "qy", "offset": 48, "type": "f32", "count": 1, "property": "qy", "value": 0.5 },
+        { "spec": "qz", "offset": 52, "type": "f32", "count": 1, "property": "qz", "value": -0.5 },
+        { "spec": "vn", "offset": 56, "type": "f32", "count": 1, "property": "vn", "value": 12.5 },
+        { "spec": "ve", "offset": 60, "type": "f32", "count": 1, "property": "ve", "value": -3.5 },
+        { "spec": "vd", "offset": 64, "type": "f32", "count": 1, "property": "vd", "value": 0.25 },
+        { "spec": "an", "offset": 68, "type": "f32", "count": 1, "property": "an", "value": 1.5 },
+        { "spec": "ae", "offset": 72, "type": "f32", "count": 1, "property": "ae", "value": 2.5 },
+        { "spec": "ad", "offset": 76, "type": "f32", "count": 1, "property": "ad", "value": -0.75 },
+        { "spec": "p", "offset": 80, "type": "f32", "count": 1, "property": "p", "value": 0.125 },
+        { "spec": "q", "offset": 84, "type": "f32", "count": 1, "property": "q", "value": -0.5 },
+        { "spec": "r", "offset": 88, "type": "f32", "count": 1, "property": "r", "value": 0.75 },
+        { "spec": "demo_spool", "offset": 92, "type": "f32", "count": 1, "property": "spool", "value": 0.625 },
+        { "spec": "demo_battery_voltage", "offset": 96, "type": "f32", "count": 1, "property": "batteryVoltage", "value": 12.125 },
+        { "spec": "flags: bit0 OnGround, bit1 InputFailsafe", "offset": 100, "type": "u32", "count": 1, "property": "flags", "value": 3 },
+        { "spec": "scheduled_wall_time_ms", "offset": 104, "type": "f64", "count": 1, "property": "wallTimeMs", "value": 1790000000000.125 },
+        { "spec": "reserved_zero; **no EKF/EW fields**", "offset": 112, "type": "u32", "count": 4 }
+      ]
+    },
+    {
+      "table": "Pilot mailbox",
+      "layout": "### Pilot mailbox v1",
+      "absoluteOffset": 32832,
+      "bytes": 64,
+      "fields": [
+        { "spec": "seqlock", "offset": 0, "type": "u32", "count": 1, "value": 2 },
+        { "spec": "reserved_zero", "offset": 4, "type": "u32", "count": 1 },
+        { "spec": "sampled_wall_time_ms", "offset": 8, "type": "f64", "count": 1, "property": "wallTimeMs", "value": 12345678.125 },
+        { "spec": "roll", "offset": 16, "type": "f32", "count": 1, "property": "roll", "value": -0.5 },
+        { "spec": "pitch", "offset": 20, "type": "f32", "count": 1, "property": "pitch", "value": 0.25 },
+        { "spec": "yaw", "offset": 24, "type": "f32", "count": 1, "property": "yaw", "value": 0.75 },
+        { "spec": "throttle", "offset": 28, "type": "f32", "count": 1, "property": "throttle", "value": 0.375 },
+        { "spec": "bit0 Connected, bit1 Armed", "offset": 32, "type": "u32", "count": 1, "property": "flags", "value": 3 },
+        { "spec": "reserved_zero", "offset": 36, "type": "u32", "count": 7 }
+      ]
+    }
+  ]
+}
