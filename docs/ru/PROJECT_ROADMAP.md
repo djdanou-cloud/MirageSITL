@@ -1,6 +1,6 @@
 # PROJECT_ROADMAP.md
 
-<!-- source-sha256: 101b000f6359227be5cc2a34b97943b59947b5791bc739b307b9935e6bb4e611 -->
+<!-- source-sha256: 7e9c2b257d8ac4a48cc56b010c59351512ef8745e9ca83595dffdcbe986fec64 -->
 
 Английский источник: [Source of truth](../PROJECT_ROADMAP.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -302,12 +302,13 @@ Google content без прав.
 
 ### TASK-018 — C ABI и arena binding
 
-- **Status:** TODO.
+- **Status:** DONE — Claude; baseline a3e7141; 2026-10-16 (hosted run blocked like TASK-003).
 - **Title & Description:** Определить checked input/config/output records без object marshaling на шаге.
 - **Dependencies:** TASK-006, TASK-017.
-- **Touched Files:** `native/bet/src/abi.rs`, `native/bet/include/bet.h`, `packages/wasm-bet/src/arena.ts`, `tests/wasm-abi.test.ts`.
+- **Touched Files:** `native/bet/src/abi.rs`, `native/bet/include/bet.h`, `packages/wasm-bet/src/arena.ts`, `tests/wasm-abi.test.ts`, `native/bet/src/lib.rs`, `native/bet/build.rs`, `native/bet/tests/abi.rs`, `packages/wasm-bet/src/loader.ts`, `packages/wasm-bet/package.json`, `tests/fixtures/wasm-abi/generate.py`, `tests/fixtures/wasm-abi/bet-abi-v1.json`, `tests/fixtures/registry.json`, `tests/browser/native-bootstrap.spec.ts`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
 - **Interfaces / Contracts:** SPECS_SIMULATION_ENGINES §4, rotor output stride=128.
 - **DoD & Acceptance Criteria:** Rust size/offset tests совпадают с TS golden; invalid pointer/count/size отклоняется; 1e6 step calls не вызывают allocator/grow; out перезаписывается in-place.
+- **Evidence:** Владелец Claude; baseline a3e7141; 2026-10-16. Источник layout — native/bet/include/bet.h (71 defines); golden records — tests/fixtures/wasm-abi/bet-abi-v1.json (config 4384 B, input 256 B, два ротора), упакованы независимо через Python struct скриптом generate.py и зарегистрированы в tests/fixtures/registry.json. Внутри native/ (rustc 1.97.0): cargo test --workspace --locked: abi 7 PASS (каждый define из bet.h равен константе Rust; golden config декодируется и задаёт размер arena; 25 некорректных config и недостаточная arena отклоняются без живой arena; 1e6 шагов возвращают AERODYNAMICS_UNAVAILABLE и перезаписывают тот же буфер на месте; 12 некорректных входов, неверный dt и короткий выход отклоняются без записи выхода; освобождённые/повреждённые handles отклоняются; проверки диапазона/выравнивания/перекрытия регионов) + bootstrap 6 PASS; cargo check wasm32 exit 0. tests/wasm-abi.test.ts (Node 22.22.0, реальный артефакт wasm32): 7 PASS (BET_ABI равен bet.h; encodeBetConfig и записанный вход равны golden bytes; регионы выше __heap_base, выровнены на 64 байта, не перекрываются, внутри резерва 64 MiB; 1e6 вызовов stepInto с 0 событий GC в измеряемом окне, sentinel перезаписывается на каждом шаге, memoryStable; нулевые/ниже heap base/невыровненные/вне диапазона/перекрывающиеся указатели, плохие handles, неверный dt и освобождённые handles отклоняются через реальные exports; некорректные config отклоняются до arm; рост памяти приводит к отказу шага с MEMORY_GROWN). Проверка GC нашла и потребовала исправить упаковку одного HeapNumber на каждую нецелую компоненту вектора (fallback `?? NaN` при чтении Float64Array). Мутации (возврат этого fallback; Rust не перезаписывает flags ротора 0) роняют по 1 тесту. Ловушечный аллокатор wasm32 превращает любую аллокацию в trap, поэтому отсутствие аллокаций в wasm следует из завершения 1e6 шагов. Аэродинамики пока нет: step сообщает о недоступности до TASK-020. Выполнение на hosted runner не подтверждено (блокер TASK-003).
 
 ### TASK-019 — Polar lookup
 

@@ -3,5 +3,5 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "exports": { "./loader": "./src/loader.ts" }
+  "exports": { "./loader": "./src/loader.ts", "./arena": "./src/arena.ts" }
 }

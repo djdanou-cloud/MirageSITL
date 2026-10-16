@@ -499,3 +499,15 @@ loader's ABI. It then grows linear memory to the reservation (default and
 maximum 64 MiB), so `memoryStable()` exposes any growth after arming. Every
 failure returns `ok: false` with a reason and must block arming. Loading is
 asynchronous and belongs to initialization, never to a step.
+
+### BET C ABI and arena binding (TASK-018)
+
+`native/bet/src/abi.rs` implements the section 4 records as safe
+field-by-field reads and writes over byte slices; the wasm32 export layer in
+`lib.rs` is the only place that turns `u32` pointers into slices, after
+checking range, alignment, `__heap_base`, and overlap. `include/bet.h` is the
+shared layout source. `packages/wasm-bet/src/arena.ts` encodes the
+configuration once, places configuration, input, output, and arena regions
+above `__heap_base` inside the reserved memory, and steps through one
+preallocated DataView into caller-owned output objects. Until TASK-020 the
+step returns `AERODYNAMICS_UNAVAILABLE` with NaN aerodynamic outputs.

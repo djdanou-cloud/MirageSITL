@@ -53,9 +53,17 @@ export function detectSimd128(
 
 export interface BetExports {
   memory: WebAssembly.Memory;
+  /** Linker-defined end of Rust static data and stack; caller records go above it. */
+  heapBase: number;
   bet_abi_version(): number;
   bet_bootstrap_element_force(density: number, chord: number, dr: number, vx: number, vy: number, vz: number,
     erx: number, ery: number, erz: number, spin: number, cl: number, cd: number, axis: number): number;
+  bet_required_bytes(configPtr: number, len: number): number;
+  bet_init(configPtr: number, len: number, arenaPtr: number, arenaBytes: number): number;
+  bet_last_error(): number;
+  bet_step(handle: number, inputPtr: number, outPtr: number, dtS: number): number;
+  bet_reset(handle: number, seed: number): number;
+  bet_dispose(handle: number): void;
 }
 export interface BetModule {
   variant: BetVariant; sha256: string; exports: BetExports;
@@ -82,9 +90,16 @@ function isFunction(value: unknown): value is (...args: number[]) => number {
   return typeof value === 'function';
 }
 function readExports(instance: WebAssembly.Instance): BetExports | null {
-  const { memory, bet_abi_version: abi, bet_bootstrap_element_force: force } = instance.exports;
-  if (!(memory instanceof WebAssembly.Memory) || !isFunction(abi) || !isFunction(force)) return null;
-  return { memory, bet_abi_version: abi, bet_bootstrap_element_force: force };
+  const e = instance.exports, heap = e.__heap_base;
+  const { memory, bet_abi_version: abi, bet_bootstrap_element_force: force, bet_required_bytes: required,
+    bet_init: init, bet_last_error: lastError, bet_step: step, bet_reset: reset, bet_dispose: dispose } = e;
+  if (!(memory instanceof WebAssembly.Memory) || !(heap instanceof WebAssembly.Global) || !isFunction(abi) ||
+    !isFunction(force) || !isFunction(required) || !isFunction(init) || !isFunction(lastError) || !isFunction(step) ||
+    !isFunction(reset) || !isFunction(dispose)) return null;
+  const heapBase: unknown = heap.value;
+  if (typeof heapBase !== 'number' || !Number.isInteger(heapBase) || heapBase <= 0) return null;
+  return { memory, heapBase, bet_abi_version: abi, bet_bootstrap_element_force: force, bet_required_bytes: required,
+    bet_init: init, bet_last_error: lastError, bet_step: step, bet_reset: reset, bet_dispose: dispose };
 }
 
 /** Loads and verifies the best supported artifact. Call during initialization, never inside a step. */

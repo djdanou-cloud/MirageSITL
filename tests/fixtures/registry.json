@@ -180,6 +180,61 @@
           "derivation": "Header v2, State v2, and Pilot mailbox v2 records packed with Python struct from the byte tables in docs/SPECS_SHARED_MEMORY.md section 3, independently of the TypeScript encoder; f32 values are exactly representable; bytes must match exactly."
         }
       }
+    },
+    {
+      "path": "wasm-abi/bet-abi-v1.json",
+      "manifest": {
+        "formatVersion": 1,
+        "id": "bet-abi-v1-golden",
+        "sourceSha256": "cb7dd88fea38f7562529efd82bad4bd20eaa3ca8c9707375348312869762d5b2",
+        "units": {
+          "dtS": "s",
+          "radiusM": "m",
+          "shaftInertiaKgM2": "kg*m^2",
+          "airVelocityMps": "m/s",
+          "angularVelocityRadS": "rad/s",
+          "pitchRad": "rad",
+          "motorTorqueNm": "N*m"
+        },
+        "validityEnvelope": {
+          "dtS": {
+            "min": 0.0025,
+            "max": 0.0025
+          },
+          "radiusM": {
+            "min": 0.127,
+            "max": 0.2
+          },
+          "shaftInertiaKgM2": {
+            "min": 2.5e-05,
+            "max": 8e-05
+          },
+          "airVelocityMps": {
+            "min": -5,
+            "max": 3
+          },
+          "angularVelocityRadS": {
+            "min": -0.3,
+            "max": 0.2
+          },
+          "pitchRad": {
+            "min": -0.02,
+            "max": 0.05
+          },
+          "motorTorqueNm": {
+            "min": 0,
+            "max": 0.04
+          }
+        },
+        "tolerance": {
+          "absolute": 0,
+          "relative": 0
+        },
+        "provenance": {
+          "kind": "synthetic",
+          "derivation": "Byte layout golden packed with Python struct by tests/fixtures/wasm-abi/generate.py from SPECS_SIMULATION_ENGINES section 4 offsets; synthetic geometry, not an airframe."
+        }
+      }
     }
   ]
 }
