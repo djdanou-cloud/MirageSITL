@@ -1379,3 +1379,19 @@ strictly newer u64 autopilot timestamp, and copies only accepted frames;
 `poll` latches `actuator-dropout` after the configured timeout (default
 100 ms). Signing is unsupported, so the link is unauthenticated, and assigning
 controls to motors remains a hardware-profile decision (TASK-050).
+
+## Implemented HITL capability gate: TASK-050
+
+`evaluateHitlCapability` (`packages/autopilot/src/hitl-capabilities.ts`)
+returns READY only when pinned firmware source evidence, a verified board
+profile and live observation agree; the matrix and evidence live in
+[hardware/hitl-matrix.md](hardware/hitl-matrix.md). At ArduPilot
+8ab6afde107a91df1b5f60ade8f333cb8a61b190 no HIL_SENSOR/HIL_GPS/
+HIL_ACTUATOR_CONTROLS handler exists, so ArduPilot is UNSUPPORTED for this
+path. At PX4 4d7e4de77742c3ae8187ffc998ed6d04629c611b HIL_SENSOR is decoded only
+in HIL mode, so the live check requires `MAV_MODE_FLAG_HIL_ENABLED` (32) in
+HEARTBEAT base_mode, the profile's firmware git SHA, and HIL_ACTUATOR_CONTROLS
+within 100 ms. Anything missing yields BLOCKED_EXTERNAL with the exact
+requirement. READY verdicts are frozen and registered privately;
+`AutopilotSession.connect("hitl", ...)` now requires one, so a hand-made object
+or SITL availability cannot enable HITL. No board is verified yet.

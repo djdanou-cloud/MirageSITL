@@ -9,7 +9,8 @@
     "./serial-transport": "./src/serial-transport.ts",
     "./external-sitl": "./src/external-sitl.ts",
     "./hil-clock": "./src/hil-clock.ts",
-    "./hitl": "./src/hitl.ts"
+    "./hitl": "./src/hitl.ts",
+    "./hitl-capabilities": "./src/hitl-capabilities.ts"
   },
   "dependencies": {
     "@mirage/mavlink": "0.1.0",

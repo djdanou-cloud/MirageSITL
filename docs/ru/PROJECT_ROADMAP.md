@@ -1,6 +1,6 @@
 # PROJECT_ROADMAP.md
 
-<!-- source-sha256: acb3c82cdac91b8c6e780792aa3dedf181fba52f923ea382403314edc7ec96fc -->
+<!-- source-sha256: 3f07cce8e796e76c32b37dc1d451ddd7d20a8700476e1b989bfb75250b6f2989 -->
 
 Английский источник: [Source of truth](../PROJECT_ROADMAP.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -687,12 +687,13 @@ Cargo bin активирован в PATH. Производительность M
 
 ### TASK-050 — HITL firmware capability gate
 
-- **Status:** TODO.
+- **Status:** DONE — Claude; baseline 0006e07; 2026-10-16 (проверка реализована; доступность HITL — BLOCKED_EXTERNAL: нет проверенного профиля платы).
 - **Title & Description:** Проверять build flags/плату/сообщения до объявления режима работоспособным.
 - **Dependencies:** TASK-039, TASK-049.
-- **Touched Files:** `packages/autopilot/src/hitl-capabilities.ts`, `docs/hardware/hitl-matrix.md`, `tests/hitl-capabilities.test.ts`.
+- **Touched Files:** `packages/autopilot/src/hitl-capabilities.ts`, `docs/hardware/hitl-matrix.md`, `tests/hitl-capabilities.test.ts`, `docs/ru/hitl-matrix.md`, `docs/documentation-index.json`, `packages/autopilot/src/state-machine.ts`, `packages/autopilot/package.json`, `tests/autopilot-state.test.ts`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
 - **Interfaces / Contracts:** Board+firmware SHA+HIL mode+MAVLink support matrix.
 - **DoD & Acceptance Criteria:** Unsupported HIL_SENSOR/ACTUATOR path не даёт READY; записан проверенный поддерживаемый профиль или точный BLOCKED_EXTERNAL; наличие SITL не доказательство HITL.
+- **Evidence:** Владелец Claude; baseline 0006e07; 2026-10-16. Исходники проверены на закреплённых коммитах: ArduPilot 8ab6afde... (GCS_Common.cpp sha256 345233ce..., обработчики MAVLink ArduCopter/ArduPlane, GCS.h, AP_InertialSensor.cpp: нет обработки HIL_SENSOR/HIL_GPS/HIL_ACTUATOR_CONTROLS; GPS через GPS_INPUT) и PX4 4d7e4de7... (mavlink_receiver.cpp sha256 2e22f0d3...: HIL_SENSOR только при включённом режиме HIL, HIL_GPS в режиме HIL или с use_hil_gps; HIL_ACTUATOR_CONTROLS.hpp sha256 1ac5017c...: поток). Node 24.22.0: tests/hitl-capabilities.test.ts 6 PASS (без профиля/наблюдения — BLOCKED_EXTERNAL с точными требованиями независимо от доступности SITL; ArduPilot — UNSUPPORTED с тремя причинами даже при проверенном профиле и живых данных; восемь случаев PX4, в каждом из которых недостаёт одного доказательства, дают BLOCKED_EXTERNAL с соответствующим требованием; полные доказательства дают замороженный выданный READY; AutopilotSession отклоняет hitl без вердикта, с вердиктом BLOCKED и с поддельным литералом READY и принимает выданный READY; разбор профиля отклоняет 7 некорректных входов; документ матрицы содержит записанные коммиты и hash) + tests/autopilot-state.test.ts обновлён под более строгий контракт connect (2 PASS). Мутации (флаг HIL не требуется, READY не регистрируется, сессия принимает любой вердикт) роняют 1, 2 и 1 тест. Новая двуязычная пара docs/hardware/hitl-matrix.md + docs/ru/hitl-matrix.md зарегистрирована; check:docs — 11 пар. Остаток: сама доступность HITL — BLOCKED_EXTERNAL, пока профиль платы не проверен на оборудовании (TASK-051).
 
 ### TASK-051 — Реальный HITL acceptance
 

@@ -1,6 +1,6 @@
 # SPECS_SIMULATION_ENGINES.md
 
-<!-- source-sha256: e7879409d9a34878790cd916c0c247ecaec6bc526f951cf3cb6c2d456944b865 -->
+<!-- source-sha256: 6e0bf464c99dd40b8ee00d3cca6edd70a5d06766f3ae6c6a48b85c1c676bad20 -->
 
 Английский источник: [Source of truth](../SPECS_SIMULATION_ENGINES.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -1385,3 +1385,20 @@ uint32, а не время отправки или настенное время
 таймаута (по умолчанию 100 мс). Подпись не поддерживается, поэтому канал не
 аутентифицирован, а назначение управляющих сигналов моторам остаётся решением
 аппаратного профиля (TASK-050).
+
+## Реализованная проверка возможностей HITL: TASK-050
+
+`evaluateHitlCapability` (`packages/autopilot/src/hitl-capabilities.ts`)
+возвращает READY, только когда согласуются доказательства из закреплённых
+исходников прошивки, проверенный профиль платы и живое наблюдение; матрица и
+доказательства находятся в [hitl-matrix.md](hitl-matrix.md). В ArduPilot
+8ab6afde107a91df1b5f60ade8f333cb8a61b190 нет обработчиков HIL_SENSOR/HIL_GPS/
+HIL_ACTUATOR_CONTROLS, поэтому ArduPilot для этого пути — UNSUPPORTED. В PX4
+4d7e4de77742c3ae8187ffc998ed6d04629c611b HIL_SENSOR декодируется только в
+режиме HIL, поэтому живая проверка требует `MAV_MODE_FLAG_HIL_ENABLED` (32) в
+base_mode HEARTBEAT, git SHA прошивки из профиля и HIL_ACTUATOR_CONTROLS в
+течение 100 мс. Любое отсутствие даёт BLOCKED_EXTERNAL с точным требованием.
+Вердикты READY заморожены и регистрируются закрыто;
+`AutopilotSession.connect("hitl", ...)` теперь требует такой вердикт, поэтому
+созданный вручную объект или доступность SITL не включают HITL. Ни одна плата
+пока не проверена.

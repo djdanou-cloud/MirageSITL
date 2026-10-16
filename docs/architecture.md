@@ -650,3 +650,10 @@ the SITL source port learned on its bound UDP endpoint.
 sets `fields_updated` from the groups actually updated, enforces 30% serial
 headroom, and admits HIL_ACTUATOR_CONTROLS with replay and dropout checks into
 bounded buffers. No physical flight controller is involved yet.
+
+### HITL capability gate (TASK-050)
+
+`@mirage/autopilot/hitl-capabilities` is the only issuer of HITL READY
+verdicts (source evidence, verified profile, live observation), and
+`AutopilotSession` refuses `hitl` without one. See
+[hardware/hitl-matrix.md](hardware/hitl-matrix.md).

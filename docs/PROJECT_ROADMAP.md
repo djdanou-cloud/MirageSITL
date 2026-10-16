@@ -684,12 +684,13 @@ were synchronized and checked. Changes remain local; no commit or push performed
 
 ### TASK-050 — HITL firmware capability gate
 
-- **Status:** TODO.
+- **Status:** DONE — Claude; baseline 0006e07; 2026-10-16 (gate implemented; HITL availability BLOCKED_EXTERNAL: no verified board profile).
 - **Title & Description:** Verify board/build flags/message support before declaring HITL available.
 - **Dependencies:** TASK-039, TASK-049.
-- **Touched Files:** `packages/autopilot/src/hitl-capabilities.ts`, `docs/hardware/hitl-matrix.md`, `tests/hitl-capabilities.test.ts`.
+- **Touched Files:** `packages/autopilot/src/hitl-capabilities.ts`, `docs/hardware/hitl-matrix.md`, `tests/hitl-capabilities.test.ts`, `docs/ru/hitl-matrix.md`, `docs/documentation-index.json`, `packages/autopilot/src/state-machine.ts`, `packages/autopilot/package.json`, `tests/autopilot-state.test.ts`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
 - **Interfaces / Contracts:** Board/firmware SHA/HIL mode/MAVLink capability matrix.
 - **DoD & Acceptance Criteria:** Unsupported HIL sensor/actuator paths cannot become READY; record a verified profile or exact BLOCKED_EXTERNAL requirement; SITL availability does not prove HITL support.
+- **Evidence:** Owner Claude; baseline 0006e07; 2026-10-16. Source evidence inspected at pinned commits: ArduPilot 8ab6afde... (GCS_Common.cpp sha256 345233ce..., ArduCopter/ArduPlane MAVLink handlers, GCS.h, AP_InertialSensor.cpp: no HIL_SENSOR/HIL_GPS/HIL_ACTUATOR_CONTROLS handling; GPS via GPS_INPUT) and PX4 4d7e4de7... (mavlink_receiver.cpp sha256 2e22f0d3...: HIL_SENSOR only when HIL mode is enabled, HIL_GPS in HIL mode or with use_hil_gps; HIL_ACTUATOR_CONTROLS.hpp sha256 1ac5017c...: stream). Node 24.22.0: tests/hitl-capabilities.test.ts 6 PASS (no profile/observation gives BLOCKED_EXTERNAL with exact requirements regardless of SITL availability; ArduPilot UNSUPPORTED with three reasons even when verified and live; eight PX4 cases missing one piece of evidence each are BLOCKED_EXTERNAL with the matching requirement; full evidence gives a frozen issued READY; AutopilotSession refuses hitl without a verdict, with a BLOCKED verdict and with a forged READY literal, accepts it with an issued READY; profile parsing rejects 7 malformed inputs; matrix document contains the recorded commits and hashes) + tests/autopilot-state.test.ts updated to the stricter connect contract (2 PASS). Mutations (HIL flag not required, READY not registered, session accepts any verdict) fail 1, 2 and 1 tests. New bilingual pair docs/hardware/hitl-matrix.md + docs/ru/hitl-matrix.md registered; check:docs 11 pairs. Remaining: HITL availability itself is BLOCKED_EXTERNAL until a board profile is verified on hardware (TASK-051).
 
 ### TASK-051 — Physical HITL acceptance
 
