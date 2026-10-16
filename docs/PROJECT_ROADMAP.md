@@ -731,12 +731,13 @@ were synchronized and checked. Changes remain local; no commit or push performed
 
 ### TASK-054 — Position-step spoofing
 
-- **Status:** TODO.
+- **Status:** DONE — Claude; baseline 91579b7; 2026-10-16.
 - **Title & Description:** Apply GPS displacement atomically at a specified tick.
 - **Dependencies:** TASK-010, TASK-036, TASK-052.
-- **Touched Files:** `packages/ew/src/position-step.ts`, `tests/position-step.test.ts`.
+- **Touched Files:** `packages/ew/src/position-step.ts`, `tests/position-step.test.ts`, `packages/ew/package.json`, `packages/sensors/src/geodesy.ts`, `package-lock.json`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
 - **Interfaces / Contracts:** offsetNedM; immutable source; WGS84 conversion before wire encoding.
 - **DoD & Acceptance Criteria:** Position changes by the offset within geodesy tolerance; preserve baseline velocity; test zero/disable/reset, altitude Down sign, and antimeridian behavior.
+- **Evidence:** Owner Claude; baseline 91579b7; 2026-10-16. Oracle: the corrupted fix minus the source fix, expressed in the source's tangent frame (validated against the independent Python WGS84 fixture in TASK-036), must equal the commanded offset within 1 mm. Node 24.22.0: tests/position-step.test.ts 5 PASS (no change before the scheduled tick and an atomic 3-axis step at it with velocity/time/DOP/fix/course preserved; +10 m Down lowers MSL by 10 m; a 9998 m offset within 1 mm and a 10000.03 m offset rejected; east 3 km across the antimeridian wraps longitude into [-pi, pi); 1.5 km north across the pole; zero offset is exact identity, disable/reset restore the baseline, the source is never mutated, invalid sources and schedules are rejected; MSL converts through a synthetic geoid grid so a pure Down step changes H by exactly -D). LocalTangentFrame gained an allocation-free setOrigin; geodesy.test.ts 8 PASS unchanged. Mutation (geoid undulation ignored on input) fails 1 test.
 
 ### TASK-055 — Coherent drift
 

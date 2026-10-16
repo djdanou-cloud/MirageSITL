@@ -1395,3 +1395,17 @@ within 100 ms. Anything missing yields BLOCKED_EXTERNAL with the exact
 requirement. READY verdicts are frozen and registered privately;
 `AutopilotSession.connect("hitl", ...)` now requires one, so a hand-made object
 or SITL availability cannot enable HITL. No board is verified yet.
+
+## Implemented position-step spoofing: TASK-054
+
+`PositionStep` (`packages/ew/src/position-step.ts`) schedules an NED offset of
+at most 10 km for a physics tick; `advanceTick` applies all three axes at once
+when that tick is reached, and `disable`/`reset` return the exact baseline.
+`GpsOffsetApplier` re-origins one reusable `LocalTangentFrame` at the source
+fix (`setOrigin`, allocation-free), converts MSL to ellipsoidal height with the
+geoid (`h=H+N`), moves the fix by the offset through ECEF, and converts back
+(`H'=h'-N'`). The offset is defined in the fix's tangent plane, so long
+horizontal offsets also raise ellipsoidal height by roughly `d²/(2R)`; a pure
+Down offset changes MSL altitude by exactly `-D`. Velocity, time, DOP, fix and
+course are preserved; a zero offset is an exact identity. The source sample is
+never modified; an invalid source leaves the target untouched.

@@ -1,6 +1,6 @@
 # PROJECT_ROADMAP.md
 
-<!-- source-sha256: 3f07cce8e796e76c32b37dc1d451ddd7d20a8700476e1b989bfb75250b6f2989 -->
+<!-- source-sha256: 3cdf6a2c511ff131a1af211aa097b86dc5c9e0297232b1d29166d7f4a7161d2a -->
 
 Английский источник: [Source of truth](../PROJECT_ROADMAP.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -734,12 +734,13 @@ Cargo bin активирован в PATH. Производительность M
 
 ### TASK-054 — Position-step spoofing
 
-- **Status:** TODO.
+- **Status:** DONE — Claude; baseline 91579b7; 2026-10-16.
 - **Title & Description:** Добавить атомарное смещение GPS в заданный tick.
 - **Dependencies:** TASK-010, TASK-036, TASK-052.
-- **Touched Files:** `packages/ew/src/position-step.ts`, `tests/position-step.test.ts`.
+- **Touched Files:** `packages/ew/src/position-step.ts`, `tests/position-step.test.ts`, `packages/ew/package.json`, `packages/sensors/src/geodesy.ts`, `package-lock.json`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
 - **Interfaces / Contracts:** offsetNedM; source immutable; WGS84→wire after distortion.
 - **DoD & Acceptance Criteria:** Position прыгает ровно на offset в пределах geodesy tolerance, baseline velocity остаётся; zero/disable/reset cases; altitude down sign и antimeridian tested.
+- **Evidence:** Владелец Claude; baseline 91579b7; 2026-10-16. Оракул: разность искажённой и исходной точки, выраженная в касательной системе исходной точки (проверенной по независимой Python-фикстуре WGS84 в TASK-036), должна равняться заданному смещению с точностью 1 мм. Node 24.22.0: tests/position-step.test.ts 5 PASS (до запланированного tick изменений нет, в нём — атомарный шаг по трём осям с сохранением скорости/времени/DOP/fix/курса; +10 м Down понижает MSL на 10 м; смещение 9998 м выполняется с точностью 1 мм, смещение 10000.03 м отклоняется; 3 км на восток через антимеридиан приводят долготу в [-pi, pi); 1.5 км на север через полюс; нулевое смещение — точное тождество, disable/reset восстанавливают базу, источник не изменяется, некорректные источники и расписания отклоняются; MSL переводится через синтетическую сетку геоида, поэтому чистый шаг Down меняет H ровно на -D). LocalTangentFrame получил setOrigin без аллокаций; geodesy.test.ts 8 PASS без изменений. Мутация (ундуляция геоида не учитывается на входе) роняет 1 тест.
 
 ### TASK-055 — Когерентный drift
 

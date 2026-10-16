@@ -6,9 +6,11 @@
   "exports": {
     "./volumes": "./src/volumes.ts",
     "./gnss-jamming": "./src/gnss-jamming.ts",
-    "./magnetic": "./src/magnetic.ts"
+    "./magnetic": "./src/magnetic.ts",
+    "./position-step": "./src/position-step.ts"
   },
   "dependencies": {
-    "@mirage/mavlink": "0.1.0"
+    "@mirage/mavlink": "0.1.0",
+    "@mirage/sensors": "0.1.0"
   }
 }

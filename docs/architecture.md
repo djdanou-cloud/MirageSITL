@@ -657,3 +657,9 @@ bounded buffers. No physical flight controller is involved yet.
 verdicts (source evidence, verified profile, live observation), and
 `AutopilotSession` refuses `hitl` without one. See
 [hardware/hitl-matrix.md](hardware/hitl-matrix.md).
+
+### GNSS position step (TASK-054)
+
+`@mirage/ew/position-step` applies a tick-scheduled NED offset to GPS
+observations through the WGS84 tangent frame and the geoid, preserving
+velocity; truth is untouched.

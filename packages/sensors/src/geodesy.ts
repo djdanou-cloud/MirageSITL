@@ -76,30 +76,42 @@ export function ecefToGeodeticInto(x: number, y: number, z: number, out: Float64
  * origin ECEF position and the ECEF-to-NED rotation are computed once.
  */
 export class LocalTangentFrame {
-  readonly originLatRad: number;
-  readonly originLonRad: number;
-  readonly originHeightM: number;
   /** Origin ECEF, m. */
   readonly originEcefM = new Float64Array(3);
   /** Row-major ECEF-to-NED rotation; rows are north, east, down unit vectors in ECEF. */
   readonly ecefToNed = new Float64Array(9);
   private readonly scratch = new Float64Array(3);
+  private latRad = 0;
+  private lonRad = 0;
+  private heightM = 0;
 
   constructor(originLatRad: number, originLonRad: number, originHeightM: number) {
-    if (!Number.isFinite(originLatRad) || Math.abs(originLatRad) > HALF_PI || !Number.isFinite(originLonRad) ||
-      !Number.isFinite(originHeightM) || Math.abs(originHeightM) > 100_000) {
-      throw new Error("Invalid tangent-frame origin");
+    if (!this.setOrigin(originLatRad, originLonRad, originHeightM)) throw new Error("Invalid tangent-frame origin");
+  }
+
+  get originLatRad(): number { return this.latRad; }
+  get originLonRad(): number { return this.lonRad; }
+  get originHeightM(): number { return this.heightM; }
+
+  /**
+   * Re-origins the frame in place (allocation-free, for per-sample use).
+   * Returns false and keeps the previous origin for an invalid input.
+   */
+  setOrigin(originLatRad: number, originLonRad: number, originHeightM: number): boolean {
+    if (!(Math.abs(originLatRad) <= HALF_PI) || !Number.isFinite(originLonRad) || !(Math.abs(originHeightM) <= 100_000)) {
+      return false;
     }
-    this.originLatRad = originLatRad;
-    this.originLonRad = wrapLongitudeRad(originLonRad);
-    this.originHeightM = originHeightM;
-    geodeticToEcefInto(originLatRad, this.originLonRad, originHeightM, this.originEcefM);
+    this.latRad = originLatRad;
+    this.lonRad = wrapLongitudeRad(originLonRad);
+    this.heightM = originHeightM;
+    geodeticToEcefInto(originLatRad, this.lonRad, originHeightM, this.originEcefM);
     const sLat = Math.sin(originLatRad), cLat = Math.cos(originLatRad);
-    const sLon = Math.sin(this.originLonRad), cLon = Math.cos(this.originLonRad);
+    const sLon = Math.sin(this.lonRad), cLon = Math.cos(this.lonRad);
     const r = this.ecefToNed;
     r[0] = -sLat * cLon; r[1] = -sLat * sLon; r[2] = cLat; // north
     r[3] = -sLon; r[4] = cLon; r[5] = 0; // east
     r[6] = -cLat * cLon; r[7] = -cLat * sLon; r[8] = -sLat; // down
+    return true;
   }
 
   /** NED offset (m) of an ECEF point from the origin. */
