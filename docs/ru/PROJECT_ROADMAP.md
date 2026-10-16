@@ -1,6 +1,6 @@
 # PROJECT_ROADMAP.md
 
-<!-- source-sha256: 73e2f84e1a4c353dffa8fe6a231623b042772534580508196e02aee9eba1c7d0 -->
+<!-- source-sha256: 7b9245cbf0b5969d8666c95c101cf6985e12779f7078d324882a9d4f2bc8f097 -->
 
 Английский источник: [Source of truth](../PROJECT_ROADMAP.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -913,12 +913,13 @@ Cargo bin активирован в PATH. Производительность M
 
 ### TASK-071 — Thermal renderer
 
-- **Status:** TODO.
+- **Status:** DONE — Claude; база 88b1382; 2026-10-16 (WebGL2 проверен; только синтетический профиль, соответствие CADEX не заявляется).
 - **Title & Description:** Преобразовать thermal state в radiance/palette с atmosphere attenuation.
 - **Dependencies:** TASK-066, TASK-070.
-- **Touched Files:** `packages/thermal/src/thermal-camera.ts`, `packages/thermal/src/shaders/thermal.glsl`, `tests/thermal-camera.test.ts`, `tests/browser/thermal.spec.ts`.
+- **Touched Files:** `packages/thermal/src/thermal-camera.ts`, `packages/thermal/src/shaders/thermal.glsl`, `tests/thermal-camera.test.ts`, `tests/browser/thermal.spec.ts`, `packages/thermal/src/thermal-material.ts`, `packages/thermal/package.json`, `tests/support/thermal-harness.ts`, `package-lock.json`.
 - **Interfaces / Contracts:** InstrumentProfile {resolution, spectralResponse, noise, calibrationSource}; training profile отдельно от CADEX measurements.
 - **DoD & Acceptance Criteria:** Blackbody monotonicity, emissivity/reflection и distance attenuation fixtures; cold/hot palette endpoints; no claims of CADEX parity без profile data; native sensor resolution configurable.
+- **Evidence:** Исполнитель Claude; база 88b1382; 2026-10-16. Node 24.22.0: tests/thermal-camera.test.ts 6 PASS: интеграл по полосе 0.2-2000 мкм равен sigma T^4 / pi с точностью 0.1% при 250/300/400 K; пик Вина; радиация LWIR 8-14 мкм строго возрастает на 150-405 K; интерполяция по таблице в пределах 0.02% от точного интеграла; излучательная способность 1/0/0.4 даёт излучение, отражение и их смесь; ослабление по Бугеру–Ламберту монотонно убывает к радиации пути; границы диапазона отображаются в уровни 0 и 1; концы палитр white-hot/black-hot/ironbow и неубывающая яркость ironbow; синтетический профиль никогда не заявляет соответствие CADEX, измеренным профилям нужен хеш калибровки. Chromium WebGL2 (SwiftShader): tests/browser/thermal.spec.ts 4 PASS: thermal.glsl на float G-буфере 64x48 (255-335 K, излучательная способность 0.5-1, 0-5 км) совпадает с зеркалом на CPU — 0 пикселей с отклонением более 2/255 во всех палитрах, рендеринг в собственном разрешении профиля 64x48; концы палитр для холодной/горячей сцены точны. Убитые мутации: показатель Планка, член отражения, вторая радиационная постоянная, проверка измеренного профиля; шейдер: без ослабления, без интерполяции таблицы, контрольная точка ironbow. Осталось: нет измеренного профиля прибора; соответствие CADEX не заявляется; вариант для WebGPU не реализован.
 
 ### TASK-072 — Shutter/NUC и thermal HUD
 

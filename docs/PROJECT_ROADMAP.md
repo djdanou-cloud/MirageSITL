@@ -910,12 +910,13 @@ were synchronized and checked. Changes remain local; no commit or push performed
 
 ### TASK-071 — Thermal renderer
 
-- **Status:** TODO.
+- **Status:** DONE — Claude; baseline 88b1382; 2026-10-16 (WebGL2 verified; synthetic profile only, no CADEX parity claimed).
 - **Title & Description:** Map thermal states to radiance/palettes with atmospheric attenuation.
 - **Dependencies:** TASK-066, TASK-070.
-- **Touched Files:** `packages/thermal/src/thermal-camera.ts`, `packages/thermal/src/shaders/thermal.glsl`, `tests/thermal-camera.test.ts`, `tests/browser/thermal.spec.ts`.
+- **Touched Files:** `packages/thermal/src/thermal-camera.ts`, `packages/thermal/src/shaders/thermal.glsl`, `tests/thermal-camera.test.ts`, `tests/browser/thermal.spec.ts`, `packages/thermal/src/thermal-material.ts`, `packages/thermal/package.json`, `tests/support/thermal-harness.ts`, `package-lock.json`.
 - **Interfaces / Contracts:** InstrumentProfile {resolution, spectralResponse, noise, calibrationSource}; synthetic training profiles are separate from CADEX measurements.
 - **DoD & Acceptance Criteria:** Test blackbody monotonicity, emissivity/reflection/distance attenuation, and cold/hot palette endpoints; configurable native resolution; do not claim CADEX parity without profile data.
+- **Evidence:** Owner Claude; baseline 88b1382; 2026-10-16. Node 24.22.0: tests/thermal-camera.test.ts 6 PASS: the band integral over 0.2-2000 um equals sigma T^4 / pi within 0.1% at 250/300/400 K; Wien peak; LWIR 8-14 um radiance strictly increasing over 150-405 K; table interpolation within 0.02% of the exact integral; emissivity 1/0/0.4 give emission, reflection and their mix; Beer-Lambert attenuation decreases monotonically towards the path radiance; span endpoints map to levels 0 and 1; white-hot/black-hot/ironbow endpoints and non-decreasing ironbow luminance; synthetic profile never claims CADEX parity, measured profiles need a calibration hash. Chromium WebGL2 (SwiftShader): tests/browser/thermal.spec.ts 4 PASS: thermal.glsl on a 64x48 float G-buffer (255-335 K, emissivity 0.5-1, 0-5 km) matches the CPU mirror with 0 pixels beyond 2/255 in all palettes, rendered at the profile's native 64x48 resolution; cold/hot palette endpoints exact. Mutations killed: Planck exponent, reflection term, second radiation constant, measured-profile validation; shader: no attenuation, no table interpolation, ironbow control point. Remaining: no measured instrument profile; CADEX parity not claimed; WebGPU variant not implemented.
 
 ### TASK-072 — Thermal shutter and NUC
 

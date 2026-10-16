@@ -139,8 +139,11 @@ describe("material map", () => {
 
   it("contains no network or download code", () => {
     const dir = new URL("../packages/thermal/src/", import.meta.url);
-    for (const file of readdirSync(dir)) {
-      const source = readFileSync(new URL(file, dir), "utf8");
+    const files = readdirSync(dir, { recursive: true, withFileTypes: true }).filter(e => e.isFile());
+    expect(files.length).toBeGreaterThanOrEqual(2);
+    for (const entry of files) {
+      const file = `${entry.parentPath}/${entry.name}`;
+      const source = readFileSync(file, "utf8");
       expect(source, file).not.toMatch(/\bfetch\s*\(|XMLHttpRequest|WebSocket|https?:\/\/|node:https?|import\(\s*["']http/);
     }
   });

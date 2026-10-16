@@ -7,10 +7,16 @@
     "./data-manifest": "./src/data-manifest.ts",
     "./material-map": "./src/material-map.ts",
     "./solar": "./src/solar.ts",
-    "./heat-balance": "./src/heat-balance.ts"
+    "./heat-balance": "./src/heat-balance.ts",
+    "./thermal-camera": "./src/thermal-camera.ts",
+    "./thermal-material": "./src/thermal-material.ts"
   },
   "dependencies": {
     "@mirage/sensors": "0.1.0",
-    "@mirage/physics": "0.1.0"
+    "@mirage/physics": "0.1.0",
+    "three": "0.180.0"
+  },
+  "devDependencies": {
+    "@types/three": "0.180.0"
   }
 }

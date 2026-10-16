@@ -875,3 +875,22 @@ atmosphere state. `TYPICAL_SURFACE_PROPS` gives typical, uncalibrated
 absorptance, emissivity, areal heat capacity and deep conductance for the
 TASK-069 material ids; validation against measured surface temperatures is
 pending.
+
+### Thermal camera renderer (TASK-071)
+
+`@mirage/thermal/thermal-camera` maps surface temperature to display level:
+in-band radiance `L(T) = ∫ B_λ(T) dλ` (Planck, composite Simpson over the
+profile band), apparent radiance
+`L_app = τ(d)[ε L(T_s) + (1 − ε) L(T_refl)] + (1 − τ(d)) L(T_air)` with
+Beer–Lambert transmittance `τ = exp(−k d)`, and level
+`(L_app − L(T_min)) / (L(T_max) − L(T_min))` clamped to [0, 1]. Palettes are
+white-hot, black-hot and ironbow (black → purple → red → orange → yellow →
+white, luminance non-decreasing). The CPU builds a float32 radiance table in
+1 K steps (150–405 K); `shaders/thermal.glsl` (GLSL ES 3.00) evaluates the
+same chain per pixel from a G-buffer (temperature, emissivity, distance) with
+optional ±NETD hash noise, and `ThermalCameraPass` renders it into a target at
+the instrument's native resolution. An `InstrumentProfile` (resolution, band,
+NETD, calibration source) is either a synthetic training profile or a
+measured one with an instrument name and calibration-data SHA-256; only a
+measured profile can claim parity with an instrument such as CADEX, and the
+shipped `synthetic-lwir-640` profile does not.
