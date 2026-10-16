@@ -113,12 +113,19 @@ rustup reads it from the current directory, so run cargo inside `native/`
 (or install the same toolchain) for pinned results. The wasm32 build has a
 trapping global allocator and no imports.
 
+TASK-017 adds `node scripts/build-wasm.mjs [--out dir]`: it builds the
+`scalar` and `simd128` artifacts into `packages/wasm-bet/dist/` (ignored)
+with `manifest.json` (SHA-256, bytes, ABI read from the module, toolchain).
+`@mirage/wasm-bet/loader` validates the manifest, selects SIMD only after
+feature detection, verifies size/hash/ABI/exports, and reserves the memory
+budget before arming. `tests/wasm-loader.test.ts` runs the script, so unit
+tests need the pinned Rust toolchain.
+
 The following commands **do not exist yet**. The listed task introduces
 them, after which dependent work must run them:
 
 | Command | Introduced by | Purpose |
 | --- | --- | --- |
-| `node scripts/build-wasm.mjs` | TASK-017 | Scalar/SIMD artifacts and manifests |
 | `node scripts/build-jsbsim.mjs` | TASK-030 | Pinned Emscripten build |
 | `node scripts/run-sitl.mjs` | TASK-042 | Pinned native ArduPilot harness |
 

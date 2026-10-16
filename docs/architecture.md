@@ -481,3 +481,21 @@ in the crate), has no host imports, and exports `memory`,
 `bet_abi_version` (= 1), and `bet_bootstrap_element_force`. The release
 profile (LTO, one codegen unit, `panic = "abort"`, stripped) produces a
 byte-identical artifact across clean target directories.
+
+### WASM artifacts and loader (TASK-017)
+
+`scripts/build-wasm.mjs` builds two variants of `mirage-bet`: `scalar`, the
+mandatory baseline, and `simd128` (`-C target-feature=+simd128`), each in
+its own target directory, and writes `manifest.json` with schema version,
+crate, ABI version read back from the built module, toolchain, and per
+artifact file name, SHA-256, size, and target features.
+`packages/wasm-bet/src/loader.ts` treats the manifest as unknown input and
+validates it exactly. It probes SIMD128 with `WebAssembly.validate` on a
+minimal v128 module and loads `simd128` only when the probe succeeds,
+otherwise the scalar artifact (`fallback` reports the downgrade). Before
+instantiation it checks size and SHA-256 via Web Crypto; after it requires
+no imports, the expected exports, and `bet_abi_version` equal to the
+loader's ABI. It then grows linear memory to the reservation (default and
+maximum 64 MiB), so `memoryStable()` exposes any growth after arming. Every
+failure returns `ok: false` with a reason and must block arming. Loading is
+asynchronous and belongs to initialization, never to a step.

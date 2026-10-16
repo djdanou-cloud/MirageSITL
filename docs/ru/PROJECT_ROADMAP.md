@@ -1,6 +1,6 @@
 # PROJECT_ROADMAP.md
 
-<!-- source-sha256: 2589cb768185add30d2671a15482d6fb55cf82ba48e40dc89ccc864bfb4ed8dc -->
+<!-- source-sha256: 101b000f6359227be5cc2a34b97943b59947b5791bc739b307b9935e6bb4e611 -->
 
 Английский источник: [Source of truth](../PROJECT_ROADMAP.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -292,12 +292,13 @@ Google content без прав.
 
 ### TASK-017 — Сборка и загрузка WASM
 
-- **Status:** TODO.
+- **Status:** DONE — Claude; baseline e152ee3; 2026-10-16 (hosted run blocked like TASK-003).
 - **Title & Description:** Создать wrapper с hash/ABI проверкой и scalar/SIMD artifact selection.
 - **Dependencies:** TASK-005, TASK-016.
-- **Touched Files:** `packages/wasm-bet/package.json`, `packages/wasm-bet/src/loader.ts`, `scripts/build-wasm.mjs`, `tests/wasm-loader.test.ts`, `tests/browser/wasm-loader.spec.ts`.
+- **Touched Files:** `packages/wasm-bet/package.json`, `packages/wasm-bet/src/loader.ts`, `scripts/build-wasm.mjs`, `tests/wasm-loader.test.ts`, `tests/browser/wasm-loader.spec.ts`, `package-lock.json`, `.github/workflows/ci.yml`, `CLAUDE.md`, `docs/ru/CLAUDE.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
 - **Interfaces / Contracts:** bet_abi_version; artifact manifest, SIMD feature detection.
 - **DoD & Acceptance Criteria:** Corrupt hash/ABI блокируют arm; fallback scalar при unsupported SIMD; instantiate выполняется вне step; memory заранее зарезервирована <=64 MiB для BET baseline.
+- **Evidence:** Владелец Claude; baseline e152ee3; 2026-10-16. node scripts/build-wasm.mjs (rustc 1.97.0) exit 0: артефакты scalar и simd128 (-C target-feature=+simd128) по 376 B; сейчас они побайтно одинаковы (SHA-256 c2927877ec3e...), так как в bootstrap kernel компилятору нечего векторизовать, поэтому путь SIMD проверяется, но ускорения пока не даёт. tests/wasm-loader.test.ts (Node 22.22.0): 5 PASS (hash/размеры manifest равны node:crypto по файлам на диске; SIMD выбирается при обнаружении, scalar fallback — при отказе/исключении детекции или отсутствии SIMD-артефакта в manifest; оба варианта дают независимо вычисленную силу элемента с точностью 1e-12; 64 MiB резервируются при загрузке, последующий рост сообщает memoryStable(); резервирование сверх бюджета отклоняется; повреждённый hash, усечённый размер, несовпадение ABI manifest, чужой модуль без exports и ошибка fetch возвращают ok=false; отклонено 15 некорректных manifest). Мутации (отключена проверка hash; удалено резервирование памяти) роняют по 1 тесту. tests/browser/wasm-loader.spec.ts: 1 PASS в Chromium (crossOriginIsolated, SIMD128 обнаружен, simd128 загружен с резервом 64 MiB, принудительный scalar fallback, обе силы совпадают, повреждённые байты отклонены). Unit job в ci.yml теперь устанавливает закреплённый toolchain. Выполнение на hosted runner не подтверждено (блокер TASK-003). Инстанцирование асинхронно при инициализации; step, из которого его можно было бы вызвать, ещё нет (TASK-018).
 
 ### TASK-018 — C ABI и arena binding
 

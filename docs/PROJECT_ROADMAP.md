@@ -289,12 +289,13 @@ copy Google content without rights.
 
 ### TASK-017 — WASM build and loading
 
-- **Status:** TODO.
+- **Status:** DONE — Claude; baseline e152ee3; 2026-10-16 (hosted run blocked like TASK-003).
 - **Title & Description:** Implement hash/ABI validation and scalar/SIMD artifact selection.
 - **Dependencies:** TASK-005, TASK-016.
-- **Touched Files:** `packages/wasm-bet/package.json`, `packages/wasm-bet/src/loader.ts`, `scripts/build-wasm.mjs`, `tests/wasm-loader.test.ts`, `tests/browser/wasm-loader.spec.ts`.
+- **Touched Files:** `packages/wasm-bet/package.json`, `packages/wasm-bet/src/loader.ts`, `scripts/build-wasm.mjs`, `tests/wasm-loader.test.ts`, `tests/browser/wasm-loader.spec.ts`, `package-lock.json`, `.github/workflows/ci.yml`, `CLAUDE.md`, `docs/ru/CLAUDE.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
 - **Interfaces / Contracts:** bet_abi_version; artifact manifest; SIMD feature detection.
 - **DoD & Acceptance Criteria:** Corrupt hashes/ABI block arming; unsupported SIMD uses scalar fallback; instantiate outside step; reserve the BET baseline memory budget of <=64 MiB before running.
+- **Evidence:** Owner Claude; baseline e152ee3; 2026-10-16. node scripts/build-wasm.mjs (rustc 1.97.0) exit 0: scalar and simd128 (-C target-feature=+simd128) artifacts, 376 B each; they are currently byte-identical (SHA-256 c2927877ec3e...) because the bootstrap kernel has nothing the compiler vectorizes, so the SIMD path is exercised but brings no speedup yet. tests/wasm-loader.test.ts (Node 22.22.0): 5 PASS (manifest hashes/sizes equal node:crypto over the files on disk; SIMD selected when detected, scalar fallback when detection fails/throws or the manifest has no SIMD artifact; both variants give the independently computed element force within 1e-12; 64 MiB reserved at load, later growth reported by memoryStable(); out-of-budget reservations rejected; corrupt hash, truncated size, manifest ABI mismatch, foreign module without exports, and fetch failure all return ok=false; 15 malformed manifests rejected). Mutations (hash check disabled; memory reservation removed) each fail 1 test. tests/browser/wasm-loader.spec.ts: 1 PASS in Chromium (crossOriginIsolated, SIMD128 detected, simd128 loaded with 64 MiB reserved, forced scalar fallback, both forces match, corrupt bytes rejected). The ci.yml unit job now installs the pinned toolchain. Hosted execution is unverified (TASK-003 blocker). Instantiation is async at initialization; no step exists yet to call it from (TASK-018).
 
 ### TASK-018 — C ABI and arena binding
 

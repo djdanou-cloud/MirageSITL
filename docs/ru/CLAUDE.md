@@ -1,6 +1,6 @@
 # CLAUDE.md — MirageSITL agent instructions
 
-<!-- source-sha256: ffa6944bb898ff52c9507adb153585a5a437d724247bd05060b6b5c911745a73 -->
+<!-- source-sha256: 48282edb42248f3e9b66f2f2d21bca597b00dce804485c01983dfdba3393b33b -->
 
 Английский источник: [Source of truth](../../CLAUDE.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -122,12 +122,19 @@ rustup читает его из текущего каталога, поэтом�
 запускать cargo внутри `native/` (или установить тот же toolchain). Сборка
 wasm32 имеет ловушечный глобальный аллокатор и не имеет imports.
 
+TASK-017 добавляет `node scripts/build-wasm.mjs [--out dir]`: скрипт собирает
+артефакты `scalar` и `simd128` в `packages/wasm-bet/dist/` (игнорируется git)
+вместе с `manifest.json` (SHA-256, размер, ABI, прочитанный из модуля,
+toolchain). `@mirage/wasm-bet/loader` проверяет manifest, выбирает SIMD только
+после feature detection, проверяет размер/hash/ABI/exports и резервирует
+бюджет памяти до arm. `tests/wasm-loader.test.ts` запускает этот скрипт,
+поэтому unit-тестам нужен закреплённый Rust toolchain.
+
 Команды **ещё отсутствуют**; внедряются указанной задачей и только после
 этого становятся обязательными для её зависимых задач:
 
 | Команда | Появится | Назначение |
 | --- | --- | --- |
-| `node scripts/build-wasm.mjs` | TASK-017 | scalar/SIMD artifacts + manifests |
 | `node scripts/build-jsbsim.mjs` | TASK-030 | pinned Emscripten build |
 | `node scripts/run-sitl.mjs` | TASK-042 | pinned native ArduPilot harness |
 
