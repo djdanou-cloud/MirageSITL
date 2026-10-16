@@ -1,0 +1,26 @@
+{
+  "generator": "pymavlink 2.4.50 ardupilotmega v20",
+  "sourceCommit": "2e2b6af99084e4fde9bb304c84bb9253a1a98b6f",
+  "filesSha256": {
+    "message_definitions/v1.0/ardupilotmega.xml": "8cff0bf2ae5bec60d16118bf37e1ec6e9f55f54aecc486df0b18f89977479047",
+    "message_definitions/v1.0/common.xml": "4194171608d0641cbf9a646ebf440b174a3bd5842e41e5b87a43c540c584b280",
+    "message_definitions/v1.0/standard.xml": "64af1ee5538344782abf8b35cf199a6cd48aa06eeb6bd41c7ae31f740a06a7f3",
+    "message_definitions/v1.0/minimal.xml": "d4c7c7346432814348bb858cbab8cee7a17b23e37937c1574e2018148cbfb785",
+    "message_definitions/v1.0/uAvionix.xml": "bd9adf101205744270be9b5fc7205d1c73e365a619435fffc2623958069da516",
+    "message_definitions/v1.0/icarous.xml": "e40ec11a6d76b48eb815c101c96b1849c76a8ba5302a01d39f1941ff9c501bbb",
+    "message_definitions/v1.0/loweheiser.xml": "31f20f01d436f2fbaaaf86f4a51c60cc01bc42722ae4c5ad403afeaaaa512deb",
+    "message_definitions/v1.0/cubepilot.xml": "b4f76d660b41b16746f67fa8e17321ea6b65448791045154105f29b3a70ce7b9",
+    "message_definitions/v1.0/csAirLink.xml": "f5b5ba62d0b65953438981ca95fc45dceb98d63601dfc0705ad91184227ee24d"
+  },
+  "generatorSha256": "513a8ebfa86caa3b21aaf8fa1a7b7ab32f413327bb37b92f6e6236b090fb24b4",
+  "frames": [
+    {
+      "id": 0,
+      "hex": "fd0900001101010000000500000002030004036964"
+    },
+    {
+      "id": 193,
+      "hex": "fd1a0000110101c10000cdcc4c3e9a99993ecdcccc3e0000003f9a99193f37003333333f214e"
+    }
+  ]
+}

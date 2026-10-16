@@ -854,114 +854,44 @@ match their manifest bounds, and `attributions()` lists the datasets that
 actually contributed samples. GeoTIFF decoding and checks against real
 licensed tiles placed locally are not yet implemented.
 
-### Surface thermal state (TASK-070)
 
-`@mirage/thermal/solar` computes the sun position (NOAA/Meeus equations,
-checked against the NREL SPA reference case), Kasten–Young air mass, Meinel
-clear-sky direct normal irradiance (S0 = 1361 W/m², Spencer eccentricity),
-diffuse = 0.1 · DNI, the Kasten–Czeplak cloud factor `1 − 0.75 N^3.4` and
-Swinbank/Bolz sky emissivity. `@mirage/thermal/heat-balance` integrates one
-slab per surface element on the CPU, outside any shader:
+## Local thermal and AAR/UI increment (baseline 660d86e)
 
-`C dT/dt = α(DNI·max(0, n·s)(1 − shadow) + DHI·V) + ε(V·ε_sky + 1 − V)σT_air⁴ − εσT⁴ − h(T − T_air) − G(T − T_deep)`
+Thermal energy, LWIR WebGL2 materials and offset-only shutter calibration are independent library modules. They do not run in the flight physics Worker or automatically turn land classes into measured temperatures. The application still flies demo dynamics. The pilot attitude overlay reads snapshots at the existing approximately 150 ms React reporting cadence. NED quaternion attitude uses normalized Hamilton wxyz, positive right bank and positive nose-up; the artificial horizon rotates by negative roll and shifts down with positive pitch. Existing speed/altitude readouts continue to use NED truth with an explicit demo label.
 
-with h = 5.7 + 3.8 v (McAdams) and V the sky-view factor. Ambient occlusion
-enters only as V in these radiative terms (the occluded part of the sky is
-replaced by surroundings at air temperature); it never replaces the heat
-solver. `ThermalField.stepFrom` uses Heun integration with automatic substeps
-below the linearised stability limit, accumulates net energy per element
-(J/m²) and does not allocate. Air temperature can come from a TASK-032
-atmosphere state. `TYPICAL_SURFACE_PROPS` gives typical, uncalibrated
-absorptance, emissivity, areal heat capacity and deep conductance for the
-TASK-069 material ids; validation against measured surface temperatures is
-pending.
+`EkfMonitor` and `EkfWarmup` provide independent diagnostics/admission contracts, with upstream wire fixtures. No timer, truth flag or Serial connection makes a live autopilot READY. TASK-042 remains blocked, and TASK-043 plus dependent TASK-074/075/078 retain their integration gate. The HUD distinguishes unknown, stale and fresh status; stale EKF bits are not displayed as valid. Mode numbers are autopilot custom_mode values with source/age, not invented names.
 
-### Thermal camera renderer (TASK-071)
+The instructor console submits versioned commands to the real Worker. A bounded 32-entry ledger correlates request IDs, distinguishes pending/queued/applied/rejected/cancelled, ignores late queued ACKs after application, and cancels pending commands on epoch changes. Model-load/reset ACKs may advance exactly one epoch. Fault IDs are editable; all five typed effect kinds have explicit synthetic defaults. Weather and model/hash requests use the same validator. The active demo rejects these unsupported commands; the console reports rejection rather than applying visual-only failures. P/R/F shortcuts ignore inputs, selects, editable elements, composition, repeat and modifier shortcuts.
 
-`@mirage/thermal/thermal-camera` maps surface temperature to display level:
-in-band radiance `L(T) = ∫ B_λ(T) dλ` (Planck, composite Simpson over the
-profile band), apparent radiance
-`L_app = τ(d)[ε L(T_s) + (1 − ε) L(T_refl)] + (1 − τ(d)) L(T_air)` with
-Beer–Lambert transmittance `τ = exp(−k d)`, and level
-`(L_app − L(T_min)) / (L(T_max) − L(T_min))` clamped to [0, 1]. Palettes are
-white-hot, black-hot and ironbow (black → purple → red → orange → yellow →
-white, luminance non-decreasing). The CPU builds a float32 radiance table in
-1 K steps (150–405 K); `shaders/thermal.glsl` (GLSL ES 3.00) evaluates the
-same chain per pixel from a G-buffer (temperature, emissivity, distance) with
-optional ±NETD hash noise, and `ThermalCameraPass` renders it into a target at
-the instrument's native resolution. An `InstrumentProfile` (resolution, band,
-NETD, calibration source) is either a synthetic training profile or a
-measured one with an instrument name and calibration-data SHA-256; only a
-measured profile can claim parity with an instrument such as CADEX, and the
-shipped `synthetic-lwir-640` profile does not.
+The active demo's Main runtime fans decimated truth/pilot samples into an entirely separate recording SAB. The recorder Worker owns its chronological ring and IndexedDB writes. No additional consumer is attached to sensor or actuator queues. AAR uses its own versioned 512-byte records and checksums; absence, decimation, queue loss, storage loss and ring eviction are explicit. Resimulation is a separate injected interface with hash/seed admission; ordinary replay never advances physics. The Review timeline selects an epoch and uses simulation seconds for pilot/actuator/response series. Import/export excludes arbitrary metadata and secrets through an allowlist and validates size/hash/records. Full binary layout and limits are specified in SPECS_SIMULATION_ENGINES.md under the thermal/diagnostics/recording contracts.
 
-### Thermal shutter and NUC (TASK-072)
+Functional browser evidence is WebGL2/SwiftShader plus actual Worker/SAB/IndexedDB. M4/RTX performance, measured thermal calibration, live autopilot warmup and full-rate synchronized recording remain separate acceptance gates.
 
-`@mirage/thermal/nuc` models microbolometer non-uniformity correction on
-sensor frame time. States are idle (no frame yet), open, closed (shutter
-settling for `settleS`) and calibrating (averaging `calibrationFrames`
-flat-field frames of the shutter at `shutterLevel`), then open again with
-offset = mean(raw) − shutterLevel subtracted from every later frame.
-Closures follow a fixed grid (first frame + k·intervalS), so the rate never
-slips by the cycle length; `stateAt`/`shutterClosedFor` tell the camera model
-whether a frame images the shutter. Configuration is rejected when a cycle
-could interrupt the display for longer than `maxInterruptionS` at
-`minFrameRateHz`. While the shutter is in view the output repeats the last
-open frame and is flagged frozen; output timestamps are the sensor frame times
-and non-increasing frames are rejected and counted. The controller has no
-access to physics, truth or AAR data. `thermal-status` derives the HUD label
-(NO SIGNAL, LIVE, NUC) and the time since and until calibration.
+Regression hardening: PhysicsSessionV2 now captures wall receipt time after the coherent pilot read, preventing a concurrent valid publication from appearing future-dated; truly future/stale inputs still disarm. WebGPU capability probing is shared once per document (including in-flight work); reload retries after driver changes. Renderer tests use an isolated harness and compare diagnostics within one document. Instructor motor loss selects channel index, power-cut versus synthetic instant-thrust-loss and remaining fraction; pending epoch-changing commands await their matching ACK even when the shared header advances first.
 
-### AAR recorder (TASK-076)
+### Merged thermal and recorder additions (2026-10-16)
 
-`@mirage/aar` records input, actuator, truth, sensor, event and gap records
-(format in SPECS_SHARED_MEMORY section 8). `RecordingProducer.commit()` is the
-only physics-side call and does not allocate. The recorder Worker
-(`recorder.worker.ts`, logic in `recorder.ts`) drains the queue into
-CRC-checked chunks stored in IndexedDB (`storage.ts`; an in-memory store
-serves tests). The ring has a fixed byte cap computed from the configured
-duration (`ringBytesFor`, e.g. 30 min): before each chunk is stored the oldest
-chunks are evicted so stored bytes never exceed it. When storage has
-`maxPendingWrites` in flight the recorder stops draining and the queue absorbs
-the burst; records are lost only when the queue itself overflows, and that
-loss is counted and written as a gap record (count, tick range, reason storage
-backpressure or queue full). On stop the recorder drains the queue completely
-before sealing the last chunk.
-
-### AAR replay and resimulation (TASK-077)
-
-Two separate modes. Snapshot replay (`@mirage/aar/replay`) opens a recording
-read-only: the manifest is re-validated (unknown format/version rejected,
-optional expected model hashes enforced) and every chunk passes its magic,
-version, size and CRC check before decoding; records are frozen. Truth
-records form segments of one epoch with increasing ticks, laid end to end on
-the timeline, so seeking never blends across a reset or model change and
-crossing one is reported as a discontinuity. `seek` returns the last truth
-record at or before the position, clamps outside the recording, and flags
-positions inside recorded loss as `inGap`. Resimulation
-(`@mirage/aar/resimulation`) requires a simulator with the recording's model
-hashes, resets it per segment with the manifest seed, applies the recorded
-input of each tick and compares the produced truth (position, velocity,
-quaternion with q ≡ −q) against the recording. The result is a report
-(verdict match / mismatch / incomplete, error maxima, first and up to 32
-mismatches); segments after recorded loss are reported incomplete, and the
-recording is never modified.
-
-### AAR session export (TASK-081)
-
-`@mirage/aar/archive` writes one uncompressed archive: a 64-byte header
-(magic `MAARCHV1`, version, entry count, index length, total size, SHA-256 of
-the index), a JSON index of contiguous entries (manifest, metadata, optional
-reports, chunks) each with its SHA-256, and the payloads. Import reads the
-header first and rejects archives larger than the limits or whose declared
-sizes disagree with the actual Blob, before reading the index; it then
-verifies the index hash and entry layout (no holes or overlaps, per-entry
-size limit, exactly one manifest) and every payload hash and chunk CRC before
-writing anything into an empty target store. Without compression there is no
-decompression bomb. Export drops metadata keys naming secrets, replaces
-credential-like values (Google API keys, bearer tokens, 64-hex tokens) and,
-by default, serial/device identifiers; model hashes in the manifest are kept
-as provenance. `inspectArchive`/`summarize` report total size, entries and bytes
-per category and records per kind, which `apps/web/src/aar/Export.tsx` shows
-before offering the download. The component is not yet mounted in the app
-because the recorder is not yet wired into the physics Worker.
+Two implementations of TASK-070–072/076–081 were merged. Thermal:
+`heat-balance.ts` offers both `HeatSurface` (single surface, implicit
+trapezoid, forcing as air/sky/substrate temperatures) and `ThermalField`
+(batched, allocation-free Heun integration with stability substeps,
+per-element normal, shadow and sky-view factor; sky longwave from
+Swinbank/Bolz emissivity; convection 5.7 + 3.8 v). `solar.ts` offers both
+`solarIncidence` (scenario declination/hour angle) and a NOAA/Meeus
+ephemeris (`solarPosition`, checked against NREL SPA) with Kasten–Young air
+mass, Meinel clear-sky and Kasten–Czeplak cloud irradiance; the two solvers
+and the two solar models are cross-checked in tests. The LWIR camera
+(`thermal-camera.ts`, `thermal-material.ts`, `shaders/thermal.glsl`) uses a
+Simpson band integral over a configurable band, a float32 radiance lookup
+texture, a `ThermalScene` (reflected and air temperature, extinction, display
+span), white-hot/black-hot/ironbow palettes and `ThermalCameraPass`, which
+renders a temperature/emissivity/range G-buffer at the instrument's native
+resolution; `InstrumentProfile` separates synthetic training profiles from
+measured ones, and only a measured profile can claim parity with an
+instrument such as CADEX. `ThermalNuc` (frame-indexed shutter cycle) is kept
+and gains `nextCalibrationFrame` and `thermalStatusLabel`. Recorder: the
+512-byte record, handoff, ring, Worker, replay, resimulation and archive of
+the integrated implementation are kept; `ChunkStorage` now queues up to
+`maxPending` chunks behind the in-flight IndexedDB transaction instead of
+dropping a chunk whenever a transaction is busy, and still counts every
+overflow or failed write.

@@ -19,3 +19,19 @@
   border-radius: 4px;
   pointer-events: none;
 }
+
+.pilot-hud { position: absolute; top: 54px; left: 16px; display: grid; gap: 6px; color: #c9f2e9; font: 10px monospace; pointer-events: none; }
+.attitude-window { width: 110px; height: 70px; overflow: hidden; border: 1px solid #a6d7cb; border-radius: 8px; position: relative; }
+.attitude-world { position: absolute; inset: -100px; background: linear-gradient(#35778a 50%, #765438 50%); }
+.attitude-cross { position: absolute; inset: 22px 0 0; text-align: center; color: white; font-size: 18px; }
+.instructor-console h2,.aar-review h2 { font-size: 16px; }
+.instructor-console label,.aar-review label { display: grid; gap: 4px; margin: 8px 0; }
+.instructor-console input,.instructor-console select,.aar-review select { min-width: 0; max-width: 100%; background: #15262b; color: #d4eee5; border: 1px solid #506463; padding: 5px; }
+.control-section button { margin: 3px; }
+.command-log { padding-left: 18px; overflow-wrap: anywhere; font-size: 11px; }
+.aar-review svg { width: 100%; background: #101d23; border: 1px solid #30444a; }
+.aar-review path { fill: none; stroke-width: 1.5; }
+.chart-pilot { stroke: #5ed0e7; }.chart-actuator { stroke: #e9ad50; }.chart-response { stroke: #6ee7a1; }
+.chart-legend { font-size: 10px; }
+.control-section output { display: block; overflow-wrap: anywhere; font-size: 11px; margin: 6px 0; }
+.control-section input[type=file] { width: 100%; font-size: 11px; }

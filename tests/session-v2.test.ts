@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { PhysicsSessionV2, isaPressurePa } from '@mirage/physics';
-import { ActuatorFrameCodecV2, HeaderV2, PilotFlagV2, PilotWriterV2, RuntimeFlagV2, SpscProducer, StateReaderV2,
+import { ActuatorFrameCodecV2, HeaderV2, PilotFlagV2, PilotReaderV2, PilotWriterV2, RuntimeFlagV2, SpscProducer, StateReaderV2,
   VehicleFlagV2, createSharedMemoryV2, createSpscQueue, newActuatorFrameV2, newFlightStateV2, newHeaderSnapshotV2,
   newPilotInputV2, tickToNumber, type CommandResultV2 } from '@mirage/protocol';
 
@@ -180,4 +180,19 @@ describe('PhysicsSessionV2 epochs, rates, and clock modes', () => {
     expect(Atomics.load(new Int32Array(h.stateBuffer), HeaderV2.RuntimeFlags)).toBe(0);
     expect(h.command('sim.start')).toMatchObject({ type: 'reject-v2', code: 'BAD_STATE' });
   });
+});
+
+it('timestamps pilot freshness after the coherent read so a concurrent publication cannot spuriously block arming', () => {
+  const h = harness();h.command('sim.start');h.run(20,()=>h.stick(0,true));
+  expect(armed(h.latest().vehicleFlags)).toBe(true);
+  const referenceReader=new PilotReaderV2(h.stateBuffer);
+  const original=referenceReader.latest.bind(referenceReader);
+  const reader = vi.spyOn(PilotReaderV2.prototype,'latest').mockImplementation(function(this:PilotReaderV2,out){
+    h.time.mono+=0.125;h.stick(0,true);
+    return original(out);
+  });
+  try {h.run(10);expect(armed(h.latest().vehicleFlags)).toBe(true);expect(h.latest().vehicleFlags&VehicleFlagV2.InputFailsafe).toBe(0);}
+  finally {reader.mockRestore();}
+  h.run(20,()=>h.stick(0,true,{ageMs:-1000}));
+  expect(armed(h.latest().vehicleFlags)).toBe(false);expect(h.latest().vehicleFlags&VehicleFlagV2.InputFailsafe).toBeTruthy();
 });

@@ -4,8 +4,8 @@
 // timestep refinement. No measured surface data exists yet: validation of
 // absolute temperatures stays pending.
 import { describe, expect, it } from "vitest";
-import { STEFAN_BOLTZMANN, airMass, clearSkyIrradiance, dayOfYearUtc, skyEmissivity, solarPosition } from "../packages/thermal/src/solar.ts";
-import { TYPICAL_SURFACE_PROPS, ThermalField, type SurfaceThermalProps, type ThermalForcing, type ThermalWeather } from "../packages/thermal/src/heat-balance.ts";
+import { STEFAN_BOLTZMANN, airMass, clearSkyIrradiance, dayOfYearUtc, skyEmissivity, solarIncidence, solarPosition } from "../packages/thermal/src/solar.ts";
+import { HeatSurface, TYPICAL_SURFACE_PROPS, ThermalField, type SurfaceThermalProps, type ThermalForcing, type ThermalWeather } from "../packages/thermal/src/heat-balance.ts";
 import { isaTroposphere } from "../packages/physics/src/atmosphere.ts";
 
 const DEG = Math.PI / 180;
@@ -188,4 +188,85 @@ describe("surface heat balance", () => {
     const perWindow = windows.map(([t0, t1]) => gcStarts.filter(t => t >= t0! && t <= t1!).length);
     expect(perWindow, JSON.stringify(perWindow)).toContain(0);
   }, 60_000);
+});
+
+// Reference single-surface solver from the parallel implementation (implicit trapezoid).
+describe("single-surface reference solver", () => {
+  const lumped = {
+    heatCapacityJm2K: 10000,
+    absorptivity: 0.7,
+    emissivity: 0.9,
+    convectionWm2K: 10,
+    conductionWm2K: 2,
+  };
+  const lumpedNight = { airK: 290, skyK: 290, substrateK: 290, solarWm2: 0 };
+  it("night equilibrium and explicit power-to-energy units", () => {
+    const s = new HeatSurface(lumped, 290);
+    for (let i = 0; i < 3600; i++) s.advance(1, lumpedNight);
+    expect(s.temperatureK).toBe(290);
+    const noLoss = new HeatSurface(
+      { ...lumped, emissivity: 0, convectionWm2K: 0, conductionWm2K: 0 },
+      290,
+    );
+    noLoss.advance(10, { ...lumpedNight, solarWm2: 1000 });
+    expect(noLoss.temperatureK).toBeCloseTo(290.7, 10);
+  });
+  it("sunrise and shadows obey energy balance with timestep convergence", () => {
+    const integrate = (dt: number) => {
+      const s = new HeatSurface(lumped, 290);
+      for (let t = 0; t < 600 - 1e-8; t += dt)
+        s.advance(dt, { ...lumpedNight, solarWm2: 800 });
+      return s.temperatureK;
+    };
+    const ref = integrate(0.125);
+    expect(Math.abs(integrate(1) - ref)).toBeLessThan(0.002);
+    expect(Math.abs(integrate(0.5) - ref)).toBeLessThan(
+      Math.abs(integrate(1) - ref),
+    );
+    const s = new HeatSurface(lumped, 310);
+    s.advance(10, lumpedNight);
+    expect(s.temperatureK).toBeLessThan(310);
+    expect(ref).toBeGreaterThan(290);
+  });
+  it("solar geometry in local ENU: equatorial noon, horizon, backface and shadow", () => {
+    expect(solarIncidence(0, 0, 0, [0, 0, 1], 1000, 1)).toBeCloseTo(1000, 10);
+    expect(solarIncidence(0, 0, Math.PI, [0, 0, 1], 1000, 1)).toBe(0);
+    expect(solarIncidence(0, 0, 0, [0, 0, 1], 1000, 0)).toBe(0);
+    expect(solarIncidence(0, 0, 0, [0, 0, -1], 1000, 1)).toBe(0);
+    expect(
+      () => new HeatSurface({ ...lumped, heatCapacityJm2K: 0 }, 290),
+    ).toThrow();
+    expect(() => solarIncidence(0, 0, 0, [0, 0, 2], 1000, 1)).toThrow();
+  });
+});
+
+describe("cross-checks between the two solvers and the two solar models", () => {
+  it("ThermalField (Heun) and HeatSurface (implicit trapezoid) agree on equivalent forcing", () => {
+    const props = TYPICAL_SURFACE_PROPS["asphalt"]!;
+    const w: ThermalWeather = { airTemperatureK: 288, windSpeedMps: 3, cloudFraction: 0.3, deepTemperatureK: 291 };
+    // HeatSurface takes the sky as a temperature: eps_sky sigma T_air^4 = sigma T_sky^4.
+    const skyK = skyEmissivity(w.airTemperatureK, w.cloudFraction) ** 0.25 * w.airTemperatureK;
+    const surface = new HeatSurface({ heatCapacityJm2K: props.arealHeatCapacityJM2K, absorptivity: props.solarAbsorptance, emissivity: props.emissivity,
+      convectionWm2K: 5.7 + 3.8 * w.windSpeedMps, conductionWm2K: props.deepConductanceWM2K }, 300);
+    const field = new ThermalField([{ props }], w, 300);
+    const sun: ThermalForcing = { sunEast: 0, sunNorth: -0.6, sunUp: 0.8, directNormalWm2: 750, diffuseHorizontalWm2: 75, dtS: 60 };
+    for (let k = 0; k < 6 * 60; k++) {
+      const day = k < 3 * 60;
+      const f = day ? sun : { ...sun, directNormalWm2: 0, diffuseHorizontalWm2: 0 };
+      field.stepFrom(f);
+      surface.advance(60, { airK: w.airTemperatureK, skyK, substrateK: w.deepTemperatureK, solarWm2: f.directNormalWm2 * f.sunUp + f.diffuseHorizontalWm2 });
+      expect(Math.abs(field.temperatureK[0]! - surface.temperatureK), `minute ${k}`).toBeLessThan(0.02);
+    }
+  });
+
+  it("solarIncidence (declination/hour-angle geometry) matches the ephemeris direction", () => {
+    for (const [utc, lat, lon] of [[Date.UTC(2026, 5, 21, 11), 47.38, 8.54], [Date.UTC(2026, 11, 21, 15), -33.9, 18.4], [Date.UTC(2026, 2, 20, 6), 0, 0]] as const) {
+      const p = solarPosition(utc, lat, lon);
+      for (const n of [[0, 0, 1], [0, -1, 0], [Math.SQRT1_2, 0, Math.SQRT1_2]] as const) {
+        const [e, nn, u] = p.directionEnu;
+        const expected = u <= 0 ? 0 : 900 * Math.max(0, e * n[0] + nn * n[1] + u * n[2]);
+        expect(solarIncidence(lat * Math.PI / 180, p.declinationRad, p.hourAngleRad, n, 900, 1)).toBeCloseTo(expected, 9);
+      }
+    }
+  });
 });

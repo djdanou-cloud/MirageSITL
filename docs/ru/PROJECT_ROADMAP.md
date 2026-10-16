@@ -1,6 +1,6 @@
 # PROJECT_ROADMAP.md
 
-<!-- source-sha256: cc6801c8e7ddd95c3d636af6f7f268b7fb7d4121cb65346822ad2a25b8e168b5 -->
+<!-- source-sha256: 0dc68b8f989c4f8223ed0a6fdd624b09885c61b7c3a8574a3670c95c8a8c77f5 -->
 
 Английский источник: [Source of truth](../PROJECT_ROADMAP.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -619,12 +619,15 @@ Cargo bin активирован в PATH. Производительность M
 
 ### TASK-043 — EKF warmup и health
 
-- **Status:** TODO.
+- **Status:** BLOCKED_EXTERNAL — Codex; baseline 660d86e; 2026-10-16. Модули диагностики/прогрева проверены; живая интеграция TASK-042/031 не выполнена.
 - **Title & Description:** Прогревать 30 sim s и допускать READY по реальной диагностике EKF.
 - **Dependencies:** TASK-035, TASK-039, TASK-042.
-- **Touched Files:** `packages/autopilot/src/warmup.ts`, `packages/autopilot/src/ekf-status.ts`, `tests/warmup.test.ts`, `tests/integration/ekf-ready.test.ts`.
+- **Touched Files:** `packages/autopilot/src/warmup.ts`, `packages/autopilot/src/ekf-status.ts`, `packages/autopilot/package.json`, `packages/mavlink/src/codec.ts`, `tests/warmup.test.ts`, `tests/integration/ekf-ready.test.ts`, `tests/fixtures/mavlink/ekf-golden.json`, `tests/fixtures/mavlink/generate-ekf.py`, `tests/fixtures/registry.json`, `README.md`, `docs/ru/README.md`, `CLAUDE.md`, `docs/ru/CLAUDE.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `package-lock.json`, `docs/SPECS_SHARED_MEMORY.md`, `docs/ru/SPECS_SHARED_MEMORY.md`.
 - **Interfaces / Contracts:** Normalized ekf_flags; source freshness; SITL fast-forward only.
 - **DoD & Acceptance Criteria:** Согласованные sensor timestamps; failed innovations не дают READY после таймера; acceleration factor измерен; HITL отвергает fast-forward; no startup EW до ready.
+
+- **Evidence (2026-10-16):** tests/warmup.test.ts: 3 PASS. Wire-эталон официального pymavlink 2.4.50 ardupilotmega, заданный источник, абсолютные флаги, устаревшие/будущие отчёты, неуспешные инновации, допуск после 30 с, согласование меток, отклонение эпохи и ускорения HITL. Прошивка не запускалась; tests/integration/ekf-ready.test.ts остаётся запланированным живым допуском, а не вымышленным успешным эталоном.
+
 
 ### TASK-044 — ArduPilot WASM feasibility gate
 
@@ -903,33 +906,39 @@ Cargo bin активирован в PATH. Производительность M
 
 ### TASK-070 — Surface thermal state
 
-- **Status:** DONE — Claude; база 9a67a2b; 2026-10-16 (численная модель проверена; проверка по измерениям ожидает данных).
+- **Status:** DONE — Codex; baseline 660d86e; 2026-10-16. Синтетическая сосредоточенная модель; измеренная валидация остаётся отдельной.
 - **Title & Description:** Интегрировать температуру по solar/material/weather, отдельно от shader.
 - **Dependencies:** TASK-032, TASK-069.
-- **Touched Files:** `packages/thermal/src/heat-balance.ts`, `packages/thermal/src/solar.ts`, `tests/thermal-energy.test.ts`, `packages/thermal/package.json`, `package-lock.json`.
+- **Touched Files:** `packages/thermal/src/heat-balance.ts`, `packages/thermal/src/solar.ts`, `packages/thermal/package.json`, `tests/thermal-energy.test.ts`, `README.md`, `docs/ru/README.md`, `CLAUDE.md`, `docs/ru/CLAUDE.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `package-lock.json`, `docs/SPECS_SHARED_MEMORY.md`, `docs/ru/SPECS_SHARED_MEMORY.md`.
 - **Interfaces / Contracts:** C*dT/dt=absorbedSolar-convection-radiation-conduction; emissivity/inertia.
 - **DoD & Acceptance Criteria:** Night equilibrium, sunrise/shadow и unit energy balance fixtures; timestep convergence; AO влияет только на заданный radiative model, не заменяет heat solver; параметры инструментально не валидированы без данных.
-- **Evidence:** Исполнитель Claude; база 9a67a2b; 2026-10-16. Node 24.22.0: tests/thermal-energy.test.ts 10 PASS. Солнце: эталон NREL SPA (2003-10-17 19:30:30 UTC, 39.742476 N 105.1786 W) — зенит и азимут в пределах 0.05°; склонение в солнцестояния ±23.44°; ночью освещённость 0; DNI монотонна по зениту, ниже 1.035 S0, отношение AM60/AM1 0.8 по Meinel; при полной облачности остаётся 25%; Swinbank 0.764 при 288.15 K. Тепловой баланс против уравнения, независимо записанного в тесте: 48 ч ночью достигается равновесие, найденное бисекцией, с точностью 0.005 K и ниже температуры воздуха, при облачности на > 1 K теплее; компоненты потока в W/m^2 суммируются в чистый поток; C dT равно накопленной энергии в J/m^2; ошибка относительно эталона с шагом 1 s уменьшается > 3 раз при каждом уменьшении шага 600/300/150 s и < 0.01 K при 150 s; жёсткая металлическая кровля остаётся в пределах 0.05 K при 600 s за счёт автоматических подшагов; Цюрих, солнцестояние: восход 03:xx UTC, минимум в течение 90 мин после него, освещённая > полутень > тень (разница > 5 K), южная стена холоднее горизонтальной поверхности; затенение неба не меняет радиационно инертные поверхности и нагревает затенённую излучающую поверхность; температура воздуха из ISA; 1000 элементов x 1000 шагов с одним окном без GC. Убитые мутации: уравнение центра, уравнение времени, показатель Meinel, конвекция, предиктор Хойна, подшаги, видимость неба в длинноволновом потоке, тень, накопление энергии. Осталось: свойства — типичные некалиброванные значения; проверка по измеренным температурам поверхности ожидает данных.
+
+- **Evidence (2026-10-16):** tests/thermal-energy.test.ts: 3 PASS. Точные единицы энергии без потерь, 3600 с ночного равновесия, полдень/ночь/тень/обратная сторона, сходимость 600 с к шагу 0.125 с (<0.002 К при 1 с), охлаждение и неверная конфигурация. Неявная схема трапеций вне физики; нет температурной подмены AO или измеренной калибровки материала. Слияние (Claude, 2026-10-16): параллельная реализация ThermalField объединена в heat-balance.ts/solar.ts рядом с HeatSurface/solarIncidence: пакетные слои без выделения памяти (Хойн с подшагами устойчивости, нормаль/тень/видимость неба на элемент, излучательная способность неба Swinbank/Bolz, конвекция McAdams) и эфемериды NOAA, сверенные с NREL SPA, с освещённостью Kasten-Young/Meinel/Kasten-Czeplak. tests/thermal-energy.test.ts 15 PASS, включая перекрёстные проверки: ThermalField и HeatSurface совпадают в пределах 0.02 K за 6 ч при эквивалентном воздействии, а solarIncidence совпадает с направлением эфемерид с точностью 1e-9.
+
 
 ### TASK-071 — Thermal renderer
 
-- **Status:** DONE — Claude; база 88b1382; 2026-10-16 (WebGL2 проверен; только синтетический профиль, соответствие CADEX не заявляется).
+- **Status:** DONE — Codex; baseline 660d86e; 2026-10-16. Независимый синтетический LWIR-конвейер WebGL2; рабочая сцена и измеренный прибор остаются открытыми.
 - **Title & Description:** Преобразовать thermal state в radiance/palette с atmosphere attenuation.
 - **Dependencies:** TASK-066, TASK-070.
-- **Touched Files:** `packages/thermal/src/thermal-camera.ts`, `packages/thermal/src/shaders/thermal.glsl`, `tests/thermal-camera.test.ts`, `tests/browser/thermal.spec.ts`, `packages/thermal/src/thermal-material.ts`, `packages/thermal/package.json`, `tests/support/thermal-harness.ts`, `package-lock.json`.
+- **Touched Files:** `packages/thermal/src/thermal-camera.ts`, `packages/thermal/src/shaders/thermal.glsl`, `tests/thermal-camera.test.ts`, `tests/browser/thermal.spec.ts`, `tests/support/thermal-harness.ts`, `packages/thermal/package.json`, `tests/material-map.test.ts`, `apps/web/src/render/webgpu.ts`, `tests/browser/render-backends.spec.ts`, `tests/support/render-harness.html`, `README.md`, `docs/ru/README.md`, `CLAUDE.md`, `docs/ru/CLAUDE.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `package-lock.json`, `docs/SPECS_SHARED_MEMORY.md`, `docs/ru/SPECS_SHARED_MEMORY.md`, `packages/thermal/src/thermal-material.ts`.
 - **Interfaces / Contracts:** InstrumentProfile {resolution, spectralResponse, noise, calibrationSource}; training profile отдельно от CADEX measurements.
 - **DoD & Acceptance Criteria:** Blackbody monotonicity, emissivity/reflection и distance attenuation fixtures; cold/hot palette endpoints; no claims of CADEX parity без profile data; native sensor resolution configurable.
-- **Evidence:** Исполнитель Claude; база 88b1382; 2026-10-16. Node 24.22.0: tests/thermal-camera.test.ts 6 PASS: интеграл по полосе 0.2-2000 мкм равен sigma T^4 / pi с точностью 0.1% при 250/300/400 K; пик Вина; радиация LWIR 8-14 мкм строго возрастает на 150-405 K; интерполяция по таблице в пределах 0.02% от точного интеграла; излучательная способность 1/0/0.4 даёт излучение, отражение и их смесь; ослабление по Бугеру–Ламберту монотонно убывает к радиации пути; границы диапазона отображаются в уровни 0 и 1; концы палитр white-hot/black-hot/ironbow и неубывающая яркость ironbow; синтетический профиль никогда не заявляет соответствие CADEX, измеренным профилям нужен хеш калибровки. Chromium WebGL2 (SwiftShader): tests/browser/thermal.spec.ts 4 PASS: thermal.glsl на float G-буфере 64x48 (255-335 K, излучательная способность 0.5-1, 0-5 км) совпадает с зеркалом на CPU — 0 пикселей с отклонением более 2/255 во всех палитрах, рендеринг в собственном разрешении профиля 64x48; концы палитр для холодной/горячей сцены точны. Убитые мутации: показатель Планка, член отражения, вторая радиационная постоянная, проверка измеренного профиля; шейдер: без ослабления, без интерполяции таблицы, контрольная точка ironbow. Осталось: нет измеренного профиля прибора; соответствие CADEX не заявляется; вариант для WebGPU не реализован.
+
+- **Evidence (2026-10-16):** tests/thermal-camera.test.ts: 2 PASS; tests/browser/thermal.spec.ts: 1 PASS. Эталон Планка СИ при 10 мкм/300 К, монотонность полосы, пределы излучения/отражения/затухания, границы палитры, размеры и ограничения цели. GLSL совпадает с CPU-эталоном с точностью одного 8-битного уровня на шести лучах/двух рядах, ошибок шейдера нет. CADEX/WebGPU thermal/FPS не заявляются. Сканирование material-map охватывает вложенные шейдеры; регрессии пути браузера/изоляции запросов проходят с явным пропуском недоступного WebGPU. Слияние (Claude, 2026-10-16): камера LWIR теперь использует объединённую реализацию: интеграл по полосе методом Симпсона для настраиваемой полосы, текстура таблицы радиации float32, ThermalScene (температуры отражения/воздуха, ослабление, диапазон отображения), палитры white-hot/black-hot/ironbow, InstrumentProfile с разделением синтетической и измеренной калибровки (только измеренный профиль может заявлять соответствие, например CADEX) и ThermalCameraPass с рендерингом в собственном разрешении; материал с 16 бинами на пиксель заменён. Прежние эталоны (спектральная радиация на 10 мкм, 54-56 W/(m2 sr) при 300 K, точные предельные случаи, концы палитр) сохранены в tests/thermal-camera.test.ts (8 PASS); tests/browser/thermal.spec.ts попиксельно сравнивает шейдер с зеркалом на CPU.
+
 
 ### TASK-072 — Shutter/NUC и thermal HUD
 
-- **Status:** DONE — Claude; база b250ee0; 2026-10-16.
+- **Status:** DONE — Codex; baseline 660d86e; 2026-10-16. Детерминированная синтетическая калибровка смещения шторкой.
 - **Title & Description:** Добавить deterministic calibration cycle и bounded display interruption.
 - **Dependencies:** TASK-071.
-- **Touched Files:** `packages/thermal/src/nuc.ts`, `packages/thermal/src/thermal-status.ts`, `tests/thermal-nuc.test.ts`, `packages/thermal/package.json`.
+- **Touched Files:** `packages/thermal/src/nuc.ts`, `packages/thermal/src/thermal-status.ts`, `packages/thermal/package.json`, `tests/thermal-nuc.test.ts`, `README.md`, `docs/ru/README.md`, `CLAUDE.md`, `docs/ru/CLAUDE.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `package-lock.json`, `docs/SPECS_SHARED_MEMORY.md`, `docs/ru/SPECS_SHARED_MEMORY.md`.
 - **Interfaces / Contracts:** Shutter states idle/closed/calibrating/open; sensor frame time.
 - **DoD & Acceptance Criteria:** Зафиксированная длительность/частота; NUC reset убирает заданный bias; no timestamp rewind; shutter не ставит физику на паузу и не меняет AAR truth.
-- **Evidence:** Исполнитель Claude; база b250ee0; 2026-10-16. Node 24.22.0: tests/thermal-nuc.test.ts 7 PASS с независимой моделью камеры (4096 пикселей, seed-шаблон ±50 отсчётов, дрейф ±0.5 отсчёта/s, шум sigma 2, 30 Hz с дрожанием ±3 ms, 610 s): 5 калибровок в 120 k + 0.2 + 8/30 s с точностью 2 кадра (фиксированная сетка), каждое прерывание изображения 14-15 кадров и <= 0.8 s; СКО остаточного смещения > 10 отсчётов до и 0.71 ±20% (= sigma / sqrt(8)) после каждой калибровки; временные метки вывода строго возрастают, повторные/более ранние/неверного размера кадры отклоняются и подсчитываются; замороженный вывод повторяет последний открытый кадр; прогон ThermalField с циклами затвора побитово совпадает с прогоном без них, а замороженные записи истины не меняются; конфигурации, превышающие предел прерывания, отклоняются; статус NO SIGNAL/LIVE/NUC и время до следующей калибровки. Убитые мутации: сдвигающееся расписание, нет успокоения, нет вычитания уровня затвора, принятие равных меток времени, незамороженный вывод, усреднение одного кадра, отключённый предел прерывания.
+
+- **Evidence (2026-10-16):** tests/thermal-nuc.test.ts: 2 PASS. Точная длительность closed/calibrating/open, период между началами (девять завершённых циклов к кадру 99 при интервале 10), удаление смещения, удержание изображения, последовательные монотонные метки, воспроизводимость и отклонение неверных/повторных/пропущенных кадров. Физика/истина AAR не принимаются на вход. Слияние (Claude, 2026-10-16): ThermalNuc сохранён; добавлены nextCalibrationFrame и thermalStatusLabel (NO SIGNAL/LIVE/NUC). Перенесённые тесты: камера на 4096 пикселей с дрейфующим шаблоном и шумом калибруется на фиксированной сетке 120 s с прерыванием 17 кадров, оставляя остаток 0.71 ±30% отсчёта (sigma / sqrt(8)); прогон ThermalField побитово совпадает с циклами затвора и без них. tests/thermal-nuc.test.ts 4 PASS.
+
 
 ### TASK-073 — GPU acceptance harness
 
@@ -944,50 +953,63 @@ Cargo bin активирован в PATH. Производительность M
 
 ### TASK-074 — Pilot HUD и telemetry freshness
 
-- **Status:** TODO.
+- **Status:** BLOCKED_EXTERNAL — Codex; baseline 660d86e; 2026-10-16. HUD и регрессия времени стиков проверены; допуск живого здоровья зависит от TASK-043.
 - **Title & Description:** Показывать attitude/speed/altitude/mode/EKF с источником и возрастом.
 - **Dependencies:** TASK-015, TASK-039, TASK-043.
-- **Touched Files:** `apps/web/src/hud/PilotHud.tsx`, `apps/web/src/hud/attitude.ts`, `apps/web/src/hud/telemetry.ts`, `tests/hud.test.ts`, `tests/browser/hud.spec.ts`.
+- **Touched Files:** `apps/web/src/hud/PilotHud.tsx`, `apps/web/src/hud/attitude.ts`, `apps/web/src/hud/telemetry.ts`, `apps/web/src/App.tsx`, `apps/web/src/runtime.ts`, `apps/web/src/style.css`, `packages/physics/src/session-v2.ts`, `tests/session-v2.test.ts`, `tests/hud.test.ts`, `tests/browser/hud.spec.ts`, `README.md`, `docs/ru/README.md`, `CLAUDE.md`, `docs/ru/CLAUDE.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `package-lock.json`, `docs/SPECS_SHARED_MEMORY.md`, `docs/ru/SPECS_SHARED_MEMORY.md`.
 - **Interfaces / Contracts:** FlightStateV2, normalized ekf_flags, unknown/stale visual state.
 - **DoD & Acceptance Criteria:** NED horizon signs verified; fake valid EKF из demo невозможен; stale AP status подписан; UI updates decimated, не React setState на 1200 Hz.
 
+- **Evidence (2026-10-16):** tests/hud.test.ts: 2 PASS; tests/browser/hud.spec.ts: 1 PASS; tests/session-v2.test.ts: 11 PASS. Крен/тангаж/курс NED, q/-q, неверная ориентация, неизвестный EKF demo, устаревание по возрасту и продвижение тиков Worker. Детерминированная регрессия сначала падала при публикации после чтения часов, затем прошла после переноса времени приёма за декодирование mailbox; настоящие будущие отсчёты разоружают. Браузерные взлёт/защита устаревания проходят без ослабления порогов. React обновляется примерно раз в 150 мс. HUD живого автопилота блокирован TASK-043.
+
+
 ### TASK-075 — Instructor console/hotkeys
 
-- **Status:** TODO.
+- **Status:** BLOCKED_EXTERNAL — Codex; baseline 660d86e; 2026-10-16. Консоль/ACK/горячие клавиши проверены; применение отказов рабочим backend и допуск TASK-074 открыты.
 - **Title & Description:** Инъецировать weather/fault/model commands с явным pending/applied state.
 - **Dependencies:** TASK-010, TASK-038, TASK-058, TASK-074.
-- **Touched Files:** `apps/web/src/instructor/Console.tsx`, `apps/web/src/instructor/hotkeys.ts`, `tests/instructor.test.ts`, `tests/browser/instructor.spec.ts`.
+- **Touched Files:** `apps/web/src/instructor/Console.tsx`, `apps/web/src/instructor/hotkeys.ts`, `apps/web/src/instructor/commands.ts`, `apps/web/src/App.tsx`, `apps/web/src/runtime.ts`, `apps/web/src/style.css`, `tests/instructor.test.ts`, `tests/browser/instructor.spec.ts`, `README.md`, `docs/ru/README.md`, `CLAUDE.md`, `docs/ru/CLAUDE.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `package-lock.json`, `docs/SPECS_SHARED_MEMORY.md`, `docs/ru/SPECS_SHARED_MEMORY.md`.
 - **Interfaces / Contracts:** ControlCommandV2 request/ACK/epoch; scenario fault registry.
 - **DoD & Acceptance Criteria:** Hotkeys не срабатывают при вводе в input; cancel/reset/stale epoch и rejection видны; кнопка не показывает applied до ACK; все fault IDs доступны без смены исходников.
 
+- **Evidence (2026-10-16):** tests/instructor.test.ts: 1 PASS; tests/browser/instructor.spec.ts: 1 PASS. Отклонение настоящим Worker, редактируемые ID отказов, все виды эффектов, канал/режим/доля мотора, погода/модель, ограниченный журнал pending/queued/applied/rejected/cancelled, опережение ACK заголовком эпохи и подавление при фокусе ввода/select. Отклонение demo явно; применение отказов или READY автопилота не заявляются.
+
+
 ### TASK-076 — AAR recorder
 
-- **Status:** DONE — Claude; база 4626f4b; 2026-10-16 (ещё не подключён к Worker физики).
+- **Status:** DONE — Codex; baseline 660d86e; 2026-10-16. Ограниченная библиотека записи/производителя и прореженное demo; производитель полной частоты не подключён.
 - **Title & Description:** Записывать input/actuator/truth/sensor/events в отдельный bounded recorder.
 - **Dependencies:** TASK-004, TASK-013, TASK-058.
-- **Touched Files:** `packages/aar/package.json`, `packages/aar/src/format.ts`, `packages/aar/src/recorder.worker.ts`, `packages/aar/src/storage.ts`, `tests/aar-recorder.test.ts`, `packages/aar/src/recorder.ts`, `tests/support/aar-harness.ts`, `tests/browser/aar-storage.spec.ts`, `docs/SPECS_SHARED_MEMORY.md`, `docs/ru/SPECS_SHARED_MEMORY.md`, `package-lock.json`.
+- **Touched Files:** `packages/aar/package.json`, `packages/aar/src/format.ts`, `packages/aar/src/record.ts`, `packages/aar/src/handoff.ts`, `packages/aar/src/recorder.ts`, `packages/aar/src/recorder.worker.ts`, `packages/aar/src/recorder-host.ts`, `packages/aar/src/storage.ts`, `tests/aar-recorder.test.ts`, `tests/browser/aar.spec.ts`, `tests/support/aar-harness.ts`, `scripts/bench-aar.mjs`, `apps/web/src/runtime.ts`, `apps/web/package.json`, `README.md`, `docs/ru/README.md`, `CLAUDE.md`, `docs/ru/CLAUDE.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `package-lock.json`, `docs/SPECS_SHARED_MEMORY.md`, `docs/ru/SPECS_SHARED_MEMORY.md`, `tests/aar-storage.test.ts`.
 - **Interfaces / Contracts:** AAR version/model hashes/seed/epoch/time domains; IndexedDB chunks/checksum.
 - **DoD & Acceptance Criteria:** 30 min configured ring имеет фиксированный byte cap; slow storage/backpressure/loss explicitly counted; zero allocation в physics handoff; запись не использует 256-slot render ring как архив.
-- **Evidence:** Исполнитель Claude; база 4626f4b; 2026-10-16. Node 24.22.0: tests/aar-recorder.test.ts 7 PASS: контрольное значение CRC-32 0xCBF43926; проверка версии/формата/хешей/областей времени/полей манифеста; 64-битные тики, эпоха и обе области времени проходят через чанк с CRC, изменённый байт или усечённый чанк отклоняются; кольцо рендеринга, очереди SPSC и буфер с поддельным magic не принимаются как архив; сеанс 40 мин при 20 Hz x 2 записи с кольцом 30 мин (ringBytesFor) никогда не превышает предел байтов (пиковый объём <= предела), вытесняет старые чанки и сохраняет непрерывное окно от 1800 s до 1800 s + 2 чанка; переполнение очереди даёт 36 потерь и одну запись разрыва после тика 63; всплеск 640 записей при одной записи в полёте приостанавливает чтение без потерь; длительная перегрузка очереди на 64 записи при хранилище 20 ms учитывает каждую потерю (сохранено + отброшено = создано, суммы разрывов равны потерям, причина — отставание хранилища); 1e6 вызовов commit производителя с одним окном без GC. Chromium: tests/browser/aar-storage.spec.ts 1 PASS: реальный Worker записи сохраняет 3000 записей в 47 чанках IndexedDB по порядку с манифестом и без потерь. Убитые мутации: проверка предела кольца, ветка приостановки, положение разрыва, счётчик потерь, сдвиг CRC, разбиение 64-битного тика, проверка CRC, проверка magic очереди, причина разрыва, полное опустошение при остановке. Осталось: кольцо 30 мин на реальном оборудовании/квоте браузера и интеграция в Worker физики.
+
+- **Evidence (2026-10-16):** tests/aar-recorder.test.ts: 5 PASS; настоящий Worker/IndexedDB в tests/browser/aar.spec.ts PASS. ISO-HDLC cbf43926, точные вложенные смещения, все потоки, отклонение эпохи/CRC, восстановление seqlock после неверной записи, запрет алиасинга, переполнение/переход счётчика, хронологическое вытеснение и фиксированные 9,216,000 байт на 30 мин/10 Гц. Отдельный SAB 256 слотов, без второго потребителя полётных очередей. Настоящие encode+все потоки+SPSC при 400/800/1200: PASS со свежими хешами, прогрев 4e6, шесть окон N=1e6/2e6, нулевые наблюдаемые GC/прирост байт на шаг, положительный контроль обнаружен. Хранилище/обратное давление ограничены и учитываются; demo явно прорежено, потоки FC отсутствуют. Слияние (Claude, 2026-10-16): регистратор, формат записи и передача этой реализации сохранены; параллельная реализация показала, что отбрасывание чанка при каждой занятой транзакции IndexedDB теряет большую часть всплеска. ChunkStorage теперь ставит до maxPending (по умолчанию 8) чанков в очередь за выполняющейся транзакцией и отбрасывает (с подсчётом) только при переполнении или ошибке; tests/aar-storage.test.ts 2 PASS с заменой IndexedDB в памяти (возврат к отбрасыванию при занятости проваливает тест); tests/browser/aar.spec.ts теперь проверяет с реальной IndexedDB, что при maxPending 0 запись во время занятости по-прежнему отклоняется как учтённая потеря, а по умолчанию ставится в очередь и сохраняется.
+
 
 ### TASK-077 — Replay и timeline
 
-- **Status:** DONE — Claude; база 064e3b5; 2026-10-16.
+- **Status:** DONE — Codex; baseline 660d86e; 2026-10-16. Воспроизведение снимков и интерфейс сравнения ресимуляции с проверкой provenance.
 - **Title & Description:** Воспроизводить recorded snapshots отдельно от deterministic resimulation.
 - **Dependencies:** TASK-015, TASK-076.
-- **Touched Files:** `packages/aar/src/replay.ts`, `packages/aar/src/resimulation.ts`, `tests/aar-replay.test.ts`, `packages/aar/package.json`.
+- **Touched Files:** `packages/aar/src/replay.ts`, `packages/aar/src/resimulation.ts`, `tests/aar-replay.test.ts`, `packages/aar/package.json`, `README.md`, `docs/ru/README.md`, `CLAUDE.md`, `docs/ru/CLAUDE.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `package-lock.json`, `docs/SPECS_SHARED_MEMORY.md`, `docs/ru/SPECS_SHARED_MEMORY.md`.
 - **Interfaces / Contracts:** ReplayMode snapshots/resimulate; seek boundaries, config provenance.
 - **DoD & Acceptance Criteria:** Seek/reset/epoch discontinuity корректны; unknown format/hash mismatch rejected; state replay identical records; resim mismatch даёт отчёт, не auto-rewrite recording.
-- **Evidence:** Исполнитель Claude; база 064e3b5; 2026-10-16. Node 24.22.0: tests/aar-replay.test.ts 6 PASS на реальных записях DemoDynamics при 400 Hz (3 s, сброс в эпоху 2, 2 s), сделанных через RecordingProducer/AarRecorder/MemoryChunkStore: сегменты [1, 1..1200] и [2, 1..800], длительность 5 s; seek ограничивает позицию (atStart/atEnd), возвращает запись не позже позиции (1.0 s -> тик 401, 1.0025 s -> 402), сообщает разрыв при пересечении сброса в обе стороны, а смена эпохи при продолжающихся тиках всё равно разделяет сегменты; записанная потеря 40 тиков — это разрыв, и позиции внутри него помечены inGap; записи заморожены, а дайджест хранилища не меняется после 100 перемоток; манифест версии 2, повреждённый чанк и несовпадение ожидаемого хеша отклоняются. Пересимуляция той же DemoDynamics воспроизводит 2000 тиков с ошибкой 0 m / 0 m/s и скалярным произведением кватернионов в пределах 1e-15 от 1; возмущение газа на 1% даёт отчёт о несовпадении (первое — в эпохе 1, перечислены 32 из большего числа) без изменения хранилища; потеря делает эпоху 2 неполной с тика 200 (сравнено 1399 тиков); другой хеш планера отклоняется. Убитые мутации: разделение по эпохе, inGap, повторная проверка манифеста, проверка ожидаемого хеша, обнаружение пропущенных тиков, ограничение списка несовпадений, сброс на сегмент, проверка хеша планера.
+
+- **Evidence (2026-10-16):** tests/aar-replay.test.ts: 3 PASS. Поиск внутри эпохи, независимая копия, отклонение повреждения/версии/хеша, несколько наблюдений за один физический тик, допуск seed/модели/прошивки и отчёт расхождения без перезаписи. Рабочий ресимулятор не поставляется; внедряемый backend разрешает конфигурацию и продвигается к тику один раз для одновременных наблюдений.
+
 
 ### TASK-078 — AAR response charts
 
-- **Status:** TODO.
+- **Status:** BLOCKED_EXTERNAL — Codex; baseline 660d86e; 2026-10-16. Графики отклика/просмотр demo проверены; зависимость живого HUD TASK-074 остаётся открытой.
 - **Title & Description:** Сопоставлять stick input, actuator и физический отклик по одному времени.
 - **Dependencies:** TASK-074, TASK-077.
-- **Touched Files:** `apps/web/src/aar/Review.tsx`, `apps/web/src/aar/series.ts`, `tests/aar-series.test.ts`, `tests/browser/aar.spec.ts`.
+- **Touched Files:** `apps/web/src/aar/Review.tsx`, `apps/web/src/aar/series.ts`, `tests/aar-series.test.ts`, `tests/browser/aar.spec.ts`, `apps/web/src/style.css`, `README.md`, `docs/ru/README.md`, `CLAUDE.md`, `docs/ru/CLAUDE.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `package-lock.json`, `docs/SPECS_SHARED_MEMORY.md`, `docs/ru/SPECS_SHARED_MEMORY.md`.
 - **Interfaces / Contracts:** Bounded decimated time series; units/timebase, known recording gaps.
 - **DoD & Acceptance Criteria:** Known step-response fixture показывает правильный lag; gaps не интерполируются как реальные данные; 30 min log отображается с <=10000 points/series и bounded memory.
+
+- **Evidence (2026-10-16):** tests/aar-series.test.ts: 2 PASS; браузерная запись/просмотр/экспорт/импорт PASS. Ступени стиков/актуатора/отклика приходятся на 0.2/0.3/0.4 с; отсутствующий актуатор и пропуски разрывают линии; 18000 отсчётов за 30 мин прореживаются до <=10000 точек с сохранением узкого импульса и границ. Шкала выбирает эпоху/время, снимки отделены от живого полёта. Допуск живого автопилота не подразумевается.
+
 
 ### TASK-079 — Lessons/scenario runner
 
@@ -1009,13 +1031,15 @@ Cargo bin активирован в PATH. Производительность M
 
 ### TASK-081 — Экспорт сессий
 
-- **Status:** DONE — Claude; база 2264679; 2026-10-16 (компонент UI ещё не встроен: регистратор не подключён к Worker физики).
+- **Status:** DONE — Codex; baseline 660d86e; 2026-10-16. Ограниченные архивы с контрольными суммами, удалением метаданных и импортом/экспортом в браузере.
 - **Title & Description:** Экспортировать/импортировать AAR с manifest и без секретов.
 - **Dependencies:** TASK-076, TASK-077.
-- **Touched Files:** `packages/aar/src/archive.ts`, `apps/web/src/aar/Export.tsx`, `tests/aar-archive.test.ts`, `packages/aar/package.json`, `apps/web/package.json`, `package-lock.json`.
+- **Touched Files:** `packages/aar/src/archive.ts`, `apps/web/src/aar/Export.tsx`, `apps/web/src/App.tsx`, `tests/aar-archive.test.ts`, `tests/browser/aar.spec.ts`, `packages/aar/package.json`, `apps/web/package.json`, `README.md`, `docs/ru/README.md`, `CLAUDE.md`, `docs/ru/CLAUDE.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `package-lock.json`, `docs/SPECS_SHARED_MEMORY.md`, `docs/ru/SPECS_SHARED_MEMORY.md`.
 - **Interfaces / Contracts:** Versioned archive, size/checksum limits; redact keys/serial identifiers as configured.
 - **DoD & Acceptance Criteria:** Export→import roundtrip; zip bomb/oversized/invalid hash rejected до allocation; API keys/tokens отсутствуют в archive; пользователь видит размер/типы данных.
-- **Evidence:** Исполнитель Claude; база 2264679; 2026-10-16. Node 24.22.0: tests/aar-archive.test.ts 5 PASS: сеанс, записанный регистратором (1200 записей, 19 чанков), экспортируется с размером, числом записей/байтами по категориям и числом записей каждого вида, импортируется в пустое хранилище с идентичными чанками и манифестом, повторно открывается для воспроизведения, а непустое целевое хранилище отклоняется; метаданные со строкой в форме ключа Google, 64-hex-токеном моста, bearer-токеном, идентификаторами USB и серийными номерами экспортируются так, что ничего из этого нет в байтах архива (>= 7 удалений), хеши моделей сохраняются, удаление серийных номеров настраивается, а секреты удаляются всегда; учётные данные во вложенных отчётах удаляются; слишком много записей, слишком большой индекс, несовпадающий общий размер, неизвестная версия и неверный magic отклоняются после чтения только 64-байтного заголовка, а Blob сверх предела — без чтения; изменённый индекс, изменённый байт данных (целевое хранилище остаётся пустым), перекрывающиеся записи и запись сверх предела при корректном хеше индекса отклоняются. Убитые мутации: предел числа записей, совпадение размера с заголовком, проверка перекрытия, хеш данных, удаление ключей-секретов, шаблоны значений-секретов, хеш индекса, предел размера архива, проверка пустого целевого хранилища. Выжившая: финальная проверка на учётные данные — защита, недостижимая через публичный API, поскольку удаление применяет те же шаблоны раньше. Export.tsx проходит typecheck и lint; он не встроен в приложение, пока регистратор не подключён к Worker физики.
+
+- **Evidence (2026-10-16):** tests/aar-archive.test.ts: 2 PASS; настоящий download/import в браузере и отклонение повреждённого импорта PASS. SHA-256 заголовка/манифеста/данных, CRC записей, точные длины, 32 МиБ/4096 байт метаданных, без декомпрессии. По умолчанию лишние метаданные отклоняются; настраиваемое удаление копирует только разрешённую provenance без API-ключей/серийных идентификаторов. Размер/категории/потери видны; импорт не заменяет активный полёт.
+
 
 ### TASK-082 — Сквозной acceptance matrix
 
@@ -1066,3 +1090,27 @@ MAVLink source 2e2b6af99084e4fde9bb304c84bb9253a1a98b6f, pymavlink 2.4.50;
 имеют зеркала. Инструкции старта среды сохранены как черновик для проверки/
 сохранения/публикации в настройках; это не применило сетевое исключение SDK
 и не сертифицировало новую задачу.
+
+
+## Локальная реализация десяти задач
+
+Исполнитель Codex; исходная ревизия 660d86e. Выбраны TASK-043/070/071/072/074/075/076/077/078/081. Цель: тепловой баланс/рендеринг/NUC, ограниченный AAR и интерфейсы пилота/инструктора. Критерий неуспеха: нарушение численной точности, жизненного цикла, ёмкости, эпох или проверок. TASK-043 и зависимые интерфейсы реализуют независимые контракты до проверки живого SITL; интеграция TASK-042/031 остаётся BLOCKED_EXTERNAL, готовность автопилота этим пакетом не включается. Дополнительные изменяемые пути для этих задач: packages/thermal/package.json, packages/aar/package.json, packages/aar/src/handoff.ts, packages/aar/src/record.ts, packages/aar/src/recorder.ts, packages/aar/src/recorder-host.ts, apps/web/package.json, apps/web/src/App.tsx, apps/web/src/runtime.ts, apps/web/src/style.css, packages/autopilot/package.json, tests/support/thermal-harness.ts, tests/support/aar-harness.ts, tests/support/ui-harness.tsx, package-lock.json, docs/SPECS_SIMULATION_ENGINES.md, docs/architecture.md, docs/PROJECT_ROADMAP.md и их русские зеркала. Запись активного demo явно использует прореженные отсчёты Main с пропусками; отдельный SAB-канал доступен для будущего подключения производителя. Тепловой конвейер независимо проверяется в WebGL2; рабочая сцена и проверка измеренной камеры остаются отдельными задачами. Отправка в удалённый репозиторий в этом пакете не разрешена.
+
+Дополнительные пути TASK-043 для проверки диагностики: `packages/mavlink/src/codec.ts`, `tests/fixtures/mavlink/ekf-golden.json`, `tests/fixtures/mavlink/generate-ekf.py`, `tests/fixtures/registry.json`.
+
+Расширение регрессионной проверки: TASK-074 также затрагивает `packages/physics/src/session-v2.ts` и `tests/session-v2.test.ts` для воспроизведения и исправления гонки публикации стиков/чтения часов; TASK-071 также затрагивает `tests/browser/render-backends.spec.ts`, сохраняя настроенный путь Chromium при переопределении флагов запуска. Пороги свежести и критерии тестов не ослабляются.
+
+Продолжение регрессии рендерера в TASK-071: `apps/web/src/render/webgpu.ts`, `tests/support/render-harness.html`, `tests/support/render-harness.ts`. Один функциональный WebGPU-запрос на документ; fallback проверяется на изолированном canvas, диагностика сравнивается в одном документе, а не между навигациями.
+
+Финальная программная проверка пройдена; живые интеграционные блокеры сохранены под соответствующими задачами.
+
+
+## Проверка локального пакета (2026-10-16; baseline 660d86e)
+
+Шесть модульных/программных задач DONE: TASK-070/071/072/076/077/081. Независимая программная часть TASK-043/074/075/078 реализована и проверена, но эти четыре остаются BLOCKED_EXTERNAL по неизменённой живой цепочке TASK-042/031. Для разблокировки нужен настоящий прогон закреплённой прошивки arm/takeoff/hold/land и согласованный ускоренный прогрев со свежей диагностикой EKF на допущенном backend. Unit/browser имитации и demo-полёт не заменяют трассу. Рабочая тепловая сцена, измеренная точность камеры, синхронное подключение записи полной частоты и рабочий ресимулятор по умолчанию не заявляются.
+
+Локальный exit 0: frozen npm ci; lint, typecheck, build и check:docs. Полный unit-прогон: 420 PASS в 72 файлах, JUnit test-results/unit/junit.xml; целевые повторные проверки архива/записи/replay/графиков/сеанса после удаления метаданных и усиления регрессий также проходят. Браузер: 41 PASS, 1 явно SKIPPED, без failures/errors в test-results/browser/junit.xml. Пропуск — настоящий WebGPU-рендеринг: программный адаптер теряет устройство; WebGL2/fallback и настоящие Worker/SAB/IndexedDB/UI roundtrip проходят. Native cargo test --manifest-path native/Cargo.toml --workspace --locked: 46 PASS. Node 24.19.0, Rust 1.97.0, Chromium 154.0.8037.57, Debian x86_64/SwiftShader. Сборка сохраняет существующее предупреждение о чанке >500 кБ.
+
+G1: node scripts/bench-aar.mjs 400, 800 и 1200 завершаются с 0 и свежими SHA-256 исходников в test-results/bench/aar-<Hz>.json: прогрев 4e6, шесть окон по 1e6/2e6 шагов; нулевые наблюдаемые GC в измеренных интервалах и нулевой прирост Б/шаг; каждый положительный контроль вызывает GC. Проверка фильтрует события по меткам, исключая собственный принудительный GC до окна. Настоящий physics-session и существующие link/EW пробы также проходят unit-пакет после исправления времени стиков. Вычисления Node не сертифицируют настенные дедлайны браузера или FPS M4/RTX.
+
+Все 11 пар EN/RU синхронизированы: одинаковые кодовые контракты/формулы, зарегистрированные раскладки и неизменённые зависимости задач. Изменения коммитятся только локально; push или CI-прогон этого локального пакета не подразумевается.

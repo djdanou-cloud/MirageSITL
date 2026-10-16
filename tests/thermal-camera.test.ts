@@ -96,3 +96,28 @@ describe("instrument profiles", () => {
     expect(() => validateProfile({ ...SYNTHETIC_LWIR_640, spectralBandUm: [14, 8] })).toThrow();
   });
 });
+
+// Oracles carried over from the parallel implementation's tests.
+describe("radiometry oracles (merged)", () => {
+  it("matches an independent 10 um spectral radiance and the 8-14 um band level at 300 K", () => {
+    // 2hc^2/lambda^5/(exp(hc/(lambda k T)) - 1) at 10 um, 300 K = 9.9240333300707 W/(m^2 sr um).
+    expect(planckSpectral(10e-6, 300) * 1e-6).toBeCloseTo(9.9240333300707, 9);
+    expect(bandRadiance(300, LWIR)).toBeGreaterThan(54);
+    expect(bandRadiance(300, LWIR)).toBeLessThan(56);
+    for (let t = 101; t <= 999; t++) expect(bandRadiance(t, LWIR)).toBeGreaterThan(bandRadiance(t - 1, LWIR));
+  });
+
+  it("obeys the limiting cases exactly", () => {
+    const s: ThermalScene = { reflectedK: 280, airK: 290, extinctionPerM: 0.001, spanMinK: 270, spanMaxK: 330 };
+    expect(apparentRadiance(320, 1, 0, s, LWIR)).toBe(bandRadiance(320, LWIR));
+    expect(apparentRadiance(320, 0, 0, s, LWIR)).toBe(bandRadiance(280, LWIR));
+    expect(apparentRadiance(320, 0.5, 0, s, LWIR)).toBeCloseTo((bandRadiance(320, LWIR) + bandRadiance(280, LWIR)) / 2, 12);
+    expect(apparentRadiance(320, 1, 1e6, s, LWIR)).toBe(bandRadiance(290, LWIR));
+    const tau = Math.exp(-1);
+    expect(apparentRadiance(320, 1, 1000, s, LWIR)).toBeCloseTo(tau * bandRadiance(320, LWIR) + (1 - tau) * bandRadiance(290, LWIR), 10);
+    const table = radianceTable(LWIR);
+    expect(apparentLevel(table, 270, 1, 0, s)).toBe(0);
+    expect(apparentLevel(table, 330, 1, 0, s)).toBe(1);
+    expect(() => validateProfile({ ...SYNTHETIC_LWIR_640, resolution: [1e9, 512] })).toThrow();
+  });
+});

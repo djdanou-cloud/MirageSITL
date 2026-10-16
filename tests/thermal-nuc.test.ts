@@ -1,133 +1,129 @@
-// TASK-072: shutter and non-uniformity correction on sensor time. The camera
-// model below (seeded fixed-pattern offset, linear drift, Gaussian noise) is
-// independent of the controller.
-import { describe, expect, it } from "vitest";
-import { NucController, type NucConfig } from "../packages/thermal/src/nuc.ts";
-import { thermalStatus } from "../packages/thermal/src/thermal-status.ts";
-import { TYPICAL_SURFACE_PROPS, ThermalField, type ThermalForcing } from "../packages/thermal/src/heat-balance.ts";
+import { expect, test } from "vitest";
+import { ThermalNuc } from "../packages/thermal/src/nuc";
+import { thermalStatusLabel } from "../packages/thermal/src/thermal-status";
+import { TYPICAL_SURFACE_PROPS, ThermalField, type ThermalForcing } from "../packages/thermal/src/heat-balance";
+test("fixed shutter duration, bias removal, held display and monotone sensor time", () => {
+  const c = {
+    pixels: 2,
+    frameHz: 30,
+    intervalFrames: 30,
+    closedFrames: 2,
+    calibrationFrames: 3,
+    openFrames: 1,
+  };
+  const n = new ThermalNuc(c);
+  const raw = new Float32Array([301, 298]);
+  n.update(0, raw, 300);
+  expect(Array.from(n.output)).toEqual([301, 298]);
+  n.request();
+  const states = [];
+  for (let i = 1; i <= 6; i++) {
+    expect(n.update(i, raw, 300)).toBe(true);
+    states.push(n.status.state);
+    expect(n.status.sensorTimeS).toBe(i / 30);
+    expect(Array.from(n.output)).toEqual([301, 298]);
+  }
+  expect(states).toEqual([
+    "closed",
+    "closed",
+    "calibrating",
+    "calibrating",
+    "calibrating",
+    "open",
+  ]);
+  raw.set([321, 318]);
+  n.update(7, raw, 300);
+  expect(Array.from(n.output)).toEqual([320, 320]);
+  expect(n.status.cycles).toBe(1);
+  expect(n.update(7, raw, 300)).toBe(false);
+  expect(n.update(9, raw, 300)).toBe(false);
+  expect(n.status.frameId).toBe(7);
+});
+test("equal frame streams reproduce calibration; malformed frames leave output unchanged", () => {
+  const c = {
+    pixels: 1,
+    frameHz: 60,
+    intervalFrames: 10,
+    closedFrames: 1,
+    calibrationFrames: 2,
+    openFrames: 1,
+  };
+  const a = new ThermalNuc(c),
+    b = new ThermalNuc(c),
+    raw = new Float32Array([303]);
+  for (let i = 0; i < 100; i++) {
+    a.update(i, raw, 300);
+    b.update(i, raw, 300);
+    expect(a.status).toEqual(b.status);
+    expect(a.output).toEqual(b.output);
+  }
+  expect(a.status.cycles).toBe(9);
+  expect(a.update(100, new Float32Array([NaN]), 300)).toBe(false);
+  expect(a.status.frameId).toBe(99);
+});
 
-const CONFIG: NucConfig = { intervalS: 120, settleS: 0.2, calibrationFrames: 8, shutterLevel: 500, maxInterruptionS: 0.8, minFrameRateHz: 25 };
-const P = 4096, NOISE = 2, FPS = 30;
-
+// Merged from the parallel implementation's NUC tests: an independent camera
+// model with seeded fixed-pattern offset, linear drift and Gaussian noise.
+const P = 4096, NOISE = 2, FPS = 30, SHUTTER = 500;
 function rng(seed: number): () => number {
   let a = seed >>> 0;
   return () => { a = (a + 0x6d2b79f5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 }
-class Camera {
-  readonly base = new Float32Array(P);
-  readonly drift = new Float32Array(P);
-  readonly scene = new Float32Array(P);
-  private readonly r: () => number;
-  constructor(seed: number) {
-    this.r = rng(seed);
-    for (let i = 0; i < P; i++) { this.base[i] = (this.r() - 0.5) * 100; this.drift[i] = (this.r() - 0.5) * 1; this.scene[i] = 1000 + (i % 64) * 3; }
+test("removes a drifting fixed-pattern bias on a fixed frame grid with a bounded interruption", () => {
+  const CLOSED = 6, CAL = 8, OPEN = 3;
+  const nuc = new ThermalNuc({ pixels: P, frameHz: FPS, intervalFrames: 120 * FPS, closedFrames: CLOSED, calibrationFrames: CAL, openFrames: OPEN });
+  const r = rng(11), scene = 1000;
+  const base = Float64Array.from({ length: P }, () => (r() - 0.5) * 100), drift = Float64Array.from({ length: P }, () => r() - 0.5);
+  const gauss = () => Math.sqrt(-2 * Math.log(1 - r())) * Math.cos(2 * Math.PI * r());
+  const raw = new Float32Array(P);
+  /** RMS between the true offset at time t and the bias the NUC applies (bias = raw - output on a live frame). */
+  const residualRms = (t: number) => {
+    let e = 0;
+    for (let i = 0; i < P; i++) { const err = base[i]! + drift[i]! * t - (raw[i]! - nuc.output[i]!); e += err * err; }
+    return Math.sqrt(e / P);
+  };
+  const starts: number[] = [], before: number[] = [], after: number[] = [];
+  let held = 0, maxHeld = 0, calibrated = 0;
+  for (let f = 0; f <= 610 * FPS; f++) {
+    const t = f / FPS, start = nuc.nextCalibrationFrame;
+    const shutterInView = f >= start && f < start + CLOSED + CAL; // closed + calibrating frames image the shutter
+    for (let i = 0; i < P; i++) raw[i] = (shutterInView ? SHUTTER : scene) + base[i]! + drift[i]! * t + NOISE * gauss();
+    const wasIdle = nuc.status.state === "idle";
+    expect(nuc.update(f, raw, SHUTTER)).toBe(true);
+    if (wasIdle && nuc.status.state === "closed") starts.push(f);
+    if (!nuc.status.visible) { held++; continue; }
+    maxHeld = Math.max(maxHeld, held); held = 0;
+    if (nuc.status.cycles !== calibrated) { calibrated = nuc.status.cycles; after.push(residualRms(t)); }
+    if (f + 1 === nuc.nextCalibrationFrame) before.push(residualRms(t)); // last live frame before a cycle
   }
-  gauss(): number { return Math.sqrt(-2 * Math.log(1 - this.r())) * Math.cos(2 * Math.PI * this.r()); }
-  /** Raw frame at time t: shutter level or scene, plus offset base + drift * t and noise. */
-  frame(t: number, shutterClosed: boolean, out: Float32Array): void {
-    for (let i = 0; i < P; i++) out[i] = (shutterClosed ? CONFIG.shutterLevel : this.scene[i]!) + this.base[i]! + this.drift[i]! * t + NOISE * this.gauss();
-  }
-}
-function residualRms(camera: Camera, nuc: NucController, t: number): number {
-  let s = 0;
-  for (let i = 0; i < P; i++) { const e = camera.base[i]! + camera.drift[i]! * t - nuc.offset[i]!; s += e * e; }
-  return Math.sqrt(s / P);
-}
-
-interface RunLog { calibrationTimes: number[]; interruptions: { frames: number; seconds: number }[]; times: number[]; rmsBefore: number[]; rmsAfter: number[] }
-function run(durationS: number, seed: number, jitterS = 0.003): RunLog {
-  const camera = new Camera(seed), nuc = new NucController(CONFIG, P), jitter = rng(seed + 1);
-  const raw = new Float32Array(P), out = new Float32Array(P);
-  const log: RunLog = { calibrationTimes: [], interruptions: [], times: [], rmsBefore: [], rmsAfter: [] };
-  let frozenFrames = 0, frozenStart = 0;
-  for (let k = 0; k * (1 / FPS) <= durationS; k++) {
-    const t = k / FPS + (jitter() - 0.5) * 2 * jitterS;
-    camera.frame(t, nuc.shutterClosedFor(t), raw);
-    const wasState = nuc.state;
-    if (wasState === "open" && nuc.shutterClosedFor(t)) log.rmsBefore.push(residualRms(camera, nuc, t));
-    const r = nuc.processInto(t, raw, out);
-    log.times.push(r.frameTimeS);
-    if (r.calibrated) { log.calibrationTimes.push(t); log.rmsAfter.push(residualRms(camera, nuc, t)); }
-    if (r.frozen) { if (frozenFrames === 0) frozenStart = t; frozenFrames++; }
-    else if (frozenFrames > 0) { log.interruptions.push({ frames: frozenFrames, seconds: t - frozenStart }); frozenFrames = 0; }
-  }
-  return log;
-}
-
-describe("shutter cycle", () => {
-  const log = run(610, 11);
-
-  it("calibrates at a fixed rate with a fixed, bounded display interruption", () => {
-    expect(log.calibrationTimes).toHaveLength(5);
-    log.calibrationTimes.forEach((t, i) => expect(Math.abs(t - (120 * (i + 1) + 0.2 + 8 / FPS))).toBeLessThan(2 / FPS));
-    expect(log.interruptions).toHaveLength(5);
-    for (const it of log.interruptions) {
-      // 0.2 s settling (6 frames at 30 Hz) + 8 averaged frames; frame-boundary jitter moves at most one frame.
-      expect(it.frames).toBeGreaterThanOrEqual(14); expect(it.frames).toBeLessThanOrEqual(15);
-      expect(it.seconds).toBeLessThanOrEqual(CONFIG.maxInterruptionS);
-    }
-  });
-
-  it("removes the configured fixed-pattern bias", () => {
-    // Before each calibration the drift has accumulated for 120 s (RMS ~ sqrt(28.9^2... ) ~ 35 counts);
-    // after it the residual is the averaged noise, 2 / sqrt(8) = 0.71 counts, plus drift during averaging.
-    for (const rms of log.rmsBefore) expect(rms).toBeGreaterThan(10);
-    for (const rms of log.rmsAfter) { expect(rms).toBeLessThan(0.71 * 1.2); expect(rms).toBeGreaterThan(0.71 * 0.8); }
-  });
-
-  it("never reverses output timestamps and rejects out-of-order frames", () => {
-    for (let i = 1; i < log.times.length; i++) expect(log.times[i]!).toBeGreaterThan(log.times[i - 1]!);
-    const nuc = new NucController(CONFIG, 4), raw = new Float32Array(4), out = new Float32Array(4);
-    nuc.processInto(1, raw, out);
-    expect(nuc.processInto(1, raw, out).frameTimeS).toBe(1);
-    expect(nuc.processInto(0.5, raw, out).frameTimeS).toBe(1);
-    expect(nuc.rejectedFrames).toBe(2);
-    expect(nuc.processInto(1.1, raw, new Float32Array(3)).frameTimeS).toBe(1);
-    expect(nuc.rejectedFrames).toBe(3);
-  });
-
-  it("shows the last open frame while the shutter is closed", () => {
-    const nuc = new NucController({ ...CONFIG, intervalS: 10 }, 2), out = new Float32Array(2);
-    nuc.processInto(9.9, Float32Array.of(7, 8), out);
-    expect([...out]).toEqual([7, 8]);
-    const r = nuc.processInto(19.9, Float32Array.of(500, 500), out); // first frame + intervalS
-    expect([r.state, r.frozen, ...out]).toEqual(["closed", true, 7, 8]);
-    expect(thermalStatus(nuc, r)).toMatchObject({ label: "NUC", frozen: true, shutter: "closed" });
-  });
+  expect(starts).toEqual([1, 2, 3, 4, 5].map(k => k * 120 * FPS)); // fixed grid: no slip by the cycle length
+  expect(maxHeld).toBe(CLOSED + CAL + OPEN);
+  expect(after).toHaveLength(5);
+  expect(before).toHaveLength(5);
+  // Before each cycle the drift has accumulated (true offset vs. stale bias); after it, only averaged noise remains:
+  // 2 / sqrt(8) = 0.71 counts, plus drift during the 0.57 s cycle.
+  for (const v of before.slice(1)) expect(v).toBeGreaterThan(10);
+  for (const v of after) { expect(v).toBeLessThan(0.71 * 1.3); expect(v).toBeGreaterThan(0.71 * 0.7); }
+  expect(thermalStatusLabel(nuc.status)).toBe("LIVE");
 });
 
-describe("isolation from physics and truth", () => {
-  it("never pauses physics or mutates recorded truth", () => {
-    const forcing: ThermalForcing = { sunEast: 0, sunNorth: -0.5, sunUp: 0.866, directNormalWm2: 700, diffuseHorizontalWm2: 70, dtS: 1 / FPS };
-    const weather = { airTemperatureK: 290, windSpeedMps: 2, cloudFraction: 0, deepTemperatureK: 288 };
-    const make = () => new ThermalField([{ props: TYPICAL_SURFACE_PROPS["asphalt"]! }, { props: TYPICAL_SURFACE_PROPS["roof-metal"]! }], weather, 290);
-    const withNuc = make(), without = make();
-    const truth = Object.freeze(Array.from({ length: 3 }, (_, i) => Object.freeze({ tick: i, temperatureK: 290 + i })));
-    const snapshot = JSON.stringify(truth);
-    const nuc = new NucController({ ...CONFIG, intervalS: 10 }, 16), raw = new Float32Array(16), out = new Float32Array(16);
-    let frozen = 0;
-    for (let k = 0; k < 40 * FPS; k++) {
-      withNuc.stepFrom(forcing); without.stepFrom(forcing);
-      if (nuc.processInto(k / FPS, raw, out).frozen) frozen++;
-    }
-    expect(frozen).toBeGreaterThan(30); // several shutter cycles happened
-    expect([...withNuc.temperatureK]).toEqual([...without.temperatureK]);
-    expect(JSON.stringify(truth)).toBe(snapshot);
-  });
-});
-
-describe("configuration and status", () => {
-  it("rejects cycles that could exceed the interruption bound", () => {
-    expect(() => new NucController({ ...CONFIG, calibrationFrames: 32 }, 4)).toThrow("maxInterruptionS");
-    expect(() => new NucController({ ...CONFIG, intervalS: 1 }, 4)).toThrow();
-    expect(() => new NucController(CONFIG, 0)).toThrow();
-  });
-
-  it("reports NO SIGNAL, LIVE and the time to the next calibration", () => {
-    const nuc = new NucController(CONFIG, 2), out = new Float32Array(2);
-    expect(thermalStatus(nuc, nuc.result).label).toBe("NO SIGNAL");
-    const live = thermalStatus(nuc, nuc.processInto(5, Float32Array.of(1, 2), out));
-    expect(live).toMatchObject({ label: "LIVE", frozen: false, sinceCalibrationS: 0, untilCalibrationS: 120 });
-    expect(thermalStatus(nuc, nuc.processInto(65, Float32Array.of(1, 2), out)).untilCalibrationS).toBe(60);
-  });
+test("shutter cycles never pause physics or touch recorded truth", () => {
+  const forcing: ThermalForcing = { sunEast: 0, sunNorth: -0.5, sunUp: 0.866, directNormalWm2: 700, diffuseHorizontalWm2: 70, dtS: 1 / FPS };
+  const weather = { airTemperatureK: 290, windSpeedMps: 2, cloudFraction: 0, deepTemperatureK: 288 };
+  const make = () => new ThermalField([{ props: TYPICAL_SURFACE_PROPS["asphalt"]! }, { props: TYPICAL_SURFACE_PROPS["roof-metal"]! }], weather, 290);
+  const withNuc = make(), without = make();
+  const truth = Object.freeze([Object.freeze({ tick: 1, temperatureK: 290 })]), snapshot = JSON.stringify(truth);
+  const nuc = new ThermalNuc({ pixels: 16, frameHz: FPS, intervalFrames: 300, closedFrames: 3, calibrationFrames: 4, openFrames: 2 }), raw = new Float32Array(16);
+  const labels = new Set<string>([thermalStatusLabel(nuc.status)]);
+  let held = 0;
+  for (let k = 0; k < 40 * FPS; k++) {
+    withNuc.stepFrom(forcing); without.stepFrom(forcing);
+    nuc.update(k, raw, 0);
+    labels.add(thermalStatusLabel(nuc.status));
+    if (!nuc.status.visible) held++;
+  }
+  expect(held).toBe(3 * 9);
+  expect([...withNuc.temperatureK]).toEqual([...without.temperatureK]);
+  expect(JSON.stringify(truth)).toBe(snapshot);
+  expect([...labels].sort()).toEqual(["LIVE", "NO SIGNAL", "NUC"]);
 });

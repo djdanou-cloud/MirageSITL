@@ -1,58 +1,132 @@
-import { useEffect, useState } from "react";
-import { exportArchive, type ArchiveSummary } from "@mirage/aar/archive";
-import type { ChunkStore } from "@mirage/aar/storage";
-
-/** Human-readable byte size. */
-export function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  const units = ["KiB", "MiB", "GiB"];
-  let v = bytes / 1024, u = 0;
-  while (v >= 1024 && u < units.length - 1) { v /= 1024; u++; }
-  return `${v.toFixed(1)} ${units[u]!}`; // u < units.length
-}
-
-/**
- * Session export (TASK-081): builds the archive on request, shows its size,
- * data categories, record counts and redactions, then offers the download.
- * Secrets are removed by exportArchive; export fails rather than leak them.
- */
-export function AarExport({ store, metadata, reports = [], fileName }: {
-  store: ChunkStore; metadata: unknown; reports?: readonly unknown[]; fileName: string;
-}) {
-  const [summary, setSummary] = useState<ArchiveSummary | null>(null);
-  const [url, setUrl] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  useEffect(() => () => { if (url) URL.revokeObjectURL(url); }, [url]);
-
-  async function prepare() {
-    setBusy(true); setError(null);
+import { useState } from "react";
+import { importArchive, exportArchive } from "@mirage/aar/archive";
+import { SnapshotReplay } from "@mirage/aar/replay";
+import { MAX_ARCHIVE_BYTES } from "@mirage/aar/format";
+import type { SimulationRuntime } from "../runtime";
+import { Review } from "./Review";
+export function Export({ runtime }: { runtime: SimulationRuntime | null }) {
+  const [status, setStatus] = useState("Recording off"),
+    [busy, setBusy] = useState(false),
+    [replay, setReplay] = useState<SnapshotReplay | null>(null),
+    [recording, setRecording] = useState(false);
+  const snapshot = async (download: boolean) => {
+    setBusy(true);
     try {
-      const result = await exportArchive(store, metadata, reports);
-      setSummary(result.summary);
-      setUrl(URL.createObjectURL(new Blob([result.bytes], { type: "application/octet-stream" })));
+      const s = await runtime?.recording?.snapshot();
+      if (!s) throw new Error("Recorder not ready");
+      setReplay(new SnapshotReplay(s.manifest, s.records));
+      if (download) {
+        const bytes = await exportArchive(s.manifest, s.records, {
+            queueLost: s.queueLost,
+            evicted: s.evicted,
+            storageDropped: s.storageDropped,
+          }),
+          url = URL.createObjectURL(
+            new Blob([bytes], { type: "application/octet-stream" }),
+          ),
+          a = document.createElement("a");
+        a.href = url;
+        a.download = "mirage-session.aar";
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      }
+      setStatus(
+        `${s.records.length} bytes · truth/pilot snapshots · sensors/actuators unavailable in demo · queue loss ${s.queueLost} · evicted ${s.evicted} · storage dropped ${s.storageDropped} · ${s.persistent ? "IndexedDB" : "memory only"}`,
+      );
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setStatus(e instanceof Error ? e.message : "Recording failed");
     } finally {
       setBusy(false);
     }
-  }
-
-  return <section className="aar-export" aria-label="Session export">
-    <button type="button" disabled={busy} onClick={() => { void prepare(); }}>{busy ? "Preparing…" : "Prepare export"}</button>
-    {error && <p role="alert">{error}</p>}
-    {summary && <>
-      <p>Archive size: <strong data-testid="aar-export-size">{formatBytes(summary.totalBytes)}</strong>
-        {summary.redactions > 0 && <> · {summary.redactions} item(s) redacted</>}</p>
-      <table>
-        <thead><tr><th>Category</th><th>Entries</th><th>Size</th></tr></thead>
-        <tbody>
-          {(Object.keys(summary.categories) as (keyof ArchiveSummary["categories"])[]).map(name =>
-            <tr key={name}><td>{name}</td><td>{summary.categories[name].entries}</td><td>{formatBytes(summary.categories[name].bytes)}</td></tr>)}
-        </tbody>
-      </table>
-      <p>Records: {Object.entries(summary.recordsByKind).map(([kind, n]) => `${kind} ${n}`).join(", ") || "none"}</p>
-      {url && <a href={url} download={fileName}>Download {fileName}</a>}
-    </>}
-  </section>;
+  };
+  return (
+    <section
+      className="control-section"
+      aria-label="Session recording and export"
+    >
+      <h2>Session recording</h2>
+      <p>
+        Records demo truth and pilot controls at about 10 samples per simulated
+        second for up to 30 minutes. Sensor and motor feedback are unavailable
+        in demo; sampling gaps are marked. Archives include model identity and
+        seed and exclude keys and serial identifiers.
+      </p>
+      <button
+        disabled={!runtime?.ready || busy}
+        onClick={() => {
+          if (recording) {
+            runtime?.stopRecording();
+            setRecording(false);
+            setStatus("Recording paused; snapshots retained");
+          } else {
+            setBusy(true);
+            void runtime
+              ?.startRecording()
+              .then(
+                () => {
+                  setRecording(true);
+                  setStatus("Recording demo-decimated snapshots");
+                },
+                (e: unknown) => setStatus(String(e)),
+              )
+              .finally(() => setBusy(false));
+          }
+        }}
+      >
+        {recording ? "Stop recording" : "Start recording"}
+      </button>
+      <button
+        disabled={!runtime?.recording || busy}
+        onClick={() => {
+          void snapshot(false);
+        }}
+      >
+        Review recording
+      </button>
+      <button
+        disabled={!runtime?.recording || busy}
+        onClick={() => {
+          void snapshot(true);
+        }}
+      >
+        Export session
+      </button>
+      <label>
+        Import AAR (max 32 MiB)
+        <input
+          aria-label="Import AAR"
+          type="file"
+          accept=".aar"
+          disabled={busy}
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            e.target.value = "";
+            if (!f) return;
+            if (f.size > MAX_ARCHIVE_BYTES) {
+              setStatus("AAR archive size rejected");
+              return;
+            }
+            setBusy(true);
+            void f
+              .arrayBuffer()
+              .then((b) => importArchive(new Uint8Array(b)))
+              .then((a) => {
+                setReplay(new SnapshotReplay(a.manifest, a.records));
+                setStatus(
+                  `${a.records.length} bytes imported · queue loss ${a.loss.queueLost} · evicted ${a.loss.evicted} · storage dropped ${a.loss.storageDropped}`,
+                );
+              })
+              .catch((e: unknown) =>
+                setStatus(e instanceof Error ? e.message : "Import failed"),
+              )
+              .finally(() => setBusy(false));
+          }}
+        />
+      </label>
+      <output role="status" data-testid="aar-status">
+        {status}
+      </output>
+      {replay && <Review replay={replay} />}
+    </section>
+  );
 }

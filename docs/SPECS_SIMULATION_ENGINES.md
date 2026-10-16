@@ -1455,3 +1455,113 @@ floats through typed arrays or object fields: geodesy exposes
 and drift/jamming read `dtS` from the step context (`advanceFrom`). Scalar
 signatures remain as low-rate conveniences. `MagneticAnomaly.configure`
 reconfigures in place for tick-boundary commands.
+
+
+## Thermal, diagnostics and recording contracts (TASK-043/070–078/081)
+
+### Surface thermal energy (TASK-070)
+
+`HeatSurface` is a synthetic lumped surface model, advanced outside the 400–1200 Hz physics loop and outside shaders. `ThermalMaterial` defines areal heat capacity C_A (J/m2/K), solar absorptivity alpha and emissivity epsilon [0,1], convection h and substrate conductance k_A (W/m2/K). Forcing contains air/sky/substrate kelvin and incident solar W/m2. Absorptivity and emissivity are independent spectral-band properties. WorldCover classes do not supply these coefficients or measured temperatures.
+
+\[
+C_A\frac{dT}{dt}=\alpha G-h(T-T_a)-\epsilon\sigma(T^4-T_{sky}^4)-k_A(T-T_b),\quad
+\sigma=5.670374419\times10^{-8}\;\mathrm{W\,m^{-2}\,K^{-4}}.
+\]
+
+\[
+L(T)=\int_{8\,\mu m}^{14\,\mu m}\frac{2hc^2}{\lambda^5[\exp(hc/(\lambda k_B T))-1]}\,d\lambda,
+\quad L_o=\tau[\epsilon L(T)+(1-\epsilon)L(T_r)]+(1-\tau)L(T_a),\quad\tau=e^{-\kappa d}.
+\]
+
+Advance with implicit trapezoidal integration: solve the monotone scalar residual by 48 bisection iterations on 100..1000 K. Reject an unbracketed result instead of clipping energy. dt is (0,60] s, forcing temperatures 100..1000 K, incident sunlight 0..2000 W/m2. There is no AO temperature multiplier. Direct solar incidence uses the ENU solar vector: east=-cos(delta) sin(H), north=cos(phi) sin(delta)-sin(phi) cos(delta) cos(H), up=sin(phi) sin(delta)+cos(phi) cos(delta) cos(H). Multiply direct-normal irradiance by max(0,n dot sun) and geometric shadow transmission; sunlight is zero below the horizon. Angles are radians; supplied normals must be unit length. Astronomical declination/hour angle come from the scenario rather than wall-clock time.
+
+`ThermalField` integrates the same balance for many surface elements at once, without allocation, using Heun steps with automatic substeps below the linearised stability limit. Its forcing is a sun direction (ENU) with direct-normal and diffuse-horizontal irradiance; each element has a unit normal, a direct-beam shadow fraction and a sky-view factor V. Sky longwave is eps_sky sigma T_a^4 with Swinbank clear-sky emissivity 9.2e-6 T_a^2 and Bolz cloud factor (1 + 0.22 N^2), capped at 1; the occluded fraction 1 - V radiates at air temperature, so ambient occlusion only weights explicit radiation. Convection is h = 5.7 + 3.8 v (McAdams). `solarPosition` computes the sun from UTC and latitude/longitude with the NOAA/Meeus series (checked against NREL SPA within 0.05 degrees); `clearSkyIrradiance` uses Kasten-Young air mass, Meinel DNI = S0' 0.7^(AM^0.678) with S0 = 1361 W/m2 and the Spencer eccentricity, diffuse = 0.1 DNI, and the Kasten-Czeplak cloud factor 1 - 0.75 N^3.4. Tests cross-check ThermalField against HeatSurface and solarIncidence against the ephemeris. Typical surface properties are uncalibrated synthetic values.
+
+### Synthetic LWIR rendering (TASK-071)
+
+`InstrumentProfile` carries an ID, native resolution (16..4096 per axis), spectral band in micrometres (flat response inside the band), NETD in kelvin and a calibration source that is either synthetic (with a note) or measured (instrument name plus SHA-256 of the calibration data). `claimsParityWith` is true only for a measured profile of that instrument; the shipped `synthetic-lwir-640` profile (640x512, 8-14 um, NETD 0.05 K) claims no parity with CADEX or any other instrument. `ThermalScene` holds reflected and air (path) temperature, the extinction coefficient per metre and the display span.
+
+The CPU integrates Planck radiance over the band with composite Simpson (512 intervals, exact SI h/c/k_B) into a float32 table in 1 K steps over 150..405 K; radiance is W/(m2 sr). The table is uploaded once as a texture. `shaders/thermal.glsl` (GLSL ES 3.00) reads a float G-buffer (surface kelvin, emissivity, range metres), interpolates the table, applies emission, reflection and Beer-Lambert attenuation, maps radiance linearly between the span radiances to a clamped level and applies the white-hot, black-hot or ironbow palette; optional NETD noise uses an integer hash of pixel coordinates and a per-frame seed. `ThermalCameraPass` renders into a target at the profile's native resolution; there are no CPU pixel loops per frame. `apparentRadiance`/`apparentLevel`/`paletteColor` are the float64 CPU mirror used by tests, and the browser test compares the shader with it pixel by pixel. There is no integrated production thermal scene, WebGPU thermal pass, cross-GPU pixel equality or target-device FPS claim.
+
+### Shutter and NUC (TASK-072)
+
+`ThermalNuc` owns fixed output, bias and accumulation arrays. Configuration specifies pixels, frameHz, intervalFrames (start-to-start), closedFrames, calibrationFrames and openFrames. Frame IDs must be consecutive safe integers; reversed/skipped/invalid frames are rejected without advancing status. A request starts on the next sensor frame. Display interruption lasts exactly the sum of the three configured phase lengths. During calibration, mean(raw-referenceK) estimates each pixel's additive fixed-pattern bias; the completed correction becomes raw-bias. Idle frames refresh output; shutter phases hold the last displayed image while sensor timestamps continue as frameId/frameHz. Calibration never accepts physics or recorded truth as an input. This is an offset-only synthetic calibration; gain drift and measured shutter radiometry remain outside the profile.
+
+### Autopilot diagnostics and warmup (TASK-043)
+
+`EkfMonitor` consumes CRC-validated MAVLink2 HEARTBEAT (ID 0, CRC_EXTRA 50, length 9) and ArduPilot EKF_STATUS_REPORT (ID 193, CRC_EXTRA 71, length 26 including optional airspeed variance). Both are independently generated from ardupilotmega XML at the existing pinned MAVLink commit using pymavlink 2.4.50; the new fixture records recursive XML and generated-module hashes. HEARTBEAT custom_mode is u32 at 0, autopilot at byte 5 must be 3, mavlink_version byte 8 must be 3. EKF ratios are five f32 at 0/4/8/12/16; flags are u16 at 20; the airspeed extension begins at 22. The conservative training gate requires finite nonnegative ratios below 1 and rejects EKF_UNINITIALIZED (1024). Raw flags 1/2/4/16/32 map to ABI-v2 flags 1/2/4/8/16. Relative horizontal position never substitutes for absolute position. Only the configured system/component identity is admitted.
+
+Timestamps use simulation milliseconds for SITL and monotonic wall milliseconds for HITL. Heartbeat and EKF age must each be at most 1000 ms and never in the future. `EkfWarmup` additionally requires 30 simulated seconds, matching epoch, no clock reversal, IMU age <=0.01 s and GNSS age <=0.3 s with no future sample. It reports measured simulated/wall elapsed ratio; configuring speed does not itself accelerate firmware. HITL rejects speed !=1 and observed simulation elapsed exceeding wall elapsed by 1% plus 0.1 s. EW admission remains false until the gate passes and falls false when health fails. These are independently verified admission modules: live warmup, firmware execution and TASK-042 integration remain BLOCKED_EXTERNAL, so TASK-043 is not DONE.
+
+### AAR record format and ownership (TASK-076)
+
+```typescript
+interface AarManifest {
+  formatVersion: 1;
+  recordBytes: 512;
+  modelSha256: string;
+  firmwareSha256: string | null;
+  seed: number;
+  physicsHz: 400 | 800 | 1200;
+  recordHz: number;
+  durationS: number;
+  clock: "simulation";
+  source: "demo-decimated" | "producer";
+}
+interface ArchiveLoss {
+  queueLost: number;
+  evicted: number;
+  storageDropped: number;
+}
+```
+
+The parser rejects unknown fields, malformed hashes, unsafe seed/rates, more than 1800 s, and a computed ring above the 32 MiB archive budget minus 8192 bytes. Default 10 Hz x 1800 s x 512 bytes gives exactly 9,216,000 ring bytes. A separate 131,136-byte SAB is used solely for recording, never as another consumer of flight sensor/actuator queues. Header: bytes 0 magic 0x4d415251, 4 version 1, 8 write counter, 12 read counter, 16 full/drop counter; bytes 20..63 reserved zero. Capacity is 256 records of 512 bytes. Every shared int32 word is accessed atomically. The producer copies a complete private record then publishes the modular write counter; the consumer copies before releasing read ownership. A full queue drops new data and increments its counter without blocking physics. Queue creation/binding occurs outside stepping.
+
+| Byte offset | Type | Field / units |
+| ---: | --- | --- |
+| 0 | u32 | magic 0x4d415252 |
+| 4 | u32 | record version 1 |
+| 8 | u32 | stride 512 bytes |
+| 12 | u32 | session epoch |
+| 16 | u32[2] | tick lo/hi |
+| 24 | f64 | simulation seconds |
+| 32 | f32[4] | roll, pitch, yaw [-1,1], throttle [0,1] |
+| 48 | u32 | flags: truth=1, pilot=2, sensor=4, actuator=8, event=16, decimated=32 |
+| 52 | u32 | numeric event registry ID; 0 means none |
+| 56 | u32 | missing recording samples since preceding accepted sample |
+| 60 | u32 | CRC-32/ISO-HDLC, excluding bytes 60..63 |
+| 64 | bytes[192] | StateCodecV2; zero seqlock/reserved words |
+| 256 | bytes[128] | SensorFrameCodecV2 or all zero when absent |
+| 384 | bytes[128] | ActuatorFrameCodecV2 or all zero when absent |
+
+Nested payloads retain ABI-v2 units and frames. Missing payloads are zero and their present bit is clear; decoders reject inconsistent epochs, header/time/tick mismatches, nonfinite values, reserved bits and failed CRC. Event code zero means absent; nonzero codes require the event-present bit and are interpreted by the scenario registry. No prose or secrets enter the record.
+
+The recorder Worker drains at most 256 records per 10 ms poll into a preallocated chronological ring and 64-record (32768-byte) chunks. IndexedDB uses a fixed key ring with ceil(ringBytes/32768) keys and one transaction in flight; chunks written while it is busy wait in a bounded pending list (8 by default) and are written in order. Overflow of that list, oversized chunks and failed transactions are counted in exact bytes/records; ring eviction, invalid records and producer loss are separate. Quota/storage failure leaves an explicitly reported memory-only ring. Session databases are uniquely owned and deleted on orderly close; the host requests shutdown and terminates after a bounded fallback. Browser crashes may leave orphaned session databases; no recovery catalogue or reload-resume claim is made. Snapshot requests copy bounded data outside the physics loop and have a timeout.
+
+The application records decimated Main-thread demo truth/pilot samples at nominal 10 Hz simulation time. It does not claim to record every physics tick or synchronized FC sensors/actuators. Missing streams remain absent; skipped recording intervals and queue losses are explicit. Pilot sampling occurs on Main and is not certified as the exact input at the selected truth tick. A physics-rate change stops sampling to preserve manifest provenance. The demo model hash is SHA-256 of its dynamics source; firmware hash is null. Full high-rate producer wiring and flight firmware provenance await the production backend.
+
+### Replay, response charts and archives (TASK-077/078/081)
+
+Snapshot replay validates all records and keeps a private copy, rejects repeated epoch segments and regressing ticks/time reversals, and seeks at/before a requested simulation time inside one epoch. It never interpolates across reset/gaps. Resimulation is a separate injected backend: model/firmware hashes and seed must match and reset must resolve the configuration. Position Euclidean error and quaternion q/-q angular error produce PASS/FAIL with maxima/counts using caller-declared tolerances. Missing provenance, empty runs or differences never rewrite records; no default production resimulator is supplied.
+
+Charts share simulation seconds and an explicit selected epoch. Pilot roll, actuator channel 1 and body roll-rate rad/s are displayed separately; unknown actuator channels break the curve. A missing-sample counter, epoch change or time interval over 1.5/recordHz breaks a segment. At most 10000 points are emitted using endpoints and pilot/response extrema per bin; bins containing omitted gaps conservatively break reduced segments. A 30 minute synthetic step-response checks lag and a narrow spike checks decimation. Charts do not change the live flight.
+
+Archives are uncompressed and at most 32 MiB. The 64-byte header has u32 magic 0x4d415241 at 0, version 1 at 4, metadata byte length at 8 (<=4096), record count at 12, payload bytes at 16 (=count*512), producer loss at 20, eviction at 24, storage loss at 28, and 32 SHA-256 bytes at 32. UTF-8 manifest JSON starts at 64, followed immediately by records. SHA-256 covers the entire archive with bytes 32..63 treated as zero. Import checks size/version/length multiplication before bounded copies, then hash, manifest allowlist and all records. No compression means no decompression bombs. Arbitrary metadata, API keys/tokens and serial identifiers are unconditionally excluded rather than optionally retained. Export/review show size, source categories and counters. Imported snapshots stay separate from the active model.
+
+Thermal coefficient validity envelope: areal heat capacity 1..1e9 J/m2/K; convection and substrate conductance 0..1e5 W/m2/K. These bounds exclude overflow/underflow configurations before integration.
+
+Regression hardening: PhysicsSessionV2 now captures wall receipt time after the coherent pilot read, preventing a concurrent valid publication from appearing future-dated; truly future/stale inputs still disarm. WebGPU capability probing is shared once per document (including in-flight work); reload retries after driver changes. Renderer tests use an isolated harness and compare diagnostics within one document. Instructor motor loss selects channel index, power-cut versus synthetic instant-thrust-loss and remaining fraction; pending epoch-changing commands await their matching ACK even when the shared header advances first.
+
+Multiple sensor/event records may share a physics tick with identical simulation time; replay preserves their receipt order. Resimulation backends must advance to the requested tick rather than stepping again for each observation record.
+
+Export redaction is configurable: the default rejects undeclared metadata; omit-extra-metadata copies only the declared manifest fields and discards all other values, including API keys and serial identifiers. Neither policy can retain secrets. Import remains strictly allowlisted.
+
+```typescript
+type ArchiveRedactionPolicy = "reject-extra-metadata" | "omit-extra-metadata";
+export declare function exportArchive(
+  manifest: unknown,
+  records: Uint8Array,
+  loss?: ArchiveLoss,
+  redaction?: ArchiveRedactionPolicy,
+): Promise<Uint8Array<ArrayBuffer>>;
+```
