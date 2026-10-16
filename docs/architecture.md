@@ -676,3 +676,21 @@ policies, and applies it to GPS observations only.
 and motor faults behind a bounded fault registry applied at tick boundaries;
 `@mirage/sensors/pipeline` runs baseline -> EW -> quantization. The composed
 path runs 1e6 steps without triggering GC in Node.
+
+### 3D Tiles streaming adapter (TASK-061)
+
+The chosen loader is NASA-AMMOS `3d-tiles-renderer` 0.5.3 (Apache-2.0).
+`@mirage/terrain/tiles-provider` resolves sources through the TASK-060
+provider policy: local licensed tilesets load, while live Google tiles are
+BLOCKED_EXTERNAL until the authenticated proxy (TASK-063) and provider
+credentials exist; API keys never enter the client. `ecefToRenderMatrix`
+places ECEF tilesets in the local render frame (x east, y up, z -north) with a
+float64 matrix from the WGS84 tangent frame at the origin. `TileFetchTracker`
+handles every tile request through the loader's `fetchData` plugin hook,
+counts in-flight requests, aborts them on dispose, and classifies failures
+(`cors-or-network`, `http`, `aborted`). `@mirage/terrain/tiles-scene` binds
+these to the loader, keeps attribution, and disposes every loaded model.
+FlightScene loads the layer on demand (separate chunk) only when
+`VITE_MIRAGE_TILESET_URL` and `VITE_MIRAGE_TILES_ORIGIN` are set, and shows
+attribution and classified failures. The test tileset in
+`tests/fixtures/tiles` is own-work CC0 synthetic data.

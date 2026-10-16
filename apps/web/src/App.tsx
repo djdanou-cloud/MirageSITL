@@ -20,6 +20,12 @@ import {
 import { VehicleFlagV2 } from "@mirage/protocol";
 import { inspectCapabilities, type CapabilityReport } from "./capabilities";
 import { FlightScene } from "./FlightScene";
+import { terrainConfigFrom } from "./terrain-config";
+import type { TileFailure } from "@mirage/terrain/tiles-provider";
+
+// Build-time terrain settings (TASK-061); absent by default, so no terrain is loaded.
+const TERRAIN = terrainConfigFrom(import.meta.env.VITE_MIRAGE_TILESET_URL, import.meta.env.VITE_MIRAGE_TILES_ORIGIN,
+  import.meta.env.VITE_MIRAGE_TILES_ATTRIBUTION);
 import { SerialConnect } from "./SerialConnect";
 import {
   loadCalibration,
@@ -159,6 +165,7 @@ export default function App() {
     null,
   );
   const [source, setSource] = useState<"demo" | "usb">("demo");
+  const [terrainFailures, setTerrainFailures] = useState<readonly TileFailure[]>([]);
   const [throttle, setThrottle] = useState(0);
   const [calibration, setCalibration] = useState(defaultCalibration);
   const [modeCalibration, setModeCalibration] = useState<ModeCalibration>(
@@ -263,7 +270,8 @@ export default function App() {
           <div className="viewport">
             {capabilities?.demoEligible && (
               <SceneBoundary>
-                <FlightScene runtime={runtime} />
+                <FlightScene runtime={runtime} terrain={TERRAIN.status === "ready" ? TERRAIN.config : null}
+                  onTerrainFailures={setTerrainFailures} />
               </SceneBoundary>
             )}
             <div className="viewport-top">
@@ -273,6 +281,13 @@ export default function App() {
                 {runtime.current?.current.eastM.toFixed(1) ?? "0.0"}
               </span>
             </div>
+            {TERRAIN.status !== "off" && (
+              <div className="terrain-status" data-testid="terrain-status">
+                {TERRAIN.status === "ready" ? `Terrain: ${TERRAIN.config.attribution}` : `Terrain blocked: ${TERRAIN.reason}`}
+                {terrainFailures.length > 0 &&
+                  ` · ${terrainFailures.length} tile request(s) failed (${terrainFailures[0]!.kind}: ${terrainFailures[0]!.message})`}
+              </div>
+            )}
             <div className="reticle">
               <span />
               <span />

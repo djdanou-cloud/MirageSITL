@@ -1,6 +1,6 @@
 # PROJECT_ROADMAP.md
 
-<!-- source-sha256: 07b380ab86fb368915042803a69a1d5370fb80b897001ade0e3cec2dd413d42c -->
+<!-- source-sha256: 49f6f9cabe637b49f2f7c1790b97762ee19077e1c3ce54684695615a907ccad8 -->
 
 Английский источник: [Source of truth](../PROJECT_ROADMAP.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -814,12 +814,13 @@ Cargo bin активирован в PATH. Производительность M
 
 ### TASK-061 — Tiles streaming adapter
 
-- **Status:** TODO.
+- **Status:** DONE — Claude; baseline 89b46f1; 2026-10-16 (локальный fixture проверен; живые тайлы Google — BLOCKED_EXTERNAL до TASK-063 и учётных данных).
 - **Title & Description:** Подключить один выбранный 3D Tiles loader к R3F с local licensed fixture.
 - **Dependencies:** TASK-015, TASK-036, TASK-060.
-- **Touched Files:** `packages/terrain/src/tiles-provider.ts`, `packages/terrain/src/tiles-scene.ts`, `apps/web/src/FlightScene.tsx`, `tests/tiles-provider.test.ts`, `tests/browser/terrain.spec.ts`.
+- **Touched Files:** `packages/terrain/src/tiles-provider.ts`, `packages/terrain/src/tiles-scene.ts`, `apps/web/src/FlightScene.tsx`, `tests/tiles-provider.test.ts`, `tests/browser/terrain.spec.ts`, `packages/terrain/package.json`, `apps/web/src/App.tsx`, `apps/web/src/terrain-config.ts`, `apps/web/src/style.css`, `apps/web/package.json`, `package-lock.json`, `tests/support/terrain-harness.ts`, `tests/fixtures/tiles/generate.py`, `tests/fixtures/tiles/tileset.json`, `tests/fixtures/tiles/tile.glb`, `tests/fixtures/registry.json`, `docs/architecture.md`, `docs/ru/architecture.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
 - **Interfaces / Contracts:** 3D Tiles transforms, ECEF/local origin, attribution, abort/dispose.
 - **DoD & Acceptance Criteria:** Fixture tileset загружается/позиционируется; cancelled request освобождает ресурсы; CORS/COEP errors видны; Google integration при missing key — BLOCKED_EXTERNAL, local tests продолжаются.
+- **Evidence:** Владелец Claude; baseline 89b46f1; 2026-10-16. Загрузчик 3d-tiles-renderer 0.5.3 (Apache-2.0, опубликован 2026-09-18) закреплён в packages/terrain; lockfile добавляет только его и вспомогательные pbf/pmtiles/vector-tile. Fixture: собственный tileset 3D Tiles 1.1 под CC0 (tests/fixtures/tiles/generate.py: сетка 200 м с маркером 20 м, корневое преобразование ENU-to-ECEF в 47.3769N 8.5417E 400 м), оба файла зарегистрированы. Node 24.22.0: tests/tiles-provider.test.ts 7 PASS (живой Google без прокси — BLOCKED_EXTERNAL, локальный лицензированный — READY; неверная политика/URL блокируются; размещение переводит базис ENU, записанный Python, в рендер (100,0,0)/(0,20,0)/(0,0,-100) с точностью 1e-6 м; dispose прерывает выполняющиеся запросы без записи ошибок и отклоняет последующие; собственный сигнал загрузчика передаётся; TypeError классифицируется как cors-or-network, 404 — как http, с режимом CORS и без учётных данных; заголовок GLB и происхождение CC0; конфигурация приложения по умолчанию выключена, разбирает локальный tileset и блокирует четыре некорректных набора настроек). Chromium: tests/browser/terrain.spec.ts 2 PASS (реальный загрузчик загружает fixture: габариты (-100,0,-100)..(100,20,100) и северо-восточный угол в рендере (100,0,-100) с точностью 1 см, геометрия загружена в GPU, каждая геометрия/материал освобождены, после dispose 0 запросов и 0 моделей, атрибуция сохранена; недоступный cross-origin tileset сообщается как cors-or-network). Мутации (перевёрнута строка north, dispose пропускает загрузчик, TypeError не классифицируется) роняют unit- и/или браузерные тесты. Сборка: существовавшее предупреждение о размере chunk не изменилось по сути (главный chunk origin/main 1100.55 kB, теперь 1103.36 kB); загрузчик — отдельный chunk 114 kB по требованию, порог не повышался. Остаток: живые Google 3D Tiles — BLOCKED_EXTERNAL (прокси TASK-063 и учётные данные поставщика).
 
 ### TASK-062 — LOD и GPU budget
 
