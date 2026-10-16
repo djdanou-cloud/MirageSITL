@@ -5,10 +5,13 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./model-manifest": "./src/model-manifest.ts"
+    "./model-manifest": "./src/model-manifest.ts",
+    "./atmosphere": "./src/atmosphere.ts",
+    "./wind": "./src/wind.ts"
   },
   "dependencies": {
     "@mirage/protocol": "0.1.0",
-    "ajv": "8.20.0"
+    "ajv": "8.20.0",
+    "@mirage/test-support": "0.1.0"
   }
 }

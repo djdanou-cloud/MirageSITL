@@ -1,0 +1,10 @@
+{
+  "kind": "synthetic",
+  "inertiaKgM2": 0.2,
+  "bearingNmPerRadS": 0.02,
+  "initialOmegaRadS": 100,
+  "timeS": 1,
+  "omegaRadS": 90.48374180359595,
+  "energyJ": 818.7307530779818,
+  "derivation": "J*dOmega/dt=-b*Omega; exact exponential speed and kinetic energy at t=1 s. Synthetic, not measured."
+}

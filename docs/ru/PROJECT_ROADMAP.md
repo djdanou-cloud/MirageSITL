@@ -1,6 +1,6 @@
 # PROJECT_ROADMAP.md
 
-<!-- source-sha256: 6bc967b2ad6590dca594634c70275c152bacf62441d23010aae73dd18eeafea4 -->
+<!-- source-sha256: 98e91cf59c0964091ef7648886f1f07a24d9a5cc633848353eeb875145cd5924 -->
 
 Английский источник: [Source of truth](../PROJECT_ROADMAP.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -322,39 +322,43 @@ Google content без прав.
 
 ### TASK-020 — Blade element quadrature
 
-- **Status:** TODO.
+- **Status:** DONE — Codex; baseline 9ce0da1; 2026-10-16.
 - **Title & Description:** Интегрировать силы/моменты элементов с заданными Ω и inflow.
 - **Dependencies:** TASK-019, TASK-032.
-- **Touched Files:** `native/bet/src/blade.rs`, `native/bet/src/quadrature.rs`, `native/bet/tests/blade.rs`.
+- **Touched Files:** `native/bet/src/abi.rs`, `native/bet/Cargo.toml`, `native/bet/src/test_exports.rs`, `tests/rotor-kernels.test.ts`, `native/bet/tests/support/mod.rs`, `native/bet/src/blade.rs`, `native/bet/src/quadrature.rs`, `native/bet/tests/blade.rs`, `native/bet/src/lib.rs`, `tests/fixtures/rotors/blade.json`, `tests/fixtures/registry.json`, `native/bet/tests/allocation.rs`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
 - **Interfaces / Contracts:** RotorGeometry/RotorStepInput; equations §3.
 - **DoD & Acceptance Criteria:** Zero-flow, mirror spin, drag dissipation и independent wrench fixtures; quadrature weights не умножают силу на число samples; refinement 16→32→64 converges с fixture tolerance.
+- **Evidence:** Владелец Codex; baseline 9ce0da1; 2026-10-16. cargo test --test blade --locked: 5 PASS. Независимые annulus force/torque, radial refinement 16/32/64, нормированное azimuth averaging, spin mirroring, нулевой поток, drag power, alpha из pitch/flow, body-rate flow, отклонение неверных geometry/input и polar flags. tests/fixtures/rotors/blade.json зарегистрирован по SHA-256 как synthetic; fine relative tolerance 1e-4. tests/rotor-kernels.test.ts: 3 PASS, scalar/SIMD tails 1/3/5/63, независимые дискретные суммы с допуском 1e-9 N/Nm. Production ABI остаётся unavailable до versioned polar/config binding.
 
 ### TASK-021 — Dynamic inflow
 
-- **Status:** TODO.
+- **Status:** DONE — Codex; baseline 9ce0da1; 2026-10-16.
 - **Title & Description:** Добавить bounded axial induced-flow state и validity envelope.
 - **Dependencies:** TASK-020.
-- **Touched Files:** `native/bet/src/inflow.rs`, `native/bet/tests/inflow.rs`, `tests/fixtures/rotors/axial-inflow.json`.
+- **Touched Files:** `native/bet/Cargo.toml`, `native/bet/src/test_exports.rs`, `tests/rotor-kernels.test.ts`, `native/bet/tests/support/mod.rs`, `native/bet/src/inflow.rs`, `native/bet/tests/inflow.rs`, `tests/fixtures/rotors/axial-inflow.json`, `tests/fixtures/registry.json`, `native/bet/src/lib.rs`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
 - **Interfaces / Contracts:** signed induced velocity; max 4 solver iterations/step.
 - **DoD & Acceptance Criteria:** Hover momentum residual<=1% fixture thrust; transient convergence checked; VRS/out-of-envelope отмечен, не выдан за валидированный режим; finite на zero RPM/flow.
+- **Evidence:** Владелец Codex; baseline 9ce0da1; 2026-10-16. cargo test --test inflow --locked: 2 PASS. Знаковый hover/climb momentum residual <=1%, точная релаксация на 400/800/1200 Гц, обратная тяга, нулевая нагрузка и явная валидность descent/VRS/transverse. Синтетический axial-inflow.json зарегистрирован по SHA-256. Closed-form target не использует итерации (в пределах бюджета четыре); это не валидированная модель inflow авторотации/VRS. Scalar/SIMD transient совпадает с аналитическим target в пределах 1e-9 м/с.
 
 ### TASK-022 — Free shaft / авторотация
 
-- **Status:** TODO.
+- **Status:** DONE — Codex; baseline 9ce0da1; 2026-10-16.
 - **Title & Description:** Интегрировать обороты из аэромомента, torque и потерь без RPM governor.
 - **Dependencies:** TASK-021.
-- **Touched Files:** `native/bet/src/shaft.rs`, `native/bet/tests/autorotation.rs`, `tests/fixtures/rotors/free-shaft.json`.
+- **Touched Files:** `native/bet/Cargo.toml`, `native/bet/src/test_exports.rs`, `tests/rotor-kernels.test.ts`, `native/bet/tests/support/mod.rs`, `native/bet/src/shaft.rs`, `native/bet/tests/autorotation.rs`, `tests/fixtures/rotors/free-shaft.json`, `tests/fixtures/registry.json`, `native/bet/src/lib.rs`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
 - **Interfaces / Contracts:** J*dΩ/dt=tau_motor+s*Qair-tau_loss; RotorState.
 - **DoD & Acceptance Criteria:** Без потока/мотора энергия убывает; при допустимом набегающем потоке free rotor набирает/теряет RPM по torque; steady residual<0.01 Nm; нет принудительного заданного RPM.
+- **Evidence:** Владелец Codex; baseline 9ce0da1; 2026-10-16. cargo test --test autorotation --locked: 2 PASS. Пассивный спад энергии и точный предел zero damping; blade torque разгоняет/тормозит свободный вал в синтетическом восходящем потоке при обоих spin, достигает residual <0.01 Nm, сходится на 400/800/1200 Гц и замедляется после снятия потока. free-shaft.json зарегистрирован по SHA-256. Предписанных RPM/governor нет; попытка реверса явно ограничена. Scalar/SIMD passive speed совпадает в пределах 1e-9 рад/с. Экспериментальная валидация автожира не заявляется.
 
 ### TASK-023 — Flapping и gyro momentum
 
-- **Status:** TODO.
+- **Status:** DONE — Codex; baseline 9ce0da1; 2026-10-16.
 - **Title & Description:** Добавить coning/first-harmonic flap и полную передачу dH/dt.
 - **Dependencies:** TASK-022.
-- **Touched Files:** `native/bet/src/flapping.rs`, `native/bet/src/momentum.rs`, `native/bet/tests/flapping.rs`.
+- **Touched Files:** `native/bet/Cargo.toml`, `native/bet/src/test_exports.rs`, `tests/rotor-kernels.test.ts`, `native/bet/tests/support/mod.rs`, `native/bet/src/flapping.rs`, `native/bet/src/momentum.rs`, `native/bet/tests/flapping.rs`, `native/bet/src/lib.rs`, `tests/fixtures/rotors/flapping.json`, `tests/fixtures/registry.json`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
 - **Interfaces / Contracts:** RotorState flap states; Mhub=Mair-dH/dt; documented hinge parameters.
 - **DoD & Acceptance Criteria:** Zero asymmetry case, sign/axis tests, angular momentum balance и timestep convergence; equations/source/validity сохранены; mesh tilt не используется вместо dynamics.
+- **Evidence:** Владелец Codex; baseline 9ce0da1; 2026-10-16. cargo test --test flapping --locked: 3 PASS. Документированы zero-offset hinge Galerkin equations и modal inertia normalization; проверены oscillator refinement, collective symmetry, зеркальные rotating-hinge signs, границы валидности, spin/cone/cyclic momentum и inertial transport balance. Синтетический flapping.json зарегистрирован по SHA-256; scalar/SIMD oscillator tolerance 1e-8 rad. Native allocation test: ноль вызовов и выделенных байт на 1e6 совместных kernel steps, allocating positive control обнаружен; debug/release пройдены. WASM trapping allocator: миллион шагов dynamics со стабильной памятью. Ограничения flat-disk load coupling и small-angle reduced inertia явно сохранены. Общие gates завершены с exit 0: frozen npm ci (SHA-256 lockfile 89f81050ae94d179d043929086ba7ec00328644e5ac4d46b26013ee1422cb084 не изменён); npm run lint/typecheck/check:docs/build; CI=true npm test (209 PASS); CI=true CHROMIUM_PATH=/usr/bin/chromium npm run test:browser (17 PASS); cargo check --manifest-path native/Cargo.toml --workspace --locked; cargo check --manifest-path native/Cargo.toml -p mirage-bet --target wasm32-unknown-unknown --locked; cargo test --manifest-path native/Cargo.toml --workspace --locked (31 PASS). Итоговые отчёты без failures/skips: test-results/unit/junit.xml, test-results/browser/junit.xml. Rust 1.97.0 (2d8144b78), Node 24.19.0, Chromium 154.0.8037.57, Debian x86_64/software GPU; CARGO_HOME=/workspace/.cache/mirage-cargo, RUSTUP_HOME=/workspace/.cache/mirage-rustup, Cargo bin в PATH. EN/RU spec/architecture/roadmap/README/CLAUDE синхронизированы. Целевое оборудование и hosted Actions не проверены.
 
 ### TASK-024 — Соосное взаимодействие
 
@@ -430,12 +434,13 @@ Google content без прав.
 
 ### TASK-032 — Атмосфера и ветер
 
-- **Status:** TODO.
+- **Status:** DONE — Codex; baseline 9ce0da1; 2026-10-16.
 - **Title & Description:** Реализовать единый atmospheric state и детерминированный gust input.
 - **Dependencies:** TASK-004, TASK-006, TASK-010.
-- **Touched Files:** `packages/physics/src/atmosphere.ts`, `packages/physics/src/wind.ts`, `tests/atmosphere.test.ts`.
+- **Touched Files:** `CLAUDE.md`, `docs/ru/CLAUDE.md`, `README.md`, `docs/ru/README.md`, `packages/physics/src/atmosphere.ts`, `packages/physics/src/wind.ts`, `tests/atmosphere.test.ts`, `packages/physics/package.json`, `package-lock.json`, `scripts/bench-wind.mjs`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
 - **Interfaces / Contracts:** Temperature/pressure→density/viscosity/speed of sound; seeded gust bandwidth.
 - **DoD & Acceptance Criteria:** ISA reference points, calm/gust/reset/replay fixtures; единицы согласованы JSBSim/BET; fixed seed не зависит от render FPS; near-zero density отклонена schema.
+- **Evidence:** Владелец Codex; baseline 9ce0da1; 2026-10-16. tests/atmosphere.test.ts: 4 PASS (ISA sea level/11 km, строгая state schema, calm/reset/независимый от render replay, стационарные variance/pole на 2e6 samples). node scripts/bench-wind.mjs: exit 0, seed 123, 400 Hz; шесть warmed окон N=1e6/2e6 без GC; incremental allocation estimate 0.000128 B/step с фиксированным probe overhead; allocating control обнаружил 31 GC events. Отчёт: test-results/bench/wind.json. Общие SI helpers экспортированы; runtime weather binding и измеренная turbulence не заявляются.
 
 ### TASK-033 — Model validation gate
 

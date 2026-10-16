@@ -1,6 +1,6 @@
 # Архитектура MirageSITL
 
-<!-- source-sha256: d9fdcfbfe9882bd8ab1e511e31bc9575fee2baec7fd2ad79744549a75a22b9ae -->
+<!-- source-sha256: dc2bf7faac17ce614984bf26a033e4bc503f280f634e1ba0187197e1dd0012b1 -->
 
 Английский источник: [Source of truth](../architecture.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -491,11 +491,10 @@ NED-to-render.
 собираемым нативно для тестов и в `wasm32-unknown-unknown` для браузеров;
 toolchain закреплён в `native/rust-toolchain.toml`. Его bootstrap kernel —
 сила элемента раздела 3 `dF = 1/2 rho U^2 c dr (C_L l + C_D d)` с порогом
-`U < 1e-6 m/s`; это scalar reference, а не модель ротора, и `C_L`/`C_D`
-остаются входными параметрами лишь до появления polar lookup (TASK-019) и
-quadrature (TASK-020). Сборка wasm32 устанавливает глобальный аллокатор,
-вызывающий ловушку при любой аллокации (единственный `unsafe` в crate), не
-имеет host imports и экспортирует `memory`, `bet_abi_version` (= 1) и
+`U < 1e-6 m/s`; это scalar element reference, сохранённый для ABI regression.
+Native rotor reference теперь получает коэффициенты из polar (TASK-019/020).
+Сборка wasm32 устанавливает trapping allocator; проверенные ABI memory views —
+другая узкая unsafe-граница. Нет host imports; экспортируются `memory`, `bet_abi_version` (= 1) и
 `bet_bootstrap_element_force`. Release-профиль (LTO, одна единица codegen,
 `panic = "abort"`, stripped) даёт побайтно одинаковый артефакт в разных
 чистых target-каталогах.
@@ -528,13 +527,38 @@ ABI загрузчика. Затем он увеличивает линейну�
 один раз кодирует конфигурацию, размещает регионы конфигурации, входа,
 выхода и arena выше `__heap_base` внутри зарезервированной памяти и
 выполняет шаг через один заранее созданный DataView в объекты выхода
-вызывающей стороны. До TASK-020 шаг возвращает `AERODYNAMICS_UNAVAILABLE`
-с NaN в аэродинамических выходах.
+вызывающей стороны. Production step по-прежнему возвращает `AERODYNAMICS_UNAVAILABLE`
+с NaN в аэродинамических выходах до подключения kernels через версионированный
+polar/config binding.
 
 ### Polar lookup (TASK-019)
 
 `native/bet/src/polar.rs` один раз проверяет заимствованную таблицу CL/CD
 по `(Mach, Re, alpha)` и интерполирует трилинейно по `(Ma, ln Re, alpha)`
 без аллокаций. Запросы вне таблицы ограничиваются её границей и выставляют
-`OUTSIDE_POLAR_VALIDITY`; экстраполяции нет. Шаг ротора начнёт использовать
-lookup, когда появится quadrature (TASK-020).
+`OUTSIDE_POLAR_VALIDITY`; экстраполяции нет. Native `blade::Rotor` использует lookup (TASK-020); production C ABI
+binding остаётся отдельной работой.
+
+### Эталонные atmospheric/rotor modules (TASK-032, TASK-020–023)
+
+Atmosphere package проверяет состояние сухого воздуха и вычисляет ISA troposphere,
+Sutherland viscosity, плотность и скорость звука. Wind — seeded fixed-rate
+AR(1) с ограниченными инновациями, а не измеренная turbulence model. Native rotor
+modules содержат нормированную quadrature, ограниченный signed axial inflow,
+динамику RPM свободного вала, zero-offset harmonic hinge flapping и дискретную
+передачу angular momentum. Все уравнения, границы и единицы приведены в разделе 3
+SPECS_SIMULATION_ENGINES, где явно исключены aeroelastic feedback и validated VRS.
+
+Это reference modules; UI по-прежнему использует demo dynamics. ArduPilot,
+JSBSim, измеренная модель автожира и production BET engine не включены.
+`kernel-test-exports` собирает отдельные scalar/SIMD численные тестовые артефакты;
+production artifact/ABI не меняется. Allocation tests покрывают 1e6 native kernel
+steps и миллион шагов WASM dynamics со стабильной памятью. Синтетические эталоны
+в tests/fixtures/rotors зарегистрированы с byte hashes, но не являются
+экспериментальными измерениями. `scripts/bench-wind.mjs` записывает warmed V8
+allocation windows и positive allocating control в test-results/bench/wind.json.
+
+Проверка: npm lint/typecheck/docs/tests/build/browser, а также закреплённые
+native Cargo check/test и wasm32 target check. `tests/rotor-kernels.test.ts`
+собирает собственный scalar/SIMD harness с tail counts 1/3/5/63. Cloud
+functional/numerical результаты не подтверждают M4/RTX frame-time budgets.

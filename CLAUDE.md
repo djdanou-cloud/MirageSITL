@@ -48,15 +48,17 @@ policy copies; if a client loads neither pointer, open this file explicitly.
 
 ## 2. Actual baseline and scope
 
-At `e3bb6b4`: npm workspaces; `apps/web`; `packages/protocol`, `physics`,
-and `input`; SAB **v1**; 400 Hz fixed integration dt; demo dynamics; Gamepad;
-React 19/R3F/WebGL. The implementation previously passed 13 unit and four
-browser tests. Historical results do not verify new changes.
+The pulled baseline `9ce0da1` runs ABI v2 with epoch-aware rendering,
+400/800/1200 Hz clocks, SPSC transport, and the demo backend. V1 remains a
+regression API. The Rust 1.97.0 workspace, scalar/SIMD WASM builds, checked
+C ABI arenas, and polar lookup exist. TASK-032 and TASK-020–023 add atmosphere,
+seeded wind, and native rotor reference kernels with test-only WASM exports.
 
-Rust, JSBSim/BET, v2, MAVLink, ArduPilot, HITL, EW, terrain, thermal, and AAR
-are not implemented yet. Never report cargo checks, EKF readiness, or 1200 Hz
-support before implementing the module and actually running the relevant check.
-Target v2 documentation is not the current v1 implementation.
+Production BET arena stepping still reports AERODYNAMICS_UNAVAILABLE: polar
+binding and a complete backend are not wired. JSBSim, MAVLink, ArduPilot,
+HITL, EW, terrain, thermal, and AAR remain future work. Numerical tests do not
+establish validated autorotation or target-device performance. Historical
+results do not verify new changes; run the selected gates again.
 
 Use the existing checkout (`/workspace/MirageSITL` in cloud). Cloud tasks are
 already isolated; create another worktree only on explicit user request.
@@ -80,6 +82,7 @@ npx --no-install vitest run tests/protocol.test.ts
 npx --no-install tsc --noEmit
 CHROMIUM_PATH=/usr/bin/chromium npm run test:browser
 node scripts/bench-physics.mjs
+node scripts/bench-wind.mjs
 cargo check --manifest-path native/Cargo.toml --workspace --locked
 cargo test --manifest-path native/Cargo.toml --workspace --locked
 cargo check --manifest-path native/Cargo.toml -p mirage-bet --target wasm32-unknown-unknown --locked

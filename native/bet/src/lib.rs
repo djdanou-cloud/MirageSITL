@@ -1,8 +1,10 @@
 //! Scalar blade-element reference kernels for MirageSITL (TASK-016).
 //!
-//! This is a bootstrap kernel: one blade element's aerodynamic force from
-//! docs/SPECS_SIMULATION_ENGINES.md section 3. It is a scalar reference for
-//! later rotor quadrature (TASK-020), not a validated aerodynamics model.
+//! Includes scalar rotor quadrature, limited axial inflow, free shaft, and
+//! reduced flapping/momentum kernels (TASK-020..023). The bootstrap export
+//! remains for ABI regression. Production arena stepping still reports
+//! unavailable aerodynamics until a versioned polar/engine binding exists;
+//! feature-gated test exports verify numerical WASM parity separately.
 //!
 //! On wasm32 the global allocator traps: any heap allocation aborts the module,
 //! so the kernels provably run allocation-free (a no_std build is not used
@@ -14,6 +16,14 @@
 #![deny(missing_docs)]
 
 pub mod abi;
+pub mod blade;
+pub mod inflow;
+pub mod shaft;
+pub mod flapping;
+pub mod momentum;
+#[cfg(all(target_arch = "wasm32", feature = "kernel-test-exports"))]
+mod test_exports;
+pub mod quadrature;
 pub mod polar;
 
 /// ABI version reported by `bet_abi_version`; loaders reject any other value.

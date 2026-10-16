@@ -1,0 +1,14 @@
+{
+  "kind": "synthetic",
+  "densityKgM3": 1.225,
+  "bladeCount": 2,
+  "chordM": 0.03,
+  "omegaRadS": 100,
+  "rootM": 0.1,
+  "radiusM": 0.5,
+  "cl": 1,
+  "cd": 0.02,
+  "forceN": 15.19,
+  "torqueNm": -0.11465999999999998,
+  "derivation": "Annulus integrals of r^2 and r^3 under constant coefficients; synthetic, not measured. Integration refinement tolerance 0.2 percent at 16 stations; 0.01 percent at 64."
+}

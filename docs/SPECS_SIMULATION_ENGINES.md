@@ -234,6 +234,137 @@ scenario fault**. It is not physically equivalent to cutting power; mark
 the model OutsideValidity for energy validation. Motor IDs are stable in
 the manifest and do not automatically equal MAVLink channel numbers.
 
+### Atmosphere and deterministic gusts (TASK-032)
+
+The configuration-time `atmosphereFromState(unknown)` schema accepts exactly
+finite temperatureK [180,330] and pressurePa [1000,120000], deriving density
+[0.05,2] kg/m³, viscosity, and sound speed; density cannot be overridden.
+`isaTroposphere` uses geopotential altitude [0,11000] m, T=288.15−0.0065h,
+p=101325(T/288.15)^(9.80665/(287.05287*0.0065)), rho=p/(287.05287T),
+a=sqrt(1.4*287.05287T), and Sutherland viscosity with mu0=1.716e-5 Pa·s,
+T0=273.15 K, S=110.4 K. These dry-air SI values are shared backend inputs;
+this task does not connect weather to the current demo or JSBSim.
+
+`Wind` preallocates three RNG streams (IDs 0/1/2), reset by the session seed.
+At fixed 400/800/1200 Hz, each gust component follows
+x_next=a*x+sigma*sqrt(3*(1−a²))*(2u−1), a=exp(−2*pi*bandwidthHz/hz),
+u in [0,1). This bounded-innovation AR(1) has stationary variance sigma²
+and pole bandwidth in (0,hz/2); it is synthetic, not Gaussian OU or Dryden.
+Mean is limited to ±200 m/s per axis and RMS to [0,50] m/s; a bandwidth so
+small that decay rounds to one is rejected during configuration.
+The caller owns length-three NED output; render grouping never advances RNG.
+Atmospheric setup may allocate; wind stepping reuses storage. The allocation
+probe is `node scripts/bench-wind.mjs`, report test-results/bench/wind.json.
+
+### Native rotor reference kernels (TASK-020–023)
+
+These are public Rust numerical APIs, tested natively and in scalar/SIMD WASM
+through the opt-in `kernel-test-exports` feature. They are not connected to the
+running demo. Production `bet_step` still returns AERODYNAMICS_UNAVAILABLE:
+ABI v1 has no polar table payload/binding. Enabling a complete backend requires
+a versioned configuration/polar binding; do not substitute a constant polar.
+The production build script does not enable the numerical test exports.
+
+`blade::Rotor::new(geometry, polar, samples)` validates borrowed geometry once
+and precomputes <=64 azimuth sine/cosine nodes. `evaluate(RotorInput)` returns
+`Result<RotorWrench, RotorError>` without allocation. Station arrays have equal
+length [1,64], strictly increasing internal radii, positive chord/width, finite
+twist, and widths totaling radius−cutout within 1e-9 m. Blade count [1,16], spin
+±1, azimuth count [1,64], and positive active span are checked. Runtime input
+requires finite vectors/scalars, density [0.05,2] kg/m³, positive viscosity and
+sound speed, nonnegative omega. Overflow is an error, not a zero-force result.
+
+Each element follows section 3, including body-rate local velocity and signed
+induced flow. Integration order is azimuth then radius, with weight B/N_az;
+station widths already include radial integration and must not be multiplied
+by blade count twice. Wrench is about the hub. `flap_load_nm` is the generalized
+hinge torque in basis (1,cos psi,sin psi): sum of r*dF_z times those basis values.
+There is no extra factor two in this output; harmonic modal inertia supplies
+that normalization. Polar clamp flags are ORed into output. For constant CL/CD,
+no inflow and no body rates, the independent continuous annulus references are:
+
+\[
+T={B\rho c C_L\Omega^2\over6}(R^3-r_0^3),\qquad
+Q_{air}=-{sB\rho c C_D\Omega^2\over8}(R^4-r_0^4).
+\]
+
+`inflow::AxialInflow` implements a limited signed normal-working actuator disk.
+Let sigma=sign(T), V=−sigma*v_air,z, L=|T|/(2*rho*A). Its target magnitude is
+the positive root w of w*(w+V)=L; the hover limit is sqrt(L). Rationalize the
+root for V>=0 to avoid cancellation. Target signed velocity is sigma*w,
+bounded by the configured positive limit. Relaxation is exact for held inputs:
+vi_next=vi_target+(vi−vi_target)*exp(−dt/tau). This uses no iterative solve
+(zero <= four iterations), not a disguised unconstrained Newton loop. Report
+absolute target residual |2*rho*A*vi*|vi−v_air,z|−T|. Hover tests require <=1%
+of thrust and verify transient convergence at 400/800/1200 Hz.
+
+Descent opposing thrust (V<0), transverse speed >1 m/s, and target clipping set
+outside_validity. VRS/windmill-brake/autorotation inflow is not validated. T=0
+has target zero, including zero RPM/flow. This is a one-way thrust-to-inflow
+closure; if used with blade torque, sample updated thrust at tick boundaries
+and account for coupling error. No measured rotor data is implied.
+
+`shaft::Shaft` advances J*dOmega/dt=tau_motor+s*Q_air−b*Omega. It holds
+motor/air torque per tick and integrates viscous bearing damping exactly with
+expm1, using its continuous b=0 limit. No RPM governor exists. Speed magnitude
+cannot become negative: attempted reversal stops at zero with reverse_limited;
+reverse rotation requires a separate model. Reports kinetic energy J*Omega²/2
+and held-torque residual. Reevaluate aerodynamic torque at each new speed.
+Tests cover passive exponential energy decay, airflow-driven acceleration,
+braking, equilibrium residual <0.01 Nm, airflow removal, and dt convergence.
+Synthetic constant-coefficient polars cover mechanics, not airfoil fidelity.
+
+`flapping::HingeModel` is a zero-offset, rigid-blade, linear small-angle hinge
+reference, derived by Galerkin projection of I*D²beta+C*D beta+(K+I*Omega²)beta=Q,
+with D=partial_t+s*Omega*partial_psi. Parameters I0/K0/C0 are sums across blades;
+cos/sin modal parameters are exactly half those values by orthogonality.
+With w=s*Omega and wd=s*dOmega/dt, modal accelerations are:
+
+\[
+\ddot\beta_0=Q_0/I_0-(C_0/I_0)\dot\beta_0-(K_0/I_0+w^2)\beta_0,
+\]
+\[
+\ddot\beta_c=2Q_c/I_0-(C_0/I_0)\dot\beta_c-(K_0/I_0)\beta_c
+ -2w\dot\beta_s-((C_0/I_0)w+\dot w)\beta_s,
+\]
+\[
+\ddot\beta_s=2Q_s/I_0-(C_0/I_0)\dot\beta_s-(K_0/I_0)\beta_s
+ +2w\dot\beta_c+((C_0/I_0)w+\dot w)\beta_c.
+\]
+
+RK4 holds generalized loads and spin acceleration per tick, evaluating spin
+at stage times. Validity requires sum |beta_mode|<=configured limit<=0.2 rad;
+exceedance is reported, not hidden by angle clamping. Steps require dt<=0.01 s
+and dt*(max spin over step+sqrt(K0/I0)+C0/I0)<=1. The supplied blade loads use
+the flat-disk reference: aeroelastic feedback, offset hinges, teetering stops,
+elastic blades, stall and autogyro measurements remain outside this envelope.
+
+`momentum::angular_momentum` uses a reduced blade-distribution ledger with
+J=sum integral r²dm, Hx=−s*J*Omega*beta_c+(J/2)*beta_s_dot,
+Hy=−s*J*Omega*beta_s−(J/2)*beta_c_dot, Hz=s*J*Omega*cos²(beta0).
+Transverse terms retain first order in cyclic flap; this is not a complete
+flexible-blade inertia tensor. `transmitted_moment` computes the full discrete
+inertial derivative for this supplied H:
+
+\[
+M_{hub}=M_{air}-{H_{next}-H_{previous}\over dt}
+ -\omega_{body,h}\times{H_{next}+H_{previous}\over2}.
+\]
+
+This includes spin-up, cone/cyclic changes and flap-rate momentum; motor
+reaction must not be added again. Shaft and flap DOFs must be excluded from
+any duplicate body inertia. Generalized aerodynamic loads and transmitted
+moments stay separate. Frame aggregation and rigid-body integration are later
+TASK-027/028. All these APIs reject non-finite parameters and keep fixed storage.
+
+Independent JSON oracles under tests/fixtures/rotors are SHA-256 registered,
+explicitly synthetic, and record derivations and units. Native allocator probes
+count calls/bytes (with a positive allocating control) over 1e6 combined kernel
+steps. WASM tests build scalar/SIMD artifacts with the trapping allocator,
+exercise tail counts 1/3/5/63, compare analytic outputs (absolute 1e-9 N/Nm,
+oscillator 1e-8 rad), and run million-step dynamics without memory growth.
+These checks do not establish experimental aerodynamics or M4/RTX throughput.
+
 ## 4. WASM ABI and SIMD
 
 Rust crate: `native/bet`; wrapper: `packages/wasm-bet`. JSBSim is a separate
@@ -303,7 +434,7 @@ non-finite values, and out-of-range geometry are rejected. `bet_step`
 validates the whole input first and writes no output byte on a negative
 status; on status >= 0 it overwrites every rotor record. It returns
 `MEMORY_GROWN` when linear memory differs from its size at initialization.
-Until quadrature exists (TASK-020) it returns `AERODYNAMICS_UNAVAILABLE`
+Until a versioned polar-to-kernel binding exists, the production ABI returns `AERODYNAMICS_UNAVAILABLE`
 with NaN force, moments, and aerodynamic torque and the
 `AERODYNAMICS_UNAVAILABLE` flag, never a fabricated success. The JS binding
 writes inputs and decodes outputs through one preallocated DataView into

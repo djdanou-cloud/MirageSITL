@@ -1,6 +1,6 @@
 # CLAUDE.md — MirageSITL agent instructions
 
-<!-- source-sha256: 6a5364143abb8589adc22071559614bc66cd807909be20ab5110ee05573c414e -->
+<!-- source-sha256: bacfea3852b56ab6353f7257dc478c9809b3e3b7ae5e2f25f8f0466eb731310c -->
 
 Английский источник: [Source of truth](../../CLAUDE.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -56,15 +56,18 @@ TASK-084 добавил AGENTS.md и `.cursor/rules/project.mdc` как тонк
 
 ## 1. Реальный baseline и границы
 
-На `e3bb6b4`: npm workspaces; `apps/web`; `packages/protocol`, `physics`,
-`input`; SAB **v1**, 400 Гц fixed integration dt, demo dynamics, Gamepad,
-React 19/R3F/WebGL. 13 unit и 4 browser tests были проверены при реализации.
-Не считать этот исторический результат проверкой новых изменений.
+Полученный baseline `9ce0da1` запускает ABI v2 с epoch-aware rendering,
+часами 400/800/1200 Гц, SPSC transport и demo backend. V1 сохранён как
+regression API. Есть Rust 1.97.0 workspace, scalar/SIMD WASM builds,
+проверенные C ABI arenas и polar lookup. TASK-032 и TASK-020–023 добавляют
+атмосферу, seeded wind и native rotor reference kernels с тестовыми WASM exports.
 
-Rust workspace, JSBSim/BET, v2, MAVLink, ArduPilot, HITL, EW, terrain,
-thermal и AAR пока отсутствуют. Не писать «cargo check passed», «EKF ready»
-или «1200 Гц поддерживается», пока соответствующий модуль не реализован
-и проверка не выполнена. Целевой v2 не является описанием текущего v1.
+Production BET arena step всё ещё возвращает AERODYNAMICS_UNAVAILABLE:
+polar binding и полный backend не подключены. JSBSim, MAVLink, ArduPilot,
+HITL, РЭБ, terrain, thermal и AAR остаются будущими задачами. Численные тесты
+не подтверждают валидированную авторотацию или производительность целевых
+устройств. Исторические результаты не проверяют новые изменения; нужно
+повторно запускать выбранные gates.
 
 Работать в существующем checkout (`/workspace/MirageSITL` в cloud).
 Облачная задача уже изолирована; дополнительный worktree создавать только
@@ -89,6 +92,7 @@ npx --no-install vitest run tests/protocol.test.ts
 npx --no-install tsc --noEmit
 CHROMIUM_PATH=/usr/bin/chromium npm run test:browser
 node scripts/bench-physics.mjs
+node scripts/bench-wind.mjs
 cargo check --manifest-path native/Cargo.toml --workspace --locked
 cargo test --manifest-path native/Cargo.toml --workspace --locked
 cargo check --manifest-path native/Cargo.toml -p mirage-bet --target wasm32-unknown-unknown --locked

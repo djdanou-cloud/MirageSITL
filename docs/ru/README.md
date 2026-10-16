@@ -1,6 +1,6 @@
 # MirageSITL
 
-<!-- source-sha256: 945729763c7e6459075201c66fdbf8313a1512dce5f7d6b8090e92d2a080dbce -->
+<!-- source-sha256: 0cb6e18145dca93f4aac3ae71cc108a5f4bc9295728203a82ecd939240a9de74 -->
 
 Английский источник: [Source of truth](../../README.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -90,7 +90,7 @@ Main Thread: coherent snapshots -> interpolation -> R3F/HUD
 
 ```text
 apps/web/             React UI, R3F view, Worker, runtime coordination
-packages/protocol/    ABI v1 and atomic readers/writers
+packages/protocol/    ABI v1/v2 and atomic readers/writers
 packages/physics/     Demo dynamics and bounded scheduler
 packages/input/       Gamepad adapter and calibration
 packages/test-support/ Fixture integrity/provenance and deterministic PRNG
@@ -131,8 +131,8 @@ Browser tests используют настоящий Worker/SAB, взлёт, pa
 
 После сборки `npm run preview -w @mirage/web` запускает production bundle
 на порту 4173. Проверьте isolation, Worker READY, движение после arm и
-неизменные ticks при pause. Отдельные lint/typecheck команды доступны; Rust/Cargo пока остаётся будущей
-задачей. GitHub Actions запускает независимые unit/browser/build jobs для PR
+неизменные ticks при pause. Отдельные lint/typecheck команды доступны; Для WASM tests нужны Rust 1.97.0 и wasm32 target;
+команды toolchain приведены в CLAUDE.md. GitHub Actions запускает независимые unit/browser/build jobs для PR
 и push в main. JUnit unit, JUnit/HTML и failure traces браузера, build logs
 и artifacts сохраняются даже после ошибок. Автоматические tooling checks
 проверяют unsafe-type fixtures и ненулевой exit status обоих runners при

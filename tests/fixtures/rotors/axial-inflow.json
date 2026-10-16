@@ -1,0 +1,9 @@
+{
+  "kind": "synthetic",
+  "densityKgM3": 1.225,
+  "radiusM": 0.5,
+  "thrustN": 100,
+  "timeConstantS": 0.1,
+  "inducedMps": 7.2089500629147425,
+  "derivation": "Ideal hover actuator disk T=2*rho*pi*R^2*vi^2; synthetic target, not VRS validation."
+}

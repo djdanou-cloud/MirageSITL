@@ -1,0 +1,9 @@
+{
+  "kind": "synthetic",
+  "hingeInertiaKgM2": 1,
+  "stiffnessNmPerRad": 100,
+  "initialConeRad": 0.1,
+  "timeS": 1,
+  "coneRad": -0.08390715290764525,
+  "derivation": "Unforced zero-RPM hinge: beta=beta_initial*cos(sqrt(K/I)*t), no damping. Synthetic oscillator, not measured rotor flap."
+}

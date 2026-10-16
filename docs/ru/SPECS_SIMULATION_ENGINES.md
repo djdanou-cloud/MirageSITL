@@ -1,6 +1,6 @@
 # SPECS_SIMULATION_ENGINES.md
 
-<!-- source-sha256: 29768cffcd0fbba65218ec07b41bd1816ca75b2934785bd3ce9b56babde17219 -->
+<!-- source-sha256: 979e66e5f0c5176b132513b9e676d43151d7b5c1f4360a99a96d86d21c673fd1 -->
 
 Английский источник: [Source of truth](../SPECS_SIMULATION_ENGINES.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -235,6 +235,140 @@ P включает ESC efficiency и house load, токи/теплопотери
 модель помечается OutsideValidity для energy-validation. Индексы стабильны
 по motor manifest и не совпадают автоматически с номером MAVLink channel.
 
+### Атмосфера и детерминированные порывы (TASK-032)
+
+Схема конфигурации `atmosphereFromState(unknown)` принимает только конечные
+temperatureK [180,330] и pressurePa [1000,120000], вычисляя плотность
+[0.05,2] кг/м³, вязкость и скорость звука; плотность нельзя переопределить.
+`isaTroposphere` использует геопотенциальную высоту [0,11000] м, T=288.15−0.0065h,
+p=101325(T/288.15)^(9.80665/(287.05287*0.0065)), rho=p/(287.05287T),
+a=sqrt(1.4*287.05287T) и вязкость Sutherland: mu0=1.716e-5 Pa·s,
+T0=273.15 K, S=110.4 K. Эти SI-параметры сухого воздуха общие для backends;
+задача не подключает погоду к текущему demo или JSBSim.
+
+`Wind` заранее создаёт три потока RNG (IDs 0/1/2), сбрасываемые seed сессии.
+На фиксированных 400/800/1200 Гц каждая компонента порыва задаётся
+x_next=a*x+sigma*sqrt(3*(1−a²))*(2u−1), a=exp(−2*pi*bandwidthHz/hz),
+u в [0,1). Это AR(1) с ограниченными инновациями, стационарной дисперсией sigma²
+и полосой полюса в (0,hz/2), синтетическая модель, не Gaussian OU или Dryden.
+Mean ограничен ±200 м/с на ось, RMS — [0,50] м/с; слишком малая полоса,
+округляющая decay до единицы, отклоняется при настройке.
+Вызывающий код владеет NED output длины три; render grouping не продвигает RNG.
+Настройка атмосферы может выделять память; шаг ветра использует готовое хранилище.
+Проверка аллокаций: `node scripts/bench-wind.mjs`, отчёт test-results/bench/wind.json.
+
+### Эталонные native rotor kernels (TASK-020–023)
+
+Это публичные численные Rust API, проверяемые native и в scalar/SIMD WASM
+через опциональный feature `kernel-test-exports`. К работающему demo они не
+подключены. Production `bet_step` всё ещё возвращает AERODYNAMICS_UNAVAILABLE:
+в ABI v1 нет payload/binding для polar tables. Для включения полного backend
+нужен версионированный configuration/polar binding; подставлять постоянный polar
+нельзя. Production build script не включает численные тестовые exports.
+
+`blade::Rotor::new(geometry, polar, samples)` один раз проверяет заимствованную
+геометрию и вычисляет <=64 azimuth sine/cosine nodes. `evaluate(RotorInput)`
+возвращает `Result<RotorWrench, RotorError>` без аллокаций. Массивы станций имеют
+одинаковую длину [1,64], строго возрастающие внутренние радиусы, положительные
+chord/width, конечный twist; сумма widths равна radius−cutout с допуском 1e-9 м.
+Проверяются blade count [1,16], spin ±1, azimuth count [1,64] и положительный
+активный span. Runtime input требует конечные векторы/скаляры, плотность
+[0.05,2] кг/м³, положительные вязкость и скорость звука, неотрицательную omega.
+Переполнение — ошибка, а не успешный результат с нулевой силой.
+
+Каждый элемент следует разделу 3 с локальной скоростью от body rate и знаковым
+induced flow. Порядок интегрирования: azimuth, затем radius, вес B/N_az;
+station widths уже учитывают радиальное интегрирование, повторное умножение
+на blade count запрещено. Wrench задан относительно hub. `flap_load_nm` —
+обобщённый hinge torque в базисе (1,cos psi,sin psi): сумма r*dF_z с этими
+базисными весами. Дополнительного множителя два здесь нет: нормировка входит
+в harmonic modal inertia. Polar clamp flags объединяются OR. При постоянных
+CL/CD без inflow и body rates независимые непрерывные эталоны annulus:
+
+\[
+T={B\rho c C_L\Omega^2\over6}(R^3-r_0^3),\qquad
+Q_{air}=-{sB\rho c C_D\Omega^2\over8}(R^4-r_0^4).
+\]
+
+`inflow::AxialInflow` реализует ограниченный знаковый normal-working actuator disk.
+Пусть sigma=sign(T), V=−sigma*v_air,z, L=|T|/(2*rho*A). Целевая величина —
+положительный корень w уравнения w*(w+V)=L; в hover это sqrt(L). При V>=0
+корень рационализирован для исключения потери точности. Знаковая целевая
+скорость sigma*w ограничена заданным положительным пределом. Релаксация
+точна при постоянных входах: vi_next=vi_target+(vi−vi_target)*exp(−dt/tau).
+Итерационного solve нет (ноль <= четырёх итераций), скрытого неограниченного
+Newton loop тоже нет. Выдаётся абсолютный target residual
+|2*rho*A*vi*|vi−v_air,z|−T|. Hover tests требуют <=1% тяги и проверяют
+сходимость переходного процесса на 400/800/1200 Гц.
+
+Снижение против тяги (V<0), transverse speed >1 м/с и target clipping выставляют
+outside_validity. Inflow в VRS/windmill-brake/авторотации не валидирован. Для T=0
+target равен нулю, включая нулевые RPM/flow. Это одностороннее замыкание
+thrust-to-inflow; при совместном использовании с blade torque обновлять тягу
+на границах tick и учитывать ошибку связи. Измеренные rotor data не заявляются.
+
+`shaft::Shaft` интегрирует J*dOmega/dt=tau_motor+s*Q_air−b*Omega. Motor/air torque
+постоянны на tick; вязкое bearing damping интегрируется точно через expm1
+с непрерывным пределом b=0. RPM governor отсутствует. Модуль скорости не
+становится отрицательным: попытка реверса останавливает его на нуле с
+reverse_limited; обратное вращение требует другой модели. Выдаются кинетическая
+энергия J*Omega²/2 и residual удерживаемого torque. Аэродинамический момент нужно
+пересчитывать для новой скорости. Тесты проверяют пассивный экспоненциальный
+спад энергии, разгон от потока, торможение, equilibrium residual <0.01 Nm,
+снятие потока и сходимость dt. Синтетические constant-coefficient polars
+проверяют механику, а не точность airfoil.
+
+`flapping::HingeModel` — эталон zero-offset rigid-blade linear small-angle hinge,
+полученный Galerkin-проекцией I*D²beta+C*D beta+(K+I*Omega²)beta=Q,
+где D=partial_t+s*Omega*partial_psi. Параметры I0/K0/C0 суммируются по лопастям;
+cos/sin modal parameters ровно вдвое меньше из-за ортогональности.
+При w=s*Omega и wd=s*dOmega/dt модальные ускорения:
+
+\[
+\ddot\beta_0=Q_0/I_0-(C_0/I_0)\dot\beta_0-(K_0/I_0+w^2)\beta_0,
+\]
+\[
+\ddot\beta_c=2Q_c/I_0-(C_0/I_0)\dot\beta_c-(K_0/I_0)\beta_c
+ -2w\dot\beta_s-((C_0/I_0)w+\dot w)\beta_s,
+\]
+\[
+\ddot\beta_s=2Q_s/I_0-(C_0/I_0)\dot\beta_s-(K_0/I_0)\beta_s
+ +2w\dot\beta_c+((C_0/I_0)w+\dot w)\beta_c.
+\]
+
+RK4 удерживает generalized loads и spin acceleration на tick, вычисляя spin
+в моменты стадий. Валидность требует суммы |beta_mode|<=заданного предела<=0.2 rad;
+превышение выдаётся явно, а не скрывается clamp углов. Нужны dt<=0.01 s и
+ dt*(max spin over step+sqrt(K0/I0)+C0/I0)<=1. Переданные blade loads используют
+flat-disk reference: aeroelastic feedback, offset hinges, teetering stops,
+elastic blades, stall и измерения автожира вне этого диапазона.
+
+`momentum::angular_momentum` использует сокращённый blade-distribution ledger:
+J=sum integral r²dm, Hx=−s*J*Omega*beta_c+(J/2)*beta_s_dot,
+Hy=−s*J*Omega*beta_s−(J/2)*beta_c_dot, Hz=s*J*Omega*cos²(beta0).
+Поперечные члены первого порядка по cyclic flap; это не полный тензор инерции
+гибкой лопасти. `transmitted_moment` вычисляет полную дискретную инерциальную
+производную для переданного H:
+
+\[
+M_{hub}=M_{air}-{H_{next}-H_{previous}\over dt}
+ -\omega_{body,h}\times{H_{next}+H_{previous}\over2}.
+\]
+
+Учтены spin-up, изменения cone/cyclic и flap-rate momentum; повторно добавлять
+motor reaction нельзя. Shaft/flap DOFs нельзя дублировать в body inertia.
+Generalized aerodynamic loads и transmitted moments раздельны. Frame aggregation
+и rigid-body integration относятся к будущим TASK-027/028. Все API отклоняют
+неконечные параметры и используют фиксированное хранилище.
+
+Независимые JSON-эталоны tests/fixtures/rotors зарегистрированы по SHA-256,
+явно синтетические, содержат вывод и единицы. Native allocator probe считает
+вызовы/байты с positive allocating control на 1e6 совместных kernel steps.
+WASM tests собирают scalar/SIMD с trapping allocator, проверяют tail counts
+1/3/5/63, сравнивают аналитические результаты (absolute 1e-9 N/Nm, oscillator
+1e-8 rad) и исполняют миллион шагов dynamics без memory growth. Это не
+подтверждение экспериментальной аэродинамики или M4/RTX throughput.
+
 ## 4. WASM ABI и SIMD
 
 Rust crate `native/bet`; wrapper `packages/wasm-bet`. JSBSim — отдельный
@@ -301,7 +435,7 @@ Handle — это указатель arena. `bet_last_error()->i32` сообща
 отклоняются. `bet_step` сначала проверяет весь вход и при отрицательном
 статусе не пишет ни одного байта выхода; при статусе >= 0 он перезаписывает
 каждую запись ротора. Он возвращает `MEMORY_GROWN`, если линейная память
-отличается от размера при инициализации. Пока нет quadrature (TASK-020), он
+отличается от размера при инициализации. До подключения версионированного polar-to-kernel binding production ABI
 возвращает `AERODYNAMICS_UNAVAILABLE` с NaN в силе, моментах и
 аэродинамическом моменте на валу и флагом `AERODYNAMICS_UNAVAILABLE`, а не
 выдуманный успех. JS binding пишет входы и декодирует выходы через один

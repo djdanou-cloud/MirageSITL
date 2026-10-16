@@ -11,3 +11,7 @@ publish.workspace = true
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
+
+# Test-only exports exercise kernels under the trapping WASM allocator.
+[features]
+kernel-test-exports = []

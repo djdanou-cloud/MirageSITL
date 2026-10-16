@@ -7,7 +7,7 @@
 //! Everything here is safe code over slices; the wasm32 export layer in
 //! `lib.rs` turns validated `u32` pointers into those slices.
 //!
-//! Until the blade-element quadrature exists (TASK-020) `step` validates its
+//! The production ABI has no polar-table binding yet. `step` validates its
 //! input, overwrites every rotor output record in place with NaN aerodynamic
 //! quantities and `FLAG_AERODYNAMICS_UNAVAILABLE`, and returns
 //! `STATUS_AERODYNAMICS_UNAVAILABLE`. It never reports success.

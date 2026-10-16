@@ -480,10 +480,10 @@ for the writer. `FlightScene` maps the pose through
 browsers, with the toolchain pinned in `native/rust-toolchain.toml`. Its
 bootstrap kernel is the section 3 element force
 `dF = 1/2 rho U^2 c dr (C_L l + C_D d)` with the `U < 1e-6 m/s` cutoff; it is
-a scalar reference, not a rotor model, and `C_L`/`C_D` are inputs only until
-the polar lookup (TASK-019) and quadrature (TASK-020) exist. The wasm32 build
-installs a global allocator that traps on any allocation (the only `unsafe`
-in the crate), has no host imports, and exports `memory`,
+a scalar element reference kept for ABI regression. The native rotor reference
+now derives coefficients from the polar (TASK-019/020). The wasm32 build
+installs a global allocator that traps on allocation; checked ABI memory views
+are the other narrow unsafe boundary. It has no host imports and exports `memory`,
 `bet_abi_version` (= 1), and `bet_bootstrap_element_force`. The release
 profile (LTO, one codegen unit, `panic = "abort"`, stripped) produces a
 byte-identical artifact across clean target directories.
@@ -515,13 +515,37 @@ checking range, alignment, `__heap_base`, and overlap. `include/bet.h` is the
 shared layout source. `packages/wasm-bet/src/arena.ts` encodes the
 configuration once, places configuration, input, output, and arena regions
 above `__heap_base` inside the reserved memory, and steps through one
-preallocated DataView into caller-owned output objects. Until TASK-020 the
-step returns `AERODYNAMICS_UNAVAILABLE` with NaN aerodynamic outputs.
+preallocated DataView into caller-owned output objects. The production step still returns `AERODYNAMICS_UNAVAILABLE` with NaN
+aerodynamic outputs until a versioned polar/config binding connects the kernels.
 
 ### Polar lookup (TASK-019)
 
 `native/bet/src/polar.rs` validates a borrowed `(Mach, Re, alpha)` CL/CD
 table once and interpolates trilinearly in `(Ma, ln Re, alpha)` without
 allocation. Queries outside the table clamp to its boundary and set
-`OUTSIDE_POLAR_VALIDITY`; there is no extrapolation. The rotor step will
-use it once quadrature lands (TASK-020).
+`OUTSIDE_POLAR_VALIDITY`; there is no extrapolation. The native `blade::Rotor` uses this lookup (TASK-020); production C ABI
+binding remains separate.
+
+### Atmospheric and rotor reference modules (TASK-032, TASK-020–023)
+
+The atmosphere package validates dry-air state and provides ISA troposphere,
+Sutherland viscosity, density and sound speed. Wind uses a seeded, fixed-rate
+bounded-innovation AR(1), not a claimed measured turbulence model. Native rotor
+modules provide normalized quadrature, limited signed axial inflow, free-shaft
+RPM dynamics, zero-offset harmonic hinge flapping, and discrete angular momentum
+transmission. See SPECS_SIMULATION_ENGINES section 3 for all equations, limits,
+input units, and the explicit absence of aeroelastic feedback/validated VRS.
+
+These are reference modules; the UI still runs demo dynamics. No ArduPilot,
+JSBSim, measured autogyro model, or production BET engine has been enabled.
+`kernel-test-exports` builds separate scalar/SIMD numerical test artifacts;
+the production artifact/ABI stays unchanged. Allocation tests cover 1e6 native
+kernel steps and million-step WASM dynamics with stable memory. Synthetic
+oracles under tests/fixtures/rotors are registered with byte hashes and are not
+experimental measurements. `scripts/bench-wind.mjs` records warmed V8 allocation
+windows and an allocating positive control under test-results/bench/wind.json.
+
+Verification uses npm lint/typecheck/docs/tests/build/browser plus the pinned
+native Cargo check/test and wasm32 target check. `tests/rotor-kernels.test.ts`
+builds its own scalar/SIMD harness, including tail counts 1/3/5/63. Cloud
+functional/numerical results do not establish M4/RTX frame-time budgets.

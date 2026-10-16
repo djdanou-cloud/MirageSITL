@@ -84,7 +84,7 @@ Main Thread: coherent snapshots -> interpolation -> R3F/HUD
 
 ```text
 apps/web/             React UI, R3F view, Worker, runtime coordination
-packages/protocol/    ABI v1 and atomic readers/writers
+packages/protocol/    ABI v1/v2 and atomic readers/writers
 packages/physics/     Demo dynamics and bounded scheduler
 packages/input/       Gamepad adapter and calibration
 packages/test-support/ Fixture integrity/provenance and deterministic PRNG
@@ -125,8 +125,8 @@ not validate a physical transmitter or Pixhawk.
 
 After building, `npm run preview -w @mirage/web` serves the production bundle
 on port 4173. Verify isolation, Worker READY, motion after arming, and stable
-ticks while paused. Dedicated lint/typecheck commands are available. Rust/Cargo tooling remains
-a future task. GitHub Actions runs independent unit, browser, and build jobs
+ticks while paused. Dedicated lint/typecheck commands are available. Rust 1.97.0 and the wasm32 target are required for the WASM tests;
+see CLAUDE.md for toolchain commands. GitHub Actions runs independent unit, browser, and build jobs
 on pull requests and pushes to main. Unit JUnit reports, browser JUnit/HTML
 reports and failure traces, and build logs/artifacts are uploaded even after
 failure. The automated tooling checks include unsafe-type fixtures and
