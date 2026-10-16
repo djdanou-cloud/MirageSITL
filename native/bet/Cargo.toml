@@ -1,0 +1,13 @@
+[package]
+name = "mirage-bet"
+version = "0.1.0"
+description = "Scalar blade-element reference kernels for MirageSITL (bootstrap; not production aerodynamics)"
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[lib]
+# cdylib: the wasm32 artifact; rlib: native tests.
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]

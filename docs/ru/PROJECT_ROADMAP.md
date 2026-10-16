@@ -1,6 +1,6 @@
 # PROJECT_ROADMAP.md
 
-<!-- source-sha256: 655d4f877c5954b635e8405b1dbf3dabd74d79f944a38e39949214e26c713499 -->
+<!-- source-sha256: 2589cb768185add30d2671a15482d6fb55cf82ba48e40dc89ccc864bfb4ed8dc -->
 
 Английский источник: [Source of truth](../PROJECT_ROADMAP.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -282,12 +282,13 @@ Google content без прав.
 
 ### TASK-016 — Native Rust workspace
 
-- **Status:** TODO.
+- **Status:** DONE — Claude; baseline 4187246; 2026-10-16 (hosted native.yml run blocked like TASK-003).
 - **Title & Description:** Поднять pinned scalar BET crate и native tests.
 - **Dependencies:** TASK-003, TASK-004.
-- **Touched Files:** `native/Cargo.toml`, `native/Cargo.lock`, `native/rust-toolchain.toml`, `native/bet/Cargo.toml`, `native/bet/src/lib.rs`, `.github/workflows/native.yml`.
+- **Touched Files:** `native/Cargo.toml`, `native/Cargo.lock`, `native/rust-toolchain.toml`, `native/bet/Cargo.toml`, `native/bet/src/lib.rs`, `.github/workflows/native.yml`, `native/bet/tests/bootstrap.rs`, `tests/browser/native-bootstrap.spec.ts`, `.github/workflows/ci.yml`, `tests/ci.test.ts`, `.gitignore`, `CLAUDE.md`, `docs/ru/CLAUDE.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
 - **Interfaces / Contracts:** wasm32-unknown-unknown; repr(C) boundary; scalar default.
 - **DoD & Acceptance Criteria:** cargo check/test --locked проходят; target/toolchain pinned; воспроизводимый empty kernel artifact проверен на Chromium; production математика ещё не заявляется.
+- **Evidence:** Владелец Claude; baseline 4187246; 2026-10-16. Toolchain rustc/cargo 1.97.0 (закреплён в native/rust-toolchain.toml вместе с wasm32-unknown-unknown, профиль minimal; rustup установил закреплённый toolchain при первом использовании). Внутри native/: cargo check --workspace --locked exit 0; cargo test --workspace --locked: 6 PASS (нулевой/NaN/подпороговый поток даёт нулевую силу; модуль = q c dr sqrt(CL^2+CD^2) с точностью 1e-14; подъёмная сила перпендикулярна потоку и радиальному направлению, сопротивление параллельно и диссипативно; зеркальное вращение меняет знак подъёмной силы и сохраняет сопротивление; линейность по хорде и ширине; exports равны kernel); cargo check -p mirage-bet --target wasm32-unknown-unknown --locked exit 0. Сборка no_std невозможна, поскольку в stable 1.97 нет f64::sqrt в core, а core::arch::wasm32::f64_sqrt нестабилен (wasm_numeric_instr); вместо этого сборка wasm32 использует ловушечный глобальный аллокатор. Release-артефакт: 376 байт, ноль imports, exports memory/bet_abi_version/bet_bootstrap_element_force. tests/browser/native-bootstrap.spec.ts: 1 PASS (две чистые сборки дают одинаковый SHA-256; Chromium инстанцирует модуль; четыре случая совпадают с независимым вычислением на JS с точностью 1e-12). tests/ci.test.ts +1 (один пин toolchain в rust-toolchain.toml, ci.yml, native.yml; native.yml выполняет check/test/wasm/reproducibility в native/). Kernel — bootstrap reference, а не проверенная аэродинамика. Выполнение native.yml на hosted runner не подтверждено (блокер TASK-003).
 
 ### TASK-017 — Сборка и загрузка WASM
 

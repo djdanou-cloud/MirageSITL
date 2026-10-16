@@ -466,3 +466,18 @@ derives the fraction from the frame's scheduled wall time and the header
 rate, so rendering lags truth by at most one physics step and never waits
 for the writer. `FlightScene` maps the pose through
 `nedToRenderPositionInto` and the proper-rotation NED-to-render basis.
+
+### Native Rust workspace (TASK-016)
+
+`native/` is a Cargo workspace with the scalar crate `mirage-bet`
+(`native/bet`), built natively for tests and to `wasm32-unknown-unknown` for
+browsers, with the toolchain pinned in `native/rust-toolchain.toml`. Its
+bootstrap kernel is the section 3 element force
+`dF = 1/2 rho U^2 c dr (C_L l + C_D d)` with the `U < 1e-6 m/s` cutoff; it is
+a scalar reference, not a rotor model, and `C_L`/`C_D` are inputs only until
+the polar lookup (TASK-019) and quadrature (TASK-020) exist. The wasm32 build
+installs a global allocator that traps on any allocation (the only `unsafe`
+in the crate), has no host imports, and exports `memory`,
+`bet_abi_version` (= 1), and `bet_bootstrap_element_force`. The release
+profile (LTO, one codegen unit, `panic = "abort"`, stripped) produces a
+byte-identical artifact across clean target directories.

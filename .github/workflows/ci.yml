@@ -50,6 +50,8 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      # The native bootstrap browser spec builds the wasm32 artifact (pin matches native/rust-toolchain.toml).
+      - run: rustup toolchain install 1.97.0 --profile minimal --target wasm32-unknown-unknown
       - run: npx --no-install playwright install --with-deps chromium
       - run: npm run test:browser
       - uses: actions/upload-artifact@v4

@@ -1,0 +1,7 @@
+# Pinned toolchain. rustup reads this file from the current directory, so
+# scripts and CI run cargo inside native/ (cargo --manifest-path from the
+# repository root uses the caller's default toolchain instead).
+[toolchain]
+channel = "1.97.0"
+targets = ["wasm32-unknown-unknown"]
+profile = "minimal"

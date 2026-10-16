@@ -80,6 +80,9 @@ npx --no-install vitest run tests/protocol.test.ts
 npx --no-install tsc --noEmit
 CHROMIUM_PATH=/usr/bin/chromium npm run test:browser
 node scripts/bench-physics.mjs
+cargo check --manifest-path native/Cargo.toml --workspace --locked
+cargo test --manifest-path native/Cargo.toml --workspace --locked
+cargo check --manifest-path native/Cargo.toml -p mirage-bet --target wasm32-unknown-unknown --locked
 ```
 
 TASK-002 is implemented: `npm run lint` applies typed rules to TypeScript and
@@ -104,14 +107,17 @@ steady state, compute p50/p95/p99/max, timer overhead, and real-time wakeup
 lateness/executed Hz. It runs in Node; it is not browser or target-hardware
 evidence.
 
+TASK-016 adds the `native/` Rust workspace (crate `mirage-bet`). The toolchain
+is pinned in `native/rust-toolchain.toml` (1.97.0 + wasm32-unknown-unknown);
+rustup reads it from the current directory, so run cargo inside `native/`
+(or install the same toolchain) for pinned results. The wasm32 build has a
+trapping global allocator and no imports.
+
 The following commands **do not exist yet**. The listed task introduces
 them, after which dependent work must run them:
 
 | Command | Introduced by | Purpose |
 | --- | --- | --- |
-| `cargo check --manifest-path native/Cargo.toml --workspace --locked` | TASK-016 | Native Rust compilation |
-| `cargo test --manifest-path native/Cargo.toml --workspace --locked` | TASK-016 | Scalar reference tests |
-| `cargo check --manifest-path native/Cargo.toml -p mirage-bet --target wasm32-unknown-unknown --locked` | TASK-016 | WASM target compilation; use crate name mirage-bet |
 | `node scripts/build-wasm.mjs` | TASK-017 | Scalar/SIMD artifacts and manifests |
 | `node scripts/build-jsbsim.mjs` | TASK-030 | Pinned Emscripten build |
 | `node scripts/run-sitl.mjs` | TASK-042 | Pinned native ArduPilot harness |

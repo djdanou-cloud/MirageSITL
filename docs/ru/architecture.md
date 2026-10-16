@@ -1,6 +1,6 @@
 # Архитектура MirageSITL
 
-<!-- source-sha256: 8edaeff1a66fd2d8e8d981bfd1bb8f19229cf58a3e7e9a28f907cb29863871dc -->
+<!-- source-sha256: c599f2eed202d2ac3a249f361cb68b5c50447d22be02398721217bb0244be8fd -->
 
 Английский источник: [Source of truth](../architecture.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -478,3 +478,18 @@ wall-времени кадра и частоте из header, поэтому р�
 более чем на один физический шаг и никогда не ждёт writer. `FlightScene`
 отображает позу через `nedToRenderPositionInto` и собственно вращение базиса
 NED-to-render.
+
+### Native Rust workspace (TASK-016)
+
+`native/` — Cargo workspace со scalar crate `mirage-bet` (`native/bet`),
+собираемым нативно для тестов и в `wasm32-unknown-unknown` для браузеров;
+toolchain закреплён в `native/rust-toolchain.toml`. Его bootstrap kernel —
+сила элемента раздела 3 `dF = 1/2 rho U^2 c dr (C_L l + C_D d)` с порогом
+`U < 1e-6 m/s`; это scalar reference, а не модель ротора, и `C_L`/`C_D`
+остаются входными параметрами лишь до появления polar lookup (TASK-019) и
+quadrature (TASK-020). Сборка wasm32 устанавливает глобальный аллокатор,
+вызывающий ловушку при любой аллокации (единственный `unsafe` в crate), не
+имеет host imports и экспортирует `memory`, `bet_abi_version` (= 1) и
+`bet_bootstrap_element_force`. Release-профиль (LTO, одна единица codegen,
+`panic = "abort"`, stripped) даёт побайтно одинаковый артефакт в разных
+чистых target-каталогах.

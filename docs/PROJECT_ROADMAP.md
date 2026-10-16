@@ -279,12 +279,13 @@ copy Google content without rights.
 
 ### TASK-016 — Native Rust workspace
 
-- **Status:** TODO.
+- **Status:** DONE — Claude; baseline 4187246; 2026-10-16 (hosted native.yml run blocked like TASK-003).
 - **Title & Description:** Create a pinned scalar BET crate and native tests.
 - **Dependencies:** TASK-003, TASK-004.
-- **Touched Files:** `native/Cargo.toml`, `native/Cargo.lock`, `native/rust-toolchain.toml`, `native/bet/Cargo.toml`, `native/bet/src/lib.rs`, `.github/workflows/native.yml`.
+- **Touched Files:** `native/Cargo.toml`, `native/Cargo.lock`, `native/rust-toolchain.toml`, `native/bet/Cargo.toml`, `native/bet/src/lib.rs`, `.github/workflows/native.yml`, `native/bet/tests/bootstrap.rs`, `tests/browser/native-bootstrap.spec.ts`, `.github/workflows/ci.yml`, `tests/ci.test.ts`, `.gitignore`, `CLAUDE.md`, `docs/ru/CLAUDE.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
 - **Interfaces / Contracts:** wasm32-unknown-unknown; repr(C) boundary; scalar by default.
 - **DoD & Acceptance Criteria:** cargo check/test --locked pass; pin toolchain/target; verify a reproducible bootstrap kernel artifact in Chromium without claiming production aerodynamics.
+- **Evidence:** Owner Claude; baseline 4187246; 2026-10-16. Toolchain rustc/cargo 1.97.0 (pinned in native/rust-toolchain.toml with wasm32-unknown-unknown, minimal profile; rustup installed the pinned toolchain on first use). Inside native/: cargo check --workspace --locked exit 0; cargo test --workspace --locked: 6 PASS (zero/NaN/sub-threshold flow gives zero force; magnitude = q c dr sqrt(CL^2+CD^2) within 1e-14; lift perpendicular to flow and radial direction, drag parallel and dissipative; mirrored spin flips lift and keeps drag; linear in chord and width; exports equal the kernel); cargo check -p mirage-bet --target wasm32-unknown-unknown --locked exit 0. A no_std build was not possible because stable 1.97 has no f64::sqrt in core and core::arch::wasm32::f64_sqrt is unstable (wasm_numeric_instr); the wasm32 build instead uses a trapping global allocator. Release artifact: 376 bytes, zero imports, exports memory/bet_abi_version/bet_bootstrap_element_force. tests/browser/native-bootstrap.spec.ts: 1 PASS (two clean builds give identical SHA-256; Chromium instantiates it; four cases match an independent JS evaluation within 1e-12). tests/ci.test.ts +1 (one toolchain pin across rust-toolchain.toml, ci.yml, native.yml; native.yml runs check/test/wasm/reproducibility in native/). The kernel is a bootstrap reference, not validated aerodynamics. Hosted native.yml execution is unverified (TASK-003 blocker).
 
 ### TASK-017 — WASM build and loading
 

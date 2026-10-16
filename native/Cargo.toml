@@ -1,0 +1,21 @@
+# MirageSITL native workspace (TASK-016). Scalar BET reference crate compiled
+# natively for tests and to wasm32-unknown-unknown for the browser.
+[workspace]
+resolver = "2"
+members = ["bet"]
+
+[workspace.package]
+edition = "2021"
+rust-version = "1.97"
+publish = false
+
+# Release builds are the WASM artifacts: deterministic codegen, no panic
+# unwinding, no debug info, and no embedded absolute paths (see build scripts).
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+debug = false
+strip = true
+incremental = false
