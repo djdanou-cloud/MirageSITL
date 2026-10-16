@@ -493,3 +493,39 @@ packing/reading steps have no JS/WASM allocations after initialization;
 browser timer callback allocations are measured separately. New contract
 tests are automated. Report NOT_RUN when a module or required hardware does
 not yet exist.
+
+## 8. AAR recording queue and format v1 (TASK-076)
+
+The physics side fans out into a **separate** recording queue (its own
+SharedArrayBuffer). The render state ring and the sensor/actuator SPSC queues
+are never read as an archive and never get a second consumer. The producer
+copies each record word by word with `Atomics.store` and publishes it by
+storing the write counter; a full queue drops the record and increments the
+dropped counter (it never blocks physics). The recorder Worker is the only
+consumer.
+
+```text
+Recording queue (Int32 words): 0 magic 0x51524141 ("AARQ"); 1 version = 1;
+2 capacity (records, 64..1048576); 3 write counter (producer);
+4 read counter (consumer); 5 dropped records (producer); 6..15 reserved.
+Slots start at byte 64; slot i is at 64 + (counter mod capacity) * 128.
+
+Record (128 bytes, little-endian):
+  0  u32 kind (1 input, 2 actuator, 3 truth, 4 sensor, 5 event, 6 gap)
+  4  u32 epoch
+  8  u32 tick low      12 u32 tick high
+  16 f64 simTimeS      (seconds since epoch start)
+  24 f64 wallTimeMs    (producer performance.now())
+  32 f64 x 12 values   (gap: lostRecords, fromTick, toTick, reason 1 queue full / 2 storage backpressure)
+
+Chunk: 32-byte header + records * 128 bytes.
+  0 u32 magic 0x4b484341 ("ACHK"); 4 u32 version = 1; 8 u32 sequence;
+  12 u32 record count; 16 f64 first tick; 24 u32 CRC-32 (IEEE) of the
+  record bytes; 28 u32 epoch of the first record.
+```
+
+Readers check magic, version, size and CRC before decoding any record. The
+session manifest (`mirage.aar` v1) records the session id, creation time,
+seed, physics rate, SHA-256 of the physics build and airframe configuration,
+both time domains, records per chunk and the fixed ring size in bytes and
+seconds; an unknown version is rejected.

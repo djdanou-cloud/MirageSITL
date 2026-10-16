@@ -1,6 +1,6 @@
 # PROJECT_ROADMAP.md
 
-<!-- source-sha256: 9df5d0832704fcba41d2063769338ce994ccbfdd1e5b10d010149f761b7134d9 -->
+<!-- source-sha256: a87550bc60723a46b10b87d2ab2085c18299c314bcfc34b2d1051dfa56602589 -->
 
 Английский источник: [Source of truth](../PROJECT_ROADMAP.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -962,12 +962,13 @@ Cargo bin активирован в PATH. Производительность M
 
 ### TASK-076 — AAR recorder
 
-- **Status:** TODO.
+- **Status:** DONE — Claude; база 4626f4b; 2026-10-16 (ещё не подключён к Worker физики).
 - **Title & Description:** Записывать input/actuator/truth/sensor/events в отдельный bounded recorder.
 - **Dependencies:** TASK-004, TASK-013, TASK-058.
-- **Touched Files:** `packages/aar/package.json`, `packages/aar/src/format.ts`, `packages/aar/src/recorder.worker.ts`, `packages/aar/src/storage.ts`, `tests/aar-recorder.test.ts`.
+- **Touched Files:** `packages/aar/package.json`, `packages/aar/src/format.ts`, `packages/aar/src/recorder.worker.ts`, `packages/aar/src/storage.ts`, `tests/aar-recorder.test.ts`, `packages/aar/src/recorder.ts`, `tests/support/aar-harness.ts`, `tests/browser/aar-storage.spec.ts`, `docs/SPECS_SHARED_MEMORY.md`, `docs/ru/SPECS_SHARED_MEMORY.md`, `package-lock.json`.
 - **Interfaces / Contracts:** AAR version/model hashes/seed/epoch/time domains; IndexedDB chunks/checksum.
 - **DoD & Acceptance Criteria:** 30 min configured ring имеет фиксированный byte cap; slow storage/backpressure/loss explicitly counted; zero allocation в physics handoff; запись не использует 256-slot render ring как архив.
+- **Evidence:** Исполнитель Claude; база 4626f4b; 2026-10-16. Node 24.22.0: tests/aar-recorder.test.ts 7 PASS: контрольное значение CRC-32 0xCBF43926; проверка версии/формата/хешей/областей времени/полей манифеста; 64-битные тики, эпоха и обе области времени проходят через чанк с CRC, изменённый байт или усечённый чанк отклоняются; кольцо рендеринга, очереди SPSC и буфер с поддельным magic не принимаются как архив; сеанс 40 мин при 20 Hz x 2 записи с кольцом 30 мин (ringBytesFor) никогда не превышает предел байтов (пиковый объём <= предела), вытесняет старые чанки и сохраняет непрерывное окно от 1800 s до 1800 s + 2 чанка; переполнение очереди даёт 36 потерь и одну запись разрыва после тика 63; всплеск 640 записей при одной записи в полёте приостанавливает чтение без потерь; длительная перегрузка очереди на 64 записи при хранилище 20 ms учитывает каждую потерю (сохранено + отброшено = создано, суммы разрывов равны потерям, причина — отставание хранилища); 1e6 вызовов commit производителя с одним окном без GC. Chromium: tests/browser/aar-storage.spec.ts 1 PASS: реальный Worker записи сохраняет 3000 записей в 47 чанках IndexedDB по порядку с манифестом и без потерь. Убитые мутации: проверка предела кольца, ветка приостановки, положение разрыва, счётчик потерь, сдвиг CRC, разбиение 64-битного тика, проверка CRC, проверка magic очереди, причина разрыва, полное опустошение при остановке. Осталось: кольцо 30 мин на реальном оборудовании/квоте браузера и интеграция в Worker физики.
 
 ### TASK-077 — Replay и timeline
 

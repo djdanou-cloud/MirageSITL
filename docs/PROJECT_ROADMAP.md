@@ -959,12 +959,13 @@ were synchronized and checked. Changes remain local; no commit or push performed
 
 ### TASK-076 — AAR recorder
 
-- **Status:** TODO.
+- **Status:** DONE — Claude; baseline 4626f4b; 2026-10-16 (not yet wired into the physics Worker).
 - **Title & Description:** Record input/actuator/truth/sensor/events in a separate bounded recorder.
 - **Dependencies:** TASK-004, TASK-013, TASK-058.
-- **Touched Files:** `packages/aar/package.json`, `packages/aar/src/format.ts`, `packages/aar/src/recorder.worker.ts`, `packages/aar/src/storage.ts`, `tests/aar-recorder.test.ts`.
+- **Touched Files:** `packages/aar/package.json`, `packages/aar/src/format.ts`, `packages/aar/src/recorder.worker.ts`, `packages/aar/src/storage.ts`, `tests/aar-recorder.test.ts`, `packages/aar/src/recorder.ts`, `tests/support/aar-harness.ts`, `tests/browser/aar-storage.spec.ts`, `docs/SPECS_SHARED_MEMORY.md`, `docs/ru/SPECS_SHARED_MEMORY.md`, `package-lock.json`.
 - **Interfaces / Contracts:** AAR version/model hashes/seed/epoch/time domains; IndexedDB chunks/checksums.
 - **DoD & Acceptance Criteria:** A configured 30 min ring has a fixed byte cap; explicitly count storage backpressure/loss; physics handoff meets zero-allocation; the 256-slot render ring is never an archive.
+- **Evidence:** Owner Claude; baseline 4626f4b; 2026-10-16. Node 24.22.0: tests/aar-recorder.test.ts 7 PASS: CRC-32 check value 0xCBF43926; manifest version/format/hash/time-domain/field validation; 64-bit ticks, epoch and both time domains round-trip through a CRC-checked chunk, a flipped byte or truncated chunk is rejected; the render ring, SPSC queues and a forged-magic buffer are refused as archives; a 40 min session at 20 Hz x 2 records against a 30 min ring (ringBytesFor) never exceeds the byte cap (peak stored bytes <= cap), evicts oldest chunks and retains a contiguous 1800 s..1800 s + 2 chunks window; queue overflow counts 36 drops and writes one gap after tick 63; a 640-record burst with one write in flight stalls and loses nothing; sustained overload of a 64-record queue with 20 ms storage counts every drop (stored + dropped = produced, gap sums equal drops, storage-backpressure reason); 1e6 producer commits with one GC-free window. Chromium: tests/browser/aar-storage.spec.ts 1 PASS: the real recorder Worker stores 3000 records in 47 IndexedDB chunks in order with the manifest and no loss. Mutations killed: ring cap check, stall branch, gap placement, drop counter, CRC shift, 64-bit tick split, CRC verification, queue magic check, gap reason attribution, full drain on stop. Remaining: 30 min ring on real hardware/browser quota and production integration into the physics Worker.
 
 ### TASK-077 — Replay and timeline
 

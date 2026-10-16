@@ -1,6 +1,6 @@
 # SPECS_SHARED_MEMORY.md
 
-<!-- source-sha256: ee987a9261cdfef0973a48865dc957b04f283b343d64c704a17bdd22730ae7b1 -->
+<!-- source-sha256: 62f95f998d5397ccf8755cb8e0a2042cc6f3ec175de15512efdd3050b8336df7 -->
 
 Английский источник: [Source of truth](../SPECS_SHARED_MEMORY.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -483,3 +483,39 @@ ACK, очередь 128+1, stale epoch, atomic model swap failure. TASK-014:
 pack/read step без JS/WASM allocations после init, измерение отдельно от
 timer callback allocations браузера. Все новые contract tests автоматические;
 показать статус «не запущено», если модуль/оборудование ещё отсутствуют.
+
+## 8. Очередь записи AAR и формат v1 (TASK-076)
+
+Сторона физики разветвляет данные в **отдельную** очередь записи
+(собственный SharedArrayBuffer). Кольцо состояния рендеринга и очереди SPSC
+датчиков/актуаторов никогда не читаются как архив и не получают второго
+потребителя. Производитель копирует каждую запись по словам через
+`Atomics.store` и публикует её записью счётчика записи; при заполненной
+очереди запись отбрасывается и увеличивается счётчик отброшенных (физика
+никогда не блокируется). Worker записи — единственный потребитель.
+
+```text
+Recording queue (Int32 words): 0 magic 0x51524141 ("AARQ"); 1 version = 1;
+2 capacity (records, 64..1048576); 3 write counter (producer);
+4 read counter (consumer); 5 dropped records (producer); 6..15 reserved.
+Slots start at byte 64; slot i is at 64 + (counter mod capacity) * 128.
+
+Record (128 bytes, little-endian):
+  0  u32 kind (1 input, 2 actuator, 3 truth, 4 sensor, 5 event, 6 gap)
+  4  u32 epoch
+  8  u32 tick low      12 u32 tick high
+  16 f64 simTimeS      (seconds since epoch start)
+  24 f64 wallTimeMs    (producer performance.now())
+  32 f64 x 12 values   (gap: lostRecords, fromTick, toTick, reason 1 queue full / 2 storage backpressure)
+
+Chunk: 32-byte header + records * 128 bytes.
+  0 u32 magic 0x4b484341 ("ACHK"); 4 u32 version = 1; 8 u32 sequence;
+  12 u32 record count; 16 f64 first tick; 24 u32 CRC-32 (IEEE) of the
+  record bytes; 28 u32 epoch of the first record.
+```
+
+Читатели проверяют magic, версию, размер и CRC до декодирования любой
+записи. Манифест сеанса (`mirage.aar` v1) содержит идентификатор сеанса,
+время создания, seed, частоту физики, SHA-256 сборки физики и конфигурации
+планера, обе области времени, число записей в чанке и фиксированный размер
+кольца в байтах и секундах; неизвестная версия отклоняется.

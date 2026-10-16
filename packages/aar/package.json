@@ -1,0 +1,12 @@
+{
+  "name": "@mirage/aar",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./format": "./src/format.ts",
+    "./recorder": "./src/recorder.ts",
+    "./storage": "./src/storage.ts",
+    "./recorder.worker": "./src/recorder.worker.ts"
+  }
+}

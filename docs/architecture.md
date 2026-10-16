@@ -911,3 +911,19 @@ open frame and is flagged frozen; output timestamps are the sensor frame times
 and non-increasing frames are rejected and counted. The controller has no
 access to physics, truth or AAR data. `thermal-status` derives the HUD label
 (NO SIGNAL, LIVE, NUC) and the time since and until calibration.
+
+### AAR recorder (TASK-076)
+
+`@mirage/aar` records input, actuator, truth, sensor, event and gap records
+(format in SPECS_SHARED_MEMORY section 8). `RecordingProducer.commit()` is the
+only physics-side call and does not allocate. The recorder Worker
+(`recorder.worker.ts`, logic in `recorder.ts`) drains the queue into
+CRC-checked chunks stored in IndexedDB (`storage.ts`; an in-memory store
+serves tests). The ring has a fixed byte cap computed from the configured
+duration (`ringBytesFor`, e.g. 30 min): before each chunk is stored the oldest
+chunks are evicted so stored bytes never exceed it. When storage has
+`maxPendingWrites` in flight the recorder stops draining and the queue absorbs
+the burst; records are lost only when the queue itself overflows, and that
+loss is counted and written as a gap record (count, tick range, reason storage
+backpressure or queue full). On stop the recorder drains the queue completely
+before sealing the last chunk.
