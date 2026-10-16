@@ -4,6 +4,7 @@ export * from './clock.ts';
 export * from './clock-policy.ts';
 export * from './demo-dynamics.ts';
 export * from './session-v2.ts';
+export * from './step-metrics.ts';
 
 /** ABI v1 400 Hz clock: fixed integration dt, bounded catch-up, dropped wall time is counted. */
 export class FixedStepClock extends MultiRateClock {

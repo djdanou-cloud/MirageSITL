@@ -1,6 +1,5 @@
 import { MAX_MODE_SLOT_V2, PILOT_FLAGS_MASK_V2, PILOT_RESERVED_WORDS_V2, PILOT_WORDS_V2, PilotOffsetV2,
   UNKNOWN_U32 } from './layout-v2.ts';
-import { isUint32 } from './state-v2.ts';
 
 /** Pilot mailbox v2 contents (docs/SPECS_SHARED_MEMORY.md section 3, "Pilot mailbox v2"). */
 export interface PilotInputV2 {
@@ -19,20 +18,21 @@ export function newPilotInputV2(): PilotInputV2 {
   return { expectedEpoch: 0, sampledWallTimeMs: 0, roll: 0, pitch: 0, yaw: 0, throttle: 0, flags: 0,
     calibratedModeSlot: UNKNOWN_U32, requestedMode: UNKNOWN_U32, deviceGeneration: 0, inputSampleId: 0 };
 }
-function within(value: number, min: number, max: number): boolean {
-  return Number.isFinite(value) && value >= min && value <= max;
-}
 /**
  * Shape check for a decoded mailbox. A false result means the consumer must
  * treat the input as invalid and disarm (epoch/staleness/device checks are
  * the consumer's session policy and are applied separately). Allocation-free.
  */
 export function isValidPilotInputV2(p: PilotInputV2): boolean {
-  return isUint32(p.expectedEpoch) && Number.isFinite(p.sampledWallTimeMs) &&
-    within(p.roll, -1, 1) && within(p.pitch, -1, 1) && within(p.yaw, -1, 1) && within(p.throttle, 0, 1) &&
-    isUint32(p.flags) && (p.flags & ~PILOT_FLAGS_MASK_V2) === 0 &&
-    isUint32(p.calibratedModeSlot) && (p.calibratedModeSlot <= MAX_MODE_SLOT_V2 || p.calibratedModeSlot === UNKNOWN_U32) &&
-    isUint32(p.requestedMode) && isUint32(p.deviceGeneration) && isUint32(p.inputSampleId);
+  // Inline comparisons only (see isValidTick): range tests reject NaN; (x >>> 0) === x is exactly uint32.
+  return (p.expectedEpoch >>> 0) === p.expectedEpoch && Math.abs(p.sampledWallTimeMs) <= Number.MAX_VALUE &&
+    p.roll >= -1 && p.roll <= 1 && p.pitch >= -1 && p.pitch <= 1 && p.yaw >= -1 && p.yaw <= 1 &&
+    p.throttle >= 0 && p.throttle <= 1 &&
+    (p.flags >>> 0) === p.flags && (p.flags & ~PILOT_FLAGS_MASK_V2) === 0 &&
+    (p.calibratedModeSlot >>> 0) === p.calibratedModeSlot &&
+    (p.calibratedModeSlot <= MAX_MODE_SLOT_V2 || p.calibratedModeSlot === UNKNOWN_U32) &&
+    (p.requestedMode >>> 0) === p.requestedMode && (p.deviceGeneration >>> 0) === p.deviceGeneration &&
+    (p.inputSampleId >>> 0) === p.inputSampleId;
 }
 
 const O = PilotOffsetV2;

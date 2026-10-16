@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CAPACITY_V2, HEADER_BYTES_V2, HeaderV2, PILOT_BYTES_V2, PILOT_OFFSET_V2, PilotCodecV2, PilotOffsetV2,
-  SHARED_BYTES_V2, STATE_STRIDE_V2, StateCodecV2, StateOffsetV2, UNKNOWN_U32, compareTicks, createSharedMemory,
+  F32_ROUNDING_LIMIT, SHARED_BYTES_V2, STATE_STRIDE_V2, StateCodecV2, StateOffsetV2, UNKNOWN_U32, compareTicks, createSharedMemory,
   createSharedMemoryV2, incrementTickInPlace, isValidFlightStateV2, isValidPilotInputV2, isValidTick,
   negotiateAbiVersion, newFlightStateV2, newPilotInputV2, simTimeFromTick, tickToNumber, validateSharedMemory,
   validateSharedMemoryV2 } from '@mirage/protocol';
@@ -157,5 +157,23 @@ describe('writer-side value contracts', () => {
     for (const change of broken) expect(isValidPilotInputV2({ ...pilot, ...change }), JSON.stringify(change)).toBe(false);
     expect(isValidPilotInputV2({ ...pilot, calibratedModeSlot: UNKNOWN_U32 })).toBe(true);
     expect(isValidPilotInputV2(newPilotInputV2())).toBe(true);
+  });
+});
+
+describe('inline numeric predicates', () => {
+  it('the f32 bound is exactly "Math.fround(x) is finite", including the rounding boundary', () => {
+    const below = F32_ROUNDING_LIMIT - 2 ** 75; // the next double below the limit (ulp at 2^128 is 2^76; half is representable)
+    expect(Number.isFinite(Math.fround(F32_ROUNDING_LIMIT))).toBe(false);
+    expect(Number.isFinite(Math.fround(below))).toBe(true);
+    const samples = [0, -0, 1, -1, 3.4028234663852886e38, -3.4028234663852886e38, F32_ROUNDING_LIMIT, -F32_ROUNDING_LIMIT, below, -below,
+      1e39, -1e39, Number.MAX_VALUE, Infinity, -Infinity, NaN, 5e-324, 1e-46];
+    for (let i = 0; i < 2000; i++) samples.push((i % 2 ? -1 : 1) * 10 ** (Math.floor(i / 20) - 50) * (1 + (i % 7) / 7));
+    for (const x of samples) expect(Math.abs(x) < F32_ROUNDING_LIMIT, String(x)).toBe(Number.isFinite(Math.fround(x)));
+  });
+  it('(x >>> 0) === x is exactly the uint32 test', () => {
+    const isUint32 = (x: number) => Number.isInteger(x) && x >= 0 && x <= 0xffffffff;
+    for (const x of [0, 1, 2 ** 31, 2 ** 32 - 1, 2 ** 32, -1, -0, 0.5, NaN, Infinity, 2 ** 53, 123456789.000001]) {
+      expect((x >>> 0) === x, String(x)).toBe(isUint32(x));
+    }
   });
 });

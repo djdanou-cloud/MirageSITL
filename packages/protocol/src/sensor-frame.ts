@@ -1,5 +1,5 @@
 import { SLOT_GEO, SLOT_VALUES, SPSC_SLOT_WORDS, SlotOffsetV2 } from './spsc-v2.ts';
-import { isUint32, isValidTick, type TickId } from './state-v2.ts';
+import { F32_ROUNDING_LIMIT, isValidTick, type TickId } from './state-v2.ts';
 
 // Sensor queue frames (docs/SPECS_SHARED_MEMORY.md section 5). Values travel
 // as f32; GNSS position travels as f64 degrees/metres MSL in geo_lat_lon_alt.
@@ -40,25 +40,27 @@ export function newSensorFrameV2(): SensorFrameV2 {
 function isSensorKind(kind: number): kind is SensorKind {
   return kind === 1 || kind === 2 || kind === 3 || kind === 4 || kind === 5;
 }
-const f32Finite = (value: number) => Number.isFinite(Math.fround(value));
-const exactF32Integer = (value: number, max: number) => Number.isInteger(value) && value >= 0 && value <= max && Math.fround(value) === value;
-
-/** Contract check shared by producer (before encoding) and consumer (after decoding). Allocation-free. */
+/**
+ * Contract check shared by producer (before encoding) and consumer (after decoding).
+ * Allocation-free; inline comparisons only (see isValidTick in state-v2.ts).
+ */
 export function isValidSensorFrameV2(f: SensorFrameV2): boolean {
   if (!isSensorKind(f.kind) || f.valueCount !== SENSOR_VALUE_COUNT[f.kind] || f.values.length !== SLOT_VALUES ||
-    f.geoLatLonAlt.length !== SLOT_GEO || !isUint32(f.epoch) || !isValidTick(f.tickId) || !isValidTick(f.sampleTimeUs) ||
-    !isUint32(f.sourceId) || !isUint32(f.validityFlags)) return false;
+    f.geoLatLonAlt.length !== SLOT_GEO || (f.epoch >>> 0) !== f.epoch || !isValidTick(f.tickId) || !isValidTick(f.sampleTimeUs) ||
+    (f.sourceId >>> 0) !== f.sourceId || (f.validityFlags >>> 0) !== f.validityFlags) return false;
   const gnss = f.kind === SensorKindV2.Gnss;
   if ((f.validityFlags & ~(COMMON_VALIDITY | (gnss ? GNSS_VALIDITY : 0))) !== 0) return false;
   for (let i = 0; i < SLOT_VALUES; i++) {
     const value = f.values[i]!;
-    if (i < f.valueCount ? !f32Finite(value) : value !== 0) return false;
+    if (i < f.valueCount ? !(Math.abs(value) < F32_ROUNDING_LIMIT) : value !== 0) return false;
   }
   if (gnss) {
     const lat = f.geoLatLonAlt[0]!, lon = f.geoLatLonAlt[1]!, alt = f.geoLatLonAlt[2]!;
     if (!(Math.abs(lat) <= 90) || !(Math.abs(lon) <= 180) || !Number.isFinite(alt)) return false;
     // Integer quantities carried as f32 must be exact; DOP placeholders are finite and nonnegative.
-    if (!exactF32Integer(f.values[GnssValue.FixType]!, 255) || !exactF32Integer(f.values[GnssValue.Satellites]!, 255)) return false;
+    // Integers 0..255 are exact in f32; (x >>> 0) === x rejects fractions, negatives, and NaN.
+    const fix = f.values[GnssValue.FixType]!, satellites = f.values[GnssValue.Satellites]!;
+    if ((fix >>> 0) !== fix || fix > 255 || (satellites >>> 0) !== satellites || satellites > 255) return false;
     if (!(f.values[GnssValue.Hdop]! >= 0) || !(f.values[GnssValue.Vdop]! >= 0)) return false;
   } else {
     for (let i = 0; i < SLOT_GEO; i++) if (f.geoLatLonAlt[i] !== 0) return false;

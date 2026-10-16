@@ -1,5 +1,5 @@
 import { SLOT_GEO, SLOT_VALUES, SPSC_SLOT_WORDS, SlotOffsetV2 } from './spsc-v2.ts';
-import { isUint32, isValidTick, type TickId } from './state-v2.ts';
+import { isValidTick, type TickId } from './state-v2.ts';
 
 // Actuator queue frames (docs/SPECS_SHARED_MEMORY.md section 5). Values are
 // normalized [-1,1]; a motor_map profile defines what each channel drives.
@@ -23,8 +23,8 @@ export function newActuatorFrameV2(): ActuatorFrameV2 {
 /** Allocation-free contract check used before encoding and after decoding. */
 export function isValidActuatorFrameV2(f: ActuatorFrameV2): boolean {
   if (f.kind !== ACTUATOR_FRAME_KIND || !Number.isInteger(f.actuatorCount) || f.actuatorCount < 0 || f.actuatorCount > MAX_ACTUATORS ||
-    f.normalizedActuators.length !== SLOT_VALUES || !isUint32(f.epoch) || !isValidTick(f.tickId) || !isValidTick(f.actuatorTimeUs) ||
-    !isUint32(f.motorMapId) || !isUint32(f.actuatorFlags) || (f.actuatorFlags & ~ACTUATOR_FLAGS_MASK_V2) !== 0) return false;
+    f.normalizedActuators.length !== SLOT_VALUES || (f.epoch >>> 0) !== f.epoch || !isValidTick(f.tickId) || !isValidTick(f.actuatorTimeUs) ||
+    (f.motorMapId >>> 0) !== f.motorMapId || (f.actuatorFlags >>> 0) !== f.actuatorFlags || (f.actuatorFlags & ~ACTUATOR_FLAGS_MASK_V2) !== 0) return false;
   for (let i = 0; i < SLOT_VALUES; i++) {
     const value = f.normalizedActuators[i]!;
     if (i < f.actuatorCount ? !(value >= -1 && value <= 1) : value !== 0) return false;

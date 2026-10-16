@@ -79,6 +79,7 @@ npm run typecheck
 npx --no-install vitest run tests/protocol.test.ts
 npx --no-install tsc --noEmit
 CHROMIUM_PATH=/usr/bin/chromium npm run test:browser
+node scripts/bench-physics.mjs
 ```
 
 TASK-002 is implemented: `npm run lint` applies typed rules to TypeScript and
@@ -95,6 +96,14 @@ when using Playwright's browser. If needed, install it separately with
 use `npm ci --cache /workspace/.cache/mirage-npm --no-audit --no-fund`.
 Do not change HOME or disable TLS/signature/checksum verification.
 
+TASK-014 adds `node scripts/bench-physics.mjs` (re-executes itself with
+`--expose-gc --max-semi-space-size=64`). It writes
+`test-results/bench/physics.json` (schema `docs/benchmarks/schema.json`):
+a zero-allocation verdict for the real PhysicsSessionV2 step after reaching
+steady state, compute p50/p95/p99/max, timer overhead, and real-time wakeup
+lateness/executed Hz. It runs in Node; it is not browser or target-hardware
+evidence.
+
 The following commands **do not exist yet**. The listed task introduces
 them, after which dependent work must run them:
 
@@ -104,7 +113,6 @@ them, after which dependent work must run them:
 | `cargo test --manifest-path native/Cargo.toml --workspace --locked` | TASK-016 | Scalar reference tests |
 | `cargo check --manifest-path native/Cargo.toml -p mirage-bet --target wasm32-unknown-unknown --locked` | TASK-016 | WASM target compilation; use crate name mirage-bet |
 | `node scripts/build-wasm.mjs` | TASK-017 | Scalar/SIMD artifacts and manifests |
-| `node scripts/bench-physics.mjs` | TASK-014 | Machine-readable step/allocation report |
 | `node scripts/build-jsbsim.mjs` | TASK-030 | Pinned Emscripten build |
 | `node scripts/run-sitl.mjs` | TASK-042 | Pinned native ArduPilot harness |
 

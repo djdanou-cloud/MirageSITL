@@ -432,3 +432,22 @@ renders with `latestPair` history, and validates Worker events. In
 sitl-lockstep a tick waits for the autopilot's actuator frame for exactly
 that tick and epoch. Sensor frames are not produced until an I/O Worker
 consumes them (TASK-034+).
+
+### Hot-path instrumentation (TASK-014)
+
+`step-metrics.ts` records compute duration (0.1 us bins), wakeup lateness
+(0.01 ms bins), and executed steps in preallocated fixed-bin histograms;
+quantiles are bin upper bounds capped by the exact maximum and are computed
+outside the hot path. `scripts/bench-physics.mjs` drives the real
+`PhysicsSessionV2` step and measures V8 young-generation allocation over
+windows of N and 2N steps after reaching steady state (repeated warm windows
+until one is GC-free), bounding the per-step rate by
+`min_k (bytes_k - empty_k)/k` and attributing `gc` events by time; an
+allocating control loop must be detected in the same run. The first
+measurements found real per-step allocations: variadic `Math.hypot`, and
+doubles boxed into HeapNumbers when passed to or returned from non-inlined
+calls, which made the result depend on TurboFan inlining. The hot path now
+passes time through numeric fields (`nowMs`, `*Now()` methods), returns an
+integer wakeup delay, and validates with inline comparisons only
+(`(x >>> 0) === x`, `|x| < F32_ROUNDING_LIMIT`). Timer overhead is reported
+separately from compute; Node timer pacing is not browser Worker evidence.

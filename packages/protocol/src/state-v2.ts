@@ -36,9 +36,24 @@ export const MAX_SAFE_TICK_HI = 0x1fffff;
 export function isUint32(value: unknown): value is number {
   return typeof value === 'number' && Number.isInteger(value) && value >= 0 && value <= 0xffffffff;
 }
+/**
+ * Hot-path numeric predicates are written inline, without helper calls that
+ * take doubles: when V8 does not inline such a helper it boxes the argument,
+ * allocating on every step (measured by scripts/bench-physics.mjs, TASK-014).
+ * `(x >>> 0) === x` is exactly "x is a uint32"; NaN, fractions, negatives,
+ * and values >= 2^32 fail it.
+ */
 export function isValidTick(t: TickId): boolean {
-  return isUint32(t.lo) && isUint32(t.hi) && t.hi <= MAX_SAFE_TICK_HI;
+  const lo = t.lo, hi = t.hi;
+  return (lo >>> 0) === lo && (hi >>> 0) === hi && hi <= MAX_SAFE_TICK_HI;
 }
+/**
+ * Math.fround(x) is finite iff |x| < 2^128 - 2^103 (round-to-nearest-even
+ * boundary above the largest float32); NaN fails the comparison.
+ */
+export const F32_ROUNDING_LIMIT = 3.4028235677973366e38;
+/** |x| <= Number.MAX_VALUE is exactly Number.isFinite for numbers. */
+const F64_MAX = Number.MAX_VALUE;
 /** Exact for valid ticks (< 2^53). */
 export function tickToNumber(t: TickId): number {
   return t.hi * 0x100000000 + t.lo;
@@ -70,31 +85,29 @@ export function copyFlightStateV2(source: FlightStateV2, target: FlightStateV2):
   copyTickInto(source.tickId, tick); copyTickInto(source.lastActuatorTick, actuator);
 }
 
-function finite32(value: number): boolean {
-  return Number.isFinite(Math.fround(value));
-}
 /**
  * Writer-side contract check: truth is finite, f32 fields fit f32, integer fields are uint32,
- * ticks are < 2^53, and unassigned flag bits are zero. Allocation-free.
+ * ticks are < 2^53, and unassigned flag bits are zero. Allocation-free; no helper calls with doubles.
  */
 export function isValidFlightStateV2(s: FlightStateV2): boolean {
-  return isUint32(s.sampleId) && isValidTick(s.tickId) && isValidTick(s.lastActuatorTick) &&
-    isUint32(s.epoch) && isUint32(s.modelId) && isUint32(s.autopilotMode) &&
-    Number.isFinite(s.simTimeS) && Number.isFinite(s.northM) && Number.isFinite(s.eastM) &&
-    Number.isFinite(s.downM) && Number.isFinite(s.scheduledWallTimeMs) &&
-    finite32(s.qw) && finite32(s.qx) && finite32(s.qy) && finite32(s.qz) &&
-    finite32(s.vnMps) && finite32(s.veMps) && finite32(s.vdMps) &&
-    finite32(s.anMps2) && finite32(s.aeMps2) && finite32(s.adMps2) &&
-    finite32(s.pRadS) && finite32(s.qRadS) && finite32(s.rRadS) &&
-    finite32(s.specificForceXBodyMps2) && finite32(s.specificForceYBodyMps2) && finite32(s.specificForceZBodyMps2) &&
-    finite32(s.trueAirspeedMps) && finite32(s.batteryVoltage) && finite32(s.batteryCurrentA) &&
-    finite32(s.ambientPressurePa) && finite32(s.groundClearanceM) && finite32(s.referenceRotorRpm) &&
-    finite32(s.autopilotStatusAgeMs) &&
-    isUint32(s.vehicleFlags) && (s.vehicleFlags & ~VEHICLE_FLAGS_MASK_V2) === 0 &&
-    isUint32(s.ekfFlags) && (s.ekfFlags & ~EKF_FLAGS_MASK_V2) === 0 &&
-    isUint32(s.ewFlags) && (s.ewFlags & ~EW_FLAGS_MASK_V2) === 0 &&
-    isUint32(s.sensorValidMask) && (s.sensorValidMask & ~SENSOR_VALID_MASK_V2) === 0 &&
-    isUint32(s.autopilotHealth) && (s.autopilotHealth & ~AUTOPILOT_HEALTH_MASK_V2) === 0;
+  const L32 = F32_ROUNDING_LIMIT;
+  return isValidTick(s.tickId) && isValidTick(s.lastActuatorTick) &&
+    (s.sampleId >>> 0) === s.sampleId && (s.epoch >>> 0) === s.epoch && (s.modelId >>> 0) === s.modelId && (s.autopilotMode >>> 0) === s.autopilotMode &&
+    Math.abs(s.simTimeS) <= F64_MAX && Math.abs(s.northM) <= F64_MAX && Math.abs(s.eastM) <= F64_MAX &&
+    Math.abs(s.downM) <= F64_MAX && Math.abs(s.scheduledWallTimeMs) <= F64_MAX &&
+    Math.abs(s.qw) < L32 && Math.abs(s.qx) < L32 && Math.abs(s.qy) < L32 &&
+    Math.abs(s.qz) < L32 && Math.abs(s.vnMps) < L32 && Math.abs(s.veMps) < L32 &&
+    Math.abs(s.vdMps) < L32 && Math.abs(s.anMps2) < L32 && Math.abs(s.aeMps2) < L32 &&
+    Math.abs(s.adMps2) < L32 && Math.abs(s.pRadS) < L32 && Math.abs(s.qRadS) < L32 &&
+    Math.abs(s.rRadS) < L32 && Math.abs(s.specificForceXBodyMps2) < L32 && Math.abs(s.specificForceYBodyMps2) < L32 &&
+    Math.abs(s.specificForceZBodyMps2) < L32 && Math.abs(s.trueAirspeedMps) < L32 && Math.abs(s.batteryVoltage) < L32 &&
+    Math.abs(s.batteryCurrentA) < L32 && Math.abs(s.ambientPressurePa) < L32 && Math.abs(s.groundClearanceM) < L32 &&
+    Math.abs(s.referenceRotorRpm) < L32 && Math.abs(s.autopilotStatusAgeMs) < L32 &&
+    (s.vehicleFlags >>> 0) === s.vehicleFlags && (s.vehicleFlags & ~VEHICLE_FLAGS_MASK_V2) === 0 &&
+    (s.ekfFlags >>> 0) === s.ekfFlags && (s.ekfFlags & ~EKF_FLAGS_MASK_V2) === 0 &&
+    (s.ewFlags >>> 0) === s.ewFlags && (s.ewFlags & ~EW_FLAGS_MASK_V2) === 0 &&
+    (s.sensorValidMask >>> 0) === s.sensorValidMask && (s.sensorValidMask & ~SENSOR_VALID_MASK_V2) === 0 &&
+    (s.autopilotHealth >>> 0) === s.autopilotHealth && (s.autopilotHealth & ~AUTOPILOT_HEALTH_MASK_V2) === 0;
 }
 
 const O = StateOffsetV2;

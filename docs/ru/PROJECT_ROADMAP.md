@@ -1,6 +1,6 @@
 # PROJECT_ROADMAP.md
 
-<!-- source-sha256: 89df11030283fd79760a77c10b0037168a7f0b37801205145fe7d0a723a0d091 -->
+<!-- source-sha256: b6f16418370e38d19f327675859e705b1521ee10b56b482037e9c31550e33dc8 -->
 
 Английский источник: [Source of truth](../PROJECT_ROADMAP.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -250,12 +250,13 @@ Google content без прав.
 
 ### TASK-014 — Измеритель hot path
 
-- **Status:** TODO.
+- **Status:** DONE — Claude; baseline 920bd23; 2026-10-16.
 - **Title & Description:** Добавить allocation/step/deadline профилирование с машинным отчётом.
 - **Dependencies:** TASK-009, TASK-011, TASK-013.
-- **Touched Files:** `packages/physics/src/step-metrics.ts`, `scripts/bench-physics.mjs`, `tests/step-metrics.test.ts`, `docs/benchmarks/schema.json`.
+- **Touched Files:** `packages/physics/src/step-metrics.ts`, `scripts/bench-physics.mjs`, `tests/step-metrics.test.ts`, `docs/benchmarks/schema.json`, `packages/physics/src/index.ts`, `packages/physics/src/clock.ts`, `packages/physics/src/clock-policy.ts`, `packages/physics/src/demo-dynamics.ts`, `packages/physics/src/session-v2.ts`, `packages/protocol/src/state-v2.ts`, `packages/protocol/src/pilot-v2.ts`, `packages/protocol/src/sensor-frame.ts`, `packages/protocol/src/actuator-frame.ts`, `tests/layout-v2.test.ts`, `CLAUDE.md`, `docs/ru/CLAUDE.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
 - **Interfaces / Contracts:** G1/G3; отдельно compute duration, wakeup lateness и executed Hz.
 - **DoD & Acceptance Criteria:** После warmup 1e6 шагов: explicit JS/WASM allocations=0, arena size постоянен; baseline report содержит p50/p95/p99/max и environment; profiler overhead измерен отдельно.
+- **Evidence:** Владелец Claude; baseline 920bd23; 2026-10-16. node scripts/bench-physics.mjs (Node 22.22.0, V8 12.4, --expose-gc --max-semi-space-size=64) на реальном шаге PhysicsSessionV2 при 400 Гц: zeroAllocation=true в 8 из 8 последовательных прогонов, верхняя граница на шаг 0.00000 B по окнам без GC из 1e6 и 2e6 шагов, 0 событий GC, аллоцирующий контроль обнаружен в каждом прогоне; compute p50 около 1.0 мкс, p99 около 1.9 мкс (накладные расходы таймера около 0.1 мкс/шаг сообщаются отдельно); прогон в реальном времени в Node около 400 Гц выполнено, задержка пробуждения p99 около 0.6 мс. До исправления тот же инструмент нашёл 93 события GC на 1e6 шагов: вариадический Math.hypot (124 GC на 1e6 вызовов отдельно) и упаковку double в невстраиваемых вызовах (sampling heap profiler V8 с учётом собранных объектов обнаружил один HeapNumber 16 байт на шаг в isValidFlightStateV2), из-за чего результаты между процессами были бимодальными. Исправления: время передаётся через числовые поля, целочисленные задержки пробуждения, встроенные сравнения в валидаторах (тесты точной эквивалентности для границы f32 и проверки uint32). Мутация: один небольшой объект на tick меняет вердикт (22 GC). tests/step-metrics.test.ts: 3 PASS (квантили/overflow/max гистограммы, раздельные метрики, прогон bench на 1e6 шагов, проверенный по docs/benchmarks/schema.json с zeroAllocation=true); tests/layout-v2.test.ts +2. В JS нет arena (постоянство WASM arena относится к TASK-017/018). npm run lint, npm run typecheck, npm run check:docs exit 0. Утверждений о времени в browser Worker или на целевом оборудовании нет.
 
 ### TASK-015 — Интерполяция и смена epoch
 

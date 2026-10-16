@@ -56,6 +56,10 @@ export class PhysicsSessionV2 {
   private readonly dynamicsInput = newInput();
   private readonly state = newFlightStateV2();
   private readonly bodyScratch = new Float64Array(3);
+  // Time registers: hot-path doubles live in fields, never in call arguments or returns (V8 boxes those).
+  private monoMs = 0.5;
+  private wallMsNow = 0.5;
+  private scheduledWallMs = 0.5;
   private latch: ArmLatch = 'disarmed';
   private latchedGeneration = 0;
   private epoch: number;
@@ -107,12 +111,15 @@ export class PhysicsSessionV2 {
   drain(send: (result: CommandResultV2) => void): void { this.processor.drain(send); }
 
   /**
-   * One Worker wakeup. Returns the delay in ms until the next wakeup, or -1
-   * when stepping is idle (paused, disposed, or faulted). Allocation-free.
+   * One Worker wakeup. Returns the whole-millisecond delay until the next
+   * wakeup (rounded up; an integer, so V8 never boxes it), or -1 when stepping
+   * is idle (paused, disposed, or faulted). Allocation-free.
    */
   pump(): number {
     if (!this.runningValue || this.faultMessage !== '') return -1;
-    this.policy.pump(this.clock.monotonicMs(), this.gate, this.integrateTick, this.report);
+    this.monoMs = this.clock.monotonicMs();
+    this.policy.nowMs = this.monoMs;
+    this.policy.pumpNow(this.gate, this.integrateTick, this.report);
     this.writer.setCounters(this.policy.clock.overruns, this.policy.droppedSteps);
     if (this.report.fault !== 'none') {
       this.faultMessage = 'HITL session invalidated: a physics deadline was missed';
@@ -120,7 +127,7 @@ export class PhysicsSessionV2 {
       return -1;
     }
     if (this.report.waiting) return 1; // lockstep: poll for the autopilot's next frame
-    return Math.max(0, this.policy.clock.nextMs - this.clock.monotonicMs());
+    return Math.max(0, Math.ceil(this.policy.clock.nextMs - this.clock.monotonicMs()));
   }
 
   // --- ControlTargetV2 -----------------------------------------------------
@@ -198,10 +205,10 @@ export class PhysicsSessionV2 {
    * disconnect, or a changed device_generation unlatches and blocks rearming
    * until the armed request is withdrawn.
    */
-  private evaluatePilot(wallMs: number): void {
+  private evaluatePilot(): void {
     this.pilotReader.latest(this.pilot); // a miss keeps the last coherent sample
     const p = this.pilot, input = this.dynamicsInput;
-    const age = wallMs - p.sampledWallTimeMs;
+    const age = this.wallMsNow - p.sampledWallTimeMs;
     const valid = isValidPilotInputV2(p) && p.expectedEpoch === this.epoch && age >= 0 && age <= INPUT_TIMEOUT_MS &&
       (p.flags & PilotFlagV2.Connected) !== 0;
     const requested = valid && (p.flags & PilotFlagV2.Armed) !== 0;
@@ -221,22 +228,26 @@ export class PhysicsSessionV2 {
 
   /** Hot path: one fixed-dt integration and its state publication. */
   private integrate(tick: TickId): void {
-    const wallMs = this.clock.wallMs();
-    this.evaluatePilot(wallMs);
+    this.wallMsNow = this.clock.wallMs();
+    this.evaluatePilot();
     this.processor.beforeTick(tick);
-    this.dynamics.step(this.dynamicsInput, wallMs);
+    this.dynamics.nowMs = this.wallMsNow;
+    this.dynamics.stepNow(this.dynamicsInput);
     // Presentation time is the scheduled deadline in the shared wall timebase; freshness above used actual time.
-    this.publish(tick, wallMs - this.clock.monotonicMs() + this.policy.clock.nextMs);
+    this.scheduledWallMs = this.wallMsNow - this.monoMs + this.policy.clock.nextMs;
+    this.publish(tick);
     this.actuatorPending = false; // the frame for this tick was used
   }
 
   private publishEpochStart(): void {
     this.dynamics.state.wallTimeMs = this.clock.wallMs();
-    this.publish(this.policy.tick, this.clock.wallMs());
+    this.scheduledWallMs = this.clock.wallMs();
+    this.publish(this.policy.tick);
   }
 
   /** Maps demo truth into FlightStateV2 and publishes it. Allocation-free. */
-  private publish(tick: TickId, scheduledWallMs: number): void {
+  private publish(tick: TickId): void {
+    const scheduledWallMs = this.scheduledWallMs;
     const d = this.dynamics.state, s = this.state, hz = this.policy.hz;
     s.tickId.lo = tick.lo; s.tickId.hi = tick.hi; s.epoch = this.epoch; s.simTimeS = tickToNumber(tick) / hz;
     s.northM = d.north; s.eastM = d.east; s.downM = d.down;
@@ -248,7 +259,7 @@ export class PhysicsSessionV2 {
     rotateNedToBody(d.qw, d.qx, d.qy, d.qz, d.an, d.ae, d.ad - STANDARD_GRAVITY_MPS2, this.bodyScratch);
     s.specificForceXBodyMps2 = this.bodyScratch[0]!; s.specificForceYBodyMps2 = this.bodyScratch[1]!;
     s.specificForceZBodyMps2 = this.bodyScratch[2]!;
-    s.trueAirspeedMps = Math.hypot(d.vn, d.ve, d.vd); // still air
+    s.trueAirspeedMps = Math.sqrt(d.vn * d.vn + d.ve * d.ve + d.vd * d.vd); // still air; not Math.hypot (allocates)
     s.batteryVoltage = d.batteryVoltage; s.batteryCurrentA = 0; // demo has no electrical model
     s.ambientPressurePa = isaPressurePa(-d.down);
     s.scheduledWallTimeMs = scheduledWallMs;

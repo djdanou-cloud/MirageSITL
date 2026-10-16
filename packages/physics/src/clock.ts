@@ -19,6 +19,12 @@ export class MultiRateClock {
   nextMs = 0;
   droppedSteps = 0;
   overruns = 0;
+  /**
+   * Current monotonic time (ms) for advanceNow(). Hot-path callers set this
+   * field instead of passing a double argument: V8 boxes doubles passed to or
+   * returned from non-inlined calls, which allocates on every step.
+   */
+  nowMs = 0.5;
   /** Last integrated tick in the current epoch; tick 1 is the first integration. */
   readonly tick: TickId = { lo: 0, hi: 0 };
   private originMs = 0;
@@ -52,6 +58,12 @@ export class MultiRateClock {
    * number of executed steps. Allocation-free.
    */
   advance(nowMs: number, step: (tick: TickId) => void): number {
+    this.nowMs = nowMs;
+    return this.advanceNow(step);
+  }
+  /** advance() at `this.nowMs`; allocation-free. */
+  advanceNow(step: (tick: TickId) => void): number {
+    const nowMs = this.nowMs;
     let count = 0;
     while (nowMs >= this.nextMs && count < this.maxCatchUp) {
       this.incrementTick();

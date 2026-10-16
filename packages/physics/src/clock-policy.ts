@@ -35,6 +35,8 @@ export class SteppingPolicy {
   readonly clock: MultiRateClock;
   private faultValue: ClockFault = 'none';
   private readonly nextTick: TickId = { lo: 0, hi: 0 };
+  /** Monotonic time (ms) for pumpNow(); set as a field to avoid boxing a double argument per wakeup. */
+  nowMs = 0.5;
 
   constructor(options: SteppingPolicyOptions = {}) {
     const mode = options.mode ?? 'interactive';
@@ -57,18 +59,25 @@ export class SteppingPolicy {
 
   /** Runs due work for this wakeup and describes it in `out`. Never blocks; allocation-free. */
   pump(nowMs: number, gate: StepGate, step: (tick: TickId) => void, out: PumpReport): void {
+    this.nowMs = nowMs;
+    this.pumpNow(gate, step, out);
+  }
+  /** pump() at `this.nowMs`; allocation-free. */
+  pumpNow(gate: StepGate, step: (tick: TickId) => void, out: PumpReport): void {
     out.executed = 0; out.dropped = 0; out.waiting = false; out.fault = this.faultValue;
     if (this.faultValue !== 'none') return;
     switch (this.mode) {
       case 'interactive': {
         const before = this.clock.droppedSteps;
-        out.executed = this.clock.advance(nowMs, step);
+        this.clock.nowMs = this.nowMs;
+        out.executed = this.clock.advanceNow(step);
         out.dropped = this.clock.droppedSteps - before;
         return;
       }
       case 'hitl-realtime': {
         const before = this.clock.droppedSteps;
-        out.executed = this.clock.advance(nowMs, step);
+        this.clock.nowMs = this.nowMs;
+        out.executed = this.clock.advanceNow(step);
         out.dropped = this.clock.droppedSteps - before;
         if (out.dropped > 0) { this.faultValue = 'hitl-overrun'; out.fault = this.faultValue; }
         return;

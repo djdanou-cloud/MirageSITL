@@ -1,6 +1,6 @@
 # CLAUDE.md — MirageSITL agent instructions
 
-<!-- source-sha256: 0d1122e52687ca2b4a2ba392f0d687e4cadcf8eb56b07e087ad93b5f352e5d77 -->
+<!-- source-sha256: ca0724468cfbc725fca3d68a61065c851133999c44a9772c8bdcf7434e3659d2 -->
 
 Английский источник: [Source of truth](../../CLAUDE.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -88,6 +88,7 @@ npm run typecheck
 npx --no-install vitest run tests/protocol.test.ts
 npx --no-install tsc --noEmit
 CHROMIUM_PATH=/usr/bin/chromium npm run test:browser
+node scripts/bench-physics.mjs
 ```
 
 TASK-002 реализован: `npm run lint` включает typed правила TypeScript и
@@ -104,6 +105,14 @@ TASK-003 добавляет независимые GitHub Actions unit/browser/b
 `npm ci --cache /workspace/.cache/mirage-npm --no-audit --no-fund`.
 Не менять HOME и не отключать TLS/signature/checksum verification.
 
+TASK-014 добавляет `node scripts/bench-physics.mjs` (перезапускает себя с
+`--expose-gc --max-semi-space-size=64`). Скрипт пишет
+`test-results/bench/physics.json` (schema `docs/benchmarks/schema.json`):
+вердикт об отсутствии аллокаций для реального шага PhysicsSessionV2 после
+выхода на установившийся режим, compute p50/p95/p99/max, накладные расходы
+таймера и задержку пробуждений/выполненную частоту в реальном времени. Он
+работает в Node; это не доказательство для браузера или целевого оборудования.
+
 Команды **ещё отсутствуют**; внедряются указанной задачей и только после
 этого становятся обязательными для её зависимых задач:
 
@@ -113,7 +122,6 @@ TASK-003 добавляет независимые GitHub Actions unit/browser/b
 | `cargo test --manifest-path native/Cargo.toml --workspace --locked` | TASK-016 | scalar reference tests |
 | `cargo check --manifest-path native/Cargo.toml -p mirage-bet --target wasm32-unknown-unknown --locked` | TASK-016 | WASM target compile; crate name закрепить как mirage-bet |
 | `node scripts/build-wasm.mjs` | TASK-017 | scalar/SIMD artifacts + manifests |
-| `node scripts/bench-physics.mjs` | TASK-014 | machine-readable step/allocation report |
 | `node scripts/build-jsbsim.mjs` | TASK-030 | pinned Emscripten build |
 | `node scripts/run-sitl.mjs` | TASK-042 | pinned native ArduPilot harness |
 

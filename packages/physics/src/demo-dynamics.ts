@@ -17,9 +17,16 @@ export class DemoDynamics {
     this.spoolResponse = 1 - Math.exp(-this.dt / 0.075);
     this.rateResponse = 1 - Math.exp(-this.dt / 0.09);
   }
+  /** Wall time (ms) for stepNow(); a field, not an argument, so the hot path never boxes a double. */
+  nowMs = 0.5;
   reset(): void { Object.assign(this.state, newState()); }
   step(input: PilotInput, nowMs: number): void {
-    const s = this.state, DT = this.dt;
+    this.nowMs = nowMs;
+    this.stepNow(input);
+  }
+  /** step() at `this.nowMs`; allocation-free. */
+  stepNow(input: PilotInput): void {
+    const s = this.state, DT = this.dt, nowMs = this.nowMs;
     const age = nowMs - input.wallTimeMs;
     const valid = (input.flags & (ControlFlag.Connected | ControlFlag.Armed)) === 3 &&
       Number.isFinite(age) && age >= 0 && age <= INPUT_TIMEOUT_MS &&
@@ -39,7 +46,8 @@ export class DemoDynamics {
     s.qx += (w * s.p + y * s.r - z * s.q) * DT / 2;
     s.qy += (w * s.q + z * s.p - x * s.r) * DT / 2;
     s.qz += (w * s.r + x * s.q - y * s.p) * DT / 2;
-    const norm = Math.hypot(s.qw, s.qx, s.qy, s.qz);
+    // Math.sqrt of the sum of squares: variadic Math.hypot allocates on every call in V8 (TASK-014 measurement).
+    const norm = Math.sqrt(s.qw * s.qw + s.qx * s.qx + s.qy * s.qy + s.qz * s.qz);
     s.qw /= norm; s.qx /= norm; s.qy /= norm; s.qz /= norm;
     const thrust = 2 * 9.80665 * s.spool;
     // Body -Z thrust transformed to world NED. Acceleration is inertial,

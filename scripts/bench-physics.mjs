@@ -1,0 +1,234 @@
+// Physics hot-path benchmark (TASK-014). Writes a machine-readable report that
+// validates against docs/benchmarks/schema.json.
+//
+//   node scripts/bench-physics.mjs [--steps N] [--hz 400|800|1200] [--realtime-seconds S] [--out PATH]
+//
+// Drives the real PhysicsSessionV2 (the Worker's step: pilot mailbox read, arm
+// latch, control queue, demo dynamics, v2 state publication, header counters)
+// with a deterministic clock, one step per pump. Separately reports:
+//   allocation  young-generation bytes allocated over N warmed steps, with GC
+//               events attributed to the window (method validated by controls)
+//   compute     per-pump duration distribution (timer overhead reported apart)
+//   realtime    wall-clock run: wakeup lateness and executed Hz
+// The script re-executes itself with --expose-gc and a 64 MiB semi-space.
+import { execFileSync, spawnSync } from 'node:child_process';
+import { mkdirSync, writeFileSync } from 'node:fs';
+import os from 'node:os';
+import { dirname, resolve } from 'node:path';
+import { PerformanceObserver, performance } from 'node:perf_hooks';
+import { fileURLToPath } from 'node:url';
+import v8 from 'node:v8';
+
+const FLAGS = ['--expose-gc', '--max-semi-space-size=64'];
+const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+if (typeof globalThis.gc !== 'function') {
+  const child = spawnSync(process.execPath, [...FLAGS, fileURLToPath(import.meta.url), ...process.argv.slice(2)], { stdio: 'inherit' });
+  process.exit(child.status ?? 1);
+}
+
+function option(name, fallback) {
+  const index = process.argv.indexOf(`--${name}`);
+  return index >= 0 && index + 1 < process.argv.length ? process.argv[index + 1] : fallback;
+}
+const steps = Number(option('steps', '1000000'));
+const hz = Number(option('hz', '400'));
+const realtimeSeconds = Number(option('realtime-seconds', '3'));
+const out = resolve(root, option('out', 'test-results/bench/physics.json'));
+if (!Number.isInteger(steps) || steps < 1000 || ![400, 800, 1200].includes(hz) || !(realtimeSeconds > 0)) {
+  console.error('Invalid arguments'); process.exit(2);
+}
+
+const physics = await import(resolve(root, 'packages/physics/src/index.ts'));
+const protocol = await import(resolve(root, 'packages/protocol/src/index.ts'));
+
+// ---- allocation instrument -------------------------------------------------
+const gcEvents = [];
+const observer = new PerformanceObserver(list => { for (const e of list.getEntries()) gcEvents.push([e.startTime, e.startTime + e.duration]); });
+observer.observe({ entryTypes: ['gc'] });
+function youngBytes() {
+  for (const space of v8.getHeapSpaceStatistics()) if (space.space_name === 'new_space') return space.space_used_size;
+  throw new Error('V8 new_space statistics unavailable');
+}
+/**
+ * Runs `body(n)` twice (the first run warms the measured loop itself, including
+ * on-stack replacement), forcing a full GC before the measured run.
+ */
+function allocationWindow(body, n) {
+  body(n);
+  globalThis.gc();
+  const startMs = performance.now(), before = youngBytes();
+  body(n);
+  const after = youngBytes(), endMs = performance.now();
+  return { startMs, endMs, bytes: after - before };
+}
+const settle = () => new Promise(resolve => setTimeout(resolve, 50));
+const gcCount = window => gcEvents.filter(([s, e]) => e >= window.startMs && s <= window.endMs).length;
+/**
+ * Windows of n and 2n steps. A true per-step allocation rate r makes every
+ * GC-free window hold at least r*k bytes, so r <= min_k (bytes_k - empty_k) / k,
+ * where empty_k is the identical window of an empty loop (probe overhead).
+ * One-off engine allocations (code, feedback) only loosen the bound; any GC
+ * in a window means it allocated and that window cannot bound anything.
+ */
+function allocationWindows(body, n) {
+  return [{ steps: n, ...allocationWindow(body, n) }, { steps: 2 * n, ...allocationWindow(body, 2 * n) }];
+}
+/**
+ * Steady state: V8 tiers code up concurrently (interpreter, Maglev, TurboFan)
+ * and lower tiers box doubles. Repeat warm windows until one is GC-free
+ * (at most MAX_WARMUP_WINDOWS) so the measurement sees installed optimized
+ * code. The number of warm windows is reported; failing to settle is reported
+ * as such, never hidden.
+ */
+const MAX_WARMUP_WINDOWS = 20;
+async function warmToSteadyState(body, n) {
+  for (let k = 1; k <= MAX_WARMUP_WINDOWS; k++) {
+    const window = allocationWindow(body, n);
+    await settle();
+    if (gcCount(window) === 0) return { warmupWindows: k, steady: true };
+  }
+  return { warmupWindows: MAX_WARMUP_WINDOWS, steady: false };
+}
+function upperBound(windows, empty) {
+  let bound = Infinity, gcEvents = 0;
+  windows.forEach((window, i) => {
+    const gcs = gcCount(window); gcEvents += gcs;
+    if (gcs === 0) bound = Math.min(bound, Math.max(0, window.bytes - (empty?.[i]?.bytes ?? 0)) / window.steps);
+  });
+  return { bytesPerStepUpperBound: bound, gcEvents, windowBytes: windows.map(window => window.bytes) };
+}
+
+// ---- session under test ------------------------------------------------------
+function createSession(clockMode = 'interactive', clock) {
+  const stateBuffer = protocol.createSharedMemoryV2(400);
+  const session = new physics.PhysicsSessionV2({ type: 'init-v2', protocolVersion: 2, stateBuffer,
+    sensorBuffer: protocol.createSpscQueue('sensor'), actuatorBuffer: protocol.createSpscQueue('actuator') }, clock);
+  const reader = new protocol.StateReaderV2(stateBuffer), header = protocol.newHeaderSnapshotV2();
+  let requestId = 0;
+  const command = (type, extra = {}) => {
+    reader.readHeader(header);
+    session.handle({ protocolVersion: 2, requestId: ++requestId, expectedEpoch: header.sessionEpoch, type, ...extra });
+    session.drain(() => undefined);
+  };
+  if (hz !== 400) command('sim.configure', { hz, clockMode });
+  const pilotWriter = new protocol.PilotWriterV2(stateBuffer), pilot = protocol.newPilotInputV2();
+  const stick = throttle => {
+    reader.readHeader(header);
+    pilot.expectedEpoch = header.sessionEpoch; pilot.throttle = throttle;
+    pilot.flags = protocol.PilotFlagV2.Connected | protocol.PilotFlagV2.Armed;
+    pilot.sampledWallTimeMs = clock.wallMs();
+    pilotWriter.publish(pilot);
+  };
+  command('sim.start');
+  return { session, stick, reader };
+}
+
+// Deterministic clock: each pump advances exactly one step, so one pump = one integration.
+const fake = { mono: 0 };
+const fakeClock = { monotonicMs: () => fake.mono, wallMs: () => 1.79e12 + fake.mono };
+const stepMs = 1000 / hz;
+const { session, stick } = createSession('interactive', fakeClock);
+stick(0);
+for (let i = 0; i < 20; i++) { fake.mono += stepMs; session.pump(); }
+stick(0.62); // armed climb: exercises the flying branch
+
+/** The measured loop: Main refreshes the stick every 40 steps (100 ms at 400 Hz) as rAF would. */
+function runSteps(n) {
+  for (let i = 0; i < n; i++) {
+    fake.mono += stepMs;
+    if (i % 40 === 0) stick(0.62);
+    session.pump();
+  }
+}
+const sink = { x: 0, o: null };
+const emptyLoop = n => { for (let i = 0; i < n; i++) sink.x += 0; };
+await warmToSteadyState(emptyLoop, steps);
+const emptyWindows = allocationWindows(emptyLoop, steps);
+const allocatingWindows = allocationWindows(n => { for (let i = 0; i < n; i++) sink.o = { i }; }, steps);
+const warmup = await warmToSteadyState(runSteps, steps);
+const measuredWindows = allocationWindows(runSteps, steps);
+await settle();
+const measuredResult = upperBound(measuredWindows, emptyWindows);
+const emptyResult = upperBound(emptyWindows), allocatingResult = upperBound(allocatingWindows, emptyWindows);
+// Any allocation in every step costs >= 8 bytes per step; one 8-byte object every 800 steps is 0.01 B/step.
+const BYTES_PER_STEP_THRESHOLD = 0.01;
+const allocation = {
+  steps, method: 'v8 new_space space_used_size over warmed windows of N and 2N steps after a forced GC; per-step upper bound min_k (bytes_k - empty_k)/k over GC-free windows; gc PerformanceObserver events attributed by time',
+  bytesPerStepUpperBound: measuredResult.bytesPerStepUpperBound, gcEventsInWindows: measuredResult.gcEvents,
+  windowBytes: measuredResult.windowBytes, emptyLoopWindowBytes: emptyResult.windowBytes,
+  thresholdBytesPerStep: BYTES_PER_STEP_THRESHOLD,
+  warmupWindows: warmup.warmupWindows, reachedSteadyState: warmup.steady,
+  zeroAllocation: warmup.steady && measuredResult.gcEvents === 0 && measuredResult.bytesPerStepUpperBound <= BYTES_PER_STEP_THRESHOLD,
+  controls: {
+    emptyLoopGcEvents: emptyResult.gcEvents,
+    allocatingLoop: { gcEvents: allocatingResult.gcEvents, detected: allocatingResult.gcEvents > 0 },
+  },
+  heapTotalBytesAfter: v8.getHeapStatistics().total_heap_size,
+};
+
+// ---- compute duration ----------------------------------------------------
+const metrics = new physics.StepMetrics();
+function timedSteps(n) {
+  for (let i = 0; i < n; i++) {
+    fake.mono += stepMs;
+    if (i % 40 === 0) stick(0.62);
+    const t0 = performance.now();
+    session.pump();
+    metrics.computeUs.record((performance.now() - t0) * 1000);
+  }
+}
+timedSteps(Math.min(steps, 100_000)); metrics.reset(); // warm the timed loop
+const timedStart = performance.now(); timedSteps(steps); const timedMs = performance.now() - timedStart;
+const plainStart = performance.now(); runSteps(steps); const plainMs = performance.now() - plainStart;
+const timerOverheadUs = Math.max(0, (timedMs - plainMs) * 1000 / steps);
+const compute = { unit: 'us', ...physics.summarize(metrics.computeUs), timerOverheadPerStepUs: timerOverheadUs,
+  untimedMeanUs: plainMs * 1000 / steps, note: 'per pump with one integration; distribution includes performance.now overhead' };
+
+// ---- real-time pacing ------------------------------------------------------
+const realClock = { monotonicMs: () => performance.now(), wallMs: () => performance.timeOrigin + performance.now() };
+const live = createSession('interactive', realClock);
+live.stick(0);
+const realtime = await new Promise(resolve => {
+  const runMetrics = new physics.StepMetrics(), header = protocol.newHeaderSnapshotV2(), state = protocol.newFlightStateV2();
+  const endAt = performance.now() + realtimeSeconds * 1000;
+  let scheduledAt = performance.now(), lastTick = 0;
+  const wake = () => {
+    const now = performance.now();
+    live.stick(0);
+    const t0 = performance.now();
+    const delay = live.session.pump();
+    const computeUs = (performance.now() - t0) * 1000;
+    live.reader.latest(state);
+    const tick = protocol.tickToNumber(state.tickId);
+    live.reader.readHeader(header);
+    runMetrics.recordWakeup(computeUs, Math.max(0, now - scheduledAt), tick - lastTick, 0, now);
+    lastTick = tick;
+    if (now >= endAt || delay < 0) {
+      resolve({ durationS: realtimeSeconds, targetHz: hz, executedHz: runMetrics.executedHz, executedSteps: runMetrics.executedSteps,
+        droppedSteps: header.droppedSteps, overruns: header.overruns,
+        wakeupLatenessMs: physics.summarize(runMetrics.latenessMs), wakeupComputeUs: physics.summarize(runMetrics.computeUs),
+        note: 'setTimeout-driven wakeups in Node; browser Worker timer behavior differs and is not measured here' });
+      return;
+    }
+    scheduledAt = now + delay;
+    setTimeout(wake, delay);
+  };
+  setTimeout(wake, 0);
+});
+observer.disconnect();
+
+const cpus = os.cpus();
+const report = {
+  schemaVersion: 1, benchmark: 'physics-session-v2', generatedAt: new Date().toISOString(),
+  environment: { node: process.version, v8: process.versions.v8, platform: process.platform, arch: process.arch,
+    cpuModel: cpus[0]?.model ?? 'unknown', cpuCount: cpus.length, flags: FLAGS,
+    commit: (() => { try { return execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(); } catch { return 'unknown'; } })() },
+  configuration: { hz, backend: 'demo', clockMode: 'interactive', steps, warmup: 'each window runs twice; the second run is measured' },
+  allocation, compute, realtime,
+};
+mkdirSync(dirname(out), { recursive: true });
+writeFileSync(out, JSON.stringify(report, null, 2) + '\n');
+console.log(`physics bench: zeroAllocation=${allocation.zeroAllocation} (<= ${allocation.bytesPerStepUpperBound.toFixed(5)} B/step, ${allocation.gcEventsInWindows} GC; ` +
+  `controls: allocating detected=${allocation.controls.allocatingLoop.detected}); ` +
+  `compute p50/p99/max=${compute.p50.toFixed(2)}/${compute.p99.toFixed(2)}/${compute.max.toFixed(2)} us; ` +
+  `realtime ${realtime.executedHz.toFixed(1)} Hz, lateness p99=${realtime.wakeupLatenessMs.p99.toFixed(2)} ms; report ${out}`);

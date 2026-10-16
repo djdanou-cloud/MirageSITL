@@ -247,12 +247,13 @@ copy Google content without rights.
 
 ### TASK-014 — Hot-path instrumentation
 
-- **Status:** TODO.
+- **Status:** DONE — Claude; baseline 920bd23; 2026-10-16.
 - **Title & Description:** Measure allocation counts, step duration, and deadline lateness in a machine-readable report.
 - **Dependencies:** TASK-009, TASK-011, TASK-013.
-- **Touched Files:** `packages/physics/src/step-metrics.ts`, `scripts/bench-physics.mjs`, `tests/step-metrics.test.ts`, `docs/benchmarks/schema.json`.
+- **Touched Files:** `packages/physics/src/step-metrics.ts`, `scripts/bench-physics.mjs`, `tests/step-metrics.test.ts`, `docs/benchmarks/schema.json`, `packages/physics/src/index.ts`, `packages/physics/src/clock.ts`, `packages/physics/src/clock-policy.ts`, `packages/physics/src/demo-dynamics.ts`, `packages/physics/src/session-v2.ts`, `packages/protocol/src/state-v2.ts`, `packages/protocol/src/pilot-v2.ts`, `packages/protocol/src/sensor-frame.ts`, `packages/protocol/src/actuator-frame.ts`, `tests/layout-v2.test.ts`, `CLAUDE.md`, `docs/ru/CLAUDE.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
 - **Interfaces / Contracts:** G1/G3; compute duration, wakeup lateness, and executed Hz are separate metrics.
 - **DoD & Acceptance Criteria:** After warmup, 1e6 steps have zero explicit JS/WASM allocations and constant arena size; baseline report records p50/p95/p99/max and environment; measure profiler overhead separately.
+- **Evidence:** Owner Claude; baseline 920bd23; 2026-10-16. node scripts/bench-physics.mjs (Node 22.22.0, V8 12.4, --expose-gc --max-semi-space-size=64) on the real PhysicsSessionV2 step at 400 Hz: zeroAllocation=true in 8 of 8 consecutive runs, per-step upper bound 0.00000 B over GC-free windows of 1e6 and 2e6 steps, 0 GC events, allocating control detected each run; compute p50 about 1.0 us, p99 about 1.9 us (timer overhead about 0.1 us/step reported separately); real-time Node run about 400 Hz executed, wakeup lateness p99 about 0.6 ms. Before the fix the same instrument found 93 GC events per 1e6 steps: variadic Math.hypot (124 GC per 1e6 calls in isolation) and doubles boxed across non-inlined calls (the V8 sampling heap profiler with collected objects located one 16-byte HeapNumber per step in isValidFlightStateV2), which made results bimodal across processes. Fixes: time passed through numeric fields, integer wakeup delays, inline validator comparisons (exact equivalence tests for the f32 bound and uint32 test). Mutation: one small object per tick flips the verdict (22 GC). tests/step-metrics.test.ts: 3 PASS (histogram quantiles/overflow/max, separate metrics, 1e6-step bench run validated against docs/benchmarks/schema.json with zeroAllocation=true); tests/layout-v2.test.ts +2. JS has no arena (WASM arena constancy belongs to TASK-017/018). npm run lint, npm run typecheck, npm run check:docs exit 0. No browser-Worker or target-hardware timing claim.
 
 ### TASK-015 — Interpolation and epoch changes
 
