@@ -1,6 +1,6 @@
 # PROJECT_ROADMAP.md
 
-<!-- source-sha256: ff635e958f88255fca58f992ff78df6789263852f084e13c663a84476d153817 -->
+<!-- source-sha256: f3e4a2ac7733b8003ae8b0dff713221dd865de22db2db59c5a6ae983d02809ae -->
 
 Английский источник: [Source of truth](../PROJECT_ROADMAP.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -883,12 +883,13 @@ Cargo bin активирован в PATH. Производительность M
 
 ### TASK-068 — Analog noise/jelly
 
-- **Status:** TODO.
+- **Status:** DONE — Claude; база 7478d6f; 2026-10-16 (WebGL2 проверен; допуски зависят от бэкенда; вариант для WebGPU не реализован).
 - **Title & Description:** Добавить seeded video interference, scanline и rolling-shutter deformation.
 - **Dependencies:** TASK-067.
-- **Touched Files:** `packages/cameras/src/analog.ts`, `packages/cameras/src/shaders/analog.glsl`, `tests/analog-noise.test.ts`, `tests/browser/analog.spec.ts`.
+- **Touched Files:** `packages/cameras/src/analog.ts`, `packages/cameras/src/shaders/analog.glsl`, `tests/analog-noise.test.ts`, `tests/browser/analog.spec.ts`, `packages/cameras/src/analog-material.ts`, `packages/cameras/package.json`, `tests/support/analog-harness.ts`.
 - **Interfaces / Contracts:** VideoNoiseConfig, throttle-decimated uniform; independent visual RNG.
 - **DoD & Acceptance Criteria:** Same seed/time => same frame; amplitude связан с газом только render-path; no CPU pixel loops/frame allocations; golden images tolerances pinned by backend, not cross-GPU pixel equality.
+- **Evidence:** Исполнитель Claude; база 7478d6f; 2026-10-16. Node 24.22.0: tests/analog-noise.test.ts 7 PASS: lowbias32 совпадает с независимой реализацией на Python на 5 векторах; seed кадра = hash(seed ^ hash(k)) с эталонными значениями из Python, не зависит от газа, 10000 различных seed кадров; циклы рендеринга 60 Hz и 144 Hz дают одинаковые uniform-переменные по видеокадрам (300 кадров); газ выбирается один раз за видеокадр и отображается в шум/«желе»/частоту вибрации, NaN -> 0, с ограничением; замороженный вход не меняется, и ни один метод не принимает состояние физики; неверные конфигурации отклоняются; 1e6 вызовов updateFrom с одним окном без GC из трёх. Chromium WebGL2 (SwiftShader): tests/browser/analog.spec.ts 5 PASS: при выключенных эффектах источник воспроизводится точно; одинаковые seed и видеокадр дают побайтно одинаковые кадры от разных рендереров, следующий видеокадр или другой seed отличаются; стандартное отклонение шума 2.9 / 17.7 уровня в пределах 20% при газе 0 / 1; вертикальная линия остаётся прямой без вибрации и изгибается на >= 6 px (<= 5 px от центра) на полном газе; строки развёртки не меняют изображение при одной строке на ряд пикселей и дают средние по рядам 73.3 / 118.7 при 24 строках с периодом четыре ряда. Убитые мутации: нет прореживания по кадрам, seed по числу кадров, газ без ограничения, «желе» без зависимости от газа, неинициализированное поле ScalarUniform (тест GC), шум пикселей без зависимости от кадра, без времени экспозиции строки, уменьшенный вдвое шум. Допуски относятся только к этому бэкенду.
 
 ### TASK-069 — WorldCover/OSM material map
 

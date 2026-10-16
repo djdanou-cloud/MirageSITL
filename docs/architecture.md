@@ -809,3 +809,23 @@ covers the frame. `shaders/fisheye.glsl` remaps output pixels with a fixed
 ten-step Newton inverse; `fisheyeSourceUvInto` is its float64 CPU mirror and
 `projectRayToUv` the forward model. Model `none` is the identity
 pass-through. Resizing keeps the horizontal field of view.
+
+### Analog FPV interference and rolling-shutter jelly (TASK-068)
+
+`AnalogVideo` (`@mirage/cameras/analog`) drives `shaders/analog.glsl`
+(GLSL ES 3.00, WebGL2): additive per-pixel noise, scanlines
+`1 − I(0.5 + 0.5 cos 2πv·lines)`, per-line tearing, and rolling-shutter jelly.
+Line i of video frame k is exposed at `t_k + i · lineTime` and shifted by
+`jellyAmplitude · throttle · sin(2π f_vib t + φ)` with
+`f_vib = f_min + throttle (f_max − f_min)`. Uniforms change only at video-frame
+boundaries (`k = floor(t · frameRate)`), so throttle is sampled once per video
+frame and the image does not depend on the render rate. The visual RNG is the
+stateless lowbias32 hash `seed ⊕ hash(k)`, independent of throttle, call count
+and every sensor/EW stream; the shader hashes pixel coordinates with the same
+integer hash, so equal seed, frame and throttle give identical bytes on one
+backend (no cross-GPU equality is claimed). Throttle is read, never written;
+nothing touches truth. All pixel work is on the GPU; `updateFrom` is
+allocation-free. Numeric uniforms are `ScalarUniform` class instances
+initialised to a double: object literals `{ value }` share one isolate-wide
+hidden class that becomes tagged once any code stores a non-number (such as a
+texture) in it, after which every double store allocates.

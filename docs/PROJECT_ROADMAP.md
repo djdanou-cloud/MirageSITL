@@ -880,12 +880,13 @@ were synchronized and checked. Changes remain local; no commit or push performed
 
 ### TASK-068 — Analog interference and jelly
 
-- **Status:** TODO.
+- **Status:** DONE — Claude; baseline 7478d6f; 2026-10-16 (WebGL2 verified; tolerances backend-specific; WebGPU variant not implemented).
 - **Title & Description:** Add seeded video noise, scanlines, and rolling-shutter deformation.
 - **Dependencies:** TASK-067.
-- **Touched Files:** `packages/cameras/src/analog.ts`, `packages/cameras/src/shaders/analog.glsl`, `tests/analog-noise.test.ts`, `tests/browser/analog.spec.ts`.
+- **Touched Files:** `packages/cameras/src/analog.ts`, `packages/cameras/src/shaders/analog.glsl`, `tests/analog-noise.test.ts`, `tests/browser/analog.spec.ts`, `packages/cameras/src/analog-material.ts`, `packages/cameras/package.json`, `tests/support/analog-harness.ts`.
 - **Interfaces / Contracts:** VideoNoiseConfig; throttle-decimated uniforms; independent visual RNG.
 - **DoD & Acceptance Criteria:** Equal seed/time gives the same frame; throttle affects rendering only; no CPU pixel loops/per-frame allocation; image tolerances are backend-specific, not cross-GPU pixel equality.
+- **Evidence:** Owner Claude; baseline 7478d6f; 2026-10-16. Node 24.22.0: tests/analog-noise.test.ts 7 PASS: lowbias32 matches an independent Python implementation on 5 vectors; frame seed = hash(seed ^ hash(k)) with Python reference values, unaffected by throttle, 10000 distinct frame seeds; 60 Hz and 144 Hz render loops produce identical per-video-frame uniforms (300 frames); throttle sampled once per video frame and mapped to noise/jelly/vibration frequency, NaN -> 0, clamped; frozen input unchanged and no method accepts physics state; invalid configs rejected; 1e6 updateFrom calls with one GC-free window of three. Chromium WebGL2 (SwiftShader): tests/browser/analog.spec.ts 5 PASS: all effects off reproduces the source exactly; equal seed and video frame give byte-identical frames from separate renderers, the next video frame or another seed differ; noise standard deviation 2.9 / 17.7 levels within 20% at throttle 0 / 1; a vertical line stays straight without vibration and bends by >= 6 px (<= 5 px from centre) at full throttle; scanlines leave one-line-per-row images unchanged and give 73.3 / 118.7 row means at 24 lines with a four-row period. Mutations killed: no frame decimation, frame-count seed, unclamped throttle, throttle-independent jelly, uninitialised ScalarUniform field (GC test), frame-independent pixel noise, no line exposure time, halved noise. Tolerances are for this backend only.
 
 ### TASK-069 — WorldCover/OSM material map
 

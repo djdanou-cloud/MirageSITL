@@ -6,7 +6,9 @@
   "exports": {
     "./fpv-camera": "./src/fpv-camera.ts",
     "./fisheye": "./src/fisheye.ts",
-    "./fisheye-material": "./src/fisheye-material.ts"
+    "./fisheye-material": "./src/fisheye-material.ts",
+    "./analog": "./src/analog.ts",
+    "./analog-material": "./src/analog-material.ts"
   },
   "dependencies": {
     "@mirage/protocol": "0.1.0",
