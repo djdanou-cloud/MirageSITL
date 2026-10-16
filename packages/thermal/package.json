@@ -1,0 +1,13 @@
+{
+  "name": "@mirage/thermal",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./data-manifest": "./src/data-manifest.ts",
+    "./material-map": "./src/material-map.ts"
+  },
+  "dependencies": {
+    "@mirage/sensors": "0.1.0"
+  }
+}

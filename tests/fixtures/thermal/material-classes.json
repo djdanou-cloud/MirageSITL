@@ -1,0 +1,37 @@
+{
+  "schema": "mirage.material-classes/1",
+  "note": "Surface material classes only. A class is not a temperature; thermal properties need calibrated data (TASK-070).",
+  "worldcover": {
+    "source": "ESA WorldCover 10 m v200 class legend (Product User Manual)",
+    "nodata": 0,
+    "classes": {
+      "10": { "material": "vegetation-tree", "label": "Tree cover" },
+      "20": { "material": "vegetation-shrub", "label": "Shrubland" },
+      "30": { "material": "vegetation-grass", "label": "Grassland" },
+      "40": { "material": "cropland", "label": "Cropland" },
+      "50": { "material": "built-up", "label": "Built-up" },
+      "60": { "material": "bare-soil", "label": "Bare / sparse vegetation" },
+      "70": { "material": "snow-ice", "label": "Snow and ice" },
+      "80": { "material": "water", "label": "Permanent water bodies" },
+      "90": { "material": "wetland", "label": "Herbaceous wetland" },
+      "95": { "material": "mangrove", "label": "Mangroves" },
+      "100": { "material": "moss-lichen", "label": "Moss and lichen" }
+    }
+  },
+  "osm": {
+    "source": "OpenStreetMap tags building=*, roof:material=*, highway=*",
+    "building": "roof-generic",
+    "roofMaterial": { "metal": "roof-metal", "concrete": "roof-concrete", "roof_tiles": "roof-tile", "tar_paper": "roof-bitumen", "glass": "roof-glass" },
+    "highway": {
+      "motorway": { "material": "asphalt", "widthM": 25 },
+      "trunk": { "material": "asphalt", "widthM": 20 },
+      "primary": { "material": "asphalt", "widthM": 12 },
+      "secondary": { "material": "asphalt", "widthM": 10 },
+      "tertiary": { "material": "asphalt", "widthM": 8 },
+      "residential": { "material": "asphalt", "widthM": 6 },
+      "service": { "material": "asphalt", "widthM": 4 },
+      "track": { "material": "gravel", "widthM": 3 }
+    }
+  },
+  "synthetic": "synthetic-ground"
+}

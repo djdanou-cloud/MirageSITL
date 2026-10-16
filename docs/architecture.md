@@ -58,6 +58,7 @@ The following components are planned; these directories do not yet exist:
 | `packages/ew` | Scenario observation faults and hazard volumes |
 | `packages/terrain` | Streaming visual LOD and independent collision LOD |
 | `packages/cameras` | Mounted FPV camera, lens distortion, analog video effects |
+| `packages/thermal` | Surface material classes (WorldCover/OSM) with provenance; not temperatures |
 | `packages/aar` | Input/actuator/truth/EKF recording and replay |
 | `services/tiles-worker` | Cloudflare proxy, quotas, permitted caching |
 | `native` | Source/toolchain pins and WASM reference tests |
@@ -829,3 +830,26 @@ allocation-free. Numeric uniforms are `ScalarUniform` class instances
 initialised to a double: object literals `{ value }` share one isolate-wide
 hidden class that becomes tagged once any code stores a non-number (such as a
 texture) in it, after which every double store allocates.
+
+### WorldCover/OSM material map (TASK-069)
+
+`@mirage/thermal/data-manifest` lists every material dataset
+(`mirage.thermal-data/1`) with provider, version, license, attribution,
+SHA-256 of the local file, CRS (EPSG:4326) and bounds. Provider rules are
+enforced: ESA WorldCover requires CC-BY-4.0 and "ESA WorldCover project" in the
+attribution, OpenStreetMap requires ODbL-1.0 and "OpenStreetMap contributors",
+and only the `synthetic` provider (CC0-1.0) may, and must, be marked
+synthetic. The module has no network code. `planWorldCoverTiles` lists the
+3°×3° tiles (named by their south-west corner, e.g. N45E006) a region needs
+and refuses plans above 4 tiles, so a region plan cannot grow into a bulk
+download. `@mirage/thermal/material-map` composes OSM buildings (roof by
+`roof:material`) over OSM roads (within half the nominal width per `highway`
+value) over WorldCover pixels (pixel-is-area, row 0 at the north edge,
+1/12000° pixels) over a synthetic default. No-data and points outside every
+layer return `synthetic-ground` with `synthetic: true`. Samples carry material
+id, source, dataset id and WorldCover code only: a land class is not a
+temperature, and the legend parser rejects extra fields such as a
+temperature. Every layer must be registered in the manifest, rasters must
+match their manifest bounds, and `attributions()` lists the datasets that
+actually contributed samples. GeoTIFF decoding and checks against real
+licensed tiles placed locally are not yet implemented.
