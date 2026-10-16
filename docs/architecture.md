@@ -57,6 +57,7 @@ The following components are planned; these directories do not yet exist:
 | `packages/autopilot` | Direct/external SITL/WASM SITL/HITL adapters |
 | `packages/ew` | Scenario observation faults and hazard volumes |
 | `packages/terrain` | Streaming visual LOD and independent collision LOD |
+| `packages/cameras` | Mounted FPV camera, lens distortion, analog video effects |
 | `packages/aar` | Input/actuator/truth/EKF recording and replay |
 | `services/tiles-worker` | Cloudflare proxy, quotas, permitted caching |
 | `native` | Source/toolchain pins and WASM reference tests |
@@ -789,3 +790,22 @@ then the renderer, and forces WebGL context loss. `webgpu.ts` is loaded on
 demand. The app keeps R3F's default WebGL renderer unless
 `?renderer=webgpu|webgl2` is given; the chosen backend and fallback reason
 are exposed as `data-render-backend` / `data-render-fallback` on the canvas.
+
+### FPV camera and fisheye lens (TASK-067)
+
+`@mirage/cameras` separates the mounted FPV view from the external camera.
+`FpvCamera` composes `q = B · q_bn · q_mount` with B the NED→render basis,
+q_bn the body-to-NED attitude ([w, x, y, z]; q and −q equivalent) and
+`q_mount = R_y(uptilt) · R_x(roll) · (three camera axes → FRD)`; position is
+`B (p_ned + R_bn · offset_frd)`. `update(pose)` reads a read-only pose and
+writes only its own three.js camera, without allocation; truth is never
+mutated. The lens is Kannala-Brandt (OpenCV fisheye):
+θ_d = θ(1 + k1θ² + k2θ⁴ + k3θ⁶ + k4θ⁸), normalized radius r_d = θ_d, with
+square pixels, a horizontal field of view across the full width and an
+optional principal-point offset. `fisheyeParams` validates monotonicity up to
+90°, limits incidence to 80° (a single pinhole source; wider lenses need a
+cubemap source, not implemented) and derives the pinhole source camera that
+covers the frame. `shaders/fisheye.glsl` remaps output pixels with a fixed
+ten-step Newton inverse; `fisheyeSourceUvInto` is its float64 CPU mirror and
+`projectRayToUv` the forward model. Model `none` is the identity
+pass-through. Resizing keeps the horizontal field of view.

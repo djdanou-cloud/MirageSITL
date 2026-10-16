@@ -1,6 +1,6 @@
 # PROJECT_ROADMAP.md
 
-<!-- source-sha256: f823f67bab2d7093e843c9b09832683f1e15674d282e7c43bdc6aee212f9ac4e -->
+<!-- source-sha256: ff635e958f88255fca58f992ff78df6789263852f084e13c663a84476d153817 -->
 
 Английский источник: [Source of truth](../PROJECT_ROADMAP.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -873,12 +873,13 @@ Cargo bin активирован в PATH. Производительность M
 
 ### TASK-067 — FPV camera/fisheye
 
-- **Status:** TODO.
+- **Status:** DONE — Claude; база 778ee75; 2026-10-16 (WebGL2 проверен; fisheye для WebGPU не реализован: проход — ShaderMaterial WebGL).
 - **Title & Description:** Отделить FPV pose/projection и lens distortion от внешней камеры.
 - **Dependencies:** TASK-015, TASK-066.
-- **Touched Files:** `packages/cameras/package.json`, `packages/cameras/src/fpv-camera.ts`, `packages/cameras/src/shaders/fisheye.glsl`, `tests/fisheye.test.ts`, `tests/browser/fpv.spec.ts`.
+- **Touched Files:** `packages/cameras/package.json`, `packages/cameras/src/fpv-camera.ts`, `packages/cameras/src/shaders/fisheye.glsl`, `tests/fisheye.test.ts`, `tests/browser/fpv.spec.ts`, `packages/cameras/src/fisheye.ts`, `packages/cameras/src/fisheye-material.ts`, `tests/support/fpv-harness.ts`, `package-lock.json`.
 - **Interfaces / Contracts:** CameraConfig {fov, mount FRD, distortion}; immutable truth.
 - **DoD & Acceptance Criteria:** Zero distortion identity; optical-center/radial mapping fixtures; positive/negative edge coordinates finite; analytic projection и viewport resize tested; no truth mutation.
+- **Evidence:** Исполнитель Claude; база 778ee75; 2026-10-16. Node 24.22.0: tests/fisheye.test.ts 11 PASS: модель none — точная тождественность с камерой-источником, выведенной из выходной; эквидистантная k=0 при 120° отображает 30° в u=0.75, а по вертикали — с учётом соотношения сторон пикселей (замкнутая форма); при k=0 и k=(0.08,-0.015,0.002,-0.0003) каждый луч (theta 0.5..60°, шесть азимутов) обращается в UV источника там, куда его проецирует PerspectiveCamera three.js с выведенными FOV/соотношением, с точностью 1e-9; смещение главной точки (20,-10) px помещает туда оптическую ось с радиальной симметрией; изменение размера сохраняет горизонтальное поле зрения; выходы конечны на сетке 121x121, включая 10% за краями, при полном покрытии кадра; немонотонные объективы, 170° и неверные размеры отклоняются. FpvCamera: оси вперёд на север/восток, проекция точки в 10 м впереди в центр, наклон вверх 30°, повёрнутое смещение крепления, вектор вправо при крене +90°, эквивалентность q/-q, замороженная поза не меняется, неверный кватернион игнорируется, изменение размера. Chromium WebGL2 (SwiftShader): tests/browser/fpv.spec.ts 3 PASS, fisheye.glsl против зеркала на CPU на 96x72 через текстуру, кодирующую координаты: 0 из 6912 пикселей не совпали в каждом случае (худшая ошибка 0, 1 и 1 тексель; объявленный допуск 1 тексель не более чем на 1% пикселей, 0 для тождественности). Убитые мутации: знак наклона, неповёрнутое смещение, порядок композиции крепления, защита от неверного кватерниона, число шагов Ньютона, ось главной точки, соотношение сторон пикселя, предел 80°, коэффициент производной; шейдер: один шаг Ньютона, переставленные оси фокуса источника, масштабированный радиус.
 
 ### TASK-068 — Analog noise/jelly
 

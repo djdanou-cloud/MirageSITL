@@ -870,12 +870,13 @@ were synchronized and checked. Changes remain local; no commit or push performed
 
 ### TASK-067 — FPV camera and fisheye
 
-- **Status:** TODO.
+- **Status:** DONE — Claude; baseline 778ee75; 2026-10-16 (WebGL2 verified; WebGPU fisheye not implemented: the pass is a WebGL ShaderMaterial).
 - **Title & Description:** Separate mounted FPV pose/projection and lens distortion from the external camera.
 - **Dependencies:** TASK-015, TASK-066.
-- **Touched Files:** `packages/cameras/package.json`, `packages/cameras/src/fpv-camera.ts`, `packages/cameras/src/shaders/fisheye.glsl`, `tests/fisheye.test.ts`, `tests/browser/fpv.spec.ts`.
+- **Touched Files:** `packages/cameras/package.json`, `packages/cameras/src/fpv-camera.ts`, `packages/cameras/src/shaders/fisheye.glsl`, `tests/fisheye.test.ts`, `tests/browser/fpv.spec.ts`, `packages/cameras/src/fisheye.ts`, `packages/cameras/src/fisheye-material.ts`, `tests/support/fpv-harness.ts`, `package-lock.json`.
 - **Interfaces / Contracts:** CameraConfig {fov, mount FRD, distortion}; immutable truth.
 - **DoD & Acceptance Criteria:** Zero distortion is identity; optical-center/radial fixtures and analytic projection/resize tests pass; edge coordinates stay finite; no truth mutation.
+- **Evidence:** Owner Claude; baseline 778ee75; 2026-10-16. Node 24.22.0: tests/fisheye.test.ts 11 PASS: model none is the exact identity with the output-derived source camera; equidistant k=0 at 120 deg maps 30 deg to u=0.75 and vertical by the pixel aspect (closed form); for k=0 and k=(0.08,-0.015,0.002,-0.0003) every ray (theta 0.5..60 deg, six azimuths) inverts onto the source UV where a three.js PerspectiveCamera with the derived FOV/aspect projects it, within 1e-9; principal-point offset (20,-10) px puts the optical axis there with radial symmetry; resize keeps horizontal FOV; outputs finite on a 121x121 grid including 10% beyond the edges, with the whole frame covered; non-monotonic lenses, 170 deg and invalid sizes rejected. FpvCamera: north/east forward axes, centre projection of a point 10 m ahead, 30 deg uptilt, rotated mount offset, roll +90 deg right vector, q/-q equivalence, frozen pose unchanged, invalid quaternion ignored, resize. Chromium WebGL2 (SwiftShader): tests/browser/fpv.spec.ts 3 PASS, fisheye.glsl against the CPU mirror on 96x72 via a coordinate-encoding texture: 0 of 6912 pixels mismatched in each case (worst error 0, 1 and 1 texel; declared tolerance 1 texel on <= 1% of pixels, 0 for the identity). Mutations killed: uptilt sign, unrotated offset, mount composition order, invalid-quaternion guard, Newton steps, principal-point axis, pixel aspect, 80 deg limit, derivative coefficient; shader: one Newton step, swapped source focal axes, scaled radius.
 
 ### TASK-068 — Analog interference and jelly
 

@@ -1,6 +1,6 @@
 # Архитектура MirageSITL
 
-<!-- source-sha256: bf25ead375413eee1dabb0a3e4617bf4cb5db10f4cdcb3f1df338a3712f247bb -->
+<!-- source-sha256: 19d8469c184f7e97c4cb41823a19d0f47b2b32b998fd4f650e2b23727128d5e7 -->
 
 Английский источник: [Source of truth](../architecture.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -62,6 +62,7 @@ tests/
 | `packages/autopilot` | direct/external SITL/WASM SITL/HITL adapters |
 | `packages/ew` | сценарные искажения наблюдений, hazard volumes |
 | `packages/terrain` | streaming render LOD, отдельный collision LOD |
+| `packages/cameras` | FPV-камера на креплении, дисторсия объектива, аналоговые видеоэффекты |
 | `packages/aar` | recorder/replay, входы/актуаторы/truth/EKF |
 | `services/tiles-worker` | Cloudflare proxy, квоты, разрешённый cache |
 | `native` | исходники/toolchain pins и эталонные тесты WASM |
@@ -814,3 +815,23 @@ Vulkan). `createRenderer` выполняет весь запуск WebGPU (ин�
 требованию. Приложение сохраняет стандартный WebGL-рендерер R3F, если не
 указан `?renderer=webgpu|webgl2`; выбранный бэкенд и причина отката доступны
 на холсте как `data-render-backend` / `data-render-fallback`.
+
+### FPV-камера и объектив «рыбий глаз» (TASK-067)
+
+`@mirage/cameras` отделяет установленную FPV-камеру от внешней камеры.
+`FpvCamera` составляет `q = B · q_bn · q_mount`, где B — базис NED→рендер,
+q_bn — ориентация корпус→NED ([w, x, y, z]; q и −q эквивалентны) и
+`q_mount = R_y(uptilt) · R_x(roll) · (оси камеры three → FRD)`; положение —
+`B (p_ned + R_bn · offset_frd)`. `update(pose)` читает позу только для чтения
+и записывает только собственную камеру three.js без выделения памяти; истина
+никогда не изменяется. Объектив — модель Kannala-Brandt (OpenCV fisheye):
+θ_d = θ(1 + k1θ² + k2θ⁴ + k3θ⁶ + k4θ⁸), нормированный радиус r_d = θ_d, с
+квадратными пикселями, горизонтальным полем зрения по всей ширине и
+необязательным смещением главной точки. `fisheyeParams` проверяет
+монотонность до 90°, ограничивает угол падения 80° (один источник-пинхол;
+более широким объективам нужен источник-кубическая карта, не реализован) и
+выводит камеру-источник пинхол, покрывающую кадр. `shaders/fisheye.glsl`
+перераспределяет выходные пиксели с фиксированным обращением Ньютона в десять
+шагов; `fisheyeSourceUvInto` — его зеркало на CPU в float64, а
+`projectRayToUv` — прямая модель. Модель `none` — тождественная передача.
+Изменение размера сохраняет горизонтальное поле зрения.
