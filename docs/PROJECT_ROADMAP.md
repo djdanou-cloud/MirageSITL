@@ -442,7 +442,7 @@ were synchronized and checked. Changes remain local; no commit or push performed
 - **Status:** BLOCKED_DECISION — Codex; native patch passes; production binding is uncertified.
 - **Title & Description:** Integrate one chosen contact solver and synchronize impulses.
 - **Dependencies:** TASK-028.
-- **Touched Files:** `packages/physics/src/contact-backend.ts`, `packages/physics/src/ground-contact.ts`, `tests/contact.test.ts`, `tests/fixtures/contact/drop.json`, `package-lock.json`, `packages/physics/package.json`, `tests/contact-allocation.test.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `tests/fixtures/registry.json`, `packages/physics/src/contact-engine.ts`, `scripts/bench-contact.mjs`, `native/rapier/allocation_probe.rs`, `native/rapier/source.lock.json`, `native/rapier/Cargo.lock`, `scripts/check-contact-native.mjs`, `CLAUDE.md`, `docs/ru/CLAUDE.md`, `native/rapier/patches/reuse-step-buffers.patch`, `scripts/check-engine-patch-parity.mjs`, `tests/engine-patch-parity.test.ts`.
+- **Touched Files:** `packages/physics/src/contact-backend.ts`, `packages/physics/src/ground-contact.ts`, `tests/contact.test.ts`, `tests/fixtures/contact/drop.json`, `package-lock.json`, `packages/physics/package.json`, `tests/contact-allocation.test.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `tests/fixtures/registry.json`, `packages/physics/src/contact-engine.ts`, `scripts/bench-contact.mjs`, `native/rapier/allocation_probe.rs`, `native/rapier/source.lock.json`, `native/rapier/Cargo.lock`, `scripts/check-contact-native.mjs`, `CLAUDE.md`, `docs/ru/CLAUDE.md`, `native/rapier/patches/reuse-step-buffers.patch`, `scripts/check-engine-patch-parity.mjs`, `tests/engine-patch-parity.test.ts`, `tests/fixtures/contact/nasa-drop.json`, `tests/fixtures/contact/generate_nasa_drop.py`, `tests/fixtures/contact/nasa/nasa-tm-x-3561.md`, `tests/fixtures/contact/nasa/nasa-tp-2353.md`, `tests/fixtures/contact/nasa/naca-report-1248.md`, `.gitattributes`, `packages/physics/src/nasa-drop.ts`, `packages/test-support/src/fixtures.ts`, `tests/fixtures.test.ts`, `scripts/check-docs.mjs`, `README.md`, `docs/ru/README.md`.
 - **Interfaces / Contracts:** ContactImpulse {pointBody,impulseNed,dt}; choose Rapier or Jolt in an ADR.
 - **DoD & Acceptance Criteria:** Drop/rolling/friction/nonpenetration fixtures pass; restitution adds no excess energy; a second solver never reintegrates the same body; meet G1 allocation budget.
 
@@ -451,6 +451,18 @@ were synchronized and checked. Changes remain local; no commit or push performed
 - **Retry Evidence:** Retry: reusable target getters and persistent raw force/torque/gravity vectors replace per-step wrapper construction; fixed-topology raw pipeline and idempotent disposal tested. Actual warmed JS probe still fails with 143/142/71 GC events per 1e6-step window (exit 1). Profiler-free native f64 Rapier 0.36.0, pinned source b716d375efc0201003f0cd9ef7168eee0b62c177: 1,688,500 allocator calls / 77,328,000 bytes over 1e6 steps (exit 2). Reports test-results/bench/contact.json and contact-native.json. Native f64 evidence does not certify packaged f32 WASM. G1 remains failed; no high-rate admission.
 
 - **Patch Retry Evidence (2026-10-16):** Opt-in storage-reuse patch: matching awake sphere/halfspace runs now measure original 2,002,500 calls / 96,320,000 bytes versus patched zero calls/bytes over 1e6 steps; trajectory checksum 317ba7c959cd2b59 matches. Patched report test-results/bench/contact-native-patched.json, CLI exit 0. Earlier finite-box/sleep-enabled counts are historical. The shipped JS binding still fails G1; general landing gear remains open.
+
+- **NASA Measured Drop Evidence (2026-10-16):** Owner Claude; baseline 71cf1cf.
+  - Archived three Docling sources byte-exact in `tests/fixtures/contact/nasa/`:
+    - TM X-3561, SHA-256 8cf5d33d1d2afbd4a28af064901fcf82910dad25e9e3ce916b2249e5d12c4c39;
+    - TP-2353, SHA-256 1a2a73a922c4b76b174968a554e7390c5e5d717322965ff959c056655b6b3aad;
+    - NACA Report 1248, SHA-256 e49485f4d8a44c151f09b39fff8c67fbb2fbf8441fb5aa19566ec5c1594630ba.
+  - `generate_nasa_drop.py` writes `nasa-drop.json` (SHA-256 62adb81b0a56b5e50a921db0e26d154501b0e4e83a58cfc2f22fed571bc69207). It is registered with measured provenance `NASA-TM-X-3561-DropTest`, https://ntrs.nasa.gov/citations/19780003109.
+  - `tests/contact.test.ts` replays 4/5/6 ft/s drops at 400/800/1200 Hz.
+    - Impulse, nonpenetration and energy checks pass.
+    - Measured deceleration fails: step peak -49.8 to -223.9 g and 10 ms window -12.43 to -18.65 g, against at or above -1.6 g.
+    - Measured stroke fails: contact travel at most 0.16 mm, against 55.9 to 111.8 mm.
+  - The rigid sphere is not a landing-gear model, so the status stays BLOCKED_DECISION.
 
 ### TASK-030 — Pinned JSBSim WASM artifact
 
@@ -497,7 +509,7 @@ were synchronized and checked. Changes remain local; no commit or push performed
 - **Status:** BLOCKED_EXTERNAL — Codex; retry verified on 2026-10-16.
 - **Title & Description:** Run numerical/reference validation and report model fidelity separately.
 - **Dependencies:** TASK-014, TASK-024, TASK-028, TASK-029, TASK-031.
-- **Touched Files:** `scripts/validate-models.mjs`, `tests/model-validation.test.ts`, `docs/validation/model-report.schema.json`, `tests/fixtures/validation/reference-manifest.json`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `scripts/check-engine-patch-parity.mjs`, `tests/engine-patch-parity.test.ts`.
+- **Touched Files:** `scripts/validate-models.mjs`, `tests/model-validation.test.ts`, `docs/validation/model-report.schema.json`, `tests/fixtures/validation/reference-manifest.json`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `scripts/check-engine-patch-parity.mjs`, `tests/engine-patch-parity.test.ts`, `packages/physics/src/nasa-drop.ts`, `packages/physics/src/ground-contact.ts`, `tests/fixtures/contact/nasa-drop.json`, `tests/fixtures/registry.json`, `README.md`, `docs/ru/README.md`.
 - **Interfaces / Contracts:** ValidityEnvelope; numerical parity is separate from experimental validity.
 - **DoD & Acceptance Criteria:** Smooth 10 s cases stay within 0.1 m/0.5 degrees of 4800 Hz references; meet scalar/SIMD force/moment tolerances in section 4; retain reference provenance; missing measurements block fidelity rather than producing a synthetic PASS.
 
@@ -510,6 +522,15 @@ were synchronized and checked. Changes remain local; no commit or push performed
 ## Phase 3: ArduPilot & Radio Link
 
 - **Patch Retry Evidence (2026-10-16):** Added original/patched native parity checker with source/patch/report SHA-256 and all-step trajectory checksums, plus rejection tests. Both patched native diagnostics pass; original JS/native gates remain failed. Model report v2 keeps those results separate and still exits 2 for blocked fidelity. Missing measured datasets, complete BET binding and WASM/contact integration remain explicit.
+
+- **NASA Measured Gate Evidence (2026-10-16):** Owner Claude.
+  - `reference-manifest.json` adds measurement `nasa-tm-x-3561-drop`. Its adapter `nasa-drop-contact-v1` is hash-checked against the registry.
+  - `node scripts/validate-models.mjs` writes schema v3 with `measuredValidation` (9 runs) and exits 2:
+    - numerical=pass (12 cases);
+    - fidelity=blocked: no rotor/airframe dataset;
+    - contactFidelity=failed;
+    - status=failed.
+  - The unpatched Rapier JS G1 failure and the missing BET binding remain separate blockers.
 
 ### TASK-034 — Ideal sensors
 

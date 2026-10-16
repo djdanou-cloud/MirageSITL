@@ -13,11 +13,13 @@
     "blockers",
     "positionToleranceM",
     "attitudeToleranceRad",
-    "diagnostics"
+    "diagnostics",
+    "contactFidelityStatus",
+    "measuredValidation"
   ],
   "properties": {
     "schemaVersion": {
-      "const": 2
+      "const": 3
     },
     "status": {
       "enum": [
@@ -257,6 +259,174 @@
                 "null"
               ],
               "pattern": "^[a-f0-9]{64}$"
+            }
+          }
+        }
+      }
+    },
+    "contactFidelityStatus": {
+      "enum": [
+        "pass",
+        "failed",
+        "blocked"
+      ]
+    },
+    "measuredValidation": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "datasetId",
+          "referenceUrl",
+          "license",
+          "acquiredAt",
+          "sourceSha256",
+          "consistencyStatus",
+          "status",
+          "runs"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "datasetId": {
+            "type": "string"
+          },
+          "referenceUrl": {
+            "type": "string",
+            "pattern": "^https://"
+          },
+          "license": {
+            "type": "string"
+          },
+          "acquiredAt": {
+            "type": "string"
+          },
+          "sourceSha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "consistencyStatus": {
+            "enum": [
+              "pass",
+              "failed"
+            ]
+          },
+          "status": {
+            "enum": [
+              "pass",
+              "failed"
+            ]
+          },
+          "runs": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "caseId",
+                "hz",
+                "sinkRateMps",
+                "peakAccelerationDownMps2",
+                "windowedPeakAccelerationDownMps2",
+                "measuredMinAccelerationDownMps2",
+                "maxPenetrationM",
+                "measuredMaxStrutStrokeM",
+                "arrestImpulseNs",
+                "sinkMomentumNs",
+                "impulseBalanceErrorNs",
+                "reboundSpeedMps",
+                "checks"
+              ],
+              "properties": {
+                "caseId": {
+                  "type": "string"
+                },
+                "hz": {
+                  "enum": [
+                    400,
+                    800,
+                    1200
+                  ]
+                },
+                "sinkRateMps": {
+                  "type": "number",
+                  "exclusiveMinimum": 0
+                },
+                "peakAccelerationDownMps2": {
+                  "type": "number"
+                },
+                "windowedPeakAccelerationDownMps2": {
+                  "type": "number"
+                },
+                "measuredMinAccelerationDownMps2": {
+                  "type": "number"
+                },
+                "maxPenetrationM": {
+                  "type": "number"
+                },
+                "measuredMaxStrutStrokeM": {
+                  "type": "number"
+                },
+                "arrestImpulseNs": {
+                  "type": "number"
+                },
+                "sinkMomentumNs": {
+                  "type": "number"
+                },
+                "impulseBalanceErrorNs": {
+                  "type": "number"
+                },
+                "reboundSpeedMps": {
+                  "type": "number"
+                },
+                "checks": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "impulse",
+                    "nonpenetration",
+                    "energy",
+                    "decelerationEnvelope",
+                    "strokeEnvelope"
+                  ],
+                  "properties": {
+                    "impulse": {
+                      "enum": [
+                        "pass",
+                        "failed"
+                      ]
+                    },
+                    "nonpenetration": {
+                      "enum": [
+                        "pass",
+                        "failed"
+                      ]
+                    },
+                    "energy": {
+                      "enum": [
+                        "pass",
+                        "failed"
+                      ]
+                    },
+                    "decelerationEnvelope": {
+                      "enum": [
+                        "pass",
+                        "failed"
+                      ]
+                    },
+                    "strokeEnvelope": {
+                      "enum": [
+                        "pass",
+                        "failed"
+                      ]
+                    }
+                  }
+                }
+              }
             }
           }
         }

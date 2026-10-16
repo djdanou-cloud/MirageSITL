@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { Ajv } from "ajv";
 import { expect, it } from "vitest";
 import schema from "../docs/validation/model-report.schema.json";
-it("writes numerical parity evidence but fails closed when fidelity prerequisites are missing", () => {
+it("writes numerical parity and NASA drop evidence and fails closed on missing or failed fidelity", () => {
   const result = spawnSync(process.execPath, ["scripts/validate-models.mjs"], {
     encoding: "utf8",
   });
@@ -14,12 +14,25 @@ it("writes numerical parity evidence but fails closed when fidelity prerequisite
   expect(
     new Ajv({ strict: true, allowUnionTypes: true }).compile(schema)(report),
   ).toBe(true);
+  // Rotor/airframe data are absent (blocked); the NASA drop comparison runs and fails.
   expect(report).toMatchObject({
-    status: "blocked",
+    schemaVersion: 3,
+    status: "failed",
     numericalStatus: "pass",
     fidelityStatus: "blocked",
+    contactFidelityStatus: "failed",
+    measuredValidation: [
+      {
+        id: "nasa-tm-x-3561-drop",
+        datasetId: "NASA-TM-X-3561-DropTest",
+        referenceUrl: "https://ntrs.nasa.gov/citations/19780003109",
+        license: "Public-Domain-US-Gov",
+        consistencyStatus: "pass",
+        status: "failed",
+      },
+    ],
   });
-  expect(result.stdout).toContain("12 cases");
+  expect(result.stdout).toContain("12 cases; 1 measured");
 }, 300000);
 it("retains pinned reference rate and rejects a missing JSBSim source", () => {
   expect(() =>
@@ -42,6 +55,32 @@ it("rejects empty/misordered rates and unsupported measurements before building"
     { testHz: [] },
     { testHz: [1200, 800, 400] },
     { measurements: [{}] },
+    {
+      measurements: [
+        {
+          id: "x",
+          adapter: "unknown-adapter",
+          fixture: "tests/fixtures/contact/nasa-drop.json",
+          registryId: "nasa-tm-x-3561-drop-v1",
+          sourceSha256: "0".repeat(64),
+          datasetId: "x",
+          referenceUrl: "https://ntrs.nasa.gov/",
+        },
+      ],
+    },
+    {
+      measurements: [
+        {
+          id: "x",
+          adapter: "nasa-drop-contact-v1",
+          fixture: "tests/fixtures/../../secret.json",
+          registryId: "nasa-tm-x-3561-drop-v1",
+          sourceSha256: "0".repeat(64),
+          datasetId: "x",
+          referenceUrl: "https://ntrs.nasa.gov/",
+        },
+      ],
+    },
     { cases: [] },
   ]) {
     const result = spawnSync(

@@ -1,0 +1,430 @@
+{
+  "formatVersion": 1,
+  "id": "nasa-tm-x-3561-drop-v1",
+  "datasetId": "NASA-TM-X-3561-DropTest",
+  "conventions": {
+    "frame": "NED; vertical axis positive down",
+    "accelerationSign": "kinematic vertical acceleration, positive down (source line 145)",
+    "standardGravityMps2": 9.80665,
+    "sourceUnits": "U.S. Customary are the measured values (source line 99); printedSi records the report's own rounded SI conversion as a cross-check",
+    "conversionFactors": {
+      "ftToM": 0.3048,
+      "inToM": 0.0254,
+      "lbmToKg": 0.45359237,
+      "lbfToN": 4.4482216152605,
+      "psiToPa": 6894.75729317,
+      "gToMps2": 9.80665
+    },
+    "instrumentBandwidth": "accelerometer and pressure signals filtered flat to 100 Hz (filter order not stated)"
+  },
+  "source": {
+    "reportId": "NASA TM X-3561",
+    "ntrsId": "19780003109",
+    "title": "Experimental and Analytical Determination of Characteristics Affecting Light Aircraft Landing-Gear Dynamics",
+    "authors": [
+      "Edwin L. Fasanella",
+      "John R. McGehee",
+      "M. Susan Pappas"
+    ],
+    "organization": "NASA Langley Research Center, Hampton, VA",
+    "reportDate": "1977-11",
+    "referenceUrl": "https://ntrs.nasa.gov/citations/19780003109",
+    "archive": "nasa/nasa-tm-x-3561.md",
+    "archiveSha256": "8cf5d33d1d2afbd4a28af064901fcf82910dad25e9e3ce916b2249e5d12c4c39",
+    "license": "Public-Domain-US-Gov",
+    "notes": "NTRS id taken from the supplied file name; the Docling text omits it. Test dates are not stated; acquiredAt uses the report date."
+  },
+  "relatedSources": [
+    {
+      "reportId": "NASA TP-2353",
+      "ntrsId": "19840024308",
+      "title": "Validation of an Active Gear, Flexible Aircraft Take-Off and Landing Analysis (AGFATL)",
+      "authors": [
+        "John R. McGehee"
+      ],
+      "reportDate": "1984-09",
+      "referenceUrl": "https://ntrs.nasa.gov/citations/19840024308",
+      "archive": "nasa/nasa-tp-2353.md",
+      "archiveSha256": "1a2a73a922c4b76b174968a554e7390c5e5d717322965ff959c056655b6b3aad",
+      "used": false,
+      "reason": "Drop-test (5.5 ft/s) force and stroke results exist only as figure images; the Docling text has no tabulated values."
+    },
+    {
+      "reportId": "NACA Report 1248",
+      "ntrsId": "19930092250",
+      "title": "An Experimental Study of Applied Ground Loads in Landing",
+      "authors": [
+        "Benjamin Milwitzky",
+        "Dean C. Lindquist",
+        "Dexter M. Potter"
+      ],
+      "reportDate": "1955",
+      "referenceUrl": "https://ntrs.nasa.gov/citations/19930092250",
+      "archive": "nasa/naca-report-1248.md",
+      "archiveSha256": "e49485f4d8a44c151f09b39fff8c67fbb2fbf8441fb5aa19566ec5c1594630ba",
+      "used": false,
+      "reason": "Forward-speed spin-up tests on a 15-degree inclined gear; per-test results are in figures, and the text gives only instrument full-scale ranges."
+    }
+  ],
+  "rig": {
+    "dropMassKg": {
+      "value": 1487.7829736,
+      "unit": "kg",
+      "source": {
+        "value": 3280.0,
+        "unit": "lbm",
+        "quote": "| Drop mass (mass acting on gear), kg (Ibm)                                         | 1490          | (3280)      |",
+        "line": 259
+      },
+      "printedSi": {
+        "value": 1490.0,
+        "unit": "kg"
+      }
+    },
+    "hubMassKg": {
+      "value": 25.265095009,
+      "unit": "kg",
+      "source": {
+        "value": 55.7,
+        "unit": "lbm",
+        "quote": "| Hub mass (wheel, tire, and piston), kg (Ibm)                                      | 25.3          | (55.7)      |",
+        "line": 260
+      },
+      "printedSi": {
+        "value": 25.3,
+        "unit": "kg"
+      }
+    },
+    "maxStrutStrokeM": {
+      "value": 0.2286,
+      "unit": "m",
+      "source": {
+        "value": 0.75,
+        "unit": "ft",
+        "quote": "| Maximum shock strut stroke, m (ft)                                                | 0.229         | (0.75)      |",
+        "line": 261
+      },
+      "printedSi": {
+        "value": 0.229,
+        "unit": "m"
+      }
+    },
+    "tireUnloadedRadiusM": {
+      "value": 0.275844,
+      "unit": "m",
+      "source": {
+        "value": 1.81,
+        "unit": "ft (diameter)",
+        "quote": "| Unloaded diameter of tire, d, m (ft)                                   | 0.552 (1.81)                 |",
+        "line": 274
+      },
+      "printedSi": {
+        "value": 0.552,
+        "unit": "m (diameter)"
+      }
+    },
+    "tireWidthM": {
+      "value": 0.1748028,
+      "unit": "m",
+      "source": {
+        "value": 0.5735,
+        "unit": "ft",
+        "quote": "| Maximum width of undeHected tire, w, m (ft)                            | 0.175 (0.5735)               |",
+        "line": 275
+      },
+      "printedSi": {
+        "value": 0.175,
+        "unit": "m"
+      }
+    },
+    "tireInflationGaugePa": {
+      "value": 413685.43759,
+      "unit": "Pa",
+      "source": {
+        "value": 60.0,
+        "unit": "psig",
+        "quote": "The tire was inflated to 414 kPa (60 psig) for all tests.",
+        "line": 131
+      },
+      "printedSi": {
+        "value": 414.0,
+        "unit": "kPa"
+      }
+    },
+    "strutChargingGaugePa": {
+      "value": 1916742.5275,
+      "unit": "Pa",
+      "source": {
+        "value": 278.0,
+        "unit": "psig",
+        "quote": "gauge pressure for the fully extended gear was 1917 \u00b1 69 kPa (278 \u00b1 10 psig)",
+        "line": 131
+      },
+      "printedSi": {
+        "value": 1917.0,
+        "unit": "kPa"
+      },
+      "uncertainty": {
+        "value": 68947.5729317,
+        "unit": "Pa",
+        "source": {
+          "value": 10.0,
+          "unit": "psig",
+          "quote": "gauge pressure for the fully extended gear was 1917 \u00b1 69 kPa (278 \u00b1 10 psig)",
+          "line": 131
+        },
+        "printedSi": {
+          "value": 69.0,
+          "unit": "kPa"
+        }
+      }
+    },
+    "honeycombCrushForceN": {
+      "value": 16013.5978149,
+      "unit": "N",
+      "source": {
+        "value": 3600.0,
+        "unit": "lbf",
+        "quote": "crushed with a constant force level of about 16.00 kN (3600 lbf)",
+        "line": 121
+      },
+      "printedSi": {
+        "value": 16.0,
+        "unit": "kN"
+      }
+    },
+    "honeycombPreContactCrushM": {
+      "min": {
+        "value": 0.0254,
+        "unit": "m",
+        "source": {
+          "value": 1.0,
+          "unit": "in",
+          "quote": "Honeycomb cruish from 2.54 cm (1.0 in.) to 5.08 cm (2.0 in.) was allowed before tire contact.",
+          "line": 133
+        },
+        "printedSi": {
+          "value": 2.54,
+          "unit": "cm"
+        }
+      },
+      "max": {
+        "value": 0.0508,
+        "unit": "m",
+        "source": {
+          "value": 2.0,
+          "unit": "in",
+          "quote": "Honeycomb cruish from 2.54 cm (1.0 in.) to 5.08 cm (2.0 in.) was allowed before tire contact.",
+          "line": 133
+        },
+        "printedSi": {
+          "value": 5.08,
+          "unit": "cm"
+        }
+      }
+    },
+    "levelAxialFrictionMaxN": {
+      "value": 44.4822161526,
+      "unit": "N",
+      "source": {
+        "value": 10.0,
+        "unit": "lbf",
+        "quote": "the friction force is less -than 44 N (10 lbf)",
+        "line": 197
+      },
+      "printedSi": {
+        "value": 44.0,
+        "unit": "N"
+      }
+    },
+    "freeFallHeightFor6FpsM": {
+      "value": 0.17018,
+      "unit": "m",
+      "source": {
+        "value": 6.7,
+        "unit": "in",
+        "quote": "Only a 17.0-cm (6.7-in.) drop is required for the gear to accelerate, under gravity, to an impact velocity of 1.8 m/s (6 ft/s)",
+        "line": 133
+      },
+      "printedSi": {
+        "value": 17.0,
+        "unit": "cm"
+      }
+    }
+  },
+  "cases": [
+    {
+      "id": "level-4fps",
+      "surfaceInclinationRad": 0.0,
+      "sinkRateMps": {
+        "value": 1.2192,
+        "unit": "m/s",
+        "source": {
+          "value": 4.0,
+          "unit": "ft/s",
+          "quote": "vertical drops were conducted at impact velocities of 1.2, 1.5, and 1.8 m/s (4, 5, and 6 ft/s) onto a level surface",
+          "line": 43
+        },
+        "printedSi": {
+          "value": 1.2,
+          "unit": "m/s"
+        }
+      },
+      "dropsPerCase": {
+        "value": 3,
+        "unit": "1",
+        "source": {
+          "quote": "consisted of three drops at each impact velocity",
+          "line": 137
+        }
+      },
+      "measured": {
+        "maxStrutStrokeM": {
+          "value": 0.05588,
+          "unit": "m",
+          "source": {
+            "value": 2.2,
+            "unit": "in",
+            "quote": "varied from 5.6 cm (2.2 in.) for the 1.2-m/s (4-ft/s) impact velocity to 11.2 cm (4.4 in.) for the 1.8-m/s (6-ft/s) impact velocity.",
+            "line": 203
+          },
+          "printedSi": {
+            "value": 5.6,
+            "unit": "cm"
+          }
+        },
+        "minUpperMassAccelerationDownMps2": {
+          "value": -15.69064,
+          "unit": "m/s^2",
+          "source": {
+            "value": -1.6,
+            "unit": "g (standard gravity)",
+            "quote": "which occurs for the 1.8-m/s (6-ft/s) case does not exceed -1.6g",
+            "line": 209
+          }
+        },
+        "honeycombReboundTimeS": {
+          "value": 0.15,
+          "unit": "s",
+          "source": {
+            "value": 0.15,
+            "unit": "s",
+            "quote": "For the 1.2-m/s\u00b7 (4-ft/s) drop, the rebound occurs at 0.15 s",
+            "line": 209
+          }
+        }
+      }
+    },
+    {
+      "id": "level-5fps",
+      "surfaceInclinationRad": 0.0,
+      "sinkRateMps": {
+        "value": 1.524,
+        "unit": "m/s",
+        "source": {
+          "value": 5.0,
+          "unit": "ft/s",
+          "quote": "vertical drops were conducted at impact velocities of 1.2, 1.5, and 1.8 m/s (4, 5, and 6 ft/s) onto a level surface",
+          "line": 43
+        },
+        "printedSi": {
+          "value": 1.5,
+          "unit": "m/s"
+        }
+      },
+      "dropsPerCase": {
+        "value": 3,
+        "unit": "1",
+        "source": {
+          "quote": "consisted of three drops at each impact velocity",
+          "line": 137
+        }
+      },
+      "measured": {
+        "maxStrutStrokeM": {
+          "value": 0.09398,
+          "unit": "m",
+          "source": {
+            "value": 3.7,
+            "unit": "in",
+            "quote": "maximum stroking distance for drops on the level, 50, and 100 surfaces are approximately 9.4 cm (3.7 in.)",
+            "line": 219
+          },
+          "printedSi": {
+            "value": 9.4,
+            "unit": "cm"
+          }
+        },
+        "minUpperMassAccelerationDownMps2": {
+          "value": -15.69064,
+          "unit": "m/s^2",
+          "source": {
+            "value": -1.6,
+            "unit": "g (standard gravity)",
+            "quote": "which occurs for the 1.8-m/s (6-ft/s) case does not exceed -1.6g",
+            "line": 209
+          }
+        }
+      }
+    },
+    {
+      "id": "level-6fps",
+      "surfaceInclinationRad": 0.0,
+      "sinkRateMps": {
+        "value": 1.8288,
+        "unit": "m/s",
+        "source": {
+          "value": 6.0,
+          "unit": "ft/s",
+          "quote": "vertical drops were conducted at impact velocities of 1.2, 1.5, and 1.8 m/s (4, 5, and 6 ft/s) onto a level surface",
+          "line": 43
+        },
+        "printedSi": {
+          "value": 1.8,
+          "unit": "m/s"
+        }
+      },
+      "dropsPerCase": {
+        "value": 3,
+        "unit": "1",
+        "source": {
+          "quote": "consisted of three drops at each impact velocity",
+          "line": 137
+        }
+      },
+      "measured": {
+        "maxStrutStrokeM": {
+          "value": 0.11176,
+          "unit": "m",
+          "source": {
+            "value": 4.4,
+            "unit": "in",
+            "quote": "varied from 5.6 cm (2.2 in.) for the 1.2-m/s (4-ft/s) impact velocity to 11.2 cm (4.4 in.) for the 1.8-m/s (6-ft/s) impact velocity.",
+            "line": 203
+          },
+          "printedSi": {
+            "value": 11.2,
+            "unit": "cm"
+          }
+        },
+        "minUpperMassAccelerationDownMps2": {
+          "value": -15.69064,
+          "unit": "m/s^2",
+          "source": {
+            "value": -1.6,
+            "unit": "g (standard gravity)",
+            "quote": "which occurs for the 1.8-m/s (6-ft/s) case does not exceed -1.6g",
+            "line": 209
+          }
+        }
+      }
+    }
+  ],
+  "acceptance": {
+    "relativeTolerance": 0.1,
+    "penetrationToleranceM": 0.002,
+    "impulseRelativeTolerance": 0.01,
+    "decelerationWindowS": 0.01,
+    "notes": "Declared from the source before model evaluation: 10 percent on measured envelopes; 2 mm (twice Rapier's default allowed linear error) for penetration; 1 percent impulse balance; a 10 ms window matches the 100 Hz instrument bandwidth."
+  }
+}

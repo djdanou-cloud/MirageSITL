@@ -23,13 +23,19 @@ export class GroundContact implements ContactBackend {
   private readonly impulse = new Float64Array(3);
   private lastDt = 0;
   private readonly lastQ = new Float64Array([1, 0, 0, 0]);
+  private readonly mass: number;
+  private readonly radius: number;
+  // Plain fields instead of parameter properties keep this module loadable by
+  // Node type stripping (scripts/validate-models.mjs runs the NASA drop case).
   private constructor(
     state: BodyTruth,
-    private readonly mass: number,
-    private readonly radius: number,
+    mass: number,
+    radius: number,
     restitution: number,
     friction: number,
   ) {
+    this.mass = mass;
+    this.radius = radius;
     this.world = new RAPIER.World({ x: 0, y: 0, z: 9.80665 });
     this.world.numSolverIterations = 8;
     this.world.physicsPipeline.raw.set_profiler_enabled(false);

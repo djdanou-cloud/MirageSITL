@@ -69,7 +69,10 @@ const paths = new Set(execFileSync('git', ['ls-files', '--cached', '--others', '
 const textExtensions = new Set(['.md', '.ts', '.tsx', '.js', '.mjs', '.cjs', '.json', '.css', '.html', '.yml', '.yaml', '.toml', '.rs', '.cpp', '.h', '.glsl', '.wgsl', '.xml', '.txt', '.lock', '.mdc']);
 for (const path of paths) {
   if (!existsSync(resolve(root, path))) continue;
-  if (path.endsWith('.md')) assert.ok(registered.has(path), `Unregistered documentation pair: ${path}`);
+  // Archived source documents (for example Docling extractions of NASA reports)
+  // are raw fixture data, hashed by their generators, not bilingual documentation.
+  const fixtureArchive = path.startsWith('tests/fixtures/');
+  if (path.endsWith('.md') && !fixtureArchive) assert.ok(registered.has(path), `Unregistered documentation pair: ${path}`);
   if (path.startsWith('docs/ru/')) continue;
   if (textExtensions.has(extname(path)) || ['.gitignore', '.nvmrc'].includes(path)) {
     assert.ok(!cyrillic.test(read(path)), `Cyrillic text outside docs/ru/: ${path}`);

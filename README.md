@@ -176,6 +176,15 @@ engine specification for exact scope, commands and limitations. These native
 results do not certify the production Rapier JS/WASM binding, a JSBSim WASM build,
 contact coupling or physical fidelity. Preserve the SDK and measured-data blockers.
 
+The first measured fixture, `tests/fixtures/contact/nasa-drop.json`, holds the
+NASA TM X-3561 level-surface landing-gear drops
+(https://ntrs.nasa.gov/citations/19780003109). It was generated from the
+hashed Docling archive in `tests/fixtures/contact/nasa/` by
+`tests/fixtures/contact/generate_nasa_drop.py` and converted to SI. Against
+it, the Rapier sphere contact passes impulse, nonpenetration and energy
+consistency. It fails the measured deceleration (-1.6 g) and stroke envelopes,
+so `validate-models.mjs` reports the contact fidelity gate as failed.
+
 
 TASK-037/038/039/040/048/052/053/056/057/060 add a pinned MAVLink2 subset,
 versioned radio calibration/mode mapping, autopilot lifecycle admission, an

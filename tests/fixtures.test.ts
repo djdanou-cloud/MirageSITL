@@ -1,3 +1,4 @@
+import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
@@ -29,9 +30,34 @@ describe('versioned fixture provenance and random streams', () => {
       const bytes = readFileSync(new URL(`./fixtures/${entry.path}`, import.meta.url));
       const verified = await verifyFixture(entry.manifest, bytes);
       expect(verified.sourceSha256).toBe(createHash('sha256').update(bytes).digest('hex'));
-      expect(verified.provenance.kind).toBe('synthetic');
+      // Only the archived NASA drop measurements may claim measured provenance.
+      if (entry.path === 'contact/nasa-drop.json') {
+        expect(verified.provenance).toEqual({
+          kind: 'measured', datasetId: 'NASA-TM-X-3561-DropTest', license: 'Public-Domain-US-Gov',
+          acquiredAt: '1977-11-01T00:00:00Z', referenceUrl: 'https://ntrs.nasa.gov/citations/19780003109',
+        });
+      } else expect(verified.provenance.kind).toBe('synthetic');
       expect(Object.isFrozen(verified.validityEnvelope)).toBe(true);
     }
+  });
+  it('regenerates the NASA drop fixture byte-for-byte from the hashed archives', () => {
+    const result = spawnSync('python3', ['-I', 'tests/fixtures/contact/generate_nasa_drop.py', '--check'], { encoding: 'utf8' });
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.stdout).toContain('matches the archived sources');
+  });
+  it('requires complete HTTPS measured provenance without a derivation', async () => {
+    const entry = registry.fixtures.find(item => item.path === 'contact/nasa-drop.json');
+    if (!entry) throw new Error('NASA drop fixture is not registered');
+    const bytes = readFileSync(new URL(`./fixtures/${entry.path}`, import.meta.url));
+    const { referenceUrl, ...withoutUrl } = entry.manifest.provenance;
+    const invalid: unknown[] = [
+      { ...entry.manifest, provenance: withoutUrl },
+      { ...entry.manifest, provenance: { ...withoutUrl, reference: referenceUrl } },
+      { ...entry.manifest, provenance: { ...entry.manifest.provenance, referenceUrl: 'http://ntrs.nasa.gov/citations/19780003109' } },
+      { ...entry.manifest, provenance: { ...entry.manifest.provenance, derivation: 'fitted' } },
+      { ...entry.manifest, provenance: { ...entry.manifest.provenance, acquiredAt: 'unknown' } },
+    ];
+    for (const value of invalid) await expect(verifyFixture(value, bytes)).rejects.toThrow('provenance');
   });
   it('rejects wrong units, hashes, bounds, and synthetic relabeling', async () => {
     const entry = registry.fixtures[0]!;
