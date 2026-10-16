@@ -15,7 +15,14 @@ export type WebGpuProbe = { available: true; adapter: string } | { available: fa
  * that completes without losing the device. Some software adapters expose an
  * adapter but lose the device on first presentation; those are unavailable.
  */
-export async function probeWebGpu(): Promise<WebGpuProbe> {
+// Share in-flight/result capability per document: repeated device probes can
+// reset software GPU contexts and need not return identical driver loss messages.
+// Reload the document to retry capability detection after driver/device changes.
+let documentProbe:Promise<WebGpuProbe>|null=null;
+export function probeWebGpu():Promise<WebGpuProbe> {
+  return documentProbe ??= checkWebGpu();
+}
+async function checkWebGpu(): Promise<WebGpuProbe> {
   if (!globalThis.isSecureContext) return { available: false, reason: "WebGPU requires a secure context" };
   if (!("gpu" in navigator)) return { available: false, reason: "navigator.gpu is not exposed by this browser" };
   let device: GPUDevice | null = null;

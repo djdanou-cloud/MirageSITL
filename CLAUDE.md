@@ -361,3 +361,12 @@ integration. Use node scripts/bench-links-ew.mjs all 400 (also 800/1200) for
 Node allocation evidence, not hardware timing acceptance. Scalar conveniences
 may box floating-point values: high-rate composition uses typed-array inputs
 and outputs documented in the engine specification.
+
+
+## Local batch after baseline 660d86e
+
+The thermal library now has a synthetic energy solver, LWIR WebGL2 material and offset-only NUC. The demo UI has a source/freshness-aware attitude HUD, real Worker command ledger and a Main-decimated AAR recorder/review/archive flow. The new recorder Worker owns a separate SAB and bounded IndexedDB chunks. Do not describe this as full-rate synchronized sensor/actuator recording, complete resimulation or measured thermal fidelity.
+
+`EkfMonitor` parses the pinned ArduPilot diagnostic frames and `EkfWarmup` provides a 30 simulated second admission gate. Actual firmware execution/fast-forward integration remains blocked by TASK-042; TASK-043/074/075/078 must retain that gate. Do not enable autopilot READY merely because module/unit/browser tests pass. Unsupported demo weather/fault/model commands are intentionally rejected and must remain visibly rejected until their backend exists.
+
+Use `node scripts/bench-aar.mjs 400`, also 800 and 1200, to measure the actual recording encode/SPSC producer graph with allocation controls. Recorder I/O, snapshot/archive copies, thermal integration and React/chart decimation are outside the high-frequency loop. Run all unit tests and browser tests with the repository-pinned Rust toolchain active because existing WASM tests invoke Cargo. User authorization for this batch is local commits only; do not push until explicitly instructed.

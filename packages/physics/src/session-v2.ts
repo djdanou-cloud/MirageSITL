@@ -207,6 +207,8 @@ export class PhysicsSessionV2 {
    */
   private evaluatePilot(): void {
     this.pilotReader.latest(this.pilot); // a miss keeps the last coherent sample
+    // Capture receipt time after reading: Main may publish between clock and mailbox reads.
+    this.wallMsNow = this.clock.wallMs();
     const p = this.pilot, input = this.dynamicsInput;
     const age = this.wallMsNow - p.sampledWallTimeMs;
     const valid = isValidPilotInputV2(p) && p.expectedEpoch === this.epoch && age >= 0 && age <= INPUT_TIMEOUT_MS &&
@@ -228,7 +230,6 @@ export class PhysicsSessionV2 {
 
   /** Hot path: one fixed-dt integration and its state publication. */
   private integrate(tick: TickId): void {
-    this.wallMsNow = this.clock.wallMs();
     this.evaluatePilot();
     this.processor.beforeTick(tick);
     this.dynamics.nowMs = this.wallMsNow;

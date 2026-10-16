@@ -1,0 +1,17 @@
+{
+  "name": "@mirage/aar",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./format": "./src/format.ts",
+    "./record": "./src/record.ts",
+    "./handoff": "./src/handoff.ts",
+    "./recorder-host": "./src/recorder-host.ts",
+    "./replay": "./src/replay.ts",
+    "./archive": "./src/archive.ts"
+  },
+  "dependencies": {
+    "@mirage/protocol": "0.1.0"
+  }
+}

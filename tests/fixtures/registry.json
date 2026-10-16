@@ -755,6 +755,31 @@
           "derivation": "Hand-written mapping of the ESA WorldCover 10 m v200 legend codes and OpenStreetMap building/roof:material/highway tag values to Mirage material ids with nominal road widths; contains no raster or OSM data and no temperatures."
         }
       }
+    },
+    {
+      "path": "mavlink/ekf-golden.json",
+      "manifest": {
+        "formatVersion": 1,
+        "id": "mavlink-ekf-golden-v1",
+        "sourceSha256": "aeb3591bdec316f39d9de0ae596622e0b127da6d0dc56eb9c6fc3f80e25bf1f7",
+        "units": {
+          "messageId": "1"
+        },
+        "validityEnvelope": {
+          "messageId": {
+            "min": 0,
+            "max": 193
+          }
+        },
+        "tolerance": {
+          "absolute": 0,
+          "relative": 0
+        },
+        "provenance": {
+          "kind": "synthetic",
+          "derivation": "Official pymavlink 2.4.50 generator with the pinned upstream ardupilotmega XML and all include hashes. Independent wire oracle, not simulator output or flight measurements."
+        }
+      }
     }
   ]
 }

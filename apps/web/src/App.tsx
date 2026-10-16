@@ -1,3 +1,6 @@
+import { Export } from "./aar/Export";
+import { PilotHud } from "./hud/PilotHud";
+import { Console } from "./instructor/Console";
 import { Component, useEffect, useRef, useState, type ReactNode } from "react";
 import {
   Activity,
@@ -24,8 +27,11 @@ import { terrainConfigFrom } from "./terrain-config";
 import type { TileFailure } from "@mirage/terrain/tiles-provider";
 
 // Build-time terrain settings (TASK-061); absent by default, so no terrain is loaded.
-const TERRAIN = terrainConfigFrom(import.meta.env.VITE_MIRAGE_TILESET_URL, import.meta.env.VITE_MIRAGE_TILES_ORIGIN,
-  import.meta.env.VITE_MIRAGE_TILES_ATTRIBUTION);
+const TERRAIN = terrainConfigFrom(
+  import.meta.env.VITE_MIRAGE_TILESET_URL,
+  import.meta.env.VITE_MIRAGE_TILES_ORIGIN,
+  import.meta.env.VITE_MIRAGE_TILES_ATTRIBUTION,
+);
 import { SerialConnect } from "./SerialConnect";
 import {
   loadCalibration,
@@ -165,7 +171,9 @@ export default function App() {
     null,
   );
   const [source, setSource] = useState<"demo" | "usb">("demo");
-  const [terrainFailures, setTerrainFailures] = useState<readonly TileFailure[]>([]);
+  const [terrainFailures, setTerrainFailures] = useState<
+    readonly TileFailure[]
+  >([]);
   const [throttle, setThrottle] = useState(0);
   const [calibration, setCalibration] = useState(defaultCalibration);
   const [modeCalibration, setModeCalibration] = useState<ModeCalibration>(
@@ -270,8 +278,11 @@ export default function App() {
           <div className="viewport">
             {capabilities?.demoEligible && (
               <SceneBoundary>
-                <FlightScene runtime={runtime} terrain={TERRAIN.status === "ready" ? TERRAIN.config : null}
-                  onTerrainFailures={setTerrainFailures} />
+                <FlightScene
+                  runtime={runtime}
+                  terrain={TERRAIN.status === "ready" ? TERRAIN.config : null}
+                  onTerrainFailures={setTerrainFailures}
+                />
               </SceneBoundary>
             )}
             <div className="viewport-top">
@@ -283,11 +294,14 @@ export default function App() {
             </div>
             {TERRAIN.status !== "off" && (
               <div className="terrain-status" data-testid="terrain-status">
-                {TERRAIN.status === "ready" ? `Terrain: ${TERRAIN.config.attribution}` : `Terrain blocked: ${TERRAIN.reason}`}
+                {TERRAIN.status === "ready"
+                  ? `Terrain: ${TERRAIN.config.attribution}`
+                  : `Terrain blocked: ${TERRAIN.reason}`}
                 {terrainFailures.length > 0 &&
                   ` · ${terrainFailures.length} tile request(s) failed (${terrainFailures[0]!.kind}: ${terrainFailures[0]!.message})`}
               </div>
             )}
+            <PilotHud state={runtime.current?.current ?? null} />
             <div className="reticle">
               <span />
               <span />
@@ -594,8 +608,8 @@ export default function App() {
             </div>
             <SerialConnect />
             <p>
-              Serial API availability does not enable HITL. WebGPU and HITL
-              integrations are planned.
+              Serial API availability does not enable HITL. A verified
+              flight-controller profile is required.
             </p>
             <div>
               <span>Ground contact</span>
@@ -624,17 +638,19 @@ export default function App() {
               </p>
             )}
           </div>
+          <Console runtime={runtime.current} />
+          <Export runtime={runtime.current} />
           <div className="scope-note">
             <span className="eyebrow">DEVELOPMENT MILESTONE 01</span>
             <p>
-              Isolated physics and pilot input. JSBSim, BET, SITL/HITL, and EW
-              are planned in the architecture.
+              Demo flight backend. Autopilot disconnected; instructor effects
+              require a supporting backend.
             </p>
           </div>
         </aside>
       </main>
       <footer>
-        <span>SHARED MEMORY TRANSPORT · ABI V1</span>
+        <span>SHARED MEMORY TRANSPORT · ABI V2</span>
         <span>Development simulation · not validated for pilot training</span>
       </footer>
     </div>

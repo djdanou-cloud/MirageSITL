@@ -1,3 +1,12 @@
+import { RecorderHost } from "@mirage/aar/recorder-host";
+import { AarRecord } from "@mirage/aar/record";
+import demoDynamicsSource from "../../../packages/physics/src/demo-dynamics.ts?raw";
+import { CommandLedger, type CommandPayload } from "./instructor/commands";
+import {
+  parseControlCommandV2,
+  isPhysicsHz,
+  type ControlCommandV2,
+} from "@mirage/protocol";
 import {
   ControlFlag,
   PilotWriterV2,
@@ -58,6 +67,93 @@ const COMMAND_TYPE = {
 } as const;
 
 export class SimulationRuntime {
+  recording: RecorderHost | null = null;
+  private recordingActive = false;
+  private readonly recordingRecord = new AarRecord();
+  private readonly recordingPilot = new Float64Array(4);
+  private recordingQueueLost = 0;
+  private recordingHz = 400;
+  private recordingEpoch = -1;
+  private recordingTime = -Infinity;
+  async startRecording(): Promise<void> {
+    if (this.recording) {
+      this.recordingActive = true;
+      return;
+    }
+    const hash = Array.from(
+      new Uint8Array(
+        await crypto.subtle.digest(
+          "SHA-256",
+          new TextEncoder().encode(demoDynamicsSource),
+        ),
+      ),
+      (x) => x.toString(16).padStart(2, "0"),
+    ).join("");
+    if (this.disposed) throw new Error("Session closed");
+    if (!isPhysicsHz(this.header.physicsHz))
+      throw new Error("Invalid recording physics rate");
+    this.recordingHz = this.header.physicsHz;
+    this.recording = new RecorderHost({
+      formatVersion: 1,
+      recordBytes: 512,
+      modelSha256: hash,
+      firmwareSha256: null,
+      seed: 0,
+      physicsHz: this.header.physicsHz,
+      recordHz: 10,
+      durationS: 1800,
+      clock: "simulation",
+      source: "demo-decimated",
+    });
+    this.recordingActive = true;
+    this.recordingEpoch = -1;
+    this.recordingTime = -Infinity;
+  }
+  stopRecording(): void {
+    this.recordingActive = false;
+  }
+  private recordDemoSnapshot(): void {
+    const r = this.recording,
+      s = this.current;
+    if (!this.recordingActive || !r?.ready) return;
+    if (this.header.physicsHz !== this.recordingHz) {
+      this.stopRecording();
+      this.notice =
+        "Recording stopped: physics rate changed; export before starting a new recorder";
+      return;
+    }
+    if (s.epoch !== this.recordingEpoch) {
+      this.recordingEpoch = s.epoch;
+      this.recordingTime = -Infinity;
+    }
+    if (s.simTimeS - this.recordingTime < 0.1 - 1e-9) return;
+    this.recordingPilot[0] = this.input.roll;
+    this.recordingPilot[1] = this.input.pitch;
+    this.recordingPilot[2] = this.input.yaw;
+    this.recordingPilot[3] = this.input.throttle;
+    const lost = Number.isFinite(this.recordingTime)
+      ? Math.max(
+          0,
+          Math.floor((s.simTimeS - this.recordingTime) / 0.1 + 1e-6) - 1,
+        )
+      : 0;
+    if (
+      this.recordingRecord.encode(
+        s,
+        this.recordingPilot,
+        null,
+        null,
+        0,
+        lost + ((r.producer.lost - this.recordingQueueLost) >>> 0),
+        true,
+      )
+    ) {
+      if (r.producer.push(this.recordingRecord.words))
+        this.recordingQueueLost = r.producer.lost;
+    }
+    this.recordingTime = s.simTimeS;
+  }
+  readonly commands = new CommandLedger();
   readonly stateBuffer = createSharedMemoryV2(400);
   readonly sensorBuffer = createSpscQueue("sensor");
   readonly actuatorBuffer = createSpscQueue("actuator");
@@ -119,6 +215,8 @@ export class SimulationRuntime {
   private onWorkerEvent(data: unknown): void {
     const event = parseWorkerEventV2(data);
     if (!event) return; // unknown messages are ignored, never trusted
+    this.reader.readHeader(this.header);
+    this.commands.receive(event, this.epoch);
     switch (event.type) {
       case "ready-v2":
         this.ready = true;
@@ -143,6 +241,7 @@ export class SimulationRuntime {
     }
   }
   private fail(message: string) {
+    this.commands.cancelAll(message);
     this.notice = message;
     this.ready = this.armed = this.pending = false;
   }
@@ -150,17 +249,36 @@ export class SimulationRuntime {
     type: (typeof COMMAND_TYPE)[LifecycleCommand] | "sim.configure",
     extra: Record<string, unknown> = {},
   ): void {
-    this.reader.readHeader(this.header);
     this.pending = true;
-    this.pendingId = ++this.requestId;
-    this.worker.postMessage({
-      protocolVersion: 2,
-      requestId: this.pendingId,
-      expectedEpoch: this.header.sessionEpoch,
-      type,
-      ...extra,
-    });
+    const command = this.submitControl({ type, ...extra });
+    this.pendingId = command?.requestId ?? -2;
+    if (!command) this.pending = false;
   }
+  nextTick(): { lo: number; hi: number } {
+    const lo = (this.current.tickId.lo + 1) >>> 0;
+    return { lo, hi: this.current.tickId.hi + (lo === 0 ? 1 : 0) };
+  }
+  submitControl(
+    payload: CommandPayload | Record<string, unknown>,
+  ): ControlCommandV2 | null {
+    if (!this.ready) return null;
+    this.reader.readHeader(this.header);
+    const value = {
+      ...payload,
+      protocolVersion: 2,
+      requestId: ++this.requestId,
+      expectedEpoch: this.epoch,
+    };
+    const parsed = parseControlCommandV2(value);
+    if (!parsed.ok) {
+      this.notice = parsed.message;
+      return null;
+    }
+    this.commands.track(parsed.command);
+    this.worker.postMessage(parsed.command);
+    return parsed.command;
+  }
+
   command(command: LifecycleCommand): void {
     if (!this.ready || this.pending) return;
     this.disarm();
@@ -240,6 +358,7 @@ export class SimulationRuntime {
   private frame = (now: number) => {
     if (this.disposed) return;
     this.reader.readHeader(this.header);
+    this.commands.epochChanged(this.epoch);
     if (this.source === "usb") {
       this.gamepad.poll(this.input, wallNow(), this.armed);
       if (this.gamepad.generation !== this.adapterGeneration) {
@@ -258,7 +377,10 @@ export class SimulationRuntime {
     if (!this.running) this.armed = false;
     this.publishPilot();
     const read = this.reader.latestPair(this.current, this.previous);
-    if (read !== "none") this.history = read;
+    if (read !== "none") {
+      this.history = read;
+      this.recordDemoSnapshot();
+    }
     this.frames++;
     const elapsed = now - this.lastReport;
     if (elapsed >= 150) {
@@ -304,6 +426,8 @@ export class SimulationRuntime {
     this.disarm();
     cancelAnimationFrame(this.raf);
     document.removeEventListener("visibilitychange", this.onVisibility);
+    this.commands.cancelAll("Session closed");
+    this.recording?.close();
     this.worker.terminate();
   }
 }

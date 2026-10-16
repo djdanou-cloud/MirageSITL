@@ -616,12 +616,15 @@ were synchronized and checked. Changes remain local; no commit or push performed
 
 ### TASK-043 — EKF warmup and health
 
-- **Status:** TODO.
+- **Status:** BLOCKED_EXTERNAL — Codex; baseline 660d86e; 2026-10-16. Diagnostic/warmup modules verified; live TASK-042/031 integration remains unmet.
 - **Title & Description:** Warm up for 30 simulated seconds and admit READY from actual EKF diagnostics.
 - **Dependencies:** TASK-035, TASK-039, TASK-042.
-- **Touched Files:** `packages/autopilot/src/warmup.ts`, `packages/autopilot/src/ekf-status.ts`, `tests/warmup.test.ts`, `tests/integration/ekf-ready.test.ts`.
+- **Touched Files:** `packages/autopilot/src/warmup.ts`, `packages/autopilot/src/ekf-status.ts`, `packages/autopilot/package.json`, `packages/mavlink/src/codec.ts`, `tests/warmup.test.ts`, `tests/integration/ekf-ready.test.ts`, `tests/fixtures/mavlink/ekf-golden.json`, `tests/fixtures/mavlink/generate-ekf.py`, `tests/fixtures/registry.json`, `README.md`, `docs/ru/README.md`, `CLAUDE.md`, `docs/ru/CLAUDE.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `package-lock.json`, `docs/SPECS_SHARED_MEMORY.md`, `docs/ru/SPECS_SHARED_MEMORY.md`.
 - **Interfaces / Contracts:** Normalized ekf_flags; source freshness; fast-forward only for SITL.
 - **DoD & Acceptance Criteria:** Sensor timestamps agree; failed innovations never become READY just because a timer elapsed; measure acceleration factor; reject HITL fast-forward; disable startup EW until ready.
+
+- **Evidence (2026-10-16):** tests/warmup.test.ts: 3 PASS. Official pymavlink 2.4.50 ardupilotmega wire oracle, configured identity, absolute flag mapping, stale/future reports, failed innovation ratios, 30 s admission, timestamp coherence, epoch rejection and HITL fast-forward rejection. No firmware is executed; tests/integration/ekf-ready.test.ts remains a planned live gate, not a fabricated passing fixture.
+
 
 ### TASK-044 — ArduPilot WASM feasibility gate
 
@@ -900,30 +903,39 @@ were synchronized and checked. Changes remain local; no commit or push performed
 
 ### TASK-070 — Surface thermal state
 
-- **Status:** TODO.
+- **Status:** DONE — Codex; baseline 660d86e; 2026-10-16. Synthetic lumped surface model; measured validation remains separate.
 - **Title & Description:** Integrate material temperatures from solar forcing/weather outside the shader.
 - **Dependencies:** TASK-032, TASK-069.
-- **Touched Files:** `packages/thermal/src/heat-balance.ts`, `packages/thermal/src/solar.ts`, `tests/thermal-energy.test.ts`.
+- **Touched Files:** `packages/thermal/src/heat-balance.ts`, `packages/thermal/src/solar.ts`, `packages/thermal/package.json`, `tests/thermal-energy.test.ts`, `README.md`, `docs/ru/README.md`, `CLAUDE.md`, `docs/ru/CLAUDE.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `package-lock.json`, `docs/SPECS_SHARED_MEMORY.md`, `docs/ru/SPECS_SHARED_MEMORY.md`.
 - **Interfaces / Contracts:** C*dT/dt=absorbedSolar-convection-radiation-conduction; emissivity/inertia.
 - **DoD & Acceptance Criteria:** Test night equilibrium/sunrise/shadows/energy units and timestep convergence; AO affects only an explicit radiative model, not a substitute heat solver; measured validation remains pending without data.
 
+- **Evidence (2026-10-16):** tests/thermal-energy.test.ts: 3 PASS. Exact zero-loss energy units, 3600 s night equilibrium, solar noon/night/shadow/backface fixtures, 600 s timestep convergence against 0.125 s reference (<0.002 K at 1 s), cooling and invalid configuration. Implicit trapezoidal integration is outside physics; no AO temperature shortcut or measured material calibration.
+
+
 ### TASK-071 — Thermal renderer
 
-- **Status:** TODO.
+- **Status:** DONE — Codex; baseline 660d86e; 2026-10-16. Independent synthetic LWIR WebGL2 pipeline; production scene and measured instrument remain open.
 - **Title & Description:** Map thermal states to radiance/palettes with atmospheric attenuation.
 - **Dependencies:** TASK-066, TASK-070.
-- **Touched Files:** `packages/thermal/src/thermal-camera.ts`, `packages/thermal/src/shaders/thermal.glsl`, `tests/thermal-camera.test.ts`, `tests/browser/thermal.spec.ts`.
+- **Touched Files:** `packages/thermal/src/thermal-camera.ts`, `packages/thermal/src/shaders/thermal.glsl`, `tests/thermal-camera.test.ts`, `tests/browser/thermal.spec.ts`, `tests/support/thermal-harness.ts`, `packages/thermal/package.json`, `tests/material-map.test.ts`, `apps/web/src/render/webgpu.ts`, `tests/browser/render-backends.spec.ts`, `tests/support/render-harness.html`, `README.md`, `docs/ru/README.md`, `CLAUDE.md`, `docs/ru/CLAUDE.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `package-lock.json`, `docs/SPECS_SHARED_MEMORY.md`, `docs/ru/SPECS_SHARED_MEMORY.md`.
 - **Interfaces / Contracts:** InstrumentProfile {resolution, spectralResponse, noise, calibrationSource}; synthetic training profiles are separate from CADEX measurements.
 - **DoD & Acceptance Criteria:** Test blackbody monotonicity, emissivity/reflection/distance attenuation, and cold/hot palette endpoints; configurable native resolution; do not claim CADEX parity without profile data.
 
+- **Evidence (2026-10-16):** tests/thermal-camera.test.ts: 2 PASS; tests/browser/thermal.spec.ts: 1 PASS. SI Planck reference at 10 um/300 K, band monotonicity, emission/reflection/Beer-Lambert limits, palette endpoints, configurable target dimensions and bounds. Real GLSL matches the CPU radiance oracle within one 8-bit level on six rays/two rows, zero shader errors. No CADEX/WebGPU thermal/FPS claim. Existing material-map source scan now includes nested shader files; renderer launch-path/probe isolation regressions pass with unavailable WebGPU explicitly skipped.
+
+
 ### TASK-072 — Thermal shutter and NUC
 
-- **Status:** TODO.
+- **Status:** DONE — Codex; baseline 660d86e; 2026-10-16. Deterministic synthetic offset-only shutter calibration.
 - **Title & Description:** Implement deterministic calibration cycles and bounded display interruption.
 - **Dependencies:** TASK-071.
-- **Touched Files:** `packages/thermal/src/nuc.ts`, `packages/thermal/src/thermal-status.ts`, `tests/thermal-nuc.test.ts`.
+- **Touched Files:** `packages/thermal/src/nuc.ts`, `packages/thermal/src/thermal-status.ts`, `packages/thermal/package.json`, `tests/thermal-nuc.test.ts`, `README.md`, `docs/ru/README.md`, `CLAUDE.md`, `docs/ru/CLAUDE.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `package-lock.json`, `docs/SPECS_SHARED_MEMORY.md`, `docs/ru/SPECS_SHARED_MEMORY.md`.
 - **Interfaces / Contracts:** Shutter states idle/closed/calibrating/open; sensor frame time.
 - **DoD & Acceptance Criteria:** Fix cycle duration/rate; NUC removes configured bias without timestamp reversal; shutter never pauses physics or mutates AAR truth.
+
+- **Evidence (2026-10-16):** tests/thermal-nuc.test.ts: 2 PASS. Exact closed/calibrating/open durations, start-to-start periodic cadence (nine completed cycles by frame 99 at interval 10), offset removal, held display, consecutive monotone frame timestamps, deterministic replay and invalid/duplicate/gap rejection. Physics/AAR truth are not accepted inputs.
+
 
 ### TASK-073 — GPU acceptance harness
 
@@ -938,48 +950,63 @@ were synchronized and checked. Changes remain local; no commit or push performed
 
 ### TASK-074 — Pilot HUD and freshness
 
-- **Status:** TODO.
+- **Status:** BLOCKED_EXTERNAL — Codex; baseline 660d86e; 2026-10-16. HUD and pilot-timing regression verified; live health acceptance depends on TASK-043.
 - **Title & Description:** Display attitude/speed/altitude/mode/EKF with source and age.
 - **Dependencies:** TASK-015, TASK-039, TASK-043.
-- **Touched Files:** `apps/web/src/hud/PilotHud.tsx`, `apps/web/src/hud/attitude.ts`, `apps/web/src/hud/telemetry.ts`, `tests/hud.test.ts`, `tests/browser/hud.spec.ts`.
+- **Touched Files:** `apps/web/src/hud/PilotHud.tsx`, `apps/web/src/hud/attitude.ts`, `apps/web/src/hud/telemetry.ts`, `apps/web/src/App.tsx`, `apps/web/src/runtime.ts`, `apps/web/src/style.css`, `packages/physics/src/session-v2.ts`, `tests/session-v2.test.ts`, `tests/hud.test.ts`, `tests/browser/hud.spec.ts`, `README.md`, `docs/ru/README.md`, `CLAUDE.md`, `docs/ru/CLAUDE.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `package-lock.json`, `docs/SPECS_SHARED_MEMORY.md`, `docs/ru/SPECS_SHARED_MEMORY.md`.
 - **Interfaces / Contracts:** FlightStateV2; normalized ekf_flags; unknown/stale visual states.
 - **DoD & Acceptance Criteria:** Verify NED horizon signs; demo cannot fabricate valid EKF; stale AP status is marked; decimate React updates instead of setState at 1200 Hz.
 
+- **Evidence (2026-10-16):** tests/hud.test.ts: 2 PASS; tests/browser/hud.spec.ts: 1 PASS; tests/session-v2.test.ts: 11 PASS. NED roll/pitch/yaw, q/-q, invalid attitude, demo unknown EKF, age-based stale status and live Worker tick progress. Deterministic regression first failed when publication occurred after the clock read, then passed after moving receipt time after mailbox decoding; truly future samples still disarm. Existing takeoff/stale-input browser regressions pass without relaxing thresholds. React updates remain decimated at about 150 ms. Live autopilot HUD remains blocked with TASK-043.
+
+
 ### TASK-075 — Instructor console and hotkeys
 
-- **Status:** TODO.
+- **Status:** BLOCKED_EXTERNAL — Codex; baseline 660d86e; 2026-10-16. Console/ACK/hotkey software verified; production fault application and TASK-074 gate remain open.
 - **Title & Description:** Send weather/fault/model commands with explicit pending/applied status.
 - **Dependencies:** TASK-010, TASK-038, TASK-058, TASK-074.
-- **Touched Files:** `apps/web/src/instructor/Console.tsx`, `apps/web/src/instructor/hotkeys.ts`, `tests/instructor.test.ts`, `tests/browser/instructor.spec.ts`.
+- **Touched Files:** `apps/web/src/instructor/Console.tsx`, `apps/web/src/instructor/hotkeys.ts`, `apps/web/src/instructor/commands.ts`, `apps/web/src/App.tsx`, `apps/web/src/runtime.ts`, `apps/web/src/style.css`, `tests/instructor.test.ts`, `tests/browser/instructor.spec.ts`, `README.md`, `docs/ru/README.md`, `CLAUDE.md`, `docs/ru/CLAUDE.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `package-lock.json`, `docs/SPECS_SHARED_MEMORY.md`, `docs/ru/SPECS_SHARED_MEMORY.md`.
 - **Interfaces / Contracts:** ControlCommandV2 request/ACK/epoch; scenario fault registry.
 - **DoD & Acceptance Criteria:** Hotkeys ignore text-input focus; cancellation/reset/stale epoch/rejection are visible; show applied only after ACK; all fault IDs are usable without source changes.
 
+- **Evidence (2026-10-16):** tests/instructor.test.ts: 1 PASS; tests/browser/instructor.spec.ts: 1 PASS. Real Worker rejection, editable fault IDs, all typed effect kinds, selected motor channel/mode/fraction, weather/model requests, bounded pending/queued/applied/rejected/cancelled ledger, header-before-ACK epoch race and typing/select focus suppression. Demo rejection stays visible; no claimed fault application or autopilot READY.
+
+
 ### TASK-076 — AAR recorder
 
-- **Status:** TODO.
+- **Status:** DONE — Codex; baseline 660d86e; 2026-10-16. Bounded recorder/producer library and decimated demo flow; full-rate production fanout is not wired.
 - **Title & Description:** Record input/actuator/truth/sensor/events in a separate bounded recorder.
 - **Dependencies:** TASK-004, TASK-013, TASK-058.
-- **Touched Files:** `packages/aar/package.json`, `packages/aar/src/format.ts`, `packages/aar/src/recorder.worker.ts`, `packages/aar/src/storage.ts`, `tests/aar-recorder.test.ts`.
+- **Touched Files:** `packages/aar/package.json`, `packages/aar/src/format.ts`, `packages/aar/src/record.ts`, `packages/aar/src/handoff.ts`, `packages/aar/src/recorder.ts`, `packages/aar/src/recorder.worker.ts`, `packages/aar/src/recorder-host.ts`, `packages/aar/src/storage.ts`, `tests/aar-recorder.test.ts`, `tests/browser/aar.spec.ts`, `tests/support/aar-harness.ts`, `scripts/bench-aar.mjs`, `apps/web/src/runtime.ts`, `apps/web/package.json`, `README.md`, `docs/ru/README.md`, `CLAUDE.md`, `docs/ru/CLAUDE.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `package-lock.json`, `docs/SPECS_SHARED_MEMORY.md`, `docs/ru/SPECS_SHARED_MEMORY.md`.
 - **Interfaces / Contracts:** AAR version/model hashes/seed/epoch/time domains; IndexedDB chunks/checksums.
 - **DoD & Acceptance Criteria:** A configured 30 min ring has a fixed byte cap; explicitly count storage backpressure/loss; physics handoff meets zero-allocation; the 256-slot render ring is never an archive.
 
+- **Evidence (2026-10-16):** tests/aar-recorder.test.ts: 5 PASS; real Worker/IndexedDB case in tests/browser/aar.spec.ts PASS. ISO-HDLC check vector cbf43926, exact nested offsets, all stream roundtrips, epoch/CRC rejection, poisoned seqlock recovery, alias rejection, counter wrap/full loss, chronological ring eviction and fixed 9,216,000-byte 30 min/10 Hz capacity. Separate 256-slot SAB; no second flight-queue consumer. Actual producer encode+all streams+SPSC probes at 400/800/1200 each PASS with fresh hashes, 4e6 warmup, six N=1e6/2e6 windows, zero observed measured GC/zero incremental B per step and allocating controls detected. Recorder persistence/backpressure is bounded and counted; demo source is explicitly decimated and missing FC streams remain absent.
+
+
 ### TASK-077 — Replay and timeline
 
-- **Status:** TODO.
+- **Status:** DONE — Codex; baseline 660d86e; 2026-10-16. Snapshot replay and provenance-gated resimulation comparison interface.
 - **Title & Description:** Separate recorded snapshot replay from deterministic resimulation.
 - **Dependencies:** TASK-015, TASK-076.
-- **Touched Files:** `packages/aar/src/replay.ts`, `packages/aar/src/resimulation.ts`, `tests/aar-replay.test.ts`.
+- **Touched Files:** `packages/aar/src/replay.ts`, `packages/aar/src/resimulation.ts`, `tests/aar-replay.test.ts`, `packages/aar/package.json`, `README.md`, `docs/ru/README.md`, `CLAUDE.md`, `docs/ru/CLAUDE.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `package-lock.json`, `docs/SPECS_SHARED_MEMORY.md`, `docs/ru/SPECS_SHARED_MEMORY.md`.
 - **Interfaces / Contracts:** ReplayMode snapshots/resimulate; seek boundaries; configuration provenance.
 - **DoD & Acceptance Criteria:** Correct seeking/reset/epoch discontinuity; reject unknown format/hash mismatch; replay preserves records; resimulation mismatch generates a report instead of rewriting recordings.
 
+- **Evidence (2026-10-16):** tests/aar-replay.test.ts: 3 PASS. Epoch-scoped seek, independent immutable copy, corrupted/version/hash rejection, multiple sensor observations at one physics tick, seed/model/firmware admission and mismatch report without rewriting records. A production resimulator is not supplied; injected backends must resolve configuration and advance to tick once for co-timed observations.
+
+
 ### TASK-078 — AAR response charts
 
-- **Status:** TODO.
+- **Status:** BLOCKED_EXTERNAL — Codex; baseline 660d86e; 2026-10-16. Response charts/demo review verified; final live HUD dependency TASK-074 remains open.
 - **Title & Description:** Align pilot input, actuator commands, and model responses on one time axis.
 - **Dependencies:** TASK-074, TASK-077.
-- **Touched Files:** `apps/web/src/aar/Review.tsx`, `apps/web/src/aar/series.ts`, `tests/aar-series.test.ts`, `tests/browser/aar.spec.ts`.
+- **Touched Files:** `apps/web/src/aar/Review.tsx`, `apps/web/src/aar/series.ts`, `tests/aar-series.test.ts`, `tests/browser/aar.spec.ts`, `apps/web/src/style.css`, `README.md`, `docs/ru/README.md`, `CLAUDE.md`, `docs/ru/CLAUDE.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `package-lock.json`, `docs/SPECS_SHARED_MEMORY.md`, `docs/ru/SPECS_SHARED_MEMORY.md`.
 - **Interfaces / Contracts:** Bounded decimated time series; units/timebase; explicit recording gaps.
 - **DoD & Acceptance Criteria:** A known step-response fixture shows correct lag; do not interpolate gaps as real data; display 30 min with <=10000 points per series and bounded memory.
+
+- **Evidence (2026-10-16):** tests/aar-series.test.ts: 2 PASS; record/review/export/import browser case PASS. Known pilot/actuator/response steps occur at 0.2/0.3/0.4 s, absent actuator/gap segments stay disconnected, 18000 samples over 30 min decimate to <=10000 points while preserving a narrow response spike and endpoints. Timeline selects epoch/time and displays snapshots separately from the live flight. No live autopilot acceptance is implied.
+
 
 ### TASK-079 — Lessons and scenario runner
 
@@ -1001,12 +1028,15 @@ were synchronized and checked. Changes remain local; no commit or push performed
 
 ### TASK-081 — Session export
 
-- **Status:** TODO.
+- **Status:** DONE — Codex; baseline 660d86e; 2026-10-16. Bounded checksummed archives, metadata redaction and browser import/export.
 - **Title & Description:** Export/import AAR with manifests and no secrets.
 - **Dependencies:** TASK-076, TASK-077.
-- **Touched Files:** `packages/aar/src/archive.ts`, `apps/web/src/aar/Export.tsx`, `tests/aar-archive.test.ts`.
+- **Touched Files:** `packages/aar/src/archive.ts`, `apps/web/src/aar/Export.tsx`, `apps/web/src/App.tsx`, `tests/aar-archive.test.ts`, `tests/browser/aar.spec.ts`, `packages/aar/package.json`, `apps/web/package.json`, `README.md`, `docs/ru/README.md`, `CLAUDE.md`, `docs/ru/CLAUDE.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `package-lock.json`, `docs/SPECS_SHARED_MEMORY.md`, `docs/ru/SPECS_SHARED_MEMORY.md`.
 - **Interfaces / Contracts:** Versioned archive; size/checksum limits; configurable key/serial-identifier redaction.
 - **DoD & Acceptance Criteria:** Roundtrip export/import; reject archive bombs/oversized payloads/invalid hashes before allocation; no API keys/tokens in archives; show size and data categories.
+
+- **Evidence (2026-10-16):** tests/aar-archive.test.ts: 2 PASS; real browser download/import roundtrip and malformed import PASS. SHA-256 header+manifest+payload, per-record CRC, exact declared lengths, 32 MiB/4096-byte metadata bounds and no decompression. Default rejects extra metadata; configurable omission strips API keys/serial identifiers by copying only declared provenance. Size/source categories/loss counters are visible; import never replaces the active flight.
+
 
 ### TASK-082 — System acceptance matrix
 
@@ -1057,3 +1087,27 @@ Ten complete EN/RU document pairs are synchronized; new physical-radio and
 terrain-policy guides have mirrors. Environment startup instructions were saved
 as a draft, requiring settings review/save/publication to reuse; saving did not
 apply the prior SDK network exception or certify a fresh task.
+
+
+## Local ten-task implementation batch
+
+Owner Codex; baseline 660d86e. Selected TASK-043/070/071/072/074/075/076/077/078/081. Goal: thermal energy/rendering/NUC, bounded AAR and pilot/instructor UI. Failure criterion: numerical, lifecycle, capacity, epoch or verification gate failure. TASK-043 and dependent UI work may implement independent contracts before live SITL acceptance; TASK-042/031 integration remains BLOCKED_EXTERNAL and no autopilot READY is enabled by this batch. Additional touched paths for these tasks: packages/thermal/package.json, packages/aar/package.json, packages/aar/src/handoff.ts, packages/aar/src/record.ts, packages/aar/src/recorder.ts, packages/aar/src/recorder-host.ts, apps/web/package.json, apps/web/src/App.tsx, apps/web/src/runtime.ts, apps/web/src/style.css, packages/autopilot/package.json, tests/support/thermal-harness.ts, tests/support/aar-harness.ts, tests/support/ui-harness.tsx, package-lock.json, docs/SPECS_SIMULATION_ENGINES.md, docs/architecture.md, docs/PROJECT_ROADMAP.md and their Russian mirrors. Recording from the active demo is explicitly decimated Main-thread sampling with gaps; the separate SAB handoff is available for future producer wiring. Thermal is an independently tested WebGL2 pipeline; production scene and measured-camera acceptance remain separate. No push is authorized in this batch.
+
+Additional TASK-043 paths for verified diagnostics: `packages/mavlink/src/codec.ts`, `tests/fixtures/mavlink/ekf-golden.json`, `tests/fixtures/mavlink/generate-ekf.py`, `tests/fixtures/registry.json`.
+
+Regression scope addition: TASK-074 also touches `packages/physics/src/session-v2.ts` and `tests/session-v2.test.ts` to reproduce and fix a pilot-publication/clock-read ordering race; TASK-071 also touches `tests/browser/render-backends.spec.ts` to preserve the configured Chromium executable when overriding launch flags. No freshness thresholds or test acceptance limits are relaxed.
+
+Renderer regression follow-up within TASK-071: `apps/web/src/render/webgpu.ts`, `tests/support/render-harness.html`, `tests/support/render-harness.ts`. Share one functional WebGPU probe per document and test fallback on an isolated canvas; compare fallback diagnostics from the same document rather than a different navigation.
+
+Final software verification passed; live integration blockers are retained under each affected task.
+
+
+## Local batch verification (2026-10-16; baseline 660d86e)
+
+Six module/software tasks DONE: TASK-070/071/072/076/077/081. Independent software for TASK-043/074/075/078 is implemented and verified, but these four remain BLOCKED_EXTERNAL through the unchanged live TASK-042/031 dependency chain. Required unblocking evidence is actual pinned firmware arm/takeoff/hold/land and coherent accelerated warmup with fresh EKF diagnostics on the admitted backend. Unit/browser mocks and demo flight do not replace that trace. Production thermal scene, measured camera fidelity, full-rate synchronized recorder wiring and default production resimulation are not claimed.
+
+Local exit 0: frozen npm ci; lint, typecheck, build and check:docs. Full unit run: 420 PASS in 72 files, JUnit test-results/unit/junit.xml; focused archive/recorder/replay/chart/session reruns after redaction and regression hardening also pass. Browser: 41 PASS, 1 explicitly SKIPPED, zero failures/errors in test-results/browser/junit.xml. Skipped: functional WebGPU rendering, because the software adapter loses its device; WebGL2 pipeline/fallbacks and real recording Worker/SAB/IndexedDB/UI roundtrip pass. Native cargo test --manifest-path native/Cargo.toml --workspace --locked: 46 PASS. Node 24.19.0, Rust 1.97.0, Chromium 154.0.8037.57, Debian x86_64/SwiftShader. The production build retains the existing >500 kB chunk warning.
+
+G1: node scripts/bench-aar.mjs 400, 800 and 1200 each exits 0 with fresh SHA-256 source identities in test-results/bench/aar-<Hz>.json: 4e6 warmup, six 1e6/2e6-step windows; zero observed GC inside measured intervals and zero incremental B/step; each allocating control triggers GC. The probe filters events by their timestamps so its own forced pre-window GC is excluded. The real physics-session and existing link/EW probes also pass in the unit suite after the pilot timing fix. Node compute evidence does not certify browser wall-clock deadlines or M4/RTX FPS.
+
+All 11 EN/RU pairs were synchronized, with identical fenced contracts/equations, registered byte layouts and unchanged task dependencies. Changes are committed locally only; no push or CI run for this local batch is implied.

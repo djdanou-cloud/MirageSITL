@@ -5,9 +5,15 @@
   "type": "module",
   "exports": {
     "./data-manifest": "./src/data-manifest.ts",
-    "./material-map": "./src/material-map.ts"
+    "./material-map": "./src/material-map.ts",
+    "./solar": "./src/solar.ts",
+    "./heat-balance": "./src/heat-balance.ts",
+    "./thermal-camera": "./src/thermal-camera.ts",
+    "./nuc": "./src/nuc.ts",
+    "./thermal-status": "./src/thermal-status.ts"
   },
   "dependencies": {
-    "@mirage/sensors": "0.1.0"
+    "@mirage/sensors": "0.1.0",
+    "three": "0.180.0"
   }
 }

@@ -10,11 +10,14 @@
     "./external-sitl": "./src/external-sitl.ts",
     "./hil-clock": "./src/hil-clock.ts",
     "./hitl": "./src/hitl.ts",
-    "./hitl-capabilities": "./src/hitl-capabilities.ts"
+    "./hitl-capabilities": "./src/hitl-capabilities.ts",
+    "./warmup": "./src/warmup.ts",
+    "./ekf-status": "./src/ekf-status.ts"
   },
   "dependencies": {
     "@mirage/mavlink": "0.1.0",
     "@mirage/physics": "0.1.0",
-    "@mirage/sensors": "0.1.0"
+    "@mirage/sensors": "0.1.0",
+    "@mirage/protocol": "0.1.0"
   }
 }

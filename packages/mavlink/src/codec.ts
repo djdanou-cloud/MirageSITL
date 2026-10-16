@@ -1,4 +1,4 @@
-/** Pinned common-dialect subset. No signing keys: signed frames fail closed. */
+/** Pinned common/ardupilotmega-dialect subset. No signing keys: signed frames fail closed. */
 export interface MessageDefinition {
   readonly id: number;
   readonly name: string;
@@ -29,8 +29,12 @@ const GPS = Object.freeze({
   crcExtra: 124,
   length: 39,
 });
+const HEARTBEAT = Object.freeze({id:0,name:"HEARTBEAT",crcExtra:50,length:9});
+const EKF = Object.freeze({id:193,name:"EKF_STATUS_REPORT",crcExtra:71,length:26});
 export function definition(id: number): MessageDefinition | null {
   switch (id) {
+    case 0: return HEARTBEAT;
+    case 193: return EKF;
     case 70:
       return RC;
     case 93:

@@ -4,13 +4,13 @@ import { fileURLToPath } from "node:url";
 // TASK-066: renderer adapter. WebGPU runs on SwiftShader's software adapter
 // where the browser exposes one; otherwise WebGPU-only checks are skipped
 // with the browser's reason, never reported as passed.
-test.use({ launchOptions: { args: ["--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--enable-unsafe-webgpu", "--use-webgpu-adapter=swiftshader"] } });
+test.use({ launchOptions: { ...(process.env.CHROMIUM_PATH ? {executablePath:process.env.CHROMIUM_PATH} : {}), args: ["--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--enable-unsafe-webgpu", "--use-webgpu-adapter=swiftshader"] } });
 
 type Harness = typeof import("../support/render-harness");
 const harnessUrl = "/@fs" + fileURLToPath(new URL("../support/render-harness.ts", import.meta.url));
 
 async function detect(page: import("@playwright/test").Page) {
-  await page.goto("/");
+  await page.goto("/@fs" + fileURLToPath(new URL("../support/render-harness.html", import.meta.url)));
   return page.evaluate(async url => (await import(url) as Harness).detectBackends(), harnessUrl);
 }
 
@@ -73,11 +73,11 @@ test("switching backends releases each renderer before the next", async ({ page 
 });
 
 test("the app selects the adapter from ?renderer= and reports the backend", async ({ page }) => {
-  const backends = await detect(page);
   for (const mode of ["webgl2", "webgpu"] as const) {
     await page.goto(`/?renderer=${mode}`);
     const canvas = page.locator("canvas[data-render-backend]");
     await expect(canvas).toHaveCount(1, { timeout: 15_000 });
+    const backends = await page.evaluate(async url => (await import(url) as Harness).detectBackends(), harnessUrl);
     const expected = mode === "webgpu" && !backends.webgpu.available ? "webgl2" : mode;
     await expect(canvas).toHaveAttribute("data-render-backend", expected);
     if (mode === "webgpu" && !backends.webgpu.available) await expect(canvas).toHaveAttribute("data-render-fallback", backends.webgpu.reason ?? "");
