@@ -7,11 +7,15 @@
     "./ideal": "./src/ideal.ts",
     "./scheduler": "./src/scheduler.ts",
     "./noise": "./src/noise.ts",
-    "./latency": "./src/latency.ts"
+    "./latency": "./src/latency.ts",
+    "./geodesy": "./src/geodesy.ts",
+    "./geoid": "./src/geoid.ts",
+    "./pipeline": "./src/pipeline.ts"
   },
   "dependencies": {
-    "@mirage/protocol": "0.1.0",
+    "@mirage/mavlink": "0.1.0",
     "@mirage/physics": "0.1.0",
+    "@mirage/protocol": "0.1.0",
     "@mirage/test-support": "0.1.0",
     "@mirage/wasm-bet": "0.1.0"
   }

@@ -1293,3 +1293,165 @@ implementation is included. See docs/decisions/terrain-licensing.md and its mirr
 
 
 Mode calibration exposes axis index, endpoints, center, deadzone and inversion; changing it disarms and rejects overlap with a primary stick axis.
+
+## Implemented geodesy: TASK-036
+
+`packages/sensors/src/geodesy.ts` implements WGS84 (NIMA TR8350.2:
+`a=6378137` m, `1/f=298.257223563`) in float64. `geodeticToEcefInto` uses the
+closed form; `ecefToGeodeticInto` uses Bowring's parametric start with three
+refinements and `h=p*cos(lat)+z*sin(lat)-a*sqrt(1-e2*sin²(lat))`, which does
+not divide by `cos(lat)`. `LocalTangentFrame` freezes the origin ECEF and the
+ECEF-to-NED rotation at construction and converts NED offsets through ECEF,
+so poles and the antimeridian need no special cases; longitude is reported in
+`[-pi, pi)` and is 0 on the polar axis. All conversions write caller-owned
+`Float64Array` outputs without allocation.
+
+`packages/sensors/src/geoid.ts` separates ellipsoidal `h` from MSL `H=h-N`.
+`GridGeoid` interpolates a regular latitude/longitude undulation grid
+bilinearly (longitude wraps, latitude clamps) and requires model, source,
+license and SHA-256 provenance. Without one, `NO_GEOID` sets `N=0`, MSL values
+are provisional, and `mslAccuracyGate` returns `BLOCKED_EXTERNAL`; a hash
+mismatch against the pinned payload also blocks. No authoritative grid
+(EGM96/EGM2008) is in the repository yet, so absolute MSL accuracy remains
+blocked while local NED/ECEF/geodetic conversions are verified.
+
+## Implemented ArduPilot JSON lockstep: TASK-041
+
+The protocol is pinned to ArduPilot commit
+8ab6afde107a91df1b5f60ade8f333cb8a61b190 (`libraries/SITL/SIM_JSON.{h,cpp}` and
+the JSON example readme; SHA-256 in `tests/fixtures/sitl/json-protocol.json`,
+sources not copied). SITL sends a little-endian servo packet
+`{u16 magic, u16 frame_rate, u32 frame_count, u16 pwm[N]}`: 40 bytes with
+magic 18458 for 16 channels, 72 bytes with magic 29569 for 32 channels. Its
+socket is unbound, so it sends from an ephemeral port to UDP 9002 and expects
+the reply at that source. `frame_count` increments only after a valid reply;
+an unanswered frame is resent with the same count, and a restarted SITL starts
+again at 0.
+
+`ExternalSitlLockstep` (`packages/autopilot/src/external-sitl.ts`) implements
+`StepGate` for `sitl-lockstep` mode. A new count authorizes exactly one physics
+tick; a duplicate never steps and is answered by `resendReplyInto` with the
+identical bytes; a lower count is stale unless it is 0 (restart, which raises
+`restartRequested`); a gap steps once and counts dropped frames. While no frame
+is pending, `ready()` is false and the policy returns immediately, so commands
+such as pause stay responsive. PWM maps to throttle through explicit
+`pwmMinUs/pwmMaxUs` (MOT_PWM_MIN/MAX, default 1000/2000) and a configured
+1-based motor-channel list; clamping is counted.
+
+The reply is one line `"\n{...}\n"` with `timestamp`, `imu.gyro`,
+`imu.accel_body`, `position`, `velocity`, a normalized `quaternion` (w x y z)
+and optional `velocity_wind`. SIM_JSON finds keys with `strstr`, so the
+encoder writes `velocity` before `velocity_wind`; without `velocity`, upstream
+would silently read the wind vector as vehicle velocity. Numbers use nine
+fixed decimals with `|v|<=1e6` and are written into a caller buffer without
+string allocation. Timestamps must increase by less than 0.1 s, otherwise
+SITL time would not advance; such states are refused.
+
+`apps/bridge/src/ardupilot-json.ts` binds the configured local UDP port
+(`ardupilotJson.localPort`, CLI `MIRAGE_ARDUPILOT_JSON_PORT`), accepts only
+loopback senders and valid servo packets, learns the SITL peer from them, and
+forwards them as bridge channel 3. Outbound channel-2 lines must be printable
+ASCII, newline framed, at most 1024 bytes, contain the mandatory fields and an
+attitude with finite values, and have no key whose text first occurs inside
+another key; an invalid line closes the session. MAVLink remains a separate
+channel. A real ArduPilot SITL process is not run here: the pinned native
+harness is TASK-042.
+
+## Implemented HIL streaming: TASK-049
+
+`HilClock` (`packages/autopilot/src/hil-clock.ts`) composes integer-phase
+`SensorScheduler`s on the physics clock: HIL_SENSOR at 200 or 400 Hz, HIL_GPS at
+5 or 10 Hz, and magnetometer/barometer update rates that divide the IMU rate,
+so their samples coincide with HIL_SENSOR messages. Sample time is the physics
+tick time in microseconds as two uint32 words, never send or wall time.
+
+`HilStreamer` (`packages/autopilot/src/hitl.ts`) encodes due samples through
+`SensorMapping` and `encodeInto` into a bounded byte outbox that the serial
+writer drains. `fields_updated` is `0x3f` (accel, gyro) on every HIL_SENSOR,
+plus `0x1c0` (mag) and `0x1e00` (absolute/differential pressure, pressure
+altitude, temperature) only on samples where those groups updated.
+Construction fails unless worst-case untruncated frames (77 bytes HIL_SENSOR,
+51 bytes HIL_GPS) use at most 70% of `baud/10` bytes per second: 400 Hz IMU plus
+10 Hz GNSS needs 31310 B/s, which fits 460800 and 921600 baud but not 230400
+or 115200. Outbox overflow latches `queue-overflow`. `acceptActuator` decodes
+HIL_ACTUATOR_CONTROLS privately, requires all 16 controls in [-1,1] and a
+strictly newer u64 autopilot timestamp, and copies only accepted frames;
+`poll` latches `actuator-dropout` after the configured timeout (default
+100 ms). Signing is unsupported, so the link is unauthenticated, and assigning
+controls to motors remains a hardware-profile decision (TASK-050).
+
+## Implemented HITL capability gate: TASK-050
+
+`evaluateHitlCapability` (`packages/autopilot/src/hitl-capabilities.ts`)
+returns READY only when pinned firmware source evidence, a verified board
+profile and live observation agree; the matrix and evidence live in
+[hardware/hitl-matrix.md](hardware/hitl-matrix.md). At ArduPilot
+8ab6afde107a91df1b5f60ade8f333cb8a61b190 no HIL_SENSOR/HIL_GPS/
+HIL_ACTUATOR_CONTROLS handler exists, so ArduPilot is UNSUPPORTED for this
+path. At PX4 4d7e4de77742c3ae8187ffc998ed6d04629c611b HIL_SENSOR is decoded only
+in HIL mode, so the live check requires `MAV_MODE_FLAG_HIL_ENABLED` (32) in
+HEARTBEAT base_mode, the profile's firmware git SHA, and HIL_ACTUATOR_CONTROLS
+within 100 ms. Anything missing yields BLOCKED_EXTERNAL with the exact
+requirement. READY verdicts are frozen and registered privately;
+`AutopilotSession.connect("hitl", ...)` now requires one, so a hand-made object
+or SITL availability cannot enable HITL. No board is verified yet.
+
+## Implemented position-step spoofing: TASK-054
+
+`PositionStep` (`packages/ew/src/position-step.ts`) schedules an NED offset of
+at most 10 km for a physics tick; `advanceTick` applies all three axes at once
+when that tick is reached, and `disable`/`reset` return the exact baseline.
+`GpsOffsetApplier` re-origins one reusable `LocalTangentFrame` at the source
+fix (`setOrigin`, allocation-free), converts MSL to ellipsoidal height with the
+geoid (`h=H+N`), moves the fix by the offset through ECEF, and converts back
+(`H'=h'-N'`). The offset is defined in the fix's tangent plane, so long
+horizontal offsets also raise ellipsoidal height by roughly `d²/(2R)`; a pure
+Down offset changes MSL altitude by exactly `-D`. Velocity, time, DOP, fix and
+course are preserved; a zero offset is an exact identity. The source sample is
+never modified; an invalid source leaves the target untouched.
+
+## Implemented coherent drift: TASK-055
+
+`VelocityDrift` (`packages/ew/src/velocity-drift.ts`) integrates `b` and
+`v_d` with the section 5 equations on every physics step (`dt` in (0, 0.01] s),
+exact for constant acceleration. When `|v_d+a dt|` would exceed `maxSpeedMps`,
+the step is split at the root of `|a|²t²+2(v·a)t+|v|²-cap²=0`, integrated to
+that time, and continued at constant velocity, so `b` remains the integral of
+`v_d` and velocity is never clipped after the fact. `hold-offset` recovery
+decelerates `v_d` at `decelMps2` while integrating `b`, splits the step at the
+stop time and then holds; `step-to-truth` zeroes `b` and `v_d` and increments
+`discontinuities` for the AAR event. At the 10 km envelope the drift stops and
+holds. `distortGpsInto` adds `b` through `GpsOffsetApplier` (WGS84 and geoid)
+and `v_d` to the GPS velocity, then recomputes course from the corrupted
+horizontal velocity (unknown below 0.05 m/s). GNSS sampling and rendering
+never change the drift state.
+
+## Implemented EW pipeline composition: TASK-058
+
+`EwEngine` (`packages/ew/src/engine.ts`) owns one preallocated instance of
+each effect and a 16-slot fault registry keyed by `faultId`. `apply(fault.set,
+tick)` runs at the tick boundary (ControlTargetV2.applyScheduled) without
+allocation. Each effect kind has one owning faultId (per motor for
+`motor-loss`); a newer faultId replaces the owner, disabling a non-owning or
+unknown faultId changes nothing, and a full registry returns `registry-full`.
+Disabling drift uses the command's `recovery`; motor-loss is forwarded to the
+physics `MotorFaults` and never touches observations. `reset(seed)` clears
+every effect, the registry and motor faults. `flags` reports the state ABI
+`ew_flags` bits.
+
+`advanceInto(context)` advances jamming and drift on every physics step.
+`distortGpsInto` composes baseline -> position step plus drift (the summed NED
+offset in one WGS84 conversion, then drift velocity and course) -> jamming
+(satellites, DOP, fix, applied in place). `distortImuInto` changes only the
+magnetometer. `SensorPipeline` (`packages/sensors/src/pipeline.ts`) applies a
+structural distorter and then quantizes with `SensorMapping`, so the order is
+baseline -> EW -> quantization and the baseline is never modified.
+
+V8 boxes float arguments of non-inlined calls, so the high-rate path passes
+floats through typed arrays or object fields: geodesy exposes
+`geodeticToEcefFromInto`, `ecefToGeodeticFromInto`,
+`LocalTangentFrame.setOriginFrom/nedToGeodeticFromInto/...`, geoids expose
+`undulationFromInto`, `GpsOffsetApplier.applyFromInto` takes the offset array,
+and drift/jamming read `dtS` from the step context (`advanceFrom`). Scalar
+signatures remain as low-rate conveniences. `MagneticAnomaly.configure`
+reconfigures in place for tick-boundary commands.

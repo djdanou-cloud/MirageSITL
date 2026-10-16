@@ -1,6 +1,6 @@
 # PROJECT_ROADMAP.md
 
-<!-- source-sha256: 41c6f419240241807bc9606b44358a085ce1bcf3a415ab982380a2e2d9896122 -->
+<!-- source-sha256: 9995bfc3007d3415f729a8eb71e72f905ab913be2f851af6f15e97772b44c18e -->
 
 Английский источник: [Source of truth](../PROJECT_ROADMAP.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -538,12 +538,13 @@ Cargo bin активирован в PATH. Производительность M
 
 ### TASK-036 — WGS84 и MSL
 
-- **Status:** TODO.
+- **Status:** DONE — Claude; baseline 346866c; 2026-10-16 (проверка абсолютной точности MSL — BLOCKED_EXTERNAL до установки авторитетной сетки геоида).
 - **Title & Description:** Добавить origin/ECEF/NED/geoid преобразования с float64.
 - **Dependencies:** TASK-004, TASK-006.
-- **Touched Files:** `packages/sensors/src/geodesy.ts`, `packages/sensors/src/geoid.ts`, `tests/geodesy.test.ts`, `tests/fixtures/geodesy/wgs84.json`.
+- **Touched Files:** `packages/sensors/src/geodesy.ts`, `packages/sensors/src/geoid.ts`, `tests/geodesy.test.ts`, `tests/fixtures/geodesy/wgs84.json`, `tests/fixtures/geodesy/generate.py`, `tests/fixtures/registry.json`, `packages/sensors/package.json`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
 - **Interfaces / Contracts:** WGS84 h vs MSL H; authoritative geoid dataset/hash/licence.
 - **DoD & Acceptance Criteria:** Roundtrip<=1 mm для локальных synthetic cases; antimeridian/poles и 15 km offsets; нет cos(lat) singularity; dataset absent явно blocks absolute MSL accuracy gate.
+- **Evidence:** Владелец Claude; baseline 346866c; 2026-10-16. Оракул — tests/fixtures/geodesy/wgs84.json (зарегистрирован), сгенерирован generate.py: замкнутая прямая формула WGS84 и обратное преобразование методом неподвижной точки на Python, независимо от обратного метода Bowring в TypeScript; 8 опорных точек (экватор, оба полюса, антимеридиан, Эверест 8848.86 м, Мёртвое море -430 м, высота 15 км, 89.9999 град) и 7 случаев касательной системы (смещения 15 км через оба полюса, через антимеридиан на восток и запад, смешанное 15 км, 15 км вниз, 10 км вверх). Node 24.22.0: tests/geodesy.test.ts 8 PASS (ECEF оракула с точностью 1e-6 м, обратные преобразования в пределах 1 мм; касательные случаи в пределах 1 мм с долготой в [-pi, pi) и обратным преобразованием в пределах 1 мм; сетки 13x13x4 смещений до 15 км в шести началах, включая оба полюса и долготу +-pi, худшая ошибка обратного преобразования меньше 1 мм; ортонормированные оси NED и подъём по нормали меняет только высоту; точная замена +pi на -pi в антиподе; синтетический геоид: билинейная интерполяция/замыкание/ограничение, обратимость H = h - N, проверка AVAILABLE только с происхождением и совпадающим hash, NO_GEOID — BLOCKED_EXTERNAL; некорректные сетки отклоняются) + проверка реестра fixtures.test.ts. Мутации (без уточнения Bowring, перевёрнутая ось east, без замыкания долготы) роняют 4, 1 и 1 тест. Остаток: авторитетная сетка геоида (источник EGM96/EGM2008, лицензия и SHA-256) не установлена, поэтому проверка абсолютной точности MSL — BLOCKED_EXTERNAL; локальные преобразования завершены.
 
 ### TASK-037 — MAVLink2 codec
 
@@ -599,12 +600,13 @@ Cargo bin активирован в PATH. Производительность M
 
 ### TASK-041 — ArduPilot JSON physics backend
 
-- **Status:** TODO.
+- **Status:** DONE — Claude; baseline 6401104; 2026-10-16 (протокол проверен по закреплённому upstream; запуск живого SITL — TASK-042).
 - **Title & Description:** Связать sensor truth и servo outputs в external SITL lockstep.
 - **Dependencies:** TASK-012, TASK-035, TASK-036, TASK-040.
-- **Touched Files:** `apps/bridge/src/ardupilot-json.ts`, `packages/autopilot/src/external-sitl.ts`, `tests/ardupilot-json.test.ts`, `tests/fixtures/sitl/json-protocol.json`.
+- **Touched Files:** `apps/bridge/src/ardupilot-json.ts`, `packages/autopilot/src/external-sitl.ts`, `tests/ardupilot-json.test.ts`, `tests/fixtures/sitl/json-protocol.json`, `apps/bridge/src/server.ts`, `apps/bridge/package.json`, `packages/autopilot/package.json`, `package-lock.json`, `tests/fixtures/sitl/generate.py`, `tests/fixtures/registry.json`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
 - **Interfaces / Contracts:** Pinned ArduPilot JSON protocol, frame counters/time domain; MAVLink не подменяет physics JSON.
 - **DoD & Acceptance Criteria:** UDP packet schema/endianness/servo map verified against pinned upstream; lost/duplicate/out-of-order frames без double-step; next tick ждёт корректный actuator, pause остаётся responsive.
+- **Evidence:** Владелец Claude; baseline 6401104; 2026-10-16. Закреплён upstream: ArduPilot 8ab6afde107a91df1b5f60ade8f333cb8a61b190, SIM_JSON.h sha256 ba8f86c7..., SIM_JSON.cpp 9d611508..., examples/JSON/readme.md cfc34793... (полные hash в tests/fixtures/sitl/json-protocol.json; generate.py загружает файлы и проверяет в исходниках значения magic, порт 9002 и правило шага timestamp 0.1 с). Node 24.22.0: tests/ardupilot-json.test.ts 10 PASS (эталонные 16/32-канальные пакеты из Python struct декодируются, три некорректных пакета отклоняются без изменения выхода; ответ побайтно равен строке Python '%.9f'; перенос на TypeScript закреплённых parse_sensors/parse_array читает каждое поле, пример из upstream readme разбирается и проходит проверку; продемонстрирована опасность порядка ключей: velocity_wind перед velocity или отсутствие velocity заставляет upstream читать ветер как скорость, что валидатор моста отклоняет вместе с 7 другими некорректными строками; lockstep: step/duplicate с идентичной повторной отправкой/gap/stale/restart/invalid; 20000 кадров с seed, 5% потерь, 10% дубликатов и перестановками окна дают ровно один tick на каждый принятый новый кадр; отображение PWM с явными MOT_PWM_MIN/MAX и подсчётом ограничений; timestamp должен расти меньше чем на 0.1 с; SteppingPolicy sitl-lockstep возвращает waiting без блокировки; реальный loopback UDP + WebSocket мост пересылает корректный servo-пакет, отбрасывает некорректный, отвечает на полученный порт источника SITL и закрывает сессию при некорректной строке состояния) + регрессия bridge.test.ts 3 PASS. Мутации (дубликат снова выполняет шаг, потерян знак минус, мост принимает любую датаграмму) роняют 2, 1 и 2 теста. Проверка CLI: MIRAGE_ARDUPILOT_JSON_PORT=9002 запускает мост. Остаток: бинарник ArduPilot SITL не запускается; проверка на живом процессе относится к закреплённой обвязке TASK-042.
 
 ### TASK-042 — External SITL integration harness
 
@@ -675,21 +677,23 @@ Cargo bin активирован в PATH. Производительность M
 
 ### TASK-049 — HIL sensor/actuator streaming
 
-- **Status:** TODO.
+- **Status:** DONE — Claude; baseline b28c8c2; 2026-10-16 (потоковая передача проверена на поддельных часах; физическое оборудование — TASK-050/051).
 - **Title & Description:** Выдавать HIL_SENSOR/HIL_GPS и принимать HIL_ACTUATOR_CONTROLS по реальным часам.
 - **Dependencies:** TASK-012, TASK-035, TASK-036, TASK-037, TASK-048.
-- **Touched Files:** `packages/autopilot/src/hitl.ts`, `packages/autopilot/src/hil-clock.ts`, `tests/hil-stream.test.ts`.
+- **Touched Files:** `packages/autopilot/src/hitl.ts`, `packages/autopilot/src/hil-clock.ts`, `tests/hil-stream.test.ts`, `packages/autopilot/package.json`, `package-lock.json`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
 - **Interfaces / Contracts:** IMU 200/400, GNSS 5/10 Hz; actuator mapping/signing/time.
 - **DoD & Acceptance Criteria:** За 60 s fake real clock верные counts/bytes/timestamps; dropout и queue overflow дают fault; fields_updated отражает реальные обновления; serial budget вычислен как baud/10 с запасом >=30%.
+- **Evidence:** Владелец Claude; baseline b28c8c2; 2026-10-16. Node 24.22.0: tests/hil-stream.test.ts 17 PASS. Двенадцать прогонов по 60 с на поддельных часах реального времени (SteppingPolicy hitl-realtime с вызовом каждые 1 мс) покрывают физику 400/800/1200 Гц x IMU 200/400 Гц x GNSS 5/10 Гц с mag 100 Гц и baro 50 Гц: число tick 60*physicsHz, кадры HIL_SENSOR 60*imuHz и HIL_GPS 60*gnssHz декодируются MavParser без ошибок CRC/неподдерживаемых сообщений, метки времени ровно k*1e6/rate микросекунд, считанные байты равны выданным, fields_updated содержит accel/gyro в каждом кадре и mag/baro строго по своим расписаниям. Бюджет канала: 400*77+10*51 = 31310 B/s, 460800 бод принимается (67.9%), 115200 и 230400 отклоняются для 400 Гц; переполнение очереди фиксируется и сбрасывается reset; некорректные наблюдения не выдаются; приём актуаторов принимает строго более новые кадры в допустимом диапазоне (включая u64-время через 2^32), отклоняет повтор/более старые/вне диапазона без изменения выхода, а пропадание фиксируется через 100 мс. Мутации (mag в каждом кадре, без требования запаса, без проверки переполнения) роняют 12, 1 и 1 тест. Остаток: физический полётный контроллер и последовательное оборудование не задействованы (TASK-050/051).
 
 ### TASK-050 — HITL firmware capability gate
 
-- **Status:** TODO.
+- **Status:** DONE — Claude; baseline 0006e07; 2026-10-16 (проверка реализована; доступность HITL — BLOCKED_EXTERNAL: нет проверенного профиля платы).
 - **Title & Description:** Проверять build flags/плату/сообщения до объявления режима работоспособным.
 - **Dependencies:** TASK-039, TASK-049.
-- **Touched Files:** `packages/autopilot/src/hitl-capabilities.ts`, `docs/hardware/hitl-matrix.md`, `tests/hitl-capabilities.test.ts`.
+- **Touched Files:** `packages/autopilot/src/hitl-capabilities.ts`, `docs/hardware/hitl-matrix.md`, `tests/hitl-capabilities.test.ts`, `docs/ru/hitl-matrix.md`, `docs/documentation-index.json`, `packages/autopilot/src/state-machine.ts`, `packages/autopilot/package.json`, `tests/autopilot-state.test.ts`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
 - **Interfaces / Contracts:** Board+firmware SHA+HIL mode+MAVLink support matrix.
 - **DoD & Acceptance Criteria:** Unsupported HIL_SENSOR/ACTUATOR path не даёт READY; записан проверенный поддерживаемый профиль или точный BLOCKED_EXTERNAL; наличие SITL не доказательство HITL.
+- **Evidence:** Владелец Claude; baseline 0006e07; 2026-10-16. Исходники проверены на закреплённых коммитах: ArduPilot 8ab6afde... (GCS_Common.cpp sha256 345233ce..., обработчики MAVLink ArduCopter/ArduPlane, GCS.h, AP_InertialSensor.cpp: нет обработки HIL_SENSOR/HIL_GPS/HIL_ACTUATOR_CONTROLS; GPS через GPS_INPUT) и PX4 4d7e4de7... (mavlink_receiver.cpp sha256 2e22f0d3...: HIL_SENSOR только при включённом режиме HIL, HIL_GPS в режиме HIL или с use_hil_gps; HIL_ACTUATOR_CONTROLS.hpp sha256 1ac5017c...: поток). Node 24.22.0: tests/hitl-capabilities.test.ts 6 PASS (без профиля/наблюдения — BLOCKED_EXTERNAL с точными требованиями независимо от доступности SITL; ArduPilot — UNSUPPORTED с тремя причинами даже при проверенном профиле и живых данных; восемь случаев PX4, в каждом из которых недостаёт одного доказательства, дают BLOCKED_EXTERNAL с соответствующим требованием; полные доказательства дают замороженный выданный READY; AutopilotSession отклоняет hitl без вердикта, с вердиктом BLOCKED и с поддельным литералом READY и принимает выданный READY; разбор профиля отклоняет 7 некорректных входов; документ матрицы содержит записанные коммиты и hash) + tests/autopilot-state.test.ts обновлён под более строгий контракт connect (2 PASS). Мутации (флаг HIL не требуется, READY не регистрируется, сессия принимает любой вердикт) роняют 1, 2 и 1 тест. Новая двуязычная пара docs/hardware/hitl-matrix.md + docs/ru/hitl-matrix.md зарегистрирована; check:docs — 11 пар. Остаток: сама доступность HITL — BLOCKED_EXTERNAL, пока профиль платы не проверен на оборудовании (TASK-051).
 
 ### TASK-051 — Реальный HITL acceptance
 
@@ -730,21 +734,23 @@ Cargo bin активирован в PATH. Производительность M
 
 ### TASK-054 — Position-step spoofing
 
-- **Status:** TODO.
+- **Status:** DONE — Claude; baseline 91579b7; 2026-10-16.
 - **Title & Description:** Добавить атомарное смещение GPS в заданный tick.
 - **Dependencies:** TASK-010, TASK-036, TASK-052.
-- **Touched Files:** `packages/ew/src/position-step.ts`, `tests/position-step.test.ts`.
+- **Touched Files:** `packages/ew/src/position-step.ts`, `tests/position-step.test.ts`, `packages/ew/package.json`, `packages/sensors/src/geodesy.ts`, `package-lock.json`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
 - **Interfaces / Contracts:** offsetNedM; source immutable; WGS84→wire after distortion.
 - **DoD & Acceptance Criteria:** Position прыгает ровно на offset в пределах geodesy tolerance, baseline velocity остаётся; zero/disable/reset cases; altitude down sign и antimeridian tested.
+- **Evidence:** Владелец Claude; baseline 91579b7; 2026-10-16. Оракул: разность искажённой и исходной точки, выраженная в касательной системе исходной точки (проверенной по независимой Python-фикстуре WGS84 в TASK-036), должна равняться заданному смещению с точностью 1 мм. Node 24.22.0: tests/position-step.test.ts 5 PASS (до запланированного tick изменений нет, в нём — атомарный шаг по трём осям с сохранением скорости/времени/DOP/fix/курса; +10 м Down понижает MSL на 10 м; смещение 9998 м выполняется с точностью 1 мм, смещение 10000.03 м отклоняется; 3 км на восток через антимеридиан приводят долготу в [-pi, pi); 1.5 км на север через полюс; нулевое смещение — точное тождество, disable/reset восстанавливают базу, источник не изменяется, некорректные источники и расписания отклоняются; MSL переводится через синтетическую сетку геоида, поэтому чистый шаг Down меняет H ровно на -D). LocalTangentFrame получил setOrigin без аллокаций; geodesy.test.ts 8 PASS без изменений. Мутация (ундуляция геоида не учитывается на входе) роняет 1 тест.
 
 ### TASK-055 — Когерентный drift
 
-- **Status:** TODO.
+- **Status:** DONE — Claude; baseline 263ce7a; 2026-10-16.
 - **Title & Description:** Интегрировать bias position/velocity на physics clock с speed cap и recovery.
 - **Dependencies:** TASK-011, TASK-036, TASK-052.
-- **Touched Files:** `packages/ew/src/velocity-drift.ts`, `tests/velocity-drift.test.ts`.
+- **Touched Files:** `packages/ew/src/velocity-drift.ts`, `tests/velocity-drift.test.ts`, `packages/ew/package.json`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
 - **Interfaces / Contracts:** b/v/a equations §5; hold-offset vs step-to-truth.
 - **DoD & Acceptance Criteria:** Constant acceleration analytic fixtures; piecewise speed cap согласован с position; разные GPS/render rates дают одинаковые states; не обещается обход EKF gate.
+- **Evidence:** Владелец Claude; baseline 263ce7a; 2026-10-16. Оракул: замкнутые формулы кинематики, независимые от шага. Node 24.22.0: tests/velocity-drift.test.ts 12 PASS (b = a t^2/2 и v = a t за 30 с при 400/800/1200 Гц с точностью 1e-8 м и 1e-10 м/с; ограничение скорости при |a| = 0.3 и пределе 2 м/с с t_c = 6.667 с внутри шага при любой частоте совпадает с 0.5|a|t_c^2 + cap (t - t_c) с точностью 1e-8 м и |v| = cap с точностью 1e-12; приращения b на шаге лежат между v_start dt и v_end dt при переходе через предел; hold-offset переходит в удержание с тормозным путём v^2/(2 decel) и затем точно удерживает смещение; step-to-truth обнуляет состояние и учитывает разрыв; выборка GPS 10 Гц против 5 Гц плюс три чтения рендера на шаг дают побитово одинаковое состояние; искажённая скорость (1, 1, 0) даёт курс pi/4, а дрейф смещает точку на восток; курс неизвестен ниже 0.05 м/с; некорректные пресеты/dt отклоняются; дрейф удерживается на границе 10 км). Мутации (обрезка скорости после неразделённого шага, мгновенная остановка при восстановлении) роняют 4 и 1 тест. Никаких утверждений о реакции шлюзов EKF не делается.
 
 ### TASK-056 — Magnetic anomaly
 
@@ -774,12 +780,13 @@ Cargo bin активирован в PATH. Производительность M
 
 ### TASK-058 — EW pipeline composition
 
-- **Status:** TODO.
+- **Status:** DONE — Claude; baseline c57bc60; 2026-10-16.
 - **Title & Description:** Объединить sensor effects, registry и deterministic command application.
 - **Dependencies:** TASK-053, TASK-054, TASK-055, TASK-056, TASK-057.
-- **Touched Files:** `packages/ew/src/engine.ts`, `packages/sensors/src/pipeline.ts`, `tests/ew-pipeline.test.ts`.
+- **Touched Files:** `packages/ew/src/engine.ts`, `packages/sensors/src/pipeline.ts`, `tests/ew-pipeline.test.ts`, `packages/ew/src/gnss-jamming.ts`, `packages/ew/src/magnetic.ts`, `packages/ew/src/position-step.ts`, `packages/ew/src/velocity-drift.ts`, `packages/ew/package.json`, `packages/sensors/src/geodesy.ts`, `packages/sensors/src/geoid.ts`, `packages/sensors/package.json`, `package-lock.json`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
 - **Interfaces / Contracts:** EwEngine, GpsSample/ImuSample, ew_flags и effect precedence.
 - **DoD & Acceptance Criteria:** Порядок: baseline→step/drift→jamming→quantization, mag отдельно; multiple faults/reset consistent; source truth bit-identical; identical seed/event log produces identical packets.
+- **Evidence:** Владелец Claude; baseline c57bc60; 2026-10-16. Node 24.22.0: tests/ew-pipeline.test.ts 6 PASS (шаг 300/-200/5 м плюс 10 с дрейфа равен одному применению WGS84 суммарного смещения, добавлена скорость дрейфа, затем подавление даёт fix 0, 1 спутник, HDOP 99, а полезная нагрузка HIL_GPS равна SensorMapping искажённого отсчёта; отказы GNSS не меняют магнитометр, а аномалия с рысканием 90 град отображает (x, y) в (-y, x) плюс смещение, не затрагивая accel/gyro/baro и GPS; замена в реестре, отключение невладельцем, motor-loss передаётся в MotorFaults (момент 2 -> 0.5 и обратно), ёмкость 16 слотов с registry-full, reset очищает флаги/моторы и записывает seed, motor-loss без MotorFaults отклоняется; массив истинного состояния, контекст и базовые отсчёты побитово неизменны после 2000 шагов; одинаковые seed и журнал команд через ControlProcessorV2 дают одинаковые байты HIL_GPS и флаги за 4000 tick; окна по 1e6 шагов со всеми пятью эффектами, IMU 200 Гц и GNSS 10 Гц через конвейер: хотя бы одно из максимум трёх окон после прогрева должно пройти без GC, чего не может выполнить аллокация на каждом шаге (16 МБ на окно); отдельные прогоны дают 0 GC в первом окне, а один случайный GC появился однажды под параллельной нагрузкой полного набора) + 32 регрессионных PASS в наборах геодезии, шага, дрейфа, подавления, магнитной аномалии и аллокаций links-ew. Проверка GC сначала провалилась (5 GC на 1e6 шагов); пошаговый зонд нашёл причину в упаковке float-аргументов невстраиваемых вызовов (integrate/speed дрейфа, вызовы касательной системы и геоида, аргументы dt), исправлено вариантами через typed arrays/поля; после этого все этапы дают 0. Мутации (отключение невладельцем снимает эффект, магнитная аномалия применяется к акселерометру, один объект на шаг: 14/13/13 GC в трёх окнах) роняют 1, 2 и 1 тест.
 
 ### TASK-059 — EKF scenario regressions
 
@@ -807,39 +814,43 @@ Cargo bin активирован в PATH. Производительность M
 
 ### TASK-061 — Tiles streaming adapter
 
-- **Status:** TODO.
+- **Status:** DONE — Claude; baseline 89b46f1; 2026-10-16 (локальный fixture проверен; живые тайлы Google — BLOCKED_EXTERNAL до TASK-063 и учётных данных).
 - **Title & Description:** Подключить один выбранный 3D Tiles loader к R3F с local licensed fixture.
 - **Dependencies:** TASK-015, TASK-036, TASK-060.
-- **Touched Files:** `packages/terrain/src/tiles-provider.ts`, `packages/terrain/src/tiles-scene.ts`, `apps/web/src/FlightScene.tsx`, `tests/tiles-provider.test.ts`, `tests/browser/terrain.spec.ts`.
+- **Touched Files:** `packages/terrain/src/tiles-provider.ts`, `packages/terrain/src/tiles-scene.ts`, `apps/web/src/FlightScene.tsx`, `tests/tiles-provider.test.ts`, `tests/browser/terrain.spec.ts`, `packages/terrain/package.json`, `apps/web/src/App.tsx`, `apps/web/src/terrain-config.ts`, `apps/web/src/style.css`, `apps/web/package.json`, `package-lock.json`, `tests/support/terrain-harness.ts`, `tests/fixtures/tiles/generate.py`, `tests/fixtures/tiles/tileset.json`, `tests/fixtures/tiles/tile.glb`, `tests/fixtures/registry.json`, `docs/architecture.md`, `docs/ru/architecture.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
 - **Interfaces / Contracts:** 3D Tiles transforms, ECEF/local origin, attribution, abort/dispose.
 - **DoD & Acceptance Criteria:** Fixture tileset загружается/позиционируется; cancelled request освобождает ресурсы; CORS/COEP errors видны; Google integration при missing key — BLOCKED_EXTERNAL, local tests продолжаются.
+- **Evidence:** Владелец Claude; baseline 89b46f1; 2026-10-16. Загрузчик 3d-tiles-renderer 0.5.3 (Apache-2.0, опубликован 2026-09-18) закреплён в packages/terrain; lockfile добавляет только его и вспомогательные pbf/pmtiles/vector-tile. Fixture: собственный tileset 3D Tiles 1.1 под CC0 (tests/fixtures/tiles/generate.py: сетка 200 м с маркером 20 м, корневое преобразование ENU-to-ECEF в 47.3769N 8.5417E 400 м), оба файла зарегистрированы. Node 24.22.0: tests/tiles-provider.test.ts 7 PASS (живой Google без прокси — BLOCKED_EXTERNAL, локальный лицензированный — READY; неверная политика/URL блокируются; размещение переводит базис ENU, записанный Python, в рендер (100,0,0)/(0,20,0)/(0,0,-100) с точностью 1e-6 м; dispose прерывает выполняющиеся запросы без записи ошибок и отклоняет последующие; собственный сигнал загрузчика передаётся; TypeError классифицируется как cors-or-network, 404 — как http, с режимом CORS и без учётных данных; заголовок GLB и происхождение CC0; конфигурация приложения по умолчанию выключена, разбирает локальный tileset и блокирует четыре некорректных набора настроек). Chromium: tests/browser/terrain.spec.ts 2 PASS (реальный загрузчик загружает fixture: габариты (-100,0,-100)..(100,20,100) и северо-восточный угол в рендере (100,0,-100) с точностью 1 см, геометрия загружена в GPU, каждая геометрия/материал освобождены, после dispose 0 запросов и 0 моделей, атрибуция сохранена; недоступный cross-origin tileset сообщается как cors-or-network). Мутации (перевёрнута строка north, dispose пропускает загрузчик, TypeError не классифицируется) роняют unit- и/или браузерные тесты. Сборка: существовавшее предупреждение о размере chunk не изменилось по сути (главный chunk origin/main 1100.55 kB, теперь 1103.36 kB); загрузчик — отдельный chunk 114 kB по требованию, порог не повышался. Остаток: живые Google 3D Tiles — BLOCKED_EXTERNAL (прокси TASK-063 и учётные данные поставщика).
 
 ### TASK-062 — LOD и GPU budget
 
-- **Status:** TODO.
+- **Status:** DONE — Claude; baseline ea69c6a; 2026-10-16 (синтетические бюджеты проверены; объём на реальном GPU и время кадра на целевом устройстве открыты).
 - **Title & Description:** Ограничить сетевой/декодирующий/GPU terrain workload.
 - **Dependencies:** TASK-061.
-- **Touched Files:** `packages/terrain/src/lod-budget.ts`, `packages/terrain/src/resource-cache.ts`, `tests/terrain-budget.test.ts`.
+- **Touched Files:** `packages/terrain/src/lod-budget.ts`, `packages/terrain/src/resource-cache.ts`, `tests/terrain-budget.test.ts`, `packages/terrain/src/tiles-scene.ts`, `packages/terrain/package.json`, `tests/support/terrain-harness.ts`, `tests/browser/terrain.spec.ts`.
 - **Interfaces / Contracts:** Bounded request queue, CPU/GPU byte accounting, SSE limits.
 - **DoD & Acceptance Criteria:** Synthetic flythrough не превышает 2 GiB terrain GPU estimate и 512 MiB decoded CPU cache; eviction вызывает dispose; idle queue не растёт; quality degrade deterministic.
+- **Evidence:** Исполнитель Claude; база ea69c6a; 2026-10-16. Node 24.22.0: tests/terrain-budget.test.ts 12 PASS. Модульные случаи: оценки байтов; значения LodBudget по умолчанию (2 GiB / 512 MiB), неверные параметры, огрубление при превышении любого бюджета, насыщение на 256 px, прогнозирующее восстановление после 30 спокойных кадров (кадр с превышением или выше прогноза сбрасывает серию); порядок RequestQueue по приоритету/возрасту, дубликаты, предел активных, отбрасывание/вытеснение; LRU-вытеснение кэша, отказ при жёстком пределе с освобождением и спросом за кадр. Пролёт с seed (mulberry32, seed 0x5eed и 7; 400 кадров по 30 м/кадр, затем 200 кадров зависания; радиус обзора 2 км; тайлы 12..36 MiB, самый детальный уровень ~30 GiB): максимум GPU <= 2 GiB и CPU <= 512 MiB в каждом кадре при наличии отказов, вытеснений и огрубления; каждый созданный ресурс освобождён ровно один раз; очередь <= 256; очередь и активные загрузки опустошаются за 60 кадров зависания и остаются пустыми при постоянных объёме и цели; одинаковые трассы для одного seed и разные для другого. Убитые мутации: нет жёсткого предела, нет освобождения при удалении, вытеснение видимых тайлов, непрогнозирующее восстановление, серия не сбрасывается при превышении, спрос не сбрасывается, обратный порядок при равенстве (незащищённый цикл добавления зависает и убит по таймауту). TilesScene ограничивает LRU загрузчика min(бюджетов) и управляет errorTarget; tests/browser/terrain.spec.ts (Chromium) проверяет предел 512 MiB, ненулевую оценку кэша и SSE 16 для фикстуры. Гейты: см. коммит. Объём на реальном GPU и время кадра на целевом устройстве остаются открытыми (программный GPU в облаке).
 
 ### TASK-063 — Cloudflare tiles proxy
 
-- **Status:** TODO.
+- **Status:** DONE — Claude; база e9ad0f3; 2026-10-16 (локальные тесты Worker; развёртывание и живые учётные данные поставщика требуют отдельного разрешения).
 - **Title & Description:** Создать authenticated proxy с quota, attribution/CORS и разрешёнными TTL.
 - **Dependencies:** TASK-060, TASK-061.
-- **Touched Files:** `services/tiles-worker/package.json`, `services/tiles-worker/wrangler.jsonc`, `services/tiles-worker/src/index.ts`, `services/tiles-worker/src/policy.ts`, `tests/tiles-proxy.test.ts`.
+- **Touched Files:** `services/tiles-worker/package.json`, `services/tiles-worker/wrangler.jsonc`, `services/tiles-worker/src/index.ts`, `services/tiles-worker/src/policy.ts`, `tests/tiles-proxy.test.ts`, `packages/terrain/src/tiles-provider.ts`, `packages/terrain/src/tiles-scene.ts`, `tsconfig.json`.
 - **Interfaces / Contracts:** ProviderPolicy, opaque upstream key binding, origin/session checks.
 - **DoD & Acceptance Criteria:** Local Worker tests: key не попадает клиенту/logs; bad origin/session и quota rejected; provider cache restrictions соблюдены; external deployment требует отдельного разрешения, не входит в local test success.
+- **Evidence:** Исполнитель Claude; база e9ad0f3; 2026-10-16. Node 24.22.0: tests/tiles-proxy.test.ts 10 PASS с поддельным поставщиком и поддельным хранилищем Durable Object (без живых запросов к поставщику и без развёртывания). Случаи: конфигурация отказывает по умолчанию (нет ключа, короткий ключ подписи, пустые/не HTTPS/с путём origin, неверный JSON, постоянная политика Google, лицензированная политика, границы TTL) и отвечает 503 без запросов к поставщику; отсутствующий/чужой Origin — 403, preflight — 204 с заголовком сеанса; отсутствующий, подделанный, искажённый, чужого origin, истёкший сеанс и сеанс с чужим ключом — 401 до любого запроса к поставщику; пересылка добавляет ключ только к запросу поставщику, сохраняет только параметр Google session, удаляет set-cookie, задаёт CORS/CORP, Cache-Control no-store (TTL 0) и атрибуцию; HEAD без тела; чужие пути, обход каталогов, двойные слеши, клиентские ключи, лишние или повторные параметры и методы кроме GET отклоняются; ответ 403 поставщика с ключом в теле даёт общий 503, тело JSON с ключом блокируется ответом 502, исключение поставщика даёт 502; квоты запросов на сеанс и выдачи сеансов на IP возвращают 429 и сбрасываются после окна; проверка requestTilesSession на клиенте и заголовок сеанса TileFetchTracker от начала до конца. После всех тестов ни одно тело/заголовок ответа и ни одно событие журнала не содержит ключ (наблюдалось >20 каждого). Убитые мутации: пересылка произвольных параметров, отключённая проверка утечки ключа, привязка к origin, срок действия, квота со сдвигом на единицу, пересылка ошибок поставщика, отключённая проверка origin, отсутствующий ключ у поставщика, сброс окна квоты, политика кэша по TTL. wrangler.jsonc привязывает секреты только по имени; развёртывание, живой ключ и проверка человека в стиле Turnstile остаются внешними.
 
 ### TASK-064 — R2 для разрешённых datasets
 
-- **Status:** TODO.
+- **Status:** DONE — Claude; база f35efe6; 2026-10-16 (тесты на эмуляторе; привязка R2 и постоянное кэширование требуют явного разрешения).
 - **Title & Description:** Реализовать bounded 10–15 km regional cache только для разрешённого контента.
 - **Dependencies:** TASK-062, TASK-063.
-- **Touched Files:** `services/tiles-worker/src/r2-cache.ts`, `packages/terrain/src/region-manifest.ts`, `tests/r2-cache.test.ts`.
+- **Touched Files:** `services/tiles-worker/src/r2-cache.ts`, `packages/terrain/src/region-manifest.ts`, `tests/r2-cache.test.ts`, `tests/support/memory-r2.ts`, `packages/terrain/package.json`.
 - **Interfaces / Contracts:** Dataset hash/license, cache key/version/TTL, region manifest; deny Google unless explicit lawful policy.
 - **DoD & Acceptance Criteria:** Local R2 emulator hit/miss/expiry/evict tests; bytes/quota cap; geographic radius filter 10/15 km; cacheable=false никогда не пишет R2; отсутствие прав/данных явно блокирует этот provider.
+- **Evidence:** Исполнитель Claude; база f35efe6; 2026-10-16. Node 24.22.0: tests/r2-cache.test.ts 8 PASS с tests/support/memory-r2.ts (эмулятор подмножества привязки R2 в памяти с постраничным перечислением; не Miniflare). Случаи: структура манифеста, границы радиуса 10/15 км, повторяющиеся пути и обход каталогов, хеш/размер тайла, неизвестные поля и проверка политики; несовпадение хеша набора отклоняется; решения (Google BLOCKED даже с подтверждением, без подтверждения BLOCKED, пустой хеш или индекс BLOCKED, cacheable=false / только память / TTL 0 NO_CACHE); расстояние WGS84 (0.1° широты на 47.4° = 11.09..11.14 км); промах -> запись -> попадание без обращения к источнику, истечение после TTL удаляет объект и загружает заново, формат ключа и метаданные; ограничение 3000 байт соблюдается вытеснением самого старого и заменой существующего ключа; нет записей вне 10 км (запись в пределах 15 км), для тайлов вне индекса, при несовпадении хеша (не отдаётся) или при cacheable=false (0 записей при повторных чтениях); заблокированные манифесты не загружают и не записывают; версии кэша изолированы. Убитые мутации: проверка радиуса, истечение, удаление истёкшего, ограничение байтов, проверка хеша, защита записи NO_CACHE, правило Google, флаг cacheable, граница радиуса, постраничное перечисление, версионированный префикс, пустой индекс. Бакет R2 не привязан; постоянное кэширование требует явного разрешения, а набор данных с проверенными правами ещё не зарегистрирован.
 
 ### TASK-065 — Collision terrain LOD
 
@@ -852,39 +863,43 @@ Cargo bin активирован в PATH. Производительность M
 
 ### TASK-066 — WebGPU renderer capability
 
-- **Status:** TODO.
+- **Status:** DONE — Claude; база 60ba4cf; 2026-10-16 (путь WebGL2, откаты и жизненный цикл проверены; рендеринг WebGPU здесь пропущен с причиной: нет работающего адаптера, поэтому путь WebGPU ждёт запуска в браузере с GPU).
 - **Title & Description:** Добавить renderer adapter с WebGL2 fallback и resource lifecycle.
 - **Dependencies:** TASK-005, TASK-061.
-- **Touched Files:** `apps/web/src/render/renderer.ts`, `apps/web/src/render/webgpu.ts`, `tests/browser/render-backends.spec.ts`.
+- **Touched Files:** `apps/web/src/render/renderer.ts`, `apps/web/src/render/webgpu.ts`, `tests/browser/render-backends.spec.ts`, `apps/web/src/FlightScene.tsx`, `tests/support/render-harness.ts`.
 - **Interfaces / Contracts:** Same scene/material capabilities; browser selects Metal/DX backend.
 - **DoD & Acceptance Criteria:** Available GPU modes запускаются, unsupported mode skipped с причиной, не выдаётся за pass; shader capability failures fallback; no leaked resources after renderer switch.
+- **Evidence:** Исполнитель Claude; база 60ba4cf; 2026-10-16. Chromium (Playwright 1.56.1, SwiftShader; флаги спецификации добавляют --enable-unsafe-webgpu --use-webgpu-adapter=swiftshader): tests/browser/render-backends.spec.ts — 5 пройдено, 1 пропущен. WebGL2 рисует освещённый текстурированный куб (центральный пиксель не цвета фона), info.memory падает до 0 геометрий/текстур после освобождения 1 геометрии/материала/текстуры, контекст потерян после dispose; сломанный ShaderMaterial обнаруживается по журналу шейдера и заменяется пурпурным резервным материалом, который рисуется; запрошенный бэкенд WebGPU откатывается на WebGL2 с точной причиной; переключение рендереров освобождает каждый перед следующим; приложение учитывает ?renderer=webgl2|webgpu и показывает бэкенд и причину отката на холсте. ПРОПУЩЕН с причиной: "WebGPU unavailable: WebGPU adapter "google swiftshader" is not functional: device lost: A valid external Instance reference no longer exists." (программный адаптер теряет устройство при первом выводе на холст). Путь рендеринга WebGPU, его область валидации и откат по внедрённой пробе при доступном адаптере остаются непроверенными, пока спецификацию не запустит браузер с работающим адаптером WebGPU. Убитые мутации: игнорирование ошибки шейдера, неосвобождённые текстуры, непотерянный контекст, атрибут бэкенда из запроса вместо результата.
 
 ### TASK-067 — FPV camera/fisheye
 
-- **Status:** TODO.
+- **Status:** DONE — Claude; база 778ee75; 2026-10-16 (WebGL2 проверен; fisheye для WebGPU не реализован: проход — ShaderMaterial WebGL).
 - **Title & Description:** Отделить FPV pose/projection и lens distortion от внешней камеры.
 - **Dependencies:** TASK-015, TASK-066.
-- **Touched Files:** `packages/cameras/package.json`, `packages/cameras/src/fpv-camera.ts`, `packages/cameras/src/shaders/fisheye.glsl`, `tests/fisheye.test.ts`, `tests/browser/fpv.spec.ts`.
+- **Touched Files:** `packages/cameras/package.json`, `packages/cameras/src/fpv-camera.ts`, `packages/cameras/src/shaders/fisheye.glsl`, `tests/fisheye.test.ts`, `tests/browser/fpv.spec.ts`, `packages/cameras/src/fisheye.ts`, `packages/cameras/src/fisheye-material.ts`, `tests/support/fpv-harness.ts`, `package-lock.json`.
 - **Interfaces / Contracts:** CameraConfig {fov, mount FRD, distortion}; immutable truth.
 - **DoD & Acceptance Criteria:** Zero distortion identity; optical-center/radial mapping fixtures; positive/negative edge coordinates finite; analytic projection и viewport resize tested; no truth mutation.
+- **Evidence:** Исполнитель Claude; база 778ee75; 2026-10-16. Node 24.22.0: tests/fisheye.test.ts 11 PASS: модель none — точная тождественность с камерой-источником, выведенной из выходной; эквидистантная k=0 при 120° отображает 30° в u=0.75, а по вертикали — с учётом соотношения сторон пикселей (замкнутая форма); при k=0 и k=(0.08,-0.015,0.002,-0.0003) каждый луч (theta 0.5..60°, шесть азимутов) обращается в UV источника там, куда его проецирует PerspectiveCamera three.js с выведенными FOV/соотношением, с точностью 1e-9; смещение главной точки (20,-10) px помещает туда оптическую ось с радиальной симметрией; изменение размера сохраняет горизонтальное поле зрения; выходы конечны на сетке 121x121, включая 10% за краями, при полном покрытии кадра; немонотонные объективы, 170° и неверные размеры отклоняются. FpvCamera: оси вперёд на север/восток, проекция точки в 10 м впереди в центр, наклон вверх 30°, повёрнутое смещение крепления, вектор вправо при крене +90°, эквивалентность q/-q, замороженная поза не меняется, неверный кватернион игнорируется, изменение размера. Chromium WebGL2 (SwiftShader): tests/browser/fpv.spec.ts 3 PASS, fisheye.glsl против зеркала на CPU на 96x72 через текстуру, кодирующую координаты: 0 из 6912 пикселей не совпали в каждом случае (худшая ошибка 0, 1 и 1 тексель; объявленный допуск 1 тексель не более чем на 1% пикселей, 0 для тождественности). Убитые мутации: знак наклона, неповёрнутое смещение, порядок композиции крепления, защита от неверного кватерниона, число шагов Ньютона, ось главной точки, соотношение сторон пикселя, предел 80°, коэффициент производной; шейдер: один шаг Ньютона, переставленные оси фокуса источника, масштабированный радиус.
 
 ### TASK-068 — Analog noise/jelly
 
-- **Status:** TODO.
+- **Status:** DONE — Claude; база 7478d6f; 2026-10-16 (WebGL2 проверен; допуски зависят от бэкенда; вариант для WebGPU не реализован).
 - **Title & Description:** Добавить seeded video interference, scanline и rolling-shutter deformation.
 - **Dependencies:** TASK-067.
-- **Touched Files:** `packages/cameras/src/analog.ts`, `packages/cameras/src/shaders/analog.glsl`, `tests/analog-noise.test.ts`, `tests/browser/analog.spec.ts`.
+- **Touched Files:** `packages/cameras/src/analog.ts`, `packages/cameras/src/shaders/analog.glsl`, `tests/analog-noise.test.ts`, `tests/browser/analog.spec.ts`, `packages/cameras/src/analog-material.ts`, `packages/cameras/package.json`, `tests/support/analog-harness.ts`.
 - **Interfaces / Contracts:** VideoNoiseConfig, throttle-decimated uniform; independent visual RNG.
 - **DoD & Acceptance Criteria:** Same seed/time => same frame; amplitude связан с газом только render-path; no CPU pixel loops/frame allocations; golden images tolerances pinned by backend, not cross-GPU pixel equality.
+- **Evidence:** Исполнитель Claude; база 7478d6f; 2026-10-16. Node 24.22.0: tests/analog-noise.test.ts 7 PASS: lowbias32 совпадает с независимой реализацией на Python на 5 векторах; seed кадра = hash(seed ^ hash(k)) с эталонными значениями из Python, не зависит от газа, 10000 различных seed кадров; циклы рендеринга 60 Hz и 144 Hz дают одинаковые uniform-переменные по видеокадрам (300 кадров); газ выбирается один раз за видеокадр и отображается в шум/«желе»/частоту вибрации, NaN -> 0, с ограничением; замороженный вход не меняется, и ни один метод не принимает состояние физики; неверные конфигурации отклоняются; 1e6 вызовов updateFrom с одним окном без GC из трёх. Chromium WebGL2 (SwiftShader): tests/browser/analog.spec.ts 5 PASS: при выключенных эффектах источник воспроизводится точно; одинаковые seed и видеокадр дают побайтно одинаковые кадры от разных рендереров, следующий видеокадр или другой seed отличаются; стандартное отклонение шума 2.9 / 17.7 уровня в пределах 20% при газе 0 / 1; вертикальная линия остаётся прямой без вибрации и изгибается на >= 6 px (<= 5 px от центра) на полном газе; строки развёртки не меняют изображение при одной строке на ряд пикселей и дают средние по рядам 73.3 / 118.7 при 24 строках с периодом четыре ряда. Убитые мутации: нет прореживания по кадрам, seed по числу кадров, газ без ограничения, «желе» без зависимости от газа, неинициализированное поле ScalarUniform (тест GC), шум пикселей без зависимости от кадра, без времени экспозиции строки, уменьшенный вдвое шум. Допуски относятся только к этому бэкенду.
 
 ### TASK-069 — WorldCover/OSM material map
 
-- **Status:** TODO.
+- **Status:** DONE — Claude; база e67236d; 2026-10-16 (синтетический геопривязанный растр; проверка на реальном тайле требует локально размещённых лицензированных данных и декодирования GeoTIFF).
 - **Title & Description:** Загружать лицензированные land classes и map features с provenance.
 - **Dependencies:** TASK-036, TASK-060, TASK-061.
-- **Touched Files:** `packages/thermal/package.json`, `packages/thermal/src/material-map.ts`, `packages/thermal/src/data-manifest.ts`, `tests/material-map.test.ts`, `tests/fixtures/thermal/material-classes.json`.
+- **Touched Files:** `packages/thermal/package.json`, `packages/thermal/src/material-map.ts`, `packages/thermal/src/data-manifest.ts`, `tests/material-map.test.ts`, `tests/fixtures/thermal/material-classes.json`, `tests/fixtures/registry.json`, `package-lock.json`.
 - **Interfaces / Contracts:** 10 m raster labels, road/roof overlays; attribution/hash/coordinate system.
 - **DoD & Acceptance Criteria:** Known coordinates map correctly; missing data fallback labelled synthetic; raster class не трактуется как temperature; licenses/attribution сохранены без массовой неразрешённой выгрузки.
+- **Evidence:** Исполнитель Claude; база e67236d; 2026-10-16. Node 24.22.0: tests/material-map.test.ts 9 PASS. Фикстура легенды tests/fixtures/thermal/material-classes.json (зарегистрирована) покрывает все 11 кодов WorldCover v200; поле temperatureK или emissivity отклоняется. Манифест: правила лицензии/атрибуции поставщиков, обязательный SHA-256 для реальных поставщиков, пометка синтетических данных, система координат, границы и повторяющиеся идентификаторы проверяются; имена тайлов N45E006/S03W060/N00E000/S03W003/N48E009; план 15 км вокруг Цюриха требует 1 тайл, пересечение 48N/9E — 4, план 10x10° отклоняется. Карта на синтетическом растре 12x12 на реальной сетке 1/12000°: все 143 центра пикселей и точки северо-западных углов/краёв дают ожидаемый код; отсутствие данных и точки вне слоёв дают synthetic-ground с synthetic=true; синтетические слои остаются синтетическими; здания поверх дорог поверх поверхности, roof:material=metal -> roof-metal, дорога residential на 2.9 м — асфальт, на 3.2 м — нет, footway игнорируется; образцы не содержат тепловых полей; незарегистрированные слои/слои неверного поставщика, несовпадение границ и неизвестные коды отклоняются; исходный код пакета не содержит сетевого кода. Убитые мутации: округлённый ряд пикселя, игнорирование отсутствия данных, удвоенная ширина дороги, пропуск зданий, потеря флага synthetic, проверка лицензии, ограничение массового плана, усечение имени тайла, учёт атрибуции. Осталось: реальные тайлы WorldCover и выгрузки OSM не загружаются и не коммитятся; декодирование GeoTIFF/OSM и проверка на реальных координатах требуют локально размещённых лицензированных данных.
 
 ### TASK-070 — Surface thermal state
 

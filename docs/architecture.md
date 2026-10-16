@@ -57,6 +57,8 @@ The following components are planned; these directories do not yet exist:
 | `packages/autopilot` | Direct/external SITL/WASM SITL/HITL adapters |
 | `packages/ew` | Scenario observation faults and hazard volumes |
 | `packages/terrain` | Streaming visual LOD and independent collision LOD |
+| `packages/cameras` | Mounted FPV camera, lens distortion, analog video effects |
+| `packages/thermal` | Surface material classes (WorldCover/OSM) with provenance; not temperatures |
 | `packages/aar` | Input/actuator/truth/EKF recording and replay |
 | `services/tiles-worker` | Cloudflare proxy, quotas, permitted caching |
 | `native` | Source/toolchain pins and WASM reference tests |
@@ -628,3 +630,226 @@ integration. Use node scripts/bench-links-ew.mjs all 400 (also 800/1200) for
 Node allocation evidence, not hardware timing acceptance. Scalar conveniences
 may box floating-point values: high-rate composition uses typed-array inputs
 and outputs documented in the engine specification.
+
+### WGS84 geodesy and geoid (TASK-036)
+
+`@mirage/sensors/geodesy` converts geodetic, ECEF, and a frozen local NED
+frame in float64 through ECEF, so poles and the antimeridian are regular
+cases. `@mirage/sensors/geoid` keeps ellipsoidal and MSL heights distinct and
+blocks the absolute-MSL accuracy gate until an authoritative geoid grid with
+source, license and hash is installed.
+
+### ArduPilot JSON lockstep (TASK-041)
+
+`@mirage/autopilot/external-sitl` turns pinned SIM_JSON servo frames into
+exactly one `sitl-lockstep` tick per new frame count and encodes the reply
+line without allocation; the bridge validates both directions and replies to
+the SITL source port learned on its bound UDP endpoint.
+
+### HIL streaming (TASK-049)
+
+`@mirage/autopilot/hitl` schedules HIL_SENSOR/HIL_GPS on the physics clock,
+sets `fields_updated` from the groups actually updated, enforces 30% serial
+headroom, and admits HIL_ACTUATOR_CONTROLS with replay and dropout checks into
+bounded buffers. No physical flight controller is involved yet.
+
+### HITL capability gate (TASK-050)
+
+`@mirage/autopilot/hitl-capabilities` is the only issuer of HITL READY
+verdicts (source evidence, verified profile, live observation), and
+`AutopilotSession` refuses `hitl` without one. See
+[hardware/hitl-matrix.md](hardware/hitl-matrix.md).
+
+### GNSS position step (TASK-054)
+
+`@mirage/ew/position-step` applies a tick-scheduled NED offset to GPS
+observations through the WGS84 tangent frame and the geoid, preserving
+velocity; truth is untouched.
+
+### Coherent GNSS drift (TASK-055)
+
+`@mirage/ew/velocity-drift` integrates a speed-capped position/velocity bias on
+the physics clock with exact piecewise splitting and explicit recovery
+policies, and applies it to GPS observations only.
+
+### EW pipeline composition (TASK-058)
+
+`@mirage/ew/engine` composes jamming, position step, drift, magnetic anomaly
+and motor faults behind a bounded fault registry applied at tick boundaries;
+`@mirage/sensors/pipeline` runs baseline -> EW -> quantization. The composed
+path runs 1e6 steps without triggering GC in Node.
+
+### 3D Tiles streaming adapter (TASK-061)
+
+The chosen loader is NASA-AMMOS `3d-tiles-renderer` 0.5.3 (Apache-2.0).
+`@mirage/terrain/tiles-provider` resolves sources through the TASK-060
+provider policy: local licensed tilesets load, while live Google tiles are
+BLOCKED_EXTERNAL until the authenticated proxy (TASK-063) and provider
+credentials exist; API keys never enter the client. `ecefToRenderMatrix`
+places ECEF tilesets in the local render frame (x east, y up, z -north) with a
+float64 matrix from the WGS84 tangent frame at the origin. `TileFetchTracker`
+handles every tile request through the loader's `fetchData` plugin hook,
+counts in-flight requests, aborts them on dispose, and classifies failures
+(`cors-or-network`, `http`, `aborted`). `@mirage/terrain/tiles-scene` binds
+these to the loader, keeps attribution, and disposes every loaded model.
+FlightScene loads the layer on demand (separate chunk) only when
+`VITE_MIRAGE_TILESET_URL` and `VITE_MIRAGE_TILES_ORIGIN` are set, and shows
+attribution and classified failures. The test tileset in
+`tests/fixtures/tiles` is own-work CC0 synthetic data.
+
+### Terrain LOD and byte budgets (TASK-062)
+
+`@mirage/terrain/lod-budget` and `@mirage/terrain/resource-cache` bound the
+terrain workload with renderer-independent, frame-indexed logic. Byte
+estimates are geometry = attribute + index buffer bytes and texture =
+width × height × bytes per pixel (× 4/3 with mipmaps). `TerrainResourceCache`
+enforces a hard cap of 2 GiB estimated GPU and 512 MiB decoded CPU bytes on
+admission: a new tile first evicts tiles not visible in the current frame
+(least recently visible, then oldest), and if the visible set leaves no room
+the tile is refused, disposed and reported as unmet demand. Each resource is
+disposed exactly once (eviction, replacement, refusal or `clear`).
+`LodBudget` multiplies the screen-space-error target by 1.5 (16 to 256 px)
+on every frame whose demand exceeds a budget, and relaxes it only after 30
+consecutive frames whose predicted residency at the finer target
+(bytes × 1.5², tile count scaling with screen area) stays below 80% of both
+budgets, so hovering does not oscillate. `RequestQueue` bounds queued (by
+priority, then age; overflow drops or displaces the lowest) and active
+downloads. Same inputs give the same targets: degradation never depends on
+wall time. `TilesScene` applies the budget to the loader: its LRU byte cap
+is the smaller budget (the loader's single geometry + texture estimate is
+charged to both, since three.js keeps decoded arrays beside GPU copies) and
+its `errorTarget` follows `LodBudget` every rendered frame.
+
+### Authenticated tiles proxy (TASK-063)
+
+`services/tiles-worker` is a Cloudflare Worker for Google Photorealistic 3D
+Tiles. The provider key exists only in the `GOOGLE_MAPS_API_KEY` secret
+binding and in the upstream URL; it never appears in responses, client URLs or
+log events. `POST /v1/session` issues an HMAC-SHA256 session token bound to an
+exactly matched allowed origin with an expiry (default 1 h), rate-limited per
+client IP. `GET|HEAD /v1/3dtiles/...` requires an allowed `Origin` and a valid
+`X-Mirage-Session`, consumes the per-session quota, and forwards only Google
+tile paths (no traversal) with only Google's `session` query parameter; a
+client-supplied `key` or any other parameter is rejected. Quotas are
+fixed-window counters in the `TileQuota` Durable Object (one object per key,
+so updates are serialized across isolates). Responses carry CORS for the
+origin, `Cross-Origin-Resource-Policy: cross-origin` (COEP), the policy
+attribution in `X-Mirage-Attribution`, and `Cache-Control: no-store` because
+the Google live policy has TTL 0; the proxy never caches or prefetches.
+Upstream error bodies are never echoed, and text bodies containing the key are
+replaced by a 502. Configuration fails closed (missing secret, origin list or
+policy, or a non-Google policy). On the client, `requestTilesSession`
+validates the session response and `TileFetchTracker`/`TilesScene` send the
+session header with every request. Sessions limit and attribute use; they do
+not authenticate a person. Tests are local only (fake upstream and Durable
+Object storage); `wrangler` is not a repository dependency, and deployment
+needs separate authorization.
+
+### Region cache for permitted datasets (TASK-064)
+
+`@mirage/terrain/region-manifest` defines `mirage.region-manifest/1`: dataset
+id, `datasetSha256` (SHA-256 of the canonical tile index, lines
+`path sha256 bytes` sorted by path), `cacheVersion`, the TASK-060 provider
+policy, `cacheable`, a region centre and radius (10 km default, 15 km
+maximum), byte caps, and the complete tile index with per-tile SHA-256, size
+and centre. `regionDecision` fails closed: Google live tiles, or a policy
+without reviewed license evidence, are BLOCKED (missing rights, even with
+evidence for Google); a missing dataset hash or empty index is BLOCKED
+(missing data); `cacheable: false`, memory-only rights or TTL 0 give NO_CACHE.
+A BLOCKED provider serves nothing. `services/tiles-worker/src/r2-cache.ts`
+implements `RegionCache` over the R2 binding subset with keys
+`<datasetId>/<datasetSha256[0..16]>/v<cacheVersion>/<path>`, so a new
+dataset hash or cache version never reads stale objects. A tile is written
+only when CACHEABLE, listed, inside the radius (WGS84 tangent-plane distance),
+and matching its listed size and SHA-256; a listed tile that fails the hash is
+not served. Objects expire after the policy TTL (expired reads delete the
+object) and the region byte cap is kept by evicting the oldest uploads.
+Concurrent writers can exceed the cap by at most one object each. No bucket
+is bound in `wrangler.jsonc`: enabling persistent R2 caching needs explicit
+permission. Tests use an in-memory emulator of the R2 binding subset, not
+Miniflare.
+
+### Renderer adapter: WebGPU with WebGL2 fallback (TASK-066)
+
+`apps/web/src/render/renderer.ts` creates either backend behind one
+capability surface (`render`, `setSize`, `setPixelRatio`, `info.memory`,
+`dispose`); scenes use core three materials that both backends translate.
+`detectBackends` reports availability with a reason. WebGPU availability is
+functional, not just an adapter: the probe requests a device, presents one
+cleared canvas frame and waits for completion without device loss; the
+browser picks the native API (Metal, D3D12, Vulkan). `createRenderer`
+performs the whole WebGPU bring-up (renderer init, rejection of three's
+silent WebGL fallback backend, a lit probe scene inside a validation error
+scope, and an optional caller probe) on a scratch canvas first, because a
+canvas that once returned a `webgpu` context can never return `webgl2`; any
+failure yields a WebGL2 renderer with `fallbackReason`. On WebGL2,
+`compileWithFallback` draws each distinct material once into a 1×1 render
+target (three checks programs lazily) and replaces materials whose shaders
+fail with a basic fallback material, recording the shader log.
+`dispose(scene)` releases every reachable geometry, material and texture once,
+then the renderer, and forces WebGL context loss. `webgpu.ts` is loaded on
+demand. The app keeps R3F's default WebGL renderer unless
+`?renderer=webgpu|webgl2` is given; the chosen backend and fallback reason
+are exposed as `data-render-backend` / `data-render-fallback` on the canvas.
+
+### FPV camera and fisheye lens (TASK-067)
+
+`@mirage/cameras` separates the mounted FPV view from the external camera.
+`FpvCamera` composes `q = B · q_bn · q_mount` with B the NED→render basis,
+q_bn the body-to-NED attitude ([w, x, y, z]; q and −q equivalent) and
+`q_mount = R_y(uptilt) · R_x(roll) · (three camera axes → FRD)`; position is
+`B (p_ned + R_bn · offset_frd)`. `update(pose)` reads a read-only pose and
+writes only its own three.js camera, without allocation; truth is never
+mutated. The lens is Kannala-Brandt (OpenCV fisheye):
+θ_d = θ(1 + k1θ² + k2θ⁴ + k3θ⁶ + k4θ⁸), normalized radius r_d = θ_d, with
+square pixels, a horizontal field of view across the full width and an
+optional principal-point offset. `fisheyeParams` validates monotonicity up to
+90°, limits incidence to 80° (a single pinhole source; wider lenses need a
+cubemap source, not implemented) and derives the pinhole source camera that
+covers the frame. `shaders/fisheye.glsl` remaps output pixels with a fixed
+ten-step Newton inverse; `fisheyeSourceUvInto` is its float64 CPU mirror and
+`projectRayToUv` the forward model. Model `none` is the identity
+pass-through. Resizing keeps the horizontal field of view.
+
+### Analog FPV interference and rolling-shutter jelly (TASK-068)
+
+`AnalogVideo` (`@mirage/cameras/analog`) drives `shaders/analog.glsl`
+(GLSL ES 3.00, WebGL2): additive per-pixel noise, scanlines
+`1 − I(0.5 + 0.5 cos 2πv·lines)`, per-line tearing, and rolling-shutter jelly.
+Line i of video frame k is exposed at `t_k + i · lineTime` and shifted by
+`jellyAmplitude · throttle · sin(2π f_vib t + φ)` with
+`f_vib = f_min + throttle (f_max − f_min)`. Uniforms change only at video-frame
+boundaries (`k = floor(t · frameRate)`), so throttle is sampled once per video
+frame and the image does not depend on the render rate. The visual RNG is the
+stateless lowbias32 hash `seed ⊕ hash(k)`, independent of throttle, call count
+and every sensor/EW stream; the shader hashes pixel coordinates with the same
+integer hash, so equal seed, frame and throttle give identical bytes on one
+backend (no cross-GPU equality is claimed). Throttle is read, never written;
+nothing touches truth. All pixel work is on the GPU; `updateFrom` is
+allocation-free. Numeric uniforms are `ScalarUniform` class instances
+initialised to a double: object literals `{ value }` share one isolate-wide
+hidden class that becomes tagged once any code stores a non-number (such as a
+texture) in it, after which every double store allocates.
+
+### WorldCover/OSM material map (TASK-069)
+
+`@mirage/thermal/data-manifest` lists every material dataset
+(`mirage.thermal-data/1`) with provider, version, license, attribution,
+SHA-256 of the local file, CRS (EPSG:4326) and bounds. Provider rules are
+enforced: ESA WorldCover requires CC-BY-4.0 and "ESA WorldCover project" in the
+attribution, OpenStreetMap requires ODbL-1.0 and "OpenStreetMap contributors",
+and only the `synthetic` provider (CC0-1.0) may, and must, be marked
+synthetic. The module has no network code. `planWorldCoverTiles` lists the
+3°×3° tiles (named by their south-west corner, e.g. N45E006) a region needs
+and refuses plans above 4 tiles, so a region plan cannot grow into a bulk
+download. `@mirage/thermal/material-map` composes OSM buildings (roof by
+`roof:material`) over OSM roads (within half the nominal width per `highway`
+value) over WorldCover pixels (pixel-is-area, row 0 at the north edge,
+1/12000° pixels) over a synthetic default. No-data and points outside every
+layer return `synthetic-ground` with `synthetic: true`. Samples carry material
+id, source, dataset id and WorldCover code only: a land class is not a
+temperature, and the legend parser rejects extra fields such as a
+temperature. Every layer must be registered in the manifest, rasters must
+match their manifest bounds, and `attributions()` lists the datasets that
+actually contributed samples. GeoTIFF decoding and checks against real
+licensed tiles placed locally are not yet implemented.

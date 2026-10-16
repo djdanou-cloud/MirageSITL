@@ -4,6 +4,19 @@
   "private": true,
   "type": "module",
   "exports": {
-    "./provider-policy": "./src/provider-policy.ts"
+    "./provider-policy": "./src/provider-policy.ts",
+    "./tiles-provider": "./src/tiles-provider.ts",
+    "./tiles-scene": "./src/tiles-scene.ts",
+    "./lod-budget": "./src/lod-budget.ts",
+    "./resource-cache": "./src/resource-cache.ts",
+    "./region-manifest": "./src/region-manifest.ts"
+  },
+  "dependencies": {
+    "3d-tiles-renderer": "0.5.3",
+    "@mirage/sensors": "0.1.0",
+    "three": "0.180.0"
+  },
+  "devDependencies": {
+    "@types/three": "0.180.0"
   }
 }

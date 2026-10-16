@@ -3,6 +3,7 @@ import type {
   AutopilotHealth,
   AutopilotState,
 } from "./adapter.ts";
+import { isIssuedHitlReady } from "./hitl-capabilities.ts";
 /** Protocol/lifecycle reference. Readiness requires fresh autopilot-sourced health. */
 export class AutopilotSession {
   private phase: AutopilotState = "disconnected";
@@ -22,9 +23,14 @@ export class AutopilotSession {
     if (!Number.isFinite(staleMs) || staleMs <= 0 || staleMs > 1000)
       throw new Error("Invalid autopilot timeout");
   }
-  connect(backend: AutopilotBackend, epoch: number, nowMs: number): boolean {
+  /**
+   * "hitl" additionally requires a READY verdict issued by
+   * evaluateHitlCapability (TASK-050); SITL readiness never implies HITL.
+   */
+  connect(backend: AutopilotBackend, epoch: number, nowMs: number, hitlCapability?: unknown): boolean {
     if (
       this.state !== "disconnected" ||
+      (backend === "hitl" && !isIssuedHitlReady(hitlCapability)) ||
       (backend !== "external-sitl" &&
         backend !== "wasm-sitl" &&
         backend !== "hitl") ||

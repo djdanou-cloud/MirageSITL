@@ -1,9 +1,17 @@
-import { Canvas, useFrame } from '@react-three/fiber';
-import { useRef, type RefObject } from 'react';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import { useEffect, useRef, type RefObject } from 'react';
+import type { TilesScene } from '@mirage/terrain/tiles-scene';
+import type { TileFailure } from '@mirage/terrain/tiles-provider';
+import type { TerrainConfig } from './terrain-config';
 import { Group, Quaternion, Vector3 } from 'three';
 import { interpolatePoseInto, interpolationAlpha, newRenderPoseV2, wallNow } from '@mirage/protocol';
 import type { SimulationRuntime } from './runtime';
 import { nedToRenderBasis, nedToRenderPositionInto } from './coordinates';
+import { rendererFactory, rendererModeFromSearch } from './render/renderer';
+
+// TASK-066: `?renderer=webgpu|webgl2` selects the renderer adapter; otherwise R3F's default WebGL renderer.
+const rendererMode = rendererModeFromSearch(globalThis.location?.search ?? '');
+const glOption = rendererMode ? rendererFactory(rendererMode) : { antialias: true, powerPreference: 'high-performance' as const };
 
 const MODEL_HEIGHT_OFFSET_M = 0.28; // hub height of the demo mesh above its NED reference point
 
@@ -43,9 +51,39 @@ function Vehicle({ runtime }: { runtime: RefObject<SimulationRuntime | null> }) 
     <mesh position={[0, 0.02, -0.3]}><sphereGeometry args={[0.04, 12, 8]} /><meshBasicMaterial color="#4effc6" /></mesh>
   </group>;
 }
-export function FlightScene({ runtime }: { runtime: RefObject<SimulationRuntime | null> }) {
+/** Streams one licensed 3D Tiles source in the render loop (never the physics step) and reports failures on change. */
+function TerrainTiles({ config, onFailures }: { config: TerrainConfig; onFailures: (failures: readonly TileFailure[]) => void }) {
+  const { camera, gl, scene } = useThree();
+  const tiles = useRef<TilesScene | null>(null);
+  const reported = useRef(0);
+  useEffect(() => {
+    // Loaded on demand: terrain is off by default, so the loader stays out of the main bundle.
+    let instance: TilesScene | null = null, cancelled = false;
+    void import('@mirage/terrain/tiles-scene').then(({ TilesScene: Scene }) => {
+      if (cancelled) return;
+      instance = new Scene({ ...config, camera, renderer: gl });
+      scene.add(instance.tiles.group);
+      tiles.current = instance;
+      reported.current = 0;
+    });
+    return () => { cancelled = true; instance?.dispose(); tiles.current = null; };
+  }, [config, camera, gl, scene]);
+  useFrame(() => {
+    const instance = tiles.current;
+    if (!instance) return;
+    instance.update();
+    if (instance.failures.length !== reported.current) { reported.current = instance.failures.length; onFailures(instance.failures.slice()); }
+  });
+  return null;
+}
+
+export function FlightScene({ runtime, terrain = null, onTerrainFailures = () => undefined }: {
+  runtime: RefObject<SimulationRuntime | null>;
+  terrain?: TerrainConfig | null;
+  onTerrainFailures?: (failures: readonly TileFailure[]) => void;
+}) {
   return <Canvas shadows dpr={[1, 1.5]} camera={{ position: [4, 3, 5], fov: 48, near: 0.05, far: 2000 }}
-    gl={{ antialias: true, powerPreference: 'high-performance' }}>
+    gl={glOption}>
     <color attach="background" args={['#111e29']} />
     <fog attach="fog" args={['#111e29', 30, 120]} />
     <ambientLight intensity={1.1} />
@@ -57,6 +95,7 @@ export function FlightScene({ runtime }: { runtime: RefObject<SimulationRuntime 
     <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.02, 0]} receiveShadow>
       <planeGeometry args={[2000, 2000]} /><meshStandardMaterial color="#14232d" roughness={1} />
     </mesh>
+    {terrain && <TerrainTiles config={terrain} onFailures={onTerrainFailures} />}
     <Vehicle runtime={runtime} />
   </Canvas>;
 }

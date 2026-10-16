@@ -1,0 +1,11 @@
+{
+  "name": "@mirage/tiles-worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Authenticated Google 3D Tiles proxy (Cloudflare Worker). Tested locally from the repository root; wrangler is not a repository dependency and deployment needs separate authorization.",
+  "main": "src/index.ts",
+  "scripts": {
+    "test": "cd ../.. && vitest run tests/tiles-proxy.test.ts"
+  }
+}

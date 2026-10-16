@@ -40,6 +40,10 @@
     {
       "en": "docs/decisions/terrain-licensing.md",
       "ru": "docs/ru/terrain-licensing.md"
+    },
+    {
+      "en": "docs/hardware/hitl-matrix.md",
+      "ru": "docs/ru/hitl-matrix.md"
     }
   ]
 }

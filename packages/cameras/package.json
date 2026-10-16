@@ -1,0 +1,20 @@
+{
+  "name": "@mirage/cameras",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./fpv-camera": "./src/fpv-camera.ts",
+    "./fisheye": "./src/fisheye.ts",
+    "./fisheye-material": "./src/fisheye-material.ts",
+    "./analog": "./src/analog.ts",
+    "./analog-material": "./src/analog-material.ts"
+  },
+  "dependencies": {
+    "@mirage/protocol": "0.1.0",
+    "three": "0.180.0"
+  },
+  "devDependencies": {
+    "@types/three": "0.180.0"
+  }
+}

@@ -6,3 +6,16 @@
 @media(max-width:1100px){.app-shell{padding:0 20px}.workspace{gap:16px;grid-template-columns:minmax(0,1fr) 310px}.metric-grid>div{flex-wrap:wrap;gap:6px}.metric-grid b{margin-left:0;width:100%;font-size:16px}.hud-bottom .flight-mode{display:none}.build-label{display:none}.top-status{font-size:9px}.viewport{height:480px}.clock small{display:none}.coordinates{display:none}}
 @media(max-width:800px){.topbar{height:84px}.brand{font-size:19px}.top-status{font-size:8px}.top-status .divider,.top-status .divider+span{display:none}.workspace{grid-template-columns:1fr;margin-top:16px}.viewport{height:440px}.metric-grid>div{padding:16px 12px}.control-section{padding:22px}.instructor-panel{display:block}.top-status{letter-spacing:0}.scope-note{margin-top:0}footer{flex-direction:column;font-size:8px}}
 @media(prefers-reduced-motion:reduce){button{transition:none}}
+
+.terrain-status {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  max-width: 70%;
+  padding: 4px 8px;
+  font-size: 11px;
+  color: #d2e5ec;
+  background: rgba(17, 30, 41, 0.78);
+  border-radius: 4px;
+  pointer-events: none;
+}

@@ -1,10 +1,17 @@
 import { expect, it } from "vitest";
 import { AutopilotSession } from "../packages/autopilot/src/state-machine";
+import { evaluateHitlCapability, type HitlBoardProfile } from "../packages/autopilot/src/hitl-capabilities";
+// Test-only profile and observation: a READY verdict for lifecycle tests, not a verified board.
+const testProfile: HitlBoardProfile = { id: "test-px4", board: "test-board",
+  firmware: { stack: "px4", version: "test", gitSha: "4d7e4de77742c3ae8187ffc998ed6d04629c611b", buildFlags: [] },
+  verification: { date: "2026-10-16", operator: "unit test", evidenceSha256: "0".repeat(64) } };
+const ready = evaluateHitlCapability(testProfile,
+  { firmwareGitSha: testProfile.firmware.gitSha, heartbeatBaseMode: 32, actuatorAgeMs: 0 });
 it("requires fresh autopilot health and prevents concurrent backends/illegal transitions", () => {
   const a = new AutopilotSession(100);
   expect(a.start(0)).toBe(false);
   expect(a.connect("external-sitl", 7, 0)).toBe(true);
-  expect(a.connect("hitl", 8, 0)).toBe(false);
+  expect(a.connect("hitl", 8, 0, ready)).toBe(false);
   expect(a.state).toBe("initializing");
   expect(a.initialized()).toBe(true);
   expect(a.start(1)).toBe(false);
@@ -42,11 +49,13 @@ it("requires fresh autopilot health and prevents concurrent backends/illegal tra
   expect(a.actuators.every((x) => x === 0)).toBe(true);
   expect(a.initialized()).toBe(false);
   a.disconnect();
-  expect(a.connect("hitl", 8, 104)).toBe(true);
+  expect(a.connect("hitl", 8, 104)).toBe(false); // no capability verdict
+  expect(a.connect("hitl", 8, 104, { status: "READY", profileId: "forged", firmwareGitSha: "x" })).toBe(false);
+  expect(a.connect("hitl", 8, 104, ready)).toBe(true);
 });
 it("rejects replayed/nonfinite actuator samples and clears thrust on disarm, health loss and clock reversal", () => {
   const a = new AutopilotSession();
-  a.connect("hitl", 1, 0);
+  a.connect("hitl", 1, 0, ready);
   a.initialized();
   a.health(
     {
