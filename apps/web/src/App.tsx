@@ -1,14 +1,15 @@
 import { Component, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Activity, ArrowUpRight, Cpu, Gamepad2, Pause, Play, Radio, RotateCcw, Shield, SlidersHorizontal, TriangleAlert } from 'lucide-react';
 import { CHANNELS, defaultCalibration, type GamepadCalibration } from '@mirage/input';
-import { StateFlag } from '@mirage/protocol';
+import { VehicleFlagV2 } from '@mirage/protocol';
 import { inspectCapabilities, type CapabilityReport } from './capabilities';
 import { FlightScene } from './FlightScene';
 import { SimulationRuntime, type ViewStats } from './runtime';
 
 const INITIAL: ViewStats = { ready: false, running: false, armed: false, pending: false,
-  tick: 0, simTime: 0, altitude: 0, speed: 0, voltage: 12.6, flags: 3, hz: 0, fps: 0,
-  dropped: 0, overruns: 0, input: { roll: 0, pitch: 0, yaw: 0, throttle: 0 }, device: '', inputStatus: 'disconnected', notice: '' };
+  tick: 0, simTime: 0, altitude: 0, speed: 0, voltage: 12.6,
+  flags: VehicleFlagV2.GroundContact | VehicleFlagV2.InputFailsafe | VehicleFlagV2.Paused, hz: 0, targetHz: 400, epoch: 1, fps: 0,
+  dropped: 0, overruns: 0, input: { roll: 0, pitch: 0, yaw: 0, throttle: 0 }, device: '', inputStatus: 'disconnected', selectedDevice: null, notice: '' };
 class SceneBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
   state = { failed: false };
   static getDerivedStateFromError() { return { failed: true }; }
@@ -71,7 +72,7 @@ export default function App() {
         <div className="panel-heading"><span><span className="tiny-dot" /> FLIGHT FIELD</span><span>01 / EXTERNAL CAMERA</span></div>
         <div className="viewport">
           {capabilities?.demoEligible && <SceneBoundary><FlightScene runtime={runtime} /></SceneBoundary>}
-          <div className="viewport-top"><span className="badge">DEMO QUAD / NED</span><span className="coordinates">N {runtime.current?.current.north.toFixed(1) ?? '0.0'} · E {runtime.current?.current.east.toFixed(1) ?? '0.0'}</span></div>
+          <div className="viewport-top"><span className="badge">DEMO QUAD / NED</span><span className="coordinates">N {runtime.current?.current.northM.toFixed(1) ?? '0.0'} · E {runtime.current?.current.eastM.toFixed(1) ?? '0.0'}</span></div>
           <div className="reticle"><span /><span /></div>
           <div className="flight-label">MIRAGE TEST RANGE<small>Flat ground · simplified dynamics</small></div>
           <div className="hud-bottom"><div><small>ALTITUDE / AGL</small><strong data-testid="altitude">{stats.altitude.toFixed(1)}<em>m</em></strong></div>
@@ -83,15 +84,15 @@ export default function App() {
           {stats.running ? <Pause size={15} /> : <Play size={15} />}{stats.running ? 'Pause' : 'Start'}</button>
           <button className="icon-button" aria-label="Reset flight" disabled={!stats.ready || stats.pending} onClick={() => runtime.current?.command('reset')}><RotateCcw size={16} /></button></div>
           <div className="clock"><span>SIM TIME</span><b data-testid="sim-time">{stats.simTime.toFixed(2)} s</b><small data-testid="tick">{stats.tick} ticks</small></div></div>
-        <div className="metric-grid"><div><Cpu size={17} /><span>Physics<small>fixed step: 2.5 ms</small></span><b data-testid="physics-hz">{stats.hz.toFixed(0)}<small> / 400 Hz</small></b></div>
+        <div className="metric-grid"><div><Cpu size={17} /><span>Physics<small>fixed step: {(1000 / stats.targetHz).toFixed(3)} ms</small></span><b data-testid="physics-hz">{stats.hz.toFixed(0)}<small data-testid="target-hz"> / {stats.targetHz} Hz</small></b></div>
           <div><Activity size={17} /><span>Main thread<small>rAF frame rate</small></span><b>{stats.fps.toFixed(0)}<small> FPS</small></b></div>
           <div><Shield size={17} /><span>Scheduler<small>{stats.overruns} budget overruns</small></span><b data-testid="dropped">{stats.dropped}<small> dropped</small></b></div></div>
       </section>
       <aside className="instructor-panel"><div className="panel-heading"><span>PILOT CONSOLE</span><Gamepad2 size={16} /></div>
         <div className="control-section"><div className="eyebrow">01 / INPUT SOURCE</div><h1>Flight controls</h1><p>Check the channels and arm at zero throttle.</p>
           <div className="segmented"><button className={source === 'demo' ? 'selected' : ''} onClick={() => changeSource('demo')}>Demo input</button><button className={source === 'usb' ? 'selected' : ''} disabled={!capabilities?.usbEligible} onClick={() => changeSource('usb')}>USB / EdgeTX</button></div>
-          {source === 'usb' ? <div className="device-box"><label htmlFor="device">USB GAMEPAD</label><select id="device" aria-label="USB device" disabled={!devices.length} onChange={event => { runtime.current?.disarm(); if (runtime.current) runtime.current.gamepad.selectedIndex = Number(event.target.value); }}>
-            {!devices.length && <option>Connect a transmitter and move a stick</option>}{devices.map(d => <option key={d.index} value={d.index}>{d.index}: {d.name}</option>)}</select>
+          {source === 'usb' ? <div className="device-box"><label htmlFor="device">USB GAMEPAD</label><select id="device" aria-label="USB device" disabled={!devices.length} value={stats.selectedDevice ?? ''} onChange={event => runtime.current?.selectDevice(event.target.value === '' ? null : Number(event.target.value))}>
+            {!devices.length ? <option value="">Connect a transmitter and move a stick</option> : <option value="">Automatic (first connected)</option>}{devices.map(d => <option key={d.index} value={d.index}>{d.index}: {d.name}</option>)}</select>
             <small data-testid="input-status">{stats.inputStatus} {stats.device}</small></div> : <div className="device-box"><span className="status-dot live" /><span>Virtual collective throttle</span><small>Sticks centered. Select the USB tab to use a transmitter.</small></div>}
           <button className={`arm-button ${stats.armed ? 'armed' : ''}`} disabled={!stats.running || stats.pending} onClick={() => runtime.current?.setArmed(!stats.armed)}>{stats.armed ? 'Disarm motors' : 'Arm motors'}<span className="status-dot" /></button>
           <div className="throttle-heading"><span>COLLECTIVE / THROTTLE</span><b>{(stats.input.throttle * 100).toFixed(0)}%</b></div>
@@ -105,8 +106,8 @@ export default function App() {
           <div><span>Gamepad API</span><b>{capabilities?.gamepad === 'available' ? 'Available' : 'Unavailable'}</b></div>
           <div><span>Serial API</span><b data-testid="serial-capability">{capabilities?.serial === 'available' ? 'Available' : 'Unavailable'}</b></div>
           <p>Serial API availability does not enable HITL. WebGPU and HITL integrations are planned.</p>
-          <div><span>Ground contact</span><b>{stats.flags & StateFlag.OnGround ? 'GROUND' : 'AIRBORNE'}</b></div>
-          <div><span>Input protection</span><b className={stats.flags & StateFlag.InputFailsafe ? 'muted' : ''}>{stats.flags & StateFlag.InputFailsafe ? 'DISARMED / STALE' : 'INPUT LIVE'}</b></div>
+          <div><span>Ground contact</span><b>{stats.flags & VehicleFlagV2.GroundContact ? 'GROUND' : 'AIRBORNE'}</b></div>
+          <div><span>Input protection</span><b className={stats.flags & VehicleFlagV2.InputFailsafe ? 'muted' : ''}>{stats.flags & VehicleFlagV2.InputFailsafe ? 'DISARMED / STALE' : 'INPUT LIVE'}</b></div>
           {(error || stats.notice) && <p className="alert" role="alert"><TriangleAlert size={16} />{error || stats.notice}</p>}
         </div>
         <div className="scope-note"><span className="eyebrow">DEVELOPMENT MILESTONE 01</span><p>Isolated physics and pilot input. JSBSim, BET, SITL/HITL, and EW are planned in the architecture.</p></div>

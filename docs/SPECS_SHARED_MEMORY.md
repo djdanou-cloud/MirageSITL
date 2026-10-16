@@ -3,12 +3,11 @@
 Document version: 1.0 · 2026-10-15. Runtime baseline: commit `e3bb6b4`.
 English is the source of truth. [Russian mirror](ru/SPECS_SHARED_MEMORY.md).
 
-**ABI v1 is implemented and used by the running application. The ABI v2
-layout, codecs, and atomic transport are implemented in `packages/protocol`
-(TASK-008/009) but the runtime does not use them yet; TASK-085 migrates the
-application. The Control Protocol v2 validator, JSON Schema, and command
-processor are implemented (TASK-010) but are not wired into the Worker yet
-(TASK-085).** TASK-008/009 implement the v2 layout and transport;
+**The running application uses ABI v2 and Control Protocol v2 (TASK-085):
+the v2 state ring, pilot mailbox, SPSC queues (TASK-013), `init-v2`, and the
+command processor. ABI v1 remains implemented and tested in
+`packages/protocol` but is no longer used by the application; removing it
+requires a recorded decision.** TASK-008/009 implement the v2 layout and transport;
 TASK-010 implements commands. Do not assign EKF/EW meanings to v1 reserved
 words without changing the ABI version. Task IDs are defined in
 [PROJECT_ROADMAP.md](PROJECT_ROADMAP.md).
@@ -457,6 +456,14 @@ Normative runtime validation contract: TASK-010 implements JSON Schema
   BAD_STATE. Cancelled commands are rejected in due order. JSON Schema cannot
   express the 16 KiB limit or the drift-norm limit; the TypeScript validator
   enforces both.
+* A backend that cannot model a scheduled command rejects it at admission
+  with BAD_STATE and its reason (`ControlTargetV2.unsupportedReason`); the
+  demo backend has no atmosphere or EW model, so it rejects every
+  `weather.set` and `fault.set`. Outside the command/result flow the Worker
+  reports session faults (for example a failed `init-v2` or a HITL overrun)
+  as `{ type: 'fault-v2', protocolVersion: 2, message }`. Main validates every
+  Worker message (`parseWorkerEventV2`) and ignores unknown ones; the Worker
+  validates `init-v2` by shape and by each buffer layout.
 
 Valid JSON example, scheduled at one second with a 400 Hz physics clock:
 

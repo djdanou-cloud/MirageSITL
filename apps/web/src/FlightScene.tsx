@@ -1,7 +1,7 @@
 import { Canvas, useFrame } from '@react-three/fiber';
 import { useRef, type MutableRefObject } from 'react';
 import { Group, Quaternion, Vector3 } from 'three';
-import { DT, wallNow } from '@mirage/protocol';
+import { wallNow } from '@mirage/protocol';
 import type { SimulationRuntime } from './runtime';
 import { nedToRenderBasis } from './coordinates';
 
@@ -18,10 +18,12 @@ function Vehicle({ runtime }: { runtime: MutableRefObject<SimulationRuntime | nu
     const sim = runtime.current;
     if (!sim || !model.current) return;
     const a = sim.previous, b = sim.current;
-    const t = sim.running ? Math.max(0, Math.min(1, (wallNow() - b.wallTimeMs) / (DT * 1000))) : 1;
-    const north = a.north + (b.north - a.north) * t;
-    const east = a.east + (b.east - a.east) * t;
-    const down = a.down + (b.down - a.down) * t;
+    // latestPair sets previous = current unless they are adjacent ticks of one epoch/model.
+    const stepMs = 1000 / (sim.header.physicsHz || 400);
+    const t = sim.running && sim.history === 'pair' ? Math.max(0, Math.min(1, (wallNow() - b.scheduledWallTimeMs) / stepMs)) : 1;
+    const north = a.northM + (b.northM - a.northM) * t;
+    const east = a.eastM + (b.eastM - a.eastM) * t;
+    const down = a.downM + (b.downM - a.downM) * t;
     model.current.position.set(east, -down + 0.28, -north);
     q0.current.set(a.qx, a.qy, a.qz, a.qw);
     q1.current.set(b.qx, b.qy, b.qz, b.qw);

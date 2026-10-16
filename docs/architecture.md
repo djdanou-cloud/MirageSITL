@@ -94,7 +94,7 @@ terrain loading, network I/O, and decoding from fixed-step computation.
 
 ## Clocks, overload, and input safety
 
-FixedStepClock tracks performance.now deadlines while passing constant dt
+The Worker's `SteppingPolicy` (a `MultiRateClock`) tracks performance.now deadlines while passing constant dt
 to integration. At most eight steps run per callback before yielding to
 lifecycle messages. Nested setTimeout may be clamped to roughly 4 ms;
 one callback may therefore perform multiple physical steps.
@@ -412,3 +412,23 @@ decoding. `SensorFrameCodecV2` and `ActuatorFrameCodecV2` pack the shared
 GNSS fix/satellite values, GNSS-only validity bits, zero geo fields outside
 GNSS, and normalized actuators in [-1,1]. Real-thread stress tests move 1e6
 frames in order in Node worker_threads and in a browser Worker.
+
+### Application on ABI v2 (TASK-085)
+
+The physics Worker is a thin adapter around `PhysicsSessionV2`
+(`packages/physics/src/session-v2.ts`), so the Worker logic runs in Node
+tests. Main creates the v2 state SAB and both SPSC queues and sends
+`init-v2`; the session owns `StateWriterV2`, `PilotReaderV2`, the actuator
+consumer, `ControlProcessorV2`, `SteppingPolicy`, and `DemoDynamics(hz)`.
+Per tick it reads the pilot mailbox, applies the arm latch, integrates, and
+publishes `FlightStateV2` with the ideal specific force
+`f_b = R^T(a_n - g_n)` and ISA truth pressure. Arming latches only on an
+explicit request at <=5% throttle; a stale epoch, input older than 250 ms,
+invalid values, or a changed `device_generation` disarms and blocks rearming
+until the request is withdrawn. `GamepadAdapter.generation` changes with
+the device identity, so a different transmitter at the same index never
+inherits an arm. Main reads lifecycle state from the header runtime flags,
+renders with `latestPair` history, and validates Worker events. In
+sitl-lockstep a tick waits for the autopilot's actuator frame for exactly
+that tick and epoch. Sensor frames are not produced until an I/O Worker
+consumes them (TASK-034+).

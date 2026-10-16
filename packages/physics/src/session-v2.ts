@@ -1,0 +1,276 @@
+import { ActuatorFrameCodecV2, ControlFlag, ControlProcessorV2, HeaderV2, INPUT_TIMEOUT_MS, PilotFlagV2, PilotReaderV2,
+  RuntimeFlagV2, SpscConsumer, StateWriterV2, UNKNOWN_U32, VehicleFlagV2, isValidPilotInputV2, newActuatorFrameV2,
+  newFlightStateV2, newInput, newPilotInputV2, tickToNumber, validateSharedMemoryV2, validateSpscQueue,
+  type ClockModeV2, type CommandResultV2, type PhysicsHz, type ScheduledCommandV2, type TickId,
+  type WorkerInitV2 } from '@mirage/protocol';
+import { SteppingPolicy, newPumpReport, type StepGate } from './clock-policy.ts';
+import { DemoDynamics } from './demo-dynamics.ts';
+
+// Physics Worker session on ABI v2 (TASK-085). Owns the state ring writer,
+// pilot mailbox reader, actuator queue consumer, Control Protocol v2
+// processor, stepping policy, and the demo dynamics. The Worker module is a
+// thin message adapter around this class so the logic runs in Node tests.
+// After construction the per-tick path allocates nothing.
+
+/** Session registry key of the built-in demo quad. */
+export const DEMO_MODEL_ID = 1;
+export const DEMO_ROTOR_COUNT = 4;
+/** Rearming requires throttle at or below 5% (SPECS_SHARED_MEMORY, pilot mailbox v2). */
+export const REARM_THROTTLE_MAX = 0.05;
+const STANDARD_GRAVITY_MPS2 = 9.80665;
+/**
+ * ISA troposphere (US Standard Atmosphere 1976): p = p0 (1 - L h / T0)^(g M / (R L)),
+ * L/T0 = 0.0065/288.15 = 2.25577e-5 1/m, exponent 5.25588. Valid 0..11 km; the
+ * demo field elevation is taken as mean sea level. Truth only, not a sensor.
+ */
+const ISA_SEA_LEVEL_PA = 101325, ISA_LAPSE_OVER_T0 = 2.25577e-5, ISA_EXPONENT = 5.25588;
+export function isaPressurePa(altitudeM: number): number {
+  const ratio = Math.max(0, 1 - ISA_LAPSE_OVER_T0 * Math.min(11000, altitudeM));
+  return ISA_SEA_LEVEL_PA * ratio ** ISA_EXPONENT;
+}
+
+export interface SessionClock {
+  /** Monotonic milliseconds (performance.now). */
+  monotonicMs(): number;
+  /** Absolute wall milliseconds shared with Main (performance.timeOrigin + performance.now). */
+  wallMs(): number;
+}
+
+/** Arm latch states; see `evaluatePilot`. */
+type ArmLatch = 'disarmed' | 'armed' | 'blocked';
+
+export class PhysicsSessionV2 {
+  private readonly writer: StateWriterV2;
+  private readonly pilotReader: PilotReaderV2;
+  private readonly actuators: SpscConsumer;
+  private readonly actuatorCodec = new ActuatorFrameCodecV2();
+  private readonly actuator = newActuatorFrameV2();
+  private actuatorPending = false;
+  private readonly processor: ControlProcessorV2;
+  private readonly clock: SessionClock;
+  private readonly header: Int32Array;
+  private dynamics: DemoDynamics;
+  private policy: SteppingPolicy;
+  private readonly report = newPumpReport();
+  private readonly pilot = newPilotInputV2();
+  private readonly dynamicsInput = newInput();
+  private readonly state = newFlightStateV2();
+  private readonly bodyScratch = new Float64Array(3);
+  private latch: ArmLatch = 'disarmed';
+  private latchedGeneration = 0;
+  private epoch: number;
+  private runningValue = false;
+  private disposedValue = false;
+  private faultMessage = '';
+  // Preallocated callbacks: the hot path never creates closures.
+  private readonly integrateTick = (tick: TickId) => this.integrate(tick);
+  private readonly gate: StepGate = { ready: (tick: TickId) => this.actuatorReady(tick) };
+
+  constructor(init: WorkerInitV2, clock: SessionClock) {
+    validateSharedMemoryV2(init.stateBuffer);
+    validateSpscQueue(init.sensorBuffer, 'sensor');
+    validateSpscQueue(init.actuatorBuffer, 'actuator');
+    this.clock = clock;
+    this.header = new Int32Array(init.stateBuffer);
+    this.writer = new StateWriterV2(init.stateBuffer);
+    this.pilotReader = new PilotReaderV2(init.stateBuffer);
+    // Sensor frames have no consumer until an I/O Worker exists (TASK-034+); nothing is produced
+    // into init.sensorBuffer so it can never overflow or be read by Main.
+    this.actuators = new SpscConsumer(init.actuatorBuffer, 'actuator');
+    const hz = this.hzFromHeader();
+    this.epoch = Atomics.load(this.header, HeaderV2.SessionEpoch) >>> 0;
+    this.dynamics = new DemoDynamics(hz);
+    this.policy = new SteppingPolicy({ hz, mode: 'interactive' });
+    this.processor = new ControlProcessorV2(this, { epoch: this.epoch, hz });
+    this.writer.setRuntimeFlags(RuntimeFlagV2.Ready);
+    this.publishEpochStart();
+  }
+
+  get running(): boolean { return this.runningValue; }
+  get disposed(): boolean { return this.disposedValue; }
+  get currentEpoch(): number { return this.epoch; }
+  get hz(): PhysicsHz { return this.policy.hz; }
+  get mode(): ClockModeV2 { return this.policy.mode; }
+  get fault(): string { return this.faultMessage; }
+
+  readyEvent(): CommandResultV2 {
+    return { type: 'ready-v2', protocolVersion: 2, abiVersion: 2, epoch: this.epoch, hz: this.policy.hz };
+  }
+
+  /** Admits one untrusted control command; results are delivered by drain(). */
+  handle(message: unknown): void {
+    this.processor.submit(message);
+    this.afterCommand();
+  }
+  /** Resolves when no model load is pending. */
+  settled(): Promise<void> { return this.processor.settled().then(() => this.afterCommand()); }
+  drain(send: (result: CommandResultV2) => void): void { this.processor.drain(send); }
+
+  /**
+   * One Worker wakeup. Returns the delay in ms until the next wakeup, or -1
+   * when stepping is idle (paused, disposed, or faulted). Allocation-free.
+   */
+  pump(): number {
+    if (!this.runningValue || this.faultMessage !== '') return -1;
+    this.policy.pump(this.clock.monotonicMs(), this.gate, this.integrateTick, this.report);
+    this.writer.setCounters(this.policy.clock.overruns, this.policy.droppedSteps);
+    if (this.report.fault !== 'none') {
+      this.faultMessage = 'HITL session invalidated: a physics deadline was missed';
+      this.writer.setRuntimeFlags(RuntimeFlagV2.Ready | RuntimeFlagV2.Fault);
+      return -1;
+    }
+    if (this.report.waiting) return 1; // lockstep: poll for the autopilot's next frame
+    return Math.max(0, this.policy.clock.nextMs - this.clock.monotonicMs());
+  }
+
+  // --- ControlTargetV2 -----------------------------------------------------
+
+  isArmed(): boolean { return this.latch === 'armed'; }
+  rotorCount(): number { return DEMO_ROTOR_COUNT; }
+  start(): void {
+    this.runningValue = true;
+    this.policy.resume(this.clock.monotonicMs());
+    this.writer.setRuntimeFlags(RuntimeFlagV2.Ready | RuntimeFlagV2.Running);
+  }
+  pause(): void {
+    this.runningValue = false;
+    this.latch = 'disarmed';
+    this.writer.setRuntimeFlags(RuntimeFlagV2.Ready | (this.faultMessage ? RuntimeFlagV2.Fault : 0));
+  }
+  dispose(): void {
+    this.runningValue = false; this.disposedValue = true;
+    this.writer.setRuntimeFlags(0);
+  }
+  reset(): void { this.dynamics.reset(); }
+  configure(hz: PhysicsHz, clockMode: ClockModeV2): void {
+    this.dynamics = new DemoDynamics(hz);
+    this.policy = new SteppingPolicy({ hz, mode: clockMode });
+    this.writer.setPhysicsHz(hz);
+  }
+  prepareModel(modelId: number): Promise<void> {
+    return Promise.reject(new Error(`Model ${modelId} is not available: the runtime has no model registry yet; only the built-in demo quad runs`));
+  }
+  commitModel(): void { throw new Error('Unreachable: prepareModel never resolves'); }
+  applyScheduled(): void { /* unsupportedReason rejects every scheduled command at admission */ }
+  unsupportedReason(command: ScheduledCommandV2): string | null {
+    return `The demo backend has no ${command.type === 'weather.set' ? 'atmosphere/wind' : 'sensor or fault'} model; ${command.type} is not supported`;
+  }
+
+  // --- internals -------------------------------------------------------------
+
+  /** Completes reset/configure after the processor advanced the epoch. */
+  private afterCommand(): void {
+    const epoch = this.processor.epoch;
+    if (epoch === this.epoch) return;
+    this.epoch = epoch;
+    this.writer.setEpoch(epoch);
+    this.faultMessage = '';
+    this.writer.setRuntimeFlags(RuntimeFlagV2.Ready | (this.runningValue ? RuntimeFlagV2.Running : 0));
+    this.policy.resetEpoch(this.clock.monotonicMs());
+    this.latch = 'disarmed';
+    this.actuatorPending = false;
+    this.publishEpochStart();
+  }
+
+  private hzFromHeader(): PhysicsHz {
+    const hz = Atomics.load(this.header, HeaderV2.PhysicsHz);
+    return hz === 800 ? 800 : hz === 1200 ? 1200 : 400;
+  }
+
+  /** SITL lockstep gate: the autopilot's actuator frame for exactly this tick of this epoch. */
+  private actuatorReady(tick: TickId): boolean {
+    if (this.policy.mode !== 'sitl-lockstep') return true;
+    for (;;) {
+      if (!this.actuatorPending) {
+        if (!this.actuators.tryPop(this.actuatorCodec.words)) return false;
+        this.actuatorPending = this.actuatorCodec.decode(this.actuator) && this.actuator.epoch === this.epoch;
+        if (!this.actuatorPending) continue; // invalid or stale-epoch frame: discard
+      }
+      const at = this.actuator.tickId;
+      if (at.hi < tick.hi || (at.hi === tick.hi && at.lo < tick.lo)) { this.actuatorPending = false; continue; } // past tick
+      return at.hi === tick.hi && at.lo === tick.lo;
+    }
+  }
+
+  /**
+   * Turns the pilot mailbox into demo dynamics input. Arming latches only on an
+   * explicit armed request at <=5% throttle; a stale epoch, stale/invalid input,
+   * disconnect, or a changed device_generation unlatches and blocks rearming
+   * until the armed request is withdrawn.
+   */
+  private evaluatePilot(wallMs: number): void {
+    this.pilotReader.latest(this.pilot); // a miss keeps the last coherent sample
+    const p = this.pilot, input = this.dynamicsInput;
+    const age = wallMs - p.sampledWallTimeMs;
+    const valid = isValidPilotInputV2(p) && p.expectedEpoch === this.epoch && age >= 0 && age <= INPUT_TIMEOUT_MS &&
+      (p.flags & PilotFlagV2.Connected) !== 0;
+    const requested = valid && (p.flags & PilotFlagV2.Armed) !== 0;
+    if (this.latch === 'armed') {
+      if (!requested) this.latch = valid ? 'disarmed' : 'blocked';
+      else if (p.deviceGeneration !== this.latchedGeneration) this.latch = 'blocked';
+    } else if (this.latch === 'blocked') {
+      if (valid && !requested) this.latch = 'disarmed';
+    } else if (requested && p.throttle <= REARM_THROTTLE_MAX) {
+      this.latch = 'armed'; this.latchedGeneration = p.deviceGeneration;
+    }
+    input.roll = valid ? p.roll : 0; input.pitch = valid ? p.pitch : 0;
+    input.yaw = valid ? p.yaw : 0; input.throttle = valid ? p.throttle : 0;
+    input.flags = valid ? ControlFlag.Connected | (this.latch === 'armed' ? ControlFlag.Armed : 0) : 0;
+    input.wallTimeMs = valid ? p.sampledWallTimeMs : 0;
+  }
+
+  /** Hot path: one fixed-dt integration and its state publication. */
+  private integrate(tick: TickId): void {
+    const wallMs = this.clock.wallMs();
+    this.evaluatePilot(wallMs);
+    this.processor.beforeTick(tick);
+    this.dynamics.step(this.dynamicsInput, wallMs);
+    // Presentation time is the scheduled deadline in the shared wall timebase; freshness above used actual time.
+    this.publish(tick, wallMs - this.clock.monotonicMs() + this.policy.clock.nextMs);
+    this.actuatorPending = false; // the frame for this tick was used
+  }
+
+  private publishEpochStart(): void {
+    this.dynamics.state.wallTimeMs = this.clock.wallMs();
+    this.publish(this.policy.tick, this.clock.wallMs());
+  }
+
+  /** Maps demo truth into FlightStateV2 and publishes it. Allocation-free. */
+  private publish(tick: TickId, scheduledWallMs: number): void {
+    const d = this.dynamics.state, s = this.state, hz = this.policy.hz;
+    s.tickId.lo = tick.lo; s.tickId.hi = tick.hi; s.epoch = this.epoch; s.simTimeS = tickToNumber(tick) / hz;
+    s.northM = d.north; s.eastM = d.east; s.downM = d.down;
+    s.qw = d.qw; s.qx = d.qx; s.qy = d.qy; s.qz = d.qz;
+    s.vnMps = d.vn; s.veMps = d.ve; s.vdMps = d.vd;
+    s.anMps2 = d.an; s.aeMps2 = d.ae; s.adMps2 = d.ad;
+    s.pRadS = d.p; s.qRadS = d.q; s.rRadS = d.r;
+    // Ideal specific force f_b = R_nb^T (a_n - g_n), g_n = [0, 0, g] (SPECS_SIMULATION_ENGINES section 1).
+    rotateNedToBody(d.qw, d.qx, d.qy, d.qz, d.an, d.ae, d.ad - STANDARD_GRAVITY_MPS2, this.bodyScratch);
+    s.specificForceXBodyMps2 = this.bodyScratch[0]!; s.specificForceYBodyMps2 = this.bodyScratch[1]!;
+    s.specificForceZBodyMps2 = this.bodyScratch[2]!;
+    s.trueAirspeedMps = Math.hypot(d.vn, d.ve, d.vd); // still air
+    s.batteryVoltage = d.batteryVoltage; s.batteryCurrentA = 0; // demo has no electrical model
+    s.ambientPressurePa = isaPressurePa(-d.down);
+    s.scheduledWallTimeMs = scheduledWallMs;
+    s.groundClearanceM = -d.down; s.referenceRotorRpm = 0;
+    s.vehicleFlags = ((d.flags & 1) !== 0 ? VehicleFlagV2.GroundContact : 0) |
+      ((d.flags & 2) !== 0 ? VehicleFlagV2.InputFailsafe : 0) |
+      (this.latch === 'armed' ? VehicleFlagV2.Armed : 0) |
+      (this.actuatorPending ? VehicleFlagV2.ActuatorValid : 0) |
+      (this.runningValue ? 0 : VehicleFlagV2.Paused);
+    s.ekfFlags = 0; s.ewFlags = 0; s.sensorValidMask = 0; s.modelId = DEMO_MODEL_ID;
+    s.autopilotMode = UNKNOWN_U32; s.autopilotHealth = 0; s.autopilotStatusAgeMs = 0;
+    if (this.actuatorPending) { s.lastActuatorTick.lo = this.actuator.tickId.lo; s.lastActuatorTick.hi = this.actuator.tickId.hi; }
+    this.writer.publish(s);
+  }
+}
+
+/** out = R^T v for the body-to-NED unit quaternion (w,x,y,z), i.e. rotates an NED vector into body axes. */
+export function rotateNedToBody(w: number, x: number, y: number, z: number, vx: number, vy: number, vz: number, out: Float64Array): void {
+  // v' = v + 2w(u x v) + 2 u x (u x v) with u = -(x, y, z) for the inverse rotation.
+  const ux = -x, uy = -y, uz = -z;
+  const cx = uy * vz - uz * vy, cy = uz * vx - ux * vz, cz = ux * vy - uy * vx;
+  out[0] = vx + 2 * (w * cx + uy * cz - uz * cy);
+  out[1] = vy + 2 * (w * cy + uz * cx - ux * cz);
+  out[2] = vz + 2 * (w * cz + ux * cy - uy * cx);
+}

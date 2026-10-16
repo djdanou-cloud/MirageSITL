@@ -1,17 +1,17 @@
 # SPECS_SHARED_MEMORY.md
 
-<!-- source-sha256: 68463ddef61feb13fb97e159fc51b10df63d8c80cb4048d0027d8096675440be -->
+<!-- source-sha256: ee987a9261cdfef0973a48865dc957b04f283b343d64c704a17bdd22730ae7b1 -->
 
 Английский источник: [Source of truth](../SPECS_SHARED_MEMORY.md). Изменения спецификации обновляют оба языка в одной задаче.
 
 
 Версия документа: 1.0 · 2026-10-15. Базовый код: commit `e3bb6b4`.
 
-**ABI v1 реализован и используется работающим приложением. Layout, codecs и
-атомарный транспорт ABI v2 реализованы в `packages/protocol` (TASK-008/009),
-но runtime их пока не использует; TASK-085 переводит приложение. Валидатор,
-JSON Schema и обработчик команд Control Protocol v2 реализованы (TASK-010), но
-ещё не подключены к Worker (TASK-085).** TASK-008/009 реализуют
+**Работающее приложение использует ABI v2 и Control Protocol v2 (TASK-085):
+state ring v2, pilot mailbox, SPSC-очереди (TASK-013), `init-v2` и обработчик
+команд. ABI v1 остаётся реализованным и протестированным в
+`packages/protocol`, но приложение его больше не использует; его удаление
+требует зафиксированного решения.** TASK-008/009 реализуют
 layout и транспорт v2; TASK-010 — команды.
 Не добавлять EKF/EW в зарезервированные слова v1 без смены версии.
 Идентификаторы задач определены в [PROJECT_ROADMAP.md](PROJECT_ROADMAP.md).
@@ -447,6 +447,14 @@ export type CommandResultV2 =
   `worker.dispose`, отклоняются с BAD_STATE. Отменённые команды отклоняются
   в порядке их срока. JSON Schema не может выразить лимит 16 KiB и ограничение
   нормы дрейфа; оба проверяет валидатор TypeScript.
+* Backend, который не может моделировать запланированную команду, отклоняет её
+  при приёме с BAD_STATE и причиной (`ControlTargetV2.unsupportedReason`);
+  demo backend не имеет модели атмосферы или EW, поэтому отклоняет каждую
+  команду `weather.set` и `fault.set`. Вне потока команд/результатов Worker
+  сообщает о fault сессии (например, неудачном `init-v2` или превышении сроков
+  HITL) как `{ type: 'fault-v2', protocolVersion: 2, message }`. Main проверяет
+  каждое сообщение Worker (`parseWorkerEventV2`) и игнорирует неизвестные;
+  Worker проверяет `init-v2` по форме и по layout каждого буфера.
 
 Пример валидного JSON (время 1 секунда при 400 Гц):
 

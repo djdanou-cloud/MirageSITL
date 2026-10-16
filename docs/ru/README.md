@@ -1,6 +1,6 @@
 # MirageSITL
 
-<!-- source-sha256: 2a4cbd9c7fc547788134a78b8daffa82f2877c3624ffa9c2d888ce2a062ac204 -->
+<!-- source-sha256: 945729763c7e6459075201c66fdbf8313a1512dce5f7d6b8090e92d2a080dbce -->
 
 Английский источник: [Source of truth](../../README.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -21,10 +21,10 @@ Milestone 01 включает React 19, React Three Fiber/Three.js, Vite, Tailwi
 телеметрия, коллективный газ, arm/disarm, pause/reset, failsafe ввода и
 счётчики пропущенных временных интервалов.
 
-Текущий бинарный ABI — **v1**. Спецификации отдельно задают **целевой v2**:
-EKF/EW status, epochs сессий и sensor/actuator queues. Layout, codecs, атомарный
-транспорт и обработчик Control Protocol v2 существуют (TASK-008/009/010), но работающее
-приложение по-прежнему использует v1 до TASK-085.
+Работающее приложение использует бинарный ABI **v2** (TASK-085): epochs сессий,
+поля статуса EKF/EW, очереди датчиков/актуаторов и Control Protocol v2. Значения
+EKF/EW остаются незаданными, пока не появятся autopilot и движок EW. ABI v1 остаётся
+в `packages/protocol` вместе с тестами, но приложение его больше не использует.
 
 JSBSim/BET WASM, ArduPilot SITL/HITL, РЭБ, фотореалистичный terrain,
 FPV/thermal и AAR запланированы. Текущая аэродинамика упрощена и не

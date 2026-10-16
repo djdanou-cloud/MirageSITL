@@ -244,6 +244,8 @@ export interface ControlTargetV2 {
   commitModel(modelId: number): void;
   /** Called before integrating `tick`; must not allocate. */
   applyScheduled(command: ScheduledCommandV2, tick: TickId): void;
+  /** Null when the backend can model this scheduled command, otherwise the BAD_STATE reason (checked at admission). */
+  unsupportedReason(command: ScheduledCommandV2): string | null;
 }
 
 /** Mutable result record; the outbox copies its scalars, so updating it later never rewrites a sent result. */
@@ -363,6 +365,8 @@ export class ControlProcessorV2 {
     if (command.type === 'fault.set' && command.effect.kind === 'motor-loss' && command.effect.motorIndex >= this.target.rotorCount()) {
       return reject(result, 'OUT_OF_RANGE', 'motorIndex must be below the rotor count');
     }
+    const unsupported = this.target.unsupportedReason(command);
+    if (unsupported !== null) return reject(result, 'BAD_STATE', unsupported);
     if (this.queued === COMMAND_QUEUE_CAPACITY_V2) return reject(result, 'OVERLOAD', 'Command queue is full');
     // Insert keeping (atTick, receipt) descending; equal ticks keep receipt order.
     // Invariant: slots [0, queued) hold a command and record; queued < capacity here.
@@ -476,4 +480,51 @@ export class ControlProcessorV2 {
 
 function reject(result: ResultRecord, code: RejectCodeV2, message: string): void {
   result.kind = 'reject'; result.code = code; result.message = message;
+}
+
+// ---------------------------------------------------------------------------
+// Worker boundary guards
+// ---------------------------------------------------------------------------
+
+/** Session fault reported by the Worker outside the command/result flow (for example a failed init-v2). */
+export interface WorkerFaultV2 { type: 'fault-v2'; protocolVersion: 2; message: string }
+export type WorkerEventV2 = CommandResultV2 | WorkerFaultV2;
+
+function plain(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+const tickLike = (value: unknown): value is TickId =>
+  plain(value) && isUint32(value.lo) && isUint32(value.hi) && Object.keys(value).length === 2;
+
+/** Structural check of the structured-clone init message; buffers are validated by their own layouts. */
+export function isWorkerInitV2(value: unknown): value is WorkerInitV2 {
+  return plain(value) && value.type === 'init-v2' && value.protocolVersion === CONTROL_PROTOCOL_VERSION &&
+    value.stateBuffer instanceof SharedArrayBuffer && value.sensorBuffer instanceof SharedArrayBuffer &&
+    value.actuatorBuffer instanceof SharedArrayBuffer && Object.keys(value).length === 5;
+}
+
+const REJECT_CODES: readonly RejectCodeV2[] = ['SCHEMA', 'STALE_EPOCH', 'BAD_STATE', 'OUT_OF_RANGE', 'ASSET_MISSING', 'OVERLOAD'];
+/** Validates a Worker-to-Main message; anything unrecognized returns null and must be ignored. */
+export function parseWorkerEventV2(value: unknown): WorkerEventV2 | null {
+  if (!plain(value)) return null;
+  switch (value.type) {
+    case 'ready-v2':
+      return value.protocolVersion === 2 && value.abiVersion === 2 && isUint32(value.epoch) && isPhysicsHz(value.hz)
+        ? { type: 'ready-v2', protocolVersion: 2, abiVersion: 2, epoch: value.epoch, hz: value.hz } : null;
+    case 'ack-v2':
+      return (value.requestId === UNKNOWN_REQUEST_ID || isUint32(value.requestId)) && (value.status === 'queued' || value.status === 'applied') &&
+        isUint32(value.epoch) && tickLike(value.appliedTick)
+        ? { type: 'ack-v2', requestId: value.requestId, status: value.status, epoch: value.epoch,
+          appliedTick: { lo: value.appliedTick.lo, hi: value.appliedTick.hi } } : null;
+    case 'reject-v2': {
+      const code = REJECT_CODES.find(candidate => candidate === value.code);
+      return (value.requestId === UNKNOWN_REQUEST_ID || isUint32(value.requestId)) && code !== undefined && typeof value.message === 'string'
+        ? { type: 'reject-v2', requestId: value.requestId, code, message: value.message } : null;
+    }
+    case 'fault-v2':
+      return value.protocolVersion === 2 && typeof value.message === 'string'
+        ? { type: 'fault-v2', protocolVersion: 2, message: value.message } : null;
+    default:
+      return null;
+  }
 }

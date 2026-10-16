@@ -1,6 +1,6 @@
 import { Ajv2020 } from 'ajv/dist/2020.js';
 import { describe, expect, it } from 'vitest';
-import { COMMAND_QUEUE_CAPACITY_V2, ControlProcessorV2, parseControlCommandV2, type ClockModeV2, type CommandResultV2,
+import { COMMAND_QUEUE_CAPACITY_V2, ControlProcessorV2, isWorkerInitV2, parseControlCommandV2, parseWorkerEventV2, type ClockModeV2, type CommandResultV2,
   type ControlTargetV2, type PhysicsHz, type ScheduledCommandV2, type TickId } from '@mirage/protocol';
 import schema from '../packages/protocol/src/control-v2.schema.json';
 import { specText } from './support/spec-layout';
@@ -142,6 +142,8 @@ class FakeTarget implements ControlTargetV2 {
   }
   commitModel(modelId: number) { this.calls.push(`commit:${modelId}`); this.model = modelId; }
   applyScheduled(command: ScheduledCommandV2, tick: TickId) { this.applied.push({ requestId: command.requestId, tick: tick.lo }); }
+  unsupported: string | null = null;
+  unsupportedReason() { return this.unsupported; }
 }
 function harness(options?: { epoch?: number; hz?: PhysicsHz }) {
   const target = new FakeTarget(), processor = new ControlProcessorV2(target, options), results: CommandResultV2[] = [];
@@ -265,5 +267,35 @@ describe('Control Protocol v2 processing', () => {
     processor.drain(result => results.push(result));
     expect(results.at(-1)).toMatchObject({ type: 'reject-v2', requestId: 1, code: 'BAD_STATE' });
     expect(target.model).toBe(1);
+  });
+});
+
+describe('backend support and Worker boundary guards', () => {
+  it('rejects a scheduled command the backend cannot model at admission, with its reason', () => {
+    const { target, send } = harness();
+    target.unsupported = 'The demo backend has no atmosphere/wind model';
+    expect(send(weather(1, 50))).toEqual({ type: 'reject-v2', requestId: 1, code: 'BAD_STATE', message: 'The demo backend has no atmosphere/wind model' });
+    target.unsupported = null;
+    expect(send(weather(2, 50))).toMatchObject({ status: 'queued' });
+  });
+  it('accepts only well-formed Worker events and init messages', () => {
+    const tick = { lo: 1, hi: 0 };
+    expect(parseWorkerEventV2({ type: 'ready-v2', protocolVersion: 2, abiVersion: 2, epoch: 1, hz: 800 })).toMatchObject({ hz: 800 });
+    expect(parseWorkerEventV2({ type: 'ack-v2', requestId: 3, status: 'applied', epoch: 1, appliedTick: tick })).toMatchObject({ requestId: 3 });
+    expect(parseWorkerEventV2({ type: 'reject-v2', requestId: -1, code: 'SCHEMA', message: 'bad' })).toMatchObject({ code: 'SCHEMA' });
+    expect(parseWorkerEventV2({ type: 'fault-v2', protocolVersion: 2, message: 'x' })).toMatchObject({ type: 'fault-v2' });
+    for (const invalid of [null, 'ready', { type: 'ready-v2', protocolVersion: 2, abiVersion: 1, epoch: 1, hz: 400 },
+      { type: 'ready-v2', protocolVersion: 2, abiVersion: 2, epoch: 1, hz: 500 },
+      { type: 'ack-v2', requestId: 1.5, status: 'applied', epoch: 1, appliedTick: tick },
+      { type: 'ack-v2', requestId: 1, status: 'done', epoch: 1, appliedTick: tick },
+      { type: 'ack-v2', requestId: 1, status: 'applied', epoch: 1, appliedTick: { lo: 1 } },
+      { type: 'reject-v2', requestId: 1, code: 'PANIC', message: 'x' }, { type: 'error', message: 'v1' }]) {
+      expect(parseWorkerEventV2(invalid), JSON.stringify(invalid)).toBeNull();
+    }
+    const buffers = { stateBuffer: new SharedArrayBuffer(8), sensorBuffer: new SharedArrayBuffer(8), actuatorBuffer: new SharedArrayBuffer(8) };
+    expect(isWorkerInitV2({ type: 'init-v2', protocolVersion: 2, ...buffers })).toBe(true);
+    expect(isWorkerInitV2({ type: 'init', version: 1, buffer: buffers.stateBuffer })).toBe(false);
+    expect(isWorkerInitV2({ type: 'init-v2', protocolVersion: 2, ...buffers, extra: 1 })).toBe(false);
+    expect(isWorkerInitV2({ type: 'init-v2', protocolVersion: 2, ...buffers, sensorBuffer: new ArrayBuffer(8) })).toBe(false);
   });
 });

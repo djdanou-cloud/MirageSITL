@@ -15,10 +15,10 @@ SharedArrayBuffer transport; USB Gamepad input; axis calibration; and a simplifi
 quadrotor demonstration. The interface includes a 3D view, telemetry, collective
 throttle, arm/disarm, pause/reset, input failsafe, and scheduler drop counters.
 
-The current binary ABI is **v1**. Specifications define a separate **target v2**
-with EKF/EW status, session epochs, and sensor/actuator queues. The v2 layout, codecs,
-atomic transport, and Control Protocol v2 processor exist (TASK-008/009/010), but the
-running application still uses v1 until TASK-085.
+The running application uses binary ABI **v2** (TASK-085): session epochs, EKF/EW
+status fields, sensor/actuator queues, and Control Protocol v2. EKF/EW values stay
+unset until an autopilot and EW engine exist. ABI v1 remains in `packages/protocol`
+with its tests but is no longer used by the application.
 
 JSBSim/BET WASM, ArduPilot SITL/HITL, EW, photorealistic terrain, FPV/thermal
 effects, and AAR are planned. The current aerodynamics are simplified and

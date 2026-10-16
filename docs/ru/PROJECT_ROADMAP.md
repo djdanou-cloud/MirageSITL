@@ -1,6 +1,6 @@
 # PROJECT_ROADMAP.md
 
-<!-- source-sha256: 59aebc2a0bd7c6e2089b78945afedd7e915c41d75aa82bda75ce32f756483d00 -->
+<!-- source-sha256: 89df11030283fd79760a77c10b0037168a7f0b37801205145fe7d0a723a0d091 -->
 
 Английский источник: [Source of truth](../PROJECT_ROADMAP.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -268,12 +268,13 @@ Google content без прав.
 
 ### TASK-085 — Перевод Worker и Main на ABI v2
 
-- **Status:** TODO.
+- **Status:** DONE — Claude; baseline bad3099; 2026-10-16.
 - **Title & Description:** Перевести работающее приложение с ABI v1 и postMessage-протокола v1 на state ring v2, pilot mailbox, WorkerInitV2 и Control Protocol v2. Выделено из TASK-009/010, поскольку WorkerInitV2 требует sensor/actuator buffers из TASK-013.
 - **Dependencies:** TASK-009, TASK-010, TASK-013.
-- **Touched Files:** `apps/web/src/runtime.ts`, `apps/web/src/physics.worker.ts`, `apps/web/src/App.tsx`, `tests/browser/simulation.spec.ts`, `tests/browser/runtime-v2.spec.ts`.
+- **Touched Files:** `apps/web/src/runtime.ts`, `apps/web/src/physics.worker.ts`, `apps/web/src/App.tsx`, `tests/browser/simulation.spec.ts`, `tests/browser/runtime-v2.spec.ts`, `apps/web/src/FlightScene.tsx`, `packages/physics/src/session-v2.ts`, `packages/physics/src/demo-dynamics.ts`, `packages/physics/src/index.ts`, `packages/protocol/src/control-v2.ts`, `packages/input/src/index.ts`, `tests/session-v2.test.ts`, `tests/control-v2.test.ts`, `tests/input.test.ts`, `README.md`, `docs/ru/README.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `docs/SPECS_SHARED_MEMORY.md`, `docs/ru/SPECS_SHARED_MEMORY.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
 - **Interfaces / Contracts:** WorkerInitV2; StateWriterV2/StateReaderV2; PilotWriterV2/PilotReaderV2; ControlProcessorV2; SPECS_SHARED_MEMORY sections 3–6.
 - **DoD & Acceptance Criteria:** Browser tests жизненного цикла, устаревшего ввода, USB failsafe и fixed dt проходят на v2; устаревший epoch или изменённый device_generation снимает arm; рендер никогда не интерполирует через смену epoch; совместимость с v1 удаляется только по зафиксированному решению.
+- **Evidence:** Владелец Claude; baseline bad3099; 2026-10-16. Приложение работает на ABI v2: Main отправляет init-v2 с SAB состояния v2 и обеими SPSC-очередями; Worker — тонкий адаптер вокруг PhysicsSessionV2. tests/session-v2.test.ts: 10 PASS (ready-v2, шаги tick/hz, удержание при паузе, удельная сила в покое [0,0,-9.80665], давление ISA, demo отклоняет weather/fault с BAD_STATE и model.load с ASSET_MISSING, arm только при газе <=5%, изменение device_generation снимает arm и блокирует повторный arm до отзыва, устаревшая epoch и ввод старше 300 ms снимают arm, epochs reset/configure разрывают историю, шаги на 1200 Гц, sitl-lockstep отзывчиво ждёт и шагает по кадрам актуаторов для каждого tick с ActuatorValid, превышение сроков hitl-realtime устанавливает флаг Fault в header до reset, dispose). Мутации: игнорирование device_generation, arm при любом газе и игнорирование epoch проваливают тесты. tests/control-v2.test.ts: +2 (unsupportedReason, проверки parseWorkerEventV2/isWorkerInitV2); tests/input.test.ts: +1 (другой передатчик на повторно использованном index начинает новое поколение). DemoDynamics теперь сообщает кинематическое ускорение при контакте с землёй. Browser: все 4 simulation specs проходят на v2 (тест протокола Worker переведён на init-v2/команды с arm при 0% газа), все 7 capability specs проходят, tests/browser/runtime-v2.spec.ts: 2 PASS (устаревшая epoch и смена устройства снимают arm в реальном Worker, 800 Гц выполняются с точностью 10% за 2 s, reset разрывает историю latestPair; заменённый передатчик на index с arm снимает arm в UI). npm run lint, npm run typecheck, npm run check:docs, npm run build exit 0; CI=true npm test: 178 PASS; CI=true npm run test:browser: 15 PASS (Playwright Chromium build 1194). Node 22.22.0. Код и тесты ABI v1 сохранены; приложение их больше не использует.
 
 ## Phase 2: Aerodynamics & WASM
 

@@ -37,8 +37,28 @@ export class GamepadAdapter {
   selectedIndex: number | null = null;
   status: InputStatus = 'disconnected';
   deviceName = '';
+  /**
+   * Increments whenever the device behind the selection changes: a different
+   * index or id (browsers reuse the lowest free index), a disconnect, or an
+   * explicit selection. Consumers disarm when it changes (pilot mailbox v2
+   * device_generation), so a replugged or swapped transmitter needs a new arm.
+   */
+  generation = 0;
+  private identityIndex = -1;
+  private identityId = '';
   constructor(public calibration = defaultCalibration(), private readonly source: GamepadSource =
     () => navigator.getGamepads()) {}
+  /** Explicitly selects a device by index; always starts a new device generation. */
+  selectDevice(index: number | null): void {
+    this.selectedIndex = index;
+    this.generation = (this.generation + 1) >>> 0;
+    this.identityIndex = -1; this.identityId = '';
+  }
+  private noteIdentity(index: number, id: string): void {
+    if (index === this.identityIndex && id === this.identityId) return;
+    this.identityIndex = index; this.identityId = id;
+    this.generation = (this.generation + 1) >>> 0;
+  }
   poll(out: PilotInput, nowMs: number, armed: boolean): void {
     out.roll = out.pitch = out.yaw = out.throttle = out.flags = 0;
     out.wallTimeMs = nowMs;
@@ -49,7 +69,12 @@ export class GamepadAdapter {
       if (first) this.selectedIndex = first.index;
     }
     const pad = this.selectedIndex === null ? undefined : pads[this.selectedIndex];
-    if (!pad?.connected) { this.status = 'disconnected'; this.deviceName = ''; return; }
+    if (!pad?.connected) {
+      this.status = 'disconnected'; this.deviceName = '';
+      if (this.identityIndex !== -1) this.noteIdentity(-1, '');
+      return;
+    }
+    this.noteIdentity(pad.index, pad.id);
     this.deviceName = pad.id;
     for (const channel of CHANNELS) {
       const calibration = this.calibration[channel];

@@ -23,6 +23,25 @@ describe('gamepad calibration', () => {
     pads = [null, other]; adapter.poll(input, 102, true);
     expect(input.flags).toBe(0); expect(input.throttle).toBe(0); expect(adapter.status).toBe('disconnected');
   });
+  it('starts a new device generation when a different transmitter reuses the selected index', () => {
+    const first = { index: 0, connected: true, id: 'EdgeTX A', axes: [0, 0, -1, 0] } as unknown as Gamepad;
+    let pads: (Gamepad | null)[] = [first];
+    const adapter = new GamepadAdapter(defaultCalibration(), () => pads), input = newInput();
+    adapter.poll(input, 1, true);
+    const armedGeneration = adapter.generation;
+    adapter.poll(input, 2, true);
+    expect(adapter.generation).toBe(armedGeneration); // same device: stable
+    pads = [null]; adapter.poll(input, 3, true);
+    const unplugged = adapter.generation;
+    expect(unplugged).toBeGreaterThan(armedGeneration);
+    // The browser assigns the lowest free index, so a different transmitter appears at index 0.
+    pads = [{ ...first, id: 'Other transmitter' }]; adapter.poll(input, 4, true);
+    expect(adapter.status).toBe('connected');
+    expect(adapter.generation).toBeGreaterThan(unplugged);
+    const swapped = adapter.generation;
+    adapter.selectDevice(0);
+    expect(adapter.generation).toBeGreaterThan(swapped);
+  });
   it('fails closed on missing axes and browser permission errors', () => {
     const pad = { index: 0, connected: true, id: 'two axes', axes: [0, 0] } as unknown as Gamepad;
     const adapter = new GamepadAdapter(defaultCalibration(), () => [pad]);

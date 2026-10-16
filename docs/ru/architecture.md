@@ -1,6 +1,6 @@
 # Архитектура MirageSITL
 
-<!-- source-sha256: 3aa05932236cd916f69698a589ca6eac0f0c4e08c7373001a42cf9e706d1f5d8 -->
+<!-- source-sha256: 92004a7465738bf268207a587b694b76f801ceef3495f57e2754a0969aca9d13 -->
 
 Английский источник: [Source of truth](../architecture.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -99,7 +99,7 @@ Hot path физики повторно использует вход, состо
 
 ## Часы, перегрузка и безопасность ввода
 
-`FixedStepClock` следит за дедлайнами `performance.now()`. Интегратор всегда
+`SteppingPolicy` Worker (на основе `MultiRateClock`) следит за дедлайнами `performance.now()`. Интегратор всегда
 получает один и тот же dt. До 8 шагов за callback, затем yield event loop
 для lifecycle-команд. Вложенные `setTimeout` могут ограничиваться браузером
 примерно 4 мс; один callback тогда выполняет несколько физических шагов.
@@ -422,3 +422,22 @@ full_events. Consumer копирует слот в scratch и освобожда
 geo-поля вне GNSS и нормализованные актуаторы в [-1,1]. Стресс-тесты на
 реальных потоках передают 1e6 кадров по порядку в Node worker_threads и в
 browser Worker.
+
+### Приложение на ABI v2 (TASK-085)
+
+Physics Worker — тонкий адаптер вокруг `PhysicsSessionV2`
+(`packages/physics/src/session-v2.ts`), поэтому логика Worker выполняется в
+Node-тестах. Main создаёт SAB состояния v2 и обе SPSC-очереди и отправляет
+`init-v2`; сессия владеет `StateWriterV2`, `PilotReaderV2`, consumer
+актуаторов, `ControlProcessorV2`, `SteppingPolicy` и `DemoDynamics(hz)`.
+На каждом tick она читает pilot mailbox, применяет защёлку arm, интегрирует и
+публикует `FlightStateV2` с идеальной удельной силой `f_b = R^T(a_n - g_n)` и
+истинным давлением ISA. Arm защёлкивается только по явному запросу при газе
+<=5%; устаревшая epoch, ввод старше 250 ms, недопустимые значения или
+изменённый `device_generation` снимают arm и блокируют повторный arm до
+отзыва запроса. `GamepadAdapter.generation` меняется вместе с идентичностью
+устройства, поэтому другой передатчик с тем же index никогда не наследует
+arm. Main читает состояние жизненного цикла из runtime flags header, рисует с
+историей `latestPair` и проверяет события Worker. В sitl-lockstep tick ждёт
+кадр актуаторов autopilot ровно для этого tick и epoch. Кадры датчиков не
+производятся, пока их не потребляет I/O Worker (TASK-034+).
