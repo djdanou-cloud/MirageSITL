@@ -946,3 +946,22 @@ quaternion with q ≡ −q) against the recording. The result is a report
 (verdict match / mismatch / incomplete, error maxima, first and up to 32
 mismatches); segments after recorded loss are reported incomplete, and the
 recording is never modified.
+
+### AAR session export (TASK-081)
+
+`@mirage/aar/archive` writes one uncompressed archive: a 64-byte header
+(magic `MAARCHV1`, version, entry count, index length, total size, SHA-256 of
+the index), a JSON index of contiguous entries (manifest, metadata, optional
+reports, chunks) each with its SHA-256, and the payloads. Import reads the
+header first and rejects archives larger than the limits or whose declared
+sizes disagree with the actual Blob, before reading the index; it then
+verifies the index hash and entry layout (no holes or overlaps, per-entry
+size limit, exactly one manifest) and every payload hash and chunk CRC before
+writing anything into an empty target store. Without compression there is no
+decompression bomb. Export drops metadata keys naming secrets, replaces
+credential-like values (Google API keys, bearer tokens, 64-hex tokens) and,
+by default, serial/device identifiers; model hashes in the manifest are kept
+as provenance. `inspectArchive`/`summarize` report total size, entries and bytes
+per category and records per kind, which `apps/web/src/aar/Export.tsx` shows
+before offering the download. The component is not yet mounted in the app
+because the recorder is not yet wired into the physics Worker.

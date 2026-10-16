@@ -1006,12 +1006,13 @@ were synchronized and checked. Changes remain local; no commit or push performed
 
 ### TASK-081 — Session export
 
-- **Status:** TODO.
+- **Status:** DONE — Claude; baseline 2264679; 2026-10-16 (UI component not yet mounted: recorder not wired into the physics Worker).
 - **Title & Description:** Export/import AAR with manifests and no secrets.
 - **Dependencies:** TASK-076, TASK-077.
-- **Touched Files:** `packages/aar/src/archive.ts`, `apps/web/src/aar/Export.tsx`, `tests/aar-archive.test.ts`.
+- **Touched Files:** `packages/aar/src/archive.ts`, `apps/web/src/aar/Export.tsx`, `tests/aar-archive.test.ts`, `packages/aar/package.json`, `apps/web/package.json`, `package-lock.json`.
 - **Interfaces / Contracts:** Versioned archive; size/checksum limits; configurable key/serial-identifier redaction.
 - **DoD & Acceptance Criteria:** Roundtrip export/import; reject archive bombs/oversized payloads/invalid hashes before allocation; no API keys/tokens in archives; show size and data categories.
+- **Evidence:** Owner Claude; baseline 2264679; 2026-10-16. Node 24.22.0: tests/aar-archive.test.ts 5 PASS: a recorder-made session (1200 records, 19 chunks) exports with size, per-category entries/bytes and records per kind, imports into an empty store with identical chunks and manifest, reopens for replay, and refuses a non-empty target; metadata with a Google-key-shaped string, a 64-hex bridge token, a bearer token, USB ids and serials exports with none of them in the archive bytes (>= 7 redactions) while model hashes are kept, serial redaction is configurable and secrets are always removed; credentials in attached reports are redacted; too many entries, oversized index, mismatched total size, unknown version and wrong magic are rejected after reading only the 64-byte header, an over-limit Blob after reading nothing; a tampered index, a payload byte flip (target left empty), overlapping entries and an over-limit entry under a valid index hash are rejected. Mutations killed: entry-count limit, size/header match, overlap check, payload hash, secret-key drop, secret-value patterns, index hash, archive size limit, empty-target check. Survivor: the final credential scan is a backstop unreachable through the public API because redaction applies the same patterns first. Export.tsx typechecks and lints; it is not mounted in the app until the recorder is wired into the physics Worker.
 
 ### TASK-082 — System acceptance matrix
 

@@ -9,6 +9,7 @@
     "./storage": "./src/storage.ts",
     "./recorder.worker": "./src/recorder.worker.ts",
     "./replay": "./src/replay.ts",
-    "./resimulation": "./src/resimulation.ts"
+    "./resimulation": "./src/resimulation.ts",
+    "./archive": "./src/archive.ts"
   }
 }
