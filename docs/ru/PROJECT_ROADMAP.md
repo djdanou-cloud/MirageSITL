@@ -1,6 +1,6 @@
 # PROJECT_ROADMAP.md
 
-<!-- source-sha256: 9995bfc3007d3415f729a8eb71e72f905ab913be2f851af6f15e97772b44c18e -->
+<!-- source-sha256: 79112b6f3f7eb5892ab8ce1fcc6c5b0aa927e6a0940cfcef4f024f6372fc45c1 -->
 
 Английский источник: [Source of truth](../PROJECT_ROADMAP.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -153,13 +153,13 @@ Cargo bin активирован в PATH. Производительность M
 
 ### TASK-003 — Автоматический CI
 
-- **Status:** BLOCKED_EXTERNAL — implementation complete; hosted-run verification unavailable.
+- **Status:** DONE — реализация завершена; запуски на хостинге проверены 2026-10-16.
 - **Title & Description:** Запускать проверки на pull request без зависимости от аппаратуры или платных API.
 - **Dependencies:** TASK-002.
 - **Touched Files:** `.github/workflows/ci.yml`, `playwright.config.ts`, `README.md`, `docs/ru/README.md`, `CLAUDE.md`, `docs/ru/CLAUDE.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `package.json`, `package-lock.json`, `vitest.config.ts`, `.gitignore`, `tests/ci.test.ts`.
 - **Interfaces / Contracts:** Node 24, frozen npm lock; отдельно unit/browser/build jobs.
 - **DoD & Acceptance Criteria:** CI запускает ненулевое число тестов, сохраняет результаты/trace при ошибке; no-tests и failed job дают failure; секреты не нужны для synthetic lane.
-- **Evidence:** Owner Codex; baseline c8814c6; 2026-10-15. Созданы три независимых CI jobs; tests/ci.test.ts: 3 PASS, оба runner отклоняют zero-test runs. Локальные CI команды прошли: 25 unit, 4 browser, production build. Reports: test-results/unit/junit.xml и test-results/browser/junit.xml без skips/failures; build.log и apps/web/dist созданы. GitHub Actions API недоступен: proxy CONNECT 403; после push проверить первый hosted run. Synthetic jobs не требуют credentials или аппаратуры. Проверка hosted CI (Claude, 2026-10-15): GitHub Actions теперь создаёт запуски, но каждая job завершается ошибкой без выполнения. Запуски 38804503643 (c26df78, push), 38806524546 (f13213b, push) и 38808881935 (1064a57, pull request djdanou-cloud/MirageSITL#1): все три job (unit, build, browser) завершились с failure через 2-3 s после старта, без шагов и без доступного лога (HTTP 404). Такая картина означает, что hosted runners не запускались (например, блокировка Actions из-за оплаты/лимита расходов или отключённые Actions), а не ошибку workflow или тестов. Разблокировка: владелец репозитория проверяет оплату аккаунта GitHub и настройки Actions репозитория, затем перезапускает workflow; изменения кода не требуются.
+- **Evidence:** Owner Codex; baseline c8814c6; 2026-10-15. Созданы три независимых CI jobs; tests/ci.test.ts: 3 PASS, оба runner отклоняют zero-test runs. Локальные CI команды прошли: 25 unit, 4 browser, production build. Reports: test-results/unit/junit.xml и test-results/browser/junit.xml без skips/failures; build.log и apps/web/dist созданы. GitHub Actions API недоступен: proxy CONNECT 403; после push проверить первый hosted run. Synthetic jobs не требуют credentials или аппаратуры. Проверка hosted CI (Claude, 2026-10-15): GitHub Actions теперь создаёт запуски, но каждая job завершается ошибкой без выполнения. Запуски 38804503643 (c26df78, push), 38806524546 (f13213b, push) и 38808881935 (1064a57, pull request djdanou-cloud/MirageSITL#1): все три job (unit, build, browser) завершились с failure через 2-3 s после старта, без шагов и без доступного лога (HTTP 404). Такая картина означает, что hosted runners не запускались (например, блокировка Actions из-за оплаты/лимита расходов или отключённые Actions), а не ошибку workflow или тестов. Разблокировка: владелец репозитория проверяет оплату аккаунта GitHub и настройки Actions репозитория, затем перезапускает workflow; изменения кода не требуются. Проверка на хостинге (Claude, 2026-10-16): запуск GitHub Actions 38935251383 (pull request djdanou-cloud/MirageSITL#2, head e28eb7c) успешно выполнил все три задания: unit — 62 файла / 394 теста пройдено, test-results/unit/junit.xml загружен как артефакт 12060104387; browser пройден, отчёт загружен как артефакт 12060348065; build пройден. Запуск Native checks 38935251375 также пройден. Прежние сбои из-за блокировки оплаты больше не возникают.
 
 
 ### TASK-004 — Golden fixtures и seed registry
