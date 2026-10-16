@@ -927,3 +927,22 @@ the burst; records are lost only when the queue itself overflows, and that
 loss is counted and written as a gap record (count, tick range, reason storage
 backpressure or queue full). On stop the recorder drains the queue completely
 before sealing the last chunk.
+
+### AAR replay and resimulation (TASK-077)
+
+Two separate modes. Snapshot replay (`@mirage/aar/replay`) opens a recording
+read-only: the manifest is re-validated (unknown format/version rejected,
+optional expected model hashes enforced) and every chunk passes its magic,
+version, size and CRC check before decoding; records are frozen. Truth
+records form segments of one epoch with increasing ticks, laid end to end on
+the timeline, so seeking never blends across a reset or model change and
+crossing one is reported as a discontinuity. `seek` returns the last truth
+record at or before the position, clamps outside the recording, and flags
+positions inside recorded loss as `inGap`. Resimulation
+(`@mirage/aar/resimulation`) requires a simulator with the recording's model
+hashes, resets it per segment with the manifest seed, applies the recorded
+input of each tick and compares the produced truth (position, velocity,
+quaternion with q ≡ −q) against the recording. The result is a report
+(verdict match / mismatch / incomplete, error maxima, first and up to 32
+mismatches); segments after recorded loss are reported incomplete, and the
+recording is never modified.

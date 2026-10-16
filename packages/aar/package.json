@@ -7,6 +7,8 @@
     "./format": "./src/format.ts",
     "./recorder": "./src/recorder.ts",
     "./storage": "./src/storage.ts",
-    "./recorder.worker": "./src/recorder.worker.ts"
+    "./recorder.worker": "./src/recorder.worker.ts",
+    "./replay": "./src/replay.ts",
+    "./resimulation": "./src/resimulation.ts"
   }
 }

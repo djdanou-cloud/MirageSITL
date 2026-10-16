@@ -1,6 +1,6 @@
 # PROJECT_ROADMAP.md
 
-<!-- source-sha256: a87550bc60723a46b10b87d2ab2085c18299c314bcfc34b2d1051dfa56602589 -->
+<!-- source-sha256: c7c1241350e654f0528fb64b17de9d3b0b3529f16b344590464695dcb5fd16f9 -->
 
 Английский источник: [Source of truth](../PROJECT_ROADMAP.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -972,12 +972,13 @@ Cargo bin активирован в PATH. Производительность M
 
 ### TASK-077 — Replay и timeline
 
-- **Status:** TODO.
+- **Status:** DONE — Claude; база 064e3b5; 2026-10-16.
 - **Title & Description:** Воспроизводить recorded snapshots отдельно от deterministic resimulation.
 - **Dependencies:** TASK-015, TASK-076.
-- **Touched Files:** `packages/aar/src/replay.ts`, `packages/aar/src/resimulation.ts`, `tests/aar-replay.test.ts`.
+- **Touched Files:** `packages/aar/src/replay.ts`, `packages/aar/src/resimulation.ts`, `tests/aar-replay.test.ts`, `packages/aar/package.json`.
 - **Interfaces / Contracts:** ReplayMode snapshots/resimulate; seek boundaries, config provenance.
 - **DoD & Acceptance Criteria:** Seek/reset/epoch discontinuity корректны; unknown format/hash mismatch rejected; state replay identical records; resim mismatch даёт отчёт, не auto-rewrite recording.
+- **Evidence:** Исполнитель Claude; база 064e3b5; 2026-10-16. Node 24.22.0: tests/aar-replay.test.ts 6 PASS на реальных записях DemoDynamics при 400 Hz (3 s, сброс в эпоху 2, 2 s), сделанных через RecordingProducer/AarRecorder/MemoryChunkStore: сегменты [1, 1..1200] и [2, 1..800], длительность 5 s; seek ограничивает позицию (atStart/atEnd), возвращает запись не позже позиции (1.0 s -> тик 401, 1.0025 s -> 402), сообщает разрыв при пересечении сброса в обе стороны, а смена эпохи при продолжающихся тиках всё равно разделяет сегменты; записанная потеря 40 тиков — это разрыв, и позиции внутри него помечены inGap; записи заморожены, а дайджест хранилища не меняется после 100 перемоток; манифест версии 2, повреждённый чанк и несовпадение ожидаемого хеша отклоняются. Пересимуляция той же DemoDynamics воспроизводит 2000 тиков с ошибкой 0 m / 0 m/s и скалярным произведением кватернионов в пределах 1e-15 от 1; возмущение газа на 1% даёт отчёт о несовпадении (первое — в эпохе 1, перечислены 32 из большего числа) без изменения хранилища; потеря делает эпоху 2 неполной с тика 200 (сравнено 1399 тиков); другой хеш планера отклоняется. Убитые мутации: разделение по эпохе, inGap, повторная проверка манифеста, проверка ожидаемого хеша, обнаружение пропущенных тиков, ограничение списка несовпадений, сброс на сегмент, проверка хеша планера.
 
 ### TASK-078 — AAR response charts
 

@@ -969,12 +969,13 @@ were synchronized and checked. Changes remain local; no commit or push performed
 
 ### TASK-077 — Replay and timeline
 
-- **Status:** TODO.
+- **Status:** DONE — Claude; baseline 064e3b5; 2026-10-16.
 - **Title & Description:** Separate recorded snapshot replay from deterministic resimulation.
 - **Dependencies:** TASK-015, TASK-076.
-- **Touched Files:** `packages/aar/src/replay.ts`, `packages/aar/src/resimulation.ts`, `tests/aar-replay.test.ts`.
+- **Touched Files:** `packages/aar/src/replay.ts`, `packages/aar/src/resimulation.ts`, `tests/aar-replay.test.ts`, `packages/aar/package.json`.
 - **Interfaces / Contracts:** ReplayMode snapshots/resimulate; seek boundaries; configuration provenance.
 - **DoD & Acceptance Criteria:** Correct seeking/reset/epoch discontinuity; reject unknown format/hash mismatch; replay preserves records; resimulation mismatch generates a report instead of rewriting recordings.
+- **Evidence:** Owner Claude; baseline 064e3b5; 2026-10-16. Node 24.22.0: tests/aar-replay.test.ts 6 PASS over real DemoDynamics recordings at 400 Hz (3 s, reset to epoch 2, 2 s) made through RecordingProducer/AarRecorder/MemoryChunkStore: segments [1, 1..1200] and [2, 1..800], duration 5 s; seek clamps (atStart/atEnd), returns the record at or before the position (1.0 s -> tick 401, 1.0025 s -> 402), flags discontinuity on crossing the reset in either direction, and an epoch change with continuing ticks still splits segments; recorded loss of 40 ticks is a gap and positions inside it are inGap; records frozen and the store digest is unchanged after 100 seeks; a version-2 manifest, a corrupted chunk and an expected-hash mismatch are rejected. Resimulation with the same DemoDynamics reproduces 2000 ticks with 0 m / 0 m/s error and quaternion dot within 1e-15 of 1; a 1% throttle perturbation yields a mismatch report (first mismatch in epoch 1, 32 listed of more) without changing the store; loss makes epoch 2 incomplete from tick 200 (1399 ticks compared); a different airframe hash is refused. Mutations killed: epoch split, inGap, manifest re-validation, expected-hash check, missing-tick detection, mismatch list bound, per-segment reset, airframe hash check.
 
 ### TASK-078 — AAR response charts
 
