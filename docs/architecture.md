@@ -894,3 +894,20 @@ NETD, calibration source) is either a synthetic training profile or a
 measured one with an instrument name and calibration-data SHA-256; only a
 measured profile can claim parity with an instrument such as CADEX, and the
 shipped `synthetic-lwir-640` profile does not.
+
+### Thermal shutter and NUC (TASK-072)
+
+`@mirage/thermal/nuc` models microbolometer non-uniformity correction on
+sensor frame time. States are idle (no frame yet), open, closed (shutter
+settling for `settleS`) and calibrating (averaging `calibrationFrames`
+flat-field frames of the shutter at `shutterLevel`), then open again with
+offset = mean(raw) − shutterLevel subtracted from every later frame.
+Closures follow a fixed grid (first frame + k·intervalS), so the rate never
+slips by the cycle length; `stateAt`/`shutterClosedFor` tell the camera model
+whether a frame images the shutter. Configuration is rejected when a cycle
+could interrupt the display for longer than `maxInterruptionS` at
+`minFrameRateHz`. While the shutter is in view the output repeats the last
+open frame and is flagged frozen; output timestamps are the sensor frame times
+and non-increasing frames are rejected and counted. The controller has no
+access to physics, truth or AAR data. `thermal-status` derives the HUD label
+(NO SIGNAL, LIVE, NUC) and the time since and until calibration.

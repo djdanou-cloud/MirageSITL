@@ -920,12 +920,13 @@ were synchronized and checked. Changes remain local; no commit or push performed
 
 ### TASK-072 — Thermal shutter and NUC
 
-- **Status:** TODO.
+- **Status:** DONE — Claude; baseline b250ee0; 2026-10-16.
 - **Title & Description:** Implement deterministic calibration cycles and bounded display interruption.
 - **Dependencies:** TASK-071.
-- **Touched Files:** `packages/thermal/src/nuc.ts`, `packages/thermal/src/thermal-status.ts`, `tests/thermal-nuc.test.ts`.
+- **Touched Files:** `packages/thermal/src/nuc.ts`, `packages/thermal/src/thermal-status.ts`, `tests/thermal-nuc.test.ts`, `packages/thermal/package.json`.
 - **Interfaces / Contracts:** Shutter states idle/closed/calibrating/open; sensor frame time.
 - **DoD & Acceptance Criteria:** Fix cycle duration/rate; NUC removes configured bias without timestamp reversal; shutter never pauses physics or mutates AAR truth.
+- **Evidence:** Owner Claude; baseline b250ee0; 2026-10-16. Node 24.22.0: tests/thermal-nuc.test.ts 7 PASS with an independent camera model (4096 pixels, seeded +-50 count fixed pattern, +-0.5 count/s drift, sigma 2 noise, 30 Hz with +-3 ms jitter, 610 s): 5 calibrations at 120 k + 0.2 + 8/30 s within 2 frames (fixed grid), each display interruption 14-15 frames and <= 0.8 s; residual offset RMS > 10 counts before and 0.71 +-20% (= sigma / sqrt(8)) after each calibration; output timestamps strictly increasing, repeated/earlier/mis-sized frames rejected and counted; frozen output repeats the last open frame; a ThermalField run with shutter cycles is bit-identical to one without and frozen truth records are unchanged; configurations exceeding the interruption bound rejected; status NO SIGNAL/LIVE/NUC and time to next calibration. Mutations killed: slipping schedule, no settling, missing shutter-level subtraction, equal-timestamp acceptance, unfrozen output, single-frame averaging, disabled interruption bound.
 
 ### TASK-073 — GPU acceptance harness
 

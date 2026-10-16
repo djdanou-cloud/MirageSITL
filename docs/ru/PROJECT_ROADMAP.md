@@ -1,6 +1,6 @@
 # PROJECT_ROADMAP.md
 
-<!-- source-sha256: 7b9245cbf0b5969d8666c95c101cf6985e12779f7078d324882a9d4f2bc8f097 -->
+<!-- source-sha256: 9df5d0832704fcba41d2063769338ce994ccbfdd1e5b10d010149f761b7134d9 -->
 
 Английский источник: [Source of truth](../PROJECT_ROADMAP.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -923,12 +923,13 @@ Cargo bin активирован в PATH. Производительность M
 
 ### TASK-072 — Shutter/NUC и thermal HUD
 
-- **Status:** TODO.
+- **Status:** DONE — Claude; база b250ee0; 2026-10-16.
 - **Title & Description:** Добавить deterministic calibration cycle и bounded display interruption.
 - **Dependencies:** TASK-071.
-- **Touched Files:** `packages/thermal/src/nuc.ts`, `packages/thermal/src/thermal-status.ts`, `tests/thermal-nuc.test.ts`.
+- **Touched Files:** `packages/thermal/src/nuc.ts`, `packages/thermal/src/thermal-status.ts`, `tests/thermal-nuc.test.ts`, `packages/thermal/package.json`.
 - **Interfaces / Contracts:** Shutter states idle/closed/calibrating/open; sensor frame time.
 - **DoD & Acceptance Criteria:** Зафиксированная длительность/частота; NUC reset убирает заданный bias; no timestamp rewind; shutter не ставит физику на паузу и не меняет AAR truth.
+- **Evidence:** Исполнитель Claude; база b250ee0; 2026-10-16. Node 24.22.0: tests/thermal-nuc.test.ts 7 PASS с независимой моделью камеры (4096 пикселей, seed-шаблон ±50 отсчётов, дрейф ±0.5 отсчёта/s, шум sigma 2, 30 Hz с дрожанием ±3 ms, 610 s): 5 калибровок в 120 k + 0.2 + 8/30 s с точностью 2 кадра (фиксированная сетка), каждое прерывание изображения 14-15 кадров и <= 0.8 s; СКО остаточного смещения > 10 отсчётов до и 0.71 ±20% (= sigma / sqrt(8)) после каждой калибровки; временные метки вывода строго возрастают, повторные/более ранние/неверного размера кадры отклоняются и подсчитываются; замороженный вывод повторяет последний открытый кадр; прогон ThermalField с циклами затвора побитово совпадает с прогоном без них, а замороженные записи истины не меняются; конфигурации, превышающие предел прерывания, отклоняются; статус NO SIGNAL/LIVE/NUC и время до следующей калибровки. Убитые мутации: сдвигающееся расписание, нет успокоения, нет вычитания уровня затвора, принятие равных меток времени, незамороженный вывод, усреднение одного кадра, отключённый предел прерывания.
 
 ### TASK-073 — GPU acceptance harness
 
