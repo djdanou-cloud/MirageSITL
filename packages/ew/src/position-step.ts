@@ -20,20 +20,33 @@ export const MAX_OFFSET_M = 10_000;
  */
 export class GpsOffsetApplier {
   private readonly frame = new LocalTangentFrame(0, 0, 0);
+  private readonly origin = new Float64Array(3);
   private readonly geodetic = new Float64Array(3);
+  private readonly undulation = new Float64Array(1);
+  private readonly offset = new Float64Array(3);
   constructor(private readonly geoid: GeoidModel = NO_GEOID) {}
 
+  /** Low-rate convenience for applyFromInto (float arguments may be boxed). */
   applyInto(source: GpsSample, northM: number, eastM: number, downM: number, target: GpsSample): boolean {
-    const g = this.geoid;
-    const h = source.altitudeMslM + g.undulationM(source.latitudeRad, source.longitudeRad);
-    if (!this.frame.setOrigin(source.latitudeRad, source.longitudeRad, h)) return false;
-    const out = this.geodetic;
-    this.frame.nedToGeodeticInto(northM, eastM, downM, out);
+    const o = this.offset;
+    o[0] = northM; o[1] = eastM; o[2] = downM;
+    return this.applyFromInto(source, o, target);
+  }
+
+  /** Moves `source` by the NED offset [n, e, d] (m) into `target`'s position fields. Allocation-free. */
+  applyFromInto(source: GpsSample, offsetNedM: Float64Array, target: GpsSample): boolean {
+    const g = this.geoid, n = this.undulation, origin = this.origin, out = this.geodetic;
+    origin[0] = source.latitudeRad; origin[1] = source.longitudeRad;
+    g.undulationFromInto(origin, n);
+    origin[2] = source.altitudeMslM + (n[0] as number); // ellipsoidal h = H + N; length-1 scratch
+    if (!this.frame.setOriginFrom(origin)) return false;
+    this.frame.nedToGeodeticFromInto(offsetNedM, out);
     const lat = out[0] as number, lon = out[1] as number, height = out[2] as number; // fixed length 3
     if (!Number.isFinite(lat) || !Number.isFinite(lon) || !Number.isFinite(height)) return false;
+    g.undulationFromInto(out, n);
     target.latitudeRad = lat;
     target.longitudeRad = lon;
-    target.altitudeMslM = height - g.undulationM(lat, lon);
+    target.altitudeMslM = height - (n[0] as number);
     return true;
   }
 }
@@ -97,7 +110,7 @@ export class PositionStep {
     const o = this.offsetNedM;
     if (!this.active || (o[0] === 0 && o[1] === 0 && o[2] === 0)) { copyGpsInto(source, target); return true; } // zero is exact identity
     copyGpsInto(source, target);
-    if (!this.applier.applyInto(source, o[0] as number, o[1] as number, o[2] as number, target)) {
+    if (!this.applier.applyFromInto(source, o, target)) {
       copyGpsInto(source, target);
       return false;
     }

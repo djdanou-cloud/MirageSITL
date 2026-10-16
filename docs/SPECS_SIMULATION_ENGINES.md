@@ -1425,3 +1425,33 @@ holds. `distortGpsInto` adds `b` through `GpsOffsetApplier` (WGS84 and geoid)
 and `v_d` to the GPS velocity, then recomputes course from the corrupted
 horizontal velocity (unknown below 0.05 m/s). GNSS sampling and rendering
 never change the drift state.
+
+## Implemented EW pipeline composition: TASK-058
+
+`EwEngine` (`packages/ew/src/engine.ts`) owns one preallocated instance of
+each effect and a 16-slot fault registry keyed by `faultId`. `apply(fault.set,
+tick)` runs at the tick boundary (ControlTargetV2.applyScheduled) without
+allocation. Each effect kind has one owning faultId (per motor for
+`motor-loss`); a newer faultId replaces the owner, disabling a non-owning or
+unknown faultId changes nothing, and a full registry returns `registry-full`.
+Disabling drift uses the command's `recovery`; motor-loss is forwarded to the
+physics `MotorFaults` and never touches observations. `reset(seed)` clears
+every effect, the registry and motor faults. `flags` reports the state ABI
+`ew_flags` bits.
+
+`advanceInto(context)` advances jamming and drift on every physics step.
+`distortGpsInto` composes baseline -> position step plus drift (the summed NED
+offset in one WGS84 conversion, then drift velocity and course) -> jamming
+(satellites, DOP, fix, applied in place). `distortImuInto` changes only the
+magnetometer. `SensorPipeline` (`packages/sensors/src/pipeline.ts`) applies a
+structural distorter and then quantizes with `SensorMapping`, so the order is
+baseline -> EW -> quantization and the baseline is never modified.
+
+V8 boxes float arguments of non-inlined calls, so the high-rate path passes
+floats through typed arrays or object fields: geodesy exposes
+`geodeticToEcefFromInto`, `ecefToGeodeticFromInto`,
+`LocalTangentFrame.setOriginFrom/nedToGeodeticFromInto/...`, geoids expose
+`undulationFromInto`, `GpsOffsetApplier.applyFromInto` takes the offset array,
+and drift/jamming read `dtS` from the step context (`advanceFrom`). Scalar
+signatures remain as low-rate conveniences. `MagneticAnomaly.configure`
+reconfigures in place for tick-boundary commands.

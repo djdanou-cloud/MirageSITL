@@ -1,6 +1,6 @@
 # SPECS_SIMULATION_ENGINES.md
 
-<!-- source-sha256: fd49c3963bf9ef3d79d991fc788cecb919a57348414e9de40d87e6f5d234bf2c -->
+<!-- source-sha256: b45918dd178120ee0f38517383376efcf8e70cd8d9be9efc9b430bae9dfb8735 -->
 
 Английский источник: [Source of truth](../SPECS_SIMULATION_ENGINES.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -1433,3 +1433,34 @@ base_mode HEARTBEAT, git SHA прошивки из профиля и HIL_ACTUATO
 `GpsOffsetApplier` (WGS84 и геоид) и `v_d` к скорости GPS, затем пересчитывает
 курс по искажённой горизонтальной скорости (неизвестен ниже 0.05 м/с).
 Частота выборки GNSS и рендеринг никогда не меняют состояние дрейфа.
+
+## Реализованная композиция конвейера РЭБ: TASK-058
+
+`EwEngine` (`packages/ew/src/engine.ts`) владеет одним заранее созданным
+экземпляром каждого эффекта и реестром отказов на 16 слотов по `faultId`.
+`apply(fault.set, tick)` выполняется на границе tick
+(ControlTargetV2.applyScheduled) без аллокаций. У каждого вида эффекта один
+владеющий faultId (для `motor-loss` — на каждый мотор); более новый faultId
+заменяет владельца, отключение невладеющего или неизвестного faultId ничего не
+меняет, а заполненный реестр возвращает `registry-full`. Отключение дрейфа
+использует `recovery` команды; motor-loss передаётся в физический
+`MotorFaults` и не затрагивает наблюдения. `reset(seed)` очищает все эффекты,
+реестр и отказы моторов. `flags` сообщает биты `ew_flags` ABI состояния.
+
+`advanceInto(context)` продвигает подавление и дрейф на каждом физическом шаге.
+`distortGpsInto` составляет: база -> шаг позиции плюс дрейф (суммарное
+смещение NED одним преобразованием WGS84, затем скорость дрейфа и курс) ->
+подавление (спутники, DOP, fix, применяется на месте). `distortImuInto` меняет
+только магнитометр. `SensorPipeline` (`packages/sensors/src/pipeline.ts`)
+применяет структурный искажатель, затем квантование через `SensorMapping`,
+поэтому порядок — база -> РЭБ -> квантование, а база никогда не изменяется.
+
+V8 упаковывает float-аргументы невстраиваемых вызовов, поэтому высокочастотный
+путь передаёт float через typed arrays или поля объектов: геодезия
+предоставляет `geodeticToEcefFromInto`, `ecefToGeodeticFromInto`,
+`LocalTangentFrame.setOriginFrom/nedToGeodeticFromInto/...`, геоиды —
+`undulationFromInto`, `GpsOffsetApplier.applyFromInto` принимает массив
+смещения, а дрейф/подавление читают `dtS` из контекста шага (`advanceFrom`).
+Скалярные сигнатуры остаются низкочастотными удобными методами.
+`MagneticAnomaly.configure` перенастраивает аномалию на месте для команд на
+границе tick.

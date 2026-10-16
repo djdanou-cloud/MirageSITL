@@ -35,6 +35,8 @@ export interface GeoidModel {
   readonly provenance: GeoidProvenance | null;
   /** Undulation N in metres at a geodetic position. */
   undulationM(latRad: number, lonRad: number): number;
+  /** Writes N (m) at geodetic [latRad, lonRad, ...] into out[0]; allocation-free for per-sample callers. */
+  undulationFromInto(geodetic: Float64Array, out: Float64Array): void;
 }
 
 const DEG = 180 / Math.PI;
@@ -43,6 +45,8 @@ const DEG = 180 / Math.PI;
 export class GridGeoid implements GeoidModel {
   readonly provenance: GeoidProvenance;
   private readonly spec: GeoidGridSpec;
+  private readonly one = new Float64Array(1);
+  private readonly input = new Float64Array(2);
 
   constructor(spec: GeoidGridSpec) {
     const { latStartDeg, latStepDeg, latCount, lonStartDeg, lonStepDeg, lonCount, undulationM, provenance } = spec;
@@ -61,7 +65,13 @@ export class GridGeoid implements GeoidModel {
   }
 
   undulationM(latRad: number, lonRad: number): number {
-    const s = this.spec;
+    this.input[0] = latRad; this.input[1] = lonRad;
+    this.undulationFromInto(this.input, this.one);
+    return this.one[0] as number; // length 1
+  }
+
+  undulationFromInto(geodetic: Float64Array, out: Float64Array): void {
+    const s = this.spec, latRad = geodetic[0] as number, lonRad = geodetic[1] as number; // length >= 2 by contract
     const latDeg = latRad * DEG, lonDeg = lonRad * DEG;
     let row = (latDeg - s.latStartDeg) / s.latStepDeg;
     row = row < 0 ? 0 : row > s.latCount - 1 ? s.latCount - 1 : row;
@@ -78,12 +88,12 @@ export class GridGeoid implements GeoidModel {
     const v10 = v[r1 * n + c0] as number, v11 = v[r1 * n + c1] as number;
     const top = v00 + tc * (v01 - v00);
     const bottom = v10 + tc * (v11 - v10);
-    return top + tr * (bottom - top);
+    out[0] = top + tr * (bottom - top);
   }
 }
 
 /** No authoritative geoid available: N = 0, and MSL accuracy is not established. */
-export const NO_GEOID: GeoidModel = { provenance: null, undulationM: () => 0 };
+export const NO_GEOID: GeoidModel = { provenance: null, undulationM: () => 0, undulationFromInto: (_geodetic, out) => { out[0] = 0; } };
 
 /** MSL height H = h - N (m). */
 export function mslHeightM(geoid: GeoidModel, latRad: number, lonRad: number, ellipsoidalHeightM: number): number {

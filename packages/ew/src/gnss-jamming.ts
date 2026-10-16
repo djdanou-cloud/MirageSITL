@@ -34,7 +34,15 @@ export class GnssJamming {
     this.input[0] = severity;
     return this.advanceInto(this.input, dtS);
   }
+  private readonly stepContext = { dtS: 0 };
+  /** Convenience form; the step length is a float argument, which V8 may box. */
   advanceInto(severityInput: Float64Array, dtS: number): boolean {
+    this.stepContext.dtS = dtS;
+    return this.advanceFrom(severityInput, this.stepContext);
+  }
+  /** Allocation-free form: the step length is read from `step.dtS` rather than passed as a float argument. */
+  advanceFrom(severityInput: Float64Array, step: { readonly dtS: number }): boolean {
+    const dtS = step.dtS;
     if (severityInput.length !== 1) return false;
     const severity = severityInput[0]!;
     if (
@@ -51,9 +59,23 @@ export class GnssJamming {
     if (this.filtered >= 0.8) this.denied = true;
     return true;
   }
+  /** True while filtered severity or a latched denial still affects observations. */
+  get degraded(): boolean {
+    return this.filtered > 0 || this.denied;
+  }
   distortInto(s: GpsSample, t: GpsSample): boolean {
     if (s === t || !validGps(s)) return false;
     copyGpsInto(s, t);
+    return this.distortInPlace(t);
+  }
+  /**
+   * Applies jamming to an already-copied sample in place (for pipeline
+   * composition after position effects, which leave satellites/DOP/fix as
+   * the baseline). Returns false for an invalid sample.
+   */
+  distortInPlace(t: GpsSample): boolean {
+    if (!validGps(t)) return false;
+    const s = t;
     const q = this.filtered;
     if (q === 0 && !this.denied) return true;
     if (s.satellitesValid)

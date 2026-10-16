@@ -31,6 +31,22 @@ export class MagneticAnomaly {
     ]);
     this.bias = new Float64Array(biasBodyGauss);
   }
+  /**
+   * Reconfigures rotation (rad) and body bias (gauss) in place without
+   * allocating, for tick-boundary fault commands. False (unchanged) if any
+   * value is non-finite.
+   */
+  configure(roll: number, pitch: number, yaw: number, bx: number, by: number, bz: number): boolean {
+    if (!Number.isFinite(roll) || !Number.isFinite(pitch) || !Number.isFinite(yaw) ||
+      !Number.isFinite(bx) || !Number.isFinite(by) || !Number.isFinite(bz)) return false;
+    const cr = Math.cos(roll), sr = Math.sin(roll), cp = Math.cos(pitch), sp = Math.sin(pitch),
+      cy = Math.cos(yaw), sy = Math.sin(yaw), m = this.matrix;
+    m[0] = cy * cp; m[1] = cy * sp * sr - sy * cr; m[2] = cy * sp * cr + sy * sr;
+    m[3] = sy * cp; m[4] = sy * sp * sr + cy * cr; m[5] = sy * sp * cr - cy * sr;
+    m[6] = -sp; m[7] = cp * sr; m[8] = cp * cr;
+    this.bias[0] = bx; this.bias[1] = by; this.bias[2] = bz;
+    return true;
+  }
   distortInto(source: Float64Array, target: Float64Array): boolean {
     if (
       source.length !== 3 ||

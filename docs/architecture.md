@@ -669,3 +669,10 @@ velocity; truth is untouched.
 `@mirage/ew/velocity-drift` integrates a speed-capped position/velocity bias on
 the physics clock with exact piecewise splitting and explicit recovery
 policies, and applies it to GPS observations only.
+
+### EW pipeline composition (TASK-058)
+
+`@mirage/ew/engine` composes jamming, position step, drift, magnetic anomaly
+and motor faults behind a bounded fault registry applied at tick boundaries;
+`@mirage/sensors/pipeline` runs baseline -> EW -> quantization. The composed
+path runs 1e6 steps without triggering GC in Node.

@@ -8,10 +8,13 @@
     "./gnss-jamming": "./src/gnss-jamming.ts",
     "./magnetic": "./src/magnetic.ts",
     "./position-step": "./src/position-step.ts",
-    "./velocity-drift": "./src/velocity-drift.ts"
+    "./velocity-drift": "./src/velocity-drift.ts",
+    "./engine": "./src/engine.ts"
   },
   "dependencies": {
     "@mirage/mavlink": "0.1.0",
+    "@mirage/physics": "0.1.0",
+    "@mirage/protocol": "0.1.0",
     "@mirage/sensors": "0.1.0"
   }
 }

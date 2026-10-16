@@ -1,6 +1,6 @@
 # PROJECT_ROADMAP.md
 
-<!-- source-sha256: 179f5f5643e4f2bbfbdcd645ea592e110be8ad518ba5bc3fa26d52a2d94a2c06 -->
+<!-- source-sha256: 07b380ab86fb368915042803a69a1d5370fb80b897001ade0e3cec2dd413d42c -->
 
 Английский источник: [Source of truth](../PROJECT_ROADMAP.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -780,12 +780,13 @@ Cargo bin активирован в PATH. Производительность M
 
 ### TASK-058 — EW pipeline composition
 
-- **Status:** TODO.
+- **Status:** DONE — Claude; baseline c57bc60; 2026-10-16.
 - **Title & Description:** Объединить sensor effects, registry и deterministic command application.
 - **Dependencies:** TASK-053, TASK-054, TASK-055, TASK-056, TASK-057.
-- **Touched Files:** `packages/ew/src/engine.ts`, `packages/sensors/src/pipeline.ts`, `tests/ew-pipeline.test.ts`.
+- **Touched Files:** `packages/ew/src/engine.ts`, `packages/sensors/src/pipeline.ts`, `tests/ew-pipeline.test.ts`, `packages/ew/src/gnss-jamming.ts`, `packages/ew/src/magnetic.ts`, `packages/ew/src/position-step.ts`, `packages/ew/src/velocity-drift.ts`, `packages/ew/package.json`, `packages/sensors/src/geodesy.ts`, `packages/sensors/src/geoid.ts`, `packages/sensors/package.json`, `package-lock.json`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
 - **Interfaces / Contracts:** EwEngine, GpsSample/ImuSample, ew_flags и effect precedence.
 - **DoD & Acceptance Criteria:** Порядок: baseline→step/drift→jamming→quantization, mag отдельно; multiple faults/reset consistent; source truth bit-identical; identical seed/event log produces identical packets.
+- **Evidence:** Владелец Claude; baseline c57bc60; 2026-10-16. Node 24.22.0: tests/ew-pipeline.test.ts 6 PASS (шаг 300/-200/5 м плюс 10 с дрейфа равен одному применению WGS84 суммарного смещения, добавлена скорость дрейфа, затем подавление даёт fix 0, 1 спутник, HDOP 99, а полезная нагрузка HIL_GPS равна SensorMapping искажённого отсчёта; отказы GNSS не меняют магнитометр, а аномалия с рысканием 90 град отображает (x, y) в (-y, x) плюс смещение, не затрагивая accel/gyro/baro и GPS; замена в реестре, отключение невладельцем, motor-loss передаётся в MotorFaults (момент 2 -> 0.5 и обратно), ёмкость 16 слотов с registry-full, reset очищает флаги/моторы и записывает seed, motor-loss без MotorFaults отклоняется; массив истинного состояния, контекст и базовые отсчёты побитово неизменны после 2000 шагов; одинаковые seed и журнал команд через ControlProcessorV2 дают одинаковые байты HIL_GPS и флаги за 4000 tick; окна по 1e6 шагов со всеми пятью эффектами, IMU 200 Гц и GNSS 10 Гц через конвейер: хотя бы одно из максимум трёх окон после прогрева должно пройти без GC, чего не может выполнить аллокация на каждом шаге (16 МБ на окно); отдельные прогоны дают 0 GC в первом окне, а один случайный GC появился однажды под параллельной нагрузкой полного набора) + 32 регрессионных PASS в наборах геодезии, шага, дрейфа, подавления, магнитной аномалии и аллокаций links-ew. Проверка GC сначала провалилась (5 GC на 1e6 шагов); пошаговый зонд нашёл причину в упаковке float-аргументов невстраиваемых вызовов (integrate/speed дрейфа, вызовы касательной системы и геоида, аргументы dt), исправлено вариантами через typed arrays/поля; после этого все этапы дают 0. Мутации (отключение невладельцем снимает эффект, магнитная аномалия применяется к акселерометру, один объект на шаг: 14/13/13 GC в трёх окнах) роняют 1, 2 и 1 тест.
 
 ### TASK-059 — EKF scenario regressions
 

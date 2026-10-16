@@ -66,17 +66,18 @@ export class VelocityDrift {
     return true;
   }
 
-  /** Ends drift according to the preset's recovery policy. */
-  disable(): void {
+  /** Ends drift according to `recovery` (default: the preset's policy). */
+  disable(recovery: DriftRecovery = this.recovery): void {
     if (this.modeValue === "off") return;
-    if (this.recovery === "step-to-truth") {
+    if (recovery === "step-to-truth") {
       this.offsetNedM.fill(0);
       this.velocityNedMps.fill(0);
       this.modeValue = "off";
       this.discontinuities++;
       return;
     }
-    this.modeValue = this.speed() > 0 ? "decelerating" : "holding";
+    const v = this.velocityNedMps;
+    this.modeValue = v[0] !== 0 || v[1] !== 0 || v[2] !== 0 ? "decelerating" : "holding";
   }
 
   reset(): void {
@@ -87,25 +88,36 @@ export class VelocityDrift {
     this.discontinuities = 0;
   }
 
-  private speed(): number {
-    const v = this.velocityNedMps;
-    const x = v[0] as number, y = v[1] as number, z = v[2] as number; // fixed length 3
-    return Math.sqrt(x * x + y * y + z * z);
+  /**
+   * Integrates b and v_d over the acceleration in `stepAccel` for
+   * `stepTime` seconds (exact for constant a). Inputs travel through fields:
+   * float arguments of a non-inlined call would be boxed every step.
+   */
+  private integrate(): void {
+    const b = this.offsetNedM, v = this.velocityNedMps, a = this.stepAccel, t = this.stepTime[0] as number, h = 0.5 * t * t;
+    for (let i = 0; i < 3; i++) {
+      const vi = v[i] as number, ai = a[i] as number; // fixed length 3
+      b[i] = (b[i] as number) + vi * t + ai * h;
+      v[i] = vi + ai * t;
+    }
   }
+  private readonly stepAccel = new Float64Array(3);
+  private readonly stepTime = new Float64Array(1);
 
-  /** Integrates b and v_d over `a` for `t` seconds (exact for constant a). */
-  private integrate(ax: number, ay: number, az: number, t: number): void {
-    const b = this.offsetNedM, v = this.velocityNedMps, h = 0.5 * t * t;
-    b[0] = (b[0] as number) + (v[0] as number) * t + ax * h;
-    b[1] = (b[1] as number) + (v[1] as number) * t + ay * h;
-    b[2] = (b[2] as number) + (v[2] as number) * t + az * h;
-    v[0] = (v[0] as number) + ax * t;
-    v[1] = (v[1] as number) + ay * t;
-    v[2] = (v[2] as number) + az * t;
-  }
-
-  /** One physics step. Returns false (state unchanged) for an invalid dt or an offset beyond 10 km. */
+  /** Low-rate convenience for advanceFrom (a float argument may be boxed). */
   advance(dtS: number): boolean {
+    this.stepContext.dtS = dtS;
+    return this.advanceFrom(this.stepContext);
+  }
+  private readonly stepContext = { dtS: 0 };
+
+  /**
+   * One physics step of `step.dtS` seconds; allocation-free (the step length
+   * is read from a field, not passed as a float argument). Returns false
+   * (state unchanged) for an invalid dt.
+   */
+  advanceFrom(step: { readonly dtS: number }): boolean {
+    const dtS = step.dtS;
     if (!(dtS > 0 && dtS <= 0.01)) return false;
     const v = this.velocityNedMps;
     switch (this.modeValue) {
@@ -118,7 +130,7 @@ export class VelocityDrift {
         const ex = vx + ax * dtS, ey = vy + ay * dtS, ez = vz + az * dtS;
         const cap = this.maxSpeed;
         if (ex * ex + ey * ey + ez * ez <= cap * cap) {
-          this.integrate(ax, ay, az, dtS);
+          this.stepAccel.set(this.accel); this.stepTime[0] = dtS; this.integrate();
         } else {
           // Smallest t in [0, dt] with |v + a t| = cap: |a|^2 t^2 + 2 (v.a) t + |v|^2 - cap^2 = 0.
           const aa = ax * ax + ay * ay + az * az, va = vx * ax + vy * ay + vz * az;
@@ -126,23 +138,24 @@ export class VelocityDrift {
           let tc = 0;
           if (c < 0 && aa > 0) tc = (-va + Math.sqrt(va * va - aa * c)) / aa; // c < 0 gives one positive root
           if (tc > dtS) tc = dtS;
-          this.integrate(ax, ay, az, tc);
-          const s = this.speed();
+          this.stepAccel.set(this.accel); this.stepTime[0] = tc; this.integrate();
+          // Speed inline: a double-returning helper would box a HeapNumber per step when not inlined.
+          const wx = v[0] as number, wy = v[1] as number, wz = v[2] as number, s = Math.sqrt(wx * wx + wy * wy + wz * wz);
           if (s > 0) { const k = cap / s; v[0] = (v[0] as number) * k; v[1] = (v[1] as number) * k; v[2] = (v[2] as number) * k; }
-          this.integrate(0, 0, 0, dtS - tc); // constant velocity at the cap
+          this.stepAccel.fill(0); this.stepTime[0] = dtS - tc; this.integrate(); // constant velocity at the cap
         }
         break;
       }
       case "decelerating": {
-        const s = this.speed();
+        const ux = v[0] as number, uy = v[1] as number, uz = v[2] as number, s = Math.sqrt(ux * ux + uy * uy + uz * uz);
         if (s === 0) { this.modeValue = "holding"; return true; }
-        const k = -this.decel / s;
-        const ax = (v[0] as number) * k, ay = (v[1] as number) * k, az = (v[2] as number) * k;
+        const k = -this.decel / s, sa = this.stepAccel;
+        sa[0] = ux * k; sa[1] = uy * k; sa[2] = uz * k;
         const stopS = s / this.decel;
         if (stopS > dtS) {
-          this.integrate(ax, ay, az, dtS);
+          this.stepTime[0] = dtS; this.integrate();
         } else {
-          this.integrate(ax, ay, az, stopS);
+          this.stepTime[0] = stopS; this.integrate();
           v.fill(0);
           this.modeValue = "holding";
         }
@@ -173,21 +186,29 @@ export class VelocityDrift {
     copyGpsInto(source, target);
     if (this.modeValue === "off") return true;
     const b = this.offsetNedM, v = this.velocityNedMps;
-    if (!this.applier.applyInto(source, b[0] as number, b[1] as number, b[2] as number, target)) {
+    if (!this.applier.applyFromInto(source, b, target)) {
       copyGpsInto(source, target);
       return false;
     }
-    if (source.velocityValid) {
-      target.vnMps = source.vnMps + (v[0] as number);
-      target.veMps = source.veMps + (v[1] as number);
-      target.vdMps = source.vdMps + (v[2] as number);
-      const speed = Math.sqrt(target.vnMps * target.vnMps + target.veMps * target.veMps);
-      target.courseValid = speed >= COURSE_MIN_SPEED_MPS;
-      if (target.courseValid) {
-        const course = Math.atan2(target.veMps, target.vnMps);
-        target.courseRad = course < 0 ? course + TWO_PI : course;
-      }
-    }
+    addDriftVelocityInto(source, v, target);
     return true;
+  }
+}
+
+/**
+ * Adds drift velocity v_d (NED, length 3) to a valid GPS velocity and
+ * recomputes course from the corrupted horizontal velocity (unknown below
+ * 0.05 m/s). Leaves an invalid velocity untouched.
+ */
+export function addDriftVelocityInto(source: GpsSample, v: Float64Array, target: GpsSample): void {
+  if (!source.velocityValid) return;
+  target.vnMps = source.vnMps + (v[0] as number); // v has length 3
+  target.veMps = source.veMps + (v[1] as number);
+  target.vdMps = source.vdMps + (v[2] as number);
+  const speed = Math.sqrt(target.vnMps * target.vnMps + target.veMps * target.veMps);
+  target.courseValid = speed >= COURSE_MIN_SPEED_MPS;
+  if (target.courseValid) {
+    const course = Math.atan2(target.veMps, target.vnMps);
+    target.courseRad = course < 0 ? course + TWO_PI : course;
   }
 }
