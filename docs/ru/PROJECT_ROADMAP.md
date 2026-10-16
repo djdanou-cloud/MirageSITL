@@ -1,6 +1,6 @@
 # PROJECT_ROADMAP.md
 
-<!-- source-sha256: 4f8c76faed474fa3115b72697dbefbc6071932f357944697f3705ad3c83188fb -->
+<!-- source-sha256: acb3c82cdac91b8c6e780792aa3dedf181fba52f923ea382403314edc7ec96fc -->
 
 Английский источник: [Source of truth](../PROJECT_ROADMAP.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -677,12 +677,13 @@ Cargo bin активирован в PATH. Производительность M
 
 ### TASK-049 — HIL sensor/actuator streaming
 
-- **Status:** TODO.
+- **Status:** DONE — Claude; baseline b28c8c2; 2026-10-16 (потоковая передача проверена на поддельных часах; физическое оборудование — TASK-050/051).
 - **Title & Description:** Выдавать HIL_SENSOR/HIL_GPS и принимать HIL_ACTUATOR_CONTROLS по реальным часам.
 - **Dependencies:** TASK-012, TASK-035, TASK-036, TASK-037, TASK-048.
-- **Touched Files:** `packages/autopilot/src/hitl.ts`, `packages/autopilot/src/hil-clock.ts`, `tests/hil-stream.test.ts`.
+- **Touched Files:** `packages/autopilot/src/hitl.ts`, `packages/autopilot/src/hil-clock.ts`, `tests/hil-stream.test.ts`, `packages/autopilot/package.json`, `package-lock.json`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
 - **Interfaces / Contracts:** IMU 200/400, GNSS 5/10 Hz; actuator mapping/signing/time.
 - **DoD & Acceptance Criteria:** За 60 s fake real clock верные counts/bytes/timestamps; dropout и queue overflow дают fault; fields_updated отражает реальные обновления; serial budget вычислен как baud/10 с запасом >=30%.
+- **Evidence:** Владелец Claude; baseline b28c8c2; 2026-10-16. Node 24.22.0: tests/hil-stream.test.ts 17 PASS. Двенадцать прогонов по 60 с на поддельных часах реального времени (SteppingPolicy hitl-realtime с вызовом каждые 1 мс) покрывают физику 400/800/1200 Гц x IMU 200/400 Гц x GNSS 5/10 Гц с mag 100 Гц и baro 50 Гц: число tick 60*physicsHz, кадры HIL_SENSOR 60*imuHz и HIL_GPS 60*gnssHz декодируются MavParser без ошибок CRC/неподдерживаемых сообщений, метки времени ровно k*1e6/rate микросекунд, считанные байты равны выданным, fields_updated содержит accel/gyro в каждом кадре и mag/baro строго по своим расписаниям. Бюджет канала: 400*77+10*51 = 31310 B/s, 460800 бод принимается (67.9%), 115200 и 230400 отклоняются для 400 Гц; переполнение очереди фиксируется и сбрасывается reset; некорректные наблюдения не выдаются; приём актуаторов принимает строго более новые кадры в допустимом диапазоне (включая u64-время через 2^32), отклоняет повтор/более старые/вне диапазона без изменения выхода, а пропадание фиксируется через 100 мс. Мутации (mag в каждом кадре, без требования запаса, без проверки переполнения) роняют 12, 1 и 1 тест. Остаток: физический полётный контроллер и последовательное оборудование не задействованы (TASK-050/051).
 
 ### TASK-050 — HITL firmware capability gate
 

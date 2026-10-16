@@ -7,10 +7,13 @@
     "./adapter": "./src/adapter.ts",
     "./state-machine": "./src/state-machine.ts",
     "./serial-transport": "./src/serial-transport.ts",
-    "./external-sitl": "./src/external-sitl.ts"
+    "./external-sitl": "./src/external-sitl.ts",
+    "./hil-clock": "./src/hil-clock.ts",
+    "./hitl": "./src/hitl.ts"
   },
   "dependencies": {
     "@mirage/mavlink": "0.1.0",
-    "@mirage/physics": "0.1.0"
+    "@mirage/physics": "0.1.0",
+    "@mirage/sensors": "0.1.0"
   }
 }

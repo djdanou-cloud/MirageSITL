@@ -1356,3 +1356,26 @@ attitude with finite values, and have no key whose text first occurs inside
 another key; an invalid line closes the session. MAVLink remains a separate
 channel. A real ArduPilot SITL process is not run here: the pinned native
 harness is TASK-042.
+
+## Implemented HIL streaming: TASK-049
+
+`HilClock` (`packages/autopilot/src/hil-clock.ts`) composes integer-phase
+`SensorScheduler`s on the physics clock: HIL_SENSOR at 200 or 400 Hz, HIL_GPS at
+5 or 10 Hz, and magnetometer/barometer update rates that divide the IMU rate,
+so their samples coincide with HIL_SENSOR messages. Sample time is the physics
+tick time in microseconds as two uint32 words, never send or wall time.
+
+`HilStreamer` (`packages/autopilot/src/hitl.ts`) encodes due samples through
+`SensorMapping` and `encodeInto` into a bounded byte outbox that the serial
+writer drains. `fields_updated` is `0x3f` (accel, gyro) on every HIL_SENSOR,
+plus `0x1c0` (mag) and `0x1e00` (absolute/differential pressure, pressure
+altitude, temperature) only on samples where those groups updated.
+Construction fails unless worst-case untruncated frames (77 bytes HIL_SENSOR,
+51 bytes HIL_GPS) use at most 70% of `baud/10` bytes per second: 400 Hz IMU plus
+10 Hz GNSS needs 31310 B/s, which fits 460800 and 921600 baud but not 230400
+or 115200. Outbox overflow latches `queue-overflow`. `acceptActuator` decodes
+HIL_ACTUATOR_CONTROLS privately, requires all 16 controls in [-1,1] and a
+strictly newer u64 autopilot timestamp, and copies only accepted frames;
+`poll` latches `actuator-dropout` after the configured timeout (default
+100 ms). Signing is unsupported, so the link is unauthenticated, and assigning
+controls to motors remains a hardware-profile decision (TASK-050).

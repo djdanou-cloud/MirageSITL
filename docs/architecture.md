@@ -643,3 +643,10 @@ source, license and hash is installed.
 exactly one `sitl-lockstep` tick per new frame count and encodes the reply
 line without allocation; the bridge validates both directions and replies to
 the SITL source port learned on its bound UDP endpoint.
+
+### HIL streaming (TASK-049)
+
+`@mirage/autopilot/hitl` schedules HIL_SENSOR/HIL_GPS on the physics clock,
+sets `fields_updated` from the groups actually updated, enforces 30% serial
+headroom, and admits HIL_ACTUATOR_CONTROLS with replay and dropout checks into
+bounded buffers. No physical flight controller is involved yet.

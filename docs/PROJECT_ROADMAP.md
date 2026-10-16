@@ -674,12 +674,13 @@ were synchronized and checked. Changes remain local; no commit or push performed
 
 ### TASK-049 — HIL sensor/actuator streaming
 
-- **Status:** TODO.
+- **Status:** DONE — Claude; baseline b28c8c2; 2026-10-16 (fake-clock streaming verified; physical hardware is TASK-050/051).
 - **Title & Description:** Send HIL_SENSOR/HIL_GPS and receive HIL_ACTUATOR_CONTROLS on real-time clocks.
 - **Dependencies:** TASK-012, TASK-035, TASK-036, TASK-037, TASK-048.
-- **Touched Files:** `packages/autopilot/src/hitl.ts`, `packages/autopilot/src/hil-clock.ts`, `tests/hil-stream.test.ts`.
+- **Touched Files:** `packages/autopilot/src/hitl.ts`, `packages/autopilot/src/hil-clock.ts`, `tests/hil-stream.test.ts`, `packages/autopilot/package.json`, `package-lock.json`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
 - **Interfaces / Contracts:** IMU 200/400 Hz; GNSS 5/10 Hz; actuator mapping/signing/time.
 - **DoD & Acceptance Criteria:** A 60 s fake real-time clock gives exact counts/bytes/timestamps; dropout/queue overflow fault; fields_updated matches observations; baud/10 serial budget retains at least 30% headroom.
+- **Evidence:** Owner Claude; baseline b28c8c2; 2026-10-16. Node 24.22.0: tests/hil-stream.test.ts 17 PASS. Twelve 60 s runs on a fake real-time clock (SteppingPolicy hitl-realtime pumped every 1 ms) cover physics 400/800/1200 Hz x IMU 200/400 Hz x GNSS 5/10 Hz with mag 100 Hz and baro 50 Hz: tick counts 60*physicsHz, HIL_SENSOR 60*imuHz and HIL_GPS 60*gnssHz frames decoded by MavParser with zero CRC/unsupported errors, timestamps exactly k*1e6/rate microseconds, drained bytes equal emitted bytes, fields_updated has accel/gyro on every frame and mag/baro exactly on their schedules. Link budget: 400*77+10*51 = 31310 B/s, 460800 baud accepted (67.9%), 115200 and 230400 rejected for 400 Hz; queue overflow latches and reset clears; invalid observations are not emitted; actuator admission accepts strictly newer in-range frames (including u64 time across 2^32), rejects replay/older/out-of-range frames without touching output, and dropout latches after 100 ms. Mutations (mag flagged on every frame, no headroom requirement, no overflow check) fail 12, 1 and 1 tests. Remaining: no physical flight controller or serial hardware is exercised (TASK-050/051).
 
 ### TASK-050 — HITL firmware capability gate
 
