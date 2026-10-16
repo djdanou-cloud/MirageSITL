@@ -742,3 +742,27 @@ session header with every request. Sessions limit and attribute use; they do
 not authenticate a person. Tests are local only (fake upstream and Durable
 Object storage); `wrangler` is not a repository dependency, and deployment
 needs separate authorization.
+
+### Region cache for permitted datasets (TASK-064)
+
+`@mirage/terrain/region-manifest` defines `mirage.region-manifest/1`: dataset
+id, `datasetSha256` (SHA-256 of the canonical tile index, lines
+`path sha256 bytes` sorted by path), `cacheVersion`, the TASK-060 provider
+policy, `cacheable`, a region centre and radius (10 km default, 15 km
+maximum), byte caps, and the complete tile index with per-tile SHA-256, size
+and centre. `regionDecision` fails closed: Google live tiles, or a policy
+without reviewed license evidence, are BLOCKED (missing rights, even with
+evidence for Google); a missing dataset hash or empty index is BLOCKED
+(missing data); `cacheable: false`, memory-only rights or TTL 0 give NO_CACHE.
+A BLOCKED provider serves nothing. `services/tiles-worker/src/r2-cache.ts`
+implements `RegionCache` over the R2 binding subset with keys
+`<datasetId>/<datasetSha256[0..16]>/v<cacheVersion>/<path>`, so a new
+dataset hash or cache version never reads stale objects. A tile is written
+only when CACHEABLE, listed, inside the radius (WGS84 tangent-plane distance),
+and matching its listed size and SHA-256; a listed tile that fails the hash is
+not served. Objects expire after the policy TTL (expired reads delete the
+object) and the region byte cap is kept by evicting the oldest uploads.
+Concurrent writers can exceed the cap by at most one object each. No bucket
+is bound in `wrangler.jsonc`: enabling persistent R2 caching needs explicit
+permission. Tests use an in-memory emulator of the R2 binding subset, not
+Miniflare.

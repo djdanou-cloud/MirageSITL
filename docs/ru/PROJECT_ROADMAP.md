@@ -1,6 +1,6 @@
 # PROJECT_ROADMAP.md
 
-<!-- source-sha256: 001620faef17aa8eaae2b5c1f0c86ce6219dfe8e34b61005843fa66df136077c -->
+<!-- source-sha256: c01e544740271f902399800f14bbde897a2b1446ef09eec1f29f39531491ed0c -->
 
 Английский источник: [Source of truth](../PROJECT_ROADMAP.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -844,12 +844,13 @@ Cargo bin активирован в PATH. Производительность M
 
 ### TASK-064 — R2 для разрешённых datasets
 
-- **Status:** TODO.
+- **Status:** DONE — Claude; база f35efe6; 2026-10-16 (тесты на эмуляторе; привязка R2 и постоянное кэширование требуют явного разрешения).
 - **Title & Description:** Реализовать bounded 10–15 km regional cache только для разрешённого контента.
 - **Dependencies:** TASK-062, TASK-063.
-- **Touched Files:** `services/tiles-worker/src/r2-cache.ts`, `packages/terrain/src/region-manifest.ts`, `tests/r2-cache.test.ts`.
+- **Touched Files:** `services/tiles-worker/src/r2-cache.ts`, `packages/terrain/src/region-manifest.ts`, `tests/r2-cache.test.ts`, `tests/support/memory-r2.ts`, `packages/terrain/package.json`.
 - **Interfaces / Contracts:** Dataset hash/license, cache key/version/TTL, region manifest; deny Google unless explicit lawful policy.
 - **DoD & Acceptance Criteria:** Local R2 emulator hit/miss/expiry/evict tests; bytes/quota cap; geographic radius filter 10/15 km; cacheable=false никогда не пишет R2; отсутствие прав/данных явно блокирует этот provider.
+- **Evidence:** Исполнитель Claude; база f35efe6; 2026-10-16. Node 24.22.0: tests/r2-cache.test.ts 8 PASS с tests/support/memory-r2.ts (эмулятор подмножества привязки R2 в памяти с постраничным перечислением; не Miniflare). Случаи: структура манифеста, границы радиуса 10/15 км, повторяющиеся пути и обход каталогов, хеш/размер тайла, неизвестные поля и проверка политики; несовпадение хеша набора отклоняется; решения (Google BLOCKED даже с подтверждением, без подтверждения BLOCKED, пустой хеш или индекс BLOCKED, cacheable=false / только память / TTL 0 NO_CACHE); расстояние WGS84 (0.1° широты на 47.4° = 11.09..11.14 км); промах -> запись -> попадание без обращения к источнику, истечение после TTL удаляет объект и загружает заново, формат ключа и метаданные; ограничение 3000 байт соблюдается вытеснением самого старого и заменой существующего ключа; нет записей вне 10 км (запись в пределах 15 км), для тайлов вне индекса, при несовпадении хеша (не отдаётся) или при cacheable=false (0 записей при повторных чтениях); заблокированные манифесты не загружают и не записывают; версии кэша изолированы. Убитые мутации: проверка радиуса, истечение, удаление истёкшего, ограничение байтов, проверка хеша, защита записи NO_CACHE, правило Google, флаг cacheable, граница радиуса, постраничное перечисление, версионированный префикс, пустой индекс. Бакет R2 не привязан; постоянное кэширование требует явного разрешения, а набор данных с проверенными правами ещё не зарегистрирован.
 
 ### TASK-065 — Collision terrain LOD
 

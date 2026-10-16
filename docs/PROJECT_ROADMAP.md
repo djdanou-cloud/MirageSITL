@@ -841,12 +841,13 @@ were synchronized and checked. Changes remain local; no commit or push performed
 
 ### TASK-064 — R2 for permitted datasets
 
-- **Status:** TODO.
+- **Status:** DONE — Claude; baseline f35efe6; 2026-10-16 (emulator tests; R2 binding and persistent caching need explicit permission).
 - **Title & Description:** Cache 10–15 km regions only for content whose license permits it.
 - **Dependencies:** TASK-062, TASK-063.
-- **Touched Files:** `services/tiles-worker/src/r2-cache.ts`, `packages/terrain/src/region-manifest.ts`, `tests/r2-cache.test.ts`.
+- **Touched Files:** `services/tiles-worker/src/r2-cache.ts`, `packages/terrain/src/region-manifest.ts`, `tests/r2-cache.test.ts`, `tests/support/memory-r2.ts`, `packages/terrain/package.json`.
 - **Interfaces / Contracts:** Dataset hash/license; cache key/version/TTL; region manifest; deny Google unless explicitly authorized by a lawful policy.
 - **DoD & Acceptance Criteria:** Local R2 emulator tests hit/miss/expiry/eviction; enforce byte/quota caps and 10/15 km radius; cacheable=false never writes; missing rights/data explicitly block the provider.
+- **Evidence:** Owner Claude; baseline f35efe6; 2026-10-16. Node 24.22.0: tests/r2-cache.test.ts 8 PASS against tests/support/memory-r2.ts (in-memory emulator of the R2 binding subset with paginated listing; not Miniflare). Cases: manifest structure, radius 10/15 km bounds, duplicate/traversal paths, tile hash/size, unknown fields and policy validation; dataset hash mismatch rejected; decisions (Google BLOCKED even with evidence, missing evidence BLOCKED, null hash or empty index BLOCKED, cacheable=false / memory-only / TTL 0 NO_CACHE); WGS84 distance (0.1 deg latitude at 47.4 deg = 11.09..11.14 km); miss -> store -> hit without an origin call, expiry after TTL deletes and refetches, key layout and metadata; 3000-byte cap holds with oldest eviction and replacement of an existing key; no writes outside 10 km (written within 15 km), for unlisted tiles, hash mismatches (not served) or cacheable=false (0 puts over repeated reads); blocked manifests neither fetch nor write; cache versions isolated. Mutations killed: radius check, expiry, expired delete, byte cap, hash check, NO_CACHE write guard, Google rule, cacheable flag, radius bound, pagination, versioned prefix, empty index. No R2 bucket is bound; persistent caching needs explicit permission, and no dataset with reviewed rights is registered yet.
 
 ### TASK-065 — Collision terrain LOD
 
