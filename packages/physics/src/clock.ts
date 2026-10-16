@@ -69,6 +69,11 @@ export class MultiRateClock {
     }
     return count;
   }
+  /** Integrates one tick without wall-clock pacing (simulation-time lockstep). Allocation-free. */
+  stepOnce(step: (tick: TickId) => void): void {
+    this.incrementTick();
+    step(this.tick);
+  }
   private incrementTick(): void {
     this.tick.lo = (this.tick.lo + 1) >>> 0;
     if (this.tick.lo === 0) this.tick.hi = (this.tick.hi + 1) >>> 0;

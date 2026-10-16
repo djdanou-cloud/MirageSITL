@@ -1,6 +1,6 @@
 # PROJECT_ROADMAP.md
 
-<!-- source-sha256: 0b608aa6eaad9f32f884346be259dcba5c77c01d990640ed3723dce281eb82da -->
+<!-- source-sha256: b2c9cda52da67c8dd3c8b0397d220c7c090cb890168b145a5a6c369651fc0e90 -->
 
 Английский источник: [Source of truth](../PROJECT_ROADMAP.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -230,12 +230,13 @@ Google content без прав.
 
 ### TASK-012 — Clock modes и перегрузка
 
-- **Status:** TODO.
+- **Status:** DONE — Claude; baseline be502a4; 2026-10-16.
 - **Title & Description:** Разделить interactive drop, SITL lockstep wait и HITL fault policy.
 - **Dependencies:** TASK-011.
-- **Touched Files:** `packages/physics/src/clock-policy.ts`, `apps/web/src/physics.worker.ts`, `tests/clock-policy.test.ts`.
+- **Touched Files:** `packages/physics/src/clock-policy.ts`, `packages/physics/src/clock.ts`, `packages/physics/src/index.ts`, `tests/clock-policy.test.ts`, `docs/architecture.md`, `docs/ru/architecture.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
 - **Interfaces / Contracts:** interactive / sitl-lockstep / hitl-realtime; maxCatchUp=8.
 - **DoD & Acceptance Criteria:** При 1 s stall interactive считает drop, SITL не пропускает sim tick, HITL помечает session invalid; pause/dispose обслуживаются даже при отсутствующем actuator.
+- **Evidence:** Владелец Claude; baseline be502a4; 2026-10-16. tests/clock-policy.test.ts: 5 PASS. Остановка Worker на 1 s при 400 Гц учитывает 392 interactive-потери при непрерывных ticks; остановка autopilot на 1 s в sitl-lockstep задерживает, но сохраняет каждый tick (непрерывно, без потерь), а заблокированный Worker догоняет по 8 ticks за pump без отбрасывания; hitl-realtime допускает ограничение таймера 4 ms при 1200 Гц, но остановка на 1 s устанавливает hitl-overrun, после чего ничего не выполняется, и сбрасывается только resetEpoch; без кадров актуаторов 100000 lockstep-вызовов pump возвращаются сразу (одна проверка gate, без шага); каждый режим выполняет не более maxCatchUp=8 ticks за pump. Мутации: удаление fault HITL и wall-темп для SITL проваливают тесты. physics.worker.ts подключается в TASK-085. npm run lint, npm run typecheck, npm run check:docs exit 0; CI=true npm test: 156 PASS. Node 22.22.0.
 
 ### TASK-013 — Sensor/actuator SPSC
 

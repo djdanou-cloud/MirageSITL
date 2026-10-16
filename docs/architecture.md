@@ -381,3 +381,17 @@ clock owns the epoch's `TickId` (tick 1 is the first integration).
 schedule IMU/GNSS samples rationally. `DemoDynamics(hz)` integrates with
 `dt = 1/hz` and `sim_time = tick/hz`. The v1 Worker still runs at 400 Hz
 through `FixedStepClock`, now a 400 Hz `MultiRateClock`.
+
+### Clock modes and overload (TASK-012)
+
+`SteppingPolicy` (`packages/physics/src/clock-policy.ts`) wraps one
+`MultiRateClock` and applies the configured mode on every non-blocking
+`pump(nowMs, gate, step, report)`. **interactive** paces by wall time and
+counts dropped intervals. **sitl-lockstep** advances on simulation time:
+a tick runs only when the `StepGate` reports its actuator frame, ticks are
+never dropped, at most `maxCatchUp` run per pump, and a missing frame
+returns immediately with `waiting`, so pause/dispose messages are never
+starved. **hitl-realtime** paces by wall time against a physical flight
+controller; catch-up within `maxCatchUp` is normal, but any dropped interval
+sets the `hitl-overrun` fault, after which no tick runs until `resetEpoch`.
+The preallocated `PumpReport` is overwritten each pump.

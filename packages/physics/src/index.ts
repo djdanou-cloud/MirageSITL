@@ -3,6 +3,7 @@ import { ControlFlag, INPUT_TIMEOUT_MS, StateFlag, isPhysicsHz, newState,
 import { DEFAULT_MAX_CATCH_UP, MultiRateClock } from './clock.ts';
 
 export * from './clock.ts';
+export * from './clock-policy.ts';
 
 const clamp = (x: number) => Math.max(-1, Math.min(1, x));
 

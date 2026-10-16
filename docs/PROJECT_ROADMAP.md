@@ -227,12 +227,13 @@ copy Google content without rights.
 
 ### TASK-012 — Clock modes and overload
 
-- **Status:** TODO.
+- **Status:** DONE — Claude; baseline be502a4; 2026-10-16.
 - **Title & Description:** Separate interactive time dropping, SITL lockstep waiting, and HITL fault policies.
 - **Dependencies:** TASK-011.
-- **Touched Files:** `packages/physics/src/clock-policy.ts`, `apps/web/src/physics.worker.ts`, `tests/clock-policy.test.ts`.
+- **Touched Files:** `packages/physics/src/clock-policy.ts`, `packages/physics/src/clock.ts`, `packages/physics/src/index.ts`, `tests/clock-policy.test.ts`, `docs/architecture.md`, `docs/ru/architecture.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
 - **Interfaces / Contracts:** interactive / sitl-lockstep / hitl-realtime; maxCatchUp=8.
 - **DoD & Acceptance Criteria:** A 1 s stall counts interactive drops, preserves every SITL simulation tick, and invalidates HITL; pause/dispose remain responsive when actuators are absent.
+- **Evidence:** Owner Claude; baseline be502a4; 2026-10-16. tests/clock-policy.test.ts: 5 PASS. A 1 s Worker stall at 400 Hz counts 392 interactive drops with contiguous ticks; a 1 s autopilot stall in sitl-lockstep delays but preserves every tick (contiguous, zero drops) and a blocked Worker catches up 8 ticks per pump without dropping; hitl-realtime tolerates 4 ms timer clamping at 1200 Hz but a 1 s stall sets hitl-overrun, executes nothing afterwards, and clears only on resetEpoch; with no actuator frames 100000 lockstep pumps return immediately (one gate check each, no step); every mode runs at most maxCatchUp=8 ticks per pump. Mutations: removing the HITL fault and wall-pacing SITL each fail. physics.worker.ts is wired in TASK-085. npm run lint, npm run typecheck, npm run check:docs exit 0; CI=true npm test: 156 PASS. Node 22.22.0.
 
 ### TASK-013 — Sensor/actuator SPSC queues
 
