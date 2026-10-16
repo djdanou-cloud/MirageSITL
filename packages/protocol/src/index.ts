@@ -8,6 +8,7 @@ export * from './control-v2.ts';
 export * from './spsc-v2.ts';
 export * from './sensor-frame.ts';
 export * from './actuator-frame.ts';
+export * from './interpolation.ts';
 
 export const ABI_VERSION = 1;
 export const PHYSICS_HZ = 400;

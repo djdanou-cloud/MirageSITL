@@ -451,3 +451,18 @@ passes time through numeric fields (`nowMs`, `*Now()` methods), returns an
 integer wakeup delay, and validates with inline comparisons only
 (`(x >>> 0) === x`, `|x| < F32_ROUNDING_LIMIT`). Timer overhead is reported
 separately from compute; Node timer pacing is not browser Worker evidence.
+
+### Render interpolation (TASK-015)
+
+`interpolatePoseInto` (`packages/protocol/src/interpolation.ts`) writes a
+caller-owned `RenderPoseV2` and never mutates truth. It interpolates only
+when `latestPair` returned `'pair'` (adjacent ticks, same epoch and model)
+and the step is continuous (at most 100 m per tick, 40 km/s at 400 Hz; a
+larger jump is a teleport). Position is linear; attitude uses slerp along the
+shortest path (the end quaternion is negated when the dot product is
+negative, so q and -q never cause a full turn), with normalized output and a
+normalized-lerp branch for nearly equal attitudes. `interpolationAlpha`
+derives the fraction from the frame's scheduled wall time and the header
+rate, so rendering lags truth by at most one physics step and never waits
+for the writer. `FlightScene` maps the pose through
+`nedToRenderPositionInto` and the proper-rotation NED-to-render basis.

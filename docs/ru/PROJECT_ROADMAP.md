@@ -1,6 +1,6 @@
 # PROJECT_ROADMAP.md
 
-<!-- source-sha256: b6f16418370e38d19f327675859e705b1521ee10b56b482037e9c31550e33dc8 -->
+<!-- source-sha256: 655d4f877c5954b635e8405b1dbf3dabd74d79f944a38e39949214e26c713499 -->
 
 Английский источник: [Source of truth](../PROJECT_ROADMAP.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -260,12 +260,13 @@ Google content без прав.
 
 ### TASK-015 — Интерполяция и смена epoch
 
-- **Status:** TODO.
+- **Status:** DONE — Claude; baseline db50e9a; 2026-10-16.
 - **Title & Description:** Поддержать плавный renderer без интерполяции через reset/model swap.
 - **Dependencies:** TASK-009, TASK-011.
-- **Touched Files:** `apps/web/src/FlightScene.tsx`, `apps/web/src/coordinates.ts`, `packages/protocol/src/interpolation.ts`, `tests/interpolation.test.ts`.
+- **Touched Files:** `apps/web/src/FlightScene.tsx`, `apps/web/src/coordinates.ts`, `packages/protocol/src/interpolation.ts`, `tests/interpolation.test.ts`, `packages/protocol/src/index.ts`, `docs/architecture.md`, `docs/ru/architecture.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
 - **Interfaces / Contracts:** Adjacent tick + same epoch/model, shortest-path quaternion SLERP.
 - **DoD & Acceptance Criteria:** q и -q не дают полный оборот; NED basis tests проходят; reset/teleport разрывает history; renderer не ждёт writer и не изменяет truth.
+- **Evidence:** Владелец Claude; baseline db50e9a; 2026-10-16. tests/interpolation.test.ts: 6 PASS относительно независимого оракула ось-угол: линейная позиция и ориентация по большой окружности при t=0/0.25/0.5/0.75 с точностью 1e-12 рад; q против -q не даёт вращения, а малое вращение с инвертированным знаком интерполируется на малый угол; нет интерполяции для истории 'latest'/'none' и при телепортации более 100 м за tick; входные данные не изменяются, ориентации float32 перенормируются, вырожденный кватернион рисуется как единичный; доля вычисляется по запланированному wall-времени и частоте, ограничена [0,1] и равна 1 при паузе или недопустимых данных; отображение позиции NED-to-render. Существующий тест базиса NED проходит. Мутации: удаление инверсии кратчайшего пути и игнорирование состояния истории проваливают тесты. FlightScene использует модуль (RefObject заменяет устаревший MutableRefObject). npm run lint, npm run typecheck, npm run check:docs, npm run build exit 0; CI=true npm test: 189 PASS; CI=true npm run test:browser: 15 PASS. Node 22.22.0. Рендеринг здесь только на программном GPU; утверждений о частоте кадров нет.
 
 ### TASK-085 — Перевод Worker и Main на ABI v2
 

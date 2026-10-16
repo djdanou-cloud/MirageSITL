@@ -257,12 +257,13 @@ copy Google content without rights.
 
 ### TASK-015 — Interpolation and epoch changes
 
-- **Status:** TODO.
+- **Status:** DONE — Claude; baseline db50e9a; 2026-10-16.
 - **Title & Description:** Render smoothly without interpolating across reset or model replacement.
 - **Dependencies:** TASK-009, TASK-011.
-- **Touched Files:** `apps/web/src/FlightScene.tsx`, `apps/web/src/coordinates.ts`, `packages/protocol/src/interpolation.ts`, `tests/interpolation.test.ts`.
+- **Touched Files:** `apps/web/src/FlightScene.tsx`, `apps/web/src/coordinates.ts`, `packages/protocol/src/interpolation.ts`, `tests/interpolation.test.ts`, `packages/protocol/src/index.ts`, `docs/architecture.md`, `docs/ru/architecture.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
 - **Interfaces / Contracts:** Adjacent ticks in the same epoch/model; shortest-path quaternion SLERP.
 - **DoD & Acceptance Criteria:** q and -q do not cause a full rotation; NED basis tests pass; reset/teleport breaks history; rendering never waits for the writer or mutates truth.
+- **Evidence:** Owner Claude; baseline db50e9a; 2026-10-16. tests/interpolation.test.ts: 6 PASS against an independent axis-angle oracle: linear position and great-circle attitude at t=0/0.25/0.5/0.75 within 1e-12 rad; q versus -q gives no rotation and a sign-flipped small rotation interpolates by the small angle; no interpolation for 'latest'/'none' history or a teleport beyond 100 m per tick; inputs are not mutated, float32 attitudes are renormalized, a degenerate quaternion renders as identity; the fraction derives from scheduled wall time and rate, clamped to [0,1], 1 when paused or invalid; NED-to-render position mapping. The existing NED basis test still passes. Mutations: removing the shortest-path negation and ignoring the history state each fail. FlightScene uses the module (RefObject replaces the deprecated MutableRefObject). npm run lint, npm run typecheck, npm run check:docs, npm run build exit 0; CI=true npm test: 189 PASS; CI=true npm run test:browser: 15 PASS. Node 22.22.0. Rendering is software-GPU only here; no frame-rate claim.
 
 ### TASK-085 — Migrate Worker and Main to ABI v2
 
