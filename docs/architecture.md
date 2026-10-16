@@ -636,3 +636,10 @@ frame in float64 through ECEF, so poles and the antimeridian are regular
 cases. `@mirage/sensors/geoid` keeps ellipsoidal and MSL heights distinct and
 blocks the absolute-MSL accuracy gate until an authoritative geoid grid with
 source, license and hash is installed.
+
+### ArduPilot JSON lockstep (TASK-041)
+
+`@mirage/autopilot/external-sitl` turns pinned SIM_JSON servo frames into
+exactly one `sitl-lockstep` tick per new frame count and encodes the reply
+line without allocation; the bridge validates both directions and replies to
+the SITL source port learned on its bound UDP endpoint.

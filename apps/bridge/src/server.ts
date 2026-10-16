@@ -9,6 +9,7 @@ import {
   type BridgeChannel,
 } from "./framing.ts";
 import { BridgeSession } from "./session.ts";
+import { JsonPhysicsEndpoint } from "./ardupilot-json.ts";
 import { fileURLToPath } from "node:url";
 import { resolve } from "node:path";
 export interface BridgeOptions {
@@ -17,6 +18,12 @@ export interface BridgeOptions {
   token: string;
   epoch: number;
   udp?: { mavlinkPort: number; physicsPort: number };
+  /**
+   * ArduPilot JSON physics (TASK-041): bind this local UDP port (SITL default
+   * 9002; 0 picks one) and reply to the learned loopback SITL peer instead of
+   * connecting physicsPort. Servo datagrams and state lines are validated.
+   */
+  ardupilotJson?: { localPort: number };
   maxBufferedBytes?: number;
 }
 /** Local explicit token handoff; never accept a token in URLs, logs or persisted browser state. */
@@ -60,6 +67,7 @@ export async function startBridge(options: BridgeOptions) {
     });
   let client: WebSocket | null = null;
   const sockets: DatagramSocket[] = [];
+  let jsonPhysics: JsonPhysicsEndpoint | null = null;
   const outboundSequence = new Uint32Array(3);
   function forward(channel: BridgeChannel, bytes: Uint8Array) {
     if (
@@ -84,10 +92,12 @@ export async function startBridge(options: BridgeOptions) {
   }
   if (options.udp) {
     try {
-      for (const [channel, port] of [
-        [1, options.udp.mavlinkPort],
-        [3, options.udp.physicsPort],
-      ] as const) {
+      for (const [channel, port] of options.ardupilotJson
+        ? ([[1, options.udp.mavlinkPort]] as const)
+        : ([
+            [1, options.udp.mavlinkPort],
+            [3, options.udp.physicsPort],
+          ] as const)) {
         const socket = createSocket("udp4");
         sockets.push(socket);
         await new Promise<void>((done, reject) => {
@@ -102,6 +112,12 @@ export async function startBridge(options: BridgeOptions) {
           client?.close(1011, "UDP link failed");
         });
       }
+      if (options.ardupilotJson)
+        jsonPhysics = await JsonPhysicsEndpoint.open(
+          options.ardupilotJson.localPort,
+          (bytes) => forward(3, bytes),
+          () => client?.close(1011, "UDP link failed"),
+        );
     } catch (error) {
       for (const socket of sockets) socket.close();
       throw error;
@@ -162,6 +178,19 @@ export async function startBridge(options: BridgeOptions) {
           ws.close(1008, "Servo channel is receive-only");
           return;
         }
+        if (record.channel === 2 && jsonPhysics) {
+          if (jsonPhysics.queuedBytes() + record.payload.length > maxBuffered) {
+            ws.close(1013, "UDP backpressure");
+            return;
+          }
+          // A malformed state line closes the session; before SITL's first servo packet there is no peer yet.
+          const sent = jsonPhysics.send(record.payload, (error) => {
+            if (error) ws.close(1011, "UDP send failed");
+          });
+          if (!sent && jsonPhysics.peer >= 0)
+            ws.close(1008, "Invalid ArduPilot JSON state line");
+          return;
+        }
         const endpoint = sockets[record.channel === 1 ? 0 : 1]!;
         if (endpoint.getSendQueueSize() + record.payload.length > maxBuffered) {
           ws.close(1013, "UDP backpressure");
@@ -192,6 +221,7 @@ export async function startBridge(options: BridgeOptions) {
     });
   } catch (error) {
     for (const s of sockets) s.close();
+    jsonPhysics?.close();
     wss.close();
     throw error;
   }
@@ -201,9 +231,11 @@ export async function startBridge(options: BridgeOptions) {
   return {
     port: address.port,
     udpLocalPorts: sockets.map((s) => s.address().port),
+    jsonPhysics,
     close: async () => {
       for (const c of wss.clients) c.terminate();
       for (const s of sockets) s.close();
+      jsonPhysics?.close();
       await new Promise<void>((done) => wss.close(() => done()));
       await new Promise<void>((done, reject) =>
         server.close((error) => (error ? reject(error) : done())),
@@ -222,12 +254,15 @@ if (
       "Set MIRAGE_BRIDGE_TOKEN through local environment settings before starting the bridge",
     );
   const mavlinkPort = Number(process.env.MIRAGE_MAVLINK_PORT ?? 14550),
-    physicsPort = Number(process.env.MIRAGE_PHYSICS_PORT ?? 9003);
+    physicsPort = Number(process.env.MIRAGE_PHYSICS_PORT ?? 9003),
+    jsonPort = process.env.MIRAGE_ARDUPILOT_JSON_PORT;
   void startBridge({
     origin: process.env.MIRAGE_BRIDGE_ORIGIN ?? "http://localhost:5173",
     token,
     epoch: 1,
     udp: { mavlinkPort, physicsPort },
+    // ArduPilot JSON SITL sends to UDP 9002 by default (TASK-041).
+    ...(jsonPort === undefined ? {} : { ardupilotJson: { localPort: Number(jsonPort) } }),
   }).then(({ port }) =>
     console.log(`Loopback bridge listening on port ${port}`),
   );

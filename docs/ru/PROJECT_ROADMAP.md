@@ -1,6 +1,6 @@
 # PROJECT_ROADMAP.md
 
-<!-- source-sha256: 54f13930f39b50f413e303a54df051b10aaf3f7feafa2a8014fda5509c04ea3a -->
+<!-- source-sha256: 4f8c76faed474fa3115b72697dbefbc6071932f357944697f3705ad3c83188fb -->
 
 Английский источник: [Source of truth](../PROJECT_ROADMAP.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -600,12 +600,13 @@ Cargo bin активирован в PATH. Производительность M
 
 ### TASK-041 — ArduPilot JSON physics backend
 
-- **Status:** TODO.
+- **Status:** DONE — Claude; baseline 6401104; 2026-10-16 (протокол проверен по закреплённому upstream; запуск живого SITL — TASK-042).
 - **Title & Description:** Связать sensor truth и servo outputs в external SITL lockstep.
 - **Dependencies:** TASK-012, TASK-035, TASK-036, TASK-040.
-- **Touched Files:** `apps/bridge/src/ardupilot-json.ts`, `packages/autopilot/src/external-sitl.ts`, `tests/ardupilot-json.test.ts`, `tests/fixtures/sitl/json-protocol.json`.
+- **Touched Files:** `apps/bridge/src/ardupilot-json.ts`, `packages/autopilot/src/external-sitl.ts`, `tests/ardupilot-json.test.ts`, `tests/fixtures/sitl/json-protocol.json`, `apps/bridge/src/server.ts`, `apps/bridge/package.json`, `packages/autopilot/package.json`, `package-lock.json`, `tests/fixtures/sitl/generate.py`, `tests/fixtures/registry.json`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
 - **Interfaces / Contracts:** Pinned ArduPilot JSON protocol, frame counters/time domain; MAVLink не подменяет physics JSON.
 - **DoD & Acceptance Criteria:** UDP packet schema/endianness/servo map verified against pinned upstream; lost/duplicate/out-of-order frames без double-step; next tick ждёт корректный actuator, pause остаётся responsive.
+- **Evidence:** Владелец Claude; baseline 6401104; 2026-10-16. Закреплён upstream: ArduPilot 8ab6afde107a91df1b5f60ade8f333cb8a61b190, SIM_JSON.h sha256 ba8f86c7..., SIM_JSON.cpp 9d611508..., examples/JSON/readme.md cfc34793... (полные hash в tests/fixtures/sitl/json-protocol.json; generate.py загружает файлы и проверяет в исходниках значения magic, порт 9002 и правило шага timestamp 0.1 с). Node 24.22.0: tests/ardupilot-json.test.ts 10 PASS (эталонные 16/32-канальные пакеты из Python struct декодируются, три некорректных пакета отклоняются без изменения выхода; ответ побайтно равен строке Python '%.9f'; перенос на TypeScript закреплённых parse_sensors/parse_array читает каждое поле, пример из upstream readme разбирается и проходит проверку; продемонстрирована опасность порядка ключей: velocity_wind перед velocity или отсутствие velocity заставляет upstream читать ветер как скорость, что валидатор моста отклоняет вместе с 7 другими некорректными строками; lockstep: step/duplicate с идентичной повторной отправкой/gap/stale/restart/invalid; 20000 кадров с seed, 5% потерь, 10% дубликатов и перестановками окна дают ровно один tick на каждый принятый новый кадр; отображение PWM с явными MOT_PWM_MIN/MAX и подсчётом ограничений; timestamp должен расти меньше чем на 0.1 с; SteppingPolicy sitl-lockstep возвращает waiting без блокировки; реальный loopback UDP + WebSocket мост пересылает корректный servo-пакет, отбрасывает некорректный, отвечает на полученный порт источника SITL и закрывает сессию при некорректной строке состояния) + регрессия bridge.test.ts 3 PASS. Мутации (дубликат снова выполняет шаг, потерян знак минус, мост принимает любую датаграмму) роняют 2, 1 и 2 теста. Проверка CLI: MIRAGE_ARDUPILOT_JSON_PORT=9002 запускает мост. Остаток: бинарник ArduPilot SITL не запускается; проверка на живом процессе относится к закреплённой обвязке TASK-042.
 
 ### TASK-042 — External SITL integration harness
 

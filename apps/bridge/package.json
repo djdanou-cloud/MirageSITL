@@ -7,6 +7,7 @@
     "start": "node --experimental-transform-types src/server.ts"
   },
   "dependencies": {
+    "@mirage/autopilot": "0.1.0",
     "@mirage/mavlink": "0.1.0",
     "ws": "8.22.0"
   },

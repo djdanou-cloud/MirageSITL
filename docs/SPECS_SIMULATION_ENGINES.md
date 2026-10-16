@@ -1314,3 +1314,45 @@ are provisional, and `mslAccuracyGate` returns `BLOCKED_EXTERNAL`; a hash
 mismatch against the pinned payload also blocks. No authoritative grid
 (EGM96/EGM2008) is in the repository yet, so absolute MSL accuracy remains
 blocked while local NED/ECEF/geodetic conversions are verified.
+
+## Implemented ArduPilot JSON lockstep: TASK-041
+
+The protocol is pinned to ArduPilot commit
+8ab6afde107a91df1b5f60ade8f333cb8a61b190 (`libraries/SITL/SIM_JSON.{h,cpp}` and
+the JSON example readme; SHA-256 in `tests/fixtures/sitl/json-protocol.json`,
+sources not copied). SITL sends a little-endian servo packet
+`{u16 magic, u16 frame_rate, u32 frame_count, u16 pwm[N]}`: 40 bytes with
+magic 18458 for 16 channels, 72 bytes with magic 29569 for 32 channels. Its
+socket is unbound, so it sends from an ephemeral port to UDP 9002 and expects
+the reply at that source. `frame_count` increments only after a valid reply;
+an unanswered frame is resent with the same count, and a restarted SITL starts
+again at 0.
+
+`ExternalSitlLockstep` (`packages/autopilot/src/external-sitl.ts`) implements
+`StepGate` for `sitl-lockstep` mode. A new count authorizes exactly one physics
+tick; a duplicate never steps and is answered by `resendReplyInto` with the
+identical bytes; a lower count is stale unless it is 0 (restart, which raises
+`restartRequested`); a gap steps once and counts dropped frames. While no frame
+is pending, `ready()` is false and the policy returns immediately, so commands
+such as pause stay responsive. PWM maps to throttle through explicit
+`pwmMinUs/pwmMaxUs` (MOT_PWM_MIN/MAX, default 1000/2000) and a configured
+1-based motor-channel list; clamping is counted.
+
+The reply is one line `"\n{...}\n"` with `timestamp`, `imu.gyro`,
+`imu.accel_body`, `position`, `velocity`, a normalized `quaternion` (w x y z)
+and optional `velocity_wind`. SIM_JSON finds keys with `strstr`, so the
+encoder writes `velocity` before `velocity_wind`; without `velocity`, upstream
+would silently read the wind vector as vehicle velocity. Numbers use nine
+fixed decimals with `|v|<=1e6` and are written into a caller buffer without
+string allocation. Timestamps must increase by less than 0.1 s, otherwise
+SITL time would not advance; such states are refused.
+
+`apps/bridge/src/ardupilot-json.ts` binds the configured local UDP port
+(`ardupilotJson.localPort`, CLI `MIRAGE_ARDUPILOT_JSON_PORT`), accepts only
+loopback senders and valid servo packets, learns the SITL peer from them, and
+forwards them as bridge channel 3. Outbound channel-2 lines must be printable
+ASCII, newline framed, at most 1024 bytes, contain the mandatory fields and an
+attitude with finite values, and have no key whose text first occurs inside
+another key; an invalid line closes the session. MAVLink remains a separate
+channel. A real ArduPilot SITL process is not run here: the pinned native
+harness is TASK-042.
