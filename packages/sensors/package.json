@@ -7,7 +7,9 @@
     "./ideal": "./src/ideal.ts",
     "./scheduler": "./src/scheduler.ts",
     "./noise": "./src/noise.ts",
-    "./latency": "./src/latency.ts"
+    "./latency": "./src/latency.ts",
+    "./geodesy": "./src/geodesy.ts",
+    "./geoid": "./src/geoid.ts"
   },
   "dependencies": {
     "@mirage/protocol": "0.1.0",

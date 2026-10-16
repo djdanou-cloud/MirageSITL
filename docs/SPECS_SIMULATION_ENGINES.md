@@ -1293,3 +1293,24 @@ implementation is included. See docs/decisions/terrain-licensing.md and its mirr
 
 
 Mode calibration exposes axis index, endpoints, center, deadzone and inversion; changing it disarms and rejects overlap with a primary stick axis.
+
+## Implemented geodesy: TASK-036
+
+`packages/sensors/src/geodesy.ts` implements WGS84 (NIMA TR8350.2:
+`a=6378137` m, `1/f=298.257223563`) in float64. `geodeticToEcefInto` uses the
+closed form; `ecefToGeodeticInto` uses Bowring's parametric start with three
+refinements and `h=p*cos(lat)+z*sin(lat)-a*sqrt(1-e2*sin²(lat))`, which does
+not divide by `cos(lat)`. `LocalTangentFrame` freezes the origin ECEF and the
+ECEF-to-NED rotation at construction and converts NED offsets through ECEF,
+so poles and the antimeridian need no special cases; longitude is reported in
+`[-pi, pi)` and is 0 on the polar axis. All conversions write caller-owned
+`Float64Array` outputs without allocation.
+
+`packages/sensors/src/geoid.ts` separates ellipsoidal `h` from MSL `H=h-N`.
+`GridGeoid` interpolates a regular latitude/longitude undulation grid
+bilinearly (longitude wraps, latitude clamps) and requires model, source,
+license and SHA-256 provenance. Without one, `NO_GEOID` sets `N=0`, MSL values
+are provisional, and `mslAccuracyGate` returns `BLOCKED_EXTERNAL`; a hash
+mismatch against the pinned payload also blocks. No authoritative grid
+(EGM96/EGM2008) is in the repository yet, so absolute MSL accuracy remains
+blocked while local NED/ECEF/geodetic conversions are verified.

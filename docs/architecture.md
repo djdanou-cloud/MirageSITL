@@ -628,3 +628,11 @@ integration. Use node scripts/bench-links-ew.mjs all 400 (also 800/1200) for
 Node allocation evidence, not hardware timing acceptance. Scalar conveniences
 may box floating-point values: high-rate composition uses typed-array inputs
 and outputs documented in the engine specification.
+
+### WGS84 geodesy and geoid (TASK-036)
+
+`@mirage/sensors/geodesy` converts geodetic, ECEF, and a frozen local NED
+frame in float64 through ECEF, so poles and the antimeridian are regular
+cases. `@mirage/sensors/geoid` keeps ellipsoidal and MSL heights distinct and
+blocks the absolute-MSL accuracy gate until an authoritative geoid grid with
+source, license and hash is installed.

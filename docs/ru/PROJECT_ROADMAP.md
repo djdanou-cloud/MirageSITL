@@ -1,6 +1,6 @@
 # PROJECT_ROADMAP.md
 
-<!-- source-sha256: 41c6f419240241807bc9606b44358a085ce1bcf3a415ab982380a2e2d9896122 -->
+<!-- source-sha256: 54f13930f39b50f413e303a54df051b10aaf3f7feafa2a8014fda5509c04ea3a -->
 
 Английский источник: [Source of truth](../PROJECT_ROADMAP.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -538,12 +538,13 @@ Cargo bin активирован в PATH. Производительность M
 
 ### TASK-036 — WGS84 и MSL
 
-- **Status:** TODO.
+- **Status:** DONE — Claude; baseline 346866c; 2026-10-16 (проверка абсолютной точности MSL — BLOCKED_EXTERNAL до установки авторитетной сетки геоида).
 - **Title & Description:** Добавить origin/ECEF/NED/geoid преобразования с float64.
 - **Dependencies:** TASK-004, TASK-006.
-- **Touched Files:** `packages/sensors/src/geodesy.ts`, `packages/sensors/src/geoid.ts`, `tests/geodesy.test.ts`, `tests/fixtures/geodesy/wgs84.json`.
+- **Touched Files:** `packages/sensors/src/geodesy.ts`, `packages/sensors/src/geoid.ts`, `tests/geodesy.test.ts`, `tests/fixtures/geodesy/wgs84.json`, `tests/fixtures/geodesy/generate.py`, `tests/fixtures/registry.json`, `packages/sensors/package.json`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
 - **Interfaces / Contracts:** WGS84 h vs MSL H; authoritative geoid dataset/hash/licence.
 - **DoD & Acceptance Criteria:** Roundtrip<=1 mm для локальных synthetic cases; antimeridian/poles и 15 km offsets; нет cos(lat) singularity; dataset absent явно blocks absolute MSL accuracy gate.
+- **Evidence:** Владелец Claude; baseline 346866c; 2026-10-16. Оракул — tests/fixtures/geodesy/wgs84.json (зарегистрирован), сгенерирован generate.py: замкнутая прямая формула WGS84 и обратное преобразование методом неподвижной точки на Python, независимо от обратного метода Bowring в TypeScript; 8 опорных точек (экватор, оба полюса, антимеридиан, Эверест 8848.86 м, Мёртвое море -430 м, высота 15 км, 89.9999 град) и 7 случаев касательной системы (смещения 15 км через оба полюса, через антимеридиан на восток и запад, смешанное 15 км, 15 км вниз, 10 км вверх). Node 24.22.0: tests/geodesy.test.ts 8 PASS (ECEF оракула с точностью 1e-6 м, обратные преобразования в пределах 1 мм; касательные случаи в пределах 1 мм с долготой в [-pi, pi) и обратным преобразованием в пределах 1 мм; сетки 13x13x4 смещений до 15 км в шести началах, включая оба полюса и долготу +-pi, худшая ошибка обратного преобразования меньше 1 мм; ортонормированные оси NED и подъём по нормали меняет только высоту; точная замена +pi на -pi в антиподе; синтетический геоид: билинейная интерполяция/замыкание/ограничение, обратимость H = h - N, проверка AVAILABLE только с происхождением и совпадающим hash, NO_GEOID — BLOCKED_EXTERNAL; некорректные сетки отклоняются) + проверка реестра fixtures.test.ts. Мутации (без уточнения Bowring, перевёрнутая ось east, без замыкания долготы) роняют 4, 1 и 1 тест. Остаток: авторитетная сетка геоида (источник EGM96/EGM2008, лицензия и SHA-256) не установлена, поэтому проверка абсолютной точности MSL — BLOCKED_EXTERNAL; локальные преобразования завершены.
 
 ### TASK-037 — MAVLink2 codec
 
