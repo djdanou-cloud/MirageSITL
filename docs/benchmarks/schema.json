@@ -110,6 +110,8 @@
         "steps",
         "method",
         "bytesPerStepUpperBound",
+        "bytesPerStepIncremental",
+        "fixedWindowBytes",
         "gcEventsInWindows",
         "windowBytes",
         "emptyLoopWindowBytes",
@@ -133,6 +135,20 @@
             "null"
           ],
           "description": "null (JSON for Infinity) when every window saw a GC"
+        },
+        "bytesPerStepIncremental": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "Verdict basis: (bytes_2N - bytes_N - empty-loop increment) / N; null when a window saw a GC"
+        },
+        "fixedWindowBytes": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "Per-window cost independent of step count; null when a window saw a GC"
         },
         "gcEventsInWindows": {
           "type": "integer",

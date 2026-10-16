@@ -95,7 +95,17 @@ function upperBound(windows, empty) {
     const gcs = gcCount(window); gcEvents += gcs;
     if (gcs === 0) bound = Math.min(bound, Math.max(0, window.bytes - (empty?.[i]?.bytes ?? 0)) / window.steps);
   });
-  return { bytesPerStepUpperBound: bound, gcEvents, windowBytes: windows.map(window => window.bytes) };
+  // Incremental rate: the 2N window minus the N window cancels any fixed per-window cost
+  // (probe, OSR entry, engine bookkeeping; about 40 KB per window on Node 24 regardless of N),
+  // which the whole-window bound above charges to the steps. A true rate r adds r*N bytes.
+  const [short, long] = windows, [emptyShort, emptyLong] = empty ?? [];
+  const bothGcFree = short !== undefined && long !== undefined && gcCount(short) === 0 && gcCount(long) === 0;
+  const extraSteps = bothGcFree ? long.steps - short.steps : 0;
+  const incremental = bothGcFree
+    ? Math.max(0, (long.bytes - short.bytes) - ((emptyLong?.bytes ?? 0) - (emptyShort?.bytes ?? 0))) / extraSteps : Infinity;
+  const fixedWindowBytes = bothGcFree ? Math.max(0, short.bytes - incremental * short.steps) : null;
+  return { bytesPerStepUpperBound: bound, bytesPerStepIncremental: incremental, fixedWindowBytes, gcEvents,
+    windowBytes: windows.map(window => window.bytes) };
 }
 
 // ---- session under test ------------------------------------------------------
@@ -153,12 +163,14 @@ const emptyResult = upperBound(emptyWindows), allocatingResult = upperBound(allo
 // Any allocation in every step costs >= 8 bytes per step; one 8-byte object every 800 steps is 0.01 B/step.
 const BYTES_PER_STEP_THRESHOLD = 0.01;
 const allocation = {
-  steps, method: 'v8 new_space space_used_size over warmed windows of N and 2N steps after a forced GC; per-step upper bound min_k (bytes_k - empty_k)/k over GC-free windows; gc PerformanceObserver events attributed by time',
-  bytesPerStepUpperBound: measuredResult.bytesPerStepUpperBound, gcEventsInWindows: measuredResult.gcEvents,
+  steps, method: 'v8 new_space space_used_size over warmed windows of N and 2N steps after a forced GC; per-step rate (bytes_2N - bytes_N - empty increment)/N over GC-free windows (verdict), whole-window bound min_k (bytes_k - empty_k)/k reported; gc PerformanceObserver events attributed by time',
+  bytesPerStepUpperBound: measuredResult.bytesPerStepUpperBound,
+  bytesPerStepIncremental: measuredResult.bytesPerStepIncremental, fixedWindowBytes: measuredResult.fixedWindowBytes,
+  gcEventsInWindows: measuredResult.gcEvents,
   windowBytes: measuredResult.windowBytes, emptyLoopWindowBytes: emptyResult.windowBytes,
   thresholdBytesPerStep: BYTES_PER_STEP_THRESHOLD,
   warmupWindows: warmup.warmupWindows, reachedSteadyState: warmup.steady,
-  zeroAllocation: warmup.steady && measuredResult.gcEvents === 0 && measuredResult.bytesPerStepUpperBound <= BYTES_PER_STEP_THRESHOLD,
+  zeroAllocation: warmup.steady && measuredResult.gcEvents === 0 && measuredResult.bytesPerStepIncremental <= BYTES_PER_STEP_THRESHOLD,
   controls: {
     emptyLoopGcEvents: emptyResult.gcEvents,
     allocatingLoop: { gcEvents: allocatingResult.gcEvents, detected: allocatingResult.gcEvents > 0 },
@@ -228,7 +240,7 @@ const report = {
 };
 mkdirSync(dirname(out), { recursive: true });
 writeFileSync(out, JSON.stringify(report, null, 2) + '\n');
-console.log(`physics bench: zeroAllocation=${allocation.zeroAllocation} (<= ${allocation.bytesPerStepUpperBound.toFixed(5)} B/step, ${allocation.gcEventsInWindows} GC; ` +
+console.log(`physics bench: zeroAllocation=${allocation.zeroAllocation} (${allocation.bytesPerStepIncremental.toFixed(5)} B/step incremental, fixed ${allocation.fixedWindowBytes} B/window, whole-window <= ${allocation.bytesPerStepUpperBound.toFixed(5)}, ${allocation.gcEventsInWindows} GC; ` +
   `controls: allocating detected=${allocation.controls.allocatingLoop.detected}); ` +
   `compute p50/p99/max=${compute.p50.toFixed(2)}/${compute.p99.toFixed(2)}/${compute.max.toFixed(2)} us; ` +
   `realtime ${realtime.executedHz.toFixed(1)} Hz, lateness p99=${realtime.wakeupLatenessMs.p99.toFixed(2)} ms; report ${out}`);

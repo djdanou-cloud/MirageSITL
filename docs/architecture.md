@@ -441,9 +441,12 @@ quantiles are bin upper bounds capped by the exact maximum and are computed
 outside the hot path. `scripts/bench-physics.mjs` drives the real
 `PhysicsSessionV2` step and measures V8 young-generation allocation over
 windows of N and 2N steps after reaching steady state (repeated warm windows
-until one is GC-free), bounding the per-step rate by
-`min_k (bytes_k - empty_k)/k` and attributing `gc` events by time; an
-allocating control loop must be detected in the same run. The first
+until one is GC-free). The verdict uses the incremental per-step rate
+`(bytes_2N - bytes_N - (empty_2N - empty_N))/N`, which cancels fixed
+per-window costs (about 40 KB per window on Node 24 regardless of N); the
+whole-window bound `min_k (bytes_k - empty_k)/k` and the fixed cost are
+reported alongside. `gc` events are attributed by time, and an allocating
+control loop must be detected in the same run. The first
 measurements found real per-step allocations: variadic `Math.hypot`, and
 doubles boxed into HeapNumbers when passed to or returned from non-inlined
 calls, which made the result depend on TurboFan inlining. The hot path now
