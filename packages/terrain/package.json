@@ -6,7 +6,9 @@
   "exports": {
     "./provider-policy": "./src/provider-policy.ts",
     "./tiles-provider": "./src/tiles-provider.ts",
-    "./tiles-scene": "./src/tiles-scene.ts"
+    "./tiles-scene": "./src/tiles-scene.ts",
+    "./lod-budget": "./src/lod-budget.ts",
+    "./resource-cache": "./src/resource-cache.ts"
   },
   "dependencies": {
     "3d-tiles-renderer": "0.5.3",

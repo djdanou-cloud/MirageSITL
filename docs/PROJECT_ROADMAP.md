@@ -821,12 +821,13 @@ were synchronized and checked. Changes remain local; no commit or push performed
 
 ### TASK-062 — LOD and GPU budgets
 
-- **Status:** TODO.
+- **Status:** DONE — Claude; baseline ea69c6a; 2026-10-16 (synthetic budgets verified; real-GPU residency and target-device frame time open).
 - **Title & Description:** Bound terrain network, decoding, and GPU workloads.
 - **Dependencies:** TASK-061.
-- **Touched Files:** `packages/terrain/src/lod-budget.ts`, `packages/terrain/src/resource-cache.ts`, `tests/terrain-budget.test.ts`.
+- **Touched Files:** `packages/terrain/src/lod-budget.ts`, `packages/terrain/src/resource-cache.ts`, `tests/terrain-budget.test.ts`, `packages/terrain/src/tiles-scene.ts`, `packages/terrain/package.json`, `tests/support/terrain-harness.ts`, `tests/browser/terrain.spec.ts`.
 - **Interfaces / Contracts:** Bounded request queue; CPU/GPU byte accounting; SSE limits.
 - **DoD & Acceptance Criteria:** Synthetic flythrough respects <=2 GiB estimated terrain GPU residency and <=512 MiB decoded CPU cache; eviction disposes resources; idle queues do not grow; degradation is deterministic.
+- **Evidence:** Owner Claude; baseline ea69c6a; 2026-10-16. Node 24.22.0: tests/terrain-budget.test.ts 12 PASS. Unit cases: estimators; LodBudget defaults (2 GiB / 512 MiB), invalid options, coarsening on either budget, saturation at 256 px, predictive recovery after 30 calm frames (an over-budget or above-prediction frame restarts the run); RequestQueue priority/age order, duplicates, active cap, drop/displace; cache LRU eviction, hard-cap refusal with dispose and per-frame demand. Seeded flythrough (mulberry32 seeds 0x5eed and 7; 400 frames at 30 m/frame then 200 hover frames; 2 km view radius; 12..36 MiB tiles, finest level ~30 GiB): max GPU <= 2 GiB and CPU <= 512 MiB on every frame while refusals, evictions and coarsening occur; every created resource disposed exactly once; queue <= 256; queue and active downloads drain within 60 hover frames and stay empty with constant residency and target; identical traces for the same seed, different for another. Mutations killed: no hard cap, no dispose on remove, eviction of visible tiles, non-predictive recovery, calm run not reset on over-budget frames, denied demand not reset, reversed tie order (an unguarded admission loop hangs and was killed by timeout). TilesScene caps the loader LRU at min(budgets) and drives errorTarget; tests/browser/terrain.spec.ts (Chromium) checks a 512 MiB cap, a non-zero cached estimate and SSE 16 for the fixture. Gates: see commit. Real-GPU residency and target-device frame-time evidence remain open (cloud software GPU).
 
 ### TASK-063 — Cloudflare tiles proxy
 

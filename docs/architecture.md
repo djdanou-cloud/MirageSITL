@@ -694,3 +694,26 @@ FlightScene loads the layer on demand (separate chunk) only when
 `VITE_MIRAGE_TILESET_URL` and `VITE_MIRAGE_TILES_ORIGIN` are set, and shows
 attribution and classified failures. The test tileset in
 `tests/fixtures/tiles` is own-work CC0 synthetic data.
+
+### Terrain LOD and byte budgets (TASK-062)
+
+`@mirage/terrain/lod-budget` and `@mirage/terrain/resource-cache` bound the
+terrain workload with renderer-independent, frame-indexed logic. Byte
+estimates are geometry = attribute + index buffer bytes and texture =
+width × height × bytes per pixel (× 4/3 with mipmaps). `TerrainResourceCache`
+enforces a hard cap of 2 GiB estimated GPU and 512 MiB decoded CPU bytes on
+admission: a new tile first evicts tiles not visible in the current frame
+(least recently visible, then oldest), and if the visible set leaves no room
+the tile is refused, disposed and reported as unmet demand. Each resource is
+disposed exactly once (eviction, replacement, refusal or `clear`).
+`LodBudget` multiplies the screen-space-error target by 1.5 (16 to 256 px)
+on every frame whose demand exceeds a budget, and relaxes it only after 30
+consecutive frames whose predicted residency at the finer target
+(bytes × 1.5², tile count scaling with screen area) stays below 80% of both
+budgets, so hovering does not oscillate. `RequestQueue` bounds queued (by
+priority, then age; overflow drops or displaces the lowest) and active
+downloads. Same inputs give the same targets: degradation never depends on
+wall time. `TilesScene` applies the budget to the loader: its LRU byte cap
+is the smaller budget (the loader's single geometry + texture estimate is
+charged to both, since three.js keeps decoded arrays beside GPU copies) and
+its `errorTarget` follows `LodBudget` every rendered frame.

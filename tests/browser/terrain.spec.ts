@@ -27,6 +27,11 @@ test("loads and places the local 3D Tiles fixture, then disposes it", async ({ p
   expect(result.resourcesDisposed).toBe(result.resourcesTracked);
   expect([result.inFlightAfterDispose, result.modelsAfterDispose]).toEqual([0, 0]);
   expect(result.attribution).toBe("MirageSITL synthetic test tiles (CC0-1.0)");
+  // TASK-062: the loader cache is capped at the smaller (512 MiB CPU) budget and the
+  // fixture, far under budget, keeps the finest SSE target.
+  expect(result.lruMaxBytes).toBe(512 * 1024 ** 2);
+  expect(result.cachedBytes).toBeGreaterThan(0);
+  expect(result.errorTarget).toBe(16);
 });
 
 test("reports an unreachable or CORS-blocked tileset as a classified failure", async ({ page }) => {

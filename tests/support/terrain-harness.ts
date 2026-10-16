@@ -17,6 +17,10 @@ export interface TilesScenarioResult {
   failures: { kind: string; status: number }[];
   loadErrors: number;
   attribution: string;
+  /** TASK-062: loader byte cap, cached-byte estimate and SSE target while loaded. */
+  lruMaxBytes: number;
+  cachedBytes: number;
+  errorTarget: number;
 }
 
 const deg = Math.PI / 180;
@@ -62,6 +66,9 @@ export async function runTilesScenario(url: string, origin: { latDeg: number; lo
     failures: tiles.failures.map(f => ({ kind: f.kind, status: f.status })),
     loadErrors: tiles.loadErrors.length,
     attribution: tiles.attribution,
+    lruMaxBytes: tiles.tiles.lruCache.maxBytesSize,
+    cachedBytes: tiles.cachedBytes,
+    errorTarget: tiles.tiles.errorTarget,
   };
   tiles.dispose();
   renderer.render(scene, camera);

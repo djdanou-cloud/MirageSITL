@@ -1,6 +1,6 @@
 # PROJECT_ROADMAP.md
 
-<!-- source-sha256: 49f6f9cabe637b49f2f7c1790b97762ee19077e1c3ce54684695615a907ccad8 -->
+<!-- source-sha256: b4585f4dd76f8c9b182bc516a62a75bcd78347c2be9120b7dba4f1ff54ae4efc -->
 
 Английский источник: [Source of truth](../PROJECT_ROADMAP.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -824,12 +824,13 @@ Cargo bin активирован в PATH. Производительность M
 
 ### TASK-062 — LOD и GPU budget
 
-- **Status:** TODO.
+- **Status:** DONE — Claude; baseline ea69c6a; 2026-10-16 (синтетические бюджеты проверены; объём на реальном GPU и время кадра на целевом устройстве открыты).
 - **Title & Description:** Ограничить сетевой/декодирующий/GPU terrain workload.
 - **Dependencies:** TASK-061.
-- **Touched Files:** `packages/terrain/src/lod-budget.ts`, `packages/terrain/src/resource-cache.ts`, `tests/terrain-budget.test.ts`.
+- **Touched Files:** `packages/terrain/src/lod-budget.ts`, `packages/terrain/src/resource-cache.ts`, `tests/terrain-budget.test.ts`, `packages/terrain/src/tiles-scene.ts`, `packages/terrain/package.json`, `tests/support/terrain-harness.ts`, `tests/browser/terrain.spec.ts`.
 - **Interfaces / Contracts:** Bounded request queue, CPU/GPU byte accounting, SSE limits.
 - **DoD & Acceptance Criteria:** Synthetic flythrough не превышает 2 GiB terrain GPU estimate и 512 MiB decoded CPU cache; eviction вызывает dispose; idle queue не растёт; quality degrade deterministic.
+- **Evidence:** Исполнитель Claude; база ea69c6a; 2026-10-16. Node 24.22.0: tests/terrain-budget.test.ts 12 PASS. Модульные случаи: оценки байтов; значения LodBudget по умолчанию (2 GiB / 512 MiB), неверные параметры, огрубление при превышении любого бюджета, насыщение на 256 px, прогнозирующее восстановление после 30 спокойных кадров (кадр с превышением или выше прогноза сбрасывает серию); порядок RequestQueue по приоритету/возрасту, дубликаты, предел активных, отбрасывание/вытеснение; LRU-вытеснение кэша, отказ при жёстком пределе с освобождением и спросом за кадр. Пролёт с seed (mulberry32, seed 0x5eed и 7; 400 кадров по 30 м/кадр, затем 200 кадров зависания; радиус обзора 2 км; тайлы 12..36 MiB, самый детальный уровень ~30 GiB): максимум GPU <= 2 GiB и CPU <= 512 MiB в каждом кадре при наличии отказов, вытеснений и огрубления; каждый созданный ресурс освобождён ровно один раз; очередь <= 256; очередь и активные загрузки опустошаются за 60 кадров зависания и остаются пустыми при постоянных объёме и цели; одинаковые трассы для одного seed и разные для другого. Убитые мутации: нет жёсткого предела, нет освобождения при удалении, вытеснение видимых тайлов, непрогнозирующее восстановление, серия не сбрасывается при превышении, спрос не сбрасывается, обратный порядок при равенстве (незащищённый цикл добавления зависает и убит по таймауту). TilesScene ограничивает LRU загрузчика min(бюджетов) и управляет errorTarget; tests/browser/terrain.spec.ts (Chromium) проверяет предел 512 MiB, ненулевую оценку кэша и SSE 16 для фикстуры. Гейты: см. коммит. Объём на реальном GPU и время кадра на целевом устройстве остаются открытыми (программный GPU в облаке).
 
 ### TASK-063 — Cloudflare tiles proxy
 
