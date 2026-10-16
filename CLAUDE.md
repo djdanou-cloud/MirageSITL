@@ -100,7 +100,7 @@ use `npm ci --cache /workspace/.cache/mirage-npm --no-audit --no-fund`.
 Do not change HOME or disable TLS/signature/checksum verification.
 
 TASK-014 adds `node scripts/bench-physics.mjs` (re-executes itself with
-`--expose-gc --max-semi-space-size=64`). It writes
+`--expose-gc --max-semi-space-size=64 --single-threaded`). It writes
 `test-results/bench/physics.json` (schema `docs/benchmarks/schema.json`):
 a zero-allocation verdict for the real PhysicsSessionV2 step after reaching
 steady state, compute p50/p95/p99/max, timer overhead, and real-time wakeup

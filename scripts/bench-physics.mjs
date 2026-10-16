@@ -19,7 +19,12 @@ import { PerformanceObserver, performance } from 'node:perf_hooks';
 import { fileURLToPath } from 'node:url';
 import v8 from 'node:v8';
 
-const FLAGS = ['--expose-gc', '--max-semi-space-size=64'];
+// --single-threaded: V8 compiles and collects on the main thread only. With concurrent
+// compilation, finished jobs are installed on the main thread mid-window and allocate
+// 0-120 KB at times that depend on CPU contention (seen on Node 24 and 2-CPU CI runners),
+// which no window arithmetic separates reliably from the loop. The measured code and its
+// allocations are the same either way; only engine background work is serialized.
+const FLAGS = ['--expose-gc', '--max-semi-space-size=64', '--single-threaded'];
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 if (typeof globalThis.gc !== 'function') {
   const child = spawnSync(process.execPath, [...FLAGS, fileURLToPath(import.meta.url), ...process.argv.slice(2)], { stdio: 'inherit' });
@@ -70,8 +75,23 @@ const gcCount = window => gcEvents.filter(([s, e]) => e >= window.startMs && s <
  * One-off engine allocations (code, feedback) only loosen the bound; any GC
  * in a window means it allocated and that window cannot bound anything.
  */
+/**
+ * Each size is measured WINDOW_REPEATS times. Residual engine activity can only add
+ * bytes to a window, while a true per-step rate r adds r*k bytes to every repeat, so
+ * the minimum over GC-free repeats is still an upper bound for each size.
+ */
+const WINDOW_REPEATS = 3;
 function allocationWindows(body, n) {
-  return [{ steps: n, ...allocationWindow(body, n) }, { steps: 2 * n, ...allocationWindow(body, 2 * n) }];
+  return [n, 2 * n].map(size => ({ steps: size, runs: Array.from({ length: WINDOW_REPEATS }, () => allocationWindow(body, size)) }));
+}
+/** Minimum bytes over GC-free repeats (Infinity when every repeat saw a GC), and the GC count. */
+function summarizeSize(size) {
+  let bytes = Infinity, gcs = 0;
+  for (const run of size.runs) {
+    const count = gcCount(run); gcs += count;
+    if (count === 0) bytes = Math.min(bytes, run.bytes);
+  }
+  return { steps: size.steps, bytes, gcs };
 }
 /**
  * Steady state: V8 tiers code up concurrently (interpreter, Maglev, TurboFan)
@@ -89,17 +109,19 @@ async function warmToSteadyState(body, n) {
   }
   return { warmupWindows: MAX_WARMUP_WINDOWS, steady: false };
 }
-function upperBound(windows, empty) {
+function upperBound(sizes, emptySizes) {
+  const windows = sizes.map(summarizeSize), empty = emptySizes?.map(summarizeSize);
   let bound = Infinity, gcEvents = 0;
   windows.forEach((window, i) => {
-    const gcs = gcCount(window); gcEvents += gcs;
-    if (gcs === 0) bound = Math.min(bound, Math.max(0, window.bytes - (empty?.[i]?.bytes ?? 0)) / window.steps);
+    gcEvents += window.gcs;
+    if (Number.isFinite(window.bytes)) bound = Math.min(bound, Math.max(0, window.bytes - (empty?.[i]?.bytes ?? 0)) / window.steps);
   });
   // Incremental rate: the 2N window minus the N window cancels any fixed per-window cost
-  // (probe, OSR entry, engine bookkeeping; about 40 KB per window on Node 24 regardless of N),
+  // (the probe itself, about 3 KB, or any one-off engine work inside a window),
   // which the whole-window bound above charges to the steps. A true rate r adds r*N bytes.
   const [short, long] = windows, [emptyShort, emptyLong] = empty ?? [];
-  const bothGcFree = short !== undefined && long !== undefined && gcCount(short) === 0 && gcCount(long) === 0;
+  const bothGcFree = short !== undefined && long !== undefined && Number.isFinite(short.bytes) && Number.isFinite(long.bytes) &&
+    Number.isFinite(emptyShort?.bytes ?? 0) && Number.isFinite(emptyLong?.bytes ?? 0);
   const extraSteps = bothGcFree ? long.steps - short.steps : 0;
   const incremental = bothGcFree
     ? Math.max(0, (long.bytes - short.bytes) - ((emptyLong?.bytes ?? 0) - (emptyShort?.bytes ?? 0))) / extraSteps : Infinity;
@@ -162,8 +184,9 @@ const measuredResult = upperBound(measuredWindows, emptyWindows);
 const emptyResult = upperBound(emptyWindows), allocatingResult = upperBound(allocatingWindows, emptyWindows);
 // Any allocation in every step costs >= 8 bytes per step; one 8-byte object every 800 steps is 0.01 B/step.
 const BYTES_PER_STEP_THRESHOLD = 0.01;
+// Verdict: every repeat GC-free (any GC means the loop allocated) and the incremental rate under threshold.
 const allocation = {
-  steps, method: 'v8 new_space space_used_size over warmed windows of N and 2N steps after a forced GC; per-step rate (bytes_2N - bytes_N - empty increment)/N over GC-free windows (verdict), whole-window bound min_k (bytes_k - empty_k)/k reported; gc PerformanceObserver events attributed by time',
+  steps, method: 'v8 new_space space_used_size over warmed windows of N and 2N steps after a forced GC; per-step rate (min bytes_2N - min bytes_N - empty increment)/N over 3 GC-free repeats per size (verdict), whole-window bound min_k (bytes_k - empty_k)/k reported; gc PerformanceObserver events attributed by time',
   bytesPerStepUpperBound: measuredResult.bytesPerStepUpperBound,
   bytesPerStepIncremental: measuredResult.bytesPerStepIncremental, fixedWindowBytes: measuredResult.fixedWindowBytes,
   gcEventsInWindows: measuredResult.gcEvents,

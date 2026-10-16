@@ -48,7 +48,7 @@ describe('bench-physics.mjs report', () => {
       expect(validate(report), JSON.stringify(validate.errors)).toBe(true);
       if (typeof report !== 'object' || report === null || !('allocation' in report) || !('realtime' in report)) throw new Error('Invalid report');
       const allocation = report.allocation, realtime = report.realtime;
-      expect(allocation).toMatchObject({ steps: 1_000_000, reachedSteadyState: true, gcEventsInWindows: 0, zeroAllocation: true,
+      expect(allocation, run.stdout).toMatchObject({ // stdout carries the measured bytes/step summary steps: 1_000_000, reachedSteadyState: true, gcEventsInWindows: 0, zeroAllocation: true,
         controls: { emptyLoopGcEvents: 0, allocatingLoop: { detected: true } } });
       expect(realtime).toMatchObject({ targetHz: 400 });
       if (typeof realtime !== 'object' || realtime === null || !('executedHz' in realtime) || typeof realtime.executedHz !== 'number') throw new Error('Invalid realtime');

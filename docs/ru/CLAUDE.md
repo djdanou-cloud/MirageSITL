@@ -1,6 +1,6 @@
 # CLAUDE.md — MirageSITL agent instructions
 
-<!-- source-sha256: 48282edb42248f3e9b66f2f2d21bca597b00dce804485c01983dfdba3393b33b -->
+<!-- source-sha256: 6a5364143abb8589adc22071559614bc66cd807909be20ab5110ee05573c414e -->
 
 Английский источник: [Source of truth](../../CLAUDE.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -109,7 +109,7 @@ TASK-003 добавляет независимые GitHub Actions unit/browser/b
 Не менять HOME и не отключать TLS/signature/checksum verification.
 
 TASK-014 добавляет `node scripts/bench-physics.mjs` (перезапускает себя с
-`--expose-gc --max-semi-space-size=64`). Скрипт пишет
+`--expose-gc --max-semi-space-size=64 --single-threaded`). Скрипт пишет
 `test-results/bench/physics.json` (schema `docs/benchmarks/schema.json`):
 вердикт об отсутствии аллокаций для реального шага PhysicsSessionV2 после
 выхода на установившийся режим, compute p50/p95/p99/max, накладные расходы

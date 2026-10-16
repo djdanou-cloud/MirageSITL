@@ -156,8 +156,12 @@
         },
         "windowBytes": {
           "type": "array",
+          "description": "Minimum bytes over GC-free repeats for the N and 2N windows; null when every repeat saw a GC",
           "items": {
-            "type": "number"
+            "type": [
+              "number",
+              "null"
+            ]
           },
           "minItems": 2,
           "maxItems": 2
