@@ -1,0 +1,16 @@
+{
+  "name": "@mirage/mavlink",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./codec": "./src/codec.ts",
+    "./samples": "./src/samples.ts",
+    "./sensor-mapping": "./src/sensor-mapping.ts",
+    "./messages": "./src/messages.ts",
+    "./rc-override": "./src/rc-override.ts"
+  },
+  "dependencies": {
+    "@mirage/protocol": "0.1.0"
+  }
+}

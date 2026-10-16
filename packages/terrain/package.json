@@ -1,0 +1,9 @@
+{
+  "name": "@mirage/terrain",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./provider-policy": "./src/provider-policy.ts"
+  }
+}

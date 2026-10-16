@@ -1,0 +1,14 @@
+{
+  "name": "@mirage/autopilot",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./adapter": "./src/adapter.ts",
+    "./state-machine": "./src/state-machine.ts",
+    "./serial-transport": "./src/serial-transport.ts"
+  },
+  "dependencies": {
+    "@mirage/mavlink": "0.1.0"
+  }
+}

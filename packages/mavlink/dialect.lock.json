@@ -1,0 +1,27 @@
+{
+  "generatorFilesSha256": {
+    "mavgen.py": "26027ec0dae2d0a404d57c376adea74d04d6b41d55b08c9279786f45cfca335d",
+    "mavgen_python.py": "81282646cc95f8ddffdaa9b133de004ca905c5280866c5bb98490b4dc4b2dfeb",
+    "mavparse.py": "a5e6ee520a237f05faf9e5519a6c51502e902baeaed8794d9c45720cce84e663",
+    "mavschema.xsd": "f4a464367f26d11cd44cb9305e5bcdd92d236be75c872b9a4c5c1178ae59cab8"
+  },
+  "schemaVersion": 1,
+  "repository": "https://github.com/mavlink/mavlink.git",
+  "commit": "2e2b6af99084e4fde9bb304c84bb9253a1a98b6f",
+  "generator": "pymavlink",
+  "generatorVersion": "2.4.50",
+  "wireVersion": 2,
+  "filesSha256": {
+    "message_definitions/v1.0/common.xml": "4194171608d0641cbf9a646ebf440b174a3bd5842e41e5b87a43c540c584b280",
+    "message_definitions/v1.0/standard.xml": "64af1ee5538344782abf8b35cf199a6cd48aa06eeb6bd41c7ae31f740a06a7f3",
+    "message_definitions/v1.0/minimal.xml": "d4c7c7346432814348bb858cbab8cee7a17b23e37937c1574e2018148cbfb785",
+    "COPYING": "81133ba4d3343a0e627dd0d9582134f956bc9dc82322d369c561249cc2910224"
+  },
+  "messages": [
+    70,
+    93,
+    107,
+    113
+  ],
+  "signing": "unsupported-reject-signed"
+}

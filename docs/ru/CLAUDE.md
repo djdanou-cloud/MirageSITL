@@ -1,6 +1,6 @@
 # CLAUDE.md — MirageSITL agent instructions
 
-<!-- source-sha256: b8e2bb1187e1168a4cfef8e2f44a77fc8e851ee84c35b364eb4717df1696bdab -->
+<!-- source-sha256: 0b2bfa0ccde0c3821e0838deb0daeeb3634729957e579f81cc1f1d9bd4c5f29e -->
 
 Английский источник: [Source of truth](../../CLAUDE.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -63,8 +63,10 @@ regression API. Есть Rust 1.97.0 workspace, scalar/SIMD WASM builds,
 атмосферу, seeded wind и native rotor reference kernels с тестовыми WASM exports.
 
 Production BET arena step всё ещё возвращает AERODYNAMICS_UNAVAILABLE:
-polar binding и полный backend не подключены. JSBSim, MAVLink, ArduPilot,
-HITL, РЭБ, terrain, thermal и AAR остаются будущими задачами. Численные тесты
+polar binding и полный backend не подключены. Независимые нативный JSBSim,
+MAVLink2, локальный транспорт и эталоны РЭБ/отказов уже существуют. Production-
+интеграции JSBSim, ArduPilot SITL/HITL, композиции РЭБ, live terrain, thermal
+и AAR остаются открыты. Численные тесты
 не подтверждают валидированную авторотацию или производительность целевых
 устройств. Исторические результаты не проверяют новые изменения; нужно
 повторно запускать выбранные gates.
@@ -352,3 +354,20 @@ bench-contact.mjs проверяет повторные контакты с об
 аллокаций спецификации движков. Результат не сертифицирует production-привязку
 Rapier JS/WASM, сборку JSBSim WASM, контактное сопряжение и физическую
 достоверность. Блокировки SDK и измеренных данных сохраняются.
+
+
+TASK-037/038/039/040/048/052/053/056/057/060 добавляют закреплённое подмножество
+MAVLink2, версионированную калибровку/режимы радио, допуск жизненного цикла
+автопилота, loopback WS/UDP с origin/токеном, Serial по жесту пользователя
+с отдельным I/O Worker декодирования, изолированные РЭБ/моторные отказы и
+политику рельефа с отказом по умолчанию. Активен демо-backend; SITL/HITL,
+полная композиция РЭБ и живая загрузка рельефа не включены.
+
+Команда npm run start -w @mirage/bridge требует локальный MIRAGE_BRIDGE_TOKEN
+(64 hex); MIRAGE_BRIDGE_ORIGIN, MIRAGE_MAVLINK_PORT и MIRAGE_PHYSICS_PORT
+необязательно задают origin/UDP. Не печатать токены, не добавлять их в URL/
+репозиторий. Это loopback ws; HTTPS/WSS/PNA требуют отдельной интеграции.
+node scripts/bench-links-ew.mjs all 400 (также 800/1200) даёт Node-свидетельство
+аллокаций, не аппаратную приёмку времени. Скалярные удобные методы могут
+выделять boxed float: в высокочастотной композиции использовать typed-array
+входы/выходы из спецификации движков.

@@ -175,3 +175,20 @@ rather than changing physics. See the native allocation patch section in the
 engine specification for exact scope, commands and limitations. These native
 results do not certify the production Rapier JS/WASM binding, a JSBSim WASM build,
 contact coupling or physical fidelity. Preserve the SDK and measured-data blockers.
+
+
+TASK-037/038/039/040/048/052/053/056/057/060 add a pinned MAVLink2 subset,
+versioned radio calibration/mode mapping, autopilot lifecycle admission, an
+origin/token-checked loopback WS/UDP bridge, gesture-driven Serial transport
+with a separate I/O decoding Worker, isolated EW/motor-fault components and a
+fail-closed terrain policy. The demo remains the active flight backend; no
+SITL/HITL, complete EW composition or live terrain integration is enabled.
+
+Run npm run start -w @mirage/bridge with MIRAGE_BRIDGE_TOKEN supplied locally
+(64 hex characters); optional MIRAGE_BRIDGE_ORIGIN, MIRAGE_MAVLINK_PORT and
+MIRAGE_PHYSICS_PORT configure origin/UDP endpoints. Never print tokens or add
+them to URLs/repository files. This is loopback ws; HTTPS/WSS/PNA needs separate
+integration. Use node scripts/bench-links-ew.mjs all 400 (also 800/1200) for
+Node allocation evidence, not hardware timing acceptance. Scalar conveniences
+may box floating-point values: high-rate composition uses typed-array inputs
+and outputs documented in the engine specification.

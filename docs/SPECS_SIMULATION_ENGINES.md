@@ -1075,3 +1075,221 @@ Worker smoke, native/WASM parity, contact coupling and model-data review remain
 required. TASK-029 remains BLOCKED_DECISION for a certified binding/general
 contact model; TASK-030/031/033 remain BLOCKED_EXTERNAL. Missing measured rotor/
 airframe validation and the unconnected full BET backend still block fidelity.
+
+
+## Radio, autopilot transport and isolated fault components (TASK-037–060)
+
+This batch implements TASK-037/038/039/040/048/052/053/056/057/060. Modules are
+independent protocol/transport/training references. The live flight Worker still
+uses demo dynamics. No ArduPilot firmware, HITL health, complete EW composition,
+validated terrain, or physical transmitter/flight-controller acceptance is implied.
+TASK-036 geodesy, TASK-041 JSON lockstep and TASK-049 HIL streaming remain future
+integration boundaries; later work must use actual upstream/device evidence.
+
+### Pinned MAVLink2 subset
+
+`packages/mavlink/dialect.lock.json` pins common XML commit
+2e2b6af99084e4fde9bb304c84bb9253a1a98b6f, common/standard/minimal XML and license
+hashes, pymavlink 2.4.50 and generator-file hashes. The older 2.4.49 generator
+rejects the pinned XML schema; validation is retained with the compatible 2.4.50.
+`generate-mavlink-fixtures.py` verifies source cleanliness/commit/version and
+uses the official generator. Generated Python stays outside the repository;
+checked-in golden frames are SHA-256 registered synthetic protocol oracles.
+They are not aircraft measurements. The upstream generated-output notice is
+retained in packages/mavlink/NOTICE.
+
+| Message ID | Message | Full payload bytes | CRC_EXTRA |
+| --- | --- | --- | --- |
+| 70 | RC_CHANNELS_OVERRIDE | 38 | 124 |
+| 93 | HIL_ACTUATOR_CONTROLS | 81 | 47 |
+| 107 | HIL_SENSOR | 65 | 108 |
+| 113 | HIL_GPS | 39 | 124 |
+
+`encodeInto` writes into caller storage and returns exact length (0 on invalid
+inputs). MAVLink2 trailing-zero truncation retains at least one payload byte.
+`MavParser` owns a 280-byte collection buffer, 255-byte padded payload, one
+DataView and a fixed 65536-entry sequence table. It checks magic/version,
+flags, supported IDs, payload bounds and X.25 CRC including CRC_EXTRA. It accepts
+arbitrary split/coalesced chunks; truncated links call discardPartial on timeout.
+Rejected records resynchronize through a bounded search. Sequence wrap, gaps,
+duplicates and out-of-order observations are recorded separately; sequence
+numbers alone do not prove authenticated replay protection.
+
+Callbacks consume a reused frame synchronously. Retained frames require an I/O
+copy; callbacks must not reenter the parser. Framing resets before the callback,
+so consumer exceptions do not duplicate a frame. MAVLink1, unknown messages,
+nonzero compatibility/incompatibility flags and signed frames are rejected.
+Signing is unsupported and cannot silently become an authenticated session.
+Future firmware support must explicitly extend this pinned subset.
+
+SensorMapping implements section 6: u64 timestamps remain two u32 words, DOP
+is dimensionless times 100, pressure uses hPa, magnetic field gauss and temperature
+Celsius. GPS clipping sets clipped; known DOP/speed saturate below 65535 and
+signed velocity is limited to +/-32767 cm/s. Course wraps before degree conversion
+and is unknown below 0.05 m/s. Unknown validity maps to explicit wire sentinels.
+ImuSample arrays have three components each; updatedMask admits bits 0..12 and
+bit 31 only. Invalid inputs preserve output. actuatorInto validates all 16
+normalized controls before changing output. No BigInt is created in stepping.
+
+### Radio mapping and lifecycle
+
+Calibration storage uses key mirage.radio-calibration.v1 with schemaVersion=1,
+four validated raw-axis calibrations and an optional independent mode axis.
+Default mode configuration is disabled; enabling axis 4 maps normalized input
+to six slots. Invalid/missing enabled axes clear every stick/arm flag. UI changes
+disarm immediately, and existing device-generation protection handles unplug,
+replug and a different transmitter at the same index. Profiles are validated on
+load/save; storage errors do not fabricate a valid profile. The manual physical
+USB checklist is separate and NOT_RUN.
+
+PilotRcMapper maps configured channels [roll,pitch,throttle,yaw,mode], default
+[1,2,3,4,5]. Centered axes map -1/0/1 to 1000/1500/2000 us; throttle 0/1 maps
+to 1000/2000 us. Default mode PWM is [1100,1300,1425,1550,1700,1900]; actual
+flight-mode assignment remains firmware parameter configuration. Unknown mode
+leaves its channel ignored. Disconnect releases only owned channels, preserving
+other senders. Channels 1..8 release with 0; 9..18 with 65534; ignore is 65535.
+Slots never invent requestedMode or an ArduPilot mode enum in the v2 mailbox.
+
+AutopilotSession exposes mutually exclusive external-sitl/wasm-sitl/hitl state:
+disconnected -> initializing -> warming -> ready -> running, with fault and
+explicit disconnect recovery. Timers cannot create READY. Fresh, epoch-matching,
+autopilot-sourced positive health is required; running also requires current
+16-channel actuators. Replayed/future/nonfinite controls are rejected. Default
+staleness is 100 ms, configurable in (0,1000] ms. Monotonic clock polling clears
+outputs on stale health/actuators, health failure, disarm or clock reversal.
+The class defines admission; no firmware/health decoder is supplied by this task.
+
+### Loopback bridge binary contract
+
+The bridge binds 127.0.0.1:9002 by default. Exact loopback origin/Host checks and
+a 64-hex session token passed through subprotocol session.<token> protect upgrades.
+URLs/logs never contain the token. mirage-v1 is the negotiated subprotocol.
+Only one authenticated client owns the session; reconnection creates fresh
+sequence state for the configured epoch. Epoch changes require a newly configured
+session. UDP endpoints are explicitly configured separate MAVLink/physics ports.
+The bridge is transport: JSON/servo schemas and ArduPilot lockstep are TASK-041.
+
+Each WebSocket binary message contains exactly one record; WebSocket fragmentation
+is reassembled by ws. Coalesced WebSocket messages stay separate; concatenating
+two records inside one message is invalid. All header integers are little endian.
+
+| Byte offset | Type | Field | Constraint |
+| --- | --- | --- | --- |
+| 0 | u8 | version | 1 |
+| 1 | u8 | channel | 1=MAVLink, 2=physics outbound, 3=servo inbound |
+| 2 | u16 | reserved | 0 |
+| 4 | u32 | epoch | configured session epoch |
+| 8 | u32 | sequence | monotonic per channel, modulo 2^32 |
+| 12 | u32 | payloadLength | 0..4096 |
+| 16 | u8[] | payload | exact declared length |
+
+Inbound client channel 3 is rejected. UDP sockets are connected to their selected
+loopback peer, so arbitrary remote senders are not accepted. Duplicate/stale
+records, more than 4096 messages/second, oversized records and backpressure close
+the session. Default queued-byte budget is 65536; queues cannot grow indefinitely.
+An idle client closes after 5 seconds. Tests exercise real WS/UDP transfer,
+fragmentation, origin/token rejection, reconnect, epoch/flood/size checks and
+injected backpressure. CLI startup is verified separately.
+
+Plain ws is a loopback development path. HTTPS pages may require an explicitly
+configured local WSS endpoint and trusted certificate; mixed-content rules and
+browser PNA/Local Network Access prompts remain applicable. No browser security
+setting is disabled. These tests do not establish a deployed WSS or SITL session.
+
+### Serial stream ownership
+
+Connect serial requests permission synchronously inside the button handler.
+Unavailable APIs disable it; denial is shown without an automatic prompt loop.
+SerialTransport leases one port, reader and writer; concurrent opens are rejected.
+Close handles pending reads/open, cancellation, errors and explicit reopen.
+Writes allow one in-flight buffer, maximum 4096 bytes; callers retain that buffer
+until completion. Incoming chunks are at most 4096 bytes. The I/O Worker parses
+MAVLink and returns copied payloads, separate from the physics Worker. Each chunk
+requires an acknowledgement before reading another; a 500 ms decoder timeout
+closes the transport instead of growing a message queue. I/O copies/promises and
+permission work are outside the high-rate loop. The UI labels connection as a
+transport diagnostic and explicitly keeps HITL unavailable.
+
+### Training EW and mechanical faults
+
+HazardVolumes validates <=64 unique stable IDs and sorts them once. Finite sphere/
+cone exposure follows section 5 with a 1e12 sum saturation, minimum radius >=1e-6 m,
+radius <=1e6 m, relative power <=1e6 and reference distance <=1e6 m. Cone axes
+must be unit vectors within 1e-9, half aperture in [1e-6,pi/2]. Cone taper uses
+x=clamp((cosine-cos(theta))/(1-cos(theta)),0,1), G=x*x*(3-2*x); the center uses G=1.
+Outside is zero, including cone angles beyond the boundary. This is synthetic
+severity, not measured RF power or a receiver link budget.
+
+GnssJamming implements the exact exponential low-pass and section 5 presets:
+tau>0, Njam=0..3, DOPjam=50..99; dt in (0,0.01] seconds. Reset/zero severity
+preserve baseline. A latched no-fix state recovers only below 0.6 with known
+satellites >=4; unknown satellite count cannot prove recovery. Validity remains
+unknown when its baseline is unknown. Already worse DOP/fix/count is never
+improved. Source GPS, IMU, barometer and physics truth remain untouched.
+
+MagneticAnomaly precomputes Rz*Ry*Rx and biasBodyGauss once, then writes three
+body sensor components in place. Overlapping source/target views are rejected.
+Rotation preserves norm before bias; truth quaternion/gyro are not inputs and
+cannot be mutated. No particular EKF trajectory or mode response is guaranteed.
+
+MotorFaults reserves IDs 0..31, independent of channel order. Power-cut scales
+only drive torque, retaining aerodynamic wrench and passive shaft dynamics.
+Instant-thrust-loss scales one rotor's force/aerodynamic moment that tick and
+sets VehicleFlagV2.ModelOutsideValidity (bit 5) while any such fault is active.
+Reset clears all faults/flags. Rust tests retain spool decay after zero drive
+and verify the removed rotor's lever-arm moment. Full BET/mixer wiring and
+compensation flight tests remain separate from these independent references.
+
+### High-rate API and measurement boundary
+
+Dynamically computed float arguments/returns can allocate boxed numbers in V8.
+Use the typed-array boundaries below for high-rate composition. Allocate length
+3 position/magnetic arrays, length 1 severity/clock/torque arrays, length 6 wrench
+and length 16 actuator arrays once. Clock values are monotonic milliseconds;
+source GPS and target GPS are distinct. All invalid-step results are false;
+configuration constructors may throw outside stepping.
+
+```ts
+// Structural hot-path contracts implemented by the corresponding classes.
+interface HazardVolumesHot {
+  severityFromNedInto(positionNedM: Float64Array, outQ: Float64Array): boolean;
+}
+interface GnssJammingHot {
+  advanceInto(severity: Float64Array, dtS: number): boolean;
+  distortInto(source: GpsSample, target: GpsSample): boolean;
+}
+interface MagneticAnomalyHot {
+  distortInto(sourceGauss: Float64Array, targetGauss: Float64Array): boolean;
+}
+interface MotorFaultsHot {
+  driveTorqueFromArrayInto(id: number, sourceNm: Float64Array, outNm: Float64Array): boolean;
+  wrenchInto(id: number, source: Float64Array, target: Float64Array): boolean;
+}
+interface AutopilotSessionHot {
+  healthAt(health: AutopilotHealth, clockMs: Float64Array): boolean;
+  acceptActuatorsAt(controls: Float64Array, epoch: number,
+    sampleMs: Float64Array, clockMs: Float64Array): boolean;
+  pollAt(clockMs: Float64Array): boolean;
+}
+```
+
+`node scripts/bench-links-ew.mjs all 400` also accepts 800/1200 and optional
+components ew/mavlink/state. The real component graph uses changing exposure,
+all four supported message types, actuator decoding, RC mapping, timestamp word
+rollover and lifecycle health/control checks. Four million steps warm V8 before
+three pairs of N=1e6/2e6 measured windows; an allocating control must be detected.
+I/O and profiler callbacks are excluded. Reports under test-results/bench use
+links-ew-all-<Hz>.json, record source/script SHA-256 and Node version, and retain
+GC count and incremental bytes/step. This is cloud Node evidence; it does not
+establish browser hard real time, full Worker/backend admission or M4/RTX FPS.
+
+### Terrain policy boundary
+
+providerPolicy rejects unknown configurations and freezes the result. Google
+live policy grants only transient memory/TTL 0, offline false, prefetch false;
+persistent R2/prefetch/offline remain denied. Owned/licensed datasets require
+reviewed evidence hashes for these permissions. No key, provider fetch or cache
+implementation is included. See docs/decisions/terrain-licensing.md and its mirror.
+
+
+Mode calibration exposes axis index, endpoints, center, deadzone and inversion; changing it disarms and rejects overlap with a primary stick axis.

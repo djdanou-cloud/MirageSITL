@@ -1,1 +1,14 @@
-{"name":"@mirage/input","version":"0.1.0","private":true,"type":"module","exports":"./src/index.ts","dependencies":{"@mirage/protocol":"0.1.0"}}
+{
+  "name": "@mirage/input",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./mode-channel": "./src/mode-channel.ts",
+    "./calibration-store": "./src/calibration-store.ts"
+  },
+  "dependencies": {
+    "@mirage/protocol": "0.1.0"
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "name": "@mirage/bridge",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node --experimental-transform-types src/server.ts"
+  },
+  "dependencies": {
+    "@mirage/mavlink": "0.1.0",
+    "ws": "8.22.0"
+  },
+  "devDependencies": {
+    "@types/ws": "8.18.2"
+  }
+}

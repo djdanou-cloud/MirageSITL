@@ -1,6 +1,6 @@
 # PROJECT_ROADMAP.md
 
-<!-- source-sha256: b66b417f2ebbf4c6be20cf4a9e2ae611d8f1b0e4ea5240afc5fe55a5dc418101 -->
+<!-- source-sha256: 41c6f419240241807bc9606b44358a085ce1bcf3a415ab982380a2e2d9896122 -->
 
 Английский источник: [Source of truth](../PROJECT_ROADMAP.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -547,39 +547,55 @@ Cargo bin активирован в PATH. Производительность M
 
 ### TASK-037 — MAVLink2 codec
 
-- **Status:** TODO.
+- **Status:** DONE — Codex; baseline dfbf402; 2026-10-16.
 - **Title & Description:** Зафиксировать dialect/generator и реализовать binary parser/encoder.
 - **Dependencies:** TASK-003, TASK-004, TASK-013.
-- **Touched Files:** `packages/mavlink/package.json`, `packages/mavlink/dialect.lock.json`, `packages/mavlink/src/codec.ts`, `packages/mavlink/src/sensor-mapping.ts`, `tests/mavlink.test.ts`, `tests/fixtures/mavlink/golden.json`.
+- **Touched Files:** `packages/mavlink/package.json`, `packages/mavlink/dialect.lock.json`, `packages/mavlink/src/codec.ts`, `packages/mavlink/src/sensor-mapping.ts`, `tests/mavlink.test.ts`, `tests/fixtures/mavlink/golden.json`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `README.md`, `docs/ru/README.md`, `CLAUDE.md`, `docs/ru/CLAUDE.md`, `packages/mavlink/src/messages.ts`, `packages/mavlink/src/samples.ts`, `scripts/generate-mavlink-fixtures.py`, `tests/fixtures/registry.json`, `package-lock.json`, `scripts/bench-links-ew.mjs`, `tests/sensor-samples.ts`, `tests/links-ew-allocation.test.ts`, `packages/mavlink/NOTICE`.
 - **Interfaces / Contracts:** HIL_GPS/HIL_SENSOR/HIL_ACTUATOR_CONTROLS/RC_CHANNELS_OVERRIDE; §6 engines spec.
 - **DoD & Acceptance Criteria:** Official-generated golden frames совпадают по CRC_EXTRA/packing; arbitrary chunks/truncation/bad CRC/seq tested; DOP×100, gauss/hPa/LSB и uint64 tests; no unsafe any.
 
+- **Execution scope:** Цель: реализовать контракт с независимыми численными/протокольными тестами или проверками жизненного цикла. Критерий провала: ошибка контракта, аллокаций, происхождения или жизненного цикла. Внешняя приёмка оборудования/провайдера проверяется отдельно.
+
+- **Evidence (2026-10-16):** Кадры официального pymavlink 2.4.50 из закреплённого common XML совпадают побайтно: CRC_EXTRA, порядок, u64, extensions и усечение нулей. Проходят пять тестов codec/mapping: произвольные chunks, отказ CRC/signing, переполнение sequence и восстановление после ошибки потребителя. Все четыре типа и готовые буферы проходят G1 400/800/1200 Гц. Сохранены хеши диалекта/генератора/лицензии и синтетический реестр; signing и другие ID не поддерживаются.
+
 ### TASK-038 — RC и flight mode mapping
 
-- **Status:** TODO.
+- **Status:** DONE — Codex; baseline dfbf402; 2026-10-16.
 - **Title & Description:** Расширить USB input режимами и правильно формировать RC override.
 - **Dependencies:** TASK-010, TASK-037.
-- **Touched Files:** `packages/input/src/mode-channel.ts`, `packages/input/src/calibration-store.ts`, `packages/mavlink/src/rc-override.ts`, `apps/web/src/App.tsx`, `tests/rc-override.test.ts`, `tests/browser/radio.spec.ts`.
+- **Touched Files:** `packages/input/src/mode-channel.ts`, `packages/input/src/calibration-store.ts`, `packages/mavlink/src/rc-override.ts`, `apps/web/src/App.tsx`, `tests/rc-override.test.ts`, `tests/browser/radio.spec.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `README.md`, `docs/ru/README.md`, `CLAUDE.md`, `docs/ru/CLAUDE.md`, `apps/web/src/runtime.ts`, `packages/input/package.json`, `packages/input/src/index.ts`, `tests/fixtures/registry.json`, `apps/web/package.json`, `package-lock.json`, `scripts/bench-links-ew.mjs`, `tests/links-ew-allocation.test.ts`, `docs/hardware/radio-checklist.md`, `docs/ru/radio-checklist.md`, `docs/documentation-index.json`.
 - **Interfaces / Contracts:** Pilot mailbox v2; RC profile endpoints/deadzone/mode slots; channels 1..8 vs 9..18 sentinel semantics.
 - **DoD & Acceptance Criteria:** Calibration сохраняется с schema/version; invalid axes/pad unplug/reconnect снимают arm; zero throttle gate; PWM endpoints и release/ignore по группам проверены; real USB имеет отдельный hardware checklist.
 
+- **Execution scope:** Цель: реализовать контракт с независимыми численными/протокольными тестами или проверками жизненного цикла. Критерий провала: ошибка контракта, аллокаций, происхождения или жизненного цикла. Внешняя приёмка оборудования/провайдера проверяется отдельно.
+
+- **Evidence (2026-10-16):** Проходят четыре RC/profile теста и браузерный радио-тест; регрессии ввода/армирования/отключения зелёные. Версионированная калибровка сохраняет основные и редактируемую независимую ось режима; неверная/совпадающая ось обнуляет ввод, изменения снимают армирование, reload восстанавливает настройки. PilotRcMapper проверяет PWM и release/ignore групп каналов; mailbox v2 передаёт слоты без выдуманных режимов. Физический USB checklist docs/hardware/radio-checklist.md и docs/ru/radio-checklist.md имеет NOT_RUN.
+
 ### TASK-039 — Autopilot state machine
 
-- **Status:** TODO.
+- **Status:** DONE — Codex; baseline dfbf402; 2026-10-16.
 - **Title & Description:** Определить один активный autopilot backend и lifecycle/link policies.
 - **Dependencies:** TASK-010, TASK-012, TASK-013, TASK-037.
-- **Touched Files:** `packages/autopilot/package.json`, `packages/autopilot/src/adapter.ts`, `packages/autopilot/src/state-machine.ts`, `tests/autopilot-state.test.ts`.
+- **Touched Files:** `packages/autopilot/package.json`, `packages/autopilot/src/adapter.ts`, `packages/autopilot/src/state-machine.ts`, `tests/autopilot-state.test.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `README.md`, `docs/ru/README.md`, `CLAUDE.md`, `docs/ru/CLAUDE.md`, `scripts/bench-links-ew.mjs`, `package-lock.json`, `tests/links-ew-allocation.test.ts`.
 - **Interfaces / Contracts:** disconnected→initializing→warming→ready→running→fault; actuators/health.
 - **DoD & Acceptance Criteria:** Illegal transitions rejected; одновременно SITL и HITL невозможны; stale actuator/disarm/link loss не держит последнюю тягу бесконечно; no fake EKF READY.
 
+- **Execution scope:** Цель: реализовать контракт с независимыми численными/протокольными тестами или проверками жизненного цикла. Критерий провала: ошибка контракта, аллокаций, происхождения или жизненного цикла. Внешняя приёмка оборудования/провайдера проверяется отдельно.
+
+- **Evidence (2026-10-16):** Два теста проверяют взаимоисключение backend, запрещённые переходы, epoch/будущие/повторные controls, потерю здоровья, disarm, устаревание и обратные часы. READY требует здоровья от адаптера; одного времени недостаточно. Тайм-аут 100 мс. Методы с typed-array часами проходят три частоты G1. Реализован допуск; настоящая прошивка/декодер здоровья и живой UI-автопилот не заявлены.
+
 ### TASK-040 — Локальный WS bridge
 
-- **Status:** TODO.
+- **Status:** DONE — Codex; baseline dfbf402; 2026-10-16.
 - **Title & Description:** Создать loopback transport с session/origin проверками и bounded framing.
 - **Dependencies:** TASK-003, TASK-037, TASK-039.
-- **Touched Files:** `apps/bridge/package.json`, `apps/bridge/src/server.ts`, `apps/bridge/src/session.ts`, `apps/bridge/src/framing.ts`, `tests/bridge.test.ts`.
+- **Touched Files:** `apps/bridge/package.json`, `apps/bridge/src/server.ts`, `apps/bridge/src/session.ts`, `apps/bridge/src/framing.ts`, `tests/bridge.test.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `README.md`, `docs/ru/README.md`, `CLAUDE.md`, `docs/ru/CLAUDE.md`, `package-lock.json`, `scripts/bench-links-ew.mjs`.
 - **Interfaces / Contracts:** WS localhost:9002; binary frames version/length/epoch; UDP channels отдельно.
 - **DoD & Acceptance Criteria:** Unauthorized Origin/session и oversized/flood frames rejected; binds loopback по умолчанию; split/coalesced frames/backpressure/reconnect tested; production WSS/PNA compatibility documented.
+
+- **Execution scope:** Цель: реализовать контракт с независимыми численными/протокольными тестами или проверками жизненного цикла. Критерий провала: ошибка контракта, аллокаций, происхождения или жизненного цикла. Внешняя приёмка оборудования/провайдера проверяется отдельно.
+
+- **Evidence (2026-10-16):** Три теста проходят с настоящими WS/UDP roundtrip, фрагментами/объединением доставки, отказом token/origin/session, epoch, sequence wrap, лимитами flood/размера, reconnect и инъекцией backpressure. CLI проверен на 127.0.0.1:9002; остановлен только свой процесс. Один клиент, payload 4096 байт, 4096 сообщений/с, очереди по умолчанию 65536 байт, простой 5 с. Описаны binary v1, направления, токен и WSS/PNA; JSON lockstep ArduPilot остаётся TASK-041.
 
 ### TASK-041 — ArduPilot JSON physics backend
 
@@ -646,12 +662,16 @@ Cargo bin активирован в PATH. Производительность M
 
 ### TASK-048 — Web Serial transport
 
-- **Status:** TODO.
+- **Status:** DONE — Codex; baseline dfbf402; 2026-10-16.
 - **Title & Description:** Открывать порт только по gesture и обрабатывать stream/reconnect безопасно.
 - **Dependencies:** TASK-005, TASK-037, TASK-039.
-- **Touched Files:** `packages/autopilot/src/serial-transport.ts`, `apps/web/src/SerialConnect.tsx`, `tests/serial-transport.test.ts`, `tests/browser/serial-permission.spec.ts`, `packages/autopilot/src/serial-io.worker.ts`.
+- **Touched Files:** `packages/autopilot/src/serial-transport.ts`, `apps/web/src/SerialConnect.tsx`, `tests/serial-transport.test.ts`, `tests/browser/serial-permission.spec.ts`, `packages/autopilot/src/serial-io.worker.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `README.md`, `docs/ru/README.md`, `CLAUDE.md`, `docs/ru/CLAUDE.md`, `apps/web/src/App.tsx`, `apps/web/package.json`, `package-lock.json`.
 - **Interfaces / Contracts:** ReadableStream chunks→MAVLink parser; permission/user gesture, port lifecycle.
 - **DoD & Acceptance Criteria:** Mock chunk/error/disconnect/cancel cases; повторное открытие не дублирует reader; unsupported браузер disabled; mock не считается реальным HITL.
+
+- **Execution scope:** Цель: реализовать контракт с независимыми численными/протокольными тестами или проверками жизненного цикла. Критерий провала: ошибка контракта, аллокаций, происхождения или жизненного цикла. Внешняя приёмка оборудования/провайдера проверяется отдельно.
+
+- **Evidence (2026-10-16):** Четыре Serial stream теста проверяют владение, chunks, close во время open, permission/read/cancel ошибки, ограниченные записи и явный reopen. Три теста Chromium проверяют отсутствие автоматического запроса, отказ/нет API и разбор фрагментов отдельным I/O Worker с чистым disconnect. Один chunk с ACK, предел 4096 байт, тайм-аут 500 мс; UI обновляется через 150 мс. Аппаратный HITL остаётся недоступным/непроверенным.
 
 ### TASK-049 — HIL sensor/actuator streaming
 
@@ -684,21 +704,29 @@ Cargo bin активирован в PATH. Производительность M
 
 ### TASK-052 — Hazard volumes
 
-- **Status:** TODO.
+- **Status:** DONE — Codex; baseline dfbf402; 2026-10-16.
 - **Title & Description:** Вычислять bounded exposure для sphere/cone и их комбинаций.
 - **Dependencies:** TASK-010, TASK-032.
-- **Touched Files:** `packages/ew/package.json`, `packages/ew/src/volumes.ts`, `tests/ew-volumes.test.ts`.
+- **Touched Files:** `packages/ew/package.json`, `packages/ew/src/volumes.ts`, `tests/ew-volumes.test.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `README.md`, `docs/ru/README.md`, `CLAUDE.md`, `docs/ru/CLAUDE.md`, `scripts/bench-links-ew.mjs`, `package-lock.json`, `tests/links-ew-allocation.test.ts`.
 - **Interfaces / Contracts:** SPECS_SIMULATION_ENGINES §5; r_min, power-relative, angular taper.
 - **DoD & Acceptance Criteria:** Center/boundary/cone axis и sum order tests; exposure finite при r=0; outside volume=0; counts/capacity<=64, no per-step allocation.
 
+- **Execution scope:** Цель: реализовать контракт с независимыми численными/протокольными тестами или проверками жизненного цикла. Критерий провала: ошибка контракта, аллокаций, происхождения или жизненного цикла. Внешняя приёмка оборудования/провайдера проверяется отдельно.
+
+- **Evidence (2026-10-16):** Два численных теста проверяют обратный квадрат, конечный центр, границы радиуса/конуса, ось/taper, порядок ID, отказ duplicate/capacity и неизменность typed-array входов. Соблюдаются <=64 объёма и насыщение 1e12; severityFromNedInto проходит три G1 частоты. Это безразмерная учебная severity, не измеренный RF-бюджет.
+
 ### TASK-053 — GNSS jamming
 
-- **Status:** TODO.
+- **Status:** DONE — Codex; baseline dfbf402; 2026-10-16.
 - **Title & Description:** Реализовать receiver-training severity→satellites/DOP/fix с hysteresis.
 - **Dependencies:** TASK-035, TASK-052.
-- **Touched Files:** `packages/ew/src/gnss-jamming.ts`, `tests/gnss-jamming.test.ts`.
+- **Touched Files:** `packages/ew/src/gnss-jamming.ts`, `tests/gnss-jamming.test.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `README.md`, `docs/ru/README.md`, `CLAUDE.md`, `docs/ru/CLAUDE.md`, `packages/mavlink/src/samples.ts`, `scripts/bench-links-ew.mjs`, `tests/sensor-samples.ts`, `tests/links-ew-allocation.test.ts`.
 - **Interfaces / Contracts:** GpsSample; q filtered; Njam 0..3, DOPjam 50..99.
 - **DoD & Acceptance Criteria:** q=0 сохраняет baseline, strong jam fix=0; restore thresholds корректны; no NaN/sentinel overflow; IMU/truth не изменяются.
+
+- **Execution scope:** Цель: реализовать контракт с независимыми численными/протокольными тестами или проверками жизненного цикла. Критерий провала: ошибка контракта, аллокаций, происхождения или жизненного цикла. Внешняя приёмка оборудования/провайдера проверяется отдельно.
+
+- **Evidence (2026-10-16):** Три теста проверяют аналитический экспоненциальный фильтр, zero/reset identity, сильный no-fix, гистерезис 0.8/0.6, восстановление по известным спутникам и сохранение неизвестного/худшего baseline. GPS-источник не меняется; IMU/барометр/truth не являются входами. advanceInto/distortInto проходят три частоты G1. Потеря пакетов, физический приёмник и ответ режима ArduPilot не заявлены.
 
 ### TASK-054 — Position-step spoofing
 
@@ -720,21 +748,29 @@ Cargo bin активирован в PATH. Производительность M
 
 ### TASK-056 — Magnetic anomaly
 
-- **Status:** TODO.
+- **Status:** DONE — Codex; baseline dfbf402; 2026-10-16.
 - **Title & Description:** Искажать mag vector в правильном sensor/body frame.
 - **Dependencies:** TASK-034, TASK-052.
-- **Touched Files:** `packages/ew/src/magnetic.ts`, `tests/magnetic-anomaly.test.ts`.
+- **Touched Files:** `packages/ew/src/magnetic.ts`, `tests/magnetic-anomaly.test.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `README.md`, `docs/ru/README.md`, `CLAUDE.md`, `docs/ru/CLAUDE.md`, `scripts/bench-links-ew.mjs`, `tests/links-ew-allocation.test.ts`.
 - **Interfaces / Contracts:** Rz*Ry*Rx + biasBodyGauss; truth quaternion unchanged.
 - **DoD & Acceptance Criteria:** Zero anomaly identity; 90° synthetic rotations сохраняют norm; bias unit tests; stationary truth/gyro не изменены; source/target alias запрещён.
 
+- **Execution scope:** Цель: реализовать контракт с независимыми численными/протокольными тестами или проверками жизненного цикла. Критерий провала: ошибка контракта, аллокаций, происхождения или жизненного цикла. Внешняя приёмка оборудования/провайдера проверяется отдельно.
+
+- **Evidence (2026-10-16):** Магнитный тест проверяет identity, синтетические повороты body на 90 градусов/норму, gauss bias, неизменность источника и отказ пересечения views. Rz*Ry*Rx вычисляется до шага; проходят три частоты G1. Truth/gyro не принимаются на вход; toilet-bowling/ответ EKF не гарантирован.
+
 ### TASK-057 — Motor faults
 
-- **Status:** TODO.
+- **Status:** DONE — Codex; baseline dfbf402; 2026-10-16.
 - **Title & Description:** Инъецировать отказ по стабильному motor ID без изменения GPS truth path.
 - **Dependencies:** TASK-010, TASK-025, TASK-027.
-- **Touched Files:** `packages/physics/src/motor-fault.ts`, `tests/motor-fault.test.ts`, `native/bet/tests/motor_failure.rs`.
+- **Touched Files:** `packages/physics/src/motor-fault.ts`, `tests/motor-fault.test.ts`, `native/bet/tests/motor_failure.rs`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `README.md`, `docs/ru/README.md`, `CLAUDE.md`, `docs/ru/CLAUDE.md`, `scripts/bench-links-ew.mjs`, `packages/physics/package.json`, `tests/links-ew-allocation.test.ts`.
 - **Interfaces / Contracts:** power-cut vs synthetic instant-thrust-loss; remainingThrustFraction.
 - **DoD & Acceptance Criteria:** Power-cut сохраняет passive drag/spool; instant fault обнуляет выбранную силу в текущем tick и помечает synthetic validity; остальные motors не меняются; torque arm verified.
+
+- **Execution scope:** Цель: реализовать контракт с независимыми численными/протокольными тестами или проверками жизненного цикла. Критерий провала: ошибка контракта, аллокаций, происхождения или жизненного цикла. Внешняя приёмка оборудования/провайдера проверяется отдельно.
+
+- **Evidence (2026-10-16):** Два TypeScript теста проверяют стабильные ID, выборочное изменение привода/силы, пассивный wrench, переменный момент в массивах, reset и бит 5 ModelOutsideValidity. Нативный motor_failure проверяет ненулевой спад оборотов без привода и плечевой момент выбранного ротора. Три частоты G1 проходят. Power-cut и синтетический instant-thrust-loss различны; полётная проверка компенсации полного BET/микшера не заявлена.
 
 ### TASK-058 — EW pipeline composition
 
@@ -758,12 +794,16 @@ Cargo bin активирован в PATH. Производительность M
 
 ### TASK-060 — Provider/license policy
 
-- **Status:** TODO.
+- **Status:** DONE — Codex; baseline dfbf402; 2026-10-16.
 - **Title & Description:** Разделить Google live tiles и собственные cacheable datasets до реализации cache.
 - **Dependencies:** TASK-003, TASK-005.
-- **Touched Files:** `packages/terrain/package.json`, `packages/terrain/src/provider-policy.ts`, `docs/decisions/terrain-licensing.md`, `tests/terrain-policy.test.ts`.
+- **Touched Files:** `packages/terrain/package.json`, `packages/terrain/src/provider-policy.ts`, `docs/decisions/terrain-licensing.md`, `tests/terrain-policy.test.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `README.md`, `docs/ru/README.md`, `CLAUDE.md`, `docs/ru/CLAUDE.md`, `docs/ru/terrain-licensing.md`, `docs/documentation-index.json`, `package-lock.json`.
 - **Interfaces / Contracts:** ProviderPolicy {attribution, allowedCache, ttl, offline, datasetLicense}.
 - **DoD & Acceptance Criteria:** Google persistent R2/prefetch запрещены по default; разрешение требует evidence; unknown policy fail-closed; fixtures независимы от API key; факт оплаты API не считается offline licence.
+
+- **Execution scope:** Цель: реализовать контракт с независимыми численными/протокольными тестами или проверками жизненного цикла. Критерий провала: ошибка контракта, аллокаций, происхождения или жизненного цикла. Внешняя приёмка оборудования/провайдера проверяется отдельно.
+
+- **Evidence (2026-10-16):** Тест политики отклоняет неизвестных поставщиков и постоянный кеш/prefetch/offline Google, требует атрибуцию/лицензию и хеш проверенного разрешения для кеширования лицензированных данных, проверяет неизменяемую политику. Google TTL 0 не даёт приложению права хранения. Зарегистрировано решение terrain-licensing EN/RU; API-ключ, живой запрос, кеш и развёртывание не нужны.
 
 ### TASK-061 — Tiles streaming adapter
 
@@ -973,3 +1013,35 @@ Cargo bin активирован в PATH. Производительность M
 - **Touched Files:** `docs/operations/runbook.md`, `docs/operations/release-manifest.schema.json`, `scripts/release-manifest.mjs`, `tests/release-manifest.test.ts`.
 - **Interfaces / Contracts:** Source/artifact/dataset/toolchain hashes, licences, supported capability matrix.
 - **DoD & Acceptance Criteria:** Clean-machine build/install/start проверены; rollback и process cleanup описаны; отчёт содержит реальные blocked gates; никаких deploy/push автоматически без разрешённого scope.
+
+
+## Проверенный пакет транспорта и отказов (2026-10-16)
+
+Ответственный Codex; база dfbf402. TASK-037/038/039/040/048/052/053/056/057/060
+имеют DONE в своей программной/модульной области. Прежние TASK-029/030/031/033
+остаются открыты. Физическая аппаратура/FC, измеренные модели, целевые GPU,
+живые Google tiles и полный полёт SITL/HITL этим пакетом не сертифицированы.
+
+Код 0: frozen npm ci, lint, typecheck, build, check:docs; 266 юнит-тестов
+в 48 файлах, 21 браузерный тест Chromium, 46 нативных Rust-тестов и старт CLI
+моста. Актуальные test-results/unit/junit.xml и test-results/browser/junit.xml
+не содержат провалов/ошибок/пропусков. Браузер проверяет настоящие Worker/SAB/
+MAVLink I/O Worker с моками Gamepad/Serial. Rust — 1.97.0. Production build
+сохраняет прежнее предупреждение chunk >500 kB.
+
+G1 node scripts/bench-links-ew.mjs all 400 / 800 / 1200 проходит на каждой частоте:
+4e6 прогрева, шесть окон N=1e6/2e6, ноль GC и добавочных B/step; выделяющие
+контроли обнаружены. SHA-256 текущих исходников/скрипта совпадает с тремя
+отчётами test-results/bench/links-ew-all-<Hz>.json. Граф чередует четыре wire-типа
+MAVLink, декодирует actuators, преобразует RC, пересекает переполнение слова
+времени, меняет воздействие РЭБ и момент мотора. Аллокации I/O и real-time
+бюджеты браузера/аппаратуры проверяются отдельно. Node 24.19.0, Chromium
+154.0.8037.57, Debian x86_64/software GPU. SHA-256 lockfile
+c391c7bc92bece5b5a23aea3733e58ed9edcd8e0bce873a54f6bddc8f42e7a5b.
+
+MAVLink source 2e2b6af99084e4fde9bb304c84bb9253a1a98b6f, pymavlink 2.4.50;
+официальные кадры/пороги не регенерировались из вывода симулятора. Синхронизированы
+десять полных пар EN/RU; новые руководства физического радио и политики рельефа
+имеют зеркала. Инструкции старта среды сохранены как черновик для проверки/
+сохранения/публикации в настройках; это не применило сетевое исключение SDK
+и не сертифицировало новую задачу.

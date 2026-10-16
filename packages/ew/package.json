@@ -1,0 +1,14 @@
+{
+  "name": "@mirage/ew",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./volumes": "./src/volumes.ts",
+    "./gnss-jamming": "./src/gnss-jamming.ts",
+    "./magnetic": "./src/magnetic.ts"
+  },
+  "dependencies": {
+    "@mirage/mavlink": "0.1.0"
+  }
+}

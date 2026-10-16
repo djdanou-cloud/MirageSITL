@@ -575,6 +575,31 @@
           "derivation": "Independent explicit little-endian body ABI offsets; not Rust object layout."
         }
       }
+    },
+    {
+      "path": "mavlink/golden.json",
+      "manifest": {
+        "formatVersion": 1,
+        "id": "mavlink-common-v2-pymavlink-2450",
+        "sourceSha256": "45e3827a42c1d82d2ae3520be8b7fac0d93da5de8ab64ba26b5f9338dbedc28b",
+        "units": {
+          "messageId": "1"
+        },
+        "validityEnvelope": {
+          "messageId": {
+            "min": 70,
+            "max": 113
+          }
+        },
+        "tolerance": {
+          "absolute": 0,
+          "relative": 0
+        },
+        "provenance": {
+          "kind": "synthetic",
+          "derivation": "Official pymavlink 2.4.50 output from MAVLink common XML commit 2e2b6af99084e4fde9bb304c84bb9253a1a98b6f; full source, generator and license hashes in packages/mavlink/dialect.lock.json. Protocol oracle only, not physical measurements."
+        }
+      }
     }
   ]
 }

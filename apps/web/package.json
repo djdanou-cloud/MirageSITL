@@ -3,7 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "scripts": {"dev": "vite --host 0.0.0.0", "build": "vite build", "preview": "vite preview --host 0.0.0.0"},
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "vite build",
+    "preview": "vite preview --host 0.0.0.0"
+  },
   "dependencies": {
     "@mirage/input": "0.1.0",
     "@mirage/physics": "0.1.0",
@@ -12,7 +16,8 @@
     "lucide-react": "0.548.0",
     "react": "19.2.0",
     "react-dom": "19.2.0",
-    "three": "0.180.0"
+    "three": "0.180.0",
+    "@mirage/autopilot": "0.1.0"
   },
   "devDependencies": {
     "@tailwindcss/vite": "4.1.16",
