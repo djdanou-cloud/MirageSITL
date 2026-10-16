@@ -780,6 +780,59 @@
           "derivation": "Official pymavlink 2.4.50 generator with the pinned upstream ardupilotmega XML and all include hashes. Independent wire oracle, not simulator output or flight measurements."
         }
       }
+    },
+    {
+      "path": "contact/nasa-drop.json",
+      "manifest": {
+        "formatVersion": 1,
+        "id": "nasa-tm-x-3561-drop-v1",
+        "sourceSha256": "62adb81b0a56b5e50a921db0e26d154501b0e4e83a58cfc2f22fed571bc69207",
+        "units": {
+          "dropMassKg": "kg",
+          "tireUnloadedRadiusM": "m",
+          "honeycombCrushForceN": "N",
+          "sinkRateMps": "m/s",
+          "maxStrutStrokeM": "m",
+          "minUpperMassAccelerationDownMps2": "m/s^2"
+        },
+        "validityEnvelope": {
+          "dropMassKg": {
+            "min": 1487.7829736,
+            "max": 1487.7829736
+          },
+          "tireUnloadedRadiusM": {
+            "min": 0.275844,
+            "max": 0.275844
+          },
+          "honeycombCrushForceN": {
+            "min": 16013.5978149,
+            "max": 16013.5978149
+          },
+          "sinkRateMps": {
+            "min": 1.2192,
+            "max": 1.8288
+          },
+          "maxStrutStrokeM": {
+            "min": 0.05588,
+            "max": 0.11176
+          },
+          "minUpperMassAccelerationDownMps2": {
+            "min": -15.69064,
+            "max": -15.69064
+          }
+        },
+        "tolerance": {
+          "absolute": 0.002,
+          "relative": 0.1
+        },
+        "provenance": {
+          "kind": "measured",
+          "datasetId": "NASA-TM-X-3561-DropTest",
+          "license": "Public-Domain-US-Gov",
+          "acquiredAt": "1977-11-01T00:00:00Z",
+          "referenceUrl": "https://ntrs.nasa.gov/citations/19780003109"
+        }
+      }
     }
   ]
 }

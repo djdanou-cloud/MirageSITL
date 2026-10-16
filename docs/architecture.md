@@ -298,7 +298,7 @@ vocabulary is `1`, `s`, `us`, `m`, `m/s`, `m/s^2`, `rad`, `rad/s`, `N`, `N*m`,
 
 Provenance is a strict discriminated union. Synthetic data requires a derivation;
 measured data requires datasetId, license, parseable acquiredAt, and an HTTPS
-reference. Relabeling synthetic metadata while retaining derivation is rejected.
+referenceUrl. Relabeling synthetic metadata while retaining derivation is rejected.
 Metadata cannot prove a measurement occurred: review its external source before
 using it to satisfy a physics validation gate. A digest checks integrity against
 a trusted registry entry; it is not authentication of an arbitrary supplied hash.
@@ -895,3 +895,31 @@ the integrated implementation are kept; `ChunkStorage` now queues up to
 `maxPending` chunks behind the in-flight IndexedDB transaction instead of
 dropping a chunk whenever a transaction is busy, and still counts every
 overflow or failed write.
+
+## NASA measured drop comparison (TASK-029/033, 2026-10-16)
+
+The first measured fixture is `tests/fixtures/contact/nasa-drop.json`.
+`tests/fixtures/contact/generate_nasa_drop.py` generates it from the hashed
+Docling archive of NASA TM X-3561 (Fasanella, McGehee and Pappas, 1977,
+https://ntrs.nasa.gov/citations/19780003109). It holds the level-surface drops
+at 4/5/6 ft/s:
+
+* drop mass 1487.783 kg;
+* honeycomb lift 16013.6 N;
+* measured strut stroke 0.05588/0.09398/0.11176 m;
+* upper-mass acceleration at or above -1.6 g.
+
+NASA TP-2353 and NACA Report 1248 are archived alongside it but unused, because
+their drop results appear only in figures.
+
+`packages/physics/src/nasa-drop.ts` runs the Rapier sphere contact under these
+conditions. Impulse, nonpenetration and energy consistency pass. The measured
+deceleration and stroke envelopes fail at every rate: peaks reach -12 to -19 g
+over a 10 ms window, and contact travel is below 0.2 mm, because a rigid
+sphere has no tire or strut compliance.
+
+The contact decision above therefore stands. Rapier remains a contact
+reference, and landing-gear fidelity needs a separate gear model.
+`validate-models.mjs` reports this measured gate as failed in schema v3. It
+keeps the rotor/airframe fidelity gate blocked and the JS binding G1 gate
+failed.

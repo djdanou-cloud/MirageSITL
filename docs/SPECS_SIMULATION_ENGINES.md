@@ -1565,3 +1565,144 @@ export declare function exportArchive(
   redaction?: ArchiveRedactionPolicy,
 ): Promise<Uint8Array<ArrayBuffer>>;
 ```
+
+## NASA TM X-3561 measured drop comparison (TASK-029/033)
+
+Three Docling extractions of NASA/NACA landing-gear reports are archived
+byte-exact (CRLF line endings) under `tests/fixtures/contact/nasa/`.
+`.gitattributes` marks them `binary`. `scripts/check-docs.mjs` treats
+Markdown under `tests/fixtures/` as raw fixture data, so it does not need a
+documentation pair. The Cyrillic check still applies.
+
+| Archive | Report | NTRS id | SHA-256 | Used |
+| --- | --- | --- | --- | --- |
+| `nasa-tm-x-3561.md` | NASA TM X-3561, Fasanella, McGehee, Pappas, Langley, November 1977 | 19780003109 | `8cf5d33d1d2afbd4a28af064901fcf82910dad25e9e3ce916b2249e5d12c4c39` | Yes: level-surface vertical drops |
+| `nasa-tp-2353.md` | NASA TP-2353, McGehee, September 1984 | 19840024308 | `1a2a73a922c4b76b174968a554e7390c5e5d717322965ff959c056655b6b3aad` | No: drop results exist only as figure images |
+| `naca-report-1248.md` | NACA Report 1248, Milwitzky, Lindquist, Potter, 1955 | 19930092250 | `e49485f4d8a44c151f09b39fff8c67fbb2fbf8441fb5aa19566ec5c1594630ba` | No: forward-speed spin-up on a 15-degree gear; per-test values are in figures |
+
+Each reference resolves as `https://ntrs.nasa.gov/citations/<NTRS id>`. The
+TM X-3561 NTRS id comes from the supplied file name, because the Docling text
+omits it.
+
+`python3 -I tests/fixtures/contact/generate_nasa_drop.py` (standard library
+only) works in five steps:
+
+1. Verifies all three archive hashes.
+2. Normalizes CRLF for parsing.
+3. Requires every quoted sentence or table row to match exactly once.
+4. Converts the U.S. Customary values to SI. The report states that it measured
+   in these units; its own rounded SI value is kept as a `printedSi` cross-check.
+5. Writes `tests/fixtures/contact/nasa-drop.json` (12,834 bytes, SHA-256
+   `62adb81b0a56b5e50a921db0e26d154501b0e4e83a58cfc2f22fed571bc69207`).
+
+`--check` fails if that file is stale, and `tests/fixtures.test.ts` runs it.
+Figures are not digitized, and nothing is interpolated or extrapolated. The
+generator also checks the quoted 6.7 in free-fall height against the 6 ft/s
+impact speed.
+
+The conversion factors are exact: ft = 0.3048 m, in = 0.0254 m,
+lbm = 0.45359237 kg, lbf = 4.4482216152605 N, psi = lbf/in^2 and
+g = 9.80665 m/s^2.
+
+| Quantity | Source value | SI value | Report SI |
+| --- | --- | --- | --- |
+| Drop mass (mass acting on gear) | 3280 lbm | 1487.7829736 kg | 1490 kg |
+| Hub mass (wheel, tire, piston) | 55.7 lbm | 25.265095009 kg | 25.3 kg |
+| Honeycomb crush force (lift simulation) | about 3600 lbf | 16013.5978149 N | 16.00 kN |
+| Unloaded tire diameter / radius | 1.81 ft | radius 0.275844 m | 0.552 m diameter |
+| Tire width | 0.5735 ft | 0.1748028 m | 0.175 m |
+| Tire inflation, gauge | 60 psig | 413685.43759 Pa | 414 kPa |
+| Strut charging pressure, gauge | 278 ± 10 psig | 1916742.5275 ± 68947.6 Pa | 1917 ± 69 kPa |
+| Maximum strut stroke | 0.75 ft | 0.2286 m | 0.229 m |
+| Impact (sink) speed, three drops each | 4 / 5 / 6 ft/s | 1.2192 / 1.524 / 1.8288 m/s | 1.2 / 1.5 / 1.8 m/s |
+| Maximum strut stroke, level surface | 2.2 / 3.7 / 4.4 in | 0.05588 / 0.09398 / 0.11176 m | 5.6 / 9.4 / 11.2 cm |
+| Upper-mass acceleration bound (all level cases) | does not exceed -1.6 g | >= -15.69064 m/s^2 | -1.6 g |
+| Honeycomb rebound time, 4 ft/s | 0.15 s | 0.15 s | 0.15 s |
+
+The source's accelerations are positive downward, so they map directly to NED
+down. The -1.6 g value is the 6 ft/s maximum and bounds all three cases. The
+5 ft/s stroke comes from the level-surface reference drops in the
+inclined-surface series. Accelerometers were filtered flat to 100 Hz; the
+report does not state the filter order.
+
+### Registration and adapter
+
+`tests/fixtures/registry.json` registers `contact/nasa-drop.json` as
+`nasa-tm-x-3561-drop-v1` with `formatVersion` 1 and the SI units above. The
+finite validity envelope covers the measured range. The tolerance is
+`{absolute: 0.002, relative: 0.1}`, declared from the source before evaluation:
+
+* the absolute value is penetration in meters, twice Rapier's default allowed
+  linear error;
+* the relative value is 10 percent on the measured envelopes.
+
+Provenance is measured, with no derivation:
+
+```json
+{"kind":"measured","datasetId":"NASA-TM-X-3561-DropTest","license":"Public-Domain-US-Gov","acquiredAt":"1977-11-01T00:00:00Z","referenceUrl":"https://ntrs.nasa.gov/citations/19780003109"}
+```
+
+Measured provenance now uses `referenceUrl` (HTTPS) in place of the earlier
+`reference` key, which no measured fixture used. `acquiredAt` is the report
+date, because test dates are not stated.
+
+`packages/physics/src/nasa-drop.ts` validates the payload and its units, then
+drives the real `GroundContact` (Rapier 0.21.0) at 400/800/1200 Hz for 0.3 s
+per case:
+
+* the lumped drop mass is a sphere of the unloaded tire radius, touching the
+  plane at t = 0 with the measured sink speed;
+* the honeycomb force acts upward while descending (the report: it is "on"
+  while crushing and falls to zero at rebound);
+* restitution is 0.
+
+Checks:
+
+* **Impulse:** the reported contact impulses balance m·Δv minus the harness's
+  own gravity and lift within 1 percent of m·v0. The compression impulse
+  arrests m·v0 within 10 percent. This is a solver-consistency check, not a
+  measured comparison.
+* **Nonpenetration:** maximum penetration is at most 0.002 m.
+* **Energy:** after arrest, the rebound speed is at most (e + 0.01)·v0.
+* **Deceleration envelope:** both the most negative per-step acceleration and
+  its 10 ms moving average (matching the 100 Hz instrument bandwidth) stay at or
+  above -1.6 g × 1.1.
+* **Stroke envelope:** the model's contact travel is within 10 percent of the
+  measured strut stroke.
+
+### Result (2026-10-16)
+
+| Case | Measured | Step peak, 400/800/1200 Hz | 10 ms window | Contact travel | Measured stroke |
+| --- | --- | --- | --- | --- | --- |
+| level-4fps | >= -1.6 g | -49.8 / -99.5 / -149.3 g | -12.43 g | 0.11 / 0.09 / 0.07 mm | 55.9 mm |
+| level-5fps | >= -1.6 g | -62.2 / -124.4 / -186.6 g | -15.54 g | 0.14 / 0.11 / 0.09 mm | 94.0 mm |
+| level-6fps | >= -1.6 g | -74.7 / -149.3 / -223.9 g | -18.65 g | 0.16 / 0.13 / 0.11 mm | 111.8 mm |
+
+The impulse, nonpenetration and energy checks pass in all nine runs. For
+example, the arrest impulse is 2720.4 N·s at 400 Hz against m·v0 = 2720.9 N·s,
+and the balance error is below 1e-4 N·s.
+
+Both measured envelopes **fail** in every run. The rigid sphere arrests the
+sink within a few steps, so its peak scales with the step rate, and it has no
+tire or strut degree of freedom. The NASA contact fidelity gate is therefore
+FAIL, not PASS. Passing it needs a landing-gear model with tire force-deflection
+and an oleo-pneumatic strut, validated without fitting to these same
+envelopes.
+
+The fixture and archive document the gear (orifice and piston areas, volumes,
+charging pressure). The tire equation and orifice discharge relations, however,
+are `formula-not-decoded` in the Docling text, so they are not invented here.
+
+`node scripts/validate-models.mjs` writes model report schema v3:
+
+* it hash-checks the fixture against `tests/fixtures/validation/reference-manifest.json`
+  and the registry;
+* it reports `measuredValidation[]` with provenance, nine runs and per-check
+  status;
+* it sets `contactFidelityStatus: "failed"` and overall `status: "failed"`, and
+  exits 2;
+* `numericalStatus` stays `pass` (12 cases);
+* `fidelityStatus` stays `blocked`, because no airframe or rotor dataset exists.
+
+The unpatched Rapier JS binding G1 failure and the missing rotor/airframe
+datasets remain listed as separate blockers.

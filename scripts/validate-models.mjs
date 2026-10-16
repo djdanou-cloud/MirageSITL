@@ -8,8 +8,71 @@ import {
   BetRigidBodyBackend,
   newBodyTruth,
 } from "../packages/wasm-bet/src/backend.ts";
+import { verifyFixture } from "../packages/test-support/src/fixtures.ts";
+import {
+  evaluateNasaDrop,
+  parseNasaDropFixture,
+} from "../packages/physics/src/nasa-drop.ts";
 const root = fileURLToPath(new URL("../", import.meta.url));
 const sha = (b) => createHash("sha256").update(b).digest("hex");
+// The only supported measured-data adapter: NASA TM X-3561 level drops.
+const measurementKeys = [
+  "id",
+  "adapter",
+  "fixture",
+  "registryId",
+  "sourceSha256",
+  "datasetId",
+  "referenceUrl",
+];
+function validMeasurement(m) {
+  return (
+    m !== null &&
+    typeof m === "object" &&
+    !Array.isArray(m) &&
+    Object.keys(m).length === measurementKeys.length &&
+    measurementKeys.every((key) => typeof m[key] === "string") &&
+    m.adapter === "nasa-drop-contact-v1" &&
+    /^[A-Za-z0-9-]{1,64}$/.test(m.id) &&
+    /^tests\/fixtures\/[A-Za-z0-9/_-]+\.json$/.test(m.fixture) &&
+    /^[a-f0-9]{64}$/.test(m.sourceSha256) &&
+    m.referenceUrl.startsWith("https://")
+  );
+}
+/** Hash-checks a measured fixture against its registry entry, then runs it. */
+async function measuredCase(m) {
+  const bytes = readFileSync(join(root, m.fixture)),
+    registry = JSON.parse(
+      readFileSync(join(root, "tests/fixtures/registry.json"), "utf8"),
+    ),
+    entry = registry.fixtures.find(
+      (item) => `tests/fixtures/${item.path}` === m.fixture,
+    );
+  if (!entry || entry.manifest.id !== m.registryId)
+    throw new Error(`Unregistered measured fixture: ${m.fixture}`);
+  const manifest = await verifyFixture(entry.manifest, bytes);
+  if (
+    manifest.sourceSha256 !== m.sourceSha256 ||
+    manifest.provenance.kind !== "measured" ||
+    manifest.provenance.datasetId !== m.datasetId ||
+    manifest.provenance.referenceUrl !== m.referenceUrl
+  )
+    throw new Error(`Measured fixture provenance mismatch: ${m.id}`);
+  const result = await evaluateNasaDrop(
+    parseNasaDropFixture(JSON.parse(bytes.toString("utf8"))),
+  );
+  return {
+    id: m.id,
+    datasetId: m.datasetId,
+    referenceUrl: m.referenceUrl,
+    license: manifest.provenance.license,
+    acquiredAt: manifest.provenance.acquiredAt,
+    sourceSha256: m.sourceSha256,
+    consistencyStatus: result.consistencyStatus,
+    status: result.measuredStatus,
+    runs: result.runs,
+  };
+}
 export function parseReference(bytes) {
   const v = JSON.parse(bytes);
   const finiteArray = (a, n) =>
@@ -29,7 +92,8 @@ export function parseReference(bytes) {
     typeof v.provenance !== "string" ||
     !v.provenance.length ||
     !Array.isArray(v.measurements) ||
-    v.measurements.length !== 0 ||
+    v.measurements.length > 4 ||
+    !v.measurements.every(validMeasurement) ||
     !Array.isArray(v.cases) ||
     v.cases.length < 1 ||
     v.cases.length > 32
@@ -144,16 +208,28 @@ export async function validateModels() {
         });
       }
   }
+  const measured = [];
+  for (const m of reference.measurements) measured.push(await measuredCase(m));
+  const contactFidelityStatus =
+    measured.length === 0
+      ? "blocked"
+      : measured.every((m) => m.status === "pass")
+        ? "pass"
+        : "failed";
   return {
-    schemaVersion: 2,
-    status: passed ? "blocked" : "failed",
+    schemaVersion: 3,
+    // A measured comparison that ran and failed is a failure, not a blocker.
+    status: !passed || contactFidelityStatus === "failed" ? "failed" : "blocked",
     numericalStatus: passed ? "pass" : "failed",
     fidelityStatus: "blocked",
+    contactFidelityStatus,
+    measuredValidation: measured,
     referenceSha256: sha(refBytes),
     artifactSha256: { scalar: sha(bytes.scalar), simd128: sha(bytes.simd128) },
     cases,
     blockers: [
-      "Measured airframe/rotor validation is not certified.",
+      "Measured airframe/rotor validation is not certified: no airframe/rotor dataset is archived.",
+      "NASA TM X-3561 level drops: the rigid Rapier sphere arrests the sink in a few steps, far beyond the measured -1.6 g upper-mass envelope, and has no strut/tire stroke; a landing-gear model is required.",
       "Full BET polar/rotor-to-body backend is not connected.",
       "Production Rapier contact G1 is not certified; opt-in patched native evidence does not certify its JS/WASM binding.",
       "JSBSim WASM parity and contact coupling are not certified; patched native allocation/trim are separate evidence.",
@@ -205,7 +281,7 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
     mkdirSync(dirname(out), { recursive: true });
     writeFileSync(out, JSON.stringify(report, null, 2) + "\n");
     console.log(
-      `Model validation: numerical=${report.numericalStatus}; fidelity=${report.fidelityStatus}; status=${report.status}; ${report.cases.length} cases; ${out}`,
+      `Model validation: numerical=${report.numericalStatus}; fidelity=${report.fidelityStatus}; contact=${report.contactFidelityStatus}; status=${report.status}; ${report.cases.length} cases; ${report.measuredValidation.length} measured; ${out}`,
     );
     process.exitCode = report.status === "pass" ? 0 : 2;
   } catch (error) {

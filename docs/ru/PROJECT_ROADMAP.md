@@ -1,6 +1,6 @@
 # PROJECT_ROADMAP.md
 
-<!-- source-sha256: 0dc68b8f989c4f8223ed0a6fdd624b09885c61b7c3a8574a3670c95c8a8c77f5 -->
+<!-- source-sha256: 57f7367dc238be91a4e5eeb406cfa36f0fc03e0ea1d336113410c34efc5717b2 -->
 
 Английский источник: [Source of truth](../PROJECT_ROADMAP.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -445,7 +445,7 @@ Cargo bin активирован в PATH. Производительность M
 - **Status:** BLOCKED_DECISION — Codex; нативный патч проходит, production-привязка не сертифицирована.
 - **Title & Description:** Подключить один выбранный contact solver и согласовать impulses.
 - **Dependencies:** TASK-028.
-- **Touched Files:** `packages/physics/src/contact-backend.ts`, `packages/physics/src/ground-contact.ts`, `tests/contact.test.ts`, `tests/fixtures/contact/drop.json`, `package-lock.json`, `packages/physics/package.json`, `tests/contact-allocation.test.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `tests/fixtures/registry.json`, `packages/physics/src/contact-engine.ts`, `scripts/bench-contact.mjs`, `native/rapier/allocation_probe.rs`, `native/rapier/source.lock.json`, `native/rapier/Cargo.lock`, `scripts/check-contact-native.mjs`, `CLAUDE.md`, `docs/ru/CLAUDE.md`, `native/rapier/patches/reuse-step-buffers.patch`, `scripts/check-engine-patch-parity.mjs`, `tests/engine-patch-parity.test.ts`.
+- **Touched Files:** `packages/physics/src/contact-backend.ts`, `packages/physics/src/ground-contact.ts`, `tests/contact.test.ts`, `tests/fixtures/contact/drop.json`, `package-lock.json`, `packages/physics/package.json`, `tests/contact-allocation.test.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `tests/fixtures/registry.json`, `packages/physics/src/contact-engine.ts`, `scripts/bench-contact.mjs`, `native/rapier/allocation_probe.rs`, `native/rapier/source.lock.json`, `native/rapier/Cargo.lock`, `scripts/check-contact-native.mjs`, `CLAUDE.md`, `docs/ru/CLAUDE.md`, `native/rapier/patches/reuse-step-buffers.patch`, `scripts/check-engine-patch-parity.mjs`, `tests/engine-patch-parity.test.ts`, `tests/fixtures/contact/nasa-drop.json`, `tests/fixtures/contact/generate_nasa_drop.py`, `tests/fixtures/contact/nasa/nasa-tm-x-3561.md`, `tests/fixtures/contact/nasa/nasa-tp-2353.md`, `tests/fixtures/contact/nasa/naca-report-1248.md`, `.gitattributes`, `packages/physics/src/nasa-drop.ts`, `packages/test-support/src/fixtures.ts`, `tests/fixtures.test.ts`, `scripts/check-docs.mjs`, `README.md`, `docs/ru/README.md`.
 - **Interfaces / Contracts:** ContactImpulse {pointBody,impulseNed,dt}; Rapier или Jolt, выбор зафиксирован ADR.
 - **DoD & Acceptance Criteria:** Drop/roll/friction/no-penetration fixtures; restitution не добавляет энергии сверх заданного; rigid body не интегрируется вторым solver одновременно; alloc budget G1.
 
@@ -454,6 +454,18 @@ Cargo bin активирован в PATH. Производительность M
 - **Retry Evidence:** Повтор: getter с готовыми объектами и постоянные raw-векторы силы/момента/гравитации заменили создание обёрток на шаге; проверены raw pipeline с фиксированной топологией и идемпотентный dispose. Прогретая JS-проба по-прежнему провалена: 143/142/71 событий GC на окно 1e6 шагов (код 1). Нативный Rapier f64 0.36.0 без profiler, коммит b716d375efc0201003f0cd9ef7168eee0b62c177: 1,688,500 вызовов / 77,328,000 байт на 1e6 шагов (код 2). Отчёты test-results/bench/contact.json и contact-native.json. Нативный f64 не сертифицирует поставляемый f32 WASM. G1 провален, высокочастотного допуска нет.
 
 - **Patch Retry Evidence (2026-10-16):** Явный патч повторного использования: одинаковые прогоны бодрствующей сферы/полупространства дают 2,002,500 вызовов / 96,320,000 байт у оригинала и ноль у патча за 1e6 шагов; сумма траектории 317ba7c959cd2b59 совпадает. Отчёт test-results/bench/contact-native-patched.json, код 0. Прежние числа относятся к конечному параллелепипеду со сном. Поставляемая JS-привязка всё ещё проваливает G1; общее шасси не завершено.
+
+- **Доказательства по измеренным сбросам NASA (2026-10-16):** Владелец Claude; baseline 71cf1cf.
+  - Три источника Docling архивированы побайтово в `tests/fixtures/contact/nasa/`:
+    - TM X-3561, SHA-256 8cf5d33d1d2afbd4a28af064901fcf82910dad25e9e3ce916b2249e5d12c4c39;
+    - TP-2353, SHA-256 1a2a73a922c4b76b174968a554e7390c5e5d717322965ff959c056655b6b3aad;
+    - NACA Report 1248, SHA-256 e49485f4d8a44c151f09b39fff8c67fbb2fbf8441fb5aa19566ec5c1594630ba.
+  - `generate_nasa_drop.py` записывает `nasa-drop.json` (SHA-256 62adb81b0a56b5e50a921db0e26d154501b0e4e83a58cfc2f22fed571bc69207). Фикстура зарегистрирована с измеренным происхождением `NASA-TM-X-3561-DropTest`, https://ntrs.nasa.gov/citations/19780003109.
+  - `tests/contact.test.ts` воспроизводит сбросы 4/5/6 ft/s на 400/800/1200 Hz.
+    - Проверки импульса, непроникания и энергии проходят.
+    - Измеренное замедление не выполняется: пик за шаг от -49.8 до -223.9 g и окно 10 ms от -12.43 до -18.65 g, против не ниже -1.6 g.
+    - Измеренный ход не выполняется: ход контакта не больше 0.16 mm, против 55.9–111.8 mm.
+  - Жёсткая сфера не является моделью шасси, поэтому статус остаётся BLOCKED_DECISION.
 
 ### TASK-030 — Pinned JSBSim WASM artifact
 
@@ -500,7 +512,7 @@ Cargo bin активирован в PATH. Производительность M
 - **Status:** BLOCKED_EXTERNAL — Codex; retry verified on 2026-10-16.
 - **Title & Description:** Выполнить общий numerical/reference gate и сформировать отчёт достоверности моделей.
 - **Dependencies:** TASK-014, TASK-024, TASK-028, TASK-029, TASK-031.
-- **Touched Files:** `scripts/validate-models.mjs`, `tests/model-validation.test.ts`, `docs/validation/model-report.schema.json`, `tests/fixtures/validation/reference-manifest.json`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `scripts/check-engine-patch-parity.mjs`, `tests/engine-patch-parity.test.ts`.
+- **Touched Files:** `scripts/validate-models.mjs`, `tests/model-validation.test.ts`, `docs/validation/model-report.schema.json`, `tests/fixtures/validation/reference-manifest.json`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `scripts/check-engine-patch-parity.mjs`, `tests/engine-patch-parity.test.ts`, `packages/physics/src/nasa-drop.ts`, `packages/physics/src/ground-contact.ts`, `tests/fixtures/contact/nasa-drop.json`, `tests/fixtures/registry.json`, `README.md`, `docs/ru/README.md`.
 - **Interfaces / Contracts:** ValidityEnvelope; numerical parity отдельно от experimental validity.
 - **DoD & Acceptance Criteria:** Smooth 10 s cases: <=0.1 m/0.5° against 4800 Hz; scalar/SIMD force/moment tolerance §4; provenance каждого эталона; отсутствие экспериментальных данных даёт BLOCKED_EXTERNAL для fidelity, не fake PASS.
 
@@ -513,6 +525,15 @@ Cargo bin активирован в PATH. Производительность M
 ## Phase 3: ArduPilot & Radio Link
 
 - **Patch Retry Evidence (2026-10-16):** Добавлена проверка паритета оригинал/патч с SHA-256 исходников/патча/отчёта, суммами всех шагов и тестами отклонения. Оба нативных патча проходят; исходные JS/нативные критерии провалены. Отчёт модели v2 разделяет результаты и всё ещё возвращает 2 при заблокированной fidelity. Отсутствие измерений, полной привязки BET и интеграции WASM/контакта явно сохранено.
+
+- **Доказательства по измеренному шлюзу NASA (2026-10-16):** Владелец Claude.
+  - `reference-manifest.json` добавляет измерение `nasa-tm-x-3561-drop`. Его адаптер `nasa-drop-contact-v1` сверяется по хешу с реестром.
+  - `node scripts/validate-models.mjs` пишет схему v3 с `measuredValidation` (9 прогонов) и завершается с кодом 2:
+    - numerical=pass (12 случаев);
+    - fidelity=blocked: нет данных ротора/планера;
+    - contactFidelity=failed;
+    - status=failed.
+  - Отказ G1 непропатченной JS-привязки Rapier и отсутствие привязки BET остаются отдельными блокерами.
 
 ### TASK-034 — Ideal sensors
 

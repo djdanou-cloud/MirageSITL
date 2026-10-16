@@ -9,7 +9,7 @@ export interface FixtureManifest {
   tolerance: { readonly absolute: number; readonly relative: number };
   provenance:
     | { readonly kind: 'synthetic'; readonly derivation: string }
-    | { readonly kind: 'measured'; readonly datasetId: string; readonly license: string; readonly acquiredAt: string; readonly reference: string };
+    | { readonly kind: 'measured'; readonly datasetId: string; readonly license: string; readonly acquiredAt: string; readonly referenceUrl: string };
 }
 function record(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -43,9 +43,9 @@ function assertManifest(value: unknown): asserts value is FixtureManifest {
   if (origin.kind === 'synthetic') {
     if (!keys(origin, ['kind', 'derivation']) || !text(origin.derivation)) throw new Error('Invalid synthetic provenance');
   } else if (origin.kind === 'measured') {
-    if (!keys(origin, ['kind', 'datasetId', 'license', 'acquiredAt', 'reference']) ||
+    if (!keys(origin, ['kind', 'datasetId', 'license', 'acquiredAt', 'referenceUrl']) ||
       !text(origin.datasetId) || !text(origin.license) || !text(origin.acquiredAt) || !Number.isFinite(Date.parse(origin.acquiredAt)) ||
-      !text(origin.reference) || !origin.reference.startsWith('https://')) throw new Error('Invalid measurement provenance');
+      !text(origin.referenceUrl) || !origin.referenceUrl.startsWith('https://')) throw new Error('Invalid measurement provenance');
   } else throw new Error('Unknown fixture provenance');
 }
 function freeze<T>(value: T): Readonly<T> {

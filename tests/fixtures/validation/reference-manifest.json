@@ -6,8 +6,10 @@
   "testHz": [400, 800, 1200],
   "positionToleranceM": 0.1,
   "attitudeToleranceRad": 0.008726646259971648,
-  "provenance": "Independent ballistic equations plus RK4 step refinement; numerical self-consistency only, no measured aircraft fidelity.",
-  "measurements": [],
+  "provenance": "Independent ballistic equations plus RK4 step refinement; numerical self-consistency only, no measured aircraft fidelity. Measurement entries carry their own measured provenance in tests/fixtures/registry.json.",
+  "measurements": [
+    {"id":"nasa-tm-x-3561-drop","adapter":"nasa-drop-contact-v1","fixture":"tests/fixtures/contact/nasa-drop.json","registryId":"nasa-tm-x-3561-drop-v1","sourceSha256":"62adb81b0a56b5e50a921db0e26d154501b0e4e83a58cfc2f22fed571bc69207","datasetId":"NASA-TM-X-3561-DropTest","referenceUrl":"https://ntrs.nasa.gov/citations/19780003109"}
+  ],
   "cases": [
     {"id":"ballistic","massKg":1,"inertia":[1,0,0,0,1,0,0,0,1],"wrench":[0,0,0,0,0,0]},
     {"id":"turning-force","massKg":1,"inertia":[1,0,0,0,2,0,0,0,3],"wrench":[0.1,0.2,-9.7,0.01,0.02,0.03]}
