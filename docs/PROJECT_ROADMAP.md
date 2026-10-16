@@ -237,12 +237,13 @@ copy Google content without rights.
 
 ### TASK-013 — Sensor/actuator SPSC queues
 
-- **Status:** TODO.
+- **Status:** DONE — Claude; baseline aef7af6; 2026-10-16.
 - **Title & Description:** Implement separate bounded queues with strict ownership and backpressure.
 - **Dependencies:** TASK-008, TASK-009, TASK-012.
-- **Touched Files:** `packages/protocol/src/spsc-v2.ts`, `packages/protocol/src/sensor-frame.ts`, `packages/protocol/src/actuator-frame.ts`, `tests/spsc-v2.test.ts`, `tests/browser/spsc-v2.spec.ts`.
+- **Touched Files:** `packages/protocol/src/spsc-v2.ts`, `packages/protocol/src/sensor-frame.ts`, `packages/protocol/src/actuator-frame.ts`, `tests/spsc-v2.test.ts`, `tests/browser/spsc-v2.spec.ts`, `packages/protocol/src/index.ts`, `tests/support/spsc-stress.ts`, `tests/support/spsc-stress.node-worker.ts`, `tests/support/spsc-stress.browser-worker.ts`, `docs/architecture.md`, `docs/ru/architecture.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
 - **Interfaces / Contracts:** SPECS_SHARED_MEMORY section 5; capacity=1024, stride=128.
 - **DoD & Acceptance Criteria:** Test full/empty/wrap/reset; never overwrite unread slots; 1e6 frames retain order; SITL/HITL policies handle overflow without silent drops.
+- **Evidence:** Owner Claude; baseline aef7af6; 2026-10-16. tests/spsc-v2.test.ts: 9 PASS: slot offsets/types parsed from the section 5 table and header offsets/magics from its prose; size/kind/ABI/reserved validation; empty pop; 1024 pushes then would-block twice with full_events=2 and every unread frame intact in order; HITL overflow latches faulted (even after space frees) until resetSpscQueue clears counters and advances the epoch; order across the uint32 counter wrap; frame codecs at spec offsets with round trip and 13 sensor plus 5 actuator contract violations rejected. Concurrency: 1e6 frames from a Node worker_threads producer with SITL retry: 1000000 received, 0 out of order, 0 corrupt, 0 invalid, full_events equal to would-block retries; tests/browser/spsc-v2.spec.ts in a Chromium module Worker: 1000000 received, 0 out of order/corrupt/invalid. Mutations: disabling the full check fails three tests; releasing a slot before copying it fails the real-thread stress test. npm run lint, npm run typecheck, npm run check:docs exit 0; CI=true npm test: 165 PASS. Node 22.22.0. No producer or consumer is attached in the application yet (TASK-085 creates the buffers; I/O workers arrive with TASK-034+).
 
 ### TASK-014 — Hot-path instrumentation
 

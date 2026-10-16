@@ -1,6 +1,6 @@
 # PROJECT_ROADMAP.md
 
-<!-- source-sha256: b2c9cda52da67c8dd3c8b0397d220c7c090cb890168b145a5a6c369651fc0e90 -->
+<!-- source-sha256: 59aebc2a0bd7c6e2089b78945afedd7e915c41d75aa82bda75ce32f756483d00 -->
 
 Английский источник: [Source of truth](../PROJECT_ROADMAP.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -240,12 +240,13 @@ Google content без прав.
 
 ### TASK-013 — Sensor/actuator SPSC
 
-- **Status:** TODO.
+- **Status:** DONE — Claude; baseline aef7af6; 2026-10-16.
 - **Title & Description:** Создать раздельные bounded queues со строгим владением и backpressure.
 - **Dependencies:** TASK-008, TASK-009, TASK-012.
-- **Touched Files:** `packages/protocol/src/spsc-v2.ts`, `packages/protocol/src/sensor-frame.ts`, `packages/protocol/src/actuator-frame.ts`, `tests/spsc-v2.test.ts`, `tests/browser/spsc-v2.spec.ts`.
+- **Touched Files:** `packages/protocol/src/spsc-v2.ts`, `packages/protocol/src/sensor-frame.ts`, `packages/protocol/src/actuator-frame.ts`, `tests/spsc-v2.test.ts`, `tests/browser/spsc-v2.spec.ts`, `packages/protocol/src/index.ts`, `tests/support/spsc-stress.ts`, `tests/support/spsc-stress.node-worker.ts`, `tests/support/spsc-stress.browser-worker.ts`, `docs/architecture.md`, `docs/ru/architecture.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
 - **Interfaces / Contracts:** SPECS_SHARED_MEMORY §5; capacity=1024, stride=128.
 - **DoD & Acceptance Criteria:** Full/empty/wrap и reset tested; unread slot никогда не затирается; 1e6 frames сохраняют порядок; overflow SITL/HITL обрабатывается policy, не silent drop.
+- **Evidence:** Владелец Claude; baseline aef7af6; 2026-10-16. tests/spsc-v2.test.ts: 9 PASS: смещения/типы слота разобраны из таблицы раздела 5, смещения/magic header — из его текста; проверка размера/вида/ABI/reserved; pop из пустой очереди; 1024 push, затем дважды would-block при full_events=2 и все непрочитанные кадры целы и по порядку; переполнение HITL фиксирует faulted (даже после освобождения места) до resetSpscQueue, который очищает счётчики и продвигает epoch; порядок через переход счётчика uint32; codecs кадров по смещениям спецификации с round trip и отклонением 13 нарушений контракта датчиков и 5 — актуаторов. Конкурентность: 1e6 кадров от producer в Node worker_threads с повтором по политике SITL: получено 1000000, 0 вне порядка, 0 повреждённых, 0 недопустимых, full_events равны повторам would-block; tests/browser/spsc-v2.spec.ts в module Worker Chromium: получено 1000000, 0 вне порядка/повреждённых/недопустимых. Мутации: отключение проверки заполнения проваливает три теста; освобождение слота до копирования проваливает стресс-тест на реальных потоках. npm run lint, npm run typecheck, npm run check:docs exit 0; CI=true npm test: 165 PASS. Node 22.22.0. В приложении пока не подключены producer и consumer (TASK-085 создаёт буферы; I/O workers появляются с TASK-034+).
 
 ### TASK-014 — Измеритель hot path
 

@@ -395,3 +395,20 @@ starved. **hitl-realtime** paces by wall time against a physical flight
 controller; catch-up within `maxCatchUp` is normal, but any dropped interval
 sets the `hitl-overrun` fault, after which no tick runs until `resetEpoch`.
 The preallocated `PumpReport` is overwritten each pump.
+
+### Sensor and actuator SPSC queues (TASK-013)
+
+`spsc-v2.ts` implements the section 5 queues: one 131,136-byte SAB per
+direction, one `SpscProducer` and one `SpscConsumer` each. The producer owns
+write_counter/full_events, the consumer owns read_counter; counters are
+modular uint32 and every shared word uses Atomics. A full queue never
+overwrites unread frames: `sitl-would-block` returns `would-block` so
+lockstep waits, and `hitl-fault` latches a session fault until
+`resetSpscQueue`, which clears counters and advances the queue epoch only
+while both endpoints are stopped. Every full condition increments
+full_events. The consumer copies a slot to scratch and releases it before
+decoding. `SensorFrameCodecV2` and `ActuatorFrameCodecV2` pack the shared
+128-byte slot and validate per kind: value counts, f32 range, exact integer
+GNSS fix/satellite values, GNSS-only validity bits, zero geo fields outside
+GNSS, and normalized actuators in [-1,1]. Real-thread stress tests move 1e6
+frames in order in Node worker_threads and in a browser Worker.
