@@ -831,12 +831,13 @@ were synchronized and checked. Changes remain local; no commit or push performed
 
 ### TASK-063 — Cloudflare tiles proxy
 
-- **Status:** TODO.
+- **Status:** DONE — Claude; baseline e9ad0f3; 2026-10-16 (local Worker tests; deployment and live provider credentials need separate authorization).
 - **Title & Description:** Build an authenticated proxy with quotas, attribution/CORS, and permitted TTLs.
 - **Dependencies:** TASK-060, TASK-061.
-- **Touched Files:** `services/tiles-worker/package.json`, `services/tiles-worker/wrangler.jsonc`, `services/tiles-worker/src/index.ts`, `services/tiles-worker/src/policy.ts`, `tests/tiles-proxy.test.ts`.
+- **Touched Files:** `services/tiles-worker/package.json`, `services/tiles-worker/wrangler.jsonc`, `services/tiles-worker/src/index.ts`, `services/tiles-worker/src/policy.ts`, `tests/tiles-proxy.test.ts`, `packages/terrain/src/tiles-provider.ts`, `packages/terrain/src/tiles-scene.ts`, `tsconfig.json`.
 - **Interfaces / Contracts:** ProviderPolicy; opaque upstream secret binding; origin/session verification.
 - **DoD & Acceptance Criteria:** Local Worker tests verify no key reaches clients/logs, invalid origin/session/quota rejection, and provider restrictions; deployment needs separate authorization and is not implied by local success.
+- **Evidence:** Owner Claude; baseline e9ad0f3; 2026-10-16. Node 24.22.0: tests/tiles-proxy.test.ts 10 PASS with a fake upstream and fake Durable Object storage (no live provider request, no deployment). Cases: configuration fails closed (missing key, short signing key, empty/non-HTTPS/path origins, invalid JSON, persistent Google policy, licensed policy, TTL bounds) and answers 503 without upstream calls; missing/foreign Origin 403, preflight 204 with the session header; missing, tampered, malformed, cross-origin, expired and foreign-key sessions 401 before any upstream request; forwarding adds the key only upstream, keeps only Google's session parameter, strips set-cookie, sets CORS/CORP, Cache-Control no-store (TTL 0) and attribution; HEAD has no body; foreign paths, traversal, double slashes, client keys, extra or duplicate parameters and non-GET methods rejected; upstream 403 body containing the key returns a generic 503, a JSON body echoing the key is blocked with 502, and an upstream exception returns 502; per-session request and per-IP issuance quotas return 429 and reset after the window; client requestTilesSession validation and TileFetchTracker session header end-to-end. After all tests, no response body/header or log event contains the key (>20 of each observed). Mutations killed: forwarding arbitrary parameters, disabled key-leak check, origin binding, expiry, off-by-one quota, echoed upstream errors, disabled origin check, missing upstream key, quota window reset, TTL cache policy. wrangler.jsonc binds secrets by name only; deployment, a live key and Turnstile-style human verification remain external.
 
 ### TASK-064 — R2 for permitted datasets
 

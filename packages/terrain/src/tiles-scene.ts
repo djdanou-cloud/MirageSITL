@@ -9,7 +9,7 @@
 // charged against both budgets and the cap is the smaller of the two.
 import { Matrix4, type Camera, type WebGLRenderer } from "three";
 import { TilesRenderer } from "3d-tiles-renderer";
-import { TileFetchTracker, ecefToRenderMatrix, type TileFailure } from "./tiles-provider.ts";
+import { TileFetchTracker, ecefToRenderMatrix, type TileFailure, type TilesSession } from "./tiles-provider.ts";
 import { LodBudget } from "./lod-budget.ts";
 
 export interface TilesSceneOptions {
@@ -22,6 +22,8 @@ export interface TilesSceneOptions {
   renderer: WebGLRenderer;
   /** Optional fetch replacement (tests); defaults to the browser fetch. */
   fetchImpl?: (url: string, init: RequestInit) => Promise<Response>;
+  /** Tiles-proxy session sent with every request (google-live through TASK-063). */
+  session?: TilesSession;
   /** LOD budget (default: 2 GiB GPU, 512 MiB decoded CPU). */
   budget?: LodBudget;
 }
@@ -39,6 +41,7 @@ export class TilesScene {
   constructor(options: TilesSceneOptions) {
     this.attribution = options.attribution;
     this.tracker = new TileFetchTracker(options.fetchImpl);
+    this.tracker.session = options.session ?? null;
     const tiles = new TilesRenderer(options.url);
     const tracker = this.tracker;
     tiles.registerPlugin({ name: "MIRAGE_FETCH_TRACKER", fetchData: (url: string, init: RequestInit) => tracker.fetch(url, init) });

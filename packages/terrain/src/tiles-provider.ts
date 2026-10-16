@@ -77,6 +77,8 @@ type FetchLike = (url: string, init: RequestInit) => Promise<Response>;
 /** Counts and aborts tile requests and records classified failures (I/O side, not the physics loop). */
 export class TileFetchTracker {
   readonly failures: TileFailure[] = [];
+  /** Proxy session header sent with every request (TASK-063), or null. */
+  session: TilesSession | null = null;
   private readonly controllers = new Set<AbortController>();
   private disposed = false;
   constructor(private readonly fetchImpl: FetchLike = (url, init) => fetch(url, init), private readonly maxFailures = 64) {}
@@ -93,7 +95,9 @@ export class TileFetchTracker {
     upstream?.addEventListener("abort", relay, { once: true });
     this.controllers.add(controller);
     try {
-      const response = await this.fetchImpl(url, { ...init, signal: controller.signal, mode: "cors", credentials: "omit" });
+      const headers = new Headers(init.headers);
+      if (this.session) headers.set(this.session.header, this.session.token);
+      const response = await this.fetchImpl(url, { ...init, headers, signal: controller.signal, mode: "cors", credentials: "omit" });
       if (!response.ok) this.record(url, classifyTileFailure(null, response), response.status, `HTTP ${response.status}`);
       return response;
     } catch (error) {
@@ -116,4 +120,26 @@ export class TileFetchTracker {
     for (const controller of this.controllers) controller.abort(new DOMException("Tiles source disposed", "AbortError"));
     this.controllers.clear();
   }
+}
+
+/** Origin-bound session issued by the tiles proxy (TASK-063). */
+export interface TilesSession { token: string; header: string; expiresAtS: number; attribution: string }
+
+/**
+ * Requests a session from the tiles proxy at `proxyOrigin` (POST /v1/session).
+ * The response is validated; the client never sees or sends a provider key.
+ */
+export async function requestTilesSession(proxyOrigin: string, fetchImpl: FetchLike = (url, init) => fetch(url, init)): Promise<TilesSession> {
+  const response = await fetchImpl(new URL("/v1/session", proxyOrigin).href, { method: "POST", mode: "cors", credentials: "omit" });
+  if (!response.ok) throw new Error(`Tiles session refused: HTTP ${response.status}`);
+  const value: unknown = await response.json();
+  if (typeof value !== "object" || value === null || !("token" in value) || !("header" in value) || !("expiresAtS" in value) || !("attribution" in value)) {
+    throw new Error("Invalid tiles session response");
+  }
+  const { token, header, expiresAtS, attribution } = value;
+  if (typeof token !== "string" || !/^[A-Za-z0-9_.-]{16,1024}$/.test(token) || header !== "X-Mirage-Session" ||
+    typeof expiresAtS !== "number" || !Number.isSafeInteger(expiresAtS) || typeof attribution !== "string" || !attribution.trim()) {
+    throw new Error("Invalid tiles session response");
+  }
+  return { token, header, expiresAtS, attribution };
 }

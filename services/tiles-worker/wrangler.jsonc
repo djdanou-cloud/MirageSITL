@@ -1,0 +1,25 @@
+// Cloudflare Worker configuration for the tiles proxy (TASK-063).
+// Secrets are bound with `wrangler secret put`, never written here:
+//   GOOGLE_MAPS_API_KEY  provider credential (server-side only)
+//   SESSION_SIGNING_KEY  >= 32 characters, HMAC key for session tokens
+// Deployment is not part of TASK-063 and needs separate authorization.
+{
+  "name": "mirage-tiles-proxy",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-01",
+  "workers_dev": false,
+  "vars": {
+    // Exact origins, comma separated (https only; http allowed for localhost).
+    "ALLOWED_ORIGINS": "http://localhost:5173",
+    // TASK-060 provider policy: Google live tiles, memory only, TTL 0, no prefetch/offline.
+    "PROVIDER_POLICY": "{\"provider\":\"google-live\",\"attribution\":\"Google\",\"allowedCache\":\"memory\",\"ttlS\":0,\"offline\":false,\"prefetch\":false,\"datasetLicense\":\"Google Map Tiles API terms\",\"evidenceSha256\":null}",
+    "SESSION_TTL_S": "3600",
+    "SESSION_REQUEST_LIMIT": "5000",
+    "SESSION_ISSUE_LIMIT": "20",
+    "QUOTA_WINDOW_S": "3600"
+  },
+  "durable_objects": {
+    "bindings": [{ "name": "QUOTA", "class_name": "TileQuota" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["TileQuota"] }]
+}

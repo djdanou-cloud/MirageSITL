@@ -717,3 +717,28 @@ wall time. `TilesScene` applies the budget to the loader: its LRU byte cap
 is the smaller budget (the loader's single geometry + texture estimate is
 charged to both, since three.js keeps decoded arrays beside GPU copies) and
 its `errorTarget` follows `LodBudget` every rendered frame.
+
+### Authenticated tiles proxy (TASK-063)
+
+`services/tiles-worker` is a Cloudflare Worker for Google Photorealistic 3D
+Tiles. The provider key exists only in the `GOOGLE_MAPS_API_KEY` secret
+binding and in the upstream URL; it never appears in responses, client URLs or
+log events. `POST /v1/session` issues an HMAC-SHA256 session token bound to an
+exactly matched allowed origin with an expiry (default 1 h), rate-limited per
+client IP. `GET|HEAD /v1/3dtiles/...` requires an allowed `Origin` and a valid
+`X-Mirage-Session`, consumes the per-session quota, and forwards only Google
+tile paths (no traversal) with only Google's `session` query parameter; a
+client-supplied `key` or any other parameter is rejected. Quotas are
+fixed-window counters in the `TileQuota` Durable Object (one object per key,
+so updates are serialized across isolates). Responses carry CORS for the
+origin, `Cross-Origin-Resource-Policy: cross-origin` (COEP), the policy
+attribution in `X-Mirage-Attribution`, and `Cache-Control: no-store` because
+the Google live policy has TTL 0; the proxy never caches or prefetches.
+Upstream error bodies are never echoed, and text bodies containing the key are
+replaced by a 502. Configuration fails closed (missing secret, origin list or
+policy, or a non-Google policy). On the client, `requestTilesSession`
+validates the session response and `TileFetchTracker`/`TilesScene` send the
+session header with every request. Sessions limit and attribute use; they do
+not authenticate a person. Tests are local only (fake upstream and Durable
+Object storage); `wrangler` is not a repository dependency, and deployment
+needs separate authorization.

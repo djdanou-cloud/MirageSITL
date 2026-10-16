@@ -1,6 +1,6 @@
 # PROJECT_ROADMAP.md
 
-<!-- source-sha256: b4585f4dd76f8c9b182bc516a62a75bcd78347c2be9120b7dba4f1ff54ae4efc -->
+<!-- source-sha256: 001620faef17aa8eaae2b5c1f0c86ce6219dfe8e34b61005843fa66df136077c -->
 
 Английский источник: [Source of truth](../PROJECT_ROADMAP.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -834,12 +834,13 @@ Cargo bin активирован в PATH. Производительность M
 
 ### TASK-063 — Cloudflare tiles proxy
 
-- **Status:** TODO.
+- **Status:** DONE — Claude; база e9ad0f3; 2026-10-16 (локальные тесты Worker; развёртывание и живые учётные данные поставщика требуют отдельного разрешения).
 - **Title & Description:** Создать authenticated proxy с quota, attribution/CORS и разрешёнными TTL.
 - **Dependencies:** TASK-060, TASK-061.
-- **Touched Files:** `services/tiles-worker/package.json`, `services/tiles-worker/wrangler.jsonc`, `services/tiles-worker/src/index.ts`, `services/tiles-worker/src/policy.ts`, `tests/tiles-proxy.test.ts`.
+- **Touched Files:** `services/tiles-worker/package.json`, `services/tiles-worker/wrangler.jsonc`, `services/tiles-worker/src/index.ts`, `services/tiles-worker/src/policy.ts`, `tests/tiles-proxy.test.ts`, `packages/terrain/src/tiles-provider.ts`, `packages/terrain/src/tiles-scene.ts`, `tsconfig.json`.
 - **Interfaces / Contracts:** ProviderPolicy, opaque upstream key binding, origin/session checks.
 - **DoD & Acceptance Criteria:** Local Worker tests: key не попадает клиенту/logs; bad origin/session и quota rejected; provider cache restrictions соблюдены; external deployment требует отдельного разрешения, не входит в local test success.
+- **Evidence:** Исполнитель Claude; база e9ad0f3; 2026-10-16. Node 24.22.0: tests/tiles-proxy.test.ts 10 PASS с поддельным поставщиком и поддельным хранилищем Durable Object (без живых запросов к поставщику и без развёртывания). Случаи: конфигурация отказывает по умолчанию (нет ключа, короткий ключ подписи, пустые/не HTTPS/с путём origin, неверный JSON, постоянная политика Google, лицензированная политика, границы TTL) и отвечает 503 без запросов к поставщику; отсутствующий/чужой Origin — 403, preflight — 204 с заголовком сеанса; отсутствующий, подделанный, искажённый, чужого origin, истёкший сеанс и сеанс с чужим ключом — 401 до любого запроса к поставщику; пересылка добавляет ключ только к запросу поставщику, сохраняет только параметр Google session, удаляет set-cookie, задаёт CORS/CORP, Cache-Control no-store (TTL 0) и атрибуцию; HEAD без тела; чужие пути, обход каталогов, двойные слеши, клиентские ключи, лишние или повторные параметры и методы кроме GET отклоняются; ответ 403 поставщика с ключом в теле даёт общий 503, тело JSON с ключом блокируется ответом 502, исключение поставщика даёт 502; квоты запросов на сеанс и выдачи сеансов на IP возвращают 429 и сбрасываются после окна; проверка requestTilesSession на клиенте и заголовок сеанса TileFetchTracker от начала до конца. После всех тестов ни одно тело/заголовок ответа и ни одно событие журнала не содержит ключ (наблюдалось >20 каждого). Убитые мутации: пересылка произвольных параметров, отключённая проверка утечки ключа, привязка к origin, срок действия, квота со сдвигом на единицу, пересылка ошибок поставщика, отключённая проверка origin, отсутствующий ключ у поставщика, сброс окна квоты, политика кэша по TTL. wrangler.jsonc привязывает секреты только по имени; развёртывание, живой ключ и проверка человека в стиле Turnstile остаются внешними.
 
 ### TASK-064 — R2 для разрешённых datasets
 
