@@ -7,6 +7,11 @@ import { Group, Quaternion, Vector3 } from 'three';
 import { interpolatePoseInto, interpolationAlpha, newRenderPoseV2, wallNow } from '@mirage/protocol';
 import type { SimulationRuntime } from './runtime';
 import { nedToRenderBasis, nedToRenderPositionInto } from './coordinates';
+import { rendererFactory, rendererModeFromSearch } from './render/renderer';
+
+// TASK-066: `?renderer=webgpu|webgl2` selects the renderer adapter; otherwise R3F's default WebGL renderer.
+const rendererMode = rendererModeFromSearch(globalThis.location?.search ?? '');
+const glOption = rendererMode ? rendererFactory(rendererMode) : { antialias: true, powerPreference: 'high-performance' as const };
 
 const MODEL_HEIGHT_OFFSET_M = 0.28; // hub height of the demo mesh above its NED reference point
 
@@ -78,7 +83,7 @@ export function FlightScene({ runtime, terrain = null, onTerrainFailures = () =>
   onTerrainFailures?: (failures: readonly TileFailure[]) => void;
 }) {
   return <Canvas shadows dpr={[1, 1.5]} camera={{ position: [4, 3, 5], fov: 48, near: 0.05, far: 2000 }}
-    gl={{ antialias: true, powerPreference: 'high-performance' }}>
+    gl={glOption}>
     <color attach="background" args={['#111e29']} />
     <fog attach="fog" args={['#111e29', 30, 120]} />
     <ambientLight intensity={1.1} />

@@ -860,12 +860,13 @@ were synchronized and checked. Changes remain local; no commit or push performed
 
 ### TASK-066 — WebGPU renderer capability
 
-- **Status:** TODO.
+- **Status:** DONE — Claude; baseline 60ba4cf; 2026-10-16 (WebGL2 path, fallbacks and lifecycle verified; WebGPU rendering skipped with reason here: no functional adapter, so the WebGPU path awaits a GPU browser run).
 - **Title & Description:** Add a renderer adapter with WebGL2 fallback and resource lifecycle.
 - **Dependencies:** TASK-005, TASK-061.
-- **Touched Files:** `apps/web/src/render/renderer.ts`, `apps/web/src/render/webgpu.ts`, `tests/browser/render-backends.spec.ts`.
+- **Touched Files:** `apps/web/src/render/renderer.ts`, `apps/web/src/render/webgpu.ts`, `tests/browser/render-backends.spec.ts`, `apps/web/src/FlightScene.tsx`, `tests/support/render-harness.ts`.
 - **Interfaces / Contracts:** Common scene/material capabilities; browser chooses Metal/DX backend.
 - **DoD & Acceptance Criteria:** Available modes run; unsupported modes are skipped with a reason, not passed; shader failures fall back; switching releases all resources.
+- **Evidence:** Owner Claude; baseline 60ba4cf; 2026-10-16. Chromium (Playwright 1.56.1, SwiftShader; spec flags add --enable-unsafe-webgpu --use-webgpu-adapter=swiftshader): tests/browser/render-backends.spec.ts 5 passed, 1 skipped. WebGL2 renders a lit textured box (non-background centre pixel), info.memory drops to 0 geometries/textures after releasing 1 geometry/material/texture, context lost after dispose; a broken ShaderMaterial is detected from the shader log and replaced by the magenta fallback, which is drawn; a requested WebGPU backend falls back to WebGL2 with the exact reason; switching renderers releases each before the next; the app honours ?renderer=webgl2|webgpu and exposes backend and fallback reason on the canvas. SKIPPED with reason: "WebGPU unavailable: WebGPU adapter "google swiftshader" is not functional: device lost: A valid external Instance reference no longer exists." (the software adapter loses its device on first canvas presentation). The WebGPU render path, its validation scope, and the injected-probe fallback with an available adapter remain unverified until a browser with a functional WebGPU adapter runs this spec. Mutations killed: shader failure ignored, textures not disposed, context not lost, backend attribute from the request instead of the result.
 
 ### TASK-067 — FPV camera and fisheye
 

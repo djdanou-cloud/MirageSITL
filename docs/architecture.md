@@ -766,3 +766,26 @@ Concurrent writers can exceed the cap by at most one object each. No bucket
 is bound in `wrangler.jsonc`: enabling persistent R2 caching needs explicit
 permission. Tests use an in-memory emulator of the R2 binding subset, not
 Miniflare.
+
+### Renderer adapter: WebGPU with WebGL2 fallback (TASK-066)
+
+`apps/web/src/render/renderer.ts` creates either backend behind one
+capability surface (`render`, `setSize`, `setPixelRatio`, `info.memory`,
+`dispose`); scenes use core three materials that both backends translate.
+`detectBackends` reports availability with a reason. WebGPU availability is
+functional, not just an adapter: the probe requests a device, presents one
+cleared canvas frame and waits for completion without device loss; the
+browser picks the native API (Metal, D3D12, Vulkan). `createRenderer`
+performs the whole WebGPU bring-up (renderer init, rejection of three's
+silent WebGL fallback backend, a lit probe scene inside a validation error
+scope, and an optional caller probe) on a scratch canvas first, because a
+canvas that once returned a `webgpu` context can never return `webgl2`; any
+failure yields a WebGL2 renderer with `fallbackReason`. On WebGL2,
+`compileWithFallback` draws each distinct material once into a 1×1 render
+target (three checks programs lazily) and replaces materials whose shaders
+fail with a basic fallback material, recording the shader log.
+`dispose(scene)` releases every reachable geometry, material and texture once,
+then the renderer, and forces WebGL context loss. `webgpu.ts` is loaded on
+demand. The app keeps R3F's default WebGL renderer unless
+`?renderer=webgpu|webgl2` is given; the chosen backend and fallback reason
+are exposed as `data-render-backend` / `data-render-fallback` on the canvas.

@@ -1,6 +1,6 @@
 # PROJECT_ROADMAP.md
 
-<!-- source-sha256: c01e544740271f902399800f14bbde897a2b1446ef09eec1f29f39531491ed0c -->
+<!-- source-sha256: f823f67bab2d7093e843c9b09832683f1e15674d282e7c43bdc6aee212f9ac4e -->
 
 Английский источник: [Source of truth](../PROJECT_ROADMAP.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -863,12 +863,13 @@ Cargo bin активирован в PATH. Производительность M
 
 ### TASK-066 — WebGPU renderer capability
 
-- **Status:** TODO.
+- **Status:** DONE — Claude; база 60ba4cf; 2026-10-16 (путь WebGL2, откаты и жизненный цикл проверены; рендеринг WebGPU здесь пропущен с причиной: нет работающего адаптера, поэтому путь WebGPU ждёт запуска в браузере с GPU).
 - **Title & Description:** Добавить renderer adapter с WebGL2 fallback и resource lifecycle.
 - **Dependencies:** TASK-005, TASK-061.
-- **Touched Files:** `apps/web/src/render/renderer.ts`, `apps/web/src/render/webgpu.ts`, `tests/browser/render-backends.spec.ts`.
+- **Touched Files:** `apps/web/src/render/renderer.ts`, `apps/web/src/render/webgpu.ts`, `tests/browser/render-backends.spec.ts`, `apps/web/src/FlightScene.tsx`, `tests/support/render-harness.ts`.
 - **Interfaces / Contracts:** Same scene/material capabilities; browser selects Metal/DX backend.
 - **DoD & Acceptance Criteria:** Available GPU modes запускаются, unsupported mode skipped с причиной, не выдаётся за pass; shader capability failures fallback; no leaked resources after renderer switch.
+- **Evidence:** Исполнитель Claude; база 60ba4cf; 2026-10-16. Chromium (Playwright 1.56.1, SwiftShader; флаги спецификации добавляют --enable-unsafe-webgpu --use-webgpu-adapter=swiftshader): tests/browser/render-backends.spec.ts — 5 пройдено, 1 пропущен. WebGL2 рисует освещённый текстурированный куб (центральный пиксель не цвета фона), info.memory падает до 0 геометрий/текстур после освобождения 1 геометрии/материала/текстуры, контекст потерян после dispose; сломанный ShaderMaterial обнаруживается по журналу шейдера и заменяется пурпурным резервным материалом, который рисуется; запрошенный бэкенд WebGPU откатывается на WebGL2 с точной причиной; переключение рендереров освобождает каждый перед следующим; приложение учитывает ?renderer=webgl2|webgpu и показывает бэкенд и причину отката на холсте. ПРОПУЩЕН с причиной: "WebGPU unavailable: WebGPU adapter "google swiftshader" is not functional: device lost: A valid external Instance reference no longer exists." (программный адаптер теряет устройство при первом выводе на холст). Путь рендеринга WebGPU, его область валидации и откат по внедрённой пробе при доступном адаптере остаются непроверенными, пока спецификацию не запустит браузер с работающим адаптером WebGPU. Убитые мутации: игнорирование ошибки шейдера, неосвобождённые текстуры, непотерянный контекст, атрибут бэкенда из запроса вместо результата.
 
 ### TASK-067 — FPV camera/fisheye
 
