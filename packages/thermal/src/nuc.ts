@@ -49,6 +49,10 @@ export class ThermalNuc {
     this.sum = new Float64Array(c.pixels);
     this.nextCycle = c.intervalFrames;
   }
+  /** Frame at which the next calibration starts (fixed grid: previous cycle start + intervalFrames). */
+  get nextCalibrationFrame(): number {
+    return this.cycleStart >= 0 ? this.cycleStart : this.nextCycle;
+  }
   request(): void {
     if (this.cycleStart < 0) this.nextCycle = this.status.frameId + 1;
   }

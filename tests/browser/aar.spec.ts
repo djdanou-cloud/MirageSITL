@@ -17,6 +17,8 @@ test("real recorder Worker and IndexedDB bound chunks and return validated snaps
   expect(r.invalid).toBe(0);
   expect(r.dbChunks).toBeLessThanOrEqual(2);
   expect(r.storageRejected).toBe(true);
+  expect(r.storageQueued).toBe(true);
+  expect(r.queuedDropped).toBe(0);
 });
 test("record/review/export/import UI keeps physics live and displays provenance and epoch", async ({
   page,

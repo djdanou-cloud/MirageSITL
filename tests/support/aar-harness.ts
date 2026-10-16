@@ -36,10 +36,19 @@ export async function recordInWorker() {
     }
     const snap = await host.snapshot();
     const name = "mirage-aar-test-" + crypto.randomUUID(),
-      storage = await ChunkStorage.open(name, 2, 512);
+      storage = await ChunkStorage.open(name, 2, 512, 0);
     storage.write(record.bytes);
-    const storageRejected = !storage.write(record.bytes);
+    // With no pending slots a write during the in-flight transaction is a counted drop.
+    const storageRejected = !storage.write(record.bytes) && storage.dropped === 1;
     await storage.settled();
+    // With the default pending list the same burst is queued and written.
+    const queuedName = "mirage-aar-test-" + crypto.randomUUID(),
+      queued = await ChunkStorage.open(queuedName, 2, 512);
+    queued.write(record.bytes);
+    const storageQueued = queued.write(record.bytes) && queued.pendingChunks === 1;
+    await queued.settled();
+    const queuedDropped = queued.dropped;
+    queued.deleteOwnedDatabase();
     for (let i = 0; i < 10; i++) {
       storage.write(record.bytes);
       await storage.settled();
@@ -66,6 +75,8 @@ export async function recordInWorker() {
       invalid: snap.invalid,
       dbChunks,
       storageRejected,
+      storageQueued,
+      queuedDropped,
     };
   } finally {
     host.close();

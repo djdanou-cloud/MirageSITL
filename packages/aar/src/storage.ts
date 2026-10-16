@@ -1,5 +1,8 @@
 /** Recorder-only IndexedDB persistence. A fixed key ring caps stored chunks.
- * At most one transaction is in flight; busy/error means an explicitly counted drop.
+ * At most one transaction is in flight. Chunks written while it is busy wait
+ * in a bounded pending list (maxPending, default 8) and are written in order;
+ * only a full pending list or a failed transaction is an explicitly counted
+ * drop. (Dropping whenever a transaction was busy lost most of a burst.)
  */
 export class ChunkStorage {
   dropped = 0;
@@ -7,17 +10,23 @@ export class ChunkStorage {
   droppedBytes = 0;
   private busy = false;
   private sequence = 0;
+  private readonly pending: Uint8Array[] = [];
   private constructor(
     private readonly db: IDBDatabase,
     readonly maxChunks: number,
     readonly chunkBytes: number,
+    readonly maxPending: number,
   ) {}
   static async open(
     name: string,
     maxChunks: number,
     chunkBytes: number,
+    maxPending = 8,
   ): Promise<ChunkStorage> {
     if (
+      !Number.isInteger(maxPending) ||
+      maxPending < 0 ||
+      maxPending > 64 ||
       !/^[A-Za-z0-9_-]{1,64}$/.test(name) ||
       !Number.isInteger(maxChunks) ||
       maxChunks < 1 ||
@@ -44,42 +53,60 @@ export class ChunkStorage {
       tx.onerror = () =>
         reject(tx.error ?? new Error("IndexedDB clear failed"));
     });
-    return new ChunkStorage(db, maxChunks, chunkBytes);
+    return new ChunkStorage(db, maxChunks, chunkBytes, maxPending);
+  }
+  /** Number of chunks waiting for the in-flight transaction. */
+  get pendingChunks(): number {
+    return this.pending.length;
   }
   write(bytes: Uint8Array): boolean {
-    if (this.busy || bytes.length > this.chunkBytes) {
-      this.dropped++;
-      this.droppedBytes += bytes.length;
-      return false;
+    if (bytes.length > this.chunkBytes) return this.drop(bytes.length, false);
+    if (this.busy) {
+      if (this.pending.length >= this.maxPending)
+        return this.drop(bytes.length, false);
+      this.pending.push(bytes.slice());
+      return true;
     }
+    return this.start(bytes.slice());
+  }
+  private drop(length: number, failure: boolean): false {
+    if (failure) this.failures++;
+    this.dropped++;
+    this.droppedBytes += length;
+    return false;
+  }
+  /** Starts one transaction; on completion the next pending chunk follows. */
+  private start(copy: Uint8Array): boolean {
     this.busy = true;
-    const copy = bytes.slice();
+    const next = () => {
+      const queued = this.pending.shift();
+      this.busy = false;
+      if (queued) this.start(queued);
+    };
     try {
       const tx = this.db.transaction("chunks", "readwrite");
       tx.objectStore("chunks").put(copy, this.sequence++ % this.maxChunks);
+      let done = false;
       tx.oncomplete = () => {
-        this.busy = false;
+        if (done) return;
+        done = true;
+        next();
       };
-      let failed = false;
       tx.onerror = tx.onabort = () => {
-        if (failed) return;
-        failed = true;
-        this.busy = false;
-        this.failures++;
-        this.dropped++;
-        this.droppedBytes += bytes.length;
+        if (done) return;
+        done = true;
+        this.drop(copy.length, true);
+        next();
       };
     } catch {
-      this.busy = false;
-      this.failures++;
-      this.dropped++;
-      this.droppedBytes += bytes.length;
+      this.drop(copy.length, true);
+      next();
       return false;
     }
     return true;
   }
   async settled(): Promise<void> {
-    while (this.busy)
+    while (this.busy || this.pending.length > 0)
       await new Promise<void>((resolve) => setTimeout(resolve, 0));
   }
   deleteOwnedDatabase(): void {

@@ -9,6 +9,7 @@
     "preview": "vite preview --host 0.0.0.0"
   },
   "dependencies": {
+    "@mirage/aar": "0.1.0",
     "@mirage/autopilot": "0.1.0",
     "@mirage/input": "0.1.0",
     "@mirage/physics": "0.1.0",

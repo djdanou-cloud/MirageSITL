@@ -868,3 +868,30 @@ The active demo's Main runtime fans decimated truth/pilot samples into an entire
 Functional browser evidence is WebGL2/SwiftShader plus actual Worker/SAB/IndexedDB. M4/RTX performance, measured thermal calibration, live autopilot warmup and full-rate synchronized recording remain separate acceptance gates.
 
 Regression hardening: PhysicsSessionV2 now captures wall receipt time after the coherent pilot read, preventing a concurrent valid publication from appearing future-dated; truly future/stale inputs still disarm. WebGPU capability probing is shared once per document (including in-flight work); reload retries after driver changes. Renderer tests use an isolated harness and compare diagnostics within one document. Instructor motor loss selects channel index, power-cut versus synthetic instant-thrust-loss and remaining fraction; pending epoch-changing commands await their matching ACK even when the shared header advances first.
+
+### Merged thermal and recorder additions (2026-10-16)
+
+Two implementations of TASK-070–072/076–081 were merged. Thermal:
+`heat-balance.ts` offers both `HeatSurface` (single surface, implicit
+trapezoid, forcing as air/sky/substrate temperatures) and `ThermalField`
+(batched, allocation-free Heun integration with stability substeps,
+per-element normal, shadow and sky-view factor; sky longwave from
+Swinbank/Bolz emissivity; convection 5.7 + 3.8 v). `solar.ts` offers both
+`solarIncidence` (scenario declination/hour angle) and a NOAA/Meeus
+ephemeris (`solarPosition`, checked against NREL SPA) with Kasten–Young air
+mass, Meinel clear-sky and Kasten–Czeplak cloud irradiance; the two solvers
+and the two solar models are cross-checked in tests. The LWIR camera
+(`thermal-camera.ts`, `thermal-material.ts`, `shaders/thermal.glsl`) uses a
+Simpson band integral over a configurable band, a float32 radiance lookup
+texture, a `ThermalScene` (reflected and air temperature, extinction, display
+span), white-hot/black-hot/ironbow palettes and `ThermalCameraPass`, which
+renders a temperature/emissivity/range G-buffer at the instrument's native
+resolution; `InstrumentProfile` separates synthetic training profiles from
+measured ones, and only a measured profile can claim parity with an
+instrument such as CADEX. `ThermalNuc` (frame-indexed shutter cycle) is kept
+and gains `nextCalibrationFrame` and `thermalStatusLabel`. Recorder: the
+512-byte record, handoff, ring, Worker, replay, resimulation and archive of
+the integrated implementation are kept; `ChunkStorage` now queues up to
+`maxPending` chunks behind the in-flight IndexedDB transaction instead of
+dropping a chunk whenever a transaction is busy, and still counts every
+overflow or failed write.

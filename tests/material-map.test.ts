@@ -2,7 +2,7 @@
 // synthetic, georeferenced stand-in on the real WorldCover grid (1/12000 deg
 // pixels) and is labelled synthetic; no ESA or OSM data is downloaded or
 // committed. Checking real tiles needs a locally placed, licensed file.
-import { readFileSync, readdirSync, statSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { attributionsFor, parseDataManifest, planWorldCoverTiles, worldCoverTileName, type DataManifest } from "../packages/thermal/src/data-manifest.ts";
 import { MaterialMap, parseMaterialClasses, type OsmFeature, type WorldCoverRaster } from "../packages/thermal/src/material-map.ts";
@@ -139,9 +139,11 @@ describe("material map", () => {
 
   it("contains no network or download code", () => {
     const dir = new URL("../packages/thermal/src/", import.meta.url);
-    for (const file of readdirSync(dir, {recursive:true,encoding:"utf8"})) {
-      if(!statSync(new URL(file,dir)).isFile())continue;
-      const source = readFileSync(new URL(file, dir), "utf8");
+    const files = readdirSync(dir, { recursive: true, withFileTypes: true }).filter(e => e.isFile());
+    expect(files.length).toBeGreaterThanOrEqual(2);
+    for (const entry of files) {
+      const file = `${entry.parentPath}/${entry.name}`;
+      const source = readFileSync(file, "utf8");
       expect(source, file).not.toMatch(/\bfetch\s*\(|XMLHttpRequest|WebSocket|https?:\/\/|node:https?|import\(\s*["']http/);
     }
   });
