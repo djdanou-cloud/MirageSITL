@@ -1,14 +1,18 @@
 # SPECS_SHARED_MEMORY.md
 
-<!-- source-sha256: c63450957ce2573aca8fbf8d94ceabde8bed6563adfd8ebfa3a78ea399c8e844 -->
+<!-- source-sha256: ee987a9261cdfef0973a48865dc957b04f283b343d64c704a17bdd22730ae7b1 -->
 
 Английский источник: [Source of truth](../SPECS_SHARED_MEMORY.md). Изменения спецификации обновляют оба языка в одной задаче.
 
 
 Версия документа: 1.0 · 2026-10-15. Базовый код: commit `e3bb6b4`.
 
-**ABI v1 — реализован. ABI v2 и Control Protocol v2 — целевые контракты, ещё
-не реализованы.** TASK-008/009 выполняют миграцию; TASK-010 — команды.
+**Работающее приложение использует ABI v2 и Control Protocol v2 (TASK-085):
+state ring v2, pilot mailbox, SPSC-очереди (TASK-013), `init-v2` и обработчик
+команд. ABI v1 остаётся реализованным и протестированным в
+`packages/protocol`, но приложение его больше не использует; его удаление
+требует зафиксированного решения.** TASK-008/009 реализуют
+layout и транспорт v2; TASK-010 — команды.
 Не добавлять EKF/EW в зарезервированные слова v1 без смены версии.
 Идентификаторы задач определены в [PROJECT_ROADMAP.md](PROJECT_ROADMAP.md).
 
@@ -432,6 +436,25 @@ export type CommandResultV2 =
   backend выполняется paused; swap только после успешной проверки/инициализации.
   Ошибка сохраняет предыдущую модель в paused состоянии, без partial swap.
 * Runtime command не меняет terrain licensing, секреты или домены сети.
+* Детали реализации (TASK-010, `ControlProcessorV2`): команда, отклонённая
+  при проверке (SCHEMA или OUT_OF_RANGE, найденный при проверке полей), не
+  расходует свой requestId и не попадает в кэш; её reject сообщает полученный
+  requestId, если это uint32, иначе -1. ACK lifecycle-команды сообщает
+  последний проинтегрированный tick той epoch, в которой она применена (0
+  после reset/configure/смены модели). `model.load` сначала возвращает
+  `queued`, затем итоговый `applied` (новая epoch), `ASSET_MISSING` или
+  `BAD_STATE`; пока загрузка не завершена, все прочие команды, кроме
+  `worker.dispose`, отклоняются с BAD_STATE. Отменённые команды отклоняются
+  в порядке их срока. JSON Schema не может выразить лимит 16 KiB и ограничение
+  нормы дрейфа; оба проверяет валидатор TypeScript.
+* Backend, который не может моделировать запланированную команду, отклоняет её
+  при приёме с BAD_STATE и причиной (`ControlTargetV2.unsupportedReason`);
+  demo backend не имеет модели атмосферы или EW, поэтому отклоняет каждую
+  команду `weather.set` и `fault.set`. Вне потока команд/результатов Worker
+  сообщает о fault сессии (например, неудачном `init-v2` или превышении сроков
+  HITL) как `{ type: 'fault-v2', protocolVersion: 2, message }`. Main проверяет
+  каждое сообщение Worker (`parseWorkerEventV2`) и игнорирует неизвестные;
+  Worker проверяет `init-v2` по форме и по layout каждого буфера.
 
 Пример валидного JSON (время 1 секунда при 400 Гц):
 

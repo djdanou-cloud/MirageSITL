@@ -55,6 +55,231 @@
           "derivation": "Synthetic symmetric quad geometry for schema tests, not a calibrated airframe."
         }
       }
+    },
+    {
+      "path": "abi/v1-layout.json",
+      "manifest": {
+        "formatVersion": 1,
+        "id": "abi-v1-layout",
+        "sourceSha256": "00a2e97d75521263f4348199c5e0086dd720949cffc92185cdaf97fbd1fd8be0",
+        "units": {
+          "simTimeS": "s",
+          "positionM": "m",
+          "velocityMps": "m/s",
+          "accelerationMps2": "m/s^2",
+          "angularRateRadS": "rad/s",
+          "batteryVoltageV": "V",
+          "normalizedValue": "1"
+        },
+        "validityEnvelope": {
+          "simTimeS": {
+            "min": 308.64,
+            "max": 308.64
+          },
+          "positionM": {
+            "min": -3456.0000004,
+            "max": 6000000.123456789
+          },
+          "velocityMps": {
+            "min": -3.5,
+            "max": 12.5
+          },
+          "accelerationMps2": {
+            "min": -0.75,
+            "max": 2.5
+          },
+          "angularRateRadS": {
+            "min": -0.5,
+            "max": 0.75
+          },
+          "batteryVoltageV": {
+            "min": 12.125,
+            "max": 12.125
+          },
+          "normalizedValue": {
+            "min": -0.5,
+            "max": 0.75
+          }
+        },
+        "tolerance": {
+          "absolute": 0,
+          "relative": 0
+        },
+        "provenance": {
+          "kind": "synthetic",
+          "derivation": "Hand-authored from the ABI v1 byte tables in docs/SPECS_SHARED_MEMORY.md; f32 values are exactly representable; bytes must match exactly. Not generated from encoder output."
+        }
+      }
+    },
+    {
+      "path": "protocol/state-v2.hex",
+      "manifest": {
+        "formatVersion": 1,
+        "id": "abi-v2-golden",
+        "sourceSha256": "1780aeb0a8b2e469620116ef600f175d6d63c75f0a958dd8c8d9a1e55ce053a6",
+        "units": {
+          "simTimeS": "s",
+          "positionM": "m",
+          "velocityMps": "m/s",
+          "accelerationMps2": "m/s^2",
+          "angularRateRadS": "rad/s",
+          "batteryVoltageV": "V",
+          "batteryCurrentA": "A",
+          "ambientPressurePa": "Pa",
+          "rotorSpeedRpm": "rev/min",
+          "normalizedValue": "1"
+        },
+        "validityEnvelope": {
+          "simTimeS": {
+            "min": 10737419.24,
+            "max": 10737419.24
+          },
+          "positionM": {
+            "min": -3456.0000004,
+            "max": 6000000.123456789
+          },
+          "velocityMps": {
+            "min": -3.5,
+            "max": 18.5
+          },
+          "accelerationMps2": {
+            "min": -9.75,
+            "max": 2.5
+          },
+          "angularRateRadS": {
+            "min": -0.5,
+            "max": 0.75
+          },
+          "batteryVoltageV": {
+            "min": 15.25,
+            "max": 15.25
+          },
+          "batteryCurrentA": {
+            "min": 21.125,
+            "max": 21.125
+          },
+          "ambientPressurePa": {
+            "min": 101325,
+            "max": 101325
+          },
+          "rotorSpeedRpm": {
+            "min": 6150.5,
+            "max": 6150.5
+          },
+          "normalizedValue": {
+            "min": -0.5,
+            "max": 0.75
+          }
+        },
+        "tolerance": {
+          "absolute": 0,
+          "relative": 0
+        },
+        "provenance": {
+          "kind": "synthetic",
+          "derivation": "Header v2, State v2, and Pilot mailbox v2 records packed with Python struct from the byte tables in docs/SPECS_SHARED_MEMORY.md section 3, independently of the TypeScript encoder; f32 values are exactly representable; bytes must match exactly."
+        }
+      }
+    },
+    {
+      "path": "wasm-abi/bet-abi-v1.json",
+      "manifest": {
+        "formatVersion": 1,
+        "id": "bet-abi-v1-golden",
+        "sourceSha256": "cb7dd88fea38f7562529efd82bad4bd20eaa3ca8c9707375348312869762d5b2",
+        "units": {
+          "dtS": "s",
+          "radiusM": "m",
+          "shaftInertiaKgM2": "kg*m^2",
+          "airVelocityMps": "m/s",
+          "angularVelocityRadS": "rad/s",
+          "pitchRad": "rad",
+          "motorTorqueNm": "N*m"
+        },
+        "validityEnvelope": {
+          "dtS": {
+            "min": 0.0025,
+            "max": 0.0025
+          },
+          "radiusM": {
+            "min": 0.127,
+            "max": 0.2
+          },
+          "shaftInertiaKgM2": {
+            "min": 2.5e-05,
+            "max": 8e-05
+          },
+          "airVelocityMps": {
+            "min": -5,
+            "max": 3
+          },
+          "angularVelocityRadS": {
+            "min": -0.3,
+            "max": 0.2
+          },
+          "pitchRad": {
+            "min": -0.02,
+            "max": 0.05
+          },
+          "motorTorqueNm": {
+            "min": 0,
+            "max": 0.04
+          }
+        },
+        "tolerance": {
+          "absolute": 0,
+          "relative": 0
+        },
+        "provenance": {
+          "kind": "synthetic",
+          "derivation": "Byte layout golden packed with Python struct by tests/fixtures/wasm-abi/generate.py from SPECS_SIMULATION_ENGINES section 4 offsets; synthetic geometry, not an airframe."
+        }
+      }
+    },
+    {
+      "path": "polars/synthetic.json",
+      "manifest": {
+        "formatVersion": 1,
+        "id": "polar-synthetic-v1",
+        "sourceSha256": "ca32d4e05d10e6fea166b9a38194c61e8c5e240f53fd0e565b93926b9d9ee6d1",
+        "units": {
+          "alphaRad": "rad",
+          "reynolds": "1",
+          "mach": "1",
+          "cl": "1",
+          "cd": "1"
+        },
+        "validityEnvelope": {
+          "alphaRad": {
+            "min": -3.141592653589793,
+            "max": 3.141592653589793
+          },
+          "reynolds": {
+            "min": 20000.0,
+            "max": 500000.0
+          },
+          "mach": {
+            "min": 0.0,
+            "max": 0.6
+          },
+          "cl": {
+            "min": -2.2810385268353,
+            "max": 2.2810385268353
+          },
+          "cd": {
+            "min": 0.008390562087565901,
+            "max": 2.8675311643712225
+          }
+        },
+        "tolerance": {
+          "absolute": 1e-12,
+          "relative": 0
+        },
+        "provenance": {
+          "kind": "synthetic",
+          "derivation": "Closed-form CL/CD, piecewise linear in alpha and linear in ln(Re) and Mach, so trilinear lookup is exact; generated by tests/fixtures/polars/generate.py; not a measured airfoil."
+        }
+      }
     }
   ]
 }

@@ -45,7 +45,13 @@ describe('bilingual documentation policy', () => {
   it('accepts complete synchronized documents', () => {
     const result = run(fixture());
     expect(result.status, result.stderr).toBe(0);
-    expect(result.stdout).toContain('7 bilingual pairs, 84 tasks');
+    // Derive expected counts from the sources so adding a pair or task does not break this test.
+    const registry: unknown = JSON.parse(readFileSync(join(repository, 'docs/documentation-index.json'), 'utf8'));
+    const pairs = typeof registry === 'object' && registry !== null && 'pairs' in registry && Array.isArray(registry.pairs) ? registry.pairs.length : -1;
+    const tasks = readFileSync(join(repository, 'docs/PROJECT_ROADMAP.md'), 'utf8').match(/^### TASK-\d{3} — /gm)?.length ?? -1;
+    expect(pairs).toBeGreaterThan(0);
+    expect(tasks).toBeGreaterThan(0);
+    expect(result.stdout).toContain(`${pairs} bilingual pairs, ${tasks} tasks`);
   });
   it('rejects an English change without a translated mirror update', () => {
     const root = fixture();

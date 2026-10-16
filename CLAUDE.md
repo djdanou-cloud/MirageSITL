@@ -42,9 +42,9 @@ specification in root or elsewhere under `docs/`.
    English contract changes in a later task, update both languages again.
 
 Claude Code loads this root file through its own discovery mechanism. Do not
-assume Codex/Cursor automatically read CLAUDE.md: before TASK-084, open it
-explicitly. TASK-084 adds AGENTS.md and `.cursor/rules/project.mdc` as thin
-pointers rather than duplicate policy copies.
+assume Codex/Cursor automatically read CLAUDE.md. TASK-084 added AGENTS.md and
+`.cursor/rules/project.mdc` as thin pointers to this file rather than duplicate
+policy copies; if a client loads neither pointer, open this file explicitly.
 
 ## 2. Actual baseline and scope
 
@@ -79,6 +79,10 @@ npm run typecheck
 npx --no-install vitest run tests/protocol.test.ts
 npx --no-install tsc --noEmit
 CHROMIUM_PATH=/usr/bin/chromium npm run test:browser
+node scripts/bench-physics.mjs
+cargo check --manifest-path native/Cargo.toml --workspace --locked
+cargo test --manifest-path native/Cargo.toml --workspace --locked
+cargo check --manifest-path native/Cargo.toml -p mirage-bet --target wasm32-unknown-unknown --locked
 ```
 
 TASK-002 is implemented: `npm run lint` applies typed rules to TypeScript and
@@ -95,16 +99,33 @@ when using Playwright's browser. If needed, install it separately with
 use `npm ci --cache /workspace/.cache/mirage-npm --no-audit --no-fund`.
 Do not change HOME or disable TLS/signature/checksum verification.
 
+TASK-014 adds `node scripts/bench-physics.mjs` (re-executes itself with
+`--expose-gc --max-semi-space-size=64 --single-threaded`). It writes
+`test-results/bench/physics.json` (schema `docs/benchmarks/schema.json`):
+a zero-allocation verdict for the real PhysicsSessionV2 step after reaching
+steady state, compute p50/p95/p99/max, timer overhead, and real-time wakeup
+lateness/executed Hz. It runs in Node; it is not browser or target-hardware
+evidence.
+
+TASK-016 adds the `native/` Rust workspace (crate `mirage-bet`). The toolchain
+is pinned in `native/rust-toolchain.toml` (1.97.0 + wasm32-unknown-unknown);
+rustup reads it from the current directory, so run cargo inside `native/`
+(or install the same toolchain) for pinned results. The wasm32 build has a
+trapping global allocator and no imports.
+
+TASK-017 adds `node scripts/build-wasm.mjs [--out dir]`: it builds the
+`scalar` and `simd128` artifacts into `packages/wasm-bet/dist/` (ignored)
+with `manifest.json` (SHA-256, bytes, ABI read from the module, toolchain).
+`@mirage/wasm-bet/loader` validates the manifest, selects SIMD only after
+feature detection, verifies size/hash/ABI/exports, and reserves the memory
+budget before arming. `tests/wasm-loader.test.ts` runs the script, so unit
+tests need the pinned Rust toolchain.
+
 The following commands **do not exist yet**. The listed task introduces
 them, after which dependent work must run them:
 
 | Command | Introduced by | Purpose |
 | --- | --- | --- |
-| `cargo check --manifest-path native/Cargo.toml --workspace --locked` | TASK-016 | Native Rust compilation |
-| `cargo test --manifest-path native/Cargo.toml --workspace --locked` | TASK-016 | Scalar reference tests |
-| `cargo check --manifest-path native/Cargo.toml -p mirage-bet --target wasm32-unknown-unknown --locked` | TASK-016 | WASM target compilation; use crate name mirage-bet |
-| `node scripts/build-wasm.mjs` | TASK-017 | Scalar/SIMD artifacts and manifests |
-| `node scripts/bench-physics.mjs` | TASK-014 | Machine-readable step/allocation report |
 | `node scripts/build-jsbsim.mjs` | TASK-030 | Pinned Emscripten build |
 | `node scripts/run-sitl.mjs` | TASK-042 | Pinned native ArduPilot harness |
 

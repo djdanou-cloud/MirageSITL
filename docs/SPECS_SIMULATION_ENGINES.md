@@ -158,6 +158,16 @@ with negative CD, NaN, or ambiguous ordering. Outside the Re/Mach table,
 clamp deterministically and set OutsideValidity instead of silently
 extrapolating. The declared flight envelope requires stall/reverse-flow coverage.
 
+TASK-019 implements the lookup in `native/bet/src/polar.rs`. `PolarTable`
+borrows caller-owned axes and tables and validates them once: non-empty
+axes, table length `nMach*nRe*nAlpha`, finite and strictly increasing axes,
+`Re>0`, `Ma>=0`, finite coefficients, and `CD>=0`. Lookup is trilinear in
+`(Ma, ln Re, alpha)`, evaluated along alpha, then ln Re, then Mach. Each
+coordinate outside its axis, alpha included, is clamped to the boundary and
+sets `OUTSIDE_POLAR_VALIDITY` (output flag bit 1); a non-finite query
+returns NaN coefficients with the flag. The caller wraps alpha into
+`[-pi, pi)` first. Lookup does not allocate.
+
 Rotor dynamics use `Q_air=a·M_air`, the **signed** aerodynamic torque:
 
 \[
@@ -250,6 +260,54 @@ angle f64; 112 flags u32; 116 reserved u32; 120 signed angular momentum
 along the hub axis f64. TASK-018 creates input/config C headers and Rust
 offset tests. Never cast an arbitrary TS object to these records. The
 Rust/WASM arena is separate from Main SAB.
+
+TASK-018 implements these layouts in `native/bet/src/abi.rs`, mirrors them
+in `native/bet/include/bet.h` (the layout source parsed by the Rust and TS
+tests), and in `packages/wasm-bet/src/arena.ts`:
+
+```text
+ABI v1 records (little-endian; offsets in bytes; all regions 8-byte aligned)
+config header (64):  0 abi_version u32 | 4 config_bytes u32 = 64 + n*2160
+                     8 rotor_count u32 (1..32) | 12 rotor_stride u32 = 2160
+                     16 dt_s f64 (exactly 1/400, 1/800, 1/1200) | 24..63 reserved = 0
+rotor config (2160): 0 id u32 | 4 blade_count u32 (1..16) | 8 spin_sign i32 (+1/-1)
+                     12 station_count u32 (1..64) | 16 azimuth_samples u32 (1..64)
+                     20 polar_id u32 | 24 radius_m f64 | 32 root_cutout_m f64
+                     40 hub_position_body_m f64[3] | 64 hub_to_body f64[4] (w,x,y,z)
+                     96 shaft_inertia_kg_m2 f64 | 104 bearing_viscous_nm_per_rad_s f64
+                     112 radial_station_m f64[64] | 624 chord_m f64[64]
+                     1136 twist_rad f64[64] | 1648 quadrature_width_m f64[64]
+                     unused station slots = +0.0
+input header (64):   0 rotor_count u32 | 4 rotor_stride u32 = 96 | 8 density_kg_m3 f64
+                     16 dynamic_viscosity_pa_s f64 | 24 speed_of_sound_mps f64
+                     32..63 reserved = 0
+rotor input (96):    0 air_velocity_at_hub_hub_mps f64[3]
+                     24 body_angular_velocity_hub_rad_s f64[3] | 48 collective_pitch_rad f64
+                     56 cyclic_cos_rad f64 | 64 cyclic_sin_rad f64
+                     72 motor_torque_magnitude_nm f64 (>= 0) | 80 flags u32 = 0
+                     84..95 reserved = 0
+rotor output (128):  as above; flags bit0 AERODYNAMICS_UNAVAILABLE, bit1 OUTSIDE_POLAR_VALIDITY
+arena:               64-byte header + configuration copy + n * 64-byte rotor state
+                     required_bytes = 64 + config_bytes + n*64
+status i32:          0 OK | 1 AERODYNAMICS_UNAVAILABLE | -1 BAD_HANDLE | -2 BAD_POINTER
+                     -3 BAD_INPUT | -4 BAD_DT | -5 MEMORY_GROWN | -6 ARENA_TOO_SMALL
+                     -7 ABI_MISMATCH
+```
+
+Pointers are non-null, 8-byte aligned, inside current linear memory, and at
+or above the exported `__heap_base` (never Rust static data or stack);
+regions passed to one call must not overlap. The handle is the arena
+pointer. `bet_last_error()->i32` reports why `bet_required_bytes` or
+`bet_init` returned 0. Unknown counts, strides, nonzero reserved bytes,
+non-finite values, and out-of-range geometry are rejected. `bet_step`
+validates the whole input first and writes no output byte on a negative
+status; on status >= 0 it overwrites every rotor record. It returns
+`MEMORY_GROWN` when linear memory differs from its size at initialization.
+Until quadrature exists (TASK-020) it returns `AERODYNAMICS_UNAVAILABLE`
+with NaN force, moments, and aerodynamic torque and the
+`AERODYNAMICS_UNAVAILABLE` flag, never a fabricated success. The JS binding
+writes inputs and decodes outputs through one preallocated DataView into
+caller-owned objects without per-step allocation.
 
 SIMD defaults exclude relaxed-simd and fast-math. Preserve a fixed reduction
 order in the scalar reference. Test alignment and tail counts 1/3/5/63.

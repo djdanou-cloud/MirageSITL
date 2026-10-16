@@ -94,7 +94,7 @@ terrain loading, network I/O, and decoding from fixed-step computation.
 
 ## Clocks, overload, and input safety
 
-FixedStepClock tracks performance.now deadlines while passing constant dt
+The Worker's `SteppingPolicy` (a `MultiRateClock`) tracks performance.now deadlines while passing constant dt
 to integration. At most eight steps run per callback before yielding to
 lifecycle messages. Nested setTimeout may be clamped to roughly 4 ms;
 one callback may therefore perform multiple physical steps.
@@ -250,15 +250,40 @@ not establish these performance budgets.
 TASK-004–006 introduce configuration-time boundaries; they do not add a new
 physics backend. TASK-007 retains the running ABI v1. The v1 tests pin 32896
 bytes, a 64-byte header, 256 states of 128 bytes, and the pilot mailbox at byte
-32832. V2 remains a separate future migration.
+32832. `tests/protocol-golden.test.ts` adds an independent oracle: the
+registered, hand-authored fixture `tests/fixtures/abi/v1-layout.json` must
+match the header, state, and pilot mailbox v1 byte tables in
+SPECS_SHARED_MEMORY.md field by field, and every byte of the 32896-byte buffer
+written by StateWriter and ControlWriter (header, two ring slots, untouched
+slots, reserved words, and mailbox) must equal an image packed by a local
+DataView. The v1 readers are not used, so a symmetric encoder/decoder offset
+error cannot pass. TASK-008 adds the v2 layout constants, state and pilot
+codecs, header initialization, validation, and v1/v2 negotiation to
+packages/protocol. They are verified against `tests/fixtures/protocol/state-v2.hex`,
+golden records packed with Python struct from the specification tables
+independently of the TypeScript encoder. TASK-009 adds the section 4 bounded
+seqlock transport: StateWriterV2/StateReaderV2 with sample_id and head checks
+and at most three read attempts, PilotWriterV2/PilotReaderV2, header
+diagnostics, and epoch-safe render history (latestPair never pairs frames
+across an epoch, model, or tick gap). A real-thread stress test publishes
+1e6 frames in Node worker_threads and in a browser module Worker while the
+reader checks every field; removing the seqlock re-check makes it report torn
+frames. TASK-010 adds Control Protocol v2: `parseControlCommandV2` validates
+untrusted commands into normalized copies, `control-v2.schema.json` is the
+equivalent JSON Schema 2020-12 contract (an Ajv equivalence test covers more
+than 50 cases), and `ControlProcessorV2` implements deduplication, epochs, the
+128-command schedule applied before integrating each tick, lifecycle state
+rules, and atomic model swaps behind a `ControlTargetV2` interface with a
+preallocated outbox. The running application remains on v1 until TASK-085.
 
 ### Verified fixture manifests and deterministic streams
 
 `packages/test-support` exports `./fixtures` and `./prng`. The registry at
 `tests/fixtures/registry.json` records paths relative to `tests/fixtures/`.
-Its two reference payloads are explicitly synthetic: analytical NED ballistic
-samples under constant gravity and a demonstration quad configuration. They
-provide reproducible software oracles, not experimental aerodynamic evidence.
+Its three reference payloads are explicitly synthetic: analytical NED
+ballistic samples under constant gravity, a demonstration quad configuration,
+and the hand-authored ABI v1 byte layout. They provide reproducible software
+oracles, not experimental aerodynamic evidence.
 
 `verifyFixture(metadata, bytes)` snapshots both inputs before awaiting SHA-256,
 validates strict formatVersion 1 metadata, compares the lowercase 64-character
@@ -339,3 +364,164 @@ the caller mutates its original bytes during hashing. `get(modelId)` returns
 the verified immutable record. Runtime model switching is introduced in
 TASK-010; the current demo is not switched by this registry. Configuration
 validation may allocate; none of this work belongs inside the physics step.
+
+## Runtime building blocks (Phase 1–2)
+
+
+### Multi-rate clocks (TASK-011)
+
+`packages/physics/src/clock.ts` provides `MultiRateClock` for 400/800/1200 Hz.
+Integration dt is always exactly `1/hz`; deadlines are `origin + n*1000/hz`
+computed from integer step counts, so wakeup jitter never accumulates into
+drift. At most `maxCatchUp` (8) steps run per wakeup; excess wall time is
+dropped and counted, and `reset(nowMs)` on resume discards any backlog. The
+clock owns the epoch's `TickId` (tick 1 is the first integration).
+`tickToMicros` computes MAVLink `time_usec = floor(tick*1e6/hz)` exactly
+(833/834 us intervals at 1200 Hz), and `isSampleDue`/`sampleIndexAtTick`
+schedule IMU/GNSS samples rationally. `DemoDynamics(hz)` integrates with
+`dt = 1/hz` and `sim_time = tick/hz`. The v1 Worker still runs at 400 Hz
+through `FixedStepClock`, now a 400 Hz `MultiRateClock`.
+
+### Clock modes and overload (TASK-012)
+
+`SteppingPolicy` (`packages/physics/src/clock-policy.ts`) wraps one
+`MultiRateClock` and applies the configured mode on every non-blocking
+`pump(nowMs, gate, step, report)`. **interactive** paces by wall time and
+counts dropped intervals. **sitl-lockstep** advances on simulation time:
+a tick runs only when the `StepGate` reports its actuator frame, ticks are
+never dropped, at most `maxCatchUp` run per pump, and a missing frame
+returns immediately with `waiting`, so pause/dispose messages are never
+starved. **hitl-realtime** paces by wall time against a physical flight
+controller; catch-up within `maxCatchUp` is normal, but any dropped interval
+sets the `hitl-overrun` fault, after which no tick runs until `resetEpoch`.
+The preallocated `PumpReport` is overwritten each pump.
+
+### Sensor and actuator SPSC queues (TASK-013)
+
+`spsc-v2.ts` implements the section 5 queues: one 131,136-byte SAB per
+direction, one `SpscProducer` and one `SpscConsumer` each. The producer owns
+write_counter/full_events, the consumer owns read_counter; counters are
+modular uint32 and every shared word uses Atomics. A full queue never
+overwrites unread frames: `sitl-would-block` returns `would-block` so
+lockstep waits, and `hitl-fault` latches a session fault until
+`resetSpscQueue`, which clears counters and advances the queue epoch only
+while both endpoints are stopped. Every full condition increments
+full_events. The consumer copies a slot to scratch and releases it before
+decoding. `SensorFrameCodecV2` and `ActuatorFrameCodecV2` pack the shared
+128-byte slot and validate per kind: value counts, f32 range, exact integer
+GNSS fix/satellite values, GNSS-only validity bits, zero geo fields outside
+GNSS, and normalized actuators in [-1,1]. Real-thread stress tests move 1e6
+frames in order in Node worker_threads and in a browser Worker.
+
+### Application on ABI v2 (TASK-085)
+
+The physics Worker is a thin adapter around `PhysicsSessionV2`
+(`packages/physics/src/session-v2.ts`), so the Worker logic runs in Node
+tests. Main creates the v2 state SAB and both SPSC queues and sends
+`init-v2`; the session owns `StateWriterV2`, `PilotReaderV2`, the actuator
+consumer, `ControlProcessorV2`, `SteppingPolicy`, and `DemoDynamics(hz)`.
+Per tick it reads the pilot mailbox, applies the arm latch, integrates, and
+publishes `FlightStateV2` with the ideal specific force
+`f_b = R^T(a_n - g_n)` and ISA truth pressure. Arming latches only on an
+explicit request at <=5% throttle; a stale epoch, input older than 250 ms,
+invalid values, or a changed `device_generation` disarms and blocks rearming
+until the request is withdrawn. `GamepadAdapter.generation` changes with
+the device identity, so a different transmitter at the same index never
+inherits an arm. Main reads lifecycle state from the header runtime flags,
+renders with `latestPair` history, and validates Worker events. In
+sitl-lockstep a tick waits for the autopilot's actuator frame for exactly
+that tick and epoch. Sensor frames are not produced until an I/O Worker
+consumes them (TASK-034+).
+
+### Hot-path instrumentation (TASK-014)
+
+`step-metrics.ts` records compute duration (0.1 us bins), wakeup lateness
+(0.01 ms bins), and executed steps in preallocated fixed-bin histograms;
+quantiles are bin upper bounds capped by the exact maximum and are computed
+outside the hot path. `scripts/bench-physics.mjs` drives the real
+`PhysicsSessionV2` step and measures V8 young-generation allocation over
+windows of N and 2N steps after reaching steady state (repeated warm windows
+until one is GC-free), three repeats per size, minimum over GC-free repeats.
+It runs V8 with `--single-threaded`: with concurrent compilation, finished
+jobs are installed on the main thread mid-window and allocate 0-120 KB at
+contention-dependent times, which hosted 2-CPU runners showed as false
+positives. The verdict uses the incremental per-step rate
+`(bytes_2N - bytes_N - (empty_2N - empty_N))/N`, which cancels fixed
+per-window costs; the whole-window bound `min_k (bytes_k - empty_k)/k` and
+the fixed cost are reported alongside. `gc` events are attributed by time, and an allocating
+control loop must be detected in the same run. The first
+measurements found real per-step allocations: variadic `Math.hypot`, and
+doubles boxed into HeapNumbers when passed to or returned from non-inlined
+calls, which made the result depend on TurboFan inlining. The hot path now
+passes time through numeric fields (`nowMs`, `*Now()` methods), returns an
+integer wakeup delay, and validates with inline comparisons only
+(`(x >>> 0) === x`, `|x| < F32_ROUNDING_LIMIT`). Timer overhead is reported
+separately from compute; Node timer pacing is not browser Worker evidence.
+
+### Render interpolation (TASK-015)
+
+`interpolatePoseInto` (`packages/protocol/src/interpolation.ts`) writes a
+caller-owned `RenderPoseV2` and never mutates truth. It interpolates only
+when `latestPair` returned `'pair'` (adjacent ticks, same epoch and model)
+and the step is continuous (at most 100 m per tick, 40 km/s at 400 Hz; a
+larger jump is a teleport). Position is linear; attitude uses slerp along the
+shortest path (the end quaternion is negated when the dot product is
+negative, so q and -q never cause a full turn), with normalized output and a
+normalized-lerp branch for nearly equal attitudes. `interpolationAlpha`
+derives the fraction from the frame's scheduled wall time and the header
+rate, so rendering lags truth by at most one physics step and never waits
+for the writer. `FlightScene` maps the pose through
+`nedToRenderPositionInto` and the proper-rotation NED-to-render basis.
+
+### Native Rust workspace (TASK-016)
+
+`native/` is a Cargo workspace with the scalar crate `mirage-bet`
+(`native/bet`), built natively for tests and to `wasm32-unknown-unknown` for
+browsers, with the toolchain pinned in `native/rust-toolchain.toml`. Its
+bootstrap kernel is the section 3 element force
+`dF = 1/2 rho U^2 c dr (C_L l + C_D d)` with the `U < 1e-6 m/s` cutoff; it is
+a scalar reference, not a rotor model, and `C_L`/`C_D` are inputs only until
+the polar lookup (TASK-019) and quadrature (TASK-020) exist. The wasm32 build
+installs a global allocator that traps on any allocation (the only `unsafe`
+in the crate), has no host imports, and exports `memory`,
+`bet_abi_version` (= 1), and `bet_bootstrap_element_force`. The release
+profile (LTO, one codegen unit, `panic = "abort"`, stripped) produces a
+byte-identical artifact across clean target directories.
+
+### WASM artifacts and loader (TASK-017)
+
+`scripts/build-wasm.mjs` builds two variants of `mirage-bet`: `scalar`, the
+mandatory baseline, and `simd128` (`-C target-feature=+simd128`), each in
+its own target directory, and writes `manifest.json` with schema version,
+crate, ABI version read back from the built module, toolchain, and per
+artifact file name, SHA-256, size, and target features.
+`packages/wasm-bet/src/loader.ts` treats the manifest as unknown input and
+validates it exactly. It probes SIMD128 with `WebAssembly.validate` on a
+minimal v128 module and loads `simd128` only when the probe succeeds,
+otherwise the scalar artifact (`fallback` reports the downgrade). Before
+instantiation it checks size and SHA-256 via Web Crypto; after it requires
+no imports, the expected exports, and `bet_abi_version` equal to the
+loader's ABI. It then grows linear memory to the reservation (default and
+maximum 64 MiB), so `memoryStable()` exposes any growth after arming. Every
+failure returns `ok: false` with a reason and must block arming. Loading is
+asynchronous and belongs to initialization, never to a step.
+
+### BET C ABI and arena binding (TASK-018)
+
+`native/bet/src/abi.rs` implements the section 4 records as safe
+field-by-field reads and writes over byte slices; the wasm32 export layer in
+`lib.rs` is the only place that turns `u32` pointers into slices, after
+checking range, alignment, `__heap_base`, and overlap. `include/bet.h` is the
+shared layout source. `packages/wasm-bet/src/arena.ts` encodes the
+configuration once, places configuration, input, output, and arena regions
+above `__heap_base` inside the reserved memory, and steps through one
+preallocated DataView into caller-owned output objects. Until TASK-020 the
+step returns `AERODYNAMICS_UNAVAILABLE` with NaN aerodynamic outputs.
+
+### Polar lookup (TASK-019)
+
+`native/bet/src/polar.rs` validates a borrowed `(Mach, Re, alpha)` CL/CD
+table once and interpolates trilinearly in `(Ma, ln Re, alpha)` without
+allocation. Queries outside the table clamp to its boundary and set
+`OUTSIDE_POLAR_VALIDITY`; there is no extrapolation. The rotor step will
+use it once quadrature lands (TASK-020).

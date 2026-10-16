@@ -1,6 +1,6 @@
 # CLAUDE.md — MirageSITL agent instructions
 
-<!-- source-sha256: 865d17b95c70a7cc8cf019e76839dfdf6985eb3e4a3f7158a4ad3b62e52a7c25 -->
+<!-- source-sha256: 6a5364143abb8589adc22071559614bc66cd807909be20ab5110ee05573c414e -->
 
 Английский источник: [Source of truth](../../CLAUDE.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -49,9 +49,10 @@ roadmap, архитектурные руководства, README и эти и�
 Пользовательские инструкции и ограничения среды имеют приоритет.
 
 Claude Code использует этот корневой файл по своему механизму загрузки.
-Codex/Cursor не следует считать автоматически читающими CLAUDE.md:
-до TASK-084 агент обязан открыть его явно; TASK-084 добавляет AGENTS.md и
-`.cursor/rules/project.mdc` как тонкие указатели, не дублирующие правила.
+Codex/Cursor не следует считать автоматически читающими CLAUDE.md.
+TASK-084 добавил AGENTS.md и `.cursor/rules/project.mdc` как тонкие указатели
+на этот файл, не дублирующие правила; если клиент не загружает ни один из
+указателей, агент обязан открыть этот файл явно.
 
 ## 1. Реальный baseline и границы
 
@@ -87,6 +88,10 @@ npm run typecheck
 npx --no-install vitest run tests/protocol.test.ts
 npx --no-install tsc --noEmit
 CHROMIUM_PATH=/usr/bin/chromium npm run test:browser
+node scripts/bench-physics.mjs
+cargo check --manifest-path native/Cargo.toml --workspace --locked
+cargo test --manifest-path native/Cargo.toml --workspace --locked
+cargo check --manifest-path native/Cargo.toml -p mirage-bet --target wasm32-unknown-unknown --locked
 ```
 
 TASK-002 реализован: `npm run lint` включает typed правила TypeScript и
@@ -103,16 +108,33 @@ TASK-003 добавляет независимые GitHub Actions unit/browser/b
 `npm ci --cache /workspace/.cache/mirage-npm --no-audit --no-fund`.
 Не менять HOME и не отключать TLS/signature/checksum verification.
 
+TASK-014 добавляет `node scripts/bench-physics.mjs` (перезапускает себя с
+`--expose-gc --max-semi-space-size=64 --single-threaded`). Скрипт пишет
+`test-results/bench/physics.json` (schema `docs/benchmarks/schema.json`):
+вердикт об отсутствии аллокаций для реального шага PhysicsSessionV2 после
+выхода на установившийся режим, compute p50/p95/p99/max, накладные расходы
+таймера и задержку пробуждений/выполненную частоту в реальном времени. Он
+работает в Node; это не доказательство для браузера или целевого оборудования.
+
+TASK-016 добавляет Rust workspace `native/` (crate `mirage-bet`). Toolchain
+закреплён в `native/rust-toolchain.toml` (1.97.0 + wasm32-unknown-unknown);
+rustup читает его из текущего каталога, поэтому для закреплённых результатов
+запускать cargo внутри `native/` (или установить тот же toolchain). Сборка
+wasm32 имеет ловушечный глобальный аллокатор и не имеет imports.
+
+TASK-017 добавляет `node scripts/build-wasm.mjs [--out dir]`: скрипт собирает
+артефакты `scalar` и `simd128` в `packages/wasm-bet/dist/` (игнорируется git)
+вместе с `manifest.json` (SHA-256, размер, ABI, прочитанный из модуля,
+toolchain). `@mirage/wasm-bet/loader` проверяет manifest, выбирает SIMD только
+после feature detection, проверяет размер/hash/ABI/exports и резервирует
+бюджет памяти до arm. `tests/wasm-loader.test.ts` запускает этот скрипт,
+поэтому unit-тестам нужен закреплённый Rust toolchain.
+
 Команды **ещё отсутствуют**; внедряются указанной задачей и только после
 этого становятся обязательными для её зависимых задач:
 
 | Команда | Появится | Назначение |
 | --- | --- | --- |
-| `cargo check --manifest-path native/Cargo.toml --workspace --locked` | TASK-016 | native Rust compile |
-| `cargo test --manifest-path native/Cargo.toml --workspace --locked` | TASK-016 | scalar reference tests |
-| `cargo check --manifest-path native/Cargo.toml -p mirage-bet --target wasm32-unknown-unknown --locked` | TASK-016 | WASM target compile; crate name закрепить как mirage-bet |
-| `node scripts/build-wasm.mjs` | TASK-017 | scalar/SIMD artifacts + manifests |
-| `node scripts/bench-physics.mjs` | TASK-014 | machine-readable step/allocation report |
 | `node scripts/build-jsbsim.mjs` | TASK-030 | pinned Emscripten build |
 | `node scripts/run-sitl.mjs` | TASK-042 | pinned native ArduPilot harness |
 

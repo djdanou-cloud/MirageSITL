@@ -1,0 +1,9 @@
+---
+description: Pointer to the authoritative MirageSITL agent workflow in the root CLAUDE.md
+alwaysApply: true
+---
+
+This rule is a pointer, not a policy. The authoritative agent workflow for
+this repository is the root [CLAUDE.md](../../CLAUDE.md). Open and read it
+before every iteration and follow it. Do not copy its rules here; change
+CLAUDE.md and its Russian mirror instead.

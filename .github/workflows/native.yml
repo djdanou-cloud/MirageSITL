@@ -1,0 +1,41 @@
+name: Native checks
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: native-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  native:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: native
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      # Must match native/rust-toolchain.toml (checked by tests/ci.test.ts).
+      - run: rustup toolchain install 1.97.0 --profile minimal --target wasm32-unknown-unknown
+      - run: cargo check --workspace --locked
+      - run: cargo test --workspace --locked
+      - run: cargo check -p mirage-bet --target wasm32-unknown-unknown --locked
+      - name: Reproducible wasm32 artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          for dir in a b; do
+            CARGO_TARGET_DIR="$RUNNER_TEMP/$dir" cargo build --release -p mirage-bet --target wasm32-unknown-unknown --locked
+          done
+          sha256sum "$RUNNER_TEMP"/a/wasm32-unknown-unknown/release/mirage_bet.wasm \
+                    "$RUNNER_TEMP"/b/wasm32-unknown-unknown/release/mirage_bet.wasm | tee "$RUNNER_TEMP/hashes.txt"
+          test "$(cut -d' ' -f1 "$RUNNER_TEMP/hashes.txt" | sort -u | wc -l)" -eq 1

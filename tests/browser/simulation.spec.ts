@@ -33,25 +33,16 @@ test('real worker keeps fixed dt, detects stale control and acknowledges lifecyc
     // Use the same Vite-transformed source modules as the application.
     // This URL points to the checkout's own statically known protocol module.
     const p = await import(protocolUrl) as typeof import('@mirage/protocol');
-    const buffer = p.createSharedMemory();
-    const reader = new p.StateReader(buffer), writer = new p.ControlWriter(buffer);
-    const current = p.newState();
+    const stateBuffer = p.createSharedMemoryV2(400);
+    const reader = new p.StateReaderV2(stateBuffer), pilotWriter = new p.PilotWriterV2(stateBuffer);
+    const current = p.newFlightStateV2(), header = p.newHeaderSnapshotV2(), pilot = p.newPilotInputV2();
     const worker = new Worker('/src/physics.worker.ts', { type: 'module' });
-    const events: { type: string; command?: string; requestId?: number }[] = [];
+    const events: { type: string; requestId?: number; status?: string; epoch?: number }[] = [];
     worker.onmessage = ({ data }: MessageEvent<unknown>) => {
-      if (typeof data !== 'object' || data === null || !('type' in data) || typeof data.type !== 'string') {
-        throw new Error('Invalid worker event');
-      }
-      const event: { type: string; command?: string; requestId?: number } = { type: data.type };
-      if ('command' in data) {
-        if (typeof data.command !== 'string') throw new Error('Invalid worker command');
-        event.command = data.command;
-      }
-      if ('requestId' in data) {
-        if (typeof data.requestId !== 'number') throw new Error('Invalid worker request ID');
-        event.requestId = data.requestId;
-      }
-      events.push(event);
+      const event = p.parseWorkerEventV2(data);
+      if (!event) throw new Error('Invalid worker event');
+      events.push({ type: event.type, ...('requestId' in event ? { requestId: event.requestId } : {}),
+        ...('status' in event ? { status: event.status } : {}), ...('epoch' in event ? { epoch: event.epoch } : {}) });
     };
     const waitFor = async (check: () => boolean) => {
       const until = performance.now() + 5000;
@@ -61,38 +52,52 @@ test('real worker keeps fixed dt, detects stale control and acknowledges lifecyc
       }
     };
     const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+    let requestId = 0;
+    const command = async (type: string, extra: Record<string, unknown> = {}) => {
+      reader.readHeader(header);
+      const id = ++requestId;
+      worker.postMessage({ protocolVersion: 2, requestId: id, expectedEpoch: header.sessionEpoch, type, ...extra });
+      await waitFor(() => events.some(e => e.requestId === id));
+      return events.find(e => e.requestId === id);
+    };
+    const stick = (throttle: number) => {
+      reader.readHeader(header);
+      pilot.expectedEpoch = header.sessionEpoch; pilot.throttle = throttle;
+      pilot.flags = p.PilotFlagV2.Connected | p.PilotFlagV2.Armed; pilot.sampledWallTimeMs = p.wallNow();
+      pilotWriter.publish(pilot);
+    };
     try {
-      worker.postMessage({ type: 'init', version: p.ABI_VERSION, buffer });
-      await waitFor(() => events.some(e => e.type === 'ready'));
-      const input = { ...p.newInput(), throttle: 0.7, flags: 3, wallTimeMs: p.wallNow() };
-      writer.publish(input);
-      worker.postMessage({ type: 'start', requestId: 1 });
-      await waitFor(() => reader.latest(current) && current.tick > 10);
-      const live = !(current.flags & p.StateFlag.InputFailsafe);
-      await sleep(750); reader.latest(current);
-      const stale = !!(current.flags & p.StateFlag.InputFailsafe);
-      const fixedTime = current.simTime === current.tick * p.DT;
-      const ticks = current.tick;
-      worker.postMessage({ type: 'pause', requestId: 2 });
-      await waitFor(() => events.some(e => e.type === 'ack' && e.requestId === 2));
-      reader.latest(current); const pausedTick = current.tick;
+      worker.postMessage({ type: 'init-v2', protocolVersion: 2, stateBuffer,
+        sensorBuffer: p.createSpscQueue('sensor'), actuatorBuffer: p.createSpscQueue('actuator') });
+      await waitFor(() => events.some(e => e.type === 'ready-v2'));
+      await command('sim.start');
+      // Arm at zero throttle (the v2 latch rule), then climb while input stays fresh.
+      for (let i = 0; i < 10; i++) { stick(0); await sleep(10); }
+      for (let i = 0; i < 30; i++) { stick(0.7); await sleep(10); }
+      await waitFor(() => reader.latest(current) && p.tickToNumber(current.tickId) > 10);
+      const live = !(current.vehicleFlags & p.VehicleFlagV2.InputFailsafe) && !!(current.vehicleFlags & p.VehicleFlagV2.Armed);
+      await sleep(750); reader.latest(current); // no fresh pilot samples for 750 ms
+      const stale = !!(current.vehicleFlags & p.VehicleFlagV2.InputFailsafe) && !(current.vehicleFlags & p.VehicleFlagV2.Armed);
+      const fixedTime = current.simTimeS === p.tickToNumber(current.tickId) / 400; // sim_time = tick / hz
+      const ticks = p.tickToNumber(current.tickId);
+      const paused = await command('sim.pause');
+      reader.latest(current); const pausedTick = p.tickToNumber(current.tickId);
       await sleep(100); reader.latest(current);
-      const held = current.tick === pausedTick;
-      worker.postMessage({ type: 'reset', requestId: 3 });
-      await waitFor(() => events.some(e => e.type === 'ack' && e.requestId === 3));
+      const held = p.tickToNumber(current.tickId) === pausedTick;
+      const reset = await command('sim.reset', { seed: 0 });
       reader.latest(current);
-      const reset = current.tick === 0 && current.down === 0;
-      worker.postMessage({ type: 'start', requestId: 4 });
-      await waitFor(() => reader.latest(current) && current.tick > 10);
-      worker.postMessage({ type: 'dispose', requestId: 5 });
-      await waitFor(() => events.some(e => e.type === 'ack' && e.requestId === 5));
-      return { live, stale, fixedTime, ticks, held, reset, events };
+      const resetState = p.tickToNumber(current.tickId) === 0 && current.downM === 0 && current.epoch === 2 && reset?.epoch === 2;
+      await command('sim.start');
+      await waitFor(() => reader.latest(current) && p.tickToNumber(current.tickId) > 10);
+      const disposed = await command('worker.dispose');
+      return { live, stale, fixedTime, ticks, held, reset: resetState, paused: paused?.status, disposed: disposed?.status, events };
     } finally { worker.terminate(); }
   }, '/@fs' + fileURLToPath(new URL('../../packages/protocol/src/index.ts', import.meta.url)));
   expect(result.live).toBe(true); expect(result.stale).toBe(true);
   expect(result.fixedTime).toBe(true); expect(result.ticks).toBeGreaterThan(20);
   expect(result.held).toBe(true); expect(result.reset).toBe(true);
-  expect(result.events.some(e => e.type === 'error')).toBe(false);
+  expect([result.paused, result.disposed]).toEqual(['applied', 'applied']);
+  expect(result.events.some(e => e.type === 'reject-v2' || e.type === 'fault-v2')).toBe(false);
 });
 
 test('Gamepad API adapter drives USB channels and disarms on unplug', async ({ page }) => {

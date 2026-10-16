@@ -1,0 +1,475 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mirage-sitl.invalid/schemas/benchmarks/physics.schema.json",
+  "title": "MirageSITL physics hot-path benchmark report (scripts/bench-physics.mjs)",
+  "description": "Compute duration, wakeup lateness, executed rate, and allocation are separate measurements (TASK-014, gates G1/G3). Node-only; browser Worker timing and target hardware are not covered.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "benchmark",
+    "generatedAt",
+    "environment",
+    "configuration",
+    "allocation",
+    "compute",
+    "realtime"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "benchmark": {
+      "const": "physics-session-v2"
+    },
+    "generatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "environment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "node",
+        "v8",
+        "platform",
+        "arch",
+        "cpuModel",
+        "cpuCount",
+        "flags",
+        "commit"
+      ],
+      "properties": {
+        "node": {
+          "type": "string"
+        },
+        "v8": {
+          "type": "string"
+        },
+        "platform": {
+          "type": "string"
+        },
+        "arch": {
+          "type": "string"
+        },
+        "cpuModel": {
+          "type": "string"
+        },
+        "cpuCount": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "flags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "commit": {
+          "type": "string"
+        }
+      }
+    },
+    "configuration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "hz",
+        "backend",
+        "clockMode",
+        "steps",
+        "warmup"
+      ],
+      "properties": {
+        "hz": {
+          "enum": [
+            400,
+            800,
+            1200
+          ]
+        },
+        "backend": {
+          "const": "demo"
+        },
+        "clockMode": {
+          "const": "interactive"
+        },
+        "steps": {
+          "type": "integer",
+          "minimum": 1000
+        },
+        "warmup": {
+          "type": "string"
+        }
+      }
+    },
+    "allocation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "steps",
+        "method",
+        "bytesPerStepUpperBound",
+        "bytesPerStepIncremental",
+        "fixedWindowBytes",
+        "gcEventsInWindows",
+        "windowBytes",
+        "emptyLoopWindowBytes",
+        "thresholdBytesPerStep",
+        "warmupWindows",
+        "reachedSteadyState",
+        "zeroAllocation",
+        "controls",
+        "heapTotalBytesAfter"
+      ],
+      "properties": {
+        "steps": {
+          "type": "integer"
+        },
+        "method": {
+          "type": "string"
+        },
+        "bytesPerStepUpperBound": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "null (JSON for Infinity) when every window saw a GC"
+        },
+        "bytesPerStepIncremental": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "Verdict basis: (bytes_2N - bytes_N - empty-loop increment) / N; null when a window saw a GC"
+        },
+        "fixedWindowBytes": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "Per-window cost independent of step count; null when a window saw a GC"
+        },
+        "gcEventsInWindows": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "windowBytes": {
+          "type": "array",
+          "description": "Minimum bytes over GC-free repeats for the N and 2N windows; null when every repeat saw a GC",
+          "items": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "emptyLoopWindowBytes": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "thresholdBytesPerStep": {
+          "type": "number"
+        },
+        "warmupWindows": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "reachedSteadyState": {
+          "type": "boolean"
+        },
+        "zeroAllocation": {
+          "type": "boolean"
+        },
+        "controls": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "emptyLoopGcEvents",
+            "allocatingLoop"
+          ],
+          "properties": {
+            "emptyLoopGcEvents": {
+              "type": "integer"
+            },
+            "allocatingLoop": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "gcEvents",
+                "detected"
+              ],
+              "properties": {
+                "gcEvents": {
+                  "type": "integer"
+                },
+                "detected": {
+                  "type": "boolean"
+                }
+              }
+            }
+          }
+        },
+        "heapTotalBytesAfter": {
+          "type": "integer"
+        }
+      }
+    },
+    "compute": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "unit",
+        "count",
+        "mean",
+        "p50",
+        "p95",
+        "p99",
+        "max",
+        "overflow",
+        "binWidth",
+        "timerOverheadPerStepUs",
+        "untimedMeanUs",
+        "note"
+      ],
+      "properties": {
+        "unit": {
+          "const": "us"
+        },
+        "count": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "mean": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "p50": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "p95": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "p99": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "max": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "overflow": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "binWidth": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "timerOverheadPerStepUs": {
+          "type": "number"
+        },
+        "untimedMeanUs": {
+          "type": "number"
+        },
+        "note": {
+          "type": "string"
+        }
+      }
+    },
+    "realtime": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "durationS",
+        "targetHz",
+        "executedHz",
+        "executedSteps",
+        "droppedSteps",
+        "overruns",
+        "wakeupLatenessMs",
+        "wakeupComputeUs",
+        "note"
+      ],
+      "properties": {
+        "durationS": {
+          "type": "number"
+        },
+        "targetHz": {
+          "enum": [
+            400,
+            800,
+            1200
+          ]
+        },
+        "executedHz": {
+          "type": "number"
+        },
+        "executedSteps": {
+          "type": "integer"
+        },
+        "droppedSteps": {
+          "type": "integer"
+        },
+        "overruns": {
+          "type": "integer"
+        },
+        "wakeupLatenessMs": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "count",
+            "mean",
+            "p50",
+            "p95",
+            "p99",
+            "max",
+            "overflow",
+            "binWidth"
+          ],
+          "properties": {
+            "count": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "mean": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "p50": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "p95": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "p99": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "max": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "overflow": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "binWidth": {
+              "type": [
+                "number",
+                "null"
+              ]
+            }
+          }
+        },
+        "wakeupComputeUs": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "count",
+            "mean",
+            "p50",
+            "p95",
+            "p99",
+            "max",
+            "overflow",
+            "binWidth"
+          ],
+          "properties": {
+            "count": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "mean": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "p50": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "p95": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "p99": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "max": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "overflow": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "binWidth": {
+              "type": [
+                "number",
+                "null"
+              ]
+            }
+          }
+        },
+        "note": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

@@ -3,8 +3,11 @@
 Document version: 1.0 · 2026-10-15. Runtime baseline: commit `e3bb6b4`.
 English is the source of truth. [Russian mirror](ru/SPECS_SHARED_MEMORY.md).
 
-**ABI v1 is implemented. ABI v2 and Control Protocol v2 are target contracts
-and are not implemented yet.** TASK-008/009 implement the migration;
+**The running application uses ABI v2 and Control Protocol v2 (TASK-085):
+the v2 state ring, pilot mailbox, SPSC queues (TASK-013), `init-v2`, and the
+command processor. ABI v1 remains implemented and tested in
+`packages/protocol` but is no longer used by the application; removing it
+requires a recorded decision.** TASK-008/009 implement the v2 layout and transport;
 TASK-010 implements commands. Do not assign EKF/EW meanings to v1 reserved
 words without changing the ABI version. Task IDs are defined in
 [PROJECT_ROADMAP.md](PROJECT_ROADMAP.md).
@@ -442,6 +445,25 @@ Normative runtime validation contract: TASK-010 implements JSON Schema
   initialization. A failure preserves the previous model in paused state,
   without a partial swap.
 * Runtime commands do not change terrain licensing, secrets, or network domains.
+* Implementation details (TASK-010, `ControlProcessorV2`): a command rejected
+  by validation (SCHEMA, or OUT_OF_RANGE found while validating fields) does
+  not consume its requestId and is not cached; its reject reports the
+  received requestId when that is a uint32, otherwise -1. A lifecycle ACK
+  reports the last integrated tick of the epoch in which it applied (0 after
+  reset/configure/model swap). `model.load` first returns `queued`, then a
+  final `applied` (new epoch), `ASSET_MISSING`, or `BAD_STATE`; while a load
+  is in flight every other command except `worker.dispose` is rejected with
+  BAD_STATE. Cancelled commands are rejected in due order. JSON Schema cannot
+  express the 16 KiB limit or the drift-norm limit; the TypeScript validator
+  enforces both.
+* A backend that cannot model a scheduled command rejects it at admission
+  with BAD_STATE and its reason (`ControlTargetV2.unsupportedReason`); the
+  demo backend has no atmosphere or EW model, so it rejects every
+  `weather.set` and `fault.set`. Outside the command/result flow the Worker
+  reports session faults (for example a failed `init-v2` or a HITL overrun)
+  as `{ type: 'fault-v2', protocolVersion: 2, message }`. Main validates every
+  Worker message (`parseWorkerEventV2`) and ignores unknown ones; the Worker
+  validates `init-v2` by shape and by each buffer layout.
 
 Valid JSON example, scheduled at one second with a 400 Hz physics clock:
 

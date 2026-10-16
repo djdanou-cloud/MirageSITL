@@ -1,0 +1,183 @@
+import { describe, expect, it } from 'vitest';
+import { PhysicsSessionV2, isaPressurePa } from '@mirage/physics';
+import { ActuatorFrameCodecV2, HeaderV2, PilotFlagV2, PilotWriterV2, RuntimeFlagV2, SpscProducer, StateReaderV2,
+  VehicleFlagV2, createSharedMemoryV2, createSpscQueue, newActuatorFrameV2, newFlightStateV2, newHeaderSnapshotV2,
+  newPilotInputV2, tickToNumber, type CommandResultV2 } from '@mirage/protocol';
+
+/** A Main-side harness around a real PhysicsSessionV2 with a controllable clock. */
+function harness() {
+  const time = { mono: 0, wall: 1_790_000_000_000 };
+  const stateBuffer = createSharedMemoryV2(), sensorBuffer = createSpscQueue('sensor'), actuatorBuffer = createSpscQueue('actuator');
+  const session = new PhysicsSessionV2({ type: 'init-v2', protocolVersion: 2, stateBuffer, sensorBuffer, actuatorBuffer },
+    { monotonicMs: () => time.mono, wallMs: () => time.wall + time.mono });
+  const reader = new StateReaderV2(stateBuffer), pilotWriter = new PilotWriterV2(stateBuffer), header = newHeaderSnapshotV2();
+  const state = newFlightStateV2(), previous = newFlightStateV2(), results: CommandResultV2[] = [];
+  let requestId = 0;
+  const command = (type: string, extra: Record<string, unknown> = {}) => {
+    reader.readHeader(header);
+    session.handle({ protocolVersion: 2, requestId: ++requestId, expectedEpoch: header.sessionEpoch, type, ...extra });
+    session.drain(result => results.push(result));
+    return results.at(-1);
+  };
+  const pilot = newPilotInputV2();
+  const stick = (throttle: number, armed: boolean, options: { generation?: number; epoch?: number; ageMs?: number } = {}) => {
+    reader.readHeader(header);
+    pilot.expectedEpoch = options.epoch ?? header.sessionEpoch; pilot.throttle = throttle;
+    pilot.flags = PilotFlagV2.Connected | (armed ? PilotFlagV2.Armed : 0);
+    pilot.deviceGeneration = options.generation ?? 0;
+    pilot.sampledWallTimeMs = time.wall + time.mono - (options.ageMs ?? 0);
+    pilotWriter.publish(pilot);
+  };
+  /** Advances 1 ms per wakeup, republishing the stick each time like Main's rAF loop. */
+  const run = (ms: number, refresh?: () => void) => {
+    let last = 0;
+    for (let i = 0; i < ms; i++) { time.mono += 1; refresh?.(); last = session.pump(); }
+    return last;
+  };
+  const latest = () => { expect(reader.latest(state)).toBe(true); return state; };
+  return { time, session, reader, header, state, previous, results, command, stick, run, latest, actuatorBuffer, stateBuffer };
+}
+const armed = (flags: number) => (flags & VehicleFlagV2.Armed) !== 0;
+
+describe('PhysicsSessionV2 lifecycle', () => {
+  it('announces readiness, publishes epoch 1 at tick 0, and steps at tick/hz once started', () => {
+    const h = harness();
+    expect(h.session.readyEvent()).toEqual({ type: 'ready-v2', protocolVersion: 2, abiVersion: 2, epoch: 1, hz: 400 });
+    expect(tickToNumber(h.latest().tickId)).toBe(0);
+    expect(h.latest().vehicleFlags & VehicleFlagV2.Paused).toBeTruthy();
+    expect(h.command('sim.start')).toMatchObject({ type: 'ack-v2', status: 'applied', epoch: 1 });
+    h.reader.readHeader(h.header);
+    expect(h.header.runtimeFlags).toBe(RuntimeFlagV2.Ready | RuntimeFlagV2.Running);
+    h.run(1000);
+    const s = h.latest();
+    expect(tickToNumber(s.tickId)).toBe(400);
+    expect(s.simTimeS).toBe(1);
+    expect(s.epoch).toBe(1); expect(s.modelId).toBe(1);
+    expect(h.command('sim.pause')).toMatchObject({ status: 'applied' });
+    expect(h.run(50)).toBe(-1);
+    expect(tickToNumber(h.latest().tickId)).toBe(400);
+  });
+  it('reports the ideal specific force of a vehicle resting on the ground and ISA pressure', () => {
+    const h = harness();
+    h.command('sim.start'); h.run(100);
+    const s = h.latest();
+    expect(s.vehicleFlags & VehicleFlagV2.GroundContact).toBeTruthy();
+    expect(s.specificForceXBodyMps2).toBeCloseTo(0, 6); expect(s.specificForceYBodyMps2).toBeCloseTo(0, 6);
+    expect(s.specificForceZBodyMps2).toBeCloseTo(-9.80665, 5); // f_b = R^T (a - g), not free fall
+    expect(s.ambientPressurePa).toBeCloseTo(101325, 0);
+    expect(isaPressurePa(1000)).toBeCloseTo(89874.6, 0); // US Standard Atmosphere 1976 at 1 km
+  });
+  it('rejects unsupported scheduled effects and unavailable models without changing state', async () => {
+    const h = harness();
+    const weather = h.command('weather.set', { atTick: { lo: 10, hi: 0 }, windNedMps: [1, 0, 0], temperatureK: 288, pressurePa: 101325, turbulenceRmsMps: 0, seed: 1 });
+    expect(weather).toMatchObject({ type: 'reject-v2', code: 'BAD_STATE' });
+    expect(h.command('model.load', { modelId: 2, manifestSha256: 'ab'.repeat(32) })).toMatchObject({ status: 'queued' });
+    await h.session.settled();
+    h.session.drain(result => h.results.push(result));
+    expect(h.results.at(-1)).toMatchObject({ type: 'reject-v2', code: 'ASSET_MISSING' });
+    expect(h.session.currentEpoch).toBe(1);
+  });
+});
+
+describe('PhysicsSessionV2 arming and input protection', () => {
+  it('arms only at <=5% throttle, then flies on fresh input', () => {
+    const h = harness();
+    h.command('sim.start');
+    h.run(20, () => h.stick(0.5, true));
+    expect(armed(h.latest().vehicleFlags)).toBe(false); // high throttle never arms
+    h.run(20, () => h.stick(0.5, false));
+    h.run(20, () => h.stick(0, true));
+    expect(armed(h.latest().vehicleFlags)).toBe(true);
+    h.run(2000, () => h.stick(0.7, true));
+    expect(h.latest().downM).toBeLessThan(-1);
+    expect(h.latest().vehicleFlags & VehicleFlagV2.InputFailsafe).toBe(0);
+  });
+  it('a changed device_generation disarms and blocks rearming until the arm request is withdrawn', () => {
+    const h = harness();
+    h.command('sim.start');
+    h.run(20, () => h.stick(0, true, { generation: 1 }));
+    expect(armed(h.latest().vehicleFlags)).toBe(true);
+    h.run(20, () => h.stick(0, true, { generation: 2 })); // a different transmitter, still "armed"
+    expect(armed(h.latest().vehicleFlags)).toBe(false);
+    h.run(20, () => h.stick(0, true, { generation: 2 }));
+    expect(armed(h.latest().vehicleFlags)).toBe(false); // no silent re-arm
+    h.run(20, () => h.stick(0, false, { generation: 2 }));
+    h.run(20, () => h.stick(0, true, { generation: 2 }));
+    expect(armed(h.latest().vehicleFlags)).toBe(true); // explicit rearm
+  });
+  it('stale epochs and stale samples disarm with zero thrust', () => {
+    const h = harness();
+    h.command('sim.start');
+    h.run(20, () => h.stick(0, true, { epoch: 7 }));
+    expect(armed(h.latest().vehicleFlags)).toBe(false);
+    h.run(20, () => h.stick(0, true));
+    expect(armed(h.latest().vehicleFlags)).toBe(true);
+    h.run(20, () => h.stick(0, true, { ageMs: 300 })); // older than 250 ms
+    const s = h.latest();
+    expect(armed(s.vehicleFlags)).toBe(false);
+    expect(s.vehicleFlags & VehicleFlagV2.InputFailsafe).toBeTruthy();
+  });
+});
+
+describe('PhysicsSessionV2 epochs, rates, and clock modes', () => {
+  it('reset and configure start new epochs that break render history; configure changes the rate', () => {
+    const h = harness();
+    h.command('sim.start'); h.run(100);
+    expect(h.command('sim.reset', { seed: 0 })).toMatchObject({ type: 'reject-v2', code: 'BAD_STATE' }); // running
+    h.command('sim.pause');
+    expect(h.command('sim.reset', { seed: 0 })).toMatchObject({ status: 'applied', epoch: 2 });
+    const current = newFlightStateV2();
+    expect(h.reader.latestPair(current, h.previous)).toBe('latest');
+    expect([tickToNumber(current.tickId), current.epoch]).toEqual([0, 2]);
+    expect(h.command('sim.configure', { hz: 1200, clockMode: 'interactive' })).toMatchObject({ status: 'applied', epoch: 3 });
+    h.reader.readHeader(h.header);
+    expect([h.header.physicsHz, h.header.sessionEpoch]).toEqual([1200, 3]);
+    h.command('sim.start'); h.run(1000);
+    const s = h.latest();
+    expect([tickToNumber(s.tickId), s.simTimeS, s.epoch]).toEqual([1200, 1, 3]);
+    expect(h.reader.latestPair(current, h.previous)).toBe('pair');
+  });
+  it('sitl-lockstep waits responsively without actuators and steps exactly on frames for each tick', () => {
+    const h = harness();
+    h.command('sim.configure', { hz: 400, clockMode: 'sitl-lockstep' });
+    h.command('sim.start');
+    expect(h.run(500)).toBe(1); // waiting: poll again in 1 ms, never blocks
+    expect(tickToNumber(h.latest().tickId)).toBe(0);
+    expect(h.command('sim.pause')).toMatchObject({ status: 'applied' }); // still responsive
+    h.command('sim.start');
+    const producer = new SpscProducer(h.actuatorBuffer, 'actuator', 'sitl-would-block');
+    const frame = newActuatorFrameV2(), codec = new ActuatorFrameCodecV2();
+    frame.epoch = 2; frame.actuatorCount = 4;
+    for (let tick = 1; tick <= 10; tick++) {
+      frame.tickId.lo = tick; codec.encode(frame); producer.tryPush(codec.words);
+    }
+    h.run(20);
+    const s = h.latest();
+    expect(tickToNumber(s.tickId)).toBe(10);
+    expect(s.vehicleFlags & VehicleFlagV2.ActuatorValid).toBeTruthy();
+    expect(tickToNumber(s.lastActuatorTick)).toBe(10);
+  });
+  it('hitl-realtime faults on a missed deadline and stays faulted until a new epoch', () => {
+    const h = harness();
+    h.command('sim.configure', { hz: 1200, clockMode: 'hitl-realtime' });
+    h.command('sim.start'); h.run(100);
+    expect(h.session.fault).toBe('');
+    h.time.mono += 1000; // the Worker stalled for a second
+    expect(h.session.pump()).toBe(-1);
+    expect(h.session.fault).toContain('HITL');
+    h.reader.readHeader(h.header);
+    expect(h.header.runtimeFlags & RuntimeFlagV2.Fault).toBeTruthy();
+    const before = tickToNumber(h.latest().tickId);
+    h.run(100);
+    expect(tickToNumber(h.latest().tickId)).toBe(before);
+    h.command('sim.pause'); h.command('sim.reset', { seed: 0 });
+    expect(h.session.fault).toBe('');
+  });
+  it('dispose clears the runtime flags and rejects later commands', () => {
+    const h = harness();
+    expect(h.command('worker.dispose')).toMatchObject({ status: 'applied' });
+    expect(h.session.disposed).toBe(true);
+    expect(Atomics.load(new Int32Array(h.stateBuffer), HeaderV2.RuntimeFlags)).toBe(0);
+    expect(h.command('sim.start')).toMatchObject({ type: 'reject-v2', code: 'BAD_STATE' });
+  });
+});

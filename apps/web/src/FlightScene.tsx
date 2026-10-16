@@ -1,14 +1,16 @@
 import { Canvas, useFrame } from '@react-three/fiber';
-import { useRef, type MutableRefObject } from 'react';
+import { useRef, type RefObject } from 'react';
 import { Group, Quaternion, Vector3 } from 'three';
-import { DT, wallNow } from '@mirage/protocol';
+import { interpolatePoseInto, interpolationAlpha, newRenderPoseV2, wallNow } from '@mirage/protocol';
 import type { SimulationRuntime } from './runtime';
-import { nedToRenderBasis } from './coordinates';
+import { nedToRenderBasis, nedToRenderPositionInto } from './coordinates';
 
-function Vehicle({ runtime }: { runtime: MutableRefObject<SimulationRuntime | null> }) {
+const MODEL_HEIGHT_OFFSET_M = 0.28; // hub height of the demo mesh above its NED reference point
+
+function Vehicle({ runtime }: { runtime: RefObject<SimulationRuntime | null> }) {
   const model = useRef<Group>(null);
-  const q0 = useRef(new Quaternion());
-  const q1 = useRef(new Quaternion());
+  const pose = useRef(newRenderPoseV2());
+  const attitude = useRef(new Quaternion());
   const target = useRef(new Vector3());
   // NED -> Three: (north,east,down) -> (east,-down,-north).
   // The basis is a proper rotation (det +1), preserving quaternion handedness.
@@ -17,15 +19,15 @@ function Vehicle({ runtime }: { runtime: MutableRefObject<SimulationRuntime | nu
   useFrame(({ camera }) => {
     const sim = runtime.current;
     if (!sim || !model.current) return;
-    const a = sim.previous, b = sim.current;
-    const t = sim.running ? Math.max(0, Math.min(1, (wallNow() - b.wallTimeMs) / (DT * 1000))) : 1;
-    const north = a.north + (b.north - a.north) * t;
-    const east = a.east + (b.east - a.east) * t;
-    const down = a.down + (b.down - a.down) * t;
-    model.current.position.set(east, -down + 0.28, -north);
-    q0.current.set(a.qx, a.qy, a.qz, a.qw);
-    q1.current.set(b.qx, b.qy, b.qz, b.qw);
-    model.current.quaternion.copy(basis.current).multiply(q0.current.slerp(q1.current, t)).multiply(inverseBasis.current);
+    // Interpolates only between adjacent ticks of one epoch/model; never mutates truth.
+    const alpha = interpolationAlpha(wallNow(), sim.current, sim.header.physicsHz, sim.running);
+    interpolatePoseInto(sim.previous, sim.current, sim.history, alpha, pose.current);
+    const p = pose.current;
+    nedToRenderPositionInto(p.northM, p.eastM, p.downM, model.current.position);
+    model.current.position.y += MODEL_HEIGHT_OFFSET_M;
+    attitude.current.set(p.qx, p.qy, p.qz, p.qw);
+    model.current.quaternion.copy(basis.current).multiply(attitude.current).multiply(inverseBasis.current);
+    const east = p.eastM, down = p.downM, north = p.northM;
     target.current.copy(model.current.position);
     camera.position.set(east + 4.2, -down + 3.1, -north + 5.2);
     camera.lookAt(target.current);
@@ -41,7 +43,7 @@ function Vehicle({ runtime }: { runtime: MutableRefObject<SimulationRuntime | nu
     <mesh position={[0, 0.02, -0.3]}><sphereGeometry args={[0.04, 12, 8]} /><meshBasicMaterial color="#4effc6" /></mesh>
   </group>;
 }
-export function FlightScene({ runtime }: { runtime: MutableRefObject<SimulationRuntime | null> }) {
+export function FlightScene({ runtime }: { runtime: RefObject<SimulationRuntime | null> }) {
   return <Canvas shadows dpr={[1, 1.5]} camera={{ position: [4, 3, 5], fov: 48, near: 0.05, far: 2000 }}
     gl={{ antialias: true, powerPreference: 'high-performance' }}>
     <color attach="background" args={['#111e29']} />

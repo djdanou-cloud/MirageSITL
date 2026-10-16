@@ -48,4 +48,22 @@ describe('pull request CI contract', () => {
     expect(result.status).not.toBe(0);
     expect(result.stdout + result.stderr).toContain('No tests found');
   });
+  it('pins one Rust toolchain across native/rust-toolchain.toml and every workflow that installs it', () => {
+    const toolchain = readFileSync(join(root, 'native/rust-toolchain.toml'), 'utf8');
+    const channel = /^channel = "([^"]+)"$/m.exec(toolchain)?.[1];
+    expect(channel).toMatch(/^\d+\.\d+\.\d+$/);
+    expect(toolchain).toContain('"wasm32-unknown-unknown"');
+    for (const workflow of ['.github/workflows/ci.yml', '.github/workflows/native.yml']) {
+      const installs = Array.from(readFileSync(join(root, workflow), 'utf8').matchAll(/rustup toolchain install (\S+)/g), m => m[1]);
+      expect(installs.length, workflow).toBeGreaterThan(0);
+      for (const version of installs) expect(version, workflow).toBe(channel);
+    }
+    const native: unknown = parse(readFileSync(join(root, '.github/workflows/native.yml'), 'utf8'));
+    const job = record(record(record(native).jobs).native);
+    expect(record(record(job.defaults).run)['working-directory']).toBe('native');
+    if (!Array.isArray(job.steps)) throw new Error('Missing native steps');
+    const commands = (job.steps as unknown[]).map(record).map(step => typeof step.run === 'string' ? step.run : '').join('\n');
+    for (const command of ['cargo check --workspace --locked', 'cargo test --workspace --locked',
+      'cargo check -p mirage-bet --target wasm32-unknown-unknown --locked', 'sha256sum']) expect(commands).toContain(command);
+  });
 });

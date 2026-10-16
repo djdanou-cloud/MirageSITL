@@ -1,6 +1,6 @@
 # SPECS_SIMULATION_ENGINES.md
 
-<!-- source-sha256: 21db676ef5c91b27d314102297ba0f8ea904f09c323669d976b5eed09f5c2342 -->
+<!-- source-sha256: 29768cffcd0fbba65218ec07b41bd1816ca75b2934785bd3ce9b56babde17219 -->
 
 Английский источник: [Source of truth](../SPECS_SIMULATION_ENGINES.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -159,6 +159,17 @@ NaN или неоднозначным order отклоняются. За пре�
 детерминированно clamp + OutsideValidity, а не скрытая экстраполяция.
 Покрытие stall/reverse flow обязательно для заявленного flight envelope.
 
+TASK-019 реализует lookup в `native/bet/src/polar.rs`. `PolarTable`
+заимствует оси и таблицы вызывающей стороны и проверяет их один раз:
+непустые оси, длина таблицы `nMach*nRe*nAlpha`, конечные и строго
+возрастающие оси, `Re>0`, `Ma>=0`, конечные коэффициенты и `CD>=0`. Lookup
+трилинейный по `(Ma, ln Re, alpha)` и вычисляется сначала по alpha, затем по
+ln Re, затем по Mach. Каждая координата вне своей оси, включая alpha,
+ограничивается границей (clamp) и выставляет `OUTSIDE_POLAR_VALIDITY` (бит 1
+флагов выхода); не-finite запрос возвращает NaN коэффициенты с этим флагом.
+Вызывающая сторона заранее приводит alpha к `[-pi, pi)`. Lookup не выделяет
+память.
+
 Динамика ротора, где `Q_air=a·M_air` — **signed** аэромомент:
 
 \[
@@ -247,6 +258,54 @@ f64; 96 induced axial velocity f64; 104 cone angle f64; 112 flags u32;
 116 reserved u32; 120 signed angular momentum along hub axis f64.
 Input/config C headers и Rust offset tests создаёт TASK-018; нельзя cast
 произвольный TS object в эти records. Rust/WASM arena не является Main SAB.
+
+TASK-018 реализует эти layouts в `native/bet/src/abi.rs`, отражает их в
+`native/bet/include/bet.h` (источник layout, разбираемый тестами Rust и TS)
+и в `packages/wasm-bet/src/arena.ts`:
+
+```text
+ABI v1 records (little-endian; offsets in bytes; all regions 8-byte aligned)
+config header (64):  0 abi_version u32 | 4 config_bytes u32 = 64 + n*2160
+                     8 rotor_count u32 (1..32) | 12 rotor_stride u32 = 2160
+                     16 dt_s f64 (exactly 1/400, 1/800, 1/1200) | 24..63 reserved = 0
+rotor config (2160): 0 id u32 | 4 blade_count u32 (1..16) | 8 spin_sign i32 (+1/-1)
+                     12 station_count u32 (1..64) | 16 azimuth_samples u32 (1..64)
+                     20 polar_id u32 | 24 radius_m f64 | 32 root_cutout_m f64
+                     40 hub_position_body_m f64[3] | 64 hub_to_body f64[4] (w,x,y,z)
+                     96 shaft_inertia_kg_m2 f64 | 104 bearing_viscous_nm_per_rad_s f64
+                     112 radial_station_m f64[64] | 624 chord_m f64[64]
+                     1136 twist_rad f64[64] | 1648 quadrature_width_m f64[64]
+                     unused station slots = +0.0
+input header (64):   0 rotor_count u32 | 4 rotor_stride u32 = 96 | 8 density_kg_m3 f64
+                     16 dynamic_viscosity_pa_s f64 | 24 speed_of_sound_mps f64
+                     32..63 reserved = 0
+rotor input (96):    0 air_velocity_at_hub_hub_mps f64[3]
+                     24 body_angular_velocity_hub_rad_s f64[3] | 48 collective_pitch_rad f64
+                     56 cyclic_cos_rad f64 | 64 cyclic_sin_rad f64
+                     72 motor_torque_magnitude_nm f64 (>= 0) | 80 flags u32 = 0
+                     84..95 reserved = 0
+rotor output (128):  as above; flags bit0 AERODYNAMICS_UNAVAILABLE, bit1 OUTSIDE_POLAR_VALIDITY
+arena:               64-byte header + configuration copy + n * 64-byte rotor state
+                     required_bytes = 64 + config_bytes + n*64
+status i32:          0 OK | 1 AERODYNAMICS_UNAVAILABLE | -1 BAD_HANDLE | -2 BAD_POINTER
+                     -3 BAD_INPUT | -4 BAD_DT | -5 MEMORY_GROWN | -6 ARENA_TOO_SMALL
+                     -7 ABI_MISMATCH
+```
+
+Указатели ненулевые, выровнены на 8 байт, находятся внутри текущей линейной
+памяти и не ниже экспортированного `__heap_base` (никогда не в статических
+данных или стеке Rust); регионы одного вызова не должны перекрываться.
+Handle — это указатель arena. `bet_last_error()->i32` сообщает, почему
+`bet_required_bytes` или `bet_init` вернули 0. Неизвестные counts, strides,
+ненулевые reserved bytes, не-finite значения и геометрия вне диапазона
+отклоняются. `bet_step` сначала проверяет весь вход и при отрицательном
+статусе не пишет ни одного байта выхода; при статусе >= 0 он перезаписывает
+каждую запись ротора. Он возвращает `MEMORY_GROWN`, если линейная память
+отличается от размера при инициализации. Пока нет quadrature (TASK-020), он
+возвращает `AERODYNAMICS_UNAVAILABLE` с NaN в силе, моментах и
+аэродинамическом моменте на валу и флагом `AERODYNAMICS_UNAVAILABLE`, а не
+выдуманный успех. JS binding пишет входы и декодирует выходы через один
+заранее созданный DataView в объекты вызывающей стороны без аллокаций на шаге.
 
 SIMD: без relaxed-simd/fast-math по умолчанию, фиксированный reduction order
 в scalar reference; alignment и хвосты 1/3/5/63 элементов тестируются.
