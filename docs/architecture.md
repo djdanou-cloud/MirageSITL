@@ -663,3 +663,9 @@ verdicts (source evidence, verified profile, live observation), and
 `@mirage/ew/position-step` applies a tick-scheduled NED offset to GPS
 observations through the WGS84 tangent frame and the geoid, preserving
 velocity; truth is untouched.
+
+### Coherent GNSS drift (TASK-055)
+
+`@mirage/ew/velocity-drift` integrates a speed-capped position/velocity bias on
+the physics clock with exact piecewise splitting and explicit recovery
+policies, and applies it to GPS observations only.

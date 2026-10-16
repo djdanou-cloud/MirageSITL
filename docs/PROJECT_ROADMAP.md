@@ -741,12 +741,13 @@ were synchronized and checked. Changes remain local; no commit or push performed
 
 ### TASK-055 — Coherent drift
 
-- **Status:** TODO.
+- **Status:** DONE — Claude; baseline 263ce7a; 2026-10-16.
 - **Title & Description:** Integrate position/velocity bias on the physics clock with a speed cap and recovery policy.
 - **Dependencies:** TASK-011, TASK-036, TASK-052.
-- **Touched Files:** `packages/ew/src/velocity-drift.ts`, `tests/velocity-drift.test.ts`.
+- **Touched Files:** `packages/ew/src/velocity-drift.ts`, `tests/velocity-drift.test.ts`, `packages/ew/package.json`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
 - **Interfaces / Contracts:** b/v/a equations in section 5; hold-offset versus step-to-truth.
 - **DoD & Acceptance Criteria:** Constant-acceleration analytic fixtures pass; piecewise speed limiting preserves position/velocity consistency; GPS/render rates do not change state; no promise of bypassing EKF gates.
+- **Evidence:** Owner Claude; baseline 263ce7a; 2026-10-16. Oracle: closed-form kinematics, independent of step size. Node 24.22.0: tests/velocity-drift.test.ts 12 PASS (b = a t^2/2 and v = a t for 30 s at 400/800/1200 Hz within 1e-8 m and 1e-10 m/s; speed cap at |a| = 0.3, cap 2 m/s with t_c = 6.667 s inside a step at every rate matches 0.5|a|t_c^2 + cap (t - t_c) within 1e-8 m and |v| = cap within 1e-12; per-step b increments bracketed by v_start dt and v_end dt across the cap; hold-offset reaches holding with the stopping distance v^2/(2 decel) and then holds exactly; step-to-truth zeroes state and counts the discontinuity; GPS sampled at 10 Hz versus 5 Hz plus three render reads per step gives bit-identical state; corrupted velocity (1, 1, 0) gives course pi/4 and drift moves the fix east; course unknown below 0.05 m/s; invalid presets/dt rejected; drift holds at the 10 km envelope). Mutations (clip velocity after an unsplit step, stop instantly on recovery) fail 4 and 1 tests. No EKF-gate outcome is claimed.
 
 ### TASK-056 — Magnetic anomalies
 

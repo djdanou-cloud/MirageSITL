@@ -1,6 +1,6 @@
 # PROJECT_ROADMAP.md
 
-<!-- source-sha256: 3cdf6a2c511ff131a1af211aa097b86dc5c9e0297232b1d29166d7f4a7161d2a -->
+<!-- source-sha256: 179f5f5643e4f2bbfbdcd645ea592e110be8ad518ba5bc3fa26d52a2d94a2c06 -->
 
 Английский источник: [Source of truth](../PROJECT_ROADMAP.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -744,12 +744,13 @@ Cargo bin активирован в PATH. Производительность M
 
 ### TASK-055 — Когерентный drift
 
-- **Status:** TODO.
+- **Status:** DONE — Claude; baseline 263ce7a; 2026-10-16.
 - **Title & Description:** Интегрировать bias position/velocity на physics clock с speed cap и recovery.
 - **Dependencies:** TASK-011, TASK-036, TASK-052.
-- **Touched Files:** `packages/ew/src/velocity-drift.ts`, `tests/velocity-drift.test.ts`.
+- **Touched Files:** `packages/ew/src/velocity-drift.ts`, `tests/velocity-drift.test.ts`, `packages/ew/package.json`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
 - **Interfaces / Contracts:** b/v/a equations §5; hold-offset vs step-to-truth.
 - **DoD & Acceptance Criteria:** Constant acceleration analytic fixtures; piecewise speed cap согласован с position; разные GPS/render rates дают одинаковые states; не обещается обход EKF gate.
+- **Evidence:** Владелец Claude; baseline 263ce7a; 2026-10-16. Оракул: замкнутые формулы кинематики, независимые от шага. Node 24.22.0: tests/velocity-drift.test.ts 12 PASS (b = a t^2/2 и v = a t за 30 с при 400/800/1200 Гц с точностью 1e-8 м и 1e-10 м/с; ограничение скорости при |a| = 0.3 и пределе 2 м/с с t_c = 6.667 с внутри шага при любой частоте совпадает с 0.5|a|t_c^2 + cap (t - t_c) с точностью 1e-8 м и |v| = cap с точностью 1e-12; приращения b на шаге лежат между v_start dt и v_end dt при переходе через предел; hold-offset переходит в удержание с тормозным путём v^2/(2 decel) и затем точно удерживает смещение; step-to-truth обнуляет состояние и учитывает разрыв; выборка GPS 10 Гц против 5 Гц плюс три чтения рендера на шаг дают побитово одинаковое состояние; искажённая скорость (1, 1, 0) даёт курс pi/4, а дрейф смещает точку на восток; курс неизвестен ниже 0.05 м/с; некорректные пресеты/dt отклоняются; дрейф удерживается на границе 10 км). Мутации (обрезка скорости после неразделённого шага, мгновенная остановка при восстановлении) роняют 4 и 1 тест. Никаких утверждений о реакции шлюзов EKF не делается.
 
 ### TASK-056 — Magnetic anomaly
 

@@ -1409,3 +1409,19 @@ horizontal offsets also raise ellipsoidal height by roughly `d²/(2R)`; a pure
 Down offset changes MSL altitude by exactly `-D`. Velocity, time, DOP, fix and
 course are preserved; a zero offset is an exact identity. The source sample is
 never modified; an invalid source leaves the target untouched.
+
+## Implemented coherent drift: TASK-055
+
+`VelocityDrift` (`packages/ew/src/velocity-drift.ts`) integrates `b` and
+`v_d` with the section 5 equations on every physics step (`dt` in (0, 0.01] s),
+exact for constant acceleration. When `|v_d+a dt|` would exceed `maxSpeedMps`,
+the step is split at the root of `|a|²t²+2(v·a)t+|v|²-cap²=0`, integrated to
+that time, and continued at constant velocity, so `b` remains the integral of
+`v_d` and velocity is never clipped after the fact. `hold-offset` recovery
+decelerates `v_d` at `decelMps2` while integrating `b`, splits the step at the
+stop time and then holds; `step-to-truth` zeroes `b` and `v_d` and increments
+`discontinuities` for the AAR event. At the 10 km envelope the drift stops and
+holds. `distortGpsInto` adds `b` through `GpsOffsetApplier` (WGS84 and geoid)
+and `v_d` to the GPS velocity, then recomputes course from the corrupted
+horizontal velocity (unknown below 0.05 m/s). GNSS sampling and rendering
+never change the drift state.
