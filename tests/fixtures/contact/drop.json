@@ -1,0 +1,10 @@
+{
+  "massKg": 1,
+  "radiusM": 0.1,
+  "initialDownM": -1,
+  "horizontalMps": 2,
+  "restitution": 0.1,
+  "friction": 0.7,
+  "hz": 400,
+  "steps": 2000
+}

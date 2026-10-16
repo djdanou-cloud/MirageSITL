@@ -1,0 +1,12 @@
+{
+  "name": "@mirage/wasm-jsbsim",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./backend": "./src/backend.ts"
+  },
+  "dependencies": {
+    "@mirage/wasm-bet": "0.1.0"
+  }
+}

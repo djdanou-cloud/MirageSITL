@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "kind": "synthetic",
+  "durationS": 10,
+  "referenceHz": 4800,
+  "testHz": [400, 800, 1200],
+  "positionToleranceM": 0.1,
+  "attitudeToleranceRad": 0.008726646259971648,
+  "provenance": "Independent ballistic equations plus RK4 step refinement; numerical self-consistency only, no measured aircraft fidelity.",
+  "measurements": [],
+  "cases": [
+    {"id":"ballistic","massKg":1,"inertia":[1,0,0,0,1,0,0,0,1],"wrench":[0,0,0,0,0,0]},
+    {"id":"turning-force","massKg":1,"inertia":[1,0,0,0,2,0,0,0,3],"wrench":[0.1,0.2,-9.7,0.01,0.02,0.03]}
+  ]
+}

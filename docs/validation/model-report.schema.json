@@ -1,0 +1,266 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "status",
+    "numericalStatus",
+    "fidelityStatus",
+    "referenceSha256",
+    "artifactSha256",
+    "cases",
+    "blockers",
+    "positionToleranceM",
+    "attitudeToleranceRad",
+    "diagnostics"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 2
+    },
+    "status": {
+      "enum": [
+        "pass",
+        "failed",
+        "blocked"
+      ]
+    },
+    "numericalStatus": {
+      "enum": [
+        "pass",
+        "failed"
+      ]
+    },
+    "fidelityStatus": {
+      "enum": [
+        "pass",
+        "failed",
+        "blocked"
+      ]
+    },
+    "referenceSha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "artifactSha256": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scalar",
+        "simd128"
+      ],
+      "properties": {
+        "scalar": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "simd128": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      }
+    },
+    "positionToleranceM": {
+      "const": 0.1
+    },
+    "attitudeToleranceRad": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 0.00872664626
+    },
+    "blockers": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "cases": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "hz",
+          "variant",
+          "positionErrorM",
+          "attitudeErrorRad",
+          "analyticErrorM",
+          "status"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "hz": {
+            "enum": [
+              400,
+              800,
+              1200
+            ]
+          },
+          "variant": {
+            "enum": [
+              "scalar",
+              "simd128"
+            ]
+          },
+          "positionErrorM": {
+            "type": "number",
+            "minimum": 0
+          },
+          "attitudeErrorRad": {
+            "type": "number",
+            "minimum": 0
+          },
+          "analyticErrorM": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "status": {
+            "enum": [
+              "pass",
+              "failed"
+            ]
+          }
+        }
+      }
+    },
+    "diagnostics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "contact",
+        "jsbsimNative",
+        "contactNativePatched",
+        "jsbsimNativePatched"
+      ],
+      "properties": {
+        "contact": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "path",
+            "status",
+            "reportSha256"
+          ],
+          "properties": {
+            "path": {
+              "type": "string"
+            },
+            "status": {
+              "enum": [
+                "missing",
+                "invalid",
+                "stale",
+                "pass",
+                "failed"
+              ]
+            },
+            "reportSha256": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "pattern": "^[a-f0-9]{64}$"
+            }
+          }
+        },
+        "jsbsimNative": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "path",
+            "status",
+            "reportSha256"
+          ],
+          "properties": {
+            "path": {
+              "type": "string"
+            },
+            "status": {
+              "enum": [
+                "missing",
+                "invalid",
+                "stale",
+                "pass",
+                "failed"
+              ]
+            },
+            "reportSha256": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "pattern": "^[a-f0-9]{64}$"
+            }
+          }
+        },
+        "contactNativePatched": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "path",
+            "status",
+            "reportSha256"
+          ],
+          "properties": {
+            "path": {
+              "type": "string"
+            },
+            "status": {
+              "enum": [
+                "missing",
+                "invalid",
+                "stale",
+                "pass",
+                "failed"
+              ]
+            },
+            "reportSha256": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "pattern": "^[a-f0-9]{64}$"
+            }
+          }
+        },
+        "jsbsimNativePatched": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "path",
+            "status",
+            "reportSha256"
+          ],
+          "properties": {
+            "path": {
+              "type": "string"
+            },
+            "status": {
+              "enum": [
+                "missing",
+                "invalid",
+                "stale",
+                "pass",
+                "failed"
+              ]
+            },
+            "reportSha256": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "pattern": "^[a-f0-9]{64}$"
+            }
+          }
+        }
+      }
+    }
+  }
+}

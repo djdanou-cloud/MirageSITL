@@ -1,0 +1,16 @@
+{
+  "gravityMps2": 9.80665,
+  "magneticNedGauss": [
+    0.2,
+    0,
+    0.4
+  ],
+  "stationarySpecificForceFrd": [
+    0,
+    0,
+    -9.80665
+  ],
+  "seaLevelPressurePa": 101325,
+  "speedMps": 10,
+  "dynamicPressurePa": 61.2500009
+}

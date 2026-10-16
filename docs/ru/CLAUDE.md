@@ -1,6 +1,6 @@
 # CLAUDE.md — MirageSITL agent instructions
 
-<!-- source-sha256: bacfea3852b56ab6353f7257dc478c9809b3e3b7ae5e2f25f8f0466eb731310c -->
+<!-- source-sha256: b8e2bb1187e1168a4cfef8e2f44a77fc8e851ee84c35b364eb4717df1696bdab -->
 
 Английский источник: [Source of truth](../../CLAUDE.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -93,6 +93,13 @@ npx --no-install tsc --noEmit
 CHROMIUM_PATH=/usr/bin/chromium npm run test:browser
 node scripts/bench-physics.mjs
 node scripts/bench-wind.mjs
+node scripts/bench-sensors.mjs all
+node scripts/bench-sensors.mjs body
+node scripts/validate-models.mjs
+node scripts/build-jsbsim.mjs
+node scripts/check-jsbsim-native.mjs
+node scripts/bench-contact.mjs
+node scripts/check-contact-native.mjs
 cargo check --manifest-path native/Cargo.toml --workspace --locked
 cargo test --manifest-path native/Cargo.toml --workspace --locked
 cargo check --manifest-path native/Cargo.toml -p mirage-bet --target wasm32-unknown-unknown --locked
@@ -139,7 +146,6 @@ toolchain). `@mirage/wasm-bet/loader` проверяет manifest, выбира�
 
 | Команда | Появится | Назначение |
 | --- | --- | --- |
-| `node scripts/build-jsbsim.mjs` | TASK-030 | pinned Emscripten build |
 | `node scripts/run-sitl.mjs` | TASK-042 | pinned native ArduPilot harness |
 
 Cargo check не проверяет физику и не доказывает browser execution; нужны
@@ -317,3 +323,32 @@ source hashes, одинаковые fenced contracts/equations, зависимо
 documentation check; будущие Rust/physics/autopilot модули не установлены.
 Перед следующим кодовым TASK проверить package.json/HEAD; baseline обновлять
 по фактической реализации, не по намерениям.
+
+
+TASK-025–035 добавляют независимые эталоны привода/тела/сенсоров, эксперимент
+контакта Rapier и закреплённые исходники сборки/адаптера JSBSim. Production BET
+backend ещё не завершён. `bench-sensors.mjs all` требует Node 24 и прогревает
+четыре миллиона тиков; `validate-models.mjs` возвращает 2 при численном успехе
+и заблокированной fidelity. `build-jsbsim.mjs` требует проверенные checkout
+JSBSIM_SOURCE_DIR и MIRAGE_EMSDK_DIR с установленным Emscripten 4.0.15. Доступ к SDK
+и паритет native/WASM заблокированы; нативный smoke нельзя выдавать за WASM PASS.
+Адаптеры Rapier и JSBSim не сертифицированы для высокочастотного контура.
+
+Повторные проверки: check-jsbsim-native.mjs проверяет нативную балансировку/оси
+и миллион шагов в 250 ограниченных окнах; код 2 означает провал аллокатора.
+check-contact-native.mjs требует закреплённый checkout Rapier из
+native/rapier/source.lock.json и собирает пробу вне репозитория.
+bench-contact.mjs проверяет повторные контакты с обязательным наблюдением GC.
+Провалы диагностики — настоящие блокировки; граничные тесты и неизменный размер
+памяти не дают права сертифицировать высокочастотный движок.
+
+
+Последний повтор: нативные прогоны Rapier/JSBSim с явным `--patched` проходят
+миллион шагов с нулём вызовов/байт аллокатора и контрольными суммами траекторий,
+совпадающими с оригиналами. Исходные сборки всё ещё выделяют память. Команда
+`node scripts/check-engine-patch-parity.mjs` проверяет идентичность отчётов,
+исходников и патчей перед сравнением. Патчи сохраняют хранилища, не меняя физику.
+Точная область, команды и ограничения приведены в разделе нативных патчей
+аллокаций спецификации движков. Результат не сертифицирует production-привязку
+Rapier JS/WASM, сборку JSBSim WASM, контактное сопряжение и физическую
+достоверность. Блокировки SDK и измеренных данных сохраняются.

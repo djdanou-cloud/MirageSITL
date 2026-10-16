@@ -1,6 +1,6 @@
 # PROJECT_ROADMAP.md
 
-<!-- source-sha256: 98e91cf59c0964091ef7648886f1f07a24d9a5cc633848353eeb875145cd5924 -->
+<!-- source-sha256: b66b417f2ebbf4c6be20cf4a9e2ae611d8f1b0e4ea5240afc5fe55a5dc418101 -->
 
 Английский источник: [Source of truth](../PROJECT_ROADMAP.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -100,6 +100,32 @@ gates. Если они заблокированы, продолжить неза
 работает с разрешённым dataset, например собственными tiles. Исходная цель
 10–15 km остаётся параметром регионального cache, не оправданием копирования
 Google content без прав.
+
+
+## Локальная проверка пакета: TASK-025–031 и TASK-033–035
+
+2026-10-16; ответственный Codex; база 8f7dc19 с сохранённой локальной TASK-024.
+Шесть задач DONE (025–028, 034–035); 029 — BLOCKED_DECISION, 030/031/033 —
+BLOCKED_EXTERNAL. Проходящие юнит-тесты проверяют сохранение запрета этих допусков.
+Итоговые локальные коды нулевые для frozen npm ci, lint, typecheck, check:docs,
+build, 230 юнит-тестов (35 файлов), 17 браузерных тестов Chromium, 45 нативных
+тестов, cargo check native/wasm32 и release-пробы аллокатора на миллион шагов.
+JUnit: test-results/unit/junit.xml и test-results/browser/junit.xml; ошибок,
+провалов и пропусков нет. Production-сборка сохраняет прежнее предупреждение о
+крупном chunk. SHA-256 lockfile f2199316bc61fd3cdc3cf1017e5884942aa51443ca6d126820e48925db1495d7.
+
+Node 24.19.0, Rust 1.97.0, Chromium 154.0.8037.57, Debian x86_64/software GPU;
+CARGO_HOME=/workspace/.cache/mirage-cargo, RUSTUP_HOME=/workspace/.cache/mirage-rustup,
+Cargo bin активирован в PATH. Производительность M4/RTX и hosted Actions не заявлены.
+Отчёты аллокаций ideal/all/body имеют ноль GC и добавочных B/step; положительный
+контроль обнаруживает аллокации. Контактная проба использует тот же закреплённый
+провайдер 0.21.0, что и адаптер, исключая постороннюю транзитивную версию.
+Модельный отчёт: 12 численных случаев PASS, максимальная ошибка позиции
+1.624e-10 м, ориентации 0 рад; общий/fidelity BLOCKED и CLI-код 2. Хеш эталона
+9f89eab73cd16e7f7296744b40a9389d5bff17f04f947f3473f0067b96bce142.
+Повторная нативная сборка/smoke JSBSim возвращают 0; проверка предпосылок WASM
+возвращает 2 из-за отсутствия закреплённого SDK. EN/RU-текст, уравнения, пути и
+хеши синхронизированы и проверены. Изменения локальные; commit/push не выполнялись.
 
 ## Phase 0: Skeleton
 
@@ -362,75 +388,102 @@ Google content без прав.
 
 ### TASK-024 — Соосное взаимодействие
 
-- **Status:** TODO.
+- **Status:** DONE — Codex; baseline 8f7dc19; 2026-10-16.
 - **Title & Description:** Ввести отдельный wake coupling для пары rotor disks.
 - **Dependencies:** TASK-021, TASK-023.
-- **Touched Files:** `native/bet/src/coaxial.rs`, `native/bet/tests/coaxial.rs`, `tests/fixtures/rotors/coaxial.json`.
+- **Touched Files:** `native/bet/src/coaxial.rs`, `native/bet/tests/coaxial.rs`, `tests/fixtures/rotors/coaxial.json`, `native/bet/src/lib.rs`, `native/bet/src/test_exports.rs`, `native/bet/tests/allocation.rs`, `tests/rotor-kernels.test.ts`, `tests/fixtures/registry.json`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
 - **Interfaces / Contracts:** WakePair {upperId,lowerId,separationM,overlap}; energy/source provenance.
 - **DoD & Acceptance Criteria:** Отключённый coupling даёт independent rotors; большие separation стремятся к нему; momentum/energy ledger checked; без измеренных данных модель явно experimental.
+- **Evidence:** Владелец Codex; baseline 8f7dc19; 2026-10-16. cargo test --manifest-path native/Cargo.toml --test coaxial --locked: 4 PASS (независимый flux oracle, точный independent receiver wrench при disabled/zero-overlap, активная связь, far-field wrench в пределах 1e-6 N/Nm, масштабирование overlap, scaled momentum/energy budgets, отклонение неверных geometry/regimes). Эталон coaxial-analytic-v1 SHA-256 a7d0032c6c019afaa8b84f16692e2b1a9d07e180bedae28ba2bc6bd25bad5ebb; единицы SI; absolute fixture tolerance 1e-9. Native allocator counter включает 1e6 wake evaluations: ноль вызовов/байт, positive allocating control обнаружен. tests/rotor-kernels.test.ts: 4 PASS, включая scalar/SIMD wake oracle/budgets и 1e6 varying-thrust steps с trapping allocator и стабильной памятью; disabled/zero-flow output — канонический +0. Общая проверка exit 0: npm run lint, npm run typecheck, npm run check:docs, npm run build; CI=true npm test (210 PASS), CI=true CHROMIUM_PATH=/usr/bin/chromium npm run test:browser (17 PASS); cargo check --manifest-path native/Cargo.toml --workspace --locked, cargo check --manifest-path native/Cargo.toml -p mirage-bet --target wasm32-unknown-unknown --locked, cargo test --manifest-path native/Cargo.toml --workspace --locked (35 PASS); focused coaxial/allocation повторно после исправления signed zero (5 PASS). Итоговые JUnit: test-results/unit/junit.xml, test-results/browser/junit.xml, без failures/errors/skips. Rust 1.97.0, Node 24.19.0, Chromium 154.0.8037.57, Debian x86_64/software GPU. Cargo environment: CARGO_HOME=/workspace/.cache/mirage-cargo, RUSTUP_HOME=/workspace/.cache/mirage-rustup, Cargo bin в PATH. EN/RU specification, architecture и roadmap синхронизированы. Только experimental ideal-hover/mixing reference; измеренная калибровка, production C ABI/backend wiring и производительность целевого оборудования не заявляются.
 
 ### TASK-025 — ESC и spool model
 
-- **Status:** TODO.
+- **Status:** DONE — Codex; baseline 8f7dc19 plus local TASK-024; 2026-10-16.
 - **Title & Description:** Преобразовывать duty в torque/RPM transient выбранной моделью привода.
 - **Dependencies:** TASK-022.
-- **Touched Files:** `native/bet/src/motor.rs`, `native/bet/tests/motor.rs`, `packages/physics/src/motor-config.ts`.
+- **Touched Files:** `native/bet/src/motor.rs`, `native/bet/tests/motor.rs`, `packages/physics/src/motor-config.ts`, `native/bet/src/lib.rs`, `native/bet/src/test_exports.rs`, `tests/rotor-kernels.test.ts`, `native/bet/tests/allocation.rs`, `tests/motor-config.test.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
 - **Interfaces / Contracts:** Torque-model или first-order governor; current/back-EMF limits.
 - **DoD & Acceptance Criteria:** Step duty имеет заданный lag/current saturation; zero voltage не создаёт энергии; power-cut сохраняет spin decay; два spool ODE одновременно запрещены.
 
+- **Evidence:** Ответственный Codex; база 8f7dc19; 2026-10-16. Проходят 2 нативных теста мотора, проверка строгой схемы и аналитический паритет scalar/SIMD. Проверены точная задержка duty, насыщение тока, баланс мощности шины/вала/потерь и отключение без сброса скорости. Нативный счётчик включает мотор на 1e6 шагов: ноль вызовов/байт. Полная привязка роторов/backend остаётся отдельной работой.
+
 ### TASK-026 — Battery sag
 
-- **Status:** TODO.
+- **Status:** DONE — Codex; baseline 8f7dc19 plus local TASK-024; 2026-10-16.
 - **Title & Description:** Рассчитывать SOC, bus voltage и доступную мощность для набора моторов.
 - **Dependencies:** TASK-025.
-- **Touched Files:** `native/bet/src/battery.rs`, `native/bet/tests/battery.rs`, `tests/fixtures/power/battery.json`.
+- **Touched Files:** `native/bet/src/battery.rs`, `native/bet/tests/battery.rs`, `tests/fixtures/power/battery.json`, `native/bet/src/lib.rs`, `native/bet/src/test_exports.rs`, `tests/rotor-kernels.test.ts`, `native/bet/tests/allocation.rs`, `tests/fixtures/registry.json`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
 - **Interfaces / Contracts:** V=Voc-I*R, SOC, power-limited flags.
 - **DoD & Acceptance Criteria:** Analytic resistive cases, R→0, depleted SOC и недостижимый P не дают NaN; энергия/знаки тока согласованы; нагрузка всех motors учтена один раз.
 
+- **Evidence:** Ответственный Codex; база 8f7dc19; 2026-10-16. Проходят 2 нативных теста батареи и scalar/SIMD-эталон квадратного корня. Проверены общий учёт нагрузок, R=0/1e-20, ограничения заряда/тока/мощности, разряд, отклонение нечисел и баланс мощности при фиксированном SOC. power/battery.json — независимый хешированный синтетический эталон, не измерения батареи. Нативная проба миллиона шагов проходит.
+
 ### TASK-027 — Произвольная рама и wrench
 
-- **Status:** TODO.
+- **Status:** DONE — Codex; baseline 8f7dc19 plus local TASK-024; 2026-10-16.
 - **Title & Description:** Суммировать thrust vectors, torque arms и transmitted rotor moments.
 - **Dependencies:** TASK-006, TASK-023, TASK-025, TASK-026.
-- **Touched Files:** `native/bet/src/frame.rs`, `packages/physics/src/frame.ts`, `native/bet/tests/frame.rs`, `tests/fixtures/models/tilted-octo.json`.
+- **Touched Files:** `native/bet/src/frame.rs`, `packages/physics/src/frame.ts`, `native/bet/tests/frame.rs`, `tests/fixtures/models/tilted-octo.json`, `native/bet/src/lib.rs`, `native/bet/src/math.rs`, `tests/frame.test.ts`, `native/bet/src/test_exports.rs`, `tests/rotor-kernels.test.ts`, `native/bet/tests/allocation.rs`, `tests/fixtures/registry.json`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
 - **Interfaces / Contracts:** F=sum R*F; M=sum(r×R*F+R*Mhub); stable motor IDs.
 - **DoD & Acceptance Criteria:** Quad/hexa/tilted octo fixtures, symmetry/yaw cancellation и handedness; tilted axes создают lateral force; запрещён double-count motor reaction.
 
+- **Evidence:** Ответственный Codex; база 8f7dc19; 2026-10-16. Проходят 2 нативных и 2 TypeScript-теста рамы и scalar/SIMD-эталон наклонённой силы. Симметричные quad/hexa/octo компенсируют плечевые/yaw-моменты; зарегистрированный tilted-octo даёт 4*sqrt(2) N по body X и Z от восьми единичных сил втулок. Проверены стабильные ID, правая система и отсутствие повторной реакции. Нативная проба миллиона шагов проходит.
+
 ### TASK-028 — Rigid-body integrator
 
-- **Status:** TODO.
+- **Status:** DONE — Codex; baseline 8f7dc19 plus local TASK-024; 2026-10-16.
 - **Title & Description:** Интегрировать BET wrench с mass/inertia, quaternion и NED gravity.
 - **Dependencies:** TASK-027.
-- **Touched Files:** `native/bet/src/rigid_body.rs`, `packages/wasm-bet/src/backend.ts`, `native/bet/tests/rigid_body.rs`.
+- **Touched Files:** `native/bet/src/rigid_body.rs`, `packages/wasm-bet/src/backend.ts`, `native/bet/tests/rigid_body.rs`, `native/bet/src/lib.rs`, `native/bet/src/body_abi.rs`, `native/bet/tests/body_abi.rs`, `tests/rigid-body.test.ts`, `packages/wasm-bet/package.json`, `tests/fixtures/abi/body-v1.json`, `native/bet/src/test_exports.rs`, `tests/rotor-kernels.test.ts`, `native/bet/tests/allocation.rs`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `tests/fixtures/registry.json`, `tests/browser/native-bootstrap.spec.ts`, `scripts/bench-sensors.mjs`.
 - **Interfaces / Contracts:** DynamicsBackend, TruthOutput, один owner integration.
 - **DoD & Acceptance Criteria:** Ballistic/torque-free/constant torque cases; quaternion norm error<1e-10 native; finite trajectory; 400/800/1200 convergence against offline 4800 Hz reference.
 
+- **Evidence:** Ответственный Codex; база 8f7dc19; 2026-10-16. Проходят 3 нативных теста тела и тест отклонения/раскладки body ABI: аналитическая баллистика и постоянный момент главной оси, ошибка нормы кватерниона ниже 1e-10, сходимость torque-free 400/800/1200 к 4800 Гц. Независимый body ABI v1 256/128 байт, отдельное владение памятью и тесты настоящего scalar/SIMD-адаптера. Нативный счётчик миллиона шагов проходит; WASM-ловушки аллокаций и стабильность памяти проверяются отдельно. Полный полётный BET backend не заявлен. Дополнительный G1: bench-sensors.mjs body выполняет настоящий scalar WASM-адаптер тела и сенсорный конвейер в шести прогретых окнах N=1e6/2e6: ноль GC/добавочных B/step, положительный контроль обнаружен; юнит-тесты выполняют 1e6 шагов на каждом scalar/SIMD-артефакте с ловушкой аллокаций и стабильной памятью.
+
 ### TASK-029 — Контакт шасси
 
-- **Status:** TODO.
+- **Status:** BLOCKED_DECISION — Codex; нативный патч проходит, production-привязка не сертифицирована.
 - **Title & Description:** Подключить один выбранный contact solver и согласовать impulses.
 - **Dependencies:** TASK-028.
-- **Touched Files:** `packages/physics/src/contact-backend.ts`, `packages/physics/src/ground-contact.ts`, `tests/contact.test.ts`, `tests/fixtures/contact/drop.json`.
+- **Touched Files:** `packages/physics/src/contact-backend.ts`, `packages/physics/src/ground-contact.ts`, `tests/contact.test.ts`, `tests/fixtures/contact/drop.json`, `package-lock.json`, `packages/physics/package.json`, `tests/contact-allocation.test.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `tests/fixtures/registry.json`, `packages/physics/src/contact-engine.ts`, `scripts/bench-contact.mjs`, `native/rapier/allocation_probe.rs`, `native/rapier/source.lock.json`, `native/rapier/Cargo.lock`, `scripts/check-contact-native.mjs`, `CLAUDE.md`, `docs/ru/CLAUDE.md`, `native/rapier/patches/reuse-step-buffers.patch`, `scripts/check-engine-patch-parity.mjs`, `tests/engine-patch-parity.test.ts`.
 - **Interfaces / Contracts:** ContactImpulse {pointBody,impulseNed,dt}; Rapier или Jolt, выбор зафиксирован ADR.
 - **DoD & Acceptance Criteria:** Drop/roll/friction/no-penetration fixtures; restitution не добавляет энергии сверх заданного; rigid body не интегрируется вторым solver одновременно; alloc budget G1.
 
+- **Evidence:** Ответственный Codex; база 8f7dc19; 2026-10-16. Проходят тесты настоящего Rapier 0.21.0: падение сферы на плоскость, трение качения, непроникновение и восстановление. Владелец интегрирования и диагностика импульса реализованы. Проверка identity getter доказывает новые объекты: highRateCertified=false; G1 FAIL запрещает production-допуск. ADR в docs/architecture.md фиксирует необходимость привязки без аллокаций или другого решателя. Общий контакт шасси ещё не реализован.
+
+- **Retry Evidence:** Повтор: getter с готовыми объектами и постоянные raw-векторы силы/момента/гравитации заменили создание обёрток на шаге; проверены raw pipeline с фиксированной топологией и идемпотентный dispose. Прогретая JS-проба по-прежнему провалена: 143/142/71 событий GC на окно 1e6 шагов (код 1). Нативный Rapier f64 0.36.0 без profiler, коммит b716d375efc0201003f0cd9ef7168eee0b62c177: 1,688,500 вызовов / 77,328,000 байт на 1e6 шагов (код 2). Отчёты test-results/bench/contact.json и contact-native.json. Нативный f64 не сертифицирует поставляемый f32 WASM. G1 провален, высокочастотного допуска нет.
+
+- **Patch Retry Evidence (2026-10-16):** Явный патч повторного использования: одинаковые прогоны бодрствующей сферы/полупространства дают 2,002,500 вызовов / 96,320,000 байт у оригинала и ноль у патча за 1e6 шагов; сумма траектории 317ba7c959cd2b59 совпадает. Отчёт test-results/bench/contact-native-patched.json, код 0. Прежние числа относятся к конечному параллелепипеду со сном. Поставляемая JS-привязка всё ещё проваливает G1; общее шасси не завершено.
+
 ### TASK-030 — Pinned JSBSim WASM artifact
 
-- **Status:** TODO.
+- **Status:** BLOCKED_EXTERNAL — Codex; retry verified on 2026-10-16.
 - **Title & Description:** Собрать JSBSim через Emscripten с reproducible source/toolchain manifest.
 - **Dependencies:** TASK-003, TASK-004, TASK-006.
-- **Touched Files:** `native/jsbsim/CMakeLists.txt`, `native/jsbsim/source.lock.json`, `native/jsbsim/toolchain.lock.json`, `scripts/build-jsbsim.mjs`, `packages/wasm-jsbsim/package.json`, `tests/jsbsim-artifact.test.ts`.
+- **Touched Files:** `native/jsbsim/CMakeLists.txt`, `native/jsbsim/source.lock.json`, `native/jsbsim/toolchain.lock.json`, `scripts/build-jsbsim.mjs`, `packages/wasm-jsbsim/package.json`, `tests/jsbsim-artifact.test.ts`, `native/jsbsim/bridge.cpp`, `native/jsbsim/property-map.json`, `package-lock.json`, `CLAUDE.md`, `docs/ru/CLAUDE.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `README.md`, `docs/ru/README.md`, `scripts/check-jsbsim-native.mjs`, `native/jsbsim/native_checks.cpp`, `native/jsbsim/patches/reuse-history-and-property-paths.patch`.
 - **Interfaces / Contracts:** WASM C ABI version/hash и лицензии JSBSim/model data.
 - **DoD & Acceptance Criteria:** Build из pinned SHA, проверенные checksums; native reference и WASM одного source; unit conversions не патчат сторонний код; artifact smoke в worker.
 
+- **Evidence:** Ответственный Codex; база 8f7dc19; 2026-10-16. Закреплены JSBSim v1.2.3 570e8115a102df8f877b11e0e59b964ea483e3c0 и emsdk 4.0.15 389a68bc35dcff7ebae4614e1615099dafda00d1; проверки исходников/лицензии/SDK-манифеста проходят. Нативный C++ bridge собирается GNU 14.2/CMake 3.31.6 и выдаёт 22 конечных SI-значения через 1 с. Установка Emscripten отклонена storage.googleapis.com proxy CONNECT 403; артефакта WASM и Worker smoke нет. Домен сети и повторяемая настройка сохранены в неприменённом черновике среды для проверки/сохранения/публикации. Hosted TASK-003 и приёмка лицензии данных модели не проверены.
+
+- **Retry Evidence:** Повтор: python3 emsdk.py install 4.0.15 снова отклонён при загрузке node-v22.16.0-linux-x64.tar.xz с storage.googleapis.com: proxy tunnel CONNECT 403, код 1. Сетевой черновик не применён к этой среде. Добавлены нативная проверочная цель и флаги перехвата исключений холодного пути; сборка Emscripten и Worker smoke не выполнены. Повторяемая диагностика старта сохранена в черновике среды; сохранение не означает публикацию.
+
+- **Patch Retry Evidence (2026-10-16):** Сборочный скрипт поддерживает проверяемый явный патч аллокаций и сохраняет его SHA-256 в манифесте артефактов. Checkout исходников чист. Нативный результат не устраняет HTTP 403 SDK и не заменяет настоящий WASM/Worker smoke.
+
 ### TASK-031 — JSBSim DynamicsBackend
 
-- **Status:** TODO.
+- **Status:** BLOCKED_EXTERNAL — Codex; retry verified on 2026-10-16.
 - **Title & Description:** Адаптировать JSBSim state, actuator и contact exchange.
 - **Dependencies:** TASK-018, TASK-029, TASK-030, TASK-032.
-- **Touched Files:** `native/jsbsim/bridge.cpp`, `packages/wasm-jsbsim/src/backend.ts`, `tests/jsbsim-backend.test.ts`, `tests/fixtures/airframes/jsbsim-trim.json`, `native/jsbsim/property-map.json`.
+- **Touched Files:** `native/jsbsim/bridge.cpp`, `packages/wasm-jsbsim/src/backend.ts`, `tests/jsbsim-backend.test.ts`, `tests/fixtures/airframes/jsbsim-trim.json`, `native/jsbsim/property-map.json`, `packages/wasm-jsbsim/package.json`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `tests/fixtures/registry.json`, `native/jsbsim/native_checks.cpp`, `scripts/check-jsbsim-native.mjs`, `tests/jsbsim-native.test.ts`, `native/jsbsim/patches/reuse-history-and-property-paths.patch`, `scripts/check-engine-patch-parity.mjs`, `tests/engine-patch-parity.test.ts`.
 - **Interfaces / Contracts:** DynamicsBackend; ft/slugs↔SI; FRD/NED, JSBSim integration ownership.
 - **DoD & Acceptance Criteria:** Trim/step-control native vs WASM fixtures в manifest tolerance; stationary specific force/signs верны; согласованный contact impulse; 0 alloc/grow на шаге.
+
+- **Evidence:** Ответственный Codex; база 8f7dc19; 2026-10-16. C ABI/карта свойств и TypeScript-адаптер без создания выходов реализуют точное преобразование футов в метры, фиксированные ECEF/NED, wxyz и разделение координатного ускорения/удельной силы. JSBSim — единственный владелец интегрирования. Нативный smoke тех же исходников проходит; реальный WASM trim/control-паритет, лицензия данных, контактные импульсы и критерий аллокаций не пройдены. airframes/jsbsim-trim.json явно фиксирует блокировку и не является вымышленным trim-эталоном.
+
+- **Retry Evidence:** Повтор: устранён ABA устаревших handles через поколения, пересечение кадров отклоняется до шага, усилены проверки heap/allocator views, добавлены необязательные холодные jsb_trim/trimInto. Настоящая полная нативная балансировка, неверные/устаревшие кадры, норма кватерниона и производные SI/осей проходят. Нативный аллокатор: 250 окон по 4000 измеряемых шагов после 400 прогрева, 21,142,500 вызовов / 1,454,820,000 байт, код 2. Отчёт test-results/validation/jsbsim-native.json содержит хеши исходников/модели/bridge/checker. G1 провален независимо от SDK; паритет native/WASM и контактный обмен открыты.
+
+- **Patch Retry Evidence (2026-10-16):** Явный патч JSBSim повторно использует историю deque, обход атмосферных свойств и списки подачи топлива. Настоящая нативная балансировка и SI/оси проходят; 1e6 измеренных шагов дают ноль вызовов/байт против 21,142,500 вызовов / 1,454,820,000 байт оригинала. Сумма траектории 164fd3c0bf6d8a39 совпадает. Отчёт test-results/validation/jsbsim-native-patched.json, код 0. Другие модели, паритет WASM и контактное сопряжение не сертифицированы.
 
 ### TASK-032 — Атмосфера и ветер
 
@@ -444,32 +497,44 @@ Google content без прав.
 
 ### TASK-033 — Model validation gate
 
-- **Status:** TODO.
+- **Status:** BLOCKED_EXTERNAL — Codex; retry verified on 2026-10-16.
 - **Title & Description:** Выполнить общий numerical/reference gate и сформировать отчёт достоверности моделей.
 - **Dependencies:** TASK-014, TASK-024, TASK-028, TASK-029, TASK-031.
-- **Touched Files:** `scripts/validate-models.mjs`, `tests/model-validation.test.ts`, `docs/validation/model-report.schema.json`, `tests/fixtures/validation/reference-manifest.json`.
+- **Touched Files:** `scripts/validate-models.mjs`, `tests/model-validation.test.ts`, `docs/validation/model-report.schema.json`, `tests/fixtures/validation/reference-manifest.json`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `scripts/check-engine-patch-parity.mjs`, `tests/engine-patch-parity.test.ts`.
 - **Interfaces / Contracts:** ValidityEnvelope; numerical parity отдельно от experimental validity.
 - **DoD & Acceptance Criteria:** Smooth 10 s cases: <=0.1 m/0.5° against 4800 Hz; scalar/SIMD force/moment tolerance §4; provenance каждого эталона; отсутствие экспериментальных данных даёт BLOCKED_EXTERNAL для fidelity, не fake PASS.
 
+- **Evidence:** Ответственный Codex; база 8f7dc19; 2026-10-16. Исполняемый отчёт собирает настоящие scalar/SIMD-артефакты и проходит 12 численных случаев (два сценария по 10 с, 400/800/1200 против 4800 Гц) с допуском 0.1 м/0.5 градуса; аналитическая баллистика проходит. Проверка схемы/кода выхода подтверждает numerical PASS, fidelity BLOCKED, общий BLOCKED и код 2. Отчёт test-results/validation/model-report.json содержит SHA-256 эталона/артефактов. Нет измерений борта/ротора, полной BET-привязки, контакта G1 и WASM-паритета JSBSim; fidelity нельзя отмечать DONE.
+
+- **Retry Evidence:** Повтор: schema v2 сохраняет контактную/нативную JSBSim-диагностику с проверкой хешей, выявляет устаревшие отчёты, отклоняет пустые/переставленные частоты, неверные/повторяющиеся случаи и неподдерживаемые измерения до сборки. Настоящие 12 численных случаев проходят; оба диагностических допуска failed, общий/fidelity BLOCKED, код 2. Измерения борта/ротора не предоставлены, полной привязки BET нет. Итоговые коды 0: lint/typecheck/build/check:docs, 235 юнит-тестов (36 файлов), 17 браузерных тестов; актуальные JUnit без провалов/ошибок/пропусков. Провалы аллокаторов и SDK — отдельные непрошедшие критерии, не успешная интеграция. EN/RU синхронизированы; commit/push не выполнялись.
+
+- **Final Patch Verification (2026-10-16):** Итог повтора патчей: lint/typecheck/build/check:docs — код 0; проходят 236 юнит-тестов в 37 файлах и 17 браузерных тестов Chromium. Актуальные JUnit: test-results/unit/junit.xml и test-results/browser/junit.xml, ноль провалов/ошибок/пропусков. Первый браузерный запуск не активировал Rust и не выдержал 800 Гц под параллельной нагрузкой; исправленный отдельный запуск проходит без изменения порогов. Нативные патчи и CLI engine-patch-parity — код 0; оригинальные нативные пробы — код 2; JS GC — код 1; CLI model-validation — код 2 с 12 численными PASS и заблокированной fidelity. Checkout исходников чист, хеш lockfile неизменен. Двуязычные хеши проверены. Черновик инструкций старта среды сохранён и требует проверки/сохранения/публикации в настройках; доступ SDK им не применён. Commit/push не выполнялись.
+
 ## Phase 3: ArduPilot & Radio Link
+
+- **Patch Retry Evidence (2026-10-16):** Добавлена проверка паритета оригинал/патч с SHA-256 исходников/патча/отчёта, суммами всех шагов и тестами отклонения. Оба нативных патча проходят; исходные JS/нативные критерии провалены. Отчёт модели v2 разделяет результаты и всё ещё возвращает 2 при заблокированной fidelity. Отсутствие измерений, полной привязки BET и интеграции WASM/контакта явно сохранено.
 
 ### TASK-034 — Ideal sensors
 
-- **Status:** TODO.
+- **Status:** DONE — Codex; baseline 8f7dc19 plus local TASK-024; 2026-10-16.
 - **Title & Description:** Преобразовать truth в IMU/mag/baro/airspeed без noise и EW.
 - **Dependencies:** TASK-013, TASK-028, TASK-032.
-- **Touched Files:** `packages/sensors/package.json`, `packages/sensors/src/ideal.ts`, `tests/ideal-sensors.test.ts`.
+- **Touched Files:** `packages/sensors/package.json`, `packages/sensors/src/ideal.ts`, `tests/ideal-sensors.test.ts`, `package-lock.json`, `tests/fixtures/sensors/ideal.json`, `tests/fixtures/registry.json`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
 - **Interfaces / Contracts:** GpsSample/ImuSample; acceleration vs specific force; gauss/Pa internal units.
 - **DoD & Acceptance Criteria:** Stationary/free-fall/rotated-body fixtures; gyro и mag body frames; pressure signs verified; outputs in-place, G1.
 
+- **Evidence:** Ответственный Codex; база 8f7dc19; 2026-10-16. 2 теста идеальных сенсоров проверяют неподвижную/свободнопадающую/перевёрнутую удельную силу, поворот gauss, знак ISA Pa/Down и динамическое давление; существующий codec принимает записи. bench-sensors.mjs ideal охватывает все четыре реализованных вида сенсоров: шесть окон N=1e6/2e6, ноль GC и ноль добавочных B/step после 4e6 прогрева; положительный контроль обнаружен. Выходы/scratch переиспользуются. GNSS ожидает TASK-036; подключение к автопилоту/Worker не заявлено.
+
 ### TASK-035 — Частоты/шум/bias сенсоров
 
-- **Status:** TODO.
+- **Status:** DONE — Codex; baseline 8f7dc19 plus local TASK-024; 2026-10-16.
 - **Title & Description:** Добавить rational sampling, bounded latency и seeded noise streams.
 - **Dependencies:** TASK-004, TASK-011, TASK-034.
-- **Touched Files:** `packages/sensors/src/scheduler.ts`, `packages/sensors/src/noise.ts`, `packages/sensors/src/latency.ts`, `tests/sensor-scheduler.test.ts`, `tests/sensor-noise.test.ts`.
+- **Touched Files:** `packages/sensors/src/scheduler.ts`, `packages/sensors/src/noise.ts`, `packages/sensors/src/latency.ts`, `tests/sensor-scheduler.test.ts`, `tests/sensor-noise.test.ts`, `scripts/bench-sensors.mjs`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
 - **Interfaces / Contracts:** IMU 200/400, GPS 5/10 Hz; PSD/bandwidth; sensor frame time.
 - **DoD & Acceptance Criteria:** За 60 sim s точные counts всех частот на 400/800/1200; seed repeatable; noise statistics в заданном confidence interval; latency queue bounded и monotonic.
+
+- **Evidence:** Ответственный Codex; база 8f7dc19; 2026-10-16. Проходят 2 теста расписания/задержки и 2 шума. Точное число выборок за 60 с при 400/800/1200 для 5/10/200/400 Гц; ограниченная монотонная FIFO, переполнение/reset; независимые детерминированные потоки/reset; дисперсия и лаг Gaussian на 1e6 отсчётов. bench-sensors.mjs all: четыре миллиона тиков прогрева с переполнением времени, шесть окон N=1e6/2e6, ноль GC/добавочных B/step, положительный контроль 31 GC, ноль потерь. Массивы sampleInto избегают упаковки числовых результатов. RMS, полюс, блуждание смещения и двусторонняя PSD описаны; Node не доказывает время браузера/целевого оборудования.
 
 ### TASK-036 — WGS84 и MSL
 

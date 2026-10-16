@@ -1,0 +1,24 @@
+{
+  "abiVersion": 1,
+  "inputBytes": 256,
+  "outputBytes": 128,
+  "inputOffsets": {
+    "mass": 0,
+    "inertia": 8,
+    "position": 80,
+    "velocity": 104,
+    "quaternion": 128,
+    "omega": 160,
+    "force": 184,
+    "moment": 208,
+    "gravity": 232,
+    "header": 240
+  },
+  "outputOffsets": {
+    "position": 0,
+    "velocity": 24,
+    "quaternion": 48,
+    "omega": 80,
+    "acceleration": 104
+  }
+}

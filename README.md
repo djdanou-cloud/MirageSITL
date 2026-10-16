@@ -154,3 +154,24 @@ When changing an English specification or guide, update its Russian mirror
 in the same task and run `npm run check:docs`. See CLAUDE.md for the complete
 workflow, zero-allocation rules, deterministic math requirements, and evidence
 needed to mark a task DONE.
+
+
+Independent motor, battery, arbitrary-frame wrench and rigid-body RK4 references
+are available in `native/bet`, with a real WASM body adapter and ideal/noisy
+sensor package. The demo Worker still uses its existing demo dynamics; the full
+BET backend is not wired. Rapier sphere/plane contacts run as an experiment
+(allocation gate blocked). JSBSim has pinned build/bridge sources and a verified
+native smoke, but SDK access currently blocks WASM build/parity. The model
+validation CLI reports numerical results separately and exits 2 until physical
+reference data and integration gates are satisfied. See
+[implementation contracts](docs/SPECS_SIMULATION_ENGINES.md).
+
+
+Latest retry: opt-in `--patched` native Rapier/JSBSim runs now pass million-step
+allocator probes with zero calls/bytes and matching original trajectory checksums.
+The original builds still allocate. `node scripts/check-engine-patch-parity.mjs`
+checks report/source/patch identities before comparison. Patches preserve storage
+rather than changing physics. See the native allocation patch section in the
+engine specification for exact scope, commands and limitations. These native
+results do not certify the production Rapier JS/WASM binding, a JSBSim WASM build,
+contact coupling or physical fidelity. Preserve the SDK and measured-data blockers.

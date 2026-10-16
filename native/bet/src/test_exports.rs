@@ -114,3 +114,95 @@ pub extern "C" fn bet_test_dynamics(case: u32, steps: u32, dt: f64) -> f64 {
         _ => f64::NAN,
     }
 }
+
+/// Experimental coaxial fixture harness; not a production ABI export.
+#[no_mangle]
+pub extern "C" fn bet_test_coaxial(
+    separation: f64,
+    overlap: f64,
+    enabled: u32,
+    quantity: u32,
+    iterations: u32,
+) -> f64 {
+    use crate::coaxial::{CoaxialWake, WakePair};
+    if iterations == 0 || iterations > 1_000_000 || enabled > 1 {
+        return f64::NAN;
+    }
+    let model = match CoaxialWake::new(
+        WakePair {
+            upper_id: 1,
+            lower_id: 2,
+            separation_m: separation,
+            overlap,
+            source_radius_m: 0.5,
+            receiver_radius_m: 0.5,
+            spread_half_angle_rad: 0.1,
+            enabled: enabled == 1,
+        },
+        1.225,
+    ) {
+        Ok(m) => m,
+        Err(_) => return f64::NAN,
+    };
+    let mut value = 0.0;
+    for k in 0..iterations {
+        let thrust = std::hint::black_box(100.0 + (k & 1) as f64);
+        let r = match model.evaluate(thrust) {
+            Ok(r) => r,
+            Err(_) => return f64::NAN,
+        };
+        value = match quantity {
+            0 => r.air_velocity_delta_hub_mps.z,
+            1 => r.source_power_w,
+            2 => r.received_power_w,
+            3 => r.mixing_loss_w,
+            4 => r.received_momentum_n,
+            5 => r.bypass_power_w,
+            6 => r.bypass_momentum_n,
+            _ => return f64::NAN,
+        };
+    }
+    value
+}
+
+/// Propulsion/frame analytical harness; kind 0 motor duty, 1 battery current, 2 frame force.
+#[no_mangle]
+pub extern "C" fn bet_test_propulsion(kind: u32) -> f64 {
+    match kind {
+        0 => {
+            let m = crate::motor::Motor::new(0.2, 0.02, 10.0, 0.1).unwrap();
+            let mut duty = 0.0;
+            for _ in 0..400 {
+                duty = m.step(duty, 1.0, 12.0, 100.0, false, 0.0025).unwrap().duty;
+            }
+            duty
+        }
+        1 => {
+            crate::battery::Battery::new(12.0, 12.0, 0.1, 3600.0, 100.0)
+                .unwrap()
+                .step(1.0, &[50.0, 60.0], 0.0, 0.0025)
+                .unwrap()
+                .current_a
+        }
+        2 => {
+            let a = std::f64::consts::FRAC_PI_4;
+            let mount = crate::frame::RotorMount::new(
+                0,
+                Vec3::new(0.0, 1.0, 0.0),
+                [a.cos(), 0.0, a.sin(), 0.0],
+            )
+            .unwrap();
+            crate::frame::aggregate(
+                &[mount],
+                &[crate::frame::Wrench {
+                    force: Vec3::new(0.0, 0.0, 2.0),
+                    moment: Vec3::new(0.0, 0.0, 0.0),
+                }],
+            )
+            .unwrap()
+            .force
+            .x
+        }
+        _ => f64::NAN,
+    }
+}

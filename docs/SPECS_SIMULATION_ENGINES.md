@@ -210,6 +210,79 @@ even when torque-balance tests pass. TASK-022 owns free-shaft dynamics,
 TASK-023 owns flapping, and TASK-033 owns model validation. UI must not hide
 a failed model gate.
 
+### Experimental coaxial wake reference (TASK-024)
+
+`native/bet/src/coaxial.rs` provides `WakePair`, `CoaxialWake::new(pair,rho)`
+and allocation-free `evaluate(source_thrust_n) -> Result<WakeReport,WakeError>`.
+This is a steady incompressible top-hat mixing-jet reference derived from ideal
+hover actuator-disk momentum, not an empirically calibrated coaxial rotor map.
+Every successful report carries experimental=true. The spreading half angle is
+an explicit synthetic/configuration parameter, never an implicit efficiency factor.
+
+Disks must be aligned and parallel, with receiver downstream along source hub −z.
+Only source thrust >=0 is supported; reverse wakes, swirl, mutual pressure
+feedback, oblique flight, VRS, dynamic transport delay and receiver extraction
+feedback are excluded. Zero separation is a mathematical limit of the contracted
+wake, not a physical claim about coincident disks. Actual pair poses/IDs must
+be matched to the airframe by a future adapter.
+
+WakePair contains distinct stable upper_id/lower_id in [0,31], separation_m
+[0,1e9], overlap [0,1], source_radius_m/receiver_radius_m [0.001,100],
+spread_half_angle_rad (0,pi/4], and enabled. Density is [0.05,2] kg/m³.
+Non-finite values and invalid geometry are rejected at construction; source
+thrust must be finite, nonnegative, and yield ideal launch speed <=100 m/s.
+Negative thrust and unsupported speeds fail even when interception is disabled.
+
+Let A_s=pi*R_s². Ideal hover contracts the launch area to A_0=A_s/2 and gives
+u_0=sqrt(T/(rho*A_0)), source ideal kinetic power P_0=T*u_0/2. At distance d,
+use the explicit spreading geometry and momentum-conserving core velocity:
+
+\[
+R_w=R_s/\sqrt{2}+d\tan\theta,\quad A_w=\pi R_w^2,\quad
+u_w=u_0{R_s/\sqrt{2}\over R_w},\quad \rho A_w u_w^2=T.
+\]
+
+The supplied overlap multiplies the smaller of the wake and receiver areas;
+it is not an automatic geometric disk-intersection solver. With receiver area
+A_r, interception area A_i=overlap*min(A_w,A_r), f=A_i/A_w, g=A_i/A_r.
+Disabled coupling sets A_i=0. Add only delta_v_h=(0,0,−g*u_w) to the receiver's
+existing air-minus-hub velocity, once. Do not also inject it as receiver induced
+velocity: that would double-count the source wake. Source self-inflow is separate.
+The area-averaged uniform velocity is an approximation; nonlinear blade loading
+in a partially covered disk is not resolved spatially.
+
+The report retains separate advected momentum and kinetic-power budgets:
+
+\[
+P_w=P_0{R_s/\sqrt{2}\over R_w},\quad
+P_{received}=fP_w,\quad P_{bypass}=(1-f)P_w,\quad P_{mix}=P_0-P_w\ge0,
+\]
+\[
+\Pi_{received}=fT,\quad \Pi_{bypass}=(1-f)T,\quad
+P_{received}+P_{bypass}+P_{mix}=P_0,\quad
+\Pi_{received}+\Pi_{bypass}=T.
+\]
+
+These are air fluxes, not additional receiver thrust or a motor-power credit.
+P_0 is inferred ideal hover source power, not measured shaft power; there is no
+claim of full two-rotor energy closure with a real airfoil/shaft model. Mixing
+loss is a passive air-energy sink. Disabling interception preserves the budget
+with all remaining wake flux bypassing the receiver, and changes no rotor input.
+For positive spreading angle, u_w tends to zero with distance, so the receiver
+approaches its independent-rotor result. Overlap scales interception linearly.
+
+The independent synthetic `tests/fixtures/rotors/coaxial.json` records all
+parameters, analytic expected fluxes, provenance and a registered SHA-256.
+Its 0.1 rad spreading angle is a scenario choice, not a fitted measurement.
+Fixture/native/WASM field comparisons use absolute 1e-9; general budget checks
+allow 1e-9 + 1e-12*|source| for floating-point scale. Disabled/zero-overlap tests
+require exact independent-wrench equality; the far-field test uses 1e-6 N/Nm.
+The native allocator probe includes 1e6 wake evaluations with zero allocation
+calls/bytes. Test-only scalar/SIMD WASM exports exercise the fixture, budgets,
+decoupling, and 1e6 varying-thrust evaluations without allocation traps or memory
+growth. Production C ABI, application backend and model registry are unchanged;
+this reference is not enabled in the demo and is not training validation.
+
 ### ESC, battery, and mechanical faults
 
 Choose either a first-order duty/RPM governor or an electromechanical torque
@@ -636,3 +709,369 @@ build at the capability gate; absence of a callback is not success.
 * Experimental rotor/airframe validation and physical HITL are separate
   gates. Missing data/hardware means BLOCKED_EXTERNAL, not DONE based on
   synthetic tests.
+
+
+## Implemented reference kernels: TASK-025–028
+
+These are reusable reference kernels, not a completed flight backend. Motor,
+battery, frame aggregation and rigid-body integration are available independently;
+production rotor `bet_step` still returns `AERODYNAMICS_UNAVAILABLE`. Runtime polar
+binding, load/voltage iteration, motor-fault routing and Worker selection remain
+unconnected. All quantities below use SI and body FRD/world NED.
+
+### ESC and battery
+
+The selected model is torque driven. Command duty has exact first-order lag;
+shaft inertia is integrated only by the existing shaft kernel. Motor constants
+satisfy torque/back-EMF reciprocity in SI. There is no second RPM governor.
+
+$$
+d_{n+1}=u+(d_n-u)e^{-\Delta t/\tau},\quad
+I=\operatorname{clamp}\left({d_{n+1}V-k_t\Omega\over R_m},0,I_{max}\right),\quad
+Q_d=k_tI,\quad P_{mech}=Q_d\Omega,\quad P_{cu}=I^2R_m.
+$$
+
+An ideal current-limited PWM ESC draws bus current `(Pmech+Pcu)/V` for positive
+voltage/current. The current limit adjusts effective applied duty; the reported
+filtered command is not a claim of applied PWM duty during saturation. Zero
+voltage or a hard power cut produces zero drive torque, without resetting shaft
+speed. No regeneration, switching losses or temperature model is implemented.
+
+The battery uses linear open-circuit voltage versus SOC. Sum requested motor bus
+powers and housekeeping exactly once; solve the low-current branch with a stable
+root, then apply source, current and remaining-charge limits.
+
+$$
+V_{oc}(s)=V_{empty}+(V_{full}-V_{empty})s,\quad V=V_{oc}-IR_b,\quad
+I_{req}={2P\over V_{oc}+\sqrt{V_{oc}^2-4R_bP}},\quad
+I_{cap}=\min(I_{max},sQ_c/\Delta t,V_{oc}/(2R_b)).
+$$
+
+For `Rb=0`, use `Ireq=P/Voc` and omit the maximum-power current bound.
+Infeasible requested power saturates at the admissible maximum; return
+`power_limited` rather than a negative discriminant/NaN. A depleted pack is a
+hard cut. Update `SOC=max(0,SOC-I*dt/Qc)`; source power equals delivered power plus
+`I²Rb` at this step's held SOC. This is a lumped electrical model, not a chemical
+energy or calibrated battery-life claim. Power availability must be fed back to
+actuators by a future backend before flight dynamics can use the coupled model.
+
+### Frame aggregation and body integration
+
+Rotor IDs are unique integers 0..31; at most 32 mounts. Hub quaternions use wxyz
+and rotate hub coordinates into body FRD. The moment input already includes rotor
+angular momentum transport; do not add motor reaction again.
+
+$$
+\mathbf F_b=\sum_i R_i\mathbf F_i,\qquad
+\mathbf M_b=\sum_i(\mathbf r_i\times R_i\mathbf F_i+R_i\mathbf M_{hub,i}).
+$$
+
+The native integrator uses normalized quaternion RK4, constant body wrench during
+a step, a symmetric positive-definite inertia tensor checked with Cholesky, and
+positive mass. Float64 NED gravity is positive Down. Quaternion `q` rotates body
+to NED; angular velocity is body relative to the fixed local NED frame.
+
+$$
+\dot{\mathbf p}=\mathbf v,\quad
+\dot{\mathbf v}=R(q)\mathbf F_b/m+(0,0,g),\quad
+\dot{\boldsymbol\omega}=J^{-1}(\mathbf M_b-\boldsymbol\omega\times J\boldsymbol\omega),\quad
+\dot q={1\over2}q\otimes(0,\boldsymbol\omega).
+$$
+
+Accepted reference steps satisfy `0<dt<=0.01` and initial `|omega|*dt<=1`.
+The sphere contact prototype has a separate integration owner; never step native
+RK4 and Rapier for the same body. `BetRigidBodyBackend` requires a dedicated
+WASM memory instance; do not share its heap reservation with a rotor arena.
+
+### Independent rigid-body ABI v1
+
+This is a WASM linear-memory contract, **not** a SharedArrayBuffer ABI revision.
+The old rotor arena ABI and inter-thread ABI v2 remain unchanged. All doubles
+are little-endian, pointers are 8-byte aligned, regions must be disjoint/in range,
+and the 12 reserved header bytes must be zero. Input is 256 bytes; output 128.
+`bet_body_abi_version()` returns 1; `bet_body_step(input,output,dt)` returns 0,
+BAD_POINTER (-2), BAD_INPUT (-3), or ABI_MISMATCH (-7), leaving output unchanged on failure.
+
+| Input byte offset | Type / count | Field | Units |
+| --- | --- | --- | --- |
+| 0 | f64 | mass | kg |
+| 8 | f64[9] | row-major body inertia | kg*m² |
+| 80 | f64[3] | position NED | m |
+| 104 | f64[3] | velocity NED | m/s |
+| 128 | f64[4] | body-to-NED quaternion wxyz | 1 |
+| 160 | f64[3] | angular velocity body | rad/s |
+| 184 | f64[3] | force body | N |
+| 208 | f64[3] | moment body | N*m |
+| 232 | f64 | gravity magnitude | m/s² |
+| 240 | u32 | version = 1 | 1 |
+| 244 | u8[12] | reserved = 0 | 1 |
+
+| Output byte offset | Type / count | Field | Units |
+| --- | --- | --- | --- |
+| 0 | f64[3] | position NED | m |
+| 24 | f64[3] | velocity NED | m/s |
+| 48 | f64[4] | quaternion wxyz | 1 |
+| 80 | f64[3] | angular velocity body | rad/s |
+| 104 | f64[3] | coordinate acceleration NED | m/s² |
+
+## Contact and JSBSim implementation gates: TASK-029–033
+
+Rapier 0.21.0 is selected for a sphere/flat-ground contact reference. It owns
+integration, uses NED +Down gravity and reports net contact impulse from change
+in momentum minus external force/gravity impulse. `pointBody` is the sphere's
+nominal bottom point in body axes, not a general multi-point landing-gear
+manifold. Restitution/friction/drop tests exercise the real WASM engine. A rolling
+sphere can retain translational speed with Coulomb friction; do not invent a
+stopping force. Provider getters allocate new vector/quaternion wrappers each
+step: `highRateCertified=false`. TASK-029 remains BLOCKED_DECISION until a
+nonallocating binding or alternative solver meets G1. No production Worker path
+may select this prototype as a certified 400–1200 Hz backend.
+
+JSBSim v1.2.3 is pinned to commit
+`570e8115a102df8f877b11e0e59b964ea483e3c0`; Emscripten 4.0.15 to emsdk commit
+`389a68bc35dcff7ebae4614e1615099dafda00d1`. The build checks source HEAD, tracked
+cleanliness, LGPL-2.1 library license hash and SDK manifest hash before compilation.
+Aircraft XML is not bundled: c172x includes separate redistribution language and
+is not pilot validated. Review model-specific licenses/data before packaging.
+Native smoke uses the same bridge/source, outputs 22 finite SI doubles after
+one simulated second, and is **not** a trim, native/WASM parity or allocation test.
+SDK installation was denied with proxy CONNECT 403 at storage.googleapis.com;
+TASK-030/031 remain BLOCKED_EXTERNAL. Saved network configuration is a draft,
+not evidence that the current runtime or a new cloud task can download the SDK.
+
+The bridge ABI v1 takes four float64 controls: throttle [0,1], aileron/elevator/
+rudder [-1,1]. Output is 22 doubles: origin-fixed position NED at indices 0..2,
+velocity NED 3..5, body-to-origin-NED wxyz 6..9, body angular velocity 10..12,
+body specific force 13..15, simulation seconds 16, altitude ASL metres 17, gravity
+magnitude 18, coordinate acceleration NED 19..21. Feet convert with exact 0.3048.
+Origin ECEF and its NED rotation are frozen at initialization; transport body
+vectors through ECEF into that origin frame. Quaternion extraction accounts for
+JSBSim's passive matrix convention. Coordinate acceleration includes the body
+velocity transport term; specific force is the applied-force acceleration.
+JSBSim owns integration; contact impulse coupling, pinned trim/step fixtures,
+WASM allocator instrumentation and Worker artifact smoke remain unverified.
+
+`node scripts/validate-models.mjs` builds actual scalar/SIMD artifacts, runs two
+10-second rigid-body cases at 400/800/1200 against 4800 Hz, verifies the analytic
+ballistic trajectory, and writes SHA-256/provenance plus error metrics to
+`test-results/validation/model-report.json`. Position tolerance is 0.1 m;
+attitude tolerance is 0.5 degrees using absolute quaternion dot product.
+Numerical PASS is separate from fidelity: absent measured datasets, full BET
+binding, contact G1 and JSBSim parity keep overall status BLOCKED (exit 2).
+No synthetic dataset is relabeled as measured. The report schema lives in
+`docs/validation/model-report.schema.json`.
+
+## Implemented sensor references: TASK-034–035
+
+`IdealSensors.sampleInto` consumes existing `BodyTruth`, epoch, split uint64 tick/
+sample timestamps and wind NED. It fills existing ABI v2 sensor records with
+truth-derived flags and finite float64 values; it does not synthesize GNSS
+before the WGS84/geoid task. IMU is body angular velocity and specific force
+`R(q)^T*(aNED-gNED)`, so a stationary upright body reports -g on FRD Z and free
+fall reports zero. Magnetic field rotates NED gauss into body gauss. Barometer
+uses ISA pressure Pa and altitude `originPressureAltitudeM-positionDownM`,
+restricted to -1000..11000 m. Ideal airspeed is omnidirectional dynamic pressure
+`0.5*rho*|velocityNED-windNED|²` Pa; no pitot alignment/compressibility is implied.
+
+Sampling uses integer phase: add sensor Hz at each physics tick, emit and
+subtract physics Hz on threshold. Rates must be integer 1..physicsHz;
+200/400 Hz IMU and 5/10 Hz schedules have exact counts over 60 s at 400/800/1200.
+Sampling occurs at the tick boundary, with less than one physics-tick phase
+quantization; 400 Hz sensing at 400 Hz is not an interpolated observation.
+
+Noise has explicitly specified post-filter RMS, bandwidth Hz, sample Hz and bias
+random walk per square-root second. For each sensor stream, use independent
+seeded streams `2*id` and `2*id+1` with fixed-work Box–Muller Gaussian draws.
+
+$$
+a=e^{-2\pi f_c/f_s},\quad n_{k+1}=an_k+\sigma\sqrt{1-a^2}\,z_k,\quad
+b_{k+1}=b_k+{\sigma_b\over\sqrt{f_s}}\,z'_k,\quad y_k=x_k+n_{k+1}+b_{k+1}.
+$$
+
+Here `0<fc<fs/2`, sigma is stationary noise RMS, not an unqualified noise PSD.
+Starting filter and bias state is zero; discard transient for stationary statistics.
+The discrete two-sided PSD in units squared/Hz is
+`sigma²*(1-a²)/(fs*(1+a²-2*a*cos(2*pi*f/fs)))` on [-fs/2,fs/2].
+`sampleInto(values,out,index)` reads/writes preallocated float64 arrays, avoiding
+boxed numeric returns in the V8 hot path. A fixed-capacity latency FIFO stores
+one scalar per slot with monotonic due/poll times, safe integer microseconds,
+explicit overflow/drop counter and reset; use separate queues for separate sensor
+schemas. Its output contains due time and value; preserve original acquisition
+metadata separately when integrating the pipeline. Queueing does not change
+sampling timestamps or truth.
+
+`node scripts/bench-sensors.mjs all` measures the combined ideal IMU, rational
+schedule, seeded noise and latency path after four million warmup ticks, crossing
+32-bit timestamp rollover before measurement. Six N=1e6/2e6 windows have no GC;
+positive allocating control is required. Component probes (`ideal`, `noise`,
+`metadata`) isolate failures. This is warmed Node/V8 allocation evidence, not
+browser or M4/RTX timing certification and not full flight-backend allocation
+certification.
+
+The `body` allocation mode runs the actual scalar WASM body adapter before the
+sensor pipeline, with held hover wrench. Six warmed N=1e6/2e6 windows show no GC
+and zero incremental B/step, with an allocating positive control and unchanged
+WASM memory. The `ideal` component exercises IMU, magnetic, barometer and airspeed
+each iteration. Unit tests also run 1e6 body steps on both scalar and SIMD128
+artifacts with the trapping allocator; these are numerical/allocation gates,
+not measured airframe fidelity or target-device timing.
+
+
+## Retry evidence and corrective contracts: TASK-029–031, TASK-033
+
+The earlier getter-only allocation diagnosis was incomplete. Rapier 0.21.0
+supports reusable targets for translation, rotation, velocity and angular velocity.
+`GroundContact` now supplies them, keeps native force/torque/gravity vectors alive
+until disposal, and calls the raw physics pipeline. The raw path is restricted to
+fixed rigid-body topology: no hooks, events, soft-body tearing or automatic mapping
+of newly spawned bodies/colliders. It retains exactly one integration owner.
+`VectorOps.intoRaw` is not called during stepping; disposal is idempotent and
+subsequent steps fail. This removes explicit wrapper construction without claiming
+that the engine meets G1.
+
+`node scripts/bench-contact.mjs` measures three million warmed JS steps plus an
+allocating control. Every 800 ticks, 100 ticks apply -19.6133 N lift to a 1 kg
+sphere and 700 release it, exercising takeoff/landing against the plane. Near-plane
+negative normal impulse counts contact transitions. Heap profiling identified
+Rapier's imported `performance.now` timing calls and numerical boxing in getters.
+Disabling its runtime profiler flag does not eliminate all timing calls. The
+actual three windows still produce GC: **G1 fails**. Never replace global clocks
+or suppress GC observation to hide this failure.
+
+The matching official source is commit
+`b716d375efc0201003f0cd9ef7168eee0b62c177` (native Rapier 0.36.0, JS 0.21.0).
+`node scripts/check-contact-native.mjs` verifies its commit/license, copies the
+checked-in probe and dependency lock into an external build cache, then runs
+1e6 f64 steps with dim3/std/enhanced-determinism and **without** the profiler
+feature. The counting allocator and positive control still detect 1,688,500
+allocations / 77,328,000 bytes. Report: `test-results/bench/contact-native.json`.
+This is native f64 evidence, not measurement of the packaged f32 WASM allocator.
+Removing the JS timing feature alone therefore cannot certify the f64 replacement.
+TASK-029 requires an allocation-free engine build/binding before admission.
+
+### JSBSim opaque handles and cold trim
+
+Bridge handles are now generation-tagged tokens: low four bits select a slot,
+remaining bits identify its generation. Generation zero is invalid. Disposing a
+stale handle is a no-op; using it after a slot is reused cannot access the new
+session. Slots retire before generation wrap. The token remains opaque; this
+changes neither the v1 state layout nor function argument types. Input/output
+frames must be disjoint; overlap is rejected before controls or simulation time
+change. The adapter also rejects mismatched heap views, unaligned/out-of-range/
+overlapping frame allocations, and memory replacement during calls.
+
+Additive optional export `jsb_trim(handle,controlsOut,count=4)` performs full
+JSBSim trim during cold setup only. It initializes engine/mixture, may allocate,
+returns trimmed controls, and recaptures the fixed origin on success. It fails
+after stepping begins. Status 0 means trim success, -1 invalid handle/state/frame,
+-2 trim failure, -3 invalid trimmed control. A failed trim may change upstream
+setup state: dispose/recreate before retrying flight setup. The adapter exposes
+`trimInto` and rejects modules without this optional capability. ABI v1's existing
+step remains compatible. Native trim is not measured model fidelity.
+
+`node scripts/check-jsbsim-native.mjs` builds/runs the real pinned native bridge.
+Checks cover stale-handle reuse, invalid/overlapping inputs, normalized wxyz,
+central-difference position/velocity/acceleration, and body-specific-force rotation
+versus gravity. Declared tolerances are 0.1 m/s, 0.1 m/s² and 0.05 m/s² respectively;
+the latter allows rotating-Earth apparent-gravity terms not represented by the
+reported scalar Newtonian gravity magnitude. Native full trim passes. The actual
+errors are 5.50e-7 m/s, 5.50e-10 m/s² and 0.03392 m/s².
+
+The allocator test uses 250 independently initialized/trimmed flight windows,
+400 warmup steps then 4000 measured steps per window (1e6 measured total).
+Reset/trim/destruction are outside measurement, keeping each flight in the short
+reference envelope instead of treating uncontrolled long-flight divergence as
+an allocator test. GNU wrappers count malloc/calloc/realloc/aligned allocation
+and C++ new/new[]; the positive control must be detected. Measured result:
+21,142,500 allocations / 1,454,820,000 bytes; **native G1 fails**, CLI exits 2.
+`test-results/validation/jsbsim-native.json` records model/source/bridge/checker
+hashes, windows and separate WASM status. No aircraft XML is redistributed.
+The SDK download remains HTTP 403 at storage.googleapis.com; WASM compilation,
+Worker smoke, trim parity and contact coupling remain unverified. Native success
+on trim does not clear TASK-030/031.
+
+### Model report schema v2
+
+`validate-models.mjs` now rejects empty/misordered rates, malformed cases,
+duplicate IDs, missing analytic ballistic reference and unsupported measured-data
+entries **before** compilation. The supported manifest is explicitly synthetic;
+a measured dataset requires a reviewed units/envelope/provenance adapter.
+The report is version 2 because it adds `diagnostics.contact` and
+`diagnostics.jsbsimNative`, each containing path, report SHA-256 (or null), and
+status missing/invalid/stale/pass/failed. Reports whose adapter/bridge/checker
+hash differs from current source are stale. Diagnostics describe evidence; they
+cannot authorize a full backend or substitute native evidence for WASM parity.
+Overall/fidelity remain BLOCKED with exit 2 even when all 12 numerical cases pass.
+The missing measured airframe/rotor data and unconnected full BET backend remain
+explicit. Historical batch results above are preserved as dated records; this
+retry section supersedes their contact allocation diagnosis.
+
+
+## Native allocation patches: verified scope (2026-10-16)
+
+Both source patches are opt-in through `--patched`. The runners verify the
+original pinned checkout/license, archive that commit into an external cache,
+apply the checked-in patch with `git apply --check`, and record its SHA-256.
+The original checkout and npm Rapier artifact remain unchanged. No equations,
+unit conversions, integration order, or acceptance thresholds are changed.
+These are reproducible native experiments, not enabled production backends.
+
+Rapier's patch retains the modified-body handle vector, resets existing
+StageSync cursors after workers have joined, and retains single-threaded
+narrow-phase transition storage. The diagnostic uses an awake 1 kg sphere and
+an infinite halfspace in NED, 400 Hz, 100,000 warmup steps, then 1,000,000 steps
+with 100 ticks of lift per 800 ticks. This differs from the earlier finite-box,
+sleep-enabled diagnostic: do not compare those allocator counts directly.
+The matching current original run reports 2,002,500 allocator calls / 96,320,000
+bytes; the patched run reports **zero calls / zero bytes**. Both have the same
+trajectory checksum `317ba7c959cd2b59`. Native f64/std/enhanced-determinism is
+built without the profiler feature. This does not measure the npm f32 WASM
+binding or establish a general landing-gear manifold. The JS adapter still
+fails its observed-GC gate and retains `highRateCertified=false`.
+
+JSBSim's patch shifts values within the existing five deque history slots,
+walks existing atmosphere override children without parsing property paths,
+and reserves reusable fuel/oxidizer feed lists at model load, sized to the
+maximum engine source-tank count. Overrides remain dynamically discoverable;
+fuel priority, starvation and drain ordering are unchanged. On the pinned
+c172x reference, native full trim and SI/frame checks pass. Original allocation
+count is 21,142,500 calls / 1,454,820,000 bytes; the patched million measured
+steps report **zero calls / zero bytes**, in the same 250 bounded flight windows.
+Both trajectories have checksum `164fd3c0bf6d8a39`. Other aircraft, engine types,
+override mutation scenarios and contact coupling are not certified by this run.
+
+Reproduce with the pinned source caches, GNU C++ 14.2, CMake 3.31.6 and Rust
+1.97.0 already described above. Original runs intentionally exit 2; patched
+runs exit 0 only when their numerical and allocator checks pass:
+
+```bash
+node scripts/check-contact-native.mjs
+node scripts/check-contact-native.mjs --patched
+node scripts/check-jsbsim-native.mjs
+node scripts/check-jsbsim-native.mjs --patched
+node scripts/check-engine-patch-parity.mjs
+```
+
+Run those commands independently so an original failure does not skip the
+patched measurement. The parity checker requires current probe/checker,
+dependency-lock, source-pin and patch hashes, original allocation failures,
+patched zero counts and matching million-step trajectory checksums. It writes
+`test-results/validation/engine-patch-parity.json`. FNV-1a-64 processes every
+finite output double in little-endian byte order: 13 state components per
+Rapier step and all 22 bridge components per JSBSim step. Checksum agreement is
+a deterministic regression check, not a cryptographic proof or a measurement
+of physical accuracy. SHA-256 authenticates report/source identities separately.
+Reports `test-results/bench/contact-native-patched.json` and
+`test-results/validation/jsbsim-native-patched.json` retain distinct provenance.
+Model report v2 additionally exposes `diagnostics.contactNativePatched` and
+`diagnostics.jsbsimNativePatched` with the same missing/invalid/stale/pass/failed
+statuses; these do not replace the production contact or WASM gates.
+
+The SDK install still fails with proxy CONNECT 403 at storage.googleapis.com.
+Review/save the existing network and startup draft in environment settings,
+then publish/apply it before retrying the pinned Emscripten install. Saving the
+draft has not applied access to this runtime. An actual JSBSim WASM build,
+Worker smoke, native/WASM parity, contact coupling and model-data review remain
+required. TASK-029 remains BLOCKED_DECISION for a certified binding/general
+contact model; TASK-030/031/033 remain BLOCKED_EXTERNAL. Missing measured rotor/
+airframe validation and the unconnected full BET backend still block fidelity.

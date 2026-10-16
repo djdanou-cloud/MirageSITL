@@ -17,6 +17,13 @@
 
 pub mod abi;
 pub mod blade;
+pub mod coaxial;
+pub mod motor;
+pub mod battery;
+pub mod math;
+pub mod frame;
+pub mod rigid_body;
+pub mod body_abi;
 pub mod inflow;
 pub mod shaft;
 pub mod flapping;
@@ -266,6 +273,26 @@ mod wasm_exports {
         // SAFETY: all three regions checked above and pairwise disjoint.
         let (arena, input, out) = unsafe { (bytes_mut(handle, arena_len), bytes(input_ptr, input_len), bytes_mut(out_ptr, out_len)) };
         abi::step(arena, input, out, dt_s)
+    }
+
+    /// Independent rigid-body ABI version; rotor arena version remains unchanged.
+    #[no_mangle]
+    pub extern "C" fn bet_body_abi_version() -> u32 {
+        crate::body_abi::VERSION
+    }
+
+    /// Body-only RK4 step over validated, disjoint caller-owned regions.
+    #[no_mangle]
+    pub extern "C" fn bet_body_step(input_ptr: u32, out_ptr: u32, dt: f64) -> i32 {
+        let il = crate::body_abi::INPUT_BYTES;
+        let ol = crate::body_abi::OUTPUT_BYTES;
+        if !caller_region(input_ptr, il) || !caller_region(out_ptr, ol)
+            || abi::regions_overlap(input_ptr, il, out_ptr, ol) {
+            return abi::STATUS_BAD_POINTER;
+        }
+        // SAFETY: both regions are in caller memory, aligned and disjoint.
+        let (input, out) = unsafe { (bytes(input_ptr, il), bytes_mut(out_ptr, ol)) };
+        crate::body_abi::step(input, out, dt)
     }
 
     /// Resets rotor states; 0 or a negative status.

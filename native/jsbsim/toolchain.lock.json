@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "repository": "https://github.com/emscripten-core/emsdk.git",
+  "commit": "389a68bc35dcff7ebae4614e1615099dafda00d1",
+  "version": "4.0.15",
+  "releaseRevision": "b412b6307e541b93dd93f01b61181e15c17302ec",
+  "sdkManifestSha256": "2df8c7f8ba2d49a7cca1d3fac29f5bacae9ef05a08c8e94567fa95c13b56f6d1",
+  "cmakeVersion": "3.31.6",
+  "nativeCompiler": "GNU 14.2.0",
+  "requiredDownloadHost": "storage.googleapis.com"
+}

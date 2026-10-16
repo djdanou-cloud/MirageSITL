@@ -1,0 +1,102 @@
+--- a/src/models/FGPropagate.cpp
++++ b/src/models/FGPropagate.cpp
+@@ -339,8 +339,9 @@
+                              double dt,
+                              eIntegrateType integration_type)
+ {
+-  ValDot.push_front(Val);
+-  ValDot.pop_back();
++  // Preserve the five existing history slots instead of rotating deque storage.
++  for (size_t i = ValDot.size()-1; i > 0; --i) ValDot[i] = ValDot[i-1];
++  ValDot[0] = Val;
+ 
+   switch(integration_type) {
+   case eRectEuler:       Integrand += dt*ValDot[0];
+@@ -374,8 +375,9 @@
+                              double dt,
+                              eIntegrateType integration_type)
+ {
+-  ValDot.push_front(Val);
+-  ValDot.pop_back();
++  // Preserve the five existing history slots instead of rotating deque storage.
++  for (size_t i = ValDot.size()-1; i > 0; --i) ValDot[i] = ValDot[i-1];
++  ValDot[0] = Val;
+ 
+   switch(integration_type) {
+   case eRectEuler:       Integrand += dt*ValDot[0];
+--- a/src/models/FGAtmosphere.cpp
++++ b/src/models/FGAtmosphere.cpp
+@@ -139,24 +139,31 @@
+ void FGAtmosphere::Calculate(double altitude)
+ {
+   SGPropertyNode* node = PropertyManager->GetNode();
++  // Walk existing children directly: retain dynamic override semantics without
++  // allocating temporary path strings and path-component vectors every step.
++  SGPropertyNode* atmosphere = node->getChild("atmosphere");
++  SGPropertyNode* overrides = atmosphere ? atmosphere->getChild("override") : nullptr;
++  SGPropertyNode* temperatureOverride = overrides ? overrides->getChild("temperature") : nullptr;
++  SGPropertyNode* pressureOverride = overrides ? overrides->getChild("pressure") : nullptr;
++  SGPropertyNode* densityOverride = overrides ? overrides->getChild("density") : nullptr;
+   double t =0.0;
+-  if (!PropertyManager->HasNode("atmosphere/override/temperature"))
++  if (!temperatureOverride)
+     t = GetTemperature(altitude);
+   else
+-    t = node->getDoubleValue("atmosphere/override/temperature");
++    t = temperatureOverride->getDoubleValue();
+   Temperature = ValidateTemperature(t, "", true);
+ 
+   double p = 0.0;
+-  if (!PropertyManager->HasNode("atmosphere/override/pressure"))
++  if (!pressureOverride)
+     p = GetPressure(altitude);
+   else
+-    p = node->getDoubleValue("atmosphere/override/pressure");
++    p = pressureOverride->getDoubleValue();
+   Pressure = ValidatePressure(p, "", true);
+ 
+-  if (!PropertyManager->HasNode("atmosphere/override/density"))
++  if (!densityOverride)
+     Density = Pressure/(Reng*Temperature);
+   else
+-    Density = node->getDoubleValue("atmosphere/override/density");
++    Density = densityOverride->getDoubleValue();
+ 
+   Soundspeed  = sqrt(SHRatio*Reng*Temperature);
+   PressureAltitude = CalculatePressureAltitude(Pressure, altitude);
+--- a/src/models/FGPropulsion.h
++++ b/src/models/FGPropulsion.h
+@@ -187,6 +187,8 @@
+ private:
+   std::vector<std::shared_ptr<FGEngine>> Engines;
+   std::vector<std::shared_ptr<FGTank>>   Tanks;
++  // Scratch feed lists are reserved at model load and reused by each engine.
++  std::vector<int> FeedListFuel, FeedListOxi;
+   int ActiveEngine;
+   FGColumnVector3 vForces;
+   FGColumnVector3 vMoments;
+--- a/src/models/FGPropulsion.cpp
++++ b/src/models/FGPropulsion.cpp
+@@ -172,7 +172,8 @@
+ 
+   unsigned int TanksWithFuel=0, CurrentFuelTankPriority=1;
+   unsigned int TanksWithOxidizer=0, CurrentOxidizerTankPriority=1;
+-  vector <int> FeedListFuel, FeedListOxi;
++  FeedListFuel.clear();
++  FeedListOxi.clear();
+   bool Starved = true; // Initially set Starved to true. Set to false in code below.
+   bool hasOxTanks = false;
+ 
+@@ -436,6 +437,12 @@
+   for (auto& engine: Engines)
+     engine->SetFuelDensity(FuelDensity);
+ 
++  size_t maxSourceTanks = 0;
++  for (const auto& engine : Engines)
++    maxSourceTanks = std::max(maxSourceTanks, engine->GetNumSourceTanks());
++  FeedListFuel.reserve(maxSourceTanks);
++  FeedListOxi.reserve(maxSourceTanks);
++
+   PostLoad(el, FDMExec);
+ 
+   return true;

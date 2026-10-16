@@ -1,0 +1,369 @@
+{
+  "schemaVersion": 1,
+  "modelId": 2,
+  "kind": "demo",
+  "units": "SI",
+  "worldFrame": "NED",
+  "bodyFrame": "FRD",
+  "quaternionOrder": "wxyz",
+  "massKg": 1.2,
+  "inertiaBodyKgM2": [
+    0.02,
+    0,
+    0,
+    0,
+    0.02,
+    0,
+    0,
+    0,
+    0.04
+  ],
+  "rotorCount": 8,
+  "rotorCapacity": 32,
+  "rotors": [
+    {
+      "id": 0,
+      "motorChannel": 0,
+      "bladeCount": 2,
+      "spinSign": 1,
+      "radiusM": 0.14,
+      "rootCutoutM": 0.02,
+      "polarId": 0,
+      "radialStationM": [
+        0.04,
+        0.08,
+        0.12
+      ],
+      "chordM": [
+        0.02,
+        0.02,
+        0.02
+      ],
+      "twistRad": [
+        0.2,
+        0.2,
+        0.2
+      ],
+      "quadratureWidthM": [
+        0.04,
+        0.04,
+        0.04
+      ],
+      "hubPositionBodyM": [
+        0.4,
+        0.0,
+        0
+      ],
+      "hubToBody": [
+        0.9238795325112867,
+        0,
+        0.3826834323650898,
+        0
+      ],
+      "shaftInertiaKgM2": 2e-05,
+      "bearingViscousNmPerRadS": 1e-06,
+      "azimuthSamples": 32
+    },
+    {
+      "id": 1,
+      "motorChannel": 1,
+      "bladeCount": 2,
+      "spinSign": -1,
+      "radiusM": 0.14,
+      "rootCutoutM": 0.02,
+      "polarId": 0,
+      "radialStationM": [
+        0.04,
+        0.08,
+        0.12
+      ],
+      "chordM": [
+        0.02,
+        0.02,
+        0.02
+      ],
+      "twistRad": [
+        0.2,
+        0.2,
+        0.2
+      ],
+      "quadratureWidthM": [
+        0.04,
+        0.04,
+        0.04
+      ],
+      "hubPositionBodyM": [
+        0.28284271247461906,
+        0.282842712474619,
+        0
+      ],
+      "hubToBody": [
+        0.9238795325112867,
+        0,
+        0.3826834323650898,
+        0
+      ],
+      "shaftInertiaKgM2": 2e-05,
+      "bearingViscousNmPerRadS": 1e-06,
+      "azimuthSamples": 32
+    },
+    {
+      "id": 2,
+      "motorChannel": 2,
+      "bladeCount": 2,
+      "spinSign": 1,
+      "radiusM": 0.14,
+      "rootCutoutM": 0.02,
+      "polarId": 0,
+      "radialStationM": [
+        0.04,
+        0.08,
+        0.12
+      ],
+      "chordM": [
+        0.02,
+        0.02,
+        0.02
+      ],
+      "twistRad": [
+        0.2,
+        0.2,
+        0.2
+      ],
+      "quadratureWidthM": [
+        0.04,
+        0.04,
+        0.04
+      ],
+      "hubPositionBodyM": [
+        2.4492935982947065e-17,
+        0.4,
+        0
+      ],
+      "hubToBody": [
+        0.9238795325112867,
+        0,
+        0.3826834323650898,
+        0
+      ],
+      "shaftInertiaKgM2": 2e-05,
+      "bearingViscousNmPerRadS": 1e-06,
+      "azimuthSamples": 32
+    },
+    {
+      "id": 3,
+      "motorChannel": 3,
+      "bladeCount": 2,
+      "spinSign": -1,
+      "radiusM": 0.14,
+      "rootCutoutM": 0.02,
+      "polarId": 0,
+      "radialStationM": [
+        0.04,
+        0.08,
+        0.12
+      ],
+      "chordM": [
+        0.02,
+        0.02,
+        0.02
+      ],
+      "twistRad": [
+        0.2,
+        0.2,
+        0.2
+      ],
+      "quadratureWidthM": [
+        0.04,
+        0.04,
+        0.04
+      ],
+      "hubPositionBodyM": [
+        -0.282842712474619,
+        0.28284271247461906,
+        0
+      ],
+      "hubToBody": [
+        0.9238795325112867,
+        0,
+        0.3826834323650898,
+        0
+      ],
+      "shaftInertiaKgM2": 2e-05,
+      "bearingViscousNmPerRadS": 1e-06,
+      "azimuthSamples": 32
+    },
+    {
+      "id": 4,
+      "motorChannel": 4,
+      "bladeCount": 2,
+      "spinSign": 1,
+      "radiusM": 0.14,
+      "rootCutoutM": 0.02,
+      "polarId": 0,
+      "radialStationM": [
+        0.04,
+        0.08,
+        0.12
+      ],
+      "chordM": [
+        0.02,
+        0.02,
+        0.02
+      ],
+      "twistRad": [
+        0.2,
+        0.2,
+        0.2
+      ],
+      "quadratureWidthM": [
+        0.04,
+        0.04,
+        0.04
+      ],
+      "hubPositionBodyM": [
+        -0.4,
+        4.898587196589413e-17,
+        0
+      ],
+      "hubToBody": [
+        0.9238795325112867,
+        0,
+        0.3826834323650898,
+        0
+      ],
+      "shaftInertiaKgM2": 2e-05,
+      "bearingViscousNmPerRadS": 1e-06,
+      "azimuthSamples": 32
+    },
+    {
+      "id": 5,
+      "motorChannel": 5,
+      "bladeCount": 2,
+      "spinSign": -1,
+      "radiusM": 0.14,
+      "rootCutoutM": 0.02,
+      "polarId": 0,
+      "radialStationM": [
+        0.04,
+        0.08,
+        0.12
+      ],
+      "chordM": [
+        0.02,
+        0.02,
+        0.02
+      ],
+      "twistRad": [
+        0.2,
+        0.2,
+        0.2
+      ],
+      "quadratureWidthM": [
+        0.04,
+        0.04,
+        0.04
+      ],
+      "hubPositionBodyM": [
+        -0.28284271247461906,
+        -0.282842712474619,
+        0
+      ],
+      "hubToBody": [
+        0.9238795325112867,
+        0,
+        0.3826834323650898,
+        0
+      ],
+      "shaftInertiaKgM2": 2e-05,
+      "bearingViscousNmPerRadS": 1e-06,
+      "azimuthSamples": 32
+    },
+    {
+      "id": 6,
+      "motorChannel": 6,
+      "bladeCount": 2,
+      "spinSign": 1,
+      "radiusM": 0.14,
+      "rootCutoutM": 0.02,
+      "polarId": 0,
+      "radialStationM": [
+        0.04,
+        0.08,
+        0.12
+      ],
+      "chordM": [
+        0.02,
+        0.02,
+        0.02
+      ],
+      "twistRad": [
+        0.2,
+        0.2,
+        0.2
+      ],
+      "quadratureWidthM": [
+        0.04,
+        0.04,
+        0.04
+      ],
+      "hubPositionBodyM": [
+        -7.347880794884119e-17,
+        -0.4,
+        0
+      ],
+      "hubToBody": [
+        0.9238795325112867,
+        0,
+        0.3826834323650898,
+        0
+      ],
+      "shaftInertiaKgM2": 2e-05,
+      "bearingViscousNmPerRadS": 1e-06,
+      "azimuthSamples": 32
+    },
+    {
+      "id": 7,
+      "motorChannel": 7,
+      "bladeCount": 2,
+      "spinSign": -1,
+      "radiusM": 0.14,
+      "rootCutoutM": 0.02,
+      "polarId": 0,
+      "radialStationM": [
+        0.04,
+        0.08,
+        0.12
+      ],
+      "chordM": [
+        0.02,
+        0.02,
+        0.02
+      ],
+      "twistRad": [
+        0.2,
+        0.2,
+        0.2
+      ],
+      "quadratureWidthM": [
+        0.04,
+        0.04,
+        0.04
+      ],
+      "hubPositionBodyM": [
+        0.28284271247461895,
+        -0.28284271247461906,
+        0
+      ],
+      "hubToBody": [
+        0.9238795325112867,
+        0,
+        0.3826834323650898,
+        0
+      ],
+      "shaftInertiaKgM2": 2e-05,
+      "bearingViscousNmPerRadS": 1e-06,
+      "azimuthSamples": 32
+    }
+  ]
+}

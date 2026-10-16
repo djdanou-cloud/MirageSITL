@@ -1,0 +1,28 @@
+{
+  "abiVersion": 1,
+  "inputCount": 4,
+  "outputCount": 22,
+  "units": "SI",
+  "bodyFrame": "FRD",
+  "worldFrame": "NED",
+  "quaternionOrder": "wxyz",
+  "feetToMetres": 0.3048,
+  "outputOffsets": {
+    "positionNedM": 0,
+    "velocityNedMps": 3,
+    "quaternionBodyToNed": 6,
+    "angularVelocityBodyRadS": 10,
+    "specificForceBodyMps2": 13,
+    "timeS": 16,
+    "altitudeAslM": 17,
+    "gravityMps2": 18,
+    "accelerationNedMps2": 19
+  },
+  "positionOrigin": "Initial ECEF location rotated by initial ECEF-to-NED matrix",
+  "inputProperties": [
+    "fcs/throttle-cmd-norm",
+    "fcs/aileron-cmd-norm",
+    "fcs/elevator-cmd-norm",
+    "fcs/rudder-cmd-norm"
+  ]
+}

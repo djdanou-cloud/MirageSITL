@@ -380,6 +380,201 @@
           "derivation": "Unforced zero-RPM hinge: beta=beta_initial*cos(sqrt(K/I)*t), no damping. Synthetic oscillator, not measured rotor flap."
         }
       }
+    },
+    {
+      "path": "rotors/coaxial.json",
+      "manifest": {
+        "formatVersion": 1,
+        "id": "coaxial-analytic-v1",
+        "sourceSha256": "a7d0032c6c019afaa8b84f16692e2b1a9d07e180bedae28ba2bc6bd25bad5ebb",
+        "units": {
+          "receiverDeltaZMps": "m/s",
+          "receivedMomentumN": "N"
+        },
+        "validityEnvelope": {
+          "receiverDeltaZMps": {
+            "min": -100,
+            "max": 0
+          },
+          "receivedMomentumN": {
+            "min": 0,
+            "max": 1000
+          }
+        },
+        "tolerance": {
+          "absolute": 1e-09,
+          "relative": 1e-09
+        },
+        "provenance": {
+          "kind": "synthetic",
+          "derivation": "Synthetic steady incompressible top-hat jet. Initial contracted area=A_source/2; expanding radius=R_source/sqrt(2)+d*tan(theta). Momentum rho*A_w*u^2=T. Kinetic power=T*u/2, decrease assigned to mixing loss. The 0.1 rad spreading parameter is an explicit synthetic scenario choice, not a fitted measurement. Aligned disks only."
+        }
+      }
+    },
+    {
+      "path": "power/battery.json",
+      "manifest": {
+        "formatVersion": 1,
+        "id": "power-battery-v1",
+        "sourceSha256": "d0a90e81434506ea4932efb7d34eefefdb89ff8ae9cf659073f68b26ef3fc951",
+        "units": {
+          "vocV": "V",
+          "currentA": "A"
+        },
+        "validityEnvelope": {
+          "vocV": {
+            "min": 12,
+            "max": 12
+          },
+          "currentA": {
+            "min": 10.0,
+            "max": 10.0
+          }
+        },
+        "tolerance": {
+          "absolute": 1e-09,
+          "relative": 1e-09
+        },
+        "provenance": {
+          "kind": "synthetic",
+          "derivation": "Independent quadratic low-current root for 110 W from a 12 V source with 0.1 ohm resistance."
+        }
+      }
+    },
+    {
+      "path": "contact/drop.json",
+      "manifest": {
+        "formatVersion": 1,
+        "id": "contact-drop-v1",
+        "sourceSha256": "4f48217b583ae2dbaa18361d1091ebb9aba26c28435253104dd2905f8a8f72c4",
+        "units": {
+          "massKg": "kg",
+          "radiusM": "m"
+        },
+        "validityEnvelope": {
+          "massKg": {
+            "min": 1,
+            "max": 1
+          },
+          "radiusM": {
+            "min": 0.1,
+            "max": 0.1
+          }
+        },
+        "tolerance": {
+          "absolute": 1e-09,
+          "relative": 1e-09
+        },
+        "provenance": {
+          "kind": "synthetic",
+          "derivation": "Synthetic sphere-on-plane contact; Coulomb friction allows rolling, not forced zero translation."
+        }
+      }
+    },
+    {
+      "path": "sensors/ideal.json",
+      "manifest": {
+        "formatVersion": 1,
+        "id": "sensors-ideal-v1",
+        "sourceSha256": "88c058eaf83becf07c211ee2168737bb4a9a92fde667987ab0c6a31d72d8490f",
+        "units": {
+          "gravityMps2": "m/s^2",
+          "seaLevelPressurePa": "Pa"
+        },
+        "validityEnvelope": {
+          "gravityMps2": {
+            "min": 9.80665,
+            "max": 9.80665
+          },
+          "seaLevelPressurePa": {
+            "min": 101325,
+            "max": 101325
+          }
+        },
+        "tolerance": {
+          "absolute": 1e-09,
+          "relative": 1e-09
+        },
+        "provenance": {
+          "kind": "synthetic",
+          "derivation": "Analytic stationary specific force a-g, rotated vector, ISA pressure and ideal dynamic pressure."
+        }
+      }
+    },
+    {
+      "path": "airframes/jsbsim-trim.json",
+      "manifest": {
+        "formatVersion": 1,
+        "id": "airframes-jsbsim-trim-v1",
+        "sourceSha256": "5158ab8703c4128ed0e6f0fa3e54104c7233ea6d286c5fa9507653158acea3a3",
+        "units": {
+          "nativeSmokeTimeS": "s"
+        },
+        "validityEnvelope": {
+          "nativeSmokeTimeS": {
+            "min": 1,
+            "max": 1
+          }
+        },
+        "tolerance": {
+          "absolute": 1e-09,
+          "relative": 1e-09
+        },
+        "provenance": {
+          "kind": "synthetic",
+          "derivation": "Synthetic acceptance manifest records missing trim/WASM evidence, not a calibrated or redistributed aircraft dataset."
+        }
+      }
+    },
+    {
+      "path": "models/tilted-octo.json",
+      "manifest": {
+        "formatVersion": 1,
+        "id": "models-tilted-octo-v1",
+        "sourceSha256": "22dcb72489eba94035fe2e07a3472181c9ee41643a37a83e5a06e767eebad5a6",
+        "units": {
+          "massKg": "kg"
+        },
+        "validityEnvelope": {
+          "massKg": {
+            "min": 1.2,
+            "max": 1.2
+          }
+        },
+        "tolerance": {
+          "absolute": 1e-09,
+          "relative": 1e-09
+        },
+        "provenance": {
+          "kind": "synthetic",
+          "derivation": "Synthetic octo with all hub Z axes tilted +45 degrees about body Y; unit hub Z forces sum to 4*sqrt(2) on body X and Z. Not a flight-calibrated model."
+        }
+      }
+    },
+    {
+      "path": "abi/body-v1.json",
+      "manifest": {
+        "formatVersion": 1,
+        "id": "body-abi-v1",
+        "sourceSha256": "9791a2bd8563a0ee40db12a2c0e94d15e375dd0b173a6a3a05176518f41d3e17",
+        "units": {
+          "inputBytes": "1"
+        },
+        "validityEnvelope": {
+          "inputBytes": {
+            "min": 256,
+            "max": 256
+          }
+        },
+        "tolerance": {
+          "absolute": 0,
+          "relative": 0
+        },
+        "provenance": {
+          "kind": "synthetic",
+          "derivation": "Independent explicit little-endian body ABI offsets; not Rust object layout."
+        }
+      }
     }
   ]
 }

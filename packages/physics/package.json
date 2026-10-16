@@ -7,11 +7,17 @@
     ".": "./src/index.ts",
     "./model-manifest": "./src/model-manifest.ts",
     "./atmosphere": "./src/atmosphere.ts",
-    "./wind": "./src/wind.ts"
+    "./wind": "./src/wind.ts",
+    "./motor-config": "./src/motor-config.ts",
+    "./frame": "./src/frame.ts",
+    "./contact-backend": "./src/contact-backend.ts",
+    "./ground-contact": "./src/ground-contact.ts"
   },
   "dependencies": {
+    "@dimforge/rapier3d-compat": "0.21.0",
     "@mirage/protocol": "0.1.0",
+    "@mirage/test-support": "0.1.0",
     "ajv": "8.20.0",
-    "@mirage/test-support": "0.1.0"
+    "@mirage/wasm-bet": "0.1.0"
   }
 }

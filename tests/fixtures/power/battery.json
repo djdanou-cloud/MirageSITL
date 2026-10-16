@@ -1,0 +1,12 @@
+{
+  "vocV": 12,
+  "resistanceOhm": 0.1,
+  "capacityC": 3600,
+  "currentLimitA": 100,
+  "loadsW": [
+    50,
+    60
+  ],
+  "currentA": 10.0,
+  "dtS": 0.0025
+}

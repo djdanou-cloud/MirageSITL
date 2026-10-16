@@ -98,6 +98,32 @@ the licensing decision. TASK-064 caches an authorized dataset, such as owned
 tiles. The 10–15 km goal remains a region-cache parameter, not permission to
 copy Google content without rights.
 
+
+## Local batch verification: TASK-025–031 and TASK-033–035
+
+2026-10-16; owner Codex; baseline 8f7dc19 plus preserved local TASK-024.
+Six tasks are DONE (025–028, 034–035); 029 is BLOCKED_DECISION and 030/031/033
+are BLOCKED_EXTERNAL. Passing unit tests assert those blocked gates remain closed.
+Final local exits are zero for frozen npm ci, lint, typecheck, check:docs, build,
+230 unit tests (35 files), 17 Chromium browser tests, 45 native tests, native and
+wasm32 cargo check, and the release million-step allocator test. Unit/browser
+JUnit reports: test-results/unit/junit.xml and test-results/browser/junit.xml;
+zero failures/errors/skips. The production build retains its existing large-chunk
+warning. Lockfile SHA-256 f2199316bc61fd3cdc3cf1017e5884942aa51443ca6d126820e48925db1495d7.
+
+Node 24.19.0, Rust 1.97.0, Chromium 154.0.8037.57, Debian x86_64/software GPU;
+CARGO_HOME=/workspace/.cache/mirage-cargo, RUSTUP_HOME=/workspace/.cache/mirage-rustup
+and Cargo bin activated on PATH. No M4/RTX performance or hosted Actions claim.
+Sensor ideal/all/body allocation reports show zero GC and zero incremental B/step;
+positive controls detected allocations. The contact allocation test resolves the
+same pinned 0.21.0 provider as the adapter, avoiding an unrelated transitive version.
+Model report: 12 numerical cases PASS, max position error 1.624e-10 m,
+max attitude error 0 rad; overall/fidelity BLOCKED and CLI exit 2. Reference hash
+9f89eab73cd16e7f7296744b40a9389d5bff17f04f947f3473f0067b96bce142.
+Native JSBSim bridge rebuild/smoke exits 0; WASM build prerequisite guard exits 2
+because the pinned SDK is unavailable. EN/RU prose, equations, paths and hashes
+were synchronized and checked. Changes remain local; no commit or push performed.
+
 ## Phase 0: Skeleton
 
 ### TASK-001 — Preserve the working skeleton
@@ -359,75 +385,102 @@ copy Google content without rights.
 
 ### TASK-024 — Coaxial interaction
 
-- **Status:** TODO.
+- **Status:** DONE — Codex; baseline 8f7dc19; 2026-10-16.
 - **Title & Description:** Introduce explicit wake coupling for a pair of rotor disks.
 - **Dependencies:** TASK-021, TASK-023.
-- **Touched Files:** `native/bet/src/coaxial.rs`, `native/bet/tests/coaxial.rs`, `tests/fixtures/rotors/coaxial.json`.
+- **Touched Files:** `native/bet/src/coaxial.rs`, `native/bet/tests/coaxial.rs`, `tests/fixtures/rotors/coaxial.json`, `native/bet/src/lib.rs`, `native/bet/src/test_exports.rs`, `native/bet/tests/allocation.rs`, `tests/rotor-kernels.test.ts`, `tests/fixtures/registry.json`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
 - **Interfaces / Contracts:** WakePair {upperId,lowerId,separationM,overlap}; energy/source provenance.
 - **DoD & Acceptance Criteria:** Disabled coupling matches independent rotors; large separation approaches independence; check momentum/energy accounting; without measurements label the model experimental.
+- **Evidence:** Owner Codex; baseline 8f7dc19; 2026-10-16. cargo test --manifest-path native/Cargo.toml --test coaxial --locked: 4 PASS (independent flux oracle, exact disabled/zero-overlap receiver wrench, active coupling, far-field wrench within 1e-6 N/Nm, overlap scaling, scaled momentum/energy budgets, geometry/regime rejection). Oracle coaxial-analytic-v1 SHA-256 a7d0032c6c019afaa8b84f16692e2b1a9d07e180bedae28ba2bc6bd25bad5ebb; units SI; absolute fixture tolerance 1e-9. Native allocator counter includes 1e6 wake evaluations: zero calls/bytes, positive allocating control detected. tests/rotor-kernels.test.ts: 4 PASS, including scalar/SIMD wake oracle/budget checks and 1e6 varying-thrust steps with trapping allocator and stable memory; disabled/zero-flow output is canonical +0. Full verification exit 0: npm run lint, npm run typecheck, npm run check:docs, npm run build; CI=true npm test (210 PASS), CI=true CHROMIUM_PATH=/usr/bin/chromium npm run test:browser (17 PASS); cargo check --manifest-path native/Cargo.toml --workspace --locked, cargo check --manifest-path native/Cargo.toml -p mirage-bet --target wasm32-unknown-unknown --locked, cargo test --manifest-path native/Cargo.toml --workspace --locked (35 PASS); focused coaxial/allocation rerun after signed-zero correction (5 PASS). Final JUnit: test-results/unit/junit.xml, test-results/browser/junit.xml, no failures/errors/skips. Rust 1.97.0, Node 24.19.0, Chromium 154.0.8037.57, Debian x86_64/software GPU. Cargo environment uses CARGO_HOME=/workspace/.cache/mirage-cargo, RUSTUP_HOME=/workspace/.cache/mirage-rustup with Cargo bin on PATH. EN/RU specification, architecture and roadmap synchronized. Experimental ideal-hover/mixing reference only; no measured calibration, production C ABI/backend wiring or target-hardware performance claim.
 
 ### TASK-025 — ESC and spool model
 
-- **Status:** TODO.
+- **Status:** DONE — Codex; baseline 8f7dc19 plus local TASK-024; 2026-10-16.
 - **Title & Description:** Convert duty into drive torque/RPM transients using the selected motor model.
 - **Dependencies:** TASK-022.
-- **Touched Files:** `native/bet/src/motor.rs`, `native/bet/tests/motor.rs`, `packages/physics/src/motor-config.ts`.
+- **Touched Files:** `native/bet/src/motor.rs`, `native/bet/tests/motor.rs`, `packages/physics/src/motor-config.ts`, `native/bet/src/lib.rs`, `native/bet/src/test_exports.rs`, `tests/rotor-kernels.test.ts`, `native/bet/tests/allocation.rs`, `tests/motor-config.test.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
 - **Interfaces / Contracts:** Torque model or first-order governor; current/back-EMF limits.
 - **DoD & Acceptance Criteria:** Duty steps follow configured lag/current saturation; zero voltage creates no energy; power cuts preserve spin decay; never integrate two spool ODEs simultaneously.
 
+- **Evidence:** Owner Codex; baseline 8f7dc19; 2026-10-16. 2 native motor tests, strict motor schema test and scalar/SIMD analytic parity pass. Exact duty lag, winding-current saturation, bus/mechanical/copper power balance and power cut without resetting shaft speed. Native allocator probe includes motor over 1e6 steps with zero calls/bytes. Full rotor/backend wiring remains separate.
+
 ### TASK-026 — Battery sag
 
-- **Status:** TODO.
+- **Status:** DONE — Codex; baseline 8f7dc19 plus local TASK-024; 2026-10-16.
 - **Title & Description:** Calculate SOC, bus voltage, and available power across all motors.
 - **Dependencies:** TASK-025.
-- **Touched Files:** `native/bet/src/battery.rs`, `native/bet/tests/battery.rs`, `tests/fixtures/power/battery.json`.
+- **Touched Files:** `native/bet/src/battery.rs`, `native/bet/tests/battery.rs`, `tests/fixtures/power/battery.json`, `native/bet/src/lib.rs`, `native/bet/src/test_exports.rs`, `tests/rotor-kernels.test.ts`, `native/bet/tests/allocation.rs`, `tests/fixtures/registry.json`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
 - **Interfaces / Contracts:** V=Voc-I*R; SOC; power-limited flags.
 - **DoD & Acceptance Criteria:** Analytic resistance, R approaching zero, depleted SOC, and infeasible power cases remain finite; energy/current signs agree; count every motor load exactly once.
 
+- **Evidence:** Owner Codex; baseline 8f7dc19; 2026-10-16. 2 native battery tests and scalar/SIMD quadratic-root oracle pass. Shared load accounting, R=0/1e-20, charge/current/power saturation, depletion, nonfinite rejection and held-SOC power balance covered. power/battery.json is an independent hashed synthetic oracle, not pack measurements. Native million-step allocation gate passes.
+
 ### TASK-027 — Arbitrary frame wrench
 
-- **Status:** TODO.
+- **Status:** DONE — Codex; baseline 8f7dc19 plus local TASK-024; 2026-10-16.
 - **Title & Description:** Aggregate thrust vectors, moment arms, and transmitted rotor moments.
 - **Dependencies:** TASK-006, TASK-023, TASK-025, TASK-026.
-- **Touched Files:** `native/bet/src/frame.rs`, `packages/physics/src/frame.ts`, `native/bet/tests/frame.rs`, `tests/fixtures/models/tilted-octo.json`.
+- **Touched Files:** `native/bet/src/frame.rs`, `packages/physics/src/frame.ts`, `native/bet/tests/frame.rs`, `tests/fixtures/models/tilted-octo.json`, `native/bet/src/lib.rs`, `native/bet/src/math.rs`, `tests/frame.test.ts`, `native/bet/src/test_exports.rs`, `tests/rotor-kernels.test.ts`, `native/bet/tests/allocation.rs`, `tests/fixtures/registry.json`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
 - **Interfaces / Contracts:** F=sum R*F; M=sum(r cross R*F+R*Mhub); stable motor IDs.
 - **DoD & Acceptance Criteria:** Quad/hexa/tilted-octo fixtures verify symmetry, yaw cancellation, and handedness; tilted axes generate lateral force; motor reaction is never counted twice.
 
+- **Evidence:** Owner Codex; baseline 8f7dc19; 2026-10-16. 2 native and 2 TypeScript frame tests plus scalar/SIMD tilted-force oracle pass. Symmetric quad/hexa/octo cancel lever/yaw moments; registered tilted-octo fixture produces 4*sqrt(2) N on body X and Z from eight unit hub forces. Stable IDs, right-handed transforms and no duplicate transmitted reaction. Native million-step allocation gate passes.
+
 ### TASK-028 — Rigid-body integrator
 
-- **Status:** TODO.
+- **Status:** DONE — Codex; baseline 8f7dc19 plus local TASK-024; 2026-10-16.
 - **Title & Description:** Integrate BET wrench using mass/inertia, quaternion, and NED gravity.
 - **Dependencies:** TASK-027.
-- **Touched Files:** `native/bet/src/rigid_body.rs`, `packages/wasm-bet/src/backend.ts`, `native/bet/tests/rigid_body.rs`.
+- **Touched Files:** `native/bet/src/rigid_body.rs`, `packages/wasm-bet/src/backend.ts`, `native/bet/tests/rigid_body.rs`, `native/bet/src/lib.rs`, `native/bet/src/body_abi.rs`, `native/bet/tests/body_abi.rs`, `tests/rigid-body.test.ts`, `packages/wasm-bet/package.json`, `tests/fixtures/abi/body-v1.json`, `native/bet/src/test_exports.rs`, `tests/rotor-kernels.test.ts`, `native/bet/tests/allocation.rs`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `tests/fixtures/registry.json`, `tests/browser/native-bootstrap.spec.ts`, `scripts/bench-sensors.mjs`.
 - **Interfaces / Contracts:** DynamicsBackend, TruthOutput; one integration owner.
 - **DoD & Acceptance Criteria:** Test ballistic/torque-free/constant-torque cases; native quaternion norm error<1e-10; trajectories remain finite; check 400/800/1200 convergence against offline 4800 Hz.
 
+- **Evidence:** Owner Codex; baseline 8f7dc19; 2026-10-16. 3 native rigid-body tests plus body ABI rejection/layout test pass: ballistic and constant principal torque analytic solutions, quaternion norm below 1e-10, torque-free 400/800/1200 convergence to 4800 Hz. Independent 256/128-byte body ABI v1, dedicated-memory ownership and actual scalar/SIMD adapter tests. Native million-step allocation counter passes; WASM allocation traps and memory stability are exercised separately. No full BET flight/backend claim. Additional G1 evidence: bench-sensors.mjs body runs the actual scalar WASM body adapter plus sensor pipeline over six warmed N=1e6/2e6 windows: zero GC, zero incremental B/step, positive allocating control detected; unit tests run 1e6 steps per scalar/SIMD artifact with trapping allocator and stable memory.
+
 ### TASK-029 — Landing-gear contact
 
-- **Status:** TODO.
+- **Status:** BLOCKED_DECISION — Codex; native patch passes; production binding is uncertified.
 - **Title & Description:** Integrate one chosen contact solver and synchronize impulses.
 - **Dependencies:** TASK-028.
-- **Touched Files:** `packages/physics/src/contact-backend.ts`, `packages/physics/src/ground-contact.ts`, `tests/contact.test.ts`, `tests/fixtures/contact/drop.json`.
+- **Touched Files:** `packages/physics/src/contact-backend.ts`, `packages/physics/src/ground-contact.ts`, `tests/contact.test.ts`, `tests/fixtures/contact/drop.json`, `package-lock.json`, `packages/physics/package.json`, `tests/contact-allocation.test.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `tests/fixtures/registry.json`, `packages/physics/src/contact-engine.ts`, `scripts/bench-contact.mjs`, `native/rapier/allocation_probe.rs`, `native/rapier/source.lock.json`, `native/rapier/Cargo.lock`, `scripts/check-contact-native.mjs`, `CLAUDE.md`, `docs/ru/CLAUDE.md`, `native/rapier/patches/reuse-step-buffers.patch`, `scripts/check-engine-patch-parity.mjs`, `tests/engine-patch-parity.test.ts`.
 - **Interfaces / Contracts:** ContactImpulse {pointBody,impulseNed,dt}; choose Rapier or Jolt in an ADR.
 - **DoD & Acceptance Criteria:** Drop/rolling/friction/nonpenetration fixtures pass; restitution adds no excess energy; a second solver never reintegrates the same body; meet G1 allocation budget.
 
+- **Evidence:** Owner Codex; baseline 8f7dc19; 2026-10-16. Real Rapier 0.21.0 sphere/plane drop, rolling friction, nonpenetration and restitution tests pass. Integration ownership and impulse diagnostic are implemented. Provider getter identity test proves fresh wrappers: highRateCertified=false; G1 FAIL prevents production admission. ADR in docs/architecture.md records the decision and need for nonallocating binding or alternate solver. General landing-gear manifold remains open.
+
+- **Retry Evidence:** Retry: reusable target getters and persistent raw force/torque/gravity vectors replace per-step wrapper construction; fixed-topology raw pipeline and idempotent disposal tested. Actual warmed JS probe still fails with 143/142/71 GC events per 1e6-step window (exit 1). Profiler-free native f64 Rapier 0.36.0, pinned source b716d375efc0201003f0cd9ef7168eee0b62c177: 1,688,500 allocator calls / 77,328,000 bytes over 1e6 steps (exit 2). Reports test-results/bench/contact.json and contact-native.json. Native f64 evidence does not certify packaged f32 WASM. G1 remains failed; no high-rate admission.
+
+- **Patch Retry Evidence (2026-10-16):** Opt-in storage-reuse patch: matching awake sphere/halfspace runs now measure original 2,002,500 calls / 96,320,000 bytes versus patched zero calls/bytes over 1e6 steps; trajectory checksum 317ba7c959cd2b59 matches. Patched report test-results/bench/contact-native-patched.json, CLI exit 0. Earlier finite-box/sleep-enabled counts are historical. The shipped JS binding still fails G1; general landing gear remains open.
+
 ### TASK-030 — Pinned JSBSim WASM artifact
 
-- **Status:** TODO.
+- **Status:** BLOCKED_EXTERNAL — Codex; retry verified on 2026-10-16.
 - **Title & Description:** Build JSBSim with reproducible source/toolchain manifests through Emscripten.
 - **Dependencies:** TASK-003, TASK-004, TASK-006.
-- **Touched Files:** `native/jsbsim/CMakeLists.txt`, `native/jsbsim/source.lock.json`, `native/jsbsim/toolchain.lock.json`, `scripts/build-jsbsim.mjs`, `packages/wasm-jsbsim/package.json`, `tests/jsbsim-artifact.test.ts`.
+- **Touched Files:** `native/jsbsim/CMakeLists.txt`, `native/jsbsim/source.lock.json`, `native/jsbsim/toolchain.lock.json`, `scripts/build-jsbsim.mjs`, `packages/wasm-jsbsim/package.json`, `tests/jsbsim-artifact.test.ts`, `native/jsbsim/bridge.cpp`, `native/jsbsim/property-map.json`, `package-lock.json`, `CLAUDE.md`, `docs/ru/CLAUDE.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `README.md`, `docs/ru/README.md`, `scripts/check-jsbsim-native.mjs`, `native/jsbsim/native_checks.cpp`, `native/jsbsim/patches/reuse-history-and-property-paths.patch`.
 - **Interfaces / Contracts:** WASM C ABI version/hash; JSBSim and model-data licenses.
 - **DoD & Acceptance Criteria:** Build pinned source with verified checksums; native/WASM references share source; unit conversion does not patch upstream physics; Worker artifact smoke passes.
 
+- **Evidence:** Owner Codex; baseline 8f7dc19; 2026-10-16. Pinned JSBSim v1.2.3 commit 570e8115a102df8f877b11e0e59b964ea483e3c0; pinned emsdk 4.0.15 commit 389a68bc35dcff7ebae4614e1615099dafda00d1; source/license/SDK-manifest guards pass. Native C++ bridge builds with GNU 14.2/CMake 3.31.6 and returns 22 finite SI outputs after 1 s. Emscripten install fails at storage.googleapis.com with proxy CONNECT 403; no WASM artifact or Worker smoke. Network domain and reusable setup saved as an unapplied environment draft requiring review/save/publication. Hosted TASK-003 execution and model-data licensing acceptance remain unverified.
+
+- **Retry Evidence:** Retry: python3 emsdk.py install 4.0.15 still fails downloading node-v22.16.0-linux-x64.tar.xz from storage.googleapis.com: proxy tunnel CONNECT 403, exit 1. Saved network draft remains unapplied to this runtime. Added native check target and cold-path exception-catching build flags; actual Emscripten compilation/Worker artifact smoke remain unrun. Reusable startup diagnostics saved in the environment draft; persistence is not publication.
+
+- **Patch Retry Evidence (2026-10-16):** Build runner now supports a verified opt-in allocation patch and records its SHA-256 in the artifact manifest. Source checkouts remain clean. Native patched evidence cannot clear the SDK HTTP 403 or substitute for actual WASM/Worker smoke.
+
 ### TASK-031 — JSBSim DynamicsBackend
 
-- **Status:** TODO.
+- **Status:** BLOCKED_EXTERNAL — Codex; retry verified on 2026-10-16.
 - **Title & Description:** Adapt JSBSim state, actuators, and contact exchange.
 - **Dependencies:** TASK-018, TASK-029, TASK-030, TASK-032.
-- **Touched Files:** `native/jsbsim/bridge.cpp`, `packages/wasm-jsbsim/src/backend.ts`, `tests/jsbsim-backend.test.ts`, `tests/fixtures/airframes/jsbsim-trim.json`, `native/jsbsim/property-map.json`.
+- **Touched Files:** `native/jsbsim/bridge.cpp`, `packages/wasm-jsbsim/src/backend.ts`, `tests/jsbsim-backend.test.ts`, `tests/fixtures/airframes/jsbsim-trim.json`, `native/jsbsim/property-map.json`, `packages/wasm-jsbsim/package.json`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `tests/fixtures/registry.json`, `native/jsbsim/native_checks.cpp`, `scripts/check-jsbsim-native.mjs`, `tests/jsbsim-native.test.ts`, `native/jsbsim/patches/reuse-history-and-property-paths.patch`, `scripts/check-engine-patch-parity.mjs`, `tests/engine-patch-parity.test.ts`.
 - **Interfaces / Contracts:** DynamicsBackend; ft/slugs to SI; FRD/NED; JSBSim owns integration.
 - **DoD & Acceptance Criteria:** Native/WASM trim and step-control fixtures meet manifest tolerances; stationary specific force/signs are correct; couple contact impulses consistently; no per-step allocation/growth.
+
+- **Evidence:** Owner Codex; baseline 8f7dc19; 2026-10-16. C ABI/property map and TypeScript in-place adapter implement exact ft-to-m conversion, fixed-origin ECEF/NED transport, wxyz and separate coordinate acceleration/specific force. JSBSim is the sole integration owner. Native same-source smoke passes; actual WASM trim/control parity, model redistribution review, contact impulse coupling and no-allocation gate do not. airframes/jsbsim-trim.json explicitly records blocked acceptance; it is not a fabricated trim golden.
+
+- **Retry Evidence:** Retry: fixed stale-handle ABA using generations, rejected overlapping frames before advancing simulation, hardened heap/allocator view checks, and added optional cold jsb_trim/trimInto. Actual native full trim, invalid/stale frames, normalized quaternion and SI/frame derivative checks pass. Native allocator probe covers 250 windows of 4000 measured steps after 400 warmup each: 21,142,500 calls / 1,454,820,000 bytes, exit 2. Report test-results/validation/jsbsim-native.json includes source/model/bridge/checker hashes. G1 fails independently of the SDK block; native/WASM parity and contact coupling remain open.
+
+- **Patch Retry Evidence (2026-10-16):** Opt-in JSBSim patch reuses deque history, atmosphere property traversal and fuel-feed storage. Actual native full trim and SI/frame checks pass; 1e6 measured steps now have zero calls/bytes versus original 21,142,500 calls / 1,454,820,000 bytes. Trajectory checksum 164fd3c0bf6d8a39 matches. Patched report test-results/validation/jsbsim-native-patched.json; CLI exit 0. Other models, WASM parity and contact coupling remain uncertified.
 
 ### TASK-032 — Atmosphere and wind
 
@@ -441,32 +494,44 @@ copy Google content without rights.
 
 ### TASK-033 — Model validation gate
 
-- **Status:** TODO.
+- **Status:** BLOCKED_EXTERNAL — Codex; retry verified on 2026-10-16.
 - **Title & Description:** Run numerical/reference validation and report model fidelity separately.
 - **Dependencies:** TASK-014, TASK-024, TASK-028, TASK-029, TASK-031.
-- **Touched Files:** `scripts/validate-models.mjs`, `tests/model-validation.test.ts`, `docs/validation/model-report.schema.json`, `tests/fixtures/validation/reference-manifest.json`.
+- **Touched Files:** `scripts/validate-models.mjs`, `tests/model-validation.test.ts`, `docs/validation/model-report.schema.json`, `tests/fixtures/validation/reference-manifest.json`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `scripts/check-engine-patch-parity.mjs`, `tests/engine-patch-parity.test.ts`.
 - **Interfaces / Contracts:** ValidityEnvelope; numerical parity is separate from experimental validity.
 - **DoD & Acceptance Criteria:** Smooth 10 s cases stay within 0.1 m/0.5 degrees of 4800 Hz references; meet scalar/SIMD force/moment tolerances in section 4; retain reference provenance; missing measurements block fidelity rather than producing a synthetic PASS.
 
+- **Evidence:** Owner Codex; baseline 8f7dc19; 2026-10-16. Executable reporter builds real scalar/SIMD artifacts and passes 12 numerical cases (two 10 s scenarios, 400/800/1200 versus 4800 Hz) within 0.1 m/0.5 degrees; analytic ballistic check passes. Schema/exit-code test verifies numerical PASS, fidelity BLOCKED, overall BLOCKED, exit 2. Report: test-results/validation/model-report.json, with reference/artifact SHA-256. No measured airframe/rotor dataset, complete BET binding, contact G1 or JSBSim WASM parity; do not label the fidelity gate DONE.
+
+- **Retry Evidence:** Retry: model report schema v2 records hash-checked contact/native-JSBSim diagnostics, detects stale evidence and rejects empty/misordered rates, malformed/duplicate cases and unsupported measured-data entries before build. Actual 12 numerical cases pass; both diagnostic gates report failed, overall/fidelity BLOCKED, exit 2. No measured airframe/rotor dataset was supplied; full BET binding remains absent. Final retry checks exit 0: lint/typecheck/build/check:docs, 235 unit tests (36 files), 17 browser tests; fresh JUnit has no failures/errors/skips. Allocation probes and SDK failures are separate unsuccessful acceptance gates, not counted as passing integration. EN/RU documents synchronized; no commit/push.
+
+- **Final Patch Verification (2026-10-16):** Final patch retry: lint/typecheck/build/check:docs exit 0; 236 unit tests in 37 files and 17 Chromium browser tests pass. Fresh JUnit: test-results/unit/junit.xml and test-results/browser/junit.xml, zero failures/errors/skips. The first browser invocation lacked Rust activation and had an 800 Hz timing miss under concurrent load; the corrected isolated run passes unchanged thresholds. Patched native probes and engine-patch-parity CLI exit 0; original native probes exit 2; JS GC probe exit 1; model-validation CLI exit 2 with 12 numerical PASS and blocked fidelity. Source checkouts remain clean; lockfile hash unchanged. Bilingual source hashes checked. Environment startup draft saved, requires settings review/save/publication; it does not apply SDK access. No commit/push.
+
 ## Phase 3: ArduPilot & Radio Link
+
+- **Patch Retry Evidence (2026-10-16):** Added original/patched native parity checker with source/patch/report SHA-256 and all-step trajectory checksums, plus rejection tests. Both patched native diagnostics pass; original JS/native gates remain failed. Model report v2 keeps those results separate and still exits 2 for blocked fidelity. Missing measured datasets, complete BET binding and WASM/contact integration remain explicit.
 
 ### TASK-034 — Ideal sensors
 
-- **Status:** TODO.
+- **Status:** DONE — Codex; baseline 8f7dc19 plus local TASK-024; 2026-10-16.
 - **Title & Description:** Convert truth into IMU/magnetometer/barometer/airspeed observations without noise or EW.
 - **Dependencies:** TASK-013, TASK-028, TASK-032.
-- **Touched Files:** `packages/sensors/package.json`, `packages/sensors/src/ideal.ts`, `tests/ideal-sensors.test.ts`.
+- **Touched Files:** `packages/sensors/package.json`, `packages/sensors/src/ideal.ts`, `tests/ideal-sensors.test.ts`, `package-lock.json`, `tests/fixtures/sensors/ideal.json`, `tests/fixtures/registry.json`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
 - **Interfaces / Contracts:** GpsSample/ImuSample; acceleration versus specific force; gauss/Pa internal units.
 - **DoD & Acceptance Criteria:** Stationary/free-fall/rotated-body fixtures pass; gyro/mag use body axes; verify pressure signs; write outputs in place and meet G1.
 
+- **Evidence:** Owner Codex; baseline 8f7dc19; 2026-10-16. 2 ideal sensor tests cover stationary/free-fall/inverted specific force, rotated gauss, ISA Pa/down sign and dynamic pressure; existing sensor codec validates records. bench-sensors.mjs ideal exercises all four implemented sensor kinds: six N=1e6/2e6 windows, zero GC and zero incremental B/step after 4e6 warmup; allocating control detected. Existing output records/scratch are reused. GNSS awaits TASK-036; no autopilot/Worker wiring claim.
+
 ### TASK-035 — Sensor rates, noise, and bias
 
-- **Status:** TODO.
+- **Status:** DONE — Codex; baseline 8f7dc19 plus local TASK-024; 2026-10-16.
 - **Title & Description:** Add rational sampling, bounded latency, and seeded noise streams.
 - **Dependencies:** TASK-004, TASK-011, TASK-034.
-- **Touched Files:** `packages/sensors/src/scheduler.ts`, `packages/sensors/src/noise.ts`, `packages/sensors/src/latency.ts`, `tests/sensor-scheduler.test.ts`, `tests/sensor-noise.test.ts`.
+- **Touched Files:** `packages/sensors/src/scheduler.ts`, `packages/sensors/src/noise.ts`, `packages/sensors/src/latency.ts`, `tests/sensor-scheduler.test.ts`, `tests/sensor-noise.test.ts`, `scripts/bench-sensors.mjs`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
 - **Interfaces / Contracts:** IMU 200/400 Hz; GPS 5/10 Hz; PSD/bandwidth; sample time.
 - **DoD & Acceptance Criteria:** Exact sample counts over 60 simulated seconds at 400/800/1200; repeatable seeds; statistics within declared confidence intervals; bounded monotonic latency queues.
+
+- **Evidence:** Owner Codex; baseline 8f7dc19; 2026-10-16. 2 scheduler/latency and 2 noise tests pass. Exact 60 s counts at 400/800/1200 for 5/10/200/400 Hz; bounded monotonic FIFO overflow/reset; independent deterministic streams/reset; 1e6-sample Gaussian variance and lag. bench-sensors.mjs all: four million warmup ticks including timestamp rollover, six N=1e6/2e6 windows, zero GC/zero incremental B/step, allocating control 31 GC events, zero dropped samples. Numeric arrays in sampleInto avoid boxed returns. Noise RMS, pole, bias walk and two-sided PSD are documented; Node evidence is not browser/target-hardware timing.
 
 ### TASK-036 — WGS84 and MSL
 

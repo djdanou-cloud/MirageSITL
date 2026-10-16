@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "repository": "https://github.com/dimforge/rapier.git",
+  "commit": "b716d375efc0201003f0cd9ef7168eee0b62c177",
+  "javascriptVersion": "0.21.0",
+  "nativeVersion": "0.36.0",
+  "license": "Apache-2.0",
+  "licenseSha256": "ceacfa4d7fa67df64ab09a56fe248c50a3bfc9bc00374d69bd74ad763b14b89c",
+  "features": [
+    "dim3",
+    "f64",
+    "std",
+    "enhanced-determinism"
+  ],
+  "profiler": false
+}

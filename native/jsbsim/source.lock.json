@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "repository": "https://github.com/JSBSim-Team/jsbsim.git",
+  "commit": "570e8115a102df8f877b11e0e59b964ea483e3c0",
+  "tag": "v1.2.3",
+  "license": "LGPL-2.1",
+  "licenseSha256": "1e7e6bae5a5bde32f1ae5a7c37a082d1ab03cf89354f7f936ac40be9e39a6531",
+  "modelDataPolicy": "Do not bundle upstream aircraft data by default. c172x carries GPL and a no-sale note; redistribution review is required. Native smoke uses the local source checkout only."
+}

@@ -83,6 +83,13 @@ npx --no-install tsc --noEmit
 CHROMIUM_PATH=/usr/bin/chromium npm run test:browser
 node scripts/bench-physics.mjs
 node scripts/bench-wind.mjs
+node scripts/bench-sensors.mjs all
+node scripts/bench-sensors.mjs body
+node scripts/validate-models.mjs
+node scripts/build-jsbsim.mjs
+node scripts/check-jsbsim-native.mjs
+node scripts/bench-contact.mjs
+node scripts/check-contact-native.mjs
 cargo check --manifest-path native/Cargo.toml --workspace --locked
 cargo test --manifest-path native/Cargo.toml --workspace --locked
 cargo check --manifest-path native/Cargo.toml -p mirage-bet --target wasm32-unknown-unknown --locked
@@ -129,7 +136,6 @@ them, after which dependent work must run them:
 
 | Command | Introduced by | Purpose |
 | --- | --- | --- |
-| `node scripts/build-jsbsim.mjs` | TASK-030 | Pinned Emscripten build |
 | `node scripts/run-sitl.mjs` | TASK-042 | Pinned native ArduPilot harness |
 
 Cargo check does not validate physics or browser execution: run native tests,
@@ -308,3 +314,31 @@ layout coverage. It cannot judge the semantic quality of a translation;
 agents must review that explicitly. Root and docs sources are English;
 only `docs/ru/` contains Russian prose. Recheck package.json/HEAD before the
 next code task and update this baseline only from observed implementation.
+
+
+TASK-025–035 add independent propulsion/body/sensor references, a Rapier contact
+experiment and pinned JSBSim build/adapter sources. They do not complete the
+production BET backend. `bench-sensors.mjs all` requires Node 24 and warms four
+million ticks before measuring; `validate-models.mjs` exits 2 when numerical
+cases pass but fidelity is blocked. `build-jsbsim.mjs` requires verified
+JSBSIM_SOURCE_DIR and MIRAGE_EMSDK_DIR checkouts plus an installed Emscripten 4.0.15.
+SDK access and native/WASM parity remain blocked; never substitute native smoke
+for a WASM pass. Rapier and JSBSim adapters are not high-rate certified.
+
+Retry checks: check-jsbsim-native.mjs verifies native trim/frames and a million
+steps in 250 bounded windows; it exits 2 on a failed allocator gate.
+check-contact-native.mjs requires the pinned Rapier checkout from
+native/rapier/source.lock.json and builds outside the repository.
+bench-contact.mjs exercises repeated contact and must retain GC observation.
+These diagnostic failures are real blockers; never mark an engine high-rate
+certified from passing boundary tests or steady memory size.
+
+
+Latest retry: opt-in `--patched` native Rapier/JSBSim runs now pass million-step
+allocator probes with zero calls/bytes and matching original trajectory checksums.
+The original builds still allocate. `node scripts/check-engine-patch-parity.mjs`
+checks report/source/patch identities before comparison. Patches preserve storage
+rather than changing physics. See the native allocation patch section in the
+engine specification for exact scope, commands and limitations. These native
+results do not certify the production Rapier JS/WASM binding, a JSBSim WASM build,
+contact coupling or physical fidelity. Preserve the SDK and measured-data blockers.

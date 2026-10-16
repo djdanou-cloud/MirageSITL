@@ -1,0 +1,30 @@
+cmake_minimum_required(VERSION 3.20)
+project(mirage_jsbsim LANGUAGES C CXX)
+set(CMAKE_CXX_STANDARD 17)
+if(EMSCRIPTEN)
+  # Cold model loading and trim catch upstream exceptions and return ABI errors.
+  add_compile_options(-fexceptions)
+endif()
+if(NOT DEFINED JSBSIM_SOURCE_DIR)
+  message(FATAL_ERROR "JSBSIM_SOURCE_DIR must point to the verified pinned checkout")
+endif()
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+set(BUILD_PYTHON_MODULE OFF CACHE BOOL "" FORCE)
+add_subdirectory("${JSBSIM_SOURCE_DIR}" upstream EXCLUDE_FROM_ALL)
+add_executable(mirage_jsbsim bridge.cpp)
+target_link_libraries(mirage_jsbsim PRIVATE libJSBSim)
+if(EMSCRIPTEN)
+  target_link_options(mirage_jsbsim PRIVATE
+    "-fexceptions" "-sDISABLE_EXCEPTION_CATCHING=0"
+    "-sMODULARIZE=1" "-sEXPORT_ES6=1" "-sENVIRONMENT=web,worker,node"
+    "-sALLOW_MEMORY_GROWTH=0" "-sINITIAL_MEMORY=67108864" "-sFORCE_FILESYSTEM=1" "-sEXPORTED_RUNTIME_METHODS=['FS']"
+    "-sEXPORTED_FUNCTIONS=['_jsb_abi_version','_jsb_create','_jsb_step','_jsb_dispose','_jsb_trim','_malloc','_free']")
+else()
+  target_compile_definitions(mirage_jsbsim PRIVATE MIRAGE_JSBSIM_NATIVE_SMOKE=1)
+  add_executable(mirage_jsbsim_checks native_checks.cpp bridge.cpp)
+  target_link_libraries(mirage_jsbsim_checks PRIVATE libJSBSim)
+  if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    target_link_options(mirage_jsbsim_checks PRIVATE "-Wl,--wrap=malloc" "-Wl,--wrap=calloc" "-Wl,--wrap=realloc" "-Wl,--wrap=aligned_alloc" "-Wl,--wrap=posix_memalign")
+    target_compile_definitions(mirage_jsbsim_checks PRIVATE MIRAGE_ALLOCATOR_PROBE=1)
+  endif()
+endif()

@@ -549,3 +549,65 @@ Verification uses npm lint/typecheck/docs/tests/build/browser plus the pinned
 native Cargo check/test and wasm32 target check. `tests/rotor-kernels.test.ts`
 builds its own scalar/SIMD harness, including tail counts 1/3/5/63. Cloud
 functional/numerical results do not establish M4/RTX frame-time budgets.
+
+### Coaxial reference (TASK-024)
+
+`native/bet/src/coaxial.rs` implements a validated pair configuration and
+allocation-free, experimental steady mixing-jet wake. Positive source thrust
+produces downstream receiver air velocity; overlap and separation control
+interception. Advected momentum, received/bypass kinetic power and mixing loss
+are reported separately and conserve the assumed ideal-hover source budget.
+They must not be added as extra thrust or motor power. Disabled coupling is
+exactly independent; positive spreading gives far-field independence.
+
+Spreading angle is an explicit synthetic parameter. This aligned, one-way model
+excludes swirl, VRS, transient transport and receiver feedback. Its JSON oracle
+is SHA-256 registered. Native and scalar/SIMD WASM tests verify conservation,
+limits and 1e6 allocation-free steps. See the engine specification for formulas,
+units and validity. Production BET C ABI and the demo remain unchanged.
+
+
+## Contact decision and reference integration boundaries (TASK-025–035)
+
+Decision: use Rapier 0.21.0 for the contact reference; retain BLOCKED_DECISION
+for production acceptance because its JavaScript getters allocate wrappers.
+The sphere/plane experiment owns position, velocity and orientation. Its net
+contact impulse is diagnostic, not authorization to integrate the same body
+again with RK4. Full airframe landing-gear contacts and allocation-free bindings
+remain open. `highRateCertified=false` prevents an acceptance claim.
+
+Native motor/battery/frame/RK4 references and the independent body ABI v1 now
+exist. A dedicated WASM instance owns each body arena. The body adapter accepts
+an already aggregated body wrench; the full rotor/polar/power feedback backend
+is not wired into the Worker. Sensor references accept that truth in place,
+with integer schedules and independent seeded noise/latency streams. Their
+allocation probe measures warmed Node/V8, not browser hard real time.
+
+JSBSim source/toolchain/license hashes, C++ C ABI, SI/origin-frame adapter and
+build prerequisite checks are present. Native smoke succeeds; SDK download
+was blocked at storage.googleapis.com. No WASM aircraft artifact, trim parity,
+contact exchange or high-rate allocation certification is available yet.
+The model validation CLI actually runs scalar/SIMD rigid-body numerical cases
+but exits 2 while experimental fidelity prerequisites are absent. See the
+implemented sections in [engine specification](SPECS_SIMULATION_ENGINES.md).
+
+
+Retry decision: reusable Rapier targets/raw vectors remove explicit wrapper
+construction; fixed-topology raw stepping preserves single ownership. G1 still
+fails in the JS package and in a separately built native f64/profiler-free core.
+Retain BLOCKED_DECISION; an allocation-free upstream build or alternative engine
+is required. Native JSBSim full trim and coordinate checks now pass, but its
+measured allocator gate fails. Optional cold trim and generation-tagged handles
+are implemented; WASM SDK access remains denied. Model report v2 includes
+hash-checked diagnostic provenance and rejects unsupported reference manifests.
+See the retry contracts in SPECS_SIMULATION_ENGINES.md.
+
+
+Latest retry: opt-in `--patched` native Rapier/JSBSim runs now pass million-step
+allocator probes with zero calls/bytes and matching original trajectory checksums.
+The original builds still allocate. `node scripts/check-engine-patch-parity.mjs`
+checks report/source/patch identities before comparison. Patches preserve storage
+rather than changing physics. See the native allocation patch section in the
+engine specification for exact scope, commands and limitations. These native
+results do not certify the production Rapier JS/WASM binding, a JSBSim WASM build,
+contact coupling or physical fidelity. Preserve the SDK and measured-data blockers.

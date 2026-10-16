@@ -1,0 +1,18 @@
+{
+  "kind": "synthetic",
+  "densityKgM3": 1.225,
+  "sourceRadiusM": 0.5,
+  "receiverRadiusM": 0.5,
+  "separationM": 0.5,
+  "spreadHalfAngleRad": 0.1,
+  "overlap": 0.75,
+  "thrustN": 100,
+  "launchSpeedMps": 14.417900125829487,
+  "wakeSpeedMps": 12.626296195385052,
+  "receiverDeltaZMps": -6.173896153560054,
+  "sourcePowerW": 720.8950062914744,
+  "receivedPowerW": 473.4861073269395,
+  "mixingLossW": 89.58019652222174,
+  "receivedMomentumN": 75.0,
+  "derivation": "Synthetic steady incompressible top-hat jet. Initial contracted area=A_source/2; expanding radius=R_source/sqrt(2)+d*tan(theta). Momentum rho*A_w*u^2=T. Kinetic power=T*u/2, decrease assigned to mixing loss. The 0.1 rad spreading parameter is an explicit synthetic scenario choice, not a fitted measurement. Aligned disks only."
+}
