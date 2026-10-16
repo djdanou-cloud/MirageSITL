@@ -9,10 +9,12 @@
 //! because stable Rust 1.97 has no `f64::sqrt` in `core`). Native test builds
 //! use the system allocator. `abi` (TASK-018) defines the checked C ABI records
 //! and arena binding; on wasm32 its section 4 exports are in `wasm_exports`.
+//! `polar` (TASK-019) is the validated (Mach, Re, alpha) coefficient lookup.
 #![forbid(unsafe_op_in_unsafe_fn)]
 #![deny(missing_docs)]
 
 pub mod abi;
+pub mod polar;
 
 /// ABI version reported by `bet_abi_version`; loaders reject any other value.
 pub const BET_ABI_VERSION: u32 = 1;

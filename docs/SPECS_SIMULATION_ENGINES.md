@@ -158,6 +158,16 @@ with negative CD, NaN, or ambiguous ordering. Outside the Re/Mach table,
 clamp deterministically and set OutsideValidity instead of silently
 extrapolating. The declared flight envelope requires stall/reverse-flow coverage.
 
+TASK-019 implements the lookup in `native/bet/src/polar.rs`. `PolarTable`
+borrows caller-owned axes and tables and validates them once: non-empty
+axes, table length `nMach*nRe*nAlpha`, finite and strictly increasing axes,
+`Re>0`, `Ma>=0`, finite coefficients, and `CD>=0`. Lookup is trilinear in
+`(Ma, ln Re, alpha)`, evaluated along alpha, then ln Re, then Mach. Each
+coordinate outside its axis, alpha included, is clamped to the boundary and
+sets `OUTSIDE_POLAR_VALIDITY` (output flag bit 1); a non-finite query
+returns NaN coefficients with the flag. The caller wraps alpha into
+`[-pi, pi)` first. Lookup does not allocate.
+
 Rotor dynamics use `Q_air=a·M_air`, the **signed** aerodynamic torque:
 
 \[

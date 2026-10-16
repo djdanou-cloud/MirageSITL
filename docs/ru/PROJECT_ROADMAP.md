@@ -1,6 +1,6 @@
 # PROJECT_ROADMAP.md
 
-<!-- source-sha256: 7e9c2b257d8ac4a48cc56b010c59351512ef8745e9ca83595dffdcbe986fec64 -->
+<!-- source-sha256: fce564ba03939a7b3e5ce826c9d3063bdf1d6721e77bbf33ab545997590434d5 -->
 
 Английский источник: [Source of truth](../PROJECT_ROADMAP.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -312,12 +312,13 @@ Google content без прав.
 
 ### TASK-019 — Polar lookup
 
-- **Status:** TODO.
+- **Status:** DONE — Claude; baseline ddb263d; 2026-10-16 (hosted run blocked like TASK-003).
 - **Title & Description:** Реализовать проверяемую интерполяцию CL/CD по alpha/logRe/Mach.
 - **Dependencies:** TASK-004, TASK-018.
-- **Touched Files:** `native/bet/src/polar.rs`, `tests/fixtures/polars/synthetic.json`, `native/bet/tests/polar.rs`.
+- **Touched Files:** `native/bet/src/polar.rs`, `tests/fixtures/polars/synthetic.json`, `native/bet/tests/polar.rs`, `native/bet/src/lib.rs`, `tests/fixtures/polars/generate.py`, `tests/fixtures/registry.json`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
 - **Interfaces / Contracts:** PolarTable; flattened (Mach,Re,alpha), validity flags.
 - **DoD & Acceptance Criteria:** Узлы/межузлия/reverse flow/границы проверены аналитически; negative CD/NaN отвергнуты; outside range даёт clamp+flag, не скрытую экстраполяцию.
+- **Evidence:** Владелец Claude; baseline ddb263d; 2026-10-16. Оракул — tests/fixtures/polars/synthetic.json (зарегистрирован; 9 узлов alpha на [-pi, pi] со срывом и обратным обтеканием, подобным плоской пластине, 3 Re, 3 Mach, 81 значение, 13 запросов), сгенерирован generate.py из замкнутых формул, кусочно-линейных по alpha и линейных по ln Re и Mach, поэтому трилинейный lookup точен; допуск 1e-12 absolute задан в fixture до реализации. Внутри native/ (rustc 1.97.0): cargo test --workspace --locked: polar 5 PASS (13 аналитических запросов, включая узлы, внутренности ячеек, обратное обтекание, alpha = +-pi и clamp по Re/Mach/alpha с точными ожиданиями флагов; все 81 узел воспроизводятся; интерполяция по ln Re и оси из одного узла; clamp равен граничному значению и выставляет флаг, не-finite запросы дают NaN и флаг; отрицательный CD, NaN/inf коэффициенты, повторяющиеся/неупорядоченные/NaN оси, Re <= 0, Mach < 0 и неверные размеры отклоняются) + abi 7 + bootstrap 6 PASS; cargo check wasm32 exit 0. Мутации (линейная интерполяция по Re вместо ln Re; потерян флаг clamp; принят отрицательный CD) роняют 2, 3 и 1 тест. Lookup ещё не подключён к шагу ротора (TASK-020), а таблица синтетическая, не измеренный профиль.
 
 ### TASK-020 — Blade element quadrature
 

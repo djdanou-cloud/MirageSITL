@@ -511,3 +511,11 @@ configuration once, places configuration, input, output, and arena regions
 above `__heap_base` inside the reserved memory, and steps through one
 preallocated DataView into caller-owned output objects. Until TASK-020 the
 step returns `AERODYNAMICS_UNAVAILABLE` with NaN aerodynamic outputs.
+
+### Polar lookup (TASK-019)
+
+`native/bet/src/polar.rs` validates a borrowed `(Mach, Re, alpha)` CL/CD
+table once and interpolates trilinearly in `(Ma, ln Re, alpha)` without
+allocation. Queries outside the table clamp to its boundary and set
+`OUTSIDE_POLAR_VALIDITY`; there is no extrapolation. The rotor step will
+use it once quadrature lands (TASK-020).
