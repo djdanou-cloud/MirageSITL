@@ -1,6 +1,6 @@
 # PROJECT_ROADMAP.md
 
-<!-- source-sha256: 3d9e9555a306ec58e69abd6ca360b44393995c55ccbfff027a0071fb12da2652 -->
+<!-- source-sha256: 0b608aa6eaad9f32f884346be259dcba5c77c01d990640ed3723dce281eb82da -->
 
 Английский источник: [Source of truth](../PROJECT_ROADMAP.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -220,12 +220,13 @@ Google content без прав.
 
 ### TASK-011 — Частоты 400/800/1200
 
-- **Status:** TODO.
+- **Status:** DONE — Claude; baseline 1e96582; 2026-10-16.
 - **Title & Description:** Параметризовать scheduler и dt с рациональными sensor timestamps.
 - **Dependencies:** TASK-010.
-- **Touched Files:** `packages/physics/src/clock.ts`, `packages/physics/src/index.ts`, `apps/web/src/physics.worker.ts`, `tests/clock.test.ts`.
+- **Touched Files:** `packages/physics/src/clock.ts`, `packages/physics/src/index.ts`, `tests/clock.test.ts`, `tests/browser/simulation.spec.ts`, `docs/architecture.md`, `docs/ru/architecture.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
 - **Interfaces / Contracts:** PhysicsHz; TickId; simTime=tick/hz, fixed dt.
 - **DoD & Acceptance Criteria:** Fake clock за 10 s даёт 4000/8000/12000 шагов; нет accumulated dt drift; pause/resume не создаёт backlog; 1200 Hz time_usec имеет интервалы 833/834 μs.
+- **Evidence:** Владелец Claude; baseline 1e96582; 2026-10-16. tests/clock.test.ts: 12 PASS. Пробуждения с seeded-дрожанием (0.05-1.5 ms) дают ровно 4000/8000/12000 шагов за 10 s без потерь, а следующий срок ровно 10 s + 1/hz; ограниченный catch-up учитывает 1192 отброшенных шага при 1200 Гц; возобновление после паузы 4 s без backlog; интервалы time_usec при 1200 Гц ровно {833, 834} мкс с суммой 1e6; точность через перенос 32-битного tick и NaN за пределом 2^53 мкс; расписания IMU 200/400 Гц и GNSS 5/10 Гц синхронизированы на каждой частоте; DemoDynamics сходится при уменьшении dt. Мутация: накопление округлённой длины шага вместо целочисленных сроков проваливает тест дрейфа на 1200 Гц. Browser-проверка fixed dt теперь использует определение спецификации sim_time = tick/hz. physics.worker.ts не изменён: Worker v1 сохраняет 400 Гц через FixedStepClock до TASK-085. npm run lint, npm run typecheck, npm run check:docs exit 0; CI=true npm test: 151 PASS; simulation browser spec 4 PASS. Node 22.22.0.
 
 ### TASK-012 — Clock modes и перегрузка
 

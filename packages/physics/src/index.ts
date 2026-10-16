@@ -1,16 +1,28 @@
-import { ControlFlag, DT, INPUT_TIMEOUT_MS, StateFlag, newState,
-  type FlightState, type PilotInput } from '@mirage/protocol';
+import { ControlFlag, INPUT_TIMEOUT_MS, StateFlag, isPhysicsHz, newState,
+  type FlightState, type PhysicsHz, type PilotInput } from '@mirage/protocol';
+import { DEFAULT_MAX_CATCH_UP, MultiRateClock } from './clock.ts';
+
+export * from './clock.ts';
 
 const clamp = (x: number) => Math.max(-1, Math.min(1, x));
-const SPOOL_RESPONSE = 1 - Math.exp(-DT / 0.075);
-const RATE_RESPONSE = 1 - Math.exp(-DT / 0.09);
 
 /** Demonstrator only: rate-controlled toy quad, no rotor BET or autopilot. */
 export class DemoDynamics {
   readonly state: FlightState = newState();
+  readonly hz: PhysicsHz;
+  private readonly dt: number;
+  // First-order lags discretized exactly for this dt, so responses match across rates.
+  private readonly spoolResponse: number;
+  private readonly rateResponse: number;
+  constructor(hz: PhysicsHz = 400) {
+    if (!isPhysicsHz(hz)) throw new Error('Unsupported physics rate');
+    this.hz = hz; this.dt = 1 / hz;
+    this.spoolResponse = 1 - Math.exp(-this.dt / 0.075);
+    this.rateResponse = 1 - Math.exp(-this.dt / 0.09);
+  }
   reset(): void { Object.assign(this.state, newState()); }
   step(input: PilotInput, nowMs: number): void {
-    const s = this.state;
+    const s = this.state, DT = this.dt;
     const age = nowMs - input.wallTimeMs;
     const valid = (input.flags & (ControlFlag.Connected | ControlFlag.Armed)) === 3 &&
       Number.isFinite(age) && age >= 0 && age <= INPUT_TIMEOUT_MS &&
@@ -18,8 +30,8 @@ export class DemoDynamics {
       Number.isFinite(input.yaw) && Number.isFinite(input.throttle);
     const throttle = valid ? Math.max(0, Math.min(1, input.throttle)) : 0;
     // Fail-safe kills target thrust immediately; rotor momentum still decays.
-    s.spool += (throttle - s.spool) * SPOOL_RESPONSE;
-    const response = RATE_RESPONSE;
+    s.spool += (throttle - s.spool) * this.spoolResponse;
+    const response = this.rateResponse;
     const authority = valid ? Math.min(1, s.spool * 4) : 0;
     s.p += (authority * clamp(input.roll || 0) * 1.4 - s.p) * response;
     s.q += (authority * clamp(input.pitch || 0) * 1.4 - s.q) * response;
@@ -45,28 +57,13 @@ export class DemoDynamics {
       s.down = 0; s.vd = Math.min(0, s.vd); s.flags |= StateFlag.OnGround;
     }
     s.batteryVoltage = 12.6 - 0.8 * s.spool;
-    s.tick++; s.simTime = s.tick * DT; s.wallTimeMs = nowMs;
+    s.tick++; s.simTime = s.tick / this.hz; s.wallTimeMs = nowMs;
   }
 }
 
-/** Fixed integration dt; wall-clock deadlines may slip. No unbounded catch-up. */
-export class FixedStepClock {
-  nextMs = 0;
-  droppedSteps = 0;
-  overruns = 0;
-  readonly stepMs = DT * 1000;
-  constructor(readonly maxCatchUp = 8) {}
-  reset(nowMs: number) { this.nextMs = nowMs + this.stepMs; }
-  advance(nowMs: number, step: () => void): number {
-    let count = 0;
-    while (nowMs >= this.nextMs && count < this.maxCatchUp) {
-      step(); count++; this.nextMs += this.stepMs;
-    }
-    if (nowMs >= this.nextMs) {
-      const dropped = Math.floor((nowMs - this.nextMs) / this.stepMs) + 1;
-      this.nextMs += dropped * this.stepMs;
-      this.droppedSteps += dropped; this.overruns++;
-    }
-    return count;
+/** ABI v1 400 Hz clock: fixed integration dt, bounded catch-up, dropped wall time is counted. */
+export class FixedStepClock extends MultiRateClock {
+  constructor(maxCatchUp = DEFAULT_MAX_CATCH_UP) {
+    super({ hz: 400, maxCatchUp });
   }
 }

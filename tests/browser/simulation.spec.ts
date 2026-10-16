@@ -71,7 +71,7 @@ test('real worker keeps fixed dt, detects stale control and acknowledges lifecyc
       const live = !(current.flags & p.StateFlag.InputFailsafe);
       await sleep(750); reader.latest(current);
       const stale = !!(current.flags & p.StateFlag.InputFailsafe);
-      const fixedTime = current.simTime === current.tick * p.DT;
+      const fixedTime = current.simTime === current.tick / p.PHYSICS_HZ; // sim_time = tick / hz
       const ticks = current.tick;
       worker.postMessage({ type: 'pause', requestId: 2 });
       await waitFor(() => events.some(e => e.type === 'ack' && e.requestId === 2));

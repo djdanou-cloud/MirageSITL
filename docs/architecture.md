@@ -364,3 +364,20 @@ the caller mutates its original bytes during hashing. `get(modelId)` returns
 the verified immutable record. Runtime model switching is introduced in
 TASK-010; the current demo is not switched by this registry. Configuration
 validation may allocate; none of this work belongs inside the physics step.
+
+## Runtime building blocks (Phase 1–2)
+
+
+### Multi-rate clocks (TASK-011)
+
+`packages/physics/src/clock.ts` provides `MultiRateClock` for 400/800/1200 Hz.
+Integration dt is always exactly `1/hz`; deadlines are `origin + n*1000/hz`
+computed from integer step counts, so wakeup jitter never accumulates into
+drift. At most `maxCatchUp` (8) steps run per wakeup; excess wall time is
+dropped and counted, and `reset(nowMs)` on resume discards any backlog. The
+clock owns the epoch's `TickId` (tick 1 is the first integration).
+`tickToMicros` computes MAVLink `time_usec = floor(tick*1e6/hz)` exactly
+(833/834 us intervals at 1200 Hz), and `isSampleDue`/`sampleIndexAtTick`
+schedule IMU/GNSS samples rationally. `DemoDynamics(hz)` integrates with
+`dt = 1/hz` and `sim_time = tick/hz`. The v1 Worker still runs at 400 Hz
+through `FixedStepClock`, now a 400 Hz `MultiRateClock`.

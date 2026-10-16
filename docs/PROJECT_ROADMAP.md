@@ -217,12 +217,13 @@ copy Google content without rights.
 
 ### TASK-011 — 400/800/1200 Hz clocks
 
-- **Status:** TODO.
+- **Status:** DONE — Claude; baseline 1e96582; 2026-10-16.
 - **Title & Description:** Parameterize scheduler/dt and rational sensor timestamps.
 - **Dependencies:** TASK-010.
-- **Touched Files:** `packages/physics/src/clock.ts`, `packages/physics/src/index.ts`, `apps/web/src/physics.worker.ts`, `tests/clock.test.ts`.
+- **Touched Files:** `packages/physics/src/clock.ts`, `packages/physics/src/index.ts`, `tests/clock.test.ts`, `tests/browser/simulation.spec.ts`, `docs/architecture.md`, `docs/ru/architecture.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
 - **Interfaces / Contracts:** PhysicsHz; TickId; simTime=tick/hz; fixed dt.
 - **DoD & Acceptance Criteria:** A fake clock produces 4000/8000/12000 steps in 10 s without accumulated dt drift; pause/resume creates no backlog; 1200 Hz time_usec intervals are 833/834 microseconds.
+- **Evidence:** Owner Claude; baseline 1e96582; 2026-10-16. tests/clock.test.ts: 12 PASS. Seeded jittered wakeups (0.05-1.5 ms) give exactly 4000/8000/12000 steps in 10 s with zero drops and the next deadline exactly 10 s + 1/hz; bounded catch-up counts 1192 dropped steps at 1200 Hz; resume after a 4 s pause has no backlog; time_usec intervals at 1200 Hz are exactly {833, 834} us summing to 1e6; exact across the 32-bit tick carry and NaN beyond 2^53 us; 200/400 Hz IMU and 5/10 Hz GNSS schedules are phase-locked at every rate; DemoDynamics converges as dt shrinks. Mutation: accumulating the rounded step length instead of integer deadlines fails the 1200 Hz drift test. The browser fixed-dt assertion now uses the specification's sim_time = tick/hz. physics.worker.ts unchanged: the v1 Worker keeps 400 Hz via FixedStepClock until TASK-085. npm run lint, npm run typecheck, npm run check:docs exit 0; CI=true npm test: 151 PASS; simulation browser spec 4 PASS. Node 22.22.0.
 
 ### TASK-012 — Clock modes and overload
 
