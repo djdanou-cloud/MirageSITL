@@ -5,9 +5,12 @@
   "type": "module",
   "exports": {
     "./data-manifest": "./src/data-manifest.ts",
-    "./material-map": "./src/material-map.ts"
+    "./material-map": "./src/material-map.ts",
+    "./solar": "./src/solar.ts",
+    "./heat-balance": "./src/heat-balance.ts"
   },
   "dependencies": {
-    "@mirage/sensors": "0.1.0"
+    "@mirage/sensors": "0.1.0",
+    "@mirage/physics": "0.1.0"
   }
 }

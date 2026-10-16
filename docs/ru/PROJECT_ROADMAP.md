@@ -1,6 +1,6 @@
 # PROJECT_ROADMAP.md
 
-<!-- source-sha256: 79112b6f3f7eb5892ab8ce1fcc6c5b0aa927e6a0940cfcef4f024f6372fc45c1 -->
+<!-- source-sha256: 73e2f84e1a4c353dffa8fe6a231623b042772534580508196e02aee9eba1c7d0 -->
 
 Английский источник: [Source of truth](../PROJECT_ROADMAP.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -903,12 +903,13 @@ Cargo bin активирован в PATH. Производительность M
 
 ### TASK-070 — Surface thermal state
 
-- **Status:** TODO.
+- **Status:** DONE — Claude; база 9a67a2b; 2026-10-16 (численная модель проверена; проверка по измерениям ожидает данных).
 - **Title & Description:** Интегрировать температуру по solar/material/weather, отдельно от shader.
 - **Dependencies:** TASK-032, TASK-069.
-- **Touched Files:** `packages/thermal/src/heat-balance.ts`, `packages/thermal/src/solar.ts`, `tests/thermal-energy.test.ts`.
+- **Touched Files:** `packages/thermal/src/heat-balance.ts`, `packages/thermal/src/solar.ts`, `tests/thermal-energy.test.ts`, `packages/thermal/package.json`, `package-lock.json`.
 - **Interfaces / Contracts:** C*dT/dt=absorbedSolar-convection-radiation-conduction; emissivity/inertia.
 - **DoD & Acceptance Criteria:** Night equilibrium, sunrise/shadow и unit energy balance fixtures; timestep convergence; AO влияет только на заданный radiative model, не заменяет heat solver; параметры инструментально не валидированы без данных.
+- **Evidence:** Исполнитель Claude; база 9a67a2b; 2026-10-16. Node 24.22.0: tests/thermal-energy.test.ts 10 PASS. Солнце: эталон NREL SPA (2003-10-17 19:30:30 UTC, 39.742476 N 105.1786 W) — зенит и азимут в пределах 0.05°; склонение в солнцестояния ±23.44°; ночью освещённость 0; DNI монотонна по зениту, ниже 1.035 S0, отношение AM60/AM1 0.8 по Meinel; при полной облачности остаётся 25%; Swinbank 0.764 при 288.15 K. Тепловой баланс против уравнения, независимо записанного в тесте: 48 ч ночью достигается равновесие, найденное бисекцией, с точностью 0.005 K и ниже температуры воздуха, при облачности на > 1 K теплее; компоненты потока в W/m^2 суммируются в чистый поток; C dT равно накопленной энергии в J/m^2; ошибка относительно эталона с шагом 1 s уменьшается > 3 раз при каждом уменьшении шага 600/300/150 s и < 0.01 K при 150 s; жёсткая металлическая кровля остаётся в пределах 0.05 K при 600 s за счёт автоматических подшагов; Цюрих, солнцестояние: восход 03:xx UTC, минимум в течение 90 мин после него, освещённая > полутень > тень (разница > 5 K), южная стена холоднее горизонтальной поверхности; затенение неба не меняет радиационно инертные поверхности и нагревает затенённую излучающую поверхность; температура воздуха из ISA; 1000 элементов x 1000 шагов с одним окном без GC. Убитые мутации: уравнение центра, уравнение времени, показатель Meinel, конвекция, предиктор Хойна, подшаги, видимость неба в длинноволновом потоке, тень, накопление энергии. Осталось: свойства — типичные некалиброванные значения; проверка по измеренным температурам поверхности ожидает данных.
 
 ### TASK-071 — Thermal renderer
 

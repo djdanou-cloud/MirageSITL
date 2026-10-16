@@ -853,3 +853,25 @@ temperature. Every layer must be registered in the manifest, rasters must
 match their manifest bounds, and `attributions()` lists the datasets that
 actually contributed samples. GeoTIFF decoding and checks against real
 licensed tiles placed locally are not yet implemented.
+
+### Surface thermal state (TASK-070)
+
+`@mirage/thermal/solar` computes the sun position (NOAA/Meeus equations,
+checked against the NREL SPA reference case), Kasten–Young air mass, Meinel
+clear-sky direct normal irradiance (S0 = 1361 W/m², Spencer eccentricity),
+diffuse = 0.1 · DNI, the Kasten–Czeplak cloud factor `1 − 0.75 N^3.4` and
+Swinbank/Bolz sky emissivity. `@mirage/thermal/heat-balance` integrates one
+slab per surface element on the CPU, outside any shader:
+
+`C dT/dt = α(DNI·max(0, n·s)(1 − shadow) + DHI·V) + ε(V·ε_sky + 1 − V)σT_air⁴ − εσT⁴ − h(T − T_air) − G(T − T_deep)`
+
+with h = 5.7 + 3.8 v (McAdams) and V the sky-view factor. Ambient occlusion
+enters only as V in these radiative terms (the occluded part of the sky is
+replaced by surroundings at air temperature); it never replaces the heat
+solver. `ThermalField.stepFrom` uses Heun integration with automatic substeps
+below the linearised stability limit, accumulates net energy per element
+(J/m²) and does not allocate. Air temperature can come from a TASK-032
+atmosphere state. `TYPICAL_SURFACE_PROPS` gives typical, uncalibrated
+absorptance, emissivity, areal heat capacity and deep conductance for the
+TASK-069 material ids; validation against measured surface temperatures is
+pending.

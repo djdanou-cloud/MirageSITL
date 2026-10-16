@@ -900,12 +900,13 @@ were synchronized and checked. Changes remain local; no commit or push performed
 
 ### TASK-070 — Surface thermal state
 
-- **Status:** TODO.
+- **Status:** DONE — Claude; baseline 9a67a2b; 2026-10-16 (numerical model verified; measured validation pending without data).
 - **Title & Description:** Integrate material temperatures from solar forcing/weather outside the shader.
 - **Dependencies:** TASK-032, TASK-069.
-- **Touched Files:** `packages/thermal/src/heat-balance.ts`, `packages/thermal/src/solar.ts`, `tests/thermal-energy.test.ts`.
+- **Touched Files:** `packages/thermal/src/heat-balance.ts`, `packages/thermal/src/solar.ts`, `tests/thermal-energy.test.ts`, `packages/thermal/package.json`, `package-lock.json`.
 - **Interfaces / Contracts:** C*dT/dt=absorbedSolar-convection-radiation-conduction; emissivity/inertia.
 - **DoD & Acceptance Criteria:** Test night equilibrium/sunrise/shadows/energy units and timestep convergence; AO affects only an explicit radiative model, not a substitute heat solver; measured validation remains pending without data.
+- **Evidence:** Owner Claude; baseline 9a67a2b; 2026-10-16. Node 24.22.0: tests/thermal-energy.test.ts 10 PASS. Solar: NREL SPA reference (2003-10-17 19:30:30 UTC, 39.742476 N 105.1786 W) zenith and azimuth within 0.05 deg; solstice declinations +-23.44 deg; night irradiance 0; DNI monotonic in zenith, below 1.035 S0, AM60/AM1 ratio 0.8 per Meinel; full overcast keeps 25%; Swinbank 0.764 at 288.15 K. Heat balance against the equation written independently in the test: 48 h night run reaches the bisection equilibrium within 0.005 K and below air temperature, overcast > 1 K warmer; flux components in W/m^2 sum to the net; C dT equals accumulated energy in J/m^2; error vs a 1 s reference falls > 3x per halving of 600/300/150 s and stays < 0.01 K at 150 s; a stiff metal roof stays within 0.05 K at 600 s through automatic substeps; Zurich solstice: sunrise 03:xx UTC, minimum within 90 min after it, sunlit > half-shaded > shaded (> 5 K apart), south wall cooler than the roofless horizontal; occlusion changes nothing for radiatively inert surfaces and warms an occluded emitting surface; ISA-derived air temperature; 1000 elements x 1000 steps with one GC-free window. Mutations killed: equation of centre, equation of time, Meinel exponent, convection, Heun predictor, substepping, sky-view in longwave, shadow, energy accumulation. Remaining: properties are typical uncalibrated values; measured surface-temperature validation pending without data.
 
 ### TASK-071 — Thermal renderer
 
