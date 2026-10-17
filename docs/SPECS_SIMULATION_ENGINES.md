@@ -1889,3 +1889,22 @@ passed both tolerances; 723 were outside the polar and 70 were windmilling.
 The XFOIL polar is a solver result, not airfoil measurement. A PASS would
 still require the remaining DA4022 errors to be explained by a declared
 tip-loss or inflow model.
+
+## UIUC-derived JSBSim propeller tables (TASK-086)
+
+`data/jsbsim/generate_uiuc_propellers.py` writes JSBSim fixed-pitch propeller
+files into `data/jsbsim/engine/`, the bridge's engine path. Each file holds a
+`C_THRUST` and a `C_POWER` internal table versus J; JSBSim's definitions
+CT = T/(rho n^2 D^4) and CP = P/(rho n^3 D^5) match the UIUC tables, so the
+rows are copied unchanged. JSBSim tables depend on J only, and one RPM per
+propeller is chosen by a fixed rule:
+
+* runs within the same 250 RPM bin form one group;
+* the highest-RPM group whose sweep reaches CT ≤ 0 is chosen;
+* the J = 0 row comes from the static table at the nearest RPM.
+
+The Reynolds-number dependence across RPMs is therefore not represented, and
+JSBSim holds the end value beyond the last measured J. No ixx is written,
+because inertia is not in the dataset. Loading in the pinned JSBSim v1.2.3
+and the thrust check remain BLOCKED_EXTERNAL until a JSBSim source checkout
+is available.

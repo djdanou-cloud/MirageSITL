@@ -1,0 +1,190 @@
+{
+ "schemaVersion": 1,
+ "datasetId": "UIUC-Propeller-Database-Vols-1-4",
+ "archiveDataSha256": "0b00acaffdacef96f21973960ea3bb7a64b94d385fef5b00b6323b8330c42069",
+ "license": "UIUC-Propeller-Database-citation-requested-no-explicit-license",
+ "citation": "J.B. Brandt, R.W. Deters, G.K. Ananda, O.D. Dantsker, and M.S. Selig (downloaded before 2026-10-17), UIUC Propeller Database, Vols 1-4, University of Illinois at Urbana-Champaign, retrieved from https://m-selig.ae.illinois.edu/props/propDB.html.",
+ "jsbsimFormat": "fixed-pitch propeller, C_THRUST/C_POWER versus J; validated against JSBSim v1.2.3 only when the native bridge runs",
+ "propellers": [
+  {
+   "file": "data/jsbsim/engine/uiuc_apce_10x5.xml",
+   "sha256": "54aa5ce4efff3e9c1621411f6b91f3dd7dac5357aa0176857887e7c757041eb5",
+   "propeller": "apce_10x5",
+   "name": "APC Thin Electric 10x5",
+   "bladeCount": 2,
+   "diameterIn": 10.0,
+   "rpmGroup": 6750,
+   "meanRpm": 6708.5,
+   "rows": 33,
+   "maxAdvanceRatio": 0.691,
+   "reachesZeroThrust": true,
+   "sources": [
+    {
+     "source": "volume-1/data/apce_10x5_kt0825_6707.txt",
+     "sha256": "5ca121ee2ee1f69809cbaeb20601a12c43f7040b8e7bce9e2eda1c1a21723e73",
+     "rpm": 6707
+    },
+    {
+     "source": "volume-1/data/apce_10x5_kt0826_6710.txt",
+     "sha256": "ac7bef0903f53c227883c68b3e44867242ae00beb27ab6c27a7d8b76ac30b8e3",
+     "rpm": 6710
+    },
+    {
+     "source": "volume-1/data/apce_10x5_static_pg0819.txt",
+     "sha256": "9d4f0434c5e31f6c53082e8551426d2dba40def4a60ee5aca5eeee60a514f2dd",
+     "staticRpm": 6708.0
+    }
+   ]
+  },
+  {
+   "file": "data/jsbsim/engine/uiuc_apce_10x7.xml",
+   "sha256": "aad896639c0914c3e1ee1d256dee1fd9ea1b2a0b4722ee0d8d1929d51b52e345",
+   "propeller": "apce_10x7",
+   "name": "APC Thin Electric 10x7",
+   "bladeCount": 2,
+   "diameterIn": 10.0,
+   "rpmGroup": 6500,
+   "meanRpm": 6525.0,
+   "rows": 40,
+   "maxAdvanceRatio": 0.869,
+   "reachesZeroThrust": true,
+   "sources": [
+    {
+     "source": "volume-1/data/apce_10x7_pg0817_6531.txt",
+     "sha256": "128215766526442a355d134534f00fccf2f9a296951c5d279e785ddf15670959",
+     "rpm": 6531
+    },
+    {
+     "source": "volume-1/data/apce_10x7_pg0818_6519.txt",
+     "sha256": "2a22ec9c14716249e46ceb16ff3146d7a3f9706a9ec979d28a9bb4c3bcd81da0",
+     "rpm": 6519
+    },
+    {
+     "source": "volume-1/data/apce_10x7_static_pg0811.txt",
+     "sha256": "736915625a2541d2b083053767a86e605f1650a7f676d30d1db7e7e827eeb9d1",
+     "staticRpm": 6542.0
+    }
+   ]
+  },
+  {
+   "file": "data/jsbsim/engine/uiuc_apce_11x7.xml",
+   "sha256": "74258bcbe1348f667504deb0f7d5cff5f2be44a3b8dd8139ace089c16084da7e",
+   "propeller": "apce_11x7",
+   "name": "APC Thin Electric 11x7",
+   "bladeCount": 2,
+   "diameterIn": 11.0,
+   "rpmGroup": 6000,
+   "meanRpm": 5995.5,
+   "rows": 39,
+   "maxAdvanceRatio": 0.812,
+   "reachesZeroThrust": true,
+   "sources": [
+    {
+     "source": "volume-1/data/apce_11x7_kt0540_5988.txt",
+     "sha256": "99b02c7aaff7acb0d9f72cbd3a62a45fabc107b10549e0530c0afee911203eba",
+     "rpm": 5988
+    },
+    {
+     "source": "volume-1/data/apce_11x7_kt0541_6003.txt",
+     "sha256": "e95bdd77f28f55f132c01dee005d86662777c94824efb20cf1933060fa83f49d",
+     "rpm": 6003
+    },
+    {
+     "source": "volume-1/data/apce_11x7_static_kt0534.txt",
+     "sha256": "f768b08173ed4bf20de04a0f1d7a36361e03d2b1cf44ff8734e3f37706124226",
+     "staticRpm": 5995.0
+    }
+   ]
+  },
+  {
+   "file": "data/jsbsim/engine/uiuc_apce_12x6.xml",
+   "sha256": "c2527346ba721fdfe4162d171bf396bb7e0a72aa235740b96461f02928858ded",
+   "propeller": "apce_12x6",
+   "name": "APC Thin Electric 12x6",
+   "bladeCount": 2,
+   "diameterIn": 12.0,
+   "rpmGroup": 6000,
+   "meanRpm": 6018.5,
+   "rows": 35,
+   "maxAdvanceRatio": 0.653931,
+   "reachesZeroThrust": true,
+   "sources": [
+    {
+     "source": "volume-4/data/apce_12x6_0634od_5993.txt",
+     "sha256": "20906e8822d16379dac03024da856c94d0f4a9deffd0f23b7ae856589c854d24",
+     "rpm": 5993
+    },
+    {
+     "source": "volume-4/data/apce_12x6_0635od_6044.txt",
+     "sha256": "7e969b7089fc74ac373cefde1fd7c1297938b79457dd1efb6e0876d9fbde6d85",
+     "rpm": 6044
+    },
+    {
+     "source": "volume-4/data/apce_12x6_static_0629od.txt",
+     "sha256": "e392a17a430ad2796172f21ee0106152375b298636584b33ba23f836a3a6c96c",
+     "staticRpm": 6000.0
+    }
+   ]
+  },
+  {
+   "file": "data/jsbsim/engine/uiuc_apce_14x10.xml",
+   "sha256": "20787497fc18e514a324310832c618f1bc44056c44764f0e85159cbd56bed0f8",
+   "propeller": "apce_14x10",
+   "name": "APC Thin Electric 14x10",
+   "bladeCount": 2,
+   "diameterIn": 14.0,
+   "rpmGroup": 5000,
+   "meanRpm": 4983.0,
+   "rows": 40,
+   "maxAdvanceRatio": 0.813288,
+   "reachesZeroThrust": true,
+   "sources": [
+    {
+     "source": "volume-4/data/apce_14x10_2145od_4955.txt",
+     "sha256": "a243820dcf372e9103bfc53329e841f59827a13a0a6c9aa5b8335e42fc785081",
+     "rpm": 4955
+    },
+    {
+     "source": "volume-4/data/apce_14x10_2146od_5011.txt",
+     "sha256": "ef64664b1f0c3f24e25090b90d2c5b206036ec70320103adc168dd991684758d",
+     "rpm": 5011
+    },
+    {
+     "source": "volume-4/data/apce_14x10_static_2140od.txt",
+     "sha256": "5fa7b0fd28d9a1b0f2f7d96ddc92839237777c999dcacaf75cb2ffb5b1c5b66e",
+     "staticRpm": 4960.0
+    }
+   ]
+  },
+  {
+   "file": "data/jsbsim/engine/uiuc_da4002_9x6p75.xml",
+   "sha256": "73e292676cb2c8b8c8367f516ec13e03e23c862bc9d6135be4693e67e3305478",
+   "propeller": "da4002_9x6.75",
+   "name": "UIUC DA4002 9x6.75",
+   "bladeCount": 2,
+   "diameterIn": 9.0,
+   "rpmGroup": 5000,
+   "meanRpm": 5046.0,
+   "rows": 31,
+   "maxAdvanceRatio": 0.914534,
+   "reachesZeroThrust": true,
+   "sources": [
+    {
+     "source": "volume-2/data/da4002_9x6.75_1104rd_5028.txt",
+     "sha256": "a7ccada425d4879fa29f586f1faab98bced3de7f9704b6be3cfdc9de593c037c",
+     "rpm": 5028
+    },
+    {
+     "source": "volume-2/data/da4002_9x6.75_1105rd_5064.txt",
+     "sha256": "f3b9314721925e8919f1c5e547d1eea86983f14081d3389ea7b010087946c3fe",
+     "rpm": 5064
+    },
+    {
+     "source": "volume-2/data/da4002_9x6.75_static_1107rd.txt",
+     "sha256": "342dd9c3dc330a9094aaf9c77e147d2d6a3707142e26d4f65fe6cd0bbe669d10",
+     "staticRpm": 4930.0
+    }
+   ]
+  }
+ ]
+}

@@ -519,6 +519,19 @@ were synchronized and checked. Changes remain local; no commit or push performed
 
 - **Final Patch Verification (2026-10-16):** Final patch retry: lint/typecheck/build/check:docs exit 0; 236 unit tests in 37 files and 17 Chromium browser tests pass. Fresh JUnit: test-results/unit/junit.xml and test-results/browser/junit.xml, zero failures/errors/skips. The first browser invocation lacked Rust activation and had an 800 Hz timing miss under concurrent load; the corrected isolated run passes unchanged thresholds. Patched native probes and engine-patch-parity CLI exit 0; original native probes exit 2; JS GC probe exit 1; model-validation CLI exit 2 with 12 numerical PASS and blocked fidelity. Source checkouts remain clean; lockfile hash unchanged. Bilingual source hashes checked. Environment startup draft saved, requires settings review/save/publication; it does not apply SDK access. No commit/push.
 
+### TASK-086 — UIUC-derived JSBSim propeller tables
+
+- **Status:** BLOCKED_EXTERNAL — Claude; baseline 3a7da5d; 2026-10-17. Tables generated and verified; loading them in the pinned JSBSim needs the JSBSim source checkout.
+- **Title & Description:** Generate JSBSim fixed-pitch propeller definitions (C_THRUST/C_POWER versus J) from the hash-verified UIUC Propeller Database for future fixed-wing models.
+- **Dependencies:** TASK-030, TASK-033.
+- **Touched Files:** `data/jsbsim/generate_uiuc_propellers.py`, `data/jsbsim/engine/uiuc_apce_10x5.xml`, `data/jsbsim/engine/uiuc_apce_10x7.xml`, `data/jsbsim/engine/uiuc_apce_11x7.xml`, `data/jsbsim/engine/uiuc_apce_12x6.xml`, `data/jsbsim/engine/uiuc_apce_14x10.xml`, `data/jsbsim/engine/uiuc_da4002_9x6p75.xml`, `data/jsbsim/engine/uiuc-propellers.manifest.json`, `tests/jsbsim-propellers.test.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/operations/uiuc-propdb-data.md`, `docs/ru/uiuc-propdb-data.md`.
+- **Interfaces / Contracts:** JSBSim propeller XML, `<table name="C_THRUST|C_POWER" type="internal">` versus J = V/(nD), with the same coefficient convention as UIUC; manifest `uiuc-propellers.manifest.json` with per-file SHA-256 and sources.
+- **DoD & Acceptance Criteria:** Rows copied exactly as printed by a declared RPM-selection rule; byte-for-byte `--check`; every source traced to the inventory; native JSBSim v1.2.3 load plus a static and advancing thrust check against the measured CT within 1%.
+- **Evidence:** Owner Claude; baseline 3a7da5d; 2026-10-17.
+  - The generator writes six files: APC Thin Electric 10x5, 10x7, 11x7, 12x6 and 14x10, and DA4002 9x6.75. For each it picks the highest-RPM group whose sweep reaches zero thrust (6750/6500/6000/6000/5000/5000 RPM), with 31–40 rows and a J = 0 row from the nearest static RPM. `--check` exit 0.
+  - `tests/jsbsim-propellers.test.ts`: 3 PASS (hashes, inventory trace, table shape and an independent DA4002 cross-check against the TASK-033 fixture).
+  - Remaining: no JSBSim source checkout on this machine (`JSBSIM_SOURCE_DIR` unset), so the native load and thrust check were not run. Required elements beyond diameter/numblades/tables (for example ixx) are unverified against v1.2.3. Inertia is not in the dataset. The Vol 4 true diameters may differ from the nominal ones. The UIUC license decision applies to these derived tables too.
+
 ## Phase 3: ArduPilot & Radio Link
 
 - **Patch Retry Evidence (2026-10-16):** Added original/patched native parity checker with source/patch/report SHA-256 and all-step trajectory checksums, plus rejection tests. Both patched native diagnostics pass; original JS/native gates remain failed. Model report v2 keeps those results separate and still exits 2 for blocked fidelity. Missing measured datasets, complete BET binding and WASM/contact integration remain explicit.

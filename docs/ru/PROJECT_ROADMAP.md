@@ -1,6 +1,6 @@
 # PROJECT_ROADMAP.md
 
-<!-- source-sha256: 61bef01e27f3263bad6f1db9dec2c32c4e4ed95be525f55d3dea1cbee3b48c3b -->
+<!-- source-sha256: c15143620a06375625445163048be33d31cede3b4af07a78f3a9ab343aacbe50 -->
 
 Английский источник: [Source of truth](../PROJECT_ROADMAP.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -521,6 +521,19 @@ Cargo bin активирован в PATH. Производительность M
 - **Retry Evidence:** Повтор: schema v2 сохраняет контактную/нативную JSBSim-диагностику с проверкой хешей, выявляет устаревшие отчёты, отклоняет пустые/переставленные частоты, неверные/повторяющиеся случаи и неподдерживаемые измерения до сборки. Настоящие 12 численных случаев проходят; оба диагностических допуска failed, общий/fidelity BLOCKED, код 2. Измерения борта/ротора не предоставлены, полной привязки BET нет. Итоговые коды 0: lint/typecheck/build/check:docs, 235 юнит-тестов (36 файлов), 17 браузерных тестов; актуальные JUnit без провалов/ошибок/пропусков. Провалы аллокаторов и SDK — отдельные непрошедшие критерии, не успешная интеграция. EN/RU синхронизированы; commit/push не выполнялись.
 
 - **Final Patch Verification (2026-10-16):** Итог повтора патчей: lint/typecheck/build/check:docs — код 0; проходят 236 юнит-тестов в 37 файлах и 17 браузерных тестов Chromium. Актуальные JUnit: test-results/unit/junit.xml и test-results/browser/junit.xml, ноль провалов/ошибок/пропусков. Первый браузерный запуск не активировал Rust и не выдержал 800 Гц под параллельной нагрузкой; исправленный отдельный запуск проходит без изменения порогов. Нативные патчи и CLI engine-patch-parity — код 0; оригинальные нативные пробы — код 2; JS GC — код 1; CLI model-validation — код 2 с 12 численными PASS и заблокированной fidelity. Checkout исходников чист, хеш lockfile неизменен. Двуязычные хеши проверены. Черновик инструкций старта среды сохранён и требует проверки/сохранения/публикации в настройках; доступ SDK им не применён. Commit/push не выполнялись.
+
+### TASK-086 — Таблицы пропеллеров JSBSim из данных UIUC
+
+- **Status:** BLOCKED_EXTERNAL — Claude; baseline 3a7da5d; 2026-10-17. Таблицы сгенерированы и проверены; загрузка в закреплённый JSBSim требует checkout исходников JSBSim.
+- **Title & Description:** Сгенерировать определения пропеллеров фиксированного шага JSBSim (C_THRUST/C_POWER в зависимости от J) из проверенной по хешу базы данных пропеллеров UIUC для будущих моделей самолётов.
+- **Dependencies:** TASK-030, TASK-033.
+- **Touched Files:** `data/jsbsim/generate_uiuc_propellers.py`, `data/jsbsim/engine/uiuc_apce_10x5.xml`, `data/jsbsim/engine/uiuc_apce_10x7.xml`, `data/jsbsim/engine/uiuc_apce_11x7.xml`, `data/jsbsim/engine/uiuc_apce_12x6.xml`, `data/jsbsim/engine/uiuc_apce_14x10.xml`, `data/jsbsim/engine/uiuc_da4002_9x6p75.xml`, `data/jsbsim/engine/uiuc-propellers.manifest.json`, `tests/jsbsim-propellers.test.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/operations/uiuc-propdb-data.md`, `docs/ru/uiuc-propdb-data.md`.
+- **Interfaces / Contracts:** XML пропеллера JSBSim, `<table name="C_THRUST|C_POWER" type="internal">` в зависимости от J = V/(nD), в том же соглашении коэффициентов, что и UIUC; манифест `uiuc-propellers.manifest.json` с SHA-256 и источниками каждого файла.
+- **DoD & Acceptance Criteria:** Строки копируются точно как напечатаны по объявленному правилу выбора RPM; побайтный `--check`; каждый источник прослеживается до инвентаря; загрузка в нативный JSBSim v1.2.3 и проверка статической тяги и тяги при поступательном движении против измеренного CT в пределах 1%.
+- **Evidence:** Владелец Claude; baseline 3a7da5d; 2026-10-17.
+  - Генератор пишет шесть файлов: APC Thin Electric 10x5, 10x7, 11x7, 12x6 и 14x10 и DA4002 9x6.75. Для каждого выбирается группа с наибольшими RPM, развёртка которой доходит до нулевой тяги (6750/6500/6000/6000/5000/5000 RPM), 31–40 строк и строка J = 0 из ближайших статических RPM. `--check` — код 0.
+  - `tests/jsbsim-propellers.test.ts`: 3 PASS (хеши, прослеживание до инвентаря, форма таблиц и независимая сверка DA4002 с фикстурой TASK-033).
+  - Остаётся: на этой машине нет checkout исходников JSBSim (`JSBSIM_SOURCE_DIR` не задан), поэтому нативная загрузка и проверка тяги не выполнялись. Обязательные элементы помимо diameter/numblades/таблиц (например, ixx) не проверены против v1.2.3. Момента инерции в данных нет. Истинные диаметры тома 4 могут отличаться от номинальных. Решение о лицензии UIUC распространяется и на эти производные таблицы.
 
 ## Phase 3: ArduPilot & Radio Link
 

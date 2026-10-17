@@ -106,8 +106,9 @@ the native runner.
    runs as a second comparison. DA4002 9-in configurations largely pass. The
    DA4022 errors point to tip loss and inflow modeling, not to airfoil data.
    An airfoil-measured polar would still be stronger evidence.
-4. Later uses: JSBSim propeller tables (`C_THRUST`/`C_POWER` versus J) for
-   TASK-030/031 fixed-wing models; measured load-torque curves for the
+4. Later uses: JSBSim propeller tables (`C_THRUST`/`C_POWER` versus J) now
+   exist for six propellers in `data/jsbsim/engine/` (TASK-086; native load
+   still blocked); measured load-torque curves for the
    TASK-022/025 shaft and ESC references; and replacing the arbitrary demo
    rotor geometry with a measured propeller. Each needs its own task and
    tolerance declaration.
