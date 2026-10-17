@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "firmwareCommit": "8ab6afde107a91df1b5f60ade8f333cb8a61b190",
+  "requiredCases": [
+    "control",
+    "jamming",
+    "position-step",
+    "velocity-drift",
+    "magnetic",
+    "motor-loss"
+  ],
+  "envelopes": null,
+  "status": "BLOCKED_EXTERNAL",
+  "reason": "Freeze envelopes from pinned firmware control runs before evaluating real EW responses; no fabricated trace is supplied."
+}

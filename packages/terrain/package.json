@@ -9,7 +9,9 @@
     "./tiles-scene": "./src/tiles-scene.ts",
     "./lod-budget": "./src/lod-budget.ts",
     "./resource-cache": "./src/resource-cache.ts",
-    "./region-manifest": "./src/region-manifest.ts"
+    "./region-manifest": "./src/region-manifest.ts",
+    "./collision-chunks": "./src/collision-chunks.ts",
+    "./collision-build": "./src/collision-build.ts"
   },
   "dependencies": {
     "3d-tiles-renderer": "0.5.3",

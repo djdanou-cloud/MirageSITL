@@ -1,0 +1,11 @@
+# Physical HITL bench procedure
+
+Status: BLOCKED_EXTERNAL; no physical FC, approved profile or live exchange was provided. The analyzer does not open a Serial port or enable actuators. It checks an operator-recorded trace; provenance strings alone are not independent proof of hardware identity. Keep TASK-050 admission and review the original recording.
+
+1. Remove propellers, secure the vehicle, verify a hardware kill control and record board/firmware identity, build flags, serial settings and the TASK-050 profile. Unsupported ArduPilot HIL message paths must remain rejected; use a verified supported firmware profile.
+2. Verify fresh AUTOPILOT_VERSION, HIL-enabled HEARTBEAT and HIL_ACTUATOR_CONTROLS with the capability gate. Use one monotonic microsecond clock for scheduling, writes and actuator reception. Start this window only after any required initialization.
+3. Record 60–3600 s at exactly 200 or 400 Hz. Trace schemaVersion=1 has provenance {source=hardware, operator, recordedAt ISO timestamp, firmwareSha256, modelSha256}, board, hz, durationS, samples, overflow, lost and unplugActuatorsDisabled. Each sample has sequence starting at zero, scheduledUs=i*1000000/hz, sentUs and actuatorUs. Times must be finite, sentUs>=scheduledUs, actuatorUs>=sentUs, actuator age<=100000 us and actuator times strictly increasing. Record every slot; never compact losses into an apparently complete trace.
+4. Deliberately unplug through the approved hardware procedure and verify actuators become disabled; record unplugActuatorsDisabled=true only with observed hardware evidence. Boolean attestation requires review of the underlying capture; this tool does not independently prove disconnection behavior.
+5. Hash exact JSON bytes and run bench-hitl.mjs --input PATH --sha256 HEX. The analyzer enforces exact sample count, zero overflow/loss, p99 lateness<=5 ms at 200 Hz or <=2.5 ms at 400 Hz, and observed unplug shutdown. It writes test-results/validation/hitl-report.json. PASS is analysis of supplied observations, not automatic HITL enablement. Missing input exits 2; invalid data/failed limits exit 1.
+
+Record failed and blocked runs alongside successful ones. Unit tests use structural synthetic inputs and never constitute hardware acceptance. Never request secret values or serial device identifiers in chat.

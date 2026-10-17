@@ -44,6 +44,22 @@
     {
       "en": "docs/hardware/hitl-matrix.md",
       "ru": "docs/ru/hitl-matrix.md"
+    },
+    {
+      "en": "docs/decisions/ardupilot-wasm.md",
+      "ru": "docs/ru/ardupilot-wasm.md"
+    },
+    {
+      "en": "native/ardupilot/feasibility.md",
+      "ru": "docs/ru/feasibility.md"
+    },
+    {
+      "en": "docs/hardware/hitl-test-procedure.md",
+      "ru": "docs/ru/hitl-test-procedure.md"
+    },
+    {
+      "en": "docs/operations/runbook.md",
+      "ru": "docs/ru/runbook.md"
     }
   ]
 }

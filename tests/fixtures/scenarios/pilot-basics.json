@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1, "id": "pilot-basics", "hz": 400, "seed": 123,
+  "modelSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "firmwareSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "durationTicks": 12000,
+  "events": [{ "tick": 400, "command": { "protocolVersion": 2, "requestId": 1, "expectedEpoch": 0,
+    "atTick": { "hi": 0, "lo": 400 }, "type": "fault.set", "faultId": "training-jam",
+    "enabled": true, "effect": { "kind": "gnss-jamming", "severity": 0.5 }, "recovery": "step-to-truth" } }],
+  "rubric": { "holdStartTick": 800, "holdEndTick": 1200, "targetAltitudeM": 10, "maxAltitudeErrorM": 1, "requireHealthyEkf": true }
+}

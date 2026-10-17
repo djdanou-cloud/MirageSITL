@@ -44,6 +44,7 @@ export function Review({ replay }: { replay: SnapshotReplay }) {
         Replay time (s)
         <input
           aria-label="Replay time"
+          aria-valuetext={`${Math.min(seek, end).toFixed(2)} seconds`}
           type="range"
           min={0}
           max={end || 0.001}

@@ -35,3 +35,19 @@
 .chart-legend { font-size: 10px; }
 .control-section output { display: block; overflow-wrap: anywhere; font-size: 11px; margin: 6px 0; }
 .control-section input[type=file] { width: 100%; font-size: 11px; }
+
+/* Keyboard focus remains visible on the HUD's dark surfaces. */
+:focus-visible { outline: 3px solid #94efcf; outline-offset: 3px; }
+.skip-link { position: fixed; left: 12px; top: -100px; z-index: 100; background: #10242c; color: #e2fff4; padding: 12px; }
+.skip-link:focus { top: 8px; }
+.status-message { display: block; overflow-wrap: anywhere; }
+@media(max-width:420px) {
+  .app-shell { padding: 0 10px; }
+  .workspace,.flight-panel,.instructor-panel,.control-section { min-width: 0; }
+  .panel-heading,.flight-toolbar { flex-wrap: wrap; gap: 8px; }
+  .metric-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  button,select,input { max-width: 100%; }
+  .topbar { gap: 8px; }
+}
+
+footer { color: #8da6b8; }

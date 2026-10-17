@@ -1,0 +1,4 @@
+# Pinned Copter baseline; do not disable arming/EKF checks to force acceptance.
+AHRS_EKF_TYPE 3
+EK3_ENABLE 1
+ARMING_CHECK 1

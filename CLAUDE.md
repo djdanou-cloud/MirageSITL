@@ -133,12 +133,12 @@ feature detection, verifies size/hash/ABI/exports, and reserves the memory
 budget before arming. `tests/wasm-loader.test.ts` runs the script, so unit
 tests need the pinned Rust toolchain.
 
-The following commands **do not exist yet**. The listed task introduces
-them, after which dependent work must run them:
-
-| Command | Introduced by | Purpose |
-| --- | --- | --- |
-| `node scripts/run-sitl.mjs` | TASK-042 | Pinned native ArduPilot harness |
+`node scripts/run-sitl.mjs` now exists as a bounded owned-process harness and
+flight-trace validator. It requires pinned source, a native ELF+SHA-256 and a
+trusted local closed-loop driver+SHA-256; the production driver is not supplied.
+Missing prerequisites produce BLOCKED_EXTERNAL (exit 2). A passing child-process
+or structural trace test is not proof that ArduPilot flew. See the operational
+runbook for environment variable names, trace schema and ownership limitations.
 
 Cargo check does not validate physics or browser execution: run native tests,
 WASM smoke, and reference parity too. Install missing targets through the
@@ -370,3 +370,29 @@ The thermal library now has a synthetic energy solver, LWIR WebGL2 material and 
 `EkfMonitor` parses the pinned ArduPilot diagnostic frames and `EkfWarmup` provides a 30 simulated second admission gate. Actual firmware execution/fast-forward integration remains blocked by TASK-042; TASK-043/074/075/078 must retain that gate. Do not enable autopilot READY merely because module/unit/browser tests pass. Unsupported demo weather/fault/model commands are intentionally rejected and must remain visibly rejected until their backend exists.
 
 Use `node scripts/bench-aar.mjs 400`, also 800 and 1200, to measure the actual recording encode/SPSC producer graph with allocation controls. Recorder I/O, snapshot/archive copies, thermal integration and React/chart decimation are outside the high-frequency loop. Run all unit tests and browser tests with the repository-pinned Rust toolchain active because existing WASM tests invoke Cargo. User authorization for this batch is local commits only; do not push until explicitly instructed.
+
+
+## Local continuation after c3a4735
+
+TASK-042/044/051/059/065/073/079/080/082/083 add independent acceptance tooling,
+collision lattice ownership/queries, scenario schema/tick polling/rubrics and
+keyboard/permission accessibility. Read docs/operations/runbook.md and the latest
+engine contract before using them. Hardware/live flight, browser firmware,
+production terrain-contact coupling and scenario ACK orchestration remain open.
+TASK-044 records a negative feasibility decision; TASK-045–047 remain open.
+
+The new CLI analyzers use --input PATH --sha256 HEX and bounded real captures.
+No input yields BLOCKED_EXTERNAL/2; invalid evidence or failed limits yields 1.
+Reports do not enable a mode. System/release tooling preserves FAIL separately
+from missing evidence. The pulled NASA contact comparison already fails its
+measured deceleration/stroke envelopes: validate-models.mjs reports numerical
+PASS, contact FAIL and overall failed (currently exit 2). Do not describe that
+as a merely missing dataset or relax thresholds to hide it.
+
+Use node scripts/bench-terrain-scenarios.mjs 400 (also 800/1200) for warmed Node
+allocation evidence. High-rate terrain calls use sampleInto/readyFrom; building,
+staging, JSON/provenance checks and outcome analysis are cold. Stage/publish
+memory is byte-capped; missing ground never becomes ready. Scenario polling
+returns indices; the integration owner must bind epochs and verify ACKs. Physical
+FC, target GPU, clean-machine release and assistive-screen-reader checks remain
+external. Keep this continuation local; do not push without user instruction.

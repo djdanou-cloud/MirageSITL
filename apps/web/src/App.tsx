@@ -247,6 +247,7 @@ export default function App() {
   };
   return (
     <div className="app-shell">
+      <a className="skip-link" href="#flight-controls">Skip to flight controls</a>
       <header className="topbar">
         <div className="brand">
           <span className="brand-icon">
@@ -267,7 +268,7 @@ export default function App() {
           PROTOTYPE 0.1 <ArrowUpRight size={14} />
         </span>
       </header>
-      <main className="workspace">
+      <main className="workspace" id="flight-controls" tabIndex={-1}>
         <section className="flight-panel">
           <div className="panel-heading">
             <span>

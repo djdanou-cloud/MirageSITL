@@ -1706,3 +1706,37 @@ are `formula-not-decoded` in the Docling text, so they are not invented here.
 
 The unpatched Rapier JS binding G1 failure and the missing rotor/airframe
 datasets remain listed as separate blockers.
+
+## Acceptance tools, collision chunks and scenarios (2026-10-17)
+
+This increment implements independent software portions of TASK-042/044/051/059/065/073/079/080/082/083. It does not enable production SITL/HITL, WASM firmware, measured aerodynamics, real terrain contact or full thermal rendering. Dependencies with external blockers remain open.
+
+### Evidence formats and verdicts
+
+Shared evidence helpers bound input to 32 MiB, verify exact input SHA-256, reject malformed/nonfinite fields and write version 1 reports under test-results/validation. PASS exits 0, FAIL exits 1 and BLOCKED_EXTERNAL exits 2. Missing input never becomes a green test. Hardware/source strings in an imported JSON are declarations requiring operator review, not cryptographic proof of physical execution. Structural tests are explicitly synthetic and cannot admit hardware or firmware modes. CLI reports retain sourceRevision, validatorSha256 and, when supplied, inputSha256; keep original captures for audit.
+
+SITL locks firmware commit 8ab6afde107a91df1b5f60ade8f333cb8a61b190, EKF3 and arming checks. An external trusted driver receives a verified native ELF and parameters; no production driver is supplied. The analyzer requires contiguous servoFrame from zero, four 1000–2000 us PWM channels, increasing timestamps with <=0.1 s gaps, real source/model/firmware provenance and healthy EKF. Stages must progress arm→takeoff→hold→land, in GUIDED=4 until LAND=9. Takeoff altitude is >=3 m, hold is 10 m ±1 m for >=10 s, and the final sample must be disarmed below 0.5 m. A private process run is bounded to 120 s/16 MiB; only its owned child/group is terminated. Pinned sources/hashes do not alone prove binary reproducibility. Native firmware and the missing closed-loop driver remain external requirements.
+
+HITL analysis requires 60–3600 s at 200/400 Hz with exactly duration*hz samples. Each sequence has scheduledUs=i*1e6/hz, sentUs>=scheduledUs and strictly increasing actuatorUs between sentUs and sentUs+100000. No overflow/loss is accepted; p99 lateness is <=5/2.5 ms, with observed unplug shutdown. See the physical procedure; no Serial access or arming is triggered by the CLI.
+
+EW requires a no-fault control plus jamming, position-step, velocity-drift, magnetic and motor-loss cases. Samples preserve equal truth/baseline SHA-256, monotonic simulation time, real modes/EKF flags, innovation ratios and position errors. Only faults may change observations. Per-case envelopes must match independently frozen firmware/parameter-specific values; the checked-in matrix has no acquired baseline, so the CLI remains blocked. It does not promise a particular fallback mode or EKF gate bypass.
+
+GPU analysis requires M4 or RTX4050 identity, OS/browser/power/backend, visible production 1920x1080 DPR1, all terrain/FPV/thermal features, >=60 s warmup and >=600 s measurement. All positive finite frame intervals must cover duration within 0.02 s. 60/120 FPS p99 limits remain 16.67/8.33 ms, GPU residency<=2 GiB and CPU cache<=512 MiB. Software/headless rendering cannot pass. The current demo does not provide a full-feature production measurement producer or target devices; imported traces require original profiler evidence review.
+
+System evidence maps exact G0/G1/G2/G3/G4 IDs to demo, external-sitl, wasm-sitl and hitl. Every missing requirement is NOT_RUN; any FAIL fails the mode; otherwise incomplete coverage blocks. PASS requires an observed source, expected report path, exact report hash, matching source revision and an underlying PASS of the correct kind. Empty, duplicate, unknown and stale declarations cannot certify a mode. Legacy numerical reports are not silently upgraded to physical PASS. Release inventories verify owned generated files, byte limits, hashes, licenses and actual metadata; full license/build/clean-machine/raw-evidence review remains blocked. No release script publishes.
+
+### Terrain collision lattice v1
+
+HeightTile has version=1, epoch/revision uint32, integer northIndex/eastIndex within ±1024, resolution 2..257, spacingM in (0,100], and resolution² finite downM samples within ±15000 m. All horizontal nodes must remain within the 15 km local envelope. Row increases North, column East; the world origin is fixed NED. Each cell uses triangles [a,a+1,a+n] and [a+1,a+n+1,a+n], normals facing -Down. Native height samples remain Float64; mesh vertices are Float32. Quantized vertices add at most about 1 mm over this envelope and do not establish physical terrain accuracy.
+
+Collision construction belongs to a separate Worker. Stage owns a copy, validates matching epoch/lattice, increasing revisions, exact shared-edge heights and fixed capacity 1..256 (default 64). Combined active+pending buffers obey a byte cap (default 64 MiB, configurable up to the 512 MiB CPU ceiling); replacement must fit both old and new data before publication. Publish swaps pointers only on strictly increasing ticks of the matching epoch. Visual resources cannot evict collision ground. downAt/sampleInto use the piecewise-triangular mesh rather than bilinear interpolation. Missing ground returns NaN; readyAround/readyFrom conservatively require every tile intersecting a safety square with radius<=half a chunk. High-rate calls use preallocated typed-array inputs/outputs; scalar convenience calls are cold. This library is not wired to Rapier or flight admission; collider preparation/retirement and production contact G1 remain requirements. No file decoding runs inside physics.
+
+### Declarative scenario v1
+
+Scenario admission snapshots and freezes configuration: id, physics hz 400/800/1200, uint32 seed, model/firmware SHA-256, duration 1..4320000 ticks, <=128 ordered events and an altitude-hold rubric. Only validated weather.set/fault.set protocol-v2 templates are admitted, with expectedEpoch=0, consecutive requestIds from 1 and atTick exactly matching event tick. The owner must bind the active epoch, submit commands through the existing queue and check ACKs before claiming faults applied. The runner returns immutable event indices, never allocates in polling, and uses simulation ticks; pauses consume no simulated time. Backwards/missed ticks return -2 instead of late execution. Reset explicitly rewinds the cursor. Provenance/seed/hz mismatches reject startup.
+
+The rubric requires every integer hold tick exactly once, finite altitude, actual autopilot source and healthy EKF when configured. Gaps, excess altitude error and unhealthy EKF fail; incomplete/synthetic traces block. Pilot-basics contains all-zero placeholder hashes for structural testing only; it is not a certified aircraft/firmware lesson. A production scenario owner/live EW integration remains blocked on TASK-042/043/059/075.
+
+### Accessible interaction
+
+A visible keyboard focus outline, skip-to-controls landmark, explicit replay-time values, live permission status and focus restoration after Serial permission are implemented. A denial does not schedule a prompt retry. Focus is not stolen from a different control or restored to a detached trigger. An axe scan and browser keyboard/390px checks exercise the demo; a physical device and screen reader remain separate checks. The existing low-contrast footer was corrected without suppressing scan rules.

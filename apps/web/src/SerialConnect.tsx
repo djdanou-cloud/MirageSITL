@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from "react";
+import { withFocusReturn } from "./ui/focus";
+import { StatusMessage } from "./ui/StatusMessage";
 import {
   serialApi,
   isSerialPort,
@@ -140,14 +142,15 @@ export function SerialConnect() {
     <div>
       <button
         disabled={!api || busy}
-        onClick={() => {
-          void (active.current ? disconnect() : connect());
+        onClick={(event) => {
+          void withFocusReturn(event.currentTarget, () => active.current ? disconnect() : connect());
         }}
+        aria-busy={busy}
       >
         {active.current ? "Disconnect serial" : "Connect serial"}
       </button>
-      <small role="status" data-testid="serial-status">
-        {status}
+      <small data-testid="serial-status">
+        <StatusMessage error={/failed|denied|cancelled/i.test(status)}>{status}</StatusMessage>
       </small>
     </div>
   );

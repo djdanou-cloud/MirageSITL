@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "repository": "https://github.com/ArduPilot/ardupilot",
+  "commit": "8ab6afde107a91df1b5f60ade8f333cb8a61b190",
+  "target": "ArduCopter JSON external physics",
+  "takeoffMinAltitudeM": 3,
+  "holdAltitudeM": 10,
+  "holdErrorM": 1,
+  "holdDurationS": 10,
+  "landMaxAltitudeM": 0.5,
+  "maxFrameGapS": 0.1,
+  "maxRunWallS": 120,
+  "stageModes": {
+    "arm": 4,
+    "takeoff": 4,
+    "hold": 4,
+    "land": 9
+  }
+}

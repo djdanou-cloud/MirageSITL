@@ -923,3 +923,13 @@ reference, and landing-gear fidelity needs a separate gear model.
 `validate-models.mjs` reports this measured gate as failed in schema v3. It
 keeps the rotor/airframe fidelity gate blocked and the JS binding G1 gate
 failed.
+
+## Acceptance and runtime continuation
+
+The independent collision builder creates NED triangle meshes in a separate Worker. CollisionChunks owns fixed-capacity staged/active height copies independently from visual eviction and publishes only at valid epoch/tick boundaries. sampleInto/readyFrom are the high-rate interfaces; missing coverage is explicit. This is not yet a production Rapier terrain adapter or flight-readiness binding.
+
+The new scenarios workspace admits immutable, provenance-bound protocol command templates, polls by simulation tick and evaluates complete autopilot traces. Epoch binding, ACK ownership and actual scenario orchestration remain at the integration boundary. Reports for SITL, HITL, EW and GPU check bounded/hash-bound observations; missing real inputs are blocked, and native/browser/hardware evidence are separate. The system matrix preserves per-mode NOT_RUN/FAIL/BLOCKED/PASS. Release tooling inventories actual generated outputs without publication or fabricated readiness. Detailed constraints and CLI contracts are in SPECS_SIMULATION_ENGINES.md and the new operational runbook.
+
+Accessibility adds keyboard landmarks/focus, permission announcements and a narrow-layout contract. It preserves the active Worker/runtime and does not enable unverified autopilot capability.
+
+The existing NASA measured landing-gear comparison currently fails deceleration/stroke envelopes, while numerical integration passes. System/release evidence preserves that physical G2 failure; the new software does not certify the contact model.

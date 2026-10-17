@@ -628,12 +628,14 @@ were synchronized and checked. Changes remain local; no commit or push performed
 
 ### TASK-042 — External SITL integration harness
 
-- **Status:** TODO.
+- **Status:** BLOCKED_EXTERNAL — Codex; baseline c3a4735; 2026-10-17. Owned-process harness and flight trace validator implemented; missing real pinned ELF, closed-loop JSON/RC driver and native flight trace.
 - **Title & Description:** Run pinned ArduPilot and verify closed-loop flight without cloud APIs.
 - **Dependencies:** TASK-031, TASK-037, TASK-038, TASK-039, TASK-041.
-- **Touched Files:** `scripts/run-sitl.mjs`, `scripts/sitl.lock.json`, `tests/integration/external-sitl.test.ts`, `tests/fixtures/sitl/parameters.parm`.
+- **Touched Files:** `scripts/run-sitl.mjs`, `scripts/sitl.lock.json`, `tests/integration/external-sitl.test.ts`, `tests/fixtures/sitl/parameters.parm`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `README.md`, `docs/ru/README.md`, `docs/documentation-index.json`, `scripts/validation/evidence.mjs`, `tests/evidence-tools.test.ts`, `tests/support/node-evidence.ts`, `CLAUDE.md`, `docs/ru/CLAUDE.md`.
 - **Interfaces / Contracts:** Process lifecycle; RC/sensor/actuator loop; telemetry recording.
 - **DoD & Acceptance Criteria:** Actually execute arm/takeoff/hold/land with nonzero frames; missing/fake binaries or bridge fail tests; clean up only owned processes; freeze mode/altitude thresholds in fixtures.
+
+- **Evidence (2026-10-17):** Independent software scope covered by focused tests; full shared results and exact commands are recorded at the end of this document. Structural synthetic tests do not replace external acceptance.
 
 ### TASK-043 — EKF warmup and health
 
@@ -649,12 +651,14 @@ were synchronized and checked. Changes remain local; no commit or push performed
 
 ### TASK-044 — ArduPilot WASM feasibility gate
 
-- **Status:** TODO.
+- **Status:** DONE — Codex; baseline c3a4735; 2026-10-17. Independent feasibility research complete: pinned source bytes inspected; browser firmware remains BLOCKED_EXTERNAL. TASK-045–047 stay open.
 - **Title & Description:** Probe HAL/scheduler/storage/network/licensing and record a concrete feasibility decision.
 - **Dependencies:** TASK-016, TASK-039, TASK-042.
-- **Touched Files:** `docs/decisions/ardupilot-wasm.md`, `native/ardupilot/source.lock.json`, `native/ardupilot/feasibility.md`, `tests/ardupilot-wasm-capability.test.ts`.
+- **Touched Files:** `docs/decisions/ardupilot-wasm.md`, `native/ardupilot/source.lock.json`, `native/ardupilot/feasibility.md`, `tests/ardupilot-wasm-capability.test.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `README.md`, `docs/ru/README.md`, `docs/documentation-index.json`, `docs/ru/ardupilot-wasm.md`, `docs/ru/feasibility.md`, `scripts/probe-ardupilot-wasm.mjs`, `tests/evidence-tools.test.ts`, `tests/support/node-evidence.ts`.
 - **Interfaces / Contracts:** Required browser HAL capabilities; supported firmware targets.
 - **DoD & Acceptance Criteria:** Each capability has a runnable probe or observed blocker; record evidence for feasible/blocked; blocked leaves TASK-045..047 open and does not count as a working WASM mode.
+
+- **Evidence (2026-10-17):** Independent software scope covered by focused tests; full shared results and exact commands are recorded at the end of this document. Structural synthetic tests do not replace external acceptance.
 
 ### TASK-045 — ArduPilot WASM build
 
@@ -718,14 +722,16 @@ were synchronized and checked. Changes remain local; no commit or push performed
 
 ### TASK-051 — Physical HITL acceptance
 
-- **Status:** TODO.
+- **Status:** BLOCKED_EXTERNAL — Codex; baseline c3a4735; 2026-10-17. Bench trace analyzer/procedure/schema implemented; physical FC/profile/live 60 s exchange and unplug capture absent.
 - **Title & Description:** Run a hardware bench and record transport/closed-loop integrity evidence.
 - **Dependencies:** TASK-043, TASK-049, TASK-050.
-- **Touched Files:** `scripts/bench-hitl.mjs`, `docs/hardware/hitl-test-procedure.md`, `docs/validation/hitl-report.schema.json`, `tests/hitl-report.test.ts`.
+- **Touched Files:** `scripts/bench-hitl.mjs`, `docs/hardware/hitl-test-procedure.md`, `docs/validation/hitl-report.schema.json`, `tests/hitl-report.test.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `README.md`, `docs/ru/README.md`, `docs/documentation-index.json`, `docs/ru/hitl-test-procedure.md`, `scripts/validation/evidence.mjs`, `tests/evidence-tools.test.ts`, `tests/support/node-evidence.ts`.
 - **Interfaces / Contracts:** Board/firmware identity; timestamp jitter; sustained throughput; failsafe.
 - **DoD & Acceptance Criteria:** Run 60 s sensor/actuator exchange; p99 sample scheduling lateness<=5 ms at 200 Hz or <=2.5 ms at 400 Hz; no overflow/unaccounted loss; unplug disables actuators; absent hardware is BLOCKED_EXTERNAL.
 
 ## Phase 4: EW & Sensor Faults
+
+- **Evidence (2026-10-17):** Independent software scope covered by focused tests; full shared results and exact commands are recorded at the end of this document. Structural synthetic tests do not replace external acceptance.
 
 ### TASK-052 — Hazard volumes
 
@@ -811,14 +817,16 @@ were synchronized and checked. Changes remain local; no commit or push performed
 
 ### TASK-059 — EKF scenario regressions
 
-- **Status:** TODO.
+- **Status:** BLOCKED_EXTERNAL — Codex; baseline c3a4735; 2026-10-17. EW response analyzer and complete case matrix implemented; actual firmware runs and frozen response envelopes absent.
 - **Title & Description:** Measure ArduPilot responses to EW/mechanical faults without promising a hard-coded mode.
 - **Dependencies:** TASK-042, TASK-043, TASK-058.
-- **Touched Files:** `tests/integration/ew-sitl.test.ts`, `tests/fixtures/scenarios/ew-matrix.json`, `scripts/report-ekf.mjs`.
+- **Touched Files:** `tests/integration/ew-sitl.test.ts`, `tests/fixtures/scenarios/ew-matrix.json`, `scripts/report-ekf.mjs`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `README.md`, `docs/ru/README.md`, `docs/documentation-index.json`, `scripts/validation/evidence.mjs`, `tests/evidence-tools.test.ts`, `tests/support/node-evidence.ts`.
 - **Interfaces / Contracts:** Innovation/status/mode/trajectory AAR trace; pinned EKF parameters.
 - **DoD & Acceptance Criteria:** Run a no-fault control and every fault; traces show changed observations and actual EKF responses; freeze version-specific envelopes; unexplained responses require investigation rather than silent PASS.
 
 ## Phase 5: Environment & Shaders
+
+- **Evidence (2026-10-17):** Independent software scope covered by focused tests; full shared results and exact commands are recorded at the end of this document. Structural synthetic tests do not replace external acceptance.
 
 ### TASK-060 — Provider and license policy
 
@@ -875,12 +883,14 @@ were synchronized and checked. Changes remain local; no commit or push performed
 
 ### TASK-065 — Collision terrain LOD
 
-- **Status:** TODO.
+- **Status:** BLOCKED_DECISION — Codex; baseline c3a4735; 2026-10-17. Collision lattice builder, fixed-capacity ownership, seam/readiness and tick publication implemented. Production Rapier coupling/contact G1 and live terrain admission remain open.
 - **Title & Description:** Build collision chunks independently of visuals and swap them at tick boundaries.
 - **Dependencies:** TASK-029, TASK-061, TASK-062.
-- **Touched Files:** `packages/terrain/src/collision-builder.worker.ts`, `packages/terrain/src/collision-chunks.ts`, `tests/terrain-collision.test.ts`.
+- **Touched Files:** `packages/terrain/src/collision-builder.worker.ts`, `packages/terrain/src/collision-chunks.ts`, `tests/terrain-collision.test.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `README.md`, `docs/ru/README.md`, `docs/documentation-index.json`, `packages/terrain/package.json`, `packages/terrain/src/collision-build.ts`, `scripts/bench-terrain-scenarios.mjs`, `tests/browser/terrain-collision.spec.ts`.
 - **Interfaces / Contracts:** Immutable versioned collision chunks; local origin; readiness around the vehicle.
 - **DoD & Acceptance Criteria:** Visual eviction retains active ground; seam/drop tests pass; incomplete ground explicitly limits/pauses flight; heavy decoding never runs in the physics Worker.
+
+- **Evidence (2026-10-17):** Independent software scope covered by focused tests; full shared results and exact commands are recorded at the end of this document. Structural synthetic tests do not replace external acceptance.
 
 ### TASK-066 — WebGPU renderer capability
 
@@ -960,14 +970,16 @@ were synchronized and checked. Changes remain local; no commit or push performed
 
 ### TASK-073 — GPU acceptance harness
 
-- **Status:** TODO.
+- **Status:** BLOCKED_EXTERNAL — Codex; baseline c3a4735; 2026-10-17. GPU trace analyzer/profile matrix/schema implemented; M4/RTX4050 and full-feature production traces absent.
 - **Title & Description:** Profile production rendering on M4/RTX 4050 with terrain/FPV/thermal enabled.
 - **Dependencies:** TASK-014, TASK-062, TASK-065, TASK-066, TASK-068, TASK-072.
-- **Touched Files:** `scripts/bench-render.mjs`, `docs/benchmarks/render-matrix.json`, `docs/validation/gpu-report.schema.json`, `tests/gpu-report.test.ts`.
+- **Touched Files:** `scripts/bench-render.mjs`, `docs/benchmarks/render-matrix.json`, `docs/validation/gpu-report.schema.json`, `tests/gpu-report.test.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `README.md`, `docs/ru/README.md`, `docs/documentation-index.json`, `scripts/validation/evidence.mjs`, `tests/evidence-tools.test.ts`, `tests/support/node-evidence.ts`.
 - **Interfaces / Contracts:** G3 device/browser/resolution/quality/VRAM evidence.
 - **DoD & Acceptance Criteria:** Measure each profile for 10 min after 60 s warmup; 60 FPS p99<=16.67 ms and 120 FPS p99<=8.33 ms; meet terrain budgets; software-headless GPU cannot satisfy hardware gates; missing devices are BLOCKED_EXTERNAL.
 
 ## Phase 6: UI & Telemetry
+
+- **Evidence (2026-10-17):** Independent software scope covered by focused tests; full shared results and exact commands are recorded at the end of this document. Structural synthetic tests do not replace external acceptance.
 
 ### TASK-074 — Pilot HUD and freshness
 
@@ -1031,21 +1043,25 @@ were synchronized and checked. Changes remain local; no commit or push performed
 
 ### TASK-079 — Lessons and scenario runner
 
-- **Status:** TODO.
+- **Status:** BLOCKED_EXTERNAL — Codex; baseline c3a4735; 2026-10-17. Immutable scenario admission, deterministic tick runner and trace rubric implemented; actual healthy-autopilot orchestration/ACK binding depends on TASK-042/043/059/075.
 - **Title & Description:** Define reproducible training scenarios declaratively.
 - **Dependencies:** TASK-043, TASK-059, TASK-075, TASK-077.
-- **Touched Files:** `packages/scenarios/package.json`, `packages/scenarios/src/schema.ts`, `packages/scenarios/src/runner.ts`, `tests/scenario-runner.test.ts`, `tests/fixtures/scenarios/pilot-basics.json`.
+- **Touched Files:** `packages/scenarios/package.json`, `packages/scenarios/src/schema.ts`, `packages/scenarios/src/runner.ts`, `tests/scenario-runner.test.ts`, `tests/fixtures/scenarios/pilot-basics.json`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `README.md`, `docs/ru/README.md`, `docs/documentation-index.json`, `packages/scenarios/src/evaluate.ts`, `package-lock.json`, `scripts/bench-terrain-scenarios.mjs`.
 - **Interfaces / Contracts:** Goals/seed/model/firmware/events/rubric/version; no physics in UI.
 - **DoD & Acceptance Criteria:** Reject malformed/unsupported scenarios; identical configuration emits identical tick events; evaluate outcomes from traces/thresholds, not just timers; paused clocks incur no simulation-time penalty.
 
+- **Evidence (2026-10-17):** Independent software scope covered by focused tests; full shared results and exact commands are recorded at the end of this document. Structural synthetic tests do not replace external acceptance.
+
 ### TASK-080 — Accessibility and permissions UX
 
-- **Status:** TODO.
+- **Status:** BLOCKED_EXTERNAL — Codex; baseline c3a4735; 2026-10-17. Demo keyboard/focus/narrow-layout/permission UX and unsuppressed axe scan verified. Live-autopilot prerequisites TASK-075/078 and screen-reader/hardware checks remain open.
 - **Title & Description:** Support keyboard/focus/resize and clear browser-permission failures.
 - **Dependencies:** TASK-005, TASK-048, TASK-075, TASK-078.
-- **Touched Files:** `apps/web/src/ui/StatusMessage.tsx`, `apps/web/src/style.css`, `tests/browser/accessibility.spec.ts`.
+- **Touched Files:** `apps/web/src/ui/StatusMessage.tsx`, `apps/web/src/style.css`, `tests/browser/accessibility.spec.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `README.md`, `docs/ru/README.md`, `docs/documentation-index.json`, `apps/web/src/App.tsx`, `apps/web/src/SerialConnect.tsx`, `apps/web/src/aar/Review.tsx`, `apps/web/src/ui/focus.ts`, `tests/focus.test.ts`, `package.json`, `package-lock.json`.
 - **Interfaces / Contracts:** Keyboard controls versus instructor shortcuts; aria states; permission status.
 - **DoD & Acceptance Criteria:** Core actions are keyboard accessible; restore focus after dialogs; no 390px overflow; permission denial never loops prompts; run an automated accessibility scan and a manual checklist.
+
+- **Evidence (2026-10-17):** Independent software scope covered by focused tests; full shared results and exact commands are recorded at the end of this document. Structural synthetic tests do not replace external acceptance.
 
 ### TASK-081 — Session export
 
@@ -1061,19 +1077,21 @@ were synchronized and checked. Changes remain local; no commit or push performed
 
 ### TASK-082 — System acceptance matrix
 
-- **Status:** TODO.
+- **Status:** BLOCKED_EXTERNAL — Codex; baseline c3a4735; 2026-10-17. Hash-bound per-mode system matrix implemented; absent real G0–G4 execution evidence remains NOT_RUN.
 - **Title & Description:** Exercise supported modes against all UI/physics/telemetry gates.
 - **Dependencies:** TASK-033, TASK-042, TASK-043, TASK-047, TASK-051, TASK-059, TASK-073, TASK-074, TASK-075, TASK-078, TASK-079, TASK-080, TASK-081.
-- **Touched Files:** `tests/integration/system-acceptance.test.ts`, `docs/validation/system-matrix.json`, `scripts/validate-release.mjs`.
+- **Touched Files:** `tests/integration/system-acceptance.test.ts`, `docs/validation/system-matrix.json`, `scripts/validate-release.mjs`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `README.md`, `docs/ru/README.md`, `docs/documentation-index.json`, `scripts/validation/evidence.mjs`, `tests/evidence-tools.test.ts`, `tests/support/node-evidence.ts`.
 - **Interfaces / Contracts:** G0..G4; device/mode/model/firmware/provider coverage.
 - **DoD & Acceptance Criteria:** Every requirement has PASS/FAIL/BLOCKED/NOT_RUN evidence; unit tests do not establish 60/120 FPS or real 400/800/1200 Hz; missing WASM/HITL/Google coverage explicitly blocks the affected mode.
 
+- **Evidence (2026-10-17):** Independent software scope covered by focused tests; full shared results and exact commands are recorded at the end of this document. Structural synthetic tests do not replace external acceptance.
+
 ### TASK-083 — Release provenance and runbook
 
-- **Status:** TODO.
+- **Status:** BLOCKED_EXTERNAL — Codex; baseline c3a4735; 2026-10-17. Bounded artifact/license/hash inventory and recovery runbook implemented; clean-machine/toolchain/license/raw evidence review remains required.
 - **Title & Description:** Produce a verifiable release bundle and operational recovery instructions.
 - **Dependencies:** TASK-003, TASK-082.
-- **Touched Files:** `docs/operations/runbook.md`, `docs/operations/release-manifest.schema.json`, `scripts/release-manifest.mjs`, `tests/release-manifest.test.ts`.
+- **Touched Files:** `docs/operations/runbook.md`, `docs/operations/release-manifest.schema.json`, `scripts/release-manifest.mjs`, `tests/release-manifest.test.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `README.md`, `docs/ru/README.md`, `docs/documentation-index.json`, `docs/ru/runbook.md`, `scripts/validation/evidence.mjs`, `tests/evidence-tools.test.ts`, `tests/support/node-evidence.ts`.
 - **Interfaces / Contracts:** Source/artifact/dataset/toolchain hashes; licenses; supported capability matrix.
 - **DoD & Acceptance Criteria:** Verify clean-machine installation/build/startup; document rollback and owned-process cleanup; report actual blocked gates; never deploy/push automatically outside authorized scope.
 
@@ -1132,3 +1150,22 @@ Local exit 0: frozen npm ci; lint, typecheck, build and check:docs. Full unit ru
 G1: node scripts/bench-aar.mjs 400, 800 and 1200 each exits 0 with fresh SHA-256 source identities in test-results/bench/aar-<Hz>.json: 4e6 warmup, six 1e6/2e6-step windows; zero observed GC inside measured intervals and zero incremental B/step; each allocating control triggers GC. The probe filters events by their timestamps so its own forced pre-window GC is excluded. The real physics-session and existing link/EW probes also pass in the unit suite after the pilot timing fix. Node compute evidence does not certify browser wall-clock deadlines or M4/RTX FPS.
 
 All 11 EN/RU pairs were synchronized, with identical fenced contracts/equations, registered byte layouts and unchanged task dependencies. Changes are committed locally only; no push or CI run for this local batch is implied.
+
+
+## Local continuation: ten acceptance and runtime increments
+
+Owner Codex; baseline c3a4735; 2026-10-17. Scope: TASK-042/044/051/059/065/073/079/080/082/083. Goal: implement independently executable tooling and missing runtime modules. Failure criterion: malformed or synthetic evidence passes a real gate, timing/frame/ownership contracts fail, or documentation diverges. TASK-045–047 remain open pending feasibility. No push is authorized for this iteration.
+
+- **Evidence (2026-10-17):** Independent software scope covered by focused tests; full shared results and exact commands are recorded at the end of this document. Structural synthetic tests do not replace external acceptance.
+
+Focused evidence: 11 test files / 18 cases exercise process limits/real child cleanup, trace/hash/provenance rejection, GPU/HITL numerical limits, EW truth isolation, system freshness and release inventory. Terrain tests cover shared edges, fixed capacity, owned copies, epoch/tick publication, missing coverage, negative coordinates and triangular interpolation. Scenario tests cover exact tick determinism/pause/missed-event rejection and real-trace rubrics. Two real Chromium tests cover keyboard/390px/axe/Serial denial without enabling hardware. G1 Node probe at 400 Hz: 4e6 warmup, six 1e6/2e6 windows, zero measured GC, zero incremental B/step, positive allocating control detected. The artifact is test-results/bench/terrain-scenarios-400.json with current source hashes; 800/1200 and full gates follow.
+
+Final local evidence, 2026-10-17: frozen npm ci, npm run lint, npm run typecheck, npm run build and npm run check:docs all exit 0. CI=true npm test: 462 PASS in 84 files. CI=true CHROMIUM_PATH=/usr/bin/chromium npm run test:browser: 47 PASS, 1 explicitly skipped WebGPU-render test because the software adapter is not functional; no failures. The dedicated collision Worker transfers actual typed buffers and rejects malformed messages in Chromium. Native cargo test --manifest-path native/Cargo.toml --workspace --locked: 46 PASS. Node 24.19.0, Rust 1.97.0, Debian x86_64, system Chromium/SwiftShader. The existing bundle-size and duplicate @mirage/aar manifest-key warnings were not suppressed or redefined.
+
+The terrain/scenario G1 probes at 400, 800 and 1200 each pass with fresh source hashes, 4e6 warmup, six 1e6/2e6 windows, zero observed measured GC and zero incremental B/step; all allocating controls are detected. These are Node query/polling results, not renderer FPS, Worker wakeup or a certified production contact graph. Collision active+pending storage is separately byte-capped (default 64 MiB), and failed replacement retains old ground.
+
+Four actual official ArduPilot source files match the recorded lock hashes. The feasibility report remains BLOCKED_EXTERNAL: compiler/browser HAL/scheduler/storage/network/parity are not supplied. Other no-input CLIs return explicit BLOCKED_EXTERNAL/2; invalid and failed observation analysis returns 1. Real build outputs were inventoried: 11 files, 1,855,300 bytes at this run, with hash/size/path checks and an explicit UNREVIEWED license marker. HITL/GPU/release report schema checks pass. No physical measurements were synthesized.
+
+Model validation was executed separately: 12 numerical cases PASS; the existing registered NASA TM X-3561 contact comparison has consistency PASS but measured contact FAIL (deceleration/stroke envelopes at all tested rates). It exits 2 and reports overall failed, not merely missing data. The ground-contact implementation, model validator and measured dataset are unchanged from c3a4735; its rigid sphere arrests descent without the measured compliant strut/tire stroke. An observed G2-model FAIL was supplied to the system matrix with the exact report SHA-256; system/release reports correctly retain FAIL (exit 1), with absent other evidence NOT_RUN. Fixing/calibrating landing gear, live firmware/FC/GPU evidence and production integration remain required. No threshold was relaxed and no actual mode/release became READY.
+
+All 15 documentation pairs pass structure/hash/link/layout checks after translated review. TASK-044's independent research decision is complete; the other nine selected tasks retain exact external/decision blockers while their independent software portions are implemented. This batch is committed locally; no push, deployment or CI execution is claimed.

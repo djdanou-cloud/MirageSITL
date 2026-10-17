@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "repository": "https://github.com/ArduPilot/ardupilot",
+  "commit": "8ab6afde107a91df1b5f60ade8f333cb8a61b190",
+  "license": "GPL-3.0-or-later; verify each linked dependency before distributing a browser build",
+  "files": [
+    {
+      "path": "libraries/AP_HAL_SITL/Scheduler.cpp",
+      "url": "https://raw.githubusercontent.com/ArduPilot/ardupilot/8ab6afde107a91df1b5f60ade8f333cb8a61b190/libraries/AP_HAL_SITL/Scheduler.cpp",
+      "sha256": "9fedc7e867d30fd178ea020f01df3940bdbf245341a066c2910ee6e8e837ac1c",
+      "bytes": 11300
+    },
+    {
+      "path": "libraries/AP_HAL_SITL/UARTDriver.cpp",
+      "url": "https://raw.githubusercontent.com/ArduPilot/ardupilot/8ab6afde107a91df1b5f60ade8f333cb8a61b190/libraries/AP_HAL_SITL/UARTDriver.cpp",
+      "sha256": "5a435adbb2c03526aa8746ed53ddf6494edb90f1646d2b0458aa9e832f0577ec",
+      "bytes": 44380
+    },
+    {
+      "path": "libraries/AP_HAL_SITL/Storage.cpp",
+      "url": "https://raw.githubusercontent.com/ArduPilot/ardupilot/8ab6afde107a91df1b5f60ade8f333cb8a61b190/libraries/AP_HAL_SITL/Storage.cpp",
+      "sha256": "0331282dbedd7b3157ed1262470acebeaf675eb1c5fed06d94093cc1e735fb72",
+      "bytes": 11127
+    },
+    {
+      "path": "COPYING.txt",
+      "url": "https://raw.githubusercontent.com/ArduPilot/ardupilot/8ab6afde107a91df1b5f60ade8f333cb8a61b190/COPYING.txt",
+      "sha256": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903",
+      "bytes": 35147
+    }
+  ]
+}

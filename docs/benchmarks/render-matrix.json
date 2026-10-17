@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "devices": [
+    "M4",
+    "RTX4050"
+  ],
+  "backends": [
+    "webgl2",
+    "webgpu"
+  ],
+  "fps": [
+    60,
+    120
+  ],
+  "resolution": [
+    1920,
+    1080
+  ],
+  "dpr": 1,
+  "warmupS": 60,
+  "durationS": 600,
+  "features": [
+    "terrain",
+    "fpv",
+    "thermal"
+  ],
+  "status": "BLOCKED_EXTERNAL"
+}
