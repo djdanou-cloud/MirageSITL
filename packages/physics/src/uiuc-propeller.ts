@@ -12,6 +12,10 @@
  * - blade: SDA1075 from r/R = 0.30 to the tip (28 equal strips, measured
  *   chord/twist linearly interpolated); the hub region is excluded.
  *
+ * A second comparison uses the XFOIL 6.99 SDA1075 polar
+ * (tests/fixtures/polars/sda1075-xfoil.json) with the same blade, inflow and
+ * tolerances; see parseXfoilPolar.
+ *
  * This module is pure: the BET itself runs in native Rust
  * (native/bet/examples/propeller_points.rs) through an injected runner.
  */
@@ -128,18 +132,34 @@ export interface PropellerSummary {
   readonly meanCpError: number | null;
   readonly status: ComparisonStatus;
 }
+/** Which SDA1075 polar a comparison used; recorded verbatim in the report. */
+export type PolarReport =
+  | {
+      readonly kind: "thin-airfoil-laminar-friction";
+      readonly airfoil: "SDA1075";
+      readonly zeroLiftAlphaRad: number;
+      readonly liftSlopePerRad: number;
+      readonly alphaRangeRad: readonly [number, number];
+      readonly reynoldsRange: readonly [number, number];
+    }
+  | {
+      readonly kind: "xfoil";
+      readonly airfoil: "SDA1075";
+      readonly solverVersion: string;
+      readonly sourceSha256: string;
+      readonly ncrit: number;
+      readonly alphaRangeRad: readonly [number, number];
+      readonly reynoldsRange: readonly [number, number];
+    };
+export interface PolarChoice {
+  readonly table: PolarTableData;
+  readonly report: PolarReport;
+}
 export interface UiucEvaluation {
   readonly consistencyStatus: "pass" | "failed";
   readonly audit: UiucAudit;
   readonly status: ComparisonStatus;
-  readonly polar: {
-    readonly kind: "thin-airfoil-laminar-friction";
-    readonly airfoil: "SDA1075";
-    readonly zeroLiftAlphaRad: number;
-    readonly liftSlopePerRad: number;
-    readonly alphaRangeRad: readonly [number, number];
-    readonly reynoldsRange: readonly [number, number];
-  };
+  readonly polar: PolarReport;
   readonly tolerance: {
     readonly ctRelative: number;
     readonly ctAbsolute: number;
@@ -404,6 +424,68 @@ export function thinAirfoilPolar(zeroLiftRad: number): PolarTableData {
   return { alphaRad, reynolds, mach, cl, cd };
 }
 
+/** The declared analytic polar of the first TASK-033 comparison. */
+export function thinAirfoilChoice(fixture: UiucFixture): PolarChoice {
+  const zeroLiftAlphaRad = thinAirfoilZeroLiftRad(fixture.airfoilCoordinates);
+  return {
+    table: thinAirfoilPolar(zeroLiftAlphaRad),
+    report: {
+      kind: "thin-airfoil-laminar-friction",
+      airfoil: "SDA1075",
+      zeroLiftAlphaRad,
+      liftSlopePerRad: 2 * Math.PI,
+      alphaRangeRad: [zeroLiftAlphaRad - ATTACHED_HALF_RANGE_RAD, zeroLiftAlphaRad + ATTACHED_HALF_RANGE_RAD],
+      reynoldsRange: POLAR_REYNOLDS_RANGE,
+    },
+  };
+}
+
+/** Validates the XFOIL fixture (tests/fixtures/polars/sda1075-xfoil.json) into a
+ * table: rows [iRe][iAlpha], Mach 0 duplicated at Ma 0.3 (incompressible
+ * solver; tip Mach stays below 0.2 in the UIUC runs). Queries outside the
+ * converged rectangle are flagged by the native lookup, not extrapolated. */
+export function parseXfoilPolar(value: unknown, sourceSha256: string): PolarChoice {
+  const path = "sda1075-xfoil";
+  if (get(value, "schemaVersion", path) !== 1 || get(value, "airfoil", path) !== "SDA1075") fail(`${path}.schema`);
+  const solver = get(value, "solver", path);
+  if (get(solver, "name", `${path}.solver`) !== "XFOIL") fail(`${path}.solver.name`);
+  const solverVersion = text(get(solver, "version", `${path}.solver`), `${path}.solver.version`);
+  const ncrit = positive(get(get(value, "settings", path), "ncrit", `${path}.settings`), `${path}.settings.ncrit`);
+  const reynolds = numbers(get(value, "reynolds", path), `${path}.reynolds`);
+  const alphaDeg = numbers(get(value, "alphaDeg", path), `${path}.alphaDeg`);
+  for (const axis of [reynolds, alphaDeg])
+    for (let i = 1; i < axis.length; i++) if (!((axis[i] ?? NaN) > (axis[i - 1] ?? NaN))) fail(`${path}.axis`);
+  if (!((reynolds[0] ?? 0) > 0) || alphaDeg.length < 2) fail(`${path}.axis`);
+  const grid = (key: string) => {
+    const rowsValue = get(value, key, path);
+    if (!Array.isArray(rowsValue) || rowsValue.length !== reynolds.length) fail(`${path}.${key}`);
+    return rowsValue.map((r: unknown, i) => numbers(r, `${path}.${key}[${i}]`, alphaDeg.length));
+  };
+  const clRows = grid("cl"), cdRows = grid("cd");
+  const mach = [0, 0.3], cl: number[] = [], cd: number[] = [];
+  for (let m = 0; m < mach.length; m++)
+    for (let r = 0; r < reynolds.length; r++)
+      for (let a = 0; a < alphaDeg.length; a++) {
+        const c = clRows[r]?.[a] ?? NaN, d = cdRows[r]?.[a] ?? NaN;
+        if (!(d >= 0)) fail(`${path}.cd`);
+        cl.push(c);
+        cd.push(d);
+      }
+  const alphaRad = alphaDeg.map((a) => (a * Math.PI) / 180);
+  return {
+    table: { alphaRad, reynolds, mach, cl, cd },
+    report: {
+      kind: "xfoil",
+      airfoil: "SDA1075",
+      solverVersion,
+      sourceSha256: sha256(sourceSha256, `${path}.sourceSha256`),
+      ncrit,
+      alphaRangeRad: [alphaRad[0] ?? NaN, alphaRad[alphaRad.length - 1] ?? NaN],
+      reynoldsRange: [reynolds[0] ?? NaN, reynolds[reynolds.length - 1] ?? NaN],
+    },
+  };
+}
+
 /** Midpoint strips over [start, 1] R with linearly interpolated measured chord/twist. */
 export function bladeStations(p: UiucPropeller, startRadiusRatio: number, strips = BLADE_STRIPS): BladeStations {
   const radiusM = p.diameterM / 2, cutoutM = startRadiusRatio * radiusM;
@@ -486,15 +568,17 @@ function status(compared: number, failed: number): ComparisonStatus {
 }
 
 /** Runs the declared comparison. `runBet` maps the request text to the runner's stdout. */
-export function evaluateUiucPropellers(fixture: UiucFixture, runBet: (request: string) => string): UiucEvaluation {
+export function evaluateUiucPropellers(
+  fixture: UiucFixture,
+  runBet: (request: string) => string,
+  polar: PolarChoice = thinAirfoilChoice(fixture),
+): UiucEvaluation {
   const audit = auditUiucFixture(fixture);
   const consistent = audit.etaInconsistent === 0 && audit.aboveFroudeBound === 0 &&
     audit.points === fixture.audit.points && audit.applicable === fixture.audit.applicable &&
     audit.etaInconsistent === fixture.audit.etaInconsistent && audit.aboveFroudeBound === fixture.audit.aboveFroudeBound;
-  const zeroLiftAlphaRad = thinAirfoilZeroLiftRad(fixture.airfoilCoordinates);
-  const polar = thinAirfoilPolar(zeroLiftAlphaRad);
   const queued = queue(fixture);
-  const predictions = parseBetResponse(runBet(betRequest(fixture, polar)), queued.length);
+  const predictions = parseBetResponse(runBet(betRequest(fixture, polar.table)), queued.length);
   const points: PointResult[] = queued.map((q, i) => {
     const p = predictions[i];
     if (p === undefined) throw new Error("Missing BET prediction");
@@ -530,14 +614,7 @@ export function evaluateUiucPropellers(fixture: UiucFixture, runBet: (request: s
     consistencyStatus: consistent ? "pass" : "failed",
     audit,
     status: status(comparedTotal, total("failed") + total("error")),
-    polar: {
-      kind: "thin-airfoil-laminar-friction",
-      airfoil: "SDA1075",
-      zeroLiftAlphaRad,
-      liftSlopePerRad: 2 * Math.PI,
-      alphaRangeRad: [zeroLiftAlphaRad - ATTACHED_HALF_RANGE_RAD, zeroLiftAlphaRad + ATTACHED_HALF_RANGE_RAD],
-      reynoldsRange: POLAR_REYNOLDS_RANGE,
-    },
+    polar: polar.report,
     tolerance: {
       ctRelative: fixture.comparison.ctRelativeTolerance,
       ctAbsolute: fixture.comparison.ctAbsoluteTolerance,

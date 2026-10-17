@@ -9,7 +9,8 @@
   "provenance": "Independent ballistic equations plus RK4 step refinement; numerical self-consistency only, no measured aircraft fidelity. Measurement entries carry their own measured provenance in tests/fixtures/registry.json.",
   "measurements": [
     {"id":"nasa-tm-x-3561-drop","adapter":"nasa-drop-contact-v1","fixture":"tests/fixtures/contact/nasa-drop.json","registryId":"nasa-tm-x-3561-drop-v1","sourceSha256":"62adb81b0a56b5e50a921db0e26d154501b0e4e83a58cfc2f22fed571bc69207","datasetId":"NASA-TM-X-3561-DropTest","referenceUrl":"https://ntrs.nasa.gov/citations/19780003109"},
-    {"id":"uiuc-da4002-da4022-propellers","adapter":"uiuc-propeller-bet-v1","fixture":"tests/fixtures/rotors/uiuc-propellers.json","registryId":"uiuc-propdb-da4002-da4022-v1","sourceSha256":"ae1a73416210aaf64d51e3f2ff76e971d9c95995a976fcdcdfb7bc27dee46af3","datasetId":"UIUC-Propeller-Database-Vols-1-4","referenceUrl":"https://m-selig.ae.illinois.edu/props/propDB.html"}
+    {"id":"uiuc-da4002-da4022-propellers","adapter":"uiuc-propeller-bet-v1","fixture":"tests/fixtures/rotors/uiuc-propellers.json","registryId":"uiuc-propdb-da4002-da4022-v1","sourceSha256":"ae1a73416210aaf64d51e3f2ff76e971d9c95995a976fcdcdfb7bc27dee46af3","datasetId":"UIUC-Propeller-Database-Vols-1-4","referenceUrl":"https://m-selig.ae.illinois.edu/props/propDB.html"},
+    {"id":"uiuc-da4002-da4022-propellers-xfoil","adapter":"uiuc-propeller-bet-xfoil-v1","fixture":"tests/fixtures/rotors/uiuc-propellers.json","registryId":"uiuc-propdb-da4002-da4022-v1","sourceSha256":"ae1a73416210aaf64d51e3f2ff76e971d9c95995a976fcdcdfb7bc27dee46af3","datasetId":"UIUC-Propeller-Database-Vols-1-4","referenceUrl":"https://m-selig.ae.illinois.edu/props/propDB.html"}
   ],
   "cases": [
     {"id":"ballistic","massKg":1,"inertia":[1,0,0,0,1,0,0,0,1],"wrench":[0,0,0,0,0,0]},

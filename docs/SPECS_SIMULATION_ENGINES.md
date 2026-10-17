@@ -1849,3 +1849,43 @@ Per-point values are written to `test-results/validation/propeller-points.json`.
 They must not be tuned away: reaching PASS requires a measured or
 viscous-solver polar and, if needed, a declared inflow/tip-loss model, each
 with its own provenance.
+
+### XFOIL polar comparison (2026-10-17)
+
+The second measured adapter, `uiuc-propeller-bet-xfoil-v1`, uses the same blade,
+inflow, ambient state and tolerances. Only the polar changes, to the synthetic
+fixture `tests/fixtures/polars/sda1075-xfoil.json` (id `sda1075-xfoil-699-v1`).
+`tests/fixtures/polars/generate_sda1075_xfoil.py` produced it by running MIT
+XFOIL 6.99 for Windows (exe SHA-256
+`c17342f84ae260c2b11a74cd0e2fb8189a5f8954c6bb7a8467a0f27055c7faea`, from
+`XFOIL6.99.zip`, SHA-256
+`e13e8fe5cc38d8ac2626e9d3b17643bdcfaa63791619f042afdaa7cd103bcb08`) on the
+SDA1075 transcription. The settings were fixed before evaluation:
+
+* default PANE repaneling, free transition with Ncrit = 9, Mach 0, ITER 200;
+* sweeps 0 → +14 deg and, after INIT, −0.5 → −8 deg in 0.5 deg steps;
+* Re = 2e4, 3e4, 4e4, 6e4, 8e4, 1e5, 1.5e5 and 2e5, each in a fresh process.
+
+The table keeps the largest contiguous alpha range around 0 deg that converged
+at every Re: −7.5 to +7.5 deg, limited by Re = 3e4 (32 converged angles).
+Ma 0 is duplicated at Ma 0.3; tip Mach is at most 0.21 in these runs. Queries
+outside the table are flagged and not compared. Two runs of the generator
+produce byte-identical output with the same binary.
+
+Result: propeller fidelity `failed`. Of 958 points, 165 were compared and 26
+passed both tolerances; 723 were outside the polar and 70 were windmilling.
+
+* DA4002 9×6.75: all 16 compared points pass; with the analytic polar, none
+  did.
+* DA4002 9×2.85: 10 of 13 compared points pass.
+* DA4002 9×8.95: CP passes at all 20 compared points; CT is high by 0.014 on
+  average.
+* DA4022 9-in: CT is high by 0.024–0.041 and CP by 0.014–0.026, both growing
+  with blade count. This is consistent with the missing tip loss and uniform
+  inflow, not with the airfoil data.
+* 5-in propellers: no point was compared, because root sections fall below
+  Re = 2e4.
+
+The XFOIL polar is a solver result, not airfoil measurement. A PASS would
+still require the remaining DA4022 errors to be explained by a declared
+tip-loss or inflow model.

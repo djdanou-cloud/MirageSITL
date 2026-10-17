@@ -102,9 +102,10 @@ the native runner.
    `volume-*/data/*.txt` (about 1,994 small text files) under
    `data/uiuc-propdb/`, not the photos, plots and papers. Optionally ask the
    UIUC authors for explicit redistribution terms first.
-3. Obtain a measured or viscous-solver polar for SDA1075 (for example XFOIL
-   at Re 1e4–2e5) before tuning anything. The current failure is dominated by
-   the declared laminar-friction drag; the harness accepts any polar table.
+3. Done on 2026-10-17: an XFOIL 6.99 polar for SDA1075 (Re 2e4–2e5) now
+   runs as a second comparison. DA4002 9-in configurations largely pass. The
+   DA4022 errors point to tip loss and inflow modeling, not to airfoil data.
+   An airfoil-measured polar would still be stronger evidence.
 4. Later uses: JSBSim propeller tables (`C_THRUST`/`C_POWER` versus J) for
    TASK-030/031 fixed-wing models; measured load-torque curves for the
    TASK-022/025 shaft and ESC references; and replacing the arbitrary demo

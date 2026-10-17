@@ -282,6 +282,46 @@
       }
     },
     {
+      "path": "polars/sda1075-xfoil.json",
+      "manifest": {
+        "formatVersion": 1,
+        "id": "sda1075-xfoil-699-v1",
+        "sourceSha256": "96878564e362ec18184bf09167c87546d665c34b64c88c009598ab8943f6393b",
+        "units": {
+          "alphaDeg": "1",
+          "reynolds": "1",
+          "liftCoefficient": "1",
+          "dragCoefficient": "1"
+        },
+        "validityEnvelope": {
+          "alphaDeg": {
+            "min": -7.5,
+            "max": 7.5
+          },
+          "reynolds": {
+            "min": 20000,
+            "max": 200000
+          },
+          "liftCoefficient": {
+            "min": -0.6424,
+            "max": 1.013
+          },
+          "dragCoefficient": {
+            "min": 0.00987,
+            "max": 0.0942
+          }
+        },
+        "tolerance": {
+          "absolute": 0.0001,
+          "relative": 0.0
+        },
+        "provenance": {
+          "kind": "synthetic",
+          "derivation": "MIT XFOIL 6.99 Windows build (exe sha256 c17342f84ae260c2b11a74cd0e2fb8189a5f8954c6bb7a8467a0f27055c7faea) on the AIAA 2014-2151 SDA1075 transcription: PANE, Ncrit 9, Mach 0, ITER 200, 0.5 deg sweeps; viscous-solver output, not measured airfoil data."
+        }
+      }
+    },
+    {
       "path": "rotors/blade.json",
       "manifest": {
         "formatVersion": 1,

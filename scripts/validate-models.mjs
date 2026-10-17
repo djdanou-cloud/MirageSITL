@@ -16,12 +16,19 @@ import {
 import {
   evaluateUiucPropellers,
   parseUiucPropellerFixture,
+  parseXfoilPolar,
 } from "../packages/physics/src/uiuc-propeller.ts";
 const root = fileURLToPath(new URL("../", import.meta.url));
 const sha = (b) => createHash("sha256").update(b).digest("hex");
 // Supported measured-data adapters: NASA TM X-3561 level drops and the UIUC
-// propeller database (DA4002/DA4022) against the steady BET + momentum closure.
-const adapters = ["nasa-drop-contact-v1", "uiuc-propeller-bet-v1"];
+// propeller database (DA4002/DA4022) against the steady BET + momentum closure,
+// once with the declared thin-airfoil polar and once with the XFOIL polar.
+const adapters = [
+  "nasa-drop-contact-v1",
+  "uiuc-propeller-bet-v1",
+  "uiuc-propeller-bet-xfoil-v1",
+];
+const XFOIL_POLAR = "tests/fixtures/polars/sda1075-xfoil.json";
 const measurementKeys = [
   "id",
   "adapter",
@@ -72,7 +79,9 @@ async function measuredCase(m) {
     acquiredAt: manifest.provenance.acquiredAt,
     sourceSha256: m.sourceSha256,
   };
-  if (m.adapter === "uiuc-propeller-bet-v1") return propellerCase(common, bytes);
+  if (m.adapter === "uiuc-propeller-bet-v1") return propellerCase(common, bytes, null);
+  if (m.adapter === "uiuc-propeller-bet-xfoil-v1")
+    return propellerCase(common, bytes, await registeredPolar(registry));
   const result = await evaluateNasaDrop(
     parseNasaDropFixture(JSON.parse(bytes.toString("utf8"))),
   );
@@ -92,7 +101,19 @@ function runPropellerBet(input) {
     { cwd: join(root, "native"), input, encoding: "utf8", maxBuffer: 1 << 26 },
   );
 }
-function propellerCase(common, bytes) {
+/** Hash-checks the synthetic XFOIL polar against its registry entry. */
+async function registeredPolar(registry) {
+  const bytes = readFileSync(join(root, XFOIL_POLAR)),
+    entry = registry.fixtures.find(
+      (item) => `tests/fixtures/${item.path}` === XFOIL_POLAR,
+    );
+  if (!entry) throw new Error(`Unregistered polar fixture: ${XFOIL_POLAR}`);
+  const manifest = await verifyFixture(entry.manifest, bytes);
+  if (manifest.provenance.kind !== "synthetic")
+    throw new Error("The XFOIL polar must carry synthetic provenance");
+  return parseXfoilPolar(JSON.parse(bytes.toString("utf8")), manifest.sourceSha256);
+}
+function propellerCase(common, bytes, polar) {
   const payload = JSON.parse(bytes.toString("utf8")),
     fixture = parseUiucPropellerFixture(payload),
     inventoryBytes = readFileSync(join(root, "data/uiuc-propdb/inventory.json")),
@@ -104,7 +125,9 @@ function propellerCase(common, bytes) {
     inventory.dataFiles !== payload.archive?.dataFiles
   )
     throw new Error(`UIUC fixture does not match the archive inventory: ${common.id}`);
-  const { points, ...summary } = evaluateUiucPropellers(fixture, runPropellerBet);
+  const { points, ...summary } = polar
+    ? evaluateUiucPropellers(fixture, runPropellerBet, polar)
+    : evaluateUiucPropellers(fixture, runPropellerBet);
   return {
     kind: "propeller",
     ...common,

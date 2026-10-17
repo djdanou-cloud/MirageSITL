@@ -534,47 +534,100 @@
             ]
           },
           "polar": {
-            "type": "object",
-            "additionalProperties": false,
-            "required": [
-              "kind",
-              "airfoil",
-              "zeroLiftAlphaRad",
-              "liftSlopePerRad",
-              "alphaRangeRad",
-              "reynoldsRange"
-            ],
-            "properties": {
-              "kind": {
-                "const": "thin-airfoil-laminar-friction"
-              },
-              "airfoil": {
-                "const": "SDA1075"
-              },
-              "zeroLiftAlphaRad": {
-                "type": "number"
-              },
-              "liftSlopePerRad": {
-                "type": "number"
-              },
-              "alphaRangeRad": {
-                "type": "array",
-                "minItems": 2,
-                "maxItems": 2,
-                "items": {
-                  "type": "number"
+            "oneOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "kind",
+                  "airfoil",
+                  "zeroLiftAlphaRad",
+                  "liftSlopePerRad",
+                  "alphaRangeRad",
+                  "reynoldsRange"
+                ],
+                "properties": {
+                  "kind": {
+                    "const": "thin-airfoil-laminar-friction"
+                  },
+                  "airfoil": {
+                    "const": "SDA1075"
+                  },
+                  "zeroLiftAlphaRad": {
+                    "type": "number"
+                  },
+                  "liftSlopePerRad": {
+                    "type": "number"
+                  },
+                  "alphaRangeRad": {
+                    "type": "array",
+                    "minItems": 2,
+                    "maxItems": 2,
+                    "items": {
+                      "type": "number"
+                    }
+                  },
+                  "reynoldsRange": {
+                    "type": "array",
+                    "minItems": 2,
+                    "maxItems": 2,
+                    "items": {
+                      "type": "number",
+                      "exclusiveMinimum": 0
+                    }
+                  }
                 }
               },
-              "reynoldsRange": {
-                "type": "array",
-                "minItems": 2,
-                "maxItems": 2,
-                "items": {
-                  "type": "number",
-                  "exclusiveMinimum": 0
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "kind",
+                  "airfoil",
+                  "solverVersion",
+                  "sourceSha256",
+                  "ncrit",
+                  "alphaRangeRad",
+                  "reynoldsRange"
+                ],
+                "properties": {
+                  "kind": {
+                    "const": "xfoil"
+                  },
+                  "airfoil": {
+                    "const": "SDA1075"
+                  },
+                  "solverVersion": {
+                    "type": "string"
+                  },
+                  "sourceSha256": {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{64}$"
+                  },
+                  "ncrit": {
+                    "type": "number",
+                    "exclusiveMinimum": 0
+                  },
+                  "alphaRangeRad": {
+                    "type": "array",
+                    "minItems": 2,
+                    "maxItems": 2,
+                    "items": {
+                      "type": "number"
+                    }
+                  },
+                  "reynoldsRange": {
+                    "type": "array",
+                    "minItems": 2,
+                    "maxItems": 2,
+                    "items": {
+                      "type": "number",
+                      "exclusiveMinimum": 0
+                    }
+                  }
                 }
               }
-            }
+            ]
           },
           "tolerance": {
             "type": "object",

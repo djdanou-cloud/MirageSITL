@@ -33,6 +33,13 @@ it("writes numerical parity, NASA drop and UIUC propeller evidence and fails clo
         polar: { kind: "thin-airfoil-laminar-friction", airfoil: "SDA1075" },
         tolerance: { ctRelative: 0.1, ctAbsolute: 0.005, cpRelative: 0.1, cpAbsolute: 0.003 },
       },
+      {
+        id: "uiuc-da4002-da4022-propellers-xfoil",
+        consistencyStatus: "pass",
+        status: "failed",
+        polar: { kind: "xfoil", airfoil: "SDA1075", solverVersion: "6.99", ncrit: 9 },
+        tolerance: { ctRelative: 0.1, ctAbsolute: 0.005, cpRelative: 0.1, cpAbsolute: 0.003 },
+      },
     ],
     measuredValidation: [
       {
@@ -45,7 +52,7 @@ it("writes numerical parity, NASA drop and UIUC propeller evidence and fails clo
       },
     ],
   });
-  expect(result.stdout).toContain("12 cases; 2 measured");
+  expect(result.stdout).toContain("12 cases; 3 measured");
 }, 300000);
 it("retains pinned reference rate and rejects a missing JSBSim source", () => {
   expect(() =>

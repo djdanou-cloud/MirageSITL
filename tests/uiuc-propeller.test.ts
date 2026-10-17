@@ -11,6 +11,7 @@ import {
   evaluateUiucPropellers,
   parseBetResponse,
   parseUiucPropellerFixture,
+  parseXfoilPolar,
   thinAirfoilPolar,
   thinAirfoilZeroLiftRad,
   type PolarTableData,
@@ -225,4 +226,31 @@ describe("declared comparison model", () => {
     }
     expect(checked).toBeGreaterThan(5);
   }, 300000);
+
+  it("loads the registered XFOIL polar into the native index layout", async () => {
+    const polarBytes = readFileSync(new URL("./fixtures/polars/sda1075-xfoil.json", import.meta.url));
+    const entry = registry.fixtures.find((item) => item.path === "polars/sda1075-xfoil.json");
+    if (!entry) throw new Error("XFOIL polar is not registered");
+    const manifest = await verifyFixture(entry.manifest, polarBytes);
+    expect(manifest.provenance.kind).toBe("synthetic");
+    const raw: unknown = JSON.parse(polarBytes.toString("utf8"));
+    const choice = parseXfoilPolar(raw, manifest.sourceSha256);
+    const { alphaRad, reynolds, mach, cl, cd } = choice.table;
+    const na = alphaRad.length, nr = reynolds.length;
+    expect(mach).toEqual([0, 0.3]);
+    expect(cl).toHaveLength(na * nr * 2);
+    // Row [iRe][iAlpha] of the fixture lands at (iMach * nRe + iRe) * nAlpha + iAlpha for both Mach nodes.
+    const row = field(raw, "cl", "3"), drag = field(raw, "cd", "3");
+    if (!Array.isArray(row) || !Array.isArray(drag)) throw new Error("fixture rows");
+    expect(cl[(0 * nr + 3) * na + 5]).toBe(row[5]);
+    expect(cl[(1 * nr + 3) * na + 5]).toBe(row[5]);
+    expect(cd[(1 * nr + 3) * na + 5]).toBe(drag[5]);
+    expect(choice.report).toMatchObject({ kind: "xfoil", solverVersion: "6.99", ncrit: 9, sourceSha256: manifest.sourceSha256 });
+    expect(choice.report.alphaRangeRad[0]).toBeLessThan(0);
+    expect(choice.report.alphaRangeRad[1]).toBeGreaterThan(0);
+    const bad = JSON.parse(polarBytes.toString("utf8")) as unknown;
+    if (!record(bad)) throw new Error("fixture");
+    bad.reynolds = [2e5, 1e5];
+    expect(() => parseXfoilPolar(bad, manifest.sourceSha256)).toThrow("Invalid UIUC propeller fixture");
+  });
 });
