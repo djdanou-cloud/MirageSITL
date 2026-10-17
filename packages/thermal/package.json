@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     "./data-manifest": "./src/data-manifest.ts",
+    "./geotiff": "./src/geotiff.ts",
     "./material-map": "./src/material-map.ts",
     "./solar": "./src/solar.ts",
     "./heat-balance": "./src/heat-balance.ts",

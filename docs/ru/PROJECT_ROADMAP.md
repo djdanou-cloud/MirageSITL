@@ -1,6 +1,6 @@
 # PROJECT_ROADMAP.md
 
-<!-- source-sha256: c15143620a06375625445163048be33d31cede3b4af07a78f3a9ab343aacbe50 -->
+<!-- source-sha256: caccaf9d59e30060169c1958de0a55a14c623ee1343f6723717ada6abdf3ebb8 -->
 
 Английский источник: [Source of truth](../PROJECT_ROADMAP.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -967,10 +967,19 @@ Cargo bin активирован в PATH. Производительность M
 - **Status:** DONE — Claude; база e67236d; 2026-10-16 (синтетический геопривязанный растр; проверка на реальном тайле требует локально размещённых лицензированных данных и декодирования GeoTIFF).
 - **Title & Description:** Загружать лицензированные land classes и map features с provenance.
 - **Dependencies:** TASK-036, TASK-060, TASK-061.
-- **Touched Files:** `packages/thermal/package.json`, `packages/thermal/src/material-map.ts`, `packages/thermal/src/data-manifest.ts`, `tests/material-map.test.ts`, `tests/fixtures/thermal/material-classes.json`, `tests/fixtures/registry.json`, `package-lock.json`.
+- **Touched Files:** `packages/thermal/package.json`, `packages/thermal/src/material-map.ts`, `packages/thermal/src/data-manifest.ts`, `tests/material-map.test.ts`, `tests/fixtures/thermal/material-classes.json`, `tests/fixtures/registry.json`, `package-lock.json`, `packages/thermal/src/geotiff.ts`, `tests/worldcover-geotiff.test.ts`, `data/worldcover/2021-v200/israel/inventory.json`, `docs/operations/worldcover-data.md`, `docs/ru/worldcover-data.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
 - **Interfaces / Contracts:** 10 m raster labels, road/roof overlays; attribution/hash/coordinate system.
 - **DoD & Acceptance Criteria:** Known coordinates map correctly; missing data fallback labelled synthetic; raster class не трактуется как temperature; licenses/attribution сохранены без массовой неразрешённой выгрузки.
 - **Evidence:** Исполнитель Claude; база e67236d; 2026-10-16. Node 24.22.0: tests/material-map.test.ts 9 PASS. Фикстура легенды tests/fixtures/thermal/material-classes.json (зарегистрирована) покрывает все 11 кодов WorldCover v200; поле temperatureK или emissivity отклоняется. Манифест: правила лицензии/атрибуции поставщиков, обязательный SHA-256 для реальных поставщиков, пометка синтетических данных, система координат, границы и повторяющиеся идентификаторы проверяются; имена тайлов N45E006/S03W060/N00E000/S03W003/N48E009; план 15 км вокруг Цюриха требует 1 тайл, пересечение 48N/9E — 4, план 10x10° отклоняется. Карта на синтетическом растре 12x12 на реальной сетке 1/12000°: все 143 центра пикселей и точки северо-западных углов/краёв дают ожидаемый код; отсутствие данных и точки вне слоёв дают synthetic-ground с synthetic=true; синтетические слои остаются синтетическими; здания поверх дорог поверх поверхности, roof:material=metal -> roof-metal, дорога residential на 2.9 м — асфальт, на 3.2 м — нет, footway игнорируется; образцы не содержат тепловых полей; незарегистрированные слои/слои неверного поставщика, несовпадение границ и неизвестные коды отклоняются; исходный код пакета не содержит сетевого кода. Убитые мутации: округлённый ряд пикселя, игнорирование отсутствия данных, удвоенная ширина дороги, пропуск зданий, потеря флага synthetic, проверка лицензии, ограничение массового плана, усечение имени тайла, учёт атрибуции. Осталось: реальные тайлы WorldCover и выгрузки OSM не загружаются и не коммитятся; декодирование GeoTIFF/OSM и проверка на реальных координатах требуют локально размещённых лицензированных данных.
+
+- **Свидетельства по реальным тайлам (2026-10-17):** Владелец Claude; baseline b774986; с разрешения оператора. `packages/thermal/src/geotiff.ts` декодирует окна трёх переданных тайлов Израиля (DEFLATE, тайлы по 1024 пикселя, EPSG:4326 PixelIsArea, no-data 0; не более 4096 x 4096 пикселей на окно). `tests/worldcover-geotiff.test.ts`: 17 PASS, проверяются:
+  - хеши инвентаря и геопривязка;
+  - восемь известных мест через `MaterialMap`: море, Мёртвое море, Кинерет и Эйлат — вода 80, Тель-Авив — застройка 50, Махтеш-Рамон — открытый грунт 60, Изреельская долина и Хула — пашня 40, каждый как преобладающий класс (≥ 70%) окна 150 м;
+  - стык 30 N и метка synthetic для непокрытых точек;
+  - точная сборка через внутренние тайлы на сгенерированном TIFF и отклонение LZW, предиктора, проекционной CRS, BigTIFF и полосовой раскладки;
+  - ограничение покрытия только Израилем.
+
+  Синтетический набор тестов по-прежнему проходит. Не выполнено: подключение к приложению, выборка OSM и проверка контрольных сумм поставщика.
 
 ### TASK-070 — Surface thermal state
 

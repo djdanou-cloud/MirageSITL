@@ -964,10 +964,19 @@ were synchronized and checked. Changes remain local; no commit or push performed
 - **Status:** DONE — Claude; baseline e67236d; 2026-10-16 (synthetic georeferenced raster; real-tile check needs locally placed licensed data and GeoTIFF decoding).
 - **Title & Description:** Load licensed land classes and map features with provenance.
 - **Dependencies:** TASK-036, TASK-060, TASK-061.
-- **Touched Files:** `packages/thermal/package.json`, `packages/thermal/src/material-map.ts`, `packages/thermal/src/data-manifest.ts`, `tests/material-map.test.ts`, `tests/fixtures/thermal/material-classes.json`, `tests/fixtures/registry.json`, `package-lock.json`.
+- **Touched Files:** `packages/thermal/package.json`, `packages/thermal/src/material-map.ts`, `packages/thermal/src/data-manifest.ts`, `tests/material-map.test.ts`, `tests/fixtures/thermal/material-classes.json`, `tests/fixtures/registry.json`, `package-lock.json`, `packages/thermal/src/geotiff.ts`, `tests/worldcover-geotiff.test.ts`, `data/worldcover/2021-v200/israel/inventory.json`, `docs/operations/worldcover-data.md`, `docs/ru/worldcover-data.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
 - **Interfaces / Contracts:** 10 m raster labels; road/roof overlays; attribution/hash/coordinate system.
 - **DoD & Acceptance Criteria:** Known coordinates map correctly; missing data is labeled synthetic; land classes are not temperatures; preserve attribution/licenses without unauthorized bulk downloads.
 - **Evidence:** Owner Claude; baseline e67236d; 2026-10-16. Node 24.22.0: tests/material-map.test.ts 9 PASS. Legend fixture tests/fixtures/thermal/material-classes.json (registered) covers all 11 WorldCover v200 codes; a temperatureK or emissivity field is rejected. Manifest: provider license/attribution rules, required SHA-256 for real providers, synthetic labelling, CRS, bounds and duplicate ids enforced; tile names N45E006/S03W060/N00E000/S03W003/N48E009; a 15 km Zurich plan needs 1 tile, a 48N/9E straddle 4, a 10x10 deg plan is refused. Map on a synthetic 12x12 raster on the real 1/12000 deg grid: all 143 pixel centres and north-west corner/edge points map to the expected code; no-data and out-of-layer points return synthetic-ground with synthetic=true; synthetic layers stay synthetic; buildings over roads over land, roof:material=metal -> roof-metal, residential road at 2.9 m asphalt and 3.2 m not, footway ignored; samples carry no thermal field; unregistered/wrong-provider layers, bound mismatches and unknown codes rejected; package source contains no network code. Mutations killed: rounded pixel row, no-data ignored, double road width, buildings skipped, synthetic flag dropped, license check, bulk-plan limit, tile name truncation, attribution tracking. Remaining: no real WorldCover tile or OSM extract is committed or downloaded; GeoTIFF/OSM decoding and a real-coordinate check need locally placed licensed data.
+
+- **Real-Tile Evidence (2026-10-17):** Owner Claude; baseline b774986; operator-authorized. `packages/thermal/src/geotiff.ts` decodes windows of the three supplied Israel tiles (DEFLATE, 1024-pixel tiles, EPSG:4326 PixelIsArea, no-data 0; at most 4096 x 4096 pixels per window). `tests/worldcover-geotiff.test.ts`: 17 PASS, covering:
+  - the inventory hashes and georeferencing;
+  - eight known locations through `MaterialMap`: sea, Dead Sea, Kinneret and Eilat as water 80, Tel Aviv as built-up 50, Makhtesh Ramon as bare 60, and Jezreel and Hula as cropland 40, each the majority class (≥ 70%) of a 150 m window;
+  - the 30 N seam and synthetic labeling of uncovered points;
+  - exact reassembly across internal tiles on a generated TIFF, and rejection of LZW, predictor, projected CRS, BigTIFF and stripped layouts;
+  - the Israel-only coverage guard.
+
+  The synthetic suite still passes. Not done: application wiring, an OSM extract and publisher checksum verification.
 
 ### TASK-070 — Surface thermal state
 

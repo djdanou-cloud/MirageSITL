@@ -11,11 +11,11 @@ Regions outside Israel require deliberate acquisition and integration before
 they can be included in supported classification coverage. Source tiles crossing
 a national boundary do not extend the supported region into neighboring countries.
 
-This boundary does not establish that production ingestion is complete. TASK-069
-has synthetic mapping tests; real GeoTIFF decoding, local dataset registration
-and real-coordinate validation remain separate requirements. Missing data must
-retain its synthetic/unavailable label. WorldCover supplies land classes, not
-ground elevation, measured temperature or camera calibration.
+Since 2026-10-17, TASK-069 decodes the three supplied tiles and validates real
+coordinates (see below). Application wiring, a runtime manifest loaded from
+local files and OSM overlays remain open. Missing data must retain its
+synthetic/unavailable label. WorldCover supplies land classes, not ground
+elevation, measured temperature or camera calibration.
 
 ## Supplied Israel tiles: TASK-069 handoff
 
@@ -35,26 +35,43 @@ The operator explicitly authorized storing these three binary files in Git.
 The outside-checkout recommendation below continues to apply to future bulk
 downloads. Tile storage does not extend supported coverage outside Israel.
 
-**Implementation is deferred at the operator's request.** When subsequently
-authorized to start TASK-069, the developer should:
+**Implementation (2026-10-17, operator-authorized).**
+`packages/thermal/src/geotiff.ts` reads these tiles in windows:
 
-1. Read TASK-069, its dependencies and the current material-map contracts.
-   Verify inventory hashes after checkout and inspect raster metadata, coordinate
-   reference system, bounds, category codes, missing-data values and resolution.
-2. Implement the missing GeoTIFF decoder and adapt the real layers to
-   `packages/thermal/src/data-manifest.ts` and `material-map.ts`, preserving
-   source identity, hashes, license and attribution. The inventory is not an
-   automatically loaded runtime manifest.
-3. Add independent known-coordinate, tile-boundary and missing-data checks;
-   retain the existing synthetic regressions and Israel-only coverage boundary.
-4. Obtain a suitable OpenStreetMap extract separately if road/building overlays
-   are required; these WorldCover files do not supply those vector features.
-5. Run affected tests and documentation gates, update both languages, and
-   record real-data evidence before changing acceptance status.
+* It parses the first IFD once and accepts only the WorldCover profile:
+  classic TIFF, single-band uint8, tiled 1024 x 1024, DEFLATE without a
+  predictor, EPSG:4326 PixelIsArea, square 1/12000 deg pixels, a north-west
+  tie point and GDAL no-data 0.
+* It decodes only the internal tiles a requested window touches, at most
+  4096 x 4096 pixels, so the 1.3 GB full raster is never materialized. File
+  reads and zlib inflation are injected, so Node and browser callers supply
+  their own.
+* `windowForBounds` snaps a geographic box outward to whole pixels.
+  `assertIsraelCoverage` refuses boxes outside 29.4–33.4 N, 34.2–35.95 E, an
+  Israel-enclosing box that does not certify borders.
 
-No decoder, application wiring, raster validation or TASK-069 implementation
-was started as part of this handoff. Production terrain collision and thermal
-validation remain separate tasks.
+A decoded window becomes a `WorldCoverRaster`; its `DatasetEntry` carries
+the window bounds, the tile's inventory SHA-256, the CC BY 4.0 license and
+the ESA attribution. `tests/worldcover-geotiff.test.ts` checks:
+
+* tile bytes and hashes against the inventory, and the georeferencing of all
+  three tiles;
+* known coordinates through `MaterialMap`: the Mediterranean off Tel Aviv,
+  the Dead Sea, Lake Kinneret and the Gulf of Eilat are water (80); central
+  Tel Aviv is built-up (50); Makhtesh Ramon is bare (60); the Jezreel and
+  Hula valleys are cropland (40). Each is the majority class (≥ 70%) of a
+  roughly 150 m window;
+* the 30 N seam: a boundary point belongs to N27E033 row 0, and a point
+  outside every loaded window is synthetic;
+* exact reassembly across internal tile edges on a generated TIFF, and
+  rejection of LZW, predictors, projected CRSs, BigTIFF and stripped layouts.
+
+The inventory now records `rasterDecodingPerformed` and
+`coordinateValidationPerformed` as true. Publisher checksums are still
+unverified, and the inventory is still not a runtime manifest. Remaining
+work: loading windows inside the application, an OpenStreetMap extract for
+road and building overlays, production terrain collision and thermal
+validation.
 
 ## Global source and rights
 
@@ -214,8 +231,9 @@ hashes, license, attribution and geographic bounds. Decode the rasters and suppl
 their manifest to the TASK-069 material mapping path; the relevant contracts are
 `packages/thermal/src/data-manifest.ts` and `packages/thermal/src/material-map.ts`.
 Check known coordinates, tile seams and missing-data behavior, and preserve
-synthetic labels for unavailable regions. Downloading files does not implement
-the missing decoder, register them automatically or enable terrain collision.
+synthetic labels for unavailable regions. Downloading files does not register them
+automatically or enable terrain collision; decode windows with
+`packages/thermal/src/geotiff.ts`.
 
 Extend the documented Israel-only coverage only after the new region has been
 integrated and validated, updating this guide and its Russian mirror together.

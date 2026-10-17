@@ -1,6 +1,6 @@
 {
   "schema": "mirage.worldcover-handoff/1",
-  "status": "STAGED_NOT_INTEGRATED",
+  "status": "DECODED_VALIDATED_NOT_RUNTIME_WIRED",
   "task": "TASK-069",
   "receivedAt": "2026-10-17",
   "providedBy": "repository operator",
@@ -14,8 +14,8 @@
   "verification": {
     "copyHashesMatchOriginals": true,
     "publisherChecksumVerified": false,
-    "rasterDecodingPerformed": false,
-    "coordinateValidationPerformed": false,
+    "rasterDecodingPerformed": true,
+    "coordinateValidationPerformed": true,
     "runtimeManifestRegistered": false
   },
   "note": "Acquisition date is unknown. receivedAt records operator handoff. Source URLs identify the named product; publisher identity and raster semantics have not been independently verified. Tile extents can include neighboring countries; file availability does not extend supported coverage. This staging inventory is not a runtime DataManifest.",
