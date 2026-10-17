@@ -2,6 +2,10 @@
   "schemaVersion": 1,
   "pairs": [
     {
+      "en": "docs/operations/worldcover-data.md",
+      "ru": "docs/ru/worldcover-data.md"
+    },
+    {
       "en": "README.md",
       "ru": "docs/ru/README.md"
     },

@@ -1,5 +1,14 @@
 # Local validation and release runbook
 
+## Geographic data setup
+
+Current ESA WorldCover 2021 v200 terrain classification coverage is restricted
+exclusively to Israel. Follow [WorldCover coverage and manual region downloads](worldcover-data.md)
+for the public global S3 source, AWS CLI prerequisites, PowerShell/zsh commands
+and the validation steps required before expanding supported coverage.
+
+## Local checks
+
 Use the existing isolated checkout; preserve local changes. Node is pinned by .nvmrc; Rust 1.97.0 and wasm32-unknown-unknown by native/rust-toolchain.toml. Install npm dependencies with npm ci. In the cloud activate CARGO_HOME=/workspace/.cache/mirage-cargo, RUSTUP_HOME=/workspace/.cache/mirage-rustup and prepend CARGO_HOME/bin to PATH; do not repurpose HOME. Run lint, typecheck, check:docs, CI=true npm test, npm run build and locked native tests. Start npm run dev; verify HTTP, COOP same-origin, COEP require-corp and the actual Worker READY state. Start at zero throttle, arm, fly, pause and reset. Browser tests use system Chromium only when available. A clean restored-machine installation/startup has not yet been executed for release certification.
 
 All new evidence commands are local. With no trace they write BLOCKED_EXTERNAL and exit 2; invalid evidence exits 1. They never deploy, tag or push. Inspect report reasons and preserve original captures plus exact byte hashes. Trace files are bounded to 32 MiB. CLI analyzers stamp sourceRevision and validatorSha256; retain inputSha256 and use matching code/report identities. Re-run evidence after relevant code/config changes.

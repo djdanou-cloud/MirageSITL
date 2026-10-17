@@ -1,5 +1,14 @@
 # Руководство локальной проверки и выпуска
-<!-- source-sha256: 0915f6469b61b9d93414b591b4c702b0867a18f2d5d6918935d0e7d4060482a5 -->
+
+## Настройка географических данных
+
+Текущее покрытие классификации поверхности ESA WorldCover 2021 v200 ограничено
+исключительно Израилем. В [руководстве WorldCover и ручной загрузки регионов](worldcover-data.md)
+описаны публичный глобальный источник S3, требования AWS CLI, команды
+PowerShell/zsh и проверки перед расширением поддерживаемого покрытия.
+
+## Локальные проверки
+<!-- source-sha256: ec5074c6326c2140419cc701f57c29fda0ad525bb660c23ff6d651aaf1632e7e -->
 
 Использовать существующий изолированный checkout, сохраняя локальные изменения. Node закреплён .nvmrc; Rust 1.97.0 и wasm32-unknown-unknown — native/rust-toolchain.toml. Зависимости ставить через npm ci. В облаке активировать CARGO_HOME=/workspace/.cache/mirage-cargo, RUSTUP_HOME=/workspace/.cache/mirage-rustup и добавить CARGO_HOME/bin в начало PATH; не переопределять HOME. Запустить lint, typecheck, check:docs, CI=true npm test, npm run build и locked native tests. Запустить npm run dev; проверить HTTP, COOP same-origin, COEP require-corp и настоящий Worker READY. Начать с нулевого газа, армировать, летать, приостановить и сбросить. Браузерные тесты используют системный Chromium только при наличии. Установка/запуск на чистой восстановленной машине для сертификации выпуска ещё не выполнялись.
 

@@ -1194,3 +1194,23 @@ GPU p99/120 FPS targets fail; NASA contact fidelity still fails. Production,
 HITL and remaining acceptance blockers retain their existing status. Exact
 commands and evidence are in [laptop validation](validation/laptop-validation-2026-10-17.md)
 and `test-results/laptop/`. Both checkpoints are authorized for GitHub push.
+
+## WorldCover scope and manual acquisition documentation (2026-10-17)
+
+TASK-069 documentation increment: IN_PROGRESS. Owner Codex; baseline 6a430d2.
+Goal: document the operator-defined Israel-only classification boundary and
+manual acquisition of additional ESA WorldCover 2021 v200 regions. Failure
+criterion: implying global runtime coverage, automatic bulk fetching or dataset
+validation from a download alone. Touched paths: `docs/operations/worldcover-data.md`,
+`docs/ru/worldcover-data.md`, `docs/operations/runbook.md`, `docs/ru/runbook.md`,
+`docs/documentation-index.json`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
+This increment changes documentation only; runtime decoding and real-coordinate
+validation remain separate.
+
+Documentation increment COMPLETE: English guide and full Russian mirror reviewed;
+official ESA source prefix and AWS installation/transfer documentation checked.
+The runbook links the guide; all download examples use anonymous requests.
+Verification: `node scripts/check-docs.mjs` exit 0 (18 pairs, 85 tasks, 6 layouts),
+PowerShell parser accepts all 6 PowerShell command blocks; `git diff --check`
+passes. Commands were reviewed, not executed as installers or dataset transfers;
+macOS execution was not tested. No runtime capability or task dependency changed.
