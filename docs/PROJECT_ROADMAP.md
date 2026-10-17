@@ -699,12 +699,22 @@ were synchronized and checked. Changes remain local; no commit or push performed
 
 ### TASK-045 — ArduPilot WASM build
 
-- **Status:** TODO.
+- **Status:** BLOCKED_EXTERNAL — Claude; baseline 82ec344; 2026-10-17. Pinned Emscripten 4.0.15 and ArduPilot source installed and verified; firmware build needs a POSIX build host and Python build packages.
 - **Title & Description:** Build selected firmware with pinned tools and artifact hashes.
 - **Dependencies:** TASK-044.
-- **Touched Files:** `native/ardupilot/CMakeLists.txt`, `native/ardupilot/toolchain.lock.json`, `scripts/build-ardupilot-wasm.mjs`, `packages/autopilot/src/wasm-loader.ts`, `tests/ardupilot-wasm-build.test.ts`.
+- **Touched Files:** `native/ardupilot/CMakeLists.txt`, `native/ardupilot/toolchain.lock.json`, `scripts/build-ardupilot-wasm.mjs`, `packages/autopilot/src/wasm-loader.ts`, `tests/ardupilot-wasm-build.test.ts`, `scripts/probe-ardupilot-wasm.mjs`, `tests/ardupilot-wasm-capability.test.ts`, `docs/decisions/ardupilot-wasm.md`, `docs/ru/ardupilot-wasm.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
 - **Interfaces / Contracts:** Artifact ABI/license/firmware manifest.
 - **DoD & Acceptance Criteria:** A reproducible artifact loads in Worker with checked exports/memory limits; resolve TASK-044 blockers first; an empty replacement module is forbidden.
+- **Evidence (2026-10-17):** Owner Claude; baseline 82ec344; operator-approved downloads, measured first, all outside the repository under `C:\Users\djdan\MirageExternal`.
+  - emsdk was cloned at `389a68bc35dcff7ebae4614e1615099dafda00d1` and its committed manifest bytes match SHA-256 `2df8c7f8…f6d1`. `emsdk install 4.0.15` fetched 633,557,034 + 37,497,627 + 29,736,374 bytes. `emcc --version` reports 4.0.15 (09f52557f0d48b65b8c724853ed8f4e8bf80e669), and a C program compiled with -O2 runs under Node and prints its expected value.
+  - ArduPilot was fetched shallow at `8ab6afde107a91df1b5f60ade8f333cb8a61b190` with only the SITL-build submodules (waf, mavlink, DroneCAN DSDL/dronecan_dsdlc/libcanard/pydronecan): 858 MB. All four files in `source.lock.json` match. `native/ardupilot/toolchain.lock.json` records these pins and is tested against the JSBSim Emscripten lock and the source lock.
+  - The probe now runs Windows `.bat`/`.cmd` compiler wrappers, reports `emscriptenVersion`, and with the real tools reports emscripten=true and all sources matching. It still exits BLOCKED_EXTERNAL because no browser HAL exists. `tests/ardupilot-wasm-capability.test.ts`: 3 PASS.
+  - Blockers, in order:
+    - (1) A POSIX build host. `waf configure --board sitl` fails on native Windows while opening `/dev/null`, and WSL, Cygwin and MSYS2 are absent. Installing WSL is an operator action needing administrator rights.
+    - (2) ArduPilot's Python build packages (`empy==3.3.4`, `pexpect`, `future`), not yet authorized for download.
+    - (3) The browser scheduler/UART/storage HAL replacements recorded by TASK-044, which a compile alone does not provide.
+    - (4) The GPL distribution review.
+  - No artifact, loader or empty module was produced.
 
 ### TASK-046 — ArduPilot browser HAL
 

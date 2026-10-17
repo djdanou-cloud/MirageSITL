@@ -1,6 +1,6 @@
 # PROJECT_ROADMAP.md
 
-<!-- source-sha256: caccaf9d59e30060169c1958de0a55a14c623ee1343f6723717ada6abdf3ebb8 -->
+<!-- source-sha256: f3f299cd2ae682e266cfa8eecca3bde6bed82def92ee6438a77a4e0469ae746f -->
 
 Английский источник: [Source of truth](../PROJECT_ROADMAP.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -702,12 +702,22 @@ Cargo bin активирован в PATH. Производительность M
 
 ### TASK-045 — ArduPilot WASM build
 
-- **Status:** TODO.
+- **Status:** BLOCKED_EXTERNAL — Claude; baseline 82ec344; 2026-10-17. Закреплённые Emscripten 4.0.15 и исходники ArduPilot установлены и проверены; для сборки прошивки нужны POSIX-хост и Python-пакеты сборки.
 - **Title & Description:** Собрать выбранный firmware с pinned toolchain и hash manifests.
 - **Dependencies:** TASK-044.
-- **Touched Files:** `native/ardupilot/CMakeLists.txt`, `native/ardupilot/toolchain.lock.json`, `scripts/build-ardupilot-wasm.mjs`, `packages/autopilot/src/wasm-loader.ts`, `tests/ardupilot-wasm-build.test.ts`.
+- **Touched Files:** `native/ardupilot/CMakeLists.txt`, `native/ardupilot/toolchain.lock.json`, `scripts/build-ardupilot-wasm.mjs`, `packages/autopilot/src/wasm-loader.ts`, `tests/ardupilot-wasm-build.test.ts`, `scripts/probe-ardupilot-wasm.mjs`, `tests/ardupilot-wasm-capability.test.ts`, `docs/decisions/ardupilot-wasm.md`, `docs/ru/ardupilot-wasm.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
 - **Interfaces / Contracts:** Artifact ABI/license/firmware manifest.
 - **DoD & Acceptance Criteria:** Reproducible artifact загружается в Worker; symbols и memory limits проверены; dependency blocker из 044 должен быть устранён, fake empty module запрещён.
+- **Evidence (2026-10-17):** Владелец Claude; baseline 82ec344; загрузки одобрены оператором после измерения размеров и выполнены вне репозитория в `C:\Users\djdan\MirageExternal`.
+  - emsdk склонирован на `389a68bc35dcff7ebae4614e1615099dafda00d1`, закоммиченные байты манифеста совпадают с SHA-256 `2df8c7f8…f6d1`. `emsdk install 4.0.15` загрузил 633 557 034 + 37 497 627 + 29 736 374 байт. `emcc --version` сообщает 4.0.15 (09f52557f0d48b65b8c724853ed8f4e8bf80e669), а программа на C, собранная с -O2, выполняется в Node и печатает ожидаемое значение.
+  - ArduPilot загружен поверхностно на `8ab6afde107a91df1b5f60ade8f333cb8a61b190` только с подмодулями сборки SITL (waf, mavlink, DroneCAN DSDL/dronecan_dsdlc/libcanard/pydronecan): 858 МБ. Все четыре файла из `source.lock.json` совпадают. `native/ardupilot/toolchain.lock.json` фиксирует эти версии и проверяется тестом против lock Emscripten для JSBSim и lock исходников.
+  - Проба теперь запускает обёртки компилятора Windows `.bat`/`.cmd`, сообщает `emscriptenVersion` и с настоящими инструментами показывает emscripten=true и совпадение всех исходников. Она по-прежнему завершается BLOCKED_EXTERNAL, так как браузерного HAL нет. `tests/ardupilot-wasm-capability.test.ts`: 3 PASS.
+  - Блокеры по порядку:
+    - (1) POSIX-хост сборки. `waf configure --board sitl` на Windows падает при открытии `/dev/null`, а WSL, Cygwin и MSYS2 отсутствуют. Установка WSL — действие оператора с правами администратора.
+    - (2) Python-пакеты сборки ArduPilot (`empy==3.3.4`, `pexpect`, `future`), загрузка которых ещё не разрешена.
+    - (3) Замены браузерного HAL для планировщика/UART/хранилища, зафиксированные TASK-044; одна компиляция их не даёт.
+    - (4) Проверка условий распространения GPL.
+  - Артефакт, загрузчик или пустой модуль не создавались.
 
 ### TASK-046 — Browser HAL для ArduPilot
 
