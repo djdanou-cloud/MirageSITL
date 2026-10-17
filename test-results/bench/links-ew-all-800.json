@@ -4,36 +4,36 @@
   "hz": 800,
   "warmupSteps": 4000000,
   "method": "warmed V8 N/2N new-space windows and GC observation; allocating positive control; I/O excluded",
-  "node": "v22.22.0",
+  "node": "v24.19.0",
   "samples": [
     {
       "steps": 1000000,
-      "bytes": 122024,
+      "bytes": 6736,
       "gcEvents": 0
     },
     {
       "steps": 2000000,
-      "bytes": 2672,
+      "bytes": 3104,
       "gcEvents": 0
     },
     {
       "steps": 1000000,
-      "bytes": 2672,
+      "bytes": 3104,
       "gcEvents": 0
     },
     {
       "steps": 2000000,
-      "bytes": 2672,
+      "bytes": 3104,
       "gcEvents": 0
     },
     {
       "steps": 1000000,
-      "bytes": 2672,
+      "bytes": 3104,
       "gcEvents": 0
     },
     {
       "steps": 2000000,
-      "bytes": 2672,
+      "bytes": 3104,
       "gcEvents": 0
     }
   ],
@@ -42,7 +42,7 @@
   "controlDetected": true,
   "positiveControl": {
     "steps": 2000000,
-    "bytes": 394336,
+    "bytes": -517048,
     "gcEvents": 62
   },
   "received": 22000000,
