@@ -6,6 +6,10 @@
       "ru": "docs/ru/worldcover-data.md"
     },
     {
+      "en": "docs/operations/uiuc-propdb-data.md",
+      "ru": "docs/ru/uiuc-propdb-data.md"
+    },
+    {
       "en": "README.md",
       "ru": "docs/ru/README.md"
     },

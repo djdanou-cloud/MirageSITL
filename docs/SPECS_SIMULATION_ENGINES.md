@@ -1777,3 +1777,75 @@ dataset:
 * the steady target of `AxialInflow` equals v;
 * coefficients recover T and P;
 * drag raises CP and lowers eta, and mirrored spin is unchanged.
+
+## UIUC propeller database comparison (TASK-033)
+
+The measured adapter `uiuc-propeller-bet-v1` compares `steady_point` with the
+UIUC Propeller Database (Vols 1-4), using the DA4002 and DA4022 3D-printed
+propellers. Their airfoil, SDA1075 along the whole blade, is published in
+AIAA 2014-2151, Appendix A. The archive, inventory, rights status and
+regeneration commands are described in the
+[UIUC data guide](operations/uiuc-propdb-data.md).
+
+Data path: `tests/fixtures/rotors/uiuc/generate_uiuc_propellers.py` verifies
+the pinned archive digest and writes the registered measured fixture
+`tests/fixtures/rotors/uiuc-propellers.json`. `packages/physics/src/uiuc-propeller.ts`
+validates it and builds the declared model. `native/bet/examples/propeller_points.rs`
+evaluates the BET offline through a line protocol, and `scripts/validate-models.mjs`
+reports the result. The comparison is never part of the step loop.
+
+### Declared model and tolerances
+
+These choices were fixed in the fixture and code before the first evaluation:
+
+* blade: SDA1075 from r/R = 0.30 to the tip, in 28 equal midpoint strips
+  with measured chord and twist interpolated linearly. The hub region
+  0.15 ≤ r/R < 0.30, where the airfoil is not specified, is excluded.
+  Two blades unless the run is labelled 3b/4b; spin +1.
+* polar `thin-airfoil-laminar-friction`:
+
+  ```text
+  CL = 2*pi*(alpha - alpha0)
+  CD = 2*1.328/sqrt(Re)
+  alpha0 = -(1/pi) * integral_0^pi (dz/dx)*(cos(theta) - 1) dtheta,  x = (1 - cos(theta))/2
+  ```
+
+  alpha0 = −1.341 deg from the SDA1075 mean line. The table spans
+  alpha0 ± 10 deg, 1e3 ≤ Re ≤ 5e5 and Ma 0–0.3. A query outside it is
+  clamped and flagged by `PolarTable`; a flagged point is reported as
+  `outsidePolar` and not compared.
+* inflow: uniform axial momentum (section "Steady propeller coefficients");
+  windmill points are `outsideMomentum`, not compared. No tip loss, swirl or
+  nonuniform inflow.
+* ambient state: ISA sea level (1.225 kg/m^3, 1.789e-5 Pa s, 340.294 m/s),
+  because the archive lists no per-run state.
+* tolerance: per compared point, |dCT| ≤ max(0.10·|CT|, 0.005) and
+  |dCP| ≤ max(0.10·|CP|, 0.003); both must hold. The status is `failed` if
+  any compared point fails or the runner errors, `pass` if all compared
+  points pass, and `unvalidated` if no point was compared. `unvalidated` is
+  never reported as PASS.
+* consistency: before any comparison, the dataset oracles (eta consistency
+  and Froude bound, see the data guide) must report zero violations. They must
+  also equal the generator's audit counts.
+
+### Result (2026-10-17)
+
+`node scripts/validate-models.mjs` exits 2 with propeller fidelity
+`failed`, consistency `pass` and 716/674/0/0 audit counts. Of 958 points,
+534 were compared, none passed both tolerances, 101 met the CT tolerance
+and 154 the CP tolerance. 389 points were outside the polar envelope (all
+242 static points and 147 points with J ≤ 0.52) and 35 were windmilling.
+
+The signatures are consistent with the declared simplifications:
+
+* DA4002 mean CP error is −0.002 to −0.012 in seven of eight
+  configurations (+0.0001 in the eighth). Laminar friction omits pressure and
+  laminar-bubble drag. Its mean CT error stays within ±0.013.
+* DA4022 mean CT error is +0.020 to +0.067 and mean CP error +0.005 to
+  +0.024. Both grow with blade count (solidity), consistent with no tip loss
+  and uniform inflow.
+
+Per-point values are written to `test-results/validation/propeller-points.json`.
+They must not be tuned away: reaching PASS requires a measured or
+viscous-solver polar and, if needed, a declared inflow/tip-loss model, each
+with its own provenance.

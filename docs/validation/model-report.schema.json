@@ -15,11 +15,13 @@
     "attitudeToleranceRad",
     "diagnostics",
     "contactFidelityStatus",
-    "measuredValidation"
+    "measuredValidation",
+    "propellerFidelityStatus",
+    "propellerValidation"
   ],
   "properties": {
     "schemaVersion": {
-      "const": 3
+      "const": 4
     },
     "status": {
       "enum": [
@@ -425,6 +427,329 @@
                       ]
                     }
                   }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "propellerFidelityStatus": {
+      "enum": [
+        "pass",
+        "failed",
+        "blocked"
+      ]
+    },
+    "propellerValidation": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "datasetId",
+          "referenceUrl",
+          "license",
+          "acquiredAt",
+          "sourceSha256",
+          "inventorySha256",
+          "archiveDataSha256",
+          "consistencyStatus",
+          "audit",
+          "status",
+          "polar",
+          "tolerance",
+          "totals",
+          "propellers"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "datasetId": {
+            "type": "string"
+          },
+          "referenceUrl": {
+            "type": "string",
+            "pattern": "^https://"
+          },
+          "license": {
+            "type": "string"
+          },
+          "acquiredAt": {
+            "type": "string"
+          },
+          "sourceSha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "inventorySha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "archiveDataSha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "consistencyStatus": {
+            "enum": [
+              "pass",
+              "failed"
+            ]
+          },
+          "audit": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "points",
+              "applicable",
+              "etaInconsistent",
+              "aboveFroudeBound"
+            ],
+            "properties": {
+              "points": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "applicable": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "etaInconsistent": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "aboveFroudeBound": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          },
+          "status": {
+            "enum": [
+              "pass",
+              "failed",
+              "unvalidated"
+            ]
+          },
+          "polar": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "kind",
+              "airfoil",
+              "zeroLiftAlphaRad",
+              "liftSlopePerRad",
+              "alphaRangeRad",
+              "reynoldsRange"
+            ],
+            "properties": {
+              "kind": {
+                "const": "thin-airfoil-laminar-friction"
+              },
+              "airfoil": {
+                "const": "SDA1075"
+              },
+              "zeroLiftAlphaRad": {
+                "type": "number"
+              },
+              "liftSlopePerRad": {
+                "type": "number"
+              },
+              "alphaRangeRad": {
+                "type": "array",
+                "minItems": 2,
+                "maxItems": 2,
+                "items": {
+                  "type": "number"
+                }
+              },
+              "reynoldsRange": {
+                "type": "array",
+                "minItems": 2,
+                "maxItems": 2,
+                "items": {
+                  "type": "number",
+                  "exclusiveMinimum": 0
+                }
+              }
+            }
+          },
+          "tolerance": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "ctRelative",
+              "ctAbsolute",
+              "cpRelative",
+              "cpAbsolute"
+            ],
+            "properties": {
+              "ctRelative": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              "ctAbsolute": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              "cpRelative": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              "cpAbsolute": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              }
+            }
+          },
+          "totals": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "points",
+              "compared",
+              "passed",
+              "ctWithinTolerance",
+              "cpWithinTolerance",
+              "outsidePolar",
+              "outsideMomentum",
+              "errors"
+            ],
+            "properties": {
+              "points": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "compared": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "passed": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "ctWithinTolerance": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "cpWithinTolerance": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "outsidePolar": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "outsideMomentum": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "errors": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          },
+          "propellers": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "id",
+                "bladeCount",
+                "diameterM",
+                "points",
+                "compared",
+                "passed",
+                "ctWithinTolerance",
+                "cpWithinTolerance",
+                "outsidePolar",
+                "outsideMomentum",
+                "errors",
+                "maxAbsCtError",
+                "maxAbsCpError",
+                "meanCtError",
+                "meanCpError",
+                "status"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "bladeCount": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "diameterM": {
+                  "type": "number",
+                  "exclusiveMinimum": 0
+                },
+                "points": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "compared": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "passed": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "ctWithinTolerance": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "cpWithinTolerance": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "outsidePolar": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "outsideMomentum": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "errors": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "maxAbsCtError": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "maxAbsCpError": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "meanCtError": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "meanCpError": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "status": {
+                  "enum": [
+                    "pass",
+                    "failed",
+                    "unvalidated"
+                  ]
                 }
               }
             }

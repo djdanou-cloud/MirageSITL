@@ -412,6 +412,59 @@
       }
     },
     {
+      "path": "rotors/uiuc-propellers.json",
+      "manifest": {
+        "formatVersion": 1,
+        "id": "uiuc-propdb-da4002-da4022-v1",
+        "sourceSha256": "ae1a73416210aaf64d51e3f2ff76e971d9c95995a976fcdcdfb7bc27dee46af3",
+        "units": {
+          "advanceRatio": "1",
+          "thrustCoefficient": "1",
+          "powerCoefficient": "1",
+          "efficiency": "1",
+          "rotorSpeedRpm": "rev/min",
+          "diameterM": "m"
+        },
+        "validityEnvelope": {
+          "advanceRatio": {
+            "min": 0.075956,
+            "max": 1.198988
+          },
+          "thrustCoefficient": {
+            "min": -0.025663,
+            "max": 0.253789
+          },
+          "powerCoefficient": {
+            "min": 0.006313,
+            "max": 0.192791
+          },
+          "efficiency": {
+            "min": -3.02957,
+            "max": 0.733308
+          },
+          "rotorSpeedRpm": {
+            "min": 1317.778,
+            "max": 10396.667
+          },
+          "diameterM": {
+            "min": 0.127,
+            "max": 0.2286
+          }
+        },
+        "tolerance": {
+          "absolute": 0.005,
+          "relative": 0.1
+        },
+        "provenance": {
+          "kind": "measured",
+          "datasetId": "UIUC-Propeller-Database-Vols-1-4",
+          "license": "UIUC-Propeller-Database-citation-requested-no-explicit-license",
+          "acquiredAt": "2022-06-27T00:00:00Z",
+          "referenceUrl": "https://m-selig.ae.illinois.edu/props/propDB.html"
+        }
+      }
+    },
+    {
       "path": "power/battery.json",
       "manifest": {
         "formatVersion": 1,

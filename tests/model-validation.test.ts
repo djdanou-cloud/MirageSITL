@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { Ajv } from "ajv";
 import { expect, it } from "vitest";
 import schema from "../docs/validation/model-report.schema.json";
-it("writes numerical parity and NASA drop evidence and fails closed on missing or failed fidelity", () => {
+it("writes numerical parity, NASA drop and UIUC propeller evidence and fails closed on missing or failed fidelity", () => {
   const result = spawnSync(process.execPath, ["scripts/validate-models.mjs"], {
     encoding: "utf8",
   });
@@ -14,13 +14,26 @@ it("writes numerical parity and NASA drop evidence and fails closed on missing o
   expect(
     new Ajv({ strict: true, allowUnionTypes: true }).compile(schema)(report),
   ).toBe(true);
-  // Rotor/airframe data are absent (blocked); the NASA drop comparison runs and fails.
+  // Airframe data are absent (blocked); the NASA drop and UIUC propeller comparisons run and fail.
   expect(report).toMatchObject({
-    schemaVersion: 3,
+    schemaVersion: 4,
     status: "failed",
     numericalStatus: "pass",
     fidelityStatus: "blocked",
     contactFidelityStatus: "failed",
+    propellerFidelityStatus: "failed",
+    propellerValidation: [
+      {
+        id: "uiuc-da4002-da4022-propellers",
+        datasetId: "UIUC-Propeller-Database-Vols-1-4",
+        referenceUrl: "https://m-selig.ae.illinois.edu/props/propDB.html",
+        consistencyStatus: "pass",
+        status: "failed",
+        audit: { points: 716, etaInconsistent: 0, aboveFroudeBound: 0 },
+        polar: { kind: "thin-airfoil-laminar-friction", airfoil: "SDA1075" },
+        tolerance: { ctRelative: 0.1, ctAbsolute: 0.005, cpRelative: 0.1, cpAbsolute: 0.003 },
+      },
+    ],
     measuredValidation: [
       {
         id: "nasa-tm-x-3561-drop",
@@ -32,7 +45,7 @@ it("writes numerical parity and NASA drop evidence and fails closed on missing o
       },
     ],
   });
-  expect(result.stdout).toContain("12 cases; 1 measured");
+  expect(result.stdout).toContain("12 cases; 2 measured");
 }, 300000);
 it("retains pinned reference rate and rejects a missing JSBSim source", () => {
   expect(() =>

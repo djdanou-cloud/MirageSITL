@@ -13,9 +13,15 @@ import {
   evaluateNasaDrop,
   parseNasaDropFixture,
 } from "../packages/physics/src/nasa-drop.ts";
+import {
+  evaluateUiucPropellers,
+  parseUiucPropellerFixture,
+} from "../packages/physics/src/uiuc-propeller.ts";
 const root = fileURLToPath(new URL("../", import.meta.url));
 const sha = (b) => createHash("sha256").update(b).digest("hex");
-// The only supported measured-data adapter: NASA TM X-3561 level drops.
+// Supported measured-data adapters: NASA TM X-3561 level drops and the UIUC
+// propeller database (DA4002/DA4022) against the steady BET + momentum closure.
+const adapters = ["nasa-drop-contact-v1", "uiuc-propeller-bet-v1"];
 const measurementKeys = [
   "id",
   "adapter",
@@ -32,7 +38,7 @@ function validMeasurement(m) {
     !Array.isArray(m) &&
     Object.keys(m).length === measurementKeys.length &&
     measurementKeys.every((key) => typeof m[key] === "string") &&
-    m.adapter === "nasa-drop-contact-v1" &&
+    adapters.includes(m.adapter) &&
     /^[A-Za-z0-9-]{1,64}$/.test(m.id) &&
     /^tests\/fixtures\/[A-Za-z0-9/_-]+\.json$/.test(m.fixture) &&
     /^[a-f0-9]{64}$/.test(m.sourceSha256) &&
@@ -58,19 +64,54 @@ async function measuredCase(m) {
     manifest.provenance.referenceUrl !== m.referenceUrl
   )
     throw new Error(`Measured fixture provenance mismatch: ${m.id}`);
-  const result = await evaluateNasaDrop(
-    parseNasaDropFixture(JSON.parse(bytes.toString("utf8"))),
-  );
-  return {
+  const common = {
     id: m.id,
     datasetId: m.datasetId,
     referenceUrl: m.referenceUrl,
     license: manifest.provenance.license,
     acquiredAt: manifest.provenance.acquiredAt,
     sourceSha256: m.sourceSha256,
+  };
+  if (m.adapter === "uiuc-propeller-bet-v1") return propellerCase(common, bytes);
+  const result = await evaluateNasaDrop(
+    parseNasaDropFixture(JSON.parse(bytes.toString("utf8"))),
+  );
+  return {
+    kind: "contact",
+    ...common,
     consistencyStatus: result.consistencyStatus,
     status: result.measuredStatus,
     runs: result.runs,
+  };
+}
+/** Steady BET evaluation in native Rust (offline example, never the step loop). */
+function runPropellerBet(input) {
+  return execFileSync(
+    "cargo",
+    ["run", "-q", "--locked", "-p", "mirage-bet", "--example", "propeller_points"],
+    { cwd: join(root, "native"), input, encoding: "utf8", maxBuffer: 1 << 26 },
+  );
+}
+function propellerCase(common, bytes) {
+  const payload = JSON.parse(bytes.toString("utf8")),
+    fixture = parseUiucPropellerFixture(payload),
+    inventoryBytes = readFileSync(join(root, "data/uiuc-propdb/inventory.json")),
+    inventory = JSON.parse(inventoryBytes.toString("utf8"));
+  // The fixture must come from the inventoried archive.
+  if (
+    inventory.datasetId !== fixture.datasetId ||
+    inventory.dataSha256 !== payload.archive?.dataSha256 ||
+    inventory.dataFiles !== payload.archive?.dataFiles
+  )
+    throw new Error(`UIUC fixture does not match the archive inventory: ${common.id}`);
+  const { points, ...summary } = evaluateUiucPropellers(fixture, runPropellerBet);
+  return {
+    kind: "propeller",
+    ...common,
+    inventorySha256: sha(inventoryBytes),
+    archiveDataSha256: inventory.dataSha256,
+    ...summary,
+    detail: points,
   };
 }
 export function parseReference(bytes) {
@@ -208,27 +249,47 @@ export async function validateModels() {
         });
       }
   }
-  const measured = [];
-  for (const m of reference.measurements) measured.push(await measuredCase(m));
-  const contactFidelityStatus =
-    measured.length === 0
-      ? "blocked"
-      : measured.every((m) => m.status === "pass")
+  const measured = [],
+    propellers = [];
+  for (const m of reference.measurements) {
+    const { kind, ...entry } = await measuredCase(m);
+    (kind === "propeller" ? propellers : measured).push(entry);
+  }
+  // Nothing compared is a blocker; anything compared and failed is a failure.
+  const fidelityOf = (list) =>
+    list.some((m) => m.status === "failed")
+      ? "failed"
+      : list.length > 0 && list.every((m) => m.status === "pass")
         ? "pass"
-        : "failed";
+        : "blocked";
+  const contactFidelityStatus = fidelityOf(measured),
+    propellerFidelityStatus = fidelityOf(propellers);
   return {
-    schemaVersion: 3,
+    schemaVersion: 4,
     // A measured comparison that ran and failed is a failure, not a blocker.
-    status: !passed || contactFidelityStatus === "failed" ? "failed" : "blocked",
+    status:
+      !passed ||
+      contactFidelityStatus === "failed" ||
+      propellerFidelityStatus === "failed"
+        ? "failed"
+        : "blocked",
     numericalStatus: passed ? "pass" : "failed",
     fidelityStatus: "blocked",
     contactFidelityStatus,
+    propellerFidelityStatus,
     measuredValidation: measured,
+    propellerValidation: propellers.map((p) => {
+      const summary = { ...p };
+      delete summary.detail;
+      return summary;
+    }),
+    propellerPoints: propellers.map((p) => ({ id: p.id, points: p.detail })),
     referenceSha256: sha(refBytes),
     artifactSha256: { scalar: sha(bytes.scalar), simd128: sha(bytes.simd128) },
     cases,
     blockers: [
-      "Measured airframe/rotor validation is not certified: no airframe/rotor dataset is archived.",
+      "Measured airframe validation is not certified: no airframe dataset is archived.",
+      "UIUC DA4002/DA4022 propellers: the steady BET with uniform momentum inflow and the declared thin-airfoil/laminar-friction SDA1075 polar misses the pre-declared CT/CP tolerances; no measured or viscous-solver airfoil polar, tip loss or swirl is modeled.",
       "NASA TM X-3561 level drops: the rigid Rapier sphere arrests the sink in a few steps, far beyond the measured -1.6 g upper-mass envelope, and has no strut/tire stroke; a landing-gear model is required.",
       "Full BET polar/rotor-to-body backend is not connected.",
       "Production Rapier contact G1 is not certified; opt-in patched native evidence does not certify its JS/WASM binding.",
@@ -276,12 +337,16 @@ export async function validateModels() {
 }
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   try {
-    const report = await validateModels();
-    const out = join(root, "test-results/validation/model-report.json");
+    const { propellerPoints, ...report } = await validateModels();
+    const out = join(root, "test-results/validation/model-report.json"),
+      pointsOut = join(root, "test-results/validation/propeller-points.json");
     mkdirSync(dirname(out), { recursive: true });
     writeFileSync(out, JSON.stringify(report, null, 2) + "\n");
+    writeFileSync(pointsOut, JSON.stringify(propellerPoints, null, 1) + "\n");
+    const measuredCount =
+      report.measuredValidation.length + report.propellerValidation.length;
     console.log(
-      `Model validation: numerical=${report.numericalStatus}; fidelity=${report.fidelityStatus}; contact=${report.contactFidelityStatus}; status=${report.status}; ${report.cases.length} cases; ${report.measuredValidation.length} measured; ${out}`,
+      `Model validation: numerical=${report.numericalStatus}; fidelity=${report.fidelityStatus}; contact=${report.contactFidelityStatus}; propeller=${report.propellerFidelityStatus}; status=${report.status}; ${report.cases.length} cases; ${measuredCount} measured; ${out}`,
     );
     process.exitCode = report.status === "pass" ? 0 : 2;
   } catch (error) {

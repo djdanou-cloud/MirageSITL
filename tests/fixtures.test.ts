@@ -30,11 +30,17 @@ describe('versioned fixture provenance and random streams', () => {
       const bytes = readFileSync(new URL(`./fixtures/${entry.path}`, import.meta.url));
       const verified = await verifyFixture(entry.manifest, bytes);
       expect(verified.sourceSha256).toBe(createHash('sha256').update(bytes).digest('hex'));
-      // Only the archived NASA drop measurements may claim measured provenance.
+      // Only the archived NASA drop and UIUC propeller measurements may claim measured provenance.
       if (entry.path === 'contact/nasa-drop.json') {
         expect(verified.provenance).toEqual({
           kind: 'measured', datasetId: 'NASA-TM-X-3561-DropTest', license: 'Public-Domain-US-Gov',
           acquiredAt: '1977-11-01T00:00:00Z', referenceUrl: 'https://ntrs.nasa.gov/citations/19780003109',
+        });
+      } else if (entry.path === 'rotors/uiuc-propellers.json') {
+        expect(verified.provenance).toEqual({
+          kind: 'measured', datasetId: 'UIUC-Propeller-Database-Vols-1-4',
+          license: 'UIUC-Propeller-Database-citation-requested-no-explicit-license',
+          acquiredAt: '2022-06-27T00:00:00Z', referenceUrl: 'https://m-selig.ae.illinois.edu/props/propDB.html',
         });
       } else expect(verified.provenance.kind).toBe('synthetic');
       expect(Object.isFrozen(verified.validityEnvelope)).toBe(true);
