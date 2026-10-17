@@ -17,6 +17,45 @@ and real-coordinate validation remain separate requirements. Missing data must
 retain its synthetic/unavailable label. WorldCover supplies land classes, not
 ground elevation, measured temperature or camera calibration.
 
+## Supplied Israel tiles: TASK-069 handoff
+
+On 2026-10-17 the operator supplied three files for repository storage:
+`ESA_WorldCover_10m_2021_v200_N27E033_Map.tif`,
+`ESA_WorldCover_10m_2021_v200_N30E033_Map.tif` and
+`ESA_WorldCover_10m_2021_v200_N33E033_Map.tif`.
+They are stored unchanged in `data/worldcover/2021-v200/israel/`, with a
+[staging inventory](../../data/worldcover/2021-v200/israel/inventory.json)
+recording exact bytes, SHA-256 hashes, product source URLs, license and
+attribution. Together they contain 90,313,215 bytes. Repository copies match
+the operator's source files; publisher checksums and raster content have not
+been independently validated. The receipt date is not an inferred acquisition
+date. This inventory is a handoff record, not the runtime `DataManifest`.
+
+The operator explicitly authorized storing these three binary files in Git.
+The outside-checkout recommendation below continues to apply to future bulk
+downloads. Tile storage does not extend supported coverage outside Israel.
+
+**Implementation is deferred at the operator's request.** When subsequently
+authorized to start TASK-069, the developer should:
+
+1. Read TASK-069, its dependencies and the current material-map contracts.
+   Verify inventory hashes after checkout and inspect raster metadata, coordinate
+   reference system, bounds, category codes, missing-data values and resolution.
+2. Implement the missing GeoTIFF decoder and adapt the real layers to
+   `packages/thermal/src/data-manifest.ts` and `material-map.ts`, preserving
+   source identity, hashes, license and attribution. The inventory is not an
+   automatically loaded runtime manifest.
+3. Add independent known-coordinate, tile-boundary and missing-data checks;
+   retain the existing synthetic regressions and Israel-only coverage boundary.
+4. Obtain a suitable OpenStreetMap extract separately if road/building overlays
+   are required; these WorldCover files do not supply those vector features.
+5. Run affected tests and documentation gates, update both languages, and
+   record real-data evidence before changing acceptance status.
+
+No decoder, application wiring, raster validation or TASK-069 implementation
+was started as part of this handoff. Production terrain collision and thermal
+validation remain separate tasks.
+
 ## Global source and rights
 
 The full global classification dataset is hosted in the public Amazon Web

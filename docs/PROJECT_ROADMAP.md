@@ -1214,3 +1214,23 @@ Verification: `node scripts/check-docs.mjs` exit 0 (18 pairs, 85 tasks, 6 layout
 PowerShell parser accepts all 6 PowerShell command blocks; `git diff --check`
 passes. Commands were reviewed, not executed as installers or dataset transfers;
 macOS execution was not tested. No runtime capability or task dependency changed.
+
+## TASK-069 dataset handoff (2026-10-17)
+
+Preparation only: IN_PROGRESS. Owner Codex; baseline 0bd337f. User supplies
+N27E033, N30E033 and N33E033 GeoTIFFs and authorizes committing/pushing their
+original bytes. Scope: `.gitattributes`, `data/worldcover/2021-v200/israel/`,
+`docs/operations/worldcover-data.md`, `docs/ru/worldcover-data.md`,
+`docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`. Record hashes, sources,
+license/attribution and a deferred implementation checklist. Failure criterion:
+changed raster bytes, unverified data labeled validated, or starting decoding,
+runtime integration or TASK-069 implementation without a new user instruction.
+
+Preparation COMPLETE; implementation NOT_STARTED at user request. Three source
+copies match their originals by SHA-256 (90,313,215 bytes total); staging
+inventory and bilingual handoff instructions are supplied. No raster decoding,
+semantic validation, runtime registration or OpenStreetMap acquisition ran.
+Verification: documentation/hash/link checks and Git whitespace checks pass;
+staged binary blobs must match the inventory before commit. This receipt
+supersedes the historical absence of WorldCover files, not the remaining
+TASK-069 real-data integration requirements. User authorizes dataset upload.
