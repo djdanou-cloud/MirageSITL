@@ -1,0 +1,42 @@
+{
+  "captureSha256": "5e996d6bb607ac9af9754676e6ffcc37509d700ec02041c477c8f403bb914638",
+  "bytes": 1436,
+  "settingBaud": 115200,
+  "durationTargetS": 25,
+  "transmittedBytes": 0,
+  "transmittedCommands": [],
+  "dtr": false,
+  "rts": false,
+  "counts": {
+    "0": 61,
+    "111": 6
+  },
+  "badCrc": 0,
+  "unknownCrc": 0,
+  "unknownIds": [],
+  "skipped": 5,
+  "sequenceDiscontinuities": [],
+  "heartbeats": [
+    {
+      "id": 0,
+      "sequence": 21,
+      "systemId": 1,
+      "componentId": 1,
+      "customMode": 0,
+      "vehicleType": 2,
+      "autopilot": 3,
+      "baseMode": 81,
+      "armed": false,
+      "hilEnabled": false,
+      "systemStatus": 3
+    }
+  ],
+  "frames": [],
+  "limitations": [
+    "USB CDC setting does not establish physical UART baud.",
+    "Serial buffering and pre-existing buffered heartbeats do not establish per-frame timing or freshness.",
+    "Sequence gaps across unknown message IDs do not establish packet loss.",
+    "No cryptographic signature verification.",
+    "No hardware motor-disable verification; operator reports battery disconnected."
+  ]
+}

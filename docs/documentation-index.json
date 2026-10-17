@@ -60,6 +60,10 @@
     {
       "en": "docs/operations/runbook.md",
       "ru": "docs/ru/runbook.md"
+    },
+    {
+      "en": "docs/validation/local-hardware-2026-10-17.md",
+      "ru": "docs/ru/local-hardware-2026-10-17.md"
     }
   ]
 }

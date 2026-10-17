@@ -1,0 +1,278 @@
+{
+  "captureSha256": "b026643bd47943e57a276896db85d608d852ec266f6592547fd82ece20d48329",
+  "bytes": 5645,
+  "settingBaud": 115200,
+  "durationTargetS": 20,
+  "transmittedBytes": 410,
+  "transmittedCommands": [
+    "10 MAV_CMD_REQUEST_MESSAGE (512) queries"
+  ],
+  "dtr": false,
+  "rts": false,
+  "counts": {
+    "0": 206,
+    "1": 1,
+    "22": 1,
+    "24": 1,
+    "27": 1,
+    "29": 1,
+    "30": 1,
+    "36": 1,
+    "65": 1,
+    "77": 10,
+    "111": 23,
+    "147": 1,
+    "148": 1,
+    "193": 1,
+    "253": 2
+  },
+  "badCrc": 0,
+  "unknownCrc": 0,
+  "unknownIds": [],
+  "skipped": 0,
+  "sequenceDiscontinuities": [],
+  "heartbeats": [
+    {
+      "id": 0,
+      "sequence": 88,
+      "systemId": 1,
+      "componentId": 1,
+      "customMode": 0,
+      "vehicleType": 2,
+      "autopilot": 3,
+      "baseMode": 81,
+      "armed": false,
+      "hilEnabled": false,
+      "systemStatus": 3
+    }
+  ],
+  "frames": [
+    {
+      "id": 77,
+      "sequence": 39,
+      "systemId": 1,
+      "componentId": 1,
+      "command": 512,
+      "result": 0
+    },
+    {
+      "id": 77,
+      "sequence": 40,
+      "systemId": 1,
+      "componentId": 1,
+      "command": 512,
+      "result": 0
+    },
+    {
+      "id": 77,
+      "sequence": 41,
+      "systemId": 1,
+      "componentId": 1,
+      "command": 512,
+      "result": 0
+    },
+    {
+      "id": 77,
+      "sequence": 42,
+      "systemId": 1,
+      "componentId": 1,
+      "command": 512,
+      "result": 0
+    },
+    {
+      "id": 1,
+      "sequence": 43,
+      "systemId": 1,
+      "componentId": 1,
+      "sensorsPresent": 1399913483,
+      "sensorsEnabled": 1382063115,
+      "sensorsHealthy": 1198562315,
+      "batteryMv": 3,
+      "batteryCurrentCa": 0,
+      "batteryRemainingPct": 99
+    },
+    {
+      "id": 27,
+      "sequence": 44,
+      "systemId": 1,
+      "componentId": 1,
+      "accelMilliG": [
+        -12,
+        0,
+        -1001
+      ],
+      "gyroMradS": [
+        3,
+        0,
+        5
+      ],
+      "magMilliGauss": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "id": 29,
+      "sequence": 45,
+      "systemId": 1,
+      "componentId": 1,
+      "pressureHpa": 1011.54052734375,
+      "temperatureC": 38.59
+    },
+    {
+      "id": 148,
+      "sequence": 46,
+      "systemId": 1,
+      "componentId": 1,
+      "flightVersion": "4060380",
+      "boardVersion": 77266944,
+      "vendorId": 4617,
+      "productId": 22337,
+      "firmwareCustomVersion": "3366633730313161"
+    },
+    {
+      "id": 77,
+      "sequence": 47,
+      "systemId": 1,
+      "componentId": 1,
+      "command": 512,
+      "result": 0
+    },
+    {
+      "id": 77,
+      "sequence": 48,
+      "systemId": 1,
+      "componentId": 1,
+      "command": 512,
+      "result": 0
+    },
+    {
+      "id": 77,
+      "sequence": 49,
+      "systemId": 1,
+      "componentId": 1,
+      "command": 512,
+      "result": 0
+    },
+    {
+      "id": 77,
+      "sequence": 50,
+      "systemId": 1,
+      "componentId": 1,
+      "command": 512,
+      "result": 0
+    },
+    {
+      "id": 77,
+      "sequence": 51,
+      "systemId": 1,
+      "componentId": 1,
+      "command": 512,
+      "result": 0
+    },
+    {
+      "id": 77,
+      "sequence": 52,
+      "systemId": 1,
+      "componentId": 1,
+      "command": 512,
+      "result": 0
+    },
+    {
+      "id": 30,
+      "sequence": 53,
+      "systemId": 1,
+      "componentId": 1
+    },
+    {
+      "id": 36,
+      "sequence": 54,
+      "systemId": 1,
+      "componentId": 1,
+      "servoPwmUs": [
+        1000,
+        1000,
+        1000,
+        1000,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "id": 65,
+      "sequence": 55,
+      "systemId": 1,
+      "componentId": 1
+    },
+    {
+      "id": 24,
+      "sequence": 56,
+      "systemId": 1,
+      "componentId": 1,
+      "fixType": 0,
+      "satellites": 0,
+      "ephCm": 65535
+    },
+    {
+      "id": 193,
+      "sequence": 57,
+      "systemId": 1,
+      "componentId": 1,
+      "flags": 167,
+      "velocityVariance": 0,
+      "horizontalPositionVariance": 0.0007442577043548226,
+      "verticalPositionVariance": 0.0015600112965330482,
+      "compassVariance": 0
+    },
+    {
+      "id": 147,
+      "sequence": 58,
+      "systemId": 1,
+      "componentId": 1,
+      "voltageMv": [
+        3,
+        65535,
+        65535,
+        65535,
+        65535,
+        65535,
+        65535,
+        65535,
+        65535,
+        65535
+      ],
+      "currentCa": 0,
+      "remainingPct": 99
+    },
+    {
+      "id": 253,
+      "sequence": 71,
+      "systemId": 1,
+      "componentId": 1,
+      "text": "PreArm: RC not found"
+    },
+    {
+      "id": 253,
+      "sequence": 72,
+      "systemId": 1,
+      "componentId": 1,
+      "text": "PreArm: Battery 1 below minimum arming voltage"
+    },
+    {
+      "id": 22,
+      "sequence": 73,
+      "systemId": 1,
+      "componentId": 1
+    }
+  ],
+  "limitations": [
+    "USB CDC setting does not establish physical UART baud.",
+    "Serial buffering and pre-existing buffered heartbeats do not establish per-frame timing or freshness.",
+    "Sequence gaps across unknown message IDs do not establish packet loss.",
+    "No cryptographic signature verification.",
+    "No hardware motor-disable verification; operator reports battery disconnected."
+  ]
+}

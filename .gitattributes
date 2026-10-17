@@ -1,2 +1,5 @@
+# Source text and hashed fixtures must retain their repository LF bytes on Windows.
+* text=auto eol=lf
+*.bin binary
 # Docling archives of NASA/NACA reports: byte-exact (CRLF), hashed by the fixture generator.
 tests/fixtures/contact/nasa/*.md binary
