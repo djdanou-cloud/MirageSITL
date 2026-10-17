@@ -1,8 +1,8 @@
 import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it } from 'vitest';
 
@@ -22,7 +22,18 @@ function fixture(): string {
       typeof pair.en !== 'string' || typeof pair.ru !== 'string') throw new Error('Invalid document pair');
     files.push(pair.en, pair.ru);
   }
-  for (const file of files) {
+  // Documents may link to non-document repository files (for example data inventories);
+  // copy existing relative link targets so the sandbox keeps those links valid.
+  for (const file of [...files]) {
+    if (!file.endsWith('.md')) continue;
+    for (const match of readFileSync(join(repository, file), 'utf8').matchAll(/\]\(([^)]+)\)/g)) {
+      const href = match[1]?.split('#')[0] ?? '';
+      if (href === '' || /^(?:https?:|mailto:)/.test(href)) continue;
+      const target = relative(repository, resolve(repository, dirname(file), href));
+      if (!target.startsWith('..') && existsSync(join(repository, target)) && statSync(join(repository, target)).isFile()) files.push(target);
+    }
+  }
+  for (const file of new Set(files)) {
     mkdirSync(dirname(join(root, file)), { recursive: true });
     cpSync(join(repository, file), join(root, file));
   }

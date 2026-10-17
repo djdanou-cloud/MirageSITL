@@ -1,6 +1,6 @@
 # PROJECT_ROADMAP.md
 
-<!-- source-sha256: f824d9d69c9d08ad37275786cce069cf16ba6ed4532eae38dd50f6a53cae8402 -->
+<!-- source-sha256: 124d1cd2d8e73a21b31f84dc2b36280deb09675d86767254246e1e2c7e73442c -->
 
 Английский источник: [Source of truth](../PROJECT_ROADMAP.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -512,7 +512,7 @@ Cargo bin активирован в PATH. Производительность M
 - **Status:** BLOCKED_EXTERNAL — Codex; retry verified on 2026-10-16.
 - **Title & Description:** Выполнить общий numerical/reference gate и сформировать отчёт достоверности моделей.
 - **Dependencies:** TASK-014, TASK-024, TASK-028, TASK-029, TASK-031.
-- **Touched Files:** `scripts/validate-models.mjs`, `tests/model-validation.test.ts`, `docs/validation/model-report.schema.json`, `tests/fixtures/validation/reference-manifest.json`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `scripts/check-engine-patch-parity.mjs`, `tests/engine-patch-parity.test.ts`, `packages/physics/src/nasa-drop.ts`, `packages/physics/src/ground-contact.ts`, `tests/fixtures/contact/nasa-drop.json`, `tests/fixtures/registry.json`, `README.md`, `docs/ru/README.md`.
+- **Touched Files:** `scripts/validate-models.mjs`, `tests/model-validation.test.ts`, `docs/validation/model-report.schema.json`, `tests/fixtures/validation/reference-manifest.json`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `scripts/check-engine-patch-parity.mjs`, `tests/engine-patch-parity.test.ts`, `packages/physics/src/nasa-drop.ts`, `packages/physics/src/ground-contact.ts`, `tests/fixtures/contact/nasa-drop.json`, `tests/fixtures/registry.json`, `README.md`, `docs/ru/README.md`, `native/bet/src/propeller.rs`, `native/bet/src/lib.rs`, `native/bet/tests/propeller.rs`, `tests/documentation-policy.test.ts`.
 - **Interfaces / Contracts:** ValidityEnvelope; numerical parity отдельно от experimental validity.
 - **DoD & Acceptance Criteria:** Smooth 10 s cases: <=0.1 m/0.5° against 4800 Hz; scalar/SIMD force/moment tolerance §4; provenance каждого эталона; отсутствие экспериментальных данных даёт BLOCKED_EXTERNAL для fidelity, не fake PASS.
 
@@ -534,6 +534,13 @@ Cargo bin активирован в PATH. Производительность M
     - contactFidelity=failed;
     - status=failed.
   - Отказ G1 непропатченной JS-привязки Rapier и отсутствие привязки BET остаются отдельными блокерами.
+
+- **Подготовка к измерениям пропеллеров (2026-10-17):** Владелец Claude; baseline 58d3179.
+  - Цель: сравнить BET (TASK-020) с осевым импульсным индуктивным потоком (TASK-021) с переданным набором продувок в аэродинамической трубе более 140 малых пропеллеров БПЛА (CT, CP и КПД в зависимости от относительной поступи и RPM).
+  - Критерий отказа: любая сравниваемая точка вне допусков, объявленных до оценки, или пропеллер без измеренной геометрии сообщается как failed или unvalidated, но никогда не PASS.
+  - `native/bet/src/propeller.rs` добавляет `steady_point`. Функция находит равномерную индуктивную скорость из T_BET = 2 rho A v (V + v) бисекцией и возвращает CT = T/(rho n^2 D^4), CP = P/(rho n^3 D^5) и eta = J CT/CP. Режим авторотации (тяга <= 0 при v = 0) помечается как вне применимости импульсной теории.
+  - `cargo test --test propeller --locked`: 4 PASS. Оракулы — точная энергия без сопротивления P = T(V + v) и КПД Фруда, совпадение со стационарной целью `AxialInflow` в пределах 1e-9 m/s, обезразмеривание, рост мощности из-за профильного сопротивления, зеркальность вращения и отклонение входов.
+  - Ожидают загрузки: архив, генератор, зарегистрированная измеренная фикстура, адаптер `validate-models.mjs` и задокументированные допуски.
 
 ### TASK-034 — Ideal sensors
 

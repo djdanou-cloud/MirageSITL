@@ -509,7 +509,7 @@ were synchronized and checked. Changes remain local; no commit or push performed
 - **Status:** BLOCKED_EXTERNAL — Codex; retry verified on 2026-10-16.
 - **Title & Description:** Run numerical/reference validation and report model fidelity separately.
 - **Dependencies:** TASK-014, TASK-024, TASK-028, TASK-029, TASK-031.
-- **Touched Files:** `scripts/validate-models.mjs`, `tests/model-validation.test.ts`, `docs/validation/model-report.schema.json`, `tests/fixtures/validation/reference-manifest.json`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `scripts/check-engine-patch-parity.mjs`, `tests/engine-patch-parity.test.ts`, `packages/physics/src/nasa-drop.ts`, `packages/physics/src/ground-contact.ts`, `tests/fixtures/contact/nasa-drop.json`, `tests/fixtures/registry.json`, `README.md`, `docs/ru/README.md`.
+- **Touched Files:** `scripts/validate-models.mjs`, `tests/model-validation.test.ts`, `docs/validation/model-report.schema.json`, `tests/fixtures/validation/reference-manifest.json`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `scripts/check-engine-patch-parity.mjs`, `tests/engine-patch-parity.test.ts`, `packages/physics/src/nasa-drop.ts`, `packages/physics/src/ground-contact.ts`, `tests/fixtures/contact/nasa-drop.json`, `tests/fixtures/registry.json`, `README.md`, `docs/ru/README.md`, `native/bet/src/propeller.rs`, `native/bet/src/lib.rs`, `native/bet/tests/propeller.rs`, `tests/documentation-policy.test.ts`.
 - **Interfaces / Contracts:** ValidityEnvelope; numerical parity is separate from experimental validity.
 - **DoD & Acceptance Criteria:** Smooth 10 s cases stay within 0.1 m/0.5 degrees of 4800 Hz references; meet scalar/SIMD force/moment tolerances in section 4; retain reference provenance; missing measurements block fidelity rather than producing a synthetic PASS.
 
@@ -531,6 +531,13 @@ were synchronized and checked. Changes remain local; no commit or push performed
     - contactFidelity=failed;
     - status=failed.
   - The unpatched Rapier JS G1 failure and the missing BET binding remain separate blockers.
+
+- **Measured Propeller Preparation (2026-10-17):** Owner Claude; baseline 58d3179.
+  - Goal: compare the BET (TASK-020) plus axial momentum inflow (TASK-021) with a supplied wind-tunnel dataset of over 140 small UAV propellers (CT, CP and efficiency versus advance ratio and RPM).
+  - Failure criterion: any compared point outside tolerances declared before evaluation, or a propeller without measured geometry, is reported failed or unvalidated, never PASS.
+  - `native/bet/src/propeller.rs` adds `steady_point`. It solves the uniform induced velocity with T_BET = 2 rho A v (V + v) by bisection and returns CT = T/(rho n^2 D^4), CP = P/(rho n^3 D^5) and eta = J CT/CP. It flags the windmill regime (thrust <= 0 at v = 0) as outside momentum validity.
+  - `cargo test --test propeller --locked`: 4 PASS. The oracles are exact zero-drag energy P = T(V + v) and Froude efficiency, agreement with the `AxialInflow` steady target within 1e-9 m/s, nondimensionalization, the profile-drag power penalty, spin mirroring and input rejection.
+  - Pending the upload: archive, generator, registered measured fixture, `validate-models.mjs` adapter and documented tolerances.
 
 ### TASK-034 — Ideal sensors
 

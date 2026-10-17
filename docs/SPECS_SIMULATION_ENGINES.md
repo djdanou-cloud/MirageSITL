@@ -1746,3 +1746,34 @@ The rubric requires every integer hold tick exactly once, finite altitude, actua
 ### Accessible interaction
 
 A visible keyboard focus outline, skip-to-controls landmark, explicit replay-time values, live permission status and focus restoration after Serial permission are implemented. A denial does not schedule a prompt retry. Focus is not stolen from a different control or restored to a detached trigger. An axe scan and browser keyboard/390px checks exercise the demo; a physical device and screen reader remain separate checks. The existing low-contrast footer was corrected without suppressing scan rules.
+
+## Steady propeller coefficients for measured comparison (TASK-033)
+
+`mirage_bet::propeller::steady_point(rotor, radius_m, spin_sign, condition)`
+evaluates the prescribed-RPM BET of section 3 with a uniform induced velocity
+v >= 0. That velocity is the root of `T_BET(v) = 2*rho*A*v*(V + v)`, the same
+axial actuator-disk closure that `AxialInflow` relaxes towards. Bisection runs
+80 iterations on [0, Omega*R]. It is an offline validation harness and never
+runs in the step loop.
+
+The propeller advances along +z, so the air velocity in hub axes is
+(0, 0, -V). The wind-tunnel convention applies:
+
+* n = RPM/60 rev/s, D = 2R and V = J*n*D;
+* CT = T/(rho*n^2*D^4) and CP = P/(rho*n^3*D^5), where P = -s*Q_air*Omega;
+* eta = J*CT/CP.
+
+When thrust at v = 0 is not positive (windmill or brake), the closure is not
+applied: v = 0 and `outside_momentum_validity` is set.
+
+Swirl, tip loss and nonuniform inflow are not modeled. Measured differences
+therefore include those effects together with polar uncertainty, and must be
+reported, not tuned away.
+
+`cargo test --test propeller` checks four exact oracles independently of any
+dataset:
+
+* with CD = 0, P = T*(V + v) and eta = V/(V + v);
+* the steady target of `AxialInflow` equals v;
+* coefficients recover T and P;
+* drag raises CP and lowers eta, and mirrored spin is unchanged.
