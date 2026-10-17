@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "kind": "ardupilot-wasm-feasibility",
+  "status": "BLOCKED_EXTERNAL",
+  "reasons": [
+    "No browser HAL/scheduler/storage/network port or native parity exists; POSIX SITL is not a browser artifact",
+    "Emscripten compiler unavailable"
+  ],
+  "metrics": {},
+  "checks": {
+    "wasmRuntime": true,
+    "sharedMemory": true,
+    "emscripten": false,
+    "browserHal": false,
+    "scheduler": false,
+    "storage": false,
+    "network": false,
+    "license": false,
+    "nativeParity": false
+  },
+  "sources": [],
+  "commit": "8ab6afde107a91df1b5f60ade8f333cb8a61b190"
+}

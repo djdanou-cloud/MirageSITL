@@ -1,0 +1,52 @@
+{
+  "warmupSteps": 4000000,
+  "component": "all",
+  "seed": 123,
+  "hz": 400,
+  "method": "warmed V8 new-space N/2N windows, GC observation, positive allocating control",
+  "samples": [
+    {
+      "steps": 1000000,
+      "bytes": 4024,
+      "gcEvents": 0
+    },
+    {
+      "steps": 2000000,
+      "bytes": 2928,
+      "gcEvents": 0
+    },
+    {
+      "steps": 1000000,
+      "bytes": 2928,
+      "gcEvents": 0
+    },
+    {
+      "steps": 2000000,
+      "bytes": 2928,
+      "gcEvents": 0
+    },
+    {
+      "steps": 1000000,
+      "bytes": 2928,
+      "gcEvents": 0
+    },
+    {
+      "steps": 2000000,
+      "bytes": 2928,
+      "gcEvents": 0
+    }
+  ],
+  "positiveControl": {
+    "steps": 2000000,
+    "bytes": 530672,
+    "gcEvents": 31
+  },
+  "bytesPerStep": 0,
+  "zeroAllocation": true,
+  "controlDetected": true,
+  "lastDelayedSample": [
+    55000000000,
+    0.008944152568380291
+  ],
+  "dropped": 0
+}

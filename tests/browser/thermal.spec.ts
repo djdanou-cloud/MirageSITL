@@ -1,10 +1,10 @@
+import { viteFileUrl } from "../support/vite-url";
 import { expect, test } from "@playwright/test";
-import { fileURLToPath } from "node:url";
 
 // TASK-071: thermal GLSL vs the float64 CPU mirror on WebGL2 (SwiftShader).
 // Backend-specific tolerance: 2 of 255 levels (float32 shader math and table).
 type Harness = typeof import("../support/thermal-harness");
-const harnessUrl = "/@fs" + fileURLToPath(new URL("../support/thermal-harness.ts", import.meta.url));
+const harnessUrl = viteFileUrl(new URL("../support/thermal-harness.ts", import.meta.url));
 
 for (const palette of ["white-hot", "black-hot", "ironbow"] as const) {
   test(`thermal shader matches the CPU radiometry: ${palette}`, async ({ page }) => {

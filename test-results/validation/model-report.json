@@ -1,0 +1,356 @@
+{
+  "schemaVersion": 3,
+  "status": "failed",
+  "numericalStatus": "pass",
+  "fidelityStatus": "blocked",
+  "contactFidelityStatus": "failed",
+  "measuredValidation": [
+    {
+      "id": "nasa-tm-x-3561-drop",
+      "datasetId": "NASA-TM-X-3561-DropTest",
+      "referenceUrl": "https://ntrs.nasa.gov/citations/19780003109",
+      "license": "Public-Domain-US-Gov",
+      "acquiredAt": "1977-11-01T00:00:00Z",
+      "sourceSha256": "62adb81b0a56b5e50a921db0e26d154501b0e4e83a58cfc2f22fed571bc69207",
+      "consistencyStatus": "pass",
+      "status": "failed",
+      "runs": [
+        {
+          "caseId": "level-4fps",
+          "hz": 400,
+          "sinkRateMps": 1.2192,
+          "peakAccelerationDownMps2": -488.51720187813044,
+          "windowedPeakAccelerationDownMps2": -121.92,
+          "measuredMinAccelerationDownMps2": -15.69064,
+          "maxPenetrationM": 0.00010903896713254646,
+          "measuredMaxStrutStrokeM": 0.05588,
+          "arrestImpulseNs": 1813.4603608703774,
+          "sinkMomentumNs": 1813.9050014131203,
+          "impulseBalanceErrorNs": -0.000022417994387069484,
+          "reboundSpeedMps": 1.7462298274040222e-10,
+          "checks": {
+            "impulse": "pass",
+            "nonpenetration": "pass",
+            "energy": "pass",
+            "decelerationEnvelope": "failed",
+            "strokeEnvelope": "failed"
+          }
+        },
+        {
+          "caseId": "level-4fps",
+          "hz": 800,
+          "sinkRateMps": 1.2192,
+          "peakAccelerationDownMps2": -976.197225600481,
+          "windowedPeakAccelerationDownMps2": -121.92,
+          "measuredMinAccelerationDownMps2": -15.69064,
+          "maxPenetrationM": 0.00008606137657163337,
+          "measuredMaxStrutStrokeM": 0.05588,
+          "arrestImpulseNs": 1813.6827252588853,
+          "sinkMomentumNs": 1813.9050014131203,
+          "impulseBalanceErrorNs": -0.000022417994387069484,
+          "reboundSpeedMps": 0,
+          "checks": {
+            "impulse": "pass",
+            "nonpenetration": "pass",
+            "energy": "pass",
+            "decelerationEnvelope": "failed",
+            "strokeEnvelope": "failed"
+          }
+        },
+        {
+          "caseId": "level-4fps",
+          "hz": 1200,
+          "sinkRateMps": 1.2192,
+          "peakAccelerationDownMps2": -1463.8771473895758,
+          "windowedPeakAccelerationDownMps2": -121.92,
+          "measuredMinAccelerationDownMps2": -15.69064,
+          "maxPenetrationM": 0.00007050456428525642,
+          "measuredMaxStrutStrokeM": 0.05588,
+          "arrestImpulseNs": 1813.7567203429194,
+          "sinkMomentumNs": 1813.9050014131203,
+          "impulseBalanceErrorNs": -0.000022417994387069484,
+          "reboundSpeedMps": 0,
+          "checks": {
+            "impulse": "pass",
+            "nonpenetration": "pass",
+            "energy": "pass",
+            "decelerationEnvelope": "failed",
+            "strokeEnvelope": "failed"
+          }
+        },
+        {
+          "caseId": "level-5fps",
+          "hz": 400,
+          "sinkRateMps": 1.524,
+          "peakAccelerationDownMps2": -610.4371659457684,
+          "windowedPeakAccelerationDownMps2": -152.4,
+          "measuredMinAccelerationDownMps2": -15.69064,
+          "maxPenetrationM": 0.00013651670837400154,
+          "measuredMaxStrutStrokeM": 0.09398,
+          "arrestImpulseNs": 2266.936477574766,
+          "sinkMomentumNs": 2267.3812517664,
+          "impulseBalanceErrorNs": -0.00007236188093884266,
+          "reboundSpeedMps": 0,
+          "checks": {
+            "impulse": "pass",
+            "nonpenetration": "pass",
+            "energy": "pass",
+            "decelerationEnvelope": "failed",
+            "strokeEnvelope": "failed"
+          }
+        },
+        {
+          "caseId": "level-5fps",
+          "hz": 800,
+          "sinkRateMps": 1.524,
+          "peakAccelerationDownMps2": -1220.0371433980763,
+          "windowedPeakAccelerationDownMps2": -152.4,
+          "measuredMinAccelerationDownMps2": -15.69064,
+          "maxPenetrationM": 0.00010760845565793709,
+          "measuredMaxStrutStrokeM": 0.09398,
+          "arrestImpulseNs": 2267.1588227379925,
+          "sinkMomentumNs": 2267.3812517664,
+          "impulseBalanceErrorNs": -0.00007236188093884266,
+          "reboundSpeedMps": 0,
+          "checks": {
+            "impulse": "pass",
+            "nonpenetration": "pass",
+            "energy": "pass",
+            "decelerationEnvelope": "failed",
+            "strokeEnvelope": "failed"
+          }
+        },
+        {
+          "caseId": "level-5fps",
+          "hz": 1200,
+          "sinkRateMps": 1.524,
+          "peakAccelerationDownMps2": -1829.637252911925,
+          "windowedPeakAccelerationDownMps2": -152.4,
+          "measuredMinAccelerationDownMps2": -15.69064,
+          "maxPenetrationM": 0.00008811773681638435,
+          "measuredMaxStrutStrokeM": 0.09398,
+          "arrestImpulseNs": 2267.2331015248287,
+          "sinkMomentumNs": 2267.3812517664,
+          "impulseBalanceErrorNs": -0.00007236188093884266,
+          "reboundSpeedMps": 0,
+          "checks": {
+            "impulse": "pass",
+            "nonpenetration": "pass",
+            "energy": "pass",
+            "decelerationEnvelope": "failed",
+            "strokeEnvelope": "failed"
+          }
+        },
+        {
+          "caseId": "level-6fps",
+          "hz": 400,
+          "sinkRateMps": 1.8288,
+          "peakAccelerationDownMps2": -732.3571775108576,
+          "windowedPeakAccelerationDownMps2": -182.88,
+          "measuredMinAccelerationDownMps2": -15.69064,
+          "maxPenetrationM": 0.00016396464729306892,
+          "measuredMaxStrutStrokeM": 0.11176,
+          "arrestImpulseNs": 2720.412770943903,
+          "sinkMomentumNs": 2720.8575021196802,
+          "impulseBalanceErrorNs": 0.00005505178387466003,
+          "reboundSpeedMps": 2.3283064365386963e-10,
+          "checks": {
+            "impulse": "pass",
+            "nonpenetration": "pass",
+            "energy": "pass",
+            "decelerationEnvelope": "failed",
+            "strokeEnvelope": "failed"
+          }
+        },
+        {
+          "caseId": "level-6fps",
+          "hz": 800,
+          "sinkRateMps": 1.8288,
+          "peakAccelerationDownMps2": -1463.877229206264,
+          "windowedPeakAccelerationDownMps2": -182.88,
+          "measuredMinAccelerationDownMps2": -15.69064,
+          "maxPenetrationM": 0.00012924494171140388,
+          "measuredMaxStrutStrokeM": 0.11176,
+          "arrestImpulseNs": 2720.6352326712235,
+          "sinkMomentumNs": 2720.8575021196802,
+          "impulseBalanceErrorNs": 0.00005505178387466003,
+          "reboundSpeedMps": 0,
+          "checks": {
+            "impulse": "pass",
+            "nonpenetration": "pass",
+            "energy": "pass",
+            "decelerationEnvelope": "failed",
+            "strokeEnvelope": "failed"
+          }
+        },
+        {
+          "caseId": "level-6fps",
+          "hz": 1200,
+          "sinkRateMps": 1.8288,
+          "peakAccelerationDownMps2": -2195.3969727270305,
+          "windowedPeakAccelerationDownMps2": -182.88,
+          "measuredMinAccelerationDownMps2": -15.69064,
+          "maxPenetrationM": 0.00010582031631467537,
+          "measuredMaxStrutStrokeM": 0.11176,
+          "arrestImpulseNs": 2720.709004499512,
+          "sinkMomentumNs": 2720.8575021196802,
+          "impulseBalanceErrorNs": 0.00005505178387466003,
+          "reboundSpeedMps": 0,
+          "checks": {
+            "impulse": "pass",
+            "nonpenetration": "pass",
+            "energy": "pass",
+            "decelerationEnvelope": "failed",
+            "strokeEnvelope": "failed"
+          }
+        }
+      ]
+    }
+  ],
+  "referenceSha256": "1acea06fd450048dba3ad0418355bff90a59bbb86d5f5620c26ff4817ff1c5ac",
+  "artifactSha256": {
+    "scalar": "dc4351f7c567c830d09a9f6f701ce10107c99969910d517b84b951d5ecf9df7e",
+    "simd128": "ce6cea248937848b323616c3563e69f79e5e0cbc1161b6bd551aef69657fe21e"
+  },
+  "cases": [
+    {
+      "id": "ballistic",
+      "hz": 400,
+      "variant": "scalar",
+      "positionErrorM": 1.0180656317970715e-10,
+      "attitudeErrorRad": 0,
+      "analyticErrorM": 7.275957614183426e-12,
+      "status": "pass"
+    },
+    {
+      "id": "ballistic",
+      "hz": 400,
+      "variant": "simd128",
+      "positionErrorM": 1.0180656317970715e-10,
+      "attitudeErrorRad": 0,
+      "analyticErrorM": 7.275957614183426e-12,
+      "status": "pass"
+    },
+    {
+      "id": "ballistic",
+      "hz": 800,
+      "variant": "scalar",
+      "positionErrorM": 9.748646334628575e-11,
+      "attitudeErrorRad": 0,
+      "analyticErrorM": 1.1596057447604835e-11,
+      "status": "pass"
+    },
+    {
+      "id": "ballistic",
+      "hz": 800,
+      "variant": "simd128",
+      "positionErrorM": 9.748646334628575e-11,
+      "attitudeErrorRad": 0,
+      "analyticErrorM": 1.1596057447604835e-11,
+      "status": "pass"
+    },
+    {
+      "id": "ballistic",
+      "hz": 1200,
+      "variant": "scalar",
+      "positionErrorM": 1.623448042664677e-10,
+      "attitudeErrorRad": 0,
+      "analyticErrorM": 5.326228347257711e-11,
+      "status": "pass"
+    },
+    {
+      "id": "ballistic",
+      "hz": 1200,
+      "variant": "simd128",
+      "positionErrorM": 1.623448042664677e-10,
+      "attitudeErrorRad": 0,
+      "analyticErrorM": 5.326228347257711e-11,
+      "status": "pass"
+    },
+    {
+      "id": "turning-force",
+      "hz": 400,
+      "variant": "scalar",
+      "positionErrorM": 6.3808201467452155e-12,
+      "attitudeErrorRad": 0,
+      "analyticErrorM": null,
+      "status": "pass"
+    },
+    {
+      "id": "turning-force",
+      "hz": 400,
+      "variant": "simd128",
+      "positionErrorM": 6.3808201467452155e-12,
+      "attitudeErrorRad": 0,
+      "analyticErrorM": null,
+      "status": "pass"
+    },
+    {
+      "id": "turning-force",
+      "hz": 800,
+      "variant": "scalar",
+      "positionErrorM": 6.002434613947416e-12,
+      "attitudeErrorRad": 0,
+      "analyticErrorM": null,
+      "status": "pass"
+    },
+    {
+      "id": "turning-force",
+      "hz": 800,
+      "variant": "simd128",
+      "positionErrorM": 6.002434613947416e-12,
+      "attitudeErrorRad": 0,
+      "analyticErrorM": null,
+      "status": "pass"
+    },
+    {
+      "id": "turning-force",
+      "hz": 1200,
+      "variant": "scalar",
+      "positionErrorM": 5.535846445740939e-12,
+      "attitudeErrorRad": 0,
+      "analyticErrorM": null,
+      "status": "pass"
+    },
+    {
+      "id": "turning-force",
+      "hz": 1200,
+      "variant": "simd128",
+      "positionErrorM": 5.535846445740939e-12,
+      "attitudeErrorRad": 0,
+      "analyticErrorM": null,
+      "status": "pass"
+    }
+  ],
+  "blockers": [
+    "Measured airframe/rotor validation is not certified: no airframe/rotor dataset is archived.",
+    "NASA TM X-3561 level drops: the rigid Rapier sphere arrests the sink in a few steps, far beyond the measured -1.6 g upper-mass envelope, and has no strut/tire stroke; a landing-gear model is required.",
+    "Full BET polar/rotor-to-body backend is not connected.",
+    "Production Rapier contact G1 is not certified; opt-in patched native evidence does not certify its JS/WASM binding.",
+    "JSBSim WASM parity and contact coupling are not certified; patched native allocation/trim are separate evidence."
+  ],
+  "diagnostics": {
+    "contact": {
+      "path": "test-results/bench/contact.json",
+      "status": "missing",
+      "reportSha256": null
+    },
+    "jsbsimNative": {
+      "path": "test-results/validation/jsbsim-native.json",
+      "status": "missing",
+      "reportSha256": null
+    },
+    "contactNativePatched": {
+      "path": "test-results/bench/contact-native-patched.json",
+      "status": "missing",
+      "reportSha256": null
+    },
+    "jsbsimNativePatched": {
+      "path": "test-results/validation/jsbsim-native-patched.json",
+      "status": "missing",
+      "reportSha256": null
+    }
+  },
+  "positionToleranceM": 0.1,
+  "attitudeToleranceRad": 0.008726646259971648
+}

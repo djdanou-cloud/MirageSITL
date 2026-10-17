@@ -1,0 +1,3 @@
+Waiting for operator display placement: test-results/laptop/144hz-native/operator-ready.json
+Visible webgl2 demo: 10s warmup then 30s frame capture.
+{"status":"PASS","backend":"webgl2","renderer":"ANGLE (NVIDIA, NVIDIA GeForce RTX 4050 Laptop GPU (0x000028A1) Direct3D11 vs_5_0 ps_5_0, D3D11)","fps":59.999940000059986,"p99Ms":19.00499999999738}

@@ -1,0 +1,299 @@
+{
+  "config": {
+    "configFile": "C:\\Users\\djdan\\OneDrive\\Desktop\\MirageSITL\\playwright.config.ts",
+    "rootDir": "C:/Users/djdan/OneDrive/Desktop/MirageSITL/tests/browser",
+    "forbidOnly": true,
+    "fullyParallel": false,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "reporter": [
+      [
+        "json"
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "quiet": false,
+    "projects": [
+      {
+        "outputDir": "C:/Users/djdan/OneDrive/Desktop/MirageSITL/test-results/browser/artifacts",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "",
+        "name": "",
+        "testDir": "C:/Users/djdan/OneDrive/Desktop/MirageSITL/tests/browser",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 30000
+      }
+    ],
+    "shard": null,
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.56.1",
+    "workers": 1,
+    "webServer": {
+      "command": "\"C:\\Users\\djdan\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\node\\bin\\node.exe\" \"C:\\Users\\djdan\\OneDrive\\Desktop\\MirageSITL\\node_modules\\vite\\bin\\vite.js\" apps/web --host 127.0.0.1 --port 5173 --strictPort",
+      "url": "http://127.0.0.1:5173",
+      "reuseExistingServer": false
+    }
+  },
+  "suites": [
+    {
+      "title": "render-backends.spec.ts",
+      "file": "render-backends.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "WebGL2 renders, and releases every resource and its context",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 895,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-17T08:01:20.944Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "6d3ec5686f5bb80fc27e-b39eaa15178a28901956",
+          "file": "render-backends.spec.ts",
+          "line": 20,
+          "column": 1
+        },
+        {
+          "title": "a failing WebGL2 shader falls back to a basic material",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 760,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-17T08:01:22.063Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "6d3ec5686f5bb80fc27e-ffd25a6e2eb290bfdb88",
+          "file": "render-backends.spec.ts",
+          "line": 43,
+          "column": 1
+        },
+        {
+          "title": "WebGPU renders and releases resources",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [
+                {
+                  "type": "resource-counts",
+                  "description": "{\"backend\":\"webgpu\",\"fallbackReason\":null,\"centerPixel\":[64,116,104,255],\"memoryBefore\":{\"geometries\":2,\"textures\":3},\"memoryBaseline\":{\"geometries\":1,\"textures\":2},\"memoryAfterSceneDispose\":{\"geometries\":1,\"textures\":2},\"memoryAfterRendererDispose\":{\"geometries\":0,\"textures\":0},\"released\":{\"geometries\":1,\"materials\":1,\"textures\":1},\"contextLost\":null,\"shaderFallbacks\":[],\"disposed\":true}"
+                }
+              ],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 719,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-17T08:01:22.833Z",
+                  "annotations": [
+                    {
+                      "type": "resource-counts",
+                      "description": "{\"backend\":\"webgpu\",\"fallbackReason\":null,\"centerPixel\":[64,116,104,255],\"memoryBefore\":{\"geometries\":2,\"textures\":3},\"memoryBaseline\":{\"geometries\":1,\"textures\":2},\"memoryAfterSceneDispose\":{\"geometries\":1,\"textures\":2},\"memoryAfterRendererDispose\":{\"geometries\":0,\"textures\":0},\"released\":{\"geometries\":1,\"materials\":1,\"textures\":1},\"contextLost\":null,\"shaderFallbacks\":[],\"disposed\":true}"
+                    }
+                  ],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "6d3ec5686f5bb80fc27e-53d765b8a54fd417cd58",
+          "file": "render-backends.spec.ts",
+          "line": 59,
+          "column": 1
+        },
+        {
+          "title": "a WebGPU failure falls back to WebGL2 with the reason",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 658,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-17T08:01:23.562Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "6d3ec5686f5bb80fc27e-98fd54be17ca69a486f2",
+          "file": "render-backends.spec.ts",
+          "line": 87,
+          "column": 1
+        },
+        {
+          "title": "switching backends releases each renderer before the next",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [
+                {
+                  "type": "backends",
+                  "description": "webgl2 -> webgpu -> webgl2"
+                }
+              ],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 780,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-17T08:01:24.230Z",
+                  "annotations": [
+                    {
+                      "type": "backends",
+                      "description": "webgl2 -> webgpu -> webgl2"
+                    }
+                  ],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "6d3ec5686f5bb80fc27e-5bec10b764d9055beca4",
+          "file": "render-backends.spec.ts",
+          "line": 98,
+          "column": 1
+        },
+        {
+          "title": "the app selects the adapter from ?renderer= and reports the backend",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2168,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-17T08:01:25.019Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "6d3ec5686f5bb80fc27e-a159810f891eb0c24e58",
+          "file": "render-backends.spec.ts",
+          "line": 119,
+          "column": 1
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-10-17T08:01:19.111Z",
+    "duration": 8650.588,
+    "expected": 6,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  }
+}

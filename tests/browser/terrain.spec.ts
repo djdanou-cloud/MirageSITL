@@ -1,10 +1,11 @@
+import { viteFileUrl } from "../support/vite-url";
 import { expect, test } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 // TASK-061: the real loader places the local CC0 fixture, releases it on dispose,
 // and surfaces a network/CORS failure instead of silently showing nothing.
-const harnessUrl = "/@fs" + fileURLToPath(new URL("../support/terrain-harness.ts", import.meta.url));
+const harnessUrl = viteFileUrl(new URL("../support/terrain-harness.ts", import.meta.url));
 const tilesetPath = fileURLToPath(new URL("../fixtures/tiles/tileset.json", import.meta.url));
 const origin = (JSON.parse(readFileSync(tilesetPath, "utf8")) as { asset: { extras: { origin: { latDeg: number; lonDeg: number; heightM: number } } } }).asset.extras.origin;
 
@@ -13,7 +14,7 @@ test("loads and places the local 3D Tiles fixture, then disposes it", async ({ p
   const result = await page.evaluate(async ({ harnessUrl, url, origin }) => {
     const h = await import(harnessUrl) as typeof import("../support/terrain-harness");
     return h.runTilesScenario(url, origin);
-  }, { harnessUrl, url: "/@fs" + tilesetPath, origin });
+  }, { harnessUrl, url: viteFileUrl(new URL("../fixtures/tiles/tileset.json", import.meta.url)), origin });
   expect(result.failures).toEqual([]);
   expect(result.models).toBe(1);
   // The 200 m tile with a 20 m centre marker sits on the render origin's tangent plane.

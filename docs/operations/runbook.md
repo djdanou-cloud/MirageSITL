@@ -22,3 +22,62 @@ A release input contains schemaVersion=1, artifacts [{path,sha256,license}], sys
 For rollback restore an explicitly selected known release in a separate deployment workflow; never reset or clean the working checkout. Stop only processes/groups owned by the current run, close Serial through its UI, and terminate the Workers created by that session. Keep diagnostic captures when a gate fails. No deployment credentials, automatic rollback or target-hardware acceptance are assumed.
 
 Accessibility checklist: keyboard Tab reaches the skip link and core actions; Enter operates the focused action; visible focus persists; typing in text/select controls suppresses instructor shortcuts; 390px layout has no horizontal overflow; denied Serial permission produces one announcement and focus returns without repeated prompts; importing AAR keeps the live flight. Automated axe and browser checks cover these software paths. A physical transmitter/FC, assistive-screen-reader session and live autopilot UI remain separate unrun checks.
+
+## Windows laptop verification
+
+The repository attributes preserve LF source/fixture bytes on Windows and keep
+the hashed NASA archives byte-exact. Do not regenerate fixture or mirror hashes
+to compensate for checkout conversion. Playwright launches Vite with its own
+Node executable; npm need not be on PATH after locked dependencies are installed.
+Browser fixture imports use portable, escaped Vite filesystem URLs.
+
+```powershell
+node node_modules/typescript/bin/tsc --noEmit
+node node_modules/eslint/bin/eslint.js . --max-warnings=0 --no-inline-config
+node scripts/check-docs.mjs
+node node_modules/vitest/vitest.mjs run --maxWorkers=2
+$env:CHROMIUM_PATH = 'C:/Program Files/Google/Chrome/Application/chrome.exe'
+node node_modules/@playwright/test/cli.js test
+$env:MIRAGE_BROWSER_GPU = 'hardware'
+$env:MIRAGE_BROWSER_HEADED = '1'
+node node_modules/@playwright/test/cli.js test tests/browser/render-backends.spec.ts
+node scripts/probe-laptop.mjs --backend webgl2 --warmup 60 --seconds 600
+node scripts/probe-laptop.mjs --backend webgpu --warmup 60 --seconds 120
+```
+
+Set CHROMIUM_PATH to an actual installed Chrome/Chromium/Edge executable or omit
+it to use Playwright's separately installed browser. The default functional
+profile uses software rendering. MIRAGE_BROWSER_GPU=hardware removes software
+GPU launch overrides; it does not guarantee that the discrete GPU was selected.
+Inspect the recorded adapter and driver. Keep the visible probe window in front,
+and run timing probes without competing test/build workloads. Record power mode,
+resolution, DPR, temperatures, visibility changes and any unrelated load.
+
+The laptop probe owns a loopback production-preview server and a separate browser
+profile; it closes only those resources. It never connects to Serial. Its raw
+frame intervals, GPU diagnostics, heap snapshots and screenshot describe the
+current demo. Browser heap is not GPU residency or terrain CPU cache. A completed
+demo probe does not satisfy TASK-073's full production terrain/FPV/thermal matrix,
+its memory limits or the separate M4 requirement. A visible 10-minute demo run
+remains useful stability evidence even when production acceptance is blocked.
+
+The Serial controller waits at most 5 seconds for decoder readiness before
+opening the selected device. The existing 500 ms per-chunk backpressure deadline
+is unchanged. A permission grant or this startup handshake cannot enable HITL.
+
+For operator-assisted placement on a particular display, pass `--ready-file`
+with a fresh path inside the output directory. The probe opens the page but
+waits before warmup and acquisition. Create that file only after the operator
+confirms the window is on the intended display. An existing readiness file is
+rejected; a 15-minute timeout stops the probe rather than starting it without
+confirmation. The selected display's refresh rate must support the requested
+visible FPS profile; retain lower-refresh captures as separate evidence.
+
+Use `--native-viewport` for visual layout checks: the window starts maximized
+without forced viewport or DPR emulation. `--position X,Y` chooses its initial
+desktop location; use coordinates from the actual monitor arrangement. Record
+the resulting viewport and DPR instead of labeling this as the fixed 1080p
+profile. On a scaled laptop display, an emulated 1920 CSS-pixel viewport can
+clip inside a smaller native browser client area. A native-size confirmation
+and the recorded horizontal layout bounds distinguish test-window sizing from
+an application overflow defect. Never count a clipped capture as a visual pass.

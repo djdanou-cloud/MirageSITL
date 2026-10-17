@@ -1,5 +1,5 @@
+import { viteFileUrl } from "../support/vite-url";
 import { expect, test } from '@playwright/test';
-import { fileURLToPath } from 'node:url';
 
 test('isolates shared memory, renders, takes off and pauses/resets', async ({ page }) => {
   const errors: string[] = [];
@@ -92,7 +92,7 @@ test('real worker keeps fixed dt, detects stale control and acknowledges lifecyc
       const disposed = await command('worker.dispose');
       return { live, stale, fixedTime, ticks, held, reset: resetState, paused: paused?.status, disposed: disposed?.status, events };
     } finally { worker.terminate(); }
-  }, '/@fs' + fileURLToPath(new URL('../../packages/protocol/src/index.ts', import.meta.url)));
+  }, viteFileUrl(new URL('../../packages/protocol/src/index.ts', import.meta.url)));
   expect(result.live).toBe(true); expect(result.stale).toBe(true);
   expect(result.fixedTime).toBe(true); expect(result.ticks).toBeGreaterThan(20);
   expect(result.held).toBe(true); expect(result.reset).toBe(true);

@@ -1,11 +1,11 @@
+import { viteFileUrl } from "../support/vite-url";
 import { expect, test, type Page } from "@playwright/test";
-import { fileURLToPath } from "node:url";
 
 // TASK-068: analog interference on WebGL2 (SwiftShader). Tolerances are for this
 // backend: equal inputs must give identical bytes here; no cross-GPU equality is claimed.
 type Harness = typeof import("../support/analog-harness");
 type Config = Parameters<Harness["renderAnalog"]>[0];
-const harnessUrl = "/@fs" + fileURLToPath(new URL("../support/analog-harness.ts", import.meta.url));
+const harnessUrl = viteFileUrl(new URL("../support/analog-harness.ts", import.meta.url));
 const OFF: Config = { noiseBase: 0, noiseThrottleGain: 0, scanlineIntensity: 0, jellyAmplitudeUv: 0, tearProbability: 0 };
 
 async function frame(page: Page, config: Config, timeS: number, throttle: number, kind: "gray" | "vertical-line" = "gray") {

@@ -1,0 +1,14 @@
+[
+  {
+    "Name": "NVIDIA GeForce RTX 4050 Laptop GPU",
+    "CurrentHorizontalResolution": 1920,
+    "CurrentVerticalResolution": 1080,
+    "CurrentRefreshRate": 60
+  },
+  {
+    "Name": "Intel(R) Graphics",
+    "CurrentHorizontalResolution": 1920,
+    "CurrentVerticalResolution": 1200,
+    "CurrentRefreshRate": 144
+  }
+]

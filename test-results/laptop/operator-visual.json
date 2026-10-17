@@ -1,0 +1,9 @@
+{
+  "source": "operator-observation",
+  "recordedAt": "2026-10-17T07:25:20.643Z",
+  "sceneVisible": true,
+  "controlsReadable": true,
+  "blankAreasObserved": false,
+  "flickeringObserved": false,
+  "scope": "Visible Chrome demo during laptop WebGL2 capture; operator statement, not instrumented pixel validation"
+}

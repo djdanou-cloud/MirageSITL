@@ -1,0 +1,58 @@
+{
+  "schemaVersion": 1,
+  "hz": 800,
+  "node": "v24.19.0",
+  "platform": "win32",
+  "arch": "x64",
+  "warmupSteps": 4000000,
+  "windows": [
+    {
+      "steps": 1000000,
+      "heapDelta": 20152,
+      "gcEvents": 0,
+      "elapsedMs": 74.61790000000002
+    },
+    {
+      "steps": 2000000,
+      "heapDelta": 1808,
+      "gcEvents": 0,
+      "elapsedMs": 128.9801
+    },
+    {
+      "steps": 1000000,
+      "heapDelta": 792,
+      "gcEvents": 0,
+      "elapsedMs": 69.45429999999988
+    },
+    {
+      "steps": 2000000,
+      "heapDelta": 760,
+      "gcEvents": 0,
+      "elapsedMs": 129.5562
+    },
+    {
+      "steps": 1000000,
+      "heapDelta": 8304,
+      "gcEvents": 0,
+      "elapsedMs": 63.62609999999995
+    },
+    {
+      "steps": 2000000,
+      "heapDelta": 1184,
+      "gcEvents": 0,
+      "elapsedMs": 120.57079999999996
+    }
+  ],
+  "incrementalBytesPerStep": 0,
+  "errors": 0,
+  "controlGc": 36,
+  "sourceHashes": {
+    "packages/terrain/src/collision-chunks.ts": "07ca23e9eca49adb5964fae75edff4c800ff9dba1e4fc34cf8a635ad14375d08",
+    "packages/terrain/src/collision-build.ts": "6bc6e8bebac5e7cc4ec564e883cad3c9ceca6bb3795a17f57ca9ff8d9518e549",
+    "packages/scenarios/src/runner.ts": "8976a82c64f463e564a5cb00879b077b92d6f257c4b7f153bbe593fc25469b99",
+    "packages/scenarios/src/schema.ts": "861379718ec9ea39ca2f26968e709b5f11bca3a098aa5dec631f558af8bf4ae7",
+    "scripts/bench-terrain-scenarios.mjs": "8b8ac7f93059ae3026a3c585c5e1d8c142492798d4cb1d13c034ad533c4f4d05"
+  },
+  "passed": true,
+  "limits": "Node terrain-query/scenario graph only; allocation slope includes profiler/heap query overhead. No browser timing or full production Worker wiring claim."
+}

@@ -1,11 +1,11 @@
+import { viteFileUrl } from "../support/vite-url";
 import { expect, test } from "@playwright/test";
-import { fileURLToPath } from "node:url";
 
 // TASK-067: the fisheye GLSL agrees with its CPU mirror on WebGL2 (SwiftShader).
 // Tolerance is backend-specific: one source texel, because float32 shader math
 // can land on the other side of a texel boundary than the float64 mirror.
 type Harness = typeof import("../support/fpv-harness");
-const harnessUrl = "/@fs" + fileURLToPath(new URL("../support/fpv-harness.ts", import.meta.url));
+const harnessUrl = viteFileUrl(new URL("../support/fpv-harness.ts", import.meta.url));
 const deg = Math.PI / 180;
 
 const cases = [

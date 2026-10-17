@@ -46,9 +46,18 @@ export function SerialConnect() {
         { type: "module", name: "mirage-serial-io" },
       );
       decoder.current = worker;
+      let markReady: (() => void) | null = null;
+      let failReady: ((error: Error) => void) | null = null;
+      let startupTimer: ReturnType<typeof setTimeout>;
+      const ready = new Promise<void>((resolve, reject) => {
+        startupTimer = setTimeout(() => reject(new Error("Serial decoder startup timeout")), 5000);
+        markReady = () => { clearTimeout(startupTimer); resolve(); };
+        failReady = error => { clearTimeout(startupTimer); reject(error); };
+      });
       let frames = 0;
       let consumed: (() => void) | null = null;
       worker.onerror = () => {
+        failReady?.(new Error("Serial decoder failed"));
         clearDisplay();
         worker.terminate();
         void active.current?.close().catch(() => undefined);
@@ -56,6 +65,11 @@ export function SerialConnect() {
       };
       worker.onmessage = (event: MessageEvent<unknown>) => {
         const data = event.data;
+        if (typeof data === "object" && data !== null && "type" in data && data.type === "serial.ready") {
+          markReady?.();
+          markReady = null;
+          return;
+        }
         if (
           typeof data === "object" &&
           data !== null &&
@@ -102,6 +116,10 @@ export function SerialConnect() {
           );
       }, 150);
       active.current = transport;
+      // Cold module loading is separate from the per-chunk backpressure deadline.
+      await ready;
+      failReady = null;
+      if (!mounted.current) return;
       await transport.open(port);
       if (!mounted.current) {
         await transport.close();

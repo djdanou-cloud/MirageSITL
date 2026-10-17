@@ -1,0 +1,45 @@
+{
+  "recordedAt": "2026-10-17T07:40:11.820Z",
+  "files": [
+    {
+      "path": "apps/web/dist/assets/index-BROqjh28.js",
+      "bytes": 1149313,
+      "sha256": "c4e902b6a13fcc92e05c883acd25d242583b61e3946fc2803fc029a86624e227"
+    },
+    {
+      "path": "apps/web/dist/assets/index-CCo0cdan.css",
+      "bytes": 16874,
+      "sha256": "7a203ef28ca300e62938e00808be003386032fc2e2965a6b08003eb533e54af5"
+    },
+    {
+      "path": "apps/web/dist/assets/physics.worker-B4pEGg5O.js",
+      "bytes": 36224,
+      "sha256": "01b95e478bdf6a2523fc4d0aa772946523aef588ebefc6599ea9689290dfce44"
+    },
+    {
+      "path": "apps/web/dist/assets/recorder.worker-CmsqOWRS.js",
+      "bytes": 19036,
+      "sha256": "ea73c38126d3cc6a5ad5a0bf0399f82029af5c7f9067527a4c7fbb71b69bd430"
+    },
+    {
+      "path": "apps/web/dist/assets/serial-io.worker-sjevZKJL.js",
+      "bytes": 2649,
+      "sha256": "d12272eff78e09ff74284650a90766611c10f6cff322f4eda20ad6ce39fbe8fa"
+    },
+    {
+      "path": "apps/web/dist/assets/tiles-scene-C5k1w0Dp.js",
+      "bytes": 116489,
+      "sha256": "f0af4bac7e33d6015b987d99ee4922c3aa49188b5219e22e9298b6991640f40d"
+    },
+    {
+      "path": "apps/web/dist/assets/webgpu-DcpjXv6z.js",
+      "bytes": 481969,
+      "sha256": "af56c8f07da9fb03f7a354b4ace9705e0d25793325f5b77e3412a71722cdeefc"
+    },
+    {
+      "path": "apps/web/dist/index.html",
+      "bytes": 458,
+      "sha256": "4804fb1e3a4944470a394d9eb74bf85c76cd04ae5c8667df6226431a337286da"
+    }
+  ]
+}

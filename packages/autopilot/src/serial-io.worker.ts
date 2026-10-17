@@ -25,3 +25,4 @@ worker.onmessage = (event: MessageEvent<unknown>) => {
     worker.postMessage({ type: "serial.consumed" });
   } else if (event.data === "reset") parser.reset();
 };
+worker.postMessage({ type: "serial.ready" });

@@ -9,7 +9,7 @@ export function buildReleaseManifest(v, root = process.cwd()) {
   const base = realpathSync(root), names = new Set(); let totalBytes = 0;
   function owned(path) {
     if (typeof path !== "string" || isAbsolute(path) || path.includes("\\") || path.split("/").includes("..") || !/^(apps\/web\/dist\/|packages\/wasm-bet\/dist\/|test-results\/validation\/)/.test(path)) throw new Error("Release path outside generated output roots");
-    const full = realpathSync(resolve(base, path)), rel = relative(base, full);
+    const full = realpathSync(resolve(base, path)), rel = relative(base, full).replaceAll("\\", "/");
     if (!/^(apps\/web\/dist\/|packages\/wasm-bet\/dist\/|test-results\/validation\/)/.test(rel) || rel.startsWith("..") || isAbsolute(rel) || !statSync(full).isFile() || statSync(full).size > 64 * 1024 ** 2) throw new Error("Release file escapes root or byte budget");
     return full;
   }

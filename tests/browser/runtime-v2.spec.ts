@@ -1,7 +1,7 @@
+import { viteFileUrl } from "../support/vite-url";
 import { expect, test } from '@playwright/test';
-import { fileURLToPath } from 'node:url';
 
-const protocolUrl = '/@fs' + fileURLToPath(new URL('../../packages/protocol/src/index.ts', import.meta.url));
+const protocolUrl = viteFileUrl(new URL('../../packages/protocol/src/index.ts', import.meta.url));
 
 test('real v2 Worker disarms on a stale epoch or device change, paces 800 Hz, and breaks history on reset', async ({ page }) => {
   test.setTimeout(60_000);

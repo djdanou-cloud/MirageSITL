@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ESLint } from 'eslint';
 import ts from 'typescript';
@@ -34,7 +34,8 @@ describe('strict tooling gates', () => {
     const filename = join(root, 'tests/fixtures/tooling/type-error.ts');
     const host = ts.createCompilerHost(parsed.options);
     const original = host.getSourceFile.bind(host);
-    host.getSourceFile = (path, languageVersion, onError, shouldCreateNewSourceFile) => path === filename
+    const canonical = (path: string) => host.getCanonicalFileName(resolve(path));
+    host.getSourceFile = (path, languageVersion, onError, shouldCreateNewSourceFile) => canonical(path) === canonical(filename)
       ? ts.createSourceFile(path, 'export const speedMps: number = "invalid";', languageVersion)
       : original(path, languageVersion, onError, shouldCreateNewSourceFile);
     const program = ts.createProgram([filename], parsed.options, host);

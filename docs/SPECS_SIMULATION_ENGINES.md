@@ -1210,6 +1210,12 @@ closes the transport instead of growing a message queue. I/O copies/promises and
 permission work are outside the high-rate loop. The UI labels connection as a
 transport diagnostic and explicitly keeps HITL unavailable.
 
+Before opening the selected port, the controller waits up to 5 seconds for
+`serial.ready` from the initialized I/O Worker. Worker startup/module loading
+is outside the 500 ms per-chunk deadline. Startup failure leaves the port
+unopened; chunk timeout still closes an established transport. This handshake
+does not grant HITL admission or change the permission gesture requirement.
+
 ### Training EW and mechanical faults
 
 HazardVolumes validates <=64 unique stable IDs and sorts them once. Finite sphere/

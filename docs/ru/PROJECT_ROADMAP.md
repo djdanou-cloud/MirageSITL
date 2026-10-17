@@ -1,6 +1,6 @@
 # PROJECT_ROADMAP.md
 
-<!-- source-sha256: 7af7d2484e3c23494d576a0cca17f224558b145715a4e6ab7ea32fef40f9fe47 -->
+<!-- source-sha256: 1b342a3c67a760fc3d418fcbe08400a345ad4ef865e7803157548b1ac0f9ce5e -->
 
 Английский источник: [Source of truth](../PROJECT_ROADMAP.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -973,7 +973,7 @@ Cargo bin активирован в PATH. Производительность M
 
 ### TASK-073 — GPU acceptance harness
 
-- **Status:** BLOCKED_EXTERNAL — Codex; baseline c3a4735; 2026-10-17. Реализованы GPU-анализатор, матрица профилей и схема; нет M4/RTX4050 и production-трасс полной сцены.
+- **Status:** BLOCKED_EXTERNAL — Codex; 2026-10-17. Получены видимые демозахваты RTX4050; production-трассы полной сцены, учёт резидентности и M4 по-прежнему отсутствуют. См. локальный отчёт проверки ноутбука.
 - **Title & Description:** Снять production profiles на M4/RTX 4050 с FPV/thermal/terrain.
 - **Dependencies:** TASK-014, TASK-062, TASK-065, TASK-066, TASK-068, TASK-072.
 - **Touched Files:** `scripts/bench-render.mjs`, `docs/benchmarks/render-matrix.json`, `docs/validation/gpu-report.schema.json`, `tests/gpu-report.test.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `README.md`, `docs/ru/README.md`, `docs/documentation-index.json`, `scripts/validation/evidence.mjs`, `tests/evidence-tools.test.ts`, `tests/support/node-evidence.ts`.
@@ -1176,6 +1176,25 @@ Terrain/scenario G1 при 400, 800 и 1200 проходит со свежими
 
 ## Локальный аппаратный checkpoint и итерация ноутбука (2026-10-17)
 
+Итерация ноутбука также удаляет повторный одинаковый ключ зависимости в `apps/web/package.json`; разрешённый граф зависимостей и lockfile не меняются.
+
 Владелец Codex; базовая версия 1eb44f1. Аппаратные свидетельства приведены в [локальной диагностике](local-hardware-2026-10-17.md). Доступ к USB-телеметрии проверен; TASK-043/050/051 остаются заблокированы. Оператор подтверждает отключённую батарею и предполагает отсутствие GPS. Исходная программная проверка: 420 PASS, 27 FAIL, 17 ожидают; целевые проверки связи: 38 PASS.
 
 TASK-002/003/014/017/073/080/082: IN_PROGRESS для этого локального приращения проверки. Цель: сохранить точные байты checkout, исправить инструменты Windows, выполнить функциональные браузерные проверки и реальные пробы RTX4050/времени ноутбука. Критерий неудачи: каждый сбой или отсутствие production-свидетельств остаётся явным; программный рендеринг не сертифицирует устройство. Затрагиваемые пути: `docs/validation/local-hardware-2026-10-17.md`, `docs/ru/local-hardware-2026-10-17.md`, `docs/documentation-index.json`, `.gitattributes`, `.gitignore`, `test-results/hardware/`, `scripts/bench-physics.mjs`, `scripts/release-manifest.mjs`, `tests/tooling.test.ts`, `playwright.config.ts`. Дополнительные пути регистрируются до реализации. Пользователь разрешает локальные коммиты и push обеих контрольных точек.
+
+Дополнительные пути до реализации: `tests/support/vite-url.ts`, `tests/browser/*.spec.ts`, `tests/ci.test.ts`, `scripts/probe-laptop.mjs`, `docs/operations/runbook.md`, `docs/ru/runbook.md`, `test-results/laptop/`. URL модулей браузерных фикстур должны работать в Windows; аппаратные пробы отделяются от синтетических и программных профилей.
+
+Дополнительные пути до реализации: `tests/support/vite-url.ts`, `tests/browser/*.spec.ts`, `tests/ci.test.ts`, `scripts/probe-laptop.mjs`, `docs/operations/runbook.md`, `docs/ru/runbook.md`, `test-results/laptop/`, `tests/release-manifest.test.ts`, `tests/thermal-nuc.test.ts`, `apps/web/src/SerialConnect.tsx`, `packages/autopilot/src/serial-io.worker.ts`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`. URL модулей браузерных фикстур должны работать в Windows; аппаратные пробы отделяются от синтетических и программных профилей.
+
+Дополнительная область до реализации: `tests/support/render-harness.ts` и браузерные проверки рендерера. Диагностика базовых ресурсов native WebGPU отдельно от ресурсов сцены и проверка полного освобождения рендерера.
+
+Локальный этап проверки COMPLETE: unit 465/465, native Rust 46/46, полный
+браузерный набор с программным профилем 49 PASS / 0 FAIL / 1 пропуск WebGPU;
+повторный набор рендерера с аппаратным GPU 6/6 без пропусков. Typecheck, lint,
+сборка и двуязычные проверки проходят. Естественный размер окна на панели 144 Hz
+устранил обрезание измерительного стенда, что подтвердил оператор; измеренная
+частота остаётся около 60 FPS. Доставка Node 800/1200 Hz и цели GPU p99/120 FPS
+не выполнены; точность контакта NASA всё ещё не проходит. Production, HITL и
+остальные блокировки приёмки сохраняют свой статус. Точные команды и свидетельства
+даны в [проверке ноутбука](laptop-validation-2026-10-17.md) и `test-results/laptop/`.
+Публикация обоих этапов в GitHub разрешена пользователем.

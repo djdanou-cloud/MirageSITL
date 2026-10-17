@@ -16,7 +16,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import { dirname, resolve } from 'node:path';
 import { PerformanceObserver, performance } from 'node:perf_hooks';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import v8 from 'node:v8';
 
 // --single-threaded: V8 compiles and collects on the main thread only. With concurrent
@@ -43,8 +43,8 @@ if (!Number.isInteger(steps) || steps < 1000 || ![400, 800, 1200].includes(hz) |
   console.error('Invalid arguments'); process.exit(2);
 }
 
-const physics = await import(resolve(root, 'packages/physics/src/index.ts'));
-const protocol = await import(resolve(root, 'packages/protocol/src/index.ts'));
+const physics = await import(pathToFileURL(resolve(root, 'packages/physics/src/index.ts')).href);
+const protocol = await import(pathToFileURL(resolve(root, 'packages/protocol/src/index.ts')).href);
 
 // ---- allocation instrument -------------------------------------------------
 const gcEvents = [];

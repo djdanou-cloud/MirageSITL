@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { parse } from 'yaml';
 import { describe, expect, it } from 'vitest';
 import browserConfig from '../playwright.config';
+import { viteFileUrl } from './support/vite-url';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 function record(value: unknown): Record<string, unknown> {
@@ -13,6 +14,12 @@ function record(value: unknown): Record<string, unknown> {
 }
 
 describe('pull request CI contract', () => {
+  it('serves absolute browser fixture URLs with portable separators and escaped names', () => {
+    const url = viteFileUrl(new URL('./fixtures/folder%20name/hash%23name.ts', import.meta.url));
+    expect(url).toMatch(/^\/@fs\//);
+    expect(url).not.toContain('\\');
+    expect(url).toContain('/folder%20name/hash%23name.ts');
+  });
   it('runs independent unit, browser, and build jobs with frozen dependencies', () => {
     const document: unknown = parse(readFileSync(join(root, '.github/workflows/ci.yml'), 'utf8'));
     const workflow = record(document);

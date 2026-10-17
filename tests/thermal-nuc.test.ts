@@ -105,7 +105,8 @@ test("removes a drifting fixed-pattern bias on a fixed frame grid with a bounded
   for (const v of before.slice(1)) expect(v).toBeGreaterThan(10);
   for (const v of after) { expect(v).toBeLessThan(0.71 * 1.3); expect(v).toBeGreaterThan(0.71 * 0.7); }
   expect(thermalStatusLabel(nuc.status)).toBe("LIVE");
-});
+// This exercises 610 simulated seconds of 4096-pixel noise, not a wall-time performance gate.
+}, 20_000);
 
 test("shutter cycles never pause physics or touch recorded truth", () => {
   const forcing: ThermalForcing = { sunEast: 0, sunNorth: -0.5, sunUp: 0.866, directNormalWm2: 700, diffuseHorizontalWm2: 70, dtS: 1 / FPS };

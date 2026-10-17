@@ -1,0 +1,52 @@
+START unit-final
+END unit-final: exit=0; 87878 ms
+START browser-final
+END browser-final: exit=0; 98603 ms
+START typecheck-final
+END typecheck-final: exit=0; 4195 ms
+START lint-final
+END lint-final: exit=0; 10912 ms
+START docs-final
+END docs-final: exit=0; 1248 ms
+START build-final
+END build-final: exit=0; 8587 ms
+START physics-400-idle
+END physics-400-idle: exit=0; 21045 ms
+START links-ew-400
+END links-ew-400: exit=0; 27165 ms
+START aar-400
+END aar-400: exit=0; 40028 ms
+START terrain-400
+END terrain-400: exit=0; 2391 ms
+START physics-800-idle
+END physics-800-idle: exit=0; 20699 ms
+START links-ew-800
+END links-ew-800: exit=0; 26991 ms
+START aar-800
+END aar-800: exit=0; 41277 ms
+START terrain-800
+END terrain-800: exit=0; 2414 ms
+START physics-1200-idle
+END physics-1200-idle: exit=0; 20701 ms
+START links-ew-1200
+END links-ew-1200: exit=0; 27761 ms
+START aar-1200
+END aar-1200: exit=0; 41336 ms
+START terrain-1200
+END terrain-1200: exit=0; 2372 ms
+START sensors-all
+END sensors-all: exit=0; 2818 ms
+START wind
+END wind: exit=0; 1276 ms
+START model-validation
+END model-validation: exit=2; 1149 ms
+{ name: 'unit-final', passed: 465, failed: 0, pending: 0 }
+{
+  name: 'browser-final',
+  startTime: '2026-10-17T07:40:06.956Z',
+  duration: 97864.18299999999,
+  expected: 49,
+  skipped: 1,
+  unexpected: 0,
+  flaky: 0
+}

@@ -1,0 +1,463 @@
+{
+  "config": {
+    "configFile": "C:\\Users\\djdan\\OneDrive\\Desktop\\MirageSITL\\playwright.config.ts",
+    "rootDir": "C:/Users/djdan/OneDrive/Desktop/MirageSITL/tests/browser",
+    "forbidOnly": true,
+    "fullyParallel": false,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "reporter": [
+      [
+        "json"
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "quiet": false,
+    "projects": [
+      {
+        "outputDir": "C:/Users/djdan/OneDrive/Desktop/MirageSITL/test-results/browser/artifacts",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "",
+        "name": "",
+        "testDir": "C:/Users/djdan/OneDrive/Desktop/MirageSITL/tests/browser",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 30000
+      }
+    ],
+    "shard": null,
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.56.1",
+    "workers": 1,
+    "webServer": {
+      "command": "\"C:\\Users\\djdan\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\node\\bin\\node.exe\" \"C:\\Users\\djdan\\OneDrive\\Desktop\\MirageSITL\\node_modules\\vite\\bin\\vite.js\" apps/web --host 127.0.0.1 --port 5173 --strictPort",
+      "url": "http://127.0.0.1:5173",
+      "reuseExistingServer": false
+    }
+  },
+  "suites": [
+    {
+      "title": "capabilities.spec.ts",
+      "file": "capabilities.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "missing crossOriginIsolated never starts a Worker or reports READY",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 7669,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-17T07:14:11.753Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "6bcb5a9b4e27408c434c-0131954f2e84ebb20015",
+          "file": "capabilities.spec.ts",
+          "line": 3,
+          "column": 3
+        },
+        {
+          "title": "missing isSecureContext never starts a Worker or reports READY",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 5256,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-17T07:14:19.860Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "6bcb5a9b4e27408c434c-4cad8a2db786dd95e415",
+          "file": "capabilities.spec.ts",
+          "line": 3,
+          "column": 3
+        },
+        {
+          "title": "missing SharedArrayBuffer never starts a Worker or reports READY",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1654,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-17T07:14:25.172Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "6bcb5a9b4e27408c434c-c07e5c486182d21985b6",
+          "file": "capabilities.spec.ts",
+          "line": 3,
+          "column": 3
+        },
+        {
+          "title": "missing Worker never starts a Worker or reports READY",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1652,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-17T07:14:26.871Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "6bcb5a9b4e27408c434c-8e2d24215b889cc8ae1b",
+          "file": "capabilities.spec.ts",
+          "line": 3,
+          "column": 3
+        },
+        {
+          "title": "missing Gamepad and Serial APIs disable the appropriate features",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 18904,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-17T07:14:28.565Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "6bcb5a9b4e27408c434c-cbe2409d458915e3224c",
+          "file": "capabilities.spec.ts",
+          "line": 26,
+          "column": 1
+        },
+        {
+          "title": "a rejected WebGPU probe retains the working WebGL2 demo",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 25456,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-17T07:14:47.617Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "6bcb5a9b4e27408c434c-fa38703b3d0d29395518",
+          "file": "capabilities.spec.ts",
+          "line": 45,
+          "column": 1
+        },
+        {
+          "title": "missing WebGL2 blocks the graphical demo with an explanation",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2599,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-17T07:15:13.259Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "6bcb5a9b4e27408c434c-9c98be61c283ac788f87",
+          "file": "capabilities.spec.ts",
+          "line": 67,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "title": "serial-permission.spec.ts",
+      "file": "serial-permission.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "requests serial permission only on click, reports denial once, and never enables HITL",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 35820,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-17T07:15:16.090Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "7684aad4c49d8a8bfab8-ab21869c388a1c9bd54c",
+          "file": "serial-permission.spec.ts",
+          "line": 3,
+          "column": 1
+        },
+        {
+          "title": "missing Web Serial disables connection without prompting",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 4691,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-17T07:15:52.355Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "7684aad4c49d8a8bfab8-1593da6d5bae42f85b2c",
+          "file": "serial-permission.spec.ts",
+          "line": 33,
+          "column": 1
+        },
+        {
+          "title": "decodes fragmented serial bytes in the I/O Worker and releases streams on disconnect",
+          "ok": false,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "failed",
+                  "duration": 25578,
+                  "error": {
+                    "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoContainText\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator: getByTestId('serial-status')\nExpected substring: \u001b[32m\"received 1 MAVLink frames\"\u001b[39m\nReceived string:    \u001b[31m\"Serial link failed\"\u001b[39m\nTimeout: 5000ms\n\nCall log:\n\u001b[2m  - Expect \"toContainText\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for getByTestId('serial-status')\u001b[22m\n\u001b[2m    5 × locator resolved to <small data-testid=\"serial-status\">…</small>\u001b[22m\n\u001b[2m      - unexpected value \"Serial link failed\"\u001b[22m\n",
+                    "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoContainText\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator: getByTestId('serial-status')\nExpected substring: \u001b[32m\"received 1 MAVLink frames\"\u001b[39m\nReceived string:    \u001b[31m\"Serial link failed\"\u001b[39m\nTimeout: 5000ms\n\nCall log:\n\u001b[2m  - Expect \"toContainText\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for getByTestId('serial-status')\u001b[22m\n\u001b[2m    5 × locator resolved to <small data-testid=\"serial-status\">…</small>\u001b[22m\n\u001b[2m      - unexpected value \"Serial link failed\"\u001b[22m\n\n    at C:\\Users\\djdan\\OneDrive\\Desktop\\MirageSITL\\tests\\browser\\serial-permission.spec.ts:88:51",
+                    "location": {
+                      "file": "C:\\Users\\djdan\\OneDrive\\Desktop\\MirageSITL\\tests\\browser\\serial-permission.spec.ts",
+                      "column": 51,
+                      "line": 88
+                    },
+                    "snippet": "  86 |     .getByRole(\"button\", { name: \"Connect serial\", exact: true })\n  87 |     .click();\n> 88 |   await expect(page.getByTestId(\"serial-status\")).toContainText(\n     |                                                   ^\n  89 |     \"received 1 MAVLink frames\",\n  90 |   );\n  91 |   await expect(page.getByTestId(\"serial-status\")).toContainText("
+                  },
+                  "errors": [
+                    {
+                      "location": {
+                        "file": "C:\\Users\\djdan\\OneDrive\\Desktop\\MirageSITL\\tests\\browser\\serial-permission.spec.ts",
+                        "column": 51,
+                        "line": 88
+                      },
+                      "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoContainText\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator: getByTestId('serial-status')\nExpected substring: \u001b[32m\"received 1 MAVLink frames\"\u001b[39m\nReceived string:    \u001b[31m\"Serial link failed\"\u001b[39m\nTimeout: 5000ms\n\nCall log:\n\u001b[2m  - Expect \"toContainText\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for getByTestId('serial-status')\u001b[22m\n\u001b[2m    5 × locator resolved to <small data-testid=\"serial-status\">…</small>\u001b[22m\n\u001b[2m      - unexpected value \"Serial link failed\"\u001b[22m\n\n\n  86 |     .getByRole(\"button\", { name: \"Connect serial\", exact: true })\n  87 |     .click();\n> 88 |   await expect(page.getByTestId(\"serial-status\")).toContainText(\n     |                                                   ^\n  89 |     \"received 1 MAVLink frames\",\n  90 |   );\n  91 |   await expect(page.getByTestId(\"serial-status\")).toContainText(\n    at C:\\Users\\djdan\\OneDrive\\Desktop\\MirageSITL\\tests\\browser\\serial-permission.spec.ts:88:51"
+                    }
+                  ],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-17T07:15:57.246Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "C:\\Users\\djdan\\OneDrive\\Desktop\\MirageSITL\\test-results\\browser\\artifacts\\serial-permission-decodes--e00a9-eases-streams-on-disconnect\\test-failed-1.png"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "C:\\Users\\djdan\\OneDrive\\Desktop\\MirageSITL\\test-results\\browser\\artifacts\\serial-permission-decodes--e00a9-eases-streams-on-disconnect\\error-context.md"
+                    },
+                    {
+                      "name": "trace",
+                      "contentType": "application/zip",
+                      "path": "C:\\Users\\djdan\\OneDrive\\Desktop\\MirageSITL\\test-results\\browser\\artifacts\\serial-permission-decodes--e00a9-eases-streams-on-disconnect\\trace.zip"
+                    }
+                  ],
+                  "errorLocation": {
+                    "file": "C:\\Users\\djdan\\OneDrive\\Desktop\\MirageSITL\\tests\\browser\\serial-permission.spec.ts",
+                    "column": 51,
+                    "line": 88
+                  }
+                }
+              ],
+              "status": "unexpected"
+            }
+          ],
+          "id": "7684aad4c49d8a8bfab8-5bc789b99e7ef12ad2e8",
+          "file": "serial-permission.spec.ts",
+          "line": 47,
+          "column": 1
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-10-17T07:14:10.022Z",
+    "duration": 136450.899,
+    "expected": 9,
+    "skipped": 0,
+    "unexpected": 1,
+    "flaky": 0
+  }
+}

@@ -1,3 +1,4 @@
+import { viteFileUrl } from "../support/vite-url";
 import { expect, test } from '@playwright/test';
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
@@ -7,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 
 // TASK-017: the real loader selects, verifies, and instantiates the built artifacts in Chromium.
 const root = fileURLToPath(new URL('../..', import.meta.url));
-const loaderUrl = '/@fs' + fileURLToPath(new URL('../../packages/wasm-bet/src/loader.ts', import.meta.url));
+const loaderUrl = viteFileUrl(new URL('../../packages/wasm-bet/src/loader.ts', import.meta.url));
 
 test('WASM loader detects SIMD128, falls back to scalar, verifies hashes, and reserves memory in Chromium', async ({ page }) => {
   test.setTimeout(300_000);

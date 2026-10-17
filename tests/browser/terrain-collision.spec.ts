@@ -1,10 +1,10 @@
-import { fileURLToPath } from "node:url";
+import { viteFileUrl } from "../support/vite-url";
 import { expect, test } from "@playwright/test";
 test("dedicated collision Worker transfers meshes and rejects malformed messages", async ({ page }) => {
   await page.goto("/");
-  const path = fileURLToPath(new URL("../../packages/terrain/src/collision-builder.worker.ts", import.meta.url));
+  const path = viteFileUrl(new URL("../../packages/terrain/src/collision-builder.worker.ts", import.meta.url));
   const result = await page.evaluate(async (path) => {
-    const worker = new Worker(`/@fs/${path}`, { type: "module" });
+    const worker = new Worker(path, { type: "module" });
     function reply(): Promise<unknown> {
       return new Promise((resolve, reject) => {
         const timeout = setTimeout(() => reject(new Error("Collision Worker deadline")), 5000);

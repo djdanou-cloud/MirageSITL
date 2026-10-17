@@ -26,8 +26,10 @@ try{
  const result=buildReleaseManifest(input,root);assert.equal(result.status,'BLOCKED_EXTERNAL');assert.equal(result.artifacts[0].bytes,bytes.length);
  assert.equal(result.artifacts[0].sha256,sha256(bytes));assert.equal(result.dirty,true);
  writeFileSync(join(root,'apps/web/dist/index.html'),'changed');assert.throws(()=>buildReleaseManifest(input,root),/hash/);
- symlinkSync(join(root,'package-lock.json'),join(root,'apps/web/dist/alias.json'));
+ mkdirSync(join(root,'outside'));writeFileSync(join(root,'outside/alias.json'),'{}');
+ // Directory junctions exercise realpath containment on Windows without file-symlink privileges.
+ symlinkSync(join(root,'outside'),join(root,'apps/web/dist/alias'),'junction');
  // An alias within the checkout is still outside allowed artifact roots once resolved.
- assert.throws(()=>buildReleaseManifest({...input,artifacts:[{...input.artifacts[0],path:'apps/web/dist/alias.json'}]},root));
+ assert.throws(()=>buildReleaseManifest({...input,artifacts:[{...input.artifacts[0],path:'apps/web/dist/alias/alias.json'}]},root));
 }finally{rmSync(root,{recursive:true,force:true})}
 `));

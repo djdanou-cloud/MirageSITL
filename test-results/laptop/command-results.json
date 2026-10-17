@@ -1,0 +1,285 @@
+{
+  "sourceRevision": "ca78ef6594c44cb35721a0f8686e74f1f79a5e2a",
+  "results": [
+    {
+      "name": "unit-final",
+      "command": [
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "--maxWorkers=2",
+        "--reporter=json",
+        "--outputFile=test-results/laptop/unit-final.json"
+      ],
+      "startedAt": "2026-10-17T07:38:38.383Z",
+      "elapsedS": 87.8397173,
+      "exit": 0,
+      "signal": null
+    },
+    {
+      "name": "browser-final",
+      "command": [
+        "node",
+        "node_modules/@playwright/test/cli.js",
+        "test",
+        "--reporter=json"
+      ],
+      "startedAt": "2026-10-17T07:40:06.264Z",
+      "elapsedS": 98.57394340000002,
+      "exit": 0,
+      "signal": null
+    },
+    {
+      "name": "typecheck-final",
+      "command": [
+        "node",
+        "node_modules/typescript/bin/tsc",
+        "--noEmit"
+      ],
+      "startedAt": "2026-10-17T07:41:44.867Z",
+      "elapsedS": 4.164102100000019,
+      "exit": 0,
+      "signal": null
+    },
+    {
+      "name": "lint-final",
+      "command": [
+        "node",
+        "node_modules/eslint/bin/eslint.js",
+        ".",
+        "--max-warnings=0",
+        "--no-inline-config"
+      ],
+      "startedAt": "2026-10-17T07:41:49.062Z",
+      "elapsedS": 10.582234399999987,
+      "exit": 0,
+      "signal": null
+    },
+    {
+      "name": "docs-final",
+      "command": [
+        "node",
+        "scripts/check-docs.mjs"
+      ],
+      "startedAt": "2026-10-17T07:41:59.974Z",
+      "elapsedS": 1.2201625000000058,
+      "exit": 0,
+      "signal": null
+    },
+    {
+      "name": "build-final",
+      "command": [
+        "node",
+        "node_modules/vite/bin/vite.js",
+        "build",
+        "apps/web"
+      ],
+      "startedAt": "2026-10-17T07:42:01.222Z",
+      "elapsedS": 8.450392099999997,
+      "exit": 0,
+      "signal": null
+    },
+    {
+      "name": "physics-400-idle",
+      "command": [
+        "node",
+        "scripts/bench-physics.mjs",
+        "--hz",
+        "400",
+        "--steps",
+        "1000000",
+        "--realtime-seconds",
+        "5",
+        "--out",
+        "test-results/laptop/physics-400-idle.json"
+      ],
+      "startedAt": "2026-10-17T07:42:09.809Z",
+      "elapsedS": 21.018238099999987,
+      "exit": 0,
+      "signal": null
+    },
+    {
+      "name": "links-ew-400",
+      "command": [
+        "node",
+        "scripts/bench-links-ew.mjs",
+        "all",
+        "400"
+      ],
+      "startedAt": "2026-10-17T07:42:30.854Z",
+      "elapsedS": 27.137317699999986,
+      "exit": 0,
+      "signal": null
+    },
+    {
+      "name": "aar-400",
+      "command": [
+        "node",
+        "scripts/bench-aar.mjs",
+        "400"
+      ],
+      "startedAt": "2026-10-17T07:42:58.020Z",
+      "elapsedS": 39.99973199999996,
+      "exit": 0,
+      "signal": null
+    },
+    {
+      "name": "terrain-400",
+      "command": [
+        "node",
+        "scripts/bench-terrain-scenarios.mjs",
+        "400"
+      ],
+      "startedAt": "2026-10-17T07:43:38.048Z",
+      "elapsedS": 2.3647094999999974,
+      "exit": 0,
+      "signal": null
+    },
+    {
+      "name": "physics-800-idle",
+      "command": [
+        "node",
+        "scripts/bench-physics.mjs",
+        "--hz",
+        "800",
+        "--steps",
+        "1000000",
+        "--realtime-seconds",
+        "5",
+        "--out",
+        "test-results/laptop/physics-800-idle.json"
+      ],
+      "startedAt": "2026-10-17T07:43:40.438Z",
+      "elapsedS": 20.665866099999985,
+      "exit": 0,
+      "signal": null
+    },
+    {
+      "name": "links-ew-800",
+      "command": [
+        "node",
+        "scripts/bench-links-ew.mjs",
+        "all",
+        "800"
+      ],
+      "startedAt": "2026-10-17T07:44:01.137Z",
+      "elapsedS": 26.96612830000004,
+      "exit": 0,
+      "signal": null
+    },
+    {
+      "name": "aar-800",
+      "command": [
+        "node",
+        "scripts/bench-aar.mjs",
+        "800"
+      ],
+      "startedAt": "2026-10-17T07:44:28.128Z",
+      "elapsedS": 41.24605219999998,
+      "exit": 0,
+      "signal": null
+    },
+    {
+      "name": "terrain-800",
+      "command": [
+        "node",
+        "scripts/bench-terrain-scenarios.mjs",
+        "800"
+      ],
+      "startedAt": "2026-10-17T07:45:09.405Z",
+      "elapsedS": 2.3874853000000003,
+      "exit": 0,
+      "signal": null
+    },
+    {
+      "name": "physics-1200-idle",
+      "command": [
+        "node",
+        "scripts/bench-physics.mjs",
+        "--hz",
+        "1200",
+        "--steps",
+        "1000000",
+        "--realtime-seconds",
+        "5",
+        "--out",
+        "test-results/laptop/physics-1200-idle.json"
+      ],
+      "startedAt": "2026-10-17T07:45:11.819Z",
+      "elapsedS": 20.676678000000013,
+      "exit": 0,
+      "signal": null
+    },
+    {
+      "name": "links-ew-1200",
+      "command": [
+        "node",
+        "scripts/bench-links-ew.mjs",
+        "all",
+        "1200"
+      ],
+      "startedAt": "2026-10-17T07:45:32.520Z",
+      "elapsedS": 27.73255699999997,
+      "exit": 0,
+      "signal": null
+    },
+    {
+      "name": "aar-1200",
+      "command": [
+        "node",
+        "scripts/bench-aar.mjs",
+        "1200"
+      ],
+      "startedAt": "2026-10-17T07:46:00.281Z",
+      "elapsedS": 41.31306710000004,
+      "exit": 0,
+      "signal": null
+    },
+    {
+      "name": "terrain-1200",
+      "command": [
+        "node",
+        "scripts/bench-terrain-scenarios.mjs",
+        "1200"
+      ],
+      "startedAt": "2026-10-17T07:46:41.617Z",
+      "elapsedS": 2.335198400000052,
+      "exit": 0,
+      "signal": null
+    },
+    {
+      "name": "sensors-all",
+      "command": [
+        "node",
+        "scripts/bench-sensors.mjs",
+        "all"
+      ],
+      "startedAt": "2026-10-17T07:46:43.989Z",
+      "elapsedS": 2.793050600000017,
+      "exit": 0,
+      "signal": null
+    },
+    {
+      "name": "wind",
+      "command": [
+        "node",
+        "scripts/bench-wind.mjs"
+      ],
+      "startedAt": "2026-10-17T07:46:46.807Z",
+      "elapsedS": 1.2384047000000138,
+      "exit": 0,
+      "signal": null
+    },
+    {
+      "name": "model-validation",
+      "command": [
+        "node",
+        "scripts/validate-models.mjs"
+      ],
+      "startedAt": "2026-10-17T07:46:48.083Z",
+      "elapsedS": 1.123306099999987,
+      "exit": 2,
+      "signal": null
+    }
+  ]
+}

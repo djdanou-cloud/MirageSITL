@@ -1,0 +1,97 @@
+{
+  "schemaVersion": 1,
+  "benchmark": "physics-session-v2",
+  "generatedAt": "2026-10-17T07:16:38.735Z",
+  "environment": {
+    "node": "v24.19.0",
+    "v8": "13.6.233.17-node.51",
+    "platform": "win32",
+    "arch": "x64",
+    "cpuModel": "Intel(R) Core(TM) 7 240H",
+    "cpuCount": 16,
+    "flags": [
+      "--expose-gc",
+      "--max-semi-space-size=64",
+      "--single-threaded"
+    ],
+    "commit": "ca78ef6594c44cb35721a0f8686e74f1f79a5e2a"
+  },
+  "configuration": {
+    "hz": 400,
+    "backend": "demo",
+    "clockMode": "interactive",
+    "steps": 1000000,
+    "warmup": "each window runs twice; the second run is measured"
+  },
+  "allocation": {
+    "steps": 1000000,
+    "method": "v8 new_space space_used_size over warmed windows of N and 2N steps after a forced GC; per-step rate (min bytes_2N - min bytes_N - empty increment)/N over 3 GC-free repeats per size (verdict), whole-window bound min_k (bytes_k - empty_k)/k reported; gc PerformanceObserver events attributed by time",
+    "bytesPerStepUpperBound": 0,
+    "bytesPerStepIncremental": 0,
+    "fixedWindowBytes": 3000,
+    "gcEventsInWindows": 0,
+    "windowBytes": [
+      3000,
+      3000
+    ],
+    "emptyLoopWindowBytes": [
+      3000,
+      3000
+    ],
+    "thresholdBytesPerStep": 0.01,
+    "warmupWindows": 1,
+    "reachedSteadyState": true,
+    "zeroAllocation": true,
+    "controls": {
+      "emptyLoopGcEvents": 0,
+      "allocatingLoop": {
+        "gcEvents": 135,
+        "detected": true
+      }
+    },
+    "heapTotalBytesAfter": 13205504
+  },
+  "compute": {
+    "unit": "us",
+    "count": 1000000,
+    "mean": 2.7316656999887647,
+    "p50": 2.8000000000000003,
+    "p95": 3.6,
+    "p99": 4.2,
+    "max": 10941.800000000512,
+    "overflow": 2,
+    "binWidth": 0.1,
+    "timerOverheadPerStepUs": 0.7035576000000001,
+    "untimedMeanUs": 2.3191537999999996,
+    "note": "per pump with one integration; distribution includes performance.now overhead"
+  },
+  "realtime": {
+    "durationS": 3,
+    "targetHz": 400,
+    "executedHz": 401.4458575198072,
+    "executedSteps": 1206,
+    "droppedSteps": 0,
+    "overruns": 0,
+    "wakeupLatenessMs": {
+      "count": 199,
+      "mean": 13.385350753768785,
+      "p50": 13.8,
+      "p95": 15.14,
+      "p99": 16.18,
+      "max": 16.69440000000759,
+      "overflow": 0,
+      "binWidth": 0.01
+    },
+    "wakeupComputeUs": {
+      "count": 199,
+      "mean": 120.52060301437852,
+      "p50": 27.200000000000003,
+      "p95": 169.9,
+      "p99": 6776.400000002468,
+      "max": 6776.400000002468,
+      "overflow": 2,
+      "binWidth": 0.1
+    },
+    "note": "setTimeout-driven wakeups in Node; browser Worker timer behavior differs and is not measured here"
+  }
+}

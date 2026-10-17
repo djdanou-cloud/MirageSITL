@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "hz": 1200,
+  "node": "v24.19.0",
+  "platform": "win32",
+  "arch": "x64",
+  "warmupSteps": 4000000,
+  "windows": [
+    {
+      "steps": 1000000,
+      "heapDelta": 20152,
+      "gcEvents": 0,
+      "elapsedMs": 3723.7189
+    },
+    {
+      "steps": 2000000,
+      "heapDelta": 792,
+      "gcEvents": 0,
+      "elapsedMs": 6095.311600000001
+    },
+    {
+      "steps": 1000000,
+      "heapDelta": 792,
+      "gcEvents": 0,
+      "elapsedMs": 2924.2026000000005
+    },
+    {
+      "steps": 2000000,
+      "heapDelta": 760,
+      "gcEvents": 0,
+      "elapsedMs": 6213.1073
+    },
+    {
+      "steps": 1000000,
+      "heapDelta": 8304,
+      "gcEvents": 0,
+      "elapsedMs": 2987.047700000003
+    },
+    {
+      "steps": 2000000,
+      "heapDelta": 1184,
+      "gcEvents": 0,
+      "elapsedMs": 5945.861499999999
+    }
+  ],
+  "incrementalBytesPerStep": 0,
+  "errors": 0,
+  "controlGc": 35,
+  "sourceHashes": {
+    "packages/aar/src/record.ts": "333fcba9db69b89c5febfcbea649cc299976fff0ff3a7f7f63c08a58c3cd1b49",
+    "packages/aar/src/format.ts": "f7048ea4a2045dcd838ef080688150a7b888509e66df2906d73ce88b38784320",
+    "packages/aar/src/handoff.ts": "3a3a4b5c66c94f6bf8de76e1f30d86467fae1e2236032fa07d898b18a7466239",
+    "packages/protocol/src/state-v2.ts": "dd3973ff459bf58e1accee3d669050c14acfd4157ede1d1d16f862244cfb9c64",
+    "packages/protocol/src/sensor-frame.ts": "6713d33452376bd5adcae40db335e45c1ad77d6c304ab83cd40110c0263ec8d3",
+    "packages/protocol/src/actuator-frame.ts": "8817e6d1c568a5afd488f01a7f3430fd4edb5e0d869ece8831c762b1924de8ac",
+    "scripts/bench-aar.mjs": "ee8450d64fd36731c76a32c6089400f78c80261c9a4fa3c58b301dd19d273c45"
+  },
+  "passed": true,
+  "limits": "Node synchronous producer graph only; allocation slope includes profiler/heap query overhead. No browser timing or full production Worker wiring claim."
+}

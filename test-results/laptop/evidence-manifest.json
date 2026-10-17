@@ -1,0 +1,572 @@
+{
+  "generatedAt": "2026-10-17T08:03:23.211Z",
+  "sourceCheckpoint": "ca78ef6594c44cb35721a0f8686e74f1f79a5e2a",
+  "note": "Working-tree changes accompany these results. Earlier failures are intentionally retained.",
+  "files": [
+    {
+      "path": "test-results/bench/aar-1200.json",
+      "bytes": 1865,
+      "sha256": "8b70fc4eafeaf4aa1c9dfebc47525e8e9cb451378f2acd841ca21032ddd09636"
+    },
+    {
+      "path": "test-results/bench/aar-400.json",
+      "bytes": 1871,
+      "sha256": "de49d52d1ba6c50529e86ef3963a2ae34c0c5b246dde94206f9f676e5d78548f"
+    },
+    {
+      "path": "test-results/bench/aar-800.json",
+      "bytes": 1873,
+      "sha256": "d32df76e9b7fadb6d24ea983f1035aa6da096e402467a08d89451066c1e058db"
+    },
+    {
+      "path": "test-results/bench/links-ew-all-1200.json",
+      "bytes": 2138,
+      "sha256": "777184b4b8972629657f4bb4f54502be0a0b07cc2e1f69f52870d8c0699a60f1"
+    },
+    {
+      "path": "test-results/bench/links-ew-all-400.json",
+      "bytes": 2137,
+      "sha256": "e7833bb8ebd5a35df854bcf04792d0e63ee628abb911d8e0bd7f35d5b46ba50c"
+    },
+    {
+      "path": "test-results/bench/links-ew-all-800.json",
+      "bytes": 2137,
+      "sha256": "121e22e4e843b645e6bd49c6b3c1914b7053f4b3ed3f838ad50f5e2c1156c119"
+    },
+    {
+      "path": "test-results/bench/sensors-all.json",
+      "bytes": 911,
+      "sha256": "368d9ece24c33f65c1c3234550d39e439f2d26a4c2dc46ebb19022c2f8a9311e"
+    },
+    {
+      "path": "test-results/bench/terrain-scenarios-1200.json",
+      "bytes": 1703,
+      "sha256": "5555be4c9211c7b72ac806db0cbc32aff495da43b4bb3f4a7a75b4e87aca64b2"
+    },
+    {
+      "path": "test-results/bench/terrain-scenarios-400.json",
+      "bytes": 1692,
+      "sha256": "b324eea655db8c71d3a09d3256bbf494ca6563e1ff7f0bef4df6201c7c828961"
+    },
+    {
+      "path": "test-results/bench/terrain-scenarios-800.json",
+      "bytes": 1682,
+      "sha256": "9707f6c4c29cd8741a9de2c26be86d9099daf0cc6d1ef97aa49c26341de14300"
+    },
+    {
+      "path": "test-results/bench/wind.json",
+      "bytes": 880,
+      "sha256": "d5cff3bdfdaf328724a0db3a4ef14a7968d9213642cbd3b1c1dc70efc7392938"
+    },
+    {
+      "path": "test-results/laptop/144hz-native/demo-webgl2.json",
+      "bytes": 55284,
+      "sha256": "5c587840e1044964c1471313bc1d7d4e87f27c9fd8585cde24bd117440c7bf1d"
+    },
+    {
+      "path": "test-results/laptop/144hz-native/demo-webgl2.png",
+      "bytes": 291610,
+      "sha256": "14bc7be16e06047eb401aaaa1980fb3c7c9f262123acb5f396fc39567a6c68df"
+    },
+    {
+      "path": "test-results/laptop/144hz-native/operator-ready.json",
+      "bytes": 209,
+      "sha256": "e7dd5972360513367de898fda9949b1bad2af22c9fc4fe653732a42bc47bf9af"
+    },
+    {
+      "path": "test-results/laptop/144hz/demo-webgl2.json",
+      "bytes": 191099,
+      "sha256": "34f800fbadd0fda1b27c6e4cc0d8f227d698de9b560af2b3299077e78495c6b9"
+    },
+    {
+      "path": "test-results/laptop/144hz/demo-webgl2.png",
+      "bytes": 334143,
+      "sha256": "00a484cba1e3456e82797ad15791c72fef17090830d640e651f0f9b69adc8619"
+    },
+    {
+      "path": "test-results/laptop/144hz/operator-ready.json",
+      "bytes": 149,
+      "sha256": "cd8478354d75ea1f0930d35bd78f3eb4427521658513b227c9c7b3cbf4d69e60"
+    },
+    {
+      "path": "test-results/laptop/aar-1200.log",
+      "bytes": 1865,
+      "sha256": "8b70fc4eafeaf4aa1c9dfebc47525e8e9cb451378f2acd841ca21032ddd09636"
+    },
+    {
+      "path": "test-results/laptop/aar-1200.stderr.log",
+      "bytes": 178,
+      "sha256": "738accf0f182f5fa89f9d3f934a46cf1a7ae6c152295e13d96664c06e4648b15"
+    },
+    {
+      "path": "test-results/laptop/aar-400.log",
+      "bytes": 1871,
+      "sha256": "de49d52d1ba6c50529e86ef3963a2ae34c0c5b246dde94206f9f676e5d78548f"
+    },
+    {
+      "path": "test-results/laptop/aar-400.stderr.log",
+      "bytes": 178,
+      "sha256": "98407ab4cbecbe6a1be81f4201ed74da0850f264c86d3fa31a9eaefa63f65457"
+    },
+    {
+      "path": "test-results/laptop/aar-800.log",
+      "bytes": 1873,
+      "sha256": "d32df76e9b7fadb6d24ea983f1035aa6da096e402467a08d89451066c1e058db"
+    },
+    {
+      "path": "test-results/laptop/aar-800.stderr.log",
+      "bytes": 178,
+      "sha256": "7cf55332ebf02a1d47eba9f46b40f3ccfd6c7c34527f8dd46589e980f94c74bc"
+    },
+    {
+      "path": "test-results/laptop/browser-final.json",
+      "bytes": 61219,
+      "sha256": "92c94b7e3050b0b0ee78a6c6a69d078ff16a82022e09046ce3f9d68fe8c33679"
+    },
+    {
+      "path": "test-results/laptop/browser-first.json",
+      "bytes": 17658,
+      "sha256": "ac83bf256c7727d8fb12d4abe5461ba43fe44702cbb945ec7cd279d4e8c35a17"
+    },
+    {
+      "path": "test-results/laptop/browser-first.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "test-results/laptop/browser-full.json",
+      "bytes": 62883,
+      "sha256": "4e6de4cb9799fddf9efe193a346adde0e9bfba3aea64be27055bd95018402b90"
+    },
+    {
+      "path": "test-results/laptop/browser-full.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "test-results/laptop/browser-hardware-final.json",
+      "bytes": 9703,
+      "sha256": "42b6ee7607f35ca68b2d6704320a4f6856d3b0ceb5954062358308760b42c302"
+    },
+    {
+      "path": "test-results/laptop/browser-hardware-final.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "test-results/laptop/browser-hardware.json",
+      "bytes": 15082,
+      "sha256": "1b930b826afb4ab8a2dd5494cdfb5230ee80ba69866a1f0e3520d7e03d102a48"
+    },
+    {
+      "path": "test-results/laptop/browser-hardware.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "test-results/laptop/browser-initial-artifacts.zip",
+      "bytes": 406633,
+      "sha256": "43423bd3187154e9ac1bdca41a74346b877b9cea3cf12519aa175c595a4df4a2"
+    },
+    {
+      "path": "test-results/laptop/browser-render-software-final.json",
+      "bytes": 9433,
+      "sha256": "759bf46f1d8c0b257bbdb3f56f04e1ea0ece223d9b50a12d90d00b076b0133d8"
+    },
+    {
+      "path": "test-results/laptop/browser-render-software-final.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "test-results/laptop/build-after-final.json",
+      "bytes": 1481,
+      "sha256": "2b5b4ec7908fe99d5b7e362a4148e57d97e48dc7552b02a02f184e4fdee84f54"
+    },
+    {
+      "path": "test-results/laptop/build-after.log",
+      "bytes": 1367,
+      "sha256": "4a96b501a006d7526c4ed291418e236aba5686856d386554b9703c4543d89aad"
+    },
+    {
+      "path": "test-results/laptop/build-before-final.json",
+      "bytes": 1481,
+      "sha256": "6a5fb4a0269d955179a251a5fa457d60c1de64af737be50f26426a572145031e"
+    },
+    {
+      "path": "test-results/laptop/build-final.log",
+      "bytes": 698,
+      "sha256": "157b11900c8061f23de9c004155714d0ace7d31d1613165b5c72848263c5b28f"
+    },
+    {
+      "path": "test-results/laptop/build-final.stderr.log",
+      "bytes": 332,
+      "sha256": "ccb6bf354a0674eeb1e49df9a880a000b75240079fdb849282bb899d81eeb58c"
+    },
+    {
+      "path": "test-results/laptop/command-results.json",
+      "bytes": 6319,
+      "sha256": "9eaada335395ca69685553a2eca2797b36824a4e0487bdc8310fe077f4e5e257"
+    },
+    {
+      "path": "test-results/laptop/demo-webgl2.json",
+      "bytes": 915933,
+      "sha256": "bd2f0b563d996e1ec08df9dbe8d7271f51581c78126cf58e28f9b49ce7dea9ff"
+    },
+    {
+      "path": "test-results/laptop/demo-webgl2.png",
+      "bytes": 246503,
+      "sha256": "9120a75fbfc4f315eb4ca46cd11ef724ca5de87897536c9c50e7672cc6b54d4f"
+    },
+    {
+      "path": "test-results/laptop/demo-webgpu.json",
+      "bytes": 190934,
+      "sha256": "900fba7fd6ef5d7af6fca813405b7a39af2f1d23be85d3f51b6d1a9e75ee89cd"
+    },
+    {
+      "path": "test-results/laptop/demo-webgpu.png",
+      "bytes": 130750,
+      "sha256": "1ab6064a99cf015afd5724421bc588aa8b2bd0bf1b9240e7caee389aec67363f"
+    },
+    {
+      "path": "test-results/laptop/display.json",
+      "bytes": 323,
+      "sha256": "40cc39fe25ca4249372080becb3a0085bd1e1b1ec7e4e995f3ed0bfda6a8ee81"
+    },
+    {
+      "path": "test-results/laptop/docs-final.log",
+      "bytes": 190,
+      "sha256": "93175b06cdf6a7894d6cb2aae007f91b8caa74e66a95b2490de0269729df6d9b"
+    },
+    {
+      "path": "test-results/laptop/fix-browser-urls.mjs",
+      "bytes": 1434,
+      "sha256": "ba58a28a372855b7115763c9401f57dbefa14a1ed12ee5895b136b1850f50bbc"
+    },
+    {
+      "path": "test-results/laptop/fixes-focused.json",
+      "bytes": 5472,
+      "sha256": "01bb88affa20c576175298348694d94d97f1990354c8ce6874a4dd81a5949548"
+    },
+    {
+      "path": "test-results/laptop/fixes-focused.log",
+      "bytes": 105,
+      "sha256": "c727b2703790fd3f243a82561c934fd3caa993ec2f04624ab8643092d2e3e3ed"
+    },
+    {
+      "path": "test-results/laptop/gates.log",
+      "bytes": 1323,
+      "sha256": "24dad5e96217dca5a617ae8f8e7e5f8019c9cbe38accd1df1ed4222114a9e60d"
+    },
+    {
+      "path": "test-results/laptop/gpu-144hz.log",
+      "bytes": 339,
+      "sha256": "75ccba2eb360006f6e221628293e7456641088a23ebd4450c59f791dc2c68530"
+    },
+    {
+      "path": "test-results/laptop/gpu-during.csv",
+      "bytes": 177,
+      "sha256": "97ff4dc1d4d3683e3e3abcbbd58dd4d58345eadd6d16334d8d3cb4f905781a43"
+    },
+    {
+      "path": "test-results/laptop/gpu-native-layout.log",
+      "bytes": 346,
+      "sha256": "fe11cb11f17bb55266ef41ba491f6f52a2c54ae594e99b5c0e5a21efe5280281"
+    },
+    {
+      "path": "test-results/laptop/gpu-webgl2.log",
+      "bytes": 254,
+      "sha256": "de128e2c3c5137dceb045cc276ecfa8eac15d0b924707dade4e2eb12e9e54294"
+    },
+    {
+      "path": "test-results/laptop/gpu-webgpu-during.csv",
+      "bytes": 177,
+      "sha256": "ceef7f9c8807f4903a87d11050b3abd00d0648800e05ea5b62184e3eccd653fc"
+    },
+    {
+      "path": "test-results/laptop/gpu-webgpu.log",
+      "bytes": 254,
+      "sha256": "b80177ee80a8dab529a35b67fa071cdff9b2bd965bd6e4faadb24d803056d465"
+    },
+    {
+      "path": "test-results/laptop/hash-build.mjs",
+      "bytes": 581,
+      "sha256": "6879984ea98527dd8c361ab1646750783fea87da8a9c4a2af227ee9dd8ea34ef"
+    },
+    {
+      "path": "test-results/laptop/hash-evidence.mjs",
+      "bytes": 1039,
+      "sha256": "9be3a6020fd939504dacfa213405b626ed95add51c91184a21f627bd95bb2922"
+    },
+    {
+      "path": "test-results/laptop/links-ew-1200.log",
+      "bytes": 1784,
+      "sha256": "b0d5aea14bf23b8273371e46c67f791799559dacda9d7e11d71280d8684af63f"
+    },
+    {
+      "path": "test-results/laptop/links-ew-1200.stderr.log",
+      "bytes": 178,
+      "sha256": "15d9932069f26dc046bfe69d5c2a90e92d12b9bd9cd3b39fba93a0c2a50d17f9"
+    },
+    {
+      "path": "test-results/laptop/links-ew-400.log",
+      "bytes": 1783,
+      "sha256": "7bbbef178478fa121d0e3f29c9c89e64b96a89092f8c92e734bcfbab72c21d48"
+    },
+    {
+      "path": "test-results/laptop/links-ew-400.stderr.log",
+      "bytes": 178,
+      "sha256": "1265a62f5665472fdba107ed8c40212cc44c3d9f8546ce5e867dae01e52cf65f"
+    },
+    {
+      "path": "test-results/laptop/links-ew-800.log",
+      "bytes": 1783,
+      "sha256": "449aff96221078a161e8ea2d555579ff48b8c8da6369c3984c7bd4a52c92bace"
+    },
+    {
+      "path": "test-results/laptop/links-ew-800.stderr.log",
+      "bytes": 178,
+      "sha256": "7e153ba66be7cd72148e1cf8a0fd928f62ca549bbcad0ec57cb74b2444b287f3"
+    },
+    {
+      "path": "test-results/laptop/lint-after.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "test-results/laptop/lint-final.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "test-results/laptop/lint-post-render.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "test-results/laptop/lint.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "test-results/laptop/machine.json",
+      "bytes": 965,
+      "sha256": "e3cae4cdb3ba7cfbcdd8a4ba93aad8c3dc8569ef160f0f8c26e8a9887f2397c4"
+    },
+    {
+      "path": "test-results/laptop/model-validation.log",
+      "bytes": 190,
+      "sha256": "ae7cf55f075c3883f1dffac21aaba318cb07396a7ea202276d79380a1f6af40a"
+    },
+    {
+      "path": "test-results/laptop/native.log",
+      "bytes": 6683,
+      "sha256": "09c8d67f6ee236fb6fd4b6643d5fdd18895133a729debdc20b8c5af456c0d7bf"
+    },
+    {
+      "path": "test-results/laptop/operator-visual.json",
+      "bytes": 315,
+      "sha256": "ece3824cc14949fa3966c98c111e3a84860b55449e5b6fe0f69186e640d5f1c0"
+    },
+    {
+      "path": "test-results/laptop/physics-1200-idle.json",
+      "bytes": 2670,
+      "sha256": "07a40c88f6fb1f2a77f54009d45bfc9819c2d6e7cef2557a22b8cd515ccd7353"
+    },
+    {
+      "path": "test-results/laptop/physics-1200-idle.log",
+      "bytes": 330,
+      "sha256": "e1d9f75737151a2c95ac4fbe61dd3c0c2a4b2b6a64c1f607e98add3a34dc8d62"
+    },
+    {
+      "path": "test-results/laptop/physics-400-idle.json",
+      "bytes": 2676,
+      "sha256": "2766e08d0b48dba286723fd9cba32874f15cf1af47a7f7653e5245078e56c6aa"
+    },
+    {
+      "path": "test-results/laptop/physics-400-idle.log",
+      "bytes": 328,
+      "sha256": "cb5ad4e82570b36533177807cc14f1c6c79d4f39d27c59d883348161b4c0c83d"
+    },
+    {
+      "path": "test-results/laptop/physics-400.json",
+      "bytes": 2688,
+      "sha256": "028d1f06955aac55c51b98ec3c53b6cc867b100dd616e34495b8de5e503722b3"
+    },
+    {
+      "path": "test-results/laptop/physics-400.log",
+      "bytes": 325,
+      "sha256": "153f1cba8b01c0d7bbdf308b94945ed6c813260749680d2517b587f67c6f1ee0"
+    },
+    {
+      "path": "test-results/laptop/physics-800-idle.json",
+      "bytes": 2692,
+      "sha256": "9aff51a3b33cfb3973281550aa1e6fdd36700955cab0e7c4ce902fa8f5cb797f"
+    },
+    {
+      "path": "test-results/laptop/physics-800-idle.log",
+      "bytes": 330,
+      "sha256": "388b9a026cfeab8b7387999e5c024462b744abc4cec1a787647963abca30f593"
+    },
+    {
+      "path": "test-results/laptop/portability-before.json",
+      "bytes": 35921,
+      "sha256": "b41d68e27496f84c22d0ff8aded219669c0d59aff3ce209af4ee6236225d5bbf"
+    },
+    {
+      "path": "test-results/laptop/portability-before.log",
+      "bytes": 110,
+      "sha256": "72e8a5f4b4e1a96b0aab80c343157a21826d5cd2ef664ef7a087f4e430ca15e7"
+    },
+    {
+      "path": "test-results/laptop/probe-laptop-fixed-viewport.source.txt",
+      "bytes": 8196,
+      "sha256": "043e89d7ea28621139166bf3ce86f74e9d0cfcccfb3ef76ae2793c49e1b03091"
+    },
+    {
+      "path": "test-results/laptop/probe-laptop-initial.source.txt",
+      "bytes": 6971,
+      "sha256": "e2884e34dd215d0759af6495da4d051636cdba78e0bb2b28ce60c109d2aa8f5f"
+    },
+    {
+      "path": "test-results/laptop/record-scope.mjs",
+      "bytes": 1889,
+      "sha256": "90f77e01cf7ef5daaab33c7679496414f6b5bec8df22a9d2035b11fe53f0479a"
+    },
+    {
+      "path": "test-results/laptop/register-report.mjs",
+      "bytes": 572,
+      "sha256": "6cbdaab167c7ca44284e859fbde1f891ac31207c5ff16c4d822c1f99fbd85a77"
+    },
+    {
+      "path": "test-results/laptop/run-gates.mjs",
+      "bytes": 2840,
+      "sha256": "603a26ce1b87a6039113142ab9e09266d1dd0ed779de78d1dadf4e350b2914e0"
+    },
+    {
+      "path": "test-results/laptop/sensors-all.log",
+      "bytes": 621,
+      "sha256": "b395b1e06a649d1e60c3e1d45cfc01366ba1b195afddceda89b236cab9b3ee1a"
+    },
+    {
+      "path": "test-results/laptop/sensors-all.stderr.log",
+      "bytes": 178,
+      "sha256": "720e35a7d4c31bcf610b7f663897d91dd30c2cf3365385b46d15aa7ff80d3437"
+    },
+    {
+      "path": "test-results/laptop/terrain-1200.log",
+      "bytes": 1703,
+      "sha256": "5555be4c9211c7b72ac806db0cbc32aff495da43b4bb3f4a7a75b4e87aca64b2"
+    },
+    {
+      "path": "test-results/laptop/terrain-1200.stderr.log",
+      "bytes": 178,
+      "sha256": "dc2b0e00f0971271186c53749c1ce17fc0de3a5f9a6d94f82acc3cb111e50609"
+    },
+    {
+      "path": "test-results/laptop/terrain-400.log",
+      "bytes": 1692,
+      "sha256": "b324eea655db8c71d3a09d3256bbf494ca6563e1ff7f0bef4df6201c7c828961"
+    },
+    {
+      "path": "test-results/laptop/terrain-400.stderr.log",
+      "bytes": 178,
+      "sha256": "86bcfc8c460bb8113a69b1b2312e5c89ff0cc5b014e82ec61fa938692b82227a"
+    },
+    {
+      "path": "test-results/laptop/terrain-800.log",
+      "bytes": 1682,
+      "sha256": "9707f6c4c29cd8741a9de2c26be86d9099daf0cc6d1ef97aa49c26341de14300"
+    },
+    {
+      "path": "test-results/laptop/terrain-800.stderr.log",
+      "bytes": 178,
+      "sha256": "ace78e2b03ba61bc64de08345ccdda35b22fff8ae4844a18cae3169ca798968d"
+    },
+    {
+      "path": "test-results/laptop/typecheck-final.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "test-results/laptop/typecheck-post-layout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "test-results/laptop/typecheck-post-render.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "test-results/laptop/unit-after.json",
+      "bytes": 163527,
+      "sha256": "3274f2de678588002598f7d5c00fd599783d2078a11008eb99d50fab004edc59"
+    },
+    {
+      "path": "test-results/laptop/unit-after.log",
+      "bytes": 102,
+      "sha256": "a237d914eede8a30ac96d7a5671413a5bb8e20ba5dcd66c4677de0b7a5d9fd5c"
+    },
+    {
+      "path": "test-results/laptop/unit-final.json",
+      "bytes": 160565,
+      "sha256": "cb2f409e146bec6a88e03099ab48b2e15d4bb39242ce21ffc631a4101f42cfbd"
+    },
+    {
+      "path": "test-results/laptop/unit-final.log",
+      "bytes": 102,
+      "sha256": "3c6b03bc8106d662bba76a9a953a85be6a73ffc838b58a8767f0612dfffff8af"
+    },
+    {
+      "path": "test-results/laptop/update-mirrors.mjs",
+      "bytes": 669,
+      "sha256": "b78ed3daaa32b678d759b29a33ca2a002bcb0d3c4236f737d7846e94d2c13bcf"
+    },
+    {
+      "path": "test-results/laptop/wind.log",
+      "bytes": 597,
+      "sha256": "b83cfcf4bdba0e636a9218133999365141bdb9b63d601ff3e0a77b8b4c45132e"
+    },
+    {
+      "path": "test-results/validation/ardupilot-wasm-feasibility.json",
+      "bytes": 596,
+      "sha256": "e2b832aa742890d4eca834134561ff353799a1c02911c4c1935ab62f25adc5fd"
+    },
+    {
+      "path": "test-results/validation/ekf-report.json",
+      "bytes": 354,
+      "sha256": "ec43e7cdd71041304c5c6e6917cd78331aaa17f6d97bca3dea819ca785d3d587"
+    },
+    {
+      "path": "test-results/validation/gpu-report.json",
+      "bytes": 354,
+      "sha256": "2855f8f8554b81e7d4a19a27142c4fe180353f4a64a0fb14788a2b86d713ef69"
+    },
+    {
+      "path": "test-results/validation/hitl-report.json",
+      "bytes": 355,
+      "sha256": "89c35c50022eec9164072a68bf18f0ca26b3e6c49125940908000d3d0c44ddfd"
+    },
+    {
+      "path": "test-results/validation/model-report.json",
+      "bytes": 11968,
+      "sha256": "53d74a2cfb86c2ca6a17290ead219796f458ed0a95620c92e1ddeb477f1874d8"
+    },
+    {
+      "path": "test-results/validation/release-manifest.json",
+      "bytes": 360,
+      "sha256": "4dce956b8f8dc25b4839a7df6c8de045dc37f1cd3a2e9e84036ec9c0cd950413"
+    },
+    {
+      "path": "test-results/validation/sitl-report.json",
+      "bytes": 273,
+      "sha256": "718af2ff29294769fe310fae4099462e0160b1acdf0a88f8333e0733c40a39cb"
+    },
+    {
+      "path": "test-results/validation/system-report.json",
+      "bytes": 357,
+      "sha256": "06c7e3070d91d9ad4f4561ad4d1b2e9a6c4b186d0f4cf5b7804c0124fe6d12e7"
+    }
+  ]
+}

@@ -1,0 +1,154 @@
+   Compiling mirage-bet v0.1.0 (C:\Users\djdan\OneDrive\Desktop\MirageSITL\native\bet)
+warning: linker stdout: Создается библиотека C:\Users\djdan\OneDrive\Desktop\MirageSITL\native\target\debug\deps\mirage_bet.dll.lib и объект C:\Users\djdan\OneDrive\Desktop\MirageSITL\native\target\debug\deps\mirage_bet.dll.exp
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+warning: `mirage-bet` (lib) generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 9.15s
+     Running unittests src\lib.rs (target\debug\deps\mirage_bet-8597a702c13c01be.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\abi.rs (target\debug\deps\abi-be3f0c1e66476101.exe)
+
+running 7 tests
+test rejects_invalid_configurations ... ok
+test golden_records_decode_and_size_the_arena ... ok
+test disposed_or_corrupt_handles_are_rejected ... ok
+test step_rejects_bad_input_and_dt_without_writing_output ... ok
+test rust_offsets_match_the_c_header ... ok
+test pointer_regions_are_checked_for_range_alignment_and_overlap ... ok
+test step_reports_unavailable_aerodynamics_and_overwrites_every_record ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.40s
+
+     Running tests\allocation.rs (target\debug\deps\allocation-3a184d1df614e0a3.exe)
+
+running 1 test
+test all_scalar_kernels_allocate_zero_over_one_million_steps ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.34s
+
+     Running tests\autorotation.rs (target\debug\deps\autorotation-fbfd5b3083976137.exe)
+
+running 2 tests
+test passive_bearing_energy_decays_and_constant_torque_has_no_governor ... ok
+test upward_air_drives_a_free_rotor_and_braking_finds_torque_balance ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.72s
+
+     Running tests\battery.rs (target\debug\deps\battery-c2838f9f9525f6aa.exe)
+
+running 2 tests
+test ohmic_bus_and_motor_load_accounting ... ok
+test zero_resistance_depletion_and_infeasible_demand_stay_finite ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\blade.rs (target\debug\deps\blade-9c7cac702b760103.exe)
+
+running 5 tests
+test rejects_invalid_geometry_inputs_and_reports_polar_clamping ... ok
+test pitch_and_flow_derive_alpha_before_polar_lookup ... ok
+test crossflow_and_body_rates_are_finite ... ok
+test annulus_force_torque_and_refinement_match_closed_forms ... ok
+test samples_do_not_multiply_force_and_spin_mirror_preserves_thrust ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\body_abi.rs (target\debug\deps\body_abi-f82d059601190d5e.exe)
+
+running 1 test
+test byte_layout_and_rejection_are_independent_of_rust_object_layout ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\bootstrap.rs (target\debug\deps\bootstrap-83be1f6016a72939.exe)
+
+running 6 tests
+test exports_match_the_rust_kernel ... ok
+test mirrored_spin_flips_lift_but_not_drag ... ok
+test force_is_linear_in_chord_width_and_coefficients ... ok
+test magnitude_matches_dynamic_pressure_times_area_and_coefficients ... ok
+test lift_is_perpendicular_and_drag_parallel_to_the_relative_flow ... ok
+test zero_relative_airspeed_gives_zero_force ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\coaxial.rs (target\debug\deps\coaxial-db4b97d3ea2eef50.exe)
+
+running 4 tests
+test budgets_close_for_overlap_thrust_and_separation_and_far_field_decouples ... ok
+test matches_registered_independent_flux_fixture ... ok
+test rejects_unsupported_geometry_regimes_and_nonfinite_values ... ok
+test disabled_and_zero_overlap_leave_the_receiver_rotor_exactly_independent ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\flapping.rs (target\debug\deps\flapping-22644b219976ed20.exe)
+
+running 3 tests
+test rotating_harmonics_mirror_and_invalid_envelope_is_explicit ... ok
+test spin_up_gyroscopic_axes_and_full_momentum_balance ... ok
+test collective_symmetry_and_oscillator_convergence ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests\frame.rs (target\debug\deps\frame-f4cf4e0073788199.exe)
+
+running 2 tests
+test symmetric_quad_hexa_octo_cancel_yaw_and_lever_moments ... ok
+test tilted_axis_and_lever_arm_use_right_hand_rule ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\inflow.rs (target\debug\deps\inflow-d7a6b8532f66dbd0.exe)
+
+running 2 tests
+test hover_and_climb_momentum_close_and_transient_matches_exponential ... ok
+test zero_loading_reverse_thrust_and_unvalidated_regimes_are_explicit ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\motor.rs (target\debug\deps\motor-6812b53e66e60cf0.exe)
+
+running 2 tests
+test zero_voltage_and_power_cut_do_not_create_mechanical_energy ... ok
+test duty_lag_current_limit_and_power_balance ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\motor_failure.rs (target\debug\deps\motor_failure-a1de1f3c7b1fa73a.exe)
+
+running 1 test
+test cut_power_preserves_passive_spool_decay_and_removed_rotor_changes_lever_moment ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\polar.rs (target\debug\deps\polar-8ee20b57dd919e10.exe)
+
+running 5 tests
+test interpolates_in_log_reynolds_not_linear_reynolds ... ok
+test clamps_and_flags_instead_of_extrapolating ... ok
+test every_table_node_is_returned_exactly ... ok
+test rejects_invalid_tables ... ok
+test matches_analytic_values_at_nodes_inside_cells_and_in_reverse_flow ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\rigid_body.rs (target\debug\deps\rigid_body-311b0aef4c03ac3f.exe)
+
+running 3 tests
+test rejects_bad_inertia_and_quaternion ... ok
+test ballistic_and_constant_principal_torque_match_analytic_motion ... ok
+test smooth_torque_free_trajectory_converges_to_4800hz ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+
+   Doc-tests mirage_bet
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s

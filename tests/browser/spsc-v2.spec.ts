@@ -1,5 +1,5 @@
+import { viteFileUrl } from "../support/vite-url";
 import { expect, test } from '@playwright/test';
-import { fileURLToPath } from 'node:url';
 
 // SPSC sensor queue in a real browser: a module Worker produces 1e6 frames
 // (SITL would-block policy) while the page consumes and verifies them.
@@ -7,9 +7,9 @@ test('SPSC queue delivers 1e6 frames from a browser Worker in order without loss
   test.setTimeout(180_000);
   await page.goto('/');
   expect(await page.evaluate(() => crossOriginIsolated)).toBe(true);
-  const stressUrl = '/@fs' + fileURLToPath(new URL('../support/spsc-stress.ts', import.meta.url));
-  const workerUrl = '/@fs' + fileURLToPath(new URL('../support/spsc-stress.browser-worker.ts', import.meta.url));
-  const protocolUrl = '/@fs' + fileURLToPath(new URL('../../packages/protocol/src/index.ts', import.meta.url));
+  const stressUrl = viteFileUrl(new URL('../support/spsc-stress.ts', import.meta.url));
+  const workerUrl = viteFileUrl(new URL('../support/spsc-stress.browser-worker.ts', import.meta.url));
+  const protocolUrl = viteFileUrl(new URL('../../packages/protocol/src/index.ts', import.meta.url));
   const report = await page.evaluate(async ({ stressUrl, workerUrl, protocolUrl }) => {
     // Statically known checkout modules, transformed by the application's Vite server.
     const stress = await import(stressUrl) as typeof import('../support/spsc-stress');

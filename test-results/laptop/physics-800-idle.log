@@ -1,0 +1,1 @@
+physics bench: zeroAllocation=true (0.00000 B/step incremental, fixed 3000 B/window, whole-window <= 0.00000, 0 GC; controls: allocating detected=true); compute p50/p99/max=0.80/1.10/16222.90 us; realtime 516.7 Hz, lateness p99=16.06 ms; report C:\Users\djdan\OneDrive\Desktop\MirageSITL\test-results\laptop\physics-800-idle.json

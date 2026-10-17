@@ -1,0 +1,161 @@
+# Local hardware and regression diagnostics — 2026-10-17
+
+Baseline: 1eb44f1dd5d9464ece93817face3c1e9e9e42465. Node 24.19.0; Windows. Results are observations from this run, not flight certification. Operator confirms battery disconnected and suspects no GPS.
+
+| Test / task | Component | Result | Root cause / fix / limitation |
+|---|---|---|---|
+| USB detection | ArduPilot USB COM20 | PASS | VID 1209 / PID 5741. One serial device detected; no listeners on checked UDP ports 14550/14551/14555/14560/9002. Enumeration is not a complete network scan. |
+| Firmware identity | FC firmware | PASS | AUTOPILOT_VERSION: 4.6.3 stable; custom version bytes decode to 3fc7011a; system/component 1/1; board_version 77266944. Exact board model/build flags remain unverified. |
+| Telemetry integrity | USB MAVLink2 | PASS | 252 CRC-valid query-capture frames; zero CRC errors, unknown IDs or sequence discontinuities. Ten REQUEST_MESSAGE ACKs accepted. Passive capture separately contains 67 valid frames. No sustained-rate/freshness claim: buffered traffic and no per-frame host timestamps. |
+| Disarmed state | FC heartbeat | PASS | All 61 passive and 206 query-capture heartbeats report armed=false, HIL=false. Operator states USB power only, no battery. No arm/disarm, RC override, servo, motor, mode, parameter-write, or HIL injection commands sent. |
+| IMU sanity | Accelerometer / gyro | PASS | One requested sample; reported healthy/enabled. Acceleration [-12,0,-1001] milli-g; gyro [3,0,5] mrad/s. This checks plausibility and availability, not calibration, drift or timing. |
+| Barometer sanity | Pressure / temperature | PASS | One requested sample; reported healthy/enabled; 1011.5405 hPa, 38.59 C. No independent calibration reference. |
+| Compass | Magnetometer | BLOCKED | Marked absent/disabled; raw mag [0,0,0]. Verify whether fitted and review compass configuration; cannot infer a calibration fault. |
+| GPS | GNSS | BLOCKED | Marked absent; fix=0, satellites=0, eph=65535 (unknown). Operator suspects no GPS fitted. GPS-dependent tests require fitted/configured hardware and reception conditions. |
+| Battery monitor | Power sensing | BLOCKED | Operator confirms battery disconnected. SYS_STATUS and BATTERY_STATUS both show 3 mV, current 0, remaining 99%; not a valid powered-battery acceptance. PreArm battery warning expected in this setup. Do not treat 99% as healthy battery evidence. |
+| Physical radio / TASK-038 | RC receiver / transmitter | BLOCKED | SYS_STATUS reports RC absent; PreArm: RC not found. Requires connected/configured receiver and transmitter. |
+| Actuator telemetry | Servo output reporting | PASS | Read-only SERVO_OUTPUT_RAW reports channels 1–4 at 1000 us, 5–8 zero. Physical output movement, wiring, motor/servo power and calibration are untested. |
+| TASK-043 / 074 / 075 / 078 | EKF / dependent UI | BLOCKED | EKF_STATUS_REPORT received (flags 167); no coherent timed warmup/flight trace or production backend admission. Single report is not READY evidence; absent GPS limits position checks. |
+| TASK-049 / 050 / 051 | Physical HITL | BLOCKED | HIL flag off; no verified board profile, build flags, HIL_ACTUATOR_CONTROLS exchange, 60-second 200/400 Hz trace, or unplug evidence. Repository pinned ArduPilot HIL path is unsupported. Do not enable HIL or swap firmware automatically. |
+| TASK-042 / 059 / 079 | SITL / EW / scenario acceptance | BLOCKED | run-sitl, report-ekf and bench-hitl no-input tools exit 2. Physical USB hardware does not supply pinned native ELF/source/driver or truth-preserving EW/flight captures. |
+| Focused regression | MAVLink / serial / HIL / lifecycle | PASS | 38/38 passed in seven files. Software mocks and synthetic timing remain software evidence. |
+| Full unit/integration regression | Software | FAIL | 464 registered: 420 passed, 27 failed, 17 pending; 3 suite setup errors also reported. Pending cases are not hardware acceptance. Detailed failures below. |
+| Typecheck / lint / build | Software | PASS | tsc --noEmit, eslint with max-warnings=0, and vite build apps/web exit 0. Build warns of duplicate @mirage/aar dependency and chunk sizes. |
+| Documentation gate | Checkout bytes | FAIL | core.autocrlf=true converted LF to CRLF. README and ballistic fixture LF-normalized hashes exactly match Git/expected hashes. Use an LF-preserving checkout and explicit repository attributes; do not regenerate hashes to mask conversion. |
+| Browser serial regressions | Browser software | BLOCKED | Playwright could not start configured npm webServer; npm absent from PATH. Direct Vite server was started and later stopped, but browser tests did not execute. Configure npm PATH and rerun; no physical browser/Web Serial acceptance claimed. |
+| Thermal isolated retry | Software NUC | PASS | Isolated rerun passed after full-suite failure; load/timing remains suspect, not independently established. Preserve initial failure and investigate test duration under parallel load. |
+
+## Full-run failures
+
+### agent-config.test.ts
+
+Checkout CRLF changes byte hashes / LF-specific parsers. Preserve LF checkout bytes; add explicit line-ending policy and newline-tolerant prose parsing.
+
+- agent rule discovery entry points the Cursor rule always applies and resolves to the root CLAUDE.md: Error: Missing Cursor rule front matter
+
+### atomic-v2.test.ts
+
+Checkout CRLF changes byte hashes / LF-specific parsers. Preserve LF checkout bytes; add explicit line-ending policy and newline-tolerant prose parsing.
+
+- ABI v2 atomic transport publishes the golden state as seqlock 2 + golden bytes with sample_id = published: Error: Fixture source hash mismatch
+- ABI v2 atomic transport round-trips the pilot mailbox with input_sample_id and misses on a busy mailbox: Error: Fixture source hash mismatch
+
+### contact.test.ts
+
+Checkout CRLF changes byte hashes / LF-specific parsers. Preserve LF checkout bytes; add explicit line-ending policy and newline-tolerant prose parsing.
+
+- replays the NASA TM X-3561 level drops: solver consistency passes, measured envelopes fail: Error: Fixture source hash mismatch
+
+### control-v2.test.ts
+
+Likely CRLF-sensitive specification parsing; observed empty/unaccepted parsed contract. Confirm by rerunning from LF checkout before diagnosing ABI/control logic.
+
+- Control Protocol v2 validation accepts the normative JSON example from the specification: AssertionError: expected false to be true // Object.is equality
+
+### documentation-policy.test.ts
+
+Checkout CRLF changes byte hashes / LF-specific parsers. Preserve LF checkout bytes; add explicit line-ending policy and newline-tolerant prose parsing.
+
+- bilingual documentation policy accepts complete synchronized documents: AssertionError: node:internal/modules/run_main:107
+- bilingual documentation policy rejects divergent TypeScript contracts even when the source hash is current: AssertionError: expected 'node:internal/modules/run_main:107\r\…' to contain 'Fenced contracts differ'
+- bilingual documentation policy rejects static Cyrillic outside the Russian documentation directory: AssertionError: expected 'node:internal/modules/run_main:107\r\…' to contain 'Cyrillic text outside docs/ru/'
+- bilingual documentation policy rejects a cyclic backlog even when both languages and the hash agree: AssertionError: expected 'node:internal/modules/run_main:107\r\…' to contain 'Dependency cycle'
+
+### fixtures.test.ts
+
+Checkout CRLF changes byte hashes / LF-specific parsers. Preserve LF checkout bytes; add explicit line-ending policy and newline-tolerant prose parsing.
+
+- versioned fixture provenance and random streams verifies every registered fixture against its exact payload bytes: Error: Fixture source hash mismatch
+
+### layout-v2.test.ts
+
+Checkout CRLF changes byte hashes / LF-specific parsers. Preserve LF checkout bytes; add explicit line-ending policy and newline-tolerant prose parsing.
+
+- ABI v2 layout contract golden records describe exactly the v2 tables of the English specification: Error: Fixture source hash mismatch
+- ABI v2 layout contract exported offset tables cover every field exactly, with natural alignment in every slot: Error: Fixture source hash mismatch
+- ABI v2 codecs against golden bytes packs the golden state into exactly the golden 192 bytes and decodes them back: Error: Fixture source hash mismatch
+- ABI v2 codecs against golden bytes packs the golden pilot mailbox into exactly the golden 64 bytes and decodes them back: Error: Fixture source hash mismatch
+- ABI v2 codecs against golden bytes initializes the header to the golden bytes and leaves the ring and mailbox zero: Error: Fixture source hash mismatch
+- writer-side value contracts rejects nonfinite truth, f32 overflow, non-uint32 integers, unsafe ticks, and unassigned bits: Error: Fixture source hash mismatch
+- writer-side value contracts rejects out-of-range pilot channels, flags, and mode slots: Error: Fixture source hash mismatch
+
+### model-validation.test.ts
+
+Checkout CRLF changes byte hashes / LF-specific parsers. Preserve LF checkout bytes; add explicit line-ending policy and newline-tolerant prose parsing.
+
+- writes numerical parity and NASA drop evidence and fails closed on missing or failed fidelity: AssertionError: Fixture source hash mismatch
+
+### protocol-golden.test.ts
+
+Checkout CRLF changes byte hashes / LF-specific parsers. Preserve LF checkout bytes; add explicit line-ending policy and newline-tolerant prose parsing.
+
+- ABI v1 golden byte layout describes exactly the regions, fields, and bytes in the English specification: Error: Fixture source hash mismatch
+- ABI v1 golden byte layout writers produce the specified bytes for header, two ring slots, and the pilot mailbox: Error: Fixture source hash mismatch
+- ABI v1 golden byte layout detects a field moved by one word in either the fixture or the encoder: Error: Fixture source hash mismatch
+
+### release-manifest.test.ts
+
+Code-side Windows separator handling: path.relative returns backslashes but allowlist expects forward slashes. Normalize after containment validation.
+
+- inventories actual bounded output bytes, retains blocked status and rejects tampering/symlink escape: AssertionError: file:///C:/Users/djdan/OneDrive/Desktop/MirageSITL/scripts/release-manifest.mjs:13
+
+### rigid-body.test.ts
+
+Environment: Rust 1.97 WASM target installation conflicts with an existing component file. Repair pinned toolchain/target separately and rerun; no numerical verdict.
+
+- integrates real WASM body ABI and preserves state on rejected input: Error: Command failed: C:\Users\djdan\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe scripts/build-wasm.mjs --out C:\Users\djdan\AppData\Local\Temp\mirage-body-M2lA6G
+
+### rotor-kernels.test.ts
+
+Environment: Rust 1.97 WASM target installation conflicts with an existing component file. Repair pinned toolchain/target separately and rerun; no numerical verdict.
+
+Suite setup: Command failed: cargo build --release -p mirage-bet --features kernel-test-exports --target wasm32-unknown-unknown --locked
+
+
+### spsc-v2.test.ts
+
+Likely CRLF-sensitive specification parsing; observed empty/unaccepted parsed contract. Confirm by rerunning from LF checkout before diagnosing ABI/control logic.
+
+- SPSC queue layout matches section 5 header offsets, sizes, and magics match the specification text: AssertionError: expected {} to deeply equal { magic: +0, version: 4, …(6) }
+
+### step-metrics.test.ts
+
+Code-side Windows import path: c: path treated as URL scheme. Use pathToFileURL for dynamic imports.
+
+- bench-physics.mjs report measures zero allocations over 1e6 real session steps after warmup and validates against the schema: AssertionError: node:internal/modules/esm/load:193
+
+### thermal-nuc.test.ts
+
+Full-run failure lacks actionable underlying diagnostic; isolated test rerun passes. Investigate load/time budget without loosening numerical thresholds.
+
+- removes a drifting fixed-pattern bias on a fixed frame grid with a bounded interruption: Error: STACK_TRACE_ERROR
+
+### tooling.test.ts
+
+Code-side test host/path handling: expected type diagnostic 2322, got file-not-found 6053. Normalize Windows filenames in compiler-host interception.
+
+- strict tooling gates retains strict compiler settings and diagnoses incompatible assignments: AssertionError: expected [ 6053 ] to include 2322
+
+### wasm-abi.test.ts
+
+Environment: Rust 1.97 WASM target installation conflicts with an existing component file. Repair pinned toolchain/target separately and rerun; no numerical verdict.
+
+Suite setup: Command failed: C:\Users\djdan\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe C:\Users\djdan\OneDrive\Desktop\MirageSITL\scripts\build-wasm.mjs --out C:\Users\djdan\AppData\Local\Temp\mirage-wasm-abi-YwPZjR
+
+
+### wasm-loader.test.ts
+
+Environment: Rust 1.97 WASM target installation conflicts with an existing component file. Repair pinned toolchain/target separately and rerun; no numerical verdict.
+
+Suite setup: Command failed: C:\Users\djdan\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe C:\Users\djdan\OneDrive\Desktop\MirageSITL\scripts\build-wasm.mjs --out C:\Users\djdan\AppData\Local\Temp\mirage-wasm-CDllgD
+
+
+## Evidence and commands
+
+Raw captures: com20-passive.bin, com20-queries.bin; hashes and decoded fields: com20-passive-summary.json, com20-queries-summary.json. The query pass sent 410 bytes containing only ten MAV_CMD_REQUEST_MESSAGE (512) packets. Serial opened at 115200, 8N1, DTR/RTS false; USB CDC setting does not verify UART wire baud. Firmware custom version is a reported short identifier, not a firmware binary SHA-256.
+
+Commands: node node_modules/vitest/vitest.mjs run --reporter=json --outputFile=test-results/hardware/vitest-unrestricted.json (exit 1); focused seven-file variant (exit 0); tsc --noEmit (0); eslint . --max-warnings=0 --no-inline-config (0); vite build apps/web (0); check-docs.mjs (1); bench-hitl.mjs/report-ekf.mjs/run-sitl.mjs without input (each 2). Initial sandbox Vitest attempts failed before tests with EPERM rename; unrestricted reruns produced the reported results.
+
+No production files, configuration, firmware, parameters or roadmap statuses were changed. No commits/pushes. No sensor injection, servo sweep, motor tests, RC override, calibration, arming, or disconnect-failsafe test was performed. Repository instructions for a future physical HITL bench require props removed, vehicle secured and a verified supported profile; those conditions were not asserted here.
+
+Message semantics reference: https://mavlink.io/en/messages/common.html .

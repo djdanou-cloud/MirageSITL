@@ -48,9 +48,16 @@ test("missing Web Serial disables connection without prompting", async ({
     page.getByRole("button", { name: "Connect serial", exact: true }),
   ).toBeDisabled();
 });
-test("decodes fragmented serial bytes in the I/O Worker and releases streams on disconnect", async ({
+for (const startupDelayMs of [0, 900]) {
+test(`decodes fragmented serial bytes after ${startupDelayMs} ms Worker startup and releases streams`, async ({
   page,
 }) => {
+  let delayed = false;
+  if (startupDelayMs > 0) await page.context().route("**/*serial-io.worker.ts*", async route => {
+    delayed = true;
+    await new Promise(resolve => setTimeout(resolve, startupDelayMs));
+    await route.continue();
+  });
   const hex = golden.frames[2]!.hex;
   await page.addInitScript(
     ({ hex }) => {
@@ -99,4 +106,22 @@ test("decodes fragmented serial bytes in the I/O Worker and releases streams on 
     "data-port-closed",
     "true",
   );
+  if (startupDelayMs > 0) expect(delayed).toBe(true);
+});
+}
+
+test("a failed decoder startup never opens the selected serial port", async ({ page }) => {
+  await page.context().route("**/*serial-io.worker.ts*", route => route.abort());
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, "serial", { value: { requestPort: () => Promise.resolve({
+      readable: null, writable: null,
+      open() { document.documentElement.dataset.unexpectedSerialOpen = "true"; return Promise.resolve(); },
+      close() { return Promise.resolve(); },
+    }) } });
+  });
+  await page.goto("/");
+  await page.getByRole("button", { name: "Connect serial", exact: true }).click();
+  await expect(page.getByTestId("serial-status")).toContainText("Serial decoder failed");
+  await expect(page.locator("html")).not.toHaveAttribute("data-unexpected-serial-open", "true");
+  await expect(page.getByRole("button", { name: "Connect serial", exact: true })).toBeEnabled();
 });

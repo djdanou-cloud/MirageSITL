@@ -1,0 +1,31 @@
+▲ [WARNING] Duplicate key "@mirage/aar" in object literal [duplicate-object-key]
+
+    apps/web/package.json:23:4:
+      23 │     "@mirage/aar": "0.1.0"
+         ╵     ~~~~~~~~~~~~~
+
+  The original key "@mirage/aar" is here:
+
+    apps/web/package.json:12:4:
+      12 │     "@mirage/aar": "0.1.0",
+         ╵     ~~~~~~~~~~~~~
+
+vite v7.3.7 building client environment for production...
+transforming...
+✓ 1760 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                               0.46 kB │ gzip:   0.31 kB
+dist/assets/serial-io.worker-sjevZKJL.js      2.65 kB
+dist/assets/recorder.worker-CmsqOWRS.js      19.04 kB
+dist/assets/physics.worker-B4pEGg5O.js       36.22 kB
+dist/assets/index-CCo0cdan.css               16.87 kB │ gzip:   4.83 kB
+dist/assets/tiles-scene-C5k1w0Dp.js         116.49 kB │ gzip:  35.06 kB
+dist/assets/webgpu-DcpjXv6z.js              481.97 kB │ gzip: 135.57 kB
+dist/assets/index-BROqjh28.js             1,149.31 kB │ gzip: 324.85 kB
+
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 10.86s

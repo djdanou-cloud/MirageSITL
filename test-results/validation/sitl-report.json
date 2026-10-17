@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "kind": "sitl-report",
+  "status": "BLOCKED_EXTERNAL",
+  "reasons": [
+    "Provide pinned clean ArduPilot source, ELF binary+SHA-256, and closed-loop driver+SHA-256; production physics/RC driver is not supplied by the demo"
+  ],
+  "metrics": {}
+}

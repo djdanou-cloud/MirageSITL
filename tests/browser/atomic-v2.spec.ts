@@ -1,5 +1,5 @@
+import { viteFileUrl } from "../support/vite-url";
 import { expect, test } from '@playwright/test';
-import { fileURLToPath } from 'node:url';
 
 // ABI v2 concurrency in a real browser: a module Worker publishes 1e6 frames
 // through StateWriterV2 while the page reads through StateReaderV2.
@@ -7,9 +7,9 @@ test('ABI v2 transport survives 1e6 concurrent publications in a browser Worker'
   test.setTimeout(180_000);
   await page.goto('/');
   expect(await page.evaluate(() => crossOriginIsolated)).toBe(true);
-  const stressUrl = '/@fs' + fileURLToPath(new URL('../support/atomic-v2-stress.ts', import.meta.url));
-  const workerUrl = '/@fs' + fileURLToPath(new URL('../support/atomic-v2-stress.browser-worker.ts', import.meta.url));
-  const protocolUrl = '/@fs' + fileURLToPath(new URL('../../packages/protocol/src/index.ts', import.meta.url));
+  const stressUrl = viteFileUrl(new URL('../support/atomic-v2-stress.ts', import.meta.url));
+  const workerUrl = viteFileUrl(new URL('../support/atomic-v2-stress.browser-worker.ts', import.meta.url));
+  const protocolUrl = viteFileUrl(new URL('../../packages/protocol/src/index.ts', import.meta.url));
   const report = await page.evaluate(async ({ stressUrl, workerUrl, protocolUrl }) => {
     // Statically known checkout modules, transformed by the same Vite server as the application.
     const stress = await import(stressUrl) as typeof import('../support/atomic-v2-stress');

@@ -1,8 +1,8 @@
+import { viteFileUrl } from "../support/vite-url";
 import { expect, test } from "@playwright/test";
-import { fileURLToPath } from "node:url";
 type Harness = typeof import("../support/aar-harness");
 const url =
-  "/@fs" + fileURLToPath(new URL("../support/aar-harness.ts", import.meta.url));
+  viteFileUrl(new URL("../support/aar-harness.ts", import.meta.url));
 test("real recorder Worker and IndexedDB bound chunks and return validated snapshots", async ({
   page,
 }) => {

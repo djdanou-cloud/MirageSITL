@@ -10,7 +10,9 @@ export interface BackendRun {
   fallbackReason: string | null;
   centerPixel: number[];
   memoryBefore: { geometries: number; textures: number };
+  memoryBaseline: { geometries: number; textures: number };
   memoryAfterSceneDispose: { geometries: number; textures: number };
+  memoryAfterRendererDispose: { geometries: number; textures: number };
   released: { geometries: number; materials: number; textures: number };
   contextLost: boolean | null;
   shaderFallbacks: { material: string; reason: string }[];
@@ -34,12 +36,15 @@ export async function runBackend(mode: RendererMode, options: { injectWebGpuFail
   handle.renderer.setSize(64, 64, false);
   const scene = new Scene();
   scene.background = new Color(0x000000);
+  const camera = probeCamera();
+  // Initialize renderer-owned output resources before measuring scene ownership.
+  handle.renderer.render(scene, camera);
+  const memoryBaseline = { ...handle.renderer.info.memory };
   const material = options.brokenShader
     ? new ShaderMaterial({ name: "broken", vertexShader: "void main() { gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }",
       fragmentShader: "void main() { gl_FragColor = vec4(undefinedSymbol, 1.0); }" })
     : new MeshStandardMaterial({ color: 0x70c4b1, map: texture() });
   scene.add(new Mesh(new BoxGeometry(1.5, 1.5, 1.5), material), new DirectionalLight(0xffffff, 2), new AmbientLight(0xffffff, 1));
-  const camera = probeCamera();
   handle.compileWithFallback(scene, camera);
   handle.renderer.render(scene, camera);
   if (handle.backend === "webgpu") await new Promise(resolve => requestAnimationFrame(resolve));
@@ -54,9 +59,10 @@ export async function runBackend(mode: RendererMode, options: { injectWebGpuFail
   if (handle.backend === "webgpu") handle.renderer.render(new Scene(), camera); // let the backend observe disposals
   const memoryAfterSceneDispose = { geometries: handle.renderer.info.memory.geometries, textures: handle.renderer.info.memory.textures };
   handle.dispose();
+  const memoryAfterRendererDispose = { ...handle.renderer.info.memory };
   const r = handle.renderer;
   const contextLost = r instanceof WebGLRenderer ? r.getContext().isContextLost() : null;
   canvas.remove();
-  return { backend: handle.backend, fallbackReason: handle.fallbackReason, centerPixel, memoryBefore, memoryAfterSceneDispose, released, contextLost,
+  return { backend: handle.backend, fallbackReason: handle.fallbackReason, centerPixel, memoryBefore, memoryBaseline, memoryAfterSceneDispose, memoryAfterRendererDispose, released, contextLost,
     shaderFallbacks: handle.shaderFallbacks, disposed: handle.disposed };
 }

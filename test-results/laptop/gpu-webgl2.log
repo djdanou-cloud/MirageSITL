@@ -1,0 +1,2 @@
+Visible webgl2 demo: 60s warmup then 600s frame capture.
+{"status":"PASS","backend":"webgl2","renderer":"ANGLE (NVIDIA, NVIDIA GeForce RTX 4050 Laptop GPU (0x000028A1) Direct3D11 vs_5_0 ps_5_0, D3D11)","fps":59.99114674339489,"p99Ms":19.910000000003492}

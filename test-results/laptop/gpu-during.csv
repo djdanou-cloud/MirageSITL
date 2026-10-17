@@ -1,0 +1,2 @@
+timestamp, name, memory.used [MiB], utilization.gpu [%], temperature.gpu, power.draw [W]
+2026/10/17 10:25:59.749, NVIDIA GeForce RTX 4050 Laptop GPU, 1281 MiB, 67 %, 58, 4.97 W

@@ -970,7 +970,7 @@ were synchronized and checked. Changes remain local; no commit or push performed
 
 ### TASK-073 — GPU acceptance harness
 
-- **Status:** BLOCKED_EXTERNAL — Codex; baseline c3a4735; 2026-10-17. GPU trace analyzer/profile matrix/schema implemented; M4/RTX4050 and full-feature production traces absent.
+- **Status:** BLOCKED_EXTERNAL — Codex; 2026-10-17. RTX4050 visible demo captures now exist; full-feature production traces, residency accounting and M4 remain absent. See the local laptop verification report.
 - **Title & Description:** Profile production rendering on M4/RTX 4050 with terrain/FPV/thermal enabled.
 - **Dependencies:** TASK-014, TASK-062, TASK-065, TASK-066, TASK-068, TASK-072.
 - **Touched Files:** `scripts/bench-render.mjs`, `docs/benchmarks/render-matrix.json`, `docs/validation/gpu-report.schema.json`, `tests/gpu-report.test.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `README.md`, `docs/ru/README.md`, `docs/documentation-index.json`, `scripts/validation/evidence.mjs`, `tests/evidence-tools.test.ts`, `tests/support/node-evidence.ts`.
@@ -1173,6 +1173,24 @@ All 15 documentation pairs pass structure/hash/link/layout checks after translat
 
 ## Local hardware checkpoint and laptop iteration (2026-10-17)
 
+The laptop iteration also removes a duplicate, identical dependency key in `apps/web/package.json`; the resolved dependency graph and lockfile stay unchanged.
+
 Owner Codex; baseline 1eb44f1. Hardware evidence is recorded in [local diagnostics](validation/local-hardware-2026-10-17.md). USB telemetry access is verified; TASK-043/050/051 remain blocked. Operator confirms battery disconnected and suspects GPS absent. Initial software baseline: 420 PASS, 27 FAIL, 17 pending; focused hardware-link regressions 38 PASS.
 
 TASK-002/003/014/017/073/080/082: IN_PROGRESS for this local verification increment. Goal: preserve exact checkout bytes, repair Windows tooling, run functional browser and actual RTX4050/laptop timing probes. Failure criterion: any failed gate or missing production evidence remains explicit; no target-device certification from software rendering. Touched paths: `docs/validation/local-hardware-2026-10-17.md`, `docs/ru/local-hardware-2026-10-17.md`, `docs/documentation-index.json`, `.gitattributes`, `.gitignore`, `test-results/hardware/`, `scripts/bench-physics.mjs`, `scripts/release-manifest.mjs`, `tests/tooling.test.ts`, `playwright.config.ts`. Additional paths will be recorded before implementation. User authorizes local commits and pushes for both checkpoints.
+
+Additional laptop paths before implementation: `tests/support/vite-url.ts`, `tests/browser/*.spec.ts`, `tests/ci.test.ts`, `scripts/probe-laptop.mjs`, `docs/operations/runbook.md`, `docs/ru/runbook.md`, `test-results/laptop/`. Browser fixture module URLs must work on Windows; hardware probes remain distinct from synthetic/software profiles.
+
+Additional laptop paths before implementation: `tests/support/vite-url.ts`, `tests/browser/*.spec.ts`, `tests/ci.test.ts`, `scripts/probe-laptop.mjs`, `docs/operations/runbook.md`, `docs/ru/runbook.md`, `test-results/laptop/`, `tests/release-manifest.test.ts`, `tests/thermal-nuc.test.ts`, `apps/web/src/SerialConnect.tsx`, `packages/autopilot/src/serial-io.worker.ts`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`. Browser fixture module URLs must work on Windows; hardware probes remain distinct from synthetic/software profiles.
+
+Additional scope before implementation: `tests/support/render-harness.ts` and renderer browser assertions. Diagnose native WebGPU renderer-owned baseline separately from scene resources and verify complete renderer disposal.
+
+Local verification increment COMPLETE: unit 465/465, native Rust 46/46, full
+software-profile browser 49 PASS / 0 FAIL / 1 WebGPU skip; native-GPU renderer
+follow-up 6/6 with no skips. Typecheck, lint, build and bilingual checks pass.
+The native-size 144 Hz window resolves probe clipping, confirmed by the operator;
+measured cadence remains approximately 60 FPS. Node 800/1200 Hz delivery and
+GPU p99/120 FPS targets fail; NASA contact fidelity still fails. Production,
+HITL and remaining acceptance blockers retain their existing status. Exact
+commands and evidence are in [laptop validation](validation/laptop-validation-2026-10-17.md)
+and `test-results/laptop/`. Both checkpoints are authorized for GitHub push.
