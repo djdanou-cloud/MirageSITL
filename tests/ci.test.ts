@@ -54,7 +54,11 @@ describe('pull request CI contract', () => {
     const result = spawnSync(process.execPath, ['node_modules/@playwright/test/cli.js', 'test', '--list', '--reporter=list', '--grep', '^missing-ci-case$'], { cwd: root, encoding: 'utf8' });
     expect(result.status).not.toBe(0);
     expect(result.stdout + result.stderr).toContain('No tests found');
-  });
+    // The Playwright CLI must boot and load all tests/browser specs before --grep can
+    // report no match: ~1.2 s idle on the reference Windows laptop, 2.5-4.2 s inside full
+    // Vitest runs, and up to 7.7 s observed. Vitest's 5 s default
+    // measures host contention rather than the discovery contract asserted above.
+  }, 20_000);
   it('pins one Rust toolchain across native/rust-toolchain.toml and every workflow that installs it', () => {
     const toolchain = readFileSync(join(root, 'native/rust-toolchain.toml'), 'utf8');
     const channel = /^channel = "([^"]+)"$/m.exec(toolchain)?.[1];
