@@ -12,7 +12,8 @@
     "./hitl": "./src/hitl.ts",
     "./hitl-capabilities": "./src/hitl-capabilities.ts",
     "./warmup": "./src/warmup.ts",
-    "./ekf-status": "./src/ekf-status.ts"
+    "./ekf-status": "./src/ekf-status.ts",
+    "./wasm-loader": "./src/wasm-loader.ts"
   },
   "dependencies": {
     "@mirage/mavlink": "0.1.0",

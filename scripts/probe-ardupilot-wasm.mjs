@@ -21,7 +21,7 @@ export function probeWasm(env = process.env) {
     } catch { sources.push({ path: f.path, matches: false }); }
   }
   const emscriptenVersion = checks.emscripten ? (/\b(\d+\.\d+\.\d+)\b/.exec(emcc.stdout ?? "")?.[1] ?? null) : null;
-  return { ...report("ardupilot-wasm-feasibility", "BLOCKED_EXTERNAL", ["No browser HAL/scheduler/storage/network port or native parity exists; POSIX SITL is not a browser artifact", ...(checks.emscripten ? [] : ["Emscripten compiler unavailable"])]), checks, emscriptenVersion, sources, commit: lock.commit };
+  return { ...report("ardupilot-wasm-feasibility", "BLOCKED_EXTERNAL", ["Upstream wasm board builds and boots (TASK-045), but MirageSITL browser Worker integration, persistent storage, physics/time coupling (TASK-046), GPL review and native parity (TASK-047) are absent", ...(checks.emscripten ? [] : ["Emscripten compiler unavailable"])]), checks, emscriptenVersion, sources, commit: lock.commit };
 }
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const result = probeWasm(); mkdirSync("test-results/validation", { recursive: true });

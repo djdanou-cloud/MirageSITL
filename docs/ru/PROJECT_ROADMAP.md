@@ -1,6 +1,6 @@
 # PROJECT_ROADMAP.md
 
-<!-- source-sha256: f3f299cd2ae682e266cfa8eecca3bde6bed82def92ee6438a77a4e0469ae746f -->
+<!-- source-sha256: 267f68fa36046bb74bdbe2c20d6e38a7da6c0bd25e800a2c9b2692b2d5eae189 -->
 
 Английский источник: [Source of truth](../PROJECT_ROADMAP.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -702,10 +702,10 @@ Cargo bin активирован в PATH. Производительность M
 
 ### TASK-045 — ArduPilot WASM build
 
-- **Status:** BLOCKED_EXTERNAL — Claude; baseline 82ec344; 2026-10-17. Закреплённые Emscripten 4.0.15 и исходники ArduPilot установлены и проверены; для сборки прошивки нужны POSIX-хост и Python-пакеты сборки.
+- **Status:** IN_PROGRESS — Claude; baseline 065ef84; 2026-10-17. Воспроизводимый WASM-артефакт ArduCopter собран из штатной платы `wasm`, проверен и запущен в Node; загрузка в браузерном Worker ожидается; распространение артефакта BLOCKED_DECISION (проверка GPL).
 - **Title & Description:** Собрать выбранный firmware с pinned toolchain и hash manifests.
 - **Dependencies:** TASK-044.
-- **Touched Files:** `native/ardupilot/CMakeLists.txt`, `native/ardupilot/toolchain.lock.json`, `scripts/build-ardupilot-wasm.mjs`, `packages/autopilot/src/wasm-loader.ts`, `tests/ardupilot-wasm-build.test.ts`, `scripts/probe-ardupilot-wasm.mjs`, `tests/ardupilot-wasm-capability.test.ts`, `docs/decisions/ardupilot-wasm.md`, `docs/ru/ardupilot-wasm.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
+- **Touched Files:** `native/ardupilot/CMakeLists.txt`, `native/ardupilot/toolchain.lock.json`, `scripts/build-ardupilot-wasm.mjs`, `packages/autopilot/src/wasm-loader.ts`, `tests/ardupilot-wasm-build.test.ts`, `scripts/probe-ardupilot-wasm.mjs`, `tests/ardupilot-wasm-capability.test.ts`, `docs/decisions/ardupilot-wasm.md`, `docs/ru/ardupilot-wasm.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `scripts/build-ardupilot-wasm.mjs`, `scripts/smoke-ardupilot-wasm.mjs`, `packages/autopilot/src/wasm-loader.ts`, `packages/autopilot/package.json`, `native/ardupilot/wasm-artifact.manifest.json`, `tests/ardupilot-wasm-build.test.ts`.
 - **Interfaces / Contracts:** Artifact ABI/license/firmware manifest.
 - **DoD & Acceptance Criteria:** Reproducible artifact загружается в Worker; symbols и memory limits проверены; dependency blocker из 044 должен быть устранён, fake empty module запрещён.
 - **Evidence (2026-10-17):** Владелец Claude; baseline 82ec344; загрузки одобрены оператором после измерения размеров и выполнены вне репозитория в `C:\Users\djdan\MirageExternal`.
@@ -718,6 +718,23 @@ Cargo bin активирован в PATH. Производительность M
     - (3) Замены браузерного HAL для планировщика/UART/хранилища, зафиксированные TASK-044; одна компиляция их не даёт.
     - (4) Проверка условий распространения GPL.
   - Артефакт, загрузчик или пустой модуль не создавались.
+
+- **Свидетельства сборки (2026-10-17, WSL Ubuntu 26.04):** Владелец Claude.
+  - Оператор установил WSL и инструменты сборки apt. Python-пакеты сборки ArduPilot находятся в `~/mirage/venv`: empy 3.3.4, pexpect 4.9.0, future 1.0.0 и lxml 6.1.3. Закреплённый emsdk 4.0.15 для Linux находится в `~/mirage/emsdk` (хеш манифеста проверен).
+  - Закреплённый ArduPilot находится в `~/mirage/ardupilot` с waf, mavlink, модулями DroneCAN, littlefs `34be692` и lwip `a6bf350`. SITL нужны оба последних.
+  - Нативный эталон: `waf configure --board sitl && waf copter` выполнен за 88 с с GCC 15.2. `arducopter` — ELF x86-64, 6 231 328 байт, SHA-256 `fa37bf619bce116d410931f1b7d24ea72ed444ba529379df0db9738742ecb186`.
+  - Штатная плата `wasm` на закреплённом коммите собирает ArduCopter с 0 ошибок: `arducopter.wasm` (3 730 330 байт, `556d97fa6dbf7c0a2cf713f6106a6891de0b9bc9c5a7dd945f1789b63e58df38`) и `arducopter.js` (258 215 байт, `b158a7b8e9b400c770e2b4fc87c66fc2aaf68bc583c7d71f3a56786d3bcb4212`). Три чистые сборки, две вручную и одна через `scripts/build-ardupilot-wasm.mjs` в WSL, побайтно совпадают.
+  - Допуск (`packages/autopilot/src/wasm-loader.ts`) проверяет хеши и размеры, пять экспортов моста/аллокатора, импорты env и wasi_snapshot_preview1 и общую память от 256 до 32768 страниц против бюджета 2 ГиБ.
+  - `scripts/smoke-ardupilot-wasm.mjs` запускает артефакт со встроенной моделью quad и serial0 на wasm-мосте. Он проходит в Windows Node 24.19: баннер "Init ArduCopter V4.8.0-dev (8ab6afde)", затем 23 HEARTBEAT от системы 1 и 24 кадра MAVLink2 за 20 с. Отсутствующий артефакт даёт код 2.
+  - `tests/ardupilot-wasm-build.test.ts`: 12 PASS с заданным `MIRAGE_ARDUPILOT_WASM_DIR`. Без него 11 PASS, а случай настоящего артефакта сообщается как пропущенный, а не пройденный.
+  - Артефакты хранятся вне репозитория; закоммичен только их манифест.
+  - Остаётся:
+    - загрузка артефакта в браузерном Worker с COOP/COEP;
+    - постоянное хранение параметров;
+    - решение о распространении по GPL;
+    - Emscripten 4.0.15 против 6.0.8 в CI ArduPilot.
+
+    Интеграция HAL со временем и физикой MirageSITL — TASK-046; паритет — TASK-047.
 
 ### TASK-046 — Browser HAL для ArduPilot
 

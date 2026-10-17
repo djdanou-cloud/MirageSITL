@@ -699,10 +699,10 @@ were synchronized and checked. Changes remain local; no commit or push performed
 
 ### TASK-045 — ArduPilot WASM build
 
-- **Status:** BLOCKED_EXTERNAL — Claude; baseline 82ec344; 2026-10-17. Pinned Emscripten 4.0.15 and ArduPilot source installed and verified; firmware build needs a POSIX build host and Python build packages.
+- **Status:** IN_PROGRESS — Claude; baseline 065ef84; 2026-10-17. Reproducible ArduCopter WASM artifact built from the upstream `wasm` board, admitted and booted in Node; browser Worker load pending; artifact distribution BLOCKED_DECISION (GPL review).
 - **Title & Description:** Build selected firmware with pinned tools and artifact hashes.
 - **Dependencies:** TASK-044.
-- **Touched Files:** `native/ardupilot/CMakeLists.txt`, `native/ardupilot/toolchain.lock.json`, `scripts/build-ardupilot-wasm.mjs`, `packages/autopilot/src/wasm-loader.ts`, `tests/ardupilot-wasm-build.test.ts`, `scripts/probe-ardupilot-wasm.mjs`, `tests/ardupilot-wasm-capability.test.ts`, `docs/decisions/ardupilot-wasm.md`, `docs/ru/ardupilot-wasm.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
+- **Touched Files:** `native/ardupilot/CMakeLists.txt`, `native/ardupilot/toolchain.lock.json`, `scripts/build-ardupilot-wasm.mjs`, `packages/autopilot/src/wasm-loader.ts`, `tests/ardupilot-wasm-build.test.ts`, `scripts/probe-ardupilot-wasm.mjs`, `tests/ardupilot-wasm-capability.test.ts`, `docs/decisions/ardupilot-wasm.md`, `docs/ru/ardupilot-wasm.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `scripts/build-ardupilot-wasm.mjs`, `scripts/smoke-ardupilot-wasm.mjs`, `packages/autopilot/src/wasm-loader.ts`, `packages/autopilot/package.json`, `native/ardupilot/wasm-artifact.manifest.json`, `tests/ardupilot-wasm-build.test.ts`.
 - **Interfaces / Contracts:** Artifact ABI/license/firmware manifest.
 - **DoD & Acceptance Criteria:** A reproducible artifact loads in Worker with checked exports/memory limits; resolve TASK-044 blockers first; an empty replacement module is forbidden.
 - **Evidence (2026-10-17):** Owner Claude; baseline 82ec344; operator-approved downloads, measured first, all outside the repository under `C:\Users\djdan\MirageExternal`.
@@ -715,6 +715,23 @@ were synchronized and checked. Changes remain local; no commit or push performed
     - (3) The browser scheduler/UART/storage HAL replacements recorded by TASK-044, which a compile alone does not provide.
     - (4) The GPL distribution review.
   - No artifact, loader or empty module was produced.
+
+- **Build Evidence (2026-10-17, WSL Ubuntu 26.04):** Owner Claude.
+  - The operator installed WSL and the apt build tools. ArduPilot's Python build packages are in `~/mirage/venv`: empy 3.3.4, pexpect 4.9.0, future 1.0.0 and lxml 6.1.3. The pinned Linux emsdk 4.0.15 is in `~/mirage/emsdk` (manifest hash verified).
+  - The pinned ArduPilot is in `~/mirage/ardupilot` with waf, mavlink, the DroneCAN modules, littlefs `34be692` and lwip `a6bf350`. SITL needs both of the last two.
+  - Native reference: `waf configure --board sitl && waf copter` succeeded in 88 s with GCC 15.2. `arducopter` is an x86-64 ELF, 6,231,328 bytes, SHA-256 `fa37bf619bce116d410931f1b7d24ea72ed444ba529379df0db9738742ecb186`.
+  - The upstream `wasm` board at the pinned commit builds ArduCopter with 0 errors: `arducopter.wasm` (3,730,330 bytes, `556d97fa6dbf7c0a2cf713f6106a6891de0b9bc9c5a7dd945f1789b63e58df38`) and `arducopter.js` (258,215 bytes, `b158a7b8e9b400c770e2b4fc87c66fc2aaf68bc583c7d71f3a56786d3bcb4212`). Three clean builds, two by hand and one by `scripts/build-ardupilot-wasm.mjs` through WSL, are byte-identical.
+  - Admission (`packages/autopilot/src/wasm-loader.ts`) checks the hashes and sizes, the five bridge/allocator exports, the env and wasi_snapshot_preview1 imports, and shared memory of 256 to 32768 pages against a 2 GiB budget.
+  - `scripts/smoke-ardupilot-wasm.mjs` boots the artifact with the built-in quad model and serial0 on the wasm bridge. It passes on Windows Node 24.19: banner "Init ArduCopter V4.8.0-dev (8ab6afde)", then 23 HEARTBEATs from system 1 and 24 MAVLink2 frames in 20 s. A missing artifact exits 2.
+  - `tests/ardupilot-wasm-build.test.ts`: 12 PASS with `MIRAGE_ARDUPILOT_WASM_DIR` set. Without it, 11 PASS and the real-artifact case is reported skipped, not passed.
+  - The artifacts stay outside the repository; only their manifest is committed.
+  - Remaining:
+    - loading the artifact in a browser Worker under COOP/COEP;
+    - persistent parameter storage;
+    - the GPL distribution decision;
+    - Emscripten 4.0.15 versus upstream CI's 6.0.8.
+
+    HAL integration with MirageSITL physics and time is TASK-046; parity is TASK-047.
 
 ### TASK-046 — ArduPilot browser HAL
 

@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "firmware": "ArduCopter",
+  "board": "wasm",
+  "sourceCommit": "8ab6afde107a91df1b5f60ade8f333cb8a61b190",
+  "emscriptenVersion": "4.0.15",
+  "module": {
+    "file": "arducopter.wasm",
+    "sha256": "556d97fa6dbf7c0a2cf713f6106a6891de0b9bc9c5a7dd945f1789b63e58df38",
+    "bytes": 3730330
+  },
+  "glue": {
+    "file": "arducopter.js",
+    "sha256": "b158a7b8e9b400c770e2b4fc87c66fc2aaf68bc583c7d71f3a56786d3bcb4212",
+    "bytes": 258215
+  },
+  "requiredExports": [
+    "ardupilot_serial_write",
+    "ardupilot_serial_read",
+    "ardupilot_serial_read_available",
+    "ardupilot_malloc",
+    "ardupilot_free"
+  ],
+  "memory": {
+    "shared": true,
+    "initialPages": 256,
+    "maximumPages": 32768
+  },
+  "license": "GPL-3.0-or-later",
+  "distribution": "local-only-pending-gpl-review"
+}
