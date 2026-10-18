@@ -1,0 +1,228 @@
+{
+  "schemaVersion": 1,
+  "task": "TASK-033",
+  "status": "BLOCKED_EXTERNAL",
+  "baseline": "8c218aa3e3309a700f47819aaede19f95b507a98",
+  "date": "2026-10-18",
+  "checks": [
+    {
+      "file": "test-results/validation/task-033-unit.xml",
+      "sha256": "20a86a03945c5970c1bfeeb025d90ae028a669d1f07b68eb59cd17fc86e058fb",
+      "total": 525,
+      "passed": 524,
+      "skipped": 1,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "file": "test-results/validation/task-033-final.xml",
+      "sha256": "42d23913fa7a32e11d254490112fd15ac95bc270cb55ddc035384dfc2be10eb5",
+      "total": 5,
+      "passed": 5,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "file": "test-results/validation/task-033-docs.xml",
+      "sha256": "fac08a6ee8e3a742f17b06ae70c19c25caf77853e5ec52102c03bdfdb0bb581e",
+      "total": 6,
+      "passed": 6,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "file": "test-results/browser/junit.xml",
+      "sha256": "3d990d929ba72c85661634f13e351dc595643371b005f070feec6ab240050fdf",
+      "total": 2,
+      "passed": 2,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0
+    }
+  ],
+  "native": {
+    "file": "test-results/validation/task-033-native.log",
+    "sha256": "566e9e61844b55836c117fcfda88d34087506f54a116058e6bcf4347e0b6217e",
+    "passed": 62,
+    "exitCode": 0,
+    "command": "cargo test --workspace --locked",
+    "cwd": "native"
+  },
+  "commands": [
+    {
+      "command": "node scripts/check-propid.mjs --run",
+      "exitCode": 0,
+      "scope": "Turbine executable smoke; not propeller parity"
+    },
+    {
+      "command": "node scripts/check-propeller-bem.mjs",
+      "exitCode": 0,
+      "scope": "Offline diagnostic; not fidelity PASS"
+    },
+    {
+      "command": "node scripts/validate-models.mjs",
+      "exitCode": 2,
+      "scope": "Numerical PASS, propeller FAIL, contact/airframe blocked; asserted by final regression"
+    },
+    {
+      "command": "node node_modules/eslint/bin/eslint.js . --max-warnings=0 --no-inline-config",
+      "exitCode": 0
+    },
+    {
+      "command": "node node_modules/typescript/bin/tsc --noEmit",
+      "exitCode": 0
+    },
+    {
+      "command": "node node_modules/vite/bin/vite.js build apps/web",
+      "exitCode": 0
+    },
+    {
+      "command": "node scripts/check-docs.mjs",
+      "exitCode": 0
+    },
+    {
+      "command": "git diff --check",
+      "exitCode": 0
+    }
+  ],
+  "annularResults": [
+    {
+      "id": "uniform-original",
+      "totals": {
+        "points": 958,
+        "compared": 165,
+        "passed": 26,
+        "ctWithinTolerance": 26,
+        "cpWithinTolerance": 46,
+        "outsidePolar": 723,
+        "outsideMomentum": 70,
+        "errors": 0
+      },
+      "numerical": {
+        "diagnosticCases": 0,
+        "convergedCases": 0,
+        "maximumRelativeResidual": 0
+      }
+    },
+    {
+      "id": "annular-no-loss",
+      "totals": {
+        "points": 958,
+        "compared": 149,
+        "passed": 36,
+        "ctWithinTolerance": 42,
+        "cpWithinTolerance": 41,
+        "outsidePolar": 734,
+        "outsideMomentum": 75,
+        "errors": 0
+      },
+      "numerical": {
+        "diagnosticCases": 958,
+        "convergedCases": 958,
+        "maximumRelativeResidual": 9.998503873790908e-11
+      }
+    },
+    {
+      "id": "annular-tip-hub-swirl",
+      "totals": {
+        "points": 958,
+        "compared": 193,
+        "passed": 48,
+        "ctWithinTolerance": 64,
+        "cpWithinTolerance": 53,
+        "outsidePolar": 690,
+        "outsideMomentum": 75,
+        "errors": 0
+      },
+      "numerical": {
+        "diagnosticCases": 958,
+        "convergedCases": 958,
+        "maximumRelativeResidual": 9.999054527516558e-11
+      }
+    },
+    {
+      "id": "annular-tip-hub-no-swirl",
+      "totals": {
+        "points": 958,
+        "compared": 188,
+        "passed": 44,
+        "ctWithinTolerance": 56,
+        "cpWithinTolerance": 46,
+        "outsidePolar": 697,
+        "outsideMomentum": 73,
+        "errors": 0
+      },
+      "numerical": {
+        "diagnosticCases": 958,
+        "convergedCases": 958,
+        "maximumRelativeResidual": 9.998114589006685e-11
+      }
+    }
+  ],
+  "pairedComparison": [
+    {
+      "id": "annular-no-loss",
+      "commonCompared": 139,
+      "baselinePassed": 21,
+      "candidatePassed": 33,
+      "gained": 20,
+      "lost": 8
+    },
+    {
+      "id": "annular-tip-hub-swirl",
+      "commonCompared": 159,
+      "baselinePassed": 26,
+      "candidatePassed": 39,
+      "gained": 35,
+      "lost": 22
+    },
+    {
+      "id": "annular-tip-hub-no-swirl",
+      "commonCompared": 158,
+      "baselinePassed": 26,
+      "candidatePassed": 36,
+      "gained": 22,
+      "lost": 12
+    }
+  ],
+  "artifacts": [
+    {
+      "file": "test-results/validation/propeller-source-review.json",
+      "sha256": "ba0084547a196705d1bd97438b812c739c07aee3da8033d54b2e885820c7754c"
+    },
+    {
+      "file": "test-results/validation/propeller-bem.json",
+      "sha256": "bdaff01ca43da42b9a48e1babda4c1a6475ac2128d824a3f5bf582eb8bfe04a3"
+    },
+    {
+      "file": "test-results/validation/model-report.json",
+      "sha256": "b7f64aa0ed28f966e60a5c529a9a370f9f1e40db3fed2f309b56439d4a902315"
+    },
+    {
+      "file": "test-results/validation/nasa-drop-legacy.json",
+      "sha256": "2c23c888feb8c540cdbee2587b6be4af3f8aeb6c25cd0d9591bdaa1da5d3cbd1"
+    },
+    {
+      "file": "test-results/validation/airfoil-inputs.json",
+      "sha256": "b09b8b50a633d13bdfb34ed8e33314141030dac590204659ab02a1ce1d08594f"
+    },
+    {
+      "file": "test-results/validation/task-033-handoff-review.json",
+      "sha256": "762c80d8ab758e335c3d2b0b6a10b4b4fe08b27dbe20c9c40ce7218e055aedeb"
+    }
+  ],
+  "airfoilPrep": {
+    "freshRecheck": "unavailable-original-workbook-missing",
+    "historicalAudit": "test-results/validation/airfoil-inputs.json",
+    "numericalRunDependency": false
+  },
+  "limitations": [
+    "Fixed CT/CP acceptance still fails; reliable section polar coverage and measured airframe validation remain open",
+    "Full unit suite precedes final hash-binding edits; final five affected regressions follow those edits",
+    "Browser evidence is two affected tests, not a fresh complete browser suite",
+    "Existing linker/hardlink and bundle-size warnings retained; no high-rate/production admission claim",
+    "No commit or push requested for this continuation"
+  ]
+}

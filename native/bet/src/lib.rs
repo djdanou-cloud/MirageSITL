@@ -34,6 +34,7 @@ mod test_exports;
 pub mod quadrature;
 pub mod polar;
 pub mod propeller;
+pub mod propeller_bem;
 
 /// ABI version reported by `bet_abi_version`; loaders reject any other value.
 pub const BET_ABI_VERSION: u32 = 1;

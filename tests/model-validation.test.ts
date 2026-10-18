@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { Ajv } from "ajv";
 import { expect, it } from "vitest";
 import schema from "../docs/validation/model-report.schema.json";
-it("writes numerical parity, NASA drop and UIUC propeller evidence and fails closed on missing or failed fidelity", () => {
+it("writes numerical and UIUC evidence, retains the deferred NASA failure, and fails closed on missing or failed fidelity", () => {
   const result = spawnSync(process.execPath, ["scripts/validate-models.mjs"], {
     encoding: "utf8",
   });
@@ -14,13 +14,13 @@ it("writes numerical parity, NASA drop and UIUC propeller evidence and fails clo
   expect(
     new Ajv({ strict: true, allowUnionTypes: true }).compile(schema)(report),
   ).toBe(true);
-  // Airframe data are absent (blocked); the NASA drop and UIUC propeller comparisons run and fail.
+  // Airframe data are absent; NASA is explicitly deferred with its failure retained.
   expect(report).toMatchObject({
-    schemaVersion: 4,
+    schemaVersion: 5,
     status: "failed",
     numericalStatus: "pass",
     fidelityStatus: "blocked",
-    contactFidelityStatus: "failed",
+    contactFidelityStatus: "blocked",
     propellerFidelityStatus: "failed",
     propellerValidation: [
       {
@@ -41,18 +41,18 @@ it("writes numerical parity, NASA drop and UIUC propeller evidence and fails clo
         tolerance: { ctRelative: 0.1, ctAbsolute: 0.005, cpRelative: 0.1, cpAbsolute: 0.003 },
       },
     ],
-    measuredValidation: [
+    measuredValidation: [],
+    deferredMeasurements: [
       {
         id: "nasa-tm-x-3561-drop",
-        datasetId: "NASA-TM-X-3561-DropTest",
-        referenceUrl: "https://ntrs.nasa.gov/citations/19780003109",
-        license: "Public-Domain-US-Gov",
-        consistencyStatus: "pass",
-        status: "failed",
+        historicalStatus: "failed",
+        archivePath: "test-results/validation/nasa-drop-legacy.json",
+        reason: "NASA measured fidelity deferred by explicit user instruction on 2026-10-18; preserve the historical failed comparison",
       },
     ],
+    diagnostics: { jsbsimBackend: { status: "pass" }, jsbsimJsAllocation: { status: "pass" } },
   });
-  expect(result.stdout).toContain("12 cases; 3 measured");
+  expect(result.stdout).toContain("12 cases; 2 measured");
 }, 300000);
 it("retains pinned reference rate and rejects a missing JSBSim source", () => {
   expect(() =>
@@ -72,6 +72,8 @@ it("rejects empty/misordered rates and unsupported measurements before building"
   const code =
     "import {parseReference} from './scripts/validate-models.mjs';let input='';for await(const chunk of process.stdin)input+=chunk;parseReference(input);";
   for (const change of [
+    { schemaVersion: 1 },
+    { deferredMeasurements: [{}] },
     { testHz: [] },
     { testHz: [1200, 800, 400] },
     { measurements: [{}] },
@@ -111,4 +113,11 @@ it("rejects empty/misordered rates and unsupported measurements before building"
     expect(result.status).not.toBe(0);
     expect(result.stderr).toContain("Invalid pinned reference");
   }
+});
+
+it("rejects modified deferred evidence without rerunning the obsolete NASA model", () => {
+  const code = "import {verifyDeferredMeasurement} from './scripts/validate-models.mjs';import {readFileSync} from 'node:fs';const r=JSON.parse(readFileSync('tests/fixtures/validation/reference-manifest.json'));await verifyDeferredMeasurement({...r.deferredMeasurements[0],archiveSha256:'0'.repeat(64)});";
+  const result = spawnSync(process.execPath, ["--input-type=module", "-e", code], { encoding: "utf8" });
+  expect(result.status).not.toBe(0);
+  expect(result.stderr).toContain("archive hash mismatch");
 });

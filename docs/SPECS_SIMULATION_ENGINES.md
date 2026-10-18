@@ -2164,3 +2164,108 @@ JSBSim holds the end value beyond the last measured J. No ixx is written,
 because inertia is not in the dataset. Loading in the pinned JSBSim v1.2.3
 and the thrust check remain BLOCKED_EXTERNAL until a JSBSim source checkout
 is available.
+
+## TASK-033 source-backed propeller continuation (2026-10-18)
+
+This adds an offline diagnostic, not a production dynamics ABI. The original
+uniform-inflow path and fixed CT/CP tolerances remain. Reference manifest v2
+and report schema v5 supersede the earlier historical reporting limitations.
+
+### Sources and limits
+
+The supplied AIAA 2014-2151 article anchors the existing UIUC experiment and
+blade identity. Deters' dissertation adds design versus manufactured geometry
+(3.2), axial/tangential induction (4.2), low-Re XFOIL limitations (6.2), and
+downstream slipstreams (chapter 8). Appendix A.2 exactly matches the existing
+61-point SDA1075 transcription. The dissertation reports that its Re=20000
+XFOIL polar produced propeller predictions inconsistent with experiments.
+Expanding solver coverage alone cannot establish fidelity. Our fixture already
+uses scanned geometry; no additional fitted pitch offset is applied.
+
+PROPID 5.3.1 documents slug/ft units, midpoint stations, Prandtl tip/hub losses
+and swirl. It names MODE=2/INCV=1 for propellers but does not document that mode.
+`node scripts/check-propid.mjs --run` checks source hashes and runs the bundled
+turbine example in a bounded cache directory. That smoke passes with its
+original Reynolds warning. A separate synthetic propeller trial did not
+establish velocity/sign conventions and is not admitted as parity. The review
+is `test-results/validation/propeller-source-review.json`; raw resources stay
+local and ignored. Downstream measured swirl is not rotor-plane induction:
+station transforms/wake contraction would be needed to compare chapter 8.
+
+`neel542/airfoil-research`, reviewed at commit
+`27c6eb2a37e4f157ae62bd485b3686949b103698`, is a complementary implementation
+and uncertainty reference. Its 14 static source files exactly match our UIUC
+files, not independent new experiments. Its general airfoil benchmark starts
+at Re=60000. Its propeller study uses static cases, a Re>=40000 summary window,
+Kulfan-fitted geometry and different loss/root/polar policies. We do not import
+its error fits, acceptance window, NeuralFoil predictions or filled XFOIL gaps
+as measurements. Its Python code was inspected, not executed.
+
+### Annular diagnostic
+
+The supplied `task_033_sda1075_polar_propid_handoff.md` was reviewed as a
+secondary source, not an acceptance instruction. Its claimed digitization
+disagrees visibly with the article's Figure 30 (PDF page 22): at alpha=0,
+Re=40000 the plotted Cl is near zero, not 0.30; at alpha=20, Re=100000 it is
+approximately 0.63, not 0.97. These approximate visual readings identify a
+discrepancy; they are not replacement polar cells. The handoff supplies no
+digitization calibration or uncertainty and is not imported. Existing raw
+XFOIL 6.99 at alpha=0, Re=40000 gives Cl=-0.0322, Cd=0.02661; differences
+between solvers/settings still require their own provenance.
+
+NeuralFoil's official documentation describes a neural surrogate trained on
+XFOIL runs, with an analysis-confidence output. Smooth evaluation is not a
+converged boundary-layer solve or measured accuracy at Re=5000. Viterna
+extends angle of attack; it does not supply missing Reynolds-number validity.
+Any future extension must separately identify raw solver, digitized solver,
+surrogate and angle-extrapolated values, plus Reynolds-envelope flags. The
+reviewed sources do not establish that measured SDA1075 data cannot exist
+elsewhere. NASA deferral concerns landing-gear fidelity, not whole-aircraft
+validation. Review artifact: `test-results/validation/task-033-handoff-review.json`.
+
+`native/bet/src/propeller_bem.rs` balances each midpoint annulus with rotor-plane
+axial velocity V+u and tangential velocity Omega*r-w. Momentum loads per unit
+radial span are `dT/dr = 4*pi*rho*r*F*u*(V+u)` and
+`dQ/dr = 4*pi*rho*r^2*F*w*(V+u)`. Original Prandtl tip/hub factors form F and
+multiply momentum, not an arbitrary total-thrust scale. Lightly braking annuli
+are allowed on V+u>=V/2; integrated nonpositive thrust/power is outside validity.
+Windmilling and high-induction braking remain uncertified.
+
+A bounded damped Newton solve uses nested swirl/axial bisection as fallback.
+Its search expands; no fixed fraction of rotational speed is an induction
+admission limit. Missing roots yield errors, never zero-inflow success.
+Multiple-root uniqueness/stability is not certified: Newton finds a local
+balance; fallback scans for the first sign bracket. Convergence requires
+relative residual <1e-9 against the local rotational blade-force scale.
+Only final section queries determine coverage; clamped polar values are not
+admitted as valid comparisons.
+
+The cold example accepts `--annular`, `--no-tip-loss`, `--no-hub-loss` and
+`--no-swirl`. In annular mode its fifth numeric output is dimensionless
+residual; unchanged legacy mode reports newtons. `bem` stderr records contain
+convergence, validity, residual, final alpha/Re extrema, mean induction/swirl
+and coefficients. This is offline tooling, not a C/SAB interface.
+
+`node scripts/check-propeller-bem.mjs` runs four explicit variants with the same
+registered measurement and XFOIL fixtures. All three annular variants converge
+on 958 points. Full losses/swirl compare 193 points: 48 pass both tolerances,
+690 are outside polar and 75 outside momentum validity. Original uniform flow
+reproduces 165 compared/26 passed. On 159 common points, the candidate passes
+39 versus 26, with 35 gains and 22 losses. Different coverage and mixed changes
+preclude a general improvement/fidelity PASS claim. Results, source/executable
+hashes, paired points and query ranges: `test-results/validation/propeller-bem.json`.
+
+### Current report and NASA deferral
+
+Reference v2 separates `measurements` from `deferredMeasurements`. Only the
+explicitly deferred NASA descriptor is supported. Duplicate active/deferred IDs,
+unsupported deferrals, absent archives and changed hashes are rejected.
+`test-results/validation/nasa-drop-legacy.json` retains the actual failed
+historical comparison. Report v5 records ID, reason, archive path/hash and
+historical failed status. No active contact measurement means contact fidelity
+blocked, never pass. Current JSBSim backend/JS allocation evidence verifies
+source and build-input hashes. Annular evidence verifies its source list and
+reports its still-failed measured status; old probe fields remain historical.
+Numerical parity can pass while propeller fidelity fails and airframe fidelity
+is blocked. Main CLI exit 2 retains that distinction; annular diagnostic exit 0
+only means its sensitivity execution completed.

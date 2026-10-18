@@ -1,0 +1,277 @@
+{
+  "schemaVersion": 1,
+  "task": "TASK-033",
+  "generatorSha256": "98a0db2c92536428e6129e9e2566658a484a64c83539cfc72a8157b90da4461b",
+  "sources": [
+    {
+      "file": "PROPID-Ver53-120106-Full/bin/propid53-64bit.exe",
+      "sha256": "8d91d2cad3404e09fc738e1cd838c977efe2b224d1cc23429975c9897c5c0745",
+      "role": "Optional executable reference; turbine smoke only admitted"
+    },
+    {
+      "file": "PROPID-Ver53-120106-Full/doc/pdf/UserManual-531.pdf",
+      "sha256": "4329c2fa26b7b98f7a5546338a4850817cd89da238e179f3a2e92074e878ada6",
+      "role": "Sections 3.1-3.3: modes, Prandtl losses, swirl, units, midpoint geometry and polar format"
+    },
+    {
+      "file": "PROPID-Ver53-120106-Full/README.txt",
+      "sha256": "390e483d3119a98f6f6455e5fac9e972b75f70f237a83678d246aca8d0552df5",
+      "role": "Version, invocation, authorship and redistribution status"
+    },
+    {
+      "file": "DetersAnandaSelig-2014-AIAA-2014-2151.md",
+      "sha256": "b1d4efed0a7cc4cefa462d3da33af51404069d3dd5afcdd81f2d95202bf1d3ae",
+      "role": "AIAA 2014-2151: experiment, blade identities, geometry, coefficients and SDA1075 coordinates"
+    },
+    {
+      "file": "Robert_Deters.md",
+      "sha256": "a493695a924d7ab82cf31847d2e3583a90f63c89edbd07eeceb5a2a51be017d8",
+      "role": "Deters 2014 dissertation: sections 3.2, 4.2, 6.2, chapter 8 and Appendix A.2; geometry, induction, low-Re limitations and slipstream evidence"
+    }
+  ],
+  "sda1075Coordinates": {
+    "points": 61,
+    "exactMatch": true,
+    "source": "Dissertation Appendix A.2",
+    "reference": "tests/fixtures/rotors/uiuc/sda1075.dat"
+  },
+  "findings": [
+    "Use all three sources with different roles; none supplies a new raw measured SDA1075 polar",
+    "Dissertation section 6.2 reports that its XFOIL Re=20000 polar gave predictions inconsistent with experiments; expanding computed coverage alone is not validation",
+    "Dissertation distinguishes design geometry from scanned manufactured geometry; the current UIUC fixture already uses measured geometry, so no fitted extra pitch offset is applied",
+    "Chapter 8 slipstream measurements are downstream, not rotor-plane induced velocities; wake contraction and station transforms are required before a numerical comparison",
+    "Manual names MODE=2/INCV=1 for propellers but does not document that mode; the local synthetic trial did not establish correct velocity/sign conventions, so it is not admitted as parity"
+  ],
+  "propellerReferenceAdmitted": false,
+  "githubReview": {
+    "url": "https://github.com/neel542/airfoil-research",
+    "commit": "27c6eb2a37e4f157ae62bd485b3686949b103698",
+    "softwareLicense": "MIT",
+    "executed": false,
+    "reviewedFiles": [
+      {
+        "file": "LICENSE",
+        "sha256": "a6f098dd2980af5d687da60ff6d4bf07056cb649950535adfb19052fe4abee48"
+      },
+      {
+        "file": "METHODS.md",
+        "sha256": "202734881bd9d0e7c893ffa6031ca95a4ebe51b93838fe3c33372e7b8d10702e"
+      },
+      {
+        "file": "validate_bemt.py",
+        "sha256": "c591acccfb82b4dcfe72dbef5703b234a21f5a704baf0696a753c7d2e987d43d"
+      },
+      {
+        "file": "rotor_uncertainty.py",
+        "sha256": "95cbec1729b23cc6b6adf7f925baad42f948b14c6c217a53c51c09c75db2afb5"
+      },
+      {
+        "file": "data/bemt_validation.csv",
+        "sha256": "ae2a3f062c0a7eef4cf202bf150c81e91bbd35160156136a306a4a4224759d27"
+      },
+      {
+        "file": "data/bemt_validation_xfoil.csv",
+        "sha256": "a78c394fefa557203b8a75c54d3c2f4a48301d9e2b099fdc09f066f58e28388e"
+      }
+    ],
+    "staticDataMatches": [
+      {
+        "propeller": "da4002-5x1.58-2b",
+        "source": "da4002_5x1.58_static_1137ga.txt",
+        "sha256": "6650eda37b1b403a8e9f2cf3baa9f9cfc678cecc095114c436d7905b0b3e22c2",
+        "exactMatch": true
+      },
+      {
+        "propeller": "da4002-5x2.65-2b",
+        "source": "da4002_5x2.65_static_1126rd.txt",
+        "sha256": "b21317caa2fb207384599d0dc4752c3352b8e4c192250338d65f4006e4e4128f",
+        "exactMatch": true
+      },
+      {
+        "propeller": "da4002-5x3.75-2b",
+        "source": "da4002_5x3.75_static_1121md.txt",
+        "sha256": "a53408f8c30183823b0680dd3c4bd009578c93930df9d03ff300457f95e2d549",
+        "exactMatch": true
+      },
+      {
+        "propeller": "da4002-5x4.92-2b",
+        "source": "da4002_5x4.92_static_1190ga.txt",
+        "sha256": "e973234a186b0f3808331f91f61f7b40013474b87c772b335ce366970c64ece1",
+        "exactMatch": true
+      },
+      {
+        "propeller": "da4002-9x2.85-2b",
+        "source": "da4002_9x2.85_static_1115ga.txt",
+        "sha256": "636b0b6819d1737dc6c2403db1349bf40acf9e2c57440f598b06ef48c776d9b6",
+        "exactMatch": true
+      },
+      {
+        "propeller": "da4002-9x4.76-2b",
+        "source": "da4002_9x4.76_static_1120ga.txt",
+        "sha256": "e2a4a6976e83d4bb23061db83f1824d3f77d1cbb240a039d29c6a7c0f270d66f",
+        "exactMatch": true
+      },
+      {
+        "propeller": "da4002-9x6.75-2b",
+        "source": "da4002_9x6.75_static_1107rd.txt",
+        "sha256": "342dd9c3dc330a9094aaf9c77e147d2d6a3707142e26d4f65fe6cd0bbe669d10",
+        "exactMatch": true
+      },
+      {
+        "propeller": "da4002-9x8.95-2b",
+        "source": "da4002_9x8.95_static_1092rd.txt",
+        "sha256": "8aee45cf2674b47262572ad322efc5f02ff2c37f3f84a11f2eb60efb2b1c912f",
+        "exactMatch": true
+      },
+      {
+        "propeller": "da4022-5x3.75-2b",
+        "source": "da4022_5x3.75_static_0642rb.txt",
+        "sha256": "5d95355e399e84430fada67ac49d794c3085c367e15c12546eecea3d41867e0e",
+        "exactMatch": true
+      },
+      {
+        "propeller": "da4022-5x3.75-3b",
+        "source": "da4022_5x3.75_3b_static_0690md.txt",
+        "sha256": "1962c98df5f4dc2042cabac72d6a1c41f2752e3c134f44e9e19f9ae55e95a464",
+        "exactMatch": true
+      },
+      {
+        "propeller": "da4022-5x3.75-4b",
+        "source": "da4022_5x3.75_4b_static_0684rd.txt",
+        "sha256": "7b0c5ddcbfade08287d5101a192928fa83fb41941812344eb8a76026d72c5cce",
+        "exactMatch": true
+      },
+      {
+        "propeller": "da4022-9x6.75-2b",
+        "source": "da4022_9x6.75_static_0767rd.txt",
+        "sha256": "f604839dca1fdce1d35014e58e24bd0af3bc95bc14462354802b2c73d80d6f6e",
+        "exactMatch": true
+      },
+      {
+        "propeller": "da4022-9x6.75-3b",
+        "source": "da4022_9x6.75_3b_static_0749md.txt",
+        "sha256": "e56e234c688eefb0e03f5bbd6a0b8806376523fa644ef3dec67e8508ceddff7f",
+        "exactMatch": true
+      },
+      {
+        "propeller": "da4022-9x6.75-4b",
+        "source": "da4022_9x6.75_4b_static_1086ga.txt",
+        "sha256": "e0c92e850e3160455c3c13b2664e48d074841f9237fd5051853bb0f2d4e9b0c2",
+        "exactMatch": true
+      }
+    ],
+    "role": "Independent implementation/uncertainty reference; its propeller experiments reuse the same UIUC measurements, not new validation data",
+    "limitations": [
+      "General airfoil benchmark starts at Re=60000; not measured SDA1075 coverage at Re=20000",
+      "Propeller validation uses static points and a Re>=40000 summary window; not the full advancing-flow gate",
+      "NeuralFoil and XFOIL outputs are predictions; the XFOIL adapter fills internal gaps and holds edges on Kulfan-fitted geometry, which is not our strict converged-only raw-coordinate polar policy",
+      "Rotor solver has different loss-factor definitions, branch selection and no propeller angular-momentum swirl solve; CSV outputs are not interchangeable numerical goldens",
+      "No confidence-based rescaling, error-fit coefficients or acceptance-window narrowing is imported into MirageSITL"
+    ]
+  },
+  "smoke": {
+    "status": "pass",
+    "exit": 0,
+    "error": null,
+    "scope": "Bundled wt01a wind-turbine example only; not propeller parity or measured fidelity",
+    "inputs": [
+      {
+        "file": "fx63-uiuc-fixed-type4.pd",
+        "sha256": "f408aeb48b7cc41ace9536b5354035b414247f69cc6d4fef1b479e517d1ea1e9"
+      },
+      {
+        "file": "propid.in",
+        "sha256": "f081ea520f69725482b28b8b2167d96affb070937b1ab5d770ab20b11fba4664"
+      },
+      {
+        "file": "s812.pd",
+        "sha256": "360cbd0421ba8d0a90392905620493cc0a8ec63464e22fca05a1b0fb8f9a87b2"
+      },
+      {
+        "file": "s813.pd",
+        "sha256": "9eb731efcfd5292b759e2662636cd91251596fa49ddc27f260beae8bf6d6aa57"
+      },
+      {
+        "file": "s814.pd",
+        "sha256": "e97a7ffa38b38ef5c2e7a1e764d65eb46e05a3f99f240db1d7638c9dea0022f4"
+      },
+      {
+        "file": "s816smoo_e.pd",
+        "sha256": "d487eae8ea8a450cb6941cc5780fe79ca3ee032bf94cd685575db396186891f3"
+      },
+      {
+        "file": "s817smoo_e.pd",
+        "sha256": "1e88adda9da41764d8cbaaf7b2700445387cb3b5f6790e33217b7778ba48ec71"
+      },
+      {
+        "file": "s818smoo_e.pd",
+        "sha256": "0ff6ddd49bc45ebf0ca01502a5859ea9b288b929260b37cc0b4e9c0fdbf81fb3"
+      },
+      {
+        "file": "windwindwindwindwindwindwindwindwindwindwindwindwindwindwindwindwindwindwindwindwindwindwindwindwind.in",
+        "sha256": "cf8a8c74664fe18bdb15d424c27c1c7ded5a80fc59829e8cac59faaf724eae29"
+      },
+      {
+        "file": "wt01a.in",
+        "sha256": "7017cd2b64675effc0649ac892277359bb6618d447a1bf35b78d102dc120f519"
+      },
+      {
+        "file": "wt02a.in",
+        "sha256": "149fd43c011fff39546dd73644381c09fb3a3a63bce99858407f810f939d65d8"
+      },
+      {
+        "file": "wt03a.in",
+        "sha256": "3194ac2ff181441545109d38d2c4dcd6000a8d2b390954d45f00048cedecc007"
+      },
+      {
+        "file": "wt04a.in",
+        "sha256": "ded4173392e1583a666e72c1057544fc7ee13c04529db86e85522427693365ec"
+      },
+      {
+        "file": "wt05a.in",
+        "sha256": "3b5620ff1fd46d1ec936a00e2e7dce6b8916a90a74c9e7d5f73da6ec8edcb2c8"
+      },
+      {
+        "file": "wt05b.in",
+        "sha256": "e26e37352ded71a2da13ac4cfd70e1038dab11bce00f0e6194909c94fabdfd6e"
+      },
+      {
+        "file": "wt05c.in",
+        "sha256": "702793292abb51c24f5e9692510089d87773dd8a5c2639b6fa1c696f72c3707b"
+      },
+      {
+        "file": "wt06a.in",
+        "sha256": "87f3e76bf4da8e8686c0555c7a75ef71346ffd11d33275f189f6e285e8f5db61"
+      },
+      {
+        "file": "wt07a.in",
+        "sha256": "eb631b7c60f61f38fda460810799ce340212211d8ed4933c3e63b35700775132"
+      },
+      {
+        "file": "wt08a.in",
+        "sha256": "1ae489e7f1d7ea2b16b13be5a2ef989e25e978a2c22d82e76a2ad7f9f403b8ed"
+      },
+      {
+        "file": "wt09a.in",
+        "sha256": "b0ba6a058489072a6e5d18718a2a48e07fc85615f0ff6492d8003a402c4a3acf"
+      },
+      {
+        "file": "wt09b.in",
+        "sha256": "8108e93e639f90890a2ff8f8918b4978fbe6fe53d2a4d979df584761f2a3169f"
+      },
+      {
+        "file": "wt10a.in",
+        "sha256": "a606363b2cd0262406dfe012d7d19c8c1be9f64fc6e4302e8dbb617752b7dac2"
+      },
+      {
+        "file": "wt11a.in",
+        "sha256": "7ac01d57675441fba6dc95fedd7b8bbc2bda8fdae28b891e09739411b17fc057"
+      }
+    ],
+    "stdoutSha256": "3239df86f825aac51dcd9de74f9e30d5fa778ecd6b319b2a1c59495deb960ef7",
+    "stderrSha256": "7a9e1ae697b65aff6aa7a75e20df97ac9ed35f8b6cfeff085d90ebe1507b4beb",
+    "warnings": [
+      "Warning 451:\r\nlooblg = tt --> airfoil Re > Re of data somewhere\r\n(endprog.f)"
+    ]
+  }
+}

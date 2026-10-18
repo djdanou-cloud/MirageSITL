@@ -1,0 +1,249 @@
+warning: hard linking files in the incremental compilation cache failed. copying files instead. consider moving the cache directory to a file system which supports hard linking in session dir `\\?\C:\Users\djdan\OneDrive\Desktop\MirageSITL\native\target\debug\incremental\mirage_bet-1yz7mkuti1tt6\s-hnbwls8qo3-0okkqfl-working`
+
+warning: linker stdout: Создается библиотека C:\Users\djdan\OneDrive\Desktop\MirageSITL\native\target\debug\deps\mirage_bet.dll.lib и объект C:\Users\djdan\OneDrive\Desktop\MirageSITL\native\target\debug\deps\mirage_bet.dll.exp
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+warning: `mirage-bet` (lib) generated 2 warnings
+warning: hard linking files in the incremental compilation cache failed. copying files instead. consider moving the cache directory to a file system which supports hard linking in session dir `\\?\C:\Users\djdan\OneDrive\Desktop\MirageSITL\native\target\debug\incremental\autorotation-31lpgjmqd6x57\s-hnbwpou68k-19ir778-working`
+
+warning: hard linking files in the incremental compilation cache failed. copying files instead. consider moving the cache directory to a file system which supports hard linking in session dir `\\?\C:\Users\djdan\OneDrive\Desktop\MirageSITL\native\target\debug\incremental\inflow-0a77zx30l1yhb\s-hnbwpou45b-0zq68fu-working`
+
+warning: `mirage-bet` (test "autorotation") generated 1 warning
+warning: `mirage-bet` (test "inflow") generated 1 warning
+warning: hard linking files in the incremental compilation cache failed. copying files instead. consider moving the cache directory to a file system which supports hard linking in session dir `\\?\C:\Users\djdan\OneDrive\Desktop\MirageSITL\native\target\debug\incremental\polar-3097x50gps1cr\s-hnbwpot7w3-1o62pgd-working`
+
+warning: hard linking files in the incremental compilation cache failed. copying files instead. consider moving the cache directory to a file system which supports hard linking in session dir `\\?\C:\Users\djdan\OneDrive\Desktop\MirageSITL\native\target\debug\incremental\propeller_points-2955plode43m1\s-hnbwlu0r2x-03wpz3p-working`
+
+warning: hard linking files in the incremental compilation cache failed. copying files instead. consider moving the cache directory to a file system which supports hard linking in session dir `\\?\C:\Users\djdan\OneDrive\Desktop\MirageSITL\native\target\debug\incremental\rigid_body-3a44x4119ofke\s-hnbwpotk3c-0rzg1v8-working`
+
+warning: hard linking files in the incremental compilation cache failed. copying files instead. consider moving the cache directory to a file system which supports hard linking in session dir `\\?\C:\Users\djdan\OneDrive\Desktop\MirageSITL\native\target\debug\incremental\body_abi-3gcc38ay162o7\s-hnbwposio2-161dlf9-working`
+
+warning: hard linking files in the incremental compilation cache failed. copying files instead. consider moving the cache directory to a file system which supports hard linking in session dir `\\?\C:\Users\djdan\OneDrive\Desktop\MirageSITL\native\target\debug\incremental\coaxial-3kno22qmiqfjl\s-hnbwposivz-0ba9zlg-working`
+
+warning: hard linking files in the incremental compilation cache failed. copying files instead. consider moving the cache directory to a file system which supports hard linking in session dir `\\?\C:\Users\djdan\OneDrive\Desktop\MirageSITL\native\target\debug\incremental\motor_failure-1d3swgp0tcspi\s-hnbwpouiaz-0ink30b-working`
+
+warning: hard linking files in the incremental compilation cache failed. copying files instead. consider moving the cache directory to a file system which supports hard linking in session dir `\\?\C:\Users\djdan\OneDrive\Desktop\MirageSITL\native\target\debug\incremental\blade-00u7iemh7zwcu\s-hnbwpot0io-00j6iwd-working`
+
+warning: hard linking files in the incremental compilation cache failed. copying files instead. consider moving the cache directory to a file system which supports hard linking in session dir `\\?\C:\Users\djdan\OneDrive\Desktop\MirageSITL\native\target\debug\incremental\flapping-3a5sb434ix8bh\s-hnbwpoummd-0txi034-working`
+
+warning: hard linking files in the incremental compilation cache failed. copying files instead. consider moving the cache directory to a file system which supports hard linking in session dir `\\?\C:\Users\djdan\OneDrive\Desktop\MirageSITL\native\target\debug\incremental\allocation-0qrceiptamnk6\s-hnbwpotfg1-005cm0f-working`
+
+warning: hard linking files in the incremental compilation cache failed. copying files instead. consider moving the cache directory to a file system which supports hard linking in session dir `\\?\C:\Users\djdan\OneDrive\Desktop\MirageSITL\native\target\debug\incremental\bootstrap-2wtm59wcrzi2f\s-hnbwpot50c-1bh93zh-working`
+
+warning: hard linking files in the incremental compilation cache failed. copying files instead. consider moving the cache directory to a file system which supports hard linking in session dir `\\?\C:\Users\djdan\OneDrive\Desktop\MirageSITL\native\target\debug\incremental\abi-2p3w955i48y7k\s-hnbwpot2on-00tvc25-working`
+
+warning: hard linking files in the incremental compilation cache failed. copying files instead. consider moving the cache directory to a file system which supports hard linking in session dir `\\?\C:\Users\djdan\OneDrive\Desktop\MirageSITL\native\target\debug\incremental\landing_gear-144azcqroqhdq\s-hnbwpous3l-0iahtew-working`
+
+warning: hard linking files in the incremental compilation cache failed. copying files instead. consider moving the cache directory to a file system which supports hard linking in session dir `\\?\C:\Users\djdan\OneDrive\Desktop\MirageSITL\native\target\debug\incremental\motor-0sc463mmofn2n\s-hnbwpou64z-020b6er-working`
+
+warning: hard linking files in the incremental compilation cache failed. copying files instead. consider moving the cache directory to a file system which supports hard linking in session dir `\\?\C:\Users\djdan\OneDrive\Desktop\MirageSITL\native\target\debug\incremental\propeller-05xuf19f9ftxx\s-hnbwlsvift-1ruoo88-working`
+
+warning: hard linking files in the incremental compilation cache failed. copying files instead. consider moving the cache directory to a file system which supports hard linking in session dir `\\?\C:\Users\djdan\OneDrive\Desktop\MirageSITL\native\target\debug\incremental\propeller_bem-28sc96d569304\s-hnbwlsvjbr-1w5z5qz-working`
+
+warning: `mirage-bet` (test "polar") generated 1 warning
+warning: `mirage-bet` (example "propeller_points") generated 1 warning
+warning: `mirage-bet` (test "rigid_body") generated 1 warning
+warning: `mirage-bet` (test "body_abi") generated 1 warning
+warning: `mirage-bet` (test "coaxial") generated 1 warning
+warning: `mirage-bet` (test "motor_failure") generated 1 warning
+warning: `mirage-bet` (test "blade") generated 1 warning
+warning: `mirage-bet` (test "flapping") generated 1 warning
+warning: `mirage-bet` (test "allocation") generated 1 warning
+warning: `mirage-bet` (test "bootstrap") generated 1 warning
+warning: `mirage-bet` (test "abi") generated 1 warning
+warning: `mirage-bet` (test "landing_gear") generated 1 warning
+warning: `mirage-bet` (test "motor") generated 1 warning
+warning: `mirage-bet` (test "propeller") generated 1 warning
+warning: `mirage-bet` (test "propeller_bem") generated 1 warning
+warning: hard linking files in the incremental compilation cache failed. copying files instead. consider moving the cache directory to a file system which supports hard linking in session dir `\\?\C:\Users\djdan\OneDrive\Desktop\MirageSITL\native\target\debug\incremental\frame-0yae132hjd4yu\s-hnbwpotmxk-0c2btqo-working`
+
+warning: hard linking files in the incremental compilation cache failed. copying files instead. consider moving the cache directory to a file system which supports hard linking in session dir `\\?\C:\Users\djdan\OneDrive\Desktop\MirageSITL\native\target\debug\incremental\battery-2j00ohxbi1lpu\s-hnbwposnvl-05pmrfm-working`
+
+warning: hard linking files in the incremental compilation cache failed. copying files instead. consider moving the cache directory to a file system which supports hard linking in session dir `\\?\C:\Users\djdan\OneDrive\Desktop\MirageSITL\native\target\debug\incremental\mirage_bet-3r6ntzx9av6ff\s-hnbwpprb0l-07yfb1g-working`
+
+warning: `mirage-bet` (test "frame") generated 1 warning
+warning: `mirage-bet` (test "battery") generated 1 warning
+warning: `mirage-bet` (lib test) generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.06s
+     Running unittests src\lib.rs (target\debug\deps\mirage_bet-8597a702c13c01be.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\abi.rs (target\debug\deps\abi-be3f0c1e66476101.exe)
+
+running 7 tests
+test pointer_regions_are_checked_for_range_alignment_and_overlap ... ok
+test rejects_invalid_configurations ... ok
+test rust_offsets_match_the_c_header ... ok
+test disposed_or_corrupt_handles_are_rejected ... ok
+test step_rejects_bad_input_and_dt_without_writing_output ... ok
+test golden_records_decode_and_size_the_arena ... ok
+test step_reports_unavailable_aerodynamics_and_overwrites_every_record ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.54s
+
+     Running tests\allocation.rs (target\debug\deps\allocation-3a184d1df614e0a3.exe)
+
+running 1 test
+test all_scalar_kernels_allocate_zero_over_one_million_steps ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.62s
+
+     Running tests\autorotation.rs (target\debug\deps\autorotation-fbfd5b3083976137.exe)
+
+running 2 tests
+test passive_bearing_energy_decays_and_constant_torque_has_no_governor ... ok
+test upward_air_drives_a_free_rotor_and_braking_finds_torque_balance ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.59s
+
+     Running tests\battery.rs (target\debug\deps\battery-c2838f9f9525f6aa.exe)
+
+running 2 tests
+test ohmic_bus_and_motor_load_accounting ... ok
+test zero_resistance_depletion_and_infeasible_demand_stay_finite ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\blade.rs (target\debug\deps\blade-9c7cac702b760103.exe)
+
+running 5 tests
+test rejects_invalid_geometry_inputs_and_reports_polar_clamping ... ok
+test pitch_and_flow_derive_alpha_before_polar_lookup ... ok
+test crossflow_and_body_rates_are_finite ... ok
+test annulus_force_torque_and_refinement_match_closed_forms ... ok
+test samples_do_not_multiply_force_and_spin_mirror_preserves_thrust ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\body_abi.rs (target\debug\deps\body_abi-f82d059601190d5e.exe)
+
+running 1 test
+test byte_layout_and_rejection_are_independent_of_rust_object_layout ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\bootstrap.rs (target\debug\deps\bootstrap-83be1f6016a72939.exe)
+
+running 6 tests
+test force_is_linear_in_chord_width_and_coefficients ... ok
+test mirrored_spin_flips_lift_but_not_drag ... ok
+test exports_match_the_rust_kernel ... ok
+test magnitude_matches_dynamic_pressure_times_area_and_coefficients ... ok
+test zero_relative_airspeed_gives_zero_force ... ok
+test lift_is_perpendicular_and_drag_parallel_to_the_relative_flow ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\coaxial.rs (target\debug\deps\coaxial-db4b97d3ea2eef50.exe)
+
+running 4 tests
+test budgets_close_for_overlap_thrust_and_separation_and_far_field_decouples ... ok
+test rejects_unsupported_geometry_regimes_and_nonfinite_values ... ok
+test matches_registered_independent_flux_fixture ... ok
+test disabled_and_zero_overlap_leave_the_receiver_rotor_exactly_independent ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\flapping.rs (target\debug\deps\flapping-22644b219976ed20.exe)
+
+running 3 tests
+test spin_up_gyroscopic_axes_and_full_momentum_balance ... ok
+test rotating_harmonics_mirror_and_invalid_envelope_is_explicit ... ok
+test collective_symmetry_and_oscillator_convergence ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\frame.rs (target\debug\deps\frame-f4cf4e0073788199.exe)
+
+running 2 tests
+test tilted_axis_and_lever_arm_use_right_hand_rule ... ok
+test symmetric_quad_hexa_octo_cancel_yaw_and_lever_moments ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\inflow.rs (target\debug\deps\inflow-d7a6b8532f66dbd0.exe)
+
+running 2 tests
+test zero_loading_reverse_thrust_and_unvalidated_regimes_are_explicit ... ok
+test hover_and_climb_momentum_close_and_transient_matches_exponential ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\landing_gear.rs (target\debug\deps\landing_gear-a66fabcc645b09b1.exe)
+
+running 9 tests
+test gas_pressure_absolute_units_and_orifice_flow_match_hand_calculation ... ok
+test invalid_configuration_and_out_of_envelope_states_are_rejected ... ok
+test near_zero_compression_is_valid_even_with_zero_gauge_preload ... ok
+test closed_compression_rebound_cycle_dissipates_the_independent_work_budget ... ok
+test ground_wrench_has_correct_ned_sign_lever_moment_and_friction_work ... ok
+test polytropic_gas_stored_energy_derivative_equals_elastic_load ... ok
+test linear_and_square_damping_use_distinct_compression_and_rebound_coefficients ... ok
+test tire_interpolation_and_piecewise_energy_are_independent_of_strut_travel ... ok
+test instantaneous_resistance_is_passive_for_each_component ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\motor.rs (target\debug\deps\motor-6812b53e66e60cf0.exe)
+
+running 2 tests
+test zero_voltage_and_power_cut_do_not_create_mechanical_energy ... ok
+test duty_lag_current_limit_and_power_balance ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\motor_failure.rs (target\debug\deps\motor_failure-a1de1f3c7b1fa73a.exe)
+
+running 1 test
+test cut_power_preserves_passive_spool_decay_and_removed_rotor_changes_lever_moment ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\polar.rs (target\debug\deps\polar-8ee20b57dd919e10.exe)
+
+running 5 tests
+test interpolates_in_log_reynolds_not_linear_reynolds ... ok
+test every_table_node_is_returned_exactly ... ok
+test clamps_and_flags_instead_of_extrapolating ... ok
+test rejects_invalid_tables ... ok
+test matches_analytic_values_at_nodes_inside_cells_and_in_reverse_flow ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\propeller.rs (target\debug\deps\propeller-d6ee42f3282ddc22.exe)
+
+running 4 tests
+test windmilling_is_flagged_and_inputs_are_checked ... ok
+test profile_drag_costs_power_and_spin_mirrors ... ok
+test induced_velocity_satisfies_axial_momentum_and_matches_inflow_model ... ok
+test zero_drag_power_equals_thrust_times_axial_flow ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests\propeller_bem.rs (target\debug\deps\propeller_bem-caa086d519a022d2.exe)
+
+running 3 tests
+test invalid_geometry_and_conditions_are_rejected ... ok
+test loss_limits_and_disabled_identity ... ok
+test manufactured_ring_recovers_axial_and_angular_momentum ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\rigid_body.rs (target\debug\deps\rigid_body-311b0aef4c03ac3f.exe)
+
+running 3 tests
+test rejects_bad_inertia_and_quaternion ... ok
+test ballistic_and_constant_principal_torque_match_analytic_motion ... ok
+test smooth_torque_free_trajectory_converges_to_4800hz ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+
+   Doc-tests mirage_bet
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s

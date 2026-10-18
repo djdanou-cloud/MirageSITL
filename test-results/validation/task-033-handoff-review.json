@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "task": "TASK-033",
+  "source": {
+    "file": "C:/Users/djdan/Downloads/task_033_sda1075_polar_propid_handoff.md",
+    "sha256": "042b41e7961f675144b70d5ec1248df5ed9c217b7e17b1be23c2af2b38957194"
+  },
+  "status": "reviewed-not-admitted-as-polar",
+  "date": "2026-10-18",
+  "primary": {
+    "file": "DetersAnandaSelig-2014-AIAA-2014-2151.md",
+    "sha256": "b1d4efed0a7cc4cefa462d3da33af51404069d3dd5afcdd81f2d95202bf1d3ae",
+    "figure": 30,
+    "pdfPageOneBased": 22,
+    "extractedImageSha256": "58cb5c5ac4c78a496f607b3ba8b734b4e1247c9036a5b86c334f0b975614a661",
+    "url": "https://m-selig.ae.illinois.edu/pubs/DetersAnandaSelig-2014-AIAA-2014-2151.pdf"
+  },
+  "discrepancies": [
+    {
+      "alphaDeg": 0,
+      "reynolds": 40000,
+      "claimedCl": 0.3,
+      "visualClApproximate": 0,
+      "note": "Visual estimate only; not a replacement polar cell"
+    },
+    {
+      "alphaDeg": 20,
+      "reynolds": 100000,
+      "claimedCl": 0.97,
+      "visualClApproximate": 0.63,
+      "note": "Visual estimate only; not a replacement polar cell"
+    }
+  ],
+  "findings": [
+    "No digitization calibration, source pixel mapping or uncertainty accompanies the claimed numerical table; not admitted",
+    "NeuralFoil is an XFOIL-trained surrogate, not an independently converged boundary-layer calculation; smooth output does not certify Re=5000 accuracy",
+    "Viterna extends angle of attack, not Reynolds-number validity; future provenance must track both dimensions separately",
+    "Global absence of measured SDA1075 polars is not established by the supplied sources",
+    "Existing geometry is already scanned; do not add an extra fitted pitch offset",
+    "NASA deferral concerns landing-gear fidelity; whole-aircraft validation is independently blocked"
+  ],
+  "neuralFoilPrimary": "https://github.com/peterdsharpe/NeuralFoil",
+  "appliedPolarChanges": false,
+  "acceptanceThresholdChanges": false
+}

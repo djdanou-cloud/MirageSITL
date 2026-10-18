@@ -1,0 +1,137 @@
+{
+  "schemaVersion": 1,
+  "task": "TASK-033",
+  "generatorSha256": "cce58f1ab02a11229d79fa374bbe47e0f95a6e0112b84c4fcac1e1882e92466c",
+  "workbook": {
+    "file": "airfoilprep_v2-02-03.xls",
+    "sha256": "92dd2e724d2f803126b75175e54cdaed49a3c4ffd7500c0734e2ccae70888fcf",
+    "reader": "xlrd 2.0.2",
+    "sourceUrl": "https://nrel.sitefinity.cloud/wind/nwtc/airfoil-prep",
+    "sheets": [
+      "ReadMe",
+      "ChangeLog",
+      "Interpolate",
+      "BlendAirfoils",
+      "3DStall",
+      "TableExtrap",
+      "DynStall",
+      "Editor Format"
+    ],
+    "macrosExecuted": false,
+    "recalculated": false,
+    "classification": "preprocessing-method-and-unidentified-example-not-measured-SDA1075",
+    "capabilities": [
+      "linear interpolation",
+      "airfoil blending",
+      "Du-Selig/Eggers rotational correction",
+      "Viterna extrapolation",
+      "dynamic-stall parameter preparation"
+    ],
+    "savedExampleCheck": {
+      "sheet": "TableExtrap",
+      "inputRange": "B15:E37",
+      "cdMaxCell": "B6",
+      "matchAlphaDeg": 20.1,
+      "tolerance": 1e-12,
+      "positiveBranch": [
+        {
+          "alphaDeg": 30.0,
+          "clError": 0.0,
+          "cdError": 5.551115123125783e-17
+        },
+        {
+          "alphaDeg": 40.0,
+          "clError": 0.0,
+          "cdError": 1.1102230246251565e-16
+        },
+        {
+          "alphaDeg": 50.0,
+          "clError": 0.0,
+          "cdError": 0.0
+        },
+        {
+          "alphaDeg": 60.0,
+          "clError": 1.1102230246251565e-16,
+          "cdError": 0.0
+        },
+        {
+          "alphaDeg": 70.0,
+          "clError": 0.0,
+          "cdError": 0.0
+        },
+        {
+          "alphaDeg": 80.0,
+          "clError": 0.0,
+          "cdError": 0.0
+        },
+        {
+          "alphaDeg": 90.0,
+          "clError": 2.608723460942915e-21,
+          "cdError": 0.0
+        }
+      ]
+    }
+  },
+  "coordinates": {
+    "directory": "coord_seligFmt",
+    "sourceUrl": "https://m-selig.ae.illinois.edu/ads/coord_database.html",
+    "kind": "geometry-not-aerodynamic-coefficients",
+    "files": 1665,
+    "aggregateRule": "SHA-256 of sorted relative/path TAB file-SHA256 LF lines",
+    "aggregateSha256": "bded9325786728f61ce93d740f49ff4df66f9a58c58110d8f85809ec4340a02a",
+    "supportedSingleElementFiles": 1655,
+    "unsupportedFiles": [
+      {
+        "file": "30p-30n-flap.dat",
+        "reason": "outside normalized single-airfoil bounds"
+      },
+      {
+        "file": "30p-30n-main.dat",
+        "reason": "contour must start and end at trailing edge"
+      },
+      {
+        "file": "30p-30n-slat.dat",
+        "reason": "outside normalized single-airfoil bounds"
+      },
+      {
+        "file": "30p-30n.dat",
+        "reason": "expected two numeric columns"
+      },
+      {
+        "file": "e664ex.dat",
+        "reason": "outside normalized single-airfoil bounds"
+      },
+      {
+        "file": "naca1.dat",
+        "reason": "outside normalized single-airfoil bounds"
+      },
+      {
+        "file": "r1145msm.dat",
+        "reason": "contour must start and end at trailing edge"
+      },
+      {
+        "file": "s9104.dat",
+        "reason": "expected two numeric columns"
+      },
+      {
+        "file": "s9104BTE.dat",
+        "reason": "expected two numeric columns"
+      },
+      {
+        "file": "ua79sfm.dat",
+        "reason": "contour must start and end at trailing edge"
+      }
+    ],
+    "sda1075NameMatches": []
+  },
+  "currentPropellerAirfoil": {
+    "file": "tests/fixtures/rotors/uiuc/sda1075.dat",
+    "sha256": "a48e0ed6abff05a2858def4a9a0016f9b570322d3437f8b75d4c54dd6044836e",
+    "points": 61,
+    "action": "retain published SDA1075 transcription; do not substitute a similarly named airfoil"
+  },
+  "acceptance": {
+    "measuredFidelityEstablished": false,
+    "reason": "Coordinates and extrapolation methods do not provide measured CL/CD versus alpha, Reynolds number and Mach; existing propeller tolerance failures remain."
+  }
+}

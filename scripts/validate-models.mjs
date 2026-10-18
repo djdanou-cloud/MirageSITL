@@ -52,6 +52,34 @@ function validMeasurement(m) {
     m.referenceUrl.startsWith("https://")
   );
 }
+function validDeferred(m) {
+  return m !== null && typeof m === "object" && !Array.isArray(m) &&
+    Object.keys(m).length === 4 && validMeasurement(m.measurement) &&
+    m.measurement.id === "nasa-tm-x-3561-drop" && m.measurement.adapter === "nasa-drop-contact-v1" &&
+    typeof m.reason === "string" && m.reason.length > 0 &&
+    m.archivePath === "test-results/validation/nasa-drop-legacy.json" &&
+    typeof m.archiveSha256 === "string" && /^[a-f0-9]{64}$/.test(m.archiveSha256);
+}
+export async function verifyDeferredMeasurement(m) {
+  if (!validDeferred(m)) throw Error("Invalid deferred measurement descriptor");
+  const bytes = readFileSync(join(root, m.archivePath));
+  if (sha(bytes) !== m.archiveSha256) throw Error("Deferred measurement archive hash mismatch");
+  const archive = JSON.parse(bytes);
+  const measurement = archive.measurement;
+  if (archive.schemaVersion !== 1 || archive.kind !== "archived-failure" ||
+    measurement?.status !== "failed" || measurement.id !== m.measurement.id ||
+    measurement.sourceSha256 !== m.measurement.sourceSha256 || measurement.datasetId !== m.measurement.datasetId ||
+    measurement.referenceUrl !== m.measurement.referenceUrl) throw Error("Invalid deferred measurement archive");
+  const registry = JSON.parse(readFileSync(join(root, "tests/fixtures/registry.json"), "utf8"));
+  const entry = registry.fixtures.find((item) => `tests/fixtures/${item.path}` === m.measurement.fixture);
+  if (!entry || entry.manifest.id !== m.measurement.registryId) throw Error("Unregistered deferred measurement");
+  const fixture = await verifyFixture(entry.manifest, readFileSync(join(root, m.measurement.fixture)));
+  if (fixture.sourceSha256 !== m.measurement.sourceSha256 || fixture.provenance.kind !== "measured" ||
+    fixture.provenance.datasetId !== m.measurement.datasetId || fixture.provenance.referenceUrl !== m.measurement.referenceUrl)
+    throw Error("Deferred measurement provenance mismatch");
+  return { id: measurement.id, reason: m.reason, archivePath: m.archivePath,
+    archiveSha256: m.archiveSha256, historicalStatus: measurement.status };
+}
 /** Hash-checks a measured fixture against its registry entry, then runs it. */
 async function measuredCase(m) {
   const bytes = readFileSync(join(root, m.fixture)),
@@ -145,7 +173,7 @@ export function parseReference(bytes) {
     a.every((x) => typeof x === "number" && Number.isFinite(x));
   if (
     !v ||
-    v.schemaVersion !== 1 ||
+    v.schemaVersion !== 2 ||
     v.kind !== "synthetic" ||
     v.durationS !== 10 ||
     v.referenceHz !== 4800 ||
@@ -158,6 +186,9 @@ export function parseReference(bytes) {
     !Array.isArray(v.measurements) ||
     v.measurements.length > 4 ||
     !v.measurements.every(validMeasurement) ||
+    !Array.isArray(v.deferredMeasurements) ||
+    v.deferredMeasurements.length > 1 ||
+    !v.deferredMeasurements.every(validDeferred) ||
     !Array.isArray(v.cases) ||
     v.cases.length < 1 ||
     v.cases.length > 32
@@ -165,6 +196,8 @@ export function parseReference(bytes) {
     throw new Error(
       "Invalid pinned reference contract or unsupported measured dataset adapter",
     );
+  const measurementIds = [...v.measurements.map((m) => m.id), ...v.deferredMeasurements.map((m) => m.measurement.id)];
+  if (new Set(measurementIds).size !== measurementIds.length) throw Error("Invalid pinned reference: duplicate measurement");
   const ids = new Set();
   for (const c of v.cases) {
     if (
@@ -184,7 +217,7 @@ export function parseReference(bytes) {
     throw new Error("Missing independent ballistic oracle");
   return v;
 }
-function diagnostic(relative, sourceFields, passField) {
+function diagnostic(relative, sourceFields, passField, sourceArrays = []) {
   const path = join(root, relative);
   if (!existsSync(path))
     return { path: relative, status: "missing", reportSha256: null };
@@ -195,6 +228,17 @@ function diagnostic(relative, sourceFields, passField) {
     for (const [field, file] of sourceFields)
       if (value[field] !== sha(readFileSync(join(root, file))))
         return { ...base, status: "stale" };
+    for (const path of sourceArrays) {
+      let entries = value;
+      for (const part of path) entries = entries?.[part];
+      if (!Array.isArray(entries) || entries.length === 0) return { ...base, status: "invalid" };
+      for (const item of entries) {
+        if (!item || typeof item.file !== "string" || !/^(native|packages|scripts)\/[A-Za-z0-9_./-]+$/.test(item.file) ||
+          item.file.split("/").includes("..") || typeof item.sha256 !== "string" || !/^[a-f0-9]{64}$/.test(item.sha256)) return { ...base, status: "invalid" };
+        if (sha(readFileSync(join(root, item.file))) !== item.sha256) return { ...base, status: "stale" };
+      }
+    }
+    if (typeof passField === "function") return { ...base, status: passField(value) ? "pass" : "failed" };
     if (passField === "status") {
       if (!["pass", "blocked", "failed"].includes(value.status))
         return { ...base, status: "invalid" };
@@ -212,6 +256,8 @@ export async function validateModels() {
       join(root, "tests/fixtures/validation/reference-manifest.json"),
     ),
     reference = parseReference(refBytes);
+  const deferredMeasurements = [];
+  for (const measurement of reference.deferredMeasurements) deferredMeasurements.push(await verifyDeferredMeasurement(measurement));
   execFileSync(process.execPath, [join(root, "scripts/build-wasm.mjs")], {
     cwd: root,
     stdio: "pipe",
@@ -288,7 +334,7 @@ export async function validateModels() {
   const contactFidelityStatus = fidelityOf(measured),
     propellerFidelityStatus = fidelityOf(propellers);
   return {
-    schemaVersion: 4,
+    schemaVersion: 5,
     // A measured comparison that ran and failed is a failure, not a blocker.
     status:
       !passed ||
@@ -301,6 +347,7 @@ export async function validateModels() {
     contactFidelityStatus,
     propellerFidelityStatus,
     measuredValidation: measured,
+    deferredMeasurements,
     propellerValidation: propellers.map((p) => {
       const summary = { ...p };
       delete summary.detail;
@@ -312,13 +359,25 @@ export async function validateModels() {
     cases,
     blockers: [
       "Measured airframe validation is not certified: no airframe dataset is archived.",
-      "UIUC DA4002/DA4022 propellers: the steady BET with uniform momentum inflow and the declared thin-airfoil/laminar-friction SDA1075 polar misses the pre-declared CT/CP tolerances; no measured or viscous-solver airfoil polar, tip loss or swirl is modeled.",
-      "NASA TM X-3561 level drops: the rigid Rapier sphere arrests the sink in a few steps, far beyond the measured -1.6 g upper-mass envelope, and has no strut/tire stroke; a landing-gear model is required.",
+      "UIUC DA4002/DA4022 propellers still fail the fixed CT/CP tolerances with the analytic and XFOIL polars. The separate annular tip/hub/swirl sensitivity diagnostic is not a fidelity override; coverage and low-Re polar accuracy remain unresolved.",
+      "NASA measured fidelity is deferred by the user, not passed. The historical failing comparison is hash-checked and retained separately from active acceptance.",
       "Full BET polar/rotor-to-body backend is not connected.",
-      "Production Rapier contact G1 is not certified; opt-in patched native evidence does not certify its JS/WASM binding.",
-      "JSBSim WASM parity and contact coupling are not certified; patched native allocation/trim are separate evidence.",
+      "TASK-029/031 numerical/allocation acceptance is separate from measured aircraft fidelity and target-device timing; current diagnostics and historical probes are reported separately.",
     ],
     diagnostics: {
+      jsbsimBackend: diagnostic("test-results/validation/task-031-backend.json", [
+        ["adapterSha256", "packages/wasm-jsbsim/src/backend.ts"], ["runnerSha256", "scripts/check-jsbsim-backend.mjs"]
+      ], "passed", [["manifest", "buildInputs"]]),
+      jsbsimJsAllocation: diagnostic("test-results/bench/jsbsim-400.json", [
+        ["adapterSha256", "packages/wasm-jsbsim/src/backend.ts"], ["scriptSha256", "scripts/bench-jsbsim.mjs"]
+      ], (value) => value.passed === true && value.controlDetected === true && value.allocationCalls === 0 && value.allocationBytes === 0 &&
+        Array.isArray(value.samples) && value.samples.length === 3 && value.samples.every((sample) => sample.steps === 1000000 && sample.gcEvents === 0 && sample.bytes / sample.steps < 0.01), [["manifest", "buildInputs"]]),
+      annularBem: diagnostic("test-results/validation/propeller-bem.json", [
+        ["measuredSha256", "tests/fixtures/rotors/uiuc-propellers.json"], ["polarSha256", "tests/fixtures/polars/sda1075-xfoil.json"]
+      ], (value) => {
+        const candidate = value.results?.find((item) => item.id === "annular-tip-hub-swirl");
+        return candidate?.status === "pass" && candidate.totals.errors === 0 && candidate.numerical.convergedCases === 958;
+      }, [["sourceInputs"]]),
       contact: diagnostic(
         "test-results/bench/contact.json",
         [["adapterSha256", "packages/physics/src/ground-contact.ts"]],

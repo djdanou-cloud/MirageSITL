@@ -187,7 +187,10 @@ hashed Docling archive in `tests/fixtures/contact/nasa/` by
 `tests/fixtures/contact/generate_nasa_drop.py` and converted to SI. Against
 it, the Rapier sphere contact passes impulse, nonpenetration and energy
 consistency. It fails the measured deceleration (-1.6 g) and stroke envelopes,
-so `validate-models.mjs` reports the contact fidelity gate as failed.
+and that historical failure is preserved in
+`test-results/validation/nasa-drop-legacy.json`. The user's 2026-10-18 NASA
+deferral is explicit in reference manifest v2/report schema v5; contact fidelity
+is blocked without an active measured comparison, not passed.
 
 
 TASK-037/038/039/040/048/052/053/056/057/060 add a pinned MAVLink2 subset,
@@ -221,4 +224,4 @@ The repository now includes collision-chunk construction/ownership, deterministi
 
 Keyboard users can skip to controls and receive visible focus and one permission-denial announcement. The browser suite includes an unsuppressed axe scan and 390px overflow/Serial-focus checks. Run the normal verification gates before trusting a change. New commands, external trace formats, process ownership and the accessibility checklist are documented in [the runbook](docs/operations/runbook.md). All new evidence CLIs without input exit 2 with a blocked report; no publication happens automatically.
 
-The existing NASA measured landing-gear comparison currently fails deceleration/stroke envelopes, while numerical integration passes. System/release evidence preserves that physical G2 failure; the new software does not certify the contact model.
+TASK-029/031 now provide numerical contact and JSBSim backend/allocation evidence; those passes do not establish measured aircraft fidelity. TASK-033 preserves the failed historical NASA comparison under explicit user deferral and still reports failed UIUC propeller fidelity. Its source-backed annular BEM sensitivity diagnostic adds local momentum, losses and swirl without changing the fixed tolerances or production backend. See the engine specification and UIUC data guide for source roles, commands and remaining polar limitations.

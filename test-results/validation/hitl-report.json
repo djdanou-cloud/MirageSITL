@@ -6,6 +6,6 @@
     "Provide a real trace using --input PATH --sha256 HEX; see the task procedure"
   ],
   "metrics": {},
-  "sourceRevision": "2ede92f4660c369273113e52732523fa7844f2a5",
+  "sourceRevision": "8c218aa3e3309a700f47819aaede19f95b507a98",
   "validatorSha256": "4e93e2d05b027d1e9ff3b28eb808775ed2870f4aab4dbd900d2af992542e33e8"
 }

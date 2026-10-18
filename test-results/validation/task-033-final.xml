@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<testsuites name="vitest tests" tests="5" failures="0" errors="0" time="26.0284478">
+    <testsuite name="tests/model-validation.test.ts" timestamp="2026-10-18T15:52:57.115Z" hostname="DaduAsus" tests="4" failures="0" errors="0" skipped="0" time="17.1216699">
+        <testcase classname="tests/model-validation.test.ts" name="writes numerical and UIUC evidence, retains the deferred NASA failure, and fails closed on missing or failed fidelity" time="15.6629029">
+        </testcase>
+        <testcase classname="tests/model-validation.test.ts" name="retains pinned reference rate and rejects a missing JSBSim source" time="0.0718812">
+        </testcase>
+        <testcase classname="tests/model-validation.test.ts" name="rejects empty/misordered rates and unsupported measurements before building" time="1.2247823">
+        </testcase>
+        <testcase classname="tests/model-validation.test.ts" name="rejects modified deferred evidence without rerunning the obsolete NASA model" time="0.1604411">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/propeller-bem.test.ts" timestamp="2026-10-18T15:52:57.120Z" hostname="DaduAsus" tests="1" failures="0" errors="0" skipped="0" time="8.9067779">
+        <testcase classname="tests/propeller-bem.test.ts" name="runs independent annular momentum cases against unchanged measured UIUC tolerances without hiding nonconvergence" time="8.9057567">
+        </testcase>
+    </testsuite>
+</testsuites>

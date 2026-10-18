@@ -17,11 +17,12 @@
     "contactFidelityStatus",
     "measuredValidation",
     "propellerFidelityStatus",
-    "propellerValidation"
+    "propellerValidation",
+    "deferredMeasurements"
   ],
   "properties": {
     "schemaVersion": {
-      "const": 4
+      "const": 5
     },
     "status": {
       "enum": [
@@ -141,7 +142,10 @@
         "contact",
         "jsbsimNative",
         "contactNativePatched",
-        "jsbsimNativePatched"
+        "jsbsimNativePatched",
+        "jsbsimBackend",
+        "jsbsimJsAllocation",
+        "annularBem"
       ],
       "properties": {
         "contact": {
@@ -235,6 +239,96 @@
           }
         },
         "jsbsimNativePatched": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "path",
+            "status",
+            "reportSha256"
+          ],
+          "properties": {
+            "path": {
+              "type": "string"
+            },
+            "status": {
+              "enum": [
+                "missing",
+                "invalid",
+                "stale",
+                "pass",
+                "failed"
+              ]
+            },
+            "reportSha256": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "pattern": "^[a-f0-9]{64}$"
+            }
+          }
+        },
+        "jsbsimBackend": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "path",
+            "status",
+            "reportSha256"
+          ],
+          "properties": {
+            "path": {
+              "type": "string"
+            },
+            "status": {
+              "enum": [
+                "missing",
+                "invalid",
+                "stale",
+                "pass",
+                "failed"
+              ]
+            },
+            "reportSha256": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "pattern": "^[a-f0-9]{64}$"
+            }
+          }
+        },
+        "jsbsimJsAllocation": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "path",
+            "status",
+            "reportSha256"
+          ],
+          "properties": {
+            "path": {
+              "type": "string"
+            },
+            "status": {
+              "enum": [
+                "missing",
+                "invalid",
+                "stale",
+                "pass",
+                "failed"
+              ]
+            },
+            "reportSha256": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "pattern": "^[a-f0-9]{64}$"
+            }
+          }
+        },
+        "annularBem": {
           "type": "object",
           "additionalProperties": false,
           "required": [
@@ -806,6 +900,39 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "deferredMeasurements": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "reason",
+          "archivePath",
+          "archiveSha256",
+          "historicalStatus"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1
+          },
+          "archivePath": {
+            "const": "test-results/validation/nasa-drop-legacy.json"
+          },
+          "archiveSha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "historicalStatus": {
+            "const": "failed"
           }
         }
       }

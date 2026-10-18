@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<testsuites name="vitest tests" tests="15" failures="0" errors="0" time="30.0881083">
+    <testsuite name="tests/model-validation.test.ts" timestamp="2026-10-18T15:32:32.204Z" hostname="DaduAsus" tests="4" failures="0" errors="0" skipped="0" time="19.1327859">
+        <testcase classname="tests/model-validation.test.ts" name="writes numerical and UIUC evidence, retains the deferred NASA failure, and fails closed on missing or failed fidelity" time="17.793598">
+        </testcase>
+        <testcase classname="tests/model-validation.test.ts" name="retains pinned reference rate and rejects a missing JSBSim source" time="0.0950609">
+        </testcase>
+        <testcase classname="tests/model-validation.test.ts" name="rejects empty/misordered rates and unsupported measurements before building" time="1.1168103">
+        </testcase>
+        <testcase classname="tests/model-validation.test.ts" name="rejects modified deferred evidence without rerunning the obsolete NASA model" time="0.1260311">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/propeller-bem.test.ts" timestamp="2026-10-18T15:32:32.208Z" hostname="DaduAsus" tests="1" failures="0" errors="0" skipped="0" time="9.1902613">
+        <testcase classname="tests/propeller-bem.test.ts" name="runs independent annular momentum cases against unchanged measured UIUC tolerances without hiding nonconvergence" time="9.1889256">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/uiuc-propeller.test.ts" timestamp="2026-10-18T15:32:32.208Z" hostname="DaduAsus" tests="10" failures="0" errors="0" skipped="0" time="1.7650611">
+        <testcase classname="tests/uiuc-propeller.test.ts" name="UIUC propeller database fixture &gt; is registered with measured provenance and an exact payload hash" time="0.0034477">
+        </testcase>
+        <testcase classname="tests/uiuc-propeller.test.ts" name="UIUC propeller database fixture &gt; traces every table to the inventoried archive and the SDA1075 transcription" time="0.004449">
+        </testcase>
+        <testcase classname="tests/uiuc-propeller.test.ts" name="UIUC propeller database fixture &gt; passes the dataset-only eta and Froude-bound oracles" time="0.0009614">
+        </testcase>
+        <testcase classname="tests/uiuc-propeller.test.ts" name="UIUC propeller database fixture &gt; rejects malformed or out-of-contract payloads" time="0.0029311">
+        </testcase>
+        <testcase classname="tests/uiuc-propeller.test.ts" name="declared comparison model &gt; recovers exact thin-airfoil zero-lift angles" time="0.0033761">
+        </testcase>
+        <testcase classname="tests/uiuc-propeller.test.ts" name="declared comparison model &gt; builds the polar in the native index layout with Blasius drag" time="0.0006156">
+        </testcase>
+        <testcase classname="tests/uiuc-propeller.test.ts" name="declared comparison model &gt; discretizes only the declared airfoil span" time="0.0069605">
+        </testcase>
+        <testcase classname="tests/uiuc-propeller.test.ts" name="declared comparison model &gt; classifies points and never reports PASS without a comparison" time="0.0037526">
+        </testcase>
+        <testcase classname="tests/uiuc-propeller.test.ts" name="declared comparison model &gt; satisfies the Froude identity through the native runner with zero drag" time="1.7356896">
+        </testcase>
+        <testcase classname="tests/uiuc-propeller.test.ts" name="declared comparison model &gt; loads the registered XFOIL polar into the native index layout" time="0.0014266">
+        </testcase>
+    </testsuite>
+</testsuites>

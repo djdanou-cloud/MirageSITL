@@ -9,3 +9,10 @@ build.log
 native/target/
 # User-supplied copyrighted engineering reference; keep local.
 /AircraftLandingGearDesignPrinciplesPractices.md
+# User-supplied airfoil resources; record hashes and derived checks, not raw archives.
+/airfoilprep_v2-02-03.xls
+/coord_seligFmt/
+/PROPID-Ver53-120106-Full/
+/DetersAnandaSelig-2014-AIAA-2014-2151.md
+/Robert_Deters.md
+__pycache__/

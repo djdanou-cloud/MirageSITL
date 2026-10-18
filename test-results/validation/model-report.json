@@ -1,211 +1,18 @@
 {
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "status": "failed",
   "numericalStatus": "pass",
   "fidelityStatus": "blocked",
-  "contactFidelityStatus": "failed",
+  "contactFidelityStatus": "blocked",
   "propellerFidelityStatus": "failed",
-  "measuredValidation": [
+  "measuredValidation": [],
+  "deferredMeasurements": [
     {
       "id": "nasa-tm-x-3561-drop",
-      "datasetId": "NASA-TM-X-3561-DropTest",
-      "referenceUrl": "https://ntrs.nasa.gov/citations/19780003109",
-      "license": "Public-Domain-US-Gov",
-      "acquiredAt": "1977-11-01T00:00:00Z",
-      "sourceSha256": "62adb81b0a56b5e50a921db0e26d154501b0e4e83a58cfc2f22fed571bc69207",
-      "consistencyStatus": "pass",
-      "status": "failed",
-      "runs": [
-        {
-          "caseId": "level-4fps",
-          "hz": 400,
-          "sinkRateMps": 1.2192,
-          "peakAccelerationDownMps2": -488.51720187813044,
-          "windowedPeakAccelerationDownMps2": -121.92,
-          "measuredMinAccelerationDownMps2": -15.69064,
-          "maxPenetrationM": 0.00010903896713254646,
-          "measuredMaxStrutStrokeM": 0.05588,
-          "arrestImpulseNs": 1813.4603608703774,
-          "sinkMomentumNs": 1813.9050014131203,
-          "impulseBalanceErrorNs": -0.000022417994387069484,
-          "reboundSpeedMps": 1.7462298274040222e-10,
-          "checks": {
-            "impulse": "pass",
-            "nonpenetration": "pass",
-            "energy": "pass",
-            "decelerationEnvelope": "failed",
-            "strokeEnvelope": "failed"
-          }
-        },
-        {
-          "caseId": "level-4fps",
-          "hz": 800,
-          "sinkRateMps": 1.2192,
-          "peakAccelerationDownMps2": -976.197225600481,
-          "windowedPeakAccelerationDownMps2": -121.92,
-          "measuredMinAccelerationDownMps2": -15.69064,
-          "maxPenetrationM": 0.00008606137657163337,
-          "measuredMaxStrutStrokeM": 0.05588,
-          "arrestImpulseNs": 1813.6827252588853,
-          "sinkMomentumNs": 1813.9050014131203,
-          "impulseBalanceErrorNs": -0.000022417994387069484,
-          "reboundSpeedMps": 0,
-          "checks": {
-            "impulse": "pass",
-            "nonpenetration": "pass",
-            "energy": "pass",
-            "decelerationEnvelope": "failed",
-            "strokeEnvelope": "failed"
-          }
-        },
-        {
-          "caseId": "level-4fps",
-          "hz": 1200,
-          "sinkRateMps": 1.2192,
-          "peakAccelerationDownMps2": -1463.8771473895758,
-          "windowedPeakAccelerationDownMps2": -121.92,
-          "measuredMinAccelerationDownMps2": -15.69064,
-          "maxPenetrationM": 0.00007050456428525642,
-          "measuredMaxStrutStrokeM": 0.05588,
-          "arrestImpulseNs": 1813.7567203429194,
-          "sinkMomentumNs": 1813.9050014131203,
-          "impulseBalanceErrorNs": -0.000022417994387069484,
-          "reboundSpeedMps": 0,
-          "checks": {
-            "impulse": "pass",
-            "nonpenetration": "pass",
-            "energy": "pass",
-            "decelerationEnvelope": "failed",
-            "strokeEnvelope": "failed"
-          }
-        },
-        {
-          "caseId": "level-5fps",
-          "hz": 400,
-          "sinkRateMps": 1.524,
-          "peakAccelerationDownMps2": -610.4371659457684,
-          "windowedPeakAccelerationDownMps2": -152.4,
-          "measuredMinAccelerationDownMps2": -15.69064,
-          "maxPenetrationM": 0.00013651670837400154,
-          "measuredMaxStrutStrokeM": 0.09398,
-          "arrestImpulseNs": 2266.936477574766,
-          "sinkMomentumNs": 2267.3812517664,
-          "impulseBalanceErrorNs": -0.00007236188093884266,
-          "reboundSpeedMps": 0,
-          "checks": {
-            "impulse": "pass",
-            "nonpenetration": "pass",
-            "energy": "pass",
-            "decelerationEnvelope": "failed",
-            "strokeEnvelope": "failed"
-          }
-        },
-        {
-          "caseId": "level-5fps",
-          "hz": 800,
-          "sinkRateMps": 1.524,
-          "peakAccelerationDownMps2": -1220.0371433980763,
-          "windowedPeakAccelerationDownMps2": -152.4,
-          "measuredMinAccelerationDownMps2": -15.69064,
-          "maxPenetrationM": 0.00010760845565793709,
-          "measuredMaxStrutStrokeM": 0.09398,
-          "arrestImpulseNs": 2267.1588227379925,
-          "sinkMomentumNs": 2267.3812517664,
-          "impulseBalanceErrorNs": -0.00007236188093884266,
-          "reboundSpeedMps": 0,
-          "checks": {
-            "impulse": "pass",
-            "nonpenetration": "pass",
-            "energy": "pass",
-            "decelerationEnvelope": "failed",
-            "strokeEnvelope": "failed"
-          }
-        },
-        {
-          "caseId": "level-5fps",
-          "hz": 1200,
-          "sinkRateMps": 1.524,
-          "peakAccelerationDownMps2": -1829.637252911925,
-          "windowedPeakAccelerationDownMps2": -152.4,
-          "measuredMinAccelerationDownMps2": -15.69064,
-          "maxPenetrationM": 0.00008811773681638435,
-          "measuredMaxStrutStrokeM": 0.09398,
-          "arrestImpulseNs": 2267.2331015248287,
-          "sinkMomentumNs": 2267.3812517664,
-          "impulseBalanceErrorNs": -0.00007236188093884266,
-          "reboundSpeedMps": 0,
-          "checks": {
-            "impulse": "pass",
-            "nonpenetration": "pass",
-            "energy": "pass",
-            "decelerationEnvelope": "failed",
-            "strokeEnvelope": "failed"
-          }
-        },
-        {
-          "caseId": "level-6fps",
-          "hz": 400,
-          "sinkRateMps": 1.8288,
-          "peakAccelerationDownMps2": -732.3571775108576,
-          "windowedPeakAccelerationDownMps2": -182.88,
-          "measuredMinAccelerationDownMps2": -15.69064,
-          "maxPenetrationM": 0.00016396464729306892,
-          "measuredMaxStrutStrokeM": 0.11176,
-          "arrestImpulseNs": 2720.412770943903,
-          "sinkMomentumNs": 2720.8575021196802,
-          "impulseBalanceErrorNs": 0.00005505178387466003,
-          "reboundSpeedMps": 2.3283064365386963e-10,
-          "checks": {
-            "impulse": "pass",
-            "nonpenetration": "pass",
-            "energy": "pass",
-            "decelerationEnvelope": "failed",
-            "strokeEnvelope": "failed"
-          }
-        },
-        {
-          "caseId": "level-6fps",
-          "hz": 800,
-          "sinkRateMps": 1.8288,
-          "peakAccelerationDownMps2": -1463.877229206264,
-          "windowedPeakAccelerationDownMps2": -182.88,
-          "measuredMinAccelerationDownMps2": -15.69064,
-          "maxPenetrationM": 0.00012924494171140388,
-          "measuredMaxStrutStrokeM": 0.11176,
-          "arrestImpulseNs": 2720.6352326712235,
-          "sinkMomentumNs": 2720.8575021196802,
-          "impulseBalanceErrorNs": 0.00005505178387466003,
-          "reboundSpeedMps": 0,
-          "checks": {
-            "impulse": "pass",
-            "nonpenetration": "pass",
-            "energy": "pass",
-            "decelerationEnvelope": "failed",
-            "strokeEnvelope": "failed"
-          }
-        },
-        {
-          "caseId": "level-6fps",
-          "hz": 1200,
-          "sinkRateMps": 1.8288,
-          "peakAccelerationDownMps2": -2195.3969727270305,
-          "windowedPeakAccelerationDownMps2": -182.88,
-          "measuredMinAccelerationDownMps2": -15.69064,
-          "maxPenetrationM": 0.00010582031631467537,
-          "measuredMaxStrutStrokeM": 0.11176,
-          "arrestImpulseNs": 2720.709004499512,
-          "sinkMomentumNs": 2720.8575021196802,
-          "impulseBalanceErrorNs": 0.00005505178387466003,
-          "reboundSpeedMps": 0,
-          "checks": {
-            "impulse": "pass",
-            "nonpenetration": "pass",
-            "energy": "pass",
-            "decelerationEnvelope": "failed",
-            "strokeEnvelope": "failed"
-          }
-        }
-      ]
+      "reason": "NASA measured fidelity deferred by explicit user instruction on 2026-10-18; preserve the historical failed comparison",
+      "archivePath": "test-results/validation/nasa-drop-legacy.json",
+      "archiveSha256": "2c23c888feb8c540cdbee2587b6be4af3f8aeb6c25cd0d9591bdaa1da5d3cbd1",
+      "historicalStatus": "failed"
     }
   ],
   "propellerValidation": [
@@ -815,7 +622,7 @@
       ]
     }
   ],
-  "referenceSha256": "b2445ed1d89e118af47b0b4ff6761e20862e2118644d3e6b4544fdf31f99916c",
+  "referenceSha256": "8c598b3072fd60ce24045af5f3da499dc4cd4e59b98bb3b88440f29b940bdc8f",
   "artifactSha256": {
     "scalar": "dc4351f7c567c830d09a9f6f701ce10107c99969910d517b84b951d5ecf9df7e",
     "simd128": "ce6cea248937848b323616c3563e69f79e5e0cbc1161b6bd551aef69657fe21e"
@@ -932,13 +739,27 @@
   ],
   "blockers": [
     "Measured airframe validation is not certified: no airframe dataset is archived.",
-    "UIUC DA4002/DA4022 propellers: the steady BET with uniform momentum inflow and the declared thin-airfoil/laminar-friction SDA1075 polar misses the pre-declared CT/CP tolerances; no measured or viscous-solver airfoil polar, tip loss or swirl is modeled.",
-    "NASA TM X-3561 level drops: the rigid Rapier sphere arrests the sink in a few steps, far beyond the measured -1.6 g upper-mass envelope, and has no strut/tire stroke; a landing-gear model is required.",
+    "UIUC DA4002/DA4022 propellers still fail the fixed CT/CP tolerances with the analytic and XFOIL polars. The separate annular tip/hub/swirl sensitivity diagnostic is not a fidelity override; coverage and low-Re polar accuracy remain unresolved.",
+    "NASA measured fidelity is deferred by the user, not passed. The historical failing comparison is hash-checked and retained separately from active acceptance.",
     "Full BET polar/rotor-to-body backend is not connected.",
-    "Production Rapier contact G1 is not certified; opt-in patched native evidence does not certify its JS/WASM binding.",
-    "JSBSim WASM parity and contact coupling are not certified; patched native allocation/trim are separate evidence."
+    "TASK-029/031 numerical/allocation acceptance is separate from measured aircraft fidelity and target-device timing; current diagnostics and historical probes are reported separately."
   ],
   "diagnostics": {
+    "jsbsimBackend": {
+      "path": "test-results/validation/task-031-backend.json",
+      "reportSha256": "22438746368755129a31e79d473683c05e4df0ea60cdd96197fe689b6dec95d9",
+      "status": "pass"
+    },
+    "jsbsimJsAllocation": {
+      "path": "test-results/bench/jsbsim-400.json",
+      "reportSha256": "308e973cd7694dfbccea5c5f55439fe68cd05058845566bbdf476467897beceb",
+      "status": "pass"
+    },
+    "annularBem": {
+      "path": "test-results/validation/propeller-bem.json",
+      "reportSha256": "bdaff01ca43da42b9a48e1babda4c1a6475ac2128d824a3f5bf582eb8bfe04a3",
+      "status": "failed"
+    },
     "contact": {
       "path": "test-results/bench/contact.json",
       "reportSha256": "45b830178c6fe64cc062fcbfb19ea473143c5eb39b13316a6681920bd3f71953",

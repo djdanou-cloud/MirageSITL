@@ -17,10 +17,14 @@
 //! ```
 //! Output: `ok <CT> <CP> <eta> <inducedMps> <residualN> <polarFlags> <outside 0|1>`
 //! or `err`. A `rotor` block applies to the following points until the next one.
+//! Optional `--annular` selects the separate BEM diagnostic. Its fifth numeric
+//! output is a dimensionless residual (legacy: N); nonconverged points are `err`.
+//! Detailed `bem` lines on stderr record final section coverage and convergence.
 use mirage_bet::{
     blade::{Rotor, RotorGeometry},
     polar::PolarTable,
     propeller::{steady_point, PropellerCondition},
+    propeller_bem::{steady_annular, BemOptions},
 };
 use std::io::{self, BufRead, Write};
 
@@ -55,6 +59,17 @@ struct RotorBlock {
 }
 
 fn run() -> Result<(), String> {
+    let mut annular = false;
+    let mut options = BemOptions::default();
+    for argument in std::env::args().skip(1) {
+        match argument.as_str() {
+            "--annular" => annular = true,
+            "--no-tip-loss" => options.tip_loss = false,
+            "--no-hub-loss" => options.hub_loss = false,
+            "--no-swirl" => options.swirl = false,
+            _ => return Err(format!("unknown argument {argument:?}")),
+        }
+    }
     let stdin = io::stdin();
     let mut lines = stdin.lock().lines();
     let mut out = io::BufWriter::new(io::stdout().lock());
@@ -117,21 +132,18 @@ fn run() -> Result<(), String> {
                 let s = &r.stations;
                 let polar = PolarTable::new(&p[0], &p[1], &p[2], &p[3], &p[4])
                     .map_err(|e| format!("polar rejected: {e:?}"))?;
-                let rotor = Rotor::new(
-                    RotorGeometry {
-                        blade_count: r.blades,
-                        spin_sign: 1,
-                        radius_m: r.radius,
-                        cutout_m: r.cutout,
-                        radius: &s[0],
-                        chord: &s[1],
-                        twist: &s[2],
-                        width: &s[3],
-                    },
-                    polar,
-                    r.azimuth,
-                )
-                .map_err(|_| "rotor rejected".to_string())?;
+                let geometry = RotorGeometry {
+                    blade_count: r.blades,
+                    spin_sign: 1,
+                    radius_m: r.radius,
+                    cutout_m: r.cutout,
+                    radius: &s[0],
+                    chord: &s[1],
+                    twist: &s[2],
+                    width: &s[3],
+                };
+                let rotor = Rotor::new(geometry, polar, r.azimuth)
+                    .map_err(|_| "rotor rejected".to_string())?;
                 let condition = PropellerCondition {
                     rpm,
                     advance_ratio: j,
@@ -140,18 +152,58 @@ fn run() -> Result<(), String> {
                     sound_speed_mps: sound,
                     collective_rad: 0.0,
                 };
-                let line = match steady_point(&rotor, r.radius, 1, condition) {
-                    Ok(p) => format!(
-                        "ok {:?} {:?} {:?} {:?} {:?} {} {}",
-                        p.ct,
-                        p.cp,
-                        p.eta,
-                        p.induced_mps,
-                        p.momentum_residual_n,
-                        p.polar_flags,
-                        u8::from(p.outside_momentum_validity)
-                    ),
-                    Err(_) => "err".to_string(),
+                let line = if annular {
+                    match steady_annular(geometry, polar, condition, options) {
+                        Ok(p) => {
+                            eprintln!(
+                                "bem {} {} {} {} {} {} {} {} {} {} {} {}",
+                                u8::from(p.converged),
+                                u8::from(p.outside_momentum_validity),
+                                p.polar_flags,
+                                p.max_relative_residual,
+                                p.min_alpha_rad,
+                                p.max_alpha_rad,
+                                p.min_reynolds,
+                                p.max_reynolds,
+                                p.mean_induced_mps,
+                                p.mean_swirl_mps,
+                                p.ct,
+                                p.cp
+                            );
+                            if p.converged {
+                                format!(
+                                    "ok {:?} {:?} {:?} {:?} {:?} {} {}",
+                                    p.ct,
+                                    p.cp,
+                                    p.eta,
+                                    p.mean_induced_mps,
+                                    p.max_relative_residual,
+                                    p.polar_flags,
+                                    u8::from(p.outside_momentum_validity)
+                                )
+                            } else {
+                                "err".to_string()
+                            }
+                        }
+                        Err(_) => {
+                            eprintln!("bem error");
+                            "err".to_string()
+                        }
+                    }
+                } else {
+                    match steady_point(&rotor, r.radius, 1, condition) {
+                        Ok(p) => format!(
+                            "ok {:?} {:?} {:?} {:?} {:?} {} {}",
+                            p.ct,
+                            p.cp,
+                            p.eta,
+                            p.induced_mps,
+                            p.momentum_residual_n,
+                            p.polar_flags,
+                            u8::from(p.outside_momentum_validity)
+                        ),
+                        Err(_) => "err".to_string(),
+                    }
                 };
                 writeln!(out, "{line}").map_err(|e| e.to_string())?;
             }
