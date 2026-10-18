@@ -324,8 +324,11 @@ production BET backend. `bench-sensors.mjs all` requires Node 24 and warms four
 million ticks before measuring; `validate-models.mjs` exits 2 when numerical
 cases pass but fidelity is blocked. `build-jsbsim.mjs` requires verified
 JSBSIM_SOURCE_DIR and MIRAGE_EMSDK_DIR checkouts plus an installed Emscripten 4.0.15.
-SDK access and native/WASM parity remain blocked; never substitute native smoke
-for a WASM pass. Rapier and JSBSim adapters are not high-rate certified.
+The 2026-10-18 Windows retry verifies that SDK and passes actual WASM Worker
+smoke via `node scripts/check-jsbsim-artifact.mjs` at 400/800/1200 Hz. Aircraft
+XML remains local test input, excluded from artifacts. Native/WASM trajectory
+parity remains open; never substitute smoke for parity. Rapier and JSBSim
+adapters are not high-rate certified.
 
 Retry checks: check-jsbsim-native.mjs verifies native trim/frames and a million
 steps in 250 bounded windows; it exits 2 on a failed allocator gate.
@@ -343,7 +346,9 @@ checks report/source/patch identities before comparison. Patches preserve storag
 rather than changing physics. See the native allocation patch section in the
 engine specification for exact scope, commands and limitations. These native
 results do not certify the production Rapier JS/WASM binding, a JSBSim WASM build,
-contact coupling or physical fidelity. Preserve the SDK and measured-data blockers.
+contact coupling or physical fidelity. The later 2026-10-18 local WASM build and
+Worker smoke resolve the local SDK/artifact blocker; measured-data, trajectory
+parity and production allocation gates remain open.
 
 
 TASK-037/038/039/040/048/052/053/056/057/060 add a pinned MAVLink2 subset,

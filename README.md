@@ -161,7 +161,9 @@ are available in `native/bet`, with a real WASM body adapter and ideal/noisy
 sensor package. The demo Worker still uses its existing demo dynamics; the full
 BET backend is not wired. Rapier sphere/plane contacts run as an experiment
 (allocation gate blocked). JSBSim has pinned build/bridge sources and a verified
-native smoke, but SDK access currently blocks WASM build/parity. The model
+native smoke. The 2026-10-18 Windows retry also builds the actual pinned WASM
+artifact and passes Chromium Worker smoke at 400/800/1200 Hz; native/WASM
+trajectory parity remains open. Aircraft XML is excluded from the artifact. The model
 validation CLI reports numerical results separately and exits 2 until physical
 reference data and integration gates are satisfied. See
 [implementation contracts](docs/SPECS_SIMULATION_ENGINES.md).
@@ -174,7 +176,9 @@ checks report/source/patch identities before comparison. Patches preserve storag
 rather than changing physics. See the native allocation patch section in the
 engine specification for exact scope, commands and limitations. These native
 results do not certify the production Rapier JS/WASM binding, a JSBSim WASM build,
-contact coupling or physical fidelity. Preserve the SDK and measured-data blockers.
+contact coupling or physical fidelity. The later 2026-10-18 local WASM build and
+Worker smoke resolve the local SDK/artifact blocker; measured-data, trajectory
+parity and production allocation gates remain open.
 
 The first measured fixture, `tests/fixtures/contact/nasa-drop.json`, holds the
 NASA TM X-3561 level-surface landing-gear drops

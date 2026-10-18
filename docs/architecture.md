@@ -586,9 +586,11 @@ with integer schedules and independent seeded noise/latency streams. Their
 allocation probe measures warmed Node/V8, not browser hard real time.
 
 JSBSim source/toolchain/license hashes, C++ C ABI, SI/origin-frame adapter and
-build prerequisite checks are present. Native smoke succeeds; SDK download
-was blocked at storage.googleapis.com. No WASM aircraft artifact, trim parity,
-contact exchange or high-rate allocation certification is available yet.
+build prerequisite checks are present. Native smoke succeeds. The historical
+cloud SDK download failed, but the 2026-10-18 Windows retry builds a pinned WASM
+artifact and passes real Chromium Worker smoke at 400/800/1200 Hz. Model XML is
+local test input only. Trim parity, contact exchange and high-rate allocation
+certification remain open.
 The model validation CLI actually runs scalar/SIMD rigid-body numerical cases
 but exits 2 while experimental fidelity prerequisites are absent. See the
 implemented sections in [engine specification](SPECS_SIMULATION_ENGINES.md).
@@ -600,7 +602,7 @@ fails in the JS package and in a separately built native f64/profiler-free core.
 Retain BLOCKED_DECISION; an allocation-free upstream build or alternative engine
 is required. Native JSBSim full trim and coordinate checks now pass, but its
 measured allocator gate fails. Optional cold trim and generation-tagged handles
-are implemented; WASM SDK access remains denied. Model report v2 includes
+are implemented; the historical WASM SDK denial was resolved locally on 2026-10-18. Model report v2 includes
 hash-checked diagnostic provenance and rejects unsupported reference manifests.
 See the retry contracts in SPECS_SIMULATION_ENGINES.md.
 
@@ -612,7 +614,9 @@ checks report/source/patch identities before comparison. Patches preserve storag
 rather than changing physics. See the native allocation patch section in the
 engine specification for exact scope, commands and limitations. These native
 results do not certify the production Rapier JS/WASM binding, a JSBSim WASM build,
-contact coupling or physical fidelity. Preserve the SDK and measured-data blockers.
+contact coupling or physical fidelity. The later 2026-10-18 local WASM build and
+Worker smoke resolve the local SDK/artifact blocker; measured-data, trajectory
+parity and production allocation gates remain open.
 
 
 TASK-037/038/039/040/048/052/053/056/057/060 add a pinned MAVLink2 subset,

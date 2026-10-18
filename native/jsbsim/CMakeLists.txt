@@ -11,13 +11,33 @@ endif()
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
 set(BUILD_PYTHON_MODULE OFF CACHE BOOL "" FORCE)
 add_subdirectory("${JSBSIM_SOURCE_DIR}" upstream EXCLUDE_FROM_ALL)
+if(EMSCRIPTEN)
+  if(NOT DEFINED MIRAGE_SOURCE_DATE_EPOCH OR NOT "$ENV{SOURCE_DATE_EPOCH}" STREQUAL "${MIRAGE_SOURCE_DATE_EPOCH}")
+    message(FATAL_ERROR "Use the pinned build runner to set SOURCE_DATE_EPOCH")
+  endif()
+  # Track the timestamp in the compile command so cached version objects rebuild.
+  target_compile_definitions(libJSBSim PRIVATE MIRAGE_SOURCE_DATE_EPOCH=${MIRAGE_SOURCE_DATE_EPOCH})
+  # Upstream 1.2.3 does not include POSIX select declarations on this target.
+  target_compile_options(InputOutput PRIVATE -include sys/select.h)
+  # Emscripten defines _GNU_SOURCE but musl returns int from strerror_r.
+  # Compile a local portability copy; preserve the verified upstream checkout.
+  file(READ "${JSBSIM_SOURCE_DIR}/src/simgear/misc/strutils.cxx" strutils)
+  string(REPLACE "#elif defined(_GNU_SOURCE)" "#elif defined(_GNU_SOURCE) && !defined(__EMSCRIPTEN__)" strutils "${strutils}")
+  string(REPLACE "#if !defined(_GNU_SOURCE)" "#if !defined(_GNU_SOURCE) || defined(__EMSCRIPTEN__)" strutils "${strutils}")
+  file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/strutils-emscripten.cxx" "${strutils}")
+  get_target_property(misc_sources Misc SOURCES)
+  list(REMOVE_ITEM misc_sources strutils.cxx)
+  set_property(TARGET Misc PROPERTY SOURCES "${misc_sources};${CMAKE_CURRENT_BINARY_DIR}/strutils-emscripten.cxx")
+  target_include_directories(Misc PRIVATE "${JSBSIM_SOURCE_DIR}/src/simgear/misc")
+  target_compile_definitions(Misc PRIVATE _POSIX_C_SOURCE=200809L)
+endif()
 add_executable(mirage_jsbsim bridge.cpp)
 target_link_libraries(mirage_jsbsim PRIVATE libJSBSim)
 if(EMSCRIPTEN)
   target_link_options(mirage_jsbsim PRIVATE
     "-fexceptions" "-sDISABLE_EXCEPTION_CATCHING=0"
     "-sMODULARIZE=1" "-sEXPORT_ES6=1" "-sENVIRONMENT=web,worker,node"
-    "-sALLOW_MEMORY_GROWTH=0" "-sINITIAL_MEMORY=67108864" "-sFORCE_FILESYSTEM=1" "-sEXPORTED_RUNTIME_METHODS=['FS']"
+    "-sALLOW_MEMORY_GROWTH=0" "-sINITIAL_MEMORY=67108864" "-sFORCE_FILESYSTEM=1" "-sEXPORTED_RUNTIME_METHODS=['FS','HEAPU8','HEAPF64']"
     "-sEXPORTED_FUNCTIONS=['_jsb_abi_version','_jsb_create','_jsb_step','_jsb_dispose','_jsb_trim','_malloc','_free']")
 else()
   target_compile_definitions(mirage_jsbsim PRIVATE MIRAGE_JSBSIM_NATIVE_SMOKE=1)

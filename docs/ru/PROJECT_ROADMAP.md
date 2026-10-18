@@ -1,6 +1,6 @@
 # PROJECT_ROADMAP.md
 
-<!-- source-sha256: 40a0b473f3f79db7bbb7d439b68dd8e274cdf7b7d2e4e00f9e01468037313f30 -->
+<!-- source-sha256: 1a797ea92f8d032350b095bbdd91331b5504edb554be4df9e7a57ea2eab855a5 -->
 
 Английский источник: [Source of truth](../PROJECT_ROADMAP.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -469,7 +469,8 @@ Cargo bin активирован в PATH. Производительность M
 
 ### TASK-030 — Pinned JSBSim WASM artifact
 
-- **Status:** BLOCKED_EXTERNAL — Codex; retry verified on 2026-10-16.
+- **Status:** DONE — Codex; база 18317f8; 2026-10-18. Закреплённый локальный WASM-артефакт, сравнение воспроизводимости и настоящий browser Worker smoke проходят.
+- **Область локального повтора:** Существующие файлы сборки/тестов плюс `scripts/check-jsbsim-artifact.mjs` и `test-results/validation/jsbsim-artifact.json`; исходники/инструменты находятся в игнорируемом `.cache/task-030/`. Контракт: JSBSim ABI v1 спецификации движков и текущая политика лицензий. Проверяются исходники/SDK, хеши настоящего артефакта и ABI/шаг модели в Worker; сертификация паритета/контакта TASK-031 не заявляется. Отдельный browser runner не добавляет внешние исходники/SDK в обычные unit-тесты.
 - **Title & Description:** Собрать JSBSim через Emscripten с reproducible source/toolchain manifest.
 - **Dependencies:** TASK-003, TASK-004, TASK-006.
 - **Touched Files:** `native/jsbsim/CMakeLists.txt`, `native/jsbsim/source.lock.json`, `native/jsbsim/toolchain.lock.json`, `scripts/build-jsbsim.mjs`, `packages/wasm-jsbsim/package.json`, `tests/jsbsim-artifact.test.ts`, `native/jsbsim/bridge.cpp`, `native/jsbsim/property-map.json`, `package-lock.json`, `CLAUDE.md`, `docs/ru/CLAUDE.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `README.md`, `docs/ru/README.md`, `scripts/check-jsbsim-native.mjs`, `native/jsbsim/native_checks.cpp`, `native/jsbsim/patches/reuse-history-and-property-paths.patch`.
@@ -481,6 +482,12 @@ Cargo bin активирован в PATH. Производительность M
 - **Retry Evidence:** Повтор: python3 emsdk.py install 4.0.15 снова отклонён при загрузке node-v22.16.0-linux-x64.tar.xz с storage.googleapis.com: proxy tunnel CONNECT 403, код 1. Сетевой черновик не применён к этой среде. Добавлены нативная проверочная цель и флаги перехвата исключений холодного пути; сборка Emscripten и Worker smoke не выполнены. Повторяемая диагностика старта сохранена в черновике среды; сохранение не означает публикацию.
 
 - **Patch Retry Evidence (2026-10-16):** Сборочный скрипт поддерживает проверяемый явный патч аллокаций и сохраняет его SHA-256 в манифесте артефактов. Checkout исходников чист. Нативный результат не устраняет HTTP 403 SDK и не заменяет настоящий WASM/Worker smoke.
+
+- **Windows Artifact Evidence (2026-10-18):** Ответственный Codex; база 18317f86648dc2a47dc879720062a28a9f645764. Установленный через Python JSBSim 1.3.3 отделён от закреплённых исходников. Проверены чистые коммиты JSBSim 1.2.3 и существующего emsdk, хеши лицензии/манифеста; CMake 3.31.6 и Ninja 1.11.1.4 установлены в игнорируемый локальный кеш. Сборка использует Python-точки входа, исправления переносимости POSIX select/strerror и экспортированные представления памяти. Первое сравнение выявило строки даты/времени upstream; SOURCE_DATE_EPOCH=1749297861 теперь закрепляет их на времени коммита исходников. Динамика upstream не изменена; патч аллокаций не применялся.
+  - `node scripts/build-jsbsim.mjs`: код 0 для основного и независимого каталогов сборки. JS 94,400 байт, SHA-256 a236fbea1b243fc5dc515a7850503b35df74e32bc8f65cbcca7cee43de5b5dd2; WASM 2,170,429 байт, SHA-256 2d75e714595db0a925a2c4422aca237d4676c8b578680d8928a563447feeb64d. Оба файла совпадают между независимыми каталогами сборки.
+  - `node scripts/check-jsbsim-artifact.mjs` с MIRAGE_JSBSIM_COMPARE: код 0; Chromium 155.0.8059.84, Windows, Node 24.19.0. Три случая Worker выполняют 400/800/1200 шагов за одну секунду симуляции на соответствующих частотах, проверяют 22 конечных SI-выхода, ошибку времени/нормы <=1e-10, неизменную память 67,108,864 байта, неверные команды и освобождённые handles. Происхождение, хеши моделей и сравнение сборок: `test-results/validation/jsbsim-artifact.json`.
+  - `node node_modules/vitest/vitest.mjs run tests/jsbsim-artifact.test.ts tests/jsbsim-backend.test.ts tests/jsbsim-native.test.ts tests/engine-patch-parity.test.ts tests/fixtures.test.ts tests/model-manifest.test.ts tests/ci.test.ts`: код 0; 24 теста в 7 файлах. Полные ESLint, строгий tsc и production-сборка Vite: код 0; прежнее предупреждение размера пакета сохранено. Проверки зависимостей по фикстурам/схеме/CI проходят; hosted-свидетельства TASK-003 остаются в TASK-003.
+  - XML самолёта — только локальный вход теста; данные модели исключены из артефакта по текущей политике лицензий. Перед упаковкой XML требуется проверка распространения. Паритет траекторий, контактное сопряжение и сертификация production-аллокаций остаются в TASK-031. Английская/русская документация синхронизирована; `node scripts/check-docs.mjs`: код 0, 20 двуязычных пар / 86 задач / 6 раскладок; `git diff --check`: код 0. Коммита и push нет.
 
 ### TASK-031 — JSBSim DynamicsBackend
 

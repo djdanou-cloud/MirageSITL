@@ -49,7 +49,7 @@ export function patchedJsbsimSource(sourceDir, enabled = false) {
     ),
     patchSha256 = sha(readFileSync(patch));
   const directory = join(
-    "/workspace/.cache",
+    join(root, ".cache"),
     `mirage-jsbsim-patched-${source.commit.slice(0, 12)}-${patchSha256.slice(0, 12)}`,
   );
   mkdirSync(directory, { recursive: true });
@@ -64,14 +64,20 @@ export function patchedJsbsimSource(sourceDir, enabled = false) {
 }
 export function build() {
   const { sourceDir, emsdk } = prerequisites(),
-    emcc = join(emsdk, "upstream/emscripten/emcc"),
-    emcmake = join(emsdk, "upstream/emscripten/emcmake");
+    emcc = join(emsdk, "upstream/emscripten/emcc.py"),
+    emcmake = join(emsdk, "upstream/emscripten/emcmake.py");
   if (!existsSync(emcc))
     throw new Error(
       `BLOCKED_EXTERNAL: Emscripten ${toolchain.version} is not installed; allow ${toolchain.requiredDownloadHost}, install the pinned SDK and rerun. No artifact was generated.`,
     );
-  const version = execFileSync(emcc, ["--version"], { encoding: "utf8" });
-  if (!version.includes(toolchain.version))
+  // Invoke Python entry points directly: Windows batch wrappers require a shell.
+  const python = process.env.MIRAGE_PYTHON ?? (process.platform === "win32" ? "python" : "python3");
+  // Upstream embeds __DATE__/__TIME__; pin them to the source commit timestamp.
+  const sourceDateEpoch = execFileSync("git", ["show", "-s", "--format=%ct", source.commit], { cwd: sourceDir, encoding: "utf8" }).trim();
+  if (!/^\d+$/.test(sourceDateEpoch)) throw new Error("Invalid source timestamp");
+  const env = { ...process.env, EM_CONFIG: join(emsdk, ".emscripten"), SOURCE_DATE_EPOCH: sourceDateEpoch };
+  const version = execFileSync(python, [emcc, "--version"], { encoding: "utf8", env });
+  if (/emcc .*? (\d+\.\d+\.\d+)\b/.exec(version)?.[1] !== toolchain.version)
     throw new Error("Emscripten version mismatch");
   const out = resolve(
     process.env.MIRAGE_JSBSIM_OUT ?? join(root, "packages/wasm-jsbsim/dist"),
@@ -84,22 +90,24 @@ export function build() {
   mkdirSync(out, { recursive: true });
   const cmake = process.env.MIRAGE_CMAKE ?? "cmake";
   execFileSync(
-    emcmake,
+    python,
     [
+      emcmake,
       cmake,
       "-S",
       join(root, "native/jsbsim"),
       "-B",
       buildDir,
       `-DJSBSIM_SOURCE_DIR=${prepared.directory}`,
+      `-DMIRAGE_SOURCE_DATE_EPOCH=${sourceDateEpoch}`,
       "-DCMAKE_BUILD_TYPE=Release",
     ],
-    { stdio: "inherit" },
+    { stdio: "inherit", env },
   );
   execFileSync(
     cmake,
     ["--build", buildDir, "--target", "mirage_jsbsim", "--parallel", "2"],
-    { stdio: "inherit" },
+    { stdio: "inherit", env },
   );
   const files = ["mirage_jsbsim.js", "mirage_jsbsim.wasm"].map((file) => {
     const bytes = readFileSync(join(buildDir, file));
@@ -117,7 +125,11 @@ export function build() {
         abiVersion: 1,
         sourceCommit: source.commit,
         enginePatchSha256: prepared.patchSha256,
+        toolchainCommit: toolchain.commit,
         toolchainVersion: toolchain.version,
+        compilerVersion: version.trim(),
+        sourceDateEpoch,
+        buildInputs: ["native/jsbsim/CMakeLists.txt", "native/jsbsim/bridge.cpp", "scripts/build-jsbsim.mjs"].map((file) => ({ file, sha256: sha(readFileSync(join(root, file))) })),
         sourceLicense: source.license,
         modelDataIncluded: false,
         artifacts: files,

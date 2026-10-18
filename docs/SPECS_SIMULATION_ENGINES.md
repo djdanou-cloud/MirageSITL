@@ -835,9 +835,36 @@ Aircraft XML is not bundled: c172x includes separate redistribution language and
 is not pilot validated. Review model-specific licenses/data before packaging.
 Native smoke uses the same bridge/source, outputs 22 finite SI doubles after
 one simulated second, and is **not** a trim, native/WASM parity or allocation test.
-SDK installation was denied with proxy CONNECT 403 at storage.googleapis.com;
-TASK-030/031 remain BLOCKED_EXTERNAL. Saved network configuration is a draft,
-not evidence that the current runtime or a new cloud task can download the SDK.
+The historical cloud SDK installation failed with proxy CONNECT 403. On
+2026-10-18, the Windows retry verified the existing pinned SDK, built the actual
+WASM artifact and passed Chromium module-Worker execution at 400/800/1200 Hz.
+TASK-030's artifact gate is resolved; TASK-031 parity/contact/allocation gates
+remain open. This local result does not establish cloud SDK availability.
+
+The build invokes Emscripten Python entry points directly on Windows and Unix;
+`MIRAGE_PYTHON` and `MIRAGE_CMAKE` select executables, and `EM_CONFIG` is set to
+the verified SDK's configuration. Ninja must be on PATH on Windows. CMake adds
+the POSIX select header and compiles a generated local copy of `strutils.cxx`
+selecting the POSIX `strerror_r` return type for Emscripten's musl. These are
+portability changes, not changes to upstream dynamics; the checkout stays clean.
+The manifest includes artifact byte counts/hashes, source/SDK commits, compiler
+version, allocation-patch identity and hashes of the CMake/bridge/build runner.
+`SOURCE_DATE_EPOCH` is fixed to the pinned source commit timestamp so upstream
+`__DATE__`/`__TIME__` version strings do not change artifact bytes between builds.
+The module exports FS, HEAPU8 and HEAPF64 for local assets and the existing adapter.
+
+With `JSBSIM_SOURCE_DIR` and `MIRAGE_EMSDK_DIR` configured, run
+`node scripts/build-jsbsim.mjs`, then `node scripts/check-jsbsim-artifact.mjs`.
+Set `CHROMIUM_PATH` if Playwright's browser is absent. The standalone smoke
+verifies provenance and artifact hashes, loads six local c172x/engine/system XML
+files in a real Worker and checks ABI v1, 22 finite outputs, one simulated second
+at each supported rate (time error <=1e-10 s), quaternion norm error <=1e-10,
+64 MiB stable memory, invalid controls and disposed handles. It writes
+`test-results/validation/jsbsim-artifact.json`; failures exit 1. Aircraft XML is
+served only from a temporary loopback server for this local test, not bundled.
+To compare a second clean build, set `MIRAGE_JSBSIM_OUT` for that build and pass
+its directory as `MIRAGE_JSBSIM_COMPARE` when checking the primary artifact.
+Matching artifact hashes establish local rebuild reproducibility only.
 
 The bridge ABI v1 takes four float64 controls: throttle [0,1], aileron/elevator/
 rudder [-1,1]. Output is 22 doubles: origin-fixed position NED at indices 0..2,
@@ -849,7 +876,8 @@ vectors through ECEF into that origin frame. Quaternion extraction accounts for
 JSBSim's passive matrix convention. Coordinate acceleration includes the body
 velocity transport term; specific force is the applied-force acceleration.
 JSBSim owns integration; contact impulse coupling, pinned trim/step fixtures,
-WASM allocator instrumentation and Worker artifact smoke remain unverified.
+WASM allocator instrumentation remain unverified. The Worker smoke above checks
+execution and memory identity, not zero allocations or trajectory parity.
 
 `node scripts/validate-models.mjs` builds actual scalar/SIMD artifacts, runs two
 10-second rigid-body cases at 400/800/1200 against 4800 Hz, verifies the analytic
@@ -988,7 +1016,7 @@ and C++ new/new[]; the positive control must be detected. Measured result:
 hashes, windows and separate WASM status. No aircraft XML is redistributed.
 The SDK download remains HTTP 403 at storage.googleapis.com; WASM compilation,
 Worker smoke, trim parity and contact coupling remain unverified. Native success
-on trim does not clear TASK-030/031.
+on trim alone does not establish artifact execution or clear TASK-031.
 
 ### Model report schema v2
 
@@ -1073,7 +1101,8 @@ then publish/apply it before retrying the pinned Emscripten install. Saving the
 draft has not applied access to this runtime. An actual JSBSim WASM build,
 Worker smoke, native/WASM parity, contact coupling and model-data review remain
 required. TASK-029 remains BLOCKED_DECISION for a certified binding/general
-contact model; TASK-030/031/033 remain BLOCKED_EXTERNAL. Missing measured rotor/
+contact model; TASK-031/033 remain BLOCKED_EXTERNAL. TASK-030's later artifact
+evidence is separate from these model gates. Missing measured rotor/
 airframe validation and the unconnected full BET backend still block fidelity.
 
 
