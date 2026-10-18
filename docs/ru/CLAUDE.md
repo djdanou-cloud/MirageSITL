@@ -1,6 +1,6 @@
 # CLAUDE.md — MirageSITL agent instructions
 
-<!-- source-sha256: 82bf4503a5e788892c9e6efb45bcec2798111e58c43e6236927a9e16d3634373 -->
+<!-- source-sha256: 439a414768bea2368c08f96d7915087e3c0127717ed6d91b6479df1ad1448f7e -->
 
 Английский источник: [Source of truth](../../CLAUDE.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -124,6 +124,7 @@ node scripts/bench-sensors.mjs body
 node scripts/validate-models.mjs
 node scripts/build-jsbsim.mjs
 node scripts/check-jsbsim-native.mjs
+node scripts/check-jsbsim-propellers.mjs
 node scripts/bench-contact.mjs
 node scripts/check-contact-native.mjs
 cargo check --manifest-path native/Cargo.toml --workspace --locked

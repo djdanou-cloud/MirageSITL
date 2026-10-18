@@ -1,6 +1,6 @@
 # PROJECT_ROADMAP.md
 
-<!-- source-sha256: a29167c33b39f82094d1be34da7c2b261b3014d09bddbd3fdd85ab3d567714a3 -->
+<!-- source-sha256: 6c8d7ab6b8e07bce34c04a6baaa74c16bff6324f3aee490f1be62d3c86120e56 -->
 
 Английский источник: [Source of truth](../PROJECT_ROADMAP.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -560,16 +560,25 @@ Cargo bin активирован в PATH. Производительность M
 
 ### TASK-086 — Таблицы пропеллеров JSBSim из данных UIUC
 
-- **Status:** BLOCKED_EXTERNAL — Claude; baseline 3a7da5d; 2026-10-17. Таблицы сгенерированы и проверены; загрузка в закреплённый JSBSim требует checkout исходников JSBSim.
+- **Status:** DONE — Claude; baseline 324d15e; 2026-10-18. Таблицы сгенерированы и проверены; нативная загрузка и проверка тяги в закреплённом JSBSim v1.2.3 проходят (18/18 точек).
 - **Title & Description:** Сгенерировать определения пропеллеров фиксированного шага JSBSim (C_THRUST/C_POWER в зависимости от J) из проверенной по хешу базы данных пропеллеров UIUC для будущих моделей самолётов.
 - **Dependencies:** TASK-030, TASK-033.
-- **Touched Files:** `data/jsbsim/generate_uiuc_propellers.py`, `data/jsbsim/engine/uiuc_apce_10x5.xml`, `data/jsbsim/engine/uiuc_apce_10x7.xml`, `data/jsbsim/engine/uiuc_apce_11x7.xml`, `data/jsbsim/engine/uiuc_apce_12x6.xml`, `data/jsbsim/engine/uiuc_apce_14x10.xml`, `data/jsbsim/engine/uiuc_da4002_9x6p75.xml`, `data/jsbsim/engine/uiuc-propellers.manifest.json`, `tests/jsbsim-propellers.test.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/operations/uiuc-propdb-data.md`, `docs/ru/uiuc-propdb-data.md`.
+- **Touched Files:** `data/jsbsim/generate_uiuc_propellers.py`, `data/jsbsim/engine/uiuc_apce_10x5.xml`, `data/jsbsim/engine/uiuc_apce_10x7.xml`, `data/jsbsim/engine/uiuc_apce_11x7.xml`, `data/jsbsim/engine/uiuc_apce_12x6.xml`, `data/jsbsim/engine/uiuc_apce_14x10.xml`, `data/jsbsim/engine/uiuc_da4002_9x6p75.xml`, `data/jsbsim/engine/uiuc-propellers.manifest.json`, `tests/jsbsim-propellers.test.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/operations/uiuc-propdb-data.md`, `docs/ru/uiuc-propdb-data.md`, `native/jsbsim/propeller_probe.cpp`, `native/jsbsim/CMakeLists.txt`, `scripts/check-jsbsim-propellers.mjs`, `CLAUDE.md`, `docs/ru/CLAUDE.md`.
 - **Interfaces / Contracts:** XML пропеллера JSBSim, `<table name="C_THRUST|C_POWER" type="internal">` в зависимости от J = V/(nD), в том же соглашении коэффициентов, что и UIUC; манифест `uiuc-propellers.manifest.json` с SHA-256 и источниками каждого файла.
 - **DoD & Acceptance Criteria:** Строки копируются точно как напечатаны по объявленному правилу выбора RPM; побайтный `--check`; каждый источник прослеживается до инвентаря; загрузка в нативный JSBSim v1.2.3 и проверка статической тяги и тяги при поступательном движении против измеренного CT в пределах 1%.
 - **Evidence:** Владелец Claude; baseline 3a7da5d; 2026-10-17.
   - Генератор пишет шесть файлов: APC Thin Electric 10x5, 10x7, 11x7, 12x6 и 14x10 и DA4002 9x6.75. Для каждого выбирается группа с наибольшими RPM, развёртка которой доходит до нулевой тяги (6750/6500/6000/6000/5000/5000 RPM), 31–40 строк и строка J = 0 из ближайших статических RPM. `--check` — код 0.
   - `tests/jsbsim-propellers.test.ts`: 3 PASS (хеши, прослеживание до инвентаря, форма таблиц и независимая сверка DA4002 с фикстурой TASK-033).
   - Остаётся: на этой машине нет checkout исходников JSBSim (`JSBSIM_SOURCE_DIR` не задан), поэтому нативная загрузка и проверка тяги не выполнялись. Обязательные элементы помимо diameter/numblades/таблиц (например, ixx) не проверены против v1.2.3. Момента инерции в данных нет. Истинные диаметры тома 4 могут отличаться от номинальных. Решение о лицензии UIUC распространяется и на эти производные таблицы.
+
+- **Доказательства нативной загрузки (2026-10-18):** Владелец Claude; baseline 324d15e.
+  - Закреплённый checkout: JSBSim v1.2.3, коммит 570e8115a102df8f877b11e0e59b964ea483e3c0, клонирован вне репозитория. SHA-256 файла COPYING совпадает с lock-файлом.
+  - Команда: `JSBSIM_SOURCE_DIR=<checkout> node scripts/check-jsbsim-propellers.mjs`, код 0. Сборка Linux GCC и CMake 3.28.3, Release.
+  - Все 6 определений загружаются через `FGFDMExec::LoadModel` с диаметрами из манифеста, проходят 18/18 точек. Это статическая строка, строка поступательного режима в середине кривой и интерполированная середина для каждого файла.
+  - Тяга и мощность совпадают с измеренными CT/CP с относительной точностью 4.1e-16 при допуске 1%. Плотность отличается от ISA на 8.1e-6, J точное. Отчёт: `test-results/validation/jsbsim-propellers.json`.
+  - `tests/jsbsim-propellers.test.ts`: 4 PASS. Новый тест сверяет арифметику сравнения с вычисленными вручную значениями: интерполяция, правило выбора, отклонение ошибки тяги 2% и отклонение некорректных таблиц.
+  - Находка: v1.2.3 не присваивает `FGPropeller::Ixx` без `<ixx>`, поэтому полётная модель должна задать момент инерции вращающихся частей; проба его не читает.
+  - Не входит в DoD и остаётся открытым: решение о лицензии UIUC для распространения производных таблиц, истинные и номинальные диаметры тома 4, динамика RPM и связь с двигателем.
 
 ## Phase 3: ArduPilot & Radio Link
 

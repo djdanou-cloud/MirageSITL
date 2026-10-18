@@ -2161,9 +2161,42 @@ propeller is chosen by a fixed rule:
 
 The Reynolds-number dependence across RPMs is therefore not represented, and
 JSBSim holds the end value beyond the last measured J. No ixx is written,
-because inertia is not in the dataset. Loading in the pinned JSBSim v1.2.3
-and the thrust check remain BLOCKED_EXTERNAL until a JSBSim source checkout
-is available.
+because inertia is not in the dataset.
+
+`node scripts/check-jsbsim-propellers.mjs` verifies the native load in the
+pinned JSBSim v1.2.3 (commit and license hash from
+`native/jsbsim/source.lock.json`; set `JSBSIM_SOURCE_DIR`). Without a checkout
+it exits 2 (BLOCKED_EXTERNAL); a failed point exits 1. It works in five steps:
+
+1. Builds `native/jsbsim/propeller_probe.cpp`.
+2. Copies each definition byte for byte (manifest SHA-256 checked) into a
+   temporary root with a probe aircraft. The aircraft has one electric engine,
+   zero aerodynamics and an unused ground contact.
+3. Loads it through `FGFDMExec::LoadModel` and runs the initial condition at
+   ISA sea level with body velocity V = J n D.
+4. Calls `FGPropeller::Calculate` at the table's RPM group. Thrust is computed
+   from the entry RPM, before RPM integration.
+5. Checks the results against the measured rows.
+
+The checked quantities are:
+
+* the loaded diameter equals the manifest value / 12 ft;
+* the reported J equals the requested J within 1e-9;
+* density is within 1e-4 of ISA (1.225 kg/m^3 = 0.0023769 slug/ft^3);
+* thrust and power are within 1% of CT rho n^2 D^4 and CP rho n^3 D^5.
+
+The points are declared before running: the static row; the row whose CT is
+nearest half the static CT; and the midpoint to the next row, checked against
+linear interpolation.
+
+Result (2026-10-18, Linux, GCC, CMake 3.28): all 6 files load and 18 of 18
+points pass. The largest thrust error is 4.1e-16 and the density error is 8.1e-6.
+The report is `test-results/validation/jsbsim-propellers.json`.
+
+v1.2.3 assigns `FGPropeller::Ixx` only when `<ixx>` exists; it has no default.
+A flight model using these files must therefore add the rotating inertia
+before RPM is integrated. The probe never reads Ixx, and it does not exercise
+RPM dynamics or engine coupling.
 
 ## TASK-033 source-backed propeller continuation (2026-10-18)
 

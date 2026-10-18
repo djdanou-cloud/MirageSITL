@@ -113,6 +113,7 @@ node scripts/bench-sensors.mjs body
 node scripts/validate-models.mjs
 node scripts/build-jsbsim.mjs
 node scripts/check-jsbsim-native.mjs
+node scripts/check-jsbsim-propellers.mjs
 node scripts/bench-contact.mjs
 node scripts/check-contact-native.mjs
 cargo check --manifest-path native/Cargo.toml --workspace --locked

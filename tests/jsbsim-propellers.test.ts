@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { parseUiucPropellerFixture } from "../packages/physics/src/uiuc-propeller";
@@ -93,5 +94,43 @@ describe("UIUC-derived JSBSim propeller definitions (TASK-086)", () => {
       const [j, ct] = thrust[i] ?? [NaN, NaN];
       expect(measured.get(j)).toEqual([ct, power[i]?.[1]]);
     }
+  });
+
+  it("compares JSBSim probe output with measured rows using independent arithmetic", () => {
+    // Runs the checker's pure functions in Node; the native probe itself needs a JSBSim checkout.
+    const code = `import * as c from './scripts/check-jsbsim-propellers.mjs';
+      const rows = [[0, 0.10], [0.2, 0.08], [0.4, 0.05], [0.6, 0.0]];
+      const out = {
+        interp: [c.interpolate(rows, 0.3), c.interpolate(rows, -1), c.interpolate(rows, 9)],
+        select: c.selectAdvanceRatios(rows),
+        density: c.ISA_SEA_LEVEL_SLUG_FT3,
+        ok: c.evaluatePoint({ rpm: 6000, requestedJ: 0.3, advanceRatio: 0.3, densitySlugFt3: c.ISA_SEA_LEVEL_SLUG_FT3,
+          thrustLbf: 0.065 * c.ISA_SEA_LEVEL_SLUG_FT3 * 100 * 100, powerFtLbfPerS: 0.03 * c.ISA_SEA_LEVEL_SLUG_FT3 * 1e6 }, rows,
+          [[0, 0.03], [0.6, 0.03]], 1).passed,
+        offByTwoPercent: c.evaluatePoint({ rpm: 6000, requestedJ: 0.3, advanceRatio: 0.3, densitySlugFt3: c.ISA_SEA_LEVEL_SLUG_FT3,
+          thrustLbf: 1.02 * 0.065 * c.ISA_SEA_LEVEL_SLUG_FT3 * 1e4, powerFtLbfPerS: 0.03 * c.ISA_SEA_LEVEL_SLUG_FT3 * 1e6 }, rows,
+          [[0, 0.03], [0.6, 0.03]], 1).passed,
+      };
+      let rejected = 0;
+      for (const bad of ['<table name="C_THRUST" type="internal"><tableData> 0 1 \\n 0 2 </tableData>',
+                         '<table name="C_THRUST" type="internal"><tableData> 0 1 2 </tableData>', '<x/>'])
+        try { c.parseTable(bad, 'C_THRUST'); } catch { rejected++; }
+      console.log(JSON.stringify({ ...out, rejected }));`;
+    const result = spawnSync(process.execPath, ["--input-type=module", "-e", code], { encoding: "utf8" });
+    expect(result.status, result.stderr).toBe(0);
+    const out: unknown = JSON.parse(result.stdout);
+    // n = 100 rev/s, D = 1 ft: T = CT rho n^2 D^4, P = CP rho n^3 D^5; CT(0.3) = (0.08 + 0.05) / 2.
+    expect(out).toEqual({
+      interp: [0.065, 0.1, 0],
+      select: [
+        { kind: "static-row", advanceRatio: 0 },
+        { kind: "advancing-row", advanceRatio: 0.4 },
+        { kind: "interpolated", advanceRatio: 0.5 },
+      ],
+      density: 1.225 / 515.3788183932,
+      ok: true,
+      offByTwoPercent: false,
+      rejected: 3,
+    });
   });
 });

@@ -557,16 +557,25 @@ were synchronized and checked. Changes remain local; no commit or push performed
 
 ### TASK-086 — UIUC-derived JSBSim propeller tables
 
-- **Status:** BLOCKED_EXTERNAL — Claude; baseline 3a7da5d; 2026-10-17. Tables generated and verified; loading them in the pinned JSBSim needs the JSBSim source checkout.
+- **Status:** DONE — Claude; baseline 324d15e; 2026-10-18. Tables generated and verified; native load and thrust check in pinned JSBSim v1.2.3 pass (18/18 points).
 - **Title & Description:** Generate JSBSim fixed-pitch propeller definitions (C_THRUST/C_POWER versus J) from the hash-verified UIUC Propeller Database for future fixed-wing models.
 - **Dependencies:** TASK-030, TASK-033.
-- **Touched Files:** `data/jsbsim/generate_uiuc_propellers.py`, `data/jsbsim/engine/uiuc_apce_10x5.xml`, `data/jsbsim/engine/uiuc_apce_10x7.xml`, `data/jsbsim/engine/uiuc_apce_11x7.xml`, `data/jsbsim/engine/uiuc_apce_12x6.xml`, `data/jsbsim/engine/uiuc_apce_14x10.xml`, `data/jsbsim/engine/uiuc_da4002_9x6p75.xml`, `data/jsbsim/engine/uiuc-propellers.manifest.json`, `tests/jsbsim-propellers.test.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/operations/uiuc-propdb-data.md`, `docs/ru/uiuc-propdb-data.md`.
+- **Touched Files:** `data/jsbsim/generate_uiuc_propellers.py`, `data/jsbsim/engine/uiuc_apce_10x5.xml`, `data/jsbsim/engine/uiuc_apce_10x7.xml`, `data/jsbsim/engine/uiuc_apce_11x7.xml`, `data/jsbsim/engine/uiuc_apce_12x6.xml`, `data/jsbsim/engine/uiuc_apce_14x10.xml`, `data/jsbsim/engine/uiuc_da4002_9x6p75.xml`, `data/jsbsim/engine/uiuc-propellers.manifest.json`, `tests/jsbsim-propellers.test.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/operations/uiuc-propdb-data.md`, `docs/ru/uiuc-propdb-data.md`, `native/jsbsim/propeller_probe.cpp`, `native/jsbsim/CMakeLists.txt`, `scripts/check-jsbsim-propellers.mjs`, `CLAUDE.md`, `docs/ru/CLAUDE.md`.
 - **Interfaces / Contracts:** JSBSim propeller XML, `<table name="C_THRUST|C_POWER" type="internal">` versus J = V/(nD), with the same coefficient convention as UIUC; manifest `uiuc-propellers.manifest.json` with per-file SHA-256 and sources.
 - **DoD & Acceptance Criteria:** Rows copied exactly as printed by a declared RPM-selection rule; byte-for-byte `--check`; every source traced to the inventory; native JSBSim v1.2.3 load plus a static and advancing thrust check against the measured CT within 1%.
 - **Evidence:** Owner Claude; baseline 3a7da5d; 2026-10-17.
   - The generator writes six files: APC Thin Electric 10x5, 10x7, 11x7, 12x6 and 14x10, and DA4002 9x6.75. For each it picks the highest-RPM group whose sweep reaches zero thrust (6750/6500/6000/6000/5000/5000 RPM), with 31–40 rows and a J = 0 row from the nearest static RPM. `--check` exit 0.
   - `tests/jsbsim-propellers.test.ts`: 3 PASS (hashes, inventory trace, table shape and an independent DA4002 cross-check against the TASK-033 fixture).
   - Remaining: no JSBSim source checkout on this machine (`JSBSIM_SOURCE_DIR` unset), so the native load and thrust check were not run. Required elements beyond diameter/numblades/tables (for example ixx) are unverified against v1.2.3. Inertia is not in the dataset. The Vol 4 true diameters may differ from the nominal ones. The UIUC license decision applies to these derived tables too.
+
+- **Native Load Evidence (2026-10-18):** Owner Claude; baseline 324d15e.
+  - Pinned checkout: JSBSim v1.2.3, commit 570e8115a102df8f877b11e0e59b964ea483e3c0, cloned outside the repository. The COPYING SHA-256 matches the lock.
+  - Command: `JSBSIM_SOURCE_DIR=<checkout> node scripts/check-jsbsim-propellers.mjs`, exit 0. Built with Linux GCC and CMake 3.28.3, Release.
+  - All 6 definitions load through `FGFDMExec::LoadModel` with the manifest diameters, and 18/18 points pass. These are the static row, the mid-curve advancing row and an interpolated midpoint per file.
+  - Thrust and power match the measured CT/CP within 4.1e-16 relative, against a tolerance of 1%. Density is within 8.1e-6 of ISA and J is exact. Report: `test-results/validation/jsbsim-propellers.json`.
+  - `tests/jsbsim-propellers.test.ts`: 4 PASS. The new test checks the comparison arithmetic against hand-computed values: interpolation, the selection rule, a 2% thrust error rejected, and malformed tables rejected.
+  - Finding: v1.2.3 leaves `FGPropeller::Ixx` unassigned without `<ixx>`, so a flight model must supply the rotating inertia; the probe never reads it.
+  - Not part of the DoD and still open: the UIUC license decision for distributing the derived tables, Vol 4 true versus nominal diameters, and RPM dynamics/engine coupling.
 
 ## Phase 3: ArduPilot & Radio Link
 
