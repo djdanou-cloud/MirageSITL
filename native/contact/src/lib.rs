@@ -1,4 +1,4 @@
-//! Direct f64 contact ABI v1. One instance, one owner, no shared memory/reentry.
+//! Direct f64 contact ABI v2 (v1 plus per-tick ground planes). One instance, one owner, no shared memory/reentry.
 pub mod contact;
 use contact::{Contact, CONFIG_COUNT, INPUT_COUNT, OUTPUT_COUNT};
 use std::{
@@ -51,7 +51,7 @@ static mut SESSION: *mut Contact = std::ptr::null_mut();
 static mut FAULTED: bool = false;
 #[no_mangle]
 pub extern "C" fn contact_abi_version() -> u32 {
-    1
+    2
 }
 #[no_mangle]
 pub extern "C" fn contact_config_ptr() -> *mut f64 {

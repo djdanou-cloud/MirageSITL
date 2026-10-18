@@ -172,7 +172,7 @@ export function run() {
     throw new Error("JSBSim license checksum mismatch");
   const cmake = process.env.MIRAGE_CMAKE ?? "cmake",
     build = process.env.MIRAGE_JSBSIM_PROPELLER_BUILD ?? join(dirname(source), "mirage-jsbsim-propeller");
-  execFileSync(cmake, ["-S", join(root, "native/jsbsim"), "-B", build, `-DJSBSIM_SOURCE_DIR=${source}`, "-DCMAKE_BUILD_TYPE=Release"], { stdio: "inherit" });
+  execFileSync(cmake, ["-S", join(root, "native/jsbsim/propeller"), "-B", build, `-DJSBSIM_SOURCE_DIR=${source}`, "-DCMAKE_BUILD_TYPE=Release"], { stdio: "inherit" });
   execFileSync(cmake, ["--build", build, "--target", "mirage_jsbsim_propeller_probe", "--parallel", "4"], { stdio: "inherit" });
   const probe = join(build, "mirage_jsbsim_propeller_probe"),
     manifestBytes = readFileSync(join(root, "data/jsbsim/engine/uiuc-propellers.manifest.json")),

@@ -96,6 +96,35 @@ export class CollisionChunks {
       return;
     }
   }
+  /** Plane of the mesh triangle under (north, east): out = [nN, nE, nD, offsetM] with a unit
+   * normal facing up (-Down) and n.p = offset on the surface, so n.x - offset is the height
+   * above that plane. Same triangle choice as sampleInto. Missing ground writes NaN to all four.
+   */
+  planeInto(position: Float64Array, out: Float64Array): void {
+    const northM = position[0] as number, eastM = position[1] as number; // caller length >= 2
+    out[0] = NaN; out[1] = NaN; out[2] = NaN; out[3] = NaN;
+    if (!Number.isFinite(northM) || !Number.isFinite(eastM)) return;
+    const s = this.spacingM, span = (this.resolution - 1) * s;
+    const ni = Math.floor(northM / span), ei = Math.floor(eastM / span);
+    for (let i = 0; i < this.active.length; i++) {
+      const c = this.active[i];
+      if (!c || c.northIndex !== ni || c.eastIndex !== ei) continue;
+      const row = (northM - ni * span) / s, col = (eastM - ei * span) / s;
+      const r = Math.min(Math.floor(row), this.resolution - 2), e = Math.min(Math.floor(col), this.resolution - 2);
+      const u = row - r, v = col - e, at = r * this.resolution + e;
+      // c owns n*n validated samples; indices are in that range.
+      const a = c.downM[at] as number, b = c.downM[at + 1] as number;
+      const d = c.downM[at + this.resolution] as number, f = c.downM[at + this.resolution + 1] as number;
+      // Down-gradient (per metre) of the selected planar triangle.
+      const lower = u + v <= 1;
+      const gn = lower ? (d - a) / s : (f - b) / s, ge = lower ? (b - a) / s : (f - d) / s;
+      const down = lower ? a + u * (d - a) + v * (b - a) : f + (1 - u) * (b - f) + (1 - v) * (d - f);
+      const length = Math.sqrt(gn * gn + ge * ge + 1);
+      out[0] = gn / length; out[1] = ge / length; out[2] = -1 / length;
+      out[3] = (gn * northM + ge * eastM - down) / length;
+      return;
+    }
+  }
   /** Conservative readiness over an axis-aligned safety square. Missing ground pauses admission. */
   readyAround(northM: number, eastM: number, radiusM: number): boolean {
     this.query[0] = northM; this.query[1] = eastM; this.query[2] = radiusM;

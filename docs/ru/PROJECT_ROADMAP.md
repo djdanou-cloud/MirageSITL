@@ -1,6 +1,6 @@
 # PROJECT_ROADMAP.md
 
-<!-- source-sha256: 6c8d7ab6b8e07bce34c04a6baaa74c16bff6324f3aee490f1be62d3c86120e56 -->
+<!-- source-sha256: 396824688a026670372d3f5145acc75067db441bc883c247b641c0a81fef78f0 -->
 
 Английский источник: [Source of truth](../PROJECT_ROADMAP.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -563,7 +563,7 @@ Cargo bin активирован в PATH. Производительность M
 - **Status:** DONE — Claude; baseline 324d15e; 2026-10-18. Таблицы сгенерированы и проверены; нативная загрузка и проверка тяги в закреплённом JSBSim v1.2.3 проходят (18/18 точек).
 - **Title & Description:** Сгенерировать определения пропеллеров фиксированного шага JSBSim (C_THRUST/C_POWER в зависимости от J) из проверенной по хешу базы данных пропеллеров UIUC для будущих моделей самолётов.
 - **Dependencies:** TASK-030, TASK-033.
-- **Touched Files:** `data/jsbsim/generate_uiuc_propellers.py`, `data/jsbsim/engine/uiuc_apce_10x5.xml`, `data/jsbsim/engine/uiuc_apce_10x7.xml`, `data/jsbsim/engine/uiuc_apce_11x7.xml`, `data/jsbsim/engine/uiuc_apce_12x6.xml`, `data/jsbsim/engine/uiuc_apce_14x10.xml`, `data/jsbsim/engine/uiuc_da4002_9x6p75.xml`, `data/jsbsim/engine/uiuc-propellers.manifest.json`, `tests/jsbsim-propellers.test.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/operations/uiuc-propdb-data.md`, `docs/ru/uiuc-propdb-data.md`, `native/jsbsim/propeller_probe.cpp`, `native/jsbsim/CMakeLists.txt`, `scripts/check-jsbsim-propellers.mjs`, `CLAUDE.md`, `docs/ru/CLAUDE.md`.
+- **Touched Files:** `data/jsbsim/generate_uiuc_propellers.py`, `data/jsbsim/engine/uiuc_apce_10x5.xml`, `data/jsbsim/engine/uiuc_apce_10x7.xml`, `data/jsbsim/engine/uiuc_apce_11x7.xml`, `data/jsbsim/engine/uiuc_apce_12x6.xml`, `data/jsbsim/engine/uiuc_apce_14x10.xml`, `data/jsbsim/engine/uiuc_da4002_9x6p75.xml`, `data/jsbsim/engine/uiuc-propellers.manifest.json`, `tests/jsbsim-propellers.test.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/operations/uiuc-propdb-data.md`, `docs/ru/uiuc-propdb-data.md`, `native/jsbsim/propeller_probe.cpp`, `native/jsbsim/propeller/CMakeLists.txt`, `scripts/check-jsbsim-propellers.mjs`, `CLAUDE.md`, `docs/ru/CLAUDE.md`.
 - **Interfaces / Contracts:** XML пропеллера JSBSim, `<table name="C_THRUST|C_POWER" type="internal">` в зависимости от J = V/(nD), в том же соглашении коэффициентов, что и UIUC; манифест `uiuc-propellers.manifest.json` с SHA-256 и источниками каждого файла.
 - **DoD & Acceptance Criteria:** Строки копируются точно как напечатаны по объявленному правилу выбора RPM; побайтный `--check`; каждый источник прослеживается до инвентаря; загрузка в нативный JSBSim v1.2.3 и проверка статической тяги и тяги при поступательном движении против измеренного CT в пределах 1%.
 - **Evidence:** Владелец Claude; baseline 3a7da5d; 2026-10-17.
@@ -573,7 +573,7 @@ Cargo bin активирован в PATH. Производительность M
 
 - **Доказательства нативной загрузки (2026-10-18):** Владелец Claude; baseline 324d15e.
   - Закреплённый checkout: JSBSim v1.2.3, коммит 570e8115a102df8f877b11e0e59b964ea483e3c0, клонирован вне репозитория. SHA-256 файла COPYING совпадает с lock-файлом.
-  - Команда: `JSBSIM_SOURCE_DIR=<checkout> node scripts/check-jsbsim-propellers.mjs`, код 0. Сборка Linux GCC и CMake 3.28.3, Release.
+  - Команда: `JSBSIM_SOURCE_DIR=<checkout> node scripts/check-jsbsim-propellers.mjs`, код 0. Сборка Linux GCC и CMake 3.28.3, Release, из отдельного проекта `native/jsbsim/propeller/`. Добавление цели в `native/jsbsim/CMakeLists.txt` делало доказательства WASM TASK-031 устаревшими, так как они фиксируют хеш этого файла; закреплённый файл не изменён.
   - Все 6 определений загружаются через `FGFDMExec::LoadModel` с диаметрами из манифеста, проходят 18/18 точек. Это статическая строка, строка поступательного режима в середине кривой и интерполированная середина для каждого файла.
   - Тяга и мощность совпадают с измеренными CT/CP с относительной точностью 4.1e-16 при допуске 1%. Плотность отличается от ISA на 8.1e-6, J точное. Отчёт: `test-results/validation/jsbsim-propellers.json`.
   - `tests/jsbsim-propellers.test.ts`: 4 PASS. Новый тест сверяет арифметику сравнения с вычисленными вручную значениями: интерполяция, правило выбора, отклонение ошибки тяги 2% и отклонение некорректных таблиц.
@@ -995,14 +995,35 @@ Cargo bin активирован в PATH. Производительность M
 
 ### TASK-065 — Collision terrain LOD
 
-- **Status:** BLOCKED_DECISION — Codex; baseline c3a4735; 2026-10-17. Реализованы построитель решётки, фиксированное владение, швы/готовность и публикация на тике. Production-сопряжение Rapier/contact G1 и допуск живого рельефа открыты.
+- **Status:** DONE — Claude; baseline 6f0b249; 2026-10-18. Collision-чанки управляют контактом Rapier из TASK-029 через плоскости на каждый тик контактного ABI v2; отсутствие земли приостанавливает шаги. Подключение к полётной сессии и живой допуск рельефа остаются отдельными.
 - **Title & Description:** Готовить collision mesh отдельно от визуального streaming и менять chunks на границе tick.
 - **Dependencies:** TASK-029, TASK-061, TASK-062.
-- **Touched Files:** `packages/terrain/src/collision-builder.worker.ts`, `packages/terrain/src/collision-chunks.ts`, `tests/terrain-collision.test.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `README.md`, `docs/ru/README.md`, `docs/documentation-index.json`, `packages/terrain/package.json`, `packages/terrain/src/collision-build.ts`, `scripts/bench-terrain-scenarios.mjs`, `tests/browser/terrain-collision.spec.ts`.
+- **Touched Files:** `packages/terrain/src/collision-builder.worker.ts`, `packages/terrain/src/collision-chunks.ts`, `tests/terrain-collision.test.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `README.md`, `docs/ru/README.md`, `docs/documentation-index.json`, `packages/terrain/package.json`, `packages/terrain/src/collision-build.ts`, `scripts/bench-terrain-scenarios.mjs`, `tests/browser/terrain-collision.spec.ts`, `native/contact/src/contact.rs`, `native/contact/src/lib.rs`, `native/contact/tests/contact.rs`, `packages/physics/src/ground-contact.ts`, `packages/physics/src/terrain-contact.ts`, `scripts/build-contact.mjs`, `tests/terrain-contact.test.ts`, `tests/contact-support.ts`, `tests/contact-binding.test.ts`, `scripts/bench-terrain-scenarios.mjs`.
 - **Interfaces / Contracts:** Immutable versioned collision chunks, local origin, readiness around vehicle.
 - **DoD & Acceptance Criteria:** Visual eviction не убирает активную землю под шасси; seam/drop tests; incomplete terrain останавливает/ограничивает полёт явно; heavy decode не запускается в physics worker.
 
 - **Evidence (2026-10-17):** Независимая программная часть проверена целевыми тестами; общие полные результаты и точные команды приведены в конце документа. Внешняя приёмка не заменяется структурными синтетическими тестами.
+
+- **План (2026-10-18):** Владелец Claude; baseline 6f0b249. Цель: связать опубликованные collision-чанки с контактным владельцем Rapier из TASK-029 без аллокаций на шаге. Решение: контактный ABI v2 добавляет плоскости земли на каждый тик (сфера планера и каждое колесо), взятые из активного треугольника решётки под каждой точкой контакта; неподвижные коллайдеры перемещаются, но никогда не пересоздаются. Отсутствие земли приостанавливает шаги. Критерий отказа: любая аллокация на вооружённом шаге, расхождение с эквивалентной статически заданной плоскостью или шаг при отсутствующей земле.
+
+- **Доказательства связи (2026-10-18):** Владелец Claude; baseline 6f0b249.
+  - Решение и ограничения: ADR в `docs/architecture.md`; таблица ABI v2 в `docs/SPECS_SIMULATION_ENGINES.md`.
+  - Native: `node scripts/build-contact.mjs --native --test-native`, код 0, 4 PASS. Тесты охватывают:
+    - эквивалентность: заданный склон 8° против плоской конфигурации с плоскостями на каждый тик, в пределах 1e-6 за 800 шагов;
+    - независимые плоскости колёс и шесть случаев отклонения;
+    - 60 000 вооружённых шагов ABI с движущимися плоскостями на 400/800/1200 Гц и нулём вызовов аллокатора.
+  - Существующему скрипту нужен `--native` вместе с `--test-native` (иначе он пытается запускать тесты wasm32). Его первый холодный запуск cargo может упасть из-за несовпадения стратегии panic и проходит при повторе; обе проблемы существовали ранее.
+  - `node scripts/check-contact-binding.mjs`: код 0. 9 случаев × 1 000 000 native-шагов, 0 аллокаций, совпадение одинаковых исходников (максимальный угол 3.0e-8 rad).
+  - `tests/terrain-contact.test.ts`: 4 PASS. Они охватывают:
+    - опубликованные чанки против заданного склона при скольжении через шов N = 0: положение/скорость в пределах 1e-6, аллокаций WASM 0;
+    - отсутствие земли приостанавливает шаги без изменения состояния, подготовленная, но не опубликованная земля тоже приостанавливает, а после публикации шаги возобновляются;
+    - оракул выборки по повёрнутым креплениям;
+    - отклонение в конструкторе.
+  - `tests/terrain-collision.test.ts`: 5 PASS, включая точный оракул `planeInto` для склона/конька. Регрессии контакта `tests/contact.test.ts` и `tests/contact-binding.test.ts` проходят.
+  - `tests/contact-allocation.test.ts` (9M WASM-шагов) проходит за 316 s с временно увеличенным таймаутом. Закоммиченный предел 300 s истекает на этом 4-ядерном контейнере, как и на нетронутом baseline; закоммиченный тест не изменён.
+  - Браузер: `tests/browser/contact.spec.ts` и `terrain-collision.spec.ts` проходят в Chromium.
+  - Аллокации JS: `node scripts/bench-terrain-scenarios.mjs 400|800|1200` теперь включает `planeInto` и путь связи, с заглушкой вместо шага WASM. Он проходит на всех трёх частотах: 0 событий GC в 6 измеренных окнах, постоянная разница кучи ~22 KB независимо от длины окна, выделяющий контроль обнаружен.
+  - Остаётся: подключение к сессии физики (активен демо-backend), декодирование живых плиток/допуск рельефа и кривизна пятна контакта.
 
 ### TASK-066 — WebGPU renderer capability
 

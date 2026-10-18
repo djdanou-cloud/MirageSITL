@@ -100,13 +100,13 @@ try {
             return;
         }
         const { instance } = await WebAssembly.instantiate(bytes, {});
-        if (instance.exports.contact_abi_version() !== 1)
+        if (instance.exports.contact_abi_version() !== 2)
             throw new Error("Contact ABI mismatch");
         mkdirSync(out, { recursive: true });
         writeFileSync(join(out, "contact.wasm"), bytes);
         writeFileSync(join(out,"LICENSE.rapier.txt"),readFileSync(join(source,"LICENSE"),"utf8").replaceAll("\r\n","\n"));
         const finalInputs = files.map(file => ({ file, sha256: sha(readFileSync(join(root, file))) }));
-        writeFileSync(manifestPath, JSON.stringify({ schemaVersion: 1, abiVersion: 1, toolchain: "1.97.0", sourceCommit: pin.commit, patchSha256: sha(readFileSync(patch)), engineVersion: pin.nativeVersion, precision: "f64", memoryBytes: 16777216, bytes: bytes.length, sha256: sha(bytes), inputs: finalInputs }, null, 2) + "\n");
+        writeFileSync(manifestPath, JSON.stringify({ schemaVersion: 1, abiVersion: 2, toolchain: "1.97.0", sourceCommit: pin.commit, patchSha256: sha(readFileSync(patch)), engineVersion: pin.nativeVersion, precision: "f64", memoryBytes: 16777216, bytes: bytes.length, sha256: sha(bytes), inputs: finalInputs }, null, 2) + "\n");
     }
 }
 catch (error) {

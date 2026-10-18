@@ -21,6 +21,7 @@ if (!globalThis.gc) {
   process.exit(child.status ?? 1);
 }
 const { CollisionChunks } = await import("../packages/terrain/src/collision-chunks.ts");
+const { TerrainContactCoupler } = await import("../packages/physics/src/terrain-contact.ts");
 const { parseScenario } = await import("../packages/scenarios/src/schema.ts");
 const { ScenarioRunner } = await import("../packages/scenarios/src/runner.ts");
 const hz = Number(process.argv[2] ?? 400);
@@ -31,13 +32,21 @@ const runner = new ScenarioRunner(scenario, scenario.modelSha256, scenario.firmw
 const chunks = new CollisionChunks(1, 3, 1, 4);
 for (let n = 0; n < 2; n++) for (let e = 0; e < 2; e++) chunks.stage({ version: 1, epoch: 1, revision: 0, northIndex: n, eastIndex: e, resolution: 3, spacingM: 1, downM: new Float64Array(9) });
 chunks.publishAtTick(1, 0);
-const query = new Float64Array([1, 1, .1]), out = new Float64Array(1);
+const query = new Float64Array([1, 1, .1]), out = new Float64Array(1), plane = new Float64Array(4);
+// TASK-065 coupler JS path; a stub stands in for the WASM contact step, whose
+// allocations the contact ABI gate counts separately.
+const stubContact = { wheelCount: 3, stepInto: () => true };
+const coupler = new TerrainContactCoupler(stubContact, chunks, [[0.4, 0, 0.4], [-0.2, 0.3, 0.4], [-0.2, -0.3, 0.4]], 0.6);
+const truth = { positionNedM: new Float64Array([1, 1, -1]), quaternionBodyToNed: new Float64Array([1, 0, 0, 0]) }, wrench = new Float64Array(6);
 let errors = 0, tick = 0;
 function step() {
   query[0] = 1 + Math.sin(tick / hz) * .2;
   query[1] = 1 + Math.cos(tick / hz) * .2;
   chunks.sampleInto(query, out);
-  if (!chunks.readyFrom(query) || out[0] !== 0 || runner.nextEventIndex(tick, false) === -2) errors++;
+  chunks.planeInto(query, plane);
+  truth.positionNedM[0] = query[0]; truth.positionNedM[1] = query[1];
+  if (!chunks.readyFrom(query) || out[0] !== 0 || plane[2] !== -1 || plane[3] !== 0 ||
+    coupler.stepInto(truth, wrench, 1 / hz) !== 0 || runner.nextEventIndex(tick, false) === -2) errors++;
   tick++;
   if (tick > 12000) { tick = 0; runner.reset(); }
 }

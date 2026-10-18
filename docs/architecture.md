@@ -1047,3 +1047,22 @@ Accessibility adds keyboard landmarks/focus, permission announcements and a narr
 The historical NASA landing-gear comparison failed deceleration/stroke envelopes while numerical integration passed. The user's 2026-10-18 decision defers NASA fidelity; TASK-033 report v5 retains that failed comparison in a hash-checked archive and reports absent active contact measurements as blocked. TASK-029 numerical contact acceptance is separate from measured rig calibration.
 
 TASK-033 adds an offline annular propeller BEM diagnostic with local axial/angular momentum, explicit Prandtl tip/hub losses and safeguarded nonlinear solves. It preserves the original uniform-inflow comparison and current production backend. Four declared variants expose convergence and final polar coverage at the unchanged measured CT/CP tolerances. Numerical convergence is not measured fidelity: the XFOIL/UIUC comparisons still fail. The Deters article/dissertation, PROPID conventions and pinned airfoil-research review are documented in the engine specification. No new C/SAB ABI, transient flight binding or autopilot admission follows from these diagnostic results.
+
+## Terrain contact topology decision (TASK-065, 2026-10-18)
+
+Decision: published collision chunks reach Rapier as per-tick ground planes, one
+per contact (the airframe sphere and each wheel), through contact ABI v2.
+
+Rejected alternatives:
+
+* Inserting a Rapier trimesh or heightfield per chunk: it allocates when chunks
+  change and would need collider retirement inside the armed session.
+* A single plane for the whole vehicle: it is wrong across slope breaks and
+  seams.
+
+The fixed halfspaces are created at initialization with paired collision groups
+and are only re-posed while armed, so the existing per-step allocator fault
+remains the G1 gate. Missing published ground pauses stepping rather than letting
+the vehicle fall through. Each contact uses the plane of the triangle under its
+fully extended anchor, so curvature inside a triangle is not represented.
+Wiring into the flight session and live terrain admission remain separate.

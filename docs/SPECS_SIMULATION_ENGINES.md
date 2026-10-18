@@ -878,8 +878,8 @@ stops and rigid rim bottom-out. Internal strut forces are equal/opposite.
 Tire forces act only in contact. Force evaluation saturates at physical travel
 and tire curve bounds while rigid constraints supply stop/rim reactions; raw
 overlap diagnostics remain available. No second BET/JSBSim body integration
-may run over the same step. A terrain plane is explicit configuration; arbitrary
-terrain contact requires a future topology adapter.
+may run over the same step. A terrain plane is explicit configuration; ABI v2
+(TASK-065, below) adds per-tick planes for terrain from published collision chunks.
 
 Rolling uses a kinematic longitudinal resistance, separate lateral resistance,
 and brake interpolation, regularized below 0.1 m/s; their combined magnitude
@@ -1991,7 +1991,7 @@ System evidence maps exact G0/G1/G2/G3/G4 IDs to demo, external-sitl, wasm-sitl 
 
 HeightTile has version=1, epoch/revision uint32, integer northIndex/eastIndex within ±1024, resolution 2..257, spacingM in (0,100], and resolution² finite downM samples within ±15000 m. All horizontal nodes must remain within the 15 km local envelope. Row increases North, column East; the world origin is fixed NED. Each cell uses triangles [a,a+1,a+n] and [a+1,a+n+1,a+n], normals facing -Down. Native height samples remain Float64; mesh vertices are Float32. Quantized vertices add at most about 1 mm over this envelope and do not establish physical terrain accuracy.
 
-Collision construction belongs to a separate Worker. Stage owns a copy, validates matching epoch/lattice, increasing revisions, exact shared-edge heights and fixed capacity 1..256 (default 64). Combined active+pending buffers obey a byte cap (default 64 MiB, configurable up to the 512 MiB CPU ceiling); replacement must fit both old and new data before publication. Publish swaps pointers only on strictly increasing ticks of the matching epoch. Visual resources cannot evict collision ground. downAt/sampleInto use the piecewise-triangular mesh rather than bilinear interpolation. Missing ground returns NaN; readyAround/readyFrom conservatively require every tile intersecting a safety square with radius<=half a chunk. High-rate calls use preallocated typed-array inputs/outputs; scalar convenience calls are cold. This library is not wired to Rapier or flight admission; collider preparation/retirement and production contact G1 remain requirements. No file decoding runs inside physics.
+Collision construction belongs to a separate Worker. Stage owns a copy, validates matching epoch/lattice, increasing revisions, exact shared-edge heights and fixed capacity 1..256 (default 64). Combined active+pending buffers obey a byte cap (default 64 MiB, configurable up to the 512 MiB CPU ceiling); replacement must fit both old and new data before publication. Publish swaps pointers only on strictly increasing ticks of the matching epoch. Visual resources cannot evict collision ground. downAt/sampleInto use the piecewise-triangular mesh rather than bilinear interpolation. Missing ground returns NaN; readyAround/readyFrom conservatively require every tile intersecting a safety square with radius<=half a chunk. High-rate calls use preallocated typed-array inputs/outputs; scalar convenience calls are cold. The TASK-065 terrain contact coupling below connects it to the Rapier contact owner; live terrain admission into the flight session remains separate. No file decoding runs inside physics.
 
 ### Declarative scenario v1
 
@@ -2168,7 +2168,8 @@ pinned JSBSim v1.2.3 (commit and license hash from
 `native/jsbsim/source.lock.json`; set `JSBSIM_SOURCE_DIR`). Without a checkout
 it exits 2 (BLOCKED_EXTERNAL); a failed point exits 1. It works in five steps:
 
-1. Builds `native/jsbsim/propeller_probe.cpp`.
+1. Builds `native/jsbsim/propeller_probe.cpp` from the separate CMake project
+   `native/jsbsim/propeller/`, leaving the TASK-031 bridge build file unchanged.
 2. Copies each definition byte for byte (manifest SHA-256 checked) into a
    temporary root with a probe aircraft. The aircraft has one electric engine,
    zero aerodynamics and an unused ground contact.
@@ -2302,3 +2303,53 @@ reports its still-failed measured status; old probe fields remain historical.
 Numerical parity can pass while propeller fidelity fails and airframe fidelity
 is blocked. Main CLI exit 2 retains that distinction; annular diagnostic exit 0
 only means its sensitivity execution completed.
+
+## Terrain contact coupling: contact ABI v2 (TASK-065)
+
+Decision: keep Rapier's topology fixed and move planes instead of rebuilding
+colliders. Contact initialization inserts one fixed halfspace per contact slot:
+slot 0 for the airframe sphere and slots 1..8 for the wheels. Each slot has its
+own collision-group pair, so a halfspace interacts only with its own sphere or
+rim. Before each step the integration owner samples the published lattice
+triangle under each contact and passes those planes. The fixed bodies are
+re-posed; colliders are never inserted or removed while armed.
+
+The `contact_abi_version()` is 2 and the input grows from 16 to 52 values:
+
+| Index | Meaning |
+| --- | --- |
+| 0..15 | v1 input (wrench, brakes, dt); index 15 is now the plane mode |
+| 15 | 0 = configured plane for every contact (v1 behavior); 1 = per-tick planes |
+| 16 + 4*s .. 19 + 4*s | slot s plane [nN, nE, nD, offsetM]; s = 0 airframe, s = 1 + i wheel i |
+
+A supplied plane needs a unit normal (|n|^2 - 1 within 1e-9) facing up
+(nD < 0) and a finite offset. A point x is n.x - offset above it. With mode 0,
+or for slots beyond the configured wheels, all plane values must be 0. Any other
+value rejects the step with -2 and leaves state unchanged. Each wheel's tire
+deflection, rolling/lateral decomposition, normal force and plane-distance
+diagnostic use that wheel's plane. Rim bottom-out uses its own halfspace. The
+airframe sphere uses slot 0, and the reported hull point lies along that normal.
+Cold initialization also exercises plane moves at every rate before arming.
+The existing in-step allocator gate still faults the session on any allocation.
+
+`CollisionChunks.planeInto(position, out)` writes the plane of the same mesh
+triangle `sampleInto` uses, with the exact gradient of that triangle and NaN
+when ground is missing. `TerrainContactCoupler` (`packages/physics/src/terrain-contact.ts`)
+owns preallocated buffers. Each `stepInto`:
+
+1. requires `readyFrom` over a safety square at least the wheel-anchor reach;
+2. samples slot 0 at the CG and each wheel at the horizontal position of
+   R(q)·anchor;
+3. calls `GroundContact.stepInto(..., groundPlanes)`.
+
+Missing ground returns `TERRAIN_PAUSED_MISSING_GROUND`: no step runs and the
+state is unchanged. A rejected step returns `TERRAIN_REJECTED`.
+
+Limits:
+
+* Sampling uses the fully extended anchor, not the instantaneous contact patch.
+* Curvature inside one triangle, and a triangle edge under a tire footprint,
+  are represented by the single plane under the sampled point.
+* The coupler is not yet wired into the flight session (the demo backend is
+  active).
+* Live tile decoding and terrain admission remain separate work.

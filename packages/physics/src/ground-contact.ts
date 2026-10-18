@@ -18,6 +18,8 @@ function exportsValid(v: WebAssembly.Exports): v is WebAssembly.Exports & Export
         "contact_allocation_bytes"].every(name => typeof v[name] === "function");
 }
 function record(v: unknown): v is Record<string, unknown> { return typeof v === "object" && v !== null && !Array.isArray(v); }
+/** Contact ABI v2 input: v1's 16 values plus [nN, nE, nD, offsetM] for the airframe and 8 wheel slots. */
+const PLANE_BASE = 16, PLANE_SLOTS = 9, INPUT_COUNT = PLANE_BASE + 4 * PLANE_SLOTS;
 export interface LinearSuspension {
     readonly kind: "linear";
     readonly stiffnessNpm: number;
@@ -92,7 +94,7 @@ export class GroundContact implements ContactBackend {
     readonly wheelCount: number;
     /** Cold host setup from build manifest plus actual bytes; no step-time I/O. */
     static async initialize(bytes: Uint8Array<ArrayBuffer>, manifest: unknown): Promise<void> {
-        if (!record(manifest) || manifest.schemaVersion !== 1 || manifest.abiVersion !== 1 || manifest.precision !== "f64" ||
+        if (!record(manifest) || manifest.schemaVersion !== 1 || manifest.abiVersion !== 2 || manifest.precision !== "f64" ||
             manifest.sourceCommit !== "b716d375efc0201003f0cd9ef7168eee0b62c177" || manifest.engineVersion !== "0.36.0" ||
             manifest.memoryBytes !== 16777216 || manifest.bytes !== bytes.byteLength || typeof manifest.sha256 !== "string")
             throw new Error("Invalid contact artifact manifest");
@@ -108,7 +110,7 @@ export class GroundContact implements ContactBackend {
         if (!this.artifact)
             throw new Error("Initialize the verified contact artifact before creating a session");
         const instance = await WebAssembly.instantiate(this.artifact, {});
-        if (!exportsValid(instance.exports) || instance.exports.contact_abi_version() !== 1)
+        if (!exportsValid(instance.exports) || instance.exports.contact_abi_version() !== 2)
             throw new Error("Invalid contact ABI exports");
         return new GroundContact(instance.exports, state, mass, radius, restitution, friction, options);
     }
@@ -122,7 +124,7 @@ export class GroundContact implements ContactBackend {
         const regions: readonly (readonly [
             number,
             number
-        ])[] = [[config, 1312 * 8], [input, 16 * 8], [output, 96 * 8]];
+        ])[] = [[config, 1312 * 8], [input, INPUT_COUNT * 8], [output, 96 * 8]];
         for (let i = 0; i < regions.length; i++) {
             const a = regions[i];
             if (!a)
@@ -201,12 +203,16 @@ export class GroundContact implements ContactBackend {
     get lastStatus(): number { return this.status; }
     get allocationCalls(): number { return this.module.contact_allocation_calls(); }
     get allocationBytes(): number { return this.module.contact_allocation_bytes(); }
-    stepInto(w: Float64Array, dt: number, out: BodyTruth, brakes?: Float64Array): boolean {
+    /** groundPlanes (ABI v2): 4 * (1 + wheelCount) values [nN, nE, nD, offsetM] for the airframe
+     * sphere then each wheel, unit normals facing up (nD < 0), height above plane = n.x - offset.
+     * Omitted: every contact uses the configured plane. */
+    stepInto(w: Float64Array, dt: number, out: BodyTruth, brakes?: Float64Array, groundPlanes?: Float64Array): boolean {
         if (this.disposed || this.module.memory.buffer !== this.buffer || w.length !== 6 ||
             (dt !== 1 / 400 && dt !== 1 / 800 && dt !== 1 / 1200) || out.positionNedM.length !== 3 || out.velocityNedMps.length !== 3 ||
             out.quaternionBodyToNed.length !== 4 || out.angularVelocityBodyRadS.length !== 3 || out.accelerationNedMps2.length !== 3 ||
             out.positionNedM.buffer === this.buffer || out.velocityNedMps.buffer === this.buffer || out.quaternionBodyToNed.buffer === this.buffer ||
-            out.angularVelocityBodyRadS.buffer === this.buffer || out.accelerationNedMps2.buffer === this.buffer || (brakes && brakes.length !== this.wheelCount))
+            out.angularVelocityBodyRadS.buffer === this.buffer || out.accelerationNedMps2.buffer === this.buffer || (brakes && brakes.length !== this.wheelCount) ||
+            (groundPlanes && (groundPlanes.length !== 4 * (1 + this.wheelCount) || groundPlanes.buffer === this.buffer)))
             return false;
         for (let i = 0; i < 6; i++)
             if (!Number.isFinite(w[i]))
@@ -220,7 +226,10 @@ export class GroundContact implements ContactBackend {
         for (let i = 0; i < 8; i++)
             h[input + 6 + i] = brakes?.[i] ?? 0;
         h[input + 14] = dt;
-        h[input + 15] = 0;
+        h[input + 15] = groundPlanes ? 1 : 0;
+        // The native step validates plane values; unused slots stay zero.
+        for (let i = 0; i < 4 * PLANE_SLOTS; i++)
+            h[input + PLANE_BASE + i] = groundPlanes && i < groundPlanes.length ? groundPlanes[i]! : 0;
         this.status = this.module.contact_step();
         if (this.status !== 0 || this.module.memory.buffer !== this.buffer)
             return false;

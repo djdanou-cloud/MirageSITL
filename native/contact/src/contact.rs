@@ -4,7 +4,10 @@ use rapier3d_f64::{na::Unit, prelude::*};
 
 pub const MAX_WHEELS: usize = 8;
 pub const CONFIG_COUNT: usize = 32 + MAX_WHEELS * 160;
-pub const INPUT_COUNT: usize = 16;
+/// Planes: slot 0 the airframe sphere, slots 1..=MAX_WHEELS the wheels; [nx, ny, nz, offset].
+pub const PLANE_SLOTS: usize = 1 + MAX_WHEELS;
+pub const PLANE_BASE: usize = 16;
+pub const INPUT_COUNT: usize = PLANE_BASE + 4 * PLANE_SLOTS;
 pub const OUTPUT_COUNT: usize = 32 + MAX_WHEELS * 8;
 
 #[derive(Clone, Copy)]
@@ -34,8 +37,26 @@ pub struct Contact {
     mass: f64,
     inertia: Vector,
     radius: f64,
+    /// Configured plane: the collider-local normal of every ground halfspace.
     normal: Vector,
     offset: f64,
+    /// One fixed halfspace per contact slot; per-tick planes move it, never rebuild it.
+    ground: [RigidBodyHandle; PLANE_SLOTS],
+    planes: [(Vector, f64); PLANE_SLOTS],
+}
+/// Membership/filter pair: slot 0 pairs only the airframe sphere with ground 0;
+/// slot i pairs only wheel i's rim with ground i.
+fn slot_groups(slot: usize) -> (InteractionGroups, InteractionGroups) {
+    let moving = Group::from_bits_truncate(1 << (2 * slot));
+    let fixed = Group::from_bits_truncate(1 << (2 * slot + 1));
+    (
+        InteractionGroups::new(fixed, moving, InteractionTestMode::And),
+        InteractionGroups::new(moving, fixed, InteractionTestMode::And),
+    )
+}
+/// A per-tick ground plane: unit normal facing up (negative NED Down), finite offset.
+fn valid_plane(n: Vector, offset: f64) -> bool {
+    finite(n) && offset.is_finite() && (n.length_squared() - 1.0).abs() < 1e-9 && n.z < 0.0
 }
 fn vec(s: &[f64], i: usize) -> Vector {
     Vector::new(s[i], s[i + 1], s[i + 2])
@@ -72,17 +93,22 @@ impl Contact {
         world.integration_parameters.dt = 1.0 / 400.0;
         world.integration_parameters.num_solver_iterations = 8;
         let normal = vec(c, 22);
-        let groups_ground =
-            InteractionGroups::new(Group::GROUP_1, Group::GROUP_2, InteractionTestMode::And);
-        let groups_moving =
-            InteractionGroups::new(Group::GROUP_2, Group::GROUP_1, InteractionTestMode::And);
-        world.insert(
-            RigidBodyBuilder::fixed().translation(normal * c[25]),
-            ColliderBuilder::halfspace(Unit::new_unchecked(normal))
-                .friction(c[5])
-                .restitution(c[4])
-                .collision_groups(groups_ground),
-        );
+        let mut ground = [RigidBodyHandle::invalid(); PLANE_SLOTS];
+        for (slot, handle) in ground.iter_mut().enumerate() {
+            let (groups_ground, _) = slot_groups(slot);
+            // Wheel rims are rigid bottom-out constraints without friction.
+            let (friction, restitution) = if slot == 0 { (c[5], c[4]) } else { (0.0, 0.0) };
+            *handle = world
+                .insert(
+                    RigidBodyBuilder::fixed().translation(normal * c[25]),
+                    ColliderBuilder::halfspace(Unit::new_unchecked(normal))
+                        .friction(friction)
+                        .restitution(restitution)
+                        .collision_groups(groups_ground),
+                )
+                .0;
+        }
+        let groups_moving = slot_groups(0).1;
         let inertia = vec(c, 19);
         let (body, _) = world.insert(
             RigidBodyBuilder::dynamic()
@@ -160,7 +186,7 @@ impl Contact {
                     .mass(w[3])
                     .friction(0.0)
                     .restitution(0.0)
-                    .collision_groups(groups_moving),
+                    .collision_groups(slot_groups(i + 1).1),
             );
             world.bodies[handle].set_rotation(q, true);
             world.bodies[handle].set_angvel(q * vec(c, 16), true);
@@ -198,12 +224,31 @@ impl Contact {
             radius: c[3],
             normal,
             offset: c[25],
+            ground,
+            planes: [(normal, c[25]); PLANE_SLOTS],
         };
         result.warm(c);
         let mut input = [0.0; INPUT_COUNT];
+        // Cold warmup also moves the ground planes so storage touched by fixed-body
+        // pose changes is prepared before arming (only for an upward-facing plane).
+        let tilt = valid_plane(normal, c[25]);
+        let tilted = (normal + normal.any_orthonormal_vector() * 0.05).normalize();
         for hz in [400, 800, 1200] {
             input[14] = 1.0 / hz as f64;
             for i in 0..hz * 8 {
+                let moving = tilt && i % 3 == 1;
+                input[15] = if moving { 1.0 } else { 0.0 };
+                for slot in 0..PLANE_SLOTS {
+                    let (n, offset) = if moving && slot < 1 + result.wheels.len() {
+                        (if i % 2 == 0 { normal } else { tilted }, c[25])
+                    } else {
+                        (Vector::ZERO, 0.0)
+                    };
+                    input[PLANE_BASE + 4 * slot] = n.x;
+                    input[PLANE_BASE + 4 * slot + 1] = n.y;
+                    input[PLANE_BASE + 4 * slot + 2] = n.z;
+                    input[PLANE_BASE + 4 * slot + 3] = offset;
+                }
                 input[2] = if i % (2 * hz) < hz / 4 {
                     -(c[2]
                         + result
@@ -222,7 +267,20 @@ impl Contact {
         result.restore(c);
         Ok(result)
     }
+    /// Moves ground halfspace `slot` to the plane n.x = offset (collider-local normal = configured).
+    fn place_ground(&mut self, slot: usize, n: Vector, offset: f64) {
+        if self.planes[slot] == (n, offset) {
+            return;
+        }
+        self.planes[slot] = (n, offset);
+        let g = &mut self.world.bodies[self.ground[slot]];
+        g.set_rotation(Rotation::from_rotation_arc(self.normal, n), false);
+        g.set_translation(n * offset, false);
+    }
     fn restore(&mut self, c: &[f64; CONFIG_COUNT]) {
+        for slot in 0..PLANE_SLOTS {
+            self.place_ground(slot, self.normal, self.offset);
+        }
         let q = Rotation::from_xyzw(c[13], c[14], c[15], c[12]);
         let p = vec(c, 6);
         let v = vec(c, 9);
@@ -272,9 +330,31 @@ impl Contact {
         if input.iter().any(|x| !x.is_finite())
             || ![1.0 / 400.0, 1.0 / 800.0, 1.0 / 1200.0].contains(&dt)
             || input[6..14].iter().any(|b| *b < 0.0 || *b > 1.0)
-            || input[15] != 0.0
+            || ![0.0, 1.0].contains(&input[15])
         {
             return Err(-2);
+        }
+        // input[15] = 0: configured plane for every contact (v1 behavior; plane slots must be 0).
+        // input[15] = 1: per-tick planes for the airframe and each configured wheel.
+        let used = 1 + self.wheels.len();
+        for slot in 0..PLANE_SLOTS {
+            let n = vec(input, PLANE_BASE + 4 * slot);
+            let offset = input[PLANE_BASE + 4 * slot + 3];
+            let supplied = input[15] == 1.0 && slot < used;
+            if supplied && !valid_plane(n, offset) {
+                return Err(-2);
+            }
+            if !supplied && (n != Vector::ZERO || offset != 0.0) {
+                return Err(-2);
+            }
+        }
+        for slot in 0..used {
+            if input[15] == 1.0 {
+                let n = vec(input, PLANE_BASE + 4 * slot);
+                self.place_ground(slot, n, input[PLANE_BASE + 4 * slot + 3]);
+            } else {
+                self.place_ground(slot, self.normal, self.offset);
+            }
         }
         let b = &self.world.bodies[self.body];
         let q = *b.rotation();
@@ -290,6 +370,7 @@ impl Contact {
         let mut points = [Vector::ZERO; MAX_WHEELS];
         let mut out = [0.0; OUTPUT_COUNT];
         for (i, w) in self.wheels.iter().enumerate() {
+            let (ground_normal, ground_offset) = self.planes[i + 1];
             let wb = &self.world.bodies[w.handle];
             let anchor = p + q * w.anchor;
             let wp = wb.translation();
@@ -303,19 +384,19 @@ impl Contact {
             }
             .map_err(|_| -3)?
             .load_n;
-            let deflection = (w.radius - (self.normal.dot(wp) - self.offset)).max(0.0);
+            let deflection = (w.radius - (ground_normal.dot(wp) - ground_offset)).max(0.0);
             // Tiny rim solver overlap is handled by the rigid rim reaction, not
             // relabeled as additional tire or suspension travel.
             let tire_x = deflection.min(w.x[w.count - 1]);
             let curve =
                 TireCurve::new(&w.x[..w.count], &w.f[..w.count], w.damping).map_err(|_| -3)?;
             let normal = curve
-                .evaluate(tire_x, -wv.dot(self.normal))
+                .evaluate(tire_x, -wv.dot(ground_normal))
                 .map_err(|_| -3)?
                 .load_n;
-            let tangent = wv - self.normal * wv.dot(self.normal);
+            let tangent = wv - ground_normal * wv.dot(ground_normal);
             let forward = q * Vector::X;
-            let projected = forward - self.normal * forward.dot(self.normal);
+            let projected = forward - ground_normal * forward.dot(ground_normal);
             let heading = if projected.length_squared() > 1e-12 {
                 projected.normalize()
             } else {
@@ -335,7 +416,7 @@ impl Contact {
             } else {
                 resistance
             };
-            wheel_force[i] = (self.normal - friction) * normal;
+            wheel_force[i] = (ground_normal - friction) * normal;
             strut_force[i] = axis * support;
             points[i] = anchor;
             if !finite(wheel_force[i]) || !finite(strut_force[i]) {
@@ -348,7 +429,7 @@ impl Contact {
             out[start + 3] = support;
             out[start + 4] = deflection - tire_x;
             out[start + 5] = raw_x;
-            out[start + 6] = self.normal.dot(wp) - self.offset;
+            out[start + 6] = ground_normal.dot(wp) - ground_offset;
         }
         let b = &mut self.world.bodies[self.body];
         b.reset_forces(false);
@@ -379,7 +460,7 @@ impl Contact {
             moment.z,
         ];
         out[..values.len()].copy_from_slice(&values);
-        let point = r.inverse() * (-self.normal * self.radius);
+        let point = r.inverse() * (-self.planes[0].0 * self.radius);
         out[22] = point.x;
         out[23] = point.y;
         out[24] = point.z;

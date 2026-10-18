@@ -53,3 +53,31 @@ it("bounds staged plus active memory and retains old ground when replacement can
   expect(store.downAt(.5, .5)).toBe(2.5);
   expect(() => new CollisionChunks(1, 3, 1, 2, 513 * 1024 ** 2)).toThrow();
 });
+it("returns the exact upward plane of the triangle under a point for terrain contact (TASK-065)", () => {
+  // Global plane D = 2N + 3E (tile()): normal ∝ (2, 3, -1), and the plane passes through the origin.
+  const store = new CollisionChunks(1, 3, 1, 4);
+  for (const [n, e] of [[0, 0], [1, 0], [0, 1], [-1, -1]] as const) expect(store.stage(tile(n, e))).toBe(true);
+  expect(store.publishAtTick(1, 0)).toBe(true);
+  const p = new Float64Array(2), plane = new Float64Array(4), length = Math.sqrt(14);
+  for (const [n, e] of [[0.2, 0.3], [0.8, 0.7], [3.9, 0.1], [0.1, 3.95], [-1.5, -0.25]] as const) {
+    p[0] = n; p[1] = e;
+    store.planeInto(p, plane);
+    expect(plane[0]).toBeCloseTo(2 / length, 12); expect(plane[1]).toBeCloseTo(3 / length, 12);
+    expect(plane[2]).toBeCloseTo(-1 / length, 12); expect(plane[3]).toBeCloseTo(0, 12);
+    // A point 0.5 m above the surface along the normal has plane height 0.5.
+    const down = store.downAt(n, e), x = [n + 0.5 * plane[0]!, e + 0.5 * plane[1]!, down + 0.5 * plane[2]!];
+    expect(plane[0]! * x[0]! + plane[1]! * x[1]! + plane[2]! * x[2]! - plane[3]!).toBeCloseTo(0.5, 12);
+  }
+  // Ridge: the two triangles of one cell have different exact planes.
+  const ridge = new CollisionChunks(2, 2, 1, 1);
+  expect(ridge.stage({ version: 1, epoch: 2, revision: 0, northIndex: 0, eastIndex: 0, resolution: 2, spacingM: 1,
+    downM: new Float64Array([0, 0, 0, -1]) })).toBe(true);
+  expect(ridge.publishAtTick(2, 0)).toBe(true);
+  p[0] = 0.2; p[1] = 0.2; ridge.planeInto(p, plane); // lower triangle is flat
+  [0, 0, -1, 0].forEach((v, i) => expect(plane[i]).toBeCloseTo(v, 15));
+  p[0] = 0.9; p[1] = 0.9; ridge.planeInto(p, plane); // upper: D = 1 - N - E, normal ∝ (-1, -1, -1)
+  for (let i = 0; i < 3; i++) expect(plane[i]).toBeCloseTo(-1 / Math.sqrt(3), 12);
+  expect(plane[3]).toBeCloseTo(-1 / Math.sqrt(3), 12); // through vertex (0, 1, 0)
+  p[0] = 9; ridge.planeInto(p, plane);
+  expect(plane.every(Number.isNaN)).toBe(true);
+});

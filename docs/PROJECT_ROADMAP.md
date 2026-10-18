@@ -560,7 +560,7 @@ were synchronized and checked. Changes remain local; no commit or push performed
 - **Status:** DONE — Claude; baseline 324d15e; 2026-10-18. Tables generated and verified; native load and thrust check in pinned JSBSim v1.2.3 pass (18/18 points).
 - **Title & Description:** Generate JSBSim fixed-pitch propeller definitions (C_THRUST/C_POWER versus J) from the hash-verified UIUC Propeller Database for future fixed-wing models.
 - **Dependencies:** TASK-030, TASK-033.
-- **Touched Files:** `data/jsbsim/generate_uiuc_propellers.py`, `data/jsbsim/engine/uiuc_apce_10x5.xml`, `data/jsbsim/engine/uiuc_apce_10x7.xml`, `data/jsbsim/engine/uiuc_apce_11x7.xml`, `data/jsbsim/engine/uiuc_apce_12x6.xml`, `data/jsbsim/engine/uiuc_apce_14x10.xml`, `data/jsbsim/engine/uiuc_da4002_9x6p75.xml`, `data/jsbsim/engine/uiuc-propellers.manifest.json`, `tests/jsbsim-propellers.test.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/operations/uiuc-propdb-data.md`, `docs/ru/uiuc-propdb-data.md`, `native/jsbsim/propeller_probe.cpp`, `native/jsbsim/CMakeLists.txt`, `scripts/check-jsbsim-propellers.mjs`, `CLAUDE.md`, `docs/ru/CLAUDE.md`.
+- **Touched Files:** `data/jsbsim/generate_uiuc_propellers.py`, `data/jsbsim/engine/uiuc_apce_10x5.xml`, `data/jsbsim/engine/uiuc_apce_10x7.xml`, `data/jsbsim/engine/uiuc_apce_11x7.xml`, `data/jsbsim/engine/uiuc_apce_12x6.xml`, `data/jsbsim/engine/uiuc_apce_14x10.xml`, `data/jsbsim/engine/uiuc_da4002_9x6p75.xml`, `data/jsbsim/engine/uiuc-propellers.manifest.json`, `tests/jsbsim-propellers.test.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/operations/uiuc-propdb-data.md`, `docs/ru/uiuc-propdb-data.md`, `native/jsbsim/propeller_probe.cpp`, `native/jsbsim/propeller/CMakeLists.txt`, `scripts/check-jsbsim-propellers.mjs`, `CLAUDE.md`, `docs/ru/CLAUDE.md`.
 - **Interfaces / Contracts:** JSBSim propeller XML, `<table name="C_THRUST|C_POWER" type="internal">` versus J = V/(nD), with the same coefficient convention as UIUC; manifest `uiuc-propellers.manifest.json` with per-file SHA-256 and sources.
 - **DoD & Acceptance Criteria:** Rows copied exactly as printed by a declared RPM-selection rule; byte-for-byte `--check`; every source traced to the inventory; native JSBSim v1.2.3 load plus a static and advancing thrust check against the measured CT within 1%.
 - **Evidence:** Owner Claude; baseline 3a7da5d; 2026-10-17.
@@ -570,7 +570,7 @@ were synchronized and checked. Changes remain local; no commit or push performed
 
 - **Native Load Evidence (2026-10-18):** Owner Claude; baseline 324d15e.
   - Pinned checkout: JSBSim v1.2.3, commit 570e8115a102df8f877b11e0e59b964ea483e3c0, cloned outside the repository. The COPYING SHA-256 matches the lock.
-  - Command: `JSBSIM_SOURCE_DIR=<checkout> node scripts/check-jsbsim-propellers.mjs`, exit 0. Built with Linux GCC and CMake 3.28.3, Release.
+  - Command: `JSBSIM_SOURCE_DIR=<checkout> node scripts/check-jsbsim-propellers.mjs`, exit 0. Built with Linux GCC and CMake 3.28.3, Release, from the separate project `native/jsbsim/propeller/`. Adding the target to `native/jsbsim/CMakeLists.txt` made the TASK-031 WASM evidence stale, because that evidence pins the file's hash; the pinned file is unchanged.
   - All 6 definitions load through `FGFDMExec::LoadModel` with the manifest diameters, and 18/18 points pass. These are the static row, the mid-curve advancing row and an interpolated midpoint per file.
   - Thrust and power match the measured CT/CP within 4.1e-16 relative, against a tolerance of 1%. Density is within 8.1e-6 of ISA and J is exact. Report: `test-results/validation/jsbsim-propellers.json`.
   - `tests/jsbsim-propellers.test.ts`: 4 PASS. The new test checks the comparison arithmetic against hand-computed values: interpolation, the selection rule, a 2% thrust error rejected, and malformed tables rejected.
@@ -992,14 +992,35 @@ were synchronized and checked. Changes remain local; no commit or push performed
 
 ### TASK-065 — Collision terrain LOD
 
-- **Status:** BLOCKED_DECISION — Codex; baseline c3a4735; 2026-10-17. Collision lattice builder, fixed-capacity ownership, seam/readiness and tick publication implemented. Production Rapier coupling/contact G1 and live terrain admission remain open.
+- **Status:** DONE — Claude; baseline 6f0b249; 2026-10-18. Collision chunks drive the TASK-029 Rapier contact through contact ABI v2 per-tick planes; missing ground pauses stepping. Flight-session wiring and live terrain admission remain separate.
 - **Title & Description:** Build collision chunks independently of visuals and swap them at tick boundaries.
 - **Dependencies:** TASK-029, TASK-061, TASK-062.
-- **Touched Files:** `packages/terrain/src/collision-builder.worker.ts`, `packages/terrain/src/collision-chunks.ts`, `tests/terrain-collision.test.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `README.md`, `docs/ru/README.md`, `docs/documentation-index.json`, `packages/terrain/package.json`, `packages/terrain/src/collision-build.ts`, `scripts/bench-terrain-scenarios.mjs`, `tests/browser/terrain-collision.spec.ts`.
+- **Touched Files:** `packages/terrain/src/collision-builder.worker.ts`, `packages/terrain/src/collision-chunks.ts`, `tests/terrain-collision.test.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `README.md`, `docs/ru/README.md`, `docs/documentation-index.json`, `packages/terrain/package.json`, `packages/terrain/src/collision-build.ts`, `scripts/bench-terrain-scenarios.mjs`, `tests/browser/terrain-collision.spec.ts`, `native/contact/src/contact.rs`, `native/contact/src/lib.rs`, `native/contact/tests/contact.rs`, `packages/physics/src/ground-contact.ts`, `packages/physics/src/terrain-contact.ts`, `scripts/build-contact.mjs`, `tests/terrain-contact.test.ts`, `tests/contact-support.ts`, `tests/contact-binding.test.ts`, `scripts/bench-terrain-scenarios.mjs`.
 - **Interfaces / Contracts:** Immutable versioned collision chunks; local origin; readiness around the vehicle.
 - **DoD & Acceptance Criteria:** Visual eviction retains active ground; seam/drop tests pass; incomplete ground explicitly limits/pauses flight; heavy decoding never runs in the physics Worker.
 
 - **Evidence (2026-10-17):** Independent software scope covered by focused tests; full shared results and exact commands are recorded at the end of this document. Structural synthetic tests do not replace external acceptance.
+
+- **Plan (2026-10-18):** Owner Claude; baseline 6f0b249. Goal: couple published collision chunks to the TASK-029 Rapier contact owner without per-step allocation. Decision: contact ABI v2 adds per-tick ground planes (the airframe sphere plus each wheel) sampled from the active lattice triangle under each contact; fixed colliders move but are never rebuilt. Missing ground pauses stepping. Failure criterion: any armed-step allocation, a mismatch against the equivalent statically configured plane, or stepping on missing ground.
+
+- **Coupling Evidence (2026-10-18):** Owner Claude; baseline 6f0b249.
+  - Decision and limits: ADR in `docs/architecture.md`; ABI v2 table in `docs/SPECS_SIMULATION_ENGINES.md`.
+  - Native: `node scripts/build-contact.mjs --native --test-native`, exit 0, 4 PASS. The tests cover:
+    - equivalence: an 8° configured slope against a flat configuration driven by per-tick planes, within 1e-6 over 800 steps;
+    - independent wheel planes and six rejection cases;
+    - 60,000 armed ABI steps with moving planes at 400/800/1200 Hz and zero allocator calls.
+  - The existing script needs `--native` with `--test-native` (it otherwise tries to execute wasm32 tests). Its first cold cargo run can fail with a panic-strategy mismatch and succeeds on retry; both are pre-existing.
+  - `node scripts/check-contact-binding.mjs`: exit 0. 9 cases × 1,000,000 native steps, 0 allocations, same-source parity (max angle 3.0e-8 rad).
+  - `tests/terrain-contact.test.ts`: 4 PASS. They cover:
+    - published chunks against the configured slope while sliding across the N = 0 seam: position/velocity within 1e-6, WASM allocations 0;
+    - missing ground pauses with state unchanged, staged but unpublished ground still pauses, and stepping resumes after publication;
+    - the rotated anchor sampling oracle;
+    - constructor rejection.
+  - `tests/terrain-collision.test.ts`: 5 PASS, including the exact `planeInto` slope/ridge oracle. Contact regressions `tests/contact.test.ts` and `tests/contact-binding.test.ts` pass.
+  - `tests/contact-allocation.test.ts` (9M WASM steps) passes in 316 s with a temporarily raised timeout. Its committed 300 s limit times out on this 4-core container, as it did on the untouched baseline; the committed test is unchanged.
+  - Browser: `tests/browser/contact.spec.ts` and `terrain-collision.spec.ts` pass in Chromium.
+  - JS allocation: `node scripts/bench-terrain-scenarios.mjs 400|800|1200` now includes `planeInto` and the coupler path, with a stub for the WASM step. It passes at all three rates with 0 GC events in 6 measured windows, a constant ~22 KB heap delta independent of window length, and the allocating control detected.
+  - Remaining: wiring into the physics session (the demo backend is active), live tile decoding/terrain admission, and contact-patch curvature.
 
 ### TASK-066 — WebGPU renderer capability
 
