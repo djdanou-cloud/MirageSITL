@@ -1,10 +1,14 @@
 {
   "schemaVersion": 1,
-  "status": "blocked",
+  "status": "numerical-pass",
   "sourceCommit": "570e8115a102df8f877b11e0e59b964ea483e3c0",
   "model": "c172x",
   "nativeSmokeTimeS": 1,
-  "trimValidated": false,
-  "wasmParityValidated": false,
-  "reason": "Native smoke is not trim or WASM parity; model-data redistribution review and measured references remain required."
+  "trimValidated": true,
+  "wasmParityValidated": true,
+  "contactValidated": true,
+  "allocatorValidated": true,
+  "measuredFidelityValidated": false,
+  "modelDataIncluded": false,
+  "reason": "TASK-031 verifies actual native/WASM trim, control and contact parity with allocator and JavaScript GC evidence. Local c172x XML remains unbundled; measured calibration, redistribution permission and full flight-session readiness are separate."
 }

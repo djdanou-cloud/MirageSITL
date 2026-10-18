@@ -1,0 +1,279 @@
+{
+  "schemaVersion": 1,
+  "passed": true,
+  "manifest": {
+    "schemaVersion": 1,
+    "abiVersion": 1,
+    "sourceCommit": "570e8115a102df8f877b11e0e59b964ea483e3c0",
+    "enginePatchSha256": "b38e15d57159d1b7d3ef4ba8b939f708a91bfd32d3792ad761f2650b1354b4ca",
+    "contactPatchSha256": "221ec0a7830c46100ba82dd3573b2051eaf2815b7c0e62bd0ce8125c40279b4c",
+    "exceptionMode": "wasm",
+    "toolchainCommit": "389a68bc35dcff7ebae4614e1615099dafda00d1",
+    "toolchainVersion": "4.0.15",
+    "compilerVersion": "emcc (Emscripten gcc/clang-like replacement + linker emulating GNU ld) 4.0.15 (09f52557f0d48b65b8c724853ed8f4e8bf80e669)\r\nCopyright (C) 2025 the Emscripten authors (see AUTHORS.txt)\r\nThis is free and open source software under the MIT license.\r\nThere is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.",
+    "sourceDateEpoch": "1749297861",
+    "buildInputs": [
+      {
+        "file": "native/jsbsim/CMakeLists.txt",
+        "sha256": "daea979652d7b1e0d5013816f484e9a9fa8db81530376ea668b7bb15d0148135"
+      },
+      {
+        "file": "native/jsbsim/bridge.cpp",
+        "sha256": "bef401e5a91cdac3e2e55c6a31344b89753f7259f959aea8d340eb9194172531"
+      },
+      {
+        "file": "scripts/build-jsbsim.mjs",
+        "sha256": "bfb3822eb443a3ff083f70b2abc4e80ef2f1cc0463374c0427d6a7193c8d87b1"
+      },
+      {
+        "file": "native/jsbsim/allocation_probe.cpp",
+        "sha256": "0fb2b633cc05a9a3f00cc296e23ceda725f241928b43afe4e7bbd72bd0e7e58c"
+      }
+    ],
+    "sourceLicense": "LGPL-2.1",
+    "modelDataIncluded": false,
+    "artifacts": [
+      {
+        "file": "build-patched/mirage_jsbsim.js",
+        "bytes": 83070,
+        "sha256": "e87d334ae38d8445b6a185093bef602524d3365ce23d9dea94607d68baffdb98"
+      },
+      {
+        "file": "build-patched/mirage_jsbsim.wasm",
+        "bytes": 1696214,
+        "sha256": "a851588dd739c537a05c1ad2c6abc6d67d38c38e28fbe61875a3cafc3167834f"
+      }
+    ]
+  },
+  "models": [
+    {
+      "path": "aircraft/c172x/c172x.xml",
+      "sha256": "89231bfb4b4b188ef0e7d327f7e5d9435e05c39ece578d15ac10512b1f167868"
+    },
+    {
+      "path": "aircraft/c172x/c172ap.xml",
+      "sha256": "5701dc97feb738b842fe27c3b438537303e9b260907366355fe1edb7f1f6b173"
+    },
+    {
+      "path": "engine/eng_io320.xml",
+      "sha256": "db88f862cdd9e2d267199543b0a8a88f46f7f0be946539ae4f8977dd6f6200d2"
+    },
+    {
+      "path": "engine/prop_75in2f.xml",
+      "sha256": "dec029a5bf92fbcf45a2d71c15d8b2392f26f330a1672fa2f8267ff09a114a50"
+    },
+    {
+      "path": "systems/GNCUtilities.xml",
+      "sha256": "beceb4621d17f9ad25081d9c11a6b9494ec3d8b2d124da35ffeb9f259d6071ed"
+    },
+    {
+      "path": "systems/Autopilot.xml",
+      "sha256": "0e202d392c387dea4f943959dfb4a01c9198e898bc55056c3fa7beb2d0f9b6e7"
+    }
+  ],
+  "adapterSha256": "e07250d6d34d11c0752ccb18e043746714f7abc74ac7f4182c92a312c5837005",
+  "runnerSha256": "9613b65892078deee8df7f51472c8e0dc3aa115b5f62db42257663e682bc4ba9",
+  "oracleSha256": "6f56c712da4e677db0ffdfd2463d896a1a569de279327cf7a1b6f252705e9ad9",
+  "nativeCaptureSha256": "adc2a3f04aaf7f8230adc0017814a77eea6396b858e4b97f32f707eefba6ae63",
+  "results": [
+    {
+      "hz": 400,
+      "scenario": 0,
+      "positionErrorM": 0,
+      "attitudeErrorRad": 0,
+      "velocityErrorMps": 2.7083509157321044e-16,
+      "nativeSteps": 1000000,
+      "nativeAllocationCalls": 0,
+      "nativeAllocationBytes": 0,
+      "momentumError": 0,
+      "wasmSteps": 1000000,
+      "wasmAllocationCalls": 0,
+      "wasmAllocationBytes": 0,
+      "passed": true
+    },
+    {
+      "hz": 400,
+      "scenario": 1,
+      "positionErrorM": 0,
+      "attitudeErrorRad": 2.9802322387695312e-8,
+      "velocityErrorMps": 2.6645352591003757e-15,
+      "nativeSteps": 1000000,
+      "nativeAllocationCalls": 0,
+      "nativeAllocationBytes": 0,
+      "momentumError": 0,
+      "wasmSteps": 1000000,
+      "wasmAllocationCalls": 0,
+      "wasmAllocationBytes": 0,
+      "passed": true
+    },
+    {
+      "hz": 400,
+      "scenario": 2,
+      "positionErrorM": 0,
+      "attitudeErrorRad": 0,
+      "velocityErrorMps": 2.2811025808881874e-14,
+      "nativeSteps": 1000000,
+      "nativeAllocationCalls": 0,
+      "nativeAllocationBytes": 0,
+      "momentumError": 8.028822051642237e-11,
+      "wasmSteps": 1000000,
+      "wasmAllocationCalls": 0,
+      "wasmAllocationBytes": 0,
+      "passed": true
+    },
+    {
+      "hz": 800,
+      "scenario": 0,
+      "positionErrorM": 0,
+      "attitudeErrorRad": 0,
+      "velocityErrorMps": 1.1275702593849246e-17,
+      "nativeSteps": 1000000,
+      "nativeAllocationCalls": 0,
+      "nativeAllocationBytes": 0,
+      "momentumError": 0,
+      "wasmSteps": 1000000,
+      "wasmAllocationCalls": 0,
+      "wasmAllocationBytes": 0,
+      "passed": true
+    },
+    {
+      "hz": 800,
+      "scenario": 1,
+      "positionErrorM": 0,
+      "attitudeErrorRad": 2.9802322387695312e-8,
+      "velocityErrorMps": 6.644524805909141e-14,
+      "nativeSteps": 1000000,
+      "nativeAllocationCalls": 0,
+      "nativeAllocationBytes": 0,
+      "momentumError": 0,
+      "wasmSteps": 1000000,
+      "wasmAllocationCalls": 0,
+      "wasmAllocationBytes": 0,
+      "passed": true
+    },
+    {
+      "hz": 800,
+      "scenario": 2,
+      "positionErrorM": 0,
+      "attitudeErrorRad": 0,
+      "velocityErrorMps": 1.4234046357187127e-14,
+      "nativeSteps": 1000000,
+      "nativeAllocationCalls": 0,
+      "nativeAllocationBytes": 0,
+      "momentumError": 5.85491655158421e-11,
+      "wasmSteps": 1000000,
+      "wasmAllocationCalls": 0,
+      "wasmAllocationBytes": 0,
+      "passed": true
+    },
+    {
+      "hz": 1200,
+      "scenario": 0,
+      "positionErrorM": 0,
+      "attitudeErrorRad": 0,
+      "velocityErrorMps": 1.9081958235744878e-17,
+      "nativeSteps": 1000000,
+      "nativeAllocationCalls": 0,
+      "nativeAllocationBytes": 0,
+      "momentumError": 0,
+      "wasmSteps": 1000000,
+      "wasmAllocationCalls": 0,
+      "wasmAllocationBytes": 0,
+      "passed": true
+    },
+    {
+      "hz": 1200,
+      "scenario": 1,
+      "positionErrorM": 0,
+      "attitudeErrorRad": 0,
+      "velocityErrorMps": 2.738006995704597e-16,
+      "nativeSteps": 1000000,
+      "nativeAllocationCalls": 0,
+      "nativeAllocationBytes": 0,
+      "momentumError": 0,
+      "wasmSteps": 1000000,
+      "wasmAllocationCalls": 0,
+      "wasmAllocationBytes": 0,
+      "passed": true
+    },
+    {
+      "hz": 1200,
+      "scenario": 2,
+      "positionErrorM": 0,
+      "attitudeErrorRad": 0,
+      "velocityErrorMps": 2.709974770724413e-16,
+      "nativeSteps": 1000000,
+      "nativeAllocationCalls": 0,
+      "nativeAllocationBytes": 0,
+      "momentumError": 2.8486990544251967e-11,
+      "wasmSteps": 1000000,
+      "wasmAllocationCalls": 0,
+      "wasmAllocationBytes": 0,
+      "passed": true
+    }
+  ],
+  "ground": [
+    {
+      "hz": 400,
+      "speedMps": 0.000011201982615302307,
+      "accelerationMps2": 0.000027877439099220913,
+      "specificDownMps2": -9.780274496904068,
+      "steps": 1000000,
+      "allocationCalls": 0,
+      "allocationBytes": 0
+    },
+    {
+      "hz": 800,
+      "speedMps": 0.000010828354072497195,
+      "accelerationMps2": 0.00002274046032698083,
+      "specificDownMps2": -9.780274554402084,
+      "steps": 1000000,
+      "allocationCalls": 0,
+      "allocationBytes": 0
+    },
+    {
+      "hz": 1200,
+      "speedMps": 0.000010771959154306342,
+      "accelerationMps2": 0.00002133083715375537,
+      "specificDownMps2": -9.78027495593872,
+      "steps": 1000000,
+      "allocationCalls": 0,
+      "allocationBytes": 0
+    }
+  ],
+  "nativeGround": [
+    {
+      "stationary": true,
+      "hz": 400,
+      "steps": 1000000,
+      "speedMps": 0.000011201982615302324,
+      "accelerationMps2": 0.000027877439099215332,
+      "specificDownMps2": -9.780274496904068,
+      "gravityMps2": 9.814193300460447,
+      "allocationCalls": 0,
+      "allocationBytes": 0
+    },
+    {
+      "stationary": true,
+      "hz": 800,
+      "steps": 1000000,
+      "speedMps": 0.000010825261588829102,
+      "accelerationMps2": 0.000022716386928171568,
+      "specificDownMps2": -9.780274626026154,
+      "gravityMps2": 9.814193300460445,
+      "allocationCalls": 0,
+      "allocationBytes": 0
+    },
+    {
+      "stationary": true,
+      "hz": 1200,
+      "steps": 1000000,
+      "speedMps": 0.000010771770575493844,
+      "accelerationMps2": 0.000021330483494065613,
+      "specificDownMps2": -9.780274960777966,
+      "gravityMps2": 9.814193300460445,
+      "allocationCalls": 0,
+      "allocationBytes": 0
+    }
+  ]
+}

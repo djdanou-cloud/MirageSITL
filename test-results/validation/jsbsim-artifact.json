@@ -1,0 +1,209 @@
+{
+  "schemaVersion": 1,
+  "status": "PASS",
+  "timestamp": "2026-10-18T13:35:21.300Z",
+  "node": "v24.19.0",
+  "platform": "win32",
+  "browser": "155.0.8059.84",
+  "manifest": {
+    "schemaVersion": 1,
+    "abiVersion": 1,
+    "sourceCommit": "570e8115a102df8f877b11e0e59b964ea483e3c0",
+    "enginePatchSha256": "b38e15d57159d1b7d3ef4ba8b939f708a91bfd32d3792ad761f2650b1354b4ca",
+    "contactPatchSha256": "221ec0a7830c46100ba82dd3573b2051eaf2815b7c0e62bd0ce8125c40279b4c",
+    "exceptionMode": "wasm",
+    "toolchainCommit": "389a68bc35dcff7ebae4614e1615099dafda00d1",
+    "toolchainVersion": "4.0.15",
+    "compilerVersion": "emcc (Emscripten gcc/clang-like replacement + linker emulating GNU ld) 4.0.15 (09f52557f0d48b65b8c724853ed8f4e8bf80e669)\r\nCopyright (C) 2025 the Emscripten authors (see AUTHORS.txt)\r\nThis is free and open source software under the MIT license.\r\nThere is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.",
+    "sourceDateEpoch": "1749297861",
+    "buildInputs": [
+      {
+        "file": "native/jsbsim/CMakeLists.txt",
+        "sha256": "daea979652d7b1e0d5013816f484e9a9fa8db81530376ea668b7bb15d0148135"
+      },
+      {
+        "file": "native/jsbsim/bridge.cpp",
+        "sha256": "bef401e5a91cdac3e2e55c6a31344b89753f7259f959aea8d340eb9194172531"
+      },
+      {
+        "file": "scripts/build-jsbsim.mjs",
+        "sha256": "bfb3822eb443a3ff083f70b2abc4e80ef2f1cc0463374c0427d6a7193c8d87b1"
+      },
+      {
+        "file": "native/jsbsim/allocation_probe.cpp",
+        "sha256": "0fb2b633cc05a9a3f00cc296e23ceda725f241928b43afe4e7bbd72bd0e7e58c"
+      }
+    ],
+    "sourceLicense": "LGPL-2.1",
+    "modelDataIncluded": false,
+    "artifacts": [
+      {
+        "file": "build-patched/mirage_jsbsim.js",
+        "bytes": 83070,
+        "sha256": "e87d334ae38d8445b6a185093bef602524d3365ce23d9dea94607d68baffdb98"
+      },
+      {
+        "file": "build-patched/mirage_jsbsim.wasm",
+        "bytes": 1696214,
+        "sha256": "a851588dd739c537a05c1ad2c6abc6d67d38c38e28fbe61875a3cafc3167834f"
+      }
+    ]
+  },
+  "independentRebuild": {
+    "status": "PASS",
+    "artifacts": [
+      {
+        "file": "build-patched/mirage_jsbsim.js",
+        "bytes": 83070,
+        "sha256": "e87d334ae38d8445b6a185093bef602524d3365ce23d9dea94607d68baffdb98"
+      },
+      {
+        "file": "build-patched/mirage_jsbsim.wasm",
+        "bytes": 1696214,
+        "sha256": "a851588dd739c537a05c1ad2c6abc6d67d38c38e28fbe61875a3cafc3167834f"
+      }
+    ]
+  },
+  "bridgeSha256": "bef401e5a91cdac3e2e55c6a31344b89753f7259f959aea8d340eb9194172531",
+  "checkerSha256": "64d02cb27c6364ef733fb97ef8e32314609810b0828b254b0fb8c4fc9f59e574",
+  "modelFiles": [
+    {
+      "path": "aircraft/c172x/c172x.xml",
+      "sha256": "89231bfb4b4b188ef0e7d327f7e5d9435e05c39ece578d15ac10512b1f167868"
+    },
+    {
+      "path": "aircraft/c172x/c172ap.xml",
+      "sha256": "5701dc97feb738b842fe27c3b438537303e9b260907366355fe1edb7f1f6b173"
+    },
+    {
+      "path": "engine/eng_io320.xml",
+      "sha256": "db88f862cdd9e2d267199543b0a8a88f46f7f0be946539ae4f8977dd6f6200d2"
+    },
+    {
+      "path": "engine/prop_75in2f.xml",
+      "sha256": "dec029a5bf92fbcf45a2d71c15d8b2392f26f330a1672fa2f8267ff09a114a50"
+    },
+    {
+      "path": "systems/GNCUtilities.xml",
+      "sha256": "beceb4621d17f9ad25081d9c11a6b9494ec3d8b2d124da35ffeb9f259d6071ed"
+    },
+    {
+      "path": "systems/Autopilot.xml",
+      "sha256": "0e202d392c387dea4f943959dfb4a01c9198e898bc55056c3fa7beb2d0f9b6e7"
+    }
+  ],
+  "result": {
+    "status": "PASS",
+    "abiVersion": 1,
+    "memoryBytes": 67108864,
+    "results": [
+      {
+        "hz": 400,
+        "steps": 400,
+        "state": [
+          45.19355726795424,
+          0.11999131134337132,
+          -1.0036802630960941,
+          44.35839426845037,
+          0.4671055042898817,
+          -3.4893486730016376,
+          0.9964548251278249,
+          0.04476362886056473,
+          0.07114764334576854,
+          -0.0034658126107057576,
+          0.1241356985952973,
+          0.11193741123073656,
+          -0.0010257107299585868,
+          -0.15525366457465262,
+          -0.11594221667815122,
+          -14.913180426410804,
+          0.9999999999999897,
+          305.8038414485246,
+          9.813254799487138,
+          -2.2652120617384806,
+          1.2218571406871628,
+          -4.9113891812685555
+        ]
+      },
+      {
+        "hz": 800,
+        "steps": 800,
+        "state": [
+          45.1937723910182,
+          0.12020088535534287,
+          -1.0021972890257835,
+          44.3591283058931,
+          0.4676053709133027,
+          -3.486177245219868,
+          0.9964564376904654,
+          0.044774827234146684,
+          0.07111851572021408,
+          -0.0034553369058986,
+          0.12409084168035298,
+          0.112027397685669,
+          -0.0009943463780149981,
+          -0.15501411128191947,
+          -0.11589010644512981,
+          -14.915868257575458,
+          0.9999999999999842,
+          305.80235847672526,
+          9.813254804057648,
+          -2.264503703879934,
+          1.2224574191631354,
+          -4.91417411784342
+        ]
+      },
+      {
+        "hz": 1200,
+        "steps": 1200,
+        "state": [
+          45.19384479714828,
+          0.12027038013592083,
+          -1.0017022804051638,
+          44.35937359998411,
+          0.4677713903359886,
+          -3.485120919158381,
+          0.9964569760492991,
+          0.04477857873515782,
+          0.07110877951532583,
+          -0.0034518466053198938,
+          0.12407585569116232,
+          0.11205750840217978,
+          -0.0009839414922942328,
+          -0.15493535465708222,
+          -0.11587265595094076,
+          -14.916753089491966,
+          1.0000000000000162,
+          305.8018634681046,
+          9.813254805583263,
+          -2.2642662247333663,
+          1.222657185470864,
+          -4.915091377427616
+        ]
+      }
+    ],
+    "contactResults": [
+      {
+        "hz": 400,
+        "steps": 10000,
+        "momentumError": 4.0681680246734686e-11,
+        "allocationCalls": 0,
+        "allocationBytes": 0
+      },
+      {
+        "hz": 800,
+        "steps": 10000,
+        "momentumError": 2.027711332175386e-11,
+        "allocationCalls": 0,
+        "allocationBytes": 0
+      },
+      {
+        "hz": 1200,
+        "steps": 10000,
+        "momentumError": 1.3986589664227722e-11,
+        "allocationCalls": 0,
+        "allocationBytes": 0
+      }
+    ]
+  }
+}

@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<testsuites name="vitest tests" tests="19" failures="0" errors="0" time="0.8175528">
+    <testsuite name="tests/fixtures.test.ts" timestamp="2026-10-18T13:35:11.273Z" hostname="DaduAsus" tests="6" failures="0" errors="0" skipped="0" time="0.360128">
+        <testcase classname="tests/fixtures.test.ts" name="versioned fixture provenance and random streams &gt; matches the frozen uint32 reference and resets exactly" time="0.0184698">
+        </testcase>
+        <testcase classname="tests/fixtures.test.ts" name="versioned fixture provenance and random streams &gt; keeps stream state separate and accepts zero seeds" time="0.012348">
+        </testcase>
+        <testcase classname="tests/fixtures.test.ts" name="versioned fixture provenance and random streams &gt; verifies every registered fixture against its exact payload bytes" time="0.0148517">
+        </testcase>
+        <testcase classname="tests/fixtures.test.ts" name="versioned fixture provenance and random streams &gt; regenerates the NASA drop fixture byte-for-byte from the hashed archives" time="0.310494">
+        </testcase>
+        <testcase classname="tests/fixtures.test.ts" name="versioned fixture provenance and random streams &gt; requires complete HTTPS measured provenance without a derivation" time="0.0014644">
+        </testcase>
+        <testcase classname="tests/fixtures.test.ts" name="versioned fixture provenance and random streams &gt; rejects wrong units, hashes, bounds, and synthetic relabeling" time="0.0010743">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/jsbsim-artifact.test.ts" timestamp="2026-10-18T13:35:11.276Z" hostname="DaduAsus" tests="2" failures="0" errors="0" skipped="0" time="0.0679127">
+        <testcase classname="tests/jsbsim-artifact.test.ts" name="pins source, licensing and toolchain, and does not ship fake WASM artifacts" time="0.0051015">
+        </testcase>
+        <testcase classname="tests/jsbsim-artifact.test.ts" name="rejects missing or mismatched source before invoking a compiler" time="0.055421">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/jsbsim-backend.test.ts" timestamp="2026-10-18T13:35:11.276Z" hostname="DaduAsus" tests="4" failures="0" errors="0" skipped="0" time="0.0052741">
+        <testcase classname="tests/jsbsim-backend.test.ts" name="pins SI/FRD/NED output shape and rejects incompatible modules before aircraft loading" time="0.0026142">
+        </testcase>
+        <testcase classname="tests/jsbsim-backend.test.ts" name="records numerical acceptance separately from measured calibration and model redistribution" time="0.0002472">
+        </testcase>
+        <testcase classname="tests/jsbsim-backend.test.ts" name="allows cold trim once setup is valid, blocks it after stepping and disposes idempotently" time="0.0006443">
+        </testcase>
+        <testcase classname="tests/jsbsim-backend.test.ts" name="rejects mismatched heap views, unaligned allocations and frame allocation aliases" time="0.0004534">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/jsbsim-contact.test.ts" timestamp="2026-10-18T13:35:11.277Z" hostname="DaduAsus" tests="4" failures="0" errors="0" skipped="0" time="0.0067836">
+        <testcase classname="tests/jsbsim-contact.test.ts" name="freezes the additive contact byte frame without reusing legacy control fields" time="0.0026016">
+        </testcase>
+        <testcase classname="tests/jsbsim-contact.test.ts" name="applies at most one correctly framed impulse after each successful JSBSim step" time="0.0009445">
+        </testcase>
+        <testcase classname="tests/jsbsim-contact.test.ts" name="requires dedicated memory and faults on a measured allocation without publishing truth" time="0.000877">
+        </testcase>
+        <testcase classname="tests/jsbsim-contact.test.ts" name="rejects output and input aliases into module-owned memory" time="0.0001834">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/jsbsim-native.test.ts" timestamp="2026-10-18T13:35:11.278Z" hostname="DaduAsus" tests="3" failures="0" errors="0" skipped="0" time="0.3774544">
+        <testcase classname="tests/jsbsim-native.test.ts" name="rejects missing, truncated and false numerical/allocator native evidence" time="0.1628691">
+        </testcase>
+        <testcase classname="tests/jsbsim-native.test.ts" name="does not turn a missing source checkout into a successful native validation" time="0.0573018">
+        </testcase>
+        <testcase classname="tests/jsbsim-native.test.ts" name="rejects incomplete new backend captures before treating them as numerical or G1 evidence" time="0.1559378">
+        </testcase>
+    </testsuite>
+</testsuites>

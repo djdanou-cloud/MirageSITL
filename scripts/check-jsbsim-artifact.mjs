@@ -61,8 +61,35 @@ async function workerSmoke() {
         throw new Error("Disposed handle accepted");
       results.push({ hz, steps: hz, state });
     }
+    const contactResults=[];
+    if(module._jsb_contact_abi_version()===1){
+      const ip=module._malloc(48),mp=module._malloc(80);
+      for(const hz of [400,800,1200]){
+        const id=module._jsb_create(root,model,1/hz);
+        if(!id||module._jsb_trim(id,controls,4)!==0)throw Error("Worker trim failed");
+        for(let i=0;i<hz;i++)if(module._jsb_step(id,controls,4,output,22)!==0)throw Error("Worker warmup failed");
+        if(module._jsb_allocator_probe()!==1)throw Error("Worker allocator control failed");
+        module._jsb_allocation_track(1);
+        let momentumError=0;
+        for(let i=0;i<10000;i++){
+          if(module._jsb_step(id,controls,4,output,22)!==0)throw Error("Worker contact step failed");
+          if(i===0){
+            module._jsb_mass_properties(id,mp,10);
+            const before=Array.from(heap.subarray(output/8,output/8+22));
+            heap.set([1,-2,-3,.1,-.2,.3],ip/8);
+            if(module._jsb_apply_contact(id,ip,6,output,22)!==0)throw Error("Worker impulse failed");
+            for(let j=0;j<3;j++)momentumError=Math.max(momentumError,Math.abs((heap[output/8+3+j]-before[3+j])*heap[mp/8]-heap[ip/8+j]));
+            if(heap[output/8+16]!==before[16]||module._jsb_apply_contact(id,ip,6,output,22)!==-1)throw Error("Worker repeated integration/contact");
+          }
+        }
+        module._jsb_allocation_track(0);
+        if(momentumError>1e-8||module._jsb_allocation_calls()!==0||module._jsb_allocation_bytes()!==0||module.HEAPU8.buffer!==memory)throw Error("Worker momentum/allocation gate failed");
+        contactResults.push({hz,steps:10000,momentumError,allocationCalls:module._jsb_allocation_calls(),allocationBytes:module._jsb_allocation_bytes()});module._jsb_dispose(id);
+      }
+      module._free(ip);module._free(mp);
+    }
     for (const pointer of [root, model, controls, output]) module._free(pointer);
-    globalThis.postMessage({ status: "PASS", abiVersion: 1, memoryBytes: memory.byteLength, results });
+    globalThis.postMessage({ status: "PASS", abiVersion: 1, memoryBytes: memory.byteLength, results,contactResults });
   } catch (error) {
     globalThis.postMessage({ status: "FAIL", reason: String(error) });
   }
@@ -78,7 +105,7 @@ async function main() {
       manifest.toolchainVersion !== "4.0.15" || manifest.modelDataIncluded !== false ||
       !Array.isArray(manifest.artifacts) || manifest.artifacts.length !== 2)
     throw new Error("Artifact manifest mismatch");
-  const expectedInputs = ["native/jsbsim/CMakeLists.txt", "native/jsbsim/bridge.cpp", "scripts/build-jsbsim.mjs"];
+  const expectedInputs = ["native/jsbsim/CMakeLists.txt", "native/jsbsim/bridge.cpp", "scripts/build-jsbsim.mjs", "native/jsbsim/allocation_probe.cpp"];
   if (!Array.isArray(manifest.buildInputs) || manifest.buildInputs.length !== expectedInputs.length)
     throw new Error("Missing build input identities");
   for (let i = 0; i < expectedInputs.length; i++) {

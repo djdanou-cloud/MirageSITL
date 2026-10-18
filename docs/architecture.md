@@ -1012,6 +1012,32 @@ failed.
 
 ## Acceptance and runtime continuation
 
+### JSBSim backend continuation (TASK-031, 2026-10-18)
+
+The backend now supports independently versioned contact impulses after the
+JSBSim step, cold explicit SI initial state and current mass/inertia queries.
+JSBSim remains the sole integrator. A contact impulse changes velocity without
+advancing pose/time; derivative-history jumps preserve the upstream multistep
+integrator. Duplicate applications and external impulses during built-in active
+gear contact are rejected. An external constraint stage must not run another
+airframe integrator. The adapter claims dedicated memory and validates owned
+frames, caller buffers and heap stability before publishing truth.
+
+The contact build reuses ground-friction storage reserved for at most 64 gear
+entries. Its actual malloc/new counters are positive-controlled; JS allocation
+is measured separately. A first real-adapter probe exposed 75 GC events per
+million steps with JavaScript exception trampolines despite zero C++ counters.
+Native WASM exception handling removes that measured allocation path; legacy
+and passing reports are distinct. The compiled runtime must support WASM
+exceptions; no allocating fallback is admitted as high-rate certified.
+
+Same-source native/WASM trim, control-step and contact trajectories use
+predeclared numerical budgets and local, unbundled c172x XML. Stationary-ground
+tests verify upward specific force under local gravity. These results do not
+license aircraft redistribution or establish measured fidelity, target-device
+timing, full weather/model selection or autopilot/flight-session readiness.
+The engine specification records exact extension frames and runner scope.
+
 The independent collision builder creates NED triangle meshes in a separate Worker. CollisionChunks owns fixed-capacity staged/active height copies independently from visual eviction and publishes only at valid epoch/tick boundaries. sampleInto/readyFrom are the high-rate interfaces; missing coverage is explicit. This is not yet a production Rapier terrain adapter or flight-readiness binding.
 
 The new scenarios workspace admits immutable, provenance-bound protocol command templates, polls by simulation tick and evaluates complete autopilot traces. Epoch binding, ACK ownership and actual scenario orchestration remain at the integration boundary. Reports for SITL, HITL, EW and GPU check bounded/hash-bound observations; missing real inputs are blocked, and native/browser/hardware evidence are separate. The system matrix preserves per-mode NOT_RUN/FAIL/BLOCKED/PASS. Release tooling inventories actual generated outputs without publication or fabricated readiness. Detailed constraints and CLI contracts are in SPECS_SIMULATION_ENGINES.md and the new operational runbook.

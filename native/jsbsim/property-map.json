@@ -1,6 +1,11 @@
 {
   "abiVersion": 1,
   "inputCount": 4,
+  "extensions": {
+    "contact": {"version": 1, "inputCount": 6, "linearImpulseOffset": 0, "linearImpulseUnits": "N s", "angularImpulseOffset": 3, "angularImpulseUnits": "N m s", "linearFrame": "origin-NED", "angularFrame": "body-FRD", "phase": "once after a successful fixed step; no pose/time integration; reject built-in weight-on-wheels"},
+    "massProperties": {"outputCount": 10, "massOffset": 0, "massUnits": "kg", "inertiaOffset": 1, "inertiaLayout": "row-major 3x3", "inertiaUnits": "kg m^2"},
+    "initialState": {"inputCount": 13, "phase": "cold before stepping", "fields": ["latitudeRad", "longitudeRad", "altitudeAslM", "rollRad", "pitchRad", "yawRad", "uBodyMps", "vBodyMps", "wBodyMps", "pBodyRadS", "qBodyRadS", "rBodyRadS", "terrainAslM"]}
+  },
   "outputCount": 22,
   "units": "SI",
   "bodyFrame": "FRD",

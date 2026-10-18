@@ -1,0 +1,78 @@
+{
+  "schemaVersion": 1,
+  "hz": 400,
+  "passed": true,
+  "warmupSteps": 4000000,
+  "samples": [
+    {
+      "steps": 1000000,
+      "bytes": 3752,
+      "gcEvents": 0
+    },
+    {
+      "steps": 1000000,
+      "bytes": 3104,
+      "gcEvents": 0
+    },
+    {
+      "steps": 1000000,
+      "bytes": 3104,
+      "gcEvents": 0
+    }
+  ],
+  "positiveControl": {
+    "steps": 1000000,
+    "bytes": 743312,
+    "gcEvents": 30
+  },
+  "controlDetected": true,
+  "allocationCalls": 0,
+  "allocationBytes": 0,
+  "manifest": {
+    "schemaVersion": 1,
+    "abiVersion": 1,
+    "sourceCommit": "570e8115a102df8f877b11e0e59b964ea483e3c0",
+    "enginePatchSha256": "b38e15d57159d1b7d3ef4ba8b939f708a91bfd32d3792ad761f2650b1354b4ca",
+    "contactPatchSha256": "221ec0a7830c46100ba82dd3573b2051eaf2815b7c0e62bd0ce8125c40279b4c",
+    "exceptionMode": "wasm",
+    "toolchainCommit": "389a68bc35dcff7ebae4614e1615099dafda00d1",
+    "toolchainVersion": "4.0.15",
+    "compilerVersion": "emcc (Emscripten gcc/clang-like replacement + linker emulating GNU ld) 4.0.15 (09f52557f0d48b65b8c724853ed8f4e8bf80e669)\r\nCopyright (C) 2025 the Emscripten authors (see AUTHORS.txt)\r\nThis is free and open source software under the MIT license.\r\nThere is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.",
+    "sourceDateEpoch": "1749297861",
+    "buildInputs": [
+      {
+        "file": "native/jsbsim/CMakeLists.txt",
+        "sha256": "daea979652d7b1e0d5013816f484e9a9fa8db81530376ea668b7bb15d0148135"
+      },
+      {
+        "file": "native/jsbsim/bridge.cpp",
+        "sha256": "bef401e5a91cdac3e2e55c6a31344b89753f7259f959aea8d340eb9194172531"
+      },
+      {
+        "file": "scripts/build-jsbsim.mjs",
+        "sha256": "bfb3822eb443a3ff083f70b2abc4e80ef2f1cc0463374c0427d6a7193c8d87b1"
+      },
+      {
+        "file": "native/jsbsim/allocation_probe.cpp",
+        "sha256": "0fb2b633cc05a9a3f00cc296e23ceda725f241928b43afe4e7bbd72bd0e7e58c"
+      }
+    ],
+    "sourceLicense": "LGPL-2.1",
+    "modelDataIncluded": false,
+    "artifacts": [
+      {
+        "file": "build-patched/mirage_jsbsim.js",
+        "bytes": 83070,
+        "sha256": "e87d334ae38d8445b6a185093bef602524d3365ce23d9dea94607d68baffdb98"
+      },
+      {
+        "file": "build-patched/mirage_jsbsim.wasm",
+        "bytes": 1696214,
+        "sha256": "a851588dd739c537a05c1ad2c6abc6d67d38c38e28fbe61875a3cafc3167834f"
+      }
+    ]
+  },
+  "adapterSha256": "e07250d6d34d11c0752ccb18e043746714f7abc74ac7f4182c92a312c5837005",
+  "scriptSha256": "003c8c84bde255d40524d72e0690dd824f4a7b0e024837343582cc714bb1abbc",
+  "scope": "Passive six-DOF support impulse removes velocity without integrating pose/time; synthetic allocation stress, no measured fidelity or real-time hardware claim"
+}

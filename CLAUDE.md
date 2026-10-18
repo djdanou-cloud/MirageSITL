@@ -17,6 +17,19 @@ steps. NASA measured fidelity was explicitly deferred by the user; preserve its
 archived failing legacy comparison. This does not certify aircraft calibration,
 arbitrary terrain, target-device timing or a complete JSBSim/BET flight backend.
 
+TASK-031 continuation uses `node scripts/build-jsbsim.mjs --contact` for the
+instrumented JSBSim contact artifact with native WASM exceptions. The ordinary
+legacy JS-exception artifact remains separate and fails JS GC admission.
+`node scripts/check-jsbsim-backend.mjs --native` captures GNU native references;
+`node --experimental-transform-types scripts/check-jsbsim-backend.mjs` checks
+actual WASM parity/allocator behavior; `node scripts/bench-jsbsim.mjs` measures
+the real JS adapter separately. The native runner supports WSL on Windows with
+MIRAGE_JSBSIM_NATIVE_CMAKE selecting its Linux CMake executable. Read the engine
+spec's additive contact/initial-state ABI before coupling. Built-in active gear
+and external contact cannot both supply a reaction in one tick. Demo selection,
+full weather/model/flight-session wiring, aircraft redistribution and measured
+calibration remain separate; native/WASM parity does not enable autopilot READY.
+
 ## 1. Mandatory repository language
 
 All source code, TypeScript types, identifiers, inline comments, log/error/UI

@@ -1,0 +1,347 @@
+{
+  "schemaVersion": 1,
+  "task": "TASK-031",
+  "status": "DONE",
+  "baseline": "2ede92f4660c369273113e52732523fa7844f2a5",
+  "date": "2026-10-18",
+  "publication": "User authorized commit and push after local completion; publication identity is recorded by Git",
+  "scope": "Actual local c172x numerical backend acceptance; measured calibration and full flight-session integration separate",
+  "node": "v24.19.0",
+  "platform": "win32",
+  "nativeCompiler": "c++ (Ubuntu 15.2.0-16ubuntu1) 15.2.0\nCopyright (C) 2025 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.",
+  "nativeCmake": "cmake version 3.31.6\n\nCMake suite maintained and supported by Kitware (kitware.com/cmake).",
+  "browser": "155.0.8059.84",
+  "manifest": {
+    "schemaVersion": 1,
+    "abiVersion": 1,
+    "sourceCommit": "570e8115a102df8f877b11e0e59b964ea483e3c0",
+    "enginePatchSha256": "b38e15d57159d1b7d3ef4ba8b939f708a91bfd32d3792ad761f2650b1354b4ca",
+    "contactPatchSha256": "221ec0a7830c46100ba82dd3573b2051eaf2815b7c0e62bd0ce8125c40279b4c",
+    "exceptionMode": "wasm",
+    "toolchainCommit": "389a68bc35dcff7ebae4614e1615099dafda00d1",
+    "toolchainVersion": "4.0.15",
+    "compilerVersion": "emcc (Emscripten gcc/clang-like replacement + linker emulating GNU ld) 4.0.15 (09f52557f0d48b65b8c724853ed8f4e8bf80e669)\r\nCopyright (C) 2025 the Emscripten authors (see AUTHORS.txt)\r\nThis is free and open source software under the MIT license.\r\nThere is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.",
+    "sourceDateEpoch": "1749297861",
+    "buildInputs": [
+      {
+        "file": "native/jsbsim/CMakeLists.txt",
+        "sha256": "daea979652d7b1e0d5013816f484e9a9fa8db81530376ea668b7bb15d0148135"
+      },
+      {
+        "file": "native/jsbsim/bridge.cpp",
+        "sha256": "bef401e5a91cdac3e2e55c6a31344b89753f7259f959aea8d340eb9194172531"
+      },
+      {
+        "file": "scripts/build-jsbsim.mjs",
+        "sha256": "bfb3822eb443a3ff083f70b2abc4e80ef2f1cc0463374c0427d6a7193c8d87b1"
+      },
+      {
+        "file": "native/jsbsim/allocation_probe.cpp",
+        "sha256": "0fb2b633cc05a9a3f00cc296e23ceda725f241928b43afe4e7bbd72bd0e7e58c"
+      }
+    ],
+    "sourceLicense": "LGPL-2.1",
+    "modelDataIncluded": false,
+    "artifacts": [
+      {
+        "file": "build-patched/mirage_jsbsim.js",
+        "bytes": 83070,
+        "sha256": "e87d334ae38d8445b6a185093bef602524d3365ce23d9dea94607d68baffdb98"
+      },
+      {
+        "file": "build-patched/mirage_jsbsim.wasm",
+        "bytes": 1696214,
+        "sha256": "a851588dd739c537a05c1ad2c6abc6d67d38c38e28fbe61875a3cafc3167834f"
+      }
+    ]
+  },
+  "modelFiles": [
+    {
+      "path": "aircraft/c172x/c172x.xml",
+      "sha256": "89231bfb4b4b188ef0e7d327f7e5d9435e05c39ece578d15ac10512b1f167868"
+    },
+    {
+      "path": "aircraft/c172x/c172ap.xml",
+      "sha256": "5701dc97feb738b842fe27c3b438537303e9b260907366355fe1edb7f1f6b173"
+    },
+    {
+      "path": "engine/eng_io320.xml",
+      "sha256": "db88f862cdd9e2d267199543b0a8a88f46f7f0be946539ae4f8977dd6f6200d2"
+    },
+    {
+      "path": "engine/prop_75in2f.xml",
+      "sha256": "dec029a5bf92fbcf45a2d71c15d8b2392f26f330a1672fa2f8267ff09a114a50"
+    },
+    {
+      "path": "systems/GNCUtilities.xml",
+      "sha256": "beceb4621d17f9ad25081d9c11a6b9494ec3d8b2d124da35ffeb9f259d6071ed"
+    },
+    {
+      "path": "systems/Autopilot.xml",
+      "sha256": "0e202d392c387dea4f943959dfb4a01c9198e898bc55056c3fa7beb2d0f9b6e7"
+    }
+  ],
+  "results": {
+    "nativeSteps": 12000000,
+    "wasmSteps": 12000000,
+    "nativeAllocationCalls": 0,
+    "nativeAllocationBytes": 0,
+    "wasmAllocationCalls": 0,
+    "wasmAllocationBytes": 0,
+    "maximumPositionErrorM": 0,
+    "maximumAttitudeErrorRad": 2.9802322387695312e-8,
+    "maximumVelocityErrorMps": 6.644524805909141e-14,
+    "maximumMomentumErrorNs": 8.028822051642237e-11,
+    "gcMeasuredSteps": 3000000,
+    "gcEvents": 0,
+    "positiveControlGcEvents": 30,
+    "workerContactCases": [
+      {
+        "hz": 400,
+        "steps": 10000,
+        "momentumError": 4.0681680246734686e-11,
+        "allocationCalls": 0,
+        "allocationBytes": 0
+      },
+      {
+        "hz": 800,
+        "steps": 10000,
+        "momentumError": 2.027711332175386e-11,
+        "allocationCalls": 0,
+        "allocationBytes": 0
+      },
+      {
+        "hz": 1200,
+        "steps": 10000,
+        "momentumError": 1.3986589664227722e-11,
+        "allocationCalls": 0,
+        "allocationBytes": 0
+      }
+    ]
+  },
+  "commands": [
+    {
+      "command": "node scripts/build-jsbsim.mjs --contact (MIRAGE_JSBSIM_OUT=.cache/task-031/wasm, then packages/wasm-jsbsim/dist)",
+      "exit": 0,
+      "note": "Independent artifact bytes/hashes match; Emscripten 4.0.15; existing upstream xmlparse format warning retained"
+    },
+    {
+      "command": "node scripts/check-jsbsim-backend.mjs --native",
+      "exit": 0,
+      "note": "WSL GNU; twelve million steps; disabled cold model CSV-header open warnings do not affect numerical state or armed counters"
+    },
+    {
+      "command": "node --experimental-transform-types scripts/check-jsbsim-backend.mjs",
+      "exit": 0
+    },
+    {
+      "command": "node scripts/bench-jsbsim.mjs",
+      "exit": 0,
+      "note": "Four million warmup plus measurement-wrapper conditioning; three million measured steps; original JS-exception build failed and is retained"
+    },
+    {
+      "command": "node scripts/check-jsbsim-artifact.mjs (canonical MIRAGE_JSBSIM_OUT and MIRAGE_JSBSIM_COMPARE=.cache/task-031/wasm)",
+      "exit": 0,
+      "note": "Actual Chromium Workers; trim, impulse, duplicate rejection, fixed memory, allocator counters and independent rebuild"
+    },
+    {
+      "command": "node node_modules/vitest/vitest.mjs run --reporter=default --reporter=junit --outputFile.junit=test-results/validation/task-031-unit.xml",
+      "exit": 0,
+      "passed": 521,
+      "files": 91,
+      "skipped": 1
+    },
+    {
+      "command": "node node_modules/vitest/vitest.mjs run tests/jsbsim-contact.test.ts tests/jsbsim-backend.test.ts tests/jsbsim-native.test.ts tests/jsbsim-artifact.test.ts tests/fixtures.test.ts --reporter=default --reporter=junit --outputFile.junit=test-results/validation/task-031-final-boundaries.xml",
+      "exit": 0,
+      "passed": 19,
+      "files": 5
+    },
+    {
+      "command": "node node_modules/vitest/vitest.mjs run tests/documentation-policy.test.ts tests/jsbsim-contact.test.ts tests/jsbsim-backend.test.ts tests/jsbsim-native.test.ts tests/fixtures.test.ts --reporter=default --reporter=junit --outputFile.junit=test-results/validation/task-031-final-docs.xml",
+      "exit": 0,
+      "passed": 23,
+      "files": 5
+    },
+    {
+      "command": "CHROMIUM_PATH=C:/Program Files/Google/Chrome/Application/chrome.exe RUSTUP_TOOLCHAIN=1.97.0 node node_modules/@playwright/test/cli.js test",
+      "exit": 0,
+      "passed": 50,
+      "skipped": 1,
+      "note": "Existing WebGPU skip"
+    },
+    {
+      "command": "node node_modules/typescript/bin/tsc --noEmit; node node_modules/eslint/bin/eslint.js . --max-warnings=0 --no-inline-config; node node_modules/vite/bin/vite.js build apps/web",
+      "exit": 0,
+      "note": "Existing bundle-size warning"
+    },
+    {
+      "command": "node scripts/check-docs.mjs; git diff --check",
+      "exit": 0,
+      "bilingualPairs": 20,
+      "tasks": 86,
+      "layouts": 6
+    }
+  ],
+  "sourceInputs": [
+    {
+      "path": "CLAUDE.md",
+      "sha256": "82bf4503a5e788892c9e6efb45bcec2798111e58c43e6236927a9e16d3634373"
+    },
+    {
+      "path": "docs/PROJECT_ROADMAP.md",
+      "sha256": "a19289233ad41692175abf09d7f435f90afdae95ebe19617ceadc32ac5bb4ae7"
+    },
+    {
+      "path": "docs/SPECS_SIMULATION_ENGINES.md",
+      "sha256": "9ee4cd3e299422891e419d0d5a0bd2a4a7b0dbca708e26d24ed6cae00fe58eb1"
+    },
+    {
+      "path": "docs/architecture.md",
+      "sha256": "96e3c37546f9905106d8090a0d877782d338c333331ed75317d3dfead2c20ab6"
+    },
+    {
+      "path": "docs/ru/CLAUDE.md",
+      "sha256": "985ebeffb06f3264d3b62d3dfc792716ad3865423c2496b3ef456f4bc1e82b3e"
+    },
+    {
+      "path": "docs/ru/PROJECT_ROADMAP.md",
+      "sha256": "d536863d2dc13e1003d7089e07ebfa098c6d2ec8a666eaff00623428dd2f2356"
+    },
+    {
+      "path": "docs/ru/SPECS_SIMULATION_ENGINES.md",
+      "sha256": "aaa6699d05a21048227d9b6c15914fd7e08b744bfb14dee96e87f44169a1d778"
+    },
+    {
+      "path": "docs/ru/architecture.md",
+      "sha256": "f9bcd101be60601f58053904e0f3513cd038f7990be03067ea30dc266a452282"
+    },
+    {
+      "path": "native/jsbsim/CMakeLists.txt",
+      "sha256": "daea979652d7b1e0d5013816f484e9a9fa8db81530376ea668b7bb15d0148135"
+    },
+    {
+      "path": "native/jsbsim/allocation_probe.cpp",
+      "sha256": "0fb2b633cc05a9a3f00cc296e23ceda725f241928b43afe4e7bbd72bd0e7e58c"
+    },
+    {
+      "path": "native/jsbsim/backend_checks.cpp",
+      "sha256": "9e064af0641d99aa160c5b181f51152103c9c7c3bf43bc628ae5dbfa8dfad356"
+    },
+    {
+      "path": "native/jsbsim/bridge.cpp",
+      "sha256": "bef401e5a91cdac3e2e55c6a31344b89753f7259f959aea8d340eb9194172531"
+    },
+    {
+      "path": "native/jsbsim/patches/contact-impulse.patch",
+      "sha256": "221ec0a7830c46100ba82dd3573b2051eaf2815b7c0e62bd0ce8125c40279b4c"
+    },
+    {
+      "path": "native/jsbsim/property-map.json",
+      "sha256": "89eb746fc9d1fa07a4ff818d5315c0391a8fdb8f10522e593d6f34efe42598fa"
+    },
+    {
+      "path": "packages/wasm-jsbsim/src/backend.ts",
+      "sha256": "e07250d6d34d11c0752ccb18e043746714f7abc74ac7f4182c92a312c5837005"
+    },
+    {
+      "path": "scripts/bench-jsbsim.mjs",
+      "sha256": "003c8c84bde255d40524d72e0690dd824f4a7b0e024837343582cc714bb1abbc"
+    },
+    {
+      "path": "scripts/build-jsbsim.mjs",
+      "sha256": "bfb3822eb443a3ff083f70b2abc4e80ef2f1cc0463374c0427d6a7193c8d87b1"
+    },
+    {
+      "path": "scripts/check-jsbsim-artifact.mjs",
+      "sha256": "64d02cb27c6364ef733fb97ef8e32314609810b0828b254b0fb8c4fc9f59e574"
+    },
+    {
+      "path": "scripts/check-jsbsim-backend.mjs",
+      "sha256": "9613b65892078deee8df7f51472c8e0dc3aa115b5f62db42257663e682bc4ba9"
+    },
+    {
+      "path": "tests/fixtures/airframes/jsbsim-backend-reference.json",
+      "sha256": "6f56c712da4e677db0ffdfd2463d896a1a569de279327cf7a1b6f252705e9ad9"
+    },
+    {
+      "path": "tests/fixtures/airframes/jsbsim-trim.json",
+      "sha256": "0b9e1f21e1a89a8870f691a6d7355d1af85c780a828da3464ab079095f2872c7"
+    },
+    {
+      "path": "tests/fixtures/registry.json",
+      "sha256": "afaae40024747a37bffe5514c2601218e25e408fc9b112a2bf0fc58c7cd00e35"
+    },
+    {
+      "path": "tests/jsbsim-backend.test.ts",
+      "sha256": "90b5e18e47b9bbae098f2fa8fc2b4d466ac9f2037a057ed856727dc81090e230"
+    },
+    {
+      "path": "tests/jsbsim-contact.test.ts",
+      "sha256": "8063a19c65e7b026570338928426bf37d48b391a3fe4c06644f0c3071fa443f9"
+    },
+    {
+      "path": "tests/jsbsim-native.test.ts",
+      "sha256": "0521d7a4bdd297c1e65183b4c126ef937bcb20b0a0b6ec9d873c876d38ce8239"
+    }
+  ],
+  "evidence": [
+    {
+      "path": "test-results/validation/task-031-native.json",
+      "sha256": "adc2a3f04aaf7f8230adc0017814a77eea6396b858e4b97f32f707eefba6ae63",
+      "bytes": 69768
+    },
+    {
+      "path": "test-results/validation/task-031-backend.json",
+      "sha256": "22438746368755129a31e79d473683c05e4df0ea60cdd96197fe689b6dec95d9",
+      "bytes": 8550
+    },
+    {
+      "path": "test-results/bench/jsbsim-400.json",
+      "sha256": "308e973cd7694dfbccea5c5f55439fe68cd05058845566bbdf476467897beceb",
+      "bytes": 2764
+    },
+    {
+      "path": "test-results/validation/jsbsim-artifact.json",
+      "sha256": "7b5cc3866b78fd4247b3c00673534ea29ee63f57e812fecec87c1fa3b024d588",
+      "bytes": 6458
+    },
+    {
+      "path": "test-results/validation/task-031-native.log",
+      "sha256": "2bdc97288d9a6e410230b83313430865fbcbc613f892f0552928123edc238b33",
+      "bytes": 324877
+    },
+    {
+      "path": "test-results/bench/jsbsim-400-legacy-exceptions.json",
+      "sha256": "d48363377d05a31ee0006318a9e22044201151fff794e5465342274638a3eb30",
+      "bytes": 2725
+    },
+    {
+      "path": "test-results/validation/task-031-unit.xml",
+      "sha256": "bd9179d2f8092e8017983b2a439ad07b1008a57c7a6f2e0e3dec4d8229d6e325",
+      "bytes": 119602
+    },
+    {
+      "path": "test-results/validation/task-031-final-boundaries.xml",
+      "sha256": "b4310456ec3830700ef4bf8617d9b7166305a340d47a77a7c8657bc687b0f733",
+      "bytes": 4730
+    },
+    {
+      "path": "test-results/validation/task-031-final-docs.xml",
+      "sha256": "df80c349868670f4d957908d4bb6fca1d331b6f22da4de3f2518400982c59bb8",
+      "bytes": 5609
+    },
+    {
+      "path": "test-results/browser/junit.xml",
+      "sha256": "c0122d0ba98c6cd8f8c1bf425bd95bf824654005ec26d073692cb9e4bf7a2eb2",
+      "bytes": 12033
+    }
+  ],
+  "limitations": [
+    "Local unbundled c172x reference only; model redistribution permission and measured aircraft calibration not established",
+    "Post-step external impulse split; no second pose/time integration or internal sensor replay",
+    "Built-in active gear excludes simultaneous external contact impulse",
+    "No target-hardware real-time timing acceptance",
+    "Demo/model/weather selection and full flight/autopilot readiness remain separate"
+  ]
+}

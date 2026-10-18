@@ -22,8 +22,8 @@
           }
         },
         "tolerance": {
-          "absolute": 1e-09,
-          "relative": 1e-09
+          "absolute": 1e-9,
+          "relative": 1e-9
         },
         "provenance": {
           "kind": "synthetic",
@@ -47,8 +47,8 @@
           }
         },
         "tolerance": {
-          "absolute": 1e-09,
-          "relative": 1e-09
+          "absolute": 1e-9,
+          "relative": 1e-9
         },
         "provenance": {
           "kind": "synthetic",
@@ -206,8 +206,8 @@
             "max": 0.2
           },
           "shaftInertiaKgM2": {
-            "min": 2.5e-05,
-            "max": 8e-05
+            "min": 0.000025,
+            "max": 0.00008
           },
           "airVelocityMps": {
             "min": -5,
@@ -255,11 +255,11 @@
             "max": 3.141592653589793
           },
           "reynolds": {
-            "min": 20000.0,
-            "max": 500000.0
+            "min": 20000,
+            "max": 500000
           },
           "mach": {
-            "min": 0.0,
+            "min": 0,
             "max": 0.6
           },
           "cl": {
@@ -313,7 +313,7 @@
         },
         "tolerance": {
           "absolute": 0.0001,
-          "relative": 0.0
+          "relative": 0
         },
         "provenance": {
           "kind": "synthetic",
@@ -337,7 +337,7 @@
           }
         },
         "tolerance": {
-          "absolute": 1e-09,
+          "absolute": 1e-9,
           "relative": 0.0001
         },
         "provenance": {
@@ -362,8 +362,8 @@
           }
         },
         "tolerance": {
-          "absolute": 1e-09,
-          "relative": 1e-06
+          "absolute": 1e-9,
+          "relative": 0.000001
         },
         "provenance": {
           "kind": "synthetic",
@@ -387,8 +387,8 @@
           }
         },
         "tolerance": {
-          "absolute": 1e-09,
-          "relative": 1e-06
+          "absolute": 1e-9,
+          "relative": 0.000001
         },
         "provenance": {
           "kind": "synthetic",
@@ -412,7 +412,7 @@
           }
         },
         "tolerance": {
-          "absolute": 1e-08,
+          "absolute": 1e-8,
           "relative": 0
         },
         "provenance": {
@@ -442,8 +442,8 @@
           }
         },
         "tolerance": {
-          "absolute": 1e-09,
-          "relative": 1e-09
+          "absolute": 1e-9,
+          "relative": 1e-9
         },
         "provenance": {
           "kind": "synthetic",
@@ -520,13 +520,13 @@
             "max": 12
           },
           "currentA": {
-            "min": 10.0,
-            "max": 10.0
+            "min": 10,
+            "max": 10
           }
         },
         "tolerance": {
-          "absolute": 1e-09,
-          "relative": 1e-09
+          "absolute": 1e-9,
+          "relative": 1e-9
         },
         "provenance": {
           "kind": "synthetic",
@@ -555,8 +555,8 @@
           }
         },
         "tolerance": {
-          "absolute": 1e-09,
-          "relative": 1e-09
+          "absolute": 1e-9,
+          "relative": 1e-9
         },
         "provenance": {
           "kind": "synthetic",
@@ -585,8 +585,8 @@
           }
         },
         "tolerance": {
-          "absolute": 1e-09,
-          "relative": 1e-09
+          "absolute": 1e-9,
+          "relative": 1e-9
         },
         "provenance": {
           "kind": "synthetic",
@@ -599,7 +599,7 @@
       "manifest": {
         "formatVersion": 1,
         "id": "airframes-jsbsim-trim-v1",
-        "sourceSha256": "5158ab8703c4128ed0e6f0fa3e54104c7233ea6d286c5fa9507653158acea3a3",
+        "sourceSha256": "0b9e1f21e1a89a8870f691a6d7355d1af85c780a828da3464ab079095f2872c7",
         "units": {
           "nativeSmokeTimeS": "s"
         },
@@ -610,12 +610,12 @@
           }
         },
         "tolerance": {
-          "absolute": 1e-09,
-          "relative": 1e-09
+          "absolute": 1e-9,
+          "relative": 1e-9
         },
         "provenance": {
           "kind": "synthetic",
-          "derivation": "Synthetic acceptance manifest records missing trim/WASM evidence, not a calibrated or redistributed aircraft dataset."
+          "derivation": "Synthetic acceptance descriptor records actual same-source native/WASM numerical and allocation checks; not measured aircraft calibration or redistributed model XML."
         }
       }
     },
@@ -635,8 +635,8 @@
           }
         },
         "tolerance": {
-          "absolute": 1e-09,
-          "relative": 1e-09
+          "absolute": 1e-9,
+          "relative": 1e-9
         },
         "provenance": {
           "kind": "synthetic",
@@ -710,8 +710,8 @@
             "max": 1.5707963267948966
           },
           "heightM": {
-            "min": -15000.0,
-            "max": 15000.0
+            "min": -15000,
+            "max": 15000
           }
         },
         "tolerance": {
@@ -924,6 +924,31 @@
           "license": "Public-Domain-US-Gov",
           "acquiredAt": "1977-11-01T00:00:00Z",
           "referenceUrl": "https://ntrs.nasa.gov/citations/19780003109"
+        }
+      }
+    },
+    {
+      "path": "airframes/jsbsim-backend-reference.json",
+      "manifest": {
+        "formatVersion": 1,
+        "id": "airframes-jsbsim-backend-reference-v1",
+        "sourceSha256": "6f56c712da4e677db0ffdfd2463d896a1a569de279327cf7a1b6f252705e9ad9",
+        "units": {
+          "durationS": "s"
+        },
+        "validityEnvelope": {
+          "durationS": {
+            "min": 10,
+            "max": 10
+          }
+        },
+        "tolerance": {
+          "absolute": 0.1,
+          "relative": 0.000001
+        },
+        "provenance": {
+          "kind": "synthetic",
+          "derivation": "Predeclared same-source native/WASM numerical budgets; not measured aircraft calibration or redistributed model data."
         }
       }
     }

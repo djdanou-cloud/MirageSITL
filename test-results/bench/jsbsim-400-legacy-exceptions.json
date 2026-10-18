@@ -1,0 +1,76 @@
+{
+  "schemaVersion": 1,
+  "hz": 400,
+  "passed": false,
+  "warmupSteps": 4000000,
+  "samples": [
+    {
+      "steps": 1000000,
+      "bytes": 27581416,
+      "gcEvents": 75
+    },
+    {
+      "steps": 1000000,
+      "bytes": 27580656,
+      "gcEvents": 75
+    },
+    {
+      "steps": 1000000,
+      "bytes": 27580984,
+      "gcEvents": 75
+    }
+  ],
+  "positiveControl": {
+    "steps": 1000000,
+    "bytes": 32190944,
+    "gcEvents": 0
+  },
+  "allocationCalls": 0,
+  "allocationBytes": 0,
+  "manifest": {
+    "schemaVersion": 1,
+    "abiVersion": 1,
+    "sourceCommit": "570e8115a102df8f877b11e0e59b964ea483e3c0",
+    "enginePatchSha256": "b38e15d57159d1b7d3ef4ba8b939f708a91bfd32d3792ad761f2650b1354b4ca",
+    "contactPatchSha256": "7073eb54417dda9d65480a36175d7891efba11e2ba9ff26ab63e60818756ed02",
+    "toolchainCommit": "389a68bc35dcff7ebae4614e1615099dafda00d1",
+    "toolchainVersion": "4.0.15",
+    "compilerVersion": "emcc (Emscripten gcc/clang-like replacement + linker emulating GNU ld) 4.0.15 (09f52557f0d48b65b8c724853ed8f4e8bf80e669)\r\nCopyright (C) 2025 the Emscripten authors (see AUTHORS.txt)\r\nThis is free and open source software under the MIT license.\r\nThere is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.",
+    "sourceDateEpoch": "1749297861",
+    "buildInputs": [
+      {
+        "file": "native/jsbsim/CMakeLists.txt",
+        "sha256": "f8636d53da19c7a157fd953721d0939e45cba416e3508f57feb873c086640f3f"
+      },
+      {
+        "file": "native/jsbsim/bridge.cpp",
+        "sha256": "bef401e5a91cdac3e2e55c6a31344b89753f7259f959aea8d340eb9194172531"
+      },
+      {
+        "file": "scripts/build-jsbsim.mjs",
+        "sha256": "e1fec0919a2ae335e45fe12b1adeafd8ad9750de36f08bb2fb05295b5e4d098e"
+      },
+      {
+        "file": "native/jsbsim/allocation_probe.cpp",
+        "sha256": "0fb2b633cc05a9a3f00cc296e23ceda725f241928b43afe4e7bbd72bd0e7e58c"
+      }
+    ],
+    "sourceLicense": "LGPL-2.1",
+    "modelDataIncluded": false,
+    "artifacts": [
+      {
+        "file": "build-patched/mirage_jsbsim.js",
+        "bytes": 95298,
+        "sha256": "6426b8458432856105b9f264b00927e3ffeada9e9c7b16ce3688e0afda09ee9d"
+      },
+      {
+        "file": "build-patched/mirage_jsbsim.wasm",
+        "bytes": 2174264,
+        "sha256": "6e4f5a146ee838c2a1c0221558d012db4b3be7c4c649d654cb16e3157407aa8d"
+      }
+    ]
+  },
+  "adapterSha256": "5a03870a05262a51df728e45bd30914fd8137db04e1bafc10b29115f83e99bc7",
+  "scriptSha256": "87c62b2be2a6b422990f42c4216e66c44d428d41d9b41b8c102aa974c6d00666",
+  "scope": "Passive six-DOF support impulse removes velocity without integrating pose/time; synthetic allocation stress, no measured fidelity or real-time hardware claim"
+}

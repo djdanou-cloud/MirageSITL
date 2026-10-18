@@ -1,0 +1,93 @@
+--- a/src/models/FGPropagate.h
++++ b/src/models/FGPropagate.h
+@@ -522,6 +522,11 @@
+
+   const VehicleState& GetVState(void) const { return VState; }
+
++  // Instantaneous velocity jump only: no time, pose or force integration.
++  // Body delta velocity is ft/s; body delta angular rate is rad/s.
++  void ApplyBodyImpulse(const FGColumnVector3& deltaVelocity,
++                        const FGColumnVector3& deltaRate);
++
+   void SetVState(const VehicleState& vstate);
+
+   /** Sets the Earth position angle.
+--- a/src/models/FGPropagate.cpp
++++ b/src/models/FGPropagate.cpp
+@@ -657,5 +657,26 @@
+ //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
++void FGPropagate::ApplyBodyImpulse(const FGColumnVector3& deltaVelocity,
++                                  const FGColumnVector3& deltaRate)
++{
++  const auto deltaInertial = Tb2i * deltaVelocity;
++  const auto oldQdot = VState.vQtrndot;
++  VState.vInertialVelocity += deltaInertial;
++  VState.vPQRi += deltaRate;
++  CalculateUVW();
++  vVel = Tb2l * VState.vUVW;
++  VState.vPQR = VState.vPQRi - Ti2b * in.vOmegaPlanet;
++  CalculateQuatdot();
++  const auto deltaQdot = VState.vQtrndot - oldQdot;
++  // A discontinuity changes all positional derivative history samples by
++  // the same jump. Acceleration histories keep the continuous force terms.
++  // This avoids smearing an impulse through the Adams-Bashforth history.
++  for (auto& v : VState.dqInertialVelocity) v += deltaInertial;
++  for (auto& q : VState.dqQtrndot) q += deltaQdot;
++}
++
++//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
++
+ void FGPropagate::SetVState(const VehicleState& vstate)
+ {
+   //ToDo: Shouldn't all of these be set from the vstate vector passed in?
+--- a/src/models/FGAccelerations.h
++++ b/src/models/FGAccelerations.h
+@@ -316,6 +316,12 @@
+       @param hd enables the 'hold-down' function if non-zero
+   */
+   void SetHoldDown(bool hd);
++
++  // Cold reservation for fixed-model friction constraints.
++  void ReserveGroundConstraintStorage(unsigned n) {
++    frictionMatrix.reserve(n*n);
++    frictionRhs.reserve(n);
++  }
+
+   struct Inputs {
+     /// The body inertia matrix expressed in the body frame
+@@ -363,6 +369,7 @@
+   } in;
+
+ private:
++  std::vector<double> frictionMatrix, frictionRhs;
+
+   FGColumnVector3 vPQRdot, vPQRidot;
+   FGColumnVector3 vUVWdot, vUVWidot;
+--- a/src/models/FGAccelerations.cpp
++++ b/src/models/FGAccelerations.cpp
+@@ -240,8 +240,12 @@
+   // If no gears are in contact with the ground then return
+   if (!n) return;
+
+-  vector<double> a(n*n); // Will contain Jac*M^-1*Jac^T
+-  vector<double> rhs(n);
++  frictionMatrix.resize(n*n);
++  frictionRhs.resize(n);
++  std::fill(frictionMatrix.begin(), frictionMatrix.end(), 0.0);
++  std::fill(frictionRhs.begin(), frictionRhs.end(), 0.0);
++  auto& a = frictionMatrix; // Jac*M^-1*Jac^T; preserve storage and values.
++  auto& rhs = frictionRhs;
+
+   // Assemble the linear system of equations
+   for (unsigned int i=0; i < n; i++) {
+--- a/src/models/FGGroundReactions.cpp
++++ b/src/models/FGGroundReactions.cpp
+@@ -149,6 +149,7 @@
+     contact_element = document->FindNextElement("contact");
+   }
+
++  multipliers.reserve(2*lGear.size());
+   PostLoad(document, FDMExec);
+
+   return true;

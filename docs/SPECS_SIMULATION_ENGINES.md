@@ -1129,6 +1129,83 @@ TASK-029 requires an allocation-free engine build/binding before admission.
 
 ### JSBSim opaque handles and cold trim
 
+#### TASK-031 extension, 2026-10-18
+
+Legacy ABI v1 remains four normalized controls and 22 SI outputs, with unchanged
+offsets. The additive contact API has its own `jsb_contact_abi_version()`:
+1 when enabled, otherwise 0. `node scripts/build-jsbsim.mjs --contact` applies
+the original storage patch plus `native/jsbsim/patches/contact-impulse.patch`;
+the manifest records both hashes and native WASM exception mode. Aircraft XML
+remains local. Numerical acceptance is separate from measured aircraft fidelity.
+
+`jsb_apply_contact(handle,input,count=6,out,outCount=22)` takes aligned f64:
+origin-NED linear impulse N s at 0..2 and CG body-FRD angular impulse N m s at
+3..5. Input/output occupy 48/176 disjoint bytes. Invalid/stale handles, counts,
+alignment, bounds or overlap return -1; nonfinite input returns -2; nonfinite
+physics returns -4; unavailable contact or active built-in weight-on-wheels
+returns -5. Input validation precedes mutation. Exactly one application is
+allowed after a successful fixed step; repeats fail. Position, orientation and
+time are unchanged. The caller must solve constraints without integrating this
+airframe separately. A TASK-029 Rapier airframe step cannot be reintegrated.
+Loaded JSBSim gear owns active ground contact, excluding a second reaction.
+
+$$
+m_{kg}=m_{slug}{4.4482216152605\over0.3048},\quad I_{SI}=I_{slug\,ft^2}(4.4482216152605)(0.3048),\quad \Delta v_n=J_n/m_{kg},\quad \Delta\omega_b=I_{SI}^{-1}K_b.
+$$
+
+`FGPropagate::ApplyBodyImpulse` updates inertial velocity/body angular rate and
+derived body/local velocities/quaternion derivative. Position and quaternion
+derivative histories receive the same discontinuity, without allocation or
+Adams-Bashforth smearing; continuous-force acceleration histories remain intact.
+Published acceleration/specific force includes the impulse divided by dt as a
+sample-average diagnostic, never integrated again.
+This is a post-step split: continuous model forces are recomputed by the next
+ordinary JSBSim evaluation. No extra zero-time model run or higher-order external
+contact iteration is inserted; internal model sensors are not replayed mid-tick.
+
+`jsb_mass_properties(handle,out,count=10)` returns current kg and full row-major
+body inertia kg m², including fuel changes. `jsb_read_state(handle,out,count=22)`
+does not advance time. Cold `jsb_set_initial_state(handle,input,count=13)` accepts
+geocentric latitude/longitude rad, ASL m, roll/pitch/yaw rad, body velocity m/s, body rates
+rad/s, terrain ASL m. All values are finite; latitude/longitude bounds are pi/2
+and pi, altitude -1000..1000000 m. RunIC resets the fixed origin; changes after
+stepping are rejected. The adapter's 104-byte scratch region serially serves
+initial state, mass and impulse calls. Legacy control fields retain their meaning.
+
+At most 64 loaded gear entries, each with at most two friction multipliers, are
+supported. Multiplier, dense friction matrix and RHS capacities are reserved
+during cold load. Reusing/zeroing buffers preserves solver order and values;
+dynamic topology is unsupported. The contact build uses native WASM exceptions
+at compile/link time (`-fwasm-exceptions`), keeping exception/virtual-call
+trampolines out of JS. Unsupported runtimes fail at cold compilation; an
+allocating fallback cannot be certified. See [Emscripten exception support](https://emscripten.org/docs/porting/exceptions.html).
+The ordinary legacy build retains JavaScript exception support. Its initial
+contact GC run failed with 75 events per million steps; that report is retained.
+
+`jsb_allocator_probe`, `jsb_allocation_track`, `jsb_allocation_calls` and
+`jsb_allocation_bytes` instrument malloc/calloc/realloc, aligned allocation and
+C++ new/delete. The cold positive control detects an allocation then resets
+counters; never reset during measurement. Volatile counters prevent compiler
+folding across the linker's allocator rewrite. `JsbsimBackend.armHighRate`
+arms after setup/warmup and faults on a counted allocation. Dedicated memory,
+matching stable heap views, disjoint owned frames and external caller outputs
+are mandatory. These counters do not detect JS allocations; the GC gate is
+separate. Cold model reload/trim between bounded flight windows is excluded
+explicitly; stationary ground runs evolve continuously.
+
+`scripts/check-jsbsim-backend.mjs` compares native/WASM trim, step-control and
+impulse cases at 400/800/1200 Hz over ten seconds. Registered reference descriptor
+`airframes/jsbsim-backend-reference.json` predeclares 0.1 m position, 0.5 degree
+attitude, 0.1 m/s velocity, 1e-6 trim and 1e-8 N s momentum budgets. Stationary
+ground verifies speed <0.02 m/s, acceleration <0.05 m/s² and upward specific force
+(local equatorial gravity is about 9.78 m/s², not forced to 9.80665).
+`scripts/bench-jsbsim.mjs` runs the real adapter with a passive six-DOF support
+impulse (J=-m v, K=-I omega), no second pose/time integration, and separate
+JS GC/native allocator/allocating-control observations. These checks do not
+establish target-device real-time timing, model redistribution permission or
+measured calibration. The current adapter remains the explicit control/contact
+bridge; demo/flight-session selection and autopilot readiness are separate.
+
 Bridge handles are now generation-tagged tokens: low four bits select a slot,
 remaining bits identify its generation. Generation zero is invalid. Disposing a
 stale handle is a no-op; using it after a slot is reused cannot access the new

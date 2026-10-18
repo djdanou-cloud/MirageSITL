@@ -32,10 +32,14 @@ it("pins SI/FRD/NED output shape and rejects incompatible modules before aircraf
   expect(loaded).toBe(false);
 });
 
-it("keeps native smoke separate from trim and WASM acceptance", () => {
-  expect(acceptance.trimValidated).toBe(false);
-  expect(acceptance.wasmParityValidated).toBe(false);
-  expect(acceptance.status).toBe("blocked");
+it("records numerical acceptance separately from measured calibration and model redistribution", () => {
+  expect(acceptance.trimValidated).toBe(true);
+  expect(acceptance.wasmParityValidated).toBe(true);
+  expect(acceptance.contactValidated).toBe(true);
+  expect(acceptance.allocatorValidated).toBe(true);
+  expect(acceptance.measuredFidelityValidated).toBe(false);
+  expect(acceptance.modelDataIncluded).toBe(false);
+  expect(acceptance.status).toBe("numerical-pass");
 });
 
 // Boundary doubles validate adapter guards, not JSBSim physics or WASM parity.

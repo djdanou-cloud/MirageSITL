@@ -42,7 +42,7 @@
   "controlDetected": true,
   "positiveControl": {
     "steps": 2000000,
-    "bytes": -517240,
+    "bytes": -516696,
     "gcEvents": 62
   },
   "received": 22000000,

@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<testsuites name="vitest tests" tests="23" failures="0" errors="0" time="5.4172063">
+    <testsuite name="tests/documentation-policy.test.ts" timestamp="2026-10-18T13:44:26.293Z" hostname="DaduAsus" tests="6" failures="0" errors="0" skipped="0" time="4.6186881">
+        <testcase classname="tests/documentation-policy.test.ts" name="bilingual documentation policy &gt; accepts complete synchronized documents" time="1.4906422">
+        </testcase>
+        <testcase classname="tests/documentation-policy.test.ts" name="bilingual documentation policy &gt; rejects an English change without a translated mirror update" time="0.380096">
+        </testcase>
+        <testcase classname="tests/documentation-policy.test.ts" name="bilingual documentation policy &gt; rejects divergent TypeScript contracts even when the source hash is current" time="0.5312338">
+        </testcase>
+        <testcase classname="tests/documentation-policy.test.ts" name="bilingual documentation policy &gt; rejects static Cyrillic outside the Russian documentation directory" time="0.9163415">
+        </testcase>
+        <testcase classname="tests/documentation-policy.test.ts" name="bilingual documentation policy &gt; rejects a missing Russian mirror" time="0.3591739">
+        </testcase>
+        <testcase classname="tests/documentation-policy.test.ts" name="bilingual documentation policy &gt; rejects a cyclic backlog even when both languages and the hash agree" time="0.9395535">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/fixtures.test.ts" timestamp="2026-10-18T13:44:26.303Z" hostname="DaduAsus" tests="6" failures="0" errors="0" skipped="0" time="0.3710338">
+        <testcase classname="tests/fixtures.test.ts" name="versioned fixture provenance and random streams &gt; matches the frozen uint32 reference and resets exactly" time="0.0114307">
+        </testcase>
+        <testcase classname="tests/fixtures.test.ts" name="versioned fixture provenance and random streams &gt; keeps stream state separate and accepts zero seeds" time="0.0078405">
+        </testcase>
+        <testcase classname="tests/fixtures.test.ts" name="versioned fixture provenance and random streams &gt; verifies every registered fixture against its exact payload bytes" time="0.0151886">
+        </testcase>
+        <testcase classname="tests/fixtures.test.ts" name="versioned fixture provenance and random streams &gt; regenerates the NASA drop fixture byte-for-byte from the hashed archives" time="0.3324002">
+        </testcase>
+        <testcase classname="tests/fixtures.test.ts" name="versioned fixture provenance and random streams &gt; requires complete HTTPS measured provenance without a derivation" time="0.0015871">
+        </testcase>
+        <testcase classname="tests/fixtures.test.ts" name="versioned fixture provenance and random streams &gt; rejects wrong units, hashes, bounds, and synthetic relabeling" time="0.0011333">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/jsbsim-backend.test.ts" timestamp="2026-10-18T13:44:26.305Z" hostname="DaduAsus" tests="4" failures="0" errors="0" skipped="0" time="0.005435">
+        <testcase classname="tests/jsbsim-backend.test.ts" name="pins SI/FRD/NED output shape and rejects incompatible modules before aircraft loading" time="0.0026095">
+        </testcase>
+        <testcase classname="tests/jsbsim-backend.test.ts" name="records numerical acceptance separately from measured calibration and model redistribution" time="0.0002924">
+        </testcase>
+        <testcase classname="tests/jsbsim-backend.test.ts" name="allows cold trim once setup is valid, blocks it after stepping and disposes idempotently" time="0.0009196">
+        </testcase>
+        <testcase classname="tests/jsbsim-backend.test.ts" name="rejects mismatched heap views, unaligned allocations and frame allocation aliases" time="0.0005668">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/jsbsim-contact.test.ts" timestamp="2026-10-18T13:44:26.307Z" hostname="DaduAsus" tests="4" failures="0" errors="0" skipped="0" time="0.0083151">
+        <testcase classname="tests/jsbsim-contact.test.ts" name="freezes the additive contact byte frame without reusing legacy control fields" time="0.0034463">
+        </testcase>
+        <testcase classname="tests/jsbsim-contact.test.ts" name="applies at most one correctly framed impulse after each successful JSBSim step" time="0.002139">
+        </testcase>
+        <testcase classname="tests/jsbsim-contact.test.ts" name="requires dedicated memory and faults on a measured allocation without publishing truth" time="0.0010787">
+        </testcase>
+        <testcase classname="tests/jsbsim-contact.test.ts" name="rejects output and input aliases into module-owned memory" time="0.0002554">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/jsbsim-native.test.ts" timestamp="2026-10-18T13:44:26.308Z" hostname="DaduAsus" tests="3" failures="0" errors="0" skipped="0" time="0.4137343">
+        <testcase classname="tests/jsbsim-native.test.ts" name="rejects missing, truncated and false numerical/allocator native evidence" time="0.1794337">
+        </testcase>
+        <testcase classname="tests/jsbsim-native.test.ts" name="does not turn a missing source checkout into a successful native validation" time="0.0512423">
+        </testcase>
+        <testcase classname="tests/jsbsim-native.test.ts" name="rejects incomplete new backend captures before treating them as numerical or G1 evidence" time="0.181879">
+        </testcase>
+    </testsuite>
+</testsuites>
