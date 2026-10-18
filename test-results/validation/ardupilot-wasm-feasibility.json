@@ -3,7 +3,7 @@
   "kind": "ardupilot-wasm-feasibility",
   "status": "BLOCKED_EXTERNAL",
   "reasons": [
-    "No browser HAL/scheduler/storage/network port or native parity exists; POSIX SITL is not a browser artifact",
+    "Upstream wasm board builds and boots (TASK-045), but MirageSITL browser Worker integration, persistent storage, physics/time coupling (TASK-046), GPL review and native parity (TASK-047) are absent",
     "Emscripten compiler unavailable"
   ],
   "metrics": {},
@@ -18,6 +18,7 @@
     "license": false,
     "nativeParity": false
   },
+  "emscriptenVersion": null,
   "sources": [],
   "commit": "8ab6afde107a91df1b5f60ade8f333cb8a61b190"
 }

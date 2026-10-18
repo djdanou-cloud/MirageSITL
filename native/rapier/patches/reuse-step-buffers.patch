@@ -8,7 +8,7 @@
 +        bodies.modified_bodies = modified_bodies;
          removed_colliders.clear();
          self.counters.stages.user_changes.pause();
- 
+
 --- a/src/dynamics/solver/staged_island_solver/sync.rs
 +++ b/src/dynamics/solver/staged_island_solver/sync.rs
 @@ -60,6 +60,21 @@
@@ -32,13 +32,13 @@
 +            cursor.0.store(0, Ordering::Relaxed);
          }
      }
- 
+
 --- a/src/dynamics/solver/staged_island_solver/init.rs
 +++ b/src/dynamics/solver/staged_island_solver/init.rs
 @@ -18,7 +18,6 @@
  #[cfg(feature = "dim3")]
  use crate::dynamics::FrictionModel;
- 
+
 -use super::sync::StageSync;
  use super::worker::run_worker;
  use super::{
@@ -49,7 +49,7 @@
           */
 -        self.sync = StageSync::new(num_workers);
 +        self.sync.reset(num_workers);
- 
+
          let ctx = SharedCtx {
              sync: &self.sync,
 --- a/src/geometry/narrow_phase/mod.rs
@@ -88,14 +88,14 @@
              pair_update::process_pair(
 @@ -180,7 +182,10 @@
          }
- 
+
          #[cfg(not(feature = "parallel"))]
 -        self.apply_pair_transitions(&mut transitions, islands, bodies, colliders, events);
 +        {
 +            self.apply_pair_transitions(&mut transitions, islands, bodies, colliders, events);
 +            self.pair_transitions = transitions;
 +        }
- 
+
          #[cfg(feature = "parallel")]
          {
 --- a/src/geometry/narrow_phase/contacts.rs
@@ -108,3 +108,38 @@
  use crate::alloc_prelude::*;
  use crate::dynamics::{
      ImpulseJointSet, IntegrationParameters, IslandManager, MultibodyJointSet, RigidBodySet,
+--- a/src/dynamics/joint/impulse_joint/impulse_joint_set.rs
++++ b/src/dynamics/joint/impulse_joint/impulse_joint_set.rs
+@@ -80,5 +80,8 @@
+     #[cfg_attr(feature = "serde-serialize", serde(skip))]
+     selection_epochs: Option<(u32, u32)>,
++    /// Reusable deterministic joint-selection workspace.
++    #[cfg_attr(feature = "serde-serialize", serde(skip))]
++    selection_candidates: Vec<u32>,
+ }
+
+ impl ImpulseJointSet {
+@@ -98,5 +101,6 @@
+             assembly_epoch: 0,
+             selection_epochs: None,
++            selection_candidates: Vec::new(),
+         }
+     }
+
+@@ -574,6 +578,7 @@
+         // selected below has at least one awake dynamic/kinematic body, so the neighborhood walk
+         // is exhaustive — and much smaller when most of the scene is asleep.
+-        let mut candidates: Vec<u32> = Vec::new();
++        let mut candidates = core::mem::take(&mut self.selection_candidates);
++        candidates.clear();
+
+         // When most bodies are awake, walking the graph adjacency (pointer-chasing) and sorting
+         // costs more than the linear edge scan it replaces — just visit every joint and let the
+@@ -633,6 +638,7 @@
+                 out.push(i);
+             }
+         }
++        self.selection_candidates = candidates;
+     }
+
+     /// Removes a joint from the world.

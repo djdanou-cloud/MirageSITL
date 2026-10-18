@@ -7,6 +7,16 @@ Read this file **before every iteration**, then the selected TASK in
 [SPECS_SIMULATION_ENGINES.md](docs/SPECS_SIMULATION_ENGINES.md), and current code.
 User instructions and execution-environment restrictions take precedence.
 
+TASK-029 completion on 2026-10-18 supersedes the historical contact allocation
+blockers below: the verified direct f64 Rapier C ABI passes native/WASM G1,
+synthetic compliance/contact checks and browser Worker execution. Build it with
+`node scripts/build-contact.mjs`; cold-initialize `GroundContact` with its bytes
+and manifest. `node scripts/check-contact-binding.mjs` records same-source parity
+and nine million native steps; unit tests separately count nine million WASM
+steps. NASA measured fidelity was explicitly deferred by the user; preserve its
+archived failing legacy comparison. This does not certify aircraft calibration,
+arbitrary terrain, target-device timing or a complete JSBSim/BET flight backend.
+
 ## 1. Mandatory repository language
 
 All source code, TypeScript types, identifiers, inline comments, log/error/UI

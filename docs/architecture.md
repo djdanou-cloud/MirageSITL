@@ -578,6 +578,88 @@ contact impulse is diagnostic, not authorization to integrate the same body
 again with RK4. Full airframe landing-gear contacts and allocation-free bindings
 remain open. `highRateCertified=false` prevents an acceptance claim.
 
+### Completed contact implementation (TASK-029, 2026-10-18)
+
+The later direct f64 C ABI supersedes the historical wrapper/allocation blocker
+below. `GroundContact.initialize` verifies the generated manifest and bytes;
+each session owns a fixed 16 MiB WASM world with 0..8 unsprung wheel bodies,
+independent strut/tire forces, prismatic travel stops and rigid rim constraints.
+One Rapier solver advances all bodies. A complete angular contact impulse
+accompanies the linear impulse because multiple contacts cannot be represented
+by a single lever arm. The detailed ABI and limitations are in the engine spec.
+
+The storage-only patch additionally retains the joint-selection candidate
+buffer. Cold initialization exercises repeated contact at all three rates;
+an armed allocator counter permanently faults the session on any allocation.
+The adapter has no provider wrappers or per-step typed-array views.
+`scripts/check-contact-binding.mjs` runs nine million native steps and compares
+native/WASM captures for 0/3/8 wheels at 400/800/1200 Hz. The separate WASM G1
+test runs nine million steps. Browser Worker and Node GC checks cover their
+actual runtime paths; these are numerical/allocation evidence, not target-device
+real-time performance acceptance.
+
+The user explicitly deferred NASA measured fidelity on 2026-10-18. Archived
+NASA sources and the failed sphere comparison remain intact through
+`LegacyGroundContact`, used only by that historical diagnostic. The completed
+TASK-029 scope is a numerically verified configurable contact model, not a
+calibrated aircraft or reconstructed NASA rig. Rolling/braking is a passive
+kinematic approximation; wheel spin, anti-skid, steering and arbitrary terrain
+topology remain separate capabilities. No demo/autopilot readiness gate changes.
+
+### Compliant gear source decision (TASK-029, 2026-10-18)
+
+Use complementary sources rather than importing another full simulation engine:
+
+* **Physical decomposition:** Norman S. Currey, *Aircraft Landing Gear Design:
+  Principles and Practices* (1988), chapters 5–6, especially sections 5.7, 5.11
+  and 6.3–6.9. The supplied `AircraftLandingGearDesignPrinciplesPractices.md`
+  has SHA-256 bb8275e99f3a8962ab01d3102b2fa8fbfe29e9502209fca6e422c74046e9f6b4.
+  It explains gas storage, hydraulic dissipation and separate tire deformation.
+  OCR omits equations and corrupts some numbers; do not reconstruct missing
+  formulas from OCR guesses or treat illustrative aircraft values as calibration.
+  The copyrighted book stays local and is explicitly ignored by Git.
+* **Measured acceptance:** the already archived NASA TM X-3561 remains the
+  independent drop-rig reference. Its upper/hub masses, simulated lift and
+  hydraulic/pneumatic/tire terms describe a coupled system. A single spring or
+  an arbitrary pair of coefficients is not a reconstruction of that experiment.
+* **Aircraft implementation reference:** [JSBSim v1.2.3 FGLGear.cpp](https://github.com/JSBSim-Team/jsbsim/blob/570e8115a102df8f877b11e0e59b964ea483e3c0/src/models/FGLGear.cpp)
+  and its header define separate compression/rebound damping, unit conversions,
+  outward ground reactions and body lever moments. Retain these conventions;
+  its default lumped spring/damper is not a separate tire/unsprung-mass model.
+  Local cpp/header SHA-256: 402ed31fdae58951c6e8d10cc408a2236f239f1e0111d711aad3ed9786d74f48 /
+  3f3f053c76e10ff8f25c5fe0b068f76f01735fd02eace05ff1272b7fe0b611d0.
+* **Tire design reference:** [Chrono tire models](https://api.chrono.projectchrono.org/wheeled_tire.html)
+  support explicit nonlinear vertical load curves and distinguish normal contact
+  from rolling/slip dynamics. The [9.0.0 Fiala implementation](https://github.com/projectchrono/chrono/blob/9.0.0/src/chrono_vehicle/wheeled_vehicle/tire/ChFialaTire.cpp)
+  also prevents tensile ground reactions. Use the bounded curve concept now;
+  importing the complete engine or assuming its road-vehicle parameters describe
+  aircraft tires is not justified. FEA tires add complexity without acceptance
+  data or a measured 400–1200 Hz budget for this application.
+* **Integration references only:** [ArduPilot SIM_Aircraft.cpp](https://github.com/ArduPilot/ardupilot/blob/master/libraries/SITL/SIM_Aircraft.cpp)
+  constrains ground height/acceleration and selected motion modes. Those rules
+  are useful for SITL expectations, not a force/stroke oracle. Local file SHA-256:
+  28755ff6f5cb5c391a99ed782bab57695f71c41c502805cf326a4f5f8466c29a.
+  [Gazebo WheelSlip](https://gazebosim.org/api/sim/8/classgz_1_1sim_1_1systems_1_1WheelSlip.html)
+  controls tangential slip compliance using wheel speed and normal load; it does
+  not provide an oleo strut or a vertical drop model. Revisit it for wheel-spin,
+  braking and lateral slip after vertical compliance is validated.
+
+The resulting increment is independently written Rust force/energy evaluation
+in `native/bet/src/landing_gear.rs`; no external runtime dependency or copied
+upstream implementation is introduced. Gas/linear struts and tire curves are
+separate components. Strut stroke, tire deflection and terrain penetration must
+be distinct state variables supplied by the owning solver. A ground-wrench helper
+rotates NED forces into body FRD and applies the lever moment without integrating
+state. Rapier remains the chosen rigid-body integration owner; the demo and its
+readiness gates remain unchanged. The scalar/SIMD test exports do not add a
+production landing-gear ABI.
+
+Next requirements are a bounded wheel/strut topology and stop reactions in the
+single owning solver, the complete source-backed NASA rig (including lift and
+the relevant tire/strut curves), and an actually measured allocation-free
+production JS/WASM binding. Passing these force kernels alone cannot close
+TASK-029 or unblock TASK-031 contact acceptance.
+
 Native motor/battery/frame/RK4 references and the independent body ABI v1 now
 exist. A dedicated WASM instance owns each body arena. The body adapter accepts
 an already aggregated body wrench; the full rotor/polar/power feedback backend

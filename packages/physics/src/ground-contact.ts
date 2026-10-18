@@ -1,232 +1,261 @@
-import RAPIER from "./contact-engine.ts";
 import type { BodyTruth } from "@mirage/wasm-bet/backend";
 import type { ContactBackend, ContactImpulse } from "./contact-backend";
-/** Rapier sphere-on-plane reference. No parallel native RK4 integration.
- * Uses reusable JS targets and raw vectors. Native allocator certification remains open.
+interface Exports {
+    memory: WebAssembly.Memory;
+    contact_abi_version(): number;
+    contact_config_ptr(): number;
+    contact_input_ptr(): number;
+    contact_output_ptr(): number;
+    contact_initialize(): number;
+    contact_step(): number;
+    contact_dispose(): void;
+    contact_allocation_calls(): number;
+    contact_allocation_bytes(): number;
+}
+function exportsValid(v: WebAssembly.Exports): v is WebAssembly.Exports & Exports {
+    return v.memory instanceof WebAssembly.Memory && ["contact_abi_version", "contact_config_ptr", "contact_input_ptr",
+        "contact_output_ptr", "contact_initialize", "contact_step", "contact_dispose", "contact_allocation_calls",
+        "contact_allocation_bytes"].every(name => typeof v[name] === "function");
+}
+function record(v: unknown): v is Record<string, unknown> { return typeof v === "object" && v !== null && !Array.isArray(v); }
+export interface LinearSuspension {
+    readonly kind: "linear";
+    readonly stiffnessNpm: number;
+    readonly preloadN: number;
+    readonly compressionDamping: number;
+    readonly reboundDamping: number;
+    readonly dampingLaw: "linear" | "square";
+}
+export interface GasSuspension {
+    readonly kind: "gas";
+    readonly gasAreaM2: number;
+    readonly volumeM3: number;
+    readonly chargeAbsolutePa: number;
+    readonly ambientAbsolutePa: number;
+    readonly exponent: number;
+    readonly hydraulicAreaM2: number;
+    readonly fluidDensityKgM3: number;
+    readonly dischargeCoefficient: number;
+    readonly compressionOrificeM2: number;
+    readonly reboundOrificeM2: number;
+}
+export interface ContactWheel {
+    /** Fully extended wheel center relative to CG, body FRD metres. */
+    readonly anchorBodyM: readonly [
+        number,
+        number,
+        number
+    ];
+    readonly unsprungMassKg: number;
+    readonly tireRadiusM: number;
+    readonly rimRadiusM: number;
+    readonly strutTravelM: number;
+    readonly suspension: LinearSuspension | GasSuspension;
+    readonly tireLoadCurve: readonly (readonly [
+        number,
+        number
+    ])[];
+    readonly tireDampingNsPm: number;
+    readonly rollingCoefficient: number;
+    readonly lateralCoefficient: number;
+    readonly brakingCoefficient: number;
+}
+export interface ContactOptions {
+    readonly inertiaDiagonalKgM2?: readonly [
+        number,
+        number,
+        number
+    ];
+    readonly groundNormalNed?: readonly [
+        number,
+        number,
+        number
+    ];
+    readonly groundOffsetM?: number;
+    readonly wheels?: readonly ContactWheel[];
+}
+/** Isolated fixed-topology f64 Rapier world. Prismatic strut stops, separate tire
+ * compliance, one integration owner. Rolling is kinematic; no wheel-spin model.
+ * Allocation during step faults the instance rather than granting admission.
  */
 export class GroundContact implements ContactBackend {
-  readonly integrationOwner = "rapier" as const;
-  readonly highRateCertified = false;
-  private readonly world: RAPIER.World;
-  private readonly body: RAPIER.RigidBody;
-  private readonly force = new RAPIER.Vector3(0.1, 0.1, 0.1);
-  private readonly torque = new RAPIER.Vector3(0.1, 0.1, 0.1);
-  private readonly rotation = new RAPIER.Quaternion(0.1, 0.1, 0.1, 0.1);
-  private readonly previousVelocity = new RAPIER.Vector3(0.1, 0.1, 0.1);
-  private readonly position = new RAPIER.Vector3(0.1, 0.1, 0.1);
-  private readonly velocity = new RAPIER.Vector3(0.1, 0.1, 0.1);
-  private readonly angularVelocity = new RAPIER.Vector3(0.1, 0.1, 0.1);
-  private readonly rawForce: ReturnType<typeof RAPIER.VectorOps.intoRaw>;
-  private readonly rawTorque: ReturnType<typeof RAPIER.VectorOps.intoRaw>;
-  private readonly rawGravity: ReturnType<typeof RAPIER.VectorOps.intoRaw>;
-  private disposed = false;
-  private readonly impulse = new Float64Array(3);
-  private lastDt = 0;
-  private readonly lastQ = new Float64Array([1, 0, 0, 0]);
-  private readonly mass: number;
-  private readonly radius: number;
-  // Plain fields instead of parameter properties keep this module loadable by
-  // Node type stripping (scripts/validate-models.mjs runs the NASA drop case).
-  private constructor(
-    state: BodyTruth,
-    mass: number,
-    radius: number,
-    restitution: number,
-    friction: number,
-  ) {
-    this.mass = mass;
-    this.radius = radius;
-    this.world = new RAPIER.World({ x: 0, y: 0, z: 9.80665 });
-    this.world.numSolverIterations = 8;
-    this.world.physicsPipeline.raw.set_profiler_enabled(false);
-    this.rawForce = RAPIER.VectorOps.intoRaw(this.force);
-    this.rawTorque = RAPIER.VectorOps.intoRaw(this.torque);
-    this.rawGravity = RAPIER.VectorOps.intoRaw(this.world.gravity);
-    const ground = this.world.createRigidBody(
-      RAPIER.RigidBodyDesc.fixed().setTranslation(0, 0, 0.5),
-    );
-    this.world.createCollider(
-      RAPIER.ColliderDesc.cuboid(10000, 10000, 0.5)
-        .setFriction(friction)
-        .setRestitution(restitution),
-      ground,
-    );
-    const q = state.quaternionBodyToNed;
-    this.body = this.world.createRigidBody(
-      RAPIER.RigidBodyDesc.dynamic()
-        .setTranslation(
-          state.positionNedM[0]!,
-          state.positionNedM[1]!,
-          state.positionNedM[2]!,
-        )
-        .setRotation({ w: q[0]!, x: q[1]!, y: q[2]!, z: q[3]! })
-        .setLinvel(
-          state.velocityNedMps[0]!,
-          state.velocityNedMps[1]!,
-          state.velocityNedMps[2]!,
-        ),
-    );
-    const omega = state.angularVelocityBodyRadS;
-    this.rotateWrench(
-      omega,
-      0,
-      { w: q[0]!, x: q[1]!, y: q[2]!, z: q[3]! },
-      this.torque,
-    );
-    this.body.setAngvel(this.torque, false);
-    this.world.createCollider(
-      RAPIER.ColliderDesc.ball(radius)
-        .setMass(mass)
-        .setFriction(friction)
-        .setRestitution(restitution),
-      this.body,
-    );
-  }
-  static async create(
-    state: BodyTruth,
-    mass = 1,
-    radius = 0.1,
-    restitution = 0,
-    friction = 0.7,
-  ): Promise<GroundContact> {
-    if (
-      ![mass, radius, restitution, friction].every(Number.isFinite) ||
-      mass <= 0 ||
-      radius <= 0 ||
-      restitution < 0 ||
-      restitution > 1 ||
-      friction < 0 ||
-      state.positionNedM.length !== 3 ||
-      state.velocityNedMps.length !== 3 ||
-      state.quaternionBodyToNed.length !== 4 ||
-      state.angularVelocityBodyRadS.length !== 3 ||
-      ![
-        ...state.positionNedM,
-        ...state.velocityNedMps,
-        ...state.quaternionBodyToNed,
-        ...state.angularVelocityBodyRadS,
-      ].every(Number.isFinite) ||
-      Math.abs(Math.hypot(...state.quaternionBodyToNed) - 1) > 1e-6
-    )
-      throw new Error("Invalid contact configuration");
-    await RAPIER.init();
-    return new GroundContact(state, mass, radius, restitution, friction);
-  }
-  private rotateWrench(
-    w: Float64Array,
-    offset: number,
-    q: { w: number; x: number; y: number; z: number },
-    target: { x: number; y: number; z: number },
-  ): void {
-    const x = w[offset]!,
-      y = w[offset + 1]!,
-      z = w[offset + 2]!,
-      tx = 2 * (q.y * z - q.z * y),
-      ty = 2 * (q.z * x - q.x * z),
-      tz = 2 * (q.x * y - q.y * x);
-    target.x = x + q.w * tx + q.y * tz - q.z * ty;
-    target.y = y + q.w * ty + q.z * tx - q.x * tz;
-    target.z = z + q.w * tz + q.x * ty - q.y * tx;
-  }
-  stepInto(w: Float64Array, dt: number, out: BodyTruth): boolean {
-    if (
-      this.disposed ||
-      out.positionNedM.length !== 3 ||
-      out.velocityNedMps.length !== 3 ||
-      out.quaternionBodyToNed.length !== 4 ||
-      out.angularVelocityBodyRadS.length !== 3 ||
-      out.accelerationNedMps2.length !== 3 ||
-      w.length !== 6 ||
-      (dt !== 1 / 400 && dt !== 1 / 800 && dt !== 1 / 1200)
-    )
-      return false;
-    for (let i = 0; i < 6; i++) if (!Number.isFinite(w[i])) return false;
-    const q = this.body.rotation(this.rotation),
-      before = this.body.linvel(this.previousVelocity);
-    this.rotateWrench(w, 0, q, this.force);
-    this.rotateWrench(w, 3, q, this.torque);
-    this.body.resetForces(false);
-    this.body.resetTorques(false);
-    this.rawForce.x = this.force.x;
-    this.rawForce.y = this.force.y;
-    this.rawForce.z = this.force.z;
-    this.rawTorque.x = this.torque.x;
-    this.rawTorque.y = this.torque.y;
-    this.rawTorque.z = this.torque.z;
-    this.world.bodies.raw.rbAddForce(this.body.handle, this.rawForce, true);
-    this.world.bodies.raw.rbAddTorque(this.body.handle, this.rawTorque, true);
-    this.world.timestep = dt;
-    // Fixed rigid-body topology: no soft bodies, tearing, hooks or dynamic mapping.
-    // The raw pipeline avoids World.step's per-step gravity wrapper allocation.
-    const world = this.world;
-    world.physicsPipeline.raw.step(
-      this.rawGravity,
-      world.integrationParameters.raw,
-      world.islands.raw,
-      world.broadPhase.raw,
-      world.narrowPhase.raw,
-      world.bodies.raw,
-      world.colliders.raw,
-      world.softBodies.raw,
-      world.impulseJoints.raw,
-      world.multibodyJoints.raw,
-      world.ccdSolver.raw,
-    );
-    const p = this.body.translation(this.position),
-      v = this.body.linvel(this.velocity),
-      r = this.body.rotation(this.rotation),
-      omega = this.body.angvel(this.angularVelocity);
-    this.impulse[0] = this.mass * (v.x - before.x) - this.force.x * dt;
-    this.impulse[1] = this.mass * (v.y - before.y) - this.force.y * dt;
-    this.impulse[2] =
-      this.mass * (v.z - before.z) - (this.force.z + this.mass * 9.80665) * dt;
-    this.lastDt = dt;
-    out.positionNedM[0] = p.x;
-    out.positionNedM[1] = p.y;
-    out.positionNedM[2] = p.z;
-    out.velocityNedMps[0] = v.x;
-    out.velocityNedMps[1] = v.y;
-    out.velocityNedMps[2] = v.z;
-    out.quaternionBodyToNed[0] = r.w;
-    out.quaternionBodyToNed[1] = r.x;
-    out.quaternionBodyToNed[2] = r.y;
-    out.quaternionBodyToNed[3] = r.z;
-    // Rapier angular velocity is in world axes; convert to body FRD.
-    const tx = 2 * (-r.y * omega.z + r.z * omega.y),
-      ty = 2 * (-r.z * omega.x + r.x * omega.z),
-      tz = 2 * (-r.x * omega.y + r.y * omega.x);
-    out.angularVelocityBodyRadS[0] = omega.x + r.w * tx - r.y * tz + r.z * ty;
-    out.angularVelocityBodyRadS[1] = omega.y + r.w * ty - r.z * tx + r.x * tz;
-    out.angularVelocityBodyRadS[2] = omega.z + r.w * tz - r.x * ty + r.y * tx;
-    this.lastQ[0] = r.w;
-    this.lastQ[1] = r.x;
-    this.lastQ[2] = r.y;
-    this.lastQ[3] = r.z;
-    out.accelerationNedMps2[0] = (v.x - before.x) / dt;
-    out.accelerationNedMps2[1] = (v.y - before.y) / dt;
-    out.accelerationNedMps2[2] = (v.z - before.z) / dt;
-    return true;
-  }
-  impulseInto(out: ContactImpulse): void {
-    out.impulseNed.set(this.impulse);
-    out.dt = this.lastDt;
-    const q = this.lastQ,
-      x = -q[1]!,
-      y = -q[2]!,
-      z = -q[3]!,
-      w = q[0]!,
-      tx = 2 * y * this.radius,
-      ty = -2 * x * this.radius;
-    out.pointBody[0] = w * tx - z * ty;
-    out.pointBody[1] = w * ty + z * tx;
-    out.pointBody[2] = this.radius + x * ty - y * tx;
-  }
-  dispose(): void {
-    if (this.disposed) return;
-    this.disposed = true;
-    this.rawForce.free();
-    this.rawTorque.free();
-    this.rawGravity.free();
-    this.world.free();
-  }
+    private static artifact: WebAssembly.Module | undefined;
+    readonly integrationOwner = "rapier" as const;
+    readonly highRateCertified = true;
+    private readonly buffer: ArrayBuffer;
+    private readonly heap: Float64Array;
+    private readonly input: number;
+    private readonly output: number;
+    private disposed = false;
+    private lastDt = 0;
+    private status = 0;
+    readonly wheelCount: number;
+    /** Cold host setup from build manifest plus actual bytes; no step-time I/O. */
+    static async initialize(bytes: Uint8Array<ArrayBuffer>, manifest: unknown): Promise<void> {
+        if (!record(manifest) || manifest.schemaVersion !== 1 || manifest.abiVersion !== 1 || manifest.precision !== "f64" ||
+            manifest.sourceCommit !== "b716d375efc0201003f0cd9ef7168eee0b62c177" || manifest.engineVersion !== "0.36.0" ||
+            manifest.memoryBytes !== 16777216 || manifest.bytes !== bytes.byteLength || typeof manifest.sha256 !== "string")
+            throw new Error("Invalid contact artifact manifest");
+        const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", bytes));
+        if (Array.from(digest, b => b.toString(16).padStart(2, "0")).join("") !== manifest.sha256)
+            throw new Error("Contact artifact checksum mismatch");
+        const compiled = await WebAssembly.compile(bytes);
+        if (WebAssembly.Module.imports(compiled).length !== 0)
+            throw new Error("Contact artifact has host imports");
+        this.artifact = compiled;
+    }
+    static async create(state: BodyTruth, mass = 1, radius = 0.1, restitution = 0, friction = 0.7, options: ContactOptions = {}): Promise<GroundContact> {
+        if (!this.artifact)
+            throw new Error("Initialize the verified contact artifact before creating a session");
+        const instance = await WebAssembly.instantiate(this.artifact, {});
+        if (!exportsValid(instance.exports) || instance.exports.contact_abi_version() !== 1)
+            throw new Error("Invalid contact ABI exports");
+        return new GroundContact(instance.exports, state, mass, radius, restitution, friction, options);
+    }
+    private constructor(private readonly module: Exports, state: BodyTruth, mass: number, radius: number, restitution: number, friction: number, options: ContactOptions) {
+        const memory = module.memory.buffer;
+        if (!(memory instanceof ArrayBuffer) || memory.byteLength !== 16777216)
+            throw new Error("Invalid contact memory");
+        this.buffer = memory;
+        this.heap = new Float64Array(memory);
+        const config = module.contact_config_ptr(), input = module.contact_input_ptr(), output = module.contact_output_ptr();
+        const regions: readonly (readonly [
+            number,
+            number
+        ])[] = [[config, 1312 * 8], [input, 16 * 8], [output, 96 * 8]];
+        for (let i = 0; i < regions.length; i++) {
+            const a = regions[i];
+            if (!a)
+                throw new Error("Missing contact region");
+            if (!Number.isSafeInteger(a[0]) || a[0] <= 0 || a[0] % 8 !== 0 || a[0] + a[1] > memory.byteLength)
+                throw new Error("Invalid contact region");
+            for (let j = 0; j < i; j++) {
+                const b = regions[j];
+                if (b && a[0] < b[0] + b[1] && b[0] < a[0] + a[1])
+                    throw new Error("Overlapping contact regions");
+            }
+        }
+        this.input = input / 8;
+        this.output = output / 8;
+        this.wheelCount = options.wheels?.length ?? 0;
+        if (this.wheelCount > 8 || state.positionNedM.length !== 3 || state.velocityNedMps.length !== 3 ||
+            state.quaternionBodyToNed.length !== 4 || state.angularVelocityBodyRadS.length !== 3)
+            throw new Error("Invalid contact configuration");
+        const c = new Float64Array(memory, config, 1312);
+        c.fill(0);
+        c[0] = 1;
+        c[2] = mass;
+        c[3] = radius;
+        c[4] = restitution;
+        c[5] = friction;
+        c.set(state.positionNedM, 6);
+        c.set(state.velocityNedMps, 9);
+        c.set(state.quaternionBodyToNed, 12);
+        c.set(state.angularVelocityBodyRadS, 16);
+        const inertia = 0.4 * mass * radius * radius;
+        c.set(options.inertiaDiagonalKgM2 ?? [inertia, inertia, inertia], 19);
+        c.set(options.groundNormalNed ?? [0, 0, -1], 22);
+        c[25] = options.groundOffsetM ?? 0;
+        c[26] = 9.80665;
+        c[27] = this.wheelCount;
+        for (let i = 0; i < this.wheelCount; i++) {
+            const w = options.wheels?.[i];
+            if (!w || w.tireLoadCurve.length < 2 || w.tireLoadCurve.length > 64)
+                throw new Error("Invalid tire curve");
+            const b = 32 + i * 160;
+            c.set(w.anchorBodyM, b);
+            c[b + 3] = w.unsprungMassKg;
+            c[b + 4] = w.tireRadiusM;
+            c[b + 5] = w.rimRadiusM;
+            c[b + 6] = w.strutTravelM;
+            const s = w.suspension;
+            if (s.kind === "linear") {
+                c[b + 8] = s.stiffnessNpm;
+                c[b + 9] = s.preloadN;
+                c[b + 10] = s.compressionDamping;
+                c[b + 11] = s.reboundDamping;
+                c[b + 12] = s.dampingLaw === "square" ? 1 : 0;
+            }
+            else {
+                c[b + 7] = 1;
+                c.set([s.gasAreaM2, s.volumeM3, s.chargeAbsolutePa, s.ambientAbsolutePa, s.exponent, s.hydraulicAreaM2,
+                    s.fluidDensityKgM3, s.dischargeCoefficient, s.compressionOrificeM2, s.reboundOrificeM2], b + 18);
+            }
+            c[b + 13] = w.rollingCoefficient;
+            c[b + 14] = w.lateralCoefficient;
+            c[b + 15] = w.brakingCoefficient;
+            c[b + 16] = w.tireDampingNsPm;
+            c[b + 17] = w.tireLoadCurve.length;
+            for (let j = 0; j < w.tireLoadCurve.length; j++) {
+                const p = w.tireLoadCurve[j];
+                if (!p)
+                    throw new Error("Missing tire knot");
+                c[b + 32 + j] = p[0];
+                c[b + 96 + j] = p[1];
+            }
+        }
+        const result = module.contact_initialize();
+        if (result !== 0)
+            throw new Error("Contact initialization failed (" + result + ")");
+    }
+    get lastStatus(): number { return this.status; }
+    get allocationCalls(): number { return this.module.contact_allocation_calls(); }
+    get allocationBytes(): number { return this.module.contact_allocation_bytes(); }
+    stepInto(w: Float64Array, dt: number, out: BodyTruth, brakes?: Float64Array): boolean {
+        if (this.disposed || this.module.memory.buffer !== this.buffer || w.length !== 6 ||
+            (dt !== 1 / 400 && dt !== 1 / 800 && dt !== 1 / 1200) || out.positionNedM.length !== 3 || out.velocityNedMps.length !== 3 ||
+            out.quaternionBodyToNed.length !== 4 || out.angularVelocityBodyRadS.length !== 3 || out.accelerationNedMps2.length !== 3 ||
+            out.positionNedM.buffer === this.buffer || out.velocityNedMps.buffer === this.buffer || out.quaternionBodyToNed.buffer === this.buffer ||
+            out.angularVelocityBodyRadS.buffer === this.buffer || out.accelerationNedMps2.buffer === this.buffer || (brakes && brakes.length !== this.wheelCount))
+            return false;
+        for (let i = 0; i < 6; i++)
+            if (!Number.isFinite(w[i]))
+                return false;
+        for (let i = 0; i < this.wheelCount; i++)
+            if (brakes && (!Number.isFinite(brakes[i]) || brakes[i]! < 0 || brakes[i]! > 1))
+                return false;
+        const h = this.heap, input = this.input, o = this.output;
+        for (let i = 0; i < 6; i++)
+            h[input + i] = w[i]!;
+        for (let i = 0; i < 8; i++)
+            h[input + 6 + i] = brakes?.[i] ?? 0;
+        h[input + 14] = dt;
+        h[input + 15] = 0;
+        this.status = this.module.contact_step();
+        if (this.status !== 0 || this.module.memory.buffer !== this.buffer)
+            return false;
+        for (let i = 0; i < 3; i++) {
+            out.positionNedM[i] = h[o + i]!;
+            out.velocityNedMps[i] = h[o + 3 + i]!;
+            out.angularVelocityBodyRadS[i] = h[o + 10 + i]!;
+            out.accelerationNedMps2[i] = h[o + 13 + i]!;
+        }
+        for (let i = 0; i < 4; i++)
+            out.quaternionBodyToNed[i] = h[o + 6 + i]!;
+        this.lastDt = dt;
+        return true;
+    }
+    impulseInto(out: ContactImpulse): void {
+        for (let i = 0; i < 3; i++) {
+            out.impulseNed[i] = this.heap[this.output + 16 + i]!;
+            out.pointBody[i] = this.heap[this.output + 22 + i]!;
+            if (out.momentBodyNms)
+                out.momentBodyNms[i] = this.heap[this.output + 19 + i]!;
+        }
+        out.dt = this.lastDt;
+    }
+    /** compression m, tire deflection m, tire force N, strut force N, rim-overlap
+     * diagnostic m, raw strut compression m, wheel-plane distance m, reserved.
+     * Raw values expose solver overlap instead of hiding it behind force limits. */
+    wheelStateInto(index: number, out: Float64Array): boolean {
+        if (this.disposed || !Number.isInteger(index) || index < 0 || index >= this.wheelCount || out.length !== 8 || out.buffer === this.buffer)
+            return false;
+        for (let i = 0; i < 8; i++)
+            out[i] = this.heap[this.output + 32 + index * 8 + i]!;
+        return true;
+    }
+    dispose(): void { if (!this.disposed) {
+        this.disposed = true;
+        this.module.contact_dispose();
+    } }
 }

@@ -10,6 +10,7 @@ use mirage_bet::{
     motor::Motor,
     polar::PolarTable,
     rigid_body::{BodyParameters, BodyState},
+    landing_gear::{GasStrut, TireCurve, ground_wrench},
     shaft::Shaft,
     Vec3,
 };
@@ -114,6 +115,16 @@ fn all_scalar_kernels_allocate_zero_over_one_million_steps() {
     let mut velocity = 0.0;
     let mut omega = 10.0;
     let mut previous = angular_momentum(0.2, 1, omega, flap).unwrap();
+    let gear = GasStrut::new(0.01,0.01,300_000.0,100_000.0,1.4,0.5,
+        0.005,850.0,0.7,0.0001,0.00005).unwrap();
+    let tire_x = [0.0,0.01,0.03];
+    let tire_f = [0.0,100.0,500.0];
+    let tire = TireCurve::new(&tire_x,&tire_f,50.0).unwrap();
+    // Warm the force-law functions before counting the actual numerical calls.
+    for _ in 0..1000 {
+        black_box(gear.evaluate(0.1,0.2).unwrap());
+        black_box(tire.evaluate(0.02,0.2).unwrap());
+    }
     // Positive control proves this thread's allocator instrument sees real objects.
     TRACK.with(|t| t.set(true));
     let probe = Box::new(black_box(123_u64));
@@ -124,7 +135,12 @@ fn all_scalar_kernels_allocate_zero_over_one_million_steps() {
     CALLS.store(0, Ordering::Relaxed);
     BYTES.store(0, Ordering::Relaxed);
     TRACK.with(|t| t.set(true));
-    for _ in 0..1_000_000 {
+    for i in 0..1_000_000 {
+        let x = 0.01 + (i & 1) as f64 * 0.001;
+        black_box(gear.evaluate(x,0.2).unwrap());
+        let support = tire.evaluate(x,0.2).unwrap();
+        black_box(ground_wrench(Vec3::new(0.0,1.0,1.0),[1.0,0.0,0.0,0.0],
+            Vec3::new(0.0,0.0,-1.0),support.load_n,Vec3::new(2.0,0.0,0.0),0.5,0.1).unwrap());
         let mo = motor.step(duty, 0.3, 12.0, omega, false, 0.0025).unwrap();
         duty = mo.duty;
         soc = battery

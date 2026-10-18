@@ -7,3 +7,5 @@ playwright-report/
 .DS_Store
 build.log
 native/target/
+# User-supplied copyrighted engineering reference; keep local.
+/AircraftLandingGearDesignPrinciplesPractices.md

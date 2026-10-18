@@ -8,6 +8,42 @@ use crate::{
     shaft::Shaft,
     Vec3,
 };
+
+/// Synthetic compliance harness: kinds 0..2 gas load/energy/loss, 3..5 tire
+/// load/energy/loss, 6 linear-strut load, 7 ground friction X, 8 moment X.
+/// For count>1, compression alternates x and x+0.001 m. No body integration.
+#[no_mangle]
+pub extern "C" fn bet_test_landing(kind: u32, x: f64, rate: f64, count: u32) -> f64 {
+    use crate::landing_gear::{Damping, DampingLaw, GasStrut, LinearStrut, TireCurve, ground_wrench};
+    if count == 0 || count > 1_000_000 || kind > 8 { return f64::NAN; }
+    let gas = GasStrut::new(0.01,0.01,300_000.0,100_000.0,1.0,0.5,
+        0.005,850.0,0.7,0.0001,0.00005).unwrap();
+    let xs = [0.0,0.01,0.03]; let loads = [0.0,100.0,500.0];
+    let tire = TireCurve::new(&xs,&loads,50.0).unwrap();
+    let linear = LinearStrut::new(1000.0,10.0,0.5,Damping::new(100.0,200.0,DampingLaw::Linear).unwrap()).unwrap();
+    let mut value = 0.0;
+    for i in 0..count {
+        let compression = x + if count > 1 { (i & 1) as f64 * 0.001 } else { 0.0 };
+        let r = if kind < 3 { gas.evaluate(compression,rate) }
+            else if kind < 6 { tire.evaluate(compression,rate) }
+            else { linear.evaluate(compression,rate) };
+        let Ok(result) = r else { return f64::NAN; };
+        value = match kind {
+            0 | 3 | 6 => result.load_n,
+            1 | 4 => result.stored_energy_j,
+            2 | 5 => result.dissipation_w,
+            7 | 8 => {
+                let Ok(w) = ground_wrench(Vec3::new(0.0,1.0,1.0),[1.0,0.0,0.0,0.0],
+                    Vec3::new(0.0,0.0,-1.0),100.0,Vec3::new(rate,0.0,0.0),0.5,0.1)
+                    else { return f64::NAN; };
+                if kind == 7 { w.force.x } else { w.moment.x }
+            }
+            _ => return f64::NAN,
+        };
+        std::hint::black_box(value);
+    }
+    value
+}
 /// Constant-polar annulus test: kind 0 thrust, 1 signed air shaft torque.
 #[no_mangle]
 pub extern "C" fn bet_test_blade(stations: u32, azimuth: u32, spin: i32, kind: u32) -> f64 {

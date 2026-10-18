@@ -23,6 +23,7 @@ pub mod battery;
 pub mod math;
 pub mod frame;
 pub mod rigid_body;
+pub mod landing_gear;
 pub mod body_abi;
 pub mod inflow;
 pub mod shaft;
@@ -159,7 +160,7 @@ pub extern "C" fn bet_bootstrap_element_force(
     }
 }
 
-#[cfg(target_arch = "wasm32")]
+#[cfg(all(target_arch = "wasm32", not(feature = "embedded-kernels")))]
 mod wasm_exports {
     //! The section 4 exports. Every `u32` pointer is checked by `abi::region_valid`
     //! against the current linear memory and must lie at or above `__heap_base`
@@ -316,7 +317,7 @@ mod wasm_exports {
     }
 }
 
-#[cfg(target_arch = "wasm32")]
+#[cfg(all(target_arch = "wasm32", not(feature = "embedded-kernels")))]
 mod trapping_allocator {
     //! A global allocator whose every entry point
     //! traps. Invariant: no code path reachable from an export allocates; if one

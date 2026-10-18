@@ -1,7 +1,9 @@
 import fixture from "./fixtures/contact/drop.json";
 import registry from "./fixtures/registry.json";
 import { readFileSync } from "node:fs";
-import { expect, it } from "vitest";
+import { beforeAll, expect, it } from "vitest";
+import { prepareContact } from "./contact-support";
+beforeAll(prepareContact,300000);
 import { verifyFixture } from "@mirage/test-support/fixtures";
 import { GroundContact } from "../packages/physics/src/ground-contact";
 import { evaluateNasaDrop, parseNasaDropFixture } from "../packages/physics/src/nasa-drop";

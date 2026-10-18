@@ -11,4 +11,7 @@ export interface ContactImpulse {
   pointBody: Float64Array;
   impulseNed: Float64Array;
   dt: number;
+  /** Net contact angular impulse about the CG, body FRD, N m s. A single
+   * diagnostic point cannot encode a multi-point contact couple. */
+  momentBodyNms?: Float64Array;
 }

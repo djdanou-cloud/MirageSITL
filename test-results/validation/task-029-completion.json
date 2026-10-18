@@ -1,0 +1,340 @@
+{
+  "schemaVersion": 1,
+  "evidenceNormalization": "JUnit logs use LF with trailing whitespace removed; outcomes unchanged",
+  "task": "TASK-029",
+  "status": "DONE",
+  "baseline": "316152d6b0a349cb67b43722a283d8e19430317d",
+  "date": "2026-10-18",
+  "scope": "Numerically verified configurable compliant contact; NASA measured fidelity deferred by explicit user instruction",
+  "integrationOwner": "rapier",
+  "toolchain": "Rust 1.97.0",
+  "node": "v24.19.0",
+  "platform": "win32",
+  "cpu": "Intel(R) Core(TM) 7 240H",
+  "artifact": {
+    "schemaVersion": 1,
+    "abiVersion": 1,
+    "toolchain": "1.97.0",
+    "sourceCommit": "b716d375efc0201003f0cd9ef7168eee0b62c177",
+    "patchSha256": "327d04277393a775987e92a2c16c49d08f930646ea808723d82e864ae07eac09",
+    "engineVersion": "0.36.0",
+    "precision": "f64",
+    "memoryBytes": 16777216,
+    "bytes": 2007431,
+    "sha256": "3a36a4825414b0d2f8363d5454ffdbc76d2197d7a380e0d31b485422b2cbe946",
+    "inputs": [
+      {
+        "file": "native/bet/Cargo.toml",
+        "sha256": "536b27e11704df2b57b82ab5c121587979b9f81548c46d5e78cabe55944ebee6"
+      },
+      {
+        "file": "native/bet/src/lib.rs",
+        "sha256": "e6d7a13eae017202f368fbcf90b6b8734128e742a339bf715bb8e69746748745"
+      },
+      {
+        "file": "native/bet/src/frame.rs",
+        "sha256": "3bc237708a8253ca7c01eccd981311c5aa85824f13ae1e77a24d4ce5a031c4f2"
+      },
+      {
+        "file": "native/bet/src/math.rs",
+        "sha256": "c4603c9eef8ceb340d907361472c5490e511001ef5e9e357bc8cc4f1b34d065e"
+      },
+      {
+        "file": "native/rust-toolchain.toml",
+        "sha256": "33235c9c607ad21d22e516552672edb41ad72f045573c5fc9a3dee5735d08dda"
+      },
+      {
+        "file": "native/contact/src/lib.rs",
+        "sha256": "3e013900c108b386f4c54a2fae0f0c51528783b028a0f18d3fe849e4ac637c17"
+      },
+      {
+        "file": "native/contact/src/contact.rs",
+        "sha256": "d0d46b52fd66fd3596de5be89fff5ee4fbccbce3439c2fd3a16b4792bd6c153b"
+      },
+      {
+        "file": "native/contact/Cargo.lock",
+        "sha256": "48f10546083da774ac03a21c9da816505d5685310f8595b24cee1524c9ea79fe"
+      },
+      {
+        "file": "native/rapier/source.lock.json",
+        "sha256": "00f114de98f5cae1f3ee0a691e977738b6cce5caecf44512a5fd6ee44cb52cfd"
+      },
+      {
+        "file": "native/rapier/patches/reuse-step-buffers.patch",
+        "sha256": "327d04277393a775987e92a2c16c49d08f930646ea808723d82e864ae07eac09"
+      },
+      {
+        "file": "native/bet/src/landing_gear.rs",
+        "sha256": "aa400dda46fe43d31b907bd45569094ac1b3c64bf4b3100264e160686a318ade"
+      },
+      {
+        "file": "scripts/build-contact.mjs",
+        "sha256": "740170fc4906b604abe7b91a635f0e23cabc0beb0f8adefa61a529fbae85ba15"
+      }
+    ]
+  },
+  "checks": [
+    {
+      "command": "node node_modules/vitest/vitest.mjs run --reporter=default --reporter=junit --outputFile.junit=test-results/validation/task-029-final.xml",
+      "exit": 1,
+      "passed": 513,
+      "failed": 4,
+      "skipped": 1,
+      "reason": "Four stale-mirror policy failures while bilingual documentation was being completed; all runtime tests passed, including nine million WASM allocator steps"
+    },
+    {
+      "command": "node node_modules/vitest/vitest.mjs run tests/documentation-policy.test.ts tests/contact-binding.test.ts --reporter=default --reporter=junit --outputFile.junit=test-results/validation/task-029-final-retry.xml",
+      "exit": 0,
+      "passed": 12,
+      "failed": 0
+    },
+    {
+      "command": "cargo test --workspace --locked (cwd native/)",
+      "exit": 0,
+      "passed": 59
+    },
+    {
+      "command": "node scripts/build-contact.mjs --native --test-native",
+      "exit": 0,
+      "passed": 1,
+      "note": "First final retry hit Windows LNK1104 from parallel abort/unwind cdylib outputs; --jobs 1 resolves collision"
+    },
+    {
+      "command": "node scripts/check-contact-binding.mjs",
+      "exit": 0,
+      "nativeSteps": 9000000,
+      "wasmComparisonCases": 9,
+      "allocationCalls": 0,
+      "allocationBytes": 0
+    },
+    {
+      "command": "node scripts/bench-contact.mjs; node scripts/bench-contact.mjs 3 1200",
+      "exit": 0,
+      "measuredStepsPerConfiguration": 3000000,
+      "gcEvents": 0,
+      "positiveControlDetected": true
+    },
+    {
+      "command": "CHROMIUM_PATH=C:/Program Files/Google/Chrome/Application/chrome.exe RUSTUP_TOOLCHAIN=1.97.0 node node_modules/@playwright/test/cli.js test",
+      "exit": 0,
+      "passed": 50,
+      "skipped": 1,
+      "note": "Existing WebGPU skip; includes real contact Worker million-step allocator check"
+    },
+    {
+      "command": "node node_modules/eslint/bin/eslint.js . --max-warnings=0 --no-inline-config",
+      "exit": 0
+    },
+    {
+      "command": "node node_modules/typescript/bin/tsc --noEmit; node node_modules/vite/bin/vite.js build apps/web",
+      "exit": 0,
+      "note": "Existing bundle-size warning"
+    },
+    {
+      "command": "cargo check --workspace --locked; cargo check -p mirage-bet --target wasm32-unknown-unknown --locked (cwd native/)",
+      "exit": 0
+    },
+    {
+      "command": "node scripts/check-docs.mjs; git diff --check",
+      "exit": 0,
+      "bilingualPairs": 20,
+      "tasks": 86,
+      "layouts": 6
+    },
+    {
+      "command": "node scripts/validate-models.mjs",
+      "exit": 1,
+      "note": "Global measured NASA contact and separate UIUC propeller diagnostics remain failed; no thresholds changed or measured PASS claimed"
+    }
+  ],
+  "sourceInputs": [
+    {
+      "path": ".gitignore",
+      "sha256": "10ee6d495c6023c9ab38155c00eea2654512de52db7c778dad606b95ef66d1e5"
+    },
+    {
+      "path": "CLAUDE.md",
+      "sha256": "71d0c9f94296a9769310caac84766e1abdfeb58176212c154664de3976d4e899"
+    },
+    {
+      "path": "docs/PROJECT_ROADMAP.md",
+      "sha256": "de08885a16a20ba2684e84a758615fc31816bf83f162304409c3c73b7f898e8c"
+    },
+    {
+      "path": "docs/SPECS_SIMULATION_ENGINES.md",
+      "sha256": "861801ac2b73dc125d98ddd70d4aee2413b2ab08e16043430a304ba5eb78a638"
+    },
+    {
+      "path": "docs/architecture.md",
+      "sha256": "fe75f6aab5b212361557ea869e25480932aff0c84598908bf49c1c4ab314e06a"
+    },
+    {
+      "path": "docs/ru/CLAUDE.md",
+      "sha256": "33453936d9bc18fef61301d4a5122f637fd41b28f90bf576d33583ba59fd2f6a"
+    },
+    {
+      "path": "docs/ru/PROJECT_ROADMAP.md",
+      "sha256": "4dd90cd4fd6a0b37723530f64ddb14b536482e0ba2d6f21fb017bcb001b5c83d"
+    },
+    {
+      "path": "docs/ru/SPECS_SIMULATION_ENGINES.md",
+      "sha256": "7a6df2606505b35fe3e304db437a8fc20cff964abf1f855d99240565a7bf361e"
+    },
+    {
+      "path": "docs/ru/architecture.md",
+      "sha256": "f06b60d1258d833e803a6a02512f553a6fe140bad43ab5f4c4b9c2dfcec96948"
+    },
+    {
+      "path": "eslint.config.mjs",
+      "sha256": "45fde1d994e8be09f7cac38468e097846990d90b7e3546214a8eddf2262fb82e"
+    },
+    {
+      "path": "native/bet/Cargo.toml",
+      "sha256": "536b27e11704df2b57b82ab5c121587979b9f81548c46d5e78cabe55944ebee6"
+    },
+    {
+      "path": "native/bet/src/landing_gear.rs",
+      "sha256": "aa400dda46fe43d31b907bd45569094ac1b3c64bf4b3100264e160686a318ade"
+    },
+    {
+      "path": "native/bet/src/lib.rs",
+      "sha256": "e6d7a13eae017202f368fbcf90b6b8734128e742a339bf715bb8e69746748745"
+    },
+    {
+      "path": "native/bet/src/test_exports.rs",
+      "sha256": "d5987901be36c0321304c1f72149e81bf01ea46c8c843ec8e627d4a9563fe328"
+    },
+    {
+      "path": "native/bet/tests/allocation.rs",
+      "sha256": "402da2292879c9595e548b06e96ece136413f56f277f1141574400e95ac21528"
+    },
+    {
+      "path": "native/bet/tests/landing_gear.rs",
+      "sha256": "7e17d89d66f7d36f7b367864b66cfdae6c3e96be06a9423ed02252ec3405c78f"
+    },
+    {
+      "path": "native/contact/Cargo.lock",
+      "sha256": "48f10546083da774ac03a21c9da816505d5685310f8595b24cee1524c9ea79fe"
+    },
+    {
+      "path": "native/contact/src/contact.rs",
+      "sha256": "d0d46b52fd66fd3596de5be89fff5ee4fbccbce3439c2fd3a16b4792bd6c153b"
+    },
+    {
+      "path": "native/contact/src/lib.rs",
+      "sha256": "3e013900c108b386f4c54a2fae0f0c51528783b028a0f18d3fe849e4ac637c17"
+    },
+    {
+      "path": "native/contact/src/probe.rs",
+      "sha256": "a3c4e4aa3b0fcb54bc47b252e2e9793839ac2edd60a600495218f8baa30050e3"
+    },
+    {
+      "path": "native/contact/tests/contact.rs",
+      "sha256": "1ca3b69130cbdb1c46c0ab0fb0f6a891418e3945076e025a8a8dfc7f776b2d33"
+    },
+    {
+      "path": "native/rapier/patches/reuse-step-buffers.patch",
+      "sha256": "327d04277393a775987e92a2c16c49d08f930646ea808723d82e864ae07eac09"
+    },
+    {
+      "path": "packages/physics/src/contact-backend.ts",
+      "sha256": "3de3dd9dcf91d8bd089ac9134fbef00257fcfc384c4c009b328afe44bb2baafa"
+    },
+    {
+      "path": "packages/physics/src/ground-contact.ts",
+      "sha256": "d56bd8d24aadad7f5d26ebabd7a8c58495425343a9883da2b68590c0e2743ac7"
+    },
+    {
+      "path": "packages/physics/src/legacy-ground-contact.ts",
+      "sha256": "4a18dff96740614ccd306dabd8c751b41441a95ed67a6d4c09c07d52ef5cc570"
+    },
+    {
+      "path": "packages/physics/src/nasa-drop.ts",
+      "sha256": "ed48f9ee2e2278ff5844a50b5ec073eb6fa5f55c1d3458d7de6d199c7784a4ac"
+    },
+    {
+      "path": "scripts/bench-contact.mjs",
+      "sha256": "015c85f0cd4926dbb598b6f195d0c8991b4768f243ea058e307da94a383d7c94"
+    },
+    {
+      "path": "scripts/build-contact.mjs",
+      "sha256": "740170fc4906b604abe7b91a635f0e23cabc0beb0f8adefa61a529fbae85ba15"
+    },
+    {
+      "path": "scripts/check-contact-binding.mjs",
+      "sha256": "83eaaafeb027167b810637177c7493b14071205ca05c04de0b8b109a53327352"
+    },
+    {
+      "path": "tests/browser/contact.spec.ts",
+      "sha256": "b3e4351cf5994ecf9bf4d1c283881e829887f1a01756287123212e69006b64cd"
+    },
+    {
+      "path": "tests/contact-allocation.test.ts",
+      "sha256": "9611ab9bff07a360bb0c724cbfd7921712ddae2ea6902253472ace2597ccfede"
+    },
+    {
+      "path": "tests/contact-binding.test.ts",
+      "sha256": "d765b050d1f418a710ae6fa9f0d359a9e1c3b7a4652a3d565182e68050237704"
+    },
+    {
+      "path": "tests/contact-support.ts",
+      "sha256": "d9f2c863c6e072f14c9bf793525ff2db009c4d5def2159ccc7f374070d4dcb45"
+    },
+    {
+      "path": "tests/contact.test.ts",
+      "sha256": "800686530281f2f07481cec733aa3039789333e56744c99e372cb68de7a5bb0d"
+    },
+    {
+      "path": "tests/landing-gear.test.ts",
+      "sha256": "8262809d4605f30979b5e77cec61545710fc96d83bdd0a5700a75f5ad9e20e6c"
+    }
+  ],
+  "evidence": [
+    {
+      "path": "test-results/bench/contact.json",
+      "sha256": "45b830178c6fe64cc062fcbfb19ea473143c5eb39b13316a6681920bd3f71953",
+      "bytes": 720
+    },
+    {
+      "path": "test-results/bench/contact-3-1200.json",
+      "sha256": "c33cfb7038c20c1823d04d47887409d359f1de4753386cfdc72637c2fc76eea7",
+      "bytes": 720
+    },
+    {
+      "path": "test-results/validation/task-029-binding.json",
+      "sha256": "3f51cb4ecd9ee5aa8285fde9417d085bc1d0194c3d7027b6fbd6841c5c180d6f",
+      "bytes": 4392
+    },
+    {
+      "path": "test-results/validation/task-029-final.xml",
+      "sha256": "7e0aaaf4250e80e30ad1d94b89d4fe351cb8c60cf4a163d7719210c2ab076f99",
+      "bytes": 125409
+    },
+    {
+      "path": "test-results/validation/task-029-final-retry.xml",
+      "sha256": "513230e791160a4b5019a3ab7995ed70b2398848a4c32a132a83f3d9d3fff8ac",
+      "bytes": 2766
+    },
+    {
+      "path": "test-results/browser/junit.xml",
+      "sha256": "5f1c91d4521e322a42b3501b7dbe4dce4e775807e1fc283befff311ab0820dc8",
+      "bytes": 12041
+    }
+  ],
+  "excludedLocalFiles": [
+    {
+      "path": "AircraftLandingGearDesignPrinciplesPractices.md",
+      "reason": "User-supplied copyrighted reference retained locally"
+    },
+    {
+      "path": "desktop.ini",
+      "reason": "Windows folder metadata"
+    }
+  ],
+  "limitations": [
+    "NASA rig reconstruction/calibration deferred",
+    "Kinematic rolling/braking; no wheel spin, steering or anti-skid",
+    "Explicit terrain plane; arbitrary terrain topology separate",
+    "No target-device real-time timing claim or full flight backend integration"
+  ]
+}

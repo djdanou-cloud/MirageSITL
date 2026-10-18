@@ -4,7 +4,7 @@ import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
 export default defineConfig([
-  globalIgnores(['**/node_modules/**', '**/dist/**', 'test-results/**', 'playwright-report/**']),
+  globalIgnores(['**/node_modules/**', '**/dist/**', '.cache/**', 'test-results/**', 'playwright-report/**']),
   {
     files: ['**/*.mjs'],
     extends: [js.configs.recommended],

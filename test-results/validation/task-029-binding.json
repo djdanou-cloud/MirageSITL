@@ -1,0 +1,160 @@
+{
+  "schemaVersion": 1,
+  "wasmSha256": "3a36a4825414b0d2f8363d5454ffdbc76d2197d7a380e0d31b485422b2cbe946",
+  "manifest": {
+    "schemaVersion": 1,
+    "abiVersion": 1,
+    "toolchain": "1.97.0",
+    "sourceCommit": "b716d375efc0201003f0cd9ef7168eee0b62c177",
+    "patchSha256": "327d04277393a775987e92a2c16c49d08f930646ea808723d82e864ae07eac09",
+    "engineVersion": "0.36.0",
+    "precision": "f64",
+    "memoryBytes": 16777216,
+    "bytes": 2007431,
+    "sha256": "3a36a4825414b0d2f8363d5454ffdbc76d2197d7a380e0d31b485422b2cbe946",
+    "inputs": [
+      {
+        "file": "native/bet/Cargo.toml",
+        "sha256": "536b27e11704df2b57b82ab5c121587979b9f81548c46d5e78cabe55944ebee6"
+      },
+      {
+        "file": "native/bet/src/lib.rs",
+        "sha256": "e6d7a13eae017202f368fbcf90b6b8734128e742a339bf715bb8e69746748745"
+      },
+      {
+        "file": "native/bet/src/frame.rs",
+        "sha256": "3bc237708a8253ca7c01eccd981311c5aa85824f13ae1e77a24d4ce5a031c4f2"
+      },
+      {
+        "file": "native/bet/src/math.rs",
+        "sha256": "c4603c9eef8ceb340d907361472c5490e511001ef5e9e357bc8cc4f1b34d065e"
+      },
+      {
+        "file": "native/rust-toolchain.toml",
+        "sha256": "33235c9c607ad21d22e516552672edb41ad72f045573c5fc9a3dee5735d08dda"
+      },
+      {
+        "file": "native/contact/src/lib.rs",
+        "sha256": "3e013900c108b386f4c54a2fae0f0c51528783b028a0f18d3fe849e4ac637c17"
+      },
+      {
+        "file": "native/contact/src/contact.rs",
+        "sha256": "d0d46b52fd66fd3596de5be89fff5ee4fbccbce3439c2fd3a16b4792bd6c153b"
+      },
+      {
+        "file": "native/contact/Cargo.lock",
+        "sha256": "48f10546083da774ac03a21c9da816505d5685310f8595b24cee1524c9ea79fe"
+      },
+      {
+        "file": "native/rapier/source.lock.json",
+        "sha256": "00f114de98f5cae1f3ee0a691e977738b6cce5caecf44512a5fd6ee44cb52cfd"
+      },
+      {
+        "file": "native/rapier/patches/reuse-step-buffers.patch",
+        "sha256": "327d04277393a775987e92a2c16c49d08f930646ea808723d82e864ae07eac09"
+      },
+      {
+        "file": "native/bet/src/landing_gear.rs",
+        "sha256": "aa400dda46fe43d31b907bd45569094ac1b3c64bf4b3100264e160686a318ade"
+      },
+      {
+        "file": "scripts/build-contact.mjs",
+        "sha256": "83da012e86a4a3b7794d63d46ce135525e46a26d78414783c9bd2becc175ef6f"
+      }
+    ]
+  },
+  "cases": [
+    {
+      "hz": 400,
+      "wheels": 0,
+      "nativeSteps": 1000000,
+      "positionErrorM": 0,
+      "angleErrorRad": 0,
+      "allocationCalls": 0,
+      "allocationBytes": 0,
+      "passed": true
+    },
+    {
+      "hz": 400,
+      "wheels": 3,
+      "nativeSteps": 1000000,
+      "positionErrorM": 0,
+      "angleErrorRad": 2.9802322387695312e-8,
+      "allocationCalls": 0,
+      "allocationBytes": 0,
+      "passed": true
+    },
+    {
+      "hz": 400,
+      "wheels": 8,
+      "nativeSteps": 1000000,
+      "positionErrorM": 0,
+      "angleErrorRad": 0,
+      "allocationCalls": 0,
+      "allocationBytes": 0,
+      "passed": true
+    },
+    {
+      "hz": 800,
+      "wheels": 0,
+      "nativeSteps": 1000000,
+      "positionErrorM": 0,
+      "angleErrorRad": 0,
+      "allocationCalls": 0,
+      "allocationBytes": 0,
+      "passed": true
+    },
+    {
+      "hz": 800,
+      "wheels": 3,
+      "nativeSteps": 1000000,
+      "positionErrorM": 0,
+      "angleErrorRad": 0,
+      "allocationCalls": 0,
+      "allocationBytes": 0,
+      "passed": true
+    },
+    {
+      "hz": 800,
+      "wheels": 8,
+      "nativeSteps": 1000000,
+      "positionErrorM": 0,
+      "angleErrorRad": 0,
+      "allocationCalls": 0,
+      "allocationBytes": 0,
+      "passed": true
+    },
+    {
+      "hz": 1200,
+      "wheels": 0,
+      "nativeSteps": 1000000,
+      "positionErrorM": 0,
+      "angleErrorRad": 0,
+      "allocationCalls": 0,
+      "allocationBytes": 0,
+      "passed": true
+    },
+    {
+      "hz": 1200,
+      "wheels": 3,
+      "nativeSteps": 1000000,
+      "positionErrorM": 0,
+      "angleErrorRad": 0,
+      "allocationCalls": 0,
+      "allocationBytes": 0,
+      "passed": true
+    },
+    {
+      "hz": 1200,
+      "wheels": 8,
+      "nativeSteps": 1000000,
+      "positionErrorM": 0,
+      "angleErrorRad": 0,
+      "allocationCalls": 0,
+      "allocationBytes": 0,
+      "passed": true
+    }
+  ],
+  "passed": true,
+  "scope": "Synthetic numerical and allocation verification; NASA measured fidelity deferred by user."
+}

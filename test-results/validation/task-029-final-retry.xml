@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<testsuites name="vitest tests" tests="12" failures="0" errors="0" time="9.5935258">
+    <testsuite name="tests/contact-binding.test.ts" timestamp="2026-10-18T09:38:40.421Z" hostname="DaduAsus" tests="6" failures="0" errors="0" skipped="0" time="5.9515157">
+        <testcase classname="tests/contact-binding.test.ts" name="separate strut and tire support static weight at 400 Hz" time="0.6370625">
+        </testcase>
+        <testcase classname="tests/contact-binding.test.ts" name="separate strut and tire support static weight at 800 Hz" time="0.5890841">
+        </testcase>
+        <testcase classname="tests/contact-binding.test.ts" name="separate strut and tire support static weight at 1200 Hz" time="0.6482698">
+        </testcase>
+        <testcase classname="tests/contact-binding.test.ts" name="rejects malformed input without changing truth and disposes idempotently" time="0.1508477">
+        </testcase>
+        <testcase classname="tests/contact-binding.test.ts" name="free fall has one integration owner and angular contact impulse is available" time="0.1429209">
+        </testcase>
+        <testcase classname="tests/contact-binding.test.ts" name="wheel braking dissipates motion while travel and rim constraints hold" time="0.9997102">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/documentation-policy.test.ts" timestamp="2026-10-18T09:38:40.425Z" hostname="DaduAsus" tests="6" failures="0" errors="0" skipped="0" time="3.6420101">
+        <testcase classname="tests/documentation-policy.test.ts" name="bilingual documentation policy &gt; accepts complete synchronized documents" time="0.8548986">
+        </testcase>
+        <testcase classname="tests/documentation-policy.test.ts" name="bilingual documentation policy &gt; rejects an English change without a translated mirror update" time="0.3521667">
+        </testcase>
+        <testcase classname="tests/documentation-policy.test.ts" name="bilingual documentation policy &gt; rejects divergent TypeScript contracts even when the source hash is current" time="0.4974674">
+        </testcase>
+        <testcase classname="tests/documentation-policy.test.ts" name="bilingual documentation policy &gt; rejects static Cyrillic outside the Russian documentation directory" time="0.7957593">
+        </testcase>
+        <testcase classname="tests/documentation-policy.test.ts" name="bilingual documentation policy &gt; rejects a missing Russian mirror" time="0.3331474">
+        </testcase>
+        <testcase classname="tests/documentation-policy.test.ts" name="bilingual documentation policy &gt; rejects a cyclic backlog even when both languages and the hash agree" time="0.8073483">
+        </testcase>
+    </testsuite>
+</testsuites>

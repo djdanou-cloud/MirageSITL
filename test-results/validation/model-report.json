@@ -941,8 +941,8 @@
   "diagnostics": {
     "contact": {
       "path": "test-results/bench/contact.json",
-      "status": "missing",
-      "reportSha256": null
+      "reportSha256": "45b830178c6fe64cc062fcbfb19ea473143c5eb39b13316a6681920bd3f71953",
+      "status": "pass"
     },
     "jsbsimNative": {
       "path": "test-results/validation/jsbsim-native.json",

@@ -816,6 +816,156 @@ BAD_POINTER (-2), BAD_INPUT (-3), or ABI_MISMATCH (-7), leaving output unchanged
 
 ## Contact and JSBSim implementation gates: TASK-029–033
 
+### Direct contact ABI v1 (2026-10-18)
+
+The production `GroundContact` adapter loads the verified artifact from
+`node scripts/build-contact.mjs` through `GroundContact.initialize(bytes, manifest)`
+before creating isolated sessions. This replaces the allocating provider wrappers.
+The frozen Rapier 0.36.0 f64 source and storage-reuse patch are recorded in the
+manifest alongside source hashes, artifact SHA-256 and fixed 16 MiB memory.
+No imports, shared memory or concurrent/reentrant ABI access are allowed.
+The separate contact lockfile is required; standalone BET retains its own ABI
+and trapping allocator through the explicit `embedded-kernels` composition feature.
+
+All buffers contain f64 values; offsets here are element indices, not bytes.
+`contact_config_ptr`, `contact_input_ptr`, `contact_output_ptr` return aligned,
+disjoint regions of 1312, 16 and 96 values. `contact_abi_version` returns 1.
+`contact_initialize` rejects an existing session (-1) or invalid configuration (-2).
+`contact_step` returns 0 on success, -1 if disposed/faulted, -2 for invalid input,
+-3 for nonfinite/out-of-envelope physics, -6 for a counted allocation. Failed
+steps preserve the published output; failures after advancement permanently fault
+the instance. `contact_dispose` is idempotent. Allocator calls/bytes are cumulative
+over armed steps; `contact_allocator_probe` is a cold positive control that resets
+the counters. Never call it during an armed run to erase allocation evidence.
+
+Configuration header: [0]=version 1, [1]=0, [2]=airframe mass kg,
+[3]=hull sphere radius m, [4]=restitution in [0,1], [5]=hull friction,
+[6..8]=position NED m, [9..11]=velocity NED m/s, [12..15]=unit quaternion wxyz,
+[16..18]=body angular velocity rad/s, [19..21]=positive diagonal inertia kg m²,
+[22..24]=outward unit plane normal NED, [25]=plane offset n·p m,
+[26]=gravity down m/s², [27]=wheel count 0..8, [28..31]=zero.
+
+Each wheel starts at 32+160*i. Its fields are [0..2]=fully extended wheel-center
+anchor body FRD m; [3]=unsprung mass kg; [4]=tire radius m; [5]=rigid rim radius m
+(0<rim<tire); [6]=strut travel m; [7]=strut kind (0 linear, 1 gas);
+[8]=linear stiffness N/m; [9]=preload N; [10..11]=compression/rebound damping;
+[12]=damping law (0 linear, 1 square); [13..15]=rolling/lateral/braking mu;
+[16]=tire damping N s/m; [17]=knot count 2..64; [18..27]=gas area, volume,
+charge pressure, ambient pressure, exponent, hydraulic area, fluid density,
+discharge coefficient, compression orifice, rebound orifice in the SI units
+specified below; [28..31]=zero; [32..95]=tire deflection knots m;
+[96..159]=tire force knots N. Unused entries are zero. The last knot must cover
+the tire-radius minus rim-radius distance. All values must be finite.
+
+Input: [0..2]=external body force N; [3..5]=external body torque N m;
+[6..13]=brake fractions in [0,1] (zero for unused wheels); [14]=dt exactly
+1/400, 1/800 or 1/1200 s; [15]=zero. Output: [0..2]=position NED;
+[3..5]=velocity NED; [6..9]=quaternion wxyz; [10..12]=body angular velocity;
+[13..15]=coordinate acceleration NED; [16..18]=net contact impulse on the
+airframe N s, excluding external force and gravity; [19..21]=net contact angular
+impulse in the new body frame N m s, excluding external torque; [22..24]=hull
+diagnostic lever arm body m; [25]=wheel count; [26..31]=zero. Each wheel at
+32+8*i reports clamped strut compression m, tire compression m, tire load N,
+strut load N, excess tire/rim overlap m, raw strut compression m, signed wheel
+distance from the plane m, and zero. Wheel diagnostics describe the force
+evaluation before integration; body state describes the completed step.
+
+The diagnostic hull point cannot represent a multiple-contact couple. Consumers
+must use `ContactImpulse.momentBodyNms` when transferring the angular impulse;
+do not infer it from a single point crossed with the net linear impulse.
+Rapier alone integrates the airframe, wheels, prismatic extension/compression
+stops and rigid rim bottom-out. Internal strut forces are equal/opposite.
+Tire forces act only in contact. Force evaluation saturates at physical travel
+and tire curve bounds while rigid constraints supply stop/rim reactions; raw
+overlap diagnostics remain available. No second BET/JSBSim body integration
+may run over the same step. A terrain plane is explicit configuration; arbitrary
+terrain contact requires a future topology adapter.
+
+Rolling uses a kinematic longitudinal resistance, separate lateral resistance,
+and brake interpolation, regularized below 0.1 m/s; their combined magnitude
+is capped by max(longitudinal mu,lateral mu) times tire normal load. It is passive
+but does not represent wheel spin, static tire slip, anti-skid or steering.
+Cold initialization exercises contact transitions and all supported rates.
+Actual armed allocations fault the session; stable memory alone is not evidence.
+Numerical acceptance uses analytic force/energy and static-load oracles plus
+same-source native/WASM parity (position <=0.1 m, attitude <=0.5 degrees).
+The user's 2026-10-18 scope decision defers NASA measured fidelity; its archived
+legacy comparison remains failed and is never substituted with synthetic data.
+
+### Compliant-force reference increment (2026-10-18)
+
+`native/bet/src/landing_gear.rs` implements force/energy components with no dt,
+position update, solver ownership or contact-ready claim. See the source decision
+in architecture.md. Configuration is explicit SI; synthetic numerical tests are
+not measured landing-gear calibration. There is no new production C/SAB ABI.
+
+Compression x and closure speed v are positive while shortening a component.
+`LinearStrut` uses preload F0 (N), stiffness k (N/m), finite travel (m), and
+direction-specific linear (N s/m) or square (N s²/m²) damping coefficients.
+`GasStrut` is a reduced single-chamber spring, with equal swept/pressure area A
+(m²), extended volume V0 (m³), absolute charge/ambient pressures p0/pa (Pa),
+polytropic exponent n in [1,1.4], hydraulic area Ah (m²), density rho (kg/m³),
+discharge coefficient Cd in (0,1], and separate fixed compression/rebound orifice
+areas Ao (m²). Charge pressure must be at least ambient, and V0-A*travel>0.
+It excludes thermal state, fluid compressibility, metering-pin variation, seal
+friction and compound chambers. Its parameters are not NASA calibration.
+
+$$
+F_{e,linear}=F_0+kx,\quad E_{linear}=F_0x+\tfrac12kx^2,\quad V=V_0-Ax.
+$$
+
+$$
+p=p_0(V_0/V)^n,\quad F_{e,gas}=(p-p_a)A,\quad F_d={\rho A_h^3\over2(C_dA_o)^2}v|v|.
+$$
+
+$$
+F=\max(0,F_e+F_d),\qquad P_d=(F-F_e)v\ge0.
+$$
+
+$$
+E_{gas}=\begin{cases}p_0V_0\ln(V_0/V)-p_aAx,&n=1,\\ {p_0V_0\over n-1}[(V_0/V)^{n-1}-1]-p_aAx,&n\ne1.\end{cases}
+$$
+
+`ln_1p`/`exp_m1` preserve small-pressure changes; for swept fraction u=Ax/V0<1e-4,
+the integrated gas-law excess uses its analytic series through u^5 to avoid
+cancellation at zero gauge preload. With n<=1.4, the omitted dimensionless term
+is below 1e-23 in that branch. Effective dissipation is computed after the load
+clamp. Gas preload remains an internal force at full extension; the owning solver
+must supply the extension-stop reaction. Exceeding strut travel returns GearError;
+there is no invented bottom-out response or silent extension beyond the envelope.
+
+`TireCurve` borrows 2–64 immutable knots: strictly increasing deflection from 0 m,
+nondecreasing load from 0 N, plus nonnegative vertical damping N s/m. It linearly
+interpolates force and integrates each segment exactly for elastic energy. For
+deflection<=0 its load/energy/dissipation are zero; for positive deflection its
+normal load is max(0,elastic+damping*closureSpeed). Deflection beyond the final
+knot fails. Tire deflection is neither strut travel nor rigid-mesh penetration.
+
+`ground_wrench` accepts body contact point (m), body-to-NED wxyz, outward terrain
+normal NED, nonnegative load N and contact velocity relative to terrain (m/s).
+Normal/quaternion squared norms must be within 1e-10 of 1. Tangential force is
+regularized Coulomb sliding friction, with explicit mu>=0 and veps>0:
+
+$$
+\mathbf v_t=\mathbf v-\mathbf n(\mathbf v\cdot\mathbf n),\quad
+\mathbf F_{NED}=N\mathbf n-\mu N{\mathbf v_t\over\max(|\mathbf v_t|,v_\epsilon)},\quad
+\mathbf F_b=R(q)^T\mathbf F_{NED},\quad\mathbf M_b=\mathbf r_b\times\mathbf F_b.
+$$
+
+This helper has no static-friction constraint, wheel spin, slip-ratio tire model,
+brake or rolling-resistance law. It must not be applied alongside a second
+solver's force for the same contact. Outputs and all inputs must remain finite.
+No per-call heap allocation, collection growth, logging or mutation of body state
+occurs. Invalid inputs return GearError; test-only WASM exports return NaN.
+
+Predeclared synthetic tolerances: 1e-9 N/J/W for hand force/energy cases, 1e-5 N
+for the polytropic energy derivative, 1e-12 relative for the small-compression
+energy asymptote, and 1e-10 W for passive-power bounds. Native allocation counters
+with a positive control cover 1e6 warmed evaluations in the existing numerical
+graph. Scalar and SIMD-enabled test artifacts exercise the same scalar laws with
+the trapping allocator and unchanged memory. This does not certify a production
+Rapier binding, a NASA trajectory, terrain coupling or physical tire slip.
+
 Rapier 0.21.0 is selected for a sphere/flat-ground contact reference. It owns
 integration, uses NED +Down gravity and reports net contact impulse from change
 in momentum minus external force/gravity impulse. `pointBody` is the sphere's

@@ -1,5 +1,5 @@
 import { newBodyTruth } from "@mirage/wasm-bet/backend";
-import { GroundContact } from "./ground-contact.ts";
+import { LegacyGroundContact as GroundContact } from "./legacy-ground-contact.ts";
 /** NASA TM X-3561 level-surface drop comparison for the Rapier contact backend.
  * The fixture (tests/fixtures/contact/nasa-drop.json) holds measured rig values
  * converted to SI. The adapter is a rigid sphere on a plane: the lumped drop
