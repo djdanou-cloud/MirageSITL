@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "status": "PASS",
+  "scope": "Deliberately modified copies of actual native capture; not firmware observations",
+  "cases": [
+    {
+      "id": "forged-receipt",
+      "status": "PASS",
+      "rejection": "Command failed: /home/dadu/mirage/venv/bin/python /mnt/c/Users/djdan/OneDrive/Desktop/MirageSITL/scripts/sitl/check-ew.py --input /mnt/c/Users/djdan/OneDrive/Desktop/MirageSITL/.cache/task-059/rejection-I1EpmK\nTraceback (most recent call last):\n  File \"/mnt/c/Users/djdan/OneDrive/Desktop/MirageSITL/scripts/sitl/check-ew.py\", line 90, in <module>\n    main()\n    ~~~~^^\n  File \"/mnt/c/Users/djdan/OneDrive/Desktop/MirageSITL/scripts/sitl/check-ew.py\", line 46, in main\n    raise ValueError(\"Telemetry"
+    },
+    {
+      "id": "invalid-tx-crc",
+      "status": "PASS",
+      "rejection": "Command failed: /home/dadu/mirage/venv/bin/python /mnt/c/Users/djdan/OneDrive/Desktop/MirageSITL/scripts/sitl/check-ew.py --input /mnt/c/Users/djdan/OneDrive/Desktop/MirageSITL/.cache/task-059/rejection-DQorbo\nTraceback (most recent call last):\n  File \"/mnt/c/Users/djdan/OneDrive/Desktop/MirageSITL/scripts/sitl/check-ew.py\", line 90, in <module>\n    main()\n    ~~~~^^\n  File \"/mnt/c/Users/djdan/OneDrive/Desktop/MirageSITL/scripts/sitl/check-ew.py\", line 49, in main\n    outgoing = decode(tx)\n  Fil"
+    },
+    {
+      "id": "altered-physics",
+      "status": "PASS",
+      "rejection": "Expected values to be strictly deep-equal:\n+ actual - expected\n\n  [\n+   1.033415253537823,\n-   0.033415253537823035,\n    -0.03507703826856076,\n    -10.13128363941012\n  ]\n"
+    },
+    {
+      "id": "truncated-window",
+      "status": "PASS",
+      "rejection": "false == true"
+    },
+    {
+      "id": "overwrite-frozen-envelopes",
+      "status": "PASS",
+      "rejection": "Refused existing frozen matrix; exact bytes unchanged"
+    },
+    {
+      "id": "calibration-reused-for-validation",
+      "status": "PASS",
+      "rejection": "Calibration capture cannot validate its own envelope"
+    }
+  ],
+  "frozenMatrixSha256": "c8bd27d9be4e22a5b10279cc925589e7299edeadb667cd478638d0f533494b3a"
+}

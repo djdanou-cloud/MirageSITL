@@ -9,12 +9,14 @@ export const configuration = Object.freeze({
 });
 // ArduPilot pinned AP_MotorsMatrix quad X: FR, RL, FL, RR. FRD wrench.
 const x=[1,-1,1,-1],y=[1,-1,-1,1],yaw=[1,1,-1,-1];
-export function quadWrench(throttles, out=new Float64Array(6)) {
+export function quadWrench(throttles, out=new Float64Array(6),fractions=null) {
   if(throttles.length!==4 || !throttles.every(v=>Number.isFinite(v)&&v>=0&&v<=1))throw Error('Invalid quad throttle');
   out.fill(0);
   const arm=configuration.armM/Math.sqrt(2);
   for(let m=0;m<4;m++) {
-    const u=throttles[m],t=configuration.maxRotorThrustN*((1-configuration.thrustExpo)*u+configuration.thrustExpo*u*u);
+    const f=fractions===null?1:fractions[m];
+    if(!Number.isFinite(f)||f<0||f>1)throw Error('Invalid rotor thrust fraction');
+    const u=throttles[m],t=f*configuration.maxRotorThrustN*((1-configuration.thrustExpo)*u+configuration.thrustExpo*u*u);
     out[2]-=t;out[3]-=y[m]*arm*t;out[4]+=x[m]*arm*t;out[5]+=yaw[m]*configuration.yawMomentPerThrustM*t;
   }
   return out;
@@ -32,13 +34,13 @@ export class QuadReference {
     this.truth=newBodyTruth();this.specificForce=new Float64Array([0,0,-configuration.gravityMps2]);
     this.motors=new Float64Array(4);this.wrench=new Float64Array(6);this.previousVelocity=new Float64Array(3);this.acceleration=new Float64Array(3);
   }
-  step(throttles,dt) {
+  step(throttles,dt,fractions=null) {
     quadWrench(throttles,this.wrench); // validate before mutating model state
     if(!Number.isFinite(dt)||dt<=0||dt>0.01)throw Error('Invalid quad timestep');
     this.previousVelocity.set(this.truth.velocityNedMps);
     const blend=1-Math.exp(-dt/configuration.motorTimeConstantS);
     for(let i=0;i<4;i++)this.motors[i]+=blend*(throttles[i]-this.motors[i]);
-    quadWrench(this.motors,this.wrench);
+    quadWrench(this.motors,this.wrench,fractions);
     if(!this.body.stepInto(this.wrench,dt,this.truth))throw Error('Rigid-body step rejected');
     const t=this.truth;
     if(t.positionNedM[2]>0) {

@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "status": "PASS_AFTER_DOCUMENTED_RERUNS",
+  "total": 537,
+  "passed": 536,
+  "skipped": 1,
+  "initialFailures": 6,
+  "remainingFailures": 0,
+  "initialRunExitCode": 1,
+  "successfulRerunExitCodes": [
+    0,
+    0,
+    0
+  ],
+  "reason": "Initial sandbox denied loopback connections/symlinks and python3 discovery; contact stress exceeded its unchanged 300 s deadline under concurrent load. Exact failed cases passed with permissions/runtime corrected and one worker; contact took 270.603 s. No thresholds changed.",
+  "recoveredCases": [
+    {
+      "classname": "tests/ardupilot-json.test.ts",
+      "name": "bridge ArduPilot JSON endpoint over real loopback UDP and WebSocket > forwards valid servo packets, replies to the learned SITL port, and rejects invalid traffic",
+      "passedRerun": "task-059-loopback.xml"
+    },
+    {
+      "classname": "tests/bridge.test.ts",
+      "name": "runs real loopback WS/UDP channels, fragmented WS delivery, authentication and reconnect",
+      "passedRerun": "task-059-loopback.xml"
+    },
+    {
+      "classname": "tests/bridge.test.ts",
+      "name": "closes rather than queueing unbounded output when the socket reports backpressure",
+      "passedRerun": "task-059-loopback.xml"
+    },
+    {
+      "classname": "tests/contact-allocation.test.ts",
+      "name": "counts actual WASM allocator calls through repeated impacts at all supported rates",
+      "passedRerun": "task-059-recovery.xml"
+    },
+    {
+      "classname": "tests/fixtures.test.ts",
+      "name": "versioned fixture provenance and random streams > regenerates the NASA drop fixture byte-for-byte from the hashed archives",
+      "passedRerun": "task-059-final.xml"
+    },
+    {
+      "classname": "tests/release-manifest.test.ts",
+      "name": "inventories actual bounded output bytes, retains blocked status and rejects tampering/symlink escape",
+      "passedRerun": "task-059-recovery.xml"
+    }
+  ],
+  "artifacts": [
+    {
+      "file": "test-results/validation/task-059-unit-sandbox.xml",
+      "sha256": "2fddb6dc46ffbee12f645ec4e565f6c3a66c6c7449e084c1e0e39c20c40de790"
+    },
+    {
+      "file": "test-results/validation/task-059-loopback.xml",
+      "sha256": "268cf5baeb7a0f7cbd09a7148510da27b5e8d8858875978e3d4d6f3e56f47276"
+    },
+    {
+      "file": "test-results/validation/task-059-recovery.xml",
+      "sha256": "47197d993d16c14fe277b3300e659e076686ab3bb3cdff8dcfacb5fa4c9ce600"
+    },
+    {
+      "file": "test-results/validation/task-059-final.xml",
+      "sha256": "e16623ce2a96015749c95ebca43a78cfa099c1b01851ff1cb9dd3484849f3b2d"
+    }
+  ]
+}

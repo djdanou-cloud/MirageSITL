@@ -1,10 +1,12 @@
 """Pinned pymavlink I/O sidecar. Commands come from the owned Node driver."""
 import json
+import os
 import atexit
 import select
 import signal
 import sys
 import time
+from pathlib import Path
 from pymavlink import mavutil
 
 
@@ -26,16 +28,34 @@ def main():
     if connection is None:
         raise RuntimeError("Firmware MAVLink connection deadline exceeded")
     connection.logfile_raw = open(sys.argv[2], "wb")
+    experiment = len(sys.argv) > 3 and sys.argv[3] == "--ew"
+    if experiment:
+        # Capture exactly the outgoing wire bytes, independently audited later.
+        transmitted = open(Path(sys.argv[2]).with_name("tx.raw"), "wb")
+        atexit.register(transmitted.close)
+        original_write = connection.write
+
+        def write_wire(data):
+            transmitted.write(data)
+            return original_write(data)
+
+        # mavutil replaces its MAVLink encoder on the first v2 heartbeat;
+        # instrument the connection, which survives that negotiated upgrade.
+        connection.write = write_wire
     atexit.register(connection.logfile_raw.close)
     signal.signal(signal.SIGTERM, terminate)
     last_send = 0
     configured = False
+    command_buffer = ""
     while True:
         ready, _, _ = select.select([connection.fd, sys.stdin], [], [], 0.001)
         if sys.stdin in ready:
-            line = sys.stdin.readline()
-            if not line:
+            chunk = os.read(sys.stdin.fileno(), 65536)
+            if not chunk:
                 return
+            command_buffer += chunk.decode("utf-8")
+        while "\n" in command_buffer:
+            line, command_buffer = command_buffer.split("\n", 1)
             request = json.loads(line)
             kind = request["kind"]
             if kind == "mode":
@@ -44,6 +64,22 @@ def main():
                 command = {"arm": 400, "takeoff": 22, "land": 21}[kind]
                 params = [1, 0, 0, 0, 0, 0, 0] if kind == "arm" else [0, 0, 0, 0, 0, 0, 10 if kind == "takeoff" else 0]
                 connection.mav.command_long_send(1, 1, command, 0, *params)
+            elif experiment and kind == "gps":
+                g = request["gps"]
+                connection.mav.gps_input_send(
+                    request["timeUs"], 0, 0, request["weekMs"], 2300, g["fixType"],
+                    round(g["latitudeRad"] * 180 / 3.141592653589793 * 1e7),
+                    round(g["longitudeRad"] * 180 / 3.141592653589793 * 1e7),
+                    g["altitudeMslM"], g["hdop"], g["vdop"], g["vnMps"], g["veMps"], g["vdMps"],
+                    0.2, 0.5, 0.8, g["satellites"])
+            elif experiment and kind == "compass":
+                for compass in (1, 2, 3):
+                    for axis, value in zip("XYZ", request["offsetsMilliGauss"]):
+                        connection.mav.param_set_send(1, 1, f"SIM_MAG{compass}_OFS_{axis}".encode(), value, 9)
+            elif experiment and kind == "parameters":
+                connection.mav.param_request_list_send(1, 1)
+            elif experiment and kind == "flush":
+                emit({"flushed": True})
             else:
                 raise ValueError("Unknown driver command")
         for _ in range(256):
@@ -53,7 +89,7 @@ def main():
             if message.get_srcSystem() != 1 or message.get_srcComponent() != 1:
                 continue
             kind = message.get_type()
-            if kind in ("HEARTBEAT", "EKF_STATUS_REPORT", "GLOBAL_POSITION_INT", "LOCAL_POSITION_NED", "STATUSTEXT", "COMMAND_ACK", "EXTENDED_SYS_STATE", "HIGHRES_IMU", "RAW_IMU", "GPS_RAW_INT"):
+            if kind in ("HEARTBEAT", "EKF_STATUS_REPORT", "GLOBAL_POSITION_INT", "LOCAL_POSITION_NED", "STATUSTEXT", "COMMAND_ACK", "EXTENDED_SYS_STATE", "HIGHRES_IMU", "RAW_IMU", "GPS_RAW_INT") or experiment and kind == "PARAM_VALUE":
                 emit({"message": message.to_dict(), "wireHex": message.get_msgbuf().hex()})
             if kind == "HEARTBEAT" and not configured:
                 connection.mav.request_data_stream_send(1, 1, 0, 10, 1)

@@ -1,6 +1,125 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
+  "status": "FROZEN_FOR_VALIDATION",
   "firmwareCommit": "8ab6afde107a91df1b5f60ade8f333cb8a61b190",
+  "firmwareSha256": "fa37bf619bce116d410931f1b7d24ea72ed444ba529379df0db9738742ecb186",
+  "parameterSha256": "d1804e4372803861f9a7c76bee33daa3d0530a1898c87eda2e1b6ce7ae7eb458",
+  "modelSha256": "e8d4e1c92dfaecbfa3a2cc521636d0199a199fda33218ff1c4d47efc54f2eb8b",
+  "planSha256": "bae96b13da68845966a0973d3428704f7578de00186967dba4fa728cb777f576",
+  "sourceInputs": [
+    {
+      "file": "scripts/sitl/driver.mjs",
+      "sha256": "c1a1e2a9c26bb571ea3d82b3b527a46a37155b334497c42d80139253982ce3a4"
+    },
+    {
+      "file": "scripts/sitl/quad.mjs",
+      "sha256": "31698c745c6780108f488b9843fb457d41a1e71b311385d4d792d64a12e3af89"
+    },
+    {
+      "file": "scripts/sitl/telemetry.py",
+      "sha256": "3a386c88b57920fbcacaa2890c9264d3e6406027da250a3882dc705cb0cc48df"
+    },
+    {
+      "file": "scripts/run-sitl.mjs",
+      "sha256": "7fa531290751b984b42567d42233f754d102dbcbb914f34b1e1ed72a84419a23"
+    },
+    {
+      "file": "scripts/sitl.lock.json",
+      "sha256": "cc11bac9e2ca0aa55fbb015775d53067ab1f1de09c3f6a5ba3d4ea6b69c31bbd"
+    },
+    {
+      "file": "packages/wasm-bet/src/backend.ts",
+      "sha256": "691ec9b4d0e2e31e3ebc2aebb2f8009dc7a316705a054ca99ba98a49373227f3"
+    },
+    {
+      "file": "packages/autopilot/src/external-sitl.ts",
+      "sha256": "5b0f9a2c0f9c216e330ae9d803087ce718fd477235e006e96a8bcfaf27e62c97"
+    },
+    {
+      "file": "tests/fixtures/sitl/parameters.parm",
+      "sha256": "c893b966538e648a2d9a96a4803daee6aa594ebadcf99898e74a969073e3bd1b"
+    },
+    {
+      "file": "native/bet/src/rigid_body.rs",
+      "sha256": "cb99a15551a7f7716942aa85d5f003a996d1d08866d98215478f25f1fcd9a30f"
+    },
+    {
+      "file": "native/bet/src/body_abi.rs",
+      "sha256": "35a2f9ea3b98608334841564f3ceec4037793ac475c3d41cd250340cc8291e96"
+    },
+    {
+      "file": "native/bet/src/math.rs",
+      "sha256": "c4603c9eef8ceb340d907361472c5490e511001ef5e9e357bc8cc4f1b34d065e"
+    },
+    {
+      "file": "native/bet/src/lib.rs",
+      "sha256": "b990eae4a4aab7dbeb6d9f1f280c250de5946ca9a985bd189cf53442061bb0db"
+    },
+    {
+      "file": "native/Cargo.lock",
+      "sha256": "3495cbba177ebcf8cd325c90b2fd60c1336af4a2b9067caddb1da31e46769634"
+    },
+    {
+      "file": "native/rust-toolchain.toml",
+      "sha256": "33235c9c607ad21d22e516552672edb41ad72f045573c5fc9a3dee5735d08dda"
+    },
+    {
+      "file": "packages/autopilot/src/live-warmup.ts",
+      "sha256": "e3fce704d1b35494c9bb4a593408993535144c91f3c15bdcbc3aebec4475b22c"
+    },
+    {
+      "file": "packages/autopilot/src/ekf-status.ts",
+      "sha256": "a6391ed0275399c593f2879fe109fd22efe0f5cfdf8e67d958bc549a4710de82"
+    },
+    {
+      "file": "packages/autopilot/src/warmup.ts",
+      "sha256": "e2ae892e3803d26a452280d897c0b75eaafa6f2b4a697d4b7cd56bd30331a7e6"
+    },
+    {
+      "file": "packages/mavlink/src/codec.ts",
+      "sha256": "9661a9db6f3024d4a12b4d9aea5faf74b1d1027ee895ea3446ec2782e925e1ee"
+    },
+    {
+      "file": "packages/protocol/src/layout-v2.ts",
+      "sha256": "238447a89a6c73a1916ca783c0b89a096986881489459b7246d70b91d81920d2"
+    },
+    {
+      "file": "scripts/sitl/ew-observations.ts",
+      "sha256": "02dbf5d64c176b006b0aadb2138aaa654c2665d54fe2631852e8bc73d2c9b6c0"
+    },
+    {
+      "file": "packages/ew/src/engine.ts",
+      "sha256": "357871fe4bed4e51e16ea1fd3f2d075f6fbd2e47164e33a3268646b13f1f455f"
+    },
+    {
+      "file": "packages/ew/src/position-step.ts",
+      "sha256": "17c3195b587f5f8b8d490e8728e69d00479261a055df189301b350d948ce5e3b"
+    },
+    {
+      "file": "packages/ew/src/velocity-drift.ts",
+      "sha256": "89b29cc8e6d7113a1f31de79f17fd8f885ac86ea2afd44b78f11a8d37c511d8c"
+    },
+    {
+      "file": "packages/ew/src/gnss-jamming.ts",
+      "sha256": "bbc5fd1feabca94ac5882b8dbdfb13b9df2065906ed602108f34f9af6fede800"
+    },
+    {
+      "file": "packages/ew/src/magnetic.ts",
+      "sha256": "34af1d49a7ad574c18910b48a07f8965285c77a87055fe3f8f2cbefe20aae713"
+    },
+    {
+      "file": "packages/sensors/src/geodesy.ts",
+      "sha256": "7492eff8a998d07a5743e9b093e77d2901818aacec54c5f71aeebf0a042e8341"
+    },
+    {
+      "file": "packages/sensors/src/geoid.ts",
+      "sha256": "34e977e48901cf214c726c6484c80fed1a14ed9a6cfb88226e073278b90f6e7b"
+    },
+    {
+      "file": "packages/mavlink/src/samples.ts",
+      "sha256": "140774039f0d3dbbe492e0d9b018b8fce1d4dd631804e75cd8e64b150e97885d"
+    }
+  ],
   "requiredCases": [
     "control",
     "jamming",
@@ -9,7 +128,1300 @@
     "magnetic",
     "motor-loss"
   ],
-  "envelopes": null,
-  "status": "BLOCKED_EXTERNAL",
-  "reason": "Freeze envelopes from pinned firmware control runs before evaluating real EW responses; no fabricated trace is supplied."
+  "plan": {
+    "schemaVersion": 1,
+    "seed": 59,
+    "gpsHz": 10,
+    "preFaultHoldS": 5,
+    "exposureS": 12,
+    "recoveryS": 8,
+    "motorExposureS": 3,
+    "effects": {
+      "jamming": {
+        "kind": "gnss-jamming",
+        "severity": 1
+      },
+      "position-step": {
+        "kind": "position-step",
+        "offsetNedM": [
+          30,
+          0,
+          0
+        ]
+      },
+      "velocity-drift": {
+        "kind": "velocity-drift",
+        "accelerationNedMps2": [
+          0.5,
+          0,
+          0
+        ],
+        "maxSpeedMps": 4
+      },
+      "magnetic": {
+        "kind": "magnetic",
+        "rotationRad": [
+          0,
+          0,
+          0
+        ],
+        "biasBodyGauss": [
+          0.3,
+          0.2,
+          0
+        ]
+      },
+      "motor-loss": {
+        "kind": "motor-loss",
+        "motorIndex": 0,
+        "mode": "instant-thrust-loss",
+        "remainingThrustFraction": 0
+      }
+    },
+    "envelopeRule": {
+      "factor": 1.5,
+      "positionMarginM": 2,
+      "innovationMargin": 0.5
+    }
+  },
+  "frozenAt": "2026-10-19T10:28:13.399Z",
+  "calibrationCaptureSha256": {
+    "control": "411b275652d2615d74ad5ad77a22bc1590d8b10de89308a1cf6b3e28e4fb9877",
+    "jamming": "0bbfcf3aaa44559ae1f8c2565770aa8c46724206a3cf95e337dd1b7a61f1c98a",
+    "position-step": "0003dabf78abc1fbfe61f30e4736dbd3c52e8ec3a634df02e8ae3f43ce640dc4",
+    "velocity-drift": "4829b687119911adb0ef05fec1fa76ccf1bb38369055e086080899a085e952d8",
+    "magnetic": "9bf6cf8b42cd6a69828c0d48174eae5c6e9255d9852e7b99472afe0ce138d677",
+    "motor-loss": "1082a86cd68a0abf93a177ec85b3093c9e87652623aabbc7489a803b4af93985"
+  },
+  "envelopes": {
+    "control": {
+      "maxPositionErrorM": 2.14,
+      "maxInnovationRatio": 0.52,
+      "maxTruthDisplacementM": 2.2,
+      "allowedModes": [
+        4
+      ]
+    },
+    "jamming": {
+      "maxPositionErrorM": 5.71,
+      "maxInnovationRatio": 0.6,
+      "maxTruthDisplacementM": 17.14,
+      "allowedModes": [
+        4,
+        9
+      ]
+    },
+    "position-step": {
+      "maxPositionErrorM": 47,
+      "maxInnovationRatio": 12.9,
+      "maxTruthDisplacementM": 2.2,
+      "allowedModes": [
+        4
+      ]
+    },
+    "velocity-drift": {
+      "maxPositionErrorM": 107.05,
+      "maxInnovationRatio": 15.69,
+      "maxTruthDisplacementM": 113.89,
+      "allowedModes": [
+        4,
+        9
+      ]
+    },
+    "magnetic": {
+      "maxPositionErrorM": 2.14,
+      "maxInnovationRatio": 3.48,
+      "maxTruthDisplacementM": 2.2,
+      "allowedModes": [
+        4
+      ]
+    },
+    "motor-loss": {
+      "maxPositionErrorM": 5.05,
+      "maxInnovationRatio": 4.34,
+      "maxTruthDisplacementM": 22.37,
+      "allowedModes": [
+        4
+      ]
+    }
+  },
+  "scope": "Empirical native synthetic quad regression limits, not measured aircraft fidelity or promised fallback behavior",
+  "calibration": [
+    {
+      "id": "control",
+      "firmwareSha256": "fa37bf619bce116d410931f1b7d24ea72ed444ba529379df0db9738742ecb186",
+      "parameterSha256": "d1804e4372803861f9a7c76bee33daa3d0530a1898c87eda2e1b6ce7ae7eb458",
+      "modelSha256": "e8d4e1c92dfaecbfa3a2cc521636d0199a199fda33218ff1c4d47efc54f2eb8b",
+      "planSha256": "bae96b13da68845966a0973d3428704f7578de00186967dba4fa728cb777f576",
+      "sourceInputs": [
+        {
+          "file": "scripts/sitl/driver.mjs",
+          "sha256": "c1a1e2a9c26bb571ea3d82b3b527a46a37155b334497c42d80139253982ce3a4"
+        },
+        {
+          "file": "scripts/sitl/quad.mjs",
+          "sha256": "31698c745c6780108f488b9843fb457d41a1e71b311385d4d792d64a12e3af89"
+        },
+        {
+          "file": "scripts/sitl/telemetry.py",
+          "sha256": "3a386c88b57920fbcacaa2890c9264d3e6406027da250a3882dc705cb0cc48df"
+        },
+        {
+          "file": "scripts/run-sitl.mjs",
+          "sha256": "7fa531290751b984b42567d42233f754d102dbcbb914f34b1e1ed72a84419a23"
+        },
+        {
+          "file": "scripts/sitl.lock.json",
+          "sha256": "cc11bac9e2ca0aa55fbb015775d53067ab1f1de09c3f6a5ba3d4ea6b69c31bbd"
+        },
+        {
+          "file": "packages/wasm-bet/src/backend.ts",
+          "sha256": "691ec9b4d0e2e31e3ebc2aebb2f8009dc7a316705a054ca99ba98a49373227f3"
+        },
+        {
+          "file": "packages/autopilot/src/external-sitl.ts",
+          "sha256": "5b0f9a2c0f9c216e330ae9d803087ce718fd477235e006e96a8bcfaf27e62c97"
+        },
+        {
+          "file": "tests/fixtures/sitl/parameters.parm",
+          "sha256": "c893b966538e648a2d9a96a4803daee6aa594ebadcf99898e74a969073e3bd1b"
+        },
+        {
+          "file": "native/bet/src/rigid_body.rs",
+          "sha256": "cb99a15551a7f7716942aa85d5f003a996d1d08866d98215478f25f1fcd9a30f"
+        },
+        {
+          "file": "native/bet/src/body_abi.rs",
+          "sha256": "35a2f9ea3b98608334841564f3ceec4037793ac475c3d41cd250340cc8291e96"
+        },
+        {
+          "file": "native/bet/src/math.rs",
+          "sha256": "c4603c9eef8ceb340d907361472c5490e511001ef5e9e357bc8cc4f1b34d065e"
+        },
+        {
+          "file": "native/bet/src/lib.rs",
+          "sha256": "b990eae4a4aab7dbeb6d9f1f280c250de5946ca9a985bd189cf53442061bb0db"
+        },
+        {
+          "file": "native/Cargo.lock",
+          "sha256": "3495cbba177ebcf8cd325c90b2fd60c1336af4a2b9067caddb1da31e46769634"
+        },
+        {
+          "file": "native/rust-toolchain.toml",
+          "sha256": "33235c9c607ad21d22e516552672edb41ad72f045573c5fc9a3dee5735d08dda"
+        },
+        {
+          "file": "packages/autopilot/src/live-warmup.ts",
+          "sha256": "e3fce704d1b35494c9bb4a593408993535144c91f3c15bdcbc3aebec4475b22c"
+        },
+        {
+          "file": "packages/autopilot/src/ekf-status.ts",
+          "sha256": "a6391ed0275399c593f2879fe109fd22efe0f5cfdf8e67d958bc549a4710de82"
+        },
+        {
+          "file": "packages/autopilot/src/warmup.ts",
+          "sha256": "e2ae892e3803d26a452280d897c0b75eaafa6f2b4a697d4b7cd56bd30331a7e6"
+        },
+        {
+          "file": "packages/mavlink/src/codec.ts",
+          "sha256": "9661a9db6f3024d4a12b4d9aea5faf74b1d1027ee895ea3446ec2782e925e1ee"
+        },
+        {
+          "file": "packages/protocol/src/layout-v2.ts",
+          "sha256": "238447a89a6c73a1916ca783c0b89a096986881489459b7246d70b91d81920d2"
+        },
+        {
+          "file": "scripts/sitl/ew-observations.ts",
+          "sha256": "02dbf5d64c176b006b0aadb2138aaa654c2665d54fe2631852e8bc73d2c9b6c0"
+        },
+        {
+          "file": "packages/ew/src/engine.ts",
+          "sha256": "357871fe4bed4e51e16ea1fd3f2d075f6fbd2e47164e33a3268646b13f1f455f"
+        },
+        {
+          "file": "packages/ew/src/position-step.ts",
+          "sha256": "17c3195b587f5f8b8d490e8728e69d00479261a055df189301b350d948ce5e3b"
+        },
+        {
+          "file": "packages/ew/src/velocity-drift.ts",
+          "sha256": "89b29cc8e6d7113a1f31de79f17fd8f885ac86ea2afd44b78f11a8d37c511d8c"
+        },
+        {
+          "file": "packages/ew/src/gnss-jamming.ts",
+          "sha256": "bbc5fd1feabca94ac5882b8dbdfb13b9df2065906ed602108f34f9af6fede800"
+        },
+        {
+          "file": "packages/ew/src/magnetic.ts",
+          "sha256": "34af1d49a7ad574c18910b48a07f8965285c77a87055fe3f8f2cbefe20aae713"
+        },
+        {
+          "file": "packages/sensors/src/geodesy.ts",
+          "sha256": "7492eff8a998d07a5743e9b093e77d2901818aacec54c5f71aeebf0a042e8341"
+        },
+        {
+          "file": "packages/sensors/src/geoid.ts",
+          "sha256": "34e977e48901cf214c726c6484c80fed1a14ed9a6cfb88226e073278b90f6e7b"
+        },
+        {
+          "file": "packages/mavlink/src/samples.ts",
+          "sha256": "140774039f0d3dbbe492e0d9b018b8fce1d4dd631804e75cd8e64b150e97885d"
+        }
+      ],
+      "artifacts": [
+        {
+          "file": "run.json",
+          "sha256": "fa9fd4c7dfb95c76e4b870cd5d9a72ac183ead25e292fc93018fd16a4f65323f"
+        },
+        {
+          "file": "flight.json",
+          "sha256": "362474508053aa408a0b51995fb9edb6b70da0b52d6919f8050f01a24da675b4"
+        },
+        {
+          "file": "physics.ndjson",
+          "sha256": "241d096b4a4547ba77f39be060c9d87e2f95cc982ed08241cf60a79943b9c0f2"
+        },
+        {
+          "file": "observations.ndjson",
+          "sha256": "253c5ffdcc21acae2044983116aa89a269e40f4aeb0343effeece78bc145de7c"
+        },
+        {
+          "file": "telemetry.ndjson",
+          "sha256": "f23c802dcefd97ed4ad7fb6e6aade9ef0d2a78e4a0eae50f263c1f241bc0d2f3"
+        },
+        {
+          "file": "mavlink.raw",
+          "sha256": "0d7589d9431a35b0362bbed7b44d9497315b2959cda020f8e8193d5f1b5268c0"
+        },
+        {
+          "file": "tx.raw",
+          "sha256": "db936fddb0e1f19c498e9850857849dec4311a8677a7bcee5afe2bc6b79c89bc"
+        },
+        {
+          "file": "ew-wire-audit.json",
+          "sha256": "d1e506d9a594af3b431ec9a43739308926595eb6af22c5a5dd414d2f92278886"
+        },
+        {
+          "file": "quad.parm",
+          "sha256": "f56ca60b9ff6f5c3c263da00fab6ae536820793d10d6330aa9b6a90b3a7db1d2"
+        }
+      ],
+      "captureSha256": "411b275652d2615d74ad5ad77a22bc1590d8b10de89308a1cf6b3e28e4fb9877",
+      "metrics": {
+        "maxPositionErrorM": 0.09071245039389327,
+        "maxInnovationRatio": 0.01173111330717802,
+        "maxTruthDisplacementM": 0.12972968425786516,
+        "modes": [
+          4
+        ],
+        "ekfFlags": [
+          831
+        ],
+        "unhealthyRows": 0,
+        "samples": 2001,
+        "physicsFrames": 61497,
+        "gpsInputFrames": 769,
+        "faultStartS": 56.86625,
+        "faultEndS": 68.86625000000001,
+        "experimentEndS": 76.86625000000001,
+        "changedInputs": false
+      },
+      "statusTexts": []
+    },
+    {
+      "id": "jamming",
+      "firmwareSha256": "fa37bf619bce116d410931f1b7d24ea72ed444ba529379df0db9738742ecb186",
+      "parameterSha256": "d1804e4372803861f9a7c76bee33daa3d0530a1898c87eda2e1b6ce7ae7eb458",
+      "modelSha256": "e8d4e1c92dfaecbfa3a2cc521636d0199a199fda33218ff1c4d47efc54f2eb8b",
+      "planSha256": "bae96b13da68845966a0973d3428704f7578de00186967dba4fa728cb777f576",
+      "sourceInputs": [
+        {
+          "file": "scripts/sitl/driver.mjs",
+          "sha256": "c1a1e2a9c26bb571ea3d82b3b527a46a37155b334497c42d80139253982ce3a4"
+        },
+        {
+          "file": "scripts/sitl/quad.mjs",
+          "sha256": "31698c745c6780108f488b9843fb457d41a1e71b311385d4d792d64a12e3af89"
+        },
+        {
+          "file": "scripts/sitl/telemetry.py",
+          "sha256": "3a386c88b57920fbcacaa2890c9264d3e6406027da250a3882dc705cb0cc48df"
+        },
+        {
+          "file": "scripts/run-sitl.mjs",
+          "sha256": "7fa531290751b984b42567d42233f754d102dbcbb914f34b1e1ed72a84419a23"
+        },
+        {
+          "file": "scripts/sitl.lock.json",
+          "sha256": "cc11bac9e2ca0aa55fbb015775d53067ab1f1de09c3f6a5ba3d4ea6b69c31bbd"
+        },
+        {
+          "file": "packages/wasm-bet/src/backend.ts",
+          "sha256": "691ec9b4d0e2e31e3ebc2aebb2f8009dc7a316705a054ca99ba98a49373227f3"
+        },
+        {
+          "file": "packages/autopilot/src/external-sitl.ts",
+          "sha256": "5b0f9a2c0f9c216e330ae9d803087ce718fd477235e006e96a8bcfaf27e62c97"
+        },
+        {
+          "file": "tests/fixtures/sitl/parameters.parm",
+          "sha256": "c893b966538e648a2d9a96a4803daee6aa594ebadcf99898e74a969073e3bd1b"
+        },
+        {
+          "file": "native/bet/src/rigid_body.rs",
+          "sha256": "cb99a15551a7f7716942aa85d5f003a996d1d08866d98215478f25f1fcd9a30f"
+        },
+        {
+          "file": "native/bet/src/body_abi.rs",
+          "sha256": "35a2f9ea3b98608334841564f3ceec4037793ac475c3d41cd250340cc8291e96"
+        },
+        {
+          "file": "native/bet/src/math.rs",
+          "sha256": "c4603c9eef8ceb340d907361472c5490e511001ef5e9e357bc8cc4f1b34d065e"
+        },
+        {
+          "file": "native/bet/src/lib.rs",
+          "sha256": "b990eae4a4aab7dbeb6d9f1f280c250de5946ca9a985bd189cf53442061bb0db"
+        },
+        {
+          "file": "native/Cargo.lock",
+          "sha256": "3495cbba177ebcf8cd325c90b2fd60c1336af4a2b9067caddb1da31e46769634"
+        },
+        {
+          "file": "native/rust-toolchain.toml",
+          "sha256": "33235c9c607ad21d22e516552672edb41ad72f045573c5fc9a3dee5735d08dda"
+        },
+        {
+          "file": "packages/autopilot/src/live-warmup.ts",
+          "sha256": "e3fce704d1b35494c9bb4a593408993535144c91f3c15bdcbc3aebec4475b22c"
+        },
+        {
+          "file": "packages/autopilot/src/ekf-status.ts",
+          "sha256": "a6391ed0275399c593f2879fe109fd22efe0f5cfdf8e67d958bc549a4710de82"
+        },
+        {
+          "file": "packages/autopilot/src/warmup.ts",
+          "sha256": "e2ae892e3803d26a452280d897c0b75eaafa6f2b4a697d4b7cd56bd30331a7e6"
+        },
+        {
+          "file": "packages/mavlink/src/codec.ts",
+          "sha256": "9661a9db6f3024d4a12b4d9aea5faf74b1d1027ee895ea3446ec2782e925e1ee"
+        },
+        {
+          "file": "packages/protocol/src/layout-v2.ts",
+          "sha256": "238447a89a6c73a1916ca783c0b89a096986881489459b7246d70b91d81920d2"
+        },
+        {
+          "file": "scripts/sitl/ew-observations.ts",
+          "sha256": "02dbf5d64c176b006b0aadb2138aaa654c2665d54fe2631852e8bc73d2c9b6c0"
+        },
+        {
+          "file": "packages/ew/src/engine.ts",
+          "sha256": "357871fe4bed4e51e16ea1fd3f2d075f6fbd2e47164e33a3268646b13f1f455f"
+        },
+        {
+          "file": "packages/ew/src/position-step.ts",
+          "sha256": "17c3195b587f5f8b8d490e8728e69d00479261a055df189301b350d948ce5e3b"
+        },
+        {
+          "file": "packages/ew/src/velocity-drift.ts",
+          "sha256": "89b29cc8e6d7113a1f31de79f17fd8f885ac86ea2afd44b78f11a8d37c511d8c"
+        },
+        {
+          "file": "packages/ew/src/gnss-jamming.ts",
+          "sha256": "bbc5fd1feabca94ac5882b8dbdfb13b9df2065906ed602108f34f9af6fede800"
+        },
+        {
+          "file": "packages/ew/src/magnetic.ts",
+          "sha256": "34af1d49a7ad574c18910b48a07f8965285c77a87055fe3f8f2cbefe20aae713"
+        },
+        {
+          "file": "packages/sensors/src/geodesy.ts",
+          "sha256": "7492eff8a998d07a5743e9b093e77d2901818aacec54c5f71aeebf0a042e8341"
+        },
+        {
+          "file": "packages/sensors/src/geoid.ts",
+          "sha256": "34e977e48901cf214c726c6484c80fed1a14ed9a6cfb88226e073278b90f6e7b"
+        },
+        {
+          "file": "packages/mavlink/src/samples.ts",
+          "sha256": "140774039f0d3dbbe492e0d9b018b8fce1d4dd631804e75cd8e64b150e97885d"
+        }
+      ],
+      "artifacts": [
+        {
+          "file": "run.json",
+          "sha256": "1bf17484079a97238ed13f0b191146648d058c3755666bd6f28c92ef5ff1de1c"
+        },
+        {
+          "file": "flight.json",
+          "sha256": "47335a4e4a3476eaf8919c2c2ff317cd9efe70600fb56e16dddf836ce5e7f29f"
+        },
+        {
+          "file": "physics.ndjson",
+          "sha256": "657888d3bb9378886485fe07cd20c86f47068c232be901bef809a38fd9cb2a63"
+        },
+        {
+          "file": "observations.ndjson",
+          "sha256": "16ec6588af1e3c47914ce11deb27e7970b41206847a8d5132d11d647e29b2f71"
+        },
+        {
+          "file": "telemetry.ndjson",
+          "sha256": "2e12a62970b06cb22e6cf79ff0eb494be0140836364450d4398391e6f01e4186"
+        },
+        {
+          "file": "mavlink.raw",
+          "sha256": "a66ee333bb68899d34ff005ada71d22de04ae5570ec05dcee74b806f3a22a5db"
+        },
+        {
+          "file": "tx.raw",
+          "sha256": "c858941a9e86849571622f8a936a61ec67f1a5a42f9828d26a49027e4ea3f479"
+        },
+        {
+          "file": "ew-wire-audit.json",
+          "sha256": "d1f24b52867833eca0e8dad3dc2ebaab3e31a3d75ac1451195002cacc81992d8"
+        },
+        {
+          "file": "quad.parm",
+          "sha256": "f56ca60b9ff6f5c3c263da00fab6ae536820793d10d6330aa9b6a90b3a7db1d2"
+        }
+      ],
+      "captureSha256": "0bbfcf3aaa44559ae1f8c2565770aa8c46724206a3cf95e337dd1b7a61f1c98a",
+      "metrics": {
+        "maxPositionErrorM": 2.4700577813391744,
+        "maxInnovationRatio": 0.06573081761598587,
+        "maxTruthDisplacementM": 10.088444537196143,
+        "modes": [
+          4,
+          9
+        ],
+        "ekfFlags": [
+          37,
+          831
+        ],
+        "unhealthyRows": 460,
+        "samples": 2001,
+        "physicsFrames": 61497,
+        "gpsInputFrames": 769,
+        "faultStartS": 56.86625,
+        "faultEndS": 68.86625000000001,
+        "experimentEndS": 76.86625000000001,
+        "changedInputs": true
+      },
+      "statusTexts": [
+        {
+          "timeS": 65.54875,
+          "text": "EKF variance: position lost"
+        },
+        {
+          "timeS": 65.54875,
+          "text": "EKF Failsafe: changed to Land Mode"
+        },
+        {
+          "timeS": 70.14875,
+          "text": "EKF Failsafe Cleared"
+        }
+      ]
+    },
+    {
+      "id": "position-step",
+      "firmwareSha256": "fa37bf619bce116d410931f1b7d24ea72ed444ba529379df0db9738742ecb186",
+      "parameterSha256": "d1804e4372803861f9a7c76bee33daa3d0530a1898c87eda2e1b6ce7ae7eb458",
+      "modelSha256": "e8d4e1c92dfaecbfa3a2cc521636d0199a199fda33218ff1c4d47efc54f2eb8b",
+      "planSha256": "bae96b13da68845966a0973d3428704f7578de00186967dba4fa728cb777f576",
+      "sourceInputs": [
+        {
+          "file": "scripts/sitl/driver.mjs",
+          "sha256": "c1a1e2a9c26bb571ea3d82b3b527a46a37155b334497c42d80139253982ce3a4"
+        },
+        {
+          "file": "scripts/sitl/quad.mjs",
+          "sha256": "31698c745c6780108f488b9843fb457d41a1e71b311385d4d792d64a12e3af89"
+        },
+        {
+          "file": "scripts/sitl/telemetry.py",
+          "sha256": "3a386c88b57920fbcacaa2890c9264d3e6406027da250a3882dc705cb0cc48df"
+        },
+        {
+          "file": "scripts/run-sitl.mjs",
+          "sha256": "7fa531290751b984b42567d42233f754d102dbcbb914f34b1e1ed72a84419a23"
+        },
+        {
+          "file": "scripts/sitl.lock.json",
+          "sha256": "cc11bac9e2ca0aa55fbb015775d53067ab1f1de09c3f6a5ba3d4ea6b69c31bbd"
+        },
+        {
+          "file": "packages/wasm-bet/src/backend.ts",
+          "sha256": "691ec9b4d0e2e31e3ebc2aebb2f8009dc7a316705a054ca99ba98a49373227f3"
+        },
+        {
+          "file": "packages/autopilot/src/external-sitl.ts",
+          "sha256": "5b0f9a2c0f9c216e330ae9d803087ce718fd477235e006e96a8bcfaf27e62c97"
+        },
+        {
+          "file": "tests/fixtures/sitl/parameters.parm",
+          "sha256": "c893b966538e648a2d9a96a4803daee6aa594ebadcf99898e74a969073e3bd1b"
+        },
+        {
+          "file": "native/bet/src/rigid_body.rs",
+          "sha256": "cb99a15551a7f7716942aa85d5f003a996d1d08866d98215478f25f1fcd9a30f"
+        },
+        {
+          "file": "native/bet/src/body_abi.rs",
+          "sha256": "35a2f9ea3b98608334841564f3ceec4037793ac475c3d41cd250340cc8291e96"
+        },
+        {
+          "file": "native/bet/src/math.rs",
+          "sha256": "c4603c9eef8ceb340d907361472c5490e511001ef5e9e357bc8cc4f1b34d065e"
+        },
+        {
+          "file": "native/bet/src/lib.rs",
+          "sha256": "b990eae4a4aab7dbeb6d9f1f280c250de5946ca9a985bd189cf53442061bb0db"
+        },
+        {
+          "file": "native/Cargo.lock",
+          "sha256": "3495cbba177ebcf8cd325c90b2fd60c1336af4a2b9067caddb1da31e46769634"
+        },
+        {
+          "file": "native/rust-toolchain.toml",
+          "sha256": "33235c9c607ad21d22e516552672edb41ad72f045573c5fc9a3dee5735d08dda"
+        },
+        {
+          "file": "packages/autopilot/src/live-warmup.ts",
+          "sha256": "e3fce704d1b35494c9bb4a593408993535144c91f3c15bdcbc3aebec4475b22c"
+        },
+        {
+          "file": "packages/autopilot/src/ekf-status.ts",
+          "sha256": "a6391ed0275399c593f2879fe109fd22efe0f5cfdf8e67d958bc549a4710de82"
+        },
+        {
+          "file": "packages/autopilot/src/warmup.ts",
+          "sha256": "e2ae892e3803d26a452280d897c0b75eaafa6f2b4a697d4b7cd56bd30331a7e6"
+        },
+        {
+          "file": "packages/mavlink/src/codec.ts",
+          "sha256": "9661a9db6f3024d4a12b4d9aea5faf74b1d1027ee895ea3446ec2782e925e1ee"
+        },
+        {
+          "file": "packages/protocol/src/layout-v2.ts",
+          "sha256": "238447a89a6c73a1916ca783c0b89a096986881489459b7246d70b91d81920d2"
+        },
+        {
+          "file": "scripts/sitl/ew-observations.ts",
+          "sha256": "02dbf5d64c176b006b0aadb2138aaa654c2665d54fe2631852e8bc73d2c9b6c0"
+        },
+        {
+          "file": "packages/ew/src/engine.ts",
+          "sha256": "357871fe4bed4e51e16ea1fd3f2d075f6fbd2e47164e33a3268646b13f1f455f"
+        },
+        {
+          "file": "packages/ew/src/position-step.ts",
+          "sha256": "17c3195b587f5f8b8d490e8728e69d00479261a055df189301b350d948ce5e3b"
+        },
+        {
+          "file": "packages/ew/src/velocity-drift.ts",
+          "sha256": "89b29cc8e6d7113a1f31de79f17fd8f885ac86ea2afd44b78f11a8d37c511d8c"
+        },
+        {
+          "file": "packages/ew/src/gnss-jamming.ts",
+          "sha256": "bbc5fd1feabca94ac5882b8dbdfb13b9df2065906ed602108f34f9af6fede800"
+        },
+        {
+          "file": "packages/ew/src/magnetic.ts",
+          "sha256": "34af1d49a7ad574c18910b48a07f8965285c77a87055fe3f8f2cbefe20aae713"
+        },
+        {
+          "file": "packages/sensors/src/geodesy.ts",
+          "sha256": "7492eff8a998d07a5743e9b093e77d2901818aacec54c5f71aeebf0a042e8341"
+        },
+        {
+          "file": "packages/sensors/src/geoid.ts",
+          "sha256": "34e977e48901cf214c726c6484c80fed1a14ed9a6cfb88226e073278b90f6e7b"
+        },
+        {
+          "file": "packages/mavlink/src/samples.ts",
+          "sha256": "140774039f0d3dbbe492e0d9b018b8fce1d4dd631804e75cd8e64b150e97885d"
+        }
+      ],
+      "artifacts": [
+        {
+          "file": "run.json",
+          "sha256": "ddc458684514b90d6d1dc37a8a79feb0af74cb1b17c414034a050a483e3408ad"
+        },
+        {
+          "file": "flight.json",
+          "sha256": "852ce8c9755100fa9e43151918be3f20a9a5e573b5945d8e8454a061ef76b6bc"
+        },
+        {
+          "file": "physics.ndjson",
+          "sha256": "b69837daf4949a4310063238830798c9be078a0ec2cc3005db4f51d91204d341"
+        },
+        {
+          "file": "observations.ndjson",
+          "sha256": "842f31c955e5a7ffdfc7129ca0a6f94877dfe483292962ede6e92ace9fea1a6a"
+        },
+        {
+          "file": "telemetry.ndjson",
+          "sha256": "b7ffeed7b11e6e722128de3b601d99cd71b8361aabd7675c9720d7c04c7206d3"
+        },
+        {
+          "file": "mavlink.raw",
+          "sha256": "c2ef3be7ea83a48895fd407cae34c66132e134c7a76f4e768bdf545816399f28"
+        },
+        {
+          "file": "tx.raw",
+          "sha256": "5584750727034ca594b82e2666437f064c554ee35cadaa82e5a6c379646f8957"
+        },
+        {
+          "file": "ew-wire-audit.json",
+          "sha256": "32cd1e6699c8cb8d705badca48c5d0505622ac2169633e863037a40e25acb2ef"
+        },
+        {
+          "file": "quad.parm",
+          "sha256": "f56ca60b9ff6f5c3c263da00fab6ae536820793d10d6330aa9b6a90b3a7db1d2"
+        }
+      ],
+      "captureSha256": "0003dabf78abc1fbfe61f30e4736dbd3c52e8ec3a634df02e8ae3f43ce640dc4",
+      "metrics": {
+        "maxPositionErrorM": 29.996482438553716,
+        "maxInnovationRatio": 8.263916015625,
+        "maxTruthDisplacementM": 0.12925459123231509,
+        "modes": [
+          4
+        ],
+        "ekfFlags": [
+          831,
+          32807,
+          33599
+        ],
+        "unhealthyRows": 1782,
+        "samples": 2001,
+        "physicsFrames": 61481,
+        "gpsInputFrames": 769,
+        "faultStartS": 56.84625,
+        "faultEndS": 68.84625,
+        "experimentEndS": 76.84625,
+        "changedInputs": true
+      },
+      "statusTexts": [
+        {
+          "timeS": 58.04875,
+          "text": "GPS Glitch or Compass error"
+        },
+        {
+          "timeS": 66.91375,
+          "text": "EKF3 lane switch 1"
+        },
+        {
+          "timeS": 66.91375,
+          "text": "EKF3 primary changed:1"
+        }
+      ]
+    },
+    {
+      "id": "velocity-drift",
+      "firmwareSha256": "fa37bf619bce116d410931f1b7d24ea72ed444ba529379df0db9738742ecb186",
+      "parameterSha256": "d1804e4372803861f9a7c76bee33daa3d0530a1898c87eda2e1b6ce7ae7eb458",
+      "modelSha256": "e8d4e1c92dfaecbfa3a2cc521636d0199a199fda33218ff1c4d47efc54f2eb8b",
+      "planSha256": "bae96b13da68845966a0973d3428704f7578de00186967dba4fa728cb777f576",
+      "sourceInputs": [
+        {
+          "file": "scripts/sitl/driver.mjs",
+          "sha256": "c1a1e2a9c26bb571ea3d82b3b527a46a37155b334497c42d80139253982ce3a4"
+        },
+        {
+          "file": "scripts/sitl/quad.mjs",
+          "sha256": "31698c745c6780108f488b9843fb457d41a1e71b311385d4d792d64a12e3af89"
+        },
+        {
+          "file": "scripts/sitl/telemetry.py",
+          "sha256": "3a386c88b57920fbcacaa2890c9264d3e6406027da250a3882dc705cb0cc48df"
+        },
+        {
+          "file": "scripts/run-sitl.mjs",
+          "sha256": "7fa531290751b984b42567d42233f754d102dbcbb914f34b1e1ed72a84419a23"
+        },
+        {
+          "file": "scripts/sitl.lock.json",
+          "sha256": "cc11bac9e2ca0aa55fbb015775d53067ab1f1de09c3f6a5ba3d4ea6b69c31bbd"
+        },
+        {
+          "file": "packages/wasm-bet/src/backend.ts",
+          "sha256": "691ec9b4d0e2e31e3ebc2aebb2f8009dc7a316705a054ca99ba98a49373227f3"
+        },
+        {
+          "file": "packages/autopilot/src/external-sitl.ts",
+          "sha256": "5b0f9a2c0f9c216e330ae9d803087ce718fd477235e006e96a8bcfaf27e62c97"
+        },
+        {
+          "file": "tests/fixtures/sitl/parameters.parm",
+          "sha256": "c893b966538e648a2d9a96a4803daee6aa594ebadcf99898e74a969073e3bd1b"
+        },
+        {
+          "file": "native/bet/src/rigid_body.rs",
+          "sha256": "cb99a15551a7f7716942aa85d5f003a996d1d08866d98215478f25f1fcd9a30f"
+        },
+        {
+          "file": "native/bet/src/body_abi.rs",
+          "sha256": "35a2f9ea3b98608334841564f3ceec4037793ac475c3d41cd250340cc8291e96"
+        },
+        {
+          "file": "native/bet/src/math.rs",
+          "sha256": "c4603c9eef8ceb340d907361472c5490e511001ef5e9e357bc8cc4f1b34d065e"
+        },
+        {
+          "file": "native/bet/src/lib.rs",
+          "sha256": "b990eae4a4aab7dbeb6d9f1f280c250de5946ca9a985bd189cf53442061bb0db"
+        },
+        {
+          "file": "native/Cargo.lock",
+          "sha256": "3495cbba177ebcf8cd325c90b2fd60c1336af4a2b9067caddb1da31e46769634"
+        },
+        {
+          "file": "native/rust-toolchain.toml",
+          "sha256": "33235c9c607ad21d22e516552672edb41ad72f045573c5fc9a3dee5735d08dda"
+        },
+        {
+          "file": "packages/autopilot/src/live-warmup.ts",
+          "sha256": "e3fce704d1b35494c9bb4a593408993535144c91f3c15bdcbc3aebec4475b22c"
+        },
+        {
+          "file": "packages/autopilot/src/ekf-status.ts",
+          "sha256": "a6391ed0275399c593f2879fe109fd22efe0f5cfdf8e67d958bc549a4710de82"
+        },
+        {
+          "file": "packages/autopilot/src/warmup.ts",
+          "sha256": "e2ae892e3803d26a452280d897c0b75eaafa6f2b4a697d4b7cd56bd30331a7e6"
+        },
+        {
+          "file": "packages/mavlink/src/codec.ts",
+          "sha256": "9661a9db6f3024d4a12b4d9aea5faf74b1d1027ee895ea3446ec2782e925e1ee"
+        },
+        {
+          "file": "packages/protocol/src/layout-v2.ts",
+          "sha256": "238447a89a6c73a1916ca783c0b89a096986881489459b7246d70b91d81920d2"
+        },
+        {
+          "file": "scripts/sitl/ew-observations.ts",
+          "sha256": "02dbf5d64c176b006b0aadb2138aaa654c2665d54fe2631852e8bc73d2c9b6c0"
+        },
+        {
+          "file": "packages/ew/src/engine.ts",
+          "sha256": "357871fe4bed4e51e16ea1fd3f2d075f6fbd2e47164e33a3268646b13f1f455f"
+        },
+        {
+          "file": "packages/ew/src/position-step.ts",
+          "sha256": "17c3195b587f5f8b8d490e8728e69d00479261a055df189301b350d948ce5e3b"
+        },
+        {
+          "file": "packages/ew/src/velocity-drift.ts",
+          "sha256": "89b29cc8e6d7113a1f31de79f17fd8f885ac86ea2afd44b78f11a8d37c511d8c"
+        },
+        {
+          "file": "packages/ew/src/gnss-jamming.ts",
+          "sha256": "bbc5fd1feabca94ac5882b8dbdfb13b9df2065906ed602108f34f9af6fede800"
+        },
+        {
+          "file": "packages/ew/src/magnetic.ts",
+          "sha256": "34af1d49a7ad574c18910b48a07f8965285c77a87055fe3f8f2cbefe20aae713"
+        },
+        {
+          "file": "packages/sensors/src/geodesy.ts",
+          "sha256": "7492eff8a998d07a5743e9b093e77d2901818aacec54c5f71aeebf0a042e8341"
+        },
+        {
+          "file": "packages/sensors/src/geoid.ts",
+          "sha256": "34e977e48901cf214c726c6484c80fed1a14ed9a6cfb88226e073278b90f6e7b"
+        },
+        {
+          "file": "packages/mavlink/src/samples.ts",
+          "sha256": "140774039f0d3dbbe492e0d9b018b8fce1d4dd631804e75cd8e64b150e97885d"
+        }
+      ],
+      "artifacts": [
+        {
+          "file": "run.json",
+          "sha256": "7a5bb240da8e56d9dc83ec23ddfb9c41c9146b949f3f3c1f6a18479b0ae38bbe"
+        },
+        {
+          "file": "flight.json",
+          "sha256": "cbae906827190633be3b4afd6a3fede4483b1386caf05b86eceed89785a119f8"
+        },
+        {
+          "file": "physics.ndjson",
+          "sha256": "55a7e5a1db07584ea243f0821e3119633dc11014577733de654a7992c5d138f5"
+        },
+        {
+          "file": "observations.ndjson",
+          "sha256": "ef22d145aadd397d4e8d2d446fa758092bb8506f2af580def594fa21890e824c"
+        },
+        {
+          "file": "telemetry.ndjson",
+          "sha256": "c8666471b13e9a8b58425d1b4a3200809a6d8f3d239bb8075cdd6beb7ea448d0"
+        },
+        {
+          "file": "mavlink.raw",
+          "sha256": "ef1643182487df4b2feac5c59f27a34a2d37487641b6634aae0d102c687c9a1f"
+        },
+        {
+          "file": "tx.raw",
+          "sha256": "2904164dca8a0950097d51a215d60955982284a6209b99b8ae180562a03bd486"
+        },
+        {
+          "file": "ew-wire-audit.json",
+          "sha256": "c63e0ce0e7fb4bf124915782d3aeb0beb13e2b19b1b744ee65f5166f931c813a"
+        },
+        {
+          "file": "quad.parm",
+          "sha256": "f56ca60b9ff6f5c3c263da00fab6ae536820793d10d6330aa9b6a90b3a7db1d2"
+        }
+      ],
+      "captureSha256": "4829b687119911adb0ef05fec1fa76ccf1bb38369055e086080899a085e952d8",
+      "metrics": {
+        "maxPositionErrorM": 70.0297959952607,
+        "maxInnovationRatio": 10.123101234436035,
+        "maxTruthDisplacementM": 74.59094786140618,
+        "modes": [
+          4,
+          9
+        ],
+        "ekfFlags": [
+          831,
+          32805,
+          33599
+        ],
+        "unhealthyRows": 700,
+        "samples": 2001,
+        "physicsFrames": 61481,
+        "gpsInputFrames": 769,
+        "faultStartS": 56.84625,
+        "faultEndS": 68.84625,
+        "experimentEndS": 76.84625,
+        "changedInputs": true
+      },
+      "statusTexts": [
+        {
+          "timeS": 68.91875,
+          "text": "EKF3 lane switch 1"
+        },
+        {
+          "timeS": 68.91875,
+          "text": "EKF3 primary changed:1"
+        },
+        {
+          "timeS": 69.84875,
+          "text": "EKF variance: over thresholds"
+        },
+        {
+          "timeS": 69.84875,
+          "text": "EKF Failsafe: changed to Land Mode"
+        },
+        {
+          "timeS": 70.04875,
+          "text": "GPS Glitch or Compass error"
+        },
+        {
+          "timeS": 70.41625,
+          "text": "EKF3 lane switch 0"
+        },
+        {
+          "timeS": 70.41625,
+          "text": "EKF3 primary changed:0"
+        },
+        {
+          "timeS": 70.84875,
+          "text": "Vibration compensation ON"
+        },
+        {
+          "timeS": 76.84875,
+          "text": "EKF Failsafe Cleared"
+        }
+      ]
+    },
+    {
+      "id": "magnetic",
+      "firmwareSha256": "fa37bf619bce116d410931f1b7d24ea72ed444ba529379df0db9738742ecb186",
+      "parameterSha256": "d1804e4372803861f9a7c76bee33daa3d0530a1898c87eda2e1b6ce7ae7eb458",
+      "modelSha256": "e8d4e1c92dfaecbfa3a2cc521636d0199a199fda33218ff1c4d47efc54f2eb8b",
+      "planSha256": "bae96b13da68845966a0973d3428704f7578de00186967dba4fa728cb777f576",
+      "sourceInputs": [
+        {
+          "file": "scripts/sitl/driver.mjs",
+          "sha256": "c1a1e2a9c26bb571ea3d82b3b527a46a37155b334497c42d80139253982ce3a4"
+        },
+        {
+          "file": "scripts/sitl/quad.mjs",
+          "sha256": "31698c745c6780108f488b9843fb457d41a1e71b311385d4d792d64a12e3af89"
+        },
+        {
+          "file": "scripts/sitl/telemetry.py",
+          "sha256": "3a386c88b57920fbcacaa2890c9264d3e6406027da250a3882dc705cb0cc48df"
+        },
+        {
+          "file": "scripts/run-sitl.mjs",
+          "sha256": "7fa531290751b984b42567d42233f754d102dbcbb914f34b1e1ed72a84419a23"
+        },
+        {
+          "file": "scripts/sitl.lock.json",
+          "sha256": "cc11bac9e2ca0aa55fbb015775d53067ab1f1de09c3f6a5ba3d4ea6b69c31bbd"
+        },
+        {
+          "file": "packages/wasm-bet/src/backend.ts",
+          "sha256": "691ec9b4d0e2e31e3ebc2aebb2f8009dc7a316705a054ca99ba98a49373227f3"
+        },
+        {
+          "file": "packages/autopilot/src/external-sitl.ts",
+          "sha256": "5b0f9a2c0f9c216e330ae9d803087ce718fd477235e006e96a8bcfaf27e62c97"
+        },
+        {
+          "file": "tests/fixtures/sitl/parameters.parm",
+          "sha256": "c893b966538e648a2d9a96a4803daee6aa594ebadcf99898e74a969073e3bd1b"
+        },
+        {
+          "file": "native/bet/src/rigid_body.rs",
+          "sha256": "cb99a15551a7f7716942aa85d5f003a996d1d08866d98215478f25f1fcd9a30f"
+        },
+        {
+          "file": "native/bet/src/body_abi.rs",
+          "sha256": "35a2f9ea3b98608334841564f3ceec4037793ac475c3d41cd250340cc8291e96"
+        },
+        {
+          "file": "native/bet/src/math.rs",
+          "sha256": "c4603c9eef8ceb340d907361472c5490e511001ef5e9e357bc8cc4f1b34d065e"
+        },
+        {
+          "file": "native/bet/src/lib.rs",
+          "sha256": "b990eae4a4aab7dbeb6d9f1f280c250de5946ca9a985bd189cf53442061bb0db"
+        },
+        {
+          "file": "native/Cargo.lock",
+          "sha256": "3495cbba177ebcf8cd325c90b2fd60c1336af4a2b9067caddb1da31e46769634"
+        },
+        {
+          "file": "native/rust-toolchain.toml",
+          "sha256": "33235c9c607ad21d22e516552672edb41ad72f045573c5fc9a3dee5735d08dda"
+        },
+        {
+          "file": "packages/autopilot/src/live-warmup.ts",
+          "sha256": "e3fce704d1b35494c9bb4a593408993535144c91f3c15bdcbc3aebec4475b22c"
+        },
+        {
+          "file": "packages/autopilot/src/ekf-status.ts",
+          "sha256": "a6391ed0275399c593f2879fe109fd22efe0f5cfdf8e67d958bc549a4710de82"
+        },
+        {
+          "file": "packages/autopilot/src/warmup.ts",
+          "sha256": "e2ae892e3803d26a452280d897c0b75eaafa6f2b4a697d4b7cd56bd30331a7e6"
+        },
+        {
+          "file": "packages/mavlink/src/codec.ts",
+          "sha256": "9661a9db6f3024d4a12b4d9aea5faf74b1d1027ee895ea3446ec2782e925e1ee"
+        },
+        {
+          "file": "packages/protocol/src/layout-v2.ts",
+          "sha256": "238447a89a6c73a1916ca783c0b89a096986881489459b7246d70b91d81920d2"
+        },
+        {
+          "file": "scripts/sitl/ew-observations.ts",
+          "sha256": "02dbf5d64c176b006b0aadb2138aaa654c2665d54fe2631852e8bc73d2c9b6c0"
+        },
+        {
+          "file": "packages/ew/src/engine.ts",
+          "sha256": "357871fe4bed4e51e16ea1fd3f2d075f6fbd2e47164e33a3268646b13f1f455f"
+        },
+        {
+          "file": "packages/ew/src/position-step.ts",
+          "sha256": "17c3195b587f5f8b8d490e8728e69d00479261a055df189301b350d948ce5e3b"
+        },
+        {
+          "file": "packages/ew/src/velocity-drift.ts",
+          "sha256": "89b29cc8e6d7113a1f31de79f17fd8f885ac86ea2afd44b78f11a8d37c511d8c"
+        },
+        {
+          "file": "packages/ew/src/gnss-jamming.ts",
+          "sha256": "bbc5fd1feabca94ac5882b8dbdfb13b9df2065906ed602108f34f9af6fede800"
+        },
+        {
+          "file": "packages/ew/src/magnetic.ts",
+          "sha256": "34af1d49a7ad574c18910b48a07f8965285c77a87055fe3f8f2cbefe20aae713"
+        },
+        {
+          "file": "packages/sensors/src/geodesy.ts",
+          "sha256": "7492eff8a998d07a5743e9b093e77d2901818aacec54c5f71aeebf0a042e8341"
+        },
+        {
+          "file": "packages/sensors/src/geoid.ts",
+          "sha256": "34e977e48901cf214c726c6484c80fed1a14ed9a6cfb88226e073278b90f6e7b"
+        },
+        {
+          "file": "packages/mavlink/src/samples.ts",
+          "sha256": "140774039f0d3dbbe492e0d9b018b8fce1d4dd631804e75cd8e64b150e97885d"
+        }
+      ],
+      "artifacts": [
+        {
+          "file": "run.json",
+          "sha256": "0c7dde36b274913fbf989ea1ba7cc5b33c61f67bc7cc02e21bad557759128d98"
+        },
+        {
+          "file": "flight.json",
+          "sha256": "19105726086e672e6ea511be7a88a8d3b19490e421c6220c6fa450953cd671c6"
+        },
+        {
+          "file": "physics.ndjson",
+          "sha256": "ea378aed458a19c47ff0464493562885e8d68f532bf3dd5e782914151a0e72ba"
+        },
+        {
+          "file": "observations.ndjson",
+          "sha256": "64e59e8878d615a57fe9926baa07efd4d9d07dfba0f6495c056720de24b60961"
+        },
+        {
+          "file": "telemetry.ndjson",
+          "sha256": "afe8c9606d88e9c6f160fe4e3b84391b8af928e9f22d25df0cdcfbf752e4a8a6"
+        },
+        {
+          "file": "mavlink.raw",
+          "sha256": "7d6ec54df09fbf2a79ae24a9a27ad0dfb50973eb4edf9418900e8f0679ea0cbf"
+        },
+        {
+          "file": "tx.raw",
+          "sha256": "bee203fb993045216787e1884303b01391b780368d9396149a91c65add681e3e"
+        },
+        {
+          "file": "ew-wire-audit.json",
+          "sha256": "7e0105db24fc5ac21cf264ce149d5c5cc46a2d42e82defcaeeee5e5e639168d5"
+        },
+        {
+          "file": "quad.parm",
+          "sha256": "f56ca60b9ff6f5c3c263da00fab6ae536820793d10d6330aa9b6a90b3a7db1d2"
+        }
+      ],
+      "captureSha256": "9bf6cf8b42cd6a69828c0d48174eae5c6e9255d9852e7b99472afe0ce138d677",
+      "metrics": {
+        "maxPositionErrorM": 0.09039501751645175,
+        "maxInnovationRatio": 1.9832954406738281,
+        "maxTruthDisplacementM": 0.12944185933774235,
+        "modes": [
+          4
+        ],
+        "ekfFlags": [
+          831
+        ],
+        "unhealthyRows": 1200,
+        "samples": 2001,
+        "physicsFrames": 61481,
+        "gpsInputFrames": 769,
+        "faultStartS": 56.84625,
+        "faultEndS": 68.84625,
+        "experimentEndS": 76.84625,
+        "changedInputs": true
+      },
+      "statusTexts": [
+        {
+          "timeS": 67.10125,
+          "text": "EKF3 IMU1 switching to compass 1"
+        },
+        {
+          "timeS": 67.10125,
+          "text": "EKF3 IMU1 switching to compass 0"
+        },
+        {
+          "timeS": 67.10625,
+          "text": "EKF3 IMU0 switching to compass 1"
+        },
+        {
+          "timeS": 67.10625,
+          "text": "EKF3 IMU0 switching to compass 0"
+        }
+      ]
+    },
+    {
+      "id": "motor-loss",
+      "firmwareSha256": "fa37bf619bce116d410931f1b7d24ea72ed444ba529379df0db9738742ecb186",
+      "parameterSha256": "d1804e4372803861f9a7c76bee33daa3d0530a1898c87eda2e1b6ce7ae7eb458",
+      "modelSha256": "e8d4e1c92dfaecbfa3a2cc521636d0199a199fda33218ff1c4d47efc54f2eb8b",
+      "planSha256": "bae96b13da68845966a0973d3428704f7578de00186967dba4fa728cb777f576",
+      "sourceInputs": [
+        {
+          "file": "scripts/sitl/driver.mjs",
+          "sha256": "c1a1e2a9c26bb571ea3d82b3b527a46a37155b334497c42d80139253982ce3a4"
+        },
+        {
+          "file": "scripts/sitl/quad.mjs",
+          "sha256": "31698c745c6780108f488b9843fb457d41a1e71b311385d4d792d64a12e3af89"
+        },
+        {
+          "file": "scripts/sitl/telemetry.py",
+          "sha256": "3a386c88b57920fbcacaa2890c9264d3e6406027da250a3882dc705cb0cc48df"
+        },
+        {
+          "file": "scripts/run-sitl.mjs",
+          "sha256": "7fa531290751b984b42567d42233f754d102dbcbb914f34b1e1ed72a84419a23"
+        },
+        {
+          "file": "scripts/sitl.lock.json",
+          "sha256": "cc11bac9e2ca0aa55fbb015775d53067ab1f1de09c3f6a5ba3d4ea6b69c31bbd"
+        },
+        {
+          "file": "packages/wasm-bet/src/backend.ts",
+          "sha256": "691ec9b4d0e2e31e3ebc2aebb2f8009dc7a316705a054ca99ba98a49373227f3"
+        },
+        {
+          "file": "packages/autopilot/src/external-sitl.ts",
+          "sha256": "5b0f9a2c0f9c216e330ae9d803087ce718fd477235e006e96a8bcfaf27e62c97"
+        },
+        {
+          "file": "tests/fixtures/sitl/parameters.parm",
+          "sha256": "c893b966538e648a2d9a96a4803daee6aa594ebadcf99898e74a969073e3bd1b"
+        },
+        {
+          "file": "native/bet/src/rigid_body.rs",
+          "sha256": "cb99a15551a7f7716942aa85d5f003a996d1d08866d98215478f25f1fcd9a30f"
+        },
+        {
+          "file": "native/bet/src/body_abi.rs",
+          "sha256": "35a2f9ea3b98608334841564f3ceec4037793ac475c3d41cd250340cc8291e96"
+        },
+        {
+          "file": "native/bet/src/math.rs",
+          "sha256": "c4603c9eef8ceb340d907361472c5490e511001ef5e9e357bc8cc4f1b34d065e"
+        },
+        {
+          "file": "native/bet/src/lib.rs",
+          "sha256": "b990eae4a4aab7dbeb6d9f1f280c250de5946ca9a985bd189cf53442061bb0db"
+        },
+        {
+          "file": "native/Cargo.lock",
+          "sha256": "3495cbba177ebcf8cd325c90b2fd60c1336af4a2b9067caddb1da31e46769634"
+        },
+        {
+          "file": "native/rust-toolchain.toml",
+          "sha256": "33235c9c607ad21d22e516552672edb41ad72f045573c5fc9a3dee5735d08dda"
+        },
+        {
+          "file": "packages/autopilot/src/live-warmup.ts",
+          "sha256": "e3fce704d1b35494c9bb4a593408993535144c91f3c15bdcbc3aebec4475b22c"
+        },
+        {
+          "file": "packages/autopilot/src/ekf-status.ts",
+          "sha256": "a6391ed0275399c593f2879fe109fd22efe0f5cfdf8e67d958bc549a4710de82"
+        },
+        {
+          "file": "packages/autopilot/src/warmup.ts",
+          "sha256": "e2ae892e3803d26a452280d897c0b75eaafa6f2b4a697d4b7cd56bd30331a7e6"
+        },
+        {
+          "file": "packages/mavlink/src/codec.ts",
+          "sha256": "9661a9db6f3024d4a12b4d9aea5faf74b1d1027ee895ea3446ec2782e925e1ee"
+        },
+        {
+          "file": "packages/protocol/src/layout-v2.ts",
+          "sha256": "238447a89a6c73a1916ca783c0b89a096986881489459b7246d70b91d81920d2"
+        },
+        {
+          "file": "scripts/sitl/ew-observations.ts",
+          "sha256": "02dbf5d64c176b006b0aadb2138aaa654c2665d54fe2631852e8bc73d2c9b6c0"
+        },
+        {
+          "file": "packages/ew/src/engine.ts",
+          "sha256": "357871fe4bed4e51e16ea1fd3f2d075f6fbd2e47164e33a3268646b13f1f455f"
+        },
+        {
+          "file": "packages/ew/src/position-step.ts",
+          "sha256": "17c3195b587f5f8b8d490e8728e69d00479261a055df189301b350d948ce5e3b"
+        },
+        {
+          "file": "packages/ew/src/velocity-drift.ts",
+          "sha256": "89b29cc8e6d7113a1f31de79f17fd8f885ac86ea2afd44b78f11a8d37c511d8c"
+        },
+        {
+          "file": "packages/ew/src/gnss-jamming.ts",
+          "sha256": "bbc5fd1feabca94ac5882b8dbdfb13b9df2065906ed602108f34f9af6fede800"
+        },
+        {
+          "file": "packages/ew/src/magnetic.ts",
+          "sha256": "34af1d49a7ad574c18910b48a07f8965285c77a87055fe3f8f2cbefe20aae713"
+        },
+        {
+          "file": "packages/sensors/src/geodesy.ts",
+          "sha256": "7492eff8a998d07a5743e9b093e77d2901818aacec54c5f71aeebf0a042e8341"
+        },
+        {
+          "file": "packages/sensors/src/geoid.ts",
+          "sha256": "34e977e48901cf214c726c6484c80fed1a14ed9a6cfb88226e073278b90f6e7b"
+        },
+        {
+          "file": "packages/mavlink/src/samples.ts",
+          "sha256": "140774039f0d3dbbe492e0d9b018b8fce1d4dd631804e75cd8e64b150e97885d"
+        }
+      ],
+      "artifacts": [
+        {
+          "file": "run.json",
+          "sha256": "5ed96ae9f9a794913f8473aad550d5b1673c07b1435d7935979da91ab1abef40"
+        },
+        {
+          "file": "flight.json",
+          "sha256": "d309fea83970a382057aef7497a06a56120c4cbf945823ecad6d03ebcb5be3a6"
+        },
+        {
+          "file": "physics.ndjson",
+          "sha256": "8746b51d86c5c8f08b47f298a4e2ebaafdaba6dc980c57b44d2012e0ec4df111"
+        },
+        {
+          "file": "observations.ndjson",
+          "sha256": "70af07a6b26ea58348e0ee8b7210b94c59c3005ff86cc5616649db96618d13a8"
+        },
+        {
+          "file": "telemetry.ndjson",
+          "sha256": "5f848b989427744bb5cb12affa7e87a55c2d3908dc56cd3b06b8be1a2baab3ef"
+        },
+        {
+          "file": "mavlink.raw",
+          "sha256": "b11ace761ea9eafd898bdb22224fd8a17a256c8e637c2f39e6f9c504fabd109d"
+        },
+        {
+          "file": "tx.raw",
+          "sha256": "8dce80f439040c55c7b2c8eb2dcfa7e155bc6839be776bad702c429d9ca4e047"
+        },
+        {
+          "file": "ew-wire-audit.json",
+          "sha256": "eaaa4eec4add1230362c2cb08178c8a24f7f09b728d6bb114981073d9d878165"
+        },
+        {
+          "file": "quad.parm",
+          "sha256": "f56ca60b9ff6f5c3c263da00fab6ae536820793d10d6330aa9b6a90b3a7db1d2"
+        }
+      ],
+      "captureSha256": "1082a86cd68a0abf93a177ec85b3093c9e87652623aabbc7489a803b4af93985",
+      "metrics": {
+        "maxPositionErrorM": 2.0324054585518607,
+        "maxInnovationRatio": 2.554145097732544,
+        "maxTruthDisplacementM": 13.573922022785226,
+        "modes": [
+          4
+        ],
+        "ekfFlags": [
+          831
+        ],
+        "unhealthyRows": 20,
+        "samples": 301,
+        "physicsFrames": 47881,
+        "gpsInputFrames": 599,
+        "faultStartS": 56.84625,
+        "faultEndS": 59.84625,
+        "experimentEndS": 59.84625,
+        "changedInputs": true
+      },
+      "statusTexts": [
+        {
+          "timeS": 58.81375,
+          "text": "EKF3 lane switch 1"
+        },
+        {
+          "timeS": 58.81375,
+          "text": "EKF3 primary changed:1"
+        }
+      ]
+    }
+  ]
 }

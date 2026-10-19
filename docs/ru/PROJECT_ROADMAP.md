@@ -1,6 +1,6 @@
 # PROJECT_ROADMAP.md
 
-<!-- source-sha256: fc85e6207683e60903a7e4abfd3a1aec84b016fb17aa06facc94b1742d1b7481 -->
+<!-- source-sha256: 3b2b2d2ebca8a4b5a392e165c92259245189c9926f387c0a6ae92de6c79df686 -->
 
 Английский источник: [Source of truth](../PROJECT_ROADMAP.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -926,12 +926,16 @@ Cargo bin активирован в PATH. Производительность M
 
 ### TASK-059 — EKF scenario regressions
 
-- **Status:** BLOCKED_EXTERNAL — Codex; baseline c3a4735; 2026-10-17. Реализованы анализатор РЭБ и полная матрица случаев; нет реальных прогонов прошивки и закреплённых диапазонов отклика.
+- **Status:** DONE — Codex; baseline 0a31f44; 2026-10-19. Шесть настоящих нативных калибровочных полётов и шесть независимых валидационных полётов проходят закреплённые пределы для конкретных прошивки/параметров/модели/исходников. Проверены исходные RX/TX, настоящие ответы EKF/режимов и replay физики PWM/Rust-WASM. Область — синтетический нативный квадрокоптер; браузер, физический HITL и измеренная точность самолёта остаются отдельными задачами.
 - **Title & Description:** Измерять реакцию ArduPilot на все классы EW/отказов без hardcoded обещания режима.
 - **Dependencies:** TASK-042, TASK-043, TASK-058.
-- **Touched Files:** `tests/integration/ew-sitl.test.ts`, `tests/fixtures/scenarios/ew-matrix.json`, `scripts/report-ekf.mjs`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `README.md`, `docs/ru/README.md`, `docs/documentation-index.json`, `scripts/validation/evidence.mjs`, `tests/evidence-tools.test.ts`, `tests/support/node-evidence.ts`.
+- **Touched Files:** `tests/integration/ew-sitl.test.ts`, `tests/fixtures/scenarios/ew-matrix.json`, `scripts/report-ekf.mjs`, `scripts/run-ew-sitl.mjs`, `scripts/freeze-ew.mjs`, `scripts/sitl/audit-ew.mjs`, `scripts/sitl/ew-observations.ts`, `scripts/sitl/check-ew.py`, `scripts/sitl/driver.mjs`, `scripts/sitl/telemetry.py`, `scripts/sitl/quad.mjs`, `tests/sitl-ew.test.ts`, `docs/operations/runbook.md`, `docs/ru/runbook.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `README.md`, `docs/ru/README.md`, `docs/documentation-index.json`, `scripts/validation/evidence.mjs`, `tests/evidence-tools.test.ts`, `tests/support/node-evidence.ts`.
+
+Нативному драйверу нужны отдельная инъекция наблюдений и фаза эксперимента, сохраняющая нездоровые ответы EKF без применения допуска здорового полёта; синтетическому квадрокоптеру нужен явный вход потери тяги каждого ротора.
 - **Interfaces / Contracts:** Innovation/status/mode/trajectory AAR trace; pinned EKF parameters.
 - **DoD & Acceptance Criteria:** No-fault control scenario и каждый fault реально запущены; trace показывает изменённые observations и ответ EKF; acceptance envelope зафиксирован для версии; неизвестная реакция — investigation, не silent PASS.
+
+- **Evidence (2026-10-19):** test-results/validation/task-059-native.json PASS; 710636 воспроизведённых кадров физики и 20612 строк ответа в калибровке/валидации; во всех шести случаях проверены изменения датчиков/актуаторов, кроме неизменного контроля. SHA-256 закреплённой матрицы c8bd27d9be4e22a5b10279cc925589e7299edeadb667cd478638d0f533494b3a не менялся при валидации. Подавление и дрейф дали настоящие переходы Guided→Land; шаг позиции вызвал флаги GPS-glitch, магнитное смещение подняло инновации/активность выбора компаса, полная потеря ротора привела к кувырку/контакту в заранее заданном окне 3 с. Закреплённый Copter ekf_check.cpp объединяет критерии дисперсий, поэтому один магнитный выброс не обязан вызывать Land; универсальный fallback не обещается. Шесть проверок отклонения PASS, включая неизменность диапазонов и повторное использование калибровки. task-059-flight-regression.json PASS: 67257 кадров физики, 4161 оцениваемая строка, 10.20 с здорового висения и настоящая посадка со снятием вооружения. task-059-tests.json отражает 536 пройденных тестов и один существующий skip в исходном запуске и явных повторах шести ошибок окружения/ресурсов; allocator-стресс контакта прошёл без изменения за 270.603 с. Строгая проверка типов, полный ESLint, production-сборка и двуязычные проверки проходят. Тринадцать ZIP сохраняют собственные калибровочные, валидационные и здоровые полёты без прошивки/исходников. Доказательства TASK-042/043 остаются историческими.
 
 ## Phase 5: Environment & Shaders
 

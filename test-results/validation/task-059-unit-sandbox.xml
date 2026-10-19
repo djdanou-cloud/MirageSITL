@@ -1,0 +1,1364 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<testsuites name="vitest tests" tests="537" failures="6" errors="0" time="626.9481458">
+    <testsuite name="tests/aar-archive.test.ts" timestamp="2026-10-19T10:32:07.741Z" hostname="DaduAsus" tests="2" failures="0" errors="0" skipped="0" time="0.0137624">
+        <testcase classname="tests/aar-archive.test.ts" name="archive roundtrip preserves records/provenance/loss and rejects mutation and unknown metadata" time="0.0121675">
+        </testcase>
+        <testcase classname="tests/aar-archive.test.ts" name="size/header/format bounds rejected before attacker-controlled payload copies" time="0.0004893">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/aar-recorder.test.ts" timestamp="2026-10-19T10:32:07.747Z" hostname="DaduAsus" tests="5" failures="0" errors="0" skipped="0" time="0.0238428">
+        <testcase classname="tests/aar-recorder.test.ts" name="ISO-HDLC check vector and record roundtrip with strict frame bounds" time="0.0038701">
+        </testcase>
+        <testcase classname="tests/aar-recorder.test.ts" name="separate SPSC preserves ordering, full-queue losses and uint32 wrap" time="0.0121553">
+        </testcase>
+        <testcase classname="tests/aar-recorder.test.ts" name="30 minute ring has fixed allocation, chronological overwrite and rejection" time="0.0034792">
+        </testcase>
+        <testcase classname="tests/aar-recorder.test.ts" name="a rejected shared-state seqlock cannot poison a later encoded record" time="0.0007057">
+        </testcase>
+        <testcase classname="tests/aar-recorder.test.ts" name="records all independent streams with exact offsets and rejects a nested epoch mismatch" time="0.0021428">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/aar-replay.test.ts" timestamp="2026-10-19T10:32:07.748Z" hostname="DaduAsus" tests="3" failures="0" errors="0" skipped="0" time="0.0154663">
+        <testcase classname="tests/aar-replay.test.ts" name="seek preserves epoch discontinuities, immutable source and checksum validation" time="0.004058">
+        </testcase>
+        <testcase classname="tests/aar-replay.test.ts" name="resimulation requires configuration identity and reports mismatch without rewriting records" time="0.0092301">
+        </testcase>
+        <testcase classname="tests/aar-replay.test.ts" name="multiple sensor observations at one physics tick remain separate records" time="0.0009606">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/aar-series.test.ts" timestamp="2026-10-19T10:32:07.749Z" hostname="DaduAsus" tests="2" failures="0" errors="0" skipped="0" time="0.1393504">
+        <testcase classname="tests/aar-series.test.ts" name="known step-response lag, common time axis, absent actuators and explicit gaps" time="0.0046677">
+        </testcase>
+        <testcase classname="tests/aar-series.test.ts" name="30 min chart decimation stays &lt;=10000, keeps endpoints and narrow spikes" time="0.1333339">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/aar-storage.test.ts" timestamp="2026-10-19T10:32:07.750Z" hostname="DaduAsus" tests="2" failures="0" errors="0" skipped="0" time="0.2747512">
+        <testcase classname="tests/aar-storage.test.ts" name="a burst within the pending bound is written completely and in order" time="0.1623412">
+        </testcase>
+        <testcase classname="tests/aar-storage.test.ts" name="overflow beyond the pending bound and failed transactions are counted, not silent" time="0.1110344">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/agent-config.test.ts" timestamp="2026-10-19T10:32:07.752Z" hostname="DaduAsus" tests="3" failures="0" errors="0" skipped="0" time="0.0130678">
+        <testcase classname="tests/agent-config.test.ts" name="agent rule discovery entry points &gt; AGENTS.md resolves to the root CLAUDE.md without copying its policy" time="0.0045895">
+        </testcase>
+        <testcase classname="tests/agent-config.test.ts" name="agent rule discovery entry points &gt; the Cursor rule always applies and resolves to the root CLAUDE.md" time="0.00564">
+        </testcase>
+        <testcase classname="tests/agent-config.test.ts" name="agent rule discovery entry points &gt; neither entry point claims automatic discovery by a specific client" time="0.0009043">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/analog-noise.test.ts" timestamp="2026-10-19T10:32:07.753Z" hostname="DaduAsus" tests="7" failures="0" errors="0" skipped="0" time="0.1365528">
+        <testcase classname="tests/analog-noise.test.ts" name="visual RNG &gt; matches an independent lowbias32 implementation" time="0.0017519">
+        </testcase>
+        <testcase classname="tests/analog-noise.test.ts" name="visual RNG &gt; derives the frame seed only from (seed, video frame)" time="0.0034595">
+        </testcase>
+        <testcase classname="tests/analog-noise.test.ts" name="AnalogVideo &gt; gives equal uniforms for equal seed, time and throttle, independent of render cadence" time="0.0060016">
+        </testcase>
+        <testcase classname="tests/analog-noise.test.ts" name="AnalogVideo &gt; samples throttle once per video frame (decimated) and scales noise and jelly with it" time="0.0006661">
+        </testcase>
+        <testcase classname="tests/analog-noise.test.ts" name="AnalogVideo &gt; reads throttle without writing it or any other input" time="0.0003079">
+        </testcase>
+        <testcase classname="tests/analog-noise.test.ts" name="AnalogVideo &gt; rejects invalid configurations" time="0.0012975">
+        </testcase>
+        <testcase classname="tests/analog-noise.test.ts" name="AnalogVideo &gt; updates 1e6 render frames without triggering GC" time="0.1211879">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/ardupilot-json.test.ts" timestamp="2026-10-19T10:32:07.756Z" hostname="DaduAsus" tests="10" failures="1" errors="0" skipped="0" time="0.0655394">
+        <testcase classname="tests/ardupilot-json.test.ts" name="ArduPilot JSON protocol against the pinned upstream &gt; pins the upstream commit and file hashes" time="0.0026047">
+        </testcase>
+        <testcase classname="tests/ardupilot-json.test.ts" name="ArduPilot JSON protocol against the pinned upstream &gt; decodes little-endian 16- and 32-channel servo packets and rejects malformed ones" time="0.0014672">
+        </testcase>
+        <testcase classname="tests/ardupilot-json.test.ts" name="ArduPilot JSON protocol against the pinned upstream &gt; encodes the reply byte-for-byte and the upstream parser reads every field" time="0.0023484">
+        </testcase>
+        <testcase classname="tests/ardupilot-json.test.ts" name="ArduPilot JSON protocol against the pinned upstream &gt; rejects lines upstream would misread or refuse" time="0.0010107">
+        </testcase>
+        <testcase classname="tests/ardupilot-json.test.ts" name="external SITL lockstep &gt; steps exactly once per new frame and resends the identical reply for duplicates" time="0.0029052">
+        </testcase>
+        <testcase classname="tests/ardupilot-json.test.ts" name="external SITL lockstep &gt; never double-steps under seeded loss, duplication and reordering" time="0.0225891">
+        </testcase>
+        <testcase classname="tests/ardupilot-json.test.ts" name="external SITL lockstep &gt; maps PWM through explicit MOT_PWM_MIN/MAX and flags clamping" time="0.0012496">
+        </testcase>
+        <testcase classname="tests/ardupilot-json.test.ts" name="external SITL lockstep &gt; keeps SITL time advancing: timestamps strictly increase by less than 0.1 s" time="0.0003684">
+        </testcase>
+        <testcase classname="tests/ardupilot-json.test.ts" name="external SITL lockstep &gt; waits in sitl-lockstep mode without blocking, so pause stays responsive" time="0.0005745">
+        </testcase>
+        <testcase classname="tests/ardupilot-json.test.ts" name="bridge ArduPilot JSON endpoint over real loopback UDP and WebSocket &gt; forwards valid servo packets, replies to the learned SITL port, and rejects invalid traffic" time="0.0288235">
+            <failure message="connect EACCES 127.0.0.1:64766" type="Error">
+Error: connect EACCES 127.0.0.1:64766
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+Serialized Error: { errno: -4092, code: &apos;EACCES&apos;, syscall: &apos;connect&apos;, address: &apos;127.0.0.1&apos;, port: 64766 }
+            </failure>
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/ardupilot-wasm-build.test.ts" timestamp="2026-10-19T10:32:07.760Z" hostname="DaduAsus" tests="12" failures="0" errors="0" skipped="1" time="0.1146979">
+        <testcase classname="tests/ardupilot-wasm-build.test.ts" name="ArduPilot WASM manifest &gt; records the pinned source, toolchain and a bounded shared memory" time="0.0023522">
+        </testcase>
+        <testcase classname="tests/ardupilot-wasm-build.test.ts" name="ArduPilot WASM manifest &gt; rejects malformed manifests" time="0.0011502">
+        </testcase>
+        <testcase classname="tests/ardupilot-wasm-build.test.ts" name="ArduPilot WASM admission &gt; admits a module that matches hashes, exports and memory limits" time="0.0029715">
+        </testcase>
+        <testcase classname="tests/ardupilot-wasm-build.test.ts" name="ArduPilot WASM admission &gt; rejects a different module than the manifest names" time="0.0005138">
+        </testcase>
+        <testcase classname="tests/ardupilot-wasm-build.test.ts" name="ArduPilot WASM admission &gt; rejects a same-size module with different bytes" time="0.0004399">
+        </testcase>
+        <testcase classname="tests/ardupilot-wasm-build.test.ts" name="ArduPilot WASM admission &gt; rejects a missing export" time="0.0006987">
+        </testcase>
+        <testcase classname="tests/ardupilot-wasm-build.test.ts" name="ArduPilot WASM admission &gt; rejects unshared memory" time="0.0007962">
+        </testcase>
+        <testcase classname="tests/ardupilot-wasm-build.test.ts" name="ArduPilot WASM admission &gt; rejects a foreign import module" time="0.0007026">
+        </testcase>
+        <testcase classname="tests/ardupilot-wasm-build.test.ts" name="ArduPilot WASM admission &gt; rejects limits that differ from the manifest" time="0.0007549">
+        </testcase>
+        <testcase classname="tests/ardupilot-wasm-build.test.ts" name="ArduPilot WASM admission &gt; rejects a memory maximum above the budget and a changed glue file" time="0.0010669">
+        </testcase>
+        <testcase classname="tests/ardupilot-wasm-build.test.ts" name="decodes MAVLink2 HEARTBEAT framing in the smoke scanner" time="0.101359">
+        </testcase>
+        <testcase classname="tests/ardupilot-wasm-build.test.ts" name="real ArduCopter WASM artifact (MIRAGE_ARDUPILOT_WASM_DIR) &gt; matches the committed manifest and boots to MAVLink HEARTBEATs" time="0">
+            <skipped/>
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/ardupilot-wasm-capability.test.ts" timestamp="2026-10-19T10:32:07.765Z" hostname="DaduAsus" tests="3" failures="0" errors="0" skipped="0" time="0.2085953">
+        <testcase classname="tests/ardupilot-wasm-capability.test.ts" name="a WASM runtime or compiler alone cannot certify a missing HAL or license review" time="0.0825778">
+        </testcase>
+        <testcase classname="tests/ardupilot-wasm-capability.test.ts" name="detects a working compiler wrapper (including Windows .bat) without unblocking the port" time="0.1226377">
+        </testcase>
+        <testcase classname="tests/ardupilot-wasm-capability.test.ts" name="pins the TASK-045 toolchain to the same Emscripten release and ArduPilot commit as the other locks" time="0.0017309">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/atmosphere.test.ts" timestamp="2026-10-19T10:32:07.767Z" hostname="DaduAsus" tests="4" failures="0" errors="0" skipped="0" time="0.0585393">
+        <testcase classname="tests/atmosphere.test.ts" name="matches ISA sea level and 11 km with SI transport properties" time="0.0018124">
+        </testcase>
+        <testcase classname="tests/atmosphere.test.ts" name="rejects nonphysical state and altitudes outside the declared troposphere" time="0.0010394">
+        </testcase>
+        <testcase classname="tests/atmosphere.test.ts" name="keeps calm wind exact and seeded gust replay independent of render grouping" time="0.0024364">
+        </testcase>
+        <testcase classname="tests/atmosphere.test.ts" name="matches the declared stationary gust variance and lag-one pole" time="0.0520524">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/atomic-v2.test.ts" timestamp="2026-10-19T10:32:07.768Z" hostname="DaduAsus" tests="9" failures="0" errors="0" skipped="0" time="1.1684869">
+        <testcase classname="tests/atomic-v2.test.ts" name="ABI v2 atomic transport &gt; publishes the golden state as seqlock 2 + golden bytes with sample_id = published" time="0.0143181">
+        </testcase>
+        <testcase classname="tests/atomic-v2.test.ts" name="ABI v2 atomic transport &gt; rejects contract-violating states without touching shared memory" time="0.0129287">
+        </testcase>
+        <testcase classname="tests/atomic-v2.test.ts" name="ABI v2 atomic transport &gt; wraps the ring, reads bounded history by age, and misses outside it without mutating output" time="0.0081527">
+        </testcase>
+        <testcase classname="tests/atomic-v2.test.ts" name="ABI v2 atomic transport &gt; returns a miss for a frame interrupted mid-write and leaves output unchanged" time="0.0028754">
+        </testcase>
+        <testcase classname="tests/atomic-v2.test.ts" name="ABI v2 atomic transport &gt; rejects a frame whose sample_id does not match the head, even with a valid seqlock" time="0.0013717">
+        </testcase>
+        <testcase classname="tests/atomic-v2.test.ts" name="ABI v2 atomic transport &gt; exposes counters, flags, epoch, and rate; never pairs history across an epoch or model change" time="0.002454">
+        </testcase>
+        <testcase classname="tests/atomic-v2.test.ts" name="ABI v2 atomic transport &gt; round-trips the pilot mailbox with input_sample_id and misses on a busy mailbox" time="0.0046882">
+        </testcase>
+        <testcase classname="tests/atomic-v2.test.ts" name="ABI v2 atomic transport &gt; refuses to attach to a v1 buffer" time="0.0007833">
+        </testcase>
+        <testcase classname="tests/atomic-v2.test.ts" name="ABI v2 concurrency stress &gt; delivers 1000000 concurrent publications with no torn, NaN, or regressed frames" time="1.1186948">
+            <system-out>
+stress {&quot;reads&quot;:430306,&quot;misses&quot;:494527,&quot;torn&quot;:0,&quot;nonFinite&quot;:0,&quot;regressions&quot;:0,&quot;maxSampleId&quot;:1000000,&quot;finalPublished&quot;:1000000,&quot;finalMatches&quot;:true,&quot;failures&quot;:0,&quot;timedOut&quot;:false}
+
+            </system-out>
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/autopilot-state.test.ts" timestamp="2026-10-19T10:32:07.771Z" hostname="DaduAsus" tests="2" failures="0" errors="0" skipped="0" time="0.003912">
+        <testcase classname="tests/autopilot-state.test.ts" name="requires fresh autopilot health and prevents concurrent backends/illegal transitions" time="0.0021026">
+        </testcase>
+        <testcase classname="tests/autopilot-state.test.ts" name="rejects replayed/nonfinite actuator samples and clears thrust on disarm, health loss and clock reversal" time="0.0003882">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/bridge.test.ts" timestamp="2026-10-19T10:32:07.772Z" hostname="DaduAsus" tests="3" failures="2" errors="0" skipped="0" time="0.0376509">
+        <testcase classname="tests/bridge.test.ts" name="checks framing, wrap, epoch, flood limits and rejects coalesced or truncated records" time="0.0023331">
+        </testcase>
+        <testcase classname="tests/bridge.test.ts" name="runs real loopback WS/UDP channels, fragmented WS delivery, authentication and reconnect" time="0.0287716">
+            <failure message="expected [Function] to throw error including &apos;403&apos; but got &apos;connect EACCES 127.0.0.1:64784&apos;" type="AssertionError">
+AssertionError: expected [Function] to throw error including &apos;403&apos; but got &apos;connect EACCES 127.0.0.1:64784&apos;
+
+Expected: &quot;403&quot;
+Received: &quot;connect EACCES 127.0.0.1:64784&quot;
+
+ ❯ tests/bridge.test.ts:72:32
+            </failure>
+        </testcase>
+        <testcase classname="tests/bridge.test.ts" name="closes rather than queueing unbounded output when the socket reports backpressure" time="0.0054511">
+            <failure message="connect EACCES 127.0.0.1:64786" type="Error">
+Error: connect EACCES 127.0.0.1:64786
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+Serialized Error: { errno: -4092, code: &apos;EACCES&apos;, syscall: &apos;connect&apos;, address: &apos;127.0.0.1&apos;, port: 64786 }
+            </failure>
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/capabilities.test.ts" timestamp="2026-10-19T10:32:07.776Z" hostname="DaduAsus" tests="7" failures="0" errors="0" skipped="0" time="0.0227432">
+        <testcase classname="tests/capabilities.test.ts" name="runtime capability eligibility &gt; keeps implemented WebGL2 separate from future API availability" time="0.0015995">
+        </testcase>
+        <testcase classname="tests/capabilities.test.ts" name="runtime capability eligibility &gt; blocks the Worker without secure" time="0.0003457">
+        </testcase>
+        <testcase classname="tests/capabilities.test.ts" name="runtime capability eligibility &gt; blocks the Worker without isolated" time="0.0001898">
+        </testcase>
+        <testcase classname="tests/capabilities.test.ts" name="runtime capability eligibility &gt; blocks the Worker without sharedMemory" time="0.0001726">
+        </testcase>
+        <testcase classname="tests/capabilities.test.ts" name="runtime capability eligibility &gt; blocks the Worker without worker" time="0.0001344">
+        </testcase>
+        <testcase classname="tests/capabilities.test.ts" name="runtime capability eligibility &gt; degrades missing input APIs independently and never fakes WebGL2" time="0.0002433">
+        </testcase>
+        <testcase classname="tests/capabilities.test.ts" name="runtime capability eligibility &gt; retains WebGL2 when GPU probing rejects, returns null, or stalls" time="0.0186519">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/ci.test.ts" timestamp="2026-10-19T10:32:07.781Z" hostname="DaduAsus" tests="5" failures="0" errors="0" skipped="0" time="3.4466524">
+        <testcase classname="tests/ci.test.ts" name="pull request CI contract &gt; serves absolute browser fixture URLs with portable separators and escaped names" time="0.00329">
+        </testcase>
+        <testcase classname="tests/ci.test.ts" name="pull request CI contract &gt; runs independent unit, browser, and build jobs with frozen dependencies" time="0.0278516">
+        </testcase>
+        <testcase classname="tests/ci.test.ts" name="pull request CI contract &gt; fails a unit run that discovers no tests" time="1.0044742">
+        </testcase>
+        <testcase classname="tests/ci.test.ts" name="pull request CI contract &gt; fails browser discovery when no tests match" time="2.3899219">
+        </testcase>
+        <testcase classname="tests/ci.test.ts" name="pull request CI contract &gt; pins one Rust toolchain across native/rust-toolchain.toml and every workflow that installs it" time="0.0057886">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/clock-policy.test.ts" timestamp="2026-10-19T10:32:07.782Z" hostname="DaduAsus" tests="5" failures="0" errors="0" skipped="0" time="0.0126114">
+        <testcase classname="tests/clock-policy.test.ts" name="clock modes under a 1 s stall &gt; interactive: counts dropped intervals and keeps simulation ticks contiguous" time="0.0025784">
+        </testcase>
+        <testcase classname="tests/clock-policy.test.ts" name="clock modes under a 1 s stall &gt; sitl-lockstep: an autopilot stall delays ticks but preserves every one of them" time="0.0024237">
+        </testcase>
+        <testcase classname="tests/clock-policy.test.ts" name="clock modes under a 1 s stall &gt; hitl-realtime: tolerates normal catch-up but faults on a 1 s stall until the epoch resets" time="0.000841">
+        </testcase>
+        <testcase classname="tests/clock-policy.test.ts" name="responsiveness without actuators &gt; a lockstep pump with no actuator frames returns at once with bounded work" time="0.0042076">
+        </testcase>
+        <testcase classname="tests/clock-policy.test.ts" name="responsiveness without actuators &gt; runs at most maxCatchUp ticks per pump in every mode" time="0.0011582">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/clock.test.ts" timestamp="2026-10-19T10:32:07.783Z" hostname="DaduAsus" tests="12" failures="0" errors="0" skipped="0" time="0.030485">
+        <testcase classname="tests/clock.test.ts" name="multi-rate fixed-step clock &gt; executes exactly 10*hz steps in 10 s at 400 Hz under jittered wakeups, without drift" time="0.0044584">
+        </testcase>
+        <testcase classname="tests/clock.test.ts" name="multi-rate fixed-step clock &gt; executes exactly 10*hz steps in 10 s at 800 Hz under jittered wakeups, without drift" time="0.0013264">
+        </testcase>
+        <testcase classname="tests/clock.test.ts" name="multi-rate fixed-step clock &gt; executes exactly 10*hz steps in 10 s at 1200 Hz under jittered wakeups, without drift" time="0.0010717">
+        </testcase>
+        <testcase classname="tests/clock.test.ts" name="multi-rate fixed-step clock &gt; bounds catch-up, counts dropped wall time, and resumes after a pause without backlog" time="0.0008803">
+        </testcase>
+        <testcase classname="tests/clock.test.ts" name="multi-rate fixed-step clock &gt; rejects unsupported rates and catch-up bounds; the v1 clock stays 400 Hz" time="0.0009881">
+        </testcase>
+        <testcase classname="tests/clock.test.ts" name="rational time stamps &gt; produces 833/834 us intervals at 1200 Hz that sum exactly to one second" time="0.0007867">
+        </testcase>
+        <testcase classname="tests/clock.test.ts" name="rational time stamps &gt; stays exact across the 32-bit tick carry and far into a session" time="0.0002635">
+        </testcase>
+        <testcase classname="tests/clock.test.ts" name="rational time stamps &gt; schedules 200/400 Hz IMU and 5/10 Hz GNSS samples phase-locked to every physics rate" time="0.0108536">
+        </testcase>
+        <testcase classname="tests/clock.test.ts" name="demo dynamics at every rate &gt; integrates with dt = 1/400 and sim_time = tick/hz" time="0.0033385">
+        </testcase>
+        <testcase classname="tests/clock.test.ts" name="demo dynamics at every rate &gt; integrates with dt = 1/800 and sim_time = tick/hz" time="0.0016984">
+        </testcase>
+        <testcase classname="tests/clock.test.ts" name="demo dynamics at every rate &gt; integrates with dt = 1/1200 and sim_time = tick/hz" time="0.0012226">
+        </testcase>
+        <testcase classname="tests/clock.test.ts" name="demo dynamics at every rate &gt; converges toward the same trajectory as the rate increases" time="0.0015873">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/contact-allocation.test.ts" timestamp="2026-10-19T10:32:07.786Z" hostname="DaduAsus" tests="1" failures="1" errors="0" skipped="0" time="365.0037245">
+        <testcase classname="tests/contact-allocation.test.ts" name="counts actual WASM allocator calls through repeated impacts at all supported rates" time="364.7003914">
+            <failure message="Test timed out in 300000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with &quot;testTimeout&quot;." type="Error">
+Error: Test timed out in 300000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with &quot;testTimeout&quot;.
+ ❯ tests/contact-allocation.test.ts:6:1
+            </failure>
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/contact-binding.test.ts" timestamp="2026-10-19T10:32:07.787Z" hostname="DaduAsus" tests="6" failures="0" errors="0" skipped="0" time="8.2409811">
+        <testcase classname="tests/contact-binding.test.ts" name="separate strut and tire support static weight at 400 Hz" time="1.4993808">
+        </testcase>
+        <testcase classname="tests/contact-binding.test.ts" name="separate strut and tire support static weight at 800 Hz" time="1.5835528">
+        </testcase>
+        <testcase classname="tests/contact-binding.test.ts" name="separate strut and tire support static weight at 1200 Hz" time="1.8314357">
+        </testcase>
+        <testcase classname="tests/contact-binding.test.ts" name="rejects malformed input without changing truth and disposes idempotently" time="0.3606058">
+        </testcase>
+        <testcase classname="tests/contact-binding.test.ts" name="free fall has one integration owner and angular contact impulse is available" time="0.3384694">
+        </testcase>
+        <testcase classname="tests/contact-binding.test.ts" name="wheel braking dissipates motion while travel and rim constraints hold" time="2.3155254">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/contact.test.ts" timestamp="2026-10-19T10:32:07.788Z" hostname="DaduAsus" tests="4" failures="0" errors="0" skipped="0" time="1.3637981">
+        <testcase classname="tests/contact.test.ts" name="uses one Rapier integration owner and settles a dropped sphere without tunneling" time="0.5259251">
+        </testcase>
+        <testcase classname="tests/contact.test.ts" name="restitution does not increase initial drop energy" time="0.2028047">
+        </testcase>
+        <testcase classname="tests/contact.test.ts" name="replays the NASA TM X-3561 level drops: solver consistency passes, measured envelopes fail" time="0.3569805">
+        </testcase>
+        <testcase classname="tests/contact.test.ts" name="rejects malformed NASA drop payloads" time="0.0020846">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/control-v2.test.ts" timestamp="2026-10-19T10:32:07.790Z" hostname="DaduAsus" tests="74" failures="0" errors="0" skipped="0" time="0.0357141">
+        <testcase classname="tests/control-v2.test.ts" name="Control Protocol v2 validation &gt; &apos;weather.set&apos; -&gt; &apos;accept&apos;" time="0.0027861">
+        </testcase>
+        <testcase classname="tests/control-v2.test.ts" name="Control Protocol v2 validation &gt; &apos;fault gnss-jamming&apos; -&gt; &apos;accept&apos;" time="0.0005552">
+        </testcase>
+        <testcase classname="tests/control-v2.test.ts" name="Control Protocol v2 validation &gt; &apos;fault position-step&apos; -&gt; &apos;accept&apos;" time="0.0002323">
+        </testcase>
+        <testcase classname="tests/control-v2.test.ts" name="Control Protocol v2 validation &gt; &apos;fault velocity-drift&apos; -&gt; &apos;accept&apos;" time="0.000194">
+        </testcase>
+        <testcase classname="tests/control-v2.test.ts" name="Control Protocol v2 validation &gt; &apos;fault magnetic at +-pi&apos; -&gt; &apos;accept&apos;" time="0.0001639">
+        </testcase>
+        <testcase classname="tests/control-v2.test.ts" name="Control Protocol v2 validation &gt; &apos;fault motor-loss&apos; -&gt; &apos;accept&apos;" time="0.000124">
+        </testcase>
+        <testcase classname="tests/control-v2.test.ts" name="Control Protocol v2 validation &gt; &apos;sim.start&apos; -&gt; &apos;accept&apos;" time="0.000137">
+        </testcase>
+        <testcase classname="tests/control-v2.test.ts" name="Control Protocol v2 validation &gt; &apos;sim.pause&apos; -&gt; &apos;accept&apos;" time="0.0001081">
+        </testcase>
+        <testcase classname="tests/control-v2.test.ts" name="Control Protocol v2 validation &gt; &apos;worker.dispose&apos; -&gt; &apos;accept&apos;" time="0.0001157">
+        </testcase>
+        <testcase classname="tests/control-v2.test.ts" name="Control Protocol v2 validation &gt; &apos;sim.reset max seed&apos; -&gt; &apos;accept&apos;" time="0.000147">
+        </testcase>
+        <testcase classname="tests/control-v2.test.ts" name="Control Protocol v2 validation &gt; &apos;sim.configure&apos; -&gt; &apos;accept&apos;" time="0.0001648">
+        </testcase>
+        <testcase classname="tests/control-v2.test.ts" name="Control Protocol v2 validation &gt; &apos;model.load uppercase hex&apos; -&gt; &apos;accept&apos;" time="0.00011">
+        </testcase>
+        <testcase classname="tests/control-v2.test.ts" name="Control Protocol v2 validation &gt; &apos;not an object&apos; -&gt; &apos;SCHEMA&apos;" time="0.0001424">
+        </testcase>
+        <testcase classname="tests/control-v2.test.ts" name="Control Protocol v2 validation &gt; &apos;protocolVersion 1&apos; -&gt; &apos;SCHEMA&apos;" time="0.0000866">
+        </testcase>
+        <testcase classname="tests/control-v2.test.ts" name="Control Protocol v2 validation &gt; &apos;unknown type&apos; -&gt; &apos;SCHEMA&apos;" time="0.0000721">
+        </testcase>
+        <testcase classname="tests/control-v2.test.ts" name="Control Protocol v2 validation &gt; &apos;missing requestId&apos; -&gt; &apos;SCHEMA&apos;" time="0.0000594">
+        </testcase>
+        <testcase classname="tests/control-v2.test.ts" name="Control Protocol v2 validation &gt; &apos;additional property&apos; -&gt; &apos;SCHEMA&apos;" time="0.0000629">
+        </testcase>
+        <testcase classname="tests/control-v2.test.ts" name="Control Protocol v2 validation &gt; &apos;atTick on a lifecycle command&apos; -&gt; &apos;SCHEMA&apos;" time="0.0000502">
+        </testcase>
+        <testcase classname="tests/control-v2.test.ts" name="Control Protocol v2 validation &gt; &apos;non-integer requestId&apos; -&gt; &apos;SCHEMA&apos;" time="0.0000425">
+        </testcase>
+        <testcase classname="tests/control-v2.test.ts" name="Control Protocol v2 validation &gt; &apos;negative requestId&apos; -&gt; &apos;OUT_OF_RANGE&apos;" time="0.000065">
+        </testcase>
+        <testcase classname="tests/control-v2.test.ts" name="Control Protocol v2 validation &gt; &apos;requestId 2^32&apos; -&gt; &apos;OUT_OF_RANGE&apos;" time="0.0000426">
+        </testcase>
+        <testcase classname="tests/control-v2.test.ts" name="Control Protocol v2 validation &gt; &apos;string epoch&apos; -&gt; &apos;SCHEMA&apos;" time="0.0000791">
+        </testcase>
+        <testcase classname="tests/control-v2.test.ts" name="Control Protocol v2 validation &gt; &apos;NaN epoch&apos; -&gt; &apos;SCHEMA&apos;" time="0.0000511">
+        </testcase>
+        <testcase classname="tests/control-v2.test.ts" name="Control Protocol v2 validation &gt; &apos;undefined field&apos; -&gt; &apos;SCHEMA&apos;" time="0.0000485">
+        </testcase>
+        <testcase classname="tests/control-v2.test.ts" name="Control Protocol v2 validation &gt; &apos;oversized payload&apos; -&gt; &apos;SCHEMA&apos;" time="0.0000909">
+        </testcase>
+        <testcase classname="tests/control-v2.test.ts" name="Control Protocol v2 validation &gt; &apos;oversized but otherwise valid&apos; -&gt; &apos;accept&apos;" time="0.0000677">
+        </testcase>
+        <testcase classname="tests/control-v2.test.ts" name="Control Protocol v2 validation &gt; &apos;atTick extra key&apos; -&gt; &apos;SCHEMA&apos;" time="0.000066">
+        </testcase>
+        <testcase classname="tests/control-v2.test.ts" name="Control Protocol v2 validation &gt; &apos;atTick fractional&apos; -&gt; &apos;SCHEMA&apos;" time="0.0000657">
+        </testcase>
+        <testcase classname="tests/control-v2.test.ts" name="Control Protocol v2 validation &gt; &apos;wind vector of two&apos; -&gt; &apos;SCHEMA&apos;" time="0.0000756">
+        </testcase>
+        <testcase classname="tests/control-v2.test.ts" name="Control Protocol v2 validation &gt; &apos;wind vector of four&apos; -&gt; &apos;SCHEMA&apos;" time="0.0000617">
+        </testcase>
+        <testcase classname="tests/control-v2.test.ts" name="Control Protocol v2 validation &gt; &apos;wind out of range&apos; -&gt; &apos;OUT_OF_RANGE&apos;" time="0.0000571">
+        </testcase>
+        <testcase classname="tests/control-v2.test.ts" name="Control Protocol v2 validation &gt; &apos;Infinity wind&apos; -&gt; &apos;SCHEMA&apos;" time="0.0000523">
+        </testcase>
+        <testcase classname="tests/control-v2.test.ts" name="Control Protocol v2 validation &gt; &apos;temperature too cold&apos; -&gt; &apos;OUT_OF_RANGE&apos;" time="0.0000499">
+        </testcase>
+        <testcase classname="tests/control-v2.test.ts" name="Control Protocol v2 validation &gt; &apos;pressure too high&apos; -&gt; &apos;OUT_OF_RANGE&apos;" time="0.00007">
+        </testcase>
+        <testcase classname="tests/control-v2.test.ts" name="Control Protocol v2 validation &gt; &apos;negative turbulence&apos; -&gt; &apos;OUT_OF_RANGE&apos;" time="0.000073">
+        </testcase>
+        <testcase classname="tests/control-v2.test.ts" name="Control Protocol v2 validation &gt; &apos;density is not accepted&apos; -&gt; &apos;SCHEMA&apos;" time="0.0000805">
+        </testcase>
+        <testcase classname="tests/control-v2.test.ts" name="Control Protocol v2 validation &gt; &apos;faultId pattern&apos; -&gt; &apos;SCHEMA&apos;" time="0.0000909">
+        </testcase>
+        <testcase classname="tests/control-v2.test.ts" name="Control Protocol v2 validation &gt; &apos;faultId too long&apos; -&gt; &apos;SCHEMA&apos;" time="0.0000569">
+        </testcase>
+        <testcase classname="tests/control-v2.test.ts" name="Control Protocol v2 validation &gt; &apos;enabled not boolean&apos; -&gt; &apos;SCHEMA&apos;" time="0.0000467">
+        </testcase>
+        <testcase classname="tests/control-v2.test.ts" name="Control Protocol v2 validation &gt; &apos;unknown recovery&apos; -&gt; &apos;SCHEMA&apos;" time="0.0000558">
+        </testcase>
+        <testcase classname="tests/control-v2.test.ts" name="Control Protocol v2 validation &gt; &apos;unknown effect kind&apos; -&gt; &apos;SCHEMA&apos;" time="0.0000467">
+        </testcase>
+        <testcase classname="tests/control-v2.test.ts" name="Control Protocol v2 validation &gt; &apos;effect extra key&apos; -&gt; &apos;SCHEMA&apos;" time="0.0000508">
+        </testcase>
+        <testcase classname="tests/control-v2.test.ts" name="Control Protocol v2 validation &gt; &apos;severity above 1&apos; -&gt; &apos;OUT_OF_RANGE&apos;" time="0.0000474">
+        </testcase>
+        <testcase classname="tests/control-v2.test.ts" name="Control Protocol v2 validation &gt; &apos;position offset too large&apos; -&gt; &apos;OUT_OF_RANGE&apos;" time="0.0000473">
+        </testcase>
+        <testcase classname="tests/control-v2.test.ts" name="Control Protocol v2 validation &gt; &apos;drift component too large&apos; -&gt; &apos;OUT_OF_RANGE&apos;" time="0.0000689">
+        </testcase>
+        <testcase classname="tests/control-v2.test.ts" name="Control Protocol v2 validation &gt; &apos;drift norm above 0.3&apos; -&gt; &apos;OUT_OF_RANGE&apos;" time="0.0000714">
+        </testcase>
+        <testcase classname="tests/control-v2.test.ts" name="Control Protocol v2 validation &gt; &apos;drift max speed zero&apos; -&gt; &apos;OUT_OF_RANGE&apos;" time="0.00008">
+        </testcase>
+        <testcase classname="tests/control-v2.test.ts" name="Control Protocol v2 validation &gt; &apos;drift max speed above 20&apos; -&gt; &apos;OUT_OF_RANGE&apos;" time="0.0000649">
+        </testcase>
+        <testcase classname="tests/control-v2.test.ts" name="Control Protocol v2 validation &gt; &apos;magnetic rotation beyond pi&apos; -&gt; &apos;OUT_OF_RANGE&apos;" time="0.0000576">
+        </testcase>
+        <testcase classname="tests/control-v2.test.ts" name="Control Protocol v2 validation &gt; &apos;magnetic bias too large&apos; -&gt; &apos;OUT_OF_RANGE&apos;" time="0.0000554">
+        </testcase>
+        <testcase classname="tests/control-v2.test.ts" name="Control Protocol v2 validation &gt; &apos;motor index 32&apos; -&gt; &apos;OUT_OF_RANGE&apos;" time="0.0000489">
+        </testcase>
+        <testcase classname="tests/control-v2.test.ts" name="Control Protocol v2 validation &gt; &apos;motor index fractional&apos; -&gt; &apos;SCHEMA&apos;" time="0.0000538">
+        </testcase>
+        <testcase classname="tests/control-v2.test.ts" name="Control Protocol v2 validation &gt; &apos;unknown motor mode&apos; -&gt; &apos;SCHEMA&apos;" time="0.0000708">
+        </testcase>
+        <testcase classname="tests/control-v2.test.ts" name="Control Protocol v2 validation &gt; &apos;remaining thrust above 1&apos; -&gt; &apos;OUT_OF_RANGE&apos;" time="0.0000514">
+        </testcase>
+        <testcase classname="tests/control-v2.test.ts" name="Control Protocol v2 validation &gt; &apos;reset without seed&apos; -&gt; &apos;SCHEMA&apos;" time="0.0000501">
+        </testcase>
+        <testcase classname="tests/control-v2.test.ts" name="Control Protocol v2 validation &gt; &apos;configure 500 Hz&apos; -&gt; &apos;OUT_OF_RANGE&apos;" time="0.000054">
+        </testcase>
+        <testcase classname="tests/control-v2.test.ts" name="Control Protocol v2 validation &gt; &apos;configure string hz&apos; -&gt; &apos;SCHEMA&apos;" time="0.000043">
+        </testcase>
+        <testcase classname="tests/control-v2.test.ts" name="Control Protocol v2 validation &gt; &apos;configure unknown clock mode&apos; -&gt; &apos;SCHEMA&apos;" time="0.0000726">
+        </testcase>
+        <testcase classname="tests/control-v2.test.ts" name="Control Protocol v2 validation &gt; &apos;model.load short hash&apos; -&gt; &apos;SCHEMA&apos;" time="0.000119">
+        </testcase>
+        <testcase classname="tests/control-v2.test.ts" name="Control Protocol v2 validation &gt; &apos;model.load non-hex hash&apos; -&gt; &apos;SCHEMA&apos;" time="0.0000701">
+        </testcase>
+        <testcase classname="tests/control-v2.test.ts" name="Control Protocol v2 validation &gt; the JSON Schema accepts and rejects exactly the same JSON payloads as the TypeScript validator" time="0.0067353">
+        </testcase>
+        <testcase classname="tests/control-v2.test.ts" name="Control Protocol v2 validation &gt; accepts the normative JSON example from the specification" time="0.0003487">
+        </testcase>
+        <testcase classname="tests/control-v2.test.ts" name="Control Protocol v2 validation &gt; returns a normalized copy that shares nothing with the input" time="0.0009083">
+        </testcase>
+        <testcase classname="tests/control-v2.test.ts" name="Control Protocol v2 validation &gt; reports the received requestId for malformed commands when it is readable" time="0.0001673">
+        </testcase>
+        <testcase classname="tests/control-v2.test.ts" name="Control Protocol v2 processing &gt; applies lifecycle commands with acknowledgements and requires paused, disarmed sessions for reset" time="0.0018528">
+        </testcase>
+        <testcase classname="tests/control-v2.test.ts" name="Control Protocol v2 processing &gt; replays exact duplicates without reapplying, even after the epoch changed" time="0.00052">
+        </testcase>
+        <testcase classname="tests/control-v2.test.ts" name="Control Protocol v2 processing &gt; enforces strictly increasing request IDs with a 128-entry cache; malformed commands consume nothing" time="0.0011239">
+        </testcase>
+        <testcase classname="tests/control-v2.test.ts" name="Control Protocol v2 processing &gt; schedules within [next tick, 10 s], applies before integrating the tick in receipt order, and finalizes every command" time="0.0028801">
+        </testcase>
+        <testcase classname="tests/control-v2.test.ts" name="Control Protocol v2 processing &gt; accepts 128 queued commands, rejects the 129th with OVERLOAD, and keeps the older ones" time="0.0063053">
+        </testcase>
+        <testcase classname="tests/control-v2.test.ts" name="Control Protocol v2 processing &gt; reset and dispose cancel pending commands with BAD_STATE; disposed workers reject everything" time="0.0008587">
+        </testcase>
+        <testcase classname="tests/control-v2.test.ts" name="Control Protocol v2 processing &gt; swaps a model only after successful preparation; a failure keeps the previous model paused" time="0.0011186">
+        </testcase>
+        <testcase classname="tests/control-v2.test.ts" name="Control Protocol v2 processing &gt; does not commit a model when the worker is disposed during preparation" time="0.0004527">
+        </testcase>
+        <testcase classname="tests/control-v2.test.ts" name="backend support and Worker boundary guards &gt; rejects a scheduled command the backend cannot model at admission, with its reason" time="0.0004051">
+        </testcase>
+        <testcase classname="tests/control-v2.test.ts" name="backend support and Worker boundary guards &gt; accepts only well-formed Worker events and init messages" time="0.0017705">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/documentation-policy.test.ts" timestamp="2026-10-19T10:32:07.803Z" hostname="DaduAsus" tests="6" failures="0" errors="0" skipped="0" time="9.9017412">
+        <testcase classname="tests/documentation-policy.test.ts" name="bilingual documentation policy &gt; accepts complete synchronized documents" time="2.2418571">
+        </testcase>
+        <testcase classname="tests/documentation-policy.test.ts" name="bilingual documentation policy &gt; rejects an English change without a translated mirror update" time="1.3342214">
+        </testcase>
+        <testcase classname="tests/documentation-policy.test.ts" name="bilingual documentation policy &gt; rejects divergent TypeScript contracts even when the source hash is current" time="1.4601567">
+        </testcase>
+        <testcase classname="tests/documentation-policy.test.ts" name="bilingual documentation policy &gt; rejects static Cyrillic outside the Russian documentation directory" time="2.0060536">
+        </testcase>
+        <testcase classname="tests/documentation-policy.test.ts" name="bilingual documentation policy &gt; rejects a missing Russian mirror" time="1.1309147">
+        </testcase>
+        <testcase classname="tests/documentation-policy.test.ts" name="bilingual documentation policy &gt; rejects a cyclic backlog even when both languages and the hash agree" time="1.7254421">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/engine-patch-parity.test.ts" timestamp="2026-10-19T10:32:07.806Z" hostname="DaduAsus" tests="1" failures="0" errors="0" skipped="0" time="0.70202">
+        <testcase classname="tests/engine-patch-parity.test.ts" name="requires original allocations, a zero-allocation patch and matching native trajectories" time="0.7003575">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/evidence-tools.test.ts" timestamp="2026-10-19T10:32:07.806Z" hostname="DaduAsus" tests="2" failures="0" errors="0" skipped="0" time="1.0484347">
+        <testcase classname="tests/evidence-tools.test.ts" name="all missing-input CLIs produce distinct blocked verdicts and never succeed silently" time="0.9308816">
+        </testcase>
+        <testcase classname="tests/evidence-tools.test.ts" name="bounds evidence before allocation and rejects stale bytes" time="0.1156985">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/ew-pipeline.test.ts" timestamp="2026-10-19T10:32:07.807Z" hostname="DaduAsus" tests="6" failures="0" errors="0" skipped="0" time="0.4823687">
+        <testcase classname="tests/ew-pipeline.test.ts" name="EW pipeline composition &gt; orders baseline -&gt; step + drift -&gt; jamming -&gt; quantization" time="0.010285">
+        </testcase>
+        <testcase classname="tests/ew-pipeline.test.ts" name="EW pipeline composition &gt; keeps the magnetometer independent of GNSS effects and vice versa" time="0.0017293">
+        </testcase>
+        <testcase classname="tests/ew-pipeline.test.ts" name="EW pipeline composition &gt; composes the fault registry: ownership, replacement, non-owner disable, capacity, and reset" time="0.0038621">
+        </testcase>
+        <testcase classname="tests/ew-pipeline.test.ts" name="EW pipeline composition &gt; never touches truth or the baseline samples" time="0.0023354">
+        </testcase>
+        <testcase classname="tests/ew-pipeline.test.ts" name="EW pipeline composition &gt; produces identical packets from an identical seed and command log through ControlProcessorV2" time="0.0148657">
+        </testcase>
+        <testcase classname="tests/ew-pipeline.test.ts" name="EW pipeline composition &gt; advances and distorts 1e6 steps with every effect active without triggering GC" time="0.4461772">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/ew-volumes.test.ts" timestamp="2026-10-19T10:32:07.808Z" hostname="DaduAsus" tests="2" failures="0" errors="0" skipped="0" time="0.0060134">
+        <testcase classname="tests/ew-volumes.test.ts" name="bounds inverse-square exposure, cone taper, center and canonical summation" time="0.0037272">
+        </testcase>
+        <testcase classname="tests/ew-volumes.test.ts" name="keeps typed-array hot inputs immutable and rejects overlapping output" time="0.0009549">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/fisheye.test.ts" timestamp="2026-10-19T10:32:07.809Z" hostname="DaduAsus" tests="11" failures="0" errors="0" skipped="0" time="1.583948">
+        <testcase classname="tests/fisheye.test.ts" name="lens model &gt; zero distortion is the identity" time="0.0072486">
+        </testcase>
+        <testcase classname="tests/fisheye.test.ts" name="lens model &gt; matches the closed-form equidistant projection (k = 0)" time="0.0021073">
+        </testcase>
+        <testcase classname="tests/fisheye.test.ts" name="lens model &gt; inverts each ray onto the pinhole source exactly where three.js projects it" time="0.0086648">
+        </testcase>
+        <testcase classname="tests/fisheye.test.ts" name="lens model &gt; puts the optical axis at the shifted principal point" time="0.001151">
+        </testcase>
+        <testcase classname="tests/fisheye.test.ts" name="lens model &gt; keeps the horizontal field of view on resize" time="0.0015963">
+        </testcase>
+        <testcase classname="tests/fisheye.test.ts" name="lens model &gt; stays finite at and beyond the frame edges, flagging pixels outside the source" time="1.5544828">
+        </testcase>
+        <testcase classname="tests/fisheye.test.ts" name="lens model &gt; rejects non-monotonic lenses, over-wide fields and invalid sizes" time="0.0016577">
+        </testcase>
+        <testcase classname="tests/fisheye.test.ts" name="mounted FPV camera &gt; looks along body forward: north is render -z, east is render +x" time="0.0014167">
+        </testcase>
+        <testcase classname="tests/fisheye.test.ts" name="mounted FPV camera &gt; applies uptilt, body roll and the mount offset; q and -q agree" time="0.001301">
+        </testcase>
+        <testcase classname="tests/fisheye.test.ts" name="mounted FPV camera &gt; never mutates the pose (truth) and ignores an invalid quaternion" time="0.0006646">
+        </testcase>
+        <testcase classname="tests/fisheye.test.ts" name="mounted FPV camera &gt; resizes the source projection with the lens" time="0.0010414">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/fixtures.test.ts" timestamp="2026-10-19T10:32:07.811Z" hostname="DaduAsus" tests="6" failures="1" errors="0" skipped="0" time="0.1044173">
+        <testcase classname="tests/fixtures.test.ts" name="versioned fixture provenance and random streams &gt; matches the frozen uint32 reference and resets exactly" time="0.014635">
+        </testcase>
+        <testcase classname="tests/fixtures.test.ts" name="versioned fixture provenance and random streams &gt; keeps stream state separate and accepts zero seeds" time="0.0268297">
+        </testcase>
+        <testcase classname="tests/fixtures.test.ts" name="versioned fixture provenance and random streams &gt; verifies every registered fixture against its exact payload bytes" time="0.0400761">
+        </testcase>
+        <testcase classname="tests/fixtures.test.ts" name="versioned fixture provenance and random streams &gt; regenerates the NASA drop fixture byte-for-byte from the hashed archives" time="0.0152167">
+            <failure message="expected null to be +0 // Object.is equality" type="AssertionError">
+AssertionError: expected null to be +0 // Object.is equality
+
+- Expected:
+0
+
++ Received:
+null
+
+ ❯ tests/fixtures.test.ts:51:42
+            </failure>
+        </testcase>
+        <testcase classname="tests/fixtures.test.ts" name="versioned fixture provenance and random streams &gt; requires complete HTTPS measured provenance without a derivation" time="0.0019947">
+        </testcase>
+        <testcase classname="tests/fixtures.test.ts" name="versioned fixture provenance and random streams &gt; rejects wrong units, hashes, bounds, and synthetic relabeling" time="0.0041358">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/focus.test.ts" timestamp="2026-10-19T10:32:07.814Z" hostname="DaduAsus" tests="1" failures="0" errors="0" skipped="0" time="0.0042278">
+        <testcase classname="tests/focus.test.ts" name="returns permission focus on failure without stealing deliberate focus or focusing detached triggers" time="0.002631">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/frame.test.ts" timestamp="2026-10-19T10:32:07.815Z" hostname="DaduAsus" tests="2" failures="0" errors="0" skipped="0" time="0.006023">
+        <testcase classname="tests/frame.test.ts" name="sums stable-ID transmitted moments once and preserves output on invalid input" time="0.0036126">
+        </testcase>
+        <testcase classname="tests/frame.test.ts" name="rotates tilted octo thrust into lateral force without duplicate reactions" time="0.0011641">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/geodesy.test.ts" timestamp="2026-10-19T10:32:07.816Z" hostname="DaduAsus" tests="8" failures="0" errors="0" skipped="0" time="0.01734">
+        <testcase classname="tests/geodesy.test.ts" name="WGS84 geodesy &gt; matches the oracle ECEF and inverts every reference point within 1 mm" time="0.004171">
+        </testcase>
+        <testcase classname="tests/geodesy.test.ts" name="WGS84 geodesy &gt; maps 15 km NED offsets across poles and the antimeridian to the oracle within 1 mm" time="0.001317">
+        </testcase>
+        <testcase classname="tests/geodesy.test.ts" name="WGS84 geodesy &gt; roundtrips a dense synthetic grid of local offsets within 1 mm, including at the poles" time="0.0055913">
+        </testcase>
+        <testcase classname="tests/geodesy.test.ts" name="WGS84 geodesy &gt; keeps NED axes orthonormal with Down along the inward ellipsoid normal" time="0.0004361">
+        </testcase>
+        <testcase classname="tests/geodesy.test.ts" name="WGS84 geodesy &gt; wraps longitude into [-pi, pi) and rejects invalid origins" time="0.0012662">
+        </testcase>
+        <testcase classname="tests/geodesy.test.ts" name="geoid and MSL height &gt; interpolates bilinearly, wraps longitude, and clamps latitude" time="0.0004864">
+        </testcase>
+        <testcase classname="tests/geodesy.test.ts" name="geoid and MSL height &gt; converts H = h - N and back, and gates absolute MSL accuracy on authoritative data" time="0.0010231">
+        </testcase>
+        <testcase classname="tests/geodesy.test.ts" name="geoid and MSL height &gt; rejects malformed grids and missing provenance" time="0.0009056">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/gnss-jamming.test.ts" timestamp="2026-10-19T10:32:07.819Z" hostname="DaduAsus" tests="3" failures="0" errors="0" skipped="0" time="0.0091338">
+        <testcase classname="tests/gnss-jamming.test.ts" name="preserves the baseline at zero, applies the exact low-pass severity, and respects recovery hysteresis" time="0.0072853">
+        </testcase>
+        <testcase classname="tests/gnss-jamming.test.ts" name="never improves a degraded/no-fix or unknown baseline" time="0.0003793">
+        </testcase>
+        <testcase classname="tests/gnss-jamming.test.ts" name="does not infer satellite recovery from an unknown satellite count" time="0.0002545">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/gpu-report.test.ts" timestamp="2026-10-19T10:32:07.820Z" hostname="DaduAsus" tests="1" failures="0" errors="0" skipped="0" time="0.1069613">
+        <testcase classname="tests/gpu-report.test.ts" name="GPU analysis enforces full duration, real hardware, features and unchanged frame/memory limits" time="0.1048703">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/hil-stream.test.ts" timestamp="2026-10-19T10:32:07.821Z" hostname="DaduAsus" tests="17" failures="0" errors="0" skipped="0" time="4.5264723">
+        <testcase classname="tests/hil-stream.test.ts" name="HIL sensor streaming on a fake real-time clock &gt; 60 s at 400 Hz physics, IMU 200 Hz, GNSS 5 Hz gives exact counts, bytes, timestamps and fields_updated" time="0.2348929">
+        </testcase>
+        <testcase classname="tests/hil-stream.test.ts" name="HIL sensor streaming on a fake real-time clock &gt; 60 s at 400 Hz physics, IMU 200 Hz, GNSS 10 Hz gives exact counts, bytes, timestamps and fields_updated" time="0.2113677">
+        </testcase>
+        <testcase classname="tests/hil-stream.test.ts" name="HIL sensor streaming on a fake real-time clock &gt; 60 s at 400 Hz physics, IMU 400 Hz, GNSS 5 Hz gives exact counts, bytes, timestamps and fields_updated" time="0.5170288">
+        </testcase>
+        <testcase classname="tests/hil-stream.test.ts" name="HIL sensor streaming on a fake real-time clock &gt; 60 s at 400 Hz physics, IMU 400 Hz, GNSS 10 Hz gives exact counts, bytes, timestamps and fields_updated" time="0.4535307">
+        </testcase>
+        <testcase classname="tests/hil-stream.test.ts" name="HIL sensor streaming on a fake real-time clock &gt; 60 s at 800 Hz physics, IMU 200 Hz, GNSS 5 Hz gives exact counts, bytes, timestamps and fields_updated" time="0.2190039">
+        </testcase>
+        <testcase classname="tests/hil-stream.test.ts" name="HIL sensor streaming on a fake real-time clock &gt; 60 s at 800 Hz physics, IMU 200 Hz, GNSS 10 Hz gives exact counts, bytes, timestamps and fields_updated" time="0.2182356">
+        </testcase>
+        <testcase classname="tests/hil-stream.test.ts" name="HIL sensor streaming on a fake real-time clock &gt; 60 s at 800 Hz physics, IMU 400 Hz, GNSS 5 Hz gives exact counts, bytes, timestamps and fields_updated" time="0.4848404">
+        </testcase>
+        <testcase classname="tests/hil-stream.test.ts" name="HIL sensor streaming on a fake real-time clock &gt; 60 s at 800 Hz physics, IMU 400 Hz, GNSS 10 Hz gives exact counts, bytes, timestamps and fields_updated" time="0.4756529">
+        </testcase>
+        <testcase classname="tests/hil-stream.test.ts" name="HIL sensor streaming on a fake real-time clock &gt; 60 s at 1200 Hz physics, IMU 200 Hz, GNSS 5 Hz gives exact counts, bytes, timestamps and fields_updated" time="0.2497379">
+        </testcase>
+        <testcase classname="tests/hil-stream.test.ts" name="HIL sensor streaming on a fake real-time clock &gt; 60 s at 1200 Hz physics, IMU 200 Hz, GNSS 10 Hz gives exact counts, bytes, timestamps and fields_updated" time="0.2509341">
+        </testcase>
+        <testcase classname="tests/hil-stream.test.ts" name="HIL sensor streaming on a fake real-time clock &gt; 60 s at 1200 Hz physics, IMU 400 Hz, GNSS 5 Hz gives exact counts, bytes, timestamps and fields_updated" time="0.5622243">
+        </testcase>
+        <testcase classname="tests/hil-stream.test.ts" name="HIL sensor streaming on a fake real-time clock &gt; 60 s at 1200 Hz physics, IMU 400 Hz, GNSS 10 Hz gives exact counts, bytes, timestamps and fields_updated" time="0.6397002">
+        </testcase>
+        <testcase classname="tests/hil-stream.test.ts" name="HIL sensor streaming on a fake real-time clock &gt; requires at least 30% serial headroom at baud/10 for worst-case frames" time="0.001285">
+        </testcase>
+        <testcase classname="tests/hil-stream.test.ts" name="HIL sensor streaming on a fake real-time clock &gt; latches queue overflow when the serial writer stalls and clears on reset" time="0.000814">
+        </testcase>
+        <testcase classname="tests/hil-stream.test.ts" name="HIL sensor streaming on a fake real-time clock &gt; rejects invalid observations instead of emitting them" time="0.0002434">
+        </testcase>
+        <testcase classname="tests/hil-stream.test.ts" name="HIL actuator admission &gt; accepts in-range, strictly newer frames and never overwrites output on rejection" time="0.0023521">
+        </testcase>
+        <testcase classname="tests/hil-stream.test.ts" name="HIL actuator admission &gt; latches actuator dropout after the timeout" time="0.0004469">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/hitl-capabilities.test.ts" timestamp="2026-10-19T10:32:07.825Z" hostname="DaduAsus" tests="6" failures="0" errors="0" skipped="0" time="0.00795">
+        <testcase classname="tests/hitl-capabilities.test.ts" name="HITL capability gate &gt; is BLOCKED_EXTERNAL with exact requirements when no profile or observation exists" time="0.0017713">
+        </testcase>
+        <testcase classname="tests/hitl-capabilities.test.ts" name="HITL capability gate &gt; marks ArduPilot UNSUPPORTED from pinned source evidence, even with a verified profile and live data" time="0.0014926">
+        </testcase>
+        <testcase classname="tests/hitl-capabilities.test.ts" name="HITL capability gate &gt; requires every piece of PX4 evidence before READY" time="0.0007197">
+        </testcase>
+        <testcase classname="tests/hitl-capabilities.test.ts" name="HITL capability gate &gt; lets AutopilotSession enter HITL only with an issued READY verdict" time="0.0003394">
+        </testcase>
+        <testcase classname="tests/hitl-capabilities.test.ts" name="HITL capability gate &gt; validates profiles from unknown input" time="0.0012034">
+        </testcase>
+        <testcase classname="tests/hitl-capabilities.test.ts" name="HITL capability gate &gt; keeps the matrix document consistent with the recorded source evidence" time="0.0010337">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/hitl-report.test.ts" timestamp="2026-10-19T10:32:07.826Z" hostname="DaduAsus" tests="1" failures="0" errors="0" skipped="0" time="0.1374606">
+        <testcase classname="tests/hitl-report.test.ts" name="HITL analysis rejects gaps, timing failures, synthetic provenance and unapplied unplug failsafe" time="0.1355823">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/hud.test.ts" timestamp="2026-10-19T10:32:07.827Z" hostname="DaduAsus" tests="2" failures="0" errors="0" skipped="0" time="0.0041786">
+        <testcase classname="tests/hud.test.ts" name="NED aerospace horizon signs, q/-q equivalence and singularity bounds" time="0.0020875">
+        </testcase>
+        <testcase classname="tests/hud.test.ts" name="demo cannot fabricate EKF and AP age/freshness is explicit" time="0.0009575">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/ideal-sensors.test.ts" timestamp="2026-10-19T10:32:07.827Z" hostname="DaduAsus" tests="2" failures="0" errors="0" skipped="0" time="0.0039624">
+        <testcase classname="tests/ideal-sensors.test.ts" name="distinguishes stationary specific force from free fall in FRD" time="0.0022384">
+        </testcase>
+        <testcase classname="tests/ideal-sensors.test.ts" name="rotates magnetic axes and derives pressure/airspeed with correct units and signs" time="0.000523">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/input.test.ts" timestamp="2026-10-19T10:32:07.828Z" hostname="DaduAsus" tests="4" failures="0" errors="0" skipped="0" time="0.0050346">
+        <testcase classname="tests/input.test.ts" name="gamepad calibration &gt; handles asymmetric endpoints, deadzone, inversion and unipolar throttle" time="0.0020726">
+        </testcase>
+        <testcase classname="tests/input.test.ts" name="gamepad calibration &gt; reads USB axes, reports disconnection, and never silently switches devices" time="0.00067">
+        </testcase>
+        <testcase classname="tests/input.test.ts" name="gamepad calibration &gt; starts a new device generation when a different transmitter reuses the selected index" time="0.0003534">
+        </testcase>
+        <testcase classname="tests/input.test.ts" name="gamepad calibration &gt; fails closed on missing axes and browser permission errors" time="0.000301">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/instructor.test.ts" timestamp="2026-10-19T10:32:07.829Z" hostname="DaduAsus" tests="1" failures="0" errors="0" skipped="0" time="0.0031743">
+        <testcase classname="tests/instructor.test.ts" name="queued is not applied, stale epochs cancel, rejection/reset cannot be hidden by a late ACK" time="0.00188">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/interpolation.test.ts" timestamp="2026-10-19T10:32:07.830Z" hostname="DaduAsus" tests="6" failures="0" errors="0" skipped="0" time="0.008869">
+        <testcase classname="tests/interpolation.test.ts" name="render interpolation &gt; interpolates position linearly and attitude along the great circle" time="0.004033">
+        </testcase>
+        <testcase classname="tests/interpolation.test.ts" name="render interpolation &gt; treats q and -q as the same attitude instead of taking the long way round" time="0.000384">
+        </testcase>
+        <testcase classname="tests/interpolation.test.ts" name="render interpolation &gt; never interpolates across an epoch/model break, a miss, or a teleport" time="0.0005775">
+        </testcase>
+        <testcase classname="tests/interpolation.test.ts" name="render interpolation &gt; never mutates truth and normalizes slightly denormalized float32 attitudes" time="0.0004218">
+        </testcase>
+        <testcase classname="tests/interpolation.test.ts" name="render interpolation &gt; derives the fraction from the scheduled wall time and rate, clamped to [0, 1]" time="0.0005049">
+        </testcase>
+        <testcase classname="tests/interpolation.test.ts" name="render interpolation &gt; maps NED positions to the right-handed render basis" time="0.0006044">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/jsbsim-artifact.test.ts" timestamp="2026-10-19T10:32:07.832Z" hostname="DaduAsus" tests="2" failures="0" errors="0" skipped="0" time="0.1115176">
+        <testcase classname="tests/jsbsim-artifact.test.ts" name="pins source, licensing and toolchain, and does not ship fake WASM artifacts" time="0.0048713">
+        </testcase>
+        <testcase classname="tests/jsbsim-artifact.test.ts" name="rejects missing or mismatched source before invoking a compiler" time="0.1049812">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/jsbsim-backend.test.ts" timestamp="2026-10-19T10:32:07.832Z" hostname="DaduAsus" tests="4" failures="0" errors="0" skipped="0" time="0.0050482">
+        <testcase classname="tests/jsbsim-backend.test.ts" name="pins SI/FRD/NED output shape and rejects incompatible modules before aircraft loading" time="0.0024673">
+        </testcase>
+        <testcase classname="tests/jsbsim-backend.test.ts" name="records numerical acceptance separately from measured calibration and model redistribution" time="0.0003154">
+        </testcase>
+        <testcase classname="tests/jsbsim-backend.test.ts" name="allows cold trim once setup is valid, blocks it after stepping and disposes idempotently" time="0.0007452">
+        </testcase>
+        <testcase classname="tests/jsbsim-backend.test.ts" name="rejects mismatched heap views, unaligned allocations and frame allocation aliases" time="0.0004564">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/jsbsim-contact.test.ts" timestamp="2026-10-19T10:32:07.833Z" hostname="DaduAsus" tests="4" failures="0" errors="0" skipped="0" time="0.0062944">
+        <testcase classname="tests/jsbsim-contact.test.ts" name="freezes the additive contact byte frame without reusing legacy control fields" time="0.0027179">
+        </testcase>
+        <testcase classname="tests/jsbsim-contact.test.ts" name="applies at most one correctly framed impulse after each successful JSBSim step" time="0.0012854">
+        </testcase>
+        <testcase classname="tests/jsbsim-contact.test.ts" name="requires dedicated memory and faults on a measured allocation without publishing truth" time="0.0009832">
+        </testcase>
+        <testcase classname="tests/jsbsim-contact.test.ts" name="rejects output and input aliases into module-owned memory" time="0.0002217">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/jsbsim-native.test.ts" timestamp="2026-10-19T10:32:07.835Z" hostname="DaduAsus" tests="3" failures="0" errors="0" skipped="0" time="0.5554312">
+        <testcase classname="tests/jsbsim-native.test.ts" name="rejects missing, truncated and false numerical/allocator native evidence" time="0.2199722">
+        </testcase>
+        <testcase classname="tests/jsbsim-native.test.ts" name="does not turn a missing source checkout into a successful native validation" time="0.0785622">
+        </testcase>
+        <testcase classname="tests/jsbsim-native.test.ts" name="rejects incomplete new backend captures before treating them as numerical or G1 evidence" time="0.2545743">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/jsbsim-propellers.test.ts" timestamp="2026-10-19T10:32:07.835Z" hostname="DaduAsus" tests="3" failures="0" errors="0" skipped="0" time="0.0289113">
+        <testcase classname="tests/jsbsim-propellers.test.ts" name="UIUC-derived JSBSim propeller definitions (TASK-086) &gt; lists six hash-pinned files that trace to the inventoried archive" time="0.0095992">
+        </testcase>
+        <testcase classname="tests/jsbsim-propellers.test.ts" name="UIUC-derived JSBSim propeller definitions (TASK-086) &gt; writes strictly increasing J tables that start at the static point" time="0.0121361">
+        </testcase>
+        <testcase classname="tests/jsbsim-propellers.test.ts" name="UIUC-derived JSBSim propeller definitions (TASK-086) &gt; matches the independently generated TASK-033 fixture for DA4002 9x6.75" time="0.0054208">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/landing-gear.test.ts" timestamp="2026-10-19T10:32:07.836Z" hostname="DaduAsus" tests="3" failures="0" errors="0" skipped="0" time="0.5852742">
+        <testcase classname="tests/landing-gear.test.ts" name="matches independent gas, orifice, tire and lever-arm oracles on scalar/SIMD WASM" time="0.0032825">
+        </testcase>
+        <testcase classname="tests/landing-gear.test.ts" name="rejects unmodeled travel and invalid states without inventing ground support" time="0.0006882">
+        </testcase>
+        <testcase classname="tests/landing-gear.test.ts" name="runs a million compliance evaluations per component under the trapping WASM allocator" time="0.2820579">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/layout-v2.test.ts" timestamp="2026-10-19T10:32:07.837Z" hostname="DaduAsus" tests="13" failures="0" errors="0" skipped="0" time="0.1881126">
+        <testcase classname="tests/layout-v2.test.ts" name="ABI v2 layout contract &gt; golden records describe exactly the v2 tables of the English specification" time="0.0151578">
+        </testcase>
+        <testcase classname="tests/layout-v2.test.ts" name="ABI v2 layout contract &gt; sizes and region offsets match the specification region table" time="0.001076">
+        </testcase>
+        <testcase classname="tests/layout-v2.test.ts" name="ABI v2 layout contract &gt; exported offset tables cover every field exactly, with natural alignment in every slot" time="0.1347668">
+        </testcase>
+        <testcase classname="tests/layout-v2.test.ts" name="ABI v2 codecs against golden bytes &gt; packs the golden state into exactly the golden 192 bytes and decodes them back" time="0.0028861">
+        </testcase>
+        <testcase classname="tests/layout-v2.test.ts" name="ABI v2 codecs against golden bytes &gt; packs the golden pilot mailbox into exactly the golden 64 bytes and decodes them back" time="0.001646">
+        </testcase>
+        <testcase classname="tests/layout-v2.test.ts" name="ABI v2 codecs against golden bytes &gt; initializes the header to the golden bytes and leaves the ring and mailbox zero" time="0.002022">
+        </testcase>
+        <testcase classname="tests/layout-v2.test.ts" name="ABI v2 validation and negotiation &gt; accepts every supported rate and rejects v1 buffers and malformed headers" time="0.0031768">
+        </testcase>
+        <testcase classname="tests/layout-v2.test.ts" name="ABI v2 validation and negotiation &gt; negotiates v1 and v2 by version word and never reinterprets one as the other" time="0.0007535">
+        </testcase>
+        <testcase classname="tests/layout-v2.test.ts" name="TickId arithmetic &gt; carries into the high word, compares, and stays exact below 2^53" time="0.0007817">
+        </testcase>
+        <testcase classname="tests/layout-v2.test.ts" name="writer-side value contracts &gt; rejects nonfinite truth, f32 overflow, non-uint32 integers, unsafe ticks, and unassigned bits" time="0.0019485">
+        </testcase>
+        <testcase classname="tests/layout-v2.test.ts" name="writer-side value contracts &gt; rejects out-of-range pilot channels, flags, and mode slots" time="0.0010783">
+        </testcase>
+        <testcase classname="tests/layout-v2.test.ts" name="inline numeric predicates &gt; the f32 bound is exactly &quot;Math.fround(x) is finite&quot;, including the rounding boundary" time="0.0195009">
+        </testcase>
+        <testcase classname="tests/layout-v2.test.ts" name="inline numeric predicates &gt; (x &gt;&gt;&gt; 0) === x is exactly the uint32 test" time="0.0003239">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/links-ew-allocation.test.ts" timestamp="2026-10-19T10:32:07.840Z" hostname="DaduAsus" tests="3" failures="0" errors="0" skipped="0" time="126.6971983">
+        <testcase classname="tests/links-ew-allocation.test.ts" name="measures actual protocol/EW paths at 400 Hz with an allocating control" time="41.81623">
+        </testcase>
+        <testcase classname="tests/links-ew-allocation.test.ts" name="measures actual protocol/EW paths at 800 Hz with an allocating control" time="46.0390787">
+        </testcase>
+        <testcase classname="tests/links-ew-allocation.test.ts" name="measures actual protocol/EW paths at 1200 Hz with an allocating control" time="38.8398868">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/magnetic-anomaly.test.ts" timestamp="2026-10-19T10:32:07.841Z" hostname="DaduAsus" tests="1" failures="0" errors="0" skipped="0" time="0.0041618">
+        <testcase classname="tests/magnetic-anomaly.test.ts" name="uses Rz*Ry*Rx in body axes, preserves rotation norm and applies gauss bias" time="0.0026695">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/material-map.test.ts" timestamp="2026-10-19T10:32:07.842Z" hostname="DaduAsus" tests="9" failures="0" errors="0" skipped="0" time="0.0214146">
+        <testcase classname="tests/material-map.test.ts" name="material classes &gt; covers the full WorldCover v200 legend and rejects temperatures or unknown fields" time="0.0029164">
+        </testcase>
+        <testcase classname="tests/material-map.test.ts" name="data manifest &gt; enforces provider licenses, attribution, hashes and synthetic labelling" time="0.00177">
+        </testcase>
+        <testcase classname="tests/material-map.test.ts" name="data manifest &gt; names WorldCover tiles by their south-west corner and refuses bulk plans" time="0.0008016">
+        </testcase>
+        <testcase classname="tests/material-map.test.ts" name="material map &gt; maps known coordinates to their WorldCover pixel, including pixel edges" time="0.0061951">
+        </testcase>
+        <testcase classname="tests/material-map.test.ts" name="material map &gt; labels missing data synthetic: outside every layer and WorldCover no-data" time="0.0004723">
+        </testcase>
+        <testcase classname="tests/material-map.test.ts" name="material map &gt; overlays OSM buildings over roads over land classes, with roof materials" time="0.0008585">
+        </testcase>
+        <testcase classname="tests/material-map.test.ts" name="material map &gt; never returns a temperature or other thermal quantity" time="0.0002762">
+        </testcase>
+        <testcase classname="tests/material-map.test.ts" name="material map &gt; rejects layers without manifest provenance, mismatched bounds and unknown classes" time="0.0006857">
+        </testcase>
+        <testcase classname="tests/material-map.test.ts" name="material map &gt; contains no network or download code" time="0.005798">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/mavlink.test.ts" timestamp="2026-10-19T10:32:07.844Z" hostname="DaduAsus" tests="5" failures="0" errors="0" skipped="0" time="0.016713">
+        <testcase classname="tests/mavlink.test.ts" name="matches every byte of official MAVLink2-generated frames, including extensions and truncation" time="0.0050087">
+        </testcase>
+        <testcase classname="tests/mavlink.test.ts" name="parses arbitrary split/coalesced chunks, checks CRC, sequence wrap and recovers after a timeout" time="0.0030674">
+        </testcase>
+        <testcase classname="tests/mavlink.test.ts" name="maps DOP, SI signs, gauss, hPa and u64 words without BigInt and clips instead of wrapping" time="0.0036283">
+        </testcase>
+        <testcase classname="tests/mavlink.test.ts" name="decodes actual actuator float32 frames and rejects invalid controls without mutating output" time="0.0016565">
+        </testcase>
+        <testcase classname="tests/mavlink.test.ts" name="resets framing before invoking a callback that may reject a decoded record" time="0.0012024">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/model-manifest.test.ts" timestamp="2026-10-19T10:32:07.846Z" hostname="DaduAsus" tests="4" failures="0" errors="0" skipped="0" time="0.0104756">
+        <testcase classname="tests/model-manifest.test.ts" name="model schema and verified registry &gt; accepts the versioned SI quad and freezes a verified snapshot" time="0.0052772">
+        </testcase>
+        <testcase classname="tests/model-manifest.test.ts" name="model schema and verified registry &gt; rejects schema/version/unit/count and physical constraint violations" time="0.0016746">
+        </testcase>
+        <testcase classname="tests/model-manifest.test.ts" name="model schema and verified registry &gt; rejects corrupt input without replacing an existing model" time="0.0014184">
+        </testcase>
+        <testcase classname="tests/model-manifest.test.ts" name="snapshots bytes before hashing and accepts a coupled positive inertia" time="0.0009754">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/model-validation.test.ts" timestamp="2026-10-19T10:32:07.847Z" hostname="DaduAsus" tests="4" failures="0" errors="0" skipped="0" time="23.8059428">
+        <testcase classname="tests/model-validation.test.ts" name="writes numerical and UIUC evidence, retains the deferred NASA failure, and fails closed on missing or failed fidelity" time="21.6407456">
+        </testcase>
+        <testcase classname="tests/model-validation.test.ts" name="retains pinned reference rate and rejects a missing JSBSim source" time="0.1051835">
+        </testcase>
+        <testcase classname="tests/model-validation.test.ts" name="rejects empty/misordered rates and unsupported measurements before building" time="1.782958">
+        </testcase>
+        <testcase classname="tests/model-validation.test.ts" name="rejects modified deferred evidence without rerunning the obsolete NASA model" time="0.2744212">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/motor-config.test.ts" timestamp="2026-10-19T10:32:07.849Z" hostname="DaduAsus" tests="1" failures="0" errors="0" skipped="0" time="0.0062161">
+        <testcase classname="tests/motor-config.test.ts" name="admits only finite positive torque-model configuration" time="0.0043458">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/motor-fault.test.ts" timestamp="2026-10-19T10:32:07.849Z" hostname="DaduAsus" tests="2" failures="0" errors="0" skipped="0" time="0.0071959">
+        <testcase classname="tests/motor-fault.test.ts" name="cuts only the selected stable-ID drive and preserves passive air loads" time="0.0048331">
+        </testcase>
+        <testcase classname="tests/motor-fault.test.ts" name="accepts varying drive torque through an allocation-free numeric boundary" time="0.0004937">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/physics.test.ts" timestamp="2026-10-19T10:32:07.850Z" hostname="DaduAsus" tests="6" failures="0" errors="0" skipped="0" time="0.0188597">
+        <testcase classname="tests/physics.test.ts" name="fixed-step scheduler &gt; executes 400 exact steps per simulated wall second without drift" time="0.0031603">
+        </testcase>
+        <testcase classname="tests/physics.test.ts" name="fixed-step scheduler &gt; bounds catch-up and accounts for dropped wall time; resume has no backlog" time="0.0005097">
+        </testcase>
+        <testcase classname="tests/physics.test.ts" name="demo dynamics &gt; takes off with fresh armed input and kills target thrust on stale input" time="0.0037581">
+        </testcase>
+        <testcase classname="tests/physics.test.ts" name="demo dynamics &gt; is deterministic, normalizes quaternions, and resets to safe state" time="0.0064086">
+        </testcase>
+        <testcase classname="tests/physics.test.ts" name="demo dynamics &gt; does not apply invalid or disarmed input, and constrains the ground plane" time="0.0002619">
+        </testcase>
+        <testcase classname="tests/physics.test.ts" name="demo dynamics &gt; maps all NED basis vectors to render coordinates without reflection" time="0.0006687">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/position-step.test.ts" timestamp="2026-10-19T10:32:07.853Z" hostname="DaduAsus" tests="5" failures="0" errors="0" skipped="0" time="0.0113074">
+        <testcase classname="tests/position-step.test.ts" name="GNSS position step &gt; applies the offset atomically at the scheduled tick and preserves velocity, time, DOP and fix" time="0.004832">
+        </testcase>
+        <testcase classname="tests/position-step.test.ts" name="GNSS position step &gt; follows the Down sign for altitude and handles 10 km offsets" time="0.0008037">
+        </testcase>
+        <testcase classname="tests/position-step.test.ts" name="GNSS position step &gt; wraps across the antimeridian and crosses a pole" time="0.0006045">
+        </testcase>
+        <testcase classname="tests/position-step.test.ts" name="GNSS position step &gt; treats zero, disable and reset as exact baseline, and never mutates the source" time="0.0012096">
+        </testcase>
+        <testcase classname="tests/position-step.test.ts" name="GNSS position step &gt; converts MSL through the geoid so H stays MSL after the step" time="0.0014841">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/propeller-bem.test.ts" timestamp="2026-10-19T10:32:07.855Z" hostname="DaduAsus" tests="1" failures="0" errors="0" skipped="0" time="14.7827739">
+        <testcase classname="tests/propeller-bem.test.ts" name="runs independent annular momentum cases against unchanged measured UIUC tolerances without hiding nonconvergence" time="14.7799301">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/protocol-golden.test.ts" timestamp="2026-10-19T10:32:07.855Z" hostname="DaduAsus" tests="4" failures="0" errors="0" skipped="0" time="0.0235852">
+        <testcase classname="tests/protocol-golden.test.ts" name="ABI v1 golden byte layout &gt; runs on a little-endian host, matching the specification assumption" time="0.0021141">
+        </testcase>
+        <testcase classname="tests/protocol-golden.test.ts" name="ABI v1 golden byte layout &gt; describes exactly the regions, fields, and bytes in the English specification" time="0.0099698">
+        </testcase>
+        <testcase classname="tests/protocol-golden.test.ts" name="ABI v1 golden byte layout &gt; writers produce the specified bytes for header, two ring slots, and the pilot mailbox" time="0.0034226">
+        </testcase>
+        <testcase classname="tests/protocol-golden.test.ts" name="ABI v1 golden byte layout &gt; detects a field moved by one word in either the fixture or the encoder" time="0.0060241">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/protocol.test.ts" timestamp="2026-10-19T10:32:07.856Z" hostname="DaduAsus" tests="4" failures="0" errors="0" skipped="0" time="0.0061132">
+        <testcase classname="tests/protocol.test.ts" name="atomic shared memory ABI &gt; rejects incompatible versions and sizes" time="0.0027508">
+        </testcase>
+        <testcase classname="tests/protocol.test.ts" name="atomic shared memory ABI &gt; round-trips all fields and float64 position/time without float32 loss" time="0.0007845">
+        </testcase>
+        <testcase classname="tests/protocol.test.ts" name="atomic shared memory ABI &gt; wraps the ring, retains bounded history, and never reads a busy slot" time="0.0008877">
+        </testcase>
+        <testcase classname="tests/protocol.test.ts" name="atomic shared memory ABI &gt; publishes coherent pilot commands and retains last input on contention" time="0.0004203">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/r2-cache.test.ts" timestamp="2026-10-19T10:32:07.857Z" hostname="DaduAsus" tests="8" failures="0" errors="0" skipped="0" time="0.0615117">
+        <testcase classname="tests/r2-cache.test.ts" name="region manifest &gt; validates structure, radius, paths and the dataset hash" time="0.0123711">
+        </testcase>
+        <testcase classname="tests/r2-cache.test.ts" name="region manifest &gt; decides fail-closed: Google and missing rights or data block, cacheable=false and TTL 0 bypass" time="0.0074016">
+        </testcase>
+        <testcase classname="tests/r2-cache.test.ts" name="region manifest &gt; measures region distance on the ellipsoid" time="0.0008763">
+        </testcase>
+        <testcase classname="tests/r2-cache.test.ts" name="R2 region cache &gt; misses, stores, hits, and expires after the policy TTL" time="0.0260331">
+        </testcase>
+        <testcase classname="tests/r2-cache.test.ts" name="R2 region cache &gt; enforces the byte cap by evicting the oldest (earliest-expiring) objects" time="0.0030813">
+        </testcase>
+        <testcase classname="tests/r2-cache.test.ts" name="R2 region cache &gt; never writes outside the radius, for unlisted or mismatching tiles, or when cacheable=false" time="0.0060509">
+        </testcase>
+        <testcase classname="tests/r2-cache.test.ts" name="R2 region cache &gt; blocks the provider without fetching when rights or data are missing, including Google" time="0.0019314">
+        </testcase>
+        <testcase classname="tests/r2-cache.test.ts" name="R2 region cache &gt; isolates dataset versions by key" time="0.0021459">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/rc-override.test.ts" timestamp="2026-10-19T10:32:07.859Z" hostname="DaduAsus" tests="4" failures="0" errors="0" skipped="0" time="0.005966">
+        <testcase classname="tests/rc-override.test.ts" name="uses PWM endpoints and the two channel-group sentinel contracts" time="0.0023507">
+        </testcase>
+        <testcase classname="tests/rc-override.test.ts" name="persists validated versioned calibration and rejects malformed storage and duplicate mode axes" time="0.0012197">
+        </testcase>
+        <testcase classname="tests/rc-override.test.ts" name="a missing enabled mode axis fails closed and drops every stick value" time="0.0006068">
+        </testcase>
+        <testcase classname="tests/rc-override.test.ts" name="maps actual pilot channels and mode slots, releases only owned channels on disconnect" time="0.0006086">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/release-manifest.test.ts" timestamp="2026-10-19T10:32:07.860Z" hostname="DaduAsus" tests="2" failures="1" errors="0" skipped="0" time="0.6918032">
+        <testcase classname="tests/release-manifest.test.ts" name="release inventory rejects traversal, unsupported roots and wrong hashes before publication" time="0.0932296">
+        </testcase>
+        <testcase classname="tests/release-manifest.test.ts" name="inventories actual bounded output bytes, retains blocked status and rejects tampering/symlink escape" time="0.596266">
+            <failure message="node:fs:1938
+  binding.symlink(
+          ^
+
+Error: EPERM: operation not permitted, symlink &apos;C:\Users\djdan\OneDrive\Desktop\MirageSITL\.cache\tmp\mirage-release-sth9om\outside&apos; -&gt; &apos;C:\Users\djdan\OneDrive\Desktop\MirageSITL\.cache\tmp\mirage-release-sth9om\apps\web\dist\alias&apos;
+    at symlinkSync (node:fs:1938:11)
+    at file:///C:/Users/djdan/OneDrive/Desktop/MirageSITL/[eval1]:21:2
+    at ModuleJob.run (node:internal/modules/esm/module_job:439:25)
+    at async node:internal/modules/esm/loader:224:26
+    at async ModuleLoader.executeModuleJob (node:internal/modules/esm/loader:221:20)
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5) {
+  errno: -4048,
+  code: &apos;EPERM&apos;,
+  syscall: &apos;symlink&apos;,
+  path: &apos;C:\\Users\\djdan\\OneDrive\\Desktop\\MirageSITL\\.cache\\tmp\\mirage-release-sth9om\\outside&apos;,
+  dest: &apos;C:\\Users\\djdan\\OneDrive\\Desktop\\MirageSITL\\.cache\\tmp\\mirage-release-sth9om\\apps\\web\\dist\\alias&apos;
+}
+
+Node.js v24.19.0
+: expected 1 to be +0 // Object.is equality" type="AssertionError">
+AssertionError: node:fs:1938
+  binding.symlink(
+          ^
+
+Error: EPERM: operation not permitted, symlink &apos;C:\Users\djdan\OneDrive\Desktop\MirageSITL\.cache\tmp\mirage-release-sth9om\outside&apos; -&gt; &apos;C:\Users\djdan\OneDrive\Desktop\MirageSITL\.cache\tmp\mirage-release-sth9om\apps\web\dist\alias&apos;
+    at symlinkSync (node:fs:1938:11)
+    at file:///C:/Users/djdan/OneDrive/Desktop/MirageSITL/[eval1]:21:2
+    at ModuleJob.run (node:internal/modules/esm/module_job:439:25)
+    at async node:internal/modules/esm/loader:224:26
+    at async ModuleLoader.executeModuleJob (node:internal/modules/esm/loader:221:20)
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5) {
+  errno: -4048,
+  code: &apos;EPERM&apos;,
+  syscall: &apos;symlink&apos;,
+  path: &apos;C:\\Users\\djdan\\OneDrive\\Desktop\\MirageSITL\\.cache\\tmp\\mirage-release-sth9om\\outside&apos;,
+  dest: &apos;C:\\Users\\djdan\\OneDrive\\Desktop\\MirageSITL\\.cache\\tmp\\mirage-release-sth9om\\apps\\web\\dist\\alias&apos;
+}
+
+Node.js v24.19.0
+: expected 1 to be +0 // Object.is equality
+
+- Expected
++ Received
+
+- 0
++ 1
+
+ ❯ [eval1]:21:2
+ ❯ nodeCheck tests/support/node-evidence.ts:6:30
+ ❯ tests/release-manifest.test.ts:11:114
+            </failure>
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/rigid-body.test.ts" timestamp="2026-10-19T10:32:07.863Z" hostname="DaduAsus" tests="1" failures="0" errors="0" skipped="0" time="1.9481295">
+        <testcase classname="tests/rigid-body.test.ts" name="integrates real WASM body ABI and preserves state on rejected input" time="1.9466248">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/rotor-kernels.test.ts" timestamp="2026-10-19T10:32:07.864Z" hostname="DaduAsus" tests="5" failures="0" errors="0" skipped="0" time="0.5100784">
+        <testcase classname="tests/rotor-kernels.test.ts" name="matches independent discrete annulus sums with SIMD tail counts and spin reversal" time="0.0209233">
+        </testcase>
+        <testcase classname="tests/rotor-kernels.test.ts" name="matches analytic inflow, passive shaft, oscillator and inertial moment on scalar/SIMD WASM" time="0.0026213">
+        </testcase>
+        <testcase classname="tests/rotor-kernels.test.ts" name="runs a million dynamics steps with the trapping allocator and stable WASM memory" time="0.1984367">
+        </testcase>
+        <testcase classname="tests/rotor-kernels.test.ts" name="matches coaxial flux oracles on scalar/SIMD and conserves the passive wake budget" time="0.0175271">
+        </testcase>
+        <testcase classname="tests/rotor-kernels.test.ts" name="matches motor, shared-battery and tilted-frame analytical values on scalar/SIMD" time="0.0012976">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/scenario-runner.test.ts" timestamp="2026-10-19T10:32:07.865Z" hostname="DaduAsus" tests="3" failures="0" errors="0" skipped="0" time="0.0073639">
+        <testcase classname="tests/scenario-runner.test.ts" name="emits identical events on simulation ticks, pauses without penalties and rejects late dispatch" time="0.0038741">
+        </testcase>
+        <testcase classname="tests/scenario-runner.test.ts" name="rejects unknown keys, out-of-order events and command/schema mismatches" time="0.00106">
+        </testcase>
+        <testcase classname="tests/scenario-runner.test.ts" name="evaluates ordered complete autopilot traces, not elapsed timers or fabricated observations" time="0.0010651">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/sensor-noise.test.ts" timestamp="2026-10-19T10:32:07.867Z" hostname="DaduAsus" tests="2" failures="0" errors="0" skipped="0" time="0.153221">
+        <testcase classname="tests/sensor-noise.test.ts" name="reproduces reset, separates streams, and matches Gaussian RMS/lag statistics" time="0.1332779">
+        </testcase>
+        <testcase classname="tests/sensor-noise.test.ts" name="bias random walk replays independently and zero noise stays exact" time="0.0181698">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/sensor-scheduler.test.ts" timestamp="2026-10-19T10:32:07.867Z" hostname="DaduAsus" tests="2" failures="0" errors="0" skipped="0" time="0.0134228">
+        <testcase classname="tests/sensor-scheduler.test.ts" name="emits exact rational counts and ending timestamps over 60 seconds" time="0.0117527">
+        </testcase>
+        <testcase classname="tests/sensor-scheduler.test.ts" name="bounds monotonic latency and reports overflow without rewriting old data" time="0.0004712">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/serial-transport.test.ts" timestamp="2026-10-19T10:32:07.868Z" hostname="DaduAsus" tests="4" failures="0" errors="0" skipped="0" time="0.051093">
+        <testcase classname="tests/serial-transport.test.ts" name="owns one reader, handles arbitrary chunks and releases streams on close" time="0.0234633">
+        </testcase>
+        <testcase classname="tests/serial-transport.test.ts" name="cleans up on disconnect, failed open and a close racing with open" time="0.0105979">
+        </testcase>
+        <testcase classname="tests/serial-transport.test.ts" name="bounds writes under backpressure instead of creating an unbounded output queue" time="0.0151554">
+        </testcase>
+        <testcase classname="tests/serial-transport.test.ts" name="releases port ownership after a rejected cancel and supports explicit reopen with fresh streams" time="0.0007367">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/session-v2.test.ts" timestamp="2026-10-19T10:32:07.870Z" hostname="DaduAsus" tests="11" failures="0" errors="0" skipped="0" time="0.0545187">
+        <testcase classname="tests/session-v2.test.ts" name="PhysicsSessionV2 lifecycle &gt; announces readiness, publishes epoch 1 at tick 0, and steps at tick/hz once started" time="0.0105217">
+        </testcase>
+        <testcase classname="tests/session-v2.test.ts" name="PhysicsSessionV2 lifecycle &gt; reports the ideal specific force of a vehicle resting on the ground and ISA pressure" time="0.0022196">
+        </testcase>
+        <testcase classname="tests/session-v2.test.ts" name="PhysicsSessionV2 lifecycle &gt; rejects unsupported scheduled effects and unavailable models without changing state" time="0.001461">
+        </testcase>
+        <testcase classname="tests/session-v2.test.ts" name="PhysicsSessionV2 arming and input protection &gt; arms only at &lt;=5% throttle, then flies on fresh input" time="0.0202347">
+        </testcase>
+        <testcase classname="tests/session-v2.test.ts" name="PhysicsSessionV2 arming and input protection &gt; a changed device_generation disarms and blocks rearming until the arm request is withdrawn" time="0.0048362">
+        </testcase>
+        <testcase classname="tests/session-v2.test.ts" name="PhysicsSessionV2 arming and input protection &gt; stale epochs and stale samples disarm with zero thrust" time="0.0010221">
+        </testcase>
+        <testcase classname="tests/session-v2.test.ts" name="PhysicsSessionV2 epochs, rates, and clock modes &gt; reset and configure start new epochs that break render history; configure changes the rate" time="0.0058128">
+        </testcase>
+        <testcase classname="tests/session-v2.test.ts" name="PhysicsSessionV2 epochs, rates, and clock modes &gt; sitl-lockstep waits responsively without actuators and steps exactly on frames for each tick" time="0.0020873">
+        </testcase>
+        <testcase classname="tests/session-v2.test.ts" name="PhysicsSessionV2 epochs, rates, and clock modes &gt; hitl-realtime faults on a missed deadline and stays faulted until a new epoch" time="0.0015155">
+        </testcase>
+        <testcase classname="tests/session-v2.test.ts" name="PhysicsSessionV2 epochs, rates, and clock modes &gt; dispose clears the runtime flags and rejects later commands" time="0.0007032">
+        </testcase>
+        <testcase classname="tests/session-v2.test.ts" name="timestamps pilot freshness after the coherent read so a concurrent publication cannot spuriously block arming" time="0.0017576">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/sitl-ew.test.ts" timestamp="2026-10-19T10:32:07.873Z" hostname="DaduAsus" tests="3" failures="0" errors="0" skipped="0" time="0.1038251">
+        <testcase classname="tests/sitl-ew.test.ts" name="injects a 30 m north GPS step without changing source truth or velocity" time="0.0034237">
+        </testcase>
+        <testcase classname="tests/sitl-ew.test.ts" name="maps magnetic bias sign/units, jamming denial/recovery, coherent drift, and actuator loss independently" time="0.0035895">
+        </testcase>
+        <testcase classname="tests/sitl-ew.test.ts" name="removes the failed rotor force and yaw wrench after lag" time="0.0955652">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/sitl-flight-trace.test.ts" timestamp="2026-10-19T10:32:07.874Z" hostname="DaduAsus" tests="1" failures="0" errors="0" skipped="0" time="0.1025568">
+        <testcase classname="tests/sitl-flight-trace.test.ts" name="checks v2 schema with synthetic observations, actual frame offsets and independent health fields" time="0.0964494">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/sitl-quad.test.ts" timestamp="2026-10-19T10:32:07.875Z" hostname="DaduAsus" tests="1" failures="0" errors="0" skipped="0" time="0.6286318">
+        <testcase classname="tests/sitl-quad.test.ts" name="checks quad motor order, hover balance, contact specific force and free fall" time="0.6272603">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/spsc-v2.test.ts" timestamp="2026-10-19T10:32:07.876Z" hostname="DaduAsus" tests="9" failures="0" errors="0" skipped="0" time="3.0527796">
+        <testcase classname="tests/spsc-v2.test.ts" name="SPSC queue layout matches section 5 &gt; slot offsets and types match the specification slot table" time="0.0028916">
+        </testcase>
+        <testcase classname="tests/spsc-v2.test.ts" name="SPSC queue layout matches section 5 &gt; header offsets, sizes, and magics match the specification text" time="0.0009389">
+        </testcase>
+        <testcase classname="tests/spsc-v2.test.ts" name="SPSC queue layout matches section 5 &gt; validates kind, size, ABI words, and reserved header words" time="0.0017502">
+        </testcase>
+        <testcase classname="tests/spsc-v2.test.ts" name="SPSC queue semantics &gt; is empty, fills to capacity, reports would-block without overwriting, and drains in order" time="0.0375019">
+        </testcase>
+        <testcase classname="tests/spsc-v2.test.ts" name="SPSC queue semantics &gt; HITL overflow faults the session instead of dropping, until the queue is reset" time="0.0023687">
+        </testcase>
+        <testcase classname="tests/spsc-v2.test.ts" name="SPSC queue semantics &gt; keeps order across the uint32 counter wrap" time="0.0042499">
+        </testcase>
+        <testcase classname="tests/spsc-v2.test.ts" name="sensor and actuator frame codecs &gt; encodes each field at its section 5 slot offset and decodes it back" time="0.0016289">
+        </testcase>
+        <testcase classname="tests/spsc-v2.test.ts" name="sensor and actuator frame codecs &gt; rejects frames that violate the per-kind contract" time="0.0017713">
+        </testcase>
+        <testcase classname="tests/spsc-v2.test.ts" name="SPSC concurrency stress &gt; delivers 1000000 frames from a producer thread in order, without loss, duplication, or corruption" time="2.9974989">
+            <system-out>
+spsc stress {&quot;received&quot;:1000000,&quot;outOfOrder&quot;:0,&quot;corrupt&quot;:0,&quot;invalid&quot;:0,&quot;wouldBlock&quot;:32341600,&quot;encodeFailures&quot;:0,&quot;fullEvents&quot;:32341600,&quot;timedOut&quot;:false}
+
+            </system-out>
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/step-metrics.test.ts" timestamp="2026-10-19T10:32:07.879Z" hostname="DaduAsus" tests="3" failures="0" errors="0" skipped="0" time="31.235228">
+        <testcase classname="tests/step-metrics.test.ts" name="step metrics recorder &gt; computes conservative quantiles within one bin, the exact maximum, and overflow" time="0.0037904">
+        </testcase>
+        <testcase classname="tests/step-metrics.test.ts" name="step metrics recorder &gt; keeps compute, lateness, and executed rate separate" time="0.0006718">
+        </testcase>
+        <testcase classname="tests/step-metrics.test.ts" name="bench-physics.mjs report &gt; measures zero allocations over 1e6 real session steps after warmup and validates against the schema" time="31.2290026">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/terrain-budget.test.ts" timestamp="2026-10-19T10:32:07.881Z" hostname="DaduAsus" tests="12" failures="0" errors="0" skipped="0" time="0.2975678">
+        <testcase classname="tests/terrain-budget.test.ts" name="byte estimators &gt; sums buffers and adds a third for a full mip chain" time="0.0015878">
+        </testcase>
+        <testcase classname="tests/terrain-budget.test.ts" name="LodBudget &gt; defaults to the DoD budgets and rejects invalid options" time="0.0010823">
+        </testcase>
+        <testcase classname="tests/terrain-budget.test.ts" name="LodBudget &gt; coarsens while over either budget and saturates at the coarsest target" time="0.0002724">
+        </testcase>
+        <testcase classname="tests/terrain-budget.test.ts" name="LodBudget &gt; relaxes only after recoverFrames frames whose finer-level prediction fits" time="0.0003301">
+        </testcase>
+        <testcase classname="tests/terrain-budget.test.ts" name="RequestQueue &gt; orders by priority then age, rejects duplicates and bounds active downloads" time="0.0005344">
+        </testcase>
+        <testcase classname="tests/terrain-budget.test.ts" name="RequestQueue &gt; drops or displaces the lowest-priority request when full" time="0.0003733">
+        </testcase>
+        <testcase classname="tests/terrain-budget.test.ts" name="TerrainResourceCache &gt; evicts invisible resources in LRU order and disposes each once" time="0.0008698">
+        </testcase>
+        <testcase classname="tests/terrain-budget.test.ts" name="TerrainResourceCache &gt; refuses and disposes a resource the visible set leaves no room for, reporting demand" time="0.0006713">
+        </testcase>
+        <testcase classname="tests/terrain-budget.test.ts" name="synthetic terrain flythrough &gt; never exceeds 2 GiB estimated GPU or 512 MiB decoded CPU residency, while the budgets bind" time="0.0004303">
+        </testcase>
+        <testcase classname="tests/terrain-budget.test.ts" name="synthetic terrain flythrough &gt; disposes every loaded resource exactly once" time="0.0061535">
+        </testcase>
+        <testcase classname="tests/terrain-budget.test.ts" name="synthetic terrain flythrough &gt; keeps request queues bounded and lets them drain and stay empty while idle" time="0.0080181">
+        </testcase>
+        <testcase classname="tests/terrain-budget.test.ts" name="synthetic terrain flythrough &gt; degrades deterministically for a seed" time="0.2749799">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/terrain-collision.test.ts" timestamp="2026-10-19T10:32:07.884Z" hostname="DaduAsus" tests="4" failures="0" errors="0" skipped="0" time="0.0055486">
+        <testcase classname="tests/terrain-collision.test.ts" name="triangulates NED with upward normals and common edge coordinates" time="0.0026149">
+        </testcase>
+        <testcase classname="tests/terrain-collision.test.ts" name="owns collision ground independently, validates seams and publishes only at increasing epoch ticks" time="0.0012143">
+        </testcase>
+        <testcase classname="tests/terrain-collision.test.ts" name="uses the mesh diagonal and supports negative tile coordinates" time="0.0002">
+        </testcase>
+        <testcase classname="tests/terrain-collision.test.ts" name="bounds staged plus active memory and retains old ground when replacement cannot fit" time="0.0003655">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/terrain-policy.test.ts" timestamp="2026-10-19T10:32:07.886Z" hostname="DaduAsus" tests="1" failures="0" errors="0" skipped="0" time="0.0038727">
+        <testcase classname="tests/terrain-policy.test.ts" name="denies Google persistent caching/prefetch/offline by default and fails closed on unknown policy" time="0.0027448">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/thermal-camera.test.ts" timestamp="2026-10-19T10:32:07.886Z" hostname="DaduAsus" tests="8" failures="0" errors="0" skipped="0" time="0.1023932">
+        <testcase classname="tests/thermal-camera.test.ts" name="radiometry &gt; integrates Planck to the Stefan-Boltzmann total and peaks at Wien&apos;s wavelength" time="0.015701">
+        </testcase>
+        <testcase classname="tests/thermal-camera.test.ts" name="radiometry &gt; is strictly monotonic in temperature (blackbody) and the table matches the exact integral" time="0.015193">
+        </testcase>
+        <testcase classname="tests/thermal-camera.test.ts" name="radiometry &gt; weights emission and reflection by emissivity and attenuates with distance" time="0.0011991">
+        </testcase>
+        <testcase classname="tests/thermal-camera.test.ts" name="radiometry &gt; maps the display span to levels 0 and 1" time="0.005965">
+        </testcase>
+        <testcase classname="tests/thermal-camera.test.ts" name="palettes &gt; have the documented cold and hot endpoints" time="0.0034205">
+        </testcase>
+        <testcase classname="tests/thermal-camera.test.ts" name="instrument profiles &gt; keeps synthetic training profiles separate from measured instrument claims" time="0.0016922">
+        </testcase>
+        <testcase classname="tests/thermal-camera.test.ts" name="radiometry oracles (merged) &gt; matches an independent 10 um spectral radiance and the 8-14 um band level at 300 K" time="0.0516814">
+        </testcase>
+        <testcase classname="tests/thermal-camera.test.ts" name="radiometry oracles (merged) &gt; obeys the limiting cases exactly" time="0.0054959">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/thermal-energy.test.ts" timestamp="2026-10-19T10:32:07.889Z" hostname="DaduAsus" tests="15" failures="0" errors="0" skipped="0" time="0.3041613">
+        <testcase classname="tests/thermal-energy.test.ts" name="solar forcing &gt; matches the NREL SPA reference position within 0.05 deg" time="0.0019415">
+        </testcase>
+        <testcase classname="tests/thermal-energy.test.ts" name="solar forcing &gt; gives solstice declinations and night below the horizon" time="0.0011223">
+        </testcase>
+        <testcase classname="tests/thermal-energy.test.ts" name="solar forcing &gt; keeps irradiance in physical units and monotonic in zenith and cloud" time="0.0013504">
+        </testcase>
+        <testcase classname="tests/thermal-energy.test.ts" name="surface heat balance &gt; relaxes to the night radiative equilibrium below air temperature" time="0.002701">
+        </testcase>
+        <testcase classname="tests/thermal-energy.test.ts" name="surface heat balance &gt; closes the energy budget in J/m^2 and reports flux components in W/m^2" time="0.0012109">
+        </testcase>
+        <testcase classname="tests/thermal-energy.test.ts" name="surface heat balance &gt; converges with the timestep (second order)" time="0.0049381">
+        </testcase>
+        <testcase classname="tests/thermal-energy.test.ts" name="surface heat balance &gt; warms after sunrise, keeps shaded surfaces cooler and orients by normal" time="0.0097581">
+        </testcase>
+        <testcase classname="tests/thermal-energy.test.ts" name="surface heat balance &gt; uses ambient occlusion only as the sky-view factor of explicit radiation" time="0.0010461">
+        </testcase>
+        <testcase classname="tests/thermal-energy.test.ts" name="surface heat balance &gt; takes air temperature from an atmosphere state and rejects invalid configuration" time="0.0019986">
+        </testcase>
+        <testcase classname="tests/thermal-energy.test.ts" name="surface heat balance &gt; steps 1000 elements for 3000 steps without triggering GC" time="0.2220902">
+        </testcase>
+        <testcase classname="tests/thermal-energy.test.ts" name="single-surface reference solver &gt; night equilibrium and explicit power-to-energy units" time="0.0125481">
+        </testcase>
+        <testcase classname="tests/thermal-energy.test.ts" name="single-surface reference solver &gt; sunrise and shadows obey energy balance with timestep convergence" time="0.0298684">
+        </testcase>
+        <testcase classname="tests/thermal-energy.test.ts" name="single-surface reference solver &gt; solar geometry in local ENU: equatorial noon, horizon, backface and shadow" time="0.0007532">
+        </testcase>
+        <testcase classname="tests/thermal-energy.test.ts" name="cross-checks between the two solvers and the two solar models &gt; ThermalField (Heun) and HeatSurface (implicit trapezoid) agree on equivalent forcing" time="0.0101785">
+        </testcase>
+        <testcase classname="tests/thermal-energy.test.ts" name="cross-checks between the two solvers and the two solar models &gt; solarIncidence (declination/hour-angle geometry) matches the ephemeris direction" time="0.0004356">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/thermal-nuc.test.ts" timestamp="2026-10-19T10:32:07.892Z" hostname="DaduAsus" tests="4" failures="0" errors="0" skipped="0" time="5.7403868">
+        <testcase classname="tests/thermal-nuc.test.ts" name="fixed shutter duration, bias removal, held display and monotone sensor time" time="0.0049628">
+        </testcase>
+        <testcase classname="tests/thermal-nuc.test.ts" name="equal frame streams reproduce calibration; malformed frames leave output unchanged" time="0.0048606">
+        </testcase>
+        <testcase classname="tests/thermal-nuc.test.ts" name="removes a drifting fixed-pattern bias on a fixed frame grid with a bounded interruption" time="5.7241592">
+        </testcase>
+        <testcase classname="tests/thermal-nuc.test.ts" name="shutter cycles never pause physics or touch recorded truth" time="0.004055">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/tiles-provider.test.ts" timestamp="2026-10-19T10:32:07.893Z" hostname="DaduAsus" tests="7" failures="0" errors="0" skipped="0" time="0.0315012">
+        <testcase classname="tests/tiles-provider.test.ts" name="3D Tiles source resolution &gt; blocks live Google tiles without the proxy and keeps local licensed fixtures available" time="0.0024172">
+        </testcase>
+        <testcase classname="tests/tiles-provider.test.ts" name="ECEF to render placement &gt; maps the fixture origin to the render origin and ENU axes to render x/up/-z" time="0.000593">
+        </testcase>
+        <testcase classname="tests/tiles-provider.test.ts" name="tile request tracking &gt; aborts in-flight requests on dispose without recording them as failures" time="0.0231007">
+        </testcase>
+        <testcase classname="tests/tiles-provider.test.ts" name="tile request tracking &gt; relays the loader&apos;s own abort signal" time="0.0007567">
+        </testcase>
+        <testcase classname="tests/tiles-provider.test.ts" name="tile request tracking &gt; classifies CORS/network and HTTP failures and forces CORS mode without credentials" time="0.0013248">
+        </testcase>
+        <testcase classname="tests/tiles-provider.test.ts" name="fixture &gt; is a valid GLB with the documented CC0 provenance" time="0.0008994">
+        </testcase>
+        <testcase classname="tests/tiles-provider.test.ts" name="app terrain configuration &gt; is off by default, parses a local tileset, and blocks malformed settings" time="0.0007129">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/tiles-proxy.test.ts" timestamp="2026-10-19T10:32:07.894Z" hostname="DaduAsus" tests="10" failures="0" errors="0" skipped="0" time="0.0640355">
+        <testcase classname="tests/tiles-proxy.test.ts" name="configuration &gt; fails closed on a missing credential, origins, signing key or a non-Google policy" time="0.0037995">
+        </testcase>
+        <testcase classname="tests/tiles-proxy.test.ts" name="configuration &gt; answers 503 without detail when misconfigured" time="0.0249122">
+        </testcase>
+        <testcase classname="tests/tiles-proxy.test.ts" name="origin and session verification &gt; rejects missing and foreign origins, and answers preflight for allowed ones" time="0.0057301">
+        </testcase>
+        <testcase classname="tests/tiles-proxy.test.ts" name="origin and session verification &gt; rejects missing, tampered, expired and cross-origin sessions before any upstream request" time="0.0076363">
+        </testcase>
+        <testcase classname="tests/tiles-proxy.test.ts" name="forwarding and provider restrictions &gt; forwards permitted tile paths with the key only upstream, and keeps Google&apos;s session parameter" time="0.0045263">
+        </testcase>
+        <testcase classname="tests/tiles-proxy.test.ts" name="forwarding and provider restrictions &gt; rejects foreign paths, traversal, extra query parameters and client-supplied keys" time="0.0025557">
+        </testcase>
+        <testcase classname="tests/tiles-proxy.test.ts" name="forwarding and provider restrictions &gt; never echoes upstream errors and blocks responses that contain the key" time="0.003105">
+        </testcase>
+        <testcase classname="tests/tiles-proxy.test.ts" name="quotas &gt; limits tile requests per session and sessions per client IP, resetting each window" time="0.0044019">
+        </testcase>
+        <testcase classname="tests/tiles-proxy.test.ts" name="quotas &gt; rejects malformed quota requests" time="0.000679">
+        </testcase>
+        <testcase classname="tests/tiles-proxy.test.ts" name="client integration &gt; requests a validated session and sends it with every tile request" time="0.0029173">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/tooling.test.ts" timestamp="2026-10-19T10:32:07.896Z" hostname="DaduAsus" tests="3" failures="0" errors="0" skipped="0" time="12.0140336">
+        <testcase classname="tests/tooling.test.ts" name="strict tooling gates &gt; exposes dedicated lint and typecheck commands" time="0.0076047">
+        </testcase>
+        <testcase classname="tests/tooling.test.ts" name="strict tooling gates &gt; rejects explicit any and unsafe JSON-derived operations" time="10.5865196">
+        </testcase>
+        <testcase classname="tests/tooling.test.ts" name="strict tooling gates &gt; retains strict compiler settings and diagnoses incompatible assignments" time="1.4169977">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/uiuc-propeller.test.ts" timestamp="2026-10-19T10:32:07.897Z" hostname="DaduAsus" tests="10" failures="0" errors="0" skipped="0" time="0.3649687">
+        <testcase classname="tests/uiuc-propeller.test.ts" name="UIUC propeller database fixture &gt; is registered with measured provenance and an exact payload hash" time="0.0123311">
+        </testcase>
+        <testcase classname="tests/uiuc-propeller.test.ts" name="UIUC propeller database fixture &gt; traces every table to the inventoried archive and the SDA1075 transcription" time="0.010656">
+        </testcase>
+        <testcase classname="tests/uiuc-propeller.test.ts" name="UIUC propeller database fixture &gt; passes the dataset-only eta and Froude-bound oracles" time="0.001646">
+        </testcase>
+        <testcase classname="tests/uiuc-propeller.test.ts" name="UIUC propeller database fixture &gt; rejects malformed or out-of-contract payloads" time="0.0043198">
+        </testcase>
+        <testcase classname="tests/uiuc-propeller.test.ts" name="declared comparison model &gt; recovers exact thin-airfoil zero-lift angles" time="0.0040656">
+        </testcase>
+        <testcase classname="tests/uiuc-propeller.test.ts" name="declared comparison model &gt; builds the polar in the native index layout with Blasius drag" time="0.0006414">
+        </testcase>
+        <testcase classname="tests/uiuc-propeller.test.ts" name="declared comparison model &gt; discretizes only the declared airfoil span" time="0.0123636">
+        </testcase>
+        <testcase classname="tests/uiuc-propeller.test.ts" name="declared comparison model &gt; classifies points and never reports PASS without a comparison" time="0.0075551">
+        </testcase>
+        <testcase classname="tests/uiuc-propeller.test.ts" name="declared comparison model &gt; satisfies the Froude identity through the native runner with zero drag" time="0.3074474">
+        </testcase>
+        <testcase classname="tests/uiuc-propeller.test.ts" name="declared comparison model &gt; loads the registered XFOIL polar into the native index layout" time="0.0019537">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/velocity-drift.test.ts" timestamp="2026-10-19T10:32:07.900Z" hostname="DaduAsus" tests="12" failures="0" errors="0" skipped="0" time="1.2723567">
+        <testcase classname="tests/velocity-drift.test.ts" name="coherent drift kinematics &gt; matches b = a t^2/2 and v = a t at 400 Hz" time="0.1169463">
+        </testcase>
+        <testcase classname="tests/velocity-drift.test.ts" name="coherent drift kinematics &gt; caps speed piecewise at the exact cap time at 400 Hz" time="0.0661147">
+        </testcase>
+        <testcase classname="tests/velocity-drift.test.ts" name="coherent drift kinematics &gt; matches b = a t^2/2 and v = a t at 800 Hz" time="0.1952427">
+        </testcase>
+        <testcase classname="tests/velocity-drift.test.ts" name="coherent drift kinematics &gt; caps speed piecewise at the exact cap time at 800 Hz" time="0.1350324">
+        </testcase>
+        <testcase classname="tests/velocity-drift.test.ts" name="coherent drift kinematics &gt; matches b = a t^2/2 and v = a t at 1200 Hz" time="0.2935311">
+        </testcase>
+        <testcase classname="tests/velocity-drift.test.ts" name="coherent drift kinematics &gt; caps speed piecewise at the exact cap time at 1200 Hz" time="0.2596052">
+        </testcase>
+        <testcase classname="tests/velocity-drift.test.ts" name="coherent drift kinematics &gt; keeps position consistent with velocity across the cap (b is the integral of v)" time="0.0713463">
+        </testcase>
+        <testcase classname="tests/velocity-drift.test.ts" name="coherent drift kinematics &gt; hold-offset decelerates within limits, integrates b, then holds" time="0.068561">
+        </testcase>
+        <testcase classname="tests/velocity-drift.test.ts" name="coherent drift kinematics &gt; step-to-truth resets b and v_d as a counted discontinuity" time="0.0182229">
+        </testcase>
+        <testcase classname="tests/velocity-drift.test.ts" name="coherent drift kinematics &gt; evolves only on the physics clock: GPS and render sampling never change the state" time="0.0232506">
+        </testcase>
+        <testcase classname="tests/velocity-drift.test.ts" name="coherent drift kinematics &gt; corrupts GPS position and velocity coherently and recomputes course" time="0.0156329">
+        </testcase>
+        <testcase classname="tests/velocity-drift.test.ts" name="coherent drift kinematics &gt; rejects invalid presets and steps, and stops at the 10 km envelope" time="0.0063047">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/warmup.test.ts" timestamp="2026-10-19T10:32:07.903Z" hostname="DaduAsus" tests="3" failures="0" errors="0" skipped="0" time="0.0054085">
+        <testcase classname="tests/warmup.test.ts" name="official ArduPilot EKF and heartbeat frames map absolute flags and mode" time="0.0028448">
+        </testcase>
+        <testcase classname="tests/warmup.test.ts" name="30 seconds alone never admits readiness; sensor coherence, health, epoch and HITL clock enforced" time="0.0010952">
+        </testcase>
+        <testcase classname="tests/warmup.test.ts" name="failed innovation diagnostics and initializing flags cannot be normalized to healthy" time="0.0003745">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/wasm-abi.test.ts" timestamp="2026-10-19T10:32:07.904Z" hostname="DaduAsus" tests="7" failures="0" errors="0" skipped="0" time="0.7730761">
+        <testcase classname="tests/wasm-abi.test.ts" name="mirage-bet C ABI and arena binding &gt; mirrors every bet.h define exactly" time="0.0028794">
+        </testcase>
+        <testcase classname="tests/wasm-abi.test.ts" name="mirage-bet C ABI and arena binding &gt; encodes the golden configuration and input byte for byte" time="0.0066345">
+        </testcase>
+        <testcase classname="tests/wasm-abi.test.ts" name="mirage-bet C ABI and arena binding &gt; places every region above __heap_base, aligned, disjoint, and inside reserved memory" time="0.0058877">
+        </testcase>
+        <testcase classname="tests/wasm-abi.test.ts" name="mirage-bet C ABI and arena binding &gt; steps 1e6 times without allocation or growth, overwriting outputs in place" time="0.3098899">
+        </testcase>
+        <testcase classname="tests/wasm-abi.test.ts" name="mirage-bet C ABI and arena binding &gt; rejects invalid pointers, overlaps, handles, and dt through the real exports" time="0.0027566">
+        </testcase>
+        <testcase classname="tests/wasm-abi.test.ts" name="mirage-bet C ABI and arena binding &gt; rejects invalid configurations before arming" time="0.0022227">
+        </testcase>
+        <testcase classname="tests/wasm-abi.test.ts" name="mirage-bet C ABI and arena binding &gt; faults stepping after memory growth instead of using stale views" time="0.0031631">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/wasm-loader.test.ts" timestamp="2026-10-19T10:32:07.906Z" hostname="DaduAsus" tests="5" failures="0" errors="0" skipped="0" time="0.4939975">
+        <testcase classname="tests/wasm-loader.test.ts" name="mirage-bet WASM build and loader &gt; writes a manifest whose hashes and sizes match the artifacts on disk" time="0.0024594">
+        </testcase>
+        <testcase classname="tests/wasm-loader.test.ts" name="mirage-bet WASM build and loader &gt; loads the SIMD artifact when supported and the scalar baseline otherwise" time="0.0041293">
+        </testcase>
+        <testcase classname="tests/wasm-loader.test.ts" name="mirage-bet WASM build and loader &gt; reserves the memory budget before arming and reports later growth" time="0.0028772">
+        </testcase>
+        <testcase classname="tests/wasm-loader.test.ts" name="mirage-bet WASM build and loader &gt; blocks arming on a corrupt artifact, a hash or size mismatch, or an ABI mismatch" time="0.0062726">
+        </testcase>
+        <testcase classname="tests/wasm-loader.test.ts" name="mirage-bet WASM build and loader &gt; rejects malformed manifests from unknown input" time="0.00224">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/worldcover-geotiff.test.ts" timestamp="2026-10-19T10:32:07.908Z" hostname="DaduAsus" tests="17" failures="0" errors="0" skipped="0" time="0.2629875">
+        <testcase classname="tests/worldcover-geotiff.test.ts" name="ESA WorldCover Israel tiles &gt; match the inventory hashes and the WorldCover georeferencing" time="0.1453682">
+        </testcase>
+        <testcase classname="tests/worldcover-geotiff.test.ts" name="ESA WorldCover Israel tiles &gt; maps Mediterranean off Tel Aviv to its known land class" time="0.0057981">
+        </testcase>
+        <testcase classname="tests/worldcover-geotiff.test.ts" name="ESA WorldCover Israel tiles &gt; maps Dead Sea to its known land class" time="0.002403">
+        </testcase>
+        <testcase classname="tests/worldcover-geotiff.test.ts" name="ESA WorldCover Israel tiles &gt; maps Lake Kinneret to its known land class" time="0.0020863">
+        </testcase>
+        <testcase classname="tests/worldcover-geotiff.test.ts" name="ESA WorldCover Israel tiles &gt; maps Gulf of Eilat to its known land class" time="0.0031841">
+        </testcase>
+        <testcase classname="tests/worldcover-geotiff.test.ts" name="ESA WorldCover Israel tiles &gt; maps central Tel Aviv to its known land class" time="0.0025169">
+        </testcase>
+        <testcase classname="tests/worldcover-geotiff.test.ts" name="ESA WorldCover Israel tiles &gt; maps Makhtesh Ramon to its known land class" time="0.0030012">
+        </testcase>
+        <testcase classname="tests/worldcover-geotiff.test.ts" name="ESA WorldCover Israel tiles &gt; maps Jezreel Valley to its known land class" time="0.0039869">
+        </testcase>
+        <testcase classname="tests/worldcover-geotiff.test.ts" name="ESA WorldCover Israel tiles &gt; maps Hula Valley to its known land class" time="0.0043166">
+        </testcase>
+        <testcase classname="tests/worldcover-geotiff.test.ts" name="ESA WorldCover Israel tiles &gt; joins the 30 N seam without a gap and labels uncovered points synthetic" time="0.0064087">
+        </testcase>
+        <testcase classname="tests/worldcover-geotiff.test.ts" name="ESA WorldCover Israel tiles &gt; keeps windows bounded and coverage restricted to Israel" time="0.0044359">
+        </testcase>
+        <testcase classname="tests/worldcover-geotiff.test.ts" name="windowed GeoTIFF decoder &gt; reassembles windows across internal tile boundaries exactly" time="0.0602608">
+        </testcase>
+        <testcase classname="tests/worldcover-geotiff.test.ts" name="windowed GeoTIFF decoder &gt; rejects LZW compression" time="0.0018689">
+        </testcase>
+        <testcase classname="tests/worldcover-geotiff.test.ts" name="windowed GeoTIFF decoder &gt; rejects a horizontal predictor" time="0.0009103">
+        </testcase>
+        <testcase classname="tests/worldcover-geotiff.test.ts" name="windowed GeoTIFF decoder &gt; rejects a projected CRS" time="0.0009478">
+        </testcase>
+        <testcase classname="tests/worldcover-geotiff.test.ts" name="windowed GeoTIFF decoder &gt; rejects BigTIFF" time="0.0094039">
+        </testcase>
+        <testcase classname="tests/worldcover-geotiff.test.ts" name="windowed GeoTIFF decoder &gt; rejects a stripped layout" time="0.0012888">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/integration/ekf-ready.test.ts" timestamp="2026-10-19T10:32:07.913Z" hostname="DaduAsus" tests="6" failures="0" errors="0" skipped="0" time="0.0099708">
+        <testcase classname="tests/integration/ekf-ready.test.ts" name="matches independent sensor frames and requires actual sensor clocks and EKF health" time="0.0043692">
+        </testcase>
+        <testcase classname="tests/integration/ekf-ready.test.ts" name="timer, wrong identity, missing sensors and CRC-corrupted sensors never create READY" time="0.0015">
+        </testcase>
+        <testcase classname="tests/integration/ekf-ready.test.ts" name="revokes READY for stale diagnostics despite fresh sensors and for failed innovations" time="0.0006063">
+        </testcase>
+        <testcase classname="tests/integration/ekf-ready.test.ts" name="rejects future or old sensor stamps and lost GNSS fix without weakening age limits" time="0.000958">
+        </testcase>
+        <testcase classname="tests/integration/ekf-ready.test.ts" name="revokes on session disposal or clock reversal and refuses observed HITL fast-forward" time="0.0006955">
+        </testcase>
+        <testcase classname="tests/integration/ekf-ready.test.ts" name="external JSON clock requires causal contiguous acknowledgments of encoded prior samples" time="0.0006857">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/integration/ew-sitl.test.ts" timestamp="2026-10-19T10:32:07.915Z" hostname="DaduAsus" tests="2" failures="0" errors="0" skipped="0" time="0.1759232">
+        <testcase classname="tests/integration/ew-sitl.test.ts" name="EW rejects missing cases, changed truth and synthetic source; no envelopes cannot certify fidelity" time="0.0953355">
+        </testcase>
+        <testcase classname="tests/integration/ew-sitl.test.ts" name="native limits reject calibration reuse, altered identities, exceeded bounds and unanticipated modes" time="0.0786281">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/integration/external-sitl.test.ts" timestamp="2026-10-19T10:32:07.916Z" hostname="DaduAsus" tests="1" failures="0" errors="0" skipped="0" time="0.317596">
+        <testcase classname="tests/integration/external-sitl.test.ts" name="owns actual child processes, caps output/deadlines, and blocks absent flight drivers" time="0.3160296">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/integration/system-acceptance.test.ts" timestamp="2026-10-19T10:32:07.917Z" hostname="DaduAsus" tests="1" failures="0" errors="0" skipped="0" time="0.0950274">
+        <testcase classname="tests/integration/system-acceptance.test.ts" name="system acceptance keeps every absent requirement NOT_RUN and rejects stale or fabricated PASS" time="0.0939678">
+        </testcase>
+    </testsuite>
+</testsuites>

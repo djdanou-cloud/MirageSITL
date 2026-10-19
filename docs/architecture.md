@@ -1063,3 +1063,6 @@ measurement time. The shared gate produces READY/EW admission and measured
 acceleration, with revocation and independent raw/capture replay. Synthetic
 fault probes are labelled separately from observed firmware behavior. No browser
 session wiring, physical HITL acceptance or measured aircraft validation follows.
+
+
+TASK-059 adds a native-only EW experiment boundary: unchanged physics JSON, TASK-058 GPS observations delivered through GPS_INPUT, acknowledged simulated compass biases, and explicit synthetic rotor wrench loss. Independent raw-wire decoding, full PWM/body replay and original EKF telemetry joins precede empirical calibration/frozen limits and separate validation. Browser autopilot admission and physical flight fidelity remain outside this experiment.

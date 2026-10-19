@@ -5,10 +5,7 @@
   "reasons": [],
   "metrics": {
     "frames": 4161,
-    "holdDurationS": 10.189999999999998
+    "holdDurationS": 10.200000000000003
   },
-  "inputSha256": "624ef6cc8416d679fc35aeb1a8e8ceda5efd16e7829b16642ef38764928af05a",
-  "evaluation": "replay-of-verified-real-native-flight",
-  "captureFileSha256": "3cc75665b960446bbcda21ed9935b8c98508f66d4e25b0624f4e2396e40811d6",
-  "captureAuditPath": "test-results/validation/task-043-flight.json"
+  "inputSha256": "4db0c9762d7c932df3b1675013c823cc5e7242370af8b3260222c92d6b75b50d"
 }

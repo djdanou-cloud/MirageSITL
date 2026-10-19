@@ -1,0 +1,6 @@
+{
+  "schemaVersion": 1,
+  "status": "PASS",
+  "survivingOwnedFirmwareOrSidecars": [],
+  "scope": "Read-only /proc check for the exact native binary and telemetry sidecar after all runs; no unrelated process terminated"
+}

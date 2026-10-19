@@ -153,3 +153,18 @@ performed by the synthetic HITL clock probe. TASK-042 historical reports live
 in test-results/validation/task-042-snapshot-2026-10-19; new capture audits use
 the optional --output path to preserve them. Native admission does not enable
 browser READY or apply EW effects.
+
+
+## Native EW response acquisition (TASK-059)
+
+Use the same pinned Linux/WSL ELF, source, WASM, Node and MIRAGE_SITL_PYTHON environment as TASK-042. The driver owns each firmware/sidecar pair and enforces its deadline; cases are sequential. The existing native healthy flight remains a separate regression. Never reuse a nonempty capture directory.
+
+```bash
+export NODE_OPTIONS=--experimental-transform-types
+node scripts/run-ew-sitl.mjs --output .cache/task-059/calibration --case all
+node scripts/freeze-ew.mjs --calibration .cache/task-059/calibration
+node scripts/run-ew-sitl.mjs --output .cache/task-059/validation --case all
+node scripts/report-ekf.mjs --input test-results/validation/task-059-input.json --sha256 INPUT_SHA256
+```
+
+The freeze command is one-time calibration and refuses existing envelopes. On later runs, evaluate new captures against the checked-in matrix; do not rerun calibration to repair a failure. The input JSON has schemaVersion 2 and caseDirectories ordered control, jamming, position-step, velocity-drift, magnetic, motor-loss. Use repository-relative directories for a portable manifest and SHA-256 of its exact bytes. Each case writes response-audit.json plus raw RX/TX bytes, original decoded telemetry, observations, full-rate physics, readiness decisions, actual parameter readbacks and owned firmware logs. report-ekf re-audits raw bytes and physics, rejects calibration reuse/source drift and writes ekf-report.json. Archive these owned simulation captures without firmware binaries or third-party source. Native reports do not enable browser READY or certify physical aircraft.

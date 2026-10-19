@@ -8,7 +8,7 @@
 PowerShell/zsh и проверки перед расширением поддерживаемого покрытия.
 
 ## Локальные проверки
-<!-- source-sha256: e2a27e31cb96acce646f61f82f11deb26746ac4bcfde3c7ecbb82023b030593a -->
+<!-- source-sha256: cfb03a58502bdb65413ddfcc65a775e28b0ca50ca8799b0fbddb077bef28db92 -->
 
 Использовать существующий изолированный checkout, сохраняя локальные изменения. Node закреплён .nvmrc; Rust 1.97.0 и wasm32-unknown-unknown — native/rust-toolchain.toml. Зависимости ставить через npm ci. В облаке активировать CARGO_HOME=/workspace/.cache/mirage-cargo, RUSTUP_HOME=/workspace/.cache/mirage-rustup и добавить CARGO_HOME/bin в начало PATH; не переопределять HOME. Запустить lint, typecheck, check:docs, CI=true npm test, npm run build и locked native tests. Запустить npm run dev; проверить HTTP, COOP same-origin, COEP require-corp и настоящий Worker READY. Начать с нулевого газа, армировать, летать, приостановить и сбросить. Браузерные тесты используют системный Chromium только при наличии. Установка/запуск на чистой восстановленной машине для сертификации выпуска ещё не выполнялись.
 
@@ -158,3 +158,18 @@ CRC-проверенные GPS fix/здоровье, неизменные исх
 test-results/validation/task-042-snapshot-2026-10-19; новые аудиты используют
 необязательный путь --output, сохраняя их. Нативный допуск не включает
 браузерный READY и не применяет эффекты РЭБ.
+
+
+## Нативный сбор отклика РЭБ (TASK-059)
+
+Использовать те же закреплённые Linux/WSL ELF, исходники, WASM, Node и окружение MIRAGE_SITL_PYTHON, что в TASK-042. Драйвер владеет каждой парой прошивка/sidecar и ограничивает время; случаи выполняются последовательно. Существующий здоровый нативный полёт остаётся отдельной регрессией. Не использовать непустой каталог записи повторно.
+
+```bash
+export NODE_OPTIONS=--experimental-transform-types
+node scripts/run-ew-sitl.mjs --output .cache/task-059/calibration --case all
+node scripts/freeze-ew.mjs --calibration .cache/task-059/calibration
+node scripts/run-ew-sitl.mjs --output .cache/task-059/validation --case all
+node scripts/report-ekf.mjs --input test-results/validation/task-059-input.json --sha256 INPUT_SHA256
+```
+
+Команда freeze предназначена для однократной калибровки и отклоняет существующие диапазоны. Затем проверять новые записи по включённой матрице; не повторять калибровку ради исправления FAIL. Входной JSON содержит schemaVersion 2 и caseDirectories в порядке control, jamming, position-step, velocity-drift, magnetic, motor-loss. Использовать относительные пути репозитория для переносимого манифеста и SHA-256 точных байтов. Каждый случай сохраняет response-audit.json, исходные RX/TX, оригинальную декодированную телеметрию, наблюдения, физику полной частоты, решения допуска, настоящие ответы параметров и собственные логи прошивки. report-ekf повторно проверяет исходные байты и физику, отклоняет повторное использование калибровки/дрейф исходников и пишет ekf-report.json. Архивировать собственные симуляционные записи без бинарников прошивки и сторонних исходников. Нативные отчёты не включают браузерный READY и не сертифицируют физический самолёт.

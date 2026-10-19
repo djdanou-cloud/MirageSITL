@@ -1,0 +1,579 @@
+{
+  "schemaVersion": 1,
+  "task": "TASK-059",
+  "status": "DONE",
+  "baseline": "0a31f44d0ebf508fac668a1581ffd7a73c8d18f5",
+  "publication": "Local working tree; no commit or push requested for TASK-059",
+  "scope": "Real pinned native ArduCopter responses to synthetic observation/actuator faults on the existing Rust rigid-body quad. No measured aircraft, browser READY or physical HITL acceptance.",
+  "firmwareCommit": "8ab6afde107a91df1b5f60ade8f333cb8a61b190",
+  "firmwareSha256": "fa37bf619bce116d410931f1b7d24ea72ed444ba529379df0db9738742ecb186",
+  "modelSha256": "e8d4e1c92dfaecbfa3a2cc521636d0199a199fda33218ff1c4d47efc54f2eb8b",
+  "parameterSha256": "d1804e4372803861f9a7c76bee33daa3d0530a1898c87eda2e1b6ce7ae7eb458",
+  "frozenMatrix": {
+    "file": "tests/fixtures/scenarios/ew-matrix.json",
+    "sha256": "c8bd27d9be4e22a5b10279cc925589e7299edeadb667cd478638d0f533494b3a",
+    "frozenBeforeValidation": true,
+    "unchangedAfterValidationAndRejectionProbes": true
+  },
+  "plan": {
+    "schemaVersion": 1,
+    "seed": 59,
+    "gpsHz": 10,
+    "preFaultHoldS": 5,
+    "exposureS": 12,
+    "recoveryS": 8,
+    "motorExposureS": 3,
+    "effects": {
+      "jamming": {
+        "kind": "gnss-jamming",
+        "severity": 1
+      },
+      "position-step": {
+        "kind": "position-step",
+        "offsetNedM": [
+          30,
+          0,
+          0
+        ]
+      },
+      "velocity-drift": {
+        "kind": "velocity-drift",
+        "accelerationNedMps2": [
+          0.5,
+          0,
+          0
+        ],
+        "maxSpeedMps": 4
+      },
+      "magnetic": {
+        "kind": "magnetic",
+        "rotationRad": [
+          0,
+          0,
+          0
+        ],
+        "biasBodyGauss": [
+          0.3,
+          0.2,
+          0
+        ]
+      },
+      "motor-loss": {
+        "kind": "motor-loss",
+        "motorIndex": 0,
+        "mode": "instant-thrust-loss",
+        "remainingThrustFraction": 0
+      }
+    },
+    "envelopeRule": {
+      "factor": 1.5,
+      "positionMarginM": 2,
+      "innovationMargin": 0.5
+    }
+  },
+  "environment": {
+    "host": "win32",
+    "arch": "x64",
+    "cpu": "Intel(R) Core(TM) 7 240H",
+    "node": "v24.19.0",
+    "native": "Ubuntu WSL; Node 24.19.0; Python 3.14.4; pymavlink 2.4.50; g++ 15.2.0; existing scalar rigid-body WASM",
+    "testPython": "Bundled Python 3.12.14; workspace-local python3 launcher used for the isolated fixture rerun",
+    "rust": "1.97.0"
+  },
+  "metrics": {
+    "calibrationFlights": 6,
+    "independentValidationFlights": 6,
+    "totalReplayedPhysicsFrames": 710636,
+    "totalResponseRows": 20612,
+    "acceptedCases": [
+      {
+        "id": "control",
+        "maxPositionErrorM": 0.09040562689523424,
+        "maxInnovationRatio": 0.011738668195903301,
+        "maxTruthDisplacementM": 0.12934085116154567,
+        "modes": [
+          4
+        ],
+        "ekfFlags": [
+          831
+        ],
+        "unhealthyRows": 0,
+        "samples": 2001,
+        "physicsFrames": 61481,
+        "gpsInputFrames": 769,
+        "faultStartS": 56.84625,
+        "faultEndS": 68.84625,
+        "experimentEndS": 76.84625,
+        "changedInputs": false
+      },
+      {
+        "id": "jamming",
+        "maxPositionErrorM": 2.4757161945026334,
+        "maxInnovationRatio": 0.06577492505311966,
+        "maxTruthDisplacementM": 10.10095665892609,
+        "modes": [
+          4,
+          9
+        ],
+        "ekfFlags": [
+          37,
+          831
+        ],
+        "unhealthyRows": 460,
+        "samples": 2001,
+        "physicsFrames": 61497,
+        "gpsInputFrames": 769,
+        "faultStartS": 56.86625,
+        "faultEndS": 68.86625000000001,
+        "experimentEndS": 76.86625000000001,
+        "changedInputs": true
+      },
+      {
+        "id": "position-step",
+        "maxPositionErrorM": 29.996511310651947,
+        "maxInnovationRatio": 8.263864517211914,
+        "maxTruthDisplacementM": 0.12934085116154567,
+        "modes": [
+          4
+        ],
+        "ekfFlags": [
+          831,
+          32807,
+          33599
+        ],
+        "unhealthyRows": 1782,
+        "samples": 2001,
+        "physicsFrames": 61481,
+        "gpsInputFrames": 769,
+        "faultStartS": 56.84625,
+        "faultEndS": 68.84625,
+        "experimentEndS": 76.84625,
+        "changedInputs": true
+      },
+      {
+        "id": "velocity-drift",
+        "maxPositionErrorM": 70.19597497997384,
+        "maxInnovationRatio": 10.102455139160156,
+        "maxTruthDisplacementM": 74.68124409171139,
+        "modes": [
+          4,
+          9
+        ],
+        "ekfFlags": [
+          831,
+          32805,
+          33599
+        ],
+        "unhealthyRows": 700,
+        "samples": 2001,
+        "physicsFrames": 61497,
+        "gpsInputFrames": 769,
+        "faultStartS": 56.86625,
+        "faultEndS": 68.86625000000001,
+        "experimentEndS": 76.86625000000001,
+        "changedInputs": true
+      },
+      {
+        "id": "magnetic",
+        "maxPositionErrorM": 0.09040562689523424,
+        "maxInnovationRatio": 1.983268141746521,
+        "maxTruthDisplacementM": 0.12934085116154567,
+        "modes": [
+          4
+        ],
+        "ekfFlags": [
+          831
+        ],
+        "unhealthyRows": 1200,
+        "samples": 2001,
+        "physicsFrames": 61481,
+        "gpsInputFrames": 769,
+        "faultStartS": 56.84625,
+        "faultEndS": 68.84625,
+        "experimentEndS": 76.84625,
+        "changedInputs": true
+      },
+      {
+        "id": "motor-loss",
+        "maxPositionErrorM": 2.039546183323908,
+        "maxInnovationRatio": 2.5542094707489014,
+        "maxTruthDisplacementM": 13.573649835894058,
+        "modes": [
+          4
+        ],
+        "ekfFlags": [
+          831
+        ],
+        "unhealthyRows": 20,
+        "samples": 301,
+        "physicsFrames": 47881,
+        "gpsInputFrames": 599,
+        "faultStartS": 56.84625,
+        "faultEndS": 59.84625,
+        "experimentEndS": 59.84625,
+        "changedInputs": true
+      }
+    ],
+    "healthyFlightRegression": {
+      "frames": 4161,
+      "holdDurationS": 10.200000000000003,
+      "physicsFrames": 67257,
+      "wallS": 43.087463098,
+      "simS": 84.07125,
+      "telemetryEvents": 31953
+    },
+    "rejectedNegativeCases": 6
+  },
+  "checks": [
+    {
+      "command": "NODE_OPTIONS=--experimental-transform-types node scripts/run-ew-sitl.mjs --output .cache/task-059/calibration --case all",
+      "exitCode": 0
+    },
+    {
+      "command": "node --experimental-transform-types scripts/freeze-ew.mjs --calibration .cache/task-059/calibration",
+      "exitCode": 0
+    },
+    {
+      "command": "NODE_OPTIONS=--experimental-transform-types node scripts/run-ew-sitl.mjs --output .cache/task-059/validation --case all",
+      "exitCode": 0
+    },
+    {
+      "command": "MIRAGE_SITL_PYTHON=/home/dadu/mirage/venv/bin/python node --experimental-transform-types scripts/report-ekf.mjs --input test-results/validation/task-059-input.json --sha256 bc5028385077f5f89d527dbcb46e86c9fdd4d66abe3cdcb152218ecb53609fe8",
+      "exitCode": 0
+    },
+    {
+      "command": "NODE_OPTIONS=--experimental-strip-types node scripts/run-sitl.mjs",
+      "exitCode": 0
+    },
+    {
+      "command": "pymavlink 2.4.50 python scripts/sitl/check-raw.py --input .cache/task-059/flight-regression",
+      "exitCode": 0
+    },
+    {
+      "command": "node scripts/check-sitl-capture.mjs --input .cache/task-059/flight-regression --output test-results/validation/task-059-flight-regression.json",
+      "exitCode": 0
+    },
+    {
+      "command": "node node_modules/vitest/vitest.mjs run --maxWorkers=2 --reporter=default --reporter=junit --outputFile.junit=test-results/validation/task-059-unit.xml",
+      "exitCode": 1,
+      "report": "test-results/validation/task-059-unit-sandbox.xml",
+      "resolution": {
+        "schemaVersion": 1,
+        "status": "PASS_AFTER_DOCUMENTED_RERUNS",
+        "total": 537,
+        "passed": 536,
+        "skipped": 1,
+        "initialFailures": 6,
+        "remainingFailures": 0,
+        "initialRunExitCode": 1,
+        "successfulRerunExitCodes": [
+          0,
+          0,
+          0
+        ],
+        "reason": "Initial sandbox denied loopback connections/symlinks and python3 discovery; contact stress exceeded its unchanged 300 s deadline under concurrent load. Exact failed cases passed with permissions/runtime corrected and one worker; contact took 270.603 s. No thresholds changed.",
+        "recoveredCases": [
+          {
+            "classname": "tests/ardupilot-json.test.ts",
+            "name": "bridge ArduPilot JSON endpoint over real loopback UDP and WebSocket > forwards valid servo packets, replies to the learned SITL port, and rejects invalid traffic",
+            "passedRerun": "task-059-loopback.xml"
+          },
+          {
+            "classname": "tests/bridge.test.ts",
+            "name": "runs real loopback WS/UDP channels, fragmented WS delivery, authentication and reconnect",
+            "passedRerun": "task-059-loopback.xml"
+          },
+          {
+            "classname": "tests/bridge.test.ts",
+            "name": "closes rather than queueing unbounded output when the socket reports backpressure",
+            "passedRerun": "task-059-loopback.xml"
+          },
+          {
+            "classname": "tests/contact-allocation.test.ts",
+            "name": "counts actual WASM allocator calls through repeated impacts at all supported rates",
+            "passedRerun": "task-059-recovery.xml"
+          },
+          {
+            "classname": "tests/fixtures.test.ts",
+            "name": "versioned fixture provenance and random streams > regenerates the NASA drop fixture byte-for-byte from the hashed archives",
+            "passedRerun": "task-059-final.xml"
+          },
+          {
+            "classname": "tests/release-manifest.test.ts",
+            "name": "inventories actual bounded output bytes, retains blocked status and rejects tampering/symlink escape",
+            "passedRerun": "task-059-recovery.xml"
+          }
+        ],
+        "artifacts": [
+          {
+            "file": "test-results/validation/task-059-unit-sandbox.xml",
+            "sha256": "2fddb6dc46ffbee12f645ec4e565f6c3a66c6c7449e084c1e0e39c20c40de790"
+          },
+          {
+            "file": "test-results/validation/task-059-loopback.xml",
+            "sha256": "268cf5baeb7a0f7cbd09a7148510da27b5e8d8858875978e3d4d6f3e56f47276"
+          },
+          {
+            "file": "test-results/validation/task-059-recovery.xml",
+            "sha256": "47197d993d16c14fe277b3300e659e076686ab3bb3cdff8dcfacb5fa4c9ce600"
+          },
+          {
+            "file": "test-results/validation/task-059-final.xml",
+            "sha256": "e16623ce2a96015749c95ebca43a78cfa099c1b01851ff1cb9dd3484849f3b2d"
+          }
+        ]
+      }
+    },
+    {
+      "command": "node node_modules/vitest/vitest.mjs run tests/bridge.test.ts tests/ardupilot-json.test.ts --reporter=default --reporter=junit --outputFile.junit=test-results/validation/task-059-loopback.xml",
+      "exitCode": 0,
+      "passed": 13,
+      "environment": "Loopback permitted"
+    },
+    {
+      "command": "RUSTUP_TOOLCHAIN=1.97.0 node node_modules/vitest/vitest.mjs run tests/contact-allocation.test.ts tests/fixtures.test.ts tests/release-manifest.test.ts --maxWorkers=1 --reporter=default --reporter=junit --outputFile.junit=test-results/validation/task-059-recovery.xml",
+      "exitCode": 0,
+      "passed": 9,
+      "environment": "Symlinks/local process access permitted; one worker"
+    },
+    {
+      "command": "node node_modules/vitest/vitest.mjs run tests/fixtures.test.ts tests/sitl-ew.test.ts tests/integration/ew-sitl.test.ts --reporter=default --reporter=junit --outputFile.junit=test-results/validation/task-059-final.xml",
+      "exitCode": 0,
+      "passed": 11,
+      "environment": "TEMP/TMP=.cache/tmp; bundled Python on PATH"
+    },
+    {
+      "command": "node node_modules/typescript/bin/tsc --noEmit",
+      "exitCode": 0
+    },
+    {
+      "command": "node node_modules/eslint/bin/eslint.js . --max-warnings=0 --no-inline-config",
+      "exitCode": 0
+    },
+    {
+      "command": "node ../../node_modules/vite/bin/vite.js build",
+      "cwd": "apps/web",
+      "exitCode": 0,
+      "note": "Existing large-chunk warning retained"
+    },
+    {
+      "command": "node scripts/check-docs.mjs",
+      "exitCode": 0,
+      "bilingualPairs": 20,
+      "tasks": 86,
+      "completeLayouts": 6
+    },
+    {
+      "command": "git diff --check",
+      "exitCode": 0
+    }
+  ],
+  "sourceInputs": [
+    {
+      "file": "scripts/freeze-ew.mjs",
+      "sha256": "907632184f93c4988ee40ca6f773b9a0851b0bd8a91f6b6490d9e4fd8e3cc244"
+    },
+    {
+      "file": "scripts/run-ew-sitl.mjs",
+      "sha256": "2fefb2bc1dc205b4e27a54299fe273df511b3ed7772449f4aaf64144fbff9536"
+    },
+    {
+      "file": "scripts/sitl/audit-ew.mjs",
+      "sha256": "b618ea6f33ea1250ed85d25fe99a7cb02cad24ed8671e4d532abd37fa63e2677"
+    },
+    {
+      "file": "scripts/sitl/check-ew.py",
+      "sha256": "7a2a4eb0ca492df5b45694c6e8525cb8ffb5c46f2050aa5b2f2b10463592327d"
+    },
+    {
+      "file": "scripts/sitl/ew-observations.ts",
+      "sha256": "02dbf5d64c176b006b0aadb2138aaa654c2665d54fe2631852e8bc73d2c9b6c0"
+    },
+    {
+      "file": "tests/sitl-ew.test.ts",
+      "sha256": "3ff9cd78b5514cd8dd6a0685efe4dda88c3fba80e67e9801f78a61a77e05ce16"
+    }
+  ],
+  "artifacts": [
+    {
+      "file": "test-results/validation/task-059-native.json",
+      "sha256": "7ea224bb4f1eb6dbbcd7ec2e4c16bd448eae9d91bcc67e8935d5c3db88659a9c",
+      "bytes": 45774
+    },
+    {
+      "file": "test-results/validation/task-059-input.json",
+      "sha256": "bc5028385077f5f89d527dbcb46e86c9fdd4d66abe3cdcb152218ecb53609fe8",
+      "bytes": 321
+    },
+    {
+      "file": "test-results/validation/task-059-tests.json",
+      "sha256": "d1ce7a2ee25376e2858466957501a56b83c7a26799b6f3debb286bf36e151837",
+      "bytes": 2604
+    },
+    {
+      "file": "test-results/validation/task-059-unit-sandbox.xml",
+      "sha256": "2fddb6dc46ffbee12f645ec4e565f6c3a66c6c7449e084c1e0e39c20c40de790",
+      "bytes": 127679
+    },
+    {
+      "file": "test-results/validation/task-059-loopback.xml",
+      "sha256": "268cf5baeb7a0f7cbd09a7148510da27b5e8d8858875978e3d4d6f3e56f47276",
+      "bytes": 3224
+    },
+    {
+      "file": "test-results/validation/task-059-recovery.xml",
+      "sha256": "47197d993d16c14fe277b3300e659e076686ab3bb3cdff8dcfacb5fa4c9ce600",
+      "bytes": 2582
+    },
+    {
+      "file": "test-results/validation/task-059-final.xml",
+      "sha256": "e16623ce2a96015749c95ebca43a78cfa099c1b01851ff1cb9dd3484849f3b2d",
+      "bytes": 2914
+    },
+    {
+      "file": "test-results/validation/task-059-rejections.json",
+      "sha256": "3d5ec9e353442bdeea44540fc9a1dbd53152208ec390e18dde2f3f1052b3d138",
+      "bytes": 2136
+    },
+    {
+      "file": "test-results/validation/task-059-flight-regression.json",
+      "sha256": "d29c569d34da5a2996210046f2ac913819a5eabdff6338f717adb9d14eb3c545",
+      "bytes": 7220
+    },
+    {
+      "file": "test-results/validation/task-059-archives.json",
+      "sha256": "56ad0ec0101567bef599c5456f00100503dc507acdc7c91c289a2b08ffe2edcd",
+      "bytes": 2704
+    },
+    {
+      "file": "test-results/validation/task-059-ownership.json",
+      "sha256": "b0a156a54c18d37c028e4d3d423d8656140ce4e6c6d1f9bb737d16b56aca64eb",
+      "bytes": 221
+    },
+    {
+      "file": "test-results/validation/sitl-report.json",
+      "sha256": "51c2db266089b83d8d227116f560aabed9ae143d602d462735be9537c3161aaa",
+      "bytes": 252
+    },
+    {
+      "file": "test-results/validation/ekf-report.json",
+      "sha256": "7ea224bb4f1eb6dbbcd7ec2e4c16bd448eae9d91bcc67e8935d5c3db88659a9c",
+      "bytes": 45774
+    }
+  ],
+  "archives": [
+    {
+      "file": "test-results/validation/task-059-calibration-control.zip",
+      "bytes": 8128690,
+      "sha256": "fe9e43b9bea304b7de0d1ad8e258ae8a5ad7060a055912b9c9ac60b335ac7d5e"
+    },
+    {
+      "file": "test-results/validation/task-059-calibration-jamming.zip",
+      "bytes": 8160414,
+      "sha256": "ae3de8b1ac876c5091e1154f2f9c8f046f1d1982fc88803d266a5f606af5ba83"
+    },
+    {
+      "file": "test-results/validation/task-059-calibration-position-step.zip",
+      "bytes": 8133615,
+      "sha256": "525bc78561236ca1a05618d4cb573114c157057cdf5245e6e7a7c305a1deb243"
+    },
+    {
+      "file": "test-results/validation/task-059-calibration-velocity-drift.zip",
+      "bytes": 8171126,
+      "sha256": "259c232abf8abc50ef95c2966e80e696ba4136cdd8bac53f9197b4c441ccc120"
+    },
+    {
+      "file": "test-results/validation/task-059-calibration-magnetic.zip",
+      "bytes": 8143823,
+      "sha256": "cd664ff8bc2078806356176c852827f959cdc8863cc55705713dfb86507b09f6"
+    },
+    {
+      "file": "test-results/validation/task-059-calibration-motor-loss.zip",
+      "bytes": 5440119,
+      "sha256": "34b426a218fbfe9c50483c98e1ad7c73b2a4ea1a86fdb7ae77d98542803dd203"
+    },
+    {
+      "file": "test-results/validation/task-059-validation-control.zip",
+      "bytes": 8128910,
+      "sha256": "08d4948bad265391a790d933b89feff5ed4bfbdfb6f664a404b4d6d3975cb0b7"
+    },
+    {
+      "file": "test-results/validation/task-059-validation-jamming.zip",
+      "bytes": 8171866,
+      "sha256": "61818fe1aa8ae20bcf8b45991f04f42ed2c5f96f8a357c1ecddb14abdb258979"
+    },
+    {
+      "file": "test-results/validation/task-059-validation-position-step.zip",
+      "bytes": 8141226,
+      "sha256": "dca1a90c6273cc69a5bf7eb1d6e6137d4eec63b944e6c79b3bff937c72bacda3"
+    },
+    {
+      "file": "test-results/validation/task-059-validation-velocity-drift.zip",
+      "bytes": 8177977,
+      "sha256": "1ada22fb48965f975eb73aa4b731305666d440e4fe6b4eda436256fca4a7409f"
+    },
+    {
+      "file": "test-results/validation/task-059-validation-magnetic.zip",
+      "bytes": 8136822,
+      "sha256": "02acccea173cfaf8ab101219a8d7bb8880c8de75348762dea90c0f85c2108f22"
+    },
+    {
+      "file": "test-results/validation/task-059-validation-motor-loss.zip",
+      "bytes": 5442400,
+      "sha256": "602d52a97290de13c86a04bb5f47d56b62d575c9174e7e558fe6901eecf45bad"
+    },
+    {
+      "file": "test-results/validation/task-059-flight-regression.zip",
+      "bytes": 9060359,
+      "sha256": "941f2b67dcef3ff23c9fc9e71f455bb3201ce06890250dd038568ad9472ad4d5"
+    }
+  ],
+  "archiveVerification": {
+    "crc": "PASS",
+    "ownedFiles": 178,
+    "compressedBytes": 101437347
+  },
+  "diagnosticTrials": [
+    {
+      "directory": ".cache/task-059/pilot-control",
+      "runJsonSha256": "e759ff76be060771a90124f17c4099714454263086a94a55cda9e75eabf75fe4",
+      "acquisitionStatus": "captured",
+      "failure": null,
+      "acceptedForCalibrationOrValidation": false
+    },
+    {
+      "directory": ".cache/task-059/pilot-jamming",
+      "runJsonSha256": "4dfa4415f22d316d220a1cc455bc1f4851291638ae6fc30f20d5d960f8560465",
+      "acquisitionStatus": "FAIL",
+      "failure": "Source changed during flight: scripts/sitl/driver.mjs",
+      "acceptedForCalibrationOrValidation": false
+    },
+    {
+      "directory": ".cache/task-059/pilot-jamming-2",
+      "runJsonSha256": "977cc3863ba549c4427fb3315a73c116af673dd81414595e90585f341e712b70",
+      "acquisitionStatus": "captured",
+      "failure": null,
+      "acceptedForCalibrationOrValidation": false
+    },
+    {
+      "directory": ".cache/task-059/pilot-magnetic",
+      "runJsonSha256": "f846c2a5718d87f1df90aeac6f13e49576a12ca15b675012de04807126c035c0",
+      "acquisitionStatus": "captured",
+      "failure": null,
+      "acceptedForCalibrationOrValidation": false
+    },
+    {
+      "directory": ".cache/task-059/pilot-motor",
+      "runJsonSha256": "f7ba94360b4addf137e2a0c30ad9e445cba82905a84ec971648c78acb3a87f97",
+      "acquisitionStatus": "captured",
+      "failure": null,
+      "acceptedForCalibrationOrValidation": false
+    }
+  ],
+  "notes": [
+    "Pilot attempts were excluded: early TX capture did not survive MAVLink negotiation; one source-stability guard correctly rejected source edits during iteration. Final captures use fixed sources and complete independently decoded RX/TX.",
+    "The pinned firmware migrated ARMING_CHECK to ARMING_SKIPCHK; all actual parameter snapshots prove ARMING_SKIPCHK=0, with EKF3 enabled.",
+    "Native source and model changes supersede current replay of TASK-042/043 historical captures; original reports and snapshots remain unchanged.",
+    "The initial restricted full-suite failure and successful exact reruns are preserved; no test timeout, threshold, fixture oracle or assertion was relaxed."
+  ]
+}

@@ -237,3 +237,6 @@ to the native SITL driver. Readiness uses actual diagnostics and acknowledged
 sensor timestamps, measures simulation acceleration, and revokes EW admission
 when freshness or health fails. This native gate does not enable browser READY
 or apply EW effects. See the operational runbook for capture/replay commands.
+
+
+TASK-059 native EW experiments use the pinned ArduCopter installation and synthetic quad. See the operational runbook for six-case acquisition, independent raw-wire/physics audits, one-time calibration and separate validation against fixed firmware-specific limits. These results do not enable browser autopilot READY or establish measured aircraft fidelity.
