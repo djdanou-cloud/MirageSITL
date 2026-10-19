@@ -981,6 +981,36 @@
           "derivation": "Independent pymavlink 2.4.50 ardupilotmega v20 RAW_IMU/HIGHRES_IMU/GPS_RAW_INT wire oracle with generated-module and generator hashes; not measured sensor data."
         }
       }
+    },
+    {
+      "path": "mavlink/wasm-parameters.json",
+      "manifest": {
+        "formatVersion": 1,
+        "id": "mavlink-wasm-parameters-v1",
+        "sourceSha256": "841e4688f0d90c14bfb322c0b2364b89fd86dff315fdfd261fb3734420dd9f25",
+        "units": {
+          "messageId": "1",
+          "parameterValue": "m/s"
+        },
+        "validityEnvelope": {
+          "messageId": {
+            "min": 20,
+            "max": 23
+          },
+          "parameterValue": {
+            "min": 8.125,
+            "max": 8.125
+          }
+        },
+        "tolerance": {
+          "absolute": 0,
+          "relative": 0
+        },
+        "provenance": {
+          "kind": "synthetic",
+          "derivation": "Independent pymavlink 2.4.50 PARAM_REQUEST_READ/PARAM_SET/PARAM_VALUE wire oracle for WP_SPD; not a firmware execution capture or aircraft measurement."
+        }
+      }
     }
   ]
 }

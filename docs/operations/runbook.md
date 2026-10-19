@@ -168,3 +168,20 @@ node scripts/report-ekf.mjs --input test-results/validation/task-059-input.json 
 ```
 
 The freeze command is one-time calibration and refuses existing envelopes. On later runs, evaluate new captures against the checked-in matrix; do not rerun calibration to repair a failure. The input JSON has schemaVersion 2 and caseDirectories ordered control, jamming, position-step, velocity-drift, magnetic, motor-loss. Use repository-relative directories for a portable manifest and SHA-256 of its exact bytes. Each case writes response-audit.json plus raw RX/TX bytes, original decoded telemetry, observations, full-rate physics, readiness decisions, actual parameter readbacks and owned firmware logs. report-ekf re-audits raw bytes and physics, rejects calibration reuse/source drift and writes ekf-report.json. Archive these owned simulation captures without firmware binaries or third-party source. Native reports do not enable browser READY or certify physical aircraft.
+
+
+## Local browser firmware acceptance (TASK-045)
+
+Use the exact external artifact pair matching native/ardupilot/wasm-artifact.manifest.json. The fresh builder accepts only new/empty build and artifact directories and compares output against that manifest; it checks source/submodule/SDK/compiler identities and retains build.log. Preserve compiler and pthread/memory-growth warnings. No artifact is copied into the production application. Start the local development server with the explicit setting, then open /ardupilot-check.html for the internal diagnostic. It starts firmware only on an explicit diagnostic/test call. Profiles bind source/module identities; use a distinct profile for experiments.
+
+```bash
+export MIRAGE_ARDUPILOT_WASM_DIR=/absolute/path/to/local/artifacts
+node node_modules/vite/bin/vite.js apps/web --host 127.0.0.1
+```
+
+```bash
+CHROMIUM_PATH=/path/to/chrome node node_modules/@playwright/test/cli.js test tests/browser/ardupilot-wasm.spec.ts
+python scripts/check-ardupilot-browser.py --input test-results/validation/task-045-browser-boot.json
+```
+
+The audit command requires pymavlink 2.4.50 (the installed WSL venv is suitable). Browser tests use only the built-in synthetic quad and remain disarmed. They check real parameter readback/save/restore, abrupt termination, zero surviving Workers, profile conflicts, transaction aborts, corrupt storage, isolation, hashes, size caps and artifact access checks. The JSON capture includes original serial bytes and three 16 KiB EEPROM images; the independent auditor writes wire-audit JSON and serial/EEPROM .bin files. These are owned test outputs. Firmware/glue remain external under local-only-pending-gpl-review. Keep corrupt records for diagnosis; never silently wipe or substitute defaults to obtain a pass. Only acknowledged checkpoints survive the recovery contract. Live simulation time/physics, persistent storage integration during flight, pause semantics and flight parity belong to TASK-046/047.

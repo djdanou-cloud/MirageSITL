@@ -1,0 +1,464 @@
+{
+  "schemaVersion": 1,
+  "task": "TASK-045",
+  "status": "DONE",
+  "baseline": "af984ed773512671c1a0af2b8ee6c0946271a49a",
+  "scope": "Local reproducible upstream WASM artifact, real isolated browser Worker/pthread boot and persistent parameter storage. MirageSITL flight HAL/physics/time and parity remain TASK-046/047.",
+  "distribution": {
+    "status": "BLOCKED_DECISION",
+    "manifestValue": "local-only-pending-gpl-review",
+    "reason": "Existing GPL artifact-distribution review remains open; firmware/glue stay in local untracked build outputs and are excluded from evidence/source publication."
+  },
+  "publication": "Acceptance captured locally; user subsequently authorized committing and pushing TASK-045.",
+  "environment": {
+    "os": "win32",
+    "arch": "x64",
+    "cpu": "Intel(R) Core(TM) 7 240H",
+    "node": "v24.19.0",
+    "browser": "155.0.8059.84",
+    "compiler": "WSL Ubuntu; Emscripten 4.0.15, commit 09f52557f0d48b65b8c724853ed8f4e8bf80e669",
+    "rust": "1.97.0",
+    "pymavlink": "2.4.50",
+    "pymavlinkModuleSha256": "011577d7432f6e5e2cb8fe6c15ab4637175ac09ad663bb1e951a09c5d9a872ff"
+  },
+  "results": {
+    "cleanBuild": {
+      "seconds": 141.274,
+      "hashesMatch": true
+    },
+    "realBrowserBoots": 3,
+    "realPthreadsPerBoot": 4,
+    "observedWorkersPerBoot": 5,
+    "remainingWorkers": 0,
+    "initialMemoryBytes": 16777216,
+    "maximumMemoryBytes": 2147483648,
+    "eepromBytes": 16384,
+    "parameter": {
+      "id": "WP_SPD",
+      "units": "m/s",
+      "initial": 10,
+      "savedAndRestored": 8.125
+    },
+    "abruptTerminationRecovery": true,
+    "exclusiveProfiles": true,
+    "corruptCheckpointsRejected": true,
+    "transactionConflictsAndAbortsVerified": true,
+    "independentAudit": {
+      "schemaVersion": 1,
+      "status": "PASS",
+      "kind": "real-browser-local-firmware-boot-storage",
+      "sourceCapture": {
+        "file": "test-results/validation/task-045-browser-boot.json",
+        "sha256": "7bd3d67420bf74cebc85742699415eb6fe07780c9a625aba649f5f4e6ed07f71"
+      },
+      "auditorSha256": "ddc264f772a3e39acb1e6ab162fb08456f30b03094cceb276f198595a1b75de4",
+      "pymavlink": "2.4.50",
+      "generatedModuleSha256": "011577d7432f6e5e2cb8fe6c15ab4637175ac09ad663bb1e951a09c5d9a872ff",
+      "browser": "155.0.8059.84",
+      "bootWorkers": 5,
+      "remainingWorkers": 0,
+      "phases": [
+        {
+          "phase": "first",
+          "heartbeats": 4,
+          "parameterValuesMps": [
+            10,
+            8.125
+          ],
+          "consoleFragments": 1,
+          "memoryBytes": 16777216,
+          "ownedPthreads": 4,
+          "restoredRevision": 0,
+          "savedRevision": 2,
+          "raw": {
+            "file": "test-results/validation/task-045-first-serial.bin",
+            "sha256": "f44d932fcd6cbb128fe2ec84395b4122afaba41d163a49fcadcacc4b48cec543"
+          },
+          "eeprom": {
+            "file": "test-results/validation/task-045-first-eeprom.bin",
+            "sha256": "4f399ea25d71de5703bd30881df4aa4c3d8200e8a57b8db273f425182f50d8af"
+          }
+        },
+        {
+          "phase": "second",
+          "heartbeats": 6,
+          "parameterValuesMps": [
+            8.125
+          ],
+          "consoleFragments": 3,
+          "memoryBytes": 16777216,
+          "ownedPthreads": 4,
+          "restoredRevision": 2,
+          "savedRevision": 3,
+          "raw": {
+            "file": "test-results/validation/task-045-second-serial.bin",
+            "sha256": "dc2a5b5e6dde047a3c990760b11e4a14a10d85b737203cc93e564f44866efb3e"
+          },
+          "eeprom": {
+            "file": "test-results/validation/task-045-second-eeprom.bin",
+            "sha256": "549e4655cbf6aaa4f56b90c8878452528a772ddc2587fd7e64744b052c8db1fe"
+          }
+        },
+        {
+          "phase": "third",
+          "heartbeats": 4,
+          "parameterValuesMps": [
+            8.125
+          ],
+          "consoleFragments": 1,
+          "memoryBytes": 16777216,
+          "ownedPthreads": 4,
+          "restoredRevision": 3,
+          "savedRevision": 5,
+          "raw": {
+            "file": "test-results/validation/task-045-third-serial.bin",
+            "sha256": "48ca254eac949fe553e8a2339b1cf0eb8f68680fcd460fab351d462a3e053c3a"
+          },
+          "eeprom": {
+            "file": "test-results/validation/task-045-third-eeprom.bin",
+            "sha256": "a353ae8d143127f0cbe68286b3ab258cf7c31142cc3bb498edf99266042aac35"
+          }
+        }
+      ],
+      "scope": "Built-in synthetic quad, disarmed; no MirageSITL physics/HAL/parity/READY acceptance"
+    },
+    "checks": {
+      "unit": {
+        "file": "test-results/validation/task-045-unit.xml",
+        "sha256": "efa971292fc88bd4946e9f0c84d64c90302e2e7040fdebe91a38c690c8e60710",
+        "total": 540,
+        "passed": 540,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "focused": {
+        "file": "test-results/validation/task-045-focused.xml",
+        "sha256": "092244366b76da7fc0f213ef011acf956e267e715780eea7bcfebfccaee93d16",
+        "total": 20,
+        "passed": 20,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "final": {
+        "file": "test-results/validation/task-045-final.xml",
+        "sha256": "1756b11dc118090ff45456014aaf6eed5dc9ea6129e95c6e3c88e60c48ac2188",
+        "total": 20,
+        "passed": 20,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "browser": {
+        "file": "test-results/validation/task-045-browser.xml",
+        "sha256": "0c63bed55d28f34fa83a64ce2091183971f5567293272c7ce55f962583ee34d5",
+        "total": 15,
+        "passed": 15,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      }
+    },
+    "rejectionProbes": [
+      {
+        "id": "eeprom-corruption",
+        "status": "PASS",
+        "exitCode": 1,
+        "rejection": "ValueError: EEPROM image identity/checksum/revision mismatch"
+      },
+      {
+        "id": "serial-crc-corruption",
+        "status": "PASS",
+        "exitCode": 1,
+        "rejection": "ValueError: CRC-invalid MAVLink in browser serial capture"
+      },
+      {
+        "id": "forged-initial-parameter",
+        "status": "PASS",
+        "exitCode": 1,
+        "rejection": "ValueError: Parameter change/recovery order differs from original readbacks"
+      },
+      {
+        "id": "restored-revision-rollback",
+        "status": "PASS",
+        "exitCode": 1,
+        "rejection": "ValueError: Stored revision/memory budget mismatch"
+      },
+      {
+        "id": "worker-leak",
+        "status": "PASS",
+        "exitCode": 1,
+        "rejection": "ValueError: Browser artifact/cleanup identity mismatch"
+      },
+      {
+        "id": "memory-over-budget",
+        "status": "PASS",
+        "exitCode": 1,
+        "rejection": "ValueError: Unexpected real firmware memory/thread topology"
+      }
+    ]
+  },
+  "commands": [
+    {
+      "command": "MIRAGE_ARDUPILOT_SOURCE=/home/dadu/mirage/ardupilot MIRAGE_EMSDK_DIR=/home/dadu/mirage/emsdk MIRAGE_ARDUPILOT_VENV=/home/dadu/mirage/venv node scripts/build-ardupilot-wasm.mjs --out NEW_EMPTY_ABSOLUTE_DIRECTORY --artifacts .cache/task-045/rebuilt",
+      "exitCode": 0
+    },
+    {
+      "command": "RUSTUP_TOOLCHAIN=1.97.0 MIRAGE_ARDUPILOT_WASM_DIR=.cache/task-045/rebuilt node node_modules/vitest/vitest.mjs run --maxWorkers=1 --reporter=default --reporter=junit --outputFile.junit=test-results/validation/task-045-unit.xml",
+      "exitCode": 0
+    },
+    {
+      "command": "CHROMIUM_PATH=... MIRAGE_ARDUPILOT_WASM_DIR=.cache/task-045/rebuilt node node_modules/@playwright/test/cli.js test tests/browser/ardupilot-wasm.spec.ts tests/browser/serial-permission.spec.ts tests/browser/hud.spec.ts tests/browser/instructor.spec.ts",
+      "exitCode": 0
+    },
+    {
+      "command": "node node_modules/vitest/vitest.mjs run tests/ardupilot-wasm-storage.test.ts tests/mavlink.test.ts tests/integration/ekf-ready.test.ts tests/fixtures.test.ts --reporter=default --reporter=junit --outputFile.junit=test-results/validation/task-045-final.xml",
+      "exitCode": 0
+    },
+    {
+      "command": "pymavlink-2.4.50-python scripts/check-ardupilot-browser.py --input test-results/validation/task-045-browser-boot.json",
+      "exitCode": 0
+    },
+    {
+      "command": "node node_modules/typescript/bin/tsc --noEmit",
+      "exitCode": 0
+    },
+    {
+      "command": "node node_modules/eslint/bin/eslint.js . --max-warnings=0 --no-inline-config",
+      "exitCode": 0
+    },
+    {
+      "command": "node ../../node_modules/vite/bin/vite.js build",
+      "cwd": "apps/web",
+      "exitCode": 0
+    },
+    {
+      "command": "node scripts/check-docs.mjs",
+      "exitCode": 0,
+      "bilingualPairs": 20,
+      "tasks": 86,
+      "completeLayouts": 6
+    },
+    {
+      "command": "git diff --check",
+      "exitCode": 0
+    }
+  ],
+  "sourceInputs": [
+    {
+      "file": "README.md",
+      "sha256": "c0a761e3d84478d044866930b469fdc9e3e943360d9a70770b4bf3b79c72bda4"
+    },
+    {
+      "file": "apps/web/ardupilot-check.html",
+      "sha256": "c90e65c2146786ba8bc4278325b4876e10efcd31157f74472a33f7c238c91016"
+    },
+    {
+      "file": "apps/web/src/ardupilot.worker.ts",
+      "sha256": "6ff92d16a05a8cf6e0606993ff3a0a6d7843a0dbf5007bc6a7f94ad4c61ad46b"
+    },
+    {
+      "file": "apps/web/src/diagnostics/ardupilot-check.ts",
+      "sha256": "d3e003e14b9ba44e1e93fdd83bb83adde2d5c78a9993804b5452e83e01f79bf7"
+    },
+    {
+      "file": "apps/web/vite.config.ts",
+      "sha256": "460cf836dc0dd930ef9c0ece091884fc1d22b7b7f446b3feabe1169b9e2145a4"
+    },
+    {
+      "file": "docs/PROJECT_ROADMAP.md",
+      "sha256": "5e19f04d1cb19dba2cfee180407ed6d912d93fe2dbbe78ae06134ea642290fd2"
+    },
+    {
+      "file": "docs/SPECS_SIMULATION_ENGINES.md",
+      "sha256": "60c0af35bbee70b7c2af372643848d3dbba4093af3cb5d03f5aa03c28071e36b"
+    },
+    {
+      "file": "docs/architecture.md",
+      "sha256": "de3f7631dc622c9cccec8c01a465a98545c70e9083ef96e73681f935d42f081d"
+    },
+    {
+      "file": "docs/decisions/ardupilot-wasm.md",
+      "sha256": "c464acae0a0c39ccf621964bc82bd11373938728ee4c83dba17087a9412cdbb1"
+    },
+    {
+      "file": "docs/operations/runbook.md",
+      "sha256": "3ecb346e25e71926f35788f45382a8e6b5d40ac67d6cef3a489e232bf148f727"
+    },
+    {
+      "file": "docs/ru/PROJECT_ROADMAP.md",
+      "sha256": "a9f5b6fbfd91341eb70d49bd311732247fef72eae3e5582b24fbffd6bd3850fc"
+    },
+    {
+      "file": "docs/ru/README.md",
+      "sha256": "77150670a1fdbe244b5ad1219efffb8016706694cfb4414c405c8c12813c57aa"
+    },
+    {
+      "file": "docs/ru/SPECS_SIMULATION_ENGINES.md",
+      "sha256": "e3a4d18f17ab0eb2b1a4caacecbc4aa9a70f4eac82839b1317f407b8cd0aac94"
+    },
+    {
+      "file": "docs/ru/architecture.md",
+      "sha256": "512f1763cc4bf0ef400cdf414018dce9c605b2fb8cfe8e4c1940855781793f5b"
+    },
+    {
+      "file": "docs/ru/ardupilot-wasm.md",
+      "sha256": "ee041bec5c95d9e0f6cfeeb2e94d41da8486471e873695a17a31e5983c98ebe3"
+    },
+    {
+      "file": "docs/ru/feasibility.md",
+      "sha256": "fe20046c924329b10d4de54fef6694c1b0408523bdaafd427419a42db4ece120"
+    },
+    {
+      "file": "docs/ru/runbook.md",
+      "sha256": "c89eb0713fbf72ab256b48fe3a837d7b4f61989484f22a0451ce135c32002621"
+    },
+    {
+      "file": "native/ardupilot/feasibility.md",
+      "sha256": "5a5e06b6351558ac7c04053b61633ca1b5c69707175f2714643a0da678500109"
+    },
+    {
+      "file": "packages/autopilot/package.json",
+      "sha256": "62599d7faf784ff22568b0ef4c5a45fb30b04a512c9ec5a386f51359e53f0f3c"
+    },
+    {
+      "file": "packages/autopilot/src/wasm-browser.ts",
+      "sha256": "e9e991ddc1931e1fb4d3f958c1f372222cff73a82daaffac64e21e2db8e82bbf"
+    },
+    {
+      "file": "packages/autopilot/src/wasm-storage.ts",
+      "sha256": "3f0c1d8ba2aa612c0d43fff3f92d8acd47b51c7389e0140a2bcc5322e6e2b6d5"
+    },
+    {
+      "file": "packages/mavlink/src/codec.ts",
+      "sha256": "70d9d37f7e5b068eb2588ff8a2094534bde923345a381664b9413e1323128ffe"
+    },
+    {
+      "file": "scripts/build-ardupilot-wasm.mjs",
+      "sha256": "fc8f831e8e80310d935c61379459e73385649270d17d00bf578e45ad64fc831b"
+    },
+    {
+      "file": "scripts/check-ardupilot-browser.py",
+      "sha256": "ddc264f772a3e39acb1e6ab162fb08456f30b03094cceb276f198595a1b75de4"
+    },
+    {
+      "file": "tests/ardupilot-wasm-storage.test.ts",
+      "sha256": "7d69bec212c5b277b125a3927eaf4e3a4316eacdf5c3118f2e862160741f3a3d"
+    },
+    {
+      "file": "tests/browser/ardupilot-wasm.spec.ts",
+      "sha256": "31c65e0e560a649f15d7e21b918732be858895b8f2081f031524a9d0a64b57ea"
+    },
+    {
+      "file": "tests/fixtures/mavlink/generate-wasm-parameters.py",
+      "sha256": "fc58b23e7f7cb60721276961b4bb29f53cca0247e3946ba382a7a3b8c567433e"
+    },
+    {
+      "file": "tests/fixtures/mavlink/wasm-parameters.json",
+      "sha256": "841e4688f0d90c14bfb322c0b2364b89fd86dff315fdfd261fb3734420dd9f25"
+    },
+    {
+      "file": "tests/fixtures/registry.json",
+      "sha256": "6926377d28d467184dc8baf68d32697a546117874b971dbb2431cbe2ab7b818c"
+    }
+  ],
+  "artifacts": [
+    {
+      "file": "test-results/validation/task-045-build.json",
+      "sha256": "c8aff081ac2b1bb9b1c994e3c79dbcc731f4548bf2405defe7690cc2af38c6ea",
+      "bytes": 2788
+    },
+    {
+      "file": "test-results/validation/task-045-build-stdout.log",
+      "sha256": "293f54c78807db85b8c6da9e0370acb1b89485e6d23a092f36536e482e596065",
+      "bytes": 91379
+    },
+    {
+      "file": "test-results/validation/task-045-build-stderr.log",
+      "sha256": "541aefbe3d4374c0adb3bee9e21450edb1a11e88e4f89aa800ef06b5b383cd7c",
+      "bytes": 1921
+    },
+    {
+      "file": "test-results/validation/task-045-build-rejections.json",
+      "sha256": "af0c87066ccfbfe36bdb4f54d79dafc68ea41827f0e5c1fa765e2d026e59ebbe",
+      "bytes": 504
+    },
+    {
+      "file": "test-results/validation/task-045-browser-boot.json",
+      "sha256": "7bd3d67420bf74cebc85742699415eb6fe07780c9a625aba649f5f4e6ed07f71",
+      "bytes": 563742
+    },
+    {
+      "file": "test-results/validation/task-045-wire-audit.json",
+      "sha256": "d3af41ff83f7c1ad7ab4bb409b208d9b3c51e4c3da2e3dc33f0abc892fed3a0e",
+      "bytes": 2524
+    },
+    {
+      "file": "test-results/validation/task-045-node-smoke.json",
+      "sha256": "1715ae7078435d44514c4a3eef3d03897a50d99b690a4cfdb6b0f83eb197f3f7",
+      "bytes": 2555
+    },
+    {
+      "file": "test-results/validation/task-045-capture-rejections.json",
+      "sha256": "2574a53ae24696dbe9bc47c0849e8d2e8be2c501a4767b4f08f95e77ccf6bddb",
+      "bytes": 1208
+    },
+    {
+      "file": "test-results/validation/task-045-unit.xml",
+      "sha256": "efa971292fc88bd4946e9f0c84d64c90302e2e7040fdebe91a38c690c8e60710",
+      "bytes": 124272
+    },
+    {
+      "file": "test-results/validation/task-045-focused.xml",
+      "sha256": "092244366b76da7fc0f213ef011acf956e267e715780eea7bcfebfccaee93d16",
+      "bytes": 4912
+    },
+    {
+      "file": "test-results/validation/task-045-final.xml",
+      "sha256": "1756b11dc118090ff45456014aaf6eed5dc9ea6129e95c6e3c88e60c48ac2188",
+      "bytes": 4912
+    },
+    {
+      "file": "test-results/validation/task-045-browser.xml",
+      "sha256": "0c63bed55d28f34fa83a64ce2091183971f5567293272c7ce55f962583ee34d5",
+      "bytes": 3026
+    },
+    {
+      "file": "test-results/validation/task-045-first-serial.bin",
+      "sha256": "f44d932fcd6cbb128fe2ec84395b4122afaba41d163a49fcadcacc4b48cec543",
+      "bytes": 310
+    },
+    {
+      "file": "test-results/validation/task-045-first-eeprom.bin",
+      "sha256": "4f399ea25d71de5703bd30881df4aa4c3d8200e8a57b8db273f425182f50d8af",
+      "bytes": 16384
+    },
+    {
+      "file": "test-results/validation/task-045-second-serial.bin",
+      "sha256": "dc2a5b5e6dde047a3c990760b11e4a14a10d85b737203cc93e564f44866efb3e",
+      "bytes": 522
+    },
+    {
+      "file": "test-results/validation/task-045-second-eeprom.bin",
+      "sha256": "549e4655cbf6aaa4f56b90c8878452528a772ddc2587fd7e64744b052c8db1fe",
+      "bytes": 16384
+    },
+    {
+      "file": "test-results/validation/task-045-third-serial.bin",
+      "sha256": "48ca254eac949fe553e8a2339b1cf0eb8f68680fcd460fab351d462a3e053c3a",
+      "bytes": 232
+    },
+    {
+      "file": "test-results/validation/task-045-third-eeprom.bin",
+      "sha256": "a353ae8d143127f0cbe68286b3ab258cf7c31142cc3bb498edf99266042aac35",
+      "bytes": 16384
+    }
+  ],
+  "notes": [
+    "The last dedicated-Worker-only guard was verified by the final 20 focused tests and final 15 browser cases after the 540-test broad run.",
+    "The first exploratory browser parameter request used removed WPNAV_SPEED and failed readback. Pinned-source inspection identified WP_SPD in m/s; only correctly named independent oracle fixtures and successful current captures are admitted.",
+    "Compiler VLA/unused-field/main-linkage warnings and pthread+memory-growth warning are retained in build logs; Vite large-chunk warning remains unchanged.",
+    "Native firmware/aircraft fidelity, production high-rate certification, browser flight readiness and redistribution are outside this local bootstrap acceptance."
+  ]
+}

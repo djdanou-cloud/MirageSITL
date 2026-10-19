@@ -14,7 +14,9 @@
     "./warmup": "./src/warmup.ts",
     "./live-warmup": "./src/live-warmup.ts",
     "./ekf-status": "./src/ekf-status.ts",
-    "./wasm-loader": "./src/wasm-loader.ts"
+    "./wasm-loader": "./src/wasm-loader.ts",
+    "./wasm-browser": "./src/wasm-browser.ts",
+    "./wasm-storage": "./src/wasm-storage.ts"
   },
   "dependencies": {
     "@mirage/mavlink": "0.1.0",

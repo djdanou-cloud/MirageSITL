@@ -1,0 +1,40 @@
+<testsuites id="" name="" tests="15" failures="0" skipped="0" errors="0" time="50.879805999999995">
+<testsuite name="ardupilot-wasm.spec.ts" timestamp="2026-10-19T11:51:07.077Z" hostname="" tests="8" failures="0" skipped="0" time="35.142" errors="0">
+<testcase name="real firmware boots in an isolated Worker and persists a real parameter across restart" classname="ardupilot-wasm.spec.ts" time="24.387">
+</testcase>
+<testcase name="checkpoints are atomic under concurrent writers and reject corrupted stored bytes" classname="ardupilot-wasm.spec.ts" time="0.281">
+</testcase>
+<testcase name="profile locks reject a second firmware owner; corrupted EEPROM prevents boot without being erased" classname="ardupilot-wasm.spec.ts" time="8.471">
+</testcase>
+<testcase name="rejects missing cross-origin isolation before fetching or starting firmware" classname="ardupilot-wasm.spec.ts" time="0.406">
+</testcase>
+<testcase name="rejects changed arducopter.js bytes before starting pthreads" classname="ardupilot-wasm.spec.ts" time="0.394">
+</testcase>
+<testcase name="rejects changed arducopter.wasm bytes before starting pthreads" classname="ardupilot-wasm.spec.ts" time="0.636">
+</testcase>
+<testcase name="rejects oversized artifact declarations before fetching bytes" classname="ardupilot-wasm.spec.ts" time="0.399">
+</testcase>
+<testcase name="local artifact serving rejects foreign hosts/origins, writes and unknown files" classname="ardupilot-wasm.spec.ts" time="0.168">
+</testcase>
+</testsuite>
+<testsuite name="hud.spec.ts" timestamp="2026-10-19T11:51:07.077Z" hostname="" tests="1" failures="0" skipped="0" time="1.612" errors="0">
+<testcase name="HUD labels demo/EKF provenance while physics ticks advance" classname="hud.spec.ts" time="1.612">
+</testcase>
+</testsuite>
+<testsuite name="instructor.spec.ts" timestamp="2026-10-19T11:51:07.077Z" hostname="" tests="1" failures="0" skipped="0" time="2.344" errors="0">
+<testcase name="commands report real Worker rejection and hotkeys ignore typing focus" classname="instructor.spec.ts" time="2.344">
+</testcase>
+</testsuite>
+<testsuite name="serial-permission.spec.ts" timestamp="2026-10-19T11:51:07.077Z" hostname="" tests="5" failures="0" skipped="0" time="8.866" errors="0">
+<testcase name="requests serial permission only on click, reports denial once, and never enables HITL" classname="serial-permission.spec.ts" time="1.612">
+</testcase>
+<testcase name="missing Web Serial disables connection without prompting" classname="serial-permission.spec.ts" time="0.941">
+</testcase>
+<testcase name="decodes fragmented serial bytes after 0 ms Worker startup and releases streams" classname="serial-permission.spec.ts" time="1.72">
+</testcase>
+<testcase name="decodes fragmented serial bytes after 900 ms Worker startup and releases streams" classname="serial-permission.spec.ts" time="3.207">
+</testcase>
+<testcase name="a failed decoder startup never opens the selected serial port" classname="serial-permission.spec.ts" time="1.386">
+</testcase>
+</testsuite>
+</testsuites>

@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "status": "PASS",
+  "cases": [
+    {
+      "id": "existing-artifact-directory",
+      "exitCode": 1,
+      "rejection": "Artifact output is not empty"
+    },
+    {
+      "id": "existing-build-directory",
+      "exitCode": 1,
+      "rejection": "Build output is not empty"
+    }
+  ],
+  "artifactSha256Unchanged": "556d97fa6dbf7c0a2cf713f6106a6891de0b9bc9c5a7dd945f1789b63e58df38",
+  "sentinelSha256Unchanged": "4a7b60cd356c1ac1615884d2ff0df4a2b9e2718dc2779c95afa0d4040408f3a7"
+}

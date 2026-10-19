@@ -1066,3 +1066,6 @@ session wiring, physical HITL acceptance or measured aircraft validation follows
 
 
 TASK-059 adds a native-only EW experiment boundary: unchanged physics JSON, TASK-058 GPS observations delivered through GPS_INPUT, acknowledged simulated compass biases, and explicit synthetic rotor wrench loss. Independent raw-wire decoding, full PWM/body replay and original EKF telemetry joins precede empirical calibration/frozen limits and separate validation. Browser autopilot admission and physical flight fidelity remain outside this experiment.
+
+
+TASK-045 adds a local-only browser artifact/bootstrap boundary: the opt-in Vite route serves admitted external bytes to a dedicated firmware Worker; verified glue also starts its owned pthreads. CRC-valid serial boot diagnostics and IndexedDB EEPROM/profile ownership are separate from FlightStateV2 and autopilot READY. Graceful and abrupt Worker restart/storage recovery are verified; live MirageSITL physics and parity remain TASK-046/047. Artifact redistribution retains its existing decision gate.

@@ -1,6 +1,6 @@
 # PROJECT_ROADMAP.md
 
-<!-- source-sha256: 3b2b2d2ebca8a4b5a392e165c92259245189c9926f387c0a6ae92de6c79df686 -->
+<!-- source-sha256: 5e19f04d1cb19dba2cfee180407ed6d912d93fe2dbbe78ae06134ea642290fd2 -->
 
 Английский источник: [Source of truth](../PROJECT_ROADMAP.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -744,10 +744,10 @@ Cargo bin активирован в PATH. Производительность M
 
 ### TASK-045 — ArduPilot WASM build
 
-- **Status:** IN_PROGRESS — Claude; baseline 065ef84; 2026-10-17. Воспроизводимый WASM-артефакт ArduCopter собран из штатной платы `wasm`, проверен и запущен в Node; загрузка в браузерном Worker ожидается; распространение артефакта BLOCKED_DECISION (проверка GPL).
+- **Status:** DONE — Codex; baseline af984ed; 2026-10-19. Проверены локальная закреплённая сборка, допуск настоящих браузерных Worker/pthread и постоянный EEPROM. Распространение артефакта сохраняет BLOCKED_DECISION (GPL review); flight HAL MirageSITL и паритет остаются TASK-046/047.
 - **Title & Description:** Собрать выбранный firmware с pinned toolchain и hash manifests.
 - **Dependencies:** TASK-044.
-- **Touched Files:** `native/ardupilot/CMakeLists.txt`, `native/ardupilot/toolchain.lock.json`, `scripts/build-ardupilot-wasm.mjs`, `packages/autopilot/src/wasm-loader.ts`, `tests/ardupilot-wasm-build.test.ts`, `scripts/probe-ardupilot-wasm.mjs`, `tests/ardupilot-wasm-capability.test.ts`, `docs/decisions/ardupilot-wasm.md`, `docs/ru/ardupilot-wasm.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `scripts/build-ardupilot-wasm.mjs`, `scripts/smoke-ardupilot-wasm.mjs`, `packages/autopilot/src/wasm-loader.ts`, `packages/autopilot/package.json`, `native/ardupilot/wasm-artifact.manifest.json`, `tests/ardupilot-wasm-build.test.ts`.
+- **Touched Files:** `native/ardupilot/CMakeLists.txt`, `native/ardupilot/toolchain.lock.json`, `scripts/build-ardupilot-wasm.mjs`, `packages/autopilot/src/wasm-loader.ts`, `tests/ardupilot-wasm-build.test.ts`, `scripts/probe-ardupilot-wasm.mjs`, `tests/ardupilot-wasm-capability.test.ts`, `docs/decisions/ardupilot-wasm.md`, `docs/ru/ardupilot-wasm.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `scripts/smoke-ardupilot-wasm.mjs`, `packages/autopilot/package.json`, `native/ardupilot/wasm-artifact.manifest.json`, `packages/autopilot/src/wasm-storage.ts`, `packages/autopilot/src/wasm-browser.ts`, `apps/web/src/ardupilot.worker.ts`, `apps/web/src/diagnostics/ardupilot-check.ts`, `apps/web/ardupilot-check.html`, `apps/web/vite.config.ts`, `tests/ardupilot-wasm-storage.test.ts`, `tests/browser/ardupilot-wasm.spec.ts`, `packages/mavlink/src/codec.ts`, `tests/fixtures/mavlink/wasm-parameters.json`, `tests/fixtures/mavlink/generate-wasm-parameters.py`, `tests/fixtures/registry.json`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `docs/operations/runbook.md`, `docs/ru/runbook.md`, `README.md`, `docs/ru/README.md`, `scripts/check-ardupilot-browser.py`, `native/ardupilot/feasibility.md`, `docs/ru/feasibility.md`.
 - **Interfaces / Contracts:** Artifact ABI/license/firmware manifest.
 - **DoD & Acceptance Criteria:** Reproducible artifact загружается в Worker; symbols и memory limits проверены; dependency blocker из 044 должен быть устранён, fake empty module запрещён.
 - **Evidence (2026-10-17):** Владелец Claude; baseline 82ec344; загрузки одобрены оператором после измерения размеров и выполнены вне репозитория в `C:\Users\djdan\MirageExternal`.
@@ -777,6 +777,11 @@ Cargo bin активирован в PATH. Производительность M
     - Emscripten 4.0.15 против 6.0.8 в CI ArduPilot.
 
     Интеграция HAL со временем и физикой MirageSITL — TASK-046; паритет — TASK-047.
+
+
+Область продолжения: локальная выдача артефактов по явной настройке, запуск Worker из проверенных байтов и EEPROM-checkpoint в IndexedDB расширяют TASK-045 без включения браузерного READY автопилота и сопряжения с физикой MirageSITL (TASK-046/047).
+
+- **Continuation evidence (2026-10-19):** Свежая WSL-сборка 4.0.15 завершилась за 2m21.274s и точно воспроизвела оба включённых хеша. Существующие каталоги сборки/артефактов отклоняются без удаления или изменения байтов. Chromium 155.0.8059.84 запускает настоящую проверенную прошивку в одном host Worker и четырёх pthread с общей памятью 16 МиБ и проверенным максимумом 2 ГиБ. WP_SPD меняется с 10 на 8.125 м/с и сохраняется после штатного и внезапного перезапуска Worker; три EEPROM-образа по 16 КиБ и исходные serial-потоки проходят независимую проверку CRC/хешей pymavlink 2.4.50. Прошивка остаётся disarmed, наблюдаемый счётчик Worker возвращается к нулю. Восемь браузерных случаев TASK-045 покрывают запуск/хранилище, гонки/отмену транзакций, эксклюзивные профили, повреждение, изоляцию, изменённые glue/WASM, размер артефакта и loopback-доступ; также проходят семь регрессий serial/HUD/instructor. Полный unit-набор: 540 PASS, 97 файлов, без skip, включая Node smoke настоящего артефакта; финальные целевые регрессии: 20 PASS. Строгий TypeScript, полный ESLint, production-сборка и 20 двуязычных пар проходят. Существующие предупреждения компилятора/pthread-memory-growth и размера Vite chunk сохранены. Точные отчёты и хеши: test-results/validation/task-045-completion.json, task-045-wire-audit.json, task-045-browser.xml и task-045-unit.xml. Диагностический запуск не допускает production-режим; активный backend приложения остаётся demo.
 
 ### TASK-046 — Browser HAL для ArduPilot
 

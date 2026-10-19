@@ -240,3 +240,6 @@ or apply EW effects. See the operational runbook for capture/replay commands.
 
 
 TASK-059 native EW experiments use the pinned ArduCopter installation and synthetic quad. See the operational runbook for six-case acquisition, independent raw-wire/physics audits, one-time calibration and separate validation against fixed firmware-specific limits. These results do not enable browser autopilot READY or establish measured aircraft fidelity.
+
+
+TASK-045 now has a local ArduPilot browser artifact diagnostic, real Worker/pthread boot and persistent EEPROM checks. The artifact stays external and is served only with an explicit loopback development setting; see the operational runbook. The active flight backend remains the demo while TASK-046/047 integrate and verify the WASM firmware.
