@@ -3,7 +3,7 @@
   "task": "TASK-059",
   "status": "DONE",
   "baseline": "0a31f44d0ebf508fac668a1581ffd7a73c8d18f5",
-  "publication": "Local working tree; no commit or push requested for TASK-059",
+  "publication": "Evidence captured at the recorded baseline plus hashed source changes; subsequent publication is recorded in Git history",
   "scope": "Real pinned native ArduCopter responses to synthetic observation/actuator faults on the existing Rust rigid-body quad. No measured aircraft, browser READY or physical HITL acceptance.",
   "firmwareCommit": "8ab6afde107a91df1b5f60ade8f333cb8a61b190",
   "firmwareSha256": "fa37bf619bce116d410931f1b7d24ea72ed444ba529379df0db9738742ecb186",
@@ -370,8 +370,52 @@
   ],
   "sourceInputs": [
     {
+      "file": "README.md",
+      "sha256": "df2214b79d2e7253cd09bd618314d89eaeaa675299c258f0b3d9340b05a2c290"
+    },
+    {
+      "file": "docs/PROJECT_ROADMAP.md",
+      "sha256": "3b2b2d2ebca8a4b5a392e165c92259245189c9926f387c0a6ae92de6c79df686"
+    },
+    {
+      "file": "docs/SPECS_SIMULATION_ENGINES.md",
+      "sha256": "706bef2df57656d01aade72513f1bf2a7a4610f885118c028f6df0847ea77071"
+    },
+    {
+      "file": "docs/architecture.md",
+      "sha256": "d37a0df5dfb56c69415dee63ff1d1ee8224ac3478e6329468811a2ab88643b96"
+    },
+    {
+      "file": "docs/operations/runbook.md",
+      "sha256": "cfb03a58502bdb65413ddfcc65a775e28b0ca50ca8799b0fbddb077bef28db92"
+    },
+    {
+      "file": "docs/ru/PROJECT_ROADMAP.md",
+      "sha256": "1f23a80c1f43d15e4b79178a0e8b6b9baf99d1253696d4c165b1a0a4abbe861c"
+    },
+    {
+      "file": "docs/ru/README.md",
+      "sha256": "a8a384e98b31e316d0ead311d7caa62c7cfee0dd722a100b49fdf7c3df4bc2fe"
+    },
+    {
+      "file": "docs/ru/SPECS_SIMULATION_ENGINES.md",
+      "sha256": "fab7fcdad2c89956bd87b0e8cb99036d2ee445ae78259402713e7818f9a29157"
+    },
+    {
+      "file": "docs/ru/architecture.md",
+      "sha256": "25a1d298809bffe280978f9e1eb601bb79faf636b1f6bad45829f5533cdcee14"
+    },
+    {
+      "file": "docs/ru/runbook.md",
+      "sha256": "1bba4275ad6de5808a5603aee435cef105c3994cbe5555e2c85f5f75c52c4840"
+    },
+    {
       "file": "scripts/freeze-ew.mjs",
       "sha256": "907632184f93c4988ee40ca6f773b9a0851b0bd8a91f6b6490d9e4fd8e3cc244"
+    },
+    {
+      "file": "scripts/report-ekf.mjs",
+      "sha256": "6836fbe1b828112a8e7c087eb505fde0d0430c6833576902c9124f6ea7b64b59"
     },
     {
       "file": "scripts/run-ew-sitl.mjs",
@@ -386,8 +430,28 @@
       "sha256": "7a2a4eb0ca492df5b45694c6e8525cb8ffb5c46f2050aa5b2f2b10463592327d"
     },
     {
+      "file": "scripts/sitl/driver.mjs",
+      "sha256": "c1a1e2a9c26bb571ea3d82b3b527a46a37155b334497c42d80139253982ce3a4"
+    },
+    {
       "file": "scripts/sitl/ew-observations.ts",
       "sha256": "02dbf5d64c176b006b0aadb2138aaa654c2665d54fe2631852e8bc73d2c9b6c0"
+    },
+    {
+      "file": "scripts/sitl/quad.mjs",
+      "sha256": "31698c745c6780108f488b9843fb457d41a1e71b311385d4d792d64a12e3af89"
+    },
+    {
+      "file": "scripts/sitl/telemetry.py",
+      "sha256": "3a386c88b57920fbcacaa2890c9264d3e6406027da250a3882dc705cb0cc48df"
+    },
+    {
+      "file": "tests/fixtures/scenarios/ew-matrix.json",
+      "sha256": "c8bd27d9be4e22a5b10279cc925589e7299edeadb667cd478638d0f533494b3a"
+    },
+    {
+      "file": "tests/integration/ew-sitl.test.ts",
+      "sha256": "e24d98372e1996bd1ef44f74779a3318b85c0c5a35d369665629ef45df31654b"
     },
     {
       "file": "tests/sitl-ew.test.ts",
