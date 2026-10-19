@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "status": "PASS",
+  "cases": [
+    {
+      "name": "READY before actual warmup/health",
+      "kind": "synthetic-capture-mutation",
+      "rejected": true
+    },
+    {
+      "name": "fabricated sensor acknowledgment",
+      "kind": "synthetic-capture-mutation",
+      "rejected": true
+    },
+    {
+      "name": "altered gate wire bytes with stale raw audit",
+      "kind": "synthetic-capture-mutation",
+      "rejected": true
+    },
+    {
+      "name": "independent raw decoder rejects altered wire envelope",
+      "kind": "synthetic-capture-mutation",
+      "rejected": true
+    }
+  ],
+  "directory": "C:\\Users\\djdan\\OneDrive\\Desktop\\MirageSITL\\.cache\\task-043\\rejection-eqQw3H"
+}

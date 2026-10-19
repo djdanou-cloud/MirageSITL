@@ -36,6 +36,12 @@ reported separately: HITL and WebGPU rendering are not implemented.
 
 ## Quickstart
 
+TASK-042 now also has a separate native Linux/WSL ArduCopter integration driver:
+real firmware flies a synthetic quad through our Rust rigid-body WASM and the
+JSON/MAVLink interfaces. Its scored flight and original telemetry are audited
+separately. This does not change the browser demo or resolve measured aircraft
+fidelity. See the [SITL procedure](docs/operations/runbook.md).
+
 Use Node.js **22.13+** or **24 LTS** (`.nvmrc` selects 24), npm 10+, and a
 current Chrome/Edge browser on macOS/Windows. Future Web Serial HITL targets
 Chromium. Cloud tasks use the existing isolated checkout; do not create another
@@ -225,3 +231,9 @@ The repository now includes collision-chunk construction/ownership, deterministi
 Keyboard users can skip to controls and receive visible focus and one permission-denial announcement. The browser suite includes an unsuppressed axe scan and 390px overflow/Serial-focus checks. Run the normal verification gates before trusting a change. New commands, external trace formats, process ownership and the accessibility checklist are documented in [the runbook](docs/operations/runbook.md). All new evidence CLIs without input exit 2 with a blocked report; no publication happens automatically.
 
 TASK-029/031 now provide numerical contact and JSBSim backend/allocation evidence; those passes do not establish measured aircraft fidelity. TASK-033 preserves the failed historical NASA comparison under explicit user deferral and still reports failed UIUC propeller fidelity. Its source-backed annular BEM sensitivity diagnostic adds local momentum, losses and swirl without changing the fixed tolerances or production backend. See the engine specification and UIUC data guide for source roles, commands and remaining polar limitations.
+
+TASK-043 now connects the existing EKF monitor and 30-second warmup gate
+to the native SITL driver. Readiness uses actual diagnostics and acknowledged
+sensor timestamps, measures simulation acceleration, and revokes EW admission
+when freshness or health fails. This native gate does not enable browser READY
+or apply EW effects. See the operational runbook for capture/replay commands.

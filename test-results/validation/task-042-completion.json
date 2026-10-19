@@ -1,0 +1,314 @@
+{
+  "schemaVersion": 1,
+  "task": "TASK-042",
+  "status": "DONE",
+  "date": "2026-10-19",
+  "baseline": "324d15ec79f1268fc14569e6967d39480fa5905b",
+  "scope": "Native ArduCopter JSON/MAVLink integration with synthetic quad and Rust WASM rigid body; not measured aircraft fidelity or browser READY",
+  "firmwareSha256": "fa37bf619bce116d410931f1b7d24ea72ed444ba529379df0db9738742ecb186",
+  "modelSha256": "ef7c6d9bd057db41a11b1311b2885b44b6cccac543da923a9feabe1189442019",
+  "nativeFlight": {
+    "command": "wsl -d Ubuntu -- bash .cache/task-042/run.sh",
+    "exitCode": 0,
+    "metrics": {
+      "frames": 4161,
+      "holdDurationS": 10.200000000000003,
+      "physicsFrames": 67257,
+      "wallS": 43.074737520999996,
+      "simS": 84.07125,
+      "telemetryEvents": 2113
+    },
+    "stages": [
+      {
+        "stage": "arm",
+        "samples": 545,
+        "startS": 42.47125,
+        "endS": 47.91125,
+        "minTruthAltitudeM": 0,
+        "maxTruthAltitudeM": 2.9847967554653256,
+        "minAutopilotAltitudeM": 0,
+        "maxAutopilotAltitudeM": 2.858
+      },
+      {
+        "stage": "takeoff",
+        "samples": 352,
+        "startS": 47.92125,
+        "endS": 51.43125,
+        "minTruthAltitudeM": 3.0091183525637915,
+        "maxTruthAltitudeM": 9.786383867163787,
+        "minAutopilotAltitudeM": 2.858,
+        "maxAutopilotAltitudeM": 9.755
+      },
+      {
+        "stage": "hold",
+        "samples": 1021,
+        "startS": 51.44125,
+        "endS": 61.64125,
+        "minTruthAltitudeM": 9.791366992435279,
+        "maxTruthAltitudeM": 9.996591311412248,
+        "minAutopilotAltitudeM": 9.755,
+        "maxAutopilotAltitudeM": 9.989
+      },
+      {
+        "stage": "land",
+        "samples": 2243,
+        "startS": 61.65125,
+        "endS": 84.07125,
+        "minTruthAltitudeM": 0,
+        "maxTruthAltitudeM": 9.996811431000285,
+        "minAutopilotAltitudeM": -0.016,
+        "maxAutopilotAltitudeM": 9.987
+      }
+    ],
+    "sourceCommit": "8ab6afde107a91df1b5f60ade8f333cb8a61b190",
+    "sourceClean": true,
+    "parameters": "ARMING_CHECK=1, EKF3 enabled, stock 400 Hz scheduler, JSON physics 800 Hz",
+    "childExit": [
+      {
+        "pid": 464,
+        "code": null,
+        "signal": "SIGKILL"
+      },
+      {
+        "pid": 465,
+        "code": 0,
+        "signal": null
+      }
+    ]
+  },
+  "checks": {
+    "unit": {
+      "file": "test-results/validation/task-042-unit.xml",
+      "sha256": "6ed2c40408d1f70dcdd28289b057c4a56576147787fad047edb77e58c1d135a7",
+      "total": 527,
+      "passed": 526,
+      "skipped": 1,
+      "failures": 0,
+      "errors": 0
+    },
+    "focused": {
+      "file": "test-results/validation/task-042-final.xml",
+      "sha256": "dd836c1d513015e3ea8a2e3289789826c819eaf247afacaff003c87e1faad157",
+      "total": 9,
+      "passed": 9,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0
+    },
+    "native": {
+      "passed": 62,
+      "exitCode": 0,
+      "command": "cargo test --workspace --locked",
+      "cwd": "native"
+    },
+    "rawMavlink": {
+      "schemaVersion": 1,
+      "status": "PASS",
+      "pymavlink": "2.4.50",
+      "messages": 20769,
+      "recordedObservations": 2113,
+      "filteredRawMessages": 2113,
+      "rawSha256": "93dfb212277346d3f947c3c243b493b11ec63d011eaf8398d4353bdcf53e53b3",
+      "decodedSha256": "8dd00a528c78553dfdb569b0f6e437a0f8970fc193394d0ecfc518e3691a739a",
+      "generatorSha256": "3396b725cfd92251cf44976b91e7e00fd86cf3210f498c4e47a69a5e9ef9daa0"
+    },
+    "ownership": {
+      "schemaVersion": 1,
+      "task": "TASK-042",
+      "status": "PASS",
+      "command": "wsl -d Ubuntu -- bash .cache/task-042/check-owned.sh",
+      "exitCode": 0,
+      "output": "PASS: TERM-resistant descendants reaped; unrelated child survived; absent executable and fake ELF rejected\n",
+      "cases": [
+        "TERM-resistant descendant reaped",
+        "Unrelated child survived",
+        "Absent executable rejected",
+        "Fake ELF with correct declared hash rejected by actual driver"
+      ]
+    },
+    "rejections": {
+      "status": "PASS",
+      "cases": [
+        "altered scored truth rejected against full-rate physics",
+        "altered source identity rejected",
+        "changed raw bytes reject stale CRC audit"
+      ],
+      "directory": "C:\\Users\\djdan\\OneDrive\\Desktop\\MirageSITL\\.cache\\task-042\\rejection-yx4vV5"
+    },
+    "lint": {
+      "exitCode": 0,
+      "command": "node node_modules/eslint/bin/eslint.js . --max-warnings=0 --no-inline-config",
+      "finalChangedFilesAlsoChecked": true
+    },
+    "typecheck": {
+      "exitCode": 0,
+      "command": "node node_modules/typescript/bin/tsc --noEmit"
+    },
+    "build": {
+      "exitCode": 0,
+      "command": "node node_modules/vite/bin/vite.js build apps/web"
+    },
+    "docs": {
+      "exitCode": 0,
+      "command": "node scripts/check-docs.mjs",
+      "pairs": 20,
+      "tasks": 86,
+      "layouts": 6
+    },
+    "diff": {
+      "exitCode": 0,
+      "command": "git diff --check"
+    }
+  },
+  "runtime": {
+    "windowsNode": "24.19.0",
+    "linuxNode": "24.19.0",
+    "linuxPython": "3.14.4",
+    "pymavlink": "2.4.50",
+    "fastcrc": "0.5.0",
+    "linuxCompiler": "g++ (Ubuntu 15.2.0-16ubuntu1) 15.2.0"
+  },
+  "priorFailure": {
+    "file": ".cache/task-042/capture/run.json",
+    "sha256": "468a62d231e0b9b2c1e084b61ee1407001d642a8336bb0bb2a6d066f5fb59adc",
+    "status": "FAIL",
+    "reason": "Driver flight deadline exceeded",
+    "explanation": "Initial 400 Hz sensor stream did not satisfy the stock 400 Hz scheduler gyro-rate arming check; fixed by 800 Hz physics, not relaxed checks"
+  },
+  "artifacts": [
+    {
+      "file": "test-results/validation/sitl-report.json",
+      "sha256": "e7c9109b7e75cba5a8f54f8d9791faf20727831732d63d94410e8da7dc98c475",
+      "bytes": 470
+    },
+    {
+      "file": "test-results/validation/task-042-flight.json",
+      "sha256": "956158eeb3fbc8dcc7445c88d3f7a8f2f04ae96240572dadda1f6d8b687b1f3a",
+      "bytes": 6436
+    },
+    {
+      "file": "test-results/validation/task-042-ownership.json",
+      "sha256": "cd27152ab2641530ff8663a3faf7e938b154ad64bcc6694dd93f4ca4b6e5e7d9",
+      "bytes": 469
+    },
+    {
+      "file": "test-results/validation/task-042-rejections.json",
+      "sha256": "3d869290e4ec93f8b7545ec026a9c9d2c3bdb3ce2bafbde6e4d633cce4184a9f",
+      "bytes": 293
+    },
+    {
+      "file": "test-results/validation/task-042-unit.xml",
+      "sha256": "6ed2c40408d1f70dcdd28289b057c4a56576147787fad047edb77e58c1d135a7",
+      "bytes": 121175
+    },
+    {
+      "file": "test-results/validation/task-042-final.xml",
+      "sha256": "dd836c1d513015e3ea8a2e3289789826c819eaf247afacaff003c87e1faad157",
+      "bytes": 2710
+    },
+    {
+      "file": "test-results/validation/task-042-native.log",
+      "sha256": "60252762884e9d3f07ac3062504d7915be290c378b19f6459743948a58279d7d",
+      "bytes": 16385
+    },
+    {
+      "file": "test-results/validation/task-042-capture.zip",
+      "sha256": "d791153519576b1687b2b9d0c41e2bee89e08124b980d3a66670ad8c654ae08a",
+      "bytes": 4065524
+    }
+  ],
+  "sourceInputs": [
+    {
+      "file": "CLAUDE.md",
+      "sha256": "33acf65d968676cef873e175023ed534a5986d4e7a1e92ee0de39ea377260283"
+    },
+    {
+      "file": "README.md",
+      "sha256": "2c5bb17ab175825b5656cce566d101d5d4d2d4b5c2e3d955900460a6496d8a86"
+    },
+    {
+      "file": "docs/PROJECT_ROADMAP.md",
+      "sha256": "879d57a2f10fb266037aced51442281b0047871f39f8429a831f403c1ccac4c3"
+    },
+    {
+      "file": "docs/SPECS_SIMULATION_ENGINES.md",
+      "sha256": "35fd1c7da8c1dfca8d462e3a5cee01539403f7f30c5fa84e960d802fa2f389aa"
+    },
+    {
+      "file": "docs/architecture.md",
+      "sha256": "e40f91ba5344d15a50b2dddc56aa0588cc66b2f3aba9017f82e9b7ed849a831b"
+    },
+    {
+      "file": "docs/operations/runbook.md",
+      "sha256": "a0647058fa87d2dabaab1f87303b1307fe4b94e972dca5ed23bc575db1538599"
+    },
+    {
+      "file": "docs/ru/CLAUDE.md",
+      "sha256": "b6970798f31ebc032ce52087ef0365e4fa7985fdcc4e13c1d2d89ae6ce9dc5d5"
+    },
+    {
+      "file": "docs/ru/PROJECT_ROADMAP.md",
+      "sha256": "b8382513d35cdcb39f2ea81e4e69e8ec8621b3b477069232be58f36b421b8b18"
+    },
+    {
+      "file": "docs/ru/README.md",
+      "sha256": "ec1e13e63d35cb369b0db8964259aac51950947b24375910af51dc92d113fb15"
+    },
+    {
+      "file": "docs/ru/SPECS_SIMULATION_ENGINES.md",
+      "sha256": "21ce7c5273b796e99364618e71e17d21cdd17102845a6ba6285efbbaa723c27e"
+    },
+    {
+      "file": "docs/ru/architecture.md",
+      "sha256": "a3637e7c23b0d870c0cb89d7e69c9b1ed081011f540c3ef780628f6caf9d5728"
+    },
+    {
+      "file": "docs/ru/runbook.md",
+      "sha256": "a2883b2a733aa9c3acb29748f784107bc951bcf888f3538e2b3fbacee3431262"
+    },
+    {
+      "file": "scripts/run-sitl.mjs",
+      "sha256": "7fa531290751b984b42567d42233f754d102dbcbb914f34b1e1ed72a84419a23"
+    },
+    {
+      "file": "tests/integration/external-sitl.test.ts",
+      "sha256": "03325a4844fe90805d6a06c4fc8dfcf59adefc1ba82b390cf8933d2c34469d17"
+    },
+    {
+      "file": "scripts/check-sitl-capture.mjs",
+      "sha256": "a0856699c63b63e7405f0a476cad3d966ba5522fe80b513c7c163198e7b47794"
+    },
+    {
+      "file": "scripts/sitl/check-raw.py",
+      "sha256": "3396b725cfd92251cf44976b91e7e00fd86cf3210f498c4e47a69a5e9ef9daa0"
+    },
+    {
+      "file": "scripts/sitl/driver.mjs",
+      "sha256": "bcdd9ebe82aaafb4f37e73c6639fc2dddafc3ac47957e17abcb4d4f120ab450b"
+    },
+    {
+      "file": "scripts/sitl/quad.mjs",
+      "sha256": "461db764a390d52a9c1576f645b283ffcec7235203d2ce86c0f4c6e93f7a2ed5"
+    },
+    {
+      "file": "scripts/sitl/telemetry.py",
+      "sha256": "1e26ffe5faf5eae519a5fe18bfee48633abd88203356a9a68ed767c2350bd246"
+    },
+    {
+      "file": "tests/sitl-flight-trace.test.ts",
+      "sha256": "7ad1c838e8bc9d5af2e7804a1160c106c15b0aad72a64e8bc6c0833fe6359361"
+    },
+    {
+      "file": "tests/sitl-quad.test.ts",
+      "sha256": "4986778dd65840b0ecfa3551c3416ba1cb27de30bfd37057c6b627ae3118abbe"
+    }
+  ],
+  "limitations": [
+    "Synthetic integration model only; TASK-033 measured aerodynamics remains blocked",
+    "Browser demo unchanged; TASK-043 production admission, HITL and arbitrary terrain are separate",
+    "Existing linker/hardlink and Vite bundle-size warnings retained",
+    "No new browser run; no browser code changed. Native integration is Linux/WSL, not Windows descendant containment",
+    "Raw capture archive contains own simulation logs, not firmware binaries, downloaded source or third-party datasets",
+    "Local edits only; no commit/push requested for TASK-042"
+  ]
+}

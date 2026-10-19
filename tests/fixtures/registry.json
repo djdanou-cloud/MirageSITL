@@ -951,6 +951,36 @@
           "derivation": "Predeclared same-source native/WASM numerical budgets; not measured aircraft calibration or redistributed model data."
         }
       }
+    },
+    {
+      "path": "mavlink/warmup-sensors.json",
+      "manifest": {
+        "formatVersion": 1,
+        "id": "mavlink-warmup-sensor-wire-v1",
+        "sourceSha256": "ffbf36d3257726f12e95b038bea10f6156cad0423649f648f4b0cac4c4cdfb65",
+        "units": {
+          "messageId": "1",
+          "timeS": "s"
+        },
+        "validityEnvelope": {
+          "messageId": {
+            "min": 24,
+            "max": 105
+          },
+          "timeS": {
+            "min": 30,
+            "max": 30
+          }
+        },
+        "tolerance": {
+          "absolute": 0,
+          "relative": 0
+        },
+        "provenance": {
+          "kind": "synthetic",
+          "derivation": "Independent pymavlink 2.4.50 ardupilotmega v20 RAW_IMU/HIGHRES_IMU/GPS_RAW_INT wire oracle with generated-module and generator hashes; not measured sensor data."
+        }
+      }
     }
   ]
 }

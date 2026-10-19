@@ -7,6 +7,16 @@ Read this file **before every iteration**, then the selected TASK in
 [SPECS_SIMULATION_ENGINES.md](docs/SPECS_SIMULATION_ENGINES.md), and current code.
 User instructions and execution-environment restrictions take precedence.
 
+TASK-042 continuation on 2026-10-19 supplies `scripts/sitl/driver.mjs` and a
+pymavlink 2.4.50 sidecar. The full harness runs on Linux/WSL with pinned native
+ArduCopter and existing Rust rigid-body WASM using an explicitly synthetic
+quad X model. `scripts/check-sitl-capture.mjs --input CAPTURE_DIRECTORY` checks
+full-rate physics, original telemetry, source identities and trace v2. This
+supersedes historical claims below that no local driver/native flight exists.
+It does not validate measured aerodynamics, production browser sessions, HITL
+or arbitrary terrain. Do not enable browser autopilot READY from this offline
+integration. Follow the runbook's Linux environment and owned-process scope.
+
 TASK-029 completion on 2026-10-18 supersedes the historical contact allocation
 blockers below: the verified direct f64 Rapier C ABI passes native/WASM G1,
 synthetic compliance/contact checks and browser Worker execution. Build it with
@@ -424,3 +434,11 @@ memory is byte-capped; missing ground never becomes ready. Scenario polling
 returns indices; the integration owner must bind epochs and verify ACKs. Physical
 FC, target GPU, clean-machine release and assistive-screen-reader checks remain
 external. Keep this continuation local; do not push without user instruction.
+
+TASK-043 native continuation (2026-10-19) composes LiveEkfWarmup with the
+actual driver. Its explicit JSON lockstep IMU clock uses acknowledged encoded
+samples; CRC-checked MAVLink supplies EKF/heartbeat/GNSS and a separate reported
+IMU clock. Replay with scripts/check-ekf-warmup.mjs after the raw MAVLink audit.
+READY/EW admission revokes on stale sensors or diagnostics; physical HITL and
+browser READY remain separate. TASK-042 reports are historical snapshots when
+their input sources change; keep the new native regression report separately.

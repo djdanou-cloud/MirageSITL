@@ -32,6 +32,47 @@ For rollback restore an explicitly selected known release in a separate deployme
 
 Accessibility checklist: keyboard Tab reaches the skip link and core actions; Enter operates the focused action; visible focus persists; typing in text/select controls suppresses instructor shortcuts; 390px layout has no horizontal overflow; denied Serial permission produces one announcement and focus returns without repeated prompts; importing AAR keeps the live flight. Automated axe and browser checks cover these software paths. A physical transmitter/FC, assistive-screen-reader session and live autopilot UI remain separate unrun checks.
 
+## Native SITL flight (TASK-042)
+
+Run the whole harness on Linux or inside WSL Ubuntu. Use Node 24, a virtual
+environment with pymavlink 2.4.50, the clean source at the commit in
+`scripts/sitl.lock.json`, its native ArduCopter ELF, and the scalar body WASM
+from `node scripts/build-wasm.mjs`. Existing source/builds may be reused after
+checking their identities; preserve build logs/compiler versions. No physical
+FC, external flight log, cloud credentials or measured polar is required for
+this synthetic-aircraft integration. The supplied reference driver replaces
+the historical missing-driver prerequisite above; it is separate from the demo.
+
+Set the paths below in the Linux shell. Values are local paths, not secrets.
+The capture directory must be new. The firmware parameters keep ARMING_CHECK=1
+and EKF3 enabled. Do not disable checks or alter the frozen flight tolerances.
+
+```bash
+export MIRAGE_SITL_SOURCE=/path/to/pinned/ardupilot
+export MIRAGE_SITL_BINARY=/path/to/native/arducopter
+export MIRAGE_SITL_PYTHON=/path/to/venv/bin/python
+export MIRAGE_SITL_DRIVER="$PWD/scripts/sitl/driver.mjs"
+export MIRAGE_SITL_BINARY_SHA256=$(sha256sum "$MIRAGE_SITL_BINARY" | cut -d ' ' -f 1)
+export MIRAGE_SITL_DRIVER_SHA256=$(sha256sum "$MIRAGE_SITL_DRIVER" | cut -d ' ' -f 1)
+export MIRAGE_SITL_CAPTURE_DIR="$PWD/.cache/task-042/capture-new"
+node scripts/run-sitl.mjs
+"$MIRAGE_SITL_PYTHON" scripts/sitl/check-raw.py --input "$MIRAGE_SITL_CAPTURE_DIR"
+node scripts/check-sitl-capture.mjs --input "$MIRAGE_SITL_CAPTURE_DIR"
+```
+
+`run-sitl` executes firmware/driver and returns 0 only for a completed flight;
+without prerequisites it returns 2. `check-sitl-capture` independently checks
+the saved v2 trace against full-rate physics and original decoded telemetry,
+verifies unchanged source hashes, frame/cadence/PWM counters and writes
+`test-results/validation/task-042-flight.json`. `check-raw.py` first independently
+decodes and CRC-checks raw MAVLink, requiring every recorded observation to
+match its ordered stream prefix. The audit does not rerun firmware.
+Keep raw MAVLink, physics, decoded telemetry and DataFlash logs in the capture;
+retain their hashes and failed trials. Full-rate logs remain local cache inputs,
+not redistributed firmware/source. The 100 Hz scored trace preserves original
+800 Hz frame numbers at stride eight. Native PASS does not enable browser
+READY, measured-aircraft fidelity, physical HITL or production terrain contact.
+
 ## Windows laptop verification
 
 The repository attributes preserve LF source/fixture bytes on Windows and keep
@@ -90,3 +131,25 @@ profile. On a scaled laptop display, an emulated 1920 CSS-pixel viewport can
 clip inside a smaller native browser client area. A native-size confirmation
 and the recorded horizontal layout bounds distinguish test-window sizing from
 an application overflow defect. Never count a clipped capture as a visual pass.
+
+## Native EKF readiness capture (TASK-043)
+
+The native driver now uses LiveEkfWarmup for arming admission and writes
+warmup.ndjson. Preserve the configured source/ELF/driver hashes and choose a
+new capture directory as above. Run the existing native harness, then the
+raw MAVLink audit before these commands:
+
+```bash
+node scripts/check-sitl-capture.mjs --input "$MIRAGE_SITL_CAPTURE_DIR" --output test-results/validation/task-043-flight.json
+node scripts/check-ekf-warmup.mjs --input "$MIRAGE_SITL_CAPTURE_DIR"
+```
+
+The second report distinguishes observed READY/revocations and acceleration
+from synthetic rejection probes. It requires the actual acknowledged JSON IMU
+sample clock, CRC-checked GPS fix/health reports, unchanged source files and
+matching decision replay. Keep transient GNSS freshness failures visible;
+do not widen limits to obtain continuous READY. A physical HITL run is not
+performed by the synthetic HITL clock probe. TASK-042 historical reports live
+in test-results/validation/task-042-snapshot-2026-10-19; new capture audits use
+the optional --output path to preserve them. Native admission does not enable
+browser READY or apply EW effects.

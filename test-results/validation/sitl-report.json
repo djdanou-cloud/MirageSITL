@@ -1,9 +1,14 @@
 {
   "schemaVersion": 1,
   "kind": "sitl-report",
-  "status": "BLOCKED_EXTERNAL",
-  "reasons": [
-    "Provide pinned clean ArduPilot source, ELF binary+SHA-256, and closed-loop driver+SHA-256; production physics/RC driver is not supplied by the demo"
-  ],
-  "metrics": {}
+  "status": "PASS",
+  "reasons": [],
+  "metrics": {
+    "frames": 4161,
+    "holdDurationS": 10.189999999999998
+  },
+  "inputSha256": "624ef6cc8416d679fc35aeb1a8e8ceda5efd16e7829b16642ef38764928af05a",
+  "evaluation": "replay-of-verified-real-native-flight",
+  "captureFileSha256": "3cc75665b960446bbcda21ed9935b8c98508f66d4e25b0624f4e2396e40811d6",
+  "captureAuditPath": "test-results/validation/task-043-flight.json"
 }

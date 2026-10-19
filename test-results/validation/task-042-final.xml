@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<testsuites name="vitest tests" tests="9" failures="0" errors="0" time="4.4707295">
+    <testsuite name="tests/documentation-policy.test.ts" timestamp="2026-10-19T09:32:41.725Z" hostname="DaduAsus" tests="6" failures="0" errors="0" skipped="0" time="3.8185533">
+        <testcase classname="tests/documentation-policy.test.ts" name="bilingual documentation policy &gt; accepts complete synchronized documents" time="0.9219462">
+        </testcase>
+        <testcase classname="tests/documentation-policy.test.ts" name="bilingual documentation policy &gt; rejects an English change without a translated mirror update" time="0.3274906">
+        </testcase>
+        <testcase classname="tests/documentation-policy.test.ts" name="bilingual documentation policy &gt; rejects divergent TypeScript contracts even when the source hash is current" time="0.4518941">
+        </testcase>
+        <testcase classname="tests/documentation-policy.test.ts" name="bilingual documentation policy &gt; rejects static Cyrillic outside the Russian documentation directory" time="0.880141">
+        </testcase>
+        <testcase classname="tests/documentation-policy.test.ts" name="bilingual documentation policy &gt; rejects a missing Russian mirror" time="0.352523">
+        </testcase>
+        <testcase classname="tests/documentation-policy.test.ts" name="bilingual documentation policy &gt; rejects a cyclic backlog even when both languages and the hash agree" time="0.8829278">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/sitl-flight-trace.test.ts" timestamp="2026-10-19T09:32:41.729Z" hostname="DaduAsus" tests="1" failures="0" errors="0" skipped="0" time="0.0668168">
+        <testcase classname="tests/sitl-flight-trace.test.ts" name="checks v2 schema with synthetic observations, actual frame offsets and independent health fields" time="0.0656138">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/sitl-quad.test.ts" timestamp="2026-10-19T09:32:41.729Z" hostname="DaduAsus" tests="1" failures="0" errors="0" skipped="0" time="0.3559632">
+        <testcase classname="tests/sitl-quad.test.ts" name="checks quad motor order, hover balance, contact specific force and free fall" time="0.3545595">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/integration/external-sitl.test.ts" timestamp="2026-10-19T09:32:41.730Z" hostname="DaduAsus" tests="1" failures="0" errors="0" skipped="0" time="0.2293962">
+        <testcase classname="tests/integration/external-sitl.test.ts" name="owns actual child processes, caps output/deadlines, and blocks absent flight drivers" time="0.2283982">
+        </testcase>
+    </testsuite>
+</testsuites>

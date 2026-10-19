@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "kind": "sitl-report",
+  "status": "PASS",
+  "reasons": [],
+  "metrics": {
+    "frames": 4161,
+    "holdDurationS": 10.200000000000003
+  },
+  "inputSha256": "04e2ab387093db5ce832dca4b4b026ae9686942d07ffd0e1e60b4f43a86ad447",
+  "evaluation": "replay-of-verified-real-native-flight",
+  "captureFileSha256": "561380484cb73400ed48685d58b2420ff0ff7c22a8eed3209a4c55f5be23c58a",
+  "captureAuditPath": "test-results/validation/task-042-flight.json"
+}

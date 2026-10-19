@@ -12,6 +12,7 @@
     "./hitl": "./src/hitl.ts",
     "./hitl-capabilities": "./src/hitl-capabilities.ts",
     "./warmup": "./src/warmup.ts",
+    "./live-warmup": "./src/live-warmup.ts",
     "./ekf-status": "./src/ekf-status.ts",
     "./wasm-loader": "./src/wasm-loader.ts"
   },

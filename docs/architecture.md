@@ -5,6 +5,14 @@ The detailed task source is [PROJECT_ROADMAP.md](PROJECT_ROADMAP.md).
 
 ## Milestone 01: implemented boundaries
 
+TASK-042 adds a separate owned Linux/WSL native ArduCopter flight harness.
+JSON motor outputs drive our Rust rigid-body WASM through an explicitly
+synthetic quad X model; a pymavlink sidecar returns real firmware health,
+mode and altitude observations. A v2 trace and independent raw MAVLink/physics
+audits establish native closed-loop integration. This does not wire the
+browser demo, validate measured BET aerodynamics, complete TASK-043 admission
+or certify physical HITL. See the engine contract and operational runbook.
+
 The working vertical slice includes React 19/R3F/WebGL, a module Worker,
 constant `dt = 1/400 s`, atomic SAB transport, Gamepad calibration, demo
 quadrotor dynamics, visualization, and diagnostics. JSBSim/BET, ArduPilot,
@@ -1047,3 +1055,11 @@ Accessibility adds keyboard landmarks/focus, permission announcements and a narr
 The historical NASA landing-gear comparison failed deceleration/stroke envelopes while numerical integration passed. The user's 2026-10-18 decision defers NASA fidelity; TASK-033 report v5 retains that failed comparison in a hash-checked archive and reports absent active contact measurements as blocked. TASK-029 numerical contact acceptance is separate from measured rig calibration.
 
 TASK-033 adds an offline annular propeller BEM diagnostic with local axial/angular momentum, explicit Prandtl tip/hub losses and safeguarded nonlinear solves. It preserves the original uniform-inflow comparison and current production backend. Four declared variants expose convergence and final polar coverage at the unchanged measured CT/CP tolerances. Numerical convergence is not measured fidelity: the XFOIL/UIUC comparisons still fail. The Deters article/dissertation, PROPID conventions and pinned airfoil-research review are documented in the engine specification. No new C/SAB ABI, transient flight binding or autopilot admission follows from these diagnostic results.
+
+TASK-043 composes the native driver's real MAVLink input with LiveEkfWarmup,
+EkfMonitor and EkfWarmup. Native JSON frame N confirms the encoded IMU sample
+in reply N-1; GNSS fix time remains firmware-sourced. Arrival time never replaces
+measurement time. The shared gate produces READY/EW admission and measured
+acceleration, with revocation and independent raw/capture replay. Synthetic
+fault probes are labelled separately from observed firmware behavior. No browser
+session wiring, physical HITL acceptance or measured aircraft validation follows.

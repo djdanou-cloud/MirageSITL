@@ -1753,7 +1753,7 @@ The CPU integrates Planck radiance over the band with composite Simpson (512 int
 
 `EkfMonitor` consumes CRC-validated MAVLink2 HEARTBEAT (ID 0, CRC_EXTRA 50, length 9) and ArduPilot EKF_STATUS_REPORT (ID 193, CRC_EXTRA 71, length 26 including optional airspeed variance). Both are independently generated from ardupilotmega XML at the existing pinned MAVLink commit using pymavlink 2.4.50; the new fixture records recursive XML and generated-module hashes. HEARTBEAT custom_mode is u32 at 0, autopilot at byte 5 must be 3, mavlink_version byte 8 must be 3. EKF ratios are five f32 at 0/4/8/12/16; flags are u16 at 20; the airspeed extension begins at 22. The conservative training gate requires finite nonnegative ratios below 1 and rejects EKF_UNINITIALIZED (1024). Raw flags 1/2/4/16/32 map to ABI-v2 flags 1/2/4/8/16. Relative horizontal position never substitutes for absolute position. Only the configured system/component identity is admitted.
 
-Timestamps use simulation milliseconds for SITL and monotonic wall milliseconds for HITL. Heartbeat and EKF age must each be at most 1000 ms and never in the future. `EkfWarmup` additionally requires 30 simulated seconds, matching epoch, no clock reversal, IMU age <=0.01 s and GNSS age <=0.3 s with no future sample. It reports measured simulated/wall elapsed ratio; configuring speed does not itself accelerate firmware. HITL rejects speed !=1 and observed simulation elapsed exceeding wall elapsed by 1% plus 0.1 s. EW admission remains false until the gate passes and falls false when health fails. These are independently verified admission modules: live warmup, firmware execution and TASK-042 integration remain BLOCKED_EXTERNAL, so TASK-043 is not DONE.
+Timestamps use simulation milliseconds for SITL and monotonic wall milliseconds for HITL. Heartbeat and EKF age must each be at most 1000 ms and never in the future. `EkfWarmup` additionally requires 30 simulated seconds, matching epoch, no clock reversal, IMU age <=0.01 s and GNSS age <=0.3 s with no future sample. It reports measured simulated/wall elapsed ratio; configuring speed does not itself accelerate firmware. HITL rejects speed !=1 and observed simulation elapsed exceeding wall elapsed by 1% plus 0.1 s. EW admission remains false until the gate passes and falls false when health fails. The original 2026-10-16 evidence covered independent modules only. The later TASK-043 native continuation below verifies live admission and revocation; browser integration and physical HITL remain separate.
 
 ### AAR record format and ownership (TASK-076)
 
@@ -2165,6 +2165,57 @@ because inertia is not in the dataset. Loading in the pinned JSBSim v1.2.3
 and the thrust check remain BLOCKED_EXTERNAL until a JSBSim source checkout
 is available.
 
+## TASK-042 native closed-loop continuation (2026-10-19)
+
+The owned Linux driver is `scripts/sitl/driver.mjs`, with a pinned pymavlink
+2.4.50 sidecar (`telemetry.py`). It runs the clean locked ArduPilot source's
+native ArduCopter ELF and the existing Rust RK4 body WASM through
+`BetRigidBodyBackend`. It uses a synthetic quad X reference, not calibrated
+BET polars, JSBSim aircraft performance or the browser demo. Mass, inertia,
+arm, thrust curve, yaw reaction and motor lag are explicit in `quad.mjs`.
+An inelastic horizontal floor projects penetration; this is not the Rapier
+landing-gear model or arbitrary-terrain acceptance. Only Rust integrates motion.
+
+Physics exchanges run at 800 Hz for the standard 400 Hz Copter scheduler's
+gyro-rate arming check. Initial advertised 1200 Hz is upstream Aircraft's
+default; JSON reply timestamps establish 800 Hz, encoded as 799/800 by float
+truncation. Duplicate replies reuse identical bytes; gaps, restarts, malformed
+packets and unexpected rates fail the flight. Source files are hashed before
+launch and checked unchanged after flight. Child processes share the harness's
+owned POSIX group; only those processes are terminated. Windows hosts run the
+whole harness inside WSL, rather than pretending a Windows child kill contains
+Linux descendants. UDP/TCP bind only to loopback. A new capture directory is
+required; previous evidence is never silently overwritten.
+
+Warmup lasts at least 30 simulated seconds and waits for fresh real heartbeat
+and EKF reports. Required EKF bits are attitude, horizontal/vertical velocity,
+absolute horizontal/vertical position; uninitialized flags or innovation
+ratios outside [0,1) reject health. Heartbeat, EKF and autopilot altitude age
+must each be within one simulated second. No arming/EKF checks are disabled.
+Guided mode, arm, takeoff and land commands use MAVLink; actual heartbeat
+mode/armed state controls acceptance, not command intent. Both truth and
+autopilot altitude must meet the unchanged hold envelope. Warmup is retained
+in raw captures; the scored flight starts after actual healthy arming.
+
+Flight trace v2 adds `physicsHz=800` and `captureStride=8`. Samples are 100 Hz,
+retain original firmware frame counts (arbitrary initial offset, stride eight)
+and have a 0.01 s timestamp interval. Each sample adds `heartbeatAgeS`,
+`ekfAgeS`, `ekfFlags`, five `innovationRatios`, `autopilotAltitudeM` and
+`altitudeAgeS` to the legacy fields. Full-rate physics and raw MAVLink logs
+remain separate evidence. Legacy v1 still supports historical schema tests;
+new native integration uses v2. Existing 3 m takeoff, 10 m +/-1 m for at least
+10 s, landing below 0.5 m with disarm, modes 4/9 and 120 s parent deadline
+remain unchanged. `arm` stage covers initial ascent until the 3 m takeoff gate;
+`takeoff` covers the remaining climb, and `hold` starts only after settling.
+
+Capture outputs include `flight.json`, `run.json`, `physics.ndjson`,
+`telemetry.ndjson`, `mavlink.raw`, firmware stdout/stderr and owned DataFlash
+logs. They distinguish model truth from autopilot estimates and record
+commands, runtime, source hashes, executable/model identity and cleanup.
+The final validation report must bind the actual capture bytes and retain
+failed trials separately. A native integration PASS does not enable browser
+autopilot READY, certify measured aerodynamics, HITL or target-device timing.
+
 ## TASK-033 source-backed propeller continuation (2026-10-18)
 
 This adds an offline diagnostic, not a production dynamics ABI. The original
@@ -2269,3 +2320,53 @@ reports its still-failed measured status; old probe fields remain historical.
 Numerical parity can pass while propeller fidelity fails and airframe fidelity
 is blocked. Main CLI exit 2 retains that distinction; annular diagnostic exit 0
 only means its sensitivity execution completed.
+
+## TASK-043 native readiness continuation (2026-10-19)
+
+LiveEkfWarmup composes the existing CRC-validating MavParser, identity-bound
+EkfMonitor and EkfWarmup in the Linux driver. It defaults to MAVLink sensor
+clocks and additionally supports explicit external-SITL json-lockstep IMU
+acknowledgments. Sensor messages GPS_RAW_INT (24, CRC 24, length 52), RAW_IMU
+(27, CRC 144, length 29), HIGHRES_IMU (105, CRC 93, length 63) have independent
+pymavlink 2.4.50 wire goldens, registered with source/generator hashes. Boot
+microseconds use safe numeric u64 conversion; GPS requires a 3D fix. Only
+system/component 1/1 and the primary IMU are admitted. Classes use explicit
+constructor fields so the cold Linux Node 24 tool can load the same modules.
+
+The native sensor feed is the 800 Hz JSON reply, not a MAVLink report arrival.
+acknowledgeJsonImu(servoFrame, repliedFrame, sampleTimeS) requires N/N-1,
+contiguous frame counts, increasing actual encoded sample time and a step no
+larger than 0.01 s. The driver supplies the previous reply timestamp only after
+the next valid servo packet confirms consumption. Bad acknowledgments invalidate
+the sensor. HITL cannot select this source. Firmware IMU report clocks remain
+separate diagnostics: their packet cadence/serialization epoch must not be
+silently fitted or substituted for the actual sample clock. GPS uses the
+pinned AP_GPS last_fix_time_ms carried by CRC-checked GPS_RAW_INT. No freshness
+limit changes: IMU <=0.01 s, GNSS <=0.3 s, heartbeat/EKF <=1 s, no future times,
+30 simulated seconds, matching epoch and healthy finite innovations below 1.
+
+The sidecar records original wire bytes with each decoded observation and asks
+for 3 ms HIGHRES_IMU and 50 ms GPS_RAW_INT reports. At the pinned 400 Hz scheduler,
+a 2500 us request truncates to 2 ms and is denied by cap_message_interval;
+3 ms is accepted. This is a stream configuration fix, not relaxed admission.
+The driver evaluates readiness on physics ticks and writes warmup.ndjson at
+100 Hz plus every transition, including source clocks, exact wall elapsed,
+normalized health, READY/EW flags, reason and measured acceleration. Unknown
+diagnostic age serializes as null before the first report and cannot pass.
+
+check-ekf-warmup.mjs replays all original physics acknowledgments and raw-CRC-
+audited telemetry through the same modules and checks every recorded decision.
+The stream event at physics time t follows that completed tick; replay feeds
+only events with receivedSimS<t before evaluating the next tick. It records
+actual admission/revocations separately from explicitly synthetic failed-
+innovation, stale-diagnostic, bad-acknowledgment, GNSS-loss, clock-reversal,
+disposal and HITL fast-forward probes. A configured speed is not a measured
+acceleration. The report is test-results/validation/task-043-warmup.json.
+
+The observed run admits at 41.27625 simulated seconds and 20.733261598 wall
+seconds (1.990822804x). Two genuine GNSS freshness excursions beyond 0.3 s
+revoke READY/EW and recover on fresh data; this is preserved, not hidden.
+The full flight also passes the unchanged TASK-042 envelope. Browser READY,
+EW application, physical HITL and TASK-033 aerodynamic fidelity stay separate.
+Historical TASK-042 evidence is preserved under its dated snapshot directory;
+new native regression reports must not silently replace those identities.

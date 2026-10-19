@@ -9,9 +9,14 @@ export interface WarmupSample {
   health: EkfStatus;
 }
 /** Batch-boundary admission only. It cannot manufacture diagnostics or drive firmware time.
- * The external harness supplies the lockstep samples; live integration remains TASK-042.
+ * The external harness supplies the lockstep samples through LiveEkfWarmup.
  */
 export class EkfWarmup {
+  readonly backend: AutopilotBackend;
+  readonly epoch: number;
+  private readonly startSimS: number;
+  private readonly startWallMs: number;
+  readonly speed: number;
   ready = false;
   ewAllowed = false;
   accelerationFactor = 0;
@@ -19,11 +24,11 @@ export class EkfWarmup {
   private lastSim: number;
   private lastWall: number;
   constructor(
-    readonly backend: AutopilotBackend,
-    readonly epoch: number,
-    private readonly startSimS: number,
-    private readonly startWallMs: number,
-    readonly speed = 1,
+    backend: AutopilotBackend,
+    epoch: number,
+    startSimS: number,
+    startWallMs: number,
+    speed = 1,
   ) {
     if (
       !["external-sitl", "wasm-sitl", "hitl"].includes(backend) ||
@@ -36,6 +41,11 @@ export class EkfWarmup {
       (backend === "hitl" && speed !== 1)
     )
       throw new RangeError("Invalid warmup clock (HITL cannot fast-forward)");
+    this.backend = backend;
+    this.epoch = epoch;
+    this.startSimS = startSimS;
+    this.startWallMs = startWallMs;
+    this.speed = speed;
     this.lastSim = startSimS;
     this.lastWall = startWallMs;
   }
