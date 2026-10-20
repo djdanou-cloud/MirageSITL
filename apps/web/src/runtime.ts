@@ -1,5 +1,4 @@
 import { RecorderHost } from "@mirage/aar/recorder-host";
-import { AarRecord } from "@mirage/aar/record";
 import demoDynamicsSource from "../../../packages/physics/src/demo-dynamics.ts?raw";
 import { CommandLedger, type CommandPayload } from "./instructor/commands";
 import {
@@ -71,16 +70,9 @@ const COMMAND_TYPE = {
 
 export class SimulationRuntime {
   recording: RecorderHost | null = null;
-  private recordingActive = false;
-  private readonly recordingRecord = new AarRecord();
-  private readonly recordingPilot = new Float64Array(4);
-  private recordingQueueLost = 0;
-  private recordingHz = 400;
-  private recordingEpoch = -1;
-  private recordingTime = -Infinity;
   async startRecording(): Promise<void> {
     if (this.recording) {
-      this.recordingActive = true;
+      this.worker.postMessage({ type: "recording.arm", queue: this.recording.queue });
       return;
     }
     const hash = Array.from(
@@ -95,66 +87,24 @@ export class SimulationRuntime {
     if (this.disposed) throw new Error("Session closed");
     if (!isPhysicsHz(this.header.physicsHz))
       throw new Error("Invalid recording physics rate");
-    this.recordingHz = this.header.physicsHz;
+    const recordHz = this.header.physicsHz;
+    const maxRecords = Math.floor((32 * 1024 * 1024 - 8192) / 512);
     this.recording = new RecorderHost({
       formatVersion: 1,
       recordBytes: 512,
       modelSha256: hash,
       firmwareSha256: null,
       seed: 0,
-      physicsHz: this.header.physicsHz,
-      recordHz: 10,
-      durationS: 1800,
+      physicsHz: recordHz,
+      recordHz,
+      durationS: Math.max(1, Math.min(1800, Math.floor(maxRecords / recordHz))),
       clock: "simulation",
-      source: "demo-decimated",
+      source: "producer",
     });
-    this.recordingActive = true;
-    this.recordingEpoch = -1;
-    this.recordingTime = -Infinity;
+    this.worker.postMessage({ type: "recording.arm", queue: this.recording.queue });
   }
   stopRecording(): void {
-    this.recordingActive = false;
-  }
-  private recordDemoSnapshot(): void {
-    const r = this.recording,
-      s = this.current;
-    if (!this.recordingActive || !r?.ready) return;
-    if (this.header.physicsHz !== this.recordingHz) {
-      this.stopRecording();
-      this.notice =
-        "Recording stopped: physics rate changed; export before starting a new recorder";
-      return;
-    }
-    if (s.epoch !== this.recordingEpoch) {
-      this.recordingEpoch = s.epoch;
-      this.recordingTime = -Infinity;
-    }
-    if (s.simTimeS - this.recordingTime < 0.1 - 1e-9) return;
-    this.recordingPilot[0] = this.input.roll;
-    this.recordingPilot[1] = this.input.pitch;
-    this.recordingPilot[2] = this.input.yaw;
-    this.recordingPilot[3] = this.input.throttle;
-    const lost = Number.isFinite(this.recordingTime)
-      ? Math.max(
-          0,
-          Math.floor((s.simTimeS - this.recordingTime) / 0.1 + 1e-6) - 1,
-        )
-      : 0;
-    if (
-      this.recordingRecord.encode(
-        s,
-        this.recordingPilot,
-        null,
-        null,
-        0,
-        lost + ((r.producer.lost - this.recordingQueueLost) >>> 0),
-        true,
-      )
-    ) {
-      if (r.producer.push(this.recordingRecord.words))
-        this.recordingQueueLost = r.producer.lost;
-    }
-    this.recordingTime = s.simTimeS;
+    this.worker.postMessage({ type: "recording.stop" });
   }
   readonly commands = new CommandLedger();
   readonly stateBuffer = createSharedMemoryV2(400);
@@ -446,7 +396,6 @@ export class SimulationRuntime {
     const read = this.reader.latestPair(this.current, this.previous);
     if (read !== "none") {
       this.history = read;
-      this.recordDemoSnapshot();
     }
     this.bindAutopilotEpoch();
     this.syncAutopilotTelemetry(wallNow());

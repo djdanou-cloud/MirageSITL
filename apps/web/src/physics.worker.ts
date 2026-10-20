@@ -1,4 +1,6 @@
 /// <reference lib="webworker" />
+import { AarRecord } from '@mirage/aar/record';
+import { RecordingHandoff } from '@mirage/aar/handoff';
 import { EwEngine, type EwContext } from '@mirage/ew/engine';
 import { isWorkerInitV2, tickToNumber, type CommandResultV2, type ControlCommandV2, type WorkerFaultV2 } from '@mirage/protocol';
 import { PhysicsSessionV2, type SessionClock, type SessionFaultPort } from '@mirage/physics';
@@ -18,6 +20,7 @@ let session: PhysicsSessionV2 | undefined;
 let timer: ReturnType<typeof setTimeout> | undefined;
 let binder: ScenarioBinder | null = null;
 let haltPosted = false;
+let recorder: { handoff: RecordingHandoff; record: AarRecord } | null = null;
 type WorkerNotice = CommandResultV2 | WorkerFaultV2
   | { type: "scenario.submit"; command: ControlCommandV2 }
   | { type: "scenario.reject"; message: string };
@@ -60,6 +63,28 @@ function armScenario(value: unknown): void {
     binder = null;
     post({ type: "scenario.reject", message: error instanceof Error ? error.message : "Invalid scenario" });
   }
+}
+function isRecordingArm(data: unknown): data is { type: "recording.arm"; queue: SharedArrayBuffer } {
+  return typeof data === "object" && data !== null && "type" in data && data.type === "recording.arm" && "queue" in data && data.queue instanceof SharedArrayBuffer;
+}
+function isRecordingStop(data: unknown): boolean {
+  return typeof data === "object" && data !== null && "type" in data && data.type === "recording.stop";
+}
+function armRecording(queue: SharedArrayBuffer): void {
+  if (!session) return;
+  const handoff = new RecordingHandoff(queue);
+  const record = new AarRecord();
+  const pilot = new Float64Array(4);
+  let notedLost = 0;
+  recorder = { handoff, record };
+  session.setRecorder((sample) => {
+    const active = recorder;
+    if (!active) return;
+    for (let i = 0; i < 4; i++) pilot[i] = sample.pilot[i] ?? 0;
+    const lost = (active.handoff.lost - notedLost) >>> 0;
+    if (!active.record.encode(sample.state, pilot, sample.sensor, sample.actuator, 0, lost, false)) return;
+    if (active.handoff.push(active.record.words)) notedLost = active.handoff.lost;
+  });
 }
 function isScenarioArm(data: unknown): data is { type: "scenario.arm"; scenario: unknown } {
   return typeof data === "object" && data !== null && "type" in data && data.type === "scenario.arm" && "scenario" in data;
@@ -109,6 +134,15 @@ addEventListener('message', (event: MessageEvent<unknown>) => {
   const current = session;
   if (isScenarioArm(data)) {
     armScenario(data.scenario);
+    return;
+  }
+  if (isRecordingArm(data)) {
+    armRecording(data.queue);
+    return;
+  }
+  if (isRecordingStop(data)) {
+    recorder = null;
+    current.setRecorder(null);
     return;
   }
   current.handle(data);

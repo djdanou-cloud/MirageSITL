@@ -367,7 +367,7 @@ and other documents (review of 2026-10-20). They keep their existing TASK IDs.
 | 073 | GPU acceptance harness | BLOCKED_EXTERNAL | Blocked on full-feature production traces (terrain, FPV and thermal together), VRAM accounting and an M4 device. |
 | 074 | Pilot HUD and freshness | DONE | Serial `EkfMonitor` overlay on the Pilot HUD. Browser READY flight admission remains TASK-046/047. |
 | 075 | Instructor console | DONE | Fault commands apply through the session EW registry. Weather and model commands stay rejected on the demo. |
-| 078 | AAR response charts | TODO | Full-rate actuator/sensor recording. TASK-074 HUD freshness is done. |
+| 078 | AAR response charts | DONE | Full-rate producer recording of each physics tick. Sensor and actuator payloads are stored only when that tick owns the frame. |
 | 079 | Lessons and scenario runner | DONE | Scenario faults bind to the live epoch and count as applied only after the Worker ACK. Weather events stay rejected on the demo. |
 | 080 | Accessibility and permissions UX | BLOCKED_EXTERNAL | Live-autopilot prerequisites, a screen-reader session and hardware permission/disconnect checks. |
 | 082 | System acceptance matrix | BLOCKED_EXTERNAL | Real G0–G4 evidence for each mode. |

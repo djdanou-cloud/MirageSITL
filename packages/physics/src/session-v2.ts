@@ -1,8 +1,8 @@
 import { ActuatorFrameCodecV2, ControlFlag, ControlProcessorV2, HeaderV2, INPUT_TIMEOUT_MS, PilotFlagV2, PilotReaderV2,
-  RuntimeFlagV2, SpscConsumer, StateWriterV2, UNKNOWN_U32, VehicleFlagV2, isValidPilotInputV2, newActuatorFrameV2,
-  newFlightStateV2, newInput, newPilotInputV2, tickToNumber, validateSharedMemoryV2, validateSpscQueue,
+  RuntimeFlagV2, SensorFrameCodecV2, SpscConsumer, StateWriterV2, UNKNOWN_U32, VehicleFlagV2, isValidPilotInputV2, newActuatorFrameV2,
+  newFlightStateV2, newInput, newPilotInputV2, newSensorFrameV2, tickToNumber, validateSharedMemoryV2, validateSpscQueue,
   type ClockModeV2, type CommandResultV2, type PhysicsHz, type ScheduledCommandV2, type TickId,
-  type WorkerInitV2, type FlightState, type PilotInput, type ActuatorFrameV2 } from '@mirage/protocol';
+  type WorkerInitV2, type FlightState, type FlightStateV2, type PilotInput, type ActuatorFrameV2, type SensorFrameV2 } from '@mirage/protocol';
 import { SteppingPolicy, newPumpReport, type StepGate } from './clock-policy.ts';
 import { DemoDynamics } from './demo-dynamics.ts';
 
@@ -51,6 +51,13 @@ export interface SessionFaultContext {
  * Production fault registry. Weather and model loads stay outside this port.
  * `apply` runs at the tick boundary and must not allocate.
  */
+export interface SessionRecordSample {
+  state: FlightStateV2;
+  pilot: Float64Array;
+  actuator: ActuatorFrameV2 | null;
+  sensor: SensorFrameV2 | null;
+}
+
 export interface SessionFaultPort {
   apply(command: Extract<ScheduledCommandV2, { type: "fault.set" }>, tick: TickId): "applied" | "registry-full" | "rejected";
   reset(seed: number): void;
@@ -72,6 +79,12 @@ export class PhysicsSessionV2 {
   private readonly writer: StateWriterV2;
   private readonly pilotReader: PilotReaderV2;
   private readonly actuators: SpscConsumer;
+  private readonly sensors: SpscConsumer;
+  private readonly sensorCodec = new SensorFrameCodecV2();
+  private readonly sensorFrame = newSensorFrameV2();
+  private readonly recordPilot = new Float64Array(4);
+  private readonly recordSample: SessionRecordSample;
+  private recordHook: ((sample: SessionRecordSample) => void) | null = null;
   private readonly actuatorCodec = new ActuatorFrameCodecV2();
   private readonly actuator = newActuatorFrameV2();
   private actuatorPending = false;
@@ -116,6 +129,8 @@ export class PhysicsSessionV2 {
     // Sensor frames have no consumer until an I/O Worker exists (TASK-034+); nothing is produced
     // into init.sensorBuffer so it can never overflow or be read by Main.
     this.actuators = new SpscConsumer(init.actuatorBuffer, 'actuator');
+    this.sensors = new SpscConsumer(init.sensorBuffer, 'sensor');
+    this.recordSample = { state: this.state, pilot: this.recordPilot, actuator: null, sensor: null };
     const hz = this.hzFromHeader();
     this.epoch = Atomics.load(this.header, HeaderV2.SessionEpoch) >>> 0;
     this.dynamicsFactory = dynamicsFactory;
@@ -135,6 +150,11 @@ export class PhysicsSessionV2 {
   get fault(): string { return this.faultMessage; }
   /** Runs at the start of a tick, before due commands apply. Must not allocate on an idle tick. */
   setBeforeTick(hook: ((tick: TickId) => void) | null): void { this.beforeTickHook = hook; }
+  /**
+   * Full-rate recording fanout. The hook must copy during the call.
+   * Sensor frames are popped only while recording, so this session stays the only consumer.
+   */
+  setRecorder(hook: ((sample: SessionRecordSample) => void) | null): void { this.recordHook = hook; }
   allocateRequestId(): number { return this.processor.allocateRequestId(); }
 
   readyEvent(): CommandResultV2 {
@@ -349,6 +369,20 @@ export class PhysicsSessionV2 {
     s.autopilotMode = UNKNOWN_U32; s.autopilotHealth = 0; s.autopilotStatusAgeMs = 0;
     if (this.actuatorPending) { s.lastActuatorTick.lo = this.actuator.tickId.lo; s.lastActuatorTick.hi = this.actuator.tickId.hi; }
     this.writer.publish(s);
+    this.recordProducedTick();
+  }
+
+  /** Copies this tick into the recording fanout. The flight sensor queue is read only here. */
+  private recordProducedTick(): void {
+    const hook = this.recordHook;
+    if (!hook) return;
+    const pilot = this.recordPilot, input = this.dynamicsInput;
+    pilot[0] = input.roll; pilot[1] = input.pitch; pilot[2] = input.yaw; pilot[3] = input.throttle;
+    const sample = this.recordSample;
+    sample.actuator = this.actuatorPending ? this.actuator : null;
+    sample.sensor = this.sensors.tryPop(this.sensorCodec.words) && this.sensorCodec.decode(this.sensorFrame) && this.sensorFrame.epoch === this.epoch
+      ? this.sensorFrame : null;
+    hook(sample);
   }
 }
 

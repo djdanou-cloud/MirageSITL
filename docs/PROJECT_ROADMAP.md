@@ -615,7 +615,7 @@ copy Google content without rights.
 
 - **Additional probe scope:** `native/ardupilot/hal/wasm_probe.cpp` exercises the actual HAL kernel in pthread WASM with allocator instrumentation; `fault_probe.cpp` independently rejects malformed native frames. Update `scripts/probe-ardupilot-wasm.mjs` and feasibility/decision guides (with Russian mirrors) to distinguish implemented HAL evidence from still-unadmitted production flight.
 
-- **Lifecycle regression scope:** Detach pthread message/error handlers before terminating peers in `packages/autopilot/src/wasm-browser.ts`; preserve the existing owner/Worker shutdown protocol. Repeated boot/storage tests still intermittently leave the top-level firmware Worker unresponsive; cleanup remains an unresolved regression, not a completed fix.
+- **Lifecycle regression scope:** Detach pthread message/error handlers before terminating peers in `packages/autopilot/src/wasm-browser.ts`; preserve the existing owner/Worker shutdown protocol. The initial implementation intermittently left the top-level firmware Worker unresponsive. Completion work now orders all awaits before peer termination and blocks late pthread creation; final acceptance is in progress.
 
 - **Legacy regression diagnostics:** `tests/browser/ardupilot-wasm.spec.ts` reports remaining Worker URLs on cleanup failures; the zero-owned-Worker assertion remains unchanged.
 
@@ -624,6 +624,8 @@ copy Google content without rights.
 - **Remaining / honest failure evidence:** TASK-046 stays IN_PROGRESS. The older TASK-045 boot/storage regressions intermittently retain an unresponsive top-level firmware Worker after stop; URL, evaluation deadline and CDP target diagnostics are retained on failure. A repeated four-case restart/profile run passed 3 and failed 1; passing retries do not erase this failure. Speculative owner/self-close changes did not resolve it and were removed. Detaching pthread callbacks hardens teardown but is not claimed as a complete fix. Production browser READY, native/WASM flight parity and whole-firmware allocator qualification remain separate; GPL redistribution stays BLOCKED_DECISION. No additional airfoil measurements or physical rotor are needed to continue this software task.
 
 - **Common regression record:** The bounded full unit run (`vitest run --maxWorkers=2`) finished with 556 PASS, 4 FAIL, 1 skipped: three documentation-policy failures captured an intermediate stale roadmap mirror, and one legacy `wasm-abi` GC assertion observed a collection. After synchronization, an isolated unchanged-threshold rerun of documentation policy, WASM ABI and HAL tests passed 19/19. The full run is retained as failed; this focused rerun is not represented as a green full suite.
+
+- **Completion scope (baseline 55a7c01):** `tests/browser/firmware-lifecycle-worker.ts` and an added real-firmware case in `tests/browser/ardupilot-wasm.spec.ts` delay the actual Web Lock release Promise to expose teardown interleavings. `wasm-browser.ts` must finish asynchronous profile/storage cleanup before terminating pthreads, prohibit late thread creation, and retain exclusive resource ownership. No deadline or zero-Worker assertion is relaxed.
 
 ### TASK-047 — WASM/native SITL parity
 
@@ -942,13 +944,13 @@ copy Google content without rights.
 
 ### TASK-078 — AAR response charts
 
-- **Status:** TODO — Response charts and demo review verified; TASK-074 HUD freshness is done. Full-rate actuator/sensor recording remains open.
+- **Status:** DONE — Cursor; baseline 55a7c01; 2026-10-20. The physics worker is the only recording producer. Each tick stores truth and the pilot input used for that tick. A sensor or actuator payload is stored only when that tick already owns the frame. The 32 MiB archive caps the full-rate window below 30 minutes. Charts still decimate to at most 10000 points.
 - **Title & Description:** Align pilot input, actuator commands, and model responses on one time axis.
 - **Dependencies:** TASK-074, TASK-077.
 - **Touched Files:** `apps/web/src/aar/Review.tsx`, `apps/web/src/aar/series.ts`, `tests/aar-series.test.ts`, `tests/browser/aar.spec.ts`, `apps/web/src/style.css`, `README.md`, `docs/ru/README.md`, `CLAUDE.md`, `docs/ru/CLAUDE.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `package-lock.json`, `docs/SPECS_SHARED_MEMORY.md`, `docs/ru/SPECS_SHARED_MEMORY.md`.
 - **Interfaces / Contracts:** Bounded decimated time series; units/timebase; explicit recording gaps.
 - **DoD & Acceptance Criteria:** A known step-response fixture shows correct lag; do not interpolate gaps as real data; display 30 min with <=10000 points per series and bounded memory.
-- **Evidence:** Owner Codex; baseline 660d86e; 2026-10-16. `tests/aar-series.test.ts` (2 PASS) and `tests/browser/aar.spec.ts` verify `0.2`/`0.3`/`0.4` s pilot/actuator/response step alignment, uninterpolated gap segments, and 30 min (`18,000`-sample) peak-preserving decimation to `<=10,000` points. TASK-074 HUD freshness is done; full-rate actuator/sensor recording remains open.
+- **Evidence:** Owner Codex; baseline 660d86e; 2026-10-16. `tests/aar-series.test.ts` (2 PASS) and `tests/browser/aar.spec.ts` verify `0.2`/`0.3`/`0.4` s pilot/actuator/response step alignment, uninterpolated gap segments, and 30 min (`18,000`-sample) peak-preserving decimation to `<=10,000` points. `tests/session-v2.test.ts` records more than 8 full-rate ticks with the decimated flag clear and one consumed barometer frame. The physics session is the only sensor-queue consumer while recording.
 
 ### TASK-079 — Lessons and scenario runner
 
@@ -962,13 +964,13 @@ copy Google content without rights.
 
 ### TASK-080 — Accessibility and permissions UX
 
-- **Status:** BLOCKED_EXTERNAL — Codex; baseline c3a4735; 2026-10-17. Demo keyboard/focus/narrow-layout/permission UX and unsuppressed axe scan verified; TASK-075 is done. TASK-078 and manual screen-reader/hardware checks remain open.
+- **Status:** BLOCKED_EXTERNAL — Codex; baseline c3a4735; 2026-10-17. Demo keyboard/focus/narrow-layout/permission UX and unsuppressed axe scan verified; TASK-075 and TASK-078 are done. Manual screen-reader/hardware checks remain open.
 - **Title & Description:** Support keyboard/focus/resize and clear browser-permission failures.
 - **Dependencies:** TASK-005, TASK-048, TASK-075, TASK-078.
 - **Touched Files:** `apps/web/src/ui/StatusMessage.tsx`, `apps/web/src/style.css`, `tests/browser/accessibility.spec.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `README.md`, `docs/ru/README.md`, `docs/documentation-index.json`, `apps/web/src/App.tsx`, `apps/web/src/SerialConnect.tsx`, `apps/web/src/aar/Review.tsx`, `apps/web/src/ui/focus.ts`, `tests/focus.test.ts`, `package.json`, `package-lock.json`.
 - **Interfaces / Contracts:** Keyboard controls versus instructor shortcuts; aria states; permission status.
 - **DoD & Acceptance Criteria:** Core actions are keyboard accessible; restore focus after dialogs; no 390px overflow; permission denial never loops prompts; run an automated accessibility scan and a manual checklist.
-- **Evidence:** Owner Codex; baseline c3a4735; 2026-10-17. `tests/focus.test.ts` and `tests/browser/accessibility.spec.ts` (2 PASS in Chromium) verify keyboard control navigation, dialog focus restoration, 390 px narrow-viewport layout without horizontal overflow, non-looping Web Serial permission denial, and zero unsuppressed axe violations. Remaining blockers: `TASK-078` completion and manual assistive screen-reader / physical hardware verification.
+- **Evidence:** Owner Codex; baseline c3a4735; 2026-10-17. `tests/focus.test.ts` and `tests/browser/accessibility.spec.ts` (2 PASS in Chromium) verify keyboard control navigation, dialog focus restoration, 390 px narrow-viewport layout without horizontal overflow, non-looping Web Serial permission denial, and zero unsuppressed axe violations. Remaining blockers: manual assistive screen-reader / physical hardware verification.
 
 ### TASK-081 — Session export
 
@@ -982,13 +984,13 @@ copy Google content without rights.
 
 ### TASK-082 — System acceptance matrix
 
-- **Status:** BLOCKED_EXTERNAL — Codex; baseline c3a4735; 2026-10-17. Hash-bound per-mode system matrix implemented; open dependencies (TASK-033, 047, 051, 073, 078, 080) and unrun hardware/mode gates keep system acceptance blocked. TASK-074, TASK-075, and TASK-079 are done and do not close this gate.
+- **Status:** BLOCKED_EXTERNAL — Codex; baseline c3a4735; 2026-10-17. Hash-bound per-mode system matrix implemented; open dependencies (TASK-033, 047, 051, 073, 080) and unrun hardware/mode gates keep system acceptance blocked. TASK-074, TASK-075, TASK-078, and TASK-079 are done and do not close this gate.
 - **Title & Description:** Exercise supported modes against all UI/physics/telemetry gates.
 - **Dependencies:** TASK-033, TASK-042, TASK-043, TASK-047, TASK-051, TASK-059, TASK-073, TASK-074, TASK-075, TASK-078, TASK-079, TASK-080, TASK-081.
 - **Touched Files:** `tests/integration/system-acceptance.test.ts`, `docs/validation/system-matrix.json`, `scripts/validate-release.mjs`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `README.md`, `docs/ru/README.md`, `docs/documentation-index.json`, `scripts/validation/evidence.mjs`, `tests/evidence-tools.test.ts`, `tests/support/node-evidence.ts`.
 - **Interfaces / Contracts:** G0..G4; device/mode/model/firmware/provider coverage.
 - **DoD & Acceptance Criteria:** Every requirement has PASS/FAIL/BLOCKED/NOT_RUN evidence; unit tests do not establish 60/120 FPS or real 400/800/1200 Hz; missing WASM/HITL/Google coverage explicitly blocks the affected mode.
-- **Evidence:** Owner Codex; baseline c3a4735; 2026-10-17. `scripts/validate-release.mjs`, `docs/validation/system-matrix.json`, and `tests/integration/system-acceptance.test.ts` verify per-mode `G0`–`G4` status aggregation (`test-results/laptop/system-report.json` exits 1, preserving observed `G2` model-validation `FAIL` and `G3` GPU frame-time `FAIL` separately from `NOT_RUN` hardware/mode gates). Dependencies `TASK-042`, `TASK-043`, `TASK-059`, `TASK-074`, `TASK-075`, and `TASK-081` are `DONE`; `TASK-033`, `TASK-047`, `TASK-051`, `TASK-073`, and `TASK-078`/`080` remain open.
+- **Evidence:** Owner Codex; baseline c3a4735; 2026-10-17. `scripts/validate-release.mjs`, `docs/validation/system-matrix.json`, and `tests/integration/system-acceptance.test.ts` verify per-mode `G0`–`G4` status aggregation (`test-results/laptop/system-report.json` exits 1, preserving observed `G2` model-validation `FAIL` and `G3` GPU frame-time `FAIL` separately from `NOT_RUN` hardware/mode gates). Dependencies `TASK-042`, `TASK-043`, `TASK-059`, `TASK-074`, `TASK-075`, and `TASK-081` are `DONE`; `TASK-033`, `TASK-047`, `TASK-051`, `TASK-073`, and `TASK-080` remains open.
 
 ### TASK-083 — Release provenance and runbook
 

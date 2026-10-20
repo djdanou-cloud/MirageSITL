@@ -186,8 +186,8 @@ policy copies; if a client loads neither pointer, open this file explicitly.
   TASK-047 (browser SITL flight
   parity), TASK-051 (physical Pixhawk/Cube HITL via `scripts/check-hitl-capture.mjs`),
   TASK-073 (Apple Silicon M4 / RTX 4050 GPU frame-time verification via
-  `scripts/check-gpu-perf.mjs`), TASK-078/TASK-080
-  (full-rate recording and accessibility sign-off; TASK-074 HUD freshness, TASK-075 fault ACKs, and TASK-079 scenario ACK binding are done and do not admit browser READY), TASK-082 (multi-hour integrated soak), and TASK-083 (clean-machine
+  `scripts/check-gpu-perf.mjs`), TASK-080
+  (accessibility sign-off; TASK-074 HUD freshness, TASK-075 fault ACKs, TASK-078 full-rate recording, and TASK-079 scenario ACK binding are done and do not admit browser READY), TASK-082 (multi-hour integrated soak), and TASK-083 (clean-machine
   release and assistive screen-reader sign-off) remain open.
 
 ### Workspace and git discipline

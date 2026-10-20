@@ -46,10 +46,11 @@ export function Export({ runtime }: { runtime: SimulationRuntime | null }) {
     >
       <h2>Session recording</h2>
       <p>
-        Records demo truth and pilot controls at about 10 samples per simulated
-        second for up to 30 minutes. Sensor and motor feedback are unavailable
-        in demo; sampling gaps are marked. Archives include model identity and
-        seed and exclude keys and serial identifiers.
+        Records every physics tick of truth and the pilot input used for that
+        tick. An actuator or sensor frame is stored only when that tick already
+        owns one. The archive stays inside 32 MiB, so the full-rate window is
+        shorter than 30 minutes. Gaps from a full handoff are counted. Archives
+        include model identity and seed and exclude keys and serial identifiers.
       </p>
       <button
         disabled={!runtime?.ready || busy}
@@ -65,7 +66,7 @@ export function Export({ runtime }: { runtime: SimulationRuntime | null }) {
               .then(
                 () => {
                   setRecording(true);
-                  setStatus("Recording demo-decimated snapshots");
+                  setStatus("Recording full-rate producer snapshots");
                 },
                 (e: unknown) => setStatus(String(e)),
               )

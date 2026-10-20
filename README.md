@@ -19,7 +19,7 @@ The running application uses binary ABI **v2** (TASK-085): session epochs, EKF/E
 status fields, sensor/actuator queues, and Control Protocol v2. The demo physics
 publication leaves EKF/EW unset. TASK-074 overlays identity-bound serial
 `EkfMonitor` diagnostics on the Pilot HUD only; that overlay does not admit a
-browser autopilot flight backend (TASK-046, TASK-047, TASK-078). Instructor
+browser autopilot flight backend (TASK-046, TASK-047). Instructor
 fault commands apply through the session EW registry (TASK-075).
 ABI v1 remains in `packages/protocol` with its tests as a regression API.
 
@@ -263,17 +263,19 @@ The demo includes a NED attitude HUD with explicit unknown/stale autopilot
 status, an ACK-driven instructor console, and a bounded session recorder. Use
 **Start recording**, fly the demo, then **Review recording** or **Export session**.
 **Import AAR** opens a validated snapshot timeline without replacing the active
-flight. Recording is decimated Main-thread truth/pilot sampling at nominal 10 Hz;
-FC sensor/actuator streams remain unavailable in the demo. The 30-minute ring
-uses 9,216,000 record bytes, with separately counted losses and eviction. Archive
-size is limited to 32 MiB and arbitrary metadata/keys/serial identifiers are
+flight. Recording is written by the physics worker at the physics rate. Truth
+and the pilot input used for that tick are stored every tick. A sensor or
+actuator frame is stored only when that tick already owns it. The 32 MiB archive
+caps the full-rate window below 30 minutes. Charts still decimate to at most
+10000 points. Arbitrary metadata, keys, and serial identifiers are
 excluded. Measure producer allocations with `node scripts/bench-aar.mjs 400`
 (repeat at `800`/`1200`).
 
 Instructor shortcuts are P pause, R reset, and F selected fault; typing focus
 suppresses shortcuts. Weather and model requests show the demo rejection.
-Fault commands apply after the Worker ACK (TASK-075). Full-rate recording
-remains TASK-078. The
+Fault commands apply after the Worker ACK (TASK-075). Recording stores every
+physics tick, with actuator or sensor bytes only when that tick owns the frame
+(TASK-078). The
 thermal package supplies a synthetic surface-energy solver, WebGL2 LWIR material,
 and deterministic offset calibration, tested independently from the active scene;
 it does not claim measured CADEX fidelity.

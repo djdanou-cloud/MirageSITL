@@ -1933,7 +1933,7 @@ Nested payloads retain ABI-v2 units and frames. Missing payloads are zero and th
 
 The recorder Worker drains at most 256 records per 10 ms poll into a preallocated chronological ring and 64-record (32768-byte) chunks. IndexedDB uses a fixed key ring with ceil(ringBytes/32768) keys and one transaction in flight; chunks written while it is busy wait in a bounded pending list (8 by default) and are written in order. Overflow of that list, oversized chunks and failed transactions are counted in exact bytes/records; ring eviction, invalid records and producer loss are separate. Quota/storage failure leaves an explicitly reported memory-only ring. Session databases are uniquely owned and deleted on orderly close; the host requests shutdown and terminates after a bounded fallback. Browser crashes may leave orphaned session databases; no recovery catalogue or reload-resume claim is made. Snapshot requests copy bounded data outside the physics loop and have a timeout.
 
-The application records decimated Main-thread demo truth/pilot samples at nominal 10 Hz simulation time. It does not claim to record every physics tick or synchronized FC sensors/actuators. Missing streams remain absent; skipped recording intervals and queue losses are explicit. Pilot sampling occurs on Main and is not certified as the exact input at the selected truth tick. A physics-rate change stops sampling to preserve manifest provenance. The demo model hash is SHA-256 of its dynamics source; firmware hash is null. Full high-rate producer wiring and flight firmware provenance await the production backend.
+The application records every physics tick from the physics worker into the recording handoff. The record contains truth and the pilot input used for that tick. Sensor and actuator payloads are copied only from frames that tick already owns; the session is the only consumer of the sensor queue while recording, and it never attaches a second consumer to a flight queue. A full handoff drops the new record and counts the loss. The manifest source is `producer` and `recordHz` equals the physics rate. Duration is capped so `recordHz * durationS * 512` stays within the 32 MiB archive budget minus 8192 bytes, which is below 30 minutes at 400/800/1200 Hz. Charts still decimate a series to at most 10000 points. The demo model hash is SHA-256 of its dynamics source; firmware hash is null.
 
 ### Replay, response charts and archives (TASK-077/078/081)
 
@@ -2640,3 +2640,15 @@ separately selected backend until that mode is admitted.
 The browser HAL owns AGL as well as the clock: upstream `set_height_agl()` is
 skipped on this path, preserving the supplied height and range values. The
 internal aircraft path retains its original terrain-derived AGL behavior.
+
+Firmware disposal drains checkpoints, closes the EEPROM store and completes
+profile-lock release while all pthread peers still exist. Thread termination is
+the final synchronous phase: detach callbacks, terminate peers, clear ownership,
+then acknowledge stop and close the owning Worker in that same event-loop turn.
+There is no await after the first peer is terminated. The disposed-session flag
+rejects late pthread construction. The profile lock protects persistence commits;
+no serial/stepping/checkpoint call is admitted once the session is disposed.
+The delayed-release browser fixture uses actual firmware and Web Locks, checking
+that each of four pthread terminations follows release completion and that all
+Workers disappear after each of three restarts. It does not replace firmware
+with a synthetic peer or relax the cleanup deadline.

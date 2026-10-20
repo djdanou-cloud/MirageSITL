@@ -1,10 +1,13 @@
 import { describe, expect, it, vi } from 'vitest';
+import { AarRecord } from '@mirage/aar/record';
+import { RecordFlag } from '@mirage/aar/format';
+import { RecordingHandoff, createRecordingQueue } from '@mirage/aar/handoff';
 import { EwEngine } from '@mirage/ew/engine';
 import { MotorFaults } from '@mirage/physics/motor-fault';
 import { PhysicsSessionV2, isaPressurePa, type SessionFaultPort } from '@mirage/physics';
-import { ActuatorFrameCodecV2, HeaderV2, PilotFlagV2, PilotReaderV2, PilotWriterV2, RuntimeFlagV2, SpscProducer, StateReaderV2,
+import { ActuatorFrameCodecV2, HeaderV2, PilotFlagV2, PilotReaderV2, PilotWriterV2, RuntimeFlagV2, SensorFrameCodecV2, SensorKindV2, SensorValidityV2, SpscProducer, StateReaderV2,
   EwFlagV2, VehicleFlagV2, createSharedMemoryV2, createSpscQueue, newActuatorFrameV2, newFlightStateV2, newHeaderSnapshotV2,
-  newPilotInputV2, tickToNumber, type CommandResultV2 } from '@mirage/protocol';
+  newPilotInputV2, newSensorFrameV2, tickToNumber, type CommandResultV2 } from '@mirage/protocol';
 
 /** A Main-side harness around a real PhysicsSessionV2 with a controllable clock. */
 function faultPort(): SessionFaultPort {
@@ -51,7 +54,7 @@ function harness(faults: SessionFaultPort | null = null) {
     return last;
   };
   const latest = () => { expect(reader.latest(state)).toBe(true); return state; };
-  return { time, session, reader, header, state, previous, results, command, stick, run, latest, actuatorBuffer, stateBuffer };
+  return { time, session, reader, header, state, previous, results, command, stick, run, latest, actuatorBuffer, sensorBuffer, stateBuffer };
 }
 const armed = (flags: number) => (flags & VehicleFlagV2.Armed) !== 0;
 
@@ -190,6 +193,44 @@ describe('PhysicsSessionV2 epochs, rates, and clock modes', () => {
     expect(tickToNumber(s.tickId)).toBe(10);
     expect(s.vehicleFlags & VehicleFlagV2.ActuatorValid).toBeTruthy();
     expect(tickToNumber(s.lastActuatorTick)).toBe(10);
+  });
+  it('records every physics tick and a consumed sensor or actuator without a second queue consumer', () => {
+    const h = harness();
+    const handoff = new RecordingHandoff(createRecordingQueue());
+    const encoded = new AarRecord();
+    const pilot = new Float64Array(4);
+    h.session.setRecorder((sample) => {
+      for (let i = 0; i < 4; i++) pilot[i] = sample.pilot[i]!;
+      if (encoded.encode(sample.state, pilot, sample.sensor, sample.actuator, 0, 0, false)) handoff.push(encoded.words);
+    });
+    const sensor = new SensorFrameCodecV2();
+    const frame = newSensorFrameV2();
+    frame.kind = SensorKindV2.Barometer;
+    frame.epoch = 1;
+    frame.valueCount = 3;
+    frame.validityFlags = SensorValidityV2.PayloadValid | SensorValidityV2.TimestampValid;
+    frame.values[0] = 101325;
+    frame.values[1] = 0;
+    frame.values[2] = 288.15;
+    frame.sourceId = 1;
+    expect(sensor.encode(frame)).toBe(true);
+    expect(new SpscProducer(h.sensorBuffer, 'sensor', 'sitl-would-block').tryPush(sensor.words)).toBe('ok');
+    h.command('sim.start');
+    h.run(40);
+    const out = new AarRecord();
+    let count = 0, sensorSeen = false, decimated = false;
+    while (handoff.pop(out.words)) {
+      expect(out.decode()).toBe(true);
+      const flags = out.view.getUint32(48, true);
+      expect(flags & RecordFlag.Truth).toBeTruthy();
+      expect(flags & RecordFlag.Pilot).toBeTruthy();
+      if (flags & RecordFlag.Sensor) sensorSeen = true;
+      if (flags & RecordFlag.Decimated) decimated = true;
+      count++;
+    }
+    expect(count).toBeGreaterThan(8);
+    expect(sensorSeen).toBe(true);
+    expect(decimated).toBe(false);
   });
   it('hitl-realtime faults on a missed deadline and stays faulted until a new epoch', () => {
     const h = harness();
