@@ -197,8 +197,20 @@ export class SimulationRuntime {
 
   constructor(report: (stats: ViewStats) => void) {
     this.report = report;
-    this.worker.onmessage = ({ data }: MessageEvent<unknown>) =>
+    this.worker.onmessage = ({ data }: MessageEvent<unknown>) => {
+      const command = scenarioSubmit(data);
+      if (command) {
+        this.requestId = Math.max(this.requestId, command.requestId);
+        this.commands.track(command);
+        return;
+      }
+      const rejection = scenarioRejection(data);
+      if (rejection) {
+        this.notice = rejection;
+        return;
+      }
       this.onWorkerEvent(data);
+    };
     this.worker.onerror = (event) =>
       this.fail(event.message || "Physics worker failed");
     const init: WorkerInitV2 = {
@@ -286,6 +298,11 @@ export class SimulationRuntime {
     return parsed.command;
   }
 
+  /** Loads a scenario into the physics Worker. Faults apply only after its ACK. */
+  armScenario(scenario: unknown): void {
+    if (!this.ready) return;
+    this.worker.postMessage({ type: "scenario.arm", scenario });
+  }
   command(command: LifecycleCommand): void {
     if (!this.ready || this.pending) return;
     this.disarm();
@@ -482,6 +499,16 @@ export class SimulationRuntime {
     this.recording?.close();
     this.worker.terminate();
   }
+}
+
+function scenarioSubmit(data: unknown): ControlCommandV2 | null {
+  if (typeof data !== "object" || data === null || !("type" in data) || data.type !== "scenario.submit" || !("command" in data)) return null;
+  const parsed = parseControlCommandV2(data.command);
+  return parsed.ok ? parsed.command : null;
+}
+function scenarioRejection(data: unknown): string | null {
+  if (typeof data !== "object" || data === null || !("type" in data) || data.type !== "scenario.reject" || !("message" in data) || typeof data.message !== "string") return null;
+  return data.message;
 }
 
 interface SerialFrameMessage {

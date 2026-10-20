@@ -368,7 +368,7 @@ and other documents (review of 2026-10-20). They keep their existing TASK IDs.
 | 074 | Pilot HUD and freshness | DONE | Serial `EkfMonitor` overlay on the Pilot HUD. Browser READY flight admission remains TASK-046/047. |
 | 075 | Instructor console | DONE | Fault commands apply through the session EW registry. Weather and model commands stay rejected on the demo. |
 | 078 | AAR response charts | TODO | Full-rate actuator/sensor recording. TASK-074 HUD freshness is done. |
-| 079 | Lessons and scenario runner | TODO | Healthy-autopilot orchestration and command acknowledgement binding; depends on TASK-075. |
+| 079 | Lessons and scenario runner | DONE | Scenario faults bind to the live epoch and count as applied only after the Worker ACK. Weather events stay rejected on the demo. |
 | 080 | Accessibility and permissions UX | BLOCKED_EXTERNAL | Live-autopilot prerequisites, a screen-reader session and hardware permission/disconnect checks. |
 | 082 | System acceptance matrix | BLOCKED_EXTERNAL | Real G0–G4 evidence for each mode. |
 | 083 | Release provenance and runbook | BLOCKED_EXTERNAL | Clean-machine install, toolchain and license review, and review of raw evidence. |

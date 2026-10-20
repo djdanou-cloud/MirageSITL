@@ -1,5 +1,5 @@
 {
   "name": "@mirage/scenarios", "version": "0.1.0", "private": true, "type": "module",
-  "exports": { "./schema": "./src/schema.ts", "./runner": "./src/runner.ts", "./evaluate": "./src/evaluate.ts" },
+  "exports": { "./schema": "./src/schema.ts", "./runner": "./src/runner.ts", "./evaluate": "./src/evaluate.ts", "./bind": "./src/bind.ts" },
   "dependencies": { "@mirage/protocol": "0.1.0" }
 }

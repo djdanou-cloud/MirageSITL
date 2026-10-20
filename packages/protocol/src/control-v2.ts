@@ -288,6 +288,8 @@ export class ControlProcessorV2 {
   get epoch(): number { return this.epochValue; }
   get hz(): PhysicsHz { return this.hzValue; }
   get pendingCommands(): number { return this.queued; }
+  /** Next id the processor will accept. The caller must submit it before asking again. */
+  allocateRequestId(): number { return (this.highWater + 1) >>> 0; }
   /** Resolves when no model load is in flight. */
   settled(): Promise<void> { return this.pendingLoad; }
 

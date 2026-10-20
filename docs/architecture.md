@@ -53,8 +53,8 @@ verified outside the demo flight loop:
 
 Genuinely open boundaries: measured rotor/airframe/contact fidelity (TASK-033;
 NASA drop fidelity explicitly deferred by the user), browser ArduCopter WASM
-lockstep/parity and GPL redistribution decision (TASK-045–047), browser
-autopilot READY and scenario session wiring (TASK-078–080), live terrain-contact flight-session coupling (TASK-065),
+flight parity and GPL redistribution decision (TASK-047), browser
+autopilot READY, full-rate recording, and accessibility sign-off (TASK-078, TASK-080), live terrain-contact flight-session coupling (TASK-065),
 physical flight-controller HITL (TASK-051), and target-device M4/RTX 4050
 400–1200 Hz and 60–120 FPS performance verification (TASK-073). Fixed `dt`
 does not guarantee execution every step interval: browser timers, GC, the OS,
@@ -1167,7 +1167,13 @@ adds a local-only browser artifact/bootstrap boundary: the opt-in Vite route
 serves admitted external bytes to a dedicated firmware Worker, and verified glue
 starts its owned pthreads. CRC-valid serial boot diagnostics and IndexedDB
 EEPROM/profile ownership are separate from `FlightStateV2` and autopilot READY.
-Graceful and abrupt Worker restart/storage recovery are verified; live
-MirageSITL physics lockstep and native SITL parity remain open in TASK-046 and
-TASK-047. Artifact redistribution retains its GPL decision gate
+Graceful and abrupt Worker restart/storage recovery are verified.
+TASK-046 adds a separate checked HAL mailbox and host-owned clock at
+400/800/1200 Hz, with actual firmware PWM driving configurable BET physics and
+ideal SI sensor observations. Atomic words transfer float64 payloads; pausing
+withholds input and stops simulated time. Native and pthread-WASM probes check
+units, timing, malformed frames and hot allocations separately from real
+firmware browser tests. Local HAL builds use `scripts/build-ardupilot-hal.mjs`;
+`MIRAGE_HAL_ARTIFACT_DIR` selects their browser test bytes. Native SITL flight
+parity and production backend admission remain TASK-047. Artifact redistribution retains its GPL decision gate
 (`BLOCKED_DECISION`).

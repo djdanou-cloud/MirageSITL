@@ -131,7 +131,12 @@ policy copies; if a client loads neither pointer, open this file explicitly.
   browser Worker/pthread boot, and IndexedDB `/ardupilot/eeprom.bin` persistence.
   GPLv3 firmware redistribution remains `BLOCKED_DECISION`; the artifact stays
   external and is served only via explicit loopback development settings. The active
-  browser flight backend remains the demo until TASK-046 and TASK-047 complete.
+  browser flight backend remains the demo pending TASK-047. TASK-046 implements
+  the checked sensor/PWM mailbox, host-owned 400/800/1200 Hz clock and configurable
+  BET coupling, with separate native/kernel allocation and real-firmware browser
+  checks (`scripts/build-ardupilot-hal.mjs`, `scripts/check-ardupilot-hal.mjs`,
+  `tests/browser/wasm-hal.spec.ts`). Whole-firmware allocator admission and READY
+  do not follow from the HAL boundary.
 * **Links, bridge, Web Serial, EW, thermal, instructor UI, AAR, terrain, and scenarios:**
   TASK-037–TASK-040, TASK-048, TASK-052, TASK-053, TASK-056, TASK-057, and TASK-060
   provide the pinned MAVLink2 subset, versioned radio calibration/mode mapping,
@@ -178,11 +183,11 @@ policy copies; if a client loads neither pointer, open this file explicitly.
   **Never describe the failing NASA/UIUC comparisons as merely missing data or
   relax thresholds to hide them.**
 * **Browser WASM SITL, hardware HITL, UX chain, GPU timing, and release gates:**
-  TASK-046 (ArduPilot WASM SAB transport/clock), TASK-047 (browser SITL flight
+  TASK-047 (browser SITL flight
   parity), TASK-051 (physical Pixhawk/Cube HITL via `scripts/check-hitl-capture.mjs`),
   TASK-073 (Apple Silicon M4 / RTX 4050 GPU frame-time verification via
-  `scripts/check-gpu-perf.mjs`), TASK-078/TASK-079/TASK-080
-  (full-rate recording, scenario ACK binding, and accessibility sign-off; TASK-074 HUD freshness and TASK-075 fault ACKs are done and do not admit browser READY), TASK-082 (multi-hour integrated soak), and TASK-083 (clean-machine
+  `scripts/check-gpu-perf.mjs`), TASK-078/TASK-080
+  (full-rate recording and accessibility sign-off; TASK-074 HUD freshness, TASK-075 fault ACKs, and TASK-079 scenario ACK binding are done and do not admit browser READY), TASK-082 (multi-hour integrated soak), and TASK-083 (clean-machine
   release and assistive screen-reader sign-off) remain open.
 
 ### Workspace and git discipline

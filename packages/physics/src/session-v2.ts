@@ -87,6 +87,7 @@ export class PhysicsSessionV2 {
   private readonly state = newFlightStateV2();
   private readonly bodyScratch = new Float64Array(3);
   private readonly faults: SessionFaultPort | null;
+  private beforeTickHook: ((tick: TickId) => void) | null = null;
   private readonly faultContext: SessionFaultContext = { dtS: 0, simTimeS: 0, northM: 0, eastM: 0, downM: 0 };
   // Time registers: hot-path doubles live in fields, never in call arguments or returns (V8 boxes those).
   private monoMs = 0.5;
@@ -132,6 +133,9 @@ export class PhysicsSessionV2 {
   get hz(): PhysicsHz { return this.policy.hz; }
   get mode(): ClockModeV2 { return this.policy.mode; }
   get fault(): string { return this.faultMessage; }
+  /** Runs at the start of a tick, before due commands apply. Must not allocate on an idle tick. */
+  setBeforeTick(hook: ((tick: TickId) => void) | null): void { this.beforeTickHook = hook; }
+  allocateRequestId(): number { return this.processor.allocateRequestId(); }
 
   readyEvent(): CommandResultV2 {
     return { type: 'ready-v2', protocolVersion: 2, abiVersion: 2, epoch: this.epoch, hz: this.policy.hz };
@@ -282,6 +286,7 @@ export class PhysicsSessionV2 {
   /** Hot path: one fixed-dt integration and its state publication. */
   private integrate(tick: TickId): void {
     this.evaluatePilot();
+    this.beforeTickHook?.(tick);
     this.processor.beforeTick(tick);
     if (this.actuatorPending) this.dynamics.useActuators?.(this.actuator);
     this.dynamics.nowMs = this.wallMsNow;

@@ -1,8 +1,10 @@
 /// <reference lib="webworker" />
 import { EwEngine, type EwContext } from '@mirage/ew/engine';
-import { isWorkerInitV2, type CommandResultV2, type WorkerFaultV2 } from '@mirage/protocol';
+import { isWorkerInitV2, tickToNumber, type CommandResultV2, type ControlCommandV2, type WorkerFaultV2 } from '@mirage/protocol';
 import { PhysicsSessionV2, type SessionClock, type SessionFaultPort } from '@mirage/physics';
 import { MotorFaults } from '@mirage/physics/motor-fault';
+import { ScenarioBinder } from '@mirage/scenarios/bind';
+import { parseScenario } from '@mirage/scenarios/schema';
 
 // Thin message adapter around PhysicsSessionV2 (ABI v2, Control Protocol v2).
 // Messages are validated at runtime: init-v2 by shape and buffer layouts,
@@ -14,6 +16,11 @@ const clock: SessionClock = {
 };
 let session: PhysicsSessionV2 | undefined;
 let timer: ReturnType<typeof setTimeout> | undefined;
+let binder: ScenarioBinder | null = null;
+let haltPosted = false;
+type WorkerNotice = CommandResultV2 | WorkerFaultV2
+  | { type: "scenario.submit"; command: ControlCommandV2 }
+  | { type: "scenario.reject"; message: string };
 
 function createFaultPort(): SessionFaultPort {
   const motors = new MotorFaults([0, 1, 2, 3]);
@@ -34,8 +41,29 @@ function createFaultPort(): SessionFaultPort {
     get validityFlags() { return motors.vehicleFlags; },
   };
 }
-function post(event: CommandResultV2 | WorkerFaultV2): void { postMessage(event); }
-function flush(): void { session?.drain(post); }
+function createdRequestId(): number {
+  return session?.allocateRequestId() ?? 1;
+}
+function post(event: WorkerNotice): void { postMessage(event); }
+function flush(): void {
+  session?.drain((event) => {
+    binder?.observe(event);
+    post(event);
+  });
+}
+function armScenario(value: unknown): void {
+  try {
+    const scenario = parseScenario(value);
+    haltPosted = false;
+    binder = new ScenarioBinder(scenario, () => createdRequestId());
+  } catch (error) {
+    binder = null;
+    post({ type: "scenario.reject", message: error instanceof Error ? error.message : "Invalid scenario" });
+  }
+}
+function isScenarioArm(data: unknown): data is { type: "scenario.arm"; scenario: unknown } {
+  return typeof data === "object" && data !== null && "type" in data && data.type === "scenario.arm" && "scenario" in data;
+}
 
 /** Steps the session, then sends results after the compute batch, never inside a step. */
 function pump(): void {
@@ -57,6 +85,21 @@ addEventListener('message', (event: MessageEvent<unknown>) => {
     if (!isWorkerInitV2(data)) { post({ type: 'fault-v2', protocolVersion: 2, message: 'Expected init-v2' }); return; }
     try {
       session = new PhysicsSessionV2(data, clock, undefined, createFaultPort());
+      const created = session;
+      created.setBeforeTick((tick) => {
+        if (!binder) return;
+        for (;;) {
+          const command = binder.poll(tickToNumber(tick), false, created.currentEpoch);
+          if (binder.halted && !haltPosted) {
+            haltPosted = true;
+            post({ type: "scenario.reject", message: "Scenario missed a simulation tick" });
+            return;
+          }
+          if (!command) return;
+          post({ type: "scenario.submit", command });
+          created.handle(command);
+        }
+      });
       post(session.readyEvent());
     } catch (error) {
       post({ type: 'fault-v2', protocolVersion: 2, message: error instanceof Error ? error.message : 'Initialization failed' });
@@ -64,6 +107,10 @@ addEventListener('message', (event: MessageEvent<unknown>) => {
     return;
   }
   const current = session;
+  if (isScenarioArm(data)) {
+    armScenario(data.scenario);
+    return;
+  }
   current.handle(data);
   flush();
   // A model load completes asynchronously; deliver its final result when it settles.

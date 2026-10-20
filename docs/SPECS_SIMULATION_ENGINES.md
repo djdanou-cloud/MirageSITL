@@ -2134,9 +2134,9 @@ Collision construction belongs to a separate Worker. Stage owns a copy, validate
 
 ### Declarative scenario v1
 
-Scenario admission snapshots and freezes configuration: id, physics hz 400/800/1200, uint32 seed, model/firmware SHA-256, duration 1..4320000 ticks, <=128 ordered events and an altitude-hold rubric. Only validated weather.set/fault.set protocol-v2 templates are admitted, with expectedEpoch=0, consecutive requestIds from 1 and atTick exactly matching event tick. The owner must bind the active epoch, submit commands through the existing queue and check ACKs before claiming faults applied. The runner returns immutable event indices, never allocates in polling, and uses simulation ticks; pauses consume no simulated time. Backwards/missed ticks return -2 instead of late execution. Reset explicitly rewinds the cursor. Provenance/seed/hz mismatches reject startup.
+Scenario admission snapshots and freezes configuration: id, physics hz 400/800/1200, uint32 seed, model/firmware SHA-256, duration 1..4320000 ticks, <=128 ordered events and an altitude-hold rubric. Only validated weather.set/fault.set protocol-v2 templates are admitted, with expectedEpoch=0, consecutive requestIds from 1 and atTick exactly matching event tick. `ScenarioBinder` binds the active epoch, allocates the next accepted request id, submits through the session queue on that simulation tick, and claims a fault applied only after an applied ACK. The runner returns immutable event indices, never allocates in polling, and uses simulation ticks; pauses consume no simulated time. Backwards/missed ticks return -2 instead of late execution. Reset explicitly rewinds the cursor. Provenance/seed/hz mismatches reject startup.
 
-The rubric requires every integer hold tick exactly once, finite altitude, actual autopilot source and healthy EKF when configured. Gaps, excess altitude error and unhealthy EKF fail; incomplete/synthetic traces block. Pilot-basics contains all-zero placeholder hashes for structural testing only; it is not a certified aircraft/firmware lesson. Native SITL EW closed-loop validation (TASK-042/043/059) is complete. TASK-075 admits instructor `fault.set` commands into the live session `EwEngine`; production browser scenario orchestration (TASK-079) remains open.
+The rubric requires every integer hold tick exactly once, finite altitude, actual autopilot source and healthy EKF when configured. Gaps, excess altitude error and unhealthy EKF fail; incomplete/synthetic traces block. Pilot-basics contains all-zero placeholder hashes for structural testing only; it is not a certified aircraft/firmware lesson. Native SITL EW closed-loop validation (TASK-042/043/059) is complete. TASK-075 admits instructor `fault.set` commands into the live session `EwEngine`. TASK-079 submits scenario faults on their tick and waits for the applied ACK. Weather events stay rejected on the demo. Placeholder lesson hashes are not a certified lesson.
 
 ### Accessible interaction
 
@@ -2592,7 +2592,9 @@ States: 0 initial, 1 actuator request published, 2 complete sensor input
 published, 3 stop requested, 4 stopped, 5 invalid input fault. Firmware owns
 actuator/diagnostic payloads and publishes state 1 after atomic writes. The
 host reads a coherent request, publishes the next complete sensor payload,
-then stores state 2 and notifies the condition variable. Firmware validates
+then stores state 2 and wakes the WASM state futex (native probes use a
+condition variable). The expected-state wait prevents lost wakeups without
+contending on a host pthread mutex. Firmware validates
 identity, configured epoch/rate, sequence, timestamp, reserved words, counts
 and sensor values before changing its output/clock. Fault code 1 latches an
 invalid input. Missing input is a pause: the native thread sleeps without
@@ -2634,3 +2636,7 @@ artifact hashes accompany acceptance. These checks do not enable browser
 READY, admit measured aerodynamics, settle firmware distribution, or replace
 TASK-047 native/WASM flight parity. The main application remains on its
 separately selected backend until that mode is admitted.
+
+The browser HAL owns AGL as well as the clock: upstream `set_height_agl()` is
+skipped on this path, preserving the supplied height and range values. The
+internal aircraft path retains its original terrain-derived AGL behavior.
