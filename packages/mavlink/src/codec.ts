@@ -31,8 +31,22 @@ const GPS = Object.freeze({
 });
 const HEARTBEAT = Object.freeze({id:0,name:"HEARTBEAT",crcExtra:50,length:9});
 const EKF = Object.freeze({id:193,name:"EKF_STATUS_REPORT",crcExtra:71,length:26});
+// Independent pymavlink 2.4.50 wire oracle: warmup-sensors.json.
+const GPS_RAW = Object.freeze({id:24,name:"GPS_RAW_INT",crcExtra:24,length:52});
+const RAW_IMU = Object.freeze({id:27,name:"RAW_IMU",crcExtra:144,length:29});
+const HIGHRES_IMU = Object.freeze({id:105,name:"HIGHRES_IMU",crcExtra:93,length:63});
+// Independent pymavlink 2.4.50 oracle: wasm-parameters.json.
+const PARAM_READ=Object.freeze({id:20,name:'PARAM_REQUEST_READ',crcExtra:214,length:20});
+const PARAM_VALUE=Object.freeze({id:22,name:'PARAM_VALUE',crcExtra:220,length:25});
+const PARAM_SET=Object.freeze({id:23,name:'PARAM_SET',crcExtra:168,length:23});
 export function definition(id: number): MessageDefinition | null {
   switch (id) {
+    case 20:return PARAM_READ;
+    case 22:return PARAM_VALUE;
+    case 23:return PARAM_SET;
+    case 24: return GPS_RAW;
+    case 27: return RAW_IMU;
+    case 105: return HIGHRES_IMU;
     case 0: return HEARTBEAT;
     case 193: return EKF;
     case 70:
@@ -131,7 +145,9 @@ export class MavParser {
   duplicates = 0;
   outOfOrder = 0;
   sequenceGaps = 0;
-  constructor(private readonly receive: (frame: MavFrame) => void) {
+  private readonly receive: (frame: MavFrame) => void;
+  constructor(receive: (frame: MavFrame) => void) {
+    this.receive = receive;
     this.sequences.fill(65535);
   }
   reset(): void {

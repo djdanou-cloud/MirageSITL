@@ -1,0 +1,9 @@
+{
+  "status": "PASS",
+  "cases": [
+    "altered scored truth rejected against full-rate physics",
+    "altered source identity rejected",
+    "changed raw bytes reject stale CRC audit"
+  ],
+  "directory": "C:\\Users\\djdan\\OneDrive\\Desktop\\MirageSITL\\.cache\\task-042\\rejection-yx4vV5"
+}

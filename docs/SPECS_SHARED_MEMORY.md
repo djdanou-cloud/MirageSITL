@@ -498,3 +498,13 @@ not yet exist.
 ## Separate AAR transport (TASK-076)
 
 The recording transport is a distinct 131,136-byte SAB with a 64-byte header and 256 slots of 512 bytes. Magic/version/write/read/drop counters occupy bytes 0/4/8/12/16; remaining header words are zero. All shared words are atomic int32; float payloads use private codec scratch. Publish the write counter only after copying the record, and release the read counter only after copying out. Modular counters distinguish full/empty; full drops the new recording sample and increments loss without blocking physics. It never attaches a second consumer to the flight sensor/actuator queues. ABI-v2 flight buffers and their ownership remain unchanged. The complete AAR record/archive layout, provenance, CRC/SHA-256 rules, capacity and replay constraints are specified in [Simulation Engines](SPECS_SIMULATION_ENGINES.md). The active demo producer is decimated Main-thread sampling; full-rate production fanout remains separate integration work.
+
+## TASK-043 native admission boundary
+
+Native LiveEkfWarmup consumes actual firmware diagnostics and explicit sensor
+clock provenance without adding SAB fields or changing ABI v2 offsets/flags.
+Normalized EKF bits retain their existing meanings. The native READY/EW verdict
+is scoped to that external-SITL session/epoch; it is not automatically published
+to the demo Worker. Browser AutopilotStatusValid stays unknown until its own
+verified backend integration supplies fresh diagnostics. Timing and revocation
+details are in the engine specification; physical HITL cannot fast-forward.

@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "task": "TASK-042",
+  "status": "PASS",
+  "command": "wsl -d Ubuntu -- bash .cache/task-042/check-owned.sh",
+  "exitCode": 0,
+  "output": "PASS: TERM-resistant descendants reaped; unrelated child survived; absent executable and fake ELF rejected\n",
+  "cases": [
+    "TERM-resistant descendant reaped",
+    "Unrelated child survived",
+    "Absent executable rejected",
+    "Fake ELF with correct declared hash rejected by actual driver"
+  ]
+}

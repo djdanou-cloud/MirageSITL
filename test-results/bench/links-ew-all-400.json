@@ -42,7 +42,7 @@
   "controlDetected": true,
   "positiveControl": {
     "steps": 2000000,
-    "bytes": -517208,
+    "bytes": -516696,
     "gcEvents": 62
   },
   "received": 22000000,
@@ -52,7 +52,7 @@
     "packages/ew/src/gnss-jamming.ts": "bbc5fd1feabca94ac5882b8dbdfb13b9df2065906ed602108f34f9af6fede800",
     "packages/ew/src/magnetic.ts": "34af1d49a7ad574c18910b48a07f8965285c77a87055fe3f8f2cbefe20aae713",
     "packages/physics/src/motor-fault.ts": "943017b02f0ebdd55c653c7664da196c4b033664418f09ac7c7dbd9bc819f50b",
-    "packages/mavlink/src/codec.ts": "54f2a0cba79fe27737a2cf43faa21256f28efc32ce39be3e29ca606a007d1eb6",
+    "packages/mavlink/src/codec.ts": "9661a9db6f3024d4a12b4d9aea5faf74b1d1027ee895ea3446ec2782e925e1ee",
     "packages/mavlink/src/messages.ts": "c2582780c993ba2a07a35d733d99b8645ac58a35464b6529053bfc00ab9adff7",
     "packages/mavlink/src/samples.ts": "140774039f0d3dbbe492e0d9b018b8fce1d4dd631804e75cd8e64b150e97885d",
     "packages/mavlink/src/sensor-mapping.ts": "5b7f3ee996d36cb9751b3327a3b84a3676266748fe3c838b79353b99350a74d1",

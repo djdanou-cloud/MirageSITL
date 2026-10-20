@@ -1,0 +1,74 @@
+{
+  "schemaVersion": 1,
+  "status": "PASS",
+  "baseline": "af984ed773512671c1a0af2b8ee6c0946271a49a",
+  "command": "MIRAGE_ARDUPILOT_SOURCE=/home/dadu/mirage/ardupilot MIRAGE_EMSDK_DIR=/home/dadu/mirage/emsdk MIRAGE_ARDUPILOT_VENV=/home/dadu/mirage/venv node scripts/build-ardupilot-wasm.mjs --out NEW_EMPTY_ABSOLUTE_DIRECTORY --artifacts .cache/task-045/rebuilt",
+  "exitCode": 0,
+  "cleanBuildDirectory": "/tmp/mirage-task-045-b4JxLm",
+  "buildDurationS": 141.274,
+  "manifest": {
+    "schemaVersion": 1,
+    "firmware": "ArduCopter",
+    "board": "wasm",
+    "sourceCommit": "8ab6afde107a91df1b5f60ade8f333cb8a61b190",
+    "emscriptenVersion": "4.0.15",
+    "module": {
+      "file": "arducopter.wasm",
+      "sha256": "556d97fa6dbf7c0a2cf713f6106a6891de0b9bc9c5a7dd945f1789b63e58df38",
+      "bytes": 3730330
+    },
+    "glue": {
+      "file": "arducopter.js",
+      "sha256": "b158a7b8e9b400c770e2b4fc87c66fc2aaf68bc583c7d71f3a56786d3bcb4212",
+      "bytes": 258215
+    },
+    "requiredExports": [
+      "ardupilot_serial_write",
+      "ardupilot_serial_read",
+      "ardupilot_serial_read_available",
+      "ardupilot_malloc",
+      "ardupilot_free"
+    ],
+    "memory": {
+      "shared": true,
+      "initialPages": 256,
+      "maximumPages": 32768
+    },
+    "license": "GPL-3.0-or-later",
+    "distribution": "local-only-pending-gpl-review"
+  },
+  "reproducedCommittedBytes": true,
+  "compilerAndSourceChecks": [
+    "source HEAD and tracked cleanliness before/after",
+    "HAL and license byte hashes",
+    "all locked submodule commits",
+    "SDK Git commit and manifest SHA-256",
+    "emcc 4.0.15 and compiler commit",
+    "unchanged committed module/glue hashes"
+  ],
+  "artifacts": [
+    {
+      "file": ".cache/task-045/rebuilt/arducopter.wasm",
+      "sha256": "556d97fa6dbf7c0a2cf713f6106a6891de0b9bc9c5a7dd945f1789b63e58df38",
+      "bytes": 3730330
+    },
+    {
+      "file": ".cache/task-045/rebuilt/arducopter.js",
+      "sha256": "b158a7b8e9b400c770e2b4fc87c66fc2aaf68bc583c7d71f3a56786d3bcb4212",
+      "bytes": 258215
+    }
+  ],
+  "logs": [
+    {
+      "file": "test-results/validation/task-045-build-stdout.log",
+      "sha256": "293f54c78807db85b8c6da9e0370acb1b89485e6d23a092f36536e482e596065"
+    },
+    {
+      "file": "test-results/validation/task-045-build-stderr.log",
+      "sha256": "541aefbe3d4374c0adb3bee9e21450edb1a11e88e4f89aa800ef06b5b383cd7c"
+    }
+  ],
+  "note": "Temporary WSL build directory may be cleared by the environment. Verified local artifact copies and complete logs are retained; firmware/glue are not included in published evidence.",
+  "builderSha256": "fc8f831e8e80310d935c61379459e73385649270d17d00bf578e45ad64fc831b",
+  "logNormalization": "UTF-8 LF; trailing line whitespace removed for Git, all build output lines retained."
+}

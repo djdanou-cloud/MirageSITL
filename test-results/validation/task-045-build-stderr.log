@@ -1,0 +1,32 @@
+/home/dadu/mirage/ardupilot/libraries/AP_ADSB/sagetech-sdk/float2Buf.c:23:23: warning: variable length array folded to constant array as an extension [-Wgnu-folding-constant]
+   23 |         unsigned char bytes[FLOAT_SIZE];
+      |                       ^
+1 warning generated.
+
+In file included from /home/dadu/mirage/ardupilot/libraries/AP_BLHeli/AP_BLHeli.cpp:24:
+/home/dadu/mirage/ardupilot/libraries/AP_BLHeli/AP_BLHeli.h:250:13: warning: private field 'chan_offset' is not used [-Wunused-private-field]
+  250 |     uint8_t chan_offset;
+      |             ^
+1 warning generated.
+
+/home/dadu/mirage/ardupilot/ArduCopter/Copter.cpp:971:1: warning: 'main' should not be 'extern "C"' [-Wmain]
+  971 | AP_HAL_MAIN_CALLBACKS(&copter);
+      | ^
+/home/dadu/mirage/ardupilot/libraries/AP_HAL/AP_HAL_Main.h:36:9: note: expanded from macro 'AP_HAL_MAIN_CALLBACKS'
+   36 |     int AP_MAIN(int argc, char* const argv[]); \
+      |         ^
+/home/dadu/mirage/ardupilot/libraries/AP_HAL/AP_HAL_Main.h:22:17: note: expanded from macro 'AP_MAIN'
+   22 | #define AP_MAIN main
+      |                 ^
+/home/dadu/mirage/ardupilot/ArduCopter/Copter.cpp:971:1: warning: 'main' should not be 'extern "C"' [-Wmain]
+/home/dadu/mirage/ardupilot/libraries/AP_HAL/AP_HAL_Main.h:37:9: note: expanded from macro 'AP_HAL_MAIN_CALLBACKS'
+   37 |     int AP_MAIN(int argc, char* const argv[]) { \
+      |         ^
+/home/dadu/mirage/ardupilot/libraries/AP_HAL/AP_HAL_Main.h:22:17: note: expanded from macro 'AP_MAIN'
+   22 | #define AP_MAIN main
+      |                 ^
+2 warnings generated.
+
+em++: warning: -pthread + ALLOW_MEMORY_GROWTH may run non-wasm code slowly, see https://github.com/WebAssembly/design/issues/1271 [-Wpthreads-mem-growth]
+
+ArduPilot WASM built: arducopter.wasm 556d97fa6dbf7c0a2cf713f6106a6891de0b9bc9c5a7dd945f1789b63e58df38 (3730330 B), arducopter.js b158a7b8e9b400c770e2b4fc87c66fc2aaf68bc583c7d71f3a56786d3bcb4212

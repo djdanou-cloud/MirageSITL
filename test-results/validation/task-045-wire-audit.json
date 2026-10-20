@@ -1,0 +1,79 @@
+{
+  "schemaVersion": 1,
+  "status": "PASS",
+  "kind": "real-browser-local-firmware-boot-storage",
+  "sourceCapture": {
+    "file": "test-results/validation/task-045-browser-boot.json",
+    "sha256": "7bd3d67420bf74cebc85742699415eb6fe07780c9a625aba649f5f4e6ed07f71"
+  },
+  "auditorSha256": "ddc264f772a3e39acb1e6ab162fb08456f30b03094cceb276f198595a1b75de4",
+  "pymavlink": "2.4.50",
+  "generatedModuleSha256": "011577d7432f6e5e2cb8fe6c15ab4637175ac09ad663bb1e951a09c5d9a872ff",
+  "browser": "155.0.8059.84",
+  "bootWorkers": 5,
+  "remainingWorkers": 0,
+  "phases": [
+    {
+      "phase": "first",
+      "heartbeats": 4,
+      "parameterValuesMps": [
+        10.0,
+        8.125
+      ],
+      "consoleFragments": 1,
+      "memoryBytes": 16777216,
+      "ownedPthreads": 4,
+      "restoredRevision": 0,
+      "savedRevision": 2,
+      "raw": {
+        "file": "test-results/validation/task-045-first-serial.bin",
+        "sha256": "f44d932fcd6cbb128fe2ec84395b4122afaba41d163a49fcadcacc4b48cec543"
+      },
+      "eeprom": {
+        "file": "test-results/validation/task-045-first-eeprom.bin",
+        "sha256": "4f399ea25d71de5703bd30881df4aa4c3d8200e8a57b8db273f425182f50d8af"
+      }
+    },
+    {
+      "phase": "second",
+      "heartbeats": 6,
+      "parameterValuesMps": [
+        8.125
+      ],
+      "consoleFragments": 3,
+      "memoryBytes": 16777216,
+      "ownedPthreads": 4,
+      "restoredRevision": 2,
+      "savedRevision": 3,
+      "raw": {
+        "file": "test-results/validation/task-045-second-serial.bin",
+        "sha256": "dc2a5b5e6dde047a3c990760b11e4a14a10d85b737203cc93e564f44866efb3e"
+      },
+      "eeprom": {
+        "file": "test-results/validation/task-045-second-eeprom.bin",
+        "sha256": "549e4655cbf6aaa4f56b90c8878452528a772ddc2587fd7e64744b052c8db1fe"
+      }
+    },
+    {
+      "phase": "third",
+      "heartbeats": 4,
+      "parameterValuesMps": [
+        8.125
+      ],
+      "consoleFragments": 1,
+      "memoryBytes": 16777216,
+      "ownedPthreads": 4,
+      "restoredRevision": 3,
+      "savedRevision": 5,
+      "raw": {
+        "file": "test-results/validation/task-045-third-serial.bin",
+        "sha256": "48ca254eac949fe553e8a2339b1cf0eb8f68680fcd460fab351d462a3e053c3a"
+      },
+      "eeprom": {
+        "file": "test-results/validation/task-045-third-eeprom.bin",
+        "sha256": "a353ae8d143127f0cbe68286b3ab258cf7c31142cc3bb498edf99266042aac35"
+      }
+    }
+  ],
+  "scope": "Built-in synthetic quad, disarmed; no MirageSITL physics/HAL/parity/READY acceptance"
+}

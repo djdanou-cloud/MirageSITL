@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<testsuites name="vitest tests" tests="20" failures="0" errors="0" time="0.2378844">
+    <testsuite name="tests/ardupilot-wasm-storage.test.ts" timestamp="2026-10-19T11:50:49.573Z" hostname="DaduAsus" tests="3" failures="0" errors="0" skipped="0" time="0.0064593">
+        <testcase classname="tests/ardupilot-wasm-storage.test.ts" name="binds the complete EEPROM image to firmware/profile/revision and rejects corruption or foreign identity" time="0.0036985">
+        </testcase>
+        <testcase classname="tests/ardupilot-wasm-storage.test.ts" name="rejects unknown versions/fields and oversized or shared serial buffers on the cold Worker channel" time="0.0006491">
+        </testcase>
+        <testcase classname="tests/ardupilot-wasm-storage.test.ts" name="matches independent pymavlink parameter bytes, accepts fragmented input and rejects invalid CRC" time="0.0013016">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/fixtures.test.ts" timestamp="2026-10-19T11:50:49.576Z" hostname="DaduAsus" tests="6" failures="0" errors="0" skipped="0" time="0.218336">
+        <testcase classname="tests/fixtures.test.ts" name="versioned fixture provenance and random streams &gt; matches the frozen uint32 reference and resets exactly" time="0.0142787">
+        </testcase>
+        <testcase classname="tests/fixtures.test.ts" name="versioned fixture provenance and random streams &gt; keeps stream state separate and accepts zero seeds" time="0.0068823">
+        </testcase>
+        <testcase classname="tests/fixtures.test.ts" name="versioned fixture provenance and random streams &gt; verifies every registered fixture against its exact payload bytes" time="0.0139584">
+        </testcase>
+        <testcase classname="tests/fixtures.test.ts" name="versioned fixture provenance and random streams &gt; regenerates the NASA drop fixture byte-for-byte from the hashed archives" time="0.1789802">
+        </testcase>
+        <testcase classname="tests/fixtures.test.ts" name="versioned fixture provenance and random streams &gt; requires complete HTTPS measured provenance without a derivation" time="0.001508">
+        </testcase>
+        <testcase classname="tests/fixtures.test.ts" name="versioned fixture provenance and random streams &gt; rejects wrong units, hashes, bounds, and synthetic relabeling" time="0.0010689">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/mavlink.test.ts" timestamp="2026-10-19T11:50:49.577Z" hostname="DaduAsus" tests="5" failures="0" errors="0" skipped="0" time="0.0062325">
+        <testcase classname="tests/mavlink.test.ts" name="matches every byte of official MAVLink2-generated frames, including extensions and truncation" time="0.0020294">
+        </testcase>
+        <testcase classname="tests/mavlink.test.ts" name="parses arbitrary split/coalesced chunks, checks CRC, sequence wrap and recovers after a timeout" time="0.0012144">
+        </testcase>
+        <testcase classname="tests/mavlink.test.ts" name="maps DOP, SI signs, gauss, hPa and u64 words without BigInt and clips instead of wrapping" time="0.0006676">
+        </testcase>
+        <testcase classname="tests/mavlink.test.ts" name="decodes actual actuator float32 frames and rejects invalid controls without mutating output" time="0.0008811">
+        </testcase>
+        <testcase classname="tests/mavlink.test.ts" name="resets framing before invoking a callback that may reject a decoded record" time="0.0006153">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/integration/ekf-ready.test.ts" timestamp="2026-10-19T11:50:49.578Z" hostname="DaduAsus" tests="6" failures="0" errors="0" skipped="0" time="0.0068566">
+        <testcase classname="tests/integration/ekf-ready.test.ts" name="matches independent sensor frames and requires actual sensor clocks and EKF health" time="0.0027842">
+        </testcase>
+        <testcase classname="tests/integration/ekf-ready.test.ts" name="timer, wrong identity, missing sensors and CRC-corrupted sensors never create READY" time="0.0009936">
+        </testcase>
+        <testcase classname="tests/integration/ekf-ready.test.ts" name="revokes READY for stale diagnostics despite fresh sensors and for failed innovations" time="0.0003779">
+        </testcase>
+        <testcase classname="tests/integration/ekf-ready.test.ts" name="rejects future or old sensor stamps and lost GNSS fix without weakening age limits" time="0.0006441">
+        </testcase>
+        <testcase classname="tests/integration/ekf-ready.test.ts" name="revokes on session disposal or clock reversal and refuses observed HITL fast-forward" time="0.0006931">
+        </testcase>
+        <testcase classname="tests/integration/ekf-ready.test.ts" name="external JSON clock requires causal contiguous acknowledgments of encoded prior samples" time="0.000537">
+        </testcase>
+    </testsuite>
+</testsuites>

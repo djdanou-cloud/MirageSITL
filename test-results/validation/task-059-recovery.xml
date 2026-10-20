@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<testsuites name="vitest tests" tests="9" failures="0" errors="0" time="272.0374486">
+    <testsuite name="tests/contact-allocation.test.ts" timestamp="2026-10-19T10:37:36.573Z" hostname="DaduAsus" tests="1" failures="0" errors="0" skipped="0" time="270.7765666">
+        <testcase classname="tests/contact-allocation.test.ts" name="counts actual WASM allocator calls through repeated impacts at all supported rates" time="270.6034877">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/fixtures.test.ts" timestamp="2026-10-19T10:37:36.576Z" hostname="DaduAsus" tests="6" failures="0" errors="0" skipped="0" time="0.9883717">
+        <testcase classname="tests/fixtures.test.ts" name="versioned fixture provenance and random streams &gt; matches the frozen uint32 reference and resets exactly" time="0.0093831">
+        </testcase>
+        <testcase classname="tests/fixtures.test.ts" name="versioned fixture provenance and random streams &gt; keeps stream state separate and accepts zero seeds" time="0.0066968">
+        </testcase>
+        <testcase classname="tests/fixtures.test.ts" name="versioned fixture provenance and random streams &gt; verifies every registered fixture against its exact payload bytes" time="0.0099733">
+        </testcase>
+        <testcase classname="tests/fixtures.test.ts" name="versioned fixture provenance and random streams &gt; regenerates the NASA drop fixture byte-for-byte from the hashed archives" time="0.958439">
+        </testcase>
+        <testcase classname="tests/fixtures.test.ts" name="versioned fixture provenance and random streams &gt; requires complete HTTPS measured provenance without a derivation" time="0.001531">
+        </testcase>
+        <testcase classname="tests/fixtures.test.ts" name="versioned fixture provenance and random streams &gt; rejects wrong units, hashes, bounds, and synthetic relabeling" time="0.0011648">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/release-manifest.test.ts" timestamp="2026-10-19T10:37:36.579Z" hostname="DaduAsus" tests="2" failures="0" errors="0" skipped="0" time="0.2725103">
+        <testcase classname="tests/release-manifest.test.ts" name="release inventory rejects traversal, unsupported roots and wrong hashes before publication" time="0.0474984">
+        </testcase>
+        <testcase classname="tests/release-manifest.test.ts" name="inventories actual bounded output bytes, retains blocked status and rejects tampering/symlink escape" time="0.2240451">
+        </testcase>
+    </testsuite>
+</testsuites>

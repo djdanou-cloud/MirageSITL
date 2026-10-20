@@ -1,10 +1,18 @@
-<testsuites id="" name="" tests="2" failures="0" skipped="0" errors="0" time="54.792152">
-<testsuite name="contact.spec.ts" timestamp="2026-10-18T15:45:14.419Z" hostname="" tests="1" failures="0" skipped="0" time="47.049" errors="0">
-<testcase name="direct contact WASM runs in an isolated browser Worker" classname="contact.spec.ts" time="47.049">
+<testsuites id="" name="" tests="6" failures="0" skipped="0" errors="0" time="25.020318">
+<testsuite name="native-bootstrap.spec.ts" timestamp="2026-10-19T09:55:42.275Z" hostname="" tests="1" failures="0" skipped="0" time="10.138" errors="0">
+<testcase name="bootstrap BET kernel builds reproducibly and runs in Chromium" classname="native-bootstrap.spec.ts" time="10.138">
 </testcase>
 </testsuite>
-<testsuite name="native-bootstrap.spec.ts" timestamp="2026-10-18T15:45:14.419Z" hostname="" tests="1" failures="0" skipped="0" time="3.947" errors="0">
-<testcase name="bootstrap BET kernel builds reproducibly and runs in Chromium" classname="native-bootstrap.spec.ts" time="3.947">
+<testsuite name="serial-permission.spec.ts" timestamp="2026-10-19T09:55:42.275Z" hostname="" tests="5" failures="0" skipped="0" time="10.198" errors="0">
+<testcase name="requests serial permission only on click, reports denial once, and never enables HITL" classname="serial-permission.spec.ts" time="1.835">
+</testcase>
+<testcase name="missing Web Serial disables connection without prompting" classname="serial-permission.spec.ts" time="1.135">
+</testcase>
+<testcase name="decodes fragmented serial bytes after 0 ms Worker startup and releases streams" classname="serial-permission.spec.ts" time="2.029">
+</testcase>
+<testcase name="decodes fragmented serial bytes after 900 ms Worker startup and releases streams" classname="serial-permission.spec.ts" time="3.493">
+</testcase>
+<testcase name="a failed decoder startup never opens the selected serial port" classname="serial-permission.spec.ts" time="1.706">
 </testcase>
 </testsuite>
 </testsuites>

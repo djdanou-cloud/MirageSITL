@@ -1,0 +1,222 @@
+{
+  "schemaVersion": 1,
+  "task": "TASK-042",
+  "status": "PASS",
+  "scope": "Native ArduCopter JSON/MAVLink integration with synthetic quad and Rust WASM rigid body; not measured aircraft fidelity or browser READY",
+  "sourceRevision": "0a31f44d0ebf508fac668a1581ffd7a73c8d18f5",
+  "validatorSha256": "5924280d8d1ec0162b34f30607869438624ff6e607bfdebc2f6a29b737d99b13",
+  "captureDirectory": ".cache/task-059/flight-regression",
+  "firmwareSha256": "fa37bf619bce116d410931f1b7d24ea72ed444ba529379df0db9738742ecb186",
+  "modelSha256": "e8d4e1c92dfaecbfa3a2cc521636d0199a199fda33218ff1c4d47efc54f2eb8b",
+  "traceFileSha256": "8dac553b91f7e079c94c2be612684da86d9455f0f170b56a22943e3e5ec0ff8b",
+  "driverStdoutSha256": "4db0c9762d7c932df3b1675013c823cc5e7242370af8b3260222c92d6b75b50d",
+  "metrics": {
+    "frames": 4161,
+    "holdDurationS": 10.200000000000003,
+    "physicsFrames": 67257,
+    "wallS": 43.087463098,
+    "simS": 84.07125,
+    "telemetryEvents": 31953
+  },
+  "stages": [
+    {
+      "stage": "arm",
+      "samples": 545,
+      "startS": 42.47125,
+      "endS": 47.91125,
+      "minTruthAltitudeM": 0,
+      "maxTruthAltitudeM": 2.9848733494420805,
+      "minAutopilotAltitudeM": 0,
+      "maxAutopilotAltitudeM": 2.858
+    },
+    {
+      "stage": "takeoff",
+      "samples": 352,
+      "startS": 47.92125,
+      "endS": 51.43125,
+      "minTruthAltitudeM": 3.009196254533,
+      "maxTruthAltitudeM": 9.786183770957573,
+      "minAutopilotAltitudeM": 2.858,
+      "maxAutopilotAltitudeM": 9.755
+    },
+    {
+      "stage": "hold",
+      "samples": 1021,
+      "startS": 51.44125,
+      "endS": 61.64125,
+      "minTruthAltitudeM": 9.791165126919227,
+      "maxTruthAltitudeM": 9.996807020488722,
+      "minAutopilotAltitudeM": 9.755,
+      "maxAutopilotAltitudeM": 9.989
+    },
+    {
+      "stage": "land",
+      "samples": 2243,
+      "startS": 61.65125,
+      "endS": 84.07125,
+      "minTruthAltitudeM": 0,
+      "maxTruthAltitudeM": 9.997076094065383,
+      "minAutopilotAltitudeM": -0.053,
+      "maxAutopilotAltitudeM": 9.987
+    }
+  ],
+  "stats": {
+    "steps": 67257,
+    "duplicates": 0,
+    "gaps": 0,
+    "droppedFrames": 0,
+    "restarts": 0,
+    "stale": 0,
+    "invalid": 0,
+    "repliesResent": 0,
+    "clampedPwm": 6224
+  },
+  "sourceInputs": [
+    {
+      "file": "scripts/sitl/driver.mjs",
+      "sha256": "c1a1e2a9c26bb571ea3d82b3b527a46a37155b334497c42d80139253982ce3a4"
+    },
+    {
+      "file": "scripts/sitl/quad.mjs",
+      "sha256": "31698c745c6780108f488b9843fb457d41a1e71b311385d4d792d64a12e3af89"
+    },
+    {
+      "file": "scripts/sitl/telemetry.py",
+      "sha256": "3a386c88b57920fbcacaa2890c9264d3e6406027da250a3882dc705cb0cc48df"
+    },
+    {
+      "file": "scripts/run-sitl.mjs",
+      "sha256": "7fa531290751b984b42567d42233f754d102dbcbb914f34b1e1ed72a84419a23"
+    },
+    {
+      "file": "scripts/sitl.lock.json",
+      "sha256": "cc11bac9e2ca0aa55fbb015775d53067ab1f1de09c3f6a5ba3d4ea6b69c31bbd"
+    },
+    {
+      "file": "packages/wasm-bet/src/backend.ts",
+      "sha256": "691ec9b4d0e2e31e3ebc2aebb2f8009dc7a316705a054ca99ba98a49373227f3"
+    },
+    {
+      "file": "packages/autopilot/src/external-sitl.ts",
+      "sha256": "5b0f9a2c0f9c216e330ae9d803087ce718fd477235e006e96a8bcfaf27e62c97"
+    },
+    {
+      "file": "tests/fixtures/sitl/parameters.parm",
+      "sha256": "c893b966538e648a2d9a96a4803daee6aa594ebadcf99898e74a969073e3bd1b"
+    },
+    {
+      "file": "native/bet/src/rigid_body.rs",
+      "sha256": "cb99a15551a7f7716942aa85d5f003a996d1d08866d98215478f25f1fcd9a30f"
+    },
+    {
+      "file": "native/bet/src/body_abi.rs",
+      "sha256": "35a2f9ea3b98608334841564f3ceec4037793ac475c3d41cd250340cc8291e96"
+    },
+    {
+      "file": "native/bet/src/math.rs",
+      "sha256": "c4603c9eef8ceb340d907361472c5490e511001ef5e9e357bc8cc4f1b34d065e"
+    },
+    {
+      "file": "native/bet/src/lib.rs",
+      "sha256": "b990eae4a4aab7dbeb6d9f1f280c250de5946ca9a985bd189cf53442061bb0db"
+    },
+    {
+      "file": "native/Cargo.lock",
+      "sha256": "3495cbba177ebcf8cd325c90b2fd60c1336af4a2b9067caddb1da31e46769634"
+    },
+    {
+      "file": "native/rust-toolchain.toml",
+      "sha256": "33235c9c607ad21d22e516552672edb41ad72f045573c5fc9a3dee5735d08dda"
+    },
+    {
+      "file": "packages/autopilot/src/live-warmup.ts",
+      "sha256": "e3fce704d1b35494c9bb4a593408993535144c91f3c15bdcbc3aebec4475b22c"
+    },
+    {
+      "file": "packages/autopilot/src/ekf-status.ts",
+      "sha256": "a6391ed0275399c593f2879fe109fd22efe0f5cfdf8e67d958bc549a4710de82"
+    },
+    {
+      "file": "packages/autopilot/src/warmup.ts",
+      "sha256": "e2ae892e3803d26a452280d897c0b75eaafa6f2b4a697d4b7cd56bd30331a7e6"
+    },
+    {
+      "file": "packages/mavlink/src/codec.ts",
+      "sha256": "9661a9db6f3024d4a12b4d9aea5faf74b1d1027ee895ea3446ec2782e925e1ee"
+    },
+    {
+      "file": "packages/protocol/src/layout-v2.ts",
+      "sha256": "238447a89a6c73a1916ca783c0b89a096986881489459b7246d70b91d81920d2"
+    }
+  ],
+  "rawMavlinkAudit": {
+    "schemaVersion": 1,
+    "status": "PASS",
+    "pymavlink": "2.4.50",
+    "messages": 48965,
+    "recordedObservations": 31953,
+    "filteredRawMessages": 31953,
+    "rawSha256": "0675523d1fcd5cf73472c32b223ed99ed3aa7b701b990507fe1ee5a029ae9048",
+    "wireFramesChecked": 31953,
+    "decodedSha256": "3a5d049f8a006b7085cf1fe1cf9bd61c0d043788b3f38658a2bc667d8f1bee0e",
+    "generatorSha256": "f6d93f8e01a8a6372779c4cc797f59ad704dd46bfaef946fa2908ded6cbf4137"
+  },
+  "runtime": {
+    "node": "v24.19.0",
+    "python": "/home/dadu/mirage/venv/bin/python"
+  },
+  "childExit": [
+    {
+      "pid": 463,
+      "code": null,
+      "signal": "SIGKILL"
+    },
+    {
+      "pid": 464,
+      "code": 0,
+      "signal": null
+    }
+  ],
+  "artifacts": [
+    {
+      "file": ".cache/task-059/flight-regression/flight.json",
+      "sha256": "8dac553b91f7e079c94c2be612684da86d9455f0f170b56a22943e3e5ec0ff8b",
+      "bytes": 1673726
+    },
+    {
+      "file": ".cache/task-059/flight-regression/run.json",
+      "sha256": "6211e88ee91154f54c768885ca0c9fd63bbf09f1130a14e834487de2a916dac3",
+      "bytes": 4995
+    },
+    {
+      "file": ".cache/task-059/flight-regression/physics.ndjson",
+      "sha256": "7ce07164936db3aac42f6686b710fe9cac6aa2a0327e9b5b2e60d002b9ce584a",
+      "bytes": 15408382
+    },
+    {
+      "file": ".cache/task-059/flight-regression/telemetry.ndjson",
+      "sha256": "3a5d049f8a006b7085cf1fe1cf9bd61c0d043788b3f38658a2bc667d8f1bee0e",
+      "bytes": 20450440
+    },
+    {
+      "file": ".cache/task-059/flight-regression/mavlink.raw",
+      "sha256": "0675523d1fcd5cf73472c32b223ed99ed3aa7b701b990507fe1ee5a029ae9048",
+      "bytes": 2761824
+    },
+    {
+      "file": ".cache/task-059/flight-regression/mavlink-audit.json",
+      "sha256": "59bfc291a009095f85576c1111c66bb3d31b7ea67a163b271624db5ff02bcb9f",
+      "bytes": 445
+    },
+    {
+      "file": ".cache/task-059/flight-regression/firmware.log",
+      "sha256": "480dbd9dc7bd9eba6ab2baf88da0a561fad84198f31710435a40fb8484260815",
+      "bytes": 2129
+    },
+    {
+      "file": ".cache/task-059/flight-regression/dataflash/00000001.BIN",
+      "sha256": "3c13fd5e6827369baae023bc219fc7acacd94c0a6ff9649b4be24f96d7b929c7",
+      "bytes": 2080768
+    }
+  ]
+}

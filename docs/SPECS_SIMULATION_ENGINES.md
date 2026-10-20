@@ -1753,7 +1753,7 @@ The CPU integrates Planck radiance over the band with composite Simpson (512 int
 
 `EkfMonitor` consumes CRC-validated MAVLink2 HEARTBEAT (ID 0, CRC_EXTRA 50, length 9) and ArduPilot EKF_STATUS_REPORT (ID 193, CRC_EXTRA 71, length 26 including optional airspeed variance). Both are independently generated from ardupilotmega XML at the existing pinned MAVLink commit using pymavlink 2.4.50; the new fixture records recursive XML and generated-module hashes. HEARTBEAT custom_mode is u32 at 0, autopilot at byte 5 must be 3, mavlink_version byte 8 must be 3. EKF ratios are five f32 at 0/4/8/12/16; flags are u16 at 20; the airspeed extension begins at 22. The conservative training gate requires finite nonnegative ratios below 1 and rejects EKF_UNINITIALIZED (1024). Raw flags 1/2/4/16/32 map to ABI-v2 flags 1/2/4/8/16. Relative horizontal position never substitutes for absolute position. Only the configured system/component identity is admitted.
 
-Timestamps use simulation milliseconds for SITL and monotonic wall milliseconds for HITL. Heartbeat and EKF age must each be at most 1000 ms and never in the future. `EkfWarmup` additionally requires 30 simulated seconds, matching epoch, no clock reversal, IMU age <=0.01 s and GNSS age <=0.3 s with no future sample. It reports measured simulated/wall elapsed ratio; configuring speed does not itself accelerate firmware. HITL rejects speed !=1 and observed simulation elapsed exceeding wall elapsed by 1% plus 0.1 s. EW admission remains false until the gate passes and falls false when health fails. These are independently verified admission modules: live warmup, firmware execution and TASK-042 integration remain BLOCKED_EXTERNAL, so TASK-043 is not DONE.
+Timestamps use simulation milliseconds for SITL and monotonic wall milliseconds for HITL. Heartbeat and EKF age must each be at most 1000 ms and never in the future. `EkfWarmup` additionally requires 30 simulated seconds, matching epoch, no clock reversal, IMU age <=0.01 s and GNSS age <=0.3 s with no future sample. It reports measured simulated/wall elapsed ratio; configuring speed does not itself accelerate firmware. HITL rejects speed !=1 and observed simulation elapsed exceeding wall elapsed by 1% plus 0.1 s. EW admission remains false until the gate passes and falls false when health fails. The original 2026-10-16 evidence covered independent modules only. The later TASK-043 native continuation below verifies live admission and revocation; browser integration and physical HITL remain separate.
 
 ### AAR record format and ownership (TASK-076)
 
@@ -1981,7 +1981,13 @@ SITL locks firmware commit 8ab6afde107a91df1b5f60ade8f333cb8a61b190, EKF3 and ar
 
 HITL analysis requires 60–3600 s at 200/400 Hz with exactly duration*hz samples. Each sequence has scheduledUs=i*1e6/hz, sentUs>=scheduledUs and strictly increasing actuatorUs between sentUs and sentUs+100000. No overflow/loss is accepted; p99 lateness is <=5/2.5 ms, with observed unplug shutdown. See the physical procedure; no Serial access or arming is triggered by the CLI.
 
-EW requires a no-fault control plus jamming, position-step, velocity-drift, magnetic and motor-loss cases. Samples preserve equal truth/baseline SHA-256, monotonic simulation time, real modes/EKF flags, innovation ratios and position errors. Only faults may change observations. Per-case envelopes must match independently frozen firmware/parameter-specific values; the checked-in matrix has no acquired baseline, so the CLI remains blocked. It does not promise a particular fallback mode or EKF gate bypass.
+EW requires a no-fault control plus jamming, position-step, velocity-drift, magnetic and motor-loss cases. TASK-059 native acquisition uses scripts/run-ew-sitl.mjs, the existing TASK-042 driver and the TASK-058 EwEngine. GPS1_TYPE=14 accepts actual GPS_INPUT packets at 10 Hz; GPS2_TYPE=0 prevents a clean backup masking the injected receiver. Physics JSON position/velocity remain true. A 30 m north step, 0.5 m/s² north drift capped at 4 m/s, and severity-1 jamming affect GPS only. Magnetic bias adds [0.3,0.2,0] Gauss in FRD through all three SIM_MAGn_OFS parameters (negative milliGauss because SIM_Compass subtracts offsets); no attitude or IMU-force corruption is used. Motor 0 loses its complete force and yaw wrench after motor lag through the explicit synthetic instant-thrust-loss contract, not an electrical motor model.
+
+The plan is fixed before calibration: seed 59, 800 Hz physics, 100 Hz response capture, live READY admission, 5 s stable hold before injection, 12 s exposure and 8 s recovery; complete motor loss has a bounded 3 s exposure and no recovery claim. Disabling drift uses step-to-truth. Fault runs retain unhealthy EKF flags, innovation ratios, modes and trajectory rather than requiring TASK-042's healthy landing gate. Native source 8ab6afde migrated ARMING_CHECK to ARMING_SKIPCHK: the actual full parameter readback must show ARMING_SKIPCHK=0, EK3_ENABLE=1 and AHRS_EKF_TYPE=3. The legacy parameters.parm remains historical; no check is bypassed.
+
+Schema 2 manifests name six ordered capture directories. scripts/sitl/check-ew.py independently re-decodes both raw directions with pymavlink 2.4.50 and CRC validation, checks every transmitted GPS_INPUT against its source observation and quantization, checks firmware GPS readbacks and the complete pre-fault parameter snapshot. scripts/sitl/audit-ew.mjs reruns that decoder, replays every actual PWM through the original rigid-body WASM and canonical fault schedule, compares truth and quaternion, reconstructs every baseline/distorted observation, verifies compass fault/recovery acknowledgments, and joins response rows to original heartbeat/EKF/global-position messages with <=1 s freshness. Truth hashes compare before/after observation processing in the same tick. Separate closed-loop flights may have different trajectories; motor failure intentionally changes physical truth. The former schema-1 self-declared changed-observation flags do not establish native acceptance.
+
+scripts/freeze-ew.mjs accepts audited calibration captures once, requires a healthy control within 1 m, and refuses to overwrite existing envelopes. The predeclared empirical rule is ceil-to-0.01 of 1.5 times each calibration maximum plus 2 m position/trajectory margin or 0.5 innovation margin. Observed calibration modes become the allowed set; unexpected modes require investigation. Firmware, effective parameter inputs, model, plan and source hashes must match. A new validation batch must pass those fixed bounds and the independent healthy control gate; calibration capture hashes cannot validate themselves. These are version-specific synthetic native regression limits, not measured aircraft fidelity, browser READY, physical HITL, guaranteed fallback modes or EKF gate bypass.
 
 GPU analysis requires M4 or RTX4050 identity, OS/browser/power/backend, visible production 1920x1080 DPR1, all terrain/FPV/thermal features, >=60 s warmup and >=600 s measurement. All positive finite frame intervals must cover duration within 0.02 s. 60/120 FPS p99 limits remain 16.67/8.33 ms, GPU residency<=2 GiB and CPU cache<=512 MiB. Software/headless rendering cannot pass. The current demo does not provide a full-feature production measurement producer or target devices; imported traces require original profiler evidence review.
 
@@ -2199,6 +2205,57 @@ A flight model using these files must therefore add the rotating inertia
 before RPM is integrated. The probe never reads Ixx, and it does not exercise
 RPM dynamics or engine coupling.
 
+## TASK-042 native closed-loop continuation (2026-10-19)
+
+The owned Linux driver is `scripts/sitl/driver.mjs`, with a pinned pymavlink
+2.4.50 sidecar (`telemetry.py`). It runs the clean locked ArduPilot source's
+native ArduCopter ELF and the existing Rust RK4 body WASM through
+`BetRigidBodyBackend`. It uses a synthetic quad X reference, not calibrated
+BET polars, JSBSim aircraft performance or the browser demo. Mass, inertia,
+arm, thrust curve, yaw reaction and motor lag are explicit in `quad.mjs`.
+An inelastic horizontal floor projects penetration; this is not the Rapier
+landing-gear model or arbitrary-terrain acceptance. Only Rust integrates motion.
+
+Physics exchanges run at 800 Hz for the standard 400 Hz Copter scheduler's
+gyro-rate arming check. Initial advertised 1200 Hz is upstream Aircraft's
+default; JSON reply timestamps establish 800 Hz, encoded as 799/800 by float
+truncation. Duplicate replies reuse identical bytes; gaps, restarts, malformed
+packets and unexpected rates fail the flight. Source files are hashed before
+launch and checked unchanged after flight. Child processes share the harness's
+owned POSIX group; only those processes are terminated. Windows hosts run the
+whole harness inside WSL, rather than pretending a Windows child kill contains
+Linux descendants. UDP/TCP bind only to loopback. A new capture directory is
+required; previous evidence is never silently overwritten.
+
+Warmup lasts at least 30 simulated seconds and waits for fresh real heartbeat
+and EKF reports. Required EKF bits are attitude, horizontal/vertical velocity,
+absolute horizontal/vertical position; uninitialized flags or innovation
+ratios outside [0,1) reject health. Heartbeat, EKF and autopilot altitude age
+must each be within one simulated second. No arming/EKF checks are disabled.
+Guided mode, arm, takeoff and land commands use MAVLink; actual heartbeat
+mode/armed state controls acceptance, not command intent. Both truth and
+autopilot altitude must meet the unchanged hold envelope. Warmup is retained
+in raw captures; the scored flight starts after actual healthy arming.
+
+Flight trace v2 adds `physicsHz=800` and `captureStride=8`. Samples are 100 Hz,
+retain original firmware frame counts (arbitrary initial offset, stride eight)
+and have a 0.01 s timestamp interval. Each sample adds `heartbeatAgeS`,
+`ekfAgeS`, `ekfFlags`, five `innovationRatios`, `autopilotAltitudeM` and
+`altitudeAgeS` to the legacy fields. Full-rate physics and raw MAVLink logs
+remain separate evidence. Legacy v1 still supports historical schema tests;
+new native integration uses v2. Existing 3 m takeoff, 10 m +/-1 m for at least
+10 s, landing below 0.5 m with disarm, modes 4/9 and 120 s parent deadline
+remain unchanged. `arm` stage covers initial ascent until the 3 m takeoff gate;
+`takeoff` covers the remaining climb, and `hold` starts only after settling.
+
+Capture outputs include `flight.json`, `run.json`, `physics.ndjson`,
+`telemetry.ndjson`, `mavlink.raw`, firmware stdout/stderr and owned DataFlash
+logs. They distinguish model truth from autopilot estimates and record
+commands, runtime, source hashes, executable/model identity and cleanup.
+The final validation report must bind the actual capture bytes and retain
+failed trials separately. A native integration PASS does not enable browser
+autopilot READY, certify measured aerodynamics, HITL or target-device timing.
+
 ## TASK-033 source-backed propeller continuation (2026-10-18)
 
 This adds an offline diagnostic, not a production dynamics ABI. The original
@@ -2353,3 +2410,71 @@ Limits:
 * The coupler is not yet wired into the flight session (the demo backend is
   active).
 * Live tile decoding and terrain admission remain separate work.
+
+## TASK-043 native readiness continuation (2026-10-19)
+
+LiveEkfWarmup composes the existing CRC-validating MavParser, identity-bound
+EkfMonitor and EkfWarmup in the Linux driver. It defaults to MAVLink sensor
+clocks and additionally supports explicit external-SITL json-lockstep IMU
+acknowledgments. Sensor messages GPS_RAW_INT (24, CRC 24, length 52), RAW_IMU
+(27, CRC 144, length 29), HIGHRES_IMU (105, CRC 93, length 63) have independent
+pymavlink 2.4.50 wire goldens, registered with source/generator hashes. Boot
+microseconds use safe numeric u64 conversion; GPS requires a 3D fix. Only
+system/component 1/1 and the primary IMU are admitted. Classes use explicit
+constructor fields so the cold Linux Node 24 tool can load the same modules.
+
+The native sensor feed is the 800 Hz JSON reply, not a MAVLink report arrival.
+acknowledgeJsonImu(servoFrame, repliedFrame, sampleTimeS) requires N/N-1,
+contiguous frame counts, increasing actual encoded sample time and a step no
+larger than 0.01 s. The driver supplies the previous reply timestamp only after
+the next valid servo packet confirms consumption. Bad acknowledgments invalidate
+the sensor. HITL cannot select this source. Firmware IMU report clocks remain
+separate diagnostics: their packet cadence/serialization epoch must not be
+silently fitted or substituted for the actual sample clock. GPS uses the
+pinned AP_GPS last_fix_time_ms carried by CRC-checked GPS_RAW_INT. No freshness
+limit changes: IMU <=0.01 s, GNSS <=0.3 s, heartbeat/EKF <=1 s, no future times,
+30 simulated seconds, matching epoch and healthy finite innovations below 1.
+
+The sidecar records original wire bytes with each decoded observation and asks
+for 3 ms HIGHRES_IMU and 50 ms GPS_RAW_INT reports. At the pinned 400 Hz scheduler,
+a 2500 us request truncates to 2 ms and is denied by cap_message_interval;
+3 ms is accepted. This is a stream configuration fix, not relaxed admission.
+The driver evaluates readiness on physics ticks and writes warmup.ndjson at
+100 Hz plus every transition, including source clocks, exact wall elapsed,
+normalized health, READY/EW flags, reason and measured acceleration. Unknown
+diagnostic age serializes as null before the first report and cannot pass.
+
+check-ekf-warmup.mjs replays all original physics acknowledgments and raw-CRC-
+audited telemetry through the same modules and checks every recorded decision.
+The stream event at physics time t follows that completed tick; replay feeds
+only events with receivedSimS<t before evaluating the next tick. It records
+actual admission/revocations separately from explicitly synthetic failed-
+innovation, stale-diagnostic, bad-acknowledgment, GNSS-loss, clock-reversal,
+disposal and HITL fast-forward probes. A configured speed is not a measured
+acceleration. The report is test-results/validation/task-043-warmup.json.
+
+The observed run admits at 41.27625 simulated seconds and 20.733261598 wall
+seconds (1.990822804x). Two genuine GNSS freshness excursions beyond 0.3 s
+revoke READY/EW and recover on fresh data; this is preserved, not hidden.
+The full flight also passes the unchanged TASK-042 envelope. Browser READY,
+EW application, physical HITL and TASK-033 aerodynamic fidelity stay separate.
+Historical TASK-042 evidence is preserved under its dated snapshot directory;
+new native regression reports must not silently replace those identities.
+
+
+Native TASK-059 acceptance on 2026-10-19: all six calibration cases and six separate validation cases pass, with 710636 reconstructed physics frames. The immutable matrix and original native reports/archives preserve fault-induced unhealthy flags and modes. Jamming and drift reached Land; the position step raised GPS-glitch flags; magnetic bias increased compass innovation ratios while remaining Guided; complete rotor loss tumbled into the synthetic floor during its 3 s window. In pinned Copter ekf_check.cpp, compass, velocity and position variance criteria combine before failsafe action, so compass innovation alone is not a promise of Land. The healthy TASK-042 flight also passed again. See test-results/validation/task-059-native.json, task-059-tests.json and task-059-completion.json for exact identities and the documented environment reruns.
+
+
+## Local ArduPilot WASM build and browser acceptance (TASK-045)
+
+The upstream wasm board at 8ab6afde107a91df1b5f60ade8f333cb8a61b190 remains pinned to Emscripten 4.0.15. The continuation clean build reproduced the committed 3730330-byte module (556d97fa6dbf7c0a2cf713f6106a6891de0b9bc9c5a7dd945f1789b63e58df38) and 258215-byte glue (b158a7b8e9b400c770e2b4fc87c66fc2aaf68bc583c7d71f3a56786d3bcb4212). The builder checks source HEAD/cleanliness, locked HAL/license bytes, submodule commits, SDK commit/manifest and compiler version/commit. It requires new/empty outputs, deletes no supplied directory, saves build.log and fails on differences from the committed artifact manifest. Upstream CI's 6.0.8 remains a distinct version; this acceptance verifies the project's unchanged 4.0.15 pin.
+
+With MIRAGE_ARDUPILOT_WASM_DIR explicitly set, the Vite development server admits the pinned local bytes and exposes only manifest.json, arducopter.js and arducopter.wasm at /__local-ardupilot/. GET, loopback peer, loopback Host and same-host Origin checks apply; foreign fetches, writes and unknown files are rejected. This route is absent without the setting and absent from production builds. Artifacts remain local and carry distribution=local-only-pending-gpl-review. The existing distribution decision remains open; the bootstrap adds no firmware to public/ or dist/.
+
+BrowserWasmSession runs inside the dedicated ardubilot.worker.ts. Cold Worker protocol 1 admits exact start/serial/checkpoint/stop shapes and <=4096 non-shared serial bytes. Start requires crossOriginIsolated and SharedArrayBuffer, a same-origin artifact base, <=64 MiB WASM and <=4 MiB glue. The existing admission checks hashes, exports, imports and memory before execution. A Blob URL made from admitted glue is also the pthread entrypoint, and admitted wasmBinary is supplied directly, preventing an unchecked second fetch. The imported shared memory is initially 16 MiB with a 2 GiB maximum; four real pthread Workers are observed, with a host cap of 16 children. The diagnostic supervisor has 30 s boot and 20 s stop deadlines. Explicit shutdown frees its serial buffer, terminates owned children, closes storage and releases the profile lease; abrupt parent termination is separately tested for child cleanup.
+
+The serial bridge is polled in <=4096-byte chunks every 25 ms. Three CRC-valid system/component 1/1 HEARTBEATs produce a diagnostic booted event. Booted is independent of autopilot READY, EKF health or flight acceptance. PARAM_REQUEST_READ (20, CRC 214, 20-byte payload), PARAM_VALUE (22, CRC 220, 25 bytes) and PARAM_SET (23, CRC 168, 23 bytes) extend the pinned codec subset with independent pymavlink 2.4.50 byte fixtures. The actual pinned parameter is WP_SPD in m/s, not the removed WPNAV_SPEED name. Real storage tests read its initial value, set 8.125 m/s and verify the firmware's CRC-checked readback across graceful and abrupt Worker restarts. The built-in quad remains disarmed; MirageSITL physics/time/sensor/actuator coupling belongs to TASK-046 and native parity to TASK-047.
+
+The upstream default POSIX Storage backend uses a 16384-byte eeprom.bin. The unchanged glue exposes FS but lacks IDBFS, so EepromStore checkpoints the actual file to IndexedDB database mirage-ardupilot-eeprom-v1, store profiles. Keys bind firmware commit, module hash and a 1–64-character profile. Schema-1 records contain identity, increasing revision, full image and SHA-256; load validates all fields and bytes, and corrupt records prevent boot rather than being erased. A Web Lock excludes concurrent firmware owners; a readwrite transaction with revision comparison prevents competing checkpoint writers. Tests verify conflicts and transaction abort preservation. preRun restores the validated file before firmware main. Automatic checkpoints are considered every 2 s after boot; one second of stable file bytes is required, with a bounded 10 s stabilization attempt. Explicit stop drains/checkpoints before release. Only an acknowledged checkpoint promises persistence; unsaved changes may be lost on abrupt termination. This is a cold bootstrap/storage facility, not a certified high-rate flight HAL, full AAR recorder or SAB ABI change.
+
+The local diagnostic page is ardupilot-check.html. Its bounded raw captures and three complete EEPROM images are independently audited by scripts/check-ardupilot-browser.py using pymavlink 2.4.50 and hashlib. The audit checks original CRC-valid disarmed heartbeats and parameter values, firmware identity, memory/thread reports, stored revisions, full-image hashes and zero remaining Workers. Unit fixtures are labelled synthetic and cannot substitute for this real browser evidence.

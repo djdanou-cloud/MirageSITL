@@ -24,6 +24,14 @@ export function runOwned(command, args, options = {}) {
       killer = setTimeout(() => terminate("SIGKILL"), 250);
     };
     const timer = setTimeout(() => stop("Owned process deadline exceeded"), timeoutMs);
+    child.once("exit", () => {
+      // An unexpectedly exited driver may leave descendants holding its pipes.
+      // Reap only its dedicated POSIX group, including TERM-resistant children.
+      if (process.platform !== "win32") {
+        terminate("SIGTERM");
+        killer ??= setTimeout(() => terminate("SIGKILL"), 250);
+      }
+    });
     child.once("error", error => { clearTimeout(timer); if (killer) clearTimeout(killer); reject(error); });
     for (const [stream, chunks] of [[child.stdout, stdout], [child.stderr, stderr]]) stream.on("data", bytes => {
       size += bytes.length;
@@ -39,17 +47,28 @@ export function runOwned(command, args, options = {}) {
   });
 }
 export function assessFlight(v) {
-  exact(v, ["schemaVersion", "provenance", "samples"]);
-  if (v.schemaVersion !== 1 || !Array.isArray(v.samples) || v.samples.length < 4 || v.samples.length > 1000000) throw new Error("Missing real flight trace");
+  exact(v, v?.schemaVersion === 2 ? ["schemaVersion", "physicsHz", "captureStride", "provenance", "samples"] : ["schemaVersion", "provenance", "samples"]);
+  if (![1, 2].includes(v.schemaVersion) || !Array.isArray(v.samples) || v.samples.length < 4 || v.samples.length > 1000000) throw new Error("Missing real flight trace");
   provenance(v.provenance, "native-sitl");
+  if (v.schemaVersion === 2 && (v.physicsHz !== 800 || v.captureStride !== 8)) throw new Error("Unsupported flight capture cadence");
   let previous = -1, stage = 0, holdStart = -1, holdEnd = -1, frames = 0;
+  const firstFrame = v.schemaVersion === 2 ? v.samples[0].servoFrame : 0;
   const stages = ["arm", "takeoff", "hold", "land"];
   for (const s of v.samples) {
-    exact(s, ["timeS", "stage", "armed", "altitudeM", "mode", "ekfHealthy", "servoFrame", "pwmUs"]);
+    const fields = ["timeS", "stage", "armed", "altitudeM", "mode", "ekfHealthy", "servoFrame", "pwmUs"];
+    if (v.schemaVersion === 2) fields.push("heartbeatAgeS", "ekfAgeS", "ekfFlags", "innovationRatios", "autopilotAltitudeM", "altitudeAgeS");
+    exact(s, fields);
     finite(s.timeS, 0); finite(s.altitudeM, -1, 100); finite(s.mode, 0, 0xffffffff);
-    if (s.timeS <= previous || previous >= 0 && s.timeS - previous > .1 + 1e-9 || !Number.isInteger(s.servoFrame) || s.servoFrame !== frames++ ||
+    if (s.timeS <= previous || previous >= 0 && s.timeS - previous > .1 + 1e-9 || !Number.isSafeInteger(s.servoFrame) || s.servoFrame < 0 || s.servoFrame !== firstFrame + frames++ * (v.schemaVersion === 2 ? 8 : 1) ||
       !Array.isArray(s.pwmUs) || s.pwmUs.length !== 4 || !s.pwmUs.every(p => Number.isInteger(p) && p >= 1000 && p <= 2000) ||
       typeof s.armed !== "boolean" || s.ekfHealthy !== true) throw new Error("Invalid, stale or unhealthy closed-loop stream");
+    if (v.schemaVersion === 2) {
+      if (previous >= 0 && Math.abs(s.timeS - previous - v.captureStride / v.physicsHz) > 1e-9) throw new Error("Flight capture timing mismatch");
+      for (const age of [s.heartbeatAgeS, s.ekfAgeS, s.altitudeAgeS]) finite(age, 0, 1);
+      finite(s.autopilotAltitudeM, -1, 100);
+      if (!Number.isInteger(s.ekfFlags) || s.ekfFlags < 0 || s.ekfFlags > 65535 || (s.ekfFlags & 55) !== 55 || (s.ekfFlags & 1024) ||
+        !Array.isArray(s.innovationRatios) || s.innovationRatios.length !== 5 || !s.innovationRatios.every(r => Number.isFinite(r) && r >= 0 && r < 1)) throw new Error("Unhealthy autopilot EKF evidence");
+    }
     previous = s.timeS;
     if (s.stage !== stages[stage]) { if (s.stage !== stages[stage + 1]) throw new Error("Flight stage skipped/reversed"); stage++; }
     if (s.mode !== pin.stageModes[s.stage]) throw new Error("Pinned flight mode mismatch");
@@ -59,6 +78,7 @@ export function assessFlight(v) {
       if (holdStart < 0) holdStart = s.timeS;
       holdEnd = s.timeS;
       if (Math.abs(s.altitudeM - pin.holdAltitudeM) > pin.holdErrorM) throw new Error("Altitude hold envelope failed");
+      if (v.schemaVersion === 2 && Math.abs(s.autopilotAltitudeM - pin.holdAltitudeM) > pin.holdErrorM) throw new Error("Autopilot altitude hold envelope failed");
     }
   }
   const last = v.samples.at(-1);
@@ -79,6 +99,7 @@ export async function runSitl(env = process.env) {
     // A driver is trusted local executable code, not a remotely downloaded plugin.
     const output = await runOwned(process.execPath, [env.MIRAGE_SITL_DRIVER, "--binary", env.MIRAGE_SITL_BINARY, "--parameters", fileURLToPath(new URL("../tests/fixtures/sitl/parameters.parm", import.meta.url))], { cwd });
     const trace = JSON.parse(output);
+    if (trace.schemaVersion !== 2) throw new Error("Native flight driver must provide trace v2 telemetry evidence");
     if (trace.provenance?.firmwareSha256 !== env.MIRAGE_SITL_BINARY_SHA256) throw new Error("Driver firmware identity mismatch");
     const result = assessFlight(trace); result.inputSha256 = sha256(output); return result;
   } finally { rmSync(cwd, { recursive: true, force: true }); }

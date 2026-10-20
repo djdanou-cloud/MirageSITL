@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<testsuites name="vitest tests" tests="13" failures="0" errors="0" time="0.1427273">
+    <testsuite name="tests/ardupilot-json.test.ts" timestamp="2026-10-19T10:32:40.269Z" hostname="DaduAsus" tests="10" failures="0" errors="0" skipped="0" time="0.0915515">
+        <testcase classname="tests/ardupilot-json.test.ts" name="ArduPilot JSON protocol against the pinned upstream &gt; pins the upstream commit and file hashes" time="0.0039303">
+        </testcase>
+        <testcase classname="tests/ardupilot-json.test.ts" name="ArduPilot JSON protocol against the pinned upstream &gt; decodes little-endian 16- and 32-channel servo packets and rejects malformed ones" time="0.0007077">
+        </testcase>
+        <testcase classname="tests/ardupilot-json.test.ts" name="ArduPilot JSON protocol against the pinned upstream &gt; encodes the reply byte-for-byte and the upstream parser reads every field" time="0.0013431">
+        </testcase>
+        <testcase classname="tests/ardupilot-json.test.ts" name="ArduPilot JSON protocol against the pinned upstream &gt; rejects lines upstream would misread or refuse" time="0.0007113">
+        </testcase>
+        <testcase classname="tests/ardupilot-json.test.ts" name="external SITL lockstep &gt; steps exactly once per new frame and resends the identical reply for duplicates" time="0.0023542">
+        </testcase>
+        <testcase classname="tests/ardupilot-json.test.ts" name="external SITL lockstep &gt; never double-steps under seeded loss, duplication and reordering" time="0.0184834">
+        </testcase>
+        <testcase classname="tests/ardupilot-json.test.ts" name="external SITL lockstep &gt; maps PWM through explicit MOT_PWM_MIN/MAX and flags clamping" time="0.0009801">
+        </testcase>
+        <testcase classname="tests/ardupilot-json.test.ts" name="external SITL lockstep &gt; keeps SITL time advancing: timestamps strictly increase by less than 0.1 s" time="0.0002809">
+        </testcase>
+        <testcase classname="tests/ardupilot-json.test.ts" name="external SITL lockstep &gt; waits in sitl-lockstep mode without blocking, so pause stays responsive" time="0.0004252">
+        </testcase>
+        <testcase classname="tests/ardupilot-json.test.ts" name="bridge ArduPilot JSON endpoint over real loopback UDP and WebSocket &gt; forwards valid servo packets, replies to the learned SITL port, and rejects invalid traffic" time="0.0610926">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/bridge.test.ts" timestamp="2026-10-19T10:32:40.273Z" hostname="DaduAsus" tests="3" failures="0" errors="0" skipped="0" time="0.0511758">
+        <testcase classname="tests/bridge.test.ts" name="checks framing, wrap, epoch, flood limits and rejects coalesced or truncated records" time="0.0018486">
+        </testcase>
+        <testcase classname="tests/bridge.test.ts" name="runs real loopback WS/UDP channels, fragmented WS delivery, authentication and reconnect" time="0.0423013">
+        </testcase>
+        <testcase classname="tests/bridge.test.ts" name="closes rather than queueing unbounded output when the socket reports backpressure" time="0.0061881">
+        </testcase>
+    </testsuite>
+</testsuites>

@@ -1,0 +1,209 @@
+{
+  "schemaVersion": 1,
+  "task": "TASK-043",
+  "status": "PASS",
+  "scope": "Native external-SITL admission and replay; browser READY/EW application and physical HITL remain separate",
+  "validatorSha256": "aeab4a0ac9a8c5ce135188f632d04d34d3459cffe24d0d117572ae2368522687",
+  "firstReady": {
+    "timeS": 41.27625,
+    "wallTimeMs": 20733.261598,
+    "servoFrame": 33020,
+    "acknowledgedReplyFrame": 33019,
+    "imuTimeS": 41.275,
+    "imuSource": "json-lockstep",
+    "reportedImuTimeS": 41.270184,
+    "gpsTimeS": 41.044,
+    "ready": true,
+    "ewAllowed": true,
+    "reason": "EKF health and warmup gate passed",
+    "accelerationFactor": 1.9908228044535763,
+    "health": {
+      "source": "autopilot",
+      "epoch": 1,
+      "flags": 31,
+      "healthy": true,
+      "mode": 3,
+      "ageMs": 15,
+      "heartbeatFresh": true,
+      "reportFresh": true,
+      "innovationHealthy": true
+    }
+  },
+  "metrics": {
+    "physicsFrames": 67257,
+    "observations": 8413,
+    "readyRowsAfterAdmission": 4282,
+    "rowsAfterAdmission": 4285,
+    "observedRevocations": 2,
+    "accelerationFactorAtAdmission": 1.9908228044535763,
+    "finalAccelerationFactor": 1.994509301634005
+  },
+  "imuClock": {
+    "source": "acknowledged-json-lockstep-sample",
+    "firmwareReportClockRecordedSeparately": true,
+    "maximumAgeS": 0.01
+  },
+  "gpsClock": {
+    "source": "CRC-checked GPS_RAW_INT last_fix_time_ms",
+    "maximumAgeS": 0.3
+  },
+  "probes": [
+    {
+      "name": "noncausal IMU acknowledgment",
+      "kind": "synthetic-rejection-probe",
+      "ready": false,
+      "ewAllowed": false,
+      "reason": "Sensor timestamps are incoherent"
+    },
+    {
+      "name": "failed innovation",
+      "kind": "synthetic-rejection-probe",
+      "ready": false,
+      "ewAllowed": false,
+      "reason": "Autopilot EKF diagnostics are unhealthy or stale"
+    },
+    {
+      "name": "lost GNSS fix",
+      "kind": "synthetic-rejection-probe",
+      "ready": false,
+      "ewAllowed": false,
+      "reason": "Sensor timestamps are incoherent"
+    },
+    {
+      "name": "stale heartbeat/EKF with fresh sensors",
+      "kind": "synthetic-rejection-probe",
+      "ready": false,
+      "ewAllowed": false,
+      "reason": "Autopilot EKF diagnostics are unhealthy or stale"
+    },
+    {
+      "name": "clock reversal",
+      "kind": "synthetic-rejection-probe",
+      "ready": false,
+      "ewAllowed": false,
+      "reason": "Warmup epoch or clock mismatch"
+    },
+    {
+      "name": "HITL observed fast-forward replay (no physical hardware)",
+      "kind": "synthetic-rejection-probe",
+      "ready": false,
+      "ewAllowed": false,
+      "reason": "HITL clock advanced faster than real time"
+    },
+    {
+      "name": "disposed session",
+      "kind": "synthetic-rejection-probe",
+      "ready": false,
+      "ewAllowed": false,
+      "reason": "Autopilot session disposed"
+    }
+  ],
+  "sourceInputs": [
+    {
+      "file": "scripts/sitl/driver.mjs",
+      "sha256": "61f3746a15badda924cf2517fd22241f150d040ee3758ee6bffd5e2b1a2d954c"
+    },
+    {
+      "file": "scripts/sitl/quad.mjs",
+      "sha256": "461db764a390d52a9c1576f645b283ffcec7235203d2ce86c0f4c6e93f7a2ed5"
+    },
+    {
+      "file": "scripts/sitl/telemetry.py",
+      "sha256": "b2c4308d9ea4fd99a9e374e079467c450f1b0eec437faa9be8e6d3540fc272cf"
+    },
+    {
+      "file": "scripts/run-sitl.mjs",
+      "sha256": "7fa531290751b984b42567d42233f754d102dbcbb914f34b1e1ed72a84419a23"
+    },
+    {
+      "file": "scripts/sitl.lock.json",
+      "sha256": "cc11bac9e2ca0aa55fbb015775d53067ab1f1de09c3f6a5ba3d4ea6b69c31bbd"
+    },
+    {
+      "file": "packages/wasm-bet/src/backend.ts",
+      "sha256": "691ec9b4d0e2e31e3ebc2aebb2f8009dc7a316705a054ca99ba98a49373227f3"
+    },
+    {
+      "file": "packages/autopilot/src/external-sitl.ts",
+      "sha256": "5b0f9a2c0f9c216e330ae9d803087ce718fd477235e006e96a8bcfaf27e62c97"
+    },
+    {
+      "file": "tests/fixtures/sitl/parameters.parm",
+      "sha256": "c893b966538e648a2d9a96a4803daee6aa594ebadcf99898e74a969073e3bd1b"
+    },
+    {
+      "file": "native/bet/src/rigid_body.rs",
+      "sha256": "cb99a15551a7f7716942aa85d5f003a996d1d08866d98215478f25f1fcd9a30f"
+    },
+    {
+      "file": "native/bet/src/body_abi.rs",
+      "sha256": "35a2f9ea3b98608334841564f3ceec4037793ac475c3d41cd250340cc8291e96"
+    },
+    {
+      "file": "native/bet/src/math.rs",
+      "sha256": "c4603c9eef8ceb340d907361472c5490e511001ef5e9e357bc8cc4f1b34d065e"
+    },
+    {
+      "file": "native/bet/src/lib.rs",
+      "sha256": "b990eae4a4aab7dbeb6d9f1f280c250de5946ca9a985bd189cf53442061bb0db"
+    },
+    {
+      "file": "native/Cargo.lock",
+      "sha256": "3495cbba177ebcf8cd325c90b2fd60c1336af4a2b9067caddb1da31e46769634"
+    },
+    {
+      "file": "native/rust-toolchain.toml",
+      "sha256": "33235c9c607ad21d22e516552672edb41ad72f045573c5fc9a3dee5735d08dda"
+    },
+    {
+      "file": "packages/autopilot/src/live-warmup.ts",
+      "sha256": "e3fce704d1b35494c9bb4a593408993535144c91f3c15bdcbc3aebec4475b22c"
+    },
+    {
+      "file": "packages/autopilot/src/ekf-status.ts",
+      "sha256": "a6391ed0275399c593f2879fe109fd22efe0f5cfdf8e67d958bc549a4710de82"
+    },
+    {
+      "file": "packages/autopilot/src/warmup.ts",
+      "sha256": "e2ae892e3803d26a452280d897c0b75eaafa6f2b4a697d4b7cd56bd30331a7e6"
+    },
+    {
+      "file": "packages/mavlink/src/codec.ts",
+      "sha256": "9661a9db6f3024d4a12b4d9aea5faf74b1d1027ee895ea3446ec2782e925e1ee"
+    },
+    {
+      "file": "packages/protocol/src/layout-v2.ts",
+      "sha256": "238447a89a6c73a1916ca783c0b89a096986881489459b7246d70b91d81920d2"
+    }
+  ],
+  "artifacts": [
+    {
+      "file": ".cache/task-043/capture-4/run.json",
+      "sha256": "f676c922fbd0472ccbfa887ce34783de2a7a6a526a45beccaa8f3869e78b2a1d"
+    },
+    {
+      "file": ".cache/task-043/capture-4/warmup.ndjson",
+      "sha256": "08afb13828eb1feafd5b16c95cfd8094f66d49d96434eafffea3051115d7320f"
+    },
+    {
+      "file": ".cache/task-043/capture-4/physics.ndjson",
+      "sha256": "274c6e61664c13dab5466d0dda9c30a8f1ffc91909b095d378ac27ea7d87ad3b"
+    },
+    {
+      "file": ".cache/task-043/capture-4/telemetry.ndjson",
+      "sha256": "20cce230e8589fc6f9ef1c8e7c752b17a5022153fd26b8bb22c9600beee3bb67"
+    },
+    {
+      "file": ".cache/task-043/capture-4/mavlink.raw",
+      "sha256": "bf1737a1338c471ff227ef1af172af509ff7cdb46a7e32fcaa4d76a88ef38fa9"
+    },
+    {
+      "file": ".cache/task-043/capture-4/mavlink-audit.json",
+      "sha256": "638840e342cfaf759adadd698d89e779194f0a4a304d2ec60ca407309d8aa562"
+    },
+    {
+      "file": ".cache/task-043/capture-4/flight.json",
+      "sha256": "3cc75665b960446bbcda21ed9935b8c98508f66d4e25b0624f4e2396e40811d6"
+    }
+  ]
+}

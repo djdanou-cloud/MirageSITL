@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "task": "TASK-045",
+  "file": "test-results/validation/task-045-evidence.zip",
+  "sha256": "98cf3d04d2b73187e00dbd6155742e11912dbaa9894959302b9168ad70b14d41",
+  "bytes": 61526,
+  "entries": [
+    "task-045-build.json",
+    "task-045-build-stdout.log",
+    "task-045-build-stderr.log",
+    "task-045-build-rejections.json",
+    "task-045-browser-boot.json",
+    "task-045-wire-audit.json",
+    "task-045-node-smoke.json",
+    "task-045-capture-rejections.json",
+    "task-045-unit.xml",
+    "task-045-focused.xml",
+    "task-045-final.xml",
+    "task-045-browser.xml",
+    "task-045-first-serial.bin",
+    "task-045-first-eeprom.bin",
+    "task-045-second-serial.bin",
+    "task-045-second-eeprom.bin",
+    "task-045-third-serial.bin",
+    "task-045-third-eeprom.bin",
+    "task-045-completion.json"
+  ],
+  "firmwareIncluded": false
+}

@@ -5,6 +5,14 @@ The detailed task source is [PROJECT_ROADMAP.md](PROJECT_ROADMAP.md).
 
 ## Milestone 01: implemented boundaries
 
+TASK-042 adds a separate owned Linux/WSL native ArduCopter flight harness.
+JSON motor outputs drive our Rust rigid-body WASM through an explicitly
+synthetic quad X model; a pymavlink sidecar returns real firmware health,
+mode and altitude observations. A v2 trace and independent raw MAVLink/physics
+audits establish native closed-loop integration. This does not wire the
+browser demo, validate measured BET aerodynamics, complete TASK-043 admission
+or certify physical HITL. See the engine contract and operational runbook.
+
 The working vertical slice includes React 19/R3F/WebGL, a module Worker,
 constant `dt = 1/400 s`, atomic SAB transport, Gamepad calibration, demo
 quadrotor dynamics, visualization, and diagnostics. JSBSim/BET, ArduPilot,
@@ -1066,3 +1074,17 @@ remains the G1 gate. Missing published ground pauses stepping rather than lettin
 the vehicle fall through. Each contact uses the plane of the triangle under its
 fully extended anchor, so curvature inside a triangle is not represented.
 Wiring into the flight session and live terrain admission remain separate.
+
+TASK-043 composes the native driver's real MAVLink input with LiveEkfWarmup,
+EkfMonitor and EkfWarmup. Native JSON frame N confirms the encoded IMU sample
+in reply N-1; GNSS fix time remains firmware-sourced. Arrival time never replaces
+measurement time. The shared gate produces READY/EW admission and measured
+acceleration, with revocation and independent raw/capture replay. Synthetic
+fault probes are labelled separately from observed firmware behavior. No browser
+session wiring, physical HITL acceptance or measured aircraft validation follows.
+
+
+TASK-059 adds a native-only EW experiment boundary: unchanged physics JSON, TASK-058 GPS observations delivered through GPS_INPUT, acknowledged simulated compass biases, and explicit synthetic rotor wrench loss. Independent raw-wire decoding, full PWM/body replay and original EKF telemetry joins precede empirical calibration/frozen limits and separate validation. Browser autopilot admission and physical flight fidelity remain outside this experiment.
+
+
+TASK-045 adds a local-only browser artifact/bootstrap boundary: the opt-in Vite route serves admitted external bytes to a dedicated firmware Worker; verified glue also starts its owned pthreads. CRC-valid serial boot diagnostics and IndexedDB EEPROM/profile ownership are separate from FlightStateV2 and autopilot READY. Graceful and abrupt Worker restart/storage recovery are verified; live MirageSITL physics and parity remain TASK-046/047. Artifact redistribution retains its existing decision gate.

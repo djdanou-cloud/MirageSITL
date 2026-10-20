@@ -1,0 +1,71 @@
+{
+  "schemaVersion": 1,
+  "scope": "Owned synthetic native simulation captures; no firmware, third-party source or aircraft datasets",
+  "archives": [
+    {
+      "file": "test-results/validation/task-059-calibration-control.zip",
+      "bytes": 8128690,
+      "sha256": "fe9e43b9bea304b7de0d1ad8e258ae8a5ad7060a055912b9c9ac60b335ac7d5e"
+    },
+    {
+      "file": "test-results/validation/task-059-calibration-jamming.zip",
+      "bytes": 8160414,
+      "sha256": "ae3de8b1ac876c5091e1154f2f9c8f046f1d1982fc88803d266a5f606af5ba83"
+    },
+    {
+      "file": "test-results/validation/task-059-calibration-position-step.zip",
+      "bytes": 8133615,
+      "sha256": "525bc78561236ca1a05618d4cb573114c157057cdf5245e6e7a7c305a1deb243"
+    },
+    {
+      "file": "test-results/validation/task-059-calibration-velocity-drift.zip",
+      "bytes": 8171126,
+      "sha256": "259c232abf8abc50ef95c2966e80e696ba4136cdd8bac53f9197b4c441ccc120"
+    },
+    {
+      "file": "test-results/validation/task-059-calibration-magnetic.zip",
+      "bytes": 8143823,
+      "sha256": "cd664ff8bc2078806356176c852827f959cdc8863cc55705713dfb86507b09f6"
+    },
+    {
+      "file": "test-results/validation/task-059-calibration-motor-loss.zip",
+      "bytes": 5440119,
+      "sha256": "34b426a218fbfe9c50483c98e1ad7c73b2a4ea1a86fdb7ae77d98542803dd203"
+    },
+    {
+      "file": "test-results/validation/task-059-validation-control.zip",
+      "bytes": 8128910,
+      "sha256": "08d4948bad265391a790d933b89feff5ed4bfbdfb6f664a404b4d6d3975cb0b7"
+    },
+    {
+      "file": "test-results/validation/task-059-validation-jamming.zip",
+      "bytes": 8171866,
+      "sha256": "61818fe1aa8ae20bcf8b45991f04f42ed2c5f96f8a357c1ecddb14abdb258979"
+    },
+    {
+      "file": "test-results/validation/task-059-validation-position-step.zip",
+      "bytes": 8141226,
+      "sha256": "dca1a90c6273cc69a5bf7eb1d6e6137d4eec63b944e6c79b3bff937c72bacda3"
+    },
+    {
+      "file": "test-results/validation/task-059-validation-velocity-drift.zip",
+      "bytes": 8177977,
+      "sha256": "1ada22fb48965f975eb73aa4b731305666d440e4fe6b4eda436256fca4a7409f"
+    },
+    {
+      "file": "test-results/validation/task-059-validation-magnetic.zip",
+      "bytes": 8136822,
+      "sha256": "02acccea173cfaf8ab101219a8d7bb8880c8de75348762dea90c0f85c2108f22"
+    },
+    {
+      "file": "test-results/validation/task-059-validation-motor-loss.zip",
+      "bytes": 5442400,
+      "sha256": "602d52a97290de13c86a04bb5f47d56b62d575c9174e7e558fe6901eecf45bad"
+    },
+    {
+      "file": "test-results/validation/task-059-flight-regression.zip",
+      "bytes": 9060359,
+      "sha256": "941f2b67dcef3ff23c9fc9e71f455bb3201ce06890250dd038568ad9472ad4d5"
+    }
+  ]
+}

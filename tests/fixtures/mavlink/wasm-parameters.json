@@ -1,0 +1,26 @@
+{
+  "generator": "pymavlink 2.4.50 ardupilotmega v20",
+  "kind": "synthetic-wire-oracle",
+  "generatorScriptSha256": "fc58b23e7f7cb60721276961b4bb29f53cca0247e3946ba382a7a3b8c567433e",
+  "generatedModuleSha256": "011577d7432f6e5e2cb8fe6c15ab4637175ac09ad663bb1e951a09c5d9a872ff",
+  "frames": [
+    {
+      "id": 20,
+      "crcExtra": 214,
+      "length": 20,
+      "hex": "fd0a00000affbe140000ffff010157505f5350440650"
+    },
+    {
+      "id": 23,
+      "crcExtra": 168,
+      "length": 23,
+      "hex": "fd1700000affbe17000000000241010157505f5350440000000000000000000009dc87"
+    },
+    {
+      "id": 22,
+      "crcExtra": 220,
+      "length": 25,
+      "hex": "fd1900000a01011600000000024182052a0057505f53504400000000000000000000093378"
+    }
+  ]
+}

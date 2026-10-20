@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<testsuites name="vitest tests" tests="11" failures="0" errors="0" time="0.8259755">
+    <testsuite name="tests/fixtures.test.ts" timestamp="2026-10-19T10:34:33.315Z" hostname="DaduAsus" tests="6" failures="0" errors="0" skipped="0" time="0.5952707">
+        <testcase classname="tests/fixtures.test.ts" name="versioned fixture provenance and random streams &gt; matches the frozen uint32 reference and resets exactly" time="0.010595">
+        </testcase>
+        <testcase classname="tests/fixtures.test.ts" name="versioned fixture provenance and random streams &gt; keeps stream state separate and accepts zero seeds" time="0.006598">
+        </testcase>
+        <testcase classname="tests/fixtures.test.ts" name="versioned fixture provenance and random streams &gt; verifies every registered fixture against its exact payload bytes" time="0.0190144">
+        </testcase>
+        <testcase classname="tests/fixtures.test.ts" name="versioned fixture provenance and random streams &gt; regenerates the NASA drop fixture byte-for-byte from the hashed archives" time="0.5551419">
+        </testcase>
+        <testcase classname="tests/fixtures.test.ts" name="versioned fixture provenance and random streams &gt; requires complete HTTPS measured provenance without a derivation" time="0.0014119">
+        </testcase>
+        <testcase classname="tests/fixtures.test.ts" name="versioned fixture provenance and random streams &gt; rejects wrong units, hashes, bounds, and synthetic relabeling" time="0.0010483">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/sitl-ew.test.ts" timestamp="2026-10-19T10:34:33.320Z" hostname="DaduAsus" tests="3" failures="0" errors="0" skipped="0" time="0.1149119">
+        <testcase classname="tests/sitl-ew.test.ts" name="injects a 30 m north GPS step without changing source truth or velocity" time="0.0025269">
+        </testcase>
+        <testcase classname="tests/sitl-ew.test.ts" name="maps magnetic bias sign/units, jamming denial/recovery, coherent drift, and actuator loss independently" time="0.0046617">
+        </testcase>
+        <testcase classname="tests/sitl-ew.test.ts" name="removes the failed rotor force and yaw wrench after lag" time="0.1065533">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/integration/ew-sitl.test.ts" timestamp="2026-10-19T10:34:33.320Z" hostname="DaduAsus" tests="2" failures="0" errors="0" skipped="0" time="0.1157929">
+        <testcase classname="tests/integration/ew-sitl.test.ts" name="EW rejects missing cases, changed truth and synthetic source; no envelopes cannot certify fidelity" time="0.0566091">
+        </testcase>
+        <testcase classname="tests/integration/ew-sitl.test.ts" name="native limits reject calibration reuse, altered identities, exceeded bounds and unanticipated modes" time="0.0579786">
+        </testcase>
+    </testsuite>
+</testsuites>

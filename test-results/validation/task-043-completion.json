@@ -1,0 +1,477 @@
+{
+  "schemaVersion": 1,
+  "task": "TASK-043",
+  "status": "DONE",
+  "date": "2026-10-19",
+  "baseline": "324d15ec79f1268fc14569e6967d39480fa5905b",
+  "scope": "Native external-SITL admission and replay; browser READY/EW application and physical HITL remain separate",
+  "localUncommitted": true,
+  "live": {
+    "command": "wsl -d Ubuntu -- bash .cache/task-043/run.sh",
+    "exitCode": 0,
+    "captureDirectory": ".cache/task-043/capture-4",
+    "firmwareCommit": "8ab6afde107a91df1b5f60ade8f333cb8a61b190",
+    "firmwareSha256": "fa37bf619bce116d410931f1b7d24ea72ed444ba529379df0db9738742ecb186",
+    "modelSha256": "ef7c6d9bd057db41a11b1311b2885b44b6cccac543da923a9feabe1189442019",
+    "firstReady": {
+      "timeS": 41.27625,
+      "wallTimeMs": 20733.261598,
+      "servoFrame": 33020,
+      "acknowledgedReplyFrame": 33019,
+      "imuTimeS": 41.275,
+      "imuSource": "json-lockstep",
+      "reportedImuTimeS": 41.270184,
+      "gpsTimeS": 41.044,
+      "ready": true,
+      "ewAllowed": true,
+      "reason": "EKF health and warmup gate passed",
+      "accelerationFactor": 1.9908228044535763,
+      "health": {
+        "source": "autopilot",
+        "epoch": 1,
+        "flags": 31,
+        "healthy": true,
+        "mode": 3,
+        "ageMs": 15,
+        "heartbeatFresh": true,
+        "reportFresh": true,
+        "innovationHealthy": true
+      }
+    },
+    "metrics": {
+      "physicsFrames": 67257,
+      "observations": 8413,
+      "readyRowsAfterAdmission": 4282,
+      "rowsAfterAdmission": 4285,
+      "observedRevocations": 2,
+      "accelerationFactorAtAdmission": 1.9908228044535763,
+      "finalAccelerationFactor": 1.994509301634005
+    },
+    "flightMetrics": {
+      "frames": 4161,
+      "holdDurationS": 10.189999999999998,
+      "physicsFrames": 67257,
+      "wallS": 42.962794718999994,
+      "simS": 84.07125,
+      "telemetryEvents": 31953
+    },
+    "childExit": [
+      {
+        "pid": 474,
+        "code": null,
+        "signal": "SIGKILL"
+      },
+      {
+        "pid": 475,
+        "code": 0,
+        "signal": null
+      }
+    ]
+  },
+  "checks": {
+    "unit": {
+      "file": "test-results/validation/task-043-unit.xml",
+      "sha256": "f8020cc2382d2accece07b3f53a0220c9b77a5272ebd4846b78d3ceefafbc802",
+      "total": 533,
+      "passed": 532,
+      "skipped": 1,
+      "failures": 0,
+      "errors": 0
+    },
+    "focused": {
+      "file": "test-results/validation/task-043-final.xml",
+      "sha256": "f874d4157776a921e42f85045b1dbfe3f158a09a60d8f8a7633f2a1b06c8748f",
+      "total": 28,
+      "passed": 28,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0
+    },
+    "browser": {
+      "file": "test-results/validation/task-043-browser.xml",
+      "sha256": "4f85e0dd0d484b8f1d6589271bbb2983ac8227c5eff5c7e5eecda997e24f630a",
+      "total": 6,
+      "passed": 6,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0
+    }
+  },
+  "rawMavlinkAudit": {
+    "schemaVersion": 1,
+    "status": "PASS",
+    "pymavlink": "2.4.50",
+    "messages": 48965,
+    "recordedObservations": 31953,
+    "filteredRawMessages": 31953,
+    "rawSha256": "bf1737a1338c471ff227ef1af172af509ff7cdb46a7e32fcaa4d76a88ef38fa9",
+    "wireFramesChecked": 31953,
+    "decodedSha256": "20cce230e8589fc6f9ef1c8e7c752b17a5022153fd26b8bb22c9600beee3bb67",
+    "generatorSha256": "f6d93f8e01a8a6372779c4cc797f59ad704dd46bfaef946fa2908ded6cbf4137"
+  },
+  "syntheticProbes": [
+    {
+      "name": "noncausal IMU acknowledgment",
+      "kind": "synthetic-rejection-probe",
+      "ready": false,
+      "ewAllowed": false,
+      "reason": "Sensor timestamps are incoherent"
+    },
+    {
+      "name": "failed innovation",
+      "kind": "synthetic-rejection-probe",
+      "ready": false,
+      "ewAllowed": false,
+      "reason": "Autopilot EKF diagnostics are unhealthy or stale"
+    },
+    {
+      "name": "lost GNSS fix",
+      "kind": "synthetic-rejection-probe",
+      "ready": false,
+      "ewAllowed": false,
+      "reason": "Sensor timestamps are incoherent"
+    },
+    {
+      "name": "stale heartbeat/EKF with fresh sensors",
+      "kind": "synthetic-rejection-probe",
+      "ready": false,
+      "ewAllowed": false,
+      "reason": "Autopilot EKF diagnostics are unhealthy or stale"
+    },
+    {
+      "name": "clock reversal",
+      "kind": "synthetic-rejection-probe",
+      "ready": false,
+      "ewAllowed": false,
+      "reason": "Warmup epoch or clock mismatch"
+    },
+    {
+      "name": "HITL observed fast-forward replay (no physical hardware)",
+      "kind": "synthetic-rejection-probe",
+      "ready": false,
+      "ewAllowed": false,
+      "reason": "HITL clock advanced faster than real time"
+    },
+    {
+      "name": "disposed session",
+      "kind": "synthetic-rejection-probe",
+      "ready": false,
+      "ewAllowed": false,
+      "reason": "Autopilot session disposed"
+    }
+  ],
+  "captureMutationRejections": {
+    "schemaVersion": 1,
+    "status": "PASS",
+    "cases": [
+      {
+        "name": "READY before actual warmup/health",
+        "kind": "synthetic-capture-mutation",
+        "rejected": true
+      },
+      {
+        "name": "fabricated sensor acknowledgment",
+        "kind": "synthetic-capture-mutation",
+        "rejected": true
+      },
+      {
+        "name": "altered gate wire bytes with stale raw audit",
+        "kind": "synthetic-capture-mutation",
+        "rejected": true
+      },
+      {
+        "name": "independent raw decoder rejects altered wire envelope",
+        "kind": "synthetic-capture-mutation",
+        "rejected": true
+      }
+    ],
+    "directory": "C:\\Users\\djdan\\OneDrive\\Desktop\\MirageSITL\\.cache\\task-043\\rejection-eqQw3H"
+  },
+  "commands": [
+    {
+      "command": "node node_modules/eslint/bin/eslint.js . --max-warnings=0 --no-inline-config",
+      "exitCode": 0,
+      "finalAuditScriptsAlsoChecked": true
+    },
+    {
+      "command": "node node_modules/typescript/bin/tsc --noEmit",
+      "exitCode": 0
+    },
+    {
+      "command": "node node_modules/vite/bin/vite.js build apps/web",
+      "exitCode": 0
+    },
+    {
+      "command": "node scripts/check-docs.mjs",
+      "exitCode": 0,
+      "pairs": 20,
+      "tasks": 86,
+      "layouts": 6
+    },
+    {
+      "command": "git diff --check",
+      "exitCode": 0
+    },
+    {
+      "command": "Python pymavlink 2.4.50 scripts/sitl/check-raw.py --input CAPTURE",
+      "exitCode": 0
+    },
+    {
+      "command": "node scripts/check-ekf-warmup.mjs --input CAPTURE",
+      "exitCode": 0
+    },
+    {
+      "command": "node scripts/check-sitl-capture.mjs --input CAPTURE --output test-results/validation/task-043-flight.json",
+      "exitCode": 0
+    }
+  ],
+  "artifacts": [
+    {
+      "file": "test-results/validation/task-043-warmup.json",
+      "sha256": "0d3438d77d539894f32577874b3a2b8f505e81e94bd9480af70d097e6868c14d",
+      "bytes": 6687
+    },
+    {
+      "file": "test-results/validation/task-043-flight.json",
+      "sha256": "8439f426fef546cd2545a2c0a9d96c101aee786c5968b310af8922092f49efdb",
+      "bytes": 7157
+    },
+    {
+      "file": "test-results/validation/task-043-rejections.json",
+      "sha256": "b3ade9e7e4b638a0b08ca646d39779e61506a263035c400fd2105f3e7bccedfb",
+      "bytes": 718
+    },
+    {
+      "file": "test-results/validation/task-043-unit.xml",
+      "sha256": "f8020cc2382d2accece07b3f53a0220c9b77a5272ebd4846b78d3ceefafbc802",
+      "bytes": 122536
+    },
+    {
+      "file": "test-results/validation/task-043-final.xml",
+      "sha256": "f874d4157776a921e42f85045b1dbfe3f158a09a60d8f8a7633f2a1b06c8748f",
+      "bytes": 7017
+    },
+    {
+      "file": "test-results/validation/task-043-browser.xml",
+      "sha256": "4f85e0dd0d484b8f1d6589271bbb2983ac8227c5eff5c7e5eecda997e24f630a",
+      "bytes": 1349
+    },
+    {
+      "file": "test-results/validation/task-043-capture.zip",
+      "sha256": "59b2a3b4e7f1bb7ab805e661eebeb463f603c948b0634f7bd9c78d0d791a0b78",
+      "bytes": 9055209
+    },
+    {
+      "file": "test-results/validation/sitl-report.json",
+      "sha256": "5bfb4e044282640aae2a0ce731018c994d853a0dc9013c8bd8672dd632657743",
+      "bytes": 470
+    }
+  ],
+  "sourceInputs": [
+    {
+      "file": "CLAUDE.md",
+      "sha256": "212a90e9ccc52c4d86eae958d862945c12491402bba8ec6d0d6e619b2a7052ca"
+    },
+    {
+      "file": "README.md",
+      "sha256": "f1b8fc879f0ace0e7fe86c95f96a272201da8cf4b8718a450f3efab56b6a980c"
+    },
+    {
+      "file": "docs/PROJECT_ROADMAP.md",
+      "sha256": "fc85e6207683e60903a7e4abfd3a1aec84b016fb17aa06facc94b1742d1b7481"
+    },
+    {
+      "file": "docs/SPECS_SHARED_MEMORY.md",
+      "sha256": "e6e5d2aad4619dc2075f1886cee92ae8a959bf28ff13db8537692f263b6ef942"
+    },
+    {
+      "file": "docs/SPECS_SIMULATION_ENGINES.md",
+      "sha256": "2fe25bcb33af5ebc32434da3fd8db564218f3153bf3d4a9cc8b5fa2320b23ec5"
+    },
+    {
+      "file": "docs/architecture.md",
+      "sha256": "0239c6e689624b547e6b1e62ce5f7fcc578f9a15dc8a05f86f731d60034d81a8"
+    },
+    {
+      "file": "docs/operations/runbook.md",
+      "sha256": "e2a27e31cb96acce646f61f82f11deb26746ac4bcfde3c7ecbb82023b030593a"
+    },
+    {
+      "file": "docs/ru/CLAUDE.md",
+      "sha256": "5a6208d1a4081f4e417a25a2e3763322d4cae60aaf602599d9d1be3f2ae79893"
+    },
+    {
+      "file": "docs/ru/PROJECT_ROADMAP.md",
+      "sha256": "fab82e057faf63c7d893737da5f6203ce54830df312f41af047ca6ddef25e816"
+    },
+    {
+      "file": "docs/ru/README.md",
+      "sha256": "5df7727633dbe5905288fd9f51d2779522ff1ed37ff914362357dce0fce0b0cb"
+    },
+    {
+      "file": "docs/ru/SPECS_SHARED_MEMORY.md",
+      "sha256": "694536e08d5381d1fd60cee8aca8e833bdff8906dcb3d5b2e6b695e6de428ccd"
+    },
+    {
+      "file": "docs/ru/SPECS_SIMULATION_ENGINES.md",
+      "sha256": "9497257f650756c6a0f5897b58f26289989d6f26a5d969397bcfb4181feb6471"
+    },
+    {
+      "file": "docs/ru/architecture.md",
+      "sha256": "a9ea7b506022c8253734f1ace5e50e9e7596f5625d06a422b30758e8ade4e67b"
+    },
+    {
+      "file": "docs/ru/runbook.md",
+      "sha256": "791c7fba67db840031c402df52d460e3b5d5303fde3ebcf61f63ff63cd9467fa"
+    },
+    {
+      "file": "packages/autopilot/package.json",
+      "sha256": "72c1a68c9c8c8c53bf3698bfa3cff6d4b117d0e57e4638abdf2e0e64b001023f"
+    },
+    {
+      "file": "packages/autopilot/src/ekf-status.ts",
+      "sha256": "a6391ed0275399c593f2879fe109fd22efe0f5cfdf8e67d958bc549a4710de82"
+    },
+    {
+      "file": "packages/autopilot/src/warmup.ts",
+      "sha256": "e2ae892e3803d26a452280d897c0b75eaafa6f2b4a697d4b7cd56bd30331a7e6"
+    },
+    {
+      "file": "packages/mavlink/src/codec.ts",
+      "sha256": "9661a9db6f3024d4a12b4d9aea5faf74b1d1027ee895ea3446ec2782e925e1ee"
+    },
+    {
+      "file": "scripts/run-sitl.mjs",
+      "sha256": "7fa531290751b984b42567d42233f754d102dbcbb914f34b1e1ed72a84419a23"
+    },
+    {
+      "file": "tests/fixtures/registry.json",
+      "sha256": "fb118057bde48c6efa4f00073b38c3394f76ee68493c6ae3b4de74f91ee66551"
+    },
+    {
+      "file": "tests/integration/external-sitl.test.ts",
+      "sha256": "03325a4844fe90805d6a06c4fc8dfcf59adefc1ba82b390cf8933d2c34469d17"
+    },
+    {
+      "file": "packages/autopilot/src/live-warmup.ts",
+      "sha256": "e3fce704d1b35494c9bb4a593408993535144c91f3c15bdcbc3aebec4475b22c"
+    },
+    {
+      "file": "scripts/check-ekf-warmup.mjs",
+      "sha256": "aeab4a0ac9a8c5ce135188f632d04d34d3459cffe24d0d117572ae2368522687"
+    },
+    {
+      "file": "scripts/check-sitl-capture.mjs",
+      "sha256": "5924280d8d1ec0162b34f30607869438624ff6e607bfdebc2f6a29b737d99b13"
+    },
+    {
+      "file": "scripts/sitl/check-raw.py",
+      "sha256": "f6d93f8e01a8a6372779c4cc797f59ad704dd46bfaef946fa2908ded6cbf4137"
+    },
+    {
+      "file": "scripts/sitl/driver.mjs",
+      "sha256": "61f3746a15badda924cf2517fd22241f150d040ee3758ee6bffd5e2b1a2d954c"
+    },
+    {
+      "file": "scripts/sitl/quad.mjs",
+      "sha256": "461db764a390d52a9c1576f645b283ffcec7235203d2ce86c0f4c6e93f7a2ed5"
+    },
+    {
+      "file": "scripts/sitl/telemetry.py",
+      "sha256": "b2c4308d9ea4fd99a9e374e079467c450f1b0eec437faa9be8e6d3540fc272cf"
+    },
+    {
+      "file": "tests/fixtures/mavlink/generate-warmup.py",
+      "sha256": "c4c01b14378bc81e6c535eed552ca95997a9ef7b5324fcbed6317225b42522b4"
+    },
+    {
+      "file": "tests/fixtures/mavlink/warmup-sensors.json",
+      "sha256": "ffbf36d3257726f12e95b038bea10f6156cad0423649f648f4b0cac4c4cdfb65"
+    },
+    {
+      "file": "tests/integration/ekf-ready.test.ts",
+      "sha256": "157bc647b17faa5d6523cb4d7ae6d30852b27604b79a434875bdb3199a6ed37f"
+    },
+    {
+      "file": "tests/sitl-flight-trace.test.ts",
+      "sha256": "7ad1c838e8bc9d5af2e7804a1160c106c15b0aad72a64e8bc6c0833fe6359361"
+    },
+    {
+      "file": "tests/sitl-quad.test.ts",
+      "sha256": "4986778dd65840b0ecfa3551c3416ba1cb27de30bfd37057c6b627ae3118abbe"
+    }
+  ],
+  "historicalTask042": [
+    {
+      "file": "test-results/validation/task-042-snapshot-2026-10-19/sitl-report.json",
+      "sha256": "e7c9109b7e75cba5a8f54f8d9791faf20727831732d63d94410e8da7dc98c475"
+    },
+    {
+      "file": "test-results/validation/task-042-snapshot-2026-10-19/task-042-capture.zip",
+      "sha256": "d791153519576b1687b2b9d0c41e2bee89e08124b980d3a66670ad8c654ae08a"
+    },
+    {
+      "file": "test-results/validation/task-042-snapshot-2026-10-19/task-042-completion.json",
+      "sha256": "ddc8f29a63c3ff5846527953a87f59e19878dad554570e23b0e63398f2ac33a6"
+    },
+    {
+      "file": "test-results/validation/task-042-snapshot-2026-10-19/task-042-final.xml",
+      "sha256": "dd836c1d513015e3ea8a2e3289789826c819eaf247afacaff003c87e1faad157"
+    },
+    {
+      "file": "test-results/validation/task-042-snapshot-2026-10-19/task-042-flight.json",
+      "sha256": "956158eeb3fbc8dcc7445c88d3f7a8f2f04ae96240572dadda1f6d8b687b1f3a"
+    },
+    {
+      "file": "test-results/validation/task-042-snapshot-2026-10-19/task-042-focused.xml",
+      "sha256": "3bab09239b17d4895a5b6ba066bd47fc087f88113d4dabb2ea4774de408c80a3"
+    },
+    {
+      "file": "test-results/validation/task-042-snapshot-2026-10-19/task-042-native.log",
+      "sha256": "60252762884e9d3f07ac3062504d7915be290c378b19f6459743948a58279d7d"
+    },
+    {
+      "file": "test-results/validation/task-042-snapshot-2026-10-19/task-042-ownership.json",
+      "sha256": "cd27152ab2641530ff8663a3faf7e938b154ad64bcc6694dd93f4ca4b6e5e7d9"
+    },
+    {
+      "file": "test-results/validation/task-042-snapshot-2026-10-19/task-042-rejections.json",
+      "sha256": "3d869290e4ec93f8b7545ec026a9c9d2c3bdb3ce2bafbde6e4d633cce4184a9f"
+    },
+    {
+      "file": "test-results/validation/task-042-snapshot-2026-10-19/task-042-unit.xml",
+      "sha256": "6ed2c40408d1f70dcdd28289b057c4a56576147787fad047edb77e58c1d135a7"
+    }
+  ],
+  "diagnosticTrials": [
+    {
+      "file": ".cache/task-043/capture-1/run.json",
+      "sha256": "ef0d65f2bf9234a0586575198cd0ec09a857548b31babe4fbd70dcbef8b52e09",
+      "status": "FAIL",
+      "reason": "Driver flight deadline exceeded"
+    },
+    {
+      "file": ".cache/task-043/capture-2/run.json",
+      "sha256": "1899a204b03eb56bc71caccab604c04fd644a89922d47ec7a18c662253817a16",
+      "status": "captured",
+      "reason": "Diagnostic trial using MAVLink report clock; not the final JSON sample-clock admission profile"
+    },
+    {
+      "file": ".cache/task-043/capture-3/run.json",
+      "sha256": "34abbcda1faaa016e87c75712a6a0f1aad4d9e36ef83462a83c834061eaf51c6",
+      "status": "captured",
+      "reason": "Diagnostic trial using MAVLink report clock; not the final JSON sample-clock admission profile"
+    }
+  ],
+  "limitations": [
+    "Native external-SITL gate only; browser READY/EW application and physical HITL remain separate",
+    "IMU admission uses causal acknowledged JSON sensor samples; firmware IMU report time remains separate diagnostic provenance",
+    "Two actual GNSS freshness excursions revoked readiness and recovered; no limit was relaxed to hide them",
+    "Synthetic fault probes and capture mutations are not claimed as observed firmware faults",
+    "Synthetic quad model does not resolve TASK-033 measured aerodynamic fidelity",
+    "Existing linker/hardlink, Vite bundle-size and browser color-environment warnings retained",
+    "Capture archive contains own simulation logs, not firmware binaries or third-party datasets",
+    "No new native Rust workspace test claimed for this TypeScript/I/O change; actual WASM/native flight and affected Chromium execution verified",
+    "All TASK-042 and TASK-043 edits remain local; no commit or push requested"
+  ]
+}

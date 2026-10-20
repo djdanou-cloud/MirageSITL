@@ -1,5 +1,5 @@
 import type { MavFrame } from "@mirage/mavlink/codec";
-import { EkfFlagV2 } from "@mirage/protocol";
+import { EkfFlagV2 } from "../../protocol/src/layout-v2.ts";
 export interface EkfStatus {
   source: "autopilot";
   epoch: number;
@@ -15,16 +15,20 @@ export interface EkfStatus {
  * Bound to one configured FC identity; timestamps use sim ms for SITL and monotonic wall ms for HITL.
  */
 export class EkfMonitor {
+  readonly systemId: number;
+  readonly componentId: number;
+  readonly epoch: number;
+  readonly staleMs: number;
   private heartbeatMs = -Infinity;
   private reportMs = -Infinity;
   private flags = 0;
   private innovations = false;
   private mode: number | null = null;
   constructor(
-    readonly systemId: number,
-    readonly componentId: number,
-    readonly epoch: number,
-    readonly staleMs = 1000,
+    systemId: number,
+    componentId: number,
+    epoch: number,
+    staleMs = 1000,
   ) {
     if (
       !Number.isInteger(systemId) ||
@@ -38,6 +42,10 @@ export class EkfMonitor {
       staleMs <= 0
     )
       throw new RangeError("Invalid EKF monitor identity");
+    this.systemId = systemId;
+    this.componentId = componentId;
+    this.epoch = epoch;
+    this.staleMs = staleMs;
   }
   ingest(frame: MavFrame, receivedMs: number): boolean {
     if (

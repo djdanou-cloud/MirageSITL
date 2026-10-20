@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 2,
+  "caseDirectories": [
+    ".cache/task-059/validation/control",
+    ".cache/task-059/validation/jamming",
+    ".cache/task-059/validation/position-step",
+    ".cache/task-059/validation/velocity-drift",
+    ".cache/task-059/validation/magnetic",
+    ".cache/task-059/validation/motor-loss"
+  ]
+}

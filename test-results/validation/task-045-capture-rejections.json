@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "status": "PASS",
+  "scope": "Deliberately modified copies of the real browser capture; not firmware observations",
+  "cases": [
+    {
+      "id": "eeprom-corruption",
+      "status": "PASS",
+      "exitCode": 1,
+      "rejection": "ValueError: EEPROM image identity/checksum/revision mismatch"
+    },
+    {
+      "id": "serial-crc-corruption",
+      "status": "PASS",
+      "exitCode": 1,
+      "rejection": "ValueError: CRC-invalid MAVLink in browser serial capture"
+    },
+    {
+      "id": "forged-initial-parameter",
+      "status": "PASS",
+      "exitCode": 1,
+      "rejection": "ValueError: Parameter change/recovery order differs from original readbacks"
+    },
+    {
+      "id": "restored-revision-rollback",
+      "status": "PASS",
+      "exitCode": 1,
+      "rejection": "ValueError: Stored revision/memory budget mismatch"
+    },
+    {
+      "id": "worker-leak",
+      "status": "PASS",
+      "exitCode": 1,
+      "rejection": "ValueError: Browser artifact/cleanup identity mismatch"
+    },
+    {
+      "id": "memory-over-budget",
+      "status": "PASS",
+      "exitCode": 1,
+      "rejection": "ValueError: Unexpected real firmware memory/thread topology"
+    }
+  ]
+}
