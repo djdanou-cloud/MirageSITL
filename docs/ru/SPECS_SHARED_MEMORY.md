@@ -1,6 +1,6 @@
 # SPECS_SHARED_MEMORY.md
 
-<!-- source-sha256: fc4df666e0408725b39cf41df980336cc7c979be23e22027fb9399fc840e2756 -->
+<!-- source-sha256: 0f02563cafd49098e8a8d6fd189b44d6520e83fe1dab3fa81d5c8ebbab548de7 -->
 
 Английский источник: [Source of truth](../SPECS_SHARED_MEMORY.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -500,4 +500,4 @@ timer callback allocations браузера. Все новые contract tests а
 по привязанному к идентификатору снимку EkfMonitor, эпоха которого совпадает
 с отображаемым состоянием полёта. Подключение Serial не публикует этот флаг
 в SAB и не допускает браузерный READY. Тайминги/отзыв описаны в спецификации двигателя;
-физический HITL не допускает fast-forward.
+записанный Simulation-on-Hardware не допускает fast-forward.

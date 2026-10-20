@@ -185,8 +185,8 @@ policy copies; if a client loads neither pointer, open this file explicitly.
   user; UIUC propeller BEM comparisons also fail measured fidelity tolerances.
   **Never describe the failing NASA/UIUC comparisons as merely missing data or
   relax thresholds to hide them.**
-* **Browser WASM SITL, hardware HITL, UX chain, GPU timing, and release gates:**
-  Browser application session/READY integration, TASK-051 (physical Pixhawk/Cube HITL via `scripts/check-hitl-capture.mjs`),
+* **Browser WASM SITL, ArduPilot simulation bench, UX chain, GPU timing, and release gates:**
+  Browser application session/READY integration, TASK-051 (virtual Hybrid SITL is done on this computer; recorded Simulation-on-Hardware for ArduPilot 4.6.3+ remains open; no PX4),
   TASK-073 (Apple Silicon M4 / RTX 4050 GPU frame-time verification via
   `scripts/check-gpu-perf.mjs`), TASK-080
   (accessibility sign-off; TASK-074 HUD freshness, TASK-075 fault ACKs, TASK-078 full-rate recording, and TASK-079 scenario ACK binding are done and do not admit browser READY), TASK-082 (multi-hour integrated soak), and TASK-083 (clean-machine

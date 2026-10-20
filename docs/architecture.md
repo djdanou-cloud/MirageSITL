@@ -54,7 +54,7 @@ verified outside the demo flight loop:
 Genuinely open boundaries: measured rotor/airframe/contact fidelity (TASK-033;
 NASA drop fidelity explicitly deferred by the user), GPL redistribution and browser
 autopilot READY and accessibility sign-off (TASK-080), live terrain-contact flight-session coupling (TASK-065),
-physical flight-controller HITL (TASK-051), and target-device M4/RTX 4050
+recorded ArduPilot Simulation-on-Hardware (TASK-051; virtual Hybrid SITL already ran with no drone), and target-device M4/RTX 4050
 400–1200 Hz and 60–120 FPS performance verification (TASK-073). Fixed `dt`
 does not guarantee execution every step interval: browser timers, GC, the OS,
 and background-tab policies provide no hard real-time guarantee.
@@ -213,13 +213,7 @@ Modes are mutually exclusive. Lifecycle:
    EEPROM persistence, sensor/PWM lockstep and phased Worker teardown are tested
    at 400/800/1200 Hz. Native/WASM flight parity and production READY remain
    TASK-047; GPL redistribution retains its decision gate.
-3. **HITL targets Chromium on macOS/Windows.** Require a secure context
-   and a user gesture for requestPort. Safari/Firefox are not target HITL
-   browsers. MAVLink2 parsing checks CRC/dialect/seq/sysid/compid and signing
-   when required. HIL_SENSOR runs at 200–400 Hz; HIL_GPS at 5–10 Hz;
-   HIL_ACTUATOR_CONTROLS uses consistent timestamps. Verify message/build/HIL
-   support on the exact ArduPilot firmware/board. SITL support does not
-   establish hardware HIL capability.
+3. **ArduPilot physical simulation is Simulation-on-Hardware and Hybrid SITL.** The current stage is virtual Hybrid SITL on this computer: JSON physics at UDP 9002, with no flight controller connected. Simulation-on-Hardware (`env SIM_ENABLED 1`, firmware 4.6.3 or newer) is the later recorded stage. PX4 and `HIL_SENSOR` / `HIL_ACTUATOR_CONTROLS` are not the acceptance path. SITL availability does not by itself prove a board is running Simulation-on-Hardware.
 
 At 8N1, the serial ceiling is baud/10 bytes/s including framing and all
 traffic. 115200 may be insufficient; measure headroom and use supported FC
@@ -232,7 +226,7 @@ physical FC filters. MAVLink2 framing (TASK-037), `EkfMonitor`/`EkfWarmup`,
 and native `LiveEkfWarmup` admission against the pinned ArduCopter SITL
 harness (TASK-042, TASK-043) are implemented. TASK-074 overlays those
 diagnostics on the Pilot HUD from decoded USB serial frames and does not admit
-browser READY. Browser autopilot READY session wiring and physical FC HITL remain open.
+browser READY. Browser autopilot READY session wiring remains open. TASK-051 virtual Hybrid SITL has passed; recorded Simulation-on-Hardware is still open.
 
 ## EW, terrain, cameras, and AAR
 
@@ -1150,8 +1144,8 @@ N confirms the encoded IMU sample in reply N-1; GNSS fix time remains
 firmware-sourced. Arrival time never replaces measurement time. The shared gate
 produces READY/EW admission and measured acceleration, with revocation and
 independent raw/capture replay. Synthetic fault probes are labelled separately
-from observed firmware behavior. No browser session wiring, physical HITL
-acceptance or measured aircraft validation follows.
+from observed firmware behavior. No browser session wiring, recorded
+Simulation-on-Hardware acceptance or measured aircraft validation follows.
 
 TASK-059 adds a native-only EW experiment boundary: unchanged physics JSON,
 TASK-058 GPS observations delivered through `GPS_INPUT`, acknowledged simulated

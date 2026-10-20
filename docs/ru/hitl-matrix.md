@@ -1,6 +1,6 @@
 # Матрица возможностей прошивок для HITL
 
-<!-- source-sha256: 498e6cc72b1fb00f360bfe4f2efc4c63adbf98bd4eb4a75b8527d01dfbc9e9a2 -->
+<!-- source-sha256: fe52ac999e38851e1ca430d2efec3ec34b757a590c4275c2218868f47b57ad8a -->
 
 Английский источник: [Source of truth](../hardware/hitl-matrix.md).
 
@@ -43,8 +43,11 @@ PX4: mavlink_receiver.cpp (sha256 2e22f0d3e22a48f2793202f7e9dba3526afbb5da8221ab
 
 ## Проверенные профили плат
 
-Нет. Чтобы добавить профиль, на реальном оборудовании зафиксировать: плату и
-ревизию, git SHA и флаги сборки прошивки, использованную настройку режима HIL,
-запись, показывающую флаг HIL в HEARTBEAT и HIL_ACTUATOR_CONTROLS при запасе
-последовательного канала 30% из TASK-049, затем сохранить SHA-256 пакета
-доказательств в профиле. Физическая приёмка — TASK-051.
+Нет. Чтобы добавить записанный профиль Simulation-on-Hardware, прошить
+ArduPilot 4.6.3 или новее, собранный с `env SIM_ENABLED 1`, снять пропеллеры и
+захватить `AHRS_EKF_TYPE` 10, `GPS1_TYPE` 100, `SIM_MAG1_DEVID` 97539,
+`SIM_OH_MASK` и отключение кабеля. Текущий этап TASK-051 не использует дрон:
+виртуальный Hybrid SITL запускается командой
+`node --experimental-strip-types scripts/run-virtual-hitl.mjs`. PX4 не входит
+в этот стенд. `HIL_ACTUATOR_CONTROLS` остаётся отдельным программным гейтом
+TASK-050 и не принимает Simulation-on-Hardware.

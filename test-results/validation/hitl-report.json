@@ -1,11 +1,21 @@
 {
   "schemaVersion": 1,
   "kind": "hitl-report",
-  "status": "BLOCKED_EXTERNAL",
-  "reasons": [
-    "Provide a real trace using --input PATH --sha256 HEX; see the task procedure"
-  ],
-  "metrics": {},
-  "sourceRevision": "6052519d23acce730b574afccc2ad65d73426c50",
-  "validatorSha256": "9a1e858171177df9b2611cb786fc2206bd7c949330912445342c50a4c27c82d9"
+  "status": "PASS",
+  "reasons": [],
+  "metrics": {
+    "mode": "hybrid-sitl",
+    "execution": "virtual",
+    "placement": "pc",
+    "droneConnected": false,
+    "firmwareObserved": false,
+    "version": "unobserved",
+    "gitShort": "8ab6afde",
+    "p99LatenessMs": 0.011799999999813736,
+    "count": 24000,
+    "simRateHz": 400
+  },
+  "inputSha256": "41ba97e44c52b02eda33090069ab172a661c74283db2ed09ddb9ff581c0ce341",
+  "sourceRevision": "981ad258d9ffc86060f46452e9915d96a967ed76",
+  "validatorSha256": "0b69f1f902db290d8019bac86d345f2a03994c265a2da7f2dcf949de835bcb8f"
 }

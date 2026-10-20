@@ -363,7 +363,7 @@ and other documents (review of 2026-10-20). They keep their existing TASK IDs.
 | 033 | Model validation gate | BLOCKED_EXTERNAL | Propeller fidelity still fails at its fixed tolerances. Still needed: a measured or viscous-solver SDA1075 polar, a decision on BET tip loss and swirl, the archive storage decision, airframe data and the production BET binding. |
 | 046 | ArduPilot browser HAL | TODO | Connect clock, storage, sensor and actuator endpoints to the WASM firmware with a lockstep clock and no deadlock on pause or exit. |
 | 047 | WASM/native SITL parity | TODO | Arm, takeoff, land and failsafe on both paths. Position RMSE ≤ 0.5 m and attitude RMSE ≤ 2° over the 30 s reference. Depends on TASK-046. |
-| 051 | Physical HITL acceptance | BLOCKED_EXTERNAL | Blocked on a physical flight controller and a supported firmware profile. |
+| 051 | ArduPilot Simulation-on-Hardware and Hybrid SITL | IN_PROGRESS | Virtual Hybrid SITL passed with no drone. Recorded Simulation-on-Hardware still needs an ArduPilot 4.6.3+ board built with SIM_ENABLED. PX4 is out of scope. |
 | 073 | GPU acceptance harness | BLOCKED_EXTERNAL | Blocked on full-feature production traces (terrain, FPV and thermal together), VRAM accounting and an M4 device. |
 | 074 | Pilot HUD and freshness | DONE | Serial `EkfMonitor` overlay on the Pilot HUD. Browser READY flight admission remains TASK-046/047. |
 | 075 | Instructor console | DONE | Fault commands apply through the session EW registry. Weather and model commands stay rejected on the demo. |
@@ -390,15 +390,12 @@ and other documents (review of 2026-10-20). They keep their existing TASK IDs.
   * recording unhealthy EKF responses;
   * a per-rotor thrust-loss input for the synthetic quad.
 * **Motor faults.** Full BET and mixer wiring, with compensation flight tests.
-* **HITL route and board profile.** The pinned ArduPilot does not support HIL
-  messages, and PX4 needs a verified board.
-  * Blocked on a board and a decision on the route.
-  * Local USB diagnostics (`test-results/hardware/`, VID `1209`, PID `5741`,
-    reported ArduPilot 4.6.3 `3fc7011a`) verified MAVLink framing and healthy
-    IMU/barometer samples, with disarmed heartbeats, HIL disabled, battery
-    disconnected and compass/GPS/RC absent (`PreArm: RC not found`).
-  * The 60 s 200/400 Hz bench procedure, physical USB radio acceptance
-    (EdgeTX/OpenTX) and local compass/GPS/battery checks are not run.
+* **ArduPilot Simulation-on-Hardware and Hybrid SITL.** TASK-051 is ArduPilot
+  4.6.3 or newer only. PX4 is out of scope. The current stage is a virtual
+  Hybrid SITL JSON run on this computer, with no drone connected
+  (`node --experimental-strip-types scripts/run-virtual-hitl.mjs`). Recorded
+  Simulation-on-Hardware (`SIM_ENABLED`) still needs a board flash and a
+  props-off capture.
 * **Bridge beyond loopback.** HTTPS/WSS and Private Network Access for remote
   use.
 * **Newer firmware.** Must explicitly extend the pinned MAVLink subset.

@@ -881,7 +881,7 @@ build at the capability gate; absence of a callback is not success.
 * JS allocation instrumentation and WASM allocator counters report zero
   allocations/bytes per step after warmup. `memory.buffer.byteLength` stays
   unchanged for 1e6 steps. This is not proof that the browser never performs GC.
-* Experimental rotor/airframe validation and physical HITL are separate
+* Experimental rotor/airframe validation and recorded Simulation-on-Hardware are separate
   gates. Missing data/hardware means BLOCKED_EXTERNAL, not DONE based on
   synthetic tests.
 
@@ -1460,7 +1460,7 @@ Reports `test-results/bench/contact-native-patched.json` and
 
 This batch implements TASK-037/038/039/040/048/052/053/056/057/060. Modules are
 independent protocol/transport/training references. The default browser flight Worker
-still uses `DemoDynamics`; browser autopilot READY, physical HITL, live terrain
+still uses `DemoDynamics`; browser autopilot READY, recorded Simulation-on-Hardware, live terrain
 session admission and physical transmitter/flight-controller acceptance remain
 separate. Geodesy (TASK-036), JSON lockstep (TASK-041), HIL streaming (TASK-049),
 HITL capability gating (TASK-050), EW composition (TASK-054/055/058), native
@@ -1783,6 +1783,20 @@ requirement. READY verdicts are frozen and registered privately;
 `AutopilotSession.connect("hitl", ...)` now requires one, so a hand-made object
 or SITL availability cannot enable HITL. No board is verified yet.
 
+## ArduPilot bench: TASK-051
+
+TASK-051 accepts ArduPilot only, at firmware 4.6.3 or newer for a recorded
+board. The current stage is virtual Hybrid SITL: `scripts/run-virtual-hitl.mjs`
+runs 60 s of copter JSON lockstep at 400 Hz on this computer and does not open
+a serial port. Provenance source is `virtual-sitl`. The pinned protocol commit
+is `8ab6afde107a91df1b5f60ade8f333cb8a61b190`. That pass does not observe an
+autopilot version and does not connect a drone. Recorded Simulation-on-Hardware
+requires `env SIM_ENABLED 1`, `AHRS_EKF_TYPE` 10, `GPS1_TYPE` 100,
+`SIM_MAG1_DEVID` 97539 and a `SIM_OH_MASK` in 0..65535, with props removed.
+A board using `AP_SIM_JSON_ENABLED` is Hybrid SITL placement `board`. PX4 is
+out of scope. Analyzer PASS does not enable `hitl` or browser READY. See
+[hardware/hitl-test-procedure.md](hardware/hitl-test-procedure.md).
+
 ## Implemented position-step spoofing: TASK-054
 
 `PositionStep` (`packages/ew/src/position-step.ts`) schedules an NED offset of
@@ -1886,7 +1900,7 @@ The native sensor feed is the 800 Hz JSON reply, not a MAVLink report arrival. `
 
 The sidecar records original wire bytes with each decoded observation and requests 3 ms HIGHRES_IMU and 50 ms GPS_RAW_INT reports. At the pinned 400 Hz scheduler, a 2500 us request truncates to 2 ms and is denied by `cap_message_interval`; 3 ms is accepted. This is a stream configuration fix, not relaxed admission. The driver evaluates readiness on physics ticks and writes `warmup.ndjson` at 100 Hz plus every transition, including source clocks, exact wall elapsed, normalized health, READY/EW flags, reason and measured acceleration. Unknown diagnostic age serializes as null before the first report and cannot pass.
 
-`scripts/check-ekf-warmup.mjs` replays all original physics acknowledgments and raw-CRC-audited telemetry through the same modules and checks every recorded decision. The stream event at physics time t follows that completed tick; replay feeds only events with `receivedSimS<t` before evaluating the next tick. It records actual admission/revocations separately from explicitly synthetic failed-innovation, stale-diagnostic, bad-acknowledgment, GNSS-loss, clock-reversal, disposal and HITL fast-forward probes. The report is `test-results/validation/task-043-warmup.json`. The observed run admits at 41.27625 simulated seconds and 20.733261598 wall seconds (1.990822804x); two genuine GNSS freshness excursions beyond 0.3 s revoke READY/EW and recover on fresh data, and the full flight passes the unchanged TASK-042 envelope. Browser READY, physical HITL and TASK-033 aerodynamic fidelity remain separate.
+`scripts/check-ekf-warmup.mjs` replays all original physics acknowledgments and raw-CRC-audited telemetry through the same modules and checks every recorded decision. The stream event at physics time t follows that completed tick; replay feeds only events with `receivedSimS<t` before evaluating the next tick. It records actual admission/revocations separately from explicitly synthetic failed-innovation, stale-diagnostic, bad-acknowledgment, GNSS-loss, clock-reversal, disposal and HITL fast-forward probes. The report is `test-results/validation/task-043-warmup.json`. The observed run admits at 41.27625 simulated seconds and 20.733261598 wall seconds (1.990822804x); two genuine GNSS freshness excursions beyond 0.3 s revoke READY/EW and recover on fresh data, and the full flight passes the unchanged TASK-042 envelope. Browser READY, recorded Simulation-on-Hardware and TASK-033 aerodynamic fidelity remain separate.
 
 ### AAR record format and ownership (TASK-076)
 
@@ -2102,7 +2116,7 @@ overall `status: "failed"` (exit 2).
 
 ## Acceptance tools, collision chunks and scenarios
 
-This section specifies the acceptance tooling, collision lattice, scenario runner and accessibility contracts for TASK-042/044/051/059/065/073/079/080/082/083. Native closed-loop SITL (TASK-042/043/059), ArduPilot WASM browser bootstrap (TASK-045) and Rapier terrain-plane coupling (TASK-065) are implemented; browser autopilot READY, physical HITL, measured aerodynamics, live terrain session wiring and full thermal rendering remain separate.
+This section specifies the acceptance tooling, collision lattice, scenario runner and accessibility contracts for TASK-042/044/051/059/065/073/079/080/082/083. Native closed-loop SITL (TASK-042/043/059), ArduPilot WASM browser bootstrap (TASK-045) and Rapier terrain-plane coupling (TASK-065) are implemented; browser autopilot READY, recorded Simulation-on-Hardware, measured aerodynamics, live terrain session wiring and full thermal rendering remain separate.
 
 ### Evidence formats and verdicts
 
@@ -2110,7 +2124,7 @@ Shared evidence helpers bound input to 32 MiB, verify exact input SHA-256, rejec
 
 SITL locks firmware commit 8ab6afde107a91df1b5f60ade8f333cb8a61b190, EKF3 and arming checks. The owned Linux driver `scripts/sitl/driver.mjs` (with pinned pymavlink 2.4.50 sidecar `scripts/sitl/telemetry.py`) drives the verified native ArduCopter ELF against `BetRigidBodyBackend`. The analyzer requires contiguous servoFrame from zero, four 1000–2000 us PWM channels, increasing timestamps with <=0.1 s gaps, real source/model/firmware provenance and healthy EKF. Stages must progress arm→takeoff→hold→land, in GUIDED=4 until LAND=9. Takeoff altitude is >=3 m, hold is 10 m ±1 m for >=10 s, and the final sample must be disarmed below 0.5 m. A private process run is bounded to 120 s/16 MiB; only its owned child/group is terminated. Pinned sources/hashes do not alone prove binary reproducibility. Full-rate capture verification (`scripts/check-sitl-capture.mjs --input CAPTURE_DIRECTORY`) and trace v2 details are specified in the TASK-042 native closed-loop section below.
 
-HITL analysis requires 60–3600 s at 200/400 Hz with exactly duration*hz samples. Each sequence has scheduledUs=i*1e6/hz, sentUs>=scheduledUs and strictly increasing actuatorUs between sentUs and sentUs+100000. No overflow/loss is accepted; p99 lateness is <=5/2.5 ms, with observed unplug shutdown. See the physical procedure; no Serial access or arming is triggered by the CLI.
+TASK-051 analysis covers 60–3600 s. Virtual Hybrid SITL uses provenance source `virtual-sitl`, copter `SIM_RATE_HZ` of at least 400, and p99 compute lateness <=2.5 ms, with no drone and no serial port. Recorded Simulation-on-Hardware requires ArduPilot >=4.6.3, `AHRS_EKF_TYPE` 10, `GPS1_TYPE` 100, `SIM_MAG1_DEVID` 97539, heartbeat gaps <=2.5 s, and an unplug that drops the link and disables actuators. Plane, rover and blimp Hybrid SITL use `SIM_RATE_HZ` of at least 50 and p99 lateness <=5 ms. See the bench procedure; the CLI does not open a serial port or arm a vehicle.
 
 EW requires a no-fault control plus jamming, position-step, velocity-drift, magnetic and motor-loss cases. TASK-059 native acquisition uses scripts/run-ew-sitl.mjs, the existing TASK-042 driver and the TASK-058 EwEngine. GPS1_TYPE=14 accepts actual GPS_INPUT packets at 10 Hz; GPS2_TYPE=0 prevents a clean backup masking the injected receiver. Physics JSON position/velocity remain true. A 30 m north step, 0.5 m/s² north drift capped at 4 m/s, and severity-1 jamming affect GPS only. Magnetic bias adds [0.3,0.2,0] Gauss in FRD through all three SIM_MAGn_OFS parameters (negative milliGauss because SIM_Compass subtracts offsets); no attitude or IMU-force corruption is used. Motor 0 loses its complete force and yaw wrench after motor lag through the explicit synthetic instant-thrust-loss contract, not an electrical motor model.
 
@@ -2118,7 +2132,7 @@ The plan is fixed before calibration: seed 59, 800 Hz physics, 100 Hz response c
 
 Schema 2 manifests name six ordered capture directories. scripts/sitl/check-ew.py independently re-decodes both raw directions with pymavlink 2.4.50 and CRC validation, checks every transmitted GPS_INPUT against its source observation and quantization, checks firmware GPS readbacks and the complete pre-fault parameter snapshot. scripts/sitl/audit-ew.mjs reruns that decoder, replays every actual PWM through the original rigid-body WASM and canonical fault schedule, compares truth and quaternion, reconstructs every baseline/distorted observation, verifies compass fault/recovery acknowledgments, and joins response rows to original heartbeat/EKF/global-position messages with <=1 s freshness. Truth hashes compare before/after observation processing in the same tick. Separate closed-loop flights may have different trajectories; motor failure intentionally changes physical truth. The former schema-1 self-declared changed-observation flags do not establish native acceptance.
 
-scripts/freeze-ew.mjs accepts audited calibration captures once, requires a healthy control within 1 m, and refuses to overwrite existing envelopes. The predeclared empirical rule is ceil-to-0.01 of 1.5 times each calibration maximum plus 2 m position/trajectory margin or 0.5 innovation margin. Observed calibration modes become the allowed set; unexpected modes require investigation. Firmware, effective parameter inputs, model, plan and source hashes must match. A new validation batch must pass those fixed bounds and the independent healthy control gate; calibration capture hashes cannot validate themselves. These are version-specific synthetic native regression limits, not measured aircraft fidelity, browser READY, physical HITL, guaranteed fallback modes or EKF gate bypass.
+scripts/freeze-ew.mjs accepts audited calibration captures once, requires a healthy control within 1 m, and refuses to overwrite existing envelopes. The predeclared empirical rule is ceil-to-0.01 of 1.5 times each calibration maximum plus 2 m position/trajectory margin or 0.5 innovation margin. Observed calibration modes become the allowed set; unexpected modes require investigation. Firmware, effective parameter inputs, model, plan and source hashes must match. A new validation batch must pass those fixed bounds and the independent healthy control gate; calibration capture hashes cannot validate themselves. These are version-specific synthetic native regression limits, not measured aircraft fidelity, browser READY, recorded Simulation-on-Hardware, guaranteed fallback modes or EKF gate bypass.
 
 Native TASK-059 acceptance: all six calibration cases and six separate validation cases pass, with 710636 reconstructed physics frames. The immutable matrix and original native reports/archives preserve fault-induced unhealthy flags and modes. Jamming and drift reached Land; the position step raised GPS-glitch flags; magnetic bias increased compass innovation ratios while remaining Guided; complete rotor loss tumbled into the synthetic floor during its 3 s window. In pinned Copter ekf_check.cpp, compass, velocity and position variance criteria combine before failsafe action, so compass innovation alone is not a promise of Land. The healthy TASK-042 flight also passed again. See test-results/validation/task-059-native.json, task-059-tests.json and task-059-completion.json for exact identities and the documented environment reruns.
 

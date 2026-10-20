@@ -71,7 +71,7 @@ Keep raw MAVLink, physics, decoded telemetry and DataFlash logs in the capture;
 retain their hashes and failed trials. Full-rate logs remain local cache inputs,
 not redistributed firmware/source. The 100 Hz scored trace preserves original
 800 Hz frame numbers at stride eight. Native PASS does not enable browser
-READY, measured-aircraft fidelity, physical HITL or production terrain contact.
+READY, measured-aircraft fidelity, recorded Simulation-on-Hardware or production terrain contact.
 
 ## Windows laptop verification
 
@@ -186,8 +186,7 @@ The second report distinguishes observed READY/revocations and acceleration
 from synthetic rejection probes. It requires the actual acknowledged JSON IMU
 sample clock, CRC-checked GPS fix/health reports, unchanged source files and
 matching decision replay. Keep transient GNSS freshness failures visible;
-do not widen limits to obtain continuous READY. A physical HITL run is not
-performed by the synthetic HITL clock probe. TASK-042 historical reports live
+do not widen limits to obtain continuous READY. The synthetic HITL clock probe does not run recorded Simulation-on-Hardware or virtual Hybrid SITL. TASK-042 historical reports live
 in test-results/validation/task-042-snapshot-2026-10-19; new capture audits use
 the optional --output path to preserve them. Native admission does not enable
 browser READY or apply EW effects.

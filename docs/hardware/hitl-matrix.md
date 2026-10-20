@@ -41,8 +41,10 @@ MAVLink stream. Source support is not board support.
 
 ## Verified board profiles
 
-None. To add one, record on real hardware: board and revision, firmware git
-SHA and build flags, the HIL mode setting used, a capture showing the HEARTBEAT
-HIL flag and HIL_ACTUATOR_CONTROLS with the 30% serial headroom from TASK-049,
-then store the evidence bundle's SHA-256 in the profile. Physical acceptance is
-TASK-051.
+None. To add a recorded Simulation-on-Hardware profile, flash ArduPilot 4.6.3
+or newer built with `env SIM_ENABLED 1`, remove the propellers, and capture
+`AHRS_EKF_TYPE` 10, `GPS1_TYPE` 100, `SIM_MAG1_DEVID` 97539, `SIM_OH_MASK`, and
+an unplug. The current TASK-051 stage does not use a drone: virtual Hybrid
+SITL is `node --experimental-strip-types scripts/run-virtual-hitl.mjs`. PX4 is
+not part of this bench. `HIL_ACTUATOR_CONTROLS` remains the separate TASK-050
+software gate and does not accept Simulation-on-Hardware.

@@ -32,7 +32,7 @@ for the serialized contracts.
 Startup checks secure context, isolation, SharedArrayBuffer, Worker, and WebGL2.
 Missing requirements disable Start with an explanation; missing Gamepad disables
 USB input. Failed WebGPU probing preserves WebGL2. Serial API availability is
-reported separately: physical HITL (TASK-051) and WebGPU rendering are not yet
+reported separately: recorded Simulation-on-Hardware (TASK-051) and WebGPU rendering are not yet
 enabled in the active flight session.
 
 ## Quickstart
@@ -291,6 +291,6 @@ permission-denial announcement; the browser suite includes an unsuppressed axe
 scan and 390 px overflow/Serial-focus checks (TASK-079). Commands, external trace
 formats, process ownership, and the accessibility checklist are documented in
 [the runbook](docs/operations/runbook.md). All evidence CLIs without input exit 2
-(`BLOCKED_EXTERNAL`) with a blocked report; physical FCs (TASK-051), target GPUs
+(`BLOCKED_EXTERNAL`) with a blocked report; recorded Simulation-on-Hardware (TASK-051), target GPUs
 (TASK-073), multi-hour soak (TASK-082), and clean-machine release sign-off
 (TASK-083) remain open, and no publication happens automatically.
