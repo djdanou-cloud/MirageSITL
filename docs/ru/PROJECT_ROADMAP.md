@@ -1,6 +1,6 @@
 # PROJECT_ROADMAP.md
 
-<!-- source-sha256: 1b8179e7e46ecf0ff45ecd51032fba6614f252162026d8c1153c4528927392f3 -->
+<!-- source-sha256: 871d285a6e7882fff269d8a1a4b780f96be7c43f3f4b1a1364ec50758256fafb -->
 
 Английский источник: [Source of truth](../PROJECT_ROADMAP.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -870,10 +870,10 @@ Google content без прав.
 
 ### TASK-074 — Pilot HUD и telemetry freshness
 
-- **Status:** TODO — зависимость TASK-043 закрыта 2026-10-19; приёмка HUD с живым автопилотом ещё не выполнена.
+- **Status:** IN_PROGRESS — Antigravity; baseline d56c890; 2026-10-20. Цель: связать привязанную к идентификатору диагностику `EkfMonitor` из живых потоков MAVLink (`SerialConnect` / `SimulationRuntime`) с `FlightStateV2` и `PilotHud` с явным источником, режимом, валидностью EKF и порогом устаревания 1000 мс, сохраняя невозможность фабрикации валидного EKF в demo и прореживание обновлений React (~150 мс). Критерий отказа: отказ любой проверки знаков NED, запрета фабрикации EKF в demo, отсечки по инновациям, перехода в stale или прореживания. Примечание по объёму: `apps/web/src/SerialConnect.tsx` добавлен в `Touched Files` для передачи декодированных кадров `serial.frame` в `SimulationRuntime` и опроса read-only `EKF_STATUS_REPORT` по живому USB-каналу.
 - **Title & Description:** Показывать attitude/speed/altitude/mode/EKF с источником и возрастом.
 - **Dependencies:** TASK-015, TASK-039, TASK-043.
-- **Touched Files:** `apps/web/src/hud/PilotHud.tsx`, `apps/web/src/hud/attitude.ts`, `apps/web/src/hud/telemetry.ts`, `apps/web/src/App.tsx`, `apps/web/src/runtime.ts`, `apps/web/src/style.css`, `packages/physics/src/session-v2.ts`, `tests/session-v2.test.ts`, `tests/hud.test.ts`, `tests/browser/hud.spec.ts`, `README.md`, `docs/ru/README.md`, `CLAUDE.md`, `docs/ru/CLAUDE.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `package-lock.json`, `docs/SPECS_SHARED_MEMORY.md`, `docs/ru/SPECS_SHARED_MEMORY.md`.
+- **Touched Files:** `apps/web/src/hud/PilotHud.tsx`, `apps/web/src/hud/attitude.ts`, `apps/web/src/hud/telemetry.ts`, `apps/web/src/SerialConnect.tsx`, `apps/web/src/App.tsx`, `apps/web/src/runtime.ts`, `apps/web/src/style.css`, `packages/physics/src/session-v2.ts`, `tests/session-v2.test.ts`, `tests/hud.test.ts`, `tests/browser/hud.spec.ts`, `README.md`, `docs/ru/README.md`, `CLAUDE.md`, `docs/ru/CLAUDE.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `package-lock.json`, `docs/SPECS_SHARED_MEMORY.md`, `docs/ru/SPECS_SHARED_MEMORY.md`, `HANDOVER.md`, `docs/ru/HANDOVER.md`, `docs/documentation-index.json`.
 - **Interfaces / Contracts:** FlightStateV2, normalized ekf_flags, unknown/stale visual state.
 - **DoD & Acceptance Criteria:** NED horizon signs verified; fake valid EKF из demo невозможен; stale AP status подписан; UI updates decimated, не React setState на 1200 Hz.
 - **Evidence:** Владелец Codex; baseline 660d86e; 2026-10-16. `tests/hud.test.ts` (2 PASS), `tests/browser/hud.spec.ts` (1 PASS) и `tests/session-v2.test.ts` (11 PASS) проверяют знаки крена/тангажа/курса горизонта NED, эквивалентность `q`/`-q`, обработку недопустимой ориентации, статус `unknown` EKF в demo, метки устаревания по возрасту и прореженные обновления React примерно раз в 150 мс. Поскольку `TASK-043` завершила нативный допуск `LiveEkfWarmup` 2026-10-19, приёмка HUD здоровья с живым автопилотом разблокирована и готова к выполнению.

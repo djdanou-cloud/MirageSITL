@@ -72,6 +72,10 @@
     {
       "en": "docs/V2_PLAN.md",
       "ru": "docs/ru/V2_PLAN.md"
+    },
+    {
+      "en": "HANDOVER.md",
+      "ru": "docs/ru/HANDOVER.md"
     }
   ]
 }
