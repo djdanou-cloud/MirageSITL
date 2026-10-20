@@ -8,4 +8,6 @@ assert.equal(assessHitl({...v,unplugActuatorsDisabled:false}).status,'FAIL');
 assert.equal(assessHitl({...v,samples:v.samples.map(s=>({...s,sentUs:s.scheduledUs+6000,actuatorUs:s.scheduledUs+7000}))}).status,'FAIL');
 assert.throws(()=>assessHitl({...v,samples:v.samples.slice(1)}));
 assert.throws(()=>assessHitl({...v,provenance:{...v.provenance,source:'synthetic'}}));
+assert.equal(assessHitl({...v,provenance:{...v.provenance,firmwareSha256:'fa37bf619bce116d410931f1b7d24ea72ed444ba529379df0db9738742ecb186'}}).status,'FAIL');
+assert.equal(assessHitl({...v,provenance:{...v.provenance,firmwareSha256:'556d97fa6dbf7c0a2cf713f6106a6891de0b9bc9c5a7dd945f1789b63e58df38'}}).status,'FAIL');
 `));
