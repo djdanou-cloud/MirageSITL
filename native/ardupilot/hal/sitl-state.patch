@@ -1,0 +1,64 @@
+--- a/libraries/AP_HAL_SITL/SITL_State.cpp
++++ b/libraries/AP_HAL_SITL/SITL_State.cpp
+@@ -7,6 +7,9 @@
+ #include "HAL_SITL_Class.h"
+ #include "UARTDriver.h"
+ #include "Scheduler.h"
++#if HAL_SITL_WASM_ENABLED
++#include "browser_hal.h"
++#endif
+ #include "CANSocketIface.h"
+ #include "SITL_Multicast.h"
+
+@@ -259,10 +262,40 @@
+
+     // update the model
+     sitl_model->update_home();
++#if HAL_SITL_WASM_ENABLED
++    // MirageSITL owns physics and time; the internal aircraft never advances.
++    MirageHal::Sensor sensor{};
++    MirageHal::exchange(input.servos, hal.util->get_soft_armed(), sensor);
++    const auto &v = sensor.values;
++    auto &fdm = _sitl->state;
++    double diag[16];
++    MirageHal::diagnostics(sensor, diag);
++    fdm.timestamp_us = sensor.timestamp_us;
++    fdm.flightaxis_imu_frame_num++;
++    fdm.home = sitl_model->get_home();
++    fdm.latitude = v[0]; fdm.longitude = v[1]; fdm.altitude = v[2];
++    fdm.speedN = v[3]; fdm.speedE = v[4]; fdm.speedD = v[5];
++    fdm.heading = MirageHal::degrees(atan2(v[4], v[3]));
++    fdm.xAccel = v[6]; fdm.yAccel = v[7]; fdm.zAccel = v[8];
++    fdm.rollRate = diag[0]; fdm.pitchRate = diag[1]; fdm.yawRate = diag[2];
++    fdm.rollDeg = diag[6]; fdm.pitchDeg = diag[7]; fdm.yawDeg = diag[8];
++    fdm.quaternion = Quaternion(v[12], v[13], v[14], v[15]);
++    fdm.bodyMagField = Vector3f(diag[3], diag[4], diag[5]);
++    fdm.airspeed = v[19]; fdm.velocity_air_bf = Vector3f(v[19], 0, 0);
++    fdm.battery_voltage = v[20]; fdm.battery_current = v[21];
++    fdm.height_agl = v[22]; fdm.range = v[22];
++    for (unsigned i=0; i<SITL_NUM_RANGEFINDERS; i++) fdm.rangefinder_m[i] = v[22];
++    fdm.rcin_chan_count = 12;
++    for (unsigned i=0; i<12; i++) fdm.rcin[i] = v[23+i];
++    fdm.wind_ef = Vector3f(v[35], v[36], v[37]);
++    fdm.is_lock_step_scheduled = true;
++    set_voltage_current_pins(v[20], v[21]);
++#else
+     sitl_model->update_model(input);
+
+     // get FDM output from the model
+     sitl_model->fill_fdm(_sitl->state);
++#endif
+
+ #if HAL_NUM_CAN_IFACES
+     if (CANIface::num_interfaces() > 0) {
+@@ -284,7 +317,10 @@
+     // update simulation time
+     hal.scheduler->stop_clock(_sitl->state.timestamp_us);
+
++#if !HAL_SITL_WASM_ENABLED
++    // Browser HAL supplies AGL; only the internal model derives it here.
+     set_height_agl();
++#endif
+
+     _update_count++;
+ }

@@ -1,18 +1,46 @@
 # Решение об осуществимости ArduPilot в браузере
-<!-- source-sha256: 82b10e54e8f06aac09acd0dc90c6a86a47c611a19d66302b72ac51b0f02acbb7 -->
+<!-- source-sha256: 3c32928cb90a1ed006caf7e452b6982877896f982c929ca434fab6a9adbe7a7c -->
 
 Английский источник: [Source of truth](../decisions/ardupilot-wasm.md).
 
-Решение (TASK-044/045): ArduCopter воспроизводимо собирается и запускается как WebAssembly в Node и в изолированном выделенном Worker Chromium с pthread Emscripten и постоянным хранилищем EEPROM в IndexedDB (TASK-045 DONE), тогда как сопряжение замкнутого контура полётного HAL в браузере (TASK-046), паритет нативного и WASM-полёта (TASK-047) и решение о распространении артефакта под GPL-3.0-or-later (`BLOCKED_DECISION`) остаются открытыми. ArduPilot на закреплённом коммите `8ab6afde107a91df1b5f60ade8f333cb8a61b190` содержит штатную плату `wasm` (`libraries/AP_HAL_SITL/hwdef/wasm`, `HAL_SITL_WASM_ENABLED`, инструментарий Emscripten, pthreads через `PROXY_TO_PTHREAD` и экспортируемый байтовый мост последовательного порта). Коммит совпадает с JSON-оракулом TASK-041; пути и хеши исходников закреплены в `native/ardupilot/source.lock.json`, инструментарий — в `native/ardupilot/toolchain.lock.json`, а хеши артефакта — в `native/ardupilot/wasm-artifact.manifest.json`.
+Решение (TASK-044/045/046): upstream ArduCopter собирается и запускается в Node и
+изолированном Chromium Worker с Emscripten pthread и постоянным EEPROM IndexedDB
+(TASK-045). TASK-046 добавляет отдельную локальную HAL-сборку, версионированный
+атомарный mailbox датчиков/PWM и сопряжение времени симуляции. Текущие результаты
+приёмки находятся в дорожной карте. Полный native/WASM паритет полёта (TASK-047)
+и распространение артефактов GPL-3.0-or-later (`BLOCKED_DECISION`) остаются
+открытыми; проверка компилятора и успешный запуск не включают READY.
 
-| Возможность | Наблюдаемое свидетельство | Требуемая работа |
+Базовый коммит `8ab6afde107a91df1b5f60ade8f333cb8a61b190` совпадает с JSON-эталоном
+TASK-041. Upstream-плата `libraries/AP_HAL_SITL/hwdef/wasm` использует
+`HAL_SITL_WASM_ENABLED`, `PROXY_TO_PTHREAD` и экспортированный serial-мост.
+`native/ardupilot/source.lock.json` закрепляет байты исходников;
+`native/ardupilot/toolchain.lock.json` закрепляет SDK/компилятор/субмодули;
+`native/ardupilot/wasm-artifact.manifest.json` — неизменные байты TASK-045.
+Патч TASK-046, входы сборки и отдельные хеши артефактов находятся в
+`.cache/task-046/build-identity.json` отдельно от исходного манифеста.
+
+| Возможность | Граница реализованных доказательств | Оставшаяся работа |
 | --- | --- | --- |
-| Планировщик | Штатная плата wasm выполняет потоки SITL как pthreads Emscripten (общая память, пул из 4 Worker) и корректно завершает собственные Worker при остановке (TASK-045) | Пошаговая синхронизация с временем симуляции MirageSITL и шагами датчиков/актуаторов внутри полётного приложения (TASK-046) |
-| UART/сеть | `--serial0 wasm` направляет порт через экспортируемые `ardupilot_serial_write/read/read_available`; сеть и UDP RC отключены; TCP-порты заданы как `none`; в Node и Chromium проверены HEARTBEAT и чтение параметров MAVLink2 с верным CRC (TASK-045) | Подключить мост и каналы физики к MAVLink/Worker-mailbox MirageSITL (TASK-046) |
-| Хранилище | Файловая система Emscripten поверх атомарных 16 КиБ IndexedDB-снимков EEPROM (`packages/autopilot/src/wasm-storage.ts`); сохранение параметра `WP_SPD` проверено при штатном и внезапном перезапуске Worker в Chromium (TASK-045) | Привязать профили EEPROM к полным браузерным полётным сессиям SITL (TASK-046) |
-| Компилятор | Закреплённый emsdk 4.0.15 собирает ArduCopter для `--board wasm` на хосте WSL Ubuntu; независимые чистые сборки побайтно совпадают (`arducopter.wasm` `556d97fa...`, `arducopter.js` `b158a7b8...`) | CI ArduPilot использует Emscripten 6.0.8; смена закреплённой версии проекта — отдельное решение |
-| Браузерная память | Импортируемая общая память: 256 начальных и 32768 максимальных страниц (от 16 МиБ до 2 ГиБ, рост разрешён); допуск (`packages/autopilot/src/wasm-loader.ts`) проверяет пределы против бюджета 2 ГиБ, а Chromium запускает модуль в режиме COOP/COEP (`test-results/validation/task-045-completion.json`) | Измерить память под длительной нагрузкой замкнутого полётного контура после подключения TASK-046/047 |
-| Лицензии | GPL-3.0-or-later; артефакты хранятся вне репозитория (`local-only-pending-gpl-review`) | Проверить обязательства прошивки и зависимостей до распространения артефакта (`BLOCKED_DECISION`) |
-| Паритет | Нативный ELF ArduCopter SITL и WASM-артефакт собираются из одного исходника; нативный замкнутый полёт, живой прогрев EKF и эталоны РЭБ/отказов проверены (`scripts/sitl/driver.mjs`, TASK-042/043/059), тогда как браузерный WASM остаётся на уровне разоружённого диагностического запуска | Native/WASM arm/takeoff/land/failsafe и паритет траектории 30 с (TASK-047) |
+| Планировщик | Запуск pthread TASK-045; mailbox TASK-046 допускает один шаг физики на запрос прошивки и сохраняет остановленное время. WASM использует futex wait/wake с ожидаемым значением, native-проверки — условную переменную. | Замкнутый native/WASM паритет полёта и допуск производственного режима (TASK-047). |
+| UART/network | `--serial0 wasm` экспортирует `ardupilot_serial_write/read/read_available`; TCP serial-порты `none`, networking и UDP RC отключены. MAVLink heartbeat/параметры с верным CRC проверяются отдельно от mailbox датчиков/PWM. | Допуск полного браузерного полёта и маршрутизации UI после TASK-047. |
+| Хранилище | Атомарный EEPROM 16 KiB IndexedDB, профили с привязкой идентичности и сохранение `WP_SPD` при штатных/аварийных перезапусках TASK-045. HAL повторно использует хранилище и предоставляет явные checkpoint/disposal. | Полётные сценарии параметров/checkpoint относятся к TASK-047; HAL disposal не обещает неявного финального сохранения. |
+| Компилятор | emsdk 4.0.15 в WSL Ubuntu; исходные побайтово одинаковые WASM TASK-045 `556d97fa...` и glue `b158a7b8...` отделены от HAL-патча. | Upstream CI использует Emscripten 6.0.8; смена закреплённой версии проекта — отдельное решение. |
+| Память браузера | Допуск проверяет разделяемую память: 256 начальных / 32768 максимальных страниц (16 MiB / 2 GiB). HAL отклоняет замену памяти; изолированные проверки аллокатора ядра не сертифицируют все аллокации прошивки. | Продолжительный полный полёт, аллокатор и время на целевом устройстве требуют отдельной квалификации. |
+| Лицензирование | `GPL-3.0-or-later`; прошивка остаётся `local-only-pending-gpl-review` вне репозитория/public/dist. | Проверить обязательства распространения прошивки/зависимостей (`BLOCKED_DECISION`). |
+| Паритет | Нативные эталоны полёта/EKF/РЭБ (TASK-042/043/059) отделены от реального браузерного обмена HAL и разоружённого потока NACA6409. | Native/WASM arm/takeoff/land/failsafe и сравнение траекторий 30 с (TASK-047). |
 
-Запуск: `node scripts/probe-ardupilot-wasm.mjs` фиксирует возможности (код 2, пока отсутствует полётная браузерная интеграция TASK-046/047), `node scripts/build-ardupilot-wasm.mjs` собирает артефакт и проверяет манифест, `node scripts/smoke-ardupilot-wasm.mjs DIR` проверяет допуск и запускает его в Node, а `tests/browser/ardupilot-wasm.spec.ts` выполняет проверку браузерного Worker и IndexedDB в Chromium (`test-results/validation/task-045-completion.json`, `test-results/validation/task-045-wire-audit.json`). `MIRAGE_ARDUPILOT_SOURCE` проверяется по хешам отдельных файлов, `MIRAGE_EMCC` задаёт явный компилятор. Диагностический запуск не включает браузерный режим автопилота READY и не заменяет TASK-046/047.
+`node scripts/probe-ardupilot-wasm.mjs` остаётся проверкой компилятора/исходников.
+Его ложные флаги исполнения означают отсутствие проверки этим инструментом,
+а не отсутствие реализации boot/storage/HAL. Код 2 не сертифицирует полёт.
+`MIRAGE_ARDUPILOT_SOURCE` задаёт исходники, `MIRAGE_EMCC` — компилятор.
+Исходные доказательства сборки/запуска/хранилища дают
+`node scripts/build-ardupilot-wasm.mjs`,
+`node scripts/smoke-ardupilot-wasm.mjs DIR` и
+`tests/browser/ardupilot-wasm.spec.ts`.
+Отдельные проверки сборки HAL/ядра/полной прошивки:
+`node scripts/build-ardupilot-hal.mjs`,
+`node scripts/check-ardupilot-hal.mjs` и `tests/browser/wasm-hal.spec.ts`.
+`MIRAGE_HAL_ARTIFACT_DIR` явно выбирает локальную HAL-прошивку браузерного теста.
+Сохраняйте хеши исходников/артефактов/отчётов и отделяйте измеренную аэродинамику,
+готовность оценивателя, аллокатор всей прошивки и паритет полёта.

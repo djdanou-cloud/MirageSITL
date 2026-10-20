@@ -11,6 +11,8 @@ function compilerVersion(path) {
 export function probeWasm(env = process.env) {
   const lock = JSON.parse(readFileSync(new URL("../native/ardupilot/source.lock.json", import.meta.url)));
   const emcc = compilerVersion(env.MIRAGE_EMCC ?? "emcc");
+  // This compiler/source probe does not execute boot, HAL, storage or parity
+  // acceptance. False here means unverified by this probe, not unimplemented.
   const checks = { wasmRuntime: typeof WebAssembly.instantiate === "function", sharedMemory: typeof SharedArrayBuffer === "function", emscripten: emcc.status === 0,
     browserHal: false, scheduler: false, storage: false, network: false, license: false, nativeParity: false };
   const sources = [];
@@ -21,7 +23,7 @@ export function probeWasm(env = process.env) {
     } catch { sources.push({ path: f.path, matches: false }); }
   }
   const emscriptenVersion = checks.emscripten ? (/\b(\d+\.\d+\.\d+)\b/.exec(emcc.stdout ?? "")?.[1] ?? null) : null;
-  return { ...report("ardupilot-wasm-feasibility", "BLOCKED_EXTERNAL", ["Upstream wasm board builds and boots (TASK-045), but MirageSITL browser Worker integration, persistent storage, physics/time coupling (TASK-046), GPL review and native parity (TASK-047) are absent", ...(checks.emscripten ? [] : ["Emscripten compiler unavailable"])]), checks, emscriptenVersion, sources, commit: lock.commit };
+  return { ...report("ardupilot-wasm-feasibility", "BLOCKED_EXTERNAL", ["TASK-045 boot/storage and TASK-046 HAL have separate acceptance tools; this compiler/source probe does not certify them. Browser flight remains unadmitted until TASK-047 native parity and the distribution decision are resolved", ...(checks.emscripten ? [] : ["Emscripten compiler unavailable"])]), checks, emscriptenVersion, sources, commit: lock.commit };
 }
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const result = probeWasm(); mkdirSync("test-results/validation", { recursive: true });

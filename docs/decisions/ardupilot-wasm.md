@@ -2,16 +2,43 @@
 
 English source. [Russian mirror](../ru/ardupilot-wasm.md).
 
-Decision (TASK-044/045): ArduCopter builds reproducibly and boots as WebAssembly in both Node and an isolated Chromium dedicated Worker with Emscripten pthreads and persistent IndexedDB EEPROM storage (TASK-045 DONE), while MirageSITL closed-loop browser flight HAL coupling (TASK-046), native/WASM flight parity (TASK-047) and GPL-3.0-or-later artifact redistribution (`BLOCKED_DECISION`) remain open. ArduPilot at the pinned commit `8ab6afde107a91df1b5f60ade8f333cb8a61b190` ships an upstream `wasm` board (`libraries/AP_HAL_SITL/hwdef/wasm`, `HAL_SITL_WASM_ENABLED`, Emscripten toolchain, pthreads via `PROXY_TO_PTHREAD`, and an exported serial byte bridge). The commit matches TASK-041's JSON oracle; source paths and hashes are pinned in `native/ardupilot/source.lock.json`, toolchain pins in `native/ardupilot/toolchain.lock.json`, and artifact hashes in `native/ardupilot/wasm-artifact.manifest.json`.
+Decision (TASK-044/045/046): upstream ArduCopter builds and boots in Node and an
+isolated Chromium Worker with Emscripten pthreads and persistent IndexedDB EEPROM
+(TASK-045). TASK-046 adds a separate local HAL-enabled build, versioned atomic
+sensor/PWM mailbox and simulation-time coupling. Current acceptance results are
+in the roadmap. Native/WASM full flight parity (TASK-047) and GPL-3.0-or-later
+artifact redistribution (`BLOCKED_DECISION`) remain open; neither a compiler
+probe nor successful boot enables browser autopilot READY.
 
-| Capability | Observed evidence | Required work |
+The base commit is `8ab6afde107a91df1b5f60ade8f333cb8a61b190`, matching TASK-041's
+JSON oracle. The upstream board is `libraries/AP_HAL_SITL/hwdef/wasm`, with
+`HAL_SITL_WASM_ENABLED`, `PROXY_TO_PTHREAD` and an exported serial byte bridge.
+`native/ardupilot/source.lock.json` pins source bytes;
+`native/ardupilot/toolchain.lock.json` pins SDK/compiler/submodules;
+`native/ardupilot/wasm-artifact.manifest.json` pins unchanged TASK-045 bytes.
+TASK-046's patch, build inputs and distinct artifact hashes are recorded in
+`.cache/task-046/build-identity.json`, separately from the original manifest.
+
+| Capability | Implemented evidence boundary | Remaining work |
 | --- | --- | --- |
-| Scheduler | Upstream wasm board runs SITL threads as Emscripten pthreads (shared memory, Worker pool of 4) and cleanly terminates owned Workers on stop (TASK-045) | Lockstep with MirageSITL simulation time and sensor/actuator stepping when hosted in the flight app (TASK-046) |
-| UART/network | `--serial0 wasm` routes a serial port through exported `ardupilot_serial_write/read/read_available`; networking and UDP RC are disabled; TCP serial ports are set to `none`; CRC-valid MAVLink2 heartbeats and parameter readbacks verified in Node and Chromium (TASK-045) | Connect the bridge and physics channels to MirageSITL MAVLink/Worker mailboxes (TASK-046) |
-| Storage | Emscripten file system backed by atomic 16 KiB IndexedDB EEPROM checkpoints (`packages/autopilot/src/wasm-storage.ts`); `WP_SPD` parameter persistence verified across graceful and abrupt Chromium Worker restarts (TASK-045) | Bind EEPROM profiles to full browser SITL flight sessions (TASK-046) |
-| Compiler | Pinned emsdk 4.0.15 builds ArduCopter for `--board wasm` on a WSL Ubuntu host; independent clean builds are byte-identical (`arducopter.wasm` `556d97fa...`, `arducopter.js` `b158a7b8...`) | Upstream CI uses Emscripten 6.0.8; changing the project pin is a separate decision |
-| Browser memory | Shared memory imported with 256 initial and 32768 maximum pages (16 MiB to 2 GiB, growth allowed); admission (`packages/autopilot/src/wasm-loader.ts`) checks limits against a 2 GiB budget and Chromium boots inside COOP/COEP (`test-results/validation/task-045-completion.json`) | Measure memory under sustained closed-loop flight load once TASK-046/047 are wired |
-| Licensing | GPL-3.0-or-later; artifacts are kept outside the repository (`local-only-pending-gpl-review`) | Review firmware/dependency obligations before distributing the artifact (`BLOCKED_DECISION`) |
-| Parity | Native ArduCopter SITL ELF and WASM artifact build from the same source; native closed-loop flight, live EKF warmup and EW/fault references are verified (`scripts/sitl/driver.mjs`, TASK-042/043/059), while browser WASM remains at disarmed diagnostic boot | Native/WASM arm/takeoff/land/failsafe and 30 s trajectory parity (TASK-047) |
+| Scheduler | TASK-045 pthread boot; TASK-046 mailbox permits one physics step per firmware request and retains a paused clock. WASM uses expected-value futex wait/wake; native probes use a condition variable. | Closed-loop native/WASM flight parity and production mode admission (TASK-047). |
+| UART/network | `--serial0 wasm` exports `ardupilot_serial_write/read/read_available`; TCP serial ports are `none`, networking and UDP RC disabled. CRC-valid MAVLink heartbeat/parameter checks are separate from the sensor/PWM mailbox. | Admit full browser flight and its UI routing after TASK-047. |
+| Storage | Atomic 16 KiB IndexedDB EEPROM, identity-bound profiles and `WP_SPD` persistence across graceful/abrupt TASK-045 restarts. HAL sessions reuse the same storage and expose explicit checkpoint/disposal. | Flight parameter/checkpoint scenarios belong to TASK-047; no implicit final save is promised by HAL disposal. |
+| Compiler | emsdk 4.0.15 on WSL Ubuntu; original byte-identical TASK-045 WASM `556d97fa...` and glue `b158a7b8...` remain distinct from HAL-patched outputs. | Upstream CI uses Emscripten 6.0.8; changing this project's pin is a separate decision. |
+| Browser memory | Admission checks shared memory limits: 256 initial / 32768 maximum pages (16 MiB / 2 GiB). HAL binding rejects memory replacement; isolated kernel allocation probes do not certify all firmware allocations. | Sustained full-flight memory/allocator and target-device timing qualification remain separate. |
+| Licensing | `GPL-3.0-or-later`; firmware remains `local-only-pending-gpl-review`, outside repository/public/dist outputs. | Review firmware/dependency redistribution obligations (`BLOCKED_DECISION`). |
+| Parity | Native flight/EKF/EW references (TASK-042/043/059) and real browser HAL exchange/disarmed NACA6409 dataflow are distinct evidence. | Native/WASM arm/takeoff/land/failsafe and 30 s trajectory comparison (TASK-047). |
 
-Run `node scripts/probe-ardupilot-wasm.mjs` for the capability record (exits 2 while TASK-046/047 browser flight integration is absent), `node scripts/build-ardupilot-wasm.mjs` to build the artifact and verify its manifest, `node scripts/smoke-ardupilot-wasm.mjs DIR` to admit and boot it in Node, and `tests/browser/ardupilot-wasm.spec.ts` for the Chromium Worker/IndexedDB bootstrap verification (`test-results/validation/task-045-completion.json`, `test-results/validation/task-045-wire-audit.json`). `MIRAGE_ARDUPILOT_SOURCE` is checked against per-file source hashes, and `MIRAGE_EMCC` selects an explicit compiler. Diagnostic bootstrap does not enable browser autopilot READY or replace TASK-046/047.
+`node scripts/probe-ardupilot-wasm.mjs` remains a compiler/source capability
+probe. Its false execution flags mean not verified by that probe; they do not
+claim boot/storage/HAL is unimplemented. It exits 2 without certifying flight.
+`MIRAGE_ARDUPILOT_SOURCE` selects source paths and `MIRAGE_EMCC` selects a compiler.
+Use `node scripts/build-ardupilot-wasm.mjs`,
+`node scripts/smoke-ardupilot-wasm.mjs DIR` and
+`tests/browser/ardupilot-wasm.spec.ts` for original build/boot/storage evidence.
+Use `node scripts/build-ardupilot-hal.mjs`,
+`node scripts/check-ardupilot-hal.mjs` and
+`tests/browser/wasm-hal.spec.ts` for the separate HAL build/kernel/full-firmware
+checks. `MIRAGE_HAL_ARTIFACT_DIR` explicitly selects the local HAL browser input.
+Preserve source/artifact/report hashes and keep measured aerodynamics, estimator
+readiness, full firmware allocator qualification and flight parity distinct.

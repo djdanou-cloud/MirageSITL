@@ -1,4 +1,5 @@
-// Local artifact boot/storage boundary only. This does not implement flight HAL or READY.
+// Local artifact boot/storage boundary; TASK-046 may cold-bind its HAL adapter.
+// Boot/storage events never admit autopilot READY.
 import {admitArdupilotWasm,parseArdupilotWasmManifest} from './wasm-loader.ts';
 import {EepromStore,storageIdentity,type EepromCheckpoint} from './wasm-storage.ts';
 import {MavParser} from '../../mavlink/src/codec.ts';
@@ -77,7 +78,8 @@ export class BrowserWasmSession {
   private heartbeats=0;
   private lastSaveMs=0;
   private readonly parser:MavParser;
-  constructor(emit:(event:BrowserFirmwareEvent)=>void,fail:(error:Error)=>void){
+  constructor(emit:(event:BrowserFirmwareEvent)=>void,fail:(error:Error)=>void,
+    private readonly bindFirmware?: (value:unknown)=>void){
     this.emit=emit;this.fail=fail;
     this.parser=new MavParser(frame=>{
       if(frame.id!==0||frame.systemId!==1||frame.componentId!==1)return;
@@ -121,6 +123,7 @@ export class BrowserWasmSession {
       });
       if(!isModule(value))throw Error('Firmware runtime exports invalid');this.module=value;
       if(!(value.HEAPU8.buffer instanceof SharedArrayBuffer))throw Error('Firmware runtime memory is not shared');
+      this.bindFirmware?.(value);
       this.pointer=value._ardupilot_malloc(4096);if(!this.pointer)throw Error('Firmware serial buffer allocation failed');
       this.emit({type:'initialized',restoredRevision:this.saved?.revision??0,memoryBytes:this.memoryBytes,maximumMemoryBytes:manifest.memory.maximumPages*65536});
       this.timer=setInterval(()=>{
@@ -167,7 +170,14 @@ export class BrowserWasmSession {
     try{if(checkpoint&&this.booted&&!this.stopped)await this.checkpoint();}catch(error){failure=error;}
     this.stopped=true;
     if(this.module&&this.pointer){this.module._ardupilot_free(this.pointer);this.pointer=0;}
-    const terminatedPthreads=this.children.size;for(const worker of this.children)worker.terminate();this.children.clear();
+    const terminatedPthreads=this.children.size;
+    for(const worker of this.children){
+      // Terminate is asynchronous. A queued pthread message must not execute
+      // a native proxy call after its peer has been killed while holding a lock.
+      worker.onmessage=null;worker.onerror=null;worker.onmessageerror=null;
+      worker.terminate();
+    }
+    this.children.clear();
     this.module=null;this.store?.close();this.store=null;
     if(this.glueUrl){URL.revokeObjectURL(this.glueUrl);this.glueUrl=null;}
     await this.releaseProfile?.();this.releaseProfile=null;

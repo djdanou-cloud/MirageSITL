@@ -16,7 +16,8 @@
     "./ekf-status": "./src/ekf-status.ts",
     "./wasm-loader": "./src/wasm-loader.ts",
     "./wasm-browser": "./src/wasm-browser.ts",
-    "./wasm-storage": "./src/wasm-storage.ts"
+    "./wasm-storage": "./src/wasm-storage.ts",
+    "./wasm-sitl": "./src/wasm-sitl.ts"
   },
   "dependencies": {
     "@mirage/mavlink": "0.1.0",

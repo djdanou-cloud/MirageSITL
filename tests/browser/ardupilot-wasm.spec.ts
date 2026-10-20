@@ -8,6 +8,12 @@ test.afterEach(async({page},info)=>{
   if(info.status===info.expectedStatus)return;
   const snapshot:unknown=await page.evaluate(()=>({status:document.querySelector('output')?.textContent,events:window.ardupilotCheck?.events.filter(e=>!(e!==null&&typeof e==='object'&&'type' in e&&e.type==='serial'))})).catch(()=>null);
   writeFileSync(info.outputPath('firmware-diagnostic.json'),JSON.stringify(snapshot,null,2));
+  const workers=await Promise.all(page.workers().map(async worker=>({url:worker.url(),
+    response:await Promise.race([worker.evaluate(()=>({url:location.href,now:performance.now()})).catch(error=>String(error)),
+      new Promise(resolve=>setTimeout(()=>resolve('Worker evaluation deadline'),500))])})));
+  const cdp=await page.context().newCDPSession(page);
+  const targets=await cdp.send('Target.getTargets');await cdp.detach();
+  writeFileSync(info.outputPath('worker-diagnostic.json'),JSON.stringify({workers,targets},null,2));
 });
 async function boot(page:Page,profile:string):Promise<void>{
   await page.evaluate(profile=>window.ardupilotCheck.start(profile),profile);
@@ -41,7 +47,7 @@ test('real firmware boots in an isolated Worker and persists a real parameter ac
   await page.evaluate(bytes=>window.ardupilotCheck.send(bytes),request(23));
   await expect.poll(()=>page.evaluate(()=>window.ardupilotCheck.parameters.WP_SPD)).toBe(8.125);
   await stop(page);
-  await expect.poll(()=>page.workers().length).toBe(0);
+  await expect.poll(()=>page.workers().map(worker=>worker.url())).toEqual([]);
   const first=await page.evaluate(()=>({events:window.ardupilotCheck.events.filter(e=>!(e!==null&&typeof e==='object'&&'type' in e&&e.type==='serial')),serial:window.ardupilotCheck.serial}));
   const firstImage=await checkpointImage(page,profile);
   expect(errors).toEqual([]);
@@ -49,13 +55,13 @@ test('real firmware boots in an isolated Worker and persists a real parameter ac
   await expect.poll(()=>page.evaluate(()=>window.ardupilotCheck.events.filter(e=>e!==null&&typeof e==='object'&&'type' in e&&e.type==='checkpoint').length),{timeout:15000}).toBeGreaterThan(0);
   const second=await page.evaluate(()=>({events:window.ardupilotCheck.events.filter(e=>!(e!==null&&typeof e==='object'&&'type' in e&&e.type==='serial')),serial:window.ardupilotCheck.serial}));
   await page.evaluate(()=>window.ardupilotCheck.terminate());
-  await expect.poll(()=>page.workers().length).toBe(0);
+  await expect.poll(()=>page.workers().map(worker=>worker.url())).toEqual([]);
   const secondImage=await checkpointImage(page,profile);
   await boot(page,profile);expect(await readParameter(page)).toBe(8.125);await stop(page);
   const third=await page.evaluate(()=>({events:window.ardupilotCheck.events.filter(e=>!(e!==null&&typeof e==='object'&&'type' in e&&e.type==='serial')),serial:window.ardupilotCheck.serial}));
   const thirdImage=await checkpointImage(page,profile);
   mkdirSync('test-results/validation',{recursive:true});
-  await expect.poll(()=>page.workers().length).toBe(0);
+  await expect.poll(()=>page.workers().map(worker=>worker.url())).toEqual([]);
   writeFileSync('test-results/validation/task-045-browser-boot.json',JSON.stringify({schemaVersion:1,scope:'Actual local firmware, built-in quad; no MirageSITL physics or autopilot READY',browser:page.context().browser()?.version(),bootWorkers,remainingWorkers:page.workers().length,profile,manifest,initial,first:{...first,checkpoint:firstImage},second:{...second,checkpoint:secondImage},third:{...third,checkpoint:thirdImage},errors},null,2)+'\n');
 });
 test('checkpoints are atomic under concurrent writers and reject corrupted stored bytes',async({page})=>{
@@ -87,7 +93,7 @@ test('profile locks reject a second firmware owner; corrupted EEPROM prevents bo
   const other=await context.newPage();await other.goto('/ardupilot-check.html');await other.evaluate(profile=>window.ardupilotCheck.start(profile),profile);
   await expect.poll(()=>other.locator('output').textContent()).toBe('error');
   expect(await other.evaluate(()=>JSON.stringify(window.ardupilotCheck.events))).toContain('already in use');
-  await stop(page);await expect.poll(()=>page.workers().length).toBe(0);
+  await stop(page);await expect.poll(()=>page.workers().map(worker=>worker.url())).toEqual([]);
   const identity=`${manifest.sourceCommit}:${manifest.module.sha256}:${profile}`;
   await page.evaluate(identity=>new Promise<void>((resolve,reject)=>{
     const request=indexedDB.open('mirage-ardupilot-eeprom-v1',1);request.onerror=()=>reject(Error('open failed'));
