@@ -37,13 +37,35 @@ function localArdupilot():Plugin {
   }};
 }
 
+// Serves the committed CC0 tiles fixture to loopback only. Terrain stays off
+// unless the build was given VITE_MIRAGE_TILESET_URL.
+function localTiles(): Plugin {
+  const root = fileURLToPath(new URL('../../tests/fixtures/tiles/', import.meta.url));
+  const attach = (server: { middlewares: { use: (handler: (req: import('node:http').IncomingMessage, res: import('node:http').ServerResponse, next: () => void) => void) => void } }) => {
+    server.middlewares.use((req, res, next) => {
+      const url = req.url ?? '';
+      if (!url.startsWith('/fixtures/tiles/')) { next(); return; }
+      const peer = req.socket.remoteAddress;
+      if (req.method !== 'GET' || !['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(peer ?? '')) { res.statusCode = 403; res.end(); return; }
+      const name = decodeURIComponent(url.slice('/fixtures/tiles/'.length).split('?')[0] ?? '');
+      if (name !== 'tileset.json' && name !== 'tile.glb') { res.statusCode = 404; res.end(); return; }
+      const bytes = readFileSync(resolve(root, name));
+      res.setHeader('Content-Type', name.endsWith('.json') ? 'application/json' : 'model/gltf-binary');
+      res.setHeader('Cache-Control', 'no-store');
+      res.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
+      res.end(bytes);
+    });
+  };
+  return { name: 'local-g3-tiles', configureServer: attach, configurePreviewServer: attach };
+}
+
 // Required for SharedArrayBuffer. Apply these on the production HTTPS server too.
 const headers = {
   'Cross-Origin-Opener-Policy': 'same-origin',
   'Cross-Origin-Embedder-Policy': 'require-corp',
 };
 export default defineConfig({
-  plugins: [react(), tailwindcss(),localArdupilot()],
+  plugins: [react(), tailwindcss(), localArdupilot(), localTiles()],
   server: { headers },
   preview: { headers },
   worker: { format: 'es' },

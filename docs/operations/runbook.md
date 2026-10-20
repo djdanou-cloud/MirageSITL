@@ -111,6 +111,27 @@ demo probe does not satisfy TASK-073's full production terrain/FPV/thermal matri
 its memory limits or the separate M4 requirement. A visible 10-minute demo run
 remains useful stability evidence even when production acceptance is blocked.
 
+The production capture is separate:
+
+```bash
+node scripts/check-gpu-perf.mjs --backend webgl2 --fps 60
+node scripts/check-gpu-perf.mjs --backend webgl2 --fps 120
+```
+
+It serves the local CC0 tiles fixture and measures the mounted FPV, fisheye,
+analog, and synthetic LWIR scene at 1920×1080 DPR 1 after 60 s warmup and 600 s
+of visible frames. WebGPU exits `BLOCKED_EXTERNAL` because fisheye and thermal
+passes are not implemented. A panel whose refresh cannot present the requested
+profile, and a browser whose layout size, screen size, or device pixel ratio is
+zero, also exit `BLOCKED_EXTERNAL`. Those results are not frame-time failures.
+On 2026-10-21 the user accepted a 60 FPS median of 16.680 ms, a p99 of 17.665 ms,
+and a 59.88 Hz panel. The 120 FPS p99 limit remains 8.33 ms. The M4 capture was
+scored in an emulated 1920×1080 window. The active Mac display mode is
+2560×1440 and the MacBook Air native panel is 2560×1664. The operator
+screenshot in `task_073_results/` shows Chrome floating on the desktop, so the
+next capture must fill the physical display. Run the command in a graphical
+session that can show the window; keep that window in front.
+
 The Serial controller waits at most 5 seconds for decoder readiness before
 opening the selected device. The existing 500 ms per-chunk backpressure deadline
 is unchanged. A permission grant or this startup handshake cannot enable HITL.
@@ -140,8 +161,8 @@ warmup measured 35,995 frames over 600.0052 s (59.9911 FPS, p50/p95/p99
 120.002465 s (59.9404 FPS, p50/p95/p99 16.665/17.635/19.645 ms, max 34.270 ms)
 on native WebGPU; on the 1920x1200 144 Hz panel, a fixed 1920x1080 capture gave
 59.9911 FPS (p99 19.565 ms, clipped) and a `--native-viewport` 1536x826 DPR 1.25
-capture gave 59.99994 FPS (p99 19.005 ms, unclipped). All miss the 16.67 ms p99
-and 120 FPS targets. Separately, 5 s `node scripts/bench-physics.mjs` realtime
+capture gave 59.99994 FPS (p99 19.005 ms, unclipped). All miss the accepted 60 FPS p99 of 17.665 ms
+and the 120 FPS limit of 8.33 ms. Separately, 5 s `node scripts/bench-physics.mjs` realtime
 captures on Windows Node (`test-results/laptop/physics-*-idle.json`) executed
 400.532 Hz (0 dropped, compute p99 1.2 us, wakeup lateness p99 15.76 ms) at
 target 400 Hz, 516.710 Hz (1,426 dropped, compute p99 1.1 us, lateness p99

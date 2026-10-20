@@ -1,7 +1,7 @@
 import { spawnSync } from "node:child_process";
 import { expect, it } from "vitest";
 it("all missing-input CLIs produce distinct blocked verdicts and never succeed silently", () => {
-  for (const file of ["run-sitl", "probe-ardupilot-wasm", "bench-hitl", "bench-render", "report-ekf", "validate-release", "release-manifest"]) {
+  for (const file of ["run-sitl", "probe-ardupilot-wasm", "bench-hitl", "bench-render", "check-gpu-perf", "report-ekf", "validate-release", "release-manifest"]) {
     const r = spawnSync(process.execPath, [`scripts/${file}.mjs`], { encoding: "utf8" });
     expect(r.status, r.stderr).toBe(2); expect(r.stdout).toContain("BLOCKED_EXTERNAL");
   }

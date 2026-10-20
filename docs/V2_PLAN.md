@@ -497,9 +497,11 @@ and other documents (review of 2026-10-20). They keep their existing TASK IDs.
   60 Hz 1080p DPR1 demo captures measured p99 19.910 ms (WebGL2, 600 s) and
   19.645 ms (WebGPU, 120 s), and 144 Hz panel captures measured p99 19.565 ms
   (fixed 1080p) and 19.005 ms (`--native-viewport` 1536x826 DPR 1.25), missing
-  the 16.67 ms (60 FPS) and 8.33 ms (120 FPS) limits. Full production scene
-  (terrain, FPV and thermal together), VRAM/cache residency accounting and an
-  M4 target device remain unmeasured.
+  the user-accepted 60 FPS p99 of 17.665 ms and the 8.33 ms (120 FPS) limit.
+  The M4 WebGL2 production capture measured median 16.680 ms and p99 17.665 ms
+  at a user-accepted 59.88 Hz refresh. Its scene did not fill the 2560×1440
+  display; the MacBook Air native panel is 2560×1664. A 10-minute RTX 4050
+  full-feature run and a presentation that covers the physical display remain open.
 * **Evidence and reports.** Refresh the stale evidence manifest entries
   (`test-results/laptop/evidence-manifest.json`) and missing diagnostic
   reports, and reconcile the model-report (`test-results/validation/model-report.json`)

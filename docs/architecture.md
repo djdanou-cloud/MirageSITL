@@ -285,7 +285,7 @@ the roadmap defines dependencies and execution order.
 Measure production on M4 and RTX 4050 with a visible tab after warmup:
 frame-time p50/p95/p99, Worker compute/deadline lateness, executed steps/s,
 dropped wall time, input age, sensor jitter, GPU memory, and end-to-end
-latency. 120 FPS allows 8.33 ms/frame; 60 FPS allows 16.67 ms. A 1200 Hz
+latency. 120 FPS allows 8.33 ms/frame on a panel that can present it. For 60 FPS the user accepted a median of 16.680 ms and a p99 of 17.665 ms on 2026-10-21, including a 59.88 Hz panel. The flight image must fill the active display: the M4 run used a 2560×1440 mode, while the MacBook Air panel is natively 2560×1664. A 1200 Hz
 physics step has 0.833 ms and needs headroom. Headless cloud smoke does
 not establish these performance budgets.
 

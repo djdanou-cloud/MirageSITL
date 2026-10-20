@@ -150,7 +150,10 @@ dropped wall intervals are visible in the UI. On Windows Node, the
 ~1 µs/step; the browser Worker 800 Hz regression passed. Catch-up caps and
 drop thresholds must not be relaxed to hide drops. Target 60–120 FPS and
 400–1200 Hz require production measurements on Apple Silicon M4 and RTX 4050
-(TASK-073); cloud headless smoke cannot establish those budgets.
+(TASK-073). The user accepted an M4 60 FPS median of 16.680 ms, a p99 of
+17.665 ms, and a 59.88 Hz panel. That capture did not fill the 2560×1440
+display; the MacBook panel is natively 2560×1664. Cloud headless smoke cannot
+establish those budgets.
 
 ## System documentation
 

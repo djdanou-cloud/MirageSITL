@@ -1,5 +1,5 @@
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { useEffect, useRef, type RefObject } from 'react';
+import { useEffect, useRef, useState, type ComponentType, type RefObject } from 'react';
 import type { TilesScene } from '@mirage/terrain/tiles-scene';
 import type { TileFailure } from '@mirage/terrain/tiles-provider';
 import type { TerrainConfig } from './terrain-config';
@@ -7,10 +7,13 @@ import { Group, Quaternion, Vector3 } from 'three';
 import { interpolatePoseInto, interpolationAlpha, newRenderPoseV2, wallNow } from '@mirage/protocol';
 import type { SimulationRuntime } from './runtime';
 import { nedToRenderBasis, nedToRenderPositionInto } from './coordinates';
+import { g3Requested } from './render/g3-mode';
 import { rendererFactory, rendererModeFromSearch } from './render/renderer';
 
 // TASK-066: `?renderer=webgpu|webgl2` selects the renderer adapter; otherwise R3F's default WebGL renderer.
-const rendererMode = rendererModeFromSearch(globalThis.location?.search ?? '');
+const search = globalThis.location?.search ?? '';
+const rendererMode = rendererModeFromSearch(search);
+const g3 = g3Requested(search);
 const glOption = rendererMode ? rendererFactory(rendererMode) : { antialias: true, powerPreference: 'high-performance' as const };
 
 const MODEL_HEIGHT_OFFSET_M = 0.28; // hub height of the demo mesh above its NED reference point
@@ -52,9 +55,8 @@ function Vehicle({ runtime }: { runtime: RefObject<SimulationRuntime | null> }) 
   </group>;
 }
 /** Streams one licensed 3D Tiles source in the render loop (never the physics step) and reports failures on change. */
-function TerrainTiles({ config, onFailures }: { config: TerrainConfig; onFailures: (failures: readonly TileFailure[]) => void }) {
+function TerrainTiles({ config, onFailures, tiles }: { config: TerrainConfig; onFailures: (failures: readonly TileFailure[]) => void; tiles: RefObject<TilesScene | null> }) {
   const { camera, gl, scene } = useThree();
-  const tiles = useRef<TilesScene | null>(null);
   const reported = useRef(0);
   useEffect(() => {
     // Loaded on demand: terrain is off by default, so the loader stays out of the main bundle.
@@ -67,7 +69,7 @@ function TerrainTiles({ config, onFailures }: { config: TerrainConfig; onFailure
       reported.current = 0;
     });
     return () => { cancelled = true; instance?.dispose(); tiles.current = null; };
-  }, [config, camera, gl, scene]);
+  }, [config, camera, gl, scene, tiles]);
   useFrame(() => {
     const instance = tiles.current;
     if (!instance) return;
@@ -77,12 +79,29 @@ function TerrainTiles({ config, onFailures }: { config: TerrainConfig; onFailure
   return null;
 }
 
+function G3Loader({ runtime, tiles }: { runtime: RefObject<SimulationRuntime | null>; tiles: RefObject<TilesScene | null> }) {
+  const [Passes, setPasses] = useState<ComponentType<{ runtime: RefObject<SimulationRuntime | null>; tiles: RefObject<TilesScene | null> }> | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    void import('./render/g3-passes').then(module => { if (!cancelled) setPasses(() => module.G3Passes); });
+    return () => { cancelled = true; };
+  }, []);
+  useEffect(() => {
+    const root = globalThis.document?.documentElement;
+    if (!root) return;
+    root.dataset.g3 = '1';
+    return () => { delete root.dataset.g3; };
+  }, []);
+  return Passes ? <Passes runtime={runtime} tiles={tiles} /> : null;
+}
+
 export function FlightScene({ runtime, terrain = null, onTerrainFailures = () => undefined }: {
   runtime: RefObject<SimulationRuntime | null>;
   terrain?: TerrainConfig | null;
   onTerrainFailures?: (failures: readonly TileFailure[]) => void;
 }) {
-  return <Canvas shadows dpr={[1, 1.5]} camera={{ position: [4, 3, 5], fov: 48, near: 0.05, far: 2000 }}
+  const tiles = useRef<TilesScene | null>(null);
+  return <Canvas shadows dpr={g3 ? 1 : [1, 1.5]} camera={{ position: [4, 3, 5], fov: 48, near: 0.05, far: 2000 }}
     gl={glOption}>
     <color attach="background" args={['#111e29']} />
     <fog attach="fog" args={['#111e29', 30, 120]} />
@@ -95,7 +114,8 @@ export function FlightScene({ runtime, terrain = null, onTerrainFailures = () =>
     <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.02, 0]} receiveShadow>
       <planeGeometry args={[2000, 2000]} /><meshStandardMaterial color="#14232d" roughness={1} />
     </mesh>
-    {terrain && <TerrainTiles config={terrain} onFailures={onTerrainFailures} />}
+    {terrain && <TerrainTiles config={terrain} onFailures={onTerrainFailures} tiles={tiles} />}
+    {g3 && <G3Loader runtime={runtime} tiles={tiles} />}
     <Vehicle runtime={runtime} />
   </Canvas>;
 }

@@ -12,7 +12,13 @@ export function assessGpu(v) {
   if (Math.abs(total / 1000 - v.durationS) > .02) throw new Error("Frame stream does not cover declared measurement duration");
   finite(v.gpuBytes, 1); finite(v.cpuBytes, 1);
   const p99FrameMs = percentile(v.frameMs, .99);
-  const ok = p99FrameMs <= (v.fps === 60 ? 16.67 : 8.33) && v.gpuBytes <= 2 * 1024 ** 3 && v.cpuBytes <= 512 * 1024 ** 2;
-  return report("gpu-report", ok ? "PASS" : "FAIL", ok ? [] : ["Frame-time or terrain residency budget exceeded"], { p99FrameMs, p50FrameMs: percentile(v.frameMs, .5), measuredFrames: v.frameMs.length });
+  const p50FrameMs = percentile(v.frameMs, .5);
+  // User decision 2026-10-21: the M4 60 FPS capture is acceptable at a median of
+  // 16.680 ms and p99 of 17.665 ms. Values are compared after rounding to 0.001 ms.
+  // The 120 FPS p99 limit stays 8.33 ms.
+  const roundMs = ms => Math.round(ms * 1000) / 1000;
+  const frameOk = v.fps === 60 ? roundMs(p50FrameMs) <= 16.680 && roundMs(p99FrameMs) <= 17.665 : roundMs(p99FrameMs) <= 8.33;
+  const ok = frameOk && v.gpuBytes <= 2 * 1024 ** 3 && v.cpuBytes <= 512 * 1024 ** 2;
+  return report("gpu-report", ok ? "PASS" : "FAIL", ok ? [] : ["Frame-time or terrain residency budget exceeded"], { p99FrameMs, p50FrameMs, measuredFrames: v.frameMs.length });
 }
 cli(import.meta.url, "gpu-report", assessGpu);
