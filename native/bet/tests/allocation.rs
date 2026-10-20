@@ -52,8 +52,29 @@ unsafe impl GlobalAlloc for Counter {
 }
 #[global_allocator]
 static ALLOCATOR: Counter = Counter;
+static TEST_LOCK:std::sync::Mutex<()>=std::sync::Mutex::new(());
+#[path="support/bound_fixture.rs"]
+mod bound_fixture;
+#[test]
+fn production_bound_step_allocates_zero_over_one_million_steps(){
+    let _lock=TEST_LOCK.lock().unwrap();
+    let(c,mut arena,input)=bound_fixture::fixture();let mut output=[0u8;128];
+    assert_eq!(mirage_bet::bound::init(&c,&mut arena,0),0);
+    CALLS.store(0,Ordering::Relaxed);BYTES.store(0,Ordering::Relaxed);
+    TRACK.with(|t|t.set(true));let control=black_box(vec![0u8;32]);black_box(control);
+    TRACK.with(|t|t.set(false));assert!(CALLS.load(Ordering::Relaxed)>0 && BYTES.load(Ordering::Relaxed)>=32);
+    CALLS.store(0,Ordering::Relaxed);BYTES.store(0,Ordering::Relaxed);
+    TRACK.with(|t|t.set(true));
+    let mut status=0;
+    for _ in 0..1_000_000 {
+        status|=black_box(mirage_bet::bound::step(&mut arena,&input,&mut output,1.0/400.0));
+    }
+    TRACK.with(|t|t.set(false));
+    assert_eq!(status,0);assert_eq!(CALLS.load(Ordering::Relaxed),0);assert_eq!(BYTES.load(Ordering::Relaxed),0);
+}
 #[test]
 fn all_scalar_kernels_allocate_zero_over_one_million_steps() {
+    let _lock=TEST_LOCK.lock().unwrap();
     let polar = PolarTable::new(
         &[-3.15, 3.15],
         &[1.0, 1e9],

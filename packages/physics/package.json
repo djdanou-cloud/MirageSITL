@@ -12,7 +12,8 @@
     "./frame": "./src/frame.ts",
     "./contact-backend": "./src/contact-backend.ts",
     "./ground-contact": "./src/ground-contact.ts",
-    "./motor-fault": "./src/motor-fault.ts"
+    "./motor-fault": "./src/motor-fault.ts",
+    "./bet-dynamics": "./src/bet-dynamics.ts"
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "0.21.0",

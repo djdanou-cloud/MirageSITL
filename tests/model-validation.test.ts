@@ -2,6 +2,7 @@ import { execFileSync, spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { Ajv } from "ajv";
 import { expect, it } from "vitest";
+import { record } from "@mirage/wasm-bet/rotor";
 import schema from "../docs/validation/model-report.schema.json";
 it("writes numerical and UIUC evidence, retains the deferred NASA failure, and fails closed on missing or failed fidelity", () => {
   const result = spawnSync(process.execPath, ["scripts/validate-models.mjs"], {
@@ -14,14 +15,30 @@ it("writes numerical and UIUC evidence, retains the deferred NASA failure, and f
   expect(
     new Ajv({ strict: true, allowUnionTypes: true }).compile(schema)(report),
   ).toBe(true);
+  if (typeof report !== "object" || report === null) throw Error("Invalid model report");
+  const validate = new Ajv({ strict: true, allowUnionTypes: true }).compile(schema);
+  expect(validate({ ...report, schemaVersion: 5 })).toBe(false);
+  expect(validate({ ...report, schemaVersion: 6 })).toBe(false);
+  expect(validate({ ...report, schemaVersion: 7 })).toBe(false);
+  expect(validate({ ...report, runtimeStatus: undefined })).toBe(false);
+  expect(validate({ ...report, surrogateValidation: [] })).toBe(false);
+  const mislabeled: unknown = JSON.parse(JSON.stringify(report).replace('"unvalidated"', '"pass"'));
+  expect(validate(mislabeled)).toBe(false);
   // Airframe data are absent; NASA is explicitly deferred with its failure retained.
   expect(report).toMatchObject({
-    schemaVersion: 5,
+    schemaVersion: 8,
     status: "failed",
     numericalStatus: "pass",
     fidelityStatus: "blocked",
     contactFidelityStatus: "blocked",
     propellerFidelityStatus: "failed",
+    surrogateValidation: [
+      { configurationId: "baseline-two-blade", airfoil: "NACA6409", provenance: "neural-surrogate",
+        numericalStatus: "pass", measuredFidelity: "unvalidated", cases: 24,
+        reportPath: "test-results/validation/rotor-bet.json" },
+      { configurationId: "tapered-three-blade", airfoil: "NACA6409", numericalStatus: "pass", cases: 24 },
+      { configurationId: "symmetric-four-blade", airfoil: "NACA0012", numericalStatus: "pass", cases: 24 },
+    ],
     propellerValidation: [
       {
         id: "uiuc-da4002-da4022-propellers",
@@ -52,6 +69,14 @@ it("writes numerical and UIUC evidence, retains the deferred NASA failure, and f
     ],
     diagnostics: { jsbsimBackend: { status: "pass" }, jsbsimJsAllocation: { status: "pass" } },
   });
+  // Runtime reports are optional local acceptance outputs. Fresh checkouts must
+  // stay blocked until the two real acceptance CLIs have produced current proof.
+  if (!record(report) || !record(report.diagnostics)) throw Error("Missing runtime diagnostics");
+  const rotor = report.diagnostics.betRuntime, allocation = report.diagnostics.betRuntimeAllocation;
+  if (!record(rotor) || !record(allocation)) throw Error("Invalid runtime diagnostics");
+  expect(rotor.status).toMatch(/^(pass|missing|stale|invalid)$/);
+  expect(allocation.status).toMatch(/^(pass|missing|stale|invalid)$/);
+  expect(report.runtimeStatus).toBe(rotor.status === "pass" && allocation.status === "pass" ? "pass" : "blocked");
   expect(result.stdout).toContain("12 cases; 2 measured");
 }, 300000);
 it("retains pinned reference rate and rejects a missing JSBSim source", () => {

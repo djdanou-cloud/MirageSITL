@@ -172,8 +172,10 @@ and evidence needed to mark a task DONE.
 Independent motor, battery, arbitrary-frame wrench, and rigid-body RK4
 references are available in `native/bet`, with a real WASM body adapter,
 ISA/wind atmosphere (TASK-032), and ideal/noisy sensor suite (TASK-020–TASK-028,
-TASK-034, TASK-035). The demo Worker still uses its existing demo dynamics; the
-complete BET flight backend is not yet wired into the active flight session.
+TASK-034, TASK-035). TASK-033 adds a configurable NeuralFoil BET backend and
+production polar/rotor binding, selectable through the PhysicsSessionV2 dynamics
+factory and verified in a browser SAB Worker. The application Worker still
+selects its existing demo dynamics by default.
 
 The direct `f64` Rapier contact C ABI (`node scripts/build-contact.mjs`,
 `node scripts/check-contact-binding.mjs`) passes native/WASM G1 zero-allocation
@@ -199,8 +201,9 @@ unpatched upstream builds still allocate. See
 [implementation contracts](docs/SPECS_SIMULATION_ENGINES.md).
 
 The model validation CLI (`node scripts/validate-models.mjs`) reports numerical
-results separately and exits 2 while measured physical fidelity (TASK-033,
-`BLOCKED_EXTERNAL`) remains open. The first measured contact fixture,
+and runtime results separately and exits 2 while measured physical fidelity
+remains open. The user-selected TASK-033 synthetic/NeuralFoil software baseline
+is distinct from measured certification. The first measured contact fixture,
 `tests/fixtures/contact/nasa-drop.json`, holds the NASA TM X-3561 level-surface
 landing-gear drops (https://ntrs.nasa.gov/citations/19780003109), generated from
 the hashed Docling archive in `tests/fixtures/contact/nasa/` by

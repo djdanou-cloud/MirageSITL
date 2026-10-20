@@ -6,6 +6,7 @@
   "exports": {
     "./loader": "./src/loader.ts",
     "./arena": "./src/arena.ts",
-    "./backend": "./src/backend.ts"
+    "./backend": "./src/backend.ts",
+    "./rotor": "./src/rotor.ts"
   }
 }

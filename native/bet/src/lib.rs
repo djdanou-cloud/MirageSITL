@@ -2,9 +2,9 @@
 //!
 //! Includes scalar rotor quadrature, limited axial inflow, free shaft, and
 //! reduced flapping/momentum kernels (TASK-020..023). The bootstrap export
-//! remains for ABI regression. Production arena stepping still reports
-//! unavailable aerodynamics until a versioned polar/engine binding exists;
-//! feature-gated test exports verify numerical WASM parity separately.
+//! remains for ABI regression and keeps its unavailable-aerodynamics response.
+//! The additive `bound` ABI binds validated polar/rotor data and advances
+//! shaft/inflow state; feature-gated exports also verify reference kernels.
 //!
 //! On wasm32 the global allocator traps: any heap allocation aborts the module,
 //! so the kernels provably run allocation-free (a no_std build is not used
@@ -25,6 +25,7 @@ pub mod frame;
 pub mod rigid_body;
 pub mod landing_gear;
 pub mod body_abi;
+pub mod bound;
 pub mod inflow;
 pub mod shaft;
 pub mod flapping;
@@ -186,6 +187,58 @@ mod wasm_exports {
     }
     fn caller_region(ptr: u32, len: u32) -> bool {
         ptr >= heap_base() && abi::region_valid(ptr, len, u64::from(memory_pages()) * 65536)
+    }
+
+    /// Independent polar-bound rotor interface version.
+    #[no_mangle]
+    pub extern "C" fn bet_bound_version() -> u32 { crate::bound::VERSION }
+
+    /// Validates/copies one rotor configuration; zero means success, not a handle.
+    #[no_mangle]
+    pub extern "C" fn bet_bound_init(cp:u32,cl:u32,ap:u32,al:u32)->i32 {
+        if !caller_region(cp,cl) || !caller_region(ap,al) || abi::regions_overlap(cp,cl,ap,al) {return -2;}
+        // SAFETY: caller-owned checked disjoint regions, no concurrent memory access.
+        let (config,arena)=unsafe{(bytes(cp,cl),bytes_mut(ap,al))};
+        crate::bound::init(config,arena,memory_pages())
+    }
+
+    fn bound_len(handle:u32)->Option<u32> {
+        if !caller_region(handle,64) {return None;}
+        // SAFETY: validated read-only header, dropped before any mutation.
+        let len=crate::bound::arena_len(unsafe{bytes(handle,64)})?;
+        caller_region(handle,len).then_some(len)
+    }
+
+    /// Atomic-on-error fixed step with confidence/validity flags in its output.
+    #[no_mangle]
+    pub extern "C" fn bet_bound_step(handle:u32,ip:u32,op:u32,dt:f64)->i32 {
+        let Some(len)=bound_len(handle) else{return -1;};
+        // SAFETY: bound_len checked the full immutable arena region.
+        if crate::bound::memory_pages(unsafe{bytes(handle,len)})!=Some(memory_pages()) {return -5;}
+        if !caller_region(ip,128) || !caller_region(op,128) || abi::regions_overlap(ip,128,op,128)
+            || abi::regions_overlap(handle,len,ip,128) || abi::regions_overlap(handle,len,op,128) {return -2;}
+        // SAFETY: all regions are validated and pairwise disjoint.
+        let (arena,input,out)=unsafe{(bytes_mut(handle,len),bytes(ip,128),bytes_mut(op,128))};
+        crate::bound::step(arena,input,out,dt)
+    }
+
+    /// Restores configured shaft speed and zero induced flow.
+    #[no_mangle]
+    pub extern "C" fn bet_bound_reset(handle:u32)->i32 {
+        let Some(len)=bound_len(handle) else{return -1;};
+        // SAFETY: bound_len checked the immutable full arena.
+        if crate::bound::memory_pages(unsafe{bytes(handle,len)})!=Some(memory_pages()) {return -5;}
+        // SAFETY: checked region is exclusively borrowed for reset.
+        crate::bound::reset(unsafe{bytes_mut(handle,len)})
+    }
+
+    /// Invalidates a bound rotor without affecting another handle.
+    #[no_mangle]
+    pub extern "C" fn bet_bound_dispose(handle:u32) {
+        if let Some(len)=bound_len(handle) {
+            // SAFETY: checked exclusive caller-owned arena.
+            crate::bound::dispose(unsafe{bytes_mut(handle,len)});
+        }
     }
     /// SAFETY: requires `caller_region(ptr, len)`: the range is non-null, aligned,
     /// inside linear memory, and outside Rust-owned memory. The module is

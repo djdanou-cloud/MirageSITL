@@ -7,6 +7,124 @@ implementation of these models. English is the source of truth.
 Binary transport: [SPECS_SHARED_MEMORY.md](SPECS_SHARED_MEMORY.md).
 Tasks and acceptance: [PROJECT_ROADMAP.md](PROJECT_ROADMAP.md).
 
+### NACA6409 data selection (2026-10-20, TASK-033)
+
+The operator selects NACA6409 and NeuralFoil for the new airfoil model.
+`scripts/generate-neuralfoil-polar.py` generates
+`tests/fixtures/polars/naca6409-neuralfoil.json` offline from analytic NACA
+four-digit coordinates through NeuralFoil's internal Kulfan fit. All lift,
+drag, pitching moment, transition and confidence values come directly from
+NeuralFoil's `xxxlarge` model. The fixture is a neural surrogate, not a measured
+dataset. Dependencies are pinned in `scripts/neuralfoil-requirements.txt`;
+the fixture records package versions, source/weight hashes and coordinates.
+
+The declared grid is alpha -30 to +30 degrees in 0.5-degree increments;
+Re = 1000, 5000, 10000, 20000, 40000, 60000, 100000, 200000, 500000 and
+1000000; Mach = 0 only. Settings are nCrit=9 and upper/lower transition=1.
+Every value is retained, including low-confidence predictions. There is no
+XFOIL fallback, coefficient fitting, gap filling or post-stall extension.
+
+The cold diagnostic lookup interpolates linearly in alpha and logarithmically
+in Reynolds number. Confidence is the minimum of the contributing corners;
+below 0.9 adds `low-confidence`. This is an engineering screening rule, not an
+accuracy guarantee. Out-of-grid values clamp and retain `outside-table`;
+nonzero Mach adds `unsupported-mach`. Nonfinite queries, nonpositive Reynolds
+numbers and negative Mach are rejected. Consumers must retain these flags.
+The returned pitching moment is a section coefficient, not a rotor tilting
+moment. NeuralFoil does not supply wake interaction, motor heating, battery or
+airframe data. Those models and production BET binding remain separate work.
+
+Run the generator in the pinned Python environment; `--check` regenerates in
+memory and requires exact file equality without rewriting. Tests:
+`python -m unittest discover -s tests -p test_neuralfoil_polar.py`.
+Historical SDA1075/UIUC comparisons below retain their section identity and
+fixed acceptance tolerances. A NACA6409 calculation cannot pass those measured
+SDA1075 gates by substitution. The new model no longer waits for an SDA1075
+polar; measured fidelity and browser autopilot admission remain unproven.
+
+### NACA6409 BET numerical validation (TASK-033)
+
+The configuration-driven continuation below supersedes the fixed-rotor CLI
+and schema-v6 interface described in this historical increment.
+
+`python scripts/check-naca6409-bet.py` verifies the registered polar hash and
+synthetic provenance, builds the existing native `propeller_points` example,
+and evaluates uniform inflow and annular tip/hub/swirl BEM at 1000/3000/6000/9000
+RPM and J=0/0.2/0.4 (24 cases). The rotor is explicitly synthetic: two blades,
+radius 0.15 m, root 0.045 m, constant chord 0.025 m and twist 15 degrees,
+28 midpoint strips, eight azimuth samples, rho=1.225 kg/m3, mu=1.789e-5 Pa s,
+sound speed 340 m/s. It does not reuse a measured propeller identity.
+
+The native request duplicates the NeuralFoil Mach=0 coefficients at Mach=0.3
+as a declared incompressible approximation; no compressibility data or
+corrections are generated. Native validity flags reject states beyond that
+approximation. The saved raw polar and its diagnostic query remain Mach=0 only.
+An independent Python implementation integrates axial section loads and solves
+uniform actuator-disk momentum with 90 bisections. Native uniform CT/CP must
+agree within 1e-9 absolute plus 1e-8 relative; momentum residual must be <=1e-9
+times max(1 N, rho*n^2*D^4). Annular residuals must be <1e-9 in the native
+dimensionless force scale; malformed, nonfinite or nonconverged output fails.
+
+Both solvers retain the minimum NeuralFoil confidence across all contributing
+cells in the final section alpha/Re bounding rectangle. This conservative
+screen can flag unused interior cells; it never averages poor confidence away.
+Confidence below 0.9, outside-table, native outside-polar and outside-momentum
+flags exclude a case from the screened count independently of numerical
+agreement. CM/transition are retained in the source table; these rotor kernels
+consume CL/CD. No section pitching-moment or transient/wake validation is claimed.
+
+`test-results/validation/naca6409-bet.json` records geometry, assumptions,
+per-case coefficients/errors/flags, fixture/executable/source hashes and Rust
+version. `scripts/validate-models.mjs` runs this check and adds a required
+`surrogateValidation` array in model-report schema v6 (v5 is rejected).
+`numericalStatus` and `measuredFidelity: unvalidated` stay distinct. The new
+section cannot satisfy a measured-data gate or change the failed UIUC results.
+Production BET ABI/session wiring remains open.
+
+### Configuration-driven synthetic BET suite (TASK-033)
+
+Synthetic geometry is the implementation baseline by operator instruction;
+no particular measured rotor is required to continue software work.
+`scripts/check-rotor-bet.py` accepts `--config PATH --report PATH`; defaults
+are `tests/fixtures/rotors/synthetic-bet-suite.json` and
+`test-results/validation/rotor-bet.json`. The former NACA6409 CLI delegates to
+this runner. `scripts/generate-neuralfoil-polar.py --airfoil NACA0012` illustrates
+independent polar generation; NACA four-digit names are normalized and validated.
+The default remains NACA6409, whose existing fixture bytes are preserved.
+
+Suite schema v1 requires `provenance: synthetic` and 1..32 configurations with
+unique IDs. Each selects its own airfoil and hash-registered polar fixture.
+Rotor fields are `bladeCount` (integer 1..16), `radiusM` (0.001..10 m),
+`rootRadiusRatio` (0..0.99), `strips` (integer 1..64), `azimuthSamples`
+(integer 1..64), and `span`. Each span row is [radius/tip-radius,
+chord/tip-radius, twist-degrees]; 2..64 strictly increasing rows cover the
+active root through 1, chord ratio is 0.0001..2 and twist is -60..60 degrees.
+Midpoint strips linearly interpolate the span distribution. The native runner
+performs its own geometry/quadrature validation as well.
+
+Each configuration also supplies density (0.05..2 kg/m3), viscosity
+(1e-8..0.001 Pa s), sound speed (1..10000 m/s), and 1..128 distinct [RPM,J]
+points, with RPM=0.001..100000 and J=0..5. Invalid, duplicate, missing,
+nonfinite or mismatched airfoil/fixture inputs fail before solver execution.
+These are parser bounds, not an experimentally validated flight envelope.
+Each solver receives that configuration's geometry, environment and table;
+the independent oracle takes the same explicit configuration without mutable
+global geometry. Existing numerical tolerances and confidence/Mach screening
+remain unchanged. Tests establish force/power scaling under geometric scaling,
+linear blade-count response at prescribed state, spanwise interpolation,
+independent airfoil selection and rejection of invalid configurations.
+
+The default matrix contains a constant-chord two-blade NACA6409 rotor, a
+tapered/twisted three-blade NACA6409 rotor and a tapered four-blade NACA0012
+rotor (72 uniform/annular cases in total). Report schema v2 stores the suite
+hash and complete configuration definitions, per-configuration polar hashes,
+case identities, numerical status and screening counts. Model-report schema
+v7 replaces the single-airfoil schema v6 with a required list of configuration
+summaries; counts derive from the input suite, not fixed rotor assumptions.
+Versions 5/6 and relabeling surrogate fidelity as measured PASS are rejected.
+Both airfoils remain NeuralFoil-generated surrogates. Measured fidelity remains
+separate evidence; production BET ABI/session integration remains open.
+
 ## 1. Backend invariants and units
 
 Use SI, NED/FRD, and a body-to-NED quaternion. A single component owns
@@ -439,6 +557,63 @@ oscillator 1e-8 rad), and run million-step dynamics without memory growth.
 These checks do not establish experimental aerodynamics or M4/RTX throughput.
 
 ## 4. WASM ABI and SIMD
+
+### Additive bound-rotor ABI v1 (TASK-033 runtime continuation)
+
+This separate interface leaves the legacy rotor arena ABI v1 unchanged.
+`bet_bound_version`, `bet_bound_init(config,len,arena,arenaLen)`,
+`bet_bound_step(arena,input,out,dt)`, `bet_bound_reset(arena)` and
+`bet_bound_dispose(arena)` use disjoint caller-owned 8-byte-aligned regions.
+Configuration header: 128 bytes; u32 version/totalBytes/nAlpha/nRe/nMach/
+nStations/bladeCount/spinSign/azimuthSamples at 0/4/8/12/16/20/24/28/32;
+36..39 reserved zero; f64 radius/root/inertia/bearing/dt/initialOmega/
+inflowTau/inflowLimit/minConfidence at 40/48/56/64/72/80/88/96/104;
+112..127 reserved zero. Then four station f64 arrays (radius/chord/twist/width),
+alpha-radian/Re/Mach axes, and flattened CL/CD/confidence arrays in
+(Mach,Re,alpha) order. Counts are bounded by 361/32/8/64 and 16384 table cells.
+The native initializer validates and copies this payload into an arena with
+a 64-byte header; total arena bytes = 64 + configuration bytes.
+
+Input: 128 bytes; u32 version at 0, 4..7 reserved zero; f64 density/viscosity/
+sound speed at 8/16/24, hub relative air velocity[3] at 32, body rate[3] at 56,
+collective/cos-cyclic/sin-cyclic at 80/88/96, motor torque magnitude at 104,
+112..127 reserved zero. Output reuses the 128-byte rotor output field layout
+below through this distinct versioned interface. Arena header: magic/bytes/
+memoryPages/reserved u32 at 0/4/8/12; f64 omega/induced at 16/24;
+32..63 reserved zero. Configuration is immutable after initialization.
+
+Each step predicts half-step free-shaft and axial-inflow state, evaluates
+midpoint loads, and advances full-step shaft/inflow using those loads. Outputs
+contain the midpoint aerodynamic wrench and updated shaft/inflow state. Transmitted moment subtracts finite-difference shaft dH/dt
+and body-rate cross H. Flapping is disabled (cone=0). Flags: 2 outside polar,
+4 low-confidence contributing corner, 8 outside axial-inflow validity,
+16 reverse shaft limit. Finite flagged predictions remain distinguishable
+from numerical errors. Negative statuses match legacy status meanings; errors
+do not change output or state. Reset restores configured initial speed and
+zero inflow. Disposal invalidates the arena. Growth after init is rejected.
+No new SAB byte layout or autopilot admission follows from this interface.
+
+The configured dt accepts 400/800/1200 Hz plus 4800 Hz for offline reference
+integration. The session clock remains limited to 400/800/1200 Hz.
+`BetFlightDynamics` predicts midpoint body velocity, rate and orientation for
+rotor-relative flow, then integrates the assembled body wrench. Its explicit
+configuration supplies manifest, polar map, atmosphere, motor torque limits,
+mixer and initial body/shaft state; it assumes rigid nonflapping rotors and
+free flight. No contact, battery or autopilot simulation is implied.
+
+`node scripts/check-bet-runtime.mjs` records 18 ten-second comparisons for
+4/6/8 rotors across scalar/SIMD and 400/800/1200 Hz against 4800 Hz; tolerances
+remain 0.1 m and 0.5 degrees. `--allocation` counts one million native bound
+steps with a positive control, probes one million active-rotor steps in each
+WASM variant and one million stationary four-rotor body steps with zero gravity.
+The JS probes require zero GC, less than 0.01 incremental bytes/step, stable
+WASM memory and an allocating positive control. These are software checks,
+not measured aerodynamic validation or target-device real-time guarantees.
+Reports `bet-runtime.json` and `bet-runtime-allocation.json` under
+`test-results/validation/` include source and artifact hashes. Model-report v8
+requires both diagnostics and `runtimeStatus`, rejecting schema v7 and older.
+Stale/missing/invalid runtime evidence blocks runtime acceptance; failed checks
+fail it. Historical measured comparisons retain their independent status.
 
 Rust crate: `native/bet`; wrapper: `packages/wasm-bet`. JSBSim is a separate
 Emscripten artifact. Scalar execution is mandatory. SIMD128 is an optional,

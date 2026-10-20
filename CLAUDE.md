@@ -46,7 +46,7 @@ assume Codex/Cursor automatically read CLAUDE.md. TASK-084 added AGENTS.md and
 `.cursor/rules/project.mdc` as thin pointers to this file rather than duplicate
 policy copies; if a client loads neither pointer, open this file explicitly.
 
-## 2. Current baseline (`aab5e47`)
+## 2. Current baseline (`d56c890` plus TASK-033 local changes)
 
 ### What exists now
 
@@ -64,9 +64,12 @@ policy copies; if a client loads neither pointer, open this file explicitly.
   wind (TASK-032), native rotor reference kernels with test-only WASM exports
   (TASK-020–TASK-023), motor/battery/arbitrary-frame wrench/RK4 rigid-body WASM
   adapters, and ideal/noisy IMU/baro/mag/GNSS sensors (TASK-024–TASK-028, TASK-034,
-  TASK-035). Production BET arena stepping still reports `AERODYNAMICS_UNAVAILABLE`
-  because polar binding and a complete BET backend are not wired into the flight
-  session.
+  TASK-035). TASK-033 adds the production bound-rotor ABI, NeuralFoil confidence-aware
+  polar binding, free-shaft/inflow midpoint coupling and configurable
+  `BetFlightDynamics` injection into `PhysicsSessionV2`. Scalar/SIMD, independent
+  loads, 4800 Hz convergence, million-step allocation and browser SAB execution
+  are checked separately. The legacy unbound ABI retains
+  `AERODYNAMICS_UNAVAILABLE`; the application still defaults to demo dynamics.
 * **Rapier contact and terrain collision coupling (TASK-029, TASK-065):** The direct
   `f64` Rapier C ABI (`node scripts/build-contact.mjs`, cold-initialized in
   `GroundContact` with its bytes and manifest) passes native/WASM G1, synthetic
@@ -164,8 +167,10 @@ policy copies; if a client loads neither pointer, open this file explicitly.
 
 ### What remains open
 
-* **Measured model fidelity (TASK-033, `BLOCKED_EXTERNAL`):** `node scripts/validate-models.mjs`
-  reports numerical PASS, contact FAIL, propeller FAIL, and exits 2. The NASA
+* **Measured model fidelity (separate from the TASK-033 synthetic baseline):** `node scripts/validate-models.mjs`
+  reports numerical/runtime PASS, contact deferred/blocked, propeller FAIL,
+  and exits 2. Synthetic geometry and NeuralFoil complete the software validation
+  baseline selected by the user; they do not establish measured fidelity. The NASA
   TM X-3561 landing-gear drop comparison (`tests/fixtures/contact/nasa-drop.json`,
   archived in `test-results/validation/nasa-drop-legacy.json`) fails its measured
   deceleration (`-1.6 g`) and stroke envelopes and was explicitly deferred by the

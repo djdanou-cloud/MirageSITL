@@ -2,7 +2,7 @@ import { ActuatorFrameCodecV2, ControlFlag, ControlProcessorV2, HeaderV2, INPUT_
   RuntimeFlagV2, SpscConsumer, StateWriterV2, UNKNOWN_U32, VehicleFlagV2, isValidPilotInputV2, newActuatorFrameV2,
   newFlightStateV2, newInput, newPilotInputV2, tickToNumber, validateSharedMemoryV2, validateSpscQueue,
   type ClockModeV2, type CommandResultV2, type PhysicsHz, type ScheduledCommandV2, type TickId,
-  type WorkerInitV2 } from '@mirage/protocol';
+  type WorkerInitV2, type FlightState, type PilotInput, type ActuatorFrameV2 } from '@mirage/protocol';
 import { SteppingPolicy, newPumpReport, type StepGate } from './clock-policy.ts';
 import { DemoDynamics } from './demo-dynamics.ts';
 
@@ -39,6 +39,15 @@ export interface SessionClock {
 /** Arm latch states; see `evaluatePilot`. */
 type ArmLatch = 'disarmed' | 'armed' | 'blocked';
 
+/** A cold-selected dynamics implementation owns integration; the session owns transport. */
+export interface SessionDynamics {
+  readonly state: FlightState; readonly hz: PhysicsHz; nowMs: number;
+  readonly modelId?: number; readonly rotorCount?: number; readonly validityFlags?: number;
+  readonly referenceRotorRpm?: number; readonly fault?: string; readonly externalArmed?: boolean;
+  reset(): void; stepNow(input: PilotInput): void; dispose?(): void;
+  useActuators?(frame: ActuatorFrameV2): void;
+}
+
 export class PhysicsSessionV2 {
   private readonly writer: StateWriterV2;
   private readonly pilotReader: PilotReaderV2;
@@ -49,7 +58,8 @@ export class PhysicsSessionV2 {
   private readonly processor: ControlProcessorV2;
   private readonly clock: SessionClock;
   private readonly header: Int32Array;
-  private dynamics: DemoDynamics;
+  private dynamics: SessionDynamics;
+  private readonly dynamicsFactory: (hz: PhysicsHz) => SessionDynamics;
   private policy: SteppingPolicy;
   private readonly report = newPumpReport();
   private readonly pilot = newPilotInputV2();
@@ -70,7 +80,8 @@ export class PhysicsSessionV2 {
   private readonly integrateTick = (tick: TickId) => this.integrate(tick);
   private readonly gate: StepGate = { ready: (tick: TickId) => this.actuatorReady(tick) };
 
-  constructor(init: WorkerInitV2, clock: SessionClock) {
+  constructor(init: WorkerInitV2, clock: SessionClock,
+    dynamicsFactory: (hz: PhysicsHz) => SessionDynamics = hz => new DemoDynamics(hz)) {
     validateSharedMemoryV2(init.stateBuffer);
     validateSpscQueue(init.sensorBuffer, 'sensor');
     validateSpscQueue(init.actuatorBuffer, 'actuator');
@@ -83,7 +94,8 @@ export class PhysicsSessionV2 {
     this.actuators = new SpscConsumer(init.actuatorBuffer, 'actuator');
     const hz = this.hzFromHeader();
     this.epoch = Atomics.load(this.header, HeaderV2.SessionEpoch) >>> 0;
-    this.dynamics = new DemoDynamics(hz);
+    this.dynamicsFactory = dynamicsFactory;
+    this.dynamics = dynamicsFactory(hz);
     this.policy = new SteppingPolicy({ hz, mode: 'interactive' });
     this.processor = new ControlProcessorV2(this, { epoch: this.epoch, hz });
     this.writer.setRuntimeFlags(RuntimeFlagV2.Ready);
@@ -132,8 +144,8 @@ export class PhysicsSessionV2 {
 
   // --- ControlTargetV2 -----------------------------------------------------
 
-  isArmed(): boolean { return this.latch === 'armed'; }
-  rotorCount(): number { return DEMO_ROTOR_COUNT; }
+  isArmed(): boolean { return this.latch === 'armed' || this.dynamics.externalArmed === true; }
+  rotorCount(): number { return this.dynamics.rotorCount ?? DEMO_ROTOR_COUNT; }
   start(): void {
     this.runningValue = true;
     this.policy.resume(this.clock.monotonicMs());
@@ -146,11 +158,14 @@ export class PhysicsSessionV2 {
   }
   dispose(): void {
     this.runningValue = false; this.disposedValue = true;
+    this.dynamics.dispose?.();
     this.writer.setRuntimeFlags(0);
   }
   reset(): void { this.dynamics.reset(); }
   configure(hz: PhysicsHz, clockMode: ClockModeV2): void {
-    this.dynamics = new DemoDynamics(hz);
+    const next = this.dynamicsFactory(hz);
+    this.dynamics.dispose?.();
+    this.dynamics = next;
     this.policy = new SteppingPolicy({ hz, mode: clockMode });
     this.writer.setPhysicsHz(hz);
   }
@@ -232,8 +247,14 @@ export class PhysicsSessionV2 {
   private integrate(tick: TickId): void {
     this.evaluatePilot();
     this.processor.beforeTick(tick);
+    if (this.actuatorPending) this.dynamics.useActuators?.(this.actuator);
     this.dynamics.nowMs = this.wallMsNow;
     this.dynamics.stepNow(this.dynamicsInput);
+    if (this.dynamics.fault) {
+      this.faultMessage = this.dynamics.fault;
+      this.runningValue = false; this.latch = 'blocked';
+      this.writer.setRuntimeFlags(RuntimeFlagV2.Ready | RuntimeFlagV2.Fault);
+    }
     // Presentation time is the scheduled deadline in the shared wall timebase; freshness above used actual time.
     this.scheduledWallMs = this.wallMsNow - this.monoMs + this.policy.clock.nextMs;
     this.publish(tick);
@@ -264,13 +285,14 @@ export class PhysicsSessionV2 {
     s.batteryVoltage = d.batteryVoltage; s.batteryCurrentA = 0; // demo has no electrical model
     s.ambientPressurePa = isaPressurePa(-d.down);
     s.scheduledWallTimeMs = scheduledWallMs;
-    s.groundClearanceM = -d.down; s.referenceRotorRpm = 0;
+    s.groundClearanceM = -d.down; s.referenceRotorRpm = this.dynamics.referenceRotorRpm ?? 0;
     s.vehicleFlags = ((d.flags & 1) !== 0 ? VehicleFlagV2.GroundContact : 0) |
       ((d.flags & 2) !== 0 ? VehicleFlagV2.InputFailsafe : 0) |
-      (this.latch === 'armed' ? VehicleFlagV2.Armed : 0) |
+      (this.isArmed() ? VehicleFlagV2.Armed : 0) |
+      (this.dynamics.validityFlags ? VehicleFlagV2.ModelOutsideValidity : 0) |
       (this.actuatorPending ? VehicleFlagV2.ActuatorValid : 0) |
       (this.runningValue ? 0 : VehicleFlagV2.Paused);
-    s.ekfFlags = 0; s.ewFlags = 0; s.sensorValidMask = 0; s.modelId = DEMO_MODEL_ID;
+    s.ekfFlags = 0; s.ewFlags = 0; s.sensorValidMask = 0; s.modelId = this.dynamics.modelId ?? DEMO_MODEL_ID;
     s.autopilotMode = UNKNOWN_U32; s.autopilotHealth = 0; s.autopilotStatusAgeMs = 0;
     if (this.actuatorPending) { s.lastActuatorTick.lo = this.actuator.tickId.lo; s.lastActuatorTick.hi = this.actuator.tickId.hi; }
     this.writer.publish(s);

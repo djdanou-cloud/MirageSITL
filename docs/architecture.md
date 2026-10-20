@@ -3,6 +3,17 @@
 English source. [Russian mirror](ru/architecture.md).
 The detailed task source is [PROJECT_ROADMAP.md](PROJECT_ROADMAP.md).
 
+TASK-033 now supplies both offline uniform/annular checks and a production-built
+bound-rotor WASM backend using configurable synthetic geometry and NeuralFoil
+polars (NACA6409 baseline, NACA0012 alternate). `BetRotorEngine` owns validated
+polar/rotor arenas; `BetFlightDynamics` composes free shafts, axial inflow,
+frame transforms and rigid-body integration. Callers inject it through the
+`PhysicsSessionV2` dynamics factory. Model IDs, rotor counts, RPM and validity
+flags are published through the existing SAB contract. The default application
+Worker still selects DemoDynamics; runtime selection UI and browser autopilot
+admission are separate. Model-report schema v8 requires current numerical and
+allocation evidence, while retaining measured-fidelity failures independently.
+
 ## Implemented boundaries and current baseline
 
 The interactive web application runs on ABI v2 (TASK-085) with React 19/R3F/WebGL2
@@ -20,8 +31,8 @@ verified outside the demo flight loop:
 
 * **Rust BET, coaxial, propulsion, rigid-body, and landing-gear kernels**
   (TASK-016–028, TASK-032) with scalar/SIMD128 WASM builds and zero-allocation
-  arenas. Production BET arena stepping still returns `AERODYNAMICS_UNAVAILABLE`
-  until polar/config binding connects the rotor kernels.
+  arenas. The additive bound ABI connects polars and rotor state to configurable
+  flight sessions; the legacy unbound ABI retains `AERODYNAMICS_UNAVAILABLE`.
 * **High-rate certified Rapier contact** (TASK-029, TASK-065): direct f64 C ABI
   (`GroundContact`) with 0..8 unsprung wheel bodies, independent strut/tire
   forces, prismatic travel stops, rigid rim constraints, and per-tick terrain

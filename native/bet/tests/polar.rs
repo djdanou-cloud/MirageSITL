@@ -37,6 +37,16 @@ fn tables() -> Tables {
 const TOLERANCE: f64 = 1e-12; // fixture "tolerance.absolute", fixed before implementation
 
 #[test]
+fn confidence_uses_only_contributing_corners_without_smoothing_away_uncertainty(){
+    use mirage_bet::polar::FLAG_LOW_CONFIDENCE;
+    let p=PolarTable::new(&[-1.0,1.0],&[1e4,1e6],&[0.0],&[1.0;4],&[0.02;4]).unwrap()
+        .with_confidence(&[1.0,1.0,1.0,0.1],0.9).unwrap();
+    assert_eq!(p.lookup(-1.0,1e6,0.0).flags,0);
+    assert_eq!(p.lookup(0.0,1e5,0.0).flags,FLAG_LOW_CONFIDENCE);
+    assert!(p.with_confidence(&[1.1;4],0.9).is_err());
+}
+
+#[test]
 fn matches_analytic_values_at_nodes_inside_cells_and_in_reverse_flow() {
     let t = tables();
     let polar = PolarTable::new(&t.alpha, &t.re, &t.mach, &t.cl, &t.cd).expect("valid fixture");

@@ -9,6 +9,9 @@
 //! extrapolated. Construction validates once; lookup never allocates or panics.
 use crate::abi::FLAG_OUTSIDE_POLAR_VALIDITY;
 
+/// A contributing surrogate cell is below the configured confidence threshold.
+pub const FLAG_LOW_CONFIDENCE: u32 = 4;
+
 /// Why a table was rejected.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PolarError {
@@ -22,6 +25,8 @@ pub enum PolarError {
     NonFinite,
     /// A drag coefficient is negative.
     NegativeDrag,
+    /// Confidence shape/range or threshold is invalid.
+    Confidence,
 }
 
 /// Interpolated coefficients and validity flags for one query.
@@ -43,6 +48,7 @@ pub struct PolarTable<'a> {
     mach: &'a [f64],
     cl: &'a [f64],
     cd: &'a [f64],
+    confidence: Option<(&'a [f64], f64)>,
 }
 
 fn strictly_increasing(axis: &[f64]) -> bool {
@@ -99,7 +105,17 @@ impl<'a> PolarTable<'a> {
         if cd.iter().any(|v| *v < 0.0) {
             return Err(PolarError::NegativeDrag);
         }
-        Ok(Self { alpha_rad, reynolds, mach, cl, cd })
+        Ok(Self { alpha_rad, reynolds, mach, cl, cd, confidence: None })
+    }
+
+    /// Attaches bounded surrogate confidence; exact nodes ignore zero-weight neighbors.
+    pub fn with_confidence(mut self, values: &'a [f64], threshold: f64) -> Result<Self, PolarError> {
+        if values.len() != self.cl.len() || !threshold.is_finite() || !(0.0..=1.0).contains(&threshold)
+            || values.iter().any(|v| !v.is_finite() || !(0.0..=1.0).contains(v)) {
+            return Err(PolarError::Confidence);
+        }
+        self.confidence = Some((values, threshold));
+        Ok(self)
     }
 
     /// `(nMach, nRe, nAlpha)`.
@@ -127,6 +143,25 @@ impl<'a> PolarTable<'a> {
         let (ia, ta) = bracket(self.alpha_rad, a, identity);
         let (ir, tr) = bracket(self.reynolds, r, ln);
         let (im, tm) = bracket(self.mach, m, identity);
+        if let Some((values, threshold)) = self.confidence {
+            for dm in 0..2 {
+                for dr in 0..2 {
+                    for da in 0..2 {
+                        let weight = (if dm == 0 { 1.0 - tm } else { tm })
+                            * (if dr == 0 { 1.0 - tr } else { tr })
+                            * (if da == 0 { 1.0 - ta } else { ta });
+                        if weight > 0.0 {
+                            let cm = (im + dm).min(self.mach.len() - 1);
+                            let cr = (ir + dr).min(self.reynolds.len() - 1);
+                            let ca = (ia + da).min(self.alpha_rad.len() - 1);
+                            if values[(cm * self.reynolds.len() + cr) * self.alpha_rad.len() + ca] < threshold {
+                                flags |= FLAG_LOW_CONFIDENCE;
+                            }
+                        }
+                    }
+                }
+            }
+        }
         PolarSample { cl: self.trilinear(self.cl, ia, ta, ir, tr, im, tm), cd: self.trilinear(self.cd, ia, ta, ir, tr, im, tm), flags }
     }
 

@@ -233,7 +233,7 @@ function diagnostic(relative, sourceFields, passField, sourceArrays = []) {
       for (const part of path) entries = entries?.[part];
       if (!Array.isArray(entries) || entries.length === 0) return { ...base, status: "invalid" };
       for (const item of entries) {
-        if (!item || typeof item.file !== "string" || !/^(native|packages|scripts)\/[A-Za-z0-9_./-]+$/.test(item.file) ||
+        if (!item || typeof item.file !== "string" || !/^(native|packages|scripts|tests)\/[A-Za-z0-9_./-]+$/.test(item.file) ||
           item.file.split("/").includes("..") || typeof item.sha256 !== "string" || !/^[a-f0-9]{64}$/.test(item.sha256)) return { ...base, status: "invalid" };
         if (sha(readFileSync(join(root, item.file))) !== item.sha256) return { ...base, status: "stale" };
       }
@@ -333,8 +333,55 @@ export async function validateModels() {
         : "blocked";
   const contactFidelityStatus = fidelityOf(measured),
     propellerFidelityStatus = fidelityOf(propellers);
+  // Surrogate coefficients drive real BET, but cannot satisfy a measurement gate.
+  execFileSync(process.env.MIRAGE_PYTHON ?? (process.platform === "win32" ? "python" : "python3"),
+    [join(root, "scripts/check-rotor-bet.py")], { cwd: root, stdio: "pipe", timeout: 300000 });
+  const surrogatePath = "test-results/validation/rotor-bet.json";
+  const surrogateBytes = readFileSync(join(root, surrogatePath));
+  const surrogate = JSON.parse(surrogateBytes);
+  const suiteBytes = readFileSync(join(root, "tests/fixtures/rotors/synthetic-bet-suite.json"));
+  const suite = JSON.parse(suiteBytes);
+  if (surrogate.schemaVersion !== 2 || surrogate.provenance !== "neural-surrogate" ||
+      surrogate.measuredFidelity !== "unvalidated" || surrogate.suiteSha256 !== sha(suiteBytes) ||
+      !Array.isArray(surrogate.configurations) || surrogate.configurations.length !== suite.configurations.length ||
+      !Array.isArray(surrogate.cases) || surrogate.cases.length !== surrogate.counts?.numerical ||
+      surrogate.counts.screened + surrogate.counts.flagged !== surrogate.counts.numerical ||
+      !["pass", "failed"].includes(surrogate.status))
+    throw Error("Invalid synthetic rotor surrogate evidence");
+  let expectedCases = 0;
+  const surrogateValidation = surrogate.configurations.map((entry, i) => {
+    const config = suite.configurations[i];
+    const count = config.operatingPoints.length * 2;
+    if (entry.configurationId !== config.id || entry.airfoil !== config.airfoil ||
+        entry.polarSha256 !== sha(readFileSync(join(root, "tests/fixtures", config.polarFixture))) ||
+        entry.counts.numerical !== count || entry.counts.screened + entry.counts.flagged !== count ||
+        !["pass", "failed"].includes(entry.status))
+      throw Error("Invalid per-configuration surrogate evidence");
+    expectedCases += count;
+    return { configurationId: config.id, airfoil: config.airfoil, provenance: "neural-surrogate",
+      numericalStatus: entry.status, measuredFidelity: "unvalidated", cases: count,
+      screenedCases: entry.counts.screened, flaggedCases: entry.counts.flagged,
+      polarSha256: entry.polarSha256, suiteSha256: surrogate.suiteSha256,
+      reportPath: surrogatePath, reportSha256: sha(surrogateBytes) };
+  });
+  if (expectedCases !== surrogate.counts.numerical) throw Error("Inconsistent surrogate case count");
+  passed &&= surrogate.status === "pass";
+  const runtimeEvidence = (value) => value.schemaVersion === 1 && value.status === "pass" &&
+    value.artifactSha256?.scalar === sha(bytes.scalar) && value.artifactSha256?.simd128 === sha(bytes.simd128);
+  const betRuntime = diagnostic("test-results/validation/bet-runtime.json", [], (value) =>
+    runtimeEvidence(value) && Array.isArray(value.cases) && value.cases.length === 18 &&
+    value.cases.every((item) => item.passed === true && item.positionErrorM <= 0.1 && item.attitudeErrorRad <= Math.PI / 360), [["sourceInputs"]]);
+  const betRuntimeAllocation = diagnostic("test-results/validation/bet-runtime-allocation.json", [], (value) =>
+    runtimeEvidence(value) && value.controlDetected === true && value.nativeAllocator?.steps === 1000000 &&
+    value.nativeAllocator.calls === 0 && value.nativeAllocator.bytes === 0 && value.nativeAllocator.positiveControlDetected === true &&
+    Array.isArray(value.samples) && value.samples.length === 3 && value.samples.every((item) =>
+      item.steps === 1000000 && item.gcEvents === 0 && item.bytesPerStep < 0.01 && item.memoryStable === true), [["sourceInputs"]]);
+  const runtimeStatus = [betRuntime, betRuntimeAllocation].every((item) => item.status === "pass") ? "pass" :
+    [betRuntime, betRuntimeAllocation].some((item) => item.status === "failed") ? "failed" : "blocked";
+  if (runtimeStatus === "failed") passed = false;
   return {
-    schemaVersion: 5,
+    schemaVersion: 8,
+    runtimeStatus,
     // A measured comparison that ran and failed is a failure, not a blocker.
     status:
       !passed ||
@@ -346,6 +393,7 @@ export async function validateModels() {
     fidelityStatus: "blocked",
     contactFidelityStatus,
     propellerFidelityStatus,
+    surrogateValidation,
     measuredValidation: measured,
     deferredMeasurements,
     propellerValidation: propellers.map((p) => {
@@ -361,10 +409,12 @@ export async function validateModels() {
       "Measured airframe validation is not certified: no airframe dataset is archived.",
       "UIUC DA4002/DA4022 propellers still fail the fixed CT/CP tolerances with the analytic and XFOIL polars. The separate annular tip/hub/swirl sensitivity diagnostic is not a fidelity override; coverage and low-Re polar accuracy remain unresolved.",
       "NASA measured fidelity is deferred by the user, not passed. The historical failing comparison is hash-checked and retained separately from active acceptance.",
-      "Full BET polar/rotor-to-body backend is not connected.",
+      "Configurable BET polar/rotor-to-body session injection is implemented; the application still selects its demo backend by default. Browser autopilot admission remains separate.",
+      `Configuration-driven NeuralFoil surrogate numerical validation is separate from fidelity: ${surrogate.counts.flagged}/${surrogate.counts.numerical} cases carry confidence or validity flags; no measured rotor/airframe acceptance is claimed.`,
       "TASK-029/031 numerical/allocation acceptance is separate from measured aircraft fidelity and target-device timing; current diagnostics and historical probes are reported separately.",
     ],
     diagnostics: {
+      betRuntime, betRuntimeAllocation,
       jsbsimBackend: diagnostic("test-results/validation/task-031-backend.json", [
         ["adapterSha256", "packages/wasm-jsbsim/src/backend.ts"], ["runnerSha256", "scripts/check-jsbsim-backend.mjs"]
       ], "passed", [["manifest", "buildInputs"]]),

@@ -1011,6 +1011,146 @@
           "derivation": "Independent pymavlink 2.4.50 PARAM_REQUEST_READ/PARAM_SET/PARAM_VALUE wire oracle for WP_SPD; not a firmware execution capture or aircraft measurement."
         }
       }
+    },
+    {
+      "path": "polars/naca6409-neuralfoil.json",
+      "manifest": {
+        "formatVersion": 1,
+        "id": "naca6409-neuralfoil-v1",
+        "sourceSha256": "d6d9793ea030c6b957fa9018ed5c3307891665829773574b2bacb26f1909c9a1",
+        "units": {
+          "alphaRad": "rad",
+          "reynolds": "1",
+          "mach": "1",
+          "cl": "1",
+          "cd": "1",
+          "cm": "1",
+          "analysisConfidence": "1"
+        },
+        "validityEnvelope": {
+          "alphaRad": {
+            "min": -0.5235987755982988,
+            "max": 0.5235987755982988
+          },
+          "reynolds": {
+            "min": 1000,
+            "max": 1000000
+          },
+          "mach": {
+            "min": 0,
+            "max": 0
+          },
+          "cl": {
+            "min": -0.8971067577905992,
+            "max": 1.674091743723167
+          },
+          "cd": {
+            "min": 0,
+            "max": 0.4113653148902722
+          },
+          "cm": {
+            "min": -0.27643246006078126,
+            "max": 0.10044550194078533
+          },
+          "analysisConfidence": {
+            "min": 0,
+            "max": 1
+          }
+        },
+        "tolerance": {
+          "absolute": 1e-10,
+          "relative": 1e-10
+        },
+        "provenance": {
+          "kind": "synthetic",
+          "derivation": "NACA6409 airfoil predictions from NeuralFoil 0.3.3 xxxlarge via AeroSandbox 4.2.10. Neural surrogate, not measurements; tolerance is numerical reproduction only. Confidence below 0.9 and out-of-grid/Mach queries stay flagged. See scripts/generate-neuralfoil-polar.py."
+        }
+      }
+    },
+    {
+      "path": "polars/naca0012-neuralfoil.json",
+      "manifest": {
+        "formatVersion": 1,
+        "id": "naca0012-neuralfoil-v1",
+        "sourceSha256": "b65b811583008327d517505e2995ed2bd1ee9fa66cad207288bf0a436a01dab1",
+        "units": {
+          "alphaRad": "rad",
+          "reynolds": "1",
+          "mach": "1",
+          "cl": "1",
+          "cd": "1",
+          "cm": "1",
+          "analysisConfidence": "1"
+        },
+        "validityEnvelope": {
+          "alphaRad": {
+            "min": -0.5235987755982988,
+            "max": 0.5235987755982988
+          },
+          "reynolds": {
+            "min": 1000,
+            "max": 1000000
+          },
+          "mach": {
+            "min": 0,
+            "max": 0
+          },
+          "cl": {
+            "min": -1.397800733741597,
+            "max": 1.3978007337415976
+          },
+          "cd": {
+            "min": 0.005400017963733395,
+            "max": 0.35558473639938476
+          },
+          "cm": {
+            "min": -0.17466990747512132,
+            "max": 0.1746699074751214
+          },
+          "analysisConfidence": {
+            "min": 0,
+            "max": 1
+          }
+        },
+        "tolerance": {
+          "absolute": 1e-10,
+          "relative": 1e-10
+        },
+        "provenance": {
+          "kind": "synthetic",
+          "derivation": "NACA0012 airfoil predictions from NeuralFoil 0.3.3 xxxlarge via AeroSandbox 4.2.10. Neural surrogate, not measurements; tolerance is numerical reproduction only. Confidence below 0.9 and out-of-grid/Mach queries stay flagged. See scripts/generate-neuralfoil-polar.py."
+        }
+      }
+    },
+    {
+      "path": "rotors/synthetic-bet-suite.json",
+      "manifest": {
+        "formatVersion": 1,
+        "id": "synthetic-bet-suite-v1",
+        "sourceSha256": "608d6a9fdeafd14766139d2509b2d8a0f66b51b42c0bf550cffbb9d533cc5871",
+        "units": {
+          "radiusM": "m",
+          "rpm": "rev/min"
+        },
+        "validityEnvelope": {
+          "radiusM": {
+            "min": 0.1,
+            "max": 0.2
+          },
+          "rpm": {
+            "min": 1000,
+            "max": 9000
+          }
+        },
+        "tolerance": {
+          "absolute": 1e-09,
+          "relative": 1e-08
+        },
+        "provenance": {
+          "kind": "synthetic",
+          "derivation": "Synthetic configuration matrix: two-, three-, four-blade rotors, spanwise chord/twist and independent NACA6409/NACA0012 NeuralFoil polars. Numerical verification only, not calibrated aircraft."
+        }
+      }
     }
   ]
 }

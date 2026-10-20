@@ -7,7 +7,7 @@ import { CAPACITY_V2, HEADER_BYTES_V2, HeaderV2, PILOT_BYTES_V2, PILOT_OFFSET_V2
 import { goldenPilot, goldenState, loadGoldenV2, type GoldenRegionV2 } from './support/golden-v2';
 import { WIDTH, assertCoverage, regionRow, specFields } from './support/spec-layout';
 
-const SECTION = '## 3. Target ABI v2';
+const SECTION = '## 3. ABI v2';
 const hex = (bytes: Uint8Array) => Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
 const rowsAsSpec = (region: GoldenRegionV2) => region.rows.map(({ spec, offset, type, count }) => ({ spec, offset, type, count }));
 

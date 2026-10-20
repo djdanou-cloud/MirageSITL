@@ -63,7 +63,7 @@ function parseLayout(value: unknown): GoldenLayout {
 function assertMatchesSpecification(layout: GoldenLayout): void {
   let covered = 0;
   for (const region of layout.regions) {
-    const row = regionRow('## 2. Implemented ABI v1', region.table);
+    const row = regionRow('## 2. ABI v1 (legacy regression contract)', region.table);
     if (row.offset !== region.absoluteOffset || row.bytes !== region.bytes * region.slots) {
       throw new Error(`Region ${region.table} differs from the specification`);
     }

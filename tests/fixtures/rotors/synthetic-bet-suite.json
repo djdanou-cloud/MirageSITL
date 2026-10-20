@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "provenance": "synthetic",
+  "configurations": [
+    {
+      "id": "baseline-two-blade",
+      "airfoil": "NACA6409",
+      "polarFixture": "polars/naca6409-neuralfoil.json",
+      "rotor": {
+        "bladeCount": 2, "radiusM": 0.15, "rootRadiusRatio": 0.3,
+        "span": [[0.3, 0.16666666666666666, 15], [1.0, 0.16666666666666666, 15]],
+        "strips": 28, "azimuthSamples": 8
+      },
+      "environment": {"densityKgM3": 1.225, "viscosityPaS": 0.00001789, "soundMps": 340},
+      "operatingPoints": [[1000, 0], [1000, 0.2], [1000, 0.4], [3000, 0], [3000, 0.2], [3000, 0.4], [6000, 0], [6000, 0.2], [6000, 0.4], [9000, 0], [9000, 0.2], [9000, 0.4]]
+    },
+    {
+      "id": "tapered-three-blade",
+      "airfoil": "NACA6409",
+      "polarFixture": "polars/naca6409-neuralfoil.json",
+      "rotor": {
+        "bladeCount": 3, "radiusM": 0.2, "rootRadiusRatio": 0.25,
+        "span": [[0.25, 0.18, 22], [0.6, 0.15, 16], [1.0, 0.08, 9]],
+        "strips": 40, "azimuthSamples": 16
+      },
+      "environment": {"densityKgM3": 1.0, "viscosityPaS": 0.0000185, "soundMps": 345},
+      "operatingPoints": [[1000, 0], [1000, 0.2], [1000, 0.4], [3000, 0], [3000, 0.2], [3000, 0.4], [6000, 0], [6000, 0.2], [6000, 0.4], [9000, 0], [9000, 0.2], [9000, 0.4]]
+    },
+    {
+      "id": "symmetric-four-blade",
+      "airfoil": "NACA0012",
+      "polarFixture": "polars/naca0012-neuralfoil.json",
+      "rotor": {
+        "bladeCount": 4, "radiusM": 0.1, "rootRadiusRatio": 0.2,
+        "span": [[0.2, 0.2, 20], [1.0, 0.1, 12]],
+        "strips": 32, "azimuthSamples": 8
+      },
+      "environment": {"densityKgM3": 1.225, "viscosityPaS": 0.00001789, "soundMps": 340},
+      "operatingPoints": [[1000, 0], [1000, 0.2], [1000, 0.4], [3000, 0], [3000, 0.2], [3000, 0.4], [6000, 0], [6000, 0.2], [6000, 0.4], [9000, 0], [9000, 0.2], [9000, 0.4]]
+    }
+  ]
+}

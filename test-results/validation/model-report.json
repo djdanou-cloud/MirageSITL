@@ -1,10 +1,55 @@
 {
-  "schemaVersion": 5,
+  "schemaVersion": 8,
+  "runtimeStatus": "pass",
   "status": "failed",
   "numericalStatus": "pass",
   "fidelityStatus": "blocked",
   "contactFidelityStatus": "blocked",
   "propellerFidelityStatus": "failed",
+  "surrogateValidation": [
+    {
+      "configurationId": "baseline-two-blade",
+      "airfoil": "NACA6409",
+      "provenance": "neural-surrogate",
+      "numericalStatus": "pass",
+      "measuredFidelity": "unvalidated",
+      "cases": 24,
+      "screenedCases": 0,
+      "flaggedCases": 24,
+      "polarSha256": "d6d9793ea030c6b957fa9018ed5c3307891665829773574b2bacb26f1909c9a1",
+      "suiteSha256": "608d6a9fdeafd14766139d2509b2d8a0f66b51b42c0bf550cffbb9d533cc5871",
+      "reportPath": "test-results/validation/rotor-bet.json",
+      "reportSha256": "29d29a35b818eb6e38d3b3898cfcf22561d876ca67565260276c40923b2d5e0d"
+    },
+    {
+      "configurationId": "tapered-three-blade",
+      "airfoil": "NACA6409",
+      "provenance": "neural-surrogate",
+      "numericalStatus": "pass",
+      "measuredFidelity": "unvalidated",
+      "cases": 24,
+      "screenedCases": 2,
+      "flaggedCases": 22,
+      "polarSha256": "d6d9793ea030c6b957fa9018ed5c3307891665829773574b2bacb26f1909c9a1",
+      "suiteSha256": "608d6a9fdeafd14766139d2509b2d8a0f66b51b42c0bf550cffbb9d533cc5871",
+      "reportPath": "test-results/validation/rotor-bet.json",
+      "reportSha256": "29d29a35b818eb6e38d3b3898cfcf22561d876ca67565260276c40923b2d5e0d"
+    },
+    {
+      "configurationId": "symmetric-four-blade",
+      "airfoil": "NACA0012",
+      "provenance": "neural-surrogate",
+      "numericalStatus": "pass",
+      "measuredFidelity": "unvalidated",
+      "cases": 24,
+      "screenedCases": 9,
+      "flaggedCases": 15,
+      "polarSha256": "b65b811583008327d517505e2995ed2bd1ee9fa66cad207288bf0a436a01dab1",
+      "suiteSha256": "608d6a9fdeafd14766139d2509b2d8a0f66b51b42c0bf550cffbb9d533cc5871",
+      "reportPath": "test-results/validation/rotor-bet.json",
+      "reportSha256": "29d29a35b818eb6e38d3b3898cfcf22561d876ca67565260276c40923b2d5e0d"
+    }
+  ],
   "measuredValidation": [],
   "deferredMeasurements": [
     {
@@ -78,8 +123,8 @@
           "errors": 0,
           "maxAbsCtError": 0.019084968332800614,
           "maxAbsCpError": 0.004443802254851862,
-          "meanCtError": 0.011457832157381439,
-          "meanCpError": -0.0023200090906180175,
+          "meanCtError": 0.011457832157381444,
+          "meanCpError": -0.0023200090906180157,
           "status": "failed"
         },
         {
@@ -96,8 +141,8 @@
           "errors": 0,
           "maxAbsCtError": 0.010624307418815065,
           "maxAbsCpError": 0.012852457040414857,
-          "meanCtError": 0.0014246341494599725,
-          "meanCpError": -0.010585063541243767,
+          "meanCtError": 0.001424634149459979,
+          "meanCpError": -0.010585063541243762,
           "status": "failed"
         },
         {
@@ -113,8 +158,8 @@
           "outsideMomentum": 3,
           "errors": 0,
           "maxAbsCtError": 0.02593136844991524,
-          "maxAbsCpError": 0.012110715569030647,
-          "meanCtError": 0.00968771654653847,
+          "maxAbsCpError": 0.012110715569030643,
+          "meanCtError": 0.009687716546538473,
           "meanCpError": -0.008165840302845296,
           "status": "failed"
         },
@@ -130,10 +175,10 @@
           "outsidePolar": 30,
           "outsideMomentum": 7,
           "errors": 0,
-          "maxAbsCtError": 0.03521156657136838,
-          "maxAbsCpError": 0.021844014932909918,
-          "meanCtError": 0.01162122243402044,
-          "meanCpError": -0.009493788825702966,
+          "maxAbsCtError": 0.03521156657136841,
+          "maxAbsCpError": 0.021844014932909904,
+          "meanCtError": 0.011621222434020449,
+          "meanCpError": -0.009493788825702959,
           "status": "failed"
         },
         {
@@ -148,9 +193,9 @@
           "outsidePolar": 27,
           "outsideMomentum": 4,
           "errors": 0,
-          "maxAbsCtError": 0.007876422051615381,
-          "maxAbsCpError": 0.008417661742877496,
-          "meanCtError": -0.0016200366664605927,
+          "maxAbsCtError": 0.007876422051615374,
+          "maxAbsCpError": 0.008417661742877492,
+          "meanCtError": -0.0016200366664605908,
           "meanCpError": -0.006162185439852402,
           "status": "failed"
         },
@@ -166,10 +211,10 @@
           "outsidePolar": 31,
           "outsideMomentum": 1,
           "errors": 0,
-          "maxAbsCtError": 0.021132325651948808,
-          "maxAbsCpError": 0.004657899113963592,
-          "meanCtError": 0.01224968725133275,
-          "meanCpError": 0.00009722816335227775,
+          "maxAbsCtError": 0.021132325651948836,
+          "maxAbsCpError": 0.004657899113963599,
+          "meanCtError": 0.012249687251332754,
+          "meanCpError": 0.00009722816335228012,
           "status": "failed"
         },
         {
@@ -184,10 +229,10 @@
           "outsidePolar": 40,
           "outsideMomentum": 7,
           "errors": 0,
-          "maxAbsCtError": 0.01469479934124196,
+          "maxAbsCtError": 0.014694799341241955,
           "maxAbsCpError": 0.02062430639656771,
-          "meanCtError": -0.0016248000755255299,
-          "meanCpError": -0.011913257484901248,
+          "meanCtError": -0.001624800075525525,
+          "meanCpError": -0.011913257484901246,
           "status": "failed"
         },
         {
@@ -203,9 +248,9 @@
           "outsideMomentum": 5,
           "errors": 0,
           "maxAbsCtError": 0.028911774492229605,
-          "maxAbsCpError": 0.018975905678761094,
-          "meanCtError": 0.009508340558176927,
-          "meanCpError": -0.00613409520333184,
+          "maxAbsCpError": 0.018975905678761087,
+          "meanCtError": 0.00950834055817693,
+          "meanCpError": -0.006134095203331836,
           "status": "failed"
         },
         {
@@ -220,10 +265,10 @@
           "outsidePolar": 27,
           "outsideMomentum": 0,
           "errors": 0,
-          "maxAbsCtError": 0.05137838240502454,
+          "maxAbsCtError": 0.05137838240502457,
           "maxAbsCpError": 0.01528367158057315,
-          "meanCtError": 0.03211130466031506,
-          "meanCpError": 0.0116398478575538,
+          "meanCtError": 0.032111304660315074,
+          "meanCpError": 0.011639847857553804,
           "status": "failed"
         },
         {
@@ -240,8 +285,8 @@
           "errors": 0,
           "maxAbsCtError": 0.07014152923799069,
           "maxAbsCpError": 0.021539202643369434,
-          "meanCtError": 0.048786672601799835,
-          "meanCpError": 0.016467934093087985,
+          "meanCtError": 0.04878667260179984,
+          "meanCpError": 0.016467934093087992,
           "status": "failed"
         },
         {
@@ -256,10 +301,10 @@
           "outsidePolar": 20,
           "outsideMomentum": 0,
           "errors": 0,
-          "maxAbsCtError": 0.10158928653575233,
-          "maxAbsCpError": 0.03128959701794115,
-          "meanCtError": 0.067142720814468,
-          "meanCpError": 0.023485224467070742,
+          "maxAbsCtError": 0.10158928653575239,
+          "maxAbsCpError": 0.031289597017941234,
+          "meanCtError": 0.06714272081446802,
+          "meanCpError": 0.02348522446707075,
           "status": "failed"
         },
         {
@@ -276,8 +321,8 @@
           "errors": 0,
           "maxAbsCtError": 0.03838055822840364,
           "maxAbsCpError": 0.009392179722191654,
-          "meanCtError": 0.020445767991447934,
-          "meanCpError": 0.004608838965919682,
+          "meanCtError": 0.02044576799144793,
+          "meanCpError": 0.004608838965919687,
           "status": "failed"
         },
         {
@@ -292,10 +337,10 @@
           "outsidePolar": 29,
           "outsideMomentum": 0,
           "errors": 0,
-          "maxAbsCtError": 0.05711420319424612,
+          "maxAbsCtError": 0.05711420319424618,
           "maxAbsCpError": 0.014383707300284612,
-          "meanCtError": 0.033338137575312114,
-          "meanCpError": 0.009451649764231993,
+          "meanCtError": 0.033338137575312135,
+          "meanCpError": 0.009451649764231998,
           "status": "failed"
         },
         {
@@ -312,8 +357,8 @@
           "errors": 0,
           "maxAbsCtError": 0.06840215313459092,
           "maxAbsCpError": 0.016001676081106253,
-          "meanCtError": 0.03713551975771273,
-          "meanCpError": 0.00840936534688796,
+          "meanCtError": 0.037135519757712745,
+          "meanCpError": 0.008409365346887973,
           "status": "failed"
         }
       ]
@@ -452,9 +497,9 @@
           "outsideMomentum": 7,
           "errors": 0,
           "maxAbsCtError": 0.008255700582151061,
-          "maxAbsCpError": 0.005133225517001924,
-          "meanCtError": -0.0015431319714764569,
-          "meanCpError": -0.001676003457327968,
+          "maxAbsCpError": 0.005133225517001922,
+          "meanCtError": -0.0015431319714764532,
+          "meanCpError": -0.0016760034573279664,
           "status": "failed"
         },
         {
@@ -489,8 +534,8 @@
           "errors": 0,
           "maxAbsCtError": 0.006855007735421748,
           "maxAbsCpError": 0.0038398582643355827,
-          "meanCtError": 0.003636545282537622,
-          "meanCpError": -0.0025048756063858037,
+          "meanCtError": 0.003636545282537627,
+          "meanCpError": -0.0025048756063858015,
           "status": "pass"
         },
         {
@@ -506,9 +551,9 @@
           "outsideMomentum": 7,
           "errors": 0,
           "maxAbsCtError": 0.0183462825583299,
-          "maxAbsCpError": 0.007575195360481568,
-          "meanCtError": 0.014099899917485777,
-          "meanCpError": 0.005334949490178384,
+          "maxAbsCpError": 0.007575195360481582,
+          "meanCtError": 0.014099899917485786,
+          "meanCpError": 0.005334949490178391,
           "status": "failed"
         },
         {
@@ -580,7 +625,7 @@
           "maxAbsCtError": 0.03673780742562399,
           "maxAbsCpError": 0.01931080890181209,
           "meanCtError": 0.024239121552637227,
-          "meanCpError": 0.013956894526386628,
+          "meanCpError": 0.01395689452638663,
           "status": "failed"
         },
         {
@@ -595,10 +640,10 @@
           "outsidePolar": 39,
           "outsideMomentum": 1,
           "errors": 0,
-          "maxAbsCtError": 0.05317277676587337,
-          "maxAbsCpError": 0.0294546471404315,
-          "meanCtError": 0.0385953059226103,
-          "meanCpError": 0.023230440998817145,
+          "maxAbsCtError": 0.0531727767658734,
+          "maxAbsCpError": 0.029454647140431528,
+          "meanCtError": 0.038595305922610304,
+          "meanCpError": 0.02323044099881715,
           "status": "failed"
         },
         {
@@ -615,7 +660,7 @@
           "errors": 0,
           "maxAbsCtError": 0.06818980409344974,
           "maxAbsCpError": 0.035429619812529456,
-          "meanCtError": 0.040877096124044617,
+          "meanCtError": 0.04087709612404463,
           "meanCpError": 0.02568296751997418,
           "status": "failed"
         }
@@ -624,8 +669,8 @@
   ],
   "referenceSha256": "8c598b3072fd60ce24045af5f3da499dc4cd4e59b98bb3b88440f29b940bdc8f",
   "artifactSha256": {
-    "scalar": "dc4351f7c567c830d09a9f6f701ce10107c99969910d517b84b951d5ecf9df7e",
-    "simd128": "ce6cea248937848b323616c3563e69f79e5e0cbc1161b6bd551aef69657fe21e"
+    "scalar": "b419d52c59e71ae161f052a08d9cc1ba9d6f973663c8faf233f7d139adbaca96",
+    "simd128": "bd60e4cd7b70bcff4ab6c3125917b4c5d30b03dd701e79db2e23109b0b5398eb"
   },
   "cases": [
     {
@@ -741,10 +786,21 @@
     "Measured airframe validation is not certified: no airframe dataset is archived.",
     "UIUC DA4002/DA4022 propellers still fail the fixed CT/CP tolerances with the analytic and XFOIL polars. The separate annular tip/hub/swirl sensitivity diagnostic is not a fidelity override; coverage and low-Re polar accuracy remain unresolved.",
     "NASA measured fidelity is deferred by the user, not passed. The historical failing comparison is hash-checked and retained separately from active acceptance.",
-    "Full BET polar/rotor-to-body backend is not connected.",
+    "Configurable BET polar/rotor-to-body session injection is implemented; the application still selects its demo backend by default. Browser autopilot admission remains separate.",
+    "Configuration-driven NeuralFoil surrogate numerical validation is separate from fidelity: 61/72 cases carry confidence or validity flags; no measured rotor/airframe acceptance is claimed.",
     "TASK-029/031 numerical/allocation acceptance is separate from measured aircraft fidelity and target-device timing; current diagnostics and historical probes are reported separately."
   ],
   "diagnostics": {
+    "betRuntime": {
+      "path": "test-results/validation/bet-runtime.json",
+      "reportSha256": "2007b6372aca5d98aabaf08cef17e1ea445341a8ea7db394038cd188c793c885",
+      "status": "pass"
+    },
+    "betRuntimeAllocation": {
+      "path": "test-results/validation/bet-runtime-allocation.json",
+      "reportSha256": "0a000d2fe8e58a0fc1175af999149b5c9bd720ac398cef73ebf18a695d77ac1d",
+      "status": "pass"
+    },
     "jsbsimBackend": {
       "path": "test-results/validation/task-031-backend.json",
       "reportSha256": "22438746368755129a31e79d473683c05e4df0ea60cdd96197fe689b6dec95d9",
@@ -758,7 +814,7 @@
     "annularBem": {
       "path": "test-results/validation/propeller-bem.json",
       "reportSha256": "bdaff01ca43da42b9a48e1babda4c1a6475ac2128d824a3f5bf582eb8bfe04a3",
-      "status": "failed"
+      "status": "stale"
     },
     "contact": {
       "path": "test-results/bench/contact.json",
