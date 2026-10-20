@@ -5,13 +5,14 @@
 Status: proposal, 2026-10-20. Nothing in this document is implemented yet. It
 turns two engineers' comments (19.10.2026) into a plan for version 2. Items
 reuse existing MirageSITL components where possible and name the decisions
-that still need an owner.
+that still need an owner. [Section 7](#7-work-carried-over-from-the-existing-roadmap-and-documentation)
+adds the open work already recorded elsewhere in the repository.
 
 ## 1. Who this is for
 
 The readers know the current ArduPilot workflow: Mission Planner, its
 DataFlash Log Viewer (graphs of `.bin` logs) and the parameter list. This plan
-keeps that vocabulary. A short glossary is in [section 7](#7-glossary).
+keeps that vocabulary. A short glossary is in [section 8](#8-glossary).
 
 MirageSITL today already provides:
 
@@ -349,7 +350,172 @@ Decisions needed:
 These items are proposals. When one is approved, it becomes a numbered task
 in the [project roadmap](PROJECT_ROADMAP.md) with its own acceptance criteria.
 
-## 7. Glossary
+## 7. Work carried over from the existing roadmap and documentation
+
+These items were already recorded in the [project roadmap](PROJECT_ROADMAP.md)
+and other documents (review of 2026-10-20). They keep their existing TASK IDs.
+"Blocked on" names the outside input each one waits for.
+
+### 7.1 Unfinished roadmap tasks
+
+| TASK | Title | Status | What remains |
+| --- | --- | --- | --- |
+| 033 | Model validation gate | BLOCKED_EXTERNAL | Propeller fidelity still fails at its fixed tolerances. Still needed: a measured or viscous-solver SDA1075 polar, a decision on BET tip loss and swirl, the archive storage decision, airframe data and the production BET binding. |
+| 046 | ArduPilot browser HAL | TODO | Connect clock, storage, sensor and actuator endpoints to the WASM firmware with a lockstep clock and no deadlock on pause or exit. |
+| 047 | WASM/native SITL parity | TODO | Arm, takeoff, land and failsafe on both paths. Position RMSE ≤ 0.5 m and attitude RMSE ≤ 2° over the 30 s reference. Depends on TASK-046. |
+| 051 | Physical HITL acceptance | BLOCKED_EXTERNAL | Blocked on a physical flight controller and a supported firmware profile. |
+| 073 | GPU acceptance harness | BLOCKED_EXTERNAL | Blocked on full-feature production traces (terrain, FPV and thermal together), VRAM accounting and an M4 device. |
+| 074 | Pilot HUD and freshness | BLOCKED_EXTERNAL | Live autopilot health in the browser (browser READY). |
+| 075 | Instructor console | BLOCKED_EXTERNAL | Production fault, weather and model commands; the demo still rejects them. |
+| 078 | AAR response charts | BLOCKED_EXTERNAL | Waits on the live TASK-074 HUD. |
+| 079 | Lessons and scenario runner | BLOCKED_EXTERNAL | Healthy-autopilot orchestration and command acknowledgement binding; depends on TASK-075. |
+| 080 | Accessibility and permissions UX | BLOCKED_EXTERNAL | Live-autopilot prerequisites, a screen-reader session and hardware permission/disconnect checks. |
+| 082 | System acceptance matrix | BLOCKED_EXTERNAL | Real G0–G4 evidence for each mode. |
+| 083 | Release provenance and runbook | BLOCKED_EXTERNAL | Clean-machine install, toolchain and license review, and review of raw evidence. |
+
+### 7.2 Autopilot, SITL and HITL integration
+
+* **Browser autopilot.** Wire the browser flight session to the autopilot and
+  admit browser READY. Today SITL flight and EKF readiness (TASK-042/043/059)
+  are native-only.
+* **Composed EW in the browser.** EW and startup EW admission are not yet
+  applied in the live application.
+* **ArduPilot WASM artifact distribution.** Blocked on a GPL review decision.
+  Two related decisions are still open:
+  * whether to move the Emscripten pin (4.0.15) to upstream CI's version;
+  * measuring browser memory under load.
+* **TASK-059 follow-ups:**
+  * separate observation injection;
+  * recording unhealthy EKF responses;
+  * a per-rotor thrust-loss input for the synthetic quad.
+* **Motor faults.** Full BET and mixer wiring, with compensation flight tests.
+* **HITL route and board profile.** The pinned ArduPilot does not support HIL
+  messages, and PX4 needs a verified board.
+  * Blocked on a board and a decision on the route.
+  * The bench procedure, physical USB radio acceptance (EdgeTX/OpenTX) and
+    local compass/GPS/battery checks are not run.
+* **Bridge beyond loopback.** HTTPS/WSS and Private Network Access for remote
+  use.
+* **Newer firmware.** Must explicitly extend the pinned MAVLink subset.
+
+### 7.3 Flight physics backend
+
+* **Production BET binding.** The rotor kernels exist but the production step
+  still reports "aerodynamics unavailable". This is the prerequisite for
+  workstream B (section 4). Adapters are also still needed for:
+  * the coaxial wake;
+  * battery power feedback to the actuators;
+  * reverse rotation and an RPM governor.
+* **JSBSim session wiring.** Demo selection, weather, model switching and
+  flight-session wiring; runtime model switching in the app.
+  * Blocked on redistribution review of the aircraft model data.
+* **Weather.** Not yet connected to the demo or JSBSim.
+* **Landing gear.** Wheel spin, braking slip, anti-skid, steering and
+  aircraft calibration. Measured NASA gear fidelity stays deferred by the
+  owner's decision; its failing comparison is preserved.
+* **Terrain contact (TASK-065).**
+  * Wiring into the physics session.
+  * Live tile decoding and terrain admission (blocked on licensed height data).
+  * Contact-patch curvature.
+* **Absolute MSL height.** Blocked on an authoritative EGM96/EGM2008 geoid grid.
+
+### 7.4 Measured-data validation
+
+* **Propeller fidelity:**
+  * a measured (or viscous-solver) polar;
+  * a declared tip-loss/inflow model;
+  * explaining the DA4022 multi-blade errors;
+  * low-Reynolds coverage.
+* **Provenance rules.** Future polar data must keep raw solver, digitized,
+  surrogate and extrapolated values apart, with Reynolds-envelope flags. Each
+  measured dataset needs a reviewed units/envelope/provenance adapter.
+* **Airframe fidelity.** Blocked on measured airframe data.
+* **JSBSim propeller tables (TASK-086):**
+  * a flight model must supply the rotating inertia (`<ixx>`);
+  * Vol 4 true versus nominal diameters;
+  * RPM dynamics and engine coupling;
+  * Reynolds dependence across RPM.
+
+  The tables are intended for future fixed-wing models.
+* **Further uses of the UIUC data:**
+  * measured load-torque curves for the shaft and ESC references;
+  * replacing the arbitrary demo rotor geometry with a measured propeller.
+
+  Each needs its own task and tolerance.
+* **Autorotation.** Numerical tests do not establish validated autorotation.
+
+### 7.5 Rendering, terrain and thermal
+
+* **Live Google 3D Tiles.** Blocked on a deployed proxy, provider credentials
+  and deployment approval.
+* **Persistent caching.** Blocked on explicit permission and reviewed dataset
+  rights.
+* **WebGPU:**
+  * real-GPU residency and frame-time measurement on target devices;
+  * the WebGPU fisheye and analog-video variants;
+  * a decision on which features the WebGPU profile supports.
+* **Wide lenses.** Lenses above 80° need a cubemap source.
+* **WorldCover land cover:**
+  * application wiring;
+  * a runtime manifest loaded from local files;
+  * an OSM road/building overlay (blocked on a licensed extract);
+  * publisher checksum verification.
+
+  Regions outside Israel need deliberate acquisition.
+* **Thermal:**
+  * a production thermal scene and a WebGPU thermal renderer;
+  * measured instrument and material validation, including CADEX parity
+    (blocked on calibrated instrument data).
+
+### 7.6 UI, recording and scenarios
+
+* **Recording.** Full-rate synchronized recording of flight-controller sensor
+  and actuator streams, with producer fan-out; a production resimulator.
+* **Demo commands.** Weather, fault and model commands stay rejected until a
+  production backend supports them (see TASK-075).
+* **Scenarios.** Scenario epoch/acknowledgement orchestration, and real model
+  and firmware identities in the lessons in place of placeholders.
+
+### 7.7 Performance, release and evidence
+
+* **Delivered physics rate.** Node delivered about 517/520 Hz instead of
+  800/1200 Hz with drops. The next steps are to profile timer wake-ups and
+  design a supported scheduling improvement.
+* **Frame cadence.** The demo p99 misses 16.67 ms. 120 FPS on M4/RTX targets
+  is unmeasured.
+* **Evidence and reports.** Refresh the stale evidence manifest entries and
+  missing diagnostic reports, and reconcile the model-report and
+  system-validator schemas. Production hosting must set COOP/COEP; verify
+  hosted CI on current commits.
+* **Release scope (decision).** Wait for all modes, or ship a narrower release
+  backed by evidence.
+
+### 7.8 Data licensing decisions
+
+* UIUC propeller database: commit, redistribute or ask UIUC for terms. This
+  also covers the derived JSBSim tables.
+* JSBSim aircraft XML (c172x) redistribution.
+* ArduPilot GPL distribution (7.2), Google tile caching (7.5) and the geoid
+  grid license (7.3).
+* Copyrighted textbooks and the PROPID sources stay local and are not
+  distributed.
+
+### 7.9 Documentation cleanup
+
+Some existing notes are out of date and should be corrected in the same pass:
+
+* The onboarding briefing (`onboarding-blockers-2026-10-17.md`) is an archived
+  snapshot. Its cards for TASK-029/030/031/042/043/045/059/065/086 describe
+  work that is now done.
+* The planned-directories table in `architecture.md` still says directories
+  "do not yet exist".
+* Older blocker notes in the roadmap and `CLAUDE.md` predate later
+  completions: "029/030/031/033 remain open", "045–047 remain open" and "live
+  warmup blocked by TASK-042".
+* TASK-074 and TASK-079 status lines cite dependencies that are now done, and
+  the TASK-003 hosted-CI billing blocker was resolved by later runs.
+
+## 8. Glossary
 
 | Term here | Mission Planner / ArduPilot equivalent |
 | --- | --- |
