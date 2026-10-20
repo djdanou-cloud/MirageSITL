@@ -181,9 +181,8 @@ policy copies; if a client loads neither pointer, open this file explicitly.
   TASK-046 (ArduPilot WASM SAB transport/clock), TASK-047 (browser SITL flight
   parity), TASK-051 (physical Pixhawk/Cube HITL via `scripts/check-hitl-capture.mjs`),
   TASK-073 (Apple Silicon M4 / RTX 4050 GPU frame-time verification via
-  `scripts/check-gpu-perf.mjs`), TASK-075/TASK-078/TASK-079/TASK-080
-  (browser instructor/EW/scenario UX wiring; TASK-074 HUD freshness from serial
-  `EkfMonitor` diagnostics is done and does not admit browser READY), TASK-082 (multi-hour integrated soak), and TASK-083 (clean-machine
+  `scripts/check-gpu-perf.mjs`), TASK-078/TASK-079/TASK-080
+  (full-rate recording, scenario ACK binding, and accessibility sign-off; TASK-074 HUD freshness and TASK-075 fault ACKs are done and do not admit browser READY), TASK-082 (multi-hour integrated soak), and TASK-083 (clean-machine
   release and assistive screen-reader sign-off) remain open.
 
 ### Workspace and git discipline

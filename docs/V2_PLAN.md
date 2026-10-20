@@ -366,7 +366,7 @@ and other documents (review of 2026-10-20). They keep their existing TASK IDs.
 | 051 | Physical HITL acceptance | BLOCKED_EXTERNAL | Blocked on a physical flight controller and a supported firmware profile. |
 | 073 | GPU acceptance harness | BLOCKED_EXTERNAL | Blocked on full-feature production traces (terrain, FPV and thermal together), VRAM accounting and an M4 device. |
 | 074 | Pilot HUD and freshness | DONE | Serial `EkfMonitor` overlay on the Pilot HUD. Browser READY flight admission remains TASK-046/047. |
-| 075 | Instructor console | TODO | Production fault, weather and model commands. TASK-074 HUD freshness is done. |
+| 075 | Instructor console | DONE | Fault commands apply through the session EW registry. Weather and model commands stay rejected on the demo. |
 | 078 | AAR response charts | TODO | Full-rate actuator/sensor recording. TASK-074 HUD freshness is done. |
 | 079 | Lessons and scenario runner | TODO | Healthy-autopilot orchestration and command acknowledgement binding; depends on TASK-075. |
 | 080 | Accessibility and permissions UX | BLOCKED_EXTERNAL | Live-autopilot prerequisites, a screen-reader session and hardware permission/disconnect checks. |
@@ -476,8 +476,8 @@ and other documents (review of 2026-10-20). They keep their existing TASK IDs.
 
 * **Recording.** Full-rate synchronized recording of flight-controller sensor
   and actuator streams, with producer fan-out; a production resimulator.
-* **Demo commands.** Weather, fault and model commands stay rejected until a
-  production backend supports them (see TASK-075).
+* **Demo commands.** Weather and model commands stay rejected on the demo.
+  Fault commands apply through the session EW registry (TASK-075).
 * **Scenarios.** Scenario epoch/acknowledgement orchestration, and real model
   and firmware identities in the lessons in place of placeholders.
 

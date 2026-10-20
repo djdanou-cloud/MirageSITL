@@ -73,8 +73,8 @@ export function Console({ runtime }: { runtime: SimulationRuntime | null }) {
     >
       <h2>Instructor</h2>
       <p>
-        Shortcuts: P pause · R reset · F selected fault. The demo rejects
-        unsupported weather/fault/model commands.
+        Shortcuts: P pause · R reset · F selected fault. Faults apply after
+        the Worker ACK. Weather and model commands stay rejected on the demo.
       </p>
       <label>
         Fault ID

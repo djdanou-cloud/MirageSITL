@@ -1,15 +1,31 @@
 import { describe, expect, it, vi } from 'vitest';
-import { PhysicsSessionV2, isaPressurePa } from '@mirage/physics';
+import { EwEngine } from '@mirage/ew/engine';
+import { MotorFaults } from '@mirage/physics/motor-fault';
+import { PhysicsSessionV2, isaPressurePa, type SessionFaultPort } from '@mirage/physics';
 import { ActuatorFrameCodecV2, HeaderV2, PilotFlagV2, PilotReaderV2, PilotWriterV2, RuntimeFlagV2, SpscProducer, StateReaderV2,
-  VehicleFlagV2, createSharedMemoryV2, createSpscQueue, newActuatorFrameV2, newFlightStateV2, newHeaderSnapshotV2,
+  EwFlagV2, VehicleFlagV2, createSharedMemoryV2, createSpscQueue, newActuatorFrameV2, newFlightStateV2, newHeaderSnapshotV2,
   newPilotInputV2, tickToNumber, type CommandResultV2 } from '@mirage/protocol';
 
 /** A Main-side harness around a real PhysicsSessionV2 with a controllable clock. */
-function harness() {
+function faultPort(): SessionFaultPort {
+  const motors = new MotorFaults([0, 1, 2, 3]);
+  const engine = new EwEngine(motors);
+  return {
+    apply: (command, tick) => engine.apply(command, tick),
+    reset: (seed) => engine.reset(seed),
+    advanceInto: (context) => engine.advanceInto({
+      dtS: context.dtS, simTimeS: context.simTimeS,
+      truthNorthM: context.northM, truthEastM: context.eastM, truthDownM: context.downM,
+    }),
+    get flags() { return engine.flags; },
+    get validityFlags() { return motors.vehicleFlags; },
+  };
+}
+function harness(faults: SessionFaultPort | null = null) {
   const time = { mono: 0, wall: 1_790_000_000_000 };
   const stateBuffer = createSharedMemoryV2(), sensorBuffer = createSpscQueue('sensor'), actuatorBuffer = createSpscQueue('actuator');
   const session = new PhysicsSessionV2({ type: 'init-v2', protocolVersion: 2, stateBuffer, sensorBuffer, actuatorBuffer },
-    { monotonicMs: () => time.mono, wallMs: () => time.wall + time.mono });
+    { monotonicMs: () => time.mono, wallMs: () => time.wall + time.mono }, undefined, faults);
   const reader = new StateReaderV2(stateBuffer), pilotWriter = new PilotWriterV2(stateBuffer), header = newHeaderSnapshotV2();
   const state = newFlightStateV2(), previous = newFlightStateV2(), results: CommandResultV2[] = [];
   let requestId = 0;
@@ -76,6 +92,24 @@ describe('PhysicsSessionV2 lifecycle', () => {
     h.session.drain(result => h.results.push(result));
     expect(h.results.at(-1)).toMatchObject({ type: 'reject-v2', code: 'ASSET_MISSING' });
     expect(h.session.currentEpoch).toBe(1);
+    expect(h.command('fault.set', { atTick: { lo: 10, hi: 0 }, faultId: 'unwired', enabled: true,
+      effect: { kind: 'gnss-jamming', severity: 1 }, recovery: 'hold-offset' })).toMatchObject({ type: 'reject-v2', code: 'BAD_STATE' });
+  });
+  it('applies an arbitrary fault id through the EW port and publishes its flag', () => {
+    const h = harness(faultPort());
+    expect(h.command('fault.set', { atTick: { lo: 2, hi: 0 }, faultId: 'arbitrary-fault-42', enabled: true,
+      effect: { kind: 'gnss-jamming', severity: 1 }, recovery: 'hold-offset' })).toMatchObject({ type: 'ack-v2', status: 'queued' });
+    expect(h.command('weather.set', { atTick: { lo: 2, hi: 0 }, windNedMps: [1, 0, 0], temperatureK: 288, pressurePa: 101325, turbulenceRmsMps: 0, seed: 1 }))
+      .toMatchObject({ type: 'reject-v2', code: 'BAD_STATE' });
+    h.command('sim.start');
+    h.run(50);
+    h.session.drain(result => h.results.push(result));
+    const applied = h.results.find(result => result.type === 'ack-v2' && result.requestId === 1 && result.status === 'applied');
+    expect(applied).toBeTruthy();
+    expect(h.latest().ewFlags & EwFlagV2.GnssJamming).toBeTruthy();
+    h.command('sim.pause');
+    h.command('sim.reset', { seed: 7 });
+    expect(h.latest().ewFlags).toBe(0);
   });
 });
 

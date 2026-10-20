@@ -39,6 +39,26 @@ export interface SessionClock {
 /** Arm latch states; see `evaluatePilot`. */
 type ArmLatch = 'disarmed' | 'armed' | 'blocked';
 
+/** Preallocated EW step context. The session fills it; the port must not allocate. */
+export interface SessionFaultContext {
+  dtS: number;
+  simTimeS: number;
+  northM: number;
+  eastM: number;
+  downM: number;
+}
+/**
+ * Production fault registry. Weather and model loads stay outside this port.
+ * `apply` runs at the tick boundary and must not allocate.
+ */
+export interface SessionFaultPort {
+  apply(command: Extract<ScheduledCommandV2, { type: "fault.set" }>, tick: TickId): "applied" | "registry-full" | "rejected";
+  reset(seed: number): void;
+  advanceInto(context: SessionFaultContext): boolean;
+  readonly flags: number;
+  readonly validityFlags: number;
+}
+
 /** A cold-selected dynamics implementation owns integration; the session owns transport. */
 export interface SessionDynamics {
   readonly state: FlightState; readonly hz: PhysicsHz; nowMs: number;
@@ -66,6 +86,8 @@ export class PhysicsSessionV2 {
   private readonly dynamicsInput = newInput();
   private readonly state = newFlightStateV2();
   private readonly bodyScratch = new Float64Array(3);
+  private readonly faults: SessionFaultPort | null;
+  private readonly faultContext: SessionFaultContext = { dtS: 0, simTimeS: 0, northM: 0, eastM: 0, downM: 0 };
   // Time registers: hot-path doubles live in fields, never in call arguments or returns (V8 boxes those).
   private monoMs = 0.5;
   private wallMsNow = 0.5;
@@ -81,7 +103,8 @@ export class PhysicsSessionV2 {
   private readonly gate: StepGate = { ready: (tick: TickId) => this.actuatorReady(tick) };
 
   constructor(init: WorkerInitV2, clock: SessionClock,
-    dynamicsFactory: (hz: PhysicsHz) => SessionDynamics = hz => new DemoDynamics(hz)) {
+    dynamicsFactory: (hz: PhysicsHz) => SessionDynamics = hz => new DemoDynamics(hz),
+    faults: SessionFaultPort | null = null) {
     validateSharedMemoryV2(init.stateBuffer);
     validateSpscQueue(init.sensorBuffer, 'sensor');
     validateSpscQueue(init.actuatorBuffer, 'actuator');
@@ -96,6 +119,7 @@ export class PhysicsSessionV2 {
     this.epoch = Atomics.load(this.header, HeaderV2.SessionEpoch) >>> 0;
     this.dynamicsFactory = dynamicsFactory;
     this.dynamics = dynamicsFactory(hz);
+    this.faults = faults;
     this.policy = new SteppingPolicy({ hz, mode: 'interactive' });
     this.processor = new ControlProcessorV2(this, { epoch: this.epoch, hz });
     this.writer.setRuntimeFlags(RuntimeFlagV2.Ready);
@@ -161,7 +185,10 @@ export class PhysicsSessionV2 {
     this.dynamics.dispose?.();
     this.writer.setRuntimeFlags(0);
   }
-  reset(): void { this.dynamics.reset(); }
+  reset(seed: number): void {
+    this.dynamics.reset();
+    this.faults?.reset(seed >>> 0);
+  }
   configure(hz: PhysicsHz, clockMode: ClockModeV2): void {
     const next = this.dynamicsFactory(hz);
     this.dynamics.dispose?.();
@@ -173,9 +200,18 @@ export class PhysicsSessionV2 {
     return Promise.reject(new Error(`Model ${modelId} is not available: the runtime has no model registry yet; only the built-in demo quad runs`));
   }
   commitModel(): void { throw new Error('Unreachable: prepareModel never resolves'); }
-  applyScheduled(): void { /* unsupportedReason rejects every scheduled command at admission */ }
+  applyScheduled(command: ScheduledCommandV2, tick: TickId): void {
+    if (command.type !== "fault.set" || !this.faults) return;
+    const result = this.faults.apply(command, tick);
+    if (result === "applied") return;
+    this.faultMessage = result === "registry-full" ? "EW fault registry is full" : "EW fault command was rejected";
+    this.runningValue = false;
+    this.latch = "blocked";
+    this.writer.setRuntimeFlags(RuntimeFlagV2.Ready | RuntimeFlagV2.Fault);
+  }
   unsupportedReason(command: ScheduledCommandV2): string | null {
-    return `The demo backend has no ${command.type === 'weather.set' ? 'atmosphere/wind' : 'sensor or fault'} model; ${command.type} is not supported`;
+    if (command.type === "weather.set") return "The demo backend has no atmosphere/wind model; weather.set is not supported";
+    return this.faults ? null : "The demo backend has no sensor or fault model; fault.set is not supported";
   }
 
   // --- internals -------------------------------------------------------------
@@ -250,6 +286,17 @@ export class PhysicsSessionV2 {
     if (this.actuatorPending) this.dynamics.useActuators?.(this.actuator);
     this.dynamics.nowMs = this.wallMsNow;
     this.dynamics.stepNow(this.dynamicsInput);
+    if (this.faults && this.faultMessage === "") {
+      const d = this.dynamics.state, context = this.faultContext;
+      context.dtS = 1 / this.policy.hz;
+      context.simTimeS = tickToNumber(tick) / this.policy.hz;
+      context.northM = d.north; context.eastM = d.east; context.downM = d.down;
+      if (!this.faults.advanceInto(context)) {
+        this.faultMessage = "EW step rejected";
+        this.runningValue = false; this.latch = "blocked";
+        this.writer.setRuntimeFlags(RuntimeFlagV2.Ready | RuntimeFlagV2.Fault);
+      }
+    }
     if (this.dynamics.fault) {
       this.faultMessage = this.dynamics.fault;
       this.runningValue = false; this.latch = 'blocked';
@@ -290,9 +337,10 @@ export class PhysicsSessionV2 {
       ((d.flags & 2) !== 0 ? VehicleFlagV2.InputFailsafe : 0) |
       (this.isArmed() ? VehicleFlagV2.Armed : 0) |
       (this.dynamics.validityFlags ? VehicleFlagV2.ModelOutsideValidity : 0) |
+      (this.faults?.validityFlags ?? 0) |
       (this.actuatorPending ? VehicleFlagV2.ActuatorValid : 0) |
       (this.runningValue ? 0 : VehicleFlagV2.Paused);
-    s.ekfFlags = 0; s.ewFlags = 0; s.sensorValidMask = 0; s.modelId = this.dynamics.modelId ?? DEMO_MODEL_ID;
+    s.ekfFlags = 0; s.ewFlags = this.faults?.flags ?? 0; s.sensorValidMask = 0; s.modelId = this.dynamics.modelId ?? DEMO_MODEL_ID;
     s.autopilotMode = UNKNOWN_U32; s.autopilotHealth = 0; s.autopilotStatusAgeMs = 0;
     if (this.actuatorPending) { s.lastActuatorTick.lo = this.actuator.tickId.lo; s.lastActuatorTick.hi = this.actuator.tickId.hi; }
     this.writer.publish(s);

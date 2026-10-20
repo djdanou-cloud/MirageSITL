@@ -1817,8 +1817,8 @@ never change the drift state.
 
 `EwEngine` (`packages/ew/src/engine.ts`) owns one preallocated instance of
 each effect and a 16-slot fault registry keyed by `faultId`. `apply(fault.set,
-tick)` runs at the tick boundary (ControlTargetV2.applyScheduled) without
-allocation. Each effect kind has one owning faultId (per motor for
+tick)` runs at the tick boundary (`PhysicsSessionV2.applyScheduled`, through an injected `SessionFaultPort`) without
+allocation. The live Worker owns one `EwEngine` and a four-motor `MotorFaults` table. A session constructed without that port still rejects `fault.set`. `weather.set` stays rejected because the demo has no wind model. Each effect kind has one owning faultId (per motor for
 `motor-loss`); a newer faultId replaces the owner, disabling a non-owning or
 unknown faultId changes nothing, and a full registry returns `registry-full`.
 Disabling drift uses the command's `recovery`; motor-loss is forwarded to the
@@ -2136,7 +2136,7 @@ Collision construction belongs to a separate Worker. Stage owns a copy, validate
 
 Scenario admission snapshots and freezes configuration: id, physics hz 400/800/1200, uint32 seed, model/firmware SHA-256, duration 1..4320000 ticks, <=128 ordered events and an altitude-hold rubric. Only validated weather.set/fault.set protocol-v2 templates are admitted, with expectedEpoch=0, consecutive requestIds from 1 and atTick exactly matching event tick. The owner must bind the active epoch, submit commands through the existing queue and check ACKs before claiming faults applied. The runner returns immutable event indices, never allocates in polling, and uses simulation ticks; pauses consume no simulated time. Backwards/missed ticks return -2 instead of late execution. Reset explicitly rewinds the cursor. Provenance/seed/hz mismatches reject startup.
 
-The rubric requires every integer hold tick exactly once, finite altitude, actual autopilot source and healthy EKF when configured. Gaps, excess altitude error and unhealthy EKF fail; incomplete/synthetic traces block. Pilot-basics contains all-zero placeholder hashes for structural testing only; it is not a certified aircraft/firmware lesson. Native SITL EW closed-loop validation (TASK-042/043/059) is complete; production browser scenario orchestration (TASK-075) remains open.
+The rubric requires every integer hold tick exactly once, finite altitude, actual autopilot source and healthy EKF when configured. Gaps, excess altitude error and unhealthy EKF fail; incomplete/synthetic traces block. Pilot-basics contains all-zero placeholder hashes for structural testing only; it is not a certified aircraft/firmware lesson. Native SITL EW closed-loop validation (TASK-042/043/059) is complete. TASK-075 admits instructor `fault.set` commands into the live session `EwEngine`; production browser scenario orchestration (TASK-079) remains open.
 
 ### Accessible interaction
 
@@ -2542,3 +2542,95 @@ The serial bridge is polled in <=4096-byte chunks every 25 ms. Three CRC-valid s
 The upstream default POSIX Storage backend uses a 16384-byte eeprom.bin. The unchanged glue exposes FS but lacks IDBFS, so EepromStore checkpoints the actual file to IndexedDB database mirage-ardupilot-eeprom-v1, store profiles. Keys bind firmware commit, module hash and a 1–64-character profile. Schema-1 records contain identity, increasing revision, full image and SHA-256; load validates all fields and bytes, and corrupt records prevent boot rather than being erased. A Web Lock excludes concurrent firmware owners; a readwrite transaction with revision comparison prevents competing checkpoint writers. Tests verify conflicts and transaction abort preservation. preRun restores the validated file before firmware main. Automatic checkpoints are considered every 2 s after boot; one second of stable file bytes is required, with a bounded 10 s stabilization attempt. Explicit stop drains/checkpoints before release. Only an acknowledged checkpoint promises persistence; unsaved changes may be lost on abrupt termination. This is a cold bootstrap/storage facility, not a certified high-rate flight HAL, full AAR recorder or SAB ABI change.
 
 The local diagnostic page is ardupilot-check.html. Its bounded raw captures and three complete EEPROM images are independently audited by scripts/check-ardupilot-browser.py using pymavlink 2.4.50 and hashlib. The audit checks original CRC-valid disarmed heartbeats and parameter values, firmware identity, memory/thread reports, stored revisions, full-image hashes and zero remaining Workers. Unit fixtures are labelled synthetic and cannot substitute for this real browser evidence.
+
+## ArduPilot lockstep HAL mailbox v1 (TASK-046)
+
+The HAL-enabled firmware is a separate local build of the pinned upstream
+ArduCopter. `scripts/build-ardupilot-hal.mjs` verifies source/SDK/compiler and
+submodule identities, copies source into an owned `/tmp/mirage-task-046-*`
+directory, applies `native/ardupilot/hal/sitl-state.patch`, and adds the HAL
+kernel. `--resume` verifies/removes/reapplies only that patch before compiling.
+It preserves the original source and TASK-045 artifact. Outputs and a separate
+manifest/build identity are in `.cache/task-046/`; firmware remains local-only.
+The upstream WASM FDM step consumes external observations in place of advancing
+its internal quad model, then uses the existing `stop_clock(timestamp_us)` path.
+ArduPilot's own sensor processing and task rates remain in effect.
+
+Exports: `mirage_hal_version()->u32`, `mirage_hal_mailbox()->pointer`,
+`mirage_hal_configure(hz,epoch)->i32`, `mirage_hal_notify()` and
+`mirage_hal_stop()`. Version 1 uses a 1024-byte, 64-byte-aligned mailbox in
+firmware shared linear memory. All shared payload accesses are atomic u32;
+float64 is encoded as little-endian low/high words through private scratch.
+This is an independent C ABI boundary; existing flight ABI-v2/SPSC bytes and
+ownership are unchanged. No shared Float64Array access is permitted.
+
+Header u32 words 0..15: magic `0x4d48414c`, version 1, bytes 1024, state,
+physics Hz, nonzero epoch, completed-tick low/high, host input sequence,
+firmware output sequence, fault code, PWM channel count 32, armed (0/1), zero
+reserved word, input timestamp-us low/high. Configure permits 400/800/1200 Hz
+before the first accepted input only. Step k starts at 1 and supplies
+`floor(k*1000000/hz)` microseconds; the maximum step count is 9007199254.
+The low-word sequence wraps modulo 2^32 while completed ticks carry a high word.
+Epoch/rate changes require a new cold firmware/physics session.
+
+The 40 f64 sensor values start at byte 64: latitude/longitude degrees, altitude
+MSL metres (indices 0..2); velocity NED m/s (3..5); accelerometer specific force
+FRD m/s^2 (6..8); gyro FRD rad/s (9..11); unit body-to-NED quaternion wxyz
+(12..15); magnetic field FRD gauss (16..18); equivalent airspeed m/s (19);
+battery V/A (20..21); nonnegative height AGL m (22); twelve normalized RC inputs
+in [0,1] (23..34); wind NED m/s (35..37); exact zero reserved values (38..39).
+Every value is finite with absolute magnitude <=1e9. Latitude/longitude limits
+are 90/180 degrees, altitude magnitude <=100000 m, squared quaternion norm
+within 1e-6 of 1, and airspeed/battery/current/height are nonnegative. Bytes
+384..511, 640..767 and 896..1023 stay zero. Byte 512 contains 32 u32 PWM values
+in microseconds. Byte 768 contains sixteen f64 diagnostics: gyro deg/s[3],
+magnetic milli-gauss[3], Euler roll/pitch/yaw degrees[3], specific force[3],
+NED velocity[3], and last accepted timestamp us. These are binding diagnostics,
+not estimator health or flight acceptance.
+
+States: 0 initial, 1 actuator request published, 2 complete sensor input
+published, 3 stop requested, 4 stopped, 5 invalid input fault. Firmware owns
+actuator/diagnostic payloads and publishes state 1 after atomic writes. The
+host reads a coherent request, publishes the next complete sensor payload,
+then stores state 2 and notifies the condition variable. Firmware validates
+identity, configured epoch/rate, sequence, timestamp, reserved words, counts
+and sensor values before changing its output/clock. Fault code 1 latches an
+invalid input. Missing input is a pause: the native thread sleeps without
+advancing time. Stop wakes that thread, which acknowledges and sleeps until
+the owner terminates it. Faulted threads also remain stopped until disposal.
+No host spin or Atomics.wait is used on the browser Main thread.
+
+`WasmHalPort` cold-validates pointer/alignment/memory/ABI and motor channel map;
+`readActuatorsInto` writes the next tick's reusable ActuatorFrameV2, mapping
+1..16 selected zero-based firmware channels with explicit PWM endpoints.
+PWM 0 means no output; supported nonzero PWM is 800..2200 us. Normalization
+clamps to the configured throttle range; the Armed bit comes from firmware.
+`submit()` validates all private values before publishing shared bytes.
+Memory replacement, foreign epoch/sequence/count, and firmware faults fail
+closed. `WasmSitlSession` reuses admitted TASK-045 glue, Worker ownership,
+serial transport, profile locks and EEPROM storage through a cold binding
+callback. Explicit `checkpoint()` uses that storage contract; disposal stops
+HAL and terminates owned pthreads without promising an implicit final save.
+
+`WasmSitlCoupling` advances a configurable physics backend exactly once per
+firmware request, using its actual actuator frame. It maps body truth through
+existing ideal IMU/magnetic/airspeed observations and a WGS84 tangent frame.
+The caller supplies origin latitude/longitude, MSL altitude, constant geoid
+offset and magnetic field. Zero geoid offset is a declared synthetic choice.
+Pressure-based airspeed observations are converted to EAS using reference
+density 1.225 kg/m^3. Battery current is zero when no electrical model supplies
+it. Rigid free-flight NACA6409/NeuralFoil is the first integration fixture;
+validity flags remain visible and no ground support or trained flight is
+fabricated. A new epoch recreates both firmware and physics owners.
+
+`node scripts/check-ardupilot-hal.mjs` checks native million-step peers at
+400/800/1200 Hz and the actual pthread-WASM HAL kernel plus JS adapter at
+800 Hz with allocator/GC positive controls and stable memory. Its isolated
+kernel harness is explicitly not replacement firmware or whole-ArduPilot
+allocator certification. Browser tests require the real locally built HAL
+artifact via `MIRAGE_HAL_ARTIFACT_DIR`; they verify full firmware exchange,
+pause, exact time, disposal and the NACA6409 body connection. Build source and
+artifact hashes accompany acceptance. These checks do not enable browser
+READY, admit measured aerodynamics, settle firmware distribution, or replace
+TASK-047 native/WASM flight parity. The main application remains on its
+separately selected backend until that mode is admitted.

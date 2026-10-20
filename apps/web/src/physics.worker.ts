@@ -1,6 +1,8 @@
 /// <reference lib="webworker" />
+import { EwEngine, type EwContext } from '@mirage/ew/engine';
 import { isWorkerInitV2, type CommandResultV2, type WorkerFaultV2 } from '@mirage/protocol';
-import { PhysicsSessionV2, type SessionClock } from '@mirage/physics';
+import { PhysicsSessionV2, type SessionClock, type SessionFaultPort } from '@mirage/physics';
+import { MotorFaults } from '@mirage/physics/motor-fault';
 
 // Thin message adapter around PhysicsSessionV2 (ABI v2, Control Protocol v2).
 // Messages are validated at runtime: init-v2 by shape and buffer layouts,
@@ -13,6 +15,25 @@ const clock: SessionClock = {
 let session: PhysicsSessionV2 | undefined;
 let timer: ReturnType<typeof setTimeout> | undefined;
 
+function createFaultPort(): SessionFaultPort {
+  const motors = new MotorFaults([0, 1, 2, 3]);
+  const engine = new EwEngine(motors);
+  const scratch: EwContext = { dtS: 0, simTimeS: 0, truthNorthM: 0, truthEastM: 0, truthDownM: 0 };
+  return {
+    apply: (command, tick) => engine.apply(command, tick),
+    reset: (seed) => engine.reset(seed),
+    advanceInto(context) {
+      scratch.dtS = context.dtS;
+      scratch.simTimeS = context.simTimeS;
+      scratch.truthNorthM = context.northM;
+      scratch.truthEastM = context.eastM;
+      scratch.truthDownM = context.downM;
+      return engine.advanceInto(scratch);
+    },
+    get flags() { return engine.flags; },
+    get validityFlags() { return motors.vehicleFlags; },
+  };
+}
 function post(event: CommandResultV2 | WorkerFaultV2): void { postMessage(event); }
 function flush(): void { session?.drain(post); }
 
@@ -35,7 +56,7 @@ addEventListener('message', (event: MessageEvent<unknown>) => {
   if (!session) {
     if (!isWorkerInitV2(data)) { post({ type: 'fault-v2', protocolVersion: 2, message: 'Expected init-v2' }); return; }
     try {
-      session = new PhysicsSessionV2(data, clock);
+      session = new PhysicsSessionV2(data, clock, undefined, createFaultPort());
       post(session.readyEvent());
     } catch (error) {
       post({ type: 'fault-v2', protocolVersion: 2, message: error instanceof Error ? error.message : 'Initialization failed' });

@@ -19,7 +19,8 @@ The running application uses binary ABI **v2** (TASK-085): session epochs, EKF/E
 status fields, sensor/actuator queues, and Control Protocol v2. The demo physics
 publication leaves EKF/EW unset. TASK-074 overlays identity-bound serial
 `EkfMonitor` diagnostics on the Pilot HUD only; that overlay does not admit a
-browser autopilot or EW flight backend (TASK-046, TASK-047, TASK-075, TASK-078).
+browser autopilot flight backend (TASK-046, TASK-047, TASK-078). Instructor
+fault commands apply through the session EW registry (TASK-075).
 ABI v1 remains in `packages/protocol` with its tests as a regression API.
 
 The Phase 0 foundation adds deterministic seeded streams, SHA-256-verified
@@ -265,8 +266,9 @@ excluded. Measure producer allocations with `node scripts/bench-aar.mjs 400`
 (repeat at `800`/`1200`).
 
 Instructor shortcuts are P pause, R reset, and F selected fault; typing focus
-suppresses shortcuts. Weather/fault/model requests show the actual demo backend
-rejection until a supporting production backend is wired (TASK-075/078). The
+suppresses shortcuts. Weather and model requests show the demo rejection.
+Fault commands apply after the Worker ACK (TASK-075). Full-rate recording
+remains TASK-078. The
 thermal package supplies a synthetic surface-energy solver, WebGL2 LWIR material,
 and deterministic offset calibration, tested independently from the active scene;
 it does not claim measured CADEX fidelity.

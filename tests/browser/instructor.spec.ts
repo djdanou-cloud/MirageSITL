@@ -6,15 +6,18 @@ test("commands report real Worker rejection and hotkeys ignore typing focus", as
   await expect(
     page.getByRole("button", { name: "Start", exact: true }),
   ).toBeEnabled();
-  await page.getByLabel("Fault ID", { exact: true }).fill("arbitrary-fault-42");
-  await page.getByRole("button", { name: "Send fault", exact: true }).click();
+  await page.getByRole("button", { name: "Send weather", exact: true }).click();
   await expect(page.getByTestId("command-result").last()).toContainText(
     "rejected",
   );
   await expect(page.getByTestId("command-result").last()).toContainText(
     "BAD_STATE",
   );
+  await page.getByLabel("Fault ID", { exact: true }).fill("arbitrary-fault-42");
+  await page.getByRole("button", { name: "Send fault", exact: true }).click();
+  await expect(page.getByText("fault.set: queued")).toBeVisible();
   await page.getByRole("button", { name: "Start", exact: true }).click();
+  await expect(page.getByText("fault.set: applied")).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Pause", exact: true }),
   ).toBeVisible();
