@@ -29,7 +29,7 @@ words without changing the ABI version. Task IDs are defined in
 * The render ring provides bounded interpolation history; it is neither an
   AAR archive nor a sensor queue.
 
-## 2. Implemented ABI v1
+## 2. ABI v1 (legacy regression contract)
 
 Source: `packages/protocol/src/index.ts`; `ABI_VERSION=1`, `MAGIC=0x4d534954`.
 Total size: `64 + 256*128 + 64 = 32,896 bytes`.
@@ -103,7 +103,7 @@ export type PhysicsToMainV1 =
   | { type: 'error'; message: string };
 ```
 
-## 3. Target ABI v2
+## 3. ABI v2
 
 State stride is **192 bytes**, capacity is **256**. Main SAB size is
 `64 + 256*192 + 64 = 49,280 bytes`. Other layouts are not recognized as v2.
@@ -297,7 +297,7 @@ between adjacent ticks of the same epoch/model. Reset/model replacement
 clears render history. Publish the complete seq/head protocol even with
 zero render consumers.
 
-## 5. Target sensor and actuator SPSC queues
+## 5. Sensor and actuator SPSC queues
 
 Allocate **separate SABs** for each direction, outside the render ring.
 Physics Worker writes sensors; I/O Worker consumes sensors and writes

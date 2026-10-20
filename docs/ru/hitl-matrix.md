@@ -1,6 +1,6 @@
 # Матрица возможностей прошивок для HITL
 
-<!-- source-sha256: a53fb2f9afa72567de5d1428eb25e018eb376df116ecd93eb340b7edddb0a671 -->
+<!-- source-sha256: 498e6cc72b1fb00f360bfe4f2efc4c63adbf98bd4eb4a75b8527d01dfbc9e9a2 -->
 
 Английский источник: [Source of truth](../hardware/hitl-matrix.md).
 
@@ -34,7 +34,7 @@ HITL получает READY, только когда выполнено всё �
 ArduPilot: GCS_Common.cpp (sha256 345233ce691a29f21e66d50b81ce75db9672eb29e9d39ac2d0e9e139e92836ec),
 обработчики MAVLink для Copter/Plane, GCS.h и AP_InertialSensor не содержат
 обработчиков этих сообщений; внешний GNSS принимается через GPS_INPUT. Для
-симуляции ArduPilot используется backend JSON SITL (TASK-041).
+симуляции ArduPilot используется backend JSON SITL (TASK-041/042).
 
 PX4: mavlink_receiver.cpp (sha256 2e22f0d3e22a48f2793202f7e9dba3526afbb5da8221ab3a78d461008364571b)
 декодирует HIL_SENSOR только при включённом режиме HIL; HIL_ACTUATOR_CONTROLS.hpp

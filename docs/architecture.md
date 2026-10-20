@@ -3,26 +3,52 @@
 English source. [Russian mirror](ru/architecture.md).
 The detailed task source is [PROJECT_ROADMAP.md](PROJECT_ROADMAP.md).
 
-## Milestone 01: implemented boundaries
+## Implemented boundaries and current baseline
 
-TASK-042 adds a separate owned Linux/WSL native ArduCopter flight harness.
-JSON motor outputs drive our Rust rigid-body WASM through an explicitly
-synthetic quad X model; a pymavlink sidecar returns real firmware health,
-mode and altitude observations. A v2 trace and independent raw MAVLink/physics
-audits establish native closed-loop integration. This does not wire the
-browser demo, validate measured BET aerodynamics, complete TASK-043 admission
-or certify physical HITL. See the engine contract and operational runbook.
+The interactive web application runs on ABI v2 (TASK-085) with React 19/R3F/WebGL2
+(and capability-detected WebGPU with WebGL2 fallback, TASK-066), a dedicated
+module Worker (`PhysicsSessionV2`), `MultiRateClock` at 400/800/1200 Hz, atomic
+SAB seqlock state/pilot transport, sensor/actuator SPSC queues, Gamepad channel
+and mode calibration (TASK-038), a source/freshness-aware attitude HUD (TASK-074),
+a versioned instructor command ledger (TASK-075), and a separate bounded AAR
+recorder/review/archive pipeline (TASK-076–078, TASK-081). The active browser
+flight backend remains the demo quadrotor (`DemoDynamics`); demonstration
+aerodynamics are not validated for pilot training.
 
-The working vertical slice includes React 19/R3F/WebGL, a module Worker,
-constant `dt = 1/400 s`, atomic SAB transport, Gamepad calibration, demo
-quadrotor dynamics, visualization, and diagnostics. JSBSim/BET, ArduPilot,
-EW, and physical HITL are not implemented. Demonstration aerodynamics are
-not validated for pilot training.
+Independent native and WASM simulation/autopilot modules are implemented and
+verified outside the demo flight loop:
 
-400–1200 Hz and 60–120 FPS are target budgets. Fixed dt does not guarantee
-execution every 2.5 ms: browser timers, GC, the OS, and background-tab
-policies provide no hard real-time guarantee. M4/RTX 4050 performance has
-not yet been measured.
+* **Rust BET, coaxial, propulsion, rigid-body, and landing-gear kernels**
+  (TASK-016–028, TASK-032) with scalar/SIMD128 WASM builds and zero-allocation
+  arenas. Production BET arena stepping still returns `AERODYNAMICS_UNAVAILABLE`
+  until polar/config binding connects the rotor kernels.
+* **High-rate certified Rapier contact** (TASK-029, TASK-065): direct f64 C ABI
+  (`GroundContact`) with 0..8 unsprung wheel bodies, independent strut/tire
+  forces, prismatic travel stops, rigid rim constraints, and per-tick terrain
+  halfspaces via contact ABI v2.
+* **High-rate certified JSBSim WASM and contact backend** (TASK-030, TASK-031,
+  TASK-086): pinned JSBSim v1.2.3 WASM build with native WASM exceptions,
+  post-step contact impulses, cold SI initial state, native/WASM trajectory
+  parity, and six UIUC-derived fixed-pitch propeller tables verified in native
+  JSBSim v1.2.3.
+* **Native ArduCopter SITL, EKF warmup, and EW harness** (TASK-041–043,
+  TASK-059): Linux/WSL owned-process ArduCopter harness driving the Rust WASM
+  rigid-body model through a synthetic quad X configuration, `LiveEkfWarmup`
+  admission over lockstep JSON IMU and CRC-checked MAVLink telemetry, and
+  native GPS/compass/motor-loss EW experiments.
+* **Browser ArduCopter WASM bootstrap** (TASK-044, TASK-045): local-only
+  verified firmware Worker with pthread startup, CRC-checked MAVLink boot
+  diagnostics, and IndexedDB EEPROM persistence.
+
+Genuinely open boundaries: measured rotor/airframe/contact fidelity (TASK-033;
+NASA drop fidelity explicitly deferred by the user), browser ArduCopter WASM
+lockstep/parity and GPL redistribution decision (TASK-045–047), browser
+autopilot READY/HUD/instructor/scenario session wiring (TASK-074, TASK-075,
+TASK-078–080), live terrain-contact flight-session coupling (TASK-065),
+physical flight-controller HITL (TASK-051), and target-device M4/RTX 4050
+400–1200 Hz and 60–120 FPS performance verification (TASK-073). Fixed `dt`
+does not guarantee execution every step interval: browser timers, GC, the OS,
+and background-tab policies provide no hard real-time guarantee.
 
 ## Directory structure
 
@@ -54,7 +80,7 @@ tests/
   browser/simulation.spec.ts # Real Worker/SAB, UI, mock USB
 ```
 
-The following components are planned; these directories do not yet exist:
+Workspace packages, services, and native crates:
 
 | Directory | Responsibility |
 | --- | --- |
@@ -68,6 +94,7 @@ The following components are planned; these directories do not yet exist:
 | `packages/cameras` | Mounted FPV camera, lens distortion, analog video effects |
 | `packages/thermal` | Surface material classes (WorldCover/OSM) with provenance; not temperatures |
 | `packages/aar` | Input/actuator/truth/EKF recording and replay |
+| `packages/scenarios` | Declarative training scenarios, tick runner, and trace rubrics |
 | `services/tiles-worker` | Cloudflare proxy, quotas, permitted caching |
 | `native` | Source/toolchain pins and WASM reference tests |
 
@@ -191,7 +218,10 @@ baud rates. Selecting a port does not validate a closed loop.
 Warmup means 30 seconds of simulation time in SITL lockstep, without EW,
 with coherent IMU/GNSS/mag timestamps. Readiness depends on EKF health,
 status, and innovations, not merely a timer. HITL cannot fast-forward
-physical FC filters. Neither warmup nor MAVLink is implemented yet.
+physical FC filters. MAVLink2 framing (TASK-037), `EkfMonitor`/`EkfWarmup`,
+and native `LiveEkfWarmup` admission against the pinned ArduCopter SITL
+harness (TASK-042, TASK-043) are implemented; browser autopilot READY session
+wiring and physical FC HITL remain open.
 
 ## EW, terrain, cameras, and AAR
 
@@ -236,7 +266,7 @@ from resimulation; compare native/WASM within declared numerical tolerances.
 
 | Milestone | Result | Verification |
 | --- | --- | --- |
-| 01 — current | Worker/SAB/Gamepad/demo | Unit tests; real-browser Worker, flight/pause/reset, mock USB |
+| 01 | Worker/SAB/Gamepad/demo | Unit tests; real-browser Worker, flight/pause/reset, mock USB |
 | 02 | WASM physics facade and sensors | Forces/moments, specific force, contact/energy, 400/800/1200 convergence |
 | 03 | External SITL lockstep | Arm/takeoff/land, EKF readiness, RC, link loss, pinned ArduPilot |
 | 04 | BET/frames/autorotation | Thrust curves, torque balance, energy, spool/battery, measured references |
@@ -284,7 +314,8 @@ equivalent JSON Schema 2020-12 contract (an Ajv equivalence test covers more
 than 50 cases), and `ControlProcessorV2` implements deduplication, epochs, the
 128-command schedule applied before integrating each tick, lifecycle state
 rules, and atomic model swaps behind a `ControlTargetV2` interface with a
-preallocated outbox. The running application remains on v1 until TASK-085.
+preallocated outbox. TASK-085 migrates the running application to ABI v2
+while retaining ABI v1 for regression tests.
 
 ### Verified fixture manifests and deterministic streams
 
@@ -321,7 +352,8 @@ uint32 sequence 1915834569, 2163859737, 2018986825, 2541224312, 3937151044.
 Separate instances have independent mutable state; this is neither cryptographic
 randomness nor a proof of statistically independent or nonoverlapping streams.
 Construction/reset validate outside the step; drawing numbers allocates no
-objects. Sensor stream assignment is part of the future sensor/EW contract.
+objects. Sensor and EW stream assignment is defined in the sensor and EW
+contracts (TASK-035, TASK-052–058).
 
 ### Browser eligibility before Worker startup
 
@@ -337,8 +369,8 @@ channel calibration, and connected status remain separate input checks.
 WebGPU adapter probing handles rejection, null, and a one-second timeout while
 preserving WebGL2. The temporary WebGL2 probe releases its context. Serial is
 probed without requesting permission. API availability is distinct from mode
-eligibility: `hitlEligible` and `webgpuEligible` remain false because those
-integrations do not exist yet. Chromium browser tests override API availability
+eligibility: `hitlEligible` and `webgpuEligible` remain gated separately from
+raw API presence. Chromium browser tests override API availability
 and exercise the real supported Worker/renderer; they do not validate hardware.
 
 ### Model admission and immutable session IDs
@@ -347,7 +379,7 @@ and exercise the real supported Worker/renderer; they do not validate hardware.
 schema and asynchronous loader stay outside the existing demo Worker import
 graph. Serialized `ModelDescriptor`/`RotorGeometry` use readonly JSON arrays;
 they are configuration representations of the target engine geometry, not the
-future typed-array WASM ABI in SPECS_SIMULATION_ENGINES. `VerifiedModel` holds
+typed-array WASM ABI in SPECS_SIMULATION_ENGINES. `VerifiedModel` holds
 `{sha256, manifest}` separately so the manifest never hashes itself.
 
 `model.schema.json` uses JSON Schema draft-07, forbids unknown properties, and
@@ -371,9 +403,10 @@ freezes a snapshot, then admits it to the session registry. An identical ID/hash
 returns the same record; a different hash for an existing ID is a collision.
 Hash/schema/physics failures leave registry contents unchanged, including when
 the caller mutates its original bytes during hashing. `get(modelId)` returns
-the verified immutable record. Runtime model switching is introduced in
-TASK-010; the current demo is not switched by this registry. Configuration
-validation may allocate; none of this work belongs inside the physics step.
+the verified immutable record. `ControlProcessorV2` (TASK-010) coordinates
+atomic epoch-scoped model swaps; the active demo session rejects unsupported
+model switches. Configuration validation may allocate; none of this work
+belongs inside the physics step.
 
 ## Runtime building blocks (Phase 1–2)
 
@@ -389,8 +422,8 @@ clock owns the epoch's `TickId` (tick 1 is the first integration).
 `tickToMicros` computes MAVLink `time_usec = floor(tick*1e6/hz)` exactly
 (833/834 us intervals at 1200 Hz), and `isSampleDue`/`sampleIndexAtTick`
 schedule IMU/GNSS samples rationally. `DemoDynamics(hz)` integrates with
-`dt = 1/hz` and `sim_time = tick/hz`. The v1 Worker still runs at 400 Hz
-through `FixedStepClock`, now a 400 Hz `MultiRateClock`.
+`dt = 1/hz` and `sim_time = tick/hz`. `PhysicsSessionV2` runs at 400, 800, or
+1200 Hz; `FixedStepClock` wraps a 400 Hz `MultiRateClock` for v1 compatibility.
 
 ### Clock modes and overload (TASK-012)
 
@@ -440,8 +473,9 @@ the device identity, so a different transmitter at the same index never
 inherits an arm. Main reads lifecycle state from the header runtime flags,
 renders with `latestPair` history, and validates Worker events. In
 sitl-lockstep a tick waits for the autopilot's actuator frame for exactly
-that tick and epoch. Sensor frames are not produced until an I/O Worker
-consumes them (TASK-034+).
+that tick and epoch. Sensor pipelines (TASK-034, TASK-035, TASK-058) and I/O
+transport modules exist as separate packages; the interactive demo session
+does not attach a live autopilot consumer.
 
 ### Hot-path instrumentation (TASK-014)
 
@@ -466,7 +500,10 @@ calls, which made the result depend on TurboFan inlining. The hot path now
 passes time through numeric fields (`nowMs`, `*Now()` methods), returns an
 integer wakeup delay, and validates with inline comparisons only
 (`(x >>> 0) === x`, `|x| < F32_ROUNDING_LIMIT`). Timer overhead is reported
-separately from compute; Node timer pacing is not browser Worker evidence.
+separately from compute; Node timer pacing is not browser Worker evidence. On
+Windows Node, the `bench-physics` realtime run executed 516.7 Hz (target 800)
+and 519.6 Hz (target 1200) with drops: ~16 ms timer wakeups × 8-step catch-up
+cap. Compute is ~1 us/step; the browser Worker 800 Hz regression passed.
 
 ### Render interpolation (TASK-015)
 
@@ -546,8 +583,9 @@ RPM dynamics, zero-offset harmonic hinge flapping, and discrete angular momentum
 transmission. See SPECS_SIMULATION_ENGINES section 3 for all equations, limits,
 input units, and the explicit absence of aeroelastic feedback/validated VRS.
 
-These are reference modules; the UI still runs demo dynamics. No ArduPilot,
-JSBSim, measured autogyro model, or production BET engine has been enabled.
+These are reference modules; the UI still runs demo dynamics. No browser
+ArduPilot session, browser JSBSim session, measured autogyro model, or
+production BET engine has been enabled in the UI.
 `kernel-test-exports` builds separate scalar/SIMD numerical test artifacts;
 the production artifact/ABI stays unchanged. Allocation tests cover 1e6 native
 kernel steps and million-step WASM dynamics with stable memory. Synthetic
@@ -577,27 +615,22 @@ limits and 1e6 allocation-free steps. See the engine specification for formulas,
 units and validity. Production BET C ABI and the demo remain unchanged.
 
 
-## Contact decision and reference integration boundaries (TASK-025–035)
+## Contact, propulsion, and JSBSim backends (TASK-025–035, TASK-086)
 
-Decision: use Rapier 0.21.0 for the contact reference; retain BLOCKED_DECISION
-for production acceptance because its JavaScript getters allocate wrappers.
-The sphere/plane experiment owns position, velocity and orientation. Its net
-contact impulse is diagnostic, not authorization to integrate the same body
-again with RK4. Full airframe landing-gear contacts and allocation-free bindings
-remain open. `highRateCertified=false` prevents an acceptance claim.
+### Rapier contact implementation (TASK-029)
 
-### Completed contact implementation (TASK-029, 2026-10-18)
-
-The later direct f64 C ABI supersedes the historical wrapper/allocation blocker
-below. `GroundContact.initialize` verifies the generated manifest and bytes;
+`GroundContact.initialize` verifies the generated manifest and bytes for the
+direct f64 Rapier 0.21.0 C ABI (`node scripts/build-contact.mjs`);
 each session owns a fixed 16 MiB WASM world with 0..8 unsprung wheel bodies,
 independent strut/tire forces, prismatic travel stops and rigid rim constraints.
-One Rapier solver advances all bodies. A complete angular contact impulse
-accompanies the linear impulse because multiple contacts cannot be represented
-by a single lever arm. The detailed ABI and limitations are in the engine spec.
+One Rapier solver advances all bodies; its net contact impulse is diagnostic and
+must never be used to integrate the same body a second time with RK4. A complete
+angular contact impulse accompanies the linear impulse because multiple contacts
+cannot be represented by a single lever arm. The detailed ABI and limitations
+are in the engine spec.
 
-The storage-only patch additionally retains the joint-selection candidate
-buffer. Cold initialization exercises repeated contact at all three rates;
+The storage-only patch retains the joint-selection candidate buffer across ticks.
+Cold initialization exercises repeated contact at all three rates;
 an armed allocator counter permanently faults the session on any allocation.
 The adapter has no provider wrappers or per-step typed-array views.
 `scripts/check-contact-binding.mjs` runs nine million native steps and compares
@@ -614,7 +647,7 @@ calibrated aircraft or reconstructed NASA rig. Rolling/braking is a passive
 kinematic approximation; wheel spin, anti-skid, steering and arbitrary terrain
 topology remain separate capabilities. No demo/autopilot readiness gate changes.
 
-### Compliant gear source decision (TASK-029, 2026-10-18)
+### Compliant gear source decision (TASK-029)
 
 Use complementary sources rather than importing another full simulation engine:
 
@@ -662,65 +695,81 @@ state. Rapier remains the chosen rigid-body integration owner; the demo and its
 readiness gates remain unchanged. The scalar/SIMD test exports do not add a
 production landing-gear ABI.
 
-Next requirements are a bounded wheel/strut topology and stop reactions in the
-single owning solver, the complete source-backed NASA rig (including lift and
-the relevant tire/strut curves), and an actually measured allocation-free
-production JS/WASM binding. Passing these force kernels alone cannot close
-TASK-029 or unblock TASK-031 contact acceptance.
+### Propulsion, rigid-body, and sensor reference modules (TASK-025–028, TASK-034–035)
 
-Native motor/battery/frame/RK4 references and the independent body ABI v1 now
-exist. A dedicated WASM instance owns each body arena. The body adapter accepts
-an already aggregated body wrench; the full rotor/polar/power feedback backend
-is not wired into the Worker. Sensor references accept that truth in place,
-with integer schedules and independent seeded noise/latency streams. Their
-allocation probe measures warmed Node/V8, not browser hard real time.
+Native motor/battery/frame/RK4 references and the independent body ABI v1 exist
+in `native/bet` and `@mirage/wasm-bet`. A dedicated WASM instance owns each body
+arena. The body adapter accepts an already aggregated body wrench; the full
+rotor/polar/power feedback backend is not wired into the browser flight Worker.
+Sensor references (`@mirage/sensors`) accept truth in place, with integer
+schedules and independent seeded noise/latency streams. Their allocation probe
+(`scripts/bench-sensors.mjs`) measures warmed Node/V8, not browser hard real
+time.
 
-JSBSim source/toolchain/license hashes, C++ C ABI, SI/origin-frame adapter and
-build prerequisite checks are present. Native smoke succeeds. The historical
-cloud SDK download failed, but the 2026-10-18 Windows retry builds a pinned WASM
-artifact and passes real Chromium Worker smoke at 400/800/1200 Hz. Model XML is
-local test input only. Trim parity, contact exchange and high-rate allocation
-certification remain open.
-The model validation CLI actually runs scalar/SIMD rigid-body numerical cases
-but exits 2 while experimental fidelity prerequisites are absent. See the
-implemented sections in [engine specification](SPECS_SIMULATION_ENGINES.md).
+### JSBSim WASM, contact backend, and UIUC propeller tables (TASK-030, TASK-031, TASK-086)
 
+`packages/wasm-jsbsim` pins JSBSim v1.2.3 source/license hashes and Emscripten
+4.0.15, providing a C++ C ABI and SI/origin-frame adapter. `node scripts/build-jsbsim.mjs`
+builds the baseline WASM artifact verified in Chromium Worker smoke at
+400/800/1200 Hz (`node scripts/check-jsbsim-artifact.mjs`), while
+`node scripts/build-jsbsim.mjs --contact` builds the high-rate certified
+contact artifact with native WASM exceptions (`-fwasm-exceptions`). A first
+real-adapter probe exposed 75 GC events per million steps with JavaScript
+exception trampolines despite zero C++ counters; native WASM exception handling
+removes that allocation path. The compiled runtime must support WASM exceptions;
+the legacy JS-exception build remains separate and is not admitted as high-rate
+certified.
 
-Retry decision: reusable Rapier targets/raw vectors remove explicit wrapper
-construction; fixed-topology raw stepping preserves single ownership. G1 still
-fails in the JS package and in a separately built native f64/profiler-free core.
-Retain BLOCKED_DECISION; an allocation-free upstream build or alternative engine
-is required. Native JSBSim full trim and coordinate checks now pass, but its
-measured allocator gate fails. Optional cold trim and generation-tagged handles
-are implemented; the historical WASM SDK denial was resolved locally on 2026-10-18. Model report v2 includes
-hash-checked diagnostic provenance and rejects unsupported reference manifests.
-See the retry contracts in SPECS_SIMULATION_ENGINES.md.
+The contact backend supports independently versioned contact impulses after the
+JSBSim step, cold explicit SI initial state, and current mass/inertia queries.
+JSBSim remains the sole integrator. A contact impulse changes velocity without
+advancing pose/time; derivative-history jumps preserve the upstream multistep
+integrator. Duplicate applications and external impulses during built-in active
+gear contact are rejected. An external constraint stage must not run another
+airframe integrator. The adapter claims dedicated memory, reuses ground-friction
+storage reserved for at most 64 gear entries, and validates owned frames,
+caller buffers, and heap stability before publishing truth.
 
+`node scripts/check-engine-patch-parity.mjs` verifies that the opt-in
+`--patched` storage-preservation patches in native Rapier and JSBSim produce
+zero allocator calls/bytes over one million steps while matching original
+trajectory checksums. `node scripts/check-jsbsim-backend.mjs --native` and
+`node --experimental-transform-types scripts/check-jsbsim-backend.mjs` verify
+same-source native/WASM trim, control-step, and contact trajectories within
+predeclared numerical budgets using local, unbundled `c172x` XML, and
+`node scripts/bench-jsbsim.mjs` measures the JS adapter separately. Stationary-ground
+tests verify upward specific force under local gravity. These results do not
+license aircraft redistribution or establish measured fidelity, target-device
+timing, full weather/model selection, or autopilot/flight-session readiness.
+See the implemented sections in [engine specification](SPECS_SIMULATION_ENGINES.md).
 
-Latest retry: opt-in `--patched` native Rapier/JSBSim runs now pass million-step
-allocator probes with zero calls/bytes and matching original trajectory checksums.
-The original builds still allocate. `node scripts/check-engine-patch-parity.mjs`
-checks report/source/patch identities before comparison. Patches preserve storage
-rather than changing physics. See the native allocation patch section in the
-engine specification for exact scope, commands and limitations. These native
-results do not certify the production Rapier JS/WASM binding, a JSBSim WASM build,
-contact coupling or physical fidelity. The later 2026-10-18 local WASM build and
-Worker smoke resolve the local SDK/artifact blocker; measured-data, trajectory
-parity and production allocation gates remain open.
+`data/jsbsim/generate_uiuc_propellers.py` (TASK-086) generates six JSBSim
+fixed-pitch propeller definitions (`C_THRUST`/`C_POWER` versus `J = V/(nD)`)
+and `data/jsbsim/engine/uiuc-propellers.manifest.json` from the hash-verified
+UIUC Propeller Database (APC Thin Electric 10x5, 10x7, 11x7, 12x6, 14x10, and
+DA4002 9x6.75). `node scripts/check-jsbsim-propellers.mjs` loads all six tables
+through native JSBSim v1.2.3 `FGFDMExec::LoadModel` and verifies static,
+mid-curve advancing, and interpolated thrust/power at 18/18 points within 1% of
+measured `CT`/`CP`. Because JSBSim v1.2.3 leaves `FGPropeller::Ixx` unassigned
+when `<ixx>` is omitted, a complete flight model must supply rotating inertia;
+UIUC redistribution licensing, Vol 4 true versus nominal diameters, and
+RPM/engine coupling remain separate.
 
+### MAVLink2, bridge, serial I/O, EW, and terrain policy boundaries
 
-TASK-037/038/039/040/048/052/053/056/057/060 add a pinned MAVLink2 subset,
-versioned radio calibration/mode mapping, autopilot lifecycle admission, an
-origin/token-checked loopback WS/UDP bridge, gesture-driven Serial transport
-with a separate I/O decoding Worker, isolated EW/motor-fault components and a
-fail-closed terrain policy. The demo remains the active flight backend; no
-SITL/HITL, complete EW composition or live terrain integration is enabled.
+TASK-037/038/039/040/048/052/053/056/057/058/060 provide a pinned MAVLink2
+subset, versioned radio calibration/mode mapping, autopilot lifecycle admission,
+an origin/token-checked loopback WS/UDP bridge, gesture-driven Serial transport
+with a separate I/O decoding Worker, isolated and composed EW/motor-fault
+modules, and a fail-closed terrain policy. The browser UI continues to run the
+demo flight backend; browser SITL/HITL session wiring and live Google terrain
+integration are not enabled.
 
-Run npm run start -w @mirage/bridge with MIRAGE_BRIDGE_TOKEN supplied locally
-(64 hex characters); optional MIRAGE_BRIDGE_ORIGIN, MIRAGE_MAVLINK_PORT and
-MIRAGE_PHYSICS_PORT configure origin/UDP endpoints. Never print tokens or add
+Run `npm run start -w @mirage/bridge` with `MIRAGE_BRIDGE_TOKEN` supplied locally
+(64 hex characters); optional `MIRAGE_BRIDGE_ORIGIN`, `MIRAGE_MAVLINK_PORT` and
+`MIRAGE_PHYSICS_PORT` configure origin/UDP endpoints. Never print tokens or add
 them to URLs/repository files. This is loopback ws; HTTPS/WSS/PNA needs separate
-integration. Use node scripts/bench-links-ew.mjs all 400 (also 800/1200) for
+integration. Use `node scripts/bench-links-ew.mjs all 400` (also 800/1200) for
 Node allocation evidence, not hardware timing acceptance. Scalar conveniences
 may box floating-point values: high-rate composition uses typed-array inputs
 and outputs documented in the engine specification.
@@ -949,24 +998,23 @@ actually contributed samples. GeoTIFF decoding and checks against real
 licensed tiles placed locally are not yet implemented.
 
 
-## Local thermal and AAR/UI increment (baseline 660d86e)
+## Thermal, HUD, instructor console, and AAR (TASK-070–072, TASK-074–081)
 
 Thermal energy, LWIR WebGL2 materials and offset-only shutter calibration are independent library modules. They do not run in the flight physics Worker or automatically turn land classes into measured temperatures. The application still flies demo dynamics. The pilot attitude overlay reads snapshots at the existing approximately 150 ms React reporting cadence. NED quaternion attitude uses normalized Hamilton wxyz, positive right bank and positive nose-up; the artificial horizon rotates by negative roll and shifts down with positive pitch. Existing speed/altitude readouts continue to use NED truth with an explicit demo label.
 
-`EkfMonitor` and `EkfWarmup` provide independent diagnostics/admission contracts, with upstream wire fixtures. No timer, truth flag or Serial connection makes a live autopilot READY. TASK-042 remains blocked, and TASK-043 plus dependent TASK-074/075/078 retain their integration gate. The HUD distinguishes unknown, stale and fresh status; stale EKF bits are not displayed as valid. Mode numbers are autopilot custom_mode values with source/age, not invented names.
+`EkfMonitor` and `EkfWarmup` provide independent diagnostics/admission contracts, with upstream wire fixtures. No timer, truth flag or Serial connection makes a live autopilot READY. While native ArduCopter SITL flight (TASK-042) and native `LiveEkfWarmup` admission (TASK-043) are verified, browser autopilot session wiring (TASK-074, TASK-075, TASK-078) retains its integration gate. The HUD distinguishes unknown, stale and fresh status; stale EKF bits are not displayed as valid. Mode numbers are autopilot `custom_mode` values with source/age, not invented names.
 
 The instructor console submits versioned commands to the real Worker. A bounded 32-entry ledger correlates request IDs, distinguishes pending/queued/applied/rejected/cancelled, ignores late queued ACKs after application, and cancels pending commands on epoch changes. Model-load/reset ACKs may advance exactly one epoch. Fault IDs are editable; all five typed effect kinds have explicit synthetic defaults. Weather and model/hash requests use the same validator. The active demo rejects these unsupported commands; the console reports rejection rather than applying visual-only failures. P/R/F shortcuts ignore inputs, selects, editable elements, composition, repeat and modifier shortcuts.
 
 The active demo's Main runtime fans decimated truth/pilot samples into an entirely separate recording SAB. The recorder Worker owns its chronological ring and IndexedDB writes. No additional consumer is attached to sensor or actuator queues. AAR uses its own versioned 512-byte records and checksums; absence, decimation, queue loss, storage loss and ring eviction are explicit. Resimulation is a separate injected interface with hash/seed admission; ordinary replay never advances physics. The Review timeline selects an epoch and uses simulation seconds for pilot/actuator/response series. Import/export excludes arbitrary metadata and secrets through an allowlist and validates size/hash/records. Full binary layout and limits are specified in SPECS_SIMULATION_ENGINES.md under the thermal/diagnostics/recording contracts.
 
-Functional browser evidence is WebGL2/SwiftShader plus actual Worker/SAB/IndexedDB. M4/RTX performance, measured thermal calibration, live autopilot warmup and full-rate synchronized recording remain separate acceptance gates.
+Functional browser evidence is WebGL2/SwiftShader plus actual Worker/SAB/IndexedDB. M4/RTX performance, measured thermal calibration, live browser autopilot warmup and full-rate synchronized recording remain separate acceptance gates.
 
-Regression hardening: PhysicsSessionV2 now captures wall receipt time after the coherent pilot read, preventing a concurrent valid publication from appearing future-dated; truly future/stale inputs still disarm. WebGPU capability probing is shared once per document (including in-flight work); reload retries after driver changes. Renderer tests use an isolated harness and compare diagnostics within one document. Instructor motor loss selects channel index, power-cut versus synthetic instant-thrust-loss and remaining fraction; pending epoch-changing commands await their matching ACK even when the shared header advances first.
+`PhysicsSessionV2` captures wall receipt time after the coherent pilot read, preventing a concurrent valid publication from appearing future-dated; truly future/stale inputs still disarm. WebGPU capability probing is shared once per document (including in-flight work); reload retries after driver changes. Renderer tests use an isolated harness and compare diagnostics within one document. Instructor motor loss selects channel index, power-cut versus synthetic instant-thrust-loss and remaining fraction; pending epoch-changing commands await their matching ACK even when the shared header advances first.
 
-### Merged thermal and recorder additions (2026-10-16)
+### Thermal solvers, LWIR camera, and recorder storage (TASK-070–072, TASK-076–081)
 
-Two implementations of TASK-070–072/076–081 were merged. Thermal:
-`heat-balance.ts` offers both `HeatSurface` (single surface, implicit
+Thermal: `heat-balance.ts` offers both `HeatSurface` (single surface, implicit
 trapezoid, forcing as air/sky/substrate temperatures) and `ThermalField`
 (batched, allocation-free Heun integration with stability substeps,
 per-element normal, shadow and sky-view factor; sky longwave from
@@ -982,15 +1030,19 @@ span), white-hot/black-hot/ironbow palettes and `ThermalCameraPass`, which
 renders a temperature/emissivity/range G-buffer at the instrument's native
 resolution; `InstrumentProfile` separates synthetic training profiles from
 measured ones, and only a measured profile can claim parity with an
-instrument such as CADEX. `ThermalNuc` (frame-indexed shutter cycle) is kept
-and gains `nextCalibrationFrame` and `thermalStatusLabel`. Recorder: the
-512-byte record, handoff, ring, Worker, replay, resimulation and archive of
-the integrated implementation are kept; `ChunkStorage` now queues up to
-`maxPending` chunks behind the in-flight IndexedDB transaction instead of
-dropping a chunk whenever a transaction is busy, and still counts every
-overflow or failed write.
+instrument such as CADEX. `ThermalNuc` (frame-indexed shutter cycle) provides
+`nextCalibrationFrame` and `thermalStatusLabel`. Recorder: the
+512-byte record, handoff, ring, Worker, replay, resimulation and archive are
+paired with `ChunkStorage`, which queues up to `maxPending` chunks behind the
+in-flight IndexedDB transaction instead of dropping a chunk whenever a
+transaction is busy, and counts every overflow or failed write.
 
-## NASA measured drop comparison (TASK-029/033, 2026-10-16)
+## Model validation and measured-fidelity diagnostics (TASK-033)
+
+`node scripts/validate-models.mjs` runs 12 scalar/SIMD rigid-body numerical
+cases (400/800/1200 Hz against 4800 Hz references) and evaluates registered
+measured-data comparisons, exiting 2 while experimental fidelity gates remain
+blocked or failed.
 
 The first measured fixture is `tests/fixtures/contact/nasa-drop.json`.
 `tests/fixtures/contact/generate_nasa_drop.py` generates it from the hashed
@@ -1006,61 +1058,41 @@ at 4/5/6 ft/s:
 NASA TP-2353 and NACA Report 1248 are archived alongside it but unused, because
 their drop results appear only in figures.
 
-`packages/physics/src/nasa-drop.ts` runs the Rapier sphere contact under these
-conditions. Impulse, nonpenetration and energy consistency pass. The measured
-deceleration and stroke envelopes fail at every rate: peaks reach -12 to -19 g
-over a 10 ms window, and contact travel is below 0.2 mm, because a rigid
-sphere has no tire or strut compliance.
+`packages/physics/src/nasa-drop.ts` runs the historical `LegacyGroundContact`
+rigid-sphere contact under these conditions. Impulse, nonpenetration and energy
+consistency pass, while the measured deceleration and stroke envelopes fail at
+every rate (peaks reach -12 to -19 g over a 10 ms window, and contact travel is
+below 0.2 mm, because a rigid sphere has no tire or strut compliance). The user's
+2026-10-18 decision defers NASA measured landing-gear fidelity; TASK-033 report
+v5 retains that failed comparison in a hash-checked archive and reports absent
+active contact measurements as blocked, while TASK-029's configurable
+`GroundContact` C ABI separately satisfies numerical and G1 allocation
+acceptance.
 
-The contact decision above therefore stands. Rapier remains a contact
-reference, and landing-gear fidelity needs a separate gear model.
-`validate-models.mjs` reports this measured gate as failed in schema v3. It
-keeps the rotor/airframe fidelity gate blocked and the JS binding G1 gate
-failed.
+TASK-033 also includes an offline annular propeller BEM diagnostic with local
+axial/angular momentum, explicit Prandtl tip/hub losses and safeguarded
+nonlinear solves, alongside the uniform-inflow comparison (`native/bet/src/propeller.rs`)
+against the UIUC Propeller Database (`uiuc-propdb-da4002-da4022-v1`) and XFOIL
+6.99 SDA1075 polars (`sda1075-xfoil-699-v1`). Four declared variants expose
+convergence and final polar coverage at the unchanged measured CT/CP tolerances.
+Numerical convergence is not measured fidelity: the XFOIL/UIUC BET comparisons
+still fail, keeping TASK-033 `BLOCKED_EXTERNAL`. The Deters article/dissertation,
+PROPID conventions and pinned airfoil-research review are documented in the
+engine specification. No new C/SAB ABI, transient flight binding or autopilot
+admission follows from these diagnostic results.
 
-## Acceptance and runtime continuation
+## Terrain contact, scenarios, native SITL/EW, and browser WASM bootstrap
 
-### JSBSim backend continuation (TASK-031, 2026-10-18)
+### Terrain collision chunks and contact topology (TASK-065)
 
-The backend now supports independently versioned contact impulses after the
-JSBSim step, cold explicit SI initial state and current mass/inertia queries.
-JSBSim remains the sole integrator. A contact impulse changes velocity without
-advancing pose/time; derivative-history jumps preserve the upstream multistep
-integrator. Duplicate applications and external impulses during built-in active
-gear contact are rejected. An external constraint stage must not run another
-airframe integrator. The adapter claims dedicated memory and validates owned
-frames, caller buffers and heap stability before publishing truth.
+The independent collision builder creates NED triangle meshes in a separate
+Worker. `CollisionChunks` owns fixed-capacity staged/active height copies
+independently from visual eviction and publishes only at valid epoch/tick
+boundaries. `sampleInto`/`readyFrom` are the high-rate interfaces; missing
+coverage is explicit.
 
-The contact build reuses ground-friction storage reserved for at most 64 gear
-entries. Its actual malloc/new counters are positive-controlled; JS allocation
-is measured separately. A first real-adapter probe exposed 75 GC events per
-million steps with JavaScript exception trampolines despite zero C++ counters.
-Native WASM exception handling removes that measured allocation path; legacy
-and passing reports are distinct. The compiled runtime must support WASM
-exceptions; no allocating fallback is admitted as high-rate certified.
-
-Same-source native/WASM trim, control-step and contact trajectories use
-predeclared numerical budgets and local, unbundled c172x XML. Stationary-ground
-tests verify upward specific force under local gravity. These results do not
-license aircraft redistribution or establish measured fidelity, target-device
-timing, full weather/model selection or autopilot/flight-session readiness.
-The engine specification records exact extension frames and runner scope.
-
-The independent collision builder creates NED triangle meshes in a separate Worker. CollisionChunks owns fixed-capacity staged/active height copies independently from visual eviction and publishes only at valid epoch/tick boundaries. sampleInto/readyFrom are the high-rate interfaces; missing coverage is explicit. This is not yet a production Rapier terrain adapter or flight-readiness binding.
-
-The new scenarios workspace admits immutable, provenance-bound protocol command templates, polls by simulation tick and evaluates complete autopilot traces. Epoch binding, ACK ownership and actual scenario orchestration remain at the integration boundary. Reports for SITL, HITL, EW and GPU check bounded/hash-bound observations; missing real inputs are blocked, and native/browser/hardware evidence are separate. The system matrix preserves per-mode NOT_RUN/FAIL/BLOCKED/PASS. Release tooling inventories actual generated outputs without publication or fabricated readiness. Detailed constraints and CLI contracts are in SPECS_SIMULATION_ENGINES.md and the new operational runbook.
-
-Accessibility adds keyboard landmarks/focus, permission announcements and a narrow-layout contract. It preserves the active Worker/runtime and does not enable unverified autopilot capability.
-
-The historical NASA landing-gear comparison failed deceleration/stroke envelopes while numerical integration passed. The user's 2026-10-18 decision defers NASA fidelity; TASK-033 report v5 retains that failed comparison in a hash-checked archive and reports absent active contact measurements as blocked. TASK-029 numerical contact acceptance is separate from measured rig calibration.
-
-TASK-033 adds an offline annular propeller BEM diagnostic with local axial/angular momentum, explicit Prandtl tip/hub losses and safeguarded nonlinear solves. It preserves the original uniform-inflow comparison and current production backend. Four declared variants expose convergence and final polar coverage at the unchanged measured CT/CP tolerances. Numerical convergence is not measured fidelity: the XFOIL/UIUC comparisons still fail. The Deters article/dissertation, PROPID conventions and pinned airfoil-research review are documented in the engine specification. No new C/SAB ABI, transient flight binding or autopilot admission follows from these diagnostic results.
-
-## Terrain contact topology decision (TASK-065, 2026-10-18)
-
-Decision: published collision chunks reach Rapier as per-tick ground planes, one
+Published collision chunks reach Rapier as per-tick ground planes, one
 per contact (the airframe sphere and each wheel), through contact ABI v2.
-
 Rejected alternatives:
 
 * Inserting a Rapier trimesh or heightfield per chunk: it allocates when chunks
@@ -1075,16 +1107,56 @@ the vehicle fall through. Each contact uses the plane of the triangle under its
 fully extended anchor, so curvature inside a triangle is not represented.
 Wiring into the flight session and live terrain admission remain separate.
 
-TASK-043 composes the native driver's real MAVLink input with LiveEkfWarmup,
-EkfMonitor and EkfWarmup. Native JSON frame N confirms the encoded IMU sample
-in reply N-1; GNSS fix time remains firmware-sourced. Arrival time never replaces
-measurement time. The shared gate produces READY/EW admission and measured
-acceleration, with revocation and independent raw/capture replay. Synthetic
-fault probes are labelled separately from observed firmware behavior. No browser
-session wiring, physical HITL acceptance or measured aircraft validation follows.
+### Scenarios, acceptance tooling, and accessibility (TASK-079, TASK-080, TASK-082, TASK-083)
 
+The `packages/scenarios` workspace admits immutable, provenance-bound protocol
+command templates, polls by simulation tick and evaluates complete autopilot
+traces. Epoch binding, ACK ownership and actual scenario orchestration remain at
+the integration boundary. Reports for SITL, HITL, EW and GPU check
+bounded/hash-bound observations; missing real inputs are blocked, and
+native/browser/hardware evidence are separate. The system matrix preserves
+per-mode `NOT_RUN`/`FAIL`/`BLOCKED`/`PASS`. Release tooling inventories actual
+generated outputs without publication or fabricated readiness. Detailed
+constraints and CLI contracts are in `SPECS_SIMULATION_ENGINES.md` and the
+operational runbook.
 
-TASK-059 adds a native-only EW experiment boundary: unchanged physics JSON, TASK-058 GPS observations delivered through GPS_INPUT, acknowledged simulated compass biases, and explicit synthetic rotor wrench loss. Independent raw-wire decoding, full PWM/body replay and original EKF telemetry joins precede empirical calibration/frozen limits and separate validation. Browser autopilot admission and physical flight fidelity remain outside this experiment.
+Accessibility (TASK-080) adds keyboard landmarks/focus, permission announcements
+and a narrow-layout contract. It preserves the active Worker/runtime and does
+not enable unverified autopilot capability.
 
+### Native ArduCopter SITL, EKF warmup, and EW experiments (TASK-042, TASK-043, TASK-059)
 
-TASK-045 adds a local-only browser artifact/bootstrap boundary: the opt-in Vite route serves admitted external bytes to a dedicated firmware Worker; verified glue also starts its owned pthreads. CRC-valid serial boot diagnostics and IndexedDB EEPROM/profile ownership are separate from FlightStateV2 and autopilot READY. Graceful and abrupt Worker restart/storage recovery are verified; live MirageSITL physics and parity remain TASK-046/047. Artifact redistribution retains its existing decision gate.
+TASK-042 provides a Linux/WSL owned-process native ArduCopter flight harness
+(`scripts/run-sitl.mjs`, `scripts/sitl/driver.mjs`, and a `pymavlink` 2.4.50
+sidecar). JSON motor outputs drive the Rust rigid-body WASM through an
+explicitly synthetic quad X model while the sidecar records real firmware
+health, mode and altitude observations; `scripts/check-sitl-capture.mjs` audits
+full-rate physics, original telemetry, source identities and trace v2.
+
+TASK-043 composes the native driver's real MAVLink input with `LiveEkfWarmup`,
+`EkfMonitor` and `EkfWarmup` (`scripts/check-ekf-warmup.mjs`). Native JSON frame
+N confirms the encoded IMU sample in reply N-1; GNSS fix time remains
+firmware-sourced. Arrival time never replaces measurement time. The shared gate
+produces READY/EW admission and measured acceleration, with revocation and
+independent raw/capture replay. Synthetic fault probes are labelled separately
+from observed firmware behavior. No browser session wiring, physical HITL
+acceptance or measured aircraft validation follows.
+
+TASK-059 adds a native-only EW experiment boundary: unchanged physics JSON,
+TASK-058 GPS observations delivered through `GPS_INPUT`, acknowledged simulated
+compass biases, and explicit synthetic rotor wrench loss. Independent raw-wire
+decoding, full PWM/body replay and original EKF telemetry joins precede
+empirical calibration/frozen limits and separate validation. Browser autopilot
+admission and physical flight fidelity remain outside this experiment.
+
+### Browser ArduCopter WASM bootstrap (TASK-044, TASK-045)
+
+Following the negative source-only feasibility assessment in TASK-044, TASK-045
+adds a local-only browser artifact/bootstrap boundary: the opt-in Vite route
+serves admitted external bytes to a dedicated firmware Worker, and verified glue
+starts its owned pthreads. CRC-valid serial boot diagnostics and IndexedDB
+EEPROM/profile ownership are separate from `FlightStateV2` and autopilot READY.
+Graceful and abrupt Worker restart/storage recovery are verified; live
+MirageSITL physics lockstep and native SITL parity remain open in TASK-046 and
+TASK-047. Artifact redistribution retains its GPL decision gate
+(`BLOCKED_DECISION`).

@@ -365,10 +365,10 @@ and other documents (review of 2026-10-20). They keep their existing TASK IDs.
 | 047 | WASM/native SITL parity | TODO | Arm, takeoff, land and failsafe on both paths. Position RMSE ≤ 0.5 m and attitude RMSE ≤ 2° over the 30 s reference. Depends on TASK-046. |
 | 051 | Physical HITL acceptance | BLOCKED_EXTERNAL | Blocked on a physical flight controller and a supported firmware profile. |
 | 073 | GPU acceptance harness | BLOCKED_EXTERNAL | Blocked on full-feature production traces (terrain, FPV and thermal together), VRAM accounting and an M4 device. |
-| 074 | Pilot HUD and freshness | BLOCKED_EXTERNAL | Live autopilot health in the browser (browser READY). |
-| 075 | Instructor console | BLOCKED_EXTERNAL | Production fault, weather and model commands; the demo still rejects them. |
-| 078 | AAR response charts | BLOCKED_EXTERNAL | Waits on the live TASK-074 HUD. |
-| 079 | Lessons and scenario runner | BLOCKED_EXTERNAL | Healthy-autopilot orchestration and command acknowledgement binding; depends on TASK-075. |
+| 074 | Pilot HUD and freshness | TODO | Live autopilot health in the browser (browser READY); TASK-043 dependency is DONE. |
+| 075 | Instructor console | TODO | Production fault, weather and model commands; awaits TASK-074 live autopilot HUD. |
+| 078 | AAR response charts | TODO | Waits on the live TASK-074 HUD. |
+| 079 | Lessons and scenario runner | TODO | Healthy-autopilot orchestration and command acknowledgement binding; depends on TASK-075. |
 | 080 | Accessibility and permissions UX | BLOCKED_EXTERNAL | Live-autopilot prerequisites, a screen-reader session and hardware permission/disconnect checks. |
 | 082 | System acceptance matrix | BLOCKED_EXTERNAL | Real G0–G4 evidence for each mode. |
 | 083 | Release provenance and runbook | BLOCKED_EXTERNAL | Clean-machine install, toolchain and license review, and review of raw evidence. |
@@ -392,8 +392,12 @@ and other documents (review of 2026-10-20). They keep their existing TASK IDs.
 * **HITL route and board profile.** The pinned ArduPilot does not support HIL
   messages, and PX4 needs a verified board.
   * Blocked on a board and a decision on the route.
-  * The bench procedure, physical USB radio acceptance (EdgeTX/OpenTX) and
-    local compass/GPS/battery checks are not run.
+  * Local USB diagnostics (`test-results/hardware/`, VID `1209`, PID `5741`,
+    reported ArduPilot 4.6.3 `3fc7011a`) verified MAVLink framing and healthy
+    IMU/barometer samples, with disarmed heartbeats, HIL disabled, battery
+    disconnected and compass/GPS/RC absent (`PreArm: RC not found`).
+  * The 60 s 200/400 Hz bench procedure, physical USB radio acceptance
+    (EdgeTX/OpenTX) and local compass/GPS/battery checks are not run.
 * **Bridge beyond loopback.** HTTPS/WSS and Private Network Access for remote
   use.
 * **Newer firmware.** Must explicitly extend the pinned MAVLink subset.
@@ -478,14 +482,24 @@ and other documents (review of 2026-10-20). They keep their existing TASK IDs.
 
 ### 7.7 Performance, release and evidence
 
-* **Delivered physics rate.** Node delivered about 517/520 Hz instead of
-  800/1200 Hz with drops. The next steps are to profile timer wake-ups and
-  design a supported scheduling improvement.
-* **Frame cadence.** The demo p99 misses 16.67 ms. 120 FPS on M4/RTX targets
-  is unmeasured.
-* **Evidence and reports.** Refresh the stale evidence manifest entries and
-  missing diagnostic reports, and reconcile the model-report and
-  system-validator schemas. Production hosting must set COOP/COEP; verify
+* **Delivered physics rate.** On Windows Node (`test-results/laptop/physics-*-idle.json`),
+  the `bench-physics` realtime run executed 516.7 Hz (target 800, 1,426 drops)
+  and 519.6 Hz (target 1200, 3,415 drops): ~16 ms timer wakeups × 8-step
+  catch-up cap (`DEFAULT_MAX_CATCH_UP = 8`). Compute is ~1 us/step; the browser
+  Worker 800 Hz regression passed its 720–880 Hz range. Next steps: profile
+  timer wakeups separately from compute and design a supported scheduling
+  improvement without relaxing the catch-up cap or thresholds.
+* **Frame cadence.** On the RTX 4050 laptop (`test-results/laptop/`), visible
+  60 Hz 1080p DPR1 demo captures measured p99 19.910 ms (WebGL2, 600 s) and
+  19.645 ms (WebGPU, 120 s), and 144 Hz panel captures measured p99 19.565 ms
+  (fixed 1080p) and 19.005 ms (`--native-viewport` 1536x826 DPR 1.25), missing
+  the 16.67 ms (60 FPS) and 8.33 ms (120 FPS) limits. Full production scene
+  (terrain, FPV and thermal together), VRAM/cache residency accounting and an
+  M4 target device remain unmeasured.
+* **Evidence and reports.** Refresh the stale evidence manifest entries
+  (`test-results/laptop/evidence-manifest.json`) and missing diagnostic
+  reports, and reconcile the model-report (`test-results/validation/model-report.json`)
+  and system-validator schemas. Production hosting must set COOP/COEP; verify
   hosted CI on current commits.
 * **Release scope (decision).** Wait for all modes, or ship a narrower release
   backed by evidence.
@@ -499,21 +513,6 @@ and other documents (review of 2026-10-20). They keep their existing TASK IDs.
   grid license (7.3).
 * Copyrighted textbooks and the PROPID sources stay local and are not
   distributed.
-
-### 7.9 Documentation cleanup
-
-Some existing notes are out of date and should be corrected in the same pass:
-
-* The onboarding briefing (`onboarding-blockers-2026-10-17.md`) is an archived
-  snapshot. Its cards for TASK-029/030/031/042/043/045/059/065/086 describe
-  work that is now done.
-* The planned-directories table in `architecture.md` still says directories
-  "do not yet exist".
-* Older blocker notes in the roadmap and `CLAUDE.md` predate later
-  completions: "029/030/031/033 remain open", "045–047 remain open" and "live
-  warmup blocked by TASK-042".
-* TASK-074 and TASK-079 status lines cite dependencies that are now done, and
-  the TASK-003 hosted-CI billing blocker was resolved by later runs.
 
 ## 8. Glossary
 

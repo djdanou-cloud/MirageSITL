@@ -16,31 +16,32 @@ quadrotor demonstration. The interface includes a 3D view, telemetry, collective
 throttle, arm/disarm, pause/reset, input failsafe, and scheduler drop counters.
 
 The running application uses binary ABI **v2** (TASK-085): session epochs, EKF/EW
-status fields, sensor/actuator queues, and Control Protocol v2. EKF/EW values stay
-unset until an autopilot and EW engine exist. ABI v1 remains in `packages/protocol`
-with its tests but is no longer used by the application.
-
-JSBSim/BET WASM, ArduPilot SITL/HITL, EW, photorealistic terrain, FPV/thermal
-effects, and AAR are planned. The current aerodynamics are simplified and
-have not been validated for pilot training.
+status fields, sensor/actuator queues, and Control Protocol v2. In the browser
+demo, EKF/EW values stay unset until a browser autopilot and EW backend are wired
+into the active flight session (TASK-046, TASK-047, TASK-074, TASK-075, TASK-078).
+ABI v1 remains in `packages/protocol` with its tests as a regression API.
 
 The Phase 0 foundation adds deterministic seeded streams, SHA-256-verified
 synthetic fixture manifests, and strict model/frame/inertia/rotor validation.
 Models are admitted to an immutable session registry; runtime model switching
-remains a later task. See the architecture guide for the serialized contracts.
+remains a separate integration step. See the [architecture guide](docs/architecture.md)
+for the serialized contracts.
 
 Startup checks secure context, isolation, SharedArrayBuffer, Worker, and WebGL2.
 Missing requirements disable Start with an explanation; missing Gamepad disables
 USB input. Failed WebGPU probing preserves WebGL2. Serial API availability is
-reported separately: HITL and WebGPU rendering are not implemented.
+reported separately: physical HITL (TASK-051) and WebGPU rendering are not yet
+enabled in the active flight session.
 
 ## Quickstart
 
-TASK-042 now also has a separate native Linux/WSL ArduCopter integration driver:
-real firmware flies a synthetic quad through our Rust rigid-body WASM and the
-JSON/MAVLink interfaces. Its scored flight and original telemetry are audited
-separately. This does not change the browser demo or resolve measured aircraft
-fidelity. See the [SITL procedure](docs/operations/runbook.md).
+TASK-042 provides a native Linux/WSL ArduCopter integration driver
+(`scripts/sitl/driver.mjs` and a pymavlink 2.4.50 sidecar): pinned native
+firmware flies a synthetic quad X through our Rust rigid-body WASM and the
+JSON/MAVLink interfaces, with scored flight and original telemetry audited by
+`scripts/check-sitl-capture.mjs`. This offline harness does not change the
+browser demo or establish measured aircraft fidelity. See the
+[SITL procedure](docs/operations/runbook.md).
 
 Use Node.js **22.13+** or **24 LTS** (`.nvmrc` selects 24), npm 10+, and a
 current Chrome/Edge browser on macOS/Windows. Future Web Serial HITL targets
@@ -131,18 +132,23 @@ not validate a physical transmitter or Pixhawk.
 
 After building, `npm run preview -w @mirage/web` serves the production bundle
 on port 4173. Verify isolation, Worker READY, motion after arming, and stable
-ticks while paused. Dedicated lint/typecheck commands are available. Rust 1.97.0 and the wasm32 target are required for the WASM tests;
-see CLAUDE.md for toolchain commands. GitHub Actions runs independent unit, browser, and build jobs
-on pull requests and pushes to main. Unit JUnit reports, browser JUnit/HTML
+ticks while paused. Dedicated lint/typecheck commands are available. Rust 1.97.0
+and the wasm32 target are required for the WASM tests; see [CLAUDE.md](CLAUDE.md)
+for toolchain commands. GitHub Actions runs independent unit, browser, and build
+jobs on pull requests and pushes to main. Unit JUnit reports, browser JUnit/HTML
 reports and failure traces, and build logs/artifacts are uploaded even after
 failure. The automated tooling checks include unsafe-type fixtures and
 nonzero exit status when either runner discovers no tests.
 
 400 Hz is a fixed **integration timestep**, not a browser hard real-time
-guarantee. Catch-up is bounded to eight steps and dropped wall intervals are
-visible in the UI. Target 60–120 FPS and 400–1200 Hz require production
-measurements on Apple Silicon M4 and RTX 4050. Cloud headless smoke cannot
-establish those budgets.
+guarantee. Catch-up is bounded to eight steps (`DEFAULT_MAX_CATCH_UP = 8`) and
+dropped wall intervals are visible in the UI. On Windows Node, the
+`bench-physics` realtime run executed 516.7 Hz (target 800) and 519.6 Hz
+(target 1200) with drops: ~16 ms timer wakeups × 8-step catch-up cap. Compute is
+~1 µs/step; the browser Worker 800 Hz regression passed. Catch-up caps and
+drop thresholds must not be relaxed to hide drops. Target 60–120 FPS and
+400–1200 Hz require production measurements on Apple Silicon M4 and RTX 4050
+(TASK-073); cloud headless smoke cannot establish those budgets.
 
 ## System documentation
 
@@ -157,91 +163,118 @@ establish those budgets.
 | [Agent instructions](CLAUDE.md) | [Agent instructions](docs/ru/CLAUDE.md) |
 
 When changing an English specification or guide, update its Russian mirror
-in the same task and run `npm run check:docs`. See CLAUDE.md for the complete
-workflow, zero-allocation rules, deterministic math requirements, and evidence
-needed to mark a task DONE.
+in the same task and run `npm run check:docs`. See [CLAUDE.md](CLAUDE.md) for
+the complete workflow, zero-allocation rules, deterministic math requirements,
+and evidence needed to mark a task DONE.
 
+## Physics, contact, and JSBSim modules
 
-Independent motor, battery, arbitrary-frame wrench and rigid-body RK4 references
-are available in `native/bet`, with a real WASM body adapter and ideal/noisy
-sensor package. The demo Worker still uses its existing demo dynamics; the full
-BET backend is not wired. Rapier sphere/plane contacts run as an experiment
-(allocation gate blocked). JSBSim has pinned build/bridge sources and a verified
-native smoke. The 2026-10-18 Windows retry also builds the actual pinned WASM
-artifact and passes Chromium Worker smoke at 400/800/1200 Hz; native/WASM
-trajectory parity remains open. Aircraft XML is excluded from the artifact. The model
-validation CLI reports numerical results separately and exits 2 until physical
-reference data and integration gates are satisfied. See
+Independent motor, battery, arbitrary-frame wrench, and rigid-body RK4
+references are available in `native/bet`, with a real WASM body adapter,
+ISA/wind atmosphere (TASK-032), and ideal/noisy sensor suite (TASK-020–TASK-028,
+TASK-034, TASK-035). The demo Worker still uses its existing demo dynamics; the
+complete BET flight backend is not yet wired into the active flight session.
+
+The direct `f64` Rapier contact C ABI (`node scripts/build-contact.mjs`,
+`node scripts/check-contact-binding.mjs`) passes native/WASM G1 zero-allocation
+gates, synthetic compliance/contact checks, and browser Worker execution
+(TASK-029). Published collision chunks drive Rapier ground contact through
+contact ABI v2 (TASK-065): every tick, each wheel and the airframe receive the
+plane of the terrain triangle beneath them, and missing ground pauses stepping
+(flight-session wiring and live terrain admission remain open).
+
+JSBSim has a verified Emscripten 4.0.15 WASM build (`node scripts/build-jsbsim.mjs`,
+Worker smoke via `node scripts/check-jsbsim-artifact.mjs` at 400/800/1200 Hz,
+TASK-030), an instrumented native-WASM-exception contact backend
+(`node scripts/build-jsbsim.mjs --contact`, native/WASM parity and allocator
+checks via `node scripts/check-jsbsim-backend.mjs --native`,
+`node --experimental-transform-types scripts/check-jsbsim-backend.mjs`, and
+`node scripts/bench-jsbsim.mjs`, TASK-031), and verified UIUC `<table name="C_T">` /
+`<table name="C_P">` propeller loading in JSBSim v1.2.3
+(`node scripts/check-jsbsim-propellers.mjs`, 18/18 cases, TASK-086). Aircraft
+XML remains excluded from build artifacts. Opt-in `--patched` native
+Rapier/JSBSim probes pass million-step zero-allocation checks with matching
+trajectory checksums (`node scripts/check-engine-patch-parity.mjs`), while
+unpatched upstream builds still allocate. See
 [implementation contracts](docs/SPECS_SIMULATION_ENGINES.md).
 
+The model validation CLI (`node scripts/validate-models.mjs`) reports numerical
+results separately and exits 2 while measured physical fidelity (TASK-033,
+`BLOCKED_EXTERNAL`) remains open. The first measured contact fixture,
+`tests/fixtures/contact/nasa-drop.json`, holds the NASA TM X-3561 level-surface
+landing-gear drops (https://ntrs.nasa.gov/citations/19780003109), generated from
+the hashed Docling archive in `tests/fixtures/contact/nasa/` by
+`tests/fixtures/contact/generate_nasa_drop.py` and converted to SI. Against it,
+the Rapier sphere contact passes impulse, nonpenetration, and energy consistency,
+but fails the measured deceleration (`-1.6 g`) and stroke envelopes; that
+historical failure is preserved in `test-results/validation/nasa-drop-legacy.json`.
+The user's 2026-10-18 NASA deferral is explicit in reference manifest v2 and
+report schema v5; contact and UIUC propeller BEM fidelity remain blocked on
+measured validation, not passed.
 
-Latest retry: opt-in `--patched` native Rapier/JSBSim runs now pass million-step
-allocator probes with zero calls/bytes and matching original trajectory checksums.
-The original builds still allocate. `node scripts/check-engine-patch-parity.mjs`
-checks report/source/patch identities before comparison. Patches preserve storage
-rather than changing physics. See the native allocation patch section in the
-engine specification for exact scope, commands and limitations. These native
-results do not certify the production Rapier JS/WASM binding, a JSBSim WASM build,
-contact coupling or physical fidelity. The later 2026-10-18 local WASM build and
-Worker smoke resolve the local SDK/artifact blocker; measured-data, trajectory
-parity and production allocation gates remain open.
+## Autopilot, links, and EW modules
 
-The first measured fixture, `tests/fixtures/contact/nasa-drop.json`, holds the
-NASA TM X-3561 level-surface landing-gear drops
-(https://ntrs.nasa.gov/citations/19780003109). It was generated from the
-hashed Docling archive in `tests/fixtures/contact/nasa/` by
-`tests/fixtures/contact/generate_nasa_drop.py` and converted to SI. Against
-it, the Rapier sphere contact passes impulse, nonpenetration and energy
-consistency. It fails the measured deceleration (-1.6 g) and stroke envelopes,
-and that historical failure is preserved in
-`test-results/validation/nasa-drop-legacy.json`. The user's 2026-10-18 NASA
-deferral is explicit in reference manifest v2/report schema v5; contact fidelity
-is blocked without an active measured comparison, not passed.
-
-
-TASK-037/038/039/040/048/052/053/056/057/060 add a pinned MAVLink2 subset,
+TASK-037/038/039/040/048/052/053/056/057/060 provide a pinned MAVLink2 subset,
 versioned radio calibration/mode mapping, autopilot lifecycle admission, an
-origin/token-checked loopback WS/UDP bridge, gesture-driven Serial transport
-with a separate I/O decoding Worker, isolated EW/motor-fault components and a
-fail-closed terrain policy. The demo remains the active flight backend; no
-SITL/HITL, complete EW composition or live terrain integration is enabled.
+origin/token-checked loopback WS/UDP bridge, gesture-driven Web Serial transport
+with a separate I/O decoding Worker, isolated EW/motor-fault components, and a
+fail-closed terrain policy. Run `npm run start -w @mirage/bridge` with
+`MIRAGE_BRIDGE_TOKEN` supplied locally (64 hex characters); optional
+`MIRAGE_BRIDGE_ORIGIN`, `MIRAGE_MAVLINK_PORT`, and `MIRAGE_PHYSICS_PORT`
+configure origin/UDP endpoints. Never print tokens or add them to URLs/repository
+files. This is loopback `ws`; HTTPS/WSS/PNA require separate integration. Use
+`node scripts/bench-links-ew.mjs all 400` (also `800`/`1200`) for Node
+allocation evidence, not hardware timing acceptance. Scalar conveniences may box
+floating-point values: high-rate composition uses typed-array inputs and outputs
+documented in the engine specification.
 
-Run npm run start -w @mirage/bridge with MIRAGE_BRIDGE_TOKEN supplied locally
-(64 hex characters); optional MIRAGE_BRIDGE_ORIGIN, MIRAGE_MAVLINK_PORT and
-MIRAGE_PHYSICS_PORT configure origin/UDP endpoints. Never print tokens or add
-them to URLs/repository files. This is loopback ws; HTTPS/WSS/PNA needs separate
-integration. Use node scripts/bench-links-ew.mjs all 400 (also 800/1200) for
-Node allocation evidence, not hardware timing acceptance. Scalar conveniences
-may box floating-point values: high-rate composition uses typed-array inputs
-and outputs documented in the engine specification.
+TASK-043 connects `EkfMonitor` and the 30-second `LiveEkfWarmup` gate to the
+native Linux/WSL SITL driver (TASK-042). Readiness uses actual autopilot
+diagnostics and acknowledged sensor timestamps, measures simulation acceleration,
+and revokes EW admission when freshness or health fails (`scripts/check-ekf-warmup.mjs`).
+TASK-059 native EW experiments use the pinned ArduCopter installation and
+synthetic quad for six-case acquisition, raw-wire/physics audits, one-time
+calibration, and validation against fixed firmware-specific limits
+(`scripts/check-ew-capture.mjs`). These offline native gates do not enable
+browser autopilot READY or establish measured aircraft fidelity.
 
+TASK-044 records native ArduPilot HAL requirements, and TASK-045 provides the
+local ArduCopter WASM build/diagnostic (`node scripts/build-ardupilot-wasm.mjs`),
+real browser Worker/pthread boot, and persistent IndexedDB EEPROM checks. The
+firmware artifact stays external under `BLOCKED_DECISION` (GPLv3 redistribution)
+and is served only with an explicit loopback development setting; see the
+[operational runbook](docs/operations/runbook.md). The active browser flight
+backend remains the demo while TASK-046 and TASK-047 integrate and verify the
+WASM firmware transport and flight parity.
 
-## Local thermal, instructor and AAR increment
+## Thermal, instructor, AAR, and acceptance tooling
 
-The demo includes a NED attitude HUD with explicit unknown/stale autopilot status, an ACK-driven instructor console, and a bounded session recorder. Use **Start recording**, fly the demo, then **Review recording** or **Export session**. **Import AAR** opens a validated snapshot timeline without replacing the active flight. Recording is decimated Main-thread truth/pilot sampling at nominal 10 Hz; FC sensor/actuator streams remain unavailable in demo. The 30 minute ring uses 9,216,000 record bytes, with separately counted losses and eviction. Archive size is limited to 32 MiB and arbitrary metadata/keys/serial identifiers are excluded.
+The demo includes a NED attitude HUD with explicit unknown/stale autopilot
+status, an ACK-driven instructor console, and a bounded session recorder. Use
+**Start recording**, fly the demo, then **Review recording** or **Export session**.
+**Import AAR** opens a validated snapshot timeline without replacing the active
+flight. Recording is decimated Main-thread truth/pilot sampling at nominal 10 Hz;
+FC sensor/actuator streams remain unavailable in the demo. The 30-minute ring
+uses 9,216,000 record bytes, with separately counted losses and eviction. Archive
+size is limited to 32 MiB and arbitrary metadata/keys/serial identifiers are
+excluded. Measure producer allocations with `node scripts/bench-aar.mjs 400`
+(repeat at `800`/`1200`).
 
-Instructor shortcuts are P pause, R reset and F selected fault; typing focus suppresses shortcuts. Weather/fault/model requests show the actual demo backend rejection until a supporting production backend is wired. The thermal package supplies a synthetic surface-energy solver, WebGL2 LWIR material and deterministic offset calibration, tested independently from the active scene. It does not claim measured CADEX fidelity.
+Instructor shortcuts are P pause, R reset, and F selected fault; typing focus
+suppresses shortcuts. Weather/fault/model requests show the actual demo backend
+rejection until a supporting production backend is wired (TASK-074/075/078). The
+thermal package supplies a synthetic surface-energy solver, WebGL2 LWIR material,
+and deterministic offset calibration, tested independently from the active scene;
+it does not claim measured CADEX fidelity.
 
-TASK-043 warmup modules require autopilot-sourced diagnostics; live ArduPilot flight/warmup and the dependent UI acceptance gates remain blocked on TASK-042. Node allocation evidence for the recording producer is generated by `node scripts/bench-aar.mjs 400` (repeat at 800/1200); it does not certify browser scheduling or hardware performance.
-
-## Local acceptance tooling and training modules
-
-The repository now includes collision-chunk construction/ownership, deterministic scenario scheduling/rubrics, and local SITL/HITL/EW/GPU/system/release evidence tools. These independent modules do not enable a validated production flight backend. Missing firmware drivers, FCs, target GPUs, frozen EW traces and clean-machine release evidence remain explicit blockers. TASK-044 records the observed native HAL requirements; TASK-045–047 remain open.
-
-Published collision chunks now drive the Rapier ground contact through contact ABI v2 (TASK-065). Every tick, each wheel and the airframe get the plane of the terrain triangle beneath them, and missing ground pauses stepping. This is not yet wired into the flight session, and live terrain admission remains open.
-
-Keyboard users can skip to controls and receive visible focus and one permission-denial announcement. The browser suite includes an unsuppressed axe scan and 390px overflow/Serial-focus checks. Run the normal verification gates before trusting a change. New commands, external trace formats, process ownership and the accessibility checklist are documented in [the runbook](docs/operations/runbook.md). All new evidence CLIs without input exit 2 with a blocked report; no publication happens automatically.
-
-TASK-029/031 now provide numerical contact and JSBSim backend/allocation evidence; those passes do not establish measured aircraft fidelity. TASK-033 preserves the failed historical NASA comparison under explicit user deferral and still reports failed UIUC propeller fidelity. Its source-backed annular BEM sensitivity diagnostic adds local momentum, losses and swirl without changing the fixed tolerances or production backend. See the engine specification and UIUC data guide for source roles, commands and remaining polar limitations.
-
-TASK-043 now connects the existing EKF monitor and 30-second warmup gate
-to the native SITL driver. Readiness uses actual diagnostics and acknowledged
-sensor timestamps, measures simulation acceleration, and revokes EW admission
-when freshness or health fails. This native gate does not enable browser READY
-or apply EW effects. See the operational runbook for capture/replay commands.
-
-
-TASK-059 native EW experiments use the pinned ArduCopter installation and synthetic quad. See the operational runbook for six-case acquisition, independent raw-wire/physics audits, one-time calibration and separate validation against fixed firmware-specific limits. These results do not enable browser autopilot READY or establish measured aircraft fidelity.
-
-
-TASK-045 now has a local ArduPilot browser artifact diagnostic, real Worker/pthread boot and persistent EEPROM checks. The artifact stays external and is served only with an explicit loopback development setting; see the operational runbook. The active flight backend remains the demo while TASK-046/047 integrate and verify the WASM firmware.
+The repository also includes collision-chunk construction/ownership,
+deterministic scenario scheduling/rubrics (`node scripts/bench-terrain-scenarios.mjs 400`,
+`800`, `1200`), and local SITL/HITL/EW/GPU/system/release evidence CLIs.
+Keyboard users can skip to controls and receive visible focus and one
+permission-denial announcement; the browser suite includes an unsuppressed axe
+scan and 390 px overflow/Serial-focus checks (TASK-079). Commands, external trace
+formats, process ownership, and the accessibility checklist are documented in
+[the runbook](docs/operations/runbook.md). All evidence CLIs without input exit 2
+(`BLOCKED_EXTERNAL`) with a blocked report; physical FCs (TASK-051), target GPUs
+(TASK-073), multi-hour soak (TASK-082), and clean-machine release sign-off
+(TASK-083) remain open, and no publication happens automatically.

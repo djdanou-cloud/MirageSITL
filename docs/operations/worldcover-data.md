@@ -11,31 +11,32 @@ Regions outside Israel require deliberate acquisition and integration before
 they can be included in supported classification coverage. Source tiles crossing
 a national boundary do not extend the supported region into neighboring countries.
 
-Since 2026-10-17, TASK-069 decodes the three supplied tiles and validates real
-coordinates (see below). Application wiring, a runtime manifest loaded from
-local files and OSM overlays remain open. Missing data must retain its
-synthetic/unavailable label. WorldCover supplies land classes, not ground
-elevation, measured temperature or camera calibration.
+TASK-069 (DONE) decodes the three supplied Israel tiles in windows and validates
+real coordinates through `MaterialMap` (see below). Application wiring, a
+runtime `DataManifest` loaded from local files and OpenStreetMap overlays remain
+open. Missing data must retain its synthetic/unavailable label. WorldCover
+supplies land classes, not ground elevation, measured temperature or camera
+calibration.
 
-## Supplied Israel tiles: TASK-069 handoff
+## Supplied Israel tiles and windowed GeoTIFF decoder (TASK-069)
 
-On 2026-10-17 the operator supplied three files for repository storage:
+Three operator-supplied tiles are stored unchanged in
+`data/worldcover/2021-v200/israel/`:
 `ESA_WorldCover_10m_2021_v200_N27E033_Map.tif`,
 `ESA_WorldCover_10m_2021_v200_N30E033_Map.tif` and
 `ESA_WorldCover_10m_2021_v200_N33E033_Map.tif`.
-They are stored unchanged in `data/worldcover/2021-v200/israel/`, with a
-[staging inventory](../../data/worldcover/2021-v200/israel/inventory.json)
-recording exact bytes, SHA-256 hashes, product source URLs, license and
-attribution. Together they contain 90,313,215 bytes. Repository copies match
-the operator's source files; publisher checksums and raster content have not
-been independently validated. The receipt date is not an inferred acquisition
-date. This inventory is a handoff record, not the runtime `DataManifest`.
+The [staging inventory](../../data/worldcover/2021-v200/israel/inventory.json)
+records exact bytes (90,313,215 bytes total), SHA-256 hashes, product source
+URLs, license, attribution and verification flags
+(`copyHashesMatchOriginals: true`, `rasterDecodingPerformed: true`,
+`coordinateValidationPerformed: true`, `publisherChecksumVerified: false`,
+`runtimeManifestRegistered: false`). The receipt date is not an inferred
+acquisition date, and this staging inventory is not the runtime `DataManifest`.
 
 The operator explicitly authorized storing these three binary files in Git.
 The outside-checkout recommendation below continues to apply to future bulk
 downloads. Tile storage does not extend supported coverage outside Israel.
 
-**Implementation (2026-10-17, operator-authorized).**
 `packages/thermal/src/geotiff.ts` reads these tiles in windows:
 
 * It parses the first IFD once and accepts only the WorldCover profile:
@@ -66,12 +67,11 @@ the ESA attribution. `tests/worldcover-geotiff.test.ts` checks:
 * exact reassembly across internal tile edges on a generated TIFF, and
   rejection of LZW, predictors, projected CRSs, BigTIFF and stripped layouts.
 
-The inventory now records `rasterDecodingPerformed` and
-`coordinateValidationPerformed` as true. Publisher checksums are still
-unverified, and the inventory is still not a runtime manifest. Remaining
-work: loading windows inside the application, an OpenStreetMap extract for
-road and building overlays, production terrain collision and thermal
-validation.
+Publisher checksums remain unverified, and the staging inventory is not a
+runtime manifest. Remaining work: loading windows inside the application, an
+OpenStreetMap extract for road and building overlays, live terrain-collision
+session wiring (collision chunk to Rapier contact coupling is implemented in
+TASK-065) and measured thermal validation.
 
 ## Global source and rights
 
@@ -94,9 +94,9 @@ instructions grant no permissions for Google tiles or other providers.
 ## Human operator procedure
 
 These are manual operator commands, not an application startup step or an agent
-download job. No dataset is fetched by this documentation change. Keep large
-rasters outside the Git checkout. The examples use a user-owned data directory;
-choose a sufficiently sized external disk instead when needed.
+download job. Keep large rasters outside the Git checkout. The examples use a
+user-owned data directory; choose a sufficiently sized external disk instead
+when needed.
 
 ### 1. Prepare the machine and install AWS CLI v2
 

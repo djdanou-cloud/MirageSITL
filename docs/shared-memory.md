@@ -5,8 +5,7 @@ Typed source: [`packages/protocol/src/index.ts`](../packages/protocol/src/index.
 Main creates the SAB and passes it through structured clone **without a
 transfer list**. A secure context, COOP/COEP, and `crossOriginIsolated=true`
 are required. Validate byteLength, magic, version, and sizes. The ABI contains
-no JavaScript/WASM references. This guide documents implemented **v1**;
-[SPECS_SHARED_MEMORY.md](SPECS_SHARED_MEMORY.md) separately defines target v2.
+no JavaScript/WASM references. This guide is a standalone summary of legacy **ABI v1**, which remains in `packages/protocol/src/index.ts` for regression coverage and is duplicated by section 2 of [SPECS_SHARED_MEMORY.md](SPECS_SHARED_MEMORY.md). The running application uses **ABI v2** and Control Protocol v2 (TASK-085), specified in [SPECS_SHARED_MEMORY.md](SPECS_SHARED_MEMORY.md).
 
 ## Layout
 

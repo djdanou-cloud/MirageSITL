@@ -1,6 +1,6 @@
 # SPECS_SHARED_MEMORY.md
 
-<!-- source-sha256: e6e5d2aad4619dc2075f1886cee92ae8a959bf28ff13db8537692f263b6ef942 -->
+<!-- source-sha256: b886be85cab1d6d01cfd2263248d072ef61b96603a615b6f41f0ac299b98853e -->
 
 Английский источник: [Source of truth](../SPECS_SHARED_MEMORY.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -31,7 +31,7 @@ layout и транспорт v2; TASK-010 — команды.
   Ни Main, ни worker не используют бесконечный spin или ожидание другого.
 * Render ring — bounded история для интерполяции, не AAR и не sensor queue.
 
-## 2. Реализованный ABI v1
+## 2. ABI v1 (унаследованный регрессионный контракт)
 
 Источник: `packages/protocol/src/index.ts`, `ABI_VERSION=1`, `MAGIC=0x4d534954`.
 `64 + 256*128 + 64 = 32 896 bytes`.
@@ -105,7 +105,7 @@ export type PhysicsToMainV1 =
   | { type: 'error'; message: string };
 ```
 
-## 3. Целевой ABI v2
+## 3. ABI v2
 
 State stride = **192 bytes**, capacity = **256**. Main SAB:
 `64 + 256*192 + 64 = 49 280 bytes`. Другой layout не распознаётся как v2.
@@ -296,7 +296,7 @@ Ring history lifetime: 640/320/213,33 мс при 400/800/1200 Гц. Interpolati
 очистить render history. Полная публикация seq/head обязательна даже при
 нулевом числе подключённых render consumers.
 
-## 5. Sensor и actuator SPSC queues (целевые)
+## 5. Sensor и actuator SPSC queues
 
 Выделяются **отдельные SAB** для каждого направления, не в state ring.
 Physics Worker пишет sensors, I/O Worker читает sensors и пишет actuators;

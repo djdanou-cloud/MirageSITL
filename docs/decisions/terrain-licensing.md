@@ -20,5 +20,4 @@ Owned/licensed datasets may request persistence/offline/prefetch only with a
 license and attribution. This hash identifies evidence; it does not verify its
 legal meaning. The deployment owner supplies reviewed configuration. Tests use
 synthetic license evidence and confer no rights to an actual external dataset.
-TTL is an integer from 0 to 31536000 seconds. No provider fetch, API secret,
-Cloudflare deployment, live Google integration or physical cache is introduced.
+TTL is an integer from 0 to 31536000 seconds. Downstream modules (`packages/terrain/src/tiles-provider.ts` in TASK-061, `services/tiles-worker/` in TASK-063 and `services/tiles-worker/src/r2-cache.ts` in TASK-064) enforce this frozen policy in local/emulator scope; live Google API credentials, Cloudflare Worker deployment and production R2 bucket binding remain external (`BLOCKED_EXTERNAL`).

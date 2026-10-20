@@ -1,12 +1,11 @@
 # SharedArrayBuffer ABI v1
 
-<!-- source-sha256: 59284f5cef3619a8dd74a01532627a0394d057ad6c09411bac332ddda7026589 -->
+<!-- source-sha256: 264bae56abaa261ed218a8a2b4f60851bb3c7e88f8bcfb1a9682661e2bdc215d -->
 
 Английский источник: [Source of truth](../shared-memory.md). Изменения спецификации обновляют оба языка в одной задаче.
 
 
-Этот guide описывает реализованный v1; отдельная целевая версия v2 находится
-в [SPECS_SHARED_MEMORY.md](SPECS_SHARED_MEMORY.md).
+Этот документ — отдельная сводка унаследованного **ABI v1**, который сохраняется в `packages/protocol/src/index.ts` для регрессионных тестов и дублируется разделом 2 в [SPECS_SHARED_MEMORY.md](SPECS_SHARED_MEMORY.md). Работающее приложение использует **ABI v2** и Control Protocol v2 (TASK-085), заданные в [SPECS_SHARED_MEMORY.md](SPECS_SHARED_MEMORY.md).
 
 Типизированный источник: [`packages/protocol/src/index.ts`](../../packages/protocol/src/index.ts).
 Main создаёт SAB и передаёт в Worker через structured clone **без transfer

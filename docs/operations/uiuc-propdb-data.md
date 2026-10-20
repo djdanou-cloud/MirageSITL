@@ -92,6 +92,27 @@ rule from the committed file list and match the transcription. They also
 recompute the audit and check the thin-airfoil and Froude oracles through
 the native runner.
 
+## UIUC-derived JSBSim propeller tables (TASK-086)
+
+`data/jsbsim/generate_uiuc_propellers.py` generates six fixed-pitch JSBSim
+propeller definitions (`<table name="C_THRUST|C_POWER" type="internal">` versus
+`J = V/(nD)`) in `data/jsbsim/engine/` (`uiuc_apce_10x5.xml`,
+`uiuc_apce_10x7.xml`, `uiuc_apce_11x7.xml`, `uiuc_apce_12x6.xml`,
+`uiuc_apce_14x10.xml` and `uiuc_da4002_9x6p75.xml`) with per-file SHA-256 and
+source provenance in `data/jsbsim/engine/uiuc-propellers.manifest.json`. Each
+table uses the highest-RPM group whose sweep reaches zero thrust plus a `J = 0`
+row from the nearest static RPM.
+
+`JSBSIM_SOURCE_DIR=<checkout> node scripts/check-jsbsim-propellers.mjs` and
+`tests/jsbsim-propellers.test.ts` verify native `FGFDMExec::LoadModel` loading
+in pinned JSBSim v1.2.3 (`570e8115a102df8f877b11e0e59b964ea483e3c0`) across
+all 6 files (18/18 static, mid-curve advancing and interpolated points pass
+within 4.1e-16 relative against the 1% tolerance; report
+`test-results/validation/jsbsim-propellers.json`). JSBSim v1.2.3 leaves
+`FGPropeller::Ixx` unassigned when `<ixx>` is omitted, so a complete flight
+model must supply rotating inertia. The UIUC redistribution decision, Vol 4
+true versus nominal diameters, and engine/RPM coupling remain separate.
+
 ## Recommendations for the archive
 
 1. Keep the unpacked archive outside Git (or add `UIUC-propDB/` to
@@ -102,18 +123,19 @@ the native runner.
    `volume-*/data/*.txt` (about 1,994 small text files) under
    `data/uiuc-propdb/`, not the photos, plots and papers. Optionally ask the
    UIUC authors for explicit redistribution terms first.
-3. Done on 2026-10-17: an XFOIL 6.99 polar for SDA1075 (Re 2e4–2e5) now
-   runs as a second comparison. DA4002 9-in configurations largely pass. The
-   DA4022 errors point to tip loss and inflow modeling, not to airfoil data.
-   An airfoil-measured polar would still be stronger evidence.
-4. Later uses: JSBSim propeller tables (`C_THRUST`/`C_POWER` versus J) now
-   exist for six propellers in `data/jsbsim/engine/` (TASK-086; native load in
-   JSBSim v1.2.3 verified 2026-10-18); measured load-torque curves for the
-   TASK-022/025 shaft and ESC references; and replacing the arbitrary demo
-   rotor geometry with a measured propeller. Each needs its own task and
+3. Future uses beyond TASK-033 and TASK-086 — measured load-torque curves for
+   the TASK-022/025 shaft and ESC references, and replacing the synthetic demo
+   rotor geometry with a measured propeller — each require their own task and
    tolerance declaration.
 
-## Supplied AirfoilPrep and coordinate inputs (TASK-033, 2026-10-18)
+## Airfoil, PROPID and annular BEM inputs (TASK-033)
+
+An XFOIL 6.99 polar for SDA1075 (Re 2e4–2e5, alpha -7.5 to +7.5 deg,
+`tests/fixtures/polars/sda1075-xfoil.json`, generated via
+`tests/fixtures/polars/generate_sda1075_xfoil.py`) runs alongside the
+thin-airfoil baseline. DA4002 9-in configurations largely pass under XFOIL
+(9x6.75 passes 16/16 and 9x2.85 passes 10/13), while DA4022 multi-blade errors
+and 5-in low-Re points remain outside tolerance.
 
 The local `airfoilprep_v2-02-03.xls` workbook by Craig Hansen of Windward
 Engineering LLC is a preprocessing reference. The official
@@ -138,58 +160,36 @@ python -m unittest discover -s tests -p test_airfoil_inputs.py
 
 The report is `test-results/validation/airfoil-inputs.json`. The script pins
 the workbook SHA-256 and a sorted per-file aggregate for all 1,665 coordinate
-files. It rejects changed sources. The coordinate parser accepts 1,655 files
-as normalized single-element contours and records ten unsupported files with
-reasons. Unsupported does not mean scientifically invalid: multi-element,
-non-normalized and differently formatted data require separate adapters.
-Neither filenames nor headers identify SDA1075 in the accepted subset; a
-separate full-folder text search also found no SDA1075. The current DA4002/
-DA4022 comparison therefore retains the published 61-point SDA1075
-transcription in `tests/fixtures/rotors/uiuc/sda1075.dat`.
+files, accepting 1,655 files as normalized single-element contours and recording
+ten unsupported files with reasons. Neither filenames nor headers in
+`coord_seligFmt/` contain SDA1075, so the DA4002/DA4022 comparison retains the
+published 61-point SDA1075 transcription in
+`tests/fixtures/rotors/uiuc/sda1075.dat`. Seven saved `TableExtrap` output
+points from 30 to 90 degrees agree with an independent positive-branch Viterna
+calculation within 1e-12 for CL and CD; this is an arithmetic regression against
+saved workbook values, not a measured SDA1075 polar. Both supplied resources
+remain local and ignored by Git.
 
-Seven saved `TableExtrap` output points from 30 to 90 degrees agree with an
-independent positive-branch Viterna calculation within 1e-12 for CL and CD.
-Inputs are the saved example's last input point (20.1 degrees) and B6 CDmax.
-This is an arithmetic regression against saved values, not a recalculation
-of Excel or execution of its macros. The example has no established SDA1075
-measurement provenance and is not imported as an airfoil polar. The eight
-sheet names, source hashes, individual errors and unsupported filenames are
-recorded by the report. Both supplied resources remain local and ignored by
-Git; the workbook is unchanged.
+Complementary local sources — AIAA 2014-2151, Deters' dissertation
+(`Robert_Deters.md`), and the local PROPID 5.3 manual/program — are checked by
+`node scripts/check-propid.mjs --run` (`test-results/validation/propeller-source-review.json`),
+which verifies source hashes, exact agreement of the dissertation's SDA1075
+table with the 61-point transcription, and a bounded PROPID turbine smoke (not
+propeller parity). Raw copyrighted documents and PROPID remain local. The
+reviewed [airfoil-research repository](https://github.com/neel542/airfoil-research/tree/27c6eb2a37e4f157ae62bd485b3686949b103698)
+duplicates our 14 static UIUC cases; its NeuralFoil/XFOIL predictions,
+Re>=40000 reporting window and filled polar gaps are not adopted as acceptance
+policy, and a conflicting Figure 30 handoff table is rejected
+(`test-results/validation/task-033-handoff-review.json`).
 
-Verification: seven Python tests pass, including malformed/nonfinite data,
-Lednicer count rejection, contour ordering, the existing SDA1075 transcription,
-source mutation rejection and the saved Viterna branch. Regeneration followed
-by `--check` passes. TASK-033 remains blocked on physical fidelity: existing
-XFOIL/UIUC comparison failures, tip-loss/inflow modeling and missing measured
-airframe validation are not resolved by this source preparation. NASA measured
-fidelity remains deferred under the user's earlier decision; its historical
-failed comparison is preserved. This increment does not change the validation
-runner, acceptance tolerances or production aerodynamic behavior.
-
-### Subsequent source-backed continuation
-
-The later TASK-033 continuation uses all three supplied sources: AIAA 2014-2151
-for the experiment, `Robert_Deters.md` for geometry/induction/low-Re limits, and
-the local PROPID 5.3 manual/program for conventions and a bounded turbine smoke.
-`node scripts/check-propid.mjs --run` records source hashes and exact agreement
-of the dissertation's SDA1075 table with the existing 61-point transcription.
-Its turbine smoke does not establish propeller parity. Raw copyrighted source
-documents and PROPID remain local; none is copied into a fixture or committed.
-
-The additional [airfoil-research repository](https://github.com/neel542/airfoil-research/tree/27c6eb2a37e4f157ae62bd485b3686949b103698)
-was reviewed at the linked commit. Its static UIUC files match our existing
-14 cases exactly, so its measured points are duplicates. Its BEM/root-finding
-and uncertainty methods are useful references, but its NeuralFoil/XFOIL
-predictions, Re>=40000 reporting window and filled polar gaps are not adopted
-as our acceptance policy. The review runs no Python from that repository.
-
-Unlike the earlier source-only audit, the continuation adds an offline annular
-BEM sensitivity run (`node scripts/check-propeller-bem.mjs`) and updates the
-main reporter to reference v2/schema v5. NASA is explicitly deferred with its
-historical failure archived, not passed. Current JSBSim evidence replaces
-obsolete blocker prose while historical diagnostics remain visible. Details,
-equations, limits and paired results are in the engine specification's
-TASK-033 continuation section. The annular run completes numerically, but
-fixed-tolerance propeller fidelity still fails; low-Re polar accuracy and
-uncovered alpha/Re remain unresolved.
+`node scripts/check-propeller-bem.mjs` runs the offline annular BEM sensitivity
+diagnostic (`test-results/validation/propeller-bem.json`), and
+`node scripts/validate-models.mjs` writes reference manifest v2 / report schema
+v5 (`test-results/validation/model-report.json`). Annular tip/hub/swirl balances
+converge numerically on all 958 points (48 of 193 in-range points pass both
+fixed tolerances, 690 are outside the polar and 75 outside momentum validity),
+so TASK-033 remains `BLOCKED_EXTERNAL` on fixed-tolerance propeller fidelity,
+low-Re polar coverage and missing measured airframe data. NASA drop-test
+fidelity remains explicitly deferred by the user with its failing comparison
+archived in `test-results/validation/nasa-drop-legacy.json`. Details, equations
+and paired results are in the [engine specification](../SPECS_SIMULATION_ENGINES.md).

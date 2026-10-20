@@ -24,7 +24,7 @@ node scripts/release-manifest.mjs --input /path/to/release-input.json --sha256 <
 node scripts/bench-terrain-scenarios.mjs 400
 ```
 
-SITL requires MIRAGE_SITL_SOURCE at the pinned clean commit, MIRAGE_SITL_BINARY with MIRAGE_SITL_BINARY_SHA256, and an operator-owned MIRAGE_SITL_DRIVER with MIRAGE_SITL_DRIVER_SHA256. No secrets are required. The Node driver receives --binary and --parameters, owns firmware/bridge lifecycle and outputs only a JSON trace after cleanup. It must actually run the JSON backend, drive RC/commands and record original autopilot diagnostics; the demo does not supply this missing production driver. Native ELF and source checks reject absent/fake inputs; hashes establish declared identity but not reproducibility of a locally built binary. Retain build logs/toolchain evidence separately. The parent creates a private working directory, bounds stdout/stderr to 16 MiB, enforces 120 s and terminates its owned POSIX process group on failure. Windows descendant containment still requires a verified driver/job-object implementation; do not use global kill commands. Never delete shared source/build caches during cleanup.
+SITL requires MIRAGE_SITL_SOURCE at the pinned clean commit, MIRAGE_SITL_BINARY with MIRAGE_SITL_BINARY_SHA256, and MIRAGE_SITL_DRIVER with MIRAGE_SITL_DRIVER_SHA256. No secrets are required. The Node driver (`scripts/sitl/driver.mjs`) receives --binary and --parameters, owns firmware/bridge lifecycle and outputs only a JSON trace after cleanup. It runs the JSON backend, drives RC/commands and records original autopilot diagnostics; it is separate from the demo. Native ELF and source checks reject absent/fake inputs; hashes establish declared identity but not reproducibility of a locally built binary. Retain build logs/toolchain evidence separately. The parent creates a private working directory, bounds stdout/stderr to 16 MiB, enforces 120 s and terminates its owned POSIX process group on failure. Windows descendant containment still requires a verified driver/job-object implementation; do not use global kill commands. Never delete shared source/build caches during cleanup.
 
 A release input contains schemaVersion=1, artifacts [{path,sha256,license}], systemReportPath and systemReportSha256. Inventory is limited to 4096 files, 64 MiB/file and 512 MiB total from apps/web/dist, packages/wasm-bet/dist or test-results/validation. Traversal, symlink escape, duplicates, absent licenses and mismatched hashes are rejected. The output records actual file sizes/hashes, source revision/dirty state, npm lock hash, dataset registry hash and Node version. Complete dependency-license review, actual compiler versions and clean-machine/raw G0–G4 evidence are still prerequisites: inventory generation deliberately remains BLOCKED_EXTERNAL even for a supplied green summary. It cannot authorize publication.
 
@@ -40,8 +40,8 @@ environment with pymavlink 2.4.50, the clean source at the commit in
 from `node scripts/build-wasm.mjs`. Existing source/builds may be reused after
 checking their identities; preserve build logs/compiler versions. No physical
 FC, external flight log, cloud credentials or measured polar is required for
-this synthetic-aircraft integration. The supplied reference driver replaces
-the historical missing-driver prerequisite above; it is separate from the demo.
+this synthetic-aircraft integration. `scripts/sitl/driver.mjs` is the reference
+closed-loop driver; it is separate from the demo.
 
 Set the paths below in the Linux shell. Values are local paths, not secrets.
 The capture directory must be new. The firmware parameters keep ARMING_CHECK=1
@@ -131,6 +131,44 @@ profile. On a scaled laptop display, an emulated 1920 CSS-pixel viewport can
 clip inside a smaller native browser client area. A native-size confirmation
 and the recorded horizontal layout bounds distinguish test-window sizing from
 an application overflow defect. Never count a clipped capture as a visual pass.
+
+Recorded Windows 11 laptop baseline (`test-results/laptop/`, Intel Core 7 240H,
+RTX 4050 Laptop GPU, driver 561.00, Chrome 155.0.8059.84, Node 24.19.0, Rust
+1.97.0): on the 1920x1080 60 Hz output, visible DPR1 demo captures after 60 s
+warmup measured 35,995 frames over 600.0052 s (59.9911 FPS, p50/p95/p99
+16.670/17.640/19.910 ms, max 34.365 ms) on WebGL2 and 7,193 frames over
+120.002465 s (59.9404 FPS, p50/p95/p99 16.665/17.635/19.645 ms, max 34.270 ms)
+on native WebGPU; on the 1920x1200 144 Hz panel, a fixed 1920x1080 capture gave
+59.9911 FPS (p99 19.565 ms, clipped) and a `--native-viewport` 1536x826 DPR 1.25
+capture gave 59.99994 FPS (p99 19.005 ms, unclipped). All miss the 16.67 ms p99
+and 120 FPS targets. Separately, 5 s `node scripts/bench-physics.mjs` realtime
+captures on Windows Node (`test-results/laptop/physics-*-idle.json`) executed
+400.532 Hz (0 dropped, compute p99 1.2 us, wakeup lateness p99 15.76 ms) at
+target 400 Hz, 516.710 Hz (1,426 dropped, compute p99 1.1 us, lateness p99
+16.06 ms) at target 800 Hz, and 519.573 Hz (3,415 dropped, compute p99 1.3 us,
+lateness p99 15.99 ms) at target 1200 Hz (~16 ms timer wakeups x 8-step
+catch-up cap); the browser Worker 800 Hz regression passed its 720–880 Hz range.
+
+Local USB diagnostics (`test-results/hardware/`, COM20 at 115200 8N1, DTR/RTS
+disabled, battery disconnected) verified an ArduPilot device (VID `1209`, PID
+`5741`, reported firmware 4.6.3 stable `3fc7011a`, sysid/compid 1/1) across 67
+passive frames (`5e996d6bb607ac9af9754676e6ffcc37509d700ec02041c477c8f403bb914638`)
+and 252 query frames (`b026643bd47943e57a276896db85d608d852ec266f6592547fd82ece20d48329`)
+with zero CRC errors or sequence gaps, healthy IMU/barometer samples, disarmed
+heartbeats and HIL disabled, while compass, GPS, battery, RC (`PreArm: RC not
+found`) and timed EKF admission remained blocked. Raw captures contain device
+identifiers and must not be reused as generic fixtures.
+
+When diagnosing engines or models, check JSON report fields rather than exit
+codes alone: `node scripts/validate-models.mjs` (`test-results/validation/model-report.json`)
+exits 2 when numerical checks pass (`numericalStatus: "pass"`) while measured
+propeller/contact comparisons fail (`propellerFidelityStatus: "fail"`,
+`contactFidelityStatus: "fail"`). For JSBSim and contact artifacts, run
+`node scripts/build-contact.mjs`, `node scripts/check-contact-binding.mjs`,
+`node scripts/build-jsbsim.mjs --contact`,
+`node scripts/check-jsbsim-backend.mjs --native`,
+`node --experimental-transform-types scripts/check-jsbsim-backend.mjs` and
+`node scripts/bench-jsbsim.mjs`.
 
 ## Native EKF readiness capture (TASK-043)
 

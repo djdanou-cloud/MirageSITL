@@ -816,7 +816,7 @@ BAD_POINTER (-2), BAD_INPUT (-3), or ABI_MISMATCH (-7), leaving output unchanged
 
 ## Contact and JSBSim implementation gates: TASK-029–033
 
-### Direct contact ABI v1 (2026-10-18)
+### Direct contact ABI v1 (TASK-029)
 
 The production `GroundContact` adapter loads the verified artifact from
 `node scripts/build-contact.mjs` through `GroundContact.initialize(bytes, manifest)`
@@ -887,12 +887,22 @@ is capped by max(longitudinal mu,lateral mu) times tire normal load. It is passi
 but does not represent wheel spin, static tire slip, anti-skid or steering.
 Cold initialization exercises contact transitions and all supported rates.
 Actual armed allocations fault the session; stable memory alone is not evidence.
-Numerical acceptance uses analytic force/energy and static-load oracles plus
-same-source native/WASM parity (position <=0.1 m, attitude <=0.5 degrees).
-The user's 2026-10-18 scope decision defers NASA measured fidelity; its archived
-legacy comparison remains failed and is never substituted with synthetic data.
+`node scripts/check-contact-binding.mjs` builds native and WASM from the frozen
+f64 Rapier 0.36.0 source (`b716d375efc0201003f0cd9ef7168eee0b62c177`), verifies
+analytic force/energy and static-load oracles plus same-source native/WASM parity
+(position <=0.1 m, attitude <=0.5 degrees) and zero allocator calls/bytes across
+0/3/8 wheels at 400/800/1200 Hz (9 million native steps; unit tests separately
+count 9 million WASM steps), writing `test-results/validation/task-029-binding.json`.
+`node scripts/bench-contact.mjs` (accepting wheel count 0/3/8 and rate 400/800/1200)
+warms 4,000,000 steps plus 100,000 measurement-wrapper steps, then measures three
+1,000,000-step windows with repeated lift/impact cycles and a positive allocating
+control, verifying zero GC events, <0.01 B/step, and zero WASM allocator calls/bytes
+(`highRateCertified=true`), writing `test-results/bench/contact.json` (or
+`contact-<wheels>-<hz>.json`). The user's 2026-10-18 scope decision defers NASA
+measured fidelity; its archived legacy comparison remains failed and is never
+substituted with synthetic data.
 
-### Compliant-force reference increment (2026-10-18)
+### Compliant-force reference increment
 
 `native/bet/src/landing_gear.rs` implements force/energy components with no dt,
 position update, solver ownership or contact-ready claim. See the source decision
@@ -963,19 +973,10 @@ for the polytropic energy derivative, 1e-12 relative for the small-compression
 energy asymptote, and 1e-10 W for passive-power bounds. Native allocation counters
 with a positive control cover 1e6 warmed evaluations in the existing numerical
 graph. Scalar and SIMD-enabled test artifacts exercise the same scalar laws with
-the trapping allocator and unchanged memory. This does not certify a production
-Rapier binding, a NASA trajectory, terrain coupling or physical tire slip.
+the trapping allocator and unchanged memory. This standalone helper does not
+certify a NASA trajectory, live terrain session admission or physical tire slip.
 
-Rapier 0.21.0 is selected for a sphere/flat-ground contact reference. It owns
-integration, uses NED +Down gravity and reports net contact impulse from change
-in momentum minus external force/gravity impulse. `pointBody` is the sphere's
-nominal bottom point in body axes, not a general multi-point landing-gear
-manifold. Restitution/friction/drop tests exercise the real WASM engine. A rolling
-sphere can retain translational speed with Coulomb friction; do not invent a
-stopping force. Provider getters allocate new vector/quaternion wrappers each
-step: `highRateCertified=false`. TASK-029 remains BLOCKED_DECISION until a
-nonallocating binding or alternative solver meets G1. No production Worker path
-may select this prototype as a certified 400–1200 Hz backend.
+### JSBSim WASM build and bridge ABI v1 (TASK-030)
 
 JSBSim v1.2.3 is pinned to commit
 `570e8115a102df8f877b11e0e59b964ea483e3c0`; Emscripten 4.0.15 to emsdk commit
@@ -985,11 +986,8 @@ Aircraft XML is not bundled: c172x includes separate redistribution language and
 is not pilot validated. Review model-specific licenses/data before packaging.
 Native smoke uses the same bridge/source, outputs 22 finite SI doubles after
 one simulated second, and is **not** a trim, native/WASM parity or allocation test.
-The historical cloud SDK installation failed with proxy CONNECT 403. On
-2026-10-18, the Windows retry verified the existing pinned SDK, built the actual
-WASM artifact and passed Chromium module-Worker execution at 400/800/1200 Hz.
-TASK-030's artifact gate is resolved; TASK-031 parity/contact/allocation gates
-remain open. This local result does not establish cloud SDK availability.
+The pinned Emscripten 4.0.15 SDK builds the WASM artifact and passes Chromium
+module-Worker execution at 400/800/1200 Hz via `node scripts/check-jsbsim-artifact.mjs`.
 
 The build invokes Emscripten Python entry points directly on Windows and Unix;
 `MIRAGE_PYTHON` and `MIRAGE_CMAKE` select executables, and `EM_CONFIG` is set to
@@ -1025,19 +1023,10 @@ Origin ECEF and its NED rotation are frozen at initialization; transport body
 vectors through ECEF into that origin frame. Quaternion extraction accounts for
 JSBSim's passive matrix convention. Coordinate acceleration includes the body
 velocity transport term; specific force is the applied-force acceleration.
-JSBSim owns integration; contact impulse coupling, pinned trim/step fixtures,
-WASM allocator instrumentation remain unverified. The Worker smoke above checks
-execution and memory identity, not zero allocations or trajectory parity.
-
-`node scripts/validate-models.mjs` builds actual scalar/SIMD artifacts, runs two
-10-second rigid-body cases at 400/800/1200 against 4800 Hz, verifies the analytic
-ballistic trajectory, and writes SHA-256/provenance plus error metrics to
-`test-results/validation/model-report.json`. Position tolerance is 0.1 m;
-attitude tolerance is 0.5 degrees using absolute quaternion dot product.
-Numerical PASS is separate from fidelity: absent measured datasets, full BET
-binding, contact G1 and JSBSim parity keep overall status BLOCKED (exit 2).
-No synthetic dataset is relabeled as measured. The report schema lives in
-`docs/validation/model-report.schema.json`.
+JSBSim owns integration. The standalone Worker smoke above (`check-jsbsim-artifact.mjs`)
+checks execution and memory identity; contact impulse coupling, pinned trim/step
+parity and WASM allocator/GC gates are verified by the TASK-031 `--contact` build
+(`check-jsbsim-backend.mjs` and `bench-jsbsim.mjs`) below.
 
 ## Implemented sensor references: TASK-034–035
 
@@ -1094,42 +1083,7 @@ each iteration. Unit tests also run 1e6 body steps on both scalar and SIMD128
 artifacts with the trapping allocator; these are numerical/allocation gates,
 not measured airframe fidelity or target-device timing.
 
-
-## Retry evidence and corrective contracts: TASK-029–031, TASK-033
-
-The earlier getter-only allocation diagnosis was incomplete. Rapier 0.21.0
-supports reusable targets for translation, rotation, velocity and angular velocity.
-`GroundContact` now supplies them, keeps native force/torque/gravity vectors alive
-until disposal, and calls the raw physics pipeline. The raw path is restricted to
-fixed rigid-body topology: no hooks, events, soft-body tearing or automatic mapping
-of newly spawned bodies/colliders. It retains exactly one integration owner.
-`VectorOps.intoRaw` is not called during stepping; disposal is idempotent and
-subsequent steps fail. This removes explicit wrapper construction without claiming
-that the engine meets G1.
-
-`node scripts/bench-contact.mjs` measures three million warmed JS steps plus an
-allocating control. Every 800 ticks, 100 ticks apply -19.6133 N lift to a 1 kg
-sphere and 700 release it, exercising takeoff/landing against the plane. Near-plane
-negative normal impulse counts contact transitions. Heap profiling identified
-Rapier's imported `performance.now` timing calls and numerical boxing in getters.
-Disabling its runtime profiler flag does not eliminate all timing calls. The
-actual three windows still produce GC: **G1 fails**. Never replace global clocks
-or suppress GC observation to hide this failure.
-
-The matching official source is commit
-`b716d375efc0201003f0cd9ef7168eee0b62c177` (native Rapier 0.36.0, JS 0.21.0).
-`node scripts/check-contact-native.mjs` verifies its commit/license, copies the
-checked-in probe and dependency lock into an external build cache, then runs
-1e6 f64 steps with dim3/std/enhanced-determinism and **without** the profiler
-feature. The counting allocator and positive control still detect 1,688,500
-allocations / 77,328,000 bytes. Report: `test-results/bench/contact-native.json`.
-This is native f64 evidence, not measurement of the packaged f32 WASM allocator.
-Removing the JS timing feature alone therefore cannot certify the f64 replacement.
-TASK-029 requires an allocation-free engine build/binding before admission.
-
-### JSBSim opaque handles and cold trim
-
-#### TASK-031 extension, 2026-10-18
+## JSBSim opaque handles, cold trim and contact coupling: TASK-031
 
 Legacy ABI v1 remains four normalized controls and 22 SI outputs, with unchanged
 offsets. The additive contact API has its own `jsb_contact_abi_version()`:
@@ -1237,29 +1191,35 @@ The allocator test uses 250 independently initialized/trimmed flight windows,
 Reset/trim/destruction are outside measurement, keeping each flight in the short
 reference envelope instead of treating uncontrolled long-flight divergence as
 an allocator test. GNU wrappers count malloc/calloc/realloc/aligned allocation
-and C++ new/new[]; the positive control must be detected. Measured result:
-21,142,500 allocations / 1,454,820,000 bytes; **native G1 fails**, CLI exits 2.
-`test-results/validation/jsbsim-native.json` records model/source/bridge/checker
-hashes, windows and separate WASM status. No aircraft XML is redistributed.
-The SDK download remains HTTP 403 at storage.googleapis.com; WASM compilation,
-Worker smoke, trim parity and contact coupling remain unverified. Native success
-on trim alone does not establish artifact execution or clear TASK-031.
+and C++ new/new[]; the positive control must be detected. In the unpatched
+upstream native run, measured result is 21,142,500 allocations / 1,454,820,000
+bytes (CLI exits 2); `test-results/validation/jsbsim-native.json` records
+model/source/bridge/checker hashes and windows. No aircraft XML is redistributed.
 
-### Model report schema v2
+### Model validation report (schema v5)
 
-`validate-models.mjs` now rejects empty/misordered rates, malformed cases,
-duplicate IDs, missing analytic ballistic reference and unsupported measured-data
-entries **before** compilation. The supported manifest is explicitly synthetic;
-a measured dataset requires a reviewed units/envelope/provenance adapter.
-The report is version 2 because it adds `diagnostics.contact` and
-`diagnostics.jsbsimNative`, each containing path, report SHA-256 (or null), and
-status missing/invalid/stale/pass/failed. Reports whose adapter/bridge/checker
-hash differs from current source are stale. Diagnostics describe evidence; they
-cannot authorize a full backend or substitute native evidence for WASM parity.
-Overall/fidelity remain BLOCKED with exit 2 even when all 12 numerical cases pass.
-The missing measured airframe/rotor data and unconnected full BET backend remain
-explicit. Historical batch results above are preserved as dated records; this
-retry section supersedes their contact allocation diagnosis.
+`node scripts/validate-models.mjs` validates `tests/fixtures/validation/reference-manifest.json`
+(schemaVersion 2) **before** compilation, rejecting empty/misordered rates,
+malformed cases, duplicate IDs, missing analytic ballistic reference, and
+invalid `measurements` or `deferredMeasurements` descriptors. It builds actual
+scalar/SIMD artifacts, runs two 10-second rigid-body cases at 400/800/1200
+against 4800 Hz, verifies the analytic ballistic trajectory, evaluates active
+and deferred measured-data references, and writes SHA-256/provenance plus error
+metrics to `test-results/validation/model-report.json` (schema v5,
+`docs/validation/model-report.schema.json`). Position tolerance is 0.1 m;
+attitude tolerance is 0.5 degrees using absolute quaternion dot product.
+
+The report exposes `diagnostics.jsbsimBackend`, `diagnostics.jsbsimJsAllocation`,
+`diagnostics.annularBem`, `diagnostics.contact`, `diagnostics.jsbsimNative`,
+`diagnostics.contactNativePatched` and `diagnostics.jsbsimNativePatched`, each
+containing path, report SHA-256 (or null), and status missing/invalid/stale/pass/failed
+verified against current source and build-input hashes. Diagnostics describe
+evidence and cannot authorize a full backend. Numerical PASS (12 cases) is
+separate from fidelity: failing UIUC propeller fidelity (`propellerFidelityStatus: "failed"`),
+user-deferred NASA contact fidelity (`contactFidelityStatus: "blocked"`), absent
+measured airframe/rotor datasets (`fidelityStatus: "blocked"`) and the unconnected
+full BET backend keep overall `status: "failed"` with exit 2. No synthetic
+dataset is relabeled as measured.
 
 
 ## Native allocation patches: verified scope (2026-10-16)
@@ -1281,8 +1241,9 @@ The matching current original run reports 2,002,500 allocator calls / 96,320,000
 bytes; the patched run reports **zero calls / zero bytes**. Both have the same
 trajectory checksum `317ba7c959cd2b59`. Native f64/std/enhanced-determinism is
 built without the profiler feature. This does not measure the npm f32 WASM
-binding or establish a general landing-gear manifold. The JS adapter still
-fails its observed-GC gate and retains `highRateCertified=false`.
+binding or establish a general landing-gear manifold. These standalone native
+probes remain separate from the production `build-contact.mjs` and
+`build-jsbsim.mjs --contact` WASM artifacts verified in TASK-029 and TASK-031.
 
 JSBSim's patch shifts values within the existing five deque history slots,
 walks existing atmosphere override children without parsing property paths,
@@ -1318,29 +1279,18 @@ a deterministic regression check, not a cryptographic proof or a measurement
 of physical accuracy. SHA-256 authenticates report/source identities separately.
 Reports `test-results/bench/contact-native-patched.json` and
 `test-results/validation/jsbsim-native-patched.json` retain distinct provenance.
-Model report v2 additionally exposes `diagnostics.contactNativePatched` and
-`diagnostics.jsbsimNativePatched` with the same missing/invalid/stale/pass/failed
-statuses; these do not replace the production contact or WASM gates.
-
-The SDK install still fails with proxy CONNECT 403 at storage.googleapis.com.
-Review/save the existing network and startup draft in environment settings,
-then publish/apply it before retrying the pinned Emscripten install. Saving the
-draft has not applied access to this runtime. An actual JSBSim WASM build,
-Worker smoke, native/WASM parity, contact coupling and model-data review remain
-required. TASK-029 remains BLOCKED_DECISION for a certified binding/general
-contact model; TASK-031/033 remain BLOCKED_EXTERNAL. TASK-030's later artifact
-evidence is separate from these model gates. Missing measured rotor/
-airframe validation and the unconnected full BET backend still block fidelity.
 
 
 ## Radio, autopilot transport and isolated fault components (TASK-037–060)
 
 This batch implements TASK-037/038/039/040/048/052/053/056/057/060. Modules are
-independent protocol/transport/training references. The live flight Worker still
-uses demo dynamics. No ArduPilot firmware, HITL health, complete EW composition,
-validated terrain, or physical transmitter/flight-controller acceptance is implied.
-TASK-036 geodesy, TASK-041 JSON lockstep and TASK-049 HIL streaming remain future
-integration boundaries; later work must use actual upstream/device evidence.
+independent protocol/transport/training references. The default browser flight Worker
+still uses `DemoDynamics`; browser autopilot READY, physical HITL, live terrain
+session admission and physical transmitter/flight-controller acceptance remain
+separate. Geodesy (TASK-036), JSON lockstep (TASK-041), HIL streaming (TASK-049),
+HITL capability gating (TASK-050), EW composition (TASK-054/055/058), native
+SITL/EW (TASK-042/043/059) and browser WASM firmware bootstrap (TASK-045) are
+specified in the sections below.
 
 ### Pinned MAVLink2 subset
 
@@ -1616,8 +1566,8 @@ forwards them as bridge channel 3. Outbound channel-2 lines must be printable
 ASCII, newline framed, at most 1024 bytes, contain the mandatory fields and an
 attitude with finite values, and have no key whose text first occurs inside
 another key; an invalid line closes the session. MAVLink remains a separate
-channel. A real ArduPilot SITL process is not run here: the pinned native
-harness is TASK-042.
+channel. This module is the protocol and bridge layer; the pinned native
+closed-loop ArduCopter harness is specified under TASK-042 below.
 
 ## Implemented HIL streaming: TASK-049
 
@@ -1753,7 +1703,15 @@ The CPU integrates Planck radiance over the band with composite Simpson (512 int
 
 `EkfMonitor` consumes CRC-validated MAVLink2 HEARTBEAT (ID 0, CRC_EXTRA 50, length 9) and ArduPilot EKF_STATUS_REPORT (ID 193, CRC_EXTRA 71, length 26 including optional airspeed variance). Both are independently generated from ardupilotmega XML at the existing pinned MAVLink commit using pymavlink 2.4.50; the new fixture records recursive XML and generated-module hashes. HEARTBEAT custom_mode is u32 at 0, autopilot at byte 5 must be 3, mavlink_version byte 8 must be 3. EKF ratios are five f32 at 0/4/8/12/16; flags are u16 at 20; the airspeed extension begins at 22. The conservative training gate requires finite nonnegative ratios below 1 and rejects EKF_UNINITIALIZED (1024). Raw flags 1/2/4/16/32 map to ABI-v2 flags 1/2/4/8/16. Relative horizontal position never substitutes for absolute position. Only the configured system/component identity is admitted.
 
-Timestamps use simulation milliseconds for SITL and monotonic wall milliseconds for HITL. Heartbeat and EKF age must each be at most 1000 ms and never in the future. `EkfWarmup` additionally requires 30 simulated seconds, matching epoch, no clock reversal, IMU age <=0.01 s and GNSS age <=0.3 s with no future sample. It reports measured simulated/wall elapsed ratio; configuring speed does not itself accelerate firmware. HITL rejects speed !=1 and observed simulation elapsed exceeding wall elapsed by 1% plus 0.1 s. EW admission remains false until the gate passes and falls false when health fails. The original 2026-10-16 evidence covered independent modules only. The later TASK-043 native continuation below verifies live admission and revocation; browser integration and physical HITL remain separate.
+Timestamps use simulation milliseconds for SITL and monotonic wall milliseconds for HITL. Heartbeat and EKF age must each be at most 1000 ms and never in the future. `EkfWarmup` additionally requires 30 simulated seconds, matching epoch, no clock reversal, IMU age <=0.01 s and GNSS age <=0.3 s with no future sample. It reports measured simulated/wall elapsed ratio; configuring speed does not itself accelerate firmware. HITL rejects speed !=1 and observed simulation elapsed exceeding wall elapsed by 1% plus 0.1 s. EW admission remains false until the gate passes and falls false when health fails.
+
+`LiveEkfWarmup` composes the CRC-validating `MavParser`, identity-bound `EkfMonitor` and `EkfWarmup` in the Linux driver. It defaults to MAVLink sensor clocks and additionally supports explicit external-SITL json-lockstep IMU acknowledgments. Sensor messages GPS_RAW_INT (24, CRC 24, length 52), RAW_IMU (27, CRC 144, length 29) and HIGHRES_IMU (105, CRC 93, length 63) have independent pymavlink 2.4.50 wire goldens registered with source/generator hashes. Boot microseconds use safe numeric u64 conversion; GPS requires a 3D fix. Only system/component 1/1 and the primary IMU are admitted. Classes use explicit constructor fields so the cold Linux Node 24 tool can load the same modules.
+
+The native sensor feed is the 800 Hz JSON reply, not a MAVLink report arrival. `acknowledgeJsonImu(servoFrame, repliedFrame, sampleTimeS)` requires N/N-1, contiguous frame counts, increasing actual encoded sample time and a step no larger than 0.01 s. The driver supplies the previous reply timestamp only after the next valid servo packet confirms consumption. Bad acknowledgments invalidate the sensor. HITL cannot select this source. Firmware IMU report clocks remain separate diagnostics: their packet cadence/serialization epoch must not be silently fitted or substituted for the actual sample clock. GPS uses the pinned `AP_GPS` `last_fix_time_ms` carried by CRC-checked GPS_RAW_INT. Freshness limits remain unchanged: IMU <=0.01 s, GNSS <=0.3 s, heartbeat/EKF <=1 s, no future times, 30 simulated seconds, matching epoch and healthy finite innovations below 1.
+
+The sidecar records original wire bytes with each decoded observation and requests 3 ms HIGHRES_IMU and 50 ms GPS_RAW_INT reports. At the pinned 400 Hz scheduler, a 2500 us request truncates to 2 ms and is denied by `cap_message_interval`; 3 ms is accepted. This is a stream configuration fix, not relaxed admission. The driver evaluates readiness on physics ticks and writes `warmup.ndjson` at 100 Hz plus every transition, including source clocks, exact wall elapsed, normalized health, READY/EW flags, reason and measured acceleration. Unknown diagnostic age serializes as null before the first report and cannot pass.
+
+`scripts/check-ekf-warmup.mjs` replays all original physics acknowledgments and raw-CRC-audited telemetry through the same modules and checks every recorded decision. The stream event at physics time t follows that completed tick; replay feeds only events with `receivedSimS<t` before evaluating the next tick. It records actual admission/revocations separately from explicitly synthetic failed-innovation, stale-diagnostic, bad-acknowledgment, GNSS-loss, clock-reversal, disposal and HITL fast-forward probes. The report is `test-results/validation/task-043-warmup.json`. The observed run admits at 41.27625 simulated seconds and 20.733261598 wall seconds (1.990822804x); two genuine GNSS freshness excursions beyond 0.3 s revoke READY/EW and recover on fresh data, and the full flight passes the unchanged TASK-042 envelope. Browser READY, physical HITL and TASK-033 aerodynamic fidelity remain separate.
 
 ### AAR record format and ownership (TASK-076)
 
@@ -1955,29 +1913,27 @@ The fixture and archive document the gear (orifice and piston areas, volumes,
 charging pressure). The tire equation and orifice discharge relations, however,
 are `formula-not-decoded` in the Docling text, so they are not invented here.
 
-`node scripts/validate-models.mjs` writes model report schema v3:
+Per the 2026-10-18 user scope decision, NASA measured drop fidelity is explicitly
+deferred (`deferredMeasurements` in `tests/fixtures/validation/reference-manifest.json`
+schemaVersion 2) and the historical failing comparison is retained in
+`test-results/validation/nasa-drop-legacy.json` (`kind: "archived-failure"`).
+`node scripts/validate-models.mjs` (report schema v5) hash-checks the deferred
+descriptor, archive and registered fixture `tests/fixtures/contact/nasa-drop.json`,
+records `deferredMeasurements[]` with ID, reason, archive path/hash and historical
+`failed` status, and sets `contactFidelityStatus: "blocked"` (never `pass`
+without an active passing contact measurement), `numericalStatus: "pass"` (12
+cases), `propellerFidelityStatus: "failed"`, `fidelityStatus: "blocked"`, and
+overall `status: "failed"` (exit 2).
 
-* it hash-checks the fixture against `tests/fixtures/validation/reference-manifest.json`
-  and the registry;
-* it reports `measuredValidation[]` with provenance, nine runs and per-check
-  status;
-* it sets `contactFidelityStatus: "failed"` and overall `status: "failed"`, and
-  exits 2;
-* `numericalStatus` stays `pass` (12 cases);
-* `fidelityStatus` stays `blocked`, because no airframe or rotor dataset exists.
+## Acceptance tools, collision chunks and scenarios
 
-The unpatched Rapier JS binding G1 failure and the missing rotor/airframe
-datasets remain listed as separate blockers.
-
-## Acceptance tools, collision chunks and scenarios (2026-10-17)
-
-This increment implements independent software portions of TASK-042/044/051/059/065/073/079/080/082/083. It does not enable production SITL/HITL, WASM firmware, measured aerodynamics, real terrain contact or full thermal rendering. Dependencies with external blockers remain open.
+This section specifies the acceptance tooling, collision lattice, scenario runner and accessibility contracts for TASK-042/044/051/059/065/073/079/080/082/083. Native closed-loop SITL (TASK-042/043/059), ArduPilot WASM browser bootstrap (TASK-045) and Rapier terrain-plane coupling (TASK-065) are implemented; browser autopilot READY, physical HITL, measured aerodynamics, live terrain session wiring and full thermal rendering remain separate.
 
 ### Evidence formats and verdicts
 
 Shared evidence helpers bound input to 32 MiB, verify exact input SHA-256, reject malformed/nonfinite fields and write version 1 reports under test-results/validation. PASS exits 0, FAIL exits 1 and BLOCKED_EXTERNAL exits 2. Missing input never becomes a green test. Hardware/source strings in an imported JSON are declarations requiring operator review, not cryptographic proof of physical execution. Structural tests are explicitly synthetic and cannot admit hardware or firmware modes. CLI reports retain sourceRevision, validatorSha256 and, when supplied, inputSha256; keep original captures for audit.
 
-SITL locks firmware commit 8ab6afde107a91df1b5f60ade8f333cb8a61b190, EKF3 and arming checks. An external trusted driver receives a verified native ELF and parameters; no production driver is supplied. The analyzer requires contiguous servoFrame from zero, four 1000–2000 us PWM channels, increasing timestamps with <=0.1 s gaps, real source/model/firmware provenance and healthy EKF. Stages must progress arm→takeoff→hold→land, in GUIDED=4 until LAND=9. Takeoff altitude is >=3 m, hold is 10 m ±1 m for >=10 s, and the final sample must be disarmed below 0.5 m. A private process run is bounded to 120 s/16 MiB; only its owned child/group is terminated. Pinned sources/hashes do not alone prove binary reproducibility. Native firmware and the missing closed-loop driver remain external requirements.
+SITL locks firmware commit 8ab6afde107a91df1b5f60ade8f333cb8a61b190, EKF3 and arming checks. The owned Linux driver `scripts/sitl/driver.mjs` (with pinned pymavlink 2.4.50 sidecar `scripts/sitl/telemetry.py`) drives the verified native ArduCopter ELF against `BetRigidBodyBackend`. The analyzer requires contiguous servoFrame from zero, four 1000–2000 us PWM channels, increasing timestamps with <=0.1 s gaps, real source/model/firmware provenance and healthy EKF. Stages must progress arm→takeoff→hold→land, in GUIDED=4 until LAND=9. Takeoff altitude is >=3 m, hold is 10 m ±1 m for >=10 s, and the final sample must be disarmed below 0.5 m. A private process run is bounded to 120 s/16 MiB; only its owned child/group is terminated. Pinned sources/hashes do not alone prove binary reproducibility. Full-rate capture verification (`scripts/check-sitl-capture.mjs --input CAPTURE_DIRECTORY`) and trace v2 details are specified in the TASK-042 native closed-loop section below.
 
 HITL analysis requires 60–3600 s at 200/400 Hz with exactly duration*hz samples. Each sequence has scheduledUs=i*1e6/hz, sentUs>=scheduledUs and strictly increasing actuatorUs between sentUs and sentUs+100000. No overflow/loss is accepted; p99 lateness is <=5/2.5 ms, with observed unplug shutdown. See the physical procedure; no Serial access or arming is triggered by the CLI.
 
@@ -1988,6 +1944,8 @@ The plan is fixed before calibration: seed 59, 800 Hz physics, 100 Hz response c
 Schema 2 manifests name six ordered capture directories. scripts/sitl/check-ew.py independently re-decodes both raw directions with pymavlink 2.4.50 and CRC validation, checks every transmitted GPS_INPUT against its source observation and quantization, checks firmware GPS readbacks and the complete pre-fault parameter snapshot. scripts/sitl/audit-ew.mjs reruns that decoder, replays every actual PWM through the original rigid-body WASM and canonical fault schedule, compares truth and quaternion, reconstructs every baseline/distorted observation, verifies compass fault/recovery acknowledgments, and joins response rows to original heartbeat/EKF/global-position messages with <=1 s freshness. Truth hashes compare before/after observation processing in the same tick. Separate closed-loop flights may have different trajectories; motor failure intentionally changes physical truth. The former schema-1 self-declared changed-observation flags do not establish native acceptance.
 
 scripts/freeze-ew.mjs accepts audited calibration captures once, requires a healthy control within 1 m, and refuses to overwrite existing envelopes. The predeclared empirical rule is ceil-to-0.01 of 1.5 times each calibration maximum plus 2 m position/trajectory margin or 0.5 innovation margin. Observed calibration modes become the allowed set; unexpected modes require investigation. Firmware, effective parameter inputs, model, plan and source hashes must match. A new validation batch must pass those fixed bounds and the independent healthy control gate; calibration capture hashes cannot validate themselves. These are version-specific synthetic native regression limits, not measured aircraft fidelity, browser READY, physical HITL, guaranteed fallback modes or EKF gate bypass.
+
+Native TASK-059 acceptance: all six calibration cases and six separate validation cases pass, with 710636 reconstructed physics frames. The immutable matrix and original native reports/archives preserve fault-induced unhealthy flags and modes. Jamming and drift reached Land; the position step raised GPS-glitch flags; magnetic bias increased compass innovation ratios while remaining Guided; complete rotor loss tumbled into the synthetic floor during its 3 s window. In pinned Copter ekf_check.cpp, compass, velocity and position variance criteria combine before failsafe action, so compass innovation alone is not a promise of Land. The healthy TASK-042 flight also passed again. See test-results/validation/task-059-native.json, task-059-tests.json and task-059-completion.json for exact identities and the documented environment reruns.
 
 GPU analysis requires M4 or RTX4050 identity, OS/browser/power/backend, visible production 1920x1080 DPR1, all terrain/FPV/thermal features, >=60 s warmup and >=600 s measurement. All positive finite frame intervals must cover duration within 0.02 s. 60/120 FPS p99 limits remain 16.67/8.33 ms, GPU residency<=2 GiB and CPU cache<=512 MiB. Software/headless rendering cannot pass. The current demo does not provide a full-feature production measurement producer or target devices; imported traces require original profiler evidence review.
 
@@ -2003,7 +1961,7 @@ Collision construction belongs to a separate Worker. Stage owns a copy, validate
 
 Scenario admission snapshots and freezes configuration: id, physics hz 400/800/1200, uint32 seed, model/firmware SHA-256, duration 1..4320000 ticks, <=128 ordered events and an altitude-hold rubric. Only validated weather.set/fault.set protocol-v2 templates are admitted, with expectedEpoch=0, consecutive requestIds from 1 and atTick exactly matching event tick. The owner must bind the active epoch, submit commands through the existing queue and check ACKs before claiming faults applied. The runner returns immutable event indices, never allocates in polling, and uses simulation ticks; pauses consume no simulated time. Backwards/missed ticks return -2 instead of late execution. Reset explicitly rewinds the cursor. Provenance/seed/hz mismatches reject startup.
 
-The rubric requires every integer hold tick exactly once, finite altitude, actual autopilot source and healthy EKF when configured. Gaps, excess altitude error and unhealthy EKF fail; incomplete/synthetic traces block. Pilot-basics contains all-zero placeholder hashes for structural testing only; it is not a certified aircraft/firmware lesson. A production scenario owner/live EW integration remains blocked on TASK-042/043/059/075.
+The rubric requires every integer hold tick exactly once, finite altitude, actual autopilot source and healthy EKF when configured. Gaps, excess altitude error and unhealthy EKF fail; incomplete/synthetic traces block. Pilot-basics contains all-zero placeholder hashes for structural testing only; it is not a certified aircraft/firmware lesson. Native SITL EW closed-loop validation (TASK-042/043/059) is complete; production browser scenario orchestration (TASK-075) remains open.
 
 ### Accessible interaction
 
@@ -2205,7 +2163,7 @@ A flight model using these files must therefore add the rotating inertia
 before RPM is integrated. The probe never reads Ixx, and it does not exercise
 RPM dynamics or engine coupling.
 
-## TASK-042 native closed-loop continuation (2026-10-19)
+## Native closed-loop SITL harness (TASK-042)
 
 The owned Linux driver is `scripts/sitl/driver.mjs`, with a pinned pymavlink
 2.4.50 sidecar (`telemetry.py`). It runs the clean locked ArduPilot source's
@@ -2256,11 +2214,10 @@ The final validation report must bind the actual capture bytes and retain
 failed trials separately. A native integration PASS does not enable browser
 autopilot READY, certify measured aerodynamics, HITL or target-device timing.
 
-## TASK-033 source-backed propeller continuation (2026-10-18)
+## Source-backed propeller annular BEM diagnostic (TASK-033)
 
 This adds an offline diagnostic, not a production dynamics ABI. The original
-uniform-inflow path and fixed CT/CP tolerances remain. Reference manifest v2
-and report schema v5 supersede the earlier historical reporting limitations.
+uniform-inflow path and fixed CT/CP tolerances remain.
 
 ### Sources and limits
 
@@ -2344,22 +2301,7 @@ on 958 points. Full losses/swirl compare 193 points: 48 pass both tolerances,
 reproduces 165 compared/26 passed. On 159 common points, the candidate passes
 39 versus 26, with 35 gains and 22 losses. Different coverage and mixed changes
 preclude a general improvement/fidelity PASS claim. Results, source/executable
-hashes, paired points and query ranges: `test-results/validation/propeller-bem.json`.
-
-### Current report and NASA deferral
-
-Reference v2 separates `measurements` from `deferredMeasurements`. Only the
-explicitly deferred NASA descriptor is supported. Duplicate active/deferred IDs,
-unsupported deferrals, absent archives and changed hashes are rejected.
-`test-results/validation/nasa-drop-legacy.json` retains the actual failed
-historical comparison. Report v5 records ID, reason, archive path/hash and
-historical failed status. No active contact measurement means contact fidelity
-blocked, never pass. Current JSBSim backend/JS allocation evidence verifies
-source and build-input hashes. Annular evidence verifies its source list and
-reports its still-failed measured status; old probe fields remain historical.
-Numerical parity can pass while propeller fidelity fails and airframe fidelity
-is blocked. Main CLI exit 2 retains that distinction; annular diagnostic exit 0
-only means its sensitivity execution completed.
+hashes, paired points and query ranges: `test-results/validation/propeller-bem.json`. Annular diagnostic exit 0 only means its sensitivity execution completed; `validate-models.mjs` exit 2 retains the distinction between numerical parity, failed propeller fidelity and blocked airframe fidelity.
 
 ## Terrain contact coupling: contact ABI v2 (TASK-065)
 
@@ -2411,63 +2353,10 @@ Limits:
   active).
 * Live tile decoding and terrain admission remain separate work.
 
-## TASK-043 native readiness continuation (2026-10-19)
-
-LiveEkfWarmup composes the existing CRC-validating MavParser, identity-bound
-EkfMonitor and EkfWarmup in the Linux driver. It defaults to MAVLink sensor
-clocks and additionally supports explicit external-SITL json-lockstep IMU
-acknowledgments. Sensor messages GPS_RAW_INT (24, CRC 24, length 52), RAW_IMU
-(27, CRC 144, length 29), HIGHRES_IMU (105, CRC 93, length 63) have independent
-pymavlink 2.4.50 wire goldens, registered with source/generator hashes. Boot
-microseconds use safe numeric u64 conversion; GPS requires a 3D fix. Only
-system/component 1/1 and the primary IMU are admitted. Classes use explicit
-constructor fields so the cold Linux Node 24 tool can load the same modules.
-
-The native sensor feed is the 800 Hz JSON reply, not a MAVLink report arrival.
-acknowledgeJsonImu(servoFrame, repliedFrame, sampleTimeS) requires N/N-1,
-contiguous frame counts, increasing actual encoded sample time and a step no
-larger than 0.01 s. The driver supplies the previous reply timestamp only after
-the next valid servo packet confirms consumption. Bad acknowledgments invalidate
-the sensor. HITL cannot select this source. Firmware IMU report clocks remain
-separate diagnostics: their packet cadence/serialization epoch must not be
-silently fitted or substituted for the actual sample clock. GPS uses the
-pinned AP_GPS last_fix_time_ms carried by CRC-checked GPS_RAW_INT. No freshness
-limit changes: IMU <=0.01 s, GNSS <=0.3 s, heartbeat/EKF <=1 s, no future times,
-30 simulated seconds, matching epoch and healthy finite innovations below 1.
-
-The sidecar records original wire bytes with each decoded observation and asks
-for 3 ms HIGHRES_IMU and 50 ms GPS_RAW_INT reports. At the pinned 400 Hz scheduler,
-a 2500 us request truncates to 2 ms and is denied by cap_message_interval;
-3 ms is accepted. This is a stream configuration fix, not relaxed admission.
-The driver evaluates readiness on physics ticks and writes warmup.ndjson at
-100 Hz plus every transition, including source clocks, exact wall elapsed,
-normalized health, READY/EW flags, reason and measured acceleration. Unknown
-diagnostic age serializes as null before the first report and cannot pass.
-
-check-ekf-warmup.mjs replays all original physics acknowledgments and raw-CRC-
-audited telemetry through the same modules and checks every recorded decision.
-The stream event at physics time t follows that completed tick; replay feeds
-only events with receivedSimS<t before evaluating the next tick. It records
-actual admission/revocations separately from explicitly synthetic failed-
-innovation, stale-diagnostic, bad-acknowledgment, GNSS-loss, clock-reversal,
-disposal and HITL fast-forward probes. A configured speed is not a measured
-acceleration. The report is test-results/validation/task-043-warmup.json.
-
-The observed run admits at 41.27625 simulated seconds and 20.733261598 wall
-seconds (1.990822804x). Two genuine GNSS freshness excursions beyond 0.3 s
-revoke READY/EW and recover on fresh data; this is preserved, not hidden.
-The full flight also passes the unchanged TASK-042 envelope. Browser READY,
-EW application, physical HITL and TASK-033 aerodynamic fidelity stay separate.
-Historical TASK-042 evidence is preserved under its dated snapshot directory;
-new native regression reports must not silently replace those identities.
-
-
-Native TASK-059 acceptance on 2026-10-19: all six calibration cases and six separate validation cases pass, with 710636 reconstructed physics frames. The immutable matrix and original native reports/archives preserve fault-induced unhealthy flags and modes. Jamming and drift reached Land; the position step raised GPS-glitch flags; magnetic bias increased compass innovation ratios while remaining Guided; complete rotor loss tumbled into the synthetic floor during its 3 s window. In pinned Copter ekf_check.cpp, compass, velocity and position variance criteria combine before failsafe action, so compass innovation alone is not a promise of Land. The healthy TASK-042 flight also passed again. See test-results/validation/task-059-native.json, task-059-tests.json and task-059-completion.json for exact identities and the documented environment reruns.
-
 
 ## Local ArduPilot WASM build and browser acceptance (TASK-045)
 
-The upstream wasm board at 8ab6afde107a91df1b5f60ade8f333cb8a61b190 remains pinned to Emscripten 4.0.15. The continuation clean build reproduced the committed 3730330-byte module (556d97fa6dbf7c0a2cf713f6106a6891de0b9bc9c5a7dd945f1789b63e58df38) and 258215-byte glue (b158a7b8e9b400c770e2b4fc87c66fc2aaf68bc583c7d71f3a56786d3bcb4212). The builder checks source HEAD/cleanliness, locked HAL/license bytes, submodule commits, SDK commit/manifest and compiler version/commit. It requires new/empty outputs, deletes no supplied directory, saves build.log and fails on differences from the committed artifact manifest. Upstream CI's 6.0.8 remains a distinct version; this acceptance verifies the project's unchanged 4.0.15 pin.
+The upstream wasm board at 8ab6afde107a91df1b5f60ade8f333cb8a61b190 remains pinned to Emscripten 4.0.15. The clean build reproduced the committed 3730330-byte module (556d97fa6dbf7c0a2cf713f6106a6891de0b9bc9c5a7dd945f1789b63e58df38) and 258215-byte glue (b158a7b8e9b400c770e2b4fc87c66fc2aaf68bc583c7d71f3a56786d3bcb4212). The builder checks source HEAD/cleanliness, locked HAL/license bytes, submodule commits, SDK commit/manifest and compiler version/commit. It requires new/empty outputs, deletes no supplied directory, saves build.log and fails on differences from the committed artifact manifest. Upstream CI's 6.0.8 remains a distinct version; this acceptance verifies the project's unchanged 4.0.15 pin.
 
 With MIRAGE_ARDUPILOT_WASM_DIR explicitly set, the Vite development server admits the pinned local bytes and exposes only manifest.json, arducopter.js and arducopter.wasm at /__local-ardupilot/. GET, loopback peer, loopback Host and same-host Origin checks apply; foreign fetches, writes and unknown files are rejected. This route is absent without the setting and absent from production builds. Artifacts remain local and carry distribution=local-only-pending-gpl-review. The existing distribution decision remains open; the bootstrap adds no firmware to public/ or dist/.
 

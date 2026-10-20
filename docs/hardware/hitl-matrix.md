@@ -32,7 +32,7 @@ whose source lacks a message path yields UNSUPPORTED.
 ArduPilot: GCS_Common.cpp (sha256 345233ce691a29f21e66d50b81ce75db9672eb29e9d39ac2d0e9e139e92836ec),
 the Copter/Plane MAVLink handlers, GCS.h and AP_InertialSensor contain no
 handler for these messages; external GNSS uses GPS_INPUT. ArduPilot simulation
-uses the JSON SITL backend (TASK-041) instead.
+uses the JSON SITL backend (TASK-041/042) instead.
 
 PX4: mavlink_receiver.cpp (sha256 2e22f0d3e22a48f2793202f7e9dba3526afbb5da8221ab3a78d461008364571b)
 decodes HIL_SENSOR only while HIL mode is enabled; HIL_ACTUATOR_CONTROLS.hpp
