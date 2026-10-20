@@ -13,7 +13,7 @@ Worker приложения по умолчанию по-прежнему выб
 model-report v8 требует актуальных численных и аллокационных доказательств,
 независимо сохраняя провалы измеренной точности.
 
-<!-- source-sha256: 66b555756e3cb86ca938195ccbded87445f6fa646354e68d15b3404b6b344d64 -->
+<!-- source-sha256: 473ce14faf21e727842dacd49e38f4c169fd18e1517ba980e356855f4d84bee0 -->
 
 Английский источник: [Source of truth](../architecture.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -225,9 +225,10 @@ quaternion, gravity и линейное сопротивление. Semi-implici
    проверка Origin/сессии, ограничения размера/частоты. JSON/UDP physics
    backend передаёт truth/sensors lockstep; MAVLink — RC, команды и
    диагностику. Одного `RC_CHANNELS_OVERRIDE` для внешней физики мало.
-2. **WASM ArduPilot — feasibility-задача.** HAL, scheduler, storage,
-   sockets, лицензии, clock и parity с native SITL. Компиляция в WASM
-   сама по себе не доказывает работоспособность порта.
+2. **Локальный WASM HAL ArduPilot проверен (TASK-045/046).** Допущенная прошивка,
+   хранение EEPROM, lockstep датчиков/PWM и пофазное завершение Worker проверены
+   на 400/800/1200 Гц. Паритет полёта native/WASM и production READY остаются
+   TASK-047; распространение GPL сохраняет гейт решения.
 3. **HITL.** Chromium на macOS/Windows, secure context и пользовательский
    gesture для Web Serial `requestPort()`. Safari/Firefox не целевые
    HITL-браузеры. MAVLink2 parser: CRC/dialect/seq/sysid/compid и signing,

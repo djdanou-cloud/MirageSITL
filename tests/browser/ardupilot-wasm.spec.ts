@@ -1,5 +1,6 @@
 import {expect,test,type Page} from '@playwright/test';
 import {mkdirSync,writeFileSync} from 'node:fs';
+import {viteFileUrl} from '../support/vite-url';
 import golden from '../fixtures/mavlink/wasm-parameters.json' with {type:'json'};
 import manifest from '../../native/ardupilot/wasm-artifact.manifest.json' with {type:'json'};
 
@@ -12,8 +13,23 @@ test.afterEach(async({page},info)=>{
     response:await Promise.race([worker.evaluate(()=>({url:location.href,now:performance.now()})).catch(error=>String(error)),
       new Promise(resolve=>setTimeout(()=>resolve('Worker evaluation deadline'),500))])})));
   const cdp=await page.context().newCDPSession(page);
-  const targets=await cdp.send('Target.getTargets');await cdp.detach();
-  writeFileSync(info.outputPath('worker-diagnostic.json'),JSON.stringify({workers,targets},null,2));
+  const targets=await cdp.send('Target.getTargets');
+  const paused:unknown[]=[];
+  cdp.on('Target.receivedMessageFromTarget',event=>{
+    const message:unknown=JSON.parse(event.message);
+    if(message!==null&&typeof message==='object'&&'method' in message&&message.method==='Debugger.paused')paused.push(message);
+  });
+  for(const target of targets.targetInfos){
+    if(target.type!=='worker')continue;
+    const {sessionId}=await cdp.send('Target.attachToTarget',{targetId:target.targetId,flatten:false});
+    await cdp.send('Target.sendMessageToTarget',{sessionId,message:JSON.stringify({id:1,method:'Debugger.enable'})});
+    await cdp.send('Target.sendMessageToTarget',{sessionId,message:JSON.stringify({id:2,method:'Debugger.pause'})});
+    await new Promise(resolve=>setTimeout(resolve,500));
+    await cdp.send('Target.sendMessageToTarget',{sessionId,message:JSON.stringify({id:3,method:'Debugger.resume'})});
+    await cdp.send('Target.detachFromTarget',{sessionId});
+  }
+  await cdp.detach();
+  writeFileSync(info.outputPath('worker-diagnostic.json'),JSON.stringify({workers,targets,paused},null,2));
 });
 async function boot(page:Page,profile:string):Promise<void>{
   await page.evaluate(profile=>window.ardupilotCheck.start(profile),profile);
@@ -139,4 +155,32 @@ test('local artifact serving rejects foreign hosts/origins, writes and unknown f
   expect((await request.post(path)).status()).toBe(403);
   expect((await request.get('/__local-ardupilot/private-file')).status()).toBe(404);
   expect((await request.get(path)).status()).toBe(200);
+});
+
+// The firmware, storage and Web Lock remain real. Delaying the release Promise
+// creates an event-loop turn before dispose can acknowledge final termination.
+test('teardown survives delayed profile release across three real firmware restarts',async({page})=>{
+  test.setTimeout(120000);
+  const workerUrl=viteFileUrl(new URL('./firmware-lifecycle-worker.ts',import.meta.url));
+  await page.addInitScript(({workerUrl})=>{
+    const OriginalWorker=window.Worker;
+    window.Worker=class extends OriginalWorker {
+      constructor(url:string|URL,options?:WorkerOptions){
+        super(String(url).includes('/src/ardupilot.worker.ts')?workerUrl:url,options);
+      }
+    };
+  },{workerUrl});
+  await page.goto('/ardupilot-check.html');
+  const profile='release-order-'+Date.now();
+  for(let i=0;i<3;i++){
+    await boot(page,profile);expect(await readParameter(page)).toBeGreaterThan(0);
+    await stop(page);
+    await expect.poll(()=>page.workers().map(worker=>worker.url())).toEqual([]);
+    expect(await page.evaluate(()=>window.ardupilotCheck.events.some(event=>event!==null&&typeof event==='object'&&
+      'type' in event&&event.type==='profile-release-delayed'))).toBe(true);
+    const terminations=await page.evaluate(()=>window.ardupilotCheck.events.filter(event=>event!==null&&typeof event==='object'&&
+      'type' in event&&event.type==='pthread-termination-order'));
+    expect(terminations).toHaveLength(4);
+    expect(terminations).toEqual(Array.from({length:4},()=>({type:'pthread-termination-order',profileReleased:true})));
+  }
 });

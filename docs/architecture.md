@@ -210,9 +210,10 @@ Modes are mutually exclusive. Lifecycle:
    validate Origin/session, and bound message size/rate. JSON/UDP physics
    provides truth/sensor lockstep; MAVLink provides RC/commands/diagnostics.
    RC_CHANNELS_OVERRIDE alone does not integrate external physics.
-2. **WASM ArduPilot is a feasibility project.** HAL, scheduler, storage,
-   sockets, licenses, clocks, and native parity all need verification.
-   Compiling a binary to WASM alone does not establish a working port.
+2. **Local WASM ArduPilot HAL is verified (TASK-045/046).** Admitted firmware,
+   EEPROM persistence, sensor/PWM lockstep and phased Worker teardown are tested
+   at 400/800/1200 Hz. Native/WASM flight parity and production READY remain
+   TASK-047; GPL redistribution retains its decision gate.
 3. **HITL targets Chromium on macOS/Windows.** Require a secure context
    and a user gesture for requestPort. Safari/Firefox are not target HITL
    browsers. MAVLink2 parsing checks CRC/dialect/seq/sysid/compid and signing

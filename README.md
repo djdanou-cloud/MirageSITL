@@ -19,7 +19,7 @@ The running application uses binary ABI **v2** (TASK-085): session epochs, EKF/E
 status fields, sensor/actuator queues, and Control Protocol v2. The demo physics
 publication leaves EKF/EW unset. TASK-074 overlays identity-bound serial
 `EkfMonitor` diagnostics on the Pilot HUD only; that overlay does not admit a
-browser autopilot flight backend (TASK-046, TASK-047). Instructor
+browser autopilot flight backend (TASK-047). Instructor
 fault commands apply through the session EW registry (TASK-075).
 ABI v1 remains in `packages/protocol` with its tests as a regression API.
 

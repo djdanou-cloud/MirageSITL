@@ -106,9 +106,10 @@ export class BrowserWasmSession {
       this.glueUrl=URL.createObjectURL(new Blob([glue],{type:'text/javascript'}));
       const imported:unknown=await import(/* @vite-ignore */ this.glueUrl);
       if(!record(imported)||!isFactory(imported.default))throw Error('Invalid firmware factory');
-      const OriginalWorker=globalThis.Worker,children=this.children;
+      const OriginalWorker=globalThis.Worker,children=this.children,canSpawn=()=>!this.stopped;
       globalThis.Worker=class extends OriginalWorker {
         constructor(url:string|URL,options?:WorkerOptions){
+          if(!canSpawn())throw Error('Firmware session disposed before pthread creation');
           if(children.size>=16)throw Error('Firmware pthread budget exceeded');
           super(url,options);children.add(this);
         }
@@ -170,6 +171,11 @@ export class BrowserWasmSession {
     try{if(checkpoint&&this.booted&&!this.stopped)await this.checkpoint();}catch(error){failure=error;}
     this.stopped=true;
     if(this.module&&this.pointer){this.module._ardupilot_free(this.pointer);this.pointer=0;}
+    this.module=null;this.store?.close();this.store=null;
+    if(this.glueUrl){URL.revokeObjectURL(this.glueUrl);this.glueUrl=null;}
+    await this.releaseProfile?.();this.releaseProfile=null;
+    // Finish every await before killing peers. Queued runtime proxy callbacks
+    // must not run in a partially terminated pthread runtime while we yield.
     const terminatedPthreads=this.children.size;
     for(const worker of this.children){
       // Terminate is asynchronous. A queued pthread message must not execute
@@ -178,9 +184,6 @@ export class BrowserWasmSession {
       worker.terminate();
     }
     this.children.clear();
-    this.module=null;this.store?.close();this.store=null;
-    if(this.glueUrl){URL.revokeObjectURL(this.glueUrl);this.glueUrl=null;}
-    await this.releaseProfile?.();this.releaseProfile=null;
     if(failure)throw failure instanceof Error?failure:Error('Firmware checkpoint failed during shutdown');return {terminatedPthreads};
   }
 }
