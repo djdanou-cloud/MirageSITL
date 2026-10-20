@@ -54,7 +54,7 @@ verified outside the demo flight loop:
 Genuinely open boundaries: measured rotor/airframe/contact fidelity (TASK-033;
 NASA drop fidelity explicitly deferred by the user), browser ArduCopter WASM
 lockstep/parity and GPL redistribution decision (TASK-045–047), browser
-autopilot READY/HUD/instructor/scenario session wiring (TASK-074, TASK-075,
+autopilot READY/instructor/scenario session wiring (TASK-075,
 TASK-078–080), live terrain-contact flight-session coupling (TASK-065),
 physical flight-controller HITL (TASK-051), and target-device M4/RTX 4050
 400–1200 Hz and 60–120 FPS performance verification (TASK-073). Fixed `dt`
@@ -231,8 +231,9 @@ with coherent IMU/GNSS/mag timestamps. Readiness depends on EKF health,
 status, and innovations, not merely a timer. HITL cannot fast-forward
 physical FC filters. MAVLink2 framing (TASK-037), `EkfMonitor`/`EkfWarmup`,
 and native `LiveEkfWarmup` admission against the pinned ArduCopter SITL
-harness (TASK-042, TASK-043) are implemented; browser autopilot READY session
-wiring and physical FC HITL remain open.
+harness (TASK-042, TASK-043) are implemented. TASK-074 overlays those
+diagnostics on the Pilot HUD from decoded USB serial frames and does not admit
+browser READY. Browser autopilot READY session wiring and physical FC HITL remain open.
 
 ## EW, terrain, cameras, and AAR
 
@@ -1013,7 +1014,7 @@ licensed tiles placed locally are not yet implemented.
 
 Thermal energy, LWIR WebGL2 materials and offset-only shutter calibration are independent library modules. They do not run in the flight physics Worker or automatically turn land classes into measured temperatures. The application still flies demo dynamics. The pilot attitude overlay reads snapshots at the existing approximately 150 ms React reporting cadence. NED quaternion attitude uses normalized Hamilton wxyz, positive right bank and positive nose-up; the artificial horizon rotates by negative roll and shifts down with positive pitch. Existing speed/altitude readouts continue to use NED truth with an explicit demo label.
 
-`EkfMonitor` and `EkfWarmup` provide independent diagnostics/admission contracts, with upstream wire fixtures. No timer, truth flag or Serial connection makes a live autopilot READY. While native ArduCopter SITL flight (TASK-042) and native `LiveEkfWarmup` admission (TASK-043) are verified, browser autopilot session wiring (TASK-074, TASK-075, TASK-078) retains its integration gate. The HUD distinguishes unknown, stale and fresh status; stale EKF bits are not displayed as valid. Mode numbers are autopilot `custom_mode` values with source/age, not invented names.
+`EkfMonitor` and `EkfWarmup` provide independent diagnostics/admission contracts, with upstream wire fixtures. No timer, truth flag or Serial connection makes a live autopilot READY. While native ArduCopter SITL flight (TASK-042) and native `LiveEkfWarmup` admission (TASK-043) are verified, browser autopilot session wiring (TASK-075, TASK-078) retains its integration gate. TASK-074 copies accepted system/component 1/1 serial frames into the Main HUD snapshot: unknown, stale, and fresh are distinct, stale EKF bits are not displayed as valid, and mode numbers are autopilot `custom_mode` values with source/age. The physics publication stays unknown.
 
 The instructor console submits versioned commands to the real Worker. A bounded 32-entry ledger correlates request IDs, distinguishes pending/queued/applied/rejected/cancelled, ignores late queued ACKs after application, and cancels pending commands on epoch changes. Model-load/reset ACKs may advance exactly one epoch. Fault IDs are editable; all five typed effect kinds have explicit synthetic defaults. Weather and model/hash requests use the same validator. The active demo rejects these unsupported commands; the console reports rejection rather than applying visual-only failures. P/R/F shortcuts ignore inputs, selects, editable elements, composition, repeat and modifier shortcuts.
 

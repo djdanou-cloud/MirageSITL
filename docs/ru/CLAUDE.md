@@ -1,6 +1,6 @@
 # CLAUDE.md — MirageSITL agent instructions
 
-<!-- source-sha256: 01d96ba0b98d68a19b7ab0857112e114706515224ac23cc830baab2fc8cdd94a -->
+<!-- source-sha256: ce74b95571a59669ce8055854af5d3750bbca8f185bae02229cf785c00410a7f -->
 
 Английский источник: [Source of truth](../../CLAUDE.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -204,8 +204,9 @@ Claude Code загружает этот корневой файл через с�
   (паритет браузерного полёта SITL), TASK-051 (физический HITL на Pixhawk/Cube через
   `scripts/check-hitl-capture.mjs`), TASK-073 (проверка времени кадра GPU на Apple
   Silicon M4 / RTX 4050 через `scripts/check-gpu-perf.mjs`),
-  TASK-074/TASK-075/TASK-078/TASK-079/TASK-080 (интеграция браузерного UX
-  автопилота/РЭБ/сценариев; блокировка TASK-043 для TASK-074 уже снята), TASK-082
+  TASK-075/TASK-078/TASK-079/TASK-080 (интеграция браузерного UX
+  инструктора/РЭБ/сценариев; свежесть HUD TASK-074 по диагностике serial
+  `EkfMonitor` выполнена и не допускает браузерный READY), TASK-082
   (многочасовой комплексный прогон) и TASK-083 (выпуск на чистой машине и проверка со
   скринридером).
 

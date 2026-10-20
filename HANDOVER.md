@@ -2,7 +2,7 @@
 
 English source of truth. [Russian mirror](docs/ru/HANDOVER.md).
 
-Date: 2026-10-20 · Previous baseline: `d56c890` (`origin/main`) · Active task: `TASK-074 — Pilot HUD and freshness` (`IN_PROGRESS`).
+Date: 2026-10-20 · Previous baseline: `d4dda82` (`origin/main`) · Active task: `TASK-074 — Pilot HUD and freshness` (`DONE`).
 
 Read [CLAUDE.md](CLAUDE.md) first, then the `TASK-074` section in [docs/PROJECT_ROADMAP.md](docs/PROJECT_ROADMAP.md).
 
@@ -43,7 +43,9 @@ $env:Path = "C:\Users\djdan\AppData\Local\Packages\Claude_pzs8sxrjxfjjc\LocalCac
 
 ---
 
-## 3. Remaining Implementation Steps for `TASK-074`
+## 3. Completed implementation steps for `TASK-074`
+
+These steps are implemented in the main checkout. A serial connection still does not admit browser READY or HITL. The physics Worker publication keeps autopilot fields unknown.
 
 ### Step 1 — Wire `EkfMonitor` into `SimulationRuntime` ([apps/web/src/runtime.ts](apps/web/src/runtime.ts))
 - Import `EkfMonitor` from `@mirage/autopilot/ekf-status`, ` type MavFrame` from `@mirage/mavlink/codec`, and `applyAutopilotTelemetry` from `./hud/telemetry`.

@@ -3,7 +3,7 @@
 Version 1.1 · 2026-10-20 · baseline `aab5e47`. English is the source of truth.
 [Russian mirror](ru/PROJECT_ROADMAP.md).
 
-Future modules are not claimed as implemented. The active browser application runs on ABI v2 (`49280` bytes, `192`-byte state stride) with `400/800/1200` Hz clocks, SPSC sensor/actuator queues, epoch-aware rendering, decimated Pilot HUD / Instructor / AAR flows, and the demo dynamics backend (`540` unit tests across `97` files, Chromium browser suites, and `62` native Rust tests). Independent native/WASM rotor kernels, direct `f64` Rapier landing-gear contact (`TASK-029`) and collision-chunk coupling (`TASK-065`), pinned JSBSim v1.2.3 WASM/contact (`TASK-030`/`031`/`086`), native Linux/WSL ArduCopter SITL flight, `LiveEkfWarmup`, and EW fault regressions (`TASK-042`/`043`/`059`), and ArduCopter WASM Worker/EEPROM boot (`TASK-045`) are verified in their respective harnesses. Production BET C ABI polar binding and configurable session injection are now verified by TASK-033. Browser autopilot `READY`, ArduPilot browser flight HAL/parity (`TASK-046`/`047`), measured model fidelity (separate from the TASK-033 synthetic baseline), physical HITL (`TASK-051`), target GPU 10-minute profiling (`TASK-073`), live-autopilot UI acceptance (`TASK-074`/`075`/`078`/`079`/`080`), and release sign-off (`TASK-082`/`083`) remain open.
+Future modules are not claimed as implemented. The active browser application runs on ABI v2 (`49280` bytes, `192`-byte state stride) with `400/800/1200` Hz clocks, SPSC sensor/actuator queues, epoch-aware rendering, decimated Pilot HUD / Instructor / AAR flows, and the demo dynamics backend (`540` unit tests across `97` files, Chromium browser suites, and `62` native Rust tests). Independent native/WASM rotor kernels, direct `f64` Rapier landing-gear contact (`TASK-029`) and collision-chunk coupling (`TASK-065`), pinned JSBSim v1.2.3 WASM/contact (`TASK-030`/`031`/`086`), native Linux/WSL ArduCopter SITL flight, `LiveEkfWarmup`, and EW fault regressions (`TASK-042`/`043`/`059`), and ArduCopter WASM Worker/EEPROM boot (`TASK-045`) are verified in their respective harnesses. Production BET C ABI polar binding and configurable session injection are now verified by TASK-033. Browser autopilot `READY`, ArduPilot browser flight HAL/parity (`TASK-046`/`047`), measured model fidelity (separate from the TASK-033 synthetic baseline), physical HITL (`TASK-051`), target GPU 10-minute profiling (`TASK-073`), instructor/scenario UI wiring (`TASK-075`/`078`/`079`/`080`; TASK-074 HUD freshness is done), and release sign-off (`TASK-082`/`083`) remain open.
 
 Contracts: [Shared Memory](SPECS_SHARED_MEMORY.md),
 [Simulation Engines](SPECS_SIMULATION_ENGINES.md), [V2 Architecture & Verification Plan](V2_PLAN.md), and [Agent workflow](../CLAUDE.md).
@@ -604,12 +604,14 @@ copy Google content without rights.
 
 ### TASK-046 — ArduPilot browser HAL
 
-- **Status:** TODO.
+- **Status:** IN_PROGRESS; Codex; baseline d4dda82; 2026-10-20. Goal: real ArduCopter sensor/actuator/clock coupling at 800 Hz initially, configurable 400/800/1200 Hz. Failure: accepted invalid versions/counts/time, time advancing without host input, native/WASM sensor disagreement, lost outputs, pause/stop deadlock, hot allocations or fabricated READY.
 - **Title & Description:** Connect clock/storage/sensor/actuator endpoints to WASM firmware.
 - **Dependencies:** TASK-013, TASK-035, TASK-045.
 - **Touched Files:** `native/ardupilot/hal/browser_hal.cpp`, `packages/autopilot/src/wasm-sitl.ts`, `tests/wasm-hal.test.ts`.
 - **Interfaces / Contracts:** Simulation lockstep clock; virtual storage; preallocated mailboxes; separate AP Worker if required by HAL.
 - **DoD & Acceptance Criteria:** Native/WASM HAL probes agree; no assumed native sockets/files; validate sensor timing/actuator counts; tab pause and termination do not deadlock.
+
+- **Implementation scope:** Versioned fixed-size HAL mailbox/native probe (`native/ardupilot/hal/browser_hal.h`, `browser_hal.cpp`, `probe.cpp`); pinned integration patch and local build/check tools (`native/ardupilot/hal/sitl-state.patch`, `scripts/build-ardupilot-hal.mjs`, `scripts/check-ardupilot-hal.mjs`); host adapter (`packages/autopilot/src/wasm-sitl.ts`), cold binding callback in `wasm-browser.ts`, package export, native/TS/browser tests (`tests/wasm-hal.test.ts`, `tests/browser/wasm-hal.spec.ts` and test Worker), engine specification/architecture/baseline instructions and Russian mirrors. Isolated source/build; preserve TASK-045 bytes and TASK-074 work. Separate HAL artifact identities; no firmware redistribution or TASK-047 parity claim. Existing ABI-v2 queues retain their byte layout and single-writer ownership.
 
 ### TASK-047 — WASM/native SITL parity
 
@@ -888,23 +890,23 @@ copy Google content without rights.
 
 ### TASK-074 — Pilot HUD and freshness
 
-- **Status:** IN_PROGRESS — Antigravity; baseline d56c890; 2026-10-20. Goal: connect identity-bound `EkfMonitor` diagnostics from live MAVLink streams (`SerialConnect` / `SimulationRuntime`) into `FlightStateV2` and `PilotHud` with explicit source, mode, EKF validity, and 1000 ms staleness aging while keeping demo unable to fabricate valid EKF and React updates decimated at ~150 ms. Failure criterion: any NED sign, demo EKF fabrication, failed-innovation gate, staleness transition, or decimation check fails. Scope note: `apps/web/src/SerialConnect.tsx` added to `Touched Files` so decoded `serial.frame` MAVLink diagnostics feed `SimulationRuntime` and request read-only `EKF_STATUS_REPORT` on live USB links.
+- **Status:** DONE — Cursor; baseline d4dda82; 2026-10-20. Identity-bound `EkfMonitor` diagnostics from decoded USB `serial.frame` messages drive `PilotHud` source, `custom_mode`, degraded/valid EKF flags, and 1000 ms staleness. Disconnect clears the overlay back to demo truth. The physics Worker still publishes unknown autopilot fields. A serial grant does not admit browser READY or HITL.
 - **Title & Description:** Display attitude/speed/altitude/mode/EKF with source and age.
 - **Dependencies:** TASK-015, TASK-039, TASK-043.
 - **Touched Files:** `apps/web/src/hud/PilotHud.tsx`, `apps/web/src/hud/attitude.ts`, `apps/web/src/hud/telemetry.ts`, `apps/web/src/SerialConnect.tsx`, `apps/web/src/App.tsx`, `apps/web/src/runtime.ts`, `apps/web/src/style.css`, `packages/physics/src/session-v2.ts`, `tests/session-v2.test.ts`, `tests/hud.test.ts`, `tests/browser/hud.spec.ts`, `README.md`, `docs/ru/README.md`, `CLAUDE.md`, `docs/ru/CLAUDE.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `package-lock.json`, `docs/SPECS_SHARED_MEMORY.md`, `docs/ru/SPECS_SHARED_MEMORY.md`, `HANDOVER.md`, `docs/ru/HANDOVER.md`, `docs/documentation-index.json`.
 - **Interfaces / Contracts:** FlightStateV2; normalized ekf_flags; unknown/stale visual states.
 - **DoD & Acceptance Criteria:** Verify NED horizon signs; demo cannot fabricate valid EKF; stale AP status is marked; decimate React updates instead of setState at 1200 Hz.
-- **Evidence:** Owner Codex; baseline 660d86e; 2026-10-16. `tests/hud.test.ts` (2 PASS), `tests/browser/hud.spec.ts` (1 PASS), and `tests/session-v2.test.ts` (11 PASS) verify NED roll/pitch/yaw horizon signs, `q`/`-q` equivalence, invalid attitude handling, demo `unknown` EKF status, age-based stale badges, and ~150 ms decimated React updates. Because `TASK-043` completed native `LiveEkfWarmup` admission on 2026-10-19, live autopilot health HUD acceptance is now unblocked and ready to be performed.
+- **Evidence:** Owner Cursor; baseline d4dda82; 2026-10-20. `npx --no-install vitest run tests/hud.test.ts tests/session-v2.test.ts` (14 PASS: `tests/hud.test.ts` 3, `tests/session-v2.test.ts` 11) verifies NED horizon signs, `q`/`-q` equivalence, demo rejection of fabricated EKF flags, failed-innovation gating, and age staleness. `npx --no-install playwright test tests/browser/hud.spec.ts tests/browser/serial-permission.spec.ts tests/browser/instructor.spec.ts` (8 PASS in Chromium 141 headless shell) verifies demo unknown status, CRC-valid golden HEARTBEAT/EKF frames through `serial-io.worker.ts`, `EKF DEGRADED` for raw flags 167, `EKF flags valid` for raw flags 55, STALE after more than 1000 ms of silence, at most 12 HUD DOM mutations in 1000 ms, disconnect returning to demo truth, and the existing serial-permission and instructor regressions. `npm run typecheck`, `npm run lint`, and `npm run build` exit 0.
 
 ### TASK-075 — Instructor console and hotkeys
 
-- **Status:** TODO — Console/ACK/hotkey software verified; awaits TASK-074 live autopilot HUD acceptance and production session fault wiring.
+- **Status:** TODO — Console/ACK/hotkey software verified; TASK-074 HUD freshness is done. Production session fault wiring remains open.
 - **Title & Description:** Send weather/fault/model commands with explicit pending/applied status.
 - **Dependencies:** TASK-010, TASK-038, TASK-058, TASK-074.
 - **Touched Files:** `apps/web/src/instructor/Console.tsx`, `apps/web/src/instructor/hotkeys.ts`, `apps/web/src/instructor/commands.ts`, `apps/web/src/App.tsx`, `apps/web/src/runtime.ts`, `apps/web/src/style.css`, `tests/instructor.test.ts`, `tests/browser/instructor.spec.ts`, `README.md`, `docs/ru/README.md`, `CLAUDE.md`, `docs/ru/CLAUDE.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `package-lock.json`, `docs/SPECS_SHARED_MEMORY.md`, `docs/ru/SPECS_SHARED_MEMORY.md`.
 - **Interfaces / Contracts:** ControlCommandV2 request/ACK/epoch; scenario fault registry.
 - **DoD & Acceptance Criteria:** Hotkeys ignore text-input focus; cancellation/reset/stale epoch/rejection are visible; show applied only after ACK; all fault IDs are usable without source changes.
-- **Evidence:** Owner Codex; baseline 660d86e; 2026-10-16. `tests/instructor.test.ts` (1 PASS) and `tests/browser/instructor.spec.ts` (1 PASS) verify Worker command/ACK handling, editable fault IDs, motor/weather/model requests, bounded pending/queued/applied/rejected/cancelled ledger, epoch race handling, and text-input hotkey suppression. Demo rejections stay visible; live autopilot HUD acceptance (`TASK-074`) and production session fault wiring remain open.
+- **Evidence:** Owner Codex; baseline 660d86e; 2026-10-16. `tests/instructor.test.ts` (1 PASS) and `tests/browser/instructor.spec.ts` (1 PASS) verify Worker command/ACK handling, editable fault IDs, motor/weather/model requests, bounded pending/queued/applied/rejected/cancelled ledger, epoch race handling, and text-input hotkey suppression. Demo rejections stay visible. TASK-074 HUD freshness is done; production session fault wiring remains open.
 
 ### TASK-076 — AAR recorder
 
@@ -928,13 +930,13 @@ copy Google content without rights.
 
 ### TASK-078 — AAR response charts
 
-- **Status:** TODO — Response charts and demo review verified; awaits TASK-074 live autopilot HUD acceptance and full-rate actuator/sensor recording.
+- **Status:** TODO — Response charts and demo review verified; TASK-074 HUD freshness is done. Full-rate actuator/sensor recording remains open.
 - **Title & Description:** Align pilot input, actuator commands, and model responses on one time axis.
 - **Dependencies:** TASK-074, TASK-077.
 - **Touched Files:** `apps/web/src/aar/Review.tsx`, `apps/web/src/aar/series.ts`, `tests/aar-series.test.ts`, `tests/browser/aar.spec.ts`, `apps/web/src/style.css`, `README.md`, `docs/ru/README.md`, `CLAUDE.md`, `docs/ru/CLAUDE.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `package-lock.json`, `docs/SPECS_SHARED_MEMORY.md`, `docs/ru/SPECS_SHARED_MEMORY.md`.
 - **Interfaces / Contracts:** Bounded decimated time series; units/timebase; explicit recording gaps.
 - **DoD & Acceptance Criteria:** A known step-response fixture shows correct lag; do not interpolate gaps as real data; display 30 min with <=10000 points per series and bounded memory.
-- **Evidence:** Owner Codex; baseline 660d86e; 2026-10-16. `tests/aar-series.test.ts` (2 PASS) and `tests/browser/aar.spec.ts` verify `0.2`/`0.3`/`0.4` s pilot/actuator/response step alignment, uninterpolated gap segments, and 30 min (`18,000`-sample) peak-preserving decimation to `<=10,000` points. Awaits `TASK-074` live autopilot HUD acceptance.
+- **Evidence:** Owner Codex; baseline 660d86e; 2026-10-16. `tests/aar-series.test.ts` (2 PASS) and `tests/browser/aar.spec.ts` verify `0.2`/`0.3`/`0.4` s pilot/actuator/response step alignment, uninterpolated gap segments, and 30 min (`18,000`-sample) peak-preserving decimation to `<=10,000` points. TASK-074 HUD freshness is done; full-rate actuator/sensor recording remains open.
 
 ### TASK-079 — Lessons and scenario runner
 
@@ -968,13 +970,13 @@ copy Google content without rights.
 
 ### TASK-082 — System acceptance matrix
 
-- **Status:** BLOCKED_EXTERNAL — Codex; baseline c3a4735; 2026-10-17. Hash-bound per-mode system matrix implemented; open dependencies (TASK-033, 047, 051, 073, 074–080) and unrun hardware/mode gates keep system acceptance blocked.
+- **Status:** BLOCKED_EXTERNAL — Codex; baseline c3a4735; 2026-10-17. Hash-bound per-mode system matrix implemented; open dependencies (TASK-033, 047, 051, 073, 075–080) and unrun hardware/mode gates keep system acceptance blocked. TASK-074 HUD freshness is done and does not close this gate.
 - **Title & Description:** Exercise supported modes against all UI/physics/telemetry gates.
 - **Dependencies:** TASK-033, TASK-042, TASK-043, TASK-047, TASK-051, TASK-059, TASK-073, TASK-074, TASK-075, TASK-078, TASK-079, TASK-080, TASK-081.
 - **Touched Files:** `tests/integration/system-acceptance.test.ts`, `docs/validation/system-matrix.json`, `scripts/validate-release.mjs`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `README.md`, `docs/ru/README.md`, `docs/documentation-index.json`, `scripts/validation/evidence.mjs`, `tests/evidence-tools.test.ts`, `tests/support/node-evidence.ts`.
 - **Interfaces / Contracts:** G0..G4; device/mode/model/firmware/provider coverage.
 - **DoD & Acceptance Criteria:** Every requirement has PASS/FAIL/BLOCKED/NOT_RUN evidence; unit tests do not establish 60/120 FPS or real 400/800/1200 Hz; missing WASM/HITL/Google coverage explicitly blocks the affected mode.
-- **Evidence:** Owner Codex; baseline c3a4735; 2026-10-17. `scripts/validate-release.mjs`, `docs/validation/system-matrix.json`, and `tests/integration/system-acceptance.test.ts` verify per-mode `G0`–`G4` status aggregation (`test-results/laptop/system-report.json` exits 1, preserving observed `G2` model-validation `FAIL` and `G3` GPU frame-time `FAIL` separately from `NOT_RUN` hardware/mode gates). Dependencies `TASK-042`, `TASK-043`, `TASK-059`, and `TASK-081` are `DONE`; `TASK-033`, `TASK-047`, `TASK-051`, `TASK-073`, and `TASK-074`/`075`/`078`/`079`/`080` remain open.
+- **Evidence:** Owner Codex; baseline c3a4735; 2026-10-17. `scripts/validate-release.mjs`, `docs/validation/system-matrix.json`, and `tests/integration/system-acceptance.test.ts` verify per-mode `G0`–`G4` status aggregation (`test-results/laptop/system-report.json` exits 1, preserving observed `G2` model-validation `FAIL` and `G3` GPU frame-time `FAIL` separately from `NOT_RUN` hardware/mode gates). Dependencies `TASK-042`, `TASK-043`, `TASK-059`, `TASK-074`, and `TASK-081` are `DONE`; `TASK-033`, `TASK-047`, `TASK-051`, `TASK-073`, and `TASK-075`/`078`/`079`/`080` remain open.
 
 ### TASK-083 — Release provenance and runbook
 

@@ -1,10 +1,10 @@
 # HANDOVER.md — Передача работы агенту (`TASK-074`)
 
-<!-- source-sha256: 2acb850dea27e0d48e90b5da2b81d15bc60a4ab7361abe00e18a9fdd27fe6976 -->
+<!-- source-sha256: f9b47498cdc04355e42e7e6c5bb68368b7cb20d7fcb14b0903a0f51761bf86eb -->
 
 Английский источник: [Source of truth](../../HANDOVER.md).
 
-Дата: 2026-10-20 · Предыдущий baseline: `d56c890` (`origin/main`) · Активная задача: `TASK-074 — Pilot HUD and freshness` (`IN_PROGRESS`).
+Дата: 2026-10-20 · Предыдущий baseline: `d4dda82` (`origin/main`) · Активная задача: `TASK-074 — Pilot HUD and freshness` (`DONE`).
 
 Сначала прочитайте [CLAUDE.md](CLAUDE.md), затем раздел `TASK-074` в [PROJECT_ROADMAP.md](PROJECT_ROADMAP.md).
 
@@ -45,7 +45,9 @@ $env:Path = "C:\Users\djdan\AppData\Local\Packages\Claude_pzs8sxrjxfjjc\LocalCac
 
 ---
 
-## 3. Оставшиеся шаги реализации для `TASK-074`
+## 3. Выполненные шаги реализации `TASK-074`
+
+Эти шаги реализованы в основном checkout. Подключение Serial по-прежнему не допускает браузерный READY или HITL. Публикация Worker физики оставляет поля автопилота неизвестными.
 
 ### Шаг 1 — Подключить `EkfMonitor` в `SimulationRuntime` ([apps/web/src/runtime.ts](../../apps/web/src/runtime.ts))
 - Импортировать `EkfMonitor` из `@mirage/autopilot/ekf-status`, `type MavFrame` из `@mirage/mavlink/codec` и `applyAutopilotTelemetry` из `./hud/telemetry`.

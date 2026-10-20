@@ -28,7 +28,10 @@ import {
   type PhysicsHz,
   type WorkerInitV2,
 } from "@mirage/protocol";
+import { EkfMonitor } from "@mirage/autopilot/ekf-status";
+import { newMavFrame, type MavFrame } from "@mirage/mavlink/codec";
 import { GamepadAdapter, type GamepadCalibration } from "@mirage/input";
+import { applyAutopilotTelemetry } from "./hud/telemetry";
 
 // Main-thread runtime on ABI v2 and Control Protocol v2 (TASK-085). Main owns
 // the pilot mailbox and creates every SAB; the physics Worker owns the state
@@ -178,6 +181,10 @@ export class SimulationRuntime {
   pending = false;
   notice = "";
   private deviceGeneration = 0;
+  private readonly ekfFrame: MavFrame = newMavFrame();
+  private ekfMonitor = new EkfMonitor(1, 1, 0, 1000);
+  private lastAutopilotMode = UNKNOWN_U32;
+  private autopilotActive = false;
   private adapterGeneration = 0;
   private requestId = 0;
   private pendingId = -2;
@@ -331,6 +338,49 @@ export class SimulationRuntime {
     this.deviceGeneration = (this.deviceGeneration + 1) >>> 0;
     this.armed = false;
   }
+  /** Drops HUD autopilot diagnostics. A serial grant never admits browser READY. */
+  clearAutopilotStatus(): void {
+    this.ekfMonitor = new EkfMonitor(1, 1, this.current.epoch, 1000);
+    this.lastAutopilotMode = UNKNOWN_U32;
+    this.autopilotActive = false;
+    applyAutopilotTelemetry(this.current, null);
+  }
+  /**
+   * Copies one decoded serial.frame into the preallocated EkfMonitor scratch.
+   * Returns false for malformed messages and for frames the bound identity rejects.
+   */
+  ingestSerialFrame(data: unknown, receivedMs = wallNow()): boolean {
+    const frame = readSerialFrame(data);
+    if (!frame) return false;
+    this.bindAutopilotEpoch();
+    const scratch = this.ekfFrame;
+    scratch.id = frame.id;
+    scratch.sequence = frame.sequence;
+    scratch.systemId = frame.systemId;
+    scratch.componentId = frame.componentId;
+    scratch.payload.fill(0);
+    scratch.payload.set(frame.payload);
+    if (!this.ekfMonitor.ingest(scratch, receivedMs)) return false;
+    this.autopilotActive = true;
+    const status = this.ekfMonitor.snapshot(receivedMs);
+    if (status.mode !== null) this.lastAutopilotMode = status.mode;
+    this.syncAutopilotTelemetry(receivedMs);
+    return true;
+  }
+  private bindAutopilotEpoch(): void {
+    const epoch = this.current.epoch;
+    if ((epoch >>> 0) !== epoch || this.ekfMonitor.epoch === epoch) return;
+    this.ekfMonitor = new EkfMonitor(1, 1, epoch, 1000);
+    this.lastAutopilotMode = UNKNOWN_U32;
+    this.autopilotActive = false;
+  }
+  private syncAutopilotTelemetry(nowMs = wallNow()): void {
+    applyAutopilotTelemetry(
+      this.current,
+      this.autopilotActive ? this.ekfMonitor.snapshot(nowMs) : null,
+      this.lastAutopilotMode,
+    );
+  }
   private publishPilot(): void {
     const p = this.pilot,
       i = this.input;
@@ -381,6 +431,8 @@ export class SimulationRuntime {
       this.history = read;
       this.recordDemoSnapshot();
     }
+    this.bindAutopilotEpoch();
+    this.syncAutopilotTelemetry(wallNow());
     this.frames++;
     const elapsed = now - this.lastReport;
     if (elapsed >= 150) {
@@ -430,4 +482,45 @@ export class SimulationRuntime {
     this.recording?.close();
     this.worker.terminate();
   }
+}
+
+interface SerialFrameMessage {
+  id: number;
+  systemId: number;
+  componentId: number;
+  sequence: number;
+  payload: Uint8Array;
+}
+
+function readSerialFrame(data: unknown): SerialFrameMessage | null {
+  if (typeof data !== "object" || data === null) return null;
+  if (
+    !("type" in data) ||
+    data.type !== "serial.frame" ||
+    !("id" in data) ||
+    !("systemId" in data) ||
+    !("componentId" in data) ||
+    !("sequence" in data) ||
+    !("payload" in data)
+  )
+    return null;
+  const id = data.id;
+  const systemId = data.systemId;
+  const componentId = data.componentId;
+  const sequence = data.sequence;
+  const payload = data.payload;
+  if (
+    typeof id !== "number" ||
+    typeof systemId !== "number" ||
+    typeof componentId !== "number" ||
+    typeof sequence !== "number" ||
+    !Number.isInteger(id) ||
+    !Number.isInteger(systemId) ||
+    !Number.isInteger(componentId) ||
+    !Number.isInteger(sequence) ||
+    !(payload instanceof Uint8Array) ||
+    payload.byteLength > 255
+  )
+    return null;
+  return { id, systemId, componentId, sequence, payload };
 }

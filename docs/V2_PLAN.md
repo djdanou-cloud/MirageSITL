@@ -365,9 +365,9 @@ and other documents (review of 2026-10-20). They keep their existing TASK IDs.
 | 047 | WASM/native SITL parity | TODO | Arm, takeoff, land and failsafe on both paths. Position RMSE ≤ 0.5 m and attitude RMSE ≤ 2° over the 30 s reference. Depends on TASK-046. |
 | 051 | Physical HITL acceptance | BLOCKED_EXTERNAL | Blocked on a physical flight controller and a supported firmware profile. |
 | 073 | GPU acceptance harness | BLOCKED_EXTERNAL | Blocked on full-feature production traces (terrain, FPV and thermal together), VRAM accounting and an M4 device. |
-| 074 | Pilot HUD and freshness | TODO | Live autopilot health in the browser (browser READY); TASK-043 dependency is DONE. |
-| 075 | Instructor console | TODO | Production fault, weather and model commands; awaits TASK-074 live autopilot HUD. |
-| 078 | AAR response charts | TODO | Waits on the live TASK-074 HUD. |
+| 074 | Pilot HUD and freshness | DONE | Serial `EkfMonitor` overlay on the Pilot HUD. Browser READY flight admission remains TASK-046/047. |
+| 075 | Instructor console | TODO | Production fault, weather and model commands. TASK-074 HUD freshness is done. |
+| 078 | AAR response charts | TODO | Full-rate actuator/sensor recording. TASK-074 HUD freshness is done. |
 | 079 | Lessons and scenario runner | TODO | Healthy-autopilot orchestration and command acknowledgement binding; depends on TASK-075. |
 | 080 | Accessibility and permissions UX | BLOCKED_EXTERNAL | Live-autopilot prerequisites, a screen-reader session and hardware permission/disconnect checks. |
 | 082 | System acceptance matrix | BLOCKED_EXTERNAL | Real G0–G4 evidence for each mode. |
@@ -377,7 +377,8 @@ and other documents (review of 2026-10-20). They keep their existing TASK IDs.
 
 * **Browser autopilot.** Wire the browser flight session to the autopilot and
   admit browser READY. Today SITL flight and EKF readiness (TASK-042/043/059)
-  are native-only.
+  are native-only. TASK-074 displays serial EKF health on the Pilot HUD and
+  does not admit that READY state.
 * **Composed EW in the browser.** EW and startup EW admission are not yet
   applied in the live application.
 * **ArduPilot WASM artifact distribution.** Blocked on a GPL review decision.

@@ -6,8 +6,22 @@ import {
   isSerialPort,
   SerialTransport,
 } from "@mirage/autopilot/serial-transport";
+/** Read-only MAVLink2 COMMAND_LONG (76): MAV_CMD_REQUEST_MESSAGE 512 for EKF_STATUS_REPORT 193. 33-byte payload plus the 12-byte v2 header and CRC. */
+const REQUEST_EKF_STATUS_REPORT = new Uint8Array([
+  253, 33, 0, 0, 1, 255, 190, 76, 0, 0,
+  0, 64, 193, 67, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 2,
+  1, 1, 0, 152, 183,
+]);
 /** Transport diagnostic only. A serial permission grant never claims HITL readiness. */
-export function SerialConnect() {
+export function SerialConnect({
+  onFrame,
+  onDisconnect,
+}: {
+  onFrame?: (frame: unknown) => void;
+  onDisconnect?: () => void;
+} = {}) {
   const [status, setStatus] = useState("Disconnected"),
     [busy, setBusy] = useState(false);
   const active = useRef<SerialTransport | null>(null),
@@ -55,6 +69,8 @@ export function SerialConnect() {
         failReady = error => { clearTimeout(startupTimer); reject(error); };
       });
       let frames = 0;
+      let seenHeartbeat = false;
+      let lastEkfRequestMs = -Infinity;
       let consumed: (() => void) | null = null;
       worker.onerror = () => {
         failReady?.(new Error("Serial decoder failed"));
@@ -88,6 +104,8 @@ export function SerialConnect() {
           data.type === "serial.frame"
         ) {
           frames++;
+          onFrame?.(data);
+          if ("id" in data && data.id === 0) seenHeartbeat = true;
         }
       };
       const transport = new SerialTransport(
@@ -114,6 +132,13 @@ export function SerialConnect() {
           setStatus(
             `Transport connected; received ${frames} MAVLink frames; HITL unavailable`,
           );
+        if (transport.status === "open" && seenHeartbeat) {
+          const now = performance.now();
+          if (now - lastEkfRequestMs >= 250) {
+            lastEkfRequestMs = now;
+            void transport.write(REQUEST_EKF_STATUS_REPORT).catch(() => undefined);
+          }
+        }
       }, 150);
       active.current = transport;
       // Cold module loading is separate from the per-chunk backpressure deadline.
@@ -149,6 +174,7 @@ export function SerialConnect() {
       active.current = null;
       decoder.current?.terminate();
       decoder.current = null;
+      onDisconnect?.();
       setStatus("Disconnected");
     } catch {
       setStatus("Serial disconnect failed");

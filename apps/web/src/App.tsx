@@ -1,5 +1,6 @@
 import { Export } from "./aar/Export";
 import { PilotHud } from "./hud/PilotHud";
+import { hudTelemetry } from "./hud/telemetry";
 import { Console } from "./instructor/Console";
 import { Component, useEffect, useRef, useState, type ReactNode } from "react";
 import {
@@ -245,6 +246,9 @@ export default function App() {
       setError("Mode calibration is invalid or storage is unavailable.");
     else setError("");
   };
+  const hud = runtime.current
+    ? hudTelemetry(runtime.current.current)
+    : null;
   return (
     <div className="app-shell">
       <a className="skip-link" href="#flight-controls">Skip to flight controls</a>
@@ -334,8 +338,16 @@ export default function App() {
               </div>
               <div className="flight-mode">
                 <small>CONTROL</small>
-                <strong>DIRECT RATE</strong>
-                <span>ArduPilot disconnected</span>
+                <strong>
+                  {hud?.source === "autopilot" ? hud.mode : "DIRECT RATE"}
+                </strong>
+                <span>
+                  {hud?.source === "autopilot"
+                    ? hud.status === "fresh"
+                      ? "Autopilot telemetry live"
+                      : "Autopilot telemetry stale"
+                    : "ArduPilot disconnected"}
+                </span>
               </div>
             </div>
           </div>
@@ -607,7 +619,12 @@ export default function App() {
                   : "Unavailable"}
               </b>
             </div>
-            <SerialConnect />
+            <SerialConnect
+              onFrame={(frame) => {
+                runtime.current?.ingestSerialFrame(frame);
+              }}
+              onDisconnect={() => runtime.current?.clearAutopilotStatus()}
+            />
             <p>
               Serial API availability does not enable HITL. A verified
               flight-controller profile is required.

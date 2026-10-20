@@ -505,6 +505,9 @@ Native LiveEkfWarmup consumes actual firmware diagnostics and explicit sensor
 clock provenance without adding SAB fields or changing ABI v2 offsets/flags.
 Normalized EKF bits retain their existing meanings. The native READY/EW verdict
 is scoped to that external-SITL session/epoch; it is not automatically published
-to the demo Worker. Browser AutopilotStatusValid stays unknown until its own
-verified backend integration supplies fresh diagnostics. Timing and revocation
+to the demo Worker. Browser AutopilotStatusValid stays clear in that
+publication. The Main HUD copy may set it from an identity-bound EkfMonitor
+snapshot whose epoch matches the displayed flight state. A serial connection
+does not publish that flag into the SAB and does not admit browser READY.
+Timing and revocation
 details are in the engine specification; physical HITL cannot fast-forward.
