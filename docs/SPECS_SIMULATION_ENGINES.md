@@ -1783,19 +1783,20 @@ requirement. READY verdicts are frozen and registered privately;
 `AutopilotSession.connect("hitl", ...)` now requires one, so a hand-made object
 or SITL availability cannot enable HITL. No board is verified yet.
 
-## ArduPilot bench: TASK-051
+## ArduPilot bench: TASK-051 (version 2 proposal)
 
-TASK-051 accepts ArduPilot only, at firmware 4.6.3 or newer for a recorded
-board. The current stage is virtual Hybrid SITL: `scripts/run-virtual-hitl.mjs`
-runs 60 s of copter JSON lockstep at 400 Hz on this computer and does not open
-a serial port. Provenance source is `virtual-sitl`. The pinned protocol commit
-is `8ab6afde107a91df1b5f60ade8f333cb8a61b190`. That pass does not observe an
-autopilot version and does not connect a drone. Recorded Simulation-on-Hardware
-requires `env SIM_ENABLED 1`, `AHRS_EKF_TYPE` 10, `GPS1_TYPE` 100,
-`SIM_MAG1_DEVID` 97539 and a `SIM_OH_MASK` in 0..65535, with props removed.
-A board using `AP_SIM_JSON_ENABLED` is Hybrid SITL placement `board`. PX4 is
-out of scope. Analyzer PASS does not enable `hitl` or browser READY. See
-[hardware/hitl-test-procedure.md](hardware/hitl-test-procedure.md).
+TASK-051 is deferred from version 1. The version 2 proposal is to produce an
+ArduPilot 4.6.3 or newer firmware image, using Hybrid SITL and
+Simulation-on-Hardware, that can be loaded on the drone and tested there.
+PX4 is out of scope. The analyzer and virtual JSON prototype below are kept
+as design notes. They do not block TASK-082 and they do not select the
+application backend. See [V2_PLAN.md](V2_PLAN.md).
+
+The recorded-board rules, retained for that later firmware, are: `env SIM_ENABLED 1`,
+`AHRS_EKF_TYPE` 10, `GPS1_TYPE` 100, `SIM_MAG1_DEVID` 97539, and `SIM_OH_MASK`
+in 0..65535, with props removed. A board using `AP_SIM_JSON_ENABLED` is Hybrid
+SITL placement `board`. The no-drone prototype is `scripts/run-virtual-hitl.mjs`.
+See [hardware/hitl-test-procedure.md](hardware/hitl-test-procedure.md).
 
 ## Implemented position-step spoofing: TASK-054
 
@@ -2124,7 +2125,7 @@ Shared evidence helpers bound input to 32 MiB, verify exact input SHA-256, rejec
 
 SITL locks firmware commit 8ab6afde107a91df1b5f60ade8f333cb8a61b190, EKF3 and arming checks. The owned Linux driver `scripts/sitl/driver.mjs` (with pinned pymavlink 2.4.50 sidecar `scripts/sitl/telemetry.py`) drives the verified native ArduCopter ELF against `BetRigidBodyBackend`. The analyzer requires contiguous servoFrame from zero, four 1000–2000 us PWM channels, increasing timestamps with <=0.1 s gaps, real source/model/firmware provenance and healthy EKF. Stages must progress arm→takeoff→hold→land, in GUIDED=4 until LAND=9. Takeoff altitude is >=3 m, hold is 10 m ±1 m for >=10 s, and the final sample must be disarmed below 0.5 m. A private process run is bounded to 120 s/16 MiB; only its owned child/group is terminated. Pinned sources/hashes do not alone prove binary reproducibility. Full-rate capture verification (`scripts/check-sitl-capture.mjs --input CAPTURE_DIRECTORY`) and trace v2 details are specified in the TASK-042 native closed-loop section below.
 
-TASK-051 analysis covers 60–3600 s. Virtual Hybrid SITL uses provenance source `virtual-sitl`, copter `SIM_RATE_HZ` of at least 400, and p99 compute lateness <=2.5 ms, with no drone and no serial port. Recorded Simulation-on-Hardware requires ArduPilot >=4.6.3, `AHRS_EKF_TYPE` 10, `GPS1_TYPE` 100, `SIM_MAG1_DEVID` 97539, heartbeat gaps <=2.5 s, and an unplug that drops the link and disables actuators. Plane, rover and blimp Hybrid SITL use `SIM_RATE_HZ` of at least 50 and p99 lateness <=5 ms. See the bench procedure; the CLI does not open a serial port or arm a vehicle.
+TASK-051 is a version 2 proposal and is not a version 1 acceptance gate. Its analyzer, kept for that later firmware, covers 60–3600 s. Virtual Hybrid SITL uses provenance source `virtual-sitl`, copter `SIM_RATE_HZ` of at least 400, and p99 compute lateness <=2.5 ms, with no drone and no serial port. Recorded Simulation-on-Hardware requires ArduPilot >=4.6.3, `AHRS_EKF_TYPE` 10, `GPS1_TYPE` 100, `SIM_MAG1_DEVID` 97539, heartbeat gaps <=2.5 s, and an unplug that drops the link and disables actuators. Plane, rover and blimp Hybrid SITL use `SIM_RATE_HZ` of at least 50 and p99 lateness <=5 ms. See the version 2 procedure; the CLI does not open a serial port or arm a vehicle.
 
 EW requires a no-fault control plus jamming, position-step, velocity-drift, magnetic and motor-loss cases. TASK-059 native acquisition uses scripts/run-ew-sitl.mjs, the existing TASK-042 driver and the TASK-058 EwEngine. GPS1_TYPE=14 accepts actual GPS_INPUT packets at 10 Hz; GPS2_TYPE=0 prevents a clean backup masking the injected receiver. Physics JSON position/velocity remain true. A 30 m north step, 0.5 m/s² north drift capped at 4 m/s, and severity-1 jamming affect GPS only. Magnetic bias adds [0.3,0.2,0] Gauss in FRD through all three SIM_MAGn_OFS parameters (negative milliGauss because SIM_Compass subtracts offsets); no attitude or IMU-force corruption is used. Motor 0 loses its complete force and yaw wrench after motor lag through the explicit synthetic instant-thrust-loss contract, not an electrical motor model.
 

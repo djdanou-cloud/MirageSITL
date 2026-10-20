@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { performance } from "node:perf_hooks";
 import { ExternalSitlLockstep, newSitlPhysicsState, MAX_STATE_LINE_BYTES } from "../packages/autopilot/src/external-sitl.ts";
 /**
- * Current TASK-051 stage: Hybrid SITL JSON lockstep on this computer.
+ * Version 2 proposal TASK-051: Hybrid SITL JSON lockstep prototype on this computer.
  * No serial port is opened and no flight controller is required.
  * Simulation-on-Hardware remains a later recorded bench.
  */

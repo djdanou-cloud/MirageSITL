@@ -1,6 +1,6 @@
 import { cli, exact, finite, provenance, percentile, report, text } from "./validation/evidence.mjs";
 /**
- * TASK-051. ArduPilot only, firmware 4.6.3 or newer.
+ * Version 2 proposal TASK-051. ArduPilot only, firmware 4.6.3 or newer.
  * Simulation-on-Hardware: https://ardupilot.org/dev/docs/sim-on-hardware.html
  *   env SIM_ENABLED 1; AHRS_EKF_TYPE 10; GPS1_TYPE 100; SIM_MAG1_DEVID 97539;
  *   SIM_OH_MASK selects real servo channels (default 0).

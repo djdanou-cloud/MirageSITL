@@ -510,4 +510,4 @@ publication. The Main HUD copy may set it from an identity-bound EkfMonitor
 snapshot whose epoch matches the displayed flight state. A serial connection
 does not publish that flag into the SAB and does not admit browser READY.
 Timing and revocation
-details are in the engine specification; recorded Simulation-on-Hardware cannot fast-forward.
+details are in the engine specification; a version 2 Simulation-on-Hardware board cannot fast-forward.

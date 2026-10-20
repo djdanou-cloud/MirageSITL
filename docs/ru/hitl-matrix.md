@@ -1,6 +1,6 @@
 # Матрица возможностей прошивок для HITL
 
-<!-- source-sha256: fe52ac999e38851e1ca430d2efec3ec34b757a590c4275c2218868f47b57ad8a -->
+<!-- source-sha256: eb699abe24e8ad43e89e4a0d81ca2c1add04c9cbf6bd852dd76d93a025c0edc2 -->
 
 Английский источник: [Source of truth](../hardware/hitl-matrix.md).
 
@@ -43,11 +43,4 @@ PX4: mavlink_receiver.cpp (sha256 2e22f0d3e22a48f2793202f7e9dba3526afbb5da8221ab
 
 ## Проверенные профили плат
 
-Нет. Чтобы добавить записанный профиль Simulation-on-Hardware, прошить
-ArduPilot 4.6.3 или новее, собранный с `env SIM_ENABLED 1`, снять пропеллеры и
-захватить `AHRS_EKF_TYPE` 10, `GPS1_TYPE` 100, `SIM_MAG1_DEVID` 97539,
-`SIM_OH_MASK` и отключение кабеля. Текущий этап TASK-051 не использует дрон:
-виртуальный Hybrid SITL запускается командой
-`node --experimental-strip-types scripts/run-virtual-hitl.mjs`. PX4 не входит
-в этот стенд. `HIL_ACTUATOR_CONTROLS` остаётся отдельным программным гейтом
-TASK-050 и не принимает Simulation-on-Hardware.
+Нет для версии 1. TASK-051 — предложение версии 2: произвести прошивку ArduPilot 4.6.3 или новее с `env SIM_ENABLED 1` и, для Hybrid SITL, с `AP_SIM_JSON_ENABLED 1`, загрузить этот образ на дрон, снять пропеллеры и захватить `AHRS_EKF_TYPE` 10, `GPS1_TYPE` 100, `SIM_MAG1_DEVID` 97539, `SIM_OH_MASK` и отключение кабеля. Прототип без дрона — `node --experimental-strip-types scripts/run-virtual-hitl.mjs`. Он не создаёт прошивку дрона. PX4 не входит в это предложение. `HIL_ACTUATOR_CONTROLS` остаётся отдельным программным гейтом TASK-050.

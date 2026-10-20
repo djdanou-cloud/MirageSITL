@@ -41,10 +41,4 @@ MAVLink stream. Source support is not board support.
 
 ## Verified board profiles
 
-None. To add a recorded Simulation-on-Hardware profile, flash ArduPilot 4.6.3
-or newer built with `env SIM_ENABLED 1`, remove the propellers, and capture
-`AHRS_EKF_TYPE` 10, `GPS1_TYPE` 100, `SIM_MAG1_DEVID` 97539, `SIM_OH_MASK`, and
-an unplug. The current TASK-051 stage does not use a drone: virtual Hybrid
-SITL is `node --experimental-strip-types scripts/run-virtual-hitl.mjs`. PX4 is
-not part of this bench. `HIL_ACTUATOR_CONTROLS` remains the separate TASK-050
-software gate and does not accept Simulation-on-Hardware.
+None for version 1. TASK-051 is a version 2 proposal: produce ArduPilot 4.6.3 or newer firmware with `env SIM_ENABLED 1` and, for Hybrid SITL, `AP_SIM_JSON_ENABLED 1`, load that image on the drone, remove the propellers, and capture `AHRS_EKF_TYPE` 10, `GPS1_TYPE` 100, `SIM_MAG1_DEVID` 97539, `SIM_OH_MASK`, and an unplug. The no-drone prototype is `node --experimental-strip-types scripts/run-virtual-hitl.mjs`. It does not produce the drone firmware. PX4 is not part of this proposal. `HIL_ACTUATOR_CONTROLS` remains the separate TASK-050 software gate.

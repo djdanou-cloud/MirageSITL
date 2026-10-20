@@ -362,8 +362,8 @@ and other documents (review of 2026-10-20). They keep their existing TASK IDs.
 | --- | --- | --- | --- |
 | 033 | Model validation gate | BLOCKED_EXTERNAL | Propeller fidelity still fails at its fixed tolerances. Still needed: a measured or viscous-solver SDA1075 polar, a decision on BET tip loss and swirl, the archive storage decision, airframe data and the production BET binding. |
 | 046 | ArduPilot browser HAL | TODO | Connect clock, storage, sensor and actuator endpoints to the WASM firmware with a lockstep clock and no deadlock on pause or exit. |
-| 047 | WASM/native SITL parity | TODO | Arm, takeoff, land and failsafe on both paths. Position RMSE ≤ 0.5 m and attitude RMSE ≤ 2° over the 30 s reference. Depends on TASK-046. |
-| 051 | ArduPilot Simulation-on-Hardware and Hybrid SITL | IN_PROGRESS | Virtual Hybrid SITL passed with no drone. Recorded Simulation-on-Hardware still needs an ArduPilot 4.6.3+ board built with SIM_ENABLED. PX4 is out of scope. |
+| 047 | WASM/native SITL parity | DONE | Native and browser arm/takeoff/land and GCS-failsafe match. Position RMSE 0.019/0.049 m and attitude RMSE 0.058/0.097°. The demo backend stays selected. |
+| 051 | ArduPilot drone firmware | DEFERRED | Version 2 proposal. Produce ArduPilot 4.6.3+ firmware with Hybrid SITL and Simulation-on-Hardware, flash it to the drone, and test it there. Not a version 1 gate. PX4 is out of scope. |
 | 073 | GPU acceptance harness | BLOCKED_EXTERNAL | Blocked on full-feature production traces (terrain, FPV and thermal together), VRAM accounting and an M4 device. |
 | 074 | Pilot HUD and freshness | DONE | Serial `EkfMonitor` overlay on the Pilot HUD. Browser READY flight admission remains TASK-046/047. |
 | 075 | Instructor console | DONE | Fault commands apply through the session EW registry. Weather and model commands stay rejected on the demo. |
@@ -390,12 +390,18 @@ and other documents (review of 2026-10-20). They keep their existing TASK IDs.
   * recording unhealthy EKF responses;
   * a per-rotor thrust-loss input for the synthetic quad.
 * **Motor faults.** Full BET and mixer wiring, with compensation flight tests.
-* **ArduPilot Simulation-on-Hardware and Hybrid SITL.** TASK-051 is ArduPilot
-  4.6.3 or newer only. PX4 is out of scope. The current stage is a virtual
-  Hybrid SITL JSON run on this computer, with no drone connected
-  (`node --experimental-strip-types scripts/run-virtual-hitl.mjs`). Recorded
-  Simulation-on-Hardware (`SIM_ENABLED`) still needs a board flash and a
-  props-off capture.
+* **ArduPilot firmware for the drone (TASK-051, version 2).** This is a proposed
+  upgrade, not a version 1 gate. Hybrid SITL and Simulation-on-Hardware must
+  produce an ArduPilot 4.6.3 or newer firmware image that can be loaded onto
+  the drone and tested on the drone. Hybrid SITL means the flight code uses
+  ArduPilot's JSON physics backend (`AP_SIM_JSON_ENABLED`, UDP 9002).
+  Simulation-on-Hardware means the same flight code is built with
+  `env SIM_ENABLED 1` so the autopilot runs the simulation on the board.
+  PX4 is out of scope. Props stay off until a written test procedure says
+  otherwise. The existing no-drone virtual JSON lockstep
+  (`scripts/run-virtual-hitl.mjs`) is only a prototype of the physics link. It
+  does not produce the drone firmware and does not finish this upgrade.
+  Version 1 system acceptance (TASK-082) does not wait for this firmware.
 * **Bridge beyond loopback.** HTTPS/WSS and Private Network Access for remote
   use.
 * **Newer firmware.** Must explicitly extend the pinned MAVLink subset.

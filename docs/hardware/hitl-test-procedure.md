@@ -1,6 +1,6 @@
 # ArduPilot Simulation-on-Hardware and Hybrid SITL bench
 
-Status: the virtual stage has a passing local run. The recorded Simulation-on-Hardware stage is BLOCKED_EXTERNAL until a board with that firmware is connected. The analyzer does not open a serial port and does not enable actuators. PX4 is out of scope. A PASS does not call `AutopilotSession.connect("hitl")` and does not enable browser READY.
+Status: version 2 proposal. Version 1 does not require this bench. The goal is an ArduPilot 4.6.3 or newer firmware image, built for Hybrid SITL and Simulation-on-Hardware, that can be loaded on the drone and tested there. The analyzer does not open a serial port and does not enable actuators. PX4 is out of scope. A PASS does not call `AutopilotSession.connect("hitl")` and does not enable browser READY. The virtual JSON run is a prototype of the physics link. It does not produce the drone firmware.
 
 ArduPilot 4.6.3 and newer is the recorded-firmware floor. Classic `HIL_SENSOR` / `HIL_GPS` / `HIL_ACTUATOR_CONTROLS` are not this bench. Two modes are accepted:
 
