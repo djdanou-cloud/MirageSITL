@@ -108,10 +108,13 @@ export class BetRigidBodyBackend {
       )
         throw new Error("Non-finite body reset");
     const q = state.quaternionBodyToNed;
-    if (
-      Math.abs(Math.hypot(q[0]!, q[1]!, q[2]!, q[3]!) - 1) > 1e-6 ||
-      !q.every(Number.isFinite)
-    )
+    let sum = 0;
+    for (let i = 0; i < 4; i++) {
+      const component = q[i]!;
+      if (!Number.isFinite(component)) throw new Error("Invalid body reset quaternion");
+      sum += component * component;
+    }
+    if (Math.abs(Math.sqrt(sum) - 1) > 1e-6)
       throw new Error("Invalid body reset quaternion");
     const a = this.input;
     for (let i = 0; i < 3; i++) {
