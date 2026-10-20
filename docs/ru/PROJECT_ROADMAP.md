@@ -1,6 +1,6 @@
 # PROJECT_ROADMAP.md
 
-<!-- source-sha256: 871d285a6e7882fff269d8a1a4b780f96be7c43f3f4b1a1364ec50758256fafb -->
+<!-- source-sha256: adf26027b095aafb0a2576d74f6ad05eea232421877b48661313e2d1500d2d6c -->
 
 Английский источник: [Source of truth](../PROJECT_ROADMAP.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -861,7 +861,7 @@ Google content без прав.
 - **Status:** BLOCKED_EXTERNAL — Codex; 2026-10-17. Анализатор/схема бенчмарка и короткие демозахваты на RTX 4050 созданы; 10-минутные трассы со всеми функциями (terrain/FPV/thermal), учёт резидентности памяти GPU, выполнение порогов p99 60/120 FPS и устройство Apple M4 отсутствуют.
 - **Title & Description:** Снять production profiles на M4/RTX 4050 с FPV/thermal/terrain.
 - **Dependencies:** TASK-014, TASK-062, TASK-065, TASK-066, TASK-068, TASK-072.
-- **Touched Files:** `scripts/bench-render.mjs`, `docs/benchmarks/render-matrix.json`, `docs/validation/gpu-report.schema.json`, `tests/gpu-report.test.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `README.md`, `docs/ru/README.md`, `docs/documentation-index.json`, `scripts/validation/evidence.mjs`, `tests/evidence-tools.test.ts`, `tests/support/node-evidence.ts`.
+- **Touched Files:** `scripts/bench-render.mjs`, `docs/benchmarks/render-matrix.json`, `docs/validation/gpu-report.schema.json`, `tests/gpu-report.test.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `README.md`, `docs/ru/README.md`, `docs/documentation-index.json`, `scripts/validation/evidence.mjs`, `tests/evidence-tools.test.ts`, `tests/support/node-evidence.ts`, `docs/hardware/mac-m4-final-test.md`, `docs/ru/mac-m4-final-test.md`.
 - **Interfaces / Contracts:** G3 device/browser/resolution/quality/VRAM evidence.
 - **DoD & Acceptance Criteria:** По 10 min после 60 s warmup: 60 FPS profile p99<=16.67 ms и 120 FPS profile p99<=8.33 ms; terrain budget соблюдён; headless software GPU не подтверждает hardware gate; missing devices BLOCKED_EXTERNAL.
 - **Evidence:** Владелец Codex; 2026-10-17. Реализованы `scripts/bench-render.mjs`, `docs/benchmarks/render-matrix.json`, `docs/validation/gpu-report.schema.json` и `tests/gpu-report.test.ts`. Короткие 15-секундные захваты видимого окна Chromium на Windows 11 с NVIDIA RTX 4050 Laptop GPU (`test-results/laptop/gpu-rtx4050-60.json`, `test-results/laptop/gpu-rtx4050-120.json`, `test-results/laptop/gpu-rtx4050-native144.json`) показали темп ~60 FPS при времени кадра p99 `22.7–28.6` мс (не проходят пороги G3 `<=16.67` мс для 60 FPS и `<=8.33` мс для 120 FPS) на демосцене без включённых terrain/FPV/thermal и без телеметрии резидентности GPU. Полные 10-минутные прогоны на RTX 4050 и Apple M4 остаются `BLOCKED_EXTERNAL`.

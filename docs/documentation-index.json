@@ -76,6 +76,10 @@
     {
       "en": "HANDOVER.md",
       "ru": "docs/ru/HANDOVER.md"
+    },
+    {
+      "en": "docs/hardware/mac-m4-final-test.md",
+      "ru": "docs/ru/mac-m4-final-test.md"
     }
   ]
 }
