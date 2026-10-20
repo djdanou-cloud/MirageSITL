@@ -4,6 +4,7 @@ import type {
   AutopilotState,
 } from "./adapter.ts";
 import { isIssuedHitlReady } from "./hitl-capabilities.ts";
+import {isIssuedWasmParity,type WasmParityIdentity} from './wasm-parity.ts';
 /** Protocol/lifecycle reference. Readiness requires fresh autopilot-sourced health. */
 export class AutopilotSession {
   private phase: AutopilotState = "disconnected";
@@ -26,11 +27,14 @@ export class AutopilotSession {
   /**
    * "hitl" additionally requires a READY verdict issued by
    * evaluateHitlCapability (TASK-050); SITL readiness never implies HITL.
+   * "wasm-sitl" requires an issued parity capability and matching active
+   * inputs (TASK-047). Initialization/live health still follow connection.
    */
-  connect(backend: AutopilotBackend, epoch: number, nowMs: number, hitlCapability?: unknown): boolean {
+  connect(backend: AutopilotBackend, epoch: number, nowMs: number, capability?: unknown,wasmIdentity?:WasmParityIdentity): boolean {
     if (
       this.state !== "disconnected" ||
-      (backend === "hitl" && !isIssuedHitlReady(hitlCapability)) ||
+      (backend === "hitl" && !isIssuedHitlReady(capability)) ||
+      (backend === 'wasm-sitl' && !isIssuedWasmParity(capability,wasmIdentity)) ||
       (backend !== "external-sitl" &&
         backend !== "wasm-sitl" &&
         backend !== "hitl") ||

@@ -249,7 +249,10 @@ real browser Worker/pthread boot, and persistent IndexedDB EEPROM checks. The
 firmware artifact stays external under `BLOCKED_DECISION` (GPLv3 redistribution)
 and is served only with an explicit loopback development setting; see the
 [operational runbook](docs/operations/runbook.md). The active browser flight
-backend remains the demo pending TASK-047 flight parity. TASK-046 supplies the
+backend remains the demo pending application session/release admission. TASK-047
+verifies local native/browser flight parity and gates WASM lifecycle connection
+on a SHA-256-verified report bound to the active configuration. See the runbook
+for the capture/audit/comparison procedure. TASK-046 supplies the
 checked sensor/PWM mailbox and host-owned 400/800/1200 Hz clock, including local
 real-firmware tests with configurable synthetic NACA6409/NeuralFoil BET physics.
 Build with `node scripts/build-ardupilot-hal.mjs`; validate the kernel with

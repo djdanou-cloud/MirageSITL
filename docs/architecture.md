@@ -52,8 +52,7 @@ verified outside the demo flight loop:
   diagnostics, and IndexedDB EEPROM persistence.
 
 Genuinely open boundaries: measured rotor/airframe/contact fidelity (TASK-033;
-NASA drop fidelity explicitly deferred by the user), browser ArduCopter WASM
-flight parity and GPL redistribution decision (TASK-047), browser
+NASA drop fidelity explicitly deferred by the user), GPL redistribution and browser
 autopilot READY and accessibility sign-off (TASK-080), live terrain-contact flight-session coupling (TASK-065),
 physical flight-controller HITL (TASK-051), and target-device M4/RTX 4050
 400–1200 Hz and 60–120 FPS performance verification (TASK-073). Fixed `dt`
@@ -1176,5 +1175,19 @@ withholds input and stops simulated time. Native and pthread-WASM probes check
 units, timing, malformed frames and hot allocations separately from real
 firmware browser tests. Local HAL builds use `scripts/build-ardupilot-hal.mjs`;
 `MIRAGE_HAL_ARTIFACT_DIR` selects their browser test bytes. Native SITL flight
-parity and production backend admission remain TASK-047. Artifact redistribution retains its GPL decision gate
+parity and input-bound lifecycle admission are verified by TASK-047; application session/release admission remains separate. Artifact redistribution retains its GPL decision gate
 (`BLOCKED_DECISION`).
+
+TASK-047 runs the same configurable synthetic NACA6409/NeuralFoil BET quad in
+native JSON SITL and the real browser HAL at 800 Hz. An opt-in, explicitly
+synthetic flat pad permits startup and landing; it is separate from Rapier
+fidelity. Tick-scheduled nominal/GCS-loss flights retain original serial and
+command bytes, independently audited with pymavlink before the 30 s, 100 Hz
+position/quaternion comparison. Limits stay 0.5 m and 2 degrees RMSE, with
+0.5 s maximum continuous mode/arming disagreement. The audit uncovered and
+regression-tested unsupported-message framing delay in `MavParser`.
+`admitWasmParity` requires a trusted report SHA-256 and current identities;
+`AutopilotSession` rejects WASM connection without its issued capability.
+Connection enters initializing and retains live health/actuator freshness
+checks. Diagnostics do not change the active application backend or settle
+whole-firmware allocator, GPL or release gates.

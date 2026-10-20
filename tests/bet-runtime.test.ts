@@ -87,3 +87,21 @@ it('runs configurable body/rotor layouts deterministically at all supported rate
     a.reset();expect(a.state.down).toBe(-20);expect(a.state.tick).toBe(0);
   }
 });
+it('uses the opt-in synthetic pad only at penetration, preserving free flight above it',()=>{
+  const module=modules[0];if(!module)throw Error('Missing module');
+  const grounded=flightConfiguration();grounded.initialBody.positionNedM[2]=0;
+  grounded.initialOmegaRadS=[0,0,0,0];grounded.syntheticGroundDownM=0;
+  const supported=new BetFlightDynamics(module,grounded,400);
+  const free=flightConfiguration();free.initialBody.positionNedM[2]=0;free.initialOmegaRadS=[0,0,0,0];
+  const falling=new BetFlightDynamics(module,free,400),pilot=newInput();
+  for(let i=0;i<20;i++){supported.stepNow(pilot);falling.stepNow(pilot);}
+  expect(supported.state.down).toBe(0);expect(supported.state.vd).toBe(0);expect(supported.state.ad).toBe(0);
+  expect(falling.state.down).toBeGreaterThan(0);
+  const above=flightConfiguration();above.syntheticGroundDownM=0;
+  const a=new BetFlightDynamics(module,above,400),b=new BetFlightDynamics(module,flightConfiguration(),400);
+  for(let i=0;i<20;i++){a.stepNow(pilot);b.stepNow(pilot);}
+  expect(a.state).toEqual(b.state);
+  const invalid=flightConfiguration();invalid.syntheticGroundDownM=NaN;
+  expect(()=>new BetFlightDynamics(module,invalid,400)).toThrow('Invalid synthetic ground plane');
+  for(const p of [supported,falling,a,b])p.dispose();
+});

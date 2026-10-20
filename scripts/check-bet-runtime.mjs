@@ -89,12 +89,19 @@ if(!allocation){
   full(100000);await measure(full,10000);
   const graph={graph:'stationary-zero-gravity-four-rotor-flight',variant:'scalar',...await measure(full,1000000),memoryStable:d.engine.memoryStable};
   samples.push(graph);d.dispose();console.log(JSON.stringify(graph));
+  const supported=flightConfiguration(0,4);supported.initialBody.positionNedM[2]=0;
+  supported.initialOmegaRadS=[0,0,0,0];supported.syntheticGroundDownM=0;
+  const pad=new BetFlightDynamics(modules[0],supported,400);
+  const support=n=>{for(let i=0;i<n;i++){pad.nowMs=0;pad.stepNow(pilot);if(pad.fault||pad.state.down!==0)throw Error('Synthetic pad allocation step failed');}};
+  support(100000);await measure(support,10000);
+  const padGraph={graph:'synthetic-pad-four-rotor-flight',variant:'scalar',...await measure(support,1000000),memoryStable:pad.engine.memoryStable};
+  samples.push(padGraph);pad.dispose();console.log(JSON.stringify(padGraph));
   const sink={value:null};const control=n=>{for(let i=0;i<n;i++)sink.value={i};};
   const positive=await measure(control,1000000),controlDetected=positive.gcEvents>0 || positive.bytes>1000000;
   const passed=samples.every(s=>s.gcEvents===0&&s.bytesPerStep<0.01&&s.memoryStable)&&controlDetected;
   const report={schemaVersion:1,status:passed?'pass':'failed',...identity,warmupSteps:100000,samples,positiveControl:positive,controlDetected,
     nativeAllocator:{steps:1000000,calls:0,bytes:0,positiveControlDetected:true},
-    scope:'Active NeuralFoil rotor graph in both WASM variants plus stationary four-rotor body graph; native counted allocator check and WASM trapping allocator; no measured aerodynamic acceptance or hardware realtime claim'};
+    scope:'Active NeuralFoil rotor graph in both WASM variants plus stationary four-rotor body and synthetic-pad graphs; native counted allocator check and WASM trapping allocator; no measured aerodynamic acceptance or hardware realtime claim'};
   writeFileSync(resolve(root,'test-results/validation/bet-runtime-allocation.json'),JSON.stringify(report,null,2)+'\n');
   observer.disconnect();if(!passed)process.exitCode=1;
 }

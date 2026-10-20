@@ -16,6 +16,9 @@ export interface BetFlightConfiguration {
   densityKgM3: number; viscosityPaS: number; soundMps: number;
   /** Defaults to Earth gravity; zero is useful for inertial/support allocation fixtures. */
   gravityMps2?: number;
+  /** Opt-in synthetic flat pad: inelastic, no-slip support at this NED down.
+   * This numerical fixture is independent of Rapier/measured landing fidelity. */
+  syntheticGroundDownM?: number;
 }
 
 export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
@@ -47,8 +50,11 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
   private readonly angularAcceleration=new Float64Array(3);
   private readonly motorMapId:number;
   private pendingActuator=false;
+  private readonly groundDown:number|undefined;
   constructor(module:WebAssembly.Module,configuration:BetFlightConfiguration,hz:H) {
     const model=validateModelManifest(configuration.manifest),n=model.rotorCount;
+    if(configuration.syntheticGroundDownM!==undefined&&!Number.isFinite(configuration.syntheticGroundDownM))throw Error('Invalid synthetic ground plane');
+    this.groundDown=configuration.syntheticGroundDownM;
     if (model.kind!=='bet' || ![400,800,1200,4800].includes(hz) ||
         configuration.initialOmegaRadS.length!==n || configuration.motorMaxTorqueNm.length!==n ||
         configuration.inflowTauS.length!==n || configuration.inflowLimitMps.length!==n ||
@@ -139,6 +145,13 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
     }
     if(!this.frame.sumInto(this.hub,this.wrench) || !this.body.stepInto(this.wrench,this.dt,this.truth)){
       this.fault='BET body integration failed';return;
+    }
+    if(this.groundDown!==undefined&&this.truth.positionNedM[2]!>this.groundDown) {
+      this.truth.positionNedM[2]=this.groundDown;
+      // Explicit infinite-friction pad. No support acts above the plane.
+      this.truth.velocityNedMps.fill(0);this.truth.angularVelocityBodyRadS.fill(0);
+      this.truth.quaternionBodyToNed.set(this.initial.quaternionBodyToNed);
+      this.truth.accelerationNedMps2.fill(0);this.body.reset(this.truth);
     }
     this.angularAcceleration[0]=(rates[0]!-oldRx)/this.dt;this.angularAcceleration[1]=(rates[1]!-oldRy)/this.dt;
     this.angularAcceleration[2]=(rates[2]!-oldRz)/this.dt;

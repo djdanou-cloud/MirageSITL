@@ -3,7 +3,7 @@ import {type PhysicsHz,type ActuatorFrameV2,type FlightState,type PilotInput,
   ActuatorFlagV2,newActuatorFrameV2,newSensorFrameV2,newInput,SensorKindV2} from '@mirage/protocol';
 import {IdealSensors,type SensorTruth} from '@mirage/sensors/ideal';
 import {LocalTangentFrame} from '@mirage/sensors/geodesy';
-import {BrowserWasmSession,type BrowserFirmwareEvent} from './wasm-browser.ts';
+import {BrowserWasmSession,type BrowserFirmwareEvent,type BrowserWasmConfiguration} from './wasm-browser.ts';
 import {parseArdupilotWasmManifest} from './wasm-loader.ts';
 
 export const HAL_BYTES=1024;
@@ -206,8 +206,8 @@ export class WasmSitlCoupling {
 export class WasmSitlSession {
   port:WasmHalPort|null=null;
   private readonly firmware:BrowserWasmSession;
-  constructor(options:WasmHalOptions,emit:(event:BrowserFirmwareEvent)=>void,fail:(error:Error)=>void) {
-    this.firmware=new BrowserWasmSession(emit,fail,value=>{this.port=new WasmHalPort(value,options);});
+  constructor(options:WasmHalOptions,emit:(event:BrowserFirmwareEvent)=>void,fail:(error:Error)=>void,configuration?:BrowserWasmConfiguration) {
+    this.firmware=new BrowserWasmSession(emit,fail,value=>{this.port=new WasmHalPort(value,options);},configuration);
   }
   async start(baseUrl:string,manifest:unknown,profile:string):Promise<void> {
     const parsed=parseArdupilotWasmManifest(manifest);

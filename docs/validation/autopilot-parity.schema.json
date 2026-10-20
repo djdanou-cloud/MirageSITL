@@ -1,0 +1,190 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "TASK-047 native/browser comparison input v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "backend",
+    "firmwareCommit",
+    "firmwareSha256",
+    "physicsHz",
+    "captureStride",
+    "seed",
+    "airframeSha256",
+    "parametersSha256",
+    "commandsSha256",
+    "sensorSha256",
+    "scenarios"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "backend": {
+      "enum": [
+        "native",
+        "wasm"
+      ]
+    },
+    "firmwareCommit": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{40}$"
+    },
+    "firmwareSha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "physicsHz": {
+      "enum": [
+        400,
+        800,
+        1200
+      ]
+    },
+    "captureStride": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 60
+    },
+    "seed": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 4294967295
+    },
+    "airframeSha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "parametersSha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "commandsSha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "sensorSha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "scenarios": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "referenceStartTick",
+          "failsafeTick",
+          "samples"
+        ],
+        "properties": {
+          "id": {
+            "enum": [
+              "takeoff-land",
+              "gcs-failsafe"
+            ]
+          },
+          "referenceStartTick": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "failsafeTick": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "samples": {
+            "type": "array",
+            "minItems": 601,
+            "maxItems": 36001,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "tick",
+                "positionNedM",
+                "quaternionWxyz",
+                "armed",
+                "mode",
+                "ekfFlags",
+                "innovationRatios",
+                "heartbeatAgeS",
+                "ekfAgeS"
+              ],
+              "properties": {
+                "tick": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "positionNedM": {
+                  "type": "array",
+                  "minItems": 3,
+                  "maxItems": 3,
+                  "items": {
+                    "type": "number",
+                    "minimum": -1000000000,
+                    "maximum": 1000000000
+                  }
+                },
+                "quaternionWxyz": {
+                  "type": "array",
+                  "minItems": 4,
+                  "maxItems": 4,
+                  "items": {
+                    "type": "number",
+                    "minimum": -1000000000,
+                    "maximum": 1000000000
+                  }
+                },
+                "armed": {
+                  "type": "boolean"
+                },
+                "mode": {
+                  "enum": [
+                    4,
+                    9
+                  ]
+                },
+                "ekfFlags": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 65535
+                },
+                "innovationRatios": {
+                  "type": "array",
+                  "minItems": 5,
+                  "maxItems": 5,
+                  "items": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1000000000
+                  }
+                },
+                "heartbeatAgeS": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1000000000
+                },
+                "ekfAgeS": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1000000000
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -16,6 +16,16 @@ interface FactoryOptions {
   preRun:Array<(module:unknown)=>void>;print:(line:string)=>void;printErr:(line:string)=>void;
 }
 type Factory=(options:FactoryOptions)=>Promise<unknown>;
+/** Cold local SITL inputs. Defaults are copied before main, never hot-loaded. */
+export interface BrowserWasmConfiguration {defaultsText:string;home:{latitudeDeg:number;longitudeDeg:number;altitudeMslM:number;yawDeg:number}}
+export function validateBrowserWasmConfiguration(v:BrowserWasmConfiguration):void {
+  const h=v.home;
+  if(typeof v.defaultsText!=='string'||v.defaultsText.length>65536||
+    !v.defaultsText.split(/\r?\n/).every(line=>line.trim()===''||(/^\s*[A-Z][A-Z0-9_]{0,15}\s+-?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?\s*$/.test(line)&&Number.isFinite(Number(line.trim().split(/\s+/)[1]))))||
+    ![h.latitudeDeg,h.longitudeDeg,h.altitudeMslM,h.yawDeg].every(Number.isFinite)||
+    Math.abs(h.latitudeDeg)>90||Math.abs(h.longitudeDeg)>180||h.altitudeMslM<0||h.altitudeMslM>11000||h.yawDeg<0||h.yawDeg>=360)
+    throw Error('Invalid browser SITL cold configuration');
+}
 export type BrowserFirmwareEvent=
  | {type:'initialized';restoredRevision:number;memoryBytes:number;maximumMemoryBytes:number}
  | {type:'booted';heartbeats:number;memoryBytes:number;ownedPthreads:number}
@@ -79,7 +89,8 @@ export class BrowserWasmSession {
   private lastSaveMs=0;
   private readonly parser:MavParser;
   constructor(emit:(event:BrowserFirmwareEvent)=>void,fail:(error:Error)=>void,
-    private readonly bindFirmware?: (value:unknown)=>void){
+    private readonly bindFirmware?: (value:unknown)=>void,private readonly configuration?:BrowserWasmConfiguration){
+    if(configuration)validateBrowserWasmConfiguration(configuration);
     this.emit=emit;this.fail=fail;
     this.parser=new MavParser(frame=>{
       if(frame.id!==0||frame.systemId!==1||frame.componentId!==1)return;
@@ -115,10 +126,13 @@ export class BrowserWasmSession {
         }
       };
       const value:unknown=await imported.default({
-        arguments:['--model','quad','--serial0','wasm','--serial1','none','--serial2','none'],wasmBinary:wasm,
+        arguments:['--model','quad','--serial0','wasm','--serial1','none','--serial2','none',
+          ...(this.configuration?['--defaults','/mirage-defaults.parm','--home',
+            [this.configuration.home.latitudeDeg,this.configuration.home.longitudeDeg,this.configuration.home.altitudeMslM,this.configuration.home.yawDeg].join(',')]:[])],wasmBinary:wasm,
         mainScriptUrlOrBlob:this.glueUrl,locateFile:name=>new URL(name,base).href,
         preRun:[module=>{
           if(!record(module)||!isFs(module.FS))throw Error('Firmware filesystem unavailable before boot');
+          if(this.configuration)module.FS.writeFile('/mirage-defaults.parm',new TextEncoder().encode(this.configuration.defaultsText));
           if(this.saved)module.FS.writeFile('/eeprom.bin',this.saved.image);
         }],print:text=>this.emit({type:'log',text}),printErr:text=>this.emit({type:'log',text}),
       });

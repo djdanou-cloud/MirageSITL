@@ -8,7 +8,7 @@
 PowerShell/zsh и проверки перед расширением поддерживаемого покрытия.
 
 ## Локальные проверки
-<!-- source-sha256: 98a6316a4faaf20e0534cab97b69e30e9ab9125a26f8737b8539df6bfd4f159e -->
+<!-- source-sha256: d30a90a96d017705380669ce557b4d378946a330895fbe8d34320b5d832159e6 -->
 
 Использовать существующий изолированный checkout, сохраняя локальные изменения. Node закреплён .nvmrc; Rust 1.97.0 и wasm32-unknown-unknown — native/rust-toolchain.toml. Зависимости ставить через npm ci. В облаке активировать CARGO_HOME=/workspace/.cache/mirage-cargo, RUSTUP_HOME=/workspace/.cache/mirage-rustup и добавить CARGO_HOME/bin в начало PATH; не переопределять HOME. Запустить lint, typecheck, check:docs, CI=true npm test, npm run build и locked native tests. Запустить npm run dev; проверить HTTP, COOP same-origin, COEP require-corp и настоящий Worker READY. Начать с нулевого газа, армировать, летать, приостановить и сбросить. Браузерные тесты используют системный Chromium только при наличии. Установка/запуск на чистой восстановленной машине для сертификации выпуска ещё не выполнялись.
 
@@ -230,3 +230,45 @@ python scripts/check-ardupilot-browser.py --input test-results/validation/task-0
 ```
 
 Команде аудита нужен pymavlink 2.4.50 (подходит установленный WSL venv). Браузерные тесты используют только встроенный синтетический квадрокоптер и остаются disarmed. Проверяются настоящий ответ/сохранение/восстановление параметра, внезапное завершение, отсутствие оставшихся Worker, конфликты профиля, отмена транзакции, повреждение хранилища, изоляция, хеши, пределы размера и доступ к артефактам. JSON содержит исходные serial-байты и три EEPROM-образа по 16 КиБ; независимый аудитор пишет wire-audit JSON и serial/EEPROM .bin. Это собственные тестовые результаты. Прошивка/glue остаются внешними под local-only-pending-gpl-review. Повреждённые записи сохранять для диагностики; не стирать молча и не подменять defaults ради PASS. Контракт восстановления гарантирует только подтверждённые checkpoint. Живое время/физика симуляции, интеграция постоянного хранилища в полёте, пауза и паритет полёта относятся к TASK-046/047.
+
+## TASK-047: локальное сравнение полёта native/browser
+
+Используйте закреплённые чистые исходники/native ELF и HAL-артефакт TASK-042/046,
+Node 24, существующую scalar-сборку BET WASM, изолированный Chromium и pymavlink
+2.4.50. Для этого синтетического сравнения NACA6409/NeuralFoil не нужны
+оборудование и измеренные данные ротора. Подготовка требует новой директории
+и копирует upstream Copter defaults с явными параметрами синтетической модели;
+проверки arming и EKF3 сохраняются. Native-драйвер запускается в Linux/WSL;
+на Windows подготовьте bundle через Windows Node, передайте WSL-пути
+собранному native-драйверу и используйте Windows Node для Playwright. Оба
+бэкенда должны использовать один подготовленный файл defaults. При изменении
+исходников сохраняйте захваты; пересоберите драйвер и повторите оба бэкенда,
+не редактируя хеши.
+
+```bash
+node scripts/prepare-autopilot-parity.mjs --defaults /path/to/ardupilot/Tools/autotest/default_params/copter.parm --output .cache/task-047-run
+node .cache/task-047-run/native-driver.mjs "$PWD" "$MIRAGE_SITL_BINARY" "$MIRAGE_SITL_SOURCE" "$PWD/.cache/task-047-run/defaults.parm" "$PWD/.cache/task-047-run/native-nominal.json"
+MIRAGE_PARITY_FAILSAFE=1 node .cache/task-047-run/native-driver.mjs "$PWD" "$MIRAGE_SITL_BINARY" "$MIRAGE_SITL_SOURCE" "$PWD/.cache/task-047-run/defaults.parm" "$PWD/.cache/task-047-run/native-failsafe.json"
+MIRAGE_PARITY_DEFAULTS="$PWD/.cache/task-047-run/defaults.parm" MIRAGE_HAL_ARTIFACT_DIR=/path/to/local/hal node node_modules/playwright/cli.js test tests/browser/autopilot-parity.spec.ts
+for input in .cache/task-047-run/native-nominal.json .cache/task-047-run/native-failsafe.json test-results/validation/task-047-browser-takeoff-land.json test-results/validation/task-047-browser-gcs-failsafe.json; do
+  python scripts/sitl/check-parity-wire.py --input "$input" --output "$input.audit.json"
+done
+node scripts/assemble-autopilot-parity.mjs --native .cache/task-047-run/native-nominal.json .cache/task-047-run/native-failsafe.json --wasm test-results/validation/task-047-browser-takeoff-land.json test-results/validation/task-047-browser-gcs-failsafe.json --output .cache/task-047-run/comparison
+node scripts/compare-autopilot.mjs --native .cache/task-047-run/comparison/native.json --wasm .cache/task-047-run/comparison/wasm.json --output test-results/validation/autopilot-parity.json
+```
+
+Каждый native-прогон владеет частной временной директорией прошивки и дочерним
+процессом; браузерный fixture владеет Worker/pthread прошивки. Захваты записывают
+120 с полёта при 800 Гц с отсчётами 100 Гц, исходными serial-байтами и командами.
+Оцениваемый эталон за 30 с — 90..120 с, без выравнивания траекторий. Штатный
+случай посылает LAND на 90 с; GCS-случай вместо этого обрывает heartbeat и
+требует STATUSTEXT прошивки, подтверждающий failsafe до посадки/разоружения.
+JSON аудита сохраняется рядом с каждым захватом. До численного сравнения
+анализатор проверяет эти файлы и текущие идентичности исходников/артефактов.
+Отчёт допускает лишь capability паритета соответствующего жизненного цикла;
+он не выбирает бэкенд приложения, не подтверждает измеренную точность и не
+закрывает гейты аллокаций, распространения и релиза. Перед admitWasmParity
+сохраните SHA-256 отчёта в доверенной локальной конфигурации приёмки.
+Отсутствие захватов даёт код 2, неуспешные/непроверенные данные — код 1;
+не заменяйте проваленный захват синтетической трассой и не обновляйте golden
+для сокрытия расхождения.

@@ -223,3 +223,43 @@ python scripts/check-ardupilot-browser.py --input test-results/validation/task-0
 ```
 
 The audit command requires pymavlink 2.4.50 (the installed WSL venv is suitable). Browser tests use only the built-in synthetic quad and remain disarmed. They check real parameter readback/save/restore, abrupt termination, zero surviving Workers, profile conflicts, transaction aborts, corrupt storage, isolation, hashes, size caps and artifact access checks. The JSON capture includes original serial bytes and three 16 KiB EEPROM images; the independent auditor writes wire-audit JSON and serial/EEPROM .bin files. These are owned test outputs. Firmware/glue remain external under local-only-pending-gpl-review. Keep corrupt records for diagnosis; never silently wipe or substitute defaults to obtain a pass. Only acknowledged checkpoints survive the recovery contract. Live simulation time/physics, persistent storage integration during flight, pause semantics and flight parity belong to TASK-046/047.
+
+## TASK-047 local native/browser flight comparison
+
+Use the pinned clean native source/ELF and HAL artifact from TASK-042/046,
+Node 24, the existing scalar BET WASM build, isolated Chromium and pymavlink
+2.4.50. No hardware or measured rotor data is required for this synthetic
+NACA6409/NeuralFoil comparison. Preparation requires a new directory and
+copies upstream Copter defaults with explicit synthetic-model overrides;
+arming checks and EKF3 remain enabled. Run the native driver under Linux/WSL;
+on Windows, prepare/bundle with Windows Node, then pass WSL paths to the
+bundled native driver and use Windows Node for Playwright. Use the same
+prepared defaults file for both backends. Preserve captures when sources
+change; rebuild the driver and repeat both backends rather than editing hashes.
+
+```bash
+node scripts/prepare-autopilot-parity.mjs --defaults /path/to/ardupilot/Tools/autotest/default_params/copter.parm --output .cache/task-047-run
+node .cache/task-047-run/native-driver.mjs "$PWD" "$MIRAGE_SITL_BINARY" "$MIRAGE_SITL_SOURCE" "$PWD/.cache/task-047-run/defaults.parm" "$PWD/.cache/task-047-run/native-nominal.json"
+MIRAGE_PARITY_FAILSAFE=1 node .cache/task-047-run/native-driver.mjs "$PWD" "$MIRAGE_SITL_BINARY" "$MIRAGE_SITL_SOURCE" "$PWD/.cache/task-047-run/defaults.parm" "$PWD/.cache/task-047-run/native-failsafe.json"
+MIRAGE_PARITY_DEFAULTS="$PWD/.cache/task-047-run/defaults.parm" MIRAGE_HAL_ARTIFACT_DIR=/path/to/local/hal node node_modules/playwright/cli.js test tests/browser/autopilot-parity.spec.ts
+for input in .cache/task-047-run/native-nominal.json .cache/task-047-run/native-failsafe.json test-results/validation/task-047-browser-takeoff-land.json test-results/validation/task-047-browser-gcs-failsafe.json; do
+  python scripts/sitl/check-parity-wire.py --input "$input" --output "$input.audit.json"
+done
+node scripts/assemble-autopilot-parity.mjs --native .cache/task-047-run/native-nominal.json .cache/task-047-run/native-failsafe.json --wasm test-results/validation/task-047-browser-takeoff-land.json test-results/validation/task-047-browser-gcs-failsafe.json --output .cache/task-047-run/comparison
+node scripts/compare-autopilot.mjs --native .cache/task-047-run/comparison/native.json --wasm .cache/task-047-run/comparison/wasm.json --output test-results/validation/autopilot-parity.json
+```
+
+Each native run owns its private temporary firmware directory and child process;
+the browser fixture owns its firmware Worker/pthreads. Captures record 120 s
+of flight at 800 Hz, sampled at 100 Hz, with original serial and command bytes.
+The scored 30 s reference is 90..120 s, not a trajectory-aligned window. The
+nominal case commands LAND at 90 s; the GCS case cuts heartbeats instead and
+requires firmware STATUSTEXT confirming failsafe before landing/disarm.
+Audit JSON is written beside each capture. The comparator validates those
+files and current source/artifact identities before numerical scoring.
+A report enables only the matching lifecycle parity capability; it does not
+select the application backend, admit measured fidelity or settle allocation,
+distribution and release gates. Store its SHA-256 in trusted local acceptance
+configuration before calling admitWasmParity. Missing captures exit 2 and
+failed/unverified evidence exits 1; never replace a failed capture with a
+synthetic trace or update goldens to hide a mismatch.

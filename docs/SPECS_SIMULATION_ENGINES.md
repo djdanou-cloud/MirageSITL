@@ -2652,3 +2652,94 @@ The delayed-release browser fixture uses actual firmware and Web Locks, checking
 that each of four pthread terminations follows release completion and that all
 Workers disappear after each of three restarts. It does not replace firmware
 with a synthetic peer or relax the cleanup deadline.
+
+## Native/browser autopilot parity and admission (TASK-047)
+
+The local parity harness compares the pinned native ArduCopter JSON backend
+against the actual HAL-enabled pthread-WASM firmware in isolated Chromium.
+Both use the same Rust BET body/rotor module, NACA6409 NeuralFoil polar,
+synthetic quad-X geometry, explicit parameter bytes, origin and tick schedule.
+This verifies software behavior for the declared configuration, not measured
+aircraft fidelity or unrestricted admission of other configurations.
+
+`tests/support/autopilot-parity.ts` supplies a configurable 1.5 kg quad with
+0.2 m arms, inertia diagonal [0.03,0.03,0.05] kg m^2, four 0.15 m two-blade
+rotors in firmware FR/RL/FL/RR order and maximum shaft torque 0.15 N m each.
+The fixture models two uniform 1 g blades per rotor over 0.045..0.15 m;
+shaft inertia is 2*0.001*(0.15^2+0.15*0.045+0.045^2)/3 kg m^2. The generic
+0.0002 kg m^2 rotor fixture caused an unstable controller response; that failed
+diagnostic is preserved. The new declared configuration is shared by both
+backends; parity thresholds were not changed to accommodate it.
+
+`BetFlightConfiguration.syntheticGroundDownM` is optional and finite. A body
+that penetrates this synthetic horizontal pad is projected to that NED down,
+with zero velocity/rates, initial attitude and zero inertial acceleration.
+This explicitly inelastic, infinite-friction fixture supplies no force above
+the plane and is separate from Rapier or measured landing-gear fidelity.
+Existing configurations omit it and retain free flight. Validity flags from
+the NeuralFoil/rotor envelope remain recorded, including low-confidence and
+out-of-domain operation during spool/landing; passing autopilot parity does
+not turn those flags into a model-fidelity PASS.
+
+The common origin is -35.362938/149.165085 degrees, 584 m MSL, with an explicit
+synthetic zero geoid offset. The browser magnetic field uses the pinned
+pymavlink/AP_Declination table at this origin; native JSON derives its field
+from the same table and location. Host sensors are ideal and have no random
+stream. Both fresh firmware processes use their default initial RNG seed 1;
+native libc and WASM libc need not generate identical noise sequences.
+Source hashes retain the sensor and geodesy implementations. The reference
+does not promise bitwise firmware equivalence.
+
+`BrowserWasmConfiguration` optionally supplies bounded numeric parameter text
+and home coordinates before firmware main. It writes a private defaults file
+in MEMFS and appends explicit `--defaults`/`--home` arguments. Existing boot
+callers retain their defaults/storage behavior. Both parity runs preserve
+`ARMING_CHECK=1` and EKF3; arming commands never use the force parameter.
+At 800 Hz, GUIDED is commanded at 60 s, arm at 63 s, takeoff to 5 m at 70 s.
+At 90 s the nominal case commands LAND; the failsafe case stops GCS
+HEARTBEATs, preserving telemetry requests, with FS_GCS_ENABLE=5. Original
+STATUSTEXT must confirm the GCS failsafe. Both must land and disarm by 120 s.
+
+The independent `scripts/sitl/check-parity-wire.py` uses pymavlink 2.4.50 to
+decode original serial chunks and transmitted commands. Printable UART
+startup text is retained separately during pre-flight warmup; CRC errors
+remain failures. Scored mode/armed/EKF flags and all five innovation ratios
+must match original messages at their recorded receive times, allowing only
+one simulation tick of producer bookkeeping. `MavParser` consumes a complete
+structurally valid unsupported envelope without scanning its payload for
+0xfd; unknown payloads are never admitted. Corrupt known frames retain bounded
+resynchronization. A regression reproduces the old delayed-EKF freshness bug;
+pre-fix captures fail the independent audit and are excluded from acceptance.
+
+`docs/validation/autopilot-parity.schema.json` describes comparison inputs.
+The scored reference is absolute ticks 72000..96000 inclusive (90..120 s),
+stride 8, 3001 samples at 100 Hz. No trajectory alignment/interpolation,
+mean removal or generated golden is allowed. Position RMSE uses Euclidean
+NED distance; attitude RMSE uses the shortest quaternion geodesic angle in
+degrees, normalizing within the checked unit-norm envelope and treating q/-q
+equally. Fixed limits are 0.5 m and 2 degrees over 30 s. Continuous
+mode/arming disagreement may last at most 0.5 s. Every sample requires fresh
+heartbeat/EKF age <=1 s, raw EKF flags containing 55 and no uninitialized flag,
+and finite innovation ratios in [0,1). Incomplete, shifted, duplicate or
+different-input captures fail before scoring.
+
+`scripts/assemble-autopilot-parity.mjs` binds captures/audits into two bundles.
+`scripts/compare-autopilot.mjs` rechecks original file/audit/source/physics hashes,
+parameter bytes and exact scored samples before emitting `evidenceValidated`.
+No-input invocation exits 2 (BLOCKED_EXTERNAL), invalid/failed evidence exits 1,
+and audited numerical PASS exits 0. Reports bind native/WASM firmware hashes,
+airframe, parameters, commands, sensors, seed and rate. Raw files and firmware
+remain local; source/build identity changes invalidate acceptance.
+
+`admitWasmParity(bytes, trustedReportSha256, activeIdentity)` cold-validates
+the report hash, identities, fixed limits and both passing scenarios, issuing
+an in-memory frozen capability. The expected hash comes from trusted local
+acceptance configuration, not from the downloaded report. An issued capability
+and matching active identity are mandatory for
+`AutopilotSession.connect('wasm-sitl', epoch, nowMs, capability, identity)`.
+Copied/serialized capabilities, failed reports and changed configurations
+are rejected. Connection only enters initializing; live health/warmup and
+actuator freshness remain necessary. The low-level HAL harness is diagnostic
+and does not issue this lifecycle capability. Application backend selection,
+whole-firmware allocator qualification, GPL redistribution and release gates
+remain separate; the active application keeps its demo backend.

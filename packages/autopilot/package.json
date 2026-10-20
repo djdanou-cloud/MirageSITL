@@ -17,7 +17,8 @@
     "./wasm-loader": "./src/wasm-loader.ts",
     "./wasm-browser": "./src/wasm-browser.ts",
     "./wasm-storage": "./src/wasm-storage.ts",
-    "./wasm-sitl": "./src/wasm-sitl.ts"
+    "./wasm-sitl": "./src/wasm-sitl.ts",
+    "./wasm-parity": "./src/wasm-parity.ts"
   },
   "dependencies": {
     "@mirage/mavlink": "0.1.0",

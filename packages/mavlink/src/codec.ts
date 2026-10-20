@@ -176,6 +176,17 @@ export class MavParser {
       const id =
           this.buffer[7]! + this.buffer[8]! * 256 + this.buffer[9]! * 65536,
         d = definition(id);
+      if (!d && this.buffer[2] === 0 && this.buffer[3] === 0 && n >= 1 && this.buffer[5] !== 0) {
+        // Unknown payloads may contain 0xfd. They are never admitted, and their
+        // bounded envelope must not turn a payload byte into a partial header
+        // that delays a later known frame and misstates its receive freshness.
+        this.unsupported++;
+        let next = total;
+        while (next < this.length && this.buffer[next] !== 253) next++;
+        this.buffer.copyWithin(0, next, this.length);
+        this.length -= next;
+        continue;
+      }
       let good = false;
       if (
         !d ||

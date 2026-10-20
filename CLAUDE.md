@@ -131,7 +131,10 @@ policy copies; if a client loads neither pointer, open this file explicitly.
   browser Worker/pthread boot, and IndexedDB `/ardupilot/eeprom.bin` persistence.
   GPLv3 firmware redistribution remains `BLOCKED_DECISION`; the artifact stays
   external and is served only via explicit loopback development settings. The active
-  browser flight backend remains the demo pending TASK-047. TASK-046 implements
+  browser flight backend remains the demo pending application session/release
+  admission. TASK-047 verifies local native/browser arm/takeoff/land and GCS
+  failsafe parity, with independent raw-wire auditing and configuration-bound
+  SHA-256 report admission in `AutopilotSession`. TASK-046 implements
   the checked sensor/PWM mailbox, host-owned 400/800/1200 Hz clock and configurable
   BET coupling, with separate native/kernel allocation and real-firmware browser
   checks (`scripts/build-ardupilot-hal.mjs`, `scripts/check-ardupilot-hal.mjs`,
@@ -183,8 +186,7 @@ policy copies; if a client loads neither pointer, open this file explicitly.
   **Never describe the failing NASA/UIUC comparisons as merely missing data or
   relax thresholds to hide them.**
 * **Browser WASM SITL, hardware HITL, UX chain, GPU timing, and release gates:**
-  TASK-047 (browser SITL flight
-  parity), TASK-051 (physical Pixhawk/Cube HITL via `scripts/check-hitl-capture.mjs`),
+  Browser application session/READY integration, TASK-051 (physical Pixhawk/Cube HITL via `scripts/check-hitl-capture.mjs`),
   TASK-073 (Apple Silicon M4 / RTX 4050 GPU frame-time verification via
   `scripts/check-gpu-perf.mjs`), TASK-080
   (accessibility sign-off; TASK-074 HUD freshness, TASK-075 fault ACKs, TASK-078 full-rate recording, and TASK-079 scenario ACK binding are done and do not admit browser READY), TASK-082 (multi-hour integrated soak), and TASK-083 (clean-machine
