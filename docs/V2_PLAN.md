@@ -28,24 +28,24 @@ still the demo model.
 
 ## 2. Requests, as received
 
-| ID | From | Request |
+| ID | Source | Request |
 | --- | --- | --- |
-| R1 | Natalia Yurasova | Add a log viewer to the SITL, with two-log comparison and a log finder. |
-| R2 | Natalia Yurasova | Show graphs on screen live, during flights. |
-| R3 | Natalia Yurasova | Rethink and simplify how log parameters are grouped; add presets. |
-| R4 | Natalia Yurasova | More colors, line styles and line widths for graphs. |
-| R5 | Natalia Yurasova | Plot one or more ArduPilot *parameters* (not logged values), so that, for example, a PID change made in flight is visible on the graph. |
-| R6 | Natalia Yurasova | Add the same features to DrorPlanner. |
-| R7 | Misha Levin | Show parameters with enough precision: values such as 0.00017 (typical D and FF gains) currently show as 0.00. |
-| R8 | Misha Levin | Model each rotor's thrust versus power, torque, tilting moments about two axes, RPM and motor heating. Bench data at known pressure and temperature can be rescaled to other conditions. |
-| R9 | Misha Levin | In flight the rotor sees oblique airflow; its properties depend strongly on airflow speed and angle. Include prop wash when air comes from below (fast descent, hard braking). Provide data for all airflow speeds and angles. |
-| R10 | Misha Levin | Rotors interact through their near-field flows; account for that. |
-| R11 | Misha Levin | Full aerodynamics is too expensive per time step: compute it in an external aerodynamic simulator and feed SITL with tables. Find out how SITL models this by default. |
-| R12 | Misha Levin | Ground effect is lower priority, but worth checking given recent poor precision landings of a lightly loaded drone. |
-| R13 | Misha Levin | Ignore the drone flying into its own earlier wake: flight-mode transitions are slow enough to treat each state as steady. |
-| R14 | Misha Levin | Until aerodynamic tables exist, provide a stand-in model, or at least understand SITL's default. |
+| R1 | Engineer 1 | Add a log viewer to the SITL, with two-log comparison and a log finder. |
+| R2 | Engineer 1 | Show graphs on screen live, during flights. |
+| R3 | Engineer 1 | Rethink and simplify how log parameters are grouped; add presets. |
+| R4 | Engineer 1 | More colors, line styles and line widths for graphs. |
+| R5 | Engineer 1 | Plot one or more ArduPilot *parameters* (not logged values), so that, for example, a PID change made in flight is visible on the graph. |
+| R6 | Engineer 1 | Add the same features to DrorPlanner. |
+| R7 | Engineer 2 | Show parameters with enough precision: values such as 0.00017 (typical D and FF gains) currently show as 0.00. |
+| R8 | Engineer 2 | Model each rotor's thrust versus power, torque, tilting moments about two axes, RPM and motor heating. Bench data at known pressure and temperature can be rescaled to other conditions. |
+| R9 | Engineer 2 | In flight the rotor sees oblique airflow; its properties depend strongly on airflow speed and angle. Include prop wash when air comes from below (fast descent, hard braking). Provide data for all airflow speeds and angles. |
+| R10 | Engineer 2 | Rotors interact through their near-field flows; account for that. |
+| R11 | Engineer 2 | Full aerodynamics is too expensive per time step: compute it in an external aerodynamic simulator and feed SITL with tables. Find out how SITL models this by default. |
+| R12 | Engineer 2 | Ground effect is lower priority, but worth checking given recent poor precision landings of a lightly loaded drone. |
+| R13 | Engineer 2 | Ignore the drone flying into its own earlier wake: flight-mode transitions are slow enough to treat each state as steady. |
+| R14 | Engineer 2 | Until aerodynamic tables exist, provide a stand-in model, or at least understand SITL's default. |
 
-Overall goal (Misha Levin): define the drone, compute its properties in an
+Overall goal (Engineer 2): define the drone, compute its properties in an
 aerodynamic simulator, then run SITL with that data to tune control and
 trajectories.
 
@@ -228,7 +228,7 @@ results.
   * air pressure and temperature;
   * prop and motor identifiers.
 * Convert to coefficients so data from one day applies to another: CT and CP
-  versus RPM, with air density from pressure and temperature (Misha Levin's
+  versus RPM, with air density from pressure and temperature (Engineer 2's
   point about rescaling). Motor efficiency comes from electrical versus shaft
   power.
 * The import checks units, flags inconsistent rows (for example efficiency
@@ -312,7 +312,7 @@ Lower priority, but cheap to try:
 
 ## 5. Workstream C: one vehicle definition file
 
-Misha Levin's end-to-end goal needs one place to describe the drone. Proposal:
+Engineer 2's end-to-end goal needs one place to describe the drone. Proposal:
 a versioned vehicle file listing:
 
 * mass, centre of gravity and inertia;
