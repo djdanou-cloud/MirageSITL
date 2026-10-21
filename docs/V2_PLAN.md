@@ -2,17 +2,20 @@
 
 [Russian mirror](ru/V2_PLAN.md)
 
-Status: proposal, 2026-10-20. Nothing in this document is implemented yet. It
-turns two engineers' comments (19.10.2026) into a plan for version 2. Items
-reuse existing MirageSITL components where possible and name the decisions
-that still need an owner. [Section 7](#7-work-carried-over-from-the-existing-roadmap-and-documentation)
+Status: proposal, 2026-10-20 (section 8 added 2026-10-22). Nothing in this
+document is implemented yet. It turns two engineers' comments (19.10.2026) into
+a plan for version 2. Items reuse existing MirageSITL components where possible
+and name the decisions that still need an owner. [Section 7](#7-work-carried-over-from-the-existing-roadmap-and-documentation)
 adds the open work already recorded elsewhere in the repository.
+[Section 8](#8-workstream-d-govmap-as-the-main-map-source-israel) plans the
+GovMap map source and its offline cache; it does not come from the engineers'
+comments.
 
 ## 1. Who this is for
 
 The readers know the current ArduPilot workflow: Mission Planner, its
 DataFlash Log Viewer (graphs of `.bin` logs) and the parameter list. This plan
-keeps that vocabulary. A short glossary is in [section 8](#8-glossary).
+keeps that vocabulary. A short glossary is in [section 9](#9-glossary).
 
 MirageSITL today already provides:
 
@@ -335,6 +338,7 @@ model (B2 step 2) and the documentation of each test.
 | 4 | A2 live graphs; A4 log finder | A1, A5 | medium |
 | 5 | B4 table format and interpolation; B5 prop wash flags; B6 interaction | tables from the external simulator | large |
 | 6 | B8 ground effect experiment; B9 heating; A9 DrorPlanner integration | B4, decision on DrorPlanner | medium |
+| 7 | D1 license evidence and D2 endpoint discovery first; then D3 tile cache, D4 region warming, D5 online panel, D6–D7 offline map and ground texture | license evidence; D2 results before D3/D4 | large |
 
 Decisions needed:
 
@@ -346,6 +350,9 @@ Decisions needed:
 3. DrorPlanner's technology stack, for A9.
 4. Tolerances for accepting bench and table models, agreed before comparing.
 5. Where shared presets and vehicle files live (repository, shared drive).
+6. For GovMap (section 8): where the license evidence lives and its SHA-256,
+   which domains the token is bound to, and whether the license covers an
+   elevation model.
 
 These items are proposals. When one is approved, it becomes a numbered task
 in the [project roadmap](PROJECT_ROADMAP.md) with its own acceptance criteria.
@@ -423,7 +430,8 @@ and other documents (review of 2026-10-20). They keep their existing TASK IDs.
   owner's decision; its failing comparison is preserved.
 * **Terrain contact (TASK-065).**
   * Wiring into the physics session.
-  * Live tile decoding and terrain admission (blocked on licensed height data).
+  * Live tile decoding and terrain admission (blocked on licensed height data;
+    GovMap elevation coverage is open question D6 in section 8).
   * Contact-patch curvature.
 * **Absolute MSL height.** Blocked on an authoritative EGM96/EGM2008 geoid grid.
 
@@ -457,7 +465,8 @@ and other documents (review of 2026-10-20). They keep their existing TASK IDs.
 * **Live Google 3D Tiles.** Blocked on a deployed proxy, provider credentials
   and deployment approval.
 * **Persistent caching.** Blocked on explicit permission and reviewed dataset
-  rights.
+  rights. This applies to Google tiles. GovMap caching is planned separately
+  in section 8, under the license the project owner reports.
 * **WebGPU:**
   * real-GPU residency and frame-time measurement on target devices;
   * the WebGPU fisheye and analog-video variants;
@@ -519,8 +528,189 @@ and other documents (review of 2026-10-20). They keep their existing TASK IDs.
   grid license (7.3).
 * Copyrighted textbooks and the PROPID sources stay local and are not
   distributed.
+* GovMap: the license evidence must be referenced by SHA-256 in the provider
+  policy before persistent caching, offline use or warming is enabled
+  (section 8, D1). Whether tile packs may be redistributed is not stated and
+  is treated as not allowed.
 
-## 8. Glossary
+## 8. Workstream D: GovMap as the main map source (Israel)
+
+Status: proposal, 2026-10-22. Nothing here is implemented.
+
+### D0. Basis and findings
+
+License, as reported by the project owner (the evidence is not yet in the
+repository, see D1):
+
+* government permission to embed the GovMap JavaScript API and use its maps;
+* an exclusive license for automated region warming;
+* offline bulk download is currently unavailable for a technical reason on the
+  provider's side, so the offline copy is built by caching what is fetched.
+
+Findings from the public GovMap documentation (read 2026-10-22):
+
+* The JavaScript API is a hosted script,
+  `https://www.govmap.gov.il/govmap/api/govmap.api.js`. The documentation says
+  to use the hosted version and not to download it.
+* A token is required and is bound to the domain that hosts the page. On an
+  unauthorized domain the API shows an error and ignores calls.
+* `govmap.createMap()` draws its own 2D map in a page element. The documented
+  functions cover zoom, markers, geometry, identify, search, layers and the
+  background map. The documentation describes no tile, WMTS or WMS endpoints,
+  caching or offline use.
+
+Consequence: the widget works only online. The offline map needs our own tile
+cache and renderer, fed from the services the license covers. No tile endpoint
+is assumed in this plan; D2 establishes them.
+
+Existing parts to reuse:
+
+* `providerPolicy` (`packages/terrain/src/provider-policy.ts`) already
+  separates `licensed` providers and refuses persistent caching, offline use or
+  prefetch without a reviewed evidence hash.
+* The region manifest (`mirage.region-manifest/1`) already carries per-tile
+  SHA-256, byte counts and a radius cap.
+* The application has no 2D map today. Terrain is optional and configured at
+  build time (`apps/web/src/terrain-config.ts`).
+
+### D1. License evidence and provider policy
+
+* Record the permission (document or reference) and its SHA-256. Where the file
+  itself lives is decision 6 in section 6.
+* Add a GovMap provider entry that uses the `licensed` policy with attribution,
+  `allowedCache: "persistent"`, `offline` and `prefetch` true, and the evidence
+  hash. Without the hash the policy refuses, as it does today.
+* The token comes from local configuration only (for example
+  `VITE_GOVMAP_TOKEN` at build time). It never appears in the repository, logs,
+  URLs, cache keys, manifests or recorded captures, the same rule as the bridge
+  token.
+* Redistribution of cached tiles is not covered by anything reported so far.
+  Tile caches and packs stay out of git (under `data/`) and out of release
+  artifacts until the license says otherwise.
+
+### D2. Endpoint discovery (first step, read-only)
+
+With the owner's token on an authorized domain, load the widget in a browser
+and record its requests. Capture:
+
+* the tile URL scheme (XYZ, ArcGIS cache level/row/column, WMTS or other), tile
+  size and zoom range;
+* the tile coordinate system: Israel TM (EPSG:2039) or Web Mercator;
+* background map and layer identifiers (orthophoto, topographic, others);
+* response headers (CORS, CORP, Cache-Control, ETag) and how requests are
+  authorized;
+* how the tile service signals "no coverage" (empty tile, HTTP error).
+
+Output: a reviewed note in `docs/operations/` without any token, and a typed
+source description in code. D3 and D4 do not start from guessed endpoints.
+
+Also check that the hosted script and the tiles load under the required
+cross-origin isolation (COOP `same-origin`, COEP `require-corp`). If they do
+not, embed the widget in an isolated frame or a separate window. Isolation is
+not disabled to make it load.
+
+### D3. Read-through tile cache
+
+* Our renderer requests tiles through a cache layer. A hit is served from
+  storage. A miss goes online, is validated and is stored. Offline, only hits
+  are served; a missing tile is reported as missing and nothing is substituted.
+* Validation before storing: expected content type and decodable image, a size
+  cap, rejection of HTML or JSON error bodies, and a separate "no coverage"
+  record so empty tiles are not mistaken for missing ones.
+* Each entry keeps the SHA-256, byte count, normalized source identity, fetch
+  time, zoom and tile index. Cache keys use the normalized identity and never
+  the token.
+* Two storage backends behind one interface: IndexedDB in the browser, and a
+  content-addressed directory plus manifest for the command line. A directory
+  pack can be imported into the browser store.
+* A byte budget with least-recently-used eviction, a time to live from the
+  provider policy, and a manifest built from what is actually cached
+  (`mirage.region-manifest/1` or a documented successor).
+* The cache runs only when the provider policy allows persistent storage. If
+  it does not, it stays in memory and is reported as such.
+* Cache work stays off the physics Worker. Tile fetch and decode run on the
+  render side or a separate Worker.
+
+### D4. Region warming
+
+The license grants automated region warming. The warming tool:
+
+* takes a bounding box (or a centre and radius within the region cap) and a
+  zoom range, converts it to tile indices, and fetches missing tiles through the
+  D3 cache;
+* runs in the browser session, or from the command line writing a directory
+  pack, using the token supplied locally;
+* respects the rate limit that the license or the provider states (declared in
+  the source description, default conservative), is resumable, and stops on
+  authorization failures instead of retrying;
+* enforces a byte and tile-count cap per run and prints the estimate before
+  fetching;
+* reports coverage per zoom level and every tile it could not fetch.
+
+If the license states a request-rate or volume limit, it is written into the
+source description and the tool refuses to exceed it.
+
+### D5. Online GovMap panel
+
+* A typed wrapper loads the hosted script on demand and creates the map. The
+  panel shows the vehicle position and track, and lets the user set the
+  simulation origin by clicking.
+* Failures are visible and never silent: script load failure, unauthorized
+  domain, no network. The application then falls back to the offline map (D6)
+  and says so.
+* The panel is the online source only. It never supplies the offline map.
+
+### D6. Offline map and ground texture
+
+* A 2D map view that renders cached tiles, so a warmed region works with the
+  network blocked. It shows cache coverage and the age of the data.
+* The 3D scene can drape the cached orthophoto as the ground texture over the
+  terrain in covered regions. If the tiles are in Israel TM, add a validated
+  EPSG:2039 to WGS84 transform with published test points, using float64
+  geodesy as elsewhere in the repository.
+* Elevation is an open question. If the license covers an elevation model
+  (DTM or DSM), it feeds the terrain and collision path (TASK-065 follows its
+  own admission rules). If not, the imagery is a texture only, terrain contact
+  keeps its current blocked state, and missing ground never counts as ready.
+
+### D7. Source order and status
+
+For a position inside the covered region, in order:
+
+1. the offline cache for the region, if it covers the view;
+2. the GovMap online source;
+3. the existing local or licensed tileset (`terrain-config.ts`);
+4. no map.
+
+Outside Israel the current sources are unchanged. The user interface always
+shows which source is active, the attribution GovMap requires, the cache
+coverage and its age, and any failed tile request. A silent fallback is a
+defect.
+
+### D8. Tests and acceptance
+
+* Unit tests: policy fail-closed cases (no evidence hash, memory-only), cache
+  hit/miss/eviction, entry validation, rejection of error bodies, no-coverage
+  records, token absent from keys and manifests, EPSG:2039 test points, warming
+  planner tile counts and resume.
+* Browser test: warm a small region online, block the network, and confirm the
+  2D map and ground texture still render from the cache and a tile outside the
+  region reports missing.
+* Real-service checks run only with the owner's token and are reported as
+  such. A mock service does not satisfy an integration gate.
+* Documentation: English first, Russian mirror in the same change,
+  `npm run check:docs`, and new TASK IDs in the roadmap when the workstream is
+  approved.
+
+### D9. Not covered
+
+* Redistribution of tiles or tile packs.
+* Changes to thermal, WorldCover or physics; this workstream adds no flight
+  model.
+* Any claim that browser autopilot READY follows from having a map.
+* Cadastral, address and search layers beyond what the online panel shows.
+
+## 9. Glossary
 
 | Term here | Mission Planner / ArduPilot equivalent |
 | --- | --- |
