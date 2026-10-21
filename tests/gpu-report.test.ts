@@ -32,7 +32,11 @@ assert.equal(assessGpu({...v,frameMs:over,durationS:sum(over)/1000}).status,'FAI
 assert.ok(Math.abs(displayRefreshHz(Array(90).fill(1000/59.94))-59.94)<1e-9);
 assert.equal(profileFitsDisplay(59.88,60),true);
 assert.equal(profileFitsDisplay(59.94,60),true);
+assert.equal(profileFitsDisplay(58.5,60),true);
+assert.equal(profileFitsDisplay(58,60),false);
+assert.equal(profileFitsDisplay(57.9,60),false);
 assert.equal(profileFitsDisplay(60,120),false);
+assert.equal(profileFitsDisplay(118.9,120),false);
 assert.equal(profileFitsDisplay(120,120),true);
 assert.throws(()=>displayRefreshHz([16.6]));
 assert.throws(()=>assertDisplaySurface({innerWidth:0,innerHeight:800,screenWidth:1280,screenHeight:800,dpr:2}));

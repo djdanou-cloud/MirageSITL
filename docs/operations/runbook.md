@@ -132,6 +132,24 @@ screenshot in `task_073_results/` shows Chrome floating on the desktop, so the
 next capture must fill the physical display. Run the command in a graphical
 session that can show the window; keep that window in front.
 
+Since 2026-10-22 the capture uses no viewport emulation. `--position X,Y`
+(default `0,0`) names the top-left corner of the display that shows it; the
+browser window goes fullscreen there with an English UI (no translate prompt)
+and the `?g3=1` page hides scrolling, so the measured canvas is what the
+physical display presents. The accepted 60 FPS profile runs on any display
+above 58 Hz (user decision 2026-10-22); other profiles still need
+`refresh + 1 >= fps`. Beside the analyzer report the capture writes the raw
+frame intervals (`gpu-<backend>-<fps>.frames.json`, hashed in the side record),
+an OS screenshot of the whole display (`display-<backend>-<fps>.png`), and
+supplementary samples that never feed the gate: Windows `GPU Process Memory`
+peaks for the browser GPU process, `nvidia-smi` power states and clocks
+(`clocks-<backend>-<fps>.json`), and PresentMon display-change timing. PresentMon
+v2.6.0 is expected at `.cache/tools/presentmon-2.6.0/PresentMon-2.6.0-x64.exe`
+(or `MIRAGE_PRESENTMON`) and needs an elevated shell or an account in the
+Windows "Performance Log Users" group; otherwise the side record states that it
+did not run. `node scripts/diagnose-render.mjs` compares the demo, terrain and
+`?g3=1` scenes with WebGL2 GPU timer queries; it is diagnostic only.
+
 The Serial controller waits at most 5 seconds for decoder readiness before
 opening the selected device. The existing 500 ms per-chunk backpressure deadline
 is unchanged. A permission grant or this startup handshake cannot enable HITL.

@@ -51,9 +51,14 @@ export function displayRefreshHz(frameMs) {
   return 1000 / median(samples);
 }
 
-/** 59.88 Hz is the accepted M4 panel rate and admits a 60 FPS profile. 60 Hz does not admit 120 FPS. */
+/**
+ * User decision 2026-10-22: the 60 FPS profile runs on any display above 58 Hz
+ * (59.88 Hz M4 panel, 60 Hz monitors). Other profiles need refresh + 1 >= fps,
+ * so 60 Hz does not admit 120 FPS.
+ */
 export function profileFitsDisplay(refreshHz, fps) {
-  return typeof refreshHz === "number" && Number.isFinite(refreshHz) && refreshHz + 1 >= fps;
+  if (typeof refreshHz !== "number" || !Number.isFinite(refreshHz)) return false;
+  return fps === 60 ? refreshHz > 58 : refreshHz + 1 >= fps;
 }
 
 /** Returns the gpu-report for one measured profile. Never treats a short or software run as PASS. */

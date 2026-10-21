@@ -3,11 +3,13 @@
 // limits are the user-accepted median 16.680 ms and p99 17.665 ms. The 120 FPS
 // p99 limit remains 8.33 ms. A 59.88 Hz panel is an accepted 60 FPS refresh.
 import { execFileSync, spawn } from "node:child_process";
+import { createHash } from "node:crypto";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import os from "node:os";
 import { assertDisplaySurface, decideGpuAcceptance, displayRefreshHz, profileFitsDisplay } from "./gpu-trace.mjs";
 import { report } from "./validation/evidence.mjs";
+import { captureDisplay, gpuProcessMemorySampler, nvidiaSmiSampler, presentMonCapture, summarizeClocks } from "./capture-samplers.mjs";
 
 function option(name, fallback) {
   const index = process.argv.indexOf(`--${name}`);
@@ -40,7 +42,9 @@ if (invoked && process.argv.length === 2) {
   const warmupS = Number(option("warmup", "60"));
   const durationS = Number(option("seconds", "600"));
   const directory = option("out", "test-results/gpu");
-  if (!["webgl2", "webgpu"].includes(backend) || ![60, 120].includes(fps) || !Number.isFinite(warmupS) || warmupS < 1 || warmupS > 600 || !Number.isFinite(durationS) || durationS < 1 || durationS > 3600) {
+  // Top-left corner of the display that shows the capture; the window goes fullscreen there.
+  const position = option("position", "0,0");
+  if (!/^-?\d+,-?\d+$/.test(position) || !["webgl2", "webgpu"].includes(backend) || ![60, 120].includes(fps) || !Number.isFinite(warmupS) || warmupS < 1 || warmupS > 600 || !Number.isFinite(durationS) || durationS < 1 || durationS > 3600) {
     console.error("Expected --backend webgl2|webgpu --fps 60|120");
     process.exitCode = 1;
   } else {
@@ -51,7 +55,7 @@ if (invoked && process.argv.length === 2) {
       console.log(`gpu-report: ${early.status}; ${early.reasons[0]}`);
       process.exitCode = 2;
     } else {
-      void admitDisplay(fps).then(refreshHz => {
+      void admitDisplay(fps, position).then(refreshHz => {
         if (!profileFitsDisplay(refreshHz, fps)) {
           mkdirSync(directory, { recursive: true });
           const early = report("gpu-report", "BLOCKED_EXTERNAL", [`Display refresh ${refreshHz.toFixed(2)} Hz does not support the ${fps} FPS profile`]);
@@ -60,7 +64,7 @@ if (invoked && process.argv.length === 2) {
           process.exitCode = 2;
           return;
         }
-        return measure(backend, fps, warmupS, durationS, directory);
+        return measure(backend, fps, warmupS, durationS, directory, position);
       }).catch(error => {
         const result = report("gpu-report", "BLOCKED_EXTERNAL", [error instanceof Error ? error.message : String(error)]);
         mkdirSync(directory, { recursive: true });
@@ -72,9 +76,9 @@ if (invoked && process.argv.length === 2) {
   }
 }
 
-async function admitDisplay(fps) {
+async function admitDisplay(fps, position) {
   const { chromium } = await import("@playwright/test");
-  const browser = await chromium.launch({ headless: false, executablePath: process.env.CHROMIUM_PATH, args: ["--window-size=800,600", "--window-position=0,0"] });
+  const browser = await chromium.launch({ headless: false, executablePath: process.env.CHROMIUM_PATH, args: ["--window-size=800,600", `--window-position=${position}`] });
   try {
     const page = await browser.newPage();
     await page.goto("about:blank");
@@ -102,7 +106,7 @@ async function admitDisplay(fps) {
   }
 }
 
-async function measure(backend, fps, warmupS, durationS, directory) {
+async function measure(backend, fps, warmupS, durationS, directory, position) {
   const { chromium } = await import("@playwright/test");
   mkdirSync(directory, { recursive: true });
   const vite = fileURLToPath(new URL("../node_modules/vite/bin/vite.js", import.meta.url));
@@ -113,7 +117,8 @@ async function measure(backend, fps, warmupS, durationS, directory) {
     VITE_MIRAGE_TILES_ATTRIBUTION: "MirageSITL synthetic test tiles (CC0-1.0)",
   };
   execFileSync(process.execPath, [vite, "build", "apps/web"], { env, stdio: "inherit" });
-  const server = spawn(process.execPath, [vite, "preview", "apps/web", "--host", "127.0.0.1", "--port", "5175", "--strictPort"], { env, stdio: ["ignore", "pipe", "pipe"] });
+  // NO_COLOR keeps Vite's banner plain, so the owned-URL readiness check matches on every terminal.
+  const server = spawn(process.execPath, [vite, "preview", "apps/web", "--host", "127.0.0.1", "--port", "5175", "--strictPort"], { env: { ...env, NO_COLOR: "1" }, stdio: ["ignore", "pipe", "pipe"] });
   let serverOutput = "";
   const output = bytes => { serverOutput = (serverOutput + bytes.toString()).slice(-32768); };
   server.stdout.on("data", output);
@@ -128,9 +133,15 @@ async function measure(backend, fps, warmupS, durationS, directory) {
       await new Promise(resolve => setTimeout(resolve, 200));
     }
     if (!ready) throw new Error("Preview startup deadline");
-    browser = await chromium.launch({ headless: false, executablePath: process.env.CHROMIUM_PATH, args: ["--window-size=1920,1080"] });
-    const context = await browser.newContext({ viewport: { width: 1920, height: 1080 }, deviceScaleFactor: 1 });
+    // No viewport emulation: the window goes fullscreen on the physical display at
+    // `position`, so the measured canvas is what that display presents.
+    browser = await chromium.launch({ headless: false, executablePath: process.env.CHROMIUM_PATH, args: [`--window-position=${position}`, "--disable-features=Translate", "--lang=en-US", "--no-first-run"] });
+    const context = await browser.newContext({ viewport: null });
     page = await context.newPage();
+    const pageCdp = await context.newCDPSession(page);
+    const { windowId } = await pageCdp.send("Browser.getWindowForTarget");
+    await pageCdp.send("Browser.setWindowBounds", { windowId, bounds: { windowState: "fullscreen" } });
+    await new Promise(resolve => setTimeout(resolve, 1000));
     const errors = [];
     page.on("pageerror", error => errors.push(error.message));
     await page.goto(`http://127.0.0.1:5175/?renderer=${backend}&g3=1`);
@@ -140,11 +151,11 @@ async function measure(backend, fps, warmupS, durationS, directory) {
       await page.locator("canvas[data-g3='1']").waitFor({ timeout: 30000 });
     } catch (error) {
       const detail = errors.length ? errors.join("; ") : "no page error";
-      throw new Error(`${error instanceof Error ? error.message.split("\n")[0] : String(error)}; ${detail}`);
+      throw new Error(`${error instanceof Error ? error.message.split("\n")[0] : String(error)}; ${detail}`, { cause: error });
     }
     await page.bringToFront();
     const started = await page.getByRole("button", { name: "Start", exact: true }).evaluate(element => {
-      if (!(element instanceof HTMLButtonElement) || element.disabled) return false;
+      if (!(element instanceof globalThis.HTMLButtonElement) || element.disabled) return false;
       element.click();
       return true;
     });
@@ -168,6 +179,14 @@ async function measure(backend, fps, warmupS, durationS, directory) {
       throw new Error(`Terrain, FPV, and thermal did not all become active (${JSON.stringify({ probe, identity, errors })})`);
     }
     console.log(`Visible ${backend} production scene: ${warmupS}s warmup then ${durationS}s.`);
+    const browserCdp = await browser.newBrowserCDPSession();
+    const gpuProcess = (await browserCdp.send("SystemInfo.getProcessInfo")).processInfo.find(info => info.type === "GPU");
+    const memorySampler = gpuProcess ? gpuProcessMemorySampler(gpuProcess.id) : null;
+    const clockSampler = nvidiaSmiSampler();
+    let presentMon = Promise.resolve({ kind: "presentmon", available: false, reason: "no browser GPU process" });
+    const presentMonStart = gpuProcess ? setTimeout(() => {
+      presentMon = presentMonCapture(gpuProcess.id, fileURLToPath(new URL(`../${directory}/presentmon-${backend}-${fps}.csv`, import.meta.url)), durationS);
+    }, warmupS * 1000) : null;
     const measurement = await page.evaluate(async ({ warmupS, durationS }) => {
       const read = () => {
         const probe = globalThis.document.querySelector("canvas")?.__mirageG3;
@@ -206,6 +225,15 @@ async function measure(backend, fps, warmupS, durationS, directory) {
       } finally { globalThis.document.removeEventListener("visibilitychange", onVis); }
       return { frameMs, gpuBytes, cpuBytes, featuresHeld: held && samples > 0, width: sizeOk ? width : 0, height: sizeOk ? height : 0, dpr, hidden };
     }, { warmupS, durationS });
+    if (presentMonStart !== null) clearTimeout(presentMonStart);
+    const screen = await page.evaluate(() => ({ screenX: globalThis.screenX, screenY: globalThis.screenY, innerWidth: globalThis.innerWidth, innerHeight: globalThis.innerHeight,
+      screenWidth: globalThis.screen.width, screenHeight: globalThis.screen.height, dpr: globalThis.devicePixelRatio }));
+    let display;
+    try { display = captureDisplay(screen.screenX + 1, screen.screenY + 1, fileURLToPath(new URL(`../${directory}/display-${backend}-${fps}.png`, import.meta.url))); }
+    catch (error) { display = { available: false, reason: error instanceof Error ? error.message : String(error) }; }
+    memorySampler?.stop();
+    clockSampler.stop();
+    const presentMonResult = await presentMon;
     let total = 0;
     for (const ms of measurement.frameMs) total += ms;
     const result = decideGpuAcceptance({
@@ -215,7 +243,20 @@ async function measure(backend, fps, warmupS, durationS, directory) {
       frameMs: measurement.frameMs, gpuBytes: measurement.gpuBytes, cpuBytes: measurement.cpuBytes,
     });
     const tracePath = `${directory}/gpu-${backend}-${fps}.json`;
-    writeFileSync(tracePath, JSON.stringify({ identity, errors, measurement: { ...measurement, frameMs: measurement.frameMs.length }, report: result }, null, 2) + "\n");
+    const framesBytes = Buffer.from(JSON.stringify({ schemaVersion: 1, backend, fps, warmupS, frameMs: measurement.frameMs }) + "\n");
+    writeFileSync(`${directory}/gpu-${backend}-${fps}.frames.json`, framesBytes);
+    const memory = memorySampler?.samples ?? [];
+    const side = {
+      position, screen, display,
+      framesSha256: createHash("sha256").update(framesBytes).digest("hex"),
+      gpuProcessMemory: memorySampler ? { available: memorySampler.available, samples: memory.length,
+        dedicatedPeakBytes: memory.reduce((m, s) => Math.max(m, s.dedicatedBytes), 0), sharedPeakBytes: memory.reduce((m, s) => Math.max(m, s.sharedBytes), 0) }
+        : { available: false, reason: "no browser GPU process" },
+      clocks: clockSampler.available ? summarizeClocks(clockSampler.samples) : { available: false, reason: clockSampler.reason },
+      presentMon: presentMonResult,
+    };
+    writeFileSync(tracePath, JSON.stringify({ identity, errors, measurement: { ...measurement, frameMs: measurement.frameMs.length }, side, report: result }, null, 2) + "\n");
+    writeFileSync(`${directory}/clocks-${backend}-${fps}.json`, JSON.stringify(clockSampler.samples) + "\n");
     writeFileSync(`${directory}/gpu-report.json`, JSON.stringify(result, null, 2) + "\n");
     console.log(`gpu-report: ${result.status}; frames=${measurement.frameMs.length}; p99=${result.metrics?.p99FrameMs ?? "n/a"}`);
     if (result.reasons?.length) console.log(result.reasons.join("; "));

@@ -51,6 +51,7 @@
 }
 
 footer { color: #8da6b8; }
+html[data-g3="1"], html[data-g3="1"] body { overflow: hidden; }
 html[data-g3="1"] .app-shell { max-width: none; padding: 0; }
 html[data-g3="1"] .viewport { position: fixed; inset: 0; width: 100vw; height: 100vh; z-index: 20; }
 html[data-g3="1"] .viewport canvas { width: 100% !important; height: 100% !important; }
