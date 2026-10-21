@@ -299,3 +299,82 @@ a go-ahead.
   no CADEX parity without measured data.
 * Software or headless GPUs never certify hardware gates; missing devices stay
   `BLOCKED_EXTERNAL`.
+
+## 5. Operator answers (2026-10-21)
+
+| Item | Answer |
+| --- | --- |
+| Harness (2.1) | `?g3=1` on `main` stays; the agent ports what it lacks from `task-073-render-profile` |
+| Resolution (2.2) | Baseline requirement: 1920 x 1080 above 58 Hz. Other modes (2560 x 1440, 2560 x 1664, 120 Hz, 144 Hz) are desirable, not required: test them and report what does not work |
+| Power (2.3) | NVIDIA settings are fixed; retest |
+| High refresh (2.4) | Covered by the resolution answer: desirable, not required |
+| Terrain (2.5) | The operator supplies a 3D Tiles set. Area of operation centred at 32.20065261195932 N, 34.87163838506722 E, radius up to 1 km for now; centre and radius must be configuration, not code |
+| Maps (2.6) | Geofabrik extract supplied in the repository root (see section 6) |
+| Thermal (2.7) | Open-source approximated profile: public FLIR Boson 640 data sheet values (640 x 512, LWIR 8–14 µm, NETD about 50 mK), a generated fixed-pattern-noise/drift map feeding the TASK-072 NUC, a public thermal dataset sample (FLIR ADAS / free FLIR thermal dataset) with estimated weather as a visual parity target, and `EmissivityTable_thermoworks.txt` for material emissivities, all with file hashes |
+| WebGPU (2.8) | Required |
+| Flight (2.9) | Scripted flight during capture |
+| macOS memory (2.10) | Application-side estimate accepted |
+| PresentMon (2.11) | Permission granted to download and run it |
+
+## 6. Inputs received and checked
+
+| Input | Location | Size | SHA-256 | Check |
+| --- | --- | --- | --- | --- |
+| OSM extract | `israel-and-palestine-261020.osm.pbf` (repository root, untracked) | 120,580,259 B | `59ac7350c78fc90d77f65fdc670c1d3248c8b218d9f8bbb4cee4c6ef9b22a2a5` | Valid `OSMHeader` blob; the Geofabrik file name carries the 2026-10-20 snapshot date; ODbL |
+| Emissivity table | `EmissivityTable_thermoworks.txt` (repository root, untracked) | 3,190 B | `e920dd7738072d282570870dfacf156dced3b2ff411c7b0b2f7917ee6475e080` | 126 rows, UTF-8, CRLF |
+| WorldCover coverage | `data/worldcover/2021-v200/israel/` tile `N30E033` | — | inventory hashes | The area centre lies inside tile `N30E033` and inside the supported Israel box |
+| PresentMon | GitHub `GameTechDev/PresentMon` release v2.6.0, `PresentMon-2.6.0-x64.exe` | 980,320 B | recorded on download | Not downloaded yet |
+
+Findings in the emissivity table that the mapping must handle explicitly:
+
+* Ranges such as `0.81 – 0.86` and a prefixed value `@1.00`: the parser keeps
+  the minimum and maximum; the mapping uses the midpoint and records the range.
+* Duplicate names with different values (`Glass: frosted` 0.96 and 0.70).
+* Values far from other common references (`Gravel` 0.28, `Cement` 0.54); the
+  mapping does not use them for terrain without operator confirmation.
+* No entries for vegetation (grass, trees, crops), asphalt or bare desert soil
+  other than `Soil` and `Sand`, which dominate WorldCover and OSM classes in the
+  area of operation (section 7, question 3).
+
+## 7. Open questions before or during the work
+
+1. **3D Tiles delivery:** folder path, license and attribution text, and
+   whether the tileset heights are ellipsoidal (WGS84) or orthometric (geoid);
+   the origin height at the area centre is needed for placement.
+2. **Refresh threshold:** the current check admits a display at 59 Hz or
+   above (`refresh + 1 >= fps`). The answer says "above 58 Hz". Should the
+   accepted 60 FPS display rule become "above 58 Hz"? This is a contract
+   change only the operator can make.
+3. **Missing emissivities:** approve proxy values for vegetation, asphalt and
+   desert soil (proposal: vegetation 0.97 from `Food & Organic Materials`,
+   asphalt 0.93 from `Paper: tar` 0.92 / `Lacquer` family, bare soil 0.92 from
+   `Soil: dry`, sand 0.90), or supply a second source.
+4. **Boson lens and frame rate:** which lens horizontal FOV (Boson 640 lenses
+   range from about 18° to 95°) and 60 Hz or the export-limited 9 Hz.
+5. **Thermal reference sample:** the FLIR datasets require registration and
+   have their own terms; the operator downloads one sample sequence, notes the
+   license and the capture time/place, and gives the path.
+6. **Old branch:** may the agent delete `task-073-render-profile` locally and on
+   origin after porting its pieces?
+7. **Large inputs:** may the agent add `*.osm.pbf` and the 3D Tiles drop folder
+   to `.gitignore`, so the 120 MB extract cannot be committed by accident?
+8. **M4 runs:** the operator runs the M4 captures on the Mac (or provides an
+   SSH host); the agent cannot reach the Mac from this laptop.
+
+## 8. Execution plan after "go"
+
+Every phase lands on a new branch from `main` (`task-073-g3`), with tests and
+both documentation languages updated in the same change. No limit changes;
+pushes only on instruction.
+
+| Phase | Work | Needs |
+| --- | --- | --- |
+| P0 | Branch, ignore rules, input hash record, PresentMon download into `.cache/tools` with hash | Questions 6–7 |
+| P1 | `?g3=1` harness: full-display flight canvas at exactly 1920 x 1080 DPR 1, Windows GPU-process memory and `nvidia-smi` sampling, PresentMon capture, `scripts/diagnose-render.mjs` adapted to `?g3=1`, area-of-operation configuration (centre, radius) | — |
+| P2 | Scripted flight: deterministic virtual gamepad (take-off, circuit inside the configured radius, landing) recorded in the evidence | — |
+| P3 | Terrain from the supplied 3D Tiles at the configured area; the synthetic stress tileset relocated to the same origin as a stand-in until then | Question 1 |
+| P4 | Maps: OSM PBF reader for the radius (roads, buildings, land use, water) plus the WorldCover window, registered in a runtime `DataManifest` with hashes, producing a material-class raster | — |
+| P5 | Thermal: `ApproximatedInstrumentProfile` (Boson 640 values), generated fixed-pattern-noise map through the TASK-072 shutter/NUC, TASK-070 `ThermalField` per material class with emissivities from the table, rendered in the G-buffer | Questions 3–5 |
+| P6 | WebGPU: fisheye, analog and thermal passes as three.js node materials (TSL) with CPU-oracle tests on the RTX 4050; check the tiles loader under `WebGPURenderer` | — |
+| P7 | Captures on the RTX 4050: 1920 x 1080 baseline for WebGL2 and WebGPU (10 min after 60 s warmup), plus informational runs on the 144 Hz panel and other modes, each with PresentMon and clock samples; M4 runs by the operator | Question 8 |
+| P8 | Evidence and documentation in both languages; commit; push on instruction | — |
