@@ -378,3 +378,92 @@ pushes only on instruction.
 | P6 | WebGPU: fisheye, analog and thermal passes as three.js node materials (TSL) with CPU-oracle tests on the RTX 4050; check the tiles loader under `WebGPURenderer` | — |
 | P7 | Captures on the RTX 4050: 1920 x 1080 baseline for WebGL2 and WebGPU (10 min after 60 s warmup), plus informational runs on the 144 Hz panel and other modes, each with PresentMon and clock samples; M4 runs by the operator | Question 8 |
 | P8 | Evidence and documentation in both languages; commit; push on instruction | — |
+
+## 9. Operator answers, second round (2026-10-22)
+
+These answers resolve section 7 and change phases P0, P3 and P5 of section 8.
+
+| Question | Answer |
+| --- | --- |
+| Emissivity gaps | Find the missing values from public sources (results below) |
+| Stand-in emissivities | Approved: vegetation 0.97, asphalt 0.93, bare soil 0.92, sand 0.90 |
+| Refresh rule | The accepted 60 FPS display rule becomes "above 58 Hz"; 59.88 Hz and 60 Hz qualify |
+| Tileset source | The agent builds 3D Tiles with the pipeline below instead of receiving a tileset |
+| Boson lens | The standard lens at 60 Hz |
+| Thermal reference sample | Public FLIR thermal dataset sample; the operator has settled the licensing question |
+| Old branch | The agent may delete `task-073-render-profile` locally and on origin |
+| `.gitignore` | The agent may ignore `*.osm.pbf` and the generated tiles folder |
+| M4 | The operator will provide an M4 later |
+
+### 9.1 Emissivity values from public sources (8–14 µm)
+
+| Class | Literature value | Used value | Source |
+| --- | --- | --- | --- |
+| Healthy green vegetation, grass, crops | 0.96–0.99; grass about 0.983 | 0.97 (approved) | Lillesand et al. 2008 table; arXiv 2001.09191 band average |
+| Trees | about 0.977 | 0.97 (approved vegetation value) | arXiv 2001.09191 |
+| Dry vegetation, dry grass | 0.88–0.94 | 0.91 (midpoint) | Lillesand et al. 2008 table |
+| Asphalt | 0.94–0.97; about 0.946 | 0.93 (approved; below the literature range, recorded as such) | Lillesand et al. 2008 table; arXiv 2001.09191 |
+| Bare dry soil | 0.92–0.96; about 0.955 | 0.92 (approved) | Lillesand et al. 2008 table; arXiv 2001.09191 |
+| Sand | 0.90 (ThermoWorks) | 0.90 (approved) | `EmissivityTable_thermoworks.txt` |
+| Concrete, built-up | 0.92 (ThermoWorks) | 0.92 | `EmissivityTable_thermoworks.txt` |
+| Water | 0.95 (ThermoWorks) | 0.95 | `EmissivityTable_thermoworks.txt` |
+
+Soil emissivity rises with moisture, mainly in 8–9.5 µm; the model uses the dry
+values for the area of operation. Sources:
+[Lillesand et al. 2008 values via SEOS](https://seos-project.eu/earthspectra/earthspectra-c02-p04.html),
+[arXiv 2001.09191](https://arxiv.org/pdf/2001.09191).
+
+### 9.2 Boson 640 lens
+
+Teledyne FLIR lists eight Boson 640 lenses (73 mm 6°, 55 mm 8°, 36 mm 12°,
+24 mm 18°, 18 mm 24°, 14 mm 32°, 8.7 mm 50°, 4.9 mm 95°) and does not name a
+standard one ([FOV comparison](https://oem.flir.com/boson-family/boson-fov-comparison/)).
+The agent uses the **8.7 mm, 50° horizontal FOV** lens at **60 Hz**: it is the
+in-production general-purpose wide lens for small UAS. The profile records the
+lens as a selected configuration, not as a measured instrument.
+
+### 9.3 Terrain and buildings pipeline
+
+* **Bounding box:** configurable; default Israel `34.2,29.4,35.9,33.4`
+  (min lon, min lat, max lon, max lat). The runtime area of operation (centre
+  32.20065261195932 N, 34.87163838506722 E, radius up to 1 km) stays a separate
+  configuration.
+* **Buildings:** `overturemaps download --bbox=34.2,29.4,35.9,33.4 -f geojson --type=building -o israel_buildings.geojson`,
+  loaded into PostGIS and converted by `pg2b3dm` into a hierarchical 3D Tiles
+  1.1 tileset with GLB content and WGS84 ellipsoidal heights.
+* **Terrain:** FABDEM bare-earth 1° tiles covering the box (Copernicus GLO-30
+  is a surface model that includes buildings and trees, so it is used only if
+  FABDEM is unavailable); heights converted from EGM2008 orthometric to WGS84
+  ellipsoidal with GDAL/PROJ (`gdalwarp` with `EPSG:4326+3855` to
+  `EPSG:4979`, PROJ grid `us_nga_egm08_25.tif`; geoid separation in the area
+  about +18 to +20 m), then cut into quantized-mesh tiles by a pure-Python
+  tiler (`pydelatin` + `quantized-mesh-encoder`) because `ctb-tile` and
+  `tin-terrain` need system packages.
+* **Viewer:** `3d-tiles-renderer` 0.5.3 includes `QuantizedMeshPlugin`, so
+  terrain (quantized mesh, `layer.json`) and buildings (3D Tiles) load as two
+  tile sources. `TilesScene` currently binds one source and is extended to two.
+* **Checks:** a building footprint and the terrain under it must agree within
+  2 m in ellipsoidal height at sample points, so the buildings neither float
+  nor sink; a test fails if the geoid step is skipped.
+* **Licenses and attribution:** Overture buildings (ODbL/CDLA per Overture
+  release), FABDEM (CC BY-NC-SA 4.0, non-commercial; a commercial use needs a
+  Fathom license), Copernicus DEM credit line, EGM2008 (NGA, public). All are
+  recorded in the dataset manifest with hashes.
+* **Tooling:** WSL Ubuntu 26.04 has Python 3.14, pip, g++ and curl but no GDAL,
+  PostGIS, `pg2b3dm` or terrain tiler, and `sudo` needs a password. The agent
+  installs them in user space without `sudo`: micromamba with `gdal`, `proj`,
+  `postgresql`, `postgis` and Python packages (`overturemaps`, `pydelatin`,
+  `quantized-mesh-encoder`), and `pg2b3dm` as a .NET tool. Outputs go to an
+  ignored folder outside Git (`.cache/geodata/`).
+* **Download sizes (estimates):** FABDEM tiles for the box about 0.3 GB,
+  Overture buildings GeoJSON for Israel about 1–3 GB, micromamba packages about
+  1.5 GB, EGM2008 grid about 80 MB.
+
+### 9.4 Revised phases
+
+| Phase | Change from section 8 |
+| --- | --- |
+| P0 | Also delete `task-073-render-profile` (local and origin) after porting, and add `*.osm.pbf` and `.cache/geodata/` ignore rules |
+| P1 | The accepted 60 FPS display rule becomes "above 58 Hz" in `scripts/gpu-trace.mjs` and its tests, both languages documented |
+| P3 | Build terrain and buildings with the section 9.3 pipeline; the viewer loads both sources for the configured area |
+| P5 | Use the section 9.1 emissivities and the section 9.2 lens; fetch one public FLIR thermal dataset sample sequence as the visual reference |
