@@ -30,6 +30,7 @@ import {
 import { EkfMonitor } from "@mirage/autopilot/ekf-status";
 import { newMavFrame, type MavFrame } from "@mirage/mavlink/codec";
 import { GamepadAdapter, type GamepadCalibration } from "@mirage/input";
+import { ScriptedPilot, newStickCommand, type FlightPlan } from "@mirage/input/scripted-flight";
 import { applyAutopilotTelemetry } from "./hud/telemetry";
 
 // Main-thread runtime on ABI v2 and Control Protocol v2 (TASK-085). Main owns
@@ -124,8 +125,11 @@ export class SimulationRuntime {
     new URL("./physics.worker.ts", import.meta.url),
     { type: "module", name: "mirage-physics" },
   );
-  source: "demo" | "usb" = "demo";
+  source: "demo" | "usb" | "script" = "demo";
   demoThrottle = 0;
+  /** TASK-073 scripted flight: a closed-loop pilot that only moves the sticks. */
+  scripted: ScriptedPilot | null = null;
+  private readonly scriptedStick = newStickCommand();
   ready = false;
   armed = false;
   pending = false;
@@ -287,8 +291,16 @@ export class SimulationRuntime {
     this.input.wallTimeMs = wallNow();
     this.publishPilot();
   }
+  /** Hands the sticks to a scripted flight plan; it arms itself at zero throttle once the session runs. */
+  useScriptedFlight(plan: FlightPlan): void {
+    this.disarm();
+    this.scripted = new ScriptedPilot(plan);
+    this.source = "script";
+    this.newDevice();
+  }
   selectSource(source: "demo" | "usb") {
     this.disarm();
+    this.scripted = null;
     this.source = source;
     this.newDevice();
   }
@@ -384,6 +396,18 @@ export class SimulationRuntime {
       }
       if (this.gamepad.status !== "connected") this.armed = false;
       if (!this.armed) this.input.flags &= ~ControlFlag.Armed;
+    } else if (this.source === "script" && this.scripted) {
+      const stick = this.scriptedStick;
+      if (this.running) this.scripted.update(this.current, stick);
+      else { stick.roll = stick.pitch = stick.yaw = stick.throttle = 0; stick.arm = false; }
+      this.input.roll = stick.roll;
+      this.input.pitch = stick.pitch;
+      this.input.yaw = stick.yaw;
+      this.input.throttle = stick.throttle;
+      if (stick.arm && !this.armed && this.running && stick.throttle <= 0.05) this.armed = true;
+      if (!stick.arm) this.armed = false;
+      this.input.flags = ControlFlag.Connected | (this.armed ? ControlFlag.Armed : 0);
+      this.input.wallTimeMs = wallNow();
     } else {
       this.input.roll = this.input.pitch = this.input.yaw = 0;
       this.input.throttle = this.demoThrottle;

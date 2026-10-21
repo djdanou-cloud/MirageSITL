@@ -148,7 +148,12 @@ v2.6.0 is expected at `.cache/tools/presentmon-2.6.0/PresentMon-2.6.0-x64.exe`
 (or `MIRAGE_PRESENTMON`) and needs an elevated shell or an account in the
 Windows "Performance Log Users" group; otherwise the side record states that it
 did not run. `node scripts/diagnose-render.mjs` compares the demo, terrain and
-`?g3=1` scenes with WebGL2 GPU timer queries; it is diagnostic only.
+`?g3=1` scenes with WebGL2 GPU timer queries; it is diagnostic only. Both tools
+open `?g3=1&flight=circuit`: a scripted pilot (`packages/input/src/scripted-flight.ts`)
+moves only the sticks, arms at zero throttle, climbs to 30 m and circles the
+origin at 10 m/s on a circuit of at most 300 m radius kept inside 60% of the
+build-time area radius `VITE_MIRAGE_AREA_RADIUS_M` (default 1000 m), so
+terrain streaming and level-of-detail changes happen during the measurement.
 
 The Serial controller waits at most 5 seconds for decoder readiness before
 opening the selected device. The existing 500 ms per-chunk backpressure deadline

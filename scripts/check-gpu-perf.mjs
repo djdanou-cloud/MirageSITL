@@ -144,7 +144,7 @@ async function measure(backend, fps, warmupS, durationS, directory, position) {
     await new Promise(resolve => setTimeout(resolve, 1000));
     const errors = [];
     page.on("pageerror", error => errors.push(error.message));
-    await page.goto(`http://127.0.0.1:5175/?renderer=${backend}&g3=1`);
+    await page.goto(`http://127.0.0.1:5175/?renderer=${backend}&g3=1&flight=circuit`);
     await page.getByTestId("worker-status").filter({ hasText: "READY" }).waitFor({ timeout: 30000 });
     await page.bringToFront();
     try {

@@ -194,7 +194,7 @@ try {
     const { windowId } = await cdp.send("Browser.getWindowForTarget");
     await cdp.send("Browser.setWindowBounds", { windowId, bounds: { windowState: "fullscreen" } });
     console.log(`${config}: ${warmupS}s warmup, ${durationS}s measurement`);
-    const raw = await measure(page, `http://127.0.0.1:${PORT}/?renderer=webgl2${config === "g3" ? "&g3=1" : ""}`);
+    const raw = await measure(page, `http://127.0.0.1:${PORT}/?renderer=webgl2${config === "g3" ? "&g3=1&flight=circuit" : ""}`);
     await context.close();
     server.kill(); server = null;
     if (raw.error) { result.configs[config] = { error: raw.error }; console.log(`${config}: ${raw.error}`); continue; }
