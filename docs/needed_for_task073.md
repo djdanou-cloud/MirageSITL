@@ -40,19 +40,39 @@ do so the agent can finish it. It describes `main` at commit `4dcae07`
 | M4, WebGL2, 60 FPS | median 16.680 ms, p99 17.665 ms (accepted limits) | Chrome floated in an emulated 1920 x 1080 window on a 2560 x 1440 desktop; native panel 2560 x 1664 | Not accepted: image does not fill the display |
 | M4, WebGL2, 120 FPS | not run | MacBook Air panel refreshes at 59.88 Hz | `BLOCKED_EXTERNAL` |
 | M4, WebGPU | not run | — | `BLOCKED_EXTERNAL`: no WebGPU fisheye/thermal pass |
-| RTX 4050, WebGL2, 60 FPS | median 16.67 ms, **p99 23.88 ms** | fullscreen 1920 x 1080 DPR 1 on a 1920 x 1080 display, but the flight canvas was 1316 x 640 inside the application layout | **FAIL** (p99 > 17.665 ms) |
+| RTX 4050, WebGL2, 60 FPS, balanced power | median 16.670 ms, **p99 23.880 ms** | fullscreen 1920 x 1080 DPR 1 on a 1920 x 1080 display, but the flight canvas was 1316 x 640 inside the application layout | **FAIL** (p99 > 17.665 ms) |
+| RTX 4050, WebGL2, 60 FPS, maximum-performance power | **median 16.685 ms, p99 34.260 ms** | as above | **FAIL** (median > 16.680 ms, p99 > 17.665 ms) |
 | RTX 4050, WebGL2, 120 FPS | not run | no >=120 Hz display on the NVIDIA output | `BLOCKED_EXTERNAL` |
 | RTX 4050, WebGPU | not run | — | `BLOCKED_EXTERNAL` |
 
-RTX 4050 capture details (branch harness, 600 s after 60 s warmup, Chrome 155,
-Windows 11, AC power, balanced plan, synthetic stress terrain): 35,754 frames,
-349 missed refreshes of 36,000 (0.97%); peak GPU-process dedicated memory
-147 MiB (<= 2 GiB) and terrain cache 12.5 MiB (<= 512 MiB). Diagnosis:
-main-thread work stays under 6 ms per frame with no long tasks; 63% of long
-intervals are requestAnimationFrame timestamp jitter (paired with a short
-interval, summing to two refreshes); the rest are real missed refreshes. The
-GPU stayed in power state P8 at 210–360 MHz of 3105 MHz (about 2 W, NVIDIA
-clock reason "GPU idle"). Even the plain demo scene measured p99 21.4 ms.
+Both RTX 4050 captures used the branch harness (600 s after 60 s warmup,
+Chrome 155, Windows 11, AC power, synthetic stress terrain) and were scored by
+`main`'s analyzer under the accepted limits:
+
+* **Balanced power:** 35,754 frames, 349 missed refreshes of 36,000 (0.97%),
+  GPU in power state P8 at 210–360 MHz of 3105 MHz (about 2 W, NVIDIA clock
+  reason "GPU idle").
+* **Maximum-performance power** (operator-set NVIDIA per-program setting for
+  `chrome.exe`, Windows "Best performance", vendor Performance profile):
+  35,151 frames, 947 missed refreshes (2.63%), longest frame 96.5 ms. The GPU
+  switched between P5 and P8 299 times at 420–450 MHz, still with clock reason
+  "GPU idle", at 54–64 °C. The result was worse, not better.
+* Peak GPU-process dedicated memory 147 MiB and 140 MiB (<= 2 GiB); terrain
+  cache 12.5 MiB (<= 512 MiB).
+
+Diagnosis (WebGL2 GPU timer queries, 120 s per profile after 20 s warmup):
+
+| Power setting | p99 demo / terrain / full | Intervals over 25 ms, demo / terrain / full |
+| --- | --- | --- |
+| Balanced | 21.4 / 22.2 / 23.6 ms | 31 / 30 / 52 |
+| Maximum performance | 41.1 / 40.6 / 34.8 ms | 131 / 135 / 138 |
+
+Main-thread work stays under 6 ms per frame with no long tasks in any run, and
+GPU timer values follow the clock state rather than the scene. In the balanced
+trace 63% of intervals over 18.5 ms are requestAnimationFrame timestamp
+jitter (paired with a short interval, summing to two refreshes). The misses
+are dominated by GPU power-state behaviour under Windows hybrid graphics, not
+by scene cost: even the plain demo scene fails.
 
 ## 2. Missing items and how to supply them
 
@@ -94,20 +114,25 @@ a go-ahead.
 
 ### 2.3 RTX 4050 frame time and power configuration
 
-* **Missing:** an RTX 4050 capture that meets p99 <= 17.665 ms, and a capture
-  with the GPU allowed to leave its idle power state.
-* **Why:** the measured p99 is 23.88 ms with the GPU at 210–360 MHz. It is
-  unknown whether the scene or the power policy causes the missed refreshes.
-* **Operator provides:** these are system settings the agent does not change.
-  1. NVIDIA Control Panel → Manage 3D settings → Program settings →
-     `chrome.exe` → Power management mode → **Prefer maximum performance**.
-  2. Windows Settings → System → Power → Power mode → **Best performance**.
-  3. Vendor utility (ASUS Armoury Crate or equivalent) → **Performance/Turbo**
-     profile, laptop on AC power.
-  4. Tell the agent "power settings changed".
+* **Missing:** an RTX 4050 capture that meets median <= 16.680 ms and
+  p99 <= 17.665 ms with the GPU actually clocked up.
+* **Already tried:** the per-program NVIDIA setting, Windows "Best performance"
+  and the vendor Performance profile (section 1.2). The GPU still never left
+  P5 and the driver kept reporting "GPU idle", so this setting is not the lever.
+* **Operator provides next:** these are system settings the agent does not
+  change.
+  1. NVIDIA Control Panel → Manage 3D settings → **Global settings** → Power
+     management mode → **Prefer maximum performance** (in addition to the
+     `chrome.exe` entry).
+  2. If the GPU still stays at P5 or below: switch the laptop to
+     **dGPU-only / MUX "Ultimate" mode** (ASUS Armoury Crate → GPU Mode),
+     reboot, and confirm in Windows Display settings which adapter drives the
+     measured display. This removes the Windows hybrid-graphics path that
+     currently treats the load as idle.
+  3. Tell the agent which of these was done.
 * **Agent then:** reruns the 10-minute capture and the diagnosis with clock
-  sampling, keeps the balanced and the maximum-performance runs as separate
-  evidence, and reports both. The limits are not changed.
+  sampling, keeps every power configuration as separate evidence and reports
+  all of them. The limits are not changed.
 
 ### 2.4 Displays of 120 Hz or more
 
@@ -250,7 +275,7 @@ a go-ahead.
 | --- | --- | --- | --- |
 | Single harness | Operator decision | Keep `?g3=1` and port branch pieces, or another choice | Chat |
 | Resolution rule | Operator decision | Exact 1920 x 1080 displays, or native-resolution contract change | Chat |
-| Max-performance power | Operator | Settings changed, AC power | Say so in chat |
+| GPU clocking on RTX 4050 | Operator | NVIDIA global setting, then MUX mode if needed | Say which was done |
 | High refresh (>=120 Hz) displays | Operator | RTX 4050: MUX mode or external monitor; M4: external monitor | Say which display |
 | Real terrain | Operator | Google key + Cloudflare deploy authorization, or licensed tileset + license + attribution + origin, or DEM tiles | Secret via `wrangler secret put`; files outside the repo with SHA-256 |
 | Area of operation | Operator | Centre coordinates and radius | Chat |
