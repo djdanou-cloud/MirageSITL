@@ -9,6 +9,7 @@ import type { SimulationRuntime } from './runtime';
 import { nedToRenderBasis, nedToRenderPositionInto } from './coordinates';
 import { g3Requested } from './render/g3-mode';
 import { rendererFactory, rendererModeFromSearch } from './render/renderer';
+import { MODEL_HEIGHT_OFFSET_M } from './vehicle-geometry';
 
 // TASK-066: `?renderer=webgpu|webgl2` selects the renderer adapter; otherwise R3F's default WebGL renderer.
 const search = globalThis.location?.search ?? '';
@@ -16,7 +17,6 @@ const rendererMode = rendererModeFromSearch(search);
 const g3 = g3Requested(search);
 const glOption = rendererMode ? rendererFactory(rendererMode) : { antialias: true, powerPreference: 'high-performance' as const };
 
-const MODEL_HEIGHT_OFFSET_M = 0.28; // hub height of the demo mesh above its NED reference point
 
 function Vehicle({ runtime }: { runtime: RefObject<SimulationRuntime | null> }) {
   const model = useRef<Group>(null);

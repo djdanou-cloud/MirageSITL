@@ -153,13 +153,6 @@ async function measure(backend, fps, warmupS, durationS, directory, position) {
       const detail = errors.length ? errors.join("; ") : "no page error";
       throw new Error(`${error instanceof Error ? error.message.split("\n")[0] : String(error)}; ${detail}`, { cause: error });
     }
-    await page.bringToFront();
-    const started = await page.getByRole("button", { name: "Start", exact: true }).evaluate(element => {
-      if (!(element instanceof globalThis.HTMLButtonElement) || element.disabled) return false;
-      element.click();
-      return true;
-    });
-    if (!started) throw new Error("Start control was not ready");
     const features = await page.waitForFunction(() => {
       const canvas = globalThis.document.querySelector("canvas");
       const probe = canvas && canvas.__mirageG3;
@@ -174,6 +167,16 @@ async function measure(backend, fps, warmupS, durationS, directory, position) {
       const shown = globalThis.document.querySelector("canvas");
       return { renderer: String(renderer), backend: shown?.getAttribute("data-render-backend") ?? "", fallback: shown?.getAttribute("data-render-fallback") ?? "" };
     });
+    // Start only after the feature wait and the identity probe: creating a second
+    // WebGL context can stall the main thread, and a stall above the 250 ms input
+    // timeout during flight blocks the worker's arming latch (the drone falls).
+    await page.bringToFront();
+    const started = await page.getByRole("button", { name: "Start", exact: true }).evaluate(element => {
+      if (!(element instanceof globalThis.HTMLButtonElement) || element.disabled) return false;
+      element.click();
+      return true;
+    });
+    if (!started) throw new Error("Start control was not ready");
     if (!features) {
       const probe = await page.evaluate(() => globalThis.document.querySelector("canvas")?.__mirageG3 ?? null);
       throw new Error(`Terrain, FPV, and thermal did not all become active (${JSON.stringify({ probe, identity, errors })})`);
@@ -192,6 +195,21 @@ async function measure(backend, fps, warmupS, durationS, directory, position) {
         const probe = globalThis.document.querySelector("canvas")?.__mirageG3;
         return probe && typeof probe === "object" ? probe : null;
       };
+      // Scripted-flight evidence: HUD altitude, position and arm state once per second (DOM reads at 1 Hz only).
+      const flight = [];
+      const started = globalThis.performance.now();
+      let lastFrameMs = globalThis.performance.now(), maxGapMs = 0;
+      const gapProbe = now => { maxGapMs = Math.max(maxGapMs, now - lastFrameMs); lastFrameMs = now; if (flightTimer !== 0) globalThis.requestAnimationFrame(gapProbe); };
+      let flightTimer = 0;
+      flightTimer = setInterval(() => {
+        const text = selector => globalThis.document.querySelector(selector)?.textContent?.trim() ?? "";
+        flight.push({ s: Math.round((globalThis.performance.now() - started) / 1000), altitude: text("[data-testid=altitude]"), position: text(".coordinates"),
+          simTime: text("[data-testid=sim-time]"), physicsHz: text("[data-testid=physics-hz]"),
+          inputFailsafe: (globalThis.document.body.textContent ?? "").includes("DISARMED / STALE"),
+          armed: Array.from(globalThis.document.querySelectorAll("button")).some(button => button.textContent?.includes("Disarm motors")), maxFrameGapMs: Math.round(maxGapMs) });
+        maxGapMs = 0;
+      }, 1000);
+      globalThis.requestAnimationFrame(gapProbe);
       await new Promise(resolve => setTimeout(resolve, warmupS * 1000));
       const frameMs = [];
       let gpuBytes = 0, cpuBytes = 0, held = true, samples = 0, width = 0, height = 0, dpr = 0, sizeOk = true, hidden = globalThis.document.hidden;
@@ -222,8 +240,8 @@ async function measure(backend, fps, warmupS, durationS, directory, position) {
           };
           globalThis.requestAnimationFrame(frame);
         });
-      } finally { globalThis.document.removeEventListener("visibilitychange", onVis); }
-      return { frameMs, gpuBytes, cpuBytes, featuresHeld: held && samples > 0, width: sizeOk ? width : 0, height: sizeOk ? height : 0, dpr, hidden };
+      } finally { globalThis.document.removeEventListener("visibilitychange", onVis); clearInterval(flightTimer); flightTimer = 0; }
+      return { frameMs, gpuBytes, cpuBytes, featuresHeld: held && samples > 0, width: sizeOk ? width : 0, height: sizeOk ? height : 0, dpr, hidden, flight };
     }, { warmupS, durationS });
     if (presentMonStart !== null) clearTimeout(presentMonStart);
     const screen = await page.evaluate(() => ({ screenX: globalThis.screenX, screenY: globalThis.screenY, innerWidth: globalThis.innerWidth, innerHeight: globalThis.innerHeight,
@@ -255,7 +273,8 @@ async function measure(backend, fps, warmupS, durationS, directory, position) {
       clocks: clockSampler.available ? summarizeClocks(clockSampler.samples) : { available: false, reason: clockSampler.reason },
       presentMon: presentMonResult,
     };
-    writeFileSync(tracePath, JSON.stringify({ identity, errors, measurement: { ...measurement, frameMs: measurement.frameMs.length }, side, report: result }, null, 2) + "\n");
+    writeFileSync(tracePath, JSON.stringify({ identity, errors, measurement: { ...measurement, frameMs: measurement.frameMs.length, flight: measurement.flight.length }, side, report: result }, null, 2) + "\n");
+    writeFileSync(`${directory}/flight-${backend}-${fps}.json`, JSON.stringify(measurement.flight, null, 1) + "\n");
     writeFileSync(`${directory}/clocks-${backend}-${fps}.json`, JSON.stringify(clockSampler.samples) + "\n");
     writeFileSync(`${directory}/gpu-report.json`, JSON.stringify(result, null, 2) + "\n");
     console.log(`gpu-report: ${result.status}; frames=${measurement.frameMs.length}; p99=${result.metrics?.p99FrameMs ?? "n/a"}`);

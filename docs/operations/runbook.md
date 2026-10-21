@@ -154,6 +154,15 @@ moves only the sticks, arms at zero throttle, climbs to 30 m and circles the
 origin at 10 m/s on a circuit of at most 300 m radius kept inside 60% of the
 build-time area radius `VITE_MIRAGE_AREA_RADIUS_M` (default 1000 m), so
 terrain streaming and level-of-detail changes happen during the measurement.
+The capture writes the flight once per second (`flight-<backend>-<fps>.json`:
+HUD altitude and position, simulation time, physics rate, input failsafe, arm
+state and the longest frame gap). It presses Start only after the feature wait
+and its separate WebGL identity probe: a main-thread stall above the 250 ms
+pilot input timeout blocks the worker's arming latch until the arm request is
+withdrawn, so a stall in flight makes the drone fall, by design. The FPV camera
+sits on the nose of the drawn body (`apps/web/src/vehicle-geometry.ts`), not
+inside it. `MIRAGE_SCREENSHOTS=1` keeps a Playwright screenshot of every browser
+test (default: failures only) for operator review.
 
 The Serial controller waits at most 5 seconds for decoder readiness before
 opening the selected device. The existing 500 ms per-chunk backpressure deadline

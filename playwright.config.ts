@@ -18,7 +18,8 @@ export default defineConfig({
     viewport: { width: 1920, height: 1080 },
     deviceScaleFactor: 1,
     trace: 'retain-on-failure',
-    screenshot: 'only-on-failure',
+    // MIRAGE_SCREENSHOTS=1 keeps a screenshot of every test for operator review (default: failures only).
+    screenshot: process.env.MIRAGE_SCREENSHOTS === '1' ? 'on' : 'only-on-failure',
     launchOptions: {
       ...(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {}),
       // Software rendering keeps functional tests independent of runner GPUs.

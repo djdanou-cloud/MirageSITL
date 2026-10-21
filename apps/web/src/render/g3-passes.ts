@@ -19,6 +19,7 @@ import type { TilesScene } from "@mirage/terrain/tiles-scene";
 import { SYNTHETIC_LWIR_640, type ThermalScene } from "@mirage/thermal/thermal-camera";
 import { ThermalCameraPass } from "@mirage/thermal/thermal-material";
 import type { SimulationRuntime } from "../runtime";
+import { BODY_NOSE_FORWARD_M, MODEL_HEIGHT_OFFSET_M } from "../vehicle-geometry";
 
 const PROBE = "__mirageG3";
 const GBUFFER_VERTEX = "varying vec3 vView;\nvoid main() {\n  vec4 view = modelViewMatrix * vec4(position, 1.0);\n  vView = view.xyz;\n  gl_Position = projectionMatrix * view;\n}\n";
@@ -26,7 +27,9 @@ const GBUFFER_FRAGMENT = "varying vec3 vView;\nvoid main() {\n  float distanceM 
 const THERMAL_SCENE: ThermalScene = { reflectedK: 250, airK: 288, extinctionPerM: 0.0002, spanMinK: 270, spanMaxK: 320 };
 const LENS: CameraConfig = {
   lens: { fovHorizontalRad: (120 * Math.PI) / 180, distortion: { model: "kannala-brandt", k: [-0.02, 0.01, -0.004, 0.001] } },
-  mount: { offsetFrdM: [0.12, 0, -0.04], uptiltRad: 0.15 },
+  // On the nose of the drawn body (2 cm ahead of its front face, level with its centre);
+  // FRD z is down, so the mesh height offset is negative here.
+  mount: { offsetFrdM: [BODY_NOSE_FORWARD_M + 0.02, 0, -MODEL_HEIGHT_OFFSET_M], uptiltRad: 0.15 },
 };
 
 export interface G3Probe {
