@@ -34,8 +34,8 @@ import { BODY_NOSE_FORWARD_M, MODEL_HEIGHT_OFFSET_M } from "../vehicle-geometry"
 
 const PROBE = "__mirageG3";
 const PROFILE = BOSON_640_50DEG;
-/** Assumed weather for the thermal scene (no measured weather): summer air 30 C, light wind, nearly clear sky. */
-const WEATHER: ThermalWeather = { airTemperatureK: 303.15, windSpeedMps: 3, cloudFraction: 0.1, deepTemperatureK: 298.15 };
+/** Assumed weather for the thermal scene (no measured weather): summer air 30 C, 60% humidity, light wind, nearly clear sky. */
+const WEATHER: ThermalWeather = { airTemperatureK: 303.15, windSpeedMps: 3, cloudFraction: 0.1, deepTemperatureK: 298.15, relativeHumidity: 0.6, pressurePa: 101325 };
 /** Fixed-pattern seed (the pattern is generated; any fixed value reproduces it). */
 const FPN_SEED = 0x7a5c0640;
 /** Display span margin around the scene's surface temperatures (a simple AGC), K. */

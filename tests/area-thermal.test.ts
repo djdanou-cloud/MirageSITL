@@ -64,6 +64,16 @@ describe("area heat balance", () => {
     expect(morning.skyTemperatureK()).toBeLessThan(weather.airTemperatureK);
   });
 
+  it("keeps evaporating tree canopy near air temperature and far below asphalt (FLIR sample: trees read darker)", () => {
+    const mats = ["vegetation-tree", "asphalt"];
+    const a = new AreaThermal(mats, { ...area, startUtcMs: Date.UTC(2026, 6, 15, 10), weather: { ...weather, relativeHumidity: 0.6 } });
+    a.spinUp();
+    const tree = a.temperatureK[0]!, asphalt = a.temperatureK[1]!;
+    expect(tree - weather.airTemperatureK).toBeLessThan(4);
+    expect(tree - weather.airTemperatureK).toBeGreaterThan(-2);
+    expect(asphalt - tree).toBeGreaterThan(10);
+  });
+
   it("advances continuously: one step to a time equals stepping through it", () => {
     const a = new AreaThermal(classes, { ...area, startUtcMs: Date.UTC(2026, 6, 15, 7), weather });
     const b = new AreaThermal(classes, { ...area, startUtcMs: Date.UTC(2026, 6, 15, 7), weather });

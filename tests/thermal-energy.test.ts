@@ -5,7 +5,10 @@
 // absolute temperatures stays pending.
 import { describe, expect, it } from "vitest";
 import { STEFAN_BOLTZMANN, airMass, clearSkyIrradiance, dayOfYearUtc, skyEmissivity, solarIncidence, solarPosition } from "../packages/thermal/src/solar.ts";
-import { HeatSurface, TYPICAL_SURFACE_PROPS, ThermalField, type SurfaceThermalProps, type ThermalForcing, type ThermalWeather } from "../packages/thermal/src/heat-balance.ts";
+import {
+  HeatSurface, TYPICAL_SURFACE_PROPS, ThermalField, canopyLogFactor, psychrometricPaK, saturationVapourPressurePa,
+  type SurfaceThermalProps, type ThermalForcing, type ThermalWeather,
+} from "../packages/thermal/src/heat-balance.ts";
 import { isaTroposphere } from "../packages/physics/src/atmosphere.ts";
 
 const DEG = Math.PI / 180;
@@ -88,11 +91,11 @@ describe("surface heat balance", () => {
   it("closes the energy budget in J/m^2 and reports flux components in W/m^2", () => {
     const field = new ThermalField([{ props: asphalt }], weather, 295);
     const sun: ThermalForcing = { sunEast: 0, sunNorth: -0.5, sunUp: Math.sqrt(0.75), directNormalWm2: 800, diffuseHorizontalWm2: 80, dtS: 30 };
-    const out = { absorbedSolar: 0, longwaveIn: 0, longwaveOut: 0, convection: 0, conduction: 0, net: 0 };
+    const out = { absorbedSolar: 0, longwaveIn: 0, longwaveOut: 0, convection: 0, conduction: 0, latent: 0, net: 0 };
     field.fluxAt(0, 295, sun, out);
     expect(out.absorbedSolar).toBeCloseTo(0.9 * (800 * Math.sqrt(0.75) + 80), 9);
     expect(out.longwaveOut).toBeCloseTo(-0.95 * STEFAN_BOLTZMANN * 295 ** 4, 9);
-    expect(out.absorbedSolar + out.longwaveIn + out.longwaveOut + out.convection + out.conduction).toBeCloseTo(out.net, 9);
+    expect(out.absorbedSolar + out.longwaveIn + out.longwaveOut + out.convection + out.conduction + out.latent).toBeCloseTo(out.net, 9);
     expect(out.net).toBeCloseTo(netFlux(295, asphalt, weather, sun), 9);
     const t0 = field.temperatureK[0]!;
     for (let i = 0; i < 600; i++) field.stepFrom(sun);
@@ -267,6 +270,66 @@ describe("cross-checks between the two solvers and the two solar models", () => 
         const expected = u <= 0 ? 0 : 900 * Math.max(0, e * n[0] + nn * n[1] + u * n[2]);
         expect(solarIncidence(lat * Math.PI / 180, p.declinationRad, p.hourAngleRad, n, 900, 1)).toBeCloseTo(expected, 9);
       }
+    }
+  });
+});
+
+// TASK-073 P5: latent heat (big-leaf Penman-Monteith) and the FAO-56 canopy
+// aerodynamic resistance. Oracles: FAO-56 (Allen et al. 1998) tabulated
+// saturation vapour pressure and psychrometric constant, its grass r_a = 208/u2,
+// and the balance equation with LE written out independently here.
+describe("evapotranspiration", () => {
+  const humid: ThermalWeather = { airTemperatureK: 303.15, windSpeedMps: 3, cloudFraction: 0, deepTemperatureK: 298.15, relativeHumidity: 0.6, pressurePa: 101300 };
+  const noonSun: ThermalForcing = { sunEast: 0, sunNorth: -0.3, sunUp: Math.sqrt(1 - 0.09), directNormalWm2: 850, diffuseHorizontalWm2: 85, dtS: 60 };
+  const grass = TYPICAL_SURFACE_PROPS["vegetation-grass"]!, tree = TYPICAL_SURFACE_PROPS["vegetation-tree"]!;
+
+  it("matches the FAO-56 tables for e_s, gamma and the grass aerodynamic resistance", () => {
+    // FAO-56 Annex 2, Table 2.3: e_s(20 C) = 2.338 kPa, e_s(30 C) = 4.243 kPa; Table 2.2: gamma(101.3 kPa) = 0.067 kPa/K.
+    expect(saturationVapourPressurePa(293.15) / 1000).toBeCloseTo(2.338, 3);
+    expect(saturationVapourPressurePa(303.15) / 1000).toBeCloseTo(4.243, 3);
+    expect(psychrometricPaK(101300) / 1000).toBeCloseTo(0.067, 3);
+    // FAO-56 eq. 4 for the 0.12 m reference grass gives r_a = 208 / u2 (z = 2 m); this form measures wind at H + 2 m.
+    expect(Math.abs(canopyLogFactor(0.12) / 208 - 1)).toBeLessThan(0.03);
+  });
+
+  it("solves the balance with LE written independently", () => {
+    const field = new ThermalField([{ props: grass }], humid, 300);
+    const h = 5.7 + 3.8 * humid.windSpeedMps, rhoCp = 1.2 * 1005;
+    const es = (t: number) => 610.8 * Math.exp((17.27 * (t - 273.15)) / (t - 273.15 + 237.3));
+    const le = (t: number) => Math.max(0, (rhoCp / (0.665e-3 * 101300)) * (es(t) - 0.6 * es(303.15)) / (rhoCp / h + 70));
+    const oracle = root(t => netFlux(t, grass, humid, noonSun) - le(t));
+    expect(field.equilibriumK(0, noonSun)).toBeCloseTo(oracle, 6);
+    const out = { absorbedSolar: 0, longwaveIn: 0, longwaveOut: 0, convection: 0, conduction: 0, latent: 0, net: 0 };
+    field.fluxAt(0, oracle, noonSun, out);
+    expect(out.latent).toBeCloseTo(-le(oracle), 9);
+    expect(out.latent).toBeLessThan(-100); // a well-watered surface evaporates strongly at noon
+  });
+
+  it("keeps sunlit tree canopy near air temperature and below a dry surface", () => {
+    const field = new ThermalField([{ props: tree }, { props: { ...tree, surfaceResistanceSM: undefined, canopyHeightM: undefined } }, { props: asphalt }], humid, 303.15);
+    const canopy = field.equilibriumK(0, noonSun), dryLeaves = field.equilibriumK(1, noonSun), road = field.equilibriumK(2, noonSun);
+    expect(canopy - humid.airTemperatureK).toBeGreaterThan(0);
+    expect(canopy - humid.airTemperatureK).toBeLessThan(4);
+    expect(dryLeaves - canopy).toBeGreaterThan(15);
+    expect(road - canopy).toBeGreaterThan(10);
+    // Saturated air and a surface at or below air temperature: no evaporation and no dew.
+    const saturated = new ThermalField([{ props: grass }], { ...humid, relativeHumidity: 1 }, 300);
+    const out = { absorbedSolar: 0, longwaveIn: 0, longwaveOut: 0, convection: 0, conduction: 0, latent: 0, net: 0 };
+    saturated.fluxAt(0, 295, night, out);
+    expect(out.latent).toBe(0);
+    expect(() => new ThermalField([{ props: { ...grass, surfaceResistanceSM: -1 } }], humid, 300)).toThrow();
+    expect(() => new ThermalField([{ props: { ...tree, canopyHeightM: 0.1 } }], humid, 300)).toThrow();
+    expect(() => new ThermalField([{ props: grass }], { ...humid, relativeHumidity: 1.2 }, 300)).toThrow();
+  });
+
+  it("stays stable and converges with the canopy and open water at long steps", () => {
+    const make = () => new ThermalField([{ props: tree }, { props: TYPICAL_SURFACE_PROPS["water"]! }, { props: grass }], humid, 303.15);
+    const coarse = make(), fine = make();
+    for (let s = 0; s < 6; s++) coarse.stepFrom({ ...noonSun, dtS: 600 });
+    for (let s = 0; s < 3600; s++) fine.stepFrom({ ...noonSun, dtS: 1 });
+    for (let i = 0; i < 3; i++) {
+      expect(Number.isFinite(coarse.temperatureK[i]!)).toBe(true);
+      expect(Math.abs(coarse.temperatureK[i]! - fine.temperatureK[i]!)).toBeLessThan(0.01);
     }
   });
 });

@@ -1030,10 +1030,11 @@ synthetic profile it never claims instrument parity. The image chain is:
 `?view=thermal` presents the thermal image (pillarboxed) for inspection; the
 captures keep the chase view. The G3 probe reports the profile, shutter state,
 NUC cycles and skipped sensor frames, and a shader failure now stays recorded
-(it fires once, at compile). Known limits: the TASK-070 model has no
-evapotranspiration, so tree canopy reaches about 60 C at 10:00 local where real
-canopies stay near air temperature; one air temperature all day; no cast
-shadows or moisture. The image is a plausible synthetic scene, not a measured
+(it fires once, at compile). Vegetation and open water evaporate (TASK-070
+latent flux, see the engine spec): with the assumed 60% humidity, tree canopy
+stays within about 3 K of air temperature at midday and reads darker than
+pavement, as in the FLIR sample. Known limits: one air temperature and
+humidity all day; no cast shadows, soil moisture or dew. The image is a plausible synthetic scene, not a measured
 Boson image.
 
 ### Renderer adapter: WebGPU with WebGL2 fallback (TASK-066)
