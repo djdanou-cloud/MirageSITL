@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 import os from "node:os";
 import { assertDisplaySurface, decideGpuAcceptance, displayRefreshHz, profileFitsDisplay } from "./gpu-trace.mjs";
 import { report } from "./validation/evidence.mjs";
-import { captureDisplay, gpuProcessMemorySampler, nvidiaSmiSampler, presentMonCapture, summarizeClocks } from "./capture-samplers.mjs";
+import { captureDisplay, gpuProcessMemorySampler, nowQpcMs, nvidiaSmiSampler, presentMonCapture, summarizeClocks, summarizePresentMon } from "./capture-samplers.mjs";
 
 function option(name, fallback) {
   const index = process.argv.indexOf(`--${name}`);
@@ -144,7 +144,7 @@ async function measure(backend, fps, warmupS, durationS, directory, position) {
     await new Promise(resolve => setTimeout(resolve, 1000));
     const errors = [];
     page.on("pageerror", error => errors.push(error.message));
-    await page.goto(`http://127.0.0.1:5175/?renderer=${backend}&g3=1&flight=circuit`);
+    await page.goto(`http://127.0.0.1:5175/?renderer=${backend}&g3=1&view=chase&flight=circuit`);
     await page.getByTestId("worker-status").filter({ hasText: "READY" }).waitFor({ timeout: 30000 });
     await page.bringToFront();
     try {
@@ -167,9 +167,19 @@ async function measure(backend, fps, warmupS, durationS, directory, position) {
       const shown = globalThis.document.querySelector("canvas");
       return { renderer: String(renderer), backend: shown?.getAttribute("data-render-backend") ?? "", fallback: shown?.getAttribute("data-render-fallback") ?? "" };
     });
-    // Start only after the feature wait and the identity probe: creating a second
-    // WebGL context can stall the main thread, and a stall above the 250 ms input
-    // timeout during flight blocks the worker's arming latch (the drone falls).
+    // Side-channel samplers start before the flight: opening PresentMon's ETW
+    // session stalled the browser for ~300 ms in a test run.
+    const browserCdp = await browser.newBrowserCDPSession();
+    const gpuProcess = (await browserCdp.send("SystemInfo.getProcessInfo")).processInfo.find(info => info.type === "GPU");
+    const memorySampler = gpuProcess ? gpuProcessMemorySampler(gpuProcess.id) : null;
+    const clockSampler = nvidiaSmiSampler();
+    const presentMonCsv = fileURLToPath(new URL(`../${directory}/presentmon-${backend}-${fps}.csv`, import.meta.url));
+    const presentMon = gpuProcess ? presentMonCapture(gpuProcess.id, presentMonCsv, warmupS + durationS + 30)
+      : Promise.resolve({ kind: "presentmon", available: false, reason: "no browser GPU process" });
+    await new Promise(resolve => setTimeout(resolve, 3000));
+    // Start only after the feature wait, the identity probe and the samplers: a
+    // main-thread stall above the 250 ms input timeout during flight blocks the
+    // worker's arming latch until the arm request is withdrawn (the drone falls).
     await page.bringToFront();
     const started = await page.getByRole("button", { name: "Start", exact: true }).evaluate(element => {
       if (!(element instanceof globalThis.HTMLButtonElement) || element.disabled) return false;
@@ -182,14 +192,6 @@ async function measure(backend, fps, warmupS, durationS, directory, position) {
       throw new Error(`Terrain, FPV, and thermal did not all become active (${JSON.stringify({ probe, identity, errors })})`);
     }
     console.log(`Visible ${backend} production scene: ${warmupS}s warmup then ${durationS}s.`);
-    const browserCdp = await browser.newBrowserCDPSession();
-    const gpuProcess = (await browserCdp.send("SystemInfo.getProcessInfo")).processInfo.find(info => info.type === "GPU");
-    const memorySampler = gpuProcess ? gpuProcessMemorySampler(gpuProcess.id) : null;
-    const clockSampler = nvidiaSmiSampler();
-    let presentMon = Promise.resolve({ kind: "presentmon", available: false, reason: "no browser GPU process" });
-    const presentMonStart = gpuProcess ? setTimeout(() => {
-      presentMon = presentMonCapture(gpuProcess.id, fileURLToPath(new URL(`../${directory}/presentmon-${backend}-${fps}.csv`, import.meta.url)), durationS);
-    }, warmupS * 1000) : null;
     const measurement = await page.evaluate(async ({ warmupS, durationS }) => {
       const read = () => {
         const probe = globalThis.document.querySelector("canvas")?.__mirageG3;
@@ -243,7 +245,7 @@ async function measure(backend, fps, warmupS, durationS, directory, position) {
       } finally { globalThis.document.removeEventListener("visibilitychange", onVis); clearInterval(flightTimer); flightTimer = 0; }
       return { frameMs, gpuBytes, cpuBytes, featuresHeld: held && samples > 0, width: sizeOk ? width : 0, height: sizeOk ? height : 0, dpr, hidden, flight };
     }, { warmupS, durationS });
-    if (presentMonStart !== null) clearTimeout(presentMonStart);
+    const measuredEndQpcMs = nowQpcMs();
     const screen = await page.evaluate(() => ({ screenX: globalThis.screenX, screenY: globalThis.screenY, innerWidth: globalThis.innerWidth, innerHeight: globalThis.innerHeight,
       screenWidth: globalThis.screen.width, screenHeight: globalThis.screen.height, dpr: globalThis.devicePixelRatio }));
     let display;
@@ -251,9 +253,15 @@ async function measure(backend, fps, warmupS, durationS, directory, position) {
     catch (error) { display = { available: false, reason: error instanceof Error ? error.message : String(error) }; }
     memorySampler?.stop();
     clockSampler.stop();
-    const presentMonResult = await presentMon;
     let total = 0;
     for (const ms of measurement.frameMs) total += ms;
+    // The measurement window on the shared QPC clock: it ended when page.evaluate returned.
+    const presentMonRun = await presentMon;
+    let presentMonResult = presentMonRun;
+    if (presentMonRun.available) {
+      try { presentMonResult = { ...presentMonRun, ...summarizePresentMon(presentMonCsv, { startMs: measuredEndQpcMs - total, endMs: measuredEndQpcMs }) }; }
+      catch (error) { presentMonResult = { ...presentMonRun, available: false, reason: error instanceof Error ? error.message : String(error) }; }
+    }
     const result = decideGpuAcceptance({
       gpu: identity.renderer, hostModel: hostModel(), os: osLabel(), browser: browser.version(), powerMode: powerMode(), backend,
       fps, warmupS, measuredS: total / 1000, durationS: total / 1000, featuresHeld: measurement.featuresHeld && errors.length === 0 && identity.backend === backend,

@@ -164,6 +164,17 @@ sits on the nose of the drawn body (`apps/web/src/vehicle-geometry.ts`), not
 inside it. `MIRAGE_SCREENSHOTS=1` keeps a Playwright screenshot of every browser
 test (default: failures only) for operator review.
 
+`?g3=1` presents the external chase view with the whole drone by default; the
+FPV, analog and thermal passes still render every frame to their own targets.
+`?view=fpv` presents the FPV image instead. Captures and tests open
+`view=chase`. PresentMon starts before the flight and records the whole run,
+because opening its ETW session stalled the browser for about 300 ms in a test
+run (long enough to trip the input timeout). It writes `CPUStartQPCTime`
+(`--qpc_time_ms`), which shares the QueryPerformanceCounter time base with
+Node's `process.hrtime` on Windows, so the side record keeps only the frames
+inside the measurement window and reports `DisplayedTime` (on-screen time per
+frame), `GPUBusy` and the present mode.
+
 The Serial controller waits at most 5 seconds for decoder readiness before
 opening the selected device. The existing 500 ms per-chunk backpressure deadline
 is unchanged. A permission grant or this startup handshake cannot enable HITL.

@@ -98,17 +98,32 @@ export function summarizeClocks(samples) {
   return { samples: samples.length, pstates, pstateChanges: changes, minClockMHz: minMHz, maxClockMHz: maxMHz, maxTemperatureC: maxTempC };
 }
 
+/**
+ * Node's high-resolution clock in milliseconds. On Windows libuv reads the same
+ * QueryPerformanceCounter that PresentMon's --qpc_time_ms column uses, so the two
+ * share one time base (checked against a live trace on 2026-10-22).
+ */
+export function nowQpcMs() {
+  return Number(process.hrtime.bigint()) / 1e6;
+}
+
+/**
+ * Starts a PresentMon trace of one process for `seconds` and resolves when it
+ * ends. Start it before the flight: opening the ETW session can stall the
+ * browser for about 300 ms, longer than the 250 ms pilot input timeout.
+ * Summarise the CSV afterwards with summarizePresentMon(path, window).
+ */
 export function presentMonCapture(pid, outputCsv, seconds, executable = process.env.MIRAGE_PRESENTMON ?? DEFAULT_PRESENTMON) {
   if (process.platform !== "win32") return Promise.resolve({ kind: "presentmon", available: false, reason: "Windows only" });
   if (!existsSync(executable)) return Promise.resolve({ kind: "presentmon", available: false, reason: `PresentMon not found at ${executable}` });
   return new Promise(resolve => {
     const child = spawn(executable, ["--process_id", String(pid), "--output_file", outputCsv, "--timed", String(Math.ceil(seconds)), "--terminate_after_timed",
-      "--no_console_stats", "--v2_metrics", "--session_name", "MirageG3", "--stop_existing_session"], { windowsHide: true });
+      "--no_console_stats", "--v2_metrics", "--qpc_time_ms", "--session_name", "MirageG3", "--stop_existing_session"], { windowsHide: true });
     let stderr = "";
     child.stderr.on("data", bytes => { stderr = (stderr + bytes.toString()).slice(-4096); });
     child.on("error", error => resolve({ kind: "presentmon", available: false, reason: error.message }));
     child.on("exit", code => {
-      if (code === 0 && existsSync(outputCsv)) resolve({ kind: "presentmon", available: true, outputCsv, ...summarizePresentMon(outputCsv) });
+      if (code === 0 && existsSync(outputCsv)) resolve({ kind: "presentmon", available: true, outputCsv });
       else resolve({ kind: "presentmon", available: false, reason: /access denied/i.test(stderr)
         ? "ETW session access denied: run elevated or add the account to the Performance Log Users group"
         : `PresentMon exited ${code}: ${stderr.trim().split("\n").pop() ?? ""}` });
@@ -116,19 +131,44 @@ export function presentMonCapture(pid, outputCsv, seconds, executable = process.
   });
 }
 
-/** Display-change interval statistics from a PresentMon v2 CSV. */
-export function summarizePresentMon(path) {
+/**
+ * Display timing from a PresentMon CSV. The 2.x metrics name the on-screen
+ * duration of each frame `DisplayedTime`; 1.x calls the same interval
+ * `MsBetweenDisplayChange`. Frames with no displayed time ("NA") never reached
+ * the screen and are counted as not displayed. `GPUBusy` (2.x) is the GPU work
+ * per frame; `PresentMode` says how Windows presented the frames. With
+ * `window` ({ startMs, endMs } on the nowQpcMs clock) only frames whose
+ * `CPUStartQPCTime` lies inside it are counted.
+ */
+export function summarizePresentMon(path, window = null) {
   const rows = readFileSync(path, "utf8").split(/\r?\n/).filter(Boolean);
   const header = rows.shift()?.split(",") ?? [];
-  const column = header.indexOf("MsBetweenDisplayChange");
-  const values = [];
+  let column = header.indexOf("DisplayedTime");
+  if (column < 0) column = header.indexOf("MsBetweenDisplayChange");
+  const busyColumn = header.indexOf("GPUBusy"), modeColumn = header.indexOf("PresentMode"), timeColumn = header.indexOf("CPUStartQPCTime");
+  if (window !== null && timeColumn < 0) throw new Error("PresentMon CSV has no CPUStartQPCTime column for windowing");
+  let counted = 0;
+  const values = [], busy = [], modes = {};
   for (const row of rows) {
-    const value = Number(row.split(",")[column]);
+    const cells = row.split(",");
+    if (window !== null) {
+      const at = Number(cells[timeColumn]);
+      if (!(at >= window.startMs && at <= window.endMs)) continue;
+    }
+    counted++;
+    const value = Number(cells[column]);
     if (column >= 0 && Number.isFinite(value) && value > 0) values.push(value);
+    const gpu = Number(cells[busyColumn]);
+    if (busyColumn >= 0 && Number.isFinite(gpu)) busy.push(gpu);
+    if (modeColumn >= 0) modes[cells[modeColumn] ?? ""] = (modes[cells[modeColumn] ?? ""] ?? 0) + 1;
   }
-  if (!values.length) return { frames: rows.length, displayChanges: 0 };
-  const sorted = values.slice().sort((a, b) => a - b), q = p => sorted[Math.max(0, Math.ceil(p * sorted.length) - 1)];
-  return { frames: rows.length, displayChanges: values.length, p50Ms: q(0.5), p95Ms: q(0.95), p99Ms: q(0.99), maxMs: sorted.at(-1) };
+  const quantiles = list => {
+    if (!list.length) return null;
+    const sorted = list.slice().sort((a, b) => a - b), q = p => sorted[Math.max(0, Math.ceil(p * sorted.length) - 1)];
+    return { p50Ms: q(0.5), p95Ms: q(0.95), p99Ms: q(0.99), maxMs: sorted.at(-1) };
+  };
+  return { frames: counted, framesInTrace: rows.length, window, displayed: values.length, notDisplayed: counted - values.length, column: column >= 0 ? header[column] : null,
+    displayedMs: quantiles(values), gpuBusyMs: quantiles(busy), presentModes: modes };
 }
 
 /** Screenshot of the display rectangle containing (x, y) to a PNG (Windows); returns the captured bounds. */

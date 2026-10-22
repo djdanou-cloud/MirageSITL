@@ -8,7 +8,7 @@ import { useEffect, useRef, type RefObject } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import {
   FloatType, Mesh, NearestFilter, OrthographicCamera, PlaneGeometry, RGBAFormat, Scene, ShaderMaterial, Vector2,
-  WebGLRenderTarget, WebGLRenderer, type Texture,
+  WebGLRenderTarget, WebGLRenderer, type Camera, type Texture,
 } from "three";
 import { AnalogVideo, DEFAULT_VIDEO_NOISE, type VideoInput } from "@mirage/cameras/analog";
 import { createAnalogMaterial } from "@mirage/cameras/analog-material";
@@ -19,6 +19,7 @@ import type { TilesScene } from "@mirage/terrain/tiles-scene";
 import { SYNTHETIC_LWIR_640, type ThermalScene } from "@mirage/thermal/thermal-camera";
 import { ThermalCameraPass } from "@mirage/thermal/thermal-material";
 import type { SimulationRuntime } from "../runtime";
+import { g3ViewFromSearch, type G3View } from "./g3-mode";
 import { BODY_NOSE_FORWARD_M, MODEL_HEIGHT_OFFSET_M } from "../vehicle-geometry";
 
 const PROBE = "__mirageG3";
@@ -44,6 +45,8 @@ export interface G3Probe {
   backend: string;
   frames: number;
   reason: string;
+  /** Which image is presented full-screen; FPV and thermal render every frame either way. */
+  view: G3View;
 }
 
 function publish(canvas: HTMLCanvasElement, probe: G3Probe): void {
@@ -73,7 +76,7 @@ function bindSource(material: ShaderMaterial, texture: Texture): void {
 
 class ProductionPasses {
   readonly probe: G3Probe = {
-    terrain: false, fpv: false, thermal: false, gpuBytes: 0, cpuBytes: 0, dpr: 1, width: 0, height: 0, backend: "webgl2", frames: 0, reason: "",
+    terrain: false, fpv: false, thermal: false, gpuBytes: 0, cpuBytes: 0, dpr: 1, width: 0, height: 0, backend: "webgl2", frames: 0, reason: "", view: "chase",
   };
   private readonly ortho = new OrthographicCamera(-1, 1, 1, -1, 0, 1);
   private readonly fpv: FpvCamera;
@@ -88,6 +91,8 @@ class ProductionPasses {
   private readonly thermal: ThermalCameraPass;
   private color: WebGLRenderTarget | null = null;
   private fisheye: WebGLRenderTarget | null = null;
+  /** Analog FPV output when the chase view is presented. */
+  private analog: WebGLRenderTarget | null = null;
   private gbuffer: WebGLRenderTarget | null = null;
   private width = 0;
   private height = 0;
@@ -119,13 +124,15 @@ class ProductionPasses {
   }
 
   private ensureSize(width: number, height: number): void {
-    if (width === this.width && height === this.height && this.color && this.fisheye && this.gbuffer) return;
+    if (width === this.width && height === this.height && this.color && this.fisheye && this.analog && this.gbuffer) return;
     this.color?.dispose();
     this.fisheye?.dispose();
+    this.analog?.dispose();
     this.gbuffer?.dispose();
     this.width = width;
     this.height = height;
     this.color = colorTarget(width, height);
+    this.analog = colorTarget(width, height);
     this.fisheye = colorTarget(width, height);
     this.gbuffer = floatTarget(SYNTHETIC_LWIR_640.resolution[0], SYNTHETIC_LWIR_640.resolution[1]);
     this.fpv.resize(width, height);
@@ -136,7 +143,7 @@ class ProductionPasses {
     if (gbufferUniform) gbufferUniform.value = this.gbuffer.texture;
   }
 
-  render(scene: Scene, pose: Parameters<FpvCamera["update"]>[0], tiles: TilesScene | null, video: VideoInput): void {
+  render(scene: Scene, chase: Camera, view: G3View, pose: Parameters<FpvCamera["update"]>[0], tiles: TilesScene | null, video: VideoInput): void {
     if (this.disposed) return;
     this.renderer.setPixelRatio(1);
     this.renderer.getDrawingBufferSize(this.bufferSize);
@@ -160,8 +167,16 @@ class ProductionPasses {
     this.renderer.setRenderTarget(fisheye);
     this.renderer.render(this.fisheyeScene, this.ortho);
     this.video.updateFrom(video);
-    this.renderer.setRenderTarget(null);
-    this.renderer.render(this.analogScene, this.ortho);
+    if (view === "fpv") {
+      this.renderer.setRenderTarget(null);
+      this.renderer.render(this.analogScene, this.ortho);
+    } else {
+      // Chase view: the FPV chain still runs to its own target, then the whole drone is presented.
+      this.renderer.setRenderTarget(this.analog);
+      this.renderer.render(this.analogScene, this.ortho);
+      this.renderer.setRenderTarget(null);
+      this.renderer.render(scene, chase);
+    }
     const previousOverride = scene.overrideMaterial;
     scene.overrideMaterial = this.gbufferMaterial;
     this.renderer.setRenderTarget(gbuffer);
@@ -181,6 +196,7 @@ class ProductionPasses {
     probe.width = width;
     probe.height = height;
     probe.backend = "webgl2";
+    probe.view = view;
     probe.frames += 1;
     probe.reason = !probe.fpv ? "FPV or thermal shader failed" : this.floatColor ? (probe.terrain ? "" : "Terrain tiles are not resident") : "EXT_color_buffer_float is unavailable";
   }
@@ -191,6 +207,7 @@ class ProductionPasses {
     this.renderer.debug.onShaderError = this.previousShaderError;
     this.color?.dispose();
     this.fisheye?.dispose();
+    this.analog?.dispose();
     this.gbuffer?.dispose();
     this.gbufferMaterial.dispose();
     this.fisheyeMaterial.dispose();
@@ -206,11 +223,13 @@ class ProductionPasses {
 
 function inactive(canvas: HTMLCanvasElement, reason: string): G3Probe {
   const probe: G3Probe = {
-    terrain: false, fpv: false, thermal: false, gpuBytes: 0, cpuBytes: 0, dpr: 0, width: 0, height: 0, backend: "", frames: 0, reason,
+    terrain: false, fpv: false, thermal: false, gpuBytes: 0, cpuBytes: 0, dpr: 0, width: 0, height: 0, backend: "", frames: 0, reason, view: VIEW,
   };
   publish(canvas, probe);
   return probe;
 }
+
+const VIEW: G3View = g3ViewFromSearch(globalThis.location?.search ?? "");
 
 export function G3Passes({ runtime, tiles }: { runtime: RefObject<SimulationRuntime | null>; tiles: RefObject<TilesScene | null> }) {
   const { gl, scene } = useThree();
@@ -232,14 +251,14 @@ export function G3Passes({ runtime, tiles }: { runtime: RefObject<SimulationRunt
       delete canvas.dataset.g3;
     };
   }, [gl]);
-  useFrame(() => {
+  useFrame(({ camera }) => {
     const pass = passes.current;
     const sim = runtime.current;
     if (!pass || !sim) return;
     const alpha = interpolationAlpha(wallNow(), sim.current, sim.header.physicsHz, sim.running);
     interpolatePoseInto(sim.previous, sim.current, sim.history, alpha, pose.current);
     video.current.timeS = wallNow() / 1000;
-    pass.render(scene, pose.current, tiles.current, video.current);
+    pass.render(scene, camera, VIEW, pose.current, tiles.current, video.current);
   }, 1);
   return null;
 }

@@ -20,6 +20,16 @@ try {
   const csv=join(dir,'pm.csv');
   writeFileSync(csv,'Application,ProcessID,MsBetweenDisplayChange\\nchrome.exe,1,16.6\\nchrome.exe,1,16.7\\nchrome.exe,1,33.4\\nchrome.exe,1,NA\\n');
   const p=summarizePresentMon(csv);
-  assert.equal(p.frames,4); assert.equal(p.displayChanges,3); assert.equal(p.p50Ms,16.7); assert.equal(p.maxMs,33.4);
+  assert.equal(p.frames,4); assert.equal(p.displayed,3); assert.equal(p.notDisplayed,1); assert.equal(p.displayedMs.p50Ms,16.7); assert.equal(p.displayedMs.maxMs,33.4);
+  const v2=join(dir,'pm2.csv');
+  writeFileSync(v2,'Application,PresentMode,GPUBusy,DisplayedTime\\nchrome.exe,Hardware Composed: Independent Flip,3.0,16.69\\nchrome.exe,Hardware Composed: Independent Flip,4.0,16.64\\nchrome.exe,Composed: Flip,5.0,NA\\n');
+  const q=summarizePresentMon(v2);
+  assert.equal(q.column,'DisplayedTime'); assert.equal(q.displayed,2); assert.equal(q.notDisplayed,1);
+  assert.equal(q.displayedMs.maxMs,16.69); assert.equal(q.gpuBusyMs.p50Ms,4); assert.deepEqual(q.presentModes,{'Hardware Composed: Independent Flip':2,'Composed: Flip':1});
+  const timed=join(dir,'pm3.csv');
+  writeFileSync(timed,'Application,CPUStartQPCTime,DisplayedTime\\nchrome.exe,1000.0,40.0\\nchrome.exe,1016.7,16.7\\nchrome.exe,1033.3,16.6\\nchrome.exe,1050.0,50.0\\n');
+  const w=summarizePresentMon(timed,{startMs:1010,endMs:1040});
+  assert.equal(w.frames,2); assert.equal(w.framesInTrace,4); assert.equal(w.displayedMs.maxMs,16.7);
+  assert.throws(()=>summarizePresentMon(v2,{startMs:0,endMs:1}));
 } finally { rmSync(dir,{recursive:true,force:true}); }
 `));
