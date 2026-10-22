@@ -3,7 +3,7 @@ import { nodeCheck } from "./support/node-evidence";
 
 // TASK-073: the capture side channels parse real tool output formats; none of them feed the G3 analyzer.
 it("parses typeperf GPU memory rows, nvidia-smi clock summaries and PresentMon CSV", () => nodeCheck(`
-import {csvCells,gpuMemoryRow,summarizeClocks,summarizePresentMon} from './scripts/capture-samplers.mjs';
+import {csvCells,gpuMemoryRow,presentMonDisplayedTimes,summarizeClocks,summarizePresentMon} from './scripts/capture-samplers.mjs';
 import {mkdtempSync,writeFileSync,rmSync} from 'node:fs';
 import {join} from 'node:path';
 import {tmpdir} from 'node:os';
@@ -31,5 +31,10 @@ try {
   const w=summarizePresentMon(timed,{startMs:1010,endMs:1040});
   assert.equal(w.frames,2); assert.equal(w.framesInTrace,4); assert.equal(w.displayedMs.maxMs,16.7);
   assert.throws(()=>summarizePresentMon(v2,{startMs:0,endMs:1}));
+  // Displayed-frame gate input: every displayed present in the window, in order (BOM tolerated, NA skipped).
+  const bom=join(dir,'pm4.csv');
+  writeFileSync(bom,'\\uFEFFApplication,CPUStartQPCTime,DisplayedTime\\nchrome.exe,1000.0,40.0\\nchrome.exe,1016.7,16.7\\nchrome.exe,1025.0,NA\\nchrome.exe,1033.3,33.4\\nchrome.exe,1050.0,50.0\\n');
+  assert.deepEqual(presentMonDisplayedTimes(bom,{startMs:1010,endMs:1040}),[16.7,33.4]);
+  assert.throws(()=>presentMonDisplayedTimes(v2,{startMs:0,endMs:1}));
 } finally { rmSync(dir,{recursive:true,force:true}); }
 `));

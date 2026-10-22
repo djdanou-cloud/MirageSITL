@@ -8,7 +8,7 @@
 PowerShell/zsh и проверки перед расширением поддерживаемого покрытия.
 
 ## Локальные проверки
-<!-- source-sha256: a58289c9c397df28e68989bd8d9435cf0a35149fbc8e05655792ef72352768a1 -->
+<!-- source-sha256: 01780b1a55f402a489defcf94ff63484625eac4ce826f02925c34f5a6442aa2c -->
 
 Использовать существующий изолированный checkout, сохраняя локальные изменения. Node закреплён .nvmrc; Rust 1.97.0 и wasm32-unknown-unknown — native/rust-toolchain.toml. Зависимости ставить через npm ci. В облаке активировать CARGO_HOME=/workspace/.cache/mirage-cargo, RUSTUP_HOME=/workspace/.cache/mirage-rustup и добавить CARGO_HOME/bin в начало PATH; не переопределять HOME. Запустить lint, typecheck, check:docs, CI=true npm test, npm run build и locked native tests. Запустить npm run dev; проверить HTTP, COOP same-origin, COEP require-corp и настоящий Worker READY. Начать с нулевого газа, армировать, летать, приостановить и сбросить. Браузерные тесты используют системный Chromium только при наличии. Установка/запуск на чистой восстановленной машине для сертификации выпуска ещё не выполнялись.
 
@@ -201,7 +201,9 @@ node scripts/check-gpu-perf.mjs --backend webgl2 --fps 60 --geodata '\\wsl.local
 
 `--backend webgpu` выполняет тот же захват с проходами WebGPU (TASK-073 P6).
 `--chrome-args "--disable-direct-composition"` передаёт ключи Chrome измеряемому браузеру; они записываются в трассу, метрики отчёта
-и идентификатор браузера, поэтому вердикт всегда называет свою конфигурацию Chrome.
+и идентификатор браузера, поэтому вердикт всегда называет свою конфигурацию Chrome. Критерий также оценивает время показа кадров по
+PresentMon с теми же пределами, что и часы кадров; в Windows PresentMon должен быть доступен (см. заметки о PresentMon выше), иначе прогон —
+`BLOCKED_EXTERNAL`.
 Чтобы выяснить причину поздних кадров, `node scripts/diagnose-pacing.mjs --geodata DIR [--backend webgpu] [--chrome-args "--disable-direct-composition"]`
 записывает трассу Chrome за 45 с, PresentMon и отсчёты `nvidia-smi` с частотой 10 Гц (около 300 МБ на трассу, в `test-results/pacing/`), а
 `node --max-old-space-size=8192 scripts/analyze-pacing.mjs test-results/pacing/pacing-webgl2.json` сравнивает пропущенные и своевременные кадры.

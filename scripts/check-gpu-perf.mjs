@@ -10,7 +10,7 @@ import { fileURLToPath } from "node:url";
 import os from "node:os";
 import { assertDisplaySurface, decideGpuAcceptance, displayRefreshHz, profileFitsDisplay } from "./gpu-trace.mjs";
 import { report } from "./validation/evidence.mjs";
-import { captureDisplay, gpuProcessMemorySampler, nowQpcMs, nvidiaSmiSampler, presentMonCapture, summarizeClocks, summarizePresentMon } from "./capture-samplers.mjs";
+import { captureDisplay, gpuProcessMemorySampler, nowQpcMs, nvidiaSmiSampler, presentMonCapture, presentMonDisplayedTimes, summarizeClocks, summarizePresentMon } from "./capture-samplers.mjs";
 
 function option(name, fallback) {
   const index = process.argv.indexOf(`--${name}`);
@@ -292,7 +292,8 @@ async function measure(backend, fps, warmupS, durationS, directory, position, ge
       gpu: identity.renderer, hostModel: hostModel(), os: osLabel(), browser: browserLabel(browser.version()), powerMode: powerMode(), backend,
       fps, warmupS, measuredS: total / 1000, durationS: total / 1000, featuresHeld: measurement.featuresHeld && errors.length === 0 && identity.backend === backend,
       visible: !measurement.hidden, width: measurement.width, height: measurement.height, dpr: measurement.dpr,
-      frameMs: measurement.frameMs, gpuBytes: measurement.gpuBytes, cpuBytes: measurement.cpuBytes,
+      frameMs: measurement.frameMs, displayedMs: presentMonResult?.available ? presentMonDisplayedTimes(presentMonCsv, presentMonResult.window) : null,
+      gpuBytes: measurement.gpuBytes, cpuBytes: measurement.cpuBytes,
     });
     const result = { ...verdict, metrics: { ...verdict.metrics, chromeArgs: CHROME_ARGS } };
     const tracePath = `${directory}/gpu-${backend}-${fps}.json`;

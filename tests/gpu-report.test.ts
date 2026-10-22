@@ -3,13 +3,23 @@ import { nodeCheck } from "./support/node-evidence";
 it("GPU analysis enforces full duration, real hardware, features and the accepted frame/memory limits", () => nodeCheck(`
 import {assessGpu} from './scripts/bench-render.mjs';
 import {assertDisplaySurface,classifyGpuDevice,decideGpuAcceptance,displayRefreshHz,featuresHeld,peakResidency,profileFitsDisplay} from './scripts/gpu-trace.mjs';
-const v={schemaVersion:1,source:'hardware',device:'M4',gpu:'Apple M4',os:'macOS',browser:'schema-test-only',powerMode:'AC',backend:'webgl2',fps:60,width:1920,height:1080,dpr:1,warmupS:60,durationS:600,visible:true,production:true,terrain:true,fpv:true,thermal:true,frameMs:Array(40000).fill(15),gpuBytes:1000000,cpuBytes:1000000};
+const v={schemaVersion:1,source:'hardware',device:'M4',gpu:'Apple M4',os:'macOS',browser:'schema-test-only',powerMode:'AC',backend:'webgl2',fps:60,width:1920,height:1080,dpr:1,warmupS:60,durationS:600,visible:true,production:true,terrain:true,fpv:true,thermal:true,frameMs:Array(40000).fill(15),displayedMs:null,gpuBytes:1000000,cpuBytes:1000000};
 assert.equal(assessGpu(v).metrics.p99FrameMs,15);
 assert.equal(assessGpu({...v,gpu:'SwiftShader'}).status,'BLOCKED_EXTERNAL');
 assert.equal(assessGpu({...v,frameMs:Array(30000).fill(20)}).status,'FAIL');
 assert.throws(()=>assessGpu({...v,frameMs:[15]}));
 assert.throws(()=>assessGpu({...v,thermal:false}));
 assert.equal(assessGpu({...v,gpuBytes:3*1024**3}).status,'FAIL');
+// User decision 2026-10-22: PresentMon displayed-frame times must meet the same limits as the rAF intervals.
+assert.equal(assessGpu(v).metrics.displaySource,'unavailable');
+const shown=Array(40000).fill(16.67);
+assert.equal(assessGpu({...v,displayedMs:shown}).status,'PASS');
+assert.equal(assessGpu({...v,displayedMs:shown}).metrics.p99DisplayedMs,16.67);
+const doubled=shown.map((ms,i)=>i%40===0?33.34:ms); // 2.5% of frames shown for two refreshes: p99 33.34 ms
+assert.equal(assessGpu({...v,displayedMs:doubled}).status,'FAIL');
+assert.deepEqual(assessGpu({...v,displayedMs:doubled}).reasons,['Displayed-frame time (PresentMon) budget exceeded']);
+assert.throws(()=>assessGpu({...v,displayedMs:[16.7]}));
+assert.throws(()=>assessGpu({...v,displayedMs:undefined}));
 assert.equal(classifyGpuDevice('ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)','Apple M4'),'M4');
 assert.equal(classifyGpuDevice('Google SwiftShader','Apple M4'),'software');
 assert.equal(classifyGpuDevice('ANGLE (NVIDIA, NVIDIA GeForce RTX 4050 Laptop GPU Direct3D11)','13th Gen Intel'),'RTX4050');
@@ -23,8 +33,9 @@ assert.deepEqual(peakResidency([{gpuBytes:10,cpuBytes:4},{gpuBytes:3,cpuBytes:8}
 assert.equal(featuresHeld([{terrain:true,fpv:true,thermal:true},{terrain:true,fpv:false,thermal:true}]),false);
 const full={gpu:'Apple M4',hostModel:'Apple M4',os:'macOS',browser:'schema-test-only',powerMode:'AC',backend:'webgl2',fps:60,warmupS:60,measuredS:600,durationS:600,featuresHeld:true,visible:true,width:1920,height:1080,dpr:1,frameMs:Array(40000).fill(15),gpuBytes:1000,cpuBytes:1000};
 assert.equal(decideGpuAcceptance(full).status,'PASS');
+assert.equal(decideGpuAcceptance({...full,os:'win32 10.0.26200',gpu:'ANGLE (NVIDIA, NVIDIA GeForce RTX 4050 Laptop GPU Direct3D11)'}).status,'BLOCKED_EXTERNAL'); // no PresentMon on Windows
 assert.equal(decideGpuAcceptance(full).metrics.gpu,'Apple M4');
-const igpu={...full,gpu:'ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11)',hostModel:'13th Gen Intel',os:'win32 10.0.26200'};
+const igpu={...full,gpu:'ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11)',hostModel:'13th Gen Intel',os:'win32 10.0.26200',displayedMs:Array(40000).fill(16.67)};
 assert.equal(decideGpuAcceptance(igpu).status,'PASS');
 assert.equal(decideGpuAcceptance(igpu).metrics.device,'WindowsIGPU');
 assert.equal(decideGpuAcceptance({...igpu,gpu:'ANGLE (NVIDIA, NVIDIA GeForce GTX 1650 Direct3D11)'}).status,'BLOCKED_EXTERNAL');

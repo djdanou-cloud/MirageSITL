@@ -479,6 +479,7 @@ lens as a selected configuration, not as a measured instrument.
 | Image quality | Aliasing removed in all views; analog FPV noise halved at the operator's request |
 | Captures (P7) | RTX 4050 on the external 1920 x 1080 60 Hz display: median within 16.680 ms, p99 27.085 ms on WebGL2 and WebGPU: `FAIL`. Internal 144 Hz panel: Chrome rendered on the Intel iGPU at 1920 x 1200: `FAIL` (surface and p99) |
 | Device rule | By user decision, Windows integrated GPUs are accepted devices; every verdict records the GPU |
+| Display gate | By user decision, PresentMon displayed-frame times must meet the same limits as the frame clock; all P7 captures fail it, including the `--disable-direct-composition` runs whose frame clock passes (displayed p99 33.4 ms) |
 
 Still needed for a `PASS`:
 

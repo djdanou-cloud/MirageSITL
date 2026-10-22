@@ -171,6 +171,21 @@ export function summarizePresentMon(path, window = null) {
     displayedMs: quantiles(values), gpuBusyMs: quantiles(busy), presentModes: modes };
 }
 
+/** PresentMon DisplayedTime (ms) of every displayed present inside `window` (CPUStartQPCTime, ms), in order. */
+export function presentMonDisplayedTimes(path, window) {
+  const rows = readFileSync(path, "utf8").replace(/^\uFEFF/, "").split(/\r?\n/).filter(Boolean);
+  const header = rows.shift()?.split(",") ?? [];
+  const column = header.indexOf("DisplayedTime"), timeColumn = header.indexOf("CPUStartQPCTime");
+  if (column < 0 || timeColumn < 0) throw new Error("PresentMon CSV lacks DisplayedTime or CPUStartQPCTime");
+  const values = [];
+  for (const row of rows) {
+    const cells = row.split(",");
+    const at = Number(cells[timeColumn]), value = Number(cells[column]);
+    if (at >= window.startMs && at <= window.endMs && Number.isFinite(value) && value > 0) values.push(value);
+  }
+  return values;
+}
+
 /** Screenshot of the display rectangle containing (x, y) to a PNG (Windows); returns the captured bounds. */
 export function captureDisplay(x, y, outputPng) {
   if (process.platform !== "win32") return { available: false, reason: "Windows only" };

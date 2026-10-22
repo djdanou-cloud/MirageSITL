@@ -192,7 +192,9 @@ node scripts/check-gpu-perf.mjs --backend webgl2 --fps 60 --geodata '\\wsl.local
 
 `--backend webgpu` runs the same capture with the WebGPU passes (TASK-073 P6).
 `--chrome-args "--disable-direct-composition"` passes Chrome switches to the measured browser; they are recorded in the trace, the report
-metrics and the browser identity, so a verdict always names its Chrome configuration.
+metrics and the browser identity, so a verdict always names its Chrome configuration. The gate also scores PresentMon's displayed-frame
+times with the same limits as the frame clock; on Windows PresentMon must be available (see the PresentMon notes above), otherwise the run is
+`BLOCKED_EXTERNAL`.
 To find why frames are late, `node scripts/diagnose-pacing.mjs --geodata DIR [--backend webgpu] [--chrome-args "--disable-direct-composition"]`
 records a 45 s Chrome trace, PresentMon and 10 Hz `nvidia-smi` samples (about 300 MB per trace, in `test-results/pacing/`), and
 `node --max-old-space-size=8192 scripts/analyze-pacing.mjs test-results/pacing/pacing-webgl2.json` compares missed and on-time frames.

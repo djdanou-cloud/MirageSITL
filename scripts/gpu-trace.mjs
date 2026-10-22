@@ -77,11 +77,16 @@ export function decideGpuAcceptance(input) {
   if (!(input.warmupS >= 60) || !(input.measuredS >= 600)) return report("gpu-report", "BLOCKED_EXTERNAL", ["G3 requires 60 s warmup and 600 s measurement"]);
   if (!input.featuresHeld) return report("gpu-report", "BLOCKED_EXTERNAL", ["Terrain, FPV, and thermal were not all active for the whole measurement"]);
   if (input.visible !== true) return report("gpu-report", "BLOCKED_EXTERNAL", ["The measurement tab was not visible"]);
+  // On Windows the displayed-frame gate needs PresentMon; elsewhere no display-timing source exists yet.
+  const displayedMs = Array.isArray(input.displayedMs) ? input.displayedMs : null;
+  if (displayedMs === null && /^(win32|windows)\b/i.test(input.os ?? "")) {
+    return report("gpu-report", "BLOCKED_EXTERNAL", ["PresentMon displayed-frame times are required on Windows"]);
+  }
   const trace = {
     schemaVersion: 1, source: "hardware", device, gpu: input.gpu, os: input.os, browser: input.browser, powerMode: input.powerMode,
     backend: input.backend, fps: input.fps, width: input.width, height: input.height, dpr: input.dpr, warmupS: input.warmupS,
     durationS: input.durationS, visible: true, production: true, terrain: true, fpv: true, thermal: true,
-    frameMs: input.frameMs, gpuBytes: input.gpuBytes, cpuBytes: input.cpuBytes,
+    frameMs: input.frameMs, displayedMs, gpuBytes: input.gpuBytes, cpuBytes: input.cpuBytes,
   };
   // Every verdict records which GPU produced it.
   const withDevice = result => ({ ...result, metrics: { ...result.metrics, device, gpu: input.gpu } });
