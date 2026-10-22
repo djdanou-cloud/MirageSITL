@@ -8,7 +8,7 @@
 PowerShell/zsh и проверки перед расширением поддерживаемого покрытия.
 
 ## Локальные проверки
-<!-- source-sha256: d2dfb3201342d12ef25336c6cc949fe8091a9f246765fdb4dad0d4ac4d7e10d7 -->
+<!-- source-sha256: 427d0665611ad49661d826a55231a857cda6dbf9a2f2b1e8e3d0786160a234fe -->
 
 Использовать существующий изолированный checkout, сохраняя локальные изменения. Node закреплён .nvmrc; Rust 1.97.0 и wasm32-unknown-unknown — native/rust-toolchain.toml. Зависимости ставить через npm ci. В облаке активировать CARGO_HOME=/workspace/.cache/mirage-cargo, RUSTUP_HOME=/workspace/.cache/mirage-rustup и добавить CARGO_HOME/bin в начало PATH; не переопределять HOME. Запустить lint, typecheck, check:docs, CI=true npm test, npm run build и locked native tests. Запустить npm run dev; проверить HTTP, COOP same-origin, COEP require-corp и настоящий Worker READY. Начать с нулевого газа, армировать, летать, приостановить и сбросить. Браузерные тесты используют системный Chromium только при наличии. Установка/запуск на чистой восстановленной машине для сертификации выпуска ещё не выполнялись.
 
@@ -194,6 +194,7 @@ python -I scripts/geodata/build_terrain.py --config config/geodata.json --fabdem
 python -I scripts/geodata/build_buildings.py --config config/geodata.json --terrain-work ~/mirage-geodata/israel/terrain/_work --work ~/mirage-geodata/buildings-work --out ~/mirage-geodata/israel/buildings
 python -I scripts/geodata/extract_osm.py --config config/geodata.json --pbf israel-and-palestine-261020.osm.pbf --out ~/mirage-geodata/israel/osm
 python -I scripts/geodata/build_material_map.py --config config/geodata.json --classes config/material-classes.json --worldcover data/worldcover/2021-v200/israel --osm ~/mirage-geodata/israel/osm --out ~/mirage-geodata/israel/materials
+python3 -I scripts/geodata/fetch_flir_sample.py --out ~/mirage-geodata/flir-adas-v2
 node --experimental-transform-types scripts/geodata/check_material_map.mjs --materials '\\wsl.localhost\Ubuntu\home\<user>\mirage-geodata\israel\materials' --osm '\\wsl.localhost\Ubuntu\home\<user>\mirage-geodata\israel\osm'
 node scripts/check-gpu-perf.mjs --backend webgl2 --fps 60 --geodata '\\wsl.localhost\Ubuntu\home\<user>\mirage-geodata\israel'
 ```
@@ -207,7 +208,10 @@ node scripts/check-gpu-perf.mjs --backend webgl2 --fps 60 --geodata '\\wsl.local
 Скрипты Python запускаются внутри окружения `mirage-geo`
 (`micromamba run -n mirage-geo ...`). Выгрузка OSM (`*.osm.pbf`) — файл
 Geofabrik от оператора; он лежит в корне репозитория и игнорируется Git;
-`check_material_map.mjs` завершается с кодом 0 при PASS и 1 при FAIL. Данные держать вне каталога репозитория
+`check_material_map.mjs` завершается с кодом 0 при PASS и 1 при FAIL. `fetch_flir_sample.py` (только стандартная
+библиотека) читает одно тестовое видео FLIR ADAS v2 из архива 11.8 ГБ по
+диапазонам байт и пишет манифест с SHA-256 каждого файла; условия набора данных
+указаны в его README. Данные держать вне каталога репозитория
 (здесь он синхронизируется OneDrive). Захват запускать из PowerShell: Git Bash
 переписывает путь `\\wsl.localhost`.
 

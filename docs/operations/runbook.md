@@ -185,6 +185,7 @@ python -I scripts/geodata/build_terrain.py --config config/geodata.json --fabdem
 python -I scripts/geodata/build_buildings.py --config config/geodata.json --terrain-work ~/mirage-geodata/israel/terrain/_work --work ~/mirage-geodata/buildings-work --out ~/mirage-geodata/israel/buildings
 python -I scripts/geodata/extract_osm.py --config config/geodata.json --pbf israel-and-palestine-261020.osm.pbf --out ~/mirage-geodata/israel/osm
 python -I scripts/geodata/build_material_map.py --config config/geodata.json --classes config/material-classes.json --worldcover data/worldcover/2021-v200/israel --osm ~/mirage-geodata/israel/osm --out ~/mirage-geodata/israel/materials
+python3 -I scripts/geodata/fetch_flir_sample.py --out ~/mirage-geodata/flir-adas-v2
 node --experimental-transform-types scripts/geodata/check_material_map.mjs --materials '\\wsl.localhost\Ubuntu\home\<user>\mirage-geodata\israel\materials' --osm '\\wsl.localhost\Ubuntu\home\<user>\mirage-geodata\israel\osm'
 node scripts/check-gpu-perf.mjs --backend webgl2 --fps 60 --geodata '\\wsl.localhost\Ubuntu\home\<user>\mirage-geodata\israel'
 ```
@@ -197,7 +198,9 @@ instant defaults to 2026-07-15 07:00 UTC; open the page with
 The Python scripts run inside the `mirage-geo` environment
 (`micromamba run -n mirage-geo ...`). The OSM extract (`*.osm.pbf`) is an
 operator-supplied Geofabrik file kept in the repository root and ignored by
-Git; `check_material_map.mjs` exits 0 on PASS and 1 on FAIL. Keep the data out of the repository
+Git; `check_material_map.mjs` exits 0 on PASS and 1 on FAIL. `fetch_flir_sample.py` (standard library only) reads one
+FLIR ADAS v2 test video out of the 11.8 GB archive through byte ranges and writes
+a manifest with every file's SHA-256; the dataset's terms are linked in its README. Keep the data out of the repository
 folder (it is synchronised by OneDrive here). Run the capture from PowerShell:
 Git Bash rewrites the `\\wsl.localhost` path.
 
