@@ -1049,8 +1049,11 @@ lookups of the 1 m class raster shimmered at a distance; the drape now samples
 a precomputed RGBA colour texture with mipmaps and 8x anisotropy (the thermal
 G-buffer keeps the exact class texture, where classes must not blend). FPV:
 the scene render behind the fisheye is 4x multisampled and the fisheye and
-analog stages sample bilinearly. The analog interference (TASK-068 defaults,
-up to about +-15 grey levels at hover throttle) is intentional and unchanged.
+analog stages sample bilinearly. The analog interference is intentional; at
+the operator's request its default noise amplitude was halved
+(`DEFAULT_VIDEO_NOISE`: 0.01 + 0.04 x throttle instead of 0.02 + 0.08 x
+throttle; tearing scales with it), which halved the parked FPV frame-to-frame
+noise from 7.07 to 3.53 grey levels.
 On the RTX 4050 the median GPU time per frame rose from 5.4 ms to 6.8 ms
 (WebGPU smoke, PresentMon `GPUBusy`). Remaining stair steps on class
 boundaries are the 10 m WorldCover data resolution.
