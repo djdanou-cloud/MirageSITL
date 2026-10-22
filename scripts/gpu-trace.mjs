@@ -2,11 +2,18 @@
 import { assessGpu } from "./bench-render.mjs";
 import { report } from "./validation/evidence.mjs";
 
-export function classifyGpuDevice(renderer, hostModel) {
+/**
+ * Target device class. M4 and RTX 4050 are the original targets; user decision 2026-10-22 (TASK-073 P7):
+ * on Windows an integrated GPU (Intel Graphics, AMD Radeon Graphics) is also an accepted device, recorded
+ * as "WindowsIGPU" with the exact renderer string in the report. Software renderers are never accepted.
+ */
+export function classifyGpuDevice(renderer, hostModel, osName = "") {
   const gpu = `${renderer}\n${hostModel}`;
   if (/swiftshader|llvmpipe|software/i.test(gpu)) return "software";
   if (/apple m4/i.test(gpu)) return "M4";
   if (/rtx\s*4050/i.test(gpu)) return "RTX4050";
+  if (/^(win32|windows)\b/i.test(osName) && !/nvidia|geforce|radeon\s+rx/i.test(renderer) &&
+    /intel\(r\)[^,)]*graphics|intel.*\b(uhd|iris|arc)\b|radeon\(tm\)\s+graphics/i.test(renderer)) return "WindowsIGPU";
   return "other";
 }
 
@@ -63,9 +70,9 @@ export function profileFitsDisplay(refreshHz, fps) {
 
 /** Returns the gpu-report for one measured profile. Never treats a short or software run as PASS. */
 export function decideGpuAcceptance(input) {
-  const device = classifyGpuDevice(input.gpu, input.hostModel);
+  const device = classifyGpuDevice(input.gpu, input.hostModel, input.os);
   if (device === "software") return report("gpu-report", "BLOCKED_EXTERNAL", ["Software/headless rendering cannot certify target hardware"]);
-  if (device === "other") return report("gpu-report", "BLOCKED_EXTERNAL", ["GPU is not Apple M4 or RTX 4050"]);
+  if (device === "other") return report("gpu-report", "BLOCKED_EXTERNAL", [`GPU is not Apple M4, RTX 4050 or a Windows integrated GPU: ${input.gpu}`]);
   if (input.backend !== "webgl2" && input.backend !== "webgpu") return report("gpu-report", "BLOCKED_EXTERNAL", ["Unknown render backend"]);
   if (!(input.warmupS >= 60) || !(input.measuredS >= 600)) return report("gpu-report", "BLOCKED_EXTERNAL", ["G3 requires 60 s warmup and 600 s measurement"]);
   if (!input.featuresHeld) return report("gpu-report", "BLOCKED_EXTERNAL", ["Terrain, FPV, and thermal were not all active for the whole measurement"]);
@@ -76,6 +83,8 @@ export function decideGpuAcceptance(input) {
     durationS: input.durationS, visible: true, production: true, terrain: true, fpv: true, thermal: true,
     frameMs: input.frameMs, gpuBytes: input.gpuBytes, cpuBytes: input.cpuBytes,
   };
-  try { return assessGpu(trace); }
-  catch (error) { return report("gpu-report", "FAIL", [error instanceof Error ? error.message : String(error)]); }
+  // Every verdict records which GPU produced it.
+  const withDevice = result => ({ ...result, metrics: { ...result.metrics, device, gpu: input.gpu } });
+  try { return withDevice(assessGpu(trace)); }
+  catch (error) { return withDevice(report("gpu-report", "FAIL", [error instanceof Error ? error.message : String(error)])); }
 }

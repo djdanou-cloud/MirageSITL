@@ -14,10 +14,20 @@ assert.equal(classifyGpuDevice('ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Un
 assert.equal(classifyGpuDevice('Google SwiftShader','Apple M4'),'software');
 assert.equal(classifyGpuDevice('ANGLE (NVIDIA, NVIDIA GeForce RTX 4050 Laptop GPU Direct3D11)','13th Gen Intel'),'RTX4050');
 assert.equal(classifyGpuDevice('Apple M3','Apple M3'),'other');
+// User decision 2026-10-22: Windows integrated GPUs are accepted devices; the GPU is recorded in the verdict.
+assert.equal(classifyGpuDevice('ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11 vs_5_0 ps_5_0, D3D11)','13th Gen Intel','win32 10.0.26200'),'WindowsIGPU');
+assert.equal(classifyGpuDevice('ANGLE (AMD, AMD Radeon(TM) Graphics Direct3D11 vs_5_0 ps_5_0, D3D11)','AMD Ryzen 7','win32 10.0.22631'),'WindowsIGPU');
+assert.equal(classifyGpuDevice('ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11)','13th Gen Intel','darwin 24.0.0'),'other');
+assert.equal(classifyGpuDevice('ANGLE (NVIDIA, NVIDIA GeForce RTX 3060 Direct3D11)','13th Gen Intel','win32 10.0.26200'),'other');
 assert.deepEqual(peakResidency([{gpuBytes:10,cpuBytes:4},{gpuBytes:3,cpuBytes:8}]),{gpuBytes:10,cpuBytes:8});
 assert.equal(featuresHeld([{terrain:true,fpv:true,thermal:true},{terrain:true,fpv:false,thermal:true}]),false);
 const full={gpu:'Apple M4',hostModel:'Apple M4',os:'macOS',browser:'schema-test-only',powerMode:'AC',backend:'webgl2',fps:60,warmupS:60,measuredS:600,durationS:600,featuresHeld:true,visible:true,width:1920,height:1080,dpr:1,frameMs:Array(40000).fill(15),gpuBytes:1000,cpuBytes:1000};
 assert.equal(decideGpuAcceptance(full).status,'PASS');
+assert.equal(decideGpuAcceptance(full).metrics.gpu,'Apple M4');
+const igpu={...full,gpu:'ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11)',hostModel:'13th Gen Intel',os:'win32 10.0.26200'};
+assert.equal(decideGpuAcceptance(igpu).status,'PASS');
+assert.equal(decideGpuAcceptance(igpu).metrics.device,'WindowsIGPU');
+assert.equal(decideGpuAcceptance({...igpu,gpu:'ANGLE (NVIDIA, NVIDIA GeForce GTX 1650 Direct3D11)'}).status,'BLOCKED_EXTERNAL');
 // TASK-073 P6: WebGPU runs the TSL passes and is scored like WebGL2; an unknown backend is blocked.
 assert.equal(decideGpuAcceptance({...full,backend:'webgpu'}).status,'PASS');
 assert.equal(decideGpuAcceptance({...full,backend:'webgl1'}).status,'BLOCKED_EXTERNAL');

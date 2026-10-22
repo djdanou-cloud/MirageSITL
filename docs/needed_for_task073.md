@@ -467,3 +467,24 @@ lens as a selected configuration, not as a measured instrument.
 | P1 | The accepted 60 FPS display rule becomes "above 58 Hz" in `scripts/gpu-trace.mjs` and its tests, both languages documented |
 | P3 | Build terrain and buildings with the section 9.3 pipeline; the viewer loads both sources for the configured area |
 | P5 | Use the section 9.1 emissivities and the section 9.2 lens; fetch one public FLIR thermal dataset sample sequence as the visual reference |
+
+## 10. Status after phases P3-P7 (2026-10-22)
+
+| Item | State |
+| --- | --- |
+| Terrain and buildings (P3) | Done: FABDEM quantized-mesh terrain with verified geoid conversion, 2.87 million Overture buildings as 3D Tiles |
+| Material maps (P4) | Done: 1 m OSM and WorldCover class raster, cross-checked against `MaterialMap` (99.98%) |
+| Thermal (P5) | Done: approximated Boson 640 profile, generated fixed pattern through the shutter/NUC, per-class heat balance with evapotranspiration, 3 x 3 detector-area supersampling; one FLIR ADAS thermal video kept as a visual reference |
+| WebGPU (P6) | Done: fisheye, analog, thermal G-buffer and thermal camera passes as TSL node materials, oracle-tested on the RTX 4050 |
+| Image quality | Aliasing removed in all views; analog FPV noise halved at the operator's request |
+| Captures (P7) | RTX 4050 on the external 1920 x 1080 60 Hz display: median within 16.680 ms, p99 27.085 ms on WebGL2 and WebGPU: `FAIL`. Internal 144 Hz panel: Chrome rendered on the Intel iGPU at 1920 x 1200: `FAIL` (surface and p99) |
+| Device rule | By user decision, Windows integrated GPUs are accepted devices; every verdict records the GPU |
+
+Still needed for a `PASS`:
+
+* **Frame pacing:** on this laptop the p99 misses happen while the GPU is busy for less than half of a refresh. They follow GPU power-state
+  changes under Windows hybrid graphics, not scene cost. A run with the GPU locked to a high clock (the operator's driver tools) or another
+  machine would show whether the scene meets the limit.
+* **Baseline surface on the panel:** set the panel to 1920 x 1080 at 144 Hz, 100% scaling, so the 60 and 120 FPS profiles can be scored.
+* **RTX 4050 on the panel:** assign Chrome to the high-performance GPU in Windows graphics settings; otherwise the panel runs on the iGPU.
+* **M4:** repeat the 60 FPS capture with the scene filling the display (the operator provides the Mac).

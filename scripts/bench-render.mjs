@@ -1,7 +1,7 @@
 import { cli, exact, finite, text, percentile, report } from "./validation/evidence.mjs";
 export function assessGpu(v) {
   exact(v, ["schemaVersion", "source", "device", "gpu", "os", "browser", "powerMode", "backend", "fps", "width", "height", "dpr", "warmupS", "durationS", "visible", "production", "terrain", "fpv", "thermal", "frameMs", "gpuBytes", "cpuBytes"]);
-  if (v.schemaVersion !== 1 || v.source !== "hardware" || !["M4", "RTX4050"].includes(v.device) || !["webgl2", "webgpu"].includes(v.backend) || ![60, 120].includes(v.fps)) throw new Error("Unsupported real GPU/profile identity");
+  if (v.schemaVersion !== 1 || v.source !== "hardware" || !["M4", "RTX4050", "WindowsIGPU"].includes(v.device) || !["webgl2", "webgpu"].includes(v.backend) || ![60, 120].includes(v.fps)) throw new Error("Unsupported real GPU/profile identity");
   for (const k of ["gpu", "os", "browser", "powerMode"]) text(v[k]);
   if (/swiftshader|llvmpipe|software|headless/i.test(v.gpu + " " + v.browser)) return report("gpu-report", "BLOCKED_EXTERNAL", ["Software/headless rendering cannot certify target hardware"]);
   if (v.width !== 1920 || v.height !== 1080 || v.dpr !== 1 || v.visible !== true || v.production !== true || v.terrain !== true || v.fpv !== true || v.thermal !== true) throw new Error("Production visible full-feature 1080p DPR1 profile required");
