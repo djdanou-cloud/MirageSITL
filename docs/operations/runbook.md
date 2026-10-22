@@ -191,6 +191,9 @@ node scripts/check-gpu-perf.mjs --backend webgl2 --fps 60 --geodata '\\wsl.local
 ```
 
 `--backend webgpu` runs the same capture with the WebGPU passes (TASK-073 P6).
+To find why frames are late, `node scripts/diagnose-pacing.mjs --geodata DIR [--backend webgpu] [--chrome-args "--disable-direct-composition"]`
+records a 45 s Chrome trace, PresentMon and 10 Hz `nvidia-smi` samples (about 300 MB per trace, in `test-results/pacing/`), and
+`node --max-old-space-size=8192 scripts/analyze-pacing.mjs test-results/pacing/pacing-webgl2.json` compares missed and on-time frames.
 `--view thermal` (or `fpv`) presents that image instead of the chase view for
 inspection runs; acceptance captures keep the default `chase`. The thermal scene
 instant defaults to 2026-07-15 07:00 UTC; open the page with

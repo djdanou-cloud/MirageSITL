@@ -8,7 +8,7 @@
 PowerShell/zsh и проверки перед расширением поддерживаемого покрытия.
 
 ## Локальные проверки
-<!-- source-sha256: 3803d2ec9b6b4b3e08841724a3d431ad67b8a82d88009dcc5426dbe05b2e8a98 -->
+<!-- source-sha256: ca38589b660623c6f907d4909f21e5ecd68bde2156787e8a4686f9c643245f03 -->
 
 Использовать существующий изолированный checkout, сохраняя локальные изменения. Node закреплён .nvmrc; Rust 1.97.0 и wasm32-unknown-unknown — native/rust-toolchain.toml. Зависимости ставить через npm ci. В облаке активировать CARGO_HOME=/workspace/.cache/mirage-cargo, RUSTUP_HOME=/workspace/.cache/mirage-rustup и добавить CARGO_HOME/bin в начало PATH; не переопределять HOME. Запустить lint, typecheck, check:docs, CI=true npm test, npm run build и locked native tests. Запустить npm run dev; проверить HTTP, COOP same-origin, COEP require-corp и настоящий Worker READY. Начать с нулевого газа, армировать, летать, приостановить и сбросить. Браузерные тесты используют системный Chromium только при наличии. Установка/запуск на чистой восстановленной машине для сертификации выпуска ещё не выполнялись.
 
@@ -200,6 +200,9 @@ node scripts/check-gpu-perf.mjs --backend webgl2 --fps 60 --geodata '\\wsl.local
 ```
 
 `--backend webgpu` выполняет тот же захват с проходами WebGPU (TASK-073 P6).
+Чтобы выяснить причину поздних кадров, `node scripts/diagnose-pacing.mjs --geodata DIR [--backend webgpu] [--chrome-args "--disable-direct-composition"]`
+записывает трассу Chrome за 45 с, PresentMon и отсчёты `nvidia-smi` с частотой 10 Гц (около 300 МБ на трассу, в `test-results/pacing/`), а
+`node --max-old-space-size=8192 scripts/analyze-pacing.mjs test-results/pacing/pacing-webgl2.json` сравнивает пропущенные и своевременные кадры.
 `--view thermal` (или `fpv`) показывает это изображение вместо вида
 преследования в проверочных прогонах; приёмочные захваты оставляют `chase` по
 умолчанию. Момент тепловой сцены по умолчанию — 2026-07-15 07:00 UTC; чтобы
