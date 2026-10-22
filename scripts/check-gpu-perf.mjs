@@ -16,6 +16,14 @@ function option(name, fallback) {
   const index = process.argv.indexOf(`--${name}`);
   return index < 0 ? fallback : process.argv[index + 1];
 }
+
+/**
+ * Extra Chrome switches for the measured browser (e.g. "--disable-direct-composition"), recorded in
+ * the trace, the report metrics and the browser identity so a verdict always names its configuration.
+ */
+const CHROME_ARGS = String(option("chrome-args", "") ?? "").split(/\s+/).filter(Boolean);
+if (!CHROME_ARGS.every(arg => /^--[a-z0-9-]+(=[^\s]*)?$/i.test(arg))) throw new Error("--chrome-args takes Chrome switches such as \"--disable-direct-composition\"");
+const browserLabel = version => (CHROME_ARGS.length ? `${version} ${CHROME_ARGS.join(" ")}` : version);
 function hostModel() {
   if (process.platform === "darwin") return execFileSync("sysctl", ["-n", "machdep.cpu.brand_string"], { encoding: "utf8" }).trim();
   return os.cpus()[0]?.model ?? "unknown";
@@ -50,7 +58,7 @@ if (invoked && process.argv.length === 2) {
   // Presented image: the chase view for acceptance captures; fpv and thermal for inspection runs.
   const view = option("view", "chase");
   if (!["chase", "fpv", "thermal"].includes(view) || !/^-?\d+,-?\d+$/.test(position) || !["webgl2", "webgpu"].includes(backend) || ![60, 120].includes(fps) || !Number.isFinite(warmupS) || warmupS < 1 || warmupS > 600 || !Number.isFinite(durationS) || durationS < 1 || durationS > 3600) {
-    console.error("Expected --backend webgl2|webgpu --fps 60|120 [--view chase|fpv|thermal]");
+    console.error("Expected --backend webgl2|webgpu --fps 60|120 [--view chase|fpv|thermal] [--chrome-args \"--switch ...\"]");
     process.exitCode = 1;
   } else {
     void admitDisplay(fps, position).then(refreshHz => {
@@ -75,7 +83,7 @@ if (invoked && process.argv.length === 2) {
 
 async function admitDisplay(fps, position) {
   const { chromium } = await import("@playwright/test");
-  const browser = await chromium.launch({ headless: false, executablePath: process.env.CHROMIUM_PATH, args: ["--window-size=800,600", `--window-position=${position}`] });
+  const browser = await chromium.launch({ headless: false, executablePath: process.env.CHROMIUM_PATH, args: ["--window-size=800,600", `--window-position=${position}`, ...CHROME_ARGS] });
   try {
     const page = await browser.newPage();
     await page.goto("about:blank");
@@ -153,7 +161,7 @@ async function measure(backend, fps, warmupS, durationS, directory, position, ge
     if (!ready) throw new Error("Preview startup deadline");
     // No viewport emulation: the window goes fullscreen on the physical display at
     // `position`, so the measured canvas is what that display presents.
-    browser = await chromium.launch({ headless: false, executablePath: process.env.CHROMIUM_PATH, args: [`--window-position=${position}`, "--disable-features=Translate", "--lang=en-US", "--no-first-run"] });
+    browser = await chromium.launch({ headless: false, executablePath: process.env.CHROMIUM_PATH, args: [`--window-position=${position}`, "--disable-features=Translate", "--lang=en-US", "--no-first-run", ...CHROME_ARGS] });
     const context = await browser.newContext({ viewport: null });
     page = await context.newPage();
     const pageCdp = await context.newCDPSession(page);
@@ -280,12 +288,13 @@ async function measure(backend, fps, warmupS, durationS, directory, position, ge
       try { presentMonResult = { ...presentMonRun, ...summarizePresentMon(presentMonCsv, { startMs: measuredEndQpcMs - total, endMs: measuredEndQpcMs }) }; }
       catch (error) { presentMonResult = { ...presentMonRun, available: false, reason: error instanceof Error ? error.message : String(error) }; }
     }
-    const result = decideGpuAcceptance({
-      gpu: identity.renderer, hostModel: hostModel(), os: osLabel(), browser: browser.version(), powerMode: powerMode(), backend,
+    const verdict = decideGpuAcceptance({
+      gpu: identity.renderer, hostModel: hostModel(), os: osLabel(), browser: browserLabel(browser.version()), powerMode: powerMode(), backend,
       fps, warmupS, measuredS: total / 1000, durationS: total / 1000, featuresHeld: measurement.featuresHeld && errors.length === 0 && identity.backend === backend,
       visible: !measurement.hidden, width: measurement.width, height: measurement.height, dpr: measurement.dpr,
       frameMs: measurement.frameMs, gpuBytes: measurement.gpuBytes, cpuBytes: measurement.cpuBytes,
     });
+    const result = { ...verdict, metrics: { ...verdict.metrics, chromeArgs: CHROME_ARGS } };
     const tracePath = `${directory}/gpu-${backend}-${fps}.json`;
     const framesBytes = Buffer.from(JSON.stringify({ schemaVersion: 1, backend, fps, warmupS, frameMs: measurement.frameMs }) + "\n");
     writeFileSync(`${directory}/gpu-${backend}-${fps}.frames.json`, framesBytes);
@@ -299,7 +308,7 @@ async function measure(backend, fps, warmupS, durationS, directory, position, ge
       clocks: clockSampler.available ? summarizeClocks(clockSampler.samples) : { available: false, reason: clockSampler.reason },
       presentMon: presentMonResult,
     };
-    writeFileSync(tracePath, JSON.stringify({ identity, errors, measurement: { ...measurement, frameMs: measurement.frameMs.length, flight: measurement.flight.length }, side, report: result }, null, 2) + "\n");
+    writeFileSync(tracePath, JSON.stringify({ identity, chromeArgs: CHROME_ARGS, errors, measurement: { ...measurement, frameMs: measurement.frameMs.length, flight: measurement.flight.length }, side, report: result }, null, 2) + "\n");
     writeFileSync(`${directory}/flight-${backend}-${fps}.json`, JSON.stringify(measurement.flight, null, 1) + "\n");
     writeFileSync(`${directory}/clocks-${backend}-${fps}.json`, JSON.stringify(clockSampler.samples) + "\n");
     writeFileSync(`${directory}/gpu-report.json`, JSON.stringify(result, null, 2) + "\n");
