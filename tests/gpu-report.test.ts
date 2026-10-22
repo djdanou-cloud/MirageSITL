@@ -18,7 +18,9 @@ assert.deepEqual(peakResidency([{gpuBytes:10,cpuBytes:4},{gpuBytes:3,cpuBytes:8}
 assert.equal(featuresHeld([{terrain:true,fpv:true,thermal:true},{terrain:true,fpv:false,thermal:true}]),false);
 const full={gpu:'Apple M4',hostModel:'Apple M4',os:'macOS',browser:'schema-test-only',powerMode:'AC',backend:'webgl2',fps:60,warmupS:60,measuredS:600,durationS:600,featuresHeld:true,visible:true,width:1920,height:1080,dpr:1,frameMs:Array(40000).fill(15),gpuBytes:1000,cpuBytes:1000};
 assert.equal(decideGpuAcceptance(full).status,'PASS');
-assert.equal(decideGpuAcceptance({...full,backend:'webgpu'}).status,'BLOCKED_EXTERNAL');
+// TASK-073 P6: WebGPU runs the TSL passes and is scored like WebGL2; an unknown backend is blocked.
+assert.equal(decideGpuAcceptance({...full,backend:'webgpu'}).status,'PASS');
+assert.equal(decideGpuAcceptance({...full,backend:'webgl1'}).status,'BLOCKED_EXTERNAL');
 assert.equal(decideGpuAcceptance({...full,gpu:'SwiftShader'}).status,'BLOCKED_EXTERNAL');
 assert.equal(decideGpuAcceptance({...full,measuredS:8,durationS:8,frameMs:[15]}).status,'BLOCKED_EXTERNAL');
 assert.equal(decideGpuAcceptance({...full,featuresHeld:false}).status,'BLOCKED_EXTERNAL');

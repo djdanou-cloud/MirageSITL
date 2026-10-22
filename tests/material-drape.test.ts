@@ -1,7 +1,7 @@
 // TASK-073 P4: material raster parsing, display palette and drape loading.
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { MATERIAL_COLORS, loadMaterialDrape, paletteBytes, parseMaterialRaster } from "../apps/web/src/render/material-drape.ts";
+import { MATERIAL_COLORS, colourBytes, loadMaterialDrape, paletteBytes, parseMaterialRaster } from "../apps/web/src/render/material-drape.ts";
 
 const raster = {
   schema: "mirage.material-raster/1", origin: { latDeg: 32.2, lonDeg: 34.87 }, pixelM: 1, width: 4, height: 2,
@@ -31,6 +31,14 @@ describe("material raster", () => {
     expect([...bytes.subarray(4, 8)]).toEqual([0x4b, 0x4d, 0x50, 255]);
     expect(bytes[11]).toBe(0);
     expect(bytes[15]).toBe(0);
+  });
+
+  it("precomputes per-texel display colours for the mipmapped colour texture (TASK-073)", () => {
+    const colours = colourBytes(new Uint8Array([1, 0, 2, 1]), raster.materials);
+    expect(colours.length).toBe(16);
+    expect([...colours.subarray(0, 4)]).toEqual([0x4b, 0x4d, 0x50, 255]); // asphalt
+    expect([...colours.subarray(4, 8)]).toEqual([0x9c, 0x8b, 0x6a, 255]); // synthetic ground
+    expect(colours[11]).toBe(0); // class without a display colour: transparent, base colour shows
   });
 });
 

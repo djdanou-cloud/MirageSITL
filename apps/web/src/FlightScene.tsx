@@ -82,7 +82,10 @@ function TerrainTiles({ config, onFailures, onMaterials, tiles, drapeRef }: { co
       const { TilesScene: Scene } = await import('@mirage/terrain/tiles-scene');
       if (cancelled) { drape?.dispose(); return; }
       drapeRef.current = drape; // also the thermal G-buffer's material classes (TASK-073 P5)
-      const hook = drape === null ? undefined : drape.apply.bind(drape);
+      // WebGPU ignores onBeforeCompile: its drape sets a colour node instead (TASK-073 P6).
+      const hook = drape === null ? undefined
+        : 'isWebGPURenderer' in gl ? (await import('./render/material-drape-node')).drapeNodeHook(drape) : drape.apply.bind(drape);
+      if (cancelled) { drape?.dispose(); return; }
       instances = config.sources.map(source => new Scene({ ...config, url: source.url, format: source.format, camera, renderer: gl, onGroundMaterial: hook }));
       for (const instance of instances) scene.add(instance.tiles.group);
       tiles.current = instances;

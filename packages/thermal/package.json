@@ -14,7 +14,8 @@
     "./nuc": "./src/nuc.ts",
     "./thermal-status": "./src/thermal-status.ts",
     "./fpn": "./src/fpn.ts",
-    "./area-thermal": "./src/area-thermal.ts"
+    "./area-thermal": "./src/area-thermal.ts",
+    "./thermal-node": "./src/thermal-node.ts"
   },
   "dependencies": {
     "@mirage/sensors": "0.1.0",

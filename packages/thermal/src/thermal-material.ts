@@ -25,8 +25,13 @@ export class ThermalCameraPass {
   private fpnResidual: DataTexture | null = null;
   private fpnGain: DataTexture | null = null;
 
-  constructor(readonly profile: InstrumentProfile, gBuffer: Texture | null) {
+  /**
+   * `supersample` S: the G-buffer is S times the sensor resolution and each sensor pixel averages the
+   * radiance of its S x S subsamples (detector-area integration); 1 is a point sample.
+   */
+  constructor(readonly profile: InstrumentProfile, gBuffer: Texture | null, readonly supersample = 1) {
     validateProfile(profile);
+    if (!Number.isInteger(supersample) || supersample < 1 || supersample > 4) throw new Error("Supersample factor must be 1-4");
     const t = radianceTable(profile.spectralBandUm);
     this.table = new DataTexture(t.values, t.values.length, 1, RedFormat, FloatType);
     this.table.minFilter = NearestFilter; this.table.magFilter = NearestFilter; this.table.generateMipmaps = false; this.table.needsUpdate = true;
@@ -36,6 +41,7 @@ export class ThermalCameraPass {
       uPalette: new Scalar(0), uNetdK: new Scalar(profile.netdK), uFrameSeed: new Scalar(0), uSkyK: new Scalar(250), uFpn: new Scalar(0), uFpnDriftK: new Scalar(0) };
     this.material = new ShaderMaterial({
       name: "thermal-camera", glslVersion: GLSL3, vertexShader: VERTEX, fragmentShader: thermalFragment, depthTest: false, depthWrite: false,
+      defines: { SUPERSAMPLE: supersample },
       uniforms: { ...this.u, uGBuffer: { value: gBuffer }, uTable: { value: this.table }, uTableMinK: { value: t.minK }, uTableCount: { value: t.values.length },
         uFpnResidual: { value: null }, uFpnGain: { value: null } },
     });

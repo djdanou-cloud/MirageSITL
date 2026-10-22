@@ -1,4 +1,4 @@
-// TASK-073 producer. A missing device, a software GPU, WebGPU, or a short window
+// TASK-073 producer (WebGL2, or WebGPU with the P6 TSL passes). A missing device, a software GPU, or a short window
 // exits BLOCKED_EXTERNAL. Frame-time and residency misses exit FAIL. The 60 FPS
 // limits are the user-accepted median 16.680 ms and p99 17.665 ms. The 120 FPS
 // p99 limit remains 8.33 ms. A 59.88 Hz panel is an accepted 60 FPS refresh.
@@ -34,7 +34,7 @@ function powerMode() {
 
 const invoked = process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1];
 if (invoked && process.argv.length === 2) {
-  const result = report("gpu-report", "BLOCKED_EXTERNAL", ["Provide --backend webgl2|webgpu --fps 60|120; WebGPU passes are not implemented and a run still needs M4 or RTX 4050 hardware"]);
+  const result = report("gpu-report", "BLOCKED_EXTERNAL", ["Provide --backend webgl2|webgpu --fps 60|120; a run needs M4 or RTX 4050 hardware"]);
   console.log(`gpu-report: ${result.status}; ${result.reasons[0]}`);
   process.exitCode = 2;
 } else if (invoked) {
@@ -53,31 +53,23 @@ if (invoked && process.argv.length === 2) {
     console.error("Expected --backend webgl2|webgpu --fps 60|120 [--view chase|fpv|thermal]");
     process.exitCode = 1;
   } else {
-    if (backend === "webgpu") {
-      mkdirSync(directory, { recursive: true });
-      const early = report("gpu-report", "BLOCKED_EXTERNAL", ["WebGPU fisheye and thermal passes are not implemented"]);
-      writeFileSync(`${directory}/gpu-report.json`, JSON.stringify(early, null, 2) + "\n");
-      console.log(`gpu-report: ${early.status}; ${early.reasons[0]}`);
-      process.exitCode = 2;
-    } else {
-      void admitDisplay(fps, position).then(refreshHz => {
-        if (!profileFitsDisplay(refreshHz, fps)) {
-          mkdirSync(directory, { recursive: true });
-          const early = report("gpu-report", "BLOCKED_EXTERNAL", [`Display refresh ${refreshHz.toFixed(2)} Hz does not support the ${fps} FPS profile`]);
-          writeFileSync(`${directory}/gpu-report.json`, JSON.stringify(early, null, 2) + "\n");
-          console.log(`gpu-report: ${early.status}; ${early.reasons[0]}`);
-          process.exitCode = 2;
-          return;
-        }
-        return measure(backend, fps, warmupS, durationS, directory, position, geodata, view);
-      }).catch(error => {
-        const result = report("gpu-report", "BLOCKED_EXTERNAL", [error instanceof Error ? error.message : String(error)]);
+    void admitDisplay(fps, position).then(refreshHz => {
+      if (!profileFitsDisplay(refreshHz, fps)) {
         mkdirSync(directory, { recursive: true });
-        writeFileSync(`${directory}/gpu-report.json`, JSON.stringify(result, null, 2) + "\n");
-        console.error(result.reasons[0]);
+        const early = report("gpu-report", "BLOCKED_EXTERNAL", [`Display refresh ${refreshHz.toFixed(2)} Hz does not support the ${fps} FPS profile`]);
+        writeFileSync(`${directory}/gpu-report.json`, JSON.stringify(early, null, 2) + "\n");
+        console.log(`gpu-report: ${early.status}; ${early.reasons[0]}`);
         process.exitCode = 2;
-      });
-    }
+        return;
+      }
+      return measure(backend, fps, warmupS, durationS, directory, position, geodata, view);
+    }).catch(error => {
+      const result = report("gpu-report", "BLOCKED_EXTERNAL", [error instanceof Error ? error.message : String(error)]);
+      mkdirSync(directory, { recursive: true });
+      writeFileSync(`${directory}/gpu-report.json`, JSON.stringify(result, null, 2) + "\n");
+      console.error(result.reasons[0]);
+      process.exitCode = 2;
+    });
   }
 }
 

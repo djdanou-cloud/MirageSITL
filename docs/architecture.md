@@ -1037,6 +1037,51 @@ pavement, as in the FLIR sample. Known limits: one air temperature and
 humidity all day; no cast shadows, soil moisture or dew. The image is a plausible synthetic scene, not a measured
 Boson image.
 
+Anti-aliasing (2026-10-22, after operator review of the screenshots). Parked
+frames showed no dithering or film grain in the chase or thermal image
+(temporal change 0.00 and 0.19 grey levels; the 50 mK NETD is below one level);
+the visible "grain" was spatial aliasing that crawls in motion. Three causes
+were removed. Thermal: each Boson pixel point-sampled the scene (staircase
+edges, thin roads breaking into dashes); the G-buffer is now rendered at 3 x 3
+the sensor resolution and the pass averages the radiance of the 9 subsamples,
+as a microbolometer integrates over its pixel. Material colours: nearest
+lookups of the 1 m class raster shimmered at a distance; the drape now samples
+a precomputed RGBA colour texture with mipmaps and 8x anisotropy (the thermal
+G-buffer keeps the exact class texture, where classes must not blend). FPV:
+the scene render behind the fisheye is 4x multisampled and the fisheye and
+analog stages sample bilinearly. The analog interference (TASK-068 defaults,
+up to about +-15 grey levels at hover throttle) is intentional and unchanged.
+On the RTX 4050 the median GPU time per frame rose from 5.4 ms to 6.8 ms
+(WebGPU smoke, PresentMon `GPUBusy`). Remaining stair steps on class
+boundaries are the 10 m WorldCover data resolution.
+
+### G3 passes on WebGPU (TASK-073 P6)
+
+The G3 passes run on both backends. `g3-common.ts` holds the probe, the FPV
+lens and `ThermalSceneState` (sensor clock and NUC, heat balance, display
+span, material raster), shared by `g3-passes.ts` (WebGL2) and
+`g3-passes-webgpu.ts`, which is loaded only for `WebGPURenderer`. The WebGPU
+passes are TSL node materials: `FisheyeNodeMaterial`, `AnalogNodeMaterial`
+(same lowbias32 hash; its per-pixel noise is keyed to a pixel origin that
+differs between backends, so noise statistics, not bytes, match WebGL2),
+`ThermalGBufferNode` and `ThermalCameraNodePass`, drawn with `QuadMesh` into
+`RenderTarget`s. The material drape uses a colour node (`material-drape-node.ts`)
+because WebGPU ignores `onBeforeCompile`. Differences handled explicitly:
+readback rows are padded to 256 bytes; screen y points down, so the G-buffer
+turns its derivative face normal towards the camera; float textures are read
+with `textureLoad`; `int(select(...))` needs a named integer variable to
+emit an `i32`. Shader and validation errors arrive asynchronously, so the
+probe counts uncaptured device errors. Two runtime faults were fixed: resizing
+a `RenderTarget` in place left bind groups on the destroyed texture (targets
+are recreated and rebound), and a resize during `renderer.init()` left the
+multisample buffer at the canvas's initial 300 x 150 (the size is re-applied
+after init; 0 of 10 starts failed afterwards, 3 of 8 before).
+`tests/browser/webgpu-passes.spec.ts` checks fisheye, analog, thermal (all
+palettes, fixed pattern and sky, 2 x 2 supersampling) and the G-buffer on both
+backends against the CPU mirrors; run it with `MIRAGE_BROWSER_GPU=hardware` to
+use the machine's GPU (on SwiftShader without a WebGPU adapter the WebGPU cases
+are skipped with the reason).
+
 ### Renderer adapter: WebGPU with WebGL2 fallback (TASK-066)
 
 `apps/web/src/render/renderer.ts` creates either backend behind one

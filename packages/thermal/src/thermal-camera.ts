@@ -146,12 +146,21 @@ export function apparentRadiance(tK: number, emissivity: number, distanceM: numb
   return tau * (emissivity * bandRadiance(tK, band) + (1 - emissivity) * bandRadiance(scene.reflectedK, band)) + (1 - tau) * bandRadiance(scene.airK, band);
 }
 
+/** Apparent in-band radiance with the shader's table (float64 mirror of one G-buffer subsample). */
+export function apparentTableRadiance(table: RadianceTable, tK: number, emissivity: number, distanceM: number, scene: ThermalScene): number {
+  const tau = Math.exp(-scene.extinctionPerM * Math.max(0, distanceM));
+  return tau * (emissivity * tableRadiance(table, tK) + (1 - emissivity) * tableRadiance(table, scene.reflectedK)) + (1 - tau) * tableRadiance(table, scene.airK);
+}
+
+/** Display level in [0, 1] of an apparent radiance (e.g. the mean over a sensor pixel's subsamples). */
+export function levelFromRadiance(table: RadianceTable, radiance: number, scene: ThermalScene): number {
+  const lo = tableRadiance(table, scene.spanMinK), hi = tableRadiance(table, scene.spanMaxK);
+  return Math.min(1, Math.max(0, (radiance - lo) / (hi - lo)));
+}
+
 /** Display level in [0, 1] for one pixel, using the same table as the shader. */
 export function apparentLevel(table: RadianceTable, tK: number, emissivity: number, distanceM: number, scene: ThermalScene): number {
-  const tau = Math.exp(-scene.extinctionPerM * Math.max(0, distanceM));
-  const l = tau * (emissivity * tableRadiance(table, tK) + (1 - emissivity) * tableRadiance(table, scene.reflectedK)) + (1 - tau) * tableRadiance(table, scene.airK);
-  const lo = tableRadiance(table, scene.spanMinK), hi = tableRadiance(table, scene.spanMaxK);
-  return Math.min(1, Math.max(0, (l - lo) / (hi - lo)));
+  return levelFromRadiance(table, apparentTableRadiance(table, tK, emissivity, distanceM, scene), scene);
 }
 
 export type ThermalPalette = "white-hot" | "black-hot" | "ironbow";

@@ -8,9 +8,17 @@
 // a fragment at world (x, z) reads texel u = (x - west) / (east - west),
 // v = (north - (-z)) / (north - south). Outside the grid the tile keeps its
 // base ground colour.
+//
+// Display colours come from an RGBA colour texture precomputed from the class
+// raster (TASK-073): mipmapped and anisotropically filtered, so distant ground
+// is averaged instead of point-sampled (nearest class lookups shimmered into
+// speckle and dashed roads) and class edges are bilinear up close. Alpha marks
+// classes with a display colour; the base colour shows elsewhere. The exact
+// class texture stays for the thermal G-buffer, where classes must not blend.
 import { parseDataManifest, attributionsFor, type DataManifest } from "@mirage/thermal/data-manifest";
 import {
-  DataTexture, NearestFilter, RedFormat, RGBAFormat, SRGBColorSpace, UnsignedByteType, Vector4, type MeshStandardMaterial,
+  DataTexture, LinearFilter, LinearMipmapLinearFilter, NearestFilter, RedFormat, RGBAFormat, SRGBColorSpace, UnsignedByteType, Vector4,
+  type MeshStandardMaterial,
 } from "three";
 
 export interface MaterialRaster {
@@ -72,9 +80,23 @@ export function paletteBytes(materials: readonly string[]): Uint8Array {
   return bytes;
 }
 
+/** Per-texel display colour (RGBA, sRGB) of a class raster; alpha 0 where the class has no colour. */
+export function colourBytes(classes: Uint8Array, materials: readonly string[]): Uint8Array {
+  const palette = paletteBytes(materials), out = new Uint8Array(classes.length * 4);
+  for (let i = 0; i < classes.length; i++) {
+    const c = 4 * classes[i]!; // classes[i] < 256 and palette has 256 entries
+    out[4 * i] = palette[c]!; out[4 * i + 1] = palette[c + 1]!; out[4 * i + 2] = palette[c + 2]!; out[4 * i + 3] = palette[c + 3]!;
+  }
+  return out;
+}
+
+/** Anisotropic filtering requested for the colour texture (the renderer clamps to its maximum). */
+const DRAPE_ANISOTROPY = 8;
+
 export class MaterialDrape {
   readonly classTexture: DataTexture;
-  readonly paletteTexture: DataTexture;
+  /** Mipmapped display colours (see colourBytes). */
+  readonly colourTexture: DataTexture;
   /** west, south, east, north in render-frame metres (north positive). */
   readonly extent: Vector4;
   readonly attributions: readonly string[];
@@ -85,10 +107,11 @@ export class MaterialDrape {
     this.classTexture = new DataTexture(classes, raster.width, raster.height, RedFormat, UnsignedByteType);
     this.classTexture.minFilter = NearestFilter; this.classTexture.magFilter = NearestFilter; this.classTexture.generateMipmaps = false;
     this.classTexture.needsUpdate = true;
-    this.paletteTexture = new DataTexture(paletteBytes(raster.materials), 256, 1, RGBAFormat, UnsignedByteType);
-    this.paletteTexture.colorSpace = SRGBColorSpace;
-    this.paletteTexture.minFilter = NearestFilter; this.paletteTexture.magFilter = NearestFilter; this.paletteTexture.generateMipmaps = false;
-    this.paletteTexture.needsUpdate = true;
+    this.colourTexture = new DataTexture(colourBytes(classes, raster.materials), raster.width, raster.height, RGBAFormat, UnsignedByteType);
+    this.colourTexture.colorSpace = SRGBColorSpace;
+    this.colourTexture.minFilter = LinearMipmapLinearFilter; this.colourTexture.magFilter = LinearFilter;
+    this.colourTexture.generateMipmaps = true; this.colourTexture.anisotropy = DRAPE_ANISOTROPY;
+    this.colourTexture.needsUpdate = true;
     const e = raster.extentM;
     this.extent = new Vector4(e.west, e.south, e.east, e.north);
     this.attributions = attributionsFor(manifest, raster.datasets);
@@ -98,24 +121,20 @@ export class MaterialDrape {
   apply(material: MeshStandardMaterial): void {
     material.customProgramCacheKey = () => "mirage-material-drape";
     material.onBeforeCompile = shader => {
-      shader.uniforms.uDrapeClasses = { value: this.classTexture };
-      shader.uniforms.uDrapePalette = { value: this.paletteTexture };
+      shader.uniforms.uDrapeColour = { value: this.colourTexture };
       shader.uniforms.uDrapeExtent = { value: this.extent };
       shader.vertexShader = shader.vertexShader
         .replace("#include <common>", "#include <common>\nvarying vec3 vDrapeWorld;")
         .replace("#include <worldpos_vertex>", "#include <worldpos_vertex>\nvDrapeWorld = (modelMatrix * vec4(transformed, 1.0)).xyz;");
       shader.fragmentShader = shader.fragmentShader
-        .replace("#include <common>", "#include <common>\nvarying vec3 vDrapeWorld;\nuniform sampler2D uDrapeClasses;\nuniform sampler2D uDrapePalette;\nuniform vec4 uDrapeExtent;")
+        .replace("#include <common>", "#include <common>\nvarying vec3 vDrapeWorld;\nuniform sampler2D uDrapeColour;\nuniform vec4 uDrapeExtent;")
         .replace("#include <color_fragment>", `#include <color_fragment>
 {
   // Render frame: x = east, z = -north. Texture row 0 is the north edge.
   vec2 drapeUv = vec2((vDrapeWorld.x - uDrapeExtent.x) / (uDrapeExtent.z - uDrapeExtent.x),
                       (uDrapeExtent.w + vDrapeWorld.z) / (uDrapeExtent.w - uDrapeExtent.y));
-  if (all(greaterThanEqual(drapeUv, vec2(0.0))) && all(lessThan(drapeUv, vec2(1.0)))) {
-    float drapeClass = floor(texture2D(uDrapeClasses, drapeUv).r * 255.0 + 0.5);
-    vec4 drapeColor = texture2D(uDrapePalette, vec2((drapeClass + 0.5) / 256.0, 0.5));
-    if (drapeColor.a > 0.5) diffuseColor.rgb = drapeColor.rgb;
-  }
+  vec4 drapeColor = texture2D(uDrapeColour, drapeUv); // filtered and mipmapped (no aliasing)
+  if (all(greaterThanEqual(drapeUv, vec2(0.0))) && all(lessThan(drapeUv, vec2(1.0)))) diffuseColor.rgb = mix(diffuseColor.rgb, drapeColor.rgb, drapeColor.a);
 }`);
     };
     material.needsUpdate = true;
@@ -123,7 +142,7 @@ export class MaterialDrape {
 
   dispose(): void {
     this.classTexture.dispose();
-    this.paletteTexture.dispose();
+    this.colourTexture.dispose();
   }
 }
 

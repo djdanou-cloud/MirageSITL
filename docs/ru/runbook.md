@@ -8,7 +8,7 @@
 PowerShell/zsh и проверки перед расширением поддерживаемого покрытия.
 
 ## Локальные проверки
-<!-- source-sha256: 427d0665611ad49661d826a55231a857cda6dbf9a2f2b1e8e3d0786160a234fe -->
+<!-- source-sha256: 3803d2ec9b6b4b3e08841724a3d431ad67b8a82d88009dcc5426dbe05b2e8a98 -->
 
 Использовать существующий изолированный checkout, сохраняя локальные изменения. Node закреплён .nvmrc; Rust 1.97.0 и wasm32-unknown-unknown — native/rust-toolchain.toml. Зависимости ставить через npm ci. В облаке активировать CARGO_HOME=/workspace/.cache/mirage-cargo, RUSTUP_HOME=/workspace/.cache/mirage-rustup и добавить CARGO_HOME/bin в начало PATH; не переопределять HOME. Запустить lint, typecheck, check:docs, CI=true npm test, npm run build и locked native tests. Запустить npm run dev; проверить HTTP, COOP same-origin, COEP require-corp и настоящий Worker READY. Начать с нулевого газа, армировать, летать, приостановить и сбросить. Браузерные тесты используют системный Chromium только при наличии. Установка/запуск на чистой восстановленной машине для сертификации выпуска ещё не выполнялись.
 
@@ -199,6 +199,7 @@ node --experimental-transform-types scripts/geodata/check_material_map.mjs --mat
 node scripts/check-gpu-perf.mjs --backend webgl2 --fps 60 --geodata '\\wsl.localhost\Ubuntu\home\<user>\mirage-geodata\israel'
 ```
 
+`--backend webgpu` выполняет тот же захват с проходами WebGPU (TASK-073 P6).
 `--view thermal` (или `fpv`) показывает это изображение вместо вида
 преследования в проверочных прогонах; приёмочные захваты оставляют `chase` по
 умолчанию. Момент тепловой сцены по умолчанию — 2026-07-15 07:00 UTC; чтобы
