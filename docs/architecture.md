@@ -988,6 +988,54 @@ SHA-256 `f143c7fe7714b974bfa69e725223af9585801accb002c9ae3fe297f68fd811ff`;
 the cross-check passed with 99.98% agreement (one mismatch, at a class edge).
 WorldCover is CC BY 4.0 and OpenStreetMap ODbL 1.0; both attributions are shown.
 
+The G3 thermal camera (P5) is `BOSON_640_50DEG` in
+`packages/thermal/src/thermal-camera.ts`: an `approximated` instrument profile
+(a third calibration kind besides `synthetic` and `measured`) with public
+FLIR Boson 640 data sheet values (640 x 512, 8-14 um, NETD 50 mK, 60 Hz) and the
+selected 8.7 mm, 50 degree horizontal lens (40.916 degree vertical). Like a
+synthetic profile it never claims instrument parity. The image chain is:
+
+* `AreaThermal` (`area-thermal.ts`) integrates the TASK-070 `ThermalField` for
+  every class of the material raster in five orientations (up, east, north,
+  west, south walls) with the solar ephemeris and clear-sky forcing, after a
+  24 h spin-up from air temperature, and then once per sensor second. The
+  emissivities are the section 9.1 values of `docs/needed_for_task073.md`
+  (vegetation 0.97, asphalt 0.93, bare soil 0.92, concrete and built-up 0.92,
+  water 0.95, galvanised roofs 0.28, tiles 0.91, gravel 0.96 instead of the
+  table's implausible 0.28, ice 0.97 instead of its snow 0.80), each with its
+  source; heat capacity, absorptance and conductance come from a documented
+  TASK-070 proxy class. Assumed weather: air 30 C, wind 3 m/s, cloud 0.1, deep
+  layer 25 C; default instant 2026-07-15 07:00 UTC (`?thermalUtc=` with a zone
+  overrides it).
+* `apps/web/src/render/thermal-gbuffer.ts` renders the scene from a
+  perspective camera boresighted with the FPV mount at the sensor resolution.
+  Each fragment reads its class from the material raster (synthetic ground
+  outside it), weights the five orientation temperatures by its flat face
+  normal from screen-space derivatives (buildings have no normals) and writes
+  temperature, emissivity and distance; cleared texels are sky, shown at the
+  Swinbank sky temperature. The display span is the surface temperature range
+  plus 2 K (a simple AGC).
+* `fpn.ts` generates a seeded fixed pattern (offset sigma 0.15 K per pixel,
+  0.25 K per column, 0.08 K per row; drift gain 0.04 K/K per pixel, 0.03 K/K per
+  column) and a focal-plane warm-up of 8 K with a 600 s time constant, all
+  assumed values. `ThermalSensorChain` runs the TASK-072 `ThermalNuc` on that
+  pattern at 60 Hz of wall time (shutter at power-on and every 180 s, closed 6
+  frames, averaged 8, opening 4), skipping and counting frames when rendering
+  falls behind (at most 4 per rendered frame). Because the scene adds linearly,
+  the shader adds the residual (o - bias) and gain x drift to the rendered
+  temperature, which equals the NUC output; the display holds its last image
+  while the shutter is closed. The chain costs about 0.9 ms per frame in Node
+  for 640 x 512 pixels.
+
+`?view=thermal` presents the thermal image (pillarboxed) for inspection; the
+captures keep the chase view. The G3 probe reports the profile, shutter state,
+NUC cycles and skipped sensor frames, and a shader failure now stays recorded
+(it fires once, at compile). Known limits: the TASK-070 model has no
+evapotranspiration, so tree canopy reaches about 60 C at 10:00 local where real
+canopies stay near air temperature; one air temperature all day; no cast
+shadows or moisture. The image is a plausible synthetic scene, not a measured
+Boson image.
+
 ### Renderer adapter: WebGPU with WebGL2 fallback (TASK-066)
 
 `apps/web/src/render/renderer.ts` creates either backend behind one

@@ -1,9 +1,10 @@
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { useEffect, useRef, useState, type ComponentType, type RefObject } from 'react';
+import { useEffect, useMemo, useRef, useState, type ComponentType, type RefObject } from 'react';
 import type { TilesScene } from '@mirage/terrain/tiles-scene';
 import type { TileFailure } from '@mirage/terrain/tiles-provider';
 import type { TerrainConfig } from './terrain-config';
 import type { MaterialDrape } from './render/material-drape';
+import type { ThermalLocation } from './render/g3-passes';
 import { Group, Quaternion, Vector3 } from 'three';
 import { interpolatePoseInto, interpolationAlpha, newRenderPoseV2, wallNow } from '@mirage/protocol';
 import type { SimulationRuntime } from './runtime';
@@ -60,8 +61,8 @@ function Vehicle({ runtime }: { runtime: RefObject<SimulationRuntime | null> }) 
  * such as buildings) in the render loop, never the physics step, and reports
  * fetch failures when their count changes. All sources share one origin.
  */
-function TerrainTiles({ config, onFailures, onMaterials, tiles }: { config: TerrainConfig; onFailures: (failures: readonly TileFailure[]) => void;
-  onMaterials: (status: string) => void; tiles: RefObject<TilesScene[]> }) {
+function TerrainTiles({ config, onFailures, onMaterials, tiles, drapeRef }: { config: TerrainConfig; onFailures: (failures: readonly TileFailure[]) => void;
+  onMaterials: (status: string) => void; tiles: RefObject<TilesScene[]>; drapeRef: RefObject<MaterialDrape | null> }) {
   const { camera, gl, scene } = useThree();
   const reported = useRef(0);
   useEffect(() => {
@@ -80,6 +81,7 @@ function TerrainTiles({ config, onFailures, onMaterials, tiles }: { config: Terr
       }
       const { TilesScene: Scene } = await import('@mirage/terrain/tiles-scene');
       if (cancelled) { drape?.dispose(); return; }
+      drapeRef.current = drape; // also the thermal G-buffer's material classes (TASK-073 P5)
       const hook = drape === null ? undefined : drape.apply.bind(drape);
       instances = config.sources.map(source => new Scene({ ...config, url: source.url, format: source.format, camera, renderer: gl, onGroundMaterial: hook }));
       for (const instance of instances) scene.add(instance.tiles.group);
@@ -87,8 +89,8 @@ function TerrainTiles({ config, onFailures, onMaterials, tiles }: { config: Terr
       reported.current = 0;
     };
     void start();
-    return () => { cancelled = true; for (const instance of instances) instance.dispose(); drape?.dispose(); tiles.current = []; };
-  }, [config, camera, gl, scene, tiles, onMaterials]);
+    return () => { cancelled = true; for (const instance of instances) instance.dispose(); drapeRef.current = null; drape?.dispose(); tiles.current = []; };
+  }, [config, camera, gl, scene, tiles, onMaterials, drapeRef]);
   useFrame(() => {
     let failures = 0;
     for (const instance of tiles.current) { instance.update(); failures += instance.failures.length; }
@@ -97,8 +99,15 @@ function TerrainTiles({ config, onFailures, onMaterials, tiles }: { config: Terr
   return null;
 }
 
-function G3Loader({ runtime, tiles }: { runtime: RefObject<SimulationRuntime | null>; tiles: RefObject<TilesScene[]> }) {
-  const [Passes, setPasses] = useState<ComponentType<{ runtime: RefObject<SimulationRuntime | null>; tiles: RefObject<TilesScene[]> }> | null>(null);
+interface G3Props {
+  runtime: RefObject<SimulationRuntime | null>;
+  tiles: RefObject<TilesScene[]>;
+  drape: RefObject<MaterialDrape | null>;
+  location: ThermalLocation;
+}
+
+function G3Loader(props: G3Props) {
+  const [Passes, setPasses] = useState<ComponentType<G3Props> | null>(null);
   useEffect(() => {
     let cancelled = false;
     void import('./render/g3-passes').then(module => { if (!cancelled) setPasses(() => module.G3Passes); });
@@ -110,10 +119,12 @@ function G3Loader({ runtime, tiles }: { runtime: RefObject<SimulationRuntime | n
     root.dataset.g3 = '1';
     return () => { delete root.dataset.g3; };
   }, []);
-  return Passes ? <Passes runtime={runtime} tiles={tiles} /> : null;
+  return Passes ? <Passes {...props} /> : null;
 }
 
 const NO_MATERIALS_CALLBACK = () => undefined;
+/** config/geodata.json default area centre, used only when no terrain origin is configured. */
+const DEFAULT_THERMAL_LOCATION: ThermalLocation = { latDeg: 32.20065261195932, lonDeg: 34.87163838506722 };
 
 export function FlightScene({ runtime, terrain = null, onTerrainFailures = () => undefined, onMaterials = NO_MATERIALS_CALLBACK }: {
   runtime: RefObject<SimulationRuntime | null>;
@@ -123,6 +134,11 @@ export function FlightScene({ runtime, terrain = null, onTerrainFailures = () =>
   onMaterials?: (status: string) => void;
 }) {
   const tiles = useRef<TilesScene[]>([]);
+  const drape = useRef<MaterialDrape | null>(null);
+  // The thermal scene sits at the terrain origin; without terrain, at the default TASK-073 area of operation.
+  const thermalLocation = useMemo<ThermalLocation>(() => terrain
+    ? { latDeg: (terrain.originLatRad * 180) / Math.PI, lonDeg: (terrain.originLonRad * 180) / Math.PI }
+    : DEFAULT_THERMAL_LOCATION, [terrain]);
   // Real terrain replaces the flat demo field: a daylight sky and kilometre-scale haze
   // instead of the dark 120 m fog, and a far plane that reaches the horizon.
   const sky = terrain ? '#a9c0d3' : '#111e29';
@@ -142,8 +158,8 @@ export function FlightScene({ runtime, terrain = null, onTerrainFailures = () =>
     <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.015, 0]}>
       <ringGeometry args={[1.15, 1.18, 64]} /><meshBasicMaterial color="#70c4b1" transparent opacity={0.55} />
     </mesh>
-    {terrain && <TerrainTiles config={terrain} onFailures={onTerrainFailures} onMaterials={onMaterials} tiles={tiles} />}
-    {g3 && <G3Loader runtime={runtime} tiles={tiles} />}
+    {terrain && <TerrainTiles config={terrain} onFailures={onTerrainFailures} onMaterials={onMaterials} tiles={tiles} drapeRef={drape} />}
+    {g3 && <G3Loader runtime={runtime} tiles={tiles} drape={drape} location={thermalLocation} />}
     <Vehicle runtime={runtime} />
   </Canvas>;
 }

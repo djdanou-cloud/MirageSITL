@@ -2,8 +2,8 @@
 // with these functions in tests/browser/thermal.spec.ts.
 import { describe, expect, it } from "vitest";
 import {
-  IRONBOW, SYNTHETIC_LWIR_640, apparentLevel, apparentRadiance, bandRadiance, claimsParityWith, paletteColor, planckSpectral, radianceTable,
-  tableRadiance, validateProfile, type InstrumentProfile, type ThermalScene,
+  BOSON_640_50DEG, IRONBOW, SYNTHETIC_LWIR_640, apparentLevel, apparentRadiance, bandRadiance, claimsParityWith, paletteColor, planckSpectral, radianceTable,
+  tableRadiance, validateProfile, verticalFovRad, type InstrumentProfile, type ThermalScene,
 } from "../packages/thermal/src/thermal-camera.ts";
 import { STEFAN_BOLTZMANN } from "../packages/thermal/src/solar.ts";
 
@@ -94,6 +94,22 @@ describe("instrument profiles", () => {
     expect(() => validateProfile({ ...measured, calibrationSource: { kind: "measured", instrument: "CADEX", dataSha256: "" } })).toThrow("calibration data hash");
     expect(() => validateProfile({ ...SYNTHETIC_LWIR_640, resolution: [8, 8] })).toThrow();
     expect(() => validateProfile({ ...SYNTHETIC_LWIR_640, spectralBandUm: [14, 8] })).toThrow();
+  });
+
+  it("approximates the Boson 640 50 deg lens from public data without claiming parity (TASK-073 P5)", () => {
+    validateProfile(BOSON_640_50DEG);
+    expect(BOSON_640_50DEG.resolution).toEqual([640, 512]);
+    expect(BOSON_640_50DEG.frameHz).toBe(60);
+    expect(claimsParityWith(BOSON_640_50DEG, "FLIR Boson 640")).toBe(false);
+    // 2 atan(tan(25 deg) * 512 / 640) = 2 atan(0.373046) = 40.916 deg.
+    expect((verticalFovRad(BOSON_640_50DEG) * 180) / Math.PI).toBeCloseTo(40.916, 3);
+    const source = BOSON_640_50DEG.calibrationSource;
+    if (source.kind !== "approximated") throw new Error("expected an approximated profile");
+    expect(() => validateProfile({ ...BOSON_640_50DEG, calibrationSource: { ...source, sources: [] } })).toThrow("public sources");
+    expect(() => validateProfile({ ...BOSON_640_50DEG, calibrationSource: { ...source, sources: [" "] } })).toThrow("public sources");
+    expect(() => validateProfile({ ...BOSON_640_50DEG, frameHz: 0 })).toThrow("frame rate");
+    expect(() => validateProfile({ ...BOSON_640_50DEG, optics: { focalLengthMm: 8.7, horizontalFovRad: 3.0 } })).toThrow("optics");
+    expect(() => verticalFovRad(SYNTHETIC_LWIR_640)).toThrow("no optics");
   });
 });
 

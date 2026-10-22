@@ -47,8 +47,10 @@ if (invoked && process.argv.length === 2) {
   const position = option("position", "0,0");
   // Generated terrain/buildings (scripts/geodata): a folder with terrain/ and/or buildings/.
   const geodata = option("geodata", null);
-  if (!/^-?\d+,-?\d+$/.test(position) || !["webgl2", "webgpu"].includes(backend) || ![60, 120].includes(fps) || !Number.isFinite(warmupS) || warmupS < 1 || warmupS > 600 || !Number.isFinite(durationS) || durationS < 1 || durationS > 3600) {
-    console.error("Expected --backend webgl2|webgpu --fps 60|120");
+  // Presented image: the chase view for acceptance captures; fpv and thermal for inspection runs.
+  const view = option("view", "chase");
+  if (!["chase", "fpv", "thermal"].includes(view) || !/^-?\d+,-?\d+$/.test(position) || !["webgl2", "webgpu"].includes(backend) || ![60, 120].includes(fps) || !Number.isFinite(warmupS) || warmupS < 1 || warmupS > 600 || !Number.isFinite(durationS) || durationS < 1 || durationS > 3600) {
+    console.error("Expected --backend webgl2|webgpu --fps 60|120 [--view chase|fpv|thermal]");
     process.exitCode = 1;
   } else {
     if (backend === "webgpu") {
@@ -67,7 +69,7 @@ if (invoked && process.argv.length === 2) {
           process.exitCode = 2;
           return;
         }
-        return measure(backend, fps, warmupS, durationS, directory, position, geodata);
+        return measure(backend, fps, warmupS, durationS, directory, position, geodata, view);
       }).catch(error => {
         const result = report("gpu-report", "BLOCKED_EXTERNAL", [error instanceof Error ? error.message : String(error)]);
         mkdirSync(directory, { recursive: true });
@@ -135,7 +137,7 @@ function terrainEnv(geodata) {
   return env;
 }
 
-async function measure(backend, fps, warmupS, durationS, directory, position, geodata) {
+async function measure(backend, fps, warmupS, durationS, directory, position, geodata, view = "chase") {
   const { chromium } = await import("@playwright/test");
   mkdirSync(directory, { recursive: true });
   const vite = fileURLToPath(new URL("../node_modules/vite/bin/vite.js", import.meta.url));
@@ -168,7 +170,7 @@ async function measure(backend, fps, warmupS, durationS, directory, position, ge
     await new Promise(resolve => setTimeout(resolve, 1000));
     const errors = [];
     page.on("pageerror", error => errors.push(error.message));
-    await page.goto(`http://127.0.0.1:5175/?renderer=${backend}&g3=1&view=chase&flight=circuit`);
+    await page.goto(`http://127.0.0.1:5175/?renderer=${backend}&g3=1&view=${view}&flight=circuit`);
     await page.getByTestId("worker-status").filter({ hasText: "READY" }).waitFor({ timeout: 30000 });
     await page.bringToFront();
     try {

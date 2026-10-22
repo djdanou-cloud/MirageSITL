@@ -10,9 +10,10 @@
 // evaluates the same chain per pixel from a G-buffer (temperature, emissivity,
 // distance). apparentLevel() is the float64 CPU mirror used by tests.
 //
-// Instrument profiles are either synthetic training profiles or measured
-// profiles with a calibration data hash. A synthetic profile never claims
-// parity with a real instrument (e.g. CADEX); such a claim needs measured data.
+// Instrument profiles are synthetic training profiles, approximated profiles
+// built from a public data sheet (TASK-073 P5), or measured profiles with a
+// calibration data hash. Only a measured profile may claim parity with a real
+// instrument (e.g. CADEX); synthetic and approximated profiles never do.
 
 export const PLANCK_H = 6.62607015e-34;
 export const LIGHT_C = 299792458;
@@ -28,7 +29,14 @@ export interface InstrumentProfile {
   spectralBandUm: readonly [number, number];
   /** Noise-equivalent temperature difference, K. */
   netdK: number;
-  calibrationSource: { kind: "synthetic"; note: string } | { kind: "measured"; instrument: string; dataSha256: string };
+  calibrationSource:
+    | { kind: "synthetic"; note: string }
+    | { kind: "approximated"; instrument: string; sources: readonly string[]; note: string }
+    | { kind: "measured"; instrument: string; dataSha256: string };
+  /** Sensor frame rate, Hz (optional for legacy profiles). */
+  frameHz?: number;
+  /** Selected lens: effective focal length and horizontal field of view. */
+  optics?: { focalLengthMm: number; horizontalFovRad: number };
 }
 
 export const SYNTHETIC_LWIR_640: Readonly<InstrumentProfile> = Object.freeze({
@@ -39,13 +47,51 @@ export const SYNTHETIC_LWIR_640: Readonly<InstrumentProfile> = Object.freeze({
   calibrationSource: Object.freeze({ kind: "synthetic" as const, note: "Generic uncooled LWIR training profile; not calibrated against any instrument." }),
 });
 
+/**
+ * FLIR Boson 640 with the 8.7 mm, 50 deg HFOV lens at 60 Hz, approximated from
+ * public Teledyne FLIR data sheet values (TASK-073 P5): 640 x 512 array, LWIR
+ * 8-14 um, NETD < 50 mK (Professional grade), 60 Hz baseline. The lens is a
+ * selected configuration (docs/needed_for_task073.md section 9.2). No raw
+ * frames of a real Boson were used: this profile claims no instrument parity.
+ */
+export const BOSON_640_50DEG: Readonly<InstrumentProfile> = Object.freeze({
+  id: "boson-640-50deg-approx",
+  resolution: Object.freeze([640, 512] as const),
+  spectralBandUm: Object.freeze([8, 14] as const),
+  netdK: 0.05,
+  frameHz: 60,
+  optics: Object.freeze({ focalLengthMm: 8.7, horizontalFovRad: (50 * Math.PI) / 180 }),
+  calibrationSource: Object.freeze({
+    kind: "approximated" as const,
+    instrument: "FLIR Boson 640",
+    // Citations only: this package holds no network addresses (tests/material-map.test.ts).
+    sources: Object.freeze(["Teledyne FLIR Boson data sheet, rev. 2023-10-24", "Teledyne FLIR Boson family FOV comparison (OEM web page)"]),
+    note: "Data sheet values only; fixed-pattern noise and drift are generated, not measured.",
+  }),
+});
+
+/** Vertical field of view (rad) of a pinhole with the profile's horizontal FOV and aspect. */
+export function verticalFovRad(p: InstrumentProfile): number {
+  if (!p.optics) throw new Error("Profile has no optics");
+  const [w, h] = p.resolution;
+  return 2 * Math.atan(Math.tan(p.optics.horizontalFovRad / 2) * (h / w));
+}
+
 export function validateProfile(p: InstrumentProfile): void {
   const [w, h] = p.resolution, [l1, l2] = p.spectralBandUm;
   if (!/^[a-z0-9][a-z0-9-]{0,63}$/.test(p.id) || !Number.isInteger(w) || !Number.isInteger(h) || w < 16 || h < 16 || w > 4096 || h > 4096 ||
     !(l1 > 0.5 && l2 > l1 && l2 <= 30) || !(p.netdK >= 0 && p.netdK <= 1)) throw new Error("Invalid instrument profile");
+  if (p.frameHz !== undefined && !(p.frameHz > 0 && p.frameHz <= 240)) throw new Error("Invalid instrument frame rate");
+  if (p.optics !== undefined && !(p.optics.focalLengthMm > 0 && p.optics.horizontalFovRad > 0 && p.optics.horizontalFovRad < 0.9 * Math.PI)) {
+    throw new Error("Invalid instrument optics");
+  }
   const c = p.calibrationSource;
   if (c.kind === "measured") {
     if (!c.instrument.trim() || !/^[a-f0-9]{64}$/.test(c.dataSha256)) throw new Error("Measured profiles need an instrument name and calibration data hash");
+  } else if (c.kind === "approximated") {
+    if (!c.instrument.trim() || c.sources.length < 1 || !c.sources.every(s => s.trim().length >= 8)) {
+      throw new Error("Approximated profiles need an instrument name and public sources");
+    }
   } else if (c.kind !== "synthetic") throw new Error("Unknown calibration source");
 }
 

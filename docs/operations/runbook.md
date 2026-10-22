@@ -189,6 +189,11 @@ node --experimental-transform-types scripts/geodata/check_material_map.mjs --mat
 node scripts/check-gpu-perf.mjs --backend webgl2 --fps 60 --geodata '\\wsl.localhost\Ubuntu\home\<user>\mirage-geodata\israel'
 ```
 
+`--view thermal` (or `fpv`) presents that image instead of the chase view for
+inspection runs; acceptance captures keep the default `chase`. The thermal scene
+instant defaults to 2026-07-15 07:00 UTC; open the page with
+`?thermalUtc=2026-07-15T12:00:00Z` (a zoned ISO time) to inspect another hour.
+
 The Python scripts run inside the `mirage-geo` environment
 (`micromamba run -n mirage-geo ...`). The OSM extract (`*.osm.pbf`) is an
 operator-supplied Geofabrik file kept in the repository root and ignored by

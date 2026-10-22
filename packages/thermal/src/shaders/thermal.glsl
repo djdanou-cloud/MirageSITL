@@ -1,6 +1,9 @@
 // Thermal camera (TASK-071), GLSL ES 3.00. Mirrors apparentLevel() and
 // paletteColor() in packages/thermal/src/thermal-camera.ts.
-// G-buffer texel: r = surface temperature K, g = emissivity, b = distance m.
+// G-buffer texel: r = surface temperature K, g = emissivity, b = distance m,
+// a = 1 for geometry (a = 0 is open sky, shown at the sky temperature).
+// Fixed-pattern noise (TASK-073 P5): residual (o - bias) + gain * drift, in K,
+// per sensor pixel; the CPU mirror is ThermalSensorChain / ThermalNuc.output.
 precision highp float;
 precision highp int;
 uniform highp sampler2D uGBuffer;
@@ -15,6 +18,11 @@ uniform float uSpanMaxK;
 uniform int uPalette;             // 0 white-hot, 1 black-hot, 2 ironbow
 uniform float uNetdK;             // per-pixel temperature noise amplitude (uniform, +-NETD)
 uniform uint uFrameSeed;
+uniform float uSkyK;              // sky brightness temperature, K
+uniform int uFpn;                 // 1 when the fixed-pattern textures are bound
+uniform highp sampler2D uFpnResidual;
+uniform highp sampler2D uFpnGain;
+uniform float uFpnDriftK;
 varying vec2 vUv;
 layout(location = 0) out highp vec4 outColor;
 
@@ -44,13 +52,19 @@ vec3 ironbow(float x) {
 
 void main() {
   vec4 g = texture(uGBuffer, vUv);
-  float t = g.r;
+  bool sky = g.a < 0.5;
+  float t = sky ? uSkyK : g.r;
+  if (uFpn == 1) {
+    ivec2 p = ivec2(gl_FragCoord.xy);
+    t += texelFetch(uFpnResidual, p, 0).r + texelFetch(uFpnGain, p, 0).r * uFpnDriftK;
+  }
   if (uNetdK > 0.0) {
     uvec2 p = uvec2(gl_FragCoord.xy);
     t += (float(hash(p.x * 0x9e3779b9u ^ hash(p.y ^ uFrameSeed)) >> 8) * (1.0 / 16777216.0) - 0.5) * 2.0 * uNetdK;
   }
-  float tau = exp(-uExtinction * max(0.0, g.b));
-  float l = tau * (g.g * radiance(t) + (1.0 - g.g) * radiance(uReflectedK)) + (1.0 - tau) * radiance(uAirK);
+  float tau = sky ? 1.0 : exp(-uExtinction * max(0.0, g.b));
+  float eps = sky ? 1.0 : g.g;
+  float l = tau * (eps * radiance(t) + (1.0 - eps) * radiance(uReflectedK)) + (1.0 - tau) * radiance(uAirK);
   float lo = radiance(uSpanMinK), hi = radiance(uSpanMaxK);
   float level = clamp((l - lo) / (hi - lo), 0.0, 1.0);
   vec3 c = uPalette == 0 ? vec3(level) : uPalette == 1 ? vec3(1.0 - level) : ironbow(level);
