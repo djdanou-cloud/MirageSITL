@@ -183,11 +183,16 @@ bash scripts/geodata/setup-wsl.sh
 python3 -I scripts/geodata/fetch_fabdem.py --config config/geodata.json --out ~/mirage-geodata/fabdem
 python -I scripts/geodata/build_terrain.py --config config/geodata.json --fabdem ~/mirage-geodata/fabdem --out ~/mirage-geodata/israel/terrain
 python -I scripts/geodata/build_buildings.py --config config/geodata.json --terrain-work ~/mirage-geodata/israel/terrain/_work --work ~/mirage-geodata/buildings-work --out ~/mirage-geodata/israel/buildings
+python -I scripts/geodata/extract_osm.py --config config/geodata.json --pbf israel-and-palestine-261020.osm.pbf --out ~/mirage-geodata/israel/osm
+python -I scripts/geodata/build_material_map.py --config config/geodata.json --classes config/material-classes.json --worldcover data/worldcover/2021-v200/israel --osm ~/mirage-geodata/israel/osm --out ~/mirage-geodata/israel/materials
+node --experimental-transform-types scripts/geodata/check_material_map.mjs --materials '\\wsl.localhost\Ubuntu\home\<user>\mirage-geodata\israel\materials' --osm '\\wsl.localhost\Ubuntu\home\<user>\mirage-geodata\israel\osm'
 node scripts/check-gpu-perf.mjs --backend webgl2 --fps 60 --geodata '\\wsl.localhost\Ubuntu\home\<user>\mirage-geodata\israel'
 ```
 
-The two `build_*` scripts run inside the `mirage-geo` environment
-(`micromamba run -n mirage-geo ...`). Keep the data out of the repository
+The Python scripts run inside the `mirage-geo` environment
+(`micromamba run -n mirage-geo ...`). The OSM extract (`*.osm.pbf`) is an
+operator-supplied Geofabrik file kept in the repository root and ignored by
+Git; `check_material_map.mjs` exits 0 on PASS and 1 on FAIL. Keep the data out of the repository
 folder (it is synchronised by OneDrive here). Run the capture from PowerShell:
 Git Bash rewrites the `\\wsl.localhost` path.
 

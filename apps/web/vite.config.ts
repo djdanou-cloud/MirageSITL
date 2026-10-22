@@ -64,7 +64,7 @@ function localTiles(): Plugin {
 // the repository (it is large and licensed); nothing is served when the variable is unset.
 const GEODATA_TYPES: Record<string, string> = {
   '.json': 'application/json', '.terrain': 'application/vnd.quantized-mesh', '.glb': 'model/gltf-binary',
-  '.b3dm': 'application/octet-stream', '.subtree': 'application/octet-stream',
+  '.b3dm': 'application/octet-stream', '.subtree': 'application/octet-stream', '.bin': 'application/octet-stream',
 };
 function localGeodata(): Plugin {
   const attach = (server: { middlewares: { use: (handler: (req: import('node:http').IncomingMessage, res: import('node:http').ServerResponse, next: () => void) => void) => void } }) => {

@@ -35,12 +35,14 @@ export interface TilesSceneOptions {
   budget?: LodBudget;
   /** Ground colour for quantized-mesh terrain (sRGB hex); default a matte desert earth tone. */
   groundColor?: number;
+  /** Called once per quantized-mesh tile material after tinting (e.g. the TASK-073 material drape). */
+  onGroundMaterial?: (material: MeshStandardMaterial) => void;
 }
 
 const DEFAULT_GROUND_COLOR = 0x9c8b6a;
 
 /** Recolours the materials of one loaded terrain tile in place (no new materials, nothing to dispose). */
-function tintGround(model: Object3D, color: number): void {
+function tintGround(model: Object3D, color: number, hook: ((material: MeshStandardMaterial) => void) | null): void {
   model.traverse(object => {
     if (!(object instanceof Mesh)) return;
     const materials: unknown[] = Array.isArray(object.material) ? object.material : [object.material];
@@ -49,6 +51,7 @@ function tintGround(model: Object3D, color: number): void {
       material.color.setHex(color);
       material.roughness = 1;
       material.metalness = 0;
+      hook?.(material);
     }
   });
 }
@@ -89,7 +92,7 @@ export class TilesScene {
     const tint = options.format === "quantized-mesh" ? (options.groundColor ?? DEFAULT_GROUND_COLOR) : null;
     tiles.addEventListener("load-model", event => {
       this.loadedModels++;
-      if (tint !== null) tintGround(event.scene, tint);
+      if (tint !== null) tintGround(event.scene, tint, options.onGroundMaterial ?? null);
     });
     tiles.addEventListener("dispose-model", () => { this.loadedModels--; });
     tiles.addEventListener("load-error", event => {

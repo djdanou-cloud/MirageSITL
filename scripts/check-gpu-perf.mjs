@@ -131,6 +131,7 @@ function terrainEnv(geodata) {
     VITE_MIRAGE_TILESET_URL: "" };
   if (Number.isFinite(manifest.areaRadiusM)) env.VITE_MIRAGE_AREA_RADIUS_M = String(manifest.areaRadiusM);
   if (existsSync(join(root, "buildings", "tileset.json"))) env.VITE_MIRAGE_TILESET_URL = "/geodata/buildings/tileset.json";
+  if (existsSync(join(root, "materials", "materials.json"))) env.VITE_MIRAGE_MATERIALS_URL = "/geodata/materials/materials.json";
   return env;
 }
 

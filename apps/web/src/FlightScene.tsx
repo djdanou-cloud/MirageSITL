@@ -3,6 +3,7 @@ import { useEffect, useRef, useState, type ComponentType, type RefObject } from 
 import type { TilesScene } from '@mirage/terrain/tiles-scene';
 import type { TileFailure } from '@mirage/terrain/tiles-provider';
 import type { TerrainConfig } from './terrain-config';
+import type { MaterialDrape } from './render/material-drape';
 import { Group, Quaternion, Vector3 } from 'three';
 import { interpolatePoseInto, interpolationAlpha, newRenderPoseV2, wallNow } from '@mirage/protocol';
 import type { SimulationRuntime } from './runtime';
@@ -59,21 +60,35 @@ function Vehicle({ runtime }: { runtime: RefObject<SimulationRuntime | null> }) 
  * such as buildings) in the render loop, never the physics step, and reports
  * fetch failures when their count changes. All sources share one origin.
  */
-function TerrainTiles({ config, onFailures, tiles }: { config: TerrainConfig; onFailures: (failures: readonly TileFailure[]) => void; tiles: RefObject<TilesScene[]> }) {
+function TerrainTiles({ config, onFailures, onMaterials, tiles }: { config: TerrainConfig; onFailures: (failures: readonly TileFailure[]) => void;
+  onMaterials: (status: string) => void; tiles: RefObject<TilesScene[]> }) {
   const { camera, gl, scene } = useThree();
   const reported = useRef(0);
   useEffect(() => {
     // Loaded on demand: terrain is off by default, so the loader stays out of the main bundle.
-    let instances: TilesScene[] = [], cancelled = false;
-    void import('@mirage/terrain/tiles-scene').then(({ TilesScene: Scene }) => {
-      if (cancelled) return;
-      instances = config.sources.map(source => new Scene({ ...config, url: source.url, format: source.format, camera, renderer: gl }));
+    let instances: TilesScene[] = [], drape: MaterialDrape | null = null, cancelled = false;
+    const start = async () => {
+      // The material drape (TASK-073 P4) is optional: a failure is reported and the plain ground colour stays.
+      if (config.materialsUrl !== null) {
+        try {
+          const { loadMaterialDrape } = await import('./render/material-drape');
+          drape = await loadMaterialDrape(config.materialsUrl);
+          onMaterials(`Materials: ${drape.attributions.join('; ')}`);
+        } catch (error) {
+          onMaterials(`Materials unavailable: ${error instanceof Error ? error.message : String(error)}`);
+        }
+      }
+      const { TilesScene: Scene } = await import('@mirage/terrain/tiles-scene');
+      if (cancelled) { drape?.dispose(); return; }
+      const hook = drape === null ? undefined : drape.apply.bind(drape);
+      instances = config.sources.map(source => new Scene({ ...config, url: source.url, format: source.format, camera, renderer: gl, onGroundMaterial: hook }));
       for (const instance of instances) scene.add(instance.tiles.group);
       tiles.current = instances;
       reported.current = 0;
-    });
-    return () => { cancelled = true; for (const instance of instances) instance.dispose(); tiles.current = []; };
-  }, [config, camera, gl, scene, tiles]);
+    };
+    void start();
+    return () => { cancelled = true; for (const instance of instances) instance.dispose(); drape?.dispose(); tiles.current = []; };
+  }, [config, camera, gl, scene, tiles, onMaterials]);
   useFrame(() => {
     let failures = 0;
     for (const instance of tiles.current) { instance.update(); failures += instance.failures.length; }
@@ -98,10 +113,14 @@ function G3Loader({ runtime, tiles }: { runtime: RefObject<SimulationRuntime | n
   return Passes ? <Passes runtime={runtime} tiles={tiles} /> : null;
 }
 
-export function FlightScene({ runtime, terrain = null, onTerrainFailures = () => undefined }: {
+const NO_MATERIALS_CALLBACK = () => undefined;
+
+export function FlightScene({ runtime, terrain = null, onTerrainFailures = () => undefined, onMaterials = NO_MATERIALS_CALLBACK }: {
   runtime: RefObject<SimulationRuntime | null>;
   terrain?: TerrainConfig | null;
   onTerrainFailures?: (failures: readonly TileFailure[]) => void;
+  /** Material drape status text for the attribution line (TASK-073 P4). */
+  onMaterials?: (status: string) => void;
 }) {
   const tiles = useRef<TilesScene[]>([]);
   // Real terrain replaces the flat demo field: a daylight sky and kilometre-scale haze
@@ -123,7 +142,7 @@ export function FlightScene({ runtime, terrain = null, onTerrainFailures = () =>
     <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.015, 0]}>
       <ringGeometry args={[1.15, 1.18, 64]} /><meshBasicMaterial color="#70c4b1" transparent opacity={0.55} />
     </mesh>
-    {terrain && <TerrainTiles config={terrain} onFailures={onTerrainFailures} tiles={tiles} />}
+    {terrain && <TerrainTiles config={terrain} onFailures={onTerrainFailures} onMaterials={onMaterials} tiles={tiles} />}
     {g3 && <G3Loader runtime={runtime} tiles={tiles} />}
     <Vehicle runtime={runtime} />
   </Canvas>;

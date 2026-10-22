@@ -110,6 +110,11 @@ describe("app terrain configuration", async () => {
     expect(terrainConfigFrom(undefined, "32.2,34.87,70", "x", "/geodata/terrain/layer.json").status).toBe("ready");
     expect(terrainConfigFrom(undefined, "32.2,34.87,70", "x", "/geodata/terrain/terrain.json").status).toBe("blocked");
     expect(terrainConfigFrom(undefined, undefined, "x", "/geodata/terrain/layer.json").status).toBe("blocked");
+    // TASK-073 P4: optional material raster, off unless set.
+    expect(ready.status === "ready" && ready.config.materialsUrl).toBeNull();
+    const draped = terrainConfigFrom(undefined, "32.2,34.87,70", "x", "/geodata/terrain/layer.json", "/geodata/materials/materials.json");
+    expect(draped.status === "ready" && draped.config.materialsUrl).toBe("/geodata/materials/materials.json");
+    expect(terrainConfigFrom(undefined, "32.2,34.87,70", "x", "/geodata/terrain/layer.json", "/geodata/materials/materials.bin").status).toBe("blocked");
     expect(ready.status === "ready" && ready.config.originLatRad).toBeCloseTo((47.3769 * Math.PI) / 180, 12);
     for (const [url, origin] of [["/t/tileset.json", undefined], ["/t/tileset.json", "91,0,0"], ["/t/tileset.json", "1,2"], ["/t/tile.glb", "1,2,3"]] as const) {
       expect(terrainConfigFrom(url, origin, "x").status, `${url} ${String(origin)}`).toBe("blocked");

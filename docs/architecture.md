@@ -959,6 +959,35 @@ tiles (160 MB), geoid check 19.395 m applied against an EGM2008 undulation of
 7,200 tiles (3.5 GB). Only 9,516 buildings carry a height and 26,770 a floor
 count; the rest use the 6 m default. FABDEM is CC BY-NC-SA 4.0 (non-commercial).
 
+The ground is coloured by a surface-material raster (P4), display only: a class
+is not a temperature. `extract_osm.py` reads the operator's Geofabrik extract
+with GDAL's OSM driver and keeps buildings and highways that intersect the
+area plus a 200 m margin. `build_material_map.py` rasterises a 1 m grid
+(2000 x 2000 for the 1 km radius) in a local transverse Mercator projection
+centred on the area origin, with the class legend and precedence of
+`packages/thermal/src/material-map.ts` (`config/material-classes.json`):
+building roof, then road buffered to half its legend width, then ESA WorldCover
+10 m v200, then synthetic ground. It writes `materials.bin` (uint8 class
+index, rows north to south), `materials.json` (schema
+`mirage.material-raster/1`: origin, extent, class table, counts) and a
+`data-manifest.json` (`mirage.thermal-data/1`) with the WorldCover tile and
+OSM extract hashes, licences and attributions. `check_material_map.mjs`
+cross-checks the raster against the TypeScript `MaterialMap` on the same
+inputs at 5,000 seeded pixel centres; the pass criterion, fixed before the
+first run, is at least 97% agreement with every disagreement within 1.5 px of
+a class boundary. In the app `VITE_MIRAGE_MATERIALS_URL` (set by
+`check-gpu-perf.mjs --geodata` when `materials/materials.json` exists) loads
+`apps/web/src/render/material-drape.ts` before the terrain: the class raster
+and a 256-entry palette become textures and an `onBeforeCompile` patch on each
+quantized-mesh tile material picks the colour by world position (render
+`x` east, `z` minus north); outside the raster the plain ground colour stays.
+A load failure is reported on the attribution line and leaves the plain
+ground. Results on 2026-10-22: 1,188 OSM buildings and 1,428 roads extracted
+(804 roads drawn inside the raster), no synthetic pixels, `materials.bin`
+SHA-256 `f143c7fe7714b974bfa69e725223af9585801accb002c9ae3fe297f68fd811ff`;
+the cross-check passed with 99.98% agreement (one mismatch, at a class edge).
+WorldCover is CC BY 4.0 and OpenStreetMap ODbL 1.0; both attributions are shown.
+
 ### Renderer adapter: WebGPU with WebGL2 fallback (TASK-066)
 
 `apps/web/src/render/renderer.ts` creates either backend behind one

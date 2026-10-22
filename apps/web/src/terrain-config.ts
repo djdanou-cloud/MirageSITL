@@ -20,6 +20,8 @@ export interface TerrainSource {
 
 export interface TerrainConfig {
   sources: TerrainSource[];
+  /** Material class raster (materials.json) draped on quantized-mesh terrain, or null (TASK-073 P4). */
+  materialsUrl: string | null;
   attribution: string;
   originLatRad: number;
   originLonRad: number;
@@ -31,7 +33,7 @@ export type TerrainConfigResult = { status: "off" } | { status: "ready"; config:
 const present = (value: unknown) => value !== undefined && value !== "";
 
 /** Parses build-time settings from unknown values. */
-export function terrainConfigFrom(tilesetUrl: unknown, origin: unknown, attribution: unknown, terrainUrl?: unknown): TerrainConfigResult {
+export function terrainConfigFrom(tilesetUrl: unknown, origin: unknown, attribution: unknown, terrainUrl?: unknown, materialsUrl?: unknown): TerrainConfigResult {
   if (!present(tilesetUrl) && !present(terrainUrl)) return { status: "off" };
   if (typeof origin !== "string") return { status: "blocked", reason: "A tiles origin must be set with any terrain source" };
   const parts = origin.split(",").map(Number);
@@ -52,6 +54,11 @@ export function terrainConfigFrom(tilesetUrl: unknown, origin: unknown, attribut
     if (resolved.status !== "READY") return { status: "blocked", reason: resolved.reason };
     sources.push({ url: resolved.url, format });
   }
+  let materials: string | null = null;
+  if (present(materialsUrl)) {
+    if (typeof materialsUrl !== "string" || !/\.json(\?|$)/.test(materialsUrl)) return { status: "blocked", reason: "Materials URL must reference materials.json" };
+    materials = materialsUrl;
+  }
   const deg = Math.PI / 180;
-  return { status: "ready", config: { sources, attribution: label, originLatRad: latDeg * deg, originLonRad: lonDeg * deg, originHeightM: heightM } };
+  return { status: "ready", config: { sources, materialsUrl: materials, attribution: label, originLatRad: latDeg * deg, originLonRad: lonDeg * deg, originHeightM: heightM } };
 }

@@ -33,6 +33,7 @@ const TERRAIN = terrainConfigFrom(
   import.meta.env.VITE_MIRAGE_TILES_ORIGIN,
   import.meta.env.VITE_MIRAGE_TILES_ATTRIBUTION,
   import.meta.env.VITE_MIRAGE_TERRAIN_URL,
+  import.meta.env.VITE_MIRAGE_MATERIALS_URL,
 );
 import { SerialConnect } from "./SerialConnect";
 import {
@@ -177,6 +178,7 @@ export default function App() {
     null,
   );
   const [source, setSource] = useState<"demo" | "usb">("demo");
+  const [materialsStatus, setMaterialsStatus] = useState("");
   const [terrainFailures, setTerrainFailures] = useState<
     readonly TileFailure[]
   >([]);
@@ -293,6 +295,7 @@ export default function App() {
                   runtime={runtime}
                   terrain={TERRAIN.status === "ready" ? TERRAIN.config : null}
                   onTerrainFailures={setTerrainFailures}
+                  onMaterials={setMaterialsStatus}
                 />
               </SceneBoundary>
             )}
@@ -308,6 +311,7 @@ export default function App() {
                 {TERRAIN.status === "ready"
                   ? `Terrain: ${TERRAIN.config.attribution}`
                   : `Terrain blocked: ${TERRAIN.reason}`}
+                {materialsStatus && ` · ${materialsStatus}`}
                 {terrainFailures.length > 0 &&
                   ` · ${terrainFailures.length} tile request(s) failed (${terrainFailures[0]!.kind}: ${terrainFailures[0]!.message})`}
               </div>
