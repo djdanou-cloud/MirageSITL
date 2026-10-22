@@ -143,7 +143,7 @@ class ProductionPasses {
     if (gbufferUniform) gbufferUniform.value = this.gbuffer.texture;
   }
 
-  render(scene: Scene, chase: Camera, view: G3View, pose: Parameters<FpvCamera["update"]>[0], tiles: TilesScene | null, video: VideoInput): void {
+  render(scene: Scene, chase: Camera, view: G3View, pose: Parameters<FpvCamera["update"]>[0], tiles: readonly TilesScene[], video: VideoInput): void {
     if (this.disposed) return;
     this.renderer.setPixelRatio(1);
     this.renderer.getDrawingBufferSize(this.bufferSize);
@@ -157,10 +157,10 @@ class ProductionPasses {
     if (!color || !fisheye || !gbuffer) return;
     const errorsBefore = this.shaderErrors;
     this.fpv.update(pose);
-    if (tiles !== null) {
-      tiles.tiles.setCamera(this.fpv.camera);
-      tiles.tiles.setResolutionFromRenderer(this.fpv.camera, this.renderer);
-      tiles.update();
+    for (const source of tiles) {
+      source.tiles.setCamera(this.fpv.camera);
+      source.tiles.setResolutionFromRenderer(this.fpv.camera, this.renderer);
+      source.update();
     }
     this.renderer.setRenderTarget(color);
     this.renderer.render(scene, this.fpv.camera);
@@ -185,7 +185,8 @@ class ProductionPasses {
     this.frame = (this.frame + 1) >>> 0;
     this.thermal.setFrameSeed(this.frame);
     this.thermal.render(this.renderer);
-    const bytes = tiles !== null && tiles.modelCount > 0 ? tiles.cachedBytes : 0;
+    let bytes = 0;
+    for (const source of tiles) if (source.modelCount > 0) bytes += source.cachedBytes;
     const probe = this.probe;
     probe.gpuBytes = bytes;
     probe.cpuBytes = bytes;
@@ -231,7 +232,7 @@ function inactive(canvas: HTMLCanvasElement, reason: string): G3Probe {
 
 const VIEW: G3View = g3ViewFromSearch(globalThis.location?.search ?? "");
 
-export function G3Passes({ runtime, tiles }: { runtime: RefObject<SimulationRuntime | null>; tiles: RefObject<TilesScene | null> }) {
+export function G3Passes({ runtime, tiles }: { runtime: RefObject<SimulationRuntime | null>; tiles: RefObject<TilesScene[]> }) {
   const { gl, scene } = useThree();
   const passes = useRef<ProductionPasses | null>(null);
   const pose = useRef(newRenderPoseV2());

@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "description": "TASK-073 terrain and buildings pipeline input. The bounding box selects source data; the area of operation is the runtime flying area. Edit both freely; nothing in code assumes these values.",
+  "bbox": { "minLonDeg": 34.2, "minLatDeg": 29.4, "maxLonDeg": 35.9, "maxLatDeg": 33.4 },
+  "area": { "centerLatDeg": 32.20065261195932, "centerLonDeg": 34.87163838506722, "radiusM": 1000 },
+  "terrain": {
+    "source": "FABDEM V1-2",
+    "archiveUrl": "https://data.bris.ac.uk/datasets/s5hqmjcdj8yo2ibzi9b4ew3sn/{block}_FABDEM_V1-2.zip",
+    "verticalDatum": "EGM2008",
+    "geoidGrid": "us_nga_egm08_25.tif",
+    "maxZoom": 13,
+    "areaMaxZoom": 15,
+    "maxErrorM": 1.0
+  },
+  "buildings": {
+    "source": "Overture Maps building",
+    "defaultHeightM": 6.0,
+    "floorHeightM": 3.0
+  }
+}

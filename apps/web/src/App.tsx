@@ -32,6 +32,7 @@ const TERRAIN = terrainConfigFrom(
   import.meta.env.VITE_MIRAGE_TILESET_URL,
   import.meta.env.VITE_MIRAGE_TILES_ORIGIN,
   import.meta.env.VITE_MIRAGE_TILES_ATTRIBUTION,
+  import.meta.env.VITE_MIRAGE_TERRAIN_URL,
 );
 import { SerialConnect } from "./SerialConnect";
 import {

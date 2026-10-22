@@ -4,7 +4,8 @@
 // p99 limit remains 8.33 ms. A 59.88 Hz panel is an accepted 60 FPS refresh.
 import { execFileSync, spawn } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { join, resolve as resolvePath } from "node:path";
 import { fileURLToPath } from "node:url";
 import os from "node:os";
 import { assertDisplaySurface, decideGpuAcceptance, displayRefreshHz, profileFitsDisplay } from "./gpu-trace.mjs";
@@ -44,6 +45,8 @@ if (invoked && process.argv.length === 2) {
   const directory = option("out", "test-results/gpu");
   // Top-left corner of the display that shows the capture; the window goes fullscreen there.
   const position = option("position", "0,0");
+  // Generated terrain/buildings (scripts/geodata): a folder with terrain/ and/or buildings/.
+  const geodata = option("geodata", null);
   if (!/^-?\d+,-?\d+$/.test(position) || !["webgl2", "webgpu"].includes(backend) || ![60, 120].includes(fps) || !Number.isFinite(warmupS) || warmupS < 1 || warmupS > 600 || !Number.isFinite(durationS) || durationS < 1 || durationS > 3600) {
     console.error("Expected --backend webgl2|webgpu --fps 60|120");
     process.exitCode = 1;
@@ -64,7 +67,7 @@ if (invoked && process.argv.length === 2) {
           process.exitCode = 2;
           return;
         }
-        return measure(backend, fps, warmupS, durationS, directory, position);
+        return measure(backend, fps, warmupS, durationS, directory, position, geodata);
       }).catch(error => {
         const result = report("gpu-report", "BLOCKED_EXTERNAL", [error instanceof Error ? error.message : String(error)]);
         mkdirSync(directory, { recursive: true });
@@ -106,16 +109,36 @@ async function admitDisplay(fps, position) {
   }
 }
 
-async function measure(backend, fps, warmupS, durationS, directory, position) {
+/**
+ * Build-time terrain settings. With --geodata the app loads the generated
+ * quantized-mesh terrain and 3D Tiles buildings served from that folder, placed
+ * at the area origin the terrain build recorded; otherwise the CC0 fixture.
+ */
+function terrainEnv(geodata) {
+  if (geodata === null) {
+    return { VITE_MIRAGE_TILESET_URL: "/fixtures/tiles/tileset.json", VITE_MIRAGE_TILES_ORIGIN: "47.3769,8.5417,400",
+      VITE_MIRAGE_TILES_ATTRIBUTION: "MirageSITL synthetic test tiles (CC0-1.0)" };
+  }
+  const root = resolvePath(geodata);
+  const terrainManifest = join(root, "terrain", "terrain-manifest.json");
+  if (!existsSync(terrainManifest)) throw new Error(`No terrain manifest at ${terrainManifest}`);
+  const manifest = JSON.parse(readFileSync(terrainManifest, "utf8"));
+  const origin = manifest.areaOrigin;
+  if (!origin || ![origin.latDeg, origin.lonDeg, origin.heightM].every(Number.isFinite)) throw new Error("Terrain manifest has no areaOrigin");
+  const env = { MIRAGE_GEODATA_DIR: root, VITE_MIRAGE_TERRAIN_URL: "/geodata/terrain/layer.json",
+    VITE_MIRAGE_TILES_ORIGIN: `${origin.latDeg},${origin.lonDeg},${origin.heightM}`,
+    VITE_MIRAGE_TILES_ATTRIBUTION: "FABDEM V1-2 (CC BY-NC-SA 4.0, contains modified Copernicus DEM); buildings (c) Overture Maps Foundation, OpenStreetMap contributors",
+    VITE_MIRAGE_TILESET_URL: "" };
+  if (Number.isFinite(manifest.areaRadiusM)) env.VITE_MIRAGE_AREA_RADIUS_M = String(manifest.areaRadiusM);
+  if (existsSync(join(root, "buildings", "tileset.json"))) env.VITE_MIRAGE_TILESET_URL = "/geodata/buildings/tileset.json";
+  return env;
+}
+
+async function measure(backend, fps, warmupS, durationS, directory, position, geodata) {
   const { chromium } = await import("@playwright/test");
   mkdirSync(directory, { recursive: true });
   const vite = fileURLToPath(new URL("../node_modules/vite/bin/vite.js", import.meta.url));
-  const env = {
-    ...process.env,
-    VITE_MIRAGE_TILESET_URL: "/fixtures/tiles/tileset.json",
-    VITE_MIRAGE_TILES_ORIGIN: "47.3769,8.5417,400",
-    VITE_MIRAGE_TILES_ATTRIBUTION: "MirageSITL synthetic test tiles (CC0-1.0)",
-  };
+  const env = { ...process.env, ...terrainEnv(geodata) };
   execFileSync(process.execPath, [vite, "build", "apps/web"], { env, stdio: "inherit" });
   // NO_COLOR keeps Vite's banner plain, so the owned-URL readiness check matches on every terminal.
   const server = spawn(process.execPath, [vite, "preview", "apps/web", "--host", "127.0.0.1", "--port", "5175", "--strictPort"], { env: { ...env, NO_COLOR: "1" }, stdio: ["ignore", "pipe", "pipe"] });

@@ -1,0 +1,65 @@
+{
+ "asset": {
+  "version": "1.1",
+  "generator": "MirageSITL tests/fixtures/tiles-implicit/generate.mjs",
+  "extras": {
+   "license": "CC0-1.0",
+   "attribution": "MirageSITL synthetic test tiles (CC0-1.0)",
+   "origin": {
+    "latDeg": 47.3769,
+    "lonDeg": 8.5417,
+    "heightM": 400
+   }
+  }
+ },
+ "geometricError": 200,
+ "root": {
+  "transform": [
+   -0.14852917993721917,
+   0.9889080254033623,
+   0,
+   0,
+   -0.7276623879385627,
+   -0.10929135468143193,
+   0.6771726877033997,
+   0,
+   0.6696615054538567,
+   0.10057990398046858,
+   0.7358241305016804,
+   0,
+   4279222.449193522,
+   642718.417507436,
+   4670534.991947766,
+   1
+  ],
+  "boundingVolume": {
+   "box": [
+    0,
+    0,
+    10,
+    100,
+    0,
+    0,
+    0,
+    100,
+    0,
+    0,
+    0,
+    10
+   ]
+  },
+  "geometricError": 0,
+  "refine": "REPLACE",
+  "content": {
+   "uri": "content/{level}_{x}_{y}.glb"
+  },
+  "implicitTiling": {
+   "subdivisionScheme": "QUADTREE",
+   "subtreeLevels": 1,
+   "availableLevels": 1,
+   "subtrees": {
+    "uri": "subtrees/{level}_{x}_{y}.subtree"
+   }
+  }
+ }
+}

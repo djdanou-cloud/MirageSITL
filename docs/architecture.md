@@ -916,6 +916,49 @@ is bound in `wrangler.jsonc`: enabling persistent R2 caching needs explicit
 permission. Tests use an in-memory emulator of the R2 binding subset, not
 Miniflare.
 
+### Generated terrain and buildings (TASK-073)
+
+`scripts/geodata/` builds the G3 ground from public data, configured by
+`config/geodata.json` (source bounding box, default Israel
+`34.2,29.4,35.9,33.4`; area of operation, default 32.20065261195932 N,
+34.87163838506722 E, radius 1000 m). `setup-wsl.sh` installs the toolchain in
+WSL user space without `sudo` (micromamba with GDAL, PROJ, PostgreSQL/PostGIS
+and the Python packages, the .NET 8 SDK with `pg2b3dm`, the EGM2008 grid) and
+records an explicit package lock.
+
+* `fetch_fabdem.py` reads the FABDEM V1-2 10-degree archives through HTTP byte
+  ranges and extracts only the 1-degree tiles inside the box, with retries.
+* `build_terrain.py` mosaics FABDEM (EGM2008 orthometric), converts it to WGS84
+  ellipsoidal heights (`EPSG:4326+3855` to `EPSG:4979`) and verifies the
+  conversion on identical pixels around the area centre: the median applied
+  difference must equal the EGM2008 undulation there (within 0.5 m, and the
+  undulation must lie in 15-25 m), otherwise the build stops, because a
+  missing grid makes PROJ fall back silently and buildings would float about
+  19 m. It records the ground height at the area centre as the render origin
+  (`areaOrigin`), then cuts quantized-mesh-1.0 tiles (EPSG:4326 TMS,
+  octvertexnormals) with Delatin triangulation in a process pool: zoom 13 over
+  the box and zoom 15 inside the area. Triangles are oriented counter-clockwise
+  seen from above (Delatin's image space reverses the winding).
+* `build_buildings.py` downloads Overture buildings with the `overturemaps`
+  CLI, indexes them as FlatGeobuf, extrudes each footprint to a PolyhedralSurface
+  Z whose base is the lowest geoid-corrected ground height under its vertices
+  (Overture `height`, else `num_floors` x 3 m, else 6 m), loads the solids into
+  a private PostGIS cluster on a Unix socket and runs `pg2b3dm`, which writes a
+  3D Tiles 1.1 implicit-tiling tileset.
+
+The viewer loads each terrain source as its own `TilesScene` sharing one
+origin: `VITE_MIRAGE_TERRAIN_URL` (quantized-mesh `layer.json`, through
+`QuantizedMeshPlugin`) and `VITE_MIRAGE_TILESET_URL` (3D Tiles, through
+`ImplicitTilingPlugin`). With real terrain the flat demo ground is hidden, the
+sky, haze and light are set for daylight and the far plane is 30 km; terrain
+tiles get a matte earth tone. The dev/preview server serves the generated data
+from `MIRAGE_GEODATA_DIR` at `/geodata/` to loopback clients only; the data stay
+outside the repository. Results on 2026-10-22: 9 FABDEM tiles, 19,214 terrain
+tiles (160 MB), geoid check 19.395 m applied against an EGM2008 undulation of
+19.396 m at the area, area ground 62.649 m ellipsoidal; 2,871,993 buildings in
+7,200 tiles (3.5 GB). Only 9,516 buildings carry a height and 26,770 a floor
+count; the rest use the 6 m default. FABDEM is CC BY-NC-SA 4.0 (non-commercial).
+
 ### Renderer adapter: WebGPU with WebGL2 fallback (TASK-066)
 
 `apps/web/src/render/renderer.ts` creates either backend behind one

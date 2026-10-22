@@ -45,3 +45,35 @@ test("reports an unreachable or CORS-blocked tileset as a classified failure", a
   expect(result.failures.map(f => f.kind)).toContain("cors-or-network");
   expect(result.inFlightAfterDispose).toBe(0);
 });
+
+// TASK-073: quantized-mesh terrain (the FABDEM pipeline's format) loads through the same
+// TilesScene placement; the synthetic fixture is flat at 405 m ellipsoidal, origin at 400 m.
+test("places quantized-mesh terrain at its ellipsoidal height", async ({ page }) => {
+  const layerPath = fileURLToPath(new URL("../fixtures/terrain-qm/layer.json", import.meta.url));
+  const layer = JSON.parse(readFileSync(layerPath, "utf8")) as { extras: { origin: { latDeg: number; lonDeg: number; heightM: number }; groundHeightM: number } };
+  await page.goto("/");
+  const result = await page.evaluate(async ({ harnessUrl, url, origin }) => {
+    const h = await import(harnessUrl) as typeof import("../support/terrain-harness");
+    return h.runQuantizedMeshScenario(url, origin);
+  }, { harnessUrl, url: viteFileUrl(new URL("../fixtures/terrain-qm/layer.json", import.meta.url)), origin: layer.extras.origin });
+  expect([result.failures, result.loadErrors]).toEqual([0, 0]);
+  expect(result.models).toBeGreaterThan(0);
+  expect(result.groundY).not.toBeNull();
+  expect(Math.abs((result.groundY ?? 0) - (layer.extras.groundHeightM - layer.extras.origin.heightM))).toBeLessThan(0.5);
+});
+
+// TASK-073: pg2b3dm writes 3D Tiles 1.1 implicit tiling (subtrees + {level}_{x}_{y} content).
+// Without ImplicitTilingPlugin the loader requests the literal template path and gets a 404.
+test("loads an implicit-tiling tileset like its explicit twin", async ({ page }) => {
+  await page.goto("/");
+  const result = await page.evaluate(async ({ harnessUrl, url, origin }) => {
+    const h = await import(harnessUrl) as typeof import("../support/terrain-harness");
+    return h.runTilesScenario(url, origin);
+  }, { harnessUrl, url: viteFileUrl(new URL("../fixtures/tiles-implicit/tileset.json", import.meta.url)), origin });
+  expect(result.failures).toEqual([]);
+  expect(result.loadErrors).toBe(0);
+  expect(result.models).toBe(1);
+  const expectedMin = [-100, 0, -100], expectedMax = [100, 20, 100];
+  result.boxMin.forEach((v, i) => expect(Math.abs(v - expectedMin[i]!), `min ${i}: ${v}`).toBeLessThan(0.01));
+  result.boxMax.forEach((v, i) => expect(Math.abs(v - expectedMax[i]!), `max ${i}: ${v}`).toBeLessThan(0.01));
+});

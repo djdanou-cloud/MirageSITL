@@ -54,33 +54,36 @@ function Vehicle({ runtime }: { runtime: RefObject<SimulationRuntime | null> }) 
     <mesh position={[0, 0.02, -0.3]}><sphereGeometry args={[0.04, 12, 8]} /><meshBasicMaterial color="#4effc6" /></mesh>
   </group>;
 }
-/** Streams one licensed 3D Tiles source in the render loop (never the physics step) and reports failures on change. */
-function TerrainTiles({ config, onFailures, tiles }: { config: TerrainConfig; onFailures: (failures: readonly TileFailure[]) => void; tiles: RefObject<TilesScene | null> }) {
+/**
+ * Streams the configured terrain sources (quantized-mesh ground and/or 3D Tiles
+ * such as buildings) in the render loop, never the physics step, and reports
+ * fetch failures when their count changes. All sources share one origin.
+ */
+function TerrainTiles({ config, onFailures, tiles }: { config: TerrainConfig; onFailures: (failures: readonly TileFailure[]) => void; tiles: RefObject<TilesScene[]> }) {
   const { camera, gl, scene } = useThree();
   const reported = useRef(0);
   useEffect(() => {
     // Loaded on demand: terrain is off by default, so the loader stays out of the main bundle.
-    let instance: TilesScene | null = null, cancelled = false;
+    let instances: TilesScene[] = [], cancelled = false;
     void import('@mirage/terrain/tiles-scene').then(({ TilesScene: Scene }) => {
       if (cancelled) return;
-      instance = new Scene({ ...config, camera, renderer: gl });
-      scene.add(instance.tiles.group);
-      tiles.current = instance;
+      instances = config.sources.map(source => new Scene({ ...config, url: source.url, format: source.format, camera, renderer: gl }));
+      for (const instance of instances) scene.add(instance.tiles.group);
+      tiles.current = instances;
       reported.current = 0;
     });
-    return () => { cancelled = true; instance?.dispose(); tiles.current = null; };
+    return () => { cancelled = true; for (const instance of instances) instance.dispose(); tiles.current = []; };
   }, [config, camera, gl, scene, tiles]);
   useFrame(() => {
-    const instance = tiles.current;
-    if (!instance) return;
-    instance.update();
-    if (instance.failures.length !== reported.current) { reported.current = instance.failures.length; onFailures(instance.failures.slice()); }
+    let failures = 0;
+    for (const instance of tiles.current) { instance.update(); failures += instance.failures.length; }
+    if (failures !== reported.current) { reported.current = failures; onFailures(tiles.current.flatMap(instance => instance.failures)); }
   });
   return null;
 }
 
-function G3Loader({ runtime, tiles }: { runtime: RefObject<SimulationRuntime | null>; tiles: RefObject<TilesScene | null> }) {
-  const [Passes, setPasses] = useState<ComponentType<{ runtime: RefObject<SimulationRuntime | null>; tiles: RefObject<TilesScene | null> }> | null>(null);
+function G3Loader({ runtime, tiles }: { runtime: RefObject<SimulationRuntime | null>; tiles: RefObject<TilesScene[]> }) {
+  const [Passes, setPasses] = useState<ComponentType<{ runtime: RefObject<SimulationRuntime | null>; tiles: RefObject<TilesScene[]> }> | null>(null);
   useEffect(() => {
     let cancelled = false;
     void import('./render/g3-passes').then(module => { if (!cancelled) setPasses(() => module.G3Passes); });
@@ -100,19 +103,25 @@ export function FlightScene({ runtime, terrain = null, onTerrainFailures = () =>
   terrain?: TerrainConfig | null;
   onTerrainFailures?: (failures: readonly TileFailure[]) => void;
 }) {
-  const tiles = useRef<TilesScene | null>(null);
-  return <Canvas shadows dpr={g3 ? 1 : [1, 1.5]} camera={{ position: [4, 3, 5], fov: 48, near: 0.05, far: 2000 }}
+  const tiles = useRef<TilesScene[]>([]);
+  // Real terrain replaces the flat demo field: a daylight sky and kilometre-scale haze
+  // instead of the dark 120 m fog, and a far plane that reaches the horizon.
+  const sky = terrain ? '#a9c0d3' : '#111e29';
+  return <Canvas shadows dpr={g3 ? 1 : [1, 1.5]} camera={{ position: [4, 3, 5], fov: 48, near: 0.05, far: terrain ? 30000 : 2000 }}
     gl={glOption}>
-    <color attach="background" args={['#111e29']} />
-    <fog attach="fog" args={['#111e29', 30, 120]} />
-    <ambientLight intensity={1.1} />
-    <directionalLight position={[6, 12, 4]} intensity={2.2} castShadow shadow-mapSize={[1024, 1024]} />
-    <gridHelper args={[200, 200, '#5d929a', '#345b69']} position={[0, 0.01, 0]} />
+    <color attach="background" args={[sky]} />
+    <fog attach="fog" args={terrain ? [sky, 2000, 25000] : [sky, 30, 120]} />
+    {/* Real terrain: softer ambient and a low sun from the south-west so relief reads. */}
+    <ambientLight intensity={terrain ? 0.45 : 1.1} />
+    <directionalLight position={terrain ? [-6, 7, 8] : [6, 12, 4]} intensity={terrain ? 2.4 : 2.2} castShadow shadow-mapSize={[1024, 1024]} />
+    {!terrain && <>
+      <gridHelper args={[200, 200, '#5d929a', '#345b69']} position={[0, 0.01, 0]} />
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.02, 0]} receiveShadow>
+        <planeGeometry args={[2000, 2000]} /><meshStandardMaterial color="#14232d" roughness={1} />
+      </mesh>
+    </>}
     <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.015, 0]}>
       <ringGeometry args={[1.15, 1.18, 64]} /><meshBasicMaterial color="#70c4b1" transparent opacity={0.55} />
-    </mesh>
-    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.02, 0]} receiveShadow>
-      <planeGeometry args={[2000, 2000]} /><meshStandardMaterial color="#14232d" roughness={1} />
     </mesh>
     {terrain && <TerrainTiles config={terrain} onFailures={onTerrainFailures} tiles={tiles} />}
     {g3 && <G3Loader runtime={runtime} tiles={tiles} />}

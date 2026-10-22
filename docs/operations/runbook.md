@@ -175,6 +175,22 @@ Node's `process.hrtime` on Windows, so the side record keeps only the frames
 inside the measurement window and reports `DisplayedTime` (on-screen time per
 frame), `GPUBusy` and the present mode.
 
+The generated terrain and buildings (see `docs/architecture.md`) are built in
+WSL and never committed:
+
+```bash
+bash scripts/geodata/setup-wsl.sh
+python3 -I scripts/geodata/fetch_fabdem.py --config config/geodata.json --out ~/mirage-geodata/fabdem
+python -I scripts/geodata/build_terrain.py --config config/geodata.json --fabdem ~/mirage-geodata/fabdem --out ~/mirage-geodata/israel/terrain
+python -I scripts/geodata/build_buildings.py --config config/geodata.json --terrain-work ~/mirage-geodata/israel/terrain/_work --work ~/mirage-geodata/buildings-work --out ~/mirage-geodata/israel/buildings
+node scripts/check-gpu-perf.mjs --backend webgl2 --fps 60 --geodata '\\wsl.localhost\Ubuntu\home\<user>\mirage-geodata\israel'
+```
+
+The two `build_*` scripts run inside the `mirage-geo` environment
+(`micromamba run -n mirage-geo ...`). Keep the data out of the repository
+folder (it is synchronised by OneDrive here). Run the capture from PowerShell:
+Git Bash rewrites the `\\wsl.localhost` path.
+
 The Serial controller waits at most 5 seconds for decoder readiness before
 opening the selected device. The existing 500 ms per-chunk backpressure deadline
 is unchanged. A permission grant or this startup handshake cannot enable HITL.

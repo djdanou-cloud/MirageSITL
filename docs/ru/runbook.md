@@ -8,7 +8,7 @@
 PowerShell/zsh и проверки перед расширением поддерживаемого покрытия.
 
 ## Локальные проверки
-<!-- source-sha256: 72fc122fb2454a9a0acbe15e91558240007bc97284f0484e86b3696851fe81c4 -->
+<!-- source-sha256: d3839c050c7ab858339bf75d91bcf0e91b3d59c14e2106af0c81bcf33d431884 -->
 
 Использовать существующий изолированный checkout, сохраняя локальные изменения. Node закреплён .nvmrc; Rust 1.97.0 и wasm32-unknown-unknown — native/rust-toolchain.toml. Зависимости ставить через npm ci. В облаке активировать CARGO_HOME=/workspace/.cache/mirage-cargo, RUSTUP_HOME=/workspace/.cache/mirage-rustup и добавить CARGO_HOME/bin в начало PATH; не переопределять HOME. Запустить lint, typecheck, check:docs, CI=true npm test, npm run build и locked native tests. Запустить npm run dev; проверить HTTP, COOP same-origin, COEP require-corp и настоящий Worker READY. Начать с нулевого газа, армировать, летать, приостановить и сбросить. Браузерные тесты используют системный Chromium только при наличии. Установка/запуск на чистой восстановленной машине для сертификации выпуска ещё не выполнялись.
 
@@ -183,6 +183,22 @@ FPV. Захваты и тесты открывают `view=chase`. PresentMon з
 поэтому сопроводительная запись оставляет только кадры внутри окна измерения и
 сообщает `DisplayedTime` (время показа каждого кадра на экране), `GPUBusy` и
 режим вывода.
+
+Сгенерированные ландшафт и здания (см. `docs/architecture.md`) собираются в WSL и
+никогда не фиксируются:
+
+```bash
+bash scripts/geodata/setup-wsl.sh
+python3 -I scripts/geodata/fetch_fabdem.py --config config/geodata.json --out ~/mirage-geodata/fabdem
+python -I scripts/geodata/build_terrain.py --config config/geodata.json --fabdem ~/mirage-geodata/fabdem --out ~/mirage-geodata/israel/terrain
+python -I scripts/geodata/build_buildings.py --config config/geodata.json --terrain-work ~/mirage-geodata/israel/terrain/_work --work ~/mirage-geodata/buildings-work --out ~/mirage-geodata/israel/buildings
+node scripts/check-gpu-perf.mjs --backend webgl2 --fps 60 --geodata '\\wsl.localhost\Ubuntu\home\<user>\mirage-geodata\israel'
+```
+
+Оба скрипта `build_*` запускаются внутри окружения `mirage-geo`
+(`micromamba run -n mirage-geo ...`). Данные держать вне каталога репозитория
+(здесь он синхронизируется OneDrive). Захват запускать из PowerShell: Git Bash
+переписывает путь `\\wsl.localhost`.
 
 Контроллер Serial ожидает готовность декодера до 5 секунд перед открытием
 выбранного устройства. Существующий тайм-аут обратного давления 500 мс для

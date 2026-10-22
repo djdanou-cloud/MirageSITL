@@ -1,0 +1,138 @@
+{
+ "tilejson": "2.1.0",
+ "name": "MirageSITL synthetic quantized-mesh fixture (CC0-1.0)",
+ "version": "1.0.0",
+ "format": "quantized-mesh-1.0",
+ "scheme": "tms",
+ "projection": "EPSG:4326",
+ "tiles": [
+  "{z}/{x}/{y}.terrain"
+ ],
+ "extensions": [
+  "octvertexnormals"
+ ],
+ "bounds": [
+  -180,
+  -90,
+  180,
+  90
+ ],
+ "minzoom": 0,
+ "maxzoom": 12,
+ "available": [
+  [
+   {
+    "startX": 0,
+    "startY": 0,
+    "endX": 1,
+    "endY": 0
+   }
+  ],
+  [
+   {
+    "startX": 2,
+    "startY": 1,
+    "endX": 2,
+    "endY": 1
+   }
+  ],
+  [
+   {
+    "startX": 4,
+    "startY": 3,
+    "endX": 4,
+    "endY": 3
+   }
+  ],
+  [
+   {
+    "startX": 8,
+    "startY": 6,
+    "endX": 8,
+    "endY": 6
+   }
+  ],
+  [
+   {
+    "startX": 16,
+    "startY": 12,
+    "endX": 16,
+    "endY": 12
+   }
+  ],
+  [
+   {
+    "startX": 33,
+    "startY": 24,
+    "endX": 33,
+    "endY": 24
+   }
+  ],
+  [
+   {
+    "startX": 67,
+    "startY": 48,
+    "endX": 67,
+    "endY": 48
+   }
+  ],
+  [
+   {
+    "startX": 134,
+    "startY": 97,
+    "endX": 134,
+    "endY": 97
+   }
+  ],
+  [
+   {
+    "startX": 268,
+    "startY": 195,
+    "endX": 268,
+    "endY": 195
+   }
+  ],
+  [
+   {
+    "startX": 536,
+    "startY": 390,
+    "endX": 536,
+    "endY": 390
+   }
+  ],
+  [
+   {
+    "startX": 1072,
+    "startY": 781,
+    "endX": 1072,
+    "endY": 781
+   }
+  ],
+  [
+   {
+    "startX": 2145,
+    "startY": 1563,
+    "endX": 2145,
+    "endY": 1563
+   }
+  ],
+  [
+   {
+    "startX": 4290,
+    "startY": 3126,
+    "endX": 4290,
+    "endY": 3126
+   }
+  ]
+ ],
+ "attribution": "MirageSITL synthetic quantized-mesh fixture (CC0-1.0)",
+ "extras": {
+  "origin": {
+   "latDeg": 47.3769,
+   "lonDeg": 8.5417,
+   "heightM": 400.0
+  },
+  "groundHeightM": 405.0,
+  "license": "CC0-1.0"
+ }
+}
