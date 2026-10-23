@@ -488,3 +488,21 @@ Still needed for a `PASS`:
 * **Baseline surface on the panel:** set the panel to 1920 x 1080 at 144 Hz, 100% scaling, so the 60 and 120 FPS profiles can be scored.
 * **RTX 4050 on the panel:** assign Chrome to the high-performance GPU in Windows graphics settings; otherwise the panel runs on the iGPU.
 * **M4:** repeat the 60 FPS capture with the scene filling the display (the operator provides the Mac).
+
+## 11. Operator answers, third round (2026-10-23)
+
+These answers replace the device and resolution rules of sections 2.2, 2.4 and
+5 for the gate.
+
+| Question | Answer |
+| --- | --- |
+| What decides TASK-073 | A 1920 x 1080 canvas at 1x scale on an integrated GPU, 60 FPS, on WebGL2 and WebGPU, at the accepted limits (median 16.680 ms, p99 17.665 ms) |
+| Which integrated GPU | The least performant of the tested ones |
+| Other machines, screens and GPUs | Tested, but they do not decide; recorded in [DEVICE_RATINGS.md](DEVICE_RATINGS.md) |
+| Rating | Every computer + screen + GPU combination gets a score out of 100: pacing 50, sustained FPS 20, median 10, features and flight 10, memory headroom 10 |
+
+The harness, analyzer and registry implementing this are `scripts/check-gpu-perf.mjs`,
+`scripts/gpu-trace.mjs` and `scripts/gpu-ratings.mjs`. Still needed: 10-minute
+WebGL2 and WebGPU captures at 1920 x 1080 and 1x on every tested integrated GPU
+(Apple M4, Intel Graphics in the RTX 4050 laptop, Apple M5), with the machine on
+AC power, the lid open and the machine untouched.

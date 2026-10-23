@@ -8,7 +8,7 @@
 PowerShell/zsh и проверки перед расширением поддерживаемого покрытия.
 
 ## Локальные проверки
-<!-- source-sha256: 3803d2ec9b6b4b3e08841724a3d431ad67b8a82d88009dcc5426dbe05b2e8a98 -->
+<!-- source-sha256: e3197b2187a05bf053908cdeb70976187261a08e8371b6a89e92421e7f687d4d -->
 
 Использовать существующий изолированный checkout, сохраняя локальные изменения. Node закреплён .nvmrc; Rust 1.97.0 и wasm32-unknown-unknown — native/rust-toolchain.toml. Зависимости ставить через npm ci. В облаке активировать CARGO_HOME=/workspace/.cache/mirage-cargo, RUSTUP_HOME=/workspace/.cache/mirage-rustup и добавить CARGO_HOME/bin в начало PATH; не переопределять HOME. Запустить lint, typecheck, check:docs, CI=true npm test, npm run build и locked native tests. Запустить npm run dev; проверить HTTP, COOP same-origin, COEP require-corp и настоящий Worker READY. Начать с нулевого газа, армировать, летать, приостановить и сбросить. Браузерные тесты используют системный Chromium только при наличии. Установка/запуск на чистой восстановленной машине для сертификации выпуска ещё не выполнялись.
 
@@ -121,6 +121,27 @@ terrain/FPV/thermal TASK-073, её ограничениям памяти или 
 node scripts/check-gpu-perf.mjs --backend webgl2 --fps 60
 node scripts/check-gpu-perf.mjs --backend webgl2 --fps 120
 ```
+
+С 2026-10-23 (решение пользователя) каждый компьютер, экран и GPU измеряется и
+оценивается из 100, а к критерию допускается только холст 1920×1080 при 1x на
+встроенном GPU в профиле 60 FPS. Каждый захват пишет `run-record.json`;
+добавьте его в `docs/benchmarks/device-results.json`, и реестр решит TASK-073 по
+наименее производительному из протестированных встроенных GPU; затем обновите
+[DEVICE_RATINGS.md](DEVICE_RATINGS.md) и его источник:
+
+```bash
+node scripts/check-gpu-perf.mjs --backend webgl2 --fps 60 --geodata PATH --machine "LABEL" --screen "LABEL"
+node scripts/check-gpu-perf.mjs --backend webgpu --fps 60 --geodata PATH --machine "LABEL" --screen "LABEL"
+node scripts/gpu-ratings.mjs add test-results/gpu/run-record.json
+node scripts/gpu-ratings.mjs decide
+```
+
+Держите машину от сети, с открытой крышкой и нетронутой на протяжении всего
+захвата. Окно, которое машина проспала (настенное время опережает монотонное
+более чем на 2 с), получает `BLOCKED_EXTERNAL`: macOS приостанавливает
+`performance.now()` во сне, поэтому каждое пробуждение выглядит как короткая
+задержка и может вызвать таймаут ввода пилота 250 мс. Абзацы ниже фиксируют
+прежний контракт.
 
 Он раздаёт локальную фикстуру тайлов CC0 и измеряет сцену с установленной FPV,
 fisheye, аналоговым видео и синтетическим LWIR на 1920×1080 при DPR 1 после

@@ -118,6 +118,26 @@ node scripts/check-gpu-perf.mjs --backend webgl2 --fps 60
 node scripts/check-gpu-perf.mjs --backend webgl2 --fps 120
 ```
 
+Since 2026-10-23 (user decision) every machine, screen and GPU is measured and
+rated out of 100, and only a 1920×1080 canvas at 1x on an integrated GPU in the
+60 FPS profile is gate-eligible. Each capture writes `run-record.json`; add it to
+`docs/benchmarks/device-results.json` and let the registry decide TASK-073 from
+the least performant tested integrated GPU, then update
+[DEVICE_RATINGS.md](../DEVICE_RATINGS.md) and its mirror:
+
+```bash
+node scripts/check-gpu-perf.mjs --backend webgl2 --fps 60 --geodata PATH --machine "LABEL" --screen "LABEL"
+node scripts/check-gpu-perf.mjs --backend webgpu --fps 60 --geodata PATH --machine "LABEL" --screen "LABEL"
+node scripts/gpu-ratings.mjs add test-results/gpu/run-record.json
+node scripts/gpu-ratings.mjs decide
+```
+
+Keep the machine on AC power with the lid open and untouched for the whole
+capture. A window the machine slept through (wall time leading monotonic time by
+more than 2 s) is `BLOCKED_EXTERNAL`: macOS pauses `performance.now()` in sleep,
+so each wake looks like a short stall and can trip the 250 ms pilot-input
+timeout. The paragraphs below record the earlier contract.
+
 It serves the local CC0 tiles fixture and measures the mounted FPV, fisheye,
 analog, and synthetic LWIR scene at 1920×1080 DPR 1 after 60 s warmup and 600 s
 of visible frames. WebGPU exits `BLOCKED_EXTERNAL` because fisheye and thermal

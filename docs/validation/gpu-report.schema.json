@@ -14,12 +14,16 @@
       "const": 1
     },
     "kind": {
-      "const": "gpu-report"
+      "enum": [
+        "gpu-run",
+        "gpu-report"
+      ]
     },
     "status": {
       "enum": [
         "PASS",
         "FAIL",
+        "INFO",
         "BLOCKED_EXTERNAL"
       ]
     },

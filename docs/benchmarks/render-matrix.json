@@ -1,28 +1,50 @@
 {
-  "schemaVersion": 1,
-  "devices": [
-    "M4",
-    "RTX4050"
-  ],
-  "backends": [
-    "webgl2",
-    "webgpu"
-  ],
-  "fps": [
-    60,
-    120
-  ],
-  "resolution": [
-    1920,
-    1080
-  ],
-  "dpr": 1,
-  "warmupS": 60,
-  "durationS": 600,
-  "features": [
-    "terrain",
-    "fpv",
-    "thermal"
-  ],
+  "schemaVersion": 2,
+  "decision": "2026-10-23",
+  "gate": {
+    "gpuClass": "integrated",
+    "gateDevice": "least performant tested integrated GPU",
+    "backends": [
+      "webgl2",
+      "webgpu"
+    ],
+    "fps": 60,
+    "canvas": [
+      1920,
+      1080
+    ],
+    "dpr": 1,
+    "minRefreshHz": 58,
+    "warmupS": 60,
+    "durationS": 600,
+    "p50LimitMs": 16.68,
+    "p99LimitMs": 17.665,
+    "gpuBudgetBytes": 2147483648,
+    "cpuBudgetBytes": 536870912,
+    "features": [
+      "terrain",
+      "fpv",
+      "thermal"
+    ],
+    "scriptedFlight": "airborne for the whole measurement window"
+  },
+  "informational": {
+    "gpuClasses": [
+      "integrated",
+      "discrete",
+      "unknown"
+    ],
+    "backends": [
+      "webgl2",
+      "webgpu"
+    ],
+    "fps": [
+      60,
+      120
+    ],
+    "canvas": "any",
+    "ratings": "docs/DEVICE_RATINGS.md",
+    "registry": "docs/benchmarks/device-results.json"
+  },
   "status": "BLOCKED_EXTERNAL"
 }
