@@ -241,7 +241,9 @@ async function measure(backend, fps, warmupS, durationS, directory, position, ge
         flight.push({ s: Math.round((globalThis.performance.now() - started) / 1000), altitude: text("[data-testid=altitude]"), position: text(".coordinates"),
           simTime: text("[data-testid=sim-time]"), physicsHz: text("[data-testid=physics-hz]"),
           inputFailsafe: (globalThis.document.body.textContent ?? "").includes("DISARMED / STALE"),
-          armed: Array.from(globalThis.document.querySelectorAll("button")).some(button => button.textContent?.includes("Disarm motors")), maxFrameGapMs: Math.round(maxGapMs) });
+          armed: Array.from(globalThis.document.querySelectorAll("button")).some(button => button.textContent?.includes("Disarm motors")), maxFrameGapMs: Math.round(maxGapMs),
+          // Worker diagnostic: the pilot sample that blocked the armed latch (null while none was rejected).
+          pilotRejection: Reflect.get(globalThis, "__miragePilotRejection") ?? null });
         maxGapMs = 0;
       }, 1000);
       globalThis.requestAnimationFrame(gapProbe);

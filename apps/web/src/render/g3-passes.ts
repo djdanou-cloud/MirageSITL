@@ -27,6 +27,10 @@ import { LENS, PROFILE, THERMAL_SUPERSAMPLE, ThermalSceneState, newProbe, publis
 import { g3ViewFromSearch, type G3View } from "./g3-mode";
 import type { MaterialDrape } from "./material-drape";
 import { ThermalGBuffer } from "./thermal-gbuffer";
+import { GpuPassTimer, type G3Pass } from "./gpu-pass-timer";
+
+/** `?g3profile=1`: per-pass GPU timing published as probe.passMs (diagnostics only). */
+const PROFILE_PASSES = new URLSearchParams(globalThis.location?.search ?? "").get("g3profile") === "1";
 
 export type { G3Probe, ThermalLocation } from "./g3-common";
 
@@ -38,7 +42,9 @@ const PRESENT_FRAGMENT = "varying vec2 vUv;\nuniform sampler2D uSource;\nvoid ma
  * scene render is 4x multisampled (TASK-073: the point-sampled chain aliased).
  */
 function colorTarget(width: number, height: number, samples = 0): WebGLRenderTarget {
-  const target = new WebGLRenderTarget(width, height, { depthBuffer: true, samples });
+  // Only colour is read downstream: resolving the multisampled depth/stencil too cost about 6 ms per
+  // frame on an Intel iGPU (ANGLE/D3D11 resolves depth with a shader), for no visible change.
+  const target = new WebGLRenderTarget(width, height, { depthBuffer: true, samples, resolveDepthBuffer: false, resolveStencilBuffer: false });
   target.texture.minFilter = LinearFilter;
   target.texture.magFilter = LinearFilter;
   target.texture.generateMipmaps = false;
@@ -88,8 +94,12 @@ class ProductionPasses implements G3PassSet {
   private readonly bufferSize = new Vector2();
   private previousShaderError: WebGLRenderer["debug"]["onShaderError"] = null;
   private disposed = false;
+  private readonly timer: GpuPassTimer | null;
 
   constructor(private readonly renderer: WebGLRenderer, location: ThermalLocation) {
+    const context = renderer.getContext();
+    this.timer = PROFILE_PASSES && context instanceof WebGL2RenderingContext ? GpuPassTimer.create(context) : null;
+    if (this.timer) Reflect.set(this.probe, "passMs", this.timer.meanMs);
     // A square placeholder puts the 120 deg corners past the 80 deg pinhole limit. 16:9 stays inside it; the real buffer size is applied in ensureSize.
     this.fpv = new FpvCamera(LENS, 16, 9);
     this.video = new AnalogVideo(DEFAULT_VIDEO_NOISE);
@@ -164,21 +174,29 @@ class ProductionPasses implements G3PassSet {
       source.tiles.setResolutionFromRenderer(this.fpv.camera, this.renderer);
       source.update();
     }
+    // The scene is rendered up to three times per frame (FPV, chase, thermal G-buffer) and nothing moves in
+    // between, so the shadow map is rendered once, by the first pass, instead of on every render() call.
+    const shadowMap = this.renderer.shadowMap, shadowAuto = shadowMap.autoUpdate;
+    shadowMap.autoUpdate = false;
+    shadowMap.needsUpdate = shadowAuto;
+    const timer = this.timer;
+    const begin = (pass: G3Pass) => timer?.begin(pass);
+    const end = () => timer?.end();
     this.renderer.setRenderTarget(color);
-    this.renderer.render(scene, this.fpv.camera);
+    begin("fpvScene"); this.renderer.render(scene, this.fpv.camera); end();
     this.renderer.setRenderTarget(fisheye);
-    this.renderer.render(this.fisheyeScene, this.ortho);
+    begin("fisheye"); this.renderer.render(this.fisheyeScene, this.ortho); end();
     this.video.updateFrom(video);
     if (view === "fpv") {
       this.renderer.setRenderTarget(null);
-      this.renderer.render(this.analogScene, this.ortho);
+      begin("analog"); this.renderer.render(this.analogScene, this.ortho); end();
     } else {
       // Chase and thermal views: the FPV chain still runs to its own target.
       this.renderer.setRenderTarget(this.analog);
-      this.renderer.render(this.analogScene, this.ortho);
+      begin("analog"); this.renderer.render(this.analogScene, this.ortho); end();
       if (view === "chase") {
         this.renderer.setRenderTarget(null);
-        this.renderer.render(scene, chase);
+        begin("chaseScene"); this.renderer.render(scene, chase); end();
       }
     }
     // The thermal camera is boresighted with the FPV mount; while the shutter is closed the last image is held.
@@ -190,19 +208,21 @@ class ProductionPasses implements G3PassSet {
       scene.background = null; // cleared texels (alpha 0) are sky
       this.renderer.setClearAlpha(0);
       this.renderer.setRenderTarget(gbuffer);
-      this.renderer.render(scene, state.camera);
+      begin("gbuffer"); this.renderer.render(scene, state.camera); end();
       this.renderer.setClearAlpha(previousAlpha);
       scene.background = previousBackground;
       scene.overrideMaterial = previousOverride;
       this.frame = (this.frame + 1) >>> 0;
       this.thermal.setFrameSeed(this.frame);
-      this.thermal.render(this.renderer);
+      begin("thermal"); this.thermal.render(this.renderer); end();
     }
     if (view === "thermal") {
       this.renderer.setRenderTarget(null);
       this.renderer.clear();
-      this.renderer.render(this.presentScene, this.ortho);
+      begin("present"); this.renderer.render(this.presentScene, this.ortho); end();
     }
+    shadowMap.autoUpdate = shadowAuto;
+    timer?.poll();
     const bytes = residentBytes(tiles);
     const probe = this.probe;
     probe.gpuBytes = bytes;
@@ -223,6 +243,7 @@ class ProductionPasses implements G3PassSet {
     if (this.disposed) return;
     this.disposed = true;
     this.renderer.debug.onShaderError = this.previousShaderError;
+    this.timer?.dispose();
     this.color?.dispose();
     this.fisheye?.dispose();
     this.analog?.dispose();

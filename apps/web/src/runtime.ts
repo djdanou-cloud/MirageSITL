@@ -126,6 +126,8 @@ export class SimulationRuntime {
     { type: "module", name: "mirage-physics" },
   );
   source: "demo" | "usb" | "script" = "demo";
+  /** Last `pilot.rejected` diagnostic from the Worker (TASK-073), or null. */
+  pilotRejection: PilotRejectionNotice | null = null;
   demoThrottle = 0;
   /** TASK-073 scripted flight: a closed-loop pilot that only moves the sticks. */
   scripted: ScriptedPilot | null = null;
@@ -161,6 +163,13 @@ export class SimulationRuntime {
       const rejection = scenarioRejection(data);
       if (rejection) {
         this.notice = rejection;
+        return;
+      }
+      if (isPilotRejection(data)) {
+        // Diagnostics (TASK-073): the Worker blocked the armed latch on an invalid pilot sample.
+        this.pilotRejection = data;
+        Reflect.set(globalThis, "__miragePilotRejection", data); // read by the G3 capture's flight log
+        console.warn("Pilot sample rejected; armed latch blocked", JSON.stringify(data));
         return;
       }
       this.onWorkerEvent(data);
@@ -478,6 +487,15 @@ function scenarioSubmit(data: unknown): ControlCommandV2 | null {
   if (typeof data !== "object" || data === null || !("type" in data) || data.type !== "scenario.submit" || !("command" in data)) return null;
   const parsed = parseControlCommandV2(data.command);
   return parsed.ok ? parsed.command : null;
+}
+export interface PilotRejectionNotice {
+  type: "pilot.rejected"; count: number; ageMs: number; wallMs: number; sampleWallMs: number; sampleId: number;
+  expectedEpoch: number; sessionEpoch: number; flags: number; valuesValid: boolean;
+}
+function isPilotRejection(data: unknown): data is PilotRejectionNotice {
+  if (typeof data !== "object" || data === null || !("type" in data) || data.type !== "pilot.rejected") return false;
+  const numbers = ["count", "ageMs", "wallMs", "sampleWallMs", "sampleId", "expectedEpoch", "sessionEpoch", "flags"] as const;
+  return numbers.every(key => key in data && typeof Reflect.get(data, key) === "number") && "valuesValid" in data && typeof data.valuesValid === "boolean";
 }
 function scenarioRejection(data: unknown): string | null {
   if (typeof data !== "object" || data === null || !("type" in data) || data.type !== "scenario.reject" || !("message" in data) || typeof data.message !== "string") return null;

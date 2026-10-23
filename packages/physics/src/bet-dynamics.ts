@@ -1,5 +1,5 @@
 /** Configurable rigid-rotor BET flight dynamics; one WASM body integrator owns truth. */
-import { ControlFlag, INPUT_TIMEOUT_MS, StateFlag, ActuatorFlagV2, newState,
+import { ControlFlag, INPUT_CLOCK_TOLERANCE_MS, INPUT_TIMEOUT_MS, StateFlag, ActuatorFlagV2, newState,
   type PilotInput, type PhysicsHz, type ActuatorFrameV2 } from '@mirage/protocol';
 import { BetRotorEngine, type BoundPolar } from '../../wasm-bet/src/rotor.ts';
 import { BetRigidBodyBackend, newBodyTruth, type BodyTruth } from '../../wasm-bet/src/backend.ts';
@@ -119,7 +119,7 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
     const cx=y*vz-z*vy,cy=z*vx-x*vz,cz=x*vy-y*vx;
     const fx=vx+2*(w*cx+y*cz-z*cy),fy=vy+2*(w*cy+z*cx-x*cz),fz=vz+2*(w*cz+x*cy-y*cx);
     const age=this.nowMs-pilot.wallTimeMs;
-    const valid=(pilot.flags&(ControlFlag.Connected|ControlFlag.Armed))===3 && age>=0 && age<=INPUT_TIMEOUT_MS &&
+    const valid=(pilot.flags&(ControlFlag.Connected|ControlFlag.Armed))===3 && age>=-INPUT_CLOCK_TOLERANCE_MS && age<=INPUT_TIMEOUT_MS &&
       Number.isFinite(pilot.throttle) && Number.isFinite(pilot.roll) && Number.isFinite(pilot.pitch) && Number.isFinite(pilot.yaw);
     const external=this.pendingActuator;let sum=0;
     if(!external)this.externalArmed=false;

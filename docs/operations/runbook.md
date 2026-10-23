@@ -214,7 +214,9 @@ node scripts/check-gpu-perf.mjs --backend webgl2 --fps 60 --geodata '\\wsl.local
 `--chrome-args "--disable-direct-composition"` passes Chrome switches to the measured browser; they are recorded in the trace, the report
 metrics and the browser identity, so a verdict always names its Chrome configuration. The gate also scores PresentMon's displayed-frame
 times with the same limits as the frame clock; on Windows PresentMon must be available (see the PresentMon notes above), otherwise a gate-eligible run is
-`BLOCKED_EXTERNAL` (other runs are still rated).
+`BLOCKED_EXTERNAL` (other runs are still rated). Each flight-log sample records `pilotRejection`, the Worker's diagnostic for a
+pilot sample that blocked the armed latch. Open the page with `?g3profile=1` to publish per-pass WebGL2 GPU times (`passMs` on the
+G3 probe), and add `--chrome-args "--force_low_power_gpu"` to render on the integrated GPU.
 To find why frames are late, `node scripts/diagnose-pacing.mjs --geodata DIR [--backend webgpu] [--chrome-args "--disable-direct-composition"]`
 records a 45 s Chrome trace, PresentMon and 10 Hz `nvidia-smi` samples (about 300 MB per trace, in `test-results/pacing/`), and
 `node --max-old-space-size=8192 scripts/analyze-pacing.mjs test-results/pacing/pacing-webgl2.json` compares missed and on-time frames.

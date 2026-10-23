@@ -8,7 +8,7 @@
 PowerShell/zsh и проверки перед расширением поддерживаемого покрытия.
 
 ## Локальные проверки
-<!-- source-sha256: 0d825181b37e12f1c7262d811e2f6b61f6f09c530c01805f05775923421ce907 -->
+<!-- source-sha256: da7b0d99f5c5f2ce1313935a8b48677369ad6c864927fa0d7972b468d6697aaf -->
 
 Использовать существующий изолированный checkout, сохраняя локальные изменения. Node закреплён .nvmrc; Rust 1.97.0 и wasm32-unknown-unknown — native/rust-toolchain.toml. Зависимости ставить через npm ci. В облаке активировать CARGO_HOME=/workspace/.cache/mirage-cargo, RUSTUP_HOME=/workspace/.cache/mirage-rustup и добавить CARGO_HOME/bin в начало PATH; не переопределять HOME. Запустить lint, typecheck, check:docs, CI=true npm test, npm run build и locked native tests. Запустить npm run dev; проверить HTTP, COOP same-origin, COEP require-corp и настоящий Worker READY. Начать с нулевого газа, армировать, летать, приостановить и сбросить. Браузерные тесты используют системный Chromium только при наличии. Установка/запуск на чистой восстановленной машине для сертификации выпуска ещё не выполнялись.
 
@@ -224,7 +224,9 @@ node scripts/check-gpu-perf.mjs --backend webgl2 --fps 60 --geodata '\\wsl.local
 `--chrome-args "--disable-direct-composition"` передаёт ключи Chrome измеряемому браузеру; они записываются в трассу, метрики отчёта
 и идентификатор браузера, поэтому вердикт всегда называет свою конфигурацию Chrome. Критерий также оценивает время показа кадров по
 PresentMon с теми же пределами, что и часы кадров; в Windows PresentMon должен быть доступен (см. заметки о PresentMon выше), иначе допущенный к критерию прогон —
-`BLOCKED_EXTERNAL` (прочие прогоны всё равно оцениваются).
+`BLOCKED_EXTERNAL` (прочие прогоны всё равно оцениваются). Каждый отсчёт журнала полёта записывает `pilotRejection` — диагностику
+Worker для образца пилота, заблокировавшего защёлку вооружения. Откройте страницу с `?g3profile=1`, чтобы публиковать время GPU по
+проходам WebGL2 (`passMs` в пробе G3), и добавьте `--chrome-args "--force_low_power_gpu"`, чтобы рендерить на встроенном GPU.
 Чтобы выяснить причину поздних кадров, `node scripts/diagnose-pacing.mjs --geodata DIR [--backend webgpu] [--chrome-args "--disable-direct-composition"]`
 записывает трассу Chrome за 45 с, PresentMon и отсчёты `nvidia-smi` с частотой 10 Гц (около 300 МБ на трассу, в `test-results/pacing/`), а
 `node --max-old-space-size=8192 scripts/analyze-pacing.mjs test-results/pacing/pacing-webgl2.json` сравнивает пропущенные и своевременные кадры.
