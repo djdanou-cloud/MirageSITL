@@ -78,6 +78,7 @@ memory   = 1 - max(GPU peak / 2 GiB, CPU peak / 512 MiB), floored at 0
 | RTX 4050 laptop (Windows 11, 13th Gen Intel) | External 1920 x 1080 60 Hz (DISPLAY5) | ANGLE (NVIDIA, NVIDIA GeForce RTX 4050 Laptop GPU Direct3D11) (discrete) | geodata | 33-53 (provisional) | not run |
 | RTX 4050 laptop (Windows 11, 13th Gen Intel) | Internal 1920 x 1200 144 Hz panel (DISPLAY1), 100% scaling | ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11) (integrated) | geodata | 62-82 (provisional) | 0-20 (provisional) |
 | MacBook M5 (14-inch) | Built-in Liquid Retina 2880 x 1864, UI 1710 x 1107 @ 59.88 Hz, 2x scale | ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version) (integrated) | fixture | 90 (excellent) | not run |
+| RTX 4050 laptop (Windows 11, 13th Gen Intel) | External 1920 x 1080 60 Hz (DISPLAY5) | ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11 vs_5_0 ps_5_0, D3D11) (integrated) | geodata | 69 (usable) | not run |
 
 Notes:
 
@@ -92,8 +93,21 @@ Notes:
 * **Intel iGPU on the internal 144 Hz panel:** P7 panel runs of 2026-10-22 at
   1920 x 1200, so not gate-eligible. Frames and missed refreshes are derived
   from the reported mean FPS. WebGPU at 60 FPS rated 70-90 and WebGL2 54-74;
-  the 120 FPS profile reached only 58.7 and 83.7 FPS on average. This GPU needs
-  1920 x 1080 runs before the gate can be decided.
+  the 120 FPS profile reached only 58.7 and 83.7 FPS on average.
+* **Intel iGPU on the external display (gate runs):** 2026-10-23, Chrome 155
+  with `--force_low_power_gpu`, Balanced power, 1920 x 1080 at 1x on the
+  external 59.88 Hz monitor over the Israel area, with terrain, FPV and thermal
+  held and the scripted flight airborne for the whole 600 s. Both runs FAIL.
+  WebGL2: median 16.655 ms, p99 27.685 ms, 447 missed refreshes; PresentMon
+  displayed median 17.052 ms and p99 57.041 ms, and 10,191 of 35,660 presented
+  frames were never displayed. WebGPU: median 16.670 ms, p99 24.040 ms, 378
+  missed; displayed p99 50.008 ms, 3,929 of 35,713 never displayed. The Chrome
+  GPU process used only shared memory (no dedicated VRAM), so both backends
+  rendered on the Intel GPU (GPU busy median 11.4 and 11.2 ms). The external
+  monitor is driven by the NVIDIA GPU, so every frame crosses adapters and is
+  composed by DWM (present mode `Composed: Flip`); a 1920 x 1080 display
+  driven by the Intel GPU itself has not been measured. The historical rows of
+  this laptop now carry the full renderer strings their captures recorded.
 * **MacBook M5:** 2026-10-22 with the pre-rewrite harness over the fixture
   terrain. Frame pacing was excellent (median 16.665 ms, p99 17.670 ms, no
   missed refresh), but the scripted flight fell after about 11 s and the
@@ -105,9 +119,12 @@ Notes:
 
 `node scripts/gpu-ratings.mjs decide` reports **`BLOCKED_EXTERNAL`**: three
 integrated GPUs have been tested (Apple M4, Intel Graphics in the RTX 4050
-laptop, Apple M5) and none has a gate-eligible run yet, so the least
-performant one is unknown. Each needs 10-minute WebGL2 and WebGPU captures on a
-1920 x 1080 display at 1x scale (for the Macs, an external 1920 x 1080 monitor
+laptop, Apple M5). The Intel iGPU has gate-eligible runs on both backends and
+both FAIL (frame-clock p99 27.685 ms on WebGL2 and 24.040 ms on WebGPU,
+displayed p99 57.041 and 50.008 ms; mean rating 69). The M4 and M5 have no
+gate-eligible run yet, so the least performant integrated GPU is unknown; if
+it is the Intel iGPU, TASK-073 fails. The Macs need 10-minute WebGL2 and
+WebGPU captures on a 1920 x 1080 display at 1x scale (an external 1920 x 1080 monitor
 or a 1920 x 1080 scaled mode with the window filling the screen at DPR 1).
 
 ## 5. All runs
@@ -122,6 +139,8 @@ or a 1920 x 1080 scaled mode with the window filling the screen at DPR 1).
 | RTX 4050 laptop (Windows 11, 13th Gen Intel) | Internal 1920 x 1200 144 Hz panel (DISPLAY1), 100% scaling | ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11) (integrated) | webgl2 120 FPS | 1920 x 1200 at 1x | geodata | 14.080 / 22.320 | 36780 | INFO | 0-20 (provisional: flight, memory not recorded) |
 | RTX 4050 laptop (Windows 11, 13th Gen Intel) | Internal 1920 x 1200 144 Hz panel (DISPLAY1), 100% scaling | ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11) (integrated) | webgpu 120 FPS | 1920 x 1200 at 1x | geodata | 13.770 / 21.040 | 21780 | INFO | 0-20 (provisional: flight, memory not recorded) |
 | MacBook M5 (14-inch) | Built-in Liquid Retina 2880 x 1864, UI 1710 x 1107 @ 59.88 Hz, 2x scale | ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version) (integrated) | webgl2 60 FPS | 1710 x 985 at 1x | fixture | 16.665 / 17.670 | 0 | INFO | 90 (excellent) |
+| RTX 4050 laptop (Windows 11, 13th Gen Intel) | External 1920 x 1080 60 Hz (DISPLAY5) | ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11 vs_5_0 ps_5_0, D3D11) (integrated) | webgl2 60 FPS | 1920 x 1080 at 1x | geodata | 16.655 / 27.685 | 447 | FAIL | 63 (usable) |
+| RTX 4050 laptop (Windows 11, 13th Gen Intel) | External 1920 x 1080 60 Hz (DISPLAY5) | ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11 vs_5_0 ps_5_0, D3D11) (integrated) | webgpu 60 FPS | 1920 x 1080 at 1x | geodata | 16.670 / 24.040 | 378 | FAIL | 75 (good) |
 
 ## 6. Adding a run
 

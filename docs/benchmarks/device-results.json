@@ -85,7 +85,7 @@
         "scale": 1
       },
       "gpu": {
-        "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 4050 Laptop GPU Direct3D11)",
+        "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 4050 Laptop GPU (0x000028A1) Direct3D11 vs_5_0 ps_5_0, D3D11)",
         "kind": "discrete"
       },
       "browser": "Chrome 155.0.8059.85",
@@ -153,7 +153,7 @@
         "scale": 1
       },
       "gpu": {
-        "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 4050 Laptop GPU Direct3D11)",
+        "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 4050 Laptop GPU (0x000028A1) Direct3D11 vs_5_0 ps_5_0, D3D11)",
         "kind": "discrete"
       },
       "browser": "Chrome 155.0.8059.85",
@@ -221,7 +221,7 @@
         "scale": 1
       },
       "gpu": {
-        "renderer": "ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11)",
+        "renderer": "ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11 vs_5_0 ps_5_0, D3D11)",
         "kind": "integrated"
       },
       "browser": "Chrome 155.0.8059.85",
@@ -289,7 +289,7 @@
         "scale": 1
       },
       "gpu": {
-        "renderer": "ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11)",
+        "renderer": "ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11 vs_5_0 ps_5_0, D3D11)",
         "kind": "integrated"
       },
       "browser": "Chrome 155.0.8059.85",
@@ -357,7 +357,7 @@
         "scale": 1
       },
       "gpu": {
-        "renderer": "ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11)",
+        "renderer": "ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11 vs_5_0 ps_5_0, D3D11)",
         "kind": "integrated"
       },
       "browser": "Chrome 155.0.8059.85",
@@ -425,7 +425,7 @@
         "scale": 1
       },
       "gpu": {
-        "renderer": "ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11)",
+        "renderer": "ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11 vs_5_0 ps_5_0, D3D11)",
         "kind": "integrated"
       },
       "browser": "Chrome 155.0.8059.85",
@@ -536,6 +536,143 @@
       },
       "traceSha256": null,
       "notes": "test-results/gpu/m5-webgl2-60 on the M5. Canvas size taken from the window (the old harness zeroed it). The 2026-10-22 rerun (m5-webgl2-60-r2) is excluded: the machine slept through it with the lid closed."
+    },
+    {
+      "schemaVersion": 1,
+      "source": "harness",
+      "recordedAt": "2026-10-23T16:59:36.092Z",
+      "machine": {
+        "label": "RTX 4050 laptop (Windows 11, 13th Gen Intel)",
+        "hostModel": "Intel(R) Core(TM) 7 240H",
+        "os": "win32 10.0.26200"
+      },
+      "screen": {
+        "label": "External 1920 x 1080 60 Hz (DISPLAY5)",
+        "refreshHz": 59.88023952095792,
+        "widthPx": 1920,
+        "heightPx": 1080,
+        "scale": 1
+      },
+      "gpu": {
+        "renderer": "ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+        "kind": "integrated"
+      },
+      "browser": "155.0.8059.85 --force_low_power_gpu",
+      "powerMode": "unreported",
+      "terrain": "geodata",
+      "view": "chase",
+      "backend": "webgl2",
+      "fps": 60,
+      "canvas": {
+        "width": 1920,
+        "height": 1080,
+        "dpr": 1,
+        "displayScale": 1
+      },
+      "status": "FAIL",
+      "reasons": [
+        "p99 27.685 ms > 17.665 ms",
+        "displayed median 17.052 ms > 16.68 ms",
+        "displayed p99 57.041 ms > 17.665 ms"
+      ],
+      "metrics": {
+        "frames": 35658,
+        "measuredS": 600.0503550000001,
+        "p50FrameMs": 16.654999999998836,
+        "p99FrameMs": 27.68499999999767,
+        "maxFrameMs": 57.96999999997206,
+        "missedRefreshes": 447,
+        "featuresHeld": true,
+        "airborne": true,
+        "gpuBytes": 14022964,
+        "cpuBytes": 14022964,
+        "displaySource": "presentmon",
+        "p50DisplayedMs": 17.052,
+        "p99DisplayedMs": 57.0408
+      },
+      "chromeArgs": [
+        "--force_low_power_gpu"
+      ],
+      "rating": {
+        "score": 63,
+        "band": "usable",
+        "components": {
+          "pacing": 18.202955790554224,
+          "sustain": 15.023817626105716,
+          "median": 10,
+          "features": 10,
+          "memory": 9.738801941275597
+        }
+      },
+      "traceSha256": "4f16f007df14f535afbc919e575632ed707d23b3e13ee961cf620a867638740d"
+    },
+    {
+      "schemaVersion": 1,
+      "source": "harness",
+      "recordedAt": "2026-10-23T17:11:23.442Z",
+      "machine": {
+        "label": "RTX 4050 laptop (Windows 11, 13th Gen Intel)",
+        "hostModel": "Intel(R) Core(TM) 7 240H",
+        "os": "win32 10.0.26200"
+      },
+      "screen": {
+        "label": "External 1920 x 1080 60 Hz (DISPLAY5)",
+        "refreshHz": 59.88023952095792,
+        "widthPx": 1920,
+        "heightPx": 1080,
+        "scale": 1
+      },
+      "gpu": {
+        "renderer": "ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+        "kind": "integrated"
+      },
+      "browser": "155.0.8059.85 --force_low_power_gpu",
+      "powerMode": "unreported",
+      "terrain": "geodata",
+      "view": "chase",
+      "backend": "webgpu",
+      "fps": 60,
+      "canvas": {
+        "width": 1920,
+        "height": 1080,
+        "dpr": 1,
+        "displayScale": 1
+      },
+      "status": "FAIL",
+      "reasons": [
+        "p99 24.04 ms > 17.665 ms",
+        "displayed p99 50.008 ms > 17.665 ms"
+      ],
+      "metrics": {
+        "frames": 35712,
+        "measuredS": 600.052275,
+        "p50FrameMs": 16.669999999925494,
+        "p99FrameMs": 24.039999999993597,
+        "maxFrameMs": 66.25999999998021,
+        "missedRefreshes": 378,
+        "featuresHeld": true,
+        "airborne": true,
+        "gpuBytes": 14022964,
+        "cpuBytes": 14022964,
+        "displaySource": "presentmon",
+        "p50DisplayedMs": 16.6773,
+        "p99DisplayedMs": 50.0084
+      },
+      "chromeArgs": [
+        "--force_low_power_gpu"
+      ],
+      "rating": {
+        "score": 75,
+        "band": "good",
+        "components": {
+          "pacing": 29.812714995561436,
+          "sustain": 15.791966624907793,
+          "median": 10,
+          "features": 10,
+          "memory": 9.738801941275597
+        }
+      },
+      "traceSha256": "1933b0e6cec74926fe83368c0b1517fa60f59f1116ad5518c0f696eb4860f42c"
     }
   ]
 }
