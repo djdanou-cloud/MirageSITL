@@ -118,6 +118,26 @@ node scripts/check-gpu-perf.mjs --backend webgl2 --fps 60
 node scripts/check-gpu-perf.mjs --backend webgl2 --fps 120
 ```
 
+Since 2026-10-23 (user decision) every machine, screen and GPU is measured and
+rated out of 100, and only a 1920×1080 canvas at 1x on an integrated GPU in the
+60 FPS profile is gate-eligible. Each capture writes `run-record.json`; add it to
+`docs/benchmarks/device-results.json` and let the registry decide TASK-073 from
+the least performant tested integrated GPU, then update
+[DEVICE_RATINGS.md](../DEVICE_RATINGS.md) and its mirror:
+
+```bash
+node scripts/check-gpu-perf.mjs --backend webgl2 --fps 60 --geodata PATH --machine "LABEL" --screen "LABEL"
+node scripts/check-gpu-perf.mjs --backend webgpu --fps 60 --geodata PATH --machine "LABEL" --screen "LABEL"
+node scripts/gpu-ratings.mjs add test-results/gpu/run-record.json
+node scripts/gpu-ratings.mjs decide
+```
+
+Keep the machine on AC power with the lid open and untouched for the whole
+capture. A window the machine slept through (wall time leading monotonic time by
+more than 2 s) is `BLOCKED_EXTERNAL`: macOS pauses `performance.now()` in sleep,
+so each wake looks like a short stall and can trip the 250 ms pilot-input
+timeout. The paragraphs below record the earlier contract.
+
 It serves the local CC0 tiles fixture and measures the mounted FPV, fisheye,
 analog, and synthetic LWIR scene at 1920×1080 DPR 1 after 60 s warmup and 600 s
 of visible frames. WebGPU exits `BLOCKED_EXTERNAL` because fisheye and thermal
@@ -193,8 +213,8 @@ node scripts/check-gpu-perf.mjs --backend webgl2 --fps 60 --geodata '\\wsl.local
 `--backend webgpu` runs the same capture with the WebGPU passes (TASK-073 P6).
 `--chrome-args "--disable-direct-composition"` passes Chrome switches to the measured browser; they are recorded in the trace, the report
 metrics and the browser identity, so a verdict always names its Chrome configuration. The gate also scores PresentMon's displayed-frame
-times with the same limits as the frame clock; on Windows PresentMon must be available (see the PresentMon notes above), otherwise the run is
-`BLOCKED_EXTERNAL`.
+times with the same limits as the frame clock; on Windows PresentMon must be available (see the PresentMon notes above), otherwise a gate-eligible run is
+`BLOCKED_EXTERNAL` (other runs are still rated).
 To find why frames are late, `node scripts/diagnose-pacing.mjs --geodata DIR [--backend webgpu] [--chrome-args "--disable-direct-composition"]`
 records a 45 s Chrome trace, PresentMon and 10 Hz `nvidia-smi` samples (about 300 MB per trace, in `test-results/pacing/`), and
 `node --max-old-space-size=8192 scripts/analyze-pacing.mjs test-results/pacing/pacing-webgl2.json` compares missed and on-time frames.

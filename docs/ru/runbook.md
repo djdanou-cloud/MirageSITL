@@ -8,7 +8,7 @@
 PowerShell/zsh и проверки перед расширением поддерживаемого покрытия.
 
 ## Локальные проверки
-<!-- source-sha256: 01780b1a55f402a489defcf94ff63484625eac4ce826f02925c34f5a6442aa2c -->
+<!-- source-sha256: 0d825181b37e12f1c7262d811e2f6b61f6f09c530c01805f05775923421ce907 -->
 
 Использовать существующий изолированный checkout, сохраняя локальные изменения. Node закреплён .nvmrc; Rust 1.97.0 и wasm32-unknown-unknown — native/rust-toolchain.toml. Зависимости ставить через npm ci. В облаке активировать CARGO_HOME=/workspace/.cache/mirage-cargo, RUSTUP_HOME=/workspace/.cache/mirage-rustup и добавить CARGO_HOME/bin в начало PATH; не переопределять HOME. Запустить lint, typecheck, check:docs, CI=true npm test, npm run build и locked native tests. Запустить npm run dev; проверить HTTP, COOP same-origin, COEP require-corp и настоящий Worker READY. Начать с нулевого газа, армировать, летать, приостановить и сбросить. Браузерные тесты используют системный Chromium только при наличии. Установка/запуск на чистой восстановленной машине для сертификации выпуска ещё не выполнялись.
 
@@ -122,6 +122,27 @@ node scripts/check-gpu-perf.mjs --backend webgl2 --fps 60
 node scripts/check-gpu-perf.mjs --backend webgl2 --fps 120
 ```
 
+С 2026-10-23 (решение пользователя) каждый компьютер, экран и GPU измеряется и
+оценивается из 100, а к критерию допускается только холст 1920×1080 при 1x на
+встроенном GPU в профиле 60 FPS. Каждый захват пишет `run-record.json`;
+добавьте его в `docs/benchmarks/device-results.json`, и реестр решит TASK-073 по
+наименее производительному из протестированных встроенных GPU; затем обновите
+[DEVICE_RATINGS.md](DEVICE_RATINGS.md) и его источник:
+
+```bash
+node scripts/check-gpu-perf.mjs --backend webgl2 --fps 60 --geodata PATH --machine "LABEL" --screen "LABEL"
+node scripts/check-gpu-perf.mjs --backend webgpu --fps 60 --geodata PATH --machine "LABEL" --screen "LABEL"
+node scripts/gpu-ratings.mjs add test-results/gpu/run-record.json
+node scripts/gpu-ratings.mjs decide
+```
+
+Держите машину от сети, с открытой крышкой и нетронутой на протяжении всего
+захвата. Окно, которое машина проспала (настенное время опережает монотонное
+более чем на 2 с), получает `BLOCKED_EXTERNAL`: macOS приостанавливает
+`performance.now()` во сне, поэтому каждое пробуждение выглядит как короткая
+задержка и может вызвать таймаут ввода пилота 250 мс. Абзацы ниже фиксируют
+прежний контракт.
+
 Он раздаёт локальную фикстуру тайлов CC0 и измеряет сцену с установленной FPV,
 fisheye, аналоговым видео и синтетическим LWIR на 1920×1080 при DPR 1 после
 прогрева 60 с и 600 с видимых кадров. WebGPU завершается с `BLOCKED_EXTERNAL`,
@@ -202,8 +223,8 @@ node scripts/check-gpu-perf.mjs --backend webgl2 --fps 60 --geodata '\\wsl.local
 `--backend webgpu` выполняет тот же захват с проходами WebGPU (TASK-073 P6).
 `--chrome-args "--disable-direct-composition"` передаёт ключи Chrome измеряемому браузеру; они записываются в трассу, метрики отчёта
 и идентификатор браузера, поэтому вердикт всегда называет свою конфигурацию Chrome. Критерий также оценивает время показа кадров по
-PresentMon с теми же пределами, что и часы кадров; в Windows PresentMon должен быть доступен (см. заметки о PresentMon выше), иначе прогон —
-`BLOCKED_EXTERNAL`.
+PresentMon с теми же пределами, что и часы кадров; в Windows PresentMon должен быть доступен (см. заметки о PresentMon выше), иначе допущенный к критерию прогон —
+`BLOCKED_EXTERNAL` (прочие прогоны всё равно оцениваются).
 Чтобы выяснить причину поздних кадров, `node scripts/diagnose-pacing.mjs --geodata DIR [--backend webgpu] [--chrome-args "--disable-direct-composition"]`
 записывает трассу Chrome за 45 с, PresentMon и отсчёты `nvidia-smi` с частотой 10 Гц (около 300 МБ на трассу, в `test-results/pacing/`), а
 `node --max-old-space-size=8192 scripts/analyze-pacing.mjs test-results/pacing/pacing-webgl2.json` сравнивает пропущенные и своевременные кадры.

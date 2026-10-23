@@ -149,10 +149,11 @@ dropped wall intervals are visible in the UI. On Windows Node, the
 (target 1200) with drops: ~16 ms timer wakeups × 8-step catch-up cap. Compute is
 ~1 µs/step; the browser Worker 800 Hz regression passed. Catch-up caps and
 drop thresholds must not be relaxed to hide drops. Target 60–120 FPS and
-400–1200 Hz require production measurements on Apple Silicon M4 and RTX 4050
-(TASK-073). The user accepted an M4 60 FPS median of 16.680 ms, a p99 of
-17.665 ms, and a 59.88 Hz panel. That capture did not fill the 2560×1440
-display; the MacBook panel is natively 2560×1664. Cloud headless smoke cannot
+400–1200 Hz require production measurements (TASK-073). Since 2026-10-23 the
+gate is a 1920×1080 canvas at 1x on the least performant tested integrated GPU,
+on WebGL2 and WebGPU, at the accepted median 16.680 ms and p99 17.665 ms; every
+other machine, screen and GPU is rated out of 100 in
+[DEVICE_RATINGS.md](docs/DEVICE_RATINGS.md). Cloud headless smoke cannot
 establish those budgets.
 
 ## System documentation

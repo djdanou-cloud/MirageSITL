@@ -1,14 +1,19 @@
-// TASK-073 producer (WebGL2, or WebGPU with the P6 TSL passes). A missing device, a software GPU, or a short window
-// exits BLOCKED_EXTERNAL. Frame-time and residency misses exit FAIL. The 60 FPS
-// limits are the user-accepted median 16.680 ms and p99 17.665 ms. The 120 FPS
-// p99 limit remains 8.33 ms. A 59.88 Hz panel is an accepted 60 FPS refresh.
+// TASK-073 producer (WebGL2, or WebGPU with the P6 TSL passes). Every machine,
+// screen and GPU is measured and rated out of 100 (docs/DEVICE_RATINGS.md); only
+// a 1920 x 1080 canvas at 1x on an integrated GPU at 60 FPS is gate-eligible
+// (user decision 2026-10-23), scored against the accepted median 16.680 ms and
+// p99 17.665 ms. Exit 0: PASS or rated INFO run; 1: gate-eligible FAIL;
+// 2: BLOCKED_EXTERNAL (software GPU, short, hidden or slept-through window).
+// The run record (run-record.json) is added to the registry with
+// `node scripts/gpu-ratings.mjs add`.
 import { execFileSync, spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve as resolvePath } from "node:path";
 import { fileURLToPath } from "node:url";
 import os from "node:os";
-import { assertDisplaySurface, decideGpuAcceptance, displayRefreshHz, profileFitsDisplay } from "./gpu-trace.mjs";
+import { assertDisplaySurface, decideRun, displayRefreshHz, flightAirborne, profileFitsDisplay } from "./gpu-trace.mjs";
+import { buildRunRecord } from "./gpu-ratings.mjs";
 import { report } from "./validation/evidence.mjs";
 import { captureDisplay, gpuProcessMemorySampler, nowQpcMs, nvidiaSmiSampler, presentMonCapture, presentMonDisplayedTimes, summarizeClocks, summarizePresentMon } from "./capture-samplers.mjs";
 
@@ -22,7 +27,7 @@ function option(name, fallback) {
  * the trace, the report metrics and the browser identity so a verdict always names its configuration.
  */
 const CHROME_ARGS = String(option("chrome-args", "") ?? "").split(/\s+/).filter(Boolean);
-if (!CHROME_ARGS.every(arg => /^--[a-z0-9-]+(=[^\s]*)?$/i.test(arg))) throw new Error("--chrome-args takes Chrome switches such as \"--disable-direct-composition\"");
+if (!CHROME_ARGS.every(arg => /^--[a-z0-9_-]+(=[^\s]*)?$/i.test(arg))) throw new Error("--chrome-args takes Chrome switches such as \"--disable-direct-composition\"");
 const browserLabel = version => (CHROME_ARGS.length ? `${version} ${CHROME_ARGS.join(" ")}` : version);
 function hostModel() {
   if (process.platform === "darwin") return execFileSync("sysctl", ["-n", "machdep.cpu.brand_string"], { encoding: "utf8" }).trim();
@@ -42,7 +47,7 @@ function powerMode() {
 
 const invoked = process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1];
 if (invoked && process.argv.length === 2) {
-  const result = report("gpu-report", "BLOCKED_EXTERNAL", ["Provide --backend webgl2|webgpu --fps 60|120; a run needs M4 or RTX 4050 hardware"]);
+  const result = report("gpu-run", "BLOCKED_EXTERNAL", ["Provide --backend webgl2|webgpu --fps 60|120 [--machine LABEL] [--screen LABEL]; a run needs a hardware GPU"]);
   console.log(`gpu-report: ${result.status}; ${result.reasons[0]}`);
   process.exitCode = 2;
 } else if (invoked) {
@@ -57,22 +62,24 @@ if (invoked && process.argv.length === 2) {
   const geodata = option("geodata", null);
   // Presented image: the chase view for acceptance captures; fpv and thermal for inspection runs.
   const view = option("view", "chase");
+  // Human-readable names for the ratings document; the hardware identity is recorded regardless.
+  const labels = { machine: option("machine", ""), screen: option("screen", "") };
   if (!["chase", "fpv", "thermal"].includes(view) || !/^-?\d+,-?\d+$/.test(position) || !["webgl2", "webgpu"].includes(backend) || ![60, 120].includes(fps) || !Number.isFinite(warmupS) || warmupS < 1 || warmupS > 600 || !Number.isFinite(durationS) || durationS < 1 || durationS > 3600) {
-    console.error("Expected --backend webgl2|webgpu --fps 60|120 [--view chase|fpv|thermal] [--chrome-args \"--switch ...\"]");
+    console.error("Expected --backend webgl2|webgpu --fps 60|120 [--view chase|fpv|thermal] [--machine LABEL] [--screen LABEL] [--chrome-args \"--switch ...\"]");
     process.exitCode = 1;
   } else {
     void admitDisplay(fps, position).then(refreshHz => {
       if (!profileFitsDisplay(refreshHz, fps)) {
         mkdirSync(directory, { recursive: true });
-        const early = report("gpu-report", "BLOCKED_EXTERNAL", [`Display refresh ${refreshHz.toFixed(2)} Hz does not support the ${fps} FPS profile`]);
+        const early = report("gpu-run", "BLOCKED_EXTERNAL", [`Display refresh ${refreshHz.toFixed(2)} Hz does not support the ${fps} FPS profile`]);
         writeFileSync(`${directory}/gpu-report.json`, JSON.stringify(early, null, 2) + "\n");
         console.log(`gpu-report: ${early.status}; ${early.reasons[0]}`);
         process.exitCode = 2;
         return;
       }
-      return measure(backend, fps, warmupS, durationS, directory, position, geodata, view);
+      return measure(backend, fps, warmupS, durationS, directory, position, geodata, view, refreshHz, labels);
     }).catch(error => {
-      const result = report("gpu-report", "BLOCKED_EXTERNAL", [error instanceof Error ? error.message : String(error)]);
+      const result = report("gpu-run", "BLOCKED_EXTERNAL", [error instanceof Error ? error.message : String(error)]);
       mkdirSync(directory, { recursive: true });
       writeFileSync(`${directory}/gpu-report.json`, JSON.stringify(result, null, 2) + "\n");
       console.error(result.reasons[0]);
@@ -137,7 +144,7 @@ function terrainEnv(geodata) {
   return env;
 }
 
-async function measure(backend, fps, warmupS, durationS, directory, position, geodata, view = "chase") {
+async function measure(backend, fps, warmupS, durationS, directory, position, geodata, view, refreshHz, labels) {
   const { chromium } = await import("@playwright/test");
   mkdirSync(directory, { recursive: true });
   const vite = fileURLToPath(new URL("../node_modules/vite/bin/vite.js", import.meta.url));
@@ -240,7 +247,10 @@ async function measure(backend, fps, warmupS, durationS, directory, position, ge
       globalThis.requestAnimationFrame(gapProbe);
       await new Promise(resolve => setTimeout(resolve, warmupS * 1000));
       const frameMs = [];
-      let gpuBytes = 0, cpuBytes = 0, held = true, samples = 0, width = 0, height = 0, dpr = 0, sizeOk = true, hidden = globalThis.document.hidden;
+      let gpuBytes = 0, cpuBytes = 0, held = true, samples = 0, width = 0, height = 0, dpr = 0, stable = true, hidden = globalThis.document.hidden;
+      const scale = globalThis.devicePixelRatio;
+      // macOS pauses performance.now() while the machine sleeps; a wall-clock lead exposes a slept-through window.
+      const wallStart = Date.now(), monoStart = globalThis.performance.now();
       const onVis = () => { if (globalThis.document.hidden) hidden = true; };
       globalThis.document.addEventListener("visibilitychange", onVis);
       try {
@@ -253,7 +263,7 @@ async function measure(backend, fps, warmupS, durationS, directory, position, ge
               if (probe.gpuBytes > gpuBytes) gpuBytes = probe.gpuBytes;
               if (probe.cpuBytes > cpuBytes) cpuBytes = probe.cpuBytes;
               if (probe.terrain !== true || probe.fpv !== true || probe.thermal !== true) held = false;
-              if (probe.width !== 1920 || probe.height !== 1080 || probe.dpr !== 1) sizeOk = false;
+              if (samples > 1 && (probe.width !== width || probe.height !== height || probe.dpr !== dpr || globalThis.devicePixelRatio !== scale)) stable = false;
               width = probe.width; height = probe.height; dpr = probe.dpr;
             } else held = false;
             if (!started) { previous = timestamp; started = true; }
@@ -269,7 +279,8 @@ async function measure(backend, fps, warmupS, durationS, directory, position, ge
           globalThis.requestAnimationFrame(frame);
         });
       } finally { globalThis.document.removeEventListener("visibilitychange", onVis); clearInterval(flightTimer); flightTimer = 0; }
-      return { frameMs, gpuBytes, cpuBytes, featuresHeld: held && samples > 0, width: sizeOk ? width : 0, height: sizeOk ? height : 0, dpr, hidden, flight };
+      const sleepSkewMs = (Date.now() - wallStart) - (globalThis.performance.now() - monoStart);
+      return { frameMs, gpuBytes, cpuBytes, featuresHeld: held && samples > 0, width, height, dpr, scale, canvasStable: stable && samples > 0, sleepSkewMs, hidden, flight };
     }, { warmupS, durationS });
     const measuredEndQpcMs = nowQpcMs();
     const screen = await page.evaluate(() => ({ screenX: globalThis.screenX, screenY: globalThis.screenY, innerWidth: globalThis.innerWidth, innerHeight: globalThis.innerHeight,
@@ -288,14 +299,15 @@ async function measure(backend, fps, warmupS, durationS, directory, position, ge
       try { presentMonResult = { ...presentMonRun, ...summarizePresentMon(presentMonCsv, { startMs: measuredEndQpcMs - total, endMs: measuredEndQpcMs }) }; }
       catch (error) { presentMonResult = { ...presentMonRun, available: false, reason: error instanceof Error ? error.message : String(error) }; }
     }
-    const verdict = decideGpuAcceptance({
-      gpu: identity.renderer, hostModel: hostModel(), os: osLabel(), browser: browserLabel(browser.version()), powerMode: powerMode(), backend,
-      fps, warmupS, measuredS: total / 1000, durationS: total / 1000, featuresHeld: measurement.featuresHeld && errors.length === 0 && identity.backend === backend,
-      visible: !measurement.hidden, width: measurement.width, height: measurement.height, dpr: measurement.dpr,
+    const trace = {
+      schemaVersion: 2, source: "hardware", gpu: identity.renderer, hostModel: hostModel(), os: osLabel(), browser: browserLabel(browser.version()), powerMode: powerMode(), backend,
+      fps, refreshHz, width: measurement.width, height: measurement.height, dpr: measurement.dpr, scale: measurement.scale, warmupS, durationS: total / 1000,
+      visible: !measurement.hidden, sleepSkewMs: measurement.sleepSkewMs, canvasStable: measurement.canvasStable,
+      featuresHeld: measurement.featuresHeld && errors.length === 0 && identity.backend === backend, airborne: flightAirborne(measurement.flight, warmupS),
       frameMs: measurement.frameMs, displayedMs: presentMonResult?.available ? presentMonDisplayedTimes(presentMonCsv, presentMonResult.window) : null,
-      gpuBytes: measurement.gpuBytes, cpuBytes: measurement.cpuBytes,
-    });
-    const result = { ...verdict, metrics: { ...verdict.metrics, chromeArgs: CHROME_ARGS } };
+      chromeArgs: CHROME_ARGS, gpuBytes: measurement.gpuBytes, cpuBytes: measurement.cpuBytes,
+    };
+    const result = decideRun({ ...trace, measuredS: trace.durationS });
     const tracePath = `${directory}/gpu-${backend}-${fps}.json`;
     const framesBytes = Buffer.from(JSON.stringify({ schemaVersion: 1, backend, fps, warmupS, frameMs: measurement.frameMs }) + "\n");
     writeFileSync(`${directory}/gpu-${backend}-${fps}.frames.json`, framesBytes);
@@ -313,9 +325,16 @@ async function measure(backend, fps, warmupS, durationS, directory, position, ge
     writeFileSync(`${directory}/flight-${backend}-${fps}.json`, JSON.stringify(measurement.flight, null, 1) + "\n");
     writeFileSync(`${directory}/clocks-${backend}-${fps}.json`, JSON.stringify(clockSampler.samples) + "\n");
     writeFileSync(`${directory}/gpu-report.json`, JSON.stringify(result, null, 2) + "\n");
-    console.log(`gpu-report: ${result.status}; frames=${measurement.frameMs.length}; p99=${result.metrics?.p99FrameMs ?? "n/a"}`);
+    const traceBytes = Buffer.from(JSON.stringify(trace) + "\n");
+    writeFileSync(`${directory}/gpu-${backend}-${fps}.trace.json`, traceBytes);
+    const record = buildRunRecord({ trace, result, labels, screen, terrain: geodata === null ? "fixture" : "geodata", view,
+      traceSha256: createHash("sha256").update(traceBytes).digest("hex"), recordedAt: new Date().toISOString() });
+    writeFileSync(`${directory}/run-record.json`, JSON.stringify(record, null, 2) + "\n");
+    const rating = result.metrics?.rating;
+    console.log(`gpu-run: ${result.status}; frames=${measurement.frameMs.length}; p50=${result.metrics?.p50FrameMs ?? "n/a"}; p99=${result.metrics?.p99FrameMs ?? "n/a"}; rating=${rating ? `${rating.score}/100 (${rating.band})` : "n/a"}`);
     if (result.reasons?.length) console.log(result.reasons.join("; "));
-    process.exitCode = result.status === "PASS" ? 0 : result.status === "FAIL" ? 1 : 2;
+    console.log(`Add it to the ratings registry: node scripts/gpu-ratings.mjs add ${directory}/run-record.json`);
+    process.exitCode = result.status === "PASS" || result.status === "INFO" ? 0 : result.status === "FAIL" ? 1 : 2;
   } finally {
     if (page) await page.screenshot({ path: `${directory}/g3-${backend}-${fps}.png` }).catch(() => undefined);
     await browser?.close();

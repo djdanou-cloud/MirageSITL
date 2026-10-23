@@ -80,6 +80,10 @@
     {
       "en": "HANDOVER.md",
       "ru": "docs/ru/HANDOVER.md"
+    },
+    {
+      "en": "docs/DEVICE_RATINGS.md",
+      "ru": "docs/ru/DEVICE_RATINGS.md"
     }
   ]
 }

@@ -1,0 +1,541 @@
+{
+  "schemaVersion": 1,
+  "runs": [
+    {
+      "schemaVersion": 1,
+      "source": "historical",
+      "recordedAt": "2026-10-21T12:00:00Z",
+      "machine": {
+        "label": "MacBook Air M4 (Mac16,12, 16 GB)",
+        "hostModel": "Apple M4",
+        "os": "macOS 27.0.1"
+      },
+      "screen": {
+        "label": "2560 x 1440 desktop mode @ 59.88 Hz (emulated 1920 x 1080 window)",
+        "refreshHz": 59.88,
+        "widthPx": 2560,
+        "heightPx": 1440,
+        "scale": 1
+      },
+      "gpu": {
+        "renderer": "Apple M4 (8-core GPU)",
+        "kind": "integrated"
+      },
+      "browser": "Chrome 155.0.8059.85",
+      "powerMode": "AC",
+      "terrain": "fixture",
+      "view": "fpv",
+      "backend": "webgl2",
+      "fps": 60,
+      "canvas": {
+        "width": 1920,
+        "height": 1080,
+        "dpr": 1
+      },
+      "status": "INFO",
+      "reasons": [
+        "Historical: pre-P3 scene, no scripted flight, emulated viewport in a floating window"
+      ],
+      "metrics": {
+        "frames": 35974,
+        "measuredS": 600,
+        "p50FrameMs": 16.68,
+        "p99FrameMs": 17.665,
+        "maxFrameMs": null,
+        "missedRefreshes": null,
+        "featuresHeld": true,
+        "airborne": false,
+        "gpuBytes": 10092,
+        "cpuBytes": 10092
+      },
+      "rating": {
+        "score": 70,
+        "band": "usable",
+        "components": {
+          "pacing": 50,
+          "sustain": 0,
+          "median": 10,
+          "features": 0,
+          "memory": 9.99981202185154
+        },
+        "provisional": {
+          "unknown": [
+            "missed refreshes"
+          ],
+          "upperBound": 90
+        }
+      },
+      "traceSha256": null,
+      "notes": "test-results/m4 on the M4; missed refreshes not recorded. Must be re-run with the current harness to count for the gate."
+    },
+    {
+      "schemaVersion": 1,
+      "source": "historical",
+      "recordedAt": "2026-10-22T12:00:00Z",
+      "machine": {
+        "label": "RTX 4050 laptop (Windows 11, 13th Gen Intel)",
+        "hostModel": "13th Gen Intel Core (RTX 4050 Laptop GPU)",
+        "os": "Windows 11 10.0.26200"
+      },
+      "screen": {
+        "label": "External 1920 x 1080 60 Hz (DISPLAY5)",
+        "refreshHz": 60,
+        "widthPx": 1920,
+        "heightPx": 1080,
+        "scale": 1
+      },
+      "gpu": {
+        "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 4050 Laptop GPU Direct3D11)",
+        "kind": "discrete"
+      },
+      "browser": "Chrome 155.0.8059.85",
+      "powerMode": "Balanced",
+      "terrain": "geodata",
+      "view": "chase",
+      "backend": "webgl2",
+      "fps": 60,
+      "canvas": {
+        "width": 1920,
+        "height": 1080,
+        "dpr": 1
+      },
+      "status": "INFO",
+      "reasons": [
+        "Historical P7 capture; discrete GPU"
+      ],
+      "metrics": {
+        "frames": 35656,
+        "measuredS": 600,
+        "p50FrameMs": 16.67,
+        "p99FrameMs": 27.085,
+        "maxFrameMs": null,
+        "missedRefreshes": 1579,
+        "featuresHeld": true,
+        "airborne": null,
+        "gpuBytes": 464519168,
+        "cpuBytes": null
+      },
+      "rating": {
+        "score": 32,
+        "band": "poor",
+        "components": {
+          "pacing": 19.941489361702132,
+          "sustain": 2.4555555555555553,
+          "median": 9.995999999999997,
+          "features": 0,
+          "memory": 0
+        },
+        "provisional": {
+          "unknown": [
+            "flight",
+            "memory"
+          ],
+          "upperBound": 52
+        }
+      },
+      "traceSha256": "22bfde1f74f87349d70a48f8b4b9240f4518c1dcc542f2deb17755da69dfc8d4",
+      "notes": "Missed = intervals over 18.5 ms (lower bound). GPU memory = Windows GPU-process peak; terrain cache not in the summary. Hash is of the frames file."
+    },
+    {
+      "schemaVersion": 1,
+      "source": "historical",
+      "recordedAt": "2026-10-22T12:00:00Z",
+      "machine": {
+        "label": "RTX 4050 laptop (Windows 11, 13th Gen Intel)",
+        "hostModel": "13th Gen Intel Core (RTX 4050 Laptop GPU)",
+        "os": "Windows 11 10.0.26200"
+      },
+      "screen": {
+        "label": "External 1920 x 1080 60 Hz (DISPLAY5)",
+        "refreshHz": 60,
+        "widthPx": 1920,
+        "heightPx": 1080,
+        "scale": 1
+      },
+      "gpu": {
+        "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 4050 Laptop GPU Direct3D11)",
+        "kind": "discrete"
+      },
+      "browser": "Chrome 155.0.8059.85",
+      "powerMode": "Balanced",
+      "terrain": "geodata",
+      "view": "chase",
+      "backend": "webgpu",
+      "fps": 60,
+      "canvas": {
+        "width": 1920,
+        "height": 1080,
+        "dpr": 1
+      },
+      "status": "INFO",
+      "reasons": [
+        "Historical P7 capture; discrete GPU"
+      ],
+      "metrics": {
+        "frames": 35893,
+        "measuredS": 600,
+        "p50FrameMs": 16.665,
+        "p99FrameMs": 27.085,
+        "maxFrameMs": null,
+        "missedRefreshes": 1477,
+        "featuresHeld": true,
+        "airborne": null,
+        "gpuBytes": 656408576,
+        "cpuBytes": null
+      },
+      "rating": {
+        "score": 34,
+        "band": "poor",
+        "components": {
+          "pacing": 19.941489361702132,
+          "sustain": 3.588888888888888,
+          "median": 10,
+          "features": 0,
+          "memory": 0
+        },
+        "provisional": {
+          "unknown": [
+            "flight",
+            "memory"
+          ],
+          "upperBound": 54
+        }
+      },
+      "traceSha256": "008d177ecbe4a672a10c60c9b8c5cf57a1813639dd7189426638fd3d85d8963e",
+      "notes": "Missed = intervals over 18.5 ms (lower bound). GPU memory = Windows GPU-process peak; terrain cache not in the summary. Hash is of the frames file."
+    },
+    {
+      "schemaVersion": 1,
+      "source": "historical",
+      "recordedAt": "2026-10-22T12:00:00Z",
+      "machine": {
+        "label": "RTX 4050 laptop (Windows 11, 13th Gen Intel)",
+        "hostModel": "13th Gen Intel Core (RTX 4050 Laptop GPU)",
+        "os": "Windows 11 10.0.26200"
+      },
+      "screen": {
+        "label": "Internal 1920 x 1200 144 Hz panel (DISPLAY1), 100% scaling",
+        "refreshHz": 144,
+        "widthPx": 1920,
+        "heightPx": 1200,
+        "scale": 1
+      },
+      "gpu": {
+        "renderer": "ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11)",
+        "kind": "integrated"
+      },
+      "browser": "Chrome 155.0.8059.85",
+      "powerMode": "Best performance",
+      "terrain": "geodata",
+      "view": "chase",
+      "backend": "webgl2",
+      "fps": 60,
+      "canvas": {
+        "width": 1920,
+        "height": 1200,
+        "dpr": 1
+      },
+      "status": "INFO",
+      "reasons": [
+        "Historical P7 panel run; canvas 1920 x 1200, not the gate's 1920 x 1080"
+      ],
+      "metrics": {
+        "frames": 34920,
+        "measuredS": 600,
+        "p50FrameMs": 14.28,
+        "p99FrameMs": 21.92,
+        "maxFrameMs": null,
+        "missedRefreshes": 1080,
+        "featuresHeld": true,
+        "airborne": null,
+        "gpuBytes": null,
+        "cpuBytes": null
+      },
+      "rating": {
+        "score": 54,
+        "band": "usable",
+        "components": {
+          "pacing": 36.42553191489362,
+          "sustain": 8,
+          "median": 10,
+          "features": 0,
+          "memory": 0
+        },
+        "provisional": {
+          "unknown": [
+            "flight",
+            "memory"
+          ],
+          "upperBound": 74
+        }
+      },
+      "traceSha256": null,
+      "notes": "Historical P7 panel run; frames and missed refreshes derived from the reported mean FPS; flight state and residency not in the summary."
+    },
+    {
+      "schemaVersion": 1,
+      "source": "historical",
+      "recordedAt": "2026-10-22T12:00:00Z",
+      "machine": {
+        "label": "RTX 4050 laptop (Windows 11, 13th Gen Intel)",
+        "hostModel": "13th Gen Intel Core (RTX 4050 Laptop GPU)",
+        "os": "Windows 11 10.0.26200"
+      },
+      "screen": {
+        "label": "Internal 1920 x 1200 144 Hz panel (DISPLAY1), 100% scaling",
+        "refreshHz": 144,
+        "widthPx": 1920,
+        "heightPx": 1200,
+        "scale": 1
+      },
+      "gpu": {
+        "renderer": "ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11)",
+        "kind": "integrated"
+      },
+      "browser": "Chrome 155.0.8059.85",
+      "powerMode": "Best performance",
+      "terrain": "geodata",
+      "view": "chase",
+      "backend": "webgpu",
+      "fps": 60,
+      "canvas": {
+        "width": 1920,
+        "height": 1200,
+        "dpr": 1
+      },
+      "status": "INFO",
+      "reasons": [
+        "Historical P7 panel run; canvas 1920 x 1200, not the gate's 1920 x 1080"
+      ],
+      "metrics": {
+        "frames": 59040,
+        "measuredS": 600,
+        "p50FrameMs": 7.04,
+        "p99FrameMs": 20.93,
+        "maxFrameMs": null,
+        "missedRefreshes": 0,
+        "featuresHeld": true,
+        "airborne": null,
+        "gpuBytes": null,
+        "cpuBytes": null
+      },
+      "rating": {
+        "score": 70,
+        "band": "usable",
+        "components": {
+          "pacing": 39.58510638297873,
+          "sustain": 20,
+          "median": 10,
+          "features": 0,
+          "memory": 0
+        },
+        "provisional": {
+          "unknown": [
+            "flight",
+            "memory"
+          ],
+          "upperBound": 90
+        }
+      },
+      "traceSha256": null,
+      "notes": "Historical P7 panel run; frames and missed refreshes derived from the reported mean FPS; flight state and residency not in the summary. Rendering was not capped at 60 FPS."
+    },
+    {
+      "schemaVersion": 1,
+      "source": "historical",
+      "recordedAt": "2026-10-22T12:00:00Z",
+      "machine": {
+        "label": "RTX 4050 laptop (Windows 11, 13th Gen Intel)",
+        "hostModel": "13th Gen Intel Core (RTX 4050 Laptop GPU)",
+        "os": "Windows 11 10.0.26200"
+      },
+      "screen": {
+        "label": "Internal 1920 x 1200 144 Hz panel (DISPLAY1), 100% scaling",
+        "refreshHz": 144,
+        "widthPx": 1920,
+        "heightPx": 1200,
+        "scale": 1
+      },
+      "gpu": {
+        "renderer": "ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11)",
+        "kind": "integrated"
+      },
+      "browser": "Chrome 155.0.8059.85",
+      "powerMode": "Best performance",
+      "terrain": "geodata",
+      "view": "chase",
+      "backend": "webgl2",
+      "fps": 120,
+      "canvas": {
+        "width": 1920,
+        "height": 1200,
+        "dpr": 1
+      },
+      "status": "INFO",
+      "reasons": [
+        "Historical P7 panel run; 120 FPS profile"
+      ],
+      "metrics": {
+        "frames": 35220,
+        "measuredS": 600,
+        "p50FrameMs": 14.08,
+        "p99FrameMs": 22.32,
+        "maxFrameMs": null,
+        "missedRefreshes": 36780,
+        "featuresHeld": true,
+        "airborne": null,
+        "gpuBytes": null,
+        "cpuBytes": null
+      },
+      "rating": {
+        "score": 0,
+        "band": "poor",
+        "components": {
+          "pacing": 0,
+          "sustain": 0,
+          "median": 0,
+          "features": 0,
+          "memory": 0
+        },
+        "provisional": {
+          "unknown": [
+            "flight",
+            "memory"
+          ],
+          "upperBound": 20
+        }
+      },
+      "traceSha256": null,
+      "notes": "Historical P7 panel run; frames and missed refreshes derived from the reported mean FPS; flight state and residency not in the summary."
+    },
+    {
+      "schemaVersion": 1,
+      "source": "historical",
+      "recordedAt": "2026-10-22T12:00:00Z",
+      "machine": {
+        "label": "RTX 4050 laptop (Windows 11, 13th Gen Intel)",
+        "hostModel": "13th Gen Intel Core (RTX 4050 Laptop GPU)",
+        "os": "Windows 11 10.0.26200"
+      },
+      "screen": {
+        "label": "Internal 1920 x 1200 144 Hz panel (DISPLAY1), 100% scaling",
+        "refreshHz": 144,
+        "widthPx": 1920,
+        "heightPx": 1200,
+        "scale": 1
+      },
+      "gpu": {
+        "renderer": "ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11)",
+        "kind": "integrated"
+      },
+      "browser": "Chrome 155.0.8059.85",
+      "powerMode": "Best performance",
+      "terrain": "geodata",
+      "view": "chase",
+      "backend": "webgpu",
+      "fps": 120,
+      "canvas": {
+        "width": 1920,
+        "height": 1200,
+        "dpr": 1
+      },
+      "status": "INFO",
+      "reasons": [
+        "Historical P7 panel run; 120 FPS profile"
+      ],
+      "metrics": {
+        "frames": 50220,
+        "measuredS": 600,
+        "p50FrameMs": 13.77,
+        "p99FrameMs": 21.04,
+        "maxFrameMs": null,
+        "missedRefreshes": 21780,
+        "featuresHeld": true,
+        "airborne": null,
+        "gpuBytes": null,
+        "cpuBytes": null
+      },
+      "rating": {
+        "score": 0,
+        "band": "poor",
+        "components": {
+          "pacing": 0,
+          "sustain": 0,
+          "median": 0,
+          "features": 0,
+          "memory": 0
+        },
+        "provisional": {
+          "unknown": [
+            "flight",
+            "memory"
+          ],
+          "upperBound": 20
+        }
+      },
+      "traceSha256": null,
+      "notes": "Historical P7 panel run; frames and missed refreshes derived from the reported mean FPS; flight state and residency not in the summary."
+    },
+    {
+      "schemaVersion": 1,
+      "source": "historical",
+      "recordedAt": "2026-10-22T16:41:00Z",
+      "machine": {
+        "label": "MacBook M5 (14-inch)",
+        "hostModel": "Apple M5",
+        "os": "macOS"
+      },
+      "screen": {
+        "label": "Built-in Liquid Retina 2880 x 1864, UI 1710 x 1107 @ 59.88 Hz, 2x scale",
+        "refreshHz": 59.88,
+        "widthPx": 3420,
+        "heightPx": 2214,
+        "scale": 2
+      },
+      "gpu": {
+        "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)",
+        "kind": "integrated"
+      },
+      "browser": "Playwright Chromium 141",
+      "powerMode": "AC",
+      "terrain": "fixture",
+      "view": "chase",
+      "backend": "webgl2",
+      "fps": 60,
+      "canvas": {
+        "width": 1710,
+        "height": 985,
+        "dpr": 1
+      },
+      "status": "INFO",
+      "reasons": [
+        "Historical: pre-rewrite harness; canvas not 1920 x 1080; the scripted flight fell at about 11 s (input failsafe)"
+      ],
+      "metrics": {
+        "frames": 36004,
+        "measuredS": 600,
+        "p50FrameMs": 16.665,
+        "p99FrameMs": 17.67,
+        "maxFrameMs": 17.7,
+        "missedRefreshes": 0,
+        "featuresHeld": true,
+        "airborne": false,
+        "gpuBytes": 10092,
+        "cpuBytes": 10092
+      },
+      "rating": {
+        "score": 90,
+        "band": "excellent",
+        "components": {
+          "pacing": 50,
+          "sustain": 20,
+          "median": 10,
+          "features": 0,
+          "memory": 9.99981202185154
+        }
+      },
+      "traceSha256": null,
+      "notes": "test-results/gpu/m5-webgl2-60 on the M5. Canvas size taken from the window (the old harness zeroed it). The 2026-10-22 rerun (m5-webgl2-60-r2) is excluded: the machine slept through it with the lid closed."
+    }
+  ]
+}
