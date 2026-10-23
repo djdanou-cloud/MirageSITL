@@ -118,7 +118,12 @@ Notes:
   displayed p99 33.395 ms; WebGPU median 16.665 ms, p99 41.965 ms, 1,035
   missed, displayed p99 33.375 ms. GPU busy median 11.4 and 11.9 ms, p99 15.2
   and 18.5 ms. Frame pacing is worse here than through the NVIDIA-driven
-  monitor, so the cross-adapter copy is not what makes this GPU fail.
+  monitor, so the cross-adapter copy is not what makes this GPU fail. A 45 s
+  pacing diagnosis (WebGL2) attributes the late frames to lost vertical-blank
+  signals: 281 of 282 late presents coincide with a Chrome `GpuVSyncThread`
+  wait of two or three refreshes, Chrome drops those frames (`BACKFILL`) and
+  the Intel GPU sits idle meanwhile; per-frame CPU and GPU work match on-time
+  frames. Why the signals are lost has not been isolated.
 * **MacBook M5:** 2026-10-22 with the pre-rewrite harness over the fixture
   terrain. Frame pacing was excellent (median 16.665 ms, p99 17.670 ms, no
   missed refresh), but the scripted flight fell after about 11 s and the
