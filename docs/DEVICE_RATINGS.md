@@ -124,8 +124,10 @@ Notes:
   wait of two or three refreshes, Chrome drops those frames (`BACKFILL`) and
   the Intel GPU sits idle meanwhile; per-frame CPU and GPU work match on-time
   frames. On an idle page on the same panel only 4 of about 3,593 refreshes
-  lost their signal, so the loss comes with the scene's load; which part of
-  that load causes it has not been isolated.
+  lost their signal, so the loss comes with the scene's load. Neither 13 ms of
+  synthetic GPU work per frame (0.36% late) nor 15 ms of main-thread CPU work
+  per frame (0.2% late) reproduces it; which part of the scene's load causes
+  it has not been isolated.
 * **MacBook M5:** 2026-10-22 with the pre-rewrite harness over the fixture
   terrain. Frame pacing was excellent (median 16.665 ms, p99 17.670 ms, no
   missed refresh), but the scripted flight fell after about 11 s and the
