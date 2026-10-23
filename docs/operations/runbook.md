@@ -216,7 +216,10 @@ metrics and the browser identity, so a verdict always names its Chrome configura
 times with the same limits as the frame clock; on Windows PresentMon must be available (see the PresentMon notes above), otherwise a gate-eligible run is
 `BLOCKED_EXTERNAL` (other runs are still rated). Each flight-log sample records `pilotRejection`, the Worker's diagnostic for a
 pilot sample that blocked the armed latch. Open the page with `?g3profile=1` to publish per-pass WebGL2 GPU times (`passMs` on the
-G3 probe), and add `--chrome-args "--force_low_power_gpu"` to render on the integrated GPU.
+G3 probe), and add `--chrome-args "--force_low_power_gpu"` to render on the integrated GPU. `?g3skip=fpv`, `?g3skip=thermal` (or both,
+comma-separated) skip those WebGL2 passes for pacing bisection; the probe then reports the feature off, so such a run never counts.
+On a hybrid laptop the `nvidia-smi` sampler disturbs an integrated-GPU display: each query delayed the Intel panel's vertical-blank
+signal by two or three refreshes (TASK-073 bisection, 2026-10-23).
 To find why frames are late, `node scripts/diagnose-pacing.mjs --geodata DIR [--backend webgpu] [--chrome-args "--disable-direct-composition"]`
 records a 45 s Chrome trace, PresentMon and 10 Hz `nvidia-smi` samples (about 300 MB per trace, in `test-results/pacing/`), and
 `node --max-old-space-size=8192 scripts/analyze-pacing.mjs test-results/pacing/pacing-webgl2.json` compares missed and on-time frames.

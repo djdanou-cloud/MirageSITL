@@ -126,8 +126,12 @@ Notes:
   frames. On an idle page on the same panel only 4 of about 3,593 refreshes
   lost their signal, so the loss comes with the scene's load. Neither 13 ms of
   synthetic GPU work per frame (0.36% late) nor 15 ms of main-thread CPU work
-  per frame (0.2% late) reproduces it; which part of the scene's load causes
-  it has not been isolated.
+  per frame (0.2% late) reproduces it. A bisection found the cause in the
+  harness itself: the `nvidia-smi` sampler that `check-gpu-perf.mjs` polls at
+  1 Hz delays the Intel panel's vertical-blank signal on each query (full
+  scene: 0.37% late without it, 1.99% with it at 1 Hz, 12.55% at 10 Hz;
+  PresentMon and `typeperf` add nothing). These runs' failures are therefore
+  at least partly a measurement artefact; they stay recorded as measured.
 * **MacBook M5:** 2026-10-22 with the pre-rewrite harness over the fixture
   terrain. Frame pacing was excellent (median 16.665 ms, p99 17.670 ms, no
   missed refresh), but the scripted flight fell after about 11 s and the

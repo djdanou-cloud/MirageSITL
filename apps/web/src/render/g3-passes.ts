@@ -31,6 +31,12 @@ import { GpuPassTimer, type G3Pass } from "./gpu-pass-timer";
 
 /** `?g3profile=1`: per-pass GPU timing published as probe.passMs (diagnostics only). */
 const PROFILE_PASSES = new URLSearchParams(globalThis.location?.search ?? "").get("g3profile") === "1";
+/**
+ * `?g3skip=fpv,thermal`: skips the FPV chain and/or the thermal camera for pacing bisection (diagnostics
+ * only). A skipped pass marks its probe feature off, so such a run never counts as a full-feature capture.
+ */
+const SKIP = new Set((new URLSearchParams(globalThis.location?.search ?? "").get("g3skip") ?? "").split(",").filter(Boolean));
+const SKIP_FPV = SKIP.has("fpv"), SKIP_THERMAL = SKIP.has("thermal");
 
 export type { G3Probe, ThermalLocation } from "./g3-common";
 
@@ -182,18 +188,22 @@ class ProductionPasses implements G3PassSet {
     const timer = this.timer;
     const begin = (pass: G3Pass) => timer?.begin(pass);
     const end = () => timer?.end();
-    this.renderer.setRenderTarget(color);
-    begin("fpvScene"); this.renderer.render(scene, this.fpv.camera); end();
-    this.renderer.setRenderTarget(fisheye);
-    begin("fisheye"); this.renderer.render(this.fisheyeScene, this.ortho); end();
-    this.video.updateFrom(video);
+    if (!SKIP_FPV) {
+      this.renderer.setRenderTarget(color);
+      begin("fpvScene"); this.renderer.render(scene, this.fpv.camera); end();
+      this.renderer.setRenderTarget(fisheye);
+      begin("fisheye"); this.renderer.render(this.fisheyeScene, this.ortho); end();
+      this.video.updateFrom(video);
+    }
     if (view === "fpv") {
       this.renderer.setRenderTarget(null);
       begin("analog"); this.renderer.render(this.analogScene, this.ortho); end();
     } else {
       // Chase and thermal views: the FPV chain still runs to its own target.
-      this.renderer.setRenderTarget(this.analog);
-      begin("analog"); this.renderer.render(this.analogScene, this.ortho); end();
+      if (!SKIP_FPV) {
+        this.renderer.setRenderTarget(this.analog);
+        begin("analog"); this.renderer.render(this.analogScene, this.ortho); end();
+      }
       if (view === "chase") {
         this.renderer.setRenderTarget(null);
         begin("chaseScene"); this.renderer.render(scene, chase); end();
@@ -201,7 +211,7 @@ class ProductionPasses implements G3PassSet {
     }
     // The thermal camera is boresighted with the FPV mount; while the shutter is closed the last image is held.
     const state = this.thermalState;
-    if (state.step()) {
+    if (!SKIP_THERMAL && state.step()) {
       state.aimFrom(this.fpv.camera);
       const previousOverride = scene.overrideMaterial, previousBackground = scene.background, previousAlpha = this.renderer.getClearAlpha();
       scene.overrideMaterial = state.gbuffer.material;
@@ -229,14 +239,15 @@ class ProductionPasses implements G3PassSet {
     probe.cpuBytes = bytes;
     probe.terrain = bytes >= 1;
     // A program fails once, at compile, and stays invalid: any failure so far marks the passes broken.
-    probe.fpv = this.shaderErrors === 0;
-    probe.thermal = probe.fpv && this.floatColor;
+    probe.fpv = this.shaderErrors === 0 && !SKIP_FPV;
+    probe.thermal = this.shaderErrors === 0 && this.floatColor && !SKIP_THERMAL;
     probe.dpr = this.renderer.getPixelRatio();
     probe.width = width;
     probe.height = height;
     probe.view = view;
     probe.frames += 1;
-    probe.reason = !probe.fpv ? "FPV or thermal shader failed" : this.floatColor ? (probe.terrain ? "" : "Terrain tiles are not resident") : "EXT_color_buffer_float is unavailable";
+    probe.reason = SKIP.size ? `Passes skipped by ?g3skip (diagnostics): ${[...SKIP].join(",")}`
+      : this.shaderErrors !== 0 ? "FPV or thermal shader failed" : this.floatColor ? (probe.terrain ? "" : "Terrain tiles are not resident") : "EXT_color_buffer_float is unavailable";
   }
 
   dispose(): void {
