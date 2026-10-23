@@ -83,6 +83,22 @@ export function nvidiaSmiSampler() {
   return state;
 }
 
+/** True when a WebGL renderer string names an NVIDIA GPU. */
+export function isNvidiaRenderer(renderer) {
+  return /nvidia|geforce|quadro/i.test(String(renderer ?? ""));
+}
+
+/**
+ * nvidia-smi only when the measured GPU is NVIDIA. On a hybrid laptop each query of the idle NVIDIA GPU
+ * delayed the integrated GPU's display vertical blank by two or three refreshes (TASK-073 bisection,
+ * 2026-10-23), so for any other GPU the clocks are recorded as unavailable with the reason.
+ */
+export function clockSamplerFor(renderer, start = nvidiaSmiSampler) {
+  if (isNvidiaRenderer(renderer)) return start();
+  return { kind: "nvidia-smi", available: false, samples: [], stop() {},
+    reason: `Not sampled: the measured GPU is not NVIDIA (${renderer || "unknown"}); nvidia-smi queries delay an integrated-GPU display's vertical blank` };
+}
+
 /** Summary of nvidia-smi samples: power-state counts, clock range and state changes. */
 export function summarizeClocks(samples) {
   if (!samples.length) return null;

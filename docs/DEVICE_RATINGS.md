@@ -79,7 +79,7 @@ memory   = 1 - max(GPU peak / 2 GiB, CPU peak / 512 MiB), floored at 0
 | RTX 4050 laptop (Windows 11, 13th Gen Intel) | Internal 1920 x 1200 144 Hz panel (DISPLAY1), 100% scaling | ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11 vs_5_0 ps_5_0, D3D11) (integrated) | geodata | 62-82 (provisional) | 0-20 (provisional) |
 | MacBook M5 (14-inch) | Built-in Liquid Retina 2880 x 1864, UI 1710 x 1107 @ 59.88 Hz, 2x scale | ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version) (integrated) | fixture | 90 (excellent) | not run |
 | RTX 4050 laptop (Windows 11, 13th Gen Intel) | External 1920 x 1080 60 Hz (DISPLAY5) | ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11 vs_5_0 ps_5_0, D3D11) (integrated) | geodata | 69 (usable) | not run |
-| RTX 4050 laptop (Windows 11, 13th Gen Intel) | Internal panel at 1920 x 1080 60 Hz (DISPLAY1), 100% scaling | ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11 vs_5_0 ps_5_0, D3D11) (integrated) | geodata | 38 (poor) | not run |
+| RTX 4050 laptop (Windows 11, 13th Gen Intel) | Internal panel at 1920 x 1080 60 Hz (DISPLAY1), 100% scaling | ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11 vs_5_0 ps_5_0, D3D11) (integrated) | geodata | 92 (excellent) | not run |
 
 Notes:
 
@@ -132,6 +132,14 @@ Notes:
   scene: 0.37% late without it, 1.99% with it at 1 Hz, 12.55% at 10 Hz;
   PresentMon and `typeperf` add nothing). These runs' failures are therefore
   at least partly a measurement artefact; they stay recorded as measured.
+* **Intel iGPU on its own panel without `nvidia-smi` (gate runs):** 2026-10-24,
+  the same setup after `check-gpu-perf.mjs` stopped querying `nvidia-smi` for a
+  GPU that is not NVIDIA (clocks recorded as unavailable with the reason). Both
+  still FAIL, narrowly, and rate 92 and 91: WebGL2 median 16.665 ms, p99
+  19.960 ms, 88 missed refreshes, displayed p99 19.297 ms; WebGPU median
+  16.665 ms, p99 20.140 ms, 81 missed, displayed p99 19.926 ms. Every frame was
+  displayed (`Hardware Composed: Independent Flip`); GPU busy median 12.3 and
+  12.1 ms, p99 15.2 and 18.3 ms.
 * **MacBook M5:** 2026-10-22 with the pre-rewrite harness over the fixture
   terrain. Frame pacing was excellent (median 16.665 ms, p99 17.670 ms, no
   missed refresh), but the scripted flight fell after about 11 s and the
@@ -144,8 +152,10 @@ Notes:
 `node scripts/gpu-ratings.mjs decide` reports **`BLOCKED_EXTERNAL`**: three
 integrated GPUs have been tested (Apple M4, Intel Graphics in the RTX 4050
 laptop, Apple M5). The Intel iGPU has gate-eligible runs on both backends, on
-the external monitor and on its own panel, and all four FAIL (frame-clock p99
-24.040-42.430 ms, displayed p99 33.375-57.041 ms; ratings 38-75). The M4 and M5 have no
+the external monitor and on its own panel, and all six FAIL. The fairest pair,
+on its own panel without `nvidia-smi`, misses only the p99 limit (19.960 and
+20.140 ms against 17.665 ms; displayed p99 19.297 and 19.926 ms; ratings 92
+and 91). The M4 and M5 have no
 gate-eligible run yet, so the least performant integrated GPU is unknown; if
 it is the Intel iGPU, TASK-073 fails. The Macs need 10-minute WebGL2 and
 WebGPU captures on a 1920 x 1080 display at 1x scale (an external 1920 x 1080 monitor
@@ -167,6 +177,8 @@ or a 1920 x 1080 scaled mode with the window filling the screen at DPR 1).
 | RTX 4050 laptop (Windows 11, 13th Gen Intel) | External 1920 x 1080 60 Hz (DISPLAY5) | ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11 vs_5_0 ps_5_0, D3D11) (integrated) | webgpu 60 FPS | 1920 x 1080 at 1x | geodata | 16.670 / 24.040 | 378 | FAIL | 75 (good) |
 | RTX 4050 laptop (Windows 11, 13th Gen Intel) | Internal panel at 1920 x 1080 60 Hz (DISPLAY1), 100% scaling | ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11 vs_5_0 ps_5_0, D3D11) (integrated) | webgl2 60 FPS | 1920 x 1080 at 1x | geodata | 16.670 / 42.430 | 1061 | FAIL | 38 (poor) |
 | RTX 4050 laptop (Windows 11, 13th Gen Intel) | Internal panel at 1920 x 1080 60 Hz (DISPLAY1), 100% scaling | ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11 vs_5_0 ps_5_0, D3D11) (integrated) | webgpu 60 FPS | 1920 x 1080 at 1x | geodata | 16.665 / 41.965 | 1035 | FAIL | 38 (poor) |
+| RTX 4050 laptop (Windows 11, 13th Gen Intel) | Internal panel at 1920 x 1080 60 Hz (DISPLAY1), 100% scaling | ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11 vs_5_0 ps_5_0, D3D11) (integrated) | webgl2 60 FPS | 1920 x 1080 at 1x | geodata | 16.665 / 19.960 | 88 | FAIL | 92 (excellent) |
+| RTX 4050 laptop (Windows 11, 13th Gen Intel) | Internal panel at 1920 x 1080 60 Hz (DISPLAY1), 100% scaling | ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11 vs_5_0 ps_5_0, D3D11) (integrated) | webgpu 60 FPS | 1920 x 1080 at 1x | geodata | 16.665 / 20.140 | 81 | FAIL | 91 (excellent) |
 
 ## 6. Adding a run
 

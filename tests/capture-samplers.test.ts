@@ -3,7 +3,16 @@ import { nodeCheck } from "./support/node-evidence";
 
 // TASK-073: the capture side channels parse real tool output formats; none of them feed the G3 analyzer.
 it("parses typeperf GPU memory rows, nvidia-smi clock summaries and PresentMon CSV", () => nodeCheck(`
-import {csvCells,gpuMemoryRow,presentMonDisplayedTimes,summarizeClocks,summarizePresentMon} from './scripts/capture-samplers.mjs';
+import {clockSamplerFor,csvCells,gpuMemoryRow,isNvidiaRenderer,presentMonDisplayedTimes,summarizeClocks,summarizePresentMon} from './scripts/capture-samplers.mjs';
+// nvidia-smi is only queried for an NVIDIA GPU (its queries delayed an integrated-GPU display's vertical blank).
+assert.equal(isNvidiaRenderer('ANGLE (NVIDIA, NVIDIA GeForce RTX 4050 Laptop GPU (0x000028A1) Direct3D11 vs_5_0 ps_5_0, D3D11)'),true);
+assert.equal(isNvidiaRenderer('ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11 vs_5_0 ps_5_0, D3D11)'),false);
+assert.equal(isNvidiaRenderer('ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)'),false);
+let started=0;
+const intel=clockSamplerFor('ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11)',()=>{started++;return {available:true};});
+assert.equal(started,0); assert.equal(intel.available,false); assert.match(intel.reason,/not NVIDIA .*Intel/); assert.deepEqual(intel.samples,[]);
+assert.equal(clockSamplerFor('ANGLE (NVIDIA, NVIDIA GeForce RTX 4050 Laptop GPU Direct3D11)',()=>{started++;return {available:true};}).available,true);
+assert.equal(started,1);
 import {mkdtempSync,writeFileSync,rmSync} from 'node:fs';
 import {join} from 'node:path';
 import {tmpdir} from 'node:os';

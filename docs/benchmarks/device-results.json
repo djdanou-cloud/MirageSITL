@@ -809,6 +809,142 @@
         }
       },
       "traceSha256": "40939a15519555c0213d309d9df39c8dde94579cfa7785cadb79eff78c62a099"
+    },
+    {
+      "schemaVersion": 1,
+      "source": "harness",
+      "recordedAt": "2026-10-23T20:55:29.588Z",
+      "machine": {
+        "label": "RTX 4050 laptop (Windows 11, 13th Gen Intel)",
+        "hostModel": "Intel(R) Core(TM) 7 240H",
+        "os": "win32 10.0.26200"
+      },
+      "screen": {
+        "label": "Internal panel at 1920 x 1080 60 Hz (DISPLAY1), 100% scaling",
+        "refreshHz": 59.88023952095813,
+        "widthPx": 1920,
+        "heightPx": 1080,
+        "scale": 1
+      },
+      "gpu": {
+        "renderer": "ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+        "kind": "integrated"
+      },
+      "browser": "155.0.8059.85 --force_low_power_gpu",
+      "powerMode": "unreported",
+      "terrain": "geodata",
+      "view": "chase",
+      "backend": "webgl2",
+      "fps": 60,
+      "canvas": {
+        "width": 1920,
+        "height": 1080,
+        "dpr": 1,
+        "displayScale": 1
+      },
+      "status": "FAIL",
+      "reasons": [
+        "p99 19.96 ms > 17.665 ms",
+        "displayed p99 19.297 ms > 17.665 ms"
+      ],
+      "metrics": {
+        "frames": 35937,
+        "measuredS": 600.051325,
+        "p50FrameMs": 16.66500000000815,
+        "p99FrameMs": 19.95999999999185,
+        "maxFrameMs": 35.48499999998603,
+        "missedRefreshes": 88,
+        "featuresHeld": true,
+        "airborne": true,
+        "gpuBytes": 14022964,
+        "cpuBytes": 14022964,
+        "displaySource": "presentmon",
+        "p50DisplayedMs": 16.6668,
+        "p99DisplayedMs": 19.2966
+      },
+      "chromeArgs": [
+        "--force_low_power_gpu"
+      ],
+      "rating": {
+        "score": 92,
+        "band": "excellent",
+        "components": {
+          "pacing": 42.80800101926403,
+          "sustain": 19.020350467520426,
+          "median": 10,
+          "features": 10,
+          "memory": 9.738801941275597
+        }
+      },
+      "traceSha256": "ba3737cf8d9321138123626deb6a61558573b630501d73571d15f53d9876f646"
+    },
+    {
+      "schemaVersion": 1,
+      "source": "harness",
+      "recordedAt": "2026-10-23T21:07:16.018Z",
+      "machine": {
+        "label": "RTX 4050 laptop (Windows 11, 13th Gen Intel)",
+        "hostModel": "Intel(R) Core(TM) 7 240H",
+        "os": "win32 10.0.26200"
+      },
+      "screen": {
+        "label": "Internal panel at 1920 x 1080 60 Hz (DISPLAY1), 100% scaling",
+        "refreshHz": 60.24096385542119,
+        "widthPx": 1920,
+        "heightPx": 1080,
+        "scale": 1
+      },
+      "gpu": {
+        "renderer": "ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+        "kind": "integrated"
+      },
+      "browser": "155.0.8059.85 --force_low_power_gpu",
+      "powerMode": "unreported",
+      "terrain": "geodata",
+      "view": "chase",
+      "backend": "webgpu",
+      "fps": 60,
+      "canvas": {
+        "width": 1920,
+        "height": 1080,
+        "dpr": 1,
+        "displayScale": 1
+      },
+      "status": "FAIL",
+      "reasons": [
+        "p99 20.14 ms > 17.665 ms",
+        "displayed p99 19.926 ms > 17.665 ms"
+      ],
+      "metrics": {
+        "frames": 35951,
+        "measuredS": 600.05161,
+        "p50FrameMs": 16.664999999979045,
+        "p99FrameMs": 20.14000000001397,
+        "maxFrameMs": 42.53000000001339,
+        "missedRefreshes": 81,
+        "featuresHeld": true,
+        "airborne": true,
+        "gpuBytes": 14022964,
+        "cpuBytes": 14022964,
+        "displaySource": "presentmon",
+        "p50DisplayedMs": 16.6664,
+        "p99DisplayedMs": 19.9262
+      },
+      "chromeArgs": [
+        "--force_low_power_gpu"
+      ],
+      "rating": {
+        "score": 91,
+        "band": "excellent",
+        "components": {
+          "pacing": 42.10638297867882,
+          "sustain": 19.10007740834159,
+          "median": 10,
+          "features": 10,
+          "memory": 9.738801941275597
+        }
+      },
+      "traceSha256": "d09bb0b956a37ccbf90ab759494fc208087dde9c3423aef54a0fac2e96a2b80d"
     }
   ]
 }

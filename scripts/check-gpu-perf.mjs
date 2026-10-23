@@ -15,7 +15,7 @@ import os from "node:os";
 import { assertDisplaySurface, decideRun, displayRefreshHz, flightAirborne, profileFitsDisplay } from "./gpu-trace.mjs";
 import { buildRunRecord } from "./gpu-ratings.mjs";
 import { report } from "./validation/evidence.mjs";
-import { captureDisplay, gpuProcessMemorySampler, nowQpcMs, nvidiaSmiSampler, presentMonCapture, presentMonDisplayedTimes, summarizeClocks, summarizePresentMon } from "./capture-samplers.mjs";
+import { captureDisplay, clockSamplerFor, gpuProcessMemorySampler, nowQpcMs, presentMonCapture, presentMonDisplayedTimes, summarizeClocks, summarizePresentMon } from "./capture-samplers.mjs";
 
 function option(name, fallback) {
   const index = process.argv.indexOf(`--${name}`);
@@ -205,7 +205,7 @@ async function measure(backend, fps, warmupS, durationS, directory, position, ge
     const browserCdp = await browser.newBrowserCDPSession();
     const gpuProcess = (await browserCdp.send("SystemInfo.getProcessInfo")).processInfo.find(info => info.type === "GPU");
     const memorySampler = gpuProcess ? gpuProcessMemorySampler(gpuProcess.id) : null;
-    const clockSampler = nvidiaSmiSampler();
+    const clockSampler = clockSamplerFor(identity.renderer);
     const presentMonCsv = fileURLToPath(new URL(`../${directory}/presentmon-${backend}-${fps}.csv`, import.meta.url));
     const presentMon = gpuProcess ? presentMonCapture(gpuProcess.id, presentMonCsv, warmupS + durationS + 30)
       : Promise.resolve({ kind: "presentmon", available: false, reason: "no browser GPU process" });

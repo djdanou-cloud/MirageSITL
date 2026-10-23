@@ -14,7 +14,7 @@ import { spawn } from "node:child_process";
 import { createWriteStream, mkdirSync, writeFileSync } from "node:fs";
 import { join, resolve as resolvePath } from "node:path";
 import { fileURLToPath } from "node:url";
-import { nowQpcMs, presentMonCapture } from "./capture-samplers.mjs";
+import { isNvidiaRenderer, nowQpcMs, presentMonCapture } from "./capture-samplers.mjs";
 
 function option(name, fallback) {
   const index = process.argv.indexOf(`--${name}`);
@@ -75,7 +75,16 @@ try {
   // PresentMon and the clocks start before the flight (opening the ETW session can stall the page).
   const presentCsv = join(out, `presentmon-${backend}.csv`);
   const presentMon = gpuProcess ? presentMonCapture(gpuProcess.id, presentCsv, warmupS + seconds + 15) : Promise.resolve({ available: false, reason: "no GPU process" });
-  const clocks = fastClocks();
+  // nvidia-smi only for an NVIDIA GPU: its queries delay an integrated-GPU display's vertical blank.
+  const renderer = await page.evaluate(() => {
+    const gl = globalThis.document.createElement("canvas").getContext("webgl2", { powerPreference: "high-performance" });
+    const ext = gl?.getExtension("WEBGL_debug_renderer_info");
+    const name = gl && ext ? String(gl.getParameter(ext.UNMASKED_RENDERER_WEBGL)) : "";
+    gl?.getExtension("WEBGL_lose_context")?.loseContext();
+    return name;
+  });
+  const clocks = isNvidiaRenderer(renderer) ? { ...fastClocks(), available: true, reason: "" }
+    : { samples: [], stop() {}, available: false, reason: `Not sampled: the measured GPU is not NVIDIA (${renderer || "unknown"})` };
   await new Promise(r => setTimeout(r, 3000));
   await page.bringToFront();
   await page.getByRole("button", { name: "Start", exact: true }).evaluate(element => { element.click(); });
@@ -110,7 +119,7 @@ try {
   clocks.stop();
   const pm = await presentMon;
   writeFileSync(join(out, `pacing-${backend}.json`), JSON.stringify({ backend, warmupS, seconds, position, chromeArgs, windowStartQpc, windowEndQpc, raf, probe, errors,
-    clocks: clocks.samples, presentMon: pm, traceFile }, null, 1) + "\n");
+    renderer, clocks: clocks.samples, clocksStatus: { available: clocks.available, reason: clocks.reason }, presentMon: pm, traceFile }, null, 1) + "\n");
   console.log(`pacing: ${raf.length} rAF intervals, ${clocks.samples.length} clock samples, PresentMon ${pm.available ? "ok" : pm.reason}, trace ${traceFile}`);
 } finally {
   await browser.close();

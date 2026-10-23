@@ -1,6 +1,6 @@
 # Рейтинги устройств (TASK-073)
 
-<!-- source-sha256: c5e6cc37e7dfd654f48af895a860b2eba3a56acd4680000d2b5e6a0061377468 -->
+<!-- source-sha256: e5ce18720a4242dfae8424676ed424874ec9785bf31cc746e8362cdec1f56c99 -->
 
 Русское зеркало. [Английский источник](../DEVICE_RATINGS.md).
 
@@ -86,7 +86,7 @@ memory   = 1 - max(GPU peak / 2 GiB, CPU peak / 512 MiB), floored at 0
 | RTX 4050 laptop (Windows 11, 13th Gen Intel) | Internal 1920 x 1200 144 Hz panel (DISPLAY1), 100% scaling | ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11 vs_5_0 ps_5_0, D3D11) (integrated) | geodata | 62-82 (provisional) | 0-20 (provisional) |
 | MacBook M5 (14-inch) | Built-in Liquid Retina 2880 x 1864, UI 1710 x 1107 @ 59.88 Hz, 2x scale | ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version) (integrated) | fixture | 90 (excellent) | not run |
 | RTX 4050 laptop (Windows 11, 13th Gen Intel) | External 1920 x 1080 60 Hz (DISPLAY5) | ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11 vs_5_0 ps_5_0, D3D11) (integrated) | geodata | 69 (usable) | not run |
-| RTX 4050 laptop (Windows 11, 13th Gen Intel) | Internal panel at 1920 x 1080 60 Hz (DISPLAY1), 100% scaling | ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11 vs_5_0 ps_5_0, D3D11) (integrated) | geodata | 38 (poor) | not run |
+| RTX 4050 laptop (Windows 11, 13th Gen Intel) | Internal panel at 1920 x 1080 60 Hz (DISPLAY1), 100% scaling | ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11 vs_5_0 ps_5_0, D3D11) (integrated) | geodata | 92 (excellent) | not run |
 
 Значения ячеек таблиц — это машинный вывод `node scripts/gpu-ratings.mjs table`
 и остаются на английском.
@@ -149,6 +149,15 @@ memory   = 1 - max(GPU peak / 2 GiB, CPU peak / 512 MiB), floored at 0
   `typeperf` ничего не добавляют). Поэтому отказы этих прогонов хотя бы
   частично являются артефактом измерения; они остаются записанными как
   измерено.
+* **Intel iGPU на собственной панели без `nvidia-smi` (прогоны критерия):**
+  2026-10-24, та же конфигурация после того, как `check-gpu-perf.mjs` перестал
+  опрашивать `nvidia-smi` для GPU, не являющегося NVIDIA (частоты записаны как
+  недоступные с причиной). Оба по-прежнему FAIL, с небольшим отрывом, и
+  оценены в 92 и 91: WebGL2 — медиана 16,665 мс, p99 19,960 мс, 88 пропущенных
+  обновлений, p99 показа 19,297 мс; WebGPU — медиана 16,665 мс, p99 20,140 мс,
+  81 пропущенное, p99 показа 19,926 мс. Показан каждый кадр (`Hardware
+  Composed: Independent Flip`); медиана занятости GPU 12,3 и 12,1 мс, p99 15,2
+  и 18,3 мс.
 * **MacBook M5:** 2026-10-22, стенд до переработки, рельеф-фикстура. Темп
   кадров был отличным (медиана 16,665 мс, p99 17,670 мс, ни одного
   пропущенного обновления), но программный полёт упал примерно через 11 с, а
@@ -160,8 +169,10 @@ memory   = 1 - max(GPU peak / 2 GiB, CPU peak / 512 MiB), floored at 0
 `node scripts/gpu-ratings.mjs decide` сообщает **`BLOCKED_EXTERNAL`**:
 протестированы три встроенных GPU (Apple M4, Intel Graphics в ноутбуке с
 RTX 4050, Apple M5). У Intel iGPU есть допущенные к критерию прогоны на обоих
-бэкендах, на внешнем мониторе и на собственной панели, и все четыре — FAIL
-(p99 часов кадров 24,040-42,430 мс, p99 показа 33,375-57,041 мс; оценки 38-75). У M4 и M5 пока нет
+бэкендах, на внешнем мониторе и на собственной панели, и все шесть — FAIL.
+Самая честная пара, на собственной панели без `nvidia-smi`, не проходит только
+предел p99 (19,960 и 20,140 мс при пределе 17,665 мс; p99 показа 19,297 и
+19,926 мс; оценки 92 и 91). У M4 и M5 пока нет
 допущенного прогона, поэтому наименее производительный встроенный GPU
 неизвестен; если это Intel iGPU, TASK-073 не пройдена. Компьютерам Mac нужны
 10-минутные захваты WebGL2 и WebGPU на дисплее 1920 x 1080 при масштабе 1x (
@@ -184,6 +195,8 @@ RTX 4050, Apple M5). У Intel iGPU есть допущенные к критер
 | RTX 4050 laptop (Windows 11, 13th Gen Intel) | External 1920 x 1080 60 Hz (DISPLAY5) | ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11 vs_5_0 ps_5_0, D3D11) (integrated) | webgpu 60 FPS | 1920 x 1080 at 1x | geodata | 16.670 / 24.040 | 378 | FAIL | 75 (good) |
 | RTX 4050 laptop (Windows 11, 13th Gen Intel) | Internal panel at 1920 x 1080 60 Hz (DISPLAY1), 100% scaling | ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11 vs_5_0 ps_5_0, D3D11) (integrated) | webgl2 60 FPS | 1920 x 1080 at 1x | geodata | 16.670 / 42.430 | 1061 | FAIL | 38 (poor) |
 | RTX 4050 laptop (Windows 11, 13th Gen Intel) | Internal panel at 1920 x 1080 60 Hz (DISPLAY1), 100% scaling | ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11 vs_5_0 ps_5_0, D3D11) (integrated) | webgpu 60 FPS | 1920 x 1080 at 1x | geodata | 16.665 / 41.965 | 1035 | FAIL | 38 (poor) |
+| RTX 4050 laptop (Windows 11, 13th Gen Intel) | Internal panel at 1920 x 1080 60 Hz (DISPLAY1), 100% scaling | ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11 vs_5_0 ps_5_0, D3D11) (integrated) | webgl2 60 FPS | 1920 x 1080 at 1x | geodata | 16.665 / 19.960 | 88 | FAIL | 92 (excellent) |
+| RTX 4050 laptop (Windows 11, 13th Gen Intel) | Internal panel at 1920 x 1080 60 Hz (DISPLAY1), 100% scaling | ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11 vs_5_0 ps_5_0, D3D11) (integrated) | webgpu 60 FPS | 1920 x 1080 at 1x | geodata | 16.665 / 20.140 | 81 | FAIL | 91 (excellent) |
 
 ## 6. Добавление прогона
 
