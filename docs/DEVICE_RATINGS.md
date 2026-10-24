@@ -80,6 +80,7 @@ memory   = 1 - max(GPU peak / 2 GiB, CPU peak / 512 MiB), floored at 0
 | MacBook M5 (14-inch) | Built-in Liquid Retina 2880 x 1864, UI 1710 x 1107 @ 59.88 Hz, 2x scale | ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version) (integrated) | fixture | 90 (excellent) | not run |
 | RTX 4050 laptop (Windows 11, 13th Gen Intel) | External 1920 x 1080 60 Hz (DISPLAY5) | ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11 vs_5_0 ps_5_0, D3D11) (integrated) | geodata | 69 (usable) | not run |
 | RTX 4050 laptop (Windows 11, 13th Gen Intel) | Internal panel at 1920 x 1080 60 Hz (DISPLAY1), 100% scaling | ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11 vs_5_0 ps_5_0, D3D11) (integrated) | geodata | 92 (excellent) | not run |
+| RTX 4050 laptop (Windows 11, 13th Gen Intel) | Internal panel at 1920 x 1080 60 Hz (DISPLAY1), 100% scaling, only display | ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11 vs_5_0 ps_5_0, D3D11) (integrated) | geodata | 100 (excellent) | not run |
 
 Notes:
 
@@ -140,6 +141,19 @@ Notes:
   16.665 ms, p99 20.140 ms, 81 missed, displayed p99 19.926 ms. Every frame was
   displayed (`Hardware Composed: Independent Flip`); GPU busy median 12.3 and
   12.1 ms, p99 15.2 and 18.3 ms.
+* **Intel iGPU on its own panel as the only display (gate runs):**
+  2026-10-24, the same harness with the external monitor disconnected, so the
+  internal panel (1920 x 1080 at 60 Hz, 100% scaling) was the only and
+  therefore the primary display. Chrome on Windows takes its frame clock from
+  the primary display's vertical blank (`ui/gl/vsync_thread_win_dxgi.cc`); in
+  the earlier panel runs the primary display was the external monitor driven
+  by the NVIDIA GPU, so those runs were paced by another display's clock. Both
+  runs PASS and rate 100: WebGL2 median 16.665 ms, p99 17.310 ms, 0 missed
+  refreshes, displayed p99 17.279 ms; WebGPU median 16.665 ms, p99 17.310 ms,
+  2 missed, displayed p99 17.281 ms. Every frame was displayed (`Hardware
+  Composed: Independent Flip`); GPU busy median 13.6 and 13.7 ms, p99 15.1 and
+  15.0 ms (WebGPU: 48 of 41,399 presents above 16.67 ms, against 633 of 41,340
+  in the previous WebGPU run).
 * **MacBook M5:** 2026-10-22 with the pre-rewrite harness over the fixture
   terrain. Frame pacing was excellent (median 16.665 ms, p99 17.670 ms, no
   missed refresh), but the scripted flight fell after about 11 s and the
@@ -151,13 +165,13 @@ Notes:
 
 `node scripts/gpu-ratings.mjs decide` reports **`BLOCKED_EXTERNAL`**: three
 integrated GPUs have been tested (Apple M4, Intel Graphics in the RTX 4050
-laptop, Apple M5). The Intel iGPU has gate-eligible runs on both backends, on
-the external monitor and on its own panel, and all six FAIL. The fairest pair,
-on its own panel without `nvidia-smi`, misses only the p99 limit (19.960 and
-20.140 ms against 17.665 ms; displayed p99 19.297 and 19.926 ms; ratings 92
-and 91). The M4 and M5 have no
-gate-eligible run yet, so the least performant integrated GPU is unknown; if
-it is the Intel iGPU, TASK-073 fails. The Macs need 10-minute WebGL2 and
+laptop, Apple M5). The Intel iGPU's latest gate-eligible pair, on its own
+panel as the only (and therefore primary) display, PASSES on both backends
+(p99 17.310 ms on WebGL2 and WebGPU, displayed p99 17.279 and 17.281 ms,
+rating 100); its six earlier runs, with an external monitor on the NVIDIA GPU
+as the primary display, all FAIL. On Windows, gate captures therefore run on
+the primary display. The M4 and M5 have no gate-eligible run yet, so the least
+performant integrated GPU is still unknown. The Macs need 10-minute WebGL2 and
 WebGPU captures on a 1920 x 1080 display at 1x scale (an external 1920 x 1080 monitor
 or a 1920 x 1080 scaled mode with the window filling the screen at DPR 1).
 
@@ -179,6 +193,8 @@ or a 1920 x 1080 scaled mode with the window filling the screen at DPR 1).
 | RTX 4050 laptop (Windows 11, 13th Gen Intel) | Internal panel at 1920 x 1080 60 Hz (DISPLAY1), 100% scaling | ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11 vs_5_0 ps_5_0, D3D11) (integrated) | webgpu 60 FPS | 1920 x 1080 at 1x | geodata | 16.665 / 41.965 | 1035 | FAIL | 38 (poor) |
 | RTX 4050 laptop (Windows 11, 13th Gen Intel) | Internal panel at 1920 x 1080 60 Hz (DISPLAY1), 100% scaling | ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11 vs_5_0 ps_5_0, D3D11) (integrated) | webgl2 60 FPS | 1920 x 1080 at 1x | geodata | 16.665 / 19.960 | 88 | FAIL | 92 (excellent) |
 | RTX 4050 laptop (Windows 11, 13th Gen Intel) | Internal panel at 1920 x 1080 60 Hz (DISPLAY1), 100% scaling | ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11 vs_5_0 ps_5_0, D3D11) (integrated) | webgpu 60 FPS | 1920 x 1080 at 1x | geodata | 16.665 / 20.140 | 81 | FAIL | 91 (excellent) |
+| RTX 4050 laptop (Windows 11, 13th Gen Intel) | Internal panel at 1920 x 1080 60 Hz (DISPLAY1), 100% scaling, only display | ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11 vs_5_0 ps_5_0, D3D11) (integrated) | webgl2 60 FPS | 1920 x 1080 at 1x | geodata | 16.665 / 17.310 | 0 | PASS | 100 (excellent) |
+| RTX 4050 laptop (Windows 11, 13th Gen Intel) | Internal panel at 1920 x 1080 60 Hz (DISPLAY1), 100% scaling, only display | ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11 vs_5_0 ps_5_0, D3D11) (integrated) | webgpu 60 FPS | 1920 x 1080 at 1x | geodata | 16.665 / 17.310 | 2 | PASS | 100 (excellent) |
 
 ## 6. Adding a run
 
@@ -191,5 +207,6 @@ node scripts/gpu-ratings.mjs decide
 
 Run every combination on AC power with the lid open and the machine left
 alone for the whole capture: the application's instructor keys pause, reset or
-inject faults. Paste the `table` output into sections 3 and 5 (here and in the
+inject faults. On Windows, capture on the primary display: Chrome paces every
+window by the primary display's vertical blank. Paste the `table` output into sections 3 and 5 (here and in the
 Russian mirror), update section 4 from `decide`, and run `npm run check:docs`.

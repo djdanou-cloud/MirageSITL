@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_THERMAL_UTC_MS, g3Requested, g3ThermalUtcFromSearch, g3ViewFromSearch } from "../apps/web/src/render/g3-mode";
+import { DEFAULT_THERMAL_UTC_MS, g3ProfileFromSearch, g3Requested, g3SkipFromSearch, g3ThermalUtcFromSearch, g3ViewFromSearch } from "../apps/web/src/render/g3-mode";
 
 // TASK-073: the measurement scene presents the chase view unless `view=fpv` is requested.
 describe("g3 view selection", () => {
@@ -14,6 +14,20 @@ describe("g3 view selection", () => {
   });
   it("presents the thermal image for inspection (TASK-073 P5)", () => {
     expect(g3ViewFromSearch("?g3=1&view=thermal")).toBe("thermal");
+  });
+});
+
+describe("diagnostic switches", () => {
+  it("profiles passes only for g3profile=1", () => {
+    expect(g3ProfileFromSearch("?g3=1&g3profile=1")).toBe(true);
+    expect(g3ProfileFromSearch("?g3=1&g3profile=true")).toBe(false);
+    expect(g3ProfileFromSearch("?g3=1")).toBe(false);
+  });
+  it("skips only the named fpv and thermal passes", () => {
+    expect(g3SkipFromSearch("?g3=1")).toEqual({ fpv: false, thermal: false });
+    expect(g3SkipFromSearch("?g3skip=thermal")).toEqual({ fpv: false, thermal: true });
+    expect(g3SkipFromSearch("?g3skip=fpv,thermal")).toEqual({ fpv: true, thermal: true });
+    expect(g3SkipFromSearch("?g3skip=chase,fpvx")).toEqual({ fpv: false, thermal: false });
   });
 });
 

@@ -507,3 +507,10 @@ The harness, analyzer and registry implementing this are `scripts/check-gpu-perf
 WebGL2 and WebGPU captures at 1920 x 1080 and 1x on every tested integrated GPU
 (Apple M4, Intel Graphics in the RTX 4050 laptop, Apple M5), with the machine on
 AC power, the lid open and the machine untouched.
+
+Intel Graphics in the RTX 4050 laptop: done on 2026-10-24, both backends PASS
+(rating 100) on the internal panel as the only display. On Windows the capture
+must run on the primary display, because Chrome takes its frame clock from the
+primary display's vertical blank; the earlier panel runs beside a primary
+external monitor failed for that reason (see [DEVICE_RATINGS.md](DEVICE_RATINGS.md)).
+Still needed: the Apple M4 and M5 captures.

@@ -202,7 +202,12 @@ export function presentMonDisplayedTimes(path, window) {
   return values;
 }
 
-/** Screenshot of the display rectangle containing (x, y) to a PNG (Windows); returns the captured bounds. */
+/**
+ * Screenshot of the display rectangle containing (x, y) to a PNG (Windows); returns the captured bounds
+ * and whether that display is the primary one. Chrome on Windows takes its frame clock from the primary
+ * display's vertical blank (ui/gl/vsync_thread_win_dxgi.cc), so a capture on any other display is paced
+ * by another display's clock (TASK-073, 2026-10-24).
+ */
 export function captureDisplay(x, y, outputPng) {
   if (process.platform !== "win32") return { available: false, reason: "Windows only" };
   const script = [
@@ -213,8 +218,8 @@ export function captureDisplay(x, y, outputPng) {
     "$g = [System.Drawing.Graphics]::FromImage($bmp)",
     "$g.CopyFromScreen($b.Location, [System.Drawing.Point]::Empty, $b.Size)",
     `$bmp.Save('${outputPng.replaceAll("'", "''")}', [System.Drawing.Imaging.ImageFormat]::Png)`,
-    "\"$($s.DeviceName)|$($b.X)|$($b.Y)|$($b.Width)|$($b.Height)\"",
+    "\"$($s.DeviceName)|$($b.X)|$($b.Y)|$($b.Width)|$($b.Height)|$($s.Primary)|$([System.Windows.Forms.Screen]::AllScreens.Length)\"",
   ].join("; ");
-  const [device, bx, by, width, height] = execFileSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", script], { encoding: "utf8", windowsHide: true }).trim().split("|");
-  return { available: true, device, x: Number(bx), y: Number(by), width: Number(width), height: Number(height), path: outputPng };
+  const [device, bx, by, width, height, primary, displays] = execFileSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", script], { encoding: "utf8", windowsHide: true }).trim().split("|");
+  return { available: true, device, x: Number(bx), y: Number(by), width: Number(width), height: Number(height), primary: primary === "True", displays: Number(displays), path: outputPng };
 }

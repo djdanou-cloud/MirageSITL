@@ -187,7 +187,7 @@ policy copies; if a client loads neither pointer, open this file explicitly.
   relax thresholds to hide them.**
 * **Browser WASM SITL, UX chain, GPU timing, and release gates:**
   Browser application session/READY integration, TASK-073 (G3 frame-time gate via `scripts/check-gpu-perf.mjs` and
-  `scripts/gpu-ratings.mjs`: by user decision of 2026-10-23 the least performant tested integrated GPU must pass a 1920×1080 canvas at 1x on WebGL2 and WebGPU at median 16.680 ms and p99 17.665 ms; every other machine, screen and GPU is rated out of 100 in `docs/DEVICE_RATINGS.md` without deciding), TASK-080
+  `scripts/gpu-ratings.mjs`: by user decision of 2026-10-23 the least performant tested integrated GPU must pass a 1920×1080 canvas at 1x on WebGL2 and WebGPU at median 16.680 ms and p99 17.665 ms; every other machine, screen and GPU is rated out of 100 in `docs/DEVICE_RATINGS.md` without deciding; the Intel iGPU passed on 2026-10-24, the M4 and M5 still need gate-eligible runs; on Windows capture on the primary display, because Chrome takes its frame clock from the primary display's vertical blank), TASK-080
   (accessibility sign-off; TASK-074 HUD freshness, TASK-075 fault ACKs, TASK-078 full-rate recording, and TASK-079 scenario ACK binding are done and do not admit browser READY), TASK-082 (multi-hour integrated soak), and TASK-083 (clean-machine
   release and assistive screen-reader sign-off) remain open.
 

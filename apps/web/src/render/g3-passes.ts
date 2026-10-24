@@ -24,19 +24,14 @@ import type { TilesScene } from "@mirage/terrain/tiles-scene";
 import { ThermalCameraPass } from "@mirage/thermal/thermal-material";
 import type { SimulationRuntime } from "../runtime";
 import { LENS, PROFILE, THERMAL_SUPERSAMPLE, ThermalSceneState, newProbe, publish, residentBytes, sensorPillarbox, type G3PassSet, type ThermalLocation } from "./g3-common";
-import { g3ViewFromSearch, type G3View } from "./g3-mode";
+import { g3ProfileFromSearch, g3SkipFromSearch, g3ViewFromSearch, type G3View } from "./g3-mode";
 import type { MaterialDrape } from "./material-drape";
 import { ThermalGBuffer } from "./thermal-gbuffer";
 import { GpuPassTimer, type G3Pass } from "./gpu-pass-timer";
 
-/** `?g3profile=1`: per-pass GPU timing published as probe.passMs (diagnostics only). */
-const PROFILE_PASSES = new URLSearchParams(globalThis.location?.search ?? "").get("g3profile") === "1";
-/**
- * `?g3skip=fpv,thermal`: skips the FPV chain and/or the thermal camera for pacing bisection (diagnostics
- * only). A skipped pass marks its probe feature off, so such a run never counts as a full-feature capture.
- */
-const SKIP = new Set((new URLSearchParams(globalThis.location?.search ?? "").get("g3skip") ?? "").split(",").filter(Boolean));
-const SKIP_FPV = SKIP.has("fpv"), SKIP_THERMAL = SKIP.has("thermal");
+const PROFILE_PASSES = g3ProfileFromSearch(globalThis.location?.search ?? "");
+const { fpv: SKIP_FPV, thermal: SKIP_THERMAL } = g3SkipFromSearch(globalThis.location?.search ?? "");
+const SKIPPED = [SKIP_FPV ? "fpv" : "", SKIP_THERMAL ? "thermal" : ""].filter(Boolean).join(",");
 
 export type { G3Probe, ThermalLocation } from "./g3-common";
 
@@ -246,7 +241,7 @@ class ProductionPasses implements G3PassSet {
     probe.height = height;
     probe.view = view;
     probe.frames += 1;
-    probe.reason = SKIP.size ? `Passes skipped by ?g3skip (diagnostics): ${[...SKIP].join(",")}`
+    probe.reason = SKIPPED ? `Passes skipped by ?g3skip (diagnostics): ${SKIPPED}`
       : this.shaderErrors !== 0 ? "FPV or thermal shader failed" : this.floatColor ? (probe.terrain ? "" : "Terrain tiles are not resident") : "EXT_color_buffer_float is unavailable";
   }
 

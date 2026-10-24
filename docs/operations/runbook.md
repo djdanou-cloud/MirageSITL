@@ -184,6 +184,17 @@ sits on the nose of the drawn body (`apps/web/src/vehicle-geometry.ts`), not
 inside it. `MIRAGE_SCREENSHOTS=1` keeps a Playwright screenshot of every browser
 test (default: failures only) for operator review.
 
+Capture on the primary display. Chrome on Windows takes its frame clock, the
+`requestAnimationFrame` timestamps the gate scores, from the vertical blank of
+the primary monitor (`ui/gl/vsync_thread_win_dxgi.cc`) and stamps each frame
+with the time its vsync thread woke, so a window on any other display is paced
+by the primary display's clock. On the RTX 4050 laptop the Intel iGPU panel
+passed as the only (and therefore primary) display, while the same scene on
+the panel at `--position 1920,0` beside a primary external monitor driven by
+the NVIDIA GPU failed on p99 (TASK-073, 2026-10-24). The side record notes
+whether the captured display was the primary one and how many displays were
+attached (`side.display.primary`, `side.display.displays`).
+
 `?g3=1` presents the external chase view with the whole drone by default; the
 FPV, analog and thermal passes still render every frame to their own targets.
 `?view=fpv` presents the FPV image instead. Captures and tests open
@@ -215,15 +226,22 @@ node scripts/check-gpu-perf.mjs --backend webgl2 --fps 60 --geodata '\\wsl.local
 metrics and the browser identity, so a verdict always names its Chrome configuration. The gate also scores PresentMon's displayed-frame
 times with the same limits as the frame clock; on Windows PresentMon must be available (see the PresentMon notes above), otherwise a gate-eligible run is
 `BLOCKED_EXTERNAL` (other runs are still rated). Each flight-log sample records `pilotRejection`, the Worker's diagnostic for a
-pilot sample that blocked the armed latch. Open the page with `?g3profile=1` to publish per-pass WebGL2 GPU times (`passMs` on the
-G3 probe), and add `--chrome-args "--force_low_power_gpu"` to render on the integrated GPU. `?g3skip=fpv`, `?g3skip=thermal` (or both,
-comma-separated) skip those WebGL2 passes for pacing bisection; the probe then reports the feature off, so such a run never counts.
+pilot sample that blocked the armed latch. Open the page with `?g3profile=1` to publish per-pass GPU times (`passMs` on the
+G3 probe; on WebGPU also the per-frame `passLog`, from three's timestamp queries, which Chrome rounds to 0.1 ms unless
+`--enable-webgpu-developer-features` is passed), and add `--chrome-args "--force_low_power_gpu"` to render on the integrated GPU.
+`?g3skip=fpv`, `?g3skip=thermal` (or both, comma-separated) skip those passes on either backend for pacing bisection; the probe then
+reports the feature off, so such a run never counts.
 On a hybrid laptop the `nvidia-smi` sampler disturbs an integrated-GPU display: each query delayed the Intel panel's vertical-blank
 signal by two or three refreshes (TASK-073 bisection, 2026-10-23), so `check-gpu-perf.mjs` and `diagnose-pacing.mjs` query it only
 when the measured WebGL renderer is NVIDIA and otherwise record the clocks as unavailable with the reason.
 To find why frames are late, `node scripts/diagnose-pacing.mjs --geodata DIR [--backend webgpu] [--chrome-args "--disable-direct-composition"]`
 records a 45 s Chrome trace, PresentMon and 10 Hz `nvidia-smi` samples (about 300 MB per trace, in `test-results/pacing/`), and
 `node --max-old-space-size=8192 scripts/analyze-pacing.mjs test-results/pacing/pacing-webgl2.json` compares missed and on-time frames.
+`--no-trace` measures without the Chrome trace and PresentMon, `--query "&g3profile=1"` adds page parameters and saves the WebGPU
+per-pass log, and `--vblank 1200` runs `scripts/vblank-probe.ps1` on DISPLAY1 over the window (1200 = the panel's active lines). The probe
+waits on `D3DKMTWaitForVerticalBlankEvent`, the kernel wait behind Chrome's frame clock, and reads the scan line on waking;
+`node scripts/analyze-vblank.mjs test-results/pacing/vblank-webgl2.json --vactive 1200 --raf test-results/pacing/raf-webgl2.json` reports how
+long after each vertical blank the probe and the page's rAF timestamps arrived, and on how many refreshes both were late.
 `--view thermal` (or `fpv`) presents that image instead of the chase view for
 inspection runs; acceptance captures keep the default `chase`. The thermal scene
 instant defaults to 2026-07-15 07:00 UTC; open the page with

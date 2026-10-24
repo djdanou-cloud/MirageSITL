@@ -945,6 +945,136 @@
         }
       },
       "traceSha256": "d09bb0b956a37ccbf90ab759494fc208087dde9c3423aef54a0fac2e96a2b80d"
+    },
+    {
+      "schemaVersion": 1,
+      "source": "harness",
+      "recordedAt": "2026-10-24T16:25:50.246Z",
+      "machine": {
+        "label": "RTX 4050 laptop (Windows 11, 13th Gen Intel)",
+        "hostModel": "Intel(R) Core(TM) 7 240H",
+        "os": "win32 10.0.26200"
+      },
+      "screen": {
+        "label": "Internal panel at 1920 x 1080 60 Hz (DISPLAY1), 100% scaling, only display",
+        "refreshHz": 59.88023952095813,
+        "widthPx": 1920,
+        "heightPx": 1080,
+        "scale": 1
+      },
+      "gpu": {
+        "renderer": "ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+        "kind": "integrated"
+      },
+      "browser": "155.0.8059.85 --force_low_power_gpu",
+      "powerMode": "unreported",
+      "terrain": "geodata",
+      "view": "chase",
+      "backend": "webgl2",
+      "fps": 60,
+      "canvas": {
+        "width": 1920,
+        "height": 1080,
+        "dpr": 1,
+        "displayScale": 1
+      },
+      "status": "PASS",
+      "reasons": [],
+      "metrics": {
+        "frames": 36004,
+        "measuredS": 600.0650850000001,
+        "p50FrameMs": 16.665000000037253,
+        "p99FrameMs": 17.30999999999767,
+        "maxFrameMs": 23.429999999993015,
+        "missedRefreshes": 0,
+        "featuresHeld": true,
+        "airborne": true,
+        "gpuBytes": 14022964,
+        "cpuBytes": 14022964,
+        "displaySource": "presentmon",
+        "p50DisplayedMs": 16.6664,
+        "p99DisplayedMs": 17.2789
+      },
+      "chromeArgs": [
+        "--force_low_power_gpu"
+      ],
+      "rating": {
+        "score": 100,
+        "band": "excellent",
+        "components": {
+          "pacing": 50,
+          "sustain": 20,
+          "median": 10,
+          "features": 10,
+          "memory": 9.738801941275597
+        }
+      },
+      "traceSha256": "1b2fa72766d37d56758954991ebe4d3aa82ee98846b004d539a2d400bf1fd045"
+    },
+    {
+      "schemaVersion": 1,
+      "source": "harness",
+      "recordedAt": "2026-10-24T16:37:37.579Z",
+      "machine": {
+        "label": "RTX 4050 laptop (Windows 11, 13th Gen Intel)",
+        "hostModel": "Intel(R) Core(TM) 7 240H",
+        "os": "win32 10.0.26200"
+      },
+      "screen": {
+        "label": "Internal panel at 1920 x 1080 60 Hz (DISPLAY1), 100% scaling, only display",
+        "refreshHz": 59.88023952095813,
+        "widthPx": 1920,
+        "heightPx": 1080,
+        "scale": 1
+      },
+      "gpu": {
+        "renderer": "ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+        "kind": "integrated"
+      },
+      "browser": "155.0.8059.85 --force_low_power_gpu",
+      "powerMode": "unreported",
+      "terrain": "geodata",
+      "view": "chase",
+      "backend": "webgpu",
+      "fps": 60,
+      "canvas": {
+        "width": 1920,
+        "height": 1080,
+        "dpr": 1,
+        "displayScale": 1
+      },
+      "status": "PASS",
+      "reasons": [],
+      "metrics": {
+        "frames": 36002,
+        "measuredS": 600.06488,
+        "p50FrameMs": 16.665000000037253,
+        "p99FrameMs": 17.30999999999767,
+        "maxFrameMs": 40.46500000001106,
+        "missedRefreshes": 2,
+        "featuresHeld": true,
+        "airborne": true,
+        "gpuBytes": 14022964,
+        "cpuBytes": 14022964,
+        "displaySource": "presentmon",
+        "p50DisplayedMs": 16.6663,
+        "p99DisplayedMs": 17.2807
+      },
+      "chromeArgs": [
+        "--force_low_power_gpu"
+      ],
+      "rating": {
+        "score": 100,
+        "band": "excellent",
+        "components": {
+          "pacing": 50,
+          "sustain": 19.97773574084189,
+          "median": 10,
+          "features": 10,
+          "memory": 9.738801941275597
+        }
+      },
+      "traceSha256": "d7e1d9154d2a8a643d1b9dcf740ed680bce9d62c1f02ecb544b773720e9993b4"
     }
   ]
 }

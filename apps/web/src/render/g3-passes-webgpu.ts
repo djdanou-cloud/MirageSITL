@@ -15,10 +15,17 @@ import { FpvCamera } from "@mirage/cameras/fpv-camera";
 import type { TilesScene } from "@mirage/terrain/tiles-scene";
 import { ThermalCameraNodePass } from "@mirage/thermal/thermal-node";
 import { LENS, PROFILE, THERMAL_SUPERSAMPLE, ThermalSceneState, newProbe, publish, residentBytes, sensorPillarbox, type G3PassSet, type ThermalLocation } from "./g3-common";
-import type { G3View } from "./g3-mode";
+import { g3ProfileFromSearch, g3SkipFromSearch, type G3View } from "./g3-mode";
+import type { G3Pass } from "./gpu-pass-timer";
+import { WebGpuPassTimer } from "./gpu-pass-timer-webgpu";
 import type { MaterialDrape } from "./material-drape";
 import { ThermalGBufferNode } from "./thermal-gbuffer-node";
 import { rendererDevice } from "./webgpu";
+
+/** `?g3profile=1` and `?g3skip=fpv,thermal`, as on WebGL2 (diagnostics only). */
+const PROFILE_PASSES = g3ProfileFromSearch(globalThis.location?.search ?? "");
+const { fpv: SKIP_FPV, thermal: SKIP_THERMAL } = g3SkipFromSearch(globalThis.location?.search ?? "");
+const SKIPPED = [SKIP_FPV ? "fpv" : "", SKIP_THERMAL ? "thermal" : ""].filter(Boolean).join(",");
 
 /** G-buffer: float, nearest. FPV chain: bilinear; the scene render (samples 4) is multisampled. */
 function target(width: number, height: number, float = false, samples = 0): RenderTarget {
@@ -52,6 +59,7 @@ class WebGpuPasses implements G3PassSet {
   private frame = 0;
   private deviceErrors = 0;
   private disposed = false;
+  private readonly timer: WebGpuPassTimer | null;
   private readonly onDeviceError = (event: Event) => {
     this.deviceErrors += 1;
     if (this.deviceErrors === 1) console.error("G3 WebGPU device error", event instanceof GPUUncapturedErrorEvent ? event.error.message : event.type);
@@ -74,7 +82,13 @@ class WebGpuPasses implements G3PassSet {
       return select(inside, thermalImage.sample(vec2(x.clamp(0, 1), st.y)), vec4(0, 0, 0, 1));
     })();
     this.presentQuad = new QuadMesh(this.presentMaterial);
-    rendererDevice(renderer)?.addEventListener("uncapturederror", this.onDeviceError);
+    const device = rendererDevice(renderer);
+    device?.addEventListener("uncapturederror", this.onDeviceError);
+    this.timer = PROFILE_PASSES && device ? WebGpuPassTimer.create(device, renderer.backend) : null;
+    if (this.timer) {
+      Reflect.set(this.probe, "passMs", this.timer.meanMs);
+      Reflect.set(this.probe, "passLog", this.timer.log);
+    }
     publish(renderer.domElement, this.probe);
   }
 
@@ -114,56 +128,64 @@ class WebGpuPasses implements G3PassSet {
       source.tiles.setResolution(this.fpv.camera, this.bufferSize);
       source.update();
     }
-    r.setRenderTarget(this.color);
-    void r.render(scene, this.fpv.camera);
-    r.setRenderTarget(this.fisheye);
-    this.fisheyeQuad.render(r);
-    if (this.video.updateFrom(video)) this.analogNode.updateFrom(this.video);
-    r.setRenderTarget(view === "fpv" ? null : this.analog);
-    this.analogQuad.render(r);
+    const timer = this.timer;
+    const begin = (pass: G3Pass) => timer?.begin(pass);
+    const end = () => timer?.end();
+    if (!SKIP_FPV) {
+      r.setRenderTarget(this.color);
+      begin("fpvScene"); void r.render(scene, this.fpv.camera); end();
+      r.setRenderTarget(this.fisheye);
+      begin("fisheye"); this.fisheyeQuad.render(r); end();
+      if (this.video.updateFrom(video)) this.analogNode.updateFrom(this.video);
+      r.setRenderTarget(view === "fpv" ? null : this.analog);
+      begin("analog"); this.analogQuad.render(r); end();
+    }
     if (view === "chase") {
       r.setRenderTarget(null);
-      void r.render(scene, chase);
+      begin("chaseScene"); void r.render(scene, chase); end();
     }
     const state = this.thermalState;
-    if (state.step()) {
+    if (!SKIP_THERMAL && state.step()) {
       state.aimFrom(this.fpv.camera);
       const previousOverride = scene.overrideMaterial, previousBackground = scene.background, previousAlpha = r.getClearAlpha();
       scene.overrideMaterial = state.gbuffer.material;
       scene.background = null; // cleared texels (alpha 0) are sky
       r.setClearAlpha(0);
       r.setRenderTarget(this.gbuffer);
-      void r.render(scene, state.camera);
+      begin("gbuffer"); void r.render(scene, state.camera); end();
       r.setClearAlpha(previousAlpha);
       scene.background = previousBackground;
       scene.overrideMaterial = previousOverride;
       this.frame = (this.frame + 1) >>> 0;
       this.thermal.setFrameSeed(this.frame);
-      this.thermal.render(r);
+      begin("thermal"); this.thermal.render(r); end();
     }
     if (view === "thermal") {
       r.setRenderTarget(null);
-      this.presentQuad.render(r);
+      begin("present"); this.presentQuad.render(r); end();
     }
+    timer?.endFrame();
     const bytes = residentBytes(tiles);
     const probe = this.probe;
     probe.gpuBytes = bytes;
     probe.cpuBytes = bytes;
     probe.terrain = bytes >= 1;
-    probe.fpv = this.deviceErrors === 0;
-    probe.thermal = probe.fpv; // rgba32float is renderable in core WebGPU
+    probe.fpv = this.deviceErrors === 0 && !SKIP_FPV;
+    probe.thermal = this.deviceErrors === 0 && !SKIP_THERMAL; // rgba32float is renderable in core WebGPU
     probe.dpr = r.getPixelRatio();
     probe.width = width;
     probe.height = height;
     probe.view = view;
     probe.frames += 1;
-    probe.reason = !probe.fpv ? "WebGPU device reported an error" : probe.terrain ? "" : "Terrain tiles are not resident";
+    probe.reason = SKIPPED ? `Passes skipped by ?g3skip (diagnostics): ${SKIPPED}`
+      : this.deviceErrors !== 0 ? "WebGPU device reported an error" : probe.terrain ? "" : "Terrain tiles are not resident";
   }
 
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
     rendererDevice(this.renderer)?.removeEventListener("uncapturederror", this.onDeviceError);
+    this.timer?.dispose();
     this.color.dispose(); this.fisheye.dispose(); this.analog.dispose(); this.gbuffer.dispose();
     this.fisheyeNode.dispose(); this.analogNode.dispose(); this.thermal.dispose(); this.thermalState.gbuffer.dispose(); this.presentMaterial.dispose();
     this.probe.fpv = false;

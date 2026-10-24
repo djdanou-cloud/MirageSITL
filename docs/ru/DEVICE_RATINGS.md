@@ -1,6 +1,6 @@
 # Рейтинги устройств (TASK-073)
 
-<!-- source-sha256: e5ce18720a4242dfae8424676ed424874ec9785bf31cc746e8362cdec1f56c99 -->
+<!-- source-sha256: 5e5a417c1bc5ee64b75b48a906c9e9cb04abeed69eab54321885c085db75ddbd -->
 
 Русское зеркало. [Английский источник](../DEVICE_RATINGS.md).
 
@@ -87,6 +87,7 @@ memory   = 1 - max(GPU peak / 2 GiB, CPU peak / 512 MiB), floored at 0
 | MacBook M5 (14-inch) | Built-in Liquid Retina 2880 x 1864, UI 1710 x 1107 @ 59.88 Hz, 2x scale | ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version) (integrated) | fixture | 90 (excellent) | not run |
 | RTX 4050 laptop (Windows 11, 13th Gen Intel) | External 1920 x 1080 60 Hz (DISPLAY5) | ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11 vs_5_0 ps_5_0, D3D11) (integrated) | geodata | 69 (usable) | not run |
 | RTX 4050 laptop (Windows 11, 13th Gen Intel) | Internal panel at 1920 x 1080 60 Hz (DISPLAY1), 100% scaling | ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11 vs_5_0 ps_5_0, D3D11) (integrated) | geodata | 92 (excellent) | not run |
+| RTX 4050 laptop (Windows 11, 13th Gen Intel) | Internal panel at 1920 x 1080 60 Hz (DISPLAY1), 100% scaling, only display | ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11 vs_5_0 ps_5_0, D3D11) (integrated) | geodata | 100 (excellent) | not run |
 
 Значения ячеек таблиц — это машинный вывод `node scripts/gpu-ratings.mjs table`
 и остаются на английском.
@@ -158,6 +159,19 @@ memory   = 1 - max(GPU peak / 2 GiB, CPU peak / 512 MiB), floored at 0
   81 пропущенное, p99 показа 19,926 мс. Показан каждый кадр (`Hardware
   Composed: Independent Flip`); медиана занятости GPU 12,3 и 12,1 мс, p99 15,2
   и 18,3 мс.
+* **Intel iGPU на собственной панели как единственном дисплее (прогоны
+  критерия):** 2026-10-24, тот же стенд с отключённым внешним монитором, так
+  что встроенная панель (1920 x 1080 при 60 Гц, масштаб 100%) была
+  единственным и поэтому основным дисплеем. Chrome в Windows берёт часы кадров
+  от вертикального гашения основного дисплея (`ui/gl/vsync_thread_win_dxgi.cc`);
+  в прежних прогонах на панели основным был внешний монитор на GPU NVIDIA,
+  поэтому темп тех прогонов задавали часы другого дисплея. Оба прогона — PASS
+  с оценкой 100: WebGL2 — медиана 16,665 мс, p99 17,310 мс, 0 пропущенных
+  обновлений, p99 показа 17,279 мс; WebGPU — медиана 16,665 мс, p99
+  17,310 мс, 2 пропущенных, p99 показа 17,281 мс. Показан каждый кадр
+  (`Hardware Composed: Independent Flip`); медиана занятости GPU 13,6 и
+  13,7 мс, p99 15,1 и 15,0 мс (WebGPU: 48 из 41 399 представлений дольше
+  16,67 мс против 633 из 41 340 в предыдущем прогоне WebGPU).
 * **MacBook M5:** 2026-10-22, стенд до переработки, рельеф-фикстура. Темп
   кадров был отличным (медиана 16,665 мс, p99 17,670 мс, ни одного
   пропущенного обновления), но программный полёт упал примерно через 11 с, а
@@ -168,13 +182,14 @@ memory   = 1 - max(GPU peak / 2 GiB, CPU peak / 512 MiB), floored at 0
 
 `node scripts/gpu-ratings.mjs decide` сообщает **`BLOCKED_EXTERNAL`**:
 протестированы три встроенных GPU (Apple M4, Intel Graphics в ноутбуке с
-RTX 4050, Apple M5). У Intel iGPU есть допущенные к критерию прогоны на обоих
-бэкендах, на внешнем мониторе и на собственной панели, и все шесть — FAIL.
-Самая честная пара, на собственной панели без `nvidia-smi`, не проходит только
-предел p99 (19,960 и 20,140 мс при пределе 17,665 мс; p99 показа 19,297 и
-19,926 мс; оценки 92 и 91). У M4 и M5 пока нет
+RTX 4050, Apple M5). Последняя допущенная к критерию пара Intel iGPU, на
+собственной панели как единственном (и поэтому основном) дисплее, проходит
+критерий (PASS) на обоих бэкендах (p99 17,310 мс на WebGL2 и WebGPU, p99
+показа 17,279 и 17,281 мс, оценка 100); все шесть его прежних прогонов, с
+внешним монитором на GPU NVIDIA в роли основного дисплея, — FAIL. Поэтому в
+Windows захваты критерия выполняются на основном дисплее. У M4 и M5 пока нет
 допущенного прогона, поэтому наименее производительный встроенный GPU
-неизвестен; если это Intel iGPU, TASK-073 не пройдена. Компьютерам Mac нужны
+по-прежнему неизвестен. Компьютерам Mac нужны
 10-минутные захваты WebGL2 и WebGPU на дисплее 1920 x 1080 при масштабе 1x (
 внешний монитор 1920 x 1080 или масштабированный режим 1920 x 1080 с окном,
 заполняющим экран при DPR 1).
@@ -197,6 +212,8 @@ RTX 4050, Apple M5). У Intel iGPU есть допущенные к критер
 | RTX 4050 laptop (Windows 11, 13th Gen Intel) | Internal panel at 1920 x 1080 60 Hz (DISPLAY1), 100% scaling | ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11 vs_5_0 ps_5_0, D3D11) (integrated) | webgpu 60 FPS | 1920 x 1080 at 1x | geodata | 16.665 / 41.965 | 1035 | FAIL | 38 (poor) |
 | RTX 4050 laptop (Windows 11, 13th Gen Intel) | Internal panel at 1920 x 1080 60 Hz (DISPLAY1), 100% scaling | ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11 vs_5_0 ps_5_0, D3D11) (integrated) | webgl2 60 FPS | 1920 x 1080 at 1x | geodata | 16.665 / 19.960 | 88 | FAIL | 92 (excellent) |
 | RTX 4050 laptop (Windows 11, 13th Gen Intel) | Internal panel at 1920 x 1080 60 Hz (DISPLAY1), 100% scaling | ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11 vs_5_0 ps_5_0, D3D11) (integrated) | webgpu 60 FPS | 1920 x 1080 at 1x | geodata | 16.665 / 20.140 | 81 | FAIL | 91 (excellent) |
+| RTX 4050 laptop (Windows 11, 13th Gen Intel) | Internal panel at 1920 x 1080 60 Hz (DISPLAY1), 100% scaling, only display | ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11 vs_5_0 ps_5_0, D3D11) (integrated) | webgl2 60 FPS | 1920 x 1080 at 1x | geodata | 16.665 / 17.310 | 0 | PASS | 100 (excellent) |
+| RTX 4050 laptop (Windows 11, 13th Gen Intel) | Internal panel at 1920 x 1080 60 Hz (DISPLAY1), 100% scaling, only display | ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11 vs_5_0 ps_5_0, D3D11) (integrated) | webgpu 60 FPS | 1920 x 1080 at 1x | geodata | 16.665 / 17.310 | 2 | PASS | 100 (excellent) |
 
 ## 6. Добавление прогона
 
@@ -209,6 +226,7 @@ node scripts/gpu-ratings.mjs decide
 
 Запускайте каждое сочетание от сети, с открытой крышкой и не трогая машину
 весь захват: клавиши инструктора в приложении ставят на паузу, сбрасывают
-или вносят отказы. Вставьте вывод `table` в разделы 3 и 5 (здесь и в
+или вносят отказы. В Windows захватывайте на основном дисплее: Chrome задаёт
+темп каждого окна по вертикальному гашению основного дисплея. Вставьте вывод `table` в разделы 3 и 5 (здесь и в
 английском источнике), обновите раздел 4 по выводу `decide` и выполните
 `npm run check:docs`.
