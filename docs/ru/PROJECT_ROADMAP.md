@@ -5,11 +5,11 @@
 Доказательства NACA6409: Python 3.12, NeuralFoil 0.3.3, AeroSandbox 4.2.10, NumPy 2.5.4; закреплены все 22 пакета окружения. Созданы 1210 точек: углы -30..30 градусов с шагом 0.5, десять Re от 1000 до 1000000, только несжимаемое течение. Достоверность >=0.9 имеют 601 узел; остальные 609 сохраняются, поиск учитывает минимум участвующих узлов. SHA-256 фикстуры d6d9793ea030c6b957fa9018ed5c3307891665829773574b2bacb26f1909c9a1. Генератор `--check`: код 0; семь тестов Python проходят (независимая геометрия NACA, прямые вызовы NeuralFoil, интерполяция, границы, достоверность и синтетическое происхождение в реестре). TypeScript, ESLint и сборка Vite: код 0; сохраняется предупреждение о размере пакета. Четыре файла Vitest выполняют 21 тест: 20 проходят, существующий тест NASA не запускает псевдоним python3 Windows; эквивалентный `python -I tests/fixtures/contact/generate_nasa_drop.py --check` проходит. Проверка хешей фикстур отдельно проходит. Первый запуск Vitest столкнулся с запретом переименования временных файлов песочницы; использование `.cache/tmp` в рабочем каталоге позволяет выполнить тесты. Проверка документации проходит (21 двуязычная пара, 86 задач, шесть раскладок); git diff --check проходит. Производственный движок, измеренная точность и READY автопилота не заявляются.
 
 
-<!-- source-sha256: 9d93cc0dddb765aff58d0df832bbee4d6cb69cc6ba49c1b72d0f51cffb45837b -->
+<!-- source-sha256: c9a99b9ead7489ad5123a6d89daa4073355edb650ca00cf9b03d7725143aac79 -->
 
 Английский источник: [Source of truth](../PROJECT_ROADMAP.md). Изменения спецификации обновляют оба языка в одной задаче.
 
-Версия 1.1 · 2026-10-20 · baseline `aab5e47`. Будущие модули не объявляются реализованными. Активное браузерное приложение работает на ABI v2 (`49280` байт, шаг состояния `192` байта) с частотами `400/800/1200` Гц, очередями датчиков/актуаторов SPSC, рендерингом с учётом эпох, прореженными потоками Pilot HUD / Instructor / AAR и демонстрационным бэкендом динамики (`540` юнит-тестов в `97` файлах, браузерные наборы Chromium и `62` нативных теста Rust). Независимые нативные/WASM ядра роторов, прямой `f64` контакт шасси Rapier (`TASK-029`) и сопряжение чанков коллизий (`TASK-065`), закреплённый JSBSim v1.2.3 WASM/контакт (`TASK-030`/`031`/`086`), нативный полёт ArduCopter SITL в Linux/WSL, `LiveEkfWarmup` и регрессии отказов РЭБ (`TASK-042`/`043`/`059`), а также запуск Worker/EEPROM для ArduCopter WASM (`TASK-045`) проверены в соответствующих стендах. Производственная привязка поляр C ABI BET и конфигурируемые сессии теперь проверены TASK-033. TASK-046 проверяет браузерную границу времени/датчиков/PWM HAL и завершение принадлежащих сессии Worker. Браузерный `READY` автопилота, измеренная достоверность моделей (отдельно от синтетической базы TASK-033), Simulation-on-Hardware и виртуальный Hybrid SITL для ArduPilot (`TASK-051`), 10-минутное профилирование целевых GPU (`TASK-073`), полночастотная запись и итоговая проверка доступности (`TASK-078`/`080`; TASK-074, TASK-075 и TASK-079 выполнены) и итоговая приёмка релиза (`TASK-082`/`083`) остаются открытыми.
+Версия 1.2 · 2026-10-26 · baseline `4593971`. Будущие модули не объявляются реализованными. Активное браузерное приложение работает на ABI v2 (`49280` байт, шаг состояния `192` байта) с частотами `400/800/1200` Гц, очередями датчиков/актуаторов SPSC, рендерингом с учётом эпох, прореженными потоками Pilot HUD / Instructor / AAR и демонстрационным бэкендом динамики (`540` юнит-тестов в `97` файлах, браузерные наборы Chromium и `62` нативных теста Rust). Независимые нативные/WASM ядра роторов, прямой `f64` контакт шасси Rapier (`TASK-029`) и сопряжение чанков коллизий (`TASK-065`), закреплённый JSBSim v1.2.3 WASM/контакт (`TASK-030`/`031`/`086`), нативный полёт ArduCopter SITL в Linux/WSL, `LiveEkfWarmup` и регрессии отказов РЭБ (`TASK-042`/`043`/`059`), а также запуск Worker/EEPROM для ArduCopter WASM (`TASK-045`) проверены в соответствующих стендах. Производственная привязка поляр C ABI BET и конфигурируемые сессии теперь проверены TASK-033. TASK-046 проверяет браузерную границу времени/датчиков/PWM HAL и завершение принадлежащих сессии Worker. Браузерный `READY` автопилота, измеренная достоверность моделей (отдельно от синтетической базы TASK-033), Simulation-on-Hardware и виртуальный Hybrid SITL для ArduPilot (`TASK-051`), 10-минутное профилирование целевых GPU (`TASK-073`), полночастотная запись и итоговая проверка доступности (`TASK-078`/`080`; TASK-074, TASK-075 и TASK-079 выполнены) и итоговая приёмка релиза (`TASK-082`/`083`) остаются открытыми. Программа точности физики (Phases 7–13, TASK-087–TASK-123) зарегистрирована и ещё не реализована.
 
 Контракты: [Shared Memory](SPECS_SHARED_MEMORY.md),
 [Simulation Engines](SPECS_SIMULATION_ENGINES.md), [V2 Architecture & Verification Plan](V2_PLAN.md) и [Agent workflow](CLAUDE.md).
@@ -93,6 +93,13 @@ CPU cache; фактическую доступность GPU memory считат
 | 4 EW & Sensor Faults | S04a: 052,053,054; S04b: 055,056,057; S04c: 058,059 | Детерминированные отказы и закреплённые сценарии EKF |
 | 5 Environment & Shaders | S05a: 060,061,062; S05b: 063,064,065; S05c: 066,067,068; S05d: 069,070,071,072; S05e: 073 | Лицензированный рельеф, профили рендера, гейты целевых GPU |
 | 6 UI & Telemetry | S06a: 074,075; S06b: 076,077,078; S06c: 079,080,081; S06d: 082,083 | Тренировки/AAR и матрица релиза с доказательствами |
+| 7 Physics Fidelity Foundations | S07a: 087,088; S07b: 089,090; S07c: 091 | Манифест v2 и интерфейс v2 заморожены с фикстурами, владение ошибками датчиков решено, измеренный захват оценён, вычисления BET в пределах G3 |
+| 8 Core Flight Dynamics | S08a: 092,093; S08b: 094,095; S08c: 096 | ArduCopter в обоих режимах с физической кривой газа, просадкой батареи, ветром, сопротивлением и податливой посадкой |
+| 9 Advanced Rotor Aerodynamics | S09a: 097,098; S09b: 099,100; S09c: 101,102; S09d: 103 | Повтор UIUC достигает заявленной цели; влияние земли и снижение сравнены с данными |
+| 10 Propulsion & Environment | S10a: 104,105; S10b: 106,107; S10c: 108 | Эталоны батареи, теплового режима мотора, турбулентности и полей Земли выполнены |
+| 11 Airframe & Vehicle Classes | S11a: 109,110; S11b: 111,112; S11c: 113 | Миссии ArduPlane и QuadPlane с переходами в обоих режимах |
+| 12 Sensor Physics | S12a: 115,114; S12b: 116,117; S12c: 118 | Статистика вибрации, барометра и GNSS совпадает с логами |
+| 13 Structures & Extreme Environment | S13a: 119,120; S13b: 121,122; S13c: 123 | Гибкая конструкция, изменения массы и опасные течения сравнены с данными |
 
 WASM ArduPilot feasibility и HITL compatibility — обязательные отдельные
 gates. Если они заблокированы, продолжить независимые задачи, но не
@@ -1016,6 +1023,376 @@ Google content без прав.
 - **Interfaces / Contracts:** Source/artifact/dataset/toolchain hashes, licences, supported capability matrix.
 - **DoD & Acceptance Criteria:** Clean-machine build/install/start проверены; rollback и process cleanup описаны; отчёт содержит реальные blocked gates; никаких deploy/push автоматически без разрешённого scope.
 - **Evidence:** Владелец Codex; baseline c3a4735; 2026-10-17. `scripts/release-manifest.mjs`, `docs/operations/release-manifest.schema.json`, [runbook.md](runbook.md) и `tests/release-manifest.test.ts` проверяют инвентаризацию SHA-256 артефактов/исходников/тулчейна и явную блокировку непроверенных лицензий `UNREVIEWED` (`test-results/laptop/release-manifest.json` инвентаризирует 11 файлов сборки / `1 855 274` Б и завершается с кодом 1, пока остаются открытыми `TASK-082` и проверки лицензий/чистой машины).
+
+## Программа точности физики (Phases 7–13)
+
+Зарегистрирована 2026-10-26 по итогам обзора точности физики на baseline `4593971`. Регистрация ничего не реализует. MirageSITL остаётся внешней моделью динамики полёта для ArduPilot: нативные запуски используют JSON backend (TASK-041), браузерная сборка — HAL mailbox (TASK-046). Встроенные модели ArduPilot `SIM_Multicopter` и `SIM_Plane` не изменяются, нативная прошивка остаётся без изменений ([V2_PLAN.md](V2_PLAN.md), раздел 4, B1). Новые параметры аппарата относятся к манифесту аппарата (TASK-087), а не к новым параметрам ArduPilot `SIM_*`. Потоки работ могут идти параллельно там, где это допускают зависимости. Гейты релиза версии 1 (TASK-082, TASK-083) не ждут этих фаз.
+
+Измеренная отправная точка (измерение обзора, не гейт: 4-ядерный Xeon 2.1 ГГц, Rust 1.97.0 release, Node 22, временные стенды вне репозитория; TASK-091 заменит его бенчмарком репозитория). Один элемент BET стоит около 110 нс в нативном коде. Производственный такт квадрокоптера (28 полос × 8 азимутальных отсчётов × 2 вычисления на ротор) стоит около 0.21 мс нативно и 0.35 мс через браузерные WASM-адаптеры. Такт октокоптера стоит около 0.70 мс, что выше вычислительного лимита G3 0.4167 мс при 1200 Гц. Шаг твёрдого тела RK4 стоит 175 нс нативно и 614 нс в WASM. Установившаяся тяга висения у производственного ESC-источника момента описывается `T/Tmax = (1−a)·d + a·d²` с `a ≈ 0.20` против `a ≈ 0.87` у неподключённого ядра `motor.rs` с противо-ЭДС и значения ArduPilot по умолчанию `MOT_THST_EXPO` 0.65.
+
+Допуски приёмки фиксируются в контракте каждой задачи до сравнения ([V2_PLAN.md](V2_PLAN.md), раздел 6, решение 4). Поля версионированного интерфейса, принадлежащие более поздней задаче, закрыты по умолчанию (fail-closed) до её реализации: требуется нейтральное значение, всё остальное отклоняется.
+
+
+## Phase 7: Physics Fidelity Foundations
+
+Контракты, доказательства и вычислительный запас, на которые опираются все последующие задачи точности.
+
+### TASK-087 — Манифест модели аппарата v2
+
+- **Status:** TODO — зарегистрирована 2026-10-26 по итогам обзора точности физики; baseline 4593971.
+- **Title & Description:** Определить единое проверяемое версионированное описание аппарата ([V2_PLAN.md](V2_PLAN.md), workstream C): массовые характеристики, роторы, моторы и ESC, батарея, сопротивление планера, рули, шасси, места установки датчиков и пары следов роторов, с provenance для каждого набора данных, миграцией с v1, производными величинами и профилем параметров ArduPilot.
+- **Dependencies:** TASK-006, TASK-033.
+- **Touched Files:** `packages/physics/src/vehicle.schema.json`, `packages/physics/src/vehicle-manifest.ts`, `packages/physics/src/ardupilot-profile.ts`, `packages/physics/package.json`, `packages/physics/src/session-v2.ts`, `scripts/sitl/driver.mjs`, `tests/vehicle-manifest.test.ts`, `tests/fixtures/models/synthetic-quad-v2.json`, `tests/fixtures/registry.json`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
+- **Interfaces / Contracts:** Манифест аппарата `schemaVersion: 2` проверяется из `unknown` строгой JSON Schema и физическими проверками; единицы SI, FRD/NED, кватернионы wxyz; масса, смещение ЦМ от опорной точки тела и инерция относительно ЦМ; производные главные оси и `k_t = 60/(2π·KV)` мотора; provenance для каждого набора данных (`measured` или `synthetic`, SHA-256); `migrateModelManifestV1`; детерминированный профиль ArduPilot `.parm`; реестр моделей сессии принимает манифесты v1 и v2 для `model.load`.
+- **DoD & Acceptance Criteria:** Фикстуры v1 мигрируют без потерь (масса, инерция и роторы идентичны); фикстуры отказа покрывают неизвестные ключи, единицы, не-SPD инерцию, дубли ID и каналов, ненормированные кватернионы и значения вне области; производные главные моменты совпадают с аналитическим эталоном с относительной точностью 1e-12; профиль параметров побайтно совпадает с эталонным выводом и использует только имена параметров, подтверждённые в репозитории; `model.load` принимает хешированную модель v2; демо-бэкенд по умолчанию не меняется.
+
+### TASK-088 — Интерфейс ротора и тела v2
+
+- **Status:** TODO — зарегистрирована 2026-10-26 по итогам обзора точности физики; baseline 4593971.
+- **Title & Description:** Один раз расширить байтовые интерфейсы связанного ротора и твёрдого тела для входов и выходов Phases 8–10 (скважность ESC, напряжение шины, плоскость земли, внешняя скорость следа, состояния индуктивного потока, электрические выходы, смещение ЦМ, скорости изменения массовых характеристик, модель гравитации), сохранив v1 как регрессионный API.
+- **Dependencies:** TASK-018, TASK-028, TASK-033, TASK-087.
+- **Touched Files:** `native/bet/src/bound_v2.rs`, `native/bet/src/body_abi_v2.rs`, `native/bet/src/lib.rs`, `native/bet/include/bet_bound.h`, `native/bet/tests/bound_v2.rs`, `native/bet/tests/body_abi_v2.rs`, `packages/wasm-bet/src/rotor-v2.ts`, `packages/wasm-bet/src/body-v2.ts`, `packages/wasm-bet/package.json`, `tests/wasm-abi-v2.test.ts`, `tests/fixtures/wasm-abi/interface-v2.json`, `tests/fixtures/registry.json`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
+- **Interfaces / Contracts:** Little-endian записи фиксированной длины с явными смещениями и зарезервированными нулевыми словами; проверка слов версии; поля, принадлежащие более поздним задачам, закрыты по умолчанию (требуется нейтральное значение, иначе статус unsupported) до реализации задачи-владельца; выходы содержат биты достоверности для недоступных величин; без `memory.grow` после взведения; нативный код, скалярный WASM и SIMD128 WASM совпадают.
+- **DoD & Acceptance Criteria:** Таблицы байтовых смещений в спецификации движков совпадают с эталонными байтовыми фикстурами; v1 и v2 дают одинаковую физику при нейтральных входах v2 (побитово на скалярном WASM, ≤1e-12 относительной разницы нативно против WASM); тесты отказа покрывают версию, длину, зарезервированные байты, нефинитные, вне диапазона и неподдерживаемые поля; G1-пробы аллокаций остаются на нуле вызовов и байтов за 1e6 шагов.
+
+### TASK-089 — Граница автопилота v2 и владение ошибками датчиков
+
+- **Status:** TODO — зарегистрирована 2026-10-26 по итогам обзора точности физики; baseline 4593971.
+- **Title & Description:** Для каждого датчика и источника ошибки решить, кто её добавляет — MirageSITL или SITL-бэкенды датчиков ArduPilot, и доставить нужные поля через JSON-строку, браузерный HAL mailbox и инъекцию MAVLink, сохраняя нативную прошивку без изменений ([V2_PLAN.md](V2_PLAN.md) B1).
+- **Dependencies:** TASK-041, TASK-046, TASK-047, TASK-059, TASK-087.
+- **Touched Files:** `packages/autopilot/src/error-ownership.ts`, `packages/autopilot/package.json`, `tests/error-ownership.test.ts`, `tests/fixtures/sitl/error-ownership.json`, `tests/fixtures/registry.json`, `packages/autopilot/src/external-sitl.ts`, `packages/autopilot/src/wasm-sitl.ts`, `native/ardupilot/hal/browser_hal.h`, `native/ardupilot/hal/browser_hal.cpp`, `native/ardupilot/hal/sitl-state.patch`, `tests/fixtures/sitl/generate.py`, `tests/ardupilot-json.test.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
+- **Interfaces / Contracts:** Версионированная матрица владения (источник ошибки → владелец, путь доставки, параметры ArduPilot для нейтрализации); допустимы только пути доставки, подтверждённые в репозитории (ключи JSON из оракула TASK-041, поля HAL payload в `browser_hal.h`, инъекция MAVLink `GPS1_TYPE 14` из TASK-059); необязательные upstream-ключи JSON и имена параметров `SIM_*` требуют каталога, сгенерированного из закреплённого по хешу исходного кода ArduPilot; любой патч нативной прошивки — BLOCKED_DECISION.
+- **DoD & Acceptance Criteria:** Проверка матрицы отклоняет двойное владение, отсутствующие пути доставки и неподтверждённые имена параметров; сгенерированный профиль параметров нейтрализует ровно те источники ошибок ArduPilot, которыми владеет MirageSITL; любой HAL payload v2 имеет байтовые фикстуры и проходит браузерную проверку TASK-046; паритет нативного и браузерного режимов TASK-047 снова проходит после изменения.
+
+### TASK-090 — Конвейер доказательств точности
+
+- **Status:** TODO — зарегистрирована 2026-10-26 по итогам обзора точности физики; baseline 4593971.
+- **Title & Description:** Оценивать изменения моделей по измеренным данным: метрики воспроизведения логов во временной области, идентификация частотных характеристик по чирпам SYSTEMID ArduCopter и импорт стендовых данных компонентов ([V2_PLAN.md](V2_PLAN.md) B3) с соглашениями репозитория о доказательствах и кодах выхода.
+- **Dependencies:** TASK-033, TASK-087.
+- **Touched Files:** `packages/physics/src/fidelity-metrics.ts`, `packages/physics/src/bench-import.ts`, `packages/physics/package.json`, `scripts/check-fidelity.mjs`, `tests/fidelity-metrics.test.ts`, `tests/bench-import.test.ts`, `tests/fixtures/validation/fidelity-synthetic-capture.json`, `tests/fixtures/validation/bench-synthetic.csv`, `tests/fixtures/registry.json`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `docs/V2_PLAN.md`, `docs/ru/V2_PLAN.md`.
+- **Interfaces / Contracts:** `scripts/check-fidelity.mjs --input PATH --sha256 HEX` (выход 0 PASS, 1 FAIL или неверные доказательства, 2 BLOCKED_EXTERNAL); схема захвата v1 с provenance; метрики: RMS, смещение, коэффициент неравенства Тейла, частотная характеристика Welch H1 с когерентностью, стоимость `J = (20/n)·Σ W_γ·[(Δ|H|_dB)² + 0.01745·(Δ∠H_deg)²]` против заявленного предела (ориентир 100); стендовый CSV v1 в CT/CP от RPM с поправкой на плотность и флагами согласованности.
+- **DoD & Acceptance Criteria:** Синтетические оракулы восстанавливают известные передаточные функции в заявленных допусках, а известные рассогласования дают аналитическое J; некорректный или нехешированный вход отклоняется; отсутствие измеренных данных даёт BLOCKED_EXTERNAL, никогда PASS; до DONE оценены хотя бы один реальный полётный захват и один реальный стендовый файл (G4).
+
+### TASK-091 — Запас производительности ядра BET
+
+- **Status:** TODO — зарегистрирована 2026-10-26 по итогам обзора точности физики; baseline 4593971.
+- **Title & Description:** Снизить стоимость производственного такта ротора не менее чем в 5 раз при результатах в пределах заранее заявленного допуска, чтобы последующая точность помещалась в бюджет G3.
+- **Dependencies:** TASK-014, TASK-033.
+- **Touched Files:** `native/bet/src/blade.rs`, `native/bet/src/polar.rs`, `native/bet/src/bound.rs`, `native/bet/src/lib.rs`, `native/bet/tests/blade.rs`, `native/bet/tests/polar.rs`, `native/bet/tests/bound.rs`, `scripts/check-bet-runtime.mjs`, `docs/benchmarks/schema.json`, `test-results/bench/bet.json`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
+- **Interfaces / Contracts:** Индексация поляр за O(1) на равномерных и логарифмических осях с чередующимися ячейками коэффициентов и предвычисленной битовой маской достоверности; предвычисленные константы элементов; удалены повторный квадратный корень и `rem_euclid`; необязательный предиктор с одним вычислением; зависящее от режима число азимутальных отсчётов с гистерезисом и флагом достоверности; SIMD128 по полосам; текущее ядро сохраняется как скалярный эталон.
+- **DoD & Acceptance Criteria:** Допуск заявлен до реализации и выполнен на всех наборах TASK-033; хвосты SIMD 1/3/5/63 и скалярный fallback проходят; бенчмарк репозитория сообщает p50/p99 на такт при 400/800/1200 Гц и показывает стоимость не менее чем в 5 раз ниже записанной базы; вычислительный p99 октокоптера ≤ 0.4167 мс при 1200 Гц (G3); гейты аллокаций G1 без изменений.
+
+## Phase 8: Core Flight Dynamics
+
+Подключить уже существующие ядра к контуру полёта и согласовать тело, контакт и ветер.
+
+### TASK-092 — Электромеханический привод в производственном шаге
+
+- **Status:** TODO — зарегистрирована 2026-10-26 по итогам обзора точности физики; baseline 4593971.
+- **Title & Description:** Заменить идеальный ESC-источник момента в `BetFlightDynamics` на мотор, ESC и общую шину батареи с питанием по напряжению из `motor.rs` и `battery.rs`, включая знакопеременный тормозной момент, чтобы кривые тяги от газа и просадка батареи стали физическими.
+- **Dependencies:** TASK-025, TASK-026, TASK-087, TASK-088, TASK-089.
+- **Touched Files:** `native/bet/src/motor.rs`, `native/bet/src/battery.rs`, `native/bet/src/shaft.rs`, `native/bet/src/bound_v2.rs`, `native/bet/tests/motor.rs`, `native/bet/tests/battery.rs`, `native/bet/tests/drive.rs`, `packages/physics/src/bet-dynamics.ts`, `packages/physics/src/ardupilot-profile.ts`, `packages/autopilot/src/wasm-sitl.ts`, `packages/autopilot/src/external-sitl.ts`, `tests/drive-chain.test.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
+- **Interfaces / Contracts:** Скважность ESC с апериодической задержкой и удержанием на частоте обновления; `i = (d·V_bus − k_e·Ω)/R` с ограничением `[−I_brake, I_max]`; `τ = k_t·i − τ₀`; общая шина решается на каждом такте с документированной итерацией или задержкой на один такт; вал принимает знакопеременный момент мотора; напряжение и ток батареи публикуются в `FlightState` и доставляются через HAL и пути TASK-089; профиль задаёт `BATT_*`, `MOT_BAT_VOLT_*` и подогнанный `MOT_THST_EXPO`.
+- **DoD & Acceptance Criteria:** Кривизна установившейся тяги от скважности совпадает со стендовыми данными в заявленном допуске (проба обзора даёт `a ≈ 0.87` для синтетического случая 600 KV против 0.20 сегодня); энергетический баланс сходится с относительной точностью 1e-9; отказы с отключением питания идут по физическому пути; ArduCopter висит в обоих режимах с ненулевым током батареи; гейты G1 проходят.
+
+### TASK-093 — Подключение погоды и атмосферы
+
+- **Status:** TODO — зарегистрирована 2026-10-26 по итогам обзора точности физики; baseline 4593971.
+- **Title & Description:** Сделать ветер и состояние атмосферы реальными входами каждого контура полёта: реализовать `weather.set`, пересчитывать ISA со смещением температуры и QNH на каждом такте и вычислять ветер в ЦМ и в ступице каждого ротора.
+- **Dependencies:** TASK-010, TASK-032, TASK-087.
+- **Touched Files:** `packages/physics/src/session-v2.ts`, `packages/physics/src/bet-dynamics.ts`, `packages/physics/src/atmosphere.ts`, `packages/protocol/src/control-v2.ts`, `packages/autopilot/src/external-sitl.ts`, `tests/session-v2.test.ts`, `tests/atmosphere.test.ts`, `tests/weather-plumbing.test.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SHARED_MEMORY.md`, `docs/ru/SPECS_SHARED_MEMORY.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
+- **Interfaces / Contracts:** `weather.set` применяется на границах тактов с подтверждениями вместо `unsupportedReason`; `T = T₀ + ΔT − L·h`, `p = p₀·(1 − L·h/T₀′)^(g/(R·L))`, `ρ = p/(R·T)`; `BetFlightDynamics` читает плотность, вязкость и скорость звука на каждом такте; истинная воздушная скорость относительно воздуха; `velocity_wind` в JSON-строке.
+- **DoD & Acceptance Criteria:** Запланированные изменения погоды применяются точно на своём такте в каждой эпохе; эталоны ISA в пределах относительной точности 1e-9; полёт при постоянном ветре показывает ожидаемое смещение путевой скорости и воздушную скорость; воспроизведение не зависит от seed и FPS; без аллокаций в такте.
+
+### TASK-094 — Ядро твёрдого тела v2
+
+- **Status:** TODO — зарегистрирована 2026-10-26 по итогам обзора точности физики; baseline 4593971.
+- **Title & Description:** Обобщить 6-DOF ядро для смещений ЦМ, изменяющихся во времени массовых характеристик и необязательных членов вращения Земли и сохранять полный тензор инерции в сессиях, где интегрированием владеет Rapier.
+- **Dependencies:** TASK-028, TASK-029, TASK-088.
+- **Touched Files:** `native/bet/src/rigid_body.rs`, `native/bet/src/body_abi_v2.rs`, `native/bet/tests/rigid_body.rs`, `packages/wasm-bet/src/body-v2.ts`, `native/contact/src/contact.rs`, `native/contact/tests/contact.rs`, `packages/physics/src/ground-contact.ts`, `tests/rigid-body-v2.test.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
+- **Interfaces / Contracts:** Уравнения движения относительно опорной точки тела со смещением ЦМ: `m·(a_O + ω̇×r_c + ω×(ω×r_c)) = F` и `I_O·ω̇ + İ_O·ω + ω×(I_O·ω) + m·r_c×a_O = M_O`; необязательное `v̇ = R·f + g(φ,h) − (2·ω_ie + ω_en)×v`; документированный бюджет ошибки связи с ротором относительно эталона 4800 Гц с необязательным вариантом из двух вычислений; массовые характеристики Rapier в системе главных осей.
+- **DoD & Acceptance Criteria:** Аналитические фикстуры смещения ЦМ, свободной прецессии и инерционной связи проходят в заявленных допусках; v2 с нулевым смещением побитово совпадает с v1; сессии Rapier с центробежными моментами инерции совпадают с RK4 в заявленном бюджете; гейты G1 проходят.
+
+### TASK-095 — Податливый контакт с землёй в полётных сессиях
+
+- **Status:** TODO — зарегистрирована 2026-10-26 по итогам обзора точности физики; baseline 4593971.
+- **Title & Description:** Заменить синтетическую площадку со сбросом ориентации и неупругий пол податливым контактом Rapier на опубликованном рельефе для взлёта, посадки и движения по земле.
+- **Dependencies:** TASK-029, TASK-065, TASK-087, TASK-094.
+- **Touched Files:** `native/contact/src/contact.rs`, `native/contact/src/lib.rs`, `native/contact/tests/contact.rs`, `packages/physics/src/ground-contact.ts`, `packages/physics/src/terrain-contact.ts`, `packages/physics/src/bet-dynamics.ts`, `scripts/build-contact.mjs`, `scripts/sitl/quad.mjs`, `tests/flight-contact.test.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
+- **Interfaces / Contracts:** Составная оболочка планера (капсулы, параллелепипеды, полозья); неявные пружины-демпферы с эффективной жёсткостью `k + c/dt`; трение покоя ниже порога срыва и кулоновское трение выше; боковая сила шины по щёточной модели `F_y = C_α·tan α` с ограничением `μ·N`; события удара винта; бэкенд контакта владеет интегрированием; отсутствие земли по-прежнему приостанавливает шаги.
+- **DoD & Acceptance Criteria:** Фикстуры падения, удержания на склоне и бокового скольжения проходят заявленные допуски при 400/800/1200 Гц без зависящего от частоты пикового ускорения; ArduCopter взлетает и садится в обоих режимах без сброса ориентации; отложенное сравнение с испытанием на сброс NASA повторяется только после явного решения пользователя; гейты G1 проходят.
+
+### TASK-096 — Аэродинамика планера мультикоптера
+
+- **Status:** TODO — зарегистрирована 2026-10-26 по итогам обзора точности физики; baseline 4593971.
+- **Title & Description:** Добавить сопротивление, подъёмную силу и моменты корпуса и лучей, чтобы скорость полёта, угол наклона, оценка ветра и счисление пути EKF3 по сопротивлению вели себя реалистично.
+- **Dependencies:** TASK-087, TASK-093.
+- **Touched Files:** `native/bet/src/airframe.rs`, `native/bet/src/lib.rs`, `native/bet/tests/airframe.rs`, `packages/physics/src/bet-dynamics.ts`, `packages/physics/src/vehicle.schema.json`, `tests/airframe-drag.test.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
+- **Interfaces / Contracts:** `F = −½·ρ·|v_a|·(C_D·A)_b·v_a` с подогнанным тензором площади сопротивления или таблицей по направлениям; подъёмная и боковая сила корпуса; моменты от смещения центра давления; блок манифеста `airframe.drag` с provenance; импульсное сопротивление ротора из BET проверяется, а не дублируется.
+- **DoD & Acceptance Criteria:** Аналитические фикстуры сопротивления проходят; углы наклона в установившемся полёте вперёд совпадают с эталоном в заявленном допуске; слияние по сопротивлению EKF3 (`EK3_DRAG_BCOEF_X/Y`, `EK3_DRAG_MCOEF`) сходится в SITL со значениями, согласованными с калибровкой; без аллокаций в такте.
+
+## Phase 9: Advanced Rotor Aerodynamics
+
+Точность ротора при висении, косом обтекании, снижении и у земли.
+
+### TASK-097 — Поляры профилей во всём диапазоне
+
+- **Status:** TODO — зарегистрирована 2026-10-26 по итогам обзора точности физики; baseline 4593971.
+- **Title & Description:** Дать физически правдоподобные коэффициенты сечений при любом угле атаки, числе Рейнольдса и числе Маха вместо ограничения за пределами диапазона NeuralFoil ±30°.
+- **Dependencies:** TASK-019, TASK-033, TASK-091.
+- **Touched Files:** `tests/fixtures/polars/generate_extended.py`, `tests/fixtures/polars/naca6409-extended.json`, `packages/wasm-bet/src/rotor.ts`, `native/bet/src/polar.rs`, `native/bet/tests/polar.rs`, `tests/polar-extension.test.ts`, `tests/fixtures/registry.json`, `scripts/validate-models.mjs`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
+- **Interfaces / Contracts:** Расширение Витерны–Корригана до ±180° (`C_D = C_Dmax·sin²α + B₂·cos α`, `C_L = ½·C_Dmax·sin 2α + A₂·cos²α/sin α`); отображение обратного обтекания; сжимаемость Прандтля–Глауэрта или Кармана–Цзяня примерно до M 0.7 с ростом сопротивления; покрытие малых Re до 1e4; вращательное усиление по Снелу `ΔC_L = 3·(c/r)²·(C_L,inv − C_L)`; C¹-сглаживание; реальная ось Маха в `parseNeuralFoilPolar`; хешированный provenance для каждой таблицы.
+- **DoD & Acceptance Criteria:** Фикстуры непрерывности и пределов проходят (поведение плоской пластины около 90°, без скачков сил); сравнение UIUC повторено, результат записан относительно заявленной цели; API `polar.rs` не меняется и остаётся без аллокаций.
+
+### TASK-098 — Индуктивный поток v2: кольцевой, концевые потери, косое обтекание и динамика
+
+- **Status:** TODO — зарегистрирована 2026-10-26 по итогам обзора точности физики; baseline 4593971.
+- **Title & Description:** Заменить равномерный осевой индуктивный поток с фиксированной задержкой 0.1 с моделью, применимой при косом обтекании, учитывающей концевые и комлевые потери и имеющей физический миллисекундный масштаб времени.
+- **Dependencies:** TASK-021, TASK-088, TASK-091, TASK-097.
+- **Touched Files:** `native/bet/src/inflow.rs`, `native/bet/src/blade.rs`, `native/bet/src/bound_v2.rs`, `native/bet/tests/inflow.rs`, `native/bet/tests/dynamic_inflow.rs`, `packages/wasm-bet/src/rotor-v2.ts`, `tests/fixtures/rotors/dynamic-inflow.json`, `tests/fixtures/registry.json`, `scripts/validate-models.mjs`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
+- **Interfaces / Contracts:** Кольцевой импульсный баланс с множителем Прандтля F (не более четырёх итераций Ньютона с тёплым стартом); Глауэрт `λ = μ·tan α_d + C_T/(2·√(μ² + λ²))`; трёхсостоянийный динамический поток Питта–Питерса `[M]·λ̇ + [L(χ)]⁻¹·λ = [C_T, C_L, C_M]ᵀ` с `M = diag(128/75π, 16/45π, 16/45π)` и `λ(r,ψ) = λ₀ + (r/R)·(λs·sinψ + λc·cosψ)`; производный масштаб времени `τ ≈ M·R/(4·v_i)`; ручные переопределения `inflowTauS` помечаются как синтетические.
+- **DoD & Acceptance Criteria:** Невязка импульса при висении ≤1%; фикстуры косого обтекания и набора высоты совпадают с эталонами кольцевой BEM в заявленных допусках; постоянная времени переходной характеристики потока в пределах 10% от аналитической; повтор UIUC записан; отказы по пределу итераций помечаются, никогда не замалчиваются; гейты G1 проходят.
+
+### TASK-099 — Вихревое кольцо, режим ветряка и индуктивный поток при снижении
+
+- **Status:** TODO — зарегистрирована 2026-10-26 по итогам обзора точности физики; baseline 4593971.
+- **Title & Description:** Моделировать индуктивную скорость и тягу при снижении, где текущий корень импульсной теории неприменим и только помечается ([V2_PLAN.md](V2_PLAN.md) B5).
+- **Dependencies:** TASK-098.
+- **Touched Files:** `native/bet/src/inflow.rs`, `native/bet/tests/descent_inflow.rs`, `tests/fixtures/rotors/descent-inflow.json`, `tests/fixtures/registry.json`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
+- **Interfaces / Contracts:** Эмпирическая кривая индуктивной скорости на `−2 ≤ V_c/v_h ≤ 0`; ветвь режима ветряка `v_i = −V_c/2 − √((V_c/2)² − v_h²)`; граница VRS в `(V_x/v_h, V_c/v_h)`; внутри неё — детерминированные по seed ограниченные по полосе флуктуации тяги и потеря демпфирования по крену; выбор ветви с гистерезисом; области без данных сохраняют `ModelOutsideValidity`.
+- **DoD & Acceptance Criteria:** Индуктивная скорость непрерывна между ветвями; кривая воспроизводит исходные данные в заявленном допуске; флуктуации повторяются одинаково при одном seed; до DONE выполнено сравнение с полётными данными снижения.
+
+### TASK-100 — Влияние земли на ротор
+
+- **Status:** TODO — зарегистрирована 2026-10-26 по итогам обзора точности физики; baseline 4593971.
+- **Title & Description:** Воспроизвести рост тяги и снижение мощности у земли, определяющие взлёт, посадку и детектор посадки; по умолчанию выключено ([V2_PLAN.md](V2_PLAN.md) B8).
+- **Dependencies:** TASK-065, TASK-088, TASK-095, TASK-098.
+- **Touched Files:** `native/bet/src/ground_effect.rs`, `native/bet/src/inflow.rs`, `native/bet/src/lib.rs`, `native/bet/tests/ground_effect.rs`, `packages/physics/src/terrain-contact.ts`, `packages/physics/src/bet-dynamics.ts`, `tests/rotor-ground-effect.test.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
+- **Interfaces / Contracts:** Высота каждого ротора вдоль оси ступицы до локальной плоскости рельефа; множитель индуктивной скорости `κ = 1 − (R/4z)²/(1 + (V_t/v_i)²)`, применимый при `z/R ≳ 0.5` и помечаемый ниже; члены соседних роторов мультикоптера (Sanchez-Cuevas et al., 2017); метод отражений для наклонённых дисков; связка с рельефом выбирает по одной плоскости на ступицу.
+- **DoD & Acceptance Criteria:** Фикстуры отношения тяг совпадают с замкнутой формулой в пределах 1e-9; выполнено сравнение с данными развёртки высоты висения или логами точной посадки в заявленном допуске; выключенный режим побитово совпадает с TASK-098.
+
+### TASK-101 — Взаимовлияние ротор–ротор и ротор–планер
+
+- **Status:** TODO — зарегистрирована 2026-10-26 по итогам обзора точности физики; baseline 4593971.
+- **Title & Description:** Учесть следы, попадающие на другие роторы (соосные пары, задние роторы в полёте вперёд) и на планер (обдув вниз), обобщив соосный эталон ([V2_PLAN.md](V2_PLAN.md) B6).
+- **Dependencies:** TASK-024, TASK-088, TASK-096, TASK-098.
+- **Touched Files:** `native/bet/src/wake.rs`, `native/bet/src/coaxial.rs`, `native/bet/src/lib.rs`, `native/bet/tests/wake.rs`, `packages/physics/src/bet-dynamics.ts`, `packages/physics/src/vehicle.schema.json`, `tests/rotor-interference.test.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
+- **Interfaces / Contracts:** Струя каждого ротора со сжатием `R_w = R·√((V + v_i)/(V + 2·v_i))`, скоростью дальнего следа около `V + 2·v_i`, скосом по углу следа и расширением; приёмник добавляет осреднённую по площади скорость следа ровно один раз; обдув `F = ½·ρ·u_w²·C_D·A_washed`; перекрывающиеся пары предвычисляются при конфигурации; объявления пар следов в манифесте.
+- **DoD & Acceptance Criteria:** Бюджеты импульса и энергии сходятся; выключенная связь побитово идентична; соосные фикстуры и фикстуры полёта вперёд совпадают с заявленными эталонами; порядок пар детерминирован; гейты G1 проходят.
+
+### TASK-102 — Режим ротора с разрешением отдельных лопастей
+
+- **Status:** TODO — зарегистрирована 2026-10-26 по итогам обзора точности физики; baseline 4593971.
+- **Title & Description:** Отслеживать отдельные лопасти во времени, чтобы существовали нагрузки с частотой оборота и прохода лопастей, дисбаланс ротора и гироскопическая анизотропия двухлопастного винта как источник для синтеза вибрации.
+- **Dependencies:** TASK-023, TASK-088, TASK-091, TASK-098.
+- **Touched Files:** `native/bet/src/blade.rs`, `native/bet/src/bound_v2.rs`, `native/bet/src/momentum.rs`, `native/bet/tests/azimuth_resolved.rs`, `packages/wasm-bet/src/rotor-v2.ts`, `tests/azimuth-resolved.test.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
+- **Interfaces / Contracts:** Состояние азимута `ψ̇ = s·Ω`; лопасти вычисляются при `ψ_b = ψ + 2πb/B`; статический дисбаланс `F = m_u·r_u·Ω²`, вращающийся с лопастями, плюс пара сил; поперечная инерция двухлопастного винта в кинетическом моменте ступицы; гармонические выходы (амплитуда и фаза порядков оборота, прохода лопастей и электрических порядков) в заранее выделенном буфере; дисбаланс, инерция лопасти и число пар полюсов мотора в манифесте.
+- **DoD & Acceptance Criteria:** Осреднённые нагрузки совпадают с азимутально осреднённым режимом в заявленном допуске; сила дисбаланса и гироскопический момент с удвоенной частотой оборота совпадают с аналитическими фикстурами; до DONE спектры акселерометра сравнены с измерениями; вычислительная стоимость записана относительно бюджета G3.
+
+### TASK-103 — Табличный режим ротора
+
+- **Status:** TODO — зарегистрирована 2026-10-26 по итогам обзора точности физики; baseline 4593971.
+- **Title & Description:** Дать проверенную быструю табличную модель ротора для регрессии быстрее реального времени и для измеренных данных или данных внешнего решателя ([V2_PLAN.md](V2_PLAN.md) B4).
+- **Dependencies:** TASK-090, TASK-097, TASK-098.
+- **Touched Files:** `native/bet/src/rotor_map.rs`, `native/bet/src/lib.rs`, `native/bet/tests/rotor_map.rs`, `scripts/generate-rotor-map.mjs`, `packages/wasm-bet/src/rotor-v2.ts`, `tests/rotor-map.test.ts`, `tests/fixtures/rotors/rotor-map-synthetic.json`, `tests/fixtures/registry.json`, `docs/V2_PLAN.md`, `docs/ru/V2_PLAN.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
+- **Interfaces / Contracts:** Формат таблиц B4 (оси: скорость потока, угол потока от косого обтекания через осевой набор до снижения, RPM или поступь и число Маха конца лопасти; выходы: тяга, H-сила, момент, моменты крена и тангажа, мощность на валу; метаданные: геометрия, опорная плотность, решатель, область применимости, хеш); 4–5-мерная полилинейная интерполяция с точным масштабированием `ρ·Ω²` и флагами границ; выбор для каждого ротора (`rotorModel: "bet" | "map"`).
+- **DoD & Acceptance Criteria:** Таблицы, построенные полной BET, воспроизводят её в заявленном бюджете ошибки; при нулевом потоке таблицы воспроизводят стендовые данные в заявленном допуске; стоимость такта укладывается в цель Tier A; запросы вне области применимости помечаются.
+
+## Phase 10: Propulsion & Environment
+
+Динамические модели батареи и мотора, стандартная турбулентность, сдвиг ветра и поля Земли.
+
+### TASK-104 — Батарея v2: динамика, тепло и старение
+
+- **Status:** TODO — зарегистрирована 2026-10-26 по итогам обзора точности физики; baseline 4593971.
+- **Title & Description:** Моделировать реалистичную просадку напряжения, восстановление и температурное поведение, чтобы отказоустойчивость по батарее и компенсация просадки в ArduPilot вели себя как в поле.
+- **Dependencies:** TASK-026, TASK-092, TASK-093.
+- **Touched Files:** `native/bet/src/battery.rs`, `native/bet/tests/battery.rs`, `tests/fixtures/power/battery-2rc.json`, `tests/fixtures/registry.json`, `tests/battery-dynamics.test.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
+- **Interfaces / Contracts:** Модель Тевенена 2-RC `V = OCV(SOC,T) − I·R₀(T,SOC) − V₁ − V₂` с `V̇_k = −V_k/(R_k·C_k) + I/C_k`, точно дискретизированная; табличное напряжение разомкнутой цепи LiPo; `R₀(T)` по Аррениусу; тепловой баланс сборки `m·c_p·Ṫ = I²·R₀ + Σ V_k²/R_k + I·T·∂U/∂T − h(V_air)·A·(T − T_amb)`; деградация ёмкости и рост сопротивления; параметры подогнаны по импульсным испытаниям.
+- **DoD & Acceptance Criteria:** Фикстуры импульсного отклика совпадают с аналитическими RC-решениями; измеренный импульс или полётный разряд воспроизводится в заявленном допуске RMS по напряжению; отказоустойчивость `BATT_FS_VOLTSRC 1` с компенсацией просадки ведёт себя ожидаемо в SITL.
+
+### TASK-105 — Мотор и ESC v2: электрика, тепло, протоколы и телеметрия
+
+- **Status:** TODO — зарегистрирована 2026-10-26 по итогам обзора точности физики; baseline 4593971.
+- **Title & Description:** Учесть зависящие от RPM ограничения момента, тепловую деградацию и поведение ESC (квантование, задержки, ограничения нарастания, торможение, телеметрию), определяющие полосу и насыщение актуаторов ([V2_PLAN.md](V2_PLAN.md) B9).
+- **Dependencies:** TASK-025, TASK-089, TASK-092.
+- **Touched Files:** `native/bet/src/motor.rs`, `native/bet/src/esc.rs`, `native/bet/src/lib.rs`, `native/bet/tests/motor.rs`, `native/bet/tests/esc.rs`, `packages/autopilot/src/wasm-sitl.ts`, `native/ardupilot/hal/browser_hal.h`, `tests/esc-telemetry.test.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
+- **Interfaces / Contracts:** `L·di/dt = d·V_bus − R(T_w)·i − k_e(T_m)·Ω`, интегрируемое точно; потери холостого хода и в стали; `R(T) = R₂₀·(1 + 0.00393·ΔT)` и постоянная момента, зависящая от температуры магнитов; двухузловая тепловая сеть с охлаждением потоком воздуха; квантование PWM и DShot, задержка кадра, частота обновления, ограничения нарастания, срыв синхронизации и старт, ограничение тока, снижение мощности; телеметрия eRPM доставляется для `INS_HNTCH_MODE 3`.
+- **DoD & Acceptance Criteria:** Фикстуры электрических ступенек и тепла совпадают с аналитическими решениями; температурные стендовые прогоны воспроизведены в заявленных допусках; слежение гармонического режекторного фильтра проверено на симулированной телеметрии; гейты G1 проходят.
+
+### TASK-106 — Турбулентность v2: Драйден, фон Карман и Каймал
+
+- **Status:** TODO — зарегистрирована 2026-10-26 по итогам обзора точности физики; baseline 4593971.
+- **Title & Description:** Заменить некоррелированный поосевой порыв AR(1) стандартными спектрами турбулентности, масштабированными по высоте, воздушной скорости и условиям, с вращательными порывами и пространственной когерентностью.
+- **Dependencies:** TASK-032, TASK-093.
+- **Touched Files:** `packages/physics/src/wind.ts`, `packages/physics/src/turbulence.ts`, `tests/turbulence.test.ts`, `scripts/bench-wind.mjs`, `tests/fixtures/environment/dryden-psd.json`, `tests/fixtures/registry.json`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
+- **Interfaces / Contracts:** Формирующие фильтры Драйдена по MIL-F-8785C `H_u = σ_u·√(2·L_u/(π·V))/(1 + (L_u/V)·s)` и `H_v,w = σ·√(L/(π·V))·(1 + √3·(L/V)·s)/(1 + (L/V)·s)²` с масштабами и интенсивностями для малых высот; вращательные порывы; рациональные аппроксимации фон Кармана; спектры Каймала, переносимые средним ветром, для висения; когерентность между ступицами; точная дискретизация с обновлением коэффициентов по номеру такта; фиксированные ID потоков RNG.
+- **DoD & Acceptance Criteria:** Оценённые спектральные плотности совпадают со спектрами спецификации в заявленных допусках на 1e7 отсчётах; дисперсии и масштабы совпадают; воспроизведение детерминировано по seed и не зависит от FPS; гейты G1 проходят.
+
+### TASK-107 — Профиль ветра, сдвиг и течения от рельефа
+
+- **Status:** TODO — зарегистрирована 2026-10-26 по итогам обзора точности физики; baseline 4593971.
+- **Title & Description:** Моделировать средний ветер по высоте и рельефу: логарифмический сдвиг с шероховатостью по покрытию поверхности и предвычисленными полями ускорения потока над рельефом.
+- **Dependencies:** TASK-069, TASK-093, TASK-095, TASK-106.
+- **Touched Files:** `packages/physics/src/wind-profile.ts`, `packages/terrain/src/roughness.ts`, `tests/wind-profile.test.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
+- **Interfaces / Contracts:** `U(z) = (u*/κ)·ln((z − d)/z₀)` с необязательной поправкой Монина–Обухова; длина шероховатости и высота смещения по классам WorldCover; сдвиг по MIL-F-8785C для сравнения; сеточные поля течений над рельефом загружаются до взведения.
+- **DoD & Acceptance Criteria:** Фикстуры профиля совпадают с аналитическими значениями; соответствие шероховатости версионировано и имеет provenance; сетки соблюдают бюджет памяти и не наращивают память после взведения.
+
+### TASK-108 — Гравитация и магнитное поле Земли
+
+- **Status:** TODO — зарегистрирована 2026-10-26 по итогам обзора точности физики; baseline 4593971.
+- **Title & Description:** Использовать нормальную гравитацию WGS84, вращение Земли и геомагнитную модель с аномалиями и помехами аппарата вместо постоянной гравитации и постоянного магнитного вектора.
+- **Dependencies:** TASK-036, TASK-089, TASK-092, TASK-094.
+- **Touched Files:** `packages/sensors/src/gravity.ts`, `packages/sensors/src/geomagnetic.ts`, `packages/sensors/src/ideal.ts`, `native/bet/src/rigid_body.rs`, `tests/gravity.test.ts`, `tests/geomagnetic.test.ts`, `tests/fixtures/geodesy/wmm2025-reference.json`, `tests/fixtures/registry.json`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
+- **Interfaces / Contracts:** Сомильяна `γ(φ) = γ_e·(1 + k·sin²φ)/√(1 − e²·sin²φ)` с поправкой на высоту; гравитация вдоль нормали к эллипсоиду; угловая скорость Земли `7.292115e-5 rad/s` в эталоне гироскопа; основное поле WMM2025; аномалии EMAG2v3; дипольные источники; помехи от токов `B_int = Σ K_i·I_i` с мягким и жёстким железом; сетка геоида EGM2008 с provenance.
+- **DoD & Acceptance Criteria:** Гравитация совпадает с эталонными значениями NIMA TR8350.2 с относительной точностью 1e-9; значения поля совпадают с тестовыми значениями WMM2025 в опубликованных допусках; аномалии задаются относительно базы склонения ArduPilot; гейт MSL становится AVAILABLE только с хешированной сеткой геоида.
+
+## Phase 11: Airframe & Vehicle Classes
+
+Самолётные аппараты, QuadPlane, конвертопланы с поворотными роторами и tailsitter.
+
+### TASK-109 — Аэродинамика самолёта и приводы рулей
+
+- **Status:** TODO — зарегистрирована 2026-10-26 по итогам обзора точности физики; baseline 4593971.
+- **Title & Description:** Добавить нативную аэродинамику самолётного БПЛА от крейсерского полёта через сваливание и штопор до закритических режимов, управляемую выходами сервоприводов ArduPlane.
+- **Dependencies:** TASK-087, TASK-094, TASK-097, TASK-106.
+- **Touched Files:** `native/bet/src/wing.rs`, `native/bet/src/servo.rs`, `native/bet/src/lib.rs`, `native/bet/tests/wing.rs`, `native/bet/tests/servo.rs`, `packages/physics/src/vehicle.schema.json`, `packages/physics/src/fixed-wing-dynamics.ts`, `tests/fixed-wing-dynamics.test.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
+- **Interfaces / Contracts:** Поверхности по теории полос или несущей линии с местной скоростью `v_cg + ω×r + wind` и полярами 360°; запаздывающий скос потока у оперения `ε(t) = ε₀ + (dε/dα)·α(t − l_t/V)`; боковой скос, фюзеляж и киль; рули через эффективность закрылка с шарнирными моментами; гистерезис сваливания по Гоману–Храброву; балансировка глубокого сваливания по `C_m(α)`; полоса пропускания, ограничение скорости, мёртвая зона и люфт сервопривода; `surfaces[]` в манифесте.
+- **DoD & Acceptance Criteria:** Аналитические фикстуры кривой подъёмной силы, балансировки и демпфирования крена проходят; эталонный самолёт балансируется и отвечает в заявленных допусках от данных аэродинамической трубы или полёта; до DONE вход в сваливание и штопор сравнен с данными; гейты G1 проходят.
+
+### TASK-110 — Связка с ArduPlane и QuadPlane и временный эталон БПЛА
+
+- **Status:** TODO — зарегистрирована 2026-10-26 по итогам обзора точности физики; baseline 4593971.
+- **Title & Description:** Выполнять полёты ArduPlane и QuadPlane на физике MirageSITL в нативном и браузерном режимах с моделью JSBSim класса БПЛА для перекрёстной проверки.
+- **Dependencies:** TASK-031, TASK-089, TASK-109.
+- **Touched Files:** `scripts/sitl/driver.mjs`, `packages/autopilot/src/external-sitl.ts`, `native/ardupilot/hal/sitl-state.patch`, `native/jsbsim/bridge.cpp`, `native/jsbsim/property-map.json`, `packages/wasm-jsbsim/src/backend.ts`, `tests/plane-sitl.test.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
+- **Interfaces / Contracts:** Профили параметров самолёта и отображение сервоприводов; полный вектор воздушной скорости в осях тела с истинными углами атаки и скольжения; доставка воздушной скорости через проверенный ключ JSON или поле TASK-089; расширенная карта свойств JSBSim сверх четырёх входов.
+- **DoD & Acceptance Criteria:** ArduPlane выполняет закреплённую автоматическую миссию в обоих режимах; паритет нативного и браузерного режимов в заявленных пределах; перекрёстная проверка JSBSim записана; без изменения нативной прошивки.
+
+### TASK-111 — Влияние земли на крыло и обдув несущих поверхностей
+
+- **Status:** TODO — зарегистрирована 2026-10-26 по итогам обзора точности физики; baseline 4593971.
+- **Title & Description:** Моделировать выравнивание и парение у земли, а также обдуваемые винтом крылья и оперение.
+- **Dependencies:** TASK-100, TASK-101, TASK-109.
+- **Touched Files:** `native/bet/src/wing.rs`, `native/bet/src/wake.rs`, `native/bet/tests/wing_ground_effect.rs`, `tests/wing-slipstream.test.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
+- **Interfaces / Contracts:** Множитель индуктивного сопротивления `φ = (16·h/b)²/(1 + (16·h/b)²)`; уменьшенный скос у оперения вблизи земли; ускорение потока и закрутка струи `Δα = atan(v_t/(V + v_a))` для обдуваемых полос; карта обдува ротор→поверхность в манифесте.
+- **DoD & Acceptance Criteria:** Фикстуры замкнутых формул проходят; поведение при выравнивании сравнено с посадочными данными; выключенные члены побитово совпадают с TASK-109.
+
+### TASK-112 — Динамика QuadPlane
+
+- **Status:** TODO — зарегистрирована 2026-10-26 по итогам обзора точности физики; baseline 4593971.
+- **Title & Description:** Реалистичное висение, переход и обратный переход QuadPlane, включая подъёмные роторы при косом обтекании и взаимовлияние роторов и крыла.
+- **Dependencies:** TASK-098, TASK-101, TASK-109, TASK-110.
+- **Touched Files:** `packages/physics/src/quadplane-dynamics.ts`, `packages/physics/src/vehicle.schema.json`, `tests/quadplane-dynamics.test.ts`, `tests/fixtures/models/synthetic-quadplane-v2.json`, `tests/fixtures/registry.json`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
+- **Interfaces / Contracts:** Композиция подъёмных роторов с потоком v2, тянущего ротора и модели крыла со связью обдува вниз и подсоса; крыло на больших углах атаки при обратном переходе; сопротивление остановленного винта и авторотация через свободный вал; отображение `Q_ENABLE` и `Q_FRAME_*`.
+- **DoD & Acceptance Criteria:** QHOVER, QLOITER и переходы выполняются в обоих режимах; поведение `Q_ASSIST_SPEED` проверено; до DONE выполнено сравнение с данными переходов.
+
+### TASK-113 — Поддержка конвертопланов и tailsitter
+
+- **Status:** TODO — зарегистрирована 2026-10-26 по итогам обзора точности физики; baseline 4593971.
+- **Title & Description:** Поддержать аппараты, у которых оси тяги поворачиваются или крылья работают на углах атаки ±90° при висении.
+- **Dependencies:** TASK-094, TASK-109, TASK-112.
+- **Touched Files:** `packages/physics/src/tilt-kinematics.ts`, `packages/physics/src/quadplane-dynamics.ts`, `packages/physics/src/vehicle.schema.json`, `tests/tilt-kinematics.test.ts`, `tests/tailsitter-dynamics.test.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
+- **Interfaces / Contracts:** Ориентация ступиц на каждом такте от сервоприводов наклона; скорость наклона добавляется к угловой скорости ступицы (`ω_tilt × H` и реактивные моменты); смещение ЦМ и инерции с наклоном; аэродинамика всех поверхностей при углах атаки и скольжения ±180°; обдуваемые элевоны; контакт с землёй при посадке на хвост; блоки `tilt` в манифесте.
+- **DoD & Acceptance Criteria:** Гироскопические фикстуры и фикстуры реактивного момента проходят; переходы конвертоплана и tailsitter выполняются в SITL; до DONE поведение сравнено с данными.
+
+## Phase 12: Sensor Physics
+
+Физика ошибок вибрации и IMU, барометра, GNSS, магнитометра, датчика воздушной скорости и дальномера.
+
+### TASK-114 — Синтез вибрации и цепочка выборки IMU
+
+- **Status:** TODO — зарегистрирована 2026-10-26 по итогам обзора точности физики; baseline 4593971.
+- **Title & Description:** Генерировать реалистичную вибрацию акселерометра и гироскопа и выбирать её как настоящие IMU, чтобы алиасинг, клиппинг и поведение гармонического режекторного фильтра воспроизводились.
+- **Dependencies:** TASK-089, TASK-102, TASK-115.
+- **Touched Files:** `packages/sensors/src/vibration.ts`, `packages/sensors/src/imu-chain.ts`, `tests/vibration.test.ts`, `tests/imu-chain.test.ts`, `packages/autopilot/src/wasm-sitl.ts`, `native/ardupilot/hal/browser_hal.h`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
+- **Interfaces / Contracts:** Возбуждение от гармоник режима отдельных лопастей; передаточные фильтры рамы и виброизолятора; синтез на внутренней частоте датчика рекурсивными генераторами; фильтр нижних частот и антиалиасинговый фильтр датчика, децимация до выходной частоты и ограничение диапазона; доставка пакетов IMU решается в TASK-089; шум вибрации ArduPilot нейтрализуется, когда им владеет MirageSITL.
+- **DoD & Acceptance Criteria:** Фикстуры алиасинга, клиппинга и децимации совпадают с аналитическими ожиданиями; симулированные спектры акселерометра совпадают с измеренными логами в заявленных допусках; гармонический режекторный фильтр захватывает симулированные RPM; стоимость такта укладывается в бюджет Tier B.
+
+### TASK-115 — Модель ошибок IMU v2
+
+- **Status:** TODO — зарегистрирована 2026-10-26 по итогам обзора точности физики; baseline 4593971.
+- **Title & Description:** Заменить единственный процесс AR(1) с блужданием смещения на зависящие от температуры ошибки IMU, откалиброванные по вариации Аллана.
+- **Dependencies:** TASK-035, TASK-087, TASK-089.
+- **Touched Files:** `packages/sensors/src/noise.ts`, `packages/sensors/src/imu-errors.ts`, `tests/imu-errors.test.ts`, `tests/fixtures/sensors/imu-allan.json`, `tests/fixtures/registry.json`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
+- **Interfaces / Contracts:** `ω_m = (I + S + M)·ω + b(T) + G_g·a + n`; случайное блуждание угла, нестабильность смещения как сумма процессов Гаусса–Маркова, случайное блуждание скорости; температурный полином и прогрев; нелинейность масштаба, перекос осей, чувствительность к ускорению, выпрямление вибрации, квантование по младшему разряду и детерминированное по seed смещение при включении; плечо `a_IMU = a + ω̇×r + ω×(ω×r)`; `sensors.imu[]` в манифесте.
+- **DoD & Acceptance Criteria:** Девиация Аллана симулированного выхода совпадает с заданной кривой в заявленных допусках на 1e7 отсчётах; фикстуры плеча и перекоса проходят; воспроизведение по seed детерминировано; гейты G1 проходят.
+
+### TASK-116 — Барометр v2
+
+- **Status:** TODO — зарегистрирована 2026-10-26 по итогам обзора точности физики; baseline 4593971.
+- **Title & Description:** Моделировать ошибки давления, доминирующие в барометрической высоте у земли и при быстром полёте.
+- **Dependencies:** TASK-089, TASK-096, TASK-100.
+- **Touched Files:** `packages/sensors/src/barometer.ts`, `tests/barometer.test.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
+- **Interfaces / Contracts:** `p = p_static + ΔC_p(α,β)·q∞ + Δp_GE + Δp_wash + drift(T,t) + noise`; воздушная подушка `Δp_GE ≈ k·½·ρ·v_i²·g(z/R)`; задержка датчика и время преобразования; тренд давления погоды; доставка через TASK-089 с нейтрализацией ошибок ArduPilot `SIM_BARO_*`.
+- **DoD & Acceptance Criteria:** Фикстуры совпадают с замкнутыми формулами; записанные в логах провалы баровысоты при взлёте и посадке воспроизведены в заявленных допусках; обработка влияния земли в ArduPilot (`GND_EFFECT_COMP`, `EK3_GND_EFF_DZ`) проверена.
+
+### TASK-117 — GNSS v2
+
+- **Status:** TODO — зарегистрирована 2026-10-26 по итогам обзора точности физики; baseline 4593971.
+- **Title & Description:** Связать ошибки и пропадания позиции и скорости GNSS с геометрией спутников, рельефом и зданиями, атмосферой и радиообстановкой.
+- **Dependencies:** TASK-036, TASK-053, TASK-058, TASK-089, TASK-108.
+- **Touched Files:** `packages/sensors/src/gnss.ts`, `packages/sensors/src/gnss-visibility.worker.ts`, `packages/ew/src/engine.ts`, `tests/gnss-errors.test.ts`, `tests/fixtures/sensors/gnss-ephemeris.json`, `tests/fixtures/registry.json`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
+- **Interfaces / Contracts:** Азимут и угол места по эфемеридам; прямая видимость и NLOS трассировкой лучей по сетке рельефа; ионосфера Клобучара, тропосфера Саастамойнена, огибающая ошибки многолучёвости, смещение NLOS и шум, зависящий от C/N0; задержка и частота решения приёмника; подавление `(C/N0)_eff⁻¹ = (C/N0)⁻¹ + (J/S)/(Q·R_c)` от зон EW; доставка MAVLink `GPS1_TYPE 14`.
+- **DoD & Acceptance Criteria:** Фикстуры геометрии и DOP совпадают с эталонами; статистика ошибок на открытом небе и в городе совпадает с логами в заявленных допусках; пороги подавления следуют энергетическому бюджету линии; расчёт видимости выполняется вне Worker физики.
+
+### TASK-118 — Магнитометр, датчик воздушной скорости и дальномер v2
+
+- **Status:** TODO — зарегистрирована 2026-10-26 по итогам обзора точности физики; baseline 4593971.
+- **Title & Description:** Моделировать доминирующие ошибки остальных датчиков: магнитные помехи от токов моторов, геометрию трубки Пито и обдув струёй, эффекты луча и поверхности дальномера.
+- **Dependencies:** TASK-056, TASK-089, TASK-092, TASK-101, TASK-108.
+- **Touched Files:** `packages/sensors/src/magnetometer.ts`, `packages/sensors/src/airspeed.ts`, `packages/sensors/src/rangefinder.ts`, `tests/magnetometer.test.ts`, `tests/airspeed-sensor.test.ts`, `tests/rangefinder.test.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
+- **Interfaces / Contracts:** `B_m = S·(B_earth + B_anom) + b_hard + Σ K_i·I_i` с температурным дрейфом; `q_m = q∞·cosⁿθ + C_p,pos·q` с задержкой в трубках и загрязнением струёй; ближайшее отражение в конусе луча, отражательная способность по классу покрытия, шум дальности и выпадения.
+- **DoD & Acceptance Criteria:** Фикстуры совпадают с замкнутыми формулами; тесты компенсации `COMPASS_MOT*` ведут себя как на оборудовании; доставка дальномера проверена для каждого транспорта.
+
+## Phase 13: Structures & Extreme Environment
+
+Гибкая конструкция, изменения массы, конвективные и опасные течения, нестационарная аэродинамика.
+
+### TASK-119 — Переменная масса, сброс груза, внешняя подвеска и плескание
+
+- **Status:** TODO — зарегистрирована 2026-10-26 по итогам обзора точности физики; baseline 4593971.
+- **Title & Description:** Моделировать изменения ЦМ и инерции в полёте (сброс груза, выработка топлива, опрыскивание) и подвешенные или жидкие грузы.
+- **Dependencies:** TASK-094, TASK-095.
+- **Touched Files:** `native/bet/src/rigid_body.rs`, `packages/physics/src/mass-events.ts`, `packages/protocol/src/control-v2.ts`, `packages/protocol/src/control-v2.schema.json`, `tests/mass-events.test.ts`, `tests/slosh.test.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SHARED_MEMORY.md`, `docs/ru/SPECS_SHARED_MEMORY.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
+- **Interfaces / Contracts:** Обновление по теореме о параллельных осях при событиях массы; сброс с сохранением импульса; `İ·ω` при непрерывном расходе массы; сброшенный груз становится отдельным телом Rapier; трос как пружина-демпфер только на растяжение; плескание через эквивалентный маятник для каждого бака (Abramson, NASA SP-106); новая команда Control Protocol с подтверждением, повышением версии и фикстурами.
+- **DoD & Acceptance Criteria:** Фикстуры законов сохранения проходят; до DONE переходные процессы сброса груза и плескание сравнены с полётными данными; фикстуры протокола и тесты отказа проходят.
+
+### TASK-120 — Гибкая конструкция (аэроупругость)
+
+- **Status:** TODO — зарегистрирована 2026-10-26 по итогам обзора точности физики; baseline 4593971.
+- **Title & Description:** Моделировать изгиб и кручение крыла, закрутку балок и моды лучей и рамы, меняющие управляемость, эффективность управления и вибрацию.
+- **Dependencies:** TASK-094, TASK-102, TASK-109, TASK-114.
+- **Touched Files:** `native/bet/src/modal.rs`, `native/bet/src/lib.rs`, `native/bet/tests/modal.rs`, `packages/physics/src/vehicle.schema.json`, `tests/flexible-body.test.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
+- **Interfaces / Contracts:** Усечённые модальные уравнения `q̈ + 2·ζ·ω·q̇ + ω²·q = Q/M` с точным шагом по каждой моде и квазистатическим исключением мод выше четверти частоты физики; угол атаки полосы с упругой закруткой и вертикальным смещением; аппроксимация Джонса функции Вагнера; связь в средних осях; закрутка балок поворачивает оси ступиц; модальное ускорение в точке IMU.
+- **DoD & Acceptance Criteria:** Фикстуры модальных частот и демпфирования проходят; статическая аэроупругая закрутка совпадает с аналитическими балками; до DONE частоты сравнены с наземными частотными испытаниями; гейты G1 проходят.
+
+### TASK-121 — Термики и конвективный пограничный слой
+
+- **Status:** TODO — зарегистрирована 2026-10-26 по итогам обзора точности физики; baseline 4593971.
+- **Title & Description:** Дать реалистичные конвективные восходящие и нисходящие потоки для проверки `SOAR` в ArduPlane и возмущений удержания высоты.
+- **Dependencies:** TASK-070, TASK-106, TASK-107.
+- **Touched Files:** `packages/physics/src/thermals.ts`, `tests/thermals.test.ts`, `packages/protocol/src/control-v2.ts`, `packages/protocol/src/control-v2.schema.json`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SHARED_MEMORY.md`, `docs/ru/SPECS_SHARED_MEMORY.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
+- **Interfaces / Contracts:** `w* = (g·z_i·H/(ρ·c_p·T))^(1/3)` с поверхностным тепловым потоком из решателя поверхностной энергии; профиль восходящего потока Аллена (2006) с нисходящим потоком окружения; детерминированный по seed жизненный цикл термиков и снос ветром; расширение `weather.set` с повышением версии протокола.
+- **DoD & Acceptance Criteria:** Фикстуры сохранения массы и профиля проходят; воспроизведение по seed детерминировано; `SOAR` в ArduPlane включается в SITL.
+
+### TASK-122 — Микропорывы, фронты порывов, вихревые следы и нисходящий поток других аппаратов
+
+- **Status:** TODO — зарегистрирована 2026-10-26 по итогам обзора точности физики; baseline 4593971.
+- **Title & Description:** Моделировать опасные локальные течения для безопасности посадки и полётов роем или строем.
+- **Dependencies:** TASK-079, TASK-101, TASK-106.
+- **Touched Files:** `packages/physics/src/hazard-flows.ts`, `packages/scenarios/src/schema.ts`, `tests/hazard-flows.test.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
+- **Interfaces / Contracts:** Нисходящий порыв Осегеры–Боулза (аналитическое поле с сохранением массы); движущиеся фронты порывов как линии сдвига; вихри Бёрнхема–Холлока `V_θ = (Γ/2π)·r/(r² + r_c²)` с `Γ₀ = W/(ρ·V·b₀)` и `b₀ = π·b/4`, опусканием и затуханием; следы роторов как стареющие сегменты; включение сценариями; ограниченные общие буферы следов между Worker аппаратов.
+- **DoD & Acceptance Criteria:** Фикстуры бездивергентности и аналитических полей проходят; время сценариев привязано к тактам с подтверждениями; обмен следами между аппаратами детерминирован в lockstep.
+
+### TASK-123 — Динамическое сваливание и нестационарная аэродинамика профиля
+
+- **Status:** TODO — зарегистрирована 2026-10-26 по итогам обзора точности физики; baseline 4593971.
+- **Title & Description:** Учесть заброс подъёмной силы, гистерезис и затягивание сваливания при быстро меняющемся угле атаки на роторах и крыльях.
+- **Dependencies:** TASK-097, TASK-102, TASK-109.
+- **Touched Files:** `native/bet/src/dynamic_stall.rs`, `native/bet/src/blade.rs`, `native/bet/src/wing.rs`, `native/bet/src/lib.rs`, `native/bet/tests/dynamic_stall.rs`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
+- **Interfaces / Contracts:** Запаздывание отрыва по Øye `ḟ = (f_st − f)/τ_f` с `C_L = f·C_L,inv + (1 − f)·C_L,fs`; Лейшман–Беддоус для более высокой точности; одно состояние на полосу на лопасть в заранее выделенных массивах; флаги вне откалиброванного диапазона приведённых частот.
+- **DoD & Acceptance Criteria:** Фикстуры колеблющегося профиля совпадают с опубликованными петлями гистерезиса в заявленных допусках; статический предел равен поляре 360°; гейты G1 проходят.
 
 ## Текущая сводка верификации и аппаратных проб
 

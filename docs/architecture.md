@@ -289,6 +289,45 @@ latency. 120 FPS allows 8.33 ms/frame on a panel that can present it. For 60 FPS
 physics step has 0.833 ms and needs headroom. Headless cloud smoke does
 not establish these performance budgets.
 
+## Physics fidelity program (TASK-087–TASK-123)
+
+Registered in the [roadmap](PROJECT_ROADMAP.md) as Phases 7–13 on 2026-10-26;
+nothing in this section is implemented yet. The program keeps the current
+ownership model: MirageSITL is ArduPilot's external flight-dynamics model.
+Native runs exchange JSON state lines with `--model JSON` (TASK-041). The
+browser build fills ArduPilot's `sitl_fdm` through the HAL mailbox (TASK-046),
+and ArduPilot's internal aircraft never advances. ArduPilot's `SIM_Multicopter`
+and `SIM_Plane` are therefore not modified, and the native firmware stays
+unmodified ([V2_PLAN.md](V2_PLAN.md), B1).
+
+| Layer | Location | Role in the program |
+| --- | --- | --- |
+| Physics kernels | `native/bet`, `native/contact` | All new physics models |
+| Kernel interfaces | `bound.rs`, `bet_bound.h`, `body_abi.rs` | One versioned v2 extension (TASK-088) |
+| Vehicle adapter | `bet-dynamics.ts`, `session-v2.ts` | Per-tick composition of the kernels |
+| Vehicle data | `model.schema.json` and its v2 successor | New vehicle parameters (TASK-087) |
+| Runtime environment | Control Protocol v2 | Weather and events at tick boundaries |
+| Autopilot boundary | JSON state line, HAL mailbox, MAVLink injection | Sensor-error ownership (TASK-089) |
+| ArduPilot configuration | Generated parameter profile | Neutralize the ArduPilot errors MirageSITL owns |
+
+Fidelity is selected per vehicle as a tier. Tier A (rotor lookup tables,
+TASK-103) serves faster-than-real-time regression. Tier B (optimized BET with
+inflow v2, the electromechanical drive and compliant contact) serves real-time
+training and HIL. Tier C (blade-by-blade rotors, dynamic stall, flexible modes,
+wakes) runs offline in lockstep and may be slower than real time. TASK-090
+certifies Tier A against Tiers B and C so fast regression stays trustworthy.
+
+The tick budget is `1/(f·S)` for physics rate `f` and speedup `S`, and G3 limits
+compute p99 to half of `dt`. The review measurement (BET quad tick about 0.35 ms
+in browser WASM; octocopter about 0.70 ms, above the 0.4167 ms G3 limit at
+1200 Hz) makes the TASK-091 kernel speed-up the first performance dependency of
+every later fidelity task. Lockstep tolerates slow physics because ArduPilot
+waits for each frame, so real time is required only for interactive and HIL
+runs. Lower-rate updates (turbulence coefficients, wakes, GNSS visibility) use
+integer-phase, tick-indexed schedulers, so results do not depend on host speed.
+Each vehicle's physics stays single-threaded; work outside the step (GNSS
+line-of-sight, turbulence-box generation, recording) moves to other Workers.
+
 ## Phase 0 contracts: fixtures, capabilities, and models
 
 TASK-004–006 introduce configuration-time boundaries; they do not add a new

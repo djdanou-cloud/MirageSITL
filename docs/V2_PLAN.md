@@ -357,6 +357,15 @@ Decisions needed:
 These items are proposals. When one is approved, it becomes a numbered task
 in the [project roadmap](PROJECT_ROADMAP.md) with its own acceptance criteria.
 
+On 2026-10-26 the physics fidelity program (roadmap Phases 7–13) registered
+these items as tasks: workstream C as TASK-087 (vehicle manifest v2); B3 as part
+of TASK-090 (fidelity evidence pipeline); B4 as TASK-103 (rotor lookup-table
+mode); B5 as TASK-099 (descent inflow); B6 as TASK-101 (rotor interference);
+B8 as TASK-100 (rotor ground effect, off by default); and B9 as TASK-105
+(motor and ESC v2). The B1 rule that the native firmware stays unmodified binds
+TASK-089. B2 and workstreams A and D remain proposals. Decisions 1, 2 and 4
+above still apply to the registered tasks.
+
 ## 7. Work carried over from the existing roadmap and documentation
 
 These items were already recorded in the [project roadmap](PROJECT_ROADMAP.md)

@@ -60,8 +60,9 @@ policy copies; if a client loads neither pointer, open this file explicitly.
   rate-drop thresholds to hide drops.
 * **Rust BET, propulsion, rigid-body, atmosphere, and sensors:** The `native/` Rust
   1.97.0 workspace (`mirage-bet`) provides scalar/SIMD128 WASM builds, checked C ABI
-  arenas, polar lookup, ISA/temperature-offset atmosphere, seeded Dryden/gust/shear
-  wind (TASK-032), native rotor reference kernels with test-only WASM exports
+  arenas, polar lookup, a TypeScript ISA/temperature-offset atmosphere and seeded
+  synthetic AR(1) gusts (TASK-032; not Dryden, no shear, not wired into flight
+  sessions), native rotor reference kernels with test-only WASM exports
   (TASK-020–TASK-023), motor/battery/arbitrary-frame wrench/RK4 rigid-body WASM
   adapters, and ideal/noisy IMU/baro/mag/GNSS sensors (TASK-024–TASK-028, TASK-034,
   TASK-035). TASK-033 adds the production bound-rotor ABI, NeuralFoil confidence-aware
@@ -190,6 +191,15 @@ policy copies; if a client loads neither pointer, open this file explicitly.
   `scripts/check-gpu-perf.mjs`; the user accepted median 16.680 ms, p99 17.665 ms, and 59.88 Hz, while the 2560×1440 presentation and the native 2560×1664 panel remain open), TASK-080
   (accessibility sign-off; TASK-074 HUD freshness, TASK-075 fault ACKs, TASK-078 full-rate recording, and TASK-079 scenario ACK binding are done and do not admit browser READY), TASK-082 (multi-hour integrated soak), and TASK-083 (clean-machine
   release and assistive screen-reader sign-off) remain open.
+* **Physics fidelity program (TASK-087–TASK-123, roadmap Phases 7–13):** registered
+  2026-10-26 from the physics fidelity review and not yet implemented: vehicle manifest
+  v2, rotor/body interface v2, autopilot boundary and sensor-error ownership, the fidelity
+  evidence pipeline and BET compute headroom (TASK-087–TASK-091), then core flight
+  dynamics, rotor aerodynamics, propulsion and environment, fixed-wing/VTOL classes,
+  sensor physics, and structural and extreme-environment models (TASK-092–TASK-123).
+  MirageSITL stays an external flight-dynamics model: do not modify ArduPilot
+  `SIM_Multicopter`/`SIM_Plane` or the native firmware for these tasks without a recorded
+  decision.
 
 ### Workspace and git discipline
 

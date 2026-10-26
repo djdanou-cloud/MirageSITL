@@ -29,6 +29,10 @@ Models are admitted to an immutable session registry; runtime model switching
 remains a separate integration step. See the [architecture guide](docs/architecture.md)
 for the serialized contracts.
 
+The [roadmap](docs/PROJECT_ROADMAP.md) also registers a physics fidelity program
+(Phases 7–13, TASK-087–TASK-123) for multirotor, fixed-wing and VTOL realism.
+None of it is implemented yet, and it does not change the default demo backend.
+
 Startup checks secure context, isolation, SharedArrayBuffer, Worker, and WebGL2.
 Missing requirements disable Start with an explanation; missing Gamepad disables
 USB input. Failed WebGPU probing preserves WebGL2. Serial API availability is
