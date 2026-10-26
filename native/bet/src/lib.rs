@@ -5,6 +5,8 @@
 //! remains for ABI regression and keeps its unavailable-aerodynamics response.
 //! The additive `bound` ABI binds validated polar/rotor data and advances
 //! shaft/inflow state; feature-gated exports also verify reference kernels.
+//! `bound_v2` and `body_abi_v2` (TASK-088) are the step interfaces v2 with
+//! fail-closed fields for later tasks; neutral records run the v1 steps.
 //!
 //! On wasm32 the global allocator traps: any heap allocation aborts the module,
 //! so the kernels provably run allocation-free (a no_std build is not used
@@ -25,7 +27,9 @@ pub mod frame;
 pub mod rigid_body;
 pub mod landing_gear;
 pub mod body_abi;
+pub mod body_abi_v2;
 pub mod bound;
+pub mod bound_v2;
 pub mod inflow;
 pub mod shaft;
 pub mod flapping;
@@ -232,6 +236,24 @@ mod wasm_exports {
         crate::bound::reset(unsafe{bytes_mut(handle,len)})
     }
 
+    /// Bound-rotor step record version v2; arenas and `bet_bound_version` stay v1.
+    #[no_mangle]
+    pub extern "C" fn bet_bound_v2_version() -> u32 { crate::bound_v2::VERSION }
+
+    /// Step v2 on a v1 arena; the pointer, overlap and memory rules of `bet_bound_step`.
+    #[no_mangle]
+    pub extern "C" fn bet_bound_step_v2(handle:u32,ip:u32,op:u32,dt:f64)->i32 {
+        let Some(len)=bound_len(handle) else{return -1;};
+        // SAFETY: bound_len checked the full immutable arena region.
+        if crate::bound::memory_pages(unsafe{bytes(handle,len)})!=Some(memory_pages()) {return -5;}
+        let (n,m)=(crate::bound_v2::INPUT_BYTES,crate::bound_v2::OUTPUT_BYTES);
+        if !caller_region(ip,n) || !caller_region(op,m) || abi::regions_overlap(ip,n,op,m)
+            || abi::regions_overlap(handle,len,ip,n) || abi::regions_overlap(handle,len,op,m) {return -2;}
+        // SAFETY: all regions are validated and pairwise disjoint.
+        let (arena,input,out)=unsafe{(bytes_mut(handle,len),bytes(ip,n),bytes_mut(op,m))};
+        crate::bound_v2::step(arena,input,out,dt)
+    }
+
     /// Invalidates a bound rotor without affecting another handle.
     #[no_mangle]
     pub extern "C" fn bet_bound_dispose(handle:u32) {
@@ -349,6 +371,26 @@ mod wasm_exports {
         // SAFETY: both regions are in caller memory, aligned and disjoint.
         let (input, out) = unsafe { (bytes(input_ptr, il), bytes_mut(out_ptr, ol)) };
         crate::body_abi::step(input, out, dt)
+    }
+
+    /// Rigid-body step record version v2; `bet_body_abi_version` stays v1.
+    #[no_mangle]
+    pub extern "C" fn bet_body_v2_version() -> u32 {
+        crate::body_abi_v2::VERSION
+    }
+
+    /// Body-only RK4 step v2 over validated, disjoint caller-owned regions.
+    #[no_mangle]
+    pub extern "C" fn bet_body_step_v2(input_ptr: u32, out_ptr: u32, dt: f64) -> i32 {
+        let il = crate::body_abi_v2::INPUT_BYTES;
+        let ol = crate::body_abi_v2::OUTPUT_BYTES;
+        if !caller_region(input_ptr, il) || !caller_region(out_ptr, ol)
+            || abi::regions_overlap(input_ptr, il, out_ptr, ol) {
+            return abi::STATUS_BAD_POINTER;
+        }
+        // SAFETY: both regions are in caller memory, aligned and disjoint.
+        let (input, out) = unsafe { (bytes(input_ptr, il), bytes_mut(out_ptr, ol)) };
+        crate::body_abi_v2::step(input, out, dt)
     }
 
     /// Resets rotor states; 0 or a negative status.

@@ -302,7 +302,10 @@ cost (`fidelity-metrics.ts`), bench CSV import (`bench-import.ts`) and
 started: a pinned-source ArduPilot SITL catalog
 (`tests/fixtures/sitl/ardupilot-catalog.json`), a 25-source error-ownership
 matrix with evidenced delivery paths, and a neutralizing parameter profile
-(`error-ownership.ts`). The rest of this section is not implemented yet. The program keeps the current
+(`error-ownership.ts`). TASK-088 has started: bound-rotor and rigid-body step
+interfaces v2 (`bound_v2.rs`, `body_abi_v2.rs`, `rotor-v2.ts`, `body-v2.ts`)
+with fail-closed fields for later tasks; neutral records run the v1 steps
+bitwise. The rest of this section is not implemented yet. The program keeps the current
 ownership model: MirageSITL is ArduPilot's external flight-dynamics model.
 Native runs exchange JSON state lines with `--model JSON` (TASK-041). The
 browser build fills ArduPilot's `sitl_fdm` through the HAL mailbox (TASK-046),

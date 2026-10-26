@@ -3142,3 +3142,172 @@ Open items:
   before they become delivery paths.
 * Airspeed and rangefinder sources.
 * Rerunning TASK-047 parity whenever a delivery changes.
+
+## Step interfaces v2 (TASK-088)
+
+The step interfaces v2 extend the bound-rotor and rigid-body byte records once
+for the Phase 8–10 inputs and outputs. The v1 interfaces stay unchanged as a
+regression API. Bound-rotor arenas and their configuration remain v1:
+`bet_bound_init`, `bet_bound_reset` and `bet_bound_dispose` serve both versions.
+
+The new exports are `bet_bound_v2_version()->u32` (2),
+`bet_bound_step_v2(arena,input,output,dt)->i32`, `bet_body_v2_version()->u32`
+(2) and `bet_body_step_v2(input,output,dt)->i32`. They follow the v1 pointer
+rules: caller-owned, 8-byte-aligned, pairwise disjoint regions at or above
+`__heap_base`, and no memory growth after initialization. Records are little
+endian. A version word leads every input record, and reserved words must be
+zero. `native/bet/include/bet_bound.h` defines the sizes, bits and status.
+
+### Bound rotor step input v2
+
+| Byte Offset | Data Type | Units | Field Name |
+| ---: | --- | --- | --- |
+| 0 | u32 | version | version |
+| 4 | u32 | bitmask | input_flags |
+| 8 | u32 | enum | drive_mode |
+| 12 | u32 | — | reserved_zero |
+| 16 | f64 | kg/m^3 | density |
+| 24 | f64 | Pa s | dynamic_viscosity |
+| 32 | f64 | m/s | sound_speed |
+| 40 / 48 / 56 | f64 × 3 | m/s | air_velocity_hub_x/y/z |
+| 64 / 72 / 80 | f64 × 3 | rad/s | body_rate_hub_x/y/z |
+| 88 | f64 | rad | collective |
+| 96 | f64 | rad | cyclic_cos |
+| 104 | f64 | rad | cyclic_sin |
+| 112 | f64 | N m | motor_torque |
+| 120 | f64 | 1 | esc_duty |
+| 128 | f64 | V | bus_voltage |
+| 136 / 144 / 152 | f64 × 3 | m/s | external_wake_hub_x/y/z |
+| 160 / 168 / 176 | f64 × 3 | 1 | ground_normal_hub_x/y/z |
+| 184 | f64 | m | ground_distance |
+| 192..255 | u32[16] | — | reserved_zero |
+
+### Bound rotor step output v2
+
+| Byte Offset | Data Type | Units | Field Name |
+| ---: | --- | --- | --- |
+| 0 / 8 / 16 | f64 × 3 | N | force_hub_x/y/z |
+| 24 / 32 / 40 | f64 × 3 | N m | air_moment_hub_x/y/z |
+| 48 / 56 / 64 | f64 × 3 | N m | transmitted_moment_hub_x/y/z |
+| 72 | f64 | rad/s | omega |
+| 80 | f64 | N m | aerodynamic_shaft_torque |
+| 88 | f64 | W | shaft_power |
+| 96 | f64 | m/s | induced_axial |
+| 104 | f64 | rad | cone_angle |
+| 112 | u32 | bitmask | flags |
+| 116 | u32 | bitmask | validity |
+| 120 | f64 | kg m^2/s | angular_momentum_axial |
+| 128 | f64 | m/s | inflow_cos |
+| 136 | f64 | m/s | inflow_sin |
+| 144 | f64 | A | motor_current |
+| 152 | f64 | A | bus_current |
+| 160 | f64 | W | electrical_power |
+| 168 | f64 | W | copper_loss |
+| 176..255 | u32[20] | — | reserved_zero |
+
+Bound-rotor fields owned by later tasks, with their neutral values:
+
+* `drive_mode` 0 (torque) and zero `esc_duty` and `bus_voltage`; mode 1 is
+  TASK-092.
+* Zero `external_wake_hub_x/y/z` (TASK-101).
+* `input_flags` bit 0 clear, with zero `ground_normal_hub_x/y/z` and
+  `ground_distance` (TASK-100).
+
+Output `validity` bits mark quantities that need later tasks:
+
+* 1: `motor_current`, `bus_current`, `electrical_power` and `copper_loss`
+  (TASK-092).
+* 2: `inflow_cos` and `inflow_sin` (TASK-098).
+* 4: ground effect applied (TASK-100).
+* 8: external wake applied (TASK-101).
+
+An unavailable output is zero with its bit clear. `flags` keeps the v1
+meanings.
+
+### Rigid-body step input v2
+
+| Byte Offset | Data Type | Units | Field Name |
+| ---: | --- | --- | --- |
+| 0 | u32 | version | version |
+| 4 | u32 | enum | gravity_model |
+| 8 | u32 | bitmask | input_flags |
+| 12 | u32 | — | reserved_zero |
+| 16 | f64 | kg | mass |
+| 24..95 | f64[9] | kg m^2 | inertia_cg |
+| 96 / 104 / 112 | f64 × 3 | m | position_n/e/d |
+| 120 / 128 / 136 | f64 × 3 | m/s | velocity_n/e/d |
+| 144 / 152 / 160 / 168 | f64 × 4 | 1 | quaternion_w/x/y/z |
+| 176 / 184 / 192 | f64 × 3 | rad/s | omega_body_x/y/z |
+| 200 / 208 / 216 | f64 × 3 | N | force_body_x/y/z |
+| 224 / 232 / 240 | f64 × 3 | N m | moment_body_x/y/z |
+| 248 | f64 | m/s^2 | gravity_down |
+| 256 / 264 / 272 | f64 × 3 | m/s^2 | gravity_n/e/d |
+| 280 / 288 / 296 | f64 × 3 | m | cg_offset_body_x/y/z |
+| 304 | f64 | kg/s | mass_rate |
+| 312..383 | f64[9] | kg m^2/s | inertia_rate |
+| 384..447 | u32[16] | — | reserved_zero |
+
+### Rigid-body step output v2
+
+| Byte Offset | Data Type | Units | Field Name |
+| ---: | --- | --- | --- |
+| 0 / 8 / 16 | f64 × 3 | m | position_n/e/d |
+| 24 / 32 / 40 | f64 × 3 | m/s | velocity_n/e/d |
+| 48 / 56 / 64 / 72 | f64 × 4 | 1 | quaternion_w/x/y/z |
+| 80 / 88 / 96 | f64 × 3 | rad/s | omega_body_x/y/z |
+| 104 / 112 / 120 | f64 × 3 | m/s^2 | acceleration_n/e/d |
+| 128 / 136 / 144 | f64 × 3 | m/s^2 | specific_force_body_x/y/z |
+| 152 / 160 / 168 | f64 × 3 | rad/s^2 | angular_acceleration_body_x/y/z |
+| 176 / 184 / 192 | f64 × 3 | m | reference_position_n/e/d |
+| 200 | u32 | bitmask | validity |
+| 204..255 | u32[13] | — | reserved_zero |
+
+Rigid-body fields owned by later tasks, with their neutral values:
+
+* `gravity_model` 0 (constant `gravity_down` along NED down, the v1
+  semantics) with zero `gravity_n/e/d`; models 1 (NED vector) and 2 (WGS84)
+  are TASK-108.
+* Zero `cg_offset_body_x/y/z` (TASK-094).
+* `input_flags` bit 0 clear, with zero `mass_rate` and `inertia_rate`
+  (TASK-119).
+
+Output `validity` bit 1 marks `specific_force_body_x/y/z` and is always set.
+The body-frame force is constant over the step, so the CG specific force is
+F/m exactly. Bits 2 (`angular_acceleration_body_x/y/z`) and 4
+(`reference_position_n/e/d`) wait for TASK-094.
+
+Checks run in a fixed order: record length, version (−7), reserved words,
+unknown flags and modes (−3), non-finite values (−3), then later-task fields.
+A non-neutral later-task field returns −8 (`BET_V2_UNSUPPORTED`); −0 counts as
+neutral. The v1 statuses pass through: −1 handle, −4 dt, −5 memory growth and
+−3 for v1 range errors. A wrong rotor record length gives −2; a wrong body
+record length gives −3, as in body v1. Every non-zero status leaves the arena
+state and the output unchanged.
+
+A neutral record runs exactly the v1 step: rotor input bytes 16..119 are v1
+bytes 8..111, and body input bytes 16..255 are v1 bytes 0..239. Output bytes
+0..127 therefore equal the v1 output record bitwise. When a later task
+implements a field, it removes that field's −8 check and sets its validity
+bit.
+
+`tests/fixtures/wasm-abi/interface-v2.json` is generated by
+`python3 tests/fixtures/wasm-abi/generate.py` (Python `struct`, with
+`bet-abi-v1.json` unchanged). It holds these four layouts, neutral golden
+records and rejection patches. `native/bet/tests/bound_v2.rs` and
+`body_abi_v2.rs` check bitwise v1 equality over 2000 steps; 16 rotor and 19
+body invalid or unsupported records, plus record-length errors and v1
+pass-through statuses, all leaving state and output unchanged; and zero
+allocator calls and bytes over 10^6 steps. `native/bet/examples/interface_v2_reference.rs`
+prints native outputs for the WASM parity test `tests/wasm-abi-v2.test.ts`.
+`packages/wasm-bet/src/rotor-v2.ts` and `body-v2.ts` are the allocation-free
+adapters.
+
+Native and WASM agree to 1e-12 relative. Native glibc and the WASM libm may
+differ by an ulp in trigonometric functions, and a vector component's
+round-off scales with its vector's magnitude. Force and moment components are
+therefore compared relative to their vector's norm, and other quantities
+relative to their own magnitude. Over 200 steps of the golden records, the
+largest differences were 8.5e-14 for the rotor and 8.4e-16 for the body, in
+both the scalar and SIMD128 builds. Per-component relative error reached
+9.9e-13, on a near-cancelling 6.5e-5 N·m moment component whose absolute
+difference was 6.4e-17.
