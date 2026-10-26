@@ -15,7 +15,9 @@
     "./contact-backend": "./src/contact-backend.ts",
     "./ground-contact": "./src/ground-contact.ts",
     "./motor-fault": "./src/motor-fault.ts",
-    "./bet-dynamics": "./src/bet-dynamics.ts"
+    "./bet-dynamics": "./src/bet-dynamics.ts",
+    "./fidelity-metrics": "./src/fidelity-metrics.ts",
+    "./bench-import": "./src/bench-import.ts"
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "0.21.0",

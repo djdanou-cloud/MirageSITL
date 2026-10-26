@@ -364,7 +364,10 @@ mode); B5 as TASK-099 (descent inflow); B6 as TASK-101 (rotor interference);
 B8 as TASK-100 (rotor ground effect, off by default); and B9 as TASK-105
 (motor and ESC v2). The B1 rule that the native firmware stays unmodified binds
 TASK-089. B2 and workstreams A and D remain proposals. Decisions 1, 2 and 4
-above still apply to the registered tasks.
+above still apply to the registered tasks. TASK-090 has started on B3: the
+scoring metrics, the bench CSV import and `scripts/check-fidelity.mjs` exist.
+Replaying flight logs through the simulation, and real flight and bench data,
+remain open.
 
 ## 7. Work carried over from the existing roadmap and documentation
 

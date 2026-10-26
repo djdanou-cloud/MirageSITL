@@ -295,8 +295,11 @@ Registered in the [roadmap](PROJECT_ROADMAP.md) as Phases 7–13 on 2026-10-26;
 the roadmap records each task's status. TASK-087 has started: vehicle manifest
 v2 validation, migration and derived values (`vehicle.schema.json`,
 `vehicle-manifest.ts`), the ArduPilot profile generator (`ardupilot-profile.ts`)
-and an optional `model.load` port in `PhysicsSessionV2`. The rest of this
-section is not implemented yet. The program keeps the current
+and an optional `model.load` port in `PhysicsSessionV2`. TASK-090 has
+started: time-domain and Welch frequency-response metrics with a CIFER-style
+cost (`fidelity-metrics.ts`), bench CSV import (`bench-import.ts`) and
+`scripts/check-fidelity.mjs`; scoring measured data remains open. The rest of
+this section is not implemented yet. The program keeps the current
 ownership model: MirageSITL is ArduPilot's external flight-dynamics model.
 Native runs exchange JSON state lines with `--model JSON` (TASK-041). The
 browser build fills ArduPilot's `sitl_fdm` through the HAL mailbox (TASK-046),

@@ -670,6 +670,66 @@
       }
     },
     {
+      "path": "validation/fidelity-synthetic-capture.json",
+      "manifest": {
+        "formatVersion": 1,
+        "id": "validation-fidelity-synthetic-capture",
+        "sourceSha256": "74e2c16d5320a97b1f1ed7c89e940e29a49b98dccfb3e774a81eb0bcdf91b2a7",
+        "units": {
+          "rollRate": "rad/s"
+        },
+        "validityEnvelope": {
+          "rollRate": {
+            "min": -0.51,
+            "max": 0.51
+          }
+        },
+        "tolerance": {
+          "absolute": 1e-12,
+          "relative": 1e-12
+        },
+        "provenance": {
+          "kind": "synthetic",
+          "derivation": "Analytic fidelity capture v1: a 0.5*sin(2*pi*2*t) rad/s roll rate at 100 Hz with a +0.01 rad/s simulated bias; a 64-sample Schroeder multisine (bins 1..31, amplitude 0.05 each) through H(z)=(1-0.8)/(1-0.8/z) in steady state, with the simulated response scaled by +1 dB; and the bench-synthetic.csv sweep with +2% CT and -3% CP predictions. Not flight or bench measurements."
+        }
+      }
+    },
+    {
+      "path": "validation/bench-synthetic.csv",
+      "manifest": {
+        "formatVersion": 1,
+        "id": "validation-bench-synthetic",
+        "sourceSha256": "191082c4d490ebbb04c17e695f2609dbf7206e705cc507c504b78bd17bdbfbb0",
+        "units": {
+          "rpm": "rev/min",
+          "thrust": "N",
+          "torque": "N*m"
+        },
+        "validityEnvelope": {
+          "rpm": {
+            "min": 2000,
+            "max": 8000
+          },
+          "thrust": {
+            "min": 0.61,
+            "max": 9.77
+          },
+          "torque": {
+            "min": 0.01,
+            "max": 0.162
+          }
+        },
+        "tolerance": {
+          "absolute": 0,
+          "relative": 1e-10
+        },
+        "provenance": {
+          "kind": "synthetic",
+          "derivation": "Synthetic static thrust-stand sweep in bench CSV v1: CT=0.11 and CP=0.045 on a 0.254 m propeller, T=CT*rho*n^2*D^4 and Q=CP/(2*pi)*rho*n^2*D^5 at 2000..8000 rpm, density 1.2 kg/m^3 except 1.1 at 5000 rpm, printed with 12 significant digits. Not a bench measurement."
+        }
+      }
+    },
+    {
       "path": "abi/body-v1.json",
       "manifest": {
         "formatVersion": 1,

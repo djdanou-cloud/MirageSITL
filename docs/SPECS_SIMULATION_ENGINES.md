@@ -2884,3 +2884,138 @@ Open items:
   TASK-042/043/059 captures would have to be regenerated.
 * No application path registers models.
 * Polar bindings and per-rotor runtime values remain in `BetFlightConfiguration`.
+
+## Fidelity evidence pipeline (TASK-090)
+
+`packages/physics/src/fidelity-metrics.ts` and `bench-import.ts` are offline
+evidence code. They allocate and are never called from a physics step.
+
+`timeDomainMetrics(measured, simulated)` compares two equally sampled series
+of equal length. It returns the RMS error, the bias (mean of simulated minus
+measured) and the Theil inequality coefficient U. U lies in [0, 1], is 0 for a
+perfect match, and is rejected as undefined when both series are all zero:
+
+\[
+U = \frac{\sqrt{\frac{1}{n}\sum_i (s_i - m_i)^2}}{\sqrt{\frac{1}{n}\sum_i s_i^2} + \sqrt{\frac{1}{n}\sum_i m_i^2}}
+\]
+
+`welchFrequencyResponse(input, output, fs, N, overlap, window)` averages
+K ≥ 2 segments of power-of-two length N in [16, 65536]. A single segment would
+give γ² = 1 identically. Each segment has its mean removed and is multiplied by
+a periodic Hann or a rectangular window. The radix-2 FFT uses
+X_k = Σ x_n·e^(−j2πkn/N), and the one-sided bins k = 1..N/2 lie at
+f_k = k·fs/N. Window scale factors cancel in both ratios:
+
+\[
+\hat H(f_k) = \frac{\sum_s X_s^*(f_k)\,Y_s(f_k)}{\sum_s |X_s(f_k)|^2},\qquad
+\hat\gamma^2(f_k) = \frac{\left|\sum_s X_s^* Y_s\right|^2}{\sum_s |X_s|^2 \sum_s |Y_s|^2}
+\]
+
+A bin whose input power is at most 1e-20 of the strongest bin is unexcited:
+its H is NaN and its γ² is 0. An f64 FFT bin carries about 1e-32 of
+round-off power, so this floor is twelve decades above round-off and 200 dB
+below the strongest bin.
+
+`frequencyResponseCost(reference, model, { bandHz, points, minCoherence })`
+computes the CIFER-style cost:
+
+\[
+J = \frac{20}{n}\sum_{i=1}^{n} W_\gamma(f_i)\left[W_g\,(\Delta|H|_{dB})^2 + W_p\,(\Delta\angle H_{deg})^2\right],\qquad
+W_\gamma = \left[1.58\left(1 - e^{-\gamma^2}\right)\right]^2
+\]
+
+The cost uses W_g = 1 and W_p = 0.01745, so 1 dB weighs as much as 7.57°.
+`points` target frequencies are spaced logarithmically over the band and each
+is mapped to its nearest bin; a bin shared by several targets counts once.
+W_γ uses the reference (measured) coherence. Points with γ² below
+`minCoherence` are excluded, and n counts the points that remain. Phase
+differences are wrapped to (−180°, 180°], so a constant mismatch gives the
+same J for any n. The guidelines are J ≤ 100 for an accepted model, J ≤ 50 for
+a model nearly indistinguishable from flight, and γ² ≥ 0.6 for usable points.
+
+Sources: the weights, W_γ, the J guidelines and the coherence threshold are
+those reported by Ågren et al., "In-flight System Identification of the
+Ingenuity Mars Helicopter" (NASA Ames, AIAA 2025), and by DLR's
+system-identification retrospective (Journal of Aircraft, doi
+10.2514/1.C037262). The 20/n normalization and logarithmic point spacing
+follow Tischler and Remple, Aircraft and Rotorcraft System Identification,
+2nd ed. (AIAA, 2012).
+
+Bench CSV v1 describes a static thrust stand:
+
+```text
+mirage-bench-csv,1
+diameterM,0.254
+rpm,thrustN,torqueNm,airDensityKgM3
+2000,0.610472757547,0.0100957820214,1.2
+```
+
+`importBenchCsv` accepts LF or CRLF and 1–10000 rows. Numbers must be strict
+decimals (no `+`, hex, `Infinity` or empty fields). The diameter must be in
+(0, 10] m, rpm > 0, and density in [0.05, 2] kg/m³, the envelope of
+`atmosphereFromState`. Rows keep their file order. With n = rpm/60:
+
+\[
+C_T = \frac{T}{\rho n^2 D^4},\qquad C_Q = \frac{Q}{\rho n^2 D^5},\qquad C_P = 2\pi C_Q,\qquad
+\mathrm{FM} = \sqrt{\frac{2}{\pi}}\,\frac{C_T^{3/2}}{C_P}
+\]
+
+The importer also scales thrust and torque to ISA sea-level density
+(1.2250 kg/m³ from `isaTroposphere(0)`). It flags negative thrust, negative
+torque and FM > 1, because momentum theory bounds free-air static thrust per
+unit power. Flagged rows are kept.
+
+Capture schema v1 has this skeleton; every series must hold 2..2^20 finite
+samples:
+
+```json
+{
+  "schemaVersion": 1, "kind": "mirage-fidelity-capture",
+  "provenance": { "source": "flight-test", "operator": "<name>", "recordedAt": "2026-10-26T00:00:00Z",
+    "firmwareSha256": "<64 hex>", "modelSha256": "<64 hex>" },
+  "timeDomain": [{ "id": "roll-rate", "unit": "rad/s", "sampleRateHz": 100,
+    "measured": ["<samples>"], "simulated": ["<samples>"],
+    "limits": { "maxRms": 0.02, "maxAbsBias": 0.02, "maxTheil": 0.05 } }],
+  "frequencyResponse": [{ "id": "roll-rate-response", "sampleRateHz": 100, "segmentLength": 64,
+    "overlap": 0, "window": "rectangular", "bandHz": [1.5625, 46.875], "points": 20,
+    "minCoherence": 0.6, "maxCost": 100,
+    "measuredInput": ["<samples>"], "measuredOutput": ["<samples>"],
+    "simulatedInput": ["<samples>"], "simulatedOutput": ["<samples>"] }],
+  "bench": { "csv": "<bench CSV v1 text>", "csvSha256": "<64 hex>",
+    "predicted": [{ "rpm": 2000, "ct": 0.1122, "cp": 0.04365 }],
+    "limits": { "maxCtRelativeError": 0.05, "maxCpRelativeError": 0.05 } }
+}
+```
+
+The simulated series come from replaying the measured excitation: the same
+samples in the time domain and the same injected input for frequency
+responses. Bench predictions list one row per measured row at the same rpm.
+
+`node scripts/check-fidelity.mjs --input CAPTURE.json --sha256 HEX` builds on
+`scripts/validation/evidence.mjs`, which enforces the hash and a 32 MiB size
+budget. It requires exact keys everywhere, unique section IDs, at most 32
+sections per kind and at least one section in total. Declared limits may be
+stricter than the guidelines but never looser: maxCost ≤ 100,
+minCoherence ≥ 0.6, maxTheil ≤ 1 and bench relative errors ≤ 1. A bench row
+with any consistency flag fails the bench comparison.
+
+Exit codes:
+
+* No input gives BLOCKED_EXTERNAL (2).
+* Malformed, unhashed or over-permissive input gives FAIL (1).
+* `synthetic` provenance gives BLOCKED_EXTERNAL (2) with the computed metrics
+  and `limitsMet`; it is never PASS.
+* `flight-test` provenance with non-zero firmware and model hashes gives
+  PASS (0) or FAIL (1).
+
+The report `test-results/validation/fidelity.json` (schema 1, kind `fidelity`)
+records the input hash, the git revision and the validator hash. The analytic
+fixture `tests/fixtures/validation/fidelity-synthetic-capture.json` reports
+J = 19.950 = 20·W_γ(1) for its +1 dB model error and exits 2.
+
+Open items:
+
+* Score a real ArduCopter SYSTEMID flight capture and a real thrust-stand
+  file (G4).
+* Convert DataFlash logs to capture v1.
+* Build the simulation replay that produces the simulated series.

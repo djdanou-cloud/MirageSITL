@@ -13,7 +13,7 @@ Worker приложения по умолчанию по-прежнему выб
 model-report v8 требует актуальных численных и аллокационных доказательств,
 независимо сохраняя провалы измеренной точности.
 
-<!-- source-sha256: ae4665e3ceb363cb87458b145bc6ad49f8fbcd35552d49c39d8bca543c959dc6 -->
+<!-- source-sha256: e593aca864ab52b68223ef4ccb06ce91a119b223fcf087e98e8797622ef0836f -->
 
 Английский источник: [Source of truth](../architecture.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -309,8 +309,11 @@ dropped wall time, input age, sensor jitter, GPU memory и end-to-end latency.
 статус каждой задачи ведётся в roadmap. TASK-087 начата: проверка, миграция и
 производные величины манифеста аппарата v2 (`vehicle.schema.json`,
 `vehicle-manifest.ts`), генератор профиля ArduPilot (`ardupilot-profile.ts`) и
-необязательный порт `model.load` в `PhysicsSessionV2`. Остальное в этом разделе
-пока не реализовано. Программа сохраняет текущую модель
+необязательный порт `model.load` в `PhysicsSessionV2`. TASK-090 начата: метрики
+во временной области и частотные характеристики по Уэлчу со стоимостью в стиле
+CIFER (`fidelity-metrics.ts`), импорт bench CSV (`bench-import.ts`) и
+`scripts/check-fidelity.mjs`; оценка измеренных данных остаётся открытой.
+Остальное в этом разделе пока не реализовано. Программа сохраняет текущую модель
 ответственности: MirageSITL — внешняя модель динамики полёта для ArduPilot.
 Нативные запуски обмениваются строками состояния JSON с `--model JSON`
 (TASK-041). Браузерная сборка заполняет `sitl_fdm` ArduPilot через HAL mailbox
