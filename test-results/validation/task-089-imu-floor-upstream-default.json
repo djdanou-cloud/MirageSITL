@@ -1,0 +1,80 @@
+{
+  "schemaVersion": 1,
+  "kind": "imu-noise-floor",
+  "status": "PASS",
+  "expect": "ardupilot",
+  "reasons": [],
+  "reference": null,
+  "scope": "Native ArduCopter SITL HIGHRES_IMU while disarmed on the synthetic quad; ArduPilot-added error only, not sensor fidelity",
+  "limits": {
+    "accelMinStdMps2": 0.0001,
+    "gyroMinStdRadS": 0.00001
+  },
+  "window": {
+    "startS": 10,
+    "endS": 41.245,
+    "samples": 10415
+  },
+  "axes": {
+    "xacc": {
+      "mean": -0.0010338746144226837,
+      "slopePerS": 2.2367742806255814e-7,
+      "std": 0.0006051247440548115,
+      "maxAbsResidual": 0.002053473922209542
+    },
+    "yacc": {
+      "mean": -0.0010075250889126672,
+      "slopePerS": 0.0000018415572933581004,
+      "std": 0.0006062100114191878,
+      "maxAbsResidual": 0.0021803446004902936
+    },
+    "zacc": {
+      "mean": -9.817464917952547,
+      "slopePerS": 5.632959301646433e-7,
+      "std": 0.0006068007514784962,
+      "maxAbsResidual": 0.0022405803359670587
+    },
+    "xgyro": {
+      "mean": 0.0003739442502540324,
+      "slopePerS": 0.00001442572125280543,
+      "std": 0.0000477707711746768,
+      "maxAbsResidual": 0.00017985444192350283
+    },
+    "ygyro": {
+      "mean": 0.00037176446869454575,
+      "slopePerS": 0.00001455162209370104,
+      "std": 0.000047797562962999646,
+      "maxAbsResidual": 0.00016491160948973416
+    },
+    "zgyro": {
+      "mean": 0.0003705401615288806,
+      "slopePerS": 0.00001447188367236396,
+      "std": 0.00004675043422963919,
+      "maxAbsResidual": 0.00016487763718309886
+    }
+  },
+  "firmwareSha256": "b54bef09c7209f13a11d5591b362f958c26f304ae87871c833a30c4678a1abef",
+  "validatorSha256": "f9fbf303d2f5f27c4cb2a75d1b3ebde4a0fffff712fbccaed04e5fa970fa092c",
+  "artifacts": [
+    {
+      "file": "run.json",
+      "sha256": "e6027d5284ddacb88ebb0b90a6fa91d091e0980ab3625606666dc4e1a80db009"
+    },
+    {
+      "file": "flight.json",
+      "sha256": "cbf0bb54dcff24f9d31090679c50b343bcd1aaa3a49e49ba7ae839c693644e2a"
+    },
+    {
+      "file": "telemetry.ndjson",
+      "sha256": "625820234e17ce63953402807f32abb4aa0143fcce979dc78bbb5f895650b0b1"
+    },
+    {
+      "file": "quad.parm",
+      "sha256": "2b8dbb6d2a8ecdcc56848a7b7383aedf35d6c8e2053894c3d8adeb6972c03c3c"
+    },
+    {
+      "file": "firmware.log",
+      "sha256": "f1338521d63cc6ab59706393187961edba6e9b2fb6b0af9fca6393d702dea66d"
+    }
+  ]
+}

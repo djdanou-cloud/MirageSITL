@@ -60,7 +60,8 @@ policy copies; if a client loads neither pointer, open this file explicitly.
   rate-drop thresholds to hide drops.
 * **Rust BET, propulsion, rigid-body, atmosphere, and sensors:** The `native/` Rust
   1.97.0 workspace (`mirage-bet`) provides scalar/SIMD128 WASM builds, checked C ABI
-  arenas, polar lookup, a TypeScript ISA/temperature-offset atmosphere and seeded
+  arenas, polar lookup, a TypeScript atmosphere (standard ISA troposphere, or
+  absolute temperature and pressure; no temperature-offset input) and seeded
   synthetic AR(1) gusts (TASK-032; not Dryden, no shear, not wired into flight
   sessions), native rotor reference kernels with test-only WASM exports
   (TASK-020–TASK-023), motor/battery/arbitrary-frame wrench/RK4 rigid-body WASM
@@ -199,8 +200,13 @@ policy copies; if a client loads neither pointer, open this file explicitly.
     `model.load`; the default demo backend is unchanged.
   * TASK-088: bound-rotor and body step interfaces v2 with fail-closed later-task
     fields (status −8); neutral records run v1 bitwise.
-  * TASK-089: a pinned-source SITL catalog and a 25-source error-ownership matrix. The
-    IMU noise floors are unconditional, so changing their owner is BLOCKED_DECISION.
+  * TASK-089: a pinned-source SITL catalog and a 25-source error-ownership matrix. By
+    the user's 2026-10-26 decision ArduPilot defaults stay the default, and the opt-in
+    `imu-noise-floor` firmware patch (`scripts/build-ardupilot-sitl.mjs`) adds
+    `SIM_ACC_FLOOR`/`SIM_GYR_FLOOR`, which switch off the fixed IMU noise floors
+    (`scripts/ownership-profile.mjs --imu-noise-floor off`). Unpatched firmware skips
+    them silently. `run-sitl.mjs` does not read the setting yet, because the frozen
+    TASK-059 matrix pins the driver.
   * TASK-090: fidelity metrics and `scripts/check-fidelity.mjs`, which never passes
     synthetic data; real flight and bench data remain BLOCKED_EXTERNAL.
 

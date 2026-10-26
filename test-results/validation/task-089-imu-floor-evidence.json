@@ -1,0 +1,139 @@
+{
+  "schemaVersion": 1,
+  "task": "TASK-089",
+  "kind": "imu-noise-floor-evidence",
+  "scope": "Native ArduCopter SITL at the pinned commit with the unchanged TASK-042 driver; synthetic quad; ArduPilot-added IMU error only",
+  "decision": "2026-10-26 user: ArduPilot defaults by default; an opt-in parameter switches off its fixed IMU noise floors",
+  "firmware": {
+    "commit": "8ab6afde107a91df1b5f60ade8f333cb8a61b190",
+    "upstream": {
+      "sha256": "b54bef09c7209f13a11d5591b362f958c26f304ae87871c833a30c4678a1abef",
+      "bytes": 6177288,
+      "build": "./waf configure --board sitl && ./waf copter (unpatched clean checkout)"
+    },
+    "patched": {
+      "sha256": "06846b0503a4b691763a00c821470c0020622ef137ec98cbd4d14c7ae6cc5868",
+      "bytes": 6177312,
+      "build": "node scripts/build-ardupilot-sitl.mjs",
+      "patches": [
+        {
+          "id": "imu-noise-floor",
+          "sha256": "7a43d2ed8f05570500a5d6dc0c9205832628f85acec0378978a8bde30faedb96"
+        }
+      ],
+      "scriptSha256": "e0f97298a654f228c1867ab57e8c7c2dac688b7397e0db872f422642b2deceb3"
+    },
+    "toolchain": {
+      "cxx": "c++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",
+      "node": "v24.22.1"
+    }
+  },
+  "parameters": {
+    "defaults": {
+      "file": "tests/fixtures/sitl/parameters.parm",
+      "sha256": "c893b966538e648a2d9a96a4803daee6aa594ebadcf99898e74a969073e3bd1b"
+    },
+    "floorsOff": {
+      "content": "tests/fixtures/sitl/parameters.parm followed by `node scripts/ownership-profile.mjs --imu-noise-floor off`",
+      "sha256": "8058131e090bc0b23775592d52fbc181e6f0f1f4fc29a2985e7dbfbd92b5eb1a"
+    }
+  },
+  "driver": {
+    "scripts/sitl/driver.mjs": "c1a1e2a9c26bb571ea3d82b3b527a46a37155b334497c42d80139253982ce3a4",
+    "scripts/sitl/telemetry.py": "3a386c88b57920fbcacaa2890c9264d3e6406027da250a3882dc705cb0cc48df"
+  },
+  "runtime": {
+    "node": "v24.22.1",
+    "python": "Python 3.13.17",
+    "pymavlink": "2.4.50",
+    "os": "Linux x86_64 (cloud container)"
+  },
+  "runs": {
+    "upstream-default": {
+      "expect": "ardupilot",
+      "status": "PASS",
+      "report": "test-results/validation/task-089-imu-floor-upstream-default.json",
+      "reportSha256": "bb6681f72a21cbb47fdcacca5bafd89bb2f1763f0d222fb1f624b2f33bb72dcb",
+      "firmwareSha256": "b54bef09c7209f13a11d5591b362f958c26f304ae87871c833a30c4678a1abef",
+      "samples": 10415,
+      "residualStd": {
+        "xacc": 0.0006051247440548115,
+        "yacc": 0.0006062100114191878,
+        "zacc": 0.0006068007514784962,
+        "xgyro": 4.77707711746768e-05,
+        "ygyro": 4.7797562962999646e-05,
+        "zgyro": 4.675043422963919e-05
+      },
+      "reference": null,
+      "simS": 84.04125,
+      "wallS": 42.573064866,
+      "task042Audit": "not run"
+    },
+    "patched-default": {
+      "expect": "ardupilot",
+      "status": "PASS",
+      "report": "test-results/validation/task-089-imu-floor-patched-default.json",
+      "reportSha256": "a2c5120a246582c7f904acb2fbe03ff56ced61aaa290a52e551ec030bdbbe9fd",
+      "firmwareSha256": "06846b0503a4b691763a00c821470c0020622ef137ec98cbd4d14c7ae6cc5868",
+      "samples": 10416,
+      "residualStd": {
+        "xacc": 0.0006050956958088997,
+        "yacc": 0.0006061988194797805,
+        "zacc": 0.0006068387542217882,
+        "xgyro": 4.776926880129038e-05,
+        "ygyro": 4.779703690380767e-05,
+        "zgyro": 4.674947248006478e-05
+      },
+      "reference": {
+        "telemetrySha256": "625820234e17ce63953402807f32abb4aa0143fcce979dc78bbb5f895650b0b1",
+        "compared": 27362,
+        "identical": 27362,
+        "inputSamples": 27362,
+        "referenceSamples": 27362
+      },
+      "simS": 84.04125,
+      "wallS": 42.571410831,
+      "task042Audit": "PASS"
+    },
+    "patched-off": {
+      "expect": "off",
+      "status": "PASS",
+      "report": "test-results/validation/task-089-imu-floor-patched-off.json",
+      "reportSha256": "43b912dd8fd07ceb0bc6ae6853a2d93cc05519f935bbf2bd3dae47c588b4e62b",
+      "firmwareSha256": "06846b0503a4b691763a00c821470c0020622ef137ec98cbd4d14c7ae6cc5868",
+      "samples": 10414,
+      "residualStd": {
+        "xacc": 5.7405813506643755e-11,
+        "yacc": 5.7405813506643755e-11,
+        "zacc": 1.170840279467689e-06,
+        "xgyro": 8.075284753038543e-08,
+        "ygyro": 8.075284753038543e-08,
+        "zgyro": 8.075284753038543e-08
+      },
+      "reference": null,
+      "simS": 84.04125,
+      "wallS": 42.565759199,
+      "task042Audit": "PASS"
+    },
+    "upstream-off": {
+      "expect": "off",
+      "status": "FAIL",
+      "report": "test-results/validation/task-089-imu-floor-upstream-off.json",
+      "reportSha256": "5602d72b4c921c6ba71ac4a4f7c264038ab18c38e90fdec5a00fa86d8f1b7355",
+      "firmwareSha256": "b54bef09c7209f13a11d5591b362f958c26f304ae87871c833a30c4678a1abef",
+      "samples": 10414,
+      "residualStd": {
+        "xacc": 0.0006051531297740131,
+        "yacc": 0.000606216577292325,
+        "zacc": 0.0006067437013630296,
+        "xgyro": 4.7772709918518485e-05,
+        "ygyro": 4.7798232065999154e-05,
+        "zgyro": 4.675015224052176e-05
+      },
+      "reference": null,
+      "simS": 84.04125,
+      "wallS": 42.569277098,
+      "task042Audit": "not run"
+    }
+  }
+}

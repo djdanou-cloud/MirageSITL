@@ -1,0 +1,67 @@
+diff --git a/libraries/AP_InertialSensor/AP_InertialSensor_SITL.cpp b/libraries/AP_InertialSensor/AP_InertialSensor_SITL.cpp
+index 183f813..50d1da8 100644
+--- a/libraries/AP_InertialSensor/AP_InertialSensor_SITL.cpp
++++ b/libraries/AP_InertialSensor/AP_InertialSensor_SITL.cpp
+@@ -111,7 +111,8 @@ void AP_InertialSensor_SITL::generate_accel()
+
+         // minimum noise levels are 2 bits, but averaged over many
+         // samples, giving around 0.01 m/s/s
+-        float accel_noise = 0.01f;
++        // MirageSITL patch: SIM_ACC_FLOOR defaults to 0.01; 0 disables the floor
++        float accel_noise = sitl->accel_noise_floor.get();
+         float noise_variation = 0.05f;
+         // this smears the individual motor peaks somewhat emulating physical motors
+         float freq_variation = 0.12f;
+@@ -222,7 +223,8 @@ void AP_InertialSensor_SITL::generate_gyro()
+         float r = radians(sitl->state.yawRate) + _gyro_drift;
+
+         // minimum gyro noise is less than 1 bit
+-        float gyro_noise = radians(0.04f);
++        // MirageSITL patch: SIM_GYR_FLOOR defaults to 0.04; 0 disables the floor
++        float gyro_noise = radians(sitl->gyro_noise_floor.get());
+         constexpr float noise_variation = 0.05f;
+         // this smears the individual motor peaks somewhat emulating physical motors
+         constexpr float freq_variation = 0.12f;
+diff --git a/libraries/SITL/SITL.cpp b/libraries/SITL/SITL.cpp
+index 75a1f79..3330132 100644
+--- a/libraries/SITL/SITL.cpp
++++ b/libraries/SITL/SITL.cpp
+@@ -1327,6 +1327,24 @@ const AP_Param::GroupInfo SIM::var_ins[] = {
+     // @Units: deg
+     AP_GROUPINFO("AHRS_OFF_YAW", 52, SIM, sim_ahrs_offset.yaw, 0),
+
++    // MirageSITL patch: indices 57 and 58 sit in the gap below the IMUT subgroups.
++
++    // @Param: ACC_FLOOR
++    // @DisplayName: Accelerometer noise floor
++    // @Description: Amplitude of the uniform noise added to every simulated accelerometer sample at any throttle. The default reproduces the fixed upstream floor; 0 disables it.
++    // @Units: m/s/s
++    // @Range: 0 1
++    // @User: Advanced
++    AP_GROUPINFO("ACC_FLOOR",    57, SIM, accel_noise_floor, 0.01f),
++
++    // @Param: GYR_FLOOR
++    // @DisplayName: Gyro noise floor
++    // @Description: Amplitude of the uniform noise added to every simulated gyro sample at any throttle; with the motors off and no vibration it is added twice. The default reproduces the fixed upstream floor; 0 disables it.
++    // @Units: deg/s
++    // @Range: 0 10
++    // @User: Advanced
++    AP_GROUPINFO("GYR_FLOOR",    58, SIM, gyro_noise_floor, 0.04f),
++
+     // the IMUT parameters must be last due to the enable parameters
+ #if HAL_INS_TEMPERATURE_CAL_ENABLE
+
+diff --git a/libraries/SITL/SITL.h b/libraries/SITL/SITL.h
+index df74b34..1c76b77 100644
+--- a/libraries/SITL/SITL.h
++++ b/libraries/SITL/SITL.h
+@@ -650,6 +650,9 @@ public:
+     AP_Vector3f gyro_scale[INS_MAX_INSTANCES];  // percentage
+     AP_Vector3f gyro_bias[INS_MAX_INSTANCES]; // in rad/s
+     AP_Float accel_noise[INS_MAX_INSTANCES]; // in m/s/s
++    // MirageSITL patch: fixed noise added to every IMU sample at any throttle
++    AP_Float accel_noise_floor; // in m/s/s
++    AP_Float gyro_noise_floor;  // in degrees/second
+     AP_Vector3f accel_bias[INS_MAX_INSTANCES]; // in m/s/s
+     AP_Vector3f accel_scale[INS_MAX_INSTANCES]; // in m/s/s
+     AP_Vector3f board_trim;  // rigid board mounting offset (rad), rotates accel+gyro+compass

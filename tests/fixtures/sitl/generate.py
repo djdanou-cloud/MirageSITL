@@ -12,7 +12,10 @@ ardupilot-catalog.json lists, from the same pinned commit, the SIM_* sensor
 error parameter names with their compiled defaults, the copter and JSON
 backend parameter defaults, the JSON backend key table and source facts that
 the TASK-089 ownership matrix cites. Only names and short asserted source
-lines are recorded, never the GPL sources themselves.
+lines are recorded, never the GPL sources themselves. Each MirageSITL
+firmware patch under native/ardupilot/patches/ is applied strictly to the same
+pinned sources; the catalog records its hash, the upstream and patched file
+hashes, the SIM_* parameters it adds and the facts it establishes.
 Usage (repository root): python3 tests/fixtures/sitl/generate.py
 """
 import hashlib
@@ -228,6 +231,9 @@ FACTS = [
      "accel += Vector3f{rand_float(), rand_float(), rand_float()} * accel_noise;"),
     ("ins-gyro-noise-floor", "libraries/AP_InertialSensor/AP_InertialSensor_SITL.cpp", "float gyro_noise = radians(0.04f);"),
     ("ins-gyro-noise-floor-applied", "libraries/AP_InertialSensor/AP_InertialSensor_SITL.cpp", "p += gyro_noise * rand_float();"),
+    # Without motor noise or vibration the floor value is added a second time (asserted below).
+    ("ins-gyro-background-noise", "libraries/AP_InertialSensor/AP_InertialSensor_SITL.cpp",
+     "if (vibe_freq.is_zero() && is_zero(sitl->vibe_motor)) {"),
     ("ins-accel-motor-noise", "libraries/AP_InertialSensor/AP_InertialSensor_SITL.cpp", "accel_noise = sitl->accel_noise[accel_instance];"),
     ("ins-gyro-motor-noise", "libraries/AP_InertialSensor/AP_InertialSensor_SITL.cpp",
      "gyro_noise = radians(sitl->gyro_noise[gyro_instance]) * sitl->throttle;"),
@@ -262,19 +268,124 @@ facts = []
 for fact_id, path, text in FACTS:
     assert text in catalog_sources[path], (fact_id, path)
     facts.append({"id": fact_id, "path": path, "text": text})
+assert catalog_sources["libraries/AP_InertialSensor/AP_InertialSensor_SITL.cpp"].count("p += gyro_noise * rand_float();") == 2
+
+
+# --- TASK-089: MirageSITL firmware patches over the same pinned sources ------------
+def apply_patch(patch_text, originals):
+    """Applies a git unified diff strictly: each hunk must match at its stated line, without fuzz.
+
+    An empty hunk line is a blank context line, as `git apply` accepts it."""
+    hunks, source, path = {}, None, None
+    lines = patch_text.split("\n")
+    assert lines.pop() == "", "patch must end with a newline"
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+        if line.startswith("--- a/"):
+            source = line[len("--- a/"):]
+        elif line.startswith("+++ b/"):
+            path = line[len("+++ b/"):]
+            assert path == source and path in originals and path not in hunks, path
+            hunks[path] = []
+        elif line.startswith("@@ "):
+            match = re.fullmatch(r"@@ -(\d+),(\d+) \+(\d+),(\d+) @@.*", line)
+            assert match and path, line
+            body = []
+            i += 1
+            while i < len(lines) and (lines[i] == "" or lines[i][0] in " -+"):
+                body.append(lines[i] if lines[i] else " ")
+                i += 1
+            old = [entry[1:] for entry in body if entry[0] in " -"]
+            new = [entry[1:] for entry in body if entry[0] in " +"]
+            # Pure insertions (old length 0) would need different indexing; none are expected.
+            assert old and (len(old), len(new)) == (int(match.group(2)), int(match.group(4))), line
+            hunks[path].append((int(match.group(1)), old, new))
+            continue
+        else:
+            assert line.startswith(("diff --git a/", "index ")), line
+        i += 1
+    patched = {}
+    for path, edits in hunks.items():
+        text = originals[path].split("\n")
+        # Later hunks first, so earlier line numbers stay valid.
+        for start, old, new in sorted(edits, reverse=True):
+            assert text[start - 1:start - 1 + len(old)] == old, (path, start)
+            text[start - 1:start - 1 + len(old)] = new
+        patched[path] = "\n".join(text)
+    return patched
+
+
+repository = Path(__file__).resolve().parents[3]
+PATCHES = [("imu-noise-floor", "native/ardupilot/patches/imu-noise-floor.patch")]
+# Facts that must hold in the patched sources, and upstream lines the patch must remove.
+PATCH_FACTS = {
+    "imu-noise-floor": [
+        ("patch-ins-accel-noise-floor", "libraries/AP_InertialSensor/AP_InertialSensor_SITL.cpp",
+         "float accel_noise = sitl->accel_noise_floor.get();"),
+        ("patch-ins-gyro-noise-floor", "libraries/AP_InertialSensor/AP_InertialSensor_SITL.cpp",
+         "float gyro_noise = radians(sitl->gyro_noise_floor.get());"),
+    ],
+}
+PATCH_REMOVES = {"imu-noise-floor": ["ins-accel-noise-floor", "ins-gyro-noise-floor"]}
+# Each added parameter's compiled default must equal the upstream constant it replaces.
+PATCH_DEFAULTS = {"SIM_ACC_FLOOR": ("ins-accel-noise-floor", "0.01f"), "SIM_GYR_FLOOR": ("ins-gyro-noise-floor", "0.04f")}
+upstream_parameters = dict(parameters)
+upstream_facts = {fact["id"]: fact for fact in facts}
+patches = []
+for patch_id, patch_path in PATCHES:
+    patch_bytes = (repository / patch_path).read_bytes()
+    patched_sources = apply_patch(patch_bytes.decode(), catalog_sources)
+    parameters = {}
+    header_text = patched_sources.get("libraries/SITL/SITL.h", catalog_sources["libraries/SITL/SITL.h"])
+    sim_body = class_body(header_text, "SIM")
+    for nested in ("BaroParm", "AirspeedParm", "GPSParms", "ServoParams", "ViconParms", "ModelParm"):
+        sim_body = sim_body.replace(class_body(sim_body, nested), "")
+    class_vectors["SIM"] = set(re.findall(r"AP_Vector3f\s+([a-z_0-9]+)", sim_body))
+    patched_sitl = patched_sources.get("libraries/SITL/SITL.cpp", sitl_text)
+    for name, body, offset in tables(patched_sitl, r"SIM::(var_[a-z0-9_]+)"):
+        add("", body, offset, patched_sitl, "libraries/SITL/SITL.cpp")
+    # The patch only adds top-level SIM parameters; every upstream one keeps its record.
+    for name, record in upstream_parameters.items():
+        if record["source"] == "libraries/SITL/SITL.cpp":
+            assert parameters.get(name) == record, name
+    added = [record for name, record in sorted(parameters.items()) if name not in upstream_parameters]
+    assert [record["name"] for record in added] == sorted(PATCH_DEFAULTS), added
+    for record in added:
+        fact_id, literal = PATCH_DEFAULTS[record["name"]]
+        assert record["default"] == literal and literal in upstream_facts[fact_id]["text"], record
+        assert not record["vector"] and record["conditions"] == ["#if AP_SIM_ENABLED"], record
+    for fact_id in PATCH_REMOVES[patch_id]:
+        fact = upstream_facts[fact_id]
+        assert fact["text"] not in patched_sources[fact["path"]], fact_id
+    patch_facts = []
+    for fact_id, path, text in PATCH_FACTS[patch_id]:
+        assert text in patched_sources[path], (fact_id, path)
+        patch_facts.append({"id": fact_id, "path": path, "text": text})
+    patches.append({
+        "id": patch_id,
+        "path": patch_path,
+        "sha256": hashlib.sha256(patch_bytes).hexdigest(),
+        "files": [{"path": path, "upstreamSha256": hashlib.sha256(catalog_sources[path].encode()).hexdigest(),
+                   "patchedSha256": hashlib.sha256(text.encode()).hexdigest()} for path, text in sorted(patched_sources.items())],
+        "addedParameters": added,
+        "removedFacts": PATCH_REMOVES[patch_id],
+        "facts": patch_facts,
+    })
 
 catalog = {
-    "schemaVersion": 1,
+    "schemaVersion": 2,
     "description": "Pinned ArduPilot SITL error parameters, defaults, JSON keys and source facts (TASK-089); generated by tests/fixtures/sitl/generate.py",
     "ardupilotCommit": COMMIT,
     "upstream": catalog_upstream,
-    "simParameters": sorted(parameters.values(), key=lambda item: item["name"]),
+    "simParameters": sorted(upstream_parameters.values(), key=lambda item: item["name"]),
     "unresolvedSubgroups": sorted(unresolved, key=lambda item: item["prefix"]),
     "copterDefaults": dict(sorted(copter_defaults.items())),
     "jsonBackendDefaults": dict(sorted(json_defaults.items())),
     "jsonKeys": json_keys,
     "facts": facts,
+    "patches": patches,
 }
 catalog_out = Path(__file__).with_name("ardupilot-catalog.json")
 catalog_out.write_text(json.dumps(catalog, indent=2) + "\n")
-print(f"wrote {catalog_out}: {len(parameters)} SIM parameters, {len(json_keys)} JSON keys, {len(facts)} facts")
+print(f"wrote {catalog_out}: {len(upstream_parameters)} SIM parameters, {len(json_keys)} JSON keys, {len(facts)} facts")

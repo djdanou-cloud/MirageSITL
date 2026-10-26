@@ -228,6 +228,22 @@ node scripts/report-ekf.mjs --input test-results/validation/task-059-input.json 
 The freeze command is one-time calibration and refuses existing envelopes. On later runs, evaluate new captures against the checked-in matrix; do not rerun calibration to repair a failure. The input JSON has schemaVersion 2 and caseDirectories ordered control, jamming, position-step, velocity-drift, magnetic, motor-loss. Use repository-relative directories for a portable manifest and SHA-256 of its exact bytes. Each case writes response-audit.json plus raw RX/TX bytes, original decoded telemetry, observations, full-rate physics, readiness decisions, actual parameter readbacks and owned firmware logs. report-ekf re-audits raw bytes and physics, rejects calibration reuse/source drift and writes ekf-report.json. Archive these owned simulation captures without firmware binaries or third-party source. Native reports do not enable browser READY or certify physical aircraft.
 
 
+## IMU noise-floor switch (TASK-089)
+
+ArduPilot's default IMU noise floors stay on unless you build the patched firmware and select `off`. Use the TASK-042 Linux/WSL environment, including `MIRAGE_SITL_SOURCE` and `MIRAGE_SITL_PYTHON`. The source stays clean because the build script patches a copy; `MIRAGE_ARDUPILOT_VENV` optionally names the Python environment that waf uses.
+
+```bash
+node scripts/build-ardupilot-sitl.mjs --out "$HOME/mirage/build-sitl-patched"
+export MIRAGE_SITL_BINARY="$HOME/mirage/build-sitl-patched/build/sitl/bin/arducopter"
+mkdir -p .cache/task-089/run
+{ cat tests/fixtures/sitl/parameters.parm; node scripts/ownership-profile.mjs --imu-noise-floor off; } > .cache/task-089/floors-off.parm
+(cd .cache/task-089/run && MIRAGE_SITL_CAPTURE_DIR="$PWD/capture" node ../../../scripts/sitl/driver.mjs --binary "$MIRAGE_SITL_BINARY" --parameters ../floors-off.parm)
+node scripts/check-imu-noise-floor.mjs --input .cache/task-089/run/capture --expect off --output .cache/task-089/floors-off.json
+```
+
+`scripts/run-sitl.mjs` always passes `tests/fixtures/sitl/parameters.parm` and does not read the setting yet, so the procedure runs the driver directly. A parameter file that ends with the `off` profile only works on the patched ELF, because upstream firmware skips unknown names silently: always confirm the result with the analyzer or a parameter read-back. A patched ELF on default parameters behaves exactly as upstream. Its captures carry a new firmware identity, so keep them separate from the TASK-042/043/059 reports and the frozen TASK-059 matrix. Never reuse a nonempty capture directory.
+
+
 ## Local browser firmware acceptance (TASK-045)
 
 Use the exact external artifact pair matching native/ardupilot/wasm-artifact.manifest.json. The fresh builder accepts only new/empty build and artifact directories and compares output against that manifest; it checks source/submodule/SDK/compiler identities and retains build.log. Preserve compiler and pthread/memory-growth warnings. No artifact is copied into the production application. Start the local development server with the explicit setting, then open /ardupilot-check.html for the internal diagnostic. It starts firmware only on an explicit diagnostic/test call. Profiles bind source/module identities; use a distinct profile for experiments.

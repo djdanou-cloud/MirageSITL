@@ -8,7 +8,7 @@
 PowerShell/zsh и проверки перед расширением поддерживаемого покрытия.
 
 ## Локальные проверки
-<!-- source-sha256: cda6ef678d4fdda13ddf79bfc8fff4484118128f73dd7267676e1c00a1c39be4 -->
+<!-- source-sha256: ed5dc80bdc1ca29d97d3d8a143589b168ffc6bb463f5afaeb3b5aaabd69c2aeb -->
 
 Использовать существующий изолированный checkout, сохраняя локальные изменения. Node закреплён .nvmrc; Rust 1.97.0 и wasm32-unknown-unknown — native/rust-toolchain.toml. Зависимости ставить через npm ci. В облаке активировать CARGO_HOME=/workspace/.cache/mirage-cargo, RUSTUP_HOME=/workspace/.cache/mirage-rustup и добавить CARGO_HOME/bin в начало PATH; не переопределять HOME. Запустить lint, typecheck, check:docs, CI=true npm test, npm run build и locked native tests. Запустить npm run dev; проверить HTTP, COOP same-origin, COEP require-corp и настоящий Worker READY. Начать с нулевого газа, армировать, летать, приостановить и сбросить. Браузерные тесты используют системный Chromium только при наличии. Установка/запуск на чистой восстановленной машине для сертификации выпуска ещё не выполнялись.
 
@@ -233,6 +233,22 @@ node scripts/report-ekf.mjs --input test-results/validation/task-059-input.json 
 ```
 
 Команда freeze предназначена для однократной калибровки и отклоняет существующие диапазоны. Затем проверять новые записи по включённой матрице; не повторять калибровку ради исправления FAIL. Входной JSON содержит schemaVersion 2 и caseDirectories в порядке control, jamming, position-step, velocity-drift, magnetic, motor-loss. Использовать относительные пути репозитория для переносимого манифеста и SHA-256 точных байтов. Каждый случай сохраняет response-audit.json, исходные RX/TX, оригинальную декодированную телеметрию, наблюдения, физику полной частоты, решения допуска, настоящие ответы параметров и собственные логи прошивки. report-ekf повторно проверяет исходные байты и физику, отклоняет повторное использование калибровки/дрейф исходников и пишет ekf-report.json. Архивировать собственные симуляционные записи без бинарников прошивки и сторонних исходников. Нативные отчёты не включают браузерный READY и не сертифицируют физический самолёт.
+
+
+## Переключатель минимального шума IMU (TASK-089)
+
+Минимумы шума IMU ArduPilot по умолчанию остаются включёнными, пока вы не соберёте пропатченную прошивку и не выберете `off`. Используйте окружение Linux/WSL из TASK-042, включая `MIRAGE_SITL_SOURCE` и `MIRAGE_SITL_PYTHON`. Исходники остаются чистыми, потому что скрипт сборки патчит копию; `MIRAGE_ARDUPILOT_VENV` при необходимости задаёт окружение Python, которое использует waf.
+
+```bash
+node scripts/build-ardupilot-sitl.mjs --out "$HOME/mirage/build-sitl-patched"
+export MIRAGE_SITL_BINARY="$HOME/mirage/build-sitl-patched/build/sitl/bin/arducopter"
+mkdir -p .cache/task-089/run
+{ cat tests/fixtures/sitl/parameters.parm; node scripts/ownership-profile.mjs --imu-noise-floor off; } > .cache/task-089/floors-off.parm
+(cd .cache/task-089/run && MIRAGE_SITL_CAPTURE_DIR="$PWD/capture" node ../../../scripts/sitl/driver.mjs --binary "$MIRAGE_SITL_BINARY" --parameters ../floors-off.parm)
+node scripts/check-imu-noise-floor.mjs --input .cache/task-089/run/capture --expect off --output .cache/task-089/floors-off.json
+```
+
+`scripts/run-sitl.mjs` всегда передаёт `tests/fixtures/sitl/parameters.parm` и пока не читает эту настройку, поэтому процедура запускает драйвер напрямую. Файл параметров, заканчивающийся профилем `off`, работает только с пропатченным ELF, потому что прошивка upstream молча пропускает неизвестные имена: всегда подтверждайте результат анализатором или обратным чтением параметров. Пропатченный ELF с параметрами по умолчанию ведёт себя в точности как upstream. Его записи несут новую идентичность прошивки, поэтому храните их отдельно от отчётов TASK-042/043/059 и замороженной матрицы TASK-059. Не используйте непустой каталог записи повторно.
 
 
 ## Локальный браузерный допуск прошивки (TASK-045)
