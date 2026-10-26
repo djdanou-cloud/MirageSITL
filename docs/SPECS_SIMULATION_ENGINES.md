@@ -2875,7 +2875,8 @@ the registered one (the request may use upper-case hex) and a successful
 projection. The prepared dynamics must report the loaded model ID. Commit
 disposes the previous dynamics and keeps the factory, so `sim.configure`
 rebuilds the loaded model at the new rate. A failed load keeps the active
-model and epoch.
+model and epoch. A load interrupted by `worker.dispose` builds no dynamics
+and ends with `BAD_STATE`.
 
 Open items:
 

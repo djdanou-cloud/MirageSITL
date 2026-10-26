@@ -425,5 +425,21 @@ describe('model.load admission through the session model port', () => {
     expect(result?.type === 'reject-v2' ? result.message : '').toContain('no model registry');
     expect(plain.modelId()).toBe(1);
   });
+
+  it('leaves no undisposed dynamics when the worker is disposed during a load', async () => {
+    let release = (): void => undefined;
+    const gate = new Promise<void>(resolve => { release = resolve; });
+    const built: LoadedDemo[] = [], model = projectVehicleToModelV1(bodyOnly);
+    const h = sessionHarness({ prepare: () => gate.then(() => (hz: PhysicsHz) => { const d = new LoadedDemo(hz, model); built.push(d); return d; }) });
+    const load = h.command('model.load', { modelId: 88, manifestSha256: 'a'.repeat(64) });
+    // worker.dispose is the one command admitted while a load is pending.
+    const dispose = h.command('worker.dispose');
+    release();
+    await dispose;
+    const result = await load;
+    expect(result).toMatchObject({ type: 'reject-v2', code: 'BAD_STATE' });
+    expect(result?.type === 'reject-v2' ? result.message : '').toContain('disposed during the model load');
+    expect(built.filter(d => !d.disposed)).toEqual([]);
+  });
 });
 

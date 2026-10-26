@@ -242,6 +242,8 @@ export class PhysicsSessionV2 {
     const models = this.models;
     // A port that throws synchronously still yields a rejection for the processor.
     return Promise.resolve().then(() => models.prepare(modelId, manifestSha256)).then(factory => {
+      // worker.dispose is admitted during a load; build nothing, and the processor rejects the load.
+      if (this.disposedValue) return;
       // The processor rejects lifecycle commands while a load is pending, so the rate cannot change before commit.
       const dynamics = factory(this.policy.hz);
       if (dynamics.modelId !== modelId) {
