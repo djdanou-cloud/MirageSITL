@@ -75,6 +75,16 @@ export interface SessionDynamics {
   useActuators?(frame: ActuatorFrameV2): void;
 }
 
+/**
+ * Cold `model.load` admission (TASK-087). `prepare` verifies the requested
+ * model and resolves with a factory for its dynamics; it must not touch the
+ * active session. Without a port the session admits only its built-in model.
+ */
+export interface SessionModelPort {
+  prepare(modelId: number, manifestSha256: string): Promise<(hz: PhysicsHz) => SessionDynamics>;
+}
+interface PreparedModel { readonly modelId: number; readonly factory: (hz: PhysicsHz) => SessionDynamics; readonly dynamics: SessionDynamics }
+
 export class PhysicsSessionV2 {
   private readonly writer: StateWriterV2;
   private readonly pilotReader: PilotReaderV2;
@@ -92,7 +102,9 @@ export class PhysicsSessionV2 {
   private readonly clock: SessionClock;
   private readonly header: Int32Array;
   private dynamics: SessionDynamics;
-  private readonly dynamicsFactory: (hz: PhysicsHz) => SessionDynamics;
+  private dynamicsFactory: (hz: PhysicsHz) => SessionDynamics;
+  private readonly models: SessionModelPort | null;
+  private prepared: PreparedModel | null = null;
   private policy: SteppingPolicy;
   private readonly report = newPumpReport();
   private readonly pilot = newPilotInputV2();
@@ -118,7 +130,7 @@ export class PhysicsSessionV2 {
 
   constructor(init: WorkerInitV2, clock: SessionClock,
     dynamicsFactory: (hz: PhysicsHz) => SessionDynamics = hz => new DemoDynamics(hz),
-    faults: SessionFaultPort | null = null) {
+    faults: SessionFaultPort | null = null, models: SessionModelPort | null = null) {
     validateSharedMemoryV2(init.stateBuffer);
     validateSpscQueue(init.sensorBuffer, 'sensor');
     validateSpscQueue(init.actuatorBuffer, 'actuator');
@@ -136,6 +148,7 @@ export class PhysicsSessionV2 {
     this.dynamicsFactory = dynamicsFactory;
     this.dynamics = dynamicsFactory(hz);
     this.faults = faults;
+    this.models = models;
     this.policy = new SteppingPolicy({ hz, mode: 'interactive' });
     this.processor = new ControlProcessorV2(this, { epoch: this.epoch, hz });
     this.writer.setRuntimeFlags(RuntimeFlagV2.Ready);
@@ -206,6 +219,7 @@ export class PhysicsSessionV2 {
   }
   dispose(): void {
     this.runningValue = false; this.disposedValue = true;
+    this.discardPrepared();
     this.dynamics.dispose?.();
     this.writer.setRuntimeFlags(0);
   }
@@ -220,10 +234,32 @@ export class PhysicsSessionV2 {
     this.policy = new SteppingPolicy({ hz, mode: clockMode });
     this.writer.setPhysicsHz(hz);
   }
-  prepareModel(modelId: number): Promise<void> {
-    return Promise.reject(new Error(`Model ${modelId} is not available: the runtime has no model registry yet; only the built-in demo quad runs`));
+  prepareModel(modelId: number, manifestSha256: string): Promise<void> {
+    if (!this.models) {
+      return Promise.reject(new Error(`Model ${modelId} is not available: the runtime has no model registry; only the built-in demo quad runs`));
+    }
+    this.discardPrepared();
+    const models = this.models;
+    // A port that throws synchronously still yields a rejection for the processor.
+    return Promise.resolve().then(() => models.prepare(modelId, manifestSha256)).then(factory => {
+      // The processor rejects lifecycle commands while a load is pending, so the rate cannot change before commit.
+      const dynamics = factory(this.policy.hz);
+      if (dynamics.modelId !== modelId) {
+        dynamics.dispose?.();
+        throw new Error(`Prepared dynamics report model ${String(dynamics.modelId)}, not ${modelId}`);
+      }
+      this.prepared = { modelId, factory, dynamics };
+    });
   }
-  commitModel(): void { throw new Error('Unreachable: prepareModel never resolves'); }
+  /** Swaps to the prepared model; the processor then advances the epoch. */
+  commitModel(modelId: number): void {
+    const prepared = this.prepared;
+    if (!prepared || prepared.modelId !== modelId) throw new Error(`Model ${modelId} was not prepared`);
+    this.prepared = null;
+    this.dynamics.dispose?.();
+    this.dynamics = prepared.dynamics;
+    this.dynamicsFactory = prepared.factory;
+  }
   applyScheduled(command: ScheduledCommandV2, tick: TickId): void {
     if (command.type !== "fault.set" || !this.faults) return;
     const result = this.faults.apply(command, tick);
@@ -239,6 +275,11 @@ export class PhysicsSessionV2 {
   }
 
   // --- internals -------------------------------------------------------------
+
+  private discardPrepared(): void {
+    this.prepared?.dynamics.dispose?.();
+    this.prepared = null;
+  }
 
   /** Completes reset/configure after the processor advanced the epoch. */
   private afterCommand(): void {

@@ -6,6 +6,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./model-manifest": "./src/model-manifest.ts",
+    "./vehicle-manifest": "./src/vehicle-manifest.ts",
+    "./ardupilot-profile": "./src/ardupilot-profile.ts",
     "./atmosphere": "./src/atmosphere.ts",
     "./wind": "./src/wind.ts",
     "./motor-config": "./src/motor-config.ts",

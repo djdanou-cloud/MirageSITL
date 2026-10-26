@@ -292,7 +292,11 @@ not establish these performance budgets.
 ## Physics fidelity program (TASK-087–TASK-123)
 
 Registered in the [roadmap](PROJECT_ROADMAP.md) as Phases 7–13 on 2026-10-26;
-nothing in this section is implemented yet. The program keeps the current
+the roadmap records each task's status. TASK-087 has started: vehicle manifest
+v2 validation, migration and derived values (`vehicle.schema.json`,
+`vehicle-manifest.ts`), the ArduPilot profile generator (`ardupilot-profile.ts`)
+and an optional `model.load` port in `PhysicsSessionV2`. The rest of this
+section is not implemented yet. The program keeps the current
 ownership model: MirageSITL is ArduPilot's external flight-dynamics model.
 Native runs exchange JSON state lines with `--model JSON` (TASK-041). The
 browser build fills ArduPilot's `sitl_fdm` through the HAL mailbox (TASK-046),
@@ -305,7 +309,7 @@ unmodified ([V2_PLAN.md](V2_PLAN.md), B1).
 | Physics kernels | `native/bet`, `native/contact` | All new physics models |
 | Kernel interfaces | `bound.rs`, `bet_bound.h`, `body_abi.rs` | One versioned v2 extension (TASK-088) |
 | Vehicle adapter | `bet-dynamics.ts`, `session-v2.ts` | Per-tick composition of the kernels |
-| Vehicle data | `model.schema.json` and its v2 successor | New vehicle parameters (TASK-087) |
+| Vehicle data | `model.schema.json` (v1) and `vehicle.schema.json` (v2) | New vehicle parameters (TASK-087) |
 | Runtime environment | Control Protocol v2 | Weather and events at tick boundaries |
 | Autopilot boundary | JSON state line, HAL mailbox, MAVLink injection | Sensor-error ownership (TASK-089) |
 | ArduPilot configuration | Generated parameter profile | Neutralize the ArduPilot errors MirageSITL owns |

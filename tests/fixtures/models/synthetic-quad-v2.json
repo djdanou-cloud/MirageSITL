@@ -1,0 +1,393 @@
+{
+  "schemaVersion": 2,
+  "modelId": 87,
+  "kind": "bet",
+  "units": "SI",
+  "worldFrame": "NED",
+  "bodyFrame": "FRD",
+  "quaternionOrder": "wxyz",
+  "datasets": [
+    {
+      "id": "synthetic-quad-v2-airframe",
+      "kind": "synthetic",
+      "sourceSha256": null,
+      "derivation": "Hand-specified synthetic quad X mass properties, rotor geometry and sensor mounts for TASK-087 schema tests; not a measured airframe."
+    },
+    {
+      "id": "synthetic-quad-v2-propulsion",
+      "kind": "synthetic",
+      "sourceSha256": null,
+      "derivation": "Synthetic 920 KV motor, ESC and 4S battery parameters for TASK-087 schema tests; not bench measurements."
+    },
+    {
+      "id": "synthetic-quad-v2-drag",
+      "kind": "synthetic",
+      "sourceSha256": null,
+      "derivation": "Synthetic diagonal drag-area tensor for TASK-087 schema tests; not a wind-tunnel or flight fit."
+    }
+  ],
+  "provenance": {
+    "massProperties": "synthetic-quad-v2-airframe",
+    "rotors": "synthetic-quad-v2-airframe",
+    "motors": "synthetic-quad-v2-propulsion",
+    "escs": "synthetic-quad-v2-propulsion",
+    "battery": "synthetic-quad-v2-propulsion",
+    "airframeDrag": "synthetic-quad-v2-drag",
+    "controlSurfaces": null,
+    "landingGear": null,
+    "sensorMounts": "synthetic-quad-v2-airframe",
+    "rotorWakePairs": null
+  },
+  "massProperties": {
+    "massKg": 1.5,
+    "cgOffsetBodyM": [
+      0.01,
+      0,
+      0.03
+    ],
+    "inertiaCgKgM2": [
+      0.03,
+      0,
+      -0.001,
+      0,
+      0.032,
+      0,
+      -0.001,
+      0,
+      0.05
+    ]
+  },
+  "rotorCount": 4,
+  "rotorCapacity": 32,
+  "rotors": [
+    {
+      "id": 0,
+      "motorChannel": 0,
+      "bladeCount": 2,
+      "spinSign": 1,
+      "radiusM": 0.14,
+      "rootCutoutM": 0.02,
+      "polarId": 0,
+      "radialStationM": [
+        0.04,
+        0.08,
+        0.12
+      ],
+      "chordM": [
+        0.02,
+        0.02,
+        0.02
+      ],
+      "twistRad": [
+        0.2,
+        0.2,
+        0.2
+      ],
+      "quadratureWidthM": [
+        0.04,
+        0.04,
+        0.04
+      ],
+      "hubPositionBodyM": [
+        0.15,
+        0.15,
+        -0.02
+      ],
+      "hubToBody": [
+        0,
+        1,
+        0,
+        0
+      ],
+      "shaftInertiaKgM2": 2e-05,
+      "bearingViscousNmPerRadS": 1e-06,
+      "azimuthSamples": 8
+    },
+    {
+      "id": 1,
+      "motorChannel": 1,
+      "bladeCount": 2,
+      "spinSign": 1,
+      "radiusM": 0.14,
+      "rootCutoutM": 0.02,
+      "polarId": 0,
+      "radialStationM": [
+        0.04,
+        0.08,
+        0.12
+      ],
+      "chordM": [
+        0.02,
+        0.02,
+        0.02
+      ],
+      "twistRad": [
+        0.2,
+        0.2,
+        0.2
+      ],
+      "quadratureWidthM": [
+        0.04,
+        0.04,
+        0.04
+      ],
+      "hubPositionBodyM": [
+        -0.15,
+        -0.15,
+        -0.02
+      ],
+      "hubToBody": [
+        0,
+        1,
+        0,
+        0
+      ],
+      "shaftInertiaKgM2": 2e-05,
+      "bearingViscousNmPerRadS": 1e-06,
+      "azimuthSamples": 8
+    },
+    {
+      "id": 2,
+      "motorChannel": 2,
+      "bladeCount": 2,
+      "spinSign": -1,
+      "radiusM": 0.14,
+      "rootCutoutM": 0.02,
+      "polarId": 0,
+      "radialStationM": [
+        0.04,
+        0.08,
+        0.12
+      ],
+      "chordM": [
+        0.02,
+        0.02,
+        0.02
+      ],
+      "twistRad": [
+        0.2,
+        0.2,
+        0.2
+      ],
+      "quadratureWidthM": [
+        0.04,
+        0.04,
+        0.04
+      ],
+      "hubPositionBodyM": [
+        0.15,
+        -0.15,
+        -0.02
+      ],
+      "hubToBody": [
+        0,
+        1,
+        0,
+        0
+      ],
+      "shaftInertiaKgM2": 2e-05,
+      "bearingViscousNmPerRadS": 1e-06,
+      "azimuthSamples": 8
+    },
+    {
+      "id": 3,
+      "motorChannel": 3,
+      "bladeCount": 2,
+      "spinSign": -1,
+      "radiusM": 0.14,
+      "rootCutoutM": 0.02,
+      "polarId": 0,
+      "radialStationM": [
+        0.04,
+        0.08,
+        0.12
+      ],
+      "chordM": [
+        0.02,
+        0.02,
+        0.02
+      ],
+      "twistRad": [
+        0.2,
+        0.2,
+        0.2
+      ],
+      "quadratureWidthM": [
+        0.04,
+        0.04,
+        0.04
+      ],
+      "hubPositionBodyM": [
+        -0.15,
+        0.15,
+        -0.02
+      ],
+      "hubToBody": [
+        0,
+        1,
+        0,
+        0
+      ],
+      "shaftInertiaKgM2": 2e-05,
+      "bearingViscousNmPerRadS": 1e-06,
+      "azimuthSamples": 8
+    }
+  ],
+  "motors": [
+    {
+      "id": 0,
+      "rotorId": 0,
+      "kvRpmPerV": 920,
+      "resistanceOhm": 0.12,
+      "currentLimitA": 25
+    },
+    {
+      "id": 1,
+      "rotorId": 1,
+      "kvRpmPerV": 920,
+      "resistanceOhm": 0.12,
+      "currentLimitA": 25
+    },
+    {
+      "id": 2,
+      "rotorId": 2,
+      "kvRpmPerV": 920,
+      "resistanceOhm": 0.12,
+      "currentLimitA": 25
+    },
+    {
+      "id": 3,
+      "rotorId": 3,
+      "kvRpmPerV": 920,
+      "resistanceOhm": 0.12,
+      "currentLimitA": 25
+    }
+  ],
+  "escs": [
+    {
+      "id": 0,
+      "motorId": 0,
+      "pwmMinUs": 1000,
+      "pwmMaxUs": 2000,
+      "commandTauS": 0.02
+    },
+    {
+      "id": 1,
+      "motorId": 1,
+      "pwmMinUs": 1000,
+      "pwmMaxUs": 2000,
+      "commandTauS": 0.02
+    },
+    {
+      "id": 2,
+      "motorId": 2,
+      "pwmMinUs": 1000,
+      "pwmMaxUs": 2000,
+      "commandTauS": 0.02
+    },
+    {
+      "id": 3,
+      "motorId": 3,
+      "pwmMinUs": 1000,
+      "pwmMaxUs": 2000,
+      "commandTauS": 0.02
+    }
+  ],
+  "battery": {
+    "openCircuitFullV": 16.8,
+    "openCircuitEmptyV": 13.2,
+    "internalResistanceOhm": 0.02,
+    "capacityAh": 5,
+    "currentLimitA": 100
+  },
+  "airframe": {
+    "drag": {
+      "dragAreaBodyM2": [
+        0.012,
+        0,
+        0,
+        0,
+        0.012,
+        0,
+        0,
+        0,
+        0.03
+      ],
+      "centerOfPressureBodyM": [
+        0,
+        0,
+        -0.01
+      ]
+    }
+  },
+  "controlSurfaces": [],
+  "landingGear": [],
+  "sensorMounts": [
+    {
+      "sensor": "imu",
+      "instance": 0,
+      "positionBodyM": [
+        0.01,
+        0,
+        0.03
+      ],
+      "sensorToBody": [
+        1,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "sensor": "baro",
+      "instance": 0,
+      "positionBodyM": [
+        0,
+        0,
+        0
+      ],
+      "sensorToBody": [
+        1,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "sensor": "mag",
+      "instance": 0,
+      "positionBodyM": [
+        0,
+        0,
+        -0.05
+      ],
+      "sensorToBody": [
+        1,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "sensor": "gnss",
+      "instance": 0,
+      "positionBodyM": [
+        -0.05,
+        0,
+        -0.08
+      ],
+      "sensorToBody": [
+        1,
+        0,
+        0,
+        0
+      ]
+    }
+  ],
+  "rotorWakePairs": [],
+  "ardupilot": {
+    "vehicle": "copter",
+    "frameClass": 1,
+    "frameType": 1
+  }
+}

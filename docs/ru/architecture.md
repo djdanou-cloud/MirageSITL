@@ -13,7 +13,7 @@ Worker приложения по умолчанию по-прежнему выб
 model-report v8 требует актуальных численных и аллокационных доказательств,
 независимо сохраняя провалы измеренной точности.
 
-<!-- source-sha256: 2e289f4a93edac13a0207c6b991bda6ac34328086e29a255ebb9b43a1f5e8daa -->
+<!-- source-sha256: ae4665e3ceb363cb87458b145bc6ad49f8fbcd35552d49c39d8bca543c959dc6 -->
 
 Английский источник: [Source of truth](../architecture.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -306,7 +306,11 @@ dropped wall time, input age, sensor jitter, GPU memory и end-to-end latency.
 ## Программа точности физики (TASK-087–TASK-123)
 
 Зарегистрирована в [roadmap](PROJECT_ROADMAP.md) как Phases 7–13 2026-10-26;
-ничего из этого раздела пока не реализовано. Программа сохраняет текущую модель
+статус каждой задачи ведётся в roadmap. TASK-087 начата: проверка, миграция и
+производные величины манифеста аппарата v2 (`vehicle.schema.json`,
+`vehicle-manifest.ts`), генератор профиля ArduPilot (`ardupilot-profile.ts`) и
+необязательный порт `model.load` в `PhysicsSessionV2`. Остальное в этом разделе
+пока не реализовано. Программа сохраняет текущую модель
 ответственности: MirageSITL — внешняя модель динамики полёта для ArduPilot.
 Нативные запуски обмениваются строками состояния JSON с `--model JSON`
 (TASK-041). Браузерная сборка заполняет `sitl_fdm` ArduPilot через HAL mailbox
@@ -319,7 +323,7 @@ dropped wall time, input age, sensor jitter, GPU memory и end-to-end latency.
 | Физические ядра | `native/bet`, `native/contact` | Все новые физические модели |
 | Интерфейсы ядер | `bound.rs`, `bet_bound.h`, `body_abi.rs` | Одно версионированное расширение v2 (TASK-088) |
 | Адаптер аппарата | `bet-dynamics.ts`, `session-v2.ts` | Композиция ядер на каждом такте |
-| Данные аппарата | `model.schema.json` и его преемник v2 | Новые параметры аппарата (TASK-087) |
+| Данные аппарата | `model.schema.json` (v1) и `vehicle.schema.json` (v2) | Новые параметры аппарата (TASK-087) |
 | Среда выполнения | Control Protocol v2 | Погода и события на границах тактов |
 | Граница автопилота | Строка состояния JSON, HAL mailbox, инъекция MAVLink | Владение ошибками датчиков (TASK-089) |
 | Конфигурация ArduPilot | Сгенерированный профиль параметров | Нейтрализация ошибок ArduPilot, которыми владеет MirageSITL |

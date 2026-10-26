@@ -2758,3 +2758,129 @@ actuator freshness remain necessary. The low-level HAL harness is diagnostic
 and does not issue this lifecycle capability. Application backend selection,
 whole-firmware allocator qualification, GPL redistribution and release gates
 remain separate; the active application keeps its demo backend.
+
+## Vehicle manifest v2 and ArduPilot profile (TASK-087)
+
+`packages/physics/src/vehicle.schema.json` and `vehicle-manifest.ts` define
+`schemaVersion: 2`. Input starts as `unknown`, passes an AJV strict-mode schema
+(`strictNumbers`, union types only for nullable sections, `kind`
+discriminators), then physical and cross-reference checks, and returns a
+deep-frozen snapshot. Units, frames and quaternion order are those of v1 (SI,
+NED world, FRD body, wxyz). Every `*BodyM` position is measured from the body
+reference point; the CG is `massProperties.cgOffsetBodyM` and the inertia is
+about the CG in body axes. Every top-level key is required: an absent section
+is an explicit `null` or `[]`, never a default. A minimal valid manifest is a
+rotorless body:
+
+```json
+{
+  "schemaVersion": 2, "modelId": 2, "kind": "demo",
+  "units": "SI", "worldFrame": "NED", "bodyFrame": "FRD", "quaternionOrder": "wxyz",
+  "datasets": [{ "id": "airframe", "kind": "synthetic", "sourceSha256": null,
+    "derivation": "Hand-specified example body." }],
+  "provenance": { "massProperties": "airframe", "rotors": null, "motors": null, "escs": null,
+    "battery": null, "airframeDrag": null, "controlSurfaces": null, "landingGear": null,
+    "sensorMounts": null, "rotorWakePairs": null },
+  "massProperties": { "massKg": 1.5, "cgOffsetBodyM": [0.01, 0, 0.03],
+    "inertiaCgKgM2": [0.03, 0, -0.001, 0, 0.032, 0, -0.001, 0, 0.05] },
+  "rotorCount": 0, "rotorCapacity": 32, "rotors": [],
+  "motors": [], "escs": [], "battery": null, "airframe": { "drag": null },
+  "controlSurfaces": [], "landingGear": [], "sensorMounts": [], "rotorWakePairs": [],
+  "ardupilot": null
+}
+```
+
+| Section | Fields | Checks beyond the schema | Runtime consumer |
+|---|---|---|---|
+| `datasets` (1–32) | `id`; `synthetic`: `sourceSha256` (hex or `null`), `derivation`; `measured`: `sourceSha256`, `license`, `acquiredAt` (UTC `YYYY-MM-DDThh:mm:ssZ`), `reference` | unique IDs, parseable time, every dataset referenced | — |
+| `provenance` | one dataset ID or `null` per section | non-null exactly when the section has data; known IDs | — |
+| `massProperties` | `massKg` > 0, `cgOffsetBodyM`, `inertiaCgKgM2` | exact symmetry, Cholesky positive definiteness, rigid-body triangle inequality | v1 runtime (TASK-033) |
+| `rotors` (≤32) | v1 `RotorGeometry`, unchanged; the schema is test-enforced identical to v1 | the v1 checks: unique IDs and channels, unit hub quaternions (1e-6), stations, quadrature widths | v1 runtime |
+| `motors` (≤32) | `id`, `rotorId`, `kvRpmPerV`, `resistanceOhm`, `currentLimitA` (native `Motor`) | unique IDs, known rotor, one motor per rotor | TASK-092 |
+| `escs` (≤32) | `id`, `motorId`, integer `pwmMinUs`/`pwmMaxUs` in [800, 2200], `commandTauS` | span ≥100 µs (the `ExternalSitl` boundary), known motor, one ESC per motor | PWM via the profile; lag TASK-092 |
+| `battery` | `openCircuitFullV`, `openCircuitEmptyV`, `internalResistanceOhm` ≥0, `capacityAh`, `currentLimitA` (native `Battery`, charge 3600·Ah C) | full ≥ empty | TASK-092 |
+| `airframe.drag` | `dragAreaBodyM2` (C_D·A tensor, m²), `centerOfPressureBodyM` | symmetric positive definite, so drag always dissipates | TASK-096 |
+| `controlSurfaces` (≤16) | `id`, `function`, `actuatorChannel`, deflection limits within ±π/2, `rateLimitRadS` | unique IDs and channels, not a rotor channel, min < max | TASK-109 |
+| `landingGear` (≤8) | the `ContactWheel` fields plus `id`; anchor from the reference point | unique IDs, rim < tire, last tire knot ≥ tire − rim; strut and tire laws stay native | TASK-095 |
+| `sensorMounts` (≤32) | `sensor`, `instance` (0–7), `positionBodyM`, `sensorToBody` | unique sensor/instance pairs, quaternion norm within 1e-6 | TASK-114 |
+| `rotorWakePairs` (≤64) | `upstreamRotorId`, `downstreamRotorId` | known rotors, no self or duplicate pairs, acyclic | TASK-101 |
+| `ardupilot` | `vehicle: "copter"`, `frameClass`, `frameType` | only 1/1 (quad X) is admitted, with the geometry check below | parameter profile |
+
+The inertia check follows from J = ∫(|r|²·1 − r·rᵀ) dm: every principal
+moment is at most the sum of the other two, with equality for a planar body.
+The admitted slack is 1e-12·trace, which covers only eigen-solver round-off.
+Capacities match the existing interfaces: 32 rotors (v1), 8 wheel slots
+(contact ABI v2), 16 control surfaces and 32 actuator channels.
+
+A declared quad X frame is checked against the TASK-047 parity aircraft that
+ArduCopter flew. Actuator channels 0–3 hold FR, RL, FL and RR. CG-relative hub
+quadrant signs (x, y) are (+,+), (−,−), (+,−) and (−,+), and no hub may lie on
+a CG plane. Each hub thrust axis +z_h must be within 45° of body up. The spin
+axis s·R(q_hb)·ẑ must point up (counter-clockwise seen from above) for
+channels 0–1 and down for channels 2–3. Other frame classes and types have no
+repository evidence and are rejected.
+
+`deriveVehicle` returns ascending principal moments and a right-handed matrix
+of unit principal axes. It uses cyclic Jacobi rotations (Golub and Van Loan,
+algorithm 8.5.3), at most 50 sweeps; after four sweeps, entries below the
+diagonal precision are zeroed. Degenerate moments have no unique axes. Two
+analytic oracles hold to 1e-12 relative: the x–z block of the fixture tensor
+and a rotated diagonal tensor. `deriveVehicle` also returns CG-relative hub,
+gear and sensor positions and the motor torque constant:
+
+\[
+k_t = k_e = \frac{60}{2\pi \cdot KV}
+\]
+
+`migrateModelManifestV1(input, dataset)` validates a v1 manifest and makes the
+CG the reference point (zero offset). It copies mass, inertia and rotors
+unchanged and assigns the provenance stated by the caller. A v1 tensor that
+violates the triangle inequality is rejected, not altered.
+`projectVehicleToModelV1` returns the CG-referenced v1 descriptor (hub minus
+CG) used by `FrameLayout` and `BetFlightDynamics`. It fails closed, naming the
+owning task, for any motor, ESC, battery, drag, surface, gear, sensor mount,
+wake pair or ArduPilot frame data. The demo quad, the tilted octo and the
+parity base quad round-trip exactly.
+
+`ardupilotParameterProfile({ sha256, manifest })` (profile v1) needs an
+admitted frame and a motor plus ESC for every rotor, all sharing one PWM
+range. It emits two comment lines and then `NAME value` lines sorted by name,
+with LF line endings and a final newline:
+
+```text
+# MirageSITL ArduPilot parameter profile v1
+# modelId 87; manifest sha256 <64 lowercase hex>
+FRAME_CLASS 1
+FRAME_TYPE 1
+MOT_BAT_VOLT_MAX 0
+MOT_BAT_VOLT_MIN 0
+MOT_PWM_MAX 2000
+MOT_PWM_MIN 1000
+```
+
+The profile emits only parameter names that appear in `scripts/sitl/driver.mjs`,
+`scripts/prepare-autopilot-parity.mjs` or `packages/autopilot/src/external-sitl.ts`;
+the test enforces this. Voltage compensation stays disabled (`MOT_BAT_VOLT_* 0`),
+as in the TASK-047 parity defaults, until TASK-092 delivers battery voltage.
+`MOT_THST_EXPO`, `BATT_*`, `INS_POS*` and `SIM_*` names wait for that evidence
+or for the TASK-089 pinned-source catalog.
+
+`VehicleRegistry` hashes the exact payload bytes (≤1 MiB, fatal UTF-8) and
+admits schemas 1 and 2. A model ID with a different hash is a collision.
+`PhysicsSessionV2` accepts an optional `SessionModelPort` as its fifth
+constructor argument; without one, `model.load` is rejected with
+`ASSET_MISSING` as before, so the default demo backend is unchanged.
+`registryModelPort(registry, build)` requires a registered ID, a hash equal to
+the registered one (the request may use upper-case hex) and a successful
+projection. The prepared dynamics must report the loaded model ID. Commit
+disposes the previous dynamics and keeps the factory, so `sim.configure`
+rebuilds the loaded model at the new rate. A failed load keeps the active
+model and epoch.
+
+Open items:
+
+* The native SITL driver still writes its fixed `quad.parm`. Generating that
+  file from a manifest changes the driver's source identity, so the
+  TASK-042/043/059 captures would have to be regenerated.
+* No application path registers models.
+* Polar bindings and per-rotor runtime values remain in `BetFlightConfiguration`.

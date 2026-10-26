@@ -645,6 +645,31 @@
       }
     },
     {
+      "path": "models/synthetic-quad-v2.json",
+      "manifest": {
+        "formatVersion": 1,
+        "id": "models-synthetic-quad-v2",
+        "sourceSha256": "9b9f6d07152bc8dd90d397d0c5a03bd0f9d9b5211b21f550448f42db15c1498f",
+        "units": {
+          "massKg": "kg"
+        },
+        "validityEnvelope": {
+          "massKg": {
+            "min": 1.5,
+            "max": 1.5
+          }
+        },
+        "tolerance": {
+          "absolute": 1e-12,
+          "relative": 1e-12
+        },
+        "provenance": {
+          "kind": "synthetic",
+          "derivation": "Hand-specified vehicle manifest v2 quad X in ArduCopter FR/RL/FL/RR channel order with a CG offset, an inertia product and synthetic motor, ESC, battery and drag values. Schema and profile tests only; not a measured or flight-calibrated vehicle."
+        }
+      }
+    },
+    {
       "path": "abi/body-v1.json",
       "manifest": {
         "formatVersion": 1,
