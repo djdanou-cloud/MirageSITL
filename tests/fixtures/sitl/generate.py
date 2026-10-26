@@ -1,16 +1,24 @@
 #!/usr/bin/env python3
-"""Writes json-protocol.json: ArduPilot JSON SITL protocol oracle (TASK-041).
+"""Writes json-protocol.json (TASK-041) and ardupilot-catalog.json (TASK-089).
 
-Downloads libraries/SITL/SIM_JSON.{h,cpp} and the JSON example readme at the
-pinned ArduPilot commit, records their SHA-256 (sources are GPL and are not
-copied into this repository), and writes golden servo packets packed with
-Python struct ('<HHI16H' / '<HHI32H', little-endian as on SITL hosts) plus a
-reply line formatted with '%.9f'. Independent of the TypeScript encoder.
+json-protocol.json is the ArduPilot JSON SITL protocol oracle. It downloads
+libraries/SITL/SIM_JSON.{h,cpp} and the JSON example readme at the pinned
+ArduPilot commit, records their SHA-256 (sources are GPL and are not copied
+into this repository), and writes golden servo packets packed with Python
+struct ('<HHI16H' / '<HHI32H', little-endian as on SITL hosts) plus a reply
+line formatted with '%.9f'. Independent of the TypeScript encoder.
+
+ardupilot-catalog.json lists, from the same pinned commit, the SIM_* sensor
+error parameter names with their compiled defaults, the copter and JSON
+backend parameter defaults, the JSON backend key table and source facts that
+the TASK-089 ownership matrix cites. Only names and short asserted source
+lines are recorded, never the GPL sources themselves.
 Usage (repository root): python3 tests/fixtures/sitl/generate.py
 """
 import hashlib
 import json
 import math
+import re
 import struct
 import urllib.request
 from pathlib import Path
@@ -86,3 +94,187 @@ fixture = {
 out = Path(__file__).with_name("json-protocol.json")
 out.write_text(json.dumps(fixture, indent=2) + "\n")
 print(f"wrote {out}")
+
+
+# --- TASK-089: pinned-source catalog -------------------------------------------------
+CATALOG_FILES = [
+    "libraries/SITL/SITL.cpp", "libraries/SITL/SITL.h", "libraries/SITL/SITL_Baro.cpp",
+    "libraries/SITL/SITL_Airspeed.cpp", "libraries/SITL/SIM_GPS.cpp", "libraries/SITL/SIM_Compass.cpp",
+    "libraries/SITL/SIM_Aircraft.cpp", "libraries/SITL/SIM_JSON.h", "libraries/SITL/SIM_JSON.cpp",
+    "libraries/AP_InertialSensor/AP_InertialSensor_SITL.cpp", "libraries/AP_Baro/AP_Baro_SITL.cpp",
+    "libraries/AP_Param/AP_Param.cpp", "Tools/autotest/default_params/copter.parm",
+]
+catalog_sources = {}
+catalog_upstream = []
+for path in CATALOG_FILES:
+    data = sources[path].encode() if path in sources else fetch(path)
+    catalog_sources[path] = data.decode()
+    catalog_upstream.append({"path": path, "sha256": hashlib.sha256(data).hexdigest(), "bytes": len(data)})
+
+
+def macro_calls(text, macro):
+    """Yields (arguments, offset) for each MACRO(...) call, splitting at depth-0 commas."""
+    for match in re.finditer(r"\b" + macro + r"\(", text):
+        depth, start, args, i = 1, match.end(), [], match.end()
+        while depth:
+            c = text[i]
+            if c == "(":
+                depth += 1
+            elif c == ")":
+                depth -= 1
+            if (c == "," and depth == 1) or depth == 0:
+                args.append(text[start:i].strip())
+                start = i + 1
+            i += 1
+        yield args, match.start()
+
+
+def conditions(text, offset):
+    """Preprocessor conditions enclosing an offset (#if/#ifdef/#ifndef ... #endif)."""
+    stack = []
+    for line in text[:offset].split("\n"):
+        stripped = line.strip()
+        if stripped.startswith(("#if ", "#ifdef ", "#ifndef ")):
+            stack.append(stripped)
+        elif stripped.startswith("#endif") and stack:
+            stack.pop()
+    return stack
+
+
+def tables(text, pattern):
+    """(name, body, body offset) of every AP_Param GroupInfo table whose name matches."""
+    for match in re.finditer(r"const\s+(?:struct\s+)?AP_Param::GroupInfo\s+" + pattern + r"\[\]\s*=\s*\{", text):
+        end = text.index("AP_GROUPEND", match.end())
+        yield match.group(1), text[match.end():end], match.end()
+
+
+header_text = catalog_sources["libraries/SITL/SITL.h"]
+
+
+def class_body(text, name):
+    """Body of `class NAME {...}` with nested braces matched."""
+    start = text.index("class " + name + " {") + len("class " + name + " {")
+    depth, i = 1, start
+    while depth:
+        depth += {"{": 1, "}": -1}.get(text[i], 0)
+        i += 1
+    return text[start:i - 1]
+
+
+# Vector members per parameter class; nested classes are removed from SIM's own body.
+sim_body = class_body(header_text, "SIM")
+class_vectors = {}
+for nested in ("BaroParm", "AirspeedParm", "GPSParms", "ServoParams", "ViconParms", "ModelParm"):
+    body = class_body(sim_body, nested)
+    class_vectors[nested] = set(re.findall(r"AP_Vector3f\s+([a-z_0-9]+)", body))
+    sim_body = sim_body.replace(body, "")
+class_vectors["SIM"] = set(re.findall(r"AP_Vector3f\s+([a-z_0-9]+)", sim_body))
+parameters = {}
+
+
+def add(prefix, table_text, table_offset, file_text, path, owner="SIM"):
+    for args, offset in macro_calls(table_text, r"AP_GROUPINFO(?:_FLAGS|_FRAME)?"):
+        name, member, default = args[0].strip('"'), args[3], args[4]
+        assert re.fullmatch(r"[A-Z0-9_]+", name), name
+        full = "SIM_" + prefix + name
+        base = member.split("[")[0]
+        record = {"name": full, "vector": "." not in member and base in class_vectors[owner], "default": default,
+                  "source": path, "conditions": conditions(file_text, table_offset + offset)}
+        assert parameters.get(full, record) == record, full
+        parameters[full] = record
+
+
+sitl_text = catalog_sources["libraries/SITL/SITL.cpp"]
+unresolved = []
+for name, body, offset in tables(sitl_text, r"SIM::(var_[a-z0-9_]+)"):
+    add("", body, offset, sitl_text, "libraries/SITL/SITL.cpp")
+    for args, _ in macro_calls(body, "AP_SUBGROUPINFO"):
+        unresolved.append({"prefix": "SIM_" + args[1].strip('"'), "class": args[4]})
+subgroup_files = {"BaroParm": "libraries/SITL/SITL_Baro.cpp", "AirspeedParm": "libraries/SITL/SITL_Airspeed.cpp",
+                  "GPSParms": "libraries/SITL/SIM_GPS.cpp"}
+resolved = []
+for group in unresolved:
+    path = subgroup_files.get(group["class"])
+    if path is None:
+        continue
+    text = catalog_sources[path]
+    found = list(tables(text, r"(?:SIM::)?(" + group["class"] + r")::var_info"))
+    assert len(found) == 1, group
+    _, body, offset = found[0]
+    add(group["prefix"][len("SIM_"):], body, offset, text, path, group["class"])
+    resolved.append(group)
+for group in resolved:
+    unresolved.remove(group)
+assert len(parameters) > 200
+
+copter_defaults = {}
+for line in catalog_sources["Tools/autotest/default_params/copter.parm"].split("\n"):
+    fields = line.split("#")[0].split()
+    if fields:
+        assert len(fields) == 2, line
+        copter_defaults[fields[0]] = fields[1]
+json_cpp = catalog_sources["libraries/SITL/SIM_JSON.cpp"]
+json_defaults = {name: value for name, value in re.findall(r'\{\s*"([A-Z0-9_]+)"\s*,\s*([-0-9.]+)\s*\}', json_cpp)}
+json_keys = [{"key": (section + "." if section else "") + key, "type": kind, "required": required == "true"}
+             for section, key, kind, required in re.findall(
+                 r'\{\s*"([a-z_]*)",\s*"([a-z_0-9]+)",\s*&state\.[a-z_0-9\.\[\]]+,\s*([A-Z_0-9]+),\s*(true|false)\s*\}',
+                 catalog_sources["libraries/SITL/SIM_JSON.h"])]
+assert re.search(r"keytable\[" + str(len(json_keys)) + r"\]", catalog_sources["libraries/SITL/SIM_JSON.h"])
+
+# Source lines the ownership matrix cites; a different commit fails loudly here.
+FACTS = [
+    ("ins-accel-noise-floor", "libraries/AP_InertialSensor/AP_InertialSensor_SITL.cpp", "float accel_noise = 0.01f;"),
+    ("ins-accel-noise-floor-applied", "libraries/AP_InertialSensor/AP_InertialSensor_SITL.cpp",
+     "accel += Vector3f{rand_float(), rand_float(), rand_float()} * accel_noise;"),
+    ("ins-gyro-noise-floor", "libraries/AP_InertialSensor/AP_InertialSensor_SITL.cpp", "float gyro_noise = radians(0.04f);"),
+    ("ins-gyro-noise-floor-applied", "libraries/AP_InertialSensor/AP_InertialSensor_SITL.cpp", "p += gyro_noise * rand_float();"),
+    ("ins-accel-motor-noise", "libraries/AP_InertialSensor/AP_InertialSensor_SITL.cpp", "accel_noise = sitl->accel_noise[accel_instance];"),
+    ("ins-gyro-motor-noise", "libraries/AP_InertialSensor/AP_InertialSensor_SITL.cpp",
+     "gyro_noise = radians(sitl->gyro_noise[gyro_instance]) * sitl->throttle;"),
+    ("ins-accel-scale-nonzero-divides", "libraries/AP_InertialSensor/AP_InertialSensor_SITL.cpp", "accel.x /= accel_scale.x;"),
+    ("ins-accel-bias", "libraries/AP_InertialSensor/AP_InertialSensor_SITL.cpp", "accel += accel_bias;"),
+    ("ins-gyro-scale-percent", "libraries/AP_InertialSensor/AP_InertialSensor_SITL.cpp", "gyro.x *= (1 + scale.x * 0.01f);"),
+    ("ins-gyro-bias", "libraries/AP_InertialSensor/AP_InertialSensor_SITL.cpp", "gyro += gyro_bias;"),
+    ("ins-gyro-drift-zero-disables", "libraries/AP_InertialSensor/AP_InertialSensor_SITL.cpp", "if (is_zero(sitl->drift_speed) ||"),
+    ("ins-vibration-frequency", "libraries/AP_InertialSensor/AP_InertialSensor_SITL.cpp", "if (!vibe_freq.is_zero() && motors_on) {"),
+    ("ins-vibration-motor", "libraries/AP_InertialSensor/AP_InertialSensor_SITL.cpp", "if (!is_zero(sitl->vibe_motor) && motors_on) {"),
+    ("ins-lever-arm", "libraries/AP_InertialSensor/AP_InertialSensor_SITL.cpp", "Vector3f pos_offset = sitl->imu_pos_offset;"),
+    ("ins-board-trim", "libraries/AP_InertialSensor/AP_InertialSensor_SITL.cpp", "const Vector3f &board_trim = sitl->board_trim.get();"),
+    ("baro-noise", "libraries/AP_Baro/AP_Baro_SITL.cpp", "sim_alt += _sitl->baro[_instance].noise * rand_float();"),
+    ("baro-drift", "libraries/AP_Baro/AP_Baro_SITL.cpp", "total_alt_drift += _sitl->baro[_instance].drift * drift_delta_t_ms * 0.001f;"),
+    ("baro-glitch", "libraries/AP_Baro/AP_Baro_SITL.cpp", "sim_alt += _sitl->baro[_instance].glitch;"),
+    ("baro-delay", "libraries/AP_Baro/AP_Baro_SITL.cpp", "const uint32_t delayed_time = now - _sitl->baro[_instance].delay;"),
+    ("baro-wind", "libraries/AP_Baro/AP_Baro_SITL.cpp", "error += bp.wcof_xp * sqx;"),
+    ("baro-ground-effect", "libraries/AP_Baro/AP_Baro_SITL.cpp", "const float geff = _sitl->baro[_instance].ground_effect_alt_err;"),
+    ("compass-noise", "libraries/SITL/SIM_Compass.cpp", "const Vector3f noise = rand_vec3f() * _sitl->mag_noise;"),
+    ("compass-hard-iron", "libraries/SITL/SIM_Compass.cpp",
+     "Vector3f f = (eliptical_corr * new_mag_data) - _sitl->mag_ofs[instance].get();"),
+    ("compass-soft-iron-zero-is-identity", "libraries/SITL/SIM_Compass.cpp", "if (diag.is_zero()) {"),
+    ("compass-scaling", "libraries/SITL/SIM_Compass.cpp", "v *= mag_scaling[instance];"),
+    ("compass-delay", "libraries/SITL/SIM_Compass.cpp", "const uint32_t delayed_time = now - _sitl->mag_delay;"),
+    ("aircraft-mag-anomaly", "libraries/SITL/SIM_Aircraft.cpp", "mag_ef += sitl->mag_anomaly_ned.get() * anomaly_scaler;"),
+    ("aircraft-mag-motor", "libraries/SITL/SIM_Aircraft.cpp", "mag_bf += sitl->mag_mot.get() * battery_current;"),
+    ("aircraft-body-mag-field", "libraries/SITL/SIM_Aircraft.cpp", "fdm.bodyMagField = mag_bf;"),
+    # A defaults-file name the build lacks is skipped, so every cataloged instance can be neutralized.
+    ("param-defaults-unknown-skipped", "libraries/AP_Param/AP_Param.cpp", "Ignored unknown param %s in defaults file %s\\n"),
+]
+facts = []
+for fact_id, path, text in FACTS:
+    assert text in catalog_sources[path], (fact_id, path)
+    facts.append({"id": fact_id, "path": path, "text": text})
+
+catalog = {
+    "schemaVersion": 1,
+    "description": "Pinned ArduPilot SITL error parameters, defaults, JSON keys and source facts (TASK-089); generated by tests/fixtures/sitl/generate.py",
+    "ardupilotCommit": COMMIT,
+    "upstream": catalog_upstream,
+    "simParameters": sorted(parameters.values(), key=lambda item: item["name"]),
+    "unresolvedSubgroups": sorted(unresolved, key=lambda item: item["prefix"]),
+    "copterDefaults": dict(sorted(copter_defaults.items())),
+    "jsonBackendDefaults": dict(sorted(json_defaults.items())),
+    "jsonKeys": json_keys,
+    "facts": facts,
+}
+catalog_out = Path(__file__).with_name("ardupilot-catalog.json")
+catalog_out.write_text(json.dumps(catalog, indent=2) + "\n")
+print(f"wrote {catalog_out}: {len(parameters)} SIM parameters, {len(json_keys)} JSON keys, {len(facts)} facts")

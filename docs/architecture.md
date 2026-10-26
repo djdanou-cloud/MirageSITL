@@ -298,8 +298,11 @@ v2 validation, migration and derived values (`vehicle.schema.json`,
 and an optional `model.load` port in `PhysicsSessionV2`. TASK-090 has
 started: time-domain and Welch frequency-response metrics with a CIFER-style
 cost (`fidelity-metrics.ts`), bench CSV import (`bench-import.ts`) and
-`scripts/check-fidelity.mjs`; scoring measured data remains open. The rest of
-this section is not implemented yet. The program keeps the current
+`scripts/check-fidelity.mjs`; scoring measured data remains open. TASK-089 has
+started: a pinned-source ArduPilot SITL catalog
+(`tests/fixtures/sitl/ardupilot-catalog.json`), a 25-source error-ownership
+matrix with evidenced delivery paths, and a neutralizing parameter profile
+(`error-ownership.ts`). The rest of this section is not implemented yet. The program keeps the current
 ownership model: MirageSITL is ArduPilot's external flight-dynamics model.
 Native runs exchange JSON state lines with `--model JSON` (TASK-041). The
 browser build fills ArduPilot's `sitl_fdm` through the HAL mailbox (TASK-046),
