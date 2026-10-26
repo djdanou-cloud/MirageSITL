@@ -192,14 +192,22 @@ policy copies; if a client loads neither pointer, open this file explicitly.
   (accessibility sign-off; TASK-074 HUD freshness, TASK-075 fault ACKs, TASK-078 full-rate recording, and TASK-079 scenario ACK binding are done and do not admit browser READY), TASK-082 (multi-hour integrated soak), and TASK-083 (clean-machine
   release and assistive screen-reader sign-off) remain open.
 * **Physics fidelity program (TASK-087–TASK-123, roadmap Phases 7–13):** registered
-  2026-10-26 from the physics fidelity review and not yet implemented: vehicle manifest
-  v2, rotor/body interface v2, autopilot boundary and sensor-error ownership, the fidelity
-  evidence pipeline and BET compute headroom (TASK-087–TASK-091), then core flight
-  dynamics, rotor aerodynamics, propulsion and environment, fixed-wing/VTOL classes,
-  sensor physics, and structural and extreme-environment models (TASK-092–TASK-123).
-  MirageSITL stays an external flight-dynamics model: do not modify ArduPilot
-  `SIM_Multicopter`/`SIM_Plane` or the native firmware for these tasks without a recorded
-  decision.
+  2026-10-26 from the physics fidelity review. TASK-087–TASK-090 are IN_PROGRESS with a
+  first increment each:
+  * TASK-087: the strict vehicle manifest v2 (`vehicle-manifest.ts`), an ArduPilot
+    profile limited to evidenced names, and an optional `SessionModelPort` for
+    `model.load`; the default demo backend is unchanged.
+  * TASK-088: bound-rotor and body step interfaces v2 with fail-closed later-task
+    fields (status −8); neutral records run v1 bitwise.
+  * TASK-089: a pinned-source SITL catalog and a 25-source error-ownership matrix. The
+    IMU noise floors are unconditional, so changing their owner is BLOCKED_DECISION.
+  * TASK-090: fidelity metrics and `scripts/check-fidelity.mjs`, which never passes
+    synthetic data; real flight and bench data remain BLOCKED_EXTERNAL.
+
+  BET compute headroom (TASK-091) and the physics tasks TASK-092–TASK-123 are not
+  implemented. MirageSITL stays an external flight-dynamics model: do not modify
+  ArduPilot `SIM_Multicopter`/`SIM_Plane` or the native firmware for these tasks
+  without a recorded decision.
 
 ### Workspace and git discipline
 
