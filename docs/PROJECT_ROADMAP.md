@@ -3,7 +3,7 @@
 Version 1.2 · 2026-10-26 · baseline `4593971`. English is the source of truth.
 [Russian mirror](ru/PROJECT_ROADMAP.md).
 
-Future modules are not claimed as implemented. The active browser application runs on ABI v2 (`49280` bytes, `192`-byte state stride) with `400/800/1200` Hz clocks, SPSC sensor/actuator queues, epoch-aware rendering, decimated Pilot HUD / Instructor / AAR flows, and the demo dynamics backend (`540` unit tests across `97` files, Chromium browser suites, and `62` native Rust tests). Independent native/WASM rotor kernels, direct `f64` Rapier landing-gear contact (`TASK-029`) and collision-chunk coupling (`TASK-065`), pinned JSBSim v1.2.3 WASM/contact (`TASK-030`/`031`/`086`), native Linux/WSL ArduCopter SITL flight, `LiveEkfWarmup`, and EW fault regressions (`TASK-042`/`043`/`059`), and ArduCopter WASM Worker/EEPROM boot (`TASK-045`) are verified in their respective harnesses. Production BET C ABI polar binding and configurable session injection are now verified by TASK-033. TASK-046 verifies the browser HAL clock/sensor/PWM boundary and owned-Worker teardown. Browser autopilot `READY`, measured model fidelity (separate from the TASK-033 synthetic baseline), ArduPilot Simulation-on-Hardware and virtual Hybrid SITL (`TASK-051`), target GPU 10-minute profiling (`TASK-073`), full-rate recording and accessibility sign-off (`TASK-078`/`080`; TASK-074, TASK-075, and TASK-079 are done), and release sign-off (`TASK-082`/`083`) remain open. The physics fidelity program (Phases 7–13, TASK-087–TASK-123) is registered and not yet implemented.
+Future modules are not claimed as implemented. The active browser application runs on ABI v2 (`49280` bytes, `192`-byte state stride) with `400/800/1200` Hz clocks, SPSC sensor/actuator queues, epoch-aware rendering, decimated Pilot HUD / Instructor / AAR flows, and the demo dynamics backend (`540` unit tests across `97` files, Chromium browser suites, and `62` native Rust tests). Independent native/WASM rotor kernels, direct `f64` Rapier landing-gear contact (`TASK-029`) and collision-chunk coupling (`TASK-065`), pinned JSBSim v1.2.3 WASM/contact (`TASK-030`/`031`/`086`), native Linux/WSL ArduCopter SITL flight, `LiveEkfWarmup`, and EW fault regressions (`TASK-042`/`043`/`059`), and ArduCopter WASM Worker/EEPROM boot (`TASK-045`) are verified in their respective harnesses. Production BET C ABI polar binding and configurable session injection are now verified by TASK-033. TASK-046 verifies the browser HAL clock/sensor/PWM boundary and owned-Worker teardown. Browser autopilot `READY`, measured model fidelity (separate from the TASK-033 synthetic baseline), ArduPilot Simulation-on-Hardware and virtual Hybrid SITL (`TASK-051`), target GPU 10-minute profiling (`TASK-073`), full-rate recording and accessibility sign-off (`TASK-078`/`080`; TASK-074, TASK-075, and TASK-079 are done), and release sign-off (`TASK-082`/`083`) remain open. The physics fidelity program (Phases 7–13, TASK-087–TASK-124) is registered; TASK-087–TASK-090 are in progress and the rest is not implemented.
 
 Contracts: [Shared Memory](SPECS_SHARED_MEMORY.md),
 [Simulation Engines](SPECS_SIMULATION_ENGINES.md), [V2 Architecture & Verification Plan](V2_PLAN.md), and [Agent workflow](../CLAUDE.md).
@@ -1021,7 +1021,7 @@ copy Google content without rights.
 
 ## Physics fidelity program (Phases 7–13)
 
-Registered on 2026-10-26 from the physics fidelity review of baseline `4593971`. Registration implements nothing. MirageSITL remains an external flight-dynamics model for ArduPilot: native runs use the JSON backend (TASK-041) and the browser build uses the HAL mailbox (TASK-046). ArduPilot's internal `SIM_Multicopter` and `SIM_Plane` models are not modified, and the native firmware stays unmodified ([V2_PLAN.md](V2_PLAN.md), section 4, B1). New vehicle parameters belong in the vehicle manifest (TASK-087), not in new ArduPilot `SIM_*` parameters. Streams may run in parallel where dependencies allow. Version 1 release gates (TASK-082, TASK-083) do not wait on these phases.
+Registered on 2026-10-26 from the physics fidelity review of baseline `4593971`. Registration implements nothing. MirageSITL remains an external flight-dynamics model for ArduPilot: native runs use the JSON backend (TASK-041) and the browser build uses the HAL mailbox (TASK-046). ArduPilot's internal `SIM_Multicopter` and `SIM_Plane` models are not modified. The native firmware stays unmodified ([V2_PLAN.md](V2_PLAN.md), section 4, B1) except for the opt-in TASK-089 `imu-noise-floor` patch, recorded by the user's decision of 2026-10-26. New vehicle parameters belong in the vehicle manifest (TASK-087), not in new ArduPilot `SIM_*` parameters; that patch's two noise-floor parameters are the only exception. TASK-124 (registered 2026-10-27) defines the on/off and intensity controls that every environment, sensor-error, EW and fault effect of the program must expose. Streams may run in parallel where dependencies allow. Version 1 release gates (TASK-082, TASK-083) do not wait on these phases.
 
 Measured starting point (review measurement, not a gate: 4-core Xeon 2.1 GHz, Rust 1.97.0 release, Node 22, scratch harnesses outside the repository; TASK-091 replaces it with a repository benchmark). One BET element costs about 110 ns natively. The production quad tick (28 strips × 8 azimuth samples × 2 evaluations per rotor) costs about 0.21 ms natively and 0.35 ms through the browser WASM adapters. An octocopter tick costs about 0.70 ms, above the G3 compute limit of 0.4167 ms at 1200 Hz. The RK4 body step costs 175 ns natively and 614 ns in WASM. Steady hover thrust from the production torque-source ESC fits `T/Tmax = (1−a)·d + a·d²` with `a ≈ 0.20`, against `a ≈ 0.87` for the unwired back-EMF `motor.rs` kernel and ArduPilot's default `MOT_THST_EXPO` of 0.65.
 
@@ -1134,8 +1134,28 @@ Wire the kernels that already exist into the flight path and make the body, cont
 - **Title & Description:** Make wind and atmospheric state real inputs of every flight path: implement `weather.set`, recompute ISA with temperature offset and QNH every tick, and evaluate wind at the CG and each rotor hub.
 - **Dependencies:** TASK-010, TASK-032, TASK-087.
 - **Touched Files:** `packages/physics/src/session-v2.ts`, `packages/physics/src/bet-dynamics.ts`, `packages/physics/src/atmosphere.ts`, `packages/protocol/src/control-v2.ts`, `packages/autopilot/src/external-sitl.ts`, `tests/session-v2.test.ts`, `tests/atmosphere.test.ts`, `tests/weather-plumbing.test.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SHARED_MEMORY.md`, `docs/ru/SPECS_SHARED_MEMORY.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
-- **Interfaces / Contracts:** `weather.set` applied at tick boundaries with acknowledgements instead of `unsupportedReason`; `T = T₀ + ΔT − L·h`, `p = p₀·(1 − L·h/T₀′)^(g/(R·L))`, `ρ = p/(R·T)`; `BetFlightDynamics` reads density, viscosity and speed of sound per tick; true airspeed relative to the air; `velocity_wind` in the JSON line.
+- **Interfaces / Contracts:** `weather.set` applied at tick boundaries with acknowledgements instead of `unsupportedReason`; `T = T₀ + ΔT − L·h`, `p = p₀·(1 − L·h/T₀′)^(g/(R·L))`, `ρ = p/(R·T)`; `BetFlightDynamics` reads density, viscosity and speed of sound per tick; true airspeed relative to the air; `velocity_wind` in the JSON line. At the pinned commit `SIM_JSON` derives airspeed from ground velocity unless the JSON line carries `airspeed`, and applies `velocity_wind` only after that, so the native path also sends `airspeed` once the TASK-089 oracle covers that key.
 - **DoD & Acceptance Criteria:** Scheduled weather changes apply on the exact tick in every epoch; ISA references within 1e-9 relative; constant-wind flight shows the expected ground-speed offset and airspeed; replay is seed- and FPS-independent; no allocation in the tick.
+
+### TASK-124 — Effect controls: on/off and intensity for every effect
+
+- **Status:** TODO — registered 2026-10-27 at the user's request; baseline `c22174c`.
+- **Title & Description:** Give every environment, sensor-error, EW and fault effect a user-facing control: an on/off switch and an intensity setting. They are set through Control Protocol v2 and the instructor console and can be scheduled in scenarios. Every injected effect is off by default, and an effect that is off or at zero intensity is bitwise identical to the effect being absent. ArduPilot-side SITL errors keep the TASK-089 ownership setting, whose default is ArduPilot's own behaviour.
+- **Dependencies:** TASK-075, TASK-079, TASK-089, TASK-093.
+- **Touched Files:** `packages/protocol/src/control-v2.ts`, `packages/physics/src/session-v2.ts`, `packages/scenarios/src/schema.ts`, `apps/web/src/instructor/Console.tsx`, `apps/web/src/instructor/commands.ts`, `tests/control-v2.test.ts`, `tests/session-v2.test.ts`, `tests/browser/instructor.spec.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SHARED_MEMORY.md`, `docs/ru/SPECS_SHARED_MEMORY.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
+- **Interfaces / Contracts:**
+  - A versioned control record per effect: its identifier, `enabled`, a dimensionless `intensity` ≥ 0 where 1 is the configured nominal magnitude, and the effect's physical parameters with units.
+  - Controls apply at tick boundaries with acknowledgements, like `weather.set`.
+  - Every range equals the owning model's validity envelope. Today's mismatches are resolved here: turbulence RMS is 0–30 m/s in the protocol but 0–50 m/s in the gust model; temperature is 200–340 K against 180–330 K; wind is ±100 m/s against ±200 m/s per axis; and the protocol has no gust-bandwidth field.
+  - Covered effects: mean wind (vector, or speed and direction); gusts and turbulence (TASK-032, TASK-106); shear and terrain flow (TASK-107); thermals and hazard flows (TASK-121, TASK-122); atmosphere offsets (ΔT and QNH from TASK-093); MirageSITL sensor errors (TASK-115–TASK-117); EW effects, namely GNSS jamming, position-step spoofing, coherent drift and magnetic anomalies (TASK-053–TASK-056, composed by TASK-058); and motor faults (TASK-057). ArduPilot SITL errors are covered through the TASK-089 ownership setting.
+  - Effect tasks registered later declare their control under this contract. A backend that cannot apply an effect keeps rejecting its control visibly.
+- **DoD & Acceptance Criteria:**
+  - Every covered effect has a control record whose ranges equal its model envelope; the protocol version bump has migration and rejection tests and JSON fixtures. The existing `weather.set` and `fault.set` fields map onto these records.
+  - For every effect, `enabled: false` and intensity 0 are bitwise identical to the effect being absent over a seeded run.
+  - Intensity scaling matches each model's definition against an independent oracle; for example, gust RMS scales linearly.
+  - The instructor console exposes every control with pending, applied and rejected status from the TASK-075 ledger, replacing today's hard-coded presets (north wind only, fixed EW magnitudes).
+  - Scenario files can schedule controls with tick-bound acknowledgements (TASK-079).
+  - A browser test sets wind on a backend that applies it, shows the effect, and removes it again.
 
 ### TASK-094 — Rigid-body core v2
 
@@ -1257,19 +1277,19 @@ Dynamic battery and motor models, standard turbulence, wind shear and Earth fiel
 
 - **Status:** TODO — registered 2026-10-26 from the physics fidelity review; baseline 4593971.
 - **Title & Description:** Replace the uncorrelated per-axis AR(1) gust with standard turbulence spectra scaled by altitude, airspeed and condition, including rotational gusts and spatial coherence.
-- **Dependencies:** TASK-032, TASK-093.
+- **Dependencies:** TASK-032, TASK-093, TASK-124.
 - **Touched Files:** `packages/physics/src/wind.ts`, `packages/physics/src/turbulence.ts`, `tests/turbulence.test.ts`, `scripts/bench-wind.mjs`, `tests/fixtures/environment/dryden-psd.json`, `tests/fixtures/registry.json`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
 - **Interfaces / Contracts:** MIL-F-8785C Dryden shaping filters `H_u = σ_u·√(2·L_u/(π·V))/(1 + (L_u/V)·s)` and `H_v,w = σ·√(L/(π·V))·(1 + √3·(L/V)·s)/(1 + (L/V)·s)²` with low-altitude scale lengths and intensities; rotational gusts; von Kármán rational fits; Kaimal spectra advected by the mean wind for hover; inter-hub coherence; exact discretization with tick-indexed coefficient refresh; fixed RNG stream IDs.
-- **DoD & Acceptance Criteria:** Estimated PSDs match the specification spectra within declared tolerances over 1e7 samples; variance and scale lengths match; replay is seed-deterministic and FPS-independent; G1 gates pass.
+- **DoD & Acceptance Criteria:** Estimated PSDs match the specification spectra within declared tolerances over 1e7 samples; variance and scale lengths match; replay is seed-deterministic and FPS-independent; G1 gates pass. The effect exposes its on/off and intensity controls under the TASK-124 contract, and off is bitwise identical to the effect being absent.
 
 ### TASK-107 — Wind profile, shear and terrain-induced flow
 
 - **Status:** TODO — registered 2026-10-26 from the physics fidelity review; baseline 4593971.
 - **Title & Description:** Model mean wind versus height and terrain: logarithmic shear with land-cover roughness and precomputed terrain speed-up fields.
-- **Dependencies:** TASK-069, TASK-093, TASK-095, TASK-106.
+- **Dependencies:** TASK-069, TASK-093, TASK-095, TASK-106, TASK-124.
 - **Touched Files:** `packages/physics/src/wind-profile.ts`, `packages/terrain/src/roughness.ts`, `tests/wind-profile.test.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
 - **Interfaces / Contracts:** `U(z) = (u*/κ)·ln((z − d)/z₀)` with an optional Monin–Obukhov correction; roughness length and displacement height from WorldCover classes; MIL-F-8785C shear for comparison; gridded terrain-flow fields loaded before arming.
-- **DoD & Acceptance Criteria:** Profile fixtures match analytic values; the roughness mapping is versioned with provenance; grids respect the memory budget and never grow memory after arming.
+- **DoD & Acceptance Criteria:** Profile fixtures match analytic values; the roughness mapping is versioned with provenance; grids respect the memory budget and never grow memory after arming. The effect exposes its on/off and intensity controls under the TASK-124 contract, and off is bitwise identical to the effect being absent.
 
 ### TASK-108 — Earth gravity and magnetic fields
 
@@ -1346,28 +1366,28 @@ Vibration and IMU, barometer, GNSS, magnetometer, airspeed and rangefinder error
 
 - **Status:** TODO — registered 2026-10-26 from the physics fidelity review; baseline 4593971.
 - **Title & Description:** Replace the single AR(1) plus bias walk with Allan-variance-calibrated, temperature-dependent IMU errors.
-- **Dependencies:** TASK-035, TASK-087, TASK-089.
+- **Dependencies:** TASK-035, TASK-087, TASK-089, TASK-124.
 - **Touched Files:** `packages/sensors/src/noise.ts`, `packages/sensors/src/imu-errors.ts`, `tests/imu-errors.test.ts`, `tests/fixtures/sensors/imu-allan.json`, `tests/fixtures/registry.json`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
 - **Interfaces / Contracts:** `ω_m = (I + S + M)·ω + b(T) + G_g·a + n`; angle random walk, bias instability as summed Gauss–Markov processes, rate random walk; temperature polynomial and warm-up; scale-factor nonlinearity, misalignment, g-sensitivity, vibration rectification, LSB quantization and a seeded turn-on bias; lever arm `a_IMU = a + ω̇×r + ω×(ω×r)`; manifest `sensors.imu[]`.
-- **DoD & Acceptance Criteria:** The Allan deviation of simulated output matches the configured curve within declared tolerances over 1e7 samples; lever-arm and misalignment fixtures pass; seeded replay is deterministic; G1 gates pass.
+- **DoD & Acceptance Criteria:** The Allan deviation of simulated output matches the configured curve within declared tolerances over 1e7 samples; lever-arm and misalignment fixtures pass; seeded replay is deterministic; G1 gates pass. The effect exposes its on/off and intensity controls under the TASK-124 contract, and off is bitwise identical to the effect being absent.
 
 ### TASK-116 — Barometer v2
 
 - **Status:** TODO — registered 2026-10-26 from the physics fidelity review; baseline 4593971.
 - **Title & Description:** Model the pressure errors that dominate barometric altitude near the ground and in fast flight.
-- **Dependencies:** TASK-089, TASK-096, TASK-100.
+- **Dependencies:** TASK-089, TASK-096, TASK-100, TASK-124.
 - **Touched Files:** `packages/sensors/src/barometer.ts`, `tests/barometer.test.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
 - **Interfaces / Contracts:** `p = p_static + ΔC_p(α,β)·q∞ + Δp_GE + Δp_wash + drift(T,t) + noise`; ground cushion `Δp_GE ≈ k·½·ρ·v_i²·g(z/R)`; sensor lag and conversion time; weather pressure trend; delivery through TASK-089 with ArduPilot `SIM_BARO_*` errors neutralized.
-- **DoD & Acceptance Criteria:** Fixtures match closed forms; logged takeoff and landing baro dips are reproduced within declared tolerances; ArduPilot ground-effect handling (`GND_EFFECT_COMP`, `EK3_GND_EFF_DZ`) is exercised.
+- **DoD & Acceptance Criteria:** Fixtures match closed forms; logged takeoff and landing baro dips are reproduced within declared tolerances; ArduPilot ground-effect handling (`GND_EFFECT_COMP`, `EK3_GND_EFF_DZ`) is exercised. The effect exposes its on/off and intensity controls under the TASK-124 contract, and off is bitwise identical to the effect being absent.
 
 ### TASK-117 — GNSS v2
 
 - **Status:** TODO — registered 2026-10-26 from the physics fidelity review; baseline 4593971.
 - **Title & Description:** Tie GNSS position and velocity errors and outages to satellite geometry, terrain and buildings, the atmosphere and the RF environment.
-- **Dependencies:** TASK-036, TASK-053, TASK-058, TASK-089, TASK-108.
+- **Dependencies:** TASK-036, TASK-053, TASK-058, TASK-089, TASK-108, TASK-124.
 - **Touched Files:** `packages/sensors/src/gnss.ts`, `packages/sensors/src/gnss-visibility.worker.ts`, `packages/ew/src/engine.ts`, `tests/gnss-errors.test.ts`, `tests/fixtures/sensors/gnss-ephemeris.json`, `tests/fixtures/registry.json`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
 - **Interfaces / Contracts:** Ephemeris-based azimuth and elevation; line-of-sight and NLOS by ray casting on the terrain lattice; Klobuchar ionosphere, Saastamoinen troposphere, multipath error envelope, NLOS bias and C/N0-dependent noise; receiver solution latency and rate; jamming `(C/N0)_eff⁻¹ = (C/N0)⁻¹ + (J/S)/(Q·R_c)` from EW zones; MAVLink `GPS1_TYPE 14` delivery.
-- **DoD & Acceptance Criteria:** Geometry and DOP fixtures match references; open-sky and urban error statistics match logged data within declared tolerances; jamming thresholds follow the link budget; visibility runs off the physics Worker.
+- **DoD & Acceptance Criteria:** Geometry and DOP fixtures match references; open-sky and urban error statistics match logged data within declared tolerances; jamming thresholds follow the link budget; visibility runs off the physics Worker. The effect exposes its on/off and intensity controls under the TASK-124 contract, and off is bitwise identical to the effect being absent.
 
 ### TASK-118 — Magnetometer, airspeed and rangefinder v2
 
@@ -1404,19 +1424,19 @@ Flexible structure, mass changes, convective and hazardous flows, and unsteady a
 
 - **Status:** TODO — registered 2026-10-26 from the physics fidelity review; baseline 4593971.
 - **Title & Description:** Provide realistic convective updrafts and sink for ArduPlane `SOAR` testing and altitude-hold disturbances.
-- **Dependencies:** TASK-070, TASK-106, TASK-107.
+- **Dependencies:** TASK-070, TASK-106, TASK-107, TASK-124.
 - **Touched Files:** `packages/physics/src/thermals.ts`, `tests/thermals.test.ts`, `packages/protocol/src/control-v2.ts`, `packages/protocol/src/control-v2.schema.json`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SHARED_MEMORY.md`, `docs/ru/SPECS_SHARED_MEMORY.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
 - **Interfaces / Contracts:** `w* = (g·z_i·H/(ρ·c_p·T))^(1/3)` with surface heat flux from the thermal surface-energy solver; Allen (2006) updraft profile with environmental sink; seeded thermal life cycle and drift with the wind; a `weather.set` extension with a protocol version bump.
-- **DoD & Acceptance Criteria:** Mass-conservation and profile fixtures pass; seeded replay is deterministic; ArduPlane `SOAR` engages in SITL.
+- **DoD & Acceptance Criteria:** Mass-conservation and profile fixtures pass; seeded replay is deterministic; ArduPlane `SOAR` engages in SITL. The effect exposes its on/off and intensity controls under the TASK-124 contract, and off is bitwise identical to the effect being absent.
 
 ### TASK-122 — Microbursts, gust fronts, wake vortices and other-vehicle downwash
 
 - **Status:** TODO — registered 2026-10-26 from the physics fidelity review; baseline 4593971.
 - **Title & Description:** Model hazardous localized flows for landing safety and swarm or formation flight.
-- **Dependencies:** TASK-079, TASK-101, TASK-106.
+- **Dependencies:** TASK-079, TASK-101, TASK-106, TASK-124.
 - **Touched Files:** `packages/physics/src/hazard-flows.ts`, `packages/scenarios/src/schema.ts`, `tests/hazard-flows.test.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
 - **Interfaces / Contracts:** Oseguera–Bowles downburst (mass-conserving analytic field); moving shear-line gust fronts; Burnham–Hallock vortices `V_θ = (Γ/2π)·r/(r² + r_c²)` with `Γ₀ = W/(ρ·V·b₀)` and `b₀ = π·b/4`, descent and decay; rotor wakes as aging segments; scenario-driven activation; bounded shared wake buffers between vehicle Workers.
-- **DoD & Acceptance Criteria:** Divergence-free and analytic-field fixtures pass; scenario timing binds to ticks with acknowledgements; multi-vehicle wake exchange is lockstep-deterministic.
+- **DoD & Acceptance Criteria:** Divergence-free and analytic-field fixtures pass; scenario timing binds to ticks with acknowledgements; multi-vehicle wake exchange is lockstep-deterministic. The effect exposes its on/off and intensity controls under the TASK-124 contract, and off is bitwise identical to the effect being absent.
 
 ### TASK-123 — Dynamic stall and unsteady airfoil aerodynamics
 

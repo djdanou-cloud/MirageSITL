@@ -289,7 +289,7 @@ latency. 120 FPS allows 8.33 ms/frame on a panel that can present it. For 60 FPS
 physics step has 0.833 ms and needs headroom. Headless cloud smoke does
 not establish these performance budgets.
 
-## Physics fidelity program (TASK-087–TASK-123)
+## Physics fidelity program (TASK-087–TASK-124)
 
 Registered in the [roadmap](PROJECT_ROADMAP.md) as Phases 7–13 on 2026-10-26;
 the roadmap records each task's status. TASK-087 has started: vehicle manifest
@@ -311,7 +311,9 @@ Native runs exchange JSON state lines with `--model JSON` (TASK-041). The
 browser build fills ArduPilot's `sitl_fdm` through the HAL mailbox (TASK-046),
 and ArduPilot's internal aircraft never advances. ArduPilot's `SIM_Multicopter`
 and `SIM_Plane` are therefore not modified, and the native firmware stays
-unmodified ([V2_PLAN.md](V2_PLAN.md), B1).
+unmodified ([V2_PLAN.md](V2_PLAN.md), B1) except for the opt-in TASK-089
+`imu-noise-floor` patch, which adds `SIM_ACC_FLOOR` and `SIM_GYR_FLOOR` so the
+fixed IMU noise floors can be switched off.
 
 | Layer | Location | Role in the program |
 | --- | --- | --- |
@@ -319,7 +321,7 @@ unmodified ([V2_PLAN.md](V2_PLAN.md), B1).
 | Kernel interfaces | `bound.rs`, `bet_bound.h`, `body_abi.rs` | One versioned v2 extension (TASK-088) |
 | Vehicle adapter | `bet-dynamics.ts`, `session-v2.ts` | Per-tick composition of the kernels |
 | Vehicle data | `model.schema.json` (v1) and `vehicle.schema.json` (v2) | New vehicle parameters (TASK-087) |
-| Runtime environment | Control Protocol v2 | Weather and events at tick boundaries |
+| Runtime environment | Control Protocol v2 | Weather, events and per-effect on/off and intensity controls (TASK-124) at tick boundaries |
 | Autopilot boundary | JSON state line, HAL mailbox, MAVLink injection | Sensor-error ownership (TASK-089) |
 | ArduPilot configuration | Generated parameter profile | Neutralize the ArduPilot errors MirageSITL owns |
 

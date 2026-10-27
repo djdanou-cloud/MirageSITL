@@ -30,8 +30,10 @@ remains a separate integration step. See the [architecture guide](docs/architect
 for the serialized contracts.
 
 The [roadmap](docs/PROJECT_ROADMAP.md) also registers a physics fidelity program
-(Phases 7–13, TASK-087–TASK-123) for multirotor, fixed-wing and VTOL realism.
-None of it is implemented yet, and it does not change the default demo backend.
+(Phases 7–13, TASK-087–TASK-124) for multirotor, fixed-wing and VTOL realism.
+TASK-087–TASK-090 have first increments and the rest is not implemented; none of
+it changes the default demo backend. TASK-124 will give every environment,
+sensor-error, EW and fault effect an on/off switch and an intensity control.
 
 Startup checks secure context, isolation, SharedArrayBuffer, Worker, and WebGL2.
 Missing requirements disable Start with an explanation; missing Gamepad disables

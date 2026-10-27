@@ -363,7 +363,10 @@ of TASK-090 (fidelity evidence pipeline); B4 as TASK-103 (rotor lookup-table
 mode); B5 as TASK-099 (descent inflow); B6 as TASK-101 (rotor interference);
 B8 as TASK-100 (rotor ground effect, off by default); and B9 as TASK-105
 (motor and ESC v2). The B1 rule that the native firmware stays unmodified binds
-TASK-089. B2 and workstreams A and D remain proposals. Decisions 1, 2 and 4
+TASK-089, with one exception the user accepted on 2026-10-26: the opt-in
+`imu-noise-floor` patch adds `SIM_ACC_FLOOR` and `SIM_GYR_FLOOR` so the fixed
+IMU noise floors can be switched off, while ArduPilot's defaults stay the
+default. B2 and workstreams A and D remain proposals. Decisions 1, 2 and 4
 above still apply to the registered tasks. TASK-090 has started on B3: the
 scoring metrics, the bench CSV import and `scripts/check-fidelity.mjs` exist.
 Replaying flight logs through the simulation, and real flight and bench data,

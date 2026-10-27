@@ -192,7 +192,7 @@ policy copies; if a client loads neither pointer, open this file explicitly.
   `scripts/check-gpu-perf.mjs`; the user accepted median 16.680 ms, p99 17.665 ms, and 59.88 Hz, while the 2560×1440 presentation and the native 2560×1664 panel remain open), TASK-080
   (accessibility sign-off; TASK-074 HUD freshness, TASK-075 fault ACKs, TASK-078 full-rate recording, and TASK-079 scenario ACK binding are done and do not admit browser READY), TASK-082 (multi-hour integrated soak), and TASK-083 (clean-machine
   release and assistive screen-reader sign-off) remain open.
-* **Physics fidelity program (TASK-087–TASK-123, roadmap Phases 7–13):** registered
+* **Physics fidelity program (TASK-087–TASK-124, roadmap Phases 7–13):** registered
   2026-10-26 from the physics fidelity review. TASK-087–TASK-090 are IN_PROGRESS with a
   first increment each:
   * TASK-087: the strict vehicle manifest v2 (`vehicle-manifest.ts`), an ArduPilot
@@ -212,7 +212,12 @@ policy copies; if a client loads neither pointer, open this file explicitly.
     synthetic data; real flight and bench data remain BLOCKED_EXTERNAL.
 
   BET compute headroom (TASK-091) and the physics tasks TASK-092–TASK-123 are not
-  implemented. MirageSITL stays an external flight-dynamics model: do not modify
+  implemented. TASK-124 (registered 2026-10-27, not implemented) gives every
+  environment, sensor-error, EW and fault effect an on/off switch and an intensity
+  control. Effects that MirageSITL injects are off by default, and off must be
+  bitwise identical to absent; ArduPilot's own SITL errors keep the TASK-089
+  setting, whose default is ArduPilot's behaviour. MirageSITL stays an external
+  flight-dynamics model: do not modify
   ArduPilot `SIM_Multicopter`/`SIM_Plane` or the native firmware for these tasks
   without a recorded decision.
 
