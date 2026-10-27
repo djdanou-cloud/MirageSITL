@@ -2,33 +2,21 @@ import { describe, expect, it, vi } from 'vitest';
 import { AarRecord } from '@mirage/aar/record';
 import { RecordFlag } from '@mirage/aar/format';
 import { RecordingHandoff, createRecordingQueue } from '@mirage/aar/handoff';
-import { EwEngine } from '@mirage/ew/engine';
-import { MotorFaults } from '@mirage/physics/motor-fault';
-import { PhysicsSessionV2, isaPressurePa, type SessionFaultPort } from '@mirage/physics';
+import { createSessionFaultPort } from '@mirage/ew/session-port';
+import { DemoDynamics, PhysicsSessionV2, isaPressurePa, type SessionDynamics, type SessionFaultPort } from '@mirage/physics';
+import type { MotorFaults } from '@mirage/physics/motor-fault';
 import { ActuatorFrameCodecV2, HeaderV2, PilotFlagV2, PilotReaderV2, PilotWriterV2, RuntimeFlagV2, SensorFrameCodecV2, SensorKindV2, SensorValidityV2, SpscProducer, StateReaderV2,
   EwFlagV2, VehicleFlagV2, createSharedMemoryV2, createSpscQueue, newActuatorFrameV2, newFlightStateV2, newHeaderSnapshotV2,
-  newPilotInputV2, newSensorFrameV2, tickToNumber, type CommandResultV2 } from '@mirage/protocol';
+  newPilotInputV2, newSensorFrameV2, tickToNumber, type CommandResultV2, type EwEffect, type PhysicsHz } from '@mirage/protocol';
 
+/** The physics Worker's own EW port, so these tests drive the fault path the application runs. */
+const faultPort = createSessionFaultPort;
 /** A Main-side harness around a real PhysicsSessionV2 with a controllable clock. */
-function faultPort(): SessionFaultPort {
-  const motors = new MotorFaults([0, 1, 2, 3]);
-  const engine = new EwEngine(motors);
-  return {
-    apply: (command, tick) => engine.apply(command, tick),
-    reset: (seed) => engine.reset(seed),
-    advanceInto: (context) => engine.advanceInto({
-      dtS: context.dtS, simTimeS: context.simTimeS,
-      truthNorthM: context.northM, truthEastM: context.eastM, truthDownM: context.downM,
-    }),
-    get flags() { return engine.flags; },
-    get validityFlags() { return motors.vehicleFlags; },
-  };
-}
-function harness(faults: SessionFaultPort | null = null) {
+function harness(faults: SessionFaultPort | null = null, dynamics?: (hz: PhysicsHz) => SessionDynamics) {
   const time = { mono: 0, wall: 1_790_000_000_000 };
   const stateBuffer = createSharedMemoryV2(), sensorBuffer = createSpscQueue('sensor'), actuatorBuffer = createSpscQueue('actuator');
   const session = new PhysicsSessionV2({ type: 'init-v2', protocolVersion: 2, stateBuffer, sensorBuffer, actuatorBuffer },
-    { monotonicMs: () => time.mono, wallMs: () => time.wall + time.mono }, undefined, faults);
+    { monotonicMs: () => time.mono, wallMs: () => time.wall + time.mono }, dynamics, faults);
   const reader = new StateReaderV2(stateBuffer), pilotWriter = new PilotWriterV2(stateBuffer), header = newHeaderSnapshotV2();
   const state = newFlightStateV2(), previous = newFlightStateV2(), results: CommandResultV2[] = [];
   let requestId = 0;
@@ -57,6 +45,22 @@ function harness(faults: SessionFaultPort | null = null) {
   return { time, session, reader, header, state, previous, results, command, stick, run, latest, actuatorBuffer, sensorBuffer, stateBuffer };
 }
 const armed = (flags: number) => (flags & VehicleFlagV2.Armed) !== 0;
+const jamming: EwEffect = { kind: 'gnss-jamming', severity: 1 };
+const motorLoss = (motorIndex: number, mode: 'power-cut' | 'instant-thrust-loss' = 'power-cut', remainingThrustFraction = 0): EwEffect =>
+  ({ kind: 'motor-loss', motorIndex, mode, remainingThrustFraction });
+/** fault.set fields due at `tick`; the harness adds the envelope. */
+const faultAt = (faultId: string, effect: EwEffect, options: { tick?: number; enabled?: boolean } = {}) =>
+  ({ atTick: { lo: options.tick ?? 2, hi: 0 }, faultId, enabled: options.enabled ?? true, effect, recovery: 'hold-offset' });
+/** Demo flight plus a declared motor-fault input: stands in for a dynamics that reads MotorFaults every step. */
+class MotorFaultInput extends DemoDynamics {
+  motors: MotorFaults | null = null;
+  constructor(hz: PhysicsHz, readonly rotorCount: number) { super(hz); }
+  useMotorFaults(motors: MotorFaults): void { this.motors = motors; }
+}
+function boundTable(dynamics: MotorFaultInput | undefined): MotorFaults {
+  if (!dynamics?.motors) throw new Error('The session bound no motor-fault table');
+  return dynamics.motors;
+}
 
 describe('PhysicsSessionV2 lifecycle', () => {
   it('announces readiness, publishes epoch 1 at tick 0, and steps at tick/hz once started', () => {
@@ -254,6 +258,108 @@ describe('PhysicsSessionV2 epochs, rates, and clock modes', () => {
     expect(h.session.disposed).toBe(true);
     expect(Atomics.load(new Int32Array(h.stateBuffer), HeaderV2.RuntimeFlags)).toBe(0);
     expect(h.command('sim.start')).toMatchObject({ type: 'reject-v2', code: 'BAD_STATE' });
+  });
+});
+
+describe('PhysicsSessionV2 fault and EW contract', () => {
+  it('rejects a position step beyond the 10 km norm at admission; one inside it applies and the session keeps running', () => {
+    const h = harness(faultPort());
+    // Each component is inside [-10 km, 10 km], but |b| = 11.3 km is beyond the PositionStep kernel envelope.
+    expect(h.command('fault.set', faultAt('spoof-far', { kind: 'position-step', offsetNedM: [8000, 8000, 0] })))
+      .toMatchObject({ type: 'reject-v2', code: 'OUT_OF_RANGE' });
+    expect(h.command('fault.set', faultAt('spoof-near', { kind: 'position-step', offsetNedM: [7000, 7000, 0] })))
+      .toMatchObject({ type: 'ack-v2', status: 'queued' });
+    h.command('sim.start'); h.run(50);
+    h.session.drain(result => h.results.push(result));
+    expect(h.session.fault).toBe('');
+    expect(h.results.some(r => r.type === 'ack-v2' && r.requestId === 2 && r.status === 'applied')).toBe(true);
+    expect(h.latest().ewFlags & EwFlagV2.PositionStep).toBeTruthy();
+    expect(tickToNumber(h.latest().tickId)).toBe(20);
+  });
+  it('reports a fault that cannot take effect at its tick as a final reject, faults the session, and sim.reset recovers it', () => {
+    const h = harness(faultPort(), hz => new MotorFaultInput(hz, 16));
+    // Four observation effects and twelve motors fill the 16-slot registry; motor 12 cannot be registered.
+    const effects: EwEffect[] = [jamming, { kind: 'position-step', offsetNedM: [10, 0, 0] },
+      { kind: 'velocity-drift', accelerationNedMps2: [0.1, 0, 0], maxSpeedMps: 2 },
+      { kind: 'magnetic', rotationRad: [0, 0, 0.5], biasBodyGauss: [0, 0, 0] },
+      ...Array.from({ length: 13 }, (_, motor) => motorLoss(motor))];
+    effects.forEach((effect, i) => expect(h.command('fault.set', faultAt(`fault-${i}`, effect))).toMatchObject({ status: 'queued' }));
+    h.command('sim.start'); h.run(20);
+    h.session.drain(result => h.results.push(result));
+    expect(h.results.filter(r => r.type === 'ack-v2' && r.status === 'applied' && r.requestId <= 17)).toHaveLength(16);
+    expect(h.results.find(r => r.type === 'reject-v2' && r.requestId === 17))
+      .toEqual({ type: 'reject-v2', requestId: 17, code: 'OVERLOAD', message: 'EW fault registry is full' });
+    expect(h.session.fault).toBe('EW fault registry is full');
+    h.reader.readHeader(h.header);
+    expect(h.header.runtimeFlags).toBe(RuntimeFlagV2.Ready | RuntimeFlagV2.Fault);
+    // The session stopped on its own: start is refused and reset needs no pause.
+    expect(h.command('sim.start')).toMatchObject({ type: 'reject-v2', code: 'BAD_STATE' });
+    expect(h.command('sim.reset', { seed: 3 })).toMatchObject({ type: 'ack-v2', status: 'applied', epoch: 2 });
+    expect(h.session.fault).toBe('');
+    expect([h.latest().epoch, h.latest().ewFlags]).toEqual([2, 0]);
+    expect(h.command('sim.start')).toMatchObject({ type: 'ack-v2', status: 'applied' });
+    h.run(20);
+    expect(tickToNumber(h.latest().tickId)).toBe(8);
+  });
+  it('rejects motor-loss at admission while the active dynamics reads no motor-fault table', () => {
+    const h = harness(faultPort());
+    const result = h.command('fault.set', faultAt('motor-0', motorLoss(0)));
+    expect(result).toMatchObject({ type: 'reject-v2', code: 'BAD_STATE' });
+    expect(result?.type === 'reject-v2' ? result.message : '').toContain('motor-loss');
+    expect(h.command('fault.set', faultAt('motor-0', motorLoss(0), { enabled: false }))).toMatchObject({ type: 'reject-v2', code: 'BAD_STATE' });
+    expect(h.command('fault.set', faultAt('motor-9', motorLoss(9)))).toMatchObject({ type: 'reject-v2', code: 'OUT_OF_RANGE' });
+    expect(h.command('fault.set', faultAt('jam', jamming))).toMatchObject({ type: 'ack-v2', status: 'queued' });
+  });
+  it('builds the motor table from the active dynamics and rebuilds it with the dynamics on sim.configure', () => {
+    const built: MotorFaultInput[] = [];
+    const h = harness(faultPort(), hz => { const dynamics = new MotorFaultInput(hz, 6); built.push(dynamics); return dynamics; });
+    expect(h.command('fault.set', faultAt('motor-5', motorLoss(5, 'power-cut', 0.25)))).toMatchObject({ status: 'queued' });
+    expect(h.command('fault.set', faultAt('motor-2', motorLoss(2, 'instant-thrust-loss', 0)))).toMatchObject({ status: 'queued' });
+    expect(h.command('fault.set', faultAt('motor-6', motorLoss(6)))).toMatchObject({ type: 'reject-v2', code: 'OUT_OF_RANGE' });
+    h.command('sim.start'); h.run(20);
+    expect(h.session.fault).toBe('');
+    const first = boundTable(built[0]);
+    expect([first.driveTorque(5, 2), first.driveTorque(4, 2), first.outsideValidity(2)]).toEqual([0.5, 2, true]);
+    expect(first.driveTorque(6, 2)).toBeNaN(); // motor IDs are exactly 0..5
+    expect(h.latest().ewFlags & EwFlagV2.MotorFault).toBeTruthy();
+    expect(h.latest().vehicleFlags & VehicleFlagV2.ModelOutsideValidity).toBeTruthy();
+    h.command('sim.pause');
+    expect(h.command('sim.configure', { hz: 800, clockMode: 'interactive' })).toMatchObject({ status: 'applied', epoch: 2 });
+    const second = boundTable(built[1]);
+    expect(second).not.toBe(first);
+    expect([second.driveTorque(5, 2), second.outsideValidity(2)]).toEqual([2, false]);
+    expect(h.latest().ewFlags & EwFlagV2.MotorFault).toBe(0);
+    expect(h.latest().vehicleFlags & VehicleFlagV2.ModelOutsideValidity).toBe(0);
+  });
+  it('sim.configure clears active faults like sim.reset and keeps the seed of the last reset', () => {
+    const port = faultPort(), resets = vi.spyOn(port, 'reset');
+    const h = harness(port);
+    expect(h.command('sim.reset', { seed: 7 })).toMatchObject({ status: 'applied', epoch: 2 });
+    expect(h.command('fault.set', faultAt('jam', jamming))).toMatchObject({ status: 'queued' });
+    h.command('sim.start'); h.run(20); h.command('sim.pause');
+    expect(h.latest().ewFlags & EwFlagV2.GnssJamming).toBeTruthy();
+    expect(h.command('sim.configure', { hz: 800, clockMode: 'interactive' })).toMatchObject({ status: 'applied', epoch: 3 });
+    expect(h.latest().ewFlags).toBe(0);
+    expect(resets.mock.calls.map(([seed]) => seed)).toEqual([7, 7]);
+  });
+  it('a session fault stops the session, so sim.reset recovers it while the pilot still holds arm', () => {
+    const h = harness();
+    h.command('sim.configure', { hz: 1200, clockMode: 'hitl-realtime' });
+    h.command('sim.start');
+    h.run(50, () => h.stick(0, true));
+    expect(armed(h.latest().vehicleFlags)).toBe(true);
+    h.time.mono += 1000; // the Worker stalled for a second
+    h.stick(0, true);
+    expect(h.session.pump()).toBe(-1);
+    expect([h.session.fault !== '', h.session.running, h.session.isArmed()]).toEqual([true, false, false]);
+    expect(h.command('sim.start')).toMatchObject({ type: 'reject-v2', code: 'BAD_STATE' });
+    expect(h.command('sim.reset', { seed: 0 })).toMatchObject({ type: 'ack-v2', status: 'applied', epoch: 3 });
+    expect(h.session.fault).toBe('');
+    h.reader.readHeader(h.header);
+    expect(h.header.runtimeFlags).toBe(RuntimeFlagV2.Ready);
+    expect(h.command('sim.start')).toMatchObject({ type: 'ack-v2', status: 'applied' });
+    h.run(50);
+    expect(tickToNumber(h.latest().tickId)).toBe(60);
   });
 });
 

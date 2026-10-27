@@ -1,6 +1,6 @@
 # SPECS_SHARED_MEMORY.md
 
-<!-- source-sha256: b406d17fee31158894f84d6fd380b468fc48b1780baf798f33885d831a7de967 -->
+<!-- source-sha256: b55ad80fea5c870770122a6ded390905d16feb06d536d729e9f61c0ff3de3517 -->
 
 Английский источник: [Source of truth](../SPECS_SHARED_MEMORY.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -416,9 +416,11 @@ export type CommandResultV2 =
 * faultId `[A-Za-z0-9_-]{1,64}`; manifestSha256 ровно 64 hex chars.
   severity/remainingThrustFraction [0,1], motor mode из указанного enum,
   motorIndex integer [0,31] и <rotorCount;
-  offset components [-10000,10000] m, drift acceleration components [-0.3,0.3]
-  m/s² и norm<=0.3; maxSpeed (0,20] m/s; magnetic rotation components [-pi,pi],
-  bias components [-2,2] gauss. Новые диапазоны требуют изменения spec/tests.
+  offset components [-10000,10000] m и norm<=10000 m — envelope ядра
+  PositionStep, поэтому шаг, принятый при приёме, всегда исполним; drift
+  acceleration components [-0.3,0.3] m/s² и norm<=0.3; maxSpeed (0,20] m/s;
+  magnetic rotation components [-pi,pi], bias components [-2,2] gauss. Новые
+  диапазоны требуют изменения spec/tests.
 * Scheduled command atTick >= next unintegrated tick, horizon <=10 s.
   Применять **перед** интеграцией указанного tick; одинаковый tick — порядок
   приёма, записанный в AAR. Past tick не переписывает историю.
@@ -426,12 +428,16 @@ export type CommandResultV2 =
   scalar state из preallocated slots. ACK/events идут в bounded outbox и
   отправляются postMessage после compute batch, без аллокаций внутри step.
 * `queued` — принято, но не применено; appliedTick в queued — плановый tick,
-  в applied — фактический. Нужен финальный applied/reject для каждого queued.
-  Очередь максимум 128 команд, overflow отклоняется без потери старых.
+  в applied — фактический. Нужен финальный applied/reject для каждого queued;
+  команда, которая не может вступить в силу на своём tick, никогда не
+  сообщается как `applied`. Очередь максимум 128 команд, overflow отклоняется
+  без потери старых.
 * Pause/dispose обслуживаются вне fixed-step и без ожидания actuator.
   Reset/configure/model.load допустимы paused+disarmed. Они отменяют queued
-  команды с reject BAD_STATE, сбрасывают clocks/history/queues и увеличивают
-  epoch. ACK содержит новый epoch; команды со старым expectedEpoch отвергаются.
+  команды с reject BAD_STATE, сбрасывают clocks/history/queues, снимают все
+  активные отказы (`sim.configure` сохраняет EW seed последнего `sim.reset`) и
+  увеличивают epoch. ACK содержит новый epoch; команды со старым expectedEpoch
+  отвергаются.
 * Model manifest заранее загружен/проверен по hash вне hot path. Подготовка
   backend выполняется paused; swap только после успешной проверки/инициализации.
   Ошибка сохраняет предыдущую модель в paused состоянии, без partial swap.
@@ -445,16 +451,38 @@ export type CommandResultV2 =
   `queued`, затем итоговый `applied` (новая epoch), `ASSET_MISSING` или
   `BAD_STATE`; пока загрузка не завершена, все прочие команды, кроме
   `worker.dispose`, отклоняются с BAD_STATE. Отменённые команды отклоняются
-  в порядке их срока. JSON Schema не может выразить лимит 16 KiB и ограничение
-  нормы дрейфа; оба проверяет валидатор TypeScript.
+  в порядке их срока. JSON Schema не может выразить лимит 16 KiB, ограничение
+  нормы дрейфа и ограничение нормы смещения; все три проверяет валидатор
+  TypeScript.
 * Backend, который не может моделировать запланированную команду, отклоняет её
-  при приёме с BAD_STATE и причиной (`ControlTargetV2.unsupportedReason`);
-  demo backend не имеет модели атмосферы или EW, поэтому отклоняет каждую
-  команду `weather.set` и `fault.set`. Вне потока команд/результатов Worker
-  сообщает о fault сессии (например, неудачном `init-v2` или превышении сроков
-  HITL) как `{ type: 'fault-v2', protocolVersion: 2, message }`. Main проверяет
-  каждое сообщение Worker (`parseWorkerEventV2`) и игнорирует неизвестные;
-  Worker проверяет `init-v2` по форме и по layout каждого буфера.
+  при приёме с BAD_STATE и причиной (`ControlTargetV2.unsupportedReason`).
+  Demo backend не имеет модели атмосферы, поэтому отклоняет каждую команду
+  `weather.set`; сессия без EW port отклоняет каждую команду `fault.set`; а
+  `motor-loss` отклоняется, если активная динамика не читает таблицу отказов
+  моторов (`SessionDynamics.useMotorFaults`), — demo quad её не читает. Сессия
+  строит эту таблицу с motor IDs 0..rotorCount-1 активной динамики и
+  перестраивает её при каждой замене динамики.
+* Запланированная команда, которая не может вступить в силу на своём tick,
+  получает финальный reject (его возвращает `ControlTargetV2.applyScheduled`):
+  OVERLOAD при заполненном 16-слотовом реестре отказов, OUT_OF_RANGE, если ядро
+  эффекта отвергает параметры, принятые при приёме. После этого сессия
+  переходит в fault. Любой fault сессии (этот, превышение сроков HITL,
+  отвергнутый EW step, fault динамики) останавливает шаги, блокирует arm,
+  устанавливает флаг Fault в header и останавливает processor
+  (`ControlProcessorV2.halt`): команды с наступившим сроком больше не
+  применяются, `sim.start` отклоняется с BAD_STATE, а сессия считается paused,
+  поэтому `sim.reset`, `sim.configure` или смена модели допускаются (fault
+  снимает arm-защёлку пилота; внешне взведённый автопилот всё равно должен
+  выполнить disarm) и начинают epoch без отказов, отменяя оставшуюся очередь с
+  BAD_STATE.
+* Вне потока команд/результатов Worker сообщает об отказах как
+  `{ type: 'fault-v2', protocolVersion: 2, message }`. До `ready-v2` (например,
+  при неудачном `init-v2`) у Worker нет сессии, и Main считает отказ
+  фатальным. После `ready-v2` это fault сессии: Worker продолжает отвечать на
+  команды, Main оставляет Reset доступным без перезагрузки страницы и убирает
+  сообщение об отказе, когда флаг Fault в header снят. Main проверяет каждое
+  сообщение Worker (`parseWorkerEventV2`) и игнорирует неизвестные; Worker
+  проверяет `init-v2` по форме и по layout каждого буфера.
 
 Пример валидного JSON (время 1 секунда при 400 Гц):
 

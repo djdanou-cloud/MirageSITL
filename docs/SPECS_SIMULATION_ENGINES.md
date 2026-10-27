@@ -800,7 +800,9 @@ EK3_VEL_GATE: behavior depends on covariance, other sensors, and firmware.
 On disable, `hold-offset` decelerates drift velocity within limits while
 integrating b, then holds the offset. `step-to-truth` explicitly resets b/v
 with a discontinuity and AAR event. Never fade b without adjusting its
-velocity derivative. Reset clears all fault states and seed streams.
+velocity derivative. Reset clears all fault states and seed streams;
+`sim.configure` also clears all fault states and keeps the seed of the last
+reset.
 
 Small-offset diagnostic approximations are
 `delta_lat=bN/(M+h)`, `delta_lon=bE/((N_curv+h)*cos(lat))`, and
@@ -1626,6 +1628,9 @@ sets VehicleFlagV2.ModelOutsideValidity (bit 5) while any such fault is active.
 Reset clears all faults/flags. Rust tests retain spool decay after zero drive
 and verify the removed rotor's lever-arm moment. Full BET/mixer wiring and
 compensation flight tests remain separate from these independent references.
+No session dynamics reads a MotorFaults table yet: the demo quad and
+BetFlightDynamics have no motor-fault input (`SessionDynamics.useMotorFaults`),
+so the application rejects motor-loss at admission until one does (TASK-124).
 
 ### High-rate API and measurement boundary
 
@@ -1833,13 +1838,16 @@ never change the drift state.
 `EwEngine` (`packages/ew/src/engine.ts`) owns one preallocated instance of
 each effect and a 16-slot fault registry keyed by `faultId`. `apply(fault.set,
 tick)` runs at the tick boundary (`PhysicsSessionV2.applyScheduled`, through an injected `SessionFaultPort`) without
-allocation. The live Worker owns one `EwEngine` and a four-motor `MotorFaults` table. A session constructed without that port still rejects `fault.set`. `weather.set` stays rejected because the demo has no wind model. Each effect kind has one owning faultId (per motor for
+allocation. The live Worker owns one `EwEngine` behind `createSessionFaultPort` (`packages/ew/src/session-port.ts`), the same port its tests drive; the port owns no motor table. The session builds a `MotorFaults` table with motor IDs 0..rotorCount-1 of the active dynamics only when that dynamics reads one (`SessionDynamics.useMotorFaults`), binds it through `SessionFaultPort.bindMotors`, and rebuilds it whenever `sim.configure` replaces the dynamics; without a table, motor-loss is rejected at admission. `EwEngine` fixes its table at construction, so the port builds a new engine around each bound table and keeps the seed; binding happens only when a fault-free epoch starts. A session constructed without that port still rejects `fault.set`. `weather.set` stays rejected because the demo has no wind model. Each effect kind has one owning faultId (per motor for
 `motor-loss`); a newer faultId replaces the owner, disabling a non-owning or
 unknown faultId changes nothing, and a full registry returns `registry-full`.
-Disabling drift uses the command's `recovery`; motor-loss is forwarded to the
-physics `MotorFaults` and never touches observations. `reset(seed)` clears
-every effect, the registry and motor faults. `flags` reports the state ABI
-`ew_flags` bits.
+The session reports `registry-full` as a final OVERLOAD reject and a kernel
+`rejected` as a final OUT_OF_RANGE reject, never as applied, and then faults
+(TASK-124). Disabling drift uses the command's `recovery`; motor-loss is
+forwarded to the bound `MotorFaults` table and never touches observations.
+`reset(seed)` clears every effect, the registry and motor faults;
+`sim.configure` calls it with the seed of the last `sim.reset`. `flags`
+reports the state ABI `ew_flags` bits.
 
 `advanceInto(context)` advances jamming and drift on every physics step.
 `distortGpsInto` composes baseline -> position step plus drift (the summed NED
@@ -2151,7 +2159,7 @@ Collision construction belongs to a separate Worker. Stage owns a copy, validate
 
 Scenario admission snapshots and freezes configuration: id, physics hz 400/800/1200, uint32 seed, model/firmware SHA-256, duration 1..4320000 ticks, <=128 ordered events and an altitude-hold rubric. Only validated weather.set/fault.set protocol-v2 templates are admitted, with expectedEpoch=0, consecutive requestIds from 1 and atTick exactly matching event tick. `ScenarioBinder` binds the active epoch, allocates the next accepted request id, submits through the session queue on that simulation tick, and claims a fault applied only after an applied ACK. The runner returns immutable event indices, never allocates in polling, and uses simulation ticks; pauses consume no simulated time. Backwards/missed ticks return -2 instead of late execution. Reset explicitly rewinds the cursor. Provenance/seed/hz mismatches reject startup.
 
-The rubric requires every integer hold tick exactly once, finite altitude, actual autopilot source and healthy EKF when configured. Gaps, excess altitude error and unhealthy EKF fail; incomplete/synthetic traces block. Pilot-basics contains all-zero placeholder hashes for structural testing only; it is not a certified aircraft/firmware lesson. Native SITL EW closed-loop validation (TASK-042/043/059) is complete. TASK-075 admits instructor `fault.set` commands into the live session `EwEngine`. TASK-079 submits scenario faults on their tick and waits for the applied ACK. Weather events stay rejected on the demo. Placeholder lesson hashes are not a certified lesson.
+The rubric requires every integer hold tick exactly once, finite altitude, actual autopilot source and healthy EKF when configured. Gaps, excess altitude error and unhealthy EKF fail; incomplete/synthetic traces block. Pilot-basics contains all-zero placeholder hashes for structural testing only; it is not a certified aircraft/firmware lesson. Native SITL EW closed-loop validation (TASK-042/043/059) is complete. TASK-075 admits instructor `fault.set` commands into the live session `EwEngine`; TASK-124 rejects motor-loss there while the active dynamics reads no motor-fault table. TASK-079 submits scenario faults on their tick and waits for the applied ACK. Weather events stay rejected on the demo. Placeholder lesson hashes are not a certified lesson.
 
 ### Accessible interaction
 

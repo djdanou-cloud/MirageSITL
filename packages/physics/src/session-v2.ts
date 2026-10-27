@@ -1,10 +1,11 @@
 import { ActuatorFrameCodecV2, ControlFlag, ControlProcessorV2, HeaderV2, INPUT_TIMEOUT_MS, PilotFlagV2, PilotReaderV2,
   RuntimeFlagV2, SensorFrameCodecV2, SpscConsumer, StateWriterV2, UNKNOWN_U32, VehicleFlagV2, isValidPilotInputV2, newActuatorFrameV2,
   newFlightStateV2, newInput, newPilotInputV2, newSensorFrameV2, tickToNumber, validateSharedMemoryV2, validateSpscQueue,
-  type ClockModeV2, type CommandResultV2, type PhysicsHz, type ScheduledCommandV2, type TickId,
+  type ClockModeV2, type CommandResultV2, type PhysicsHz, type ScheduledCommandV2, type ScheduledRejectV2, type TickId,
   type WorkerInitV2, type FlightState, type FlightStateV2, type PilotInput, type ActuatorFrameV2, type SensorFrameV2 } from '@mirage/protocol';
 import { SteppingPolicy, newPumpReport, type StepGate } from './clock-policy.ts';
 import { DemoDynamics } from './demo-dynamics.ts';
+import { MotorFaults } from './motor-fault.ts';
 
 // Physics Worker session on ABI v2 (TASK-085). Owns the state ring writer,
 // pilot mailbox reader, actuator queue consumer, Control Protocol v2
@@ -18,6 +19,10 @@ export const DEMO_ROTOR_COUNT = 4;
 /** Rearming requires throttle at or below 5% (SPECS_SHARED_MEMORY, pilot mailbox v2). */
 export const REARM_THROTTLE_MAX = 0.05;
 const STANDARD_GRAVITY_MPS2 = 9.80665;
+/** Final rejects for a due command that cannot take effect; preallocated so the tick path never allocates. */
+const EW_REGISTRY_FULL: ScheduledRejectV2 = { code: 'OVERLOAD', message: 'EW fault registry is full' };
+const EW_FAULT_REJECTED: ScheduledRejectV2 = { code: 'OUT_OF_RANGE', message: 'EW fault command was rejected' };
+const NOT_MODELED: ScheduledRejectV2 = { code: 'BAD_STATE', message: 'The backend cannot model this scheduled command' };
 /**
  * ISA troposphere (US Standard Atmosphere 1976): p = p0 (1 - L h / T0)^(g M / (R L)),
  * L/T0 = 0.0065/288.15 = 2.25577e-5 1/m, exponent 5.25588. Valid 0..11 km; the
@@ -47,10 +52,6 @@ export interface SessionFaultContext {
   eastM: number;
   downM: number;
 }
-/**
- * Production fault registry. Weather and model loads stay outside this port.
- * `apply` runs at the tick boundary and must not allocate.
- */
 export interface SessionRecordSample {
   state: FlightStateV2;
   pilot: Float64Array;
@@ -58,12 +59,20 @@ export interface SessionRecordSample {
   sensor: SensorFrameV2 | null;
 }
 
+/**
+ * Production fault registry. Weather and model loads stay outside this port.
+ * `apply` runs at the tick boundary and must not allocate.
+ */
 export interface SessionFaultPort {
   apply(command: Extract<ScheduledCommandV2, { type: "fault.set" }>, tick: TickId): "applied" | "registry-full" | "rejected";
   reset(seed: number): void;
+  /**
+   * Cold: routes motor-loss into the active dynamics' table (null: nowhere).
+   * Called only when the session adopts a dynamics; every fault may clear.
+   */
+  bindMotors(motors: MotorFaults | null): void;
   advanceInto(context: SessionFaultContext): boolean;
   readonly flags: number;
-  readonly validityFlags: number;
 }
 
 /** A cold-selected dynamics implementation owns integration; the session owns transport. */
@@ -73,6 +82,12 @@ export interface SessionDynamics {
   readonly referenceRotorRpm?: number; readonly fault?: string; readonly externalArmed?: boolean;
   reset(): void; stepNow(input: PilotInput): void; dispose?(): void;
   useActuators?(frame: ActuatorFrameV2): void;
+  /**
+   * Only a dynamics that models motor faults implements this (cold). It must
+   * read the bound table, motor IDs 0..rotorCount-1, on every step. Without it
+   * the session builds no table and rejects motor-loss at admission.
+   */
+  useMotorFaults?(faults: MotorFaults): void;
 }
 
 export class PhysicsSessionV2 {
@@ -100,6 +115,10 @@ export class PhysicsSessionV2 {
   private readonly state = newFlightStateV2();
   private readonly bodyScratch = new Float64Array(3);
   private readonly faults: SessionFaultPort | null;
+  /** The active dynamics' motor-fault table; null when it models no motor faults. */
+  private motorFaults: MotorFaults | null = null;
+  /** Seed of the last sim.reset; sim.configure clears faults with it. */
+  private faultSeed = 0;
   private beforeTickHook: ((tick: TickId) => void) | null = null;
   private readonly faultContext: SessionFaultContext = { dtS: 0, simTimeS: 0, northM: 0, eastM: 0, downM: 0 };
   // Time registers: hot-path doubles live in fields, never in call arguments or returns (V8 boxes those).
@@ -136,6 +155,7 @@ export class PhysicsSessionV2 {
     this.dynamicsFactory = dynamicsFactory;
     this.dynamics = dynamicsFactory(hz);
     this.faults = faults;
+    this.bindMotorFaults();
     this.policy = new SteppingPolicy({ hz, mode: 'interactive' });
     this.processor = new ControlProcessorV2(this, { epoch: this.epoch, hz });
     this.writer.setRuntimeFlags(RuntimeFlagV2.Ready);
@@ -182,8 +202,7 @@ export class PhysicsSessionV2 {
     this.policy.pumpNow(this.gate, this.integrateTick, this.report);
     this.writer.setCounters(this.policy.clock.overruns, this.policy.droppedSteps);
     if (this.report.fault !== 'none') {
-      this.faultMessage = 'HITL session invalidated: a physics deadline was missed';
-      this.writer.setRuntimeFlags(RuntimeFlagV2.Ready | RuntimeFlagV2.Fault);
+      this.enterFault('HITL session invalidated: a physics deadline was missed');
       return -1;
     }
     if (this.report.waiting) return 1; // lockstep: poll for the autopilot's next frame
@@ -211,12 +230,16 @@ export class PhysicsSessionV2 {
   }
   reset(seed: number): void {
     this.dynamics.reset();
-    this.faults?.reset(seed >>> 0);
+    this.faultSeed = seed >>> 0;
+    this.faults?.reset(this.faultSeed);
   }
   configure(hz: PhysicsHz, clockMode: ClockModeV2): void {
     const next = this.dynamicsFactory(hz);
     this.dynamics.dispose?.();
     this.dynamics = next;
+    // The new epoch starts fault-free, as after sim.reset, keeping the last reset's seed.
+    this.bindMotorFaults();
+    this.faults?.reset(this.faultSeed);
     this.policy = new SteppingPolicy({ hz, mode: clockMode });
     this.writer.setPhysicsHz(hz);
   }
@@ -224,21 +247,52 @@ export class PhysicsSessionV2 {
     return Promise.reject(new Error(`Model ${modelId} is not available: the runtime has no model registry yet; only the built-in demo quad runs`));
   }
   commitModel(): void { throw new Error('Unreachable: prepareModel never resolves'); }
-  applyScheduled(command: ScheduledCommandV2, tick: TickId): void {
-    if (command.type !== "fault.set" || !this.faults) return;
+  applyScheduled(command: ScheduledCommandV2, tick: TickId): ScheduledRejectV2 | null {
+    // Admission keeps weather.set, and fault.set without the EW port, out of the queue.
+    if (command.type !== "fault.set" || !this.faults) return NOT_MODELED;
     const result = this.faults.apply(command, tick);
-    if (result === "applied") return;
-    this.faultMessage = result === "registry-full" ? "EW fault registry is full" : "EW fault command was rejected";
-    this.runningValue = false;
-    this.latch = "blocked";
-    this.writer.setRuntimeFlags(RuntimeFlagV2.Ready | RuntimeFlagV2.Fault);
+    if (result === "applied") return null;
+    const failure = result === "registry-full" ? EW_REGISTRY_FULL : EW_FAULT_REJECTED;
+    this.enterFault(failure.message);
+    return failure;
   }
   unsupportedReason(command: ScheduledCommandV2): string | null {
     if (command.type === "weather.set") return "The demo backend has no atmosphere/wind model; weather.set is not supported";
-    return this.faults ? null : "The demo backend has no sensor or fault model; fault.set is not supported";
+    if (!this.faults) return "The demo backend has no sensor or fault model; fault.set is not supported";
+    if (command.effect.kind === "motor-loss" && !this.motorFaults) {
+      return "The active dynamics has no per-motor model; motor-loss is not supported";
+    }
+    return null;
   }
 
   // --- internals -------------------------------------------------------------
+
+  /**
+   * Session fault: stop stepping, block arming, and halt the processor, so
+   * sim.start is refused and only a new epoch (reset/configure/model swap)
+   * clears it. Allocation-free.
+   */
+  private enterFault(message: string): void {
+    this.faultMessage = message;
+    this.runningValue = false; this.latch = 'blocked';
+    this.processor.halt(message);
+    this.writer.setRuntimeFlags(RuntimeFlagV2.Ready | RuntimeFlagV2.Fault);
+  }
+
+  /**
+   * Cold: motor IDs 0..rotorCount-1 come from the active dynamics. One without
+   * a motor-fault input gets no table, so motor-loss is rejected at admission.
+   */
+  private bindMotorFaults(): void {
+    const dynamics = this.dynamics;
+    let table: MotorFaults | null = null;
+    if (dynamics.useMotorFaults) {
+      table = new MotorFaults(Array.from({ length: this.rotorCount() }, (_, id) => id));
+      dynamics.useMotorFaults(table);
+    }
+    this.motorFaults = table;
+    this.faults?.bindMotors(table);
+  }
 
   /** Completes reset/configure after the processor advanced the epoch. */
   private afterCommand(): void {
@@ -316,17 +370,9 @@ export class PhysicsSessionV2 {
       context.dtS = 1 / this.policy.hz;
       context.simTimeS = tickToNumber(tick) / this.policy.hz;
       context.northM = d.north; context.eastM = d.east; context.downM = d.down;
-      if (!this.faults.advanceInto(context)) {
-        this.faultMessage = "EW step rejected";
-        this.runningValue = false; this.latch = "blocked";
-        this.writer.setRuntimeFlags(RuntimeFlagV2.Ready | RuntimeFlagV2.Fault);
-      }
+      if (!this.faults.advanceInto(context)) this.enterFault("EW step rejected");
     }
-    if (this.dynamics.fault) {
-      this.faultMessage = this.dynamics.fault;
-      this.runningValue = false; this.latch = 'blocked';
-      this.writer.setRuntimeFlags(RuntimeFlagV2.Ready | RuntimeFlagV2.Fault);
-    }
+    if (this.dynamics.fault) this.enterFault(this.dynamics.fault);
     // Presentation time is the scheduled deadline in the shared wall timebase; freshness above used actual time.
     this.scheduledWallMs = this.wallMsNow - this.monoMs + this.policy.clock.nextMs;
     this.publish(tick);
@@ -362,7 +408,7 @@ export class PhysicsSessionV2 {
       ((d.flags & 2) !== 0 ? VehicleFlagV2.InputFailsafe : 0) |
       (this.isArmed() ? VehicleFlagV2.Armed : 0) |
       (this.dynamics.validityFlags ? VehicleFlagV2.ModelOutsideValidity : 0) |
-      (this.faults?.validityFlags ?? 0) |
+      (this.motorFaults?.vehicleFlags ?? 0) |
       (this.actuatorPending ? VehicleFlagV2.ActuatorValid : 0) |
       (this.runningValue ? 0 : VehicleFlagV2.Paused);
     s.ekfFlags = 0; s.ewFlags = this.faults?.flags ?? 0; s.sensorValidMask = 0; s.modelId = this.dynamics.modelId ?? DEMO_MODEL_ID;

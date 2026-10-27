@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://mirage-sitl.invalid/schemas/control-v2.schema.json",
   "title": "MirageSITL Worker Control Protocol v2 command",
-  "description": "Equivalent to parseControlCommandV2 in control-v2.ts except for rules JSON Schema cannot express: the 16 KiB serialized payload limit, the velocity-drift acceleration norm <= 0.3, and runtime checks (epoch, deduplication, tick horizon, rotor count).",
+  "description": "Equivalent to parseControlCommandV2 in control-v2.ts except for rules JSON Schema cannot express: the 16 KiB serialized payload limit, the velocity-drift acceleration norm <= 0.3, the position-step offset norm <= 10000 m, and runtime checks (epoch, deduplication, tick horizon, rotor count, backend support).",
   "$defs": {
     "uint32": {
       "type": "integer",

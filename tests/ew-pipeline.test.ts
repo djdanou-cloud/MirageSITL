@@ -133,7 +133,8 @@ describe("EW pipeline composition", () => {
       const target: ControlTargetV2 = {
         isArmed: () => false, rotorCount: () => 4, start() {}, pause() {}, dispose() {}, reset() {},
         configure() {}, prepareModel: () => Promise.resolve(), commitModel() {},
-        applyScheduled(command: ScheduledCommandV2, at: TickId) { if (command.type === "fault.set") engine.apply(command, at); },
+        applyScheduled: (command: ScheduledCommandV2, at: TickId) => command.type === "fault.set" && engine.apply(command, at) === "applied"
+          ? null : { code: "OUT_OF_RANGE", message: "EW fault command was rejected" },
         unsupportedReason: () => null,
       };
       const processor = new ControlProcessorV2(target), pipeline = new SensorPipeline(engine), base = gps(), packets: number[] = [];

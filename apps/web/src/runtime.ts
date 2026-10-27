@@ -40,6 +40,8 @@ import { applyAutopilotTelemetry } from "./hud/telemetry";
 
 export interface ViewStats {
   ready: boolean;
+  /** The physics session faulted; the Worker still answers and Reset starts a fault-free epoch. */
+  faulted: boolean;
   running: boolean;
   armed: boolean;
   pending: boolean;
@@ -130,6 +132,8 @@ export class SimulationRuntime {
   armed = false;
   pending = false;
   notice = "";
+  /** Session fault message shown until a new epoch clears the header Fault flag. */
+  private faultNotice = "";
   private deviceGeneration = 0;
   private readonly ekfFrame: MavFrame = newMavFrame();
   private ekfMonitor = new EkfMonitor(1, 1, 0, 1000);
@@ -177,6 +181,9 @@ export class SimulationRuntime {
   get running(): boolean {
     return (this.header.runtimeFlags & RuntimeFlagV2.Running) !== 0;
   }
+  get faulted(): boolean {
+    return (this.header.runtimeFlags & RuntimeFlagV2.Fault) !== 0;
+  }
   get epoch(): number {
     return this.header.sessionEpoch;
   }
@@ -191,7 +198,10 @@ export class SimulationRuntime {
         this.ready = true;
         return;
       case "fault-v2":
-        this.fail(event.message);
+        // Before ready-v2 the Worker never initialized. Afterwards only the
+        // session faulted: the Worker still answers, so Reset stays available.
+        if (this.ready) this.sessionFault(event.message);
+        else this.fail(event.message);
         return;
       case "ack-v2":
         if (event.requestId === this.pendingId && event.status === "applied")
@@ -213,6 +223,11 @@ export class SimulationRuntime {
     this.commands.cancelAll(message);
     this.notice = message;
     this.ready = this.armed = this.pending = false;
+  }
+  /** Queued commands keep their own final results; the Worker cancels them on Reset. */
+  private sessionFault(message: string) {
+    this.notice = this.faultNotice = message;
+    this.armed = false;
   }
   private send(
     type: (typeof COMMAND_TYPE)[LifecycleCommand] | "sim.configure",
@@ -376,6 +391,11 @@ export class SimulationRuntime {
     if (this.disposed) return;
     this.reader.readHeader(this.header);
     this.commands.epochChanged(this.epoch);
+    if (this.faultNotice !== "" && !this.faulted) {
+      // A new epoch cleared the session fault.
+      if (this.notice === this.faultNotice) this.notice = "";
+      this.faultNotice = "";
+    }
     if (this.source === "usb") {
       this.gamepad.poll(this.input, wallNow(), this.armed);
       if (this.gamepad.generation !== this.adapterGeneration) {
@@ -406,6 +426,7 @@ export class SimulationRuntime {
         tick = tickToNumber(s.tickId);
       this.report({
         ready: this.ready,
+        faulted: this.faulted,
         running: this.running,
         armed: this.armed,
         pending: this.pending,

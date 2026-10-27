@@ -1,7 +1,6 @@
 import { expect, it } from "vitest";
-import { EwEngine } from "@mirage/ew/engine";
-import { MotorFaults } from "@mirage/physics/motor-fault";
-import { PhysicsSessionV2, type SessionFaultPort } from "@mirage/physics";
+import { createSessionFaultPort } from "@mirage/ew/session-port";
+import { PhysicsSessionV2 } from "@mirage/physics";
 import { EwFlagV2, StateReaderV2, createSharedMemoryV2, createSpscQueue, newFlightStateV2, tickToNumber, type CommandResultV2 } from "@mirage/protocol";
 import fixture from "./fixtures/scenarios/pilot-basics.json";
 import { ScenarioBinder } from "../packages/scenarios/src/bind.ts";
@@ -47,18 +46,7 @@ it("applies a scenario fault on the live session tick and records a weather reje
   const scenario = parseScenario(fixture);
   let request = 100;
   const binder = new ScenarioBinder(scenario, () => request++);
-  const motors = new MotorFaults([0, 1, 2, 3]);
-  const engine = new EwEngine(motors);
-  const faults: SessionFaultPort = {
-    apply: (command, tick) => engine.apply(command, tick),
-    reset: (seed) => engine.reset(seed),
-    advanceInto: (context) => engine.advanceInto({
-      dtS: context.dtS, simTimeS: context.simTimeS,
-      truthNorthM: context.northM, truthEastM: context.eastM, truthDownM: context.downM,
-    }),
-    get flags() { return engine.flags; },
-    get validityFlags() { return motors.vehicleFlags; },
-  };
+  const faults = createSessionFaultPort();
   const time = { mono: 0, wall: 1_790_000_000_000 };
   const stateBuffer = createSharedMemoryV2();
   const session = new PhysicsSessionV2(
