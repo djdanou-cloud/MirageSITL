@@ -35,3 +35,13 @@ it("accepts varying drive torque through an allocation-free numeric boundary", (
   expect(f.driveTorqueFromArrayInto(7, source, out)).toBe(false);
   expect(out[0]).toBe(0.5);
 });
+it("sets a fault from a numeric array so tick-boundary commands pass no float argument", () => {
+  const f = new MotorFaults([7]),
+    remaining = new Float64Array([0.25]);
+  expect(f.setFromArray(7, "power-cut", remaining)).toBe(true);
+  expect(f.driveTorque(7, 2)).toBe(0.5);
+  expect(f.setFromArray(7, "power-cut", new Float64Array(0))).toBe(false);
+  remaining[0] = 1.5;
+  expect(f.setFromArray(7, "power-cut", remaining)).toBe(false);
+  expect(f.driveTorque(7, 2)).toBe(0.5);
+});

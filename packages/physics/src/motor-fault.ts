@@ -3,6 +3,7 @@ import { VehicleFlagV2 } from "@mirage/protocol";
 export class MotorFaults {
   private syntheticCount = 0;
   private readonly torqueInput = new Float64Array(1);
+  private readonly remainingInput = new Float64Array(1);
   get vehicleFlags(): number {
     return this.syntheticCount > 0 ? VehicleFlagV2.ModelOutsideValidity : 0;
   }
@@ -24,12 +25,24 @@ export class MotorFaults {
     this.modes.fill(0);
     this.fraction.fill(1);
   }
+  /** Low-rate convenience for setFromArray (a float argument may be boxed). */
   set(
     id: number,
     mode: "none" | "power-cut" | "instant-thrust-loss",
     remaining: number,
   ): boolean {
+    this.remainingInput[0] = remaining;
+    return this.setFromArray(id, mode, this.remainingInput);
+  }
+  /** Sets a motor fault with the remaining thrust fraction in `remainingSource[0]`; tick-boundary commands pass no float argument. */
+  setFromArray(
+    id: number,
+    mode: "none" | "power-cut" | "instant-thrust-loss",
+    remainingSource: Float64Array,
+  ): boolean {
+    const remaining = remainingSource[0];
     if (
+      remaining === undefined ||
       !Number.isInteger(id) ||
       this.present[id] !== 1 ||
       !Number.isFinite(remaining) ||

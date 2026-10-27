@@ -246,4 +246,50 @@ describe("EW pipeline composition", () => {
     const perWindow = windows.map(([t0, t1]) => gcStarts.filter(t => t >= t0! && t <= t1!).length);
     expect(perWindow, JSON.stringify(perWindow)).toContain(0);
   }, 120_000);
+
+  // TASK-126: fault.set applies at the tick boundary, so it must not allocate either. Fractional
+  // parameters and ticks past 2^32 are doubles, which V8 boxes when they cross a non-inlined call.
+  it("applies 1e6 fault commands of every effect without triggering GC", async () => {
+    const motors = new MotorFaults([0, 1, 2, 3]), engine = new EwEngine(motors);
+    engine.reset(8);
+    const effects: FaultCommand["effect"][] = [{ kind: "gnss-jamming", severity: 0.4 },
+      { kind: "position-step", offsetNedM: [30.5, -12.25, 1.5] },
+      { kind: "velocity-drift", accelerationNedMps2: [0.1, 0.2, 0], maxSpeedMps: 3.5 },
+      { kind: "magnetic", rotationRad: [0.1, 0.2, 0.3], biasBodyGauss: [0.01, 0.02, -0.03] },
+      { kind: "motor-loss", motorIndex: 1, mode: "power-cut", remainingThrustFraction: 0.25 }];
+    // Each effect enabled and disabled under its own faultId, then one faultId re-targeted through all of them.
+    const commands = effects.flatMap((effect, i) => [fault(`f${i}`, true, effect), fault(`f${i}`, false, effect, "step-to-truth")])
+      .concat(effects.map(effect => fault("moving", true, effect)), [fault("moving", false, effects[4]!)]);
+    const at: TickId = { lo: 0, hi: 1 };
+    const run = (calls: number) => {
+      let rejected = 0;
+      for (let i = 0; i < calls; i++) {
+        at.lo = i;
+        if (engine.apply(commands[i % commands.length]!, at) !== "applied") rejected++;
+      }
+      return rejected;
+    };
+    expect(run(200_000)).toBe(0);
+    const gcStarts: number[] = [];
+    const observer = new PerformanceObserver(list => { for (const e of list.getEntries()) gcStarts.push(e.startTime); });
+    observer.observe({ entryTypes: ["gc"] });
+    const gcIn = async (work: () => void) => {
+      const t0 = performance.now();
+      work();
+      const t1 = performance.now();
+      await new Promise(resolve => setTimeout(resolve, 100));
+      return gcStarts.filter(t => t >= t0 && t <= t1).length;
+    };
+    // As above, one-off engine work may land a GC in a window, so one GC-free window of three is required.
+    const perWindow: number[] = [];
+    let rejected = 0;
+    while (perWindow.length < 3 && !perWindow.includes(0)) perWindow.push(await gcIn(() => { rejected += run(1_000_000); }));
+    expect(rejected).toBe(0);
+    // Control: the same observer sees the scavenges of one small escaping object per call.
+    const sink: object[] = [];
+    const control = await gcIn(() => { for (let i = 0; i < 1_000_000; i++) sink[i & 1023] = { i }; });
+    observer.disconnect();
+    expect(perWindow, JSON.stringify(perWindow)).toContain(0);
+    expect(control).toBeGreaterThan(0);
+  }, 120_000);
 });

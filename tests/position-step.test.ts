@@ -90,6 +90,18 @@ describe("GNSS position step", () => {
     expect(step.schedule(0, 0, 0, 0.5)).toBe(false);
   });
 
+  it("schedules from arrays for tick-boundary commands, past 2^32 ticks, and rejects a missing tick", () => {
+    const step = new PositionStep(), due = new Float64Array([2 ** 32 + 5]);
+    expect(step.scheduleFrom([30.5, -12.25, 1.5], due)).toBe(true);
+    step.advanceTickFrom(new Float64Array([2 ** 32 + 4]));
+    expect(step.isActive).toBe(false);
+    step.advanceTickFrom(due);
+    expect([step.isActive, step.scheduledTick, ...step.offsetNedM]).toEqual([true, -1, 30.5, -12.25, 1.5]);
+    expect(step.scheduleFrom([1, 0, 0], new Float64Array(0))).toBe(false);
+    step.advanceTickFrom(new Float64Array(0)); // no tick: nothing changes
+    expect([step.scheduledTick, ...step.offsetNedM]).toEqual([-1, 30.5, -12.25, 1.5]);
+  });
+
   it("converts MSL through the geoid so H stays MSL after the step", () => {
     // Undulation grows 0.2 m per degree east; a pure Down step keeps lat/lon, so H changes by exactly -D.
     const spec = { latStartDeg: 90, latStepDeg: -90, latCount: 3, lonStartDeg: -180, lonStepDeg: 1, lonCount: 360,

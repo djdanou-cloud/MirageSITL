@@ -2,6 +2,8 @@
 export class MagneticAnomaly {
   private readonly matrix: Float64Array;
   private readonly bias: Float64Array;
+  private readonly rotationInput: [number, number, number] = [0, 0, 0];
+  private readonly biasInput: [number, number, number] = [0, 0, 0];
   constructor(
     rotationRad: readonly [number, number, number],
     biasBodyGauss: readonly [number, number, number],
@@ -31,12 +33,22 @@ export class MagneticAnomaly {
     ]);
     this.bias = new Float64Array(biasBodyGauss);
   }
-  /**
-   * Reconfigures rotation (rad) and body bias (gauss) in place without
-   * allocating, for tick-boundary fault commands. False (unchanged) if any
-   * value is non-finite.
-   */
+  /** Low-rate convenience for configureFrom (float arguments may be boxed). */
   configure(roll: number, pitch: number, yaw: number, bx: number, by: number, bz: number): boolean {
+    const r = this.rotationInput, b = this.biasInput;
+    r[0] = roll; r[1] = pitch; r[2] = yaw;
+    b[0] = bx; b[1] = by; b[2] = bz;
+    return this.configureFrom(r, b);
+  }
+  /**
+   * Reconfigures rotation (rad) and body bias (gauss) in place for
+   * tick-boundary fault commands. Both are read from arrays, so no float
+   * crosses a call and nothing is allocated. False (unchanged) if any value
+   * is non-finite.
+   */
+  configureFrom(rotationRad: readonly [number, number, number], biasBodyGauss: readonly [number, number, number]): boolean {
+    const roll = rotationRad[0], pitch = rotationRad[1], yaw = rotationRad[2];
+    const bx = biasBodyGauss[0], by = biasBodyGauss[1], bz = biasBodyGauss[2];
     if (!Number.isFinite(roll) || !Number.isFinite(pitch) || !Number.isFinite(yaw) ||
       !Number.isFinite(bx) || !Number.isFinite(by) || !Number.isFinite(bz)) return false;
     const cr = Math.cos(roll), sr = Math.sin(roll), cp = Math.cos(pitch), sp = Math.sin(pitch),
