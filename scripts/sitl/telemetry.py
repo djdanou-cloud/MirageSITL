@@ -46,6 +46,8 @@ def main():
     signal.signal(signal.SIGTERM, terminate)
     last_send = 0
     configured = False
+    # Parameter names the driver asked to read back; their PARAM_VALUE replies are forwarded.
+    requested = set()
     command_buffer = ""
     while True:
         ready, _, _ = select.select([connection.fd, sys.stdin], [], [], 0.001)
@@ -78,6 +80,10 @@ def main():
                         connection.mav.param_set_send(1, 1, f"SIM_MAG{compass}_OFS_{axis}".encode(), value, 9)
             elif experiment and kind == "parameters":
                 connection.mav.param_request_list_send(1, 1)
+            elif kind == "read-parameters":
+                for name in request["names"]:
+                    requested.add(name)
+                    connection.mav.param_request_read_send(1, 1, name.encode(), -1)
             elif experiment and kind == "flush":
                 emit({"flushed": True})
             else:
@@ -89,7 +95,7 @@ def main():
             if message.get_srcSystem() != 1 or message.get_srcComponent() != 1:
                 continue
             kind = message.get_type()
-            if kind in ("HEARTBEAT", "EKF_STATUS_REPORT", "GLOBAL_POSITION_INT", "LOCAL_POSITION_NED", "STATUSTEXT", "COMMAND_ACK", "EXTENDED_SYS_STATE", "HIGHRES_IMU", "RAW_IMU", "GPS_RAW_INT") or experiment and kind == "PARAM_VALUE":
+            if kind in ("HEARTBEAT", "EKF_STATUS_REPORT", "GLOBAL_POSITION_INT", "LOCAL_POSITION_NED", "STATUSTEXT", "COMMAND_ACK", "EXTENDED_SYS_STATE", "HIGHRES_IMU", "RAW_IMU", "GPS_RAW_INT") or kind == "PARAM_VALUE" and (experiment or message.param_id in requested):
                 emit({"message": message.to_dict(), "wireHex": message.get_msgbuf().hex()})
             if kind == "HEARTBEAT" and not configured:
                 connection.mav.request_data_stream_send(1, 1, 0, 10, 1)

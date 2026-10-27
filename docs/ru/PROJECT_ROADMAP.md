@@ -5,7 +5,7 @@
 Доказательства NACA6409: Python 3.12, NeuralFoil 0.3.3, AeroSandbox 4.2.10, NumPy 2.5.4; закреплены все 22 пакета окружения. Созданы 1210 точек: углы -30..30 градусов с шагом 0.5, десять Re от 1000 до 1000000, только несжимаемое течение. Достоверность >=0.9 имеют 601 узел; остальные 609 сохраняются, поиск учитывает минимум участвующих узлов. SHA-256 фикстуры d6d9793ea030c6b957fa9018ed5c3307891665829773574b2bacb26f1909c9a1. Генератор `--check`: код 0; семь тестов Python проходят (независимая геометрия NACA, прямые вызовы NeuralFoil, интерполяция, границы, достоверность и синтетическое происхождение в реестре). TypeScript, ESLint и сборка Vite: код 0; сохраняется предупреждение о размере пакета. Четыре файла Vitest выполняют 21 тест: 20 проходят, существующий тест NASA не запускает псевдоним python3 Windows; эквивалентный `python -I tests/fixtures/contact/generate_nasa_drop.py --check` проходит. Проверка хешей фикстур отдельно проходит. Первый запуск Vitest столкнулся с запретом переименования временных файлов песочницы; использование `.cache/tmp` в рабочем каталоге позволяет выполнить тесты. Проверка документации проходит (21 двуязычная пара, 86 задач, шесть раскладок); git diff --check проходит. Производственный движок, измеренная точность и READY автопилота не заявляются.
 
 
-<!-- source-sha256: 097123b515fab5cab47821e913c3cc36cbaa48a8c2d959ca0659d9bb4174c34e -->
+<!-- source-sha256: 703cf0a3b5efaa7449b20e3cf5577f516f121107a88a867fac5167e81e379168 -->
 
 Английский источник: [Source of truth](../PROJECT_ROADMAP.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -1066,18 +1066,33 @@ Google content без прав.
   Эти файлы, `native/ardupilot/patches/`, `tests/imu-noise-floor.test.ts` и отчёты `test-results/validation/task-089-imu-floor-*.json` добавлены в Touched Files для сборки, выбора и проверки патча. `CLAUDE.md` и `docs/ru/CLAUDE.md` также добавлены, потому что фиксируют решение, как и `docs/operations/runbook.md` и `docs/ru/runbook.md` для процедуры оператора.
 
   Свидетельства: закреплённый ArduCopter SITL собран здесь (ELF upstream `b54bef09…`; пропатченный ELF `06846b05…`, собранный скриптом с GCC 13.3.0) и выполнил полёты с неизменённым драйвером на Node 24.22.1 и pymavlink 2.4.50.
-  - С параметрами по умолчанию пропатченная прошивка побитно совпадает с upstream на всех 27 362 выборках `HIGHRES_IMU`.
+  - С параметрами по умолчанию пропатченная прошивка побитно совпала с upstream на всех 27 362 выборках `HIGHRES_IMU` в этой паре.
   - С отключёнными минимумами остаточное среднеквадратическое отклонение до армирования падает с 6.05e-4 м/с² и 4.78e-5 рад/с до не более 1.2e-6 м/с² и 8.1e-8 рад/с. Пределы заданы до измерения.
   - Прошивка upstream, получившая строки `off`, сохраняет свои минимумы, потому что молча пропускает неизвестные значения по умолчанию. Этот отрицательный контроль проваливается, как и должен.
   - Оба полёта пропатченной прошивки проходят проверки TASK-042 исходного потока и полёта.
   - `npx --no-install vitest run tests/error-ownership.test.ts tests/imu-noise-floor.test.ts tests/fixtures.test.ts tests/ardupilot-json.test.ts` — код 0, 37 тестов в 4 файлах; пересозданные фикстуры совпадают со своими зарегистрированными хешами.
 
+  Приращение 3 следует решению пользователя от 2026-10-27: нативный harness читает настройку, и пользователь принимает вызванную этим повторную заморозку TASK-059.
+  - `scripts/run-sitl.mjs` принимает `MIRAGE_SITL_IMU_NOISE_FLOOR` незаданной (`ardupilot`) или равной `off` и записывает её в свой отчёт.
+  - При `off` `scripts/sitl/driver.mjs` дописывает проверенный профиль в `quad.parm` и читает оба параметра обратно через `scripts/sitl/telemetry.py`. Он удерживает армирование, пока PARAM_VALUE не сообщит 0 для обоих, и иначе завершается с ошибкой через 20 с симуляции. Прогоны по умолчанию не отправляют ничего нового.
+  - `scripts/sitl/check-raw.py` включает кадры PARAM_VALUE обратного чтения, объявленные в `run.json`. `--reference` анализатора сравнивает выборки до первой команды драйвера.
+
+  Эти четыре скрипта добавлены в Touched Files для применения и аудита настройки.
+
+  Свидетельства (2026-10-27, `node scripts/run-sitl.mjs`):
+  - Upstream с настройкой по умолчанию и пропатченная прошивка с `off` проходят PASS.
+  - Полёт с `off` сообщает `SIM_ACC_FLOOR 0` и `SIM_GYR_FLOOR 0`, армируется на 42.25 с и проходит анализ минимумов и проверки TASK-042 исходного потока и полёта.
+  - Upstream с `off` отказывает на 20 с без армирования.
+  - Пропатченная прошивка по умолчанию совпадает с upstream на всех 13 082 выборках до первой команды. Время команд MAVLink различается между прогонами до 52 мс, поэтому прежнее совпадение всего полёта не гарантируется.
+  - `npx --no-install vitest run tests/imu-noise-floor.test.ts tests/error-ownership.test.ts tests/vehicle-manifest.test.ts tests/evidence-tools.test.ts tests/sitl-flight-trace.test.ts tests/integration/ew-sitl.test.ts tests/sitl-ew.test.ts` — код 0, 52 теста в 7 файлах.
+
   Для переключателя осталось:
   - Применить патч в сборке браузерного HAL с проверками TASK-046.
-  - Читать настройку в `run-sitl.mjs` и драйвере с обратным чтением PARAM_VALUE. Это меняет замороженный набор исходников TASK-059 (`tests/fixtures/scenarios/ew-matrix.json`), поэтому требует решения о повторной заморозке.
+  - Повторно заморозить TASK-059 с текущим драйвером на машине оператора; до этого `report-ekf.mjs` отклоняет новые проверочные записи РЭБ.
+  - Перезапустить `check-raw.py` на прежних записях TASK-042/043, чтобы обновить их аудиты.
 - **Title & Description:** Для каждого датчика и источника ошибки решить, кто её добавляет — MirageSITL или SITL-бэкенды датчиков ArduPilot, и доставить нужные поля через JSON-строку, браузерный HAL mailbox и инъекцию MAVLink ([V2_PLAN.md](V2_PLAN.md) B1). По умолчанию используется прошивка upstream. Единственный зафиксированный патч прошивки (решение от 2026-10-26) только отключает фиксированные минимумы шума IMU ArduPilot по запросу.
 - **Dependencies:** TASK-041, TASK-046, TASK-047, TASK-059, TASK-087.
-- **Touched Files:** `packages/autopilot/src/error-ownership.ts`, `packages/autopilot/package.json`, `tests/error-ownership.test.ts`, `tests/fixtures/sitl/error-ownership.json`, `tests/fixtures/sitl/ardupilot-catalog.json`, `tests/fixtures/registry.json`, `packages/autopilot/src/external-sitl.ts`, `packages/autopilot/src/wasm-sitl.ts`, `native/ardupilot/hal/browser_hal.h`, `native/ardupilot/hal/browser_hal.cpp`, `native/ardupilot/hal/sitl-state.patch`, `tests/fixtures/sitl/generate.py`, `tests/ardupilot-json.test.ts`, `native/ardupilot/patches/imu-noise-floor.patch`, `scripts/build-ardupilot-sitl.mjs`, `scripts/ownership-profile.mjs`, `scripts/check-imu-noise-floor.mjs`, `tests/imu-noise-floor.test.ts`, `test-results/validation/task-089-imu-floor-*.json`, `CLAUDE.md`, `docs/ru/CLAUDE.md`, `docs/operations/runbook.md`, `docs/ru/runbook.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
+- **Touched Files:** `packages/autopilot/src/error-ownership.ts`, `packages/autopilot/package.json`, `tests/error-ownership.test.ts`, `tests/fixtures/sitl/error-ownership.json`, `tests/fixtures/sitl/ardupilot-catalog.json`, `tests/fixtures/registry.json`, `packages/autopilot/src/external-sitl.ts`, `packages/autopilot/src/wasm-sitl.ts`, `native/ardupilot/hal/browser_hal.h`, `native/ardupilot/hal/browser_hal.cpp`, `native/ardupilot/hal/sitl-state.patch`, `tests/fixtures/sitl/generate.py`, `tests/ardupilot-json.test.ts`, `native/ardupilot/patches/imu-noise-floor.patch`, `scripts/build-ardupilot-sitl.mjs`, `scripts/ownership-profile.mjs`, `scripts/check-imu-noise-floor.mjs`, `scripts/run-sitl.mjs`, `scripts/sitl/driver.mjs`, `scripts/sitl/telemetry.py`, `scripts/sitl/check-raw.py`, `tests/imu-noise-floor.test.ts`, `test-results/validation/task-089-imu-floor-*.json`, `CLAUDE.md`, `docs/ru/CLAUDE.md`, `docs/operations/runbook.md`, `docs/ru/runbook.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
 - **Interfaces / Contracts:** Версионированная матрица владения (источник ошибки → владелец, путь доставки, параметры ArduPilot для нейтрализации, а начиная со схемы 2 — патчи прошивки целевой сборки). Допустимы только пути доставки, подтверждённые в репозитории: ключи JSON из оракула TASK-041, поля HAL payload в `browser_hal.h` и инъекция MAVLink `GPS1_TYPE 14` из TASK-059. Необязательные upstream-ключи JSON и имена параметров `SIM_*` требуют каталога, сгенерированного из закреплённого по хешу исходного кода ArduPilot. Патч нативной прошивки требует зафиксированного решения; решение от 2026-10-26 допускает только `imu-noise-floor`, значения по умолчанию которого воспроизводят upstream и который допускается лишь на путях, чьи сборки его применяют.
 - **DoD & Acceptance Criteria:**
   - Проверка матрицы отклоняет двойное владение, отсутствующие пути доставки и неподтверждённые имена параметров.

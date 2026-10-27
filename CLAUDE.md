@@ -205,8 +205,9 @@ policy copies; if a client loads neither pointer, open this file explicitly.
     `imu-noise-floor` firmware patch (`scripts/build-ardupilot-sitl.mjs`) adds
     `SIM_ACC_FLOOR`/`SIM_GYR_FLOOR`, which switch off the fixed IMU noise floors
     (`scripts/ownership-profile.mjs --imu-noise-floor off`). Unpatched firmware skips
-    them silently. `run-sitl.mjs` does not read the setting yet, because the frozen
-    TASK-059 matrix pins the driver.
+    them silently, so `run-sitl.mjs` with `MIRAGE_SITL_IMU_NOISE_FLOOR=off` holds arming
+    until the firmware confirms both values. The driver change means TASK-059 must be
+    re-frozen before new EW validation (accepted 2026-10-27).
   * TASK-090: fidelity metrics and `scripts/check-fidelity.mjs`, which never passes
     synthetic data; real flight and bench data remain BLOCKED_EXTERNAL.
 

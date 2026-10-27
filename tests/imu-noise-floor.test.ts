@@ -5,6 +5,7 @@ import { basename, dirname, join, resolve } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { imuNoiseFloorMatrix, ownershipParameterProfile, parseArduPilotCatalog } from '@mirage/autopilot/error-ownership';
 import catalogJson from './fixtures/sitl/ardupilot-catalog.json';
+import { nodeCheck } from './support/node-evidence';
 import ownership from './fixtures/sitl/error-ownership.json';
 
 const node = (script: string, args: string[], env: NodeJS.ProcessEnv = process.env) =>
@@ -99,14 +100,18 @@ describe('IMU noise-floor capture analysis', () => {
     const a = capture('reference-a', true), b = capture('reference-b', true), output = join(directory, 'reference.json');
     expect(node('scripts/check-imu-noise-floor.mjs', ['--input', a, '--expect', 'ardupilot', '--reference', b, '--output', output]).status).toBe(0);
     const value: unknown = JSON.parse(readFileSync(output, 'utf8'));
-    expect(value).toMatchObject({ status: 'PASS', reference: { compared: 14001, identical: 14001 } });
-    // One changed accelerometer value in mid-flight is a different firmware behaviour.
+    // Samples before the first driver command (mode at 30 s): 0..29.997 s at 3 ms.
+    expect(value).toMatchObject({ status: 'PASS', reference: { beforeS: 30, compared: 10000, identical: 10000 } });
+    // A changed value after the first command is outside the comparison; one before it fails.
     const lines = readFileSync(join(b, 'telemetry.ndjson'), 'utf8').split('\n');
     lines[12000] = (lines[12000] ?? '').replace(/"xacc":(-?[0-9.e-]+)/, '"xacc":1');
     writeFileSync(join(b, 'telemetry.ndjson'), lines.join('\n'));
+    expect(node('scripts/check-imu-noise-floor.mjs', ['--input', a, '--expect', 'ardupilot', '--reference', b, '--output', output]).status).toBe(0);
+    lines[5000] = (lines[5000] ?? '').replace(/"xacc":(-?[0-9.e-]+)/, '"xacc":1');
+    writeFileSync(join(b, 'telemetry.ndjson'), lines.join('\n'));
     const changed = node('scripts/check-imu-noise-floor.mjs', ['--input', a, '--expect', 'ardupilot', '--reference', b, '--output', output]);
     expect(changed.status).toBe(1);
-    expect(JSON.parse(readFileSync(output, 'utf8'))).toMatchObject({ status: 'FAIL', reasons: ['1 of 14001 HIGHRES_IMU samples differ from the reference'] });
+    expect(JSON.parse(readFileSync(output, 'utf8'))).toMatchObject({ status: 'FAIL', reasons: ['1 of 10000 HIGHRES_IMU samples differ from the reference'] });
     expect(node('scripts/check-imu-noise-floor.mjs', ['--input', a, '--expect', 'ardupilot', '--output', output, '--output', output]).status).toBe(1);
   });
 
@@ -142,6 +147,15 @@ describe('IMU noise-floor setting tools', () => {
     expect(node('scripts/ownership-profile.mjs', ['--matrix', matrixPath]).stdout).toBe(ownershipParameterProfile(ownership.matrices[2], catalog));
     expect(node('scripts/ownership-profile.mjs', ['--imu-noise-floor']).status).toBe(1);
   });
+
+  it('rejects an unknown harness setting before it reads any firmware or source', () => nodeCheck(`
+import {runSitl} from './scripts/run-sitl.mjs';
+const env={MIRAGE_SITL_BINARY:'/nonexistent',MIRAGE_SITL_SOURCE:'/nonexistent',MIRAGE_SITL_DRIVER:'/nonexistent',
+  MIRAGE_SITL_BINARY_SHA256:'a'.repeat(64),MIRAGE_SITL_DRIVER_SHA256:'a'.repeat(64)};
+await assert.rejects(runSitl({...env,MIRAGE_SITL_IMU_NOISE_FLOOR:'maybe'}),/MIRAGE_SITL_IMU_NOISE_FLOOR must be ardupilot or off/);
+// Missing prerequisites still report BLOCKED_EXTERNAL whatever the setting.
+assert.equal((await runSitl({MIRAGE_SITL_IMU_NOISE_FLOOR:'off'})).status,'BLOCKED_EXTERNAL');
+`));
 
   it('blocks the patched SITL build without a pinned ArduPilot checkout', () => {
     const env = { ...process.env };

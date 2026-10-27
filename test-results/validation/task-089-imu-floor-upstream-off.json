@@ -61,7 +61,7 @@
     }
   },
   "firmwareSha256": "b54bef09c7209f13a11d5591b362f958c26f304ae87871c833a30c4678a1abef",
-  "validatorSha256": "f9fbf303d2f5f27c4cb2a75d1b3ebde4a0fffff712fbccaed04e5fa970fa092c",
+  "validatorSha256": "49148962b2142547f6c7f842af7f73bbbdfdf50949a665ad6257f4f1be5b6e9a",
   "artifacts": [
     {
       "file": "run.json",

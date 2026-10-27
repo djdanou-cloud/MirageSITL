@@ -10,7 +10,7 @@ export function runOwned(command, args, options = {}) {
   const timeoutMs = options.timeoutMs ?? 120000, maxBytes = options.maxBytes ?? 16 * 1024 * 1024;
   if (!Number.isFinite(timeoutMs) || timeoutMs < 1 || !Number.isSafeInteger(maxBytes) || maxBytes < 1) throw new Error("Invalid child limits");
   return new Promise((resolve, reject) => {
-    const child = spawn(command, args, { cwd: options.cwd, shell: false, stdio: ["ignore", "pipe", "pipe"], detached: process.platform !== "win32" });
+    const child = spawn(command, args, { cwd: options.cwd, env: options.env, shell: false, stdio: ["ignore", "pipe", "pipe"], detached: process.platform !== "win32" });
     const stdout = [], stderr = []; let size = 0, failed = null, killer;
     const terminate = signal => {
       try {
@@ -88,6 +88,9 @@ export function assessFlight(v) {
 export async function runSitl(env = process.env) {
   if (!env.MIRAGE_SITL_BINARY || !env.MIRAGE_SITL_SOURCE || !env.MIRAGE_SITL_DRIVER || !hash(env.MIRAGE_SITL_BINARY_SHA256) || !hash(env.MIRAGE_SITL_DRIVER_SHA256))
     return report("sitl-report", "BLOCKED_EXTERNAL", ["Provide pinned clean ArduPilot source, ELF binary+SHA-256, and closed-loop driver+SHA-256; production physics/RC driver is not supplied by the demo"]);
+  // TASK-089 setting, read by the driver: 'ardupilot' (default) or 'off', which needs the imu-noise-floor patch.
+  const imuNoiseFloor = env.MIRAGE_SITL_IMU_NOISE_FLOOR ?? "ardupilot";
+  if (imuNoiseFloor !== "ardupilot" && imuNoiseFloor !== "off") throw new Error("MIRAGE_SITL_IMU_NOISE_FLOOR must be ardupilot or off");
   const source = env.MIRAGE_SITL_SOURCE;
   if (execFileSync("git", ["rev-parse", "HEAD"], { cwd: source, encoding: "utf8" }).trim() !== pin.commit ||
     execFileSync("git", ["status", "--porcelain", "--untracked-files=no"], { cwd: source, encoding: "utf8" }).trim()) throw new Error("ArduPilot source pin/cleanliness mismatch");
@@ -97,11 +100,13 @@ export async function runSitl(env = process.env) {
   try {
     // Driver owns its firmware/bridge children and must return only after cleanup.
     // A driver is trusted local executable code, not a remotely downloaded plugin.
-    const output = await runOwned(process.execPath, [env.MIRAGE_SITL_DRIVER, "--binary", env.MIRAGE_SITL_BINARY, "--parameters", fileURLToPath(new URL("../tests/fixtures/sitl/parameters.parm", import.meta.url))], { cwd });
+    const output = await runOwned(process.execPath, [env.MIRAGE_SITL_DRIVER, "--binary", env.MIRAGE_SITL_BINARY, "--parameters", fileURLToPath(new URL("../tests/fixtures/sitl/parameters.parm", import.meta.url))],
+      { cwd, env: { ...env, MIRAGE_SITL_IMU_NOISE_FLOOR: imuNoiseFloor } });
     const trace = JSON.parse(output);
     if (trace.schemaVersion !== 2) throw new Error("Native flight driver must provide trace v2 telemetry evidence");
     if (trace.provenance?.firmwareSha256 !== env.MIRAGE_SITL_BINARY_SHA256) throw new Error("Driver firmware identity mismatch");
-    const result = assessFlight(trace); result.inputSha256 = sha256(output); return result;
+    // A passing 'off' flight implies the driver confirmed both floor parameters before arming.
+    const result = assessFlight(trace); result.inputSha256 = sha256(output); result.imuNoiseFloor = imuNoiseFloor; return result;
   } finally { rmSync(cwd, { recursive: true, force: true }); }
 }
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

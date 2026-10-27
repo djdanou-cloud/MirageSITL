@@ -3217,9 +3217,9 @@ every file hash against the catalog. It builds with
 `./waf configure --board sitl` and `./waf copter`, checks that both parameter
 names are in the ELF, and writes `DIR/manifest.json`. Missing prerequisites exit
 2. Upstream firmware skips unknown defaults-file names without any log line or
-STATUSTEXT, so `off` on unpatched firmware changes nothing silently. A runner
-that applies `off` must therefore read both values back from the running
-firmware before it trusts the setting.
+STATUSTEXT, so `off` on unpatched firmware changes nothing silently. Any runner
+that applies `off` therefore reads both values back from the running firmware
+before it trusts the setting; the native harness does (below).
 
 Evidence (2026-10-26): native ArduCopter SITL runs on Linux at the pinned
 commit, using the unchanged TASK-042 driver (`scripts/sitl/driver.mjs`
@@ -3240,6 +3240,10 @@ measurement from the upstream floor:
 * `off`: residual standard deviation at most 1e-5 m/s² and 1e-6 rad/s;
 * `ardupilot`: at least 1e-4 m/s² and 1e-5 rad/s.
 
+`--reference CAPTURE` also compares the samples bit for bit, by firmware time,
+until the first driver command of either run. MAVLink commands reach the
+firmware at wall-clock times, so the flights may diverge after them.
+
 | Run | Accelerometer residual (m/s²) | Gyro residual (rad/s) | Expected | Result |
 |---|---|---|---|---|
 | Upstream, defaults | 6.05e-4, 6.06e-4, 6.07e-4 | 4.78e-5, 4.78e-5, 4.68e-5 | `ardupilot` | PASS |
@@ -3247,20 +3251,51 @@ measurement from the upstream floor:
 | Patched, `off` | 5.7e-11, 5.7e-11, 1.2e-6 (float32 at 9.8 m/s²) | 8.1e-8 on each axis | `off` | PASS |
 | Upstream given the `off` lines | 6.05e-4, 6.06e-4, 6.07e-4 | 4.78e-5, 4.78e-5, 4.68e-5 | `off` | FAIL, as the negative control expects |
 
-With defaults, all 27,362 `HIGHRES_IMU` samples of the patched flight match the
-upstream flight bit for bit by firmware time, including the motors-on segment.
-Both patched flights pass the TASK-042 raw MAVLink and flight audits: 67,233
-physics frames and a 10.19 s hold. The reports are in
-`test-results/validation/task-089-imu-floor-*.json`. The captures stay outside
-the repository and are identified there by hash.
+With defaults, the patched firmware's `HIGHRES_IMU` stream matches upstream bit
+for bit until the first driver command: 13,099 of 13,099 samples in this pair.
+Here the commands landed in the same firmware cycle, so all 27,362 samples of
+the flight matched. In the harness pair below they arrived 52 ms apart, and
+the flights diverged after the takeoff command. Both patched flights pass the
+TASK-042 raw MAVLink and flight audits: 67,233 physics frames and a 10.19 s
+hold. The reports are in `test-results/validation/task-089-imu-floor-*.json`.
+The captures stay outside the repository and are identified there by hash.
 
-`scripts/run-sitl.mjs` and the driver do not read the setting yet. The frozen
-TASK-059 matrix (`tests/fixtures/scenarios/ew-matrix.json`) pins the SHA-256 of
-`driver.mjs` and `telemetry.py`, and `scripts/report-ekf.mjs` rejects a
-validation capture with any other source closure. Wiring the setting with its
-read-back therefore needs a TASK-059 re-freeze decision. Until then, run the
-driver directly with `--parameters` set to a file that ends with the `off`
-profile.
+Decision 2026-10-27: the native harness reads the setting.
+`scripts/run-sitl.mjs` accepts `MIRAGE_SITL_IMU_NOISE_FLOOR` unset (meaning
+`ardupilot`) or `off`, and rejects any other value. It passes the value to the
+driver and records it in its report. With `ardupilot` the driver sends nothing
+new, so default runs behave as before. With `off` the driver:
+
+* appends the validated `off` profile to its `quad.parm`;
+* asks for both parameters with PARAM_REQUEST_READ after the first heartbeat,
+  and again every 5 s;
+* holds its mode and arm commands until PARAM_VALUE reports both as 0;
+* fails if that has not happened 20 s into the simulation.
+
+`run.json` records the setting, the expected values and the reported values.
+The sidecar forwards PARAM_VALUE only for the names the driver read back.
+`scripts/sitl/check-raw.py` includes exactly those names, as declared in
+`run.json`, in its independent comparison, so captures without the declaration
+audit as before.
+
+Harness evidence (2026-10-27), from `node scripts/run-sitl.mjs` with the same
+two firmware builds:
+
+| Firmware | Setting | run-sitl | Read-back | Floor analysis | TASK-042 audits |
+|---|---|---|---|---|---|
+| upstream | default | PASS | none sent | PASS (`ardupilot`) | PASS |
+| patched | `off` | PASS, armed at 42.25 s | `SIM_ACC_FLOOR 0`, `SIM_GYR_FLOOR 0` | PASS (`off`), residuals as above | PASS |
+| upstream | `off` | FAIL at 20 s, never armed | 4 requests, no reply | not applicable | not applicable |
+| patched | default | PASS | none sent | PASS; the 13,082 samples before the first command match the upstream run | PASS |
+
+These changes alter the driver, sidecar and raw-audit sources. The frozen
+TASK-059 matrix (`tests/fixtures/scenarios/ew-matrix.json`) still names the
+earlier `driver.mjs` and `telemetry.py`, so `scripts/report-ekf.mjs` rejects new
+EW validation captures until TASK-059 is re-frozen with the current driver. The
+user accepted this on 2026-10-27. EW calibration and validation also bind the
+firmware and parameter hashes, so both must use the same firmware and setting.
+Earlier TASK-042/043 audits name the earlier `check-raw.py`; re-run it to
+refresh them.
 
 Open items:
 
@@ -3272,8 +3307,8 @@ Open items:
 * Applying the `imu-noise-floor` patch in the browser HAL build
   (`scripts/build-ardupilot-hal.mjs`) with the TASK-046 checks; only then does
   `browser-hal` join the patch's paths.
-* Reading the IMU noise-floor setting in `scripts/run-sitl.mjs` and the driver,
-  with a PARAM_VALUE read-back, after the TASK-059 re-freeze decision.
+* Re-freezing TASK-059 with the current driver on the operator's machine
+  before new EW validation captures (decision 2026-10-27).
 
 ## Step interfaces v2 (TASK-088)
 

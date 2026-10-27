@@ -6,8 +6,9 @@
   "reasons": [],
   "reference": {
     "telemetrySha256": "625820234e17ce63953402807f32abb4aa0143fcce979dc78bbb5f895650b0b1",
-    "compared": 27362,
-    "identical": 27362,
+    "beforeS": 41.24375,
+    "compared": 13099,
+    "identical": 13099,
     "inputSamples": 27362,
     "referenceSamples": 27362
   },
@@ -60,7 +61,7 @@
     }
   },
   "firmwareSha256": "06846b0503a4b691763a00c821470c0020622ef137ec98cbd4d14c7ae6cc5868",
-  "validatorSha256": "f9fbf303d2f5f27c4cb2a75d1b3ebde4a0fffff712fbccaed04e5fa970fa092c",
+  "validatorSha256": "49148962b2142547f6c7f842af7f73bbbdfdf50949a665ad6257f4f1be5b6e9a",
   "artifacts": [
     {
       "file": "run.json",

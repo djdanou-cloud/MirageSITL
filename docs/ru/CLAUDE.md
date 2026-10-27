@@ -1,6 +1,6 @@
 # CLAUDE.md — MirageSITL agent instructions
 
-<!-- source-sha256: 7edbca8b7b2619b9c6e2215fc6c8721b8a1528581aad50e8cbcbd025d1a7d07a -->
+<!-- source-sha256: f13aaa9fa2a29cc159523bd7535645a5e8b3a2d92e5f33420536522b3046af0a -->
 
 Английский источник: [Source of truth](../../CLAUDE.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -232,8 +232,10 @@ Claude Code загружает этот корневой файл через с�
     (`scripts/build-ardupilot-sitl.mjs`) добавляет `SIM_ACC_FLOOR`/`SIM_GYR_FLOOR`,
     которые отключают фиксированные минимумы шума IMU
     (`scripts/ownership-profile.mjs --imu-noise-floor off`). Непропатченная прошивка
-    молча их пропускает. `run-sitl.mjs` пока не читает эту настройку, потому что
-    замороженная матрица TASK-059 закрепляет драйвер.
+    молча их пропускает, поэтому `run-sitl.mjs` с `MIRAGE_SITL_IMU_NOISE_FLOOR=off`
+    удерживает армирование, пока прошивка не подтвердит оба значения. Из-за
+    изменения драйвера TASK-059 нужно повторно заморозить перед новой проверкой РЭБ
+    (принято 2026-10-27).
   * TASK-090: метрики точности и `scripts/check-fidelity.mjs`, который никогда не
     пропускает синтетические данные; реальные полётные и стендовые данные остаются
     BLOCKED_EXTERNAL.

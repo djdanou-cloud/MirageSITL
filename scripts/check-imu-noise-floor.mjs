@@ -8,10 +8,11 @@
 // ArduPilot's linear gyro drift, and the firmware's own error terms are all that
 // HIGHRES_IMU shows once a straight line is removed per axis. With the motors
 // off ArduPilot adds no throttle noise, so the residual is the noise floor.
-// --reference compares every HIGHRES_IMU sample of the whole flight with another
-// capture by firmware time, e.g. patched firmware on defaults against upstream;
-// any differing value fails. Exit 0 PASS, 1 FAIL or invalid capture,
-// 2 BLOCKED_EXTERNAL (no capture).
+// --reference compares HIGHRES_IMU samples by firmware time with another capture,
+// e.g. patched firmware on defaults against upstream, up to the first driver
+// command of either run: MAVLink commands reach the firmware at wall-clock
+// times, so the flights may diverge after them. Any differing value fails.
+// Exit 0 PASS, 1 FAIL or invalid capture, 2 BLOCKED_EXTERNAL (no capture).
 import { createHash } from "node:crypto";
 import { readFileSync, statSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
@@ -60,17 +61,25 @@ function imuSamples(telemetry) {
   return samples;
 }
 
-/** Counts samples present in both captures and how many carry identical values on every axis. */
-export function compareSamples(telemetry, reference) {
+/**
+ * Counts samples present in both captures before `beforeS` and how many carry
+ * identical values on every axis.
+ */
+export function compareSamples(telemetry, reference, beforeS) {
   const a = imuSamples(telemetry), b = imuSamples(reference);
   let compared = 0, identical = 0;
   for (const [time, values] of a) {
     const other = b.get(time);
-    if (!other) continue;
+    if (!other || time * 1e-6 >= beforeS) continue;
     compared++;
     if (values.every((value, i) => Object.is(value, other[i]))) identical++;
   }
-  return { compared, identical, inputSamples: a.size, referenceSamples: b.size };
+  return { beforeS, compared, identical, inputSamples: a.size, referenceSamples: b.size };
+}
+/** Simulated time of a run's first driver command. */
+function firstCommandS(run) {
+  if (!Array.isArray(run.commands) || run.commands.length === 0 || !Number.isFinite(run.commands[0].timeS)) throw new Error("The capture has no driver command");
+  return Math.min(...run.commands.map((command) => command.timeS));
 }
 
 export function assessCapture(directory, expect, referenceDirectory = null) {
@@ -113,7 +122,9 @@ export function assessCapture(directory, expect, referenceDirectory = null) {
   let reference = null;
   if (referenceDirectory !== null) {
     const other = readFileSync(join(referenceDirectory, "telemetry.ndjson"));
-    reference = { telemetrySha256: sha(other), ...compareSamples(telemetry, other) };
+    const otherRun = JSON.parse(readFileSync(join(referenceDirectory, "run.json"), "utf8"));
+    const beforeS = Math.min(firstCommandS(run), firstCommandS(otherRun));
+    reference = { telemetrySha256: sha(other), ...compareSamples(telemetry, other, beforeS) };
     if (reference.compared < MIN_SAMPLES || reference.identical !== reference.compared) {
       failures.push(`${reference.compared - reference.identical} of ${reference.compared} HIGHRES_IMU samples differ from the reference`);
     }

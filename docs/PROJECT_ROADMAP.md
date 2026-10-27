@@ -1060,18 +1060,33 @@ Contracts, evidence and compute headroom that every later fidelity task builds o
   These files, `native/ardupilot/patches/`, `tests/imu-noise-floor.test.ts` and the `test-results/validation/task-089-imu-floor-*.json` reports joined Touched Files to build, select and verify the patch. `CLAUDE.md` and `docs/ru/CLAUDE.md` also joined, because they record the decision, as did `docs/operations/runbook.md` and `docs/ru/runbook.md` for the operator procedure.
 
   Evidence: the pinned ArduCopter SITL was built here (upstream ELF `b54bef09…`; patched ELF `06846b05…` built by the script with GCC 13.3.0) and flown with the unchanged driver on Node 24.22.1 and pymavlink 2.4.50.
-  - With default parameters, the patched firmware matches upstream bit for bit over all 27,362 `HIGHRES_IMU` samples.
+  - With default parameters, the patched firmware matched upstream bit for bit over all 27,362 `HIGHRES_IMU` samples in that pair.
   - With the floors off, the disarmed residual standard deviation falls from 6.05e-4 m/s² and 4.78e-5 rad/s to at most 1.2e-6 m/s² and 8.1e-8 rad/s. The limits were set before measurement.
   - Upstream firmware given the `off` lines keeps its floors, because it skips unknown defaults silently. This negative control fails as it should.
   - Both patched flights pass the TASK-042 raw and flight audits.
   - `npx --no-install vitest run tests/error-ownership.test.ts tests/imu-noise-floor.test.ts tests/fixtures.test.ts tests/ardupilot-json.test.ts` exits 0 with 37 tests in 4 files, and the regenerated fixtures match their registered hashes.
 
+  Increment 3 follows the user's decision of 2026-10-27: the native harness reads the setting, and the user accepts the resulting TASK-059 re-freeze.
+  - `scripts/run-sitl.mjs` accepts `MIRAGE_SITL_IMU_NOISE_FLOOR` unset (`ardupilot`) or `off` and records it in its report.
+  - With `off`, `scripts/sitl/driver.mjs` appends the validated profile to `quad.parm` and reads both parameters back through `scripts/sitl/telemetry.py`. It holds arming until PARAM_VALUE reports 0 for both and otherwise fails 20 s into the simulation. Default runs send nothing new.
+  - `scripts/sitl/check-raw.py` includes the read-back PARAM_VALUE frames that `run.json` declares. The analyzer's `--reference` compares samples until the first driver command.
+
+  These four scripts joined Touched Files to apply and audit the setting.
+
+  Evidence (2026-10-27, `node scripts/run-sitl.mjs`):
+  - Upstream with the default setting and patched with `off` both PASS.
+  - The `off` flight reports `SIM_ACC_FLOOR 0` and `SIM_GYR_FLOOR 0`, arms at 42.25 s, and passes the floor analysis and the TASK-042 raw and flight audits.
+  - Upstream with `off` fails closed at 20 s without arming.
+  - Patched with defaults matches upstream on all 13,082 samples before the first command. MAVLink command timing differs by up to 52 ms between runs, so the earlier whole-flight identity is not guaranteed.
+  - `npx --no-install vitest run tests/imu-noise-floor.test.ts tests/error-ownership.test.ts tests/vehicle-manifest.test.ts tests/evidence-tools.test.ts tests/sitl-flight-trace.test.ts tests/integration/ew-sitl.test.ts tests/sitl-ew.test.ts` exits 0 with 52 tests in 7 files.
+
   Remaining for the switch:
   - Apply the patch in the browser HAL build, with the TASK-046 checks.
-  - Read the setting in `run-sitl.mjs` and the driver, with a PARAM_VALUE read-back. This changes the frozen TASK-059 source closure (`tests/fixtures/scenarios/ew-matrix.json`), so it needs a re-freeze decision.
+  - Re-freeze TASK-059 with the current driver on the operator's machine; until then `report-ekf.mjs` rejects new EW validation captures.
+  - Re-run `check-raw.py` on earlier TASK-042/043 captures to refresh their audits.
 - **Title & Description:** Decide, per sensor and error source, whether MirageSITL or ArduPilot's SITL sensor backends add each error, and deliver the required fields through the JSON line, the browser HAL mailbox and MAVLink injection ([V2_PLAN.md](V2_PLAN.md) B1). Upstream firmware is the default. The one recorded firmware patch (decision 2026-10-26) only switches off ArduPilot's fixed IMU noise floors on request.
 - **Dependencies:** TASK-041, TASK-046, TASK-047, TASK-059, TASK-087.
-- **Touched Files:** `packages/autopilot/src/error-ownership.ts`, `packages/autopilot/package.json`, `tests/error-ownership.test.ts`, `tests/fixtures/sitl/error-ownership.json`, `tests/fixtures/sitl/ardupilot-catalog.json`, `tests/fixtures/registry.json`, `packages/autopilot/src/external-sitl.ts`, `packages/autopilot/src/wasm-sitl.ts`, `native/ardupilot/hal/browser_hal.h`, `native/ardupilot/hal/browser_hal.cpp`, `native/ardupilot/hal/sitl-state.patch`, `tests/fixtures/sitl/generate.py`, `tests/ardupilot-json.test.ts`, `native/ardupilot/patches/imu-noise-floor.patch`, `scripts/build-ardupilot-sitl.mjs`, `scripts/ownership-profile.mjs`, `scripts/check-imu-noise-floor.mjs`, `tests/imu-noise-floor.test.ts`, `test-results/validation/task-089-imu-floor-*.json`, `CLAUDE.md`, `docs/ru/CLAUDE.md`, `docs/operations/runbook.md`, `docs/ru/runbook.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
+- **Touched Files:** `packages/autopilot/src/error-ownership.ts`, `packages/autopilot/package.json`, `tests/error-ownership.test.ts`, `tests/fixtures/sitl/error-ownership.json`, `tests/fixtures/sitl/ardupilot-catalog.json`, `tests/fixtures/registry.json`, `packages/autopilot/src/external-sitl.ts`, `packages/autopilot/src/wasm-sitl.ts`, `native/ardupilot/hal/browser_hal.h`, `native/ardupilot/hal/browser_hal.cpp`, `native/ardupilot/hal/sitl-state.patch`, `tests/fixtures/sitl/generate.py`, `tests/ardupilot-json.test.ts`, `native/ardupilot/patches/imu-noise-floor.patch`, `scripts/build-ardupilot-sitl.mjs`, `scripts/ownership-profile.mjs`, `scripts/check-imu-noise-floor.mjs`, `scripts/run-sitl.mjs`, `scripts/sitl/driver.mjs`, `scripts/sitl/telemetry.py`, `scripts/sitl/check-raw.py`, `tests/imu-noise-floor.test.ts`, `test-results/validation/task-089-imu-floor-*.json`, `CLAUDE.md`, `docs/ru/CLAUDE.md`, `docs/operations/runbook.md`, `docs/ru/runbook.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
 - **Interfaces / Contracts:** Versioned ownership matrix (error source → owner, delivery path, ArduPilot parameters to neutralize, and from schema 2 the firmware patches of the target build). Only delivery paths with repository evidence are admissible: JSON keys covered by the TASK-041 oracle, HAL payload fields in `browser_hal.h`, and `GPS1_TYPE 14` MAVLink injection from TASK-059. Optional upstream JSON keys and `SIM_*` parameter names need a catalog generated from the hash-pinned ArduPilot source. A native firmware patch needs a recorded decision; the 2026-10-26 decision admits only `imu-noise-floor`, whose defaults reproduce upstream and which is admitted only on paths whose builds apply it.
 - **DoD & Acceptance Criteria:**
   - Matrix validation rejects double ownership, missing delivery paths and unverified parameter names.
