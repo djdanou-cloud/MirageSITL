@@ -1,4 +1,4 @@
-import { ControlFlag, INPUT_TIMEOUT_MS, StateFlag, isPhysicsHz, newState,
+import { ControlFlag, INPUT_CLOCK_TOLERANCE_MS, INPUT_TIMEOUT_MS, StateFlag, isPhysicsHz, newState,
   type FlightState, type PhysicsHz, type PilotInput } from '@mirage/protocol';
 
 const clamp = (x: number) => Math.max(-1, Math.min(1, x));
@@ -29,7 +29,7 @@ export class DemoDynamics {
     const s = this.state, DT = this.dt, nowMs = this.nowMs;
     const age = nowMs - input.wallTimeMs;
     const valid = (input.flags & (ControlFlag.Connected | ControlFlag.Armed)) === 3 &&
-      Number.isFinite(age) && age >= 0 && age <= INPUT_TIMEOUT_MS &&
+      Number.isFinite(age) && age >= -INPUT_CLOCK_TOLERANCE_MS && age <= INPUT_TIMEOUT_MS &&
       Number.isFinite(input.roll) && Number.isFinite(input.pitch) &&
       Number.isFinite(input.yaw) && Number.isFinite(input.throttle);
     const throttle = valid ? Math.max(0, Math.min(1, input.throttle)) : 0;

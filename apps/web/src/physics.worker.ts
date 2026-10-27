@@ -22,7 +22,9 @@ let haltPosted = false;
 let recorder: { handoff: RecordingHandoff; record: AarRecord } | null = null;
 type WorkerNotice = CommandResultV2 | WorkerFaultV2
   | { type: "scenario.submit"; command: ControlCommandV2 }
-  | { type: "scenario.reject"; message: string };
+  | { type: "scenario.reject"; message: string }
+  | { type: "pilot.rejected"; count: number; ageMs: number; wallMs: number; sampleWallMs: number; sampleId: number; expectedEpoch: number;
+      sessionEpoch: number; flags: number; valuesValid: boolean };
 
 function createdRequestId(): number {
   return session?.allocateRequestId() ?? 1;
@@ -76,6 +78,14 @@ function pump(): void {
   if (!session) return;
   const delay = session.pump();
   flush();
+  const rejection = session.pilotRejection;
+  if (rejection.pending) {
+    // Diagnostics (TASK-073): why the armed latch blocked; posted after the compute batch, never from the step.
+    rejection.pending = false;
+    post({ type: "pilot.rejected", count: rejection.count, ageMs: rejection.ageMs, wallMs: rejection.wallMs, sampleWallMs: rejection.sampleWallMs,
+      sampleId: rejection.sampleId, expectedEpoch: rejection.expectedEpoch, sessionEpoch: rejection.sessionEpoch, flags: rejection.flags,
+      valuesValid: rejection.valuesValid });
+  }
   if (session.fault) post({ type: 'fault-v2', protocolVersion: 2, message: session.fault });
   else if (delay >= 0) timer = setTimeout(pump, delay);
 }

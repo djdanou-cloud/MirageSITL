@@ -1,14 +1,17 @@
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { useEffect, useRef, useState, type ComponentType, type RefObject } from 'react';
+import { useEffect, useMemo, useRef, useState, type ComponentType, type RefObject } from 'react';
 import type { TilesScene } from '@mirage/terrain/tiles-scene';
 import type { TileFailure } from '@mirage/terrain/tiles-provider';
 import type { TerrainConfig } from './terrain-config';
+import type { MaterialDrape } from './render/material-drape';
+import type { ThermalLocation } from './render/g3-passes';
 import { Group, Quaternion, Vector3 } from 'three';
 import { interpolatePoseInto, interpolationAlpha, newRenderPoseV2, wallNow } from '@mirage/protocol';
 import type { SimulationRuntime } from './runtime';
 import { nedToRenderBasis, nedToRenderPositionInto } from './coordinates';
 import { g3Requested } from './render/g3-mode';
 import { rendererFactory, rendererModeFromSearch } from './render/renderer';
+import { MODEL_HEIGHT_OFFSET_M } from './vehicle-geometry';
 
 // TASK-066: `?renderer=webgpu|webgl2` selects the renderer adapter; otherwise R3F's default WebGL renderer.
 const search = globalThis.location?.search ?? '';
@@ -16,7 +19,6 @@ const rendererMode = rendererModeFromSearch(search);
 const g3 = g3Requested(search);
 const glOption = rendererMode ? rendererFactory(rendererMode) : { antialias: true, powerPreference: 'high-performance' as const };
 
-const MODEL_HEIGHT_OFFSET_M = 0.28; // hub height of the demo mesh above its NED reference point
 
 function Vehicle({ runtime }: { runtime: RefObject<SimulationRuntime | null> }) {
   const model = useRef<Group>(null);
@@ -54,33 +56,61 @@ function Vehicle({ runtime }: { runtime: RefObject<SimulationRuntime | null> }) 
     <mesh position={[0, 0.02, -0.3]}><sphereGeometry args={[0.04, 12, 8]} /><meshBasicMaterial color="#4effc6" /></mesh>
   </group>;
 }
-/** Streams one licensed 3D Tiles source in the render loop (never the physics step) and reports failures on change. */
-function TerrainTiles({ config, onFailures, tiles }: { config: TerrainConfig; onFailures: (failures: readonly TileFailure[]) => void; tiles: RefObject<TilesScene | null> }) {
+/**
+ * Streams the configured terrain sources (quantized-mesh ground and/or 3D Tiles
+ * such as buildings) in the render loop, never the physics step, and reports
+ * fetch failures when their count changes. All sources share one origin.
+ */
+function TerrainTiles({ config, onFailures, onMaterials, tiles, drapeRef }: { config: TerrainConfig; onFailures: (failures: readonly TileFailure[]) => void;
+  onMaterials: (status: string) => void; tiles: RefObject<TilesScene[]>; drapeRef: RefObject<MaterialDrape | null> }) {
   const { camera, gl, scene } = useThree();
   const reported = useRef(0);
   useEffect(() => {
     // Loaded on demand: terrain is off by default, so the loader stays out of the main bundle.
-    let instance: TilesScene | null = null, cancelled = false;
-    void import('@mirage/terrain/tiles-scene').then(({ TilesScene: Scene }) => {
-      if (cancelled) return;
-      instance = new Scene({ ...config, camera, renderer: gl });
-      scene.add(instance.tiles.group);
-      tiles.current = instance;
+    let instances: TilesScene[] = [], drape: MaterialDrape | null = null, cancelled = false;
+    const start = async () => {
+      // The material drape (TASK-073 P4) is optional: a failure is reported and the plain ground colour stays.
+      if (config.materialsUrl !== null) {
+        try {
+          const { loadMaterialDrape } = await import('./render/material-drape');
+          drape = await loadMaterialDrape(config.materialsUrl);
+          onMaterials(`Materials: ${drape.attributions.join('; ')}`);
+        } catch (error) {
+          onMaterials(`Materials unavailable: ${error instanceof Error ? error.message : String(error)}`);
+        }
+      }
+      const { TilesScene: Scene } = await import('@mirage/terrain/tiles-scene');
+      if (cancelled) { drape?.dispose(); return; }
+      drapeRef.current = drape; // also the thermal G-buffer's material classes (TASK-073 P5)
+      // WebGPU ignores onBeforeCompile: its drape sets a colour node instead (TASK-073 P6).
+      const hook = drape === null ? undefined
+        : 'isWebGPURenderer' in gl ? (await import('./render/material-drape-node')).drapeNodeHook(drape) : drape.apply.bind(drape);
+      if (cancelled) { drape?.dispose(); return; }
+      instances = config.sources.map(source => new Scene({ ...config, url: source.url, format: source.format, camera, renderer: gl, onGroundMaterial: hook }));
+      for (const instance of instances) scene.add(instance.tiles.group);
+      tiles.current = instances;
       reported.current = 0;
-    });
-    return () => { cancelled = true; instance?.dispose(); tiles.current = null; };
-  }, [config, camera, gl, scene, tiles]);
+    };
+    void start();
+    return () => { cancelled = true; for (const instance of instances) instance.dispose(); drapeRef.current = null; drape?.dispose(); tiles.current = []; };
+  }, [config, camera, gl, scene, tiles, onMaterials, drapeRef]);
   useFrame(() => {
-    const instance = tiles.current;
-    if (!instance) return;
-    instance.update();
-    if (instance.failures.length !== reported.current) { reported.current = instance.failures.length; onFailures(instance.failures.slice()); }
+    let failures = 0;
+    for (const instance of tiles.current) { instance.update(); failures += instance.failures.length; }
+    if (failures !== reported.current) { reported.current = failures; onFailures(tiles.current.flatMap(instance => instance.failures)); }
   });
   return null;
 }
 
-function G3Loader({ runtime, tiles }: { runtime: RefObject<SimulationRuntime | null>; tiles: RefObject<TilesScene | null> }) {
-  const [Passes, setPasses] = useState<ComponentType<{ runtime: RefObject<SimulationRuntime | null>; tiles: RefObject<TilesScene | null> }> | null>(null);
+interface G3Props {
+  runtime: RefObject<SimulationRuntime | null>;
+  tiles: RefObject<TilesScene[]>;
+  drape: RefObject<MaterialDrape | null>;
+  location: ThermalLocation;
+}
+
+function G3Loader(props: G3Props) {
+  const [Passes, setPasses] = useState<ComponentType<G3Props> | null>(null);
   useEffect(() => {
     let cancelled = false;
     void import('./render/g3-passes').then(module => { if (!cancelled) setPasses(() => module.G3Passes); });
@@ -92,30 +122,47 @@ function G3Loader({ runtime, tiles }: { runtime: RefObject<SimulationRuntime | n
     root.dataset.g3 = '1';
     return () => { delete root.dataset.g3; };
   }, []);
-  return Passes ? <Passes runtime={runtime} tiles={tiles} /> : null;
+  return Passes ? <Passes {...props} /> : null;
 }
 
-export function FlightScene({ runtime, terrain = null, onTerrainFailures = () => undefined }: {
+const NO_MATERIALS_CALLBACK = () => undefined;
+/** config/geodata.json default area centre, used only when no terrain origin is configured. */
+const DEFAULT_THERMAL_LOCATION: ThermalLocation = { latDeg: 32.20065261195932, lonDeg: 34.87163838506722 };
+
+export function FlightScene({ runtime, terrain = null, onTerrainFailures = () => undefined, onMaterials = NO_MATERIALS_CALLBACK }: {
   runtime: RefObject<SimulationRuntime | null>;
   terrain?: TerrainConfig | null;
   onTerrainFailures?: (failures: readonly TileFailure[]) => void;
+  /** Material drape status text for the attribution line (TASK-073 P4). */
+  onMaterials?: (status: string) => void;
 }) {
-  const tiles = useRef<TilesScene | null>(null);
-  return <Canvas shadows dpr={g3 ? 1 : [1, 1.5]} camera={{ position: [4, 3, 5], fov: 48, near: 0.05, far: 2000 }}
+  const tiles = useRef<TilesScene[]>([]);
+  const drape = useRef<MaterialDrape | null>(null);
+  // The thermal scene sits at the terrain origin; without terrain, at the default TASK-073 area of operation.
+  const thermalLocation = useMemo<ThermalLocation>(() => terrain
+    ? { latDeg: (terrain.originLatRad * 180) / Math.PI, lonDeg: (terrain.originLonRad * 180) / Math.PI }
+    : DEFAULT_THERMAL_LOCATION, [terrain]);
+  // Real terrain replaces the flat demo field: a daylight sky and kilometre-scale haze
+  // instead of the dark 120 m fog, and a far plane that reaches the horizon.
+  const sky = terrain ? '#a9c0d3' : '#111e29';
+  return <Canvas shadows dpr={g3 ? 1 : [1, 1.5]} camera={{ position: [4, 3, 5], fov: 48, near: 0.05, far: terrain ? 30000 : 2000 }}
     gl={glOption}>
-    <color attach="background" args={['#111e29']} />
-    <fog attach="fog" args={['#111e29', 30, 120]} />
-    <ambientLight intensity={1.1} />
-    <directionalLight position={[6, 12, 4]} intensity={2.2} castShadow shadow-mapSize={[1024, 1024]} />
-    <gridHelper args={[200, 200, '#5d929a', '#345b69']} position={[0, 0.01, 0]} />
+    <color attach="background" args={[sky]} />
+    <fog attach="fog" args={terrain ? [sky, 2000, 25000] : [sky, 30, 120]} />
+    {/* Real terrain: softer ambient and a low sun from the south-west so relief reads. */}
+    <ambientLight intensity={terrain ? 0.45 : 1.1} />
+    <directionalLight position={terrain ? [-6, 7, 8] : [6, 12, 4]} intensity={terrain ? 2.4 : 2.2} castShadow shadow-mapSize={[1024, 1024]} />
+    {!terrain && <>
+      <gridHelper args={[200, 200, '#5d929a', '#345b69']} position={[0, 0.01, 0]} />
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.02, 0]} receiveShadow>
+        <planeGeometry args={[2000, 2000]} /><meshStandardMaterial color="#14232d" roughness={1} />
+      </mesh>
+    </>}
     <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.015, 0]}>
       <ringGeometry args={[1.15, 1.18, 64]} /><meshBasicMaterial color="#70c4b1" transparent opacity={0.55} />
     </mesh>
-    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.02, 0]} receiveShadow>
-      <planeGeometry args={[2000, 2000]} /><meshStandardMaterial color="#14232d" roughness={1} />
-    </mesh>
-    {terrain && <TerrainTiles config={terrain} onFailures={onTerrainFailures} tiles={tiles} />}
-    {g3 && <G3Loader runtime={runtime} tiles={tiles} />}
+    {terrain && <TerrainTiles config={terrain} onFailures={onTerrainFailures} onMaterials={onMaterials} tiles={tiles} drapeRef={drape} />}
+    {g3 && <G3Loader runtime={runtime} tiles={tiles} drape={drape} location={thermalLocation} />}
     <Vehicle runtime={runtime} />
   </Canvas>;
 }

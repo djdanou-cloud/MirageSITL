@@ -955,6 +955,175 @@ is bound in `wrangler.jsonc`: enabling persistent R2 caching needs explicit
 permission. Tests use an in-memory emulator of the R2 binding subset, not
 Miniflare.
 
+### Generated terrain and buildings (TASK-073)
+
+`scripts/geodata/` builds the G3 ground from public data, configured by
+`config/geodata.json` (source bounding box, default Israel
+`34.2,29.4,35.9,33.4`; area of operation, default 32.20065261195932 N,
+34.87163838506722 E, radius 1000 m). `setup-wsl.sh` installs the toolchain in
+WSL user space without `sudo` (micromamba with GDAL, PROJ, PostgreSQL/PostGIS
+and the Python packages, the .NET 8 SDK with `pg2b3dm`, the EGM2008 grid) and
+records an explicit package lock.
+
+* `fetch_fabdem.py` reads the FABDEM V1-2 10-degree archives through HTTP byte
+  ranges and extracts only the 1-degree tiles inside the box, with retries.
+* `build_terrain.py` mosaics FABDEM (EGM2008 orthometric), converts it to WGS84
+  ellipsoidal heights (`EPSG:4326+3855` to `EPSG:4979`) and verifies the
+  conversion on identical pixels around the area centre: the median applied
+  difference must equal the EGM2008 undulation there (within 0.5 m, and the
+  undulation must lie in 15-25 m), otherwise the build stops, because a
+  missing grid makes PROJ fall back silently and buildings would float about
+  19 m. It records the ground height at the area centre as the render origin
+  (`areaOrigin`), then cuts quantized-mesh-1.0 tiles (EPSG:4326 TMS,
+  octvertexnormals) with Delatin triangulation in a process pool: zoom 13 over
+  the box and zoom 15 inside the area. Triangles are oriented counter-clockwise
+  seen from above (Delatin's image space reverses the winding).
+* `build_buildings.py` downloads Overture buildings with the `overturemaps`
+  CLI, indexes them as FlatGeobuf, extrudes each footprint to a PolyhedralSurface
+  Z whose base is the lowest geoid-corrected ground height under its vertices
+  (Overture `height`, else `num_floors` x 3 m, else 6 m), loads the solids into
+  a private PostGIS cluster on a Unix socket and runs `pg2b3dm`, which writes a
+  3D Tiles 1.1 implicit-tiling tileset.
+
+The viewer loads each terrain source as its own `TilesScene` sharing one
+origin: `VITE_MIRAGE_TERRAIN_URL` (quantized-mesh `layer.json`, through
+`QuantizedMeshPlugin`) and `VITE_MIRAGE_TILESET_URL` (3D Tiles, through
+`ImplicitTilingPlugin`). With real terrain the flat demo ground is hidden, the
+sky, haze and light are set for daylight and the far plane is 30 km; terrain
+tiles get a matte earth tone. The dev/preview server serves the generated data
+from `MIRAGE_GEODATA_DIR` at `/geodata/` to loopback clients only; the data stay
+outside the repository. Results on 2026-10-22: 9 FABDEM tiles, 19,214 terrain
+tiles (160 MB), geoid check 19.395 m applied against an EGM2008 undulation of
+19.396 m at the area, area ground 62.649 m ellipsoidal; 2,871,993 buildings in
+7,200 tiles (3.5 GB). Only 9,516 buildings carry a height and 26,770 a floor
+count; the rest use the 6 m default. FABDEM is CC BY-NC-SA 4.0 (non-commercial).
+
+The ground is coloured by a surface-material raster (P4), display only: a class
+is not a temperature. `extract_osm.py` reads the operator's Geofabrik extract
+with GDAL's OSM driver and keeps buildings and highways that intersect the
+area plus a 200 m margin. `build_material_map.py` rasterises a 1 m grid
+(2000 x 2000 for the 1 km radius) in a local transverse Mercator projection
+centred on the area origin, with the class legend and precedence of
+`packages/thermal/src/material-map.ts` (`config/material-classes.json`):
+building roof, then road buffered to half its legend width, then ESA WorldCover
+10 m v200, then synthetic ground. It writes `materials.bin` (uint8 class
+index, rows north to south), `materials.json` (schema
+`mirage.material-raster/1`: origin, extent, class table, counts) and a
+`data-manifest.json` (`mirage.thermal-data/1`) with the WorldCover tile and
+OSM extract hashes, licences and attributions. `check_material_map.mjs`
+cross-checks the raster against the TypeScript `MaterialMap` on the same
+inputs at 5,000 seeded pixel centres; the pass criterion, fixed before the
+first run, is at least 97% agreement with every disagreement within 1.5 px of
+a class boundary. In the app `VITE_MIRAGE_MATERIALS_URL` (set by
+`check-gpu-perf.mjs --geodata` when `materials/materials.json` exists) loads
+`apps/web/src/render/material-drape.ts` before the terrain: the class raster
+and a 256-entry palette become textures and an `onBeforeCompile` patch on each
+quantized-mesh tile material picks the colour by world position (render
+`x` east, `z` minus north); outside the raster the plain ground colour stays.
+A load failure is reported on the attribution line and leaves the plain
+ground. Results on 2026-10-22: 1,188 OSM buildings and 1,428 roads extracted
+(804 roads drawn inside the raster), no synthetic pixels, `materials.bin`
+SHA-256 `f143c7fe7714b974bfa69e725223af9585801accb002c9ae3fe297f68fd811ff`;
+the cross-check passed with 99.98% agreement (one mismatch, at a class edge).
+WorldCover is CC BY 4.0 and OpenStreetMap ODbL 1.0; both attributions are shown.
+
+The G3 thermal camera (P5) is `BOSON_640_50DEG` in
+`packages/thermal/src/thermal-camera.ts`: an `approximated` instrument profile
+(a third calibration kind besides `synthetic` and `measured`) with public
+FLIR Boson 640 data sheet values (640 x 512, 8-14 um, NETD 50 mK, 60 Hz) and the
+selected 8.7 mm, 50 degree horizontal lens (40.916 degree vertical). Like a
+synthetic profile it never claims instrument parity. The image chain is:
+
+* `AreaThermal` (`area-thermal.ts`) integrates the TASK-070 `ThermalField` for
+  every class of the material raster in five orientations (up, east, north,
+  west, south walls) with the solar ephemeris and clear-sky forcing, after a
+  24 h spin-up from air temperature, and then once per sensor second. The
+  emissivities are the section 9.1 values of `docs/needed_for_task073.md`
+  (vegetation 0.97, asphalt 0.93, bare soil 0.92, concrete and built-up 0.92,
+  water 0.95, galvanised roofs 0.28, tiles 0.91, gravel 0.96 instead of the
+  table's implausible 0.28, ice 0.97 instead of its snow 0.80), each with its
+  source; heat capacity, absorptance and conductance come from a documented
+  TASK-070 proxy class. Assumed weather: air 30 C, wind 3 m/s, cloud 0.1, deep
+  layer 25 C; default instant 2026-07-15 07:00 UTC (`?thermalUtc=` with a zone
+  overrides it).
+* `apps/web/src/render/thermal-gbuffer.ts` renders the scene from a
+  perspective camera boresighted with the FPV mount at the sensor resolution.
+  Each fragment reads its class from the material raster (synthetic ground
+  outside it), weights the five orientation temperatures by its flat face
+  normal from screen-space derivatives (buildings have no normals) and writes
+  temperature, emissivity and distance; cleared texels are sky, shown at the
+  Swinbank sky temperature. The display span is the surface temperature range
+  plus 2 K (a simple AGC).
+* `fpn.ts` generates a seeded fixed pattern (offset sigma 0.15 K per pixel,
+  0.25 K per column, 0.08 K per row; drift gain 0.04 K/K per pixel, 0.03 K/K per
+  column) and a focal-plane warm-up of 8 K with a 600 s time constant, all
+  assumed values. `ThermalSensorChain` runs the TASK-072 `ThermalNuc` on that
+  pattern at 60 Hz of wall time (shutter at power-on and every 180 s, closed 6
+  frames, averaged 8, opening 4), skipping and counting frames when rendering
+  falls behind (at most 4 per rendered frame). Because the scene adds linearly,
+  the shader adds the residual (o - bias) and gain x drift to the rendered
+  temperature, which equals the NUC output; the display holds its last image
+  while the shutter is closed. The chain costs about 0.9 ms per frame in Node
+  for 640 x 512 pixels.
+
+`?view=thermal` presents the thermal image (pillarboxed) for inspection; the
+captures keep the chase view. The G3 probe reports the profile, shutter state,
+NUC cycles and skipped sensor frames, and a shader failure now stays recorded
+(it fires once, at compile). Vegetation and open water evaporate (TASK-070
+latent flux, see the engine spec): with the assumed 60% humidity, tree canopy
+stays within about 3 K of air temperature at midday and reads darker than
+pavement, as in the FLIR sample. Known limits: one air temperature and
+humidity all day; no cast shadows, soil moisture or dew. The image is a plausible synthetic scene, not a measured
+Boson image.
+
+Anti-aliasing (2026-10-22, after operator review of the screenshots). Parked
+frames showed no dithering or film grain in the chase or thermal image
+(temporal change 0.00 and 0.19 grey levels; the 50 mK NETD is below one level);
+the visible "grain" was spatial aliasing that crawls in motion. Three causes
+were removed. Thermal: each Boson pixel point-sampled the scene (staircase
+edges, thin roads breaking into dashes); the G-buffer is now rendered at 3 x 3
+the sensor resolution and the pass averages the radiance of the 9 subsamples,
+as a microbolometer integrates over its pixel. Material colours: nearest
+lookups of the 1 m class raster shimmered at a distance; the drape now samples
+a precomputed RGBA colour texture with mipmaps and 8x anisotropy (the thermal
+G-buffer keeps the exact class texture, where classes must not blend). FPV:
+the scene render behind the fisheye is 4x multisampled and the fisheye and
+analog stages sample bilinearly. The analog interference is intentional; at
+the operator's request its default noise amplitude was halved
+(`DEFAULT_VIDEO_NOISE`: 0.01 + 0.04 x throttle instead of 0.02 + 0.08 x
+throttle; tearing scales with it), which halved the parked FPV frame-to-frame
+noise from 7.07 to 3.53 grey levels.
+On the RTX 4050 the median GPU time per frame rose from 5.4 ms to 6.8 ms
+(WebGPU smoke, PresentMon `GPUBusy`). Remaining stair steps on class
+boundaries are the 10 m WorldCover data resolution.
+
+### G3 passes on WebGPU (TASK-073 P6)
+
+The G3 passes run on both backends. `g3-common.ts` holds the probe, the FPV
+lens and `ThermalSceneState` (sensor clock and NUC, heat balance, display
+span, material raster), shared by `g3-passes.ts` (WebGL2) and
+`g3-passes-webgpu.ts`, which is loaded only for `WebGPURenderer`. The WebGPU
+passes are TSL node materials: `FisheyeNodeMaterial`, `AnalogNodeMaterial`
+(same lowbias32 hash; its per-pixel noise is keyed to a pixel origin that
+differs between backends, so noise statistics, not bytes, match WebGL2),
+`ThermalGBufferNode` and `ThermalCameraNodePass`, drawn with `QuadMesh` into
+`RenderTarget`s. The material drape uses a colour node (`material-drape-node.ts`)
+because WebGPU ignores `onBeforeCompile`. Differences handled explicitly:
+readback rows are padded to 256 bytes; screen y points down, so the G-buffer
+turns its derivative face normal towards the camera; float textures are read
+with `textureLoad`; `int(select(...))` needs a named integer variable to
+emit an `i32`. Shader and validation errors arrive asynchronously, so the
+probe counts uncaptured device errors. Two runtime faults were fixed: resizing
+a `RenderTarget` in place left bind groups on the destroyed texture (targets
+are recreated and rebound), and a resize during `renderer.init()` left the
+multisample buffer at the canvas's initial 300 x 150 (the size is re-applied
+after init; 0 of 10 starts failed afterwards, 3 of 8 before).
+`tests/browser/webgpu-passes.spec.ts` checks fisheye, analog, thermal (all
+palettes, fixed pattern and sky, 2 x 2 supersampling) and the G-buffer on both
+backends against the CPU mirrors; run it with `MIRAGE_BROWSER_GPU=hardware` to
+use the machine's GPU (on SwiftShader without a WebGPU adapter the WebGPU cases
+are skipped with the reason).
+
 ### Renderer adapter: WebGPU with WebGL2 fallback (TASK-066)
 
 `apps/web/src/render/renderer.ts` creates either backend behind one
@@ -1053,7 +1222,7 @@ The active demo's Main runtime fans decimated truth/pilot samples into an entire
 
 Functional browser evidence is WebGL2/SwiftShader plus actual Worker/SAB/IndexedDB. M4/RTX performance, measured thermal calibration, live browser autopilot warmup and full-rate synchronized recording remain separate acceptance gates.
 
-`PhysicsSessionV2` captures wall receipt time after the coherent pilot read, preventing a concurrent valid publication from appearing future-dated; truly future/stale inputs still disarm. WebGPU capability probing is shared once per document (including in-flight work); reload retries after driver changes. Renderer tests use an isolated harness and compare diagnostics within one document. Instructor motor loss selects channel index, power-cut versus synthetic instant-thrust-loss and remaining fraction; pending epoch-changing commands await their matching ACK even when the shared header advances first.
+`PhysicsSessionV2` captures wall receipt time after the coherent pilot read, preventing a concurrent valid publication from appearing future-dated, and accepts samples stamped up to `INPUT_CLOCK_TOLERANCE_MS` = 1 ms ahead because Main and the Worker round their wall clocks from separate time origins (TASK-073); inputs further in the future or stale still disarm. WebGPU capability probing is shared once per document (including in-flight work); reload retries after driver changes. Renderer tests use an isolated harness and compare diagnostics within one document. Instructor motor loss selects channel index, power-cut versus synthetic instant-thrust-loss and remaining fraction; pending epoch-changing commands await their matching ACK even when the shared header advances first.
 
 ### Thermal solvers, LWIR camera, and recorder storage (TASK-070–072, TASK-076–081)
 

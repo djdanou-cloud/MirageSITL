@@ -158,6 +158,22 @@ describe('PhysicsSessionV2 arming and input protection', () => {
     expect(armed(s.vehicleFlags)).toBe(false);
     expect(s.vehicleFlags & VehicleFlagV2.InputFailsafe).toBeTruthy();
   });
+  it('keeps a sample stamped within clock rounding of the read time fresh, and still blocks future-dated samples', () => {
+    const h = harness();
+    h.command('sim.start');
+    h.run(20, () => h.stick(0, true));
+    expect(armed(h.latest().vehicleFlags)).toBe(true);
+    // Captured in a G3 flight (2026-10-22): age -0.000244140625 ms, one double step at epoch milliseconds.
+    h.run(20, () => h.stick(0.7, true, { ageMs: -0.000244140625 }));
+    expect(armed(h.latest().vehicleFlags)).toBe(true);
+    expect(h.session.pilotRejection.count).toBe(0);
+    h.run(20, () => h.stick(0.7, true, { ageMs: -2 })); // beyond the 1 ms clock tolerance
+    const s = h.latest();
+    expect(armed(s.vehicleFlags)).toBe(false);
+    expect(s.vehicleFlags & VehicleFlagV2.InputFailsafe).toBeTruthy();
+    expect(h.session.pilotRejection.count).toBe(1);
+    expect(h.session.pilotRejection.ageMs).toBe(-2);
+  });
 });
 
 describe('PhysicsSessionV2 epochs, rates, and clock modes', () => {

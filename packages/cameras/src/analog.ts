@@ -38,8 +38,13 @@ export interface VideoNoiseConfig {
   tearAmplitudeUv: number;
 }
 
+/**
+ * Default interference. The noise amplitudes were halved on 2026-10-22 (TASK-073, operator review of the
+ * G3 screenshots): 0.02 + 0.08 x throttle reached about +-15 grey levels at hover and read as heavy
+ * grain; 0.01 + 0.04 x throttle stays visibly analog. Tearing scales with the noise amplitude.
+ */
 export const DEFAULT_VIDEO_NOISE: Readonly<VideoNoiseConfig> = Object.freeze({
-  seed: 1, frameRateHz: 30, lines: 480, readoutFraction: 0.9, noiseBase: 0.02, noiseThrottleGain: 0.08, scanlineIntensity: 0.15,
+  seed: 1, frameRateHz: 30, lines: 480, readoutFraction: 0.9, noiseBase: 0.01, noiseThrottleGain: 0.04, scanlineIntensity: 0.15,
   jellyAmplitudeUv: 0.004, vibFreqMinHz: 80, vibFreqMaxHz: 300, tearProbability: 0.02, tearAmplitudeUv: 0.01,
 });
 

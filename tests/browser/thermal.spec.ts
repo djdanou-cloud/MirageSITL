@@ -29,3 +29,22 @@ test("palette endpoints for cold and hot scenes", async ({ page }) => {
   expect((await run("ironbow", 400)).corners[0]).toEqual([255, 255, 255]);
   expect((await run("ironbow", 200)).corners[0]).toEqual([0, 0, 0]);
 });
+
+test("fixed-pattern noise and open sky match the CPU mirror (TASK-073 P5)", async ({ page }) => {
+  await page.goto("/");
+  const r = await page.evaluate(async url => (await import(url) as Harness).compareThermalFpn(), harnessUrl);
+  test.info().annotations.push({ type: "comparison", description: JSON.stringify({ mismatched: r.mismatched, worst: r.worst }) });
+  expect(r.shaderErrors).toBe(0);
+  expect(r.mismatched).toBe(0);
+  expect(r.worst).toBeLessThanOrEqual(2);
+});
+
+test("each sensor pixel averages the radiance of its 2 x 2 G-buffer subsamples (TASK-073)", async ({ page }) => {
+  await page.goto("/");
+  const r = await page.evaluate(async url => (await import(url) as Harness).compareThermalSupersampled(), harnessUrl);
+  test.info().annotations.push({ type: "comparison", description: JSON.stringify({ mismatched: r.mismatched, worst: r.worst }) });
+  expect(r.shaderErrors).toBe(0);
+  expect(r.targetSize).toEqual([64, 48]);
+  expect(r.mismatched).toBe(0);
+  expect(r.worst).toBeLessThanOrEqual(2);
+});

@@ -23,6 +23,8 @@ for (const c of cases) {
     expect(result.shaderErrors).toBe(0);
     expect(result.inside).toBe(result.pixels); // the whole frame maps into the source
     expect(result.mismatched / result.pixels, JSON.stringify(result)).toBeLessThanOrEqual(c.maxMismatch);
-    expect(result.worst).toBeLessThanOrEqual(c.maxMismatch === 0 ? 0 : 255);
+    // A source coordinate exactly on a texel boundary may take either neighbour on a hardware GPU
+    // (SwiftShader matches the float64 floor); everywhere else the identity remap must be exact.
+    if (c.maxMismatch === 0) { expect(result.offBoundaryWorst).toBe(0); expect(result.worst).toBeLessThanOrEqual(1); }
   });
 }

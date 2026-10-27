@@ -1,56 +1,53 @@
-// TASK-073 production passes. They run only for `?g3=1` and only on WebGL2:
-// a mounted FPV camera, fisheye remap, analog video, and a synthetic LWIR
-// camera fed by a G-buffer rasterized from the same scene (including tiles).
-// Residency is the tileset cache estimate, charged to both budgets the way
-// TASK-062 charges it. WebGPU has no fisheye or thermal pass, so those flags
-// stay false there. Nothing here writes physics, AAR, or React state.
+// TASK-073 production passes for `?g3=1`: a mounted FPV camera, fisheye
+// remap, analog video, and an LWIR camera (approximated FLIR Boson 640, 50 deg
+// lens, TASK-073 P5) fed by a G-buffer rasterized from the same scene
+// (including tiles): per-fragment material class and orientation select a
+// TASK-070 heat-balance temperature, and the sensor chain adds generated
+// fixed-pattern noise corrected by the TASK-072 shutter/NUC. The display holds
+// its last image while the shutter is closed. This module is the WebGL2
+// implementation; WebGPU uses the TSL ports in g3-passes-webgpu.ts (TASK-073
+// P6), loaded only for that backend. Residency is the tileset cache estimate,
+// charged to both budgets the way TASK-062 charges it. Nothing here writes
+// physics, AAR, or React state.
 import { useEffect, useRef, type RefObject } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import {
-  FloatType, Mesh, NearestFilter, OrthographicCamera, PlaneGeometry, RGBAFormat, Scene, ShaderMaterial, Vector2,
-  WebGLRenderTarget, WebGLRenderer, type Texture,
+  FloatType, LinearFilter, Mesh, NearestFilter, OrthographicCamera, PlaneGeometry, RGBAFormat, Scene, ShaderMaterial, Vector2,
+  WebGLRenderTarget, WebGLRenderer, type Camera, type Texture,
 } from "three";
 import { AnalogVideo, DEFAULT_VIDEO_NOISE, type VideoInput } from "@mirage/cameras/analog";
 import { createAnalogMaterial } from "@mirage/cameras/analog-material";
-import { FpvCamera, type CameraConfig } from "@mirage/cameras/fpv-camera";
+import { FpvCamera } from "@mirage/cameras/fpv-camera";
 import { createFisheyeMaterial, updateFisheyeMaterial } from "@mirage/cameras/fisheye-material";
 import { interpolationAlpha, interpolatePoseInto, newRenderPoseV2, wallNow } from "@mirage/protocol";
 import type { TilesScene } from "@mirage/terrain/tiles-scene";
-import { SYNTHETIC_LWIR_640, type ThermalScene } from "@mirage/thermal/thermal-camera";
 import { ThermalCameraPass } from "@mirage/thermal/thermal-material";
 import type { SimulationRuntime } from "../runtime";
+import { LENS, PROFILE, THERMAL_SUPERSAMPLE, ThermalSceneState, newProbe, publish, residentBytes, sensorPillarbox, type G3PassSet, type ThermalLocation } from "./g3-common";
+import { g3ProfileFromSearch, g3SkipFromSearch, g3ViewFromSearch, type G3View } from "./g3-mode";
+import type { MaterialDrape } from "./material-drape";
+import { ThermalGBuffer } from "./thermal-gbuffer";
+import { GpuPassTimer, type G3Pass } from "./gpu-pass-timer";
 
-const PROBE = "__mirageG3";
-const GBUFFER_VERTEX = "varying vec3 vView;\nvoid main() {\n  vec4 view = modelViewMatrix * vec4(position, 1.0);\n  vView = view.xyz;\n  gl_Position = projectionMatrix * view;\n}\n";
-const GBUFFER_FRAGMENT = "varying vec3 vView;\nvoid main() {\n  float distanceM = length(vView);\n  float temperatureK = 290.0 + 18.0 * clamp(1.0 - distanceM / 80.0, 0.0, 1.0);\n  gl_FragColor = vec4(temperatureK, 0.92, distanceM, 1.0);\n}\n";
-const THERMAL_SCENE: ThermalScene = { reflectedK: 250, airK: 288, extinctionPerM: 0.0002, spanMinK: 270, spanMaxK: 320 };
-const LENS: CameraConfig = {
-  lens: { fovHorizontalRad: (120 * Math.PI) / 180, distortion: { model: "kannala-brandt", k: [-0.02, 0.01, -0.004, 0.001] } },
-  mount: { offsetFrdM: [0.12, 0, -0.04], uptiltRad: 0.15 },
-};
+const PROFILE_PASSES = g3ProfileFromSearch(globalThis.location?.search ?? "");
+const { fpv: SKIP_FPV, thermal: SKIP_THERMAL } = g3SkipFromSearch(globalThis.location?.search ?? "");
+const SKIPPED = [SKIP_FPV ? "fpv" : "", SKIP_THERMAL ? "thermal" : ""].filter(Boolean).join(",");
 
-export interface G3Probe {
-  terrain: boolean;
-  fpv: boolean;
-  thermal: boolean;
-  gpuBytes: number;
-  cpuBytes: number;
-  dpr: number;
-  width: number;
-  height: number;
-  backend: string;
-  frames: number;
-  reason: string;
-}
+export type { G3Probe, ThermalLocation } from "./g3-common";
 
-function publish(canvas: HTMLCanvasElement, probe: G3Probe): void {
-  Reflect.set(canvas, PROBE, probe);
-}
+const PRESENT_VERTEX = "varying vec2 vUv;\nuniform vec2 uScale;\nvoid main() { vUv = uv; gl_Position = vec4(position.xy * uScale, 0.0, 1.0); }\n";
+const PRESENT_FRAGMENT = "varying vec2 vUv;\nuniform sampler2D uSource;\nvoid main() { gl_FragColor = texture2D(uSource, vUv); }\n";
 
-function colorTarget(width: number, height: number): WebGLRenderTarget {
-  const target = new WebGLRenderTarget(width, height, { depthBuffer: true });
-  target.texture.minFilter = NearestFilter;
-  target.texture.magFilter = NearestFilter;
+/**
+ * FPV chain targets: bilinear, so the fisheye remap and the analog line shifts interpolate; the
+ * scene render is 4x multisampled (TASK-073: the point-sampled chain aliased).
+ */
+function colorTarget(width: number, height: number, samples = 0): WebGLRenderTarget {
+  // Only colour is read downstream: resolving the multisampled depth/stencil too cost about 6 ms per
+  // frame on an Intel iGPU (ANGLE/D3D11 resolves depth with a shader), for no visible change.
+  const target = new WebGLRenderTarget(width, height, { depthBuffer: true, samples, resolveDepthBuffer: false, resolveStencilBuffer: false });
+  target.texture.minFilter = LinearFilter;
+  target.texture.magFilter = LinearFilter;
   target.texture.generateMipmaps = false;
   return target;
 }
@@ -68,14 +65,16 @@ function bindSource(material: ShaderMaterial, texture: Texture): void {
   if (uniform) uniform.value = texture;
 }
 
-class ProductionPasses {
-  readonly probe: G3Probe = {
-    terrain: false, fpv: false, thermal: false, gpuBytes: 0, cpuBytes: 0, dpr: 1, width: 0, height: 0, backend: "webgl2", frames: 0, reason: "",
-  };
+class ProductionPasses implements G3PassSet {
+  readonly probe = newProbe("webgl2", "chase");
   private readonly ortho = new OrthographicCamera(-1, 1, 1, -1, 0, 1);
   private readonly fpv: FpvCamera;
   private readonly video: AnalogVideo;
-  private readonly gbufferMaterial = new ShaderMaterial({ vertexShader: GBUFFER_VERTEX, fragmentShader: GBUFFER_FRAGMENT });
+  private readonly thermalState: ThermalSceneState<ThermalGBuffer>;
+  private readonly presentMaterial = new ShaderMaterial({ vertexShader: PRESENT_VERTEX, fragmentShader: PRESENT_FRAGMENT,
+    uniforms: { uSource: { value: null }, uScale: { value: new Vector2(1, 1) } }, depthTest: false, depthWrite: false });
+  private readonly presentScene = new Scene();
+  private readonly presentQuad: Mesh;
   private readonly fisheyeMaterial: ShaderMaterial;
   private readonly analogMaterial: ShaderMaterial;
   private readonly fisheyeScene = new Scene();
@@ -85,6 +84,8 @@ class ProductionPasses {
   private readonly thermal: ThermalCameraPass;
   private color: WebGLRenderTarget | null = null;
   private fisheye: WebGLRenderTarget | null = null;
+  /** Analog FPV output when the chase view is presented. */
+  private analog: WebGLRenderTarget | null = null;
   private gbuffer: WebGLRenderTarget | null = null;
   private width = 0;
   private height = 0;
@@ -94,8 +95,12 @@ class ProductionPasses {
   private readonly bufferSize = new Vector2();
   private previousShaderError: WebGLRenderer["debug"]["onShaderError"] = null;
   private disposed = false;
+  private readonly timer: GpuPassTimer | null;
 
-  constructor(private readonly renderer: WebGLRenderer) {
+  constructor(private readonly renderer: WebGLRenderer, location: ThermalLocation) {
+    const context = renderer.getContext();
+    this.timer = PROFILE_PASSES && context instanceof WebGL2RenderingContext ? GpuPassTimer.create(context) : null;
+    if (this.timer) Reflect.set(this.probe, "passMs", this.timer.meanMs);
     // A square placeholder puts the 120 deg corners past the 80 deg pinhole limit. 16:9 stays inside it; the real buffer size is applied in ensureSize.
     this.fpv = new FpvCamera(LENS, 16, 9);
     this.video = new AnalogVideo(DEFAULT_VIDEO_NOISE);
@@ -107,24 +112,39 @@ class ProductionPasses {
     this.analogQuad.frustumCulled = false;
     this.fisheyeScene.add(this.fisheyeQuad);
     this.analogScene.add(this.analogQuad);
-    this.thermal = new ThermalCameraPass(SYNTHETIC_LWIR_640, null);
-    this.thermal.configure(THERMAL_SCENE, "white-hot", true);
+    this.thermal = new ThermalCameraPass(PROFILE, null, THERMAL_SUPERSAMPLE);
+    this.thermalState = new ThermalSceneState(location, this.thermal, (area, drape) => new ThermalGBuffer(area, drape), this.probe);
+    this.presentQuad = new Mesh(new PlaneGeometry(2, 2), this.presentMaterial);
+    this.presentQuad.frustumCulled = false;
+    this.presentScene.add(this.presentQuad);
+    const presentSource = this.presentMaterial.uniforms.uSource;
+    if (presentSource) presentSource.value = this.thermal.target.texture;
     this.previousShaderError = renderer.debug.onShaderError;
-    renderer.debug.onShaderError = () => { this.shaderErrors += 1; };
+    renderer.debug.onShaderError = (gl, program, vertexShader, fragmentShader) => {
+      this.shaderErrors += 1;
+      // Replacing the hook silences three's own log; keep the first failure diagnosable.
+      if (this.shaderErrors === 1) {
+        console.error("G3 shader program failed", gl.getProgramInfoLog(program), gl.getShaderInfoLog(vertexShader), gl.getShaderInfoLog(fragmentShader));
+      }
+    };
     this.floatColor = renderer.getContext().getExtension("EXT_color_buffer_float") !== null;
     publish(renderer.domElement, this.probe);
   }
 
   private ensureSize(width: number, height: number): void {
-    if (width === this.width && height === this.height && this.color && this.fisheye && this.gbuffer) return;
+    if (width === this.width && height === this.height && this.color && this.fisheye && this.analog && this.gbuffer) return;
     this.color?.dispose();
     this.fisheye?.dispose();
+    this.analog?.dispose();
     this.gbuffer?.dispose();
     this.width = width;
     this.height = height;
-    this.color = colorTarget(width, height);
+    this.color = colorTarget(width, height, 4);
+    this.analog = colorTarget(width, height);
     this.fisheye = colorTarget(width, height);
-    this.gbuffer = floatTarget(SYNTHETIC_LWIR_640.resolution[0], SYNTHETIC_LWIR_640.resolution[1]);
+    this.gbuffer = floatTarget(PROFILE.resolution[0] * THERMAL_SUPERSAMPLE, PROFILE.resolution[1] * THERMAL_SUPERSAMPLE);
+    const scale: unknown = this.presentMaterial.uniforms.uScale?.value;
+    if (scale instanceof Vector2) scale.set(sensorPillarbox(width, height), 1);
     this.fpv.resize(width, height);
     updateFisheyeMaterial(this.fisheyeMaterial, this.fpv.params);
     bindSource(this.fisheyeMaterial, this.color.texture);
@@ -133,7 +153,11 @@ class ProductionPasses {
     if (gbufferUniform) gbufferUniform.value = this.gbuffer.texture;
   }
 
-  render(scene: Scene, pose: Parameters<FpvCamera["update"]>[0], tiles: TilesScene | null, video: VideoInput): void {
+  setDrape(drape: MaterialDrape | null): void {
+    if (!this.disposed) this.thermalState.setDrape(drape);
+  }
+
+  render(scene: Scene, chase: Camera, view: G3View, pose: Parameters<FpvCamera["update"]>[0], tiles: readonly TilesScene[], video: VideoInput): void {
     if (this.disposed) return;
     this.renderer.setPixelRatio(1);
     this.renderer.getDrawingBufferSize(this.bufferSize);
@@ -145,51 +169,94 @@ class ProductionPasses {
     const fisheye = this.fisheye;
     const gbuffer = this.gbuffer;
     if (!color || !fisheye || !gbuffer) return;
-    const errorsBefore = this.shaderErrors;
     this.fpv.update(pose);
-    if (tiles !== null) {
-      tiles.tiles.setCamera(this.fpv.camera);
-      tiles.tiles.setResolutionFromRenderer(this.fpv.camera, this.renderer);
-      tiles.update();
+    for (const source of tiles) {
+      source.tiles.setCamera(this.fpv.camera);
+      source.tiles.setResolutionFromRenderer(this.fpv.camera, this.renderer);
+      source.update();
     }
-    this.renderer.setRenderTarget(color);
-    this.renderer.render(scene, this.fpv.camera);
-    this.renderer.setRenderTarget(fisheye);
-    this.renderer.render(this.fisheyeScene, this.ortho);
-    this.video.updateFrom(video);
-    this.renderer.setRenderTarget(null);
-    this.renderer.render(this.analogScene, this.ortho);
-    const previousOverride = scene.overrideMaterial;
-    scene.overrideMaterial = this.gbufferMaterial;
-    this.renderer.setRenderTarget(gbuffer);
-    this.renderer.render(scene, this.fpv.camera);
-    scene.overrideMaterial = previousOverride;
-    this.frame = (this.frame + 1) >>> 0;
-    this.thermal.setFrameSeed(this.frame);
-    this.thermal.render(this.renderer);
-    const bytes = tiles !== null && tiles.modelCount > 0 ? tiles.cachedBytes : 0;
+    // The scene is rendered up to three times per frame (FPV, chase, thermal G-buffer) and nothing moves in
+    // between, so the shadow map is rendered once, by the first pass, instead of on every render() call.
+    const shadowMap = this.renderer.shadowMap, shadowAuto = shadowMap.autoUpdate;
+    shadowMap.autoUpdate = false;
+    shadowMap.needsUpdate = shadowAuto;
+    const timer = this.timer;
+    const begin = (pass: G3Pass) => timer?.begin(pass);
+    const end = () => timer?.end();
+    if (!SKIP_FPV) {
+      this.renderer.setRenderTarget(color);
+      begin("fpvScene"); this.renderer.render(scene, this.fpv.camera); end();
+      this.renderer.setRenderTarget(fisheye);
+      begin("fisheye"); this.renderer.render(this.fisheyeScene, this.ortho); end();
+      this.video.updateFrom(video);
+    }
+    if (view === "fpv") {
+      this.renderer.setRenderTarget(null);
+      begin("analog"); this.renderer.render(this.analogScene, this.ortho); end();
+    } else {
+      // Chase and thermal views: the FPV chain still runs to its own target.
+      if (!SKIP_FPV) {
+        this.renderer.setRenderTarget(this.analog);
+        begin("analog"); this.renderer.render(this.analogScene, this.ortho); end();
+      }
+      if (view === "chase") {
+        this.renderer.setRenderTarget(null);
+        begin("chaseScene"); this.renderer.render(scene, chase); end();
+      }
+    }
+    // The thermal camera is boresighted with the FPV mount; while the shutter is closed the last image is held.
+    const state = this.thermalState;
+    if (!SKIP_THERMAL && state.step()) {
+      state.aimFrom(this.fpv.camera);
+      const previousOverride = scene.overrideMaterial, previousBackground = scene.background, previousAlpha = this.renderer.getClearAlpha();
+      scene.overrideMaterial = state.gbuffer.material;
+      scene.background = null; // cleared texels (alpha 0) are sky
+      this.renderer.setClearAlpha(0);
+      this.renderer.setRenderTarget(gbuffer);
+      begin("gbuffer"); this.renderer.render(scene, state.camera); end();
+      this.renderer.setClearAlpha(previousAlpha);
+      scene.background = previousBackground;
+      scene.overrideMaterial = previousOverride;
+      this.frame = (this.frame + 1) >>> 0;
+      this.thermal.setFrameSeed(this.frame);
+      begin("thermal"); this.thermal.render(this.renderer); end();
+    }
+    if (view === "thermal") {
+      this.renderer.setRenderTarget(null);
+      this.renderer.clear();
+      begin("present"); this.renderer.render(this.presentScene, this.ortho); end();
+    }
+    shadowMap.autoUpdate = shadowAuto;
+    timer?.poll();
+    const bytes = residentBytes(tiles);
     const probe = this.probe;
     probe.gpuBytes = bytes;
     probe.cpuBytes = bytes;
     probe.terrain = bytes >= 1;
-    probe.fpv = this.shaderErrors === errorsBefore;
-    probe.thermal = probe.fpv && this.floatColor;
+    // A program fails once, at compile, and stays invalid: any failure so far marks the passes broken.
+    probe.fpv = this.shaderErrors === 0 && !SKIP_FPV;
+    probe.thermal = this.shaderErrors === 0 && this.floatColor && !SKIP_THERMAL;
     probe.dpr = this.renderer.getPixelRatio();
     probe.width = width;
     probe.height = height;
-    probe.backend = "webgl2";
+    probe.view = view;
     probe.frames += 1;
-    probe.reason = !probe.fpv ? "FPV or thermal shader failed" : this.floatColor ? (probe.terrain ? "" : "Terrain tiles are not resident") : "EXT_color_buffer_float is unavailable";
+    probe.reason = SKIPPED ? `Passes skipped by ?g3skip (diagnostics): ${SKIPPED}`
+      : this.shaderErrors !== 0 ? "FPV or thermal shader failed" : this.floatColor ? (probe.terrain ? "" : "Terrain tiles are not resident") : "EXT_color_buffer_float is unavailable";
   }
 
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
     this.renderer.debug.onShaderError = this.previousShaderError;
+    this.timer?.dispose();
     this.color?.dispose();
     this.fisheye?.dispose();
+    this.analog?.dispose();
     this.gbuffer?.dispose();
-    this.gbufferMaterial.dispose();
+    this.thermalState.gbuffer.dispose();
+    this.presentMaterial.dispose();
+    this.presentQuad.geometry.dispose();
     this.fisheyeMaterial.dispose();
     this.analogMaterial.dispose();
     this.fisheyeQuad.geometry.dispose();
@@ -201,42 +268,47 @@ class ProductionPasses {
   }
 }
 
-function inactive(canvas: HTMLCanvasElement, reason: string): G3Probe {
-  const probe: G3Probe = {
-    terrain: false, fpv: false, thermal: false, gpuBytes: 0, cpuBytes: 0, dpr: 0, width: 0, height: 0, backend: "", frames: 0, reason,
-  };
-  publish(canvas, probe);
-  return probe;
-}
+const VIEW: G3View = g3ViewFromSearch(globalThis.location?.search ?? "");
 
-export function G3Passes({ runtime, tiles }: { runtime: RefObject<SimulationRuntime | null>; tiles: RefObject<TilesScene | null> }) {
+export function G3Passes({ runtime, tiles, drape, location }: { runtime: RefObject<SimulationRuntime | null>; tiles: RefObject<TilesScene[]>;
+  drape: RefObject<MaterialDrape | null>; location: ThermalLocation }) {
   const { gl, scene } = useThree();
-  const passes = useRef<ProductionPasses | null>(null);
+  const passes = useRef<G3PassSet | null>(null);
   const pose = useRef(newRenderPoseV2());
   const video = useRef({ timeS: 0, throttle: 0.35 });
   useEffect(() => {
     const canvas = gl.domElement;
     canvas.dataset.g3 = "1";
-    if (!(gl instanceof WebGLRenderer)) {
-      inactive(canvas, "WebGPU fisheye and thermal passes are not implemented");
-      return () => { delete canvas.dataset.g3; };
+    let created: G3PassSet | null = null, cancelled = false;
+    if (gl instanceof WebGLRenderer) {
+      created = new ProductionPasses(gl, location);
+      passes.current = created;
+    } else {
+      // WebGPU (TASK-073 P6): the TSL passes load only for this backend.
+      publish(canvas, newProbe("webgpu", VIEW, "WebGPU passes are loading"));
+      void import("./g3-passes-webgpu").then(({ createWebGpuPasses }) => {
+        if (cancelled) return;
+        created = createWebGpuPasses(gl, location);
+        if (created) passes.current = created;
+        else publish(canvas, newProbe("", VIEW, "Renderer is neither WebGL2 nor WebGPU"));
+      });
     }
-    const created = new ProductionPasses(gl);
-    passes.current = created;
     return () => {
-      created.dispose();
+      cancelled = true;
+      created?.dispose();
       passes.current = null;
       delete canvas.dataset.g3;
     };
-  }, [gl]);
-  useFrame(() => {
+  }, [gl, location]);
+  useFrame(({ camera }) => {
     const pass = passes.current;
     const sim = runtime.current;
     if (!pass || !sim) return;
     const alpha = interpolationAlpha(wallNow(), sim.current, sim.header.physicsHz, sim.running);
     interpolatePoseInto(sim.previous, sim.current, sim.history, alpha, pose.current);
     video.current.timeS = wallNow() / 1000;
-    pass.render(scene, pose.current, tiles.current, video.current);
+    pass.setDrape(drape.current);
+    pass.render(scene, camera, VIEW, pose.current, tiles.current, video.current);
   }, 1);
   return null;
 }

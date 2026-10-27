@@ -8,7 +8,7 @@
 PowerShell/zsh и проверки перед расширением поддерживаемого покрытия.
 
 ## Локальные проверки
-<!-- source-sha256: 0b2fbca7bbf21572206979bfb19c08bdfe27a6111a95148b74054b6e7efb9186 -->
+<!-- source-sha256: e7163f7fba462498dcbf7b7d01fef1228c0f94fb790f98f439325848ae4fc998 -->
 
 Использовать существующий изолированный checkout, сохраняя локальные изменения. Node закреплён .nvmrc; Rust 1.97.0 и wasm32-unknown-unknown — native/rust-toolchain.toml. Зависимости ставить через npm ci. В облаке активировать CARGO_HOME=/workspace/.cache/mirage-cargo, RUSTUP_HOME=/workspace/.cache/mirage-rustup и добавить CARGO_HOME/bin в начало PATH; не переопределять HOME. Запустить lint, typecheck, check:docs, CI=true npm test, npm run build и locked native tests. Модульный набор тестов не изменяет отслеживаемые свидетельства в test-results/: тесты записывают создаваемые отчёты во временные или игнорируемые каталоги (validate-models, check-propeller-bem и bench-links-ew принимают --out DIR), а глобальная настройка Vitest tests/support/tracked-results.ts завершает прогон ошибкой, если меняется вывод git status --porcelain -- test-results/. Браузерные прогоны дают ту же гарантию: Playwright пишет отчёт JUnit, трассы и захваты прошивки TASK-045 в test-results/browser/, где нет отслеживаемых файлов, а последний настроенный репортёр tests/support/tracked-results-reporter.ts повторяет проверку после того, как остальные репортёры записали свои файлы. Браузерный артефакт CI выгружает test-results/browser/ и playwright-report/. Запустить npm run dev; проверить HTTP, COOP same-origin, COEP require-corp и настоящий Worker READY. Начать с нулевого газа, армировать, летать, приостановить и сбросить. Браузерные тесты используют системный Chromium только при наличии. Установка/запуск на чистой восстановленной машине для сертификации выпуска ещё не выполнялись.
 
@@ -122,6 +122,27 @@ node scripts/check-gpu-perf.mjs --backend webgl2 --fps 60
 node scripts/check-gpu-perf.mjs --backend webgl2 --fps 120
 ```
 
+С 2026-10-23 (решение пользователя) каждый компьютер, экран и GPU измеряется и
+оценивается из 100, а к критерию допускается только холст 1920×1080 при 1x на
+встроенном GPU в профиле 60 FPS. Каждый захват пишет `run-record.json`;
+добавьте его в `docs/benchmarks/device-results.json`, и реестр решит TASK-073 по
+наименее производительному из протестированных встроенных GPU; затем обновите
+[DEVICE_RATINGS.md](DEVICE_RATINGS.md) и его источник:
+
+```bash
+node scripts/check-gpu-perf.mjs --backend webgl2 --fps 60 --geodata PATH --machine "LABEL" --screen "LABEL"
+node scripts/check-gpu-perf.mjs --backend webgpu --fps 60 --geodata PATH --machine "LABEL" --screen "LABEL"
+node scripts/gpu-ratings.mjs add test-results/gpu/run-record.json
+node scripts/gpu-ratings.mjs decide
+```
+
+Держите машину от сети, с открытой крышкой и нетронутой на протяжении всего
+захвата. Окно, которое машина проспала (настенное время опережает монотонное
+более чем на 2 с), получает `BLOCKED_EXTERNAL`: macOS приостанавливает
+`performance.now()` во сне, поэтому каждое пробуждение выглядит как короткая
+задержка и может вызвать таймаут ввода пилота 250 мс. Абзацы ниже фиксируют
+прежний контракт.
+
 Он раздаёт локальную фикстуру тайлов CC0 и измеряет сцену с установленной FPV,
 fisheye, аналоговым видео и синтетическим LWIR на 1920×1080 при DPR 1 после
 прогрева 60 с и 600 с видимых кадров. WebGPU завершается с `BLOCKED_EXTERNAL`,
@@ -135,6 +156,118 @@ fisheye, аналоговым видео и синтетическим LWIR на
 показывает Chrome плавающим на рабочем столе, поэтому следующий захват должен
 заполнить физический дисплей. Запускать команду в графической сессии, которая
 может показать окно, и держать это окно впереди.
+
+С 2026-10-22 захват не использует эмуляцию viewport. `--position X,Y`
+(по умолчанию `0,0`) задаёт левый верхний угол дисплея, на котором он
+показывается; окно браузера переходит там в полноэкранный режим с английским
+интерфейсом (без предложения перевода), а страница `?g3=1` скрывает прокрутку,
+поэтому измеряемый canvas совпадает с тем, что показывает физический дисплей.
+Принятый профиль 60 FPS запускается на любом дисплее выше 58 Гц (решение
+пользователя 2026-10-22); другие профили по-прежнему требуют
+`refresh + 1 >= fps`. Рядом с отчётом анализатора захват записывает сырые
+интервалы кадров (`gpu-<backend>-<fps>.frames.json`, хеш в сопроводительной
+записи), снимок всего дисплея средствами ОС (`display-<backend>-<fps>.png`) и
+дополнительные отсчёты, которые никогда не влияют на шлюз: пики Windows
+`GPU Process Memory` для GPU-процесса браузера, состояния питания и частоты
+`nvidia-smi` (`clocks-<backend>-<fps>.json`) и время смены изображения
+PresentMon. PresentMon v2.6.0 ожидается в
+`.cache/tools/presentmon-2.6.0/PresentMon-2.6.0-x64.exe` (или `MIRAGE_PRESENTMON`)
+и требует повышенных прав или учётной записи в группе Windows
+«Performance Log Users»; иначе сопроводительная запись сообщает, что он не
+запускался. `node scripts/diagnose-render.mjs` сравнивает сцены demo, terrain и
+`?g3=1` с помощью таймерных запросов GPU WebGL2; это только диагностика. Оба
+инструмента открывают `?g3=1&flight=circuit`: сценарный пилот
+(`packages/input/src/scripted-flight.ts`) только двигает стики, ставит на охрану
+при нулевом газе, набирает 30 м и облетает начало координат со скоростью 10 м/с
+по кругу радиусом не более 300 м, оставаясь внутри 60% радиуса района из
+конфигурации сборки `VITE_MIRAGE_AREA_RADIUS_M` (по умолчанию 1000 м), поэтому во
+время измерения происходят подгрузка ландшафта и смена уровней детализации.
+Захват раз в секунду записывает полёт (`flight-<backend>-<fps>.json`: высота и
+позиция с HUD, время симуляции, частота физики, отказ по входу, состояние охраны
+и самый длинный разрыв кадров). Кнопку Start он нажимает только после ожидания
+функций и отдельной WebGL-пробы идентичности: остановка главного потока дольше
+тайм-аута входа пилота 250 мс блокирует защёлку охраны в Worker до снятия запроса
+охраны, поэтому остановка в полёте приводит к падению дрона — так задумано.
+FPV-камера находится на носу отрисованного корпуса
+(`apps/web/src/vehicle-geometry.ts`), а не внутри него. `MIRAGE_SCREENSHOTS=1`
+сохраняет снимок Playwright для каждого браузерного теста (по умолчанию — только
+для упавших) для просмотра оператором.
+
+Захватывайте на основном дисплее. Chrome в Windows берёт часы кадров —
+временные метки `requestAnimationFrame`, которые оценивает критерий, — от
+вертикального гашения основного монитора (`ui/gl/vsync_thread_win_dxgi.cc`)
+и помечает каждый кадр временем пробуждения своего потока vsync, поэтому окно
+на любом другом дисплее идёт по часам основного дисплея. На ноутбуке с RTX 4050
+панель Intel iGPU прошла критерий как единственный (и поэтому основной)
+дисплей, тогда как та же сцена на панели при `--position 1920,0` рядом с
+основным внешним монитором на GPU NVIDIA не прошла по p99 (TASK-073,
+2026-10-24). Сопроводительная запись отмечает, был ли захваченный дисплей
+основным и сколько дисплеев было подключено (`side.display.primary`,
+`side.display.displays`).
+
+`?g3=1` по умолчанию показывает внешний вид с камеры сопровождения, где виден
+весь дрон; проходы FPV, аналогового видео и тепловизора по-прежнему рендерятся
+каждый кадр в собственные цели. `?view=fpv` показывает вместо этого изображение
+FPV. Захваты и тесты открывают `view=chase`. PresentMon запускается до полёта и
+записывает весь прогон, потому что открытие его ETW-сессии в тестовом прогоне
+остановило браузер примерно на 300 мс (достаточно, чтобы сработал тайм-аут
+входа). Он записывает `CPUStartQPCTime` (`--qpc_time_ms`), который в Windows
+использует ту же шкалу QueryPerformanceCounter, что и `process.hrtime` в Node,
+поэтому сопроводительная запись оставляет только кадры внутри окна измерения и
+сообщает `DisplayedTime` (время показа каждого кадра на экране), `GPUBusy` и
+режим вывода.
+
+Сгенерированные ландшафт и здания (см. `docs/architecture.md`) собираются в WSL и
+никогда не фиксируются:
+
+```bash
+bash scripts/geodata/setup-wsl.sh
+python3 -I scripts/geodata/fetch_fabdem.py --config config/geodata.json --out ~/mirage-geodata/fabdem
+python -I scripts/geodata/build_terrain.py --config config/geodata.json --fabdem ~/mirage-geodata/fabdem --out ~/mirage-geodata/israel/terrain
+python -I scripts/geodata/build_buildings.py --config config/geodata.json --terrain-work ~/mirage-geodata/israel/terrain/_work --work ~/mirage-geodata/buildings-work --out ~/mirage-geodata/israel/buildings
+python -I scripts/geodata/extract_osm.py --config config/geodata.json --pbf israel-and-palestine-261020.osm.pbf --out ~/mirage-geodata/israel/osm
+python -I scripts/geodata/build_material_map.py --config config/geodata.json --classes config/material-classes.json --worldcover data/worldcover/2021-v200/israel --osm ~/mirage-geodata/israel/osm --out ~/mirage-geodata/israel/materials
+python3 -I scripts/geodata/fetch_flir_sample.py --out ~/mirage-geodata/flir-adas-v2
+node --experimental-transform-types scripts/geodata/check_material_map.mjs --materials '\\wsl.localhost\Ubuntu\home\<user>\mirage-geodata\israel\materials' --osm '\\wsl.localhost\Ubuntu\home\<user>\mirage-geodata\israel\osm'
+node scripts/check-gpu-perf.mjs --backend webgl2 --fps 60 --geodata '\\wsl.localhost\Ubuntu\home\<user>\mirage-geodata\israel'
+```
+
+`--backend webgpu` выполняет тот же захват с проходами WebGPU (TASK-073 P6).
+`--chrome-args "--disable-direct-composition"` передаёт ключи Chrome измеряемому браузеру; они записываются в трассу, метрики отчёта
+и идентификатор браузера, поэтому вердикт всегда называет свою конфигурацию Chrome. Критерий также оценивает время показа кадров по
+PresentMon с теми же пределами, что и часы кадров; в Windows PresentMon должен быть доступен (см. заметки о PresentMon выше), иначе допущенный к критерию прогон —
+`BLOCKED_EXTERNAL` (прочие прогоны всё равно оцениваются). Каждый отсчёт журнала полёта записывает `pilotRejection` — диагностику
+Worker для образца пилота, заблокировавшего защёлку вооружения. Откройте страницу с `?g3profile=1`, чтобы публиковать время GPU по
+проходам (`passMs` в пробе G3; на WebGPU также покадровый `passLog` по запросам временных меток three, которые Chrome округляет до
+0,1 мс, если не передан `--enable-webgpu-developer-features`), и добавьте `--chrome-args "--force_low_power_gpu"`, чтобы рендерить на
+встроенном GPU. `?g3skip=fpv`, `?g3skip=thermal` (или оба через запятую) пропускают эти проходы на любом бэкенде для бисекции темпа
+кадров; проба тогда сообщает признак выключенным, поэтому такой прогон никогда не засчитывается. На гибридном ноутбуке сэмплер `nvidia-smi` мешает дисплею встроенного
+GPU: каждый запрос задерживал сигнал вертикального гашения панели Intel на два или три обновления (бисекция TASK-073, 2026-10-23), поэтому `check-gpu-perf.mjs` и `diagnose-pacing.mjs` опрашивают его, только
+если измеряемый рендерер WebGL — NVIDIA, а иначе записывают частоты как недоступные с причиной.
+Чтобы выяснить причину поздних кадров, `node scripts/diagnose-pacing.mjs --geodata DIR [--backend webgpu] [--chrome-args "--disable-direct-composition"]`
+записывает трассу Chrome за 45 с, PresentMon и отсчёты `nvidia-smi` с частотой 10 Гц (около 300 МБ на трассу, в `test-results/pacing/`), а
+`node --max-old-space-size=8192 scripts/analyze-pacing.mjs test-results/pacing/pacing-webgl2.json` сравнивает пропущенные и своевременные кадры.
+`--no-trace` измеряет без трассы Chrome и PresentMon, `--query "&g3profile=1"` добавляет параметры страницы и сохраняет покадровый
+журнал проходов WebGPU, а `--vblank 1200` запускает `scripts/vblank-probe.ps1` на DISPLAY1 на время окна (1200 — число активных строк
+панели). Проба ждёт `D3DKMTWaitForVerticalBlankEvent` — ожидание ядра, на котором построены часы кадров Chrome, — и читает строку
+развёртки при пробуждении;
+`node scripts/analyze-vblank.mjs test-results/pacing/vblank-webgl2.json --vactive 1200 --raf test-results/pacing/raf-webgl2.json` сообщает,
+через сколько после каждого вертикального гашения пришли проба и временные метки rAF страницы и на скольких обновлениях опоздали обе.
+`--view thermal` (или `fpv`) показывает это изображение вместо вида
+преследования в проверочных прогонах; приёмочные захваты оставляют `chase` по
+умолчанию. Момент тепловой сцены по умолчанию — 2026-07-15 07:00 UTC; чтобы
+посмотреть другой час, откройте страницу с
+`?thermalUtc=2026-07-15T12:00:00Z` (время ISO с часовым поясом).
+
+Скрипты Python запускаются внутри окружения `mirage-geo`
+(`micromamba run -n mirage-geo ...`). Выгрузка OSM (`*.osm.pbf`) — файл
+Geofabrik от оператора; он лежит в корне репозитория и игнорируется Git;
+`check_material_map.mjs` завершается с кодом 0 при PASS и 1 при FAIL. `fetch_flir_sample.py` (только стандартная
+библиотека) читает одно тестовое видео FLIR ADAS v2 из архива 11.8 ГБ по
+диапазонам байт и пишет манифест с SHA-256 каждого файла; условия набора данных
+указаны в его README. Данные держать вне каталога репозитория
+(здесь он синхронизируется OneDrive). Захват запускать из PowerShell: Git Bash
+переписывает путь `\\wsl.localhost`.
 
 Контроллер Serial ожидает готовность декодера до 5 секунд перед открытием
 выбранного устройства. Существующий тайм-аут обратного давления 500 мс для

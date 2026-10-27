@@ -2,7 +2,7 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import {readFileSync} from 'node:fs';
-import {resolve} from 'node:path';
+import {extname, resolve, sep} from 'node:path';
 import {createHash} from 'node:crypto';
 import {fileURLToPath} from 'node:url';
 import type {Plugin} from 'vite';
@@ -59,14 +59,50 @@ function localTiles(): Plugin {
   return { name: 'local-g3-tiles', configureServer: attach, configurePreviewServer: attach };
 }
 
+// TASK-073 generated terrain/buildings (scripts/geodata), served read-only from
+// MIRAGE_GEODATA_DIR at /geodata/ to loopback clients only. The data stays out of
+// the repository (it is large and licensed); nothing is served when the variable is unset.
+const GEODATA_TYPES: Record<string, string> = {
+  '.json': 'application/json', '.terrain': 'application/vnd.quantized-mesh', '.glb': 'model/gltf-binary',
+  '.b3dm': 'application/octet-stream', '.subtree': 'application/octet-stream', '.bin': 'application/octet-stream',
+};
+function localGeodata(): Plugin {
+  const attach = (server: { middlewares: { use: (handler: (req: import('node:http').IncomingMessage, res: import('node:http').ServerResponse, next: () => void) => void) => void } }) => {
+    const directory = process.env.MIRAGE_GEODATA_DIR;
+    if (!directory) return;
+    const root = resolve(directory);
+    server.middlewares.use((req, res, next) => {
+      const url = req.url ?? '';
+      if (!url.startsWith('/geodata/')) { next(); return; }
+      const peer = req.socket.remoteAddress;
+      if (req.method !== 'GET' || !['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(peer ?? '')) { res.statusCode = 403; res.end(); return; }
+      const name = decodeURIComponent(url.slice('/geodata/'.length).split('?')[0] ?? '');
+      const path = resolve(root, name);
+      const type = GEODATA_TYPES[extname(path).toLowerCase()];
+      // Reject traversal outside the data directory and unknown file types.
+      if (!type || (path !== root && !path.startsWith(root + sep))) { res.statusCode = 404; res.end(); return; }
+      let bytes: Buffer;
+      try { bytes = readFileSync(path); } catch { res.statusCode = 404; res.end(); return; }
+      res.setHeader('Content-Type', type);
+      res.setHeader('Cache-Control', 'no-store');
+      res.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
+      res.end(bytes);
+    });
+  };
+  return { name: 'local-geodata', configureServer: attach, configurePreviewServer: attach };
+}
+
 // Required for SharedArrayBuffer. Apply these on the production HTTPS server too.
 const headers = {
   'Cross-Origin-Opener-Policy': 'same-origin',
   'Cross-Origin-Embedder-Policy': 'require-corp',
 };
 export default defineConfig({
-  plugins: [react(), tailwindcss(), localArdupilot(), localTiles()],
+  plugins: [react(), tailwindcss(), localArdupilot(), localTiles(), localGeodata()],
   server: { headers },
   preview: { headers },
   worker: { format: 'es' },
+  // Pre-bundle the tile loader entry points: discovering them on first import makes the dev server
+  // reload the page mid-test (browser tests import terrain modules dynamically).
+  optimizeDeps: { include: ['3d-tiles-renderer', '3d-tiles-renderer/core/plugins', '3d-tiles-renderer/three/plugins'] },
 });

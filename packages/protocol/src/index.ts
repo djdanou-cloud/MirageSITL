@@ -25,6 +25,14 @@ export const Header = { Magic: 0, Version: 1, Capacity: 2, StateWords: 3,
 export const ControlFlag = { Connected: 1, Armed: 2 } as const;
 export const StateFlag = { OnGround: 1, InputFailsafe: 2 } as const;
 export const INPUT_TIMEOUT_MS = 250;
+/**
+ * How far in the future a pilot sample may be stamped and still count as fresh. Main and the Worker each
+ * compute `performance.timeOrigin + performance.now()` with their own time origin, as a double near
+ * 1.8e12 ms (one step is 0.000244 ms) from coarsened timestamps (5 us when cross-origin isolated, 100 us
+ * otherwise), so a sample published at the instant it is read can appear slightly future-dated. A 1 ms
+ * margin covers that rounding; samples further in the future still fail closed (TASK-073, 2026-10-22).
+ */
+export const INPUT_CLOCK_TOLERANCE_MS = 1;
 
 export interface PilotInput {
   /** roll/pitch/yaw in [-1,1], throttle in [0,1]. */

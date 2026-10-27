@@ -16,3 +16,5 @@ native/target/
 /DetersAnandaSelig-2014-AIAA-2014-2151.md
 /Robert_Deters.md
 __pycache__/
+# Operator-supplied OpenStreetMap extracts (large; record hashes, never commit).
+*.osm.pbf

@@ -31,6 +31,7 @@ import {
 import { EkfMonitor } from "@mirage/autopilot/ekf-status";
 import { newMavFrame, type MavFrame } from "@mirage/mavlink/codec";
 import { GamepadAdapter, type GamepadCalibration } from "@mirage/input";
+import { ScriptedPilot, newStickCommand, type FlightPlan } from "@mirage/input/scripted-flight";
 import { applyAutopilotTelemetry } from "./hud/telemetry";
 
 // Main-thread runtime on ABI v2 and Control Protocol v2 (TASK-085). Main owns
@@ -129,8 +130,13 @@ export class SimulationRuntime {
     new URL("./physics.worker.ts", import.meta.url),
     { type: "module", name: "mirage-physics" },
   );
-  source: "demo" | "usb" = "demo";
+  source: "demo" | "usb" | "script" = "demo";
+  /** Last `pilot.rejected` diagnostic from the Worker (TASK-073), or null. */
+  pilotRejection: PilotRejectionNotice | null = null;
   demoThrottle = 0;
+  /** TASK-073 scripted flight: a closed-loop pilot that only moves the sticks. */
+  scripted: ScriptedPilot | null = null;
+  private readonly scriptedStick = newStickCommand();
   ready = false;
   armed = false;
   pending = false;
@@ -166,6 +172,13 @@ export class SimulationRuntime {
       const rejection = scenarioRejection(data);
       if (rejection) {
         this.notice = rejection;
+        return;
+      }
+      if (isPilotRejection(data)) {
+        // Diagnostics (TASK-073): the Worker blocked the armed latch on an invalid pilot sample.
+        this.pilotRejection = data;
+        Reflect.set(globalThis, "__miragePilotRejection", data); // read by the G3 capture's flight log
+        console.warn("Pilot sample rejected; armed latch blocked", JSON.stringify(data));
         return;
       }
       this.onWorkerEvent(data);
@@ -308,8 +321,16 @@ export class SimulationRuntime {
     this.input.wallTimeMs = wallNow();
     this.publishPilot();
   }
+  /** Hands the sticks to a scripted flight plan; it arms itself at zero throttle once the session runs. */
+  useScriptedFlight(plan: FlightPlan): void {
+    this.disarm();
+    this.scripted = new ScriptedPilot(plan);
+    this.source = "script";
+    this.newDevice();
+  }
   selectSource(source: "demo" | "usb") {
     this.disarm();
+    this.scripted = null;
     this.source = source;
     this.newDevice();
   }
@@ -433,6 +454,18 @@ export class SimulationRuntime {
       }
       if (this.gamepad.status !== "connected") this.armed = false;
       if (!this.armed) this.input.flags &= ~ControlFlag.Armed;
+    } else if (this.source === "script" && this.scripted) {
+      const stick = this.scriptedStick;
+      if (this.running) this.scripted.update(this.current, stick);
+      else { stick.roll = stick.pitch = stick.yaw = stick.throttle = 0; stick.arm = false; }
+      this.input.roll = stick.roll;
+      this.input.pitch = stick.pitch;
+      this.input.yaw = stick.yaw;
+      this.input.throttle = stick.throttle;
+      if (stick.arm && !this.armed && this.running && stick.throttle <= 0.05) this.armed = true;
+      if (!stick.arm) this.armed = false;
+      this.input.flags = ControlFlag.Connected | (this.armed ? ControlFlag.Armed : 0);
+      this.input.wallTimeMs = wallNow();
     } else {
       this.input.roll = this.input.pitch = this.input.yaw = 0;
       this.input.throttle = this.demoThrottle;
@@ -505,6 +538,15 @@ function scenarioSubmit(data: unknown): ControlCommandV2 | null {
   if (typeof data !== "object" || data === null || !("type" in data) || data.type !== "scenario.submit" || !("command" in data)) return null;
   const parsed = parseControlCommandV2(data.command);
   return parsed.ok ? parsed.command : null;
+}
+export interface PilotRejectionNotice {
+  type: "pilot.rejected"; count: number; ageMs: number; wallMs: number; sampleWallMs: number; sampleId: number;
+  expectedEpoch: number; sessionEpoch: number; flags: number; valuesValid: boolean;
+}
+function isPilotRejection(data: unknown): data is PilotRejectionNotice {
+  if (typeof data !== "object" || data === null || !("type" in data) || data.type !== "pilot.rejected") return false;
+  const numbers = ["count", "ageMs", "wallMs", "sampleWallMs", "sampleId", "expectedEpoch", "sessionEpoch", "flags"] as const;
+  return numbers.every(key => key in data && typeof Reflect.get(data, key) === "number") && "valuesValid" in data && typeof data.valuesValid === "boolean";
 }
 function scenarioRejection(data: unknown): string | null {
   if (typeof data !== "object" || data === null || !("type" in data) || data.type !== "scenario.reject" || !("message" in data) || typeof data.message !== "string") return null;

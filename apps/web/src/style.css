@@ -51,6 +51,12 @@
 }
 
 footer { color: #8da6b8; }
+html[data-g3="1"], html[data-g3="1"] body { overflow: hidden; }
 html[data-g3="1"] .app-shell { max-width: none; padding: 0; }
 html[data-g3="1"] .viewport { position: fixed; inset: 0; width: 100vw; height: 100vh; z-index: 20; }
 html[data-g3="1"] .viewport canvas { width: 100% !important; height: 100% !important; }
+/* Full-screen measurement over bright terrain: keep the HUD readable. */
+html[data-g3="1"] .viewport-top, html[data-g3="1"] .hud-bottom, html[data-g3="1"] .flight-label { text-shadow: 0 1px 3px rgba(4, 10, 16, 0.9); }
+html[data-g3="1"] .hud-bottom { left: 0; right: 0; bottom: 0; padding: 20px 25px 25px; background: linear-gradient(transparent, rgba(6, 14, 22, 0.78)); }
+/* The HUD bar owns the bottom edge; attributions move to the free top centre. */
+html[data-g3="1"] .terrain-status { top: 12px; bottom: auto; left: 50%; transform: translateX(-50%); max-width: 56%; font-size: 10px; text-align: center; }

@@ -118,6 +118,26 @@ node scripts/check-gpu-perf.mjs --backend webgl2 --fps 60
 node scripts/check-gpu-perf.mjs --backend webgl2 --fps 120
 ```
 
+Since 2026-10-23 (user decision) every machine, screen and GPU is measured and
+rated out of 100, and only a 1920×1080 canvas at 1x on an integrated GPU in the
+60 FPS profile is gate-eligible. Each capture writes `run-record.json`; add it to
+`docs/benchmarks/device-results.json` and let the registry decide TASK-073 from
+the least performant tested integrated GPU, then update
+[DEVICE_RATINGS.md](../DEVICE_RATINGS.md) and its mirror:
+
+```bash
+node scripts/check-gpu-perf.mjs --backend webgl2 --fps 60 --geodata PATH --machine "LABEL" --screen "LABEL"
+node scripts/check-gpu-perf.mjs --backend webgpu --fps 60 --geodata PATH --machine "LABEL" --screen "LABEL"
+node scripts/gpu-ratings.mjs add test-results/gpu/run-record.json
+node scripts/gpu-ratings.mjs decide
+```
+
+Keep the machine on AC power with the lid open and untouched for the whole
+capture. A window the machine slept through (wall time leading monotonic time by
+more than 2 s) is `BLOCKED_EXTERNAL`: macOS pauses `performance.now()` in sleep,
+so each wake looks like a short stall and can trip the 250 ms pilot-input
+timeout. The paragraphs below record the earlier contract.
+
 It serves the local CC0 tiles fixture and measures the mounted FPV, fisheye,
 analog, and synthetic LWIR scene at 1920×1080 DPR 1 after 60 s warmup and 600 s
 of visible frames. WebGPU exits `BLOCKED_EXTERNAL` because fisheye and thermal
@@ -131,6 +151,110 @@ scored in an emulated 1920×1080 window. The active Mac display mode is
 screenshot in `task_073_results/` shows Chrome floating on the desktop, so the
 next capture must fill the physical display. Run the command in a graphical
 session that can show the window; keep that window in front.
+
+Since 2026-10-22 the capture uses no viewport emulation. `--position X,Y`
+(default `0,0`) names the top-left corner of the display that shows it; the
+browser window goes fullscreen there with an English UI (no translate prompt)
+and the `?g3=1` page hides scrolling, so the measured canvas is what the
+physical display presents. The accepted 60 FPS profile runs on any display
+above 58 Hz (user decision 2026-10-22); other profiles still need
+`refresh + 1 >= fps`. Beside the analyzer report the capture writes the raw
+frame intervals (`gpu-<backend>-<fps>.frames.json`, hashed in the side record),
+an OS screenshot of the whole display (`display-<backend>-<fps>.png`), and
+supplementary samples that never feed the gate: Windows `GPU Process Memory`
+peaks for the browser GPU process, `nvidia-smi` power states and clocks
+(`clocks-<backend>-<fps>.json`), and PresentMon display-change timing. PresentMon
+v2.6.0 is expected at `.cache/tools/presentmon-2.6.0/PresentMon-2.6.0-x64.exe`
+(or `MIRAGE_PRESENTMON`) and needs an elevated shell or an account in the
+Windows "Performance Log Users" group; otherwise the side record states that it
+did not run. `node scripts/diagnose-render.mjs` compares the demo, terrain and
+`?g3=1` scenes with WebGL2 GPU timer queries; it is diagnostic only. Both tools
+open `?g3=1&flight=circuit`: a scripted pilot (`packages/input/src/scripted-flight.ts`)
+moves only the sticks, arms at zero throttle, climbs to 30 m and circles the
+origin at 10 m/s on a circuit of at most 300 m radius kept inside 60% of the
+build-time area radius `VITE_MIRAGE_AREA_RADIUS_M` (default 1000 m), so
+terrain streaming and level-of-detail changes happen during the measurement.
+The capture writes the flight once per second (`flight-<backend>-<fps>.json`:
+HUD altitude and position, simulation time, physics rate, input failsafe, arm
+state and the longest frame gap). It presses Start only after the feature wait
+and its separate WebGL identity probe: a main-thread stall above the 250 ms
+pilot input timeout blocks the worker's arming latch until the arm request is
+withdrawn, so a stall in flight makes the drone fall, by design. The FPV camera
+sits on the nose of the drawn body (`apps/web/src/vehicle-geometry.ts`), not
+inside it. `MIRAGE_SCREENSHOTS=1` keeps a Playwright screenshot of every browser
+test (default: failures only) for operator review.
+
+Capture on the primary display. Chrome on Windows takes its frame clock, the
+`requestAnimationFrame` timestamps the gate scores, from the vertical blank of
+the primary monitor (`ui/gl/vsync_thread_win_dxgi.cc`) and stamps each frame
+with the time its vsync thread woke, so a window on any other display is paced
+by the primary display's clock. On the RTX 4050 laptop the Intel iGPU panel
+passed as the only (and therefore primary) display, while the same scene on
+the panel at `--position 1920,0` beside a primary external monitor driven by
+the NVIDIA GPU failed on p99 (TASK-073, 2026-10-24). The side record notes
+whether the captured display was the primary one and how many displays were
+attached (`side.display.primary`, `side.display.displays`).
+
+`?g3=1` presents the external chase view with the whole drone by default; the
+FPV, analog and thermal passes still render every frame to their own targets.
+`?view=fpv` presents the FPV image instead. Captures and tests open
+`view=chase`. PresentMon starts before the flight and records the whole run,
+because opening its ETW session stalled the browser for about 300 ms in a test
+run (long enough to trip the input timeout). It writes `CPUStartQPCTime`
+(`--qpc_time_ms`), which shares the QueryPerformanceCounter time base with
+Node's `process.hrtime` on Windows, so the side record keeps only the frames
+inside the measurement window and reports `DisplayedTime` (on-screen time per
+frame), `GPUBusy` and the present mode.
+
+The generated terrain and buildings (see `docs/architecture.md`) are built in
+WSL and never committed:
+
+```bash
+bash scripts/geodata/setup-wsl.sh
+python3 -I scripts/geodata/fetch_fabdem.py --config config/geodata.json --out ~/mirage-geodata/fabdem
+python -I scripts/geodata/build_terrain.py --config config/geodata.json --fabdem ~/mirage-geodata/fabdem --out ~/mirage-geodata/israel/terrain
+python -I scripts/geodata/build_buildings.py --config config/geodata.json --terrain-work ~/mirage-geodata/israel/terrain/_work --work ~/mirage-geodata/buildings-work --out ~/mirage-geodata/israel/buildings
+python -I scripts/geodata/extract_osm.py --config config/geodata.json --pbf israel-and-palestine-261020.osm.pbf --out ~/mirage-geodata/israel/osm
+python -I scripts/geodata/build_material_map.py --config config/geodata.json --classes config/material-classes.json --worldcover data/worldcover/2021-v200/israel --osm ~/mirage-geodata/israel/osm --out ~/mirage-geodata/israel/materials
+python3 -I scripts/geodata/fetch_flir_sample.py --out ~/mirage-geodata/flir-adas-v2
+node --experimental-transform-types scripts/geodata/check_material_map.mjs --materials '\\wsl.localhost\Ubuntu\home\<user>\mirage-geodata\israel\materials' --osm '\\wsl.localhost\Ubuntu\home\<user>\mirage-geodata\israel\osm'
+node scripts/check-gpu-perf.mjs --backend webgl2 --fps 60 --geodata '\\wsl.localhost\Ubuntu\home\<user>\mirage-geodata\israel'
+```
+
+`--backend webgpu` runs the same capture with the WebGPU passes (TASK-073 P6).
+`--chrome-args "--disable-direct-composition"` passes Chrome switches to the measured browser; they are recorded in the trace, the report
+metrics and the browser identity, so a verdict always names its Chrome configuration. The gate also scores PresentMon's displayed-frame
+times with the same limits as the frame clock; on Windows PresentMon must be available (see the PresentMon notes above), otherwise a gate-eligible run is
+`BLOCKED_EXTERNAL` (other runs are still rated). Each flight-log sample records `pilotRejection`, the Worker's diagnostic for a
+pilot sample that blocked the armed latch. Open the page with `?g3profile=1` to publish per-pass GPU times (`passMs` on the
+G3 probe; on WebGPU also the per-frame `passLog`, from three's timestamp queries, which Chrome rounds to 0.1 ms unless
+`--enable-webgpu-developer-features` is passed), and add `--chrome-args "--force_low_power_gpu"` to render on the integrated GPU.
+`?g3skip=fpv`, `?g3skip=thermal` (or both, comma-separated) skip those passes on either backend for pacing bisection; the probe then
+reports the feature off, so such a run never counts.
+On a hybrid laptop the `nvidia-smi` sampler disturbs an integrated-GPU display: each query delayed the Intel panel's vertical-blank
+signal by two or three refreshes (TASK-073 bisection, 2026-10-23), so `check-gpu-perf.mjs` and `diagnose-pacing.mjs` query it only
+when the measured WebGL renderer is NVIDIA and otherwise record the clocks as unavailable with the reason.
+To find why frames are late, `node scripts/diagnose-pacing.mjs --geodata DIR [--backend webgpu] [--chrome-args "--disable-direct-composition"]`
+records a 45 s Chrome trace, PresentMon and 10 Hz `nvidia-smi` samples (about 300 MB per trace, in `test-results/pacing/`), and
+`node --max-old-space-size=8192 scripts/analyze-pacing.mjs test-results/pacing/pacing-webgl2.json` compares missed and on-time frames.
+`--no-trace` measures without the Chrome trace and PresentMon, `--query "&g3profile=1"` adds page parameters and saves the WebGPU
+per-pass log, and `--vblank 1200` runs `scripts/vblank-probe.ps1` on DISPLAY1 over the window (1200 = the panel's active lines). The probe
+waits on `D3DKMTWaitForVerticalBlankEvent`, the kernel wait behind Chrome's frame clock, and reads the scan line on waking;
+`node scripts/analyze-vblank.mjs test-results/pacing/vblank-webgl2.json --vactive 1200 --raf test-results/pacing/raf-webgl2.json` reports how
+long after each vertical blank the probe and the page's rAF timestamps arrived, and on how many refreshes both were late.
+`--view thermal` (or `fpv`) presents that image instead of the chase view for
+inspection runs; acceptance captures keep the default `chase`. The thermal scene
+instant defaults to 2026-07-15 07:00 UTC; open the page with
+`?thermalUtc=2026-07-15T12:00:00Z` (a zoned ISO time) to inspect another hour.
+
+The Python scripts run inside the `mirage-geo` environment
+(`micromamba run -n mirage-geo ...`). The OSM extract (`*.osm.pbf`) is an
+operator-supplied Geofabrik file kept in the repository root and ignored by
+Git; `check_material_map.mjs` exits 0 on PASS and 1 on FAIL. `fetch_flir_sample.py` (standard library only) reads one
+FLIR ADAS v2 test video out of the 11.8 GB archive through byte ranges and writes
+a manifest with every file's SHA-256; the dataset's terms are linked in its README. Keep the data out of the repository
+folder (it is synchronised by OneDrive here). Run the capture from PowerShell:
+Git Bash rewrites the `\\wsl.localhost` path.
 
 The Serial controller waits at most 5 seconds for decoder readiness before
 opening the selected device. The existing 500 ms per-chunk backpressure deadline

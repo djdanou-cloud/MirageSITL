@@ -1,8 +1,8 @@
-import { ActuatorFrameCodecV2, ControlFlag, ControlProcessorV2, HeaderV2, INPUT_TIMEOUT_MS, PilotFlagV2, PilotReaderV2,
+import { ActuatorFrameCodecV2, ControlFlag, ControlProcessorV2, HeaderV2, INPUT_CLOCK_TOLERANCE_MS, INPUT_TIMEOUT_MS, PilotFlagV2, PilotReaderV2,
   RuntimeFlagV2, SensorFrameCodecV2, SpscConsumer, StateWriterV2, UNKNOWN_U32, VehicleFlagV2, isValidPilotInputV2, newActuatorFrameV2,
   newFlightStateV2, newInput, newPilotInputV2, newSensorFrameV2, tickToNumber, validateSharedMemoryV2, validateSpscQueue,
   type ClockModeV2, type CommandResultV2, type PhysicsHz, type ScheduledCommandV2, type ScheduledRejectV2, type TickId,
-  type WorkerInitV2, type FlightState, type FlightStateV2, type PilotInput, type ActuatorFrameV2, type SensorFrameV2 } from '@mirage/protocol';
+  type WorkerInitV2, type FlightState, type FlightStateV2, type PilotInput, type PilotInputV2, type ActuatorFrameV2, type SensorFrameV2 } from '@mirage/protocol';
 import { SteppingPolicy, newPumpReport, type StepGate } from './clock-policy.ts';
 import { DemoDynamics } from './demo-dynamics.ts';
 import { MotorFaults } from './motor-fault.ts';
@@ -126,6 +126,11 @@ export class PhysicsSessionV2 {
   private wallMsNow = 0.5;
   private scheduledWallMs = 0.5;
   private latch: ArmLatch = 'disarmed';
+  /**
+   * Why the armed latch was last blocked by an invalid pilot sample (diagnostics, TASK-073): written in the
+   * hot path into preallocated numeric fields, read and cleared by the Worker after each pump.
+   */
+  readonly pilotRejection = new PilotRejection();
   private latchedGeneration = 0;
   private epoch: number;
   private runningValue = false;
@@ -340,10 +345,11 @@ export class PhysicsSessionV2 {
     this.wallMsNow = this.clock.wallMs();
     const p = this.pilot, input = this.dynamicsInput;
     const age = this.wallMsNow - p.sampledWallTimeMs;
-    const valid = isValidPilotInputV2(p) && p.expectedEpoch === this.epoch && age >= 0 && age <= INPUT_TIMEOUT_MS &&
+    const valid = isValidPilotInputV2(p) && p.expectedEpoch === this.epoch && age >= -INPUT_CLOCK_TOLERANCE_MS && age <= INPUT_TIMEOUT_MS &&
       (p.flags & PilotFlagV2.Connected) !== 0;
     const requested = valid && (p.flags & PilotFlagV2.Armed) !== 0;
     if (this.latch === 'armed') {
+      if (!requested && !valid) this.pilotRejection.record(p, age, this.wallMsNow, this.epoch);
       if (!requested) this.latch = valid ? 'disarmed' : 'blocked';
       else if (p.deviceGeneration !== this.latchedGeneration) this.latch = 'blocked';
     } else if (this.latch === 'blocked') {
@@ -440,4 +446,29 @@ export function rotateNedToBody(w: number, x: number, y: number, z: number, vx: 
   out[0] = vx + 2 * (w * cx + uy * cz - uz * cy);
   out[1] = vy + 2 * (w * cy + uz * cx - ux * cz);
   out[2] = vz + 2 * (w * cz + ux * cy - uy * cx);
+}
+
+/**
+ * The pilot sample that blocked the armed latch, with each validity condition checked separately.
+ * Numeric fields start as doubles so updates in the step loop stay unboxed.
+ */
+export class PilotRejection {
+  count = 0.5;
+  pending = false;
+  ageMs = 0.5;
+  wallMs = 0.5;
+  sampleWallMs = 0.5;
+  sampleId = 0.5;
+  expectedEpoch = 0.5;
+  sessionEpoch = 0.5;
+  flags = 0.5;
+  valuesValid = false;
+  constructor() { this.count = 0; }
+  record(p: PilotInputV2, ageMs: number, wallMs: number, sessionEpoch: number): void {
+    this.count++;
+    this.pending = true;
+    this.ageMs = ageMs; this.wallMs = wallMs; this.sampleWallMs = p.sampledWallTimeMs; this.sampleId = p.inputSampleId;
+    this.expectedEpoch = p.expectedEpoch; this.sessionEpoch = sessionEpoch; this.flags = p.flags;
+    this.valuesValid = isValidPilotInputV2(p);
+  }
 }

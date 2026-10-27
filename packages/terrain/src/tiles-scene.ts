@@ -7,13 +7,20 @@
 // The loader exposes one estimate (geometry + texture bytes); three.js keeps
 // the decoded CPU arrays alongside the GPU copies, so the same estimate is
 // charged against both budgets and the cap is the smaller of the two.
-import { Matrix4, type Camera, type WebGLRenderer } from "three";
+import { Matrix4, Mesh, MeshStandardMaterial, type Camera, type Object3D, type WebGLRenderer } from "three";
 import { TilesRenderer } from "3d-tiles-renderer";
+import { ImplicitTilingPlugin } from "3d-tiles-renderer/core/plugins";
+import { QuantizedMeshPlugin } from "3d-tiles-renderer/three/plugins";
 import { TileFetchTracker, ecefToRenderMatrix, type TileFailure, type TilesSession } from "./tiles-provider.ts";
 import { LodBudget } from "./lod-budget.ts";
 
+/** "3d-tiles": a tileset JSON; "quantized-mesh": a Cesium terrain layer.json (TASK-073), tiled by QuantizedMeshPlugin. */
+export type TilesFormat = "3d-tiles" | "quantized-mesh";
+
 export interface TilesSceneOptions {
   url: string;
+  /** Default "3d-tiles". */
+  format?: TilesFormat;
   attribution: string;
   originLatRad: number;
   originLonRad: number;
@@ -26,6 +33,27 @@ export interface TilesSceneOptions {
   session?: TilesSession;
   /** LOD budget (default: 2 GiB GPU, 512 MiB decoded CPU). */
   budget?: LodBudget;
+  /** Ground colour for quantized-mesh terrain (sRGB hex); default a matte desert earth tone. */
+  groundColor?: number;
+  /** Called once per quantized-mesh tile material after tinting (e.g. the TASK-073 material drape). */
+  onGroundMaterial?: (material: MeshStandardMaterial) => void;
+}
+
+const DEFAULT_GROUND_COLOR = 0x9c8b6a;
+
+/** Recolours the materials of one loaded terrain tile in place (no new materials, nothing to dispose). */
+function tintGround(model: Object3D, color: number, hook: ((material: MeshStandardMaterial) => void) | null): void {
+  model.traverse(object => {
+    if (!(object instanceof Mesh)) return;
+    const materials: unknown[] = Array.isArray(object.material) ? object.material : [object.material];
+    for (const material of materials) {
+      if (!(material instanceof MeshStandardMaterial)) continue;
+      material.color.setHex(color);
+      material.roughness = 1;
+      material.metalness = 0;
+      hook?.(material);
+    }
+  });
 }
 
 export class TilesScene {
@@ -45,6 +73,10 @@ export class TilesScene {
     const tiles = new TilesRenderer(options.url);
     const tracker = this.tracker;
     tiles.registerPlugin({ name: "MIRAGE_FETCH_TRACKER", fetchData: (url: string, init: RequestInit) => tracker.fetch(url, init) });
+    // Quantized-mesh terrain: the plugin reads layer.json next to the URL and builds ECEF tiles, placed like any 3D Tiles content.
+    if (options.format === "quantized-mesh") tiles.registerPlugin(new QuantizedMeshPlugin({ useRecommendedSettings: true }));
+    // 3D Tiles 1.1 implicit tiling (pg2b3dm buildings: subtrees + {level}_{x}_{y} content); explicit tilesets are unaffected.
+    else tiles.registerPlugin(new ImplicitTilingPlugin());
     this.budget = options.budget ?? new LodBudget();
     const capBytes = Math.min(this.budget.gpuBudgetBytes, this.budget.cpuBudgetBytes);
     tiles.lruCache.maxBytesSize = capBytes;
@@ -56,7 +88,12 @@ export class TilesScene {
     tiles.group.matrixAutoUpdate = false;
     tiles.group.matrix.copy(placement);
     tiles.group.updateMatrixWorld(true);
-    tiles.addEventListener("load-model", () => { this.loadedModels++; });
+    // Quantized-mesh tiles carry no colour: give the ground a matte earth tone (display only).
+    const tint = options.format === "quantized-mesh" ? (options.groundColor ?? DEFAULT_GROUND_COLOR) : null;
+    tiles.addEventListener("load-model", event => {
+      this.loadedModels++;
+      if (tint !== null) tintGround(event.scene, tint, options.onGroundMaterial ?? null);
+    });
     tiles.addEventListener("dispose-model", () => { this.loadedModels--; });
     tiles.addEventListener("load-error", event => {
       if (this.loadErrors.length < 64) this.loadErrors.push({ url: String(event.url), message: event.error.message });

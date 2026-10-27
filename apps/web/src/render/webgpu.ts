@@ -5,7 +5,7 @@
 // three's WebGPURenderer silently switches to its own WebGL2 backend when
 // WebGPU is unavailable. That is reported here as unavailable instead, so the
 // adapter in renderer.ts owns every fallback decision and reason.
-import { BoxGeometry, Mesh, MeshStandardMaterial, PerspectiveCamera, Scene, DirectionalLight } from "three";
+import { BoxGeometry, Mesh, MeshStandardMaterial, PerspectiveCamera, Scene, DirectionalLight, Vector2 } from "three";
 import { WebGPURenderer } from "three/webgpu";
 
 export type WebGpuProbe = { available: true; adapter: string } | { available: false; reason: string };
@@ -64,6 +64,11 @@ export async function createWebGpuRenderer(options: WebGpuOptions): Promise<WebG
     renderer.dispose();
     throw new Error("WebGPURenderer initialized its WebGL fallback backend, not WebGPU");
   }
+  // setSize() skips the backend's buffers until init() has finished, so a resize that arrived during
+  // init (the app layout settling) left the multisample buffer at the canvas's initial size and the
+  // next frame failed validation. Re-apply the current size now that the backend exists.
+  const size = renderer.getSize(new Vector2());
+  renderer.setSize(size.x, size.y, false);
   return renderer;
 }
 

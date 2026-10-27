@@ -32,6 +32,8 @@ const TERRAIN = terrainConfigFrom(
   import.meta.env.VITE_MIRAGE_TILESET_URL,
   import.meta.env.VITE_MIRAGE_TILES_ORIGIN,
   import.meta.env.VITE_MIRAGE_TILES_ATTRIBUTION,
+  import.meta.env.VITE_MIRAGE_TERRAIN_URL,
+  import.meta.env.VITE_MIRAGE_MATERIALS_URL,
 );
 import { SerialConnect } from "./SerialConnect";
 import {
@@ -43,6 +45,10 @@ import {
   type ModeCalibration,
 } from "@mirage/input/mode-channel";
 import { SimulationRuntime, type ViewStats } from "./runtime";
+import { flightPlanFromSearch } from "./flight-plan";
+
+// TASK-073: `?flight=circuit` flies the scripted circuit inside the configured area.
+const FLIGHT_PLAN = flightPlanFromSearch(globalThis.location?.search ?? "", import.meta.env.VITE_MIRAGE_AREA_RADIUS_M);
 
 const INITIAL: ViewStats = {
   ready: false,
@@ -173,6 +179,7 @@ export default function App() {
     null,
   );
   const [source, setSource] = useState<"demo" | "usb">("demo");
+  const [materialsStatus, setMaterialsStatus] = useState("");
   const [terrainFailures, setTerrainFailures] = useState<
     readonly TileFailure[]
   >([]);
@@ -194,6 +201,7 @@ export default function App() {
           return;
         }
         runtime.current = new SimulationRuntime(setStats);
+        if (FLIGHT_PLAN) runtime.current.useScriptedFlight(FLIGHT_PLAN);
         const profile = loadCalibration(localStorage);
         if (profile) {
           setCalibration(profile.axes);
@@ -288,6 +296,7 @@ export default function App() {
                   runtime={runtime}
                   terrain={TERRAIN.status === "ready" ? TERRAIN.config : null}
                   onTerrainFailures={setTerrainFailures}
+                  onMaterials={setMaterialsStatus}
                 />
               </SceneBoundary>
             )}
@@ -303,6 +312,7 @@ export default function App() {
                 {TERRAIN.status === "ready"
                   ? `Terrain: ${TERRAIN.config.attribution}`
                   : `Terrain blocked: ${TERRAIN.reason}`}
+                {materialsStatus && ` · ${materialsStatus}`}
                 {terrainFailures.length > 0 &&
                   ` · ${terrainFailures.length} tile request(s) failed (${terrainFailures[0]!.kind}: ${terrainFailures[0]!.message})`}
               </div>
@@ -424,6 +434,12 @@ export default function App() {
             <div className="eyebrow">01 / INPUT SOURCE</div>
             <h1>Flight controls</h1>
             <p>Check the channels and arm at zero throttle.</p>
+            {FLIGHT_PLAN && (
+              <p className="notice" data-testid="scripted-flight">
+                Scripted flight: {FLIGHT_PLAN.circuitRadiusM} m circuit at{" "}
+                {FLIGHT_PLAN.altitudeM} m, {FLIGHT_PLAN.speedMps} m/s
+              </p>
+            )}
             <div className="segmented">
               <button
                 className={source === "demo" ? "selected" : ""}
