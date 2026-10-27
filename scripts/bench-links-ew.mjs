@@ -1,10 +1,13 @@
 // Allocation instrumentation for the actual protocol/EW kernels. I/O and observers are outside step.
+//   node scripts/bench-links-ew.mjs [all|ew|mavlink|state] [400|800|1200] [--out DIR]
+// writes DIR/links-ew-<component>-<Hz>.json (default DIR: test-results/bench).
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { PerformanceObserver, performance } from "node:perf_hooks";
 import { mkdirSync, writeFileSync, readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import v8 from "node:v8";
+import { outputDirectory } from "./validation/evidence.mjs";
 if (!globalThis.gc) {
   const p = spawnSync(
     process.execPath,
@@ -39,6 +42,7 @@ const { AutopilotSession } = await import(
 const component = process.argv[2] ?? "all";
 const hz = Number(process.argv[3] ?? 400);
 if (![400, 800, 1200].includes(hz)) throw new Error("Invalid probe Hz");
+const directory = outputDirectory("test-results/bench");
 const dt = 1 / hz;
 const { newPilotInputV2, ControlFlag } = await import(
   "../packages/protocol/src/index.ts"
@@ -299,9 +303,9 @@ const report = {
     ]),
   ),
 };
-mkdirSync("test-results/bench", { recursive: true });
+mkdirSync(directory, { recursive: true });
 writeFileSync(
-  `test-results/bench/links-ew-${component}-${hz}.json`,
+  `${directory}/links-ew-${component}-${hz}.json`,
   JSON.stringify(report, null, 2) + "\n",
 );
 console.log(JSON.stringify(report));

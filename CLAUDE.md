@@ -249,7 +249,10 @@ and build output/logs are retained even after failure. Hosted execution must
 be checked separately from successful local jobs.
 
 `npm run build` already runs `tsc --noEmit` and Vite build. `npm test` means
-`vitest run`; select focused tests by an existing exact path. Omit CHROMIUM_PATH
+`vitest run`; select focused tests by an existing exact path. It must leave
+tracked `test-results/` evidence unchanged: tests write generated reports to
+temporary or ignored directories, and `tests/support/tracked-results.ts` fails
+the run if `git status --porcelain -- test-results/` changes. Omit CHROMIUM_PATH
 when using Playwright's browser. If needed, install it separately with
 `npx playwright install chromium`. When the cloud home cache is unwritable,
 use `npm ci --cache /workspace/.cache/mirage-npm --no-audit --no-fund`.
