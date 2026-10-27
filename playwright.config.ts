@@ -11,6 +11,8 @@ export default defineConfig({
     ['list'],
     ['junit', { outputFile: 'test-results/browser/junit.xml' }],
     ['html', { open: 'never' }],
+    // Last, so it rechecks tracked test-results/ evidence after the other reporters wrote their files.
+    ['./tests/support/tracked-results-reporter.ts'],
   ],
   use: {
     baseURL: 'http://127.0.0.1:5173',

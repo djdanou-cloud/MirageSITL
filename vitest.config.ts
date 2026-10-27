@@ -3,4 +3,5 @@ export default defineConfig({ test: {
   include: ['tests/**/*.test.ts'],
   passWithNoTests: false,
   allowOnly: !process.env.CI,
+  globalSetup: ['tests/support/tracked-results.ts'],
 } });

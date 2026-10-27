@@ -1,16 +1,21 @@
 import { execFileSync, spawnSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { Ajv } from "ajv";
-import { expect, it } from "vitest";
+import { expect, it, onTestFinished } from "vitest";
 import { record } from "@mirage/wasm-bet/rotor";
 import schema from "../docs/validation/model-report.schema.json";
 it("writes numerical and UIUC evidence, retains the deferred NASA failure, and fails closed on missing or failed fidelity", () => {
-  const result = spawnSync(process.execPath, ["scripts/validate-models.mjs"], {
+  // The validator still reads committed test-results/ evidence; only its reports go to a temporary directory.
+  const out = mkdtempSync(join(tmpdir(), "mirage-models-"));
+  onTestFinished(() => rmSync(out, { recursive: true, force: true }));
+  const result = spawnSync(process.execPath, ["scripts/validate-models.mjs", "--out", out], {
     encoding: "utf8",
   });
   expect(result.status, result.stderr).toBe(2);
   const report: unknown = JSON.parse(
-    readFileSync("test-results/validation/model-report.json", "utf8"),
+    readFileSync(join(out, "model-report.json"), "utf8"),
   );
   expect(
     new Ajv({ strict: true, allowUnionTypes: true }).compile(schema)(report),

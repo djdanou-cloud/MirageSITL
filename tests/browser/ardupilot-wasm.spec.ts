@@ -76,9 +76,10 @@ test('real firmware boots in an isolated Worker and persists a real parameter ac
   await boot(page,profile);expect(await readParameter(page)).toBe(8.125);await stop(page);
   const third=await page.evaluate(()=>({events:window.ardupilotCheck.events.filter(e=>!(e!==null&&typeof e==='object'&&'type' in e&&e.type==='serial')),serial:window.ardupilotCheck.serial}));
   const thirdImage=await checkpointImage(page,profile);
-  mkdirSync('test-results/validation',{recursive:true});
+  // Committed TASK-045 evidence in test-results/validation stays read-only; new captures go to an ignored directory.
+  mkdirSync('test-results/browser/task-045',{recursive:true});
   await expect.poll(()=>page.workers().map(worker=>worker.url())).toEqual([]);
-  writeFileSync('test-results/validation/task-045-browser-boot.json',JSON.stringify({schemaVersion:1,scope:'Actual local firmware, built-in quad; no MirageSITL physics or autopilot READY',browser:page.context().browser()?.version(),bootWorkers,remainingWorkers:page.workers().length,profile,manifest,initial,first:{...first,checkpoint:firstImage},second:{...second,checkpoint:secondImage},third:{...third,checkpoint:thirdImage},errors},null,2)+'\n');
+  writeFileSync('test-results/browser/task-045/task-045-browser-boot.json',JSON.stringify({schemaVersion:1,scope:'Actual local firmware, built-in quad; no MirageSITL physics or autopilot READY',browser:page.context().browser()?.version(),bootWorkers,remainingWorkers:page.workers().length,profile,manifest,initial,first:{...first,checkpoint:firstImage},second:{...second,checkpoint:secondImage},third:{...third,checkpoint:thirdImage},errors},null,2)+'\n');
 });
 test('checkpoints are atomic under concurrent writers and reject corrupted stored bytes',async({page})=>{
   await page.goto('/ardupilot-check.html');

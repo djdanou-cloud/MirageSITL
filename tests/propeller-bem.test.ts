@@ -1,11 +1,16 @@
 import { spawnSync } from "node:child_process";
-import { readFileSync } from "node:fs";
-import { expect, it } from "vitest";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { expect, it, onTestFinished } from "vitest";
 
 it("runs independent annular momentum cases against unchanged measured UIUC tolerances without hiding nonconvergence", () => {
-  const run = spawnSync(process.execPath, ["scripts/check-propeller-bem.mjs"], { encoding: "utf8", timeout: 180000 });
+  // The committed test-results/validation/propeller-bem.json stays authoritative; this run writes elsewhere.
+  const out = mkdtempSync(join(tmpdir(), "mirage-bem-"));
+  onTestFinished(() => rmSync(out, { recursive: true, force: true }));
+  const run = spawnSync(process.execPath, ["scripts/check-propeller-bem.mjs", "--out", out], { encoding: "utf8", timeout: 180000 });
   expect(run.status, run.stderr).toBe(0);
-  const report: unknown = JSON.parse(readFileSync("test-results/validation/propeller-bem.json", "utf8"));
+  const report: unknown = JSON.parse(readFileSync(join(out, "propeller-bem.json"), "utf8"));
   expect(report).toMatchObject({
     schemaVersion: 1, status: "diagnostic-only",
     results: [

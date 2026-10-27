@@ -1,4 +1,5 @@
 // Offline source-backed TASK-033 sensitivity diagnostic; never a fidelity override.
+// Writes propeller-bem.json to test-results/validation or to `--out DIR`.
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { execFileSync, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -6,8 +7,10 @@ import { fileURLToPath } from "node:url";
 import { join } from "node:path";
 import { verifyFixture } from "../packages/test-support/src/fixtures.ts";
 import { parseUiucPropellerFixture, parseXfoilPolar, evaluateUiucPropellers } from "../packages/physics/src/uiuc-propeller.ts";
+import { outputDirectory } from "./validation/evidence.mjs";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
+const directory = outputDirectory(join(root, "test-results/validation"));
 const sha = (bytes) => createHash("sha256").update(bytes).digest("hex");
 const read = (path) => readFileSync(join(root, path));
 const registry = JSON.parse(read("tests/fixtures/registry.json"));
@@ -70,6 +73,6 @@ const report = { schemaVersion: 1, task: "TASK-033", status: "diagnostic-only", 
     }
     return { id: candidate.id, ...counts };
   }), results };
-mkdirSync(join(root, "test-results/validation"), { recursive: true });
-writeFileSync(join(root, "test-results/validation/propeller-bem.json"), JSON.stringify(report, null, 2) + "\n");
+mkdirSync(directory, { recursive: true });
+writeFileSync(join(directory, "propeller-bem.json"), JSON.stringify(report, null, 2) + "\n");
 // A successful diagnostic execution does not claim measured acceptance.

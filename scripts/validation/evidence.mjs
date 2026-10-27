@@ -46,6 +46,13 @@ export function provenance(v, source) {
   if (!/^\d{4}-\d{2}-\d{2}T/.test(text(v.recordedAt)) || !Number.isFinite(Date.parse(v.recordedAt))) throw new Error("Invalid acquisition timestamp");
 }
 export function report(kind, status, reasons, metrics = {}) { return { schemaVersion: 1, kind, status, reasons, metrics }; }
+/** `--out DIR` replaces a default report directory; tests pass a temporary one so committed evidence stays unchanged. */
+export function outputDirectory(fallback) {
+  const index = process.argv.indexOf("--out");
+  if (index < 0) return fallback;
+  if (index + 1 >= process.argv.length) throw new Error("Expected --out DIR");
+  return process.argv[index + 1];
+}
 export function cli(url, kind, assess) {
   if (!process.argv[1] || fileURLToPath(url) !== process.argv[1]) return;
   let result;

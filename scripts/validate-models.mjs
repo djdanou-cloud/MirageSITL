@@ -9,6 +9,7 @@ import {
   newBodyTruth,
 } from "../packages/wasm-bet/src/backend.ts";
 import { verifyFixture } from "../packages/test-support/src/fixtures.ts";
+import { outputDirectory } from "./validation/evidence.mjs";
 import {
   evaluateNasaDrop,
   parseNasaDropFixture,
@@ -469,9 +470,11 @@ export async function validateModels() {
 }
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   try {
+    // --out DIR moves only these outputs; committed evidence inputs are still read from the checkout.
+    const directory = outputDirectory(join(root, "test-results/validation"));
     const { propellerPoints, ...report } = await validateModels();
-    const out = join(root, "test-results/validation/model-report.json"),
-      pointsOut = join(root, "test-results/validation/propeller-points.json");
+    const out = join(directory, "model-report.json"),
+      pointsOut = join(directory, "propeller-points.json");
     mkdirSync(dirname(out), { recursive: true });
     writeFileSync(out, JSON.stringify(report, null, 2) + "\n");
     writeFileSync(pointsOut, JSON.stringify(propellerPoints, null, 1) + "\n");

@@ -59,6 +59,28 @@ describe('pull request CI contract', () => {
     // Vitest runs, and up to 7.7 s observed. Vitest's 5 s default
     // measures host contention rather than the discovery contract asserted above.
   }, 20_000);
+  it('uploads untracked browser reports and rechecks tracked evidence after the other reporters', () => {
+    const reporters: unknown = browserConfig.reporter;
+    if (!Array.isArray(reporters)) throw new Error('Expected a reporter list');
+    const entries = (reporters as unknown[]).map(entry => Array.isArray(entry) ? entry as unknown[] : [entry]);
+    expect(entries.at(-1)?.[0]).toBe('./tests/support/tracked-results-reporter.ts');
+    const junit = record(entries.find(entry => entry[0] === 'junit')?.[1] ?? {}).outputFile;
+    const outputDir = browserConfig.outputDir;
+    if (typeof junit !== 'string' || typeof outputDir !== 'string') throw new Error('Expected browser output paths');
+    // Generated reports must never overwrite committed evidence.
+    const tracked = spawnSync('git', ['ls-files', '--', junit, outputDir], { cwd: root, encoding: 'utf8' });
+    expect(tracked.status).toBe(0);
+    expect(tracked.stdout).toBe('');
+    const document: unknown = parse(readFileSync(join(root, '.github/workflows/ci.yml'), 'utf8'));
+    const steps = record(record(record(document).jobs).browser).steps;
+    if (!Array.isArray(steps)) throw new Error('Missing browser steps');
+    const upload = (steps as unknown[]).map(record).find(step => typeof step.uses === 'string' && step.uses.startsWith('actions/upload-artifact@'));
+    const paths = record(upload?.with ?? {}).path;
+    if (typeof paths !== 'string') throw new Error('Missing browser artifact paths');
+    const uploaded = paths.split('\n').map(path => path.trim()).filter(path => path.length > 0);
+    // playwright-report/ is the HTML reporter's default folder.
+    for (const output of [junit, outputDir, 'playwright-report/']) expect(uploaded.some(path => output.startsWith(path)), output).toBe(true);
+  });
   it('pins one Rust toolchain across native/rust-toolchain.toml and every workflow that installs it', () => {
     const toolchain = readFileSync(join(root, 'native/rust-toolchain.toml'), 'utf8');
     const channel = /^channel = "([^"]+)"$/m.exec(toolchain)?.[1];
