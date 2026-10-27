@@ -59,6 +59,8 @@ export class PositionStep {
   private pendingTick = -1;
   private active = false;
   private readonly applier: GpsOffsetApplier;
+  private readonly offsetInput: [number, number, number] = [0, 0, 0];
+  private readonly tickInput = new Float64Array(1);
 
   constructor(geoid: GeoidModel = NO_GEOID) {
     this.applier = new GpsOffsetApplier(geoid);
@@ -68,22 +70,40 @@ export class PositionStep {
   /** Physics tick at which the scheduled step applies, or -1. */
   get scheduledTick(): number { return this.pendingTick; }
 
-  /**
-   * Schedules an offset to take effect at physics tick `atTick` (a safe
-   * integer). Returns false for a non-finite offset, |offset| > 10 km, or an
-   * invalid tick. A zero offset is valid and changes nothing.
-   */
+  /** Low-rate convenience for scheduleFrom (float arguments may be boxed). */
   schedule(northM: number, eastM: number, downM: number, atTick: number): boolean {
+    const o = this.offsetInput;
+    o[0] = northM; o[1] = eastM; o[2] = downM;
+    this.tickInput[0] = atTick;
+    return this.scheduleFrom(o, this.tickInput);
+  }
+
+  /**
+   * Schedules the NED offset `offsetNedM` (m) to take effect at physics tick
+   * `atTick[0]` (a safe integer). Both are read from arrays, so tick-boundary
+   * commands pass no float arguments and nothing is allocated. Returns false
+   * for a non-finite offset, |offset| > 10 km, or an invalid tick. A zero
+   * offset is valid and changes nothing.
+   */
+  scheduleFrom(offsetNedM: readonly [number, number, number], atTick: Float64Array): boolean {
+    const northM = offsetNedM[0], eastM = offsetNedM[1], downM = offsetNedM[2], tick = atTick[0];
     const magnitude = Math.sqrt(northM * northM + eastM * eastM + downM * downM);
-    if (!(magnitude <= MAX_OFFSET_M) || !Number.isSafeInteger(atTick) || atTick < 0) return false;
+    if (!(magnitude <= MAX_OFFSET_M) || tick === undefined || !Number.isSafeInteger(tick) || tick < 0) return false;
     this.pending[0] = northM; this.pending[1] = eastM; this.pending[2] = downM;
-    this.pendingTick = atTick;
+    this.pendingTick = tick;
     return true;
   }
 
-  /** Called once per physics tick; applies a due step atomically (all three axes at once). */
+  /** Low-rate convenience for advanceTickFrom (a float argument may be boxed). */
   advanceTick(tick: number): void {
-    if (this.pendingTick >= 0 && tick >= this.pendingTick) {
+    this.tickInput[0] = tick;
+    this.advanceTickFrom(this.tickInput);
+  }
+
+  /** Called once per physics tick with the tick in `tick[0]`; applies a due step atomically (all three axes at once). */
+  advanceTickFrom(tick: Float64Array): void {
+    const now = tick[0];
+    if (this.pendingTick >= 0 && now !== undefined && now >= this.pendingTick) {
       this.offsetNedM.set(this.pending);
       this.active = true;
       this.pendingTick = -1;

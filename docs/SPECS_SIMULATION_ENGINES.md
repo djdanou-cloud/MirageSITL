@@ -1841,6 +1841,14 @@ tick)` runs at the tick boundary (`PhysicsSessionV2.applyScheduled`, through an 
 allocation. The live Worker owns one `EwEngine` behind `createSessionFaultPort` (`packages/ew/src/session-port.ts`), the same port its tests drive; the port owns no motor table. The session builds a `MotorFaults` table with motor IDs 0..rotorCount-1 of the active dynamics only when that dynamics reads one (`SessionDynamics.useMotorFaults`), binds it through `SessionFaultPort.bindMotors`, and rebuilds it whenever `sim.configure` replaces the dynamics; without a table, motor-loss is rejected at admission. `EwEngine` fixes its table at construction, so the port builds a new engine around each bound table and keeps the seed; binding happens only when a fault-free epoch starts. A session constructed without that port still rejects `fault.set`. `weather.set` stays rejected because the demo has no wind model. Each effect kind has one owning faultId (per motor for
 `motor-loss`); a newer faultId replaces the owner, disabling a non-owning or
 unknown faultId changes nothing, and a full registry returns `registry-full`.
+A faultId owns at most one effect. Enabling a faultId that owns another effect
+kind, or another motor for `motor-loss`, moves it (TASK-125): the new effect
+engages first, then the effect it owned is released with the new command's
+`recovery` (only drift distinguishes the two policies), so a later disable of
+the new effect leaves nothing behind. When the new effect cannot engage, the
+command returns `rejected` before the registry or any effect changes. The
+instructor console relies on this: it keeps one fault ID while its effect
+select changes.
 The session reports `registry-full` as a final OVERLOAD reject and a kernel
 `rejected` as a final OUT_OF_RANGE reject, never as applied, and then faults
 (TASK-124). Disabling drift uses the command's `recovery`; motor-loss is
@@ -1863,8 +1871,19 @@ floats through typed arrays or object fields: geodesy exposes
 `LocalTangentFrame.setOriginFrom/nedToGeodeticFromInto/...`, geoids expose
 `undulationFromInto`, `GpsOffsetApplier.applyFromInto` takes the offset array,
 and drift/jamming read `dtS` from the step context (`advanceFrom`). Scalar
-signatures remain as low-rate conveniences. `MagneticAnomaly.configure`
-reconfigures in place for tick-boundary commands.
+signatures remain as low-rate conveniences. `apply` follows the same rule for
+tick-boundary commands (TASK-126): `MagneticAnomaly.configureFrom` reads the
+command's rotation and bias arrays and reconfigures in place,
+`PositionStep.scheduleFrom`/`advanceTickFrom` read the offset array and take
+the tick from a one-element `Float64Array` (past 2^30, the V8 small-integer
+limit under pointer compression as in Chromium, a tick is a heap number),
+`MotorFaults.setFromArray` reads the remaining thrust fraction from
+one, and drift enables reuse one engine-owned preset. The kernels read array
+elements by index, because array destructuring boxed non-integer elements.
+`configure`, `schedule`, `advanceTick` and `set` remain low-rate conveniences.
+`tests/ew-pipeline.test.ts` applies 1e6 commands of every effect, with
+non-integer parameters, re-targeting and ticks past 2^32, and requires a
+GC-free window next to an allocating control.
 
 
 ## Thermal, diagnostics and recording contracts (TASK-043/070–078/081)
@@ -2143,7 +2162,7 @@ Schema 2 manifests name six ordered capture directories. scripts/sitl/check-ew.p
 
 scripts/freeze-ew.mjs accepts audited calibration captures once, requires a healthy control within 1 m, and refuses to overwrite existing envelopes. The predeclared empirical rule is ceil-to-0.01 of 1.5 times each calibration maximum plus 2 m position/trajectory margin or 0.5 innovation margin. Observed calibration modes become the allowed set; unexpected modes require investigation. Firmware, effective parameter inputs, model, plan and source hashes must match. A new validation batch must pass those fixed bounds and the independent healthy control gate; calibration capture hashes cannot validate themselves. These are version-specific synthetic native regression limits, not measured aircraft fidelity, browser READY, recorded Simulation-on-Hardware, guaranteed fallback modes or EKF gate bypass.
 
-Native TASK-059 acceptance: all six calibration cases and six separate validation cases pass, with 710636 reconstructed physics frames. The immutable matrix and original native reports/archives preserve fault-induced unhealthy flags and modes. Jamming and drift reached Land; the position step raised GPS-glitch flags; magnetic bias increased compass innovation ratios while remaining Guided; complete rotor loss tumbled into the synthetic floor during its 3 s window. In pinned Copter ekf_check.cpp, compass, velocity and position variance criteria combine before failsafe action, so compass innovation alone is not a promise of Land. The healthy TASK-042 flight also passed again. See test-results/validation/task-059-native.json, task-059-tests.json and task-059-completion.json for exact identities and the documented environment reruns.
+Native TASK-059 acceptance: all six calibration cases and six separate validation cases pass, with 710636 reconstructed physics frames. The immutable matrix and original native reports/archives preserve fault-induced unhealthy flags and modes. Jamming and drift reached Land; the position step raised GPS-glitch flags; magnetic bias increased compass innovation ratios while remaining Guided; complete rotor loss tumbled into the synthetic floor during its 3 s window. In pinned Copter ekf_check.cpp, compass, velocity and position variance criteria combine before failsafe action, so compass innovation alone is not a promise of Land. The healthy TASK-042 flight also passed again. See test-results/validation/task-059-native.json, task-059-tests.json and task-059-completion.json for exact identities and the documented environment reruns. TASK-125 and TASK-126 later changed `packages/ew/src/engine.ts`, `magnetic.ts`, `position-step.ts` and `velocity-drift.ts`, which are part of the frozen source closure, so these reports are a historical snapshot of the previous source: a new native EW capture fails the frozen source-closure check in `scripts/report-ekf.mjs` until TASK-059 is recalibrated and revalidated on Linux/WSL native SITL. The native adapter enables each case's effect under its own faultId, so re-targeting never occurred in these flights.
 
 GPU analysis requires M4 or RTX4050 identity, OS/browser/power/backend, a visible production scene, all terrain/FPV/thermal features, >=60 s warmup and >=600 s measurement. All positive finite frame intervals must cover duration within 0.02 s. On 2026-10-21 the user accepted 60 FPS limits of median 16.680 ms and p99 17.665 ms, compared after rounding to 0.001 ms, and accepted a 59.88 Hz panel for that profile. The 120 FPS p99 limit remains 8.33 ms and applies on a panel that refreshes at least at 120 Hz. GPU residency<=2 GiB and CPU cache<=512 MiB. The flight image must fill the active physical display. An emulated 1920x1080 viewport does not prove presentation on a 2560x1440 mode or on the MacBook Air native 2560x1664 panel. Software/headless rendering cannot pass. Imported traces require original profiler evidence review.
 

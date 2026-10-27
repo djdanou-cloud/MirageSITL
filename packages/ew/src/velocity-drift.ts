@@ -53,7 +53,8 @@ export class VelocityDrift {
 
   /** Starts (or retargets) drift from the current b and v_d; false for an invalid preset. */
   enable(preset: DriftPreset): boolean {
-    const [an, ae, ad] = preset.accelNedMps2;
+    // Indexed reads: destructuring boxes non-integer elements, and this runs at tick-boundary commands.
+    const a = preset.accelNedMps2, an = a[0], ae = a[1], ad = a[2];
     const aMag = Math.sqrt(an * an + ae * ae + ad * ad);
     if (!Number.isFinite(aMag) || aMag > 5 || !(preset.maxSpeedMps > 0 && preset.maxSpeedMps <= 50) ||
       !(preset.decelMps2 > 0 && preset.decelMps2 <= 5) ||
