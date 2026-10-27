@@ -331,6 +331,29 @@ describe('PhysicsSessionV2 fault and EW contract', () => {
     expect(h.latest().ewFlags & EwFlagV2.MotorFault).toBe(0);
     expect(h.latest().vehicleFlags & VehicleFlagV2.ModelOutsideValidity).toBe(0);
   });
+  it('re-enabling a fault ID with another effect or motor releases what it held, so one disable clears it', () => {
+    const built: MotorFaultInput[] = [];
+    const h = harness(faultPort(), hz => { const dynamics = new MotorFaultInput(hz, 4); built.push(dynamics); return dynamics; });
+    // TASK-125: the instructor console keeps its fault ID while the effect select changes, and always sends hold-offset.
+    const retargets: [number, EwEffect][] = [[2, { kind: 'position-step', offsetNedM: [10, 0, 0] }],
+      [6, { kind: 'magnetic', rotationRad: [0, 0, 0.5], biasBodyGauss: [0, 0, 0] }], [10, motorLoss(0)], [14, motorLoss(1)]];
+    for (const [tick, effect] of retargets) {
+      expect(h.command('fault.set', faultAt('training-fault', effect, { tick }))).toMatchObject({ status: 'queued' });
+    }
+    expect(h.command('fault.set', faultAt('training-fault', motorLoss(1), { tick: 18, enabled: false }))).toMatchObject({ status: 'queued' });
+    const table = boundTable(built[0]);
+    h.command('sim.start');
+    h.run(20); // tick 8
+    expect(h.latest().ewFlags).toBe(EwFlagV2.MagneticAnomaly); // the position step ended at tick 6
+    h.run(10); // tick 12
+    expect([h.latest().ewFlags, table.driveTorque(0, 2)]).toEqual([EwFlagV2.MotorFault, 0]);
+    h.run(10); // tick 16
+    expect([table.driveTorque(0, 2), table.driveTorque(1, 2)]).toEqual([2, 0]);
+    h.run(10); // tick 20
+    h.session.drain(result => h.results.push(result));
+    expect(h.results.filter(r => r.type === 'ack-v2' && r.status === 'applied' && r.requestId <= 5)).toHaveLength(5);
+    expect([h.session.fault, h.latest().ewFlags, table.driveTorque(1, 2)]).toEqual(['', 0, 2]);
+  });
   it('sim.configure clears active faults like sim.reset and keeps the seed of the last reset', () => {
     const port = faultPort(), resets = vi.spyOn(port, 'reset');
     const h = harness(port);

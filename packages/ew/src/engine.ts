@@ -105,7 +105,10 @@ export class EwEngine {
    * Applies one admitted fault.set at the boundary of `tick`. Enabling a
    * faultId takes ownership of its effect (one active instance per effect
    * kind, per motor for motor-loss; a newer faultId replaces the previous
-   * owner). Disabling releases it with the command's recovery policy;
+   * owner). Enabling a faultId that owns another effect, or another motor,
+   * moves it: the new effect engages first, then the old one is released
+   * with this command's recovery, so a rejected command changes nothing.
+   * Disabling releases the owned effect with the command's recovery policy;
    * disabling an unknown or non-owning faultId changes nothing.
    */
   apply(command: FaultCommand, tick: TickId): ApplyResult {
@@ -115,18 +118,21 @@ export class EwEngine {
     const existing = this.findSlot(command.faultId);
     if (!command.enabled) {
       if (existing < 0 || this.kinds[existing] !== kind || this.motors[existing] !== motor) return "applied";
-      this.release(e, command.recovery);
+      this.release(existing, command.recovery);
       this.ids[existing] = null;
       return "applied";
     }
-    let slot = this.ownerOf(kind, motor);
-    if (slot < 0) slot = existing;
+    const owner = this.ownerOf(kind, motor);
+    let slot = owner >= 0 ? owner : existing;
     if (slot < 0) {
       for (let i = 0; i < FAULT_REGISTRY_CAPACITY && slot < 0; i++) if (this.ids[i] === null) slot = i;
       if (slot < 0) return "registry-full";
     }
-    if (existing >= 0 && existing !== slot) this.ids[existing] = null; // the id moved to another effect
-    if (!this.engage(e, command.recovery, tickNumber)) return "rejected";
+    if (!this.engage(e, command.recovery, tickNumber)) return "rejected"; // the registry is still unchanged
+    if (existing >= 0 && existing !== owner) { // the id moves off the effect it owned
+      this.release(existing, command.recovery);
+      if (existing !== slot) this.ids[existing] = null;
+    }
     this.ids[slot] = command.faultId;
     this.kinds[slot] = kind;
     this.motors[slot] = motor;
@@ -162,16 +168,17 @@ export class EwEngine {
     }
   }
 
-  private release(e: FaultCommand["effect"], recovery: FaultCommand["recovery"]): void {
-    switch (e.kind) {
-      case "gnss-jamming": this.severity[0] = 0; return; // filtered severity decays on the physics clock
-      case "position-step": this.step.disable(); return;
-      case "velocity-drift":
+  /** Ends the effect registry `slot` owns; the caller frees or reuses the slot. */
+  private release(slot: number, recovery: FaultCommand["recovery"]): void {
+    switch (this.kinds[slot]) {
+      case KIND_CODE["gnss-jamming"]: this.severity[0] = 0; return; // filtered severity decays on the physics clock
+      case KIND_CODE["position-step"]: this.step.disable(); return;
+      case KIND_CODE["velocity-drift"]:
         this.drift.disable(recovery); // the command's recovery decides how drift ends (spec section 5)
         return;
-      case "magnetic": this.magneticActive = false; this.magnetic.configure(0, 0, 0, 0, 0, 0); return;
-      case "motor-loss": this.motorFaults?.set(e.motorIndex, "none", 1); this.motorFaultCount--; return;
-      default: { const never: never = e; throw new Error(`Unhandled effect ${JSON.stringify(never)}`); }
+      case KIND_CODE.magnetic: this.magneticActive = false; this.magnetic.configure(0, 0, 0, 0, 0, 0); return;
+      case KIND_CODE["motor-loss"]: this.motorFaults?.set(this.motors[slot] ?? -1, "none", 1); this.motorFaultCount--; return;
+      default: throw new Error(`Unhandled effect code ${String(this.kinds[slot])}`);
     }
   }
 

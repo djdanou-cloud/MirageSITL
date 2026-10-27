@@ -31,6 +31,9 @@ const fault = (faultId: string, enabled: boolean, effect: FaultCommand["effect"]
   ({ protocolVersion: 2, requestId: ++requestId, expectedEpoch: 1, type: "fault.set", atTick: { lo: 0, hi: 0 }, faultId, enabled, effect, recovery });
 const tick = (lo: number): TickId => ({ lo, hi: 0 });
 const ctx = (dtS = 1 / 400): EwContext => ({ dtS, simTimeS: 0, truthNorthM: 1, truthEastM: 2, truthDownM: -3 });
+const magnetic = (yawRad: number): FaultCommand["effect"] => ({ kind: "magnetic", rotationRad: [0, 0, yawRad], biasBodyGauss: [0, 0, 0] });
+const motorLoss = (motorIndex: number): FaultCommand["effect"] =>
+  ({ kind: "motor-loss", motorIndex, mode: "power-cut", remainingThrustFraction: 0 });
 
 describe("EW pipeline composition", () => {
   it("orders baseline -> step + drift -> jamming -> quantization", () => {
@@ -104,6 +107,51 @@ describe("EW pipeline composition", () => {
     expect(engine.apply(fault("m1", true, { kind: "motor-loss", motorIndex: 1, mode: "power-cut", remainingThrustFraction: 0.5 }), tick(7))).toBe("applied");
     expect(new EwEngine().apply(fault("x", true, { kind: "motor-loss", motorIndex: 0, mode: "power-cut", remainingThrustFraction: 0.5 }), tick(0)))
       .toBe("rejected"); // no MotorFaults wired
+  });
+
+  // TASK-125: re-enabling an owning faultId with another effect, or another motor, releases what it held.
+  it("releases the effect a faultId owned when it is re-enabled with another effect or motor", () => {
+    const motors = new MotorFaults([0, 1, 2, 3]), engine = new EwEngine(motors);
+    engine.reset(5);
+    // Another kind: x moves from jamming to the magnetic anomaly, so jamming ends there.
+    expect(engine.apply(fault("x", true, { kind: "gnss-jamming", severity: 1 }), tick(0))).toBe("applied");
+    expect(engine.apply(fault("x", true, magnetic(0.5)), tick(1))).toBe("applied");
+    expect(engine.apply(fault("x", false, { kind: "gnss-jamming", severity: 0 }), tick(2))).toBe("applied"); // x owns no jamming now
+    expect(engine.apply(fault("x", false, magnetic(0)), tick(3))).toBe("applied");
+    for (let i = 0; i < 4000; i++) engine.advanceInto(ctx()); // filtered severity decays on the physics clock
+    expect(engine.flags).toBe(0);
+    // Another motor: motor 0 recovers as soon as y moves to motor 1.
+    engine.apply(fault("y", true, motorLoss(0)), tick(4));
+    expect(engine.apply(fault("y", true, motorLoss(1)), tick(5))).toBe("applied");
+    expect([motors.driveTorque(0, 2), motors.driveTorque(1, 2)]).toEqual([2, 0]);
+    engine.apply(fault("y", false, motorLoss(1)), tick(6));
+    expect([motors.driveTorque(1, 2), engine.flags]).toEqual([2, 0]);
+    // An effect another faultId owns: a replaces b as its owner, and the step a held ends.
+    engine.apply(fault("a", true, { kind: "position-step", offsetNedM: [10, 0, 0] }), tick(7));
+    engine.apply(fault("b", true, magnetic(0.5)), tick(7));
+    expect(engine.apply(fault("a", true, magnetic(0.25)), tick(8))).toBe("applied");
+    expect(engine.flags).toBe(EwFlagV2.MagneticAnomaly);
+    engine.apply(fault("b", false, magnetic(0)), tick(9)); // b no longer owns the anomaly
+    expect(engine.flags).toBe(EwFlagV2.MagneticAnomaly);
+    engine.apply(fault("a", false, magnetic(0)), tick(10));
+    expect(engine.flags).toBe(0);
+  });
+
+  it("ends a re-targeted drift with the new command's recovery and changes nothing when the new effect cannot engage", () => {
+    const engine = new EwEngine();
+    engine.reset(6);
+    engine.apply(fault("d", true, { kind: "velocity-drift", accelerationNedMps2: [0.2, 0, 0], maxSpeedMps: 5 }, "hold-offset"), tick(0));
+    for (let i = 0; i < 400; i++) engine.advanceInto(ctx()); // 1 s: b = (0.1, 0, 0) m, v_d = (0.2, 0, 0) m/s
+    // The drift was enabled with hold-offset; the re-targeting command's step-to-truth decides how it ends.
+    expect(engine.apply(fault("d", true, { kind: "gnss-jamming", severity: 0.5 }, "step-to-truth"), tick(400))).toBe("applied");
+    expect([engine.drift.mode, engine.drift.discontinuities, ...engine.drift.offsetNedM]).toEqual(["off", 1, 0, 0, 0]);
+    // The new effect is engaged before anything is released: a step beyond 10 km is rejected and a keeps its anomaly.
+    engine.apply(fault("a", true, magnetic(0.5)), tick(401));
+    engine.apply(fault("b", true, { kind: "position-step", offsetNedM: [10, 0, 0] }), tick(401));
+    expect(engine.apply(fault("a", true, { kind: "position-step", offsetNedM: [20_000, 0, 0] }), tick(402))).toBe("rejected");
+    expect([...engine.step.offsetNedM]).toEqual([10, 0, 0]); // b's step is untouched
+    engine.apply(fault("a", false, magnetic(0)), tick(403));
+    expect(engine.flags & (EwFlagV2.MagneticAnomaly | EwFlagV2.PositionStep)).toBe(EwFlagV2.PositionStep);
   });
 
   it("never touches truth or the baseline samples", () => {
