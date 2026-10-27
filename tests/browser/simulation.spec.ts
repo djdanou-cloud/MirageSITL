@@ -1,7 +1,37 @@
 import { viteFileUrl } from "../support/vite-url";
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
+
+const altitude = async (page: Page) => Number((await page.getByTestId('altitude').innerText()).replace('m', ''));
+/**
+ * Climbs above 0.5 m the way an operator would. A Main-thread frame longer than the 250 ms
+ * pilot-input timeout (a slow software-rendered CI frame) makes the session disarm on stale input,
+ * and the UI then withdraws its arm request; rearming is explicit at 0% throttle
+ * (SPECS_SHARED_MEMORY, pilot mailbox v2). Each such failsafe is logged, never hidden.
+ */
+async function armAndClimb(page: Page, budgetMs = 30_000): Promise<void> {
+  const throttle = page.getByLabel('Demo throttle');
+  const arm = page.getByRole('button', { name: 'Arm motors', exact: true });
+  const disarm = page.getByRole('button', { name: 'Disarm motors', exact: true });
+  const deadline = Date.now() + budgetMs;
+  let armed = false;
+  while (Date.now() < deadline) {
+    if (await altitude(page) > 0.5) return;
+    if (await arm.isVisible()) {
+      if (armed) console.log(`Input failsafe disarmed the motors; arming again: ${await page.getByRole('alert').innerText()}`);
+      await throttle.fill('0');
+      await arm.click();
+      await disarm.waitFor({ timeout: 2_000 }).catch(() => undefined);
+      armed = true;
+    } else if (await page.getByTestId('input-protection').innerText() === 'INPUT LIVE' && await throttle.inputValue() !== '0.7') {
+      await throttle.fill('0.7'); // the session confirmed the arm at 0% throttle
+    }
+    await page.waitForTimeout(100);
+  }
+  throw new Error('The vehicle did not take off within the time budget');
+}
 
 test('isolates shared memory, renders, takes off and pauses/resets', async ({ page }) => {
+  test.setTimeout(60_000);
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
   await page.goto('/');
@@ -10,10 +40,7 @@ test('isolates shared memory, renders, takes off and pauses/resets', async ({ pa
   await expect(page.locator('canvas')).toBeVisible();
   await page.getByRole('button', { name: 'Start', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Arm motors', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Disarm motors', exact: true })).toBeVisible();
-  await page.getByLabel('Demo throttle').fill('0.7');
-  await expect.poll(async () => Number(await page.getByTestId('altitude').innerText().then(t => t.replace('m', ''))), { timeout: 10000 }).toBeGreaterThan(0.5);
+  await armAndClimb(page);
   await page.getByRole('button', { name: 'Pause', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Start', exact: true })).toBeVisible();
   await page.waitForTimeout(300); // Allow UI stats to reflect the pause ACK.
@@ -25,6 +52,22 @@ test('isolates shared memory, renders, takes off and pauses/resets', async ({ pa
   await expect(page.getByTestId('altitude')).toHaveText('0.0m');
   expect(errors).toEqual([]);
   await page.screenshot({ path: '/tmp/mirage-desktop.png', fullPage: true });
+});
+
+test('a stalled Main thread disarms the session and the UI, and rearming is explicit', async ({ page }) => {
+  test.setTimeout(60_000);
+  await page.goto('/');
+  await expect(page.getByTestId('worker-status')).toHaveText('READY');
+  await page.getByRole('button', { name: 'Start', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Arm motors', exact: true }).click();
+  await expect(page.getByTestId('input-protection')).toHaveText('INPUT LIVE');
+  // One frame longer than the 250 ms pilot-input timeout: the session's arm latch drops on stale input.
+  await page.evaluate(() => { const until = performance.now() + 400; while (performance.now() < until) { /* block Main */ } });
+  await expect(page.getByRole('button', { name: 'Arm motors', exact: true })).toBeVisible();
+  await expect(page.getByRole('alert')).toContainText('disarmed the motors');
+  await expect(page.getByTestId('input-protection')).toHaveText('DISARMED / STALE');
+  await armAndClimb(page);
 });
 
 test('real worker keeps fixed dt, detects stale control and acknowledges lifecycle', async ({ page }) => {

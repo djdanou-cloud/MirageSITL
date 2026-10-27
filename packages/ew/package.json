@@ -9,7 +9,8 @@
     "./magnetic": "./src/magnetic.ts",
     "./position-step": "./src/position-step.ts",
     "./velocity-drift": "./src/velocity-drift.ts",
-    "./engine": "./src/engine.ts"
+    "./engine": "./src/engine.ts",
+    "./session-port": "./src/session-port.ts"
   },
   "dependencies": {
     "@mirage/mavlink": "0.1.0",

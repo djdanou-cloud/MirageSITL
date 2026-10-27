@@ -1,10 +1,9 @@
 /// <reference lib="webworker" />
 import { AarRecord } from '@mirage/aar/record';
 import { RecordingHandoff } from '@mirage/aar/handoff';
-import { EwEngine, type EwContext } from '@mirage/ew/engine';
+import { createSessionFaultPort } from '@mirage/ew/session-port';
 import { isWorkerInitV2, tickToNumber, type CommandResultV2, type ControlCommandV2, type WorkerFaultV2 } from '@mirage/protocol';
-import { PhysicsSessionV2, type SessionClock, type SessionFaultPort } from '@mirage/physics';
-import { MotorFaults } from '@mirage/physics/motor-fault';
+import { PhysicsSessionV2, type SessionClock } from '@mirage/physics';
 import { ScenarioBinder } from '@mirage/scenarios/bind';
 import { parseScenario } from '@mirage/scenarios/schema';
 
@@ -25,25 +24,6 @@ type WorkerNotice = CommandResultV2 | WorkerFaultV2
   | { type: "scenario.submit"; command: ControlCommandV2 }
   | { type: "scenario.reject"; message: string };
 
-function createFaultPort(): SessionFaultPort {
-  const motors = new MotorFaults([0, 1, 2, 3]);
-  const engine = new EwEngine(motors);
-  const scratch: EwContext = { dtS: 0, simTimeS: 0, truthNorthM: 0, truthEastM: 0, truthDownM: 0 };
-  return {
-    apply: (command, tick) => engine.apply(command, tick),
-    reset: (seed) => engine.reset(seed),
-    advanceInto(context) {
-      scratch.dtS = context.dtS;
-      scratch.simTimeS = context.simTimeS;
-      scratch.truthNorthM = context.northM;
-      scratch.truthEastM = context.eastM;
-      scratch.truthDownM = context.downM;
-      return engine.advanceInto(scratch);
-    },
-    get flags() { return engine.flags; },
-    get validityFlags() { return motors.vehicleFlags; },
-  };
-}
 function createdRequestId(): number {
   return session?.allocateRequestId() ?? 1;
 }
@@ -109,7 +89,7 @@ addEventListener('message', (event: MessageEvent<unknown>) => {
   if (!session) {
     if (!isWorkerInitV2(data)) { post({ type: 'fault-v2', protocolVersion: 2, message: 'Expected init-v2' }); return; }
     try {
-      session = new PhysicsSessionV2(data, clock, undefined, createFaultPort());
+      session = new PhysicsSessionV2(data, clock, undefined, createSessionFaultPort());
       const created = session;
       created.setBeforeTick((tick) => {
         if (!binder) return;

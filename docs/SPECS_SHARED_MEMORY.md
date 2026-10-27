@@ -423,9 +423,11 @@ Normative runtime validation contract: TASK-010 implements JSON Schema
 * faultId matches `[A-Za-z0-9_-]{1,64}`; manifestSha256 has exactly 64 hex
   characters. severity/remainingThrustFraction are [0,1]; motor mode is the
   declared enum; motorIndex is integer [0,31] and <rotorCount. Offset
-  components are [-10000,10000] m; drift acceleration components [-0.3,0.3]
-  m/s² with norm<=0.3; maxSpeed (0,20] m/s; magnetic rotation components
-  [-pi,pi]; bias components [-2,2] gauss. Changing ranges changes spec/tests.
+  components are [-10000,10000] m with norm<=10000 m, the PositionStep
+  kernel envelope, so a step admission accepts can always execute; drift
+  acceleration components [-0.3,0.3] m/s² with norm<=0.3; maxSpeed (0,20]
+  m/s; magnetic rotation components [-pi,pi]; bias components [-2,2] gauss.
+  Changing ranges changes spec/tests.
 * Scheduled atTick is at least the next unintegrated tick, with a horizon
   <=10 s. Apply **before** integrating that tick. Commands at the same tick
   use recorded receipt order. A past tick never rewrites history. Admission
@@ -434,12 +436,15 @@ Normative runtime validation contract: TASK-010 implements JSON Schema
   after the compute batch, with no allocations inside step.
 * `queued` means accepted, not applied. Its appliedTick is the scheduled
   tick; an `applied` result reports the actual tick. Every queued command
-  eventually has final applied/reject. Limit the queue to 128 commands;
+  eventually has final applied/reject; a command that cannot take effect at
+  its tick is never reported as `applied`. Limit the queue to 128 commands;
   reject overflow without discarding older commands.
 * Pause/dispose execute outside fixed-step processing and do not wait for
   actuators. Reset/configure/model.load require paused+disarmed. They reject
-  pending commands with BAD_STATE, reset clocks/history/queues, and increment
-  epoch. ACK contains the new epoch. Reject commands with stale expectedEpoch.
+  pending commands with BAD_STATE, reset clocks/history/queues, clear every
+  active fault (`sim.configure` keeps the EW seed of the last `sim.reset`),
+  and increment epoch. ACK contains the new epoch. Reject commands with stale
+  expectedEpoch.
 * Model manifests are fetched and hash-verified outside the hot path.
   Prepare the backend while paused; swap only after validation and successful
   initialization. A failure preserves the previous model in paused state,
@@ -454,16 +459,36 @@ Normative runtime validation contract: TASK-010 implements JSON Schema
   final `applied` (new epoch), `ASSET_MISSING`, or `BAD_STATE`; while a load
   is in flight every other command except `worker.dispose` is rejected with
   BAD_STATE. Cancelled commands are rejected in due order. JSON Schema cannot
-  express the 16 KiB limit or the drift-norm limit; the TypeScript validator
-  enforces both.
+  express the 16 KiB limit, the drift-norm limit or the offset-norm limit;
+  the TypeScript validator enforces all three.
 * A backend that cannot model a scheduled command rejects it at admission
-  with BAD_STATE and its reason (`ControlTargetV2.unsupportedReason`); the
-  demo backend has no atmosphere or EW model, so it rejects every
-  `weather.set` and `fault.set`. Outside the command/result flow the Worker
-  reports session faults (for example a failed `init-v2` or a HITL overrun)
-  as `{ type: 'fault-v2', protocolVersion: 2, message }`. Main validates every
-  Worker message (`parseWorkerEventV2`) and ignores unknown ones; the Worker
-  validates `init-v2` by shape and by each buffer layout.
+  with BAD_STATE and its reason (`ControlTargetV2.unsupportedReason`). The
+  demo backend has no atmosphere model, so it rejects every `weather.set`; a
+  session without the EW port rejects every `fault.set`; and `motor-loss` is
+  rejected unless the active dynamics reads a motor-fault table
+  (`SessionDynamics.useMotorFaults`), which the demo quad does not. The
+  session builds that table with the motor IDs 0..rotorCount-1 of the active
+  dynamics and rebuilds it whenever the dynamics is replaced.
+* A due scheduled command that cannot take effect at its tick receives a
+  final reject (`ControlTargetV2.applyScheduled` returns it): OVERLOAD for a
+  full 16-slot fault registry, OUT_OF_RANGE when an effect kernel refuses
+  parameters that admission accepted. The session then faults. Every session
+  fault (this one, a HITL overrun, a rejected EW step, a dynamics fault)
+  stops stepping, blocks arming, sets the header Fault flag and halts the
+  processor (`ControlProcessorV2.halt`): no further due command is applied,
+  `sim.start` is rejected with BAD_STATE, and the session counts as paused,
+  so `sim.reset`, `sim.configure` or a model swap is admitted (the fault
+  releases the pilot arm latch; an externally armed autopilot must still
+  disarm) and starts a fault-free epoch that cancels the remaining queue with
+  BAD_STATE.
+* Outside the command/result flow the Worker reports faults as
+  `{ type: 'fault-v2', protocolVersion: 2, message }`. Before `ready-v2` (for
+  example a failed `init-v2`) the Worker has no session and Main treats the
+  fault as fatal. After `ready-v2` it is a session fault: the Worker keeps
+  answering commands, Main keeps Reset available without a reload, and Main
+  clears the fault notice once the header Fault flag is clear. Main validates
+  every Worker message (`parseWorkerEventV2`) and ignores unknown ones; the
+  Worker validates `init-v2` by shape and by each buffer layout.
 
 Valid JSON example, scheduled at one second with a 400 Hz physics clock:
 

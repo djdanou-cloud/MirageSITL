@@ -123,6 +123,8 @@ const ENVELOPE = ['protocolVersion', 'requestId', 'expectedEpoch', 'type'] as co
 const FAULT_ID = /^[A-Za-z0-9_-]{1,64}$/;
 const SHA256 = /^[0-9a-fA-F]{64}$/;
 const MAX_DRIFT_NORM_MPS2 = 0.3;
+/** Position-step envelope |b| <= 10 km, identical to the PositionStep kernel (packages/ew/src/position-step.ts). */
+const MAX_POSITION_STEP_NORM_M = 10_000;
 
 function effect(value: unknown): EwEffect {
   const e = record(value, 'effect');
@@ -131,9 +133,13 @@ function effect(value: unknown): EwEffect {
     case 'gnss-jamming':
       exactKeys(e, ['kind', 'severity'], 'effect');
       return { kind, severity: inRange(e.severity, 'effect.severity', 0, 1) };
-    case 'position-step':
+    case 'position-step': {
       exactKeys(e, ['kind', 'offsetNedM'], 'effect');
-      return { kind, offsetNedM: vec3(e.offsetNedM, 'effect.offsetNedM', -10000, 10000) };
+      const offset = vec3(e.offsetNedM, 'effect.offsetNedM', -10000, 10000), [n, east, d] = offset;
+      // Not expressible in JSON Schema; the same expression as PositionStep.schedule, so both agree at the boundary.
+      if (Math.sqrt(n * n + east * east + d * d) > MAX_POSITION_STEP_NORM_M) throw range('effect.offsetNedM norm must be <= 10000');
+      return { kind, offsetNedM: offset };
+    }
     case 'velocity-drift': {
       exactKeys(e, ['kind', 'accelerationNedMps2', 'maxSpeedMps'], 'effect');
       const acceleration = vec3(e.accelerationNedMps2, 'effect.accelerationNedMps2', -0.3, 0.3);
@@ -209,7 +215,8 @@ function serializedBytes(input: unknown): number {
  * Validates an untrusted command. The returned command is a fresh, normalized
  * copy that shares nothing with the input. SCHEMA covers shape, types,
  * NaN/Infinity, non-integers, enums, and patterns; OUT_OF_RANGE covers
- * numeric bounds (including the drift norm, which JSON Schema cannot express).
+ * numeric bounds (including the drift and position-step norms, which JSON
+ * Schema cannot express).
  */
 export function parseControlCommandV2(input: unknown): ParseResultV2 {
   const received = typeof input === 'object' && input !== null && 'requestId' in input && isUint32(input.requestId)
@@ -229,6 +236,9 @@ export function parseControlCommandV2(input: unknown): ParseResultV2 {
 // Processing
 // ---------------------------------------------------------------------------
 
+/** Final reject for a due scheduled command that could not take effect; targets return preallocated constants. */
+export interface ScheduledRejectV2 { readonly code: RejectCodeV2; readonly message: string }
+
 /** The simulation side the processor drives. Implemented by the physics Worker. */
 export interface ControlTargetV2 {
   isArmed(): boolean;
@@ -242,8 +252,11 @@ export interface ControlTargetV2 {
   prepareModel(modelId: number, manifestSha256: string): Promise<void>;
   /** Swap to the prepared model; called only after prepareModel resolved and the session is still paused and disarmed. */
   commitModel(modelId: number): void;
-  /** Called before integrating `tick`; must not allocate. */
-  applyScheduled(command: ScheduledCommandV2, tick: TickId): void;
+  /**
+   * Called before integrating `tick`; must not allocate. Returns null once the
+   * command took effect, otherwise its final reject (never reported as applied).
+   */
+  applyScheduled(command: ScheduledCommandV2, tick: TickId): ScheduledRejectV2 | null;
   /** Null when the backend can model this scheduled command, otherwise the BAD_STATE reason (checked at admission). */
   unsupportedReason(command: ScheduledCommandV2): string | null;
 }
@@ -266,6 +279,8 @@ export class ControlProcessorV2 {
   private running = false;
   private disposed = false;
   private loading = false;
+  /** Non-empty while the target is halted by a session fault; cleared by the next epoch. */
+  private haltReason = '';
   private highWater = -1;
   private receipts = 0;
   private pendingLoad: Promise<void> = Promise.resolve();
@@ -292,6 +307,17 @@ export class ControlProcessorV2 {
   allocateRequestId(): number { return (this.highWater + 1) >>> 0; }
   /** Resolves when no model load is in flight. */
   settled(): Promise<void> { return this.pendingLoad; }
+
+  /**
+   * The target stopped stepping on its own (a session fault). The session then
+   * counts as paused, so reset/configure/model.load are admitted; sim.start is
+   * rejected and due commands stay queued until a new epoch cancels them.
+   * Allocation-free, so the hot path may call it.
+   */
+  halt(reason: string): void {
+    this.running = false;
+    this.haltReason = reason;
+  }
 
   /** Admits one command. Results go to the outbox; call drain() afterwards. */
   submit(input: unknown): void {
@@ -329,6 +355,9 @@ export class ControlProcessorV2 {
     if (command.expectedEpoch !== this.epochValue) return reject(result, 'STALE_EPOCH', `Current epoch is ${this.epochValue}`);
     switch (command.type) {
       case 'sim.start':
+        if (this.haltReason !== '') {
+          return reject(result, 'BAD_STATE', `Session faulted (${this.haltReason}); sim.reset or sim.configure starts a new epoch`);
+        }
         if (!this.running) { this.target.start(); this.running = true; }
         return this.applied(result);
       case 'sim.pause':
@@ -409,6 +438,7 @@ export class ControlProcessorV2 {
   /** reset/configure/model swap: cancel pending commands, restart ticks, and advance the epoch. */
   private newEpoch(result: ResultRecord, reason: string): void {
     this.rejectPending(`Cancelled by ${reason}`);
+    this.haltReason = '';
     this.epochValue = (this.epochValue + 1) >>> 0 || 1;
     this.lastTick.lo = 0; this.lastTick.hi = 0;
     this.applied(result);
@@ -437,16 +467,20 @@ export class ControlProcessorV2 {
 
   /**
    * Hot path: call before integrating `tick`. Applies every command due at or
-   * before it in (atTick, receipt) order and records the actual tick. Allocates nothing.
+   * before it in (atTick, receipt) order and records the actual tick, or the
+   * target's final reject. A halted target applies nothing. Allocates nothing.
    */
   beforeTick(tick: TickId): void {
     // Invariant: 0 < queued <= capacity inside the loop, so queue[queued - 1] exists.
-    while (this.queued > 0) {
+    while (this.queued > 0 && this.haltReason === '') {
       const slot = this.queue[this.queued - 1]!, command = slot.command, result = slot.record;
       if (!command || !result || compareTicks(command.atTick, tick) > 0) break;
-      this.target.applyScheduled(command, tick);
-      result.status = 'applied'; result.epoch = this.epochValue;
-      result.tick.lo = tick.lo; result.tick.hi = tick.hi;
+      const failure = this.target.applyScheduled(command, tick);
+      if (failure) reject(result, failure.code, failure.message);
+      else {
+        result.status = 'applied'; result.epoch = this.epochValue;
+        result.tick.lo = tick.lo; result.tick.hi = tick.hi;
+      }
       this.push(result);
       slot.command = null; slot.record = null;
       this.queued--;

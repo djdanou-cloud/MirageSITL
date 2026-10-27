@@ -12,6 +12,7 @@ import {
   RuntimeFlagV2,
   StateReaderV2,
   UNKNOWN_U32,
+  VehicleFlagV2,
   createSharedMemoryV2,
   createSpscQueue,
   newFlightStateV2,
@@ -40,6 +41,8 @@ import { applyAutopilotTelemetry } from "./hud/telemetry";
 
 export interface ViewStats {
   ready: boolean;
+  /** The physics session faulted; the Worker still answers and Reset starts a fault-free epoch. */
+  faulted: boolean;
   running: boolean;
   armed: boolean;
   pending: boolean;
@@ -62,6 +65,8 @@ export interface ViewStats {
   notice: string;
 }
 export type LifecycleCommand = "start" | "pause" | "reset";
+/** Rearming requires throttle at or below 5% (SPECS_SHARED_MEMORY, pilot mailbox v2). */
+const REARM_THROTTLE_MAX = 0.05;
 const COMMAND_TYPE = {
   start: "sim.start",
   pause: "sim.pause",
@@ -130,6 +135,10 @@ export class SimulationRuntime {
   armed = false;
   pending = false;
   notice = "";
+  /** Session fault message shown until a new epoch clears the header Fault flag. */
+  private faultNotice = "";
+  /** The published state showed the session armed for the current arm request. */
+  private armConfirmed = false;
   private deviceGeneration = 0;
   private readonly ekfFrame: MavFrame = newMavFrame();
   private ekfMonitor = new EkfMonitor(1, 1, 0, 1000);
@@ -177,6 +186,9 @@ export class SimulationRuntime {
   get running(): boolean {
     return (this.header.runtimeFlags & RuntimeFlagV2.Running) !== 0;
   }
+  get faulted(): boolean {
+    return (this.header.runtimeFlags & RuntimeFlagV2.Fault) !== 0;
+  }
   get epoch(): number {
     return this.header.sessionEpoch;
   }
@@ -191,7 +203,10 @@ export class SimulationRuntime {
         this.ready = true;
         return;
       case "fault-v2":
-        this.fail(event.message);
+        // Before ready-v2 the Worker never initialized. Afterwards only the
+        // session faulted: the Worker still answers, so Reset stays available.
+        if (this.ready) this.sessionFault(event.message);
+        else this.fail(event.message);
         return;
       case "ack-v2":
         if (event.requestId === this.pendingId && event.status === "applied")
@@ -213,6 +228,11 @@ export class SimulationRuntime {
     this.commands.cancelAll(message);
     this.notice = message;
     this.ready = this.armed = this.pending = false;
+  }
+  /** Queued commands keep their own final results; the Worker cancels them on Reset. */
+  private sessionFault(message: string) {
+    this.notice = this.faultNotice = message;
+    this.armed = false;
   }
   private send(
     type: (typeof COMMAND_TYPE)[LifecycleCommand] | "sim.configure",
@@ -270,7 +290,7 @@ export class SimulationRuntime {
       return;
     }
     if (!this.running || this.pending) return;
-    if (this.input.throttle > 0.05) {
+    if (this.input.throttle > REARM_THROTTLE_MAX) {
       this.notice = "Lower throttle to 0% before arming.";
       return;
     }
@@ -280,6 +300,7 @@ export class SimulationRuntime {
     }
     this.notice = "";
     this.armed = true;
+    this.armConfirmed = false;
   }
   disarm(): void {
     this.armed = false;
@@ -348,6 +369,29 @@ export class SimulationRuntime {
       this.lastAutopilotMode,
     );
   }
+  /**
+   * The session owns the arm latch: stale input disarms it and rearming is explicit
+   * (SPECS_SHARED_MEMORY, pilot mailbox v2). Withdraw an arm request the session dropped,
+   * or can no longer grant because the throttle rose before it armed, so the UI never
+   * shows armed motors that the session has disarmed.
+   */
+  private followSessionArming(): void {
+    const s = this.current;
+    if (!this.armed || s.epoch !== this.epoch) return;
+    if ((s.vehicleFlags & VehicleFlagV2.Armed) !== 0) {
+      this.armConfirmed = true;
+      return;
+    }
+    if (this.armConfirmed) {
+      this.notice = "The physics session disarmed the motors after stale or interrupted input. Lower the throttle and arm again.";
+    } else if (this.input.throttle > REARM_THROTTLE_MAX) {
+      this.notice = "The physics session did not arm before the throttle rose above 5%. Lower the throttle and arm again.";
+    } else {
+      return; // the session has not seen this request yet
+    }
+    this.armConfirmed = false;
+    this.disarm();
+  }
   private publishPilot(): void {
     const p = this.pilot,
       i = this.input;
@@ -376,6 +420,11 @@ export class SimulationRuntime {
     if (this.disposed) return;
     this.reader.readHeader(this.header);
     this.commands.epochChanged(this.epoch);
+    if (this.faultNotice !== "" && !this.faulted) {
+      // A new epoch cleared the session fault.
+      if (this.notice === this.faultNotice) this.notice = "";
+      this.faultNotice = "";
+    }
     if (this.source === "usb") {
       this.gamepad.poll(this.input, wallNow(), this.armed);
       if (this.gamepad.generation !== this.adapterGeneration) {
@@ -397,6 +446,7 @@ export class SimulationRuntime {
     if (read !== "none") {
       this.history = read;
     }
+    this.followSessionArming();
     this.bindAutopilotEpoch();
     this.syncAutopilotTelemetry(wallNow());
     this.frames++;
@@ -406,6 +456,7 @@ export class SimulationRuntime {
         tick = tickToNumber(s.tickId);
       this.report({
         ready: this.ready,
+        faulted: this.faulted,
         running: this.running,
         armed: this.armed,
         pending: this.pending,

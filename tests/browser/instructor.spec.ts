@@ -40,3 +40,17 @@ test("commands report real Worker rejection and hotkeys ignore typing focus", as
     "applied",
   );
 });
+test("motor-loss stays visibly rejected while the demo dynamics cannot model it", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await expect(
+    page.getByRole("button", { name: "Start", exact: true }),
+  ).toBeEnabled();
+  await page.getByLabel("Fault effect").selectOption("motor-loss");
+  await page.getByRole("button", { name: "Send fault", exact: true }).click();
+  const result = page.getByTestId("command-result").last();
+  await expect(result).toContainText("fault.set: rejected");
+  await expect(result).toContainText("BAD_STATE");
+  await expect(result).toContainText("motor-loss is not supported");
+});

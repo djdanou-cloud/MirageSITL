@@ -1,7 +1,8 @@
 import { Ajv2020 } from 'ajv/dist/2020.js';
 import { describe, expect, it } from 'vitest';
 import { COMMAND_QUEUE_CAPACITY_V2, ControlProcessorV2, isWorkerInitV2, parseControlCommandV2, parseWorkerEventV2, type ClockModeV2, type CommandResultV2,
-  type ControlTargetV2, type PhysicsHz, type ScheduledCommandV2, type TickId } from '@mirage/protocol';
+  type ControlTargetV2, type PhysicsHz, type ScheduledCommandV2, type ScheduledRejectV2, type TickId, type Vec3 } from '@mirage/protocol';
+import { MAX_OFFSET_M, PositionStep } from '@mirage/ew/position-step';
 import schema from '../packages/protocol/src/control-v2.schema.json';
 import { specText } from './support/spec-layout';
 
@@ -21,7 +22,8 @@ const cases: Case[] = [
   // Positive fixtures for every branch and effect.
   { name: 'weather.set', input: weather(1, 400), expect: 'accept' },
   { name: 'fault gnss-jamming', input: fault(2, { kind: 'gnss-jamming', severity: 1 }), expect: 'accept' },
-  { name: 'fault position-step', input: fault(3, { kind: 'position-step', offsetNedM: [-10000, 0, 10000] }), expect: 'accept' },
+  { name: 'fault position-step', input: fault(3, { kind: 'position-step', offsetNedM: [-10000, 0, 0] }), expect: 'accept' },
+  { name: 'fault position-step on the 10 km norm', input: fault(3, { kind: 'position-step', offsetNedM: [6000, -8000, 0] }), expect: 'accept' },
   { name: 'fault velocity-drift', input: fault(4, { kind: 'velocity-drift', accelerationNedMps2: [0.1, 0, 0], maxSpeedMps: 20 }), expect: 'accept' },
   { name: 'fault magnetic at +-pi', input: fault(5, { kind: 'magnetic', rotationRad: [Math.PI, -Math.PI, 0], biasBodyGauss: [2, -2, 0] }), expect: 'accept' },
   { name: 'fault motor-loss', input: fault(6, { kind: 'motor-loss', motorIndex: 31, mode: 'instant-thrust-loss', remainingThrustFraction: 0 }), expect: 'accept' },
@@ -65,6 +67,11 @@ const cases: Case[] = [
   { name: 'effect extra key', input: fault(1, { kind: 'gnss-jamming', severity: 0, note: 1 }), expect: 'SCHEMA' },
   { name: 'severity above 1', input: fault(1, { kind: 'gnss-jamming', severity: 1.01 }), expect: 'OUT_OF_RANGE' },
   { name: 'position offset too large', input: fault(1, { kind: 'position-step', offsetNedM: [0, 0, 10001] }), expect: 'OUT_OF_RANGE' },
+  // Every component is in range but |b| = 11.3 km / 14.1 km exceeds the PositionStep envelope.
+  { name: 'position offset norm above 10 km', input: fault(1, { kind: 'position-step', offsetNedM: [8000, 8000, 0] }),
+    expect: 'OUT_OF_RANGE', schemaCannotExpress: true },
+  { name: 'position offset at a component corner', input: fault(1, { kind: 'position-step', offsetNedM: [-10000, 0, 10000] }),
+    expect: 'OUT_OF_RANGE', schemaCannotExpress: true },
   { name: 'drift component too large', input: fault(1, { kind: 'velocity-drift', accelerationNedMps2: [0.31, 0, 0], maxSpeedMps: 1 }), expect: 'OUT_OF_RANGE' },
   { name: 'drift norm above 0.3', input: fault(1, { kind: 'velocity-drift', accelerationNedMps2: [0.3, 0.3, 0], maxSpeedMps: 1 }),
     expect: 'OUT_OF_RANGE', schemaCannotExpress: true },
@@ -101,6 +108,26 @@ describe('Control Protocol v2 validation', () => {
       compared++;
     }
     expect(compared).toBeGreaterThan(50);
+  });
+  it('admits exactly the position steps the PositionStep kernel accepts', () => {
+    // Exact lattice points, the audit vectors, and deterministic directions scaled to a few ulps around |b| = 10 km.
+    const offsets: Vec3[] = [[6000, 8000, 0], [0, 0, -10000], [7071.0678, 7071.0678, 0], [7071.0679, 7071.0679, 0],
+      [7000, 7000, 0], [8000, 8000, 0], [6000, 8000, 1e-3]];
+    let state = 0x2545f491;
+    const unit = () => { state = (Math.imul(state, 1664525) + 1013904223) >>> 0; return state / 2 ** 31 - 1; };
+    for (let i = 0; i < 2000; i++) {
+      const n = unit(), e = unit(), d = unit(), scale = MAX_OFFSET_M * (1 + ((i % 5) - 2) * 1e-15) / Math.sqrt(n * n + e * e + d * d);
+      offsets.push([n * scale, e * scale, d * scale]);
+    }
+    let admitted = 0;
+    for (const offset of offsets) {
+      const parsed = parseControlCommandV2(fault(1, { kind: 'position-step', offsetNedM: offset }));
+      expect(parsed.ok, JSON.stringify(offset)).toBe(new PositionStep().schedule(offset[0], offset[1], offset[2], 400));
+      if (parsed.ok) admitted++;
+      else expect(parsed.code).toBe('OUT_OF_RANGE');
+    }
+    expect(admitted).toBeGreaterThan(500);
+    expect(offsets.length - admitted).toBeGreaterThan(500);
   });
   it('accepts the normative JSON example from the specification', () => {
     const section = specText.slice(specText.indexOf('## 6. Worker Control Protocol v2'));
@@ -141,7 +168,14 @@ class FakeTarget implements ControlTargetV2 {
     return new Promise<void>((resolve, reject) => this.loads.push({ resolve, reject }));
   }
   commitModel(modelId: number) { this.calls.push(`commit:${modelId}`); this.model = modelId; }
-  applyScheduled(command: ScheduledCommandV2, tick: TickId) { this.applied.push({ requestId: command.requestId, tick: tick.lo }); }
+  /** Final rejects returned for these requestIds; `halts` stands in for the session faulting on them. */
+  failures = new Map<number, ScheduledRejectV2>(); halts: ((reason: string) => void) | null = null;
+  applyScheduled(command: ScheduledCommandV2, tick: TickId) {
+    this.applied.push({ requestId: command.requestId, tick: tick.lo });
+    const failure = this.failures.get(command.requestId) ?? null;
+    if (failure) this.halts?.(failure.message);
+    return failure;
+  }
   unsupported: string | null = null;
   unsupportedReason() { return this.unsupported; }
 }
@@ -257,6 +291,42 @@ describe('Control Protocol v2 processing', () => {
     expect([target.model, processor.epoch]).toEqual([8, 2]);
     tickTo(1, 60);
     expect(target.applied).toEqual([]);
+  });
+  it('reports a due command that cannot take effect as a final reject, never applied, and replays it', () => {
+    const { target, results, send, tickTo } = harness();
+    target.failures.set(2, { code: 'OVERLOAD', message: 'EW fault registry is full' });
+    const magnetic = fault(2, { kind: 'magnetic', rotationRad: [0, 0, 0.5], biasBodyGauss: [0, 0, 0] }, { atTick: { lo: 5, hi: 0 } });
+    expect(send(fault(1, { kind: 'gnss-jamming', severity: 1 }, { atTick: { lo: 5, hi: 0 } }))).toMatchObject({ status: 'queued' });
+    expect(send(magnetic)).toMatchObject({ status: 'queued' });
+    results.length = 0;
+    tickTo(1, 5);
+    expect(results).toEqual([
+      { type: 'ack-v2', requestId: 1, status: 'applied', epoch: 1, appliedTick: { lo: 5, hi: 0 } },
+      { type: 'reject-v2', requestId: 2, code: 'OVERLOAD', message: 'EW fault registry is full' },
+    ]);
+    expect(send(magnetic)).toEqual({ type: 'reject-v2', requestId: 2, code: 'OVERLOAD', message: 'EW fault registry is full' });
+    expect(target.applied.filter(a => a.requestId === 2)).toHaveLength(1);
+  });
+  it('halts on a session fault: start is refused, nothing more applies, and a new epoch recovers without a pause', () => {
+    const { target, processor, results, send, tickTo } = harness();
+    target.halts = reason => processor.halt(reason);
+    target.failures.set(2, { code: 'OUT_OF_RANGE', message: 'EW fault command was rejected' });
+    expect(send(lifecycle(1, 'sim.start'))).toMatchObject({ status: 'applied' });
+    send(weather(2, 5)); send(weather(3, 5)); send(weather(4, 8));
+    results.length = 0;
+    tickTo(1, 10);
+    expect(target.applied.map(a => a.requestId)).toEqual([2]); // the fault stops application at its own command
+    expect(results).toEqual([{ type: 'reject-v2', requestId: 2, code: 'OUT_OF_RANGE', message: 'EW fault command was rejected' }]);
+    expect(processor.pendingCommands).toBe(2);
+    const refused = send(lifecycle(5, 'sim.start'));
+    expect(refused).toMatchObject({ type: 'reject-v2', code: 'BAD_STATE' });
+    expect(refused?.type === 'reject-v2' ? refused.message : '').toContain('EW fault command was rejected');
+    results.length = 0;
+    expect(send(lifecycle(6, 'sim.reset', 1, { seed: 0 }))).toMatchObject({ type: 'ack-v2', status: 'applied', epoch: 2 });
+    expect(results.map(r => r.type === 'reject-v2' ? `${r.requestId}:${r.code}:${r.message}` : r.type === 'ack-v2' ? `${r.requestId}:${r.status}` : r.type))
+      .toEqual(['3:BAD_STATE:Cancelled by sim.reset', '4:BAD_STATE:Cancelled by sim.reset', '6:applied']);
+    expect(send(lifecycle(7, 'sim.start', 2))).toMatchObject({ type: 'ack-v2', status: 'applied', epoch: 2 });
+    expect(target.calls).toEqual(['start', 'reset:0', 'start']);
   });
   it('does not commit a model when the worker is disposed during preparation', async () => {
     const { target, processor, results, send } = harness();

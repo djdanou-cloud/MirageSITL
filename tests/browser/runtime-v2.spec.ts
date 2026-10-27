@@ -98,3 +98,43 @@ test('a different transmitter appearing at the armed index disarms the UI and th
   await expect(page.getByRole('button', { name: 'Arm motors', exact: true })).toBeVisible();
   await expect(page.getByTestId('input-status')).toContainText('Other transmitter');
 });
+
+test('a session fault leaves the app resettable without a reload', async ({ page }) => {
+  await page.addInitScript(() => {
+    // Keeps the app's own physics Worker and state buffer so the test can stage what a faulted session publishes.
+    const capture: { worker: Worker | null; stateBuffer: SharedArrayBuffer | null } = { worker: null, stateBuffer: null };
+    class CapturingWorker extends Worker {
+      constructor(url: string | URL, options?: WorkerOptions) {
+        super(url, options);
+        if (options?.name === 'mirage-physics') capture.worker = this;
+      }
+      override postMessage(message: unknown, options?: Transferable[] | StructuredSerializeOptions): void {
+        if (this === capture.worker && typeof message === 'object' && message !== null && 'stateBuffer' in message &&
+          message.stateBuffer instanceof SharedArrayBuffer) capture.stateBuffer = message.stateBuffer;
+        if (Array.isArray(options)) super.postMessage(message, options);
+        else super.postMessage(message, options);
+      }
+    }
+    Object.defineProperty(window, 'Worker', { value: CapturingWorker, configurable: true, writable: true });
+    Object.assign(window, { physicsCapture: capture });
+  });
+  await page.goto('/');
+  await expect(page.getByTestId('worker-status')).toHaveText('READY');
+  await page.evaluate(async (protocolUrl) => {
+    const p = await import(protocolUrl) as typeof import('@mirage/protocol');
+    const { worker, stateBuffer } = (window as unknown as { physicsCapture: { worker: Worker | null; stateBuffer: SharedArrayBuffer | null } }).physicsCapture;
+    if (!worker || !stateBuffer) throw new Error('The physics Worker was not captured');
+    // Staged exactly as a faulted session publishes it; the paused session writes no header word until its next command.
+    new p.StateWriterV2(stateBuffer).setRuntimeFlags(p.RuntimeFlagV2.Ready | p.RuntimeFlagV2.Fault);
+    worker.dispatchEvent(new MessageEvent('message', { data: { type: 'fault-v2', protocolVersion: 2, message: 'EW fault registry is full' } }));
+  }, protocolUrl);
+  await expect(page.getByTestId('worker-status')).toHaveText('FAULT');
+  await expect(page.getByRole('alert')).toContainText('EW fault registry is full');
+  await expect(page.getByRole('button', { name: 'Start', exact: true })).toBeDisabled();
+  await page.getByRole('button', { name: 'Reset flight', exact: true }).click();
+  await expect(page.getByTestId('worker-status')).toHaveText('READY');
+  await expect(page.getByRole('alert')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Start', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
+  await expect.poll(async () => Number.parseInt(await page.getByTestId('tick').innerText(), 10)).toBeGreaterThan(0);
+});

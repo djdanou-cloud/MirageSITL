@@ -46,6 +46,7 @@ import { SimulationRuntime, type ViewStats } from "./runtime";
 
 const INITIAL: ViewStats = {
   ready: false,
+  faulted: false,
   running: false,
   armed: false,
   pending: false,
@@ -355,7 +356,7 @@ export default function App() {
             <div className="flex items-center gap-2">
               <button
                 className="primary"
-                disabled={!stats.ready || stats.pending}
+                disabled={!stats.ready || stats.pending || stats.faulted}
                 onClick={() =>
                   runtime.current?.command(stats.running ? "pause" : "start")
                 }
@@ -594,7 +595,13 @@ export default function App() {
             <div>
               <span>Worker / SAB</span>
               <b data-testid="worker-status">
-                {stats.ready ? "READY" : error ? "UNAVAILABLE" : "INITIALIZING"}
+                {stats.ready
+                  ? stats.faulted
+                    ? "FAULT"
+                    : "READY"
+                  : error
+                    ? "UNAVAILABLE"
+                    : "INITIALIZING"}
               </b>
             </div>
             <div>
@@ -640,6 +647,7 @@ export default function App() {
             <div>
               <span>Input protection</span>
               <b
+                data-testid="input-protection"
                 className={
                   stats.flags & VehicleFlagV2.InputFailsafe ? "muted" : ""
                 }

@@ -282,8 +282,9 @@ excluded. Measure producer allocations with `node scripts/bench-aar.mjs 400`
 (repeat at `800`/`1200`).
 
 Instructor shortcuts are P pause, R reset, and F selected fault; typing focus
-suppresses shortcuts. Weather and model requests show the demo rejection.
-Fault commands apply after the Worker ACK (TASK-075). Recording stores every
+suppresses shortcuts. Weather, model and motor-loss requests show the demo
+rejection. Fault commands apply after the Worker ACK (TASK-075). A session
+fault leaves Reset available; no page reload is needed (TASK-124). Recording stores every
 physics tick, with actuator or sensor bytes only when that tick owns the frame
 (TASK-078). The
 thermal package supplies a synthetic surface-energy solver, WebGL2 LWIR material,
