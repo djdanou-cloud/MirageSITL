@@ -647,6 +647,7 @@ export default function App() {
             <div>
               <span>Input protection</span>
               <b
+                data-testid="input-protection"
                 className={
                   stats.flags & VehicleFlagV2.InputFailsafe ? "muted" : ""
                 }

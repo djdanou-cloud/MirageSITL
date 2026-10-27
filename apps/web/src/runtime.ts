@@ -12,6 +12,7 @@ import {
   RuntimeFlagV2,
   StateReaderV2,
   UNKNOWN_U32,
+  VehicleFlagV2,
   createSharedMemoryV2,
   createSpscQueue,
   newFlightStateV2,
@@ -64,6 +65,8 @@ export interface ViewStats {
   notice: string;
 }
 export type LifecycleCommand = "start" | "pause" | "reset";
+/** Rearming requires throttle at or below 5% (SPECS_SHARED_MEMORY, pilot mailbox v2). */
+const REARM_THROTTLE_MAX = 0.05;
 const COMMAND_TYPE = {
   start: "sim.start",
   pause: "sim.pause",
@@ -134,6 +137,8 @@ export class SimulationRuntime {
   notice = "";
   /** Session fault message shown until a new epoch clears the header Fault flag. */
   private faultNotice = "";
+  /** The published state showed the session armed for the current arm request. */
+  private armConfirmed = false;
   private deviceGeneration = 0;
   private readonly ekfFrame: MavFrame = newMavFrame();
   private ekfMonitor = new EkfMonitor(1, 1, 0, 1000);
@@ -285,7 +290,7 @@ export class SimulationRuntime {
       return;
     }
     if (!this.running || this.pending) return;
-    if (this.input.throttle > 0.05) {
+    if (this.input.throttle > REARM_THROTTLE_MAX) {
       this.notice = "Lower throttle to 0% before arming.";
       return;
     }
@@ -295,6 +300,7 @@ export class SimulationRuntime {
     }
     this.notice = "";
     this.armed = true;
+    this.armConfirmed = false;
   }
   disarm(): void {
     this.armed = false;
@@ -363,6 +369,29 @@ export class SimulationRuntime {
       this.lastAutopilotMode,
     );
   }
+  /**
+   * The session owns the arm latch: stale input disarms it and rearming is explicit
+   * (SPECS_SHARED_MEMORY, pilot mailbox v2). Withdraw an arm request the session dropped,
+   * or can no longer grant because the throttle rose before it armed, so the UI never
+   * shows armed motors that the session has disarmed.
+   */
+  private followSessionArming(): void {
+    const s = this.current;
+    if (!this.armed || s.epoch !== this.epoch) return;
+    if ((s.vehicleFlags & VehicleFlagV2.Armed) !== 0) {
+      this.armConfirmed = true;
+      return;
+    }
+    if (this.armConfirmed) {
+      this.notice = "The physics session disarmed the motors after stale or interrupted input. Lower the throttle and arm again.";
+    } else if (this.input.throttle > REARM_THROTTLE_MAX) {
+      this.notice = "The physics session did not arm before the throttle rose above 5%. Lower the throttle and arm again.";
+    } else {
+      return; // the session has not seen this request yet
+    }
+    this.armConfirmed = false;
+    this.disarm();
+  }
   private publishPilot(): void {
     const p = this.pilot,
       i = this.input;
@@ -417,6 +446,7 @@ export class SimulationRuntime {
     if (read !== "none") {
       this.history = read;
     }
+    this.followSessionArming();
     this.bindAutopilotEpoch();
     this.syncAutopilotTelemetry(wallNow());
     this.frames++;
