@@ -12,7 +12,7 @@ function git(...args: string[]): string {
 }
 
 /** Porcelain status of tracked test-results/ files plus the SHA-256 of each unstaged change. */
-function trackedResults(): string {
+export function trackedResults(): string {
   // Status alone misses a test rewriting a file that was already modified before the run.
   const digests = git("diff", "--name-only", "-z").split("\0").filter(path => path.length > 0).map(path => {
     const file = join(root, path);

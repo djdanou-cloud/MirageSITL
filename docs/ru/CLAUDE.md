@@ -1,6 +1,6 @@
 # CLAUDE.md — MirageSITL agent instructions
 
-<!-- source-sha256: aae78d4f47aa67c4df887540ebfc63618ac3ba17d9fe9d2f11c64a90d93178e6 -->
+<!-- source-sha256: db64d034112486fa51dfbf43a6e1338ae282b99607a44ea898d079a5f1fba18a -->
 
 Английский источник: [Source of truth](../../CLAUDE.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -279,7 +279,12 @@ JUnit/HTML/трассы браузера и выходные файлы/логи
 не должен изменять отслеживаемые свидетельства в `test-results/`: тесты пишут
 создаваемые отчёты во временные или игнорируемые каталоги, а
 `tests/support/tracked-results.ts` завершает прогон ошибкой, если меняется вывод
-`git status --porcelain -- test-results/`. Опустите
+`git status --porcelain -- test-results/`. `npm run test:browser` даёт ту же
+гарантию: Playwright пишет отчёт JUnit, трассы и захваты прошивки TASK-045 в
+`test-results/browser/`, где нет отслеживаемых файлов, а отчёт HTML — в
+`playwright-report/`; последний настроенный репортёр
+`tests/support/tracked-results-reporter.ts` повторяет проверку после того, как
+остальные репортёры записали свои файлы. Опустите
 `CHROMIUM_PATH` при использовании браузера Playwright. При необходимости установите
 его отдельно командой `npx playwright install chromium`. Если домашний кеш в облаке
 недоступен для записи, используйте

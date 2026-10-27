@@ -252,7 +252,12 @@ be checked separately from successful local jobs.
 `vitest run`; select focused tests by an existing exact path. It must leave
 tracked `test-results/` evidence unchanged: tests write generated reports to
 temporary or ignored directories, and `tests/support/tracked-results.ts` fails
-the run if `git status --porcelain -- test-results/` changes. Omit CHROMIUM_PATH
+the run if `git status --porcelain -- test-results/` changes.
+`npm run test:browser` keeps the same guarantee: Playwright writes the JUnit
+report, traces and TASK-045 firmware captures under `test-results/browser/`,
+which holds no tracked files, and the HTML report to `playwright-report/`; the
+last configured reporter, `tests/support/tracked-results-reporter.ts`, repeats
+the check after the other reporters have written their files. Omit CHROMIUM_PATH
 when using Playwright's browser. If needed, install it separately with
 `npx playwright install chromium`. When the cloud home cache is unwritable,
 use `npm ci --cache /workspace/.cache/mirage-npm --no-audit --no-fund`.
