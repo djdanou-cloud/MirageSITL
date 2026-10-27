@@ -140,11 +140,11 @@ async function measure(backend, fps, warmupS, durationS, directory) {
       await page.locator("canvas[data-g3='1']").waitFor({ timeout: 30000 });
     } catch (error) {
       const detail = errors.length ? errors.join("; ") : "no page error";
-      throw new Error(`${error instanceof Error ? error.message.split("\n")[0] : String(error)}; ${detail}`);
+      throw new Error(`${error instanceof Error ? error.message.split("\n")[0] : String(error)}; ${detail}`, { cause: error });
     }
     await page.bringToFront();
     const started = await page.getByRole("button", { name: "Start", exact: true }).evaluate(element => {
-      if (!(element instanceof HTMLButtonElement) || element.disabled) return false;
+      if (!(element instanceof globalThis.HTMLButtonElement) || element.disabled) return false;
       element.click();
       return true;
     });
