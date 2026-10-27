@@ -1,6 +1,6 @@
 # Рейтинги устройств (TASK-073)
 
-<!-- source-sha256: 5e5a417c1bc5ee64b75b48a906c9e9cb04abeed69eab54321885c085db75ddbd -->
+<!-- source-sha256: 7f52319212ea582cb86acbac4d0c1532ac1cbaa951dade4cb8892f82ba550949 -->
 
 Русское зеркало. [Английский источник](../DEVICE_RATINGS.md).
 
@@ -72,22 +72,27 @@ memory   = 1 - max(GPU peak / 2 GiB, CPU peak / 512 MiB), floored at 0
   прогоны, во время которых машина спала (настенное время опережает
   монотонное более чем на 2 с; macOS приостанавливает `performance.now()` во
   сне), получают `BLOCKED_EXTERNAL` и не оцениваются.
-* **Сопоставимость:** оценки сравнивают прогоны на одном и том же рельефе.
-  Прогоны на однотайловой фикстуре CC0 (`fixture`) намного легче прогонов на
-  сгенерированных рельефе FABDEM, зданиях Overture и наложении материалов
-  (`geodata`) и завышают производительность.
+* **Сопоставимость:** оценки сравнивают прогоны на одном и том же рельефе и
+  сцене. От самой лёгкой к самой тяжёлой: `demo` (демонстрационная сцена от
+  2026-10-17, без рельефа, FPV и тепловизора), `fixture` (однотайловая фикстура
+  CC0), `stress-tileset` (341 синтетический тайл без текстур) и `geodata`
+  (сгенерированные рельеф FABDEM, здания Overture и наложение материалов —
+  текущая приёмочная сцена). Более лёгкие сцены завышают производительность.
+  Оценка сочетания берётся по его последним прогонам, поэтому столбец рельефа
+  показывает рельеф, на котором получена эта оценка.
 
 ## 3. Оценки по сочетаниям
 
 | Компьютер | Экран | GPU (класс) | Рельеф | Оценка, 60 FPS | Оценка, 120 FPS |
 | --- | --- | --- | --- | --- | --- |
+| RTX 4050 laptop (Intel Core 7 240H, 16 GB, Windows 11) | External 1920 x 1080 60 Hz (DISPLAY5) | ANGLE (NVIDIA, NVIDIA GeForce RTX 4050 Laptop GPU (0x000028A1) Direct3D11 vs_5_0 ps_5_0, D3D11) (discrete) | geodata | 33-53 (provisional) | not run |
+| RTX 4050 laptop (Intel Core 7 240H, 16 GB, Windows 11) | External 1920 x 1080 60 Hz (DISPLAY5) | ANGLE (NVIDIA, NVIDIA GeForce RTX 4050 Laptop GPU Direct3D11) (discrete) | stress-tileset | 29 (poor) | not run |
 | MacBook Air M4 (Mac16,12, 16 GB) | 2560 x 1440 desktop mode @ 59.88 Hz (emulated 1920 x 1080 window) | Apple M4 (8-core GPU) (integrated) | fixture | 70-90 (provisional) | not run |
-| RTX 4050 laptop (Windows 11, 13th Gen Intel) | External 1920 x 1080 60 Hz (DISPLAY5) | ANGLE (NVIDIA, NVIDIA GeForce RTX 4050 Laptop GPU (0x000028A1) Direct3D11 vs_5_0 ps_5_0, D3D11) (discrete) | geodata | 33-53 (provisional) | not run |
-| RTX 4050 laptop (Windows 11, 13th Gen Intel) | Internal 1920 x 1200 144 Hz panel (DISPLAY1), 100% scaling | ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11 vs_5_0 ps_5_0, D3D11) (integrated) | geodata | 62-82 (provisional) | 0-20 (provisional) |
+| RTX 4050 laptop (Intel Core 7 240H, 16 GB, Windows 11) | Internal 1920 x 1200 144 Hz panel (DISPLAY1), 100% scaling | ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11 vs_5_0 ps_5_0, D3D11) (integrated) | geodata | 62-82 (provisional) | 0-20 (provisional) |
 | MacBook M5 (14-inch) | Built-in Liquid Retina 2880 x 1864, UI 1710 x 1107 @ 59.88 Hz, 2x scale | ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version) (integrated) | fixture | 90 (excellent) | not run |
-| RTX 4050 laptop (Windows 11, 13th Gen Intel) | External 1920 x 1080 60 Hz (DISPLAY5) | ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11 vs_5_0 ps_5_0, D3D11) (integrated) | geodata | 69 (usable) | not run |
-| RTX 4050 laptop (Windows 11, 13th Gen Intel) | Internal panel at 1920 x 1080 60 Hz (DISPLAY1), 100% scaling | ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11 vs_5_0 ps_5_0, D3D11) (integrated) | geodata | 92 (excellent) | not run |
-| RTX 4050 laptop (Windows 11, 13th Gen Intel) | Internal panel at 1920 x 1080 60 Hz (DISPLAY1), 100% scaling, only display | ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11 vs_5_0 ps_5_0, D3D11) (integrated) | geodata | 100 (excellent) | not run |
+| RTX 4050 laptop (Intel Core 7 240H, 16 GB, Windows 11) | External 1920 x 1080 60 Hz (DISPLAY5) | ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11 vs_5_0 ps_5_0, D3D11) (integrated) | geodata | 69 (usable) | not run |
+| RTX 4050 laptop (Intel Core 7 240H, 16 GB, Windows 11) | Internal panel at 1920 x 1080 60 Hz (DISPLAY1), 100% scaling | ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11 vs_5_0 ps_5_0, D3D11) (integrated) | geodata | 92 (excellent) | not run |
+| RTX 4050 laptop (Intel Core 7 240H, 16 GB, Windows 11) | Internal panel at 1920 x 1080 60 Hz (DISPLAY1), 100% scaling, only display | ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11 vs_5_0 ps_5_0, D3D11) (integrated) | geodata | 100 (excellent) | not run |
 
 Значения ячеек таблиц — это машинный вывод `node scripts/gpu-ratings.mjs table`
 и остаются на английском.
@@ -99,11 +104,21 @@ memory   = 1 - max(GPU peak / 2 GiB, CPU peak / 512 MiB), floored at 0
   областью просмотра. Поэтому компонент полёта равен 0, а число пропущенных
   обновлений не записано. Прогон не учитывается для критерия и должен быть
   повторён.
-* **RTX 4050 на внешнем дисплее:** захваты P7 от 2026-10-22 над районом в
-  Израиле. Пропущенные обновления — это сообщённые интервалы длиннее 18,5 мс
-  (нижняя граница); память GPU — пик процесса GPU по счётчикам Windows; кэш
-  рельефа и состояние полёта в сводках отсутствуют. Дискретный GPU: никогда
-  не решает.
+* **RTX 4050 на внешнем дисплее:** оценка получена по захватам P7 от
+  2026-10-22 над районом в Израиле. Пропущенные обновления — это сообщённые
+  интервалы длиннее 18,5 мс (нижняя граница); память GPU — пик процесса GPU по
+  счётчикам Windows; кэш рельефа и состояние полёта в сводках отсутствуют.
+  Дискретный GPU: никогда не решает. Более ранние прогоны того же сочетания
+  на более лёгких сценах: демонстрационная сцена от 2026-10-17 оценена в 72-82
+  (медиана 16,670 мс, p99 19,910 мс, 43 пропущенных обновления за 600 с,
+  пересчитано по сохранённым в репозитории интервалам), а захваты
+  stress-tileset от 2026-10-21 со стоящим на земле аппаратом — в 66 при схеме
+  питания Balanced (p99 23,880 мс, 349 пропусков) и в 29 при максимальной
+  производительности (p99 34,260 мс, 947 пропусков; GPU постоянно сбрасывал
+  частоты до холостого хода). Демонстрационный зонд WebGPU от 2026-10-17
+  (120 с), два демонстрационных зонда на встроенной панели (120 с и 30 с) и
+  10-секундный пробный прогон WebGPU P6 перечислены, но не оценены: они короче
+  600 с.
 * **Intel iGPU на встроенной панели 144 Гц:** прогоны P7 на панели от
   2026-10-22 при 1920 x 1200, поэтому не допущены к критерию. Кадры и
   пропущенные обновления выведены из сообщённого среднего FPS. WebGPU при
@@ -198,22 +213,29 @@ Windows захваты критерия выполняются на основн
 
 | Компьютер | Экран | GPU (класс) | Бэкенд / профиль | Холст | Рельеф | Медиана / p99 мс | Пропуски | Критерий | Оценка |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| RTX 4050 laptop (Intel Core 7 240H, 16 GB, Windows 11) | External 1920 x 1080 60 Hz (DISPLAY5) | ANGLE (NVIDIA, NVIDIA GeForce RTX 4050 Laptop GPU (0x000028A1) Direct3D11 vs_5_0 ps_5_0, D3D11) (discrete) | webgl2 60 FPS | 1920 x 1080 at 1x | demo | 16.670 / 19.910 | 43 | INFO | 72-82 (provisional: memory not recorded) |
+| RTX 4050 laptop (Intel Core 7 240H, 16 GB, Windows 11) | External 1920 x 1080 60 Hz (DISPLAY5) | ANGLE (NVIDIA, NVIDIA GeForce RTX 4050 Laptop GPU (0x000028A1) Direct3D11 vs_5_0 ps_5_0, D3D11) (discrete) | webgpu 60 FPS | 1920 x 1080 at 1x | demo | 16.665 / 19.645 | n/a | BLOCKED_EXTERNAL | not rated |
+| RTX 4050 laptop (Intel Core 7 240H, 16 GB, Windows 11) | Internal 1920 x 1200 144 Hz panel (DISPLAY1), paced at 60 Hz | ANGLE (NVIDIA, NVIDIA GeForce RTX 4050 Laptop GPU (0x000028A1) Direct3D11 vs_5_0 ps_5_0, D3D11) (discrete) | webgl2 60 FPS | 1920 x 1080 at 1x | demo | 16.665 / 19.565 | n/a | BLOCKED_EXTERNAL | not rated |
+| RTX 4050 laptop (Intel Core 7 240H, 16 GB, Windows 11) | Internal 1920 x 1200 144 Hz panel (DISPLAY1), 125% scaling | ANGLE (NVIDIA, NVIDIA GeForce RTX 4050 Laptop GPU (0x000028A1) Direct3D11 vs_5_0 ps_5_0, D3D11) (discrete) | webgl2 60 FPS | 1536 x 826 at 1.25x | demo | 16.670 / 19.005 | n/a | BLOCKED_EXTERNAL | not rated |
+| RTX 4050 laptop (Intel Core 7 240H, 16 GB, Windows 11) | External 1920 x 1080 60 Hz (DISPLAY5) | ANGLE (NVIDIA, NVIDIA GeForce RTX 4050 Laptop GPU Direct3D11) (discrete) | webgl2 60 FPS | 1316 x 640 at 1x | stress-tileset | 16.670 / 23.880 | 349 | INFO | 66 (usable) |
+| RTX 4050 laptop (Intel Core 7 240H, 16 GB, Windows 11) | External 1920 x 1080 60 Hz (DISPLAY5) | ANGLE (NVIDIA, NVIDIA GeForce RTX 4050 Laptop GPU Direct3D11) (discrete) | webgl2 60 FPS | 1316 x 640 at 1x | stress-tileset | 16.685 / 34.260 | 947 | INFO | 29 (poor) |
 | MacBook Air M4 (Mac16,12, 16 GB) | 2560 x 1440 desktop mode @ 59.88 Hz (emulated 1920 x 1080 window) | Apple M4 (8-core GPU) (integrated) | webgl2 60 FPS | 1920 x 1080 at 1x | fixture | 16.680 / 17.665 | n/a | INFO | 70-90 (provisional: missed refreshes not recorded) |
-| RTX 4050 laptop (Windows 11, 13th Gen Intel) | External 1920 x 1080 60 Hz (DISPLAY5) | ANGLE (NVIDIA, NVIDIA GeForce RTX 4050 Laptop GPU (0x000028A1) Direct3D11 vs_5_0 ps_5_0, D3D11) (discrete) | webgl2 60 FPS | 1920 x 1080 at 1x | geodata | 16.670 / 27.085 | 1579 | INFO | 32-52 (provisional: flight, memory not recorded) |
-| RTX 4050 laptop (Windows 11, 13th Gen Intel) | External 1920 x 1080 60 Hz (DISPLAY5) | ANGLE (NVIDIA, NVIDIA GeForce RTX 4050 Laptop GPU (0x000028A1) Direct3D11 vs_5_0 ps_5_0, D3D11) (discrete) | webgpu 60 FPS | 1920 x 1080 at 1x | geodata | 16.665 / 27.085 | 1477 | INFO | 34-54 (provisional: flight, memory not recorded) |
-| RTX 4050 laptop (Windows 11, 13th Gen Intel) | Internal 1920 x 1200 144 Hz panel (DISPLAY1), 100% scaling | ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11 vs_5_0 ps_5_0, D3D11) (integrated) | webgl2 60 FPS | 1920 x 1200 at 1x | geodata | 14.280 / 21.920 | 1080 | INFO | 54-74 (provisional: flight, memory not recorded) |
-| RTX 4050 laptop (Windows 11, 13th Gen Intel) | Internal 1920 x 1200 144 Hz panel (DISPLAY1), 100% scaling | ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11 vs_5_0 ps_5_0, D3D11) (integrated) | webgpu 60 FPS | 1920 x 1200 at 1x | geodata | 7.040 / 20.930 | 0 | INFO | 70-90 (provisional: flight, memory not recorded) |
-| RTX 4050 laptop (Windows 11, 13th Gen Intel) | Internal 1920 x 1200 144 Hz panel (DISPLAY1), 100% scaling | ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11 vs_5_0 ps_5_0, D3D11) (integrated) | webgl2 120 FPS | 1920 x 1200 at 1x | geodata | 14.080 / 22.320 | 36780 | INFO | 0-20 (provisional: flight, memory not recorded) |
-| RTX 4050 laptop (Windows 11, 13th Gen Intel) | Internal 1920 x 1200 144 Hz panel (DISPLAY1), 100% scaling | ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11 vs_5_0 ps_5_0, D3D11) (integrated) | webgpu 120 FPS | 1920 x 1200 at 1x | geodata | 13.770 / 21.040 | 21780 | INFO | 0-20 (provisional: flight, memory not recorded) |
+| RTX 4050 laptop (Intel Core 7 240H, 16 GB, Windows 11) | External 1920 x 1080 60 Hz (DISPLAY5) | ANGLE (NVIDIA, NVIDIA GeForce RTX 4050 Laptop GPU Direct3D11) (discrete) | webgpu 60 FPS | 1920 x 1080 at 1x | geodata | n/a | n/a | BLOCKED_EXTERNAL | not rated |
+| RTX 4050 laptop (Intel Core 7 240H, 16 GB, Windows 11) | External 1920 x 1080 60 Hz (DISPLAY5) | ANGLE (NVIDIA, NVIDIA GeForce RTX 4050 Laptop GPU (0x000028A1) Direct3D11 vs_5_0 ps_5_0, D3D11) (discrete) | webgl2 60 FPS | 1920 x 1080 at 1x | geodata | 16.670 / 27.085 | 1579 | INFO | 32-52 (provisional: flight, memory not recorded) |
+| RTX 4050 laptop (Intel Core 7 240H, 16 GB, Windows 11) | External 1920 x 1080 60 Hz (DISPLAY5) | ANGLE (NVIDIA, NVIDIA GeForce RTX 4050 Laptop GPU (0x000028A1) Direct3D11 vs_5_0 ps_5_0, D3D11) (discrete) | webgpu 60 FPS | 1920 x 1080 at 1x | geodata | 16.665 / 27.085 | 1477 | INFO | 34-54 (provisional: flight, memory not recorded) |
+| RTX 4050 laptop (Intel Core 7 240H, 16 GB, Windows 11) | Internal 1920 x 1200 144 Hz panel (DISPLAY1), 100% scaling | ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11 vs_5_0 ps_5_0, D3D11) (integrated) | webgl2 60 FPS | 1920 x 1200 at 1x | geodata | 14.280 / 21.920 | 1080 | INFO | 54-74 (provisional: flight, memory not recorded) |
+| RTX 4050 laptop (Intel Core 7 240H, 16 GB, Windows 11) | Internal 1920 x 1200 144 Hz panel (DISPLAY1), 100% scaling | ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11 vs_5_0 ps_5_0, D3D11) (integrated) | webgpu 60 FPS | 1920 x 1200 at 1x | geodata | 7.040 / 20.930 | 0 | INFO | 70-90 (provisional: flight, memory not recorded) |
+| RTX 4050 laptop (Intel Core 7 240H, 16 GB, Windows 11) | Internal 1920 x 1200 144 Hz panel (DISPLAY1), 100% scaling | ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11 vs_5_0 ps_5_0, D3D11) (integrated) | webgl2 120 FPS | 1920 x 1200 at 1x | geodata | 14.080 / 22.320 | 36780 | INFO | 0-20 (provisional: flight, memory not recorded) |
+| RTX 4050 laptop (Intel Core 7 240H, 16 GB, Windows 11) | Internal 1920 x 1200 144 Hz panel (DISPLAY1), 100% scaling | ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11 vs_5_0 ps_5_0, D3D11) (integrated) | webgpu 120 FPS | 1920 x 1200 at 1x | geodata | 13.770 / 21.040 | 21780 | INFO | 0-20 (provisional: flight, memory not recorded) |
 | MacBook M5 (14-inch) | Built-in Liquid Retina 2880 x 1864, UI 1710 x 1107 @ 59.88 Hz, 2x scale | ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version) (integrated) | webgl2 60 FPS | 1710 x 985 at 1x | fixture | 16.665 / 17.670 | 0 | INFO | 90 (excellent) |
-| RTX 4050 laptop (Windows 11, 13th Gen Intel) | External 1920 x 1080 60 Hz (DISPLAY5) | ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11 vs_5_0 ps_5_0, D3D11) (integrated) | webgl2 60 FPS | 1920 x 1080 at 1x | geodata | 16.655 / 27.685 | 447 | FAIL | 63 (usable) |
-| RTX 4050 laptop (Windows 11, 13th Gen Intel) | External 1920 x 1080 60 Hz (DISPLAY5) | ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11 vs_5_0 ps_5_0, D3D11) (integrated) | webgpu 60 FPS | 1920 x 1080 at 1x | geodata | 16.670 / 24.040 | 378 | FAIL | 75 (good) |
-| RTX 4050 laptop (Windows 11, 13th Gen Intel) | Internal panel at 1920 x 1080 60 Hz (DISPLAY1), 100% scaling | ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11 vs_5_0 ps_5_0, D3D11) (integrated) | webgl2 60 FPS | 1920 x 1080 at 1x | geodata | 16.670 / 42.430 | 1061 | FAIL | 38 (poor) |
-| RTX 4050 laptop (Windows 11, 13th Gen Intel) | Internal panel at 1920 x 1080 60 Hz (DISPLAY1), 100% scaling | ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11 vs_5_0 ps_5_0, D3D11) (integrated) | webgpu 60 FPS | 1920 x 1080 at 1x | geodata | 16.665 / 41.965 | 1035 | FAIL | 38 (poor) |
-| RTX 4050 laptop (Windows 11, 13th Gen Intel) | Internal panel at 1920 x 1080 60 Hz (DISPLAY1), 100% scaling | ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11 vs_5_0 ps_5_0, D3D11) (integrated) | webgl2 60 FPS | 1920 x 1080 at 1x | geodata | 16.665 / 19.960 | 88 | FAIL | 92 (excellent) |
-| RTX 4050 laptop (Windows 11, 13th Gen Intel) | Internal panel at 1920 x 1080 60 Hz (DISPLAY1), 100% scaling | ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11 vs_5_0 ps_5_0, D3D11) (integrated) | webgpu 60 FPS | 1920 x 1080 at 1x | geodata | 16.665 / 20.140 | 81 | FAIL | 91 (excellent) |
-| RTX 4050 laptop (Windows 11, 13th Gen Intel) | Internal panel at 1920 x 1080 60 Hz (DISPLAY1), 100% scaling, only display | ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11 vs_5_0 ps_5_0, D3D11) (integrated) | webgl2 60 FPS | 1920 x 1080 at 1x | geodata | 16.665 / 17.310 | 0 | PASS | 100 (excellent) |
-| RTX 4050 laptop (Windows 11, 13th Gen Intel) | Internal panel at 1920 x 1080 60 Hz (DISPLAY1), 100% scaling, only display | ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11 vs_5_0 ps_5_0, D3D11) (integrated) | webgpu 60 FPS | 1920 x 1080 at 1x | geodata | 16.665 / 17.310 | 2 | PASS | 100 (excellent) |
+| RTX 4050 laptop (Intel Core 7 240H, 16 GB, Windows 11) | External 1920 x 1080 60 Hz (DISPLAY5) | ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11 vs_5_0 ps_5_0, D3D11) (integrated) | webgl2 60 FPS | 1920 x 1080 at 1x | geodata | 16.655 / 27.685 | 447 | FAIL | 63 (usable) |
+| RTX 4050 laptop (Intel Core 7 240H, 16 GB, Windows 11) | External 1920 x 1080 60 Hz (DISPLAY5) | ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11 vs_5_0 ps_5_0, D3D11) (integrated) | webgpu 60 FPS | 1920 x 1080 at 1x | geodata | 16.670 / 24.040 | 378 | FAIL | 75 (good) |
+| RTX 4050 laptop (Intel Core 7 240H, 16 GB, Windows 11) | Internal panel at 1920 x 1080 60 Hz (DISPLAY1), 100% scaling | ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11 vs_5_0 ps_5_0, D3D11) (integrated) | webgl2 60 FPS | 1920 x 1080 at 1x | geodata | 16.670 / 42.430 | 1061 | FAIL | 38 (poor) |
+| RTX 4050 laptop (Intel Core 7 240H, 16 GB, Windows 11) | Internal panel at 1920 x 1080 60 Hz (DISPLAY1), 100% scaling | ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11 vs_5_0 ps_5_0, D3D11) (integrated) | webgpu 60 FPS | 1920 x 1080 at 1x | geodata | 16.665 / 41.965 | 1035 | FAIL | 38 (poor) |
+| RTX 4050 laptop (Intel Core 7 240H, 16 GB, Windows 11) | Internal panel at 1920 x 1080 60 Hz (DISPLAY1), 100% scaling | ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11 vs_5_0 ps_5_0, D3D11) (integrated) | webgl2 60 FPS | 1920 x 1080 at 1x | geodata | 16.665 / 19.960 | 88 | FAIL | 92 (excellent) |
+| RTX 4050 laptop (Intel Core 7 240H, 16 GB, Windows 11) | Internal panel at 1920 x 1080 60 Hz (DISPLAY1), 100% scaling | ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11 vs_5_0 ps_5_0, D3D11) (integrated) | webgpu 60 FPS | 1920 x 1080 at 1x | geodata | 16.665 / 20.140 | 81 | FAIL | 91 (excellent) |
+| RTX 4050 laptop (Intel Core 7 240H, 16 GB, Windows 11) | Internal panel at 1920 x 1080 60 Hz (DISPLAY1), 100% scaling, only display | ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11 vs_5_0 ps_5_0, D3D11) (integrated) | webgl2 60 FPS | 1920 x 1080 at 1x | geodata | 16.665 / 17.310 | 0 | PASS | 100 (excellent) |
+| RTX 4050 laptop (Intel Core 7 240H, 16 GB, Windows 11) | Internal panel at 1920 x 1080 60 Hz (DISPLAY1), 100% scaling, only display | ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11 vs_5_0 ps_5_0, D3D11) (integrated) | webgpu 60 FPS | 1920 x 1080 at 1x | geodata | 16.665 / 17.310 | 2 | PASS | 100 (excellent) |
 
 ## 6. Добавление прогона
 

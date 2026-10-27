@@ -4,6 +4,348 @@
     {
       "schemaVersion": 1,
       "source": "historical",
+      "recordedAt": "2026-10-17T07:23:02.907Z",
+      "machine": {
+        "label": "RTX 4050 laptop (Intel Core 7 240H, 16 GB, Windows 11)",
+        "hostModel": "Intel(R) Core(TM) 7 240H",
+        "os": "Windows 11 10.0.26200"
+      },
+      "screen": {
+        "label": "External 1920 x 1080 60 Hz (DISPLAY5)",
+        "refreshHz": 60,
+        "widthPx": 1920,
+        "heightPx": 1080,
+        "scale": 1
+      },
+      "gpu": {
+        "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 4050 Laptop GPU (0x000028A1) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+        "kind": "discrete"
+      },
+      "browser": "Chrome 155.0.8059.84",
+      "powerMode": "unreported",
+      "terrain": "demo",
+      "view": "chase",
+      "backend": "webgl2",
+      "fps": 60,
+      "canvas": {
+        "width": 1920,
+        "height": 1080,
+        "dpr": 1
+      },
+      "status": "INFO",
+      "reasons": [
+        "Historical demo-scene probe: no terrain, FPV or thermal; discrete GPU"
+      ],
+      "metrics": {
+        "frames": 35995,
+        "measuredS": 600.0052,
+        "p50FrameMs": 16.669999999983702,
+        "p99FrameMs": 19.910000000003492,
+        "maxFrameMs": 34.36499999999069,
+        "missedRefreshes": 43,
+        "featuresHeld": false,
+        "airborne": false,
+        "gpuBytes": null,
+        "cpuBytes": null
+      },
+      "rating": {
+        "score": 72,
+        "band": "usable",
+        "components": {
+          "pacing": 42.840425531903755,
+          "sustain": 19.52222636292708,
+          "median": 9.996000000019556,
+          "features": 0,
+          "memory": 0
+        },
+        "provisional": {
+          "unknown": [
+            "memory"
+          ],
+          "upperBound": 82
+        }
+      },
+      "traceSha256": "bd2f0b563d996e1ec08df9dbe8d7271f51581c78126cf58e28f9b49ce7dea9ff",
+      "notes": "test-results/laptop/demo-webgl2.json (laptop-demo-probe, frames recomputed from the stored intervals). Browser heap only, so memory is unknown. Hash is of the probe file."
+    },
+    {
+      "schemaVersion": 1,
+      "source": "historical",
+      "recordedAt": "2026-10-17T07:34:25.628Z",
+      "machine": {
+        "label": "RTX 4050 laptop (Intel Core 7 240H, 16 GB, Windows 11)",
+        "hostModel": "Intel(R) Core(TM) 7 240H",
+        "os": "Windows 11 10.0.26200"
+      },
+      "screen": {
+        "label": "External 1920 x 1080 60 Hz (DISPLAY5)",
+        "refreshHz": 60,
+        "widthPx": 1920,
+        "heightPx": 1080,
+        "scale": 1
+      },
+      "gpu": {
+        "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 4050 Laptop GPU (0x000028A1) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+        "kind": "discrete"
+      },
+      "browser": "Chrome 155.0.8059.84",
+      "powerMode": "unreported",
+      "terrain": "demo",
+      "view": "chase",
+      "backend": "webgpu",
+      "fps": 60,
+      "canvas": {
+        "width": 1920,
+        "height": 1080,
+        "dpr": 1
+      },
+      "status": "BLOCKED_EXTERNAL",
+      "reasons": [
+        "Not rated: 120 s window after 60 s warmup (a rating needs 600 s after 60 s)"
+      ],
+      "metrics": {
+        "frames": 7193,
+        "measuredS": 120.002465,
+        "p50FrameMs": 16.66500000000815,
+        "p99FrameMs": 19.644999999989523,
+        "maxFrameMs": 34.270000000004075,
+        "missedRefreshes": null,
+        "featuresHeld": false,
+        "airborne": false,
+        "gpuBytes": null,
+        "cpuBytes": null
+      },
+      "rating": null,
+      "traceSha256": "900fba7fd6ef5d7af6fca813405b7a39af2f1d23be85d3f51b6d1a9e75ee89cd",
+      "notes": "test-results/laptop/demo-webgpu.json (demo scene, RTX 4050 renderer)"
+    },
+    {
+      "schemaVersion": 1,
+      "source": "historical",
+      "recordedAt": "2026-10-17T07:48:10.835Z",
+      "machine": {
+        "label": "RTX 4050 laptop (Intel Core 7 240H, 16 GB, Windows 11)",
+        "hostModel": "Intel(R) Core(TM) 7 240H",
+        "os": "Windows 11 10.0.26200"
+      },
+      "screen": {
+        "label": "Internal 1920 x 1200 144 Hz panel (DISPLAY1), paced at 60 Hz",
+        "refreshHz": 144,
+        "widthPx": 1920,
+        "heightPx": 1200,
+        "scale": 1.25
+      },
+      "gpu": {
+        "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 4050 Laptop GPU (0x000028A1) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+        "kind": "discrete"
+      },
+      "browser": "Chrome 155.0.8059.84",
+      "powerMode": "unreported",
+      "terrain": "demo",
+      "view": "chase",
+      "backend": "webgl2",
+      "fps": 60,
+      "canvas": {
+        "width": 1920,
+        "height": 1080,
+        "dpr": 1
+      },
+      "status": "BLOCKED_EXTERNAL",
+      "reasons": [
+        "Not rated: 120 s window after 60 s warmup (a rating needs 600 s after 60 s)"
+      ],
+      "metrics": {
+        "frames": 7199,
+        "measuredS": 120.001095,
+        "p50FrameMs": 16.66500000000815,
+        "p99FrameMs": 19.56500000000233,
+        "maxFrameMs": 34.01999999998952,
+        "missedRefreshes": null,
+        "featuresHeld": false,
+        "airborne": false,
+        "gpuBytes": null,
+        "cpuBytes": null
+      },
+      "rating": null,
+      "traceSha256": "34f800fbadd0fda1b27c6e4cc0d8f227d698de9b560af2b3299077e78495c6b9",
+      "notes": "test-results/laptop/144hz/demo-webgl2.json (demo scene, RTX 4050 renderer)"
+    },
+    {
+      "schemaVersion": 1,
+      "source": "historical",
+      "recordedAt": "2026-10-17T07:53:55.517Z",
+      "machine": {
+        "label": "RTX 4050 laptop (Intel Core 7 240H, 16 GB, Windows 11)",
+        "hostModel": "Intel(R) Core(TM) 7 240H",
+        "os": "Windows 11 10.0.26200"
+      },
+      "screen": {
+        "label": "Internal 1920 x 1200 144 Hz panel (DISPLAY1), 125% scaling",
+        "refreshHz": 144,
+        "widthPx": 1920,
+        "heightPx": 1200,
+        "scale": 1.25
+      },
+      "gpu": {
+        "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 4050 Laptop GPU (0x000028A1) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+        "kind": "discrete"
+      },
+      "browser": "Chrome 155.0.8059.84",
+      "powerMode": "unreported",
+      "terrain": "demo",
+      "view": "chase",
+      "backend": "webgl2",
+      "fps": 60,
+      "canvas": {
+        "width": 1536,
+        "height": 826,
+        "dpr": 1.25
+      },
+      "status": "BLOCKED_EXTERNAL",
+      "reasons": [
+        "Not rated: 30 s window after 10 s warmup (a rating needs 600 s after 60 s)"
+      ],
+      "metrics": {
+        "frames": 1800,
+        "measuredS": 30.000030000000006,
+        "p50FrameMs": 16.669999999998254,
+        "p99FrameMs": 19.00499999999738,
+        "maxFrameMs": 24.375,
+        "missedRefreshes": null,
+        "featuresHeld": false,
+        "airborne": false,
+        "gpuBytes": null,
+        "cpuBytes": null
+      },
+      "rating": null,
+      "traceSha256": "5c587840e1044964c1471313bc1d7d4e87f27c9fd8585cde24bd117440c7bf1d",
+      "notes": "test-results/laptop/144hz-native/demo-webgl2.json (demo scene, RTX 4050 renderer)"
+    },
+    {
+      "schemaVersion": 1,
+      "source": "historical",
+      "recordedAt": "2026-10-21T10:00:00Z",
+      "machine": {
+        "label": "RTX 4050 laptop (Intel Core 7 240H, 16 GB, Windows 11)",
+        "hostModel": "Intel(R) Core(TM) 7 240H",
+        "os": "Windows 11 10.0.26200"
+      },
+      "screen": {
+        "label": "External 1920 x 1080 60 Hz (DISPLAY5)",
+        "refreshHz": 60,
+        "widthPx": 1920,
+        "heightPx": 1080,
+        "scale": 1
+      },
+      "gpu": {
+        "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 4050 Laptop GPU Direct3D11)",
+        "kind": "discrete"
+      },
+      "browser": "Chrome 155.0.8059.85",
+      "powerMode": "Balanced",
+      "terrain": "stress-tileset",
+      "view": "fpv",
+      "backend": "webgl2",
+      "fps": 60,
+      "canvas": {
+        "width": 1316,
+        "height": 640,
+        "dpr": 1
+      },
+      "status": "INFO",
+      "reasons": [
+        "Historical branch-harness capture (?profile=full); vehicle on the ground; canvas inside the application layout; discrete GPU"
+      ],
+      "metrics": {
+        "frames": 35754,
+        "measuredS": 600,
+        "p50FrameMs": 16.67,
+        "p99FrameMs": 23.88,
+        "maxFrameMs": null,
+        "missedRefreshes": 349,
+        "featuresHeld": true,
+        "airborne": false,
+        "gpuBytes": 154140672,
+        "cpuBytes": 13107200
+      },
+      "rating": {
+        "score": 66,
+        "band": "usable",
+        "components": {
+          "pacing": 30.170212765957455,
+          "sustain": 16.122222222222224,
+          "median": 9.995999999999997,
+          "features": 0,
+          "memory": 9.2822265625
+        }
+      },
+      "traceSha256": "b69f0651c47b73d6a274c765b4ca727efef6e0d4693ea51bfa60d32f86ca17b3",
+      "notes": "Branch task-073-render-profile (bf53d57), synthetic CC0 stress tileset of 341 tiles; GPU in P8 at 210-360 MHz. GPU memory = Windows GPU-process peak, CPU = terrain cache."
+    },
+    {
+      "schemaVersion": 1,
+      "source": "historical",
+      "recordedAt": "2026-10-21T11:00:00Z",
+      "machine": {
+        "label": "RTX 4050 laptop (Intel Core 7 240H, 16 GB, Windows 11)",
+        "hostModel": "Intel(R) Core(TM) 7 240H",
+        "os": "Windows 11 10.0.26200"
+      },
+      "screen": {
+        "label": "External 1920 x 1080 60 Hz (DISPLAY5)",
+        "refreshHz": 60,
+        "widthPx": 1920,
+        "heightPx": 1080,
+        "scale": 1
+      },
+      "gpu": {
+        "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 4050 Laptop GPU Direct3D11)",
+        "kind": "discrete"
+      },
+      "browser": "Chrome 155.0.8059.85",
+      "powerMode": "Maximum performance (NVIDIA per-program, Windows Best performance)",
+      "terrain": "stress-tileset",
+      "view": "fpv",
+      "backend": "webgl2",
+      "fps": 60,
+      "canvas": {
+        "width": 1316,
+        "height": 640,
+        "dpr": 1
+      },
+      "status": "INFO",
+      "reasons": [
+        "Historical branch-harness capture (?profile=full); vehicle on the ground; canvas inside the application layout; discrete GPU"
+      ],
+      "metrics": {
+        "frames": 35151,
+        "measuredS": 600,
+        "p50FrameMs": 16.685,
+        "p99FrameMs": 34.26,
+        "maxFrameMs": 96.5,
+        "missedRefreshes": 947,
+        "featuresHeld": true,
+        "airborne": false,
+        "gpuBytes": 146800640,
+        "cpuBytes": 13107200
+      },
+      "rating": {
+        "score": 29,
+        "band": "poor",
+        "components": {
+          "pacing": 0,
+          "sustain": 9.477777777777778,
+          "median": 9.978000000000002,
+          "features": 0,
+          "memory": 9.31640625
+        }
+      },
+      "traceSha256": "b90ee6801356df85c9b0790398721d2c900ab51a7c951325eeb94c90e6995061",
+      "notes": "Same stress tileset; GPU alternated P5/P8 at 420-450 MHz with NVIDIA clock reason 'GPU idle'. GPU memory = Windows GPU-process peak, CPU = terrain cache."
+    },
+    {
+      "schemaVersion": 1,
+      "source": "historical",
       "recordedAt": "2026-10-21T12:00:00Z",
       "machine": {
         "label": "MacBook Air M4 (Mac16,12, 16 GB)",
@@ -71,10 +413,50 @@
     {
       "schemaVersion": 1,
       "source": "historical",
+      "recordedAt": "2026-10-22T09:00:00Z",
+      "machine": {
+        "label": "RTX 4050 laptop (Intel Core 7 240H, 16 GB, Windows 11)",
+        "hostModel": "Intel(R) Core(TM) 7 240H",
+        "os": "Windows 11 10.0.26200"
+      },
+      "screen": {
+        "label": "External 1920 x 1080 60 Hz (DISPLAY5)",
+        "refreshHz": 60,
+        "widthPx": 1920,
+        "heightPx": 1080,
+        "scale": 1
+      },
+      "gpu": {
+        "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 4050 Laptop GPU Direct3D11)",
+        "kind": "discrete"
+      },
+      "browser": "Chrome 155.0.8059.85",
+      "powerMode": "Balanced",
+      "terrain": "geodata",
+      "view": "chase",
+      "backend": "webgpu",
+      "fps": 60,
+      "canvas": {
+        "width": 1920,
+        "height": 1080,
+        "dpr": 1
+      },
+      "status": "BLOCKED_EXTERNAL",
+      "reasons": [
+        "Not rated: 10 s P6 WebGPU smoke run"
+      ],
+      "metrics": null,
+      "rating": null,
+      "traceSha256": null,
+      "notes": "PresentMon displayed median 16.66 ms, p99 27.9 ms; GPU busy median 6.8 ms; GPU-process memory peak 623 MiB."
+    },
+    {
+      "schemaVersion": 1,
+      "source": "historical",
       "recordedAt": "2026-10-22T12:00:00Z",
       "machine": {
-        "label": "RTX 4050 laptop (Windows 11, 13th Gen Intel)",
-        "hostModel": "13th Gen Intel Core (RTX 4050 Laptop GPU)",
+        "label": "RTX 4050 laptop (Intel Core 7 240H, 16 GB, Windows 11)",
+        "hostModel": "Intel(R) Core(TM) 7 240H",
         "os": "Windows 11 10.0.26200"
       },
       "screen": {
@@ -141,8 +523,8 @@
       "source": "historical",
       "recordedAt": "2026-10-22T12:00:00Z",
       "machine": {
-        "label": "RTX 4050 laptop (Windows 11, 13th Gen Intel)",
-        "hostModel": "13th Gen Intel Core (RTX 4050 Laptop GPU)",
+        "label": "RTX 4050 laptop (Intel Core 7 240H, 16 GB, Windows 11)",
+        "hostModel": "Intel(R) Core(TM) 7 240H",
         "os": "Windows 11 10.0.26200"
       },
       "screen": {
@@ -209,8 +591,8 @@
       "source": "historical",
       "recordedAt": "2026-10-22T12:00:00Z",
       "machine": {
-        "label": "RTX 4050 laptop (Windows 11, 13th Gen Intel)",
-        "hostModel": "13th Gen Intel Core (RTX 4050 Laptop GPU)",
+        "label": "RTX 4050 laptop (Intel Core 7 240H, 16 GB, Windows 11)",
+        "hostModel": "Intel(R) Core(TM) 7 240H",
         "os": "Windows 11 10.0.26200"
       },
       "screen": {
@@ -277,8 +659,8 @@
       "source": "historical",
       "recordedAt": "2026-10-22T12:00:00Z",
       "machine": {
-        "label": "RTX 4050 laptop (Windows 11, 13th Gen Intel)",
-        "hostModel": "13th Gen Intel Core (RTX 4050 Laptop GPU)",
+        "label": "RTX 4050 laptop (Intel Core 7 240H, 16 GB, Windows 11)",
+        "hostModel": "Intel(R) Core(TM) 7 240H",
         "os": "Windows 11 10.0.26200"
       },
       "screen": {
@@ -345,8 +727,8 @@
       "source": "historical",
       "recordedAt": "2026-10-22T12:00:00Z",
       "machine": {
-        "label": "RTX 4050 laptop (Windows 11, 13th Gen Intel)",
-        "hostModel": "13th Gen Intel Core (RTX 4050 Laptop GPU)",
+        "label": "RTX 4050 laptop (Intel Core 7 240H, 16 GB, Windows 11)",
+        "hostModel": "Intel(R) Core(TM) 7 240H",
         "os": "Windows 11 10.0.26200"
       },
       "screen": {
@@ -413,8 +795,8 @@
       "source": "historical",
       "recordedAt": "2026-10-22T12:00:00Z",
       "machine": {
-        "label": "RTX 4050 laptop (Windows 11, 13th Gen Intel)",
-        "hostModel": "13th Gen Intel Core (RTX 4050 Laptop GPU)",
+        "label": "RTX 4050 laptop (Intel Core 7 240H, 16 GB, Windows 11)",
+        "hostModel": "Intel(R) Core(TM) 7 240H",
         "os": "Windows 11 10.0.26200"
       },
       "screen": {
@@ -542,7 +924,7 @@
       "source": "harness",
       "recordedAt": "2026-10-23T16:59:36.092Z",
       "machine": {
-        "label": "RTX 4050 laptop (Windows 11, 13th Gen Intel)",
+        "label": "RTX 4050 laptop (Intel Core 7 240H, 16 GB, Windows 11)",
         "hostModel": "Intel(R) Core(TM) 7 240H",
         "os": "win32 10.0.26200"
       },
@@ -611,7 +993,7 @@
       "source": "harness",
       "recordedAt": "2026-10-23T17:11:23.442Z",
       "machine": {
-        "label": "RTX 4050 laptop (Windows 11, 13th Gen Intel)",
+        "label": "RTX 4050 laptop (Intel Core 7 240H, 16 GB, Windows 11)",
         "hostModel": "Intel(R) Core(TM) 7 240H",
         "os": "win32 10.0.26200"
       },
@@ -679,7 +1061,7 @@
       "source": "harness",
       "recordedAt": "2026-10-23T17:31:55.398Z",
       "machine": {
-        "label": "RTX 4050 laptop (Windows 11, 13th Gen Intel)",
+        "label": "RTX 4050 laptop (Intel Core 7 240H, 16 GB, Windows 11)",
         "hostModel": "Intel(R) Core(TM) 7 240H",
         "os": "win32 10.0.26200"
       },
@@ -747,7 +1129,7 @@
       "source": "harness",
       "recordedAt": "2026-10-23T17:43:42.758Z",
       "machine": {
-        "label": "RTX 4050 laptop (Windows 11, 13th Gen Intel)",
+        "label": "RTX 4050 laptop (Intel Core 7 240H, 16 GB, Windows 11)",
         "hostModel": "Intel(R) Core(TM) 7 240H",
         "os": "win32 10.0.26200"
       },
@@ -815,7 +1197,7 @@
       "source": "harness",
       "recordedAt": "2026-10-23T20:55:29.588Z",
       "machine": {
-        "label": "RTX 4050 laptop (Windows 11, 13th Gen Intel)",
+        "label": "RTX 4050 laptop (Intel Core 7 240H, 16 GB, Windows 11)",
         "hostModel": "Intel(R) Core(TM) 7 240H",
         "os": "win32 10.0.26200"
       },
@@ -883,7 +1265,7 @@
       "source": "harness",
       "recordedAt": "2026-10-23T21:07:16.018Z",
       "machine": {
-        "label": "RTX 4050 laptop (Windows 11, 13th Gen Intel)",
+        "label": "RTX 4050 laptop (Intel Core 7 240H, 16 GB, Windows 11)",
         "hostModel": "Intel(R) Core(TM) 7 240H",
         "os": "win32 10.0.26200"
       },
@@ -951,7 +1333,7 @@
       "source": "harness",
       "recordedAt": "2026-10-24T16:25:50.246Z",
       "machine": {
-        "label": "RTX 4050 laptop (Windows 11, 13th Gen Intel)",
+        "label": "RTX 4050 laptop (Intel Core 7 240H, 16 GB, Windows 11)",
         "hostModel": "Intel(R) Core(TM) 7 240H",
         "os": "win32 10.0.26200"
       },
@@ -1016,7 +1398,7 @@
       "source": "harness",
       "recordedAt": "2026-10-24T16:37:37.579Z",
       "machine": {
-        "label": "RTX 4050 laptop (Windows 11, 13th Gen Intel)",
+        "label": "RTX 4050 laptop (Intel Core 7 240H, 16 GB, Windows 11)",
         "hostModel": "Intel(R) Core(TM) 7 240H",
         "os": "win32 10.0.26200"
       },

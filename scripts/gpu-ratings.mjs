@@ -120,9 +120,8 @@ export function comboRatings(runs) {
   const combos = new Map();
   for (const r of runs) {
     if (!r.rating) continue;
-    if (!combos.has(comboKey(r))) combos.set(comboKey(r), { machine: r.machine.label, screen: r.screen.label, gpu: `${r.gpu.renderer} (${r.gpu.kind})`, terrain: new Set(), latest: {} });
+    if (!combos.has(comboKey(r))) combos.set(comboKey(r), { machine: r.machine.label, screen: r.screen.label, gpu: `${r.gpu.renderer} (${r.gpu.kind})`, latest: {} });
     const c = combos.get(comboKey(r));
-    c.terrain.add(r.terrain);
     const slot = `${r.backend}-${r.fps}`;
     if (!c.latest[slot] || String(c.latest[slot].recordedAt) < String(r.recordedAt)) c.latest[slot] = r;
   }
@@ -134,7 +133,8 @@ export function comboRatings(runs) {
     return { score, upperBound: provisional ? mean(list.map(r => r.rating.provisional?.upperBound ?? r.rating.score)) : score, provisional };
   };
   return [...combos.values()].map(c => ({
-    machine: c.machine, screen: c.screen, gpu: c.gpu, terrain: [...c.terrain].join(", "),
+    // Terrain of the runs behind the rating (ratings compare only over the same terrain).
+    machine: c.machine, screen: c.screen, gpu: c.gpu, terrain: [...new Set(Object.values(c.latest).map(r => r.terrain))].join(", "),
     rating60: summarize(BACKENDS.map(b => c.latest[`${b}-60`]).filter(Boolean)),
     rating120: summarize(BACKENDS.map(b => c.latest[`${b}-120`]).filter(Boolean)),
   }));
