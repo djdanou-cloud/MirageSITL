@@ -11,8 +11,9 @@ it("all missing-input CLIs produce distinct blocked verdicts and never succeed s
     const r = spawnSync(process.execPath, [resolve(`scripts/${file}.mjs`)], { cwd, encoding: "utf8" });
     expect(r.status, r.stderr).toBe(2); expect(r.stdout).toContain("BLOCKED_EXTERNAL");
   }
-  // check-gpu-perf prints its verdict without writing a report when no profile is selected.
-  for (const kind of ["sitl-report", "ardupilot-wasm-feasibility", "hitl-report", "gpu-report", "ekf-report", "system-report", "release-manifest"]) {
+  // check-gpu-perf prints its verdict without writing a report when no profile is selected; bench-render writes
+  // the per-run gpu-run report (the TASK-073 gpu-report gate decision comes from gpu-ratings.mjs decide).
+  for (const kind of ["sitl-report", "ardupilot-wasm-feasibility", "hitl-report", "gpu-run", "ekf-report", "system-report", "release-manifest"]) {
     const report: unknown = JSON.parse(readFileSync(join(cwd, "test-results/validation", `${kind}.json`), "utf8"));
     expect(report).toMatchObject({ kind, status: "BLOCKED_EXTERNAL" });
   }
