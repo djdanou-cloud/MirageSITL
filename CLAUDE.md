@@ -198,10 +198,12 @@ implementation.
   TASK-131 (offline and terrain inventory, `node scripts/check-offline.mjs`) and
   TASK-135 (the physics-review branch landed) are DONE, and so is TASK-132: the
   stakeholder decided every acceptance value
-  ([phase1-acceptance.md](docs/decisions/phase1-acceptance.md)). TASK-133 stays
-  BLOCKED_DECISION only on the validation limits and envelope bounds F-02 to F-05
-  ([phase1-fidelity.md](docs/decisions/phase1-fidelity.md)); D-10 to D-12 are
-  open.
+  ([phase1-acceptance.md](docs/decisions/phase1-acceptance.md)). TASK-133 is DONE
+  too ([phase1-fidelity.md](docs/decisions/phase1-fidelity.md)): by scope
+  amendment SA-01, MirageSITL sets no fidelity limits and gives no fidelity
+  pass or fail; the user judges the comparisons. Decisions D-06 to D-12 are
+  decided; D-01 to D-04 wait on TASK-127 to TASK-130, and the import and export
+  formats of D-05 on TASK-136, TASK-139 and TASK-140.
   TASK-127–TASK-129 need a Mac, and TASK-130 needs the UAVLogViewer review. TASK-073,
   TASK-080, TASK-082 and TASK-083 below are not Phase 1 gates; see their Phase 1
   dispositions in the roadmap.
@@ -236,8 +238,8 @@ implementation.
     them silently, so `run-sitl.mjs` with `MIRAGE_SITL_IMU_NOISE_FLOOR=off` holds arming
     until the firmware confirms both values. The driver change means TASK-059 must be
     re-frozen before new EW validation (accepted 2026-10-27). Under guardrail 5 of the
-    approved PROJECT_SCOPE.md, whether this approval still stands is decision D-10;
-    Phase 1 runs keep the patch unused until it is taken.
+    approved PROJECT_SCOPE.md, decision D-10 of 2026-10-28 is: no patch for now,
+    so Phase 1 runs use stock ArduPilot SITL and leave the patch unused.
   * TASK-090: fidelity metrics and `scripts/check-fidelity.mjs`, which never passes
     synthetic data; real flight and bench data remain BLOCKED_EXTERNAL.
 

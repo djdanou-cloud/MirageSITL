@@ -27,7 +27,7 @@ to A-08, A-11 and A-12; D-05 includes A-09.
 | A-08 | Storage budget for recordings | At most 2 GB per simulated hour; the UI warns when free disk space falls below 10 GB | Decided | Stakeholder | 2026-10-28 | TASK-163, TASK-189 |
 | A-09 | Default common logging frequency | 50 Hz | Decided | Stakeholder | 2026-10-28 | TASK-162, TASK-163 |
 | A-10 | Which paired or coaxial configuration the matrix uses (arm count and motor pairing) | X8: four arms with two coaxial motors each (8 motors). Other configurations, such as eight arms with 16 motors, are tested separately on request | Decided | Stakeholder | 2026-10-28 | TASK-138, TASK-188 |
-| A-11 | TASK-073 is not a Phase 1 gate; its evidence is preserved | Decided | Recorded | Stakeholder (PROJECT_SCOPE.md) | 2026-10-28 | TASK-191 |
+| A-11 | TASK-073 is not a Phase 1 gate; its evidence is preserved | Decided | Confirmed by the stakeholder | Stakeholder | 2026-10-28 | TASK-191 |
 | A-12 | Application memory budget | The whole application (browser tabs, Workers and the local services it starts, including ArduPilot SITL) stays below 8 GB of memory on the reference machine | Decided | Stakeholder | 2026-10-28 | TASK-144, TASK-162, TASK-189, TASK-191 |
 
 ## Context for the decisions

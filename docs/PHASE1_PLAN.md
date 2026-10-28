@@ -410,11 +410,17 @@ Decisions taken by the stakeholder on 2026-10-28:
 * D-05 (logging frequency part only) and D-08: items A-01 to A-12 in
   [phase1-acceptance.md](decisions/phase1-acceptance.md). The matrix uses X8
   as its paired configuration.
-* D-06 (partly) and D-07: F-01 and F-06 to F-09 in
-  [phase1-fidelity.md](decisions/phase1-fidelity.md). The validation limits
-  F-02 to F-05 stay open.
+* D-06 and D-07: F-01 to F-09 in
+  [phase1-fidelity.md](decisions/phase1-fidelity.md). MirageSITL sets no
+  validation limits and gives no fidelity verdicts; the user judges the
+  comparisons (scope amendment SA-01).
 * D-09: MirageSITL is non-commercial, so the listed datasets are usable for it;
   license questions are not raised with the stakeholder again.
+* D-10: no `imu-noise-floor` patch for now; Phase 1 uses stock ArduPilot SITL.
+* D-11: Phase 1 uses the implemented effects whose measured-data comparisons
+  stay BLOCKED_EXTERNAL, labeled as not validated.
+* D-12: the manual screen-reader sign-off of TASK-080 is not part of Phase 1
+  acceptance; the automated keyboard and axe checks remain.
 
 ## 7. Risks
 

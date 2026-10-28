@@ -504,3 +504,9 @@ checks and task decomposition, not be inferred from this scope.
 10. Record stakeholder-approved scope amendments in this document and its complete
     Russian mirror together. Keep the documentation index/hash current. Preserve
     requirement identities or explicitly document their replacement.
+
+## 5. Recorded Amendments
+
+| ID | Date | Requirement | Amendment | Approved by |
+| --- | --- | --- | --- | --- |
+| SA-01 | 2026-10-28 | S15: "Numerical fidelity limits must be agreed for the relevant model and operating range." | Replaced: MirageSITL sets no numerical fidelity limits and gives no fidelity pass or fail. It computes the S15 comparisons and shows them; the user decides how far to trust the results and compares them with real flights. The other S15 criteria stand. | Stakeholder |
