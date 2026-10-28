@@ -1,11 +1,11 @@
 # PROJECT_ROADMAP.md
 
-Version 1.2 · 2026-10-26 · baseline `4593971`. English is the source of truth.
+Version 1.3 · 2026-10-28 · baseline `4593971` for the status summary below. English is the source of truth.
 [Russian mirror](ru/PROJECT_ROADMAP.md).
 
-Future modules are not claimed as implemented. The active browser application runs on ABI v2 (`49280` bytes, `192`-byte state stride) with `400/800/1200` Hz clocks, SPSC sensor/actuator queues, epoch-aware rendering, decimated Pilot HUD / Instructor / AAR flows, and the demo dynamics backend (`540` unit tests across `97` files, Chromium browser suites, and `62` native Rust tests). Independent native/WASM rotor kernels, direct `f64` Rapier landing-gear contact (`TASK-029`) and collision-chunk coupling (`TASK-065`), pinned JSBSim v1.2.3 WASM/contact (`TASK-030`/`031`/`086`), native Linux/WSL ArduCopter SITL flight, `LiveEkfWarmup`, and EW fault regressions (`TASK-042`/`043`/`059`), and ArduCopter WASM Worker/EEPROM boot (`TASK-045`) are verified in their respective harnesses. Production BET C ABI polar binding and configurable session injection are now verified by TASK-033. TASK-046 verifies the browser HAL clock/sensor/PWM boundary and owned-Worker teardown. Browser autopilot `READY`, measured model fidelity (separate from the TASK-033 synthetic baseline), ArduPilot Simulation-on-Hardware and virtual Hybrid SITL (`TASK-051`), target GPU 10-minute profiling (`TASK-073`), full-rate recording and accessibility sign-off (`TASK-078`/`080`; TASK-074, TASK-075, and TASK-079 are done), and release sign-off (`TASK-082`/`083`) remain open. The physics fidelity program (Phases 7–13, TASK-087–TASK-123) is registered and not yet implemented.
+Future modules are not claimed as implemented. The active browser application runs on ABI v2 (`49280` bytes, `192`-byte state stride) with `400/800/1200` Hz clocks, SPSC sensor/actuator queues, epoch-aware rendering, decimated Pilot HUD / Instructor / AAR flows, and the demo dynamics backend (`540` unit tests across `97` files, Chromium browser suites, and `62` native Rust tests). Independent native/WASM rotor kernels, direct `f64` Rapier landing-gear contact (`TASK-029`) and collision-chunk coupling (`TASK-065`), pinned JSBSim v1.2.3 WASM/contact (`TASK-030`/`031`/`086`), native Linux/WSL ArduCopter SITL flight, `LiveEkfWarmup`, and EW fault regressions (`TASK-042`/`043`/`059`), and ArduCopter WASM Worker/EEPROM boot (`TASK-045`) are verified in their respective harnesses. Production BET C ABI polar binding and configurable session injection are now verified by TASK-033. TASK-046 verifies the browser HAL clock/sensor/PWM boundary and owned-Worker teardown. Browser autopilot `READY`, measured model fidelity (separate from the TASK-033 synthetic baseline), ArduPilot Simulation-on-Hardware and virtual Hybrid SITL (`TASK-051`), target GPU 10-minute profiling (`TASK-073`), full-rate recording and accessibility sign-off (`TASK-078`/`080`; TASK-074, TASK-075, and TASK-079 are done), and release sign-off (`TASK-082`/`083`) remain open. The physics fidelity program (Phases 7–13, TASK-087–TASK-123) is registered and not yet implemented. Version 1.3 registers the product Phase 1 program (TASK-127–TASK-191) from the approved [PROJECT_SCOPE.md](../PROJECT_SCOPE.md) of 2026-10-28, which governs product scope; [PHASE1_PLAN.md](PHASE1_PLAN.md) maps it to the existing work. Registration implements nothing.
 
-Contracts: [Shared Memory](SPECS_SHARED_MEMORY.md),
+Contracts: [Approved scope](../PROJECT_SCOPE.md), [Phase 1 plan](PHASE1_PLAN.md), [Shared Memory](SPECS_SHARED_MEMORY.md),
 [Simulation Engines](SPECS_SIMULATION_ENGINES.md), [V2 Architecture & Verification Plan](V2_PLAN.md), and [Agent workflow](../CLAUDE.md).
 Document generation itself does not implement runtime changes.
 
@@ -95,6 +95,19 @@ Retain the minimal existing UI until Phase 6.
 | 11 Airframe & Vehicle Classes | S11a: 109,110; S11b: 111,112; S11c: 113 | ArduPlane and QuadPlane missions with transitions in both paths |
 | 12 Sensor Physics | S12a: 115,114; S12b: 116,117; S12c: 118 | Vibration, barometer and GNSS statistics match logged data |
 | 13 Structures & Extreme Environment | S13a: 119,120; S13b: 121,122; S13c: 123 | Flexible-structure, mass-change and hazard-flow behaviors compared with data |
+| P1.1 Feasibility & Decisions | P1.1a: 127,128,129; P1.1b: 130,131; P1.1c: 132,133 | macOS SITL, the 16-motor path, clock and pause, the log viewer, offline and terrain inventory, and acceptance and fidelity decisions recorded with evidence or exact blockers |
+| P1.2 Scope Mapping | P1.2a: 134,135 | Documentation reconciled with the scope; the TASK-087–TASK-090 increments landed on main |
+| P1.3 Data Foundation & Editors | P1.3a: 136,137; P1.3b: 138,139,140; P1.3c: 141,142,143 | Versioned projects, profiles up to 16 motors, component cards, calculation modes, output mapping and Sensors settings through the UI |
+| P1.4 Approved Physical Models | P1.4a: 144,145; P1.4b: 146,147; P1.4c: 148,149 (with 087–101 and 106) | Profile-driven dynamics with propulsion, battery, aerodynamics, sensors, environment and basic contact within declared limits |
+| P1.5 Integrated External SITL | P1.5a: 150,151,152; P1.5b: 153,154; P1.5c: 155,156,157; P1.5d: 158 | Nominal flight of every S19 configuration through the UI on macOS |
+| P1.6 Recording & Parameters | P1.6a: 159,160,161; P1.6b: 162,163; P1.6c: 164,165 | Parameter read-back and export and full-run recording with provenance |
+| P1.7 Tasks, Weather, Faults & Batches | P1.7a: 166,167; P1.7b: 168,169,170; P1.7c: 171,172,173; P1.7d: 174,175; P1.7e: 176,177 | Repeatable tasks, weather and fault schedules, EKF drift, run speed, batches and comparisons |
+| P1.8 Log Analysis | P1.8a: 178,179; P1.8b: 180,181 | UAVLogViewer integrated with DataFlash and experiment logs and comparisons |
+| P1.9 Experiments From Logs | P1.9a: 182,183,184 | Log-based experiments, re-simulation and fidelity evidence per profile version |
+| P1.10 Visualization & Terrain | P1.10a: 185,186,187 | Geometry-driven views, terrain sources and contact on real terrain |
+| P1.11 Acceptance & Delivery | P1.11a: 188,189; P1.11b: 190,191 | S19 executed on macOS with PASS, FAIL, BLOCKED and NOT_RUN recorded |
+
+Rows P1.1–P1.11 are the product Phase 1 stages of [PROJECT_SCOPE.md](../PROJECT_SCOPE.md) section 3, detailed in [PHASE1_PLAN.md](PHASE1_PLAN.md); batch labels such as P1.1a are unrelated to the scope's requirement IDs S01–S19. Where the engineering phases above conflict with the approved scope, the scope governs product inclusion, and TASK-134 records each task's disposition.
 
 ArduPilot WASM feasibility and HITL compatibility are mandatory separate gates.
 If blocked, continue independent tasks without declaring all of Phase 3 or the
@@ -1418,6 +1431,641 @@ Flexible structure, mass changes, convective and hazardous flows, and unsteady a
 - **Touched Files:** `native/bet/src/dynamic_stall.rs`, `native/bet/src/blade.rs`, `native/bet/src/wing.rs`, `native/bet/src/lib.rs`, `native/bet/tests/dynamic_stall.rs`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
 - **Interfaces / Contracts:** Øye separation lag `ḟ = (f_st − f)/τ_f` with `C_L = f·C_L,inv + (1 − f)·C_L,fs`; Leishman–Beddoes for higher fidelity; one state per strip per blade in preallocated arrays; flags outside the calibrated reduced-frequency range.
 - **DoD & Acceptance Criteria:** Oscillating-airfoil fixtures match published hysteresis loops within declared tolerances; the static limit equals the 360° polar; G1 gates pass.
+
+## Product Phase 1 program (PROJECT_SCOPE.md)
+
+Registered on 2026-10-28 from the approved [PROJECT_SCOPE.md](../PROJECT_SCOPE.md) (audit baseline `5b4a2fc`) and an inventory of baseline `384e974` and the unmerged branches. [PHASE1_PLAN.md](PHASE1_PLAN.md) maps every requirement group to existing and new work and gives the disposition of earlier open tasks, the stage order, the decisions and the risks. Registration implements nothing and authorizes no development: each task starts only under an explicit development instruction and stays within that instruction's scope.
+
+Phase 1 targets macOS on Apple Silicon in Chrome. ArduPilot runs as an external local SITL process, and the browser provides the UI, visualization and simulation integration. Each task names the scope requirement groups it serves (S01–S19); these IDs are unrelated to the sprint-batch labels in the table above. Historical Windows and WSL evidence is preserved but is not Phase 1 acceptance. Deferred tasks keep their IDs and contracts. The stages below follow the scope's execution plan; no dates or effort estimates are given.
+
+## Stage P1.1: Feasibility and Decisions
+
+Scope step 1. Each task produces evidence on the target platform or an exact BLOCKED status; decisions record their owner and date.
+
+### TASK-127 — Native ArduPilot SITL on macOS Apple Silicon
+
+- **Status:** TODO — registered 2026-10-28 from PROJECT_SCOPE.md; baseline 384e974.
+- **Title & Description:** (S01, S02) Build the pinned ArduCopter SITL natively on an Apple Silicon Mac and fly it in a closed loop against MirageSITL physics through the JSON backend. The owned-process harness refuses non-Linux hosts and checks for ELF binaries today. Extend it to accept a macOS host and Mach-O binaries, keep its Linux path, and add no Windows work. Record the toolchain and every blocker. A virtual machine or container is not substituted without a recorded stakeholder decision.
+- **Dependencies:** TASK-041, TASK-042.
+- **Touched Files:** `scripts/run-sitl.mjs`, `scripts/sitl/driver.mjs`, `scripts/sitl/telemetry.py`, `tests/support/parity-native.ts`, `tests/integration/external-sitl.test.ts`, `docs/decisions/macos-sitl.md`, `docs/ru/macos-sitl.md`, `docs/documentation-index.json`, `docs/operations/runbook.md`, `docs/ru/runbook.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
+- **Interfaces / Contracts:** Host record: macOS version, chip, Xcode command-line tools, Python and pymavlink 2.4.50, ArduPilot commit and binary SHA-256. The harness accepts ELF on Linux and Mach-O on macOS, keeps process-group ownership and cleanup, and still refuses Windows. Missing prerequisites exit 2 (BLOCKED_EXTERNAL).
+- **DoD & Acceptance Criteria:** On an Apple Silicon Mac the pinned ArduCopter builds from a clean pinned checkout, or the exact failure is recorded. The TASK-042 arm, takeoff, hold and land scenario passes `scripts/check-sitl-capture.mjs` on that Mac. Cleanup terminates only owned processes. Fake and non-executable binaries are still rejected. Cloud Linux runs and historical WSL captures do not count (G4).
+
+### TASK-128 — ArduPilot version and the 16-motor output path
+
+- **Status:** TODO — registered 2026-10-28 from PROJECT_SCOPE.md; baseline 384e974.
+- **Title & Description:** (S03, S19) Select the compatible ArduCopter version or versions for Phase 1. Verify, in the hash-pinned source and in native SITL on macOS, that quad, hexa and octo frames, one coaxial-pair frame and the eight-arm, two-motor (16-motor) configuration can be expressed with stock frame classes or the stock scripting-matrix frame. Check the motor limit, the output count and the JSON servo packet. A firmware limitation is escalated as BLOCKED_DECISION with options; the 16-motor requirement is never reduced.
+- **Dependencies:** TASK-041, TASK-127.
+- **Touched Files:** `tests/fixtures/sitl/frames.json`, `tests/fixtures/sitl/generate.py`, `scripts/sitl/multirotor.mjs`, `scripts/sitl/driver.mjs`, `tests/sitl-frames.test.ts`, `docs/decisions/ardupilot-frames.md`, `docs/ru/ardupilot-frames.md`, `docs/documentation-index.json`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
+- **Interfaces / Contracts:** Frame catalog generated from the pinned source: frame class and type to motor count, motor numbering, position and yaw factors and spin; motor output-function values; maximum motor and output counts; 16- and 32-channel JSON servo packets. A synthetic N-rotor reference model in the harness replaces the quad-only reference for these checks.
+- **DoD & Acceptance Criteria:** For each of the five configurations native SITL arms, a one-motor-at-a-time test moves exactly the expected output in the physics packet, and the aircraft hovers. Otherwise the exact limitation and its options (for example the stock scripting-matrix frame, a build option, or a firmware patch that needs approval) are recorded as BLOCKED_DECISION. The selected versions are recorded with commit and binary hash.
+
+### TASK-129 — External SITL clock ownership, synchronized pause and acceleration
+
+- **Status:** TODO — registered 2026-10-28 from PROJECT_SCOPE.md; baseline 384e974.
+- **Title & Description:** (S02, S10) Demonstrate on macOS, with native ArduCopter in JSON lockstep, that MirageSITL physics owns simulated time. Withholding physics replies freezes ArduPilot time, resume continues from the retained state, and accelerated runs are limited only by the host. Characterize MAVLink parameter access and RC and ground-station traffic while paused. Characterize the bridge's 5 s idle disconnect, which would drop a paused session. Classify which manual-connection configurations are clock-compatible.
+- **Dependencies:** TASK-041, TASK-043, TASK-127.
+- **Touched Files:** `scripts/sitl/driver.mjs`, `scripts/sitl/pause-probe.mjs`, `scripts/sitl/telemetry.py`, `apps/bridge/src/server.ts`, `tests/integration/sitl-pause.test.ts`, `docs/decisions/sitl-clock.md`, `docs/ru/sitl-clock.md`, `docs/documentation-index.json`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
+- **Interfaces / Contracts:** Pause is a tick-boundary hold of the next JSON reply. Simulated time advances only on executed steps, and paused wall time is excluded from simulated duration. The bridge distinguishes a paused session from an idle one. The acceleration setting (`--speedup` or its successor) and the measured simulated/wall ratio are recorded.
+- **DoD & Acceptance Criteria:** On macOS, pauses of at least 60 s wall time on the ground and in hover resume without failsafe, EKF reset or a state discontinuity beyond a tolerance declared before the test. Whether parameter reads and writes work while paused is recorded with evidence. The achieved acceleration is measured. ArduPilot is not modified.
+
+### TASK-130 — UAVLogViewer identity, license and offline-integration feasibility
+
+- **Status:** TODO — registered 2026-10-28 from PROJECT_SCOPE.md; baseline 384e974.
+- **Title & Description:** (S14) Identify the upstream UAVLogViewer, pin a commit, and record its license and its compatibility with local bundling. Build it offline, with no tokens or online imagery required after installation, and open a real ArduPilot DataFlash log in Chrome on macOS. Choose how side-by-side and overlay comparisons, time alignment, parameter markers and MirageSITL experiment logs will be added: a patch series on a pinned fork, upstream extension points, or embedding with a message interface. No replacement viewer is started.
+- **Dependencies:** TASK-081.
+- **Touched Files:** `third_party/uavlogviewer/source.lock.json`, `scripts/check-uavlogviewer.mjs`, `docs/decisions/uavlogviewer.md`, `docs/ru/uavlogviewer.md`, `docs/documentation-index.json`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
+- **Interfaces / Contracts:** Source lock: repository, commit, license, build inputs and output hashes. The decision record names the extension approach, the upstream modules it changes and the adapter route for MirageSITL experiments.
+- **DoD & Acceptance Criteria:** A pinned offline build opens one real DataFlash log with the network disabled. The license question is resolved or escalated as BLOCKED_DECISION. The extension plan names the upstream code it changes. Any blocker is BLOCKED_EXTERNAL or BLOCKED_DECISION with the exact missing input.
+
+### TASK-131 — Offline dependency and existing-terrain inventory
+
+- **Status:** TODO — registered 2026-10-28 from PROJECT_SCOPE.md; baseline 384e974.
+- **Title & Description:** (S01, S17) Inventory every dependency the Phase 1 workflow needs after installation: application bundles and WASM artifacts, ArduPilot sources and toolchain, the Python environment, parameter metadata, UAVLogViewer assets and terrain data. Classify the available imagery and elevation data, with Israel as the focus: the synthetic pad, the WorldCover land-cover tiles (TASK-069), the test fixtures, and the FABDEM tooling whose output is not in the repository. New providers and automatic region downloads are out of scope.
+- **Dependencies:** TASK-060, TASK-069.
+- **Touched Files:** `docs/operations/offline-inventory.md`, `docs/ru/offline-inventory.md`, `docs/documentation-index.json`, `data/terrain/inventory.json`, `scripts/check-offline.mjs`, `tests/offline-inventory.test.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
+- **Interfaces / Contracts:** Inventory rows: item, version, source, license, SHA-256, bytes, the workflow that needs it, and whether installation downloads it. Terrain rows distinguish imagery, elevation and land cover, and record coverage, resolution and readiness (ready, needs data, or needs keys or deployment).
+- **DoD & Acceptance Criteria:** Every runtime dependency of the planned workflow has a row, and the check fails on an unlisted network origin. Every dataset has a license status, and unresolved licenses become decisions. Coverage gaps are listed, not filled with new providers. Nothing is downloaded automatically.
+
+### TASK-132 — Phase 1 acceptance parameters: reference hardware, performance and recording
+
+- **Status:** TODO — registered 2026-10-28 from PROJECT_SCOPE.md; baseline 384e974.
+- **Title & Description:** (S13, S19) Record the stakeholder's decisions on the agreed Apple Silicon reference machines, macOS and Chrome versions, the physics rate for each configuration, real-time criteria, rendering criteria for the Phase 1 scene, the 16-motor one-hour recording workload, the storage budget, and the default common logging frequency. Reconcile TASK-073: its gate was measured with Windows-hosted integrated GPUs and a thermal and FPV scene that Phase 1 excludes, so it does not block Phase 1, and its evidence is preserved.
+- **Dependencies:** TASK-014.
+- **Touched Files:** `docs/decisions/phase1-acceptance.md`, `docs/ru/phase1-acceptance.md`, `docs/documentation-index.json`, `docs/validation/phase1-matrix.json`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
+- **Interfaces / Contracts:** Decision record with a value, owner and date for every item. Acceptance-matrix schema: configuration × workflow × verdict (PASS, FAIL, BLOCKED_EXTERNAL, BLOCKED_DECISION, NOT_RUN) with evidence path and hash.
+- **DoD & Acceptance Criteria:** Every value carries a stakeholder decision date. A value that has not been chosen stays BLOCKED_DECISION and is never invented by an agent. The matrix lists all S19 configurations and workflows. TASK-073's historical results are neither relabeled nor deleted.
+
+### TASK-133 — Model envelopes, fidelity criteria and the basic contact approximation
+
+- **Status:** TODO — registered 2026-10-28 from PROJECT_SCOPE.md; baseline 384e974.
+- **Title & Description:** (S05, S06, S15, S18) For each approved physical effect, specify the model, required inputs, validity envelope, numerical tolerance and extrapolation behavior. The effects are propulsion, battery, inflow in hover, forward flight and descent, coaxial pairs, body drag, ground effect, adverse descent, contact, sensors and environment. For each S15 comparison (attitude and rate response, overshoot and oscillation, altitude, climb and descent, trajectory, propulsion and energy), specify the metric, the data it needs and its limit. Define the confidence labels and the basic support and contact approximation, without gear editing.
+- **Dependencies:** TASK-033.
+- **Touched Files:** `docs/decisions/phase1-fidelity.md`, `docs/ru/phase1-fidelity.md`, `docs/documentation-index.json`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
+- **Interfaces / Contracts:** Per-effect table: model, inputs, envelope, tolerance and flag. Per-comparison table: metric, data, limit and owner. Confidence labels: preliminary, measured-input, flight-checked; none certifies settings for real flight. Contact: support points derived from geometry, default stiffness, damping and friction, and accident criteria.
+- **DoD & Acceptance Criteria:** The tables are approved before any Phase 1 model task claims acceptance. The failed UIUC and deferred NASA comparisons keep their verdicts. Every limit has an owner and a date. No effect is called measured-accurate without evidence.
+
+## Stage P1.2: Scope Mapping
+
+Scope step 2. Align the documentation with the approved scope and bring unmerged work onto main before building on it.
+
+### TASK-134 — Reconcile the roadmap, specifications and agent instructions with PROJECT_SCOPE.md
+
+- **Status:** TODO — registered 2026-10-28 from PROJECT_SCOPE.md; baseline 384e974.
+- **Title & Description:** (S01–S19) Apply the disposition table in [PHASE1_PLAN.md](PHASE1_PLAN.md) section 4. Record each open roadmap task's Phase 1 disposition without rewriting completed evidence. Update the CLAUDE.md baseline, the README and the architecture overview so agents read PROJECT_SCOPE.md and the plan first. Mark Windows and WSL as historical, with no Phase 1 work. Record decisions D-11 and D-12. Correct the references to files that are not in the repository (`scripts/check-mavlink-capture.mjs`, `scripts/check-ew-capture.mjs`), and retire the stale TASK-074 handover.
+- **Dependencies:** TASK-084.
+- **Touched Files:** `CLAUDE.md`, `docs/ru/CLAUDE.md`, `README.md`, `docs/ru/README.md`, `AGENTS.md`, `docs/ru/AGENTS.md`, `HANDOVER.md`, `docs/ru/HANDOVER.md`, `docs/documentation-index.json`, `docs/architecture.md`, `docs/ru/architecture.md`, `docs/V2_PLAN.md`, `docs/ru/V2_PLAN.md`, `docs/PHASE1_PLAN.md`, `docs/ru/PHASE1_PLAN.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
+- **Interfaces / Contracts:** Documentation only; no runtime contract changes. Dispositions use the existing status vocabulary, and a deferred task keeps its ID and contract. The scope and its mirror change only through a recorded scope amendment.
+- **DoD & Acceptance Criteria:** Every open task has a disposition consistent with the scope. No DONE evidence is rewritten. No reference to a missing file remains in the reconciled documents. `npm run check:docs` passes, and the English sources and Russian mirrors change together.
+
+### TASK-135 — Land the physics-review branch increments of TASK-087–TASK-090
+
+- **Status:** TODO — registered 2026-10-28 from PROJECT_SCOPE.md; baseline 384e974.
+- **Title & Description:** (S03, S04, S08, S15) Merge the unmerged branch `claude/ardupilot-sitl-physics-review-ggf1tb` (9 commits on `27e2a6a`, 65 files) into main. It holds increment 1 of the vehicle manifest v2, the interfaces v2, the error-ownership catalog, and the fidelity metrics with bench import. Resolve conflicts with TASK-124–TASK-126. The branch registers "TASK-124 — Effect controls", which collides with main's TASK-124; TASK-166 supersedes it, so it is not merged under that ID. The branch's opt-in `imu-noise-floor` ArduPilot patch stays unused by Phase 1 runs until decision D-10. Touched Files lists the principal files; the rest of that branch's diff comes unchanged.
+- **Dependencies:** TASK-124, TASK-125, TASK-126.
+- **Touched Files:** `packages/physics/src/vehicle-manifest.ts`, `packages/physics/src/vehicle.schema.json`, `packages/physics/src/ardupilot-profile.ts`, `packages/physics/src/bench-import.ts`, `packages/physics/src/fidelity-metrics.ts`, `packages/physics/src/session-v2.ts`, `packages/autopilot/src/error-ownership.ts`, `packages/wasm-bet/src/rotor-v2.ts`, `packages/wasm-bet/src/body-v2.ts`, `native/bet/src/bound_v2.rs`, `native/bet/src/body_abi_v2.rs`, `scripts/build-ardupilot-sitl.mjs`, `scripts/check-fidelity.mjs`, `tests/vehicle-manifest.test.ts`, `tests/wasm-abi-v2.test.ts`, `tests/error-ownership.test.ts`, `tests/fidelity-metrics.test.ts`, `tests/bench-import.test.ts`, `CLAUDE.md`, `docs/ru/CLAUDE.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
+- **Interfaces / Contracts:** The contracts specified on the branch for TASK-087–TASK-090, with no new behavior. Stock, unpatched SITL stays the default build. Task IDs stay unique.
+- **DoD & Acceptance Criteria:** On the merged head, `npm test`, typecheck, lint, `npm run check:docs` and `cargo test --workspace --locked` pass. The TASK-087–TASK-090 evidence commands are rerun and recorded; the tasks remain IN_PROGRESS until their own DoD is met. No duplicate task ID exists. TASK-124–TASK-126 behavior and tests are unchanged.
+
+## Stage P1.3: Data Foundation and Editors
+
+Scope step 3. Versioned local data and the editors that create it (S03, S04, S08, S16).
+
+### TASK-136 — Local project store with immutable versions
+
+- **Status:** TODO — registered 2026-10-28 from PROJECT_SCOPE.md; baseline 384e974.
+- **Title & Description:** (S16, S01) Persist projects, aircraft profile versions, component cards and experiments locally, with no account or cloud service. Editing creates a new version and never changes the inputs of earlier experiments. Export and import report missing dependencies. User-defined names accept Russian and English text. The task chooses the storage backend (Origin Private File System or IndexedDB) and justifies the choice; files managed by the launcher remain a documented alternative.
+- **Dependencies:** TASK-076, TASK-081.
+- **Touched Files:** `packages/project/package.json`, `packages/project/src/schema.ts`, `packages/project/src/project.schema.json`, `packages/project/src/store.ts`, `packages/project/src/versions.ts`, `packages/project/src/archive.ts`, `tests/project-store.test.ts`, `tests/browser/project-store.spec.ts`, `package-lock.json`, `docs/architecture.md`, `docs/ru/architecture.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
+- **Interfaces / Contracts:** Project schema v1 validated from `unknown`; records addressed by the SHA-256 of canonical JSON; Unicode NFC names with length limits; quota reporting; archives with a manifest, per-file hashes and size limits checked before allocation, as in TASK-081.
+- **DoD & Acceptance Criteria:** Save, reopen, copy, export and import round-trip across a browser restart with the network disabled. Tampered and oversized archives are rejected. An edit leaves earlier experiment inputs byte-identical. Cyrillic and Latin names round-trip. An import reports each missing dependency.
+
+### TASK-137 — Phase 1 application shell and navigation
+
+- **Status:** TODO — registered 2026-10-28 from PROJECT_SCOPE.md; baseline 384e974.
+- **Title & Description:** (S01) Replace the single demo page with an English application shell that has a project context and these tabs: Project, Aircraft, Components, Sensors, Faults and interference, Weather and location, Flight tasks, Parameters, Logging, Run, Experiments and Analysis. The existing demo flight stays reachable and labeled synthetic. Keyboard operation and the automated accessibility scan stay green.
+- **Dependencies:** TASK-005, TASK-085, TASK-136.
+- **Touched Files:** `apps/web/src/App.tsx`, `apps/web/src/shell/AppShell.tsx`, `apps/web/src/shell/navigation.ts`, `apps/web/src/shell/ProjectBar.tsx`, `apps/web/src/style.css`, `apps/web/package.json`, `tests/app-shell.test.ts`, `tests/browser/app-shell.spec.ts`, `tests/browser/accessibility.spec.ts`, `package-lock.json`, `docs/architecture.md`, `docs/ru/architecture.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
+- **Interfaces / Contracts:** Navigation state is restored from the project store. Physics stays out of React, and high-rate data reaches the UI only in decimated form. The demo is a selectable, explicitly synthetic mode.
+- **DoD & Acceptance Criteria:** Navigation and project context survive a reload. Every tab is reachable by keyboard. The axe scan reports zero violations. A 390 px layout has no horizontal overflow. The existing demo browser tests still pass.
+
+### TASK-138 — Aircraft profile v1 for multirotors up to eight arms and 16 motors
+
+- **Status:** TODO — registered 2026-10-28 from PROJECT_SCOPE.md; baseline 384e974.
+- **Title & Description:** (S03) Define the product-level aircraft profile on top of the vehicle manifest v2 (TASK-087). It covers one to eight arms with length, azimuth, height and tilt; one or two motors per arm with pair separation; and per-motor position, thrust axis and spin. It also holds mass, CG, inertia and payload, the battery, per-motor propulsion component references, a sensor-configuration reference and the motor-to-output mapping. Derive the manifest that physics consumes. Any change to geometry or components is a new version and needs a new run.
+- **Dependencies:** TASK-087, TASK-136.
+- **Touched Files:** `packages/aircraft/package.json`, `packages/aircraft/src/profile.schema.json`, `packages/aircraft/src/profile.ts`, `packages/aircraft/src/layout.ts`, `packages/aircraft/src/derive-manifest.ts`, `tests/aircraft-profile.test.ts`, `tests/fixtures/aircraft/quad-x.json`, `tests/fixtures/aircraft/hexa-x.json`, `tests/fixtures/aircraft/octa-x.json`, `tests/fixtures/aircraft/coaxial-x8.json`, `tests/fixtures/aircraft/octa-coaxial-16.json`, `tests/fixtures/registry.json`, `package-lock.json`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
+- **Interfaces / Contracts:** Profile `schemaVersion: 1` validated from `unknown`; at most 8 arms and 16 motors (the ABI v2 actuator limit `MAX_ACTUATORS = 16`); unique motor IDs and outputs; SI units and FRD body axes; positive-definite inertia; deterministic derivation to manifest v2 with provenance.
+- **DoD & Acceptance Criteria:** Fixtures for the five S19 configurations validate, and their derived rotor positions, axes and spins match an independent oracle. Rejection fixtures cover 17 motors, 9 arms, duplicate outputs, a pair with inconsistent geometry and non-physical inertia. Derivation is byte-reproducible.
+
+### TASK-139 — Component cards for motors, propellers, ESCs and batteries
+
+- **Status:** TODO — registered 2026-10-28 from PROJECT_SCOPE.md; baseline 384e974.
+- **Title & Description:** (S04) Provide reusable local cards with versions, sources, attached measurements and applicability limits, with import and export. Motor: KV, winding resistance, no-load current, current and power limits, mass. Propeller: diameter, pitch, blade count, mass, and optional chord, twist and airfoil. ESC: current limit and update rate. Battery: cells, capacity, internal resistance, limits and mass. Derive BET propeller geometry from a card and list every assumption the derivation makes.
+- **Dependencies:** TASK-090, TASK-136.
+- **Touched Files:** `packages/aircraft/src/components.schema.json`, `packages/aircraft/src/components.ts`, `packages/aircraft/src/propeller-geometry.ts`, `tests/component-cards.test.ts`, `tests/fixtures/components/motor-example.json`, `tests/fixtures/components/propeller-example.json`, `tests/fixtures/components/esc-example.json`, `tests/fixtures/components/battery-example.json`, `tests/fixtures/registry.json`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
+- **Interfaces / Contracts:** Card schemas with units and ranges; provenance `specification`, `measured` or `synthetic` with SHA-256; immutable card versions; geometry derivation with listed assumptions and validity flags.
+- **DoD & Acceptance Criteria:** Schema fixtures cover units, ranges and missing fields. Derived geometry for an example propeller matches a hand-computed oracle. Import and export round-trip. Example cards are labeled examples and never measured data.
+
+### TASK-140 — Calculation modes and measured component combinations
+
+- **Status:** TODO — registered 2026-10-28 from PROJECT_SCOPE.md; baseline 384e974.
+- **Title & Description:** (S04, S15) Offer **Preliminary calculation** and **Calculation from measurements** in the UI. Measured mode adds manual entry and file upload of bench data (RPM, thrust, torque, voltage, current and conditions), reusing the TASK-090 bench import. Measurements bind to the exact motor, propeller, ESC and power-supply combination by card versions and are never generalized to another combination. Missing quantities and limits of use are shown. Static single-rotor data does not validate forward flight, descent or coaxial pairs. Apply the TASK-133 confidence labels.
+- **Dependencies:** TASK-133, TASK-137, TASK-138, TASK-139.
+- **Touched Files:** `packages/aircraft/src/calculation-mode.ts`, `packages/aircraft/src/measurements.ts`, `packages/physics/src/bench-import.ts`, `apps/web/src/library/MeasurementsEditor.tsx`, `tests/calculation-mode.test.ts`, `tests/fixtures/components/bench-combination.csv`, `tests/browser/measurements.spec.ts`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
+- **Interfaces / Contracts:** The mode is a property of a profile version. A measurement set records its conditions (air density or temperature and pressure, supply voltage) and a combination key built from the card versions. The labels follow TASK-133.
+- **DoD & Acceptance Criteria:** Binding tests show that another combination never inherits data. Missing quantities appear as missing and are never invented. CSV files with bad units or out-of-range values are rejected. A browser test enters and uploads data, and the label changes from preliminary to measured-input only for the bound combination.
+
+### TASK-141 — Aircraft editor with a geometry-driven 3D scheme
+
+- **Status:** TODO — registered 2026-10-28 from PROJECT_SCOPE.md; baseline 384e974.
+- **Title & Description:** (S03) Edit arms (count, length, placement), one or two motors per arm and their separation, motor positions, thrust axes and spin directions; mass, CG, inertia and payload; and the battery, propulsion and sensor selections, without editing files. A 3D scheme shows each motor's identity, placement, spin direction and thrust axis. Profiles are saved, reopened and copied through the project store, and invalid edits are explained.
+- **Dependencies:** TASK-015, TASK-137, TASK-138, TASK-139.
+- **Touched Files:** `apps/web/src/aircraft/AircraftEditor.tsx`, `apps/web/src/aircraft/ArmTable.tsx`, `apps/web/src/aircraft/MassProperties.tsx`, `apps/web/src/aircraft/AircraftScheme3D.tsx`, `apps/web/src/style.css`, `tests/aircraft-editor.test.ts`, `tests/browser/aircraft-editor.spec.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
+- **Interfaces / Contracts:** The editor writes only through the profile API (TASK-138). The scheme renders from the derived manifest, not from separate UI state.
+- **DoD & Acceptance Criteria:** Browser tests build all five S19 configurations through the UI alone. The rendered motor positions, spins and axes equal the derived manifest. Invalid edits are blocked with a reason. Copy creates a new profile and leaves the original unchanged.
+
+### TASK-142 — Motor-to-output mapping and frame compatibility check
+
+- **Status:** TODO — registered 2026-10-28 from PROJECT_SCOPE.md; baseline 384e974.
+- **Title & Description:** (S03) Assign every motor to an ArduPilot output. Generate the frame and allocation parameters from the TASK-128 catalog, using a stock frame or the stock scripting-matrix frame. Explain any required configuration or unsupported combination. Surface a 16-motor blocker found by TASK-128 for a decision instead of hiding it.
+- **Dependencies:** TASK-128, TASK-138, TASK-141.
+- **Touched Files:** `packages/aircraft/src/output-mapping.ts`, `packages/aircraft/src/frame-parameters.ts`, `apps/web/src/aircraft/OutputMapping.tsx`, `tests/output-mapping.test.ts`, `tests/browser/output-mapping.spec.ts`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
+- **Interfaces / Contracts:** Mapping record: motor ID to output number. Generated parameters use only names present in the pinned catalog and are attached to the profile version. Unsupported combinations return a structured reason.
+- **DoD & Acceptance Criteria:** Mappings round-trip. The generated parameters for the five configurations match the catalog oracle. Unsupported combinations are refused with a reason. A browser test maps a 16-motor profile, or shows the recorded blocker.
+
+### TASK-143 — Sensors tab: ideal sensors or specified errors
+
+- **Status:** TODO — registered 2026-10-28 from PROJECT_SCOPE.md; baseline 384e974.
+- **Title & Description:** (S08) Add a separate Sensors tab with **Ideal sensors** and **With specified errors**. IMU: sampling rate, noise, bias, latency, placement and orientation. GNSS: update rate, position and velocity accuracy, and latency. Barometer: noise, bias and latency. Magnetometer: noise, bias, placement and orientation. Battery voltage and current measurement: measurement errors. Settings are stored in the profile and the experiment record, and each field shows its owner, MirageSITL or ArduPilot, from the TASK-089 matrix.
+- **Dependencies:** TASK-089, TASK-137, TASK-138.
+- **Touched Files:** `packages/aircraft/src/sensor-config.ts`, `packages/aircraft/src/sensor-config.schema.json`, `apps/web/src/sensors/SensorsTab.tsx`, `tests/sensor-config.test.ts`, `tests/browser/sensors-tab.spec.ts`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
+- **Interfaces / Contracts:** Sensor configuration schema v1 with units, ranges and an owner for each error source. Ideal mode sets every MirageSITL-owned error to its neutral value. Fields that their owner cannot apply are disabled with a reason.
+- **DoD & Acceptance Criteria:** Schema fixtures cover units and ranges. Ideal mode equals neutral values. Every field displays its owner. Values persist per profile version and are copied into experiments.
+
+## Stage P1.4: Approved Physical Models
+
+Scope step 4. Profile-driven physics with declared limits (S05–S08, S18). The existing tasks TASK-087–TASK-101 and TASK-106 deliver the core models ([PHASE1_PLAN.md](PHASE1_PLAN.md) section 4); TASK-144–TASK-149 connect them to profiles, limits, sensors, environment and accidents.
+
+### TASK-144 — Profile-driven multirotor dynamics with up to 16 rotors
+
+- **Status:** TODO — registered 2026-10-28 from PROJECT_SCOPE.md; baseline 384e974.
+- **Title & Description:** (S03, S05) Build the flight session's dynamics from an aircraft profile version instead of synthetic fixtures: up to 16 rotors with per-rotor geometry, the TASK-092 motor, ESC and battery drive from the component cards, and coaxial pairs declared for the TASK-101 coupling. Register the model with the session (`model.load`) and keep the demo as an explicit option. Geometry and component changes must change forces, not only rendering.
+- **Dependencies:** TASK-088, TASK-092, TASK-138.
+- **Touched Files:** `packages/physics/src/profile-dynamics.ts`, `packages/physics/src/bet-dynamics.ts`, `packages/physics/src/session-v2.ts`, `apps/web/src/physics.worker.ts`, `tests/profile-dynamics.test.ts`, `tests/browser/profile-dynamics.spec.ts`, `scripts/bench-physics.mjs`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
+- **Interfaces / Contracts:** `SessionDynamics` built from manifest v2 through the session model registry; a rotor count of 16 or fewer, with outputs mapped through the 16-slot actuator frame; validity flags propagated to the session; no allocation in the step.
+- **DoD & Acceptance Criteria:** The five S19 configurations load, and each trims to hover in a physics-only check. Changing a propeller card changes hover RPM and power in the direction an independent oracle predicts. The 16-rotor compute p50 and p99 at 400, 800 and 1200 Hz are reported against the TASK-132 budget. G1 shows zero allocation over 1e6 steps.
+
+### TASK-145 — Measured-mode propulsion calibration
+
+- **Status:** TODO — registered 2026-10-28 from PROJECT_SCOPE.md; baseline 384e974.
+- **Title & Description:** (S04, S05) In measured mode, fit the rotor and motor model to the bound combination's static thrust, torque and power versus RPM, and to its electrical data when present, within the TASK-133 tolerance. Record the residuals. Flag operation outside the measured envelope and in non-static regimes as extrapolation. Never transfer a calibration to another combination. The task chooses between scaling the BET model and the TASK-103 table mode, with a justification.
+- **Dependencies:** TASK-140, TASK-144.
+- **Touched Files:** `packages/physics/src/propulsion-calibration.ts`, `tests/propulsion-calibration.test.ts`, `tests/fixtures/components/bench-combination.csv`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
+- **Interfaces / Contracts:** The calibration record holds the combination key, data hash, fitted coefficients, residuals and envelope, and is attached to the profile version. Queries outside the envelope set a validity flag.
+- **DoD & Acceptance Criteria:** A synthetic oracle recovers known coefficients. A real bench file is fitted within the TASK-133 tolerance before measured mode is called working (G4). Envelope exits are flagged in the session and the recording.
+
+### TASK-146 — Battery and propulsion limits: warnings versus modeled limiting
+
+- **Status:** TODO — registered 2026-10-28 from PROJECT_SCOPE.md; baseline 384e974.
+- **Title & Description:** (S06) Battery capacity, cell count, initial charge and internal resistance drive load-dependent voltage sag and charge consumption on the TASK-092 bus. Motor and ESC current, power and RPM limits come from the cards. The UI and the logs show voltage, current, power, remaining charge and limit exceedances, and keep a rating warning distinct from limiting that the model actually applies. Heating, cooling and aging are excluded.
+- **Dependencies:** TASK-092, TASK-139, TASK-144.
+- **Touched Files:** `packages/physics/src/limit-monitor.ts`, `packages/physics/src/session-v2.ts`, `apps/web/src/run/PowerPanel.tsx`, `tests/limit-monitor.test.ts`, `tests/browser/power-panel.spec.ts`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/SPECS_SHARED_MEMORY.md`, `docs/ru/SPECS_SHARED_MEMORY.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
+- **Interfaces / Contracts:** Per-motor and battery telemetry is published through a versioned channel alongside the ABI v2 state, which does not change without a version bump. Each exceedance event is either `warning` (a rating is exceeded and physics is unchanged) or `limited` (the model clamped).
+- **DoD & Acceptance Criteria:** Analytic sag and state-of-charge fixtures pass. A run that exceeds a rating shows a warning while physics continues. A run that reaches a modeled clamp shows `limited`. Per-motor values reach the recording. G1 passes.
+
+### TASK-147 — Sensor error configuration in the external-SITL path
+
+- **Status:** TODO — registered 2026-10-28 from PROJECT_SCOPE.md; baseline 384e974.
+- **Title & Description:** (S08) Apply the Sensors tab configuration in the external-SITL session according to the TASK-089 ownership matrix. MirageSITL applies the errors it owns to the observations it delivers (the JSON state line and the GNSS injection path). ArduPilot-owned errors are set through generated, catalog-verified `SIM_*` parameters. Implement IMU and magnetometer placement (lever arm) and orientation, and battery voltage and current measurement errors on a verified delivery path. Ideal mode neutralizes both sides where possible and records what cannot be neutralized. This is the Phase 1 subset of TASK-115.
+- **Dependencies:** TASK-035, TASK-089, TASK-143.
+- **Touched Files:** `packages/sensors/src/configured.ts`, `packages/sensors/src/lever-arm.ts`, `packages/autopilot/src/external-sitl.ts`, `packages/autopilot/src/error-ownership.ts`, `tests/sensor-configured.test.ts`, `tests/lever-arm.test.ts`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
+- **Interfaces / Contracts:** `a_IMU = a + ω̇×r + ω×(ω×r)` and the sensor-to-body rotation, as in the TASK-115 contract. Ownership validation runs before arming. Seeded noise uses fixed stream IDs.
+- **DoD & Acceptance Criteria:** Matrix validation and a runtime test show that no error is applied twice. Lever-arm and misalignment fixtures match analytic values. Seeded runs are reproducible. The experiment record lists the ArduPilot-side terms that Ideal mode cannot neutralize, for example the unconditional IMU noise floors without decision D-10.
+
+### TASK-148 — Location and geographic environment
+
+- **Status:** TODO — registered 2026-10-28 from PROJECT_SCOPE.md; baseline 384e974.
+- **Title & Description:** (S07) Choose the location on an available map or by coordinates. Use terrain elevation above sea level from available data with an authoritative, hashed geoid grid, or use the synthetic pad. Compute WGS84 normal gravity by latitude and height and the WMM main magnetic field. Keep pressure consistent with altitude, with a measured QNH override from TASK-093. Set the ArduPilot home position consistently with MirageSITL, and show and record the effective conditions the calculation uses. This is the Phase 1 subset of TASK-108; anomaly fields and vehicle magnetic interference stay deferred.
+- **Dependencies:** TASK-036, TASK-093, TASK-131.
+- **Touched Files:** `packages/sensors/src/gravity.ts`, `packages/sensors/src/geomagnetic.ts`, `packages/sensors/src/geoid.ts`, `data/geoid/inventory.json`, `apps/web/src/weather/LocationPicker.tsx`, `packages/physics/src/session-v2.ts`, `tests/gravity.test.ts`, `tests/geomagnetic.test.ts`, `tests/browser/location.spec.ts`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
+- **Interfaces / Contracts:** Somigliana normal gravity with height correction and the WMM2025 main field, as in the TASK-108 contract. A geoid grid with source, license and SHA-256. An effective-conditions record holding location, elevation, gravity, magnetic field, temperature, pressure and density.
+- **DoD & Acceptance Criteria:** Gravity matches the NIMA TR8350.2 reference values within 1e-9 relative. Field values match the WMM2025 test values within published tolerances. Home and origin consistency between MirageSITL and ArduPilot is checked at start. The TASK-036 MSL gate becomes available only with a hashed geoid grid. A browser test picks a location and shows the effective conditions.
+
+### TASK-149 — Accident detection and automatic pause
+
+- **Status:** TODO — registered 2026-10-28 from PROJECT_SCOPE.md; baseline 384e974.
+- **Title & Description:** (S18) Record contact of the body or a propeller as an accident: TASK-095 propeller-strike events, or body contact outside the support points. The accident pauses the run, preserving state and logs, and contact loads and events are recorded. A run may continue after an accident, but the continuation is labeled as not validated for a physically damaged aircraft. User-commanded motor failures remain independent.
+- **Dependencies:** TASK-095, TASK-144.
+- **Touched Files:** `packages/physics/src/accident.ts`, `packages/physics/src/session-v2.ts`, `tests/accident.test.ts`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
+- **Interfaces / Contracts:** Accident event: tick, contact location, body or propeller, impulse and contact load. The session pauses on that tick through the same path as a user pause, which TASK-156 connects to ArduPilot. A post-accident flag is set on the experiment.
+- **DoD & Acceptance Criteria:** A hard landing on the support points raises no accident. An arm or propeller strike raises an accident on the correct tick. The run pauses on that tick. The event and the contact loads appear in the recording. Continuation is visibly labeled.
+
+## Stage P1.5: Integrated External-SITL Session
+
+Scope step 5. Launch, connect, fly and pause native ArduPilot on macOS through the application (S01–S03). Sequential batches wait until TASK-158 passes.
+
+### TASK-150 — MAVLink message set for Phase 1 ground-station functions
+
+- **Status:** TODO — registered 2026-10-28 from PROJECT_SCOPE.md; baseline 384e974.
+- **Title & Description:** (S02, S09, S10, S11) Extend the MAVLink2 codec, with golden pymavlink 2.4.50 fixtures, to the messages Phase 1 needs: the parameter list request and parameter payload builders; COMMAND_LONG, COMMAND_INT and COMMAND_ACK; STATUSTEXT and SYS_STATUS; ATTITUDE, LOCAL_POSITION_NED, GLOBAL_POSITION_INT and VFR_HUD; SERVO_OUTPUT_RAW and BATTERY_STATUS; the mission protocol; and the position-target messages. Update `dialect.lock.json`, which lists only 4 of the 12 message IDs the codec supports today.
+- **Dependencies:** TASK-037.
+- **Touched Files:** `packages/mavlink/src/codec.ts`, `packages/mavlink/src/messages.ts`, `packages/mavlink/dialect.lock.json`, `scripts/generate-mavlink-fixtures.py`, `tests/fixtures/mavlink/golden.json`, `tests/mavlink.test.ts`, `tests/fixtures/registry.json`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
+- **Interfaces / Contracts:** Unsigned MAVLink2 only, as today; byte-exact packing with CRC_EXTRA; preallocated decode targets for the high-rate telemetry subset; unsupported frames consumed whole, preserving the TASK-047 repair.
+- **DoD & Acceptance Criteria:** Every added message matches pymavlink bytes. Chunking, truncation and bad-CRC tests pass. G1 holds for the high-rate subset. The dialect lock matches the codec.
+
+### TASK-151 — Local launcher service for macOS
+
+- **Status:** TODO — registered 2026-10-28 from PROJECT_SCOPE.md; baseline 384e974.
+- **Title & Description:** (S01, S02) Provide a local loopback service that the user starts. It checks prerequisites and keeps a catalog of the installed compatible ArduPilot versions. It starts and stops owned SITL processes with per-experiment working directories and parameter files, collects diagnostics and DataFlash logs, and hosts the WebSocket bridge. A normal web page cannot start programs; the launcher is the only component that does.
+- **Dependencies:** TASK-040, TASK-127.
+- **Touched Files:** `apps/launcher/package.json`, `apps/launcher/src/server.ts`, `apps/launcher/src/processes.ts`, `apps/launcher/src/prerequisites.ts`, `apps/launcher/src/catalog.ts`, `apps/launcher/src/logs.ts`, `tests/launcher.test.ts`, `package-lock.json`, `docs/operations/runbook.md`, `docs/ru/runbook.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
+- **Interfaces / Contracts:** A versioned loopback API (status, prerequisites, start, stop, logs, catalog) authenticated with a locally generated token and an exact Origin match; it binds to loopback only and records process ownership. Tokens are never printed or put in URLs.
+- **DoD & Acceptance Criteria:** Start, stop, crash and restart cases pass with fake and real binaries. Processes the launcher does not own are never touched. Unauthorized origins and tokens are rejected. The service works offline on a reference Mac (G4).
+
+### TASK-152 — macOS installation and first-run prerequisite check
+
+- **Status:** TODO — registered 2026-10-28 from PROJECT_SCOPE.md; baseline 384e974.
+- **Title & Description:** (S01, S02) Provide an installation path that downloads or builds the pinned dependencies with hash verification: ArduPilot sources at the selected commits, the Python environment with pymavlink, and the application and UAVLogViewer assets. Add a first-run screen that checks the launcher connection and each prerequisite, and explains what is missing and how to fix it. After installation the workflows run offline.
+- **Dependencies:** TASK-131, TASK-151.
+- **Touched Files:** `scripts/install-macos.mjs`, `apps/launcher/src/prerequisites.ts`, `apps/web/src/shell/FirstRun.tsx`, `tests/install-macos.test.ts`, `tests/browser/first-run.spec.ts`, `docs/operations/install-macos.md`, `docs/ru/install-macos.md`, `docs/documentation-index.json`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
+- **Interfaces / Contracts:** An install manifest built from the TASK-131 inventory records the hash, size and license of every item. Each prerequisite check returns a structured missing or ok result with a fix instruction. No secrets are stored.
+- **DoD & Acceptance Criteria:** A clean installation on a reference Mac is recorded. Each missing prerequisite produces its specific message. Restart and offline launch succeed with the network disabled.
+
+### TASK-153 — Browser physics as the JSON lockstep backend for native ArduPilot
+
+- **Status:** TODO — registered 2026-10-28 from PROJECT_SCOPE.md; baseline 384e974.
+- **Title & Description:** (S01, S02, S03) Run the profile dynamics in the physics Worker in SITL lockstep with native ArduPilot over the launcher's bridge: servo packets come in for up to 16 outputs and JSON state lines go out. MAVLink travels over the same bridge to the application's ground-station functions. READY is admitted only from this session's live EKF diagnostics (LiveEkfWarmup), never from offline captures. Overload and dropped steps are visible.
+- **Dependencies:** TASK-043, TASK-129, TASK-144, TASK-150, TASK-151.
+- **Touched Files:** `apps/web/src/physics.worker.ts`, `apps/web/src/runtime.ts`, `apps/web/src/sitl/bridge-client.ts`, `packages/autopilot/src/external-sitl.ts`, `packages/autopilot/src/live-warmup.ts`, `packages/physics/src/session-v2.ts`, `packages/physics/src/clock-policy.ts`, `apps/bridge/src/server.ts`, `apps/bridge/src/session.ts`, `tests/external-sitl-session.test.ts`, `tests/browser/external-sitl.spec.ts`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
+- **Interfaces / Contracts:** The `sitl-lockstep` clock policy; servo-to-rotor mapping from the profile; the existing bridge framing, epochs and limits; the autopilot state-machine lifecycle `disconnected → initializing → warming → ready → running → fault`; zero allocation in the lockstep step.
+- **DoD & Acceptance Criteria:** On macOS, a profile-defined quad arms, takes off, holds and lands through the browser application. Lost, duplicated and reordered packets never double-step. Stale diagnostics revoke READY. G1 holds for the step. No offline report admits READY.
+
+### TASK-154 — Experiment start, stop, readiness and failure handling
+
+- **Status:** TODO — registered 2026-10-28 from PROJECT_SCOPE.md; baseline 384e974.
+- **Title & Description:** (S02) The user selects a profile version and a compatible ArduPilot version and starts an experiment. The launcher spawns SITL with the generated frame, output, sensor and initial parameters, and the UI shows connection, parameter loading and EKF readiness. Stop terminates only the experiment's own processes. Every failure shows its reason, a diagnostic log and a restart path. Changing model characteristics requires a new run.
+- **Dependencies:** TASK-136, TASK-142, TASK-153.
+- **Touched Files:** `apps/web/src/run/RunPanel.tsx`, `apps/web/src/run/session-controller.ts`, `apps/launcher/src/processes.ts`, `tests/run-controller.test.ts`, `tests/browser/run-panel.spec.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
+- **Interfaces / Contracts:** Run states: idle, starting, loading parameters, warming, ready, running, paused, stopping, and failed with a reason. The experiment record stores the profile version, the ArduPilot version and binary hash, and the initial parameters.
+- **DoD & Acceptance Criteria:** Fault-injection tests (missing binary, busy port, crash during warmup, bridge loss) show the reason and a working restart. Stop leaves no owned process behind. The experiment record contains every version and parameter used.
+
+### TASK-155 — Manual connection to a running compatible SITL
+
+- **Status:** TODO — registered 2026-10-28 from PROJECT_SCOPE.md; baseline 384e974.
+- **Title & Description:** (S02) Connect to an ArduPilot SITL that the user started; disconnecting never terminates it. Check compatibility: version, frame, and JSON lockstep with MirageSITL physics. Enable pause only for configurations that TASK-129 classified as clock-compatible.
+- **Dependencies:** TASK-129, TASK-153.
+- **Touched Files:** `apps/web/src/run/ManualConnect.tsx`, `apps/web/src/run/session-controller.ts`, `apps/launcher/src/server.ts`, `tests/browser/manual-connect.spec.ts`, `docs/operations/runbook.md`, `docs/ru/runbook.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
+- **Interfaces / Contracts:** Connection descriptor: JSON physics and MAVLink endpoints, plus a compatibility verdict with its reasons. Ownership is `external`, so stop and disconnect only release the connection.
+- **DoD & Acceptance Criteria:** Connect and disconnect cycles leave the external process running. Incompatible configurations are refused with reasons. Pause is disabled, with an explanation, where the clock is not compatible.
+
+### TASK-156 — Synchronized pause and resume in integrated sessions
+
+- **Status:** TODO — registered 2026-10-28 from PROJECT_SCOPE.md; baseline 384e974.
+- **Title & Description:** (S02) Pause freezes physics and ArduPilot simulated time together (per TASK-129), retaining position, velocity, aircraft state and scenario progress, and must not itself cause sensor or link-loss failsafes. The bridge keeps paused sessions alive, and charts and logs stay viewable. Parameter changes are allowed where TASK-129 showed support, with restart and disarm requirements visible. Pause and resume events are recorded, and paused wall time does not extend the simulated duration. Accident pauses (TASK-149) and missing-terrain pauses use the same path. Define a tab-visibility policy that never silently continues on stale manual input.
+- **Dependencies:** TASK-129, TASK-149, TASK-153.
+- **Touched Files:** `packages/physics/src/session-v2.ts`, `packages/physics/src/clock-policy.ts`, `packages/scenarios/src/runner.ts`, `apps/web/src/runtime.ts`, `apps/web/src/run/RunPanel.tsx`, `apps/bridge/src/server.ts`, `apps/bridge/src/session.ts`, `tests/session-pause.test.ts`, `tests/browser/sitl-pause.spec.ts`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
+- **Interfaces / Contracts:** One pause path with a reason (`user`, `accident`, `terrain`, `visibility`); a keep-alive for paused bridge sessions; pause and resume events with tick and wall time.
+- **DoD & Acceptance Criteria:** A pause of at least 10 min in hover resumes within the TASK-129 continuity tolerance with no failsafe. Events appear in the record. Simulated duration excludes paused wall time. Browser tests cover a user pause, an accident pause and a hidden-tab pause.
+
+### TASK-157 — Virtual one-motor-at-a-time check
+
+- **Status:** TODO — registered 2026-10-28 from PROJECT_SCOPE.md; baseline 384e974.
+- **Title & Description:** (S03) Before flight, spin each motor individually through ArduPilot's motor-test command in SITL. The 3D scheme highlights the motor that physics actually drives, with its spin direction. A mismatch between the expected and the observed output or spin is reported.
+- **Dependencies:** TASK-141, TASK-142, TASK-154.
+- **Touched Files:** `apps/web/src/aircraft/MotorTest.tsx`, `apps/web/src/run/session-controller.ts`, `tests/browser/motor-test.spec.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
+- **Interfaces / Contracts:** A motor-test sequence per output, disarmed and on the ground only. The result per motor is the expected output, the observed output, the observed spin, and pass or fail.
+- **DoD & Acceptance Criteria:** All five configurations pass. A deliberately swapped mapping and a reversed spin are detected. The test refuses to run while armed or airborne.
+
+### TASK-158 — Nominal flight acceptance on macOS
+
+- **Status:** TODO — registered 2026-10-28 from PROJECT_SCOPE.md; baseline 384e974.
+- **Title & Description:** (S01–S03) Through the UI on a reference Mac: create the profile, map outputs, run the motor test, start, arm, take off, hover, land, pause and resume, and stop. Do this first for a quad with one motor per arm, then for the remaining S19 configurations, including the 16-motor one. Sequential batches (TASK-176) wait for this task.
+- **Dependencies:** TASK-095, TASK-146, TASK-147, TASK-152, TASK-155, TASK-156, TASK-157.
+- **Touched Files:** `scripts/phase1/nominal-flight.mjs`, `tests/integration/phase1-nominal.test.ts`, `docs/validation/phase1-matrix.json`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
+- **Interfaces / Contracts:** Evidence per configuration: capture hashes, versions, device, browser and OS, with verdicts written to the TASK-132 matrix.
+- **DoD & Acceptance Criteria:** Each of the five configurations has a current PASS capture or an exact blocker in the matrix. Historical WSL captures are not reused.
+
+## Stage P1.6: Recording and Parameter Provenance
+
+Scope step 6. Parameter read, write, read-back and export, and full-run recording with provenance, before comparative runs rely on them (S11, S13, S16).
+
+### TASK-159 — ArduPilot parameter service with read-back and metadata
+
+- **Status:** TODO — registered 2026-10-28 from PROJECT_SCOPE.md; baseline 384e974.
+- **Title & Description:** (S11) Download the full parameter list with index and count tracking and retries. Write with PARAM_SET and confirm by read-back, distinguishing requested, refused, confirmed and timed-out values. Generate parameter metadata (units, ranges, groups, reboot-required) offline from the pinned ArduPilot source of each supported version. Show values at full precision, for example `0.00017`, never `0.00`.
+- **Dependencies:** TASK-150, TASK-153.
+- **Touched Files:** `packages/autopilot/src/param-service.ts`, `packages/autopilot/src/param-metadata.ts`, `scripts/generate-param-metadata.mjs`, `data/ardupilot/param-metadata.json`, `tests/param-service.test.ts`, `tests/integration/param-sitl.test.ts`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
+- **Interfaces / Contracts:** Parameter states `requested`, `refused`, `confirmed`, `timeout` and `stale`; float32 wire values stored exactly; metadata keyed by ArduPilot commit; the reboot-required flag taken from metadata.
+- **DoD & Acceptance Criteria:** The full list downloads from native SITL. Every write's outcome is confirmed by read-back or classified. Reboot-required parameters are flagged. Value formatting round-trips the exact float32.
+
+### TASK-160 — Parameters tab: editing, history and parameter sets
+
+- **Status:** TODO — registered 2026-10-28 from PROJECT_SCOPE.md; baseline 384e974.
+- **Title & Description:** (S11) Read the actual SITL parameters and edit them before and during flight, and on pause where supported. Show requested, refused and confirmed values and the disarm or restart each change needs. Record every change with its name, old and new value, time, outcome and experiment. Save and compare parameter sets and send earlier values back. Storage confirmation is never presented as applied behavior when a restart is needed.
+- **Dependencies:** TASK-137, TASK-156, TASK-159.
+- **Touched Files:** `apps/web/src/params/ParametersTab.tsx`, `apps/web/src/params/ParameterHistory.tsx`, `apps/web/src/params/parameter-sets.ts`, `packages/project/src/schema.ts`, `tests/parameter-sets.test.ts`, `tests/browser/parameters-tab.spec.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
+- **Interfaces / Contracts:** Parameter-change event: name, old value, new value, request time, outcome, simulated tick and experiment ID. A parameter set is a versioned record with its source.
+- **DoD & Acceptance Criteria:** A browser test against SITL covers every state, including a write while paused or its documented refusal. Restart-required changes are never labeled applied. History persists with the experiment.
+
+### TASK-161 — ArduPilot parameter file export
+
+- **Status:** TODO — registered 2026-10-28 from PROJECT_SCOPE.md; baseline 384e974.
+- **Title & Description:** (S11) At any stage, export an ArduPilot-compatible parameter file for the user to load manually. It contains all available parameters, the changes relative to a selected baseline, or selected parameters and groups. Before export, preview the contents and each value's source: saved profile, experiment, or actual SITL read-back. Pending and unconfirmed requests are not exported as confirmed live values. The aircraft, firmware and experiment context accompanies the file. Simulator-only geometry and weather settings are saved separately. Nothing is written to a real controller.
+- **Dependencies:** TASK-159, TASK-160.
+- **Touched Files:** `packages/autopilot/src/param-file.ts`, `apps/web/src/params/ParameterExport.tsx`, `tests/param-file.test.ts`, `tests/browser/parameter-export.spec.ts`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
+- **Interfaces / Contracts:** A parameter file with a comment header for context, `NAME,VALUE` lines at full float32 precision and a deterministic order. A separate simulator-settings file uses the project archive format.
+- **DoD & Acceptance Criteria:** An exported file loaded back into SITL reproduces identical values. Pending values are excluded. Baseline-difference and group selections match oracles. The context header is present.
+
+### TASK-162 — Experiment recorder v2 with full-run streaming and per-signal rates
+
+- **Status:** TODO — registered 2026-10-28 from PROJECT_SCOPE.md; baseline 384e974.
+- **Title & Description:** (S13) Build a signal catalog with each source's native rate: truth, per-motor RPM, current and power, battery, sensor observations, actuator outputs, autopilot telemetry including the EKF estimate, and events. Recording uses a common rate with per-signal and per-group overrides. The effective rate is the lower of the requested and source rates, without duplicated samples, and 2 kHz is offered only for sources that produce it. Record the parameter snapshot and change events, and weather, fault, pause and accident events. Stream to local storage without the 32 MiB cap of TASK-076, with explicit gaps. Store channel, rate and availability metadata so that omitted data is never read as zero.
+- **Dependencies:** TASK-076, TASK-136, TASK-153.
+- **Touched Files:** `packages/aar/src/format-v2.ts`, `packages/aar/src/signal-catalog.ts`, `packages/aar/src/stream-storage.ts`, `packages/aar/src/recorder-v2.ts`, `apps/web/src/physics.worker.ts`, `tests/recorder-v2.test.ts`, `tests/browser/recorder-v2.spec.ts`, `scripts/bench-aar.mjs`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/SPECS_SHARED_MEMORY.md`, `docs/ru/SPECS_SHARED_MEMORY.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
+- **Interfaces / Contracts:** Format v2 with a versioned header, signal table and chunk checksums. Fan-out happens at the producer boundary with one consumer per queue. Physics never waits on storage.
+- **DoD & Acceptance Criteria:** A one-hour simulated run, accelerated in the test, records continuously within the storage budget. Sample counts prove the effective rates. A 2 kHz request on a 1200 Hz source is capped and the cap is shown. G1 holds at the producer. The record reopens after a restart.
+
+### TASK-163 — Logging tab with size estimates and storage monitoring
+
+- **Status:** TODO — registered 2026-10-28 from PROJECT_SCOPE.md; baseline 384e974.
+- **Title & Description:** (S13) Add a separate Logging tab. All available signals are enabled by default, with the common default frequency from TASK-132 and per-signal or per-group overrides. Show requested and effective rates and each source's limit. Estimate MB per simulated hour and the total for a selected duration, then show actual growth, including growth per real second in accelerated runs. Warn before storage runs out and show recording gaps.
+- **Dependencies:** TASK-132, TASK-137, TASK-162.
+- **Touched Files:** `apps/web/src/logging/LoggingTab.tsx`, `apps/web/src/logging/size-estimate.ts`, `tests/size-estimate.test.ts`, `tests/browser/logging-tab.spec.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
+- **Interfaces / Contracts:** The estimate is computed from the signal catalog and the format overhead. The storage quota is read from the browser storage API. Warning thresholds are recorded in the experiment.
+- **DoD & Acceptance Criteria:** Estimates fall within a tolerance, declared before the test, of the actual sizes. A low-quota test warns before exhaustion. Unsupported rates are refused with an explanation. Gaps are visible.
+
+### TASK-164 — ArduPilot DataFlash capture per experiment
+
+- **Status:** TODO — registered 2026-10-28 from PROJECT_SCOPE.md; baseline 384e974.
+- **Title & Description:** (S13, S14) Configure and verify SITL DataFlash logging: the `LOG_*` parameters are checked against metadata and capabilities, not assumed arbitrary. Collect each run's `.BIN` files from the launcher's working directory into the experiment with hashes, kept separate from the MirageSITL recorder.
+- **Dependencies:** TASK-151, TASK-154, TASK-159.
+- **Touched Files:** `apps/launcher/src/logs.ts`, `packages/project/src/schema.ts`, `tests/dataflash-capture.test.ts`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
+- **Interfaces / Contracts:** Experiment attachment: file name, size, SHA-256, ArduPilot version and logging parameters. Missing and partial logs are reported, never synthesized.
+- **DoD & Acceptance Criteria:** Every run's `.BIN` is attached and hashed. The configured logging is confirmed from the log contents. A missing or truncated log is reported.
+
+### TASK-165 — Experiment lifecycle: Repeat, Create variant, export and import
+
+- **Status:** TODO — registered 2026-10-28 from PROJECT_SCOPE.md; baseline 384e974.
+- **Title & Description:** (S16) An experiment fixes the aircraft version, the ArduPilot version and initial parameters, weather and location, the task, the fault schedule and the recording setup. It retains results and in-flight parameter, environment and fault events. **Repeat** reuses the same inputs; **Create variant** preserves the original while allowing changes. Reproducibility means preserved inputs and declared tolerances, not bit-identical outputs on every machine. Export and import report missing external dependencies.
+- **Dependencies:** TASK-136, TASK-154, TASK-160, TASK-162.
+- **Touched Files:** `packages/project/src/experiment.ts`, `apps/web/src/experiments/ExperimentsTab.tsx`, `tests/experiment-lifecycle.test.ts`, `tests/browser/experiments-tab.spec.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
+- **Interfaces / Contracts:** Experiment record v1 references hashed inputs. A variant keeps a link to its parent. The reproducibility tolerance is stored with the experiment.
+- **DoD & Acceptance Criteria:** Repeating a seeded run on the same machine matches within the declared tolerance. A variant leaves the original unchanged. An import into another store lists the missing dependencies.
+
+## Stage P1.7: Flight Tasks, Weather, Faults and Batches
+
+Scope step 7. Reproducible tasks, manual and scheduled effects, EKF-drift observations, run speed and user-defined batches (S07, S09, S10, S12).
+
+### TASK-166 — Effect control contract for weather, sensor errors and faults
+
+- **Status:** TODO — registered 2026-10-28 from PROJECT_SCOPE.md; baseline 384e974.
+- **Title & Description:** (S07, S08, S09) Give every environment, sensor-error, EW and fault effect a versioned control record: identifier, enabled flag, intensity, and physical parameters with units. Ranges equal each model's validity envelope. Controls apply at tick boundaries with acknowledgements and can be scheduled with onset, duration and recovery. A disabled or zero-intensity effect is bitwise identical to an absent one. This supersedes the effect-control registration on the unmerged physics-review branch, which reused the ID TASK-124.
+- **Dependencies:** TASK-010, TASK-093, TASK-156.
+- **Touched Files:** `packages/protocol/src/control-v3.ts`, `packages/protocol/src/control-v3.schema.json`, `packages/protocol/src/control-v2.ts`, `packages/physics/src/session-v2.ts`, `packages/scenarios/src/schema.ts`, `tests/control-v3.test.ts`, `tests/session-v2.test.ts`, `docs/SPECS_SHARED_MEMORY.md`, `docs/ru/SPECS_SHARED_MEMORY.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
+- **Interfaces / Contracts:** A Control Protocol version bump with migration of v2 `weather.set` and `fault.set` and rejection fixtures; queued, applied and rejected acknowledgements; a backend that cannot apply an effect keeps rejecting it visibly.
+- **DoD & Acceptance Criteria:** For every effect, disabled and zero intensity are bitwise identical to absent over a seeded run. Ranges equal the envelopes. Migration and rejection tests pass. Scheduled effects apply on their exact ticks.
+
+### TASK-167 — Weather tab with scheduled changes and repeatable gusts
+
+- **Status:** TODO — registered 2026-10-28 from PROJECT_SCOPE.md; baseline 384e974.
+- **Title & Description:** (S07) Provide settings for steady wind speed and direction; discrete gusts with strength, duration and direction; turbulence intensity (TASK-106); temperature; and pressure consistent with altitude, with a measured override. Weather can change during flight, manually or from a saved schedule, and the changes are logged. Seeded gust and turbulence realizations repeat for controlled comparisons, and the effective conditions are visible.
+- **Dependencies:** TASK-106, TASK-137, TASK-148, TASK-166.
+- **Touched Files:** `apps/web/src/weather/WeatherTab.tsx`, `packages/physics/src/discrete-gust.ts`, `tests/discrete-gust.test.ts`, `tests/browser/weather-tab.spec.ts`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
+- **Interfaces / Contracts:** The discrete-gust shape and its parameters are declared in the engine specification before implementation. Schedules use the TASK-166 records. Seed and stream IDs are stored with the experiment.
+- **DoD & Acceptance Criteria:** The gust shape matches its analytic definition. The same seed reproduces the same realization. Scheduled changes apply on their tick. A browser test sets wind on a running SITL session, observes the effect and removes it.
+
+### TASK-168 — Sensor dropout, frozen readings and link-loss effects
+
+- **Status:** TODO — registered 2026-10-28 from PROJECT_SCOPE.md; baseline 384e974.
+- **Title & Description:** (S09) Add missing and frozen IMU, GNSS, barometer and magnetometer readings, delivered on each sensor's ownership path; for ArduPilot-owned sensors this uses catalog-verified fault parameters. Add loss of pilot control and loss of the ground-station link at the bridge. Wire reduced motor power and motor failure (TASK-057) into the profile dynamics. Observations and links change; truth does not.
+- **Dependencies:** TASK-057, TASK-147, TASK-153, TASK-166.
+- **Touched Files:** `packages/ew/src/sensor-dropout.ts`, `apps/bridge/src/link-faults.ts`, `packages/physics/src/profile-dynamics.ts`, `packages/autopilot/src/error-ownership.ts`, `tests/sensor-dropout.test.ts`, `tests/link-faults.test.ts`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
+- **Interfaces / Contracts:** Effects are expressed as TASK-166 records. Link loss acts on the bridge's MAVLink channels without touching JSON physics. Motor faults act on physical actuation only.
+- **DoD & Acceptance Criteria:** Each effect changes only its observation, link or actuator. Truth arrays stay bitwise identical for sensor and link effects. ArduPilot's response is recorded, not predicted. G1 holds for tick application.
+
+### TASK-169 — Faults and interference tab with schedules and outcomes
+
+- **Status:** TODO — registered 2026-10-28 from PROJECT_SCOPE.md; baseline 384e974.
+- **Title & Description:** (S09) Add a separate tab that configures motor failure and reduced power, GNSS loss or degradation, GNSS position steps and gradual drift, magnetic interference, missing or frozen readings, and loss of pilot control or the ground-station link. Effects apply manually or on a schedule with onset, duration and recovery. Events and actual outcomes (pending, applied, rejected) are recorded.
+- **Dependencies:** TASK-137, TASK-166, TASK-168.
+- **Touched Files:** `apps/web/src/faults/FaultsTab.tsx`, `apps/web/src/faults/schedule.ts`, `apps/web/src/instructor/Console.tsx`, `tests/fault-schedule.test.ts`, `tests/browser/faults-tab.spec.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
+- **Interfaces / Contracts:** Schedules are stored with the experiment. The outcome ledger extends the TASK-075 acknowledgement ledger.
+- **DoD & Acceptance Criteria:** A browser test schedules and applies each effect class against SITL. Outcomes are visible and recorded. Unsupported effects are visibly rejected.
+
+### TASK-170 — EKF drift scenario with truth-versus-estimate charts
+
+- **Status:** TODO — registered 2026-10-28 from PROJECT_SCOPE.md; baseline 384e974.
+- **Title & Description:** (S09) Build the **EKF drift** input-error scenario on the TASK-055 coherent drift, delivered on the GNSS path. The UI configures direction, growth rate, duration, and gradual or abrupt removal. The scenario never overwrites ArduPilot's EKF or forces a trajectory. Charts compare the true trajectory and velocity with the EKF estimate from autopilot telemetry and show their errors. ArduPilot may drift, reject measurements or enter failsafe; its actual reaction is recorded.
+- **Dependencies:** TASK-055, TASK-150, TASK-162, TASK-169.
+- **Touched Files:** `packages/scenarios/src/ekf-drift.ts`, `apps/web/src/analysis/TruthVsEstimate.tsx`, `tests/ekf-drift.test.ts`, `tests/browser/ekf-drift.spec.ts`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
+- **Interfaces / Contracts:** Drift-profile parameters with units; estimate and truth aligned on simulated time; error series computed from the recording.
+- **DoD & Acceptance Criteria:** The drift profile matches its analytic form. Chart errors match an independent computation from the recorded truth and estimate. No response is promised or hard-coded.
+
+### TASK-171 — Refresh EW and fault regression evidence on macOS native SITL
+
+- **Status:** TODO — registered 2026-10-28 from PROJECT_SCOPE.md; baseline 384e974.
+- **Title & Description:** (S09) Recalibrate and revalidate the TASK-059 matrix on native SITL on macOS against the current EW sources, which TASK-125, TASK-126 and the Phase 1 effects changed. The historical Linux and WSL reports stay unchanged as history.
+- **Dependencies:** TASK-059, TASK-127, TASK-168.
+- **Touched Files:** `tests/fixtures/scenarios/ew-matrix.json`, `scripts/run-ew-sitl.mjs`, `scripts/freeze-ew.mjs`, `scripts/sitl/audit-ew.mjs`, `docs/operations/runbook.md`, `docs/ru/runbook.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
+- **Interfaces / Contracts:** The frozen source closure, firmware hash and parameters work as in TASK-059. The new matrix records the macOS host.
+- **DoD & Acceptance Criteria:** New calibration and validation flights pass the frozen limits with the current source closure. The earlier reports are untouched.
+
+### TASK-172 — Flight task library with routes and initial conditions
+
+- **Status:** TODO — registered 2026-10-28 from PROJECT_SCOPE.md; baseline 384e974.
+- **Title & Description:** (S10) Provide repeatable takeoff, hover, landing, straight flight, climb, descent, acceleration, braking and turning tasks. Route points, altitudes and speeds are entered through the UI. ArduPilot receives the commands (mission upload or guided commands), and physics calculates the resulting motion. Initial position, attitude, speed and battery charge are configurable; mass and payload stay in the aircraft profile. Requested and actual values are shown side by side.
+- **Dependencies:** TASK-150, TASK-153, TASK-165.
+- **Touched Files:** `packages/scenarios/src/flight-tasks.ts`, `packages/autopilot/src/mission.ts`, `packages/autopilot/src/guided.ts`, `apps/web/src/tasks/FlightTasksTab.tsx`, `apps/web/src/tasks/RouteEditor.tsx`, `tests/flight-tasks.test.ts`, `tests/integration/flight-tasks-sitl.test.ts`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
+- **Interfaces / Contracts:** Task definition v1 (type, parameters, route, initial conditions) stored with the experiment. Missions use the MAVLink mission protocol with acknowledgements. Initial conditions are applied at the start tick before arming.
+- **DoD & Acceptance Criteria:** Each task type completes in SITL with recorded requested and actual traces. The route editor round-trips. Initial conditions are verified in the truth state at the start tick.
+
+### TASK-173 — Tuning maneuvers with requested-versus-actual response
+
+- **Status:** TODO — registered 2026-10-28 from PROJECT_SCOPE.md; baseline 384e974.
+- **Title & Description:** (S10) Command changes in roll, pitch, heading and altitude (steps and doublets with configurable amplitude and duration), and display requested versus actual response with rise-time, overshoot and settling metrics.
+- **Dependencies:** TASK-162, TASK-172.
+- **Touched Files:** `packages/scenarios/src/maneuvers.ts`, `apps/web/src/tasks/ManeuverPanel.tsx`, `apps/web/src/analysis/ResponsePlot.tsx`, `tests/maneuvers.test.ts`, `tests/browser/maneuvers.spec.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
+- **Interfaces / Contracts:** Maneuver definitions are stored with the experiment. Metrics are computed from the recorded series on one time base.
+- **DoD & Acceptance Criteria:** Metrics match an analytic second-order fixture. The maneuvers execute in SITL. The plots are time-aligned.
+
+### TASK-174 — Manual flight with a controller in integrated sessions
+
+- **Status:** TODO — registered 2026-10-28 from PROJECT_SCOPE.md; baseline 384e974.
+- **Title & Description:** (S10) Fly ArduPilot with the calibrated USB controller through RC override over the bridge. Stale input, unplugging and reconnection follow the existing input-safety rules, and the pilot-link-loss effect (TASK-168) acts on this path.
+- **Dependencies:** TASK-038, TASK-153.
+- **Touched Files:** `apps/web/src/runtime.ts`, `apps/web/src/sitl/bridge-client.ts`, `packages/mavlink/src/rc-override.ts`, `tests/browser/manual-flight.spec.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
+- **Interfaces / Contracts:** RC override at a declared rate, with the channel-group sentinels of TASK-038. Disconnecting never silently selects another transmitter.
+- **DoD & Acceptance Criteria:** A browser test with a mocked gamepad arms and flies SITL. Unplugging triggers the defined policy. Thrust is never held on stale input.
+
+### TASK-175 — Real-time and accelerated runs with visible actual speed
+
+- **Status:** TODO — registered 2026-10-28 from PROJECT_SCOPE.md; baseline 384e974.
+- **Title & Description:** (S10) Run the same physics with the same step sequence in real-time and accelerated modes. Acceleration is limited only by the host and is never achieved by simplifying the model or skipping steps. Actual simulation speed and overload are visible, and a run that falls behind is never presented as real-time. No fixed acceleration factor is promised.
+- **Dependencies:** TASK-132, TASK-153, TASK-156.
+- **Touched Files:** `packages/physics/src/clock-policy.ts`, `apps/web/src/physics.worker.ts`, `apps/web/src/run/SpeedIndicator.tsx`, `tests/run-speed.test.ts`, `tests/browser/run-speed.spec.ts`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
+- **Interfaces / Contracts:** Run-speed modes `real-time` and `as-fast-as-possible`. The displayed speed is the measured simulated/wall ratio over a window. Dropped intervals are counted and shown.
+- **DoD & Acceptance Criteria:** Seeded trajectories in both modes agree within a tolerance declared before the test. The displayed speed equals the measured ratio. A real-time run with drops is labeled as such.
+
+### TASK-176 — Sequential user-defined parameter batches
+
+- **Status:** TODO — registered 2026-10-28 from PROJECT_SCOPE.md; baseline 384e974.
+- **Title & Description:** (S12) The user supplies several parameter sets. The same scenario runs automatically and sequentially for each set with all other inputs identical, and the collected results can be inspected. The system does not search for new values or declare a set fit for real flight.
+- **Dependencies:** TASK-158, TASK-161, TASK-165, TASK-172.
+- **Touched Files:** `apps/web/src/experiments/BatchRunner.tsx`, `packages/project/src/batch.ts`, `tests/batch.test.ts`, `tests/browser/batch.spec.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
+- **Interfaces / Contracts:** Batch record: scenario, parameter sets and the resulting experiment IDs. Failed runs are recorded and never retried silently.
+- **DoD & Acceptance Criteria:** N sets produce N experiments with identical non-parameter inputs. One failed run does not corrupt the others. There is no automatic optimization path.
+
+### TASK-177 — Experiment comparison and result metrics
+
+- **Status:** TODO — registered 2026-10-28 from PROJECT_SCOPE.md; baseline 384e974.
+- **Title & Description:** (S12) Copy a profile, change motors, propellers or other settings, and compare experiments: different conditions for one aircraft, or equal conditions for different configurations. Controlled comparisons preserve payload, battery, weather and task as selected, and account explicitly for changes in the components' own mass. Results include takeoff capability and thrust margin; RPM, current, power and energy; estimated flight duration for a stated scenario; position and maneuver response; and component limit exceedances. The calculation mode and input confidence stay visible.
+- **Dependencies:** TASK-140, TASK-146, TASK-165, TASK-173.
+- **Touched Files:** `packages/analysis/package.json`, `packages/analysis/src/metrics.ts`, `packages/analysis/src/compare.ts`, `apps/web/src/compare/CompareTab.tsx`, `tests/experiment-metrics.test.ts`, `tests/browser/compare-tab.spec.ts`, `package-lock.json`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
+- **Interfaces / Contracts:** Metric definitions, with units and formulas, are declared in the engine specification. Each comparison lists the inputs held equal and the ones that differ. Flight-duration estimates name their scenario and reserve assumptions.
+- **DoD & Acceptance Criteria:** Metrics match hand-computed fixtures. A comparison whose controls differ unexpectedly is flagged. Confidence labels are shown.
+
+## Stage P1.8: Log Analysis with UAVLogViewer
+
+Scope step 8. Integrate the existing UAVLogViewer for DataFlash and experiment logs (S14), building on TASK-130.
+
+### TASK-178 — DataFlash reader and writer
+
+- **Status:** TODO — registered 2026-10-28 from PROJECT_SCOPE.md; baseline 384e974.
+- **Title & Description:** (S14, S15) Parse self-describing DataFlash logs (FMT records first) in a Worker: chunked and validated, with damaged ranges reported. Write MirageSITL experiment records (truth, motor telemetry, events, and parameter changes with requested, confirmed and rejected status) as DataFlash files that the viewer can open.
+- **Dependencies:** TASK-004.
+- **Touched Files:** `packages/dataflash/package.json`, `packages/dataflash/src/reader.ts`, `packages/dataflash/src/writer.ts`, `packages/dataflash/src/dataflash.worker.ts`, `scripts/generate-dataflash-fixtures.py`, `tests/dataflash.test.ts`, `tests/fixtures/dataflash/reference.json`, `tests/fixtures/registry.json`, `package-lock.json`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
+- **Interfaces / Contracts:** The reader outputs typed columns per message type, with units from FMTU where present. The writer uses distinct message names for MirageSITL data so that it is never confused with data the autopilot logged.
+- **DoD & Acceptance Criteria:** Field values and times match pymavlink's `mavlogdump` on reference logs. Writer output re-parses identically. Damaged-file fixtures report their ranges.
+
+### TASK-179 — Bundle the pinned UAVLogViewer for offline use
+
+- **Status:** TODO — registered 2026-10-28 from PROJECT_SCOPE.md; baseline 384e974.
+- **Title & Description:** (S14) Build the pinned viewer from source with recorded hashes and license notices, serve it locally inside the Analysis tab under the application's isolation headers, and open real DataFlash logs offline.
+- **Dependencies:** TASK-130, TASK-137, TASK-152.
+- **Touched Files:** `third_party/uavlogviewer/source.lock.json`, `scripts/build-uavlogviewer.mjs`, `apps/web/src/analysis/LogViewerHost.tsx`, `apps/web/vite.config.ts`, `tests/browser/log-viewer.spec.ts`, `docs/operations/offline-inventory.md`, `docs/ru/offline-inventory.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
+- **Interfaces / Contracts:** The host and the viewer communicate only through the interface chosen in TASK-130. The viewer's network access is limited to local assets.
+- **DoD & Acceptance Criteria:** An offline browser test opens a reference `.bin`. License notices ship with the build. Build hashes are recorded and reproducible.
+
+### TASK-180 — Open MirageSITL experiments in the viewer with context
+
+- **Status:** TODO — registered 2026-10-28 from PROJECT_SCOPE.md; baseline 384e974.
+- **Title & Description:** (S14) Open MirageSITL experiment results, with their attached ArduPilot `.BIN` files, in the integrated analysis workflow. Parameter-change events appear on the flight timeline next to response plots, with requested, confirmed and rejected changes distinguishable. Show aircraft and component versions, environmental conditions and parameter differences. Context missing from external logs is marked unknown, and parameter history absent from a source is never fabricated.
+- **Dependencies:** TASK-160, TASK-164, TASK-165, TASK-178, TASK-179.
+- **Touched Files:** `apps/web/src/analysis/experiment-adapter.ts`, `apps/web/src/analysis/ContextPanel.tsx`, `third_party/uavlogviewer/patches/experiment-context.patch`, `tests/experiment-adapter.test.ts`, `tests/browser/log-viewer-experiments.spec.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
+- **Interfaces / Contracts:** The adapter converts an experiment into a DataFlash file (TASK-178) plus a context document. External logs get context fields marked `unknown`.
+- **DoD & Acceptance Criteria:** A browser test opens an experiment and shows its events and context. An external log shows its unknowns. No parameter history is invented.
+
+### TASK-181 — Two-flight and two-interval comparison in the viewer
+
+- **Status:** TODO — registered 2026-10-28 from PROJECT_SCOPE.md; baseline 384e974.
+- **Title & Description:** (S14) Compare two flights, or two selected intervals of one flight, side by side or overlaid, with distinct curves and common scales for matching quantities. Align interval starts and shift time manually to match maneuvers. Parameter-change markers stay on each flight's timeline.
+- **Dependencies:** TASK-180.
+- **Touched Files:** `third_party/uavlogviewer/patches/compare.patch`, `apps/web/src/analysis/CompareLogs.tsx`, `tests/log-alignment.test.ts`, `tests/browser/log-compare.spec.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
+- **Interfaces / Contracts:** Alignment state: the offset of each source and the selected intervals, saved with the comparison.
+- **DoD & Acceptance Criteria:** The alignment arithmetic matches a fixture. A browser test overlays two logs with shared scales and a manual shift.
+
+## Stage P1.9: Experiments from Logs and Fidelity
+
+Scope step 9. Real logs are optional; when present they seed experiments and fidelity evidence (S15).
+
+### TASK-182 — Create an experiment from a real log
+
+- **Status:** TODO — registered 2026-10-28 from PROJECT_SCOPE.md; baseline 384e974.
+- **Title & Description:** (S15) **Create experiment from log** accepts a log and an interval and extracts the available initial conditions, parameters, and task and control information. It asks the user to supply missing inputs through the UI and discloses missing commands, weather or aircraft information. Exact replay of an arbitrary log is not promised, and the lack of a log never disables simulation.
+- **Dependencies:** TASK-165, TASK-172, TASK-178.
+- **Touched Files:** `packages/analysis/src/log-to-experiment.ts`, `apps/web/src/experiments/FromLogWizard.tsx`, `tests/log-to-experiment.test.ts`, `tests/browser/from-log.spec.ts`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
+- **Interfaces / Contracts:** Extraction report: each field is `extracted`, `user-supplied` or `missing`, with its source message.
+- **DoD & Acceptance Criteria:** Extraction matches the reference log's fields. Missing items are listed. The created experiment runs.
+
+### TASK-183 — Re-simulation with changed parameters and comparison with the original flight
+
+- **Status:** TODO — registered 2026-10-28 from PROJECT_SCOPE.md; baseline 384e974.
+- **Title & Description:** (S15) Run the created experiment with the original or changed ArduPilot parameters. The trajectory is recalculated, not forced to follow the recorded path. Compare the result with the original log in the viewer and with metrics.
+- **Dependencies:** TASK-177, TASK-181, TASK-182.
+- **Touched Files:** `packages/analysis/src/resimulate.ts`, `apps/web/src/experiments/FromLogCompare.tsx`, `tests/resimulate.test.ts`, `tests/browser/from-log-compare.spec.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
+- **Interfaces / Contracts:** Re-simulation never feeds recorded positions back into physics. The comparison uses the TASK-181 alignment.
+- **DoD & Acceptance Criteria:** A test shows that the re-simulated path can diverge from the recording. The comparison opens with aligned timelines and metrics.
+
+### TASK-184 — Fidelity assessment per profile version and regime
+
+- **Status:** TODO — registered 2026-10-28 from PROJECT_SCOPE.md; baseline 384e974.
+- **Title & Description:** (S15) Where matching data exists, compare attitude and rate response, overshoot and oscillation, altitude, climb and descent, trajectory, and measured propulsion and energy quantities, using the TASK-090 metrics against the TASK-133 limits. Evidence belongs to one profile version and its tested regimes; geometry, mass, motor or propeller changes require a new assessment. Missing data remains unverified rather than passed. Operational acceptance and fidelity are reported separately.
+- **Dependencies:** TASK-090, TASK-133, TASK-183.
+- **Touched Files:** `packages/analysis/src/fidelity.ts`, `apps/web/src/experiments/FidelityReport.tsx`, `scripts/check-fidelity.mjs`, `tests/fidelity-assessment.test.ts`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
+- **Interfaces / Contracts:** Fidelity record: profile version hash, regimes, metrics, limits and verdicts, with the existing exit-code convention (0 PASS, 1 FAIL or invalid, 2 BLOCKED_EXTERNAL).
+- **DoD & Acceptance Criteria:** Synthetic oracles pass. At least one real flight log is scored before DONE (G4). A profile change invalidates the label.
+
+## Stage P1.10: Visualization and Existing Terrain
+
+Scope step 10. Geometry-derived views and the existing terrain, without new providers or deferred effects (S17, S18).
+
+### TASK-185 — Geometry-driven aircraft model, views and telemetry panels
+
+- **Status:** TODO — registered 2026-10-28 from PROJECT_SCOPE.md; baseline 384e974.
+- **Title & Description:** (S17) Build the 3D aircraft from the profile: arms, motors, spin indicators and thrust axes. Provide external and onboard views; the onboard view reuses the TASK-067 camera pose without artistic or analog effects. Show the trajectory, the route and its points, and the flight and per-motor telemetry panels.
+- **Dependencies:** TASK-067, TASK-141, TASK-153.
+- **Touched Files:** `apps/web/src/FlightScene.tsx`, `apps/web/src/scene/AircraftModel.tsx`, `apps/web/src/scene/Trajectory.tsx`, `apps/web/src/scene/RouteOverlay.tsx`, `apps/web/src/run/TelemetryPanels.tsx`, `tests/browser/flight-views.spec.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
+- **Interfaces / Contracts:** The scene reads interpolated state only. Panels update at a decimated rate and never on each physics step.
+- **DoD & Acceptance Criteria:** The rendered aircraft matches the profile in tests. Views switch without leaks. Panels show per-motor values from the session. Frame times meet the TASK-132 rendering criteria.
+
+### TASK-186 — Terrain source selection, coverage and missing-terrain pause
+
+- **Status:** TODO — registered 2026-10-28 from PROJECT_SCOPE.md; baseline 384e974.
+- **Title & Description:** (S17) Select at run time, not at build time, between the explicitly labeled synthetic level pad and the available real terrain. Imagery and elevation are distinguished, and coverage, source and detail are shown. An adapter that needs deployment, keys or data is shown as not ready. Missing terrain during a real-terrain run pauses it through the synchronized pause instead of substituting a plane. Automatic region downloads are excluded.
+- **Dependencies:** TASK-065, TASK-131, TASK-148, TASK-156.
+- **Touched Files:** `apps/web/src/terrain-config.ts`, `apps/web/src/weather/TerrainSource.tsx`, `packages/terrain/src/coverage.ts`, `tests/terrain-coverage.test.ts`, `tests/browser/terrain-source.spec.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
+- **Interfaces / Contracts:** Terrain source record: kind, coverage, resolution, license and readiness from the TASK-131 inventory. A missing collision chunk pauses with reason `terrain`.
+- **DoD & Acceptance Criteria:** The pad works offline. Real terrain loads from inventoried local data. A missing chunk causes a synchronized pause with a message. Unready adapters (Google tiles, R2) are marked not ready.
+
+### TASK-187 — Contact on sloped real terrain in integrated sessions
+
+- **Status:** TODO — registered 2026-10-28 from PROJECT_SCOPE.md; baseline 384e974.
+- **Title & Description:** (S18) Provide basic contact with the synthetic pad and the available real terrain, including surface slope, in flight sessions, using the TASK-133 approximation and no gear editor. Contact loads and events can be inspected in recordings.
+- **Dependencies:** TASK-095, TASK-149, TASK-186.
+- **Touched Files:** `packages/physics/src/terrain-contact.ts`, `packages/physics/src/profile-dynamics.ts`, `packages/terrain/src/collision-chunks.ts`, `tests/terrain-slope-contact.test.ts`, `tests/browser/terrain-contact-session.spec.ts`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
+- **Interfaces / Contracts:** Per-tick terrain planes come from collision chunks (TASK-065), with the contact backend as the single integration owner (TASK-095).
+- **DoD & Acceptance Criteria:** Slope-hold and slide fixtures pass within the TASK-133 tolerance. SITL lands on sloped terrain. Contact events are recorded. No specific landing-gear fidelity is claimed.
+
+## Stage P1.11: Integrated Acceptance and Local Delivery
+
+Scope step 11. Execute S19 on macOS and prepare local delivery, recording PASS, FAIL, BLOCKED and NOT_RUN separately.
+
+### TASK-188 — Phase 1 acceptance matrix harness
+
+- **Status:** TODO — registered 2026-10-28 from PROJECT_SCOPE.md; baseline 384e974.
+- **Title & Description:** (S19) Build a hash-bound runner and aggregator over the configurations (quad, hexa and octo with one motor per arm; a paired or coaxial configuration; eight arms with two motors each) and the workflows: profile creation through the UI, output mapping, start, flight task, pause and resume, parameter changes, recording, reopening results, and explicit refusal of unsupported operations. Reuse the TASK-082 evidence conventions.
+- **Dependencies:** TASK-132, TASK-134, TASK-158.
+- **Touched Files:** `scripts/phase1/acceptance.mjs`, `scripts/validate-release.mjs`, `docs/validation/phase1-matrix.json`, `tests/phase1-acceptance.test.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
+- **Interfaces / Contracts:** Verdicts PASS, FAIL, BLOCKED_EXTERNAL, BLOCKED_DECISION and NOT_RUN, each with an evidence path and SHA-256. Missing evidence is NOT_RUN. Reports never enable a runtime mode.
+- **DoD & Acceptance Criteria:** The matrix aggregates evidence with hashes. Missing evidence shows as NOT_RUN. Failures are preserved. A forged or stale report is rejected.
+
+### TASK-189 — Sixteen-motor one-hour simulated-time run with recording
+
+- **Status:** TODO — registered 2026-10-28 from PROJECT_SCOPE.md; baseline 384e974.
+- **Title & Description:** (S19) On the agreed Apple Silicon reference hardware in Chrome, the 16-motor configuration completes at least one continuous hour of simulated time with recording. This is not necessarily one hour of wall time, and the actual rate is still reported: executed Hz, drops and the simulated/wall ratio.
+- **Dependencies:** TASK-091, TASK-162, TASK-175, TASK-188.
+- **Touched Files:** `scripts/phase1/endurance.mjs`, `tests/integration/phase1-endurance.test.ts`, `docs/validation/phase1-matrix.json`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
+- **Interfaces / Contracts:** Evidence: device, chip, memory, macOS, Chrome, power mode, physics rate, workload and recording size, with hashes.
+- **DoD & Acceptance Criteria:** A current capture shows one continuous simulated hour with a complete recording and no undeclared gap. A failure against the TASK-132 criteria is recorded as FAIL, never hidden.
+
+### TASK-190 — macOS delivery: installation, restart, offline operation and recovery
+
+- **Status:** TODO — registered 2026-10-28 from PROJECT_SCOPE.md; baseline 384e974.
+- **Title & Description:** (S01, S19) Demonstrate the clean-machine installation on a reference Mac, restart, and the offline workflows with the network disabled: simulation, tuning, local libraries, recording and log analysis. Demonstrate export and import, and verify the installation and recovery guidance. Produce a release manifest of sources, artifacts, datasets and licenses, reusing the TASK-083 tooling.
+- **Dependencies:** TASK-152, TASK-179, TASK-188.
+- **Touched Files:** `scripts/install-macos.mjs`, `scripts/release-manifest.mjs`, `tests/release-manifest.test.ts`, `docs/operations/install-macos.md`, `docs/ru/install-macos.md`, `docs/operations/runbook.md`, `docs/ru/runbook.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
+- **Interfaces / Contracts:** A release manifest with hashes and license status per item. An unreviewed license blocks delivery as BLOCKED_DECISION.
+- **DoD & Acceptance Criteria:** A recorded clean installation and an offline run with the network blocked both pass. The recovery steps are verified. Nothing is deployed or published automatically.
+
+### TASK-191 — Phase 1 acceptance report
+
+- **Status:** TODO — registered 2026-10-28 from PROJECT_SCOPE.md; baseline 384e974.
+- **Title & Description:** (S19) Execute every S19 criterion: the full matrix, comparisons, parameter export, offline operation and the 16-motor hour. Report hardware performance and fidelity results against the TASK-132 and TASK-133 decisions, keeping PASS, FAIL, BLOCKED and NOT_RUN separate. Historical results are never reused as current acceptance.
+- **Dependencies:** TASK-096, TASK-098, TASK-099, TASK-100, TASK-101, TASK-106, TASK-145, TASK-163, TASK-167, TASK-170, TASK-171, TASK-174, TASK-176, TASK-177, TASK-181, TASK-184, TASK-185, TASK-187, TASK-189, TASK-190.
+- **Touched Files:** `test-results/validation/phase1-acceptance.json`, `docs/validation/phase1-matrix.json`, `docs/PHASE1_PLAN.md`, `docs/ru/PHASE1_PLAN.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
+- **Interfaces / Contracts:** Report schema: S-ID, criterion, verdict, evidence path and hash, device, and source identities.
+- **DoD & Acceptance Criteria:** Every S19 criterion has current evidence or an explicit status. The report is hash-bound. Phase 1 is declared accepted only when every mandatory criterion is PASS, or when the stakeholder records an explicit decision for an item.
 
 ## Current Verification & Hardware Summary
 
