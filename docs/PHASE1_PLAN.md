@@ -425,6 +425,13 @@ Decisions taken by the stakeholder on 2026-10-28:
 * D-12: the manual screen-reader sign-off of TASK-080 is not part of Phase 1
   acceptance; the automated keyboard and axe checks remain.
 
+TASK-136 defined the project-archive part of D-05 on 2026-10-28: project
+archive v1 (`.mirageproj`) and its import rules, in
+[SPECS_SIMULATION_ENGINES.md](SPECS_SIMULATION_ENGINES.md), section "Local
+project store and project archive v1 (TASK-136)". It is a technical format that
+the stakeholder can still change. The formats for measured data and component
+cards remain with TASK-139 and TASK-140.
+
 ## 7. Risks
 
 | Risk | Effect | Early check | Response |

@@ -3524,3 +3524,247 @@ largest differences were 8.5e-14 for the rotor and 8.4e-16 for the body, in
 both the scalar and SIMD128 builds. Per-component relative error reached
 9.9e-13, on a near-cancelling 6.5e-5 N·m moment component whose absolute
 difference was 6.4e-17.
+
+## Local project store and project archive v1 (TASK-136)
+
+Scope S16 and S01. `packages/project` keeps projects, component cards,
+aircraft profiles and experiments in the browser, with no account or cloud
+service. Every edit appends an immutable version; nothing stored is rewritten
+or deleted. This section is the D-05 contract for project import and export.
+The file formats for measured data and component cards stay with TASK-139 and
+TASK-140.
+
+### Storage backend
+
+The backend is IndexedDB, for these reasons:
+
+* One transaction checks the head that an edit replaces and appends the new
+  version. An interrupted write leaves nothing behind, and two tabs cannot
+  both append the same version number.
+* A unique index on `[id, version]` refuses a second content for one item
+  version, even from a caller that bypasses the store.
+* It works in the main thread and in Workers, and the repository already uses
+  it for AAR chunks (TASK-076) and EEPROM checkpoints (TASK-045).
+* The Origin Private File System offers files but no transaction across
+  files. It suits large sequential binary data, such as the full-run
+  recordings of TASK-162, which can reference project records by SHA-256.
+* Files managed by the launcher (TASK-151) remain the documented alternative.
+  They survive clearing the browser's site data and can be backed up with
+  ordinary tools, but they need the launcher to run. Until then, project
+  archives are the backup path.
+
+Browser storage belongs to the page's origin: scheme, host and port.
+`http://127.0.0.1:5173` and `http://localhost:5173` are different origins
+with different data, so the launcher must serve the application from one
+fixed origin. Clearing the site's data deletes its projects, and Chrome may
+evict storage that is not persistent when the disk is low. The quota report
+shows whether the origin's storage is persistent.
+
+### Records
+
+```typescript
+type ItemKind = "project" | "component-card" | "aircraft-profile" | "experiment";
+interface Dependency { kind: ItemKind; sha256: string }
+interface ProjectRecord {
+  schemaVersion: 1;
+  kind: ItemKind;
+  id: string;                  // UUID v4 shared by all versions of one item
+  projectId: string;           // equal to id for a project record
+  version: number;             // 1..1000000
+  previous: string | null;     // sha256 of version - 1; null exactly for version 1
+  origin: { copiedFrom: string } | null; // only on version 1 of a copy
+  name: string;                // NFC, trimmed, 1..128 code points
+  createdAt: string;           // UTC, YYYY-MM-DDTHH:mm:ss.sssZ
+  dependencies: Dependency[];  // exact versions, sorted by sha256
+  payload: object;             // owned by the kind's task
+}
+```
+
+* **Address.** A record is addressed by the lowercase hexadecimal SHA-256 of
+  its canonical JSON bytes. Canonical JSON follows RFC 8785: keys sorted by
+  UTF-16 code units, ECMAScript serialization of numbers and strings, and no
+  white space. It is encoded as UTF-8, with at most 1,048,576 bytes and 32
+  nested levels. Stored and imported bytes must equal the canonical form
+  exactly. Non-finite numbers, lone surrogates, `__proto__` keys, sparse
+  arrays and objects that are not plain are rejected.
+* **Validation.** `project.schema.json` (JSON Schema draft-07) validates the
+  envelope, which starts as `unknown`. Code checks what the schema cannot
+  express; the schema's description lists those rules.
+* **Names.** A name is Unicode NFC after its leading and trailing white space
+  is removed, with 1 to 128 code points. It may not contain C0 or C1 control
+  characters, lone surrogates, U+2028 or U+2029, or the bidirectional marks,
+  embeddings, overrides and isolates (U+061C, U+200E, U+200F,
+  U+202A–U+202E and U+2066–U+2069). Russian and English text round-trip.
+  The store normalizes names given to it. A stored or imported name that is
+  not already in this form is rejected rather than rewritten, because
+  rewriting would change the record's address.
+* **Dependencies.** In schema v1, projects and component cards have none, an
+  aircraft profile may depend on component cards, and an experiment on
+  aircraft profiles and component cards. A dependency must be a stored
+  version of the same project.
+* **Payloads.** A project's payload is `{}`. The store does not interpret
+  card, profile and experiment payloads beyond the canonical JSON limits.
+  Their owner tasks (TASK-138, TASK-139, TASK-154 and TASK-165) register
+  payload validators, which apply when a version is written or imported, not
+  when it is read.
+
+### Versions
+
+* An item is a chain of versions 1 to n, each naming its predecessor by
+  SHA-256. An edit (`saveVersion`) names the head it replaces; if the current
+  head differs, the edit fails with `conflict`. An edit that repeats the
+  head's name, payload and dependencies returns the head and creates no
+  version.
+* An experiment's inputs, its payload and its dependencies, are fixed at
+  version 1; later versions may only rename it. Dependencies name exact
+  versions, so editing a profile or a card never changes the inputs or the
+  bytes of an earlier experiment.
+* `copyItem` creates a new item in the same project whose version 1 carries
+  `origin.copiedFrom`; the source is unchanged. Projects are not copied.
+* Every read checks the row: the SHA-256 of its bytes, its canonical form and
+  the fields the backend indexes. A mismatch is a `storage` error.
+
+The IndexedDB database is `mirage-project-store`, version 1, with one object
+store, `records`. Its key path is `sha256`, and each value is
+`{sha256, id, projectId, kind, version, bytes}`, where `bytes` holds the
+canonical UTF-8 record. Indexes: `item` on `[id, version]` (unique),
+`project` on `projectId` and `kind` on `kind`. Rows are only ever added.
+
+```typescript
+interface Draft { name: string; payload: unknown; dependencies?: string[] }
+interface StoredVersion { sha256: string; bytes: Uint8Array; record: ProjectRecord }
+interface ProjectStoreOptions {
+  now?: () => Date;
+  uuid?: () => string;                                      // UUID v4 source; crypto.randomUUID by default
+  validators?: { [kind in ItemKind]?: (payload: unknown) => void };
+  storage?: { estimate?(): Promise<{ usage?: number; quota?: number }>; persisted?(): Promise<boolean> } | null;
+}
+interface MissingDependency {
+  kind: ItemKind;
+  sha256: string;
+  requiredBy: { sha256: string; kind: ItemKind; id: string; version: number; name: string }[];
+}
+interface ImportReport {
+  projectId: string;
+  added: number;                                            // records newly stored
+  unchanged: number;                                        // archive records already stored
+  items: { id: string; kind: ItemKind; name: string; status: "new" | "fast-forward" | "unchanged" | "local-newer";
+    localVersion: number; importedVersion: number }[];
+  missing: MissingDependency[];
+}
+interface ExportResult { archive: Uint8Array; entries: number; bytes: number; missing: MissingDependency[] }
+interface StorageReport {
+  records: number;
+  storeBytes: number;                                       // canonical record bytes in this store
+  usageBytes: number | null;                                // origin-wide, from navigator.storage.estimate()
+  quotaBytes: number | null;
+  persisted: boolean | null;                                // navigator.storage.persisted()
+}
+declare class ProjectStore {
+  static openIndexedDb(options?: ProjectStoreOptions & { databaseName?: string }): Promise<ProjectStore>;
+  createProject(name: string): Promise<StoredVersion>;
+  createItem(projectId: string, kind: "component-card" | "aircraft-profile" | "experiment", draft: Draft): Promise<StoredVersion>;
+  saveVersion(id: string, expectedHead: string, draft: Draft): Promise<StoredVersion>;
+  copyItem(sourceSha256: string, name: string): Promise<StoredVersion>;
+  get(sha256: string): Promise<StoredVersion>;
+  history(id: string): Promise<StoredVersion[]>;
+  head(id: string): Promise<StoredVersion | null>;
+  listProjects(): Promise<StoredVersion[]>;
+  listItems(projectId: string, kind?: "component-card" | "aircraft-profile" | "experiment"): Promise<StoredVersion[]>;
+  missingDependencies(projectId: string): Promise<MissingDependency[]>;
+  exportProject(projectId: string): Promise<ExportResult>;
+  importArchive(input: Blob | Uint8Array): Promise<ImportReport>;
+  storageReport(): Promise<StorageReport>;
+  close(): void;
+}
+type ProjectStoreErrorCode = "invalid" | "not-found" | "conflict" | "missing-dependency" | "quota-exceeded"
+  | "storage" | "archive-size" | "archive-header" | "archive-hash" | "archive-invalid";
+```
+
+### Project archive v1
+
+The suggested file extension is `.mirageproj`. Like the TASK-081 AAR
+archive, the format is uncompressed and length-delimited. All integers are
+little-endian, and a whole archive has at most 134,217,728 bytes.
+
+| Byte offset | Type | Field |
+| ---: | --- | --- |
+| 0 | u32 | magic 0x4a52504d (bytes "MPRJ") |
+| 4 | u32 | format version 1 |
+| 8 | u32 | manifest bytes, 2..4,194,304 |
+| 12 | u32 | entry count, 1..16,384 |
+| 16 | u32 | payload bytes, the sum of the entry bytes |
+| 20 | bytes[12] | reserved, zero |
+| 32 | bytes[32] | SHA-256 of the whole archive with bytes 32..63 read as zero |
+
+The canonical JSON manifest starts at byte 64. Each entry's canonical record
+bytes follow it, in manifest order.
+
+```typescript
+interface ArchiveManifest {
+  format: "mirage-project-archive";
+  formatVersion: 1;
+  projectId: string;
+  exportedAt: string;
+  entries: { sha256: string; bytes: number; kind: ItemKind; id: string; version: number }[];
+}
+```
+
+* **Export** writes every version of every item of one project. The project
+  record comes first, then component cards, aircraft profiles and
+  experiments, each ordered by id and version. Export also reports
+  dependencies that no stored version satisfies.
+* **Import** checks, in this order:
+  1. the size, taken from the Blob or array length before any byte is read;
+  2. the header, from its first 64 bytes only: magic, version, reserved bytes,
+     limits, and 64 + manifest + payload equal to the size;
+  3. the archive SHA-256;
+  4. the manifest: canonical JSON, the schema, counts and sums equal to the
+     header, and no address or item version listed twice;
+  5. each entry: its SHA-256, canonical form, envelope and payload
+     validators, and agreement with its manifest entry;
+  6. that every record belongs to the manifest's project, that the project
+     record is present, and that each item's history is complete from
+     version 1.
+* **Merge.** Each item is new, fast-forward (the archive extends the local
+  history), unchanged, or local-newer (the local history extends the
+  archive's). A history that diverged from the local one refuses the whole
+  import with `conflict`. The import commits in one transaction, which also
+  checks that no item's head changed meanwhile.
+* **Missing dependencies.** A dependency that neither the archive nor the
+  store holds is reported with its kind, its address and every version that
+  needs it, and the import proceeds. A dependency that resolves to a record
+  of another kind or another project rejects the archive.
+* **Errors.** `archive-size`, `archive-header`, `archive-hash`,
+  `archive-invalid` and `conflict`. A rejected import stores nothing.
+
+### Quota report
+
+`storageReport()` returns the store's record count and canonical bytes, the
+origin's usage and quota from `navigator.storage.estimate()`, and the result
+of `navigator.storage.persisted()`. A value that is unavailable or invalid is
+null. A write that exceeds the quota fails with `quota-exceeded` and stores
+nothing.
+
+### Not in schema v1
+
+* Deleting projects or versions, and garbage collection of unreferenced
+  records.
+* References to artifacts outside the store, such as the ArduPilot build or
+  terrain data. The tasks that add them to experiments (TASK-154, TASK-165
+  and TASK-186) extend the dependency model with a schema version bump.
+* Binary attachments and recordings (TASK-140, TASK-162 and TASK-164).
+* Mutable user-interface state such as the navigation that TASK-137
+  restores; schema v1 holds versioned records only.
+
+### Verification (TASK-136)
+
+`tests/project-store.test.ts` runs the store on an in-memory backend with
+the same commit rules as IndexedDB. Its oracles are the RFC 8785 examples, a
+record canonicalized and hashed by Python's `json` and `hashlib` (342 bytes,
+SHA-256 `10c1d0ab…34866`), Unicode NFC compositions of Cyrillic and Latin
+text, and archives that the test parses and rebuilds itself from the byte
+layout above, using `node:crypto` hashes. `tests/browser/project-store.spec.ts`
+runs the same operations on Chromium's IndexedDB with the network disabled,
+restarts the browser on the same profile, reopens the data and imports the
+archive into a second database. The roadmap entry records the results.

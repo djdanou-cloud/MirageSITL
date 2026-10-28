@@ -204,9 +204,13 @@ implementation.
   pass or fail; the user judges the comparisons. TASK-130 is DONE: the pinned
   UAVLogViewer builds and opens a current ArduCopter log offline
   ([uavlogviewer.md](docs/decisions/uavlogviewer.md),
-  `node scripts/check-uavlogviewer.mjs`). Decisions D-04 and D-06 to D-12 are
-  decided; D-01 to D-03 wait on TASK-127 to TASK-129, which need a Mac, and the
-  import and export formats of D-05 on TASK-136, TASK-139 and TASK-140. TASK-073,
+  `node scripts/check-uavlogviewer.mjs`). TASK-136 is DONE: `packages/project`
+  keeps projects, component cards, aircraft profiles and experiments in
+  IndexedDB as immutable versions addressed by SHA-256, with project archives
+  (`.mirageproj`); the application starts using it in TASK-137. Decisions D-04 and
+  D-06 to D-12 are decided; D-01 to D-03 wait on TASK-127 to TASK-129, which
+  need a Mac. TASK-136 defined the project archive of D-05; its measured-data
+  and component-card formats wait on TASK-139 and TASK-140. TASK-073,
   TASK-080, TASK-082 and TASK-083 below are not Phase 1 gates; see their Phase 1
   dispositions in the roadmap.
 * **Measured model fidelity (separate from the TASK-033 synthetic baseline):** `node scripts/validate-models.mjs`

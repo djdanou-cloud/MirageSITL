@@ -108,6 +108,7 @@ Workspace packages, services, and native crates:
 | `packages/thermal` | Surface material classes (WorldCover/OSM) with provenance; not temperatures |
 | `packages/aar` | Input/actuator/truth/EKF recording and replay |
 | `packages/scenarios` | Declarative training scenarios, tick runner, and trace rubrics |
+| `packages/project` | Local project store: immutable versions, project archives (TASK-136) |
 | `services/tiles-worker` | Cloudflare proxy, quotas, permitted caching |
 | `native` | Source/toolchain pins and WASM reference tests |
 
@@ -347,6 +348,27 @@ runs. Lower-rate updates (turbulence coefficients, wakes, GNSS visibility) use
 integer-phase, tick-indexed schedulers, so results do not depend on host speed.
 Each vehicle's physics stays single-threaded; work outside the step (GNSS
 line-of-sight, turbulence-box generation, recording) moves to other Workers.
+
+## Local project store (TASK-136)
+
+`packages/project` keeps projects, component cards, aircraft profiles and
+experiments in the browser's IndexedDB, with no account or cloud service
+(S16, S01). Each edit appends an immutable version addressed by the SHA-256 of
+its canonical JSON (RFC 8785). A version names the exact versions it depends
+on, so editing a profile or a card never changes the inputs of an earlier
+experiment. A project archive (`.mirageproj`) carries every version of one
+project with a hash for each record. Import rejects tampered, oversized and
+diverged archives and reports missing dependencies.
+
+IndexedDB was chosen over the Origin Private File System because one
+transaction can check an item's head and append its next version; the file
+system suits the large recordings of TASK-162. The data belong to the page's
+origin, so the launcher (TASK-151) must serve the application from one fixed
+origin. Files managed by the launcher remain the documented alternative. The
+contract is in [SPECS_SIMULATION_ENGINES.md](SPECS_SIMULATION_ENGINES.md),
+section "Local project store and project archive v1 (TASK-136)". The
+application does not use the store yet: TASK-137 adds the shell and its
+project context.
 
 ## Phase 0 contracts: fixtures, capabilities, and models
 

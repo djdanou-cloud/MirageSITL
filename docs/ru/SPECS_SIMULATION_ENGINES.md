@@ -121,7 +121,7 @@ model-report v7 заменяет схему одного профиля v6 об�
 отдельные доказательства; производственная интеграция BET ABI/сессии открыта.
 
 
-<!-- source-sha256: 7da9d15abe811cbceba1eac01c2b6a30edace1b8e0eee50ff412cd9042f1a47d -->
+<!-- source-sha256: 8e1237db3e81bd289f130a3754a8a4de309ac490644158fa91e1b63ccc806d55 -->
 
 Английский источник: [Source of truth](../SPECS_SIMULATION_ENGINES.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -3629,3 +3629,251 @@ v1, которые оставляют состояние и выход без и
 и 8.4e-16 для тела, и в скалярной сборке, и в SIMD128. Относительная ошибка
 отдельной компоненты достигала 9.9e-13 на почти взаимно гасящейся компоненте
 момента 6.5e-5 Н·м с абсолютным расхождением 6.4e-17.
+
+## Локальное хранилище проектов и архив проекта v1 (TASK-136)
+
+Требования scope S16 и S01. `packages/project` хранит проекты, карточки
+компонентов, профили аппаратов и эксперименты в браузере, без учётной записи и
+облачного сервиса. Каждая правка добавляет неизменяемую версию; ничто
+сохранённое не перезаписывается и не удаляется. Этот раздел — контракт D-05 для
+импорта и экспорта проектов. Форматы файлов измеренных данных и карточек
+компонентов остаются за TASK-139 и TASK-140.
+
+### Механизм хранения
+
+Механизм хранения — IndexedDB, по следующим причинам:
+
+* Одна транзакция проверяет голову (head), которую заменяет правка, и добавляет
+  новую версию. Прерванная запись не оставляет следов, и две вкладки не могут
+  обе добавить версию с одним и тем же номером.
+* Уникальный индекс по `[id, version]` отклоняет второе содержимое для одной
+  версии элемента, даже если вызывающий код обходит хранилище.
+* IndexedDB работает в главном потоке и в Worker, и репозиторий уже использует
+  её для чанков AAR (TASK-076) и контрольных точек EEPROM (TASK-045).
+* Origin Private File System даёт файлы, но не транзакции между файлами. Она
+  подходит для больших последовательных двоичных данных, например записей
+  полного прогона TASK-162, которые могут ссылаться на записи проекта по
+  SHA-256.
+* Файлы под управлением лаунчера (TASK-151) остаются задокументированной
+  альтернативой. Они переживают очистку данных сайта в браузере и копируются
+  обычными средствами резервного копирования, но требуют работающего лаунчера.
+  До его появления путь резервного копирования — архивы проектов.
+
+Хранилище браузера принадлежит origin страницы: схеме, хосту и порту.
+`http://127.0.0.1:5173` и `http://localhost:5173` — разные origin с разными
+данными, поэтому лаунчер обязан раздавать приложение с одного фиксированного
+origin. Очистка данных сайта удаляет его проекты, а Chrome может вытеснить
+непостоянное хранилище при нехватке места на диске. Отчёт о квоте показывает,
+является ли хранилище origin постоянным.
+
+### Записи
+
+```typescript
+type ItemKind = "project" | "component-card" | "aircraft-profile" | "experiment";
+interface Dependency { kind: ItemKind; sha256: string }
+interface ProjectRecord {
+  schemaVersion: 1;
+  kind: ItemKind;
+  id: string;                  // UUID v4 shared by all versions of one item
+  projectId: string;           // equal to id for a project record
+  version: number;             // 1..1000000
+  previous: string | null;     // sha256 of version - 1; null exactly for version 1
+  origin: { copiedFrom: string } | null; // only on version 1 of a copy
+  name: string;                // NFC, trimmed, 1..128 code points
+  createdAt: string;           // UTC, YYYY-MM-DDTHH:mm:ss.sssZ
+  dependencies: Dependency[];  // exact versions, sorted by sha256
+  payload: object;             // owned by the kind's task
+}
+```
+
+* **Адрес.** Запись адресуется шестнадцатеричным SHA-256 в нижнем регистре от
+  байтов её канонического JSON. Канонический JSON следует RFC 8785: ключи
+  отсортированы по кодовым единицам UTF-16, числа и строки сериализуются по
+  правилам ECMAScript, пробельных символов нет. Он кодируется в UTF-8 и имеет
+  не более 1,048,576 байт и 32 уровней вложенности. Сохранённые и
+  импортированные байты обязаны в точности совпадать с канонической формой.
+  Нечисловые и бесконечные значения, одиночные суррогаты, ключи `__proto__`,
+  разреженные массивы и объекты, не являющиеся простыми, отклоняются.
+* **Проверка.** `project.schema.json` (JSON Schema draft-07) проверяет конверт
+  записи, который поступает как `unknown`. Код проверяет то, что схема выразить
+  не может; эти правила перечислены в описании схемы.
+* **Названия.** Название — это текст Unicode NFC после удаления пробельных
+  символов в начале и в конце, от 1 до 128 кодовых точек. Оно не может
+  содержать управляющие символы C0 или C1, одиночные суррогаты, U+2028 или
+  U+2029, а также двунаправленные метки, вложения, переопределения и изоляторы
+  (U+061C, U+200E, U+200F, U+202A–U+202E и U+2066–U+2069). Русский и
+  английский текст проходят полный цикл. Хранилище нормализует переданные ему
+  названия. Сохранённое или импортированное название, которое ещё не находится
+  в этой форме, отклоняется, а не переписывается, потому что переписывание
+  изменило бы адрес записи.
+* **Зависимости.** В схеме v1 у проектов и карточек компонентов зависимостей
+  нет, профиль аппарата может зависеть от карточек компонентов, а эксперимент —
+  от профилей аппаратов и карточек компонентов. Зависимость обязана быть
+  сохранённой версией того же проекта.
+* **Полезная нагрузка.** Полезная нагрузка (payload) проекта — `{}`.
+  Хранилище не интерпретирует payload карточек, профилей и экспериментов сверх
+  ограничений канонического JSON. Задачи-владельцы (TASK-138, TASK-139,
+  TASK-154 и TASK-165) регистрируют валидаторы payload, которые применяются при
+  записи или импорте версии, но не при её чтении.
+
+### Версии
+
+* Элемент — это цепочка версий от 1 до n, каждая из которых называет
+  предшественницу по SHA-256. Правка (`saveVersion`) называет голову, которую
+  заменяет; если текущая голова другая, правка завершается ошибкой `conflict`.
+  Правка, повторяющая название, payload и зависимости головы, возвращает голову
+  и не создаёт версию.
+* Входные данные эксперимента — его payload и зависимости — фиксируются в
+  версии 1; последующие версии могут только переименовать его. Зависимости
+  называют точные версии, поэтому правка профиля или карточки никогда не меняет
+  входные данные или байты прежнего эксперимента.
+* `copyItem` создаёт новый элемент в том же проекте, версия 1 которого несёт
+  `origin.copiedFrom`; исходный элемент не меняется. Проекты не копируются.
+* Каждое чтение проверяет строку: SHA-256 её байтов, каноническую форму и поля,
+  которые индексирует backend. Несовпадение — ошибка `storage`.
+
+База IndexedDB — `mirage-project-store`, версия 1, с одним хранилищем объектов
+`records`. Его ключевой путь — `sha256`, а каждое значение —
+`{sha256, id, projectId, kind, version, bytes}`, где `bytes` содержит
+каноническую запись в UTF-8. Индексы: `item` по `[id, version]` (уникальный),
+`project` по `projectId` и `kind` по `kind`. Строки только добавляются.
+
+```typescript
+interface Draft { name: string; payload: unknown; dependencies?: string[] }
+interface StoredVersion { sha256: string; bytes: Uint8Array; record: ProjectRecord }
+interface ProjectStoreOptions {
+  now?: () => Date;
+  uuid?: () => string;                                      // UUID v4 source; crypto.randomUUID by default
+  validators?: { [kind in ItemKind]?: (payload: unknown) => void };
+  storage?: { estimate?(): Promise<{ usage?: number; quota?: number }>; persisted?(): Promise<boolean> } | null;
+}
+interface MissingDependency {
+  kind: ItemKind;
+  sha256: string;
+  requiredBy: { sha256: string; kind: ItemKind; id: string; version: number; name: string }[];
+}
+interface ImportReport {
+  projectId: string;
+  added: number;                                            // records newly stored
+  unchanged: number;                                        // archive records already stored
+  items: { id: string; kind: ItemKind; name: string; status: "new" | "fast-forward" | "unchanged" | "local-newer";
+    localVersion: number; importedVersion: number }[];
+  missing: MissingDependency[];
+}
+interface ExportResult { archive: Uint8Array; entries: number; bytes: number; missing: MissingDependency[] }
+interface StorageReport {
+  records: number;
+  storeBytes: number;                                       // canonical record bytes in this store
+  usageBytes: number | null;                                // origin-wide, from navigator.storage.estimate()
+  quotaBytes: number | null;
+  persisted: boolean | null;                                // navigator.storage.persisted()
+}
+declare class ProjectStore {
+  static openIndexedDb(options?: ProjectStoreOptions & { databaseName?: string }): Promise<ProjectStore>;
+  createProject(name: string): Promise<StoredVersion>;
+  createItem(projectId: string, kind: "component-card" | "aircraft-profile" | "experiment", draft: Draft): Promise<StoredVersion>;
+  saveVersion(id: string, expectedHead: string, draft: Draft): Promise<StoredVersion>;
+  copyItem(sourceSha256: string, name: string): Promise<StoredVersion>;
+  get(sha256: string): Promise<StoredVersion>;
+  history(id: string): Promise<StoredVersion[]>;
+  head(id: string): Promise<StoredVersion | null>;
+  listProjects(): Promise<StoredVersion[]>;
+  listItems(projectId: string, kind?: "component-card" | "aircraft-profile" | "experiment"): Promise<StoredVersion[]>;
+  missingDependencies(projectId: string): Promise<MissingDependency[]>;
+  exportProject(projectId: string): Promise<ExportResult>;
+  importArchive(input: Blob | Uint8Array): Promise<ImportReport>;
+  storageReport(): Promise<StorageReport>;
+  close(): void;
+}
+type ProjectStoreErrorCode = "invalid" | "not-found" | "conflict" | "missing-dependency" | "quota-exceeded"
+  | "storage" | "archive-size" | "archive-header" | "archive-hash" | "archive-invalid";
+```
+
+### Архив проекта v1
+
+Рекомендуемое расширение файла — `.mirageproj`. Как и архив AAR из TASK-081,
+формат не сжат и разделён длинами. Все целые числа — little-endian, а весь
+архив имеет не более 134,217,728 байт.
+
+| Смещение в байтах | Тип | Поле |
+| ---: | --- | --- |
+| 0 | u32 | magic 0x4a52504d (байты "MPRJ") |
+| 4 | u32 | версия формата 1 |
+| 8 | u32 | байты манифеста, 2..4,194,304 |
+| 12 | u32 | число записей, 1..16,384 |
+| 16 | u32 | байты полезной нагрузки, сумма байтов записей |
+| 20 | bytes[12] | зарезервировано, нули |
+| 32 | bytes[32] | SHA-256 всего архива, где байты 32..63 считаются нулями |
+
+Канонический JSON манифеста начинается с байта 64. За ним следуют канонические
+байты записей в порядке манифеста.
+
+```typescript
+interface ArchiveManifest {
+  format: "mirage-project-archive";
+  formatVersion: 1;
+  projectId: string;
+  exportedAt: string;
+  entries: { sha256: string; bytes: number; kind: ItemKind; id: string; version: number }[];
+}
+```
+
+* **Экспорт** записывает все версии всех элементов одного проекта. Сначала идёт
+  запись проекта, затем карточки компонентов, профили аппаратов и эксперименты,
+  каждый вид — по id и версии. Экспорт также сообщает о зависимостях, которым
+  не соответствует ни одна сохранённая версия.
+* **Импорт** проверяет в таком порядке:
+  1. размер — по длине Blob или массива до чтения какого-либо байта;
+  2. заголовок — только по первым 64 байтам: magic, версию, зарезервированные
+     байты, пределы и равенство 64 + манифест + полезная нагрузка размеру;
+  3. SHA-256 архива;
+  4. манифест: канонический JSON, схему, равенство счётчиков и сумм заголовку и
+     отсутствие повторно указанных адреса или версии элемента;
+  5. каждую запись: её SHA-256, каноническую форму, конверт, валидаторы payload
+     и соответствие своей записи в манифесте;
+  6. что каждая запись принадлежит проекту из манифеста, что запись проекта
+     присутствует и что история каждого элемента полна начиная с версии 1.
+* **Слияние.** Каждый элемент — новый (new), перематываемый вперёд
+  (fast-forward: архив продолжает локальную историю), неизменный (unchanged)
+  или более новый локально (local-newer: локальная история продолжает историю
+  архива). История, разошедшаяся с локальной, отклоняет весь импорт с ошибкой
+  `conflict`. Импорт фиксируется одной транзакцией, которая также проверяет,
+  что голова ни одного элемента за это время не изменилась.
+* **Отсутствующие зависимости.** О зависимости, которой нет ни в архиве, ни в
+  хранилище, сообщается с её видом, адресом и каждой версией, которой она
+  нужна, и импорт продолжается. Зависимость, указывающая на запись другого вида
+  или другого проекта, отклоняет архив.
+* **Ошибки.** `archive-size`, `archive-header`, `archive-hash`,
+  `archive-invalid` и `conflict`. Отклонённый импорт ничего не сохраняет.
+
+### Отчёт о квоте
+
+`storageReport()` возвращает число записей хранилища и их канонические байты,
+использование и квоту origin из `navigator.storage.estimate()` и результат
+`navigator.storage.persisted()`. Недоступное или неверное значение равно null.
+Запись, превышающая квоту, завершается ошибкой `quota-exceeded` и ничего не
+сохраняет.
+
+### Не входит в схему v1
+
+* Удаление проектов или версий и сборка мусора для записей, на которые никто
+  не ссылается.
+* Ссылки на артефакты вне хранилища, например на сборку ArduPilot или данные
+  рельефа. Задачи, которые добавляют их в эксперименты (TASK-154, TASK-165 и
+  TASK-186), расширяют модель зависимостей с повышением версии схемы.
+* Двоичные вложения и записи прогонов (TASK-140, TASK-162 и TASK-164).
+* Изменяемое состояние интерфейса, например навигация, которую восстанавливает
+  TASK-137; схема v1 содержит только версионируемые записи.
+
+### Проверка (TASK-136)
+
+`tests/project-store.test.ts` запускает хранилище на backend в памяти с теми
+же правилами фиксации, что и в IndexedDB. Эталоны (oracles) — примеры RFC 8785,
+запись, канонизированная и хешированная модулями Python `json` и `hashlib`
+(342 байта, SHA-256 `10c1d0ab…34866`), композиции Unicode NFC для кириллицы и
+латиницы и архивы, которые тест сам разбирает и собирает заново по описанной
+выше раскладке байтов с хешами `node:crypto`.
+`tests/browser/project-store.spec.ts` выполняет те же операции на IndexedDB в
+Chromium при отключённой сети, перезапускает браузер на том же профиле,
+повторно открывает данные и импортирует архив во вторую базу данных.
+Результаты фиксирует запись дорожной карты.
