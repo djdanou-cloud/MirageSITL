@@ -292,21 +292,36 @@ not establish these performance budgets.
 ## Physics fidelity program (TASK-087–TASK-123)
 
 Registered in the [roadmap](PROJECT_ROADMAP.md) as Phases 7–13 on 2026-10-26;
-nothing in this section is implemented yet. The program keeps the current
+the roadmap records each task's status. TASK-087 has started: vehicle manifest
+v2 validation, migration and derived values (`vehicle.schema.json`,
+`vehicle-manifest.ts`), the ArduPilot profile generator (`ardupilot-profile.ts`)
+and an optional `model.load` port in `PhysicsSessionV2`. TASK-090 has
+started: time-domain and Welch frequency-response metrics with a CIFER-style
+cost (`fidelity-metrics.ts`), bench CSV import (`bench-import.ts`) and
+`scripts/check-fidelity.mjs`; scoring measured data remains open. TASK-089 has
+started: a pinned-source ArduPilot SITL catalog
+(`tests/fixtures/sitl/ardupilot-catalog.json`), a 25-source error-ownership
+matrix with evidenced delivery paths, and a neutralizing parameter profile
+(`error-ownership.ts`). TASK-088 has started: bound-rotor and rigid-body step
+interfaces v2 (`bound_v2.rs`, `body_abi_v2.rs`, `rotor-v2.ts`, `body-v2.ts`)
+with fail-closed fields for later tasks; neutral records run the v1 steps
+bitwise. The rest of this section is not implemented yet. The program keeps the current
 ownership model: MirageSITL is ArduPilot's external flight-dynamics model.
 Native runs exchange JSON state lines with `--model JSON` (TASK-041). The
 browser build fills ArduPilot's `sitl_fdm` through the HAL mailbox (TASK-046),
 and ArduPilot's internal aircraft never advances. ArduPilot's `SIM_Multicopter`
 and `SIM_Plane` are therefore not modified, and the native firmware stays
-unmodified ([V2_PLAN.md](V2_PLAN.md), B1).
+unmodified ([V2_PLAN.md](V2_PLAN.md), B1) except for the opt-in TASK-089
+`imu-noise-floor` patch, which adds `SIM_ACC_FLOOR` and `SIM_GYR_FLOOR` so the
+fixed IMU noise floors can be switched off.
 
 | Layer | Location | Role in the program |
 | --- | --- | --- |
 | Physics kernels | `native/bet`, `native/contact` | All new physics models |
 | Kernel interfaces | `bound.rs`, `bet_bound.h`, `body_abi.rs` | One versioned v2 extension (TASK-088) |
 | Vehicle adapter | `bet-dynamics.ts`, `session-v2.ts` | Per-tick composition of the kernels |
-| Vehicle data | `model.schema.json` and its v2 successor | New vehicle parameters (TASK-087) |
-| Runtime environment | Control Protocol v2 | Weather and events at tick boundaries |
+| Vehicle data | `model.schema.json` (v1) and `vehicle.schema.json` (v2) | New vehicle parameters (TASK-087) |
+| Runtime environment | Control Protocol v2 | Weather, events and per-effect on/off and intensity controls (TASK-166) at tick boundaries |
 | Autopilot boundary | JSON state line, HAL mailbox, MAVLink injection | Sensor-error ownership (TASK-089) |
 | ArduPilot configuration | Generated parameter profile | Neutralize the ArduPilot errors MirageSITL owns |
 

@@ -1,0 +1,406 @@
+{
+  "schemaVersion": 1,
+  "description": "Sensor-error ownership matrices for the repository's evidenced autopilot configurations (TASK-089). TASK-047 parity uses ideal host sensors, so ArduPilot's SITL backends own every error they apply; the browser HAL bypasses the aircraft model's magnetic anomaly and motor terms, so nobody applies those. The TASK-059 EW runs inject GNSS through GPS_INPUT and set compass hard-iron offsets through PARAM_SET.",
+  "matrices": [
+    {
+      "schemaVersion": 1,
+      "id": "task-047-parity-native",
+      "path": "native-json",
+      "entries": [
+        {
+          "source": "imu.accel.noise-floor",
+          "owner": "ardupilot",
+          "delivery": []
+        },
+        {
+          "source": "imu.gyro.noise-floor",
+          "owner": "ardupilot",
+          "delivery": []
+        },
+        {
+          "source": "imu.accel.noise",
+          "owner": "ardupilot",
+          "delivery": []
+        },
+        {
+          "source": "imu.gyro.noise",
+          "owner": "ardupilot",
+          "delivery": []
+        },
+        {
+          "source": "imu.accel.bias",
+          "owner": "ardupilot",
+          "delivery": []
+        },
+        {
+          "source": "imu.gyro.bias",
+          "owner": "ardupilot",
+          "delivery": []
+        },
+        {
+          "source": "imu.accel.scale",
+          "owner": "ardupilot",
+          "delivery": []
+        },
+        {
+          "source": "imu.gyro.scale",
+          "owner": "ardupilot",
+          "delivery": []
+        },
+        {
+          "source": "imu.gyro.drift",
+          "owner": "ardupilot",
+          "delivery": []
+        },
+        {
+          "source": "imu.vibration",
+          "owner": "ardupilot",
+          "delivery": []
+        },
+        {
+          "source": "imu.lever-arm",
+          "owner": "ardupilot",
+          "delivery": []
+        },
+        {
+          "source": "imu.board-trim",
+          "owner": "ardupilot",
+          "delivery": []
+        },
+        {
+          "source": "baro.noise",
+          "owner": "ardupilot",
+          "delivery": []
+        },
+        {
+          "source": "baro.drift",
+          "owner": "ardupilot",
+          "delivery": []
+        },
+        {
+          "source": "baro.glitch",
+          "owner": "ardupilot",
+          "delivery": []
+        },
+        {
+          "source": "baro.delay",
+          "owner": "ardupilot",
+          "delivery": []
+        },
+        {
+          "source": "baro.wind",
+          "owner": "ardupilot",
+          "delivery": []
+        },
+        {
+          "source": "baro.ground-effect",
+          "owner": "ardupilot",
+          "delivery": []
+        },
+        {
+          "source": "mag.noise",
+          "owner": "ardupilot",
+          "delivery": []
+        },
+        {
+          "source": "mag.hard-iron",
+          "owner": "ardupilot",
+          "delivery": []
+        },
+        {
+          "source": "mag.soft-iron",
+          "owner": "ardupilot",
+          "delivery": []
+        },
+        {
+          "source": "mag.delay",
+          "owner": "ardupilot",
+          "delivery": []
+        },
+        {
+          "source": "mag.anomaly",
+          "owner": "ardupilot",
+          "delivery": []
+        },
+        {
+          "source": "mag.motor",
+          "owner": "ardupilot",
+          "delivery": []
+        },
+        {
+          "source": "gnss.receiver",
+          "owner": "ardupilot",
+          "delivery": []
+        }
+      ]
+    },
+    {
+      "schemaVersion": 1,
+      "id": "task-047-parity-browser",
+      "path": "browser-hal",
+      "entries": [
+        {
+          "source": "imu.accel.noise-floor",
+          "owner": "ardupilot",
+          "delivery": []
+        },
+        {
+          "source": "imu.gyro.noise-floor",
+          "owner": "ardupilot",
+          "delivery": []
+        },
+        {
+          "source": "imu.accel.noise",
+          "owner": "ardupilot",
+          "delivery": []
+        },
+        {
+          "source": "imu.gyro.noise",
+          "owner": "ardupilot",
+          "delivery": []
+        },
+        {
+          "source": "imu.accel.bias",
+          "owner": "ardupilot",
+          "delivery": []
+        },
+        {
+          "source": "imu.gyro.bias",
+          "owner": "ardupilot",
+          "delivery": []
+        },
+        {
+          "source": "imu.accel.scale",
+          "owner": "ardupilot",
+          "delivery": []
+        },
+        {
+          "source": "imu.gyro.scale",
+          "owner": "ardupilot",
+          "delivery": []
+        },
+        {
+          "source": "imu.gyro.drift",
+          "owner": "ardupilot",
+          "delivery": []
+        },
+        {
+          "source": "imu.vibration",
+          "owner": "ardupilot",
+          "delivery": []
+        },
+        {
+          "source": "imu.lever-arm",
+          "owner": "ardupilot",
+          "delivery": []
+        },
+        {
+          "source": "imu.board-trim",
+          "owner": "ardupilot",
+          "delivery": []
+        },
+        {
+          "source": "baro.noise",
+          "owner": "ardupilot",
+          "delivery": []
+        },
+        {
+          "source": "baro.drift",
+          "owner": "ardupilot",
+          "delivery": []
+        },
+        {
+          "source": "baro.glitch",
+          "owner": "ardupilot",
+          "delivery": []
+        },
+        {
+          "source": "baro.delay",
+          "owner": "ardupilot",
+          "delivery": []
+        },
+        {
+          "source": "baro.wind",
+          "owner": "ardupilot",
+          "delivery": []
+        },
+        {
+          "source": "baro.ground-effect",
+          "owner": "ardupilot",
+          "delivery": []
+        },
+        {
+          "source": "mag.noise",
+          "owner": "ardupilot",
+          "delivery": []
+        },
+        {
+          "source": "mag.hard-iron",
+          "owner": "ardupilot",
+          "delivery": []
+        },
+        {
+          "source": "mag.soft-iron",
+          "owner": "ardupilot",
+          "delivery": []
+        },
+        {
+          "source": "mag.delay",
+          "owner": "ardupilot",
+          "delivery": []
+        },
+        {
+          "source": "mag.anomaly",
+          "owner": "none",
+          "delivery": []
+        },
+        {
+          "source": "mag.motor",
+          "owner": "none",
+          "delivery": []
+        },
+        {
+          "source": "gnss.receiver",
+          "owner": "ardupilot",
+          "delivery": []
+        }
+      ]
+    },
+    {
+      "schemaVersion": 1,
+      "id": "task-059-ew-native",
+      "path": "native-json",
+      "entries": [
+        {
+          "source": "imu.accel.noise-floor",
+          "owner": "ardupilot",
+          "delivery": []
+        },
+        {
+          "source": "imu.gyro.noise-floor",
+          "owner": "ardupilot",
+          "delivery": []
+        },
+        {
+          "source": "imu.accel.noise",
+          "owner": "ardupilot",
+          "delivery": []
+        },
+        {
+          "source": "imu.gyro.noise",
+          "owner": "ardupilot",
+          "delivery": []
+        },
+        {
+          "source": "imu.accel.bias",
+          "owner": "ardupilot",
+          "delivery": []
+        },
+        {
+          "source": "imu.gyro.bias",
+          "owner": "ardupilot",
+          "delivery": []
+        },
+        {
+          "source": "imu.accel.scale",
+          "owner": "ardupilot",
+          "delivery": []
+        },
+        {
+          "source": "imu.gyro.scale",
+          "owner": "ardupilot",
+          "delivery": []
+        },
+        {
+          "source": "imu.gyro.drift",
+          "owner": "ardupilot",
+          "delivery": []
+        },
+        {
+          "source": "imu.vibration",
+          "owner": "ardupilot",
+          "delivery": []
+        },
+        {
+          "source": "imu.lever-arm",
+          "owner": "ardupilot",
+          "delivery": []
+        },
+        {
+          "source": "imu.board-trim",
+          "owner": "ardupilot",
+          "delivery": []
+        },
+        {
+          "source": "baro.noise",
+          "owner": "ardupilot",
+          "delivery": []
+        },
+        {
+          "source": "baro.drift",
+          "owner": "ardupilot",
+          "delivery": []
+        },
+        {
+          "source": "baro.glitch",
+          "owner": "ardupilot",
+          "delivery": []
+        },
+        {
+          "source": "baro.delay",
+          "owner": "ardupilot",
+          "delivery": []
+        },
+        {
+          "source": "baro.wind",
+          "owner": "ardupilot",
+          "delivery": []
+        },
+        {
+          "source": "baro.ground-effect",
+          "owner": "ardupilot",
+          "delivery": []
+        },
+        {
+          "source": "mag.noise",
+          "owner": "ardupilot",
+          "delivery": []
+        },
+        {
+          "source": "mag.hard-iron",
+          "owner": "mirage",
+          "delivery": [
+            "mavlink:sim-mag-offsets"
+          ]
+        },
+        {
+          "source": "mag.soft-iron",
+          "owner": "ardupilot",
+          "delivery": []
+        },
+        {
+          "source": "mag.delay",
+          "owner": "ardupilot",
+          "delivery": []
+        },
+        {
+          "source": "mag.anomaly",
+          "owner": "ardupilot",
+          "delivery": []
+        },
+        {
+          "source": "mag.motor",
+          "owner": "ardupilot",
+          "delivery": []
+        },
+        {
+          "source": "gnss.receiver",
+          "owner": "mirage",
+          "delivery": [
+            "mavlink:gps-input"
+          ]
+        }
+      ]
+    }
+  ]
+}

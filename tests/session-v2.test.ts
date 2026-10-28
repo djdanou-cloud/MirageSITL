@@ -3,7 +3,7 @@ import { AarRecord } from '@mirage/aar/record';
 import { RecordFlag } from '@mirage/aar/format';
 import { RecordingHandoff, createRecordingQueue } from '@mirage/aar/handoff';
 import { createSessionFaultPort } from '@mirage/ew/session-port';
-import { DemoDynamics, PhysicsSessionV2, isaPressurePa, type SessionDynamics, type SessionFaultPort } from '@mirage/physics';
+import { DemoDynamics, PhysicsSessionV2, isaPressurePa, type SessionDynamics, type SessionFaultPort, type SessionModelPort } from '@mirage/physics';
 import type { MotorFaults } from '@mirage/physics/motor-fault';
 import { ActuatorFrameCodecV2, HeaderV2, PilotFlagV2, PilotReaderV2, PilotWriterV2, RuntimeFlagV2, SensorFrameCodecV2, SensorKindV2, SensorValidityV2, SpscProducer, StateReaderV2,
   EwFlagV2, VehicleFlagV2, createSharedMemoryV2, createSpscQueue, newActuatorFrameV2, newFlightStateV2, newHeaderSnapshotV2,
@@ -12,17 +12,26 @@ import { ActuatorFrameCodecV2, HeaderV2, PilotFlagV2, PilotReaderV2, PilotWriter
 /** The physics Worker's own EW port, so these tests drive the fault path the application runs. */
 const faultPort = createSessionFaultPort;
 /** A Main-side harness around a real PhysicsSessionV2 with a controllable clock. */
-function harness(faults: SessionFaultPort | null = null, dynamics?: (hz: PhysicsHz) => SessionDynamics) {
+function harness(faults: SessionFaultPort | null = null, dynamics?: (hz: PhysicsHz) => SessionDynamics,
+  models: SessionModelPort | null = null) {
   const time = { mono: 0, wall: 1_790_000_000_000 };
   const stateBuffer = createSharedMemoryV2(), sensorBuffer = createSpscQueue('sensor'), actuatorBuffer = createSpscQueue('actuator');
   const session = new PhysicsSessionV2({ type: 'init-v2', protocolVersion: 2, stateBuffer, sensorBuffer, actuatorBuffer },
-    { monotonicMs: () => time.mono, wallMs: () => time.wall + time.mono }, dynamics, faults);
+    { monotonicMs: () => time.mono, wallMs: () => time.wall + time.mono }, dynamics, faults, models);
   const reader = new StateReaderV2(stateBuffer), pilotWriter = new PilotWriterV2(stateBuffer), header = newHeaderSnapshotV2();
   const state = newFlightStateV2(), previous = newFlightStateV2(), results: CommandResultV2[] = [];
   let requestId = 0;
   const command = (type: string, extra: Record<string, unknown> = {}) => {
     reader.readHeader(header);
     session.handle({ protocolVersion: 2, requestId: ++requestId, expectedEpoch: header.sessionEpoch, type, ...extra });
+    session.drain(result => results.push(result));
+    return results.at(-1);
+  };
+  /** For model.load: drains only after the pending load settles. */
+  const commandSettled = async (type: string, extra: Record<string, unknown> = {}) => {
+    reader.readHeader(header);
+    session.handle({ protocolVersion: 2, requestId: ++requestId, expectedEpoch: header.sessionEpoch, type, ...extra });
+    await session.settled();
     session.drain(result => results.push(result));
     return results.at(-1);
   };
@@ -42,7 +51,7 @@ function harness(faults: SessionFaultPort | null = null, dynamics?: (hz: Physics
     return last;
   };
   const latest = () => { expect(reader.latest(state)).toBe(true); return state; };
-  return { time, session, reader, header, state, previous, results, command, stick, run, latest, actuatorBuffer, sensorBuffer, stateBuffer };
+  return { time, session, reader, header, state, previous, results, command, commandSettled, stick, run, latest, actuatorBuffer, sensorBuffer, stateBuffer };
 }
 const armed = (flags: number) => (flags & VehicleFlagV2.Armed) !== 0;
 const jamming: EwEffect = { kind: 'gnss-jamming', severity: 1 };
@@ -369,6 +378,29 @@ describe('PhysicsSessionV2 fault and EW contract', () => {
     h.session.drain(result => h.results.push(result));
     expect(h.results.filter(r => r.type === 'ack-v2' && r.status === 'applied' && r.requestId <= 5)).toHaveLength(5);
     expect([h.session.fault, h.latest().ewFlags, table.driveTorque(1, 2)]).toEqual(['', 0, 2]);
+  });
+  it('model.load binds the loaded model\'s motor table and starts the new epoch fault-free', async () => {
+    const built: MotorFaultInput[] = [];
+    class LoadedOcto extends MotorFaultInput { readonly modelId = 77; }
+    const models: SessionModelPort = {
+      prepare: () => Promise.resolve((hz: PhysicsHz) => { const dynamics = new LoadedOcto(hz, 8); built.push(dynamics); return dynamics; }),
+    };
+    const h = harness(faultPort(), hz => { const dynamics = new MotorFaultInput(hz, 4); built.push(dynamics); return dynamics; }, models);
+    expect(h.command('fault.set', faultAt('motor-3', motorLoss(3)))).toMatchObject({ status: 'queued' });
+    expect(h.command('fault.set', faultAt('jam', jamming))).toMatchObject({ status: 'queued' });
+    h.command('sim.start'); h.run(20); h.command('sim.pause');
+    expect(h.latest().ewFlags).toBe(EwFlagV2.MotorFault | EwFlagV2.GnssJamming);
+    const quadTable = boundTable(built[0]);
+    expect(await h.commandSettled('model.load', { modelId: 77, manifestSha256: 'a'.repeat(64) }))
+      .toMatchObject({ type: 'ack-v2', status: 'applied', epoch: 2 });
+    expect([h.latest().modelId, h.latest().ewFlags]).toEqual([77, 0]);
+    const octoTable = boundTable(built[1]);
+    expect(octoTable).not.toBe(quadTable);
+    expect([octoTable.driveTorque(7, 2), octoTable.driveTorque(3, 2)]).toEqual([2, 2]); // motors 0..7, none failed
+    expect(h.command('fault.set', faultAt('motor-7', motorLoss(7)))).toMatchObject({ status: 'queued' });
+    expect(h.command('fault.set', faultAt('motor-8', motorLoss(8)))).toMatchObject({ type: 'reject-v2', code: 'OUT_OF_RANGE' });
+    h.command('sim.start'); h.run(20);
+    expect([h.session.fault, octoTable.driveTorque(7, 2), h.latest().ewFlags]).toEqual(['', 0, EwFlagV2.MotorFault]);
   });
   it('sim.configure clears active faults like sim.reset and keeps the seed of the last reset', () => {
     const port = faultPort(), resets = vi.spyOn(port, 'reset');

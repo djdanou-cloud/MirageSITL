@@ -28,9 +28,18 @@ def main():
     wanted = {"HEARTBEAT", "EKF_STATUS_REPORT", "GLOBAL_POSITION_INT",
               "LOCAL_POSITION_NED", "STATUSTEXT", "COMMAND_ACK", "EXTENDED_SYS_STATE",
               "HIGHRES_IMU", "RAW_IMU", "GPS_RAW_INT"}
-    observed = [message.to_dict() for message in messages
-                if message.get_type() in wanted
-                and message.get_srcSystem() == 1 and message.get_srcComponent() == 1]
+    # The sidecar also forwards PARAM_VALUE for the names the driver read back
+    # (TASK-089 IMU noise-floor check); older captures declare none.
+    run = json.loads((directory / "run.json").read_text())
+    floor = run.get("imuNoiseFloor") or {}
+    read_back = {check["name"] for check in floor.get("expected", [])}
+
+    def forwarded(message):
+        kind = message.get_type()
+        return ((kind in wanted or kind == "PARAM_VALUE" and message.param_id in read_back)
+                and message.get_srcSystem() == 1 and message.get_srcComponent() == 1)
+
+    observed = [message.to_dict() for message in messages if forwarded(message)]
     original = [json.loads(line)["message"] for line in decoded.splitlines()]
     records = [json.loads(line) for line in decoded.splitlines()]
     # Raw TCP reads can include a final unprocessed packet when the owned
@@ -39,9 +48,7 @@ def main():
         raise ValueError("Decoded telemetry differs from original CRC-checked MAVLink bytes")
     wire_frames_checked = 0
     if any("wireHex" in record for record in records):
-        raw_frames = [message.get_msgbuf().hex() for message in messages
-                      if message.get_type() in wanted
-                      and message.get_srcSystem() == 1 and message.get_srcComponent() == 1]
+        raw_frames = [message.get_msgbuf().hex() for message in messages if forwarded(message)]
         if [record.get("wireHex") for record in records] != raw_frames[:len(records)]:
             raise ValueError("Recorded wire frames differ from original MAVLink bytes")
         wire_frames_checked = len(records)
@@ -51,7 +58,7 @@ def main():
     report = {"schemaVersion": 1, "status": "PASS", "pymavlink": version,
               "messages": len(messages), "recordedObservations": len(original),
               "filteredRawMessages": len(observed), "rawSha256": digest(raw),
-              "wireFramesChecked": wire_frames_checked,
+              "wireFramesChecked": wire_frames_checked, "readBackParameters": sorted(read_back),
               "decodedSha256": digest(decoded),
               "generatorSha256": digest(Path(__file__).read_bytes())}
     (directory / "mavlink-audit.json").write_text(json.dumps(report, indent=2) + "\n")

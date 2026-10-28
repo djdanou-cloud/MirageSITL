@@ -1,0 +1,844 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "MirageSITL vehicle manifest v2",
+  "definitions": {
+    "datasetId": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]{0,63}$"
+    },
+    "nullableDatasetId": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[a-z0-9][a-z0-9-]{0,63}$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048
+    },
+    "vector3": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": {
+        "type": "number"
+      }
+    },
+    "quaternion": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "items": {
+        "type": "number"
+      }
+    },
+    "matrix3": {
+      "type": "array",
+      "minItems": 9,
+      "maxItems": 9,
+      "items": {
+        "type": "number"
+      }
+    }
+  },
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "modelId",
+    "kind",
+    "units",
+    "worldFrame",
+    "bodyFrame",
+    "quaternionOrder",
+    "datasets",
+    "provenance",
+    "massProperties",
+    "rotorCount",
+    "rotorCapacity",
+    "rotors",
+    "motors",
+    "escs",
+    "battery",
+    "airframe",
+    "controlSurfaces",
+    "landingGear",
+    "sensorMounts",
+    "rotorWakePairs",
+    "ardupilot"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 2
+    },
+    "modelId": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 4294967295
+    },
+    "kind": {
+      "enum": [
+        "demo",
+        "bet",
+        "jsbsim"
+      ]
+    },
+    "units": {
+      "const": "SI"
+    },
+    "worldFrame": {
+      "const": "NED"
+    },
+    "bodyFrame": {
+      "const": "FRD"
+    },
+    "quaternionOrder": {
+      "const": "wxyz"
+    },
+    "datasets": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 32,
+      "items": {
+        "type": "object",
+        "discriminator": {
+          "propertyName": "kind"
+        },
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "kind",
+              "sourceSha256",
+              "derivation"
+            ],
+            "properties": {
+              "id": {
+                "$ref": "#/definitions/datasetId"
+              },
+              "kind": {
+                "const": "synthetic"
+              },
+              "sourceSha256": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              "derivation": {
+                "$ref": "#/definitions/text"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "kind",
+              "sourceSha256",
+              "license",
+              "acquiredAt",
+              "reference"
+            ],
+            "properties": {
+              "id": {
+                "$ref": "#/definitions/datasetId"
+              },
+              "kind": {
+                "const": "measured"
+              },
+              "sourceSha256": {
+                "$ref": "#/definitions/sha256"
+              },
+              "license": {
+                "$ref": "#/definitions/text"
+              },
+              "acquiredAt": {
+                "type": "string",
+                "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"
+              },
+              "reference": {
+                "$ref": "#/definitions/text"
+              }
+            }
+          }
+        ]
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "massProperties",
+        "rotors",
+        "motors",
+        "escs",
+        "battery",
+        "airframeDrag",
+        "controlSurfaces",
+        "landingGear",
+        "sensorMounts",
+        "rotorWakePairs"
+      ],
+      "properties": {
+        "massProperties": {
+          "$ref": "#/definitions/nullableDatasetId"
+        },
+        "rotors": {
+          "$ref": "#/definitions/nullableDatasetId"
+        },
+        "motors": {
+          "$ref": "#/definitions/nullableDatasetId"
+        },
+        "escs": {
+          "$ref": "#/definitions/nullableDatasetId"
+        },
+        "battery": {
+          "$ref": "#/definitions/nullableDatasetId"
+        },
+        "airframeDrag": {
+          "$ref": "#/definitions/nullableDatasetId"
+        },
+        "controlSurfaces": {
+          "$ref": "#/definitions/nullableDatasetId"
+        },
+        "landingGear": {
+          "$ref": "#/definitions/nullableDatasetId"
+        },
+        "sensorMounts": {
+          "$ref": "#/definitions/nullableDatasetId"
+        },
+        "rotorWakePairs": {
+          "$ref": "#/definitions/nullableDatasetId"
+        }
+      }
+    },
+    "massProperties": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "massKg",
+        "cgOffsetBodyM",
+        "inertiaCgKgM2"
+      ],
+      "properties": {
+        "massKg": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "cgOffsetBodyM": {
+          "$ref": "#/definitions/vector3"
+        },
+        "inertiaCgKgM2": {
+          "$ref": "#/definitions/matrix3"
+        }
+      }
+    },
+    "rotorCount": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 32
+    },
+    "rotorCapacity": {
+      "const": 32
+    },
+    "rotors": {
+      "type": "array",
+      "maxItems": 32,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "motorChannel",
+          "bladeCount",
+          "spinSign",
+          "radiusM",
+          "rootCutoutM",
+          "polarId",
+          "radialStationM",
+          "chordM",
+          "twistRad",
+          "quadratureWidthM",
+          "hubPositionBodyM",
+          "hubToBody",
+          "shaftInertiaKgM2",
+          "bearingViscousNmPerRadS",
+          "azimuthSamples"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 31
+          },
+          "motorChannel": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 31
+          },
+          "bladeCount": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 16
+          },
+          "spinSign": {
+            "enum": [
+              -1,
+              1
+            ]
+          },
+          "radiusM": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "rootCutoutM": {
+            "type": "number",
+            "minimum": 0
+          },
+          "polarId": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 4294967295
+          },
+          "radialStationM": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 64,
+            "items": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            }
+          },
+          "chordM": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 64,
+            "items": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            }
+          },
+          "twistRad": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 64,
+            "items": {
+              "type": "number"
+            }
+          },
+          "quadratureWidthM": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 64,
+            "items": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            }
+          },
+          "hubPositionBodyM": {
+            "type": "array",
+            "minItems": 3,
+            "maxItems": 3,
+            "items": {
+              "type": "number"
+            }
+          },
+          "hubToBody": {
+            "type": "array",
+            "minItems": 4,
+            "maxItems": 4,
+            "items": {
+              "type": "number"
+            }
+          },
+          "shaftInertiaKgM2": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "bearingViscousNmPerRadS": {
+            "type": "number",
+            "minimum": 0
+          },
+          "azimuthSamples": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 64
+          }
+        }
+      }
+    },
+    "motors": {
+      "type": "array",
+      "minItems": 0,
+      "maxItems": 32,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "rotorId",
+          "kvRpmPerV",
+          "resistanceOhm",
+          "currentLimitA"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 31
+          },
+          "rotorId": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 31
+          },
+          "kvRpmPerV": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "resistanceOhm": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "currentLimitA": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          }
+        }
+      }
+    },
+    "escs": {
+      "type": "array",
+      "minItems": 0,
+      "maxItems": 32,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "motorId",
+          "pwmMinUs",
+          "pwmMaxUs",
+          "commandTauS"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 31
+          },
+          "motorId": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 31
+          },
+          "pwmMinUs": {
+            "type": "integer",
+            "minimum": 800,
+            "maximum": 2200
+          },
+          "pwmMaxUs": {
+            "type": "integer",
+            "minimum": 800,
+            "maximum": 2200
+          },
+          "commandTauS": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          }
+        }
+      }
+    },
+    "battery": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "required": [
+        "openCircuitFullV",
+        "openCircuitEmptyV",
+        "internalResistanceOhm",
+        "capacityAh",
+        "currentLimitA"
+      ],
+      "properties": {
+        "openCircuitFullV": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "openCircuitEmptyV": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "internalResistanceOhm": {
+          "type": "number",
+          "minimum": 0
+        },
+        "capacityAh": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "currentLimitA": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        }
+      }
+    },
+    "airframe": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "drag"
+      ],
+      "properties": {
+        "drag": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "required": [
+            "dragAreaBodyM2",
+            "centerOfPressureBodyM"
+          ],
+          "properties": {
+            "dragAreaBodyM2": {
+              "$ref": "#/definitions/matrix3"
+            },
+            "centerOfPressureBodyM": {
+              "$ref": "#/definitions/vector3"
+            }
+          }
+        }
+      }
+    },
+    "controlSurfaces": {
+      "type": "array",
+      "minItems": 0,
+      "maxItems": 16,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "function",
+          "actuatorChannel",
+          "deflectionMinRad",
+          "deflectionMaxRad",
+          "rateLimitRadS"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 15
+          },
+          "function": {
+            "enum": [
+              "aileron",
+              "elevator",
+              "rudder",
+              "flap",
+              "elevon",
+              "ruddervator"
+            ]
+          },
+          "actuatorChannel": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 31
+          },
+          "deflectionMinRad": {
+            "type": "number",
+            "minimum": -1.5707963267948966,
+            "maximum": 1.5707963267948966
+          },
+          "deflectionMaxRad": {
+            "type": "number",
+            "minimum": -1.5707963267948966,
+            "maximum": 1.5707963267948966
+          },
+          "rateLimitRadS": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          }
+        }
+      }
+    },
+    "landingGear": {
+      "type": "array",
+      "minItems": 0,
+      "maxItems": 8,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "anchorBodyM",
+          "unsprungMassKg",
+          "tireRadiusM",
+          "rimRadiusM",
+          "strutTravelM",
+          "suspension",
+          "tireLoadCurve",
+          "tireDampingNsPm",
+          "rollingCoefficient",
+          "lateralCoefficient",
+          "brakingCoefficient"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 7
+          },
+          "anchorBodyM": {
+            "$ref": "#/definitions/vector3"
+          },
+          "unsprungMassKg": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "tireRadiusM": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "rimRadiusM": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "strutTravelM": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "suspension": {
+            "type": "object",
+            "discriminator": {
+              "propertyName": "kind"
+            },
+            "oneOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "kind",
+                  "stiffnessNpm",
+                  "preloadN",
+                  "compressionDamping",
+                  "reboundDamping",
+                  "dampingLaw"
+                ],
+                "properties": {
+                  "kind": {
+                    "const": "linear"
+                  },
+                  "stiffnessNpm": {
+                    "type": "number"
+                  },
+                  "preloadN": {
+                    "type": "number"
+                  },
+                  "compressionDamping": {
+                    "type": "number"
+                  },
+                  "reboundDamping": {
+                    "type": "number"
+                  },
+                  "dampingLaw": {
+                    "enum": [
+                      "linear",
+                      "square"
+                    ]
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "kind",
+                  "gasAreaM2",
+                  "volumeM3",
+                  "chargeAbsolutePa",
+                  "ambientAbsolutePa",
+                  "exponent",
+                  "hydraulicAreaM2",
+                  "fluidDensityKgM3",
+                  "dischargeCoefficient",
+                  "compressionOrificeM2",
+                  "reboundOrificeM2"
+                ],
+                "properties": {
+                  "kind": {
+                    "const": "gas"
+                  },
+                  "gasAreaM2": {
+                    "type": "number"
+                  },
+                  "volumeM3": {
+                    "type": "number"
+                  },
+                  "chargeAbsolutePa": {
+                    "type": "number"
+                  },
+                  "ambientAbsolutePa": {
+                    "type": "number"
+                  },
+                  "exponent": {
+                    "type": "number"
+                  },
+                  "hydraulicAreaM2": {
+                    "type": "number"
+                  },
+                  "fluidDensityKgM3": {
+                    "type": "number"
+                  },
+                  "dischargeCoefficient": {
+                    "type": "number"
+                  },
+                  "compressionOrificeM2": {
+                    "type": "number"
+                  },
+                  "reboundOrificeM2": {
+                    "type": "number"
+                  }
+                }
+              }
+            ]
+          },
+          "tireLoadCurve": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 64,
+            "items": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 2,
+              "items": {
+                "type": "number"
+              }
+            }
+          },
+          "tireDampingNsPm": {
+            "type": "number",
+            "minimum": 0
+          },
+          "rollingCoefficient": {
+            "type": "number",
+            "minimum": 0
+          },
+          "lateralCoefficient": {
+            "type": "number",
+            "minimum": 0
+          },
+          "brakingCoefficient": {
+            "type": "number",
+            "minimum": 0
+          }
+        }
+      }
+    },
+    "sensorMounts": {
+      "type": "array",
+      "minItems": 0,
+      "maxItems": 32,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "sensor",
+          "instance",
+          "positionBodyM",
+          "sensorToBody"
+        ],
+        "properties": {
+          "sensor": {
+            "enum": [
+              "imu",
+              "baro",
+              "mag",
+              "gnss",
+              "airspeed",
+              "rangefinder"
+            ]
+          },
+          "instance": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 7
+          },
+          "positionBodyM": {
+            "$ref": "#/definitions/vector3"
+          },
+          "sensorToBody": {
+            "$ref": "#/definitions/quaternion"
+          }
+        }
+      }
+    },
+    "rotorWakePairs": {
+      "type": "array",
+      "minItems": 0,
+      "maxItems": 64,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "upstreamRotorId",
+          "downstreamRotorId"
+        ],
+        "properties": {
+          "upstreamRotorId": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 31
+          },
+          "downstreamRotorId": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 31
+          }
+        }
+      }
+    },
+    "ardupilot": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "required": [
+        "vehicle",
+        "frameClass",
+        "frameType"
+      ],
+      "properties": {
+        "vehicle": {
+          "const": "copter"
+        },
+        "frameClass": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 255
+        },
+        "frameType": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 255
+        }
+      }
+    }
+  }
+}

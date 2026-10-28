@@ -18,7 +18,8 @@
     "./wasm-browser": "./src/wasm-browser.ts",
     "./wasm-storage": "./src/wasm-storage.ts",
     "./wasm-sitl": "./src/wasm-sitl.ts",
-    "./wasm-parity": "./src/wasm-parity.ts"
+    "./wasm-parity": "./src/wasm-parity.ts",
+    "./error-ownership": "./src/error-ownership.ts"
   },
   "dependencies": {
     "@mirage/mavlink": "0.1.0",

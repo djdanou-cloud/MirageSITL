@@ -21,4 +21,35 @@ int32_t bet_bound_init(uint32_t config, uint32_t config_bytes, uint32_t arena, u
 int32_t bet_bound_step(uint32_t arena, uint32_t input, uint32_t output, double dt);
 int32_t bet_bound_reset(uint32_t arena);
 void bet_bound_dispose(uint32_t arena);
+
+/* Step interfaces v2 (TASK-088). Bound-rotor input/output records are 256 bytes
+ * on unchanged v1 arenas; the body input is 448 bytes with a 256-byte output.
+ * Fields owned by later tasks must hold neutral values, otherwise the step
+ * returns BET_V2_UNSUPPORTED and changes nothing. Outputs carry validity bits.
+ */
+#define BET_BOUND_V2_VERSION 2
+#define BET_BOUND_V2_INPUT_BYTES 256
+#define BET_BOUND_V2_OUTPUT_BYTES 256
+#define BET_BOUND_V2_GROUND_PLANE 1
+#define BET_BOUND_V2_DRIVE_TORQUE 0
+#define BET_BOUND_V2_DRIVE_ESC_DUTY 1
+#define BET_BOUND_V2_VALID_ELECTRICAL 1
+#define BET_BOUND_V2_VALID_INFLOW_HARMONICS 2
+#define BET_BOUND_V2_VALID_GROUND_EFFECT 4
+#define BET_BOUND_V2_VALID_EXTERNAL_WAKE 8
+#define BET_BODY_V2_VERSION 2
+#define BET_BODY_V2_INPUT_BYTES 448
+#define BET_BODY_V2_OUTPUT_BYTES 256
+#define BET_BODY_V2_GRAVITY_CONSTANT_DOWN 0
+#define BET_BODY_V2_GRAVITY_NED_VECTOR 1
+#define BET_BODY_V2_GRAVITY_WGS84 2
+#define BET_BODY_V2_MASS_RATES 1
+#define BET_BODY_V2_VALID_SPECIFIC_FORCE 1
+#define BET_BODY_V2_VALID_ANGULAR_ACCELERATION 2
+#define BET_BODY_V2_VALID_REFERENCE_POSITION 4
+#define BET_V2_UNSUPPORTED (-8)
+uint32_t bet_bound_v2_version(void);
+int32_t bet_bound_step_v2(uint32_t arena, uint32_t input, uint32_t output, double dt);
+uint32_t bet_body_v2_version(void);
+int32_t bet_body_step_v2(uint32_t input, uint32_t output, double dt);
 #endif

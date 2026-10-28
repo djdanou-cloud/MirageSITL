@@ -2794,3 +2794,723 @@ actuator freshness remain necessary. The low-level HAL harness is diagnostic
 and does not issue this lifecycle capability. Application backend selection,
 whole-firmware allocator qualification, GPL redistribution and release gates
 remain separate; the active application keeps its demo backend.
+
+## Vehicle manifest v2 and ArduPilot profile (TASK-087)
+
+`packages/physics/src/vehicle.schema.json` and `vehicle-manifest.ts` define
+`schemaVersion: 2`. Input starts as `unknown`, passes an AJV strict-mode schema
+(`strictNumbers`, union types only for nullable sections, `kind`
+discriminators), then physical and cross-reference checks, and returns a
+deep-frozen snapshot. Units, frames and quaternion order are those of v1 (SI,
+NED world, FRD body, wxyz). Every `*BodyM` position is measured from the body
+reference point; the CG is `massProperties.cgOffsetBodyM` and the inertia is
+about the CG in body axes. Every top-level key is required: an absent section
+is an explicit `null` or `[]`, never a default. A minimal valid manifest is a
+rotorless body:
+
+```json
+{
+  "schemaVersion": 2, "modelId": 2, "kind": "demo",
+  "units": "SI", "worldFrame": "NED", "bodyFrame": "FRD", "quaternionOrder": "wxyz",
+  "datasets": [{ "id": "airframe", "kind": "synthetic", "sourceSha256": null,
+    "derivation": "Hand-specified example body." }],
+  "provenance": { "massProperties": "airframe", "rotors": null, "motors": null, "escs": null,
+    "battery": null, "airframeDrag": null, "controlSurfaces": null, "landingGear": null,
+    "sensorMounts": null, "rotorWakePairs": null },
+  "massProperties": { "massKg": 1.5, "cgOffsetBodyM": [0.01, 0, 0.03],
+    "inertiaCgKgM2": [0.03, 0, -0.001, 0, 0.032, 0, -0.001, 0, 0.05] },
+  "rotorCount": 0, "rotorCapacity": 32, "rotors": [],
+  "motors": [], "escs": [], "battery": null, "airframe": { "drag": null },
+  "controlSurfaces": [], "landingGear": [], "sensorMounts": [], "rotorWakePairs": [],
+  "ardupilot": null
+}
+```
+
+| Section | Fields | Checks beyond the schema | Runtime consumer |
+|---|---|---|---|
+| `datasets` (1–32) | `id`; `synthetic`: `sourceSha256` (hex or `null`), `derivation`; `measured`: `sourceSha256`, `license`, `acquiredAt` (UTC `YYYY-MM-DDThh:mm:ssZ`), `reference` | unique IDs, parseable time, every dataset referenced | — |
+| `provenance` | one dataset ID or `null` per section | non-null exactly when the section has data; known IDs | — |
+| `massProperties` | `massKg` > 0, `cgOffsetBodyM`, `inertiaCgKgM2` | exact symmetry, Cholesky positive definiteness, rigid-body triangle inequality | v1 runtime (TASK-033) |
+| `rotors` (≤32) | v1 `RotorGeometry`, unchanged; the schema is test-enforced identical to v1 | the v1 checks: unique IDs and channels, unit hub quaternions (1e-6), stations, quadrature widths | v1 runtime |
+| `motors` (≤32) | `id`, `rotorId`, `kvRpmPerV`, `resistanceOhm`, `currentLimitA` (native `Motor`) | unique IDs, known rotor, one motor per rotor | TASK-092 |
+| `escs` (≤32) | `id`, `motorId`, integer `pwmMinUs`/`pwmMaxUs` in [800, 2200], `commandTauS` | span ≥100 µs (the `ExternalSitl` boundary), known motor, one ESC per motor | PWM via the profile; lag TASK-092 |
+| `battery` | `openCircuitFullV`, `openCircuitEmptyV`, `internalResistanceOhm` ≥0, `capacityAh`, `currentLimitA` (native `Battery`, charge 3600·Ah C) | full ≥ empty | TASK-092 |
+| `airframe.drag` | `dragAreaBodyM2` (C_D·A tensor, m²), `centerOfPressureBodyM` | symmetric positive definite, so drag always dissipates | TASK-096 |
+| `controlSurfaces` (≤16) | `id`, `function`, `actuatorChannel`, deflection limits within ±π/2, `rateLimitRadS` | unique IDs and channels, not a rotor channel, min < max | TASK-109 |
+| `landingGear` (≤8) | the `ContactWheel` fields plus `id`; anchor from the reference point | unique IDs, rim < tire, last tire knot ≥ tire − rim; strut and tire laws stay native | TASK-095 |
+| `sensorMounts` (≤32) | `sensor`, `instance` (0–7), `positionBodyM`, `sensorToBody` | unique sensor/instance pairs, quaternion norm within 1e-6 | TASK-114 |
+| `rotorWakePairs` (≤64) | `upstreamRotorId`, `downstreamRotorId` | known rotors, no self or duplicate pairs, acyclic | TASK-101 |
+| `ardupilot` | `vehicle: "copter"`, `frameClass`, `frameType` | only 1/1 (quad X) is admitted, with the geometry check below | parameter profile |
+
+The inertia check follows from J = ∫(|r|²·1 − r·rᵀ) dm: every principal
+moment is at most the sum of the other two, with equality for a planar body.
+The admitted slack is 1e-12·trace, which covers only eigen-solver round-off.
+Capacities match the existing interfaces: 32 rotors (v1), 8 wheel slots
+(contact ABI v2), 16 control surfaces and 32 actuator channels.
+
+A declared quad X frame is checked against the TASK-047 parity aircraft that
+ArduCopter flew. Actuator channels 0–3 hold FR, RL, FL and RR. CG-relative hub
+quadrant signs (x, y) are (+,+), (−,−), (+,−) and (−,+), and no hub may lie on
+a CG plane. Each hub thrust axis +z_h must be within 45° of body up. The spin
+axis s·R(q_hb)·ẑ must point up (counter-clockwise seen from above) for
+channels 0–1 and down for channels 2–3. Other frame classes and types have no
+repository evidence and are rejected.
+
+`deriveVehicle` returns ascending principal moments and a right-handed matrix
+of unit principal axes. It uses cyclic Jacobi rotations (Golub and Van Loan,
+algorithm 8.5.3), at most 50 sweeps; after four sweeps, entries below the
+diagonal precision are zeroed. Degenerate moments have no unique axes. Two
+analytic oracles hold to 1e-12 relative: the x–z block of the fixture tensor
+and a rotated diagonal tensor. `deriveVehicle` also returns CG-relative hub,
+gear and sensor positions and the motor torque constant:
+
+\[
+k_t = k_e = \frac{60}{2\pi \cdot KV}
+\]
+
+`migrateModelManifestV1(input, dataset)` validates a v1 manifest and makes the
+CG the reference point (zero offset). It copies mass, inertia and rotors
+unchanged and assigns the provenance stated by the caller. A v1 tensor that
+violates the triangle inequality is rejected, not altered.
+`projectVehicleToModelV1` returns the CG-referenced v1 descriptor (hub minus
+CG) used by `FrameLayout` and `BetFlightDynamics`. It fails closed, naming the
+owning task, for any motor, ESC, battery, drag, surface, gear, sensor mount,
+wake pair or ArduPilot frame data. The demo quad, the tilted octo and the
+parity base quad round-trip exactly.
+
+`ardupilotParameterProfile({ sha256, manifest })` (profile v1) needs an
+admitted frame and a motor plus ESC for every rotor, all sharing one PWM
+range. It emits two comment lines and then `NAME value` lines sorted by name,
+with LF line endings and a final newline:
+
+```text
+# MirageSITL ArduPilot parameter profile v1
+# modelId 87; manifest sha256 <64 lowercase hex>
+FRAME_CLASS 1
+FRAME_TYPE 1
+MOT_BAT_VOLT_MAX 0
+MOT_BAT_VOLT_MIN 0
+MOT_PWM_MAX 2000
+MOT_PWM_MIN 1000
+```
+
+The profile emits only parameter names that appear in `scripts/sitl/driver.mjs`,
+`scripts/prepare-autopilot-parity.mjs` or `packages/autopilot/src/external-sitl.ts`;
+the test enforces this. Voltage compensation stays disabled (`MOT_BAT_VOLT_* 0`),
+as in the TASK-047 parity defaults, until TASK-092 delivers battery voltage.
+`MOT_THST_EXPO`, `BATT_*`, `INS_POS*` and `SIM_*` names wait for that evidence
+or for the TASK-089 pinned-source catalog.
+
+`VehicleRegistry` hashes the exact payload bytes (≤1 MiB, fatal UTF-8) and
+admits schemas 1 and 2. A model ID with a different hash is a collision.
+`PhysicsSessionV2` accepts an optional `SessionModelPort` as its fifth
+constructor argument; without one, `model.load` is rejected with
+`ASSET_MISSING` as before, so the default demo backend is unchanged.
+`registryModelPort(registry, build)` requires a registered ID, a hash equal to
+the registered one (the request may use upper-case hex) and a successful
+projection. The prepared dynamics must report the loaded model ID. Commit
+disposes the previous dynamics and keeps the factory, so `sim.configure`
+rebuilds the loaded model at the new rate. A failed load keeps the active
+model and epoch. A load interrupted by `worker.dispose` builds no dynamics
+and ends with `BAD_STATE`.
+
+Open items:
+
+* The native SITL driver still writes its fixed `quad.parm`. Generating that
+  file from a manifest changes the driver's source identity, so the
+  TASK-042/043/059 captures would have to be regenerated.
+* No application path registers models.
+* Polar bindings and per-rotor runtime values remain in `BetFlightConfiguration`.
+
+## Fidelity evidence pipeline (TASK-090)
+
+`packages/physics/src/fidelity-metrics.ts` and `bench-import.ts` are offline
+evidence code. They allocate and are never called from a physics step.
+
+`timeDomainMetrics(measured, simulated)` compares two equally sampled series
+of equal length. It returns the RMS error, the bias (mean of simulated minus
+measured) and the Theil inequality coefficient U. U lies in [0, 1], is 0 for a
+perfect match, and is rejected as undefined when both series are all zero:
+
+\[
+U = \frac{\sqrt{\frac{1}{n}\sum_i (s_i - m_i)^2}}{\sqrt{\frac{1}{n}\sum_i s_i^2} + \sqrt{\frac{1}{n}\sum_i m_i^2}}
+\]
+
+`welchFrequencyResponse(input, output, fs, N, overlap, window)` averages
+K ≥ 2 segments of power-of-two length N in [16, 65536]. A single segment would
+give γ² = 1 identically. Each segment has its mean removed and is multiplied by
+a periodic Hann or a rectangular window. The radix-2 FFT uses
+X_k = Σ x_n·e^(−j2πkn/N), and the one-sided bins k = 1..N/2 lie at
+f_k = k·fs/N. Window scale factors cancel in both ratios:
+
+\[
+\hat H(f_k) = \frac{\sum_s X_s^*(f_k)\,Y_s(f_k)}{\sum_s |X_s(f_k)|^2},\qquad
+\hat\gamma^2(f_k) = \frac{\left|\sum_s X_s^* Y_s\right|^2}{\sum_s |X_s|^2 \sum_s |Y_s|^2}
+\]
+
+A bin whose input power is at most 1e-20 of the strongest bin is unexcited:
+its H is NaN and its γ² is 0. An f64 FFT bin carries about 1e-32 of
+round-off power, so this floor is twelve decades above round-off and 200 dB
+below the strongest bin.
+
+`frequencyResponseCost(reference, model, { bandHz, points, minCoherence })`
+computes the CIFER-style cost:
+
+\[
+J = \frac{20}{n}\sum_{i=1}^{n} W_\gamma(f_i)\left[W_g\,(\Delta|H|_{dB})^2 + W_p\,(\Delta\angle H_{deg})^2\right],\qquad
+W_\gamma = \left[1.58\left(1 - e^{-\gamma^2}\right)\right]^2
+\]
+
+The cost uses W_g = 1 and W_p = 0.01745, so 1 dB weighs as much as 7.57°.
+`points` target frequencies are spaced logarithmically over the band and each
+is mapped to its nearest bin; a bin shared by several targets counts once.
+W_γ uses the reference (measured) coherence. Points with γ² below
+`minCoherence` are excluded, and n counts the points that remain. Phase
+differences are wrapped to (−180°, 180°], so a constant mismatch gives the
+same J for any n. The guidelines are J ≤ 100 for an accepted model, J ≤ 50 for
+a model nearly indistinguishable from flight, and γ² ≥ 0.6 for usable points.
+
+Sources: the weights, W_γ, the J guidelines and the coherence threshold are
+those reported by Ågren et al., "In-flight System Identification of the
+Ingenuity Mars Helicopter" (NASA Ames, AIAA 2025), and by DLR's
+system-identification retrospective (Journal of Aircraft, doi
+10.2514/1.C037262). The 20/n normalization and logarithmic point spacing
+follow Tischler and Remple, Aircraft and Rotorcraft System Identification,
+2nd ed. (AIAA, 2012).
+
+Bench CSV v1 describes a static thrust stand:
+
+```text
+mirage-bench-csv,1
+diameterM,0.254
+rpm,thrustN,torqueNm,airDensityKgM3
+2000,0.610472757547,0.0100957820214,1.2
+```
+
+`importBenchCsv` accepts LF or CRLF and 1–10000 rows. Numbers must be strict
+decimals (no `+`, hex, `Infinity` or empty fields). The diameter must be in
+(0, 10] m, rpm > 0, and density in [0.05, 2] kg/m³, the envelope of
+`atmosphereFromState`. Rows keep their file order. With n = rpm/60:
+
+\[
+C_T = \frac{T}{\rho n^2 D^4},\qquad C_Q = \frac{Q}{\rho n^2 D^5},\qquad C_P = 2\pi C_Q,\qquad
+\mathrm{FM} = \sqrt{\frac{2}{\pi}}\,\frac{C_T^{3/2}}{C_P}
+\]
+
+The importer also scales thrust and torque to ISA sea-level density
+(1.2250 kg/m³ from `isaTroposphere(0)`). It flags negative thrust, negative
+torque and FM > 1, because momentum theory bounds free-air static thrust per
+unit power. Flagged rows are kept.
+
+Capture schema v1 has this skeleton; every series must hold 2..2^20 finite
+samples:
+
+```json
+{
+  "schemaVersion": 1, "kind": "mirage-fidelity-capture",
+  "provenance": { "source": "flight-test", "operator": "<name>", "recordedAt": "2026-10-26T00:00:00Z",
+    "firmwareSha256": "<64 hex>", "modelSha256": "<64 hex>" },
+  "timeDomain": [{ "id": "roll-rate", "unit": "rad/s", "sampleRateHz": 100,
+    "measured": ["<samples>"], "simulated": ["<samples>"],
+    "limits": { "maxRms": 0.02, "maxAbsBias": 0.02, "maxTheil": 0.05 } }],
+  "frequencyResponse": [{ "id": "roll-rate-response", "sampleRateHz": 100, "segmentLength": 64,
+    "overlap": 0, "window": "rectangular", "bandHz": [1.5625, 46.875], "points": 20,
+    "minCoherence": 0.6, "maxCost": 100,
+    "measuredInput": ["<samples>"], "measuredOutput": ["<samples>"],
+    "simulatedInput": ["<samples>"], "simulatedOutput": ["<samples>"] }],
+  "bench": { "csv": "<bench CSV v1 text>", "csvSha256": "<64 hex>",
+    "predicted": [{ "rpm": 2000, "ct": 0.1122, "cp": 0.04365 }],
+    "limits": { "maxCtRelativeError": 0.05, "maxCpRelativeError": 0.05 } }
+}
+```
+
+The simulated series come from replaying the measured excitation: the same
+samples in the time domain and the same injected input for frequency
+responses. Bench predictions list one row per measured row at the same rpm.
+
+`node scripts/check-fidelity.mjs --input CAPTURE.json --sha256 HEX` builds on
+`scripts/validation/evidence.mjs`, which enforces the hash and a 32 MiB size
+budget. It requires exact keys everywhere, unique section IDs, at most 32
+sections per kind and at least one section in total. Declared limits may be
+stricter than the guidelines but never looser: maxCost ≤ 100,
+minCoherence ≥ 0.6, maxTheil ≤ 1 and bench relative errors ≤ 1. A bench row
+with any consistency flag fails the bench comparison.
+
+Exit codes:
+
+* No input gives BLOCKED_EXTERNAL (2).
+* Malformed, unhashed or over-permissive input gives FAIL (1).
+* `synthetic` provenance gives BLOCKED_EXTERNAL (2) with the computed metrics
+  and `limitsMet`; it is never PASS.
+* `flight-test` provenance with non-zero firmware and model hashes gives
+  PASS (0) or FAIL (1).
+
+The report `test-results/validation/fidelity.json` (schema 1, kind `fidelity`)
+records the input hash, the git revision and the validator hash. The analytic
+fixture `tests/fixtures/validation/fidelity-synthetic-capture.json` reports
+J = 19.950 = 20·W_γ(1) for its +1 dB model error and exits 2.
+
+Open items:
+
+* Score a real ArduCopter SYSTEMID flight capture and a real thrust-stand
+  file (G4).
+* Convert DataFlash logs to capture v1.
+* Build the simulation replay that produces the simulated series.
+
+## Sensor-error ownership (TASK-089)
+
+ArduPilot's SITL sensor backends read `sitl_fdm` and add their own errors on
+both MirageSITL paths. On the native path the JSON line fills `sitl_fdm`, and
+the aircraft model's `fill_fdm` adds the magnetic field. On the browser path the
+HAL mailbox fills `sitl_fdm` directly and `fill_fdm` is skipped. Every error
+must therefore be applied exactly once, by a declared owner.
+`packages/autopilot/src/error-ownership.ts` assigns each error source to
+`ardupilot` (the firmware's SITL backend applies it), `mirage` (MirageSITL
+applies it in the values it delivers) or `none` (nobody applies it). Upstream
+firmware is the default. A matrix may opt into a MirageSITL firmware patch only
+to switch off an error that the pinned upstream applies unconditionally (see
+"IMU noise-floor switch" below).
+
+`python3 tests/fixtures/sitl/generate.py` writes
+`tests/fixtures/sitl/ardupilot-catalog.json` from 13 files at the pinned commit
+`8ab6afde107a91df1b5f60ade8f333cb8a61b190`, recording each file's SHA-256. The
+GPL sources are not copied. The catalog lists:
+
+* the 323 SIM_* parameters of the SITL tables and the barometer, airspeed and
+  GPS sub-tables, with compiled defaults, `AP_Vector3f` flags scoped to each
+  parameter class, and enclosing preprocessor conditions;
+* the copter and JSON-backend defaults;
+* the 36 keys of the `SIM_JSON` key table;
+* 31 asserted source lines (facts). A different commit fails the generator;
+* in schema 2, each MirageSITL firmware patch applied to the same sources.
+
+`json-protocol.json` (TASK-041) is regenerated byte-identically. Three
+cataloged facts constrain ownership:
+
+* The IMU backend always adds 0.01 m/s² of uniform accelerometer noise and
+  radians(0.04) of gyro noise, and no upstream parameter disables either floor.
+  With the motors off and no vibration configured, it adds the gyro floor value
+  a second time.
+* The JSON backend sets accelerometer calibration defaults, such as
+  `INS_ACCSCAL_X 1.001`.
+* `SIM_BARO_RND` compiles to 0.2 m but `copter.parm` sets it to 0, while
+  `SIM_DRIFT_SPEED` stays at its compiled 0.05.
+
+A defaults-file name that a build lacks is skipped (`AP_Param.cpp`), so a
+profile may neutralize every cataloged sensor instance.
+
+Delivery paths need repository evidence, and a JSON key must be both in the
+catalog and covered by the TASK-041 oracle:
+
+| Delivery | Path | Evidence | Enablers |
+|---|---|---|---|
+| `json:imu.accel_body`, `json:imu.gyro` | native-json | TASK-041 JSON oracle | — |
+| `hal:specific-force`, `hal:gyro`, `hal:magnetic-field` | browser-hal | `browser_hal.h` sensor values 6–8, 9–11, 16–18 | — |
+| `mavlink:gps-input` | native-json | TASK-059 GPS_INPUT injection | `GPS1_TYPE 14`, `GPS2_TYPE 0`, `GPS1_RATE_MS 100` |
+| `mavlink:sim-mag-offsets` | native-json | TASK-059 PARAM_SET of `SIM_MAGn_OFS_*` | — |
+
+| Error source | ArduPilot neutral values (all cataloged instances) | ArduPilot applies on | MirageSITL deliveries |
+|---|---|---|---|
+| `imu.accel.noise-floor` / `imu.gyro.noise-floor` | none upstream (unconditional); with the `imu-noise-floor` patch `SIM_ACC_FLOOR 0` / `SIM_GYR_FLOOR 0` | both | accel / gyro fields, patched builds only |
+| `imu.accel.noise` / `imu.gyro.noise` | `SIM_ACCn_RND 0` / `SIM_GYRn_RND 0`, n = 1–5 | both | accel / gyro fields |
+| `imu.accel.bias` / `imu.gyro.bias` | `SIM_ACCn_BIAS 0` / `SIM_GYRn_BIAS 0` (vectors) | both | accel / gyro fields |
+| `imu.accel.scale` / `imu.gyro.scale` | `SIM_ACCn_SCAL 0` (divides only if non-zero) / `SIM_GYRn_SCALE 0` (percent) | both | accel / gyro fields |
+| `imu.gyro.drift` | `SIM_DRIFT_SPEED 0` | both | gyro fields |
+| `imu.vibration` | `SIM_VIB_FREQ 0`, `SIM_VIB_MOT_MAX 0` | both | accel and gyro fields |
+| `imu.lever-arm` | `SIM_IMU_POS 0` | both | accel fields |
+| `imu.board-trim` | `SIM_BRD_TRIM 0` | both | none (it also rotates the compass) |
+| `baro.noise`, `.drift`, `.glitch`, `.delay`, `.wind`, `.ground-effect` | `SIM_BARO/BAR2/BAR3_RND`, `_DRIFT`, `_GLITCH`, `_DELAY`, `_WCF_*`, `_GEFF_M` = 0 | both | none (altitude shares navigation truth) |
+| `mag.noise`, `mag.delay` | `SIM_MAG_RND 0`, `SIM_MAG_DELAY 0` | both | `hal:magnetic-field` |
+| `mag.hard-iron` | `SIM_MAGn_OFS 0`, n = 1–3 | both | `mavlink:sim-mag-offsets`; `hal:magnetic-field` |
+| `mag.soft-iron` | `SIM_MAGn_DIA 0` (identity), `SIM_MAGn_ODI 0`, `SIM_MAGn_SCALING 1` | both | `hal:magnetic-field` |
+| `mag.anomaly` / `mag.motor` | `SIM_MAG_ALY 0` / `SIM_MAG_MOT 0` | native only (`fill_fdm`) | `hal:magnetic-field` |
+| `gnss.receiver` | replaced by the GPS_INPUT enablers | both | `mavlink:gps-input` |
+
+`parseArduPilotCatalog` checks that the catalog comes from the pinned commit.
+`validateOwnershipMatrix(matrix, catalog)` rejects:
+
+* double, missing or unknown sources and unknown owners or paths;
+* a delivery without repository evidence, a delivery for another path, or a
+  partial delivery: a MirageSITL owner lists exactly its source's deliveries on
+  the matrix path;
+* a parameter or fact missing from the catalog, or a parameter under a build
+  condition other than `AP_SIM_ENABLED` and the IMU and compass instance counts;
+* an `ardupilot` owner on a path where ArduPilot does not apply that error;
+* `none` for an error that no cataloged parameter disables.
+
+A matrix that does not declare the `imu-noise-floor` patch must leave both
+IMU floors with ArduPilot; another unconditional error would need a new patch.
+
+`ownershipParameterProfile(matrix, catalog)` writes the neutral values of
+every error that MirageSITL owns or nobody applies (where ArduPilot applies
+it), plus each delivery's enablers. Vectors expand to `_X`, `_Y` and `_Z`, and
+lines are sorted by name. ArduPilot-owned errors keep the firmware's own
+parameters untouched. For the TASK-059 native EW matrix, the profile holds
+exactly the parameter lines of the driver's experiment block:
+
+```text
+# MirageSITL error-ownership profile v1
+# matrix task-059-ew-native; path native-json; ArduPilot 8ab6afde107a91df1b5f60ade8f333cb8a61b190
+GPS1_RATE_MS 100
+GPS1_TYPE 14
+GPS2_TYPE 0
+SIM_MAG1_OFS_X 0
+SIM_MAG1_OFS_Y 0
+SIM_MAG1_OFS_Z 0
+SIM_MAG2_OFS_X 0
+SIM_MAG2_OFS_Y 0
+SIM_MAG2_OFS_Z 0
+SIM_MAG3_OFS_X 0
+SIM_MAG3_OFS_Y 0
+SIM_MAG3_OFS_Z 0
+```
+
+`tests/fixtures/sitl/error-ownership.json` records three matrices:
+
+* TASK-047 parity on the native path, where ArduPilot owns every error.
+* TASK-047 parity on the browser path, where ArduPilot owns everything except
+  `mag.anomaly` and `mag.motor`, which nobody applies.
+* The TASK-059 native EW runs: `gnss.receiver` is owned through GPS_INPUT and
+  `mag.hard-iron` through SIM_MAG offsets.
+
+The parity profiles are empty. Unless a patched build switches them off,
+ArduPilot's IMU floors stay on, so a MirageSITL IMU noise model (TASK-115) must
+either subtract their variance or own the floors through the patch, never
+double count them.
+
+### IMU noise-floor switch (decision 2026-10-26)
+
+The user decided that MirageSITL runs with ArduPilot's default behaviour by
+default and that a setting switches off ArduPilot's fixed IMU noise floors on
+request. No upstream parameter can do that, so
+`native/ardupilot/patches/imu-noise-floor.patch` (SHA-256
+`7a43d2ed8f05570500a5d6dc0c9205832628f85acec0378978a8bde30faedb96`) changes
+three pinned files: `libraries/SITL/SITL.h`, `libraries/SITL/SITL.cpp` and
+`libraries/AP_InertialSensor/AP_InertialSensor_SITL.cpp`. It replaces the two
+constants with parameters in the `var_ins` table:
+
+| Parameter | Unit | Default | Index | Replaces |
+|---|---|---|---|---|
+| `SIM_ACC_FLOOR` | m/s/s | 0.01 | 57 | `float accel_noise = 0.01f;` |
+| `SIM_GYR_FLOOR` | deg/s | 0.04 | 58 | `float gyro_noise = radians(0.04f);` |
+
+The defaults are the upstream constants, so a patched build on default
+parameters behaves exactly as upstream. 0 removes a floor and other values
+scale it. The random draws stay in place, so later noise terms see the same
+random sequence. Indices 57 and 58 lie in the gap below the IMUT subgroups
+(59–63). A collision after a pin change stops the firmware at its parameter
+table check.
+
+The generator applies the patch strictly to the same pinned sources: every
+hunk must match at its stated line, without fuzz. Catalog schema 2 records,
+per patch:
+
+* the patch path and SHA-256;
+* each changed file's upstream and patched SHA-256;
+* the SIM_* parameters it adds, parsed from the patched sources;
+* the upstream facts it removes and the facts it establishes.
+
+The generator also asserts that every added default equals the constant it
+replaces. `parseArduPilotCatalog` rejects schema 1, a patch that changes a file
+outside the catalog or other upstream bytes, a redefined upstream parameter
+and a duplicate fact.
+
+Ownership matrix schema 2 adds `firmwarePatches`; schema 1 targets upstream
+firmware. `FIRMWARE_PATCHES` names the paths whose builds apply each patch.
+`imu-noise-floor` is applied on `native-json` only, because the browser HAL
+build does not apply it yet; declaring it on `browser-hal` is rejected. With the
+patch declared, the floors behave as follows:
+
+* `ardupilot` emits nothing, so the firmware runs on its defaults.
+* `none` emits `SIM_ACC_FLOOR 0` and `SIM_GYR_FLOOR 0`.
+* `mirage` emits the same lines and requires the accelerometer or gyro delivery
+  of the path.
+
+Without the patch, any owner other than `ardupilot` is rejected. A profile that
+needs patched firmware appends `; patches <id> <sha256>` to its second header
+line; upstream profiles are unchanged.
+
+The setting is `imuNoiseFloorMatrix('ardupilot' | 'off', path)`. On the command
+line:
+
+```bash
+node scripts/ownership-profile.mjs --imu-noise-floor off
+```
+
+`ardupilot` is the default and prints no settings. `off` prints:
+
+```text
+# MirageSITL error-ownership profile v1
+# matrix imu-noise-floor-off-native-json; path native-json; ArduPilot 8ab6afde107a91df1b5f60ade8f333cb8a61b190; patches imu-noise-floor 7a43d2ed8f05570500a5d6dc0c9205832628f85acec0378978a8bde30faedb96
+SIM_ACC_FLOOR 0
+SIM_GYR_FLOOR 0
+```
+
+`node scripts/build-ardupilot-sitl.mjs --out DIR` builds the patched native
+firmware on Linux or WSL. It verifies that `MIRAGE_SITL_SOURCE` is the clean
+pinned checkout and copies it, then applies the patch to the copy and checks
+every file hash against the catalog. It builds with
+`./waf configure --board sitl` and `./waf copter`, checks that both parameter
+names are in the ELF, and writes `DIR/manifest.json`. Missing prerequisites exit
+2. Upstream firmware skips unknown defaults-file names without any log line or
+STATUSTEXT, so `off` on unpatched firmware changes nothing silently. Any runner
+that applies `off` therefore reads both values back from the running firmware
+before it trusts the setting; the native harness does (below).
+
+Evidence (2026-10-26): native ArduCopter SITL runs on Linux at the pinned
+commit, using the unchanged TASK-042 driver (`scripts/sitl/driver.mjs`
+`c1a1e2a9…`, `scripts/sitl/telemetry.py` `3a386c88…`) and
+`tests/fixtures/sitl/parameters.parm`. The floors-off run appends the `off`
+profile. Firmware:
+
+* upstream: ELF `b54bef09…`;
+* patched: ELF `06846b05…`, built by the script with GCC 13.3.0.
+
+`node scripts/check-imu-noise-floor.mjs --input CAPTURE --expect ardupilot|off
+[--reference CAPTURE]` analyzes `HIGHRES_IMU` from 10 s until 1 s before arming
+(about 10,400 samples at 333 Hz). The quad then rests on its floor, so ArduPilot
+adds no throttle noise. The analyzer removes a least-squares line per axis,
+which absorbs the `SIM_DRIFT_SPEED` gyro drift. The limits were set before
+measurement from the upstream floor:
+
+* `off`: residual standard deviation at most 1e-5 m/s² and 1e-6 rad/s;
+* `ardupilot`: at least 1e-4 m/s² and 1e-5 rad/s.
+
+`--reference CAPTURE` also compares the samples bit for bit, by firmware time,
+until the first driver command of either run. MAVLink commands reach the
+firmware at wall-clock times, so the flights may diverge after them.
+
+| Run | Accelerometer residual (m/s²) | Gyro residual (rad/s) | Expected | Result |
+|---|---|---|---|---|
+| Upstream, defaults | 6.05e-4, 6.06e-4, 6.07e-4 | 4.78e-5, 4.78e-5, 4.68e-5 | `ardupilot` | PASS |
+| Patched, defaults | identical to upstream | identical to upstream | `ardupilot` | PASS |
+| Patched, `off` | 5.7e-11, 5.7e-11, 1.2e-6 (float32 at 9.8 m/s²) | 8.1e-8 on each axis | `off` | PASS |
+| Upstream given the `off` lines | 6.05e-4, 6.06e-4, 6.07e-4 | 4.78e-5, 4.78e-5, 4.68e-5 | `off` | FAIL, as the negative control expects |
+
+With defaults, the patched firmware's `HIGHRES_IMU` stream matches upstream bit
+for bit until the first driver command: 13,099 of 13,099 samples in this pair.
+Here the commands landed in the same firmware cycle, so all 27,362 samples of
+the flight matched. In the harness pair below they arrived 52 ms apart, and
+the flights diverged after the takeoff command. Both patched flights pass the
+TASK-042 raw MAVLink and flight audits: 67,233 physics frames and a 10.19 s
+hold. The reports are in `test-results/validation/task-089-imu-floor-*.json`.
+The captures stay outside the repository and are identified there by hash.
+
+Decision 2026-10-27: the native harness reads the setting.
+`scripts/run-sitl.mjs` accepts `MIRAGE_SITL_IMU_NOISE_FLOOR` unset (meaning
+`ardupilot`) or `off`, and rejects any other value. It passes the value to the
+driver and records it in its report. With `ardupilot` the driver sends nothing
+new, so default runs behave as before. With `off` the driver:
+
+* appends the validated `off` profile to its `quad.parm`;
+* asks for both parameters with PARAM_REQUEST_READ after the first heartbeat,
+  and again every 5 s;
+* holds its mode and arm commands until PARAM_VALUE reports both as 0;
+* fails if that has not happened 20 s into the simulation.
+
+`run.json` records the setting, the expected values and the reported values.
+The sidecar forwards PARAM_VALUE only for the names the driver read back.
+`scripts/sitl/check-raw.py` includes exactly those names, as declared in
+`run.json`, in its independent comparison, so captures without the declaration
+audit as before.
+
+Harness evidence (2026-10-27), from `node scripts/run-sitl.mjs` with the same
+two firmware builds:
+
+| Firmware | Setting | run-sitl | Read-back | Floor analysis | TASK-042 audits |
+|---|---|---|---|---|---|
+| upstream | default | PASS | none sent | PASS (`ardupilot`) | PASS |
+| patched | `off` | PASS, armed at 42.25 s | `SIM_ACC_FLOOR 0`, `SIM_GYR_FLOOR 0` | PASS (`off`), residuals as above | PASS |
+| upstream | `off` | FAIL at 20 s, never armed | 4 requests, no reply | not applicable | not applicable |
+| patched | default | PASS | none sent | PASS; the 13,082 samples before the first command match the upstream run | PASS |
+
+These changes alter the driver, sidecar and raw-audit sources. The frozen
+TASK-059 matrix (`tests/fixtures/scenarios/ew-matrix.json`) still names the
+earlier `driver.mjs` and `telemetry.py`, so `scripts/report-ekf.mjs` rejects new
+EW validation captures until TASK-059 is re-frozen with the current driver. The
+user accepted this on 2026-10-27. EW calibration and validation also bind the
+firmware and parameter hashes, so both must use the same firmware and setting.
+Earlier TASK-042/043 audits name the earlier `check-raw.py`; re-run it to
+refresh them.
+
+Open items:
+
+* HAL payload v2 with byte fixtures and the TASK-046 browser check.
+* Oracle tests for optional JSON keys (`battery.*`, `rng_*`, `airspeed`)
+  before they become delivery paths.
+* Airspeed and rangefinder sources.
+* Rerunning TASK-047 parity whenever a delivery changes.
+* Applying the `imu-noise-floor` patch in the browser HAL build
+  (`scripts/build-ardupilot-hal.mjs`) with the TASK-046 checks; only then does
+  `browser-hal` join the patch's paths.
+* Re-freezing TASK-059 with the current driver on the operator's machine
+  before new EW validation captures (decision 2026-10-27).
+
+## Step interfaces v2 (TASK-088)
+
+The step interfaces v2 extend the bound-rotor and rigid-body byte records once
+for the Phase 8–10 inputs and outputs. The v1 interfaces stay unchanged as a
+regression API. Bound-rotor arenas and their configuration remain v1:
+`bet_bound_init`, `bet_bound_reset` and `bet_bound_dispose` serve both versions.
+
+The new exports are `bet_bound_v2_version()->u32` (2),
+`bet_bound_step_v2(arena,input,output,dt)->i32`, `bet_body_v2_version()->u32`
+(2) and `bet_body_step_v2(input,output,dt)->i32`. They follow the v1 pointer
+rules: caller-owned, 8-byte-aligned, pairwise disjoint regions at or above
+`__heap_base`, and no memory growth after initialization. Records are little
+endian. A version word leads every input record, and reserved words must be
+zero. `native/bet/include/bet_bound.h` defines the sizes, bits and status.
+
+### Bound rotor step input v2
+
+| Byte Offset | Data Type | Units | Field Name |
+| ---: | --- | --- | --- |
+| 0 | u32 | version | version |
+| 4 | u32 | bitmask | input_flags |
+| 8 | u32 | enum | drive_mode |
+| 12 | u32 | — | reserved_zero |
+| 16 | f64 | kg/m^3 | density |
+| 24 | f64 | Pa s | dynamic_viscosity |
+| 32 | f64 | m/s | sound_speed |
+| 40 / 48 / 56 | f64 × 3 | m/s | air_velocity_hub_x/y/z |
+| 64 / 72 / 80 | f64 × 3 | rad/s | body_rate_hub_x/y/z |
+| 88 | f64 | rad | collective |
+| 96 | f64 | rad | cyclic_cos |
+| 104 | f64 | rad | cyclic_sin |
+| 112 | f64 | N m | motor_torque |
+| 120 | f64 | 1 | esc_duty |
+| 128 | f64 | V | bus_voltage |
+| 136 / 144 / 152 | f64 × 3 | m/s | external_wake_hub_x/y/z |
+| 160 / 168 / 176 | f64 × 3 | 1 | ground_normal_hub_x/y/z |
+| 184 | f64 | m | ground_distance |
+| 192..255 | u32[16] | — | reserved_zero |
+
+### Bound rotor step output v2
+
+| Byte Offset | Data Type | Units | Field Name |
+| ---: | --- | --- | --- |
+| 0 / 8 / 16 | f64 × 3 | N | force_hub_x/y/z |
+| 24 / 32 / 40 | f64 × 3 | N m | air_moment_hub_x/y/z |
+| 48 / 56 / 64 | f64 × 3 | N m | transmitted_moment_hub_x/y/z |
+| 72 | f64 | rad/s | omega |
+| 80 | f64 | N m | aerodynamic_shaft_torque |
+| 88 | f64 | W | shaft_power |
+| 96 | f64 | m/s | induced_axial |
+| 104 | f64 | rad | cone_angle |
+| 112 | u32 | bitmask | flags |
+| 116 | u32 | bitmask | validity |
+| 120 | f64 | kg m^2/s | angular_momentum_axial |
+| 128 | f64 | m/s | inflow_cos |
+| 136 | f64 | m/s | inflow_sin |
+| 144 | f64 | A | motor_current |
+| 152 | f64 | A | bus_current |
+| 160 | f64 | W | electrical_power |
+| 168 | f64 | W | copper_loss |
+| 176..255 | u32[20] | — | reserved_zero |
+
+Bound-rotor fields owned by later tasks, with their neutral values:
+
+* `drive_mode` 0 (torque) and zero `esc_duty` and `bus_voltage`; mode 1 is
+  TASK-092.
+* Zero `external_wake_hub_x/y/z` (TASK-101).
+* `input_flags` bit 0 clear, with zero `ground_normal_hub_x/y/z` and
+  `ground_distance` (TASK-100).
+
+Output `validity` bits mark quantities that need later tasks:
+
+* 1: `motor_current`, `bus_current`, `electrical_power` and `copper_loss`
+  (TASK-092).
+* 2: `inflow_cos` and `inflow_sin` (TASK-098).
+* 4: ground effect applied (TASK-100).
+* 8: external wake applied (TASK-101).
+
+An unavailable output is zero with its bit clear. `flags` keeps the v1
+meanings.
+
+### Rigid-body step input v2
+
+| Byte Offset | Data Type | Units | Field Name |
+| ---: | --- | --- | --- |
+| 0 | u32 | version | version |
+| 4 | u32 | enum | gravity_model |
+| 8 | u32 | bitmask | input_flags |
+| 12 | u32 | — | reserved_zero |
+| 16 | f64 | kg | mass |
+| 24..95 | f64[9] | kg m^2 | inertia_cg |
+| 96 / 104 / 112 | f64 × 3 | m | position_n/e/d |
+| 120 / 128 / 136 | f64 × 3 | m/s | velocity_n/e/d |
+| 144 / 152 / 160 / 168 | f64 × 4 | 1 | quaternion_w/x/y/z |
+| 176 / 184 / 192 | f64 × 3 | rad/s | omega_body_x/y/z |
+| 200 / 208 / 216 | f64 × 3 | N | force_body_x/y/z |
+| 224 / 232 / 240 | f64 × 3 | N m | moment_body_x/y/z |
+| 248 | f64 | m/s^2 | gravity_down |
+| 256 / 264 / 272 | f64 × 3 | m/s^2 | gravity_n/e/d |
+| 280 / 288 / 296 | f64 × 3 | m | cg_offset_body_x/y/z |
+| 304 | f64 | kg/s | mass_rate |
+| 312..383 | f64[9] | kg m^2/s | inertia_rate |
+| 384..447 | u32[16] | — | reserved_zero |
+
+### Rigid-body step output v2
+
+| Byte Offset | Data Type | Units | Field Name |
+| ---: | --- | --- | --- |
+| 0 / 8 / 16 | f64 × 3 | m | position_n/e/d |
+| 24 / 32 / 40 | f64 × 3 | m/s | velocity_n/e/d |
+| 48 / 56 / 64 / 72 | f64 × 4 | 1 | quaternion_w/x/y/z |
+| 80 / 88 / 96 | f64 × 3 | rad/s | omega_body_x/y/z |
+| 104 / 112 / 120 | f64 × 3 | m/s^2 | acceleration_n/e/d |
+| 128 / 136 / 144 | f64 × 3 | m/s^2 | specific_force_body_x/y/z |
+| 152 / 160 / 168 | f64 × 3 | rad/s^2 | angular_acceleration_body_x/y/z |
+| 176 / 184 / 192 | f64 × 3 | m | reference_position_n/e/d |
+| 200 | u32 | bitmask | validity |
+| 204..255 | u32[13] | — | reserved_zero |
+
+Rigid-body fields owned by later tasks, with their neutral values:
+
+* `gravity_model` 0 (constant `gravity_down` along NED down, the v1
+  semantics) with zero `gravity_n/e/d`; models 1 (NED vector) and 2 (WGS84)
+  are TASK-108.
+* Zero `cg_offset_body_x/y/z` (TASK-094).
+* `input_flags` bit 0 clear, with zero `mass_rate` and `inertia_rate`
+  (TASK-119).
+
+Output `validity` bit 1 marks `specific_force_body_x/y/z` and is always set.
+The body-frame force is constant over the step, so the CG specific force is
+F/m exactly. Bits 2 (`angular_acceleration_body_x/y/z`) and 4
+(`reference_position_n/e/d`) wait for TASK-094.
+
+Checks run in a fixed order: record length, version (−7), reserved words,
+unknown flags and modes (−3), non-finite values (−3), then later-task fields.
+A non-neutral later-task field returns −8 (`BET_V2_UNSUPPORTED`); −0 counts as
+neutral. The v1 statuses pass through: −1 handle, −4 dt, −5 memory growth and
+−3 for v1 range errors. A wrong rotor record length gives −2; a wrong body
+record length gives −3, as in body v1. Every non-zero status leaves the arena
+state and the output unchanged.
+
+A neutral record runs exactly the v1 step: rotor input bytes 16..119 are v1
+bytes 8..111, and body input bytes 16..255 are v1 bytes 0..239. Output bytes
+0..127 therefore equal the v1 output record bitwise. When a later task
+implements a field, it removes that field's −8 check and sets its validity
+bit.
+
+`tests/fixtures/wasm-abi/interface-v2.json` is generated by
+`python3 tests/fixtures/wasm-abi/generate.py` (Python `struct`, with
+`bet-abi-v1.json` unchanged). It holds these four layouts, neutral golden
+records and rejection patches. `native/bet/tests/bound_v2.rs` and
+`body_abi_v2.rs` check bitwise v1 equality over 2000 steps; 16 rotor and 19
+body invalid or unsupported records, plus record-length errors and v1
+pass-through statuses, all leaving state and output unchanged; and zero
+allocator calls and bytes over 10^6 steps. `native/bet/examples/interface_v2_reference.rs`
+prints native outputs for the WASM parity test `tests/wasm-abi-v2.test.ts`.
+`packages/wasm-bet/src/rotor-v2.ts` and `body-v2.ts` are the allocation-free
+adapters.
+
+Native and WASM agree to 1e-12 relative. Native glibc and the WASM libm may
+differ by an ulp in trigonometric functions, and a vector component's
+round-off scales with its vector's magnitude. Force and moment components are
+therefore compared relative to their vector's norm, and other quantities
+relative to their own magnitude. Over 200 steps of the golden records, the
+largest differences were 8.5e-14 for the rotor and 8.4e-16 for the body, in
+both the scalar and SIMD128 builds. Per-component relative error reached
+9.9e-13, on a near-cancelling 6.5e-5 N·m moment component whose absolute
+difference was 6.4e-17.

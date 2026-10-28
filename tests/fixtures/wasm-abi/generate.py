@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
-"""Writes bet-abi-v1.json: golden mirage-bet ABI v1 records (TASK-018).
+"""Writes bet-abi-v1.json (TASK-018) and interface-v2.json (TASK-088).
 
 Independent oracle: the bytes are packed here with Python's struct module from
-the offsets in docs/SPECS_SIMULATION_ENGINES.md section 4, not by the
-TypeScript encoder or the Rust decoder that the tests compare against them.
+the offsets in docs/SPECS_SIMULATION_ENGINES.md, not by the TypeScript encoder
+or the Rust decoder that the tests compare against them. interface-v2.json
+holds the step interface v2 layouts, neutral golden records and rejection
+patches for the bound-rotor and rigid-body steps.
 Run from the repository root: python3 tests/fixtures/wasm-abi/generate.py
 """
 import json
@@ -85,3 +87,125 @@ fixture = {
 out = Path(__file__).with_name("bet-abi-v1.json")
 out.write_text(json.dumps(fixture, indent=2) + "\n")
 print(f"wrote {out}: config {fixture['configBytes']} B, input {fixture['inputBytes']} B")
+
+
+# --- TASK-088: step interfaces v2 ----------------------------------------------------
+def fields(rows):
+    """(offset, type, count, name) rows; vectors expand into one row per component."""
+    out = []
+    for offset, kind, names in rows:
+        if isinstance(names, list):
+            width = 4 if kind == "u32" else 8
+            out += [{"offset": offset + i * width, "type": kind, "count": 1, "name": n} for i, n in enumerate(names)]
+        else:
+            count, name = names if isinstance(names, tuple) else (1, names)
+            out.append({"offset": offset, "type": kind, "count": count, "name": name})
+    return out
+
+
+def axes(prefix, suffixes="xyz"):
+    return [prefix + s for s in suffixes]
+
+
+LAYOUTS = {
+    "boundInputV2": (256, fields([
+        (0, "u32", "version"), (4, "u32", "input_flags"), (8, "u32", "drive_mode"), (12, "u32", "reserved_zero"),
+        (16, "f64", "density"), (24, "f64", "dynamic_viscosity"), (32, "f64", "sound_speed"),
+        (40, "f64", axes("air_velocity_hub_")), (64, "f64", axes("body_rate_hub_")),
+        (88, "f64", "collective"), (96, "f64", "cyclic_cos"), (104, "f64", "cyclic_sin"), (112, "f64", "motor_torque"),
+        (120, "f64", "esc_duty"), (128, "f64", "bus_voltage"), (136, "f64", axes("external_wake_hub_")),
+        (160, "f64", axes("ground_normal_hub_")), (184, "f64", "ground_distance"), (192, "u32", (16, "reserved_zero")),
+    ])),
+    "boundOutputV2": (256, fields([
+        (0, "f64", axes("force_hub_")), (24, "f64", axes("air_moment_hub_")), (48, "f64", axes("transmitted_moment_hub_")),
+        (72, "f64", "omega"), (80, "f64", "aerodynamic_shaft_torque"), (88, "f64", "shaft_power"),
+        (96, "f64", "induced_axial"), (104, "f64", "cone_angle"), (112, "u32", "flags"), (116, "u32", "validity"),
+        (120, "f64", "angular_momentum_axial"), (128, "f64", "inflow_cos"), (136, "f64", "inflow_sin"),
+        (144, "f64", "motor_current"), (152, "f64", "bus_current"), (160, "f64", "electrical_power"),
+        (168, "f64", "copper_loss"), (176, "u32", (20, "reserved_zero")),
+    ])),
+    "bodyInputV2": (448, fields([
+        (0, "u32", "version"), (4, "u32", "gravity_model"), (8, "u32", "input_flags"), (12, "u32", "reserved_zero"),
+        (16, "f64", "mass"), (24, "f64", (9, "inertia_cg")), (96, "f64", axes("position_", "ned")),
+        (120, "f64", axes("velocity_", "ned")), (144, "f64", axes("quaternion_", "wxyz")),
+        (176, "f64", axes("omega_body_")), (200, "f64", axes("force_body_")), (224, "f64", axes("moment_body_")),
+        (248, "f64", "gravity_down"), (256, "f64", axes("gravity_", "ned")), (280, "f64", axes("cg_offset_body_")),
+        (304, "f64", "mass_rate"), (312, "f64", (9, "inertia_rate")), (384, "u32", (16, "reserved_zero")),
+    ])),
+    "bodyOutputV2": (256, fields([
+        (0, "f64", axes("position_", "ned")), (24, "f64", axes("velocity_", "ned")), (48, "f64", axes("quaternion_", "wxyz")),
+        (80, "f64", axes("omega_body_")), (104, "f64", axes("acceleration_", "ned")),
+        (128, "f64", axes("specific_force_body_")), (152, "f64", axes("angular_acceleration_body_")),
+        (176, "f64", axes("reference_position_", "ned")), (200, "u32", "validity"), (204, "u32", (13, "reserved_zero")),
+    ])),
+}
+for name, (size, layout) in LAYOUTS.items():
+    covered = []
+    for f in layout:
+        width = (4 if f["type"] == "u32" else 8) * f["count"]
+        covered += range(f["offset"], f["offset"] + width)
+    assert sorted(covered) == list(range(size)), name
+
+
+def pack(size, values):
+    """values: {offset: (format, value)} packed little-endian into a zeroed record."""
+    record = bytearray(size)
+    for offset, (fmt, value) in values.items():
+        struct.pack_into("<" + fmt, record, offset, value)
+    return record
+
+
+# Same physical inputs as native/bet/tests/bound_v2.rs and body_abi_v2.rs.
+BOUND_INPUT = {0: ("I", 2), 16: ("d", 1.225), 24: ("d", 1.789e-5), 32: ("d", 340.0), 40: ("d", 3.0), 48: ("d", -0.5),
+               56: ("d", -1.0), 64: ("d", 0.05), 72: ("d", -0.1), 80: ("d", 0.02), 88: ("d", 0.04), 96: ("d", 0.01),
+               104: ("d", -0.01), 112: ("d", 0.03)}
+q = [0.9, 0.1, -0.3, 0.2]
+qn = math.sqrt(sum(v * v for v in q))
+BODY_VALUES = [1.5, 0.03, 0.0, -0.001, 0.0, 0.032, 0.0, -0.001, 0.0, 0.05, 10.0, -5.0, -20.0, 1.0, 0.5, -0.2,
+               *[v / qn for v in q], 0.4, -0.3, 0.2, 0.5, -0.2, -15.0, 0.01, -0.02, 0.005, 9.80665]
+BODY_INPUT = {0: ("I", 2), **{16 + 8 * i: ("d", v) for i, v in enumerate(BODY_VALUES)}}
+
+
+def patch(offset, fmt, value):
+    return {"offset": offset, "hex": struct.pack("<" + fmt, value).hex()}
+
+
+UNSUPPORTED = -8
+interface = {
+    "description": "Step interfaces v2 (TASK-088): layouts, neutral golden records and rejection patches; generated by tests/fixtures/wasm-abi/generate.py (Python struct, little-endian)",
+    "boundVersion": 2,
+    "bodyVersion": 2,
+    "unsupportedStatus": UNSUPPORTED,
+    "layouts": {name: {"bytes": size, "fields": layout} for name, (size, layout) in LAYOUTS.items()},
+    "boundInputHex": pack(256, BOUND_INPUT).hex(),
+    "bodyInputHex": pack(448, BODY_INPUT).hex(),
+    "boundRejections": [
+        {"why": "version 1", "status": -7, "patch": patch(0, "I", 1)},
+        {"why": "reserved header word", "status": -3, "patch": patch(12, "I", 1)},
+        {"why": "reserved tail", "status": -3, "patch": patch(252, "I", 1)},
+        {"why": "unknown input flag", "status": -3, "patch": patch(4, "I", 2)},
+        {"why": "unknown drive mode", "status": -3, "patch": patch(8, "I", 2)},
+        {"why": "NaN density", "status": -3, "patch": patch(16, "d", float("nan"))},
+        {"why": "infinite external wake", "status": -3, "patch": patch(136, "d", float("inf"))},
+        {"why": "ESC drive mode (TASK-092)", "status": UNSUPPORTED, "patch": patch(8, "I", 1)},
+        {"why": "bus voltage (TASK-092)", "status": UNSUPPORTED, "patch": patch(128, "d", 16.8)},
+        {"why": "external wake (TASK-101)", "status": UNSUPPORTED, "patch": patch(144, "d", 1.0)},
+        {"why": "ground plane (TASK-100)", "status": UNSUPPORTED, "patch": patch(4, "I", 1)},
+        {"why": "ground distance (TASK-100)", "status": UNSUPPORTED, "patch": patch(184, "d", 0.5)},
+    ],
+    "bodyRejections": [
+        {"why": "version 1", "status": -7, "patch": patch(0, "I", 1)},
+        {"why": "reserved tail", "status": -3, "patch": patch(444, "I", 1)},
+        {"why": "unknown gravity model", "status": -3, "patch": patch(4, "I", 3)},
+        {"why": "NaN mass", "status": -3, "patch": patch(16, "d", float("nan"))},
+        {"why": "zero mass", "status": -3, "patch": patch(16, "d", 0.0)},
+        {"why": "vector gravity (TASK-108)", "status": UNSUPPORTED, "patch": patch(4, "I", 1)},
+        {"why": "gravity vector (TASK-108)", "status": UNSUPPORTED, "patch": patch(272, "d", 9.8)},
+        {"why": "CG offset (TASK-094)", "status": UNSUPPORTED, "patch": patch(280, "d", 0.01)},
+        {"why": "mass-rate flag (TASK-119)", "status": UNSUPPORTED, "patch": patch(8, "I", 1)},
+        {"why": "inertia rate (TASK-119)", "status": UNSUPPORTED, "patch": patch(376, "d", 1e-4)},
+    ],
+}
+interface_out = Path(__file__).with_name("interface-v2.json")
+interface_out.write_text(json.dumps(interface, indent=2) + "\n")
+print(f"wrote {interface_out}")

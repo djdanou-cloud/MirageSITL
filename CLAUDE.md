@@ -60,7 +60,8 @@ policy copies; if a client loads neither pointer, open this file explicitly.
   rate-drop thresholds to hide drops.
 * **Rust BET, propulsion, rigid-body, atmosphere, and sensors:** The `native/` Rust
   1.97.0 workspace (`mirage-bet`) provides scalar/SIMD128 WASM builds, checked C ABI
-  arenas, polar lookup, a TypeScript ISA/temperature-offset atmosphere and seeded
+  arenas, polar lookup, a TypeScript atmosphere (standard ISA troposphere, or
+  absolute temperature and pressure; no temperature-offset input) and seeded
   synthetic AR(1) gusts (TASK-032; not Dryden, no shear, not wired into flight
   sessions), native rotor reference kernels with test-only WASM exports
   (TASK-020–TASK-023), motor/battery/arbitrary-frame wrench/RK4 rigid-body WASM
@@ -192,14 +193,37 @@ policy copies; if a client loads neither pointer, open this file explicitly.
   (accessibility sign-off; TASK-074 HUD freshness, TASK-075 fault ACKs, TASK-078 full-rate recording, and TASK-079 scenario ACK binding are done and do not admit browser READY), TASK-082 (multi-hour integrated soak), and TASK-083 (clean-machine
   release and assistive screen-reader sign-off) remain open.
 * **Physics fidelity program (TASK-087–TASK-123, roadmap Phases 7–13):** registered
-  2026-10-26 from the physics fidelity review and not yet implemented: vehicle manifest
-  v2, rotor/body interface v2, autopilot boundary and sensor-error ownership, the fidelity
-  evidence pipeline and BET compute headroom (TASK-087–TASK-091), then core flight
-  dynamics, rotor aerodynamics, propulsion and environment, fixed-wing/VTOL classes,
-  sensor physics, and structural and extreme-environment models (TASK-092–TASK-123).
-  MirageSITL stays an external flight-dynamics model: do not modify ArduPilot
-  `SIM_Multicopter`/`SIM_Plane` or the native firmware for these tasks without a recorded
-  decision.
+  2026-10-26 from the physics fidelity review. TASK-087–TASK-090 are IN_PROGRESS with a
+  first increment each:
+  * TASK-087: the strict vehicle manifest v2 (`vehicle-manifest.ts`), an ArduPilot
+    profile limited to evidenced names, and an optional `SessionModelPort` for
+    `model.load`; the default demo backend is unchanged.
+  * TASK-088: bound-rotor and body step interfaces v2 with fail-closed later-task
+    fields (status −8); neutral records run v1 bitwise.
+  * TASK-089: a pinned-source SITL catalog and a 25-source error-ownership matrix. By
+    the user's 2026-10-26 decision ArduPilot defaults stay the default, and the opt-in
+    `imu-noise-floor` firmware patch (`scripts/build-ardupilot-sitl.mjs`) adds
+    `SIM_ACC_FLOOR`/`SIM_GYR_FLOOR`, which switch off the fixed IMU noise floors
+    (`scripts/ownership-profile.mjs --imu-noise-floor off`). Unpatched firmware skips
+    them silently, so `run-sitl.mjs` with `MIRAGE_SITL_IMU_NOISE_FLOOR=off` holds arming
+    until the firmware confirms both values. The driver change means TASK-059 must be
+    re-frozen before new EW validation (accepted 2026-10-27). Under guardrail 5 of the
+    approved PROJECT_SCOPE.md, whether this approval still stands is decision D-10;
+    Phase 1 runs keep the patch unused until it is taken.
+  * TASK-090: fidelity metrics and `scripts/check-fidelity.mjs`, which never passes
+    synthetic data; real flight and bench data remain BLOCKED_EXTERNAL.
+
+  BET compute headroom (TASK-091) and the physics tasks TASK-092–TASK-123 are not
+  implemented. TASK-166 (not implemented) gives every
+  environment, sensor-error, EW and fault effect an on/off switch and an intensity
+  control. Effects that MirageSITL injects are off by default, and off must be
+  bitwise identical to absent; ArduPilot's own SITL errors keep the TASK-089
+  setting, whose default is ArduPilot's behaviour. That request of 2026-10-27 was first
+  registered as TASK-124 on the physics-review branch, a number main already used.
+  MirageSITL stays an external
+  flight-dynamics model: do not modify
+  ArduPilot `SIM_Multicopter`/`SIM_Plane` or the native firmware for these tasks
+  without a recorded decision.
 
 ### Workspace and git discipline
 

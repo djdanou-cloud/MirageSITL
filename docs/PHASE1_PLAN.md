@@ -291,7 +291,7 @@ Exit: Repeatable tasks, weather and fault schedules, EKF drift, run speed, batch
 
 | Task | Title | Scope IDs | Depends on |
 | --- | --- | --- | --- |
-| TASK-166 | Effect control contract for weather, sensor errors and faults | S07, S08, S09 | 010, 093, 156 |
+| TASK-166 | Effect control contract for weather, sensor errors and faults | S07, S08, S09 | 010, 075, 079, 089, 093, 156 |
 | TASK-167 | Weather tab with scheduled changes and repeatable gusts | S07 | 106, 137, 148, 166 |
 | TASK-168 | Sensor dropout, frozen readings and link-loss effects | S09 | 057, 147, 153, 166 |
 | TASK-169 | Faults and interference tab with schedules and outcomes | S09 | 137, 166, 168 |
