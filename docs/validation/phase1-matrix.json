@@ -1,0 +1,531 @@
+{
+  "schemaVersion": 1,
+  "task": "TASK-132",
+  "scope": "S19",
+  "description": "Phase 1 acceptance matrix: configuration x workflow x verdict. A cell's evidence is null or {path, sha256}. Missing evidence is NOT_RUN; a cell whose definition waits on a value in docs/decisions/phase1-acceptance.md is BLOCKED_DECISION and names it in blockedBy. TASK-188 aggregates evidence into this matrix and TASK-191 reports it. Historical Windows, cloud and TASK-073 results are not acceptance evidence.",
+  "verdicts": [
+    "PASS",
+    "FAIL",
+    "BLOCKED_EXTERNAL",
+    "BLOCKED_DECISION",
+    "NOT_RUN"
+  ],
+  "decisionRecord": "docs/decisions/phase1-acceptance.md",
+  "configurations": [
+    {
+      "id": "quad",
+      "frame": "Quadcopter, one motor per arm",
+      "arms": 4,
+      "motorsPerArm": 1,
+      "motors": 4
+    },
+    {
+      "id": "hexa",
+      "frame": "Hexacopter, one motor per arm",
+      "arms": 6,
+      "motorsPerArm": 1,
+      "motors": 6
+    },
+    {
+      "id": "octo",
+      "frame": "Octocopter, one motor per arm",
+      "arms": 8,
+      "motorsPerArm": 1,
+      "motors": 8
+    },
+    {
+      "id": "paired",
+      "frame": "Paired or coaxial configuration; the arm count is not selected",
+      "arms": null,
+      "motorsPerArm": 2,
+      "motors": null,
+      "decision": "A-10"
+    },
+    {
+      "id": "octo-paired-16",
+      "frame": "Eight arms with two motors each",
+      "arms": 8,
+      "motorsPerArm": 2,
+      "motors": 16
+    }
+  ],
+  "workflows": [
+    {
+      "id": "profile-creation",
+      "appliesTo": "each-configuration",
+      "criterion": "Create the aircraft profile through the UI",
+      "deliveredBy": [
+        "TASK-138",
+        "TASK-141"
+      ]
+    },
+    {
+      "id": "output-mapping",
+      "appliesTo": "each-configuration",
+      "criterion": "Correct ArduPilot output mapping",
+      "deliveredBy": [
+        "TASK-128",
+        "TASK-142",
+        "TASK-157"
+      ]
+    },
+    {
+      "id": "start",
+      "appliesTo": "each-configuration",
+      "criterion": "Start the experiment and reach autopilot readiness",
+      "deliveredBy": [
+        "TASK-153",
+        "TASK-154"
+      ]
+    },
+    {
+      "id": "flight-task",
+      "appliesTo": "each-configuration",
+      "criterion": "Fly a flight task",
+      "deliveredBy": [
+        "TASK-158",
+        "TASK-172"
+      ]
+    },
+    {
+      "id": "pause-resume",
+      "appliesTo": "each-configuration",
+      "criterion": "Pause and resume",
+      "deliveredBy": [
+        "TASK-156"
+      ]
+    },
+    {
+      "id": "parameter-changes",
+      "appliesTo": "each-configuration",
+      "criterion": "Change parameters",
+      "deliveredBy": [
+        "TASK-159",
+        "TASK-160"
+      ]
+    },
+    {
+      "id": "recording",
+      "appliesTo": "each-configuration",
+      "criterion": "Record the experiment",
+      "deliveredBy": [
+        "TASK-162",
+        "TASK-163"
+      ]
+    },
+    {
+      "id": "reopen-results",
+      "appliesTo": "each-configuration",
+      "criterion": "Reopen the results",
+      "deliveredBy": [
+        "TASK-165"
+      ]
+    },
+    {
+      "id": "unsupported-refusal",
+      "appliesTo": "each-configuration",
+      "criterion": "Refuse unsupported operations explicitly",
+      "deliveredBy": [
+        "TASK-142",
+        "TASK-154"
+      ]
+    },
+    {
+      "id": "one-hour-recording",
+      "appliesTo": [
+        "octo-paired-16"
+      ],
+      "criterion": "At least one continuous hour of simulated time with recording on the agreed reference hardware in Chrome, with the actual rate reported",
+      "deliveredBy": [
+        "TASK-189"
+      ]
+    },
+    {
+      "id": "installation-restart",
+      "appliesTo": "global",
+      "criterion": "Supported macOS installation and restart",
+      "deliveredBy": [
+        "TASK-152",
+        "TASK-190"
+      ]
+    },
+    {
+      "id": "offline-workflow",
+      "appliesTo": "global",
+      "criterion": "Local and offline workflows after installation",
+      "deliveredBy": [
+        "TASK-131",
+        "TASK-190"
+      ]
+    },
+    {
+      "id": "export-import",
+      "appliesTo": "global",
+      "criterion": "Experiment export and import",
+      "deliveredBy": [
+        "TASK-165"
+      ]
+    },
+    {
+      "id": "comparisons",
+      "appliesTo": "global",
+      "criterion": "Experiment and log comparisons",
+      "deliveredBy": [
+        "TASK-177",
+        "TASK-181"
+      ]
+    },
+    {
+      "id": "parameter-export",
+      "appliesTo": "global",
+      "criterion": "ArduPilot parameter file export",
+      "deliveredBy": [
+        "TASK-161"
+      ]
+    }
+  ],
+  "cells": [
+    {
+      "configuration": "quad",
+      "workflow": "profile-creation",
+      "verdict": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "configuration": "hexa",
+      "workflow": "profile-creation",
+      "verdict": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "configuration": "octo",
+      "workflow": "profile-creation",
+      "verdict": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "configuration": "paired",
+      "workflow": "profile-creation",
+      "verdict": "BLOCKED_DECISION",
+      "evidence": null,
+      "blockedBy": [
+        "A-10"
+      ]
+    },
+    {
+      "configuration": "octo-paired-16",
+      "workflow": "profile-creation",
+      "verdict": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "configuration": "quad",
+      "workflow": "output-mapping",
+      "verdict": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "configuration": "hexa",
+      "workflow": "output-mapping",
+      "verdict": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "configuration": "octo",
+      "workflow": "output-mapping",
+      "verdict": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "configuration": "paired",
+      "workflow": "output-mapping",
+      "verdict": "BLOCKED_DECISION",
+      "evidence": null,
+      "blockedBy": [
+        "A-10"
+      ]
+    },
+    {
+      "configuration": "octo-paired-16",
+      "workflow": "output-mapping",
+      "verdict": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "configuration": "quad",
+      "workflow": "start",
+      "verdict": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "configuration": "hexa",
+      "workflow": "start",
+      "verdict": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "configuration": "octo",
+      "workflow": "start",
+      "verdict": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "configuration": "paired",
+      "workflow": "start",
+      "verdict": "BLOCKED_DECISION",
+      "evidence": null,
+      "blockedBy": [
+        "A-10"
+      ]
+    },
+    {
+      "configuration": "octo-paired-16",
+      "workflow": "start",
+      "verdict": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "configuration": "quad",
+      "workflow": "flight-task",
+      "verdict": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "configuration": "hexa",
+      "workflow": "flight-task",
+      "verdict": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "configuration": "octo",
+      "workflow": "flight-task",
+      "verdict": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "configuration": "paired",
+      "workflow": "flight-task",
+      "verdict": "BLOCKED_DECISION",
+      "evidence": null,
+      "blockedBy": [
+        "A-10"
+      ]
+    },
+    {
+      "configuration": "octo-paired-16",
+      "workflow": "flight-task",
+      "verdict": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "configuration": "quad",
+      "workflow": "pause-resume",
+      "verdict": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "configuration": "hexa",
+      "workflow": "pause-resume",
+      "verdict": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "configuration": "octo",
+      "workflow": "pause-resume",
+      "verdict": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "configuration": "paired",
+      "workflow": "pause-resume",
+      "verdict": "BLOCKED_DECISION",
+      "evidence": null,
+      "blockedBy": [
+        "A-10"
+      ]
+    },
+    {
+      "configuration": "octo-paired-16",
+      "workflow": "pause-resume",
+      "verdict": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "configuration": "quad",
+      "workflow": "parameter-changes",
+      "verdict": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "configuration": "hexa",
+      "workflow": "parameter-changes",
+      "verdict": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "configuration": "octo",
+      "workflow": "parameter-changes",
+      "verdict": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "configuration": "paired",
+      "workflow": "parameter-changes",
+      "verdict": "BLOCKED_DECISION",
+      "evidence": null,
+      "blockedBy": [
+        "A-10"
+      ]
+    },
+    {
+      "configuration": "octo-paired-16",
+      "workflow": "parameter-changes",
+      "verdict": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "configuration": "quad",
+      "workflow": "recording",
+      "verdict": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "configuration": "hexa",
+      "workflow": "recording",
+      "verdict": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "configuration": "octo",
+      "workflow": "recording",
+      "verdict": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "configuration": "paired",
+      "workflow": "recording",
+      "verdict": "BLOCKED_DECISION",
+      "evidence": null,
+      "blockedBy": [
+        "A-10"
+      ]
+    },
+    {
+      "configuration": "octo-paired-16",
+      "workflow": "recording",
+      "verdict": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "configuration": "quad",
+      "workflow": "reopen-results",
+      "verdict": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "configuration": "hexa",
+      "workflow": "reopen-results",
+      "verdict": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "configuration": "octo",
+      "workflow": "reopen-results",
+      "verdict": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "configuration": "paired",
+      "workflow": "reopen-results",
+      "verdict": "BLOCKED_DECISION",
+      "evidence": null,
+      "blockedBy": [
+        "A-10"
+      ]
+    },
+    {
+      "configuration": "octo-paired-16",
+      "workflow": "reopen-results",
+      "verdict": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "configuration": "quad",
+      "workflow": "unsupported-refusal",
+      "verdict": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "configuration": "hexa",
+      "workflow": "unsupported-refusal",
+      "verdict": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "configuration": "octo",
+      "workflow": "unsupported-refusal",
+      "verdict": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "configuration": "paired",
+      "workflow": "unsupported-refusal",
+      "verdict": "BLOCKED_DECISION",
+      "evidence": null,
+      "blockedBy": [
+        "A-10"
+      ]
+    },
+    {
+      "configuration": "octo-paired-16",
+      "workflow": "unsupported-refusal",
+      "verdict": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "configuration": "octo-paired-16",
+      "workflow": "one-hour-recording",
+      "verdict": "BLOCKED_DECISION",
+      "evidence": null,
+      "blockedBy": [
+        "A-01",
+        "A-02",
+        "A-03",
+        "A-04",
+        "A-05",
+        "A-07",
+        "A-08"
+      ]
+    },
+    {
+      "configuration": null,
+      "workflow": "installation-restart",
+      "verdict": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "configuration": null,
+      "workflow": "offline-workflow",
+      "verdict": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "configuration": null,
+      "workflow": "export-import",
+      "verdict": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "configuration": null,
+      "workflow": "comparisons",
+      "verdict": "NOT_RUN",
+      "evidence": null
+    },
+    {
+      "configuration": null,
+      "workflow": "parameter-export",
+      "verdict": "NOT_RUN",
+      "evidence": null
+    }
+  ]
+}

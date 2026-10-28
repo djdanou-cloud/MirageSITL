@@ -18,6 +18,10 @@
       "ru": "docs/ru/offline-inventory.md"
     },
     {
+      "en": "docs/decisions/phase1-acceptance.md",
+      "ru": "docs/ru/phase1-acceptance.md"
+    },
+    {
       "en": "README.md",
       "ru": "docs/ru/README.md"
     },
