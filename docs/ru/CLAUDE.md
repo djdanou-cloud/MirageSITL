@@ -1,6 +1,6 @@
 # CLAUDE.md — MirageSITL agent instructions
 
-<!-- source-sha256: a6fc2bce3ebb846a54f8376e0cc4fbd7118bf7d0381d7337d81c7c81ae9c12a0 -->
+<!-- source-sha256: 09ec515f25237b7e68bd6be2b95c63cb65fadff0a620a121bc6887b01b15c9bc -->
 
 Английский источник: [Source of truth](../../CLAUDE.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -218,10 +218,10 @@ TASK-127–TASK-191 и решения D-01–D-12, а у каждой откры
 * **Программа фазы 1 (TASK-127–TASK-191, [PHASE1_PLAN.md](PHASE1_PLAN.md)):**
   TASK-131 (инвентаризация офлайн-зависимостей и рельефа,
   `node scripts/check-offline.mjs`) и TASK-135 (ветка обзора физики перенесена)
-  выполнены (DONE). TASK-132 и TASK-133 находятся в состоянии BLOCKED_DECISION,
-  пока стейкхолдер не выберет значения приёмки
-  ([phase1-acceptance.md](phase1-acceptance.md)) и не утвердит таблицы и пределы
-  достоверности ([phase1-fidelity.md](phase1-fidelity.md)). TASK-127–TASK-129
+  выполнены (DONE), как и TASK-132: стейкхолдер решил все значения приёмки
+  ([phase1-acceptance.md](phase1-acceptance.md)). TASK-133 остаётся в состоянии
+  BLOCKED_DECISION только из-за пределов валидации и границ применимости F-02–F-05
+  ([phase1-fidelity.md](phase1-fidelity.md)); D-10–D-12 открыты. TASK-127–TASK-129
   требуют Mac, а TASK-130 — проверки UAVLogViewer. TASK-073, TASK-080, TASK-082 и
   TASK-083 ниже не являются порогами фазы 1; см. их решения для фазы 1
   (Phase 1 disposition) в дорожной карте.
@@ -562,6 +562,10 @@ seed и среда выполнения обязаны воспроизводи�
   или ввода-вывода.
 
 ## 9. Данные, рендеринг и измерения
+
+MirageSITL — некоммерческий проект (решение стейкхолдера D-09, 2026-10-28). Не
+задавайте стейкхолдеру вопросов о лицензиях; фиксируйте факты о лицензиях в
+`config/offline-inventory.json` и `data/terrain/inventory.json`.
 
 Живые тайлы Google требуют соблюдения атрибуции, заголовков CORS/COEP и политики
 провайдера. Не включайте постоянное кеширование в R2 или предзагрузку без явного

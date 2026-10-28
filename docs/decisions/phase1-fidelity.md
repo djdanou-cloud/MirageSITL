@@ -27,15 +27,15 @@ no effect is called measured-accurate without evidence.
 
 | ID | Item | Status | Owner | Decision date |
 | --- | --- | --- | --- | --- |
-| F-01 | Per-effect models, inputs, envelopes and out-of-envelope behavior (table below) | Proposed; awaiting approval | Stakeholder | — |
+| F-01 | Per-effect models, inputs, envelopes and out-of-envelope behavior (table below) | Approved | Stakeholder | 2026-10-28 |
 | F-02 | Validation tolerance for each effect | BLOCKED_DECISION | Stakeholder | — |
 | F-03 | Envelope bounds still open: forward-flight advance ratio, polar Reynolds-number range and bench-fit extrapolation margin | BLOCKED_DECISION | Stakeholder | — |
 | F-04 | S15 comparison metrics and data (table below) | Proposed; awaiting approval | Stakeholder | — |
 | F-05 | S15 comparison limits | BLOCKED_DECISION | Stakeholder | — |
-| F-06 | Confidence labels and the rule for combining them | Proposed; awaiting approval | Stakeholder | — |
-| F-07 | Support points derived from geometry | Proposed; awaiting approval (D-07) | Stakeholder | — |
-| F-08 | Default static deflection, damping ratio and friction coefficients | BLOCKED_DECISION (D-07) | Stakeholder | — |
-| F-09 | Accident criteria and the minimum contact that counts | Proposed rule; thresholds BLOCKED_DECISION | Stakeholder | — |
+| F-06 | Confidence labels and the rule for combining them | Approved | Stakeholder | 2026-10-28 |
+| F-07 | Support points derived from geometry | Approved (D-07) | Stakeholder | 2026-10-28 |
+| F-08 | Default static deflection, damping ratio and friction coefficients | Decided (D-07): `δ_s` = 5 mm, `ζ` = 0.7, `μ_s` = 0.6, `μ_k` = 0.5 | Stakeholder | 2026-10-28 |
+| F-09 | Accident criteria and the minimum contact that counts | Decided: the rule below; the stakeholder asked Claude to choose the thresholds | Stakeholder | 2026-10-28 |
 
 ## Confidence labels
 
@@ -47,7 +47,7 @@ no effect is called measured-accurate without evidence.
 
 None of the labels certifies exported settings for real flight. A label
 belongs to a profile version, and to the regimes and effects it was earned in.
-Proposed combination rule (F-06): an experiment shows the label of each effect
+Combination rule (F-06, approved): an experiment shows the label of each effect
 it uses, and the aircraft-level label is the weakest of them. A change to
 geometry, mass, motor or propeller resets `flight-checked`, and a change to the
 combination resets `measured-input`.
@@ -104,14 +104,14 @@ geometry. The contact model is the TASK-095 compliant contact, with the Rapier
 backend as the single integration owner and one terrain plane per tick from the
 collision chunks (TASK-065, TASK-187).
 
-**Support points (F-07, proposed).** One support point under each arm at the
+**Support points (F-07, approved).** One support point under each arm at the
 arm's motor radius, at the profile's ground clearance below the body. A
 profile without a clearance uses the lowest point of its body hull. The body
 hull and every propeller disk are separate contact shapes that never carry
 support.
 
-**Default parameters (F-08, values BLOCKED_DECISION).** Defaults are derived
-from three numbers the stakeholder chooses, rather than stored as fixed
+**Default parameters (F-08, decided).** Defaults are derived from numbers
+the stakeholder chose on 2026-10-28, rather than stored as fixed spring
 constants: the static deflection `δ_s` under the aircraft's weight, the damping
 ratio `ζ`, and the static and kinetic friction coefficients `μ_s` and `μ_k`.
 With `N` support points and mass `m`:
@@ -120,14 +120,26 @@ $$
 k=\frac{m\,g}{N\,\delta_s},\qquad c=2\,\zeta\,\sqrt{\frac{k\,m}{N}}
 $$
 
-Static friction holds below breakaway and Coulomb friction applies above it,
-as in TASK-095.
+The decided values are `δ_s` = 5 mm (each support point compresses by 5 mm
+under the aircraft's weight), `ζ` = 0.7 (a touchdown settles with almost no
+bounce), `μ_s` = 0.6 and `μ_k` = 0.5 (roughly rubber on concrete). Static
+friction holds below breakaway and Coulomb friction applies above it, as in
+TASK-095. These are defaults for the basic contact model, not measured
+landing-gear properties.
 
-**Accident criteria (F-09).** Proposed rule: any contact of the body hull or a
+**Accident criteria (F-09, decided).** A contact of the body hull or a
 propeller disk is an accident (TASK-149). It is recorded with its tick,
 location, impulse and load, and the run pauses on that tick. Contact on the
 support points alone, including a hard landing, is not an accident. The
-minimum impulse or penetration that counts as a contact is BLOCKED_DECISION.
+stakeholder asked Claude to choose the minimum contact that counts:
+
+* a propeller disk counts on any contact while its rotor turns;
+* the body hull, or a propeller that has stopped, counts once its penetration
+  reaches 1 mm or its normal force reaches 5% of the aircraft's weight.
+
+The thresholds filter numerical grazing contacts, not real strikes. TASK-149
+checks them with its hard-landing and strike fixtures and records any change
+here.
 Continuing after an accident is labeled, and it is never presented as a
 validated simulation of a damaged aircraft.
 

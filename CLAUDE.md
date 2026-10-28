@@ -196,10 +196,12 @@ implementation.
 
 * **Phase 1 program (TASK-127–TASK-191, [PHASE1_PLAN.md](docs/PHASE1_PLAN.md)):**
   TASK-131 (offline and terrain inventory, `node scripts/check-offline.mjs`) and
-  TASK-135 (the physics-review branch landed) are DONE. TASK-132 and TASK-133 are
-  BLOCKED_DECISION until the stakeholder chooses the acceptance values
-  ([phase1-acceptance.md](docs/decisions/phase1-acceptance.md)) and approves the
-  fidelity tables and limits ([phase1-fidelity.md](docs/decisions/phase1-fidelity.md)).
+  TASK-135 (the physics-review branch landed) are DONE, and so is TASK-132: the
+  stakeholder decided every acceptance value
+  ([phase1-acceptance.md](docs/decisions/phase1-acceptance.md)). TASK-133 stays
+  BLOCKED_DECISION only on the validation limits and envelope bounds F-02 to F-05
+  ([phase1-fidelity.md](docs/decisions/phase1-fidelity.md)); D-10 to D-12 are
+  open.
   TASK-127–TASK-129 need a Mac, and TASK-130 needs the UAVLogViewer review. TASK-073,
   TASK-080, TASK-082 and TASK-083 below are not Phase 1 gates; see their Phase 1
   dispositions in the roadmap.
@@ -492,6 +494,10 @@ ordering fixed independently of render FPS.
   queue at the producer/I/O boundary.
 
 ## 9. Data, rendering, and measurement
+
+MirageSITL is non-commercial (stakeholder decision D-09, 2026-10-28). Do not
+ask the stakeholder licensing questions; record license facts in
+`config/offline-inventory.json` and `data/terrain/inventory.json` instead.
 
 Google live tiles require attribution, CORS/COEP, and provider policy.
 Do not enable persistent R2 caching/prefetch without permission. Owned/licensed

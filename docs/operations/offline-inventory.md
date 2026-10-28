@@ -78,17 +78,17 @@ With `--dist apps/web/dist`, all 27 are named and none is unused.
 | BET WebAssembly artifacts | Built from `native/bet` | No (built locally) | Not applicable (project-owned) | Ready | — |
 | Rapier contact WebAssembly | Rapier `b716d375` | Yes (source clone and crates) | Reviewed (Apache-2.0) | Ready | — |
 | ArduPilot ArduCopter source | `8ab6afde` | Yes (source clone and submodules) | Restricted (GPL-3.0-or-later) | Pending | D-01, D-02 |
-| ArduPilot build prerequisites on macOS | Not pinned | Yes | Unresolved | Pending | D-02 (TASK-127) |
+| ArduPilot build prerequisites on macOS | Not pinned | Yes | Reviewed (open-source tools) | Pending | D-02 (TASK-127) |
 | pymavlink | 2.4.50 | Yes | Reviewed (LGPL-3.0, unmodified tool) | Ready | — |
 | MAVLink message definitions | `2e2b6af9` | No (subset in the repository) | Reviewed (MIT) | Ready | — |
 | ArduPilot parameter metadata | Generated from the selected source | No | Restricted (GPL-3.0-or-later) | Pending | TASK-159, D-02 |
 | UAVLogViewer | Not selected | Yes | Unresolved | Pending | D-04 (TASK-130) |
 | Chrome on macOS | Not selected | Yes | Not applicable | Pending | D-08 (TASK-132) |
-| World Magnetic Model coefficients | WMM2025 | No | Unresolved | Pending | TASK-148 |
-| UIUC propeller database | README of 2022-06-27 | No (provided offline) | Unresolved (no explicit license) | Ready | D-06 (TASK-133) |
+| World Magnetic Model coefficients | WMM2025 | No | Reviewed (public domain) | Pending | TASK-148 |
+| UIUC propeller database | README of 2022-06-27 | No (provided offline) | Reviewed (cited; non-commercial use) | Ready | D-06 (TASK-133) |
 | JSBSim WebAssembly | `570e8115` | Yes | Reviewed (LGPL-2.1) | Not needed in Phase 1 | — |
 | ArduPilot browser WebAssembly | `native/ardupilot/toolchain.lock.json` | Yes | Restricted (GPL-3.0-or-later) | Not needed in Phase 1 | TASK-045 |
-| Geodata pipeline environment | `scripts/geodata/setup-wsl.sh` | No (manual setup) | Unresolved | Not needed in Phase 1 | D-09 |
+| Geodata pipeline environment | `scripts/geodata/setup-wsl.sh` | No (manual setup) | Reviewed (open-source tools) | Not needed in Phase 1 | — |
 | FLIR ADAS thermal sample | ADAS v2 | No (manual, after the agreement) | Restricted | Not needed in Phase 1 | Dataset agreement review |
 
 ## Terrain sources
@@ -100,10 +100,10 @@ data, keys or a deployment is not a ready source.
 | --- | --- | --- | --- | --- | --- |
 | Synthetic level pad | Synthetic surface | Any location | Analytic plane | Ready | Not applicable |
 | ESA WorldCover 2021 v200 | Land cover | Israel only (tiles N27E033, N30E033, N33E033) | 10 m classes | Ready, not wired into the runtime | Reviewed (CC BY 4.0) |
-| FABDEM V1-2 | Elevation | The `config/geodata.json` bounding box once prepared | About 30 m | Needs data | Restricted (CC BY-NC-SA 4.0) |
-| EGM2008 geoid grid | Geoid | Global | 2.5 arc-minutes | Needs data | Unresolved |
-| Overture Maps buildings | Vector features | The bounding box once prepared | Footprints with heights | Needs data | Restricted (ODbL-1.0 or CDLA-Permissive-2.0) |
-| OpenStreetMap features | Vector features | The supplied extract | Vector | Needs data | Restricted (ODbL-1.0) |
+| FABDEM V1-2 | Elevation | The `config/geodata.json` bounding box once prepared | About 30 m | Needs data | Reviewed (CC BY-NC-SA 4.0; non-commercial use) |
+| EGM2008 geoid grid | Geoid | Global | 2.5 arc-minutes | Needs data | Reviewed |
+| Overture Maps buildings | Vector features | The bounding box once prepared | Footprints with heights | Needs data | Reviewed (ODbL-1.0 or CDLA-Permissive-2.0) |
+| OpenStreetMap features | Vector features | The supplied extract | Vector | Needs data | Reviewed (ODbL-1.0) |
 | Google Photorealistic 3D Tiles | Imagery and mesh | Online only | Provider-defined | Needs keys or deployment | Restricted (Google Maps Platform terms) |
 | Quantized-mesh fixture | Test fixture | Synthetic | Zoom 0 to 12 | Test only | Not applicable |
 | 3D Tiles fixtures | Test fixture | Synthetic | Fixture geometry | Test only | Not applicable |
@@ -128,22 +128,19 @@ The gaps are listed, not filled with new providers:
 5. Outside the Israel WorldCover tiles and any locally prepared FABDEM area,
    only the synthetic pad is available.
 
-## Decisions this inventory raises
+## Decisions on this inventory
 
-Decision D-09 in the [Phase 1 plan](../PHASE1_PLAN.md) collects the terrain
-questions:
+Decision D-09 in the [Phase 1 plan](../PHASE1_PLAN.md) was taken on
+2026-10-28: MirageSITL is non-commercial. FABDEM, the EGM2008 geoid grid,
+Overture buildings, OpenStreetMap features and the UIUC propeller data are
+therefore usable as listed, and license questions are not raised with the
+stakeholder again; license facts are recorded here instead. Google
+Photorealistic 3D Tiles stay an online-only source that is not ready, because
+they need keys and a deployment and their terms forbid offline caching.
 
-* whether FABDEM's non-commercial license fits the stakeholder's use, and
-  whether locally prepared FABDEM terrain is the Phase 1 elevation source;
-* the EGM2008 geoid grid's license, before TASK-148 stores it;
-* whether Phase 1 shows Overture buildings or uses OpenStreetMap features,
-  given ODbL share-alike;
-* that Google Photorealistic 3D Tiles stay an online-only, not-ready source.
-
-The other open rows wait on decisions the plan already records: D-01 and D-02
-(ArduPilot version, macOS build method, and GPL obligations if a prebuilt
-binary is ever shipped), D-04 (UAVLogViewer), D-06 (reliance on the UIUC
-propeller data) and D-08 (Chrome and macOS versions).
+The remaining open rows wait on tasks, not on license questions: D-01 and D-02
+(ArduPilot version and macOS build method), D-04 (UAVLogViewer, TASK-130),
+TASK-148 (WMM and geoid files) and TASK-159 (parameter metadata).
 
 ## Maintaining the inventory
 

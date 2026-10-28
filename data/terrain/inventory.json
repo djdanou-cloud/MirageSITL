@@ -41,11 +41,11 @@
       "kind": "elevation",
       "source": "scripts/geodata/fetch_fabdem.py and scripts/geodata/build_terrain.py over the bounding box in config/geodata.json; run by hand, output kept outside the repository",
       "license": "CC BY-NC-SA 4.0 (non-commercial; commercial use needs a Fathom licence); contains modified Copernicus DEM GLO-30",
-      "licenseStatus": "restricted",
+      "licenseStatus": "reviewed",
       "coverage": "The config/geodata.json bounding box, 34.2 to 35.9 degrees east and 29.4 to 33.4 degrees north, once prepared",
       "resolution": "1 arc-second (about 30 m) source; terrain tiles to zoom 13, and zoom 15 inside the configured area",
       "readiness": "needs-data",
-      "decision": "D-09 (TASK-131): whether the non-commercial license fits the stakeholder's use, and whether a locally prepared FABDEM terrain set is the Phase 1 elevation source.",
+      "decision": "Reviewed for MirageSITL's non-commercial use (stakeholder decision D-09, 2026-10-28). Preparing the tiles locally with scripts/geodata/ is the elevation source for TASK-148 and TASK-186.",
       "offline": true
     },
     {
@@ -53,12 +53,12 @@
       "name": "EGM2008 geoid grid (us_nga_egm08_25.tif)",
       "kind": "geoid",
       "source": "PROJ data CDN, fetched by the manual geodata setup; not in the repository",
-      "license": "Not verified from the publisher",
-      "licenseStatus": "unresolved",
+      "license": "EGM2008 geoid model published by the US National Geospatial-Intelligence Agency, distributed through PROJ data",
+      "licenseStatus": "reviewed",
       "coverage": "Global",
       "resolution": "2.5 arc-minutes",
       "readiness": "needs-data",
-      "decision": "D-09 (TASK-131) records the license; TASK-148 stores the grid with source and SHA-256 in data/geoid/inventory.json.",
+      "decision": "Reviewed for MirageSITL's non-commercial use (stakeholder decision D-09, 2026-10-28). TASK-148 stores the grid with source and SHA-256 in data/geoid/inventory.json.",
       "offline": true
     },
     {
@@ -67,11 +67,11 @@
       "kind": "vector-features",
       "source": "scripts/geodata/build_buildings.py over the config/geodata.json bounding box; run by hand, output kept outside the repository",
       "license": "ODbL-1.0 or CDLA-Permissive-2.0 per Overture release; attribution: Overture Maps Foundation, OpenStreetMap contributors",
-      "licenseStatus": "restricted",
+      "licenseStatus": "reviewed",
       "coverage": "The config/geodata.json bounding box once prepared",
       "resolution": "Building footprints with heights from Overture, floor counts or a 6 m default",
       "readiness": "needs-data",
-      "decision": "D-09 (TASK-131): whether Phase 1 shows buildings; ODbL share-alike applies to any distributed derived database.",
+      "decision": "Reviewed for MirageSITL's non-commercial use (stakeholder decision D-09, 2026-10-28). TASK-186 decides whether Phase 1 shows buildings.",
       "offline": true
     },
     {
@@ -80,11 +80,11 @@
       "kind": "vector-features",
       "source": "scripts/geodata/extract_osm.py over a local OSM PBF extract supplied by the operator",
       "license": "ODbL-1.0",
-      "licenseStatus": "restricted",
+      "licenseStatus": "reviewed",
       "coverage": "The supplied extract",
       "resolution": "Vector features",
       "readiness": "needs-data",
-      "decision": "D-09 (TASK-131): whether Phase 1 uses OSM features at all.",
+      "decision": "Reviewed for MirageSITL's non-commercial use (stakeholder decision D-09, 2026-10-28). TASK-186 decides whether Phase 1 uses OSM features.",
       "offline": true
     },
     {
@@ -97,7 +97,7 @@
       "coverage": "Google coverage, online only",
       "resolution": "Provider-defined photogrammetry",
       "readiness": "needs-keys-or-deployment",
-      "decision": "D-09 (TASK-131): S17 allows external map services to require connectivity; this source is never offline and is not a ready source without keys and a deployment.",
+      "decision": "Not a Phase 1 source: it is online only, its terms forbid offline caching or prefetch, and it needs keys and a deployment (D-09, 2026-10-28).",
       "offline": false
     },
     {

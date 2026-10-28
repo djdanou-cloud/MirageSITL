@@ -34,12 +34,11 @@
       "motors": 8
     },
     {
-      "id": "paired",
-      "frame": "Paired or coaxial configuration; the arm count is not selected",
-      "arms": null,
+      "id": "x8",
+      "frame": "X8: four arms with two coaxial motors each",
+      "arms": 4,
       "motorsPerArm": 2,
-      "motors": null,
-      "decision": "A-10"
+      "motors": 8
     },
     {
       "id": "octo-paired-16",
@@ -204,13 +203,10 @@
       "evidence": null
     },
     {
-      "configuration": "paired",
+      "configuration": "x8",
       "workflow": "profile-creation",
-      "verdict": "BLOCKED_DECISION",
-      "evidence": null,
-      "blockedBy": [
-        "A-10"
-      ]
+      "verdict": "NOT_RUN",
+      "evidence": null
     },
     {
       "configuration": "octo-paired-16",
@@ -237,13 +233,10 @@
       "evidence": null
     },
     {
-      "configuration": "paired",
+      "configuration": "x8",
       "workflow": "output-mapping",
-      "verdict": "BLOCKED_DECISION",
-      "evidence": null,
-      "blockedBy": [
-        "A-10"
-      ]
+      "verdict": "NOT_RUN",
+      "evidence": null
     },
     {
       "configuration": "octo-paired-16",
@@ -270,13 +263,10 @@
       "evidence": null
     },
     {
-      "configuration": "paired",
+      "configuration": "x8",
       "workflow": "start",
-      "verdict": "BLOCKED_DECISION",
-      "evidence": null,
-      "blockedBy": [
-        "A-10"
-      ]
+      "verdict": "NOT_RUN",
+      "evidence": null
     },
     {
       "configuration": "octo-paired-16",
@@ -303,13 +293,10 @@
       "evidence": null
     },
     {
-      "configuration": "paired",
+      "configuration": "x8",
       "workflow": "flight-task",
-      "verdict": "BLOCKED_DECISION",
-      "evidence": null,
-      "blockedBy": [
-        "A-10"
-      ]
+      "verdict": "NOT_RUN",
+      "evidence": null
     },
     {
       "configuration": "octo-paired-16",
@@ -336,13 +323,10 @@
       "evidence": null
     },
     {
-      "configuration": "paired",
+      "configuration": "x8",
       "workflow": "pause-resume",
-      "verdict": "BLOCKED_DECISION",
-      "evidence": null,
-      "blockedBy": [
-        "A-10"
-      ]
+      "verdict": "NOT_RUN",
+      "evidence": null
     },
     {
       "configuration": "octo-paired-16",
@@ -369,13 +353,10 @@
       "evidence": null
     },
     {
-      "configuration": "paired",
+      "configuration": "x8",
       "workflow": "parameter-changes",
-      "verdict": "BLOCKED_DECISION",
-      "evidence": null,
-      "blockedBy": [
-        "A-10"
-      ]
+      "verdict": "NOT_RUN",
+      "evidence": null
     },
     {
       "configuration": "octo-paired-16",
@@ -402,13 +383,10 @@
       "evidence": null
     },
     {
-      "configuration": "paired",
+      "configuration": "x8",
       "workflow": "recording",
-      "verdict": "BLOCKED_DECISION",
-      "evidence": null,
-      "blockedBy": [
-        "A-10"
-      ]
+      "verdict": "NOT_RUN",
+      "evidence": null
     },
     {
       "configuration": "octo-paired-16",
@@ -435,13 +413,10 @@
       "evidence": null
     },
     {
-      "configuration": "paired",
+      "configuration": "x8",
       "workflow": "reopen-results",
-      "verdict": "BLOCKED_DECISION",
-      "evidence": null,
-      "blockedBy": [
-        "A-10"
-      ]
+      "verdict": "NOT_RUN",
+      "evidence": null
     },
     {
       "configuration": "octo-paired-16",
@@ -468,13 +443,10 @@
       "evidence": null
     },
     {
-      "configuration": "paired",
+      "configuration": "x8",
       "workflow": "unsupported-refusal",
-      "verdict": "BLOCKED_DECISION",
-      "evidence": null,
-      "blockedBy": [
-        "A-10"
-      ]
+      "verdict": "NOT_RUN",
+      "evidence": null
     },
     {
       "configuration": "octo-paired-16",
@@ -485,12 +457,8 @@
     {
       "configuration": "octo-paired-16",
       "workflow": "one-hour-recording",
-      "verdict": "BLOCKED_DECISION",
-      "evidence": null,
-      "blockedBy": [
-        "A-07",
-        "A-08"
-      ]
+      "verdict": "NOT_RUN",
+      "evidence": null
     },
     {
       "configuration": null,

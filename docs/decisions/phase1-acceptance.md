@@ -22,15 +22,15 @@ to A-08, A-11 and A-12; D-05 includes A-09.
 | A-03 | Supported Chrome versions | Minimum: the stable Chrome version current on 2026-10-28. Every later stable release is supported, and the current stable version is the default. Each run records the exact version | Decided | Stakeholder | 2026-10-28 | TASK-152, TASK-188, TASK-190 |
 | A-04 | Physics rate for each matrix configuration | 400 Hz for every configuration; 800 and 1200 Hz stay selectable options | Decided | Stakeholder | 2026-10-28 | TASK-153, TASK-175, TASK-189 |
 | A-05 | Real-time criteria: required ratio of simulated to wall time, allowed dropped intervals, and how the actual rate is reported | A real-time run averages at least 0.99 of simulated time per wall-clock second; every dropped interval is reported, never hidden. Automated lockstep runs may run slower than real time, and their actual ratio is reported | Decided | Stakeholder | 2026-10-28 | TASK-175, TASK-189, TASK-191 |
-| A-06 | Rendering criteria for the Phase 1 scene: frame-time limits, canvas and display | Not chosen | BLOCKED_DECISION | Stakeholder | — | TASK-185, TASK-191 |
-| A-07 | Workload of the 16-motor one-hour run: signals, rates, flight task and effects | Not chosen | BLOCKED_DECISION | Stakeholder | — | TASK-189 |
-| A-08 | Storage budget for recordings | Not chosen | BLOCKED_DECISION | Stakeholder | — | TASK-163, TASK-189 |
-| A-09 | Default common logging frequency | Not chosen | BLOCKED_DECISION | Stakeholder | — | TASK-162, TASK-163 |
-| A-10 | Which paired or coaxial configuration the matrix uses (arm count and motor pairing) | Not chosen | BLOCKED_DECISION | Stakeholder | — | TASK-138, TASK-188 |
+| A-06 | Rendering criteria for the Phase 1 scene: frame-time limits, canvas and display | 60 frames per second on the M5's built-in display with the Chrome window filling the screen: median frame time at most 16.680 ms and p99 at most 17.665 ms, the 60 FPS limits accepted on 2026-10-23 | Decided | Stakeholder | 2026-10-28 | TASK-185, TASK-191 |
+| A-07 | Workload of the 16-motor one-hour run: signals, rates, flight task and effects | A repeated flight circuit for one continuous simulated hour, with wind and repeatable gusts on, recording every available signal at the default rate (A-09) | Decided | Stakeholder | 2026-10-28 | TASK-189 |
+| A-08 | Storage budget for recordings | At most 2 GB per simulated hour; the UI warns when free disk space falls below 10 GB | Decided | Stakeholder | 2026-10-28 | TASK-163, TASK-189 |
+| A-09 | Default common logging frequency | 50 Hz | Decided | Stakeholder | 2026-10-28 | TASK-162, TASK-163 |
+| A-10 | Which paired or coaxial configuration the matrix uses (arm count and motor pairing) | X8: four arms with two coaxial motors each (8 motors). Other configurations, such as eight arms with 16 motors, are tested separately on request | Decided | Stakeholder | 2026-10-28 | TASK-138, TASK-188 |
 | A-11 | TASK-073 is not a Phase 1 gate; its evidence is preserved | Decided | Recorded | Stakeholder (PROJECT_SCOPE.md) | 2026-10-28 | TASK-191 |
 | A-12 | Application memory budget | The whole application (browser tabs, Workers and the local services it starts, including ArduPilot SITL) stays below 8 GB of memory on the reference machine | Decided | Stakeholder | 2026-10-28 | TASK-144, TASK-162, TASK-189, TASK-191 |
 
-## Context for the open items
+## Context for the decisions
 
 These observations come from existing evidence. They are not proposed values,
 and none of them is Phase 1 acceptance evidence.
@@ -84,7 +84,7 @@ workflows with one verdict per cell:
 
 | Field | Meaning |
 | --- | --- |
-| `configurations` | Quad, hexa and octo with one motor per arm; a paired or coaxial configuration (A-10); eight arms with two motors each (16 motors) |
+| `configurations` | Quad, hexa and octo with one motor per arm; X8, four arms with two coaxial motors each (A-10); eight arms with two motors each (16 motors) |
 | `workflows` | Each workflow's criterion, the configurations it applies to (`each-configuration`, a list, or `global`) and the tasks that deliver it |
 | `cells[].verdict` | PASS, FAIL, BLOCKED_EXTERNAL, BLOCKED_DECISION or NOT_RUN |
 | `cells[].evidence` | `null`, or the evidence path and its SHA-256 |
@@ -92,9 +92,8 @@ workflows with one verdict per cell:
 
 The matrix has 51 cells: 9 workflows for each of the 5 configurations, the
 one-hour run for the 16-motor configuration, and 5 global workflows. On
-2026-10-28, 41 cells are NOT_RUN because no evidence exists, and 10 are
-BLOCKED_DECISION: the 9 cells of the paired or coaxial configuration (A-10),
-and the one-hour run (A-07 and A-08). TASK-188 aggregates
+2026-10-28 every value is decided and all 51 cells are NOT_RUN because no
+evidence exists yet. TASK-188 aggregates
 evidence into the matrix; missing evidence stays NOT_RUN, and failures are
 preserved.
 
