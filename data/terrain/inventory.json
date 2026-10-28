@@ -1,0 +1,135 @@
+{
+  "schemaVersion": 1,
+  "task": "TASK-131",
+  "focus": "Israel",
+  "description": "Terrain, imagery and land-cover sources available to Phase 1, with Israel as the focus. Imagery, elevation and land cover are separate kinds. readiness: ready (usable now), ready-not-wired (local data validated but not connected to the runtime), needs-data (tooling exists but its output is not in the repository), needs-keys-or-deployment (an online adapter that is not a ready source), test-only. New providers and automatic region downloads are out of scope.",
+  "sources": [
+    {
+      "id": "synthetic-pad",
+      "name": "Synthetic level pad",
+      "kind": "synthetic-surface",
+      "source": "apps/web/src/FlightScene.tsx draws a 2000 m by 2000 m level plane; the physics ground is level at the origin height",
+      "license": "Project-owned",
+      "licenseStatus": "not-applicable",
+      "coverage": "Any location; level at the origin height",
+      "resolution": "Analytic plane",
+      "readiness": "ready",
+      "offline": true,
+      "notes": "Works without map services. TASK-186 makes it explicitly selectable at run time."
+    },
+    {
+      "id": "worldcover-israel",
+      "name": "ESA WorldCover 10 m 2021 v200, Israel tiles",
+      "kind": "land-cover",
+      "source": "Operator handoff recorded in data/worldcover/2021-v200/israel/inventory.json (TASK-069)",
+      "license": "CC-BY-4.0; attribution: ESA WorldCover project 2021 / Contains modified Copernicus Sentinel data (2021) processed by ESA WorldCover consortium",
+      "licenseStatus": "reviewed",
+      "coverage": "Tiles N27E033, N30E033 and N33E033: 27 to 36 degrees north, 33 to 36 degrees east. Supported region: Israel only; tile extents reaching neighboring countries do not extend supported coverage",
+      "resolution": "10 m land-cover classes",
+      "readiness": "ready-not-wired",
+      "decision": "Decoded and validated but not registered as a runtime DataManifest. Land cover is not elevation or imagery; TASK-186 decides whether it is shown as a material layer.",
+      "offline": true,
+      "files": [
+        { "path": "data/worldcover/2021-v200/israel/ESA_WorldCover_10m_2021_v200_N27E033_Map.tif", "bytes": 8648221, "sha256": "e1175f97da47b5ac6b12ea27bb153b42a46aa08d16e5cbd26568dcd40d4ae171" },
+        { "path": "data/worldcover/2021-v200/israel/ESA_WorldCover_10m_2021_v200_N30E033_Map.tif", "bytes": 50429555, "sha256": "ebf8b8bde6240429c9246abc936f17a5219699f8315057410480f7ea89b59bae" },
+        { "path": "data/worldcover/2021-v200/israel/ESA_WorldCover_10m_2021_v200_N33E033_Map.tif", "bytes": 31235439, "sha256": "61c0d2597683862ceb9ecd472c37d74d02a5563e37a696a3f32156d86efd6ecd" }
+      ]
+    },
+    {
+      "id": "fabdem-elevation",
+      "name": "FABDEM V1-2 bare-earth elevation (local quantized-mesh terrain)",
+      "kind": "elevation",
+      "source": "scripts/geodata/fetch_fabdem.py and scripts/geodata/build_terrain.py over the bounding box in config/geodata.json; run by hand, output kept outside the repository",
+      "license": "CC BY-NC-SA 4.0 (non-commercial; commercial use needs a Fathom licence); contains modified Copernicus DEM GLO-30",
+      "licenseStatus": "restricted",
+      "coverage": "The config/geodata.json bounding box, 34.2 to 35.9 degrees east and 29.4 to 33.4 degrees north, once prepared",
+      "resolution": "1 arc-second (about 30 m) source; terrain tiles to zoom 13, and zoom 15 inside the configured area",
+      "readiness": "needs-data",
+      "decision": "D-09 (TASK-131): whether the non-commercial license fits the stakeholder's use, and whether a locally prepared FABDEM terrain set is the Phase 1 elevation source.",
+      "offline": true
+    },
+    {
+      "id": "egm2008-geoid",
+      "name": "EGM2008 geoid grid (us_nga_egm08_25.tif)",
+      "kind": "geoid",
+      "source": "PROJ data CDN, fetched by the manual geodata setup; not in the repository",
+      "license": "Not verified from the publisher",
+      "licenseStatus": "unresolved",
+      "coverage": "Global",
+      "resolution": "2.5 arc-minutes",
+      "readiness": "needs-data",
+      "decision": "D-09 (TASK-131) records the license; TASK-148 stores the grid with source and SHA-256 in data/geoid/inventory.json.",
+      "offline": true
+    },
+    {
+      "id": "overture-buildings",
+      "name": "Overture Maps buildings as 3D Tiles",
+      "kind": "vector-features",
+      "source": "scripts/geodata/build_buildings.py over the config/geodata.json bounding box; run by hand, output kept outside the repository",
+      "license": "ODbL-1.0 or CDLA-Permissive-2.0 per Overture release; attribution: Overture Maps Foundation, OpenStreetMap contributors",
+      "licenseStatus": "restricted",
+      "coverage": "The config/geodata.json bounding box once prepared",
+      "resolution": "Building footprints with heights from Overture, floor counts or a 6 m default",
+      "readiness": "needs-data",
+      "decision": "D-09 (TASK-131): whether Phase 1 shows buildings; ODbL share-alike applies to any distributed derived database.",
+      "offline": true
+    },
+    {
+      "id": "osm-features",
+      "name": "OpenStreetMap features for the material map",
+      "kind": "vector-features",
+      "source": "scripts/geodata/extract_osm.py over a local OSM PBF extract supplied by the operator",
+      "license": "ODbL-1.0",
+      "licenseStatus": "restricted",
+      "coverage": "The supplied extract",
+      "resolution": "Vector features",
+      "readiness": "needs-data",
+      "decision": "D-09 (TASK-131): whether Phase 1 uses OSM features at all.",
+      "offline": true
+    },
+    {
+      "id": "google-photorealistic-3d-tiles",
+      "name": "Google Photorealistic 3D Tiles through the tiles worker proxy",
+      "kind": "imagery-and-mesh",
+      "source": "services/tiles-worker (TASK-063) in front of the Google Map Tiles API",
+      "license": "Google Maps Platform terms; attribution required; no offline caching or prefetch without permission",
+      "licenseStatus": "restricted",
+      "coverage": "Google coverage, online only",
+      "resolution": "Provider-defined photogrammetry",
+      "readiness": "needs-keys-or-deployment",
+      "decision": "D-09 (TASK-131): S17 allows external map services to require connectivity; this source is never offline and is not a ready source without keys and a deployment.",
+      "offline": false
+    },
+    {
+      "id": "quantized-mesh-fixture",
+      "name": "Synthetic quantized-mesh test pyramid",
+      "kind": "test-fixture",
+      "source": "tests/fixtures/terrain-qm, generated by tests/fixtures/terrain-qm/generate.py",
+      "license": "Project-owned",
+      "licenseStatus": "not-applicable",
+      "coverage": "Synthetic",
+      "resolution": "Zoom levels 0 to 12",
+      "readiness": "test-only",
+      "offline": true
+    },
+    {
+      "id": "3d-tiles-fixtures",
+      "name": "Synthetic 3D Tiles test sets",
+      "kind": "test-fixture",
+      "source": "tests/fixtures/tiles and tests/fixtures/tiles-implicit, generated in the repository",
+      "license": "Project-owned",
+      "licenseStatus": "not-applicable",
+      "coverage": "Synthetic",
+      "resolution": "Fixture geometry",
+      "readiness": "test-only",
+      "offline": true
+    }
+  ],
+  "gaps": [
+    "No offline imagery exists for any region; the only imagery source is the online Google proxy, which needs keys and a deployment.",
+    "No elevation data is in the repository; the FABDEM tooling exists, but its output is prepared by hand, kept outside the repository and licensed for non-commercial use only.",
+    "WorldCover land cover for Israel is validated but not wired into the runtime.",
+    "No geoid grid is in the repository, so elevation above sea level cannot yet be converted to ellipsoidal height offline (TASK-148).",
+    "Outside the Israel WorldCover tiles and any locally prepared FABDEM area, only the synthetic pad is available."
+  ]
+}
