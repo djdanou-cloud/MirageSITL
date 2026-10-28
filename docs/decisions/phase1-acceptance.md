@@ -69,6 +69,13 @@ captures, analyzer reports and device ratings stay as they are: they are
 neither relabeled nor deleted. Phase 1 rendering is accepted against A-06 on
 the A-01 machines.
 
+The unmerged `analyze_repo_next_task` branch holds a Mac M4 test procedure and
+a TASK-073 acceptance plan from 2026-10-20 (`docs/hardware/mac-m4-final-test.md`
+on that branch). Phase 1 takes no acceptance criterion from it: the procedure
+predates the approved scope, and its final stage gates on TASK-073. Its static,
+native, unit and browser stages can seed the TASK-127 and TASK-152 checklists.
+The branch stays unmerged (recorded by TASK-134 on 2026-10-28).
+
 ## Acceptance matrix
 
 `docs/validation/phase1-matrix.json` lists the S19 configurations and

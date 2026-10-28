@@ -106,6 +106,15 @@ connected to the running application.
   by Git and not tracked. TASK-134 corrects these references.
 * HANDOVER.md describes TASK-074 work from 2026-10-20.
 
+Status on 2026-10-28: TASK-135 merged the physics-review branch without its
+TASK-124 registration. TASK-134 replaced the references to the two missing
+scripts with the real audit commands, noted on TASK-047 that its parity report
+is not tracked, and retired HANDOVER.md. The `analyze_repo_next_task` branch
+stays unmerged: its Mac M4 procedure predates the approved scope and gates on
+TASK-073, which is not a Phase 1 gate (item A-11 in
+[phase1-acceptance.md](decisions/phase1-acceptance.md)). Its static, native,
+unit and browser stages can seed the TASK-127 and TASK-152 checklists.
+
 ## 3. Requirement coverage
 
 "Reuse" lists existing work to build on after checking its integration;
@@ -135,13 +144,13 @@ connected to the running application.
 
 ## 4. Disposition of existing roadmap tasks
 
-TASK-134 records these dispositions in the roadmap; until then this table is
-the proposal. A deferred task keeps its ID, contract and evidence and is not a
+TASK-134 recorded these dispositions in the roadmap on 2026-10-28, as a
+**Phase 1 disposition** line on each open task and on the DONE tasks named here. A deferred task keeps its ID, contract and evidence and is not a
 deletion instruction.
 
 | Existing tasks | Phase 1 disposition | Basis |
 | --- | --- | --- |
-| TASK-087, TASK-088, TASK-089, TASK-090 | Required. Increment 1 of each is on the unmerged physics-review branch; TASK-135 lands it before work continues. | S03, S04, S08, S15 |
+| TASK-087, TASK-088, TASK-089, TASK-090 | Required. TASK-135 landed increment 1 of each on 2026-10-28; the remaining increments continue. | S03, S04, S08, S15 |
 | TASK-091 | Required for real-time 16-motor runs: the review measured an octocopter tick at about 0.70 ms against the 0.4167 ms G3 compute limit at 1200 Hz. | S10, S19 |
 | TASK-092 | Required: production motor, ESC and battery bus. | S06 |
 | TASK-093 | Required: weather and atmosphere in sessions. | S07 |
@@ -166,7 +175,7 @@ deletion instruction.
 | TASK-063, TASK-064 | Frozen: the Google tiles proxy and the R2 cache need keys, deployment and new-provider approval. | S17, scope section 2 |
 | TASK-068, TASK-070, TASK-071, TASK-072 | Frozen: analog video effects and the thermal camera are backlog. TASK-185 reuses the TASK-067 camera pose without effects. | Scope section 2 |
 | Other DONE tasks | Reused after checking their actual integration. Their evidence stays as recorded and is not Phase 1 acceptance. | Scope section 3, step 2 |
-| "TASK-124 — Effect controls" on the unmerged branch | Superseded by TASK-166 and not merged under that ID. | Main's TASK-124 |
+| "TASK-124 — Effect controls" on the physics-review branch | Superseded by TASK-166 and not merged under that ID. | Main's TASK-124 |
 
 The version 2 proposals in [V2_PLAN.md](V2_PLAN.md) are background only.
 Workstream A, a new log viewer, is replaced by the UAVLogViewer integration of
@@ -408,7 +417,7 @@ not invent a value.
 | Full-run recordings exceed the browser storage quota | Recording gaps | TASK-162, TASK-163 | Estimates, warnings before exhaustion, explicit gaps |
 | The UAVLogViewer license or online-only dependencies prevent offline bundling | S14 is blocked | TASK-130 | Escalate; no silent replacement viewer |
 | Measured data for descent, ground effect, coaxial pairs or real flights is unavailable | Fidelity stays unverified | TASK-133 | S15 labels; decision D-11 |
-| The unmerged physics-review branch drifts further from main | Rework and a duplicate task ID | TASK-135 | Land the branch before the tasks that depend on it |
+| The unmerged physics-review branch drifts further from main | Rework and a duplicate task ID | TASK-135 | Closed: TASK-135 landed the branch on 2026-10-28 |
 | MirageSITL and ArduPilot both apply a sensor error | Invalid sensor behavior | TASK-089, TASK-147 | Ownership-matrix validation, owner shown in the UI |
 | A terrain data license restricts use | Real terrain is limited | TASK-131 | The synthetic pad remains available; decision D-09 |
 

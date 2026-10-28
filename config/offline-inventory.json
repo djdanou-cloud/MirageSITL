@@ -159,7 +159,7 @@
       "source": "Python package index",
       "license": "LGPL-3.0; used unmodified as a local tool",
       "licenseStatus": "reviewed",
-      "neededFor": "The native SITL capture harness and raw MAVLink audits (scripts/run-sitl.mjs, scripts/check-mavlink-capture.mjs)",
+      "neededFor": "The native SITL capture harness and raw MAVLink audits (scripts/run-sitl.mjs, scripts/sitl/check-raw.py, scripts/sitl/check-ew.py)",
       "installDownload": true,
       "status": "ready"
     },

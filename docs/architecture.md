@@ -2,6 +2,11 @@
 
 English source. [Russian mirror](ru/architecture.md).
 The detailed task source is [PROJECT_ROADMAP.md](PROJECT_ROADMAP.md).
+Product scope comes from [PROJECT_SCOPE.md](../PROJECT_SCOPE.md), approved on
+2026-10-28, and the [Phase 1 plan](PHASE1_PLAN.md) maps it to tasks. Phase 1
+runs on macOS on Apple Silicon in Chrome with native ArduPilot SITL as an
+external process. The Windows and WSL tooling and results described below are
+historical; they are preserved but are not Phase 1 work or acceptance evidence.
 
 TASK-033 now supplies both offline uniform/annular checks and a production-built
 bound-rotor WASM backend using configurable synthetic geometry and NeuralFoil

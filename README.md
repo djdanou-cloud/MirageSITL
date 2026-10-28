@@ -7,6 +7,20 @@ English is the repository source of truth. [Russian mirror](docs/ru/README.md).
 Source code, UI, comments, tests, logs, commits, and primary documentation use
 English. System documentation is maintained in both languages in the same change.
 
+## Project scope and Phase 1
+
+[PROJECT_SCOPE.md](PROJECT_SCOPE.md), approved by the stakeholder on
+2026-10-28, defines the product: select motors and propellers and tune
+ArduPilot parameters for real multirotor aircraft, including before their
+first flight. Phase 1 covers quadcopters, hexacopters, octocopters and paired
+arrangements up to eight arms with two motors each (16 motors), on macOS on
+Apple Silicon in Chrome, with native ArduPilot SITL as an external local
+process. The [Phase 1 plan](docs/PHASE1_PLAN.md) registers TASK-127–TASK-191
+and the open decisions D-01–D-12. Where this README or older roadmap entries
+describe Windows, WSL or pilot-training work, that material is historical: it
+is preserved but is not Phase 1 work or acceptance evidence. Approval of the
+scope is not evidence of implementation.
+
 ## Current implementation
 
 Milestone 01 provides React 19, React Three Fiber/Three.js, Vite, Tailwind CSS,
@@ -250,7 +264,10 @@ and revokes EW admission when freshness or health fails (`scripts/check-ekf-warm
 TASK-059 native EW experiments use the pinned ArduCopter installation and
 synthetic quad for six-case acquisition, raw-wire/physics audits, one-time
 calibration, and validation against fixed firmware-specific limits
-(`scripts/check-ew-capture.mjs`). These offline native gates do not enable
+(`node scripts/run-ew-sitl.mjs` for the calibration and validation passes,
+`node scripts/freeze-ew.mjs` for the one-time calibration, and
+`scripts/sitl/audit-ew.mjs` with `scripts/sitl/check-ew.py` for the audits).
+These offline native gates do not enable
 browser autopilot READY or establish measured aircraft fidelity.
 
 TASK-044 records native ArduPilot HAL requirements, and TASK-045 provides the

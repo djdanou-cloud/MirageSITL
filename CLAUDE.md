@@ -1,7 +1,9 @@
 # CLAUDE.md — MirageSITL agent instructions
 
 English is the repository source of truth. [Russian mirror](docs/ru/CLAUDE.md).
-Read this file **before every iteration**, then the selected TASK in
+Read this file **before every iteration**, then the approved product scope in
+[PROJECT_SCOPE.md](PROJECT_SCOPE.md), the [Phase 1 plan](docs/PHASE1_PLAN.md),
+the selected TASK in
 [PROJECT_ROADMAP.md](docs/PROJECT_ROADMAP.md), the affected contract in
 [SPECS_SHARED_MEMORY.md](docs/SPECS_SHARED_MEMORY.md) and/or
 [SPECS_SIMULATION_ENGINES.md](docs/SPECS_SIMULATION_ENGINES.md), and current code.
@@ -46,7 +48,20 @@ assume Codex/Cursor automatically read CLAUDE.md. TASK-084 added AGENTS.md and
 `.cursor/rules/project.mdc` as thin pointers to this file rather than duplicate
 policy copies; if a client loads neither pointer, open this file explicitly.
 
-## 2. Current baseline (`d56c890` plus TASK-033 local changes)
+## 2. Current baseline (`7ad1f51`, Phase 1 planning, 2026-10-28)
+
+### Scope and platform
+
+PROJECT_SCOPE.md (approved by the stakeholder on 2026-10-28) is the source of
+truth for product scope when older roadmap entries, the version 2 proposals or
+implementation notes disagree. Phase 1 targets macOS on Apple Silicon with
+Chrome, native ArduPilot SITL as an external local process, and multirotors up
+to eight arms with two motors each (16 motors). The Phase 1 plan registers
+TASK-127–TASK-191 and decisions D-01–D-12, and each open roadmap task carries
+a Phase 1 disposition. Windows and WSL tooling and evidence below are
+historical: they are preserved, they get no Phase 1 work, and they are not
+Phase 1 acceptance evidence. Approval of the scope is not evidence of
+implementation.
 
 ### What exists now
 
@@ -120,9 +135,11 @@ policy copies; if a client loads neither pointer, open this file explicitly.
   lockstep IMU samples and CRC-checked MAVLink EKF/heartbeat/GNSS diagnostics,
   revoking READY/EW admission when sensors or diagnostics go stale; replay with
   `node scripts/check-ekf-warmup.mjs` after the raw MAVLink audit
-  (`node scripts/check-mavlink-capture.mjs`). TASK-059 native EW experiments run
-  six-case acquisition, raw-wire/physics audits, one-time calibration, and
-  validation against fixed firmware-specific limits (`node scripts/check-ew-capture.mjs`).
+  (`scripts/sitl/check-raw.py`). TASK-059 native EW experiments run six-case
+  acquisition, raw-wire/physics audits (`scripts/sitl/audit-ew.mjs` with
+  `scripts/sitl/check-ew.py`), one-time calibration (`node scripts/freeze-ew.mjs`),
+  and validation against fixed firmware-specific limits; `node scripts/run-ew-sitl.mjs`
+  runs the calibration and validation passes.
   TASK-042/043/059 reports become historical snapshots when their input sources
   change; keep regression reports separately. Follow the [runbook](docs/operations/runbook.md)
   for Linux environment and owned-process scope. **Do not enable browser autopilot
@@ -177,6 +194,15 @@ policy copies; if a client loads neither pointer, open this file explicitly.
 
 ### What remains open
 
+* **Phase 1 program (TASK-127–TASK-191, [PHASE1_PLAN.md](docs/PHASE1_PLAN.md)):**
+  TASK-131 (offline and terrain inventory, `node scripts/check-offline.mjs`) and
+  TASK-135 (the physics-review branch landed) are DONE. TASK-132 and TASK-133 are
+  BLOCKED_DECISION until the stakeholder chooses the acceptance values
+  ([phase1-acceptance.md](docs/decisions/phase1-acceptance.md)) and approves the
+  fidelity tables and limits ([phase1-fidelity.md](docs/decisions/phase1-fidelity.md)).
+  TASK-127–TASK-129 need a Mac, and TASK-130 needs the UAVLogViewer review. TASK-073,
+  TASK-080, TASK-082 and TASK-083 below are not Phase 1 gates; see their Phase 1
+  dispositions in the roadmap.
 * **Measured model fidelity (separate from the TASK-033 synthetic baseline):** `node scripts/validate-models.mjs`
   reports numerical/runtime PASS, contact deferred/blocked, propeller FAIL,
   and exits 2. Synthetic geometry and NeuralFoil complete the software validation
@@ -255,6 +281,7 @@ node scripts/bench-wind.mjs
 node scripts/bench-sensors.mjs all
 node scripts/bench-sensors.mjs body
 node scripts/validate-models.mjs
+node scripts/check-offline.mjs
 node scripts/build-jsbsim.mjs
 node scripts/check-jsbsim-native.mjs
 node scripts/check-jsbsim-propellers.mjs

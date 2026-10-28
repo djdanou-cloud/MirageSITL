@@ -11,6 +11,12 @@ adds the open work already recorded elsewhere in the repository.
 GovMap map source and its offline cache; it does not come from the engineers'
 comments.
 
+Phase 1 note (2026-10-28): this plan is background only.
+[PROJECT_SCOPE.md](../PROJECT_SCOPE.md) and the [Phase 1 plan](PHASE1_PLAN.md)
+supersede it where they disagree. Workstream A, a new log viewer, is replaced by
+the UAVLogViewer integration of S14. DrorPlanner (A9) and GovMap (workstream D)
+are excluded. Workstreams B and C feed S05 and the aircraft profile.
+
 ## 1. Who this is for
 
 The readers know the current ArduPilot workflow: Mission Planner, its

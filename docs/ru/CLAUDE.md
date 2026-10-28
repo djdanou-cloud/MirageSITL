@@ -1,10 +1,12 @@
 # CLAUDE.md — MirageSITL agent instructions
 
-<!-- source-sha256: 0088b1d84317ec3862fc3f0f1c3b1b8a1d741413a628035d8b794620e93a40d8 -->
+<!-- source-sha256: a6fc2bce3ebb846a54f8376e0cc4fbd7118bf7d0381d7337d81c7c81ae9c12a0 -->
 
 Английский источник: [Source of truth](../../CLAUDE.md). Изменения спецификации обновляют оба языка в одной задаче.
 
-Прочитайте этот файл **перед каждой итерацией**, затем выбранный TASK в
+Прочитайте этот файл **перед каждой итерацией**, затем утверждённый scope
+продукта в [PROJECT_SCOPE.md](PROJECT_SCOPE.md), [план фазы 1](PHASE1_PLAN.md),
+выбранный TASK в
 [PROJECT_ROADMAP.md](PROJECT_ROADMAP.md), затронутый контракт в
 [SPECS_SHARED_MEMORY.md](SPECS_SHARED_MEMORY.md) и/или
 [SPECS_SIMULATION_ENGINES.md](SPECS_SIMULATION_ENGINES.md), а также текущий код.
@@ -53,7 +55,20 @@ Claude Code загружает этот корневой файл через с�
 файл, а не копии правил; если клиент не загружает ни один из указателей,
 откройте этот файл явно.
 
-## 2. Текущий baseline (`d56c890` и локальные изменения TASK-033)
+## 2. Текущий baseline (`7ad1f51`, планирование фазы 1, 2026-10-28)
+
+### Scope и платформа
+
+PROJECT_SCOPE.md (утверждён стейкхолдером 2026-10-28) — источник истины по scope
+продукта, когда старые записи дорожной карты, предложения версии 2 или заметки
+о реализации расходятся с ним. Фаза 1 нацелена на macOS на Apple Silicon с
+Chrome, нативный SITL ArduPilot как внешний локальный процесс и мультироторы до
+восьми лучей по два мотора (16 моторов). План фазы 1 регистрирует
+TASK-127–TASK-191 и решения D-01–D-12, а у каждой открытой задачи дорожной
+карты есть решение для фазы 1 (Phase 1 disposition). Инструменты и
+доказательства для Windows и WSL ниже исторические: они сохраняются, работа
+фазы 1 над ними не ведётся, и они не являются доказательствами приёмки фазы 1.
+Утверждение scope не является доказательством реализации.
 
 ### Что реализовано сейчас
 
@@ -133,10 +148,12 @@ Claude Code загружает этот корневой файл через с�
   подтверждённые отсчёты IMU по JSON lockstep и проверенную по CRC диагностику
   MAVLink EKF/heartbeat/GNSS, и отзывает допуск READY/РЭБ при устаревании датчиков
   или диагностики; воспроизведение выполняется `node scripts/check-ekf-warmup.mjs`
-  после аудита сырого MAVLink (`node scripts/check-mavlink-capture.mjs`). Нативные
-  эксперименты РЭБ TASK-059 выполняют сбор шести сценариев, аудит сырых потоков и
-  физики, однократную калибровку и проверку относительно фиксированных пределов
-  прошивки (`node scripts/check-ew-capture.mjs`). Отчёты TASK-042/043/059 становятся
+  после аудита сырого MAVLink (`scripts/sitl/check-raw.py`). Нативные эксперименты
+  РЭБ TASK-059 выполняют сбор шести сценариев, аудит сырых потоков и физики
+  (`scripts/sitl/audit-ew.mjs` с `scripts/sitl/check-ew.py`), однократную
+  калибровку (`node scripts/freeze-ew.mjs`) и проверку относительно
+  фиксированных пределов прошивки; проходы калибровки и проверки выполняет
+  `node scripts/run-ew-sitl.mjs`. Отчёты TASK-042/043/059 становятся
   историческими снимками при изменении входных исходников; храните регрессионные
   отчёты отдельно. Соблюдайте правила Linux-окружения и владения процессами из
   [runbook](runbook.md). **Не включайте браузерный autopilot READY на основании
@@ -198,6 +215,16 @@ Claude Code загружает этот корневой файл через с�
 
 ### Что остаётся открытым
 
+* **Программа фазы 1 (TASK-127–TASK-191, [PHASE1_PLAN.md](PHASE1_PLAN.md)):**
+  TASK-131 (инвентаризация офлайн-зависимостей и рельефа,
+  `node scripts/check-offline.mjs`) и TASK-135 (ветка обзора физики перенесена)
+  выполнены (DONE). TASK-132 и TASK-133 находятся в состоянии BLOCKED_DECISION,
+  пока стейкхолдер не выберет значения приёмки
+  ([phase1-acceptance.md](phase1-acceptance.md)) и не утвердит таблицы и пределы
+  достоверности ([phase1-fidelity.md](phase1-fidelity.md)). TASK-127–TASK-129
+  требуют Mac, а TASK-130 — проверки UAVLogViewer. TASK-073, TASK-080, TASK-082 и
+  TASK-083 ниже не являются порогами фазы 1; см. их решения для фазы 1
+  (Phase 1 disposition) в дорожной карте.
 * **Измеренная достоверность моделей (отдельно от синтетической базы TASK-033):**
   `node scripts/validate-models.mjs` сообщает численный/runtime PASS, контактный
   deferred/blocked, пропеллерный FAIL и завершается с кодом 2. Синтетическая
@@ -286,6 +313,7 @@ node scripts/bench-wind.mjs
 node scripts/bench-sensors.mjs all
 node scripts/bench-sensors.mjs body
 node scripts/validate-models.mjs
+node scripts/check-offline.mjs
 node scripts/build-jsbsim.mjs
 node scripts/check-jsbsim-native.mjs
 node scripts/check-jsbsim-propellers.mjs

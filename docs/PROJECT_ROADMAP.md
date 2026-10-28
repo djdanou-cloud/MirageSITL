@@ -485,6 +485,7 @@ copy Google content without rights.
 
 
 - **Status:** DONE — Codex; baseline d56c890; 2026-10-20. Configurable synthetic-geometry/NeuralFoil implementation and software validation complete. Measured fidelity remains independently failed/blocked and cannot admit training or autopilot modes.
+- **Phase 1 disposition:** Reused (S05). The failed UIUC and deferred NASA comparisons keep their verdicts.
 - **Title & Description:** Run numerical/reference validation and report model fidelity separately.
 - **Dependencies:** TASK-014, TASK-024, TASK-028, TASK-029, TASK-031.
 - **Touched Files:** `scripts/validate-models.mjs`, `tests/model-validation.test.ts`, `docs/validation/model-report.schema.json`, `tests/fixtures/validation/reference-manifest.json`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `scripts/check-engine-patch-parity.mjs`, `tests/engine-patch-parity.test.ts`, `packages/physics/src/nasa-drop.ts`, `packages/physics/src/ground-contact.ts`, `tests/fixtures/contact/nasa-drop.json`, `tests/fixtures/registry.json`, `README.md`, `docs/ru/README.md`, `native/bet/src/propeller.rs`, `native/bet/src/lib.rs`, `native/bet/tests/propeller.rs`, `tests/documentation-policy.test.ts`, `native/bet/examples/propeller_points.rs`, `packages/physics/src/uiuc-propeller.ts`, `tests/uiuc-propeller.test.ts`, `tests/fixtures.test.ts`, `tests/fixtures/rotors/uiuc-propellers.json`, `tests/fixtures/rotors/uiuc/generate_uiuc_propellers.py`, `tests/fixtures/rotors/uiuc/sda1075.dat`, `data/uiuc-propdb/inventory.json`, `docs/operations/uiuc-propdb-data.md`, `docs/ru/uiuc-propdb-data.md`, `docs/documentation-index.json`, `test-results/validation/model-report.json`, `tests/fixtures/polars/generate_sda1075_xfoil.py`, `tests/fixtures/polars/sda1075-xfoil.json`.
@@ -527,6 +528,7 @@ copy Google content without rights.
 ### TASK-036 — WGS84 and MSL
 
 - **Status:** DONE — Claude; baseline 346866c; 2026-10-16 (absolute MSL accuracy gate BLOCKED_EXTERNAL until an authoritative geoid grid is installed).
+- **Phase 1 disposition:** Reused (S07). The absolute MSL gate opens only with the TASK-148 geoid grid.
 - **Title & Description:** Implement float64 origin/ECEF/NED/geoid conversion.
 - **Dependencies:** TASK-004, TASK-006.
 - **Touched Files:** `packages/sensors/src/geodesy.ts`, `packages/sensors/src/geoid.ts`, `tests/geodesy.test.ts`, `tests/fixtures/geodesy/wgs84.json`, `tests/fixtures/geodesy/generate.py`, `tests/fixtures/registry.json`, `packages/sensors/package.json`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
@@ -607,6 +609,7 @@ copy Google content without rights.
 ### TASK-044 — ArduPilot WASM feasibility gate
 
 - **Status:** DONE — Codex; baseline c3a4735; 2026-10-17. Independent feasibility gate completed; local WSL/Emscripten build and browser Worker/EEPROM boot were subsequently verified in TASK-045, while GPL redistribution (BLOCKED_DECISION) remains open; MirageSITL flight parity passed in TASK-047 without selecting the application backend; TASK-046 now verifies the browser HAL.
+- **Phase 1 disposition:** Preserved: browser-hosted ArduPilot is not a Phase 1 flight mode and is not expanded (scope section 2).
 - **Title & Description:** Probe HAL/scheduler/storage/network/licensing and record a concrete feasibility decision.
 - **Dependencies:** TASK-016, TASK-039, TASK-042.
 - **Touched Files:** `docs/decisions/ardupilot-wasm.md`, `native/ardupilot/source.lock.json`, `native/ardupilot/feasibility.md`, `tests/ardupilot-wasm-capability.test.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `README.md`, `docs/ru/README.md`, `docs/documentation-index.json`, `docs/ru/ardupilot-wasm.md`, `docs/ru/feasibility.md`, `scripts/probe-ardupilot-wasm.mjs`, `tests/evidence-tools.test.ts`, `tests/support/node-evidence.ts`.
@@ -617,6 +620,7 @@ copy Google content without rights.
 ### TASK-045 — ArduPilot WASM build
 
 - **Status:** DONE — Codex; baseline af984ed; 2026-10-19. Local pinned build, real browser Worker/pthread admission, and persistent EEPROM acceptance verified. Artifact redistribution retains BLOCKED_DECISION (GPL review); MirageSITL flight parity passed in TASK-047 without selecting the application backend; the HAL is verified by TASK-046.
+- **Phase 1 disposition:** Preserved: browser-hosted ArduPilot is not a Phase 1 flight mode and is not expanded (scope section 2).
 - **Title & Description:** Build selected firmware with pinned tools and artifact hashes.
 - **Dependencies:** TASK-044.
 - **Touched Files:** `native/ardupilot/CMakeLists.txt`, `native/ardupilot/toolchain.lock.json`, `scripts/build-ardupilot-wasm.mjs`, `packages/autopilot/src/wasm-loader.ts`, `tests/ardupilot-wasm-build.test.ts`, `scripts/probe-ardupilot-wasm.mjs`, `tests/ardupilot-wasm-capability.test.ts`, `docs/decisions/ardupilot-wasm.md`, `docs/ru/ardupilot-wasm.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `scripts/smoke-ardupilot-wasm.mjs`, `packages/autopilot/package.json`, `native/ardupilot/wasm-artifact.manifest.json`, `packages/autopilot/src/wasm-storage.ts`, `packages/autopilot/src/wasm-browser.ts`, `apps/web/src/ardupilot.worker.ts`, `apps/web/src/diagnostics/ardupilot-check.ts`, `apps/web/ardupilot-check.html`, `apps/web/vite.config.ts`, `tests/ardupilot-wasm-storage.test.ts`, `tests/browser/ardupilot-wasm.spec.ts`, `packages/mavlink/src/codec.ts`, `tests/fixtures/mavlink/wasm-parameters.json`, `tests/fixtures/mavlink/generate-wasm-parameters.py`, `tests/fixtures/registry.json`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `docs/operations/runbook.md`, `docs/ru/runbook.md`, `README.md`, `docs/ru/README.md`, `scripts/check-ardupilot-browser.py`, `native/ardupilot/feasibility.md`, `docs/ru/feasibility.md`.
@@ -627,6 +631,7 @@ copy Google content without rights.
 ### TASK-046 — ArduPilot browser HAL
 
 - **Status:** DONE — Codex; completion baseline 55a7c01; 2026-10-20. Real HAL clock/sensor/PWM coupling, storage and deterministic owned-Worker teardown verified at 400/800/1200 Hz. Browser flight parity passed in TASK-047 without selecting the application backend. READY remains separate.
+- **Phase 1 disposition:** Preserved: browser-hosted ArduPilot is not a Phase 1 flight mode and is not expanded (scope section 2).
 - **Title & Description:** Connect clock/storage/sensor/actuator endpoints to WASM firmware.
 - **Dependencies:** TASK-013, TASK-035, TASK-045.
 - **Touched Files:** `native/ardupilot/hal/browser_hal.cpp`, `packages/autopilot/src/wasm-sitl.ts`, `tests/wasm-hal.test.ts`.
@@ -656,6 +661,7 @@ copy Google content without rights.
 ### TASK-047 — WASM/native SITL parity
 
 - **Status:** DONE — Cursor; baseline bfc2cb6; 2026-10-20. Native and browser arm/takeoff/land and GCS-failsafe flights match inside the fixed 30 s limits. The demo application backend stays selected.
+- **Phase 1 disposition:** Preserved: browser-hosted ArduPilot is not a Phase 1 flight mode and is not expanded (scope section 2). Its parity report `test-results/validation/autopilot-parity.json` is ignored by Git and is not in the repository; the values recorded below are the evidence, and `node scripts/compare-autopilot.mjs` regenerates the report from local captures (see the runbook).
 - **Title & Description:** Compare identical scenarios and enable WASM mode only after passing parity.
 - **Dependencies:** TASK-042, TASK-043, TASK-046.
 - **Touched Files:** `tests/integration/wasm-sitl.test.ts`, `scripts/compare-autopilot.mjs`, `docs/validation/autopilot-parity.schema.json`.
@@ -669,6 +675,7 @@ copy Google content without rights.
 ### TASK-048 — Web Serial transport
 
 - **Status:** DONE — Codex; baseline dfbf402; 2026-10-16.
+- **Phase 1 disposition:** Preserved: the Web Serial and HIL code stays; HITL, Simulation-on-Hardware and writes to a real controller are outside Phase 1 (scope section 2).
 - **Title & Description:** Open ports only through a user gesture and handle stream/reconnect lifecycle.
 - **Dependencies:** TASK-005, TASK-037, TASK-039.
 - **Touched Files:** `packages/autopilot/src/serial-transport.ts`, `apps/web/src/SerialConnect.tsx`, `tests/serial-transport.test.ts`, `tests/browser/serial-permission.spec.ts`, `packages/autopilot/src/serial-io.worker.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `README.md`, `docs/ru/README.md`, `CLAUDE.md`, `docs/ru/CLAUDE.md`, `apps/web/src/App.tsx`, `apps/web/package.json`, `package-lock.json`.
@@ -679,6 +686,7 @@ copy Google content without rights.
 ### TASK-049 — HIL sensor/actuator streaming
 
 - **Status:** DONE — Claude; baseline b28c8c2; 2026-10-16 (fake-clock streaming verified; drone firmware for Simulation-on-Hardware is the version 2 proposal TASK-051).
+- **Phase 1 disposition:** Preserved: the Web Serial and HIL code stays; HITL, Simulation-on-Hardware and writes to a real controller are outside Phase 1 (scope section 2).
 - **Title & Description:** Send HIL_SENSOR/HIL_GPS and receive HIL_ACTUATOR_CONTROLS on real-time clocks.
 - **Dependencies:** TASK-012, TASK-035, TASK-036, TASK-037, TASK-048.
 - **Touched Files:** `packages/autopilot/src/hitl.ts`, `packages/autopilot/src/hil-clock.ts`, `tests/hil-stream.test.ts`, `packages/autopilot/package.json`, `package-lock.json`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
@@ -689,6 +697,7 @@ copy Google content without rights.
 ### TASK-050 — HITL firmware capability gate
 
 - **Status:** DONE — Claude; baseline 0006e07; 2026-10-16 (gate implemented; HITL availability BLOCKED_EXTERNAL: no verified board profile).
+- **Phase 1 disposition:** Preserved: the Web Serial and HIL code stays; HITL, Simulation-on-Hardware and writes to a real controller are outside Phase 1 (scope section 2).
 - **Title & Description:** Verify board/build flags/message support before declaring HITL available.
 - **Dependencies:** TASK-039, TASK-049.
 - **Touched Files:** `packages/autopilot/src/hitl-capabilities.ts`, `docs/hardware/hitl-matrix.md`, `tests/hitl-capabilities.test.ts`, `docs/ru/hitl-matrix.md`, `docs/documentation-index.json`, `packages/autopilot/src/state-machine.ts`, `packages/autopilot/package.json`, `tests/autopilot-state.test.ts`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
@@ -699,6 +708,7 @@ copy Google content without rights.
 ### TASK-051 — ArduPilot drone firmware for Hybrid SITL and Simulation-on-Hardware
 
 - **Status:** DEFERRED — Cursor; baseline 843994e; 2026-10-20. Moved out of version 1 into the version 2 proposal in [V2_PLAN.md](V2_PLAN.md). Version 1 acceptance does not wait on this task.
+- **Phase 1 disposition:** Deferred: HITL, Simulation-on-Hardware and writes to a real controller are outside Phase 1 (scope section 2). It keeps its ID, contract and evidence; work on it needs separate stakeholder approval.
 - **Title & Description:** Later, produce an ArduPilot 4.6.3 or newer firmware image that can be loaded on the drone and tested there, using Hybrid SITL and Simulation-on-Hardware. PX4 is out of scope.
 - **Dependencies:** TASK-041, TASK-043, TASK-049, TASK-050.
 - **Touched Files:** `docs/V2_PLAN.md`, `docs/ru/V2_PLAN.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/hardware/hitl-test-procedure.md`, `docs/ru/hitl-test-procedure.md`.
@@ -781,6 +791,7 @@ copy Google content without rights.
 ### TASK-059 — EKF scenario regressions
 
 - **Status:** DONE — Codex; baseline 0a31f44; 2026-10-19. Six real native calibration flights and six independent validation flights pass frozen firmware/parameter/model/source-specific limits. Raw RX/TX, actual EKF/mode responses, and PWM/Rust-WASM physics replay verified. Scope is the synthetic native quad; browser, recorded Simulation-on-Hardware, and measured aircraft fidelity remain separate. Since TASK-125 and TASK-126 (2026-10-27) changed `packages/ew/src/engine.ts`, `magnetic.ts`, `position-step.ts` and `velocity-drift.ts`, these reports are a historical snapshot of the previous source closure: a new native EW capture fails the frozen source-closure check until the matrix is recalibrated and revalidated on Linux/WSL native SITL.
+- **Phase 1 disposition:** Its DONE evidence is a historical snapshot of the previous EW sources; TASK-171 refreshes it on macOS (S09).
 - **Title & Description:** Measure ArduPilot responses to EW/mechanical faults without promising a hard-coded mode.
 - **Dependencies:** TASK-042, TASK-043, TASK-058.
 - **Touched Files:** `tests/integration/ew-sitl.test.ts`, `tests/fixtures/scenarios/ew-matrix.json`, `scripts/report-ekf.mjs`, `scripts/run-ew-sitl.mjs`, `scripts/freeze-ew.mjs`, `scripts/sitl/audit-ew.mjs`, `scripts/sitl/ew-observations.ts`, `scripts/sitl/check-ew.py`, `scripts/sitl/driver.mjs`, `scripts/sitl/telemetry.py`, `scripts/sitl/quad.mjs`, `tests/sitl-ew.test.ts`, `docs/operations/runbook.md`, `docs/ru/runbook.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `README.md`, `docs/ru/README.md`, `docs/documentation-index.json`, `scripts/validation/evidence.mjs`, `tests/evidence-tools.test.ts`, `tests/support/node-evidence.ts`.
@@ -843,6 +854,7 @@ copy Google content without rights.
 ### TASK-063 — Cloudflare tiles proxy
 
 - **Status:** DONE — Claude; baseline e9ad0f3; 2026-10-16 (local Worker tests; deployment and live provider credentials need separate authorization).
+- **Phase 1 disposition:** Frozen: the Google tiles proxy and the R2 cache need keys, a deployment and new-provider approval (S17, scope section 2).
 - **Title & Description:** Build an authenticated proxy with quotas, attribution/CORS, and permitted TTLs.
 - **Dependencies:** TASK-060, TASK-061.
 - **Touched Files:** `services/tiles-worker/package.json`, `services/tiles-worker/wrangler.jsonc`, `services/tiles-worker/src/index.ts`, `services/tiles-worker/src/policy.ts`, `tests/tiles-proxy.test.ts`, `packages/terrain/src/tiles-provider.ts`, `packages/terrain/src/tiles-scene.ts`, `tsconfig.json`.
@@ -853,6 +865,7 @@ copy Google content without rights.
 ### TASK-064 — R2 for permitted datasets
 
 - **Status:** DONE — Claude; baseline f35efe6; 2026-10-16 (emulator tests; R2 binding and persistent caching need explicit permission).
+- **Phase 1 disposition:** Frozen: the Google tiles proxy and the R2 cache need keys, a deployment and new-provider approval (S17, scope section 2).
 - **Title & Description:** Cache 10–15 km regions only for content whose license permits it.
 - **Dependencies:** TASK-062, TASK-063.
 - **Touched Files:** `services/tiles-worker/src/r2-cache.ts`, `packages/terrain/src/region-manifest.ts`, `tests/r2-cache.test.ts`, `tests/support/memory-r2.ts`, `packages/terrain/package.json`.
@@ -893,6 +906,7 @@ copy Google content without rights.
 ### TASK-068 — Analog interference and jelly
 
 - **Status:** DONE — Claude; baseline 7478d6f; 2026-10-16 (WebGL2 verified; tolerances backend-specific; WebGPU variant not implemented).
+- **Phase 1 disposition:** Frozen: analog video effects and the thermal camera are backlog (scope section 2). TASK-185 reuses the TASK-067 camera pose without effects.
 - **Title & Description:** Add seeded video noise, scanlines, and rolling-shutter deformation.
 - **Dependencies:** TASK-067.
 - **Touched Files:** `packages/cameras/src/analog.ts`, `packages/cameras/src/shaders/analog.glsl`, `tests/analog-noise.test.ts`, `tests/browser/analog.spec.ts`, `packages/cameras/src/analog-material.ts`, `packages/cameras/package.json`, `tests/support/analog-harness.ts`.
@@ -913,6 +927,7 @@ copy Google content without rights.
 ### TASK-070 — Surface thermal state
 
 - **Status:** DONE — Codex/Claude; baseline 660d86e; 2026-10-16. Synthetic lumped surface model; measured validation remains separate.
+- **Phase 1 disposition:** Frozen: analog video effects and the thermal camera are backlog (scope section 2). TASK-185 reuses the TASK-067 camera pose without effects.
 - **Title & Description:** Integrate material temperatures from solar forcing/weather outside the shader.
 - **Dependencies:** TASK-032, TASK-069.
 - **Touched Files:** `packages/thermal/src/heat-balance.ts`, `packages/thermal/src/solar.ts`, `packages/thermal/package.json`, `tests/thermal-energy.test.ts`, `README.md`, `docs/ru/README.md`, `CLAUDE.md`, `docs/ru/CLAUDE.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `package-lock.json`, `docs/SPECS_SHARED_MEMORY.md`, `docs/ru/SPECS_SHARED_MEMORY.md`.
@@ -923,6 +938,7 @@ copy Google content without rights.
 ### TASK-071 — Thermal renderer
 
 - **Status:** DONE — Codex/Claude; baseline 660d86e; 2026-10-16. Independent synthetic LWIR WebGL2 pipeline; production scene and measured instrument remain open.
+- **Phase 1 disposition:** Frozen: analog video effects and the thermal camera are backlog (scope section 2). TASK-185 reuses the TASK-067 camera pose without effects.
 - **Title & Description:** Map thermal states to radiance/palettes with atmospheric attenuation.
 - **Dependencies:** TASK-066, TASK-070.
 - **Touched Files:** `packages/thermal/src/thermal-camera.ts`, `packages/thermal/src/shaders/thermal.glsl`, `tests/thermal-camera.test.ts`, `tests/browser/thermal.spec.ts`, `tests/support/thermal-harness.ts`, `packages/thermal/package.json`, `tests/material-map.test.ts`, `apps/web/src/render/webgpu.ts`, `tests/browser/render-backends.spec.ts`, `tests/support/render-harness.html`, `README.md`, `docs/ru/README.md`, `CLAUDE.md`, `docs/ru/CLAUDE.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `package-lock.json`, `docs/SPECS_SHARED_MEMORY.md`, `docs/ru/SPECS_SHARED_MEMORY.md`, `packages/thermal/src/thermal-material.ts`.
@@ -933,6 +949,7 @@ copy Google content without rights.
 ### TASK-072 — Thermal shutter and NUC
 
 - **Status:** DONE — Codex/Claude; baseline 660d86e; 2026-10-16. Deterministic synthetic offset-only shutter calibration.
+- **Phase 1 disposition:** Frozen: analog video effects and the thermal camera are backlog (scope section 2). TASK-185 reuses the TASK-067 camera pose without effects.
 - **Title & Description:** Implement deterministic calibration cycles and bounded display interruption.
 - **Dependencies:** TASK-071.
 - **Touched Files:** `packages/thermal/src/nuc.ts`, `packages/thermal/src/thermal-status.ts`, `packages/thermal/package.json`, `tests/thermal-nuc.test.ts`, `README.md`, `docs/ru/README.md`, `CLAUDE.md`, `docs/ru/CLAUDE.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `package-lock.json`, `docs/SPECS_SHARED_MEMORY.md`, `docs/ru/SPECS_SHARED_MEMORY.md`.
@@ -943,6 +960,7 @@ copy Google content without rights.
 ### TASK-073 — GPU acceptance harness
 
 - **Status:** BLOCKED_EXTERNAL — Claude; branch `task-073-g3`; 2026-10-24. By user decision of 2026-10-23 the gate is a 1920 x 1080 canvas at 1x on the least performant tested integrated GPU, on both WebGL2 and WebGPU; every other machine, screen and GPU is measured and rated in [DEVICE_RATINGS.md](DEVICE_RATINGS.md) without deciding. Three integrated GPUs have been tested (Apple M4, Intel Graphics in the RTX 4050 laptop, Apple M5). The Intel iGPU's latest gate-eligible captures (2026-10-24, its own 1920 x 1080 panel as the only and therefore primary display) PASS on both WebGL2 and WebGPU (p99 17.310 ms each, rating 100); its earlier captures, all with an external monitor on the NVIDIA GPU as the primary display, FAIL (p99 19.960-42.430 ms), because Chrome on Windows takes its frame clock from the primary display. The M4 and M5 have no gate-eligible run yet, so the gate device is unknown. Earlier status (2026-10-23): BLOCKED_EXTERNAL; the Intel iGPU's gate-eligible WebGL2 and WebGPU captures of 2026-10-23 both FAIL (p99 27.685 / 24.040 ms), as do the same captures on its own 1920 x 1080 panel (p99 42.430 / 41.965 ms). Previous status: FAIL — Claude; branch `task-073-g3`; 2026-10-22. The G3 scene (real terrain, buildings, material drape, Boson 640 thermal, FPV, scripted flight) runs on WebGL2 and WebGPU; 10-minute captures on this laptop meet the 60 FPS median but fail the p99 limit on the RTX 4050 (27.085 ms on both backends) and on the Intel iGPU; with `--disable-direct-composition` the frame-clock p99 passes (16.675/16.685 ms) but the PresentMon displayed-frame gate fails (p99 33.4 ms); the M4 full-display captures remain to be repeated. Earlier status (Cursor; baseline 5be98c4; 2026-10-21): The user accepted the M4 60 FPS timing (median 16.680 ms, p99 17.665 ms) and the 59.88 Hz panel. The operator screenshot shows the scene did not fill the 2560×1440 display. The native panel is 2560×1664 and was not the presented surface. RTX 4050 full-feature 60 FPS captures FAIL the accepted limits (balanced power p99 23.880 ms; maximum-performance power median 16.685 ms and p99 34.260 ms), and WebGPU fisheye/thermal passes remain open; open items are listed in [needed_for_task073.md](needed_for_task073.md).
+- **Phase 1 disposition:** Not a Phase 1 gate (item A-11 in [docs/decisions/phase1-acceptance.md](decisions/phase1-acceptance.md)): its gate depends on Windows-measured integrated GPUs and on thermal and FPV views that Phase 1 excludes. Its evidence and harness are preserved; TASK-132 sets the Phase 1 rendering criteria (A-06).
 - **Title & Description:** Profile production rendering with terrain/FPV/thermal; the least performant tested integrated GPU at 1920 x 1080 and 1x decides, and every tested machine, screen and GPU is rated.
 - **Dependencies:** TASK-014, TASK-062, TASK-065, TASK-066, TASK-068, TASK-072.
 - **Touched Files:** `scripts/bench-render.mjs`, `scripts/check-gpu-perf.mjs`, `scripts/gpu-trace.mjs`, `apps/web/src/render/g3-mode.ts`, `apps/web/src/render/g3-passes.ts`, `apps/web/src/FlightScene.tsx`, `apps/web/src/style.css`, `apps/web/vite.config.ts`, `apps/web/package.json`, `docs/benchmarks/render-matrix.json`, `docs/validation/gpu-report.schema.json`, `tests/gpu-report.test.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `README.md`, `docs/ru/README.md`, `docs/documentation-index.json`, `scripts/validation/evidence.mjs`, `tests/evidence-tools.test.ts`, `tests/support/node-evidence.ts`, `docs/operations/runbook.md`, `docs/ru/runbook.md`, `package-lock.json`, `docs/needed_for_task073.md`, `docs/ru/needed_for_task073.md`, `scripts/gpu-ratings.mjs`, `docs/benchmarks/device-results.json`, `docs/DEVICE_RATINGS.md`, `docs/ru/DEVICE_RATINGS.md`, `CLAUDE.md`, `docs/ru/CLAUDE.md`, `scripts/capture-samplers.mjs`, `tests/capture-samplers.test.ts`, `scripts/diagnose-pacing.mjs`, `scripts/analyze-pacing.mjs`, `apps/web/src/render/gpu-pass-timer.ts`, `apps/web/src/render/g3-passes-webgpu.ts`, `apps/web/src/render/gpu-pass-timer-webgpu.ts`, `tests/gpu-pass-timer-webgpu.test.ts`, `tests/g3-mode.test.ts`, `scripts/vblank-probe.ps1`, `scripts/analyze-vblank.mjs`.
@@ -1026,6 +1044,7 @@ copy Google content without rights.
 ### TASK-080 — Accessibility and permissions UX
 
 - **Status:** BLOCKED_EXTERNAL — Codex; baseline c3a4735; 2026-10-17. Demo keyboard/focus/narrow-layout/permission UX and unsuppressed axe scan verified; TASK-075 and TASK-078 are done. Manual screen-reader/hardware checks remain open.
+- **Phase 1 disposition:** The automated keyboard and axe checks remain regressions for new UI (S19). The manual screen-reader sign-off is not an S19 item unless decision D-12 adds it.
 - **Title & Description:** Support keyboard/focus/resize and clear browser-permission failures.
 - **Dependencies:** TASK-005, TASK-048, TASK-075, TASK-078.
 - **Touched Files:** `apps/web/src/ui/StatusMessage.tsx`, `apps/web/src/style.css`, `tests/browser/accessibility.spec.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `README.md`, `docs/ru/README.md`, `docs/documentation-index.json`, `apps/web/src/App.tsx`, `apps/web/src/SerialConnect.tsx`, `apps/web/src/aar/Review.tsx`, `apps/web/src/ui/focus.ts`, `tests/focus.test.ts`, `package.json`, `package-lock.json`.
@@ -1046,6 +1065,7 @@ copy Google content without rights.
 ### TASK-082 — System acceptance matrix
 
 - **Status:** BLOCKED_EXTERNAL — Codex; baseline c3a4735; 2026-10-17. Hash-bound per-mode system matrix implemented; open dependencies (TASK-033, 073, 080) and unrun hardware/mode gates keep system acceptance blocked. TASK-051 is a version 2 proposal and is not a dependency. TASK-074, TASK-075, TASK-078, and TASK-079 are done and do not close this gate.
+- **Phase 1 disposition:** Its tooling is reused; Phase 1 acceptance is TASK-188, TASK-189 and TASK-191 (S19). Its WASM, HITL and Windows rows are not Phase 1 gates.
 - **Title & Description:** Exercise supported modes against all UI/physics/telemetry gates.
 - **Dependencies:** TASK-033, TASK-042, TASK-043, TASK-047, TASK-059, TASK-073, TASK-074, TASK-075, TASK-078, TASK-079, TASK-080, TASK-081.
 - **Touched Files:** `tests/integration/system-acceptance.test.ts`, `docs/validation/system-matrix.json`, `scripts/validate-release.mjs`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `README.md`, `docs/ru/README.md`, `docs/documentation-index.json`, `scripts/validation/evidence.mjs`, `tests/evidence-tools.test.ts`, `tests/support/node-evidence.ts`.
@@ -1056,6 +1076,7 @@ copy Google content without rights.
 ### TASK-083 — Release provenance and runbook
 
 - **Status:** BLOCKED_EXTERNAL — Codex; baseline c3a4735; 2026-10-17. Bounded artifact/license/hash inventory and recovery runbook implemented; blocked on TASK-082, dataset/artifact license review, and clean-machine verification.
+- **Phase 1 disposition:** Its tooling is reused; Phase 1 delivery is TASK-190 (S01, S19). Its Windows and WASM release rows are not Phase 1 gates.
 - **Title & Description:** Produce a verifiable release bundle and operational recovery instructions.
 - **Dependencies:** TASK-003, TASK-082.
 - **Touched Files:** `docs/operations/runbook.md`, `docs/operations/release-manifest.schema.json`, `scripts/release-manifest.mjs`, `tests/release-manifest.test.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `README.md`, `docs/ru/README.md`, `docs/documentation-index.json`, `docs/ru/runbook.md`, `scripts/validation/evidence.mjs`, `tests/evidence-tools.test.ts`, `tests/support/node-evidence.ts`.
@@ -1078,6 +1099,7 @@ Contracts, evidence and compute headroom that every later fidelity task builds o
 ### TASK-087 — Vehicle model manifest v2
 
 - **Status:** IN_PROGRESS — 2026-10-26; owner Claude; baseline `27e2a6a`; contract: [SPECS_SIMULATION_ENGINES.md](SPECS_SIMULATION_ENGINES.md), section "Vehicle manifest v2 and ArduPilot profile (TASK-087)". Failure criterion: a manifest that the validator admits but the v1 runtime or the profile silently reinterprets. Increment 1 is implemented: the strict v2 schema and validator (inertia realizability, cross-references, provenance, a quad X geometry check against the TASK-047 parity aircraft), lossless v1 migration, a fail-closed v1 projection, derived principal axes, `k_t` and CG-relative positions, ArduPilot profile v1 with evidenced names only, a hash-verified v1/v2 `VehicleRegistry` and an optional `SessionModelPort` for `model.load`. Evidence on Node 24.22.1: `npx --no-install vitest run tests/vehicle-manifest.test.ts` exit 0 with 21 tests; the oracles are two analytic eigenvalue references at 1e-12 relative, a hand-derived golden profile and exact round trips of `demo-quad.json`, `tilted-octo.json` and the parity base quad. With `tests/model-manifest.test.ts`, `fixtures.test.ts`, `session-v2.test.ts`, `control-v2.test.ts`, `bet-runtime.test.ts` and `documentation-policy.test.ts`: 7 files, 130 tests, exit 0. `npm run typecheck` exit 0; `npm run check:docs` exit 0. The changed files lint clean. `npm run lint` exits 1 only on two pre-existing errors in the untouched `scripts/check-gpu-perf.mjs`. Fixture `models/synthetic-quad-v2.json` (SHA-256 `9b9f6d07…c1498f`) is synthetic. Remaining: generate the native SITL `quad.parm` from a manifest, which changes the driver source identity and needs fresh TASK-042/043/059 captures; register models from an application path. Self-review fix: a `model.load` interrupted by `worker.dispose` built dynamics that nobody disposed; a disposed session now builds nothing and the load ends with `BAD_STATE`. After the fix, `tests/vehicle-manifest.test.ts` passes 22 tests, and `control-v2`, `session-v2`, `scenario-runner` and `ew-pipeline` pass 98 tests in 4 files; `npm run typecheck` exit 0.
+- **Phase 1 disposition:** Required (S03, S04, S08, S15). TASK-135 landed increment 1 of each; the remaining increments continue here.
 - **Title & Description:** Define one validated, versioned vehicle description ([V2_PLAN.md](V2_PLAN.md) workstream C): mass properties, rotors, motors and ESCs, battery, airframe drag, control surfaces, landing gear, sensor mounts and rotor wake pairs, with provenance per dataset, a v1 migration, derived values and an ArduPilot parameter profile.
 - **Dependencies:** TASK-006, TASK-033.
 - **Touched Files:** `packages/physics/src/vehicle.schema.json`, `packages/physics/src/vehicle-manifest.ts`, `packages/physics/src/ardupilot-profile.ts`, `packages/physics/package.json`, `packages/physics/src/session-v2.ts`, `scripts/sitl/driver.mjs`, `tests/vehicle-manifest.test.ts`, `tests/fixtures/models/synthetic-quad-v2.json`, `tests/fixtures/registry.json`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
@@ -1087,6 +1109,7 @@ Contracts, evidence and compute headroom that every later fidelity task builds o
 ### TASK-088 — Rotor and body interface v2
 
 - **Status:** IN_PROGRESS — 2026-10-26; owner Claude; baseline `27e2a6a`; contract: [SPECS_SIMULATION_ENGINES.md](SPECS_SIMULATION_ENGINES.md), section "Step interfaces v2 (TASK-088)". Failure criterion: a neutral v2 record whose physics differs from v1, or a later-task field that is silently ignored. Increment 1 is implemented: 256-byte bound-rotor input and output records on v1 arenas, and a 448-byte body input with a 256-byte output. They carry version words, reserved-zero words and validity bits, and later-task fields are fail-closed with status −8: ESC duty and bus voltage (TASK-092), external wake (TASK-101), ground plane (TASK-100), gravity model (TASK-108), CG offset (TASK-094) and mass-property rates (TASK-119). The body specific force F/m is valid now. Exports and C declarations are added, plus TS adapters, Python-packed golden records and a native reference example. `native/bet/examples/interface_v2_reference.rs` and `tests/fixtures/wasm-abi/generate.py` joined Touched Files for the native-versus-WASM reference and the independent fixture generator. Evidence: `cargo test --manifest-path native/Cargo.toml --workspace --locked` exit 0, 23 suites and 72 tests. That includes `bound_v2` and `body_abi_v2`: bitwise v1 equality over 2000 steps, 16 rotor and 19 body rejection records that leave state and output unchanged, and zero allocator calls and bytes over 10^6 steps. The wasm32 check exits 0. `npx --no-install vitest run tests/wasm-abi-v2.test.ts` exit 0 with 11 tests on scalar and SIMD128 WASM: spec layouts equal the golden layouts with full byte coverage; neutral v2 equals v1 bitwise; native versus WASM within 1e-12 (largest 8.5e-14 for the rotor, with force and moment components relative to their vector norm, and 8.4e-16 for the body); adapters write the golden records; the fixture statuses hold; and 10^6 steps run without allocation traps or memory growth. `npm run typecheck` and `npm run check:docs` exit 0; the changed files lint clean. `bet-abi-v1.json` regenerates byte-identically. Remaining: JS-side GC probes for the v2 adapters in `scripts/check-bet-runtime.mjs --allocation`, and moving `BetFlightDynamics` onto v2 when a later task needs a new field.
+- **Phase 1 disposition:** Required (S03, S04, S08, S15). TASK-135 landed increment 1 of each; the remaining increments continue here.
 - **Title & Description:** Extend the bound-rotor and rigid-body byte interfaces once for the Phase 8–10 inputs and outputs (ESC duty, bus voltage, ground plane, external wake velocity, inflow states, electrical outputs, CG offset, mass-property rates, gravity model), keeping v1 as a regression API.
 - **Dependencies:** TASK-018, TASK-028, TASK-033, TASK-087.
 - **Touched Files:** `native/bet/src/bound_v2.rs`, `native/bet/src/body_abi_v2.rs`, `native/bet/src/lib.rs`, `native/bet/include/bet_bound.h`, `native/bet/tests/bound_v2.rs`, `native/bet/tests/body_abi_v2.rs`, `native/bet/examples/interface_v2_reference.rs`, `packages/wasm-bet/src/rotor-v2.ts`, `packages/wasm-bet/src/body-v2.ts`, `packages/wasm-bet/package.json`, `tests/wasm-abi-v2.test.ts`, `tests/fixtures/wasm-abi/interface-v2.json`, `tests/fixtures/wasm-abi/generate.py`, `tests/fixtures/registry.json`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
@@ -1096,6 +1119,7 @@ Contracts, evidence and compute headroom that every later fidelity task builds o
 ### TASK-089 — Autopilot boundary v2 and sensor-error ownership
 
 - **Status:** IN_PROGRESS — 2026-10-26; owner Claude; baseline `27e2a6a`; contract: [SPECS_SIMULATION_ENGINES.md](SPECS_SIMULATION_ENGINES.md), section "Sensor-error ownership (TASK-089)". Failure criterion: an error applied twice, or by nobody without a declaration, or ownership that rests on an unverified parameter, key or delivery path. Increment 1 is implemented: the pinned-source catalog, generated by `tests/fixtures/sitl/generate.py` from 13 files at `8ab6afde…` (323 SIM parameters, 36 JSON keys, 30 asserted source facts; `json-protocol.json` regenerates byte-identically); the 25-source ownership taxonomy with neutral values; matrix validation; and the neutralizing parameter profile. `tests/fixtures/sitl/ardupilot-catalog.json` joined Touched Files because the catalog is its own generated artifact. Findings from the pinned source: the IMU backend's accelerometer (0.01 m/s²) and gyro (radians(0.04)) noise floors are unconditional, so changing their owner needs a native firmware patch (BLOCKED_DECISION until the 2026-10-26 decision below); the browser HAL bypasses the aircraft model's magnetic anomaly and motor terms. Evidence on Node 24.22.1: `npx --no-install vitest run tests/error-ownership.test.ts` exit 0 with 11 tests. The TASK-059 profile holds exactly the native driver's experiment parameters, and the parity profiles are empty. With `tests/fixtures.test.ts` and `tests/ardupilot-json.test.ts`: 27 tests, exit 0. `npm run typecheck` and `npm run check:docs` exit 0; the changed files lint clean. Remaining: HAL payload v2 with byte fixtures and the TASK-046 browser check; oracle tests for optional JSON keys; airspeed and rangefinder sources; profile wiring in `external-sitl.ts`, `wasm-sitl.ts` and the native driver; and a TASK-047 parity rerun after any delivery change. Increment 2 follows the user's decision of 2026-10-26: ArduPilot defaults stay the default, and a setting switches off ArduPilot's fixed IMU noise floors. Increment 2 contents:
+- **Phase 1 disposition:** Required (S03, S04, S08, S15). TASK-135 landed increment 1 of each; the remaining increments continue here.
   - `native/ardupilot/patches/imu-noise-floor.patch` (`7a43d2ed…`) adds `SIM_ACC_FLOOR` (0.01 m/s/s) and `SIM_GYR_FLOOR` (0.04 deg/s), whose defaults are the upstream constants.
   - Catalog schema 2 records the patch applied strictly to the pinned sources, plus 31 facts.
   - Ownership matrix schema 2 declares `firmwarePatches`, admitted on `native-json` only.
@@ -1144,6 +1168,7 @@ Contracts, evidence and compute headroom that every later fidelity task builds o
 ### TASK-090 — Fidelity evidence pipeline
 
 - **Status:** IN_PROGRESS — 2026-10-26; owner Claude; baseline `27e2a6a`; contract: [SPECS_SIMULATION_ENGINES.md](SPECS_SIMULATION_ENGINES.md), section "Fidelity evidence pipeline (TASK-090)". Failure criterion: any path that turns synthetic or unhashed data into PASS, or a metric that disagrees with its analytic oracle. Increment 1 is implemented: RMS, bias and Theil metrics; a radix-2 FFT and Welch H1 response with coherence; the CIFER-style cost with W_γ = [1.58(1 − e^(−γ²))]², W_p = 0.01745 and the J ≤ 100 guideline as a ceiling; bench CSV v1 import to CT, CQ, CP and FM with ISA density correction and consistency flags; capture schema v1; and `scripts/check-fidelity.mjs` on the shared evidence helper. Evidence on Node 24.22.1: `npx --no-install vitest run tests/fidelity-metrics.test.ts tests/bench-import.test.ts` exit 0 with 20 tests. The oracles are a direct DFT (1e-12), a time-domain IIR filter against its analytic response (1e-12 relative), a pure delay (1e-9°), the coherence of a known signal-to-noise ratio (0.5 ± 0.03, a 5σ bound), analytic J for gain, phase and coherence-weighted mismatches (1e-9) and an analytic Theil coefficient. `node scripts/check-fidelity.mjs` exit 2 (BLOCKED_EXTERNAL). The analytic capture `validation/fidelity-synthetic-capture.json` (SHA-256 `74e2c16d…91b2a7`, with `validation/bench-synthetic.csv`, `191082c4…dbfbb0`) exits 2 with J = 19.950 = 20·W_γ(1). Malformed, unhashed or over-permissive variants exit 1. `tests/fixtures.test.ts`, `npm run typecheck` and `npm run check:docs` exit 0; the changed files lint clean. Remaining, and required for DONE (G4): one real ArduCopter SYSTEMID flight capture and one real thrust-stand file. Also remaining: DataFlash conversion to capture v1 and the simulation replay that produces the simulated series.
+- **Phase 1 disposition:** Required (S03, S04, S08, S15). TASK-135 landed increment 1 of each; the remaining increments continue here.
 - **Title & Description:** Score model changes against measured data: time-domain log-replay metrics, frequency-response identification from ArduCopter SYSTEMID chirps, and component bench data import ([V2_PLAN.md](V2_PLAN.md) B3), using the repository's evidence and exit-code conventions.
 - **Dependencies:** TASK-033, TASK-087.
 - **Touched Files:** `packages/physics/src/fidelity-metrics.ts`, `packages/physics/src/bench-import.ts`, `packages/physics/package.json`, `scripts/check-fidelity.mjs`, `tests/fidelity-metrics.test.ts`, `tests/bench-import.test.ts`, `tests/fixtures/validation/fidelity-synthetic-capture.json`, `tests/fixtures/validation/bench-synthetic.csv`, `tests/fixtures/registry.json`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`, `docs/V2_PLAN.md`, `docs/ru/V2_PLAN.md`.
@@ -1153,6 +1178,7 @@ Contracts, evidence and compute headroom that every later fidelity task builds o
 ### TASK-091 — BET kernel performance headroom
 
 - **Status:** TODO — registered 2026-10-26 from the physics fidelity review; baseline 4593971.
+- **Phase 1 disposition:** Required for real-time 16-motor runs (S10, S19): the review measured an octocopter tick at about 0.70 ms against the 0.4167 ms G3 compute limit at 1200 Hz.
 - **Title & Description:** Cut the production rotor tick cost at least 5× with results unchanged within a pre-declared tolerance, so later fidelity fits the G3 budget.
 - **Dependencies:** TASK-014, TASK-033.
 - **Touched Files:** `native/bet/src/blade.rs`, `native/bet/src/polar.rs`, `native/bet/src/bound.rs`, `native/bet/src/lib.rs`, `native/bet/tests/blade.rs`, `native/bet/tests/polar.rs`, `native/bet/tests/bound.rs`, `scripts/check-bet-runtime.mjs`, `docs/benchmarks/schema.json`, `test-results/bench/bet.json`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
@@ -1166,6 +1192,7 @@ Wire the kernels that already exist into the flight path and make the body, cont
 ### TASK-092 — Electromechanical drive in the production step
 
 - **Status:** TODO — registered 2026-10-26 from the physics fidelity review; baseline 4593971.
+- **Phase 1 disposition:** Required (S06): the production motor, ESC and battery bus.
 - **Title & Description:** Replace the ideal torque-source ESC in `BetFlightDynamics` with the voltage-driven motor, ESC and shared battery bus from `motor.rs` and `battery.rs`, including signed braking torque, so throttle-to-thrust curves and battery sag become physical.
 - **Dependencies:** TASK-025, TASK-026, TASK-087, TASK-088, TASK-089.
 - **Touched Files:** `native/bet/src/motor.rs`, `native/bet/src/battery.rs`, `native/bet/src/shaft.rs`, `native/bet/src/bound_v2.rs`, `native/bet/tests/motor.rs`, `native/bet/tests/battery.rs`, `native/bet/tests/drive.rs`, `packages/physics/src/bet-dynamics.ts`, `packages/physics/src/ardupilot-profile.ts`, `packages/autopilot/src/wasm-sitl.ts`, `packages/autopilot/src/external-sitl.ts`, `tests/drive-chain.test.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
@@ -1175,6 +1202,7 @@ Wire the kernels that already exist into the flight path and make the body, cont
 ### TASK-093 — Weather and atmosphere plumbing
 
 - **Status:** TODO — registered 2026-10-26 from the physics fidelity review; baseline 4593971.
+- **Phase 1 disposition:** Required (S07): weather and atmosphere in sessions.
 - **Title & Description:** Make wind and atmospheric state real inputs of every flight path: implement `weather.set`, recompute ISA with temperature offset and QNH every tick, and evaluate wind at the CG and each rotor hub.
 - **Dependencies:** TASK-010, TASK-032, TASK-087.
 - **Touched Files:** `packages/physics/src/session-v2.ts`, `packages/physics/src/bet-dynamics.ts`, `packages/physics/src/atmosphere.ts`, `packages/protocol/src/control-v2.ts`, `packages/autopilot/src/external-sitl.ts`, `tests/session-v2.test.ts`, `tests/atmosphere.test.ts`, `tests/weather-plumbing.test.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SHARED_MEMORY.md`, `docs/ru/SPECS_SHARED_MEMORY.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
@@ -1184,6 +1212,7 @@ Wire the kernels that already exist into the flight path and make the body, cont
 ### TASK-094 — Rigid-body core v2
 
 - **Status:** TODO — registered 2026-10-26 from the physics fidelity review; baseline 4593971.
+- **Phase 1 disposition:** Required (S03, S18): CG offsets and the full inertia tensor, and the base of TASK-095.
 - **Title & Description:** Generalize the 6-DOF core for CG offsets, time-varying mass properties and optional Earth-rotation terms, and make Rapier-owned sessions keep the full inertia tensor.
 - **Dependencies:** TASK-028, TASK-029, TASK-088.
 - **Touched Files:** `native/bet/src/rigid_body.rs`, `native/bet/src/body_abi_v2.rs`, `native/bet/tests/rigid_body.rs`, `packages/wasm-bet/src/body-v2.ts`, `native/contact/src/contact.rs`, `native/contact/tests/contact.rs`, `packages/physics/src/ground-contact.ts`, `tests/rigid-body-v2.test.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
@@ -1193,6 +1222,7 @@ Wire the kernels that already exist into the flight path and make the body, cont
 ### TASK-095 — Compliant ground contact in flight sessions
 
 - **Status:** TODO — registered 2026-10-26 from the physics fidelity review; baseline 4593971.
+- **Phase 1 disposition:** Required (S18): compliant contact in flight sessions. The NASA comparison stays deferred.
 - **Title & Description:** Replace the attitude-resetting synthetic pad and the inelastic floor with compliant Rapier contact on published terrain for takeoff, landing and ground handling.
 - **Dependencies:** TASK-029, TASK-065, TASK-087, TASK-094.
 - **Touched Files:** `native/contact/src/contact.rs`, `native/contact/src/lib.rs`, `native/contact/tests/contact.rs`, `packages/physics/src/ground-contact.ts`, `packages/physics/src/terrain-contact.ts`, `packages/physics/src/bet-dynamics.ts`, `scripts/build-contact.mjs`, `scripts/sitl/quad.mjs`, `tests/flight-contact.test.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
@@ -1202,6 +1232,7 @@ Wire the kernels that already exist into the flight path and make the body, cont
 ### TASK-096 — Multirotor airframe aerodynamics
 
 - **Status:** TODO — registered 2026-10-26 from the physics fidelity review; baseline 4593971.
+- **Phase 1 disposition:** Required (S05): body drag. Its measured-data comparisons follow decision D-11.
 - **Title & Description:** Add body and arm drag, lift and moments so forward speed, lean angle, wind estimation and EKF3 drag-based dead reckoning behave realistically.
 - **Dependencies:** TASK-087, TASK-093.
 - **Touched Files:** `native/bet/src/airframe.rs`, `native/bet/src/lib.rs`, `native/bet/tests/airframe.rs`, `packages/physics/src/bet-dynamics.ts`, `packages/physics/src/vehicle.schema.json`, `tests/airframe-drag.test.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
@@ -1215,6 +1246,7 @@ Rotor fidelity in hover, edgewise flight, descent and near the ground.
 ### TASK-097 — Full-range airfoil polars
 
 - **Status:** TODO — registered 2026-10-26 from the physics fidelity review; baseline 4593971.
+- **Phase 1 disposition:** Required (S05): full-range polars. Its measured-data comparisons follow decision D-11.
 - **Title & Description:** Provide physically plausible section coefficients at any angle of attack, Reynolds number and Mach number instead of clamping beyond the ±30° NeuralFoil range.
 - **Dependencies:** TASK-019, TASK-033, TASK-091.
 - **Touched Files:** `tests/fixtures/polars/generate_extended.py`, `tests/fixtures/polars/naca6409-extended.json`, `packages/wasm-bet/src/rotor.ts`, `native/bet/src/polar.rs`, `native/bet/tests/polar.rs`, `tests/polar-extension.test.ts`, `tests/fixtures/registry.json`, `scripts/validate-models.mjs`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
@@ -1224,6 +1256,7 @@ Rotor fidelity in hover, edgewise flight, descent and near the ground.
 ### TASK-098 — Inflow v2: annular, tip loss, edgewise and dynamic inflow
 
 - **Status:** TODO — registered 2026-10-26 from the physics fidelity review; baseline 4593971.
+- **Phase 1 disposition:** Required (S05): inflow v2. Its measured-data comparisons follow decision D-11.
 - **Title & Description:** Replace uniform axial inflow with a fixed 0.1 s lag by an inflow model that is valid in edgewise flight, includes tip and hub losses, and has the physical millisecond time scale.
 - **Dependencies:** TASK-021, TASK-088, TASK-091, TASK-097.
 - **Touched Files:** `native/bet/src/inflow.rs`, `native/bet/src/blade.rs`, `native/bet/src/bound_v2.rs`, `native/bet/tests/inflow.rs`, `native/bet/tests/dynamic_inflow.rs`, `packages/wasm-bet/src/rotor-v2.ts`, `tests/fixtures/rotors/dynamic-inflow.json`, `tests/fixtures/registry.json`, `scripts/validate-models.mjs`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
@@ -1233,6 +1266,7 @@ Rotor fidelity in hover, edgewise flight, descent and near the ground.
 ### TASK-099 — Vortex ring state, windmill brake and descent inflow
 
 - **Status:** TODO — registered 2026-10-26 from the physics fidelity review; baseline 4593971.
+- **Phase 1 disposition:** Required (S05): descent regimes. Its measured-data comparisons follow decision D-11.
 - **Title & Description:** Model induced velocity and thrust in descent, where the current momentum root is invalid and only flagged ([V2_PLAN.md](V2_PLAN.md) B5).
 - **Dependencies:** TASK-098.
 - **Touched Files:** `native/bet/src/inflow.rs`, `native/bet/tests/descent_inflow.rs`, `tests/fixtures/rotors/descent-inflow.json`, `tests/fixtures/registry.json`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
@@ -1242,6 +1276,7 @@ Rotor fidelity in hover, edgewise flight, descent and near the ground.
 ### TASK-100 — Rotor ground effect
 
 - **Status:** TODO — registered 2026-10-26 from the physics fidelity review; baseline 4593971.
+- **Phase 1 disposition:** Required (S05): ground effect. Its measured-data comparisons follow decision D-11.
 - **Title & Description:** Reproduce the near-ground thrust gain and power drop that drive takeoff, landing and the land detector, off by default ([V2_PLAN.md](V2_PLAN.md) B8).
 - **Dependencies:** TASK-065, TASK-088, TASK-095, TASK-098.
 - **Touched Files:** `native/bet/src/ground_effect.rs`, `native/bet/src/inflow.rs`, `native/bet/src/lib.rs`, `native/bet/tests/ground_effect.rs`, `packages/physics/src/terrain-contact.ts`, `packages/physics/src/bet-dynamics.ts`, `tests/rotor-ground-effect.test.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
@@ -1251,6 +1286,7 @@ Rotor fidelity in hover, edgewise flight, descent and near the ground.
 ### TASK-101 — Rotor–rotor and rotor–airframe interference
 
 - **Status:** TODO — registered 2026-10-26 from the physics fidelity review; baseline 4593971.
+- **Phase 1 disposition:** Required (S05) for coaxial pairs; the task also covers rear-rotor and airframe interference. Its measured-data comparisons follow decision D-11.
 - **Title & Description:** Account for wakes that reach other rotors (coaxial stacks, rear rotors in forward flight) and the airframe (download), generalizing the coaxial reference ([V2_PLAN.md](V2_PLAN.md) B6).
 - **Dependencies:** TASK-024, TASK-088, TASK-096, TASK-098.
 - **Touched Files:** `native/bet/src/wake.rs`, `native/bet/src/coaxial.rs`, `native/bet/src/lib.rs`, `native/bet/tests/wake.rs`, `packages/physics/src/bet-dynamics.ts`, `packages/physics/src/vehicle.schema.json`, `tests/rotor-interference.test.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
@@ -1260,6 +1296,7 @@ Rotor fidelity in hover, edgewise flight, descent and near the ground.
 ### TASK-102 — Blade-by-blade rotor mode
 
 - **Status:** TODO — registered 2026-10-26 from the physics fidelity review; baseline 4593971.
+- **Phase 1 disposition:** Deferred: not required by S01–S19 (scope section 2). It keeps its ID, contract and evidence; work on it needs separate stakeholder approval.
 - **Title & Description:** Track individual blades in time so once-per-revolution and blade-passing loads, rotor imbalance and two-blade gyroscopic anisotropy exist as the source for vibration synthesis.
 - **Dependencies:** TASK-023, TASK-088, TASK-091, TASK-098.
 - **Touched Files:** `native/bet/src/blade.rs`, `native/bet/src/bound_v2.rs`, `native/bet/src/momentum.rs`, `native/bet/tests/azimuth_resolved.rs`, `packages/wasm-bet/src/rotor-v2.ts`, `tests/azimuth-resolved.test.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
@@ -1269,6 +1306,7 @@ Rotor fidelity in hover, edgewise flight, descent and near the ground.
 ### TASK-103 — Rotor lookup-table mode
 
 - **Status:** TODO — registered 2026-10-26 from the physics fidelity review; baseline 4593971.
+- **Phase 1 disposition:** Optional (S04): TASK-145 may use the table mode for measured combinations.
 - **Title & Description:** Provide a validated fast rotor model from tables for faster-than-real-time regression and for measured or external-solver data ([V2_PLAN.md](V2_PLAN.md) B4).
 - **Dependencies:** TASK-090, TASK-097, TASK-098.
 - **Touched Files:** `native/bet/src/rotor_map.rs`, `native/bet/src/lib.rs`, `native/bet/tests/rotor_map.rs`, `scripts/generate-rotor-map.mjs`, `packages/wasm-bet/src/rotor-v2.ts`, `tests/rotor-map.test.ts`, `tests/fixtures/rotors/rotor-map-synthetic.json`, `tests/fixtures/registry.json`, `docs/V2_PLAN.md`, `docs/ru/V2_PLAN.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
@@ -1282,6 +1320,7 @@ Dynamic battery and motor models, standard turbulence, wind shear and Earth fiel
 ### TASK-104 — Battery v2: dynamic, thermal and aging
 
 - **Status:** TODO — registered 2026-10-26 from the physics fidelity review; baseline 4593971.
+- **Phase 1 disposition:** Deferred: heating, cooling and aging are excluded (scope section 2); load-dependent sag and electrical limits come from TASK-092 and TASK-146. It keeps its ID, contract and evidence; work on it needs separate stakeholder approval.
 - **Title & Description:** Model realistic voltage sag, recovery and temperature behavior so ArduPilot battery failsafes and sag compensation behave as in the field.
 - **Dependencies:** TASK-026, TASK-092, TASK-093.
 - **Touched Files:** `native/bet/src/battery.rs`, `native/bet/tests/battery.rs`, `tests/fixtures/power/battery-2rc.json`, `tests/fixtures/registry.json`, `tests/battery-dynamics.test.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
@@ -1291,6 +1330,7 @@ Dynamic battery and motor models, standard turbulence, wind shear and Earth fiel
 ### TASK-105 — Motor and ESC v2: electrical, thermal, protocols and telemetry
 
 - **Status:** TODO — registered 2026-10-26 from the physics fidelity review; baseline 4593971.
+- **Phase 1 disposition:** Deferred: not required by S01–S19 (scope section 2); electrical limits come from TASK-092 and TASK-146, and heating is excluded. It keeps its ID, contract and evidence; work on it needs separate stakeholder approval.
 - **Title & Description:** Capture RPM-dependent torque limits, thermal degradation and ESC behavior (quantization, latency, ramp limits, braking, telemetry) that set actuator bandwidth and saturation ([V2_PLAN.md](V2_PLAN.md) B9).
 - **Dependencies:** TASK-025, TASK-089, TASK-092.
 - **Touched Files:** `native/bet/src/motor.rs`, `native/bet/src/esc.rs`, `native/bet/src/lib.rs`, `native/bet/tests/motor.rs`, `native/bet/tests/esc.rs`, `packages/autopilot/src/wasm-sitl.ts`, `native/ardupilot/hal/browser_hal.h`, `tests/esc-telemetry.test.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
@@ -1300,6 +1340,7 @@ Dynamic battery and motor models, standard turbulence, wind shear and Earth fiel
 ### TASK-106 — Turbulence v2: Dryden, von Kármán and Kaimal
 
 - **Status:** TODO — registered 2026-10-26 from the physics fidelity review; baseline 4593971.
+- **Phase 1 disposition:** Required (S07) for turbulence; Dryden spectra are the minimum Phase 1 increment.
 - **Title & Description:** Replace the uncorrelated per-axis AR(1) gust with standard turbulence spectra scaled by altitude, airspeed and condition, including rotational gusts and spatial coherence.
 - **Dependencies:** TASK-032, TASK-093, TASK-166.
 - **Touched Files:** `packages/physics/src/wind.ts`, `packages/physics/src/turbulence.ts`, `tests/turbulence.test.ts`, `scripts/bench-wind.mjs`, `tests/fixtures/environment/dryden-psd.json`, `tests/fixtures/registry.json`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
@@ -1309,6 +1350,7 @@ Dynamic battery and motor models, standard turbulence, wind shear and Earth fiel
 ### TASK-107 — Wind profile, shear and terrain-induced flow
 
 - **Status:** TODO — registered 2026-10-26 from the physics fidelity review; baseline 4593971.
+- **Phase 1 disposition:** Deferred: terrain-induced flow is excluded (scope section 2), and wind profiles and shear are not among the S07 weather settings. It keeps its ID, contract and evidence; work on it needs separate stakeholder approval.
 - **Title & Description:** Model mean wind versus height and terrain: logarithmic shear with land-cover roughness and precomputed terrain speed-up fields.
 - **Dependencies:** TASK-069, TASK-093, TASK-095, TASK-106, TASK-166.
 - **Touched Files:** `packages/physics/src/wind-profile.ts`, `packages/terrain/src/roughness.ts`, `tests/wind-profile.test.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
@@ -1318,6 +1360,7 @@ Dynamic battery and motor models, standard turbulence, wind shear and Earth fiel
 ### TASK-108 — Earth gravity and magnetic fields
 
 - **Status:** TODO — registered 2026-10-26 from the physics fidelity review; baseline 4593971.
+- **Phase 1 disposition:** Partly required (S07): normal gravity, the WMM main field and a hashed geoid grid, delivered by TASK-148. Anomaly fields and vehicle interference are deferred.
 - **Title & Description:** Use WGS84 normal gravity, Earth rotation and a geomagnetic model with anomalies and vehicle interference instead of constant gravity and a constant magnetic vector.
 - **Dependencies:** TASK-036, TASK-089, TASK-092, TASK-094.
 - **Touched Files:** `packages/sensors/src/gravity.ts`, `packages/sensors/src/geomagnetic.ts`, `packages/sensors/src/ideal.ts`, `native/bet/src/rigid_body.rs`, `tests/gravity.test.ts`, `tests/geomagnetic.test.ts`, `tests/fixtures/geodesy/wmm2025-reference.json`, `tests/fixtures/registry.json`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
@@ -1331,6 +1374,7 @@ Fixed-wing, QuadPlane, tilt-rotor and tailsitter vehicles.
 ### TASK-109 — Fixed-wing aerodynamics and control-surface actuators
 
 - **Status:** TODO — registered 2026-10-26 from the physics fidelity review; baseline 4593971.
+- **Phase 1 disposition:** Deferred: fixed-wing, VTOL and other aircraft classes are later stages (scope section 2). It keeps its ID, contract and evidence; work on it needs separate stakeholder approval.
 - **Title & Description:** Add native fixed-wing UAV aerodynamics from cruise through stall, spin and post-stall, driven by ArduPlane servo outputs.
 - **Dependencies:** TASK-087, TASK-094, TASK-097, TASK-106.
 - **Touched Files:** `native/bet/src/wing.rs`, `native/bet/src/servo.rs`, `native/bet/src/lib.rs`, `native/bet/tests/wing.rs`, `native/bet/tests/servo.rs`, `packages/physics/src/vehicle.schema.json`, `packages/physics/src/fixed-wing-dynamics.ts`, `tests/fixed-wing-dynamics.test.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
@@ -1340,6 +1384,7 @@ Fixed-wing, QuadPlane, tilt-rotor and tailsitter vehicles.
 ### TASK-110 — ArduPlane and QuadPlane coupling with an interim UAV reference
 
 - **Status:** TODO — registered 2026-10-26 from the physics fidelity review; baseline 4593971.
+- **Phase 1 disposition:** Deferred: fixed-wing, VTOL and other aircraft classes are later stages (scope section 2). It keeps its ID, contract and evidence; work on it needs separate stakeholder approval.
 - **Title & Description:** Fly ArduPlane and QuadPlane against MirageSITL physics in the native and browser paths, with a UAV-class JSBSim model as a cross-check.
 - **Dependencies:** TASK-031, TASK-089, TASK-109.
 - **Touched Files:** `scripts/sitl/driver.mjs`, `packages/autopilot/src/external-sitl.ts`, `native/ardupilot/hal/sitl-state.patch`, `native/jsbsim/bridge.cpp`, `native/jsbsim/property-map.json`, `packages/wasm-jsbsim/src/backend.ts`, `tests/plane-sitl.test.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
@@ -1349,6 +1394,7 @@ Fixed-wing, QuadPlane, tilt-rotor and tailsitter vehicles.
 ### TASK-111 — Wing ground effect and slipstream on lifting surfaces
 
 - **Status:** TODO — registered 2026-10-26 from the physics fidelity review; baseline 4593971.
+- **Phase 1 disposition:** Deferred: fixed-wing, VTOL and other aircraft classes are later stages (scope section 2). It keeps its ID, contract and evidence; work on it needs separate stakeholder approval.
 - **Title & Description:** Model flare and float near the ground and propeller-blown wings and tails.
 - **Dependencies:** TASK-100, TASK-101, TASK-109.
 - **Touched Files:** `native/bet/src/wing.rs`, `native/bet/src/wake.rs`, `native/bet/tests/wing_ground_effect.rs`, `tests/wing-slipstream.test.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
@@ -1358,6 +1404,7 @@ Fixed-wing, QuadPlane, tilt-rotor and tailsitter vehicles.
 ### TASK-112 — QuadPlane dynamics
 
 - **Status:** TODO — registered 2026-10-26 from the physics fidelity review; baseline 4593971.
+- **Phase 1 disposition:** Deferred: fixed-wing, VTOL and other aircraft classes are later stages (scope section 2). It keeps its ID, contract and evidence; work on it needs separate stakeholder approval.
 - **Title & Description:** Realistic QuadPlane hover, transition and back-transition, including lift rotors in edgewise flow and rotor–wing interference.
 - **Dependencies:** TASK-098, TASK-101, TASK-109, TASK-110.
 - **Touched Files:** `packages/physics/src/quadplane-dynamics.ts`, `packages/physics/src/vehicle.schema.json`, `tests/quadplane-dynamics.test.ts`, `tests/fixtures/models/synthetic-quadplane-v2.json`, `tests/fixtures/registry.json`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
@@ -1367,6 +1414,7 @@ Fixed-wing, QuadPlane, tilt-rotor and tailsitter vehicles.
 ### TASK-113 — Tilt-rotor and tailsitter support
 
 - **Status:** TODO — registered 2026-10-26 from the physics fidelity review; baseline 4593971.
+- **Phase 1 disposition:** Deferred: fixed-wing, VTOL and other aircraft classes are later stages (scope section 2). It keeps its ID, contract and evidence; work on it needs separate stakeholder approval.
 - **Title & Description:** Support vehicles whose thrust axes move or whose wings fly at ±90° angle of attack in hover.
 - **Dependencies:** TASK-094, TASK-109, TASK-112.
 - **Touched Files:** `packages/physics/src/tilt-kinematics.ts`, `packages/physics/src/quadplane-dynamics.ts`, `packages/physics/src/vehicle.schema.json`, `tests/tilt-kinematics.test.ts`, `tests/tailsitter-dynamics.test.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
@@ -1380,6 +1428,7 @@ Vibration and IMU, barometer, GNSS, magnetometer, airspeed and rangefinder error
 ### TASK-114 — Vibration synthesis and IMU sampling chain
 
 - **Status:** TODO — registered 2026-10-26 from the physics fidelity review; baseline 4593971.
+- **Phase 1 disposition:** Deferred: not required by S01–S19 (scope section 2). It keeps its ID, contract and evidence; work on it needs separate stakeholder approval.
 - **Title & Description:** Generate realistic accelerometer and gyro vibration and sample it like real IMUs, so aliasing, clipping and harmonic-notch behavior are reproducible.
 - **Dependencies:** TASK-089, TASK-102, TASK-115.
 - **Touched Files:** `packages/sensors/src/vibration.ts`, `packages/sensors/src/imu-chain.ts`, `tests/vibration.test.ts`, `tests/imu-chain.test.ts`, `packages/autopilot/src/wasm-sitl.ts`, `native/ardupilot/hal/browser_hal.h`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
@@ -1389,6 +1438,7 @@ Vibration and IMU, barometer, GNSS, magnetometer, airspeed and rangefinder error
 ### TASK-115 — IMU error model v2
 
 - **Status:** TODO — registered 2026-10-26 from the physics fidelity review; baseline 4593971.
+- **Phase 1 disposition:** Partly required (S08): placement (lever arm) and orientation, delivered by TASK-147. Temperature, Allan-variance and vibration-rectification terms are deferred.
 - **Title & Description:** Replace the single AR(1) plus bias walk with Allan-variance-calibrated, temperature-dependent IMU errors.
 - **Dependencies:** TASK-035, TASK-087, TASK-089, TASK-166.
 - **Touched Files:** `packages/sensors/src/noise.ts`, `packages/sensors/src/imu-errors.ts`, `tests/imu-errors.test.ts`, `tests/fixtures/sensors/imu-allan.json`, `tests/fixtures/registry.json`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
@@ -1398,6 +1448,7 @@ Vibration and IMU, barometer, GNSS, magnetometer, airspeed and rangefinder error
 ### TASK-116 — Barometer v2
 
 - **Status:** TODO — registered 2026-10-26 from the physics fidelity review; baseline 4593971.
+- **Phase 1 disposition:** Deferred: not required by S01–S19 (scope section 2). It keeps its ID, contract and evidence; work on it needs separate stakeholder approval.
 - **Title & Description:** Model the pressure errors that dominate barometric altitude near the ground and in fast flight.
 - **Dependencies:** TASK-089, TASK-096, TASK-100, TASK-166.
 - **Touched Files:** `packages/sensors/src/barometer.ts`, `tests/barometer.test.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
@@ -1407,6 +1458,7 @@ Vibration and IMU, barometer, GNSS, magnetometer, airspeed and rangefinder error
 ### TASK-117 — GNSS v2
 
 - **Status:** TODO — registered 2026-10-26 from the physics fidelity review; baseline 4593971.
+- **Phase 1 disposition:** Deferred: not required by S01–S19 (scope section 2). It keeps its ID, contract and evidence; work on it needs separate stakeholder approval.
 - **Title & Description:** Tie GNSS position and velocity errors and outages to satellite geometry, terrain and buildings, the atmosphere and the RF environment.
 - **Dependencies:** TASK-036, TASK-053, TASK-058, TASK-089, TASK-108, TASK-166.
 - **Touched Files:** `packages/sensors/src/gnss.ts`, `packages/sensors/src/gnss-visibility.worker.ts`, `packages/ew/src/engine.ts`, `tests/gnss-errors.test.ts`, `tests/fixtures/sensors/gnss-ephemeris.json`, `tests/fixtures/registry.json`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
@@ -1416,6 +1468,7 @@ Vibration and IMU, barometer, GNSS, magnetometer, airspeed and rangefinder error
 ### TASK-118 — Magnetometer, airspeed and rangefinder v2
 
 - **Status:** TODO — registered 2026-10-26 from the physics fidelity review; baseline 4593971.
+- **Phase 1 disposition:** Deferred: not required by S01–S19 (scope section 2). It keeps its ID, contract and evidence; work on it needs separate stakeholder approval.
 - **Title & Description:** Model the dominant remaining sensor errors: motor-current magnetic interference, pitot geometry and slipstream, and rangefinder beam and surface effects.
 - **Dependencies:** TASK-056, TASK-089, TASK-092, TASK-101, TASK-108.
 - **Touched Files:** `packages/sensors/src/magnetometer.ts`, `packages/sensors/src/airspeed.ts`, `packages/sensors/src/rangefinder.ts`, `tests/magnetometer.test.ts`, `tests/airspeed-sensor.test.ts`, `tests/rangefinder.test.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
@@ -1429,6 +1482,7 @@ Flexible structure, mass changes, convective and hazardous flows, and unsteady a
 ### TASK-119 — Variable mass, payload release, slung loads and slosh
 
 - **Status:** TODO — registered 2026-10-26 from the physics fidelity review; baseline 4593971.
+- **Phase 1 disposition:** Deferred: not required by S01–S19 (scope section 2). It keeps its ID, contract and evidence; work on it needs separate stakeholder approval.
 - **Title & Description:** Model in-flight CG and inertia changes (payload drops, fuel burn, spraying) and suspended or liquid payloads.
 - **Dependencies:** TASK-094, TASK-095.
 - **Touched Files:** `native/bet/src/rigid_body.rs`, `packages/physics/src/mass-events.ts`, `packages/protocol/src/control-v2.ts`, `packages/protocol/src/control-v2.schema.json`, `tests/mass-events.test.ts`, `tests/slosh.test.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SHARED_MEMORY.md`, `docs/ru/SPECS_SHARED_MEMORY.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
@@ -1438,6 +1492,7 @@ Flexible structure, mass changes, convective and hazardous flows, and unsteady a
 ### TASK-120 — Flexible structure (aeroelasticity)
 
 - **Status:** TODO — registered 2026-10-26 from the physics fidelity review; baseline 4593971.
+- **Phase 1 disposition:** Deferred: flexible structures are excluded (scope section 2). It keeps its ID, contract and evidence; work on it needs separate stakeholder approval.
 - **Title & Description:** Model wing bending and torsion, boom twist and arm and frame modes that change handling, control effectiveness and vibration.
 - **Dependencies:** TASK-094, TASK-102, TASK-109, TASK-114.
 - **Touched Files:** `native/bet/src/modal.rs`, `native/bet/src/lib.rs`, `native/bet/tests/modal.rs`, `packages/physics/src/vehicle.schema.json`, `tests/flexible-body.test.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
@@ -1447,6 +1502,7 @@ Flexible structure, mass changes, convective and hazardous flows, and unsteady a
 ### TASK-121 — Thermals and the convective boundary layer
 
 - **Status:** TODO — registered 2026-10-26 from the physics fidelity review; baseline 4593971.
+- **Phase 1 disposition:** Deferred: thermals are not among the S07 weather settings. It keeps its ID, contract and evidence; work on it needs separate stakeholder approval.
 - **Title & Description:** Provide realistic convective updrafts and sink for ArduPlane `SOAR` testing and altitude-hold disturbances.
 - **Dependencies:** TASK-070, TASK-106, TASK-107, TASK-166.
 - **Touched Files:** `packages/physics/src/thermals.ts`, `tests/thermals.test.ts`, `packages/protocol/src/control-v2.ts`, `packages/protocol/src/control-v2.schema.json`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SHARED_MEMORY.md`, `docs/ru/SPECS_SHARED_MEMORY.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
@@ -1456,6 +1512,7 @@ Flexible structure, mass changes, convective and hazardous flows, and unsteady a
 ### TASK-122 — Microbursts, gust fronts, wake vortices and other-vehicle downwash
 
 - **Status:** TODO — registered 2026-10-26 from the physics fidelity review; baseline 4593971.
+- **Phase 1 disposition:** Deferred: multi-aircraft wakes are excluded (scope section 2), and microbursts and gust fronts are not among the S07 weather settings. It keeps its ID, contract and evidence; work on it needs separate stakeholder approval.
 - **Title & Description:** Model hazardous localized flows for landing safety and swarm or formation flight.
 - **Dependencies:** TASK-079, TASK-101, TASK-106, TASK-166.
 - **Touched Files:** `packages/physics/src/hazard-flows.ts`, `packages/scenarios/src/schema.ts`, `tests/hazard-flows.test.ts`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
@@ -1465,6 +1522,7 @@ Flexible structure, mass changes, convective and hazardous flows, and unsteady a
 ### TASK-123 — Dynamic stall and unsteady airfoil aerodynamics
 
 - **Status:** TODO — registered 2026-10-26 from the physics fidelity review; baseline 4593971.
+- **Phase 1 disposition:** Deferred: not required by S01–S19 (scope section 2). It keeps its ID, contract and evidence; work on it needs separate stakeholder approval.
 - **Title & Description:** Capture lift overshoot, hysteresis and delayed stall under fast-changing angle of attack on rotors and wings.
 - **Dependencies:** TASK-097, TASK-102, TASK-109.
 - **Touched Files:** `native/bet/src/dynamic_stall.rs`, `native/bet/src/blade.rs`, `native/bet/src/wing.rs`, `native/bet/src/lib.rs`, `native/bet/tests/dynamic_stall.rs`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `docs/SPECS_SIMULATION_ENGINES.md`, `docs/ru/SPECS_SIMULATION_ENGINES.md`, `docs/architecture.md`, `docs/ru/architecture.md`.
@@ -1550,10 +1608,10 @@ Scope step 2. Align the documentation with the approved scope and bring unmerged
 
 ### TASK-134 — Reconcile the roadmap, specifications and agent instructions with PROJECT_SCOPE.md
 
-- **Status:** TODO — registered 2026-10-28 from PROJECT_SCOPE.md; baseline 384e974.
-- **Title & Description:** (S01–S19) Apply the disposition table in [PHASE1_PLAN.md](PHASE1_PLAN.md) section 4. Record each open roadmap task's Phase 1 disposition without rewriting completed evidence. Update the CLAUDE.md baseline, the README and the architecture overview so agents read PROJECT_SCOPE.md and the plan first. Mark Windows and WSL as historical, with no Phase 1 work. Record decisions D-11 and D-12. Correct the references to files that are not in the repository (`scripts/check-mavlink-capture.mjs`, `scripts/check-ew-capture.mjs`), and retire the stale TASK-074 handover.
+- **Status:** DONE — Claude; baseline 7ad1f51; 2026-10-28. A **Phase 1 disposition** line now sits on all 42 open tasks before TASK-127 and on the 16 DONE tasks that the plan's section 4 names, in both languages; no Status line or DONE evidence was changed. CLAUDE.md, the README, the architecture overview and AGENTS.md direct agents to PROJECT_SCOPE.md and the Phase 1 plan first; CLAUDE.md has a current baseline section; and the README, CLAUDE.md and the architecture overview mark the Windows and WSL material as historical. The two missing-script references in CLAUDE.md and the README, and one that TASK-131 had introduced in `config/offline-inventory.json`, now name the real audit commands (`scripts/sitl/check-raw.py`, `scripts/sitl/audit-ew.mjs` with `scripts/sitl/check-ew.py`, `node scripts/freeze-ew.mjs`, `node scripts/run-ew-sitl.mjs`). TASK-047's disposition notes that its parity report is not tracked. HANDOVER.md is retired to a pointer that keeps its one current finding. V2_PLAN.md is marked as background. Decisions D-11 and D-12 are registered in the plan and referenced from TASK-096–TASK-101 and TASK-080; they await the stakeholder. Evidence: a script check finds a disposition on every open task before TASK-127 in both languages (58 lines each); a search finds no remaining instruction to run either missing script; `node scripts/check-offline.mjs` exit 0; `npm run check:docs` passes.
+- **Title & Description:** (S01–S19) Apply the disposition table in [PHASE1_PLAN.md](PHASE1_PLAN.md) section 4. Record each open roadmap task's Phase 1 disposition without rewriting completed evidence. Update the CLAUDE.md baseline, the README and the architecture overview so agents read PROJECT_SCOPE.md and the plan first. Mark Windows and WSL as historical, with no Phase 1 work. Record decisions D-11 and D-12. Correct the references to files that are not in the repository (`scripts/check-mavlink-capture.mjs`, `scripts/check-ew-capture.mjs`), and retire the stale TASK-074 handover. During the task, `config/offline-inventory.json` was added to Touched Files to correct a missing-script reference that TASK-131 introduced, and `docs/decisions/phase1-acceptance.md` with its mirror to record the outcome for the `analyze_repo_next_task` branch, which the plan assigned to TASK-132.
 - **Dependencies:** TASK-084.
-- **Touched Files:** `CLAUDE.md`, `docs/ru/CLAUDE.md`, `README.md`, `docs/ru/README.md`, `AGENTS.md`, `docs/ru/AGENTS.md`, `HANDOVER.md`, `docs/ru/HANDOVER.md`, `docs/documentation-index.json`, `docs/architecture.md`, `docs/ru/architecture.md`, `docs/V2_PLAN.md`, `docs/ru/V2_PLAN.md`, `docs/PHASE1_PLAN.md`, `docs/ru/PHASE1_PLAN.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`.
+- **Touched Files:** `CLAUDE.md`, `docs/ru/CLAUDE.md`, `README.md`, `docs/ru/README.md`, `AGENTS.md`, `docs/ru/AGENTS.md`, `HANDOVER.md`, `docs/ru/HANDOVER.md`, `docs/documentation-index.json`, `docs/architecture.md`, `docs/ru/architecture.md`, `docs/V2_PLAN.md`, `docs/ru/V2_PLAN.md`, `docs/PHASE1_PLAN.md`, `docs/ru/PHASE1_PLAN.md`, `docs/PROJECT_ROADMAP.md`, `docs/ru/PROJECT_ROADMAP.md`, `config/offline-inventory.json`, `docs/decisions/phase1-acceptance.md`, `docs/ru/phase1-acceptance.md`.
 - **Interfaces / Contracts:** Documentation only; no runtime contract changes. Dispositions use the existing status vocabulary, and a deferred task keeps its ID and contract. The scope and its mirror change only through a recorded scope amendment.
 - **DoD & Acceptance Criteria:** Every open task has a disposition consistent with the scope. No DONE evidence is rewritten. No reference to a missing file remains in the reconciled documents. `npm run check:docs` passes, and the English sources and Russian mirrors change together.
 
