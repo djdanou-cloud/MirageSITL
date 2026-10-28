@@ -7,9 +7,10 @@ record identifies the upstream UAVLogViewer, pins it, lists what keeps it from
 running offline, and chooses how MirageSITL adds the S14 features. No
 replacement viewer is started.
 
-Status: the identity, license and extension approach are recorded. The offline
-build and the offline smoke test of a real log are not run yet; see
-[Blockers](#blockers).
+Status: the identity, license and extension approach are recorded, and the
+pinned build runs offline. The offline smoke test with a 2017 ArduPlane log
+FAILS on an upstream compatibility bug; a test with a current ArduPilot log is
+still open. See [Blockers](#blockers).
 
 ## Identity
 
@@ -32,7 +33,7 @@ listing every request it blocks.
 | Google Analytics (two `gtag` tags) | `index.html` | Requests fail; no functional effect | Patch 1 removes them |
 | Font Awesome 5 stylesheet from `use.fontawesome.com` | `index.html` | Icons disappear | Patch 1 bundles the icons locally |
 | Google Fonts (Nunito Sans) | `src/App.vue` | A system font is used | Patch 1 removes the request |
-| `is-online` probe of public endpoints | `src/components/Home.vue` | Returns false, so the viewer opens its offline 3D mode without imagery or terrain | Patch 1 replaces the probe with a setting |
+| `is-online` probe of public endpoints (`api.ipify.org`, `ipv4.icanhazip.com` in the smoke test) | `src/components/Home.vue` | Returns false, so the viewer opens its offline 3D mode without imagery or terrain | Patch 1 replaces the probe with a setting |
 | Map imagery: Esri (default), StatKart, MapTiler with an API key written into the source, Eniro, OpenStreetMap, OpenSeaMap | `src/components/CesiumViewer.vue` | Not available | Offline mode by default; patch 1 removes the provider that carries the embedded key. Online imagery stays an option when connected (S17) |
 | Terrain from the same-origin path `/quantized/` | `src/components/CesiumViewer.vue` | Falls back to the ellipsoid | Served locally later if MirageSITL terrain is wanted (TASK-186) |
 | IP geolocation (`ipapi.co`, `ipwho.is`) | `src/components/widgets/MagFitTool.vue` | The magnetometer-fit helper cannot locate itself | Patch 1 disables the lookup offline |
@@ -79,6 +80,7 @@ the TASK-179 build:
 
 | Patch | Purpose | Upstream files it changes |
 | --- | --- | --- |
+| 0 Compatibility | Tolerate `CMD` messages without a `Frame` field (logs from older firmware), so mission extraction no longer aborts the remaining extraction steps | `src/tools/dataflashDataExtractor.js` |
 | 1 Offline | Remove analytics and web fonts, bundle the icons, replace the online probe with a setting, remove the provider with the embedded key, disable IP geolocation offline | `index.html`, `src/App.vue`, `src/components/Home.vue`, `src/components/CesiumViewer.vue`, `src/components/widgets/MagFitTool.vue`, `package.json` |
 | 2 Message interface | Replace the unchecked `message` listener with an origin-checked API: load a log with its name and context, load a second log, set a time shift, add parameter-change markers with requested, confirmed or rejected status, show the experiment context | `src/components/SideBarFileManager.vue`, `src/components/Home.vue`, a new `src/mirage/bridge.js` |
 | 3 Two logs | Keep one dataset per log, parse the second log in its own worker, draw each log's traces in a distinct style on common axes, side by side or overlaid, with a manual time shift; select two intervals of one log | `src/components/Globals.js`, `src/components/SideBarFileManager.vue`, `src/components/Plotly.vue`, `src/components/PlotSetup.vue`, `src/components/Sidebar.vue` |
@@ -102,31 +104,47 @@ unknown; parameter history that the log does not contain is never invented.
 
 * `git clone` of the repository at `01f9d510`, with the parser submodule at
   `d8967f6e`.
-* `npm ci --ignore-scripts` with Node 24.22.1: exit 0, 2,595 packages, no install
-  scripts run.
-* `node scripts/check-uavlogviewer.mjs --source .cache/task-130/UAVLogViewer`:
-  source identity PASS (commit, submodule, LICENSE and lockfile hashes); exit 2,
-  BLOCKED_EXTERNAL, because no build and no log were supplied.
+* `npm ci --ignore-scripts` with Node 24.22.1: exit 0, 2,595 packages. Then
+  `npx patch-package`: exit 0; the plotly.js patch, written for 2.12.1, applies
+  to the resolved 2.24.2 with a version warning only.
+* `npm run build` with Node 24.22.1 and an empty Cesium token: exit 0 in 80 s,
+  webpack 5.88.0 with 3 size warnings. The output has 1,106 files and
+  48,133,342 bytes, digest
+  `6920d29f33963293ffb8956fc9468b9170d5c20c3bd2a78ee38251c1e2df55ca` (SHA-256
+  of sorted `path<TAB>sha256` lines, as the check computes it).
+* Offline smoke test in Chromium 153.0.8010.12 (the preinstalled browser, given
+  through `CHROMIUM_PATH`), with every request outside the loopback server
+  aborted, exit 1, FAIL:
+
+  ```bash
+  CHROMIUM_PATH=/opt/pw-browsers/chromium node scripts/check-uavlogviewer.mjs --source .cache/task-130/UAVLogViewer --dist .cache/task-130/UAVLogViewer/dist --log .cache/task-130/logs/pymavlink-test.BIN
+  ```
+
+  * The viewer listed 148 message types and decoded samples for 9 of them
+    (`ATT` 24, `AHR2` 23, `POS` 23, `GPS` 5, `CMD` 12, `MSG` 6, `NKQ1` 24,
+    `NKQ2` 24, `PARM` 809) with no network.
+  * It raised `TypeError: Cannot read properties of undefined (reading '0')`
+    twice in `extractMission`. That code reads `CMD.Frame`, a field that
+    ArduPlane 3.8 did not log, and the exception skips the remaining
+    extraction steps (vehicle type, parameters, attitude, trajectory, text
+    messages). Patch 0 addresses it.
+  * Aborted requests: `www.googletagmanager.com` (2), `use.fontawesome.com`,
+    `fonts.googleapis.com`, `api.ipify.org` and `ipv4.icanhazip.com` (one each),
+    all removed by patch 1.
 * Test log: `tests/test.BIN` from pymavlink at `bd0a1b29`, a real DataFlash log
   from ArduPlane V3.8.2-dev on a Pixhawk-family board, 65,536 bytes, SHA-256
   `a51f040b2ad7f55185c1da5705f226f51469b86562c4ff76d05c99e0e52c2bf4`.
 
 ## Blockers
 
-1. **Running the upstream build.** `npm run build` and the install scripts it
-   needs (`patch-package`) execute third-party code, as does opening the built
-   viewer in Chromium. This cloud session needs the user's explicit permission
-   for that. Then the smoke test is:
-
-   ```bash
-   node scripts/check-uavlogviewer.mjs --source .cache/task-130/UAVLogViewer --dist .cache/task-130/UAVLogViewer/dist --log .cache/task-130/logs/pymavlink-test.BIN
-   ```
-
-2. **The plotly.js patch.** `patches/plotly.js+2.12.1.patch` names plotly.js
-   2.12.1, while the lockfile resolves 2.24.2. Whether `patch-package` still
-   applies it is checked by the first build.
-3. **Chrome on macOS.** The DoD's Chrome-on-macOS run happens on the reference
+1. **A current ArduPilot DataFlash log.** The unpatched pinned build still has
+   to open a log from current firmware without errors.
+   `autotest.ardupilot.org`, which upstream's tests use, is blocked by this
+   environment's network policy (HTTP 403 from the proxy). Either the
+   stakeholder supplies a `.BIN` from a real flight, or one is generated with
+   ArduCopter SITL (here or on the M5 in TASK-127).
+2. **Chrome on macOS.** The DoD's Chrome-on-macOS run happens on the reference
    M5 (decision A-01), through the same check script.
 
-Once the smoke test passes, the lock's `outputs` field records the build's file
-count, bytes and digest from the check report.
+When the smoke test passes, the lock's `outputs` field already records the
+build's file count, bytes and digest.

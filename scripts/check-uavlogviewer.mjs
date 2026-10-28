@@ -89,6 +89,7 @@ async function offlineSmoke(dist, logBytes) {
   const origin = `http://127.0.0.1:${typeof address === "object" && address ? address.port : 0}`;
   const aborted = new Map();
   const consoleErrors = [];
+  const appErrors = [];
   let browser;
   try {
     browser = await chromium.launch({ headless: true, ...(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {}) });
@@ -102,21 +103,47 @@ async function offlineSmoke(dist, logBytes) {
       return route.abort("internetdisconnected");
     });
     const page = await context.newPage();
-    page.on("console", message => { if (message.type() === "error" && consoleErrors.length < 50) consoleErrors.push(message.text().slice(0, 300)); });
-    page.on("pageerror", error => { if (consoleErrors.length < 50) consoleErrors.push(String(error).slice(0, 300)); });
+    page.on("console", message => {
+      if (message.type() !== "error") return;
+      const text = message.text();
+      // Vue reports exceptions from component code through console.error instead of an uncaught page error.
+      if (/^(TypeError|ReferenceError|RangeError|SyntaxError|Error)\b/.test(text)) appErrors.push(text);
+      if (consoleErrors.length < 50) consoleErrors.push(text.slice(0, 300));
+    });
+    page.on("pageerror", error => { appErrors.push(String(error)); if (consoleErrors.length < 50) consoleErrors.push(String(error).slice(0, 300)); });
     const started = Date.now();
     await page.goto(`${origin}/?file=${encodeURIComponent(LOG_ROUTE)}`, { waitUntil: "domcontentloaded" });
     let messageTypes = [];
+    let parsed = { found: false, sampledTypes: [] };
     try {
-      await page.waitForSelector("li.type", { timeout: PARSE_TIMEOUT_MS });
+      // The message list sits in a collapsed sidebar section, so wait for it to exist, not to be visible.
+      await page.waitForSelector("li.type", { state: "attached", timeout: PARSE_TIMEOUT_MS });
+      // The viewer's store holds the decoded columns; count the types that carry samples.
+      await page.waitForFunction(() => [...globalThis.document.querySelectorAll("*")].some(element => {
+        const messages = element.__vue__?.state?.messages;
+        return messages !== undefined && Object.values(messages).some(columns => (columns?.time_boot_ms?.length ?? 0) > 0);
+      }), undefined, { timeout: PARSE_TIMEOUT_MS });
+      parsed = await page.evaluate(() => {
+        for (const element of globalThis.document.querySelectorAll("*")) {
+          const state = element.__vue__?.state;
+          if (state?.messages === undefined) continue;
+          const sampledTypes = Object.entries(state.messages)
+            .filter(([, columns]) => (columns?.time_boot_ms?.length ?? 0) > 0)
+            .map(([name, columns]) => ({ name, samples: columns.time_boot_ms.length }));
+          return { found: true, sampledTypes, flightModeChanges: state.flightModeChanges?.length ?? 0, vehicle: state.vehicle ?? null };
+        }
+        return { found: false, sampledTypes: [] };
+      });
       messageTypes = await page.$$eval("li.type a.section", nodes => nodes.map(node => (node.textContent ?? "").trim().split(/\s+/)[0] ?? ""));
     } catch {
-      messageTypes = [];
+      // Leave the empty results; the verdict reports the failure.
     }
     return {
       browser: browser.version(),
       parseSeconds: Math.round((Date.now() - started) / 100) / 10,
       messageTypes: messageTypes.filter(name => name !== "").sort(),
+      parsed,
+      appErrors: appErrors.map(text => text.split("\n").slice(0, 3).join(" | ").slice(0, 400)),
       abortedOrigins: [...aborted.entries()].map(([key, count]) => ({ origin: key, requests: count })).sort((a, b) => a.origin.localeCompare(b.origin)),
       consoleErrors,
     };
@@ -162,7 +189,8 @@ async function main() {
   const logSha256 = sha256(logBytes);
   report.log = { file: logPath.split(sep).pop(), bytes: logBytes.length, sha256: logSha256, isLockedTestLog: logSha256 === lock.testLog?.sha256 };
   report.smoke = await offlineSmoke(dist, logBytes);
-  report.verdict = report.smoke.messageTypes.length > 0 ? "PASS" : "FAIL";
+  // PASS: the log's types are listed, decoded samples reached the viewer, and the viewer raised no exception.
+  report.verdict = report.smoke.messageTypes.length > 0 && report.smoke.parsed.sampledTypes.length > 0 && report.smoke.appErrors.length === 0 ? "PASS" : "FAIL";
   return report;
 }
 

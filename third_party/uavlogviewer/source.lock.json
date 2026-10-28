@@ -24,9 +24,15 @@
     "install": "npm ci",
     "build": "npm run build",
     "postinstallPatches": ["patches/plotly.js+2.12.1.patch"],
-    "notes": "The plotly.js patch names version 2.12.1 while package-lock.json resolves 2.24.2. The build also writes runtime-config.js from VUE_APP_CESIUM_TOKEN, which the offline build leaves empty."
+    "notes": "The plotly.js patch names version 2.12.1 while package-lock.json resolves 2.24.2; patch-package applies it with a version warning. The build writes runtime-config.js from VUE_APP_CESIUM_TOKEN, which the offline build leaves empty."
   },
-  "outputs": null,
+  "outputs": {
+    "node": "24.22.1",
+    "files": 1106,
+    "bytes": 48133342,
+    "sha256": "6920d29f33963293ffb8956fc9468b9170d5c20c3bd2a78ee38251c1e2df55ca",
+    "digestRule": "SHA-256 of sorted 'path<TAB>sha256<LF>' lines over dist/, as scripts/check-uavlogviewer.mjs computes it"
+  },
   "testLog": {
     "description": "Real DataFlash log from ArduPlane V3.8.2-dev (8178ab40) on a PX4v4 (Pixhawk-family) board, as shipped with pymavlink's tests; truncated to 64 KiB",
     "repository": "https://github.com/ArduPilot/pymavlink",
