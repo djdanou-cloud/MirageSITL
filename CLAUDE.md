@@ -201,10 +201,12 @@ implementation.
   ([phase1-acceptance.md](docs/decisions/phase1-acceptance.md)). TASK-133 is DONE
   too ([phase1-fidelity.md](docs/decisions/phase1-fidelity.md)): by scope
   amendment SA-01, MirageSITL sets no fidelity limits and gives no fidelity
-  pass or fail; the user judges the comparisons. Decisions D-06 to D-12 are
-  decided; D-01 to D-04 wait on TASK-127 to TASK-130, and the import and export
-  formats of D-05 on TASK-136, TASK-139 and TASK-140.
-  TASK-127–TASK-129 need a Mac, and TASK-130 needs the UAVLogViewer review. TASK-073,
+  pass or fail; the user judges the comparisons. TASK-130 is DONE: the pinned
+  UAVLogViewer builds and opens a current ArduCopter log offline
+  ([uavlogviewer.md](docs/decisions/uavlogviewer.md),
+  `node scripts/check-uavlogviewer.mjs`). Decisions D-04 and D-06 to D-12 are
+  decided; D-01 to D-03 wait on TASK-127 to TASK-129, which need a Mac, and the
+  import and export formats of D-05 on TASK-136, TASK-139 and TASK-140. TASK-073,
   TASK-080, TASK-082 and TASK-083 below are not Phase 1 gates; see their Phase 1
   dispositions in the roadmap.
 * **Measured model fidelity (separate from the TASK-033 synthetic baseline):** `node scripts/validate-models.mjs`

@@ -196,7 +196,7 @@
       "source": "https://github.com/ArduPilot/UAVLogViewer with its parser submodule; dependencies from the npm registry",
       "license": "GPL-3.0 (LICENSE file)",
       "licenseStatus": "reviewed",
-      "decision": "D-04 (TASK-130): the offline build and smoke test wait on running the upstream build; TASK-179 applies the offline patch series.",
+      "decision": "D-04 decided by TASK-130 on 2026-10-28: the pinned build opens a current ArduCopter log offline; TASK-179 applies the patch series and bundles it.",
       "neededFor": "Log analysis (TASK-179, TASK-180, TASK-181)",
       "installDownload": true,
       "status": "pending"

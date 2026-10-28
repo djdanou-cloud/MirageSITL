@@ -1,6 +1,6 @@
 # CLAUDE.md — MirageSITL agent instructions
 
-<!-- source-sha256: b303e6969acb5d8e72d40af34db30aaec136a4c90bc05a7a5720a518450a93cf -->
+<!-- source-sha256: 2409f59f20b11b36fdd46bffc36f44e40bb35bf76216b7657e240149f069a353 -->
 
 Английский источник: [Source of truth](../../CLAUDE.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -222,10 +222,11 @@ TASK-127–TASK-191 и решения D-01–D-12, а у каждой откры
   ([phase1-acceptance.md](phase1-acceptance.md)). TASK-133 тоже
   выполнена ([phase1-fidelity.md](phase1-fidelity.md)): по поправке к scope SA-01
   MirageSITL не задаёт пределов достоверности и не выносит PASS или FAIL по
-  достоверности; сравнения оценивает пользователь. Решения D-06–D-12
-  приняты; D-01–D-04 ждут TASK-127–TASK-130, а форматы импорта и экспорта из
-  D-05 — TASK-136, TASK-139 и TASK-140. TASK-127–TASK-129
-  требуют Mac, а TASK-130 — проверки UAVLogViewer. TASK-073, TASK-080, TASK-082 и
+  достоверности; сравнения оценивает пользователь. TASK-130 выполнена:
+  закреплённый UAVLogViewer собирается и открывает лог текущего ArduCopter
+  офлайн ([uavlogviewer.md](uavlogviewer.md), `node scripts/check-uavlogviewer.mjs`).
+  Решения D-04 и D-06–D-12 приняты; D-01–D-03 ждут TASK-127–TASK-129, которым
+  нужен Mac, а форматы импорта и экспорта из D-05 — TASK-136, TASK-139 и TASK-140. TASK-073, TASK-080, TASK-082 и
   TASK-083 ниже не являются порогами фазы 1; см. их решения для фазы 1
   (Phase 1 disposition) в дорожной карте.
 * **Измеренная достоверность моделей (отдельно от синтетической базы TASK-033):**

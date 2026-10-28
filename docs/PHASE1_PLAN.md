@@ -416,6 +416,9 @@ Decisions taken by the stakeholder on 2026-10-28:
   comparisons (scope amendment SA-01).
 * D-09: MirageSITL is non-commercial, so the listed datasets are usable for it;
   license questions are not raised with the stakeholder again.
+* D-04 (decided by TASK-130): a patch series on the pinned UAVLogViewer commit,
+  embedded through an origin-checked message interface; see
+  [uavlogviewer.md](decisions/uavlogviewer.md).
 * D-10: no `imu-noise-floor` patch for now; Phase 1 uses stock ArduPilot SITL.
 * D-11: Phase 1 uses the implemented effects whose measured-data comparisons
   stay BLOCKED_EXTERNAL, labeled as not validated.

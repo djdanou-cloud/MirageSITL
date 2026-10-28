@@ -7,10 +7,10 @@ record identifies the upstream UAVLogViewer, pins it, lists what keeps it from
 running offline, and chooses how MirageSITL adds the S14 features. No
 replacement viewer is started.
 
-Status: the identity, license and extension approach are recorded, and the
-pinned build runs offline. The offline smoke test with a 2017 ArduPlane log
-FAILS on an upstream compatibility bug; a test with a current ArduPilot log is
-still open. See [Blockers](#blockers).
+Status: decided (D-04, TASK-130 DONE on 2026-10-28). The pinned build opens
+the stakeholder's ArduCopter 4.6.2 DataFlash log in Chromium with all network
+access blocked, with no errors. The same check in Chrome on macOS runs on the
+M5 as part of TASK-179.
 
 ## Identity
 
@@ -131,20 +131,26 @@ unknown; parameter history that the log does not contain is never invented.
   * Aborted requests: `www.googletagmanager.com` (2), `use.fontawesome.com`,
     `fonts.googleapis.com`, `api.ipify.org` and `ipv4.icanhazip.com` (one each),
     all removed by patch 1.
-* Test log: `tests/test.BIN` from pymavlink at `bd0a1b29`, a real DataFlash log
-  from ArduPlane V3.8.2-dev on a Pixhawk-family board, 65,536 bytes, SHA-256
+* Older-firmware log: `tests/test.BIN` from pymavlink at `bd0a1b29`, a real
+  DataFlash log from ArduPlane V3.8.2-dev on a Pixhawk-family board, 65,536
+  bytes, SHA-256
   `a51f040b2ad7f55185c1da5705f226f51469b86562c4ff76d05c99e0e52c2bf4`.
+* Current-firmware log, PASS: the stakeholder's own flight log
+  `00000144.BIN`, ArduCopter V4.6.2 (`1ebd4d99`) on a MatekH743-bdshot board,
+  frame QUAD/X_REV, 31,354,880 bytes, SHA-256
+  `95c6e0d3da3f5d100aefb4f44af30418cd60f34a0322dfafb6b3a4170d5ea8f1`. It is
+  kept outside the repository. The same command with
+  `--log .cache/task-130/logs/user-00000144.BIN` exited 0: 176 message types
+  listed, decoded samples for `ATT` (620), `XKQ[0]`, `XKQ[1]`, `XKF4[0]`,
+  `XKF4[1]` (about 1,546 each) and `PARM` (1,554), vehicle detected as
+  `quadcopterx`, no exception, in 2.8 s. The same five online origins were
+  aborted without effect. A follow-up run plotted `ATT.Roll` and `ATT.DesRoll`
+  offline.
 
-## Blockers
+## Remaining
 
-1. **A current ArduPilot DataFlash log.** The unpatched pinned build still has
-   to open a log from current firmware without errors.
-   `autotest.ardupilot.org`, which upstream's tests use, is blocked by this
-   environment's network policy (HTTP 403 from the proxy). Either the
-   stakeholder supplies a `.BIN` from a real flight, or one is generated with
-   ArduCopter SITL (here or on the M5 in TASK-127).
-2. **Chrome on macOS.** The DoD's Chrome-on-macOS run happens on the reference
-   M5 (decision A-01), through the same check script.
-
-When the smoke test passes, the lock's `outputs` field already records the
-build's file count, bytes and digest.
+* **Chrome on macOS.** TASK-179 runs the same check in Chrome on the reference
+  M5 (decision A-01) when it bundles the patched viewer, for example with
+  `CHROMIUM_PATH` pointing at the Chrome binary.
+* **Older logs.** Logs from firmware that did not record `CMD.Frame` fail until
+  patch 0 lands in TASK-179.

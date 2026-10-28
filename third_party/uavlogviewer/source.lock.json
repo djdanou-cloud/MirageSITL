@@ -34,11 +34,19 @@
     "digestRule": "SHA-256 of sorted 'path<TAB>sha256<LF>' lines over dist/, as scripts/check-uavlogviewer.mjs computes it"
   },
   "testLog": {
+    "description": "The stakeholder's own flight log: ArduCopter V4.6.2 (1ebd4d99) on a MatekH743-bdshot board, frame QUAD/X_REV. Kept outside the repository",
+    "file": "00000144.BIN",
+    "bytes": 31354880,
+    "sha256": "95c6e0d3da3f5d100aefb4f44af30418cd60f34a0322dfafb6b3a4170d5ea8f1",
+    "result": "PASS on 2026-10-28: 176 message types listed, decoded samples, no exception, all external requests aborted"
+  },
+  "olderFirmwareLog": {
     "description": "Real DataFlash log from ArduPlane V3.8.2-dev (8178ab40) on a PX4v4 (Pixhawk-family) board, as shipped with pymavlink's tests; truncated to 64 KiB",
     "repository": "https://github.com/ArduPilot/pymavlink",
     "commit": "bd0a1b29d5b8b54b7d66abfe9ac043c528ac490f",
     "path": "tests/test.BIN",
     "bytes": 65536,
-    "sha256": "a51f040b2ad7f55185c1da5705f226f51469b86562c4ff76d05c99e0e52c2bf4"
+    "sha256": "a51f040b2ad7f55185c1da5705f226f51469b86562c4ff76d05c99e0e52c2bf4",
+    "result": "FAIL on 2026-10-28: extractMission reads CMD.Frame, which this firmware did not log (planned patch 0)"
   }
 }
