@@ -26,6 +26,10 @@
       "ru": "docs/ru/phase1-fidelity.md"
     },
     {
+      "en": "docs/decisions/uavlogviewer.md",
+      "ru": "docs/ru/uavlogviewer.md"
+    },
+    {
       "en": "README.md",
       "ru": "docs/ru/README.md"
     },

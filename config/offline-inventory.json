@@ -191,12 +191,12 @@
     {
       "id": "uavlogviewer",
       "category": "viewer",
-      "item": "UAVLogViewer",
-      "version": "Not selected",
-      "source": "Not selected",
-      "license": "Not verified",
-      "licenseStatus": "unresolved",
-      "decision": "D-04 (TASK-130): identity, version, license, offline bundling and extension approach.",
+      "item": "UAVLogViewer, patched and built locally for offline use",
+      "version": "Commit 01f9d510b7df31687819a6c87415161041d73ae6 (third_party/uavlogviewer/source.lock.json)",
+      "source": "https://github.com/ArduPilot/UAVLogViewer with its parser submodule; dependencies from the npm registry",
+      "license": "GPL-3.0 (LICENSE file)",
+      "licenseStatus": "reviewed",
+      "decision": "D-04 (TASK-130): the offline build and smoke test wait on running the upstream build; TASK-179 applies the offline patch series.",
       "neededFor": "Log analysis (TASK-179, TASK-180, TASK-181)",
       "installDownload": true,
       "status": "pending"

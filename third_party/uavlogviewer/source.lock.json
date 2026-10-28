@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "task": "TASK-130",
+  "repository": "https://github.com/ArduPilot/UAVLogViewer",
+  "commit": "01f9d510b7df31687819a6c87415161041d73ae6",
+  "commitDate": "2026-08-05",
+  "submodules": [
+    {
+      "path": "src/tools/parsers/JsDataflashParser",
+      "repository": "https://github.com/Williangalvani/JsDataflashParser",
+      "commit": "d8967f6e4b4415492ea7d9b1adb1a6dc026f2b75"
+    }
+  ],
+  "license": {
+    "file": "LICENSE",
+    "name": "GNU General Public License version 3 (the package declares no SPDX identifier)",
+    "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986"
+  },
+  "buildInputs": {
+    "packageJsonSha256": "c5515ee888bda90b2b60889547eac6c3aed6e3ba3ee0dfe68fb5a164168c4297",
+    "packageLockSha256": "825e44d02fd110964b439e8f66d1f8df9a7a85ec4ccb7ec5579659f7aa8148d2",
+    "lockfileVersion": 2,
+    "nodeUpstream": "20 (upstream Dockerfile)",
+    "install": "npm ci",
+    "build": "npm run build",
+    "postinstallPatches": ["patches/plotly.js+2.12.1.patch"],
+    "notes": "The plotly.js patch names version 2.12.1 while package-lock.json resolves 2.24.2. The build also writes runtime-config.js from VUE_APP_CESIUM_TOKEN, which the offline build leaves empty."
+  },
+  "outputs": null,
+  "testLog": {
+    "description": "Real DataFlash log from ArduPlane V3.8.2-dev (8178ab40) on a PX4v4 (Pixhawk-family) board, as shipped with pymavlink's tests; truncated to 64 KiB",
+    "repository": "https://github.com/ArduPilot/pymavlink",
+    "commit": "bd0a1b29d5b8b54b7d66abfe9ac043c528ac490f",
+    "path": "tests/test.BIN",
+    "bytes": 65536,
+    "sha256": "a51f040b2ad7f55185c1da5705f226f51469b86562c4ff76d05c99e0e52c2bf4"
+  }
+}
