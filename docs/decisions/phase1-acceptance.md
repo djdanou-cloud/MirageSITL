@@ -11,23 +11,24 @@ Until the stakeholder chooses one, its status is BLOCKED_DECISION.
 The acceptance matrix is
 [docs/validation/phase1-matrix.json](../validation/phase1-matrix.json).
 Decision D-08 in the [Phase 1 plan](../PHASE1_PLAN.md) refers to items A-01
-to A-08 and A-11; D-05 includes A-09.
+to A-08, A-11 and A-12; D-05 includes A-09.
 
 ## Decisions
 
 | ID | Item | Value | Status | Owner | Decision date | Used by |
 | --- | --- | --- | --- | --- | --- | --- |
-| A-01 | Apple Silicon reference machines (model, chip, memory, display) | The stakeholder's Apple M5 MacBook Air is the only acceptance machine; its memory and display are recorded with each run. The Apple M4 MacBook Air used for TASK-073 (Mac16,12, 8-core GPU, 16 GB) receives an estimate only, never a verdict | Decided | Stakeholder | 2026-10-28 | TASK-158, TASK-188, TASK-189, TASK-191 |
-| A-02 | Supported macOS versions | Not chosen | BLOCKED_DECISION | Stakeholder | — | TASK-127, TASK-152, TASK-190 |
-| A-03 | Supported Chrome versions | The latest stable Chrome; each run records its exact version | Decided | Stakeholder | 2026-10-28 | TASK-152, TASK-188, TASK-190 |
-| A-04 | Physics rate for each matrix configuration | Not chosen | BLOCKED_DECISION | Stakeholder | — | TASK-153, TASK-175, TASK-189 |
-| A-05 | Real-time criteria: required ratio of simulated to wall time, allowed dropped intervals, and how the actual rate is reported | Not chosen | BLOCKED_DECISION | Stakeholder | — | TASK-175, TASK-189, TASK-191 |
+| A-01 | Apple Silicon reference machines (model, chip, memory, display) | The stakeholder's 15-inch Apple M5 MacBook Air with 32 GB of memory is the only acceptance machine; its display mode is recorded with each run. The Apple M4 MacBook Air used for TASK-073 (Mac16,12, 8-core GPU, 16 GB) receives an estimate only, never a verdict | Decided | Stakeholder | 2026-10-28 | TASK-158, TASK-188, TASK-189, TASK-191 |
+| A-02 | Supported macOS versions | The stable macOS release current on 2026-10-28 and every later release; each run records the exact version | Decided | Stakeholder | 2026-10-28 | TASK-127, TASK-152, TASK-190 |
+| A-03 | Supported Chrome versions | Minimum: the stable Chrome version current on 2026-10-28. Every later stable release is supported, and the current stable version is the default. Each run records the exact version | Decided | Stakeholder | 2026-10-28 | TASK-152, TASK-188, TASK-190 |
+| A-04 | Physics rate for each matrix configuration | 400 Hz for every configuration; 800 and 1200 Hz stay selectable options | Decided | Stakeholder | 2026-10-28 | TASK-153, TASK-175, TASK-189 |
+| A-05 | Real-time criteria: required ratio of simulated to wall time, allowed dropped intervals, and how the actual rate is reported | A real-time run averages at least 0.99 of simulated time per wall-clock second; every dropped interval is reported, never hidden. Automated lockstep runs may run slower than real time, and their actual ratio is reported | Decided | Stakeholder | 2026-10-28 | TASK-175, TASK-189, TASK-191 |
 | A-06 | Rendering criteria for the Phase 1 scene: frame-time limits, canvas and display | Not chosen | BLOCKED_DECISION | Stakeholder | — | TASK-185, TASK-191 |
 | A-07 | Workload of the 16-motor one-hour run: signals, rates, flight task and effects | Not chosen | BLOCKED_DECISION | Stakeholder | — | TASK-189 |
 | A-08 | Storage budget for recordings | Not chosen | BLOCKED_DECISION | Stakeholder | — | TASK-163, TASK-189 |
 | A-09 | Default common logging frequency | Not chosen | BLOCKED_DECISION | Stakeholder | — | TASK-162, TASK-163 |
 | A-10 | Which paired or coaxial configuration the matrix uses (arm count and motor pairing) | Not chosen | BLOCKED_DECISION | Stakeholder | — | TASK-138, TASK-188 |
 | A-11 | TASK-073 is not a Phase 1 gate; its evidence is preserved | Decided | Recorded | Stakeholder (PROJECT_SCOPE.md) | 2026-10-28 | TASK-191 |
+| A-12 | Application memory budget | The whole application (browser tabs, Workers and the local services it starts, including ArduPilot SITL) stays below 8 GB of memory on the reference machine | Decided | Stakeholder | 2026-10-28 | TASK-144, TASK-162, TASK-189, TASK-191 |
 
 ## Context for the open items
 
@@ -35,8 +36,8 @@ These observations come from existing evidence. They are not proposed values,
 and none of them is Phase 1 acceptance evidence.
 
 * **A-01 to A-03:** TASK-073 measured an Apple M4 MacBook Air (Mac16,12,
-  8-core GPU, 16 GB) on macOS 27.0.1 with Chrome 155.0.8059.85, and a 14-inch
-  Apple M5 MacBook; see [DEVICE_RATINGS.md](../DEVICE_RATINGS.md). Those runs
+  8-core GPU, 16 GB) on macOS 27.0.1 with Chrome 155.0.8059.85, and the
+  stakeholder's 15-inch Apple M5 MacBook Air; see [DEVICE_RATINGS.md](../DEVICE_RATINGS.md). Those runs
   rendered the G3 scene, not a Phase 1 session.
 * **A-04:** The browser clock supports 400, 800 and 1200 Hz (ABI v2). S13 does
   not authorize raising the physics rate to offer 2 kHz recording.
@@ -93,7 +94,7 @@ The matrix has 51 cells: 9 workflows for each of the 5 configurations, the
 one-hour run for the 16-motor configuration, and 5 global workflows. On
 2026-10-28, 41 cells are NOT_RUN because no evidence exists, and 10 are
 BLOCKED_DECISION: the 9 cells of the paired or coaxial configuration (A-10),
-and the one-hour run (A-01 to A-05, A-07 and A-08). TASK-188 aggregates
+and the one-hour run (A-07 and A-08). TASK-188 aggregates
 evidence into the matrix; missing evidence stays NOT_RUN, and failures are
 preserved.
 
