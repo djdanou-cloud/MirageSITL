@@ -887,6 +887,16 @@ build at the capability gate; absence of a callback is not success.
   gates. Missing data/hardware means BLOCKED_EXTERNAL, not DONE based on
   synthetic tests.
 
+### Phase 1 envelopes and fidelity criteria (TASK-133)
+
+[docs/decisions/phase1-fidelity.md](decisions/phase1-fidelity.md) states, for
+each Phase 1 effect, the model, inputs, validity envelope, verification and
+validation tolerances and the behavior outside the envelope, plus the S15
+comparison metrics, the confidence labels (`preliminary`, `measured-input`,
+`flight-checked`) and the basic support and contact approximation. Validation
+limits, envelope bounds and contact defaults stay BLOCKED_DECISION until the
+stakeholder approves them; no Phase 1 model task claims acceptance before then.
+
 
 ## Implemented reference kernels: TASK-025–028
 

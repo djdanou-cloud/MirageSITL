@@ -22,6 +22,10 @@
       "ru": "docs/ru/phase1-acceptance.md"
     },
     {
+      "en": "docs/decisions/phase1-fidelity.md",
+      "ru": "docs/ru/phase1-fidelity.md"
+    },
+    {
       "en": "README.md",
       "ru": "docs/ru/README.md"
     },
