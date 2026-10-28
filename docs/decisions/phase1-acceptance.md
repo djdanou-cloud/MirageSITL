@@ -17,9 +17,9 @@ to A-08 and A-11; D-05 includes A-09.
 
 | ID | Item | Value | Status | Owner | Decision date | Used by |
 | --- | --- | --- | --- | --- | --- | --- |
-| A-01 | Apple Silicon reference machines (model, chip, memory, display) | Not chosen | BLOCKED_DECISION | Stakeholder | — | TASK-158, TASK-188, TASK-189, TASK-191 |
+| A-01 | Apple Silicon reference machines (model, chip, memory, display) | The stakeholder's Apple M5 MacBook Air is the only acceptance machine; its memory and display are recorded with each run. The Apple M4 MacBook Air used for TASK-073 (Mac16,12, 8-core GPU, 16 GB) receives an estimate only, never a verdict | Decided | Stakeholder | 2026-10-28 | TASK-158, TASK-188, TASK-189, TASK-191 |
 | A-02 | Supported macOS versions | Not chosen | BLOCKED_DECISION | Stakeholder | — | TASK-127, TASK-152, TASK-190 |
-| A-03 | Supported Chrome versions | Not chosen | BLOCKED_DECISION | Stakeholder | — | TASK-152, TASK-188, TASK-190 |
+| A-03 | Supported Chrome versions | The latest stable Chrome; each run records its exact version | Decided | Stakeholder | 2026-10-28 | TASK-152, TASK-188, TASK-190 |
 | A-04 | Physics rate for each matrix configuration | Not chosen | BLOCKED_DECISION | Stakeholder | — | TASK-153, TASK-175, TASK-189 |
 | A-05 | Real-time criteria: required ratio of simulated to wall time, allowed dropped intervals, and how the actual rate is reported | Not chosen | BLOCKED_DECISION | Stakeholder | — | TASK-175, TASK-189, TASK-191 |
 | A-06 | Rendering criteria for the Phase 1 scene: frame-time limits, canvas and display | Not chosen | BLOCKED_DECISION | Stakeholder | — | TASK-185, TASK-191 |
