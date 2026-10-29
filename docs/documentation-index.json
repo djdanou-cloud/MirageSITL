@@ -84,6 +84,10 @@
     {
       "en": "docs/DEVICE_RATINGS.md",
       "ru": "docs/ru/DEVICE_RATINGS.md"
+    },
+    {
+      "en": "docs/hardware/ardupilot-sensors.md",
+      "ru": "docs/ru/ardupilot-sensors.md"
     }
   ]
 }
