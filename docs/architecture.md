@@ -110,6 +110,7 @@ Workspace packages, services, and native crates:
 | `packages/aar` | Input/actuator/truth/EKF recording and replay |
 | `packages/scenarios` | Declarative training scenarios, tick runner, and trace rubrics |
 | `packages/project` | Local project store: immutable versions, project archives (TASK-136) |
+| `packages/aircraft` | Aircraft profiles: arms, motors, mass properties, rotor layout and vehicle manifest derivation (TASK-138) |
 | `services/tiles-worker` | Cloudflare proxy, quotas, permitted caching |
 | `native` | Source/toolchain pins and WASM reference tests |
 
@@ -403,6 +404,29 @@ tabs state what they will hold and that it is not available yet; their own
 tasks fill them. The stored navigation format is in
 [SPECS_SIMULATION_ENGINES.md](SPECS_SIMULATION_ENGINES.md), section "Local
 settings (TASK-137)".
+
+## Aircraft profile (TASK-138)
+
+`packages/aircraft` turns a user's description of a multirotor into what
+physics consumes (S03). A profile, schema 1, holds:
+
+* one to eight arms, each with a length, azimuth, height, two thrust-axis
+  tilts and, for a coaxial pair, the pair separation;
+* up to 16 motors, each with its arm, its place (single, upper or lower), its
+  spin, its ArduPilot output and its component-card references;
+* the mass properties of the aircraft without payload, an optional payload,
+  the battery card and the ground clearance.
+
+`deriveLayout` computes each rotor's position, thrust axis, orientation and
+spin; the aircraft editor's 3D scheme draws them (TASK-141).
+`deriveVehicleManifest` adds the propulsion values resolved from component
+cards (TASK-139) and produces the vehicle manifest v2 that the session loads
+(TASK-144), as canonical JSON with its SHA-256. The same profile and
+components give the same bytes in Node and in Chrome, because the geometry
+uses its own trigonometry rather than the engine's `Math.sin`, `Math.cos` and
+`Math.tan`, whose last bits differ between engines. The contract is in
+[SPECS_SIMULATION_ENGINES.md](SPECS_SIMULATION_ENGINES.md), section "Aircraft
+profile v1 (TASK-138)".
 
 ## Phase 0 contracts: fixtures, capabilities, and models
 

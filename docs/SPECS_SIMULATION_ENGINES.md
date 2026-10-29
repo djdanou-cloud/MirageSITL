@@ -3812,3 +3812,200 @@ restarts the browser on the same profile, reopens the data and imports the
 archive into a second database. The roadmap entry records the results.
 TASK-137 adds settings tests on both backends and upgrades a version 1
 database, built by the test, to version 2 in Chromium.
+
+## Aircraft profile v1 (TASK-138)
+
+Scope S03. `packages/aircraft` describes a multirotor with one to eight arms
+and up to 16 motors, and derives the vehicle manifest v2 (TASK-087) that
+physics consumes. Profiles are `aircraft-profile` records of the project store
+(TASK-136), so every edit is a new immutable version. Configuration-time code
+only; never call it from a physics step.
+
+### Profile schema 1
+
+`packages/aircraft/src/profile.schema.json` (JSON Schema draft-07) validates a
+profile, which starts as `unknown`. `validateAircraftProfile` then runs the
+checks below and returns a deep-frozen copy. Units are SI, and positions are
+body FRD metres from the body reference point.
+
+```typescript
+interface AircraftProfile {
+  schemaVersion: 1;
+  units: "SI";
+  bodyFrame: "FRD";
+  arms: {                           // 1..8, unique ascending IDs
+    id: number;                     // 1..8
+    lengthM: number;                // > 0, horizontal distance from the body z axis to the motor axis
+    azimuthRad: number;             // (-π, π], from forward towards right, clockwise seen from above
+    heightM: number;                // mount height above the reference point; FRD z = -heightM
+    outwardTiltRad: number;         // (-π/2, π/2)
+    sideTiltRad: number;            // (-π/2, π/2)
+    pairSeparationM: number | null; // > 0 for a coaxial pair, null for one motor
+  }[];
+  motors: {                         // 1..16 (MAX_ACTUATORS), unique ascending IDs
+    id: number;                     // 1..16
+    armId: number;
+    level: "single" | "upper" | "lower";
+    spin: "ccw" | "cw";             // seen from the thrust side
+    output: number;                 // ArduPilot SERVOn, 1..16, unique; actuator channel = output - 1
+    components: { motor: string | null; propeller: string | null; esc: string | null }; // card SHA-256
+  }[];
+  massProperties: { massKg: number; cgOffsetBodyM: number[]; inertiaCgKgM2: number[] };
+  payload: { massKg: number; cgOffsetBodyM: number[]; inertiaCgKgM2: number[] } | null;
+  battery: { card: string | null };
+  groundClearanceM: number | null;  // > 0 (decision F-07)
+  sensorConfiguration: null;        // reserved for TASK-143
+}
+```
+
+`massProperties` describes the aircraft as flown without payload: airframe,
+propulsion and battery, with the inertia about its CG in body axes. A payload
+has its own CG and its inertia about it; zero inertia is a point mass. Card
+references are SHA-256 addresses of component-card versions (TASK-139), and
+null means that none is selected yet. `groundClearanceM` is the height of the
+reference point above level ground when the aircraft rests on its supports,
+which the F-07 support points use (TASK-187). Schema 1 holds no sensor
+configuration; TASK-143 defines it and raises the schema version.
+
+Checks beyond the schema name the arm or motor at fault:
+
+* Arm IDs and motor IDs are unique and ascending, so a profile has one byte
+  representation.
+* Outputs are unique, and every motor names a known arm.
+* Every arm holds either one `single` motor and no pair separation, or one
+  `upper` and one `lower` motor and a pair separation.
+* No two arms share a mount point (equal length, azimuth and height).
+* The aircraft inertia is exactly symmetric, positive definite (Cholesky) and
+  satisfies the rigid-body triangle inequality. The payload inertia is
+  symmetric, positive semi-definite and satisfies the triangle inequality. The
+  slack is 1e-12 of the trace, the eigen-solver bound of TASK-087.
+
+The limits of 8 arms and 16 motors are schema limits. 16 is the ABI v2
+actuator limit `MAX_ACTUATORS`, and a test ties the schema to it. TASK-142
+checks whether ArduPilot supports a layout and its outputs.
+
+### Layout
+
+`deriveLayout(profile)` gives each rotor's hub position, thrust axis, hub
+orientation and spin in ascending motor ID order, and one wake pair per
+coaxial pair. For an arm with length L, azimuth a, height h, outward tilt α
+and side tilt β, with radial r = (cos a, sin a, 0), across
+e = (−sin a, cos a, 0) and body up u = (0, 0, −1):
+
+\[
+m = (L\cos a,\ L\sin a,\ -h),\qquad
+t = \frac{\tan\alpha\,r + \tan\beta\,e + u}{\lVert \tan\alpha\,r + \tan\beta\,e + u \rVert}
+\]
+
+So α and β are the angles between u and the projections of t onto the arm's
+vertical plane and onto the vertical plane across it. A single rotor sits at
+m; a coaxial pair sits at m ± (s/2)·t, with the upper rotor on the thrust side.
+The hub orientation maps hub +z to t: a half turn about body x, then the
+shortest rotation from u to t, written with a positive x component:
+
+\[
+q_{hb} = \frac{\left(-t_y,\ 1 - t_z,\ 0,\ t_x\right)}{\sqrt{t_x^2 + t_y^2 + (1 - t_z)^2}}
+\]
+
+An untilted rotor has (0, 1, 0, 0), as in the repository's existing fixtures.
+The spin sign is +1 for `ccw`, so ω = s·|ω|·t. Each wake pair names the upper
+rotor as upstream and the lower one as downstream (TASK-101).
+
+### Engine-independent trigonometry
+
+ECMAScript leaves `Math.sin`, `Math.cos` and `Math.tan` implementation-
+approximated. On one machine, Node 24.22.2 and Chromium 153 returned different
+last bits for 3.3% (sine), 3.4% (cosine) and 3.7% (tangent) of 200,000
+arguments, so a layout built on them would give different manifest bytes in
+the application and in the tests. `packages/aircraft/src/trig.ts` uses only
+addition, subtraction, multiplication, division, `Math.abs` and `Math.round`,
+which every engine rounds identically:
+
+* The argument is reduced to a = n·π/2 + y with |y| ≤ π/4. π/2 is split into
+  two 33-bit parts and a 53-bit tail that together reproduce it to 2^-123, and
+  n times a 33-bit part is exact. A test recomputes the parts from π by
+  Machin's formula in integer arithmetic.
+* Taylor polynomials on |y| ≤ π/4 run to y^17 for the sine and y^18 for the
+  cosine; the first omitted term is at least three decades below the rounding
+  of the result. The cosine recovers the rounding error of 1 − y²/2.
+* Arguments are limited to |x| ≤ 4 rad.
+
+Against V8's own functions on 400,001 points, the sine and cosine differ by at
+most 1 ulp and the tangent by at most 3 ulp; the tests admit 2 and 4 ulp.
+
+### Derivation to vehicle manifest v2
+
+Propeller blade geometry and motor, ESC and battery values come from component
+cards (TASK-139). The derivation receives them already resolved and invents
+none:
+
+```typescript
+interface ResolvedComponents {
+  description: string;              // 1..1024 characters, quoted in the dataset
+  motors: {                         // exactly one per profile motor
+    motorId: number;
+    cards: { motor: string | null; propeller: string | null; esc: string | null }; // equal to the profile's
+    rotor: {
+      bladeCount: number; radiusM: number; rootCutoutM: number; polarId: number;
+      radialStationM: number[]; chordM: number[]; twistRad: number[]; quadratureWidthM: number[];
+      shaftInertiaKgM2: number; bearingViscousNmPerRadS: number; azimuthSamples: number;
+    };
+    motor: { kvRpmPerV: number; resistanceOhm: number; currentLimitA: number } | null;
+    esc: { pwmMinUs: number; pwmMaxUs: number; commandTauS: number } | null;
+  }[];
+  battery: { card: string | null; values: BatterySpec } | null; // card equal to the profile's
+}
+declare function deriveVehicleManifest(profile: unknown, components: ResolvedComponents,
+  options: { modelId: number }): Promise<{
+    manifest: VehicleManifest; bytes: Uint8Array; sha256: string; profileSha256: string; inputSha256: string;
+  }>;
+```
+
+Either every motor has motor values or none has, and the same holds for ESC
+values. The derived manifest holds:
+
+| Field | Value |
+| --- | --- |
+| `kind` | `bet` |
+| `rotors` | In motor ID order: `id` = motor ID, `motorChannel` = output − 1, the layout's position, orientation and spin, and the resolved blade fields |
+| `motors`, `escs` | Only with resolved values; `id`, `rotorId` and `motorId` = motor ID |
+| `battery` | The resolved values, or null |
+| `rotorWakePairs` | One per coaxial pair, from the upper rotor to the lower one |
+| `massProperties` | The aircraft and the payload: combined mass and CG, both inertias moved to it by the parallel-axis theorem |
+| `datasets` | One synthetic dataset, `aircraft-profile-derivation`, whose source SHA-256 is that of the canonical derivation input |
+| `ardupilot`, `airframe.drag`, `sensorMounts`, `landingGear`, `controlSurfaces` | Null or empty; TASK-142, TASK-096, TASK-143 and TASK-187 own them |
+
+With d_i = c_i − c for each part's CG c_i and the combined CG c:
+
+\[
+J = \sum_i \left( J_i + m_i\left(\lVert d_i \rVert^2 \mathbf{1} - d_i d_i^{\mathsf T}\right) \right)
+\]
+
+`profileSha256` is the SHA-256 of the profile's canonical JSON, so renaming the
+stored profile changes nothing. `inputSha256` is the SHA-256 of the canonical
+`{derivationVersion: 1, profile, components}`. The manifest passes
+`validateVehicleManifest`, and `bytes` is its RFC 8785 canonical JSON, which a
+`VehicleRegistry` admits unchanged; −0 in the inputs becomes 0. Any change to
+geometry, outputs, mass properties, components or the model ID changes the
+bytes. A manifest without motor, ESC and battery values and without pairs
+projects to the v1 runtime descriptor today. Motors, ESCs, the battery and wake
+pairs wait for TASK-092 and TASK-101, and TASK-144 builds the dynamics.
+
+### Project store
+
+`validateAircraftProfile` is the payload validator of the `aircraft-profile`
+kind. `profileDraft(name, profile)` makes a store draft whose dependencies are
+exactly the profile's component cards, and `readAircraftProfile(stored)`
+refuses a record whose dependencies differ from them.
+
+### Verification (TASK-138)
+
+`tests/aircraft-profile.test.ts` recomputes every rotor of the five S19
+fixtures with independent code: the engine's `Math` functions instead of
+`trig.ts`, `Math.atan2` to recover both tilts, and a separate
+quaternion-to-matrix formula. It also checks hand-derived quad X and X8 values,
+the ArduCopter quad X geometry check of TASK-087, the parallel-axis theorem
+against a sum about the reference point, and the rejection cases.
+`tests/browser/aircraft-derivation.spec.ts` derives the same fixtures, and a
+variant on angles where the engines' `Math` functions disagree, in Chromium,
+and requires the same bytes as Node. The roadmap entry records the results.

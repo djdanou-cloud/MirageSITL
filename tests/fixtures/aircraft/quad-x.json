@@ -1,0 +1,118 @@
+{
+  "schemaVersion": 1,
+  "units": "SI",
+  "bodyFrame": "FRD",
+  "arms": [
+    {
+      "id": 1,
+      "lengthM": 0.225,
+      "azimuthRad": 0.7853981633974483,
+      "heightM": 0,
+      "outwardTiltRad": 0,
+      "sideTiltRad": 0,
+      "pairSeparationM": null
+    },
+    {
+      "id": 2,
+      "lengthM": 0.225,
+      "azimuthRad": 2.356194490192345,
+      "heightM": 0,
+      "outwardTiltRad": 0,
+      "sideTiltRad": 0,
+      "pairSeparationM": null
+    },
+    {
+      "id": 3,
+      "lengthM": 0.225,
+      "azimuthRad": -2.356194490192345,
+      "heightM": 0,
+      "outwardTiltRad": 0,
+      "sideTiltRad": 0,
+      "pairSeparationM": null
+    },
+    {
+      "id": 4,
+      "lengthM": 0.225,
+      "azimuthRad": -0.7853981633974483,
+      "heightM": 0,
+      "outwardTiltRad": 0,
+      "sideTiltRad": 0,
+      "pairSeparationM": null
+    }
+  ],
+  "motors": [
+    {
+      "id": 1,
+      "armId": 1,
+      "level": "single",
+      "spin": "ccw",
+      "output": 1,
+      "components": {
+        "motor": null,
+        "propeller": null,
+        "esc": null
+      }
+    },
+    {
+      "id": 2,
+      "armId": 3,
+      "level": "single",
+      "spin": "ccw",
+      "output": 2,
+      "components": {
+        "motor": null,
+        "propeller": null,
+        "esc": null
+      }
+    },
+    {
+      "id": 3,
+      "armId": 4,
+      "level": "single",
+      "spin": "cw",
+      "output": 3,
+      "components": {
+        "motor": null,
+        "propeller": null,
+        "esc": null
+      }
+    },
+    {
+      "id": 4,
+      "armId": 2,
+      "level": "single",
+      "spin": "cw",
+      "output": 4,
+      "components": {
+        "motor": null,
+        "propeller": null,
+        "esc": null
+      }
+    }
+  ],
+  "massProperties": {
+    "massKg": 1.5,
+    "cgOffsetBodyM": [
+      0.005,
+      0,
+      0.02
+    ],
+    "inertiaCgKgM2": [
+      0.016,
+      0,
+      0,
+      0,
+      0.017,
+      0,
+      0,
+      0,
+      0.03
+    ]
+  },
+  "payload": null,
+  "battery": {
+    "card": null
+  },
+  "groundClearanceM": 0.12,
+  "sensorConfiguration": null
+}

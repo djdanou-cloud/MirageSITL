@@ -1,0 +1,202 @@
+{
+  "schemaVersion": 1,
+  "units": "SI",
+  "bodyFrame": "FRD",
+  "arms": [
+    {
+      "id": 1,
+      "lengthM": 0.35,
+      "azimuthRad": 0.39269908169872414,
+      "heightM": -0.01,
+      "outwardTiltRad": 0.035,
+      "sideTiltRad": 0,
+      "pairSeparationM": null
+    },
+    {
+      "id": 2,
+      "lengthM": 0.35,
+      "azimuthRad": 1.1780972450961724,
+      "heightM": -0.01,
+      "outwardTiltRad": 0.035,
+      "sideTiltRad": 0,
+      "pairSeparationM": null
+    },
+    {
+      "id": 3,
+      "lengthM": 0.35,
+      "azimuthRad": 1.9634954084936207,
+      "heightM": -0.01,
+      "outwardTiltRad": 0.035,
+      "sideTiltRad": 0,
+      "pairSeparationM": null
+    },
+    {
+      "id": 4,
+      "lengthM": 0.35,
+      "azimuthRad": 2.748893571891069,
+      "heightM": -0.01,
+      "outwardTiltRad": 0.035,
+      "sideTiltRad": 0,
+      "pairSeparationM": null
+    },
+    {
+      "id": 5,
+      "lengthM": 0.35,
+      "azimuthRad": -2.748893571891069,
+      "heightM": -0.01,
+      "outwardTiltRad": 0.035,
+      "sideTiltRad": 0,
+      "pairSeparationM": null
+    },
+    {
+      "id": 6,
+      "lengthM": 0.35,
+      "azimuthRad": -1.9634954084936207,
+      "heightM": -0.01,
+      "outwardTiltRad": 0.035,
+      "sideTiltRad": 0,
+      "pairSeparationM": null
+    },
+    {
+      "id": 7,
+      "lengthM": 0.35,
+      "azimuthRad": -1.1780972450961724,
+      "heightM": -0.01,
+      "outwardTiltRad": 0.035,
+      "sideTiltRad": 0,
+      "pairSeparationM": null
+    },
+    {
+      "id": 8,
+      "lengthM": 0.35,
+      "azimuthRad": -0.39269908169872414,
+      "heightM": -0.01,
+      "outwardTiltRad": 0.035,
+      "sideTiltRad": 0,
+      "pairSeparationM": null
+    }
+  ],
+  "motors": [
+    {
+      "id": 1,
+      "armId": 1,
+      "level": "single",
+      "spin": "ccw",
+      "output": 1,
+      "components": {
+        "motor": null,
+        "propeller": null,
+        "esc": null
+      }
+    },
+    {
+      "id": 2,
+      "armId": 2,
+      "level": "single",
+      "spin": "cw",
+      "output": 2,
+      "components": {
+        "motor": null,
+        "propeller": null,
+        "esc": null
+      }
+    },
+    {
+      "id": 3,
+      "armId": 3,
+      "level": "single",
+      "spin": "ccw",
+      "output": 3,
+      "components": {
+        "motor": null,
+        "propeller": null,
+        "esc": null
+      }
+    },
+    {
+      "id": 4,
+      "armId": 4,
+      "level": "single",
+      "spin": "cw",
+      "output": 4,
+      "components": {
+        "motor": null,
+        "propeller": null,
+        "esc": null
+      }
+    },
+    {
+      "id": 5,
+      "armId": 5,
+      "level": "single",
+      "spin": "ccw",
+      "output": 5,
+      "components": {
+        "motor": null,
+        "propeller": null,
+        "esc": null
+      }
+    },
+    {
+      "id": 6,
+      "armId": 6,
+      "level": "single",
+      "spin": "cw",
+      "output": 6,
+      "components": {
+        "motor": null,
+        "propeller": null,
+        "esc": null
+      }
+    },
+    {
+      "id": 7,
+      "armId": 7,
+      "level": "single",
+      "spin": "ccw",
+      "output": 7,
+      "components": {
+        "motor": null,
+        "propeller": null,
+        "esc": null
+      }
+    },
+    {
+      "id": 8,
+      "armId": 8,
+      "level": "single",
+      "spin": "cw",
+      "output": 8,
+      "components": {
+        "motor": null,
+        "propeller": null,
+        "esc": null
+      }
+    }
+  ],
+  "massProperties": {
+    "massKg": 4.2,
+    "cgOffsetBodyM": [
+      0,
+      0.004,
+      0.035
+    ],
+    "inertiaCgKgM2": [
+      0.11,
+      0,
+      0,
+      0,
+      0.11,
+      0,
+      0,
+      0,
+      0.2
+    ]
+  },
+  "payload": null,
+  "battery": {
+    "card": null
+  },
+  "groundClearanceM": null,
+  "sensorConfiguration": null
+}

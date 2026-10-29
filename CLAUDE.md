@@ -210,7 +210,11 @@ implementation.
   (`.mirageproj`). TASK-137 is DONE: the application opens in an English shell
   with a project context and the twelve Phase 1 tabs, its navigation survives
   a reload in the store's local settings, and the former demo page is the Run
-  tab's explicitly synthetic backend. Decisions D-04 and
+  tab's explicitly synthetic backend. TASK-138 is DONE: `packages/aircraft`
+  validates aircraft profile schema 1 (one to eight arms, up to 16 motors with
+  coaxial pairs, mass properties, payload, outputs and card references) and
+  derives its rotor layout and a vehicle manifest v2 whose bytes Node and
+  Chromium reproduce identically. Decisions D-04 and
   D-06 to D-12 are decided; D-01 to D-03 wait on TASK-127 to TASK-129, which
   need a Mac. TASK-136 defined the project archive of D-05; its measured-data
   and component-card formats wait on TASK-139 and TASK-140. TASK-073,

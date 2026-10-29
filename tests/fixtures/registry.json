@@ -1321,6 +1321,156 @@
           "derivation": "Synthetic configuration matrix: two-, three-, four-blade rotors, spanwise chord/twist and independent NACA6409/NACA0012 NeuralFoil polars. Numerical verification only, not calibrated aircraft."
         }
       }
+    },
+    {
+      "path": "aircraft/quad-x.json",
+      "manifest": {
+        "formatVersion": 1,
+        "id": "aircraft-quad-x-v1",
+        "sourceSha256": "946e68eba8c9312e431b407cea5107f7b99ead07dcb119d1c1b618850e1227b5",
+        "units": {
+          "armLengthM": "m",
+          "massKg": "kg"
+        },
+        "validityEnvelope": {
+          "armLengthM": {
+            "min": 0.225,
+            "max": 0.225
+          },
+          "massKg": {
+            "min": 1.5,
+            "max": 1.5
+          }
+        },
+        "tolerance": {
+          "absolute": 1e-12,
+          "relative": 1e-12
+        },
+        "provenance": {
+          "kind": "synthetic",
+          "derivation": "Hand-specified synthetic quad X aircraft profile: four 0.225 m arms in the ArduCopter quad X output order (FR, RL, FL, RR) with a CG offset. TASK-138 schema, layout and derivation tests only; not a measured aircraft."
+        }
+      }
+    },
+    {
+      "path": "aircraft/hexa-x.json",
+      "manifest": {
+        "formatVersion": 1,
+        "id": "aircraft-hexa-x-v1",
+        "sourceSha256": "ec2cab44bb8ada5eb1cb17d2bcad0ecae5166a848009a113f5f1c81dd09a8e6b",
+        "units": {
+          "armLengthM": "m",
+          "massKg": "kg"
+        },
+        "validityEnvelope": {
+          "armLengthM": {
+            "min": 0.3,
+            "max": 0.3
+          },
+          "massKg": {
+            "min": 0.35,
+            "max": 2.4
+          }
+        },
+        "tolerance": {
+          "absolute": 1e-12,
+          "relative": 1e-12
+        },
+        "provenance": {
+          "kind": "synthetic",
+          "derivation": "Hand-specified synthetic hexa X aircraft profile: six 0.3 m arms with alternating 0.05 rad side tilt, an inertia product and a camera payload. TASK-138 schema, layout and derivation tests only; not a measured aircraft."
+        }
+      }
+    },
+    {
+      "path": "aircraft/octa-x.json",
+      "manifest": {
+        "formatVersion": 1,
+        "id": "aircraft-octa-x-v1",
+        "sourceSha256": "3e03172783b09ecb8d92551699598f9056b1f29bbd46c1d5d93b501759f16650",
+        "units": {
+          "armLengthM": "m",
+          "massKg": "kg"
+        },
+        "validityEnvelope": {
+          "armLengthM": {
+            "min": 0.35,
+            "max": 0.35
+          },
+          "massKg": {
+            "min": 4.2,
+            "max": 4.2
+          }
+        },
+        "tolerance": {
+          "absolute": 1e-12,
+          "relative": 1e-12
+        },
+        "provenance": {
+          "kind": "synthetic",
+          "derivation": "Hand-specified synthetic octo X aircraft profile: eight 0.35 m arms below the reference point with 0.035 rad outward tilt and no ground clearance. TASK-138 schema, layout and derivation tests only; not a measured aircraft."
+        }
+      }
+    },
+    {
+      "path": "aircraft/coaxial-x8.json",
+      "manifest": {
+        "formatVersion": 1,
+        "id": "aircraft-coaxial-x8-v1",
+        "sourceSha256": "5aec44294071a65d8a2c486cfacf4a05ed7a80573c9ade253a578901d524244e",
+        "units": {
+          "armLengthM": "m",
+          "massKg": "kg"
+        },
+        "validityEnvelope": {
+          "armLengthM": {
+            "min": 0.3,
+            "max": 0.3
+          },
+          "massKg": {
+            "min": 3.6,
+            "max": 3.6
+          }
+        },
+        "tolerance": {
+          "absolute": 1e-12,
+          "relative": 1e-12
+        },
+        "provenance": {
+          "kind": "synthetic",
+          "derivation": "Hand-specified synthetic coaxial X8 aircraft profile: four 0.3 m arms, each with a counter-rotating upper and lower motor 0.09 m apart. TASK-138 schema, layout and derivation tests only; not a measured aircraft."
+        }
+      }
+    },
+    {
+      "path": "aircraft/octa-coaxial-16.json",
+      "manifest": {
+        "formatVersion": 1,
+        "id": "aircraft-octa-coaxial-16-v1",
+        "sourceSha256": "89d559537cbf5c4cb58495b8b4f19054ff48b6f86f867a1c7abcb68d58ceb6b9",
+        "units": {
+          "armLengthM": "m",
+          "massKg": "kg"
+        },
+        "validityEnvelope": {
+          "armLengthM": {
+            "min": 0.42,
+            "max": 0.42
+          },
+          "massKg": {
+            "min": 1.0,
+            "max": 7.5
+          }
+        },
+        "tolerance": {
+          "absolute": 1e-12,
+          "relative": 1e-12
+        },
+        "provenance": {
+          "kind": "synthetic",
+          "derivation": "Hand-specified synthetic 16-motor aircraft profile: eight 0.42 m arms with tilted counter-rotating pairs 0.1 m apart and a payload, the S19 maximum. TASK-138 schema, layout and derivation tests only; not a measured aircraft."
+        }
+      }
     }
   ]
 }

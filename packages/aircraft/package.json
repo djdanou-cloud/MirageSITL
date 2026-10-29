@@ -1,0 +1,17 @@
+{
+  "name": "@mirage/aircraft",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./profile": "./src/profile.ts",
+    "./layout": "./src/layout.ts",
+    "./derive-manifest": "./src/derive-manifest.ts"
+  },
+  "dependencies": {
+    "@mirage/physics": "0.1.0",
+    "@mirage/project": "0.1.0",
+    "@mirage/protocol": "0.1.0",
+    "ajv": "8.20.0"
+  }
+}
