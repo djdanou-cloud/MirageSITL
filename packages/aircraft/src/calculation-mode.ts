@@ -106,7 +106,8 @@ export async function bindMeasurements(profile: AircraftProfile, mode: Calculati
     }
   }
   const measurementSets = [...chosen.values()].map(candidate => candidate.sha256).sort();
-  return validateAircraftProfile({ ...profile, schemaVersion: 2, calculation: { mode, measurementSets } });
+  // A schema 3 profile keeps its sensor configuration (TASK-143); schemas 1 and 2 become 2.
+  return validateAircraftProfile({ ...profile, schemaVersion: profile.schemaVersion === 3 ? 3 : 2, calculation: { mode, measurementSets } });
 }
 
 function cardMissing(role: ComponentType, sha256: string | null, cards: ReadonlyMap<string, ComponentCard>): string[] {

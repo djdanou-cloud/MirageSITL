@@ -131,7 +131,7 @@ unit and browser stages can seed the TASK-127 and TASK-152 checklists.
 | S05 Flight aerodynamics | BET with free shaft and axial inflow; coaxial reference (test-only); descent flagged only | Edgewise and descent inflow, vortex ring state, ground effect, coaxial coupling and body drag in production | TASK-144, TASK-145; TASK-096–TASK-101 |
 | S06 Battery, propulsion limits | Motor, ESC and battery kernels (test-only) | Production drive and bus, limit monitor, UI and logs | TASK-146; TASK-092 |
 | S07 Weather, geography | ISA atmosphere, AR(1) gusts, WGS84 | Weather in sessions, turbulence spectra, discrete gusts, schedules, location choice, geographic gravity and magnetic field, geoid | TASK-148, TASK-166, TASK-167; TASK-093, TASK-106 |
-| S08 Sensors tab | Sensor kernels; ownership catalog (unmerged) | Configuration schema and UI, placement and orientation, battery sensing, single ownership in the SITL path | TASK-143, TASK-147; TASK-089 |
+| S08 Sensors tab | Sensor kernels; ownership catalog (unmerged) | Configuration schema and UI, placement and orientation, battery sensing, single ownership in the SITL path, per-sensor presets with cited sources (SA-02) | TASK-143, TASK-147; TASK-089 |
 | S09 Faults, EKF drift | EW engine and motor faults, acknowledgement ledger, scenario runner, historical native EW evidence | Delivery to external SITL, frozen and missing readings, pilot and ground-station link loss, schedule UI, EKF estimate charts, refreshed evidence | TASK-166, TASK-168–TASK-171 |
 | S10 Tasks, initial conditions, speed | RC mapping, lockstep clock policy, scripted demo circuit | Command, mission and guided messages, task library, routes, maneuvers, initial conditions, accelerated runs, speed display | TASK-150, TASK-172–TASK-175 |
 | S11 Parameters | Parameter frames in the codec, `.parm` generation in the harness, ArduPilot profile (unmerged) | Full list and read-back, metadata, UI, history, sets, export | TASK-159–TASK-161 |
@@ -277,7 +277,7 @@ Exit: Nominal flight of every S19 configuration through the UI on macOS.
 | TASK-151 | Local launcher service for macOS | S01, S02 | 040, 127 |
 | TASK-152 | macOS installation and first-run prerequisite check | S01, S02 | 131, 151 |
 | TASK-153 | Browser physics as the JSON lockstep backend for native ArduPilot | S01, S02, S03 | 043, 129, 144, 150, 151 |
-| TASK-154 | Experiment start, stop, readiness and failure handling | S02 | 136, 142, 153 |
+| TASK-154 | Experiment start, stop, readiness and failure handling | S02 | 136, 142, 143, 153 |
 | TASK-155 | Manual connection to a running compatible SITL | S02 | 129, 153 |
 | TASK-156 | Synchronized pause and resume in integrated sessions | S02 | 129, 149, 153 |
 | TASK-157 | Virtual one-motor-at-a-time check | S03 | 141, 142, 154 |

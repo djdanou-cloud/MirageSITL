@@ -35,7 +35,10 @@ Components tab (TASK-140) keeps component cards and bench measurements of exact
 component combinations, and sets each aircraft profile's calculation mode. The
 Aircraft tab (TASK-141) edits aircraft profiles and shows a 3D scheme of every
 motor's position, spin and thrust axis. Component cards are created, edited and
-copied in the Components tab too (TASK-192), each value with its source.
+copied in the Components tab too (TASK-192), each value with its source. The
+Sensors tab (TASK-143) sets Ideal sensors or specified errors per profile, shows
+who applies each error, MirageSITL or ArduPilot SITL, and offers per-sensor
+presets with cited datasheet values.
 
 The running application uses binary ABI **v2** (TASK-085): session epochs, EKF/EW
 status fields, sensor/actuator queues, and Control Protocol v2. The demo physics

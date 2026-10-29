@@ -80,7 +80,19 @@ export function AircraftEditor({ storeState, project, active }: { storeState: St
           return [];
         }
       });
-      if (!cancelled) setLibrary({ profiles, cards, candidates });
+      if (cancelled) return;
+      setLibrary({ profiles, cards, candidates });
+      // The Sensors tab may have saved a newer version of the open profile; follow it unless there are unsaved changes.
+      setEditing(current => {
+        if (!current?.itemId || current.name !== current.savedName || JSON.stringify(current.form) !== current.savedForm) return current;
+        const head = profiles.find(stored => stored.record.id === current.itemId);
+        if (!head || head.sha256 === current.head?.sha256) return current;
+        try {
+          return editingOf(head);
+        } catch {
+          return current;
+        }
+      });
     })().catch((error: unknown) => { if (!cancelled) setStatus(describeLibraryError(error)); });
     return () => { cancelled = true; };
   }, [store, projectId, revision, active]);
@@ -207,7 +219,7 @@ export function AircraftEditor({ storeState, project, active }: { storeState: St
               {editing.form.calculation?.mode === "measured"
                 ? "Calculation from measurements: saving binds the newest measurement sets of exactly this profile's combinations."
                 : "Preliminary calculation. The calculation mode is set in the Components tab."}
-              {" "}Sensor placement and errors are set in the Sensors tab (TASK-143); profiles hold no sensor configuration yet.
+              {" "}Sensor errors, placement and presets are set in the Sensors tab; saving here keeps them.
             </p>
             {errors.length > 0 && (
               <ul className="form-errors" aria-label="Problems to fix before saving">{errors.map(error => <li key={error}>{error}</li>)}</ul>

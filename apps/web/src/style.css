@@ -128,6 +128,16 @@ html[data-g3="1"] .terrain-status { top: 12px; bottom: auto; left: 50%; transfor
 /* Card editor (TASK-192): sources, values with their sources, distributions and the BET preview. */
 .card-editor { grid-column: 1 / -1; }
 .card-editor .field-grid { grid-template-columns: repeat(auto-fill, minmax(min(100%, 210px), 1fr)); }
+/* Sensors tab (TASK-143): sensor groups with owners, presets and the Ideal residuals. */
+.sensors-panel { display: grid; gap: 16px; }
+.sensor-editor { display: grid; gap: 10px; }
+.library-panel .sensor-table input[type=text] { width: 96px; margin-right: 4px; }
+.sensor-table th[scope=row] { color: #d6e2ea; white-space: normal; min-width: 160px; }
+.sensor-table td { vertical-align: top; font-size: 12px; color: #a9bcc8; }
+.sensor-table .hint { display: block; max-width: 320px; white-space: normal; }
+.library-panel .preset-row select { width: auto; min-width: 220px; }
+.residuals { border: 1px solid #6b5a33; border-radius: 6px; padding: 8px 12px; }
+.residuals h4 { color: #efd59a; }
 .library-panel .card-editor h4 { margin-top: 18px; }
 .card-values th[scope=row] { color: #d6e2ea; }
 .library-panel .card-values input[type=text] { width: 120px; }

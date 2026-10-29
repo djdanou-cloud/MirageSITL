@@ -3,15 +3,17 @@ import schema from './profile.schema.json';
 import { symmetricEigen3, type MassProperties } from '@mirage/physics/vehicle-manifest';
 import type { StoredVersion } from '@mirage/project/schema';
 import type { Draft } from '@mirage/project/versions';
+import { addSensorSchemaKeywords, isDefaultSensorConfiguration, sensorConfigurationSchema, validateSensorConfiguration } from './sensor-config.ts';
+import type { SensorConfiguration } from './sensor-fields.ts';
 
 // Aircraft profile schema 1 (TASK-138, S03): the product-level description of
 // a multirotor with one to eight arms and up to 16 motors. Schema 2 (TASK-140,
-// S04) adds the calculation mode of the profile version. Configuration-time
-// code only; never call it from a physics step. Units are SI; positions are
+// S04) adds the calculation mode of the profile version, and schema 3 (TASK-143,
+// S08) its sensor configuration. Configuration-time code only; never call it from a physics step. Units are SI; positions are
 // body FRD metres from the body reference point.
 
 /** The schema a new profile version is written in; schema 1 profiles stay valid. */
-export const PROFILE_SCHEMA_VERSION = 2;
+export const PROFILE_SCHEMA_VERSION = 3;
 export type MotorLevel = 'single' | 'upper' | 'lower';
 export type SpinDirection = 'ccw' | 'cw';
 export interface ArmSpec {
@@ -66,16 +68,21 @@ interface ProfileFields {
   readonly battery: { readonly card: string | null };
   /** Height of the reference point above level ground when resting on the supports (decision F-07), or null. */
   readonly groundClearanceM: number | null;
-  /** Reserved for TASK-143. */
-  readonly sensorConfiguration: null;
 }
-/** Schema 1 has no calculation and reads as preliminary; schema 2 states it. */
+/**
+ * Schema 1 has no calculation and reads as preliminary; schema 2 states it.
+ * Schemas 1 and 2 hold the ArduPilot sensor defaults as null; schema 3 holds a
+ * sensor configuration (TASK-143) and always a calculation.
+ */
 export type AircraftProfile =
-  | (ProfileFields & { readonly schemaVersion: 1 })
-  | (ProfileFields & { readonly schemaVersion: 2; readonly calculation: CalculationSettings });
+  | (ProfileFields & { readonly schemaVersion: 1; readonly sensorConfiguration: null })
+  | (ProfileFields & { readonly schemaVersion: 2; readonly calculation: CalculationSettings; readonly sensorConfiguration: null })
+  | (ProfileFields & { readonly schemaVersion: 3; readonly calculation: CalculationSettings; readonly sensorConfiguration: SensorConfiguration });
 
 // Union types express nullable fields, as in the vehicle manifest schema.
-const validateSchema = new Ajv({ strict: true, strictNumbers: true, allowUnionTypes: true }).compile<AircraftProfile>(schema);
+const ajv = addSensorSchemaKeywords(new Ajv({ strict: true, strictNumbers: true, allowUnionTypes: true }));
+ajv.addSchema(sensorConfigurationSchema);
+const validateSchema = ajv.compile<AircraftProfile>(schema);
 /**
  * Slack of the inertia checks, relative to the trace: the eigen-solver
  * round-off bound of the vehicle manifest's triangle check (TASK-087).
@@ -127,11 +134,30 @@ export function validateAircraftProfile(input: unknown): AircraftProfile {
   const profile: unknown = structuredClone(input);
   if (!validateSchema(profile)) {
     const error = validateSchema.errors?.[0];
+    // The anyOf of null and a configuration reports the null branch first; the configuration's own validator names the real fault.
+    const sensors: unknown = typeof profile === 'object' && profile !== null ? Reflect.get(profile, 'sensorConfiguration') : null;
+    if (error?.instancePath.startsWith('/sensorConfiguration') && sensors !== null && sensors !== undefined) {
+      try {
+        validateSensorConfiguration(sensors);
+      } catch (cause) {
+        fail(cause instanceof Error ? cause.message : String(cause));
+      }
+    }
     return fail(`${error?.instancePath || '/'} ${error?.message ?? 'does not match the schema'}`);
   }
   if (profile.schemaVersion === 1 && 'calculation' in profile) fail('Schema 1 profiles have no calculation');
-  if (profile.schemaVersion === 2) {
-    if (!('calculation' in profile)) fail('Schema 2 profiles need a calculation');
+  if (profile.schemaVersion !== 3 && profile.sensorConfiguration !== null) fail(`Schema ${profile.schemaVersion} profiles hold no sensor configuration`);
+  if (profile.schemaVersion === 3) {
+    if (profile.sensorConfiguration === null) fail('Schema 3 profiles need a sensor configuration');
+    try {
+      validateSensorConfiguration(profile.sensorConfiguration);
+    } catch (cause) {
+      fail(cause instanceof Error ? cause.message : String(cause));
+    }
+    if (isDefaultSensorConfiguration(profile.sensorConfiguration)) fail('ArduPilot sensor defaults are stored as null, in schema 1 or 2');
+  }
+  if (profile.schemaVersion !== 1) {
+    if (!('calculation' in profile)) fail(`Schema ${String(Reflect.get(profile, 'schemaVersion'))} profiles need a calculation`);
     const { mode, measurementSets } = profile.calculation;
     if (mode === 'preliminary' && measurementSets.length > 0) fail('A preliminary calculation binds no measurement set');
     if (!measurementSets.every((sha, index) => index === 0 || sha > measurementSets[index - 1]!)) {
@@ -182,7 +208,26 @@ export function profileComponentCards(profile: AircraftProfile): string[] {
 
 /** The calculation of a profile version; schema 1 is preliminary. */
 export function calculationSettings(profile: AircraftProfile): CalculationSettings {
-  return profile.schemaVersion === 2 ? profile.calculation : { mode: 'preliminary', measurementSets: [] };
+  return profile.schemaVersion === 1 ? { mode: 'preliminary', measurementSets: [] } : profile.calculation;
+}
+
+/** The stored sensor configuration, or null for the ArduPilot defaults (schemas 1 and 2). */
+export function sensorConfigurationOf(profile: AircraftProfile): SensorConfiguration | null {
+  return profile.sensorConfiguration;
+}
+
+/**
+ * The profile with a sensor configuration. The ArduPilot defaults are stored
+ * as null: schema 1 stays 1 and schemas 2 and 3 become 2. Any other
+ * configuration makes schema 3, which keeps the profile's calculation (a
+ * schema 1 profile is preliminary). Dependencies do not change.
+ */
+export function withSensorConfiguration(profile: AircraftProfile, config: SensorConfiguration | null): AircraftProfile {
+  const sensors = config && isDefaultSensorConfiguration(config) ? null : config;
+  const calculation = calculationSettings(profile);
+  if (sensors) return validateAircraftProfile({ ...profile, schemaVersion: 3, calculation, sensorConfiguration: sensors });
+  if (profile.schemaVersion === 1) return validateAircraftProfile({ ...profile, sensorConfiguration: null });
+  return validateAircraftProfile({ ...profile, schemaVersion: 2, calculation, sensorConfiguration: null });
 }
 
 /** The project-store dependencies of a profile: its component cards and bound measurement sets, sorted. */

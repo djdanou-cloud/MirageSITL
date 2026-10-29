@@ -195,7 +195,7 @@ describe('rejections', () => {
       ['zero payload mass', edit('hexa-x', c => { c.payload!.massKg = 0; })],
       ['NaN mass', edit('quad-x', c => { c.massProperties.massKg = NaN; })],
       ['zero ground clearance', edit('quad-x', c => { c.groundClearanceM = 0; })],
-      ['a sensor configuration before TASK-143', edit('quad-x', c => { Object.assign(c, { sensorConfiguration: {} }); })],
+      ['a sensor configuration in schema 1', edit('quad-x', c => { Object.assign(c, { sensorConfiguration: {} }); })],
       ['no arms', edit('quad-x', c => { c.arms = []; c.motors = []; })],
     ];
     for (const [label, input] of invalid) expect(() => validateAircraftProfile(input), label).toThrow('Invalid aircraft profile');

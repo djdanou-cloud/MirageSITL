@@ -1,0 +1,271 @@
+{
+  "schemaVersion": 1,
+  "catalogs": [
+    {
+      "catalogVersion": 1,
+      "basis": {
+        "path": "docs/hardware/ardupilot-sensors.md",
+        "sha256": "01b6d76b0182c90b868812d07ec307de728b9901ff11daa14e61074b792da2f8"
+      },
+      "citations": [
+        {
+          "id": "I1",
+          "kind": "specification",
+          "title": "ICM-42688-P Datasheet",
+          "publisher": "TDK InvenSense",
+          "documentNumber": "DS-000347",
+          "revision": "1.5",
+          "url": "https://invensense.tdk.com/products/motion-tracking/6-axis/icm-42688-p/"
+        },
+        {
+          "id": "B1",
+          "kind": "specification",
+          "title": "MS5611-01BA03 Barometric Pressure Sensor datasheet",
+          "publisher": "TE Connectivity (Measurement Specialties)",
+          "documentNumber": null,
+          "revision": "06/2017",
+          "url": "https://www.te.com/en/product-MS561101BA03-50.html"
+        },
+        {
+          "id": "B15",
+          "kind": "ardupilot-source",
+          "title": "libraries/AP_Baro/AP_Baro_MS5611.cpp at the pinned commit",
+          "publisher": "ArduPilot",
+          "documentNumber": null,
+          "revision": "8ab6afde107a91df1b5f60ade8f333cb8a61b190",
+          "url": "https://raw.githubusercontent.com/ArduPilot/ardupilot/8ab6afde107a91df1b5f60ade8f333cb8a61b190/libraries/AP_Baro/AP_Baro_MS5611.cpp"
+        },
+        {
+          "id": "M1",
+          "kind": "specification",
+          "title": "RM3100 Geomagnetic Sensor data sheet (preliminary)",
+          "publisher": "PNI Sensor Corp.",
+          "documentNumber": "14190 DS 001",
+          "revision": null,
+          "url": "https://www.digimax.it/media_import/COMPONENTI/PNI/SENSORI%20MAGNETICI/14190/14190_DS_001.pdf"
+        },
+        {
+          "id": "M11",
+          "kind": "ardupilot-source",
+          "title": "libraries/AP_Compass/AP_Compass_RM3100.cpp at the pinned commit",
+          "publisher": "ArduPilot",
+          "documentNumber": null,
+          "revision": "8ab6afde107a91df1b5f60ade8f333cb8a61b190",
+          "url": "https://raw.githubusercontent.com/ArduPilot/ardupilot/8ab6afde107a91df1b5f60ade8f333cb8a61b190/libraries/AP_Compass/AP_Compass_RM3100.cpp"
+        },
+        {
+          "id": "G1",
+          "kind": "specification",
+          "title": "NEO-M9N-00B Data sheet",
+          "publisher": "u-blox AG",
+          "documentNumber": "UBX-19014285",
+          "revision": "R07",
+          "url": "https://content.u-blox.com/sites/default/files/NEO-M9N-00B_DataSheet_UBX-19014285.pdf"
+        },
+        {
+          "id": "P13",
+          "kind": "specification",
+          "title": "INA226 Current and Power Monitor with I2C Compatible Interface",
+          "publisher": "Texas Instruments",
+          "documentNumber": "SBOS547B",
+          "revision": "September 2024",
+          "url": "https://www.ti.com/lit/ds/symlink/ina226.pdf"
+        },
+        {
+          "id": "P3",
+          "kind": "ardupilot-source",
+          "title": "libraries/AP_BattMonitor/AP_BattMonitor_INA2xx.cpp at the pinned commit",
+          "publisher": "ArduPilot",
+          "documentNumber": null,
+          "revision": "8ab6afde107a91df1b5f60ade8f333cb8a61b190",
+          "url": "https://raw.githubusercontent.com/ArduPilot/ardupilot/8ab6afde107a91df1b5f60ade8f333cb8a61b190/libraries/AP_BattMonitor/AP_BattMonitor_INA2xx.cpp"
+        }
+      ],
+      "presets": [
+        {
+          "id": "imu-icm-42688-p",
+          "sensor": "imu",
+          "manufacturer": "TDK InvenSense",
+          "part": "ICM-42688-P",
+          "values": [
+            {
+              "field": "imu.accelNoiseDensityMps2PerSqrtHz",
+              "value": 0.0006864654999999999,
+              "datasheet": {
+                "value": 70,
+                "unit": "µg/√Hz",
+                "statistic": "typical-density",
+                "conditions": "typical, Z axis (X and Y: 65 µg/√Hz), at 10 Hz, VDD = VDDIO = 1.8 V, 25 °C"
+              },
+              "conversion": "ug-to-mps2",
+              "citation": "I1",
+              "locator": "Table 2, p. 12"
+            },
+            {
+              "field": "imu.gyroNoiseDensityRadSPerSqrtHz",
+              "value": 4.8869219055841225e-05,
+              "datasheet": {
+                "value": 2.8,
+                "unit": "mdps/√Hz",
+                "statistic": "typical-density",
+                "conditions": "typical, at 10 Hz, VDD = VDDIO = 1.8 V, 25 °C"
+              },
+              "conversion": "mdps-to-rad",
+              "citation": "I1",
+              "locator": "Table 1, p. 11"
+            }
+          ],
+          "references": [
+            {
+              "field": "imu.gyroBiasRadS",
+              "text": "Gyroscope initial zero-rate output tolerance ±0.5 °/s (board level, typical).",
+              "citation": "I1",
+              "locator": "Table 1, p. 11",
+              "reasonNotFilled": "A tolerance bounds the bias of a part; it is not the bias of a particular part."
+            },
+            {
+              "field": "imu.accelBiasMps2",
+              "text": "Accelerometer zero-g output tolerance ±20 mg (board level, typical).",
+              "citation": "I1",
+              "locator": "Table 2, p. 12",
+              "reasonNotFilled": "A tolerance bounds the bias of a part; it is not the bias of a particular part."
+            }
+          ]
+        },
+        {
+          "id": "baro-ms5611",
+          "sensor": "barometer",
+          "manufacturer": "TE Connectivity",
+          "part": "MS5611-01BA03",
+          "values": [
+            {
+              "field": "barometer.noiseRmsPa",
+              "value": 2.7,
+              "datasheet": {
+                "value": 2.7,
+                "unit": "Pa",
+                "statistic": "rms",
+                "conditions": "typical resolution RMS at OSR 1024, the oversampling ArduPilot programs; VDD 3 V, 25 °C"
+              },
+              "conversion": "identity",
+              "citation": "B1",
+              "locator": "Pressure output characteristics, p. 4; OSR 1024 from B15 lines 47-54"
+            }
+          ],
+          "references": [
+            {
+              "field": "barometer.biasPa",
+              "text": "Total error band without autozero ±150 Pa at 25 °C over 70–110 kPa.",
+              "citation": "B1",
+              "locator": "p. 4",
+              "reasonNotFilled": "A tolerance bounds the offset of a part; it is not the offset of a particular part."
+            },
+            {
+              "field": "barometer.latencyUs",
+              "text": "ArduPilot reads pressure on a 10 ms timer, one temperature per four pressure conversions.",
+              "citation": "B15",
+              "locator": "lines 170, 258-312",
+              "reasonNotFilled": "Driver scheduling is not a sensor latency setting."
+            }
+          ]
+        },
+        {
+          "id": "mag-rm3100",
+          "sensor": "magnetometer",
+          "manufacturer": "PNI Sensor",
+          "part": "RM3100",
+          "values": [
+            {
+              "field": "magnetometer.noiseRmsGauss",
+              "value": 0.00015,
+              "datasheet": {
+                "value": 15,
+                "unit": "nT",
+                "statistic": "rms",
+                "conditions": "RMS noise at cycle count 200, the cycle count ArduPilot sets"
+              },
+              "conversion": "nt-to-gauss",
+              "citation": "M1",
+              "locator": "Performance table; cycle count 200 from M11"
+            }
+          ],
+          "references": []
+        },
+        {
+          "id": "gnss-neo-m9n",
+          "sensor": "gnss",
+          "manufacturer": "u-blox",
+          "part": "NEO-M9N",
+          "values": [
+            {
+              "field": "gnss.horizontalSigmaM",
+              "value": 1.6986436005760381,
+              "datasheet": {
+                "value": 2,
+                "unit": "m",
+                "statistic": "cep50",
+                "conditions": "CEP 50 %, PVT without SBAS, 24 h static, −130 dBm"
+              },
+              "conversion": "cep50-to-axis-sigma",
+              "citation": "G1",
+              "locator": "Performance table"
+            }
+          ],
+          "references": [
+            {
+              "field": "gnss.velocitySigmaMps",
+              "text": "Velocity accuracy 0.05 m/s, defined as 50 % at 30 m/s in dynamic operation.",
+              "citation": "G1",
+              "locator": "Performance table",
+              "reasonNotFilled": "A median at one speed has no defined conversion to a 1σ error."
+            },
+            {
+              "field": "gnss.updateRateHz",
+              "text": "Maximum navigation update rate 25 Hz with four concurrent GNSS.",
+              "citation": "G1",
+              "locator": "Performance table",
+              "reasonNotFilled": "A maximum is not the configured rate."
+            }
+          ]
+        },
+        {
+          "id": "battery-ina226",
+          "sensor": "battery",
+          "manufacturer": "Texas Instruments",
+          "part": "INA226",
+          "values": [
+            {
+              "field": "battery.voltageNoiseRmsV",
+              "value": 0.0003608439182435161,
+              "datasheet": {
+                "value": 0.00125,
+                "unit": "V",
+                "statistic": "quantization-step",
+                "conditions": "bus-voltage LSB 1.25 mV; quantization noise only"
+              },
+              "conversion": "step-to-rms",
+              "citation": "P13",
+              "locator": "Section 5.5 Electrical Characteristics"
+            }
+          ],
+          "references": [
+            {
+              "field": "battery.voltageGainError",
+              "text": "Bus-voltage gain error 0.02 % typical, 0.1 % maximum.",
+              "citation": "P13",
+              "locator": "Section 5.5",
+              "reasonNotFilled": "A tolerance bounds the gain error of a part; it is not the gain error of a particular part."
+            },
+            {
+              "field": "battery.currentNoiseRmsA",
+              "text": "ArduPilot sets the INA226 current LSB to BATT_MAX_AMPS / 32768, so it depends on the autopilot configuration, not on the chip.",
+              "citation": "P3",
+              "locator": "lines 154-156",
+              "reasonNotFilled": "It depends on the autopilot configuration."
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

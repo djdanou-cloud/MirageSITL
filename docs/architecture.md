@@ -404,7 +404,7 @@ location, Flight tasks, Parameters, Logging, Run, Experiments and Analysis
 
 The shell holds only navigation and project metadata. Physics stays in its
 Worker and reaches the UI only in decimated form, as before. TASK-140 fills
-the Components tab and TASK-141 the Aircraft tab. The other eight tabs state
+the Components tab, TASK-141 the Aircraft tab and TASK-143 the Sensors tab. The other seven tabs state
 what they will hold and that it is not available yet; their own tasks fill
 them. The stored navigation format is in
 [SPECS_SIMULATION_ENGINES.md](SPECS_SIMULATION_ENGINES.md), section "Local
@@ -514,6 +514,30 @@ range. Every save appends a card version, and saving an unchanged card writes
 none, so profiles and measurement sets keep the exact versions they reference.
 A propeller card shows the BET geometry that `derivePropellerGeometry` gives
 for it: the blade stations, the assumptions and the validity flags.
+
+## Sensors tab (TASK-143)
+
+The Sensors tab (`apps/web/src/sensors/`) sets the sensor errors of each
+aircraft profile version (S08): Ideal sensors, or specified errors for the
+IMU, GNSS, barometer, magnetometer and battery voltage and current sensing.
+`packages/aircraft` holds the contract. `sensor-fields.ts` is the registry of
+the 25 fields with their units, ranges and owners, `sensor-config.ts` the
+validator of sensor configuration schema 1, `sensor-presets.ts` the
+append-only per-sensor presets taken from the corrected
+[sensor catalog](hardware/ardupilot-sensors.md), and `sensor-ownership.ts` the
+ownership mapping, the TASK-089 matrix a configuration implies and the
+snapshot an experiment record embeds. Profile schema 3 stores a configuration;
+`null`, in schemas 1 and 2, is the ArduPilot defaults.
+
+Every field shows its owner on the Phase 1 path, ArduPilot SITL as an external
+process. MirageSITL owns the IMU noise, biases and lever arm, which it delivers
+in the JSON state line; ArduPilot owns the barometer and magnetometer errors.
+Fields no owner can apply yet (GNSS, battery, IMU latency and orientation,
+magnetometer placement and orientation) are disabled with the reason and wait
+for TASK-147. Ideal switches off every error a setting can switch off and keeps
+typed values inert; the tab states what ArduPilot still adds, first the fixed
+IMU noise floors of stock firmware (decision D-10). TASK-147 applies the
+configuration at run time, and the Aircraft editor keeps it when it saves.
 
 ## Phase 0 contracts: fixtures, capabilities, and models
 

@@ -3862,7 +3862,7 @@ interface AircraftProfile {
   payload: { massKg: number; cgOffsetBodyM: number[]; inertiaCgKgM2: number[] } | null;
   battery: { card: string | null };
   groundClearanceM: number | null;  // > 0 (decision F-07)
-  sensorConfiguration: null;        // reserved for TASK-143
+  sensorConfiguration: null;        // schema 3 holds a sensor configuration (TASK-143)
 }
 ```
 
@@ -3984,7 +3984,7 @@ values. The derived manifest holds:
 | `rotorWakePairs` | One per coaxial pair, from the upper rotor to the lower one |
 | `massProperties` | The aircraft and the payload: combined mass and CG, both inertias moved to it by the parallel-axis theorem |
 | `datasets` | One synthetic dataset, `aircraft-profile-derivation`, whose source SHA-256 is that of the canonical derivation input |
-| `ardupilot`, `airframe.drag`, `sensorMounts`, `landingGear`, `controlSurfaces` | Null or empty; TASK-142, TASK-096, TASK-143 and TASK-187 own them |
+| `ardupilot`, `airframe.drag`, `sensorMounts`, `landingGear`, `controlSurfaces` | Null or empty; TASK-142, TASK-096, TASK-147 and TASK-187 own them |
 
 With d_i = c_i − c for each part's CG c_i and the combined CG c:
 
@@ -4437,3 +4437,170 @@ binds nothing. It also covers the rejection cases, the store and archive
 round trip, and the labels. `tests/browser/measurements.spec.ts` uploads and
 types bench data in Chromium and checks that only the bound combination's
 motors change their label. The roadmap entry records the results.
+
+## Sensor configuration v1 (TASK-143)
+
+Scope S08. An aircraft profile holds the sensor errors of its IMU, GNSS,
+barometer, magnetometer and battery voltage and current sensing, with an
+owner for each error on the Phase 1 path: ArduPilot SITL as an external
+process, ownership path `native-json`, stock firmware under decision D-10.
+The Sensors tab edits it. TASK-147 applies it at run time; TASK-143 applies
+nothing. Configuration-time code only; never call it from a physics step.
+
+### Profile schema 3
+
+Profile schema 3 holds a sensor configuration, and schemas 1 and 2 hold
+`null`, which means the ArduPilot defaults: every error source stays with
+ArduPilot's stock SITL and MirageSITL injects nothing. `PROFILE_SCHEMA_VERSION`
+is 3. Schema 3 always has a calculation, and its configuration never equals
+the defaults, so the defaults have exactly one encoding (`null`).
+`withSensorConfiguration(profile, config)` writes schema 3 for a configuration
+and `null` otherwise, where schema 1 stays 1 and schemas 2 and 3 become 2.
+`bindMeasurements` keeps schema 3, and the Aircraft editor carries the
+configuration unchanged. Existing schema 1 and 2 records are never rewritten,
+and dependencies do not change. The vehicle manifest derivation does not read
+the configuration; `sensorMounts` stays empty until TASK-147.
+
+### Schema and fields
+
+`packages/aircraft/src/sensor-config.schema.json` (draft-07) validates the
+configuration. Each field carries its unit in the annotation keyword `x-unit`
+and the provenance of its range in `description`. Every key is present, and
+`null` means not specified: the owner's default applies.
+`validateSensorConfiguration` adds code checks: a field its owner cannot apply
+yet must be `null`, a latency ArduPilot applies must be a whole number of
+milliseconds, and a preset reference must name a preset of the block's sensor
+in the bundled catalog. `SENSOR_FIELDS` (`sensor-fields.ts`) is the registry
+of the 25 fields.
+
+```typescript
+interface SensorConfiguration {
+  schemaVersion: 1;
+  mode: "ideal" | "specified";
+  imu: { preset: PresetReference | null;
+    accelNoiseDensityMps2PerSqrtHz: number | null; // [0, 0.01], one-sided white-noise density per axis
+    gyroNoiseDensityRadSPerSqrtHz: number | null;  // [0, 0.001]
+    accelBiasMps2: [number, number, number] | null; // each [-2, 2], constant, sensor axes
+    gyroBiasRadS: [number, number, number] | null;  // each [-0.2, 0.2]
+    latencyUs: number | null;                       // integer [0, 100000]; locked in mapping 1
+    positionBodyM: [number, number, number] | null; // each [-2, 2], body FRD from the reference point; null at the CG
+    orientationRad: [number, number, number] | null; }; // roll, yaw (-π, π], pitch [-π/2, π/2]; locked
+  gnss: { preset: PresetReference | null;           // every value locked in mapping 1
+    updateRateHz: number | null;                    // integer [1, 20]
+    horizontalSigmaM: number | null;                // [0, 100], 1σ per horizontal axis
+    verticalSigmaM: number | null;                  // [0, 100]
+    velocitySigmaMps: number | null;                // [0, 10], 1σ per NED axis
+    latencyUs: number | null; };                    // integer [0, 1000000]
+  barometer: { preset: PresetReference | null;
+    noiseRmsPa: number | null;                      // [0, 50], 1σ per sample
+    biasPa: number | null;                          // [-500, 500], positive reads high
+    latencyUs: number | null; };                    // integer [0, 490000], whole milliseconds
+  magnetometer: { preset: PresetReference | null;
+    noiseRmsGauss: number | null;                   // [0, 0.1], 1σ per axis
+    biasGauss: [number, number, number] | null;     // each [-0.4, 0.4], net hard iron after COMPASS_OFS
+    positionBodyM: [number, number, number] | null; // locked
+    orientationRad: [number, number, number] | null; }; // locked
+  battery: { preset: PresetReference | null;        // every value locked in mapping 1
+    voltageGainError: number | null; voltageOffsetV: number | null; voltageNoiseRmsV: number | null;
+    currentGainError: number | null; currentOffsetA: number | null; currentNoiseRmsA: number | null; };
+}
+interface PresetReference { catalogVersion: number; id: string }  // e.g. { catalogVersion: 1, id: "imu-icm-42688-p" }
+```
+
+### Ownership mapping 1
+
+`sensor-ownership.ts` gives each field one owner on `native-json`
+(`SENSOR_OWNERSHIP_MAPPING_VERSION` 1). The UI offers no owner choice, so it
+cannot produce an inadmissible matrix.
+
+| Owner | Fields | TASK-089 source and delivery |
+|---|---|---|
+| MirageSITL | IMU noise densities, IMU biases, IMU position | `imu.accel.noise`, `imu.gyro.noise`, `imu.accel.bias`, `imu.gyro.bias`, `imu.lever-arm`; `json:imu.accel_body`, `json:imu.gyro` |
+| ArduPilot SITL | Barometer noise, bias and latency; magnetometer noise and bias | `baro.noise`, `baro.glitch`, `baro.delay`, `mag.noise`, `mag.hard-iron`; SIM_* values written by TASK-147 |
+| ArduPilot SITL, locked | All GNSS fields | `gnss.receiver`; SIM_GPS1_* need `AP_SIM_GPS_ENABLED`, which the matrix does not admit yet |
+| Nobody yet, locked | IMU latency and orientation, magnetometer position and orientation, all battery fields | No TASK-089 source; TASK-147 adds them |
+
+Every excluded owner carries its basis: the validator rejects it (no
+MirageSITL path carries a barometer error or magnetometer noise on
+`native-json`), the owner's model is another quantity (SIM_ACCn_RND scales
+only vibration; SIM_GYRn_RND is throttle-scaled unseeded noise; SIM_IMU_POS
+lacks ω̇×r on the JSON backend), or Phase 1 policy (one MirageSITL IMU model;
+hard-iron PARAM_SET reserved for S09; ArduPilot's own GNSS receiver).
+`error-ownership.ts`, the catalog and the matrix fixtures are unchanged.
+
+`sensorOwnershipMatrix(config)` derives a schema 2 TASK-089 matrix with no
+firmware patch:
+
+* **ArduPilot defaults** (`null`): every source with ArduPilot. The entries
+  equal `imuNoiseFloorMatrix('ardupilot', 'native-json')`, and
+  `ownershipParameterProfile` writes no setting.
+* **Specified:** a MirageSITL-owned source is `mirage`, with its JSON
+  delivery, exactly while its field holds a value; every other source stays
+  with ArduPilot.
+* **Ideal:** every source a parameter can neutralize is `none`, which writes
+  143 settings. The IMU noise floors and `gnss.receiver` stay with ArduPilot,
+  because the validator forces it, and `mag.hard-iron` keeps ArduPilot's stock
+  pairing of SIM_MAGn_OFS with COMPASS_OFSn, which nets to zero; TASK-089's
+  neutral value would leave COMPASS_OFS (5, 13, −18) mG as an offset. Ideal
+  keeps the stored values but uses none of them, and has no MirageSITL owner,
+  so every MirageSITL-owned error is at its neutral value.
+
+`resolveSensorConfiguration` lists each field's effective state (`specified`,
+`neutral`, `neutralized`, `ardupilot-stock` or `not-applied`) and the
+residuals Ideal cannot remove. First among them, on stock firmware (D-10):
+ArduPilot's fixed IMU noise floors of ±0.01 m/s² and ±0.04 °/s, uniform. The
+others are the stock GNSS receiver, the hard-iron pairing (inferred),
+INS_ACCOFFS and INS_ACCSCAL from the defaults files (inferred), the compiled
+IMU sample rates, the EKF's assumed delays, and ArduPilot's unseeded noise.
+
+For TASK-147: barometer noise maps to SIM_BAROn_RND as a uniform half-width in
+metres, √3·σ·|dh/dp|, and bias to SIM_BAROn_GLITCH = bias·dh/dp, with the ISA
+gradient −0.0832 m/Pa at sea level; latency maps to SIM_BAROn_DELAY in
+milliseconds. Magnetometer noise maps to SIM_MAG_RND = √3·1000·σ mG, and bias
+to SIM_MAGn_OFS = COMPASS_OFSn − 1000·b mG. An S09 effect that writes
+SIM_BAROn_GLITCH or SIM_MAGn_OFS adds to the S08 value.
+
+### Presets
+
+`packages/aircraft/src/sensor-presets.json` is an append-only file of preset
+catalogs; a released catalog never changes, and catalog 1's canonical SHA-256
+is pinned in the tests. Each catalog names the
+[sensor catalog](hardware/ardupilot-sensors.md) it was taken from and that
+document's SHA-256, which must equal the current document for the latest
+catalog. A preset value records the datasheet value, unit, statistic and
+conditions, a conversion from a closed set (identity, mdps to rad/s, µg to
+m/s², nT to G, CEP50 to 1σ per axis by ÷√(2 ln 2), a quantization step to RMS
+by ÷√12), its citation and locator. Loading recomputes every conversion
+exactly and checks the statistic fits the field: a density field takes a
+density, a 1σ field an RMS-convertible statistic. Each conversion fixes the
+datasheet unit it takes, the SI unit it gives and the statistics it carries:
+a CEP50 value must be converted to 1σ, and a quantization step to RMS. A
+preset never fills a field that presets do not fill. Biases, tolerances, maxima,
+rates and latencies are shown as references and never filled.
+
+Catalog 1 holds ICM-42688-P (accelerometer 70 µg/√Hz, gyroscope 2.8 mdps/√Hz),
+MS5611-01BA03 (2.7 Pa RMS at OSR 1024, ArduPilot's setting), RM3100 (15 nT at
+cycle count 200), NEO-M9N (2.0 m CEP50, 1.699 m per axis) and INA226 (1.25 mV
+step, 0.361 mV RMS). `applySensorPreset` writes only applicable fields; NEO-M9N
+and INA226 fill nothing in mapping 1 and keep their reference.
+
+### Experiment copy
+
+`sensorSnapshot(stored)` returns, for one exact profile version, the stored
+configuration (`null` stays `null`), its resolution, its ownership matrix, the
+mapping version and the sources of every referenced preset, deep-frozen. The
+experiment record of TASK-154 and TASK-165 embeds it verbatim from its exact
+aircraft-profile dependency; the project store already fixes an experiment's
+inputs after version 1.
+
+### Verification (TASK-143)
+
+`tests/sensor-config.test.ts` checks every field's unit, range and owner
+against a hand-typed table, both schema bounds and values just beyond them,
+the code checks, profile schema 3 and its byte round trip, the three
+matrices against TASK-089's own functions and the pinned catalog, the preset
+conversions against hand-computed values, the catalog basis hash, and the
+experiment copy in a project store. `tests/sensor-form.test.ts` checks the
+form's display units and byte round trip. `tests/browser/sensors-tab.spec.ts`
+sets sensors through the UI in Chromium and compares the stored profile with
+the expected configuration. The roadmap entry records the results.

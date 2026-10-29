@@ -1,6 +1,7 @@
 import {
   validateAircraftProfile, type AircraftProfile, type CalculationSettings, type ProfileMotor, type SpinDirection,
 } from '@mirage/aircraft/profile';
+import type { SensorConfiguration } from '@mirage/aircraft/sensor-fields';
 import type { MassProperties } from '@mirage/physics/vehicle-manifest';
 import { parseDecimal } from '../library/library-data';
 
@@ -58,6 +59,8 @@ export interface ProfileForm {
   readonly groundClearanceM: string;
   /** Null for a schema 1 profile, which stays schema 1 when saved unchanged. */
   readonly calculation: CalculationSettings | null;
+  /** The sensor configuration (TASK-143), carried unchanged: the Sensors tab edits it. Null is the ArduPilot defaults. */
+  readonly sensorConfiguration: SensorConfiguration | null;
 }
 export type FormResult = { readonly ok: true; readonly profile: AircraftProfile } | { readonly ok: false; readonly errors: readonly string[] };
 
@@ -84,7 +87,7 @@ export function emptyMass(): MassForm {
 export function emptyForm(): ProfileForm {
   return {
     arms: [], mass: emptyMass(), payloadEnabled: false, payload: emptyMass(), batteryCard: null, groundClearanceM: '',
-    calculation: { mode: 'preliminary', measurementSets: [] },
+    calculation: { mode: 'preliminary', measurementSets: [] }, sensorConfiguration: null,
   };
 }
 
@@ -115,7 +118,7 @@ export function formFromProfile(profile: AircraftProfile): ProfileForm {
     arms, mass: massForm(profile.massProperties), payloadEnabled: profile.payload !== null,
     payload: profile.payload ? massForm(profile.payload) : emptyMass(), batteryCard: profile.battery.card,
     groundClearanceM: profile.groundClearanceM === null ? '' : String(profile.groundClearanceM),
-    calculation: profile.schemaVersion === 2 ? profile.calculation : null,
+    calculation: profile.schemaVersion === 1 ? null : profile.calculation, sensorConfiguration: profile.sensorConfiguration,
   };
 }
 
@@ -191,9 +194,9 @@ export function profileFromForm(form: ProfileForm): FormResult {
   const groundClearanceM = form.groundClearanceM.trim() === '' ? null : read.positive(form.groundClearanceM, 'Ground clearance', 'm');
   if (read.errors.length > 0) return { ok: false, errors: read.errors };
   const candidate = {
-    schemaVersion: form.calculation ? 2 : 1, units: 'SI', bodyFrame: 'FRD', arms,
+    schemaVersion: form.sensorConfiguration ? 3 : form.calculation ? 2 : 1, units: 'SI', bodyFrame: 'FRD', arms,
     motors: motors.sort((a, b) => a.id - b.id), massProperties, payload, battery: { card: form.batteryCard }, groundClearanceM,
-    sensorConfiguration: null, ...(form.calculation ? { calculation: form.calculation } : {}),
+    sensorConfiguration: form.sensorConfiguration, ...(form.calculation ? { calculation: form.calculation } : {}),
   };
   try {
     return { ok: true, profile: validateAircraftProfile(candidate) };

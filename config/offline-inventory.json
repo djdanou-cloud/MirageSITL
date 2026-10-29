@@ -36,6 +36,11 @@
     { "origin": "https://cdn.proj.org", "use": "manual-data-preparation", "reason": "EGM2008 geoid grid fetched only by the manual geodata environment setup (scripts/geodata/setup-wsl.sh)." },
     { "origin": "https://dot.net", "use": "manual-data-preparation", "reason": ".NET SDK installer for the 3D Tiles converters, fetched only by the manual geodata environment setup." },
     { "origin": "https://adas-dataset-v2.flirconservator.com", "use": "manual-data-preparation", "reason": "FLIR ADAS thermal sample fetched only by scripts/geodata/fetch_flir_sample.py after the operator accepts the dataset terms." },
+    { "origin": "https://invensense.tdk.com", "use": "documentation-link", "reason": "Datasheet citation of the TASK-143 IMU sensor preset." },
+    { "origin": "https://www.te.com", "use": "documentation-link", "reason": "Datasheet citation of the TASK-143 barometer sensor preset." },
+    { "origin": "https://www.digimax.it", "use": "documentation-link", "reason": "Datasheet citation of a TASK-143 magnetometer sensor preset." },
+    { "origin": "https://content.u-blox.com", "use": "documentation-link", "reason": "Datasheet citation of the TASK-143 GNSS sensor preset." },
+    { "origin": "https://www.ti.com", "use": "documentation-link", "reason": "Datasheet citation of the TASK-143 battery-monitor sensor preset." },
     { "origin": "https://www.flir.com", "use": "documentation-link", "reason": "FLIR ADAS dataset agreement page cited by the sample fetcher." },
     { "origin": "https://tile.googleapis.com", "use": "online-optional", "reason": "Google Photorealistic 3D Tiles upstream of the optional tiles worker; needs keys and a deployment and is never an offline source." }
   ],

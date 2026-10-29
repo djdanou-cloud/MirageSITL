@@ -226,7 +226,11 @@ implementation.
   scheme draws each rotor where the derived manifest puts it. TASK-192 is
   DONE: the Components tab creates, edits and copies cards of all four types
   without files, each value known with its source or stored as not known, and
-  every save is a new card version. Decisions D-04
+  every save is a new card version. TASK-143 is DONE: the Sensors tab stores
+  sensor configuration schema 1 in profile schema 3, shows every field's owner
+  on the external-SITL path, and offers cited per-sensor presets (SA-02); fields
+  no owner can apply yet wait for TASK-147, which also applies the rest at run
+  time. Decisions D-04
   and D-06 to D-12 are decided; D-01 to D-03 wait on TASK-127 to TASK-129,
   which need a Mac. TASK-136 defined the project archive of D-05, TASK-139 its
   component-card format and TASK-140 its measured-data format. TASK-073,

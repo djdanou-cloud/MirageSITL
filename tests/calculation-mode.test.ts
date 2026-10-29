@@ -315,7 +315,8 @@ describe('calculation modes and labels', () => {
       ['sets out of order', { ...base, calculation: { mode: 'measured', measurementSets: ['f2'.repeat(32), 'f1'.repeat(32)] } }, 'ascending'],
       ['a repeated set', { ...base, calculation: { mode: 'measured', measurementSets: ['f1'.repeat(32), 'f1'.repeat(32)] } }, 'ascending'],
       ['another mode', { ...base, calculation: { mode: 'calibrated', measurementSets: [] } }, 'Invalid aircraft profile'],
-      ['schema 3', { ...base, schemaVersion: 3 }, 'Invalid aircraft profile'],
+      ['schema 3 without a sensor configuration', { ...base, schemaVersion: 3 }, 'Schema 3 profiles need a sensor configuration'],
+      ['schema 4', { ...base, schemaVersion: 4 }, '/schemaVersion must be equal to one of the allowed values'],
     ];
     for (const [label, input, message] of invalid) expect(() => validateAircraftProfile(input), label).toThrow(message);
   });

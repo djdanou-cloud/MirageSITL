@@ -10,9 +10,14 @@
     "./components": "./src/components.ts",
     "./propeller-geometry": "./src/propeller-geometry.ts",
     "./measurements": "./src/measurements.ts",
-    "./calculation-mode": "./src/calculation-mode.ts"
+    "./calculation-mode": "./src/calculation-mode.ts",
+    "./sensor-fields": "./src/sensor-fields.ts",
+    "./sensor-config": "./src/sensor-config.ts",
+    "./sensor-presets": "./src/sensor-presets.ts",
+    "./sensor-ownership": "./src/sensor-ownership.ts"
   },
   "dependencies": {
+    "@mirage/autopilot": "0.1.0",
     "@mirage/physics": "0.1.0",
     "@mirage/project": "0.1.0",
     "@mirage/protocol": "0.1.0",

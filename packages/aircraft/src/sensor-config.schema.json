@@ -1,0 +1,480 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://mirage-sitl.invalid/schemas/sensor-configuration.schema.json",
+  "title": "MirageSITL sensor configuration schema 1",
+  "description": "Sensor configuration of an aircraft profile (TASK-143, S08). SI units and Gauss, body FRD; x-unit names the unit of each field. null means not specified: the owner's default applies. Code checks what the schema cannot express: fields that their owner cannot apply on the Phase 1 path are null, latencies an owner applies in whole milliseconds are whole milliseconds, and preset references resolve in the bundled preset catalog for the right sensor.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "mode",
+    "imu",
+    "gnss",
+    "barometer",
+    "magnetometer",
+    "battery"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "mode": {
+      "enum": [
+        "ideal",
+        "specified"
+      ]
+    },
+    "imu": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "preset",
+        "accelNoiseDensityMps2PerSqrtHz",
+        "gyroNoiseDensityRadSPerSqrtHz",
+        "accelBiasMps2",
+        "gyroBiasRadS",
+        "latencyUs",
+        "positionBodyM",
+        "orientationRad"
+      ],
+      "properties": {
+        "preset": {
+          "$ref": "#/definitions/presetReference"
+        },
+        "accelNoiseDensityMps2PerSqrtHz": {
+          "description": "Accelerometer noise density (m/s²/√Hz). At most 0.01 m/s²/√Hz (about 1 mg/√Hz), four times the noisiest IMU of the sensor catalog (ICM-20649, 250 µg/√Hz).",
+          "x-unit": "m/s²/√Hz",
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 0.01
+        },
+        "gyroNoiseDensityRadSPerSqrtHz": {
+          "description": "Gyroscope noise density (rad/s/√Hz). At most 1e-3 rad/s/√Hz (about 57 mdps/√Hz), three times the noisiest gyroscope of the sensor catalog (ICM-20649, 17.5 mdps/√Hz).",
+          "x-unit": "rad/s/√Hz",
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 0.001
+        },
+        "accelBiasMps2": {
+          "description": "Accelerometer bias (m/s²). At most ±2 m/s² (about ±204 mg) per axis, four times the largest turn-on bias of the sensor catalog (ICM-20649, ±50 mg).",
+          "x-unit": "m/s²",
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "array",
+              "minItems": 3,
+              "maxItems": 3,
+              "items": {
+                "type": "number",
+                "minimum": -2,
+                "maximum": 2
+              }
+            }
+          ]
+        },
+        "gyroBiasRadS": {
+          "description": "Gyroscope bias (rad/s). At most ±0.2 rad/s (about ±11.5 °/s) per axis, twice the largest turn-on bias of the sensor catalog (ICM-20649, ±5 °/s).",
+          "x-unit": "rad/s",
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "array",
+              "minItems": 3,
+              "maxItems": 3,
+              "items": {
+                "type": "number",
+                "minimum": -0.2,
+                "maximum": 0.2
+              }
+            }
+          ]
+        },
+        "latencyUs": {
+          "description": "IMU latency (µs). At most 100 ms, far beyond any IMU delivery delay.",
+          "x-unit": "µs",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 100000
+        },
+        "positionBodyM": {
+          "description": "IMU position (m). At most ±2 m from the body reference point per axis, beyond the size of a Phase 1 multirotor.",
+          "x-unit": "m",
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "array",
+              "minItems": 3,
+              "maxItems": 3,
+              "items": {
+                "type": "number",
+                "minimum": -2,
+                "maximum": 2
+              }
+            }
+          ]
+        },
+        "orientationRad": {
+          "description": "IMU orientation (rad). Roll and yaw in (-180°, 180°], pitch in [-90°, 90°].",
+          "x-unit": "rad",
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "array",
+              "minItems": 3,
+              "maxItems": 3,
+              "additionalItems": false,
+              "items": [
+                {
+                  "type": "number",
+                  "exclusiveMinimum": -3.141592653589793,
+                  "maximum": 3.141592653589793
+                },
+                {
+                  "type": "number",
+                  "minimum": -1.5707963267948966,
+                  "maximum": 1.5707963267948966
+                },
+                {
+                  "type": "number",
+                  "exclusiveMinimum": -3.141592653589793,
+                  "maximum": 3.141592653589793
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "gnss": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "preset",
+        "updateRateHz",
+        "horizontalSigmaM",
+        "verticalSigmaM",
+        "velocitySigmaMps",
+        "latencyUs"
+      ],
+      "properties": {
+        "preset": {
+          "$ref": "#/definitions/presetReference"
+        },
+        "updateRateHz": {
+          "description": "GNSS update rate (Hz). 1 to 20 Hz, the navigation rates of the receivers in the sensor catalog.",
+          "x-unit": "Hz",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1,
+          "maximum": 20
+        },
+        "horizontalSigmaM": {
+          "description": "GNSS horizontal position error (1σ per axis) (m). At most 100 m.",
+          "x-unit": "m",
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 100
+        },
+        "verticalSigmaM": {
+          "description": "GNSS vertical position error (1σ) (m). At most 100 m.",
+          "x-unit": "m",
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 100
+        },
+        "velocitySigmaMps": {
+          "description": "GNSS velocity error (1σ per axis) (m/s). At most 10 m/s.",
+          "x-unit": "m/s",
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 10
+        },
+        "latencyUs": {
+          "description": "GNSS latency (µs). At most 1 s.",
+          "x-unit": "µs",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 1000000
+        }
+      }
+    },
+    "barometer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "preset",
+        "noiseRmsPa",
+        "biasPa",
+        "latencyUs"
+      ],
+      "properties": {
+        "preset": {
+          "$ref": "#/definitions/presetReference"
+        },
+        "noiseRmsPa": {
+          "description": "Barometer noise (1σ) (Pa). At most 50 Pa, about seven times the noisiest barometer setting of the sensor catalog (BMP388 at ×1 oversampling, 6.6 Pa).",
+          "x-unit": "Pa",
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 50
+        },
+        "biasPa": {
+          "description": "Barometer bias (Pa). At most ±500 Pa, beyond the largest absolute accuracy of the sensor catalog (MS5611, ±150 Pa).",
+          "x-unit": "Pa",
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": -500,
+          "maximum": 500
+        },
+        "latencyUs": {
+          "description": "Barometer latency (µs). At most 490 ms: SITL keeps 50 barometer samples 10 ms apart, so a longer SIM_BARO_DELAY is not applied as set.",
+          "x-unit": "µs",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 490000
+        }
+      }
+    },
+    "magnetometer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "preset",
+        "noiseRmsGauss",
+        "biasGauss",
+        "positionBodyM",
+        "orientationRad"
+      ],
+      "properties": {
+        "preset": {
+          "$ref": "#/definitions/presetReference"
+        },
+        "noiseRmsGauss": {
+          "description": "Magnetometer noise (1σ per axis) (G). At most 0.1 G (100 mG), about twenty times the noisiest magnetometer of the sensor catalog.",
+          "x-unit": "G",
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 0.1
+        },
+        "biasGauss": {
+          "description": "Magnetometer bias (hard iron) (G). At most ±0.4 G (±400 mG) per axis, the documented range of ArduPilot's COMPASS_OFS.",
+          "x-unit": "G",
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "array",
+              "minItems": 3,
+              "maxItems": 3,
+              "items": {
+                "type": "number",
+                "minimum": -0.4,
+                "maximum": 0.4
+              }
+            }
+          ]
+        },
+        "positionBodyM": {
+          "description": "Magnetometer position (m). At most ±2 m from the body reference point per axis.",
+          "x-unit": "m",
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "array",
+              "minItems": 3,
+              "maxItems": 3,
+              "items": {
+                "type": "number",
+                "minimum": -2,
+                "maximum": 2
+              }
+            }
+          ]
+        },
+        "orientationRad": {
+          "description": "Magnetometer orientation (rad). Roll and yaw in (-180°, 180°], pitch in [-90°, 90°].",
+          "x-unit": "rad",
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "array",
+              "minItems": 3,
+              "maxItems": 3,
+              "additionalItems": false,
+              "items": [
+                {
+                  "type": "number",
+                  "exclusiveMinimum": -3.141592653589793,
+                  "maximum": 3.141592653589793
+                },
+                {
+                  "type": "number",
+                  "minimum": -1.5707963267948966,
+                  "maximum": 1.5707963267948966
+                },
+                {
+                  "type": "number",
+                  "exclusiveMinimum": -3.141592653589793,
+                  "maximum": 3.141592653589793
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "battery": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "preset",
+        "voltageGainError",
+        "voltageOffsetV",
+        "voltageNoiseRmsV",
+        "currentGainError",
+        "currentOffsetA",
+        "currentNoiseRmsA"
+      ],
+      "properties": {
+        "preset": {
+          "$ref": "#/definitions/presetReference"
+        },
+        "voltageGainError": {
+          "description": "Voltage gain error (1). At most ±10 %.",
+          "x-unit": "1",
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": -0.1,
+          "maximum": 0.1
+        },
+        "voltageOffsetV": {
+          "description": "Voltage offset (V). At most ±2 V.",
+          "x-unit": "V",
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": -2,
+          "maximum": 2
+        },
+        "voltageNoiseRmsV": {
+          "description": "Voltage noise (1σ) (V). At most 1 V.",
+          "x-unit": "V",
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 1
+        },
+        "currentGainError": {
+          "description": "Current gain error (1). At most ±20 %.",
+          "x-unit": "1",
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": -0.2,
+          "maximum": 0.2
+        },
+        "currentOffsetA": {
+          "description": "Current offset (A). At most ±20 A.",
+          "x-unit": "A",
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": -20,
+          "maximum": 20
+        },
+        "currentNoiseRmsA": {
+          "description": "Current noise (1σ) (A). At most 10 A.",
+          "x-unit": "A",
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 10
+        }
+      }
+    }
+  },
+  "definitions": {
+    "presetReference": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "catalogVersion",
+            "id"
+          ],
+          "properties": {
+            "catalogVersion": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000
+            },
+            "id": {
+              "type": "string",
+              "pattern": "^(imu|gnss|baro|mag|battery)-[a-z0-9-]{1,48}$"
+            }
+          }
+        }
+      ]
+    }
+  }
+}

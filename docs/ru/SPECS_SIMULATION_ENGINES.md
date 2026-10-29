@@ -121,7 +121,7 @@ model-report v7 заменяет схему одного профиля v6 об�
 отдельные доказательства; производственная интеграция BET ABI/сессии открыта.
 
 
-<!-- source-sha256: 9574770b0f2822626174a77f471af34677cba22796f9ab8a10ef1ac3e0f158d4 -->
+<!-- source-sha256: 7f7a8f02cf89af3b9099dcc8cd4878352901319ee1474a1bc17c2823155928d4 -->
 
 Английский источник: [Source of truth](../SPECS_SIMULATION_ENGINES.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -3973,7 +3973,7 @@ interface AircraftProfile {
   payload: { massKg: number; cgOffsetBodyM: number[]; inertiaCgKgM2: number[] } | null;
   battery: { card: string | null };
   groundClearanceM: number | null;  // > 0 (decision F-07)
-  sensorConfiguration: null;        // reserved for TASK-143
+  sensorConfiguration: null;        // schema 3 holds a sensor configuration (TASK-143)
 }
 ```
 
@@ -4100,7 +4100,7 @@ declare function deriveVehicleManifest(profile: unknown, components: ResolvedCom
 | `rotorWakePairs` | По одной на соосную пару, от верхнего ротора к нижнему |
 | `massProperties` | Аппарат и полезная нагрузка: общие масса и центр масс, обе инерции перенесены к нему по теореме Штейнера |
 | `datasets` | Один синтетический набор данных `aircraft-profile-derivation`, исходный SHA-256 которого — хеш канонических входных данных вывода |
-| `ardupilot`, `airframe.drag`, `sensorMounts`, `landingGear`, `controlSurfaces` | null или пусто; ими владеют TASK-142, TASK-096, TASK-143 и TASK-187 |
+| `ardupilot`, `airframe.drag`, `sensorMounts`, `landingGear`, `controlSurfaces` | null или пусто; ими владеют TASK-142, TASK-096, TASK-147 и TASK-187 |
 
 С d_i = c_i − c для центра масс каждой части c_i и общего центра масс c:
 
@@ -4571,3 +4571,179 @@ interface CalculationSettings {
 `tests/browser/measurements.spec.ts` загружает и вводит стендовые данные в
 Chromium и проверяет, что метку меняют только моторы привязанной комбинации.
 Результаты фиксирует запись дорожной карты.
+
+## Конфигурация датчиков v1 (TASK-143)
+
+Область S08. Профиль аппарата хранит ошибки датчиков своих IMU, GNSS,
+барометра, магнитометра и измерения напряжения и тока батареи, с владельцем
+каждой ошибки на пути Phase 1: ArduPilot SITL как внешний процесс, путь
+владения `native-json`, штатная прошивка по решению D-10. Её редактирует
+вкладка Sensors. TASK-147 применяет её во время выполнения; TASK-143 ничего
+не применяет. Это код только времени конфигурации; никогда не вызывайте его из
+шага физики.
+
+### Схема профиля 3
+
+Схема профиля 3 хранит конфигурацию датчиков, а схемы 1 и 2 хранят `null`,
+что означает значения ArduPilot по умолчанию: каждый источник ошибки остаётся
+за штатным SITL ArduPilot, и MirageSITL ничего не вносит.
+`PROFILE_SCHEMA_VERSION` равна 3. Схема 3 всегда содержит расчёт, и её
+конфигурация никогда не равна значениям по умолчанию, поэтому у значений по
+умолчанию ровно одна кодировка (`null`).
+`withSensorConfiguration(profile, config)` записывает схему 3 для
+конфигурации и `null` в остальных случаях, причём схема 1 остаётся 1, а схемы
+2 и 3 становятся 2. `bindMeasurements` сохраняет схему 3, а редактор Aircraft
+переносит конфигурацию без изменений. Существующие записи схем 1 и 2 никогда
+не перезаписываются, и зависимости не меняются. Вывод манифеста аппарата не
+читает конфигурацию; `sensorMounts` остаётся пустым до TASK-147.
+
+### Схема и поля
+
+`packages/aircraft/src/sensor-config.schema.json` (draft-07) проверяет
+конфигурацию. Каждое поле несёт свою единицу в ключевом слове аннотации
+`x-unit` и происхождение своего диапазона в `description`. Все ключи
+присутствуют, а `null` означает «не задано»: действует значение владельца по
+умолчанию. `validateSensorConfiguration` добавляет проверки в коде: поле,
+которое его владелец пока не может применить, должно быть `null`; задержка,
+которую применяет ArduPilot, должна быть целым числом миллисекунд; ссылка на
+пресет должна называть пресет датчика этого блока во встроенном каталоге.
+`SENSOR_FIELDS` (`sensor-fields.ts`) — реестр 25 полей.
+
+```typescript
+interface SensorConfiguration {
+  schemaVersion: 1;
+  mode: "ideal" | "specified";
+  imu: { preset: PresetReference | null;
+    accelNoiseDensityMps2PerSqrtHz: number | null; // [0, 0.01], one-sided white-noise density per axis
+    gyroNoiseDensityRadSPerSqrtHz: number | null;  // [0, 0.001]
+    accelBiasMps2: [number, number, number] | null; // each [-2, 2], constant, sensor axes
+    gyroBiasRadS: [number, number, number] | null;  // each [-0.2, 0.2]
+    latencyUs: number | null;                       // integer [0, 100000]; locked in mapping 1
+    positionBodyM: [number, number, number] | null; // each [-2, 2], body FRD from the reference point; null at the CG
+    orientationRad: [number, number, number] | null; }; // roll, yaw (-π, π], pitch [-π/2, π/2]; locked
+  gnss: { preset: PresetReference | null;           // every value locked in mapping 1
+    updateRateHz: number | null;                    // integer [1, 20]
+    horizontalSigmaM: number | null;                // [0, 100], 1σ per horizontal axis
+    verticalSigmaM: number | null;                  // [0, 100]
+    velocitySigmaMps: number | null;                // [0, 10], 1σ per NED axis
+    latencyUs: number | null; };                    // integer [0, 1000000]
+  barometer: { preset: PresetReference | null;
+    noiseRmsPa: number | null;                      // [0, 50], 1σ per sample
+    biasPa: number | null;                          // [-500, 500], positive reads high
+    latencyUs: number | null; };                    // integer [0, 490000], whole milliseconds
+  magnetometer: { preset: PresetReference | null;
+    noiseRmsGauss: number | null;                   // [0, 0.1], 1σ per axis
+    biasGauss: [number, number, number] | null;     // each [-0.4, 0.4], net hard iron after COMPASS_OFS
+    positionBodyM: [number, number, number] | null; // locked
+    orientationRad: [number, number, number] | null; }; // locked
+  battery: { preset: PresetReference | null;        // every value locked in mapping 1
+    voltageGainError: number | null; voltageOffsetV: number | null; voltageNoiseRmsV: number | null;
+    currentGainError: number | null; currentOffsetA: number | null; currentNoiseRmsA: number | null; };
+}
+interface PresetReference { catalogVersion: number; id: string }  // e.g. { catalogVersion: 1, id: "imu-icm-42688-p" }
+```
+
+### Отображение владения 1
+
+`sensor-ownership.ts` назначает каждому полю одного владельца на `native-json`
+(`SENSOR_OWNERSHIP_MAPPING_VERSION` 1). Интерфейс не предлагает выбора
+владельца, поэтому не может породить недопустимую матрицу.
+
+| Владелец | Поля | Источник TASK-089 и доставка |
+|---|---|---|
+| MirageSITL | Плотности шума IMU, смещения IMU, положение IMU | `imu.accel.noise`, `imu.gyro.noise`, `imu.accel.bias`, `imu.gyro.bias`, `imu.lever-arm`; `json:imu.accel_body`, `json:imu.gyro` |
+| ArduPilot SITL | Шум, смещение и задержка барометра; шум и смещение магнитометра | `baro.noise`, `baro.glitch`, `baro.delay`, `mag.noise`, `mag.hard-iron`; значения SIM_*, записываемые TASK-147 |
+| ArduPilot SITL, заблокировано | Все поля GNSS | `gnss.receiver`; SIM_GPS1_* требуют `AP_SIM_GPS_ENABLED`, который матрица пока не допускает |
+| Пока никто, заблокировано | Задержка и ориентация IMU, положение и ориентация магнитометра, все поля батареи | Нет источника TASK-089; их добавляет TASK-147 |
+
+Каждый исключённый владелец имеет своё обоснование: его отклоняет валидатор
+(ни один путь MirageSITL не переносит ошибку барометра или шум магнитометра на
+`native-json`), модель владельца описывает другую величину (SIM_ACCn_RND
+масштабирует только вибрацию; SIM_GYRn_RND — шум без зерна, масштабируемый
+тягой; SIM_IMU_POS на JSON-бэкенде не учитывает ω̇×r) или политика Phase 1
+(одна модель IMU MirageSITL; PARAM_SET для hard iron зарезервирован за S09;
+собственный приёмник GNSS ArduPilot). `error-ownership.ts`, каталог и фикстуры
+матриц не меняются.
+
+`sensorOwnershipMatrix(config)` выводит матрицу TASK-089 схемы 2 без патча
+прошивки:
+
+* **Значения ArduPilot по умолчанию** (`null`): каждый источник за ArduPilot.
+  Записи равны `imuNoiseFloorMatrix('ardupilot', 'native-json')`, и
+  `ownershipParameterProfile` не записывает ни одной настройки.
+* **Specified:** источник, которым владеет MirageSITL, — `mirage` со своей
+  JSON-доставкой ровно тогда, когда его поле содержит значение; все остальные
+  источники остаются за ArduPilot.
+* **Ideal:** каждый источник, который можно нейтрализовать параметром, —
+  `none`, что записывает 143 настройки. Пороги шума IMU и `gnss.receiver`
+  остаются за ArduPilot, потому что этого требует валидатор, а `mag.hard-iron`
+  сохраняет штатную пару ArduPilot SIM_MAGn_OFS и COMPASS_OFSn, которая в
+  сумме даёт ноль; нейтральное значение TASK-089 оставило бы COMPASS_OFS
+  (5, 13, −18) mG как смещение. Ideal хранит сохранённые значения, но не
+  использует ни одного из них и не имеет владельца MirageSITL, поэтому каждая
+  ошибка, которой владеет MirageSITL, находится в своём нейтральном значении.
+
+`resolveSensorConfiguration` перечисляет действующее состояние каждого поля
+(`specified`, `neutral`, `neutralized`, `ardupilot-stock` или `not-applied`)
+и остатки, которые Ideal не может убрать. Первые среди них на штатной прошивке
+(D-10): фиксированные пороги шума IMU ArduPilot ±0.01 m/s² и ±0.04 °/s,
+равномерные. Остальные — штатный приёмник GNSS, пара hard iron (выведено),
+INS_ACCOFFS и INS_ACCSCAL из файлов значений по умолчанию (выведено),
+скомпилированные частоты выборки IMU, предполагаемые задержки EKF и шум
+ArduPilot без зерна.
+
+Для TASK-147: шум барометра отображается в SIM_BAROn_RND как полуширина
+равномерного распределения в метрах, √3·σ·|dh/dp|, а смещение — в
+SIM_BAROn_GLITCH = bias·dh/dp, с градиентом ISA −0.0832 m/Pa на уровне моря;
+задержка отображается в SIM_BAROn_DELAY в миллисекундах. Шум магнитометра
+отображается в SIM_MAG_RND = √3·1000·σ mG, а смещение — в
+SIM_MAGn_OFS = COMPASS_OFSn − 1000·b mG. Эффект S09, записывающий
+SIM_BAROn_GLITCH или SIM_MAGn_OFS, добавляется к значению S08.
+
+### Пресеты
+
+`packages/aircraft/src/sensor-presets.json` — файл каталогов пресетов только
+для дополнения; выпущенный каталог никогда не меняется, а канонический
+SHA-256 каталога 1 закреплён в тестах. Каждый каталог называет
+[каталог датчиков](ardupilot-sensors.md), из которого он взят, и
+SHA-256 этого документа, который для последнего каталога должен совпадать с
+текущим документом. Значение пресета фиксирует значение из даташита, единицу,
+статистику и условия, преобразование из замкнутого набора (тождественное,
+mdps в rad/s, µg в m/s², nT в G, CEP50 в 1σ на ось делением на √(2 ln 2),
+шаг квантования в RMS делением на √12), ссылку на источник и указатель места.
+Загрузка точно пересчитывает каждое преобразование и проверяет, что статистика
+подходит полю: поле плотности принимает плотность, поле 1σ — статистику,
+приводимую к RMS. Каждое преобразование фиксирует единицу паспорта, которую
+оно принимает, единицу СИ, которую оно даёт, и статистики, которые оно
+переносит: значение CEP50 должно быть приведено к 1σ, а шаг квантования — к
+RMS. Пресет никогда не заполняет поле, которое пресеты не заполняют. Смещения, допуски, максимумы, частоты и задержки
+показываются как справочные и никогда не заполняются.
+
+Каталог 1 содержит ICM-42688-P (акселерометр 70 µg/√Hz, гироскоп
+2.8 mdps/√Hz), MS5611-01BA03 (2.7 Pa RMS при OSR 1024, настройке ArduPilot),
+RM3100 (15 nT при cycle count 200), NEO-M9N (2.0 m CEP50, 1.699 m на ось) и
+INA226 (шаг 1.25 mV, 0.361 mV RMS). `applySensorPreset` записывает только
+применимые поля; NEO-M9N и INA226 в отображении 1 ничего не заполняют и
+сохраняют свою ссылку.
+
+### Копия для эксперимента
+
+`sensorSnapshot(stored)` возвращает для одной точной версии профиля
+сохранённую конфигурацию (`null` остаётся `null`), её разрешение, её матрицу
+владения, версию отображения и источники каждого упомянутого пресета, глубоко
+замороженные. Запись эксперимента TASK-154 и TASK-165 встраивает её дословно
+из своей точной зависимости от профиля аппарата; хранилище проектов уже
+фиксирует входы эксперимента после версии 1.
+
+### Проверка (TASK-143)
+
+`tests/sensor-config.test.ts` сверяет единицу, диапазон и владельца каждого
+поля с таблицей, набранной вручную, проверяет обе границы схемы и значения
+сразу за ними, проверки в коде, схему профиля 3 и её побайтовый круговой
+перенос, три матрицы против собственных функций TASK-089 и закреплённого
+каталога, преобразования пресетов против значений, вычисленных вручную, хеш
+основы каталога и копию для эксперимента в хранилище проектов.
+`tests/sensor-form.test.ts` проверяет единицы отображения формы и побайтовый
+круговой перенос. `tests/browser/sensors-tab.spec.ts` задаёт датчики через
+интерфейс в Chromium и сравнивает сохранённый профиль с ожидаемой
+конфигурацией. Результаты фиксирует запись дорожной карты.
