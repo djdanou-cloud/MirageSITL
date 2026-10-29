@@ -50,7 +50,8 @@ test("reports an unreachable or CORS-blocked tileset as a classified failure", a
 // TilesScene placement; the synthetic fixture is flat at 405 m ellipsoidal, origin at 400 m.
 test("places quantized-mesh terrain at its ellipsoidal height", async ({ page }) => {
   const layerPath = fileURLToPath(new URL("../fixtures/terrain-qm/layer.json", import.meta.url));
-  const layer = JSON.parse(readFileSync(layerPath, "utf8")) as { extras: { origin: { latDeg: number; lonDeg: number; heightM: number }; groundHeightM: number } };
+  const layer = JSON.parse(readFileSync(layerPath, "utf8")) as { maxzoom: number; available: { startX: number; startY: number }[][];
+    extras: { origin: { latDeg: number; lonDeg: number; heightM: number }; groundHeightM: number } };
   await page.goto("/");
   const result = await page.evaluate(async ({ harnessUrl, url, origin }) => {
     const h = await import(harnessUrl) as typeof import("../support/terrain-harness");
@@ -58,6 +59,10 @@ test("places quantized-mesh terrain at its ellipsoidal height", async ({ page })
   }, { harnessUrl, url: viteFileUrl(new URL("../fixtures/terrain-qm/layer.json", import.meta.url)), origin: layer.extras.origin });
   expect([result.failures, result.loadErrors]).toEqual([0, 0]);
   expect(result.models).toBeGreaterThan(0);
+  // The ray ends on the deepest tile, the one generate.py wrote around the origin; coarser levels sag below the ellipsoid.
+  const deepest = layer.available[layer.maxzoom]?.[0] ?? { startX: -1, startY: -1 };
+  expect(result.hitLeaf, `hit tile ${String(result.hitUrl)}`).toBe(true);
+  expect(result.hitUrl).toMatch(new RegExp(`/${layer.maxzoom}/${deepest.startX}/${deepest.startY}\\.terrain$`));
   expect(result.groundY).not.toBeNull();
   expect(Math.abs((result.groundY ?? 0) - (layer.extras.groundHeightM - layer.extras.origin.heightM))).toBeLessThan(0.5);
 });

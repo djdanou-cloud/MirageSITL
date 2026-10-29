@@ -1,6 +1,6 @@
 // Browser harness for tests/browser/terrain.spec.ts (TASK-061). Imported through
 // the Vite dev server so "three" and the tiles loader resolve to one instance.
-import { Box3, Mesh, PerspectiveCamera, Raycaster, Scene, Vector3, WebGLRenderer, type BufferGeometry, type Material } from "three";
+import { Box3, Mesh, PerspectiveCamera, Raycaster, Scene, Vector3, WebGLRenderer, type BufferGeometry, type Material, type Object3D } from "three";
 import { TilesScene } from "@mirage/terrain/tiles-scene";
 
 export interface TilesScenarioResult {
@@ -78,11 +78,24 @@ export async function runTilesScenario(url: string, origin: { latDeg: number; lo
   return { ...result, ...after };
 }
 
-export interface QuantizedMeshResult { models: number; groundY: number | null; failures: number; loadErrors: number }
+export interface QuantizedMeshResult {
+  models: number;
+  groundY: number | null;
+  /** Content URL of the tile model the ray hit last, or null without a hit. */
+  hitUrl: string | null;
+  /** True when that tile has no children, so no finer tile can replace it. */
+  hitLeaf: boolean;
+  failures: number;
+  loadErrors: number;
+}
 
 /**
  * TASK-073: loads a quantized-mesh layer.json through TilesScene and raycasts
- * straight down at the render origin once tiles near the camera are resident.
+ * straight down at the render origin until the hit comes from a leaf tile.
+ * Each coarser level's flat ground is a mesh of chords that sags below the
+ * ellipsoid (at the origin, 30 km at level 1 and 33 m at level 6), and a slow tile server
+ * keeps such a level displayed for many frames, so an unchanged hit does not
+ * mean the deepest tiles have replaced the coarse ones.
  */
 export async function runQuantizedMeshScenario(url: string, origin: { latDeg: number; lonDeg: number; heightM: number },
   timeoutMs = 20_000): Promise<QuantizedMeshResult> {
@@ -97,21 +110,28 @@ export async function runQuantizedMeshScenario(url: string, origin: { latDeg: nu
   const tiles = new TilesScene({ url, format: "quantized-mesh", attribution: "MirageSITL synthetic quantized-mesh fixture (CC0-1.0)",
     originLatRad: origin.latDeg * deg, originLonRad: origin.lonDeg * deg, originHeightM: origin.heightM, camera, renderer });
   scene.add(tiles.tiles.group);
+  // Each model's root object maps to its tile, so a hit can be traced to the tile that drew it.
+  const models = new Map<Object3D, { url: string; tile: { children?: readonly unknown[] } }>();
+  tiles.tiles.addEventListener("load-model", event => { models.set(event.scene, { url: event.url, tile: event.tile }); });
+  tiles.tiles.addEventListener("dispose-model", event => { models.delete(event.scene); });
   const raycaster = new Raycaster(new Vector3(0, 1000, 0), new Vector3(0, -1, 0));
   const until = performance.now() + timeoutMs;
-  let groundY: number | null = null, stable = 0;
+  let groundY: number | null = null, hitUrl: string | null = null, hitLeaf = false;
   while (performance.now() < until && tiles.failures.length === 0 && tiles.loadErrors.length === 0) {
     tiles.update();
     renderer.render(scene, camera);
     await new Promise(resolve => setTimeout(resolve, 16));
     const hit = raycaster.intersectObject(tiles.tiles.group, true)[0];
-    const y = hit ? hit.point.y : null;
-    // Wait until the deepest tiles have replaced the coarse ones (the hit stops moving).
-    stable = y !== null && groundY !== null && Math.abs(y - groundY) < 1e-3 ? stable + 1 : 0;
-    groundY = y;
-    if (stable >= 20) break;
+    let root: Object3D | null = hit ? hit.object : null;
+    while (root !== null && !models.has(root)) root = root.parent;
+    const model = root === null ? undefined : models.get(root);
+    groundY = hit ? hit.point.y : null;
+    hitUrl = model ? model.url : null;
+    // The plugin adds a tile's children when it parses the tile, before its model is shown.
+    hitLeaf = model !== undefined && (model.tile.children?.length ?? 0) === 0;
+    if (hitLeaf) break;
   }
-  const result = { models: tiles.modelCount, groundY, failures: tiles.failures.length, loadErrors: tiles.loadErrors.length };
+  const result = { models: tiles.modelCount, groundY, hitUrl, hitLeaf, failures: tiles.failures.length, loadErrors: tiles.loadErrors.length };
   tiles.dispose();
   renderer.dispose();
   return result;

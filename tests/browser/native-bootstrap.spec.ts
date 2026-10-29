@@ -58,7 +58,9 @@ test('bootstrap BET kernel builds reproducibly and runs in Chromium', async ({ p
     expect(result.imports).toBe(0); // no host imports: nothing to allocate or log through
     expect(result.names).toEqual(['__heap_base', 'bet_abi_version', 'bet_body_abi_version', 'bet_body_step', 'bet_bootstrap_element_force', 'bet_dispose', 'bet_init',
       'bet_last_error', 'bet_required_bytes', 'bet_reset', 'bet_step', 'memory',
-      'bet_bound_version','bet_bound_init','bet_bound_step','bet_bound_reset','bet_bound_dispose'].sort()); // additive bound interface
+      'bet_bound_version','bet_bound_init','bet_bound_step','bet_bound_reset','bet_bound_dispose', // additive bound interface
+      // Additive step interfaces v2: docs/SPECS_SIMULATION_ENGINES.md, section "Step interfaces v2 (TASK-088)".
+      'bet_bound_v2_version', 'bet_bound_step_v2', 'bet_body_v2_version', 'bet_body_step_v2'].sort());
     expect(result.abi).toBe(1);
     expect(result.bodyAbi).toBe(1);
     cases.forEach((c, i) => {
