@@ -116,6 +116,10 @@
     {
       "en": "docs/decisions/sitl-clock.md",
       "ru": "docs/ru/sitl-clock.md"
+    },
+    {
+      "en": "ui_implementation_plan.md",
+      "ru": "docs/ru/ui_implementation_plan.md"
     }
   ]
 }
