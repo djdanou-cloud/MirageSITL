@@ -530,14 +530,29 @@ snapshot an experiment record embeds. Profile schema 3 stores a configuration;
 `null`, in schemas 1 and 2, is the ArduPilot defaults.
 
 Every field shows its owner on the Phase 1 path, ArduPilot SITL as an external
-process. MirageSITL owns the IMU noise, biases and lever arm, which it delivers
-in the JSON state line; ArduPilot owns the barometer and magnetometer errors.
-Fields no owner can apply yet (GNSS, battery, IMU latency and orientation,
-magnetometer placement and orientation) are disabled with the reason and wait
-for TASK-147. Ideal switches off every error a setting can switch off and keeps
-typed values inert; the tab states what ArduPilot still adds, first the fixed
-IMU noise floors of stock firmware (decision D-10). TASK-147 applies the
-configuration at run time, and the Aircraft editor keeps it when it saves.
+process (ownership mapping 2, TASK-147). MirageSITL owns the IMU noise, biases,
+lever arm, latency and orientation and the battery measurement errors, which it
+delivers in the JSON state line; ArduPilot owns the barometer, magnetometer and
+GNSS receiver errors. The magnetometer's position and orientation stay disabled
+with their reasons. Ideal switches off every error a setting can switch off and
+keeps typed values inert; the tab states what ArduPilot still adds, first the
+fixed IMU noise floors of stock firmware (decision D-10). The Aircraft editor
+keeps the configuration when it saves.
+
+## Sensor errors at run time (TASK-147)
+
+`sensorRuntime` (`packages/aircraft/src/sensor-parameters.ts`) turns a sensor
+configuration into the SITL parameters of the ArduPilot-owned errors, validated
+against the pinned catalog through ownership matrix schema 3, and into the
+plans of the MirageSITL-owned errors. `packages/sensors/src/configured.ts`
+applies those plans without allocation: the IMU at its lever arm and mounting
+rotation, its delivery delay, bias and seeded white noise, and the battery
+measurement. An external-SITL session writes the parameters, reads the complete
+parameter list back before arming and sends the distorted state line. The
+derived manifest carries the IMU mount. The native driver takes a configuration
+through `MIRAGE_SITL_SENSORS`, and `scripts/run-sitl-sensors.mjs` with
+`scripts/check-sitl-sensors.mjs` capture and judge the ground cases that show
+each error applied once.
 
 ## Phase 0 contracts: fixtures, capabilities, and models
 

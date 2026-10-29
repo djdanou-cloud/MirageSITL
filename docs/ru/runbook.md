@@ -8,7 +8,7 @@
 PowerShell/zsh и проверки перед расширением поддерживаемого покрытия.
 
 ## Локальные проверки
-<!-- source-sha256: bcc0aac2c05cf9f929d404ff003a924332a5761123a9ffce31a8ffafb21ba90e -->
+<!-- source-sha256: 20893f8f0ef1b845add94d4687bee31d3caaca4d97812805b9024723a4486cee -->
 
 Использовать существующий изолированный checkout, сохраняя локальные изменения. Node закреплён .nvmrc; Rust 1.97.0 и wasm32-unknown-unknown — native/rust-toolchain.toml. Зависимости ставить через npm ci. В облаке активировать CARGO_HOME=/workspace/.cache/mirage-cargo, RUSTUP_HOME=/workspace/.cache/mirage-rustup и добавить CARGO_HOME/bin в начало PATH; не переопределять HOME. Запустить lint, typecheck, check:docs, CI=true npm test, npm run build и locked native tests. Модульный набор тестов не изменяет отслеживаемые свидетельства в test-results/: тесты записывают создаваемые отчёты во временные или игнорируемые каталоги (validate-models, check-propeller-bem и bench-links-ew принимают --out DIR), а глобальная настройка Vitest tests/support/tracked-results.ts завершает прогон ошибкой, если меняется вывод git status --porcelain -- test-results/. Браузерные прогоны дают ту же гарантию: Playwright пишет отчёт JUnit, трассы и захваты прошивки TASK-045 в test-results/browser/, где нет отслеживаемых файлов, а последний настроенный репортёр tests/support/tracked-results-reporter.ts повторяет проверку после того, как остальные репортёры записали свои файлы. Браузерный артефакт CI выгружает test-results/browser/ и playwright-report/. Запустить npm run dev; проверить HTTP, COOP same-origin, COEP require-corp и настоящий Worker READY. Начать с нулевого газа, армировать, летать, приостановить и сбросить. Браузерные тесты используют системный Chromium только при наличии. Установка/запуск на чистой восстановленной машине для сертификации выпуска ещё не выполнялись.
 
@@ -386,6 +386,20 @@ node scripts/check-imu-noise-floor.mjs --input "$MIRAGE_SITL_CAPTURE_DIR" --expe
 
 Текущий драйвер отличается от того, который называет замороженная матрица TASK-059, поэтому `report-ekf.mjs` отклоняет новые проверочные записи РЭБ, пока TASK-059 не будет повторно заморожен на машине оператора. Повторная заморозка — осознанный шаг. Сохраните текущую матрицу в истории git и запишите причину в коммите. Верните `envelopes` в `null` (незамороженный шаблон — `git show 1eb44f1:tests/fixtures/scenarios/ew-matrix.json`), затем выполните приведённые выше команды калибровки, заморозки и проверки TASK-059 с одной прошивкой и одной настройкой. Калибровка и проверка РЭБ привязаны к хешам прошивки и параметров, поэтому смешение настроек приводит к отказу.
 
+
+## Ошибки датчиков в нативном SITL (TASK-147)
+
+Штатная прошивка (решение D-10) в Linux-окружении TASK-042: `MIRAGE_SITL_SOURCE`, `MIRAGE_SITL_BINARY` и `MIRAGE_SITL_PYTHON`, как выше. Файл конфигурации датчиков — JSON `{"configuration": ..., "seed": N}`, где `configuration` — конфигурация датчиков схемы 1 или `null` для значений ArduPilot по умолчанию, а seed — uint32.
+
+```bash
+export MIRAGE_SITL_SENSORS="$PWD/.cache/task-147/sensors.json"
+export MIRAGE_SITL_CAPTURE_DIR="$PWD/.cache/task-147/flight"
+node scripts/run-sitl.mjs
+node scripts/run-sitl-sensors.mjs .cache/task-147/probe
+node scripts/check-sitl-sensors.mjs --input .cache/task-147/probe --report test-results/validation/sitl-sensors.json
+```
+
+Если задан `MIRAGE_SITL_SENSORS`, драйвер дописывает сгенерированные параметры в свой `quad.parm`, запрашивает полный список параметров и удерживает армирование, пока каждый сгенерированный параметр, имеющийся в сборке, не сообщит своё значение; иначе через 30 с симуляции он завершается с ошибкой. `run.json` записывает конфигурацию, ожидаемые и полученные параметры и остаточные члены. Драйвер отказывается работать с `MIRAGE_SITL_IMU_NOISE_FLOOR=off` и случаями РЭБ. Проверяйте полёты с помощью `check-raw.py` и `check-sitl-capture.mjs`, как в TASK-042; прогон с датчиками также пересылает SYS_STATUS и список параметров, что ожидает проверка сырых данных. `run-sitl-sensors.mjs` выполняет девять наземных случаев на новых экземплярах SITL; `check-sitl-sensors.mjs` завершается с кодом 0 при PASS, 1 при FAIL или 2 при отсутствующей записи и не проходит, если записанный исходный файл изменился после захвата. Не используйте каталог записи повторно.
 
 ## Локальный браузерный допуск прошивки (TASK-045)
 

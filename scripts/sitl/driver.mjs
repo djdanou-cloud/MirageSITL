@@ -29,6 +29,26 @@ const floorProfile=imuNoiseFloor==='off'?ownershipParameterProfile(imuNoiseFloor
 // Unpatched firmware skips unknown defaults silently, so 'off' holds arming until the firmware reports these values.
 const floorChecks=floorProfile.split('\n').filter(line=>line&&!line.startsWith('#')).map(line=>{const [name,value]=line.split(' ');return {name,value:Number(value)};});
 const FLOOR_CONFIRM_DEADLINE_S=20;
+// TASK-147: MIRAGE_SITL_SENSORS names a JSON file {configuration, seed}; configuration null is the ArduPilot defaults.
+// Its generated parameters are written and read back from the complete parameter list before arming.
+const sensorInput=process.env.MIRAGE_SITL_SENSORS?readFileSync(resolve(process.env.MIRAGE_SITL_SENSORS)):null;
+let sensors=null;
+if(sensorInput){
+  if(imuNoiseFloor==='off'||ewModule)throw Error('MIRAGE_SITL_SENSORS runs stock firmware (decision D-10) without an EW case');
+  await import('./json-modules.mjs');
+  const {sensorRuntime,STOCK_COMPASS_OFFSETS_MILLIGAUSS}=await import('../../packages/aircraft/src/sensor-parameters.ts');
+  const {validateSensorConfiguration}=await import('../../packages/aircraft/src/sensor-config.ts');
+  const {ConfiguredImu,ConfiguredBattery}=await import('../../packages/sensors/src/configured.ts');
+  const input=JSON.parse(sensorInput.toString('utf8'));
+  const configuration=input.configuration===null?null:validateSensorConfiguration(input.configuration);
+  const catalog=parseArduPilotCatalog(JSON.parse(readFileSync(join(root,'tests/fixtures/sitl/ardupilot-catalog.json'),'utf8')));
+  // The synthetic quad's CG is its body origin; home is the harness's --home altitude.
+  const runtime=sensorRuntime(configuration,catalog,{homeAltitudeM:584,compassOffsetsMilliGauss:STOCK_COMPASS_OFFSETS_MILLIGAUSS,cgBodyM:[0,0,0]});
+  sensors={input,runtime,imu:new ConfiguredImu(runtime.imu,input.seed,800),battery:new ConfiguredBattery(runtime.battery,input.seed),
+    accel:new Float64Array(3),gyro:new Float64Array(3),previousRate:new Float64Array(3),angularAcceleration:new Float64Array(3),measured:new Float64Array(2),
+    indices:new Set(),count:null,requestS:-Infinity};
+}
+const SENSOR_CONFIRM_DEADLINE_S=30,BATTERY_TRUTH_V=12.6,BATTERY_TRUTH_A=0;
 const directory=resolve(process.env.MIRAGE_SITL_CAPTURE_DIR??join(root,'.cache/task-042/capture'));
 mkdirSync(directory,{recursive:true});
 if(existsSync(join(directory,'run.json'))||existsSync(join(directory,'physics.ndjson')))throw Error('Capture directory already contains evidence; select a new directory');
@@ -39,6 +59,9 @@ const sourceFiles=['scripts/sitl/driver.mjs','scripts/sitl/quad.mjs','scripts/si
 sourceFiles.push('packages/autopilot/src/live-warmup.ts','packages/autopilot/src/ekf-status.ts','packages/autopilot/src/warmup.ts',
   'packages/mavlink/src/codec.ts','packages/protocol/src/layout-v2.ts','packages/autopilot/src/error-ownership.ts',
   'tests/fixtures/sitl/ardupilot-catalog.json');
+if(sensors)sourceFiles.push('scripts/sitl/json-modules.mjs','packages/sensors/src/configured.ts','packages/sensors/src/lever-arm.ts',
+  'packages/aircraft/src/sensor-parameters.ts','packages/aircraft/src/sensor-ownership.ts','packages/aircraft/src/sensor-fields.ts',
+  'packages/aircraft/src/sensor-config.ts');
 if(experiment)sourceFiles.push('scripts/sitl/ew-observations.ts','packages/ew/src/engine.ts','packages/ew/src/position-step.ts',
   'packages/ew/src/velocity-drift.ts','packages/ew/src/gnss-jamming.ts','packages/ew/src/magnetic.ts',
   'packages/sensors/src/geodesy.ts','packages/sensors/src/geoid.ts','packages/mavlink/src/samples.ts');
@@ -55,7 +78,8 @@ const tcpProbe=createServer();tcpProbe.listen(0,'127.0.0.1');await once(tcpProbe
 const tcpPort=tcpProbe.address().port;await new Promise(resolve=>tcpProbe.close(resolve));
 const extra=join(process.cwd(),'quad.parm');
 writeFileSync(extra,'FRAME_CLASS 1\nFRAME_TYPE 1\nMOT_PWM_MIN 1000\nMOT_PWM_MAX 2000\nSIM_RATE_HZ 800\n'+
-  (experiment?'GPS1_TYPE 14\nGPS2_TYPE 0\nGPS1_RATE_MS 100\nSIM_MAG1_OFS_X 0\nSIM_MAG1_OFS_Y 0\nSIM_MAG1_OFS_Z 0\nSIM_MAG2_OFS_X 0\nSIM_MAG2_OFS_Y 0\nSIM_MAG2_OFS_Z 0\nSIM_MAG3_OFS_X 0\nSIM_MAG3_OFS_Y 0\nSIM_MAG3_OFS_Z 0\n':'')+floorProfile);
+  (experiment?'GPS1_TYPE 14\nGPS2_TYPE 0\nGPS1_RATE_MS 100\nSIM_MAG1_OFS_X 0\nSIM_MAG1_OFS_Y 0\nSIM_MAG1_OFS_Z 0\nSIM_MAG2_OFS_X 0\nSIM_MAG2_OFS_Y 0\nSIM_MAG2_OFS_Z 0\nSIM_MAG3_OFS_X 0\nSIM_MAG3_OFS_Y 0\nSIM_MAG3_OFS_Z 0\n':'')+floorProfile+
+  (sensors?sensors.runtime.parameterProfile:''));
 copyFileSync(extra,join(directory,'quad.parm'));
 const logs=openSync(join(directory,'firmware.log'),'w'),raw=openSync(join(directory,'physics.ndjson'),'w');
 let rawBatch='';let rawBatchCount=0;
@@ -64,7 +88,7 @@ const firmware=spawn(binary,['--model','JSON:127.0.0.1','--speedup','2','--rate'
   '--sim-port-out',String(physics.address().port),'--serial0',`tcp:${tcpPort}`,'--serial1','none','--serial2','none',
   '--defaults',[join(source,'Tools/autotest/default_params/copter.parm'),parameters,extra].join(',')],
   {stdio:['ignore',logs,logs]});
-const telemetry=spawn(python,[join(root,'scripts/sitl/telemetry.py'),String(tcpPort),join(directory,'mavlink.raw'),...(experiment?['--ew']:[])],{stdio:['pipe','pipe','pipe']});
+const telemetry=spawn(python,[join(root,'scripts/sitl/telemetry.py'),String(tcpPort),join(directory,'mavlink.raw'),...(experiment?['--ew']:sensors?['--sensors']:[])],{stdio:['pipe','pipe','pipe']});
 const events=openSync(join(directory,'telemetry.ndjson'),'w');
 const readinessLog=openSync(join(directory,'warmup.ndjson'),'w');
 const gate=new LiveEkfWarmup('external-sitl',1,0,0,2,{imuSource:'json-lockstep'});
@@ -77,6 +101,10 @@ let faultStart=null,faultEnd=null,experimentEnd=null,parameterRequested=false;
 const parameterValues={};
 let floorRequestS=-Infinity;
 const floorConfirmed=()=>floorChecks.every(check=>parameterValues[check.name]===check.value);
+// Complete list received, and every generated parameter the build has holds its value; a name absent from the list is not in this build.
+const sensorsListed=()=>!sensors||(sensors.count!==null&&sensors.indices.size===sensors.count);
+const sensorsConfirmed=()=>!sensors||(sensorsListed()&&sensors.runtime.parameters.every(p=>!(p.name in parameterValues)||parameterValues[p.name]===Math.fround(p.value)));
+let sensorsConfirmedS=null;
 let telemetryFlushed=false;
 function fail(error){failure??=error instanceof Error?error:Error(String(error));finished=true;}
 for(const child of [firmware,telemetry]) {child.on('error',fail);child.on('exit',(code,signal)=>{if(!finished)fail(Error(`Owned child exited ${code}/${signal}`));});}
@@ -93,6 +121,7 @@ createInterface({input:telemetry.stdout}).on('line',line=>{
     if(m.mavpackettype==='EKF_STATUS_REPORT')ekf={timeS,...m};
     if(m.mavpackettype==='GLOBAL_POSITION_INT')global={timeS,...m};
     if(m.mavpackettype==='PARAM_VALUE')parameterValues[m.param_id]=m.param_value;
+    if(sensors&&m.mavpackettype==='PARAM_VALUE'&&m.param_index>=0&&m.param_index<65535){sensors.indices.add(m.param_index);sensors.count=m.param_count;}
     if(m.mavpackettype==='STATUSTEXT')process.stderr.write(`SITL ${timeS.toFixed(2)} ${m.text}\n`);
   } catch(error){fail(error);}
 });
@@ -126,6 +155,14 @@ physics.on('message',(bytes,peer)=>{
     quad.step(throttle,1/800,experiment?.thrustFractions??null);timeS=lock.stats.steps/800;
     const t=quad.truth;
     state.timestampS=timeS;state.gyroBodyRadS.set(t.angularVelocityBodyRadS);state.accelBodyMps2.set(quad.specificForce);
+    if(sensors) {
+      // Angular acceleration by the same backward difference that gives the specific force.
+      for(let i=0;i<3;i++){sensors.angularAcceleration[i]=(t.angularVelocityBodyRadS[i]-sensors.previousRate[i])*800;sensors.previousRate[i]=t.angularVelocityBodyRadS[i];}
+      if(!sensors.imu.stepInto(quad.specificForce,t.angularVelocityBodyRadS,sensors.angularAcceleration,sensors.accel,sensors.gyro))throw Error('Invalid IMU sample');
+      if(!sensors.battery.stepInto(BATTERY_TRUTH_V,BATTERY_TRUTH_A,sensors.measured))throw Error('Invalid battery sample');
+      state.accelBodyMps2.set(sensors.accel);state.gyroBodyRadS.set(sensors.gyro);
+      state.batteryVoltageV=sensors.measured[0];state.batteryCurrentA=sensors.measured[1];state.batteryValid=true;
+    }
     state.positionNedM.set(t.positionNedM);state.velocityNedMps.set(t.velocityNedMps);state.quaternionWxyz.set(t.quaternionBodyToNed);
     if(experiment) {
       experiment.advance(timeS);
@@ -143,6 +180,11 @@ physics.on('message',(bytes,peer)=>{
       if(heartbeat&&timeS-floorRequestS>=5) {command({kind:'read-parameters',names:floorChecks.map(check=>check.name)});floorRequestS=timeS;}
       if(timeS>=FLOOR_CONFIRM_DEADLINE_S)throw Error(`Firmware did not report ${floorChecks.map(check=>`${check.name}=${check.value}`).join(' and ')}; `+
         'MIRAGE_SITL_IMU_NOISE_FLOOR=off needs firmware built by scripts/build-ardupilot-sitl.mjs');
+    }
+    if(sensors&&sensorsConfirmedS===null) {
+      if(sensorsConfirmed())sensorsConfirmedS=timeS;
+      else if(heartbeat&&!sensorsListed()&&timeS-sensors.requestS>=5){telemetry.stdin.write(JSON.stringify({kind:'parameters'})+'\n');sensors.requestS=timeS;}
+      if(timeS>=SENSOR_CONFIRM_DEADLINE_S)throw Error('Firmware did not report the generated sensor parameters before arming');
     }
     const n=lock.completeStepInto(state,reply);if(!n)throw Error('Invalid JSON state');
     physics.send(reply.subarray(0,n),peer.port,peer.address);
@@ -168,7 +210,7 @@ physics.on('message',(bytes,peer)=>{
       autopilotPosition:global?{lat:global.lat,lon:global.lon,alt:global.alt,relative_alt:global.relative_alt}:null,
       positionAgeS:global?timeS-global.timeS:null});
     if(timeS-lastCommand>1) {
-      if(stage==='warmup'&&ready&&floorConfirmed()) {if(mode!==4)command({kind:'mode',mode:4});else command({kind:'arm'});}
+      if(stage==='warmup'&&ready&&floorConfirmed()&&(!sensors||sensorsConfirmedS!==null)) {if(mode!==4)command({kind:'mode',mode:4});else command({kind:'arm'});}
       else if(stage==='arm'&&armed)command({kind:'takeoff'});
     }
     if(stage==='warmup'&&armed&&ready&&mode===4)stage='arm';
@@ -219,6 +261,9 @@ writeFileSync(join(directory,'flight.json'),JSON.stringify(trace)+'\n');
 writeFileSync(join(directory,'run.json'),JSON.stringify({status:failure?'FAIL':'captured',failure:failure?.message,configuration,commands,timeS,wallS:(performance.now()-start)/1000,stats:lock.stats,
   ...(experiment?{experiment:{caseId:experiment.id,plan:PLAN,faultStart,faultEnd,experimentEnd},parameterValues}:{}),
   imuNoiseFloor:{setting:imuNoiseFloor,expected:floorChecks,reported:Object.fromEntries(floorChecks.map(check=>[check.name,parameterValues[check.name]??null]))},
+  ...(sensors?{sensors:{inputSha256:sha(sensorInput),seed:sensors.input.seed,configuration:sensors.input.configuration,matrixId:sensors.runtime.matrix.id,
+    expected:sensors.runtime.parameters,reported:Object.fromEntries(sensors.runtime.parameters.map(p=>[p.name,parameterValues[p.name]??null])),
+    parameterCount:sensors.count,listedParameters:sensors.indices.size,confirmedS:sensorsConfirmedS,residuals:sensors.runtime.residuals.map(r=>r.id)}}:{}),
   sourceInputs,wasmSha256:sha(wasm),node:process.version,python,firmwarePid:firmware.pid,telemetryPid:telemetry.pid,
   warmup:{firstReady,imuSource:gate.imuSource,epoch:1,configuredSpeed:2,disposedReady:gate.warmup.ready,disposedEwAllowed:gate.warmup.ewAllowed,parserFrames:gate.parser.frames,badCrc:gate.parser.badCrc},
   childExit:[{pid:firmware.pid,code:firmware.exitCode,signal:firmware.signalCode},{pid:telemetry.pid,code:telemetry.exitCode,signal:telemetry.signalCode}],

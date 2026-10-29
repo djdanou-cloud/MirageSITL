@@ -21,6 +21,7 @@ import {
 } from '../packages/aircraft/src/derive-manifest.ts';
 import {
   engineSensitiveVariant, FIXTURE_MODEL_ID, FIXTURE_NAMES, RECORDED_ENGINE_SENSITIVE_SHA256, RECORDED_MANIFEST_SHA256,
+  RECORDED_V1_ENGINE_SENSITIVE_SHA256, RECORDED_V1_MANIFEST_SHA256,
   syntheticComponents, type FixtureName,
 } from './support/aircraft-derivation.ts';
 
@@ -32,6 +33,19 @@ const INERTIA_TOLERANCE_RELATIVE = 1e-12;
 type Vector = [number, number, number];
 type Mutable<T> = { -readonly [K in keyof T]: Mutable<T[K]> };
 type ProfileData = Mutable<AircraftProfile>;
+
+/**
+ * SHA-256 of a derivation 2 manifest with its dataset put back to derivation 1:
+ * the version in the input hash and in the description. Without IMU mounts
+ * nothing else changed, so it must equal the TASK-138 recording.
+ */
+function asDerivation1(manifest: VehicleManifest, profile: unknown, components: ResolvedComponents): string {
+  const hash = (value: unknown) => createHash('sha256').update(canonicalBytes(value)).digest('hex');
+  const [dataset] = manifest.datasets;
+  if (!dataset || dataset.kind !== 'synthetic' || manifest.sensorMounts.length > 0) throw new Error('Expected one synthetic dataset and no sensor mounts');
+  return hash({ ...manifest, datasets: [{ ...dataset, sourceSha256: hash({ derivationVersion: 1, profile: validateAircraftProfile(profile), components }),
+    derivation: dataset.derivation.replace('derivation 2 ', 'derivation 1 ') }] });
+}
 
 function fixture(name: FixtureName): ProfileData {
   const parsed: unknown = JSON.parse(readFileSync(new URL(`./fixtures/aircraft/${name}.json`, import.meta.url), 'utf8'));
@@ -285,7 +299,7 @@ describe('manifest derivation', () => {
     const hash = (value: unknown) => createHash('sha256').update(canonicalBytes(value)).digest('hex');
     const validated = validateAircraftProfile(profile), components = syntheticComponents(validated);
     expect(derived.profileSha256).toBe(hash(validated));
-    expect(derived.inputSha256).toBe(hash({ derivationVersion: 1, profile: validated, components }));
+    expect(derived.inputSha256).toBe(hash({ derivationVersion: 2, profile: validated, components }));
     // The bytes are the canonical form of the manifest, and the session registry admits them.
     const parsed: unknown = JSON.parse(new TextDecoder().decode(derived.bytes));
     expect(parsed).toEqual(manifest);
@@ -310,12 +324,14 @@ describe('manifest derivation', () => {
       expect(Buffer.from(second.bytes).equals(Buffer.from(first.bytes)), name).toBe(true);
       expect(second.sha256).toBe(first.sha256);
       expect(first.sha256, `${name} recorded bytes`).toBe(RECORDED_MANIFEST_SHA256[name]);
+      expect(asDerivation1(first.manifest, profile, components), `${name} derivation 1 bytes`).toBe(RECORDED_V1_MANIFEST_SHA256[name]);
     }
     // Arm angles at which Node's and Chromium's Math functions disagree; the browser test derives the same bytes.
     const variant = engineSensitiveVariant(validateAircraftProfile(fixture('octa-coaxial-16')));
     const sensitive = await deriveVehicleManifest(variant, syntheticComponents(validateAircraftProfile(variant)), { modelId: FIXTURE_MODEL_ID });
     checkAgainstOracle(structuredClone(validateAircraftProfile(variant)) as ProfileData, deriveLayout(validateAircraftProfile(variant)).rotors);
     expect(sensitive.sha256).toBe(RECORDED_ENGINE_SENSITIVE_SHA256);
+    expect(asDerivation1(sensitive.manifest, variant, syntheticComponents(validateAircraftProfile(variant)))).toBe(RECORDED_V1_ENGINE_SENSITIVE_SHA256);
   });
 
   test('a change to geometry or components changes the manifest; the model ID is the only other input', async () => {

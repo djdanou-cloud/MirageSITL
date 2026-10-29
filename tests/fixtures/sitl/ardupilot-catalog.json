@@ -67,6 +67,36 @@
       "path": "Tools/autotest/default_params/copter.parm",
       "sha256": "5e01345b45d1c6190b28bece5638bbdd4cf1cce35e05bbbf480ab24d2b51aa0e",
       "bytes": 1957
+    },
+    {
+      "path": "libraries/SITL/SIM_config.h",
+      "sha256": "bd9cdf29c28badb34494f9f1a1528b33dd1a7ce9f6c086d53da2f2508fa40b48",
+      "bytes": 14329
+    },
+    {
+      "path": "libraries/AP_HAL_SITL/SITL_State_common.cpp",
+      "sha256": "ca7074bfc68bf628477e8341d701ce35c6e664051ee3d730636f13a75e949132",
+      "bytes": 18597
+    },
+    {
+      "path": "libraries/AP_HAL_SITL/AnalogIn.cpp",
+      "sha256": "68e07f80ae1a5c51cc91bd16695cc9e601977e834007466f65156939412e2ddf",
+      "bytes": 1535
+    },
+    {
+      "path": "libraries/AP_HAL/board/sitl.h",
+      "sha256": "cf8544e7427aec11a4c12bfe4a33d9e1c9791eead9d774b9eb1252cd4c79a11e",
+      "bytes": 3285
+    },
+    {
+      "path": "libraries/AP_BattMonitor/AP_BattMonitor_Analog.cpp",
+      "sha256": "c2335c68cee67873e690cac354e3c62a804e033094c6fc54e031050033be929b",
+      "bytes": 7954
+    },
+    {
+      "path": "libraries/AP_Math/AP_Math.cpp",
+      "sha256": "33ba521353972aa095bcc69cb35c295665f3aa66556e6bbed5413f9e649fccaa",
+      "bytes": 16590
     }
   ],
   "simParameters": [
@@ -3553,6 +3583,116 @@
       "id": "param-defaults-unknown-skipped",
       "path": "libraries/AP_Param/AP_Param.cpp",
       "text": "Ignored unknown param %s in defaults file %s\\n"
+    },
+    {
+      "id": "ins-imu-orient-accel",
+      "path": "libraries/AP_InertialSensor/AP_InertialSensor_SITL.cpp",
+      "text": "accel_accum.rotate(sitl->imu_orientation);"
+    },
+    {
+      "id": "ins-imu-orient-gyro",
+      "path": "libraries/AP_InertialSensor/AP_InertialSensor_SITL.cpp",
+      "text": "gyro_accum.rotate(sitl->imu_orientation);"
+    },
+    {
+      "id": "compass-orient",
+      "path": "libraries/SITL/SIM_Compass.cpp",
+      "text": "v.rotate_inverse((enum Rotation)mag_orient[instance].get());"
+    },
+    {
+      "id": "compass-stock-offsets",
+      "path": "libraries/SITL/SITL.h",
+      "text": "mag_ofs[i].set(Vector3f(5, 13, -18));"
+    },
+    {
+      "id": "sim-gps-enabled",
+      "path": "libraries/SITL/SIM_config.h",
+      "text": "#define AP_SIM_GPS_ENABLED AP_SIM_ENABLED"
+    },
+    {
+      "id": "gps-first-enabled",
+      "path": "libraries/SITL/SIM_GPS.cpp",
+      "text": "_sitl->gps[0].enabled.set(1);"
+    },
+    {
+      "id": "gps-wander-period",
+      "path": "libraries/SITL/SIM_GPS.cpp",
+      "text": "const float gps_wander_angle_rad = now_ms * 0.0005f;"
+    },
+    {
+      "id": "gps-horizontal-wander",
+      "path": "libraries/SITL/SIM_GPS.cpp",
+      "text": "const float lat_wander_m = params.noise_horizontal * sinf(gps_wander_angle_rad);"
+    },
+    {
+      "id": "gps-vertical-wander",
+      "path": "libraries/SITL/SIM_GPS.cpp",
+      "text": "d.altitude = altitude + params.noise_vertical * sinf(gps_wander_angle_rad) + params.alt_offset;"
+    },
+    {
+      "id": "gps-velocity-error",
+      "path": "libraries/SITL/SIM_GPS.cpp",
+      "text": "d.speedN = speedN + (velErrorNED.x * rand_float());"
+    },
+    {
+      "id": "gps-lag",
+      "path": "libraries/SITL/SIM_GPS.cpp",
+      "text": "d = interpolate_data(d, params.delay_ms);"
+    },
+    {
+      "id": "json-battery-voltage",
+      "path": "libraries/SITL/SIM_JSON.cpp",
+      "text": "battery_voltage = state.bat_volt;"
+    },
+    {
+      "id": "json-battery-current",
+      "path": "libraries/SITL/SIM_JSON.cpp",
+      "text": "battery_current = state.bat_amp;"
+    },
+    {
+      "id": "analog-voltage-pin",
+      "path": "libraries/AP_HAL_SITL/SITL_State_common.cpp",
+      "text": "voltage_pin_voltage = (voltage / 10.1f);"
+    },
+    {
+      "id": "analog-current-pin",
+      "path": "libraries/AP_HAL_SITL/SITL_State_common.cpp",
+      "text": "current_pin_voltage = current_amp / 17.0f;"
+    },
+    {
+      "id": "analog-average-is-latest",
+      "path": "libraries/AP_HAL_SITL/AnalogIn.cpp",
+      "text": "float ADCSource::voltage_average() {\n    return voltage_latest();"
+    },
+    {
+      "id": "battery-voltage-scale",
+      "path": "libraries/AP_HAL/board/sitl.h",
+      "text": "#define HAL_BATT_VOLT_SCALE                10.1f"
+    },
+    {
+      "id": "battery-current-scale",
+      "path": "libraries/AP_HAL/board/sitl.h",
+      "text": "#define HAL_BATT_CURR_SCALE                17.0f"
+    },
+    {
+      "id": "battery-analog-voltage",
+      "path": "libraries/AP_BattMonitor/AP_BattMonitor_Analog.cpp",
+      "text": "_state.voltage = (_volt_pin_analog_source->voltage_average() - _volt_offset) * _volt_multiplier;"
+    },
+    {
+      "id": "battery-analog-current",
+      "path": "libraries/AP_BattMonitor/AP_BattMonitor_Analog.cpp",
+      "text": "_state.current_amps = (_curr_pin_analog_source->voltage_average() - _curr_amp_offset) * _curr_amp_per_volt;"
+    },
+    {
+      "id": "rand-float-uniform",
+      "path": "libraries/AP_Math/AP_Math.cpp",
+      "text": "return ((((unsigned)random()) % 2000000) - 1.0e6) / 1.0e6;"
+    },
+    {
+      "id": "rand-vec3f-uniform",
+      "path": "libraries/AP_Math/AP_Math.cpp",
+      "text": "Vector3f rand_vec3f(void)\n{\n    return Vector3f{\n        rand_float(),\n        rand_float(),\n        rand_float()\n    };"
     }
   ],
   "patches": [

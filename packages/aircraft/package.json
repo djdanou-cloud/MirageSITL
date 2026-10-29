@@ -14,13 +14,15 @@
     "./sensor-fields": "./src/sensor-fields.ts",
     "./sensor-config": "./src/sensor-config.ts",
     "./sensor-presets": "./src/sensor-presets.ts",
-    "./sensor-ownership": "./src/sensor-ownership.ts"
+    "./sensor-ownership": "./src/sensor-ownership.ts",
+    "./sensor-parameters": "./src/sensor-parameters.ts"
   },
   "dependencies": {
     "@mirage/autopilot": "0.1.0",
     "@mirage/physics": "0.1.0",
     "@mirage/project": "0.1.0",
     "@mirage/protocol": "0.1.0",
+    "@mirage/sensors": "0.1.0",
     "ajv": "8.20.0"
   }
 }

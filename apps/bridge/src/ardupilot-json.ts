@@ -61,6 +61,15 @@ export function validateStateLine(bytes: Uint8Array): string | null {
   if (o.position !== undefined && !finiteArray(o.position, 3)) return "position";
   if (!finiteArray(o.quaternion, 4) && !finiteArray(o.attitude, 3)) return "attitude or quaternion";
   if (o.velocity_wind !== undefined && !finiteArray(o.velocity_wind, 3)) return "velocity_wind";
+  // TASK-147: the measured battery values; SIM_JSON reads each as a float.
+  if (o.battery !== undefined) {
+    const battery = o.battery;
+    if (typeof battery !== "object" || battery === null || Array.isArray(battery)) return "battery";
+    for (const key of ["voltage", "current"]) {
+      const value: unknown = Reflect.get(battery, key);
+      if (value !== undefined && (typeof value !== "number" || !Number.isFinite(value))) return "battery";
+    }
+  }
   // strstr semantics: the first occurrence of each present key's text must be that key.
   for (const [section, key] of SIM_JSON_KEYTABLE) {
     const sectionAt = section === "" ? 0 : text.indexOf(section);

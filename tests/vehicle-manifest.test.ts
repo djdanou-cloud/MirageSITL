@@ -229,13 +229,23 @@ describe('v1 migration and runtime projection', () => {
   });
 
   it('fails closed for sections the v1 runtime cannot consume and shifts hubs to the CG', () => {
-    expect(() => projectVehicleToModelV1(quad)).toThrow(/motors \(TASK-092\).*airframeDrag \(TASK-096\).*sensorMounts \(TASK-114\)/);
+    expect(() => projectVehicleToModelV1(quad)).toThrow(/motors \(TASK-092\).*airframeDrag \(TASK-096\)/);
+    expect(() => projectVehicleToModelV1(quad)).not.toThrow(/sensorMounts/);
     const bodyOnly = validateVehicleManifest(edit(c => {
       c.motors = []; c.escs = []; c.battery = null; c.airframe = { drag: null }; c.sensorMounts = []; c.ardupilot = null;
       c.datasets = [c.datasets[0]!];
       c.provenance = { ...c.provenance, motors: null, escs: null, battery: null, airframeDrag: null, sensorMounts: null };
     }));
     const runtime = projectVehicleToModelV1(bodyOnly), cg = quad.massProperties.cgOffsetBodyM;
+    // The sensor pipeline consumes the mounts (TASK-147); they never change the rigid-body projection.
+    expect(quad.sensorMounts.length).toBeGreaterThan(0);
+    const mounted = validateVehicleManifest(edit(c => {
+      c.motors = []; c.escs = []; c.battery = null; c.airframe = { drag: null }; c.ardupilot = null;
+      c.datasets = [c.datasets[0]!];
+      c.provenance = { ...c.provenance, motors: null, escs: null, battery: null, airframeDrag: null };
+    }));
+    expect(mounted.sensorMounts).toEqual(quad.sensorMounts);
+    expect(projectVehicleToModelV1(mounted)).toEqual(runtime);
     expect(runtime.massKg).toBe(1.5);
     expect(runtime.inertiaBodyKgM2).toEqual(quad.massProperties.inertiaCgKgM2);
     for (let i = 0; i < 4; i++) {

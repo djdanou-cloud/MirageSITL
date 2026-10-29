@@ -1,8 +1,10 @@
 import {
-  validateVehicleManifest, type BatterySpec, type MassProperties, type VehicleManifest,
+  validateVehicleManifest, type BatterySpec, type MassProperties, type SensorMount, type VehicleManifest,
 } from '@mirage/physics/vehicle-manifest';
 import { canonicalBytes, decodeUtf8, sha256Hex } from '@mirage/project/schema';
 import { deriveLayout } from './layout.ts';
+import type { EulerZyxRad } from './sensor-fields.ts';
+import { sinCos } from './trig.ts';
 import { validateAircraftProfile, type AircraftProfile, type ComponentReferences } from './profile.ts';
 
 // Derivation of the vehicle manifest v2 (TASK-087) that physics consumes from
@@ -12,8 +14,8 @@ import { validateAircraftProfile, type AircraftProfile, type ComponentReferences
 // canonical JSON (RFC 8785): the same inputs give the same bytes on every
 // engine. Configuration-time code only.
 
-/** Bumped whenever the same inputs would give different manifest bytes. */
-export const DERIVATION_VERSION = 1;
+/** Bumped whenever the same inputs would give different manifest bytes; 2 adds the IMU mount (TASK-147). */
+export const DERIVATION_VERSION = 2;
 /** The one dataset of a derived manifest. */
 export const DERIVED_DATASET_ID = 'aircraft-profile-derivation';
 const MAX_DESCRIPTION_LENGTH = 1024;
@@ -127,10 +129,30 @@ export function combineMassProperties(aircraft: MassProperties, payload: MassPro
 
 /**
  * Derives the vehicle manifest v2 of a profile with resolved components. The
- * manifest has `kind: "bet"`, no ArduPilot frame declaration (TASK-142), no
- * sensor mounts (TASK-143) and one synthetic dataset that names the exact
+ * manifest has `kind: "bet"`, no ArduPilot frame declaration (TASK-142), an
+ * IMU mount only when the sensor configuration states the IMU position or
+ * orientation (TASK-147), and one synthetic dataset that names the exact
  * inputs; motors, ESCs and the battery appear only when resolved.
  */
+/**
+ * The IMU mount of a sensor configuration: its position, or the CG when only
+ * the orientation is stated, and the sensor-to-body quaternion of
+ * R = Rz(yaw)·Ry(pitch)·Rx(roll) from engine-independent sines and cosines.
+ */
+function imuMounts(profile: AircraftProfile, mass: MassProperties): SensorMount[] {
+  const imu = profile.sensorConfiguration?.imu;
+  if (!imu || (imu.positionBodyM === null && imu.orientationRad === null)) return [];
+  return [{ sensor: 'imu', instance: 0, positionBodyM: [...(imu.positionBodyM ?? mass.cgOffsetBodyM)], sensorToBody: mountQuaternion(imu.orientationRad) }];
+}
+function mountQuaternion(angles: EulerZyxRad | null): number[] {
+  if (angles === null) return [1, 0, 0, 0];
+  const r = sinCos(angles[0] / 2), p = sinCos(angles[1] / 2), y = sinCos(angles[2] / 2);
+  const q = [y.cos * p.cos * r.cos + y.sin * p.sin * r.sin, y.cos * p.cos * r.sin - y.sin * p.sin * r.cos,
+    y.cos * p.sin * r.cos + y.sin * p.cos * r.sin, y.sin * p.cos * r.cos - y.cos * p.sin * r.sin];
+  const norm = Math.sqrt(q[0]! * q[0]! + q[1]! * q[1]! + q[2]! * q[2]! + q[3]! * q[3]!), sign = q[0]! < 0 ? -1 : 1;
+  return q.map(value => (sign * value) / norm);
+}
+
 export async function deriveVehicleManifest(input: unknown, components: ResolvedComponents,
   options: DerivationOptions): Promise<DerivedVehicleManifest> {
   const profile = validateAircraftProfile(input);
@@ -153,6 +175,8 @@ export async function deriveVehicleManifest(input: unknown, components: Resolved
     return values ? [{ ...values, id: rotor.motorId, motorId: rotor.motorId }] : [];
   });
   const battery = components.battery ? { ...components.battery.values } : null;
+  const massProperties = combineMassProperties(profile.massProperties, profile.payload);
+  const sensorMounts = imuMounts(profile, massProperties);
   const rotorWakePairs = layout.wakePairs.map(pair =>
     ({ upstreamRotorId: pair.upstreamMotorId, downstreamRotorId: pair.downstreamMotorId }));
   const dataset = DERIVED_DATASET_ID;
@@ -167,12 +191,12 @@ export async function deriveVehicleManifest(input: unknown, components: Resolved
     provenance: {
       massProperties: dataset, rotors: dataset, motors: motors.length > 0 ? dataset : null,
       escs: escs.length > 0 ? dataset : null, battery: battery ? dataset : null, airframeDrag: null,
-      controlSurfaces: null, landingGear: null, sensorMounts: null,
+      controlSurfaces: null, landingGear: null, sensorMounts: sensorMounts.length > 0 ? dataset : null,
       rotorWakePairs: rotorWakePairs.length > 0 ? dataset : null,
     },
-    massProperties: combineMassProperties(profile.massProperties, profile.payload),
+    massProperties,
     rotorCount: rotors.length, rotorCapacity: 32, rotors, motors, escs, battery,
-    airframe: { drag: null }, controlSurfaces: [], landingGear: [], sensorMounts: [], rotorWakePairs, ardupilot: null,
+    airframe: { drag: null }, controlSurfaces: [], landingGear: [], sensorMounts, rotorWakePairs, ardupilot: null,
   };
   // The canonical JSON round trip turns any -0 from the inputs into 0, so the manifest equals its bytes exactly.
   const manifest = validateVehicleManifest(JSON.parse(decodeUtf8(canonicalBytes(candidate))));

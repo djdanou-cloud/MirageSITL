@@ -43,10 +43,11 @@ function summary(stored: StoredVersion): string {
   }
 }
 function ownerText(spec: SensorFieldSpec, ideal: boolean): string {
-  if (spec.owner === "unassigned") return "Nobody yet";
-  if (!spec.applicable) return "ArduPilot SITL; cannot be set on native-json yet";
+  if (spec.owner === "unassigned") return "Nobody on native-json";
+  if (!spec.applicable) return "ArduPilot SITL; cannot be set on native-json";
   if (spec.owner === "mirage") return ideal ? "MirageSITL, off in Ideal" : "MirageSITL";
-  if (spec.source === "mag.hard-iron") return ideal ? "ArduPilot SITL, stock pairing kept in Ideal" : "ArduPilot SITL";
+  if (spec.source === "mag.hard-iron") return ideal ? "ArduPilot SITL, paired to zero in Ideal" : "ArduPilot SITL";
+  if (!spec.isError) return ideal ? "ArduPilot SITL, kept in Ideal" : "ArduPilot SITL";
   return ideal ? "ArduPilot SITL, switched off in Ideal" : "ArduPilot SITL";
 }
 function statusText(field: ResolvedField | undefined): string {

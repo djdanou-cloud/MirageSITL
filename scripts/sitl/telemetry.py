@@ -29,6 +29,10 @@ def main():
         raise RuntimeError("Firmware MAVLink connection deadline exceeded")
     connection.logfile_raw = open(sys.argv[2], "wb")
     experiment = len(sys.argv) > 3 and sys.argv[3] == "--ew"
+    # TASK-147 sensor probe: also forward the battery readings of SYS_STATUS.
+    sensors = len(sys.argv) > 3 and sys.argv[3] == "--sensors"
+    forwarded = {"HEARTBEAT", "EKF_STATUS_REPORT", "GLOBAL_POSITION_INT", "LOCAL_POSITION_NED", "STATUSTEXT", "COMMAND_ACK",
+                 "EXTENDED_SYS_STATE", "HIGHRES_IMU", "RAW_IMU", "GPS_RAW_INT"} | ({"SYS_STATUS"} if sensors else set())
     if experiment:
         # Capture exactly the outgoing wire bytes, independently audited later.
         transmitted = open(Path(sys.argv[2]).with_name("tx.raw"), "wb")
@@ -78,7 +82,7 @@ def main():
                 for compass in (1, 2, 3):
                     for axis, value in zip("XYZ", request["offsetsMilliGauss"]):
                         connection.mav.param_set_send(1, 1, f"SIM_MAG{compass}_OFS_{axis}".encode(), value, 9)
-            elif experiment and kind == "parameters":
+            elif (experiment or sensors) and kind == "parameters":
                 connection.mav.param_request_list_send(1, 1)
             elif kind == "read-parameters":
                 for name in request["names"]:
@@ -95,7 +99,7 @@ def main():
             if message.get_srcSystem() != 1 or message.get_srcComponent() != 1:
                 continue
             kind = message.get_type()
-            if kind in ("HEARTBEAT", "EKF_STATUS_REPORT", "GLOBAL_POSITION_INT", "LOCAL_POSITION_NED", "STATUSTEXT", "COMMAND_ACK", "EXTENDED_SYS_STATE", "HIGHRES_IMU", "RAW_IMU", "GPS_RAW_INT") or kind == "PARAM_VALUE" and (experiment or message.param_id in requested):
+            if kind in forwarded or kind == "PARAM_VALUE" and (experiment or sensors or message.param_id in requested):
                 emit({"message": message.to_dict(), "wireHex": message.get_msgbuf().hex()})
             if kind == "HEARTBEAT" and not configured:
                 connection.mav.request_data_stream_send(1, 1, 0, 10, 1)

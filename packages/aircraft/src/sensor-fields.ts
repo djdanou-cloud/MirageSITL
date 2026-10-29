@@ -11,8 +11,8 @@ import type { ErrorSourceId } from '@mirage/autopilot/error-ownership';
 // MirageSITL-owned and unassigned fields.
 
 export const SENSOR_CONFIGURATION_SCHEMA_VERSION = 1;
-/** Field-to-owner mapping on native-json; TASK-147 raises it when the TASK-089 taxonomy grows. */
-export const SENSOR_OWNERSHIP_MAPPING_VERSION = 1;
+/** Field-to-owner mapping on native-json; 2 since TASK-147 added the schema 3 sources of the TASK-089 taxonomy. */
+export const SENSOR_OWNERSHIP_MAPPING_VERSION = 2;
 export type SensorPath = 'native-json';
 export type SensorMode = 'ideal' | 'specified';
 export const SENSOR_KINDS = ['imu', 'gnss', 'barometer', 'magnetometer', 'battery'] as const;
@@ -141,9 +141,9 @@ const DEGREES = unit('°', Math.PI, 180);
 const MILLISECONDS = unit('ms', 1000, 1);
 const MILLIGAUSS = unit('mG', 1, 1000);
 
-const GNSS_LOCKED = 'ArduPilot\'s SITL receiver (SIM_GPS1_*) is built under AP_SIM_GPS_ENABLED, a build condition the TASK-089 matrix does not admit yet, and MirageSITL has no GNSS error model; TASK-147 decides the route.';
-const BATTERY_LOCKED = 'The TASK-089 matrix has no battery source and the native JSON state line carries no battery keys yet; TASK-147 adds the delivery, and TASK-092 the battery truth it distorts.';
 const NO_DELIVERY = 'No repository-evidenced path carries this error on the native-json path.';
+const NO_BATTERY_ERROR: ExcludedOwner = { owner: 'ardupilot', basis: 'validator',
+  reason: 'The SITL analog battery chain divides and multiplies by the same scale, so ArduPilot applies no measurement error to the battery values it receives.' };
 const GNSS_POLICY: ExcludedOwner = { owner: 'mirage', basis: 'policy', reason: 'Phase 1 keeps ArduPilot\'s own GNSS receiver; GPS_INPUT arrives at wall-clock times, not in lockstep, and TASK-117 (the GNSS error model) is deferred.' };
 const vectorParameters = (prefix: string, suffix: string, count: number): string[] =>
   Array.from({ length: count }, (_, i) => `${prefix}${i + 1}_${suffix}`);
@@ -191,8 +191,9 @@ export const SENSOR_FIELDS: readonly SensorFieldSpec[] = deepFreeze([
   field('imu.latencyUs', {
     label: 'IMU latency', siUnit: 'µs', display: MILLISECONDS, shape: 'integer',
     minimum: 0, maximum: 100000, exclusiveMinimum: false, rangeBasis: 'At most 100 ms, far beyond any IMU delivery delay.',
-    isError: true, neutral: 0, source: null, owner: 'unassigned', excludedOwners: [], ardupilotParameters: [], stepUs: null,
-    ...locked('ArduPilot SITL has no IMU delay, and the TASK-089 matrix has no IMU latency source yet; TASK-147 adds it.'),
+    isError: true, neutral: 0, source: 'imu.latency', owner: 'mirage',
+    excludedOwners: [{ owner: 'ardupilot', basis: 'validator', reason: 'ArduPilot SITL has no IMU delay.' }],
+    ardupilotParameters: [], stepUs: null, presettable: false, ...open,
   }),
   field('imu.positionBodyM', {
     label: 'IMU position', siUnit: 'm', display: SI, shape: 'vector3',
@@ -204,38 +205,39 @@ export const SENSOR_FIELDS: readonly SensorFieldSpec[] = deepFreeze([
   field('imu.orientationRad', {
     label: 'IMU orientation', siUnit: 'rad', display: DEGREES, shape: 'euler',
     minimum: -Math.PI, maximum: Math.PI, exclusiveMinimum: true, rangeBasis: 'Roll and yaw in (-180°, 180°], pitch in [-90°, 90°].',
-    isError: true, neutral: [0, 0, 0], source: null, owner: 'unassigned', excludedOwners: [], ardupilotParameters: ['SIM_IMU_ORIENT'], stepUs: null,
-    ...locked('The TASK-089 matrix has no IMU misalignment source, and SIM_IMU_ORIENT takes only discrete rotations; TASK-147 adds it.'),
+    isError: true, neutral: [0, 0, 0], source: 'imu.misalignment', owner: 'mirage',
+    excludedOwners: [{ owner: 'ardupilot', basis: 'semantics', reason: 'SIM_IMU_ORIENT takes only ArduPilot\'s discrete 45° rotations, so it cannot apply a small misalignment.' }],
+    ardupilotParameters: ['SIM_IMU_ORIENT'], stepUs: null, presettable: false, ...open,
   }),
   field('gnss.updateRateHz', {
     label: 'GNSS update rate', siUnit: 'Hz', display: SI, shape: 'integer',
     minimum: 1, maximum: 20, exclusiveMinimum: false, rangeBasis: '1 to 20 Hz, the navigation rates of the receivers in the sensor catalog.',
     isError: false, neutral: null, source: 'gnss.receiver', owner: 'ardupilot', excludedOwners: [GNSS_POLICY],
-    ardupilotParameters: ['SIM_GPS1_HZ'], stepUs: null, ...locked(GNSS_LOCKED),
+    ardupilotParameters: ['SIM_GPS1_HZ', 'SIM_GPS2_HZ'], stepUs: null, presettable: false, ...open,
   }),
   field('gnss.horizontalSigmaM', {
     label: 'GNSS horizontal position error (1σ per axis)', siUnit: 'm', display: SI, shape: 'scalar',
     minimum: 0, maximum: 100, exclusiveMinimum: false, rangeBasis: 'At most 100 m.',
-    isError: true, neutral: 0, source: 'gnss.receiver', owner: 'ardupilot', excludedOwners: [GNSS_POLICY],
-    ardupilotParameters: ['SIM_GPS1_NOISE'], stepUs: null, ...locked(GNSS_LOCKED),
+    isError: true, neutral: 0, source: 'gnss.position-noise', owner: 'ardupilot', excludedOwners: [GNSS_POLICY],
+    ardupilotParameters: ['SIM_GPS1_HNSE', 'SIM_GPS2_HNSE'], stepUs: null, presettable: true, ...open,
   }),
   field('gnss.verticalSigmaM', {
     label: 'GNSS vertical position error (1σ)', siUnit: 'm', display: SI, shape: 'scalar',
     minimum: 0, maximum: 100, exclusiveMinimum: false, rangeBasis: 'At most 100 m.',
-    isError: true, neutral: 0, source: 'gnss.receiver', owner: 'ardupilot', excludedOwners: [GNSS_POLICY],
-    ardupilotParameters: ['SIM_GPS1_NOISE'], stepUs: null, ...locked(GNSS_LOCKED),
+    isError: true, neutral: 0, source: 'gnss.position-noise', owner: 'ardupilot', excludedOwners: [GNSS_POLICY],
+    ardupilotParameters: ['SIM_GPS1_NOISE', 'SIM_GPS2_NOISE'], stepUs: null, presettable: true, ...open,
   }),
   field('gnss.velocitySigmaMps', {
     label: 'GNSS velocity error (1σ per axis)', siUnit: 'm/s', display: SI, shape: 'scalar',
     minimum: 0, maximum: 10, exclusiveMinimum: false, rangeBasis: 'At most 10 m/s.',
-    isError: true, neutral: 0, source: 'gnss.receiver', owner: 'ardupilot', excludedOwners: [GNSS_POLICY],
-    ardupilotParameters: ['SIM_GPS1_VERR'], stepUs: null, ...locked(GNSS_LOCKED),
+    isError: true, neutral: 0, source: 'gnss.velocity-noise', owner: 'ardupilot', excludedOwners: [GNSS_POLICY],
+    ardupilotParameters: ['SIM_GPS1_VERR', 'SIM_GPS2_VERR'], stepUs: null, presettable: true, ...open,
   }),
   field('gnss.latencyUs', {
     label: 'GNSS latency', siUnit: 'µs', display: MILLISECONDS, shape: 'integer',
     minimum: 0, maximum: 1000000, exclusiveMinimum: false, rangeBasis: 'At most 1 s.',
-    isError: true, neutral: 0, source: 'gnss.receiver', owner: 'ardupilot', excludedOwners: [GNSS_POLICY],
-    ardupilotParameters: ['SIM_GPS1_LAG_MS'], stepUs: 1000, ...locked(GNSS_LOCKED),
+    isError: true, neutral: 0, source: 'gnss.delay', owner: 'ardupilot', excludedOwners: [GNSS_POLICY],
+    ardupilotParameters: ['SIM_GPS1_LAG_MS', 'SIM_GPS2_LAG_MS'], stepUs: 1000, presettable: false, ...open,
   }),
   field('barometer.noiseRmsPa', {
     label: 'Barometer noise (1σ)', siUnit: 'Pa', display: SI, shape: 'scalar',
@@ -276,25 +278,27 @@ export const SENSOR_FIELDS: readonly SensorFieldSpec[] = deepFreeze([
     label: 'Magnetometer position', siUnit: 'm', display: SI, shape: 'vector3',
     minimum: -2, maximum: 2, exclusiveMinimum: false, rangeBasis: 'At most ±2 m from the body reference point per axis.',
     isError: true, neutral: 'at-cg', source: null, owner: 'unassigned', excludedOwners: [], ardupilotParameters: [], stepUs: null,
-    ...locked('ArduPilot\'s SITL field is uniform over the airframe, and the TASK-089 matrix has no magnetometer placement source; TASK-147 adds it.'),
+    ...locked('A uniform Earth field reads the same anywhere on the airframe; only motor and wiring fields depend on the position, and neither owner models them by position (SIM_MAG_MOT is per ampere). No source carries it.'),
   }),
   field('magnetometer.orientationRad', {
     label: 'Magnetometer orientation', siUnit: 'rad', display: DEGREES, shape: 'euler',
     minimum: -Math.PI, maximum: Math.PI, exclusiveMinimum: true, rangeBasis: 'Roll and yaw in (-180°, 180°], pitch in [-90°, 90°].',
-    isError: true, neutral: [0, 0, 0], source: null, owner: 'unassigned', excludedOwners: [], ardupilotParameters: ['SIM_MAG1_ORIENT'], stepUs: null,
-    ...locked('The TASK-089 matrix has no magnetometer orientation source, and SIM_MAGn_ORIENT takes only discrete rotations; TASK-147 adds it.'),
+    isError: true, neutral: [0, 0, 0], source: 'mag.misalignment', owner: 'ardupilot',
+    excludedOwners: [{ owner: 'mirage', basis: 'validator', reason: NO_DELIVERY }],
+    ardupilotParameters: ['SIM_MAG1_ORIENT', 'SIM_MAG2_ORIENT', 'SIM_MAG3_ORIENT'], stepUs: null,
+    ...locked('SIM_MAGn_ORIENT takes only ArduPilot\'s discrete 45° rotations, and MirageSITL delivers no magnetometer data on native-json; a small misalignment needs a firmware change (decision D-10).'),
   }),
   ...([
-    ['battery.voltageGainError', 'Voltage gain error', '1', -0.1, 0.1, 'At most ±10 %.'],
-    ['battery.voltageOffsetV', 'Voltage offset', 'V', -2, 2, 'At most ±2 V.'],
-    ['battery.voltageNoiseRmsV', 'Voltage noise (1σ)', 'V', 0, 1, 'At most 1 V.'],
-    ['battery.currentGainError', 'Current gain error', '1', -0.2, 0.2, 'At most ±20 %.'],
-    ['battery.currentOffsetA', 'Current offset', 'A', -20, 20, 'At most ±20 A.'],
-    ['battery.currentNoiseRmsA', 'Current noise (1σ)', 'A', 0, 10, 'At most 10 A.'],
-  ] as const).map(([path, label, siUnit, minimum, maximum, rangeBasis]) => field(path, {
+    ['battery.voltageGainError', 'Voltage gain error', '1', -0.1, 0.1, 'At most ±10 %.', 'battery.voltage', false],
+    ['battery.voltageOffsetV', 'Voltage offset', 'V', -2, 2, 'At most ±2 V.', 'battery.voltage', false],
+    ['battery.voltageNoiseRmsV', 'Voltage noise (1σ)', 'V', 0, 1, 'At most 1 V.', 'battery.voltage', true],
+    ['battery.currentGainError', 'Current gain error', '1', -0.2, 0.2, 'At most ±20 %.', 'battery.current', false],
+    ['battery.currentOffsetA', 'Current offset', 'A', -20, 20, 'At most ±20 A.', 'battery.current', false],
+    ['battery.currentNoiseRmsA', 'Current noise (1σ)', 'A', 0, 10, 'At most 10 A.', 'battery.current', true],
+  ] as const).map(([path, label, siUnit, minimum, maximum, rangeBasis, source, presettable]) => field(path, {
     label, siUnit, display: SI, shape: 'scalar', minimum, maximum, exclusiveMinimum: false, rangeBasis,
-    isError: true, neutral: 0, source: null, owner: 'unassigned', excludedOwners: [], ardupilotParameters: [], stepUs: null,
-    ...locked(BATTERY_LOCKED),
+    isError: true, neutral: 0, source, owner: 'mirage', excludedOwners: [NO_BATTERY_ERROR], ardupilotParameters: [], stepUs: null,
+    presettable, ...open,
   })),
 ]);
 

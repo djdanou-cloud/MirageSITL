@@ -14,6 +14,7 @@
     { "origin": "http://127.0.0.1", "use": "loopback", "reason": "The loopback bridge, local preview servers and Worker checks bind to the local machine only." },
     { "origin": "http://127.0.0.1:5174", "use": "loopback", "reason": "Local preview server of scripts/probe-laptop.mjs." },
     { "origin": "http://127.0.0.1:5175", "use": "loopback", "reason": "Local preview server of scripts/check-gpu-perf.mjs." },
+    { "origin": "ws://127.0.0.1", "use": "loopback", "reason": "The TASK-129 pause probe's WebSocket client of the loopback bridge (scripts/sitl/pause-probe.mjs)." },
     { "origin": "http://localhost", "use": "loopback", "reason": "Base URL for resolving relative material URLs and the local tiles-worker development binding." },
     { "origin": "http://localhost:5173", "use": "loopback", "reason": "Default Vite development origin accepted by the loopback bridge." },
     { "origin": "http://json-schema.org", "use": "identifier", "reason": "JSON Schema draft-07 $schema identifier; never fetched." },

@@ -76,11 +76,16 @@ export interface SitlPhysicsState {
   /** NED wind, m/s; written as velocity_wind when `windValid`. */
   readonly windNedMps: Float64Array;
   windValid: boolean;
+  /** Measured pack voltage and current (TASK-147); written as the battery section when `batteryValid`. */
+  batteryVoltageV: number;
+  batteryCurrentA: number;
+  batteryValid: boolean;
 }
 export function newSitlPhysicsState(): SitlPhysicsState {
   return { timestampS: 0, gyroBodyRadS: new Float64Array(3), accelBodyMps2: new Float64Array(3),
     positionNedM: new Float64Array(3), velocityNedMps: new Float64Array(3),
-    quaternionWxyz: new Float64Array([1, 0, 0, 0]), windNedMps: new Float64Array(3), windValid: false };
+    quaternionWxyz: new Float64Array([1, 0, 0, 0]), windNedMps: new Float64Array(3), windValid: false,
+    batteryVoltageV: 0, batteryCurrentA: 0, batteryValid: false };
 }
 
 export interface ExternalSitlStats {
@@ -95,6 +100,8 @@ const KEY = {
   open: ASCII('\n{"timestamp":'), gyro: ASCII(',"imu":{"gyro":['), accel: ASCII('],"accel_body":['),
   position: ASCII(']},"position":['), velocity: ASCII('],"velocity":['), quaternion: ASCII('],"quaternion":['),
   wind: ASCII('],"velocity_wind":['), close: ASCII("]}\n"),
+  // SIM_JSON finds "battery" and then each key after it; neither text occurs earlier in the line.
+  battery: ASCII('],"battery":{"voltage":'), current: ASCII(',"current":'), batteryClose: ASCII("}}\n"),
 };
 
 /**
@@ -280,6 +287,12 @@ export function encodeStateLineInto(state: SitlPhysicsState, out: Uint8Array): n
     p = put(out, p, KEY.wind);
     if (p >= 0) p = writeVector(out, p, state.windNedMps, 3, 1);
   }
-  if (p >= 0) p = put(out, p, KEY.close);
+  if (p >= 0 && state.batteryValid) {
+    p = put(out, p, KEY.battery);
+    if (p >= 0) p = writeNumber(out, p, state.batteryVoltageV);
+    if (p >= 0) p = put(out, p, KEY.current);
+    if (p >= 0) p = writeNumber(out, p, state.batteryCurrentA);
+    if (p >= 0) p = put(out, p, KEY.batteryClose);
+  } else if (p >= 0) p = put(out, p, KEY.close);
   return p > 0 ? p : 0;
 }

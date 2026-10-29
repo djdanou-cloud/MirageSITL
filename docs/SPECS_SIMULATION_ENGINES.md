@@ -2880,7 +2880,7 @@ rotorless body:
 | `airframe.drag` | `dragAreaBodyM2` (C_D·A tensor, m²), `centerOfPressureBodyM` | symmetric positive definite, so drag always dissipates | TASK-096 |
 | `controlSurfaces` (≤16) | `id`, `function`, `actuatorChannel`, deflection limits within ±π/2, `rateLimitRadS` | unique IDs and channels, not a rotor channel, min < max | TASK-109 |
 | `landingGear` (≤8) | the `ContactWheel` fields plus `id`; anchor from the reference point | unique IDs, rim < tire, last tire knot ≥ tire − rim; strut and tire laws stay native | TASK-095 |
-| `sensorMounts` (≤32) | `sensor`, `instance` (0–7), `positionBodyM`, `sensorToBody` | unique sensor/instance pairs, quaternion norm within 1e-6 | TASK-114 |
+| `sensorMounts` (≤32) | `sensor`, `instance` (0–7), `positionBodyM`, `sensorToBody` | unique sensor/instance pairs, quaternion norm within 1e-6 | the sensor pipeline (TASK-147); never the rigid body |
 | `rotorWakePairs` (≤64) | `upstreamRotorId`, `downstreamRotorId` | known rotors, no self or duplicate pairs, acyclic | TASK-101 |
 | `ardupilot` | `vehicle: "copter"`, `frameClass`, `frameType` | only 1/1 (quad X) is admitted, with the geometry check below | parameter profile |
 
@@ -3274,6 +3274,12 @@ patch declared, the floors behave as follows:
 Without the patch, any owner other than `ardupilot` is rejected. A profile that
 needs patched firmware appends `; patches <id> <sha256>` to its second header
 line; upstream profiles are unchanged.
+
+Ownership matrix schema 3 (TASK-147) adds eight sources: IMU latency and
+misalignment, magnetometer misalignment, the SITL GNSS receiver's position
+noise, velocity noise and delay, and battery voltage and current. A schema 1 or
+2 matrix reads each of them as its stock owner and keeps its profile; section
+"Sensor errors in the external-SITL path" has the table.
 
 The setting is `imuNoiseFloorMatrix('ardupilot' | 'off', path)`. On the command
 line:
@@ -4016,7 +4022,8 @@ values. The derived manifest holds:
 | `rotorWakePairs` | One per coaxial pair, from the upper rotor to the lower one |
 | `massProperties` | The aircraft and the payload: combined mass and CG, both inertias moved to it by the parallel-axis theorem |
 | `datasets` | One synthetic dataset, `aircraft-profile-derivation`, whose source SHA-256 is that of the canonical derivation input |
-| `ardupilot`, `airframe.drag`, `sensorMounts`, `landingGear`, `controlSurfaces` | Null or empty; TASK-142, TASK-096, TASK-147 and TASK-187 own them |
+| `sensorMounts` | The IMU mount when the sensor configuration states the IMU position or orientation (derivation 2, TASK-147); otherwise empty |
+| `ardupilot`, `airframe.drag`, `landingGear`, `controlSurfaces` | Null or empty; TASK-142, TASK-096 and TASK-187 own them |
 
 With d_i = c_i − c for each part's CG c_i and the combined CG c:
 
@@ -4026,7 +4033,8 @@ J = \sum_i \left( J_i + m_i\left(\lVert d_i \rVert^2 \mathbf{1} - d_i d_i^{\math
 
 `profileSha256` is the SHA-256 of the profile's canonical JSON, so renaming the
 stored profile changes nothing. `inputSha256` is the SHA-256 of the canonical
-`{derivationVersion: 1, profile, components}`. The manifest passes
+`{derivationVersion: 2, profile, components}` (`DERIVATION_VERSION`; 2 since
+TASK-147 added the IMU mount). The manifest passes
 `validateVehicleManifest`, and `bytes` is its RFC 8785 canonical JSON, which a
 `VehicleRegistry` admits unchanged; −0 in the inputs becomes 0. Any change to
 geometry, outputs, mass properties, components or the model ID changes the
@@ -4490,8 +4498,8 @@ the defaults, so the defaults have exactly one encoding (`null`).
 and `null` otherwise, where schema 1 stays 1 and schemas 2 and 3 become 2.
 `bindMeasurements` keeps schema 3, and the Aircraft editor carries the
 configuration unchanged. Existing schema 1 and 2 records are never rewritten,
-and dependencies do not change. The vehicle manifest derivation does not read
-the configuration; `sensorMounts` stays empty until TASK-147.
+and dependencies do not change. Derivation 2 (TASK-147) reads only the IMU
+position and orientation, for the manifest's IMU mount.
 
 ### Schema and fields
 
@@ -4514,10 +4522,10 @@ interface SensorConfiguration {
     gyroNoiseDensityRadSPerSqrtHz: number | null;  // [0, 0.001]
     accelBiasMps2: [number, number, number] | null; // each [-2, 2], constant, sensor axes
     gyroBiasRadS: [number, number, number] | null;  // each [-0.2, 0.2]
-    latencyUs: number | null;                       // integer [0, 100000]; locked in mapping 1
+    latencyUs: number | null;                       // integer [0, 100000]; MirageSITL in mapping 2
     positionBodyM: [number, number, number] | null; // each [-2, 2], body FRD from the reference point; null at the CG
     orientationRad: [number, number, number] | null; }; // roll, yaw (-π, π], pitch [-π/2, π/2]; locked
-  gnss: { preset: PresetReference | null;           // every value locked in mapping 1
+  gnss: { preset: PresetReference | null;           // ArduPilot's receiver in mapping 2
     updateRateHz: number | null;                    // integer [1, 20]
     horizontalSigmaM: number | null;                // [0, 100], 1σ per horizontal axis
     verticalSigmaM: number | null;                  // [0, 100]
@@ -4532,7 +4540,7 @@ interface SensorConfiguration {
     biasGauss: [number, number, number] | null;     // each [-0.4, 0.4], net hard iron after COMPASS_OFS
     positionBodyM: [number, number, number] | null; // locked
     orientationRad: [number, number, number] | null; }; // locked
-  battery: { preset: PresetReference | null;        // every value locked in mapping 1
+  battery: { preset: PresetReference | null;        // MirageSITL in mapping 2
     voltageGainError: number | null; voltageOffsetV: number | null; voltageNoiseRmsV: number | null;
     currentGainError: number | null; currentOffsetA: number | null; currentNoiseRmsA: number | null; };
 }
@@ -4541,7 +4549,9 @@ interface PresetReference { catalogVersion: number; id: string }  // e.g. { cata
 
 ### Ownership mapping 1
 
-`sensor-ownership.ts` gives each field one owner on `native-json`
+Mapping 2 (TASK-147, section "Sensor errors in the external-SITL path")
+replaces this mapping; it stays here as the record of what TASK-143 shipped.
+`sensor-ownership.ts` gave each field one owner on `native-json`
 (`SENSOR_OWNERSHIP_MAPPING_VERSION` 1). The UI offers no owner choice, so it
 cannot produce an inadmissible matrix.
 
@@ -4585,7 +4595,9 @@ others are the stock GNSS receiver, the hard-iron pairing (inferred),
 INS_ACCOFFS and INS_ACCSCAL from the defaults files (inferred), the compiled
 IMU sample rates, the EKF's assumed delays, and ArduPilot's unseeded noise.
 
-For TASK-147: barometer noise maps to SIM_BAROn_RND as a uniform half-width in
+TASK-147 implements these conversions with the gradient at the home altitude
+(section "Sensor errors in the external-SITL path"). As planned here:
+barometer noise maps to SIM_BAROn_RND as a uniform half-width in
 metres, √3·σ·|dh/dp|, and bias to SIM_BAROn_GLITCH = bias·dh/dp, with the ISA
 gradient −0.0832 m/Pa at sea level; latency maps to SIM_BAROn_DELAY in
 milliseconds. Magnetometer noise maps to SIM_MAG_RND = √3·1000·σ mG, and bias
@@ -4614,7 +4626,8 @@ Catalog 1 holds ICM-42688-P (accelerometer 70 µg/√Hz, gyroscope 2.8 mdps/√H
 MS5611-01BA03 (2.7 Pa RMS at OSR 1024, ArduPilot's setting), RM3100 (15 nT at
 cycle count 200), NEO-M9N (2.0 m CEP50, 1.699 m per axis) and INA226 (1.25 mV
 step, 0.361 mV RMS). `applySensorPreset` writes only applicable fields; NEO-M9N
-and INA226 fill nothing in mapping 1 and keep their reference.
+and INA226 filled nothing in mapping 1 and kept their reference; mapping 2
+fills the GNSS horizontal error and the battery voltage noise.
 
 ### Experiment copy
 
@@ -4636,3 +4649,208 @@ experiment copy in a project store. `tests/sensor-form.test.ts` checks the
 form's display units and byte round trip. `tests/browser/sensors-tab.spec.ts`
 sets sensors through the UI in Chromium and compares the stored profile with
 the expected configuration. The roadmap entry records the results.
+
+## Sensor errors in the external-SITL path (TASK-147)
+
+Scope S08 at run time. A sensor configuration (TASK-143) takes effect on
+native ArduPilot SITL, stock firmware under decision D-10, through two routes:
+generated SITL parameters set the errors ArduPilot owns and are read back
+before arming, and MirageSITL distorts the JSON state line it sends. Code
+outside `stepInto` runs at configuration time only.
+
+### Ownership matrix schema 3
+
+`OWNERSHIP_MATRIX_SCHEMA_VERSION` is 3. Schema 3 lists 33 sources: the 25 of
+schemas 1 and 2 (`ERROR_SOURCE_IDS_V1`) and eight more. A schema 1 or 2 matrix
+does not list them and reads each as its stock owner, `stockOwner(source,
+path)`: ArduPilot where the pinned firmware applies it, nobody otherwise. Its
+parameter profile is unchanged, and `ownerOf(matrix, source)` answers for any
+schema. `imuNoiseFloorMatrix` stays at schema 2.
+
+| Source | ArduPilot applies it with | Neutral setting | MirageSITL delivery | Stock owner |
+|---|---|---|---|---|
+| `imu.latency` | nothing: SITL has no IMU delay | none | `json:imu.accel_body`, `json:imu.gyro` | nobody |
+| `imu.misalignment` | `SIM_IMU_ORIENT`, discrete rotations | `SIM_IMU_ORIENT 0` | `json:imu.accel_body`, `json:imu.gyro` | ArduPilot |
+| `mag.misalignment` | `SIM_MAGn_ORIENT`, discrete rotations | `SIM_MAGn_ORIENT 0` | `hal:magnetic-field` only | ArduPilot |
+| `gnss.position-noise` | `SIM_GPSn_HNSE` circle, `SIM_GPSn_NOISE` sine, period 12.6 s | `HNSE 0`, `NOISE 0` | none | ArduPilot |
+| `gnss.velocity-noise` | `SIM_GPSn_VERR`, uniform per axis | `VERR 0` | none | ArduPilot |
+| `gnss.delay` | `SIM_GPSn_LAG_MS`, 100 ms stock | `LAG_MS 0` | none | ArduPilot |
+| `battery.voltage` | nothing: the analog chain divides and multiplies by 10.1 | none | `json:battery.voltage` | nobody |
+| `battery.current` | nothing: the analog chain divides and multiplies by 17 | none | `json:battery.current` | nobody |
+
+The catalog records the source facts behind each row, read from the pinned
+files `SIM_GPS.cpp`, `SIM_Compass.cpp`, `AP_InertialSensor_SITL.cpp`,
+`SIM_JSON.cpp`, `SITL_State_common.cpp`, `AnalogIn.cpp`,
+`AP_HAL/board/sitl.h`, `AP_BattMonitor_Analog.cpp` and `AP_Math.cpp`.
+`SIM_GPSn_*` parameters are built under `#if AP_SIM_GPS_ENABLED`, which the
+validator admits only through the cataloged fact `sim-gps-enabled`
+(`SIM_config.h` defines it as `AP_SIM_ENABLED`). While MirageSITL owns
+`gnss.receiver` (GPS_INPUT), ArduPilot's receiver does not run, so the three
+receiver sources cannot be ArduPilot's. The pinned `SITL.h` constructor sets
+every `SIM_MAGn_OFS` to (5, 13, −18) mG, which pairs with `COMPASS_OFSn` of
+`copter.parm` (fact `compass-stock-offsets`).
+
+The JSON oracle gains `expectedBatteryLine`: SIM_JSON reads the optional
+section `"battery":{"voltage":V,"current":A}` as float32 and otherwise uses
+`SIM_BATT_VOLTAGE` and 0 A. `encodeStateLineInto` writes it after
+`velocity_wind` while `batteryValid` is set; neither key's text occurs earlier
+in the line. The bridge validator requires finite numbers in it.
+
+### Ownership mapping 2
+
+`SENSOR_OWNERSHIP_MAPPING_VERSION` is 2. Mapping 1 (TASK-143) is the record of
+what TASK-143 shipped; mapping 2 replaces it for every resolution.
+
+| Owner | Fields | Source and delivery |
+|---|---|---|
+| MirageSITL | IMU noise densities, biases, position, latency and orientation | the five mapping 1 sources, `imu.latency`, `imu.misalignment`; JSON IMU vectors |
+| MirageSITL | Battery voltage and current gain, offset and noise | `battery.voltage`, `battery.current`; JSON battery section |
+| ArduPilot SITL | Barometer noise, bias and latency; magnetometer noise and bias | as in mapping 1 |
+| ArduPilot SITL | GNSS rate, horizontal and vertical position error, velocity error and latency | `gnss.receiver` (rate), `gnss.position-noise`, `gnss.velocity-noise`, `gnss.delay` |
+| Locked | Magnetometer position | no source: a uniform Earth field reads the same anywhere on the airframe |
+| ArduPilot SITL, locked | Magnetometer orientation | `mag.misalignment`: `SIM_MAGn_ORIENT` takes only discrete 45° rotations and MirageSITL delivers no magnetometer data on `native-json`; a small misalignment needs a firmware change (D-10) |
+
+`sensorOwnershipMatrix` derives a schema 3 matrix. The ArduPilot defaults give
+every source its stock owner. In specified mode a MirageSITL-owned source is
+`mirage` while one of its fields holds a value; the others keep their stock
+owner. Ideal sets every source a parameter can switch off to `none`; the IMU
+floors, `gnss.receiver` and `mag.hard-iron` stay with ArduPilot, and sources
+ArduPilot never applies are `none`. Ideal now writes 159 neutralizing settings
+(143, the IMU and three magnetometer orientations, and twelve receiver
+settings). The GNSS rate is a setting, not an error, so Ideal keeps
+ArduPilot's own.
+
+### SITL parameters
+
+`sensorRuntime(config, catalog, context)` validates the matrix against the
+pinned catalog and returns the parameters, their `.parm` text
+(`# MirageSITL sensor parameters v1`), the MirageSITL error plans and the
+residuals. The context holds the home altitude, the vehicle's `COMPASS_OFSn`
+(`STOCK_COMPASS_OFFSETS_MILLIGAUSS` for the pinned `copter.parm`) and the CG.
+The parameters are the ownership profile's neutralizing settings and the
+ArduPilot-owned values; a name that would receive two values fails the call.
+
+| Field | SITL parameters (n = each instance) | Value |
+|---|---|---|
+| Barometer noise σ (Pa) | `SIM_BAROn_RND` (BARO, BAR2, BAR3) | √3·σ·\|dh/dp\| m, the half-width of SITL's uniform noise |
+| Barometer bias b (Pa) | `SIM_BAROn_GLITCH` | b·dh/dp m; a reading higher by b is an altitude lower by b·\|dh/dp\| |
+| Barometer latency (µs) | `SIM_BAROn_DELAY` | latency/1000 ms |
+| Magnetometer noise σ (G) | `SIM_MAG_RND` | √3·1000·σ mG |
+| Magnetometer bias b (G) | `SIM_MAGn_OFS_{X,Y,Z}` | COMPASS_OFSn − 1000·b mG; Ideal writes b = 0 |
+| GNSS rate (Hz) | `SIM_GPSn_HZ` (GPS1, GPS2) | the rate |
+| GNSS horizontal σ (m) | `SIM_GPSn_HNSE` | √2·σ: a circle of radius r gives r/√2 per axis |
+| GNSS vertical σ (m) | `SIM_GPSn_NOISE` | √2·σ: a sine of amplitude A gives A/√2 |
+| GNSS velocity σ (m/s) | `SIM_GPSn_VERR_{X,Y,Z}` | √3·σ, the half-width of uniform noise |
+| GNSS latency (µs) | `SIM_GPSn_LAG_MS` | latency/1000 ms |
+
+dh/dp is the slope of ArduPilot's 1976 standard atmosphere
+(`AP_Baro_atmosphere.cpp`) at the home altitude h, with geopotential height
+H = R_E·h/(R_E + h), R_E = 6 356 766 m, R_air = 287.053072 J/(kg·K), and the
+troposphere's temperature T and pressure p:
+
+\[
+\frac{dh}{dp} = -\frac{R_{\mathrm{air}}\,T\,(R_E + h)^2}{p\,g\,R_E^2}
+\]
+
+It is −0.0832 m/Pa at sea level and 5.8 % steeper at the 584 m home of the
+native harness. An external-SITL session writes the parameters into a defaults
+file after `copter.parm` and the user's own defaults, then reads the complete
+parameter list (`param_count` entries) before arming. Every generated name the
+build holds must report its value as float32; a name the list lacks is
+accepted only for a cataloged instance the build does not compile
+(`INS_MAX_INSTANCES`, `HAL_COMPASS_MAX_SENSORS`) or for `SIM_GPS2_*` while
+`SIM_GPS2_ENABLE` is 0, which hides the rest of its group.
+
+### MirageSITL errors on the JSON state line
+
+`packages/sensors/src/configured.ts` applies the plans of `sensorRuntime`.
+`ConfiguredImu.stepInto(f_cg, ω, ω̇, accelOut, gyroOut)` takes the CG specific
+force, angular velocity and angular acceleration in body FRD and writes the
+sensor-axis IMU vectors:
+
+\[
+f_{\mathrm{IMU}} = R^{\mathsf T}\left(f_{\mathrm{cg}} + \dot\omega\times r + \omega\times(\omega\times r)\right) + b_a + \sigma_a n_a,
+\qquad
+\omega_{\mathrm{IMU}} = R^{\mathsf T}\omega + b_g + \sigma_g n_g,
+\qquad
+\sigma = N\sqrt{f_s/2}
+\]
+
+r is the IMU position minus the CG, R = Rz(yaw)·Ry(pitch)·Rx(roll) maps sensor
+axes to body axes (`lever-arm.ts`), N is the one-sided noise amplitude density
+and f_s the sample rate. The kinematic part is delayed by the latency: whole
+samples exactly, fractions by linear interpolation between the two bracketing
+samples, and the oldest sample before enough history exists. Bias and noise are
+added at delivery. Each noise term draws standard normals (Box–Muller cosine)
+on its own fixed stream: accelerometer 0x00147001, gyroscope 0x00147002,
+battery voltage 0x00147003 and current 0x00147004. A zero term skips its
+arithmetic and its draws, so a configuration of zeros delivers every bit of an
+absent one, −0 included. `ConfiguredBattery` measures
+(1 + gain)·true + offset + noise. The session supplies the battery truth; the
+native harness sends ArduPilot's 12.6 V and 0 A until TASK-092 adds a battery
+model. In the native driver ω̇ is the backward difference of ω at 800 Hz, the
+same difference that gives the synthetic quad's specific force.
+
+### IMU mount in the manifest
+
+`DERIVATION_VERSION` is 2. When a profile's sensor configuration states the
+IMU position or orientation, the derived manifest holds one `sensorMounts`
+entry: `imu`, instance 0, the position (the CG when only the orientation is
+stated) and the sensor-to-body quaternion of R from `trig.ts`, so Node and
+Chromium derive the same bytes. Otherwise the section stays empty. A
+derivation 2 manifest without a mount differs from derivation 1 only in the
+version inside its dataset. The sensor pipeline consumes the mounts, so
+`projectVehicleToModelV1` no longer refuses them.
+
+### Native harness
+
+`MIRAGE_SITL_SENSORS` names a JSON file `{configuration, seed}` for
+`scripts/sitl/driver.mjs`; the driver writes the generated parameters, holds
+arming until the complete list confirms them, and applies the plans on every
+state line. It runs only on stock firmware without an EW case.
+`node scripts/run-sitl-sensors.mjs NEW_DIRECTORY` runs
+`scripts/sitl/sensor-probe.mjs`: nine ground cases on fresh SITL instances,
+each reading back its parameters and recording HIGHRES_IMU, SYS_STATUS and
+GPS_RAW_INT for 6 s after a 20 s settle. `node scripts/check-sitl-sensors.mjs
+--input DIRECTORY [--report PATH]` recomputes every mean from the telemetry and
+judges against limits fixed from the noise model:
+
+| Check | Cases | Expected |
+|---|---|---|
+| Hard-iron pairing | Ideal against TASK-089's zero neutral | equal magnetometer means within 1e-6 G |
+| Magnetometer bias once | specified against Ideal | b within 1e-5 G |
+| Accelerometer bias once | imu-bias against the ArduPilot defaults, over a user `SIM_ACC1_BIAS` of 0.4 m/s² | 1.001·b within 1e-3 m/s², and `SIM_ACC1_BIAS_X` read back as 0 |
+| Gyroscope bias once | the same | b within 1e-4 rad/s |
+| Misalignment | imu-tilt (pitch 0.05 rad) against the defaults | 1.001·(g sin θ, 0, g(1 − cos θ)) within 1e-3 m/s² |
+| Barometer bias once | specified against Ideal | +30 Pa within 1 Pa |
+| Battery errors once | specified and Ideal | 12 702 mV and 40 cA; 12 600 mV and 0 cA |
+| GNSS rate | specified and Ideal | 60 and 30 fixes in 6 s, ±1 |
+| Zero terms | zero-terms, Ideal and the defaults | identical SHA-256 of the first 8000 delivered lines |
+| Seeds | two runs with seed 7, one with seed 8 | equal, then different, and different from Ideal |
+
+The 1.001 is `INS_ACCSCAL` of `copter.parm`, which scales every accelerometer
+difference. The audit fails when a source it records changed after the capture.
+
+### Residuals (mapping 2)
+
+Ideal lists the IMU noise floors (D-10), the SITL GNSS receiver's own rate and
+fixed 0.3 m accuracy, `INS_ACCOFFS` and `INS_ACCSCAL`, the compiled IMU sample
+rates, the EKF's assumed delays and ArduPilot's unseeded noise. Specified mode
+adds the stock terms without a value and, while a GNSS position error is set,
+the receiver's deterministic wander. The hard-iron pairing is no longer a
+residual: the capture shows it nets to zero. Sensor snapshot 2
+(`SENSOR_SNAPSHOT_VERSION`) adds the residual texts to the experiment record
+and carries mapping 2 and its schema 3 matrix.
+
+### Verification (TASK-147)
+
+`tests/lever-arm.test.ts` checks centripetal and tangential terms, a
+skew-matrix formulation, the rotation order and quaternion against independent
+code. `tests/sensor-configured.test.ts` checks bit identity of zero terms, exact
+biases, gains, offsets and delays, the noise σ, independence and whiteness
+within five standard errors, and seeds. `tests/error-ownership.test.ts` checks
+schema 3, the stock owners and the GNSS condition; `tests/sensor-config.test.ts`
+checks mapping 2, the parameters against their formulas, the barometer slope
+against a finite difference of ArduPilot's atmosphere and the IMU mount;
+`tests/integration/sitl-sensors.test.ts` breaks each audit check once. The
+roadmap entry records the native captures.

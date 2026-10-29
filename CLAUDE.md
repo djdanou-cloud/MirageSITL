@@ -228,9 +228,13 @@ implementation.
   without files, each value known with its source or stored as not known, and
   every save is a new card version. TASK-143 is DONE: the Sensors tab stores
   sensor configuration schema 1 in profile schema 3, shows every field's owner
-  on the external-SITL path, and offers cited per-sensor presets (SA-02); fields
-  no owner can apply yet wait for TASK-147, which also applies the rest at run
-  time. Decisions D-04
+  on the external-SITL path, and offers cited per-sensor presets (SA-02).
+  TASK-147 is DONE: ownership mapping 2 and matrix schema 3 apply the
+  configuration on native ArduPilot SITL, with generated `SIM_*` parameters
+  read back before arming and MirageSITL's IMU and battery errors on the JSON
+  state line (`MIRAGE_SITL_SENSORS`, `node scripts/run-sitl-sensors.mjs`,
+  `node scripts/check-sitl-sensors.mjs`); the magnetometer's position and
+  orientation stay locked on `native-json`. Decisions D-04
   and D-06 to D-12 are decided. D-01 and D-02 still wait on TASK-127 and
   TASK-128. TASK-129 records D-03: JSON lockstep without `no_lockstep` owns
   simulated time, a 60 s pause does not induce a failsafe, parameter access

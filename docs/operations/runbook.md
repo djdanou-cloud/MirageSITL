@@ -371,6 +371,20 @@ Unset, the variable means `ardupilot`, and the run is a normal TASK-042 flight. 
 The current driver differs from the one the frozen TASK-059 matrix names, so `report-ekf.mjs` rejects new EW validation captures until TASK-059 is re-frozen on the operator's machine. Re-freezing is a deliberate step. Keep the current matrix in git history and record the reason in the commit. Set `envelopes` back to `null` (the unfrozen template is `git show 1eb44f1:tests/fixtures/scenarios/ew-matrix.json`), then run the TASK-059 calibration, freeze and validation commands above with one firmware and one setting. EW calibration and validation bind the firmware and parameter hashes, so mixing settings fails closed.
 
 
+## Sensor errors on native SITL (TASK-147)
+
+Stock firmware (decision D-10) in the TASK-042 Linux environment: `MIRAGE_SITL_SOURCE`, `MIRAGE_SITL_BINARY` and `MIRAGE_SITL_PYTHON` as above. A sensor configuration file is JSON `{"configuration": ..., "seed": N}`, where `configuration` is a sensor configuration schema 1 or `null` for the ArduPilot defaults and the seed is a uint32.
+
+```bash
+export MIRAGE_SITL_SENSORS="$PWD/.cache/task-147/sensors.json"
+export MIRAGE_SITL_CAPTURE_DIR="$PWD/.cache/task-147/flight"
+node scripts/run-sitl.mjs
+node scripts/run-sitl-sensors.mjs .cache/task-147/probe
+node scripts/check-sitl-sensors.mjs --input .cache/task-147/probe --report test-results/validation/sitl-sensors.json
+```
+
+With `MIRAGE_SITL_SENSORS` set, the driver appends the generated parameters to its `quad.parm`, requests the complete parameter list and holds arming until every generated parameter the build has reports its value; it fails after 30 s of simulation otherwise. `run.json` records the configuration, the expected and reported parameters and the residuals. It refuses `MIRAGE_SITL_IMU_NOISE_FLOOR=off` and EW cases. Audit flights with `check-raw.py` and `check-sitl-capture.mjs` as in TASK-042; a sensor run also forwards SYS_STATUS and the parameter list, which the raw audit expects. `run-sitl-sensors.mjs` runs nine ground cases on fresh SITL instances; `check-sitl-sensors.mjs` exits 0 PASS, 1 FAIL or 2 for a missing capture, and fails when a recorded source changed after the capture. Never reuse a capture directory.
+
 ## Local browser firmware acceptance (TASK-045)
 
 Use the exact external artifact pair matching native/ardupilot/wasm-artifact.manifest.json. The fresh builder accepts only new/empty build and artifact directories and compares output against that manifest; it checks source/submodule/SDK/compiler identities and retains build.log. Preserve compiler and pthread/memory-growth warnings. No artifact is copied into the production application. Start the local development server with the explicit setting, then open /ardupilot-check.html for the internal diagnostic. It starts firmware only on an explicit diagnostic/test call. Profiles bind source/module identities; use a distinct profile for experiments.

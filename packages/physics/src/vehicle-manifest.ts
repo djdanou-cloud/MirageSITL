@@ -103,10 +103,10 @@ const QUATERNION_NORM_TOLERANCE = 1e-6;
 const TRIANGLE_SLACK_RELATIVE = 1e-12;
 /** A quad-X thrust axis may be at most 45° from body up (|z| >= cos 45°). */
 const MATRIX_FRAME_AXIS_MIN_UP = Math.SQRT1_2;
-/** Sections without a runtime consumer yet, and the task that owns the consumer. */
+/** The task that owns each section's consumer; the rigid-body runtime consumes only mass properties and rotors. */
 const SECTION_OWNERS: { readonly [section in VehicleSection]: string } = {
   massProperties: 'TASK-033', rotors: 'TASK-033', motors: 'TASK-092', escs: 'TASK-092', battery: 'TASK-092',
-  airframeDrag: 'TASK-096', controlSurfaces: 'TASK-109', landingGear: 'TASK-095', sensorMounts: 'TASK-114',
+  airframeDrag: 'TASK-096', controlSurfaces: 'TASK-109', landingGear: 'TASK-095', sensorMounts: 'TASK-147',
   rotorWakePairs: 'TASK-101',
 };
 
@@ -360,8 +360,9 @@ function projectRotorBody(manifest: VehicleManifest): ModelDescriptor {
  */
 export function projectVehicleToModelV1(input: VehicleManifest): ModelDescriptor {
   const manifest = validateVehicleManifest(input);
+  // The sensor pipeline, not the rigid body, consumes sensor mounts (TASK-147), so they never alter the projection.
   const unsupported = VEHICLE_SECTIONS.filter(section => section !== 'massProperties' && section !== 'rotors' &&
-    sectionPresent(manifest, section));
+    section !== 'sensorMounts' && sectionPresent(manifest, section));
   if (unsupported.length > 0) {
     throw new Error(`The v1 runtime cannot consume ${unsupported.map(section => `${section} (${SECTION_OWNERS[section]})`).join(', ')}`);
   }

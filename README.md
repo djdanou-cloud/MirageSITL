@@ -38,7 +38,10 @@ motor's position, spin and thrust axis. Component cards are created, edited and
 copied in the Components tab too (TASK-192), each value with its source. The
 Sensors tab (TASK-143) sets Ideal sensors or specified errors per profile, shows
 who applies each error, MirageSITL or ArduPilot SITL, and offers per-sensor
-presets with cited datasheet values.
+presets with cited datasheet values. Native ArduPilot SITL applies the
+configuration (TASK-147): generated SITL parameters, read back before arming,
+set ArduPilot's errors, and MirageSITL distorts the IMU and battery values it
+sends.
 
 The running application uses binary ABI **v2** (TASK-085): session epochs, EKF/EW
 status fields, sensor/actuator queues, and Control Protocol v2. The demo physics
