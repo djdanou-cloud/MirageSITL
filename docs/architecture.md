@@ -70,6 +70,7 @@ apps/web/
   src/App.tsx                 # Run tab: synthetic demo, HUD, controls, calibration
   src/shell/                  # Application shell: project context, tabs, Project tab
   src/library/                # Components tab: cards, measurement sets, calculation modes
+  src/aircraft/               # Aircraft tab: profile editor and 3D scheme
   src/capabilities.ts         # API checks and implemented mode eligibility
   src/runtime.ts              # Gamepad/rAF, lifecycle, SAB reads
   src/FlightScene.tsx         # Position/SLERP in R3F useFrame
@@ -401,8 +402,9 @@ location, Flight tasks, Parameters, Logging, Run, Experiments and Analysis
 
 The shell holds only navigation and project metadata. Physics stays in its
 Worker and reaches the UI only in decimated form, as before. TASK-140 fills
-the Components tab. The other nine tabs state what they will hold and that it
-is not available yet; their own tasks fill them. The stored navigation format is in
+the Components tab and TASK-141 the Aircraft tab. The other eight tabs state
+what they will hold and that it is not available yet; their own tasks fill
+them. The stored navigation format is in
 [SPECS_SIMULATION_ENGINES.md](SPECS_SIMULATION_ENGINES.md), section "Local
 settings (TASK-137)".
 
@@ -464,6 +466,29 @@ uploads or takes typed bench data, and switches each profile's mode while
 showing each motor's label, missing quantities and limits of use. The contract
 is in [SPECS_SIMULATION_ENGINES.md](SPECS_SIMULATION_ENGINES.md), section
 "Calculation modes and measurement sets v1 (TASK-140)".
+
+## Aircraft editor (TASK-141)
+
+The Aircraft tab (`apps/web/src/aircraft/`) creates, opens, edits, saves and
+copies the open project's aircraft profiles without editing files (S03). A
+layout helper places arms evenly from a first azimuth, with coaxial pairs if
+asked. Each arm is then edited: length, azimuth, height, outward and side
+tilt, and its single motor or pair with motor number, ArduPilot output, spin
+and cards. The mass properties, an optional payload, the battery card and the
+ground clearance follow. The form becomes a profile only through
+`validateAircraftProfile` and `profileDraft` (TASK-138); while it is invalid,
+Save is disabled and every reason is listed by arm and field. Angles are typed
+in degrees and stored in radians; an angle that was not retyped keeps its
+stored value, so saving an unchanged profile writes no new version. Saving a
+profile in measured mode binds the measurement sets of exactly its new
+combinations (TASK-140).
+
+The 3D scheme draws every rotor from `deriveLayout`, whose hub positions, hub
+orientations and spin signs are the vehicle manifest's rotor fields: a disc
+colored by spin with an arrow in the turning direction, the thrust axis and
+the motor number. A table repeats it in text, and the scheme draws only when
+something changes. A full manifest also needs rotor blade values, which come
+from cards only with TASK-144.
 
 ## Phase 0 contracts: fixtures, capabilities, and models
 

@@ -221,9 +221,11 @@ implementation.
   is DONE: the Components tab keeps bench measurements bound to one exact
   motor, propeller, ESC and power-supply combination (bench CSV v2), and each
   profile version is a preliminary calculation or a calculation from
-  measurements, with the TASK-133 labels per motor. Decisions D-04 and D-06 to
-  D-12 are decided; D-01 to D-03 wait on TASK-127 to TASK-129, which need a
-  Mac. TASK-136 defined the project archive of D-05, TASK-139 its
+  measurements, with the TASK-133 labels per motor. TASK-141 is DONE: the
+  Aircraft tab builds all five S19 configurations without files, and its 3D
+  scheme draws each rotor where the derived manifest puts it. Decisions D-04
+  and D-06 to D-12 are decided; D-01 to D-03 wait on TASK-127 to TASK-129,
+  which need a Mac. TASK-136 defined the project archive of D-05, TASK-139 its
   component-card format and TASK-140 its measured-data format. TASK-073,
   TASK-080, TASK-082 and TASK-083 below are not Phase 1 gates; see their Phase 1
   dispositions in the roadmap.

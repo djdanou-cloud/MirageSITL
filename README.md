@@ -32,7 +32,9 @@ Since TASK-137 the application opens in a shell with a project context and the
 twelve Phase 1 tabs. Projects are stored locally in the browser (TASK-136), and
 the demonstration is the Run tab's flight backend, labeled synthetic. The
 Components tab (TASK-140) keeps component cards and bench measurements of exact
-component combinations, and sets each aircraft profile's calculation mode.
+component combinations, and sets each aircraft profile's calculation mode. The
+Aircraft tab (TASK-141) edits aircraft profiles and shows a 3D scheme of every
+motor's position, spin and thrust axis.
 
 The running application uses binary ABI **v2** (TASK-085): session epochs, EKF/EW
 status fields, sensor/actuator queues, and Control Protocol v2. The demo physics

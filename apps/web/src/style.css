@@ -97,18 +97,18 @@ html[data-g3="1"] .terrain-status { top: 12px; bottom: auto; left: 50%; transfor
 .missing-list { font-size: 12px; color: #efbd8f; overflow-wrap: anywhere; }
 
 /* Components tab (TASK-140): cards, measurement sets and calculation modes. */
-.library-panel h2 { font-size: 17px; font-weight: 600; margin: 0 0 10px; color: #e1f4f2; }
-.library-panel h3 { font-size: 13px; font-weight: 600; margin: 0 0 12px; color: #d6e2ea; }
+.library-panel h2, .aircraft-panel h2 { font-size: 17px; font-weight: 600; margin: 0 0 10px; color: #e1f4f2; }
+.library-panel h3, .aircraft-panel h3 { font-size: 13px; font-weight: 600; margin: 0 0 12px; color: #d6e2ea; }
 .library-panel h4 { font-size: 13px; font-weight: 600; margin: 0 0 6px; color: #e1f4f2; overflow-wrap: anywhere; }
-.library-panel p, .library-panel li { font-size: 13px; color: #a9bcc8; overflow-wrap: anywhere; }
-.library-panel p { margin: 6px 0; }
-.library-panel label { display: block; font-size: 12px; color: #a9bcc8; margin-bottom: 6px; }
-.library-panel label.choice { display: flex; align-items: center; gap: 8px; margin: 4px 0; }
-.library-panel input[type=text], .library-panel input[type=date], .library-panel select { width: 100%; max-width: 100%; padding: 8px; background: #0c1721; border: 1px solid #314957; border-radius: 4px; color: inherit; }
-.library-panel input[type=file] { width: 100%; max-width: 100%; font-size: 12px; }
-.library-panel button { padding: 7px 12px; font-size: 12px; }
-.library-panel fieldset { border: 1px solid #293541; border-radius: 6px; padding: 8px 12px; margin: 12px 0 0; min-width: 0; }
-.library-panel legend { font: 10px ui-monospace, monospace; color: #9fb4c1; letter-spacing: 1px; padding: 0 4px; }
+.library-panel p, .library-panel li, .aircraft-panel p, .aircraft-panel li { font-size: 13px; color: #a9bcc8; overflow-wrap: anywhere; }
+.library-panel p, .aircraft-panel p { margin: 6px 0; }
+.library-panel label, .aircraft-panel label { display: block; font-size: 12px; color: #a9bcc8; margin-bottom: 6px; }
+.library-panel label.choice, .aircraft-panel label.choice { display: flex; align-items: center; gap: 8px; margin: 4px 0; }
+.library-panel input[type=text], .library-panel input[type=date], .library-panel select, .aircraft-panel input[type=text], .aircraft-panel select { width: 100%; max-width: 100%; padding: 8px; background: #0c1721; border: 1px solid #314957; border-radius: 4px; color: inherit; }
+.library-panel input[type=file], .aircraft-panel input[type=file] { width: 100%; max-width: 100%; font-size: 12px; }
+.library-panel button, .aircraft-panel button { padding: 7px 12px; font-size: 12px; }
+.library-panel fieldset, .aircraft-panel fieldset { border: 1px solid #293541; border-radius: 6px; padding: 8px 12px; margin: 12px 0 0; min-width: 0; }
+.library-panel legend, .aircraft-panel legend { font: 10px ui-monospace, monospace; color: #9fb4c1; letter-spacing: 1px; padding: 0 4px; }
 .card-list, .motor-list { list-style: none; padding: 0; margin: 0 0 12px; display: grid; gap: 10px; }
 .card-list li, .motor-list > li { display: grid; gap: 2px; min-width: 0; border-bottom: 1px solid #1d2a36; padding-bottom: 8px; }
 .card-name { color: #e1f4f2; overflow-wrap: anywhere; }
@@ -125,6 +125,19 @@ html[data-g3="1"] .terrain-status { top: 12px; bottom: auto; left: 50%; transfor
 .label-measured-input { color: #9af0d1; }
 .limit-list { margin: 4px 0 0; padding-left: 18px; }
 .limit-list li { font-size: 12px; color: #9fb4c1; }
+
+/* Aircraft tab (TASK-141): profiles, arms and motors, mass properties and the 3D scheme. */
+.aircraft-panel { display: grid; gap: 16px; }
+.field-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 150px), 1fr)); gap: 8px 12px; }
+.arm-fields, .motor-fields { margin-top: 12px; }
+.form-errors { margin: 8px 0; padding-left: 18px; }
+.form-errors li { font-size: 12px; color: #efbd8f; }
+.copy-form { margin-top: 12px; }
+.scheme-canvas { height: 360px; width: 100%; border: 1px solid #293541; border-radius: 6px; background: #0a141e; touch-action: none; }
+.scheme-table { border-collapse: collapse; font-size: 12px; margin-top: 8px; }
+.scheme-table caption { text-align: left; color: #d6e2ea; padding-bottom: 4px; }
+.scheme-table th, .scheme-table td { text-align: left; padding: 3px 8px 3px 0; color: #a9bcc8; font-weight: 400; white-space: nowrap; }
+.scheme-table thead th { color: #9fb4c1; }
 .run-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
 .run-mode { display: flex; flex-wrap: wrap; gap: 6px 16px; border: 1px solid #293541; border-radius: 6px; padding: 8px 12px; margin: 0; font-size: 12px; color: #b5c5cf; min-width: 0; }
 .run-mode legend { font: 10px ui-monospace, monospace; color: #9fb4c1; letter-spacing: 1px; padding: 0 4px; }
