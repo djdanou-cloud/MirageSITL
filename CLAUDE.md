@@ -57,7 +57,7 @@ truth for product scope when older roadmap entries, the version 2 proposals or
 implementation notes disagree. Phase 1 targets macOS on Apple Silicon with
 Chrome, native ArduPilot SITL as an external local process, and multirotors up
 to eight arms with two motors each (16 motors). The Phase 1 plan registers
-TASK-127–TASK-191 and decisions D-01–D-12, and each open roadmap task carries
+TASK-127–TASK-192 and decisions D-01–D-12, and each open roadmap task carries
 a Phase 1 disposition. Windows and WSL tooling and evidence below are
 historical: they are preserved, they get no Phase 1 work, and they are not
 Phase 1 acceptance evidence. Approval of the scope is not evidence of
@@ -194,7 +194,7 @@ implementation.
 
 ### What remains open
 
-* **Phase 1 program (TASK-127–TASK-191, [PHASE1_PLAN.md](docs/PHASE1_PLAN.md)):**
+* **Phase 1 program (TASK-127–TASK-192, [PHASE1_PLAN.md](docs/PHASE1_PLAN.md)):**
   TASK-131 (offline and terrain inventory, `node scripts/check-offline.mjs`) and
   TASK-135 (the physics-review branch landed) are DONE, and so is TASK-132: the
   stakeholder decided every acceptance value
@@ -223,7 +223,10 @@ implementation.
   profile version is a preliminary calculation or a calculation from
   measurements, with the TASK-133 labels per motor. TASK-141 is DONE: the
   Aircraft tab builds all five S19 configurations without files, and its 3D
-  scheme draws each rotor where the derived manifest puts it. Decisions D-04
+  scheme draws each rotor where the derived manifest puts it. TASK-192 is
+  DONE: the Components tab creates, edits and copies cards of all four types
+  without files, each value known with its source or stored as not known, and
+  every save is a new card version. Decisions D-04
   and D-06 to D-12 are decided; D-01 to D-03 wait on TASK-127 to TASK-129,
   which need a Mac. TASK-136 defined the project archive of D-05, TASK-139 its
   component-card format and TASK-140 its measured-data format. TASK-073,

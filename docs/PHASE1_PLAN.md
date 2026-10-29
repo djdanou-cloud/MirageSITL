@@ -5,7 +5,9 @@ English source of truth. [Russian mirror](ru/PHASE1_PLAN.md).
 Status: proposed plan, 2026-10-28. It is derived from the approved
 [project scope](../PROJECT_SCOPE.md) (audit baseline `5b4a2fc`) and an inventory
 of baseline `384e974` and the unmerged branches. It registers TASK-127–TASK-191
-in the [roadmap](PROJECT_ROADMAP.md). Registration implements nothing and does
+in the [roadmap](PROJECT_ROADMAP.md); TASK-192, the component-card editor,
+was added on 2026-10-29 at the stakeholder's request, after TASK-141 found
+that no task let users create cards in the UI. Registration implements nothing and does
 not authorize development: each task starts only under an explicit development
 instruction (scope section 4, guardrail 2). The scope approved no dates or
 effort estimates, so this plan contains none.
@@ -125,7 +127,7 @@ unit and browser stages can seed the TASK-127 and TASK-152 checklists.
 | S01 Platform, language, offline | Capability gate, isolation headers, local WASM artifacts | macOS SITL, launcher, installation, offline inventory, Unicode names in stored records | TASK-127, TASK-131, TASK-136, TASK-137, TASK-151, TASK-152, TASK-190 |
 | S02 Start, stop, connection, pause | Owned-process harness, bridge, JSON lockstep, live EKF admission, Worker pause | Launch from the UI, diagnostics and restart, manual connection, a pause that reaches ArduPilot, bridge keep-alive | TASK-129, TASK-151–TASK-156 |
 | S03 Aircraft editor, motor mapping | Model manifest v1 with up to 32 rotors, vehicle manifest v2 increment (unmerged), frame wrench | Arms and pairs, editor and 3D scheme, output mapping, the 16-motor frame path, motor test | TASK-128, TASK-135, TASK-138, TASK-141, TASK-142, TASK-144, TASK-157 |
-| S04 Components, input modes | Motor and ESC configuration schema, UIUC data, bench import (unmerged) | Versioned cards, calculation modes, combination-bound measurements, calibration | TASK-139, TASK-140, TASK-145 |
+| S04 Components, input modes | Motor and ESC configuration schema, UIUC data, bench import (unmerged) | Versioned cards, calculation modes, combination-bound measurements, calibration | TASK-139, TASK-140, TASK-145, TASK-192 |
 | S05 Flight aerodynamics | BET with free shaft and axial inflow; coaxial reference (test-only); descent flagged only | Edgewise and descent inflow, vortex ring state, ground effect, coaxial coupling and body drag in production | TASK-144, TASK-145; TASK-096–TASK-101 |
 | S06 Battery, propulsion limits | Motor, ESC and battery kernels (test-only) | Production drive and bus, limit monitor, UI and logs | TASK-146; TASK-092 |
 | S07 Weather, geography | ISA atmosphere, AR(1) gusts, WGS84 | Weather in sessions, turbulence spectra, discrete gusts, schedules, location choice, geographic gravity and magnetic field, geoid | TASK-148, TASK-166, TASK-167; TASK-093, TASK-106 |
@@ -250,6 +252,7 @@ Exit: Versioned projects, profiles up to 16 motors, component cards, calculation
 | TASK-141 | Aircraft editor with a geometry-driven 3D scheme | S03 | 015, 137, 138, 139 |
 | TASK-142 | Motor-to-output mapping and frame compatibility check | S03 | 128, 138, 141 |
 | TASK-143 | Sensors tab: ideal sensors or specified errors | S08 | 089, 137, 138 |
+| TASK-192 | Component-card editor | S04 | 137, 139, 140 |
 
 #### Stage P1.4: Approved Physical Models
 
@@ -361,7 +364,7 @@ Exit: S19 executed on macOS with PASS, FAIL, BLOCKED and NOT_RUN recorded.
   TASK-152 and TASK-153 (which also needs TASK-144 and TASK-150) →
   TASK-154–TASK-157 → TASK-158.
 * **Data and UI:** TASK-136 → TASK-137, TASK-138 and TASK-139 →
-  TASK-140–TASK-143.
+  TASK-140–TASK-143; TASK-140 → TASK-192.
 * **Physics:** TASK-135 → TASK-087–TASK-090 → TASK-092–TASK-095 →
   TASK-096–TASK-101 and TASK-106. TASK-091 can start at once and precedes
   TASK-097 and TASK-098. TASK-144–TASK-149 connect the models to profiles,
@@ -378,7 +381,7 @@ By task count, the longest chain of open tasks to the acceptance report is TASK-
 | Milestone | Complete when |
 | --- | --- |
 | M1 Feasibility recorded | TASK-127–TASK-133 are DONE or carry an exact BLOCKED status, and decisions D-01–D-09 are taken or escalated. |
-| M2 Foundations | TASK-134, TASK-135, TASK-087–TASK-090 and TASK-136–TASK-143 are DONE. |
+| M2 Foundations | TASK-134, TASK-135, TASK-087–TASK-090, TASK-136–TASK-143 and TASK-192 are DONE. |
 | M3 First integrated flight on macOS | TASK-158 passes for every S19 configuration. |
 | M4 Tuning workflow | TASK-159–TASK-177 are DONE. |
 | M5 Log analysis | TASK-178–TASK-184 are DONE. |

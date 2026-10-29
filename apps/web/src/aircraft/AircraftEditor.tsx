@@ -41,7 +41,8 @@ function editingOf(stored: StoredVersion): Editing {
   return { itemId: stored.record.id, head: stored, name: stored.record.name, form, savedName: stored.record.name, savedForm: JSON.stringify(form) };
 }
 
-export function AircraftEditor({ storeState, project }: { storeState: StoreState; project: StoredVersion | null }) {
+/** `active`: the tab is shown. Panels stay mounted, so the profiles and cards are read again whenever the tab is opened. */
+export function AircraftEditor({ storeState, project, active }: { storeState: StoreState; project: StoredVersion | null; active: boolean }) {
   const store = storeState.status === "ready" ? storeState.store : null;
   const projectId = project?.record.id ?? null;
   const [library, setLibrary] = useState<Library>(EMPTY_LIBRARY);
@@ -58,7 +59,7 @@ export function AircraftEditor({ storeState, project }: { storeState: StoreState
     setStatus("");
   }, [projectId]);
   useEffect(() => {
-    if (!store || !projectId) return;
+    if (!store || !projectId || !active) return;
     let cancelled = false;
     void (async () => {
       const [profiles, cardHeads, setHeads] = await Promise.all([
@@ -82,7 +83,7 @@ export function AircraftEditor({ storeState, project }: { storeState: StoreState
       if (!cancelled) setLibrary({ profiles, cards, candidates });
     })().catch((error: unknown) => { if (!cancelled) setStatus(describeLibraryError(error)); });
     return () => { cancelled = true; };
-  }, [store, projectId, revision]);
+  }, [store, projectId, revision, active]);
 
   const result = useMemo(() => (editing ? profileFromForm(editing.form) : null), [editing]);
   const nameError = editing && editing.name.trim() === "" ? "Give the profile a name" : null;

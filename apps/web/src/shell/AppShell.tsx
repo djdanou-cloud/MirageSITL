@@ -130,9 +130,9 @@ export function AppShell({ run }: { run: (visible: boolean) => ReactNode }) {
       case "project":
         return <ProjectPanel storeState={storeState} project={project} projects={projects} onOpen={openProject} onRefresh={refreshProjects} />;
       case "aircraft":
-        return <AircraftEditor storeState={storeState} project={project} />;
+        return <AircraftEditor storeState={storeState} project={project} active={navigation.tab === "aircraft"} />;
       case "components":
-        return <ComponentsPanel storeState={storeState} project={project} />;
+        return <ComponentsPanel storeState={storeState} project={project} active={navigation.tab === "components"} />;
       case "run":
         return run(navigation.tab === "run");
       default: {

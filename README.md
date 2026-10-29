@@ -15,7 +15,7 @@ ArduPilot parameters for real multirotor aircraft, including before their
 first flight. Phase 1 covers quadcopters, hexacopters, octocopters and paired
 arrangements up to eight arms with two motors each (16 motors), on macOS on
 Apple Silicon in Chrome, with native ArduPilot SITL as an external local
-process. The [Phase 1 plan](docs/PHASE1_PLAN.md) registers TASK-127–TASK-191
+process. The [Phase 1 plan](docs/PHASE1_PLAN.md) registers TASK-127–TASK-192
 and the open decisions D-01–D-12. Where this README or older roadmap entries
 describe Windows, WSL or pilot-training work, that material is historical: it
 is preserved but is not Phase 1 work or acceptance evidence. Approval of the
@@ -34,7 +34,8 @@ the demonstration is the Run tab's flight backend, labeled synthetic. The
 Components tab (TASK-140) keeps component cards and bench measurements of exact
 component combinations, and sets each aircraft profile's calculation mode. The
 Aircraft tab (TASK-141) edits aircraft profiles and shows a 3D scheme of every
-motor's position, spin and thrust axis.
+motor's position, spin and thrust axis. Component cards are created, edited and
+copied in the Components tab too (TASK-192), each value with its source.
 
 The running application uses binary ABI **v2** (TASK-085): session epochs, EKF/EW
 status fields, sensor/actuator queues, and Control Protocol v2. The demo physics

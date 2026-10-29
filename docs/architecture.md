@@ -386,7 +386,9 @@ location, Flight tasks, Parameters, Logging, Run, Experiments and Analysis
   only the selected tab is in the Tab order. Every panel stays mounted and
   inactive panels are hidden, so the simulation in the Run tab keeps running
   while another tab is open. While the Run tab is hidden, its 3D view stops
-  rendering; the physics Worker and the pilot input continue.
+  rendering; the physics Worker and the pilot input continue. The Aircraft and
+  Components tabs read the project again whenever they are opened, so what one
+  tab stores is offered by the other without a reload.
 * `navigation.ts` defines the tabs and the navigation state. The selected tab
   and the open project are the project store's local setting
   `shell.navigation`, so both survive a reload. With nothing valid stored, the
@@ -489,6 +491,29 @@ colored by spin with an arrow in the turning direction, the thrust axis and
 the motor number. A table repeats it in text, and the scheme draws only when
 something changes. A full manifest also needs rotor blade values, which come
 from cards only with TASK-144.
+
+## Component-card editor (TASK-192)
+
+The Components tab creates, edits and copies motor, propeller, ESC and battery
+cards without files (S04), in `apps/web/src/library/CardEditor.tsx` with its
+form logic in `card-form.ts`. A new card starts with one specification source
+to describe and the values its type requires. Every value is either known,
+with its text and the source it comes from, chosen among the card's sources,
+or not known and stored as null; nothing is filled in. A source has an ID, a
+kind (datasheet or catalog, own measurement, or illustrative or assumed), a
+description and, optionally, a SHA-256 and a date. The SHA-256 can be computed
+from a chosen file, which is not stored. A propeller's chord and twist are
+tables of r/R stations; twist angles are typed in degrees and keep their
+stored radians while untouched, as in the aircraft editor.
+
+The form becomes a card only through `validateComponentCard` (TASK-139), so
+card schema 1 is unchanged. While the form is invalid, Save is disabled and
+every reason is listed by field, among them a known value without a source, a
+measured source without the SHA-256 and date of its data, and a value out of
+range. Every save appends a card version, and saving an unchanged card writes
+none, so profiles and measurement sets keep the exact versions they reference.
+A propeller card shows the BET geometry that `derivePropellerGeometry` gives
+for it: the blade stations, the assumptions and the validity flags.
 
 ## Phase 0 contracts: fixtures, capabilities, and models
 

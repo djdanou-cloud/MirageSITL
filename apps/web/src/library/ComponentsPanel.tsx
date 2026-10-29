@@ -1,19 +1,23 @@
 import { useEffect, useState, type ChangeEvent } from "react";
-import { CARD_FILE_EXTENSION, exportComponentCards, importComponentCards, missingValues } from "@mirage/aircraft/components";
+import {
+  CARD_FILE_EXTENSION, COMPONENT_TYPES, exportComponentCards, importComponentCards, missingValues, type ComponentType,
+} from "@mirage/aircraft/components";
 import type { StoredVersion } from "@mirage/project/schema";
 import type { ProjectStore } from "@mirage/project/store";
 import type { StoreState } from "../shell/AppShell";
 import { download, nameLanguage, safeFileName } from "../shell/project-files";
 import { CalculationPanel } from "./CalculationPanel";
+import { CardEditor, cardChanged, editingOfCard, newCardEditing, type CardEditing } from "./CardEditor";
 import { MeasurementsEditor } from "./MeasurementsEditor";
 import { describeLibraryError, loadLibrary, typeName, type LibraryData } from "./library-data";
 
 // The Components tab (TASK-140, S04): the open project's component cards
-// (TASK-139) with card-file import and export, the measurement sets bound to
-// exact combinations, and each aircraft profile's calculation mode with its
-// confidence labels (TASK-133).
+// (TASK-139) with card-file import and export and the card editor (TASK-192),
+// the measurement sets bound to exact combinations, and each aircraft
+// profile's calculation mode with its confidence labels (TASK-133).
 
-export function ComponentsPanel({ storeState, project }: { storeState: StoreState; project: StoredVersion | null }) {
+/** `active`: the tab is shown. Panels stay mounted, so the project is read again whenever the tab is opened. */
+export function ComponentsPanel({ storeState, project, active }: { storeState: StoreState; project: StoredVersion | null; active: boolean }) {
   const store = storeState.status === "ready" ? storeState.store : null;
   const projectId = project?.record.id ?? null;
   // The previous data of the same project stays on screen while it reloads, so open forms keep their input.
@@ -22,15 +26,21 @@ export function ComponentsPanel({ storeState, project }: { storeState: StoreStat
   const [revision, setRevision] = useState(0);
   const [status, setStatus] = useState("");
   const [busy, setBusy] = useState(false);
+  const [editing, setEditing] = useState<CardEditing | null>(null);
+  // Each opened card gets a fresh editor; saving a new card keeps its editor and status.
+  const [editorKey, setEditorKey] = useState(0);
+  const [newType, setNewType] = useState<ComponentType>("motor");
+  const dirty = cardChanged(editing);
 
+  useEffect(() => setEditing(null), [projectId]);
   useEffect(() => {
-    if (!store || !projectId) return;
+    if (!store || !projectId || !active) return;
     let cancelled = false;
     loadLibrary(store, projectId).then(
       data => { if (!cancelled) setLoaded({ projectId, data }); },
       (error: unknown) => { if (!cancelled) setStatus(describeLibraryError(error)); });
     return () => { cancelled = true; };
-  }, [store, projectId, revision]);
+  }, [store, projectId, revision, active]);
   const refresh = () => setRevision(value => value + 1);
 
   const perform = (action: (store: ProjectStore, projectId: string) => Promise<string>) => {
@@ -68,6 +78,10 @@ export function ComponentsPanel({ storeState, project }: { storeState: StoreStat
     );
   }
   const cards = library?.cards ?? [];
+  const openEditor = (next: CardEditing) => {
+    setEditing(next);
+    setEditorKey(value => value + 1);
+  };
   return (
     <div className="library-panel">
       <h2>Components</h2>
@@ -80,7 +94,7 @@ export function ComponentsPanel({ storeState, project }: { storeState: StoreStat
         <section className="project-section" aria-labelledby="cards-heading">
           <h3 id="cards-heading">Component cards</h3>
           {library === null ? <p>Reading the project.</p> : cards.length === 0 ? (
-            <p>The project has no component cards yet. Import a card file to add some.</p>
+            <p>The project has no component cards yet. Create a card or import a card file to add some.</p>
           ) : (
             <ul className="card-list" aria-label="Component cards">
               {cards.map(entry => (
@@ -94,10 +108,27 @@ export function ComponentsPanel({ storeState, project }: { storeState: StoreStat
                   ) : (
                     <span className="project-warning">This card cannot be read: {entry.error}</span>
                   )}
+                  {entry.value && (editing?.itemId === entry.stored.record.id ? <span className="current-tag">Open in the editor</span> : (
+                    <div className="button-row">
+                      <button type="button" disabled={dirty || busy} aria-label={`Edit ${entry.stored.record.name}`}
+                        onClick={() => openEditor(editingOfCard(entry.stored))}>Edit</button>
+                    </div>
+                  ))}
                 </li>
               ))}
             </ul>
           )}
+          <form className="inline-form" aria-label="New card" onSubmit={event => { event.preventDefault(); openEditor(newCardEditing(newType)); }}>
+            <label htmlFor="card-new-type">Type of a new card</label>
+            <select id="card-new-type" value={newType} onChange={event => {
+              const type = COMPONENT_TYPES.find(item => item === event.target.value);
+              if (type) setNewType(type);
+            }}>
+              {COMPONENT_TYPES.map(type => <option key={type} value={type}>{typeName(type)}</option>)}
+            </select>
+            <button type="submit" disabled={dirty || busy}>New card</button>
+          </form>
+          {dirty && <p className="hint">Save or discard the changes to the open card before opening another.</p>}
           <label htmlFor="cards-import">Import a card file</label>
           <input id="cards-import" type="file" accept={`${CARD_FILE_EXTENSION},application/json`} disabled={!store || busy} onChange={importCards} />
           <div className="button-row">
@@ -105,6 +136,9 @@ export function ComponentsPanel({ storeState, project }: { storeState: StoreStat
           </div>
           <p className="hint">A {CARD_FILE_EXTENSION} file moves cards between projects. Cards the project already holds are not added twice.</p>
         </section>
+        {store && editing && (
+          <CardEditor key={editorKey} store={store} projectId={project.record.id} editing={editing} onChange={setEditing} onSaved={refresh} />
+        )}
         {store && library && (
           <MeasurementsEditor store={store} projectId={project.record.id} library={library} onSaved={refresh} />
         )}

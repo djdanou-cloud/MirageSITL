@@ -125,6 +125,14 @@ html[data-g3="1"] .terrain-status { top: 12px; bottom: auto; left: 50%; transfor
 .label-measured-input { color: #9af0d1; }
 .limit-list { margin: 4px 0 0; padding-left: 18px; }
 .limit-list li { font-size: 12px; color: #9fb4c1; }
+/* Card editor (TASK-192): sources, values with their sources, distributions and the BET preview. */
+.card-editor { grid-column: 1 / -1; }
+.card-editor .field-grid { grid-template-columns: repeat(auto-fill, minmax(min(100%, 210px), 1fr)); }
+.library-panel .card-editor h4 { margin-top: 18px; }
+.card-values th[scope=row] { color: #d6e2ea; }
+.library-panel .card-values input[type=text] { width: 120px; }
+.library-panel .card-values select, .library-panel .distribution select { width: auto; min-width: 140px; }
+.library-panel .distribution .table-scroll { margin-top: 8px; }
 
 /* Aircraft tab (TASK-141): profiles, arms and motors, mass properties and the 3D scheme. */
 .aircraft-panel { display: grid; gap: 16px; }
