@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "units": "SI",
+  "type": "battery",
+  "example": true,
+  "manufacturer": null,
+  "model": "Example 4S 5000 mAh LiPo",
+  "sources": [
+    {
+      "id": "example",
+      "kind": "synthetic",
+      "description": "Illustrative values for a typical battery of this class, chosen for MirageSITL examples; not a datasheet and not a measurement.",
+      "sha256": null,
+      "date": null
+    }
+  ],
+  "values": {
+    "cellsSeries": 4,
+    "capacityAh": 5,
+    "internalResistanceOhm": 0.018,
+    "cellFullV": 4.2,
+    "cellEmptyV": 3.3,
+    "maxDischargeCurrentA": 125,
+    "massKg": 0.52
+  },
+  "provenance": {
+    "cellsSeries": "example",
+    "capacityAh": "example",
+    "internalResistanceOhm": "example",
+    "cellFullV": "example",
+    "cellEmptyV": "example",
+    "maxDischargeCurrentA": "example",
+    "massKg": "example"
+  },
+  "applicability": "Example card: replace it with the values of the battery you fly."
+}

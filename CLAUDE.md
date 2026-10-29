@@ -214,10 +214,13 @@ implementation.
   validates aircraft profile schema 1 (one to eight arms, up to 16 motors with
   coaxial pairs, mass properties, payload, outputs and card references) and
   derives its rotor layout and a vehicle manifest v2 whose bytes Node and
-  Chromium reproduce identically. Decisions D-04 and
-  D-06 to D-12 are decided; D-01 to D-03 wait on TASK-127 to TASK-129, which
-  need a Mac. TASK-136 defined the project archive of D-05; its measured-data
-  and component-card formats wait on TASK-139 and TASK-140. TASK-073,
+  Chromium reproduce identically. TASK-139 is DONE: component cards for
+  motors, propellers, ESCs and batteries name the source of every value, move
+  between projects in a card exchange file (`.miragecards`), and give a BET
+  propeller geometry with its assumptions and validity flags listed. Decisions
+  D-04 and D-06 to D-12 are decided; D-01 to D-03 wait on TASK-127 to TASK-129,
+  which need a Mac. TASK-136 defined the project archive of D-05 and TASK-139
+  its component-card format; its measured-data format waits on TASK-140. TASK-073,
   TASK-080, TASK-082 and TASK-083 below are not Phase 1 gates; see their Phase 1
   dispositions in the roadmap.
 * **Measured model fidelity (separate from the TASK-033 synthetic baseline):** `node scripts/validate-models.mjs`

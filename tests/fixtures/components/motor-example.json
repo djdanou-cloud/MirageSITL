@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "units": "SI",
+  "type": "motor",
+  "example": true,
+  "manufacturer": null,
+  "model": "Example 2814 outrunner, 700 KV",
+  "sources": [
+    {
+      "id": "example",
+      "kind": "synthetic",
+      "description": "Illustrative values for a typical motor of this class, chosen for MirageSITL examples; not a datasheet and not a measurement.",
+      "sha256": null,
+      "date": null
+    }
+  ],
+  "values": {
+    "kvRpmPerV": 700,
+    "resistanceOhm": 0.085,
+    "noLoadCurrentA": 0.5,
+    "noLoadVoltageV": 10,
+    "maxCurrentA": 30,
+    "maxPowerW": 450,
+    "massKg": 0.105
+  },
+  "provenance": {
+    "kvRpmPerV": "example",
+    "resistanceOhm": "example",
+    "noLoadCurrentA": "example",
+    "noLoadVoltageV": "example",
+    "maxCurrentA": "example",
+    "maxPowerW": "example",
+    "massKg": "example"
+  },
+  "applicability": "Example card: replace it with the values of the motor you fly."
+}

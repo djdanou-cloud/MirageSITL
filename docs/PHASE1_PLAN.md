@@ -429,8 +429,11 @@ TASK-136 defined the project-archive part of D-05 on 2026-10-28: project
 archive v1 (`.mirageproj`) and its import rules, in
 [SPECS_SIMULATION_ENGINES.md](SPECS_SIMULATION_ENGINES.md), section "Local
 project store and project archive v1 (TASK-136)". It is a technical format that
-the stakeholder can still change. The formats for measured data and component
-cards remain with TASK-139 and TASK-140.
+the stakeholder can still change. TASK-139 defined the component-card part on
+2026-10-29: component-card schema 1 and the card exchange file
+(`.miragecards`), in the same specification, section "Component cards v1
+(TASK-139)", also a technical format that the stakeholder can change. The
+format for measured data remains with TASK-140.
 
 ## 7. Risks
 

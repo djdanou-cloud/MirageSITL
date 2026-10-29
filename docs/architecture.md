@@ -110,7 +110,7 @@ Workspace packages, services, and native crates:
 | `packages/aar` | Input/actuator/truth/EKF recording and replay |
 | `packages/scenarios` | Declarative training scenarios, tick runner, and trace rubrics |
 | `packages/project` | Local project store: immutable versions, project archives (TASK-136) |
-| `packages/aircraft` | Aircraft profiles: arms, motors, mass properties, rotor layout and vehicle manifest derivation (TASK-138) |
+| `packages/aircraft` | Aircraft profiles: arms, motors, mass properties, rotor layout and vehicle manifest derivation (TASK-138); component cards, the card exchange file and propeller geometry (TASK-139) |
 | `services/tiles-worker` | Cloudflare proxy, quotas, permitted caching |
 | `native` | Source/toolchain pins and WASM reference tests |
 
@@ -427,6 +427,23 @@ uses its own trigonometry rather than the engine's `Math.sin`, `Math.cos` and
 `Math.tan`, whose last bits differ between engines. The contract is in
 [SPECS_SIMULATION_ENGINES.md](SPECS_SIMULATION_ENGINES.md), section "Aircraft
 profile v1 (TASK-138)".
+
+## Component cards (TASK-139)
+
+Component cards describe motors, propellers, ESCs and batteries (S04). Each
+card lists its sources (a datasheet, the user's measurement or an assumed
+value) and names the source of every value; an unknown value stays null and is
+never filled in. Cards are versioned records of the project store, so a profile
+references one exact card version. A card exchange file (`.miragecards`) moves
+cards between projects, and importing it twice changes nothing.
+`derivePropellerGeometry` turns a propeller card into the blade stations,
+chord and twist that the BET rotor uses. Where the card is silent, it assumes
+a root cutout and a chord taken from the measured UIUC propellers and a twist
+from the nominal pitch, and it lists every assumption and flags every assumed
+value. Its arctangent is also computed by `trig.ts`, so the geometry has the
+same bytes in Node and in Chrome. The contract is in
+[SPECS_SIMULATION_ENGINES.md](SPECS_SIMULATION_ENGINES.md), section "Component
+cards v1 (TASK-139)".
 
 ## Phase 0 contracts: fixtures, capabilities, and models
 

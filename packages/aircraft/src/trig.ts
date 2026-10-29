@@ -59,3 +59,28 @@ export function tan(xRad: number): number {
   const { sin, cos } = sinCos(xRad);
   return sin / cos;
 }
+
+// Arctangent (TASK-139): the halving identity atan(a) = 2·atan(a/(1 + √(1 + a²)))
+// brings a ≤ 1 below 0.125 in at most three steps, where the Taylor series to
+// a^17 leaves a first omitted term, a^19/19, below 3e-18·a: a few hundredths
+// of an ulp. The halvings dominate the error, so the result is within a few
+// ulp of the engine's atan (4 at most on 400,001 points); the tests allow 8.
+const A3 = -1 / 3, A5 = 1 / 5, A7 = -1 / 7, A9 = 1 / 9, A11 = -1 / 11, A13 = 1 / 13, A15 = -1 / 15, A17 = 1 / 17;
+function atanReduced(a: number): number {
+  let y = a, scale = 1;
+  while (y > 0.125) {
+    y = y / (1 + Math.sqrt(1 + y * y));
+    scale *= 2;
+  }
+  const z = y * y;
+  return scale * (y + y * z * (A3 + z * (A5 + z * (A7 + z * (A9 + z * (A11 + z * (A13 + z * (A15 + z * A17))))))));
+}
+
+/** Arctangent of a finite x, in radians. Odd symmetry holds exactly. */
+export function atan(x: number): number {
+  if (!Number.isFinite(x)) throw new RangeError(`atan needs a finite argument, not ${x}`);
+  const a = Math.abs(x);
+  // Above 1, atan(a) = π/2 - atan(1/a), with π/2 in two parts to keep the difference accurate.
+  const result = a > 1 ? PIO2_1 - (atanReduced(1 / a) - PIO2_2) : atanReduced(a);
+  return x < 0 ? -result : result;
+}

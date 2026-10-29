@@ -3531,8 +3531,8 @@ Scope S16 and S01. `packages/project` keeps projects, component cards,
 aircraft profiles and experiments in the browser, with no account or cloud
 service. Every edit appends an immutable version; nothing stored is rewritten
 or deleted. This section is the D-05 contract for project import and export.
-The file formats for measured data and component cards stay with TASK-139 and
-TASK-140.
+The component-card format and its exchange file are in section "Component
+cards v1 (TASK-139)"; the measured-data format stays with TASK-140.
 
 ### Storage backend
 
@@ -4009,3 +4009,213 @@ against a sum about the reference point, and the rejection cases.
 `tests/browser/aircraft-derivation.spec.ts` derives the same fixtures, and a
 variant on angles where the engines' `Math` functions disagree, in Chromium,
 and requires the same bytes as Node. The roadmap entry records the results.
+
+## Component cards v1 (TASK-139)
+
+Scope S04. `packages/aircraft/src/components.ts` describes motors, propellers,
+ESCs and batteries as component cards: `component-card` records of the project
+store (TASK-136). Every edit is a new immutable version addressed by its
+SHA-256, and aircraft profiles reference those addresses (TASK-138). A card
+states what is known about a part and where each value came from; it never
+fills in a value. Configuration-time code only; never call it from a physics
+step.
+
+### Card schema 1
+
+`packages/aircraft/src/components.schema.json` (JSON Schema draft-07)
+validates a card, which starts as `unknown`. `validateComponentCard` then runs
+the checks below and returns a deep-frozen copy; it is also the payload
+validator of the `component-card` kind.
+
+```typescript
+interface ComponentCard {
+  schemaVersion: 1;
+  units: "SI";
+  type: "motor" | "propeller" | "esc" | "battery";
+  example: boolean;                 // an illustration shipped with MirageSITL; never measured data
+  manufacturer: string | null;      // 1..128 characters
+  model: string | null;             // 1..128 characters
+  sources: {                        // 1..16, unique IDs, each used by at least one value
+    id: string;                     // ^[a-z0-9][a-z0-9-]{0,63}$
+    kind: "specification" | "measured" | "synthetic";
+    description: string;            // 1..2048 characters
+    sha256: string | null;          // of the document or data; required for a measured source
+    date: string | null;            // YYYY-MM-DD calendar date; required for a measured source
+  }[];
+  values: { [field: string]: number | string | object | null };  // the fields of its type, below
+  provenance: { [field: string]: string | null };                // the same fields: a source ID exactly when the value is known
+  applicability: string | null;     // limits of use, 1..2048 characters
+}
+```
+
+A source of kind `specification` is a datasheet or catalog, `measured` is the
+user's own measurement and `synthetic` is an illustrative or assumed value. The
+SHA-256 and date of a measured source identify its data; TASK-140 adds the
+measurement sets themselves. Every value field is present: null means that the
+value is not known, and `missingValues(card)` lists such fields in schema
+order, which is what a user still has to supply. The ranges are parser bounds
+that catch unit mistakes, such as a diameter in inches or a KV of zero, not
+physical envelopes:
+
+| Type | Field | Unit | Range | Null allowed |
+| --- | --- | --- | --- | --- |
+| motor | `kvRpmPerV` | rpm/V | (0, 100000] | no |
+| motor | `resistanceOhm` (phase to phase) | Ω | (0, 100] | yes |
+| motor | `noLoadCurrentA` | A | (0, 1000] | yes |
+| motor | `noLoadVoltageV` (of the no-load test) | V | (0, 1000] | yes |
+| motor | `maxCurrentA` | A | (0, 10000] | yes |
+| motor | `maxPowerW` | W | (0, 10^7] | yes |
+| propeller | `diameterM` | m | (0, 20] | no |
+| propeller | `pitchM` (nominal) | m | (0, 50] | no |
+| propeller | `bladeCount` | 1 | integer 1..16 | no |
+| propeller | `hubDiameterM` | m | (0, 20] | yes |
+| propeller | `chord`: `radiusRatio`, `chordRatio` (c/R) | 1 | 2..64 points; (0, 1] and (0, 2] | yes |
+| propeller | `twist`: `radiusRatio`, `angleRad` (blade angle to the rotor plane) | 1, rad | 2..64 points; (0, 1] and (−π/2, π/2) | yes |
+| propeller | `airfoil` | text | 1..64 characters | yes |
+| esc | `maxCurrentA` | A | (0, 10000] | no |
+| esc | `updateRateHz` | Hz | (0, 10^6] | yes |
+| esc | `maxVoltageV` | V | (0, 1000] | yes |
+| battery | `cellsSeries` | 1 | integer 1..32 | no |
+| battery | `capacityAh` | A·h | (0, 1000] | no |
+| battery | `internalResistanceOhm` (whole pack) | Ω | [0, 10] | yes |
+| battery | `cellFullV`, `cellEmptyV` | V | (0, 10] | yes |
+| battery | `maxDischargeCurrentA` | A | (0, 10^5] | yes |
+| all | `massKg` | kg | (0, 1000] | yes |
+
+Checks beyond the schema:
+
+* Source IDs are unique; a date is a real calendar date (proleptic
+  Gregorian); a measured source has a SHA-256 and a date.
+* An example card has no measured source.
+* Every known value names a listed source, every unknown value names none, and
+  every source is used.
+* A motor's no-load current and its test voltage are both known or both
+  unknown.
+* A propeller's hub diameter is below its diameter, and each distribution has
+  one value per radius ratio, with strictly increasing radius ratios.
+* A battery's full cell voltage is above its empty cell voltage.
+
+`checkProfileCards(profile, cards)` checks that every card a profile
+references is available and has the type of its role, for example that a
+motor's propeller reference names a propeller card. `readComponentCard(stored)`
+returns the card of a stored `component-card` version and refuses any other
+kind. The four example cards under `tests/fixtures/components/` are labeled
+`example: true`, carry one synthetic source and hold no measured data.
+
+### Card exchange file
+
+The card exchange file moves selected cards between projects. Unlike the
+project archive (TASK-136), it carries no item IDs, history or project, only
+the current cards:
+
+```typescript
+interface CardFile {                // canonical JSON (RFC 8785), at most 16 MiB, extension .miragecards
+  format: "mirage-component-cards";
+  formatVersion: 1;
+  exportedAt: string;               // UTC, YYYY-MM-DDTHH:MM:SS.sssZ
+  cards: {                          // 1..256
+    name: string;                   // NFC without leading or trailing white space, as in the project store
+    sourceSha256: string;           // the exported version's address; informational
+    payloadSha256: string;          // SHA-256 of the payload's canonical JSON; checked on import
+    payload: ComponentCard;
+  }[];
+}
+declare function exportComponentCards(versions: readonly StoredVersion[], exportedAt?: Date): Promise<Uint8Array>;
+declare function decodeComponentCards(bytes: Uint8Array): Promise<CardFileEntry[]>;
+declare function importComponentCards(store: ProjectStore, projectId: string, bytes: Uint8Array):
+  Promise<{ name: string; payloadSha256: string; status: "added" | "unchanged"; sha256: string }[]>;
+```
+
+Import checks the whole file before it stores anything: its size, UTF-8 JSON,
+the schema, canonical bytes, the timestamp, every name, every payload hash and
+every card. A card whose name and payload the project already holds is
+reported `unchanged`; every other card becomes a new item. Import never
+modifies an existing card, so importing the same file twice changes nothing. A
+storage failure part-way leaves the cards added so far, and repeating the
+import adds only the rest.
+
+### Propeller geometry
+
+`derivePropellerGeometry(card, { strips })` derives the BET blade geometry of
+a propeller card, lists every assumption it makes and flags every value that
+was assumed rather than given:
+
+```typescript
+declare function derivePropellerGeometry(card: unknown, options?: { strips?: number }): {
+  geometry: {
+    bladeCount: number; radiusM: number; rootCutoutM: number;
+    radialStationM: number[]; chordM: number[]; twistRad: number[]; quadratureWidthM: number[];
+    airfoil: string | null; bladeInertiaKgM2: number | null;
+  };
+  assumptions: { id: AssumptionId; description: string }[];
+  flags: { id: GeometryFlagId; description: string }[];
+};
+```
+
+With diameter D, nominal pitch P, hub diameter d_h, mass m and N strips
+(default 16, at most the 64 stations of a BET rotor):
+
+\[
+R = \frac{D}{2},\qquad
+r_c = \begin{cases} d_h/2 & \text{with a hub diameter} \\ 0.15\,R & \text{without} \end{cases},\qquad
+w = \frac{R - r_c}{N},\qquad
+r_i = r_c + \left(i + \tfrac{1}{2}\right) w
+\]
+
+\[
+\theta(r) = \arctan\frac{P}{2\pi r},\qquad
+c = 0.1812\,R,\qquad
+I = \frac{m R^2}{3}
+\]
+
+A given chord or twist distribution is interpolated linearly in r/R; a station
+outside the data takes the nearest end value and is flagged. Without one, the
+chord is the constant c and the blade angle is θ(r), the geometric pitch angle
+of a helical blade. The assumptions, in this order:
+
+| ID | Assumption |
+| --- | --- |
+| `rigid-identical-blades` | The blades are rigid, identical and evenly spaced; they do not cone, flap or bend |
+| `midpoint-strips` | N equal strips from the root cutout to the tip; each station is a strip midpoint, and the strip widths are the quadrature weights |
+| `root-cutout` | The blade begins at the hub radius, or at r/R = 0.15 without a hub diameter |
+| `chord` | The chord is interpolated from the card, or constant at c/R = 0.1812 without one |
+| `twist` | The blade angle is interpolated from the card, or θ(r) from the nominal pitch, taken as the geometric pitch at every radius and measured to the chord line; manufacturers often state pitch at 0.75 R or to a flat lower surface |
+| `inertia` | With a mass only: each blade is a thin uniform rod from the axis to the tip, so I = mR²/3; a heavier hub region makes the real value smaller |
+
+The validity flags, in this order, each present only when it applies:
+`root-cutout-assumed`, `chord-assumed`, `chord-extended`, `twist-from-pitch`,
+`twist-extended`, `airfoil-unspecified` and `inertia-unknown`.
+
+The two defaults come from the measured UIUC geometries in
+`tests/fixtures/rotors/uiuc-propellers.json`: c/R = 0.1812 is the median
+measured chord ratio between r/R 0.3 and 0.9 of its 14 propellers (182
+samples), and every one of them begins at r/R = 0.15. Real blades taper, so a
+constant chord is a preliminary value; TASK-145 calibrates against
+measurements. The geometry gives the blade fields of a vehicle manifest rotor
+(TASK-138) directly. The polar (from the airfoil), the shaft inertia (the
+propeller and the motor rotor, which no card states), the bearing friction and
+the azimuth samples come from elsewhere; TASK-144 assembles the rotor.
+
+### Arctangent
+
+`Math.atan` also differs between Node 24.22.2 and Chromium 153, in the last
+bit for 6.3% of arguments, so θ(r) uses `atan` from `trig.ts`, built from
+basic arithmetic and `Math.sqrt`. Engines compute the square root with the
+correctly rounded hardware instruction, and Node and Chromium agreed on every
+argument tested. The identity atan(a) = 2·atan(a/(1 + √(1 + a²))) brings
+a ≤ 1 below 1/8 in at most three steps, where the Taylor series to a^17 leaves
+a first omitted term below 3e-18·a; above 1, atan(a) = π/2 − atan(1/a) with
+π/2 in two parts. Against V8's `Math.atan` on 400,001 points the result
+differs by at most 4 ulp; the tests admit 8.
+
+### Verification (TASK-139)
+
+`tests/component-cards.test.ts` checks the example propeller against values
+computed by hand with 40-digit decimal arithmetic, and turns the 14 measured
+UIUC geometries into cards whose geometry must equal the TASK-033
+blade-station builder `bladeStations`. Every derived geometry must pass the
+BET rotor checks of the model manifest. The tests also cover the rejection
+cases, the store and the exchange file.
+`tests/browser/aircraft-derivation.spec.ts` derives the example propeller in
+Chromium at 16 and 64 strips and requires the same bytes as Node. The roadmap
+entry records the results.

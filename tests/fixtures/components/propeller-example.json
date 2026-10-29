@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "units": "SI",
+  "type": "propeller",
+  "example": true,
+  "manufacturer": null,
+  "model": "Example 10x4.5 two-blade propeller",
+  "sources": [
+    {
+      "id": "example",
+      "kind": "synthetic",
+      "description": "Illustrative values for a typical propeller of this class, chosen for MirageSITL examples; not a datasheet and not a measurement.",
+      "sha256": null,
+      "date": null
+    }
+  ],
+  "values": {
+    "diameterM": 0.254,
+    "pitchM": 0.1143,
+    "bladeCount": 2,
+    "hubDiameterM": null,
+    "massKg": 0.0125,
+    "chord": null,
+    "twist": null,
+    "airfoil": null
+  },
+  "provenance": {
+    "diameterM": "example",
+    "pitchM": "example",
+    "bladeCount": "example",
+    "hubDiameterM": null,
+    "massKg": "example",
+    "chord": null,
+    "twist": null,
+    "airfoil": null
+  },
+  "applicability": "Example card without blade geometry: a derived BET geometry rests on the listed assumptions."
+}

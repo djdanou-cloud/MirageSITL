@@ -1,0 +1,790 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://mirage-sitl.invalid/schemas/component-card.schema.json",
+  "title": "MirageSITL component card v1 and card exchange file v1",
+  "description": "Component cards (TASK-139) for motors, propellers, ESCs and batteries. SI units; every value names its source in provenance, and null means the value is not known. The ranges are parser bounds that catch unit mistakes, not physical envelopes. Code checks what the schema cannot express: unique source IDs, provenance exactly for known values and naming a listed source, every source used, measured sources with a SHA-256 and a date, no measured source on an example card, and the per-type rules in the specification.",
+  "definitions": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "sourceReference": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[a-z0-9][a-z0-9-]{0,63}$"
+    },
+    "label": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "note": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "minLength": 1,
+      "maxLength": 2048
+    },
+    "sources": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 16,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "kind",
+          "description",
+          "sha256",
+          "date"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9-]{0,63}$"
+          },
+          "kind": {
+            "enum": [
+              "specification",
+              "measured",
+              "synthetic"
+            ]
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048
+          },
+          "sha256": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "date": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+          }
+        }
+      }
+    },
+    "chordDistribution": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "required": [
+        "radiusRatio",
+        "chordRatio"
+      ],
+      "properties": {
+        "radiusRatio": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 64,
+          "items": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "maximum": 1
+          }
+        },
+        "chordRatio": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 64,
+          "items": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "maximum": 2
+          }
+        }
+      }
+    },
+    "twistDistribution": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "required": [
+        "radiusRatio",
+        "angleRad"
+      ],
+      "properties": {
+        "radiusRatio": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 64,
+          "items": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "maximum": 1
+          }
+        },
+        "angleRad": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 64,
+          "items": {
+            "type": "number",
+            "exclusiveMinimum": -1.5707963267948966,
+            "exclusiveMaximum": 1.5707963267948966
+          }
+        }
+      }
+    },
+    "motorValues": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kvRpmPerV",
+        "resistanceOhm",
+        "noLoadCurrentA",
+        "noLoadVoltageV",
+        "maxCurrentA",
+        "maxPowerW",
+        "massKg"
+      ],
+      "properties": {
+        "kvRpmPerV": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 100000
+        },
+        "resistanceOhm": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "exclusiveMinimum": 0,
+          "maximum": 100
+        },
+        "noLoadCurrentA": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "exclusiveMinimum": 0,
+          "maximum": 1000
+        },
+        "noLoadVoltageV": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "exclusiveMinimum": 0,
+          "maximum": 1000
+        },
+        "maxCurrentA": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "exclusiveMinimum": 0,
+          "maximum": 10000
+        },
+        "maxPowerW": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "exclusiveMinimum": 0,
+          "maximum": 10000000
+        },
+        "massKg": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "exclusiveMinimum": 0,
+          "maximum": 1000
+        }
+      }
+    },
+    "motorProvenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kvRpmPerV",
+        "resistanceOhm",
+        "noLoadCurrentA",
+        "noLoadVoltageV",
+        "maxCurrentA",
+        "maxPowerW",
+        "massKg"
+      ],
+      "properties": {
+        "kvRpmPerV": {
+          "$ref": "#/definitions/sourceReference"
+        },
+        "resistanceOhm": {
+          "$ref": "#/definitions/sourceReference"
+        },
+        "noLoadCurrentA": {
+          "$ref": "#/definitions/sourceReference"
+        },
+        "noLoadVoltageV": {
+          "$ref": "#/definitions/sourceReference"
+        },
+        "maxCurrentA": {
+          "$ref": "#/definitions/sourceReference"
+        },
+        "maxPowerW": {
+          "$ref": "#/definitions/sourceReference"
+        },
+        "massKg": {
+          "$ref": "#/definitions/sourceReference"
+        }
+      }
+    },
+    "propellerValues": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "diameterM",
+        "pitchM",
+        "bladeCount",
+        "hubDiameterM",
+        "massKg",
+        "chord",
+        "twist",
+        "airfoil"
+      ],
+      "properties": {
+        "diameterM": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 20
+        },
+        "pitchM": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 50
+        },
+        "bladeCount": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 16
+        },
+        "hubDiameterM": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "exclusiveMinimum": 0,
+          "maximum": 20
+        },
+        "massKg": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "exclusiveMinimum": 0,
+          "maximum": 1000
+        },
+        "chord": {
+          "$ref": "#/definitions/chordDistribution"
+        },
+        "twist": {
+          "$ref": "#/definitions/twistDistribution"
+        },
+        "airfoil": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1,
+          "maxLength": 64
+        }
+      }
+    },
+    "propellerProvenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "diameterM",
+        "pitchM",
+        "bladeCount",
+        "hubDiameterM",
+        "massKg",
+        "chord",
+        "twist",
+        "airfoil"
+      ],
+      "properties": {
+        "diameterM": {
+          "$ref": "#/definitions/sourceReference"
+        },
+        "pitchM": {
+          "$ref": "#/definitions/sourceReference"
+        },
+        "bladeCount": {
+          "$ref": "#/definitions/sourceReference"
+        },
+        "hubDiameterM": {
+          "$ref": "#/definitions/sourceReference"
+        },
+        "massKg": {
+          "$ref": "#/definitions/sourceReference"
+        },
+        "chord": {
+          "$ref": "#/definitions/sourceReference"
+        },
+        "twist": {
+          "$ref": "#/definitions/sourceReference"
+        },
+        "airfoil": {
+          "$ref": "#/definitions/sourceReference"
+        }
+      }
+    },
+    "escValues": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "maxCurrentA",
+        "updateRateHz",
+        "maxVoltageV",
+        "massKg"
+      ],
+      "properties": {
+        "maxCurrentA": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 10000
+        },
+        "updateRateHz": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "exclusiveMinimum": 0,
+          "maximum": 1000000
+        },
+        "maxVoltageV": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "exclusiveMinimum": 0,
+          "maximum": 1000
+        },
+        "massKg": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "exclusiveMinimum": 0,
+          "maximum": 1000
+        }
+      }
+    },
+    "escProvenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "maxCurrentA",
+        "updateRateHz",
+        "maxVoltageV",
+        "massKg"
+      ],
+      "properties": {
+        "maxCurrentA": {
+          "$ref": "#/definitions/sourceReference"
+        },
+        "updateRateHz": {
+          "$ref": "#/definitions/sourceReference"
+        },
+        "maxVoltageV": {
+          "$ref": "#/definitions/sourceReference"
+        },
+        "massKg": {
+          "$ref": "#/definitions/sourceReference"
+        }
+      }
+    },
+    "batteryValues": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cellsSeries",
+        "capacityAh",
+        "internalResistanceOhm",
+        "cellFullV",
+        "cellEmptyV",
+        "maxDischargeCurrentA",
+        "massKg"
+      ],
+      "properties": {
+        "cellsSeries": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 32
+        },
+        "capacityAh": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1000
+        },
+        "internalResistanceOhm": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 10
+        },
+        "cellFullV": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "exclusiveMinimum": 0,
+          "maximum": 10
+        },
+        "cellEmptyV": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "exclusiveMinimum": 0,
+          "maximum": 10
+        },
+        "maxDischargeCurrentA": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "exclusiveMinimum": 0,
+          "maximum": 100000
+        },
+        "massKg": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "exclusiveMinimum": 0,
+          "maximum": 1000
+        }
+      }
+    },
+    "batteryProvenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cellsSeries",
+        "capacityAh",
+        "internalResistanceOhm",
+        "cellFullV",
+        "cellEmptyV",
+        "maxDischargeCurrentA",
+        "massKg"
+      ],
+      "properties": {
+        "cellsSeries": {
+          "$ref": "#/definitions/sourceReference"
+        },
+        "capacityAh": {
+          "$ref": "#/definitions/sourceReference"
+        },
+        "internalResistanceOhm": {
+          "$ref": "#/definitions/sourceReference"
+        },
+        "cellFullV": {
+          "$ref": "#/definitions/sourceReference"
+        },
+        "cellEmptyV": {
+          "$ref": "#/definitions/sourceReference"
+        },
+        "maxDischargeCurrentA": {
+          "$ref": "#/definitions/sourceReference"
+        },
+        "massKg": {
+          "$ref": "#/definitions/sourceReference"
+        }
+      }
+    },
+    "card": {
+      "type": "object",
+      "required": [
+        "type"
+      ],
+      "properties": {
+        "type": {
+          "enum": [
+            "motor",
+            "propeller",
+            "esc",
+            "battery"
+          ]
+        }
+      },
+      "discriminator": {
+        "propertyName": "type"
+      },
+      "oneOf": [
+        {
+          "type": "object",
+          "description": "Motor: KV, phase-to-phase winding resistance, no-load current at its test voltage, rated current and power, mass.",
+          "additionalProperties": false,
+          "required": [
+            "schemaVersion",
+            "units",
+            "type",
+            "example",
+            "manufacturer",
+            "model",
+            "sources",
+            "values",
+            "provenance",
+            "applicability"
+          ],
+          "properties": {
+            "schemaVersion": {
+              "const": 1
+            },
+            "units": {
+              "const": "SI"
+            },
+            "type": {
+              "const": "motor"
+            },
+            "example": {
+              "type": "boolean"
+            },
+            "manufacturer": {
+              "$ref": "#/definitions/label"
+            },
+            "model": {
+              "$ref": "#/definitions/label"
+            },
+            "sources": {
+              "$ref": "#/definitions/sources"
+            },
+            "values": {
+              "$ref": "#/definitions/motorValues"
+            },
+            "provenance": {
+              "$ref": "#/definitions/motorProvenance"
+            },
+            "applicability": {
+              "$ref": "#/definitions/note"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "description": "Propeller: diameter, nominal pitch, blade count, hub diameter, mass, optional chord and twist distributions over r/R, and airfoil name.",
+          "additionalProperties": false,
+          "required": [
+            "schemaVersion",
+            "units",
+            "type",
+            "example",
+            "manufacturer",
+            "model",
+            "sources",
+            "values",
+            "provenance",
+            "applicability"
+          ],
+          "properties": {
+            "schemaVersion": {
+              "const": 1
+            },
+            "units": {
+              "const": "SI"
+            },
+            "type": {
+              "const": "propeller"
+            },
+            "example": {
+              "type": "boolean"
+            },
+            "manufacturer": {
+              "$ref": "#/definitions/label"
+            },
+            "model": {
+              "$ref": "#/definitions/label"
+            },
+            "sources": {
+              "$ref": "#/definitions/sources"
+            },
+            "values": {
+              "$ref": "#/definitions/propellerValues"
+            },
+            "provenance": {
+              "$ref": "#/definitions/propellerProvenance"
+            },
+            "applicability": {
+              "$ref": "#/definitions/note"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "description": "ESC: rated current, command update rate, rated voltage, mass.",
+          "additionalProperties": false,
+          "required": [
+            "schemaVersion",
+            "units",
+            "type",
+            "example",
+            "manufacturer",
+            "model",
+            "sources",
+            "values",
+            "provenance",
+            "applicability"
+          ],
+          "properties": {
+            "schemaVersion": {
+              "const": 1
+            },
+            "units": {
+              "const": "SI"
+            },
+            "type": {
+              "const": "esc"
+            },
+            "example": {
+              "type": "boolean"
+            },
+            "manufacturer": {
+              "$ref": "#/definitions/label"
+            },
+            "model": {
+              "$ref": "#/definitions/label"
+            },
+            "sources": {
+              "$ref": "#/definitions/sources"
+            },
+            "values": {
+              "$ref": "#/definitions/escValues"
+            },
+            "provenance": {
+              "$ref": "#/definitions/escProvenance"
+            },
+            "applicability": {
+              "$ref": "#/definitions/note"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "description": "Battery: cells in series, capacity, pack internal resistance, full and empty cell voltage, rated discharge current, mass.",
+          "additionalProperties": false,
+          "required": [
+            "schemaVersion",
+            "units",
+            "type",
+            "example",
+            "manufacturer",
+            "model",
+            "sources",
+            "values",
+            "provenance",
+            "applicability"
+          ],
+          "properties": {
+            "schemaVersion": {
+              "const": 1
+            },
+            "units": {
+              "const": "SI"
+            },
+            "type": {
+              "const": "battery"
+            },
+            "example": {
+              "type": "boolean"
+            },
+            "manufacturer": {
+              "$ref": "#/definitions/label"
+            },
+            "model": {
+              "$ref": "#/definitions/label"
+            },
+            "sources": {
+              "$ref": "#/definitions/sources"
+            },
+            "values": {
+              "$ref": "#/definitions/batteryValues"
+            },
+            "provenance": {
+              "$ref": "#/definitions/batteryProvenance"
+            },
+            "applicability": {
+              "$ref": "#/definitions/note"
+            }
+          }
+        }
+      ]
+    },
+    "exchange": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "format",
+        "formatVersion",
+        "exportedAt",
+        "cards"
+      ],
+      "properties": {
+        "format": {
+          "const": "mirage-component-cards"
+        },
+        "formatVersion": {
+          "const": 1
+        },
+        "exportedAt": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{3}Z$"
+        },
+        "cards": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 256,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "name",
+              "sourceSha256",
+              "payloadSha256",
+              "payload"
+            ],
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 512
+              },
+              "sourceSha256": {
+                "$ref": "#/definitions/sha256"
+              },
+              "payloadSha256": {
+                "$ref": "#/definitions/sha256"
+              },
+              "payload": {
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

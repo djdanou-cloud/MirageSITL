@@ -6,7 +6,9 @@
   "exports": {
     "./profile": "./src/profile.ts",
     "./layout": "./src/layout.ts",
-    "./derive-manifest": "./src/derive-manifest.ts"
+    "./derive-manifest": "./src/derive-manifest.ts",
+    "./components": "./src/components.ts",
+    "./propeller-geometry": "./src/propeller-geometry.ts"
   },
   "dependencies": {
     "@mirage/physics": "0.1.0",

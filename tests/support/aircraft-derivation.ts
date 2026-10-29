@@ -87,3 +87,20 @@ export const RECORDED_MANIFEST_SHA256: { readonly [name in FixtureName]: string 
 };
 /** The same, for `engineSensitiveVariant` of the 16-motor fixture. */
 export const RECORDED_ENGINE_SENSITIVE_SHA256 = '234f0d6e891346a377fc266fcd347f6f34355d15c5c543a70890806b8c889cae';
+
+/**
+ * TASK-139: strip counts of the propeller geometry byte check for
+ * tests/fixtures/components/propeller-example.json. At 64 strips two of its
+ * stations take atan arguments on which Node 24.22.2 and Chromium 153 return
+ * different last bits; 16 is the default.
+ */
+export const GEOMETRY_STRIPS = [16, 64] as const;
+/**
+ * SHA-256 of the canonical JSON of the example propeller's derived geometry,
+ * assumptions and flags, recorded in Node 24.22.2. They lock the bytes; the
+ * oracle checks in tests/component-cards.test.ts establish correctness.
+ */
+export const RECORDED_PROPELLER_GEOMETRY_SHA256: { readonly [strips in typeof GEOMETRY_STRIPS[number]]: string } = {
+  16: '1f6b71d017a45e9aa3e1276d9a51746e4477f484c5f468d90f4314d502891346',
+  64: 'da37eca40820b137d9632470e94b64361b1cde436452c97da8b93931d5272e35',
+};

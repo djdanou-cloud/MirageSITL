@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "units": "SI",
+  "type": "esc",
+  "example": true,
+  "manufacturer": null,
+  "model": "Example 30 A ESC",
+  "sources": [
+    {
+      "id": "example",
+      "kind": "synthetic",
+      "description": "Illustrative values for a typical esc of this class, chosen for MirageSITL examples; not a datasheet and not a measurement.",
+      "sha256": null,
+      "date": null
+    }
+  ],
+  "values": {
+    "maxCurrentA": 30,
+    "updateRateHz": 400,
+    "maxVoltageV": 25.2,
+    "massKg": 0.008
+  },
+  "provenance": {
+    "maxCurrentA": "example",
+    "updateRateHz": "example",
+    "maxVoltageV": "example",
+    "massKg": "example"
+  },
+  "applicability": "Example card: replace it with the values of the ESC you fly."
+}

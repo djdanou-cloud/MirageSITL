@@ -1471,6 +1471,151 @@
           "derivation": "Hand-specified synthetic 16-motor aircraft profile: eight 0.42 m arms with tilted counter-rotating pairs 0.1 m apart and a payload, the S19 maximum. TASK-138 schema, layout and derivation tests only; not a measured aircraft."
         }
       }
+    },
+    {
+      "path": "components/motor-example.json",
+      "manifest": {
+        "formatVersion": 1,
+        "id": "component-motor-example-v1",
+        "sourceSha256": "8da613982ca1f4f6bc5cfa06a397426a2d0d1da3342e156c8d54f02622e2aece",
+        "units": {
+          "maxCurrentA": "A",
+          "noLoadVoltageV": "V",
+          "massKg": "kg"
+        },
+        "validityEnvelope": {
+          "maxCurrentA": {
+            "min": 30,
+            "max": 30
+          },
+          "noLoadVoltageV": {
+            "min": 10,
+            "max": 10
+          },
+          "massKg": {
+            "min": 0.105,
+            "max": 0.105
+          }
+        },
+        "tolerance": {
+          "absolute": 1e-12,
+          "relative": 1e-12
+        },
+        "provenance": {
+          "kind": "synthetic",
+          "derivation": "Hand-chosen illustrative component card for a 700 KV multirotor motor: 0.085 ohm, 0.5 A no-load current at 10 V, 30 A, 450 W, 0.105 kg. TASK-139 schema, exchange and geometry tests only; labeled an example card, not specification or measured data."
+        }
+      }
+    },
+    {
+      "path": "components/propeller-example.json",
+      "manifest": {
+        "formatVersion": 1,
+        "id": "component-propeller-example-v1",
+        "sourceSha256": "5944eeec045d0e449fe566be13142adef275dda27b4c6f57e6583e68addc36a5",
+        "units": {
+          "diameterM": "m",
+          "pitchM": "m",
+          "massKg": "kg"
+        },
+        "validityEnvelope": {
+          "diameterM": {
+            "min": 0.254,
+            "max": 0.254
+          },
+          "pitchM": {
+            "min": 0.1143,
+            "max": 0.1143
+          },
+          "massKg": {
+            "min": 0.0125,
+            "max": 0.0125
+          }
+        },
+        "tolerance": {
+          "absolute": 1e-12,
+          "relative": 1e-12
+        },
+        "provenance": {
+          "kind": "synthetic",
+          "derivation": "Hand-chosen illustrative component card for a two-blade 10 x 4.5 in propeller (0.254 m diameter, 0.1143 m pitch, 0.0125 kg) without hub, chord, twist or airfoil data. TASK-139 schema, exchange and geometry tests only; labeled an example card, not specification or measured data."
+        }
+      }
+    },
+    {
+      "path": "components/esc-example.json",
+      "manifest": {
+        "formatVersion": 1,
+        "id": "component-esc-example-v1",
+        "sourceSha256": "50ef8893d000123e59b46d056733425eb442486f57330ef87f2d2f403fb0d40c",
+        "units": {
+          "maxCurrentA": "A",
+          "maxVoltageV": "V",
+          "massKg": "kg"
+        },
+        "validityEnvelope": {
+          "maxCurrentA": {
+            "min": 30,
+            "max": 30
+          },
+          "maxVoltageV": {
+            "min": 25.2,
+            "max": 25.2
+          },
+          "massKg": {
+            "min": 0.008,
+            "max": 0.008
+          }
+        },
+        "tolerance": {
+          "absolute": 1e-12,
+          "relative": 1e-12
+        },
+        "provenance": {
+          "kind": "synthetic",
+          "derivation": "Hand-chosen illustrative component card for a 30 A ESC with a 400 Hz update rate, 25.2 V and 0.008 kg. TASK-139 schema, exchange and geometry tests only; labeled an example card, not specification or measured data."
+        }
+      }
+    },
+    {
+      "path": "components/battery-example.json",
+      "manifest": {
+        "formatVersion": 1,
+        "id": "component-battery-example-v1",
+        "sourceSha256": "fe5ca2675ac0111195ca9d432e91e1c63f1244f0f8cdb2fb4cbe6ad62fe1b396",
+        "units": {
+          "cellFullV": "V",
+          "cellEmptyV": "V",
+          "maxDischargeCurrentA": "A",
+          "massKg": "kg"
+        },
+        "validityEnvelope": {
+          "cellFullV": {
+            "min": 4.2,
+            "max": 4.2
+          },
+          "cellEmptyV": {
+            "min": 3.3,
+            "max": 3.3
+          },
+          "maxDischargeCurrentA": {
+            "min": 125,
+            "max": 125
+          },
+          "massKg": {
+            "min": 0.52,
+            "max": 0.52
+          }
+        },
+        "tolerance": {
+          "absolute": 1e-12,
+          "relative": 1e-12
+        },
+        "provenance": {
+          "kind": "synthetic",
+          "derivation": "Hand-chosen illustrative component card for a 4S 5 Ah lithium-polymer pack: 0.018 ohm, 4.2 V full and 3.3 V empty per cell, 125 A, 0.52 kg. TASK-139 schema, exchange and geometry tests only; labeled an example card, not specification or measured data."
+        }
+      }
     }
   ]
 }
