@@ -1,8 +1,8 @@
 import { decodeArchive, encodeArchive } from './archive.ts';
 import {
   ALLOWED_DEPENDENCIES, ITEM_KINDS, MAX_DEPENDENCIES, MAX_VERSION, ProjectStoreError, SHA256_HEX, TIMESTAMP, UUID_V4,
-  decodeRecord, encodeRecord, normalizeName, type ContentKind, type Dependency, type ItemKind, type PayloadValidators,
-  type StoredVersion,
+  canonicalBytes, decodeRecord, decodeUtf8, encodeRecord, equalBytes, normalizeName, type ContentKind, type Dependency,
+  type ItemKind, type PayloadValidators, type StoredVersion,
 } from './schema.ts';
 import {
   checkHistory, classifyMerge, initialRecord, repeatsHead, sameInputs, successorRecord, type Draft, type MergeStatus,
@@ -14,7 +14,17 @@ import {
 // is ever rewritten or deleted here. The browser backend is IndexedDB: one
 // transaction appends a version and checks the head it replaces. The data
 // belong to the page's origin, so the launcher must serve the application
-// from one fixed origin.
+// from one fixed origin. Local settings (TASK-137), such as the shell's
+// navigation, are mutable canonical JSON kept apart from the records and
+// never exported.
+
+/** Canonical JSON bytes of one local setting. */
+export const MAX_SETTING_BYTES = 16384;
+// Up to four dot-separated segments of lowercase letters, digits and hyphens, such as `shell.navigation`.
+const SETTING_KEY = /^[a-z][a-z0-9-]{0,31}(?:\.[a-z][a-z0-9-]{0,31}){0,3}$/;
+function checkSettingKey(key: string): void {
+  if (!SETTING_KEY.test(key)) throw new ProjectStoreError('invalid', `Invalid setting key ${JSON.stringify(key)}`);
+}
 
 /** One stored version as a backend keeps it: canonical bytes plus the fields it indexes. */
 export interface StoredRow {
@@ -46,6 +56,9 @@ export interface RecordBackend {
   kindRows(kind: ItemKind): Promise<StoredRow[]>;
   totals(): Promise<StoreTotals>;
   commit(request: CommitRequest): Promise<CommitResult>;
+  /** Local settings: canonical JSON bytes by key, outside the versioned records. */
+  getSetting(key: string): Promise<Uint8Array<ArrayBuffer> | undefined>;
+  putSetting(key: string, bytes: Uint8Array<ArrayBuffer>): Promise<void>;
   close(): void;
 }
 
@@ -80,6 +93,7 @@ export class MemoryBackend implements RecordBackend {
   /** `${id}/${version}` to sha256: the unique item-version index. */
   private readonly versions = new Map<string, string>();
   private readonly heads = new Map<string, StoredRow>();
+  private readonly settings = new Map<string, Uint8Array<ArrayBuffer>>();
 
   get(sha256: string): Promise<StoredRow | undefined> {
     const row = this.rows.get(sha256);
@@ -105,6 +119,13 @@ export class MemoryBackend implements RecordBackend {
     } catch (error) {
       return Promise.reject(error instanceof Error ? error : new Error('Commit failed'));
     }
+  }
+  getSetting(key: string): Promise<Uint8Array<ArrayBuffer> | undefined> {
+    return Promise.resolve(this.settings.get(key)?.slice());
+  }
+  putSetting(key: string, bytes: Uint8Array<ArrayBuffer>): Promise<void> {
+    this.settings.set(key, bytes.slice());
+    return Promise.resolve();
   }
   close(): void {
     // Nothing to release.
@@ -138,8 +159,10 @@ export class MemoryBackend implements RecordBackend {
 }
 
 export const DEFAULT_DATABASE_NAME = 'mirage-project-store';
-const DATABASE_VERSION = 1;
+/** Version 1 (TASK-136) holds `records`; version 2 (TASK-137) adds `settings`. */
+const DATABASE_VERSION = 2;
 const RECORDS = 'records';
+const SETTINGS = 'settings';
 
 function asRow(value: unknown): StoredRow {
   if (typeof value !== 'object' || value === null) throw new ProjectStoreError('storage', 'A stored project row is not an object');
@@ -161,9 +184,10 @@ function itemRange(id: string): IDBKeyRange {
 }
 
 /**
- * IndexedDB backend. One object store `records` keyed by sha256, with a
+ * IndexedDB backend. The object store `records` is keyed by sha256, with a
  * unique index on [id, version] (no item version can have two contents) and
- * indexes on projectId and kind. Rows are only ever added.
+ * indexes on projectId and kind; its rows are only ever added. The object
+ * store `settings` maps a setting key to canonical JSON bytes.
  */
 export class IndexedDbBackend implements RecordBackend {
   private closed = false;
@@ -187,6 +211,7 @@ export class IndexedDbBackend implements RecordBackend {
           records.createIndex('project', 'projectId');
           records.createIndex('kind', 'kind');
         }
+        if (event.oldVersion < 2) request.result.createObjectStore(SETTINGS);
       };
       request.onsuccess = () => resolve(request.result);
       request.onerror = () => reject(storageError('The project database could not be opened', request.error));
@@ -209,7 +234,7 @@ export class IndexedDbBackend implements RecordBackend {
     return asRows(await this.read(store => store.index('kind').getAll(kind)));
   }
   totals(): Promise<StoreTotals> {
-    const tx = this.transaction('readonly');
+    const tx = this.transaction(RECORDS, 'readonly');
     return new Promise((resolve, reject) => {
       let records = 0, bytes = 0, failure: ProjectStoreError | null = null;
       const cursor = tx.objectStore(RECORDS).openCursor();
@@ -231,7 +256,7 @@ export class IndexedDbBackend implements RecordBackend {
     });
   }
   commit(request: CommitRequest): Promise<CommitResult> {
-    const tx = this.transaction('readwrite');
+    const tx = this.transaction(RECORDS, 'readwrite');
     return new Promise((resolve, reject) => {
       const store = tx.objectStore(RECORDS), item = store.index('item');
       let failure: ProjectStoreError | null = null, added = 0, present = 0;
@@ -282,19 +307,34 @@ export class IndexedDbBackend implements RecordBackend {
       tx.onabort = () => reject(failure ?? storageError('The project database transaction failed', tx.error));
     });
   }
+  async getSetting(key: string): Promise<Uint8Array<ArrayBuffer> | undefined> {
+    const value = await this.read(store => store.get(key), SETTINGS);
+    if (value === undefined) return undefined;
+    if (!(value instanceof Uint8Array) || !(value.buffer instanceof ArrayBuffer))
+      throw new ProjectStoreError('storage', `Stored setting ${key} is corrupted`);
+    return new Uint8Array(value);
+  }
+  putSetting(key: string, bytes: Uint8Array<ArrayBuffer>): Promise<void> {
+    const tx = this.transaction(SETTINGS, 'readwrite');
+    return new Promise((resolve, reject) => {
+      tx.objectStore(SETTINGS).put(bytes.slice(), key);
+      tx.oncomplete = () => resolve();
+      tx.onabort = () => reject(storageError(`Setting ${key} could not be stored`, tx.error));
+    });
+  }
   close(): void {
     this.closed = true;
     this.db.close();
   }
 
-  private transaction(mode: IDBTransactionMode): IDBTransaction {
+  private transaction(storeName: string, mode: IDBTransactionMode): IDBTransaction {
     if (this.closed) throw new ProjectStoreError('storage', 'The project database connection is closed');
-    return this.db.transaction(RECORDS, mode);
+    return this.db.transaction(storeName, mode);
   }
-  private read(issue: (store: IDBObjectStore) => IDBRequest): Promise<unknown> {
-    const tx = this.transaction('readonly');
+  private read(issue: (store: IDBObjectStore) => IDBRequest, storeName: string = RECORDS): Promise<unknown> {
+    const tx = this.transaction(storeName, 'readonly');
     return new Promise((resolve, reject) => {
-      const request = issue(tx.objectStore(RECORDS));
+      const request = issue(tx.objectStore(storeName));
       tx.oncomplete = () => {
         const value: unknown = request.result;
         resolve(value);
@@ -612,6 +652,26 @@ export class ProjectStore {
       }
     }
     return { records: totals.records, storeBytes: totals.bytes, usageBytes, quotaBytes, persisted };
+  }
+
+  /** A local setting, or undefined when none is stored. Settings are not versioned and never exported. */
+  async readSetting(key: string): Promise<unknown> {
+    checkSettingKey(key);
+    const bytes = await this.backend.getSetting(key);
+    if (bytes === undefined) return undefined;
+    try {
+      const value: unknown = JSON.parse(decodeUtf8(bytes));
+      if (!equalBytes(canonicalBytes(value, MAX_SETTING_BYTES), bytes)) throw new Error('The setting is not canonical JSON');
+      return value;
+    } catch (cause) {
+      throw new ProjectStoreError('storage', `Stored setting ${key} is corrupted`, { cause });
+    }
+  }
+
+  /** Replaces a local setting with a JSON value of at most MAX_SETTING_BYTES canonical bytes. */
+  async writeSetting(key: string, value: unknown): Promise<void> {
+    checkSettingKey(key);
+    await this.backend.putSetting(key, canonicalBytes(value, MAX_SETTING_BYTES));
   }
 
   close(): void {

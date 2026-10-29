@@ -16,6 +16,7 @@
     "@mirage/ew": "0.1.0",
     "@mirage/input": "0.1.0",
     "@mirage/physics": "0.1.0",
+    "@mirage/project": "0.1.0",
     "@mirage/protocol": "0.1.0",
     "@mirage/scenarios": "0.1.0",
     "@mirage/terrain": "0.1.0",

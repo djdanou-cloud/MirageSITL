@@ -207,7 +207,10 @@ implementation.
   `node scripts/check-uavlogviewer.mjs`). TASK-136 is DONE: `packages/project`
   keeps projects, component cards, aircraft profiles and experiments in
   IndexedDB as immutable versions addressed by SHA-256, with project archives
-  (`.mirageproj`); the application starts using it in TASK-137. Decisions D-04 and
+  (`.mirageproj`). TASK-137 is DONE: the application opens in an English shell
+  with a project context and the twelve Phase 1 tabs, its navigation survives
+  a reload in the store's local settings, and the former demo page is the Run
+  tab's explicitly synthetic backend. Decisions D-04 and
   D-06 to D-12 are decided; D-01 to D-03 wait on TASK-127 to TASK-129, which
   need a Mac. TASK-136 defined the project archive of D-05; its measured-data
   and component-card formats wait on TASK-139 and TASK-140. TASK-073,

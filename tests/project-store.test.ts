@@ -14,7 +14,7 @@ import {
   decodeRecord, encodeRecord, normalizeName, sha256Hex, type StoredVersion,
 } from '../packages/project/src/schema';
 import {
-  MemoryBackend, ProjectStore, toRow, type ProjectStoreOptions, type StorageManagerLike,
+  MAX_SETTING_BYTES, MemoryBackend, ProjectStore, toRow, type ProjectStoreOptions, type StorageManagerLike,
 } from '../packages/project/src/store';
 
 const UNKNOWN_ID = '00000000-0000-4000-8000-ffffffffffff';
@@ -622,5 +622,35 @@ describe('storage', () => {
     // Stored bytes are copies: mutating a returned row cannot change the store.
     row.bytes.fill(0);
     expect((await store.get(motor.sha256)).bytes).toEqual(motor.bytes);
+  });
+});
+
+describe('local settings (TASK-137)', () => {
+  test('settings round-trip outside the versioned records and the archives', async () => {
+    const { store, backend } = newStore(1);
+    expect(await store.readSetting('shell.navigation')).toBeUndefined();
+    const value = { schemaVersion: 1, tab: 'aircraft', projectId: null, note: RU.project };
+    await store.writeSetting('shell.navigation', value);
+    expect(await store.readSetting('shell.navigation')).toEqual(value);
+    await store.writeSetting('shell.navigation', { schemaVersion: 1, tab: 'run', projectId: null });
+    expect(await store.readSetting('shell.navigation')).toEqual({ schemaVersion: 1, tab: 'run', projectId: null });
+    expect(await backend.totals()).toEqual({ records: 0, bytes: 0 });
+    const { project } = await buildProject(store);
+    const { archive } = await store.exportProject(project.record.id);
+    expect(parseRaw(archive).manifest.entries).toHaveLength(4);
+    expect(new TextDecoder().decode(archive)).not.toContain('shell.navigation');
+    expect((await store.storageReport()).records).toBe(4);
+  });
+
+  test('setting keys and values are validated, and a rejected write changes nothing', async () => {
+    const { store } = newStore(1);
+    await store.writeSetting('shell.navigation', { tab: 'run' });
+    for (const key of ['', 'Shell', 'shell..x', '.x', 'x.', 'shell/nav', 'a.b.c.d.e', 'x'.repeat(33), '\u{43a}'])
+      expect(await codeOf(() => store.writeSetting(key, 1))).toBe('invalid');
+    for (const value of [Number.NaN, undefined, () => 1, { text: 'x'.repeat(MAX_SETTING_BYTES) }])
+      expect(await codeOf(() => store.writeSetting('shell.navigation', value))).toBe('invalid');
+    expect(await codeOf(() => store.readSetting('Shell'))).toBe('invalid');
+    expect(await store.readSetting('shell.navigation')).toEqual({ tab: 'run' });
+    expect(await store.readSetting('shell.other')).toBeUndefined();
   });
 });

@@ -99,3 +99,11 @@ test("projects survive a browser restart and round-trip through archives with th
   expect([...first.external, ...second.external]).toEqual([]);
   await second.context.close();
 });
+
+test("a version 1 project database upgrades to version 2 and keeps its records", async ({ page }) => {
+  await page.goto(pageUrl);
+  const upgraded = await page.evaluate(async url => (await import(url) as Harness).upgradeFromVersion1("task137-upgrade"), harnessUrl);
+  expect(upgraded.projects).toEqual([upgraded.expected]);
+  expect(upgraded.setting).toEqual({ schemaVersion: 1, tab: "aircraft", projectId: upgraded.id });
+  expect(upgraded.version).toBe(2);
+});

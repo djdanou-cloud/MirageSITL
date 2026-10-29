@@ -28,6 +28,9 @@ and Lucide UI; a dedicated module Worker; fixed 400 Hz integration; atomic
 SharedArrayBuffer transport; USB Gamepad input; axis calibration; and a simplified
 quadrotor demonstration. The interface includes a 3D view, telemetry, collective
 throttle, arm/disarm, pause/reset, input failsafe, and scheduler drop counters.
+Since TASK-137 the application opens in a shell with a project context and the
+twelve Phase 1 tabs. Projects are stored locally in the browser (TASK-136), and
+the demonstration is the Run tab's flight backend, labeled synthetic.
 
 The running application uses binary ABI **v2** (TASK-085): session epochs, EKF/EW
 status fields, sensor/actuator queues, and Control Protocol v2. The demo physics
@@ -91,10 +94,12 @@ If the cloud home cache is unwritable, add
 
 ### Flying the demo
 
-Select **Start → Arm motors → raise Demo throttle above 50%**. Spool response
-is intentionally delayed. Pause disarms; return throttle to zero before
-rearming. Reset stops and returns the model to the ground. Hiding the tab pauses
-the session.
+In the **Run** tab, which opens by default, select **Start → Arm motors → raise
+Demo throttle above 50%**. Spool response is intentionally delayed. Pause
+disarms; return throttle to zero before rearming. Reset stops and returns the
+model to the ground. Hiding the browser tab pauses the session. Opening another
+application tab does not: the simulation keeps running and only the 3D view
+pauses.
 
 For EdgeTX/OpenTX, select USB joystick mode on the transmitter, choose the
 USB input tab, and move a stick so the browser can detect it. Select the device

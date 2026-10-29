@@ -5,7 +5,7 @@ test("keyboard landmarks, 390px layout and automated accessibility scan", async 
   await page.goto("/");
   await expect(page.getByTestId("worker-status")).toHaveText("READY");
   await page.keyboard.press("Tab");
-  await expect(page.getByRole("link", { name: "Skip to flight controls" })).toBeFocused();
+  await expect(page.getByRole("link", { name: "Skip to main content" })).toBeFocused();
   await page.keyboard.press("Enter");
   await expect(page.locator("main")).toBeFocused();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);

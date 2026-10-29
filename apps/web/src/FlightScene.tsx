@@ -129,8 +129,10 @@ const NO_MATERIALS_CALLBACK = () => undefined;
 /** config/geodata.json default area centre, used only when no terrain origin is configured. */
 const DEFAULT_THERMAL_LOCATION: ThermalLocation = { latDeg: 32.20065261195932, lonDeg: 34.87163838506722 };
 
-export function FlightScene({ runtime, terrain = null, onTerrainFailures = () => undefined, onMaterials = NO_MATERIALS_CALLBACK }: {
+export function FlightScene({ runtime, active = true, terrain = null, onTerrainFailures = () => undefined, onMaterials = NO_MATERIALS_CALLBACK }: {
   runtime: RefObject<SimulationRuntime | null>;
+  /** False while the view is hidden: the scene stops rendering, and the simulation runs on (TASK-137). */
+  active?: boolean;
   terrain?: TerrainConfig | null;
   onTerrainFailures?: (failures: readonly TileFailure[]) => void;
   /** Material drape status text for the attribution line (TASK-073 P4). */
@@ -145,7 +147,7 @@ export function FlightScene({ runtime, terrain = null, onTerrainFailures = () =>
   // Real terrain replaces the flat demo field: a daylight sky and kilometre-scale haze
   // instead of the dark 120 m fog, and a far plane that reaches the horizon.
   const sky = terrain ? '#a9c0d3' : '#111e29';
-  return <Canvas shadows dpr={g3 ? 1 : [1, 1.5]} camera={{ position: [4, 3, 5], fov: 48, near: 0.05, far: terrain ? 30000 : 2000 }}
+  return <Canvas shadows dpr={g3 ? 1 : [1, 1.5]} frameloop={active ? 'always' : 'never'} camera={{ position: [4, 3, 5], fov: 48, near: 0.05, far: terrain ? 30000 : 2000 }}
     gl={glOption}>
     <color attach="background" args={[sky]} />
     <fog attach="fog" args={terrain ? [sky, 2000, 25000] : [sky, 30, 120]} />

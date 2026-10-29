@@ -3624,11 +3624,14 @@ interface ProjectRecord {
 * Every read checks the row: the SHA-256 of its bytes, its canonical form and
   the fields the backend indexes. A mismatch is a `storage` error.
 
-The IndexedDB database is `mirage-project-store`, version 1, with one object
-store, `records`. Its key path is `sha256`, and each value is
+The IndexedDB database is `mirage-project-store`, version 2. Its object
+store `records` has the key path `sha256`, and each value is
 `{sha256, id, projectId, kind, version, bytes}`, where `bytes` holds the
 canonical UTF-8 record. Indexes: `item` on `[id, version]` (unique),
 `project` on `projectId` and `kind` on `kind`. Rows are only ever added.
+Version 2 (TASK-137) adds the object store `settings` for local settings,
+described below. Opening a version 1 database adds that store and keeps every
+record.
 
 ```typescript
 interface Draft { name: string; payload: unknown; dependencies?: string[] }
@@ -3675,6 +3678,8 @@ declare class ProjectStore {
   exportProject(projectId: string): Promise<ExportResult>;
   importArchive(input: Blob | Uint8Array): Promise<ImportReport>;
   storageReport(): Promise<StorageReport>;
+  readSetting(key: string): Promise<unknown>;               // undefined when nothing is stored
+  writeSetting(key: string, value: unknown): Promise<void>;
   close(): void;
 }
 type ProjectStoreErrorCode = "invalid" | "not-found" | "conflict" | "missing-dependency" | "quota-exceeded"
@@ -3746,6 +3751,43 @@ of `navigator.storage.persisted()`. A value that is unavailable or invalid is
 null. A write that exceeds the quota fails with `quota-exceeded` and stores
 nothing.
 
+### Local settings (TASK-137)
+
+Local settings hold mutable state of one browser profile, such as the
+navigation of the application shell. They are not records: they have no
+versions or addresses, export never writes them, and import never changes
+them.
+
+* The object store `settings` has out-of-line keys. Each value is the
+  canonical JSON (RFC 8785, UTF-8) of one setting, at most 16,384 bytes
+  (`MAX_SETTING_BYTES`).
+* A key has one to four segments separated by dots. Each segment is a
+  lowercase ASCII letter followed by up to 31 lowercase ASCII letters, digits
+  or hyphens, such as `shell.navigation`. Any other key is `invalid`.
+* `writeSetting` replaces the value in one transaction. A value without a
+  canonical JSON form, or one larger than the limit, is `invalid`, and a full
+  quota is `quota-exceeded`.
+* `readSetting` returns `undefined` when nothing is stored. Stored bytes that
+  are not the canonical form of their own JSON value are a `storage` error.
+  The caller validates the value, which starts as `unknown`.
+
+The shell keeps its navigation in the setting `shell.navigation`:
+
+```typescript
+interface StoredNavigation {
+  schemaVersion: 1;
+  tab: "project" | "aircraft" | "components" | "sensors" | "faults" | "weather"
+    | "tasks" | "parameters" | "logging" | "run" | "experiments" | "analysis";
+  projectId: string | null;    // the open project: a lowercase UUID v4, or null
+}
+```
+
+A stored value with other keys, another schema version, an unknown tab or a
+`projectId` that is not a lowercase UUID v4 is ignored, and so is a setting
+that cannot be read. The shell then opens the Run tab with no project. A
+`projectId` whose head is not a stored project is dropped and the tab is
+kept.
+
 ### Not in schema v1
 
 * Deleting projects or versions, and garbage collection of unreferenced
@@ -3754,8 +3796,8 @@ nothing.
   terrain data. The tasks that add them to experiments (TASK-154, TASK-165
   and TASK-186) extend the dependency model with a schema version bump.
 * Binary attachments and recordings (TASK-140, TASK-162 and TASK-164).
-* Mutable user-interface state such as the navigation that TASK-137
-  restores; schema v1 holds versioned records only.
+* Mutable user-interface state. It lives in local settings, outside the
+  records and the archives.
 
 ### Verification (TASK-136)
 
@@ -3768,3 +3810,5 @@ layout above, using `node:crypto` hashes. `tests/browser/project-store.spec.ts`
 runs the same operations on Chromium's IndexedDB with the network disabled,
 restarts the browser on the same profile, reopens the data and imports the
 archive into a second database. The roadmap entry records the results.
+TASK-137 adds settings tests on both backends and upgrades a version 1
+database, built by the test, to version 2 in Chromium.

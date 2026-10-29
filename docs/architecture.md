@@ -67,7 +67,8 @@ and background-tab policies provide no hard real-time guarantee.
 
 ```text
 apps/web/
-  src/App.tsx                 # HUD, controls, calibration
+  src/App.tsx                 # Run tab: synthetic demo, HUD, controls, calibration
+  src/shell/                  # Application shell: project context, tabs, Project tab
   src/capabilities.ts         # API checks and implemented mode eligibility
   src/runtime.ts              # Gamepad/rAF, lifecycle, SAB reads
   src/FlightScene.tsx         # Position/SLERP in R3F useFrame
@@ -367,8 +368,41 @@ origin, so the launcher (TASK-151) must serve the application from one fixed
 origin. Files managed by the launcher remain the documented alternative. The
 contract is in [SPECS_SIMULATION_ENGINES.md](SPECS_SIMULATION_ENGINES.md),
 section "Local project store and project archive v1 (TASK-136)". The
-application does not use the store yet: TASK-137 adds the shell and its
-project context.
+application shell (TASK-137) uses the store for its project context.
+
+## Application shell (TASK-137)
+
+The web application opens in a shell with a project context and twelve tabs:
+Project, Aircraft, Components, Sensors, Faults and interference, Weather and
+location, Flight tasks, Parameters, Logging, Run, Experiments and Analysis
+(S01). The shell is in `apps/web/src/shell/`:
+
+* `AppShell.tsx` opens the project store, restores the navigation, and renders
+  the tab list and the panels. The tabs follow the WAI-ARIA tabs pattern:
+  arrow keys move between tabs and wrap, Home and End jump to the ends, and
+  only the selected tab is in the Tab order. Every panel stays mounted and
+  inactive panels are hidden, so the simulation in the Run tab keeps running
+  while another tab is open. While the Run tab is hidden, its 3D view stops
+  rendering; the physics Worker and the pilot input continue.
+* `navigation.ts` defines the tabs and the navigation state. The selected tab
+  and the open project are the project store's local setting
+  `shell.navigation`, so both survive a reload. With nothing valid stored, the
+  shell opens the Run tab with no project. `?g3=1` (TASK-073) keeps the Run tab
+  selected, because the full-screen view it measures is there.
+* `ProjectBar.tsx` shows the open project above every tab. `ProjectPanel.tsx`
+  is the Project tab: it creates, opens, renames, exports and imports projects
+  and shows the storage report. `project-files.ts` derives archive file names
+  from project names and explains store errors in plain words.
+* The Run tab holds the former single-page demo as the flight backend
+  "Synthetic demo", labeled as synthetic. The ArduPilot SITL backend is listed
+  but disabled until TASK-153 and TASK-154.
+
+The shell holds only navigation and project metadata. Physics stays in its
+Worker and reaches the UI only in decimated form, as before. The other ten
+tabs state what they will hold and that it is not available yet; their own
+tasks fill them. The stored navigation format is in
+[SPECS_SIMULATION_ENGINES.md](SPECS_SIMULATION_ENGINES.md), section "Local
+settings (TASK-137)".
 
 ## Phase 0 contracts: fixtures, capabilities, and models
 

@@ -149,3 +149,46 @@ export async function backendConformance(databaseName: string) {
     store.close();
   }
 }
+
+/**
+ * TASK-137: a version 1 database, as TASK-136 created it, upgrades to version 2
+ * (the settings store) and keeps its records.
+ */
+export async function upgradeFromVersion1(databaseName: string) {
+  const id = crypto.randomUUID();
+  const project = await encodeRecord({
+    schemaVersion: 1, kind: "project", id, projectId: id, version: 1, previous: null, origin: null,
+    name: "Upgrade check", createdAt: "2026-10-28T12:00:00.000Z", dependencies: [], payload: {},
+  });
+  await new Promise<void>((resolve, reject) => {
+    const request = indexedDB.open(databaseName, 1);
+    request.onupgradeneeded = () => {
+      const records = request.result.createObjectStore("records", { keyPath: "sha256" });
+      records.createIndex("item", ["id", "version"], { unique: true });
+      records.createIndex("project", "projectId");
+      records.createIndex("kind", "kind");
+      records.add(toRow(project));
+    };
+    request.onsuccess = () => {
+      request.result.close();
+      resolve();
+    };
+    request.onerror = () => reject(request.error ?? new Error("Version 1 database could not be created"));
+  });
+  const store = await ProjectStore.openIndexedDb({ databaseName });
+  let projects: string[], setting: unknown;
+  try {
+    projects = (await store.listProjects()).map(v => v.sha256);
+    await store.writeSetting("shell.navigation", { schemaVersion: 1, tab: "aircraft", projectId: id });
+  } finally {
+    store.close();
+  }
+  const reopened = await ProjectStore.openIndexedDb({ databaseName });
+  try {
+    setting = await reopened.readSetting("shell.navigation");
+  } finally {
+    reopened.close();
+  }
+  const version = (await indexedDB.databases()).find(db => db.name === databaseName)?.version ?? null;
+  return { expected: project.sha256, projects, setting, id, version };
+}

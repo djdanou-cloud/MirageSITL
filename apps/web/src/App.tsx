@@ -2,15 +2,14 @@ import { Export } from "./aar/Export";
 import { PilotHud } from "./hud/PilotHud";
 import { hudTelemetry } from "./hud/telemetry";
 import { Console } from "./instructor/Console";
+import { AppShell } from "./shell/AppShell";
 import { Component, useEffect, useRef, useState, type ReactNode } from "react";
 import {
   Activity,
-  ArrowUpRight,
   Cpu,
   Gamepad2,
   Pause,
   Play,
-  Radio,
   RotateCcw,
   Shield,
   SlidersHorizontal,
@@ -171,7 +170,11 @@ function Calibration({
     </details>
   );
 }
-export default function App() {
+/**
+ * The synthetic demo flight that the Run tab holds (formerly the whole page).
+ * While another tab is open the simulation keeps running and only the 3D view pauses.
+ */
+function DemoFlight({ visible }: { visible: boolean }) {
   const runtime = useRef<SimulationRuntime | null>(null);
   const [stats, setStats] = useState(INITIAL);
   const [error, setError] = useState("");
@@ -259,29 +262,14 @@ export default function App() {
     ? hudTelemetry(runtime.current.current)
     : null;
   return (
-    <div className="app-shell">
-      <a className="skip-link" href="#flight-controls">Skip to flight controls</a>
-      <header className="topbar">
-        <div className="brand">
-          <span className="brand-icon">
-            <Radio size={22} />
-          </span>
-          <span>
-            MIRAGE<span className="brand-light">SITL</span>
-            <small>FLIGHT LABORATORY / 001</small>
-          </span>
-        </div>
-        <div className="top-status">
-          <span className={`status-dot ${stats.running ? "live" : ""}`} />
-          {stats.running ? "SIMULATION LIVE" : "STANDBY"}
-          <span className="divider" />
-          <span className="status-detail">LOCAL PHYSICS</span>
-        </div>
-        <span className="build-label">
-          PROTOTYPE 0.1 <ArrowUpRight size={14} />
-        </span>
-      </header>
-      <main className="workspace" id="flight-controls" tabIndex={-1}>
+    <>
+      <div className="top-status demo-status">
+        <span className={`status-dot ${stats.running ? "live" : ""}`} />
+        {stats.running ? "SIMULATION LIVE" : "STANDBY"}
+        <span className="divider" />
+        <span className="status-detail">LOCAL PHYSICS · SHARED MEMORY ABI V2</span>
+      </div>
+      <div className="workspace">
         <section className="flight-panel">
           <div className="panel-heading">
             <span>
@@ -294,6 +282,7 @@ export default function App() {
               <SceneBoundary>
                 <FlightScene
                   runtime={runtime}
+                  active={visible}
                   terrain={TERRAIN.status === "ready" ? TERRAIN.config : null}
                   onTerrainFailures={setTerrainFailures}
                   onMaterials={setMaterialsStatus}
@@ -432,7 +421,7 @@ export default function App() {
           </div>
           <div className="control-section">
             <div className="eyebrow">01 / INPUT SOURCE</div>
-            <h1>Flight controls</h1>
+            <h2 className="console-title">Flight controls</h2>
             <p>Check the channels and arm at zero throttle.</p>
             {FLIGHT_PLAN && (
               <p className="notice" data-testid="scripted-flight">
@@ -690,11 +679,40 @@ export default function App() {
             </p>
           </div>
         </aside>
-      </main>
-      <footer>
-        <span>SHARED MEMORY TRANSPORT · ABI V2</span>
-        <span>Development simulation · not validated for pilot training</span>
-      </footer>
+      </div>
+    </>
+  );
+}
+
+/**
+ * The Run tab (TASK-137). The synthetic demo is the only flight backend until
+ * the integrated ArduPilot session (TASK-153, TASK-154); it is selected here
+ * and labeled synthetic.
+ */
+function RunTab({ visible }: { visible: boolean }) {
+  return (
+    <div className="run-tab">
+      <div className="run-heading">
+        <h2>Run</h2>
+        <fieldset className="run-mode">
+          <legend>Flight backend</legend>
+          <label>
+            <input type="radio" name="flight-backend" value="demo" defaultChecked /> Synthetic demo
+          </label>
+          <label>
+            <input type="radio" name="flight-backend" value="ardupilot" disabled /> ArduPilot SITL (not available yet)
+          </label>
+        </fieldset>
+      </div>
+      <p className="synthetic-note">
+        Synthetic demo: a simplified collective-thrust quadcopter. It does not use project data and is not
+        validated for tuning, pilot training or real-flight settings.
+      </p>
+      <DemoFlight visible={visible} />
     </div>
   );
+}
+
+export default function App() {
+  return <AppShell run={visible => <RunTab visible={visible} />} />;
 }
