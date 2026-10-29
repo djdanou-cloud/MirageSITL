@@ -422,6 +422,11 @@ Decisions taken by the stakeholder on 2026-10-28:
 * D-04 (decided by TASK-130): a patch series on the pinned UAVLogViewer commit,
   embedded through an origin-checked message interface; see
   [uavlogviewer.md](decisions/uavlogviewer.md).
+* D-03 (recorded by TASK-129 on 2026-10-29): JSON lockstep without `no_lockstep`
+  is clock-compatible. Parameter access during a hold is applied after resume.
+  On the M5, requested `--speedup` 2 achieved 1.9840398077982284 with pauses
+  excluded and 1.9740263931843125 continuously; requested 20 achieved
+  11.306202551400018. See [sitl-clock.md](decisions/sitl-clock.md).
 * D-10: no `imu-noise-floor` patch for now; Phase 1 uses stock ArduPilot SITL.
 * D-11: Phase 1 uses the implemented effects whose measured-data comparisons
   stay BLOCKED_EXTERNAL, labeled as not validated.
@@ -447,7 +452,7 @@ specification, again technical formats that the stakeholder can change.
 | --- | --- | --- | --- |
 | Stock ArduCopter or its SITL cannot drive 16 motors on eight coaxial arms | A mandatory configuration is blocked | TASK-128 | Escalate the options (stock scripting-matrix frame, build option, approved patch); never reduce scope |
 | The native SITL build or harness fails on macOS on Apple Silicon | No Phase 1 backend | TASK-127 | Record the exact blocker; a virtual machine or container only by decision |
-| ArduPilot stops serving MAVLink or trips failsafes while lockstep time is frozen; the bridge drops idle sessions after 5 s | The pause requirement is not met | TASK-129 | Bridge keep-alive; document which parameter access works while paused |
+| ArduPilot stops serving MAVLink or trips failsafes while lockstep time is frozen; the bridge drops idle sessions after 5 s | The pause requirement is not met | TASK-129 | Closed 2026-10-29: 60 s ground and hover holds resumed without a failsafe or an EKF reset at the boundary; parameter access waits until resume; ping/pong keeps the bridge up. [sitl-clock.md](decisions/sitl-clock.md) |
 | Sixteen BET rotors exceed the real-time compute budget in a browser Worker | Real-time runs drop steps | TASK-091, TASK-144 | Physics rate per configuration (TASK-132); accelerated runs never simplify the model |
 | Browser throttling or tab visibility interrupts hour-long runs | The endurance run fails | TASK-156, TASK-175 | Lockstep pacing in the Worker, an explicit visibility policy, actual speed on screen |
 | Full-run recordings exceed the browser storage quota | Recording gaps | TASK-162, TASK-163 | Estimates, warnings before exhaustion, explicit gaps |

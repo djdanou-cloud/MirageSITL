@@ -112,6 +112,10 @@
     {
       "en": "docs/hardware/ardupilot-sensors.md",
       "ru": "docs/ru/ardupilot-sensors.md"
+    },
+    {
+      "en": "docs/decisions/sitl-clock.md",
+      "ru": "docs/ru/sitl-clock.md"
     }
   ]
 }

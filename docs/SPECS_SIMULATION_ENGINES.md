@@ -1580,7 +1580,7 @@ Inbound client channel 3 is rejected. UDP sockets are connected to their selecte
 loopback peer, so arbitrary remote senders are not accepted. Duplicate/stale
 records, more than 4096 messages/second, oversized records and backpressure close
 the session. Default queued-byte budget is 65536; queues cannot grow indefinitely.
-An idle client closes after 5 seconds. Tests exercise real WS/UDP transfer,
+A client that does not answer a WebSocket ping closes after 5 seconds. The bridge sends a ping every 1 s. A pong proves the peer is alive, so silence of physics payloads during a lockstep pause does not close the session. Tests exercise real WS/UDP transfer,
 fragmentation, origin/token rejection, reconnect, epoch/flood/size checks and
 injected backpressure. CLI startup is verified separately.
 
@@ -1758,6 +1758,38 @@ attitude with finite values, and have no key whose text first occurs inside
 another key; an invalid line closes the session. MAVLink remains a separate
 channel. This module is the protocol and bridge layer; the pinned native
 closed-loop ArduCopter harness is specified under TASK-042 below.
+
+## External SITL clock ownership (TASK-129)
+
+MirageSITL owns simulated time while it is the JSON lockstep physics peer and
+the reply omits `no_lockstep`. Withholding the next servo reply leaves ArduPilot
+inside `JSON::recv_fdm`. `time_now_us` advances only after a reply whose
+timestamp increases by a positive amount below 0.1 s. `Scheduler::stop_clock`
+is not called during that wait, so `AP_HAL::millis()` stays at the retained
+simulation time. Paused wall time is excluded from simulated duration. The
+retained state is unchanged, and the first resumed step is the physics step for
+that same servo frame. A duplicate of the frame just accepted at release is
+discarded without a second reply: `SIM_JSON` increments `frame_counter` for
+every valid reply.
+
+A manual connection is clock-compatible only in that JSON lockstep case.
+TASK-153 may enable pause only then. A reply with `no_lockstep` true advances
+time at the SITL loop rate while the receive returns immediately. A built-in
+SITL frame model advances time itself. HITL at this pin has no `HIL_SENSOR`
+handler (TASK-050) and is not a pause path.
+
+`--speedup` paces `Aircraft::sync_frame_time` after simulated time has advanced.
+The requested value and the measured simulated/active-wall ratio are both
+recorded. The ratio excludes paused wall time. The model is not simplified when
+the host cannot meet the request.
+
+The firmware main scheduler does not read MAVLink while blocked in `recv_fdm`.
+A parameter read or write sent during the hold is applied after resume. RC
+override and a GCS heartbeat may continue on wall time; they do not advance
+simulated time. The bridge ping rule above keeps a paused session that answers
+pongs. Measured ratios, the 60 s ground and hover holds, and the deferred
+parameter result are in [sitl-clock.md](decisions/sitl-clock.md). ArduPilot is
+not modified.
 
 ## Implemented HIL streaming: TASK-049
 

@@ -154,7 +154,10 @@ export async function startBridge(options: BridgeOptions) {
       client = ws;
       outboundSequence.fill(0);
       const session = new BridgeSession(options.epoch);
-      let lastPayloadTime = performance.now();
+      // Physics payload silence is expected during a lockstep pause.
+      // WebSocket pong proves transport liveness independently of simulated time.
+      let lastPongTime = performance.now();
+      ws.on("pong", () => { lastPongTime = performance.now(); });
       ws.on("message", (data, isBinary) => {
         if (!isBinary || !Buffer.isBuffer(data)) {
           ws.close(1003, "Binary record required");
@@ -165,7 +168,6 @@ export async function startBridge(options: BridgeOptions) {
           ws.close(1008, "Invalid, stale or flooded record");
           return;
         }
-        lastPayloadTime = performance.now();
         if (ws.bufferedAmount > maxBuffered) {
           ws.close(1013, "Bridge backpressure");
           return;
@@ -201,8 +203,11 @@ export async function startBridge(options: BridgeOptions) {
         });
       });
       const timeout = setInterval(() => {
-        if (performance.now() - lastPayloadTime > 5000)
-          ws.close(1008, "Bridge session idle");
+        if (performance.now() - lastPongTime > 5000) {
+          ws.close(1008, "Bridge peer unresponsive");
+          return;
+        }
+        if (ws.readyState === WebSocket.OPEN) ws.ping();
       }, 1000);
       timeout.unref();
       ws.once("close", () => {

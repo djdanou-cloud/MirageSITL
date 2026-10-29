@@ -1,0 +1,1107 @@
+{
+  "schemaVersion": 1,
+  "ardupilotCommit": "8ab6afde107a91df1b5f60ade8f333cb8a61b190",
+  "firmwareVersion": "ArduCopter V4.8.0-dev",
+  "upstream": [
+    {
+      "path": "ArduCopter/version.h",
+      "sha256": "64b94f3cd3b5775564c73294e8815edae884a40ec197e449b792bdb350a6f3bd",
+      "bytes": 540
+    },
+    {
+      "path": "libraries/AP_Motors/AP_Motors_Class.h",
+      "sha256": "47ae49b837110199abe0fd1116c3ce7d9e340def562913dea9096b321386f963",
+      "bytes": 20371
+    },
+    {
+      "path": "libraries/AP_Motors/AP_MotorsMatrix.h",
+      "sha256": "f8f210d67d187aca87ec7686bd2b087e26bb6fd31a8b07e2417f62593b7ef0e8",
+      "bytes": 8064
+    },
+    {
+      "path": "libraries/AP_Motors/AP_MotorsMatrix.cpp",
+      "sha256": "54118f5782b699b890da825ac5bfe44bf11aa0d2db8a279fdd8786dbaf6f92b2",
+      "bytes": 59290
+    },
+    {
+      "path": "libraries/AP_Scripting/AP_Scripting_config.h",
+      "sha256": "40dd28dda581661d66663c6ea4794a5c5f14b6af2c5c6c77b097d8714de49f4f",
+      "bytes": 1211
+    },
+    {
+      "path": "libraries/AP_Scripting/examples/MotorMatrix_dotriaconta_octaquad_x.lua",
+      "sha256": "c4ea5847fd2abb4d7b5e89dc3a320c392a8a0bad8bff69c80c0f861ecd9cc31b",
+      "bytes": 1255
+    },
+    {
+      "path": "libraries/AP_Scripting/generator/description/bindings.desc",
+      "sha256": "8d9a70227c48863ee220082a23e64ef1f7176b01152dcce3ce5fcbdddf492553",
+      "bytes": 74186
+    },
+    {
+      "path": "libraries/SRV_Channel/SRV_Channel.h",
+      "sha256": "69cb7714c94d013c284f50b4a129fc1342c24f229534f9c9c749de6e08108a42",
+      "bytes": 27848
+    },
+    {
+      "path": "libraries/SRV_Channel/SRV_Channel_config.h",
+      "sha256": "5267b66cdfe365ca3a1e668a343887ef331c6c15306b2ed3a34620143561f103",
+      "bytes": 295
+    },
+    {
+      "path": "libraries/SRV_Channel/SRV_Channels.cpp",
+      "sha256": "b61d5c48443654f5c6fe4df750748478f600f4b3a33d1c4697e0ff26fb71f324",
+      "bytes": 19304
+    },
+    {
+      "path": "libraries/AP_HAL/board/sitl.h",
+      "sha256": "cf8544e7427aec11a4c12bfe4a33d9e1c9791eead9d774b9eb1252cd4c79a11e",
+      "bytes": 3285
+    },
+    {
+      "path": "libraries/SITL/SIM_JSON.h",
+      "sha256": "ba8f86c7a6602beff867e37260088a7dc03b6e4b6b67c06837512c877dc25c33",
+      "bytes": 8020
+    },
+    {
+      "path": "libraries/SITL/SIM_JSON.cpp",
+      "sha256": "9d61150869b2df651b96d7735523693bcaaefa3ef1496144bacd3b8b121118cc",
+      "bytes": 19926
+    },
+    {
+      "path": "ArduCopter/motor_test.cpp",
+      "sha256": "201a65bb1d33326b7c41894f75ef8dc1afe0fb2612b81454421fea04658298e9",
+      "bytes": 7681
+    },
+    {
+      "path": "libraries/AP_Arming/AP_Arming.cpp",
+      "sha256": "96b6a3f0cc23a94240daaadc279bd9cccbc76bc717a8507730ec680854fb39cb",
+      "bytes": 76629
+    }
+  ],
+  "description": "TASK-128 Phase 1 frame subset; source-derived static X tables and declared synthetic stock-Lua paired-16 geometry",
+  "limits": {
+    "sitlProgramSizeLimitKb": 4096,
+    "scriptingMotorCapacity": 32,
+    "withoutScriptingMotorCapacity": 12,
+    "sitlServoCapacity": 32,
+    "phase1MaximumMotors": 16,
+    "servo32EnableParameter": "SERVO_32_ENABLE",
+    "scriptingEnableParameter": "SCR_ENABLE",
+    "allArmingChecksParameter": "ARMING_SKIPCHK",
+    "allArmingChecksValue": 0
+  },
+  "motorFunctions": [
+    {
+      "motor": 1,
+      "function": 33
+    },
+    {
+      "motor": 2,
+      "function": 34
+    },
+    {
+      "motor": 3,
+      "function": 35
+    },
+    {
+      "motor": 4,
+      "function": 36
+    },
+    {
+      "motor": 5,
+      "function": 37
+    },
+    {
+      "motor": 6,
+      "function": 38
+    },
+    {
+      "motor": 7,
+      "function": 39
+    },
+    {
+      "motor": 8,
+      "function": 40
+    },
+    {
+      "motor": 9,
+      "function": 82
+    },
+    {
+      "motor": 10,
+      "function": 83
+    },
+    {
+      "motor": 11,
+      "function": 84
+    },
+    {
+      "motor": 12,
+      "function": 85
+    },
+    {
+      "motor": 13,
+      "function": 160
+    },
+    {
+      "motor": 14,
+      "function": 161
+    },
+    {
+      "motor": 15,
+      "function": 162
+    },
+    {
+      "motor": 16,
+      "function": 163
+    },
+    {
+      "motor": 17,
+      "function": 164
+    },
+    {
+      "motor": 18,
+      "function": 165
+    },
+    {
+      "motor": 19,
+      "function": 166
+    },
+    {
+      "motor": 20,
+      "function": 167
+    },
+    {
+      "motor": 21,
+      "function": 168
+    },
+    {
+      "motor": 22,
+      "function": 169
+    },
+    {
+      "motor": 23,
+      "function": 170
+    },
+    {
+      "motor": 24,
+      "function": 171
+    },
+    {
+      "motor": 25,
+      "function": 172
+    },
+    {
+      "motor": 26,
+      "function": 173
+    },
+    {
+      "motor": 27,
+      "function": 174
+    },
+    {
+      "motor": 28,
+      "function": 175
+    },
+    {
+      "motor": 29,
+      "function": 176
+    },
+    {
+      "motor": 30,
+      "function": 177
+    },
+    {
+      "motor": 31,
+      "function": 178
+    },
+    {
+      "motor": 32,
+      "function": 179
+    }
+  ],
+  "frames": [
+    {
+      "id": "quad-x",
+      "frameClass": 1,
+      "frameType": 1,
+      "servoPacketChannels": 16,
+      "kind": "stock",
+      "motorCount": 4,
+      "motors": [
+        {
+          "motor": 1,
+          "output": 1,
+          "function": 33,
+          "azimuthDeg": 45.0,
+          "spin": "CCW",
+          "yawFactor": 1,
+          "testOrder": 1,
+          "heightM": 0.0,
+          "positionFrdM": [
+            0.14142135623730953,
+            0.1414213562373095,
+            0.0
+          ],
+          "rollFactor": -0.49999999999999994,
+          "pitchFactor": 0.5,
+          "normalizedYawFactor": 0.5
+        },
+        {
+          "motor": 2,
+          "output": 2,
+          "function": 34,
+          "azimuthDeg": -135.0,
+          "spin": "CCW",
+          "yawFactor": 1,
+          "testOrder": 3,
+          "heightM": 0.0,
+          "positionFrdM": [
+            -0.1414213562373095,
+            -0.14142135623730953,
+            0.0
+          ],
+          "rollFactor": 0.5,
+          "pitchFactor": -0.49999999999999994,
+          "normalizedYawFactor": 0.5
+        },
+        {
+          "motor": 3,
+          "output": 3,
+          "function": 35,
+          "azimuthDeg": -45.0,
+          "spin": "CW",
+          "yawFactor": -1,
+          "testOrder": 4,
+          "heightM": 0.0,
+          "positionFrdM": [
+            0.14142135623730953,
+            -0.1414213562373095,
+            0.0
+          ],
+          "rollFactor": 0.49999999999999994,
+          "pitchFactor": 0.5,
+          "normalizedYawFactor": -0.5
+        },
+        {
+          "motor": 4,
+          "output": 4,
+          "function": 36,
+          "azimuthDeg": 135.0,
+          "spin": "CW",
+          "yawFactor": -1,
+          "testOrder": 2,
+          "heightM": 0.0,
+          "positionFrdM": [
+            -0.1414213562373095,
+            0.14142135623730953,
+            0.0
+          ],
+          "rollFactor": -0.5,
+          "pitchFactor": -0.49999999999999994,
+          "normalizedYawFactor": -0.5
+        }
+      ],
+      "sourceFunction": "AP_MotorsMatrix::setup_quad_matrix / MOTOR_FRAME_TYPE_X",
+      "positionProvenance": "Synthetic 0.2 m arm radius; X8/paired heights +/-0.03 m are harness inputs, not upstream measured geometry"
+    },
+    {
+      "id": "hexa-x",
+      "frameClass": 2,
+      "frameType": 1,
+      "servoPacketChannels": 16,
+      "kind": "stock",
+      "motorCount": 6,
+      "motors": [
+        {
+          "motor": 1,
+          "output": 1,
+          "function": 33,
+          "azimuthDeg": 90.0,
+          "spin": "CW",
+          "yawFactor": -1,
+          "testOrder": 2,
+          "heightM": 0.0,
+          "positionFrdM": [
+            1.2246467991473533e-17,
+            0.2,
+            0.0
+          ],
+          "rollFactor": -0.5,
+          "pitchFactor": 3.5352507957496895e-17,
+          "normalizedYawFactor": -0.5
+        },
+        {
+          "motor": 2,
+          "output": 2,
+          "function": 34,
+          "azimuthDeg": -90.0,
+          "spin": "CCW",
+          "yawFactor": 1,
+          "testOrder": 5,
+          "heightM": 0.0,
+          "positionFrdM": [
+            1.2246467991473533e-17,
+            -0.2,
+            0.0
+          ],
+          "rollFactor": 0.5,
+          "pitchFactor": 3.5352507957496895e-17,
+          "normalizedYawFactor": 0.5
+        },
+        {
+          "motor": 3,
+          "output": 3,
+          "function": 35,
+          "azimuthDeg": -30.0,
+          "spin": "CW",
+          "yawFactor": -1,
+          "testOrder": 6,
+          "heightM": 0.0,
+          "positionFrdM": [
+            0.17320508075688776,
+            -0.09999999999999999,
+            0.0
+          ],
+          "rollFactor": 0.24999999999999997,
+          "pitchFactor": 0.5,
+          "normalizedYawFactor": -0.5
+        },
+        {
+          "motor": 4,
+          "output": 4,
+          "function": 36,
+          "azimuthDeg": 150.0,
+          "spin": "CCW",
+          "yawFactor": 1,
+          "testOrder": 3,
+          "heightM": 0.0,
+          "positionFrdM": [
+            -0.17320508075688776,
+            0.09999999999999999,
+            0.0
+          ],
+          "rollFactor": -0.24999999999999997,
+          "pitchFactor": -0.5,
+          "normalizedYawFactor": 0.5
+        },
+        {
+          "motor": 5,
+          "output": 5,
+          "function": 37,
+          "azimuthDeg": 30.0,
+          "spin": "CCW",
+          "yawFactor": 1,
+          "testOrder": 1,
+          "heightM": 0.0,
+          "positionFrdM": [
+            0.17320508075688776,
+            0.09999999999999999,
+            0.0
+          ],
+          "rollFactor": -0.24999999999999997,
+          "pitchFactor": 0.5,
+          "normalizedYawFactor": 0.5
+        },
+        {
+          "motor": 6,
+          "output": 6,
+          "function": 38,
+          "azimuthDeg": -150.0,
+          "spin": "CW",
+          "yawFactor": -1,
+          "testOrder": 4,
+          "heightM": 0.0,
+          "positionFrdM": [
+            -0.17320508075688776,
+            -0.09999999999999999,
+            0.0
+          ],
+          "rollFactor": 0.24999999999999997,
+          "pitchFactor": -0.5,
+          "normalizedYawFactor": -0.5
+        }
+      ],
+      "sourceFunction": "AP_MotorsMatrix::setup_hexa_matrix / MOTOR_FRAME_TYPE_X",
+      "positionProvenance": "Synthetic 0.2 m arm radius; X8/paired heights +/-0.03 m are harness inputs, not upstream measured geometry"
+    },
+    {
+      "id": "octo-x",
+      "frameClass": 3,
+      "frameType": 1,
+      "servoPacketChannels": 16,
+      "kind": "stock",
+      "motorCount": 8,
+      "motors": [
+        {
+          "motor": 1,
+          "output": 1,
+          "function": 33,
+          "azimuthDeg": 22.5,
+          "spin": "CW",
+          "yawFactor": -1,
+          "testOrder": 1,
+          "heightM": 0.0,
+          "positionFrdM": [
+            0.18477590650225736,
+            0.07653668647301796,
+            0.0
+          ],
+          "rollFactor": -0.20710678118654754,
+          "pitchFactor": 0.5,
+          "normalizedYawFactor": -0.5
+        },
+        {
+          "motor": 2,
+          "output": 2,
+          "function": 34,
+          "azimuthDeg": -157.5,
+          "spin": "CW",
+          "yawFactor": -1,
+          "testOrder": 5,
+          "heightM": 0.0,
+          "positionFrdM": [
+            -0.18477590650225736,
+            -0.07653668647301798,
+            0.0
+          ],
+          "rollFactor": 0.2071067811865476,
+          "pitchFactor": -0.5,
+          "normalizedYawFactor": -0.5
+        },
+        {
+          "motor": 3,
+          "output": 3,
+          "function": 35,
+          "azimuthDeg": 67.5,
+          "spin": "CCW",
+          "yawFactor": 1,
+          "testOrder": 2,
+          "heightM": 0.0,
+          "positionFrdM": [
+            0.07653668647301798,
+            0.18477590650225736,
+            0.0
+          ],
+          "rollFactor": -0.5,
+          "pitchFactor": 0.20710678118654757,
+          "normalizedYawFactor": 0.5
+        },
+        {
+          "motor": 4,
+          "output": 4,
+          "function": 36,
+          "azimuthDeg": 157.5,
+          "spin": "CCW",
+          "yawFactor": 1,
+          "testOrder": 4,
+          "heightM": 0.0,
+          "positionFrdM": [
+            -0.18477590650225736,
+            0.07653668647301798,
+            0.0
+          ],
+          "rollFactor": -0.2071067811865476,
+          "pitchFactor": -0.5,
+          "normalizedYawFactor": 0.5
+        },
+        {
+          "motor": 5,
+          "output": 5,
+          "function": 37,
+          "azimuthDeg": -22.5,
+          "spin": "CCW",
+          "yawFactor": 1,
+          "testOrder": 8,
+          "heightM": 0.0,
+          "positionFrdM": [
+            0.18477590650225736,
+            -0.07653668647301796,
+            0.0
+          ],
+          "rollFactor": 0.20710678118654754,
+          "pitchFactor": 0.5,
+          "normalizedYawFactor": 0.5
+        },
+        {
+          "motor": 6,
+          "output": 6,
+          "function": 38,
+          "azimuthDeg": -112.5,
+          "spin": "CCW",
+          "yawFactor": 1,
+          "testOrder": 6,
+          "heightM": 0.0,
+          "positionFrdM": [
+            -0.07653668647301795,
+            -0.18477590650225736,
+            0.0
+          ],
+          "rollFactor": 0.5,
+          "pitchFactor": -0.20710678118654752,
+          "normalizedYawFactor": 0.5
+        },
+        {
+          "motor": 7,
+          "output": 7,
+          "function": 39,
+          "azimuthDeg": -67.5,
+          "spin": "CW",
+          "yawFactor": -1,
+          "testOrder": 7,
+          "heightM": 0.0,
+          "positionFrdM": [
+            0.07653668647301798,
+            -0.18477590650225736,
+            0.0
+          ],
+          "rollFactor": 0.5,
+          "pitchFactor": 0.20710678118654757,
+          "normalizedYawFactor": -0.5
+        },
+        {
+          "motor": 8,
+          "output": 8,
+          "function": 40,
+          "azimuthDeg": 112.5,
+          "spin": "CW",
+          "yawFactor": -1,
+          "testOrder": 3,
+          "heightM": 0.0,
+          "positionFrdM": [
+            -0.07653668647301795,
+            0.18477590650225736,
+            0.0
+          ],
+          "rollFactor": -0.5,
+          "pitchFactor": -0.20710678118654752,
+          "normalizedYawFactor": -0.5
+        }
+      ],
+      "sourceFunction": "AP_MotorsMatrix::setup_octa_matrix / MOTOR_FRAME_TYPE_X",
+      "positionProvenance": "Synthetic 0.2 m arm radius; X8/paired heights +/-0.03 m are harness inputs, not upstream measured geometry"
+    },
+    {
+      "id": "x8",
+      "frameClass": 4,
+      "frameType": 1,
+      "servoPacketChannels": 16,
+      "kind": "stock",
+      "motorCount": 8,
+      "motors": [
+        {
+          "motor": 1,
+          "output": 1,
+          "function": 33,
+          "azimuthDeg": 45.0,
+          "spin": "CCW",
+          "yawFactor": 1,
+          "testOrder": 1,
+          "heightM": -0.03,
+          "positionFrdM": [
+            0.14142135623730953,
+            0.1414213562373095,
+            -0.03
+          ],
+          "rollFactor": -0.49999999999999994,
+          "pitchFactor": 0.5,
+          "normalizedYawFactor": 0.5
+        },
+        {
+          "motor": 2,
+          "output": 2,
+          "function": 34,
+          "azimuthDeg": -45.0,
+          "spin": "CW",
+          "yawFactor": -1,
+          "testOrder": 7,
+          "heightM": -0.03,
+          "positionFrdM": [
+            0.14142135623730953,
+            -0.1414213562373095,
+            -0.03
+          ],
+          "rollFactor": 0.49999999999999994,
+          "pitchFactor": 0.5,
+          "normalizedYawFactor": -0.5
+        },
+        {
+          "motor": 3,
+          "output": 3,
+          "function": 35,
+          "azimuthDeg": -135.0,
+          "spin": "CCW",
+          "yawFactor": 1,
+          "testOrder": 5,
+          "heightM": -0.03,
+          "positionFrdM": [
+            -0.1414213562373095,
+            -0.14142135623730953,
+            -0.03
+          ],
+          "rollFactor": 0.5,
+          "pitchFactor": -0.49999999999999994,
+          "normalizedYawFactor": 0.5
+        },
+        {
+          "motor": 4,
+          "output": 4,
+          "function": 36,
+          "azimuthDeg": 135.0,
+          "spin": "CW",
+          "yawFactor": -1,
+          "testOrder": 3,
+          "heightM": -0.03,
+          "positionFrdM": [
+            -0.1414213562373095,
+            0.14142135623730953,
+            -0.03
+          ],
+          "rollFactor": -0.5,
+          "pitchFactor": -0.49999999999999994,
+          "normalizedYawFactor": -0.5
+        },
+        {
+          "motor": 5,
+          "output": 5,
+          "function": 37,
+          "azimuthDeg": -45.0,
+          "spin": "CCW",
+          "yawFactor": 1,
+          "testOrder": 8,
+          "heightM": 0.03,
+          "positionFrdM": [
+            0.14142135623730953,
+            -0.1414213562373095,
+            0.03
+          ],
+          "rollFactor": 0.49999999999999994,
+          "pitchFactor": 0.5,
+          "normalizedYawFactor": 0.5
+        },
+        {
+          "motor": 6,
+          "output": 6,
+          "function": 38,
+          "azimuthDeg": 45.0,
+          "spin": "CW",
+          "yawFactor": -1,
+          "testOrder": 2,
+          "heightM": 0.03,
+          "positionFrdM": [
+            0.14142135623730953,
+            0.1414213562373095,
+            0.03
+          ],
+          "rollFactor": -0.49999999999999994,
+          "pitchFactor": 0.5,
+          "normalizedYawFactor": -0.5
+        },
+        {
+          "motor": 7,
+          "output": 7,
+          "function": 39,
+          "azimuthDeg": 135.0,
+          "spin": "CCW",
+          "yawFactor": 1,
+          "testOrder": 4,
+          "heightM": 0.03,
+          "positionFrdM": [
+            -0.1414213562373095,
+            0.14142135623730953,
+            0.03
+          ],
+          "rollFactor": -0.5,
+          "pitchFactor": -0.49999999999999994,
+          "normalizedYawFactor": 0.5
+        },
+        {
+          "motor": 8,
+          "output": 8,
+          "function": 40,
+          "azimuthDeg": -135.0,
+          "spin": "CW",
+          "yawFactor": -1,
+          "testOrder": 6,
+          "heightM": 0.03,
+          "positionFrdM": [
+            -0.1414213562373095,
+            -0.14142135623730953,
+            0.03
+          ],
+          "rollFactor": 0.5,
+          "pitchFactor": -0.49999999999999994,
+          "normalizedYawFactor": -0.5
+        }
+      ],
+      "sourceFunction": "AP_MotorsMatrix::setup_octaquad_matrix / MOTOR_FRAME_TYPE_X",
+      "positionProvenance": "Synthetic 0.2 m arm radius; X8/paired heights +/-0.03 m are harness inputs, not upstream measured geometry"
+    },
+    {
+      "id": "paired-16",
+      "frameClass": 15,
+      "frameType": 1,
+      "servoPacketChannels": 32,
+      "kind": "stock-scripting",
+      "motorCount": 16,
+      "motors": [
+        {
+          "motor": 1,
+          "output": 1,
+          "function": 33,
+          "azimuthDeg": 22.5,
+          "spin": "CCW",
+          "yawFactor": 1,
+          "testOrder": 1,
+          "heightM": -0.03,
+          "positionFrdM": [
+            0.18477590650225736,
+            0.07653668647301796,
+            -0.03
+          ],
+          "rollFactor": -0.20710678118654752,
+          "pitchFactor": 0.49999999999999994,
+          "normalizedYawFactor": 0.5
+        },
+        {
+          "motor": 2,
+          "output": 2,
+          "function": 34,
+          "azimuthDeg": 67.5,
+          "spin": "CW",
+          "yawFactor": -1,
+          "testOrder": 2,
+          "heightM": -0.03,
+          "positionFrdM": [
+            0.07653668647301798,
+            0.18477590650225736,
+            -0.03
+          ],
+          "rollFactor": -0.49999999999999994,
+          "pitchFactor": 0.20710678118654754,
+          "normalizedYawFactor": -0.5
+        },
+        {
+          "motor": 3,
+          "output": 3,
+          "function": 35,
+          "azimuthDeg": 112.5,
+          "spin": "CCW",
+          "yawFactor": 1,
+          "testOrder": 3,
+          "heightM": -0.03,
+          "positionFrdM": [
+            -0.07653668647301795,
+            0.18477590650225736,
+            -0.03
+          ],
+          "rollFactor": -0.49999999999999994,
+          "pitchFactor": -0.2071067811865475,
+          "normalizedYawFactor": 0.5
+        },
+        {
+          "motor": 4,
+          "output": 4,
+          "function": 36,
+          "azimuthDeg": 157.5,
+          "spin": "CW",
+          "yawFactor": -1,
+          "testOrder": 4,
+          "heightM": -0.03,
+          "positionFrdM": [
+            -0.18477590650225736,
+            0.07653668647301798,
+            -0.03
+          ],
+          "rollFactor": -0.20710678118654757,
+          "pitchFactor": -0.49999999999999994,
+          "normalizedYawFactor": -0.5
+        },
+        {
+          "motor": 5,
+          "output": 5,
+          "function": 37,
+          "azimuthDeg": 202.5,
+          "spin": "CCW",
+          "yawFactor": 1,
+          "testOrder": 5,
+          "heightM": -0.03,
+          "positionFrdM": [
+            -0.1847759065022574,
+            -0.07653668647301794,
+            -0.03
+          ],
+          "rollFactor": 0.20710678118654746,
+          "pitchFactor": -0.5,
+          "normalizedYawFactor": 0.5
+        },
+        {
+          "motor": 6,
+          "output": 6,
+          "function": 38,
+          "azimuthDeg": 247.5,
+          "spin": "CW",
+          "yawFactor": -1,
+          "testOrder": 6,
+          "heightM": -0.03,
+          "positionFrdM": [
+            -0.07653668647301791,
+            -0.1847759065022574,
+            -0.03
+          ],
+          "rollFactor": 0.5,
+          "pitchFactor": -0.20710678118654735,
+          "normalizedYawFactor": -0.5
+        },
+        {
+          "motor": 7,
+          "output": 7,
+          "function": 39,
+          "azimuthDeg": 292.5,
+          "spin": "CCW",
+          "yawFactor": 1,
+          "testOrder": 7,
+          "heightM": -0.03,
+          "positionFrdM": [
+            0.076536686473018,
+            -0.18477590650225734,
+            -0.03
+          ],
+          "rollFactor": 0.4999999999999999,
+          "pitchFactor": 0.20710678118654763,
+          "normalizedYawFactor": 0.5
+        },
+        {
+          "motor": 8,
+          "output": 8,
+          "function": 40,
+          "azimuthDeg": 337.5,
+          "spin": "CW",
+          "yawFactor": -1,
+          "testOrder": 8,
+          "heightM": -0.03,
+          "positionFrdM": [
+            0.1847759065022574,
+            -0.07653668647301792,
+            -0.03
+          ],
+          "rollFactor": 0.20710678118654738,
+          "pitchFactor": 0.5,
+          "normalizedYawFactor": -0.5
+        },
+        {
+          "motor": 9,
+          "output": 9,
+          "function": 82,
+          "azimuthDeg": 22.5,
+          "spin": "CW",
+          "yawFactor": -1,
+          "testOrder": 9,
+          "heightM": 0.03,
+          "positionFrdM": [
+            0.18477590650225736,
+            0.07653668647301796,
+            0.03
+          ],
+          "rollFactor": -0.20710678118654752,
+          "pitchFactor": 0.49999999999999994,
+          "normalizedYawFactor": -0.5
+        },
+        {
+          "motor": 10,
+          "output": 10,
+          "function": 83,
+          "azimuthDeg": 67.5,
+          "spin": "CCW",
+          "yawFactor": 1,
+          "testOrder": 10,
+          "heightM": 0.03,
+          "positionFrdM": [
+            0.07653668647301798,
+            0.18477590650225736,
+            0.03
+          ],
+          "rollFactor": -0.49999999999999994,
+          "pitchFactor": 0.20710678118654754,
+          "normalizedYawFactor": 0.5
+        },
+        {
+          "motor": 11,
+          "output": 11,
+          "function": 84,
+          "azimuthDeg": 112.5,
+          "spin": "CW",
+          "yawFactor": -1,
+          "testOrder": 11,
+          "heightM": 0.03,
+          "positionFrdM": [
+            -0.07653668647301795,
+            0.18477590650225736,
+            0.03
+          ],
+          "rollFactor": -0.49999999999999994,
+          "pitchFactor": -0.2071067811865475,
+          "normalizedYawFactor": -0.5
+        },
+        {
+          "motor": 12,
+          "output": 12,
+          "function": 85,
+          "azimuthDeg": 157.5,
+          "spin": "CCW",
+          "yawFactor": 1,
+          "testOrder": 12,
+          "heightM": 0.03,
+          "positionFrdM": [
+            -0.18477590650225736,
+            0.07653668647301798,
+            0.03
+          ],
+          "rollFactor": -0.20710678118654757,
+          "pitchFactor": -0.49999999999999994,
+          "normalizedYawFactor": 0.5
+        },
+        {
+          "motor": 13,
+          "output": 13,
+          "function": 160,
+          "azimuthDeg": 202.5,
+          "spin": "CW",
+          "yawFactor": -1,
+          "testOrder": 13,
+          "heightM": 0.03,
+          "positionFrdM": [
+            -0.1847759065022574,
+            -0.07653668647301794,
+            0.03
+          ],
+          "rollFactor": 0.20710678118654746,
+          "pitchFactor": -0.5,
+          "normalizedYawFactor": -0.5
+        },
+        {
+          "motor": 14,
+          "output": 14,
+          "function": 161,
+          "azimuthDeg": 247.5,
+          "spin": "CCW",
+          "yawFactor": 1,
+          "testOrder": 14,
+          "heightM": 0.03,
+          "positionFrdM": [
+            -0.07653668647301791,
+            -0.1847759065022574,
+            0.03
+          ],
+          "rollFactor": 0.5,
+          "pitchFactor": -0.20710678118654735,
+          "normalizedYawFactor": 0.5
+        },
+        {
+          "motor": 15,
+          "output": 15,
+          "function": 162,
+          "azimuthDeg": 292.5,
+          "spin": "CW",
+          "yawFactor": -1,
+          "testOrder": 15,
+          "heightM": 0.03,
+          "positionFrdM": [
+            0.076536686473018,
+            -0.18477590650225734,
+            0.03
+          ],
+          "rollFactor": 0.4999999999999999,
+          "pitchFactor": 0.20710678118654763,
+          "normalizedYawFactor": -0.5
+        },
+        {
+          "motor": 16,
+          "output": 16,
+          "function": 163,
+          "azimuthDeg": 337.5,
+          "spin": "CCW",
+          "yawFactor": 1,
+          "testOrder": 16,
+          "heightM": 0.03,
+          "positionFrdM": [
+            0.1847759065022574,
+            -0.07653668647301792,
+            0.03
+          ],
+          "rollFactor": 0.20710678118654738,
+          "pitchFactor": 0.5,
+          "normalizedYawFactor": 0.5
+        }
+      ],
+      "sourceFunction": "MotorsMatrix:add_motor_raw / MotorsMatrix:init(16)",
+      "geometryProvenance": "Synthetic eight-arm coaxial pairs, not an upstream built-in frame or a calibrated wake model",
+      "positionProvenance": "Synthetic 0.2 m arm radius; X8/paired heights +/-0.03 m are harness inputs, not upstream measured geometry"
+    }
+  ],
+  "servoPackets": [
+    {
+      "channels": 16,
+      "magic": 18458,
+      "pwmUs": [
+        1000,
+        1017,
+        1034,
+        1051,
+        1068,
+        1085,
+        1102,
+        1119,
+        1136,
+        1153,
+        1170,
+        1187,
+        1204,
+        1221,
+        1238,
+        1255
+      ],
+      "hex": "1a48200378563412e803f9030a041b042c043d044e045f04700481049204a304b404c504d604e704"
+    },
+    {
+      "channels": 32,
+      "magic": 29569,
+      "pwmUs": [
+        1000,
+        1017,
+        1034,
+        1051,
+        1068,
+        1085,
+        1102,
+        1119,
+        1136,
+        1153,
+        1170,
+        1187,
+        1204,
+        1221,
+        1238,
+        1255,
+        1272,
+        1289,
+        1306,
+        1323,
+        1340,
+        1357,
+        1374,
+        1391,
+        1408,
+        1425,
+        1442,
+        1459,
+        1476,
+        1493,
+        1510,
+        1527
+      ],
+      "hex": "8173200378563412e803f9030a041b042c043d044e045f04700481049204a304b404c504d604e704f80409051a052b053c054d055e056f0580059105a205b305c405d505e605f705"
+    }
+  ]
+}
