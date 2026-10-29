@@ -1,17 +1,27 @@
 import { ARCHIVE_FILE_EXTENSION } from '@mirage/project/archive';
 import { ProjectStoreError } from '@mirage/project/schema';
 
-// Project archive file names and plain explanations of project-store errors
-// for the Project tab (TASK-137).
+// File downloads, file names and plain explanations of project-store errors
+// for the Project tab (TASK-137) and the Components tab (TASK-140).
 
 /** File names are cut to this many UTF-8 bytes before the extension; macOS allows 255. */
 const MAX_FILE_NAME_BYTES = 120;
 // Controls, format characters (including bidirectional ones) and characters that file systems reserve.
 const RESERVED = /[\p{Cc}\p{Cf}\p{Zl}\p{Zp}/\\:*?"<>|]+/gu;
 
-/** A download file name for a project archive: the project name without reserved characters. */
-export function archiveFileName(projectName: string): string {
-  const cleaned = projectName.normalize('NFC').replace(RESERVED, ' ').replace(/\s+/g, ' ').trim()
+/** Saves bytes as a file through the browser's download. */
+export function download(bytes: Uint8Array<ArrayBuffer>, name: string): void {
+  const url = URL.createObjectURL(new Blob([bytes], { type: 'application/octet-stream' }));
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = name;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+/** A file name without reserved characters, cut to MAX_FILE_NAME_BYTES, with the extension appended. */
+export function safeFileName(name: string, extension: string, fallback: string): string {
+  const cleaned = name.normalize('NFC').replace(RESERVED, ' ').replace(/\s+/g, ' ').trim()
     .replace(/^[.\s]+/, '').replace(/[.\s]+$/, '');
   const encoder = new TextEncoder();
   let base = '', bytes = 0;
@@ -21,7 +31,12 @@ export function archiveFileName(projectName: string): string {
     base += character;
   }
   base = base.trim();
-  return `${base === '' ? 'project' : base}${ARCHIVE_FILE_EXTENSION}`;
+  return `${base === '' ? fallback : base}${extension}`;
+}
+
+/** A download file name for a project archive: the project name without reserved characters. */
+export function archiveFileName(projectName: string): string {
+  return safeFileName(projectName, ARCHIVE_FILE_EXTENSION, 'project');
 }
 
 export type ProjectOperation = 'create' | 'rename' | 'open' | 'export' | 'import' | 'storage';

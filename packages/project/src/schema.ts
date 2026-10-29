@@ -2,13 +2,17 @@ import { Ajv, type ValidateFunction } from 'ajv';
 import schema from './project.schema.json';
 
 // Project records (TASK-136): immutable versions of projects, component cards,
-// aircraft profiles and experiments, each addressed by the SHA-256 of its
-// canonical JSON bytes (RFC 8785). Configuration-time code only; never call it
-// from a physics step.
+// measurement sets (TASK-140), aircraft profiles and experiments, each
+// addressed by the SHA-256 of its canonical JSON bytes (RFC 8785).
+// Configuration-time code only; never call it from a physics step.
 
 export const PROJECT_SCHEMA_VERSION = 1;
-/** Record kinds in schema v1, in dependency order: a kind may depend only on kinds before it. */
-export const ITEM_KINDS = ['project', 'component-card', 'aircraft-profile', 'experiment'] as const;
+/**
+ * Record kinds in schema v1, in dependency order: a kind may depend only on
+ * kinds before it. TASK-140 added `measurement-set`; records of the other kinds
+ * keep their bytes and meaning, and a reader without a kind rejects its records.
+ */
+export const ITEM_KINDS = ['project', 'component-card', 'measurement-set', 'aircraft-profile', 'experiment'] as const;
 export type ItemKind = typeof ITEM_KINDS[number];
 /** Kinds stored inside a project, as opposed to the project record itself. */
 export type ContentKind = Exclude<ItemKind, 'project'>;
@@ -16,8 +20,9 @@ export type ContentKind = Exclude<ItemKind, 'project'>;
 export const ALLOWED_DEPENDENCIES: { readonly [kind in ItemKind]: readonly ItemKind[] } = {
   'project': [],
   'component-card': [],
-  'aircraft-profile': ['component-card'],
-  'experiment': ['aircraft-profile', 'component-card'],
+  'measurement-set': ['component-card'],
+  'aircraft-profile': ['component-card', 'measurement-set'],
+  'experiment': ['aircraft-profile', 'component-card', 'measurement-set'],
 };
 /** Canonical UTF-8 bytes of one record. */
 export const MAX_RECORD_BYTES = 1048576;
@@ -35,7 +40,7 @@ export type JsonValue = null | boolean | number | string | readonly JsonValue[] 
 export interface JsonObject { readonly [key: string]: JsonValue }
 export interface Dependency { readonly kind: ItemKind; readonly sha256: string }
 export interface RecordOrigin { readonly copiedFrom: string }
-/** Record envelope v1. The payload belongs to the kind's owner task (TASK-138, TASK-139, TASK-154). */
+/** Record envelope v1. The payload belongs to the kind's owner task (TASK-138, TASK-139, TASK-140, TASK-154). */
 export interface ProjectRecord {
   readonly schemaVersion: 1;
   readonly kind: ItemKind;

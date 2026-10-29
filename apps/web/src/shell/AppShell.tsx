@@ -1,7 +1,11 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { Radio } from "lucide-react";
 import type { StoredVersion } from "@mirage/project/schema";
+import { validateComponentCard } from "@mirage/aircraft/components";
+import { validateMeasurementSet } from "@mirage/aircraft/measurements";
+import { validateAircraftProfile } from "@mirage/aircraft/profile";
 import { ProjectStore } from "@mirage/project/store";
+import { ComponentsPanel } from "../library/ComponentsPanel";
 import {
   DEFAULT_NAVIGATION, TABS, forcedTab, loadNavigation, panelId, saveNavigation, tabForKey, tabId,
   type NavigationState, type TabId,
@@ -22,9 +26,8 @@ export type StoreState =
   | { readonly status: "unavailable"; readonly reason: string };
 
 /** What each tab will hold; the shell says so until the tab's own task lands. */
-const PLANNED: { readonly [tab in Exclude<TabId, "project" | "run">]: string } = {
+const PLANNED: { readonly [tab in Exclude<TabId, "project" | "components" | "run">]: string } = {
   aircraft: "Arms and motors, their ArduPilot outputs, mass properties, and a 3D scheme of the aircraft.",
-  components: "Cards for motors, propellers, ESCs and batteries, with preliminary and measurement-based calculation.",
   sensors: "Ideal sensors, or sensors with specified errors, placement and orientation.",
   faults: "Motor faults, sensor and GNSS interference, EKF drift and link loss, applied manually or on a schedule.",
   weather: "Wind, gusts, turbulence, temperature and pressure, and the location of the flight.",
@@ -67,7 +70,12 @@ export function AppShell({ run }: { run: (visible: boolean) => ReactNode }) {
     let cancelled = false, opened: ProjectStore | null = null;
     const open = async () => {
       try {
-        const ready = await ProjectStore.openIndexedDb();
+        // Payload validators of the kinds' owner tasks apply to every write and archive import.
+        const ready = await ProjectStore.openIndexedDb({
+          validators: {
+            "component-card": validateComponentCard, "measurement-set": validateMeasurementSet, "aircraft-profile": validateAircraftProfile,
+          },
+        });
         opened = ready;
         if (cancelled) {
           ready.close();
@@ -121,6 +129,8 @@ export function AppShell({ run }: { run: (visible: boolean) => ReactNode }) {
     switch (tab) {
       case "project":
         return <ProjectPanel storeState={storeState} project={project} projects={projects} onOpen={openProject} onRefresh={refreshProjects} />;
+      case "components":
+        return <ComponentsPanel storeState={storeState} project={project} />;
       case "run":
         return run(navigation.tab === "run");
       default: {
@@ -180,7 +190,7 @@ export function AppShell({ run }: { run: (visible: boolean) => ReactNode }) {
             role="tabpanel"
             aria-labelledby={tabId(entry.id)}
             hidden={entry.id !== navigation.tab}
-            tabIndex={entry.id === "project" || entry.id === "run" ? undefined : 0}
+            tabIndex={entry.id === "project" || entry.id === "components" || entry.id === "run" ? undefined : 0}
           >
             {content(entry.id)}
           </div>

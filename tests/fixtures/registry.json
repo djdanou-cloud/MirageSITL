@@ -1616,6 +1616,51 @@
           "derivation": "Hand-chosen illustrative component card for a 4S 5 Ah lithium-polymer pack: 0.018 ohm, 4.2 V full and 3.3 V empty per cell, 125 A, 0.52 kg. TASK-139 schema, exchange and geometry tests only; labeled an example card, not specification or measured data."
         }
       }
+    },
+    {
+      "path": "components/bench-combination.csv",
+      "manifest": {
+        "formatVersion": 1,
+        "id": "component-bench-combination-v1",
+        "sourceSha256": "ac51624dc3cee07c3c491377377848050c539a31b2501110f6e1515c95d62dec",
+        "units": {
+          "rpm": "rev/min",
+          "diameterM": "m",
+          "airTemperatureK": "K",
+          "airPressurePa": "Pa",
+          "voltageV": "V"
+        },
+        "validityEnvelope": {
+          "rpm": {
+            "min": 2000,
+            "max": 8000
+          },
+          "diameterM": {
+            "min": 0.254,
+            "max": 0.254
+          },
+          "airTemperatureK": {
+            "min": 293.15,
+            "max": 293.15
+          },
+          "airPressurePa": {
+            "min": 101325,
+            "max": 101325
+          },
+          "voltageV": {
+            "min": 16,
+            "max": 16
+          }
+        },
+        "tolerance": {
+          "absolute": 0,
+          "relative": 1e-10
+        },
+        "provenance": {
+          "kind": "synthetic",
+          "derivation": "Bench CSV v2 generated with 50-digit decimal arithmetic from C_T = 0.11, C_P = 0.045, D = 0.254 m, the ideal-gas density at 293.15 K and 101325 Pa with the ICAO specific gas constant R = 287.05287 J/(kg K), 16 V and a motor and ESC efficiency of 0.8, printed with 12 significant digits. TASK-140 bench-import, measurement-set and binding tests only; not a measured thrust stand."
+        }
+      }
     }
   ]
 }

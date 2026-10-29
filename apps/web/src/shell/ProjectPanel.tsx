@@ -1,7 +1,7 @@
 import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import type { StoredVersion } from "@mirage/project/schema";
 import type { MissingDependency, ProjectStore, StorageReport } from "@mirage/project/store";
-import { archiveFileName, describeProjectError, nameLanguage, type ProjectOperation } from "./project-files";
+import { archiveFileName, describeProjectError, download, nameLanguage, type ProjectOperation } from "./project-files";
 import type { StoreState } from "./AppShell";
 
 // The Project tab (TASK-137): create, open, rename, export and import local
@@ -18,14 +18,6 @@ function formatBytes(bytes: number): string {
 }
 function formatTime(createdAt: string): string {
   return `${createdAt.slice(0, 10)} ${createdAt.slice(11, 16)} UTC`;
-}
-function download(bytes: Uint8Array<ArrayBuffer>, name: string): void {
-  const url = URL.createObjectURL(new Blob([bytes], { type: "application/octet-stream" }));
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = name;
-  link.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 function describeStorage(report: StorageReport): string {
   const stored = `${plural(report.records, "record")} (${formatBytes(report.storeBytes)}) in the project store.`;

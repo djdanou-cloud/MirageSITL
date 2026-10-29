@@ -217,10 +217,14 @@ implementation.
   Chromium reproduce identically. TASK-139 is DONE: component cards for
   motors, propellers, ESCs and batteries name the source of every value, move
   between projects in a card exchange file (`.miragecards`), and give a BET
-  propeller geometry with its assumptions and validity flags listed. Decisions
-  D-04 and D-06 to D-12 are decided; D-01 to D-03 wait on TASK-127 to TASK-129,
-  which need a Mac. TASK-136 defined the project archive of D-05 and TASK-139
-  its component-card format; its measured-data format waits on TASK-140. TASK-073,
+  propeller geometry with its assumptions and validity flags listed. TASK-140
+  is DONE: the Components tab keeps bench measurements bound to one exact
+  motor, propeller, ESC and power-supply combination (bench CSV v2), and each
+  profile version is a preliminary calculation or a calculation from
+  measurements, with the TASK-133 labels per motor. Decisions D-04 and D-06 to
+  D-12 are decided; D-01 to D-03 wait on TASK-127 to TASK-129, which need a
+  Mac. TASK-136 defined the project archive of D-05, TASK-139 its
+  component-card format and TASK-140 its measured-data format. TASK-073,
   TASK-080, TASK-082 and TASK-083 below are not Phase 1 gates; see their Phase 1
   dispositions in the roadmap.
 * **Measured model fidelity (separate from the TASK-033 synthetic baseline):** `node scripts/validate-models.mjs`

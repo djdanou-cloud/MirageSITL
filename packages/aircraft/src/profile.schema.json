@@ -1,8 +1,8 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://mirage-sitl.invalid/schemas/aircraft-profile.schema.json",
-  "title": "MirageSITL aircraft profile v1",
-  "description": "Multirotor aircraft profile (TASK-138). SI units; positions are body FRD metres from the body reference point. Code checks what the schema cannot express: ascending unique arm and motor IDs, known arms, one single motor or one upper and one lower motor per arm, a pair separation exactly for pairs, unique outputs, distinct arm mounts, and realizable inertia tensors.",
+  "title": "MirageSITL aircraft profile schema 1 and 2",
+  "description": "Multirotor aircraft profile (TASK-138). SI units; positions are body FRD metres from the body reference point. Code checks what the schema cannot express: ascending unique arm and motor IDs, known arms, one single motor or one upper and one lower motor per arm, a pair separation exactly for pairs, unique outputs, distinct arm mounts, and realizable inertia tensors; and, from schema 2 (TASK-140), a calculation exactly in schema 2, no measurement set in preliminary mode, and measurement sets in ascending order without repeats.",
   "definitions": {
     "cardReference": {
       "description": "SHA-256 address of a component-card version in the project store (TASK-136, TASK-139), or null while none is selected.",
@@ -38,7 +38,7 @@
     "sensorConfiguration"
   ],
   "properties": {
-    "schemaVersion": { "const": 1 },
+    "schemaVersion": { "enum": [1, 2] },
     "units": { "const": "SI" },
     "bodyFrame": { "const": "FRD" },
     "arms": {
@@ -160,8 +160,22 @@
       "exclusiveMinimum": 0
     },
     "sensorConfiguration": {
-      "description": "Reserved for TASK-143; schema 1 holds no sensor configuration.",
+      "description": "Reserved for TASK-143; schemas 1 and 2 hold no sensor configuration.",
       "type": "null"
+    },
+    "calculation": {
+      "description": "Schema 2 (TASK-140): the S04 calculation mode of this profile version and the measurement-set versions it binds.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode", "measurementSets"],
+      "properties": {
+        "mode": { "enum": ["preliminary", "measured"] },
+        "measurementSets": {
+          "type": "array",
+          "maxItems": 16,
+          "items": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+        }
+      }
     }
   }
 }

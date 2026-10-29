@@ -30,7 +30,9 @@ quadrotor demonstration. The interface includes a 3D view, telemetry, collective
 throttle, arm/disarm, pause/reset, input failsafe, and scheduler drop counters.
 Since TASK-137 the application opens in a shell with a project context and the
 twelve Phase 1 tabs. Projects are stored locally in the browser (TASK-136), and
-the demonstration is the Run tab's flight backend, labeled synthetic.
+the demonstration is the Run tab's flight backend, labeled synthetic. The
+Components tab (TASK-140) keeps component cards and bench measurements of exact
+component combinations, and sets each aircraft profile's calculation mode.
 
 The running application uses binary ABI **v2** (TASK-085): session epochs, EKF/EW
 status fields, sensor/actuator queues, and Control Protocol v2. The demo physics

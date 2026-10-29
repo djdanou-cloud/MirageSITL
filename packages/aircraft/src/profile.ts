@@ -5,11 +5,13 @@ import type { StoredVersion } from '@mirage/project/schema';
 import type { Draft } from '@mirage/project/versions';
 
 // Aircraft profile schema 1 (TASK-138, S03): the product-level description of
-// a multirotor with one to eight arms and up to 16 motors. Configuration-time
+// a multirotor with one to eight arms and up to 16 motors. Schema 2 (TASK-140,
+// S04) adds the calculation mode of the profile version. Configuration-time
 // code only; never call it from a physics step. Units are SI; positions are
 // body FRD metres from the body reference point.
 
-export const PROFILE_SCHEMA_VERSION = 1;
+/** The schema a new profile version is written in; schema 1 profiles stay valid. */
+export const PROFILE_SCHEMA_VERSION = 2;
 export type MotorLevel = 'single' | 'upper' | 'lower';
 export type SpinDirection = 'ccw' | 'cw';
 export interface ArmSpec {
@@ -43,8 +45,14 @@ export interface ProfileMotor {
   readonly output: number;
   readonly components: ComponentReferences;
 }
-export interface AircraftProfile {
-  readonly schemaVersion: 1;
+export type CalculationMode = 'preliminary' | 'measured';
+/** The S04 input mode of a profile version and the measurement sets it binds. */
+export interface CalculationSettings {
+  readonly mode: CalculationMode;
+  /** SHA-256 addresses of measurement-set versions (TASK-140), ascending; empty in preliminary mode. */
+  readonly measurementSets: readonly string[];
+}
+interface ProfileFields {
   readonly units: 'SI';
   readonly bodyFrame: 'FRD';
   /** One to eight arms in ascending ID order. */
@@ -61,6 +69,10 @@ export interface AircraftProfile {
   /** Reserved for TASK-143. */
   readonly sensorConfiguration: null;
 }
+/** Schema 1 has no calculation and reads as preliminary; schema 2 states it. */
+export type AircraftProfile =
+  | (ProfileFields & { readonly schemaVersion: 1 })
+  | (ProfileFields & { readonly schemaVersion: 2; readonly calculation: CalculationSettings });
 
 // Union types express nullable fields, as in the vehicle manifest schema.
 const validateSchema = new Ajv({ strict: true, strictNumbers: true, allowUnionTypes: true }).compile<AircraftProfile>(schema);
@@ -117,6 +129,15 @@ export function validateAircraftProfile(input: unknown): AircraftProfile {
     const error = validateSchema.errors?.[0];
     return fail(`${error?.instancePath || '/'} ${error?.message ?? 'does not match the schema'}`);
   }
+  if (profile.schemaVersion === 1 && 'calculation' in profile) fail('Schema 1 profiles have no calculation');
+  if (profile.schemaVersion === 2) {
+    if (!('calculation' in profile)) fail('Schema 2 profiles need a calculation');
+    const { mode, measurementSets } = profile.calculation;
+    if (mode === 'preliminary' && measurementSets.length > 0) fail('A preliminary calculation binds no measurement set');
+    if (!measurementSets.every((sha, index) => index === 0 || sha > measurementSets[index - 1]!)) {
+      fail('Measurement sets must be unique and in ascending order');
+    }
+  }
   if (!ascending(profile.arms.map(arm => arm.id))) fail('Arm IDs must be unique and ascending');
   if (!ascending(profile.motors.map(motor => motor.id))) fail('Motor IDs must be unique and ascending');
   const outputs = new Map<number, number>();
@@ -159,21 +180,34 @@ export function profileComponentCards(profile: AircraftProfile): string[] {
   return [...cards].sort();
 }
 
-/** A project-store draft (TASK-136) for a profile version, with its component cards as dependencies. */
-export function profileDraft(name: string, input: unknown): Draft {
-  const profile = validateAircraftProfile(input);
-  return { name, payload: profile, dependencies: profileComponentCards(profile) };
+/** The calculation of a profile version; schema 1 is preliminary. */
+export function calculationSettings(profile: AircraftProfile): CalculationSettings {
+  return profile.schemaVersion === 2 ? profile.calculation : { mode: 'preliminary', measurementSets: [] };
 }
 
-/** The profile of a stored aircraft-profile version; its dependencies must be exactly its component cards. */
+/** The project-store dependencies of a profile: its component cards and bound measurement sets, sorted. */
+export function profileDependencies(profile: AircraftProfile): { kind: 'component-card' | 'measurement-set'; sha256: string }[] {
+  return [
+    ...profileComponentCards(profile).map(sha256 => ({ kind: 'component-card' as const, sha256 })),
+    ...calculationSettings(profile).measurementSets.map(sha256 => ({ kind: 'measurement-set' as const, sha256 })),
+  ].sort((a, b) => (a.sha256 < b.sha256 ? -1 : a.sha256 > b.sha256 ? 1 : 0));
+}
+
+/** A project-store draft (TASK-136) for a profile version, with its cards and measurement sets as dependencies. */
+export function profileDraft(name: string, input: unknown): Draft {
+  const profile = validateAircraftProfile(input);
+  return { name, payload: profile, dependencies: profileDependencies(profile).map(dependency => dependency.sha256) };
+}
+
+/** The profile of a stored aircraft-profile version; its dependencies must be exactly its cards and measurement sets. */
 export function readAircraftProfile(stored: StoredVersion): AircraftProfile {
   const record = stored.record;
   if (record.kind !== 'aircraft-profile') throw new Error(`Record ${stored.sha256} is a ${record.kind}, not an aircraft profile`);
   const profile = validateAircraftProfile(record.payload);
-  const expected = profileComponentCards(profile);
-  const listed = record.dependencies.map(dependency => dependency.sha256);
-  if (record.dependencies.some(dependency => dependency.kind !== 'component-card') || listed.join(',') !== expected.join(',')) {
-    throw new Error(`Profile record ${stored.sha256}: its dependencies must list exactly its component cards`);
+  const expected = profileDependencies(profile).map(dependency => `${dependency.kind}:${dependency.sha256}`);
+  const listed = record.dependencies.map(dependency => `${dependency.kind}:${dependency.sha256}`);
+  if (listed.join(',') !== expected.join(',')) {
+    throw new Error(`Profile record ${stored.sha256}: its dependencies must list exactly its component cards and measurement sets`);
   }
   return profile;
 }

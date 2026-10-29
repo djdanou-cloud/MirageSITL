@@ -69,6 +69,7 @@ and background-tab policies provide no hard real-time guarantee.
 apps/web/
   src/App.tsx                 # Run tab: synthetic demo, HUD, controls, calibration
   src/shell/                  # Application shell: project context, tabs, Project tab
+  src/library/                # Components tab: cards, measurement sets, calculation modes
   src/capabilities.ts         # API checks and implemented mode eligibility
   src/runtime.ts              # Gamepad/rAF, lifecycle, SAB reads
   src/FlightScene.tsx         # Position/SLERP in R3F useFrame
@@ -110,7 +111,7 @@ Workspace packages, services, and native crates:
 | `packages/aar` | Input/actuator/truth/EKF recording and replay |
 | `packages/scenarios` | Declarative training scenarios, tick runner, and trace rubrics |
 | `packages/project` | Local project store: immutable versions, project archives (TASK-136) |
-| `packages/aircraft` | Aircraft profiles: arms, motors, mass properties, rotor layout and vehicle manifest derivation (TASK-138); component cards, the card exchange file and propeller geometry (TASK-139) |
+| `packages/aircraft` | Aircraft profiles: arms, motors, mass properties, rotor layout and vehicle manifest derivation (TASK-138); component cards, the card exchange file and propeller geometry (TASK-139); measurement sets and calculation modes (TASK-140) |
 | `services/tiles-worker` | Cloudflare proxy, quotas, permitted caching |
 | `native` | Source/toolchain pins and WASM reference tests |
 
@@ -353,8 +354,8 @@ line-of-sight, turbulence-box generation, recording) moves to other Workers.
 
 ## Local project store (TASK-136)
 
-`packages/project` keeps projects, component cards, aircraft profiles and
-experiments in the browser's IndexedDB, with no account or cloud service
+`packages/project` keeps projects, component cards, measurement sets
+(TASK-140), aircraft profiles and experiments in the browser's IndexedDB, with no account or cloud service
 (S16, S01). Each edit appends an immutable version addressed by the SHA-256 of
 its canonical JSON (RFC 8785). A version names the exact versions it depends
 on, so editing a profile or a card never changes the inputs of an earlier
@@ -399,9 +400,9 @@ location, Flight tasks, Parameters, Logging, Run, Experiments and Analysis
   but disabled until TASK-153 and TASK-154.
 
 The shell holds only navigation and project metadata. Physics stays in its
-Worker and reaches the UI only in decimated form, as before. The other ten
-tabs state what they will hold and that it is not available yet; their own
-tasks fill them. The stored navigation format is in
+Worker and reaches the UI only in decimated form, as before. TASK-140 fills
+the Components tab. The other nine tabs state what they will hold and that it
+is not available yet; their own tasks fill them. The stored navigation format is in
 [SPECS_SIMULATION_ENGINES.md](SPECS_SIMULATION_ENGINES.md), section "Local
 settings (TASK-137)".
 
@@ -444,6 +445,25 @@ value. Its arctangent is also computed by `trig.ts`, so the geometry has the
 same bytes in Node and in Chrome. The contract is in
 [SPECS_SIMULATION_ENGINES.md](SPECS_SIMULATION_ENGINES.md), section "Component
 cards v1 (TASK-139)".
+
+## Calculation modes and measurements (TASK-140)
+
+Each aircraft profile version is either a Preliminary calculation, built from
+specifications and geometry, or a Calculation from measurements (S04). Bench
+data is stored as a measurement set: a versioned record that names the exact
+motor, propeller, ESC and battery card versions it was measured with, or a
+laboratory power supply, and states its conditions. A missing quantity is an
+absent column and is never filled in. Bench CSV v2 extends the TASK-090 file
+with the conditions and optional torque, voltage and current; its bounds
+refuse common unit mistakes, such as a temperature in °C or a thrust in
+grams. A profile in measured mode binds sets, and a motor is labeled
+`measured-input` only when a bound set has exactly its combination; every
+other motor stays `preliminary`, and the aircraft takes the weakest label
+(TASK-133). The Components tab (`apps/web/src/library/`) lists the cards,
+uploads or takes typed bench data, and switches each profile's mode while
+showing each motor's label, missing quantities and limits of use. The contract
+is in [SPECS_SIMULATION_ENGINES.md](SPECS_SIMULATION_ENGINES.md), section
+"Calculation modes and measurement sets v1 (TASK-140)".
 
 ## Phase 0 contracts: fixtures, capabilities, and models
 

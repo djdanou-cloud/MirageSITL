@@ -3010,7 +3010,10 @@ C_T = \frac{T}{\rho n^2 D^4},\qquad C_Q = \frac{Q}{\rho n^2 D^5},\qquad C_P = 2\
 The importer also scales thrust and torque to ISA sea-level density
 (1.2250 kg/m³ from `isaTroposphere(0)`). It flags negative thrust, negative
 torque and FM > 1, because momentum theory bounds free-air static thrust per
-unit power. Flagged rows are kept.
+unit power. Flagged rows are kept. Bench CSV v2 (TASK-140), with stated
+conditions and only the measured columns, is in section "Calculation modes
+and measurement sets v1 (TASK-140)"; `importBenchCsv` still reads version 1
+only.
 
 Capture schema v1 has this skeleton; every series must hold 2..2^20 finite
 samples:
@@ -3563,7 +3566,7 @@ shows whether the origin's storage is persistent.
 ### Records
 
 ```typescript
-type ItemKind = "project" | "component-card" | "aircraft-profile" | "experiment";
+type ItemKind = "project" | "component-card" | "measurement-set" | "aircraft-profile" | "experiment";
 interface Dependency { kind: ItemKind; sha256: string }
 interface ProjectRecord {
   schemaVersion: 1;
@@ -3598,13 +3601,18 @@ interface ProjectRecord {
   The store normalizes names given to it. A stored or imported name that is
   not already in this form is rejected rather than rewritten, because
   rewriting would change the record's address.
-* **Dependencies.** In schema v1, projects and component cards have none, an
-  aircraft profile may depend on component cards, and an experiment on
-  aircraft profiles and component cards. A dependency must be a stored
-  version of the same project.
+* **Dependencies.** In schema v1, projects and component cards have none, a
+  measurement set (TASK-140) may depend on component cards, an aircraft
+  profile on component cards and measurement sets, and an experiment on
+  aircraft profiles, component cards and measurement sets. A dependency must
+  be a stored version of the same project. TASK-140 added the
+  `measurement-set` kind without changing the envelope version: records of the
+  other kinds keep their bytes and meaning, and a reader without the kind
+  rejects its records as an unknown kind.
 * **Payloads.** A project's payload is `{}`. The store does not interpret
-  card, profile and experiment payloads beyond the canonical JSON limits.
-  Their owner tasks (TASK-138, TASK-139, TASK-154 and TASK-165) register
+  card, measurement-set, profile and experiment payloads beyond the canonical
+  JSON limits. Their owner tasks (TASK-138, TASK-139, TASK-140, TASK-154 and
+  TASK-165) register
   payload validators, which apply when a version is written or imported, not
   when it is read.
 
@@ -3864,8 +3872,11 @@ has its own CG and its inertia about it; zero inertia is a point mass. Card
 references are SHA-256 addresses of component-card versions (TASK-139), and
 null means that none is selected yet. `groundClearanceM` is the height of the
 reference point above level ground when the aircraft rests on its supports,
-which the F-07 support points use (TASK-187). Schema 1 holds no sensor
-configuration; TASK-143 defines it and raises the schema version.
+which the F-07 support points use (TASK-187). Schema 2 (TASK-140) adds the
+calculation mode of the profile version, described in section "Calculation
+modes and measurement sets v1 (TASK-140)"; schema 1 profiles stay valid.
+Neither schema holds a sensor configuration; TASK-143 defines it and raises
+the schema version.
 
 Checks beyond the schema name the arm or motor at fault:
 
@@ -3995,8 +4006,9 @@ pairs wait for TASK-092 and TASK-101, and TASK-144 builds the dynamics.
 
 `validateAircraftProfile` is the payload validator of the `aircraft-profile`
 kind. `profileDraft(name, profile)` makes a store draft whose dependencies are
-exactly the profile's component cards, and `readAircraftProfile(stored)`
-refuses a record whose dependencies differ from them.
+exactly the profile's component cards and, in schema 2, its bound measurement
+sets, and `readAircraftProfile(stored)` refuses a record whose dependencies
+differ from them.
 
 ### Verification (TASK-138)
 
@@ -4219,3 +4231,209 @@ cases, the store and the exchange file.
 `tests/browser/aircraft-derivation.spec.ts` derives the example propeller in
 Chromium at 16 and 64 strips and requires the same bytes as Node. The roadmap
 entry records the results.
+
+## Calculation modes and measurement sets v1 (TASK-140)
+
+Scope S04 and S15. An aircraft profile version is either a **Preliminary
+calculation**, built from specifications and geometry, or a **Calculation from
+measurements**, which also uses static bench data. Bench data belongs to one
+exact combination of motor, propeller, ESC and power supply and is never used
+for another. The confidence labels follow TASK-133
+([phase1-fidelity.md](decisions/phase1-fidelity.md)). Configuration-time code
+only; never call it from a physics step.
+
+### Bench CSV v2
+
+`packages/physics/src/bench-import.ts` extends the TASK-090 importer. Version 2
+states one set of conditions for the whole file and holds only the quantities
+that were measured:
+
+```text
+mirage-bench-csv,2
+diameterM,0.254
+airTemperatureK,293.15
+airPressurePa,101325
+supplyVoltageV,16.8
+rpm,thrustN,torqueNm,voltageV,currentA
+2000,0.612561732958,0.0101303287561,16,0.16575711666
+```
+
+* The conditions follow the diameter line: `airDensityKgM3`, or
+  `airTemperatureK` then `airPressurePa`, optionally followed by
+  `supplyVoltageV`, the nominal supply voltage. Nothing else may stand there.
+* The column header is `rpm,thrustN` followed by any of `torqueNm`,
+  `voltageV` and `currentA` in this order. A quantity that was not measured is
+  an absent column; an empty field is an error, so nothing is filled in.
+* Numbers follow the v1 rules: strict decimals, LF or CRLF, at most 4 MiB.
+  A file holds 1 to 4096 rows (`MAX_BENCH_POINTS`).
+
+The bounds catch unit mistakes; they are not physical envelopes:
+
+| Quantity | Bound | Catches |
+| --- | --- | --- |
+| `diameterM` | (0, 10] m | |
+| `rpm` | (0, 100000] rpm | |
+| `thrustN` | [−10000, 10000] N | |
+| `torqueNm` | [−1000, 1000] N·m | |
+| `voltageV`, `supplyVoltageV` | (0, 1000] V | |
+| `currentA` | [0, 10000] A | a negative current |
+| `airDensityKgM3` | [0.3, 1.6] kg/m³ | a density in lb/ft³ |
+| `airTemperatureK` | [233.15, 323.15] K | a temperature in °C |
+| `airPressurePa` | [30000, 110000] Pa | a pressure in hPa or kPa |
+| \|C_T\|, \|C_P\| | at most 1 | a thrust in grams, a torque in N·mm or a speed in rad/s |
+
+The largest static coefficients of the 14 measured UIUC propellers in
+`tests/fixtures/rotors/uiuc-propellers.json` are C_T = 0.254 and
+C_P = 0.193, so the bound of 1 leaves a margin of four, while a unit mistake
+multiplies a coefficient by about 100 or more. From temperature and pressure
+the density follows the
+ideal gas law with the ICAO constant R = 287.05287 J/(kg·K) of
+`atmosphereFromState`. With n = rpm/60:
+
+\[
+\rho = \frac{p}{R\,T},\qquad P_{\mathrm{shaft}} = 2\pi n\,Q,\qquad P_{\mathrm{el}} = V\,I
+\]
+
+`importBenchMeasurements(text)` reads version 2, and version 1 when every row
+has the same density. It returns, per row, the measured values, C_T, C_Q,
+C_P, thrust and torque at ISA sea-level density, the shaft and electrical
+power and the figure of merit, each null when its inputs were not measured.
+It keeps the v1 flags and adds `electrical-power-below-shaft-power`, because a
+motor and ESC cannot deliver more shaft power than they draw. `missing` lists
+the unmeasured columns and then `supplyVoltageV` when it is not stated.
+`formatBenchCsv` writes the canonical v2 text of checked data, with numbers in
+their shortest round-trip form. `importBenchCsv` still reads version 1 only.
+
+### Measurement sets
+
+`packages/aircraft/src/measurements.ts` stores bench data as
+`measurement-set` records of the project store (TASK-136):
+
+```typescript
+interface MeasurementSet {
+  schemaVersion: 1;
+  units: "SI";
+  combination: {
+    motor: string;                  // component-card version SHA-256
+    propeller: string;
+    esc: string;
+    supply: { kind: "battery"; card: string } | { kind: "laboratory" };
+  };
+  diameterM: number;                // equal to the propeller card's diameter
+  conditions: {
+    airDensityKgM3: number | null;  // either the density,
+    airTemperatureK: number | null; // or the temperature and the pressure
+    airPressurePa: number | null;
+    supplyVoltageV: number | null;  // null when not recorded
+  };
+  points: {                         // 1..4096 values each
+    rpm: number[];
+    thrustN: number[];
+    torqueNm: number[] | null;      // null when not measured
+    voltageV: number[] | null;
+    currentA: number[] | null;
+  };
+  source: {
+    kind: "file" | "manual";
+    fileName: string | null;        // exactly for a file
+    fileSha256: string | null;      // SHA-256 of the uploaded file's bytes
+    date: string;                   // YYYY-MM-DD calendar date of the measurement
+    description: string | null;
+  };
+  applicability: string | null;     // limits of use, 1..2048 characters
+}
+```
+
+`validateMeasurementSet` checks the schema, repeats every bench CSV v2 rule
+and checks the source, and it is the payload validator of the kind.
+`measurementSetFromBenchCsv` builds a set from an uploaded file and
+`measurementSetFromColumns` from values typed in. `checkMeasurementCards`
+checks that the combination's cards exist, have the types of their roles, and
+that the propeller card's diameter equals the set's.
+`measurementSetDraft(name, set)` makes a store draft whose dependencies are
+exactly the combination's cards, and `readMeasurementSet` refuses a record
+whose dependencies differ.
+
+The combination key is the SHA-256 of the canonical JSON of `combination`, so
+two sets share a key exactly when they name the same card versions and the
+same supply. The supply is part of the combination (S04): a battery card
+version, or a laboratory power supply, which no card describes. A profile's
+supply is its battery card, so data measured on a laboratory supply never
+binds to it.
+
+### Profile schema 2
+
+Aircraft profile schema 2 adds the calculation of the profile version:
+
+```typescript
+interface CalculationSettings {
+  mode: "preliminary" | "measured";
+  measurementSets: string[];        // measurement-set version SHA-256, ascending, unique, 0..16
+}
+// AircraftProfile schema 2 = schema 1 fields with schemaVersion: 2 and calculation: CalculationSettings
+```
+
+A schema 1 profile has no `calculation` and reads as preliminary, so stored
+profiles and their recorded manifests keep their bytes. A preliminary
+calculation binds no set. The bound sets are dependencies of the profile
+record, so a profile version always names the exact data it uses, and
+changing a binding creates a new version.
+
+### Binding and labels
+
+`packages/aircraft/src/calculation-mode.ts` connects profiles, sets and labels:
+
+* `motorCombination(profile, motor)` is the motor's motor, propeller and ESC
+  cards with the profile's battery card, or null while any is not selected.
+* `bindMeasurements(profile, mode, candidates)` returns a schema 2 version in
+  the given mode. In measured mode it binds, for each motor combination, the
+  newest candidate set of exactly that combination; candidates of other
+  combinations are never bound.
+* `checkProfileMeasurements` refuses a bound set that is not available, that
+  matches no motor's combination, or that binds the same combination as
+  another. A profile edited onto other cards therefore cannot keep a stale
+  binding.
+* `evaluateCalculation(profile, cards, sets)` labels each motor and the
+  aircraft:
+
+| Mode | Motor | Label | Reason |
+| --- | --- | --- | --- |
+| Preliminary | any | `preliminary` | Specifications and geometry only |
+| Measured | a card or the battery not selected | `preliminary` | No measurements can bind |
+| Measured | no bound set of its combination | `preliminary` | No set of this combination is bound |
+| Measured | a bound set of its combination | `measured-input` | Bench data of this exact combination |
+
+The aircraft takes the weakest label of its motors (F-06). `flight-checked`
+belongs to TASK-184 and is never assigned here. Each motor lists what its
+calculation lacks, never filling it in: unselected cards, unknown card values
+(`propeller: chord`) and unmeasured quantities (`measurements: torqueNm`). A
+motor with bench data also lists its limits of use: the measured rpm range
+with the F-03 warning margin of 10% on either side, that static single-rotor
+data does not validate forward flight or descent, that it does not validate a
+coaxial pair's interaction when the motor is in one, and the set's own
+applicability. In measured mode the aircraft notes that the mode does not
+certify the aircraft. TASK-145 fits the propulsion model to the bound data.
+
+### Components tab
+
+The Components tab of the application (TASK-137) lists the open project's
+cards with their unknown values, and imports and exports card files
+(TASK-139). It saves measurement sets from an uploaded bench CSV file or from
+values typed into a table, for a chosen motor, propeller, ESC and power supply,
+and refuses data that breaks the rules above with the reason. For each
+aircraft profile it offers **Preliminary calculation** and **Calculation from
+measurements**. Choosing a mode saves a new profile version, and the tab
+shows each motor's label, combination, bound set, missing quantities and
+limits of use. The application's project store registers the card,
+measurement-set and profile validators, so archive imports are checked too.
+
+### Verification (TASK-140)
+
+`tests/calculation-mode.test.ts` recovers the coefficients of a bench file
+generated from known values with 50-digit decimal arithmetic, checks the
+combination key against SHA-256 computed with `node:crypto`, and checks that a
+profile differing from a set in any one card version, or in its supply,
+binds nothing. It also covers the rejection cases, the store and archive
+round trip, and the labels. `tests/browser/measurements.spec.ts` uploads and
+types bench data in Chromium and checks that only the bound combination's
+motors change their label. The roadmap entry records the results.

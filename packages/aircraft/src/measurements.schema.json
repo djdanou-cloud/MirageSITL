@@ -1,0 +1,121 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://mirage-sitl.invalid/schemas/measurement-set.schema.json",
+  "title": "MirageSITL measurement set v1",
+  "description": "Static bench measurements of one motor, propeller, ESC and power-supply combination (TASK-140). SI units. A quantity that was not measured is null, never a filled-in value. Code checks what the schema cannot express: the bench CSV v2 bounds and coefficient limits, equal column lengths, the conditions rule (air density, or temperature and pressure), a calendar date, and a file source exactly with a file name and SHA-256.",
+  "definitions": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "nullableNumber": {
+      "type": ["number", "null"]
+    },
+    "column": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 4096,
+      "items": { "type": "number" }
+    },
+    "nullableColumn": {
+      "type": ["array", "null"],
+      "minItems": 1,
+      "maxItems": 4096,
+      "items": { "type": "number" }
+    },
+    "note": {
+      "type": ["string", "null"],
+      "minLength": 1,
+      "maxLength": 2048
+    }
+  },
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "units", "combination", "diameterM", "conditions", "points", "source", "applicability"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "units": { "const": "SI" },
+    "combination": {
+      "description": "Component-card versions of the measured combination; the supply is a battery card version or a laboratory power supply.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["motor", "propeller", "esc", "supply"],
+      "properties": {
+        "motor": { "$ref": "#/definitions/sha256" },
+        "propeller": { "$ref": "#/definitions/sha256" },
+        "esc": { "$ref": "#/definitions/sha256" },
+        "supply": {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["kind", "card"],
+              "properties": {
+                "kind": { "const": "battery" },
+                "card": { "$ref": "#/definitions/sha256" }
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["kind"],
+              "properties": {
+                "kind": { "const": "laboratory" }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "diameterM": {
+      "description": "Propeller diameter of the run; it must equal the propeller card's.",
+      "type": "number"
+    },
+    "conditions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["airDensityKgM3", "airTemperatureK", "airPressurePa", "supplyVoltageV"],
+      "properties": {
+        "airDensityKgM3": { "$ref": "#/definitions/nullableNumber" },
+        "airTemperatureK": { "$ref": "#/definitions/nullableNumber" },
+        "airPressurePa": { "$ref": "#/definitions/nullableNumber" },
+        "supplyVoltageV": { "$ref": "#/definitions/nullableNumber" }
+      }
+    },
+    "points": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rpm", "thrustN", "torqueNm", "voltageV", "currentA"],
+      "properties": {
+        "rpm": { "$ref": "#/definitions/column" },
+        "thrustN": { "$ref": "#/definitions/column" },
+        "torqueNm": { "$ref": "#/definitions/nullableColumn" },
+        "voltageV": { "$ref": "#/definitions/nullableColumn" },
+        "currentA": { "$ref": "#/definitions/nullableColumn" }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "fileName", "fileSha256", "date", "description"],
+      "properties": {
+        "kind": { "enum": ["file", "manual"] },
+        "fileName": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "fileSha256": {
+          "type": ["string", "null"],
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "date": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        },
+        "description": { "$ref": "#/definitions/note" }
+      }
+    },
+    "applicability": { "$ref": "#/definitions/note" }
+  }
+}

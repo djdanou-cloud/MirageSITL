@@ -8,7 +8,9 @@
     "./layout": "./src/layout.ts",
     "./derive-manifest": "./src/derive-manifest.ts",
     "./components": "./src/components.ts",
-    "./propeller-geometry": "./src/propeller-geometry.ts"
+    "./propeller-geometry": "./src/propeller-geometry.ts",
+    "./measurements": "./src/measurements.ts",
+    "./calculation-mode": "./src/calculation-mode.ts"
   },
   "dependencies": {
     "@mirage/physics": "0.1.0",

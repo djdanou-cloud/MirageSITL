@@ -432,8 +432,11 @@ project store and project archive v1 (TASK-136)". It is a technical format that
 the stakeholder can still change. TASK-139 defined the component-card part on
 2026-10-29: component-card schema 1 and the card exchange file
 (`.miragecards`), in the same specification, section "Component cards v1
-(TASK-139)", also a technical format that the stakeholder can change. The
-format for measured data remains with TASK-140.
+(TASK-139)", also a technical format that the stakeholder can change.
+TASK-140 defined the measured-data part on 2026-10-29: bench CSV v2 and
+measurement sets bound to one combination of card versions, in section
+"Calculation modes and measurement sets v1 (TASK-140)" of the same
+specification, again technical formats that the stakeholder can change.
 
 ## 7. Risks
 

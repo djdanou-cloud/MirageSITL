@@ -145,7 +145,7 @@ function freeze<T>(value: T): Readonly<T> {
   return value;
 }
 /** A YYYY-MM-DD text (schema pattern) that names a day of the proleptic Gregorian calendar. */
-function calendarDate(text: string): boolean {
+export function isCalendarDate(text: string): boolean {
   const [year = 0, month = 0, day = 0] = text.split('-').map(Number);
   const leap = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
   const days = [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month - 1];
@@ -199,7 +199,7 @@ export function validateComponentCard(input: unknown): ComponentCard {
   for (const source of card.sources) {
     if (ids.has(source.id)) fail(`Duplicate source ID ${source.id}`);
     ids.add(source.id);
-    if (source.date !== null && !calendarDate(source.date)) fail(`Source ${source.id} date ${source.date} is not a calendar date`);
+    if (source.date !== null && !isCalendarDate(source.date)) fail(`Source ${source.id} date ${source.date} is not a calendar date`);
     if (source.kind === 'measured' && (source.sha256 === null || source.date === null)) {
       fail(`Measured source ${source.id} needs the SHA-256 and the date of its data`);
     }
