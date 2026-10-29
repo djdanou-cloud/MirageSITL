@@ -1,6 +1,6 @@
 //! Bound-rotor step interface v2 (TASK-088): neutral records reproduce v1 bitwise,
 //! invalid and unsupported records change nothing, and the step allocates zero.
-use mirage_bet::{bound, bound_v2};
+use mirage_bet::{bound, bound_v2, bus_abi};
 use std::{
     alloc::{GlobalAlloc, Layout, System},
     cell::Cell,
@@ -91,7 +91,9 @@ fn invalid_and_unsupported_records_change_neither_state_nor_output() {
         ("NaN density", Box::new(|b| put(b, 16, f64::NAN)), -3),
         ("infinite wake", Box::new(|b| put(b, 136, f64::INFINITY)), -3),
         ("negative density", Box::new(|b| put(b, 16, -1.225)), -3),
-        ("ESC drive mode", Box::new(|b| word(b, 8, bound_v2::DRIVE_ESC_DUTY)), bound_v2::UNSUPPORTED),
+        // TASK-092 implements drive mode 1; without drive parameters it is invalid.
+        ("ESC drive mode without drive parameters", Box::new(|b| word(b, 8, bound_v2::DRIVE_ESC_DUTY)), -3),
+        ("drive parameters in torque mode", Box::new(|b| put(b, 192, 0.05)), -3),
         ("ESC duty in torque mode", Box::new(|b| put(b, 120, 0.5)), bound_v2::UNSUPPORTED),
         ("bus voltage", Box::new(|b| put(b, 128, 16.8)), bound_v2::UNSUPPORTED),
         ("external wake", Box::new(|b| put(b, 144, 1.0)), bound_v2::UNSUPPORTED),
@@ -135,6 +137,145 @@ fn v2_step_allocates_zero_over_one_million_steps() {
     let mut status = 0;
     for _ in 0..1_000_000 {
         status |= black_box(bound_v2::step(&mut arena, &input, &mut out, DT));
+    }
+    TRACK.with(|t| t.set(false));
+    assert_eq!(status, 0);
+    assert_eq!(CALLS.load(Ordering::Relaxed), 0);
+    assert_eq!(BYTES.load(Ordering::Relaxed), 0);
+}
+
+/// A driven record: the fixture's flow and cyclic values, target duty and bus
+/// voltage, and a motor sized for the fixture's 0.5 m rotor.
+fn esc_input(duty: f64, voltage: f64) -> Vec<u8> {
+    let (_, mut v2) = inputs();
+    put(&mut v2, 112, 0.0);
+    word(&mut v2, 8, bound_v2::DRIVE_ESC_DUTY);
+    put(&mut v2, 120, duty);
+    put(&mut v2, 128, voltage);
+    // R, k_t, I_max, I_brake, τ₀, command τ, update period.
+    for (p, v) in [(192, 0.05), (200, 0.05), (208, 100.0), (216, 50.0), (224, 0.01), (232, 0.02), (240, 0.0)] {
+        put(&mut v2, p, v);
+    }
+    v2
+}
+fn read(b: &[u8], p: usize) -> f64 { f64::from_le_bytes(b[p..p + 8].try_into().unwrap()) }
+fn read_word(b: &[u8], p: usize) -> u32 { u32::from_le_bytes(b[p..p + 4].try_into().unwrap()) }
+
+#[test]
+fn esc_drive_closes_the_electrical_power_budget_and_reaches_its_torque_balance() {
+    let (_, mut arena) = ready();
+    let input = esc_input(0.6, 24.0);
+    let mut out = [0u8; 256];
+    for step in 0..4000 {
+        assert_eq!(bound_v2::step(&mut arena, &input, &mut out, DT), 0, "step {step}");
+        assert_eq!(read_word(&out, 116), bound_v2::VALID_ELECTRICAL);
+        let (current, bus, terminal, copper) = (read(&out, 144), read(&out, 152), read(&out, 160), read(&out, 168));
+        // P_terminal = i²R + k_e·i·Ω at one speed; the bus carries it at its voltage.
+        assert!((copper - current * current * 0.05).abs() <= 1e-12 * copper.max(1.0));
+        assert!((bus * 24.0 - terminal).abs() <= 1e-12 * terminal.abs().max(1.0));
+        let omega_used = (terminal - copper) / (0.05 * current);
+        assert!(omega_used.is_finite() && omega_used > 0.0);
+    }
+    // Steady state: k_t·(d·V − k_e·Ω)/R − τ₀ − b·Ω + Q_air = 0 at the final speed (bearing b = 0).
+    let omega = read(&out, 72);
+    let air = read(&out, 80);
+    let electromagnetic = 0.05 * (0.6 * 24.0 - 0.05 * omega) / 0.05;
+    assert!((electromagnetic - 0.01 + air).abs() < 1e-6 * electromagnetic, "{electromagnetic} {air}");
+    assert_eq!(read_word(&out, 112) & bound_v2::FLAG_CURRENT_LIMITED, 0);
+}
+
+#[test]
+fn a_power_cut_freewheels_and_a_live_esc_refuses_torque_steps_until_reset() {
+    let (_, mut arena) = ready();
+    let mut out = [0u8; 256];
+    for _ in 0..400 { assert_eq!(bound_v2::step(&mut arena, &esc_input(0.6, 24.0), &mut out, DT), 0); }
+    let spinning = read(&out, 72);
+    // The ESC state lives in the arena; torque steps are refused while it is live.
+    let (_, torque) = inputs();
+    let before = arena.clone();
+    assert_eq!(bound_v2::step(&mut arena, &torque, &mut out, DT), -3);
+    assert_eq!(arena, before);
+    let mut cut = esc_input(0.6, 24.0);
+    word(&mut cut, 248, bound_v2::DRIVE_POWER_CUT);
+    for _ in 0..40 {
+        assert_eq!(bound_v2::step(&mut arena, &cut, &mut out, DT), 0);
+        assert_eq!((read(&out, 144), read(&out, 160), read(&out, 88)), (0.0, 0.0, 0.0));
+    }
+    assert!(read(&out, 72) < spinning);
+    // A cut returns the ESC to its unpowered state; a reset does the same for a live one.
+    assert_eq!(&arena[32..64], &[0u8; 32]);
+    assert_eq!(bound_v2::step(&mut arena, &esc_input(0.6, 24.0), &mut out, DT), 0);
+    assert_ne!(&arena[32..56], &[0u8; 24]);
+    assert_eq!(bound::reset(&mut arena), 0);
+    assert_eq!(bound_v2::step(&mut arena, &torque, &mut out, DT), 0);
+}
+
+#[test]
+fn a_full_command_from_rest_sits_at_the_current_limit_and_says_so() {
+    let (_, mut arena) = ready();
+    let mut out = [0u8; 256];
+    let mut stalled = esc_input(1.0, 24.0);
+    put(&mut stalled, 208, 40.0);
+    put(&mut stalled, 232, 1e-6);
+    assert_eq!(bound_v2::step(&mut arena, &stalled, &mut out, DT), 0);
+    assert_ne!(read_word(&out, 112) & bound_v2::FLAG_CURRENT_LIMITED, 0);
+    assert!((read(&out, 144) - 40.0).abs() < 1e-12);
+}
+
+#[test]
+fn invalid_drive_records_change_neither_state_nor_output() {
+    let (_, mut arena) = ready();
+    let mut out = [0x5au8; 256];
+    let cases: Vec<(&str, Box<dyn Fn(&mut Vec<u8>)>)> = vec![
+        ("duty above 1", Box::new(|b| put(b, 120, 1.01))),
+        ("negative bus voltage", Box::new(|b| put(b, 128, -1.0))),
+        ("motor torque in ESC mode", Box::new(|b| put(b, 112, 0.1))),
+        ("zero resistance", Box::new(|b| put(b, 192, 0.0))),
+        ("negative brake limit", Box::new(|b| put(b, 216, -1.0))),
+        ("NaN no-load torque", Box::new(|b| put(b, 224, f64::NAN))),
+        ("unknown drive flag", Box::new(|b| word(b, 248, 2))),
+        ("reserved tail", Box::new(|b| b[255] = 1)),
+    ];
+    for (label, change) in cases {
+        let mut input = esc_input(0.5, 24.0);
+        change(&mut input);
+        let (before, previous) = (arena.clone(), out);
+        assert_eq!(bound_v2::step(&mut arena, &input, &mut out, DT), -3, "{label}");
+        assert_eq!(arena, before, "{label}");
+        assert_eq!(out, previous, "{label}");
+    }
+}
+
+#[test]
+fn esc_steps_allocate_zero_over_one_million_steps() {
+    let input = esc_input(0.55, 24.0);
+    let (_, mut arena) = ready();
+    let mut out = [0u8; 256];
+    CALLS.store(0, Ordering::Relaxed);
+    BYTES.store(0, Ordering::Relaxed);
+    TRACK.with(|t| t.set(true));
+    let mut status = 0;
+    for _ in 0..1_000_000 {
+        status |= black_box(bound_v2::step(&mut arena, &input, &mut out, DT));
+    }
+    TRACK.with(|t| t.set(false));
+    assert_eq!(status, 0);
+    assert_eq!(CALLS.load(Ordering::Relaxed), 0);
+    assert_eq!(BYTES.load(Ordering::Relaxed), 0);
+}
+
+#[test]
+fn bus_steps_allocate_zero_over_one_million_steps() {
+    let mut input = vec![0u8; 128];
+    input[0..4].copy_from_slice(&bus_abi::VERSION.to_le_bytes());
+    for (p, v) in [(8, 16.8), (16, 13.2), (24, 0.05), (32, 18000.0), (40, 60.0), (48, 0.9), (56, 180.0)] { put(&mut input, p, v); }
+    let mut out = [0u8; 128];
+    CALLS.store(0, Ordering::Relaxed);
+    BYTES.store(0, Ordering::Relaxed);
+    TRACK.with(|t| t.set(true));
+    let mut status = 0;
+    for _ in 0..1_000_000 {
+        status |= black_box(bus_abi::step(&input, &mut out, DT));
     }
     TRACK.with(|t| t.set(false));
     assert_eq!(status, 0);

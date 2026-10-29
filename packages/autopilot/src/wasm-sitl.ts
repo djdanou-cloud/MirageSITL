@@ -138,6 +138,8 @@ export class WasmHalPort {
 export interface WasmSitlPhysics {
   readonly state:FlightState;readonly hz:PhysicsHz;nowMs:number;readonly fault:string;
   readonly windNedMps:Float64Array;
+  /** [state of charge, bus voltage V, bus current A] (TASK-092); absent for dynamics without an electrical drive. */
+  readonly electrical?:Float64Array;
   useActuators(frame:ActuatorFrameV2):void;stepNow(input:PilotInput):void;
 }
 export interface WasmSitlOrigin {
@@ -195,7 +197,8 @@ export class WasmSitlCoupling {
     for(let i=0;i<3;i++)v[16+i]=this.sensor.values[i]!;
     if(!this.ideal.sampleInto(SensorKindV2.Airspeed,t,this.sensor)){this.fault='HAL airspeed sampling failed';this.port.stop();return false;}
     // Sensor queue airspeed is dynamic pressure (Pa); SITL expects EAS (m/s).
-    v[19]=Math.sqrt(2*this.sensor.values[0]!/1.225);v[20]=s.batteryVoltage;v[21]=0;v[22]=Math.max(0,-s.down);
+    // Value 21 is a unipolar power-module reading (TASK-092): regenerative bus current reads 0.
+    v[19]=Math.sqrt(2*this.sensor.values[0]!/1.225);v[20]=s.batteryVoltage;v[21]=this.physics.electrical?Math.max(0,this.physics.electrical[2]!):0;v[22]=Math.max(0,-s.down);
     v[35]=t.windNedMps[0]!;v[36]=t.windNedMps[1]!;v[37]=t.windNedMps[2]!;
     if(!this.port.submit()){this.fault='HAL sensor publication failed';this.port.stop();return false;}
     return true;

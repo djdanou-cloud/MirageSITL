@@ -372,10 +372,15 @@ export async function validateModels() {
   const betRuntime = diagnostic("test-results/validation/bet-runtime.json", [], (value) =>
     runtimeEvidence(value) && Array.isArray(value.cases) && value.cases.length === 18 &&
     value.cases.every((item) => item.passed === true && item.positionErrorM <= 0.1 && item.attitudeErrorRad <= Math.PI / 360), [["sourceInputs"]]);
+  // Exactly the graphs scripts/check-bet-runtime.mjs --allocation measures, in its order (TASK-033, TASK-047, TASK-092).
+  const ALLOCATION_GRAPHS = ["active-neuralfoil-rotor/scalar", "active-neuralfoil-rotor/simd128",
+    "stationary-zero-gravity-four-rotor-flight/scalar", "synthetic-pad-four-rotor-flight/scalar",
+    "esc-drive-bus-synthetic-pad-four-rotor/scalar"];
   const betRuntimeAllocation = diagnostic("test-results/validation/bet-runtime-allocation.json", [], (value) =>
     runtimeEvidence(value) && value.controlDetected === true && value.nativeAllocator?.steps === 1000000 &&
     value.nativeAllocator.calls === 0 && value.nativeAllocator.bytes === 0 && value.nativeAllocator.positiveControlDetected === true &&
-    Array.isArray(value.samples) && value.samples.length === 3 && value.samples.every((item) =>
+    Array.isArray(value.samples) && JSON.stringify(value.samples.map((item) => `${item.graph}/${item.variant}`)) === JSON.stringify(ALLOCATION_GRAPHS) &&
+    value.samples.every((item) =>
       item.steps === 1000000 && item.gcEvents === 0 && item.bytesPerStep < 0.01 && item.memoryStable === true), [["sourceInputs"]]);
   const runtimeStatus = [betRuntime, betRuntimeAllocation].every((item) => item.status === "pass") ? "pass" :
     [betRuntime, betRuntimeAllocation].some((item) => item.status === "failed") ? "failed" : "blocked";

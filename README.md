@@ -41,7 +41,10 @@ who applies each error, MirageSITL or ArduPilot SITL, and offers per-sensor
 presets with cited datasheet values. Native ArduPilot SITL applies the
 configuration (TASK-147): generated SITL parameters, read back before arming,
 set ArduPilot's errors, and MirageSITL distorts the IMU and battery values it
-sends.
+sends. The production drive (TASK-092) gives the BET flight dynamics a
+voltage-driven motor, an ESC and a shared battery bus, so the throttle-to-thrust
+curve and battery sag follow from the physics; native ArduCopter flies on it and
+reads the bus voltage and current.
 
 The running application uses binary ABI **v2** (TASK-085): session epochs, EKF/EW
 status fields, sensor/actuator queues, and Control Protocol v2. The demo physics

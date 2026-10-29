@@ -16,6 +16,7 @@
     "./ground-contact": "./src/ground-contact.ts",
     "./motor-fault": "./src/motor-fault.ts",
     "./bet-dynamics": "./src/bet-dynamics.ts",
+    "./drive": "./src/drive.ts",
     "./fidelity-metrics": "./src/fidelity-metrics.ts",
     "./bench-import": "./src/bench-import.ts"
   },

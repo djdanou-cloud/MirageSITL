@@ -94,6 +94,25 @@ describe('vehicle manifest v2 schema and validation', () => {
     expect(validateVehicleManifest(withDrag(measured)).datasets[2]?.kind).toBe('measured');
   });
 
+  it('admits the optional TASK-092 drive fields and keeps existing manifests unchanged', () => {
+    const driven = { ...quad, motors: quad.motors.map(m => ({ ...m, noLoadCurrentA: 0.6 })),
+      escs: quad.escs.map(e => ({ ...e, updateRateHz: 490, brakeCurrentLimitA: 10 })) };
+    const accepted = validateVehicleManifest(driven);
+    expect(accepted.motors[0]?.noLoadCurrentA).toBe(0.6);
+    expect(accepted.escs[3]).toMatchObject({ updateRateHz: 490, brakeCurrentLimitA: 10 });
+    // Zero no-load current and zero brake current are physical; a zero update rate is not.
+    expect(() => validateVehicleManifest({ ...driven, motors: driven.motors.map(m => ({ ...m, noLoadCurrentA: 0 })) })).not.toThrow();
+    expect(() => validateVehicleManifest({ ...driven, escs: driven.escs.map(e => ({ ...e, brakeCurrentLimitA: 0 })) })).not.toThrow();
+    for (const [label, input] of [
+      ['negative no-load current', { ...driven, motors: driven.motors.map(m => ({ ...m, noLoadCurrentA: -0.1 })) }],
+      ['zero update rate', { ...driven, escs: driven.escs.map(e => ({ ...e, updateRateHz: 0 })) }],
+      ['negative brake current', { ...driven, escs: driven.escs.map(e => ({ ...e, brakeCurrentLimitA: -1 })) }],
+      ['string update rate', { ...driven, escs: driven.escs.map(e => ({ ...e, updateRateHz: '490' })) }],
+    ] as const) expect(() => validateVehicleManifest(input), label).toThrow('schema');
+    // The fixture has none of them and stays valid as it was.
+    expect(quad.motors.some(m => 'noLoadCurrentA' in m) || quad.escs.some(e => 'updateRateHz' in e || 'brakeCurrentLimitA' in e)).toBe(false);
+  });
+
   it('rejects non-physical mass properties, duplicate IDs and channels and unnormalized quaternions', () => {
     const rotor = quad.rotors[0]!;
     const invalid: [string, unknown, string][] = [
@@ -322,20 +341,33 @@ describe('derived vehicle values', () => {
 
 describe('ArduPilot parameter profile', () => {
   it('is byte-identical to the hand-derived golden profile', () => {
-    // Golden text from the TASK-087 profile contract, not from implementation output.
-    const golden = '# MirageSITL ArduPilot parameter profile v1\n' +
+    // Golden text from the TASK-087 profile contract, version 2 (TASK-092): the
+    // fixture battery's open-circuit range 16.8/13.2 V spans voltage compensation.
+    const golden = '# MirageSITL ArduPilot parameter profile v2\n' +
       `# modelId 87; manifest sha256 ${fixtureSha256}\n` +
-      'FRAME_CLASS 1\nFRAME_TYPE 1\nMOT_BAT_VOLT_MAX 0\nMOT_BAT_VOLT_MIN 0\nMOT_PWM_MAX 2000\nMOT_PWM_MIN 1000\n';
+      'BATT_MONITOR 4\nFRAME_CLASS 1\nFRAME_TYPE 1\nMOT_BAT_VOLT_MAX 16.8\nMOT_BAT_VOLT_MIN 13.2\nMOT_PWM_MAX 2000\nMOT_PWM_MIN 1000\n';
     expect(ardupilotParameterProfile({ sha256: fixtureSha256, manifest: quad })).toBe(golden);
+    // Without a battery, compensation stays disabled; a fitted expo is inserted in name order.
+    const noBattery = edit(c => { c.battery = null; c.provenance = { ...c.provenance, battery: null }; });
+    expect(ardupilotParameterProfile({ sha256: fixtureSha256, manifest: validateVehicleManifest(noBattery) }, { thrustExpo: 0.41 })).toBe(
+      '# MirageSITL ArduPilot parameter profile v2\n' + `# modelId 87; manifest sha256 ${fixtureSha256}\n` +
+      'FRAME_CLASS 1\nFRAME_TYPE 1\nMOT_BAT_VOLT_MAX 0\nMOT_BAT_VOLT_MIN 0\nMOT_PWM_MAX 2000\nMOT_PWM_MIN 1000\nMOT_THST_EXPO 0.41\n');
+    for (const thrustExpo of [-1.01, 1.5, NaN]) {
+      expect(() => ardupilotParameterProfile({ sha256: fixtureSha256, manifest: quad }, { thrustExpo })).toThrow('MOT_THST_EXPO');
+    }
   });
 
   it('emits only parameter names with repository evidence', () => {
     const evidence = ['../scripts/sitl/driver.mjs', '../scripts/prepare-autopilot-parity.mjs', '../packages/autopilot/src/external-sitl.ts']
       .map(path => readFileSync(new URL(path, import.meta.url), 'utf8')).join('\n');
-    const names = ardupilotParameterProfile({ sha256: fixtureSha256, manifest: quad }).split('\n')
+    // The pinned copter defaults (copter.parm) list BATT_MONITOR and MOT_THST_EXPO.
+    const catalog: unknown = JSON.parse(readFileSync(new URL('./fixtures/sitl/ardupilot-catalog.json', import.meta.url), 'utf8'));
+    const defaults = typeof catalog === 'object' && catalog !== null && 'copterDefaults' in catalog &&
+      typeof catalog.copterDefaults === 'object' && catalog.copterDefaults !== null ? Object.keys(catalog.copterDefaults) : [];
+    const names = ardupilotParameterProfile({ sha256: fixtureSha256, manifest: quad }, { thrustExpo: 0.5 }).split('\n')
       .filter(line => line !== '' && !line.startsWith('#')).map(line => line.split(' ')[0]!);
-    expect(names.length).toBe(6);
-    for (const name of names) expect(new RegExp(`\\b${name}\\b`).test(evidence), name).toBe(true);
+    expect(names.length).toBe(8);
+    for (const name of names) expect(new RegExp(`\\b${name}\\b`).test(evidence) || defaults.includes(name), name).toBe(true);
   });
 
   it('refuses vehicles without a frame, without every ESC range or with differing ranges', () => {

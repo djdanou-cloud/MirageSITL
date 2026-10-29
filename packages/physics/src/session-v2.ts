@@ -80,6 +80,9 @@ export interface SessionDynamics {
   readonly state: FlightState; readonly hz: PhysicsHz; nowMs: number;
   readonly modelId?: number; readonly rotorCount?: number; readonly validityFlags?: number;
   readonly referenceRotorRpm?: number; readonly fault?: string; readonly externalArmed?: boolean;
+  /** Battery bus current, A, when the dynamics models the electrical drive (TASK-092). */
+  /** [state of charge, bus voltage V, bus current A] of an electrical drive (TASK-092); indexed, never boxed. */
+  readonly electrical?: Float64Array;
   reset(): void; stepNow(input: PilotInput): void; dispose?(): void;
   useActuators?(frame: ActuatorFrameV2): void;
   /**
@@ -452,7 +455,8 @@ export class PhysicsSessionV2 {
     s.specificForceXBodyMps2 = this.bodyScratch[0]!; s.specificForceYBodyMps2 = this.bodyScratch[1]!;
     s.specificForceZBodyMps2 = this.bodyScratch[2]!;
     s.trueAirspeedMps = Math.sqrt(d.vn * d.vn + d.ve * d.ve + d.vd * d.vd); // still air; not Math.hypot (allocates)
-    s.batteryVoltage = d.batteryVoltage; s.batteryCurrentA = 0; // demo has no electrical model
+    // Only a dynamics with an electrical drive reports a bus current (TASK-092); the demo has none.
+    s.batteryVoltage = d.batteryVoltage; const electrical = this.dynamics.electrical; s.batteryCurrentA = electrical ? electrical[2]! : 0;
     s.ambientPressurePa = isaPressurePa(-d.down);
     s.scheduledWallTimeMs = scheduledWallMs;
     s.groundClearanceM = -d.down; s.referenceRotorRpm = this.dynamics.referenceRotorRpm ?? 0;

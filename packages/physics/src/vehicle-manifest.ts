@@ -28,10 +28,16 @@ export interface MassProperties {
 export interface MotorSpec {
   readonly id: number; readonly rotorId: number; readonly kvRpmPerV: number;
   readonly resistanceOhm: number; readonly currentLimitA: number;
+  /** Optional (TASK-092): no-load current I₀; the Coulomb drag torque is k_t·I₀. */
+  readonly noLoadCurrentA?: number;
 }
 export interface EscSpec {
   readonly id: number; readonly motorId: number; readonly pwmMinUs: number; readonly pwmMaxUs: number;
   readonly commandTauS: number;
+  /** Optional (TASK-092): how often the ESC samples its command. */
+  readonly updateRateHz?: number;
+  /** Optional (TASK-092): the magnitude of the regenerative (braking) current limit. */
+  readonly brakeCurrentLimitA?: number;
 }
 export interface BatterySpec {
   readonly openCircuitFullV: number; readonly openCircuitEmptyV: number; readonly internalResistanceOhm: number;

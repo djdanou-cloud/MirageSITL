@@ -9,6 +9,7 @@
     "./backend": "./src/backend.ts",
     "./rotor": "./src/rotor.ts",
     "./rotor-v2": "./src/rotor-v2.ts",
-    "./body-v2": "./src/body-v2.ts"
+    "./body-v2": "./src/body-v2.ts",
+    "./bus": "./src/bus.ts"
   }
 }

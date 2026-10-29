@@ -1,6 +1,6 @@
 //! Versioned caller-owned production rotor/polar binding; see bet_bound.h.
 use crate::{blade::{Rotor, RotorGeometry, RotorInput}, inflow::AxialInflow,
-    polar::PolarTable, shaft::Shaft, Vec3};
+    motor::DriveTorque, polar::PolarTable, shaft::Shaft, Vec3};
 
 /// Independent binding version (legacy arena ABI remains v1).
 pub const VERSION: u32 = 1;
@@ -85,13 +85,39 @@ pub fn memory_pages(arena: &[u8]) -> Option<u32> {u(arena,8)}
 
 /// One allocation-free fixed step; negative status preserves state and output.
 pub fn step(arena: &mut [u8], input: &[u8], out: &mut [u8], dt: f64) -> i32 {
-    if arena_len(arena)!=Some(arena.len() as u32) {return -1;}
-    if input.len()!=INPUT_BYTES as usize || out.len()!=OUTPUT_BYTES as usize {return -2;}
-    if u(input,0)!=Some(VERSION) {return -7;}
-    if !zero(input,4,8) || !zero(input,112,128) || !zero(arena,12,16) || !zero(arena,32,64) {return -3;}
-    let (state,bytes)=arena.split_at_mut(ARENA_HEADER);
-    let c=match config(bytes) {Ok(c)=>c,Err(e)=>return e};
-    if dt.to_bits()!=c.dt.to_bits() {return -4;}
+    match advance(arena,input,out.len(),dt,None) {
+        Ok(a) => { commit(arena,out,&a); 0 }
+        Err(status) => status,
+    }
+}
+
+/// A computed step, not yet written: the output record, the next shaft and
+/// inflow state, and the speed at the midpoint.
+pub(crate) struct Advanced {
+    pub(crate) staged: [u8; 128],
+    pub(crate) omega: f64,
+    pub(crate) induced: f64,
+    pub(crate) half_omega: f64,
+}
+
+/// Writes a computed step into the arena state and the output record.
+pub(crate) fn commit(arena: &mut [u8], out: &mut [u8], a: &Advanced) {
+    put(arena,16,a.omega);put(arena,24,a.induced);out.copy_from_slice(&a.staged);
+}
+
+/// Computes one step without writing anything. `esc` is `None` for the v1
+/// torque drive, read from the record, and the ESC drive's torque law for
+/// interface v2 drive mode 1 (TASK-092), whose ESC state occupies arena
+/// header bytes 32..56.
+pub(crate) fn advance(arena: &[u8], input: &[u8], out_len: usize, dt: f64, esc: Option<DriveTorque>) -> Result<Advanced, i32> {
+    if arena_len(arena)!=Some(arena.len() as u32) {return Err(-1);}
+    if input.len()!=INPUT_BYTES as usize || out_len!=OUTPUT_BYTES as usize {return Err(-2);}
+    if u(input,0)!=Some(VERSION) {return Err(-7);}
+    let drive_state_free=if esc.is_some() {zero(arena,56,64)} else {zero(arena,32,64)};
+    if !zero(input,4,8) || !zero(input,112,128) || !zero(arena,12,16) || !drive_state_free {return Err(-3);}
+    let (state,bytes)=arena.split_at(ARENA_HEADER);
+    let c=config(bytes)?;
+    if dt.to_bits()!=c.dt.to_bits() {return Err(-4);}
     let compute=|| {
         let omega=f(state,16)?;let induced=f(state,24)?;
         let motor=f(input,104)?;
@@ -103,36 +129,42 @@ pub fn step(arena: &mut [u8], input: &[u8], out: &mut [u8], dt: f64) -> i32 {
         let shaft_model=Shaft::new(c.inertia,c.damping,c.geometry.spin_sign).ok()?;
         let flow_model=AxialInflow::new(i.density_kg_m3,c.geometry.radius_m,c.tau,c.limit).ok()?;
         let transverse=i.air_velocity_hub_mps.x.hypot(i.air_velocity_hub_mps.y);
-        let half_shaft=shaft_model.step(omega,first.moment_nm.z,motor,dt*0.5).ok()?;
+        let shaft_step=|q:f64,h:f64| match esc {
+            None=>shaft_model.step(omega,q,motor,h),
+            Some(t)=>shaft_model.step_driven(omega,q,t.constant_nm,t.damping,t.friction_nm,h),
+        };
+        let half_shaft=shaft_step(first.moment_nm.z,dt*0.5).ok()?;
         let half_flow=flow_model.step(induced,first.force_n.z,i.air_velocity_hub_mps.z,transverse,dt*0.5).ok()?;
         let mut midpoint=i;midpoint.omega_rad_s=half_shaft.omega_rad_s;midpoint.induced_mps=half_flow.velocity_mps;
         let aero=rotor.evaluate(midpoint).ok()?;
-        let shaft=shaft_model.step(omega,aero.moment_nm.z,motor,dt).ok()?;
+        let shaft=shaft_step(aero.moment_nm.z,dt).ok()?;
         let flow=flow_model.step(induced,aero.force_n.z,i.air_velocity_hub_mps.z,transverse,dt).ok()?;
         let spin=c.geometry.spin_sign as f64;
         let h=spin*c.inertia*half_shaft.omega_rad_s;
         let dh=Vec3::new(0.0,0.0,spin*c.inertia*(shaft.omega_rad_s-omega)/dt)
             .add(i.body_rate_hub_rad_s.cross(Vec3::new(0.0,0.0,h)));
         let transmitted=aero.moment_nm.add(dh.scale(-1.0));
-        let power=motor*omega;
+        // The motor's electromagnetic torque at the start speed times that speed.
+        let power=match esc {None=>motor*omega,Some(t)=>(t.constant_nm-t.damping*omega)*omega};
         if !transmitted.norm().is_finite() || !power.is_finite() {return None;}
         let flags=first.flags | aero.flags | if flow.outside_validity || half_flow.outside_validity {8}else{0}
             | if shaft.reverse_limited || half_shaft.reverse_limited {16}else{0};
-        Some((aero,shaft,flow,transmitted,power,flags,spin*c.inertia*shaft.omega_rad_s))
+        Some((aero,shaft,flow,transmitted,power,flags,spin*c.inertia*shaft.omega_rad_s,half_shaft.omega_rad_s))
     };
-    let Some((aero,shaft,flow,transmitted,power,flags,h))=compute() else{return -3;};
+    let Some((aero,shaft,flow,transmitted,power,flags,h,half_omega))=compute() else{return Err(-3);};
     let mut staged=[0u8;128];
     write_vec(&mut staged,0,aero.force_n);write_vec(&mut staged,24,aero.moment_nm);write_vec(&mut staged,48,transmitted);
     put(&mut staged,72,shaft.omega_rad_s);put(&mut staged,80,aero.moment_nm.z);put(&mut staged,88,power);
     put(&mut staged,96,flow.velocity_mps);word(&mut staged,112,flags);put(&mut staged,120,h);
-    put(state,16,shaft.omega_rad_s);put(state,24,flow.velocity_mps);out.copy_from_slice(&staged);0
+    Ok(Advanced{staged,omega:shaft.omega_rad_s,induced:flow.velocity_mps,half_omega})
 }
 
 /// Restores initial speed and zero inflow; invalid handles remain untouched.
 pub fn reset(arena: &mut [u8]) -> i32 {
     if arena_len(arena)!=Some(arena.len() as u32) {return -1;}
     let initial=match config(&arena[ARENA_HEADER..]) {Ok(c)=>c.initial,Err(e)=>return e};
-    put(arena,16,initial);put(arena,24,0.0);0
+    // Bytes 32..56 hold the TASK-092 ESC state; a reset returns it to an unpowered ESC.
+    put(arena,16,initial);put(arena,24,0.0);arena[32..64].fill(0);0
 }
 
 /// Invalidates a live handle.

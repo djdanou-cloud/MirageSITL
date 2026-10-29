@@ -37,6 +37,10 @@ void bet_bound_dispose(uint32_t arena);
 #define BET_BOUND_V2_VALID_INFLOW_HARMONICS 2
 #define BET_BOUND_V2_VALID_GROUND_EFFECT 4
 #define BET_BOUND_V2_VALID_EXTERNAL_WAKE 8
+/* Drive mode 1 (TASK-092): drive parameters at input bytes 192..247, drive
+ * flags at 248; ESC state in arena header bytes 32..55. */
+#define BET_BOUND_V2_DRIVE_POWER_CUT 1
+#define BET_BOUND_V2_FLAG_CURRENT_LIMITED 32
 #define BET_BODY_V2_VERSION 2
 #define BET_BODY_V2_INPUT_BYTES 448
 #define BET_BODY_V2_OUTPUT_BYTES 256
@@ -52,4 +56,12 @@ uint32_t bet_bound_v2_version(void);
 int32_t bet_bound_step_v2(uint32_t arena, uint32_t input, uint32_t output, double dt);
 uint32_t bet_body_v2_version(void);
 int32_t bet_body_step_v2(uint32_t input, uint32_t output, double dt);
+/* Shared battery bus (TASK-092): 128-byte input and output records. */
+#define BET_BUS_VERSION 1
+#define BET_BUS_INPUT_BYTES 128
+#define BET_BUS_OUTPUT_BYTES 128
+#define BET_BUS_FLAG_POWER_LIMITED 1
+#define BET_BUS_FLAG_CHARGE_LIMITED 2
+uint32_t bet_bus_version(void);
+int32_t bet_bus_step(uint32_t input, uint32_t output, double dt);
 #endif

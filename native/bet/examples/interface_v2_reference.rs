@@ -6,8 +6,11 @@
 //! bound <steps> <config hex> <input hex>   -> one output hex line per step
 //! body <steps> <input hex>                 -> one output hex line per step;
 //!                                             output 0..104 feeds input 96..200
+//! bus <steps> <input hex>                  -> one output hex line per step;
+//!                                             output charge 0..8 feeds input 48..56
 //! ```
-use mirage_bet::{body_abi_v2, bound, bound_v2};
+//! `bound` also runs drive mode 1 records (TASK-092); `bus` is the TASK-092 shared bus.
+use mirage_bet::{body_abi_v2, bound, bound_v2, bus_abi};
 use std::io::{self, BufRead, Write};
 
 fn decode(hex: &str) -> Result<Vec<u8>, String> {
@@ -41,6 +44,17 @@ fn run(line: &str, out: &mut impl Write) -> Result<(), String> {
                 if status != 0 { return Err(format!("body step status {status}")); }
                 writeln!(out, "{}", encode(&output)).map_err(|e| e.to_string())?;
                 input[96..200].copy_from_slice(&output[0..104]);
+            }
+            Ok(())
+        }
+        ["bus", n, input] => {
+            let mut input = decode(input)?;
+            let mut output = vec![0u8; bus_abi::OUTPUT_BYTES as usize];
+            for _ in 0..steps(n)? {
+                let status = bus_abi::step(&input, &mut output, 1.0 / 400.0);
+                if status != 0 { return Err(format!("bus step status {status}")); }
+                writeln!(out, "{}", encode(&output)).map_err(|e| e.to_string())?;
+                input[48..56].copy_from_slice(&output[0..8]);
             }
             Ok(())
         }

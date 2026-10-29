@@ -2674,7 +2674,8 @@ battery V/A (20..21); nonnegative height AGL m (22); twelve normalized RC inputs
 in [0,1] (23..34); wind NED m/s (35..37); exact zero reserved values (38..39).
 Every value is finite with absolute magnitude <=1e9. Latitude/longitude limits
 are 90/180 degrees, altitude magnitude <=100000 m, squared quaternion norm
-within 1e-6 of 1, and airspeed/battery/current/height are nonnegative. Bytes
+within 1e-6 of 1, and airspeed/battery/current/height are nonnegative (the
+TASK-092 coupling sends a regenerating bus current as 0). Bytes
 384..511, 640..767 and 896..1023 stay zero. Byte 512 contains 32 u32 PWM values
 in microseconds. Byte 768 contains sixteen f64 diagnostics: gyro deg/s[3],
 magnetic milli-gauss[3], Euler roll/pitch/yaw degrees[3], specific force[3],
@@ -2874,8 +2875,8 @@ rotorless body:
 | `provenance` | one dataset ID or `null` per section | non-null exactly when the section has data; known IDs | — |
 | `massProperties` | `massKg` > 0, `cgOffsetBodyM`, `inertiaCgKgM2` | exact symmetry, Cholesky positive definiteness, rigid-body triangle inequality | v1 runtime (TASK-033) |
 | `rotors` (≤32) | v1 `RotorGeometry`, unchanged; the schema is test-enforced identical to v1 | the v1 checks: unique IDs and channels, unit hub quaternions (1e-6), stations, quadrature widths | v1 runtime |
-| `motors` (≤32) | `id`, `rotorId`, `kvRpmPerV`, `resistanceOhm`, `currentLimitA` (native `Motor`) | unique IDs, known rotor, one motor per rotor | TASK-092 |
-| `escs` (≤32) | `id`, `motorId`, integer `pwmMinUs`/`pwmMaxUs` in [800, 2200], `commandTauS` | span ≥100 µs (the `ExternalSitl` boundary), known motor, one ESC per motor | PWM via the profile; lag TASK-092 |
+| `motors` (≤32) | `id`, `rotorId`, `kvRpmPerV`, `resistanceOhm`, `currentLimitA` (native `Motor`); optional `noLoadCurrentA` ≥0 (TASK-092) | unique IDs, known rotor, one motor per rotor | the ESC drive (TASK-092) |
+| `escs` (≤32) | `id`, `motorId`, integer `pwmMinUs`/`pwmMaxUs` in [800, 2200], `commandTauS`; optional `updateRateHz` >0 and `brakeCurrentLimitA` ≥0 (TASK-092) | span ≥100 µs (the `ExternalSitl` boundary), known motor, one ESC per motor | PWM via the profile; lag, hold and braking in the ESC drive (TASK-092) |
 | `battery` | `openCircuitFullV`, `openCircuitEmptyV`, `internalResistanceOhm` ≥0, `capacityAh`, `currentLimitA` (native `Battery`, charge 3600·Ah C) | full ≥ empty | TASK-092 |
 | `airframe.drag` | `dragAreaBodyM2` (C_D·A tensor, m²), `centerOfPressureBodyM` | symmetric positive definite, so drag always dissipates | TASK-096 |
 | `controlSurfaces` (≤16) | `id`, `function`, `actuatorChannel`, deflection limits within ±π/2, `rateLimitRadS` | unique IDs and channels, not a rotor channel, min < max | TASK-109 |
@@ -2920,28 +2921,36 @@ owning task, for any motor, ESC, battery, drag, surface, gear, sensor mount,
 wake pair or ArduPilot frame data. The demo quad, the tilted octo and the
 parity base quad round-trip exactly.
 
-`ardupilotParameterProfile({ sha256, manifest })` (profile v1) needs an
-admitted frame and a motor plus ESC for every rotor, all sharing one PWM
-range. It emits two comment lines and then `NAME value` lines sorted by name,
-with LF line endings and a final newline:
+`ardupilotParameterProfile({ sha256, manifest }, { thrustExpo? })` (profile
+v2, TASK-092) needs an admitted frame and a motor plus ESC for every rotor, all
+sharing one PWM range. It emits two comment lines and then `NAME value` lines
+sorted by name, with LF line endings and a final newline. For the fixture,
+whose battery spans 16.8 V to 13.2 V open-circuit:
 
 ```text
-# MirageSITL ArduPilot parameter profile v1
+# MirageSITL ArduPilot parameter profile v2
 # modelId 87; manifest sha256 <64 lowercase hex>
+BATT_MONITOR 4
 FRAME_CLASS 1
 FRAME_TYPE 1
-MOT_BAT_VOLT_MAX 0
-MOT_BAT_VOLT_MIN 0
+MOT_BAT_VOLT_MAX 16.8
+MOT_BAT_VOLT_MIN 13.2
 MOT_PWM_MAX 2000
 MOT_PWM_MIN 1000
 ```
 
-The profile emits only parameter names that appear in `scripts/sitl/driver.mjs`,
-`scripts/prepare-autopilot-parity.mjs` or `packages/autopilot/src/external-sitl.ts`;
-the test enforces this. Voltage compensation stays disabled (`MOT_BAT_VOLT_* 0`),
-as in the TASK-047 parity defaults, until TASK-092 delivers battery voltage.
-`MOT_THST_EXPO`, `BATT_*`, `INS_POS*` and `SIM_*` names wait for that evidence
-or for the TASK-089 pinned-source catalog.
+With a battery the drive delivers the bus voltage and current, so
+`BATT_MONITOR 4` reads both and voltage compensation spans the pack's
+open-circuit range (`MOT_BAT_VOLT_MAX` full, `MOT_BAT_VOLT_MIN` empty; the
+pinned firmware raises the minimum to at least 0.6 of the maximum). Without a
+battery the profile keeps `MOT_BAT_VOLT_* 0`, as in the TASK-047 parity
+defaults, and omits `BATT_MONITOR`. `thrustExpo`, finite within [−1, 1], adds
+`MOT_THST_EXPO`; absent, the firmware default stays. The profile emits only
+parameter names that appear in `scripts/sitl/driver.mjs`,
+`scripts/prepare-autopilot-parity.mjs`, `packages/autopilot/src/external-sitl.ts`
+or the pinned copter defaults of `tests/fixtures/sitl/ardupilot-catalog.json`;
+the test enforces this. `INS_POS*` and `SIM_*` names stay with the sensor
+configuration (TASK-147).
 
 `VehicleRegistry` hashes the exact payload bytes (≤1 MiB, fatal UTF-8) and
 admits schemas 1 and 2. A model ID with a different hash is a collision.
@@ -3434,7 +3443,15 @@ zero. `native/bet/include/bet_bound.h` defines the sizes, bits and status.
 | 136 / 144 / 152 | f64 × 3 | m/s | external_wake_hub_x/y/z |
 | 160 / 168 / 176 | f64 × 3 | 1 | ground_normal_hub_x/y/z |
 | 184 | f64 | m | ground_distance |
-| 192..255 | u32[16] | — | reserved_zero |
+| 192 | f64 | Ω | motor_resistance |
+| 200 | f64 | N m/A | motor_torque_constant |
+| 208 | f64 | A | motor_current_limit |
+| 216 | f64 | A | motor_brake_current_limit |
+| 224 | f64 | N m | motor_no_load_torque |
+| 232 | f64 | s | esc_command_tau |
+| 240 | f64 | s | esc_update_period |
+| 248 | u32 | bitmask | drive_flags |
+| 252 | u32 | — | reserved_zero |
 
 ### Bound rotor step output v2
 
@@ -3461,8 +3478,9 @@ zero. `native/bet/include/bet_bound.h` defines the sizes, bits and status.
 
 Bound-rotor fields owned by later tasks, with their neutral values:
 
-* `drive_mode` 0 (torque) and zero `esc_duty` and `bus_voltage`; mode 1 is
-  TASK-092.
+* `drive_mode` 0 (torque) with zero `esc_duty`, `bus_voltage` and drive
+  parameters. TASK-092 implements mode 1 (section "Electromechanical drive");
+  without valid drive parameters a mode 1 record is invalid (−3).
 * Zero `external_wake_hub_x/y/z` (TASK-101).
 * `input_flags` bit 0 clear, with zero `ground_normal_hub_x/y/z` and
   `ground_distance` (TASK-100).
@@ -4854,3 +4872,197 @@ checks mapping 2, the parameters against their formulas, the barometer slope
 against a finite difference of ArduPilot's atmosphere and the IMU mount;
 `tests/integration/sitl-sensors.test.ts` breaks each audit check once. The
 roadmap entry records the native captures.
+
+## Electromechanical drive (TASK-092)
+
+The production drive replaces the ideal torque-source ESC with an ESC, a
+voltage-driven DC motor and one battery bus shared by all motors, so the
+throttle-to-thrust curve and battery sag follow from the physics. It is
+interface v2 drive mode 1 and the `bet_bus_step` export; drive mode 0 and the
+v1 interfaces are unchanged bit for bit. A trajectory digest of 4000 varying
+v1 steps is identical before and after the change.
+
+### Motor and ESC law
+
+`DriveMotor` (`native/bet/src/motor.rs`) takes the winding resistance R, the
+SI torque constant k_t = k_e, the current limit I_max, the brake current limit
+I_brake ≥ 0, the no-load torque τ₀ = k_t·I₀ (I₀ the card's no-load current),
+the command lag τ_cmd and the ESC update period T_esc. The legacy TASK-025
+`Motor`, without braking or friction, stays for its own tests.
+
+\[
+i = \operatorname{clamp}\!\left(\frac{d\,V_{\mathrm{bus}} - k_e\,\Omega}{R},\; -I_{\mathrm{brake}},\; I_{\max}\right),
+\qquad
+\tau_{\mathrm{em}} = k_t\, i,
+\qquad
+P_{\mathrm{terminal}} = i\,(i\,R + k_e\,\Omega)
+\]
+
+The ESC samples its target duty when its countdown has run out (within
+dt·1e-9), holds it for T_esc (every step when T_esc is shorter than the step)
+and follows it with d ← d* + (d − d*)·exp(−dt/τ_cmd). A power cut, or a zero
+bus voltage, makes the bridge unpowered: zero current, so no drive and no
+braking; a cut also zeroes the ESC state, which resamples afterwards.
+
+Over one step the shaft (`Shaft::step_driven`) integrates
+J·dΩ/dt = τ_drive − (b + B)·Ω + s·Q_air − τ₀ with the exact constant-torque
+viscous solution. Inside the current limits, at the start speed,
+τ_drive = k_t·d·V/R and B = k_t²/R, so the back-EMF is implicit and the
+electrical time constant does not limit the step; at a limit,
+τ_drive = k_t·i_limit and B = 0. The Coulomb torque τ₀ opposes rotation; a
+stopped shaft stays stopped while the net torque does not exceed τ₀. Braking
+or friction that stops the shaft is inside the model; only an air torque that
+would turn it backwards past τ₀ sets flag 16. With τ₀ = 0, B = 0 and a
+non-negative drive, `step_driven` equals the v1 `step` bit for bit.
+
+### Drive mode 1 record and arena
+
+Drive mode 1 uses `esc_duty` (target duty [0, 1]) and `bus_voltage` (V ≥ 0) at
+their reserved offsets, requires `motor_torque` = 0, and reads the parameters
+at bytes 192–247 and `drive_flags` at 248 (bit 0: power cut); see the input
+table of "Step interfaces v2". Drive mode 0 still requires bytes 120–135 and
+192–255 to be neutral. The ESC state (duty, held target, countdown) occupies
+arena header bytes 32–55, which v1 requires to be zero, so a live ESC arena
+refuses torque steps until `bet_bound_reset` or a power cut clears it.
+Everything is computed before anything is written; a rejected record changes
+neither the arena nor the output.
+
+Drive mode 1 writes the electrical outputs at the midpoint speed, where the
+aerodynamics were evaluated: `motor_current` i, `bus_current` = P_terminal/V
+(0 at V = 0), `electrical_power` = P_terminal and `copper_loss` = i²·R, with
+validity bit 1. `shaft_power` is the electromagnetic torque at the start speed
+times that speed. Output flag 32 marks a step whose current sat at a limit.
+
+### Shared bus
+
+`bet_bus_step(input, output, dt)` steps the TASK-026 battery: linear
+open-circuit voltage between the empty and full values, internal resistance,
+charge in coulombs, a current limit in both directions. A negative demand
+regenerates: the current is the negative root of the same quadratic, and the
+charge never exceeds 1 (flag 2 when the pack was full). A demand beyond what
+the pack can deliver or absorb is limited (flag 1). Positive demands give the
+TASK-026 values bit for bit.
+
+\[
+I = \frac{2P}{V_{oc} + \sqrt{V_{oc}^2 - 4\,R_{\mathrm{int}}\,P}},
+\qquad
+V_{\mathrm{bus}} = V_{oc} - I\,R_{\mathrm{int}}
+\]
+
+### Shared bus input v1
+
+| Byte Offset | Data Type | Units | Field Name |
+| ---: | --- | --- | --- |
+| 0 | u32 | version | version |
+| 4 | u32 | — | reserved_zero |
+| 8 | f64 | V | open_circuit_full |
+| 16 | f64 | V | open_circuit_empty |
+| 24 | f64 | Ω | internal_resistance |
+| 32 | f64 | C | capacity_coulomb |
+| 40 | f64 | A | current_limit |
+| 48 | f64 | 1 | state_of_charge |
+| 56 | f64 | W | motor_power |
+| 64 | f64 | W | house_power |
+| 72..127 | u32[14] | — | reserved_zero |
+
+### Shared bus output v1
+
+| Byte Offset | Data Type | Units | Field Name |
+| ---: | --- | --- | --- |
+| 0 | f64 | 1 | state_of_charge |
+| 8 | f64 | V | voltage |
+| 16 | f64 | A | current |
+| 24 | f64 | W | delivered_power |
+| 32 | f64 | W | internal_loss |
+| 40 | f64 | W | source_power |
+| 48 | u32 | bitmask | flags |
+| 52..127 | u32[19] | — | reserved_zero |
+
+Statuses: 0, −2 record length or pointers, −3 invalid input or charge, −7
+version. `BetBus` (`@mirage/wasm-bet/bus`) owns one record pair in its own
+instance.
+
+### Coupling and energy budget
+
+Each tick the rotors use the bus voltage the bus produced on the previous
+tick (the open-circuit voltage before the first step). The bus then delivers
+the sum of the motors' terminal powers: one-tick lag, no iteration. On every
+tick the bus is not limited, the source power V_oc·I equals the internal loss
+I²·R_int plus the delivered power, and the delivered power equals the summed
+terminal powers, each of which is copper loss plus k_t·i·Ω; the bus current
+reported per motor is its terminal power over the lagged voltage, and the
+pack current is the root above.
+
+### Flight dynamics, manifest and parameter profile
+
+`BetFlightConfiguration.drive` (`EscDriveConfiguration`) selects the drive:
+one `EscDriveMotor` per rotor in rotor order (R, k_t, I_max, I_brake, τ₀,
+τ_cmd, T_esc), the `BusBattery`, the initial state of charge in (0, 1] and a
+constant house load ≥ 0 W. Absent, each rotor gets duty·`motorMaxTorqueNm`
+through interface v1, and a trajectory of 4000 state records hashes to the
+same SHA-256 as the d1aeaca code and WASM build. With it, the rotors run
+interface v2 drive mode 1 with the clamped duty as `esc_duty` and the lagged
+bus voltage, and the bus delivers their summed terminal power plus the house
+load. `electrical` (a `Float64Array` of state of charge, bus voltage and bus
+current), `busLimited` and `driveLimited` report the last step; the
+`stateOfCharge` and `batteryCurrentA` getters read `electrical` for cold code,
+because V8 keeps class fields tagged and a double stored in one, or returned
+by a getter that is not inlined, can allocate. `state.batteryVoltage` is the
+bus voltage, which `PhysicsSessionV2` publishes with the bus current
+(`batteryCurrentA` of `FlightStateV2`, read from `SessionDynamics.electrical`)
+and the HAL delivers as sensor values 20 and 21. The HAL
+contract keeps value 21 nonnegative, so the autopilot's current reading is a
+unipolar power-module sensor: `WasmSitlCoupling` and the native JSON line send
+max(0, I), and a regenerating bus reads 0 A while `FlightStateV2` keeps the
+signed current. Output flag 32 is a modeled clamp and does not enter
+`validityFlags`.
+
+Motor faults (`useMotorFaults`) take the physical path. A power cut with
+remaining fraction r scales the ESC target duty by r; r = 0 also sets the
+power-cut drive flag, so the bridge carries no current and the rotor coasts.
+Without the ESC drive, r scales the drive torque. A synthetic instant thrust
+loss still scales the rotor's whole wrench.
+
+`escDriveFromManifest(manifest, initialStateOfCharge, housePowerW = 0)`
+(`@mirage/physics/drive`) maps a validated vehicle manifest onto the drive:
+k_t = k_e = 60/(2π·KV), τ₀ = k_t·`noLoadCurrentA`, T_esc = 1/`updateRateHz`,
+I_brake = `brakeCurrentLimitA`, τ_cmd = `commandTauS`. It throws, naming the
+field, when a motor lacks `noLoadCurrentA`, an ESC lacks `updateRateHz` or
+`brakeCurrentLimitA`, or the vehicle lacks a battery; nothing is defaulted.
+
+`thrustExpoOfDrive` fits ArduPilot's thrust curve (`Thrust_Linearization`)
+to the drive. The autopilot maps actuator a ∈ [0, 1] to the output
+`MOT_SPIN_MIN + (MOT_SPIN_MAX − MOT_SPIN_MIN)·a` and models the thrust
+fraction as (1 − e)·a + e·a². With the ESC duty linear in PWM over
+`MOT_PWM_MIN..MAX` and the pinned defaults 0.15 and 0.95, a static sweep at
+`MOT_BAT_VOLT_MAX`, where voltage scaling is 1, gives the thrust T(a) of one
+rotor in still air once its speed has settled; then
+
+\[
+e = \frac{\sum_k \left(y_k - a_k\right)\left(a_k^2 - a_k\right)}{\sum_k \left(a_k^2 - a_k\right)^2},
+\qquad
+y_k = \frac{T(a_k)}{T(1)}
+\]
+
+and a fit outside [−1, 1] throws. For the parity rotor on the synthetic
+300 KV, 0.1 Ω drive at 16.8 V, nine samples give e = 0.853 (RMS residual
+0.006); the same rotor driven by duty·0.2 N·m gives e = −0.252 (RMS residual
+0.047). No thrust-stand data are in the repository; under SA-01 these
+values are reported for the user to judge, not accepted against a tolerance.
+
+
+### Verification (TASK-092)
+
+`native/bet/tests/drive.rs` checks the ESC hold and lag, the torque law, the
+terminal-power identity, the driven shaft against the exact solution and its
+v1 bit equality, regeneration and the bus record against closed forms.
+`native/bet/tests/bound_v2.rs` checks the energy and torque balance over 4000
+steps, the power cut, the current-limit flag, invalid drive records and zero
+allocations over 1,000,000 ESC and bus steps. `tests/wasm-abi-v2.test.ts`
+compares the WASM adapters with the native reference and the golden records.
+`tests/drive-chain.test.ts` checks, every tick of a climb and a braking
+descent, the charge integral bit for bit, the pack voltage and the bus power
+balance within 1e-9; the cut and partial-cut faults; the manifest mapping;
+the thrust fit; and the torque-path digest. `scripts/check-bet-runtime.mjs
+--allocation` adds the ESC-drive graph and the native drive allocator tests.
+The roadmap entry records the native ArduCopter flight on the drive.

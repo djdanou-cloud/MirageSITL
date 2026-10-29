@@ -279,8 +279,14 @@ implementation.
   * TASK-090: fidelity metrics and `scripts/check-fidelity.mjs`, which never passes
     synthetic data; real flight and bench data remain BLOCKED_EXTERNAL.
 
-  BET compute headroom (TASK-091) and the physics tasks TASK-092–TASK-123 are not
-  implemented. TASK-166 (not implemented) gives every
+  TASK-092 is DONE: `BetFlightDynamics` takes an optional production drive
+  (voltage-driven motor, ESC hold and lag, shared battery bus over bound-rotor v2
+  drive mode 1 and `bet_bus_step`), the torque drive stays bit for bit as before,
+  the ArduPilot profile v2 sets `BATT_MONITOR`, `MOT_BAT_VOLT_*` and a fitted
+  `MOT_THST_EXPO`, and native ArduCopter hovers on it with measured bus current
+  (`MIRAGE_PARITY_DRIVE=esc`); the browser WASM hover is BLOCKED_EXTERNAL without
+  an Emscripten toolchain and the TASK-045 artifact. BET compute headroom
+  (TASK-091) and the physics tasks TASK-093–TASK-123 are not implemented. TASK-166 (not implemented) gives every
   environment, sensor-error, EW and fault effect an on/off switch and an intensity
   control. Effects that MirageSITL injects are off by default, and off must be
   bitwise identical to absent; ArduPilot's own SITL errors keep the TASK-089

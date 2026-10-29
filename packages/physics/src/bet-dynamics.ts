@@ -2,9 +2,28 @@
 import { ControlFlag, INPUT_CLOCK_TOLERANCE_MS, INPUT_TIMEOUT_MS, StateFlag, ActuatorFlagV2, newState,
   type PilotInput, type PhysicsHz, type ActuatorFrameV2 } from '@mirage/protocol';
 import { BetRotorEngine, type BoundPolar } from '../../wasm-bet/src/rotor.ts';
+import { BOUND_V2, BOUND_V2_DRIVE_DOUBLES, BOUND_V2_INPUT_DOUBLES, BOUND_V2_OUTPUT_SLOTS, BetRotorEngineV2 } from '../../wasm-bet/src/rotor-v2.ts';
+import { BetBus, type BusBattery } from '../../wasm-bet/src/bus.ts';
 import { BetRigidBodyBackend, newBodyTruth, type BodyTruth } from '../../wasm-bet/src/backend.ts';
+import type { MotorFaults } from './motor-fault.ts';
 import { validateModelManifest } from './model-manifest.ts';
 import { FrameLayout } from './frame.ts';
+
+/** One motor and its ESC for the production drive (TASK-092); SI units, k_t = k_e. */
+export interface EscDriveMotor {
+  readonly resistanceOhm: number; readonly torqueConstantNmPerA: number; readonly currentLimitA: number;
+  readonly brakeCurrentLimitA: number; readonly noLoadTorqueNm: number; readonly commandTauS: number;
+  /** ESC update period; 0 updates every physics step. */
+  readonly updatePeriodS: number;
+}
+/** Voltage-driven motors on one shared battery bus (TASK-092), one motor per rotor in rotor order. */
+export interface EscDriveConfiguration {
+  readonly motors: readonly EscDriveMotor[];
+  readonly battery: BusBattery;
+  readonly initialStateOfCharge: number;
+  /** Constant avionics load on the bus, W; defaults to 0. */
+  readonly housePowerW?: number;
+}
 
 export interface BetFlightConfiguration {
   manifest: unknown; polars: ReadonlyMap<number, BoundPolar>;
@@ -19,6 +38,8 @@ export interface BetFlightConfiguration {
   /** Opt-in synthetic flat pad: inelastic, no-slip support at this NED down.
    * This numerical fixture is independent of Rapier/measured landing fidelity. */
   syntheticGroundDownM?: number;
+  /** The production drive (TASK-092). Absent, each rotor gets duty·motorMaxTorqueNm, bit for bit as before. */
+  drive?: EscDriveConfiguration;
 }
 
 export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
@@ -26,7 +47,18 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
   readonly hz:H;
   readonly modelId:number;
   readonly rotorCount:number;
-  readonly engine:BetRotorEngine;
+  /** The torque-drive rotor engine (interface v1), or null with an ESC drive. */
+  readonly engine:BetRotorEngine|null;
+  /** The ESC-drive rotor engine (interface v2 drive mode 1), or null without one. */
+  readonly escEngine:BetRotorEngineV2|null;
+  /** Bus current of the last step, A; 0 without an ESC drive. */
+  get batteryCurrentA():number{return this.electrical[2]!;}
+  /** Bus state of charge, 1 without an ESC drive. */
+  get stateOfCharge():number{return this.electrical[0]!;}
+  /** The bus could not deliver or absorb the demand on the last step. */
+  busLimited=false;
+  /** A motor current sat at its limit on the last step: a modeled clamp, not a validity breach. */
+  driveLimited=false;
   readonly windNedMps=new Float64Array(3);
   readonly atmosphere:Float64Array;
   nowMs=0.5;
@@ -51,6 +83,25 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
   private readonly motorMapId:number;
   private pendingActuator=false;
   private readonly groundDown:number|undefined;
+  private readonly bus:BetBus|null;
+  private readonly initialSoc:number;
+  private readonly housePowerW:number;
+  private readonly inputStride:number;
+  private readonly outputStride:number;
+  private readonly input:Float64Array;
+  private readonly output:Float64Array;
+  /**
+   * [state of charge, bus voltage V, bus current A] of the last step (TASK-092).
+   * Per-step doubles live in a typed array: V8 keeps class fields tagged, so a
+   * double stored in a field or returned by a non-inlined getter can allocate.
+   * Hot-path readers index this array; the getters are for cold code.
+   */
+  readonly electrical=new Float64Array([1,0,0]);
+  private faults:MotorFaults|null=null;
+  private readonly unit=new Float64Array([1]);
+  private readonly fraction=new Float64Array(1);
+  private readonly faultWrench=new Float64Array(6);
+  private readonly faultScaled=new Float64Array(6);
   constructor(module:WebAssembly.Module,configuration:BetFlightConfiguration,hz:H) {
     const model=validateModelManifest(configuration.manifest),n=model.rotorCount;
     if(configuration.syntheticGroundDownM!==undefined&&!Number.isFinite(configuration.syntheticGroundDownM))throw Error('Invalid synthetic ground plane');
@@ -68,7 +119,23 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
         inflowTauS:configuration.inflowTauS[i]!,inflowLimitMps:configuration.inflowLimitMps[i]!,minimumConfidence:configuration.minimumConfidence};
     });
     this.hz=hz;this.dt=1/hz;this.rotorCount=n;this.modelId=model.modelId;this.motorMapId=configuration.motorMapId;
-    this.engine=new BetRotorEngine(module,definitions,hz);
+    const drive=configuration.drive;
+    if(drive) {
+      const soc=drive.initialStateOfCharge,house=drive.housePowerW??0;
+      if(drive.motors.length!==n || !Number.isFinite(soc) || soc<=0 || soc>1 || !Number.isFinite(house) || house<0)throw Error('Invalid ESC drive configuration');
+      const esc=new BetRotorEngineV2(module,definitions,hz);
+      drive.motors.forEach((m,i)=>{
+        const values=[m.resistanceOhm,m.torqueConstantNmPerA,m.currentLimitA,m.brakeCurrentLimitA,m.noLoadTorqueNm,m.commandTauS,m.updatePeriodS];
+        if(!values.every(Number.isFinite))throw Error('Invalid ESC drive motor');
+        esc.drive.set(values,i*BOUND_V2_DRIVE_DOUBLES);esc.driveMode[i]=BOUND_V2.driveEscDuty;
+      });
+      this.escEngine=esc;this.engine=null;
+      this.bus=new BetBus(module,drive.battery,hz);this.initialSoc=soc;this.housePowerW=house;
+      this.input=this.escEngine.input;this.output=this.escEngine.output;this.inputStride=BOUND_V2_INPUT_DOUBLES;this.outputStride=BOUND_V2_OUTPUT_SLOTS;
+    } else {
+      this.engine=new BetRotorEngine(module,definitions,hz);this.escEngine=null;this.bus=null;this.initialSoc=1;this.housePowerW=0;
+      this.input=this.engine.input;this.output=this.engine.output;this.inputStride=13;this.outputStride=16;
+    }
     this.body=new BetRigidBodyBackend(new WebAssembly.Instance(module,{}),model.massKg,model.inertiaBodyKgM2,configuration.gravityMps2??9.80665);
     this.initial=structuredClone(configuration.initialBody);
     this.frame=new FrameLayout(model);this.rotations=new Float64Array(n*9);this.positions=new Float64Array(n*3);
@@ -89,14 +156,24 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
     this.reset();
   }
   reset():void {
-    this.engine.reset();this.body.reset(this.initial);
+    this.engine?.reset();this.escEngine?.reset();this.body.reset(this.initial);
+    const e=this.electrical;e[0]=this.initialSoc;e[2]=0;this.busLimited=false;this.driveLimited=false;
+    // Before the first bus step the motors see the unloaded pack.
+    e[1]=this.bus?this.bus.openCircuitV(this.initialSoc):0;
     this.truth.positionNedM.set(this.initial.positionNedM);this.truth.velocityNedMps.set(this.initial.velocityNedMps);
     this.truth.quaternionBodyToNed.set(this.initial.quaternionBodyToNed);this.truth.angularVelocityBodyRadS.set(this.initial.angularVelocityBodyRadS);
-    this.truth.accelerationNedMps2.fill(0);this.angularAcceleration.fill(0);Object.assign(this.state,newState());this.state.batteryVoltage=0;
+    this.truth.accelerationNedMps2.fill(0);this.angularAcceleration.fill(0);Object.assign(this.state,newState());this.state.batteryVoltage=e[1]!;
     this.state.flags=StateFlag.InputFailsafe;this.pendingActuator=false;this.externalArmed=false;this.fault='';this.validityFlags=0;
-    this.referenceRotorRpm=this.engine.output[9]!*60/(2*Math.PI);
+    this.referenceRotorRpm=this.output[9]!*60/(2*Math.PI);
     this.copyTruth();
   }
+  /**
+   * Motor faults on the physical path (cold). A power cut with remaining
+   * fraction r scales the drive by r: the ESC command with an ESC drive, where
+   * r = 0 unpowers the bridge, and the drive torque otherwise. A synthetic
+   * instant thrust loss scales the rotor's whole wrench.
+   */
+  useMotorFaults(faults:MotorFaults):void {this.faults=faults;}
   useActuators(frame:ActuatorFrameV2):void {
     if(frame.motorMapId!==this.motorMapId){this.fault='BET actuator map mismatch';return;}
     for(let i=0;i<this.rotorCount;i++)if(this.channels[i]!>=frame.actuatorCount){this.fault='BET actuator channel missing';return;}
@@ -123,10 +200,10 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
       Number.isFinite(pilot.throttle) && Number.isFinite(pilot.roll) && Number.isFinite(pilot.pitch) && Number.isFinite(pilot.yaw);
     const external=this.pendingActuator;let sum=0;
     if(!external)this.externalArmed=false;
+    const input=this.input,esc=this.escEngine,faults=this.faults;
     for(let i=0;i<this.rotorCount;i++) {
-      const a=i*9,b=i*13,c=i*3,m=i*4;
+      const a=i*9,b=i*this.inputStride,c=i*3,m=i*4;
       const ax=fx-(ry*p[c+2]!-rz*p[c+1]!),ay=fy-(rz*p[c]!-rx*p[c+2]!),az=fz-(rx*p[c+1]!-ry*p[c]!);
-      const input=this.engine.input;
       input[b]=this.atmosphere[0]!;input[b+1]=this.atmosphere[1]!;input[b+2]=this.atmosphere[2]!;
       input[b+3]=r[a]!*ax+r[a+3]!*ay+r[a+6]!*az;input[b+4]=r[a+1]!*ax+r[a+4]!*ay+r[a+7]!*az;
       input[b+5]=r[a+2]!*ax+r[a+5]!*ay+r[a+8]!*az;
@@ -134,14 +211,39 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
       input[b+8]=r[a+2]!*rx+r[a+5]!*ry+r[a+8]!*rz;
       let duty=external?(this.externalArmed?this.actuator[this.channels[i]!]!:0):valid?
         this.mix[m]!*pilot.throttle+this.mix[m+1]!*pilot.roll+this.mix[m+2]!*pilot.pitch+this.mix[m+3]!*pilot.yaw:0;
-      duty=Math.max(0,Math.min(1,duty));sum+=duty;input[b+12]=duty*this.torque[i]!;
+      duty=Math.max(0,Math.min(1,duty));sum+=duty;
+      // The fault fraction is 1 unless a power cut is set (driveTorqueFromArrayInto of a unit baseline).
+      let fraction=1;
+      if(faults){if(!faults.driveTorqueFromArrayInto(i,this.unit,this.fraction)){this.fault='BET motor fault table mismatch';return;}fraction=this.fraction[0]!;}
+      if(esc) {
+        input[b+12]=0;input[b+13]=duty*fraction;input[b+14]=this.electrical[1]!;
+        esc.driveFlags[i]=fraction===0?BOUND_V2.drivePowerCut:0;
+      } else input[b+12]=faults?duty*this.torque[i]!*fraction:duty*this.torque[i]!;
     }
-    if(!this.engine.stepInto()){this.fault='BET rotor step failed';return;}
+    if(esc?!esc.stepInto():!this.engine!.stepInto()){this.fault='BET rotor step failed';return;}
     this.validityFlags=0;
+    const output=this.output,stride=this.outputStride;let terminalPowerW=0;this.driveLimited=false;
     for(let i=0;i<this.rotorCount;i++) {
-      const a=i*16,b=i*6;
-      for(let j=0;j<3;j++){this.hub[b+j]=this.engine.output[a+j]!;this.hub[b+3+j]=this.engine.output[a+6+j]!;}
-      this.validityFlags|=this.engine.output[a+14]!;
+      const a=i*stride,b=i*6;
+      for(let j=0;j<3;j++){this.hub[b+j]=output[a+j]!;this.hub[b+3+j]=output[a+6+j]!;}
+      const flags=output[a+14]!;
+      if(esc) {
+        terminalPowerW+=output[a+21]!; // electrical_power (record byte 160)
+        if((flags&BOUND_V2.flagCurrentLimited)!==0)this.driveLimited=true;
+        this.validityFlags|=flags&~BOUND_V2.flagCurrentLimited;
+      } else this.validityFlags|=flags;
+      if(faults&&faults.outsideValidity(i)) {
+        for(let j=0;j<6;j++)this.faultWrench[j]=this.hub[b+j]!;
+        if(!faults.wrenchInto(i,this.faultWrench,this.faultScaled)){this.fault='BET motor fault table mismatch';return;}
+        for(let j=0;j<6;j++)this.hub[b+j]=this.faultScaled[j]!;
+      }
+    }
+    if(this.bus) {
+      // One-tick lag: these motors ran on the previous bus voltage; the bus now delivers their summed terminal power.
+      const e=this.electrical,o=this.bus.output;
+      if(!this.bus.stepInto(e[0]!,terminalPowerW,this.housePowerW)){this.fault='Battery bus step failed';return;}
+      e[0]=o[0]!;e[1]=o[1]!;e[2]=o[2]!;
+      this.busLimited=this.bus.output[6]!!==0;
     }
     if(!this.frame.sumInto(this.hub,this.wrench) || !this.body.stepInto(this.wrench,this.dt,this.truth)){
       this.fault='BET body integration failed';return;
@@ -157,7 +259,8 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
     this.angularAcceleration[2]=(rates[2]!-oldRz)/this.dt;
     s.tick++;s.simTime=s.tick/this.hz;s.wallTimeMs=this.nowMs;s.spool=sum/this.rotorCount;
     s.flags=(external?this.externalArmed:valid)?0:StateFlag.InputFailsafe;
-    this.referenceRotorRpm=this.engine.output[9]!*60/(2*Math.PI);this.pendingActuator=false;
+    if(this.bus)s.batteryVoltage=this.electrical[1]!;
+    this.referenceRotorRpm=output[9]!*60/(2*Math.PI);this.pendingActuator=false;
     this.copyTruth();
   }
   private copyTruth():void {
@@ -168,5 +271,5 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
     s.p=t.angularVelocityBodyRadS[0]!;s.q=t.angularVelocityBodyRadS[1]!;s.r=t.angularVelocityBodyRadS[2]!;
     s.an=t.accelerationNedMps2[0]!;s.ae=t.accelerationNedMps2[1]!;s.ad=t.accelerationNedMps2[2]!;
   }
-  dispose():void {this.engine.dispose();}
+  dispose():void {this.engine?.dispose();this.escEngine?.dispose();}
 }

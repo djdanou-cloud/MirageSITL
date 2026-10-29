@@ -6,11 +6,14 @@ export const BOUND_V2 = {
   version: 2, inputBytes: 256, outputBytes: 256, unsupported: -8,
   input: { version: 0, flags: 4, driveMode: 8, density: 16, viscosity: 24, soundSpeed: 32, airVelocityHub: 40,
     bodyRateHub: 64, collective: 88, cyclicCos: 96, cyclicSin: 104, motorTorque: 112, escDuty: 120,
-    busVoltage: 128, externalWakeHub: 136, groundNormalHub: 160, groundDistance: 184 },
+    busVoltage: 128, externalWakeHub: 136, groundNormalHub: 160, groundDistance: 184,
+    // TASK-092 drive mode 1: seven f64 parameters, then the drive flags word.
+    motorResistance: 192, motorTorqueConstant: 200, motorCurrentLimit: 208, motorBrakeCurrentLimit: 216,
+    motorNoLoadTorque: 224, escCommandTau: 232, escUpdatePeriod: 240, driveFlags: 248 },
   output: { forceHub: 0, airMomentHub: 24, transmittedMomentHub: 48, omega: 72, aerodynamicShaftTorque: 80,
     shaftPower: 88, inducedAxial: 96, coneAngle: 104, flags: 112, validity: 116, angularMomentumAxial: 120,
     inflowCos: 128, inflowSin: 136, motorCurrent: 144, busCurrent: 152, electricalPower: 160, copperLoss: 168 },
-  groundPlane: 1, driveTorque: 0, driveEscDuty: 1,
+  groundPlane: 1, driveTorque: 0, driveEscDuty: 1, drivePowerCut: 1, flagCurrentLimited: 32,
   validElectrical: 1, validInflowHarmonics: 2, validGroundEffect: 4, validExternalWake: 8,
 } as const;
 /** Input row: the 22 f64 fields at record bytes 16..191, in record order. */
@@ -19,6 +22,8 @@ export const BOUND_V2_INPUT_DOUBLES = 22;
 export const BOUND_V2_OUTPUT_SLOTS = 23;
 export const BOUND_V2_OUTPUT_FLAGS_SLOT = 14;
 export const BOUND_V2_OUTPUT_VALIDITY_SLOT = 15;
+/** Drive row: the seven f64 drive-mode-1 parameters at record bytes 192..247, in record order. */
+export const BOUND_V2_DRIVE_DOUBLES = 7;
 
 function callable(value: unknown): value is (...args: number[]) => number { return typeof value === 'function'; }
 
@@ -35,6 +40,10 @@ export class BetRotorEngineV2 {
   readonly inputFlags: Uint32Array;
   /** Drive mode per rotor (0 torque; 1 ESC duty, TASK-092). */
   readonly driveMode: Uint32Array;
+  /** Drive-mode-1 parameters per rotor (TASK-092); zero in drive mode 0. */
+  readonly drive: Float64Array;
+  /** Drive flags per rotor (bit 0: power cut, TASK-092). */
+  readonly driveFlags: Uint32Array;
   readonly output: Float64Array;
   readonly dtS: number;
   lastStatus = 0;
@@ -61,6 +70,7 @@ export class BetRotorEngineV2 {
     this.nativeStep = e.bet_bound_step_v2; this.nativeReset = e.bet_bound_reset; this.nativeDispose = e.bet_bound_dispose;
     this.handles = new Uint32Array(this.count); this.inputs = new Uint32Array(this.count); this.outputs = new Uint32Array(this.count);
     this.initial = new Float64Array(this.count); this.inputFlags = new Uint32Array(this.count); this.driveMode = new Uint32Array(this.count);
+    this.drive = new Float64Array(this.count * BOUND_V2_DRIVE_DOUBLES); this.driveFlags = new Uint32Array(this.count);
     this.input = new Float64Array(this.count * BOUND_V2_INPUT_DOUBLES); this.output = new Float64Array(this.count * BOUND_V2_OUTPUT_SLOTS);
     const payloads = definitions.map(d => encodeBoundRotor(d, this.dtS));
     let at = Math.ceil(e.__heap_base.value / 64) * 64;
@@ -93,11 +103,15 @@ export class BetRotorEngineV2 {
   stepInto(): boolean {
     if (this.disposed || !this.memoryStable) return false;
     for (let i = 0; i < this.input.length; i++) if (!Number.isFinite(this.input[i])) { this.lastStatus = -3; return false; }
+    for (let i = 0; i < this.drive.length; i++) if (!Number.isFinite(this.drive[i])) { this.lastStatus = -3; return false; }
     for (let i = 0; i < this.count; i++) {
       const ip = this.inputs[i]!, op = this.outputs[i]!, row = i * BOUND_V2_INPUT_DOUBLES, out = i * BOUND_V2_OUTPUT_SLOTS;
       this.view.setUint32(ip + BOUND_V2.input.flags, this.inputFlags[i]!, true);
       this.view.setUint32(ip + BOUND_V2.input.driveMode, this.driveMode[i]!, true);
       for (let j = 0; j < BOUND_V2_INPUT_DOUBLES; j++) this.view.setFloat64(ip + 16 + j * 8, this.input[row + j]!, true);
+      const drive = i * BOUND_V2_DRIVE_DOUBLES;
+      for (let j = 0; j < BOUND_V2_DRIVE_DOUBLES; j++) this.view.setFloat64(ip + BOUND_V2.input.motorResistance + j * 8, this.drive[drive + j]!, true);
+      this.view.setUint32(ip + BOUND_V2.input.driveFlags, this.driveFlags[i]!, true);
       const status = this.nativeStep(this.handles[i]!, ip, op, this.dtS);
       this.lastStatus = status;
       if (status !== 0) return false;

@@ -11,8 +11,10 @@ import {BetFlightDynamics} from '../../packages/physics/src/bet-dynamics.ts';
 import {newActuatorFrameV2,newInput,newSensorFrameV2,SensorKindV2} from '../../packages/protocol/src/index.ts';
 import {newBodyTruth} from '../../packages/wasm-bet/src/backend.ts';
 import {IdealSensors,type SensorTruth} from '../../packages/sensors/src/ideal.ts';
-import {parityAircraft,PARITY_HZ,PARITY_ORIGIN} from '../../tests/support/autopilot-parity.ts';
-import {ParityTelemetry,ParityCommands} from '../../tests/support/parity-mavlink.ts';
+import {thrustExpoOfDrive} from '../../packages/physics/src/drive.ts';
+import {validateModelManifest} from '../../packages/physics/src/model-manifest.ts';
+import {parityAircraft,parityEscDrive,PARITY_ESC_BATTERY,PARITY_ESC_MOTOR,PARITY_HZ,PARITY_ORIGIN} from '../../tests/support/autopilot-parity.ts';
+import {ParityTelemetry,ParityCommands,commandLong} from '../../tests/support/parity-mavlink.ts';
 import {parityIdentity} from './parity-identity.ts';
 
 const [rootArg,binaryArg,sourceArg,defaultsArg,outputArg]=process.argv.slice(2);
@@ -23,7 +25,23 @@ if(sourceCommit!=='8ab6afde107a91df1b5f60ade8f333cb8a61b190'||execFileSync('git'
 const bytes=readFileSync(binary);if(bytes.subarray(0,4).toString('hex')!=='7f454c46')throw Error('Native ELF required');
 const bodyBytes=readFileSync(join(root,'packages/wasm-bet/dist/mirage_bet.scalar.wasm'));
 const defaultsText=readFileSync(resolve(defaultsArg),'utf8'),identity=parityIdentity(root,defaultsText);
-const physics=new BetFlightDynamics(new WebAssembly.Module(bodyBytes),parityAircraft(),PARITY_HZ);
+// MIRAGE_PARITY_DRIVE=esc (TASK-092): the parity aircraft on the ESC drive and shared bus. The JSON line then
+// carries the bus voltage and the discharge current (0 while regenerating, as HAL value 21), and a second
+// defaults file sets BATT_MONITOR, voltage compensation over the pack's open-circuit range and MOT_THST_EXPO
+// fitted to the drive. Unset, the TASK-047 torque drive is unchanged.
+const escDrive=process.env.MIRAGE_PARITY_DRIVE==='esc';
+const bodyModule=new WebAssembly.Module(bodyBytes),configuration=parityAircraft();
+let driveDefaults='';
+if(escDrive) {
+  configuration.drive=parityEscDrive();
+  const model=validateModelManifest(configuration.manifest),geometry=model.rotors[0]!,polar=configuration.polars.get(geometry.polarId);
+  if(!polar)throw Error('Missing parity polar');
+  const fit=thrustExpoOfDrive({module:bodyModule,rotor:{geometry,polar,initialOmegaRadS:0,inflowTauS:0.1,inflowLimitMps:500,minimumConfidence:0.9},
+    motor:PARITY_ESC_MOTOR,busVoltageV:PARITY_ESC_BATTERY.openCircuitFullV,densityKgM3:configuration.densityKgM3,
+    viscosityPaS:configuration.viscosityPaS,soundMps:configuration.soundMps,hz:PARITY_HZ},9);
+  driveDefaults=`BATT_MONITOR 4\nMOT_BAT_VOLT_MAX ${PARITY_ESC_BATTERY.openCircuitFullV}\nMOT_BAT_VOLT_MIN ${PARITY_ESC_BATTERY.openCircuitEmptyV}\nMOT_THST_EXPO ${fit.expo}\n`;
+}
+const physics=new BetFlightDynamics(bodyModule,configuration,PARITY_HZ);
 const ideal=new IdealSensors(PARITY_ORIGIN.magneticNedGauss,584),sensor=newSensorFrameV2();
 const truth:SensorTruth={...newBodyTruth(),epoch:47,tickId:{lo:0,hi:0},sampleTimeUs:{lo:0,hi:0},windNedMps:new Float64Array(3)};
 const actuator=newActuatorFrameV2(),pilot=newInput();actuator.epoch=47;actuator.motorMapId=42;actuator.actuatorCount=4;
@@ -34,9 +52,11 @@ const probe=createServer();probe.listen(0,'127.0.0.1');await once(probe,'listeni
 const address=probe.address();if(!address||typeof address==='string')throw Error('No owned port');const port=address.port;
 await new Promise<void>(resolve=>probe.close(()=>resolve()));
 const cwd=mkdtempSync(join(tmpdir(),'mirage-task-047-')),log=openSync(join(cwd,'firmware.log'),'w');
+if(escDrive)writeFileSync(join(cwd,'drive.parm'),driveDefaults);
+const defaultsFiles=escDrive?`${resolve(defaultsArg)},${join(cwd,'drive.parm')}`:resolve(defaultsArg);
 const firmware=spawn(binary,['--model','JSON:127.0.0.1','--speedup','2','--rate','800','--home','-35.362938,149.165085,584,0',
   '--sim-port-out',String(physicsSocket.address().port),'--serial0',`tcp:${port}`,'--serial1','none','--serial2','none',
-  '--defaults',resolve(defaultsArg)],{cwd,stdio:['ignore',log,log]});
+  '--defaults',defaultsFiles],{cwd,stdio:['ignore',log,log]});
 let finished=false,steps=0;
 const connection:{serial:Socket|null;failure:Error|null}={serial:null,failure:null};
 const fail=(e:unknown)=>{connection.failure=e instanceof Error?e:Error(String(e));finished=true;};
@@ -59,11 +79,15 @@ physicsSocket.on('message',(packet,peer)=>{
     if(peer.address!=='127.0.0.1'||![40,72].includes(packet.length)||![18458,29569].includes(packet.readUInt16LE(0))||packet.readUInt32LE(4)!==steps)throw Error('Invalid/gapped native actuator packet');
     const tick=steps;telemetry.simS=tick/PARITY_HZ;
     commands.tick(tick);
+    // SYS_STATUS at 1 Hz carries the battery voltage and current the autopilot measured.
+    if(escDrive&&tick%800===400&&connection.serial){const bytes=commandLong(tick/800&255,511,[1,1000000,0,0,0,0,0]);
+      connection.serial.write(bytes);transmitted.push({tick:steps,bytes:Array.from(bytes)});}
     const s=physics.state;
     if(tick%8===0) {
       samples.push({tick,positionNedM:[s.north,s.east,s.down],quaternionWxyz:[s.qw,s.qx,s.qy,s.qz],armed:telemetry.armed,mode:telemetry.mode,
         ekfFlags:telemetry.ekfFlags,innovationRatios:[...telemetry.innovations],heartbeatAgeS:telemetry.heartbeatS<0?null:telemetry.simS-telemetry.heartbeatS,
-        ekfAgeS:telemetry.ekfS<0?null:telemetry.simS-telemetry.ekfS,validityFlags:physics.validityFlags});
+        ekfAgeS:telemetry.ekfS<0?null:telemetry.simS-telemetry.ekfS,validityFlags:physics.validityFlags,
+        ...(escDrive?{batteryVoltageV:s.batteryVoltage,batteryCurrentA:physics.batteryCurrentA,stateOfCharge:physics.stateOfCharge}:{})});
       if(tick%8000===0)process.stderr.write(JSON.stringify(samples.at(-1))+'\n');
     }
     if(tick>=96000){finished=true;return;}
@@ -79,7 +103,7 @@ physicsSocket.on('message',(packet,peer)=>{
     if(!ideal.sampleInto(SensorKindV2.Imu,t,sensor))throw Error('Native ideal IMU failed');
     const imu={gyro:Array.from(sensor.values.subarray(3,6)),accel_body:Array.from(sensor.values.subarray(0,3))};
     const state={timestamp:steps/PARITY_HZ,imu,position:Array.from(t.positionNedM),quaternion:Array.from(t.quaternionBodyToNed),
-      velocity:Array.from(t.velocityNedMps),velocity_wind:[0,0,0],battery:{voltage:0,current:0},airspeed:Math.hypot(s.vn,s.ve,s.vd),
+      velocity:Array.from(t.velocityNedMps),velocity_wind:[0,0,0],battery:escDrive?{voltage:s.batteryVoltage,current:Math.max(0,physics.batteryCurrentA)}:{voltage:0,current:0},airspeed:Math.hypot(s.vn,s.ve,s.vd),
       rc:{rc_1:1500,rc_2:1500,rc_3:1000,rc_4:1500,rc_5:1000,rc_6:1000,rc_7:1000,rc_8:1000,rc_9:1000,rc_10:1000,rc_11:1000,rc_12:1000}};
     physicsSocket.send('\n'+JSON.stringify(state)+'\n',peer.port,peer.address);
   }catch(error){fail(error);}
@@ -91,6 +115,6 @@ finally {
   closeSync(log);physics.dispose();
   if(JSON.stringify(parityIdentity(root,defaultsText))!==JSON.stringify(identity))connection.failure??=Error('Sources changed during native capture');
   writeFileSync(output,JSON.stringify({status:connection.failure?'FAIL':'captured',failure:connection.failure?.message??null,sourceCommit,identity,defaultsText,
-    caseId:failsafe?'gcs-failsafe':'takeoff-land',firmwareSha256:createHash('sha256').update(bytes).digest('hex'),cwd,samples,raw:Array.from(Buffer.concat(raw)),wireChunks,transmitted})+'\n');
+    caseId:escDrive?(failsafe?'esc-gcs-failsafe':'esc-takeoff-land'):failsafe?'gcs-failsafe':'takeoff-land',driveDefaults,firmwareSha256:createHash('sha256').update(bytes).digest('hex'),cwd,samples,raw:Array.from(Buffer.concat(raw)),wireChunks,transmitted})+'\n');
 }
 if(connection.failure)throw connection.failure;

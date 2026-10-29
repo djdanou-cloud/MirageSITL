@@ -414,6 +414,10 @@
           "currentLimitA": {
             "type": "number",
             "exclusiveMinimum": 0
+          },
+          "noLoadCurrentA": {
+            "type": "number",
+            "minimum": 0
           }
         }
       }
@@ -456,6 +460,14 @@
           "commandTauS": {
             "type": "number",
             "exclusiveMinimum": 0
+          },
+          "updateRateHz": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "brakeCurrentLimitA": {
+            "type": "number",
+            "minimum": 0
           }
         }
       }
