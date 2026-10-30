@@ -20,3 +20,27 @@ assert.equal(assessFlight(trace).metrics.holdDurationS,10);
 assert.throws(()=>assessFlight({...trace,samples:samples.map(s=>({...s,mode:99}))}),/mode/);
 assert.throws(()=>assessFlight({...trace,samples:samples.filter(s=>s.servoFrame!==10)}));
 `));
+
+it("reaps detached driver descendants even when their standard streams are closed, preserving unrelated processes", () => nodeCheck(`
+import {runOwned} from './scripts/run-sitl.mjs';
+import {spawn} from 'node:child_process';
+const unrelated=spawn(process.execPath,['-e','setInterval(()=>{},1000)'],{stdio:'ignore'});
+let descendant=0;
+try {
+ const childCode='process.on("SIGTERM",()=>{});process.send("ready");setInterval(()=>{},1000)';
+ const parentCode='const c=require("node:child_process").spawn(process.execPath,["-e",'+JSON.stringify(childCode)+'],{stdio:["ignore","ignore","ignore","ipc"]});c.once("message",()=>{process.stdout.write(String(c.pid));process.exit(0);})';
+ descendant=Number((await runOwned(process.execPath,['-e',parentCode],{timeoutMs:3000})).toString());
+ assert(Number.isSafeInteger(descendant)&&descendant>0);
+ const until=performance.now()+1000;
+ let alive=true;
+ while(alive&&performance.now()<until) {
+  try {process.kill(descendant,0);} catch(error) {if(error.code==='ESRCH')alive=false;else throw error;}
+  if(alive)await new Promise(resolve=>setTimeout(resolve,20));
+ }
+ assert.equal(alive,false,'An owned TERM-resistant descendant survived driver close');
+ assert.doesNotThrow(()=>process.kill(unrelated.pid,0));
+} finally {
+ if(descendant)try{process.kill(descendant,'SIGKILL');}catch(error){if(error.code!=='ESRCH')throw error;}
+ unrelated.kill('SIGTERM');
+}
+`));

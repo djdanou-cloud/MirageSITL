@@ -8,7 +8,7 @@
 PowerShell/zsh и проверки перед расширением поддерживаемого покрытия.
 
 ## Локальные проверки
-<!-- source-sha256: bcc0aac2c05cf9f929d404ff003a924332a5761123a9ffce31a8ffafb21ba90e -->
+<!-- source-sha256: 605b5e8657f2b1b5b9e0fb711db230dc1466549d0e934631ab67c8e116d81ea8 -->
 
 Использовать существующий изолированный checkout, сохраняя локальные изменения. Node закреплён .nvmrc; Rust 1.97.0 и wasm32-unknown-unknown — native/rust-toolchain.toml. Зависимости ставить через npm ci. В облаке активировать CARGO_HOME=/workspace/.cache/mirage-cargo, RUSTUP_HOME=/workspace/.cache/mirage-rustup и добавить CARGO_HOME/bin в начало PATH; не переопределять HOME. Запустить lint, typecheck, check:docs, CI=true npm test, npm run build и locked native tests. Модульный набор тестов не изменяет отслеживаемые свидетельства в test-results/: тесты записывают создаваемые отчёты во временные или игнорируемые каталоги (validate-models, check-propeller-bem и bench-links-ew принимают --out DIR), а глобальная настройка Vitest tests/support/tracked-results.ts завершает прогон ошибкой, если меняется вывод git status --porcelain -- test-results/. Браузерные прогоны дают ту же гарантию: Playwright пишет отчёт JUnit, трассы и захваты прошивки TASK-045 в test-results/browser/, где нет отслеживаемых файлов, а последний настроенный репортёр tests/support/tracked-results-reporter.ts повторяет проверку после того, как остальные репортёры записали свои файлы. Браузерный артефакт CI выгружает test-results/browser/ и playwright-report/. Запустить npm run dev; проверить HTTP, COOP same-origin, COEP require-corp и настоящий Worker READY. Начать с нулевого газа, армировать, летать, приостановить и сбросить. Браузерные тесты используют системный Chromium только при наличии. Установка/запуск на чистой восстановленной машине для сертификации выпуска ещё не выполнялись.
 
@@ -25,7 +25,7 @@ node scripts/release-manifest.mjs --input /path/to/release-input.json --sha256 <
 node scripts/bench-terrain-scenarios.mjs 400
 ```
 
-SITL требует MIRAGE_SITL_SOURCE на закреплённом чистом коммите, MIRAGE_SITL_BINARY с MIRAGE_SITL_BINARY_SHA256 и MIRAGE_SITL_DRIVER с MIRAGE_SITL_DRIVER_SHA256. Секреты не нужны. Node-драйвер (`scripts/sitl/driver.mjs`) получает --binary и --parameters, владеет жизненным циклом прошивки/моста и выдаёт только JSON-трассу после очистки. Он запускает JSON-backend, управляет RC/командами и пишет исходную диагностику автопилота; он отделён от демо. Проверки ELF/исходников отклоняют отсутствующие/поддельные входы; хеши устанавливают заявленную идентичность, но не воспроизводимость локального бинарника. Отдельно сохранять логи сборки/инструментария. Родитель создаёт закрытый рабочий каталог, ограничивает stdout/stderr 16 MiB, задаёт 120 с и при отказе завершает свою POSIX-группу процессов. Для потомков Windows нужен проверенный драйвер/job-object; глобальные команды kill запрещены. Общие кеши исходников/сборки при очистке не удалять.
+SITL требует MIRAGE_SITL_SOURCE на закреплённом чистом коммите, MIRAGE_SITL_BINARY с MIRAGE_SITL_BINARY_SHA256 и MIRAGE_SITL_DRIVER с MIRAGE_SITL_DRIVER_SHA256. Секреты не нужны. Node-драйвер (`scripts/sitl/driver.mjs`) получает --binary и --parameters, владеет жизненным циклом прошивки/моста и выдаёт только JSON-трассу после очистки. Он запускает JSON-backend, управляет RC/командами и пишет исходную диагностику автопилота; он отделён от демо. Проверки Mach-O64 (macOS) или ELF64 (Linux), разрешения исполнения и исходников отклоняют отсутствующие/поддельные входы; хеши устанавливают заявленную идентичность, но не воспроизводимость локального бинарника. Отдельно сохранять логи сборки/инструментария. Родитель создаёт закрытый рабочий каталог, ограничивает stdout/stderr 16 MiB, задаёт 120 с и при отказе завершает свою POSIX-группу процессов. Для потомков Windows нужен проверенный драйвер/job-object; глобальные команды kill запрещены. Общие кеши исходников/сборки при очистке не удалять.
 
 Вход выпуска содержит schemaVersion=1, artifacts [{path,sha256,license}], systemReportPath и systemReportSha256. Инвентарь ограничен 4096 файлами, 64 MiB/файл и 512 MiB суммарно из apps/web/dist, packages/wasm-bet/dist или test-results/validation. Выход за пути, symlink-побег, повторы, отсутствие лицензий и несовпадения хешей отклоняются. Вывод фиксирует фактические размеры/хеши, ревизию/dirty, npm lock, хеш реестра данных и версию Node. Полная проверка лицензий зависимостей, реальных версий компиляторов и чистой машины/исходных G0–G4-свидетельств остаётся обязательной: создание инвентаря намеренно сохраняет BLOCKED_EXTERNAL даже при предоставленной зелёной сводке. Публикацию оно не разрешает.
 
@@ -35,16 +35,18 @@ SITL требует MIRAGE_SITL_SOURCE на закреплённом чисто�
 
 ## Нативный полёт SITL (TASK-042)
 
-Запускать весь harness на Linux или внутри WSL Ubuntu. Нужны Node 24,
-виртуальная среда с pymavlink 2.4.50, чистые исходники на коммите из
-`scripts/sitl.lock.json`, их нативный ArduCopter ELF и scalar WASM тела из
+Фаза 1 запускает весь harness нативно на macOS Apple Silicon (TASK-127);
+Linux сохраняется для регрессий, доказательства WSL остаются историческими.
+Нужны Node 24, виртуальная среда с pymavlink 2.4.50, чистые исходники на коммите
+из `scripts/sitl.lock.json`, соответствующий нативный ArduCopter и scalar WASM тела из
 `node scripts/build-wasm.mjs`. Существующие исходники/сборки допустимы после
 проверки идентичности; сохранять логи сборки/версии компилятора. Для этой
 интеграции синтетического аппарата не нужны физический FC, внешний полётный
 лог, облачные credentials или измеренная поляра. `scripts/sitl/driver.mjs` —
 эталонный замкнутый драйвер; он отделён от демо.
 
-Задать пути ниже в Linux shell. Это локальные пути, а не секреты. Каталог
+Нативные prerequisites приведены в [записи сборки macOS](macos-sitl.md).
+Задать пути ниже в POSIX shell. Это локальные пути, а не секреты. Каталог
 захвата должен быть новым. Параметры сохраняют ARMING_CHECK=1 и включённый
 EKF3. Не отключать проверки и не менять закреплённые допуски полёта.
 
@@ -53,8 +55,8 @@ export MIRAGE_SITL_SOURCE=/path/to/pinned/ardupilot
 export MIRAGE_SITL_BINARY=/path/to/native/arducopter
 export MIRAGE_SITL_PYTHON=/path/to/venv/bin/python
 export MIRAGE_SITL_DRIVER="$PWD/scripts/sitl/driver.mjs"
-export MIRAGE_SITL_BINARY_SHA256=$(sha256sum "$MIRAGE_SITL_BINARY" | cut -d ' ' -f 1)
-export MIRAGE_SITL_DRIVER_SHA256=$(sha256sum "$MIRAGE_SITL_DRIVER" | cut -d ' ' -f 1)
+export MIRAGE_SITL_BINARY_SHA256=$(shasum -a 256 "$MIRAGE_SITL_BINARY" | cut -d ' ' -f 1)
+export MIRAGE_SITL_DRIVER_SHA256=$(shasum -a 256 "$MIRAGE_SITL_DRIVER" | cut -d ' ' -f 1)
 export MIRAGE_SITL_CAPTURE_DIR="$PWD/.cache/task-042/capture-new"
 node scripts/run-sitl.mjs
 "$MIRAGE_SITL_PYTHON" scripts/sitl/check-raw.py --input "$MIRAGE_SITL_CAPTURE_DIR"

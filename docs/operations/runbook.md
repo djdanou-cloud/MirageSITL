@@ -24,7 +24,7 @@ node scripts/release-manifest.mjs --input /path/to/release-input.json --sha256 <
 node scripts/bench-terrain-scenarios.mjs 400
 ```
 
-SITL requires MIRAGE_SITL_SOURCE at the pinned clean commit, MIRAGE_SITL_BINARY with MIRAGE_SITL_BINARY_SHA256, and MIRAGE_SITL_DRIVER with MIRAGE_SITL_DRIVER_SHA256. No secrets are required. The Node driver (`scripts/sitl/driver.mjs`) receives --binary and --parameters, owns firmware/bridge lifecycle and outputs only a JSON trace after cleanup. It runs the JSON backend, drives RC/commands and records original autopilot diagnostics; it is separate from the demo. Native ELF and source checks reject absent/fake inputs; hashes establish declared identity but not reproducibility of a locally built binary. Retain build logs/toolchain evidence separately. The parent creates a private working directory, bounds stdout/stderr to 16 MiB, enforces 120 s and terminates its owned POSIX process group on failure. Windows descendant containment still requires a verified driver/job-object implementation; do not use global kill commands. Never delete shared source/build caches during cleanup.
+SITL requires MIRAGE_SITL_SOURCE at the pinned clean commit, MIRAGE_SITL_BINARY with MIRAGE_SITL_BINARY_SHA256, and MIRAGE_SITL_DRIVER with MIRAGE_SITL_DRIVER_SHA256. No secrets are required. The Node driver (`scripts/sitl/driver.mjs`) receives --binary and --parameters, owns firmware/bridge lifecycle and outputs only a JSON trace after cleanup. It runs the JSON backend, drives RC/commands and records original autopilot diagnostics; it is separate from the demo. Native Mach-O64 (macOS) or ELF64 (Linux), execute-permission and source checks reject absent/fake inputs; hashes establish declared identity but not reproducibility of a locally built binary. Retain build logs/toolchain evidence separately. The parent creates a private working directory, bounds stdout/stderr to 16 MiB, enforces 120 s and terminates its owned POSIX process group on failure. Windows descendant containment still requires a verified driver/job-object implementation; do not use global kill commands. Never delete shared source/build caches during cleanup.
 
 A release input contains schemaVersion=1, artifacts [{path,sha256,license}], systemReportPath and systemReportSha256. Inventory is limited to 4096 files, 64 MiB/file and 512 MiB total from apps/web/dist, packages/wasm-bet/dist or test-results/validation. Traversal, symlink escape, duplicates, absent licenses and mismatched hashes are rejected. The output records actual file sizes/hashes, source revision/dirty state, npm lock hash, dataset registry hash and Node version. Complete dependency-license review, actual compiler versions and clean-machine/raw G0–G4 evidence are still prerequisites: inventory generation deliberately remains BLOCKED_EXTERNAL even for a supplied green summary. It cannot authorize publication.
 
@@ -34,16 +34,19 @@ Accessibility checklist: keyboard Tab reaches the skip link and core actions; En
 
 ## Native SITL flight (TASK-042)
 
-Run the whole harness on Linux or inside WSL Ubuntu. Use Node 24, a virtual
-environment with pymavlink 2.4.50, the clean source at the commit in
-`scripts/sitl.lock.json`, its native ArduCopter ELF, and the scalar body WASM
+Phase 1 runs the whole harness natively on macOS Apple Silicon (TASK-127);
+Linux remains supported for regressions, and WSL evidence is historical. Use
+Node 24, a virtual environment with pymavlink 2.4.50, the clean source at the
+commit in `scripts/sitl.lock.json`, its matching native ArduCopter executable,
+and the scalar body WASM
 from `node scripts/build-wasm.mjs`. Existing source/builds may be reused after
 checking their identities; preserve build logs/compiler versions. No physical
 FC, external flight log, cloud credentials or measured polar is required for
 this synthetic-aircraft integration. `scripts/sitl/driver.mjs` is the reference
 closed-loop driver; it is separate from the demo.
 
-Set the paths below in the Linux shell. Values are local paths, not secrets.
+See [the macOS build record](../decisions/macos-sitl.md) for native prerequisites.
+Set the paths below in a POSIX shell. Values are local paths, not secrets.
 The capture directory must be new. The firmware parameters keep ARMING_CHECK=1
 and EKF3 enabled. Do not disable checks or alter the frozen flight tolerances.
 
@@ -52,8 +55,8 @@ export MIRAGE_SITL_SOURCE=/path/to/pinned/ardupilot
 export MIRAGE_SITL_BINARY=/path/to/native/arducopter
 export MIRAGE_SITL_PYTHON=/path/to/venv/bin/python
 export MIRAGE_SITL_DRIVER="$PWD/scripts/sitl/driver.mjs"
-export MIRAGE_SITL_BINARY_SHA256=$(sha256sum "$MIRAGE_SITL_BINARY" | cut -d ' ' -f 1)
-export MIRAGE_SITL_DRIVER_SHA256=$(sha256sum "$MIRAGE_SITL_DRIVER" | cut -d ' ' -f 1)
+export MIRAGE_SITL_BINARY_SHA256=$(shasum -a 256 "$MIRAGE_SITL_BINARY" | cut -d ' ' -f 1)
+export MIRAGE_SITL_DRIVER_SHA256=$(shasum -a 256 "$MIRAGE_SITL_DRIVER" | cut -d ' ' -f 1)
 export MIRAGE_SITL_CAPTURE_DIR="$PWD/.cache/task-042/capture-new"
 node scripts/run-sitl.mjs
 "$MIRAGE_SITL_PYTHON" scripts/sitl/check-raw.py --input "$MIRAGE_SITL_CAPTURE_DIR"

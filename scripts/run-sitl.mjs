@@ -1,7 +1,8 @@
 import { spawn, execFileSync } from "node:child_process";
 import { readFileSync, mkdirSync, writeFileSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
+import { readNativeExecutable } from "./sitl/native-binary.ts";
 import { fileURLToPath } from "node:url";
 import { sha256, hash, report, exact, finite, provenance } from "./validation/evidence.mjs";
 const pin = JSON.parse(readFileSync(new URL("./sitl.lock.json", import.meta.url)));
@@ -40,6 +41,9 @@ export function runOwned(command, args, options = {}) {
     });
     child.once("close", code => {
       clearTimeout(timer); if (killer) clearTimeout(killer);
+      // Closing pipes does not prove that a TERM-resistant descendant exited.
+      // The child created its own POSIX group; finish reaping only that group.
+      if (process.platform !== "win32") terminate("SIGKILL");
       if (failed) reject(failed);
       else if (code !== 0) reject(new Error(`Owned process exited ${code}: ${Buffer.concat(stderr).toString().slice(0, 1024)}`));
       else resolve(Buffer.concat(stdout));
@@ -87,21 +91,24 @@ export function assessFlight(v) {
 }
 export async function runSitl(env = process.env) {
   if (!env.MIRAGE_SITL_BINARY || !env.MIRAGE_SITL_SOURCE || !env.MIRAGE_SITL_DRIVER || !hash(env.MIRAGE_SITL_BINARY_SHA256) || !hash(env.MIRAGE_SITL_DRIVER_SHA256))
-    return report("sitl-report", "BLOCKED_EXTERNAL", ["Provide pinned clean ArduPilot source, ELF binary+SHA-256, and closed-loop driver+SHA-256; production physics/RC driver is not supplied by the demo"]);
+    return report("sitl-report", "BLOCKED_EXTERNAL", ["Provide pinned clean ArduPilot source, host-native executable+SHA-256, and closed-loop driver+SHA-256"]);
+  if (process.platform !== "linux" && process.platform !== "darwin") return report("sitl-report", "BLOCKED_EXTERNAL", ["Native SITL requires macOS or Linux"]);
   // TASK-089 setting, read by the driver: 'ardupilot' (default) or 'off', which needs the imu-noise-floor patch.
   const imuNoiseFloor = env.MIRAGE_SITL_IMU_NOISE_FLOOR ?? "ardupilot";
   if (imuNoiseFloor !== "ardupilot" && imuNoiseFloor !== "off") throw new Error("MIRAGE_SITL_IMU_NOISE_FLOOR must be ardupilot or off");
-  const source = env.MIRAGE_SITL_SOURCE;
+  const source = resolve(env.MIRAGE_SITL_SOURCE);
+  const binaryPath = resolve(env.MIRAGE_SITL_BINARY), driverPath = resolve(env.MIRAGE_SITL_DRIVER);
   if (execFileSync("git", ["rev-parse", "HEAD"], { cwd: source, encoding: "utf8" }).trim() !== pin.commit ||
     execFileSync("git", ["status", "--porcelain", "--untracked-files=no"], { cwd: source, encoding: "utf8" }).trim()) throw new Error("ArduPilot source pin/cleanliness mismatch");
-  const binary = readFileSync(env.MIRAGE_SITL_BINARY), driver = readFileSync(env.MIRAGE_SITL_DRIVER);
-  if (binary.subarray(0, 4).toString("hex") !== "7f454c46" || sha256(binary) !== env.MIRAGE_SITL_BINARY_SHA256 || sha256(driver) !== env.MIRAGE_SITL_DRIVER_SHA256) throw new Error("Missing real pinned ELF or driver hash mismatch");
+  const { bytes: binary } = readNativeExecutable(binaryPath);
+  const driver = readFileSync(driverPath);
+  if (sha256(binary) !== env.MIRAGE_SITL_BINARY_SHA256 || sha256(driver) !== env.MIRAGE_SITL_DRIVER_SHA256) throw new Error("Native executable or driver hash mismatch");
   const cwd = mkdtempSync(join(tmpdir(), "mirage-sitl-run-"));
   try {
     // Driver owns its firmware/bridge children and must return only after cleanup.
     // A driver is trusted local executable code, not a remotely downloaded plugin.
-    const output = await runOwned(process.execPath, [env.MIRAGE_SITL_DRIVER, "--binary", env.MIRAGE_SITL_BINARY, "--parameters", fileURLToPath(new URL("../tests/fixtures/sitl/parameters.parm", import.meta.url))],
-      { cwd, env: { ...env, MIRAGE_SITL_IMU_NOISE_FLOOR: imuNoiseFloor } });
+    const output = await runOwned(process.execPath, [driverPath, "--binary", binaryPath, "--parameters", fileURLToPath(new URL("../tests/fixtures/sitl/parameters.parm", import.meta.url))],
+      { cwd, env: { ...env, MIRAGE_SITL_SOURCE: source, MIRAGE_SITL_IMU_NOISE_FLOOR: imuNoiseFloor } });
     const trace = JSON.parse(output);
     if (trace.schemaVersion !== 2) throw new Error("Native flight driver must provide trace v2 telemetry evidence");
     if (trace.provenance?.firmwareSha256 !== env.MIRAGE_SITL_BINARY_SHA256) throw new Error("Driver firmware identity mismatch");

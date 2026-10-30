@@ -231,8 +231,13 @@ implementation.
   on the external-SITL path, and offers cited per-sensor presets (SA-02); fields
   no owner can apply yet wait for TASK-147, which also applies the rest at run
   time. Decisions D-04
-  and D-06 to D-12 are decided. D-01 and D-02 still wait on TASK-127 and
-  TASK-128. TASK-129 records D-03: JSON lockstep without `no_lockstep` owns
+  and D-06 to D-12 are decided. TASK-127 and TASK-128 are DONE: stock
+  ArduCopter `8ab6afd` builds and flies natively on Apple Silicon
+  ([macos-sitl.md](docs/decisions/macos-sitl.md)), and its stock frames and
+  scripting matrix drive all five S19 configurations, 16 motors included
+  ([ardupilot-frames.md](docs/decisions/ardupilot-frames.md)). That is the
+  evidence for D-01 and D-02; the stakeholder has not recorded either
+  decision yet. TASK-129 records D-03: JSON lockstep without `no_lockstep` owns
   simulated time, a 60 s pause does not induce a failsafe, parameter access
   waits until resume, and acceleration is host-limited
   ([sitl-clock.md](docs/decisions/sitl-clock.md)). TASK-136 defined the project archive of D-05, TASK-139 its

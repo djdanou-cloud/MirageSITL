@@ -29,7 +29,8 @@ def main():
         raise RuntimeError("Firmware MAVLink connection deadline exceeded")
     connection.logfile_raw = open(sys.argv[2], "wb")
     experiment = len(sys.argv) > 3 and sys.argv[3] == "--ew"
-    if experiment:
+    frames = len(sys.argv) > 3 and sys.argv[3] == "--frames"
+    if experiment or frames:
         # Capture exactly the outgoing wire bytes, independently audited later.
         transmitted = open(Path(sys.argv[2]).with_name("tx.raw"), "wb")
         atexit.register(transmitted.close)
@@ -66,6 +67,10 @@ def main():
                 command = {"arm": 400, "takeoff": 22, "land": 21}[kind]
                 params = [1, 0, 0, 0, 0, 0, 0] if kind == "arm" else [0, 0, 0, 0, 0, 0, 10 if kind == "takeoff" else 0]
                 connection.mav.command_long_send(1, 1, command, 0, *params)
+            elif frames and kind == "motor-test":
+                connection.mav.command_long_send(1, 1, mavutil.mavlink.MAV_CMD_DO_MOTOR_TEST,
+                                                 0, request["sequence"], 1, request["pwmUs"],
+                                                 request["durationS"], 1, 0, 0)
             elif experiment and kind == "gps":
                 g = request["gps"]
                 connection.mav.gps_input_send(
