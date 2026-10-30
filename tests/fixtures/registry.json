@@ -1661,6 +1661,66 @@
           "derivation": "Bench CSV v2 generated with 50-digit decimal arithmetic from C_T = 0.11, C_P = 0.045, D = 0.254 m, the ideal-gas density at 293.15 K and 101325 Pa with the ICAO specific gas constant R = 287.05287 J/(kg K), 16 V and a motor and ESC efficiency of 0.8, printed with 12 significant digits. TASK-140 bench-import, measurement-set and binding tests only; not a measured thrust stand."
         }
       }
+    },
+    {
+      "path": "dataflash/sitl-copter.bin",
+      "manifest": {
+        "formatVersion": 1,
+        "id": "dataflash-sitl-copter-slice-v1",
+        "sourceSha256": "34412acb5f5039c0a87c16e83ba0886446a2d6b7d06725671a58d258d50f0374",
+        "units": {
+          "timeUs": "us",
+          "messageType": "1"
+        },
+        "validityEnvelope": {
+          "timeUs": {
+            "min": 42248934,
+            "max": 42645184
+          },
+          "messageType": {
+            "min": 0,
+            "max": 254
+          }
+        },
+        "tolerance": {
+          "absolute": 0,
+          "relative": 0
+        },
+        "provenance": {
+          "kind": "synthetic",
+          "derivation": "First 100,011 bytes (2,259 records, ending on a record boundary) of the ArduCopter V4.8.0-dev (8ab6afde) SITL DataFlash log (source SHA-256 e6961ff9069e0b3604ea0e5e7652ae689adc89869b90e073c66556175adbef97, 2,076,672 bytes) captured by the TASK-147 native SITL run without a sensor configuration on the synthetic quad X; cut by scripts/generate-dataflash-fixtures.py. Simulated autopilot log for the TASK-178 reader, not a measurement."
+        }
+      }
+    },
+    {
+      "path": "dataflash/reference.json",
+      "manifest": {
+        "formatVersion": 1,
+        "id": "dataflash-mavlogdump-reference-v1",
+        "sourceSha256": "a7388a87c2f87d7b4ae60593c9f2c31f50094b1b9e60f1bc410e0cb10ac09745",
+        "units": {
+          "timeUs": "us",
+          "messageType": "1"
+        },
+        "validityEnvelope": {
+          "timeUs": {
+            "min": 42248934,
+            "max": 42645184
+          },
+          "messageType": {
+            "min": 0,
+            "max": 254
+          }
+        },
+        "tolerance": {
+          "absolute": 0,
+          "relative": 0
+        },
+        "provenance": {
+          "kind": "synthetic",
+          "derivation": "pymavlink 2.4.50 mavlogdump.py --format json of dataflash/sitl-copter.bin, of four damaged copies made by recorded edits, and of a writer sample written from fixed inputs by packages/dataflash/src/writer.ts, with units resolved from the logs' UNIT, MULT and FMTU records (scripts/generate-dataflash-fixtures.py, TASK-178). Parser oracle only, not physical measurements."
+        }
+      }
     }
   ]
 }

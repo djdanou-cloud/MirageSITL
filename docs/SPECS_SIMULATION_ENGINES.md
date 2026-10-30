@@ -5367,3 +5367,151 @@ through the session registry. `tests/browser/profile-dynamics.spec.ts` derives
 the sixteen-motor manifest in Chromium and loads it into the application's
 physics Worker. `tests/aircraft-editor.test.ts` checks the polar choices of the
 Aircraft tab form.
+
+## DataFlash reader and writer (TASK-178)
+
+`@mirage/dataflash` reads ArduPilot DataFlash logs (`.BIN`) and writes
+MirageSITL experiment records as DataFlash files. pymavlink 2.4.50, whose
+`DFReader` `mavlogdump.py` uses, is the oracle for framing, field values and
+times. Both directions run on the cold path.
+
+### Reader
+
+`DataFlashReader` is incremental: `push(chunk)` takes bytes in file order and
+`finish()` returns the log; `readDataFlash(bytes)` does both. A record is the
+header 0xA3 0x95, a type byte that an FMT record has defined, and the body
+length that FMT declares. FMT itself (type 128, 89 bytes, `BBnNZ`) is built in.
+Bytes that do not start a defined record are skipped up to the next one, as
+pymavlink skips them. The reader reports every damaged range with its byte
+offsets:
+
+| Kind | Range |
+| --- | --- |
+| `skipped` | From the first byte that does not start a defined record up to the next header of a defined type, or to the end of the file. |
+| `truncated` | A record with a valid header that the end of the file cuts short. |
+| `bad-format` | An FMT record that has an unknown format character, a Length that differs from the size of its format, a column count that differs from its format, or that redefines FMT. Its type stays undefined. |
+
+pymavlink instead fails on an unknown format character and later skips the
+records of a type whose Length is wrong. An FMT record that repeats the current
+definition of its type changes nothing. One that differs starts a new group,
+and later records of that type use it.
+
+The result is a plain object, so a Worker can transfer it: the bytes read, the
+record count, the damaged ranges, the clock, the group index of every record
+in file order (`order`), and one group per message definition. A group has its
+type, name, format, record count, the byte offset of each record and
+pymavlink's timestamp of each record. Its columns are typed:
+
+| Format | Column | Value |
+| --- | --- | --- |
+| b, M | Int8Array | as logged |
+| B | Uint8Array | as logged |
+| h, H, i, I | Int16Array, Uint16Array, Int32Array, Uint32Array | as logged |
+| q, Q | BigInt64Array, BigUint64Array | as logged |
+| f | Float32Array | as logged |
+| d | Float64Array | as logged |
+| g | Float32Array | binary16 widened exactly |
+| c, C, e, E | Float64Array | integer divided by 100 |
+| L | Float64Array | integer divided by 10^7 |
+| a | Int16Array | 32 values per record |
+| n, N, Z | Uint8Array | 4, 16 or 64 bytes per record |
+
+The scaled formats divide rather than multiply, as pymavlink does, so the
+values are the same doubles. `columnText(column, row)` decodes text as
+pymavlink does: UTF-8, else Latin-1, cut at the first NUL. pymavlink returns
+FILE.Data as raw bytes; the column holds those bytes.
+
+Each column also has a unit, a multiplier, a value scale and an instance flag.
+These come from the last FMTU record of its type, resolved against the log's
+final UNIT and MULT tables. An identifier with no UNIT entry gives `''`, and no
+MULT entry gives `null`. The value scale converts the stored value to the unit:
+1 where the format already scales the value (c, C, e, E, L) or where there is
+no multiplier, else the multiplier. The instance flag marks the `#` column.
+pymavlink resolves each FMTU against the tables as they stand when it reads
+that FMTU. In ArduPilot logs, FMTU records precede UNIT, so pymavlink loses
+those units; the reader does not reproduce that.
+
+Times follow pymavlink's `init_clock` and microsecond clock. The first GPS
+record with GWk > 0 sets the timebase:
+
+$$
+t_\mathrm{base} = 315964800 + 604800\,\mathrm{GWk} + 0.001\,\mathrm{GMS} - 18 - 10^{-6}\,\mathrm{TimeUS}
+$$
+
+A record whose first column is TimeUS gets t_base + 10^-6·TimeUS. A record
+whose first column is TimeMS gets t_base + 0.001·TimeMS, unless its name
+starts with ACC or GYR or that time is earlier than the previous one. Any other
+record repeats the previous time; the first time is t_base plus the first
+TimeUS of the log. Without a GPS week the timebase and the first time are 0,
+as in pymavlink. Logs
+with older clocks give `clock: 'unsupported'` and NaN times: a GPS record with
+a non-zero T, Week or GPSTime, a TIME record with StartTime, or no TimeUS at
+all.
+
+`parseSource(source, chunkBytes, onProgress)` reads a Blob, ArrayBuffer or
+Uint8Array in chunks and reports the bytes read after each. `transferables(log)`
+lists the log's buffers. `dataflash.worker.ts` takes
+`{ type: 'parse', id, source, chunkBytes? }` (1 MiB chunks by default, at most
+64 MiB). It replies `{ type: 'progress', id, bytes, total }` after each chunk,
+then `{ type: 'result', id, log }` with the buffers transferred. It answers any
+other message with `{ type: 'error', id, message }`, using id −1 when the
+message has no valid id.
+
+### Writer
+
+`DataFlashWriter.append(record)` validates one record and encodes it; an
+invalid record throws `RangeError` and writes nothing. `bytes()` returns the
+log and `writeDataFlash(records)` does both. The log starts with FMT for FMT,
+UNIT, MULT and FMTU, then the UNIT and MULT tables, then FMT and FMTU for each
+MirageSITL message. Every time is TimeUS in microseconds (a safe integer
+≥ 0). The names start with `MS`; in the pinned ArduPilot source, no
+four-character log name starts with `MS`.
+
+```text
+type name format            columns                                                     units             multipliers
+240  MSTR QLLfffffffffffff  TimeUS,Lat,Lng,Alt,PN,PE,PD,VN,VE,VD,Roll,Pitch,Yaw,GX,GY,GZ sDUmmmmnnndddkkk  FGG0000000000000
+241  MSMO QBffffff          TimeUS,Inst,Cmd,RPM,Thr,Trq,Curr,Volt                        s#-qNtAv          F--00000
+242  MSEV QBZ               TimeUS,Kind,Text                                             s--               F--
+243  MSPC QINfffB           TimeUS,Seq,Name,Req,Old,Act,Stat                             s------           F------
+UNIT - "" # instance s s D deglatitude U deglongitude m m n m/s d deg k deg/s q rpm N N t N.m A A v V
+MULT - 0  0 1  F 1e-6  G 1e-7
+```
+
+| Message | Record | Content |
+| --- | --- | --- |
+| MSTR | `truth` | Latitude and longitude in degrees (L, within ±90 and ±180, rounded to 10^-7), altitude above mean sea level, NED position and velocity, roll, pitch and yaw in degrees, and body rates in degrees per second. |
+| MSMO | `motor` | Motor index 0 to 15 (instance), normalized command, rpm, thrust, torque, current and voltage. |
+| MSEV | `event` | Kind (0 `note`, 1 `environment`, 2 `fault`, 3 `command`) and text of at most 64 UTF-8 bytes without NUL. |
+| MSPC | `parameter` | Request sequence (uint32), name (1 to 16 of A–Z, 0–9 and `_`), requested, previous and confirmed values, and status (0 `requested`, 1 `confirmed`, 2 `rejected`). A previous or confirmed value of `null` is written as NaN. |
+
+ArduPilot defines no unit for newton, so the writer adds `N` to the UNIT table.
+Float fields must be finite and remain finite in float32, and they are stored
+as float32. Records must have exactly the listed fields.
+`readExperimentRecords(log)` reads the MirageSITL records of a log back, in
+file order. It turns NaN back into `null` and ignores other messages. It
+rejects an MS message whose definition differs from the table above.
+
+### Verification (TASK-178)
+
+`scripts/generate-dataflash-fixtures.py` writes
+`tests/fixtures/dataflash/reference.json` from pymavlink 2.4.50's
+`mavlogdump.py --format json`, covering:
+
+* `sitl-copter.bin`: the first 100,011 bytes (2,259 records, ending on a
+  record boundary) of an ArduCopter V4.8.0-dev (8ab6afde) SITL log from the
+  TASK-147 run;
+* four damaged copies: 37 garbage bytes inserted, a type byte set to an
+  undefined type, 300 bytes zeroed, and a cut final record. For each, the
+  script checks that pymavlink loses exactly the recorded records and reports
+  the same skipped ranges;
+* a writer sample from fixed inputs, each exactly representable in its wire
+  type. The script checks that pymavlink reads every input back unchanged.
+
+`tests/dataflash.test.ts` compares every record, time and field value of the
+slice exactly, at chunk sizes from 1 byte to 64 KiB; the damaged ranges and
+surviving records of each damaged copy; the units; FMT rejection,
+redefinition and truncation; the timebase, TimeMS and pre-TimeUS clock rules;
+half floats; and pymavlink text decoding. For the writer it checks the
+sample's bytes, pymavlink's reading of it, the identical re-parse and the
+rejection of invalid records. `tests/browser/dataflash-worker.spec.ts` parses
+the slice in the Worker in Chromium.

@@ -1,0 +1,10 @@
+{
+  "name": "@mirage/dataflash",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./reader": "./src/reader.ts",
+    "./writer": "./src/writer.ts"
+  }
+}

@@ -249,7 +249,11 @@ implementation.
   parameter, command, status, telemetry, mission and position-target messages
   of Phase 1, with a cold `packInto` builder, field readers and preallocated
   decoders for the high-rate telemetry subset, all byte- and value-exact
-  against pymavlink goldens. Decisions D-04
+  against pymavlink goldens. TASK-178 is DONE: `packages/dataflash` reads
+  DataFlash logs, in a Worker if needed, with the field values and times of
+  pymavlink's `mavlogdump`, reports damaged byte ranges, and writes MirageSITL
+  truth, motor, event and parameter-change records under `MS` names that
+  pymavlink reads back unchanged. Decisions D-04
   and D-06 to D-12 are decided. D-01 and D-02 still wait on TASK-127 and
   TASK-128. TASK-129 records D-03: JSON lockstep without `no_lockstep` owns
   simulated time, a 60 s pause does not induce a failsafe, parameter access
