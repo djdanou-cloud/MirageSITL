@@ -5515,3 +5515,118 @@ half floats; and pymavlink text decoding. For the writer it checks the
 sample's bytes, pymavlink's reading of it, the identical re-parse and the
 rejection of invalid records. `tests/browser/dataflash-worker.spec.ts` parses
 the slice in the Worker in Chromium.
+
+## Battery and propulsion limits (TASK-146)
+
+With the TASK-092 drive, `BetFlightDynamics` records the electrical values of
+every step and checks them against the component ratings and against the
+clamps the model applied. A rating `warning` and a modeled `limited` clamp
+stay separate everywhere: a warning never changes physics, and a clamp is
+never reported as a warning. Heating, cooling and aging are not modeled.
+
+### Limit ratings v1
+
+`componentRatings(profile, cards)` (`@mirage/aircraft/resolve-components`)
+builds the ratings from the cards a profile references, one entry per motor
+in profile order, which is the derived manifest's rotor order. Only values a
+card states become ratings, never assumed ones; null is never checked.
+`parseLimitRatings(value, motorCount?)` (`@mirage/physics/limit-monitor`)
+validates them from unknown input: exactly these keys, each rating a
+positive finite number or null, 1 to 16 motors.
+
+```json
+{
+  "schemaVersion": 1,
+  "motors": [{ "motorCurrentA": 30, "motorPowerW": 450, "escCurrentA": 30, "escVoltageV": 25.2, "rpm": null }],
+  "battery": { "emptyVoltageV": 13.2 }
+}
+```
+
+| Rating | Card value |
+| --- | --- |
+| `motorCurrentA` | Motor card maximum current |
+| `motorPowerW` | Motor card maximum power |
+| `escCurrentA` | ESC card maximum current |
+| `escVoltageV` | ESC card maximum voltage |
+| `rpm` | Always null: component card schema 1 has no speed rating |
+| `emptyVoltageV` | Battery cells in series × empty cell voltage |
+
+### Telemetry and masks
+
+`PowerTelemetry` holds, in preallocated arrays, five doubles per motor
+(speed in rev/min, motor current, bus current and electrical power from
+bound-rotor v2 record bytes 144, 152 and 160, and the ESC duty) and six for
+the battery (state of charge, bus voltage, bus current, bus power, remaining
+and total charge in Ah). It is written after the bus step of every tick. A
+reset restores the unloaded pack: the initial state of charge, the
+open-circuit voltage, no current.
+
+| Kind | Subject | Bit | Condition | Compared with |
+| --- | --- | --- | --- | --- |
+| warning | motor | MotorCurrent | \|motor current\| > `motorCurrentA` | the rating |
+| warning | motor | MotorPower | electrical power > `motorPowerW` | the rating |
+| warning | motor | EscCurrent | \|motor current\| > `escCurrentA` | the rating |
+| warning | motor | EscVoltage | bus voltage > `escVoltageV` | the rating |
+| warning | motor | Rpm | \|speed\| > `rpm` | the rating |
+| warning | battery | UnderVoltage | bus voltage < `emptyVoltageV` | the rating |
+| limited | motor | CurrentLimit | bound-rotor v2 output flag 32 | the drive's current limit, or its brake limit for a negative current |
+| limited | battery | PackCurrent | shared bus flag 1 (discharging or regenerating) | the pack current limit |
+| limited | battery | Charge | shared bus flag 2 (regeneration into a full pack) | a state of charge of 1 |
+
+A motor rated at its own current limit (TASK-144 takes the drive limit from
+the motor card) is clamped exactly at the rating, so it shows `limited` and no
+`warning`.
+
+### Events
+
+`LimitMonitor.evaluate` turns every mask bit that changes into an event in
+a bounded outbox of 256: tick, subject (motor index or battery), quantity,
+kind, edge (`start` or `end`), value and the rating or limit. Events beyond
+the capacity are counted in `dropped`. The quantities are `motor-current`,
+`motor-power`, `esc-current`, `esc-voltage`, `rpm`, `battery-voltage`
+(warnings) and `current-limit`, `pack-current-limit`, `charge-limit`
+(limited). `evaluate` allocates nothing; `drain` builds the event objects and
+runs only after the compute batch. The monitor runs every event branch once
+on synthetic telemetry at construction and then resets. V8 compiles
+`evaluate` with the type feedback of the branches it has executed, and a
+branch first taken in flight, such as a pack crossing its empty voltage, would
+deoptimize it; the unoptimized code then boxes doubles until it is optimized
+again. Event values and limits pass through a typed array, never as call
+arguments.
+
+### Session, Worker and UI
+
+`PhysicsSessionV2.attachPowerChannel` publishes power telemetry v1
+([Shared Memory](SPECS_SHARED_MEMORY.md)) after every step. Each recording
+sample carries the step's telemetry (`SessionRecordSample.power`), and
+`drainLimitEvents` empties the outbox after a pump. The AAR v1 record has no
+free bytes, so the per-motor values reach the recording hook, and the
+recorder v2 format of TASK-162 stores them. The physics Worker attaches the
+channel on `power.attach`, binds ratings to a manifest hash on
+`limits.register`, and posts `limits.events` after each pump.
+`profileModelPort` passes a model's ratings to its dynamics and refuses a
+`model.load` whose ratings list another motor count. The Run tab's
+`PowerPanel` reads the channel four times a second and shows the battery
+values and status, a row per motor, and the newest limit events, labeling
+each `Warning` or `Limited`. For the demo it states that there is no
+electrical model.
+
+### Verification (TASK-146)
+
+`tests/limit-monitor.test.ts` recomputes the shared bus from the published
+per-motor powers each step (V_oc linear in the state of charge, the current
+root above, V = V_oc − I·R_int, ΔSOC = −I·dt/C) and matches voltage,
+current, power, state of charge and remaining charge within 1e-12 relative
+over 4,000 steps. It also checks that exceeded ratings warn while two runs,
+one with and one without ratings, stay bit-identical; that a motor at its
+current limit and a pack at its current limit are `limited`; that a low pack
+warns of under-voltage; and the ratings schema, the outbox bound and the
+brake limit. `tests/power-channel.test.ts` checks every byte offset of the
+channel, the torn-read refusal, and a session that publishes four motors,
+feeds the recording hook and drains a limit event while ABI v2 keeps its
+size. `tests/browser/power-panel.spec.ts` runs a quad X profile in the
+application's physics Worker with a 15 A pack limit and a 60 W motor power
+rating and checks that the panel shows the pack `Limited` and each motor's
+power as a `Warning`; it also checks the Run tab's panel for the demo.
+`scripts/bench-profile-dynamics.mjs` measures G1 with the monitor and the
+channel publish in the step loop.

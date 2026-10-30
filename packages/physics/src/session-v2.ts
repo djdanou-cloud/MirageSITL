@@ -1,11 +1,12 @@
 import { ActuatorFrameCodecV2, ControlFlag, ControlProcessorV2, HeaderV2, INPUT_CLOCK_TOLERANCE_MS, INPUT_TIMEOUT_MS, PilotFlagV2, PilotReaderV2,
-  RuntimeFlagV2, SensorFrameCodecV2, SpscConsumer, StateWriterV2, UNKNOWN_U32, VehicleFlagV2, isValidPilotInputV2, newActuatorFrameV2,
+  PowerWriterV1, RuntimeFlagV2, SensorFrameCodecV2, SpscConsumer, StateWriterV2, UNKNOWN_U32, VehicleFlagV2, isValidPilotInputV2, newActuatorFrameV2,
   newFlightStateV2, newInput, newPilotInputV2, newSensorFrameV2, tickToNumber, validateSharedMemoryV2, validateSpscQueue,
   type ClockModeV2, type CommandResultV2, type PhysicsHz, type ScheduledCommandV2, type ScheduledRejectV2, type TickId,
-  type WorkerInitV2, type FlightState, type FlightStateV2, type PilotInput, type PilotInputV2, type ActuatorFrameV2, type SensorFrameV2 } from '@mirage/protocol';
+  type PowerTelemetrySource, type WorkerInitV2, type FlightState, type FlightStateV2, type PilotInput, type PilotInputV2, type ActuatorFrameV2, type SensorFrameV2 } from '@mirage/protocol';
 import { SteppingPolicy, newPumpReport, type StepGate } from './clock-policy.ts';
 import { DemoDynamics } from './demo-dynamics.ts';
 import { MotorFaults } from './motor-fault.ts';
+import type { LimitEvent } from './limit-monitor.ts';
 
 // Physics Worker session on ABI v2 (TASK-085). Owns the state ring writer,
 // pilot mailbox reader, actuator queue consumer, Control Protocol v2
@@ -54,6 +55,8 @@ export interface SessionFaultContext {
 }
 export interface SessionRecordSample {
   state: FlightStateV2;
+  /** TASK-146 per-motor and battery telemetry of this tick; null when the dynamics has no electrical drive. */
+  power: PowerTelemetrySource | null;
   pilot: Float64Array;
   actuator: ActuatorFrameV2 | null;
   sensor: SensorFrameV2 | null;
@@ -83,6 +86,10 @@ export interface SessionDynamics {
   /** Battery bus current, A, when the dynamics models the electrical drive (TASK-092). */
   /** [state of charge, bus voltage V, bus current A] of an electrical drive (TASK-092); indexed, never boxed. */
   readonly electrical?: Float64Array;
+  /** TASK-146 electrical telemetry of the last step, written in place; absent or null without an electrical drive. */
+  readonly power?: PowerTelemetrySource | null;
+  /** TASK-146 limit events of the dynamics; `drain` is cold. */
+  readonly limits?: { readonly dropped: number; drain(sink: (event: LimitEvent) => void): number } | null;
   reset(): void; stepNow(input: PilotInput): void; dispose?(): void;
   useActuators?(frame: ActuatorFrameV2): void;
   /**
@@ -113,6 +120,7 @@ export class PhysicsSessionV2 {
   private readonly recordPilot = new Float64Array(4);
   private readonly recordSample: SessionRecordSample;
   private recordHook: ((sample: SessionRecordSample) => void) | null = null;
+  private powerWriter: PowerWriterV1 | null = null;
   private readonly actuatorCodec = new ActuatorFrameCodecV2();
   private readonly actuator = newActuatorFrameV2();
   private actuatorPending = false;
@@ -169,7 +177,7 @@ export class PhysicsSessionV2 {
     // into init.sensorBuffer so it can never overflow or be read by Main.
     this.actuators = new SpscConsumer(init.actuatorBuffer, 'actuator');
     this.sensors = new SpscConsumer(init.sensorBuffer, 'sensor');
-    this.recordSample = { state: this.state, pilot: this.recordPilot, actuator: null, sensor: null };
+    this.recordSample = { state: this.state, power: null, pilot: this.recordPilot, actuator: null, sensor: null };
     const hz = this.hzFromHeader();
     this.epoch = Atomics.load(this.header, HeaderV2.SessionEpoch) >>> 0;
     this.dynamicsFactory = dynamicsFactory;
@@ -197,6 +205,19 @@ export class PhysicsSessionV2 {
    */
   setRecorder(hook: ((sample: SessionRecordSample) => void) | null): void { this.recordHook = hook; }
   allocateRequestId(): number { return this.processor.allocateRequestId(); }
+  /**
+   * TASK-146: publishes power telemetry v1 into `buffer` after every step from
+   * now on (a record without motors while the dynamics has no electrical
+   * drive); null detaches. Cold.
+   */
+  attachPowerChannel(buffer: SharedArrayBuffer | null): void {
+    this.powerWriter = buffer ? new PowerWriterV1(buffer) : null;
+    if (this.powerWriter) this.publishPower(this.policy.tick);
+  }
+  /** Cold: hands the active dynamics' limit events to `sink` after a pump; returns how many. */
+  drainLimitEvents(sink: (event: LimitEvent) => void): number { return this.dynamics.limits?.drain(sink) ?? 0; }
+  /** Limit events the active dynamics' outbox could not hold. */
+  get limitEventsDropped(): number { return this.dynamics.limits?.dropped ?? 0; }
 
   readyEvent(): CommandResultV2 {
     return { type: 'ready-v2', protocolVersion: 2, abiVersion: 2, epoch: this.epoch, hz: this.policy.hz };
@@ -471,7 +492,14 @@ export class PhysicsSessionV2 {
     s.autopilotMode = UNKNOWN_U32; s.autopilotHealth = 0; s.autopilotStatusAgeMs = 0;
     if (this.actuatorPending) { s.lastActuatorTick.lo = this.actuator.tickId.lo; s.lastActuatorTick.hi = this.actuator.tickId.hi; }
     this.writer.publish(s);
+    if (this.powerWriter) this.publishPower(tick);
     this.recordProducedTick();
+  }
+
+  /** TASK-146 power telemetry v1 of this tick. Allocation-free. */
+  private publishPower(tick: TickId): void {
+    const d = this.dynamics;
+    this.powerWriter?.publish(d.power ?? null, tick.lo, tick.hi, this.epoch, d.modelId ?? DEMO_MODEL_ID, d.limits?.dropped ?? 0);
   }
 
   /** Copies this tick into the recording fanout. The flight sensor queue is read only here. */
@@ -481,6 +509,7 @@ export class PhysicsSessionV2 {
     const pilot = this.recordPilot, input = this.dynamicsInput;
     pilot[0] = input.roll; pilot[1] = input.pitch; pilot[2] = input.yaw; pilot[3] = input.throttle;
     const sample = this.recordSample;
+    sample.power = this.dynamics.power ?? null;
     sample.actuator = this.actuatorPending ? this.actuator : null;
     sample.sensor = this.sensors.tryPop(this.sensorCodec.words) && this.sensorCodec.decode(this.sensorFrame) && this.sensorFrame.epoch === this.epoch
       ? this.sensorFrame : null;

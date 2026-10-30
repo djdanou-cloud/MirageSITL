@@ -1,4 +1,5 @@
 import { catalogPolar, catalogPolarForAirfoil } from '@mirage/physics/polar-catalog';
+import { LIMIT_RATINGS_SCHEMA_VERSION, type LimitRatings, type MotorRatings } from '@mirage/physics/limit-monitor';
 import { checkProfileCards, type BatteryCard, type ComponentCard, type EscCard, type MotorCard, type PropellerCard } from './components.ts';
 import type { EscValues, MotorValues, ResolvedComponents, RotorBlades } from './derive-manifest.ts';
 import { derivePropellerGeometry, type GeometryFlagId } from './propeller-geometry.ts';
@@ -159,4 +160,26 @@ export function resolveComponents(input: unknown, cards: ReadonlyMap<string, Com
     assumptions: Object.freeze([...assumptions.values()]),
     missing: Object.freeze([...new Set(missing)]),
   });
+}
+
+/**
+ * TASK-146 limit ratings from the cards a profile references, one entry per
+ * motor in profile order, which is the derived manifest's rotor order. Only
+ * stated card values become ratings, never assumed ones: a card that states
+ * no value, or a card the profile has not chosen, gives null, which is never
+ * checked. Component card schema 1 states no speed rating, so `rpm` is null.
+ */
+export function componentRatings(input: unknown, cards: ReadonlyMap<string, ComponentCard>): LimitRatings {
+  const profile: AircraftProfile = validateAircraftProfile(input);
+  checkProfileCards(profile, cards);
+  // checkProfileCards established presence and type of every referenced card.
+  const motors = profile.motors.map((motor): MotorRatings => {
+    const m = motor.components.motor === null ? null : (cards.get(motor.components.motor) as MotorCard).values;
+    const e = motor.components.esc === null ? null : (cards.get(motor.components.esc) as EscCard).values;
+    return Object.freeze({ motorCurrentA: m?.maxCurrentA ?? null, motorPowerW: m?.maxPowerW ?? null,
+      escCurrentA: e?.maxCurrentA ?? null, escVoltageV: e?.maxVoltageV ?? null, rpm: null });
+  });
+  const b = profile.battery.card === null ? null : (cards.get(profile.battery.card) as BatteryCard).values;
+  const emptyVoltageV = b && b.cellEmptyV !== null ? b.cellsSeries * b.cellEmptyV : null;
+  return Object.freeze({ schemaVersion: LIMIT_RATINGS_SCHEMA_VERSION, motors: Object.freeze(motors), battery: Object.freeze({ emptyVoltageV }) });
 }

@@ -2,7 +2,8 @@
 import { AarRecord } from '@mirage/aar/record';
 import { RecordingHandoff } from '@mirage/aar/handoff';
 import { createSessionFaultPort } from '@mirage/ew/session-port';
-import { isWorkerInitV2, tickToNumber, type CommandResultV2, type ControlCommandV2, type WorkerFaultV2 } from '@mirage/protocol';
+import { isWorkerInitV2, tickToNumber, validatePowerChannelV1, type CommandResultV2, type ControlCommandV2, type WorkerFaultV2 } from '@mirage/protocol';
+import { parseLimitRatings, type LimitEvent, type LimitRatings } from '@mirage/physics/limit-monitor';
 import { PhysicsSessionV2, type SessionClock } from '@mirage/physics';
 import { profileModelPort } from '@mirage/physics/profile-dynamics';
 import { VehicleRegistry } from '@mirage/physics/vehicle-manifest';
@@ -26,9 +27,14 @@ let recorder: { handoff: RecordingHandoff; record: AarRecord } | null = null;
 // default; a registered model runs only after a Control Protocol v2 `model.load` names its ID and hash.
 const registry = new VehicleRegistry();
 let betModule: WebAssembly.Module | null = null;
+// TASK-146 limit ratings by manifest SHA-256, bound before model.load; a model without ratings checks none.
+const ratings = new Map<string, LimitRatings>();
 type WorkerNotice = CommandResultV2 | WorkerFaultV2
   | { type: "bet.module.ready"; sha256: string } | { type: "bet.module.reject"; message: string }
   | { type: "model.registered"; modelId: number; sha256: string } | { type: "model.reject"; message: string }
+  | { type: "limits.registered"; sha256: string } | { type: "limits.reject"; message: string }
+  | { type: "limits.events"; events: LimitEvent[]; dropped: number }
+  | { type: "power.attached" } | { type: "power.reject"; message: string }
   | { type: "scenario.submit"; command: ControlCommandV2 }
   | { type: "scenario.reject"; message: string }
   | { type: "pilot.rejected"; count: number; ageMs: number; wallMs: number; sampleWallMs: number; sampleId: number; expectedEpoch: number;
@@ -43,6 +49,12 @@ function flush(): void {
     binder?.observe(event);
     post(event);
   });
+  // TASK-146: limit events leave after the compute batch, as one message.
+  const events: LimitEvent[] = [];
+  if (session && session.drainLimitEvents(event => events.push(event)) > 0) post({ type: "limits.events", events, dropped: session.limitEventsDropped });
+}
+function isTyped<T extends string>(data: unknown, type: T): data is { type: T } & Record<string, unknown> {
+  return typeof data === "object" && data !== null && !Array.isArray(data) && "type" in data && data.type === type;
 }
 function armScenario(value: unknown): void {
   try {
@@ -124,7 +136,8 @@ addEventListener('message', (event: MessageEvent<unknown>) => {
   if (!session) {
     if (!isWorkerInitV2(data)) { post({ type: 'fault-v2', protocolVersion: 2, message: 'Expected init-v2' }); return; }
     try {
-      session = new PhysicsSessionV2(data, clock, undefined, createSessionFaultPort(), profileModelPort(registry, () => betModule));
+      session = new PhysicsSessionV2(data, clock, undefined, createSessionFaultPort(),
+        profileModelPort(registry, () => betModule, {}, sha256 => ratings.get(sha256) ?? null));
       const created = session;
       created.setBeforeTick((tick) => {
         if (!binder) return;
@@ -155,6 +168,27 @@ addEventListener('message', (event: MessageEvent<unknown>) => {
   if (isBinaryMessage(data, "model.register")) {
     registry.register(data.bytes, data.sha256).then(record => post({ type: "model.registered", modelId: record.manifest.modelId, sha256: record.sha256 }),
       (error: unknown) => post({ type: "model.reject", message: error instanceof Error ? error.message : "Invalid model" }));
+    return;
+  }
+  if (isTyped(data, "limits.register")) {
+    try {
+      const sha256 = data.sha256;
+      if (typeof sha256 !== "string" || !/^[a-f0-9]{64}$/.test(sha256)) throw new Error("limits.register needs a manifest SHA-256");
+      ratings.set(sha256, parseLimitRatings(data.ratings));
+      post({ type: "limits.registered", sha256 });
+    } catch (error) {
+      post({ type: "limits.reject", message: error instanceof Error ? error.message : "Invalid limit ratings" });
+    }
+    return;
+  }
+  if (isTyped(data, "power.attach")) {
+    try {
+      validatePowerChannelV1(data.buffer);
+      current.attachPowerChannel(data.buffer);
+      post({ type: "power.attached" });
+    } catch (error) {
+      post({ type: "power.reject", message: error instanceof Error ? error.message : "Invalid power channel" });
+    }
     return;
   }
   if (isScenarioArm(data)) {

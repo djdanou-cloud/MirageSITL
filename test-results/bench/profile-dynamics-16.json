@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "task": "TASK-144",
+  "task": "TASK-144, TASK-146",
   "status": "pass",
   "vehicle": {
     "fixture": "octa-coaxial-16",
@@ -53,45 +53,45 @@
       "steps": 20000,
       "warmupSteps": 20000,
       "periodMs": 2.5,
-      "meanMs": 1.1492199071499984,
-      "p50Ms": 1.0591720000011264,
-      "p95Ms": 1.7615619999996852,
-      "p99Ms": 2.1621220000015455,
-      "maxMs": 8.697374000003038,
+      "meanMs": 0.5803966653000125,
+      "p50Ms": 0.5384130000020377,
+      "p95Ms": 0.7976479999997537,
+      "p99Ms": 0.9499889999970037,
+      "maxMs": 4.555926000000909,
       "p99WithinPeriod": true,
-      "realtimeRatioAtMean": 2.175388700148661,
+      "realtimeRatioAtMean": 4.307398972920918,
       "meanMeetsA05": true,
-      "realtimeRatioAtP50": 2.360334298864907
+      "realtimeRatioAtP50": 4.643275700977759
     },
     {
       "hz": 800,
       "steps": 20000,
       "warmupSteps": 20000,
       "periodMs": 1.25,
-      "meanMs": 1.1421953608500581,
-      "p50Ms": 1.0563980000006268,
-      "p95Ms": 1.6937659999966854,
-      "p99Ms": 2.14822699999786,
-      "maxMs": 19.26774700000533,
-      "p99WithinPeriod": false,
-      "realtimeRatioAtMean": 1.0943837130188572,
+      "meanMs": 0.5909242682999917,
+      "p50Ms": 0.5385929999974906,
+      "p95Ms": 0.8224300000001676,
+      "p99Ms": 0.9720630000010715,
+      "maxMs": 37.21143700000539,
+      "p99WithinPeriod": true,
+      "realtimeRatioAtMean": 2.1153302835168355,
       "meanMeetsA05": true,
-      "realtimeRatioAtP50": 1.1832661553687704
+      "realtimeRatioAtP50": 2.320861949571985
     },
     {
       "hz": 1200,
       "steps": 20000,
       "warmupSteps": 20000,
       "periodMs": 0.8333333333333334,
-      "meanMs": 1.1288937463000213,
-      "p50Ms": 1.0564930000109598,
-      "p95Ms": 1.650632000004407,
-      "p99Ms": 2.056414999999106,
-      "maxMs": 5.3352149999991525,
+      "meanMs": 0.5981674102999285,
+      "p50Ms": 0.5486680000030901,
+      "p95Ms": 0.8397030000051018,
+      "p99Ms": 1.0730159999948228,
+      "maxMs": 4.611516999997548,
       "p99WithinPeriod": false,
-      "realtimeRatioAtMean": 0.7381858000937689,
-      "meanMeetsA05": false,
-      "realtimeRatioAtP50": 0.7887731705980906
+      "realtimeRatioAtMean": 1.3931439911035772,
+      "meanMeetsA05": true,
+      "realtimeRatioAtP50": 1.5188298448763915
     }
   ],
   "allocation": {
@@ -99,7 +99,7 @@
     "bytes": 2960,
     "bytesPerStep": 0.00296,
     "gcEvents": 0,
-    "elapsedMs": 479217.907441,
+    "elapsedMs": 181317.04453600003,
     "warmupSteps": 110000,
     "memoryStable": true,
     "positiveControl": {
@@ -107,7 +107,7 @@
       "bytes": 742888,
       "bytesPerStep": 0.742888,
       "gcEvents": 30,
-      "elapsedMs": 15.624767999979667
+      "elapsedMs": 25.38575299998047
     },
     "controlDetected": true
   },
@@ -115,9 +115,9 @@
     "node": "v24.22.2",
     "platform": "linux",
     "arch": "x64",
-    "cpu": "Intel(R) Xeon(R) Processor @ 2.80GHz",
+    "cpu": "Intel(R) Xeon(R) Processor @ 2.10GHz",
     "cpus": 4,
-    "wasmSha256": "d2b3d4bb572b0e4e79041d5a7ee9ce29837a1bd57c105e82943163ccd3a7395e",
+    "wasmSha256": "0faa9237d88a64b929d3a45c38abd4cd1db8cb0f9023978e9f0bbdbc2a3d821e",
     "sourceInputs": [
       {
         "file": "node_modules/fast-deep-equal/index.js",
@@ -421,7 +421,7 @@
       },
       {
         "file": "packages/aircraft/src/resolve-components.ts",
-        "sha256": "b98917841b685d26352362cb61c1fb84c74e9fe50af178333e395a32a56ba673"
+        "sha256": "cba37aed432c4696b1194cce5159a15cd381aa236e83bc0d0f89d4272c83dfc5"
       },
       {
         "file": "packages/aircraft/src/sensor-config.schema.json",
@@ -713,7 +713,7 @@
       },
       {
         "file": "packages/physics/src/bet-dynamics.ts",
-        "sha256": "3c59ce8291404b804fd5d3b01174441d2bfad5a269c349fb958090a08415b758"
+        "sha256": "bc6e3963b6b783f93d43ee0fbb1ce92f1daac798fcd3f77221946df4b6a31fde"
       },
       {
         "file": "packages/physics/src/drive.ts",
@@ -722,6 +722,10 @@
       {
         "file": "packages/physics/src/frame.ts",
         "sha256": "70ccd4a728aa5dc86157c06ca866994e83f086171de1d08654aa4aed967a4d9e"
+      },
+      {
+        "file": "packages/physics/src/limit-monitor.ts",
+        "sha256": "08c09d117d08b73f0292d1cf929cd40fa02efa488e957ac2175ac1036b99bd79"
       },
       {
         "file": "packages/physics/src/model-manifest.ts",
@@ -737,7 +741,7 @@
       },
       {
         "file": "packages/physics/src/profile-dynamics.ts",
-        "sha256": "b7301abb0b696a93f2a54a66c9acb1b7b32cd72c2ffc56d87a1c06e0170d9ede"
+        "sha256": "45ccfe8dcfda2ca552d5c1ef506229f533a72b59fbccd20bde07ad072c14f9de"
       },
       {
         "file": "packages/physics/src/vehicle-manifest.ts",
@@ -1021,7 +1025,7 @@
       },
       {
         "file": "packages/protocol/src/index.ts",
-        "sha256": "1dea63f8d0751a69db5a884bbc8fd3fa3279aea3f33c0d86696d8f0f6e955fdc"
+        "sha256": "39ce55bf6e239d73afdbf058395fa337809e25ba3eb61b009db1df3a007f74c7"
       },
       {
         "file": "packages/protocol/src/interpolation.ts",
@@ -1034,6 +1038,10 @@
       {
         "file": "packages/protocol/src/pilot-v2.ts",
         "sha256": "77fa4d148443d9b5e9d8a6240e2debfc4d6cc75b7d680de66849aa07ed89da3c"
+      },
+      {
+        "file": "packages/protocol/src/power-v1.ts",
+        "sha256": "a84156561bbb3b5ca3ba2136249bb6c39fa40a576763829d06d17f0013b59ff7"
       },
       {
         "file": "packages/protocol/src/sensor-frame.ts",
@@ -1061,7 +1069,7 @@
       },
       {
         "file": "packages/wasm-bet/src/rotor.ts",
-        "sha256": "b6c7772e5549996d2eec648bd97914ecc5248e61f80947369d64c164f8138c17"
+        "sha256": "1503a8ef01bf24dbd556d3dd9ca7b8995e0f6dd87b6907526d442d05598a1818"
       },
       {
         "file": "tests/support/hover-trim.ts",
@@ -1069,5 +1077,129 @@
       }
     ]
   },
-  "scope": "Node/V8 single-threaded compute of BetFlightDynamics alone; not browser Worker, session or target-hardware timing"
+  "limits": {
+    "ratings": {
+      "schemaVersion": 1,
+      "motors": [
+        {
+          "motorCurrentA": 30,
+          "motorPowerW": 450,
+          "escCurrentA": 30,
+          "escVoltageV": 25.2,
+          "rpm": null
+        },
+        {
+          "motorCurrentA": 30,
+          "motorPowerW": 450,
+          "escCurrentA": 30,
+          "escVoltageV": 25.2,
+          "rpm": null
+        },
+        {
+          "motorCurrentA": 30,
+          "motorPowerW": 450,
+          "escCurrentA": 30,
+          "escVoltageV": 25.2,
+          "rpm": null
+        },
+        {
+          "motorCurrentA": 30,
+          "motorPowerW": 450,
+          "escCurrentA": 30,
+          "escVoltageV": 25.2,
+          "rpm": null
+        },
+        {
+          "motorCurrentA": 30,
+          "motorPowerW": 450,
+          "escCurrentA": 30,
+          "escVoltageV": 25.2,
+          "rpm": null
+        },
+        {
+          "motorCurrentA": 30,
+          "motorPowerW": 450,
+          "escCurrentA": 30,
+          "escVoltageV": 25.2,
+          "rpm": null
+        },
+        {
+          "motorCurrentA": 30,
+          "motorPowerW": 450,
+          "escCurrentA": 30,
+          "escVoltageV": 25.2,
+          "rpm": null
+        },
+        {
+          "motorCurrentA": 30,
+          "motorPowerW": 450,
+          "escCurrentA": 30,
+          "escVoltageV": 25.2,
+          "rpm": null
+        },
+        {
+          "motorCurrentA": 30,
+          "motorPowerW": 450,
+          "escCurrentA": 30,
+          "escVoltageV": 25.2,
+          "rpm": null
+        },
+        {
+          "motorCurrentA": 30,
+          "motorPowerW": 450,
+          "escCurrentA": 30,
+          "escVoltageV": 25.2,
+          "rpm": null
+        },
+        {
+          "motorCurrentA": 30,
+          "motorPowerW": 450,
+          "escCurrentA": 30,
+          "escVoltageV": 25.2,
+          "rpm": null
+        },
+        {
+          "motorCurrentA": 30,
+          "motorPowerW": 450,
+          "escCurrentA": 30,
+          "escVoltageV": 25.2,
+          "rpm": null
+        },
+        {
+          "motorCurrentA": 30,
+          "motorPowerW": 450,
+          "escCurrentA": 30,
+          "escVoltageV": 25.2,
+          "rpm": null
+        },
+        {
+          "motorCurrentA": 30,
+          "motorPowerW": 450,
+          "escCurrentA": 30,
+          "escVoltageV": 25.2,
+          "rpm": null
+        },
+        {
+          "motorCurrentA": 30,
+          "motorPowerW": 450,
+          "escCurrentA": 30,
+          "escVoltageV": 25.2,
+          "rpm": null
+        },
+        {
+          "motorCurrentA": 30,
+          "motorPowerW": 450,
+          "escCurrentA": 30,
+          "escVoltageV": 25.2,
+          "rpm": null
+        }
+      ],
+      "battery": {
+        "emptyVoltageV": 13.2
+      }
+    },
+    "events": 37,
+    "dropped": 0
+  },
+  "scope": "Node/V8 single-threaded compute of BetFlightDynamics with its limit monitor and the power telemetry v1 publish; not browser Worker, session or target-hardware timing"
 }

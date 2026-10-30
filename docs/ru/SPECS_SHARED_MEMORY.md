@@ -1,6 +1,6 @@
 # SPECS_SHARED_MEMORY.md
 
-<!-- source-sha256: b55ad80fea5c870770122a6ded390905d16feb06d536d729e9f61c0ff3de3517 -->
+<!-- source-sha256: c9b8ea3d9b4f020033766af09d243922bfbadeac6c13d705c6ae4ecee33626ff -->
 
 Английский источник: [Source of truth](../SPECS_SHARED_MEMORY.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -529,3 +529,76 @@ timer callback allocations браузера. Все новые contract tests а
 с отображаемым состоянием полёта. Подключение Serial не публикует этот флаг
 в SAB и не допускает браузерный READY. Тайминги/отзыв описаны в спецификации двигателя;
 записанный Simulation-on-Hardware версии 2 не допускает fast-forward.
+
+## Телеметрия питания v1 (TASK-146)
+
+Электрические величины каждого мотора и батареи передаются в собственном
+SharedArrayBuffer размером 672 байта, который создаёт Main
+(`createPowerChannelV1`) и передаёт Worker физики сообщением
+`{ type: "power.attach", buffer }`. Worker отвечает `power.attached`, а на
+любой другой буфер — `power.reject`. ABI v2 не меняется: `battery_voltage` и
+`battery_current` сохраняют свой смысл, и ни одно зарезервированное слово не
+получает нового. Worker — единственный писатель; он публикует запись после
+каждого шага, после кольца состояний. Пока у активной динамики нет
+электрического привода (демо), он публикует запись с `motor_count` 0 и
+нулевыми значениями.
+
+| Byte Offset | Data Type | Units | Field Name |
+| ---: | --- | --- | --- |
+| 0 | u32 | magic | magic = 0x4d505752 |
+| 4 | u32 | version | version = 1 |
+| 8 | u32 | bytes | header_bytes = 64 |
+| 12 | u32 | bytes | record_bytes = 608 |
+| 16 | u32 | rows | motor_capacity = 16 |
+| 20 | u32 | publications | published (Worker) |
+| 24..63 | u32[10] | — | reserved_zero |
+
+Запись (смещения относительно байта 64):
+
+| Byte Offset | Data Type | Units | Field Name |
+| ---: | --- | --- | --- |
+| 0 | u32 | sequence | seqlock |
+| 4 | u32 | publications | sample_id, равен published после этой записи |
+| 8 | u64 (lo32,hi32) | steps | tick_id |
+| 16 | u32 | epoch | session_epoch |
+| 20 | u32 | registry key | model_id |
+| 24 | u32 | rows | motor_count, 0 без электрического привода |
+| 28 | u32 | bitmask | battery_warning: bit0 UnderVoltage |
+| 32 | u32 | bitmask | battery_limited: bit0 PackCurrent, bit1 Charge |
+| 36 | u32 | events | dropped_events, события пределов, не поместившиеся в буфер исходящих |
+| 40 | f64 | 1 | state_of_charge |
+| 48 | f64 | V | bus_voltage |
+| 56 | f64 | A | bus_current, отрицателен при рекуперации |
+| 64 | f64 | W | bus_power = bus_voltage · bus_current |
+| 72 | f64 | Ah | remaining_charge |
+| 80 | f64 | Ah | capacity |
+| 88..95 | u32[2] | — | reserved_zero |
+| 96 + 32·i | motor_row | — | мотор i: 16 строк; строки начиная с motor_count нулевые |
+
+Строка мотора (смещения относительно её начала):
+
+| Byte Offset | Data Type | Units | Field Name |
+| ---: | --- | --- | --- |
+| 0 | f32 | rev/min | speed, со знаком |
+| 4 | f32 | A | motor_current, отрицателен при торможении |
+| 8 | f32 | A | bus_current: мощность на клеммах, делённая на запаздывающее напряжение шины |
+| 12 | f32 | W | electrical_power на клеммах мотора |
+| 16 | f32 | 1 | command: скважность ESC в [0, 1], как её получил ESC |
+| 20 | u32 | bitmask | warning: bit0 MotorCurrent, bit1 MotorPower, bit2 EscCurrent, bit3 EscVoltage, bit4 Rpm |
+| 24 | u32 | bitmask | limited: bit0 CurrentLimit |
+| 28 | u32 | — | reserved_zero |
+
+Запись использует seqlock из раздела 4 с одним слотом: писатель заполняет
+собственный scratch, делает последовательность нечётной, записывает слова,
+делает её чётной и затем записывает `published`. Читатель
+(`PowerReaderV1.latest`) делает не больше трёх попыток и декодирует запись,
+только если последовательность была чётной и не изменилась, а `sample_id`
+равен `published`; промах оставляет его выход без изменений. Бит `warning`
+означает, что превышен номинал компонента, а физика продолжает работу без
+изменений; бит `limited` означает, что модель ограничила величину. События,
+стоящие за масками, приходят в Main сообщением
+`{ type: "limits.events", events, dropped }` после каждой прокачки, а
+`{ type: "limits.register", sha256, ratings }` привязывает номиналы limit
+ratings v1 к хешу манифеста до `model.load` (`limits.registered` или
+`limits.reject`). Оба описаны в [Simulation Engines](SPECS_SIMULATION_ENGINES.md),
+раздел «Пределы батареи и силовой установки (TASK-146)».

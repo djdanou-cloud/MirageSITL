@@ -8,6 +8,7 @@ import { BetRigidBodyBackend, newBodyTruth, type BodyTruth } from '../../wasm-be
 import type { MotorFaults } from './motor-fault.ts';
 import { validateModelManifest } from './model-manifest.ts';
 import { FrameLayout } from './frame.ts';
+import { BatteryColumn, LimitMonitor, MotorColumn, MotorLimited, BatteryLimited, PowerTelemetry, type LimitRatings } from './limit-monitor.ts';
 
 /** One motor and its ESC for the production drive (TASK-092); SI units, k_t = k_e. */
 export interface EscDriveMotor {
@@ -52,6 +53,11 @@ export interface BetFlightConfiguration {
    * Steps that used them are reported in `samplingFlags`, not as validity breaches.
    */
   kernelOptions?: number;
+  /**
+   * TASK-146 component ratings checked every step with the ESC drive; null or
+   * absent checks none, and the modeled clamps are reported either way.
+   */
+  limitRatings?: LimitRatings | null;
 }
 /** Rotor output flags of the TASK-091 opt-in modes: informational, never validity breaches. */
 const SAMPLING_FLAGS=ROTOR_FLAG_HOVER_SAMPLING|ROTOR_FLAG_REDUCED_PREDICTOR;
@@ -121,6 +127,11 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
   private readonly fraction=new Float64Array(1);
   private readonly faultWrench=new Float64Array(6);
   private readonly faultScaled=new Float64Array(6);
+  /** TASK-146 electrical telemetry of the last step, with the ESC drive; null without one. */
+  readonly power:PowerTelemetry|null;
+  /** TASK-146 rating and clamp monitor over `power`; null without the ESC drive. */
+  readonly limits:LimitMonitor|null;
+  private readonly capacityAh:number;
   constructor(module:WebAssembly.Module,configuration:BetFlightConfiguration,hz:H) {
     const model=validateModelManifest(configuration.manifest),n=model.rotorCount;
     if(configuration.syntheticGroundDownM!==undefined&&!Number.isFinite(configuration.syntheticGroundDownM))throw Error('Invalid synthetic ground plane');
@@ -154,9 +165,14 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
       });
       this.escEngine=esc;this.engine=null;
       this.bus=new BetBus(module,drive.battery,hz);this.initialSoc=soc;this.housePowerW=house;
+      this.power=new PowerTelemetry(n);this.capacityAh=drive.battery.capacityAh;
+      this.limits=new LimitMonitor(n,configuration.limitRatings??null,drive.motors.map(m=>m.currentLimitA),
+        drive.motors.map(m=>m.brakeCurrentLimitA),drive.battery.currentLimitA,hz);
       this.input=this.escEngine.input;this.output=this.escEngine.output;this.inputStride=BOUND_V2_INPUT_DOUBLES;this.outputStride=BOUND_V2_OUTPUT_SLOTS;
     } else {
+      if(configuration.limitRatings)throw Error('Limit ratings need the ESC drive');
       this.engine=new BetRotorEngine(module,definitions,hz);this.escEngine=null;this.bus=null;this.initialSoc=1;this.housePowerW=0;
+      this.power=null;this.limits=null;this.capacityAh=0;
       this.input=this.engine.input;this.output=this.engine.output;this.inputStride=13;this.outputStride=16;
     }
     this.body=new BetRigidBodyBackend(new WebAssembly.Instance(module,{}),model.massKg,model.inertiaBodyKgM2,configuration.gravityMps2??9.80665);
@@ -188,6 +204,14 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
     this.truth.accelerationNedMps2.fill(0);this.angularAcceleration.fill(0);Object.assign(this.state,newState());this.state.batteryVoltage=e[1]!;
     this.state.flags=StateFlag.InputFailsafe;this.pendingActuator=false;this.externalArmed=false;this.fault='';this.validityFlags=this.configurationFlags;
     this.referenceRotorRpm=this.output[9]!*60/(2*Math.PI);
+    this.limits?.reset();
+    const t=this.power;
+    if(t) {
+      t.clear();
+      for(let i=0;i<this.rotorCount;i++)t.motors[i*MotorColumn.stride+MotorColumn.Rpm]=this.output[i*this.outputStride+9]!*60/(2*Math.PI);
+      t.battery[BatteryColumn.StateOfCharge]=e[0]!;t.battery[BatteryColumn.VoltageV]=e[1]!;
+      t.battery[BatteryColumn.RemainingAh]=e[0]*this.capacityAh;t.battery[BatteryColumn.CapacityAh]=this.capacityAh;
+    }
     this.copyTruth();
   }
   /**
@@ -285,7 +309,28 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
     s.flags=(external?this.externalArmed:valid)?0:StateFlag.InputFailsafe;
     if(this.bus)s.batteryVoltage=this.electrical[1]!;
     this.referenceRotorRpm=output[9]!*60/(2*Math.PI);this.pendingActuator=false;
+    if(this.power&&this.bus)this.recordPower(this.power,this.bus.output,s.tick);
     this.copyTruth();
+  }
+  /** TASK-146: electrical telemetry of this step and its limit masks; reads only, never changes physics. */
+  private recordPower(t:PowerTelemetry,bus:Float64Array,tick:number):void {
+    const m=t.motors,output=this.output,input=this.input,e=this.electrical,stride=this.outputStride;
+    for(let i=0;i<this.rotorCount;i++) {
+      const a=i*stride,b=i*MotorColumn.stride;
+      m[b+MotorColumn.Rpm]=output[a+9]!*60/(2*Math.PI);
+      m[b+MotorColumn.MotorCurrentA]=output[a+19]!; // motor_current (record byte 144)
+      m[b+MotorColumn.BusCurrentA]=output[a+20]!; // bus_current (record byte 152)
+      m[b+MotorColumn.ElectricalPowerW]=output[a+21]!; // electrical_power (record byte 160)
+      m[b+MotorColumn.Command]=input[i*this.inputStride+13]!; // esc_duty as the ESC received it
+      t.motorLimited[i]=(output[a+14]!&BOUND_V2.flagCurrentLimited)!==0?MotorLimited.CurrentLimit:0;
+    }
+    const b=t.battery;
+    b[BatteryColumn.StateOfCharge]=e[0]!;b[BatteryColumn.VoltageV]=e[1]!;b[BatteryColumn.CurrentA]=e[2]!;
+    b[BatteryColumn.PowerW]=e[1]!*e[2]!;b[BatteryColumn.RemainingAh]=e[0]!*this.capacityAh;
+    // The bus flags word (slot 6) is read here, not passed: V8 can box a double call argument.
+    const flags=bus[6]!;
+    t.batteryMasks[1]=((flags&1)!==0?BatteryLimited.PackCurrent:0)|((flags&2)!==0?BatteryLimited.Charge:0);
+    this.limits?.evaluate(t,tick);
   }
   private copyTruth():void {
     const s=this.state,t=this.truth;

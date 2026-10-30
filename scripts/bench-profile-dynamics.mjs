@@ -1,8 +1,10 @@
-// TASK-144: 16-rotor profile dynamics compute and allocation benchmark (Node/V8 evidence, not browser or
+// TASK-144, TASK-146: 16-rotor profile dynamics compute and allocation benchmark (Node/V8 evidence, not browser or
 // target-hardware timing). The S19 sixteen-motor fixture flies on the example component cards: the
 // physics step is BetFlightDynamics with the TASK-092 drive on all 16 rotors. The rotors spin up from
 // rest to 80% of each one's hover-trim duty (about 64% of hover thrust), so the vehicle stays on the
 // synthetic pad, every rotor runs at flight speed and the run stays bounded for a million steps.
+// TASK-146: the dynamics check the example cards' ratings every step, and each step's power
+// telemetry v1 record is published, as the physics Worker does.
 //
 //   node scripts/bench-profile-dynamics.mjs [--steps N] [--timing-steps N] [--out PATH]
 //
@@ -40,12 +42,12 @@ const bundle = resolve(root, '.cache/bench-profile/entry.mjs');
 const bundled = await build({ stdin: { contents: `
 export { validateAircraftProfile, withPropellerPolars } from './packages/aircraft/src/profile.ts';
 export { validateComponentCard } from './packages/aircraft/src/components.ts';
-export { resolveComponents } from './packages/aircraft/src/resolve-components.ts';
+export { componentRatings, resolveComponents } from './packages/aircraft/src/resolve-components.ts';
 export { deriveVehicleManifest } from './packages/aircraft/src/derive-manifest.ts';
 export { buildProfileDynamics } from './packages/physics/src/profile-dynamics.ts';
 export { BetFlightDynamics } from './packages/physics/src/bet-dynamics.ts';
 export { trimHover } from './tests/support/hover-trim.ts';
-export { newActuatorFrameV2, newInput, ActuatorFlagV2 } from './packages/protocol/src/index.ts';`, resolveDir: root, sourcefile: 'bench-entry.ts', loader: 'ts' },
+export { newActuatorFrameV2, newInput, ActuatorFlagV2, PowerWriterV1, createPowerChannelV1 } from './packages/protocol/src/index.ts';`, resolveDir: root, sourcefile: 'bench-entry.ts', loader: 'ts' },
 bundle: true, platform: 'node', format: 'esm', outfile: bundle, metafile: true });
 const M = await import(pathToFileURL(bundle).href);
 const sha = bytes => createHash('sha256').update(bytes).digest('hex');
@@ -62,7 +64,8 @@ const cards = new Map(Object.entries(ids).map(([type, id]) => [id, M.validateCom
 const resolved = M.resolveComponents(profile, cards);
 if (!resolved.components) { console.error(`Missing: ${resolved.missing.join('; ')}`); process.exit(1); }
 const derived = await M.deriveVehicleManifest(profile, resolved.components, { modelId: 144 });
-const { configuration } = M.buildProfileDynamics(derived.manifest);
+const ratings = M.componentRatings(profile, cards);
+const { configuration } = M.buildProfileDynamics(derived.manifest, { limitRatings: ratings });
 // The BET WASM comes from scripts/build-wasm.mjs (packages/wasm-bet/dist is not tracked).
 const wasmBytes = read('packages/wasm-bet/dist/mirage_bet.scalar.wasm');
 const module = new WebAssembly.Module(wasmBytes);
@@ -73,10 +76,12 @@ function vehicle(hz) {
   const frame = M.newActuatorFrameV2(), pilot = M.newInput();
   frame.motorMapId = configuration.motorMapId; frame.actuatorFlags = M.ActuatorFlagV2.Armed; frame.actuatorCount = 16;
   derived.manifest.rotors.forEach((rotor, i) => { frame.normalizedActuators[rotor.motorChannel] = 0.8 * trim.duty[i]; });
+  const power = new M.PowerWriterV1(M.createPowerChannelV1());
   let tick = 0;
   const run = n => {
     for (let i = 0; i < n; i++) {
       d.useActuators(frame); d.nowMs = ++tick * 1000 / hz; d.stepNow(pilot);
+      power.publish(d.power, tick, 0, 1, 144, d.limits.dropped);
       if (d.fault !== '' || d.state.down !== 0) throw new Error(`Bench step failed: ${d.fault || 'left the pad'}`);
     }
   };
@@ -125,14 +130,15 @@ console.log(`G1 at 400 Hz: ${allocation.steps} steps, ${allocation.bytesPerStep.
 
 const sources = Object.keys(bundled.metafile.inputs).filter(p => p !== 'bench-entry.ts').map(p => p.replaceAll('\\', '/')).sort();
 const report = {
-  schemaVersion: 1, task: 'TASK-144', status: passed ? 'pass' : 'failed',
+  schemaVersion: 1, task: 'TASK-144, TASK-146', status: passed ? 'pass' : 'failed',
   vehicle: { fixture: 'octa-coaxial-16', rotors: derived.manifest.rotorCount, manifestSha256: derived.sha256, cards: 'tests/fixtures/components/*-example.json',
     polar: 'naca6409-neuralfoil-v1', load: 'synthetic pad at 0.8 x hover-trim duty, spun up from rest', trimDuty: trim.duty, trimRpm: trim.omegaRadS.map(w => w * 30 / Math.PI) },
   budget: 'Step period 1/hz (A-04: 400 Hz for every configuration; A-05: real-time ratio at least 0.99)',
   timing, allocation: { ...allocation, positiveControl: positive, controlDetected },
   identity: { node: process.version, platform: process.platform, arch: process.arch, cpu: os.cpus()[0]?.model ?? 'unknown', cpus: os.cpus().length,
     wasmSha256: sha(wasmBytes), sourceInputs: sources.map(file => ({ file, sha256: sha(read(file)) })) },
-  scope: 'Node/V8 single-threaded compute of BetFlightDynamics alone; not browser Worker, session or target-hardware timing',
+  limits: { ratings, events: (() => { const e = []; g1.d.limits.drain(x => e.push(x)); return e.length; })(), dropped: g1.d.limits.dropped },
+  scope: 'Node/V8 single-threaded compute of BetFlightDynamics with its limit monitor and the power telemetry v1 publish; not browser Worker, session or target-hardware timing',
 };
 mkdirSync(dirname(out), { recursive: true });
 writeFileSync(out, JSON.stringify(report, null, 2) + '\n');

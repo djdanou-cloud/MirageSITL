@@ -253,7 +253,12 @@ implementation.
   DataFlash logs, in a Worker if needed, with the field values and times of
   pymavlink's `mavlogdump`, reports damaged byte ranges, and writes MirageSITL
   truth, motor, event and parameter-change records under `MS` names that
-  pymavlink reads back unchanged. Decisions D-04
+  pymavlink reads back unchanged. TASK-146 is DONE: with the TASK-092 drive,
+  `BetFlightDynamics` checks every step against card ratings and the model's
+  clamps, keeps a rating `warning` apart from a modeled `limited` clamp,
+  publishes per-motor and battery values in the separate power telemetry v1
+  channel and shows them in the Run tab's power panel; the AAR v1 record has
+  no room for them, so TASK-162 stores them. Decisions D-04
   and D-06 to D-12 are decided. D-01 and D-02 still wait on TASK-127 and
   TASK-128. TASK-129 records D-03: JSON lockstep without `no_lockstep` owns
   simulated time, a 60 s pause does not induce a failsafe, parameter access

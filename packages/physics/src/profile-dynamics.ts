@@ -4,6 +4,7 @@ import type { BoundPolar } from '../../wasm-bet/src/rotor.ts';
 import { isaTroposphere } from './atmosphere.ts';
 import { BetFlightDynamics, CONFIGURATION_FLAG_WAKE_UNMODELED, type BetFlightConfiguration } from './bet-dynamics.ts';
 import { escDriveFromManifest } from './drive.ts';
+import type { LimitRatings } from './limit-monitor.ts';
 import { boundCatalogPolar } from './polar-catalog.ts';
 import type { SessionModelPort } from './session-v2.ts';
 import { projectVehicleToModelV1, validateVehicleManifest, type VehicleManifest, type VehicleRegistry } from './vehicle-manifest.ts';
@@ -28,6 +29,8 @@ export interface ProfileDynamicsOptions {
   readonly densityKgM3?: number; readonly viscosityPaS?: number; readonly soundMps?: number;
   /** TASK-091 opt-in rotor kernel options (`KERNEL_OPTION_*` of @mirage/wasm-bet/rotor); 0 by default. */
   readonly kernelOptions?: number;
+  /** TASK-146 component ratings, in rotor order; null or absent checks none. */
+  readonly limitRatings?: LimitRatings | null;
 }
 export interface ProfileDynamicsBuild {
   readonly configuration: BetFlightConfiguration;
@@ -75,7 +78,7 @@ export function buildProfileDynamics(input: VehicleManifest, options: ProfileDyn
     initialBody, minimumConfidence: PROFILE_ROTOR_SETTINGS.minimumConfidence,
     densityKgM3: options.densityKgM3 ?? air.densityKgM3, viscosityPaS: options.viscosityPaS ?? air.dynamicViscosityPaS,
     soundMps: options.soundMps ?? air.speedOfSoundMps, syntheticGroundDownM: 0, drive, configurationFlags,
-    kernelOptions: options.kernelOptions ?? 0,
+    kernelOptions: options.kernelOptions ?? 0, limitRatings: options.limitRatings ?? null,
   };
   return Object.freeze({ configuration, limitations: Object.freeze(limitations) });
 }
@@ -85,9 +88,10 @@ export function buildProfileDynamics(input: VehicleManifest, options: ProfileDyn
  * requested hash must equal the registered payload hash, and the vehicle must
  * build (`buildProfileDynamics`) before the session changes anything. The BET
  * module comes from `module()` at load time; without one the load fails.
+ * `ratings` gives the TASK-146 limit ratings bound to a manifest hash, or null.
  */
 export function profileModelPort(registry: VehicleRegistry, module: () => WebAssembly.Module | null,
-  options: ProfileDynamicsOptions = {}): SessionModelPort {
+  options: ProfileDynamicsOptions = {}, ratings: (manifestSha256: string) => LimitRatings | null = () => null): SessionModelPort {
   return {
     prepare: (modelId, manifestSha256) => new Promise(resolve => {
       const record = registry.get(modelId);
@@ -96,7 +100,11 @@ export function profileModelPort(registry: VehicleRegistry, module: () => WebAss
       if (record.schemaVersion !== 2) throw new Error(`Model ${modelId} is a schema 1 descriptor without a production drive`);
       const bet = module();
       if (!bet) throw new Error('The BET module is not loaded');
-      const { configuration } = buildProfileDynamics(record.manifest, options);
+      const limitRatings = ratings(record.sha256);
+      if (limitRatings && limitRatings.motors.length !== record.manifest.rotorCount) {
+        throw new Error(`Model ${modelId} has ${record.manifest.rotorCount} rotors; its limit ratings list ${limitRatings.motors.length} motors`);
+      }
+      const { configuration } = buildProfileDynamics(record.manifest, { ...options, limitRatings });
       resolve((hz: PhysicsHz) => new BetFlightDynamics(bet, configuration, hz));
     }),
   };

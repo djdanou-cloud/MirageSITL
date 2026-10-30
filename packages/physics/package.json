@@ -19,6 +19,7 @@
     "./drive": "./src/drive.ts",
     "./polar-catalog": "./src/polar-catalog.ts",
     "./profile-dynamics": "./src/profile-dynamics.ts",
+    "./limit-monitor": "./src/limit-monitor.ts",
     "./fidelity-metrics": "./src/fidelity-metrics.ts",
     "./bench-import": "./src/bench-import.ts"
   },
