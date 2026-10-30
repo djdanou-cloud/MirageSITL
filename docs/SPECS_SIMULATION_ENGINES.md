@@ -3919,6 +3919,7 @@ interface AircraftProfile {
   battery: { card: string | null };
   groundClearanceM: number | null;  // > 0 (decision F-07)
   sensorConfiguration: null;        // schema 3 holds a sensor configuration (TASK-143)
+  // schema 4 (TASK-144) adds propellerPolars: { card: string; polar: string }[], one or more
 }
 ```
 
@@ -4017,8 +4018,8 @@ interface ResolvedComponents {
       radialStationM: number[]; chordM: number[]; twistRad: number[]; quadratureWidthM: number[];
       shaftInertiaKgM2: number; bearingViscousNmPerRadS: number; azimuthSamples: number;
     };
-    motor: { kvRpmPerV: number; resistanceOhm: number; currentLimitA: number } | null;
-    esc: { pwmMinUs: number; pwmMaxUs: number; commandTauS: number } | null;
+    motor: { kvRpmPerV: number; resistanceOhm: number; currentLimitA: number; noLoadCurrentA?: number } | null;
+    esc: { pwmMinUs: number; pwmMaxUs: number; commandTauS: number; updateRateHz?: number; brakeCurrentLimitA?: number } | null;
   }[];
   battery: { card: string | null; values: BatterySpec } | null; // card equal to the profile's
 }
@@ -4510,10 +4511,12 @@ nothing. Configuration-time code only; never call it from a physics step.
 Profile schema 3 holds a sensor configuration, and schemas 1 and 2 hold
 `null`, which means the ArduPilot defaults: every error source stays with
 ArduPilot's stock SITL and MirageSITL injects nothing. `PROFILE_SCHEMA_VERSION`
-is 3. Schema 3 always has a calculation, and its configuration never equals
+was 3 until schema 4 (TASK-144, section "Profile-driven dynamics") added
+propeller polars. Schema 3 always has a calculation, and its configuration never equals
 the defaults, so the defaults have exactly one encoding (`null`).
 `withSensorConfiguration(profile, config)` writes schema 3 for a configuration
-and `null` otherwise, where schema 1 stays 1 and schemas 2 and 3 become 2.
+and `null` otherwise, where schema 1 stays 1 and schemas 2 and 3 become 2;
+schema 4 keeps its propeller polars.
 `bindMeasurements` keeps schema 3, and the Aircraft editor carries the
 configuration unchanged. Existing schema 1 and 2 records are never rewritten,
 and dependencies do not change. Derivation 2 (TASK-147) reads only the IMU
@@ -5066,3 +5069,188 @@ balance within 1e-9; the cut and partial-cut faults; the manifest mapping;
 the thrust fit; and the torque-path digest. `scripts/check-bet-runtime.mjs
 --allocation` adds the ESC-drive graph and the native drive allocator tests.
 The roadmap entry records the native ArduCopter flight on the drive.
+
+## Profile-driven dynamics (TASK-144)
+
+An aircraft profile version and its component cards build the session's
+flight dynamics: up to 16 BET rotors on the TASK-092 drive and battery bus,
+registered and loaded through `model.load`. The demo stays the default. By
+the stakeholder decisions of 2026-10-30, a physics value that a card lacks
+takes a documented assumed value and is listed as a flagged assumption, and
+each propeller's airfoil polar comes from a versioned runtime catalog.
+
+### Polar catalog v1
+
+`@mirage/physics/polar-catalog` lists the polars a profile may choose. Each
+entry has a stable text ID, stored in profiles, and a numeric ID, the rotor
+`polarId` of a derived manifest; numeric IDs are never reused.
+
+| ID | Numeric ID | Airfoil | Source |
+| --- | ---: | --- | --- |
+| `naca6409-neuralfoil-v1` | 1 | NACA6409 | NeuralFoil 0.3.3 prediction, `tests/fixtures/polars/naca6409-neuralfoil.json` |
+| `naca0012-neuralfoil-v1` | 2 | NACA0012 | NeuralFoil 0.3.3 prediction, `tests/fixtures/polars/naca0012-neuralfoil.json` |
+
+The catalog files under `packages/physics/polars/` are byte-identical copies
+of those fixtures, with the fixtures' provenance and limitations; the
+production `parseNeuralFoilPolar` reads them once. `catalogPolarForAirfoil`
+matches a card's airfoil name ignoring case, spaces, hyphens and underscores,
+and nothing looser. The SDA1075 XFOIL table, a single-Reynolds input of the
+annular BEM diagnostic in another format, is not in the catalog.
+
+### Profile schema 4
+
+Schema 4 adds `propellerPolars`: one or more `{ card, polar }` entries in
+ascending card order, each for a propeller card that a motor of the profile
+uses and naming a catalog ID. A profile is written in the lowest schema that
+holds its content: 4 with a chosen polar, else 3 with a sensor configuration,
+else 2, and a schema 1 profile whose calculation stays the implicit
+preliminary one stays 1. Schema 4 holds a sensor configuration or `null` and
+always a calculation. `withProfileContent` applies this rule;
+`withSensorConfiguration`, `withPropellerPolars` and `bindMeasurements` use it,
+so each keeps the others' content. `PROFILE_SCHEMA_VERSION` is 4; records in
+schemas 1 to 3 stay valid and are never rewritten. The Aircraft tab lists each
+propeller card in use with a polar selector; a choice for a card that no motor
+uses any more is dropped when the profile is saved.
+
+### Component resolution
+
+`resolveComponents(profile, cards)` (`@mirage/aircraft/resolve-components`)
+turns a profile and its card versions into the TASK-138 resolved components,
+with the drive fields of manifest v2, the assumptions and the values still
+missing. A profile with anything missing does not resolve and cannot fly.
+Propeller geometry is the TASK-139 derivation with 16 strips; its flags
+(assumed root cutout, chord or twist) become assumptions. The shaft inertia is
+the propeller's m·R²/3.
+
+| Value | Taken from | When the card has none | Assumption ID |
+| --- | --- | --- | --- |
+| Polar | the profile's choice | a catalog airfoil matching the card's airfoil; else missing | `polar-from-card-airfoil` |
+| Propeller mass (shaft inertia) | propeller card | missing | — |
+| Motor rotor inertia | — | 0, always | `motor-rotor-inertia` |
+| Bearing drag | — | 0, always; the no-load current carries the losses | `bearing-drag` |
+| Strips and azimuth samples | — | 16 (TASK-139) and 8 (TASK-033 validation), always | `rotor-numerics` |
+| Winding resistance | motor card | missing | — |
+| No-load current | motor card | 0, losses neglected | `motor-no-load-current` |
+| Motor current limit | motor card | the ESC rating | `motor-current-limit` |
+| PWM range | — | 1000–2000 µs, MOT_PWM_MIN/MAX defaults of the pinned ArduPilot, always | `esc-pwm-range` |
+| ESC update rate | ESC card | 490 Hz, `AP_MOTORS_SPEED_DEFAULT` of the pinned ArduPilot | `esc-update-rate` |
+| ESC command lag | — | one update period, always | `esc-command-lag` |
+| Brake current limit | — | the ESC rating, always | `esc-brake-current` |
+| Cell voltages | battery card | missing | — |
+| Pack resistance | battery card | 0, no sag | `pack-resistance` |
+| Pack current limit | battery card | the summed ESC ratings | `pack-current-limit` |
+
+The battery's open-circuit voltages are cells × cell voltage. Each assumption
+names its subject (a card or the battery) once, however many motors share it.
+The manifest derivation passes the optional `noLoadCurrentA`, `updateRateHz`
+and `brakeCurrentLimitA` through, so a resolved profile's manifest carries the
+drive; existing derivation inputs give the same bytes.
+
+### Building the dynamics
+
+`buildProfileDynamics(manifest, options)` (`@mirage/physics/profile-dynamics`)
+needs a motor and an ESC for every rotor and a battery. It projects the body
+and rotors to the v1 descriptor (sensor mounts, wake pairs and the ArduPilot
+frame are consumed elsewhere; drag, control surfaces and landing gear still
+fail closed), binds each rotor's catalog polar, takes the drive from
+`escDriveFromManifest` (initial state of charge 1 and no house load unless
+given) and the air from the ISA troposphere at 0 m unless given. Inflow lag
+0.1 s, inflow limit 500 m/s and minimum confidence 0.9 are the TASK-033
+settings. Actuator frames for the model carry its model ID as the motor map
+ID; without an autopilot the pilot sticks command collective only, and the
+vehicle starts at the origin on the synthetic pad with the motors stopped.
+Declared rotor-wake pairs are not modeled until TASK-101: the build lists the
+limitation and sets `CONFIGURATION_FLAG_WAKE_UNMODELED` (bit 16) in the new
+`configurationFlags` of `BetFlightConfiguration`, which `BetFlightDynamics` ORs
+into `validityFlags` every step, so the session reports ModelOutsideValidity.
+Configuration flags use bits 16 to 31 only; with none, the step is unchanged.
+
+### Session and Worker
+
+`profileModelPort(registry, module, options)` admits a schema 2 manifest from
+the `VehicleRegistry` when the requested hash equals the registered one, the
+BET module is loaded and the vehicle builds; the session changes nothing on a
+rejection (`ASSET_MISSING`). The physics Worker holds a registry and accepts
+two cold messages: `{ type: "bet.module", bytes, sha256 }` checks the hash,
+compiles the module and requires no imports and the `bet_bound_step_v2`,
+`bet_bus_step` and `bet_body_step` exports, answering `bet.module.ready` or
+`bet.module.reject`; `{ type: "model.register", bytes, sha256 }` registers a
+manifest, answering `model.registered` with its model ID or `model.reject`.
+The demo runs until a Control Protocol v2 `model.load` names a registered ID
+and hash. Starting experiments from the Run tab and the SITL lockstep stay with
+TASK-153 and TASK-154.
+
+### Hover trim check
+
+`tests/support/hover-trim.ts` is a physics-only oracle independent of the frame
+summation and the body integrator. It sweeps each distinct rotor to steady
+state in still air over the effective motor voltage u = d·V, on which the
+TASK-092 motor law depends only through their product, then solves the six-axis
+force and moment balance about the CG for every rotor's u and the hover roll
+and pitch by minimum-norm Newton steps, and turns u into duties at the
+battery's loaded voltage. The dynamics then fly from the trim attitude and
+rotor speeds with the trim as feed-forward and a light loop around it
+(attitude, rate and vertical-speed damping mapped to u by the minimum-norm
+inverse of the thrust and moment rows of the trim Jacobian). Rotor inflow
+starts at zero, so the first tenths of a second carry excess thrust that an
+open-loop hover would never forget; if the trim is right, the loop's steady
+corrections vanish.
+
+| Configuration | Hover duty | Hover rpm | Motor power | Loop correction after 4 s | Attitude error |
+| --- | --- | --- | ---: | ---: | ---: |
+| quad X | 0.396–0.407 | 4344–4461 | 127.8 W | 9.3e-5 of u | 4.4e-4 rad |
+| hexa X | 0.421–0.465 | 4569–5018 | 246.9 W | 6.9e-5 | 8.5e-5 rad |
+| octa X | 0.472–0.481 | 5037–5130 | 390.4 W | 6.5e-5 | 1.5e-4 rad |
+| coaxial X8 | 0.442 | 4757 | 320.5 W | 6.2e-5 | 0 |
+| sixteen motors | 0.487–0.499 | 5050–5168 | 792.3 W | 8.0e-5 | 2.7e-4 rad |
+
+These are the S19 fixtures with the example cards and NACA6409; the coaxial
+rotors see free-stream inflow, so their pairs share one duty. The acceptance
+limits, set before the first run, are a correction below 2e-3 of u, vertical
+speed below 0.02 m/s, body rate below 0.005 rad/s and attitude error below
+0.01 rad.
+
+### Compute and allocation
+
+`node scripts/bench-profile-dynamics.mjs` runs the sixteen-motor S19 fixture
+on the example cards in Node 24 (V8, `--single-threaded`). Its rotors spin up
+from rest to 0.8 of their hover-trim duty, so the vehicle stays on the
+synthetic pad while every rotor runs near flight speed. It writes
+`test-results/bench/profile-dynamics-16.json` with the manifest, WASM and
+source hashes. The step is `BetFlightDynamics` alone, not the browser Worker
+or the session; the scalar WASM build is used. The budget is the step period
+(A-04 requires 400 Hz for every configuration), and A-05 judges the average
+real-time ratio, which must be at least 0.99. The run below is from the cloud
+container (Intel Xeon at 2.80 GHz, 4 CPUs), not the Apple Silicon target.
+
+| Rate | Period | Mean | p50 | p95 | p99 | Period / mean |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 400 Hz | 2.500 ms | 1.149 ms | 1.059 ms | 1.762 ms | 2.162 ms | 2.18 |
+| 800 Hz | 1.250 ms | 1.142 ms | 1.056 ms | 1.694 ms | 2.148 ms | 1.09 |
+| 1200 Hz | 0.833 ms | 1.129 ms | 1.056 ms | 1.651 ms | 2.056 ms | 0.74 |
+
+At 400 Hz the p99 step stays inside the period. At 800 Hz the average keeps
+real time, but one step in twenty takes longer than the period and must be
+caught up by the clock. At 1200 Hz even the average exceeds the period, so the
+16-rotor model cannot run in real time there until TASK-091 adds compute
+headroom. G1 at 400 Hz: after 110,000 warm-up steps, 1,000,000 steps grow the
+young generation by 2,960 bytes (0.00296 B/step) with zero GC events, and the
+BET WASM memory keeps its armed size; an allocating positive
+control in the same harness is detected (30 GC events).
+
+### Verification (TASK-144)
+
+`tests/polar-catalog.test.ts` checks the catalog bytes, hashes and parse
+against the fixtures, airfoil matching and the schema 4 rules.
+`tests/resolve-components.test.ts` checks every value and assumption of the
+table above against the example cards. `tests/profile-dynamics.test.ts` loads
+the five S19 configurations and holds their trimmed hover; checks that a quad
+X splits its hover thrust by the lever arms about the CG,
+T_front·(L/√2 − x_cg) = T_rear·(L/√2 + x_cg), for two arm lengths within 1e-6;
+checks that an 11-inch propeller hovers slower and on less power than a
+10-inch one, as momentum theory predicts (4403 to 3638 rpm, 127.8 to 117.4 W,
+a ratio of 0.918 against the ideal 0.909); and loads the sixteen-motor model
+through the session registry. `tests/browser/profile-dynamics.spec.ts` derives
+the sixteen-motor manifest in Chromium and loads it into the application's
+physics Worker. `tests/aircraft-editor.test.ts` checks the polar choices of the
+Aircraft tab form.

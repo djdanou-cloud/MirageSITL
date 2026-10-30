@@ -1,5 +1,6 @@
 import {
-  validateAircraftProfile, type AircraftProfile, type CalculationSettings, type ProfileMotor, type SpinDirection,
+  propellerPolarsOf, validateAircraftProfile, withPropellerPolars, type AircraftProfile, type CalculationSettings, type ProfileMotor,
+  type PropellerPolar, type SpinDirection,
 } from '@mirage/aircraft/profile';
 import type { SensorConfiguration } from '@mirage/aircraft/sensor-fields';
 import type { MassProperties } from '@mirage/physics/vehicle-manifest';
@@ -61,6 +62,8 @@ export interface ProfileForm {
   readonly calculation: CalculationSettings | null;
   /** The sensor configuration (TASK-143), carried unchanged: the Sensors tab edits it. Null is the ArduPilot defaults. */
   readonly sensorConfiguration: SensorConfiguration | null;
+  /** Chosen catalog polars of propeller cards (TASK-144); a choice for a card no motor uses any more is dropped on save. */
+  readonly propellerPolars: readonly PropellerPolar[];
 }
 export type FormResult = { readonly ok: true; readonly profile: AircraftProfile } | { readonly ok: false; readonly errors: readonly string[] };
 
@@ -87,7 +90,7 @@ export function emptyMass(): MassForm {
 export function emptyForm(): ProfileForm {
   return {
     arms: [], mass: emptyMass(), payloadEnabled: false, payload: emptyMass(), batteryCard: null, groundClearanceM: '',
-    calculation: { mode: 'preliminary', measurementSets: [] }, sensorConfiguration: null,
+    calculation: { mode: 'preliminary', measurementSets: [] }, sensorConfiguration: null, propellerPolars: [],
   };
 }
 
@@ -119,6 +122,7 @@ export function formFromProfile(profile: AircraftProfile): ProfileForm {
     payload: profile.payload ? massForm(profile.payload) : emptyMass(), batteryCard: profile.battery.card,
     groundClearanceM: profile.groundClearanceM === null ? '' : String(profile.groundClearanceM),
     calculation: profile.schemaVersion === 1 ? null : profile.calculation, sensorConfiguration: profile.sensorConfiguration,
+    propellerPolars: propellerPolarsOf(profile),
   };
 }
 
@@ -199,7 +203,10 @@ export function profileFromForm(form: ProfileForm): FormResult {
     sensorConfiguration: form.sensorConfiguration, ...(form.calculation ? { calculation: form.calculation } : {}),
   };
   try {
-    return { ok: true, profile: validateAircraftProfile(candidate) };
+    const used = new Set(motors.map(motor => motor.components.propeller));
+    // Schema 4 exactly when a polar is chosen (TASK-144).
+    const profile = withPropellerPolars(validateAircraftProfile(candidate), form.propellerPolars.filter(entry => used.has(entry.card)));
+    return { ok: true, profile };
   } catch (cause) {
     return { ok: false, errors: [cause instanceof Error ? cause.message.replace(/^Invalid aircraft profile: /, '') : String(cause)] };
   }
@@ -243,6 +250,18 @@ export function evenLayout(text: EvenLayoutText): { readonly ok: true; readonly 
     };
   });
   return { ok: true, arms };
+}
+
+/** The distinct propeller cards the form's motors use, in arm order. */
+export function propellerCardsOf(form: ProfileForm): string[] {
+  const cards = new Set<string>();
+  for (const arm of form.arms) for (const motor of arm.coaxial ? [arm.upper, arm.lower] : [arm.upper]) if (motor.propeller) cards.add(motor.propeller);
+  return [...cards];
+}
+/** The form with the polar of one propeller card chosen, or unchosen with null. */
+export function choosePropellerPolar(form: ProfileForm, card: string, polar: string | null): ProfileForm {
+  const others = form.propellerPolars.filter(entry => entry.card !== card);
+  return { ...form, propellerPolars: polar === null ? others : [...others, { card, polar }] };
 }
 
 /** The form with its arms replaced by a layout; propulsion cards of the old first motor carry over to every new motor. */

@@ -17,6 +17,8 @@
     "./motor-fault": "./src/motor-fault.ts",
     "./bet-dynamics": "./src/bet-dynamics.ts",
     "./drive": "./src/drive.ts",
+    "./polar-catalog": "./src/polar-catalog.ts",
+    "./profile-dynamics": "./src/profile-dynamics.ts",
     "./fidelity-metrics": "./src/fidelity-metrics.ts",
     "./bench-import": "./src/bench-import.ts"
   },

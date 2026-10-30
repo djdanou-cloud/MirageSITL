@@ -112,7 +112,7 @@ Workspace packages, services, and native crates:
 | `packages/aar` | Input/actuator/truth/EKF recording and replay |
 | `packages/scenarios` | Declarative training scenarios, tick runner, and trace rubrics |
 | `packages/project` | Local project store: immutable versions, project archives (TASK-136) |
-| `packages/aircraft` | Aircraft profiles: arms, motors, mass properties, rotor layout and vehicle manifest derivation (TASK-138); component cards, the card exchange file and propeller geometry (TASK-139); measurement sets and calculation modes (TASK-140) |
+| `packages/aircraft` | Aircraft profiles: arms, motors, mass properties, rotor layout and vehicle manifest derivation (TASK-138); component cards, the card exchange file and propeller geometry (TASK-139); measurement sets and calculation modes (TASK-140); component resolution with listed assumptions and propeller polars (TASK-144) |
 | `services/tiles-worker` | Cloudflare proxy, quotas, permitted caching |
 | `native` | Source/toolchain pins and WASM reference tests |
 
@@ -553,6 +553,23 @@ derived manifest carries the IMU mount. The native driver takes a configuration
 through `MIRAGE_SITL_SENSORS`, and `scripts/run-sitl-sensors.mjs` with
 `scripts/check-sitl-sensors.mjs` capture and judge the ground cases that show
 each error applied once.
+
+## Profile-driven dynamics (TASK-144)
+
+An aircraft profile version and its component cards become the session's
+flight dynamics (S03, S05). `resolveComponents` (`packages/aircraft`) turns the
+cards into resolved components, listing every assumed value and every value
+still missing; a profile with anything missing cannot fly. The profile chooses
+each propeller's airfoil polar from the runtime polar catalog
+(`packages/physics/src/polar-catalog.ts`, profile schema 4).
+`buildProfileDynamics` (`packages/physics/src/profile-dynamics.ts`) turns the
+derived vehicle manifest into `BetFlightDynamics` with up to 16 rotors on the
+TASK-092 drive, and `profileModelPort` admits it through the session's
+`model.load`. The physics Worker accepts the BET module and manifests by hash;
+the demo stays the default until a model is loaded. Starting experiments and
+the SITL lockstep belong to TASK-153 and TASK-154. The contract is in
+[SPECS_SIMULATION_ENGINES.md](SPECS_SIMULATION_ENGINES.md), section
+"Profile-driven dynamics (TASK-144)".
 
 ## Phase 0 contracts: fixtures, capabilities, and models
 

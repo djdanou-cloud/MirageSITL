@@ -4,6 +4,8 @@ import { RecordingHandoff } from '@mirage/aar/handoff';
 import { createSessionFaultPort } from '@mirage/ew/session-port';
 import { isWorkerInitV2, tickToNumber, type CommandResultV2, type ControlCommandV2, type WorkerFaultV2 } from '@mirage/protocol';
 import { PhysicsSessionV2, type SessionClock } from '@mirage/physics';
+import { profileModelPort } from '@mirage/physics/profile-dynamics';
+import { VehicleRegistry } from '@mirage/physics/vehicle-manifest';
 import { ScenarioBinder } from '@mirage/scenarios/bind';
 import { parseScenario } from '@mirage/scenarios/schema';
 
@@ -20,7 +22,13 @@ let timer: ReturnType<typeof setTimeout> | undefined;
 let binder: ScenarioBinder | null = null;
 let haltPosted = false;
 let recorder: { handoff: RecordingHandoff; record: AarRecord } | null = null;
+// Profile dynamics (TASK-144): manifests registered by hash and the BET module they run on. The demo stays the
+// default; a registered model runs only after a Control Protocol v2 `model.load` names its ID and hash.
+const registry = new VehicleRegistry();
+let betModule: WebAssembly.Module | null = null;
 type WorkerNotice = CommandResultV2 | WorkerFaultV2
+  | { type: "bet.module.ready"; sha256: string } | { type: "bet.module.reject"; message: string }
+  | { type: "model.registered"; modelId: number; sha256: string } | { type: "model.reject"; message: string }
   | { type: "scenario.submit"; command: ControlCommandV2 }
   | { type: "scenario.reject"; message: string }
   | { type: "pilot.rejected"; count: number; ageMs: number; wallMs: number; sampleWallMs: number; sampleId: number; expectedEpoch: number;
@@ -68,6 +76,23 @@ function armRecording(queue: SharedArrayBuffer): void {
     if (active.handoff.push(active.record.words)) notedLost = active.handoff.lost;
   });
 }
+function isBinaryMessage<T extends string>(data: unknown, type: T): data is { type: T; bytes: Uint8Array; sha256: string } {
+  return typeof data === "object" && data !== null && "type" in data && data.type === type && "bytes" in data &&
+    data.bytes instanceof Uint8Array && "sha256" in data && typeof data.sha256 === "string" && /^[a-f0-9]{64}$/.test(data.sha256);
+}
+function hex(buffer: ArrayBuffer): string {
+  return Array.from(new Uint8Array(buffer), value => value.toString(16).padStart(2, "0")).join("");
+}
+/** Cold: verifies the BET module's hash, compiles it and checks it imports nothing and exports the drive and bus. */
+async function loadBetModule(bytes: Uint8Array, sha256: string): Promise<void> {
+  const copy = new Uint8Array(bytes);
+  if (hex(await crypto.subtle.digest("SHA-256", copy)) !== sha256) throw new Error("BET module SHA-256 mismatch");
+  const module = await WebAssembly.compile(copy);
+  if (WebAssembly.Module.imports(module).length !== 0) throw new Error("The BET module must not import host functions");
+  const names = new Set(WebAssembly.Module.exports(module).map(entry => entry.name));
+  for (const name of ["bet_bound_step_v2", "bet_bus_step", "bet_body_step"]) if (!names.has(name)) throw new Error(`The BET module lacks ${name}`);
+  betModule = module;
+}
 function isScenarioArm(data: unknown): data is { type: "scenario.arm"; scenario: unknown } {
   return typeof data === "object" && data !== null && "type" in data && data.type === "scenario.arm" && "scenario" in data;
 }
@@ -99,7 +124,7 @@ addEventListener('message', (event: MessageEvent<unknown>) => {
   if (!session) {
     if (!isWorkerInitV2(data)) { post({ type: 'fault-v2', protocolVersion: 2, message: 'Expected init-v2' }); return; }
     try {
-      session = new PhysicsSessionV2(data, clock, undefined, createSessionFaultPort());
+      session = new PhysicsSessionV2(data, clock, undefined, createSessionFaultPort(), profileModelPort(registry, () => betModule));
       const created = session;
       created.setBeforeTick((tick) => {
         if (!binder) return;
@@ -122,6 +147,16 @@ addEventListener('message', (event: MessageEvent<unknown>) => {
     return;
   }
   const current = session;
+  if (isBinaryMessage(data, "bet.module")) {
+    loadBetModule(data.bytes, data.sha256).then(() => post({ type: "bet.module.ready", sha256: data.sha256 }),
+      (error: unknown) => post({ type: "bet.module.reject", message: error instanceof Error ? error.message : "Invalid BET module" }));
+    return;
+  }
+  if (isBinaryMessage(data, "model.register")) {
+    registry.register(data.bytes, data.sha256).then(record => post({ type: "model.registered", modelId: record.manifest.modelId, sha256: record.sha256 }),
+      (error: unknown) => post({ type: "model.reject", message: error instanceof Error ? error.message : "Invalid model" }));
+    return;
+  }
   if (isScenarioArm(data)) {
     armScenario(data.scenario);
     return;

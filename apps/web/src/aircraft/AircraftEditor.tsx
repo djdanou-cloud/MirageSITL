@@ -11,7 +11,8 @@ import { describeLibraryError } from "../library/library-data";
 import { AircraftScheme3D, type RenderedRotor } from "./AircraftScheme3D";
 import { ArmTable, type CardOption, type CardOptions } from "./ArmTable";
 import { MassProperties } from "./MassProperties";
-import { emptyForm, formFromProfile, profileFromForm, type ProfileForm } from "./profile-form";
+import { POLAR_CATALOG } from "@mirage/physics/polar-catalog";
+import { choosePropellerPolar, emptyForm, formFromProfile, profileFromForm, propellerCardsOf, type ProfileForm } from "./profile-form";
 
 // The Aircraft tab (TASK-141, S03): create, open, edit, save and copy aircraft
 // profiles of the open project without editing files. Every saved version goes
@@ -258,6 +259,31 @@ export function AircraftEditor({ storeState, project, active }: { storeState: St
               <button type="button" onClick={applyShared}>Apply to every motor</button>
             </div>
             {select("battery-card", "Battery card", editing.form.batteryCard, library.cards.battery, batteryCard => setForm({ ...editing.form, batteryCard }))}
+          </section>
+          <section className="project-section" aria-labelledby="polars-heading">
+            <h3 id="polars-heading">Propeller airfoil polars</h3>
+            <p className="hint">
+              The flight physics needs an airfoil polar for each propeller, from the polar catalog. Without a choice, a card whose
+              airfoil names a catalog airfoil uses that polar, listed as an assumption; otherwise the profile cannot fly.
+            </p>
+            {propellerCardsOf(editing.form).length === 0 ? <p>No motor has a propeller card yet.</p> : (
+              <div className="field-grid">
+                {propellerCardsOf(editing.form).map((card, index) => {
+                  const name = library.cards.propeller.find(option => option.sha256 === card)?.name ?? `Card ${card.slice(0, 12)}`;
+                  const chosen = editing.form.propellerPolars.find(entry => entry.card === card)?.polar ?? "";
+                  return (
+                    <div className="field" key={card}>
+                      <label htmlFor={`polar-${index}`}>Polar for {name}</label>
+                      <select id={`polar-${index}`} value={chosen}
+                        onChange={event => setForm(choosePropellerPolar(editing.form, card, event.target.value === "" ? null : event.target.value))}>
+                        <option value="">Not chosen</option>
+                        {POLAR_CATALOG.map(entry => <option key={entry.id} value={entry.id}>{entry.airfoil} ({entry.description.split(":")[0]})</option>)}
+                      </select>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </section>
           <MassProperties form={editing.form} onChange={setForm} />
         </>

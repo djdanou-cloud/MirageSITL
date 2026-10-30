@@ -1,0 +1,1073 @@
+{
+  "schemaVersion": 1,
+  "task": "TASK-144",
+  "status": "pass",
+  "vehicle": {
+    "fixture": "octa-coaxial-16",
+    "rotors": 16,
+    "manifestSha256": "3dc0c2e1297c2ce8152fe4832c10845705fb97c1852112974bb22d310f44cb44",
+    "cards": "tests/fixtures/components/*-example.json",
+    "polar": "naca6409-neuralfoil-v1",
+    "load": "synthetic pad at 0.8 x hover-trim duty, spun up from rest",
+    "trimDuty": [
+      0.49730495414765236,
+      0.4931524157812926,
+      0.48873399357253633,
+      0.48665772438929844,
+      0.48813053179222915,
+      0.49228307015861217,
+      0.49670149236740196,
+      0.49877776155057796,
+      0.49731018329494936,
+      0.4931444548869335,
+      0.4887400228299307,
+      0.4866571586259716,
+      0.48812530264498366,
+      0.492291031052937,
+      0.49669546310995283,
+      0.49877832731393607
+    ],
+    "trimRpm": [
+      5153.964724459977,
+      5113.4304125465305,
+      5070.300719772125,
+      5050.033563814836,
+      5064.410128073087,
+      5104.944439986762,
+      5148.074132761494,
+      5168.34128871818,
+      5154.015767910725,
+      5113.35270360164,
+      5070.359573364379,
+      5050.028041210314,
+      5064.3590846228435,
+      5105.022148931316,
+      5148.015279168706,
+      5168.3468113230065
+    ]
+  },
+  "budget": "Step period 1/hz (A-04: 400 Hz for every configuration; A-05: real-time ratio at least 0.99)",
+  "timing": [
+    {
+      "hz": 400,
+      "steps": 20000,
+      "warmupSteps": 20000,
+      "periodMs": 2.5,
+      "meanMs": 1.1492199071499984,
+      "p50Ms": 1.0591720000011264,
+      "p95Ms": 1.7615619999996852,
+      "p99Ms": 2.1621220000015455,
+      "maxMs": 8.697374000003038,
+      "p99WithinPeriod": true,
+      "realtimeRatioAtMean": 2.175388700148661,
+      "meanMeetsA05": true,
+      "realtimeRatioAtP50": 2.360334298864907
+    },
+    {
+      "hz": 800,
+      "steps": 20000,
+      "warmupSteps": 20000,
+      "periodMs": 1.25,
+      "meanMs": 1.1421953608500581,
+      "p50Ms": 1.0563980000006268,
+      "p95Ms": 1.6937659999966854,
+      "p99Ms": 2.14822699999786,
+      "maxMs": 19.26774700000533,
+      "p99WithinPeriod": false,
+      "realtimeRatioAtMean": 1.0943837130188572,
+      "meanMeetsA05": true,
+      "realtimeRatioAtP50": 1.1832661553687704
+    },
+    {
+      "hz": 1200,
+      "steps": 20000,
+      "warmupSteps": 20000,
+      "periodMs": 0.8333333333333334,
+      "meanMs": 1.1288937463000213,
+      "p50Ms": 1.0564930000109598,
+      "p95Ms": 1.650632000004407,
+      "p99Ms": 2.056414999999106,
+      "maxMs": 5.3352149999991525,
+      "p99WithinPeriod": false,
+      "realtimeRatioAtMean": 0.7381858000937689,
+      "meanMeetsA05": false,
+      "realtimeRatioAtP50": 0.7887731705980906
+    }
+  ],
+  "allocation": {
+    "steps": 1000000,
+    "bytes": 2960,
+    "bytesPerStep": 0.00296,
+    "gcEvents": 0,
+    "elapsedMs": 479217.907441,
+    "warmupSteps": 110000,
+    "memoryStable": true,
+    "positiveControl": {
+      "steps": 1000000,
+      "bytes": 742888,
+      "bytesPerStep": 0.742888,
+      "gcEvents": 30,
+      "elapsedMs": 15.624767999979667
+    },
+    "controlDetected": true
+  },
+  "identity": {
+    "node": "v24.22.2",
+    "platform": "linux",
+    "arch": "x64",
+    "cpu": "Intel(R) Xeon(R) Processor @ 2.80GHz",
+    "cpus": 4,
+    "wasmSha256": "d2b3d4bb572b0e4e79041d5a7ee9ce29837a1bd57c105e82943163ccd3a7395e",
+    "sourceInputs": [
+      {
+        "file": "node_modules/fast-deep-equal/index.js",
+        "sha256": "eb469e206280321a3878f2335ec98aa2104a155079d8ed83a23029098dccd215"
+      },
+      {
+        "file": "node_modules/fast-uri/index.js",
+        "sha256": "62876e5094b43ba2ba90374613dab4576fd337063dad20b4b07cc5e3a7e2303b"
+      },
+      {
+        "file": "node_modules/fast-uri/lib/schemes.js",
+        "sha256": "c2c61d3fd0bc63a587100928a399e75be8c420d210c439d75f7346da4aa4f3c3"
+      },
+      {
+        "file": "node_modules/fast-uri/lib/utils.js",
+        "sha256": "610a6cfa7b1c9d5689443b3a3d14af4c24afed51ef5852495ae1489ae455a9f4"
+      },
+      {
+        "file": "node_modules/json-schema-traverse/index.js",
+        "sha256": "024191b747afac01b28ff11d744e9f82720bbad5f716163ba5c962eb62aa2350"
+      },
+      {
+        "file": "packages/aircraft/node_modules/ajv/dist/ajv.js",
+        "sha256": "edaed56fc546f5551b0d6dc2ff2a9cc25c2d6c83318a086eaa8c3ad0b2479297"
+      },
+      {
+        "file": "packages/aircraft/node_modules/ajv/dist/compile/codegen/code.js",
+        "sha256": "1287153722f1fc3c5342647de7ae1d7b6fb68bdb3378a0776a937d273fc97e0d"
+      },
+      {
+        "file": "packages/aircraft/node_modules/ajv/dist/compile/codegen/index.js",
+        "sha256": "f03b2b72597ef86878d1d4030580c2d0964046efad4867f3d05aa91065ba034c"
+      },
+      {
+        "file": "packages/aircraft/node_modules/ajv/dist/compile/codegen/scope.js",
+        "sha256": "d2a0a97af2faa2cad88702314fe421e235ab17f11e0d62883d58d8d4dc734286"
+      },
+      {
+        "file": "packages/aircraft/node_modules/ajv/dist/compile/errors.js",
+        "sha256": "53990f8f2cc05922bba410ae68231d3f869de4f8343277ede5b4834fa564c6c2"
+      },
+      {
+        "file": "packages/aircraft/node_modules/ajv/dist/compile/index.js",
+        "sha256": "05b34da22814f3787bfa3ac68dad59c9047f56e55a607e0a20719ebf5afe69ac"
+      },
+      {
+        "file": "packages/aircraft/node_modules/ajv/dist/compile/names.js",
+        "sha256": "3cab37a2240b996b9bed92fe7a041d91689cfe3ad2e9ae4c0ab99e4146408493"
+      },
+      {
+        "file": "packages/aircraft/node_modules/ajv/dist/compile/ref_error.js",
+        "sha256": "81c98fdf34c3037c91bfcc02277ec32156c71e34048f36cfe4e084416e916cb7"
+      },
+      {
+        "file": "packages/aircraft/node_modules/ajv/dist/compile/resolve.js",
+        "sha256": "df75af0e0cf03fa1c6452e8dc61019f5aec645a8a5f6f494dc4e13cb5502d2d9"
+      },
+      {
+        "file": "packages/aircraft/node_modules/ajv/dist/compile/rules.js",
+        "sha256": "ec1d86500f497aa8e20f9f0c1695951159d9a909669d00a261ce1bb22b3cf0a9"
+      },
+      {
+        "file": "packages/aircraft/node_modules/ajv/dist/compile/util.js",
+        "sha256": "fa911f5631f29d4d6420adfe086cb693b94b08de2719475c78c54bcb82f831a5"
+      },
+      {
+        "file": "packages/aircraft/node_modules/ajv/dist/compile/validate/applicability.js",
+        "sha256": "50c5cba5894a7fb9874b3432355b46ec71b73c9368dafb1323ded8567cca8fc0"
+      },
+      {
+        "file": "packages/aircraft/node_modules/ajv/dist/compile/validate/boolSchema.js",
+        "sha256": "c08abdbdbd3d8b1dcc0552a20fbc7d837ed44f4ca6abb2e464985590ac94377f"
+      },
+      {
+        "file": "packages/aircraft/node_modules/ajv/dist/compile/validate/dataType.js",
+        "sha256": "697bd7005361ec7066a23c18830a10b0ef28aec1a33138b4e3098bf78c4fae52"
+      },
+      {
+        "file": "packages/aircraft/node_modules/ajv/dist/compile/validate/defaults.js",
+        "sha256": "05721971df94faa57b09c8cfd60c2eef81b6d14910a7dea5f539d693a029c428"
+      },
+      {
+        "file": "packages/aircraft/node_modules/ajv/dist/compile/validate/index.js",
+        "sha256": "cb2103e5f890e04592c10d24b45857dad91155bae9f9460138a2459bdaaea2cd"
+      },
+      {
+        "file": "packages/aircraft/node_modules/ajv/dist/compile/validate/keyword.js",
+        "sha256": "ab8f070c75c25eee9be5c837f364748909b58f5db66149a2beccbd2f66afeb76"
+      },
+      {
+        "file": "packages/aircraft/node_modules/ajv/dist/compile/validate/subschema.js",
+        "sha256": "ca783d6052af91e65ebb59a5b48b47fb459a2241d37ca6a042f767d4ce451bdc"
+      },
+      {
+        "file": "packages/aircraft/node_modules/ajv/dist/core.js",
+        "sha256": "51be29c7ed7288622f755c0f1bebd3da4a9907d77aa2c33b0f2a0a5b6b339603"
+      },
+      {
+        "file": "packages/aircraft/node_modules/ajv/dist/refs/data.json",
+        "sha256": "d24ab8a97c18b3f5afdde7d7024a0e0ac1df0614a16a41cb88f81379edcc2db3"
+      },
+      {
+        "file": "packages/aircraft/node_modules/ajv/dist/refs/json-schema-draft-07.json",
+        "sha256": "f7e8b13cad4fecff9771f3626fef33e20e59027b90938a28fd9d2f6c17cd0773"
+      },
+      {
+        "file": "packages/aircraft/node_modules/ajv/dist/runtime/equal.js",
+        "sha256": "c94467da09ee94e5d194483a7ab821b9bb3bf1c04397270f2ab53dea9de59274"
+      },
+      {
+        "file": "packages/aircraft/node_modules/ajv/dist/runtime/ucs2length.js",
+        "sha256": "1df012dd3d23fced07255a7204798004509687cb1f431ae0ab976db436bbd890"
+      },
+      {
+        "file": "packages/aircraft/node_modules/ajv/dist/runtime/uri.js",
+        "sha256": "d1d61baf97ed87d7310df847a78ed73d19c8cc003207bf5aaec977500bdb1578"
+      },
+      {
+        "file": "packages/aircraft/node_modules/ajv/dist/runtime/validation_error.js",
+        "sha256": "11bf5b4affc8114e5e7cdf65b93006c2d997ab60ada1152c22e136f9b828b815"
+      },
+      {
+        "file": "packages/aircraft/node_modules/ajv/dist/vocabularies/applicator/additionalItems.js",
+        "sha256": "7beb0fbda5e349907067c8398bb8cc3260a6267b6e5dff9793a5ab2171934099"
+      },
+      {
+        "file": "packages/aircraft/node_modules/ajv/dist/vocabularies/applicator/additionalProperties.js",
+        "sha256": "e237cb180cd2e3f2e676feb714d7dcc6a42116640f9db2ad830cd20d9dfc540a"
+      },
+      {
+        "file": "packages/aircraft/node_modules/ajv/dist/vocabularies/applicator/allOf.js",
+        "sha256": "98f46a6434ebe5f851b406480e18b776dd7f1bcc275e28c16a13bfef3cc067c7"
+      },
+      {
+        "file": "packages/aircraft/node_modules/ajv/dist/vocabularies/applicator/anyOf.js",
+        "sha256": "8d7368d4aebad0514b713191b934993b4f0bf570e1bab93b07dc69712db2cec5"
+      },
+      {
+        "file": "packages/aircraft/node_modules/ajv/dist/vocabularies/applicator/contains.js",
+        "sha256": "56165dc93cd8b0b4611db50a97f1e7d7f9af6c5ffe95a7a5b054d6eeaa7f6a8c"
+      },
+      {
+        "file": "packages/aircraft/node_modules/ajv/dist/vocabularies/applicator/dependencies.js",
+        "sha256": "c1a83bf484b6fde4d268935f079ddba5e74a2f589dfc6d15ca2e20ba4d06ee5b"
+      },
+      {
+        "file": "packages/aircraft/node_modules/ajv/dist/vocabularies/applicator/if.js",
+        "sha256": "42374ee5dc681433579cc689b0c4ae5343f5bf78d4d6a561722b9277c5335ec4"
+      },
+      {
+        "file": "packages/aircraft/node_modules/ajv/dist/vocabularies/applicator/index.js",
+        "sha256": "5a61978f6d81bbabfa8b9ccb71d7de816ed6dd1fd7de5c72657439a76c2a7cb3"
+      },
+      {
+        "file": "packages/aircraft/node_modules/ajv/dist/vocabularies/applicator/items.js",
+        "sha256": "fa87f74adc3aac1f1b5e3e7dddf73294e6850e1dd49ed131fca4352e9645c54e"
+      },
+      {
+        "file": "packages/aircraft/node_modules/ajv/dist/vocabularies/applicator/items2020.js",
+        "sha256": "c449ef64aec16263c7935293ed450cfc2da3ba66f6df5f99c3198c05f169838f"
+      },
+      {
+        "file": "packages/aircraft/node_modules/ajv/dist/vocabularies/applicator/not.js",
+        "sha256": "ab2f2758d4ea97ac8763fe5540dd0f4d877859676fe5d6c750a18deca387f718"
+      },
+      {
+        "file": "packages/aircraft/node_modules/ajv/dist/vocabularies/applicator/oneOf.js",
+        "sha256": "e2aeb6c22d49fd5f348bedcf7f5c4d7b31f5a05dd7ff1a0c531374c6968792a2"
+      },
+      {
+        "file": "packages/aircraft/node_modules/ajv/dist/vocabularies/applicator/patternProperties.js",
+        "sha256": "0d43da49a82452c439ba990de7372ad5cedb663717918a5f6dae07025abff655"
+      },
+      {
+        "file": "packages/aircraft/node_modules/ajv/dist/vocabularies/applicator/prefixItems.js",
+        "sha256": "16264f7b3233a6dcb98b48700643efbd3ebc4d11e27b3eacffc83ccb5f44fb23"
+      },
+      {
+        "file": "packages/aircraft/node_modules/ajv/dist/vocabularies/applicator/properties.js",
+        "sha256": "c896873ae7251093a2c8880545b69b6e8cb55c44817a53ec830a49818d74104f"
+      },
+      {
+        "file": "packages/aircraft/node_modules/ajv/dist/vocabularies/applicator/propertyNames.js",
+        "sha256": "b3411cfeaff8efd5e6de12971bb5dc339e64b61fbe62d3b950794c077315c2e7"
+      },
+      {
+        "file": "packages/aircraft/node_modules/ajv/dist/vocabularies/applicator/thenElse.js",
+        "sha256": "9bc42eb8699d57188a7ec2a710d3f38052f92bd78c5d4d0442cf98cf2ebbe22d"
+      },
+      {
+        "file": "packages/aircraft/node_modules/ajv/dist/vocabularies/code.js",
+        "sha256": "9212ddf8bd0a4c3b1c4b44cdadd141183b2b36f561b91d13df53c83911e3bf63"
+      },
+      {
+        "file": "packages/aircraft/node_modules/ajv/dist/vocabularies/core/id.js",
+        "sha256": "49c8eff694ce4371450c1f9986e934fcbf4bd143311caef5332113f29175bc11"
+      },
+      {
+        "file": "packages/aircraft/node_modules/ajv/dist/vocabularies/core/index.js",
+        "sha256": "f420e1011b95e27b54c58323a7ed4ffbd0a88cdb4496f771bb6782c2aa22d23e"
+      },
+      {
+        "file": "packages/aircraft/node_modules/ajv/dist/vocabularies/core/ref.js",
+        "sha256": "1422c1454b3621d890066042048f37746fe1cf213088307099816199889bbfd1"
+      },
+      {
+        "file": "packages/aircraft/node_modules/ajv/dist/vocabularies/discriminator/index.js",
+        "sha256": "b58b58025d2dbe5a6967376faec9295b860a338664c47037e9a1035c1e8fb88e"
+      },
+      {
+        "file": "packages/aircraft/node_modules/ajv/dist/vocabularies/discriminator/types.js",
+        "sha256": "2365341d1f30dc72cece7703e908e47aacb8f904b9f66ec4019fe889ae1e57fa"
+      },
+      {
+        "file": "packages/aircraft/node_modules/ajv/dist/vocabularies/draft7.js",
+        "sha256": "8c62022c6c3aa302c3ea6f6709a697fc9eb6385d243fa7c2156dbe9f02228170"
+      },
+      {
+        "file": "packages/aircraft/node_modules/ajv/dist/vocabularies/format/format.js",
+        "sha256": "6fae0d5124fd821b1a9959492f7d6d7b528bee8830d49a7a4759fc9a9ab81d5f"
+      },
+      {
+        "file": "packages/aircraft/node_modules/ajv/dist/vocabularies/format/index.js",
+        "sha256": "d5dad5f95c9c5f48f8ca956cdbb927aafc7b56baabfca8c0b0403d92c5ebeb67"
+      },
+      {
+        "file": "packages/aircraft/node_modules/ajv/dist/vocabularies/metadata.js",
+        "sha256": "45c178744a7ec57e20c85ceeaea8d9f36b5663636ab7e495ea2c3c1bf4a58609"
+      },
+      {
+        "file": "packages/aircraft/node_modules/ajv/dist/vocabularies/validation/const.js",
+        "sha256": "ace994e9ab97a70899a9484794794f4be5ee03bfb3cf32242d3f091d77f0329a"
+      },
+      {
+        "file": "packages/aircraft/node_modules/ajv/dist/vocabularies/validation/enum.js",
+        "sha256": "61062b318a40eb52fc5a8283e7f4781db98349841744961ef4fe04a4722ebf22"
+      },
+      {
+        "file": "packages/aircraft/node_modules/ajv/dist/vocabularies/validation/index.js",
+        "sha256": "4a1839832de5f10ff423c1c0c6cb232b5b6e1b34980a28862cf56b2763136de4"
+      },
+      {
+        "file": "packages/aircraft/node_modules/ajv/dist/vocabularies/validation/limitItems.js",
+        "sha256": "49f0427d29b38aef2fa8aead26e68bda12deb9a2da22f7a7804ba0fed44e1fec"
+      },
+      {
+        "file": "packages/aircraft/node_modules/ajv/dist/vocabularies/validation/limitLength.js",
+        "sha256": "379c28317faaf7784680b6049c3562692d3df6d65cce33f48e6c6c723beeeec2"
+      },
+      {
+        "file": "packages/aircraft/node_modules/ajv/dist/vocabularies/validation/limitNumber.js",
+        "sha256": "3dd4bd41dbfc76c522078ff54b6479683485c4e97faa04cfcfaf2d8cb0fb8e65"
+      },
+      {
+        "file": "packages/aircraft/node_modules/ajv/dist/vocabularies/validation/limitProperties.js",
+        "sha256": "8523a3f7b36c34882ca32b0ec71a2157d7930907cb86b778a97c1514fa6258ac"
+      },
+      {
+        "file": "packages/aircraft/node_modules/ajv/dist/vocabularies/validation/multipleOf.js",
+        "sha256": "df128c2a6ca74ae57c65fbfe3aea8a101447a3ae8c41fd53cfc5693fa23cc8bd"
+      },
+      {
+        "file": "packages/aircraft/node_modules/ajv/dist/vocabularies/validation/pattern.js",
+        "sha256": "86e84206bfc6a66ef18bf1fe43fbc56ebe7f7f4d57841197b6d044c529e0c195"
+      },
+      {
+        "file": "packages/aircraft/node_modules/ajv/dist/vocabularies/validation/required.js",
+        "sha256": "b953bc18d94274bd73374dd5b4282d7a21159cec8c0e7a357e1eaf3f326b9054"
+      },
+      {
+        "file": "packages/aircraft/node_modules/ajv/dist/vocabularies/validation/uniqueItems.js",
+        "sha256": "666d1a2aa25c0dfe3cf41312d0f9d40e9f99eb2c19be7469134ad89005aadd52"
+      },
+      {
+        "file": "packages/aircraft/src/components.schema.json",
+        "sha256": "5314625ca0dad6665aeeb89525f05717170f592afa46e9c426a9cfea31c8e5f5"
+      },
+      {
+        "file": "packages/aircraft/src/components.ts",
+        "sha256": "36dd2d0180c50da16fee1fe21ecf04e206a39f33710107c340e58284e330f6cd"
+      },
+      {
+        "file": "packages/aircraft/src/derive-manifest.ts",
+        "sha256": "d2bc75584a9ecb5ab5c7ca4915bd1654a23fe9f0a24a186df5687480bd947e04"
+      },
+      {
+        "file": "packages/aircraft/src/layout.ts",
+        "sha256": "ac1ddd67f0ecf44d75c90f74195a12ab8ff31cd0877f7ae331dca3d763b1afff"
+      },
+      {
+        "file": "packages/aircraft/src/profile.schema.json",
+        "sha256": "0639d496188db730627ee88c50448a5e4a2c6c9ffc4cdcf32e69f13060d5237a"
+      },
+      {
+        "file": "packages/aircraft/src/profile.ts",
+        "sha256": "30d108e4471364123c2baf18a881e3c348e6801c7e76a187c09b6e738035a7fb"
+      },
+      {
+        "file": "packages/aircraft/src/propeller-geometry.ts",
+        "sha256": "2d0bfd63bbc5c114d5f1a06a2544dc1e4def54d7e9c33d8441518893b48f83ff"
+      },
+      {
+        "file": "packages/aircraft/src/resolve-components.ts",
+        "sha256": "b98917841b685d26352362cb61c1fb84c74e9fe50af178333e395a32a56ba673"
+      },
+      {
+        "file": "packages/aircraft/src/sensor-config.schema.json",
+        "sha256": "eed0cd1ec0589ee344bf24285e9b7d8b2b6899820bb5bee83e8b0562514e7a94"
+      },
+      {
+        "file": "packages/aircraft/src/sensor-config.ts",
+        "sha256": "737b598f9bf62bbd570432cb0a9981722b44317be1b3f33356056acde6f55f71"
+      },
+      {
+        "file": "packages/aircraft/src/sensor-fields.ts",
+        "sha256": "476e45c754ffa9474bf4d1e6785803fb8184fb474aea1641d3b95cfafbff7a97"
+      },
+      {
+        "file": "packages/aircraft/src/sensor-presets.json",
+        "sha256": "7152791e8ebed6ec5a5a176069c1c3f5995c6f6b4510e00f39e5ba12349bcd18"
+      },
+      {
+        "file": "packages/aircraft/src/sensor-presets.ts",
+        "sha256": "4c0d2b8780978cde999a21924fb333810632817031b1ab321093b975a3ec5679"
+      },
+      {
+        "file": "packages/aircraft/src/trig.ts",
+        "sha256": "85b1f9de2c57c547d30c1edd280418baf1f5bfbf68511aedb70a87eff0ce0c8c"
+      },
+      {
+        "file": "packages/physics/node_modules/ajv/dist/ajv.js",
+        "sha256": "edaed56fc546f5551b0d6dc2ff2a9cc25c2d6c83318a086eaa8c3ad0b2479297"
+      },
+      {
+        "file": "packages/physics/node_modules/ajv/dist/compile/codegen/code.js",
+        "sha256": "1287153722f1fc3c5342647de7ae1d7b6fb68bdb3378a0776a937d273fc97e0d"
+      },
+      {
+        "file": "packages/physics/node_modules/ajv/dist/compile/codegen/index.js",
+        "sha256": "f03b2b72597ef86878d1d4030580c2d0964046efad4867f3d05aa91065ba034c"
+      },
+      {
+        "file": "packages/physics/node_modules/ajv/dist/compile/codegen/scope.js",
+        "sha256": "d2a0a97af2faa2cad88702314fe421e235ab17f11e0d62883d58d8d4dc734286"
+      },
+      {
+        "file": "packages/physics/node_modules/ajv/dist/compile/errors.js",
+        "sha256": "53990f8f2cc05922bba410ae68231d3f869de4f8343277ede5b4834fa564c6c2"
+      },
+      {
+        "file": "packages/physics/node_modules/ajv/dist/compile/index.js",
+        "sha256": "05b34da22814f3787bfa3ac68dad59c9047f56e55a607e0a20719ebf5afe69ac"
+      },
+      {
+        "file": "packages/physics/node_modules/ajv/dist/compile/names.js",
+        "sha256": "3cab37a2240b996b9bed92fe7a041d91689cfe3ad2e9ae4c0ab99e4146408493"
+      },
+      {
+        "file": "packages/physics/node_modules/ajv/dist/compile/ref_error.js",
+        "sha256": "81c98fdf34c3037c91bfcc02277ec32156c71e34048f36cfe4e084416e916cb7"
+      },
+      {
+        "file": "packages/physics/node_modules/ajv/dist/compile/resolve.js",
+        "sha256": "df75af0e0cf03fa1c6452e8dc61019f5aec645a8a5f6f494dc4e13cb5502d2d9"
+      },
+      {
+        "file": "packages/physics/node_modules/ajv/dist/compile/rules.js",
+        "sha256": "ec1d86500f497aa8e20f9f0c1695951159d9a909669d00a261ce1bb22b3cf0a9"
+      },
+      {
+        "file": "packages/physics/node_modules/ajv/dist/compile/util.js",
+        "sha256": "fa911f5631f29d4d6420adfe086cb693b94b08de2719475c78c54bcb82f831a5"
+      },
+      {
+        "file": "packages/physics/node_modules/ajv/dist/compile/validate/applicability.js",
+        "sha256": "50c5cba5894a7fb9874b3432355b46ec71b73c9368dafb1323ded8567cca8fc0"
+      },
+      {
+        "file": "packages/physics/node_modules/ajv/dist/compile/validate/boolSchema.js",
+        "sha256": "c08abdbdbd3d8b1dcc0552a20fbc7d837ed44f4ca6abb2e464985590ac94377f"
+      },
+      {
+        "file": "packages/physics/node_modules/ajv/dist/compile/validate/dataType.js",
+        "sha256": "697bd7005361ec7066a23c18830a10b0ef28aec1a33138b4e3098bf78c4fae52"
+      },
+      {
+        "file": "packages/physics/node_modules/ajv/dist/compile/validate/defaults.js",
+        "sha256": "05721971df94faa57b09c8cfd60c2eef81b6d14910a7dea5f539d693a029c428"
+      },
+      {
+        "file": "packages/physics/node_modules/ajv/dist/compile/validate/index.js",
+        "sha256": "cb2103e5f890e04592c10d24b45857dad91155bae9f9460138a2459bdaaea2cd"
+      },
+      {
+        "file": "packages/physics/node_modules/ajv/dist/compile/validate/keyword.js",
+        "sha256": "ab8f070c75c25eee9be5c837f364748909b58f5db66149a2beccbd2f66afeb76"
+      },
+      {
+        "file": "packages/physics/node_modules/ajv/dist/compile/validate/subschema.js",
+        "sha256": "ca783d6052af91e65ebb59a5b48b47fb459a2241d37ca6a042f767d4ce451bdc"
+      },
+      {
+        "file": "packages/physics/node_modules/ajv/dist/core.js",
+        "sha256": "51be29c7ed7288622f755c0f1bebd3da4a9907d77aa2c33b0f2a0a5b6b339603"
+      },
+      {
+        "file": "packages/physics/node_modules/ajv/dist/refs/data.json",
+        "sha256": "d24ab8a97c18b3f5afdde7d7024a0e0ac1df0614a16a41cb88f81379edcc2db3"
+      },
+      {
+        "file": "packages/physics/node_modules/ajv/dist/refs/json-schema-draft-07.json",
+        "sha256": "f7e8b13cad4fecff9771f3626fef33e20e59027b90938a28fd9d2f6c17cd0773"
+      },
+      {
+        "file": "packages/physics/node_modules/ajv/dist/runtime/equal.js",
+        "sha256": "c94467da09ee94e5d194483a7ab821b9bb3bf1c04397270f2ab53dea9de59274"
+      },
+      {
+        "file": "packages/physics/node_modules/ajv/dist/runtime/ucs2length.js",
+        "sha256": "1df012dd3d23fced07255a7204798004509687cb1f431ae0ab976db436bbd890"
+      },
+      {
+        "file": "packages/physics/node_modules/ajv/dist/runtime/uri.js",
+        "sha256": "d1d61baf97ed87d7310df847a78ed73d19c8cc003207bf5aaec977500bdb1578"
+      },
+      {
+        "file": "packages/physics/node_modules/ajv/dist/runtime/validation_error.js",
+        "sha256": "11bf5b4affc8114e5e7cdf65b93006c2d997ab60ada1152c22e136f9b828b815"
+      },
+      {
+        "file": "packages/physics/node_modules/ajv/dist/vocabularies/applicator/additionalItems.js",
+        "sha256": "7beb0fbda5e349907067c8398bb8cc3260a6267b6e5dff9793a5ab2171934099"
+      },
+      {
+        "file": "packages/physics/node_modules/ajv/dist/vocabularies/applicator/additionalProperties.js",
+        "sha256": "e237cb180cd2e3f2e676feb714d7dcc6a42116640f9db2ad830cd20d9dfc540a"
+      },
+      {
+        "file": "packages/physics/node_modules/ajv/dist/vocabularies/applicator/allOf.js",
+        "sha256": "98f46a6434ebe5f851b406480e18b776dd7f1bcc275e28c16a13bfef3cc067c7"
+      },
+      {
+        "file": "packages/physics/node_modules/ajv/dist/vocabularies/applicator/anyOf.js",
+        "sha256": "8d7368d4aebad0514b713191b934993b4f0bf570e1bab93b07dc69712db2cec5"
+      },
+      {
+        "file": "packages/physics/node_modules/ajv/dist/vocabularies/applicator/contains.js",
+        "sha256": "56165dc93cd8b0b4611db50a97f1e7d7f9af6c5ffe95a7a5b054d6eeaa7f6a8c"
+      },
+      {
+        "file": "packages/physics/node_modules/ajv/dist/vocabularies/applicator/dependencies.js",
+        "sha256": "c1a83bf484b6fde4d268935f079ddba5e74a2f589dfc6d15ca2e20ba4d06ee5b"
+      },
+      {
+        "file": "packages/physics/node_modules/ajv/dist/vocabularies/applicator/if.js",
+        "sha256": "42374ee5dc681433579cc689b0c4ae5343f5bf78d4d6a561722b9277c5335ec4"
+      },
+      {
+        "file": "packages/physics/node_modules/ajv/dist/vocabularies/applicator/index.js",
+        "sha256": "5a61978f6d81bbabfa8b9ccb71d7de816ed6dd1fd7de5c72657439a76c2a7cb3"
+      },
+      {
+        "file": "packages/physics/node_modules/ajv/dist/vocabularies/applicator/items.js",
+        "sha256": "fa87f74adc3aac1f1b5e3e7dddf73294e6850e1dd49ed131fca4352e9645c54e"
+      },
+      {
+        "file": "packages/physics/node_modules/ajv/dist/vocabularies/applicator/items2020.js",
+        "sha256": "c449ef64aec16263c7935293ed450cfc2da3ba66f6df5f99c3198c05f169838f"
+      },
+      {
+        "file": "packages/physics/node_modules/ajv/dist/vocabularies/applicator/not.js",
+        "sha256": "ab2f2758d4ea97ac8763fe5540dd0f4d877859676fe5d6c750a18deca387f718"
+      },
+      {
+        "file": "packages/physics/node_modules/ajv/dist/vocabularies/applicator/oneOf.js",
+        "sha256": "e2aeb6c22d49fd5f348bedcf7f5c4d7b31f5a05dd7ff1a0c531374c6968792a2"
+      },
+      {
+        "file": "packages/physics/node_modules/ajv/dist/vocabularies/applicator/patternProperties.js",
+        "sha256": "0d43da49a82452c439ba990de7372ad5cedb663717918a5f6dae07025abff655"
+      },
+      {
+        "file": "packages/physics/node_modules/ajv/dist/vocabularies/applicator/prefixItems.js",
+        "sha256": "16264f7b3233a6dcb98b48700643efbd3ebc4d11e27b3eacffc83ccb5f44fb23"
+      },
+      {
+        "file": "packages/physics/node_modules/ajv/dist/vocabularies/applicator/properties.js",
+        "sha256": "c896873ae7251093a2c8880545b69b6e8cb55c44817a53ec830a49818d74104f"
+      },
+      {
+        "file": "packages/physics/node_modules/ajv/dist/vocabularies/applicator/propertyNames.js",
+        "sha256": "b3411cfeaff8efd5e6de12971bb5dc339e64b61fbe62d3b950794c077315c2e7"
+      },
+      {
+        "file": "packages/physics/node_modules/ajv/dist/vocabularies/applicator/thenElse.js",
+        "sha256": "9bc42eb8699d57188a7ec2a710d3f38052f92bd78c5d4d0442cf98cf2ebbe22d"
+      },
+      {
+        "file": "packages/physics/node_modules/ajv/dist/vocabularies/code.js",
+        "sha256": "9212ddf8bd0a4c3b1c4b44cdadd141183b2b36f561b91d13df53c83911e3bf63"
+      },
+      {
+        "file": "packages/physics/node_modules/ajv/dist/vocabularies/core/id.js",
+        "sha256": "49c8eff694ce4371450c1f9986e934fcbf4bd143311caef5332113f29175bc11"
+      },
+      {
+        "file": "packages/physics/node_modules/ajv/dist/vocabularies/core/index.js",
+        "sha256": "f420e1011b95e27b54c58323a7ed4ffbd0a88cdb4496f771bb6782c2aa22d23e"
+      },
+      {
+        "file": "packages/physics/node_modules/ajv/dist/vocabularies/core/ref.js",
+        "sha256": "1422c1454b3621d890066042048f37746fe1cf213088307099816199889bbfd1"
+      },
+      {
+        "file": "packages/physics/node_modules/ajv/dist/vocabularies/discriminator/index.js",
+        "sha256": "b58b58025d2dbe5a6967376faec9295b860a338664c47037e9a1035c1e8fb88e"
+      },
+      {
+        "file": "packages/physics/node_modules/ajv/dist/vocabularies/discriminator/types.js",
+        "sha256": "2365341d1f30dc72cece7703e908e47aacb8f904b9f66ec4019fe889ae1e57fa"
+      },
+      {
+        "file": "packages/physics/node_modules/ajv/dist/vocabularies/draft7.js",
+        "sha256": "8c62022c6c3aa302c3ea6f6709a697fc9eb6385d243fa7c2156dbe9f02228170"
+      },
+      {
+        "file": "packages/physics/node_modules/ajv/dist/vocabularies/format/format.js",
+        "sha256": "6fae0d5124fd821b1a9959492f7d6d7b528bee8830d49a7a4759fc9a9ab81d5f"
+      },
+      {
+        "file": "packages/physics/node_modules/ajv/dist/vocabularies/format/index.js",
+        "sha256": "d5dad5f95c9c5f48f8ca956cdbb927aafc7b56baabfca8c0b0403d92c5ebeb67"
+      },
+      {
+        "file": "packages/physics/node_modules/ajv/dist/vocabularies/metadata.js",
+        "sha256": "45c178744a7ec57e20c85ceeaea8d9f36b5663636ab7e495ea2c3c1bf4a58609"
+      },
+      {
+        "file": "packages/physics/node_modules/ajv/dist/vocabularies/validation/const.js",
+        "sha256": "ace994e9ab97a70899a9484794794f4be5ee03bfb3cf32242d3f091d77f0329a"
+      },
+      {
+        "file": "packages/physics/node_modules/ajv/dist/vocabularies/validation/enum.js",
+        "sha256": "61062b318a40eb52fc5a8283e7f4781db98349841744961ef4fe04a4722ebf22"
+      },
+      {
+        "file": "packages/physics/node_modules/ajv/dist/vocabularies/validation/index.js",
+        "sha256": "4a1839832de5f10ff423c1c0c6cb232b5b6e1b34980a28862cf56b2763136de4"
+      },
+      {
+        "file": "packages/physics/node_modules/ajv/dist/vocabularies/validation/limitItems.js",
+        "sha256": "49f0427d29b38aef2fa8aead26e68bda12deb9a2da22f7a7804ba0fed44e1fec"
+      },
+      {
+        "file": "packages/physics/node_modules/ajv/dist/vocabularies/validation/limitLength.js",
+        "sha256": "379c28317faaf7784680b6049c3562692d3df6d65cce33f48e6c6c723beeeec2"
+      },
+      {
+        "file": "packages/physics/node_modules/ajv/dist/vocabularies/validation/limitNumber.js",
+        "sha256": "3dd4bd41dbfc76c522078ff54b6479683485c4e97faa04cfcfaf2d8cb0fb8e65"
+      },
+      {
+        "file": "packages/physics/node_modules/ajv/dist/vocabularies/validation/limitProperties.js",
+        "sha256": "8523a3f7b36c34882ca32b0ec71a2157d7930907cb86b778a97c1514fa6258ac"
+      },
+      {
+        "file": "packages/physics/node_modules/ajv/dist/vocabularies/validation/multipleOf.js",
+        "sha256": "df128c2a6ca74ae57c65fbfe3aea8a101447a3ae8c41fd53cfc5693fa23cc8bd"
+      },
+      {
+        "file": "packages/physics/node_modules/ajv/dist/vocabularies/validation/pattern.js",
+        "sha256": "86e84206bfc6a66ef18bf1fe43fbc56ebe7f7f4d57841197b6d044c529e0c195"
+      },
+      {
+        "file": "packages/physics/node_modules/ajv/dist/vocabularies/validation/required.js",
+        "sha256": "b953bc18d94274bd73374dd5b4282d7a21159cec8c0e7a357e1eaf3f326b9054"
+      },
+      {
+        "file": "packages/physics/node_modules/ajv/dist/vocabularies/validation/uniqueItems.js",
+        "sha256": "666d1a2aa25c0dfe3cf41312d0f9d40e9f99eb2c19be7469134ad89005aadd52"
+      },
+      {
+        "file": "packages/physics/polars/naca0012-neuralfoil-v1.json",
+        "sha256": "b65b811583008327d517505e2995ed2bd1ee9fa66cad207288bf0a436a01dab1"
+      },
+      {
+        "file": "packages/physics/polars/naca6409-neuralfoil-v1.json",
+        "sha256": "d6d9793ea030c6b957fa9018ed5c3307891665829773574b2bacb26f1909c9a1"
+      },
+      {
+        "file": "packages/physics/src/atmosphere.ts",
+        "sha256": "058f0ad592814f76d3ed88960ad0358d0c221d795ce15c4f4ba98569be702ac3"
+      },
+      {
+        "file": "packages/physics/src/bet-dynamics.ts",
+        "sha256": "3c59ce8291404b804fd5d3b01174441d2bfad5a269c349fb958090a08415b758"
+      },
+      {
+        "file": "packages/physics/src/drive.ts",
+        "sha256": "b3e6229809bb6edb91145f5d998e1641db31db3f48071cb129ed4cb96c62687a"
+      },
+      {
+        "file": "packages/physics/src/frame.ts",
+        "sha256": "70ccd4a728aa5dc86157c06ca866994e83f086171de1d08654aa4aed967a4d9e"
+      },
+      {
+        "file": "packages/physics/src/model-manifest.ts",
+        "sha256": "14dfcb89ec1ccafde8997d9b341f2f70cd70cca087a2025fde6f8832d9b34209"
+      },
+      {
+        "file": "packages/physics/src/model.schema.json",
+        "sha256": "0fcf0f774a81403b01e10041d31d369998fe900561c41c82b122905cf4295540"
+      },
+      {
+        "file": "packages/physics/src/polar-catalog.ts",
+        "sha256": "2b522933f2633068900e101667b9abca30b1d5ed43263b6e2c4a649e842e55d1"
+      },
+      {
+        "file": "packages/physics/src/profile-dynamics.ts",
+        "sha256": "b7301abb0b696a93f2a54a66c9acb1b7b32cd72c2ffc56d87a1c06e0170d9ede"
+      },
+      {
+        "file": "packages/physics/src/vehicle-manifest.ts",
+        "sha256": "56e720a4a3e397204dfcf8d255cb9ef41a3c123ec0bf89cbe6a391bbfdaf654e"
+      },
+      {
+        "file": "packages/physics/src/vehicle.schema.json",
+        "sha256": "1a55261807a4c6729de30fcce085dfd83d40074d251d53033572ed8b6e33b64c"
+      },
+      {
+        "file": "packages/project/node_modules/ajv/dist/ajv.js",
+        "sha256": "edaed56fc546f5551b0d6dc2ff2a9cc25c2d6c83318a086eaa8c3ad0b2479297"
+      },
+      {
+        "file": "packages/project/node_modules/ajv/dist/compile/codegen/code.js",
+        "sha256": "1287153722f1fc3c5342647de7ae1d7b6fb68bdb3378a0776a937d273fc97e0d"
+      },
+      {
+        "file": "packages/project/node_modules/ajv/dist/compile/codegen/index.js",
+        "sha256": "f03b2b72597ef86878d1d4030580c2d0964046efad4867f3d05aa91065ba034c"
+      },
+      {
+        "file": "packages/project/node_modules/ajv/dist/compile/codegen/scope.js",
+        "sha256": "d2a0a97af2faa2cad88702314fe421e235ab17f11e0d62883d58d8d4dc734286"
+      },
+      {
+        "file": "packages/project/node_modules/ajv/dist/compile/errors.js",
+        "sha256": "53990f8f2cc05922bba410ae68231d3f869de4f8343277ede5b4834fa564c6c2"
+      },
+      {
+        "file": "packages/project/node_modules/ajv/dist/compile/index.js",
+        "sha256": "05b34da22814f3787bfa3ac68dad59c9047f56e55a607e0a20719ebf5afe69ac"
+      },
+      {
+        "file": "packages/project/node_modules/ajv/dist/compile/names.js",
+        "sha256": "3cab37a2240b996b9bed92fe7a041d91689cfe3ad2e9ae4c0ab99e4146408493"
+      },
+      {
+        "file": "packages/project/node_modules/ajv/dist/compile/ref_error.js",
+        "sha256": "81c98fdf34c3037c91bfcc02277ec32156c71e34048f36cfe4e084416e916cb7"
+      },
+      {
+        "file": "packages/project/node_modules/ajv/dist/compile/resolve.js",
+        "sha256": "df75af0e0cf03fa1c6452e8dc61019f5aec645a8a5f6f494dc4e13cb5502d2d9"
+      },
+      {
+        "file": "packages/project/node_modules/ajv/dist/compile/rules.js",
+        "sha256": "ec1d86500f497aa8e20f9f0c1695951159d9a909669d00a261ce1bb22b3cf0a9"
+      },
+      {
+        "file": "packages/project/node_modules/ajv/dist/compile/util.js",
+        "sha256": "fa911f5631f29d4d6420adfe086cb693b94b08de2719475c78c54bcb82f831a5"
+      },
+      {
+        "file": "packages/project/node_modules/ajv/dist/compile/validate/applicability.js",
+        "sha256": "50c5cba5894a7fb9874b3432355b46ec71b73c9368dafb1323ded8567cca8fc0"
+      },
+      {
+        "file": "packages/project/node_modules/ajv/dist/compile/validate/boolSchema.js",
+        "sha256": "c08abdbdbd3d8b1dcc0552a20fbc7d837ed44f4ca6abb2e464985590ac94377f"
+      },
+      {
+        "file": "packages/project/node_modules/ajv/dist/compile/validate/dataType.js",
+        "sha256": "697bd7005361ec7066a23c18830a10b0ef28aec1a33138b4e3098bf78c4fae52"
+      },
+      {
+        "file": "packages/project/node_modules/ajv/dist/compile/validate/defaults.js",
+        "sha256": "05721971df94faa57b09c8cfd60c2eef81b6d14910a7dea5f539d693a029c428"
+      },
+      {
+        "file": "packages/project/node_modules/ajv/dist/compile/validate/index.js",
+        "sha256": "cb2103e5f890e04592c10d24b45857dad91155bae9f9460138a2459bdaaea2cd"
+      },
+      {
+        "file": "packages/project/node_modules/ajv/dist/compile/validate/keyword.js",
+        "sha256": "ab8f070c75c25eee9be5c837f364748909b58f5db66149a2beccbd2f66afeb76"
+      },
+      {
+        "file": "packages/project/node_modules/ajv/dist/compile/validate/subschema.js",
+        "sha256": "ca783d6052af91e65ebb59a5b48b47fb459a2241d37ca6a042f767d4ce451bdc"
+      },
+      {
+        "file": "packages/project/node_modules/ajv/dist/core.js",
+        "sha256": "51be29c7ed7288622f755c0f1bebd3da4a9907d77aa2c33b0f2a0a5b6b339603"
+      },
+      {
+        "file": "packages/project/node_modules/ajv/dist/refs/data.json",
+        "sha256": "d24ab8a97c18b3f5afdde7d7024a0e0ac1df0614a16a41cb88f81379edcc2db3"
+      },
+      {
+        "file": "packages/project/node_modules/ajv/dist/refs/json-schema-draft-07.json",
+        "sha256": "f7e8b13cad4fecff9771f3626fef33e20e59027b90938a28fd9d2f6c17cd0773"
+      },
+      {
+        "file": "packages/project/node_modules/ajv/dist/runtime/equal.js",
+        "sha256": "c94467da09ee94e5d194483a7ab821b9bb3bf1c04397270f2ab53dea9de59274"
+      },
+      {
+        "file": "packages/project/node_modules/ajv/dist/runtime/ucs2length.js",
+        "sha256": "1df012dd3d23fced07255a7204798004509687cb1f431ae0ab976db436bbd890"
+      },
+      {
+        "file": "packages/project/node_modules/ajv/dist/runtime/uri.js",
+        "sha256": "d1d61baf97ed87d7310df847a78ed73d19c8cc003207bf5aaec977500bdb1578"
+      },
+      {
+        "file": "packages/project/node_modules/ajv/dist/runtime/validation_error.js",
+        "sha256": "11bf5b4affc8114e5e7cdf65b93006c2d997ab60ada1152c22e136f9b828b815"
+      },
+      {
+        "file": "packages/project/node_modules/ajv/dist/vocabularies/applicator/additionalItems.js",
+        "sha256": "7beb0fbda5e349907067c8398bb8cc3260a6267b6e5dff9793a5ab2171934099"
+      },
+      {
+        "file": "packages/project/node_modules/ajv/dist/vocabularies/applicator/additionalProperties.js",
+        "sha256": "e237cb180cd2e3f2e676feb714d7dcc6a42116640f9db2ad830cd20d9dfc540a"
+      },
+      {
+        "file": "packages/project/node_modules/ajv/dist/vocabularies/applicator/allOf.js",
+        "sha256": "98f46a6434ebe5f851b406480e18b776dd7f1bcc275e28c16a13bfef3cc067c7"
+      },
+      {
+        "file": "packages/project/node_modules/ajv/dist/vocabularies/applicator/anyOf.js",
+        "sha256": "8d7368d4aebad0514b713191b934993b4f0bf570e1bab93b07dc69712db2cec5"
+      },
+      {
+        "file": "packages/project/node_modules/ajv/dist/vocabularies/applicator/contains.js",
+        "sha256": "56165dc93cd8b0b4611db50a97f1e7d7f9af6c5ffe95a7a5b054d6eeaa7f6a8c"
+      },
+      {
+        "file": "packages/project/node_modules/ajv/dist/vocabularies/applicator/dependencies.js",
+        "sha256": "c1a83bf484b6fde4d268935f079ddba5e74a2f589dfc6d15ca2e20ba4d06ee5b"
+      },
+      {
+        "file": "packages/project/node_modules/ajv/dist/vocabularies/applicator/if.js",
+        "sha256": "42374ee5dc681433579cc689b0c4ae5343f5bf78d4d6a561722b9277c5335ec4"
+      },
+      {
+        "file": "packages/project/node_modules/ajv/dist/vocabularies/applicator/index.js",
+        "sha256": "5a61978f6d81bbabfa8b9ccb71d7de816ed6dd1fd7de5c72657439a76c2a7cb3"
+      },
+      {
+        "file": "packages/project/node_modules/ajv/dist/vocabularies/applicator/items.js",
+        "sha256": "fa87f74adc3aac1f1b5e3e7dddf73294e6850e1dd49ed131fca4352e9645c54e"
+      },
+      {
+        "file": "packages/project/node_modules/ajv/dist/vocabularies/applicator/items2020.js",
+        "sha256": "c449ef64aec16263c7935293ed450cfc2da3ba66f6df5f99c3198c05f169838f"
+      },
+      {
+        "file": "packages/project/node_modules/ajv/dist/vocabularies/applicator/not.js",
+        "sha256": "ab2f2758d4ea97ac8763fe5540dd0f4d877859676fe5d6c750a18deca387f718"
+      },
+      {
+        "file": "packages/project/node_modules/ajv/dist/vocabularies/applicator/oneOf.js",
+        "sha256": "e2aeb6c22d49fd5f348bedcf7f5c4d7b31f5a05dd7ff1a0c531374c6968792a2"
+      },
+      {
+        "file": "packages/project/node_modules/ajv/dist/vocabularies/applicator/patternProperties.js",
+        "sha256": "0d43da49a82452c439ba990de7372ad5cedb663717918a5f6dae07025abff655"
+      },
+      {
+        "file": "packages/project/node_modules/ajv/dist/vocabularies/applicator/prefixItems.js",
+        "sha256": "16264f7b3233a6dcb98b48700643efbd3ebc4d11e27b3eacffc83ccb5f44fb23"
+      },
+      {
+        "file": "packages/project/node_modules/ajv/dist/vocabularies/applicator/properties.js",
+        "sha256": "c896873ae7251093a2c8880545b69b6e8cb55c44817a53ec830a49818d74104f"
+      },
+      {
+        "file": "packages/project/node_modules/ajv/dist/vocabularies/applicator/propertyNames.js",
+        "sha256": "b3411cfeaff8efd5e6de12971bb5dc339e64b61fbe62d3b950794c077315c2e7"
+      },
+      {
+        "file": "packages/project/node_modules/ajv/dist/vocabularies/applicator/thenElse.js",
+        "sha256": "9bc42eb8699d57188a7ec2a710d3f38052f92bd78c5d4d0442cf98cf2ebbe22d"
+      },
+      {
+        "file": "packages/project/node_modules/ajv/dist/vocabularies/code.js",
+        "sha256": "9212ddf8bd0a4c3b1c4b44cdadd141183b2b36f561b91d13df53c83911e3bf63"
+      },
+      {
+        "file": "packages/project/node_modules/ajv/dist/vocabularies/core/id.js",
+        "sha256": "49c8eff694ce4371450c1f9986e934fcbf4bd143311caef5332113f29175bc11"
+      },
+      {
+        "file": "packages/project/node_modules/ajv/dist/vocabularies/core/index.js",
+        "sha256": "f420e1011b95e27b54c58323a7ed4ffbd0a88cdb4496f771bb6782c2aa22d23e"
+      },
+      {
+        "file": "packages/project/node_modules/ajv/dist/vocabularies/core/ref.js",
+        "sha256": "1422c1454b3621d890066042048f37746fe1cf213088307099816199889bbfd1"
+      },
+      {
+        "file": "packages/project/node_modules/ajv/dist/vocabularies/discriminator/index.js",
+        "sha256": "b58b58025d2dbe5a6967376faec9295b860a338664c47037e9a1035c1e8fb88e"
+      },
+      {
+        "file": "packages/project/node_modules/ajv/dist/vocabularies/discriminator/types.js",
+        "sha256": "2365341d1f30dc72cece7703e908e47aacb8f904b9f66ec4019fe889ae1e57fa"
+      },
+      {
+        "file": "packages/project/node_modules/ajv/dist/vocabularies/draft7.js",
+        "sha256": "8c62022c6c3aa302c3ea6f6709a697fc9eb6385d243fa7c2156dbe9f02228170"
+      },
+      {
+        "file": "packages/project/node_modules/ajv/dist/vocabularies/format/format.js",
+        "sha256": "6fae0d5124fd821b1a9959492f7d6d7b528bee8830d49a7a4759fc9a9ab81d5f"
+      },
+      {
+        "file": "packages/project/node_modules/ajv/dist/vocabularies/format/index.js",
+        "sha256": "d5dad5f95c9c5f48f8ca956cdbb927aafc7b56baabfca8c0b0403d92c5ebeb67"
+      },
+      {
+        "file": "packages/project/node_modules/ajv/dist/vocabularies/metadata.js",
+        "sha256": "45c178744a7ec57e20c85ceeaea8d9f36b5663636ab7e495ea2c3c1bf4a58609"
+      },
+      {
+        "file": "packages/project/node_modules/ajv/dist/vocabularies/validation/const.js",
+        "sha256": "ace994e9ab97a70899a9484794794f4be5ee03bfb3cf32242d3f091d77f0329a"
+      },
+      {
+        "file": "packages/project/node_modules/ajv/dist/vocabularies/validation/enum.js",
+        "sha256": "61062b318a40eb52fc5a8283e7f4781db98349841744961ef4fe04a4722ebf22"
+      },
+      {
+        "file": "packages/project/node_modules/ajv/dist/vocabularies/validation/index.js",
+        "sha256": "4a1839832de5f10ff423c1c0c6cb232b5b6e1b34980a28862cf56b2763136de4"
+      },
+      {
+        "file": "packages/project/node_modules/ajv/dist/vocabularies/validation/limitItems.js",
+        "sha256": "49f0427d29b38aef2fa8aead26e68bda12deb9a2da22f7a7804ba0fed44e1fec"
+      },
+      {
+        "file": "packages/project/node_modules/ajv/dist/vocabularies/validation/limitLength.js",
+        "sha256": "379c28317faaf7784680b6049c3562692d3df6d65cce33f48e6c6c723beeeec2"
+      },
+      {
+        "file": "packages/project/node_modules/ajv/dist/vocabularies/validation/limitNumber.js",
+        "sha256": "3dd4bd41dbfc76c522078ff54b6479683485c4e97faa04cfcfaf2d8cb0fb8e65"
+      },
+      {
+        "file": "packages/project/node_modules/ajv/dist/vocabularies/validation/limitProperties.js",
+        "sha256": "8523a3f7b36c34882ca32b0ec71a2157d7930907cb86b778a97c1514fa6258ac"
+      },
+      {
+        "file": "packages/project/node_modules/ajv/dist/vocabularies/validation/multipleOf.js",
+        "sha256": "df128c2a6ca74ae57c65fbfe3aea8a101447a3ae8c41fd53cfc5693fa23cc8bd"
+      },
+      {
+        "file": "packages/project/node_modules/ajv/dist/vocabularies/validation/pattern.js",
+        "sha256": "86e84206bfc6a66ef18bf1fe43fbc56ebe7f7f4d57841197b6d044c529e0c195"
+      },
+      {
+        "file": "packages/project/node_modules/ajv/dist/vocabularies/validation/required.js",
+        "sha256": "b953bc18d94274bd73374dd5b4282d7a21159cec8c0e7a357e1eaf3f326b9054"
+      },
+      {
+        "file": "packages/project/node_modules/ajv/dist/vocabularies/validation/uniqueItems.js",
+        "sha256": "666d1a2aa25c0dfe3cf41312d0f9d40e9f99eb2c19be7469134ad89005aadd52"
+      },
+      {
+        "file": "packages/project/src/project.schema.json",
+        "sha256": "b890e0f18f2a2625aea502f41bdfcac3535422b43a28bf74e0f7e303ef0b01c4"
+      },
+      {
+        "file": "packages/project/src/schema.ts",
+        "sha256": "76e69931df9d0dc251ab64c0a74f0d065e84147fa26fe85e75e8127c1baf4c1a"
+      },
+      {
+        "file": "packages/protocol/src/actuator-frame.ts",
+        "sha256": "8817e6d1c568a5afd488f01a7f3430fd4edb5e0d869ece8831c762b1924de8ac"
+      },
+      {
+        "file": "packages/protocol/src/atomic-v2.ts",
+        "sha256": "334346d3e48d18a795f7a574677e5edc45b3614fb887af0c5b46d9f28f79f89c"
+      },
+      {
+        "file": "packages/protocol/src/control-v2.ts",
+        "sha256": "8f35f1642211711fd5d85e2ef574e1fbee77145028d80552007379d480feee05"
+      },
+      {
+        "file": "packages/protocol/src/index.ts",
+        "sha256": "1dea63f8d0751a69db5a884bbc8fd3fa3279aea3f33c0d86696d8f0f6e955fdc"
+      },
+      {
+        "file": "packages/protocol/src/interpolation.ts",
+        "sha256": "89f02daa6af65acad5d6608695623ba7541824962617c19f7a0adbba81f683a9"
+      },
+      {
+        "file": "packages/protocol/src/layout-v2.ts",
+        "sha256": "238447a89a6c73a1916ca783c0b89a096986881489459b7246d70b91d81920d2"
+      },
+      {
+        "file": "packages/protocol/src/pilot-v2.ts",
+        "sha256": "77fa4d148443d9b5e9d8a6240e2debfc4d6cc75b7d680de66849aa07ed89da3c"
+      },
+      {
+        "file": "packages/protocol/src/sensor-frame.ts",
+        "sha256": "6713d33452376bd5adcae40db335e45c1ad77d6c304ab83cd40110c0263ec8d3"
+      },
+      {
+        "file": "packages/protocol/src/spsc-v2.ts",
+        "sha256": "982966a286f28f5663ddb04500d8b11efcb42bfa5839e3e02e76be5dc268d472"
+      },
+      {
+        "file": "packages/protocol/src/state-v2.ts",
+        "sha256": "dd3973ff459bf58e1accee3d669050c14acfd4157ede1d1d16f862244cfb9c64"
+      },
+      {
+        "file": "packages/wasm-bet/src/backend.ts",
+        "sha256": "97bba31761cf32717ea24473e5678fd8bcb75394b3e8af4a394cbab01ea0de35"
+      },
+      {
+        "file": "packages/wasm-bet/src/bus.ts",
+        "sha256": "1288f7a7f802006054929956fd7f41769defe1760ad764a3fc2b67ec25d7df26"
+      },
+      {
+        "file": "packages/wasm-bet/src/rotor-v2.ts",
+        "sha256": "3aee10adc45ce9c0fa815b5153064305caaa162351778015472b778aadf10840"
+      },
+      {
+        "file": "packages/wasm-bet/src/rotor.ts",
+        "sha256": "b6c7772e5549996d2eec648bd97914ecc5248e61f80947369d64c164f8138c17"
+      },
+      {
+        "file": "tests/support/hover-trim.ts",
+        "sha256": "5b3c96938a1726f7a7e86eee1482e0e3a10dfdd2ef2357d83ce046a7779f88ad"
+      }
+    ]
+  },
+  "scope": "Node/V8 single-threaded compute of BetFlightDynamics alone; not browser Worker, session or target-hardware timing"
+}

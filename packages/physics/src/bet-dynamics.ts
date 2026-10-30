@@ -40,7 +40,15 @@ export interface BetFlightConfiguration {
   syntheticGroundDownM?: number;
   /** The production drive (TASK-092). Absent, each rotor gets duty·motorMaxTorqueNm, bit for bit as before. */
   drive?: EscDriveConfiguration;
+  /**
+   * Configuration-level validity flags (TASK-144), ORed into `validityFlags`
+   * every step, for model parts declared but not modeled; 0 by default.
+   * Bits 16 and up, so they never alias rotor output flags.
+   */
+  configurationFlags?: number;
 }
+/** A vehicle declares rotor-wake pairs that the dynamics does not model until TASK-101. */
+export const CONFIGURATION_FLAG_WAKE_UNMODELED = 1 << 16;
 
 export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
   readonly state=newState();
@@ -86,6 +94,7 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
   private readonly bus:BetBus|null;
   private readonly initialSoc:number;
   private readonly housePowerW:number;
+  private readonly configurationFlags:number;
   private readonly inputStride:number;
   private readonly outputStride:number;
   private readonly input:Float64Array;
@@ -106,6 +115,9 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
     const model=validateModelManifest(configuration.manifest),n=model.rotorCount;
     if(configuration.syntheticGroundDownM!==undefined&&!Number.isFinite(configuration.syntheticGroundDownM))throw Error('Invalid synthetic ground plane');
     this.groundDown=configuration.syntheticGroundDownM;
+    const flags=configuration.configurationFlags??0;
+    if((flags>>>0)!==flags || (flags&0xffff)!==0)throw Error('Configuration flags must use bits 16 to 31');
+    this.configurationFlags=flags;
     if (model.kind!=='bet' || ![400,800,1200,4800].includes(hz) ||
         configuration.initialOmegaRadS.length!==n || configuration.motorMaxTorqueNm.length!==n ||
         configuration.inflowTauS.length!==n || configuration.inflowLimitMps.length!==n ||
@@ -163,7 +175,7 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
     this.truth.positionNedM.set(this.initial.positionNedM);this.truth.velocityNedMps.set(this.initial.velocityNedMps);
     this.truth.quaternionBodyToNed.set(this.initial.quaternionBodyToNed);this.truth.angularVelocityBodyRadS.set(this.initial.angularVelocityBodyRadS);
     this.truth.accelerationNedMps2.fill(0);this.angularAcceleration.fill(0);Object.assign(this.state,newState());this.state.batteryVoltage=e[1]!;
-    this.state.flags=StateFlag.InputFailsafe;this.pendingActuator=false;this.externalArmed=false;this.fault='';this.validityFlags=0;
+    this.state.flags=StateFlag.InputFailsafe;this.pendingActuator=false;this.externalArmed=false;this.fault='';this.validityFlags=this.configurationFlags;
     this.referenceRotorRpm=this.output[9]!*60/(2*Math.PI);
     this.copyTruth();
   }
@@ -221,7 +233,7 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
       } else input[b+12]=faults?duty*this.torque[i]!*fraction:duty*this.torque[i]!;
     }
     if(esc?!esc.stepInto():!this.engine!.stepInto()){this.fault='BET rotor step failed';return;}
-    this.validityFlags=0;
+    this.validityFlags=this.configurationFlags;
     const output=this.output,stride=this.outputStride;let terminalPowerW=0;this.driveLimited=false;
     for(let i=0;i<this.rotorCount;i++) {
       const a=i*stride,b=i*6;

@@ -1,6 +1,7 @@
 import { Ajv } from 'ajv';
 import schema from './profile.schema.json';
 import { symmetricEigen3, type MassProperties } from '@mirage/physics/vehicle-manifest';
+import { catalogPolar } from '@mirage/physics/polar-catalog';
 import type { StoredVersion } from '@mirage/project/schema';
 import type { Draft } from '@mirage/project/versions';
 import { addSensorSchemaKeywords, isDefaultSensorConfiguration, sensorConfigurationSchema, validateSensorConfiguration } from './sensor-config.ts';
@@ -8,12 +9,15 @@ import type { SensorConfiguration } from './sensor-fields.ts';
 
 // Aircraft profile schema 1 (TASK-138, S03): the product-level description of
 // a multirotor with one to eight arms and up to 16 motors. Schema 2 (TASK-140,
-// S04) adds the calculation mode of the profile version, and schema 3 (TASK-143,
-// S08) its sensor configuration. Configuration-time code only; never call it from a physics step. Units are SI; positions are
-// body FRD metres from the body reference point.
+// S04) adds the calculation mode of the profile version, schema 3 (TASK-143,
+// S08) its sensor configuration, and schema 4 (TASK-144, S05) the airfoil
+// polar of each propeller. Each profile has one canonical schema: the lowest
+// that holds its content. Configuration-time code only; never call it from a
+// physics step. Units are SI; positions are body FRD metres from the body
+// reference point.
 
-/** The schema a new profile version is written in; schema 1 profiles stay valid. */
-export const PROFILE_SCHEMA_VERSION = 3;
+/** The newest schema; a profile is written in the lowest schema that holds its content, and every schema stays valid. */
+export const PROFILE_SCHEMA_VERSION = 4;
 export type MotorLevel = 'single' | 'upper' | 'lower';
 export type SpinDirection = 'ccw' | 'cw';
 export interface ArmSpec {
@@ -47,6 +51,13 @@ export interface ProfileMotor {
   readonly output: number;
   readonly components: ComponentReferences;
 }
+/** The polar-catalog entry (TASK-144) that a propeller card's BET rotors use. */
+export interface PropellerPolar {
+  /** SHA-256 address of a propeller-card version that a motor of the profile references. */
+  readonly card: string;
+  /** A `POLAR_CATALOG` ID of `@mirage/physics/polar-catalog`. */
+  readonly polar: string;
+}
 export type CalculationMode = 'preliminary' | 'measured';
 /** The S04 input mode of a profile version and the measurement sets it binds. */
 export interface CalculationSettings {
@@ -72,12 +83,18 @@ interface ProfileFields {
 /**
  * Schema 1 has no calculation and reads as preliminary; schema 2 states it.
  * Schemas 1 and 2 hold the ArduPilot sensor defaults as null; schema 3 holds a
- * sensor configuration (TASK-143) and always a calculation.
+ * sensor configuration (TASK-143) and always a calculation. Schema 4 adds
+ * chosen propeller polars (TASK-144) to either sensor case.
  */
 export type AircraftProfile =
   | (ProfileFields & { readonly schemaVersion: 1; readonly sensorConfiguration: null })
   | (ProfileFields & { readonly schemaVersion: 2; readonly calculation: CalculationSettings; readonly sensorConfiguration: null })
-  | (ProfileFields & { readonly schemaVersion: 3; readonly calculation: CalculationSettings; readonly sensorConfiguration: SensorConfiguration });
+  | (ProfileFields & { readonly schemaVersion: 3; readonly calculation: CalculationSettings; readonly sensorConfiguration: SensorConfiguration })
+  | (ProfileFields & {
+    readonly schemaVersion: 4; readonly calculation: CalculationSettings; readonly sensorConfiguration: SensorConfiguration | null;
+    /** One or more entries in ascending card order; a profile without a chosen polar is written in schema 3 or lower. */
+    readonly propellerPolars: readonly PropellerPolar[];
+  });
 
 // Union types express nullable fields, as in the vehicle manifest schema.
 const ajv = addSensorSchemaKeywords(new Ajv({ strict: true, strictNumbers: true, allowUnionTypes: true }));
@@ -146,15 +163,27 @@ export function validateAircraftProfile(input: unknown): AircraftProfile {
     return fail(`${error?.instancePath || '/'} ${error?.message ?? 'does not match the schema'}`);
   }
   if (profile.schemaVersion === 1 && 'calculation' in profile) fail('Schema 1 profiles have no calculation');
-  if (profile.schemaVersion !== 3 && profile.sensorConfiguration !== null) fail(`Schema ${profile.schemaVersion} profiles hold no sensor configuration`);
-  if (profile.schemaVersion === 3) {
-    if (profile.sensorConfiguration === null) fail('Schema 3 profiles need a sensor configuration');
+  if (profile.schemaVersion !== 3 && profile.schemaVersion !== 4 && profile.sensorConfiguration !== null) {
+    fail(`Schema ${profile.schemaVersion} profiles hold no sensor configuration`);
+  }
+  if ((profile.schemaVersion === 4) !== ('propellerPolars' in profile)) fail('Propeller polars appear exactly in schema 4');
+  if (profile.schemaVersion === 3 && profile.sensorConfiguration === null) fail('Schema 3 profiles need a sensor configuration');
+  if (profile.sensorConfiguration !== null) {
     try {
       validateSensorConfiguration(profile.sensorConfiguration);
     } catch (cause) {
       fail(cause instanceof Error ? cause.message : String(cause));
     }
-    if (isDefaultSensorConfiguration(profile.sensorConfiguration)) fail('ArduPilot sensor defaults are stored as null, in schema 1 or 2');
+    if (isDefaultSensorConfiguration(profile.sensorConfiguration)) fail('ArduPilot sensor defaults are stored as null');
+  }
+  if (profile.schemaVersion === 4) {
+    const propellers = new Set(profile.motors.map(motor => motor.components.propeller));
+    if (profile.propellerPolars.length === 0) fail('Schema 4 profiles choose at least one propeller polar');
+    profile.propellerPolars.forEach((entry, index) => {
+      if (index > 0 && entry.card <= profile.propellerPolars[index - 1]!.card) fail('Propeller polars must be unique and in ascending card order');
+      if (!propellers.has(entry.card)) fail(`Propeller polar for card ${entry.card.slice(0, 12)}, which no motor uses`);
+      if (!catalogPolar(entry.polar)) fail(`Unknown catalog polar ${entry.polar}`);
+    });
   }
   if (profile.schemaVersion !== 1) {
     if (!('calculation' in profile)) fail(`Schema ${String(Reflect.get(profile, 'schemaVersion'))} profiles need a calculation`);
@@ -216,18 +245,51 @@ export function sensorConfigurationOf(profile: AircraftProfile): SensorConfigura
   return profile.sensorConfiguration;
 }
 
+/** The chosen propeller polars of a profile; none below schema 4. */
+export function propellerPolarsOf(profile: AircraftProfile): readonly PropellerPolar[] {
+  return profile.schemaVersion === 4 ? profile.propellerPolars : [];
+}
+
+/**
+ * The profile in its canonical schema for the given content: schema 4 with
+ * any propeller polar, else schema 3 with a sensor configuration, else schema
+ * 2, except that a schema 1 profile whose calculation stays the implicit
+ * preliminary one stays schema 1. Dependencies do not change.
+ */
+export function withProfileContent(profile: AircraftProfile, content: {
+  readonly calculation?: CalculationSettings; readonly sensorConfiguration?: SensorConfiguration | null;
+  readonly propellerPolars?: readonly PropellerPolar[];
+}): AircraftProfile {
+  const config = content.sensorConfiguration === undefined ? profile.sensorConfiguration : content.sensorConfiguration;
+  const sensors = config && isDefaultSensorConfiguration(config) ? null : config;
+  const calculation = content.calculation ?? calculationSettings(profile);
+  const polars = [...(content.propellerPolars ?? propellerPolarsOf(profile))].sort((a, b) => (a.card < b.card ? -1 : a.card > b.card ? 1 : 0));
+  // Only the schema-independent fields carry over, so no field of the old schema survives a schema change.
+  const fields: ProfileFields = {
+    units: profile.units, bodyFrame: profile.bodyFrame, arms: profile.arms, motors: profile.motors,
+    massProperties: profile.massProperties, payload: profile.payload, battery: profile.battery, groundClearanceM: profile.groundClearanceM,
+  };
+  if (polars.length > 0) {
+    return validateAircraftProfile({ ...fields, schemaVersion: 4, calculation, sensorConfiguration: sensors, propellerPolars: polars });
+  }
+  if (sensors) return validateAircraftProfile({ ...fields, schemaVersion: 3, calculation, sensorConfiguration: sensors });
+  if (profile.schemaVersion === 1 && content.calculation === undefined) return validateAircraftProfile({ ...fields, schemaVersion: 1, sensorConfiguration: null });
+  return validateAircraftProfile({ ...fields, schemaVersion: 2, calculation, sensorConfiguration: null });
+}
+
 /**
  * The profile with a sensor configuration. The ArduPilot defaults are stored
- * as null: schema 1 stays 1 and schemas 2 and 3 become 2. Any other
- * configuration makes schema 3, which keeps the profile's calculation (a
- * schema 1 profile is preliminary). Dependencies do not change.
+ * as null: schema 1 stays 1, schemas 2 and 3 become 2, and schema 4 keeps its
+ * propeller polars. Any other configuration makes schema 3 (or 4), which keeps
+ * the profile's calculation (a schema 1 profile is preliminary).
  */
 export function withSensorConfiguration(profile: AircraftProfile, config: SensorConfiguration | null): AircraftProfile {
-  const sensors = config && isDefaultSensorConfiguration(config) ? null : config;
-  const calculation = calculationSettings(profile);
-  if (sensors) return validateAircraftProfile({ ...profile, schemaVersion: 3, calculation, sensorConfiguration: sensors });
-  if (profile.schemaVersion === 1) return validateAircraftProfile({ ...profile, sensorConfiguration: null });
-  return validateAircraftProfile({ ...profile, schemaVersion: 2, calculation, sensorConfiguration: null });
+  return withProfileContent(profile, { sensorConfiguration: config });
+}
+
+/** The profile with these propeller polars (TASK-144); an empty list returns it to schema 3 or lower. */
+export function withPropellerPolars(profile: AircraftProfile, polars: readonly PropellerPolar[]): AircraftProfile {
+  return withProfileContent(profile, { propellerPolars: polars });
 }
 
 /** The project-store dependencies of a profile: its component cards and bound measurement sets, sorted. */

@@ -8,7 +8,8 @@ import { canonicalBytes } from '../packages/project/src/schema.ts';
 import { deriveLayout } from '../packages/aircraft/src/layout.ts';
 import { validateAircraftProfile, type AircraftProfile } from '../packages/aircraft/src/profile.ts';
 import {
-  MAX_ARMS, angleField, applyEvenLayout, editAngle, emptyForm, evenLayout, formFromProfile, profileFromForm,
+  MAX_ARMS, angleField, applyEvenLayout, choosePropellerPolar, editAngle, emptyForm, evenLayout, formFromProfile, profileFromForm,
+  propellerCardsOf,
   type ArmForm, type MassForm, type ProfileForm,
 } from '../apps/web/src/aircraft/profile-form.ts';
 import { rotorRenderPose } from '../apps/web/src/aircraft/scheme-geometry.ts';
@@ -134,6 +135,30 @@ describe('profile form', () => {
     expect(errors(edit(f => { f.arms[0]!.lengthM = 'x'; f.arms[2]!.heightM = 'y'; f.mass.massKg = ''; }))).toEqual([
       'Arm 1 length is not a decimal number', 'Arm 3 height is not a decimal number', 'Aircraft mass is not a decimal number',
     ]);
+  });
+});
+
+describe('propeller polars in the form (TASK-144)', () => {
+  const A = 'a1'.repeat(32), B = 'b2'.repeat(32);
+  function withCards(form: ProfileForm): ProfileForm {
+    return { ...form, arms: form.arms.map((arm, index) => ({ ...arm, upper: { ...arm.upper, propeller: index < 2 ? A : B } })) };
+  }
+  test('a chosen polar makes schema 4, reopens unchanged and drops when its card leaves the profile', () => {
+    const base = withCards(formFromProfile(fixture('quad-x')));
+    expect(propellerCardsOf(base)).toEqual([A, B]);
+    const chosen = choosePropellerPolar(choosePropellerPolar(base, B, 'naca0012-neuralfoil-v1'), A, 'naca6409-neuralfoil-v1');
+    const profile = built(chosen);
+    expect(profile.schemaVersion).toBe(4);
+    expect(profile.schemaVersion === 4 && profile.propellerPolars).toEqual([
+      { card: A, polar: 'naca6409-neuralfoil-v1' }, { card: B, polar: 'naca0012-neuralfoil-v1' }]);
+    // Opening and saving unchanged reproduces the bytes.
+    expect(same(built(formFromProfile(profile)), profile)).toBe(true);
+    // Unchoosing returns the lowest schema; replacing card B drops its choice.
+    expect(built(choosePropellerPolar(chosen, A, null)).schemaVersion).toBe(4);
+    expect(built(choosePropellerPolar(choosePropellerPolar(chosen, A, null), B, null)).schemaVersion).toBe(1);
+    const replaced = { ...chosen, arms: chosen.arms.map(arm => ({ ...arm, upper: { ...arm.upper, propeller: A } })) };
+    const kept = built(replaced);
+    expect(kept.schemaVersion === 4 && kept.propellerPolars).toEqual([{ card: A, polar: 'naca6409-neuralfoil-v1' }]);
   });
 });
 

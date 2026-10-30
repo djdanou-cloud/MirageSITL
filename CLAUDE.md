@@ -234,7 +234,16 @@ implementation.
   read back before arming and MirageSITL's IMU and battery errors on the JSON
   state line (`MIRAGE_SITL_SENSORS`, `node scripts/run-sitl-sensors.mjs`,
   `node scripts/check-sitl-sensors.mjs`); the magnetometer's position and
-  orientation stay locked on `native-json`. Decisions D-04
+  orientation stay locked on `native-json`. TASK-144 is DONE: a profile version
+  and its component cards build `BetFlightDynamics` with up to 16 rotors on the
+  TASK-092 drive (`resolveComponents` lists every assumed value and blocks
+  flight on missing ones, profile schema 4 picks each propeller's polar from the
+  runtime catalog, `buildProfileDynamics` and `profileModelPort` load it through
+  `model.load`, and the physics Worker accepts the BET module and manifests by
+  hash); all five S19 configurations hold a trimmed hover, and in Node the
+  16-rotor step averages 1.15 ms, which keeps real time at 400 Hz and, without
+  tail margin, at 800 Hz, but not at 1200 Hz until TASK-091
+  (`node scripts/bench-profile-dynamics.mjs`). Decisions D-04
   and D-06 to D-12 are decided. D-01 and D-02 still wait on TASK-127 and
   TASK-128. TASK-129 records D-03: JSON lockstep without `no_lockstep` owns
   simulated time, a 60 s pause does not induce a failsafe, parameter access

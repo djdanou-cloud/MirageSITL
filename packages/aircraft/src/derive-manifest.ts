@@ -34,8 +34,16 @@ export interface RotorBlades {
   readonly bearingViscousNmPerRadS: number;
   readonly azimuthSamples: number;
 }
-export interface MotorValues { readonly kvRpmPerV: number; readonly resistanceOhm: number; readonly currentLimitA: number }
-export interface EscValues { readonly pwmMinUs: number; readonly pwmMaxUs: number; readonly commandTauS: number }
+export interface MotorValues {
+  readonly kvRpmPerV: number; readonly resistanceOhm: number; readonly currentLimitA: number;
+  /** Optional (TASK-092, TASK-144): the no-load current of the ESC drive. */
+  readonly noLoadCurrentA?: number;
+}
+export interface EscValues {
+  readonly pwmMinUs: number; readonly pwmMaxUs: number; readonly commandTauS: number;
+  /** Optional (TASK-092, TASK-144): the ESC drive's update rate and brake current limit. */
+  readonly updateRateHz?: number; readonly brakeCurrentLimitA?: number;
+}
 /** Propulsion values of one profile motor, resolved from the cards that the profile references. */
 export interface ResolvedMotor {
   readonly motorId: number;
