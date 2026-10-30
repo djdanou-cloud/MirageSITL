@@ -784,14 +784,14 @@
       "manifest": {
         "formatVersion": 1,
         "id": "mavlink-common-v2-pymavlink-2450",
-        "sourceSha256": "45e3827a42c1d82d2ae3520be8b7fac0d93da5de8ab64ba26b5f9338dbedc28b",
+        "sourceSha256": "3f184b5cb2f0fb47c25a2ddc9cbef4b0d3d8ac8396b3ef255b43bd82a7786336",
         "units": {
           "messageId": "1"
         },
         "validityEnvelope": {
           "messageId": {
-            "min": 70,
-            "max": 113
+            "min": 0,
+            "max": 253
           }
         },
         "tolerance": {
@@ -800,7 +800,7 @@
         },
         "provenance": {
           "kind": "synthetic",
-          "derivation": "Official pymavlink 2.4.50 output from MAVLink common XML commit 2e2b6af99084e4fde9bb304c84bb9253a1a98b6f; full source, generator and license hashes in packages/mavlink/dialect.lock.json. Protocol oracle only, not physical measurements."
+          "derivation": "Official pymavlink 2.4.50 output from the MAVLink ardupilotmega XML (with common and every include) at commit 2e2b6af99084e4fde9bb304c84bb9253a1a98b6f, packed from the recorded field values (TASK-150); full source, generator and license hashes in packages/mavlink/dialect.lock.json. Protocol oracle only, not physical measurements."
         }
       }
     },

@@ -1528,22 +1528,88 @@ specified in the sections below.
 
 ### Pinned MAVLink2 subset
 
-`packages/mavlink/dialect.lock.json` pins common XML commit
-2e2b6af99084e4fde9bb304c84bb9253a1a98b6f, common/standard/minimal XML and license
-hashes, pymavlink 2.4.50 and generator-file hashes. The older 2.4.49 generator
-rejects the pinned XML schema; validation is retained with the compatible 2.4.50.
-`generate-mavlink-fixtures.py` verifies source cleanliness/commit/version and
-uses the official generator. Generated Python stays outside the repository;
-checked-in golden frames are SHA-256 registered synthetic protocol oracles.
-They are not aircraft measurements. The upstream generated-output notice is
-retained in packages/mavlink/NOTICE.
+`packages/mavlink/dialect.lock.json` (schema 2) pins MAVLink commit
+2e2b6af99084e4fde9bb304c84bb9253a1a98b6f, the dialect `ardupilotmega.xml` with
+the hash of every definition file it includes (common, standard, minimal,
+uAvionix, icarous, loweheiser, cubepilot and csAirLink) and of the license,
+pymavlink 2.4.50 and generator-file hashes, the supported message IDs and the
+high-rate subset. The older 2.4.49 generator rejects the pinned XML schema;
+validation is retained with the compatible 2.4.50.
+`generate-mavlink-fixtures.py` (sources from `MIRAGE_MAVLINK_SOURCE` and
+`MIRAGE_MAVGEN_OUTPUT`) verifies source cleanliness/commit/version and uses the
+official generator. It also writes `packages/mavlink/src/message-table.ts`
+(TASK-150): for each supported message its ID, name, CRC_EXTRA, full MAVLink2
+payload length and fields in wire order (name, wire type, byte offset, array
+length, units, extension), taken from the generator's own parser.
+`definition(id)` reads this table, so the codec cannot drift from the
+generator. Generated Python stays outside the repository; checked-in golden
+frames are SHA-256 registered synthetic protocol oracles packed by pymavlink
+from recorded field values. They are not aircraft measurements. The upstream
+generated-output notice is retained in packages/mavlink/NOTICE.
 
 | Message ID | Message | Full payload bytes | CRC_EXTRA |
 | --- | --- | --- | --- |
+| 0 | HEARTBEAT | 9 | 50 |
+| 1 | SYS_STATUS | 43 | 124 |
+| 20 | PARAM_REQUEST_READ | 20 | 214 |
+| 21 | PARAM_REQUEST_LIST | 2 | 159 |
+| 22 | PARAM_VALUE | 25 | 220 |
+| 23 | PARAM_SET | 23 | 168 |
+| 24 | GPS_RAW_INT | 52 | 24 |
+| 27 | RAW_IMU | 29 | 144 |
+| 30 | ATTITUDE | 28 | 39 |
+| 32 | LOCAL_POSITION_NED | 28 | 185 |
+| 33 | GLOBAL_POSITION_INT | 28 | 104 |
+| 36 | SERVO_OUTPUT_RAW | 37 | 222 |
+| 40 | MISSION_REQUEST | 5 | 230 |
+| 41 | MISSION_SET_CURRENT | 4 | 28 |
+| 42 | MISSION_CURRENT | 18 | 28 |
+| 43 | MISSION_REQUEST_LIST | 3 | 132 |
+| 44 | MISSION_COUNT | 9 | 221 |
+| 45 | MISSION_CLEAR_ALL | 3 | 232 |
+| 46 | MISSION_ITEM_REACHED | 2 | 11 |
+| 47 | MISSION_ACK | 8 | 153 |
+| 51 | MISSION_REQUEST_INT | 5 | 196 |
 | 70 | RC_CHANNELS_OVERRIDE | 38 | 124 |
+| 73 | MISSION_ITEM_INT | 38 | 38 |
+| 74 | VFR_HUD | 20 | 20 |
+| 75 | COMMAND_INT | 35 | 158 |
+| 76 | COMMAND_LONG | 33 | 152 |
+| 77 | COMMAND_ACK | 10 | 143 |
+| 84 | SET_POSITION_TARGET_LOCAL_NED | 53 | 143 |
+| 85 | POSITION_TARGET_LOCAL_NED | 51 | 140 |
+| 86 | SET_POSITION_TARGET_GLOBAL_INT | 53 | 5 |
+| 87 | POSITION_TARGET_GLOBAL_INT | 51 | 150 |
 | 93 | HIL_ACTUATOR_CONTROLS | 81 | 47 |
+| 105 | HIGHRES_IMU | 63 | 93 |
 | 107 | HIL_SENSOR | 65 | 108 |
 | 113 | HIL_GPS | 39 | 124 |
+| 147 | BATTERY_STATUS | 54 | 154 |
+| 193 | EKF_STATUS_REPORT | 26 | 71 |
+| 253 | STATUSTEXT | 54 | 83 |
+
+TASK-150 adds the Phase 1 ground-station messages. `packInto(id, values,
+payload)` is the cold builder for commands, parameters, missions and position
+targets: unset fields are zero, and an unknown message or field, a payload of
+the wrong length, a non-integer or out-of-range integer, a value that is not
+finite in its wire type, an array of the wrong length or text that is not
+ASCII or does not fit return false and leave the payload unchanged. 64-bit
+integers are limited to the exact JavaScript range. `readNumber(view, field,
+index)` and `readText(payload, field)` read any field; 64-bit fields are read
+as two 32-bit words, so no BigInt is created. The high-rate telemetry subset
+(SYS_STATUS, ATTITUDE, LOCAL_POSITION_NED, GLOBAL_POSITION_INT,
+SERVO_OUTPUT_RAW, VFR_HUD and BATTERY_STATUS) has preallocated targets
+(`newAttitude`/`attitudeInto` and so on) with unit-named fields in the wire's
+units. Each decoder reads its fields with direct DataView getters at offsets
+resolved once from the table, whose wire types it asserts at load; a decoder
+accepts only its own message ID. SERVO_OUTPUT_RAW decodes all 16 outputs,
+outputs 9 to 16 being extensions that read 0 from senders without them, and
+BATTERY_STATUS joins cells 1 to 10 and the extension cells 11 to 14. The
+goldens hold two pymavlink frames per supported message, one with a distinct
+value in every field and one truncated to its first field; the codec
+reproduces every byte and the readers every value. The `mavlink` component of
+`node scripts/bench-links-ew.mjs` also encodes, parses and decodes one
+high-rate telemetry frame per tick for G1.
 
 `encodeInto` writes into caller storage and returns exact length (0 on invalid
 inputs). MAVLink2 trailing-zero truncation retains at least one payload byte.

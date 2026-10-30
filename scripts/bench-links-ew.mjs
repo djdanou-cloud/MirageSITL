@@ -131,7 +131,41 @@ const magnetic = new Float64Array([0.2, 0.1, 0.4]),
   mapping = new SensorMapping(),
   wire = new Uint8Array(280),
   rc = new RcOverride();
-const { actuatorInto } = await import("../packages/mavlink/src/messages.ts");
+const messages = await import("../packages/mavlink/src/messages.ts");
+const { actuatorInto } = messages;
+// TASK-150: the high-rate telemetry subset, packed once (cold) and decoded every tick into preallocated targets.
+const { definition: layoutOf } = await import("../packages/mavlink/src/codec.ts");
+const { HIGH_RATE_MESSAGES } = await import("../packages/mavlink/src/message-table.ts");
+const telemetry = {
+  1: { target: messages.newSysStatus(), decode: messages.sysStatusInto,
+    values: { onboard_control_sensors_health: 0x2fffff, load: 312, voltage_battery: 16180, current_battery: 1234, battery_remaining: 87,
+      errors_count1: 1, errors_count4: 4, onboard_control_sensors_health_extended: 1 } },
+  30: { target: messages.newAttitude(), decode: messages.attitudeInto,
+    values: { time_boot_ms: 123456, roll: 0.05, pitch: -0.02, yaw: 1.5, rollspeed: 0.01, pitchspeed: -0.01, yawspeed: 0.2 } },
+  32: { target: messages.newLocalPositionNed(), decode: messages.localPositionNedInto,
+    values: { time_boot_ms: 123456, x: 12.5, y: -3.25, z: -20, vx: 4, vy: -1, vz: 0.5 } },
+  33: { target: messages.newGlobalPositionInt(), decode: messages.globalPositionIntInto,
+    values: { time_boot_ms: 123456, lat: -353632621, lon: 1491652374, alt: 604000, relative_alt: 20000, vx: 400, vy: -100, vz: 50, hdg: 9000 } },
+  36: { target: messages.newServoOutputRaw(), decode: messages.servoOutputRawInto,
+    values: Object.fromEntries(Array.from({ length: 16 }, (_, i) => [`servo${i + 1}_raw`, 1100 + 50 * i])) },
+  74: { target: messages.newVfrHud(), decode: messages.vfrHudInto,
+    values: { airspeed: 4.1, groundspeed: 4.0, heading: 90, throttle: 48, alt: 604, climb: 0.5 } },
+  147: { target: messages.newBatteryStatus(), decode: messages.batteryStatusInto,
+    values: { id: 0, voltages: [4045, 4046, 4044, 4047, 65535, 65535, 65535, 65535, 65535, 65535], current_battery: 1234, current_consumed: 250,
+      energy_consumed: 1800, battery_remaining: 87, voltages_ext: [0, 0, 0, 0] } },
+};
+const telemetryIds = Int32Array.from(HIGH_RATE_MESSAGES);
+const telemetryPayloads = new Map();
+for (const id of telemetryIds) {
+  const entry = telemetry[id];
+  if (!entry) throw new Error(`No probe for high-rate message ${id}`);
+  const payload = new Uint8Array(layoutOf(id).length);
+  if (!messages.packInto(id, entry.values, payload)) throw new Error(`Invalid probe payload ${id}`);
+  telemetryPayloads.set(id, payload);
+}
+const telemetryPayloadList = Array.from(telemetryIds, (id) => telemetryPayloads.get(id));
+const telemetryEntries = Array.from(telemetryIds, (id) => telemetry[id]);
+let decoded = 0;
 const actuatorPayload = new Uint8Array(81),
   actuatorView = new DataView(actuatorPayload.buffer),
   decodedActuators = {
@@ -151,6 +185,10 @@ const parser = new MavParser((frame) => {
   received++;
   if (frame.id === 93 && !actuatorInto(frame, decodedActuators))
     throw new Error("Invalid actuator decode");
+  for (let k = 0; k < telemetryEntries.length; k++) {
+    const entry = telemetryEntries[k];
+    if (entry.decode(frame, entry.target)) decoded++;
+  }
 });
 const ap = new AutopilotSession(),
   health = {
@@ -210,6 +248,10 @@ function run(n) {
                 : actuatorPayload,
         len = encodeInto(id, payload, seq, 42, 7, wire);
       for (let b = 0; b < len; b++) parser.pushByte(wire[b]);
+      // TASK-150: one high-rate telemetry frame per tick, parsed and decoded.
+      const t = tick % telemetryIds.length,
+        telemetryLength = encodeInto(telemetryIds[t], telemetryPayloadList[t], seq, 1, 1, wire);
+      for (let b = 0; b < telemetryLength; b++) parser.pushByte(wire[b]);
       checksum[0] += mapping.gps[24] + rc.payload[0];
     }
     if (component === "state" || component === "all") advanceAutopilot(tick);
@@ -275,6 +317,7 @@ const files = [
   "packages/physics/src/motor-fault.ts",
   "packages/mavlink/src/codec.ts",
   "packages/mavlink/src/messages.ts",
+  "packages/mavlink/src/message-table.ts",
   "packages/mavlink/src/samples.ts",
   "packages/mavlink/src/sensor-mapping.ts",
   "packages/mavlink/src/rc-override.ts",
@@ -295,6 +338,8 @@ const report = {
   controlDetected: control.gcEvents > 0 || control.bytes > 1000000,
   positiveControl: control,
   received,
+  decodedTelemetry: decoded,
+  highRateMessages: Array.from(telemetryIds),
   checksum: checksum[0],
   sourceSha256: Object.fromEntries(
     files.map((f) => [

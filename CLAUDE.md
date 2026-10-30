@@ -243,7 +243,13 @@ implementation.
   hash); all five S19 configurations hold a trimmed hover, and in Node the
   16-rotor step averages 1.15 ms, which keeps real time at 400 Hz and, without
   tail margin, at 800 Hz, but not at 1200 Hz until TASK-091
-  (`node scripts/bench-profile-dynamics.mjs`). Decisions D-04
+  (`node scripts/bench-profile-dynamics.mjs`). TASK-150 is DONE: the MAVLink
+  codec reads a message table that pymavlink 2.4.50 generates from the pinned
+  `ardupilotmega.xml` and its includes, and supports 38 messages, adding the
+  parameter, command, status, telemetry, mission and position-target messages
+  of Phase 1, with a cold `packInto` builder, field readers and preallocated
+  decoders for the high-rate telemetry subset, all byte- and value-exact
+  against pymavlink goldens. Decisions D-04
   and D-06 to D-12 are decided. D-01 and D-02 still wait on TASK-127 and
   TASK-128. TASK-129 records D-03: JSON lockstep without `no_lockstep` owns
   simulated time, a 60 s pause does not induce a failsafe, parameter access
@@ -294,8 +300,13 @@ implementation.
   the ArduPilot profile v2 sets `BATT_MONITOR`, `MOT_BAT_VOLT_*` and a fitted
   `MOT_THST_EXPO`, and native ArduCopter hovers on it with measured bus current
   (`MIRAGE_PARITY_DRIVE=esc`); the browser WASM hover is BLOCKED_EXTERNAL without
-  an Emscripten toolchain and the TASK-045 artifact. BET compute headroom
-  (TASK-091) and the physics tasks TASK-093–TASK-123 are not implemented. TASK-166 (not implemented) gives every
+  an Emscripten toolchain and the TASK-045 artifact. TASK-091 (BET compute
+  headroom) is IN_PROGRESS: the default rotor step stays bit-identical and is
+  about 1.3x faster, and the opt-in kernel modes of bound configuration
+  version 2 (reduced predictor, hover sampling; off by default) reach about
+  3.5x and keep the octocopter at 1200 Hz inside G3 in Node, short of the 5x
+  target (`node scripts/bench-bet.mjs`). The physics tasks TASK-093–TASK-123
+  are not implemented. TASK-166 (not implemented) gives every
   environment, sensor-error, EW and fault effect an on/off switch and an intensity
   control. Effects that MirageSITL injects are off by default, and off must be
   bitwise identical to absent; ArduPilot's own SITL errors keep the TASK-089

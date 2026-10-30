@@ -1,7 +1,9 @@
 {
-  "schemaVersion": 1,
-  "provenance": "Official pymavlink 2.4.50 generator with pinned common XML; no simulator-derived goldens.",
+  "schemaVersion": 2,
+  "provenance": "Official pymavlink 2.4.50 generator with pinned ardupilotmega XML and its includes; no simulator-derived goldens.",
   "sourceCommit": "2e2b6af99084e4fde9bb304c84bb9253a1a98b6f",
+  "systemId": 42,
+  "componentId": 7,
   "frames": [
     {
       "id": 113,
@@ -27,6 +29,1456 @@
       "id": 113,
       "hex": "fd240000022a077100000000000000000000000000000000000000000000ffffffffffff000000000000ffff00ff0328",
       "payloadHex": "0000000000000000000000000000000000000000ffffffffffff000000000000ffff00ff"
+    }
+  ],
+  "messageFrames": [
+    {
+      "id": 0,
+      "name": "HEARTBEAT",
+      "style": "pattern",
+      "sequence": 3,
+      "values": {
+        "custom_mode": 2654435772,
+        "type": 77,
+        "autopilot": 114,
+        "base_mode": 151,
+        "system_status": 188,
+        "mavlink_version": 225
+      },
+      "hex": "fd090000032a07000000bc79379e4d7297bce15594"
+    },
+    {
+      "id": 0,
+      "name": "HEARTBEAT",
+      "style": "minimal",
+      "sequence": 4,
+      "values": {
+        "custom_mode": 1,
+        "type": 0,
+        "autopilot": 0,
+        "base_mode": 0,
+        "system_status": 0,
+        "mavlink_version": 0
+      },
+      "hex": "fd010000042a0700000001282e"
+    },
+    {
+      "id": 1,
+      "name": "SYS_STATUS",
+      "style": "pattern",
+      "sequence": 5,
+      "values": {
+        "onboard_control_sensors_present": 2654435772,
+        "onboard_control_sensors_enabled": 1013904237,
+        "onboard_control_sensors_health": 3668339998,
+        "load": 16403,
+        "voltage_battery": 20502,
+        "current_battery": -8167,
+        "drop_rate_comm": 28700,
+        "errors_comm": 32799,
+        "errors_count1": 36898,
+        "errors_count2": 40997,
+        "errors_count3": 45096,
+        "errors_count4": 49195,
+        "battery_remaining": 100,
+        "onboard_control_sensors_present_extended": 2802362297,
+        "onboard_control_sensors_enabled_extended": 1161830762,
+        "onboard_control_sensors_health_extended": 3816266523
+      },
+      "hex": "fd2b0000052a07010000bc79379e6df36e3c1e6da6da1340165019e01c701f80229025a028b02bc064b9a708a76a2140451b9b77e3e516"
+    },
+    {
+      "id": 1,
+      "name": "SYS_STATUS",
+      "style": "minimal",
+      "sequence": 6,
+      "values": {
+        "onboard_control_sensors_present": 1,
+        "onboard_control_sensors_enabled": 0,
+        "onboard_control_sensors_health": 0,
+        "load": 0,
+        "voltage_battery": 0,
+        "current_battery": 0,
+        "drop_rate_comm": 0,
+        "errors_comm": 0,
+        "errors_count1": 0,
+        "errors_count2": 0,
+        "errors_count3": 0,
+        "errors_count4": 0,
+        "battery_remaining": 0,
+        "onboard_control_sensors_present_extended": 0,
+        "onboard_control_sensors_enabled_extended": 0,
+        "onboard_control_sensors_health_extended": 0
+      },
+      "hex": "fd010000062a07010000017985"
+    },
+    {
+      "id": 20,
+      "name": "PARAM_REQUEST_READ",
+      "style": "pattern",
+      "sequence": 7,
+      "values": {
+        "param_index": -28662,
+        "target_system": 77,
+        "target_component": 114,
+        "param_id": "MIRAGE param_req"
+      },
+      "hex": "fd140000072a071400000a904d724d495241474520706172616d5f726571faed"
+    },
+    {
+      "id": 20,
+      "name": "PARAM_REQUEST_READ",
+      "style": "minimal",
+      "sequence": 8,
+      "values": {
+        "param_index": 1,
+        "target_system": 0,
+        "target_component": 0,
+        "param_id": ""
+      },
+      "hex": "fd010000082a0714000001302d"
+    },
+    {
+      "id": 21,
+      "name": "PARAM_REQUEST_LIST",
+      "style": "pattern",
+      "sequence": 9,
+      "values": {
+        "target_system": 40,
+        "target_component": 77
+      },
+      "hex": "fd020000092a07150000284d38f1"
+    },
+    {
+      "id": 21,
+      "name": "PARAM_REQUEST_LIST",
+      "style": "minimal",
+      "sequence": 10,
+      "values": {
+        "target_system": 1,
+        "target_component": 0
+      },
+      "hex": "fd0100000a2a0715000001def2"
+    },
+    {
+      "id": 22,
+      "name": "PARAM_VALUE",
+      "style": "pattern",
+      "sequence": 11,
+      "values": {
+        "param_value": -16.125,
+        "param_count": 8205,
+        "param_index": 12304,
+        "param_id": "MIRAGE param_val",
+        "param_type": 188
+      },
+      "hex": "fd1900000b2a07160000000081c10d2010304d495241474520706172616d5f76616cbc1c63"
+    },
+    {
+      "id": 22,
+      "name": "PARAM_VALUE",
+      "style": "minimal",
+      "sequence": 12,
+      "values": {
+        "param_value": 1,
+        "param_count": 0,
+        "param_index": 0,
+        "param_id": "",
+        "param_type": 0
+      },
+      "hex": "fd0400000c2a071600000000803f4d50"
+    },
+    {
+      "id": 23,
+      "name": "PARAM_SET",
+      "style": "pattern",
+      "sequence": 13,
+      "values": {
+        "param_value": -16.125,
+        "target_system": 77,
+        "target_component": 114,
+        "param_id": "MIRAGE param_set",
+        "param_type": 188
+      },
+      "hex": "fd1700000d2a07170000000081c14d724d495241474520706172616d5f736574bcabdb"
+    },
+    {
+      "id": 23,
+      "name": "PARAM_SET",
+      "style": "minimal",
+      "sequence": 14,
+      "values": {
+        "param_value": 1,
+        "target_system": 0,
+        "target_component": 0,
+        "param_id": "",
+        "param_type": 0
+      },
+      "hex": "fd0400000e2a071700000000803f734f"
+    },
+    {
+      "id": 24,
+      "name": "GPS_RAW_INT",
+      "style": "pattern",
+      "sequence": 15,
+      "values": {
+        "time_usec": 1234567890136,
+        "lat": -1133579411,
+        "lon": 1520856350,
+        "alt": -119675185,
+        "eph": 20502,
+        "epv": 24601,
+        "vel": 28700,
+        "cog": 32799,
+        "fix_type": 80,
+        "satellites_visible": 117,
+        "alt_ellipsoid": 1281505958,
+        "h_acc": 1788458071,
+        "v_acc": 147926536,
+        "vel_acc": 2802362297,
+        "hdg_acc": 1161830762,
+        "yaw": 55
+      },
+      "hex": "fd3300000f2a07180000d804fb711f0100006df36ebc1e6da65acfe6ddf8165019601c701f805075a63a624c57b4996a082ed108b9a708a76a21404537ae05"
+    },
+    {
+      "id": 24,
+      "name": "GPS_RAW_INT",
+      "style": "minimal",
+      "sequence": 16,
+      "values": {
+        "time_usec": 1,
+        "lat": 0,
+        "lon": 0,
+        "alt": 0,
+        "eph": 0,
+        "epv": 0,
+        "vel": 0,
+        "cog": 0,
+        "fix_type": 0,
+        "satellites_visible": 0,
+        "alt_ellipsoid": 0,
+        "h_acc": 0,
+        "v_acc": 0,
+        "vel_acc": 0,
+        "hdg_acc": 0,
+        "yaw": 0
+      },
+      "hex": "fd010000102a0718000001b603"
+    },
+    {
+      "id": 27,
+      "name": "RAW_IMU",
+      "style": "pattern",
+      "sequence": 17,
+      "values": {
+        "time_usec": 1234567890136,
+        "xacc": -24563,
+        "yacc": -20464,
+        "zacc": -16365,
+        "xgyro": -12266,
+        "ygyro": -8167,
+        "zgyro": -4068,
+        "xmag": 31,
+        "ymag": 4130,
+        "zmag": 8229,
+        "id": 154,
+        "temperature": 16427
+      },
+      "hex": "fd1d0000112a071b0000d804fb711f0100000da010b013c016d019e01cf01f00221025209a2b400d9d"
+    },
+    {
+      "id": 27,
+      "name": "RAW_IMU",
+      "style": "minimal",
+      "sequence": 18,
+      "values": {
+        "time_usec": 1,
+        "xacc": 0,
+        "yacc": 0,
+        "zacc": 0,
+        "xgyro": 0,
+        "ygyro": 0,
+        "zgyro": 0,
+        "xmag": 0,
+        "ymag": 0,
+        "zmag": 0,
+        "id": 0,
+        "temperature": 0
+      },
+      "hex": "fd010000122a071b000001551d"
+    },
+    {
+      "id": 30,
+      "name": "ATTITUDE",
+      "style": "pattern",
+      "sequence": 19,
+      "values": {
+        "time_boot_ms": 2654435772,
+        "roll": -14.75,
+        "pitch": -13.375,
+        "yaw": -12.0,
+        "rollspeed": -10.625,
+        "pitchspeed": -9.25,
+        "yawspeed": -7.875
+      },
+      "hex": "fd1c0000132a071e0000bc79379e00006cc1000056c1000040c100002ac1000014c10000fcc0dc6f"
+    },
+    {
+      "id": 30,
+      "name": "ATTITUDE",
+      "style": "minimal",
+      "sequence": 20,
+      "values": {
+        "time_boot_ms": 1,
+        "roll": 0,
+        "pitch": 0,
+        "yaw": 0,
+        "rollspeed": 0,
+        "pitchspeed": 0,
+        "yawspeed": 0
+      },
+      "hex": "fd010000142a071e00000184e7"
+    },
+    {
+      "id": 32,
+      "name": "LOCAL_POSITION_NED",
+      "style": "pattern",
+      "sequence": 21,
+      "values": {
+        "time_boot_ms": 2654435772,
+        "x": -14.75,
+        "y": -13.375,
+        "z": -12.0,
+        "vx": -10.625,
+        "vy": -9.25,
+        "vz": -7.875
+      },
+      "hex": "fd1c0000152a07200000bc79379e00006cc1000056c1000040c100002ac1000014c10000fcc03a76"
+    },
+    {
+      "id": 32,
+      "name": "LOCAL_POSITION_NED",
+      "style": "minimal",
+      "sequence": 22,
+      "values": {
+        "time_boot_ms": 1,
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "vx": 0,
+        "vy": 0,
+        "vz": 0
+      },
+      "hex": "fd010000162a07200000017524"
+    },
+    {
+      "id": 33,
+      "name": "GLOBAL_POSITION_INT",
+      "style": "pattern",
+      "sequence": 23,
+      "values": {
+        "time_boot_ms": 2654435772,
+        "lat": -1133579411,
+        "lon": 1520856350,
+        "alt": -119675185,
+        "relative_alt": -1760206720,
+        "vx": -8167,
+        "vy": -4068,
+        "vz": 31,
+        "hdg": 36898
+      },
+      "hex": "fd1c0000172a07210000bc79379e6df36ebc1e6da65acfe6ddf88060159719e01cf01f002290c8ed"
+    },
+    {
+      "id": 33,
+      "name": "GLOBAL_POSITION_INT",
+      "style": "minimal",
+      "sequence": 24,
+      "values": {
+        "time_boot_ms": 1,
+        "lat": 0,
+        "lon": 0,
+        "alt": 0,
+        "relative_alt": 0,
+        "vx": 0,
+        "vy": 0,
+        "vz": 0,
+        "hdg": 0
+      },
+      "hex": "fd010000182a072100000138d8"
+    },
+    {
+      "id": 36,
+      "name": "SERVO_OUTPUT_RAW",
+      "style": "pattern",
+      "sequence": 25,
+      "values": {
+        "time_usec": 2654435772,
+        "servo1_raw": 8205,
+        "servo2_raw": 12304,
+        "servo3_raw": 16403,
+        "servo4_raw": 20502,
+        "servo5_raw": 24601,
+        "servo6_raw": 28700,
+        "servo7_raw": 32799,
+        "servo8_raw": 36898,
+        "port": 117,
+        "servo9_raw": 45096,
+        "servo10_raw": 49195,
+        "servo11_raw": 53294,
+        "servo12_raw": 57393,
+        "servo13_raw": 61492,
+        "servo14_raw": 55,
+        "servo15_raw": 4154,
+        "servo16_raw": 8253
+      },
+      "hex": "fd250000192a07240000bc79379e0d2010301340165019601c701f8022907528b02bc02ed031e034f037003a103d20571b"
+    },
+    {
+      "id": 36,
+      "name": "SERVO_OUTPUT_RAW",
+      "style": "minimal",
+      "sequence": 26,
+      "values": {
+        "time_usec": 1,
+        "servo1_raw": 0,
+        "servo2_raw": 0,
+        "servo3_raw": 0,
+        "servo4_raw": 0,
+        "servo5_raw": 0,
+        "servo6_raw": 0,
+        "servo7_raw": 0,
+        "servo8_raw": 0,
+        "port": 0,
+        "servo9_raw": 0,
+        "servo10_raw": 0,
+        "servo11_raw": 0,
+        "servo12_raw": 0,
+        "servo13_raw": 0,
+        "servo14_raw": 0,
+        "servo15_raw": 0,
+        "servo16_raw": 0
+      },
+      "hex": "fd0100001a2a0724000001be25"
+    },
+    {
+      "id": 40,
+      "name": "MISSION_REQUEST",
+      "style": "pattern",
+      "sequence": 27,
+      "values": {
+        "seq": 4106,
+        "target_system": 77,
+        "target_component": 114,
+        "mission_type": 151
+      },
+      "hex": "fd0500001b2a072800000a104d72974461"
+    },
+    {
+      "id": 40,
+      "name": "MISSION_REQUEST",
+      "style": "minimal",
+      "sequence": 28,
+      "values": {
+        "seq": 1,
+        "target_system": 0,
+        "target_component": 0,
+        "mission_type": 0
+      },
+      "hex": "fd0100001c2a0728000001f4f2"
+    },
+    {
+      "id": 41,
+      "name": "MISSION_SET_CURRENT",
+      "style": "pattern",
+      "sequence": 29,
+      "values": {
+        "seq": 4106,
+        "target_system": 77,
+        "target_component": 114
+      },
+      "hex": "fd0400001d2a072900000a104d725d62"
+    },
+    {
+      "id": 41,
+      "name": "MISSION_SET_CURRENT",
+      "style": "minimal",
+      "sequence": 30,
+      "values": {
+        "seq": 1,
+        "target_system": 0,
+        "target_component": 0
+      },
+      "hex": "fd0100001e2a07290000010aaa"
+    },
+    {
+      "id": 42,
+      "name": "MISSION_CURRENT",
+      "style": "pattern",
+      "sequence": 31,
+      "values": {
+        "seq": 4106,
+        "total": 8205,
+        "mission_state": 114,
+        "mission_mode": 151,
+        "mission_id": 387276928,
+        "fence_id": 3041712689,
+        "rally_points_id": 1401181154
+      },
+      "hex": "fd1200001f2a072a00000a100d2072978060151731da4cb5e2538453b39a"
+    },
+    {
+      "id": 42,
+      "name": "MISSION_CURRENT",
+      "style": "minimal",
+      "sequence": 32,
+      "values": {
+        "seq": 1,
+        "total": 0,
+        "mission_state": 0,
+        "mission_mode": 0,
+        "mission_id": 0,
+        "fence_id": 0,
+        "rally_points_id": 0
+      },
+      "hex": "fd010000202a072a000001436a"
+    },
+    {
+      "id": 43,
+      "name": "MISSION_REQUEST_LIST",
+      "style": "pattern",
+      "sequence": 33,
+      "values": {
+        "target_system": 40,
+        "target_component": 77,
+        "mission_type": 114
+      },
+      "hex": "fd030000212a072b0000284d72adb6"
+    },
+    {
+      "id": 43,
+      "name": "MISSION_REQUEST_LIST",
+      "style": "minimal",
+      "sequence": 34,
+      "values": {
+        "target_system": 1,
+        "target_component": 0,
+        "mission_type": 0
+      },
+      "hex": "fd010000222a072b000001a972"
+    },
+    {
+      "id": 44,
+      "name": "MISSION_COUNT",
+      "style": "pattern",
+      "sequence": 35,
+      "values": {
+        "count": 4106,
+        "target_system": 77,
+        "target_component": 114,
+        "mission_type": 151,
+        "opaque_id": 387276928
+      },
+      "hex": "fd090000232a072c00000a104d7297806015172f1a"
+    },
+    {
+      "id": 44,
+      "name": "MISSION_COUNT",
+      "style": "minimal",
+      "sequence": 36,
+      "values": {
+        "count": 1,
+        "target_system": 0,
+        "target_component": 0,
+        "mission_type": 0,
+        "opaque_id": 0
+      },
+      "hex": "fd010000242a072c0000018090"
+    },
+    {
+      "id": 45,
+      "name": "MISSION_CLEAR_ALL",
+      "style": "pattern",
+      "sequence": 37,
+      "values": {
+        "target_system": 40,
+        "target_component": 77,
+        "mission_type": 114
+      },
+      "hex": "fd030000252a072d0000284d7296f7"
+    },
+    {
+      "id": 45,
+      "name": "MISSION_CLEAR_ALL",
+      "style": "minimal",
+      "sequence": 38,
+      "values": {
+        "target_system": 1,
+        "target_component": 0,
+        "mission_type": 0
+      },
+      "hex": "fd010000262a072d00000185f6"
+    },
+    {
+      "id": 46,
+      "name": "MISSION_ITEM_REACHED",
+      "style": "pattern",
+      "sequence": 39,
+      "values": {
+        "seq": 4106
+      },
+      "hex": "fd020000272a072e00000a108030"
+    },
+    {
+      "id": 46,
+      "name": "MISSION_ITEM_REACHED",
+      "style": "minimal",
+      "sequence": 40,
+      "values": {
+        "seq": 1
+      },
+      "hex": "fd010000282a072e000001d10e"
+    },
+    {
+      "id": 47,
+      "name": "MISSION_ACK",
+      "style": "pattern",
+      "sequence": 41,
+      "values": {
+        "target_system": 40,
+        "target_component": 77,
+        "type": 114,
+        "mission_type": 151,
+        "opaque_id": 387276928
+      },
+      "hex": "fd080000292a072f0000284d7297806015174026"
+    },
+    {
+      "id": 47,
+      "name": "MISSION_ACK",
+      "style": "minimal",
+      "sequence": 42,
+      "values": {
+        "target_system": 1,
+        "target_component": 0,
+        "type": 0,
+        "mission_type": 0,
+        "opaque_id": 0
+      },
+      "hex": "fd0100002a2a072f00000161b9"
+    },
+    {
+      "id": 51,
+      "name": "MISSION_REQUEST_INT",
+      "style": "pattern",
+      "sequence": 43,
+      "values": {
+        "seq": 4106,
+        "target_system": 77,
+        "target_component": 114,
+        "mission_type": 151
+      },
+      "hex": "fd0500002b2a073300000a104d7297650b"
+    },
+    {
+      "id": 51,
+      "name": "MISSION_REQUEST_INT",
+      "style": "minimal",
+      "sequence": 44,
+      "values": {
+        "seq": 1,
+        "target_system": 0,
+        "target_component": 0,
+        "mission_type": 0
+      },
+      "hex": "fd0100002c2a0733000001c0ee"
+    },
+    {
+      "id": 70,
+      "name": "RC_CHANNELS_OVERRIDE",
+      "style": "pattern",
+      "sequence": 45,
+      "values": {
+        "chan1_raw": 4106,
+        "chan2_raw": 8205,
+        "chan3_raw": 12304,
+        "chan4_raw": 16403,
+        "chan5_raw": 20502,
+        "chan6_raw": 24601,
+        "chan7_raw": 28700,
+        "chan8_raw": 32799,
+        "target_system": 80,
+        "target_component": 117,
+        "chan9_raw": 45096,
+        "chan10_raw": 49195,
+        "chan11_raw": 53294,
+        "chan12_raw": 57393,
+        "chan13_raw": 61492,
+        "chan14_raw": 55,
+        "chan15_raw": 4154,
+        "chan16_raw": 8253,
+        "chan17_raw": 12352,
+        "chan18_raw": 16451
+      },
+      "hex": "fd2600002d2a074600000a100d2010301340165019601c701f80507528b02bc02ed031e034f037003a103d20403043406e45"
+    },
+    {
+      "id": 70,
+      "name": "RC_CHANNELS_OVERRIDE",
+      "style": "minimal",
+      "sequence": 46,
+      "values": {
+        "chan1_raw": 1,
+        "chan2_raw": 0,
+        "chan3_raw": 0,
+        "chan4_raw": 0,
+        "chan5_raw": 0,
+        "chan6_raw": 0,
+        "chan7_raw": 0,
+        "chan8_raw": 0,
+        "target_system": 0,
+        "target_component": 0,
+        "chan9_raw": 0,
+        "chan10_raw": 0,
+        "chan11_raw": 0,
+        "chan12_raw": 0,
+        "chan13_raw": 0,
+        "chan14_raw": 0,
+        "chan15_raw": 0,
+        "chan16_raw": 0,
+        "chan17_raw": 0,
+        "chan18_raw": 0
+      },
+      "hex": "fd0100002e2a0746000001cbef"
+    },
+    {
+      "id": 73,
+      "name": "MISSION_ITEM_INT",
+      "style": "pattern",
+      "sequence": 47,
+      "values": {
+        "param1": -16.125,
+        "param2": -14.75,
+        "param3": -13.375,
+        "param4": -12.0,
+        "x": -1760206720,
+        "y": 894229041,
+        "z": -7.875,
+        "seq": 32799,
+        "command": 36898,
+        "target_system": 117,
+        "target_component": 154,
+        "frame": 191,
+        "current": 228,
+        "autocontinue": 9,
+        "mission_type": 46
+      },
+      "hex": "fd2600002f2a07490000000081c100006cc1000056c1000040c18060159731da4c350000fcc01f802290759abfe4092e5a61"
+    },
+    {
+      "id": 73,
+      "name": "MISSION_ITEM_INT",
+      "style": "minimal",
+      "sequence": 48,
+      "values": {
+        "param1": 1,
+        "param2": 0,
+        "param3": 0,
+        "param4": 0,
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "seq": 0,
+        "command": 0,
+        "target_system": 0,
+        "target_component": 0,
+        "frame": 0,
+        "current": 0,
+        "autocontinue": 0,
+        "mission_type": 0
+      },
+      "hex": "fd040000302a074900000000803f93f6"
+    },
+    {
+      "id": 74,
+      "name": "VFR_HUD",
+      "style": "pattern",
+      "sequence": 49,
+      "values": {
+        "airspeed": -16.125,
+        "groundspeed": -14.75,
+        "alt": -13.375,
+        "climb": -12.0,
+        "heading": -12266,
+        "throttle": 24601
+      },
+      "hex": "fd140000312a074a0000000081c100006cc1000056c1000040c116d01960c815"
+    },
+    {
+      "id": 74,
+      "name": "VFR_HUD",
+      "style": "minimal",
+      "sequence": 50,
+      "values": {
+        "airspeed": 1,
+        "groundspeed": 0,
+        "alt": 0,
+        "climb": 0,
+        "heading": 0,
+        "throttle": 0
+      },
+      "hex": "fd040000322a074a00000000803ff0c5"
+    },
+    {
+      "id": 75,
+      "name": "COMMAND_INT",
+      "style": "pattern",
+      "sequence": 51,
+      "values": {
+        "param1": -16.125,
+        "param2": -14.75,
+        "param3": -13.375,
+        "param4": -12.0,
+        "x": -1760206720,
+        "y": 894229041,
+        "z": -7.875,
+        "command": 32799,
+        "target_system": 80,
+        "target_component": 117,
+        "frame": 154,
+        "current": 191,
+        "autocontinue": 228
+      },
+      "hex": "fd230000332a074b0000000081c100006cc1000056c1000040c18060159731da4c350000fcc01f8050759abfe44db0"
+    },
+    {
+      "id": 75,
+      "name": "COMMAND_INT",
+      "style": "minimal",
+      "sequence": 52,
+      "values": {
+        "param1": 1,
+        "param2": 0,
+        "param3": 0,
+        "param4": 0,
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "command": 0,
+        "target_system": 0,
+        "target_component": 0,
+        "frame": 0,
+        "current": 0,
+        "autocontinue": 0
+      },
+      "hex": "fd040000342a074b00000000803f6a9a"
+    },
+    {
+      "id": 76,
+      "name": "COMMAND_LONG",
+      "style": "pattern",
+      "sequence": 53,
+      "values": {
+        "param1": -16.125,
+        "param2": -14.75,
+        "param3": -13.375,
+        "param4": -12.0,
+        "param5": -10.625,
+        "param6": -9.25,
+        "param7": -7.875,
+        "command": 32799,
+        "target_system": 80,
+        "target_component": 117,
+        "confirmation": 154
+      },
+      "hex": "fd210000352a074c0000000081c100006cc1000056c1000040c100002ac1000014c10000fcc01f8050759a2595"
+    },
+    {
+      "id": 76,
+      "name": "COMMAND_LONG",
+      "style": "minimal",
+      "sequence": 54,
+      "values": {
+        "param1": 1,
+        "param2": 0,
+        "param3": 0,
+        "param4": 0,
+        "param5": 0,
+        "param6": 0,
+        "param7": 0,
+        "command": 0,
+        "target_system": 0,
+        "target_component": 0,
+        "confirmation": 0
+      },
+      "hex": "fd040000362a074c00000000803f70c8"
+    },
+    {
+      "id": 77,
+      "name": "COMMAND_ACK",
+      "style": "pattern",
+      "sequence": 55,
+      "values": {
+        "command": 4106,
+        "result": 77,
+        "progress": 114,
+        "result_param2": -119675185,
+        "target_system": 188,
+        "target_component": 225
+      },
+      "hex": "fd0a0000372a074d00000a104d72cfe6ddf8bce1f20b"
+    },
+    {
+      "id": 77,
+      "name": "COMMAND_ACK",
+      "style": "minimal",
+      "sequence": 56,
+      "values": {
+        "command": 1,
+        "result": 0,
+        "progress": 0,
+        "result_param2": 0,
+        "target_system": 0,
+        "target_component": 0
+      },
+      "hex": "fd010000382a074d000001fa2b"
+    },
+    {
+      "id": 84,
+      "name": "SET_POSITION_TARGET_LOCAL_NED",
+      "style": "pattern",
+      "sequence": 57,
+      "values": {
+        "time_boot_ms": 2654435772,
+        "x": -14.75,
+        "y": -13.375,
+        "z": -12.0,
+        "vx": -10.625,
+        "vy": -9.25,
+        "vz": -7.875,
+        "afx": -6.5,
+        "afy": -5.125,
+        "afz": -3.75,
+        "yaw": -2.375,
+        "yaw_rate": -1.0,
+        "type_mask": 53294,
+        "target_system": 9,
+        "target_component": 46,
+        "coordinate_frame": 83
+      },
+      "hex": "fd350000392a07540000bc79379e00006cc1000056c1000040c100002ac1000014c10000fcc00000d0c00000a4c0000070c0000018c0000080bf2ed0092e533b03"
+    },
+    {
+      "id": 84,
+      "name": "SET_POSITION_TARGET_LOCAL_NED",
+      "style": "minimal",
+      "sequence": 58,
+      "values": {
+        "time_boot_ms": 1,
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "vx": 0,
+        "vy": 0,
+        "vz": 0,
+        "afx": 0,
+        "afy": 0,
+        "afz": 0,
+        "yaw": 0,
+        "yaw_rate": 0,
+        "type_mask": 0,
+        "target_system": 0,
+        "target_component": 0,
+        "coordinate_frame": 0
+      },
+      "hex": "fd0100003a2a0754000001b1c5"
+    },
+    {
+      "id": 85,
+      "name": "POSITION_TARGET_LOCAL_NED",
+      "style": "pattern",
+      "sequence": 59,
+      "values": {
+        "time_boot_ms": 2654435772,
+        "x": -14.75,
+        "y": -13.375,
+        "z": -12.0,
+        "vx": -10.625,
+        "vy": -9.25,
+        "vz": -7.875,
+        "afx": -6.5,
+        "afy": -5.125,
+        "afz": -3.75,
+        "yaw": -2.375,
+        "yaw_rate": -1.0,
+        "type_mask": 53294,
+        "coordinate_frame": 9
+      },
+      "hex": "fd3300003b2a07550000bc79379e00006cc1000056c1000040c100002ac1000014c10000fcc00000d0c00000a4c0000070c0000018c0000080bf2ed009403c"
+    },
+    {
+      "id": 85,
+      "name": "POSITION_TARGET_LOCAL_NED",
+      "style": "minimal",
+      "sequence": 60,
+      "values": {
+        "time_boot_ms": 1,
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "vx": 0,
+        "vy": 0,
+        "vz": 0,
+        "afx": 0,
+        "afy": 0,
+        "afz": 0,
+        "yaw": 0,
+        "yaw_rate": 0,
+        "type_mask": 0,
+        "coordinate_frame": 0
+      },
+      "hex": "fd0100003c2a0755000001dfe1"
+    },
+    {
+      "id": 86,
+      "name": "SET_POSITION_TARGET_GLOBAL_INT",
+      "style": "pattern",
+      "sequence": 61,
+      "values": {
+        "time_boot_ms": 2654435772,
+        "lat_int": -1133579411,
+        "lon_int": 1520856350,
+        "alt": -12.0,
+        "vx": -10.625,
+        "vy": -9.25,
+        "vz": -7.875,
+        "afx": -6.5,
+        "afy": -5.125,
+        "afz": -3.75,
+        "yaw": -2.375,
+        "yaw_rate": -1.0,
+        "type_mask": 53294,
+        "target_system": 9,
+        "target_component": 46,
+        "coordinate_frame": 83
+      },
+      "hex": "fd3500003d2a07560000bc79379e6df36ebc1e6da65a000040c100002ac1000014c10000fcc00000d0c00000a4c0000070c0000018c0000080bf2ed0092e530d38"
+    },
+    {
+      "id": 86,
+      "name": "SET_POSITION_TARGET_GLOBAL_INT",
+      "style": "minimal",
+      "sequence": 62,
+      "values": {
+        "time_boot_ms": 1,
+        "lat_int": 0,
+        "lon_int": 0,
+        "alt": 0,
+        "vx": 0,
+        "vy": 0,
+        "vz": 0,
+        "afx": 0,
+        "afy": 0,
+        "afz": 0,
+        "yaw": 0,
+        "yaw_rate": 0,
+        "type_mask": 0,
+        "target_system": 0,
+        "target_component": 0,
+        "coordinate_frame": 0
+      },
+      "hex": "fd0100003e2a0756000001b5ee"
+    },
+    {
+      "id": 87,
+      "name": "POSITION_TARGET_GLOBAL_INT",
+      "style": "pattern",
+      "sequence": 63,
+      "values": {
+        "time_boot_ms": 2654435772,
+        "lat_int": -1133579411,
+        "lon_int": 1520856350,
+        "alt": -12.0,
+        "vx": -10.625,
+        "vy": -9.25,
+        "vz": -7.875,
+        "afx": -6.5,
+        "afy": -5.125,
+        "afz": -3.75,
+        "yaw": -2.375,
+        "yaw_rate": -1.0,
+        "type_mask": 53294,
+        "coordinate_frame": 9
+      },
+      "hex": "fd3300003f2a07570000bc79379e6df36ebc1e6da65a000040c100002ac1000014c10000fcc00000d0c00000a4c0000070c0000018c0000080bf2ed009598d"
+    },
+    {
+      "id": 87,
+      "name": "POSITION_TARGET_GLOBAL_INT",
+      "style": "minimal",
+      "sequence": 64,
+      "values": {
+        "time_boot_ms": 1,
+        "lat_int": 0,
+        "lon_int": 0,
+        "alt": 0,
+        "vx": 0,
+        "vy": 0,
+        "vz": 0,
+        "afx": 0,
+        "afy": 0,
+        "afz": 0,
+        "yaw": 0,
+        "yaw_rate": 0,
+        "type_mask": 0,
+        "coordinate_frame": 0
+      },
+      "hex": "fd010000402a075700000197fb"
+    },
+    {
+      "id": 93,
+      "name": "HIL_ACTUATOR_CONTROLS",
+      "style": "pattern",
+      "sequence": 65,
+      "values": {
+        "time_usec": 1234567890136,
+        "flags": 2469135780259,
+        "controls": [
+          11.375,
+          12.75,
+          14.125,
+          15.5,
+          16.875,
+          18.25,
+          19.625,
+          21.0,
+          22.375,
+          23.75,
+          25.125,
+          26.5,
+          27.875,
+          29.25,
+          30.625,
+          32.0
+        ],
+        "mode": 151
+      },
+      "hex": "fd510000412a075d0000d804fb711f010000a309f6e33e0200000000364100004c410000624100007841000087410000924100009d410000a8410000b3410000be410000c9410000d4410000df410000ea410000f5410000004297ce03"
+    },
+    {
+      "id": 93,
+      "name": "HIL_ACTUATOR_CONTROLS",
+      "style": "minimal",
+      "sequence": 66,
+      "values": {
+        "time_usec": 1,
+        "flags": 0,
+        "controls": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "mode": 0
+      },
+      "hex": "fd010000422a075d0000011a94"
+    },
+    {
+      "id": 105,
+      "name": "HIGHRES_IMU",
+      "style": "pattern",
+      "sequence": 67,
+      "values": {
+        "time_usec": 1234567890136,
+        "xacc": -14.75,
+        "yacc": -13.375,
+        "zacc": -12.0,
+        "xgyro": -10.625,
+        "ygyro": -9.25,
+        "zgyro": -7.875,
+        "xmag": -6.5,
+        "ymag": -5.125,
+        "zmag": -3.75,
+        "abs_pressure": -2.375,
+        "diff_pressure": -1.0,
+        "pressure_alt": 0.375,
+        "temperature": 1.75,
+        "fields_updated": 61492,
+        "id": 83
+      },
+      "hex": "fd3f0000432a07690000d804fb711f01000000006cc1000056c1000040c100002ac1000014c10000fcc00000d0c00000a4c0000070c0000018c0000080bf0000c03e0000e03f34f053509d"
+    },
+    {
+      "id": 105,
+      "name": "HIGHRES_IMU",
+      "style": "minimal",
+      "sequence": 68,
+      "values": {
+        "time_usec": 1,
+        "xacc": 0,
+        "yacc": 0,
+        "zacc": 0,
+        "xgyro": 0,
+        "ygyro": 0,
+        "zgyro": 0,
+        "xmag": 0,
+        "ymag": 0,
+        "zmag": 0,
+        "abs_pressure": 0,
+        "diff_pressure": 0,
+        "pressure_alt": 0,
+        "temperature": 0,
+        "fields_updated": 0,
+        "id": 0
+      },
+      "hex": "fd010000442a0769000001ff20"
+    },
+    {
+      "id": 107,
+      "name": "HIL_SENSOR",
+      "style": "pattern",
+      "sequence": 69,
+      "values": {
+        "time_usec": 1234567890136,
+        "xacc": -14.75,
+        "yacc": -13.375,
+        "zacc": -12.0,
+        "xgyro": -10.625,
+        "ygyro": -9.25,
+        "zgyro": -7.875,
+        "xmag": -6.5,
+        "ymag": -5.125,
+        "zmag": -3.75,
+        "abs_pressure": -2.375,
+        "diff_pressure": -1.0,
+        "pressure_alt": 0.375,
+        "temperature": 1.75,
+        "fields_updated": 1161830762,
+        "id": 83
+      },
+      "hex": "fd410000452a076b0000d804fb711f01000000006cc1000056c1000040c100002ac1000014c10000fcc00000d0c00000a4c0000070c0000018c0000080bf0000c03e0000e03f6a214045537136"
+    },
+    {
+      "id": 107,
+      "name": "HIL_SENSOR",
+      "style": "minimal",
+      "sequence": 70,
+      "values": {
+        "time_usec": 1,
+        "xacc": 0,
+        "yacc": 0,
+        "zacc": 0,
+        "xgyro": 0,
+        "ygyro": 0,
+        "zgyro": 0,
+        "xmag": 0,
+        "ymag": 0,
+        "zmag": 0,
+        "abs_pressure": 0,
+        "diff_pressure": 0,
+        "pressure_alt": 0,
+        "temperature": 0,
+        "fields_updated": 0,
+        "id": 0
+      },
+      "hex": "fd010000462a076b000001121d"
+    },
+    {
+      "id": 113,
+      "name": "HIL_GPS",
+      "style": "pattern",
+      "sequence": 71,
+      "values": {
+        "time_usec": 1234567890136,
+        "lat": -1133579411,
+        "lon": 1520856350,
+        "alt": -119675185,
+        "eph": 20502,
+        "epv": 24601,
+        "vel": 28700,
+        "vn": 31,
+        "ve": 4130,
+        "vd": 8229,
+        "cog": 45096,
+        "fix_type": 191,
+        "satellites_visible": 228,
+        "id": 9,
+        "yaw": 61492
+      },
+      "hex": "fd270000472a07710000d804fb711f0100006df36ebc1e6da65acfe6ddf8165019601c701f002210252028b0bfe40934f0aa4e"
+    },
+    {
+      "id": 113,
+      "name": "HIL_GPS",
+      "style": "minimal",
+      "sequence": 72,
+      "values": {
+        "time_usec": 1,
+        "lat": 0,
+        "lon": 0,
+        "alt": 0,
+        "eph": 0,
+        "epv": 0,
+        "vel": 0,
+        "vn": 0,
+        "ve": 0,
+        "vd": 0,
+        "cog": 0,
+        "fix_type": 0,
+        "satellites_visible": 0,
+        "id": 0,
+        "yaw": 0
+      },
+      "hex": "fd010000482a077100000176c5"
+    },
+    {
+      "id": 147,
+      "name": "BATTERY_STATUS",
+      "style": "pattern",
+      "sequence": 73,
+      "values": {
+        "current_consumed": 506952124,
+        "energy_consumed": -1133579411,
+        "temperature": -20464,
+        "voltages": [
+          49243,
+          53342,
+          57441,
+          61540,
+          103,
+          4202,
+          8301,
+          12400,
+          16499,
+          20598
+        ],
+        "current_battery": -12266,
+        "id": 225,
+        "battery_function": 6,
+        "type": 43,
+        "battery_remaining": -48,
+        "time_remaining": -1372929803,
+        "charge_state": 154,
+        "voltages_ext": [
+          16643,
+          20742,
+          24841,
+          28940
+        ],
+        "mode": 228,
+        "fault_bitmask": 2802362297
+      },
+      "hex": "fd360000492a07930000bc79371e6df36ebc10b05bc05ed061e064f067006a106d2070307340765016d0e1062bd0f5c02aae9a0341065109610c71e4b9a708a7c2e0"
+    },
+    {
+      "id": 147,
+      "name": "BATTERY_STATUS",
+      "style": "minimal",
+      "sequence": 74,
+      "values": {
+        "current_consumed": 1,
+        "energy_consumed": 0,
+        "temperature": 0,
+        "voltages": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "current_battery": 0,
+        "id": 0,
+        "battery_function": 0,
+        "type": 0,
+        "battery_remaining": 0,
+        "time_remaining": 0,
+        "charge_state": 0,
+        "voltages_ext": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "mode": 0,
+        "fault_bitmask": 0
+      },
+      "hex": "fd0100004a2a07930000014f71"
+    },
+    {
+      "id": 193,
+      "name": "EKF_STATUS_REPORT",
+      "style": "pattern",
+      "sequence": 75,
+      "values": {
+        "velocity_variance": -16.125,
+        "pos_horiz_variance": -14.75,
+        "pos_vert_variance": -13.375,
+        "compass_variance": -12.0,
+        "terrain_alt_variance": -10.625,
+        "flags": 24601,
+        "airspeed_variance": -7.875
+      },
+      "hex": "fd1a00004b2a07c10000000081c100006cc1000056c1000040c100002ac119600000fcc0ad02"
+    },
+    {
+      "id": 193,
+      "name": "EKF_STATUS_REPORT",
+      "style": "minimal",
+      "sequence": 76,
+      "values": {
+        "velocity_variance": 1,
+        "pos_horiz_variance": 0,
+        "pos_vert_variance": 0,
+        "compass_variance": 0,
+        "terrain_alt_variance": 0,
+        "flags": 0,
+        "airspeed_variance": 0
+      },
+      "hex": "fd0400004c2a07c100000000803f77de"
+    },
+    {
+      "id": 253,
+      "name": "STATUSTEXT",
+      "style": "pattern",
+      "sequence": 77,
+      "values": {
+        "severity": 40,
+        "text": "MIRAGE statustext 2",
+        "id": 12304,
+        "chunk_seq": 151
+      },
+      "hex": "fd3600004d2a07fd0000284d49524147452073746174757374657874203200000000000000000000000000000000000000000000000000000000000000103097c6d5"
+    },
+    {
+      "id": 253,
+      "name": "STATUSTEXT",
+      "style": "minimal",
+      "sequence": 78,
+      "values": {
+        "severity": 1,
+        "text": "",
+        "id": 0,
+        "chunk_seq": 0
+      },
+      "hex": "fd0100004e2a07fd00000157fc"
     }
   ]
 }
