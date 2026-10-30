@@ -171,3 +171,87 @@ fn pitch_and_flow_derive_alpha_before_polar_lookup() {
         .unwrap();
     assert!(induced.force_n.z < force);
 }
+
+#[path = "support/neuralfoil.rs"]
+mod neuralfoil;
+
+/// TASK-091 tolerance T1, declared before implementation: every component
+/// within 1e-12 of its vector's norm (absolute floor 1e-15), flags identical.
+fn within_t1(a: Vec3, b: Vec3) -> bool {
+    let scale = 1e-12 * (a.norm().max(b.norm())) + 1e-15;
+    (a.x - b.x).abs() <= scale && (a.y - b.y).abs() <= scale && (a.z - b.z).abs() <= scale
+}
+
+/// TASK-091: `evaluate_fast` against the reference `evaluate` on the NACA6409
+/// surrogate over axial, edgewise (advance ratio up to 0.3), climbing,
+/// descending and reverse-flow states, body rates, cyclic pitch, both spin
+/// directions and 1, 3, 8 and 64 azimuth samples.
+#[test]
+fn production_kernel_matches_the_reference_within_t1() {
+    let p = neuralfoil::naca6409(&[0.0, 0.3]);
+    let polar = PolarTable::new(&p.alpha, &p.re, &p.mach, &p.cl, &p.cd).unwrap().with_confidence(&p.confidence, 0.9).unwrap();
+    // The example 10 x 4.5 in propeller geometry family: 16 strips, tapered and twisted.
+    let (radius_m, cutout_m, n) = (0.127, 0.0127, 16usize);
+    let width = (radius_m - cutout_m) / n as f64;
+    let r: Vec<f64> = (0..n).map(|k| cutout_m + (k as f64 + 0.5) * width).collect();
+    let chord: Vec<f64> = r.iter().map(|x| 0.025 - 0.08 * (x - 0.06)).collect();
+    let twist: Vec<f64> = r.iter().map(|x| (0.1143 / (2.0 * PI * x)).atan()).collect();
+    let widths = vec![width; n];
+    let (mut checked, mut bitwise, mut errors) = (0usize, 0usize, 0usize);
+    for spin in [1, -1] {
+        for samples in [1usize, 3, 8, 64] {
+            let rotor = Rotor::new(RotorGeometry { blade_count: 2, spin_sign: spin, radius_m, cutout_m, radius: &r, chord: &chord, twist: &twist, width: &widths },
+                polar, samples).unwrap();
+            for omega in [0.0, 5.0, 150.0, 530.0, 900.0] {
+                for induced in [-6.0, -0.5, 0.0, 2.5, 9.0] {
+                    for (vx, vy, vz) in [(0.0, 0.0, 0.0), (0.3 * 530.0 * radius_m, 0.0, 0.0), (-4.0, 6.0, 0.0), (0.0, 0.0, -8.0), (2.0, -1.0, 12.0)] {
+                        for (rate, cyclic, collective) in [((0.0, 0.0, 0.0), (0.0, 0.0), 0.0), ((2.0, -3.0, 0.5), (0.05, -0.08), 0.1), ((-0.3, 0.2, -4.0), (-0.1, 0.02), -0.2)] {
+                            let i = RotorInput { density_kg_m3: 1.225, viscosity_pa_s: 1.7894e-5, sound_speed_mps: 340.294,
+                                air_velocity_hub_mps: Vec3::new(vx, vy, vz), body_rate_hub_rad_s: Vec3::new(rate.0, rate.1, rate.2),
+                                omega_rad_s: omega, induced_mps: induced, collective_rad: collective, cyclic_cos_rad: cyclic.0, cyclic_sin_rad: cyclic.1 };
+                            match (rotor.evaluate(i), rotor.evaluate_fast(i)) {
+                                (Ok(a), Ok(b)) => {
+                                    assert!(within_t1(a.force_n, b.force_n) && within_t1(a.moment_nm, b.moment_nm) && within_t1(a.flap_load_nm, b.flap_load_nm),
+                                        "{a:?} {b:?}");
+                                    assert_eq!(a.flags, b.flags);
+                                    checked += 1;
+                                    if a == b { bitwise += 1; }
+                                }
+                                (Err(_), Err(_)) => errors += 1,
+                                (a, b) => panic!("reference {a:?} production {b:?}"),
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    // Invalid inputs fail in both kernels.
+    let rotor = Rotor::new(RotorGeometry { blade_count: 2, spin_sign: 1, radius_m, cutout_m, radius: &r, chord: &chord, twist: &twist, width: &widths }, polar, 8).unwrap();
+    let mut bad = input();
+    bad.omega_rad_s = -1.0;
+    assert!(rotor.evaluate(bad).is_err() && rotor.evaluate_fast(bad).is_err());
+    bad = input();
+    bad.induced_mps = f64::NAN;
+    assert!(rotor.evaluate(bad).is_err() && rotor.evaluate_fast(bad).is_err());
+    assert_eq!(checked + errors, 2 * 4 * 5 * 5 * 5 * 3);
+    // The kernel is built to reproduce the reference exactly; report it.
+    println!("T1 checked {checked} states, {bitwise} bitwise identical, {errors} rejected by both");
+    assert_eq!(bitwise, checked);
+}
+
+#[test]
+fn the_wrap_reproduces_rem_euclid_bits() {
+    use mirage_bet::blade::wrap_angle;
+    let tau = 2.0 * PI;
+    let mut values = vec![0.0, -0.0, tau, -tau, 2.0 * tau, -2.0 * tau, PI, -PI, 3.0 * PI, f64::NAN, f64::INFINITY, -f64::INFINITY, 1e300, -1e-300];
+    for k in -40_000..=40_000 {
+        values.push(k as f64 * 1.1e-3 * PI);
+        values.push(f64::from_bits((tau).to_bits().wrapping_add_signed(k as i64)));
+        values.push(-f64::from_bits((tau).to_bits().wrapping_add_signed(k as i64)));
+    }
+    for x in values {
+        let (want, got) = (x.rem_euclid(tau), wrap_angle(x));
+        assert!(want.to_bits() == got.to_bits() || (want.is_nan() && got.is_nan()), "{x}: {want} {got}");
+    }
+}

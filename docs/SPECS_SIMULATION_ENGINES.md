@@ -593,6 +593,23 @@ do not change output or state. Reset restores configured initial speed and
 zero inflow. Disposal invalidates the arena. Growth after init is rejected.
 No new SAB byte layout or autopilot admission follows from this interface.
 
+Kernel cost (TASK-091, in progress). Initialization and reset validate the
+whole configuration; each step rechecks only the header, the counts, the
+dt, the scalar ranges and the slice bounds, and reads the polar without
+rescanning its values, since the configuration is immutable. The step
+evaluates the rotor with `Rotor::evaluate_fast`: per evaluation the
+Reynolds-axis logarithms, the bracket guess scales and the corner strides
+are computed once; each bracket is guessed in O(1) and corrected against
+its neighbours, which gives the binary search's index; one pass reads the
+CL, CD and confidence corners; the angle of attack wraps by exact
+conditional subtraction (Sterbenz) with `rem_euclid` as fallback; and the
+element speed is taken once. Results are bit-identical to the reference
+kernel (`Rotor::evaluate`, `PolarTable::lookup`), which stays in the crate
+with `bound::step_reference` and `bound_v2::step_reference` for tests and
+benchmarks; no WASM export calls them. The declared tolerance T1 (1e-12
+relative, flags identical) and the TASK-033 suites (T2) gate any later
+change; see the TASK-091 entry of the roadmap.
+
 The configured dt accepts 400/800/1200 Hz plus 4800 Hz for offline reference
 integration. The session clock remains limited to 400/800/1200 Hz.
 `BetFlightDynamics` predicts midpoint body velocity, rate and orientation for

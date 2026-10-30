@@ -36,3 +36,116 @@ fn errors_preserve_output_and_state_and_old_versions_are_rejected(){
     assert_eq!(before,a);assert_eq!(o,[0x5a;128]);bound::dispose(&mut a);
     assert_eq!(bound::step(&mut a,&i,&mut o,1.0/400.0),-1);
 }
+
+#[path = "support/neuralfoil.rs"]
+mod neuralfoil;
+
+/// A NACA6409 rotor configuration in the bound layout (16 strips, 8 azimuth samples).
+fn naca_config(dt: f64) -> Vec<u8> {
+    let p = neuralfoil::naca6409(&[0.0, 0.3]);
+    let (radius_m, cutout_m, n) = (0.127, 0.0127, 16usize);
+    let width = (radius_m - cutout_m) / n as f64;
+    let r: Vec<f64> = (0..n).map(|k| cutout_m + (k as f64 + 0.5) * width).collect();
+    let chord: Vec<f64> = r.iter().map(|x| 0.025 - 0.08 * (x - 0.06)).collect();
+    let twist: Vec<f64> = r.iter().map(|x| (0.1143 / (2.0 * std::f64::consts::PI * x)).atan()).collect();
+    let count = p.alpha.len() * p.re.len() * p.mach.len();
+    let mut c = vec![0u8; 128 + (4 * n + p.alpha.len() + p.re.len() + p.mach.len() + 3 * count) * 8];
+    let len = c.len() as u32;
+    for (at, v) in [(0, 1), (4, len), (8, p.alpha.len() as u32), (12, p.re.len() as u32), (16, p.mach.len() as u32), (20, n as u32), (24, 2), (28, 1), (32, 8)] {
+        word(&mut c, at, v);
+    }
+    for (at, v) in [(40, radius_m), (48, cutout_m), (56, 2.0e-5), (64, 1e-7), (72, dt), (80, 0.0), (88, 0.1), (96, 500.0), (104, 0.9)] {
+        put(&mut c, at, v);
+    }
+    let mut at = 128;
+    for values in [&r, &chord, &twist, &vec![width; n], &p.alpha, &p.re, &p.mach, &p.cl, &p.cd, &p.confidence] {
+        for v in values.iter() { put(&mut c, at, *v); at += 8; }
+    }
+    c
+}
+fn arena_for(c: &[u8]) -> Vec<u8> { let mut a = vec![0u8; 64 + c.len()]; assert_eq!(bound::init(c, &mut a, 0), 0); a }
+
+/// TASK-091 tolerance T1 for one output record: vectors per component within
+/// 1e-12 of their norm, scalars within 1e-12 relative (floor 1e-15), flags equal.
+fn assert_t1(want: &[u8], got: &[u8], context: &str) {
+    let scalar = |a: f64, b: f64| (a - b).abs() <= 1e-12 * a.abs().max(b.abs()) + 1e-15;
+    for at in [0, 24, 48] {
+        let (a, b) = ([get(want, at), get(want, at + 8), get(want, at + 16)], [get(got, at), get(got, at + 8), get(got, at + 16)]);
+        let scale = 1e-12 * a.iter().map(|v| v * v).sum::<f64>().sqrt().max(b.iter().map(|v| v * v).sum::<f64>().sqrt()) + 1e-15;
+        assert!((0..3).all(|k| (a[k] - b[k]).abs() <= scale), "{context}: vector at {at}: {a:?} {b:?}");
+    }
+    for at in [72, 80, 88, 96, 120] { assert!(scalar(get(want, at), get(got, at)), "{context}: scalar at {at}"); }
+    assert_eq!(want[112..116], got[112..116], "{context}: flags");
+    // Bytes 128.. of a v2 record: the electrical outputs and the validity word.
+    for at in (144..want.len()).step_by(8) { assert!(scalar(get(want, at), get(got, at)), "{context}: v2 scalar at {at}"); }
+    assert_eq!(want[116..120], got[116..120], "{context}: validity");
+}
+
+/// TASK-091: the production step (configuration checked once, fast kernel)
+/// against `step_reference` on twin arenas: 1e5 closed-loop steps from rest
+/// in forward flight with body rates and cyclic (1e5 steps at 400 Hz and 2e4
+/// at 1200 Hz, which keeps the debug-build test short), then shaft speed and
+/// inflow within 1e-9 relative, and outputs within T1 on every step.
+#[test]
+fn production_step_matches_the_reference_over_a_closed_loop() {
+    for (hz, steps) in [(400.0, 100_000), (1200.0, 20_000)] {
+        let dt = 1.0 / hz;
+        let c = naca_config(dt);
+        let (mut fast, mut reference) = (arena_for(&c), arena_for(&c));
+        let mut input = vec![0u8; 128];
+        word(&mut input, 0, 1);
+        for (at, v) in [(8, 1.225), (16, 1.7894e-5), (24, 340.294), (32, 6.0), (40, -1.5), (48, -2.0), (56, 0.4), (64, -0.2), (72, 0.05),
+            (80, 0.02), (88, 0.01), (96, -0.015), (104, 0.11)] {
+            put(&mut input, at, v);
+        }
+        let (mut a, mut b) = ([0u8; 128], [0u8; 128]);
+        let mut bitwise = 0;
+        for step in 0..steps {
+            // A slowly varying torque command keeps the shaft and the inflow moving.
+            put(&mut input, 104, 0.11 + 0.04 * (step as f64 * 1e-3).sin());
+            assert_eq!(bound::step(&mut fast, &input, &mut a, dt), 0);
+            assert_eq!(bound::step_reference(&mut reference, &input, &mut b, dt), 0);
+            assert_t1(&b, &a, &format!("{hz} Hz step {step}"));
+            if a == b { bitwise += 1; }
+        }
+        for at in [16, 24] {
+            let (x, y) = (get(&reference, at), get(&fast, at));
+            assert!((x - y).abs() <= 1e-9 * x.abs().max(y.abs()), "{hz} Hz state at {at}: {x} {y}");
+        }
+        assert!(get(&fast, 16) > 100.0, "the shaft spun up");
+        println!("{hz} Hz: {bitwise} of {steps} output records bitwise identical");
+        assert_eq!(bitwise, steps);
+    }
+}
+
+/// TASK-091: the same comparison for the TASK-092 ESC drive (interface v2 drive mode 1).
+#[test]
+fn production_esc_step_matches_the_reference_over_a_closed_loop() {
+    use mirage_bet::bound_v2;
+    let dt = 1.0 / 800.0;
+    let c = naca_config(dt);
+    let (mut fast, mut reference) = (arena_for(&c), arena_for(&c));
+    let mut input = vec![0u8; 256];
+    word(&mut input, 0, bound_v2::VERSION);
+    word(&mut input, 8, bound_v2::DRIVE_ESC_DUTY);
+    for (at, v) in [(16, 1.225), (24, 1.7894e-5), (32, 340.294), (40, 3.0), (48, 0.5), (56, -1.0), (64, 0.1), (72, -0.05), (80, 0.02),
+        (88, 0.0), (96, 0.0), (104, 0.0), (128, 16.0), (192, 0.12), (200, 0.0103), (208, 40.0), (216, 40.0), (224, 0.0), (232, 1.0 / 490.0), (240, 1.0 / 490.0)] {
+        put(&mut input, at, v);
+    }
+    let (mut a, mut b) = ([0u8; 256], [0u8; 256]);
+    for step in 0..100_000 {
+        let duty = 0.45 + 0.3 * (step as f64 * 7e-4).sin();
+        put(&mut input, 120, duty);
+        // A power cut for a short window exercises the freewheel path.
+        word(&mut input, 248, u32::from((40_000..40_400).contains(&step)));
+        assert_eq!(bound_v2::step(&mut fast, &input, &mut a, dt), 0, "step {step}");
+        assert_eq!(bound_v2::step_reference(&mut reference, &input, &mut b, dt), 0, "step {step}");
+        assert_t1(&b, &a, &format!("ESC step {step}"));
+    }
+    for at in [16, 24, 32, 40, 48] {
+        let (x, y) = (get(&reference, at), get(&fast, at));
+        assert!((x - y).abs() <= 1e-9 * x.abs().max(y.abs()) + 1e-15, "state at {at}: {x} {y}");
+    }
+    assert!(get(&fast, 16) > 100.0, "the shaft spun up");
+    assert_eq!(a, b, "the final records are bitwise identical");
+}

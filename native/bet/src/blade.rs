@@ -207,4 +207,141 @@ impl<'a> Rotor<'a> {
         }
         Ok(out)
     }
+
+    /// The production kernel (TASK-091): the same integral as `evaluate`, which
+    /// stays the scalar reference, with bit-identical results. The polar
+    /// lookups share one prepared state (`PolarTable::prepare`), the angle of
+    /// attack wraps without `fmod` (`wrap_angle`), and the element speed is
+    /// taken once.
+    pub fn evaluate_fast(&self, i: RotorInput) -> Result<RotorWrench, RotorError> {
+        let scalars = [
+            i.density_kg_m3,
+            i.viscosity_pa_s,
+            i.sound_speed_mps,
+            i.omega_rad_s,
+            i.induced_mps,
+            i.collective_rad,
+            i.cyclic_cos_rad,
+            i.cyclic_sin_rad,
+            i.air_velocity_hub_mps.x,
+            i.air_velocity_hub_mps.y,
+            i.air_velocity_hub_mps.z,
+            i.body_rate_hub_rad_s.x,
+            i.body_rate_hub_rad_s.y,
+            i.body_rate_hub_rad_s.z,
+        ];
+        if !scalars.iter().all(|x| x.is_finite())
+            || !(0.05..=2.0).contains(&i.density_kg_m3)
+            || i.viscosity_pa_s <= 0.0
+            || i.sound_speed_mps <= 0.0
+            || i.omega_rad_s < 0.0
+        {
+            return Err(RotorError);
+        }
+        let zero = Vec3::new(0.0, 0.0, 0.0);
+        let mut out = RotorWrench {
+            force_n: zero,
+            moment_nm: zero,
+            flap_load_nm: zero,
+            flags: 0,
+        };
+        let g = self.geometry;
+        let polar = self.polar.prepare();
+        let spin = g.spin_sign as f64;
+        let weight = g.blade_count as f64 / self.grid.len() as f64;
+        for j in 0..self.grid.len() {
+            let (c, s) = self.grid.sample(j).ok_or(RotorError)?;
+            let er = Vec3::new(c, s, 0.0);
+            let et = Vec3::new(-spin * s, spin * c, 0.0);
+            for k in 0..g.radius.len() {
+                let r = er.scale(g.radius[k]);
+                let v = i
+                    .air_velocity_hub_mps
+                    .add(i.body_rate_hub_rad_s.cross(r).scale(-1.0))
+                    .add(et.scale(-i.omega_rad_s * g.radius[k]))
+                    .add(Vec3::new(0.0, 0.0, -i.induced_mps));
+                let perpendicular = v.add(er.scale(-v.dot(er)));
+                let speed = perpendicular.norm();
+                if speed < MIN_RELATIVE_SPEED_MPS {
+                    continue;
+                }
+                let phi = (-perpendicular.z).atan2(-perpendicular.dot(et));
+                let alpha = wrap_angle(
+                    i.collective_rad + g.twist[k] + i.cyclic_cos_rad * c + i.cyclic_sin_rad * s
+                        - phi
+                        + PI,
+                ) - PI;
+                let p = polar.lookup(
+                    alpha,
+                    i.density_kg_m3 * speed * g.chord[k] / i.viscosity_pa_s,
+                    speed / i.sound_speed_mps,
+                );
+                let f = element_force_at_speed(
+                    i.density_kg_m3,
+                    g.chord[k],
+                    g.width[k],
+                    perpendicular,
+                    speed,
+                    er,
+                    spin,
+                    p.cl,
+                    p.cd,
+                )
+                .scale(weight);
+                out.force_n = out.force_n.add(f);
+                out.moment_nm = out.moment_nm.add(r.cross(f));
+                out.flap_load_nm = out
+                    .flap_load_nm
+                    .add(Vec3::new(1.0, c, s).scale(g.radius[k] * f.z));
+                out.flags |= p.flags;
+            }
+        }
+        if !out.force_n.norm().is_finite()
+            || !out.moment_nm.norm().is_finite()
+            || !out.flap_load_nm.norm().is_finite()
+        {
+            return Err(RotorError);
+        }
+        Ok(out)
+    }
+}
+
+/// `x.rem_euclid(TAU)` with the same bits. On [TAU, 2·TAU) the subtraction is
+/// exact (Sterbenz), as is `fmod`; on (-TAU, 0) `rem_euclid` itself adds TAU to
+/// the exact `fmod` result x. Any other x falls back to `rem_euclid`.
+#[inline]
+pub fn wrap_angle(x: f64) -> f64 {
+    if (0.0..TAU).contains(&x) {
+        x
+    } else if (TAU..2.0 * TAU).contains(&x) {
+        x - TAU
+    } else if x < 0.0 && x > -TAU {
+        x + TAU
+    } else {
+        x.rem_euclid(TAU)
+    }
+}
+
+/// `element_force` for a `v_perp_mps` whose norm the caller already holds;
+/// the same operations in the same order.
+#[allow(clippy::too_many_arguments)]
+#[inline]
+fn element_force_at_speed(
+    density_kg_m3: f64,
+    chord_m: f64,
+    dr_m: f64,
+    v_perp_mps: Vec3,
+    speed: f64,
+    e_r: Vec3,
+    spin_sign: f64,
+    cl: f64,
+    cd: f64,
+) -> Vec3 {
+    if !(speed >= MIN_RELATIVE_SPEED_MPS) {
+        return Vec3::new(0.0, 0.0, 0.0);
+    }
+    let drag_dir = v_perp_mps.scale(1.0 / speed);
+    let lift_dir = drag_dir.cross(e_r).scale(spin_sign);
+    let q_area = 0.5 * density_kg_m3 * speed * speed * chord_m * dr_m;
+    lift_dir.scale(q_area * cl).add(drag_dir.scale(q_area * cd))
 }

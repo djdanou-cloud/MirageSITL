@@ -36,7 +36,17 @@ struct Config<'a> {
     inertia: f64, damping: f64, dt: f64, initial: f64, tau: f64, limit: f64,
 }
 
-fn config(b: &[u8]) -> Result<Config<'_>, i32> {
+/// Full validation of a configuration: every axis, coefficient and confidence
+/// value, the geometry and the shaft. Initialization and reset use it.
+fn config(b: &[u8]) -> Result<Config<'_>, i32> { parse_config(b, true) }
+
+/// The configuration a step reads (TASK-091). The configuration is immutable
+/// after initialization, where `config` validated it, so a step rechecks only
+/// the header, the counts and the slice bounds that memory safety needs and
+/// does not rescan the polar values.
+fn step_config(b: &[u8]) -> Result<Config<'_>, i32> { parse_config(b, false) }
+
+fn parse_config(b: &[u8], full: bool) -> Result<Config<'_>, i32> {
     if u(b,0) != Some(VERSION) { return Err(-7); }
     let parse = || {
         if b.len() < CONFIG_HEADER || u(b,4)? as usize != b.len() || !zero(b,36,40) || !zero(b,112,128) { return None; }
@@ -51,7 +61,8 @@ fn config(b: &[u8]) -> Result<Config<'_>, i32> {
         let radius=take(ns)?;let chord=take(ns)?;let twist=take(ns)?;let width=take(ns)?;
         let alpha=take(na)?;let re=take(nr)?;let mach=take(nm)?;
         let cl=take(count)?;let cd=take(count)?;let confidence=take(count)?;
-        let polar=PolarTable::new(alpha,re,mach,cl,cd).ok()?.with_confidence(confidence,f(b,104)?).ok()?;
+        let polar=if full {PolarTable::new(alpha,re,mach,cl,cd).ok()?.with_confidence(confidence,f(b,104)?).ok()?}
+            else {PolarTable::validated(alpha,re,mach,cl,cd,confidence,f(b,104)?)};
         let geometry=RotorGeometry{blade_count:u(b,24)?,spin_sign:u(b,28)? as i32,radius_m:f(b,40)?,
             cutout_m:f(b,48)?,radius,chord,twist,width};
         let azimuth=u(b,32)? as usize;
@@ -91,6 +102,25 @@ pub fn step(arena: &mut [u8], input: &[u8], out: &mut [u8], dt: f64) -> i32 {
     }
 }
 
+/// `step` on the reference kernel (TASK-091): the configuration fully
+/// revalidated and `Rotor::evaluate` on every step, as before TASK-091. For
+/// tests and benchmarks only; no WASM export calls it.
+pub fn step_reference(arena: &mut [u8], input: &[u8], out: &mut [u8], dt: f64) -> i32 {
+    match advance_with(arena,input,out.len(),dt,None,Kernel::Reference) {
+        Ok(a) => { commit(arena,out,&a); 0 }
+        Err(status) => status,
+    }
+}
+
+/// Which rotor kernel a step runs.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Kernel {
+    /// `step_config` and `Rotor::evaluate_fast` (the default).
+    Production,
+    /// `config` and `Rotor::evaluate`, the scalar reference.
+    Reference,
+}
+
 /// A computed step, not yet written: the output record, the next shaft and
 /// inflow state, and the speed at the midpoint.
 pub(crate) struct Advanced {
@@ -110,14 +140,21 @@ pub(crate) fn commit(arena: &mut [u8], out: &mut [u8], a: &Advanced) {
 /// interface v2 drive mode 1 (TASK-092), whose ESC state occupies arena
 /// header bytes 32..56.
 pub(crate) fn advance(arena: &[u8], input: &[u8], out_len: usize, dt: f64, esc: Option<DriveTorque>) -> Result<Advanced, i32> {
+    advance_with(arena,input,out_len,dt,esc,Kernel::Production)
+}
+
+/// `advance` on a chosen kernel.
+pub(crate) fn advance_with(arena: &[u8], input: &[u8], out_len: usize, dt: f64, esc: Option<DriveTorque>, kernel: Kernel)
+    -> Result<Advanced, i32> {
     if arena_len(arena)!=Some(arena.len() as u32) {return Err(-1);}
     if input.len()!=INPUT_BYTES as usize || out_len!=OUTPUT_BYTES as usize {return Err(-2);}
     if u(input,0)!=Some(VERSION) {return Err(-7);}
     let drive_state_free=if esc.is_some() {zero(arena,56,64)} else {zero(arena,32,64)};
     if !zero(input,4,8) || !zero(input,112,128) || !zero(arena,12,16) || !drive_state_free {return Err(-3);}
     let (state,bytes)=arena.split_at(ARENA_HEADER);
-    let c=config(bytes)?;
+    let c=if kernel==Kernel::Production {step_config(bytes)?} else {config(bytes)?};
     if dt.to_bits()!=c.dt.to_bits() {return Err(-4);}
+    let evaluate=|rotor:&Rotor<'_>,i:RotorInput| if kernel==Kernel::Production {rotor.evaluate_fast(i)} else {rotor.evaluate(i)};
     let compute=|| {
         let omega=f(state,16)?;let induced=f(state,24)?;
         let motor=f(input,104)?;
@@ -125,7 +162,7 @@ pub(crate) fn advance(arena: &[u8], input: &[u8], out_len: usize, dt: f64, esc: 
             air_velocity_hub_mps:vec(input,32)?,body_rate_hub_rad_s:vec(input,56)?,omega_rad_s:omega,
             induced_mps:induced,collective_rad:f(input,80)?,cyclic_cos_rad:f(input,88)?,cyclic_sin_rad:f(input,96)?};
         let rotor=Rotor::new(c.geometry,c.polar,c.azimuth).ok()?;
-        let first=rotor.evaluate(i).ok()?;
+        let first=evaluate(&rotor,i).ok()?;
         let shaft_model=Shaft::new(c.inertia,c.damping,c.geometry.spin_sign).ok()?;
         let flow_model=AxialInflow::new(i.density_kg_m3,c.geometry.radius_m,c.tau,c.limit).ok()?;
         let transverse=i.air_velocity_hub_mps.x.hypot(i.air_velocity_hub_mps.y);
@@ -136,7 +173,7 @@ pub(crate) fn advance(arena: &[u8], input: &[u8], out_len: usize, dt: f64, esc: 
         let half_shaft=shaft_step(first.moment_nm.z,dt*0.5).ok()?;
         let half_flow=flow_model.step(induced,first.force_n.z,i.air_velocity_hub_mps.z,transverse,dt*0.5).ok()?;
         let mut midpoint=i;midpoint.omega_rad_s=half_shaft.omega_rad_s;midpoint.induced_mps=half_flow.velocity_mps;
-        let aero=rotor.evaluate(midpoint).ok()?;
+        let aero=evaluate(&rotor,midpoint).ok()?;
         let shaft=shaft_step(aero.moment_nm.z,dt).ok()?;
         let flow=flow_model.step(induced,aero.force_n.z,i.air_velocity_hub_mps.z,transverse,dt).ok()?;
         let spin=c.geometry.spin_sign as f64;
