@@ -282,3 +282,34 @@ fn bus_steps_allocate_zero_over_one_million_steps() {
     assert_eq!(CALLS.load(Ordering::Relaxed), 0);
     assert_eq!(BYTES.load(Ordering::Relaxed), 0);
 }
+
+/// TASK-091: both opt-in kernel modes (configuration version 2) allocate nothing over 1e6 steps,
+/// in hover (hover sampling engaged) and in forward flight (hover sampling off).
+#[test]
+fn opt_in_kernel_modes_allocate_zero_over_one_million_steps() {
+    let (mut c, _, _) = fixture();
+    word(&mut c, 0, bound::CONFIG_VERSION_OPTIONS);
+    word(&mut c, 36, bound::OPTION_REDUCED_PREDICTOR | bound::OPTION_HOVER_SAMPLING);
+    let mut arena = vec![0u8; 64 + c.len()];
+    assert_eq!(bound::init(&c, &mut arena, 0), 0);
+    let (_, mut input) = inputs();
+    let mut out = [0u8; 256];
+    for forward in [0.0, 3.0] {
+        put(&mut input, 40, forward);
+        // Body rates, cyclic and drive torque from `inputs`; zero them for the hover case.
+        for at in [64, 72, 80, 96, 104] { put(&mut input, at, if forward == 0.0 { 0.0 } else { 0.01 }); }
+        CALLS.store(0, Ordering::Relaxed);
+        BYTES.store(0, Ordering::Relaxed);
+        TRACK.with(|t| t.set(true));
+        let mut status = 0;
+        for _ in 0..500_000 {
+            status |= black_box(bound_v2::step(&mut arena, &input, &mut out, DT));
+        }
+        TRACK.with(|t| t.set(false));
+        assert_eq!(status, 0);
+        assert_eq!((CALLS.load(Ordering::Relaxed), BYTES.load(Ordering::Relaxed)), (0, 0));
+        // The hover case ran with hover sampling, the forward case without.
+        assert_eq!(read_word(&out, 112) & bound::FLAG_HOVER_SAMPLING != 0, forward == 0.0, "forward {forward}");
+        assert!(read_word(&out, 112) & bound::FLAG_REDUCED_PREDICTOR != 0);
+    }
+}

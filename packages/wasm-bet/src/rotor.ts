@@ -8,7 +8,17 @@ export interface BoundPolar {
 export interface BoundRotorDefinition {
   geometry: BetRotorConfig; polar: BoundPolar; initialOmegaRadS: number;
   inflowTauS: number; inflowLimitMps: number; minimumConfidence: number;
+  /** TASK-091 opt-in kernel options (`KERNEL_OPTION_*`); absent or 0 encodes configuration version 1. */
+  kernelOptions?: number;
 }
+/** Kernel option (configuration version 2, TASK-091): the half-step prediction uses azimuth samples 0 and N/2. */
+export const KERNEL_OPTION_REDUCED_PREDICTOR = 1;
+/** Kernel option (configuration version 2, TASK-091): near hover the midpoint uses every other azimuth sample. */
+export const KERNEL_OPTION_HOVER_SAMPLING = 2;
+/** Rotor output flag: the midpoint loads used hover sampling. Informational, not a validity breach. */
+export const ROTOR_FLAG_HOVER_SAMPLING = 64;
+/** Rotor output flag: the half-step prediction used the reduced predictor. Informational, not a validity breach. */
+export const ROTOR_FLAG_REDUCED_PREDICTOR = 128;
 export function record(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
@@ -90,8 +100,12 @@ export function encodeBoundRotor(d: BoundRotorDefinition, dtS: number): Uint8Arr
       p.cl.length!==count || p.cd.length!==count || p.confidence.length!==count ||
       !Number.isInteger(g.bladeCount) || !Number.isInteger(g.azimuthSamples) || ![1,-1].includes(g.spinSign))
     throw Error('Invalid bound rotor payload shape');
+  const options=d.kernelOptions??0;
+  if(!Number.isInteger(options) || options<0 || options>(KERNEL_OPTION_REDUCED_PREDICTOR|KERNEL_OPTION_HOVER_SAMPLING))
+    throw Error('Invalid bound rotor kernel options');
   const bytes=new Uint8Array(128+(ns*4+na+nr+nm+count*3)*8),v=new DataView(bytes.buffer);
-  const integers=[1,bytes.length,na,nr,nm,ns,g.bladeCount,g.spinSign,g.azimuthSamples];
+  // Version 1 unless a kernel option is on (TASK-091); version 2 carries the options word at byte 36.
+  const integers=[options===0?1:2,bytes.length,na,nr,nm,ns,g.bladeCount,g.spinSign,g.azimuthSamples,options];
   for(let i=0;i<integers.length;i++)v.setUint32(i*4,integers[i]!,true);
   const scalars=[g.radiusM,g.rootCutoutM,g.shaftInertiaKgM2,g.bearingViscousNmPerRadS,dtS,
     d.initialOmegaRadS,d.inflowTauS,d.inflowLimitMps,d.minimumConfidence];

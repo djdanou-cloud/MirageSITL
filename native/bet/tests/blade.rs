@@ -182,7 +182,8 @@ fn within_t1(a: Vec3, b: Vec3) -> bool {
     (a.x - b.x).abs() <= scale && (a.y - b.y).abs() <= scale && (a.z - b.z).abs() <= scale
 }
 
-/// TASK-091: `evaluate_fast` against the reference `evaluate` on the NACA6409
+/// TASK-091: `evaluate_fast` (bitwise) and `evaluate_sampled` at stride 1
+/// (within T1) against the reference `evaluate` on the NACA6409
 /// surrogate over axial, edgewise (advance ratio up to 0.3), climbing,
 /// descending and reverse-flow states, body rates, cyclic pitch, both spin
 /// directions and 1, 3, 8 and 64 azimuth samples.
@@ -209,16 +210,18 @@ fn production_kernel_matches_the_reference_within_t1() {
                             let i = RotorInput { density_kg_m3: 1.225, viscosity_pa_s: 1.7894e-5, sound_speed_mps: 340.294,
                                 air_velocity_hub_mps: Vec3::new(vx, vy, vz), body_rate_hub_rad_s: Vec3::new(rate.0, rate.1, rate.2),
                                 omega_rad_s: omega, induced_mps: induced, collective_rad: collective, cyclic_cos_rad: cyclic.0, cyclic_sin_rad: cyclic.1 };
-                            match (rotor.evaluate(i), rotor.evaluate_fast(i)) {
-                                (Ok(a), Ok(b)) => {
-                                    assert!(within_t1(a.force_n, b.force_n) && within_t1(a.moment_nm, b.moment_nm) && within_t1(a.flap_load_nm, b.flap_load_nm),
-                                        "{a:?} {b:?}");
-                                    assert_eq!(a.flags, b.flags);
+                            match (rotor.evaluate(i), rotor.evaluate_fast(i), rotor.evaluate_sampled(i, 1)) {
+                                (Ok(a), Ok(b), Ok(t)) => {
+                                    // The default production kernel is exact; the opt-in kernel is within T1.
+                                    assert_eq!(a, b);
+                                    assert!(within_t1(a.force_n, t.force_n) && within_t1(a.moment_nm, t.moment_nm) && within_t1(a.flap_load_nm, t.flap_load_nm),
+                                        "{a:?} {t:?}");
+                                    assert_eq!(a.flags, t.flags);
                                     checked += 1;
-                                    if a == b { bitwise += 1; }
+                                    if a == t { bitwise += 1; }
                                 }
-                                (Err(_), Err(_)) => errors += 1,
-                                (a, b) => panic!("reference {a:?} production {b:?}"),
+                                (Err(_), Err(_), Err(_)) => errors += 1,
+                                (a, b, t) => panic!("reference {a:?} production {b:?} opt-in {t:?}"),
                             }
                         }
                     }
@@ -235,9 +238,8 @@ fn production_kernel_matches_the_reference_within_t1() {
     bad.induced_mps = f64::NAN;
     assert!(rotor.evaluate(bad).is_err() && rotor.evaluate_fast(bad).is_err());
     assert_eq!(checked + errors, 2 * 4 * 5 * 5 * 5 * 3);
-    // The kernel is built to reproduce the reference exactly; report it.
-    println!("T1 checked {checked} states, {bitwise} bitwise identical, {errors} rejected by both");
-    assert_eq!(bitwise, checked);
+    // The opt-in kernel reassociates the reference arithmetic, so most states differ in the last bits only.
+    println!("T1 checked {checked} states, {bitwise} of them bitwise for the opt-in kernel, {errors} rejected by all");
 }
 
 #[test]

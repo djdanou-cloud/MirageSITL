@@ -12,7 +12,8 @@ export function rotorDefinition(index=0):BoundRotorDefinition {
     {spinSign:1,initialOmegaRadS:3000*Math.PI/30,shaftInertiaKgM2:0.0002,
       bearingViscousNmPerRadS:1e-6,inflowTauS:0.1,inflowLimitMps:500});
 }
-export function flightConfiguration(index=0,count=4):BetFlightConfiguration {
+/** `kernelOptions` turns on the TASK-091 opt-in rotor kernel modes; 0 keeps the full kernel. */
+export function flightConfiguration(index=0,count=4,kernelOptions=0):BetFlightConfiguration {
   const definition=rotorDefinition(index),rotors=[],mix:number[]=[];
   for(let i=0;i<count;i++) {
     const angle=2*Math.PI*i/count,spin=i%2===0?1:-1;
@@ -27,5 +28,5 @@ export function flightConfiguration(index=0,count=4):BetFlightConfiguration {
     initialOmegaRadS:Array.from({length:count},()=>definition.initialOmegaRadS),
     motorMaxTorqueNm:Array.from({length:count},()=>0.03),inflowTauS:Array.from({length:count},()=>0.1),
     inflowLimitMps:Array.from({length:count},()=>500),pilotMix:mix,motorMapId:42,initialBody:initial,
-    minimumConfidence:0.9,densityKgM3:1.225,viscosityPaS:1.789e-5,soundMps:340};
+    minimumConfidence:0.9,densityKgM3:1.225,viscosityPaS:1.789e-5,soundMps:340,kernelOptions};
 }

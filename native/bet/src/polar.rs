@@ -175,9 +175,10 @@ impl PreparedPolar<'_> {
             'corners: for dm in 0..2 {
                 for dr in 0..2 {
                     for da in 0..2 {
-                        // The reference's weight product, in its order; a zero weight never flags.
-                        if wm[dm] * wr[dr] * wa[da] > 0.0
-                            && values.get(base + dm * sm + dr * sr + da * sa).is_some_and(|v| *v < threshold) {
+                        // A low value first (most cells are confident), then the reference's weight
+                        // product in its order: a zero weight never flags.
+                        if values.get(base + dm * sm + dr * sr + da * sa).is_some_and(|v| *v < threshold)
+                            && wm[dm] * wr[dr] * wa[da] > 0.0 {
                             flags |= FLAG_LOW_CONFIDENCE;
                             break 'corners;
                         }
@@ -185,9 +186,12 @@ impl PreparedPolar<'_> {
                 }
             }
         }
-        // `trilinear`'s nested interpolation (alpha, then Re, then Mach) with precomputed strides.
+        // `trilinear`'s nested interpolation (alpha, then Re, then Mach) with precomputed strides,
+        // read through one window holding the cell's corners; outside the table it is NaN, as there.
+        let span = sa + sr + sm;
         let interpolate = |table: &[f64]| {
-            let at = |k: usize| table.get(k).copied().unwrap_or(f64::NAN);
+            let Some(cell) = table.get(base..=base + span) else { return f64::NAN };
+            let at = |k: usize| cell[k - base];
             let along_alpha = |k: usize| {
                 let v0 = at(k);
                 v0 + ta * (at(k + sa) - v0)

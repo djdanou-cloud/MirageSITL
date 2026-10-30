@@ -1,7 +1,7 @@
 /** Configurable rigid-rotor BET flight dynamics; one WASM body integrator owns truth. */
 import { ControlFlag, INPUT_CLOCK_TOLERANCE_MS, INPUT_TIMEOUT_MS, StateFlag, ActuatorFlagV2, newState,
   type PilotInput, type PhysicsHz, type ActuatorFrameV2 } from '@mirage/protocol';
-import { BetRotorEngine, type BoundPolar } from '../../wasm-bet/src/rotor.ts';
+import { BetRotorEngine, ROTOR_FLAG_HOVER_SAMPLING, ROTOR_FLAG_REDUCED_PREDICTOR, type BoundPolar } from '../../wasm-bet/src/rotor.ts';
 import { BOUND_V2, BOUND_V2_DRIVE_DOUBLES, BOUND_V2_INPUT_DOUBLES, BOUND_V2_OUTPUT_SLOTS, BetRotorEngineV2 } from '../../wasm-bet/src/rotor-v2.ts';
 import { BetBus, type BusBattery } from '../../wasm-bet/src/bus.ts';
 import { BetRigidBodyBackend, newBodyTruth, type BodyTruth } from '../../wasm-bet/src/backend.ts';
@@ -46,7 +46,15 @@ export interface BetFlightConfiguration {
    * Bits 16 and up, so they never alias rotor output flags.
    */
   configurationFlags?: number;
+  /**
+   * TASK-091 opt-in rotor kernel options for every rotor (`KERNEL_OPTION_*`
+   * of @mirage/wasm-bet/rotor); 0 by default, which keeps the full kernel.
+   * Steps that used them are reported in `samplingFlags`, not as validity breaches.
+   */
+  kernelOptions?: number;
 }
+/** Rotor output flags of the TASK-091 opt-in modes: informational, never validity breaches. */
+const SAMPLING_FLAGS=ROTOR_FLAG_HOVER_SAMPLING|ROTOR_FLAG_REDUCED_PREDICTOR;
 /** A vehicle declares rotor-wake pairs that the dynamics does not model until TASK-101. */
 export const CONFIGURATION_FLAG_WAKE_UNMODELED = 1 << 16;
 
@@ -71,6 +79,8 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
   readonly atmosphere:Float64Array;
   nowMs=0.5;
   validityFlags=0;
+  /** TASK-091: the opt-in kernel modes the last step used (`ROTOR_FLAG_HOVER_SAMPLING`, `ROTOR_FLAG_REDUCED_PREDICTOR`). */
+  samplingFlags=0;
   referenceRotorRpm=0;
   fault='';
   externalArmed=false;
@@ -128,7 +138,8 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
       const polar=configuration.polars.get(r.polarId);
       if(!polar)throw Error('Missing rotor polar binding');
       return {geometry:r,polar,initialOmegaRadS:configuration.initialOmegaRadS[i]!,
-        inflowTauS:configuration.inflowTauS[i]!,inflowLimitMps:configuration.inflowLimitMps[i]!,minimumConfidence:configuration.minimumConfidence};
+        inflowTauS:configuration.inflowTauS[i]!,inflowLimitMps:configuration.inflowLimitMps[i]!,minimumConfidence:configuration.minimumConfidence,
+        kernelOptions:configuration.kernelOptions??0};
     });
     this.hz=hz;this.dt=1/hz;this.rotorCount=n;this.modelId=model.modelId;this.motorMapId=configuration.motorMapId;
     const drive=configuration.drive;
@@ -233,7 +244,7 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
       } else input[b+12]=faults?duty*this.torque[i]!*fraction:duty*this.torque[i]!;
     }
     if(esc?!esc.stepInto():!this.engine!.stepInto()){this.fault='BET rotor step failed';return;}
-    this.validityFlags=this.configurationFlags;
+    this.validityFlags=this.configurationFlags;this.samplingFlags=0;
     const output=this.output,stride=this.outputStride;let terminalPowerW=0;this.driveLimited=false;
     for(let i=0;i<this.rotorCount;i++) {
       const a=i*stride,b=i*6;
@@ -242,8 +253,9 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
       if(esc) {
         terminalPowerW+=output[a+21]!; // electrical_power (record byte 160)
         if((flags&BOUND_V2.flagCurrentLimited)!==0)this.driveLimited=true;
-        this.validityFlags|=flags&~BOUND_V2.flagCurrentLimited;
-      } else this.validityFlags|=flags;
+        this.validityFlags|=flags&~(BOUND_V2.flagCurrentLimited|SAMPLING_FLAGS);
+      } else this.validityFlags|=flags&~SAMPLING_FLAGS;
+      this.samplingFlags|=flags&SAMPLING_FLAGS;
       if(faults&&faults.outsideValidity(i)) {
         for(let j=0;j<6;j++)this.faultWrench[j]=this.hub[b+j]!;
         if(!faults.wrenchInto(i,this.faultWrench,this.faultScaled)){this.fault='BET motor fault table mismatch';return;}

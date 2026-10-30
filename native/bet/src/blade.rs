@@ -208,11 +208,16 @@ impl<'a> Rotor<'a> {
         Ok(out)
     }
 
+    /// Number of azimuth samples of the full rule.
+    pub fn azimuth_samples(&self) -> usize {
+        self.grid.len()
+    }
+
     /// The production kernel (TASK-091): the same integral as `evaluate`, which
     /// stays the scalar reference, with bit-identical results. The polar
     /// lookups share one prepared state (`PolarTable::prepare`), the angle of
     /// attack wraps without `fmod` (`wrap_angle`), and the element speed is
-    /// taken once.
+    /// taken once. Configurations without kernel options run it.
     pub fn evaluate_fast(&self, i: RotorInput) -> Result<RotorWrench, RotorError> {
         let scalars = [
             i.density_kg_m3,
@@ -295,6 +300,114 @@ impl<'a> Rotor<'a> {
                     .add(Vec3::new(1.0, c, s).scale(g.radius[k] * f.z));
                 out.flags |= p.flags;
             }
+        }
+        if !out.force_n.norm().is_finite()
+            || !out.moment_nm.norm().is_finite()
+            || !out.flap_load_nm.norm().is_finite()
+        {
+            return Err(RotorError);
+        }
+        Ok(out)
+    }
+
+    /// The kernel of the TASK-091 opt-in configurations, on every `stride`-th
+    /// azimuth sample from sample 0, each weighted by the blade count over the
+    /// samples used; a stride that does not divide the sample count is an
+    /// error. It agrees with `evaluate` within the declared tolerance T1 (1e-12
+    /// relative, flags identical) at a stride of 1: each element's relative
+    /// velocity is resolved on the tangential direction and the axis only,
+    /// where the cross products of `element_force` reduce to scalar products;
+    /// per-strip and per-azimuth factors are formed once and four sums per
+    /// azimuth are rotated into the loads; the polar lookups are those of
+    /// `evaluate_fast`.
+    pub fn evaluate_sampled(&self, i: RotorInput, stride: usize) -> Result<RotorWrench, RotorError> {
+        if stride == 0 || self.grid.len() % stride != 0 {
+            return Err(RotorError);
+        }
+        let scalars = [
+            i.density_kg_m3,
+            i.viscosity_pa_s,
+            i.sound_speed_mps,
+            i.omega_rad_s,
+            i.induced_mps,
+            i.collective_rad,
+            i.cyclic_cos_rad,
+            i.cyclic_sin_rad,
+            i.air_velocity_hub_mps.x,
+            i.air_velocity_hub_mps.y,
+            i.air_velocity_hub_mps.z,
+            i.body_rate_hub_rad_s.x,
+            i.body_rate_hub_rad_s.y,
+            i.body_rate_hub_rad_s.z,
+        ];
+        if !scalars.iter().all(|x| x.is_finite())
+            || !(0.05..=2.0).contains(&i.density_kg_m3)
+            || i.viscosity_pa_s <= 0.0
+            || i.sound_speed_mps <= 0.0
+            || i.omega_rad_s < 0.0
+        {
+            return Err(RotorError);
+        }
+        let zero = Vec3::new(0.0, 0.0, 0.0);
+        let mut out = RotorWrench {
+            force_n: zero,
+            moment_nm: zero,
+            flap_load_nm: zero,
+            flags: 0,
+        };
+        let g = self.geometry;
+        let polar = self.polar.prepare();
+        let spin = g.spin_sign as f64;
+        let weight = g.blade_count as f64 / (self.grid.len() / stride) as f64;
+        // Per-strip factors: Re = (rho c / mu) U and the element force over U, 1/2 rho c dr weight.
+        let n = g.radius.len();
+        let (mut reynolds_per_speed, mut force_per_speed) = ([0.0; 64], [0.0; 64]);
+        for k in 0..n {
+            reynolds_per_speed[k] = i.density_kg_m3 * g.chord[k] / i.viscosity_pa_s;
+            force_per_speed[k] = 0.5 * i.density_kg_m3 * g.chord[k] * g.width[k] * weight;
+        }
+        let inverse_sound = 1.0 / i.sound_speed_mps;
+        let (air, rate) = (i.air_velocity_hub_mps, i.body_rate_hub_rad_s);
+        let axial_air = air.z - i.induced_mps;
+        let z = Vec3::new(0.0, 0.0, 1.0);
+        for j in (0..self.grid.len()).step_by(stride) {
+            let (c, s) = self.grid.sample(j).ok_or(RotorError)?;
+            let er = Vec3::new(c, s, 0.0);
+            let et = Vec3::new(-spin * s, spin * c, 0.0);
+            // The element's in-plane relative velocity lies in span(et, z): u_t = v.et and u_z = v.z,
+            // with v = air - rate x (r er) - omega r et - induced z, linear in r along each azimuth.
+            let swept = rate.cross(er);
+            let (air_t, per_radius_t, per_radius_z) = (air.dot(et), swept.dot(et) + i.omega_rad_s, swept.z);
+            let pitch = i.collective_rad + i.cyclic_cos_rad * c + i.cyclic_sin_rad * s;
+            // Sums along the blade of the element force on et and z and of their moments.
+            let (mut force_t, mut force_z, mut moment_t, mut moment_z) = (0.0, 0.0, 0.0, 0.0);
+            for k in 0..n {
+                let r = g.radius[k];
+                let (u_t, u_z) = (air_t - r * per_radius_t, axial_air - r * per_radius_z);
+                let speed = crate::sqrt(u_t * u_t + u_z * u_z);
+                if speed < MIN_RELATIVE_SPEED_MPS {
+                    continue;
+                }
+                let phi = (-u_z).atan2(-u_t);
+                let alpha = wrap_angle(pitch + g.twist[k] - phi + PI) - PI;
+                let p = polar.lookup(alpha, reynolds_per_speed[k] * speed, speed * inverse_sound);
+                out.flags |= p.flags;
+                // A NaN speed contributes flags only, as in `element_force`.
+                if !(speed >= MIN_RELATIVE_SPEED_MPS) {
+                    continue;
+                }
+                // Drag along (u_t, u_z)/U, lift along (u_z, -u_t)/U (spin x (d x e_r)); q/U = force_per_speed U.
+                let q = force_per_speed[k] * speed;
+                let (f_t, f_z) = (q * (p.cl * u_z + p.cd * u_t), q * (p.cd * u_z - p.cl * u_t));
+                force_t += f_t;
+                force_z += f_z;
+                moment_t += r * f_t;
+                moment_z += r * f_z;
+            }
+            // r er x (f_t et + f_z z) = spin r f_t z - spin r f_z et; flap loads (1, c, s) r f_z.
+            out.force_n = out.force_n.add(et.scale(force_t)).add(z.scale(force_z));
+            out.moment_nm = out.moment_nm.add(z.scale(spin * moment_t)).add(et.scale(-spin * moment_z));
+            out.flap_load_nm = out.flap_load_nm.add(Vec3::new(1.0, c, s).scale(moment_z));
         }
         if !out.force_n.norm().is_finite()
             || !out.moment_nm.norm().is_finite()

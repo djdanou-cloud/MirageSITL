@@ -566,7 +566,8 @@ This separate interface leaves the legacy rotor arena ABI v1 unchanged.
 `bet_bound_dispose(arena)` use disjoint caller-owned 8-byte-aligned regions.
 Configuration header: 128 bytes; u32 version/totalBytes/nAlpha/nRe/nMach/
 nStations/bladeCount/spinSign/azimuthSamples at 0/4/8/12/16/20/24/28/32;
-36..39 reserved zero; f64 radius/root/inertia/bearing/dt/initialOmega/
+36..39 reserved zero in version 1 and the kernel options word in version 2
+(TASK-091, below); f64 radius/root/inertia/bearing/dt/initialOmega/
 inflowTau/inflowLimit/minConfidence at 40/48/56/64/72/80/88/96/104;
 112..127 reserved zero. Then four station f64 arrays (radius/chord/twist/width),
 alpha-radian/Re/Mach axes, and flattened CL/CD/confidence arrays in
@@ -596,19 +597,48 @@ No new SAB byte layout or autopilot admission follows from this interface.
 Kernel cost (TASK-091, in progress). Initialization and reset validate the
 whole configuration; each step rechecks only the header, the counts, the
 dt, the scalar ranges and the slice bounds, and reads the polar without
-rescanning its values, since the configuration is immutable. The step
-evaluates the rotor with `Rotor::evaluate_fast`: per evaluation the
-Reynolds-axis logarithms, the bracket guess scales and the corner strides
-are computed once; each bracket is guessed in O(1) and corrected against
-its neighbours, which gives the binary search's index; one pass reads the
-CL, CD and confidence corners; the angle of attack wraps by exact
-conditional subtraction (Sterbenz) with `rem_euclid` as fallback; and the
-element speed is taken once. Results are bit-identical to the reference
-kernel (`Rotor::evaluate`, `PolarTable::lookup`), which stays in the crate
-with `bound::step_reference` and `bound_v2::step_reference` for tests and
-benchmarks; no WASM export calls them. The declared tolerance T1 (1e-12
-relative, flags identical) and the TASK-033 suites (T2) gate any later
-change; see the TASK-091 entry of the roadmap.
+rescanning its values, since the configuration is immutable. Without kernel
+options the step evaluates the rotor with `Rotor::evaluate_fast`, whose
+results are bit-identical to the reference kernel (`Rotor::evaluate`,
+`PolarTable::lookup`): its polar lookups (`PreparedPolar`) compute the
+Reynolds-axis logarithms, the guess scales and the corner strides once per
+evaluation, guess each bracket in O(1) and correct it against its neighbours
+to the binary search's index, and read a cell's CL, CD and confidence
+corners through one window; the angle of attack wraps by exact conditional
+subtraction (Sterbenz) with `rem_euclid` as fallback; and the element speed
+is taken once. The reference stays in the crate with `bound::step_reference`
+and `bound_v2::step_reference` for tests and benchmarks; no WASM export
+calls them.
+
+Configuration version 2 (TASK-091) adds two opt-in modes that change the
+numerics; version 1 keeps byte 36 reserved zero and stays the default, and
+`encodeBoundRotor` writes version 2 only when `kernelOptions` is nonzero.
+Any other option bit is rejected. A configuration with options evaluates
+the rotor with `Rotor::evaluate_sampled`, which agrees with the reference
+within the declared tolerance T1 (1e-12 relative, flags identical) when it
+samples in full: each element's relative velocity is resolved on the
+tangential direction and the axis only, where the cross products of the
+element force reduce to scalar products, per-strip and per-azimuth factors
+are formed once, and four sums per azimuth are rotated into the force,
+moment and flapping loads. Option 1 (reduced predictor): the
+half-step prediction evaluates azimuth samples 0 and N/2 (N even), whose
+first harmonics cancel, and uses only their axial force and torque.
+Option 2 (hover sampling): the midpoint evaluation uses every other azimuth
+sample (N even, at least 4) while the regime measure
+m = max(|transverse air velocity| / (Omega R), |in-plane body rate| / Omega,
+|cyclic pitch|) at the start of the step stays low: it engages below 0.05
+and disengages above 0.10, and a stopped shaft samples in full. Its state
+(f64 0 or 1) occupies arena header bytes 56..63 only with option 2; the
+bytes stay zero otherwise, and reset clears them. Output flag 64 marks a
+midpoint with hover sampling and flag 128 a reduced prediction;
+`BetFlightDynamics` reports them in `samplingFlags` and never as
+ModelOutsideValidity. The modes are judged by the TASK-033 suites (T2):
+`node scripts/check-bet-runtime.mjs --kernel-options 3` repeats the 18
+comparisons with both modes against the unchanged 4800 Hz references and
+adds six forward-flight trajectories against the full kernel at the same
+rate (limits 0.1 m and 0.5 degrees, report
+`test-results/validation/bet-runtime-modes.json`). `BetFlightConfiguration`
+and `buildProfileDynamics` take `kernelOptions`; the default is 0.
 
 The configured dt accepts 400/800/1200 Hz plus 4800 Hz for offline reference
 integration. The session clock remains limited to 400/800/1200 Hz.

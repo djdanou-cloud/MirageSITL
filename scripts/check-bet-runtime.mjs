@@ -11,6 +11,12 @@ const root=fileURLToPath(new URL('../',import.meta.url));
 const require=createRequire(import.meta.url);
 const {build}=createRequire(require.resolve('vite/package.json'))('esbuild');
 const allocation=process.argv.includes('--allocation');
+// TASK-091: --kernel-options N runs the coarse-rate trajectories with the opt-in rotor kernel modes
+// (1 reduced predictor, 2 hover sampling, 3 both) against the unchanged 4800 Hz full-kernel references,
+// adds forward-flight trajectories against the full kernel at the same rate, and writes bet-runtime-modes.json.
+const optionIndex=process.argv.indexOf('--kernel-options');
+const kernelOptions=optionIndex>=0?Number(process.argv[optionIndex+1]):0;
+if(![0,1,2,3].includes(kernelOptions))throw Error('Invalid --kernel-options');
 if(allocation && !globalThis.gc){
   const result=spawnSync(process.execPath,['--expose-gc','--single-threaded','--max-semi-space-size=64',fileURLToPath(import.meta.url),'--allocation'],{stdio:'inherit'});
   process.exit(result.status??1);
@@ -40,40 +46,54 @@ const identity={sourceInputs:[...new Set(sourceFiles)].map(file=>({file,sha256:s
 mkdirSync(resolve(root,'test-results/validation'),{recursive:true});
 if(!allocation){
   const cases=[];
-  function trajectory(module,index,count,hz){
-    const d=new BetFlightDynamics(module,flightConfiguration(index,count),hz);
+  // `forward` adds a pitch doublet (0.2 for 1 s, then -0.2 for 1 s), which leaves the vehicle tilted and translating.
+  function trajectory(module,index,count,hz,options=0,forward=false){
+    const d=new BetFlightDynamics(module,flightConfiguration(index,count,options),hz);
     const pilot={flags:3,throttle:0.5,roll:0,pitch:0,yaw:0,wallTimeMs:0};
-    let flags=0;
+    let flags=0,sampling=0;
     for(let i=0;i<hz*10;i++){
       const t=(i+0.5)/hz;pilot.throttle=0.5+0.05*Math.sin(t*2*Math.PI/5);
-      d.nowMs=t*1000;pilot.wallTimeMs=d.nowMs;d.stepNow(pilot);flags|=d.validityFlags;
+      if(forward)pilot.pitch=t<1?0.2:t<2?-0.2:0;
+      d.nowMs=t*1000;pilot.wallTimeMs=d.nowMs;d.stepNow(pilot);flags|=d.validityFlags;sampling|=d.samplingFlags;
       if(d.fault)throw Error(d.fault);
     }
-    const s={...d.state},stable=d.engine.memoryStable;d.dispose();return {s,flags,stable};
+    const s={...d.state},stable=d.engine.memoryStable;d.dispose();return {s,flags,sampling,stable};
   }
+  const compare=(a,b)=>({positionErrorM:Math.hypot(a.north-b.north,a.east-b.east,a.down-b.down),
+    attitudeErrorRad:2*Math.acos(Math.min(1,Math.abs(a.qw*b.qw+a.qx*b.qx+a.qy*b.qy+a.qz*b.qz)))});
   for(let index=0;index<3;index++){
     const count=4+index*2,reference=trajectory(modules[0],index,count,4800);
     for(let v=0;v<2;v++)for(const hz of [400,800,1200]){
-      const result=trajectory(modules[v],index,count,hz),a=result.s,b=reference.s;
-      const positionErrorM=Math.hypot(a.north-b.north,a.east-b.east,a.down-b.down);
-      const dot=Math.min(1,Math.abs(a.qw*b.qw+a.qx*b.qx+a.qy*b.qy+a.qz*b.qz));
-      const attitudeErrorRad=2*Math.acos(dot);
-      cases.push({configuration:index,rotors:count,variant:v===0?'scalar':'simd128',hz,referenceHz:4800,durationS:10,
-        positionErrorM,attitudeErrorRad,validityFlags:result.flags,memoryStable:result.stable,
+      const result=trajectory(modules[v],index,count,hz,kernelOptions);
+      const {positionErrorM,attitudeErrorRad}=compare(result.s,reference.s);
+      cases.push({configuration:index,rotors:count,variant:v===0?'scalar':'simd128',hz,referenceHz:4800,durationS:10,kernelOptions,
+        positionErrorM,attitudeErrorRad,validityFlags:result.flags,samplingFlags:result.sampling,memoryStable:result.stable,
         passed:positionErrorM<=0.1 && attitudeErrorRad<=Math.PI/360 && result.stable});
     }
     console.log(`BET runtime convergence: configuration=${index}; ${cases.slice(-6).filter(c=>c.passed).length}/6 passed`);
   }
+  // TASK-091: the modes in forward flight against the full kernel at the same rate (scalar).
+  if(kernelOptions!==0)for(let index=0;index<3;index++)for(const hz of [400,1200]){
+    const count=4+index*2,full=trajectory(modules[0],index,count,hz,0,true),modes=trajectory(modules[0],index,count,hz,kernelOptions,true);
+    const {positionErrorM,attitudeErrorRad}=compare(modes.s,full.s);
+    const travelM=Math.hypot(full.s.north,full.s.east);
+    cases.push({configuration:index,rotors:count,variant:'scalar',hz,referenceHz:hz,reference:'full kernel, forward flight',durationS:10,kernelOptions,
+      positionErrorM,attitudeErrorRad,travelM,validityFlags:modes.flags,samplingFlags:modes.sampling,memoryStable:modes.stable,
+      passed:positionErrorM<=0.1 && attitudeErrorRad<=Math.PI/360 && modes.stable});
+    console.log(`Forward flight with modes ${kernelOptions}: configuration=${index} ${hz} Hz: ${positionErrorM.toExponential(3)} m, ${attitudeErrorRad.toExponential(3)} rad over ${travelM.toFixed(1)} m travelled`);
+  }
   const report={schemaVersion:1,status:cases.every(c=>c.passed)?'pass':'failed',...identity,cases,
     tolerance:{positionM:0.1,attitudeRad:Math.PI/360},scope:'Actual rotor/polar/free-shaft/axial-inflow/frame/body graph; synthetic geometry and NeuralFoil predictions; flags remain active; no measured-fidelity or target-device timing claim'};
-  writeFileSync(resolve(root,'test-results/validation/bet-runtime.json'),JSON.stringify(report,null,2)+'\n');
+  writeFileSync(resolve(root,`test-results/validation/${kernelOptions===0?'bet-runtime':'bet-runtime-modes'}.json`),JSON.stringify(kernelOptions===0?report:{...report,kernelOptions},null,2)+'\n');
   if(report.status!=='pass')process.exitCode=1;
 }else{
   const native=execFileSync('cargo',['test','--release','-p','mirage-bet','--test','allocation','--locked'],{cwd:resolve(root,'native'),encoding:'utf8',stdio:['ignore','pipe','pipe'],timeout:300000});
   if(!native.includes('production_bound_step_allocates_zero_over_one_million_steps ... ok') || !native.includes('test result: ok. 2 passed;'))throw Error('Native bound allocator check did not execute');
   // TASK-092: the ESC drive mode and the shared bus under the same counting allocator.
   const drive=execFileSync('cargo',['test','--release','-p','mirage-bet','--test','bound_v2','--locked','allocate'],{cwd:resolve(root,'native'),encoding:'utf8',stdio:['ignore','pipe','pipe'],timeout:300000});
-  for(const name of ['v2_step_allocates_zero_over_one_million_steps','esc_steps_allocate_zero_over_one_million_steps','bus_steps_allocate_zero_over_one_million_steps'])
+  // TASK-091: the opt-in kernel modes run under the same counting allocator.
+  for(const name of ['v2_step_allocates_zero_over_one_million_steps','esc_steps_allocate_zero_over_one_million_steps','bus_steps_allocate_zero_over_one_million_steps',
+    'opt_in_kernel_modes_allocate_zero_over_one_million_steps'])
     if(!drive.includes(`${name} ... ok`))throw Error(`Native ${name} did not execute`);
   const events=[],observer=new PerformanceObserver(list=>{for(const e of list.getEntries())events.push(e.startTime);});observer.observe({entryTypes:['gc']});
   const settle=()=>new Promise(r=>setTimeout(r,30));

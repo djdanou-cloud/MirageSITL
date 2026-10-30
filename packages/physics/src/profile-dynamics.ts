@@ -26,6 +26,8 @@ export interface ProfileDynamicsOptions {
   readonly housePowerW?: number;
   /** Air state; defaults to the ISA troposphere at 0 m. */
   readonly densityKgM3?: number; readonly viscosityPaS?: number; readonly soundMps?: number;
+  /** TASK-091 opt-in rotor kernel options (`KERNEL_OPTION_*` of @mirage/wasm-bet/rotor); 0 by default. */
+  readonly kernelOptions?: number;
 }
 export interface ProfileDynamicsBuild {
   readonly configuration: BetFlightConfiguration;
@@ -73,6 +75,7 @@ export function buildProfileDynamics(input: VehicleManifest, options: ProfileDyn
     initialBody, minimumConfidence: PROFILE_ROTOR_SETTINGS.minimumConfidence,
     densityKgM3: options.densityKgM3 ?? air.densityKgM3, viscosityPaS: options.viscosityPaS ?? air.dynamicViscosityPaS,
     soundMps: options.soundMps ?? air.speedOfSoundMps, syntheticGroundDownM: 0, drive, configurationFlags,
+    kernelOptions: options.kernelOptions ?? 0,
   };
   return Object.freeze({ configuration, limitations: Object.freeze(limitations) });
 }

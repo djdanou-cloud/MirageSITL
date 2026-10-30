@@ -1,7 +1,9 @@
 // TASK-091: BET kernel compute benchmark (Node/V8 and native host evidence, not browser,
 // Worker or target-hardware timing).
 //
-//   node scripts/bench-bet.mjs [--steps N] [--out PATH] [--baseline PATH] [--fixtures a,b] [--variants a,b] [--rates a,b]
+//   node scripts/bench-bet.mjs [--steps N] [--out PATH] [--baseline PATH] [--fixtures a,b] [--variants a,b] [--rates a,b] [--kernel-options N]
+//
+// --kernel-options turns on the TASK-091 opt-in modes (1 reduced predictor, 2 hover sampling, 3 both) for every rotor.
 //
 // WASM: BetFlightDynamics with the TASK-092 drive for the S19 quad X (4 rotors), octa X
 // (8 rotors) and sixteen-motor (16 rotors) fixtures on the example component cards and
@@ -33,6 +35,8 @@ const list = (name, all) => { const value = option(name, null); return value ===
 const fixtures = list('fixtures', ['quad-x', 'octa-x', 'octa-coaxial-16']);
 const variantNames = list('variants', ['scalar', 'simd128']);
 const rates = list('rates', ['400', '800', '1200']).map(Number);
+const kernelOptions = Number(option('kernel-options', '0'));
+if (![0, 1, 2, 3].includes(kernelOptions)) { console.error('Invalid --kernel-options'); process.exit(2); }
 
 const require = createRequire(import.meta.url);
 const { build } = createRequire(require.resolve('vite/package.json'))('esbuild');
@@ -66,7 +70,7 @@ async function vehicleOf(fixture) {
   const resolved = M.resolveComponents(profile, cards);
   if (!resolved.components) throw new Error(`Missing: ${resolved.missing.join('; ')}`);
   const derived = await M.deriveVehicleManifest(profile, resolved.components, { modelId: 91 });
-  return { fixture, derived, configuration: M.buildProfileDynamics(derived.manifest).configuration };
+  return { fixture, derived, configuration: M.buildProfileDynamics(derived.manifest, { kernelOptions }).configuration };
 }
 const vehicles = [];
 for (const fixture of fixtures) vehicles.push(await vehicleOf(fixture));
@@ -110,7 +114,7 @@ for (const variant of variants) {
 
 // ---- native bound-rotor steps ---------------------------------------------------------------
 const sixteen = (await vehicleOf('octa-coaxial-16')).configuration, rotor = sixteen.manifest.rotors[0];
-const definition = { geometry: rotor, polar: sixteen.polars.get(rotor.polarId), initialOmegaRadS: 500, inflowTauS: 0.1, inflowLimitMps: 500, minimumConfidence: 0.9 };
+const definition = { geometry: rotor, polar: sixteen.polars.get(rotor.polarId), initialOmegaRadS: 500, inflowTauS: 0.1, inflowLimitMps: 500, minimumConfidence: 0.9, kernelOptions };
 const nativeDir = resolve(root, 'native');
 execFileSync('cargo', ['build', '--release', '--locked', '-p', 'mirage-bet', '--example', 'bench_bound'], { cwd: nativeDir, stdio: 'pipe' });
 const binary = resolve(nativeDir, 'target/release/examples/bench_bound');
@@ -151,7 +155,7 @@ const report = {
   vehicles: vehicles.map(v => ({ fixture: v.fixture, rotors: v.derived.manifest.rotorCount, manifestSha256: v.derived.sha256 })),
   load: 'synthetic pad at 0.8 x hover-trim duty, spun up from rest; cards tests/fixtures/components/*-example.json; polar naca6409-neuralfoil-v1',
   budget: 'Step period 1/hz; A-05 judges the mean real-time ratio (at least 0.99); the G3 compute limit is 0.4167 ms at 1200 Hz',
-  rows: { fixtures, variants: variantNames, rates }, wasm, native, comparison,
+  rows: { fixtures, variants: variantNames, rates }, kernelOptions, wasm, native, comparison,
   identity: { commit: git('rev-parse', 'HEAD'), dirty: git('status', '--porcelain', '--', 'native/bet/src', 'packages') !== '',
     node: process.version, platform: process.platform, arch: process.arch, cpu, cpus: os.cpus().length, rustc,
     wasmSha256: Object.fromEntries(variants.map(v => [v.name, sha(v.bytes)])),
