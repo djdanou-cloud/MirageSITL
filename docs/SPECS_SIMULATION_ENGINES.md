@@ -605,8 +605,14 @@ free flight. No contact, battery or autopilot simulation is implied.
 4/6/8 rotors across scalar/SIMD and 400/800/1200 Hz against 4800 Hz; tolerances
 remain 0.1 m and 0.5 degrees. `--allocation` counts one million native bound
 steps with a positive control, probes one million active-rotor steps in each
-WASM variant and one million stationary four-rotor body steps with zero gravity.
-The JS probes require zero GC, less than 0.01 incremental bytes/step, stable
+WASM variant, and one million steps each of the stationary four-rotor body with
+zero gravity and of the four-rotor body on the synthetic pad. It also probes the
+step interfaces v2 of TASK-088: one million active-rotor steps through
+`BetRotorEngineV2` and one million stationary body steps through
+`BetRigidBodyBackendV2`, each in both WASM variants.
+`scripts/bet-runtime-graphs.ts` lists the eight graphs; a report must hold
+exactly one sample of each, and `scripts/validate-models.mjs` admits only that
+set. The JS probes require zero GC, less than 0.01 incremental bytes/step, stable
 WASM memory and an allocating positive control. These are software checks,
 not measured aerodynamic validation or target-device real-time guarantees.
 Reports `bet-runtime.json` and `bet-runtime-allocation.json` under
@@ -3620,7 +3626,9 @@ pass-through statuses, all leaving state and output unchanged; and zero
 allocator calls and bytes over 10^6 steps. `native/bet/examples/interface_v2_reference.rs`
 prints native outputs for the WASM parity test `tests/wasm-abi-v2.test.ts`.
 `packages/wasm-bet/src/rotor-v2.ts` and `body-v2.ts` are the allocation-free
-adapters.
+adapters. `node scripts/check-bet-runtime.mjs --allocation` measures them on
+the JS side: 10^6 steps of each in both WASM variants, with zero GC events,
+less than 0.01 incremental bytes per step and stable WASM memory.
 
 Native and WASM agree to 1e-12 relative. Native glibc and the WASM libm may
 differ by an ulp in trigonometric functions, and a vector component's

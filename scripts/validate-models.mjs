@@ -10,6 +10,7 @@ import {
 } from "../packages/wasm-bet/src/backend.ts";
 import { verifyFixture } from "../packages/test-support/src/fixtures.ts";
 import { outputDirectory } from "./validation/evidence.mjs";
+import { completeAllocationSamples } from "./bet-runtime-graphs.ts";
 import {
   evaluateNasaDrop,
   parseNasaDropFixture,
@@ -375,7 +376,7 @@ export async function validateModels() {
   const betRuntimeAllocation = diagnostic("test-results/validation/bet-runtime-allocation.json", [], (value) =>
     runtimeEvidence(value) && value.controlDetected === true && value.nativeAllocator?.steps === 1000000 &&
     value.nativeAllocator.calls === 0 && value.nativeAllocator.bytes === 0 && value.nativeAllocator.positiveControlDetected === true &&
-    Array.isArray(value.samples) && value.samples.length === 3 && value.samples.every((item) =>
+    completeAllocationSamples(value.samples) && value.samples.every((item) =>
       item.steps === 1000000 && item.gcEvents === 0 && item.bytesPerStep < 0.01 && item.memoryStable === true), [["sourceInputs"]]);
   const runtimeStatus = [betRuntime, betRuntimeAllocation].every((item) => item.status === "pass") ? "pass" :
     [betRuntime, betRuntimeAllocation].some((item) => item.status === "failed") ? "failed" : "blocked";

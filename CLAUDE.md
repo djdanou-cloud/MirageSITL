@@ -269,13 +269,14 @@ implementation.
   (accessibility sign-off; TASK-074 HUD freshness, TASK-075 fault ACKs, TASK-078 full-rate recording, and TASK-079 scenario ACK binding are done and do not admit browser READY), TASK-082 (multi-hour integrated soak), and TASK-083 (clean-machine
   release and assistive screen-reader sign-off) remain open.
 * **Physics fidelity program (TASK-087–TASK-123, roadmap Phases 7–13):** registered
-  2026-10-26 from the physics fidelity review. TASK-087–TASK-090 are IN_PROGRESS with a
-  first increment each:
+  2026-10-26 from the physics fidelity review. TASK-087, TASK-089 and TASK-090 are
+  IN_PROGRESS with a first increment each, and TASK-088 is DONE:
   * TASK-087: the strict vehicle manifest v2 (`vehicle-manifest.ts`), an ArduPilot
     profile limited to evidenced names, and an optional `SessionModelPort` for
     `model.load`; the default demo backend is unchanged.
   * TASK-088: bound-rotor and body step interfaces v2 with fail-closed later-task
-    fields (status −8); neutral records run v1 bitwise.
+    fields (status −8); neutral records run v1 bitwise. The JS GC probes of
+    `check-bet-runtime.mjs --allocation` cover the v2 adapters.
   * TASK-089: a pinned-source SITL catalog and a 25-source error-ownership matrix. By
     the user's 2026-10-26 decision ArduPilot defaults stay the default, and the opt-in
     `imu-noise-floor` firmware patch (`scripts/build-ardupilot-sitl.mjs`) adds

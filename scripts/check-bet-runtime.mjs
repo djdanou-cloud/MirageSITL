@@ -7,6 +7,7 @@ import {fileURLToPath,pathToFileURL} from 'node:url';
 import {createHash} from 'node:crypto';
 import {PerformanceObserver,performance} from 'node:perf_hooks';
 import v8 from 'node:v8';
+import {completeAllocationSamples} from './bet-runtime-graphs.ts';
 const root=fileURLToPath(new URL('../',import.meta.url));
 const require=createRequire(import.meta.url);
 const {build}=createRequire(require.resolve('vite/package.json'))('esbuild');
@@ -20,13 +21,15 @@ const read=path=>readFileSync(resolve(root,path));
 mkdirSync(resolve(root,'.cache/bet-runtime'),{recursive:true});
 const bundle=resolve(root,'.cache/bet-runtime/acceptance.mjs');
 const bundled=await build({stdin:{contents:`export {BetRotorEngine} from './packages/wasm-bet/src/rotor.ts';
+export {BetRotorEngineV2} from './packages/wasm-bet/src/rotor-v2.ts';
+export {BetRigidBodyBackendV2,newBodyTruthV2} from './packages/wasm-bet/src/body-v2.ts';
 export {BetFlightDynamics} from './packages/physics/src/bet-dynamics.ts';
 export {flightConfiguration,rotorDefinition} from './tests/bet-runtime-fixture.ts';`,resolveDir:root,sourcefile:'bet-runtime-entry.ts',loader:'ts'},
   bundle:true,platform:'node',format:'esm',packages:'external',outfile:bundle,metafile:true});
-const {BetRotorEngine,BetFlightDynamics,flightConfiguration,rotorDefinition}=await import(pathToFileURL(bundle).href);
+const {BetRotorEngine,BetRotorEngineV2,BetRigidBodyBackendV2,newBodyTruthV2,BetFlightDynamics,flightConfiguration,rotorDefinition}=await import(pathToFileURL(bundle).href);
 const modules=['scalar','simd128'].map(v=>new WebAssembly.Module(read(`packages/wasm-bet/dist/mirage_bet.${v}.wasm`)));
 const sourceFiles=Object.keys(bundled.metafile.inputs).filter(p=>p!=='bet-runtime-entry.ts').map(p=>p.replaceAll('\\','/'));
-sourceFiles.push('scripts/check-bet-runtime.mjs','native/bet/src/bound.rs','native/bet/src/polar.rs','native/bet/src/lib.rs',
+sourceFiles.push('scripts/check-bet-runtime.mjs','scripts/bet-runtime-graphs.ts','native/bet/src/bound.rs','native/bet/src/polar.rs','native/bet/src/lib.rs',
   'native/bet/src/blade.rs','native/bet/src/shaft.rs','native/bet/src/inflow.rs','native/bet/src/rigid_body.rs',
   'native/bet/src/body_abi.rs','native/Cargo.lock','native/rust-toolchain.toml',
   'packages/physics/package.json','packages/wasm-bet/package.json',
@@ -83,6 +86,24 @@ if(!allocation){
     const sample={graph:'active-neuralfoil-rotor',variant:v===0?'scalar':'simd128',...await measure(run,1000000),memoryStable:e.memoryStable&&e.memoryBytes===bytes};
     samples.push(sample);e.dispose();console.log(JSON.stringify(sample));
   }
+  // TASK-088 step interfaces v2: the same active rotor through BetRotorEngineV2
+  // (motor torque is v2 input index 12, as in v1), and a stationary body through
+  // BetRigidBodyBackendV2 with zero wrench and zero gravity.
+  for(let v=0;v<2;v++){
+    const e=new BetRotorEngineV2(modules[v],[rotorDefinition(0)],800),bytes=e.memoryBytes;e.input[12]=0.01;
+    const run=n=>{for(let i=0;i<n;i++)if(!e.stepInto())throw Error(`Bound rotor v2 allocation step failed: ${e.lastStatus}`);};
+    run(100000);await measure(run,10000);
+    const sample={graph:'active-neuralfoil-rotor-v2',variant:v===0?'scalar':'simd128',...await measure(run,1000000),memoryStable:e.memoryStable&&e.memoryBytes===bytes};
+    samples.push(sample);e.dispose();console.log(JSON.stringify(sample));
+  }
+  for(let v=0;v<2;v++){
+    const body=new BetRigidBodyBackendV2(new WebAssembly.Instance(modules[v],{}),1.5,[0.03,0,0,0,0.03,0,0,0,0.05],0);
+    const truth=newBodyTruthV2(),wrench=new Float64Array(6);
+    const run=n=>{for(let i=0;i<n;i++)if(!body.stepInto(wrench,1/800,truth))throw Error(`Body v2 allocation step failed: ${body.lastStatus}`);};
+    run(100000);await measure(run,10000);
+    const sample={graph:'stationary-zero-gravity-body-v2',variant:v===0?'scalar':'simd128',...await measure(run,1000000),memoryStable:body.memoryStable};
+    samples.push(sample);console.log(JSON.stringify(sample));
+  }
   const configuration=flightConfiguration(0,4);configuration.gravityMps2=0;configuration.initialOmegaRadS=[0,0,0,0];
   const d=new BetFlightDynamics(modules[0],configuration,400),pilot={flags:0,throttle:0,roll:0,pitch:0,yaw:0,wallTimeMs:0};
   const full=n=>{for(let i=0;i<n;i++){d.nowMs=0;d.stepNow(pilot);if(d.fault)throw Error(d.fault);}};
@@ -98,10 +119,10 @@ if(!allocation){
   samples.push(padGraph);pad.dispose();console.log(JSON.stringify(padGraph));
   const sink={value:null};const control=n=>{for(let i=0;i<n;i++)sink.value={i};};
   const positive=await measure(control,1000000),controlDetected=positive.gcEvents>0 || positive.bytes>1000000;
-  const passed=samples.every(s=>s.gcEvents===0&&s.bytesPerStep<0.01&&s.memoryStable)&&controlDetected;
+  const passed=completeAllocationSamples(samples)&&samples.every(s=>s.gcEvents===0&&s.bytesPerStep<0.01&&s.memoryStable)&&controlDetected;
   const report={schemaVersion:1,status:passed?'pass':'failed',...identity,warmupSteps:100000,samples,positiveControl:positive,controlDetected,
     nativeAllocator:{steps:1000000,calls:0,bytes:0,positiveControlDetected:true},
-    scope:'Active NeuralFoil rotor graph in both WASM variants plus stationary four-rotor body and synthetic-pad graphs; native counted allocator check and WASM trapping allocator; no measured aerodynamic acceptance or hardware realtime claim'};
+    scope:'Active NeuralFoil rotor graph through step interfaces v1 and v2 and a stationary body through interface v2, each in both WASM variants, plus stationary four-rotor body and synthetic-pad graphs; native counted allocator check and WASM trapping allocator; no measured aerodynamic acceptance or hardware realtime claim'};
   writeFileSync(resolve(root,'test-results/validation/bet-runtime-allocation.json'),JSON.stringify(report,null,2)+'\n');
   observer.disconnect();if(!passed)process.exitCode=1;
 }
