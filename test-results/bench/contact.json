@@ -2,31 +2,31 @@
   "schemaVersion": 1,
   "engine": "rapier",
   "version": "0.36.0",
-  "adapterSha256": "74b1d43febe69e5253c77824248c3092f2f091431f44675f22d03d93edf41f51",
+  "adapterSha256": "6d8b79a04f3deec715a0032aa0e5129f5b7763f816f91504c784eb4301295cc4",
   "hz": 400,
   "wheelCount": 0,
   "warmupSteps": 4000000,
   "samples": [
     {
       "steps": 1000000,
-      "bytes": 3072,
+      "bytes": 3520,
       "gcEvents": 0
     },
     {
       "steps": 1000000,
-      "bytes": 2496,
+      "bytes": 3576,
       "gcEvents": 0
     },
     {
       "steps": 1000000,
-      "bytes": 2496,
+      "bytes": 2928,
       "gcEvents": 0
     }
   ],
   "positiveControl": {
     "steps": 1000000,
-    "bytes": 120048,
-    "gcEvents": 31
+    "bytes": 743240,
+    "gcEvents": 30
   },
   "impacts": 44375,
   "jsAllocationPassed": true,

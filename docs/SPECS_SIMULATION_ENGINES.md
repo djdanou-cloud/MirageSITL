@@ -1121,8 +1121,9 @@ impulse in the new body frame N m s, excluding external torque; [22..24]=hull
 diagnostic lever arm body m; [25]=wheel count; [26..31]=zero. Each wheel at
 32+8*i reports clamped strut compression m, tire compression m, tire load N,
 strut load N, excess tire/rim overlap m, raw strut compression m, signed wheel
-distance from the plane m, and zero. Wheel diagnostics describe the force
-evaluation before integration; body state describes the completed step.
+distance from the plane m, and zero. Wheel compressions and distances describe
+the start of the step, the tire and strut loads the ones the step applied (TASK-095);
+body state describes the completed step.
 
 The diagnostic hull point cannot represent a multiple-contact couple. Consumers
 must use `ContactImpulse.momentBodyNms` when transferring the angular impulse;
@@ -1134,6 +1135,34 @@ and tire curve bounds while rigid constraints supply stop/rim reactions; raw
 overlap diagnostics remain available. No second BET/JSBSim body integration
 may run over the same step. A terrain plane is explicit configuration; ABI v2
 (TASK-065, below) adds per-tick planes for terrain from published collision chunks.
+
+Since TASK-095 each wheel's stroke is stepped linearly implicitly before Rapier
+integrates; explicit loads made the drop peak depend on the step rate. The strut and
+the tire act in series on the unsprung mass m. With c the cosine between the upward
+ground normal and the strut, the stroke has stiffness K = k_s + k_t c² and damping
+C = c_s + c_t c² from the laws' tangents (`tangent`, below). A θ-method step solves
+
+$$
+m\,\Delta v=\Delta t\,\big(F_0+m\,a-\theta\,(K\,\Delta t\,v_1+C\,\Delta v)\big),\quad v_1=v_0+\Delta v
+$$
+
+for the stroke rate v. F_0 is the start-of-step stroke force, including the tire's
+closure from the anchor's own approach; a holds gravity and the airframe acceleration
+from thrust and strut loads, the airframe's slower motion staying explicit. Each load
+is applied as (1 − θ)·max(F_start, 0) + θ·max(F_end, 0). With Ω² = Δt²·K/m, θ is ½
+(trapezoidal, no numerical damping) while Ω² ≤ 2 and 1 − 1/Ω² above, which bounds the
+step's spectral radius near 1/Ω so that an unresolved stiff tire settles instead of
+ringing. A step in which tire contact begins or ends is backward Euler (θ = 1) with
+complementarity on the end load: out of contact the first tire segment, continued to
+the signed gap, gives a virtual negative start load, and the tire enters the step only
+if its end load is positive. Backward Euler throughout left the drop peak 5.6–8.5 %
+below the RK4 reference, and trapezoidal steps across touchdown or lift-off added
+energy at every bounce. The drop fixture (`native/contact/tests/contact.rs`: 1.5 kg on
+four synthetic wheels, not a measured aircraft) keeps its peak airframe specific force
+within 5 % of the three rates' mean and of a 100 kHz RK4 reference at 400/800/1200 Hz:
+27.72/28.72/28.84 g against 28.96 g from 0.5 m and 55.00/57.04/57.16 g against 57.43 g
+from 2 m, where explicit loads gave 39.6/32.8/31.4 g from 0.5 m. Tires up to 10⁷ N/m
+(ω·Δt about 18 at 400 Hz) settle at their static deflection within 1 % at every rate.
 
 Rolling uses a kinematic longitudinal resistance, separate lateral resistance,
 and brake interpolation, regularized below 0.1 m/s; their combined magnitude
@@ -1204,6 +1233,11 @@ interpolates force and integrates each segment exactly for elastic energy. For
 deflection<=0 its load/energy/dissipation are zero; for positive deflection its
 normal load is max(0,elastic+damping*closureSpeed). Deflection beyond the final
 knot fails. Tire deflection is neither strut travel nor rigid-mesh penetration.
+Each law also gives its tangent (`tangent`, TASK-095): d(load)/d(compression or
+deflection) N/m and d(load)/d(rate) N s/m, both zero where the unilateral clamp holds
+the load at zero. The gas stiffness is p0·n·A²/V·(1 − A·x/V)^(−n−1); a tire's is the
+slope of the segment that holds the deflection (the left one at a knot, the last one
+at the final knot). Central differences of `evaluate` are the test oracle.
 
 `ground_wrench` accepts body contact point (m), body-to-NED wxyz, outward terrain
 normal NED, nonnegative load N and contact velocity relative to terrain (m/s).

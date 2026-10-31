@@ -91,6 +91,45 @@ impl Damping {
             DampingLaw::Square => coefficient * rate * rate.abs(),
         }
     }
+    /// d(force)/d(rate): the coefficient (linear) or 2·coefficient·|rate| (square).
+    fn slope(&self, rate: f64) -> f64 {
+        let coefficient = if rate >= 0.0 {
+            self.compression
+        } else {
+            self.rebound
+        };
+        match self.law {
+            DampingLaw::Linear => coefficient,
+            DampingLaw::Square => 2.0 * coefficient * rate.abs(),
+        }
+    }
+}
+
+/// Tangent of a compliance law at one state: d(load)/d(compression) N/m and
+/// d(load)/d(rate) N s/m. Both are zero where the unilateral clamp holds the
+/// load at zero. An integration owner uses them for a linearly implicit step.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Tangent {
+    /// d(load)/d(compression or deflection), N/m.
+    pub stiffness_npm: f64,
+    /// d(load)/d(closure rate), N s/m.
+    pub damping_nspm: f64,
+}
+fn tangent(load: &ComplianceOutput, stiffness: f64, damping: f64) -> Result<Tangent, GearError> {
+    if !stiffness.is_finite() || !damping.is_finite() || stiffness < 0.0 || damping < 0.0 {
+        return Err(GearError);
+    }
+    Ok(if load.load_n > 0.0 {
+        Tangent {
+            stiffness_npm: stiffness,
+            damping_nspm: damping,
+        }
+    } else {
+        Tangent {
+            stiffness_npm: 0.0,
+            damping_nspm: 0.0,
+        }
+    })
 }
 
 /// Linear elastic strut with a preload and direction-dependent damping.
@@ -140,6 +179,10 @@ impl LinearStrut {
             self.preload * compression + 0.5 * self.stiffness * compression * compression,
             rate,
         )
+    }
+    /// Tangent at the state `evaluate` accepts; the stiffness is the spring rate.
+    pub fn tangent(&self, compression: f64, rate: f64) -> Result<Tangent, GearError> {
+        tangent(&self.evaluate(compression, rate)?, self.stiffness, self.damping.slope(rate))
     }
 }
 
@@ -255,6 +298,15 @@ impl GasStrut {
             + self.pressure_abs * self.volume * excess;
         output(elastic, self.damping.force(rate), energy, rate)
     }
+    /// Tangent at the state `evaluate` accepts. The gas stiffness is the
+    /// derivative of the polytropic force, p0·n·A²/V·(1 − A·x/V)^(−n−1).
+    pub fn tangent(&self, compression: f64, rate: f64) -> Result<Tangent, GearError> {
+        let load = self.evaluate(compression, rate)?;
+        let remaining = 1.0 - self.area * compression / self.volume;
+        let stiffness = self.pressure_abs * self.exponent * self.area * self.area / self.volume
+            * (-(self.exponent + 1.0) * remaining.ln()).exp();
+        tangent(&load, stiffness, self.damping.slope(rate))
+    }
 }
 
 /// Measured or explicitly synthetic tire load-deflection curve, maximum 64 knots.
@@ -323,6 +375,21 @@ impl<'a> TireCurve<'a> {
             }
         }
         Err(GearError)
+    }
+    /// Tangent at the state `evaluate` accepts: the slope of the segment that
+    /// holds `deflection` (the left one at a knot, the last one at the end)
+    /// and the vertical damping; zero out of contact.
+    pub fn tangent(&self, deflection: f64, rate: f64) -> Result<Tangent, GearError> {
+        let load = self.evaluate(deflection, rate)?;
+        if deflection <= 0.0 {
+            return tangent(&load, 0.0, 0.0);
+        }
+        let mut i = 1;
+        while i + 1 < self.deflection.len() && deflection > self.deflection[i] {
+            i += 1;
+        }
+        let slope = (self.load[i] - self.load[i - 1]) / (self.deflection[i] - self.deflection[i - 1]);
+        tangent(&load, slope, self.damping)
     }
 }
 

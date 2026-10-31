@@ -313,3 +313,134 @@ fn a_session_that_travels_kilometres_never_allocates() {
         contact_dispose();
     }
 }
+
+/// Sphere airframe of 1.5 kg on four linear-strut wheels, the synthetic gear of
+/// `tests/contact-support.ts` (not a measured aircraft), tire bottoms 1 mm above the plane.
+fn quad_gear(impact_mps: f64) -> [f64; CONFIG_COUNT] {
+    let mut c = sphere();
+    c[2] = 1.5;
+    c[3] = 0.1;
+    c[4] = 0.0;
+    c[8] = -0.501;
+    c[11] = impact_mps;
+    c[19] = 1.0;
+    c[20] = 1.0;
+    c[21] = 1.0;
+    c[27] = 4.0;
+    for i in 0..4 {
+        let w = 32 + i * 160;
+        let angle = std::f64::consts::FRAC_PI_2 * i as f64;
+        c[w] = 0.4 * angle.cos();
+        c[w + 1] = 0.4 * angle.sin();
+        c[w + 2] = 0.4;
+        c[w + 3] = 0.2;
+        c[w + 4] = 0.1;
+        c[w + 5] = 0.05;
+        c[w + 6] = 0.15;
+        c[w + 8] = 1000.0;
+        c[w + 10] = 30.0;
+        c[w + 11] = 50.0;
+        c[w + 13] = 0.02;
+        c[w + 14] = 0.5;
+        c[w + 15] = 0.7;
+        c[w + 16] = 10.0;
+        c[w + 17] = 2.0;
+        c[w + 33] = 0.05;
+        c[w + 97] = 1000.0;
+    }
+    c
+}
+/// Peak airframe specific force (acceleration minus gravity) in g over 1 s and the
+/// final speed, m/s.
+fn drop_peak(height_m: f64, hz: usize) -> (f64, f64) {
+    let mut contact = Contact::new(&quad_gear((2.0 * 9.80665 * height_m).sqrt())).unwrap();
+    let mut input = [0.0; INPUT_COUNT];
+    input[14] = 1.0 / hz as f64;
+    let mut peak: f64 = 0.0;
+    let mut output = [0.0; OUTPUT_COUNT];
+    for _ in 0..hz {
+        output = contact.step(&input).unwrap();
+        let specific = (output[13].powi(2) + output[14].powi(2) + (output[15] - 9.80665).powi(2)).sqrt();
+        peak = peak.max(specific / 9.80665);
+    }
+    (peak, (output[3].powi(2) + output[4].powi(2) + output[5].powi(2)).sqrt())
+}
+/// Independent oracle: the symmetric vertical drop as one quarter airframe (M/4) over one
+/// wheel, the same strut and tire laws, a stiff extension stop, RK4 at 100 kHz. Returns the
+/// peak airframe specific force in g over the first 0.1 s.
+fn drop_reference(height_m: f64) -> f64 {
+    let (g, body, wheel) = (9.80665, 1.5 / 4.0, 0.2);
+    let derivative = |s: [f64; 4]| {
+        let [zb, vb, zw, vw] = s;
+        let x = zb + 0.4 - zw;
+        let rate = vb - vw;
+        let damping = if rate >= 0.0 { 30.0 } else { 50.0 };
+        let strut = if x < 0.0 { 1e6 * x } else { (1000.0 * x + damping * rate).max(0.0) };
+        let deflection = zw + 0.1;
+        let tire = if deflection > 0.0 { (20000.0 * deflection + 10.0 * vw).max(0.0) } else { 0.0 };
+        ([vb, g - strut / body, vw, g + (strut - tire) / wheel], strut / (body * g))
+    };
+    let v = (2.0 * g * height_m).sqrt();
+    let mut s = [-0.501, v, -0.101, v];
+    let (h, mut peak) = (1e-5, 0.0f64);
+    for _ in 0..10_000 {
+        let (k1, _) = derivative(s);
+        let at = |k: [f64; 4], f: f64| [s[0] + f * k[0], s[1] + f * k[1], s[2] + f * k[2], s[3] + f * k[3]];
+        let (k2, _) = derivative(at(k1, h / 2.0));
+        let (k3, _) = derivative(at(k2, h / 2.0));
+        let (k4, _) = derivative(at(k3, h));
+        for j in 0..4 {
+            s[j] += h / 6.0 * (k1[j] + 2.0 * k2[j] + 2.0 * k3[j] + k4[j]);
+        }
+        peak = peak.max(derivative(s).1);
+    }
+    peak
+}
+// TASK-095 requirement, declared before measuring: the drop peak at 400, 800 and
+// 1200 Hz stays within 5 % of the three rates' mean and within 5 % of the RK4
+// reference, and the airframe comes to rest.
+#[test]
+fn a_gear_drop_peak_does_not_depend_on_the_step_rate() {
+    for height in [0.5, 2.0] {
+        let runs = [400, 800, 1200].map(|hz| drop_peak(height, hz));
+        let mean = runs.iter().map(|r| r.0).sum::<f64>() / 3.0;
+        let reference = drop_reference(height);
+        println!("drop {height} m: peaks {:.2} / {:.2} / {:.2} g, RK4 reference {reference:.2} g, final speeds {:.1e} / {:.1e} / {:.1e} m/s",
+            runs[0].0, runs[1].0, runs[2].0, runs[0].1, runs[1].1, runs[2].1);
+        for (hz, (peak, speed)) in [400, 800, 1200].iter().zip(runs) {
+            assert!((peak - mean).abs() <= 0.05 * mean, "{height} m at {hz} Hz: {peak} g against mean {mean} g");
+            assert!((peak - reference).abs() <= 0.05 * reference, "{height} m at {hz} Hz: {peak} g against RK4 {reference} g");
+            assert!(speed < 0.05, "{height} m at {hz} Hz still moves at {speed} m/s");
+        }
+    }
+}
+// An explicit force step diverges once ω·dt > 2. Tires up to 500 times stiffer than the drop
+// fixture's (ω·dt up to about 18 at 400 Hz) must land and settle at their static deflection.
+#[test]
+fn stiff_tires_land_and_settle_at_every_rate() {
+    for hz in [400usize, 800, 1200] {
+        for stiffness in [2e5, 1e6, 2e6, 1e7] {
+            let mut c = quad_gear((2.0 * 9.80665 * 0.5f64).sqrt());
+            for i in 0..4 {
+                c[32 + i * 160 + 97] = stiffness * 0.05;
+            }
+            let mut contact = Contact::new(&c).unwrap();
+            let mut input = [0.0; INPUT_COUNT];
+            input[14] = 1.0 / hz as f64;
+            let (mut speed, mut low, mut high) = (0.0f64, f64::MAX, 0.0f64);
+            for k in 0..3 * hz {
+                let o = contact.step(&input).unwrap();
+                if k >= 3 * hz - hz / 4 {
+                    speed = speed.max((o[3].powi(2) + o[4].powi(2) + o[5].powi(2)).sqrt());
+                    low = low.min(o[33]);
+                    high = high.max(o[33]);
+                }
+            }
+            // Each tire carries a quarter of the airframe and its own wheel.
+            let expected = (1.5 / 4.0 + 0.2) * 9.80665 / stiffness;
+            assert!(speed < 1e-6, "{hz} Hz, {stiffness} N/m: {speed} m/s in the last 0.25 s");
+            assert!((low - expected).abs() < 0.01 * expected && (high - expected).abs() < 0.01 * expected,
+                "{hz} Hz, {stiffness} N/m: deflection {low}..{high} m, expected {expected} m");
+        }
+    }
+}
