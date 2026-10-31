@@ -1092,7 +1092,12 @@ an attitude error of 1.14e-3 rad at 400 Hz, and a rate error of 3.85e-4 at
 products act. The budget, set before the implementation, was 2 %, 0.02 rad, a
 1200 Hz error at most 0.6 of the 400 Hz one, and at least a fivefold
 difference without the products
-(`native/contact/tests/contact.rs`, `tests/rigid-body-v2.test.ts`).
+(`native/contact/tests/contact.rs`, `tests/rigid-body-v2.test.ts`). Contact sessions run without
+Rapier's continuous collision detection (`max_ccd_substeps = 0`, TASK-095): every ground is a
+halfspace, which yields contact at any penetration depth, and the CCD sweep, which activates on
+its own for fast bodies, builds temporary vectors in the step. A native test runs a session over
+more than 1 km without an allocation. Building with `MIRAGE_CONTACT_TRACE=1` makes the first
+allocation inside `contact_step` print its stack (native) or trap (WASM).
 
 Each wheel starts at 32+160*i. Its fields are [0..2]=fully extended wheel-center
 anchor body FRD m; [3]=unsprung mass kg; [4]=tire radius m; [5]=rigid rim radius m

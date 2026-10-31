@@ -106,6 +106,11 @@ impl Contact {
         world.gravity = Vector::new(0.0, 0.0, c[26]);
         world.integration_parameters.dt = 1.0 / 400.0;
         world.integration_parameters.num_solver_iterations = 8;
+        // No CCD (TASK-095): every ground is a halfspace, which yields contact at any penetration
+        // depth, so nothing can tunnel through it. Rapier's CCD sweep activates on its own for fast
+        // bodies and builds temporary vectors each step, which would break the allocation gate in
+        // flight sessions (it fired after about 80 m of a tumbling fall).
+        world.integration_parameters.max_ccd_substeps = 0;
         let normal = vec(c, 22);
         let mut ground = [RigidBodyHandle::invalid(); PLANE_SLOTS];
         for (slot, handle) in ground.iter_mut().enumerate() {

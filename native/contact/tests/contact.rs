@@ -283,3 +283,33 @@ fn version_2_rejects_an_indefinite_tensor_and_version_1_its_products() {
     assert!(Contact::new(&v2).is_err());
     assert!(Contact::new(&tumbling(true)).is_ok());
 }
+
+// TASK-095: flight sessions travel. A tumbling body under body-fixed thrust covers
+// kilometres; the contact must keep its zero-allocation guarantee all the way.
+#[test]
+fn a_session_that_travels_kilometres_never_allocates() {
+    let _abi = ABI.lock().unwrap();
+    unsafe {
+        let mut c = tumbling(false);
+        c[8] = -1e6;
+        c[26] = 9.80665;
+        std::ptr::copy_nonoverlapping(c.as_ptr(), contact_config_ptr(), CONFIG_COUNT);
+        assert_eq!(contact_initialize(), 0);
+        let input = contact_input_ptr();
+        for i in 0..INPUT_COUNT {
+            input.add(i).write(0.0);
+        }
+        input.add(2).write(-14.7);
+        input.add(3).write(0.001);
+        input.add(14).write(1.0 / 1200.0);
+        let start = [contact_output_ptr().read(), contact_output_ptr().add(1).read()];
+        for k in 0..60_000 {
+            assert_eq!(contact_step(), 0, "step {k}");
+        }
+        let end = [contact_output_ptr().read(), contact_output_ptr().add(1).read()];
+        let travel = ((end[0] - start[0]).powi(2) + (end[1] - start[1]).powi(2)).sqrt();
+        assert!(travel > 1000.0, "travel {travel} m");
+        assert_eq!(contact_allocation_calls(), 0.0);
+        contact_dispose();
+    }
+}
