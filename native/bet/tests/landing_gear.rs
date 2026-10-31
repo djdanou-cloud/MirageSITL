@@ -195,3 +195,66 @@ fn invalid_configuration_and_out_of_envelope_states_are_rejected() {
     assert!(gas().evaluate(0.1, f64::MAX).is_err());
     assert!(Damping::new(-1.0, 1.0, DampingLaw::Linear).is_err());
 }
+
+/// Central difference of a load law; the step is far below every knot spacing.
+fn slope(f: impl Fn(f64) -> f64, at: f64) -> f64 {
+    let h = 1e-6;
+    (f(at + h) - f(at - h)) / (2.0 * h)
+}
+fn near(a: f64, b: f64, relative: f64) {
+    assert!((a - b).abs() <= relative * b.abs().max(1.0), "{a} != {b}");
+}
+
+// TASK-095: the implicit contact step needs each law's tangent; central differences of
+// `evaluate` are the oracle (gas exponent 1 and 1.3, both damping laws, both directions).
+#[test]
+fn tangents_match_central_differences_of_the_load_laws() {
+    for exponent in [1.0, 1.3] {
+        let model = GasStrut::new(
+            0.01, 0.01, 300_000.0, 100_000.0, exponent, 0.5, 0.005, 850.0, 0.7, 0.0001, 0.00005,
+        )
+        .unwrap();
+        for (x, rate) in [(0.1, 0.2), (0.4, -0.3)] {
+            let t = model.tangent(x, rate).unwrap();
+            near(t.stiffness_npm, slope(|u| model.evaluate(u, rate).unwrap().load_n, x), 1e-6);
+            near(t.damping_nspm, slope(|r| model.evaluate(x, r).unwrap().load_n, rate), 1e-6);
+        }
+    }
+    for law in [DampingLaw::Linear, DampingLaw::Square] {
+        let model = LinearStrut::new(1000.0, 20.0, 0.15, Damping::new(30.0, 50.0, law).unwrap()).unwrap();
+        for rate in [0.7, -0.2] {
+            let t = model.tangent(0.05, rate).unwrap();
+            near(t.stiffness_npm, slope(|u| model.evaluate(u, rate).unwrap().load_n, 0.05), 1e-6);
+            near(t.damping_nspm, slope(|r| model.evaluate(0.05, r).unwrap().load_n, rate), 1e-6);
+        }
+    }
+    let (x, f) = ([0.0, 0.01, 0.03], [0.0, 100.0, 500.0]);
+    let tire = TireCurve::new(&x, &f, 12.0).unwrap();
+    for (at, expected) in [(0.005, 10_000.0), (0.02, 20_000.0)] {
+        let t = tire.tangent(at, 0.1).unwrap();
+        near(t.stiffness_npm, expected, 1e-12);
+        near(t.stiffness_npm, slope(|u| tire.evaluate(u, 0.1).unwrap().load_n, at), 1e-6);
+        assert_eq!(t.damping_nspm, 12.0);
+    }
+    // At a knot the left segment holds, at the end the last one.
+    assert_eq!(tire.tangent(0.01, 0.0).unwrap().stiffness_npm, 10_000.0);
+    near(tire.tangent(0.03, 0.0).unwrap().stiffness_npm, 20_000.0, 1e-12);
+}
+#[test]
+fn tangents_vanish_where_the_unilateral_clamp_holds_the_load_at_zero() {
+    let x = [0.0, 0.01];
+    let f = [0.0, 100.0];
+    let tire = TireCurve::new(&x, &f, 12.0).unwrap();
+    // Out of contact, and in contact but pulled apart faster than the spring pushes.
+    for (at, rate) in [(0.0, 0.5), (0.001, -10.0)] {
+        assert_eq!(tire.evaluate(at, rate).unwrap().load_n, 0.0);
+        let t = tire.tangent(at, rate).unwrap();
+        assert_eq!((t.stiffness_npm, t.damping_nspm), (0.0, 0.0));
+    }
+    let strut = LinearStrut::new(1000.0, 0.0, 0.15, Damping::new(30.0, 50.0, DampingLaw::Linear).unwrap()).unwrap();
+    assert_eq!(strut.evaluate(0.01, -1.0).unwrap().load_n, 0.0);
+    let t = strut.tangent(0.01, -1.0).unwrap();
+    assert_eq!((t.stiffness_npm, t.damping_nspm), (0.0, 0.0));
+    assert!(strut.tangent(0.2, 0.0).is_err());
+    assert!(tire.tangent(0.02, 0.0).is_err());
+}

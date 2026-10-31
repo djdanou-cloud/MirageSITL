@@ -9,14 +9,26 @@ thread_local! {
     static TRACK:Cell<bool>=const {Cell::new(false)};
     static CALLS:Cell<u64>=const {Cell::new(0)};
     static BYTES:Cell<u64>=const {Cell::new(0)};
+    /// Inside `contact_step`; trace builds stop only there, not at the initialization probe.
+    static STEPPING:Cell<bool>=const {Cell::new(false)};
 }
 struct Counter;
 fn account(n: usize) {
     #[cfg(target_arch = "wasm32")]
     if matches!(option_env!("MIRAGE_CONTACT_TRACE"), Some("1"))
+        && STEPPING.try_with(|t| t.get()).unwrap_or(false)
         && TRACK.try_with(|t| t.get()).unwrap_or(false)
     {
         core::arch::wasm32::unreachable();
+    }
+    // Native trace builds print the stack of the first in-step allocation and abort.
+    #[cfg(not(target_arch = "wasm32"))]
+    if matches!(option_env!("MIRAGE_CONTACT_TRACE"), Some("1"))
+        && STEPPING.try_with(|t| t.get()).unwrap_or(false)
+        && TRACK.try_with(|t| t.replace(false)).unwrap_or(false)
+    {
+        eprintln!("in-step allocation of {n} bytes:\n{}", std::backtrace::Backtrace::force_capture());
+        std::process::abort();
     }
     let _ = TRACK.try_with(|t| {
         if t.get() {
@@ -121,9 +133,11 @@ pub unsafe extern "C" fn contact_step() -> i32 {
         return -1;
     }
     let input = unsafe { std::ptr::addr_of!(INPUT).read() };
+    STEPPING.with(|t| t.set(true));
     TRACK.with(|t| t.set(true));
     let result = unsafe { (&mut *SESSION).step(&input) };
     TRACK.with(|t| t.set(false));
+    STEPPING.with(|t| t.set(false));
     if contact_allocation_calls() != 0.0 || contact_allocation_bytes() != 0.0 {
         unsafe {
             FAULTED = true;

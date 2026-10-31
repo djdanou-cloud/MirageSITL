@@ -258,7 +258,18 @@ implementation.
   clamps, keeps a rating `warning` apart from a modeled `limited` clamp,
   publishes per-motor and battery values in the separate power telemetry v1
   channel and shows them in the Run tab's power panel; the AAR v1 record has
-  no room for them, so TASK-162 stores them. TASK-142 is DONE:
+  no room for them, so TASK-162 stores them. TASK-094 is DONE for Phase 1: the
+  body step v2 takes a CG offset (the moment moves to the CG) and reports the
+  angular acceleration and the reference point, and contact configuration
+  version 2 gives Rapier the full inertia tensor. TASK-095 is IN_PROGRESS:
+  contact sessions now run without Rapier's CCD, so they travel kilometres
+  without an allocation, the gear's strut and tire loads step implicitly (drop
+  peaks no longer depend on the step rate), the wheels have static, Coulomb
+  and brush-tire friction (contact configuration version 3), and
+  `BetFlightConfiguration.contact` makes `GroundContact` the flight model's
+  body integrator in place of the attitude-resetting synthetic pad; gear in
+  aircraft profiles, terrain planes, hull shapes and SITL takeoff and landing
+  remain. TASK-142 is DONE:
   the Aircraft tab maps each motor to an output and generates the frame
   parameters from the TASK-128 catalog (the S19 octa-x fixture spins the
   mirror of stock OCTA X, so it uses the scripting matrix). TASK-151 (the

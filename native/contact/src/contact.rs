@@ -1,5 +1,5 @@
 //! Fixed-topology f64 Rapier contact owner. All storage is prepared before arming.
-use mirage_bet::landing_gear::{Damping, DampingLaw, GasStrut, LinearStrut, TireCurve};
+use mirage_bet::landing_gear::{Damping, DampingLaw, GasStrut, LinearStrut, Tangent, TireCurve};
 use rapier3d_f64::{na::Unit, prelude::*};
 
 pub const MAX_WHEELS: usize = 8;
@@ -29,13 +29,21 @@ struct Wheel {
     x: [f64; 64],
     f: [f64; 64],
     strut: Strut,
+    /// Brush cornering stiffness N/rad (configuration version 3); 0 keeps the lateral stick.
+    cornering: f64,
+    /// Static friction anchor: the ground point the contact sticks to (TASK-095).
+    hold: Vector,
+    held: bool,
 }
 pub struct Contact {
     world: PhysicsWorld,
     body: RigidBodyHandle,
     wheels: Vec<Wheel>,
     mass: f64,
+    /// Diagonal inertia of a version 1 configuration.
     inertia: Vector,
+    /// Full inertia tensor of a version 2 configuration (TASK-094), body FRD about the CG.
+    inertia_matrix: Option<Matrix>,
     radius: f64,
     /// Configured plane: the collider-local normal of every ground halfspace.
     normal: Vector,
@@ -43,6 +51,27 @@ pub struct Contact {
     /// One fixed halfspace per contact slot; per-tick planes move it, never rebuild it.
     ground: [RigidBodyHandle; PLANE_SLOTS],
     planes: [(Vector, f64); PLANE_SLOTS],
+}
+/// Fraction of the stick-anchor offset a sticking contact removes per step: constraint
+/// stabilization like Rapier's own error reduction, so a held wheel cannot creep (TASK-095).
+const BETA: f64 = 0.2;
+/// Below this longitudinal speed a wheel is not rolling and its side force sticks.
+const ROLLING_MPS: f64 = 0.1;
+/// θ-method weight of the end-of-step load for a stroke with Ω² = dt²·K/m (TASK-095): the
+/// trapezoidal ½, free of numerical damping, while the mode is resolved, and 1 − 1/Ω² above
+/// Ω = √2, which bounds the step's spectral radius near 1/Ω so an unresolved stiff tire
+/// settles instead of ringing.
+fn theta(omega_squared: f64) -> f64 {
+    if omega_squared > 2.0 {
+        1.0 - 1.0 / omega_squared
+    } else {
+        0.5
+    }
+}
+/// The load a θ step applies: the θ-weighted mean of the positive parts of the start and end
+/// loads, so a unilateral load that leaves or meets zero inside the step never pulls.
+fn weighted(theta: f64, start: f64, end: f64) -> f64 {
+    (1.0 - theta) * start.max(0.0) + theta * end.max(0.0)
 }
 /// Membership/filter pair: slot 0 pairs only the airframe sphere with ground 0;
 /// slot i pairs only wheel i's rim with ground i.
@@ -64,9 +93,21 @@ fn vec(s: &[f64], i: usize) -> Vector {
 fn finite(v: Vector) -> bool {
     v.x.is_finite() && v.y.is_finite() && v.z.is_finite()
 }
+/// Version 2 (TASK-094) adds the products of inertia I_xy, I_xz, I_yz in slots 28..30.
+fn inertia_tensor(c: &[f64; CONFIG_COUNT]) -> [f64; 9] {
+    [c[19], c[28], c[29], c[28], c[20], c[30], c[29], c[30], c[21]]
+}
+/// Positive definite by leading principal minors (Sylvester); the tensor is symmetric by construction.
+fn positive_definite(m: [f64; 9]) -> bool {
+    let minor2 = m[0] * m[4] - m[1] * m[3];
+    let det = m[0] * (m[4] * m[8] - m[5] * m[7]) - m[1] * (m[3] * m[8] - m[5] * m[6]) + m[2] * (m[3] * m[7] - m[4] * m[6]);
+    m[0] > 0.0 && minor2 > 0.0 && det > 0.0
+}
 fn valid_state(c: &[f64; CONFIG_COUNT]) -> bool {
+    let reserved = if c[0] >= 2.0 { c[31] == 0.0 && positive_definite(inertia_tensor(c)) } else { c[28..32].iter().all(|x| *x == 0.0) };
     c.iter().all(|x| x.is_finite())
-        && c[0] == 1.0
+        && (c[0] == 1.0 || c[0] == 2.0 || c[0] == 3.0)
+        && reserved
         && c[1] == 0.0
         && c[2] > 0.0
         && c[3] > 0.0
@@ -81,7 +122,6 @@ fn valid_state(c: &[f64; CONFIG_COUNT]) -> bool {
         && c[27] >= 0.0
         && c[27] <= MAX_WHEELS as f64
         && c[27].fract() == 0.0
-        && c[28..32].iter().all(|x| *x == 0.0)
 }
 impl Contact {
     pub fn new(c: &[f64; CONFIG_COUNT]) -> Result<Self, i32> {
@@ -92,6 +132,11 @@ impl Contact {
         world.gravity = Vector::new(0.0, 0.0, c[26]);
         world.integration_parameters.dt = 1.0 / 400.0;
         world.integration_parameters.num_solver_iterations = 8;
+        // No CCD (TASK-095): every ground is a halfspace, which yields contact at any penetration
+        // depth, so nothing can tunnel through it. Rapier's CCD sweep activates on its own for fast
+        // bodies and builds temporary vectors each step, which would break the allocation gate in
+        // flight sessions (it fired after about 80 m of a tumbling fall).
+        world.integration_parameters.max_ccd_substeps = 0;
         let normal = vec(c, 22);
         let mut ground = [RigidBodyHandle::invalid(); PLANE_SLOTS];
         for (slot, handle) in ground.iter_mut().enumerate() {
@@ -110,10 +155,20 @@ impl Contact {
         }
         let groups_moving = slot_groups(0).1;
         let inertia = vec(c, 19);
+        // Version 1 keeps its diagonal path bit for bit; version 2 diagonalizes the full tensor
+        // into a principal-axis frame (parry's `with_inertia_matrix`).
+        let inertia_matrix = (c[0] >= 2.0).then(|| {
+            let m = inertia_tensor(c);
+            Matrix::from_cols(Vector::new(m[0], m[3], m[6]), Vector::new(m[1], m[4], m[7]), Vector::new(m[2], m[5], m[8]))
+        });
+        let mass_properties = match inertia_matrix {
+            Some(m) => MassProperties::with_inertia_matrix(Vector::ZERO, c[2], m),
+            None => MassProperties::new(Vector::ZERO, c[2], inertia),
+        };
         let (body, _) = world.insert(
             RigidBodyBuilder::dynamic()
                 .can_sleep(false)
-                .additional_mass_properties(MassProperties::new(Vector::ZERO, c[2], inertia)),
+                .additional_mass_properties(mass_properties),
             ColliderBuilder::ball(c[3])
                 .density(0.0)
                 .friction(c[5])
@@ -142,7 +197,9 @@ impl Contact {
                 || w[17] < 2.0
                 || w[17] > 64.0
                 || w[17].fract() != 0.0
-                || w[28..32].iter().any(|v| *v != 0.0)
+                || w[29..32].iter().any(|v| *v != 0.0)
+                || w[28] < 0.0
+                || (c[0] < 3.0 && w[28] != 0.0)
             {
                 return Err(-2);
             }
@@ -213,6 +270,9 @@ impl Contact {
                 x: xs,
                 f: fs,
                 strut,
+                cornering: w[28],
+                hold: Vector::ZERO,
+                held: false,
             });
         }
         let mut result = Self {
@@ -221,6 +281,7 @@ impl Contact {
             wheels,
             mass: c[2],
             inertia,
+            inertia_matrix,
             radius: c[3],
             normal,
             offset: c[25],
@@ -292,7 +353,8 @@ impl Contact {
         b.set_angvel(omega, true);
         b.reset_forces(false);
         b.reset_torques(false);
-        for w in &self.wheels {
+        for w in &mut self.wheels {
+            w.held = false;
             let b = &mut self.world.bodies[w.handle];
             b.set_rotation(q, true);
             b.set_translation(p + q * w.anchor, true);
@@ -323,7 +385,11 @@ impl Contact {
     fn angular_momentum(&self) -> Vector {
         let b = &self.world.bodies[self.body];
         let q = *b.rotation();
-        q * (self.inertia * (q.inverse() * b.angvel()))
+        let local = q.inverse() * b.angvel();
+        match self.inertia_matrix {
+            Some(m) => q * (m * local),
+            None => q * (self.inertia * local),
+        }
     }
     pub fn step(&mut self, input: &[f64; INPUT_COUNT]) -> Result<[f64; OUTPUT_COUNT], i32> {
         let dt = input[14];
@@ -369,6 +435,10 @@ impl Contact {
         let mut strut_force = [Vector::ZERO; MAX_WHEELS];
         let mut points = [Vector::ZERO; MAX_WHEELS];
         let mut out = [0.0; OUTPUT_COUNT];
+        // Start-of-step loads and their tangents: strut [x, rate, S, k, c] and tire [N, k, c].
+        let mut strut = [[0.0; 5]; MAX_WHEELS];
+        let mut tire = [[0.0; 3]; MAX_WHEELS];
+        let mut strut_sum = 0.0;
         for (i, w) in self.wheels.iter().enumerate() {
             let (ground_normal, ground_offset) = self.planes[i + 1];
             let wb = &self.world.bodies[w.handle];
@@ -378,58 +448,159 @@ impl Contact {
             let raw_x = -(wp - anchor).dot(axis);
             let x = raw_x.clamp(0.0, w.travel);
             let rate = (before + omega.cross(q * w.anchor) - wv).dot(axis);
-            let support = match w.strut {
-                Strut::Linear(m) => m.evaluate(x, rate),
-                Strut::Gas(m) => m.evaluate(x, rate),
-            }
-            .map_err(|_| -3)?
-            .load_n;
+            let (load, slope) = match w.strut {
+                Strut::Linear(m) => (m.evaluate(x, rate), m.tangent(x, rate)),
+                Strut::Gas(m) => (m.evaluate(x, rate), m.tangent(x, rate)),
+            };
+            let (load, slope) = (load.map_err(|_| -3)?, slope.map_err(|_| -3)?);
+            strut[i] = [x, rate, load.load_n, slope.stiffness_npm, slope.damping_nspm];
+            strut_sum += load.load_n;
             let deflection = (w.radius - (ground_normal.dot(wp) - ground_offset)).max(0.0);
             // Tiny rim solver overlap is handled by the rigid rim reaction, not
             // relabeled as additional tire or suspension travel.
             let tire_x = deflection.min(w.x[w.count - 1]);
             let curve =
                 TireCurve::new(&w.x[..w.count], &w.f[..w.count], w.damping).map_err(|_| -3)?;
-            let normal = curve
-                .evaluate(tire_x, -wv.dot(ground_normal))
-                .map_err(|_| -3)?
-                .load_n;
-            let tangent = wv - ground_normal * wv.dot(ground_normal);
+            let closure = -wv.dot(ground_normal);
+            let normal = curve.evaluate(tire_x, closure).map_err(|_| -3)?.load_n;
+            let gap = w.radius - (ground_normal.dot(wp) - ground_offset);
+            // Out of contact, the first tire segment continued to the signed gap (a negative
+            // load) lets a wheel that touches down inside the step meet the tire implicitly.
+            let t = if gap > 0.0 {
+                curve.tangent(tire_x, closure).map_err(|_| -3)?
+            } else {
+                Tangent {
+                    stiffness_npm: w.f[1] / w.x[1],
+                    damping_nspm: w.damping,
+                }
+            };
+            let virtual_load = if gap > 0.0 { normal } else { t.stiffness_npm * gap };
+            tire[i] = [virtual_load, t.stiffness_npm, t.damping_nspm];
+            let start = 32 + i * 8;
+            out[start] = x;
+            out[start + 1] = tire_x;
+            out[start + 4] = deflection - tire_x;
+            out[start + 5] = raw_x;
+            out[start + 6] = ground_normal.dot(wp) - ground_offset;
+        }
+        // Linearly implicit (backward Euler) step of each wheel's stroke x (TASK-095). The strut
+        // and the tire act on the small unsprung mass in series; explicit forces made the drop
+        // peak depend on the step rate. With the stroke stiffness K = k_s + k_t c^2 and damping
+        // C = c_s + c_t c^2 (c: cosine between the ground normal and the strut, upward), the end
+        // forces F1 = F0 - K dt v1 - C (v1 - v0) give m (v1 - v0) = dt (F1 + m a): an effective
+        // stiffness of K + C/dt. `a` holds gravity and the airframe acceleration from thrust and
+        // strut loads; the airframe's own motion, slow beside the wheel's, stays explicit.
+        let body_accel = ((force - axis * strut_sum) / self.mass).dot(axis);
+        let mut loads = [0.0; MAX_WHEELS];
+        for (i, w) in self.wheels.iter().enumerate() {
+            let (ground_normal, _) = self.planes[i + 1];
+            let mass = self.world.bodies[w.handle].mass();
+            let anchor_velocity = before + omega.cross(q * w.anchor);
+            let [_, v0, s0, ks, cs] = strut[i];
+            let [n0, kt, ct] = tire[i];
+            let c = -ground_normal.dot(axis);
+            let approach = -ground_normal.dot(anchor_velocity);
+            // The tire closes with the anchor's approach as well as with the stroke.
+            let solve = |theta: f64, n0: f64, kt: f64, ct: f64| {
+                let stiffness = ks + kt * c * c;
+                let damping = cs + ct * c * c;
+                let f0 = n0 * c - s0 + theta * kt * c * dt * approach;
+                let dv = dt * (f0 - theta * stiffness * dt * v0 + mass * body_accel)
+                    / (mass + theta * (dt * damping + dt * dt * stiffness));
+                let v1 = v0 + dv;
+                (v1, dv, n0 + kt * dt * (approach - c * v1) - ct * c * dv)
+            };
+            // A tire loaded at both ends of the step takes the theta step. A step in which contact
+            // begins or ends is backward Euler with complementarity on the end load: the applied
+            // load is then exactly the one the solve assumed (at touchdown the start load is only
+            // virtual), where a theta mean would add energy at every bounce.
+            let mut theta = theta(dt * dt * (ks + kt * c * c) / mass);
+            let mut normal = 0.0;
+            let (mut v1, mut dv, mut n1) = solve(theta, n0, kt, ct);
+            if n0 > 0.0 && n1 > 0.0 {
+                normal = (1.0 - theta) * n0 + theta * n1;
+            } else {
+                theta = 1.0;
+                (v1, dv, n1) = solve(1.0, n0, kt, ct);
+                if n1 > 0.0 {
+                    normal = n1;
+                } else {
+                    (v1, dv, _) = solve(1.0, 0.0, 0.0, 0.0);
+                }
+            }
+            let support = weighted(theta, s0, s0 + ks * dt * v1 + cs * dv);
+            loads[i] = normal;
+            strut_force[i] = axis * support;
+            points[i] = p + q * w.anchor;
+            if !finite(strut_force[i]) {
+                return Err(-3);
+            }
+            out[32 + i * 8 + 2] = normal;
+            out[32 + i * 8 + 3] = support;
+        }
+        // Tangential friction (TASK-095): static below breakaway, Coulomb above, brush side
+        // force while rolling. Each axis of the ground plane first asks for the force that
+        // stops the contact against its anchor point within the step, f = -m (v/dt + BETA d/dt^2),
+        // with m the wheel plus its load share of the airframe. Below the axis limit mu N it
+        // sticks; above it slides at mu N against that request and the anchor follows. While
+        // rolling, a wheel with a cornering stiffness takes the brush force C_a tan(alpha),
+        // solved as an implicit damper of C_a/|v_long|, capped at the lateral mu N.
+        let total: f64 = loads[..self.wheels.len()].iter().sum();
+        for (i, w) in self.wheels.iter_mut().enumerate() {
+            let normal = loads[i];
+            if normal <= 0.0 {
+                w.held = false;
+                wheel_force[i] = Vector::ZERO;
+                continue;
+            }
+            let (ground_normal, ground_offset) = self.planes[i + 1];
+            let wb = &self.world.bodies[w.handle];
+            let wp = wb.translation();
+            let wv = wb.linvel();
+            let mass = wb.mass() + self.mass * normal / total;
+            let point = wp - ground_normal * (ground_normal.dot(wp) - ground_offset);
+            if !w.held {
+                w.hold = point;
+                w.held = true;
+            }
             let forward = q * Vector::X;
             let projected = forward - ground_normal * forward.dot(ground_normal);
             let heading = if projected.length_squared() > 1e-12 {
                 projected.normalize()
             } else {
-                Vector::ZERO
+                ground_normal.any_orthonormal_vector()
             };
-            let longitudinal = heading * tangent.dot(heading);
-            let lateral = tangent - longitudinal;
-            // Kinematic rolling approximation: no wheel-spin/anti-skid model.
+            let side = ground_normal.cross(heading);
+            let offset = point - w.hold;
+            let (vl, vy) = (wv.dot(heading), wv.dot(side));
+            let stick = |v: f64, d: f64| -mass * (v / dt + BETA * d / (dt * dt));
             let mu = w.rolling + (w.braking - w.rolling) * input[6 + i];
-            let resistance = longitudinal * (mu / longitudinal.length().max(0.1))
-                + lateral * (w.lateral / lateral.length().max(0.1));
-            // Combined tangential force is bounded by the larger configured mu.
-            let magnitude = resistance.length();
-            let limit = mu.max(w.lateral);
-            let friction = if magnitude > limit && magnitude > 0.0 {
-                resistance * (limit / magnitude)
+            let (limit_l, limit_y) = (mu * normal, w.lateral * normal);
+            let want_l = stick(vl, offset.dot(heading));
+            let brush = w.cornering > 0.0 && vl.abs() > ROLLING_MPS;
+            let want_y = if brush {
+                -vy / (vl.abs() / w.cornering + dt / mass)
             } else {
-                resistance
+                stick(vy, offset.dot(side))
             };
-            wheel_force[i] = (ground_normal - friction) * normal;
-            strut_force[i] = axis * support;
-            points[i] = anchor;
-            if !finite(wheel_force[i]) || !finite(strut_force[i]) {
+            let slide_l = want_l.abs() > limit_l;
+            let slide_y = brush || want_y.abs() > limit_y;
+            let mut tangential = heading * want_l.clamp(-limit_l, limit_l) + side * want_y.clamp(-limit_y, limit_y);
+            // Combined tangential force is bounded by the larger configured mu.
+            let cap = mu.max(w.lateral) * normal;
+            if tangential.length() > cap {
+                tangential *= cap / tangential.length();
+            }
+            if slide_l {
+                w.hold += heading * offset.dot(heading);
+            }
+            if slide_y {
+                w.hold += side * offset.dot(side);
+            }
+            wheel_force[i] = ground_normal * normal + tangential;
+            if !finite(wheel_force[i]) {
                 return Err(-3);
             }
-            let start = 32 + i * 8;
-            out[start] = x;
-            out[start + 1] = tire_x;
-            out[start + 2] = normal;
-            out[start + 3] = support;
-            out[start + 4] = deflection - tire_x;
-            out[start + 5] = raw_x;
-            out[start + 6] = ground_normal.dot(wp) - ground_offset;
         }
         let b = &mut self.world.bodies[self.body];
         b.reset_forces(false);

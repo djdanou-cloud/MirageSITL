@@ -1084,7 +1084,30 @@ Configuration header: [0]=version 1, [1]=0, [2]=airframe mass kg,
 [6..8]=position NED m, [9..11]=velocity NED m/s, [12..15]=unit quaternion wxyz,
 [16..18]=body angular velocity rad/s, [19..21]=positive diagonal inertia kg m²,
 [22..24]=outward unit plane normal NED, [25]=plane offset n·p m,
-[26]=gravity down m/s², [27]=wheel count 0..8, [28..31]=zero.
+[26]=gravity down m/s², [27]=wheel count 0..8, [28..31]=zero. Version 2
+(TASK-094) puts the products of inertia I_xy, I_xz, I_yz in [28..30] (tensor
+entries, so the inertia is [[19, 28, 29], [28, 20, 30], [29, 30, 21]] about the
+CG in body FRD; it must be positive definite), and [31] stays zero. Rapier then
+receives `MassProperties::with_inertia_matrix`, which diagonalizes the tensor
+into a principal-axis frame; version 1 keeps its diagonal path bit for bit.
+Version 3 (TASK-095) keeps version 2's inertia slots and adds each wheel's brush
+cornering stiffness in its slot [28]; `GroundContact` writes it when a wheel has a
+positive `corneringStiffnessNpRad`.
+`GroundContact` takes `inertiaKgM2` (row-major, exactly symmetric) and writes
+version 2 only when a product is non-zero. Against the 4800 Hz RK4 body, a free
+body with principal moments (0.02, 0.03, 0.045) kg m² turned 0.7 rad about
+(1, 2, 3) and ω = (3, 7, 2) rad/s has, after 1 s, a rate error of 1.15e-3 and
+an attitude error of 1.14e-3 rad at 400 Hz, and a rate error of 3.85e-4 at
+1200 Hz (first order). Without the products the rate error is 1.15, so the
+products act. The budget, set before the implementation, was 2 %, 0.02 rad, a
+1200 Hz error at most 0.6 of the 400 Hz one, and at least a fivefold
+difference without the products
+(`native/contact/tests/contact.rs`, `tests/rigid-body-v2.test.ts`). Contact sessions run without
+Rapier's continuous collision detection (`max_ccd_substeps = 0`, TASK-095): every ground is a
+halfspace, which yields contact at any penetration depth, and the CCD sweep, which activates on
+its own for fast bodies, builds temporary vectors in the step. A native test runs a session over
+more than 1 km without an allocation. Building with `MIRAGE_CONTACT_TRACE=1` makes the first
+allocation inside `contact_step` print its stack (native) or trap (WASM).
 
 Each wheel starts at 32+160*i. Its fields are [0..2]=fully extended wheel-center
 anchor body FRD m; [3]=unsprung mass kg; [4]=tire radius m; [5]=rigid rim radius m
@@ -1094,7 +1117,8 @@ anchor body FRD m; [3]=unsprung mass kg; [4]=tire radius m; [5]=rigid rim radius
 [16]=tire damping N s/m; [17]=knot count 2..64; [18..27]=gas area, volume,
 charge pressure, ambient pressure, exponent, hydraulic area, fluid density,
 discharge coefficient, compression orifice, rebound orifice in the SI units
-specified below; [28..31]=zero; [32..95]=tire deflection knots m;
+specified below; [28]=brush cornering stiffness N/rad (version 3, ≥ 0; zero in
+versions 1 and 2); [29..31]=zero; [32..95]=tire deflection knots m;
 [96..159]=tire force knots N. Unused entries are zero. The last knot must cover
 the tire-radius minus rim-radius distance. All values must be finite.
 
@@ -1108,8 +1132,9 @@ impulse in the new body frame N m s, excluding external torque; [22..24]=hull
 diagnostic lever arm body m; [25]=wheel count; [26..31]=zero. Each wheel at
 32+8*i reports clamped strut compression m, tire compression m, tire load N,
 strut load N, excess tire/rim overlap m, raw strut compression m, signed wheel
-distance from the plane m, and zero. Wheel diagnostics describe the force
-evaluation before integration; body state describes the completed step.
+distance from the plane m, and zero. Wheel compressions and distances describe
+the start of the step, the tire and strut loads the ones the step applied (TASK-095);
+body state describes the completed step.
 
 The diagnostic hull point cannot represent a multiple-contact couple. Consumers
 must use `ContactImpulse.momentBodyNms` when transferring the angular impulse;
@@ -1122,10 +1147,58 @@ overlap diagnostics remain available. No second BET/JSBSim body integration
 may run over the same step. A terrain plane is explicit configuration; ABI v2
 (TASK-065, below) adds per-tick planes for terrain from published collision chunks.
 
-Rolling uses a kinematic longitudinal resistance, separate lateral resistance,
-and brake interpolation, regularized below 0.1 m/s; their combined magnitude
-is capped by max(longitudinal mu,lateral mu) times tire normal load. It is passive
-but does not represent wheel spin, static tire slip, anti-skid or steering.
+Since TASK-095 each wheel's stroke is stepped linearly implicitly before Rapier
+integrates; explicit loads made the drop peak depend on the step rate. The strut and
+the tire act in series on the unsprung mass m. With c the cosine between the upward
+ground normal and the strut, the stroke has stiffness K = k_s + k_t c² and damping
+C = c_s + c_t c² from the laws' tangents (`tangent`, below). A θ-method step solves
+
+$$
+m\,\Delta v=\Delta t\,\big(F_0+m\,a-\theta\,(K\,\Delta t\,v_1+C\,\Delta v)\big),\quad v_1=v_0+\Delta v
+$$
+
+for the stroke rate v. F_0 is the start-of-step stroke force, including the tire's
+closure from the anchor's own approach; a holds gravity and the airframe acceleration
+from thrust and strut loads, the airframe's slower motion staying explicit. Each load
+is applied as (1 − θ)·max(F_start, 0) + θ·max(F_end, 0). With Ω² = Δt²·K/m, θ is ½
+(trapezoidal, no numerical damping) while Ω² ≤ 2 and 1 − 1/Ω² above, which bounds the
+step's spectral radius near 1/Ω so that an unresolved stiff tire settles instead of
+ringing. A step in which tire contact begins or ends is backward Euler (θ = 1) with
+complementarity on the end load: out of contact the first tire segment, continued to
+the signed gap, gives a virtual negative start load, and the tire enters the step only
+if its end load is positive. Backward Euler throughout left the drop peak 5.6–8.5 %
+below the RK4 reference, and trapezoidal steps across touchdown or lift-off added
+energy at every bounce. The drop fixture (`native/contact/tests/contact.rs`: 1.5 kg on
+four synthetic wheels, not a measured aircraft) keeps its peak airframe specific force
+within 5 % of the three rates' mean and of a 100 kHz RK4 reference at 400/800/1200 Hz:
+27.72/28.72/28.84 g against 28.96 g from 0.5 m and 55.00/57.04/57.16 g against 57.43 g
+from 2 m, where explicit loads gave 39.6/32.8/31.4 g from 0.5 m. Tires up to 10⁷ N/m
+(ω·Δt about 18 at 400 Hz) settle at their static deflection within 1 % at every rate.
+
+Tangential friction (TASK-095) is static below breakaway and Coulomb above, per
+axis of the ground plane: longitudinal along the projected heading, lateral across
+it. Each axis first asks for the force that stops the contact against a stick
+anchor within the step, f = −m·(v/Δt + β·d/Δt²), with v the wheel's tangential
+speed, d its offset from the anchor and m the wheel plus its load share of the
+airframe. Below the axis limit μN (longitudinal μ is rolling + (braking − rolling)·b
+for brake input b, lateral μ the lateral coefficient) it sticks; above, it slides
+at μN against that request and the anchor follows. β = 0.2 is constraint
+stabilization like Rapier's error reduction: the fraction of the anchor offset
+removed per step, so a held wheel keeps a static offset of order gΔt²/β instead of
+creeping. While a wheel rolls (|v_long| > 0.1 m/s) and has a cornering stiffness
+C_α (configuration version 3), its side force is the brush law F_y = C_α·tan α
+with tan α = v_lat/|v_long|, solved as an implicit damper of C_α/|v_long| and capped
+at the lateral μN. The combined tangential force stays capped by max(longitudinal
+μ, lateral μ)·N. Rolling remains kinematic: no wheel spin, anti-skid or steering.
+The fixtures (`native/contact/tests/contact.rs`, the drop fixture's aircraft) pass
+their declared tolerances at 400/800/1200 Hz: braked nose-down and side-on on a 10°
+slope it creeps at most 5.4·10⁻⁷ m in 5 s (limit 1 mm); unbraked on 10° it rolls at
+1.5098 m/s², braked on 40° (past breakaway) it slides at 1.0437 m/s², against
+Coulomb 1.5098 and 1.0450 m/s² (limit 5 %); a 2 m/s sideways slide stops in
+0.4025–0.4061 m against v²/(2μg) = 0.4079 m (limit 5 %) and then stays at rest; and
+with C_α = 20 N/rad a 0.05 m/s side velocity at 5 m/s decays to 6.247·10⁻³ m/s in
+0.3 s against the closed form v_y0·((v0 − bt)/v0)^(k/b) = 6.127·10⁻³ m/s (limit 5 %,
+k = ΣC_α/m, b = μ_roll·g).
 Cold initialization exercises contact transitions and all supported rates.
 Actual armed allocations fault the session; stable memory alone is not evidence.
 `node scripts/check-contact-binding.mjs` builds native and WASM from the frozen
@@ -1191,6 +1264,11 @@ interpolates force and integrates each segment exactly for elastic energy. For
 deflection<=0 its load/energy/dissipation are zero; for positive deflection its
 normal load is max(0,elastic+damping*closureSpeed). Deflection beyond the final
 knot fails. Tire deflection is neither strut travel nor rigid-mesh penetration.
+Each law also gives its tangent (`tangent`, TASK-095): d(load)/d(compression or
+deflection) N/m and d(load)/d(rate) N s/m, both zero where the unilateral clamp holds
+the load at zero. The gas stiffness is p0·n·A²/V·(1 − A·x/V)^(−n−1); a tire's is the
+slope of the segment that holds the deflection (the left one at a knot, the last one
+at the final knot). Central differences of `evaluate` are the test oracle.
 
 `ground_wrench` accepts body contact point (m), body-to-NED wxyz, outward terrain
 normal NED, nonnegative load N and contact velocity relative to terrain (m/s).
@@ -2895,6 +2973,26 @@ the NeuralFoil/rotor envelope remain recorded, including low-confidence and
 out-of-domain operation during spool/landing; passing autopilot parity does
 not turn those flags into a model-fidelity PASS.
 
+`BetFlightConfiguration.contact` (TASK-095) makes compliant Rapier contact the
+body integrator in place of the BET rigid body: the rotor wrench goes to
+`GroundContact.stepInto`, which integrates gravity, the body and the ground
+reaction, so the attitude evolves continuously through touchdown. It excludes
+`syntheticGroundDownM`. Its vehicle mass, inertia and gravity must equal the
+model's (relative 1e-12), else construction fails. `GroundContact.forVehicle`
+builds such a contact: the airframe gets the vehicle's mass and inertia less each
+unsprung wheel mass taken as a point at its anchor, so the unsprung masses move
+the vehicle's centre of mass by Σm_w r_w/M from the body origin, small for light
+gear. The dynamics owns the contact: `reset` restarts it from the initial state
+through the synchronous `GroundContact.reset` (a cold re-initialization of the
+same instance) and repeats the same steps, and `dispose` disposes it. A synthetic
+2 kg four-rotor fixture on four short legs (`tests/flight-contact.test.ts`)
+rests, climbs 2.5 m, descends on a vertical-speed loop and lands at 0.29 m/s at
+400/800/1200 Hz, back within 0.12 mm of its resting height, tilted at most
+7.7·10⁻⁶ rad, its attitude changing at most 6·10⁻⁵ rad per step.
+`node scripts/bench-flight-contact.mjs` repeats takeoffs and landings for 10⁶
+steps at 400 Hz: 0.00296 B/step with no GC event and no native allocator call
+(`test-results/bench/flight-contact.json`).
+
 The common origin is -35.362938/149.165085 degrees, 584 m MSL, with an explicit
 synthetic zero geoid offset. The browser magnetic field uses the pinned
 pymavlink/AP_Declination table at this origin; native JSON derives its field
@@ -3659,14 +3757,50 @@ Rigid-body fields owned by later tasks, with their neutral values:
 * `gravity_model` 0 (constant `gravity_down` along NED down, the v1
   semantics) with zero `gravity_n/e/d`; models 1 (NED vector) and 2 (WGS84)
   are TASK-108.
-* Zero `cg_offset_body_x/y/z` (TASK-094).
 * `input_flags` bit 0 clear, with zero `mass_rate` and `inertia_rate`
   (TASK-119).
 
 Output `validity` bit 1 marks `specific_force_body_x/y/z` and is always set.
 The body-frame force is constant over the step, so the CG specific force is
-F/m exactly. Bits 2 (`angular_acceleration_body_x/y/z`) and 4
-(`reference_position_n/e/d`) wait for TASK-094.
+F/m exactly. TASK-094 sets bits 2 (`angular_acceleration_body_x/y/z`) and 4
+(`reference_position_n/e/d`) on every step.
+
+TASK-094 implements `cg_offset_body_x/y/z`. The state is the CG's, as
+`inertia_cg` names it. r_c points from the body reference point O, about
+which `moment_body` is given, to the CG; gravity acts at the CG. The step
+moves the moment to the CG and then runs the v1 step:
+
+$$
+M_{cg} = M_O - r_c \times F
+$$
+
+This is the CG form of the equations of motion about O,
+m(a_O + ω̇ × r_c + ω × (ω × r_c)) = F and
+I_O·ω̇ + ω × (I_O·ω) + m·r_c × a_O = M_O with
+I_O = I_cg + m(|r_c|²·1 − r_c·r_cᵀ); both give the same motion. A zero
+offset, −0 included, skips the transfer, so output bytes 0..127 equal v1 bit
+for bit. The outputs are ω̇ = I_cg⁻¹(M_cg − ω × I_cg·ω) at the end state and
+p_O = p_cg − R·r_c. `BodyParameters::angular_acceleration` computes ω̇, and
+`BetRigidBodyBackendV2` takes r_c as `cgOffsetBodyM` and reports
+`angularAccelerationBodyRadS2` and `referencePositionNedM`. Earth-rotation
+terms and the gravity models stay with TASK-108 (Phase 1: delivered by
+TASK-148), and mass-property rates with TASK-119 (deferred).
+
+`native/bet/tests/body_abi_v2.rs` checks, after 1 s at 400 Hz, the exact
+single-axis rotation of a body-fixed force through O with r_c = (0.01, 0, 0) m
+(ω_y = αt and θ = αt²/2 within 1e-9, α = −1.25 rad/s², with the reference
+position within 1e-12). Over 400 steps of a tumbling body with products of
+inertia it checks that the angular-acceleration output equals the ω̇ of the
+coupled equations about O, solved as a 6×6 system, within 1e-12 relative.
+It also checks that a −0 offset reproduces v1, and that an offset step makes
+no allocation over 10^6 steps. `native/bet/tests/rigid_body.rs` checks torque-free
+precession of an axisymmetric body, I = diag(0.05, 0.05, 0.08), with
+ω₀ = (1, 0, 2) rad/s, against the closed form
+ω = (ω₁ cos Ωt, ω₁ sin Ωt, ω₃), Ω = (I₃ − I₁)ω₃/I₁. It checks the same body
+with its principal frame turned 0.7 rad about (1, 2, 3), so every product of
+inertia is non-zero. Both hold the rates within 1e-9 relative and world
+angular momentum within 1e-10 over 2 s at 400 Hz. `tests/rigid-body-v2.test.ts`
+repeats the CG-offset case and the v1 bit equality through the WASM adapter.
 
 Checks run in a fixed order: record length, version (−7), reserved words,
 unknown flags and modes (−3), non-finite values (−3), then later-task fields.

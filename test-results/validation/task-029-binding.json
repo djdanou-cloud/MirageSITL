@@ -1,17 +1,17 @@
 {
   "schemaVersion": 1,
-  "wasmSha256": "3a36a4825414b0d2f8363d5454ffdbc76d2197d7a380e0d31b485422b2cbe946",
+  "wasmSha256": "23595fa5d1d7a3e1b6c66bb5a51f4e6700b48e8a01e71028762f689900031705",
   "manifest": {
     "schemaVersion": 1,
-    "abiVersion": 1,
+    "abiVersion": 2,
     "toolchain": "1.97.0",
     "sourceCommit": "b716d375efc0201003f0cd9ef7168eee0b62c177",
     "patchSha256": "327d04277393a775987e92a2c16c49d08f930646ea808723d82e864ae07eac09",
     "engineVersion": "0.36.0",
     "precision": "f64",
     "memoryBytes": 16777216,
-    "bytes": 2007431,
-    "sha256": "3a36a4825414b0d2f8363d5454ffdbc76d2197d7a380e0d31b485422b2cbe946",
+    "bytes": 2016917,
+    "sha256": "23595fa5d1d7a3e1b6c66bb5a51f4e6700b48e8a01e71028762f689900031705",
     "inputs": [
       {
         "file": "native/bet/Cargo.toml",
@@ -19,7 +19,7 @@
       },
       {
         "file": "native/bet/src/lib.rs",
-        "sha256": "e6d7a13eae017202f368fbcf90b6b8734128e742a339bf715bb8e69746748745"
+        "sha256": "f77211e4e5348230dde708a279430e5c354fef43bd2b33932470649b59569858"
       },
       {
         "file": "native/bet/src/frame.rs",
@@ -35,11 +35,11 @@
       },
       {
         "file": "native/contact/src/lib.rs",
-        "sha256": "3e013900c108b386f4c54a2fae0f0c51528783b028a0f18d3fe849e4ac637c17"
+        "sha256": "036c098b8adce2b576fa50d2b8323855e642616fd3ba5be42946ff4be886f763"
       },
       {
         "file": "native/contact/src/contact.rs",
-        "sha256": "d0d46b52fd66fd3596de5be89fff5ee4fbccbce3439c2fd3a16b4792bd6c153b"
+        "sha256": "129c93fc925c56600f491e8fc8afd1b8631627c4837efe26e575eaf5a44eae27"
       },
       {
         "file": "native/contact/Cargo.lock",
@@ -55,11 +55,11 @@
       },
       {
         "file": "native/bet/src/landing_gear.rs",
-        "sha256": "aa400dda46fe43d31b907bd45569094ac1b3c64bf4b3100264e160686a318ade"
+        "sha256": "a649ed463126009f0896f17480f7fad488182c1005269f4c788358f20de2ba7d"
       },
       {
         "file": "scripts/build-contact.mjs",
-        "sha256": "83da012e86a4a3b7794d63d46ce135525e46a26d78414783c9bd2becc175ef6f"
+        "sha256": "b40fef00d293324658774ea5e1c2165e5673c7e9a59b6670c31d5069f65a92a0"
       }
     ]
   },
@@ -79,7 +79,7 @@
       "wheels": 3,
       "nativeSteps": 1000000,
       "positionErrorM": 0,
-      "angleErrorRad": 2.9802322387695312e-8,
+      "angleErrorRad": 4.2146848510894035e-8,
       "allocationCalls": 0,
       "allocationBytes": 0,
       "passed": true
@@ -149,7 +149,7 @@
       "wheels": 8,
       "nativeSteps": 1000000,
       "positionErrorM": 0,
-      "angleErrorRad": 0,
+      "angleErrorRad": 2.9802322387695312e-8,
       "allocationCalls": 0,
       "allocationBytes": 0,
       "passed": true
