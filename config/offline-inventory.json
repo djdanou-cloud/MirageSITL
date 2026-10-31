@@ -12,6 +12,7 @@
   },
   "networkOrigins": [
     { "origin": "http://127.0.0.1", "use": "loopback", "reason": "The loopback bridge, local preview servers and Worker checks bind to the local machine only." },
+    { "origin": "ws://127.0.0.1", "use": "loopback", "reason": "WebSocket connections to the loopback bridge, including the TASK-129 pause probe and the bridge each launcher run hosts." },
     { "origin": "http://127.0.0.1:5174", "use": "loopback", "reason": "Local preview server of scripts/probe-laptop.mjs." },
     { "origin": "http://127.0.0.1:5175", "use": "loopback", "reason": "Local preview server of scripts/check-gpu-perf.mjs." },
     { "origin": "http://localhost", "use": "loopback", "reason": "Base URL for resolving relative material URLs and the local tiles-worker development binding." },
