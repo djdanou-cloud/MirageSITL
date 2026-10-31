@@ -1,7 +1,7 @@
 import { measurementSetBench, combinationKey, type Combination, type MeasurementSet } from './measurements.ts';
 import { missingValues, type ComponentCard, type ComponentType } from './components.ts';
 import {
-  calculationSettings, validateAircraftProfile, type AircraftProfile, type CalculationMode, type ProfileMotor,
+  calculationSettings, withProfileContent, type AircraftProfile, type CalculationMode, type ProfileMotor,
 } from './profile.ts';
 
 // Calculation modes (TASK-140, S04) and the confidence labels of TASK-133
@@ -106,8 +106,8 @@ export async function bindMeasurements(profile: AircraftProfile, mode: Calculati
     }
   }
   const measurementSets = [...chosen.values()].map(candidate => candidate.sha256).sort();
-  // A schema 3 profile keeps its sensor configuration (TASK-143); schemas 1 and 2 become 2.
-  return validateAircraftProfile({ ...profile, schemaVersion: profile.schemaVersion === 3 ? 3 : 2, calculation: { mode, measurementSets } });
+  // The profile keeps its sensor configuration (TASK-143) and propeller polars (TASK-144); schema 1 becomes 2.
+  return withProfileContent(profile, { calculation: { mode, measurementSets } });
 }
 
 function cardMissing(role: ComponentType, sha256: string | null, cards: ReadonlyMap<string, ComponentCard>): string[] {

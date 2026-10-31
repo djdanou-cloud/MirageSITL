@@ -23,8 +23,14 @@ import {
 import { VehicleFlagV2 } from "@mirage/protocol";
 import { inspectCapabilities, type CapabilityReport } from "./capabilities";
 import { FlightScene } from "./FlightScene";
+import { PowerPanel } from "./run/PowerPanel";
+import type { LimitEvent } from "@mirage/physics/limit-monitor";
+
 import { terrainConfigFrom } from "./terrain-config";
 import type { TileFailure } from "@mirage/terrain/tiles-provider";
+
+/** No limit events before the runtime exists (TASK-146). */
+const NO_LIMIT_EVENTS = (): readonly LimitEvent[] => [];
 
 // Build-time terrain settings (TASK-061); absent by default, so no terrain is loaded.
 const TERRAIN = terrainConfigFrom(
@@ -669,6 +675,7 @@ function DemoFlight({ visible }: { visible: boolean }) {
               </p>
             )}
           </div>
+          <PowerPanel reader={runtime.current?.power ?? null} events={runtime.current?.limitEvents ?? NO_LIMIT_EVENTS} />
           <Console runtime={runtime.current} />
           <Export runtime={runtime.current} />
           <div className="scope-note">

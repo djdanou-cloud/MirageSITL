@@ -1,7 +1,8 @@
 import {execFileSync} from 'node:child_process';
 import {readFileSync} from 'node:fs';
 import {beforeAll,expect,it} from 'vitest';
-import {BetRotorEngine,encodeBoundRotor,type BoundRotorDefinition} from '@mirage/wasm-bet/rotor';
+import {BetRotorEngine,encodeBoundRotor,KERNEL_OPTION_HOVER_SAMPLING,KERNEL_OPTION_REDUCED_PREDICTOR,ROTOR_FLAG_HOVER_SAMPLING,
+  ROTOR_FLAG_REDUCED_PREDICTOR,type BoundRotorDefinition} from '@mirage/wasm-bet/rotor';
 import {BetFlightDynamics} from '@mirage/physics/bet-dynamics';
 import {PhysicsSessionV2} from '../packages/physics/src/session-v2.ts';
 import {flightConfiguration,rotorDefinition} from './bet-runtime-fixture.ts';
@@ -46,7 +47,8 @@ it('rejects version/pointer/overlap/dt/growth errors and preserves raw output',(
   const ap=Math.ceil((cp+bytes.length)/64)*64,al=bytes.length+64,ip=Math.ceil((ap+al)/64)*64,op=ip+128;
   memory.grow(Math.max(0,Math.ceil((op+128-memory.buffer.byteLength)/65536)));
   const view=new DataView(memory.buffer);new Uint8Array(memory.buffer,cp,bytes.length).set(bytes);
-  view.setUint32(cp,2,true);expect(init(cp,bytes.length,ap,al)).toBe(-7);view.setUint32(cp,1,true);
+  // Configuration version 2 carries the TASK-091 kernel options; 3 is unknown.
+  view.setUint32(cp,3,true);expect(init(cp,bytes.length,ap,al)).toBe(-7);view.setUint32(cp,1,true);
   expect(init(cp+1,bytes.length,ap,al)).toBe(-2);expect(init(cp,bytes.length,cp,al)).toBe(-2);
   expect(init(cp,bytes.length,ap,al)).toBe(0);view.setUint32(ip,1,true);
   view.setFloat64(ip+8,1.225,true);view.setFloat64(ip+16,1.789e-5,true);view.setFloat64(ip+24,340,true);
@@ -105,3 +107,27 @@ it('uses the opt-in synthetic pad only at penetration, preserving free flight ab
   expect(()=>new BetFlightDynamics(module,invalid,400)).toThrow('Invalid synthetic ground plane');
   for(const p of [supported,falling,a,b])p.dispose();
 });
+
+it('encodes the TASK-091 kernel options as configuration version 2 and reports their steps apart from validity',()=>{
+  const plain=new DataView(encodeBoundRotor(rotorDefinition(),1/400).buffer);
+  expect([plain.getUint32(0,true),plain.getUint32(36,true)]).toEqual([1,0]);
+  const both=KERNEL_OPTION_REDUCED_PREDICTOR|KERNEL_OPTION_HOVER_SAMPLING;
+  const encoded=new DataView(encodeBoundRotor({...rotorDefinition(),kernelOptions:both},1/400).buffer);
+  expect([encoded.getUint32(0,true),encoded.getUint32(36,true)]).toEqual([2,3]);
+  for(const bad of [4,-1,0.5])expect(()=>encodeBoundRotor({...rotorDefinition(),kernelOptions:bad},1/400)).toThrow('kernel options');
+  for(const module of modules) {
+    const full=new BetFlightDynamics(module,flightConfiguration(0,4),400),modes=new BetFlightDynamics(module,flightConfiguration(0,4,both),400);
+    const pilot={flags:3,throttle:0.5,roll:0,pitch:0,yaw:0,wallTimeMs:0};
+    let sampling=0,validity=0;
+    for(let i=0;i<800;i++){
+      const t=(i+0.5)/400;full.nowMs=modes.nowMs=pilot.wallTimeMs=t*1000;
+      full.stepNow(pilot);modes.stepNow(pilot);sampling|=modes.samplingFlags;validity|=modes.validityFlags;
+      expect(full.samplingFlags).toBe(0);
+    }
+    // Both modes ran, never as a validity breach, and the vertical flight stays with the full kernel.
+    expect(sampling).toBe(ROTOR_FLAG_HOVER_SAMPLING|ROTOR_FLAG_REDUCED_PREDICTOR);
+    expect(validity&(ROTOR_FLAG_HOVER_SAMPLING|ROTOR_FLAG_REDUCED_PREDICTOR)).toBe(0);
+    expect(Math.abs(modes.state.down-full.state.down)).toBeLessThan(1e-3);
+    full.dispose();modes.dispose();
+  }
+},120000);

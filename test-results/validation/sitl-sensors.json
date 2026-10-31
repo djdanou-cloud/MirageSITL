@@ -1,0 +1,697 @@
+{
+  "schemaVersion": 1,
+  "kind": "sitl-sensors-report",
+  "task": "TASK-147",
+  "status": "PASS",
+  "checks": [
+    {
+      "id": "ideal: parameters read back before the window",
+      "pass": true,
+      "detail": {
+        "expected": 168,
+        "missing": [],
+        "wrong": [],
+        "confirmedAtS": 2.19625
+      }
+    },
+    {
+      "id": "ideal: enough samples",
+      "pass": true,
+      "detail": {
+        "samples": 2001,
+        "statusSamples": 61
+      }
+    },
+    {
+      "id": "zero-offsets: parameters read back before the window",
+      "pass": true,
+      "detail": {
+        "expected": 18,
+        "missing": [],
+        "wrong": [],
+        "confirmedAtS": 2.135
+      }
+    },
+    {
+      "id": "zero-offsets: enough samples",
+      "pass": true,
+      "detail": {
+        "samples": 2001,
+        "statusSamples": 60
+      }
+    },
+    {
+      "id": "specified: parameters read back before the window",
+      "pass": true,
+      "detail": {
+        "expected": 14,
+        "missing": [],
+        "wrong": [],
+        "confirmedAtS": 2.2075
+      }
+    },
+    {
+      "id": "specified: enough samples",
+      "pass": true,
+      "detail": {
+        "samples": 2003,
+        "statusSamples": 60
+      }
+    },
+    {
+      "id": "imu-bias: parameters read back before the window",
+      "pass": true,
+      "detail": {
+        "expected": 30,
+        "missing": [],
+        "wrong": [],
+        "confirmedAtS": 2.19375
+      }
+    },
+    {
+      "id": "imu-bias: enough samples",
+      "pass": true,
+      "detail": {
+        "samples": 2001,
+        "statusSamples": 61
+      }
+    },
+    {
+      "id": "imu-tilt: parameters read back before the window",
+      "pass": true,
+      "detail": {
+        "expected": 1,
+        "missing": [],
+        "wrong": [],
+        "confirmedAtS": 2.1825
+      }
+    },
+    {
+      "id": "imu-tilt: enough samples",
+      "pass": true,
+      "detail": {
+        "samples": 2002,
+        "statusSamples": 61
+      }
+    },
+    {
+      "id": "zero-terms: parameters read back before the window",
+      "pass": true,
+      "detail": {
+        "expected": 44,
+        "missing": [],
+        "wrong": [],
+        "confirmedAtS": 2.27875
+      }
+    },
+    {
+      "id": "zero-terms: enough samples",
+      "pass": true,
+      "detail": {
+        "samples": 2001,
+        "statusSamples": 60
+      }
+    },
+    {
+      "id": "noise-a: parameters read back before the window",
+      "pass": true,
+      "detail": {
+        "expected": 10,
+        "missing": [],
+        "wrong": [],
+        "confirmedAtS": 2.28375
+      }
+    },
+    {
+      "id": "noise-a: enough samples",
+      "pass": true,
+      "detail": {
+        "samples": 2002,
+        "statusSamples": 60
+      }
+    },
+    {
+      "id": "noise-b: parameters read back before the window",
+      "pass": true,
+      "detail": {
+        "expected": 10,
+        "missing": [],
+        "wrong": [],
+        "confirmedAtS": 2.2875
+      }
+    },
+    {
+      "id": "noise-b: enough samples",
+      "pass": true,
+      "detail": {
+        "samples": 2003,
+        "statusSamples": 60
+      }
+    },
+    {
+      "id": "noise-c: parameters read back before the window",
+      "pass": true,
+      "detail": {
+        "expected": 10,
+        "missing": [],
+        "wrong": [],
+        "confirmedAtS": 2.57125
+      }
+    },
+    {
+      "id": "noise-c: enough samples",
+      "pass": true,
+      "detail": {
+        "samples": 2001,
+        "statusSamples": 60
+      }
+    },
+    {
+      "id": "hard-iron pairing nets to zero",
+      "pass": true,
+      "detail": {
+        "ideal": [
+          0.23217527568340302,
+          0.05273711681365967,
+          -0.5289092659950256
+        ],
+        "zeroOffsets": [
+          0.23217527568340302,
+          0.05273711681365967,
+          -0.5289092659950256
+        ]
+      }
+    },
+    {
+      "id": "magnetometer bias applied once",
+      "pass": true,
+      "detail": {
+        "difference": [
+          0.04999999701976776,
+          -0.029999995604157448,
+          0.019999980926513672
+        ],
+        "bias": [
+          0.05,
+          -0.03,
+          0.02
+        ]
+      }
+    },
+    {
+      "id": "accelerometer bias applied once, over a conflicting SIM_ACC1_BIAS",
+      "pass": true,
+      "detail": {
+        "difference": [
+          0.5005006452120581,
+          -0.3003004712260717,
+          0.20019887745946363
+        ],
+        "expected": [
+          0.5005,
+          -0.30029999999999996,
+          0.2002
+        ],
+        "userSetting": {
+          "SIM_ACC1_BIAS_X": 0.4,
+          "SIM_ACC1_BIAS_Y": 0.4,
+          "SIM_ACC1_BIAS_Z": 0.4
+        },
+        "reportedSimAcc1BiasX": 0
+      }
+    },
+    {
+      "id": "gyroscope bias applied once",
+      "pass": true,
+      "detail": {
+        "difference": [
+          0.010000085498273572,
+          -2.9719359744538078e-8,
+          -0.020000229101639237
+        ],
+        "bias": [
+          0.01,
+          0,
+          -0.02
+        ]
+      }
+    },
+    {
+      "id": "IMU misalignment matches Ryᵀ·g",
+      "pass": true,
+      "detail": {
+        "difference": [
+          0.4906184553181595,
+          -7.779085324033722e-8,
+          0.012268622782093175
+        ],
+        "expected": [
+          0.49061834854862585,
+          0,
+          0.012268014656601605
+        ]
+      }
+    },
+    {
+      "id": "barometer bias applied once",
+      "pass": true,
+      "detail": {
+        "difference": 30.010986328125,
+        "bias": 30
+      }
+    },
+    {
+      "id": "battery measurement errors applied once",
+      "pass": true,
+      "detail": {
+        "specified": [
+          12702,
+          40
+        ],
+        "expected": [
+          12702,
+          40
+        ],
+        "ideal": [
+          12600,
+          0
+        ]
+      }
+    },
+    {
+      "id": "GNSS update rate set; Ideal keeps the stock 5 Hz",
+      "pass": true,
+      "detail": {
+        "specified": 60,
+        "expected": 60,
+        "ideal": 31
+      }
+    },
+    {
+      "id": "zero terms deliver the neutral lines bit for bit",
+      "pass": true,
+      "detail": {
+        "zeroTerms": {
+          "frames": 8000,
+          "sha256": "65fd75adb520953e411a2d928d1048156c5b4da708a5a5c62e98835f11c8955a"
+        },
+        "ideal": {
+          "frames": 8000,
+          "sha256": "65fd75adb520953e411a2d928d1048156c5b4da708a5a5c62e98835f11c8955a"
+        },
+        "zeroOffsets": {
+          "frames": 8000,
+          "sha256": "65fd75adb520953e411a2d928d1048156c5b4da708a5a5c62e98835f11c8955a"
+        }
+      }
+    },
+    {
+      "id": "a seed repeats the delivered lines; another seed changes them",
+      "pass": true,
+      "detail": {
+        "a": "c4a1e98d72b372c6f1e7c80d9691dbebc41a133799408e540af90c1c8161d617",
+        "b": "c4a1e98d72b372c6f1e7c80d9691dbebc41a133799408e540af90c1c8161d617",
+        "c": "e78de1e1d2b85653964a2422c4ecdcf96c08bfc98f6b5b3c649d34ecb053ec38"
+      }
+    }
+  ],
+  "capture": {
+    "firmwareSha256": "34d82699d815e75d4f39bdf065dd5ca1067c31c058a6bc8eaa028ac12efe75b9",
+    "sourceCommit": "8ab6afde107a91df1b5f60ade8f333cb8a61b190",
+    "copterDefaultsSha256": "5e01345b45d1c6190b28bece5638bbdd4cf1cce35e05bbbf480ab24d2b51aa0e",
+    "recordedAt": "2026-10-29T19:02:43.647Z",
+    "node": "v24.22.2",
+    "cases": [
+      "ideal",
+      "zero-offsets",
+      "specified",
+      "imu-bias",
+      "imu-tilt",
+      "zero-terms",
+      "noise-a",
+      "noise-b",
+      "noise-c"
+    ],
+    "artifacts": [
+      {
+        "file": "run.json",
+        "sha256": "c84d00aa70b984d3a2f7c27b568eb60b48c87fac41bfca7e65276e51e4453100",
+        "bytes": 2600
+      },
+      {
+        "file": "ideal/case.json",
+        "sha256": "28b7f50bc7b5b122690b3a2b143cdd7f1e2f80fa3a5706d06c57399fb33ead97",
+        "bytes": 17268
+      },
+      {
+        "file": "ideal/parameters.json",
+        "sha256": "fff12224d32e601ff58d8bc2f74ad831a366792791636c409e13789047f47e3a",
+        "bytes": 27725
+      },
+      {
+        "file": "ideal/telemetry.ndjson",
+        "sha256": "9250322d6ecee6631bb3d918daf7cfbaebebe000e38eed1a9c0c2fca51b8e4e3",
+        "bytes": 6042488
+      },
+      {
+        "file": "zero-offsets/case.json",
+        "sha256": "f1423485070a4bb77f55fc064674c76da5983e36ef2d226014c1b0cb58ddb571",
+        "bytes": 3387
+      },
+      {
+        "file": "zero-offsets/parameters.json",
+        "sha256": "e9093e36cfa20860d1badeec8b9cf561958888afbb41ef0d07c912f544ef7fbf",
+        "bytes": 27763
+      },
+      {
+        "file": "zero-offsets/telemetry.ndjson",
+        "sha256": "134533263702c0b737bb3b2bdeeb30a5c6049e0b1da4f086a50fd58cce9d3e69",
+        "bytes": 6026376
+      },
+      {
+        "file": "specified/case.json",
+        "sha256": "31f3941c516e0f08fa0650f20705d72f926235525185f6837ba1d674581477bb",
+        "bytes": 3802
+      },
+      {
+        "file": "specified/parameters.json",
+        "sha256": "7ea86b7f7c1917c32f1765a542e56130587e481770a4ae7422b4b1b2b361382a",
+        "bytes": 27841
+      },
+      {
+        "file": "specified/telemetry.ndjson",
+        "sha256": "bd06506428e9a7a34d0fadb8690d9875102dec04c806d3632ba169bd28538385",
+        "bytes": 5998255
+      },
+      {
+        "file": "imu-bias/case.json",
+        "sha256": "1458f6b573fc3a16c5798b3e602315474d697b32999eb26469e3a4af9ad30831",
+        "bytes": 5288
+      },
+      {
+        "file": "imu-bias/parameters.json",
+        "sha256": "ab83b3c69aa7c8df9f11379a30791ab3457207564401cb5bf088cf5799d279a6",
+        "bytes": 27781
+      },
+      {
+        "file": "imu-bias/telemetry.ndjson",
+        "sha256": "d1f63a03534039cd0fc2ba99a023d80523256d22d80475bedcb757bdcf59de91",
+        "bytes": 5941346
+      },
+      {
+        "file": "imu-tilt/case.json",
+        "sha256": "d312eb6e85f50ea3b13193638551a210fb205789fba529d029afb53f64a25279",
+        "bytes": 2523
+      },
+      {
+        "file": "imu-tilt/parameters.json",
+        "sha256": "ab83b3c69aa7c8df9f11379a30791ab3457207564401cb5bf088cf5799d279a6",
+        "bytes": 27781
+      },
+      {
+        "file": "imu-tilt/telemetry.ndjson",
+        "sha256": "42cf92e8645d1c1378c2e8eba7ca17448df5fbaef5f3b6c0e14210be9ccd2a59",
+        "bytes": 6003008
+      },
+      {
+        "file": "zero-terms/case.json",
+        "sha256": "cbc770d74717b114bd50c27fb97fe4b5124eac1dc764a79e52a735bf959bae9c",
+        "bytes": 6407
+      },
+      {
+        "file": "zero-terms/parameters.json",
+        "sha256": "ab83b3c69aa7c8df9f11379a30791ab3457207564401cb5bf088cf5799d279a6",
+        "bytes": 27781
+      },
+      {
+        "file": "zero-terms/telemetry.ndjson",
+        "sha256": "de58e9aa78dbe838fcb0353e4814583e136113ac2294ff7d6128e15c69b4b59e",
+        "bytes": 6017042
+      },
+      {
+        "file": "noise-a/case.json",
+        "sha256": "ebd713a5094d998180a1cd68d3de0b589329f4c7986668e6f0483e5ef2252901",
+        "bytes": 3247
+      },
+      {
+        "file": "noise-a/parameters.json",
+        "sha256": "ab83b3c69aa7c8df9f11379a30791ab3457207564401cb5bf088cf5799d279a6",
+        "bytes": 27781
+      },
+      {
+        "file": "noise-a/telemetry.ndjson",
+        "sha256": "8754a4c982a66bd9b9b272daafa4a867afa0e761d860cf62ec63fb68b32a87ae",
+        "bytes": 5984120
+      },
+      {
+        "file": "noise-b/case.json",
+        "sha256": "bfca2d00397236a14e04ed6de9d4cc999553ac1e4bde9d5f39b1a4c8e0366db4",
+        "bytes": 3246
+      },
+      {
+        "file": "noise-b/parameters.json",
+        "sha256": "ab83b3c69aa7c8df9f11379a30791ab3457207564401cb5bf088cf5799d279a6",
+        "bytes": 27781
+      },
+      {
+        "file": "noise-b/telemetry.ndjson",
+        "sha256": "7cc22156324a4a96814c95c44c912cb109870e5836e6d70d7224340c9df241d2",
+        "bytes": 5993639
+      },
+      {
+        "file": "noise-c/case.json",
+        "sha256": "aaf95065dc374cad36047cba3cbcc9efd2a5674f1312fceaca56d35888aef93b",
+        "bytes": 3247
+      },
+      {
+        "file": "noise-c/parameters.json",
+        "sha256": "ab83b3c69aa7c8df9f11379a30791ab3457207564401cb5bf088cf5799d279a6",
+        "bytes": 27781
+      },
+      {
+        "file": "noise-c/telemetry.ndjson",
+        "sha256": "ba6d80be6c59ec5e5f3cde71813c9cdcd9fc2c9a358470607505da418567efa6",
+        "bytes": 5916862
+      }
+    ]
+  },
+  "means": {
+    "ideal": {
+      "samples": 2001,
+      "statusSamples": 61,
+      "accel": [
+        -0.000985455795576674,
+        -0.0009685833540826097,
+        -9.817512840583644
+      ],
+      "gyro": [
+        -5.264034462091123e-7,
+        0.0000010033490225986542,
+        -0.0000033335825324597452
+      ],
+      "mag": [
+        0.23217527568340302,
+        0.05273711681365967,
+        -0.5289092659950256
+      ],
+      "pressurePa": 94503.82080078125,
+      "voltageMv": 12600,
+      "currentCa": 0,
+      "gnssFixes": 31
+    },
+    "zero-offsets": {
+      "samples": 2001,
+      "statusSamples": 60,
+      "accel": [
+        -0.000986031183565874,
+        -0.0009650768340724153,
+        -9.817513438715213
+      ],
+      "gyro": [
+        0.00033398499347102914,
+        0.0003353958571475043,
+        0.00033104133120608113
+      ],
+      "mag": [
+        0.23217527568340302,
+        0.05273711681365967,
+        -0.5289092659950256
+      ],
+      "pressurePa": 94503.82080078125,
+      "voltageMv": 12600,
+      "currentCa": 0,
+      "gnssFixes": 31
+    },
+    "specified": {
+      "samples": 2003,
+      "statusSamples": 60,
+      "accel": [
+        -0.0010053757721646716,
+        -0.000992124190663845,
+        -9.817506142633889
+      ],
+      "gyro": [
+        0.0003325996052044738,
+        0.000336577334572655,
+        0.0003320076174842132
+      ],
+      "mag": [
+        0.2821752727031708,
+        0.02273712120950222,
+        -0.508909285068512
+      ],
+      "pressurePa": 94533.83178710938,
+      "voltageMv": 12702,
+      "currentCa": 40,
+      "gnssFixes": 60
+    },
+    "imu-bias": {
+      "samples": 2001,
+      "statusSamples": 61,
+      "accel": [
+        0.4995146140284922,
+        -0.3012655480601441,
+        -9.61731456125575
+      ],
+      "gyro": [
+        0.0103340704917446,
+        0.00033536613778775975,
+        -0.019669187770433156
+      ],
+      "mag": [
+        0.23217527568340302,
+        0.05273711681365967,
+        -0.5289092659950256
+      ],
+      "pressurePa": 94503.82080078125,
+      "voltageMv": 12600,
+      "currentCa": 0,
+      "gnssFixes": 31
+    },
+    "imu-tilt": {
+      "samples": 2002,
+      "statusSamples": 61,
+      "accel": [
+        0.4896324241345936,
+        -0.0009651546249256557,
+        -9.80524481593312
+      ],
+      "gyro": [
+        0.00033395961741684236,
+        0.0003353613018308632,
+        0.00033100726904631775
+      ],
+      "mag": [
+        0.23217527568340302,
+        0.05273711681365967,
+        -0.5289092659950256
+      ],
+      "pressurePa": 94503.82080078125,
+      "voltageMv": 12600,
+      "currentCa": 0,
+      "gnssFixes": 31
+    },
+    "zero-terms": {
+      "samples": 2001,
+      "statusSamples": 60,
+      "accel": [
+        -0.000986031183565874,
+        -0.0009650768340724153,
+        -9.817513438715213
+      ],
+      "gyro": [
+        0.00033398499347102914,
+        0.0003353958571475043,
+        0.00033104133120608113
+      ],
+      "mag": [
+        0.23217527568340302,
+        0.05273711681365967,
+        -0.5289092659950256
+      ],
+      "pressurePa": 94503.82080078125,
+      "voltageMv": 12600,
+      "currentCa": 0,
+      "gnssFixes": 31
+    },
+    "noise-a": {
+      "samples": 2002,
+      "statusSamples": 60,
+      "accel": [
+        -0.001111986044835956,
+        -0.0005002053481179869,
+        -9.817354142725408
+      ],
+      "gyro": [
+        0.00030743769460272476,
+        0.0003206994089623095,
+        0.0003022044998684722
+      ],
+      "mag": [
+        0.23217527568340302,
+        0.05273711681365967,
+        -0.5289092659950256
+      ],
+      "pressurePa": 94503.82080078125,
+      "voltageMv": 12600,
+      "currentCa": 0,
+      "gnssFixes": 31
+    },
+    "noise-b": {
+      "samples": 2003,
+      "statusSamples": 60,
+      "accel": [
+        -0.0011290839289513992,
+        -0.00048107483232347014,
+        -9.817339201540097
+      ],
+      "gyro": [
+        0.0003081679024220143,
+        0.0003202657548454031,
+        0.0003007554910920046
+      ],
+      "mag": [
+        0.23217527568340302,
+        0.05273711681365967,
+        -0.5289092659950256
+      ],
+      "pressurePa": 94503.82080078125,
+      "voltageMv": 12600,
+      "currentCa": 0,
+      "gnssFixes": 31
+    },
+    "noise-c": {
+      "samples": 2001,
+      "statusSamples": 60,
+      "accel": [
+        -0.0015314396002360372,
+        -0.0003123168357540354,
+        -9.817190253692885
+      ],
+      "gyro": [
+        0.00036381214805982474,
+        0.00029828867228463385,
+        0.00032634387575314734
+      ],
+      "mag": [
+        0.23217527568340302,
+        0.05273711681365967,
+        -0.5289092659950256
+      ],
+      "pressurePa": 94503.82080078125,
+      "voltageMv": 12600,
+      "currentCa": 0,
+      "gnssFixes": 31
+    }
+  },
+  "limits": {
+    "minimumSamples": 1500,
+    "magGauss": 0.00001,
+    "accelMps2": 0.001,
+    "gyroRadS": 0.0001,
+    "pressurePa": 1,
+    "batteryMilliVolt": 1,
+    "batteryCentiAmp": 1,
+    "gnssFixes": 1
+  }
+}

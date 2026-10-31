@@ -536,3 +536,73 @@ snapshot whose epoch matches the displayed flight state. A serial connection
 does not publish that flag into the SAB and does not admit browser READY.
 Timing and revocation
 details are in the engine specification; a version 2 Simulation-on-Hardware board cannot fast-forward.
+
+## Power telemetry v1 (TASK-146)
+
+Per-motor and battery electrical values travel in their own 672-byte
+SharedArrayBuffer, created by Main (`createPowerChannelV1`) and handed to
+the physics Worker with `{ type: "power.attach", buffer }`. The Worker
+answers `power.attached`, or `power.reject` for any other buffer. ABI v2 is
+unchanged: `battery_voltage` and `battery_current` keep their meanings, and
+no reserved word gains one. The Worker is the only writer and publishes after
+every step, after the state ring. While the active dynamics has no electrical
+drive (the demo), it publishes a record with `motor_count` 0 and zero values.
+
+| Byte Offset | Data Type | Units | Field Name |
+| ---: | --- | --- | --- |
+| 0 | u32 | magic | magic = 0x4d505752 |
+| 4 | u32 | version | version = 1 |
+| 8 | u32 | bytes | header_bytes = 64 |
+| 12 | u32 | bytes | record_bytes = 608 |
+| 16 | u32 | rows | motor_capacity = 16 |
+| 20 | u32 | publications | published (Worker) |
+| 24..63 | u32[10] | — | reserved_zero |
+
+Record (offsets relative to byte 64):
+
+| Byte Offset | Data Type | Units | Field Name |
+| ---: | --- | --- | --- |
+| 0 | u32 | sequence | seqlock |
+| 4 | u32 | publications | sample_id, equal to published after this write |
+| 8 | u64 (lo32,hi32) | steps | tick_id |
+| 16 | u32 | epoch | session_epoch |
+| 20 | u32 | registry key | model_id |
+| 24 | u32 | rows | motor_count, 0 without an electrical drive |
+| 28 | u32 | bitmask | battery_warning: bit0 UnderVoltage |
+| 32 | u32 | bitmask | battery_limited: bit0 PackCurrent, bit1 Charge |
+| 36 | u32 | events | dropped_events, limit events the outbox could not hold |
+| 40 | f64 | 1 | state_of_charge |
+| 48 | f64 | V | bus_voltage |
+| 56 | f64 | A | bus_current, negative while regenerating |
+| 64 | f64 | W | bus_power = bus_voltage · bus_current |
+| 72 | f64 | Ah | remaining_charge |
+| 80 | f64 | Ah | capacity |
+| 88..95 | u32[2] | — | reserved_zero |
+| 96 + 32·i | motor_row | — | motor i: 16 rows; rows at and beyond motor_count are zero |
+
+Motor row (offsets relative to its start):
+
+| Byte Offset | Data Type | Units | Field Name |
+| ---: | --- | --- | --- |
+| 0 | f32 | rev/min | speed, signed |
+| 4 | f32 | A | motor_current, negative while braking |
+| 8 | f32 | A | bus_current: terminal power over the lagged bus voltage |
+| 12 | f32 | W | electrical_power at the motor terminals |
+| 16 | f32 | 1 | command: ESC duty in [0, 1] as the ESC received it |
+| 20 | u32 | bitmask | warning: bit0 MotorCurrent, bit1 MotorPower, bit2 EscCurrent, bit3 EscVoltage, bit4 Rpm |
+| 24 | u32 | bitmask | limited: bit0 CurrentLimit |
+| 28 | u32 | — | reserved_zero |
+
+The record uses the seqlock of section 4 with one slot: the writer packs a
+private scratch, sets the sequence odd, stores the words, sets it even and
+then stores `published`. The reader (`PowerReaderV1.latest`) tries at most
+three times and decodes only when the sequence was even and unchanged and
+`sample_id` equals `published`; a miss leaves its output unchanged. A
+`warning` bit means a component rating is exceeded while physics runs on
+unchanged; a `limited` bit means the model clamped the value. The events
+behind the masks reach Main as `{ type: "limits.events", events, dropped }`
+after each pump, and `{ type: "limits.register", sha256, ratings }` binds limit
+ratings v1 to a manifest hash before `model.load` (`limits.registered` or
+`limits.reject`). Both are specified in
+[Simulation Engines](SPECS_SIMULATION_ENGINES.md), section "Battery and
+propulsion limits (TASK-146)".

@@ -1,7 +1,9 @@
 {
-  "schemaVersion": 1,
-  "provenance": "Official pymavlink 2.4.50 generator with pinned ardupilotmega XML; no simulator-derived goldens.",
+  "schemaVersion": 2,
+  "provenance": "Official pymavlink 2.4.50 generator with pinned ardupilotmega XML and its includes; no simulator-derived goldens.",
   "sourceCommit": "2e2b6af99084e4fde9bb304c84bb9253a1a98b6f",
+  "systemId": 42,
+  "componentId": 7,
   "frames": [
     {
       "id": 113,
@@ -27,4004 +29,1151 @@
       "id": 113,
       "hex": "fd240000022a077100000000000000000000000000000000000000000000ffffffffffff000000000000ffff00ff0328",
       "payloadHex": "0000000000000000000000000000000000000000ffffffffffff000000000000ffff00ff"
-    },
+    }
+  ],
+  "messageFrames": [
     {
-      "id": 21,
-      "hex": "fd010000032a0715000001dd5e",
-      "payloadHex": "01",
+      "id": 0,
+      "name": "HEARTBEAT",
+      "style": "pattern",
+      "sequence": 3,
       "values": {
-        "target_system": [
-          1
-        ],
-        "target_component": [
-          0
-        ]
+        "custom_mode": 2654435772,
+        "type": 77,
+        "autopilot": 114,
+        "base_mode": 151,
+        "system_status": 188,
+        "mavlink_version": 225
       },
-      "variant": "parameter-builder"
-    },
-    {
-      "id": 20,
-      "hex": "fd110000042a07140000ffff01014d4f545f544853545f4558504fea1e",
-      "payloadHex": "ffff01014d4f545f544853545f4558504f",
-      "values": {
-        "target_system": [
-          1
-        ],
-        "target_component": [
-          1
-        ],
-        "param_id": [
-          77,
-          79,
-          84,
-          95,
-          84,
-          72,
-          83,
-          84,
-          95,
-          69,
-          88,
-          80,
-          79,
-          0,
-          0,
-          0
-        ],
-        "param_index": [
-          -1
-        ]
-      },
-      "variant": "parameter-builder"
-    },
-    {
-      "id": 23,
-      "hex": "fd170000052a071700000000484101014142434445464748494a4b4c4d4e4f5009bbfc",
-      "payloadHex": "0000484101014142434445464748494a4b4c4d4e4f5009",
-      "values": {
-        "target_system": [
-          1
-        ],
-        "target_component": [
-          1
-        ],
-        "param_id": [
-          65,
-          66,
-          67,
-          68,
-          69,
-          70,
-          71,
-          72,
-          73,
-          74,
-          75,
-          76,
-          77,
-          78,
-          79,
-          80
-        ],
-        "param_value": [
-          12.5
-        ],
-        "param_type": [
-          9
-        ]
-      },
-      "variant": "parameter-builder"
+      "hex": "fd090000032a07000000bc79379e4d7297bce15594"
     },
     {
       "id": 0,
-      "hex": "fd090000062a07000000340000000d1a27414ed026",
-      "payloadHex": "340000000d1a27414e",
+      "name": "HEARTBEAT",
+      "style": "minimal",
+      "sequence": 4,
       "values": {
-        "type": [
-          13
-        ],
-        "autopilot": [
-          26
-        ],
-        "base_mode": [
-          39
-        ],
-        "custom_mode": [
-          52
-        ],
-        "system_status": [
-          65
-        ],
-        "mavlink_version": [
-          78
-        ]
+        "custom_mode": 1,
+        "type": 0,
+        "autopilot": 0,
+        "base_mode": 0,
+        "system_status": 0,
+        "mavlink_version": 0
       },
-      "variant": "distinct"
-    },
-    {
-      "id": 0,
-      "hex": "fd010000072a070000000020bd",
-      "payloadHex": "00",
-      "values": {
-        "type": [
-          0
-        ],
-        "autopilot": [
-          0
-        ],
-        "base_mode": [
-          0
-        ],
-        "custom_mode": [
-          0
-        ],
-        "system_status": [
-          0
-        ],
-        "mavlink_version": [
-          0
-        ]
-      },
-      "variant": "zero"
-    },
-    {
-      "id": 0,
-      "hex": "fd090000082a07000000ffffffffffffffffff3f05",
-      "payloadHex": "ffffffffffffffffff",
-      "values": {
-        "type": [
-          255
-        ],
-        "autopilot": [
-          255
-        ],
-        "base_mode": [
-          255
-        ],
-        "custom_mode": [
-          4294967295
-        ],
-        "system_status": [
-          255
-        ],
-        "mavlink_version": [
-          255
-        ]
-      },
-      "variant": "limits"
+      "hex": "fd010000042a0700000001282e"
     },
     {
       "id": 1,
-      "hex": "fd280000092a070100000d0000001a0000002700000034004100faff6800750082008f009c00a900f9b6000000c3000000d009ac",
-      "payloadHex": "0d0000001a0000002700000034004100faff6800750082008f009c00a900f9b6000000c3000000d0",
+      "name": "SYS_STATUS",
+      "style": "pattern",
+      "sequence": 5,
       "values": {
-        "onboard_control_sensors_present": [
-          13
-        ],
-        "onboard_control_sensors_enabled": [
-          26
-        ],
-        "onboard_control_sensors_health": [
-          39
-        ],
-        "load": [
-          52
-        ],
-        "voltage_battery": [
-          65
-        ],
-        "current_battery": [
-          -6
-        ],
-        "battery_remaining": [
-          -7
-        ],
-        "drop_rate_comm": [
-          104
-        ],
-        "errors_comm": [
-          117
-        ],
-        "errors_count1": [
-          130
-        ],
-        "errors_count2": [
-          143
-        ],
-        "errors_count3": [
-          156
-        ],
-        "errors_count4": [
-          169
-        ],
-        "onboard_control_sensors_present_extended": [
-          182
-        ],
-        "onboard_control_sensors_enabled_extended": [
-          195
-        ],
-        "onboard_control_sensors_health_extended": [
-          208
-        ]
+        "onboard_control_sensors_present": 2654435772,
+        "onboard_control_sensors_enabled": 1013904237,
+        "onboard_control_sensors_health": 3668339998,
+        "load": 16403,
+        "voltage_battery": 20502,
+        "current_battery": -8167,
+        "drop_rate_comm": 28700,
+        "errors_comm": 32799,
+        "errors_count1": 36898,
+        "errors_count2": 40997,
+        "errors_count3": 45096,
+        "errors_count4": 49195,
+        "battery_remaining": 100,
+        "onboard_control_sensors_present_extended": 2802362297,
+        "onboard_control_sensors_enabled_extended": 1161830762,
+        "onboard_control_sensors_health_extended": 3816266523
       },
-      "variant": "distinct"
+      "hex": "fd2b0000052a07010000bc79379e6df36e3c1e6da6da1340165019e01c701f80229025a028b02bc064b9a708a76a2140451b9b77e3e516"
     },
     {
       "id": 1,
-      "hex": "fd0100000a2a0701000000c3a7",
-      "payloadHex": "00",
+      "name": "SYS_STATUS",
+      "style": "minimal",
+      "sequence": 6,
       "values": {
-        "onboard_control_sensors_present": [
-          0
-        ],
-        "onboard_control_sensors_enabled": [
-          0
-        ],
-        "onboard_control_sensors_health": [
-          0
-        ],
-        "load": [
-          0
-        ],
-        "voltage_battery": [
-          0
-        ],
-        "current_battery": [
-          0
-        ],
-        "battery_remaining": [
-          0
-        ],
-        "drop_rate_comm": [
-          0
-        ],
-        "errors_comm": [
-          0
-        ],
-        "errors_count1": [
-          0
-        ],
-        "errors_count2": [
-          0
-        ],
-        "errors_count3": [
-          0
-        ],
-        "errors_count4": [
-          0
-        ],
-        "onboard_control_sensors_present_extended": [
-          0
-        ],
-        "onboard_control_sensors_enabled_extended": [
-          0
-        ],
-        "onboard_control_sensors_health_extended": [
-          0
-        ]
+        "onboard_control_sensors_present": 1,
+        "onboard_control_sensors_enabled": 0,
+        "onboard_control_sensors_health": 0,
+        "load": 0,
+        "voltage_battery": 0,
+        "current_battery": 0,
+        "drop_rate_comm": 0,
+        "errors_comm": 0,
+        "errors_count1": 0,
+        "errors_count2": 0,
+        "errors_count3": 0,
+        "errors_count4": 0,
+        "battery_remaining": 0,
+        "onboard_control_sensors_present_extended": 0,
+        "onboard_control_sensors_enabled_extended": 0,
+        "onboard_control_sensors_health_extended": 0
       },
-      "variant": "zero"
-    },
-    {
-      "id": 1,
-      "hex": "fd2b00000b2a07010000ffffffffffffffffffffffffffffffff0080ffffffffffffffffffffffff80ffffffffffffffffffffffff1e57",
-      "payloadHex": "ffffffffffffffffffffffffffffffff0080ffffffffffffffffffffffff80ffffffffffffffffffffffff",
-      "values": {
-        "onboard_control_sensors_present": [
-          4294967295
-        ],
-        "onboard_control_sensors_enabled": [
-          4294967295
-        ],
-        "onboard_control_sensors_health": [
-          4294967295
-        ],
-        "load": [
-          65535
-        ],
-        "voltage_battery": [
-          65535
-        ],
-        "current_battery": [
-          -32768
-        ],
-        "battery_remaining": [
-          -128
-        ],
-        "drop_rate_comm": [
-          65535
-        ],
-        "errors_comm": [
-          65535
-        ],
-        "errors_count1": [
-          65535
-        ],
-        "errors_count2": [
-          65535
-        ],
-        "errors_count3": [
-          65535
-        ],
-        "errors_count4": [
-          65535
-        ],
-        "onboard_control_sensors_present_extended": [
-          4294967295
-        ],
-        "onboard_control_sensors_enabled_extended": [
-          4294967295
-        ],
-        "onboard_control_sensors_health_extended": [
-          4294967295
-        ]
-      },
-      "variant": "limits"
+      "hex": "fd010000062a07010000017985"
     },
     {
       "id": 20,
-      "hex": "fd1400000c2a07140000fcff0d1a4142434445464748494a4b4c4d4e4f5009ff",
-      "payloadHex": "fcff0d1a4142434445464748494a4b4c4d4e4f50",
+      "name": "PARAM_REQUEST_READ",
+      "style": "pattern",
+      "sequence": 7,
       "values": {
-        "target_system": [
-          13
-        ],
-        "target_component": [
-          26
-        ],
-        "param_id": [
-          65,
-          66,
-          67,
-          68,
-          69,
-          70,
-          71,
-          72,
-          73,
-          74,
-          75,
-          76,
-          77,
-          78,
-          79,
-          80
-        ],
-        "param_index": [
-          -4
-        ]
+        "param_index": -28662,
+        "target_system": 77,
+        "target_component": 114,
+        "param_id": "MIRAGE param_req"
       },
-      "variant": "distinct"
+      "hex": "fd140000072a071400000a904d724d495241474520706172616d5f726571faed"
     },
     {
       "id": 20,
-      "hex": "fd0100000d2a071400000089a3",
-      "payloadHex": "00",
+      "name": "PARAM_REQUEST_READ",
+      "style": "minimal",
+      "sequence": 8,
       "values": {
-        "target_system": [
-          0
-        ],
-        "target_component": [
-          0
-        ],
-        "param_id": [
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0
-        ],
-        "param_index": [
-          0
-        ]
+        "param_index": 1,
+        "target_system": 0,
+        "target_component": 0,
+        "param_id": ""
       },
-      "variant": "zero"
-    },
-    {
-      "id": 20,
-      "hex": "fd1400000e2a071400000080ffff5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5ae7dc",
-      "payloadHex": "0080ffff5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a",
-      "values": {
-        "target_system": [
-          255
-        ],
-        "target_component": [
-          255
-        ],
-        "param_id": [
-          90,
-          90,
-          90,
-          90,
-          90,
-          90,
-          90,
-          90,
-          90,
-          90,
-          90,
-          90,
-          90,
-          90,
-          90,
-          90
-        ],
-        "param_index": [
-          -32768
-        ]
-      },
-      "variant": "limits"
+      "hex": "fd010000082a0714000001302d"
     },
     {
       "id": 21,
-      "hex": "fd0200000f2a071500000d1a5ef1",
-      "payloadHex": "0d1a",
+      "name": "PARAM_REQUEST_LIST",
+      "style": "pattern",
+      "sequence": 9,
       "values": {
-        "target_system": [
-          13
-        ],
-        "target_component": [
-          26
-        ]
+        "target_system": 40,
+        "target_component": 77
       },
-      "variant": "distinct"
+      "hex": "fd020000092a07150000284d38f1"
     },
     {
       "id": 21,
-      "hex": "fd010000102a0715000000ad96",
-      "payloadHex": "00",
+      "name": "PARAM_REQUEST_LIST",
+      "style": "minimal",
+      "sequence": 10,
       "values": {
-        "target_system": [
-          0
-        ],
-        "target_component": [
-          0
-        ]
+        "target_system": 1,
+        "target_component": 0
       },
-      "variant": "zero"
-    },
-    {
-      "id": 21,
-      "hex": "fd020000112a07150000ffffb27b",
-      "payloadHex": "ffff",
-      "values": {
-        "target_system": [
-          255
-        ],
-        "target_component": [
-          255
-        ]
-      },
-      "variant": "limits"
+      "hex": "fd0100000a2a0715000001def2"
     },
     {
       "id": 22,
-      "hex": "fd190000122a07160000000010c0340041004142434445464748494a4b4c4d4e4f50273dba",
-      "payloadHex": "000010c0340041004142434445464748494a4b4c4d4e4f5027",
+      "name": "PARAM_VALUE",
+      "style": "pattern",
+      "sequence": 11,
       "values": {
-        "param_id": [
-          65,
-          66,
-          67,
-          68,
-          69,
-          70,
-          71,
-          72,
-          73,
-          74,
-          75,
-          76,
-          77,
-          78,
-          79,
-          80
-        ],
-        "param_value": [
-          -2.25
-        ],
-        "param_type": [
-          39
-        ],
-        "param_count": [
-          52
-        ],
-        "param_index": [
-          65
-        ]
+        "param_value": -16.125,
+        "param_count": 8205,
+        "param_index": 12304,
+        "param_id": "MIRAGE param_val",
+        "param_type": 188
       },
-      "variant": "distinct"
+      "hex": "fd1900000b2a07160000000081c10d2010304d495241474520706172616d5f76616cbc1c63"
     },
     {
       "id": 22,
-      "hex": "fd010000132a07160000002e71",
-      "payloadHex": "00",
+      "name": "PARAM_VALUE",
+      "style": "minimal",
+      "sequence": 12,
       "values": {
-        "param_id": [
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0
-        ],
-        "param_value": [
-          0
-        ],
-        "param_type": [
-          0
-        ],
-        "param_count": [
-          0
-        ],
-        "param_index": [
-          0
-        ]
+        "param_value": 1,
+        "param_count": 0,
+        "param_index": 0,
+        "param_id": "",
+        "param_type": 0
       },
-      "variant": "zero"
-    },
-    {
-      "id": 22,
-      "hex": "fd190000142a07160000000010c0ffffffff5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5aff9cc5",
-      "payloadHex": "000010c0ffffffff5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5aff",
-      "values": {
-        "param_id": [
-          90,
-          90,
-          90,
-          90,
-          90,
-          90,
-          90,
-          90,
-          90,
-          90,
-          90,
-          90,
-          90,
-          90,
-          90,
-          90
-        ],
-        "param_value": [
-          -2.25
-        ],
-        "param_type": [
-          255
-        ],
-        "param_count": [
-          65535
-        ],
-        "param_index": [
-          65535
-        ]
-      },
-      "variant": "limits"
+      "hex": "fd0400000c2a071600000000803f4d50"
     },
     {
       "id": 23,
-      "hex": "fd170000152a07170000000088c00d1a4142434445464748494a4b4c4d4e4f5041d7f1",
-      "payloadHex": "000088c00d1a4142434445464748494a4b4c4d4e4f5041",
+      "name": "PARAM_SET",
+      "style": "pattern",
+      "sequence": 13,
       "values": {
-        "target_system": [
-          13
-        ],
-        "target_component": [
-          26
-        ],
-        "param_id": [
-          65,
-          66,
-          67,
-          68,
-          69,
-          70,
-          71,
-          72,
-          73,
-          74,
-          75,
-          76,
-          77,
-          78,
-          79,
-          80
-        ],
-        "param_value": [
-          -4.25
-        ],
-        "param_type": [
-          65
-        ]
+        "param_value": -16.125,
+        "target_system": 77,
+        "target_component": 114,
+        "param_id": "MIRAGE param_set",
+        "param_type": 188
       },
-      "variant": "distinct"
+      "hex": "fd1700000d2a07170000000081c14d724d495241474520706172616d5f736574bcabdb"
     },
     {
       "id": 23,
-      "hex": "fd010000162a0717000000a8d8",
-      "payloadHex": "00",
+      "name": "PARAM_SET",
+      "style": "minimal",
+      "sequence": 14,
       "values": {
-        "target_system": [
-          0
-        ],
-        "target_component": [
-          0
-        ],
-        "param_id": [
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0
-        ],
-        "param_value": [
-          0
-        ],
-        "param_type": [
-          0
-        ]
+        "param_value": 1,
+        "target_system": 0,
+        "target_component": 0,
+        "param_id": "",
+        "param_type": 0
       },
-      "variant": "zero"
-    },
-    {
-      "id": 23,
-      "hex": "fd170000172a07170000000088c0ffff5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5aff953b",
-      "payloadHex": "000088c0ffff5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5aff",
-      "values": {
-        "target_system": [
-          255
-        ],
-        "target_component": [
-          255
-        ],
-        "param_id": [
-          90,
-          90,
-          90,
-          90,
-          90,
-          90,
-          90,
-          90,
-          90,
-          90,
-          90,
-          90,
-          90,
-          90,
-          90,
-          90
-        ],
-        "param_value": [
-          -4.25
-        ],
-        "param_type": [
-          255
-        ]
-      },
-      "variant": "limits"
+      "hex": "fd0400000e2a071700000000803f734f"
     },
     {
       "id": 24,
-      "hex": "fd330000182a071800000d00000000000000fdfffffffcfffffffbffffff4e005b00680075001a82f5ffffff9c000000a9000000b6000000c3000000d00e5a",
-      "payloadHex": "0d00000000000000fdfffffffcfffffffbffffff4e005b00680075001a82f5ffffff9c000000a9000000b6000000c3000000d0",
+      "name": "GPS_RAW_INT",
+      "style": "pattern",
+      "sequence": 15,
       "values": {
-        "time_usec": [
-          13,
-          0
-        ],
-        "fix_type": [
-          26
-        ],
-        "lat": [
-          -3
-        ],
-        "lon": [
-          -4
-        ],
-        "alt": [
-          -5
-        ],
-        "eph": [
-          78
-        ],
-        "epv": [
-          91
-        ],
-        "vel": [
-          104
-        ],
-        "cog": [
-          117
-        ],
-        "satellites_visible": [
-          130
-        ],
-        "alt_ellipsoid": [
-          -11
-        ],
-        "h_acc": [
-          156
-        ],
-        "v_acc": [
-          169
-        ],
-        "vel_acc": [
-          182
-        ],
-        "hdg_acc": [
-          195
-        ],
-        "yaw": [
-          208
-        ]
+        "time_usec": 1234567890136,
+        "lat": -1133579411,
+        "lon": 1520856350,
+        "alt": -119675185,
+        "eph": 20502,
+        "epv": 24601,
+        "vel": 28700,
+        "cog": 32799,
+        "fix_type": 80,
+        "satellites_visible": 117,
+        "alt_ellipsoid": 1281505958,
+        "h_acc": 1788458071,
+        "v_acc": 147926536,
+        "vel_acc": 2802362297,
+        "hdg_acc": 1161830762,
+        "yaw": 55
       },
-      "variant": "distinct"
+      "hex": "fd3300000f2a07180000d804fb711f0100006df36ebc1e6da65acfe6ddf8165019601c701f805075a63a624c57b4996a082ed108b9a708a76a21404537ae05"
     },
     {
       "id": 24,
-      "hex": "fd010000192a07180000006db6",
-      "payloadHex": "00",
+      "name": "GPS_RAW_INT",
+      "style": "minimal",
+      "sequence": 16,
       "values": {
-        "time_usec": [
-          0,
-          0
-        ],
-        "fix_type": [
-          0
-        ],
-        "lat": [
-          0
-        ],
-        "lon": [
-          0
-        ],
-        "alt": [
-          0
-        ],
-        "eph": [
-          0
-        ],
-        "epv": [
-          0
-        ],
-        "vel": [
-          0
-        ],
-        "cog": [
-          0
-        ],
-        "satellites_visible": [
-          0
-        ],
-        "alt_ellipsoid": [
-          0
-        ],
-        "h_acc": [
-          0
-        ],
-        "v_acc": [
-          0
-        ],
-        "vel_acc": [
-          0
-        ],
-        "hdg_acc": [
-          0
-        ],
-        "yaw": [
-          0
-        ]
+        "time_usec": 1,
+        "lat": 0,
+        "lon": 0,
+        "alt": 0,
+        "eph": 0,
+        "epv": 0,
+        "vel": 0,
+        "cog": 0,
+        "fix_type": 0,
+        "satellites_visible": 0,
+        "alt_ellipsoid": 0,
+        "h_acc": 0,
+        "v_acc": 0,
+        "vel_acc": 0,
+        "hdg_acc": 0,
+        "yaw": 0
       },
-      "variant": "zero"
-    },
-    {
-      "id": 24,
-      "hex": "fd3400001a2a07180000ffffffffffffffff000000800000008000000080ffffffffffffffffffff00000080ffffffffffffffffffffffffffffffffffffcb5d",
-      "payloadHex": "ffffffffffffffff000000800000008000000080ffffffffffffffffffff00000080ffffffffffffffffffffffffffffffffffff",
-      "values": {
-        "time_usec": [
-          4294967295,
-          4294967295
-        ],
-        "fix_type": [
-          255
-        ],
-        "lat": [
-          -2147483648
-        ],
-        "lon": [
-          -2147483648
-        ],
-        "alt": [
-          -2147483648
-        ],
-        "eph": [
-          65535
-        ],
-        "epv": [
-          65535
-        ],
-        "vel": [
-          65535
-        ],
-        "cog": [
-          65535
-        ],
-        "satellites_visible": [
-          255
-        ],
-        "alt_ellipsoid": [
-          -2147483648
-        ],
-        "h_acc": [
-          4294967295
-        ],
-        "v_acc": [
-          4294967295
-        ],
-        "vel_acc": [
-          4294967295
-        ],
-        "hdg_acc": [
-          4294967295
-        ],
-        "yaw": [
-          65535
-        ]
-      },
-      "variant": "limits"
+      "hex": "fd010000102a0718000001b603"
     },
     {
       "id": 27,
-      "hex": "fd1d00001b2a071b00000d00000000000000fefffdfffcfffbfffafff9fff8fff7fff6ff8ff4ff8515",
-      "payloadHex": "0d00000000000000fefffdfffcfffbfffafff9fff8fff7fff6ff8ff4ff",
+      "name": "RAW_IMU",
+      "style": "pattern",
+      "sequence": 17,
       "values": {
-        "time_usec": [
-          13,
-          0
-        ],
-        "xacc": [
-          -2
-        ],
-        "yacc": [
-          -3
-        ],
-        "zacc": [
-          -4
-        ],
-        "xgyro": [
-          -5
-        ],
-        "ygyro": [
-          -6
-        ],
-        "zgyro": [
-          -7
-        ],
-        "xmag": [
-          -8
-        ],
-        "ymag": [
-          -9
-        ],
-        "zmag": [
-          -10
-        ],
-        "id": [
-          143
-        ],
-        "temperature": [
-          -12
-        ]
+        "time_usec": 1234567890136,
+        "xacc": -24563,
+        "yacc": -20464,
+        "zacc": -16365,
+        "xgyro": -12266,
+        "ygyro": -8167,
+        "zgyro": -4068,
+        "xmag": 31,
+        "ymag": 4130,
+        "zmag": 8229,
+        "id": 154,
+        "temperature": 16427
       },
-      "variant": "distinct"
+      "hex": "fd1d0000112a071b0000d804fb711f0100000da010b013c016d019e01cf01f00221025209a2b400d9d"
     },
     {
       "id": 27,
-      "hex": "fd0100001c2a071b0000008034",
-      "payloadHex": "00",
+      "name": "RAW_IMU",
+      "style": "minimal",
+      "sequence": 18,
       "values": {
-        "time_usec": [
-          0,
-          0
-        ],
-        "xacc": [
-          0
-        ],
-        "yacc": [
-          0
-        ],
-        "zacc": [
-          0
-        ],
-        "xgyro": [
-          0
-        ],
-        "ygyro": [
-          0
-        ],
-        "zgyro": [
-          0
-        ],
-        "xmag": [
-          0
-        ],
-        "ymag": [
-          0
-        ],
-        "zmag": [
-          0
-        ],
-        "id": [
-          0
-        ],
-        "temperature": [
-          0
-        ]
+        "time_usec": 1,
+        "xacc": 0,
+        "yacc": 0,
+        "zacc": 0,
+        "xgyro": 0,
+        "ygyro": 0,
+        "zgyro": 0,
+        "xmag": 0,
+        "ymag": 0,
+        "zmag": 0,
+        "id": 0,
+        "temperature": 0
       },
-      "variant": "zero"
-    },
-    {
-      "id": 27,
-      "hex": "fd1d00001d2a071b0000ffffffffffffffff008000800080008000800080008000800080ff00801c61",
-      "payloadHex": "ffffffffffffffff008000800080008000800080008000800080ff0080",
-      "values": {
-        "time_usec": [
-          4294967295,
-          4294967295
-        ],
-        "xacc": [
-          -32768
-        ],
-        "yacc": [
-          -32768
-        ],
-        "zacc": [
-          -32768
-        ],
-        "xgyro": [
-          -32768
-        ],
-        "ygyro": [
-          -32768
-        ],
-        "zgyro": [
-          -32768
-        ],
-        "xmag": [
-          -32768
-        ],
-        "ymag": [
-          -32768
-        ],
-        "zmag": [
-          -32768
-        ],
-        "id": [
-          255
-        ],
-        "temperature": [
-          -32768
-        ]
-      },
-      "variant": "limits"
+      "hex": "fd010000122a071b000001551d"
     },
     {
       "id": 30,
-      "hex": "fd1c00001e2a071e00000d000000000010c000005040000088c00000a8400000c8c00000e8405f14",
-      "payloadHex": "0d000000000010c000005040000088c00000a8400000c8c00000e840",
+      "name": "ATTITUDE",
+      "style": "pattern",
+      "sequence": 19,
       "values": {
-        "time_boot_ms": [
-          13
-        ],
-        "roll": [
-          -2.25
-        ],
-        "pitch": [
-          3.25
-        ],
-        "yaw": [
-          -4.25
-        ],
-        "rollspeed": [
-          5.25
-        ],
-        "pitchspeed": [
-          -6.25
-        ],
-        "yawspeed": [
-          7.25
-        ]
+        "time_boot_ms": 2654435772,
+        "roll": -14.75,
+        "pitch": -13.375,
+        "yaw": -12.0,
+        "rollspeed": -10.625,
+        "pitchspeed": -9.25,
+        "yawspeed": -7.875
       },
-      "variant": "distinct"
+      "hex": "fd1c0000132a071e0000bc79379e00006cc1000056c1000040c100002ac1000014c10000fcc0dc6f"
     },
     {
       "id": 30,
-      "hex": "fd0100001f2a071e0000003059",
-      "payloadHex": "00",
+      "name": "ATTITUDE",
+      "style": "minimal",
+      "sequence": 20,
       "values": {
-        "time_boot_ms": [
-          0
-        ],
-        "roll": [
-          0
-        ],
-        "pitch": [
-          0
-        ],
-        "yaw": [
-          0
-        ],
-        "rollspeed": [
-          0
-        ],
-        "pitchspeed": [
-          0
-        ],
-        "yawspeed": [
-          0
-        ]
+        "time_boot_ms": 1,
+        "roll": 0,
+        "pitch": 0,
+        "yaw": 0,
+        "rollspeed": 0,
+        "pitchspeed": 0,
+        "yawspeed": 0
       },
-      "variant": "zero"
-    },
-    {
-      "id": 30,
-      "hex": "fd1c0000202a071e0000ffffffff000010c000005040000088c00000a8400000c8c00000e8405077",
-      "payloadHex": "ffffffff000010c000005040000088c00000a8400000c8c00000e840",
-      "values": {
-        "time_boot_ms": [
-          4294967295
-        ],
-        "roll": [
-          -2.25
-        ],
-        "pitch": [
-          3.25
-        ],
-        "yaw": [
-          -4.25
-        ],
-        "rollspeed": [
-          5.25
-        ],
-        "pitchspeed": [
-          -6.25
-        ],
-        "yawspeed": [
-          7.25
-        ]
-      },
-      "variant": "limits"
+      "hex": "fd010000142a071e00000184e7"
     },
     {
       "id": 32,
-      "hex": "fd1c0000212a072000000d000000000010c000005040000088c00000a8400000c8c00000e840e915",
-      "payloadHex": "0d000000000010c000005040000088c00000a8400000c8c00000e840",
+      "name": "LOCAL_POSITION_NED",
+      "style": "pattern",
+      "sequence": 21,
       "values": {
-        "time_boot_ms": [
-          13
-        ],
-        "x": [
-          -2.25
-        ],
-        "y": [
-          3.25
-        ],
-        "z": [
-          -4.25
-        ],
-        "vx": [
-          5.25
-        ],
-        "vy": [
-          -6.25
-        ],
-        "vz": [
-          7.25
-        ]
+        "time_boot_ms": 2654435772,
+        "x": -14.75,
+        "y": -13.375,
+        "z": -12.0,
+        "vx": -10.625,
+        "vy": -9.25,
+        "vz": -7.875
       },
-      "variant": "distinct"
+      "hex": "fd1c0000152a07200000bc79379e00006cc1000056c1000040c100002ac1000014c10000fcc03a76"
     },
     {
       "id": 32,
-      "hex": "fd010000222a0720000000fbc6",
-      "payloadHex": "00",
+      "name": "LOCAL_POSITION_NED",
+      "style": "minimal",
+      "sequence": 22,
       "values": {
-        "time_boot_ms": [
-          0
-        ],
-        "x": [
-          0
-        ],
-        "y": [
-          0
-        ],
-        "z": [
-          0
-        ],
-        "vx": [
-          0
-        ],
-        "vy": [
-          0
-        ],
-        "vz": [
-          0
-        ]
+        "time_boot_ms": 1,
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "vx": 0,
+        "vy": 0,
+        "vz": 0
       },
-      "variant": "zero"
-    },
-    {
-      "id": 32,
-      "hex": "fd1c0000232a07200000ffffffff000010c000005040000088c00000a8400000c8c00000e8406b57",
-      "payloadHex": "ffffffff000010c000005040000088c00000a8400000c8c00000e840",
-      "values": {
-        "time_boot_ms": [
-          4294967295
-        ],
-        "x": [
-          -2.25
-        ],
-        "y": [
-          3.25
-        ],
-        "z": [
-          -4.25
-        ],
-        "vx": [
-          5.25
-        ],
-        "vy": [
-          -6.25
-        ],
-        "vz": [
-          7.25
-        ]
-      },
-      "variant": "limits"
+      "hex": "fd010000162a07200000017524"
     },
     {
       "id": 33,
-      "hex": "fd1b0000242a072100000d000000fefffffffdfffffffcfffffffbfffffffafff9fff8ff75cde2",
-      "payloadHex": "0d000000fefffffffdfffffffcfffffffbfffffffafff9fff8ff75",
+      "name": "GLOBAL_POSITION_INT",
+      "style": "pattern",
+      "sequence": 23,
       "values": {
-        "time_boot_ms": [
-          13
-        ],
-        "lat": [
-          -2
-        ],
-        "lon": [
-          -3
-        ],
-        "alt": [
-          -4
-        ],
-        "relative_alt": [
-          -5
-        ],
-        "vx": [
-          -6
-        ],
-        "vy": [
-          -7
-        ],
-        "vz": [
-          -8
-        ],
-        "hdg": [
-          117
-        ]
+        "time_boot_ms": 2654435772,
+        "lat": -1133579411,
+        "lon": 1520856350,
+        "alt": -119675185,
+        "relative_alt": -1760206720,
+        "vx": -8167,
+        "vy": -4068,
+        "vz": 31,
+        "hdg": 36898
       },
-      "variant": "distinct"
+      "hex": "fd1c0000172a07210000bc79379e6df36ebc1e6da65acfe6ddf88060159719e01cf01f002290c8ed"
     },
     {
       "id": 33,
-      "hex": "fd010000252a0721000000b596",
-      "payloadHex": "00",
+      "name": "GLOBAL_POSITION_INT",
+      "style": "minimal",
+      "sequence": 24,
       "values": {
-        "time_boot_ms": [
-          0
-        ],
-        "lat": [
-          0
-        ],
-        "lon": [
-          0
-        ],
-        "alt": [
-          0
-        ],
-        "relative_alt": [
-          0
-        ],
-        "vx": [
-          0
-        ],
-        "vy": [
-          0
-        ],
-        "vz": [
-          0
-        ],
-        "hdg": [
-          0
-        ]
+        "time_boot_ms": 1,
+        "lat": 0,
+        "lon": 0,
+        "alt": 0,
+        "relative_alt": 0,
+        "vx": 0,
+        "vy": 0,
+        "vz": 0,
+        "hdg": 0
       },
-      "variant": "zero"
-    },
-    {
-      "id": 33,
-      "hex": "fd1c0000262a07210000ffffffff00000080000000800000008000000080008000800080ffff6d1c",
-      "payloadHex": "ffffffff00000080000000800000008000000080008000800080ffff",
-      "values": {
-        "time_boot_ms": [
-          4294967295
-        ],
-        "lat": [
-          -2147483648
-        ],
-        "lon": [
-          -2147483648
-        ],
-        "alt": [
-          -2147483648
-        ],
-        "relative_alt": [
-          -2147483648
-        ],
-        "vx": [
-          -32768
-        ],
-        "vy": [
-          -32768
-        ],
-        "vz": [
-          -32768
-        ],
-        "hdg": [
-          65535
-        ]
-      },
-      "variant": "limits"
+      "hex": "fd010000182a072100000138d8"
     },
     {
       "id": 36,
-      "hex": "fd240000272a072400000d0000002700340041004e005b006800750082001a8f009c00a900b600c300d000dd00ead93e",
-      "payloadHex": "0d0000002700340041004e005b006800750082001a8f009c00a900b600c300d000dd00ea",
+      "name": "SERVO_OUTPUT_RAW",
+      "style": "pattern",
+      "sequence": 25,
       "values": {
-        "time_usec": [
-          13
-        ],
-        "port": [
-          26
-        ],
-        "servo1_raw": [
-          39
-        ],
-        "servo2_raw": [
-          52
-        ],
-        "servo3_raw": [
-          65
-        ],
-        "servo4_raw": [
-          78
-        ],
-        "servo5_raw": [
-          91
-        ],
-        "servo6_raw": [
-          104
-        ],
-        "servo7_raw": [
-          117
-        ],
-        "servo8_raw": [
-          130
-        ],
-        "servo9_raw": [
-          143
-        ],
-        "servo10_raw": [
-          156
-        ],
-        "servo11_raw": [
-          169
-        ],
-        "servo12_raw": [
-          182
-        ],
-        "servo13_raw": [
-          195
-        ],
-        "servo14_raw": [
-          208
-        ],
-        "servo15_raw": [
-          221
-        ],
-        "servo16_raw": [
-          234
-        ]
+        "time_usec": 2654435772,
+        "servo1_raw": 8205,
+        "servo2_raw": 12304,
+        "servo3_raw": 16403,
+        "servo4_raw": 20502,
+        "servo5_raw": 24601,
+        "servo6_raw": 28700,
+        "servo7_raw": 32799,
+        "servo8_raw": 36898,
+        "port": 117,
+        "servo9_raw": 45096,
+        "servo10_raw": 49195,
+        "servo11_raw": 53294,
+        "servo12_raw": 57393,
+        "servo13_raw": 61492,
+        "servo14_raw": 55,
+        "servo15_raw": 4154,
+        "servo16_raw": 8253
       },
-      "variant": "distinct"
+      "hex": "fd250000192a07240000bc79379e0d2010301340165019601c701f8022907528b02bc02ed031e034f037003a103d20571b"
     },
     {
       "id": 36,
-      "hex": "fd010000282a072400000081da",
-      "payloadHex": "00",
+      "name": "SERVO_OUTPUT_RAW",
+      "style": "minimal",
+      "sequence": 26,
       "values": {
-        "time_usec": [
-          0
-        ],
-        "port": [
-          0
-        ],
-        "servo1_raw": [
-          0
-        ],
-        "servo2_raw": [
-          0
-        ],
-        "servo3_raw": [
-          0
-        ],
-        "servo4_raw": [
-          0
-        ],
-        "servo5_raw": [
-          0
-        ],
-        "servo6_raw": [
-          0
-        ],
-        "servo7_raw": [
-          0
-        ],
-        "servo8_raw": [
-          0
-        ],
-        "servo9_raw": [
-          0
-        ],
-        "servo10_raw": [
-          0
-        ],
-        "servo11_raw": [
-          0
-        ],
-        "servo12_raw": [
-          0
-        ],
-        "servo13_raw": [
-          0
-        ],
-        "servo14_raw": [
-          0
-        ],
-        "servo15_raw": [
-          0
-        ],
-        "servo16_raw": [
-          0
-        ]
+        "time_usec": 1,
+        "servo1_raw": 0,
+        "servo2_raw": 0,
+        "servo3_raw": 0,
+        "servo4_raw": 0,
+        "servo5_raw": 0,
+        "servo6_raw": 0,
+        "servo7_raw": 0,
+        "servo8_raw": 0,
+        "port": 0,
+        "servo9_raw": 0,
+        "servo10_raw": 0,
+        "servo11_raw": 0,
+        "servo12_raw": 0,
+        "servo13_raw": 0,
+        "servo14_raw": 0,
+        "servo15_raw": 0,
+        "servo16_raw": 0
       },
-      "variant": "zero"
-    },
-    {
-      "id": 36,
-      "hex": "fd250000292a07240000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffd4d2",
-      "payloadHex": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
-      "values": {
-        "time_usec": [
-          4294967295
-        ],
-        "port": [
-          255
-        ],
-        "servo1_raw": [
-          65535
-        ],
-        "servo2_raw": [
-          65535
-        ],
-        "servo3_raw": [
-          65535
-        ],
-        "servo4_raw": [
-          65535
-        ],
-        "servo5_raw": [
-          65535
-        ],
-        "servo6_raw": [
-          65535
-        ],
-        "servo7_raw": [
-          65535
-        ],
-        "servo8_raw": [
-          65535
-        ],
-        "servo9_raw": [
-          65535
-        ],
-        "servo10_raw": [
-          65535
-        ],
-        "servo11_raw": [
-          65535
-        ],
-        "servo12_raw": [
-          65535
-        ],
-        "servo13_raw": [
-          65535
-        ],
-        "servo14_raw": [
-          65535
-        ],
-        "servo15_raw": [
-          65535
-        ],
-        "servo16_raw": [
-          65535
-        ]
-      },
-      "variant": "limits"
-    },
-    {
-      "id": 37,
-      "hex": "fd0700002a2a07250000fdfffcff0d1a411bc9",
-      "payloadHex": "fdfffcff0d1a41",
-      "values": {
-        "target_system": [
-          13
-        ],
-        "target_component": [
-          26
-        ],
-        "start_index": [
-          -3
-        ],
-        "end_index": [
-          -4
-        ],
-        "mission_type": [
-          65
-        ]
-      },
-      "variant": "distinct"
-    },
-    {
-      "id": 37,
-      "hex": "fd0100002b2a07250000004ff4",
-      "payloadHex": "00",
-      "values": {
-        "target_system": [
-          0
-        ],
-        "target_component": [
-          0
-        ],
-        "start_index": [
-          0
-        ],
-        "end_index": [
-          0
-        ],
-        "mission_type": [
-          0
-        ]
-      },
-      "variant": "zero"
-    },
-    {
-      "id": 37,
-      "hex": "fd0700002c2a0725000000800080ffffffef66",
-      "payloadHex": "00800080ffffff",
-      "values": {
-        "target_system": [
-          255
-        ],
-        "target_component": [
-          255
-        ],
-        "start_index": [
-          -32768
-        ],
-        "end_index": [
-          -32768
-        ],
-        "mission_type": [
-          255
-        ]
-      },
-      "variant": "limits"
-    },
-    {
-      "id": 38,
-      "hex": "fd0700002d2a07260000fdfffcff0d1a41474a",
-      "payloadHex": "fdfffcff0d1a41",
-      "values": {
-        "target_system": [
-          13
-        ],
-        "target_component": [
-          26
-        ],
-        "start_index": [
-          -3
-        ],
-        "end_index": [
-          -4
-        ],
-        "mission_type": [
-          65
-        ]
-      },
-      "variant": "distinct"
-    },
-    {
-      "id": 38,
-      "hex": "fd0100002e2a07260000008a73",
-      "payloadHex": "00",
-      "values": {
-        "target_system": [
-          0
-        ],
-        "target_component": [
-          0
-        ],
-        "start_index": [
-          0
-        ],
-        "end_index": [
-          0
-        ],
-        "mission_type": [
-          0
-        ]
-      },
-      "variant": "zero"
-    },
-    {
-      "id": 38,
-      "hex": "fd0700002f2a0726000000800080ffffff0a16",
-      "payloadHex": "00800080ffffff",
-      "values": {
-        "target_system": [
-          255
-        ],
-        "target_component": [
-          255
-        ],
-        "start_index": [
-          -32768
-        ],
-        "end_index": [
-          -32768
-        ],
-        "mission_type": [
-          255
-        ]
-      },
-      "variant": "limits"
-    },
-    {
-      "id": 39,
-      "hex": "fd260000302a07270000000004c100001441000024c100003441000044c100005441000064c1270041000d1a344e5bc33bf1",
-      "payloadHex": "000004c100001441000024c100003441000044c100005441000064c1270041000d1a344e5bc3",
-      "values": {
-        "target_system": [
-          13
-        ],
-        "target_component": [
-          26
-        ],
-        "seq": [
-          39
-        ],
-        "frame": [
-          52
-        ],
-        "command": [
-          65
-        ],
-        "current": [
-          78
-        ],
-        "autocontinue": [
-          91
-        ],
-        "param1": [
-          -8.25
-        ],
-        "param2": [
-          9.25
-        ],
-        "param3": [
-          -10.25
-        ],
-        "param4": [
-          11.25
-        ],
-        "x": [
-          -12.25
-        ],
-        "y": [
-          13.25
-        ],
-        "z": [
-          -14.25
-        ],
-        "mission_type": [
-          195
-        ]
-      },
-      "variant": "distinct"
-    },
-    {
-      "id": 39,
-      "hex": "fd010000312a07270000003411",
-      "payloadHex": "00",
-      "values": {
-        "target_system": [
-          0
-        ],
-        "target_component": [
-          0
-        ],
-        "seq": [
-          0
-        ],
-        "frame": [
-          0
-        ],
-        "command": [
-          0
-        ],
-        "current": [
-          0
-        ],
-        "autocontinue": [
-          0
-        ],
-        "param1": [
-          0
-        ],
-        "param2": [
-          0
-        ],
-        "param3": [
-          0
-        ],
-        "param4": [
-          0
-        ],
-        "x": [
-          0
-        ],
-        "y": [
-          0
-        ],
-        "z": [
-          0
-        ],
-        "mission_type": [
-          0
-        ]
-      },
-      "variant": "zero"
-    },
-    {
-      "id": 39,
-      "hex": "fd260000322a07270000000004c100001441000024c100003441000044c100005441000064c1fffffffffffffffffffffafe",
-      "payloadHex": "000004c100001441000024c100003441000044c100005441000064c1ffffffffffffffffffff",
-      "values": {
-        "target_system": [
-          255
-        ],
-        "target_component": [
-          255
-        ],
-        "seq": [
-          65535
-        ],
-        "frame": [
-          255
-        ],
-        "command": [
-          65535
-        ],
-        "current": [
-          255
-        ],
-        "autocontinue": [
-          255
-        ],
-        "param1": [
-          -8.25
-        ],
-        "param2": [
-          9.25
-        ],
-        "param3": [
-          -10.25
-        ],
-        "param4": [
-          11.25
-        ],
-        "x": [
-          -12.25
-        ],
-        "y": [
-          13.25
-        ],
-        "z": [
-          -14.25
-        ],
-        "mission_type": [
-          255
-        ]
-      },
-      "variant": "limits"
+      "hex": "fd0100001a2a0724000001be25"
     },
     {
       "id": 40,
-      "hex": "fd050000332a0728000027000d1a344814",
-      "payloadHex": "27000d1a34",
+      "name": "MISSION_REQUEST",
+      "style": "pattern",
+      "sequence": 27,
       "values": {
-        "target_system": [
-          13
-        ],
-        "target_component": [
-          26
-        ],
-        "seq": [
-          39
-        ],
-        "mission_type": [
-          52
-        ]
+        "seq": 4106,
+        "target_system": 77,
+        "target_component": 114,
+        "mission_type": 151
       },
-      "variant": "distinct"
+      "hex": "fd0500001b2a072800000a104d72974461"
     },
     {
       "id": 40,
-      "hex": "fd010000342a07280000006070",
-      "payloadHex": "00",
+      "name": "MISSION_REQUEST",
+      "style": "minimal",
+      "sequence": 28,
       "values": {
-        "target_system": [
-          0
-        ],
-        "target_component": [
-          0
-        ],
-        "seq": [
-          0
-        ],
-        "mission_type": [
-          0
-        ]
+        "seq": 1,
+        "target_system": 0,
+        "target_component": 0,
+        "mission_type": 0
       },
-      "variant": "zero"
-    },
-    {
-      "id": 40,
-      "hex": "fd050000352a07280000ffffffffff07d2",
-      "payloadHex": "ffffffffff",
-      "values": {
-        "target_system": [
-          255
-        ],
-        "target_component": [
-          255
-        ],
-        "seq": [
-          65535
-        ],
-        "mission_type": [
-          255
-        ]
-      },
-      "variant": "limits"
+      "hex": "fd0100001c2a0728000001f4f2"
     },
     {
       "id": 41,
-      "hex": "fd040000362a0729000027000d1a69b0",
-      "payloadHex": "27000d1a",
+      "name": "MISSION_SET_CURRENT",
+      "style": "pattern",
+      "sequence": 29,
       "values": {
-        "target_system": [
-          13
-        ],
-        "target_component": [
-          26
-        ],
-        "seq": [
-          39
-        ]
+        "seq": 4106,
+        "target_system": 77,
+        "target_component": 114
       },
-      "variant": "distinct"
+      "hex": "fd0400001d2a072900000a104d725d62"
     },
     {
       "id": 41,
-      "hex": "fd010000372a072900000021a9",
-      "payloadHex": "00",
+      "name": "MISSION_SET_CURRENT",
+      "style": "minimal",
+      "sequence": 30,
       "values": {
-        "target_system": [
-          0
-        ],
-        "target_component": [
-          0
-        ],
-        "seq": [
-          0
-        ]
+        "seq": 1,
+        "target_system": 0,
+        "target_component": 0
       },
-      "variant": "zero"
-    },
-    {
-      "id": 41,
-      "hex": "fd040000382a07290000ffffffffdc37",
-      "payloadHex": "ffffffff",
-      "values": {
-        "target_system": [
-          255
-        ],
-        "target_component": [
-          255
-        ],
-        "seq": [
-          65535
-        ]
-      },
-      "variant": "limits"
+      "hex": "fd0100001e2a07290000010aaa"
     },
     {
       "id": 42,
-      "hex": "fd0f0000392a072a00000d001a002734410000004e0000005b0cac",
-      "payloadHex": "0d001a002734410000004e0000005b",
+      "name": "MISSION_CURRENT",
+      "style": "pattern",
+      "sequence": 31,
       "values": {
-        "seq": [
-          13
-        ],
-        "total": [
-          26
-        ],
-        "mission_state": [
-          39
-        ],
-        "mission_mode": [
-          52
-        ],
-        "mission_id": [
-          65
-        ],
-        "fence_id": [
-          78
-        ],
-        "rally_points_id": [
-          91
-        ]
+        "seq": 4106,
+        "total": 8205,
+        "mission_state": 114,
+        "mission_mode": 151,
+        "mission_id": 387276928,
+        "fence_id": 3041712689,
+        "rally_points_id": 1401181154
       },
-      "variant": "distinct"
+      "hex": "fd1200001f2a072a00000a100d2072978060151731da4cb5e2538453b39a"
     },
     {
       "id": 42,
-      "hex": "fd0100003a2a072a000000300e",
-      "payloadHex": "00",
+      "name": "MISSION_CURRENT",
+      "style": "minimal",
+      "sequence": 32,
       "values": {
-        "seq": [
-          0
-        ],
-        "total": [
-          0
-        ],
-        "mission_state": [
-          0
-        ],
-        "mission_mode": [
-          0
-        ],
-        "mission_id": [
-          0
-        ],
-        "fence_id": [
-          0
-        ],
-        "rally_points_id": [
-          0
-        ]
+        "seq": 1,
+        "total": 0,
+        "mission_state": 0,
+        "mission_mode": 0,
+        "mission_id": 0,
+        "fence_id": 0,
+        "rally_points_id": 0
       },
-      "variant": "zero"
-    },
-    {
-      "id": 42,
-      "hex": "fd1200003b2a072a0000ffffffffffffffffffffffffffffffffffff1d04",
-      "payloadHex": "ffffffffffffffffffffffffffffffffffff",
-      "values": {
-        "seq": [
-          65535
-        ],
-        "total": [
-          65535
-        ],
-        "mission_state": [
-          255
-        ],
-        "mission_mode": [
-          255
-        ],
-        "mission_id": [
-          4294967295
-        ],
-        "fence_id": [
-          4294967295
-        ],
-        "rally_points_id": [
-          4294967295
-        ]
-      },
-      "variant": "limits"
+      "hex": "fd010000202a072a000001436a"
     },
     {
       "id": 43,
-      "hex": "fd0300003c2a072b00000d1a27c0d2",
-      "payloadHex": "0d1a27",
+      "name": "MISSION_REQUEST_LIST",
+      "style": "pattern",
+      "sequence": 33,
       "values": {
-        "target_system": [
-          13
-        ],
-        "target_component": [
-          26
-        ],
-        "mission_type": [
-          39
-        ]
+        "target_system": 40,
+        "target_component": 77,
+        "mission_type": 114
       },
-      "variant": "distinct"
+      "hex": "fd030000212a072b0000284d72adb6"
     },
     {
       "id": 43,
-      "hex": "fd0100003d2a072b000000bb81",
-      "payloadHex": "00",
+      "name": "MISSION_REQUEST_LIST",
+      "style": "minimal",
+      "sequence": 34,
       "values": {
-        "target_system": [
-          0
-        ],
-        "target_component": [
-          0
-        ],
-        "mission_type": [
-          0
-        ]
+        "target_system": 1,
+        "target_component": 0,
+        "mission_type": 0
       },
-      "variant": "zero"
-    },
-    {
-      "id": 43,
-      "hex": "fd0300003e2a072b0000ffffff3465",
-      "payloadHex": "ffffff",
-      "values": {
-        "target_system": [
-          255
-        ],
-        "target_component": [
-          255
-        ],
-        "mission_type": [
-          255
-        ]
-      },
-      "variant": "limits"
+      "hex": "fd010000222a072b000001a972"
     },
     {
       "id": 44,
-      "hex": "fd0600003f2a072c000027000d1a3441a630",
-      "payloadHex": "27000d1a3441",
+      "name": "MISSION_COUNT",
+      "style": "pattern",
+      "sequence": 35,
       "values": {
-        "target_system": [
-          13
-        ],
-        "target_component": [
-          26
-        ],
-        "count": [
-          39
-        ],
-        "mission_type": [
-          52
-        ],
-        "opaque_id": [
-          65
-        ]
+        "count": 4106,
+        "target_system": 77,
+        "target_component": 114,
+        "mission_type": 151,
+        "opaque_id": 387276928
       },
-      "variant": "distinct"
+      "hex": "fd090000232a072c00000a104d7297806015172f1a"
     },
     {
       "id": 44,
-      "hex": "fd010000402a072c000000874c",
-      "payloadHex": "00",
+      "name": "MISSION_COUNT",
+      "style": "minimal",
+      "sequence": 36,
       "values": {
-        "target_system": [
-          0
-        ],
-        "target_component": [
-          0
-        ],
-        "count": [
-          0
-        ],
-        "mission_type": [
-          0
-        ],
-        "opaque_id": [
-          0
-        ]
+        "count": 1,
+        "target_system": 0,
+        "target_component": 0,
+        "mission_type": 0,
+        "opaque_id": 0
       },
-      "variant": "zero"
-    },
-    {
-      "id": 44,
-      "hex": "fd090000412a072c0000ffffffffffffffffff6cdc",
-      "payloadHex": "ffffffffffffffffff",
-      "values": {
-        "target_system": [
-          255
-        ],
-        "target_component": [
-          255
-        ],
-        "count": [
-          65535
-        ],
-        "mission_type": [
-          255
-        ],
-        "opaque_id": [
-          4294967295
-        ]
-      },
-      "variant": "limits"
+      "hex": "fd010000242a072c0000018090"
     },
     {
       "id": 45,
-      "hex": "fd030000422a072d00000d1a27008d",
-      "payloadHex": "0d1a27",
+      "name": "MISSION_CLEAR_ALL",
+      "style": "pattern",
+      "sequence": 37,
       "values": {
-        "target_system": [
-          13
-        ],
-        "target_component": [
-          26
-        ],
-        "mission_type": [
-          39
-        ]
+        "target_system": 40,
+        "target_component": 77,
+        "mission_type": 114
       },
-      "variant": "distinct"
+      "hex": "fd030000252a072d0000284d7296f7"
     },
     {
       "id": 45,
-      "hex": "fd010000432a072d0000003dab",
-      "payloadHex": "00",
+      "name": "MISSION_CLEAR_ALL",
+      "style": "minimal",
+      "sequence": 38,
       "values": {
-        "target_system": [
-          0
-        ],
-        "target_component": [
-          0
-        ],
-        "mission_type": [
-          0
-        ]
+        "target_system": 1,
+        "target_component": 0,
+        "mission_type": 0
       },
-      "variant": "zero"
-    },
-    {
-      "id": 45,
-      "hex": "fd030000442a072d0000ffffff688a",
-      "payloadHex": "ffffff",
-      "values": {
-        "target_system": [
-          255
-        ],
-        "target_component": [
-          255
-        ],
-        "mission_type": [
-          255
-        ]
-      },
-      "variant": "limits"
+      "hex": "fd010000262a072d00000185f6"
     },
     {
       "id": 46,
-      "hex": "fd010000452a072e00000dadce",
-      "payloadHex": "0d",
+      "name": "MISSION_ITEM_REACHED",
+      "style": "pattern",
+      "sequence": 39,
       "values": {
-        "seq": [
-          13
-        ]
+        "seq": 4106
       },
-      "variant": "distinct"
+      "hex": "fd020000272a072e00000a108030"
     },
     {
       "id": 46,
-      "hex": "fd010000462a072e00000005f4",
-      "payloadHex": "00",
+      "name": "MISSION_ITEM_REACHED",
+      "style": "minimal",
+      "sequence": 40,
       "values": {
-        "seq": [
-          0
-        ]
+        "seq": 1
       },
-      "variant": "zero"
-    },
-    {
-      "id": 46,
-      "hex": "fd020000472a072e0000ffff02fe",
-      "payloadHex": "ffff",
-      "values": {
-        "seq": [
-          65535
-        ]
-      },
-      "variant": "limits"
+      "hex": "fd010000282a072e000001d10e"
     },
     {
       "id": 47,
-      "hex": "fd050000482a072f00000d1a273441f708",
-      "payloadHex": "0d1a273441",
+      "name": "MISSION_ACK",
+      "style": "pattern",
+      "sequence": 41,
       "values": {
-        "target_system": [
-          13
-        ],
-        "target_component": [
-          26
-        ],
-        "type": [
-          39
-        ],
-        "mission_type": [
-          52
-        ],
-        "opaque_id": [
-          65
-        ]
+        "target_system": 40,
+        "target_component": 77,
+        "type": 114,
+        "mission_type": 151,
+        "opaque_id": 387276928
       },
-      "variant": "distinct"
+      "hex": "fd080000292a072f0000284d7297806015174026"
     },
     {
       "id": 47,
-      "hex": "fd010000492a072f00000068f9",
-      "payloadHex": "00",
+      "name": "MISSION_ACK",
+      "style": "minimal",
+      "sequence": 42,
       "values": {
-        "target_system": [
-          0
-        ],
-        "target_component": [
-          0
-        ],
-        "type": [
-          0
-        ],
-        "mission_type": [
-          0
-        ],
-        "opaque_id": [
-          0
-        ]
+        "target_system": 1,
+        "target_component": 0,
+        "type": 0,
+        "mission_type": 0,
+        "opaque_id": 0
       },
-      "variant": "zero"
-    },
-    {
-      "id": 47,
-      "hex": "fd0800004a2a072f0000ffffffffffffffff9241",
-      "payloadHex": "ffffffffffffffff",
-      "values": {
-        "target_system": [
-          255
-        ],
-        "target_component": [
-          255
-        ],
-        "type": [
-          255
-        ],
-        "mission_type": [
-          255
-        ],
-        "opaque_id": [
-          4294967295
-        ]
-      },
-      "variant": "limits"
+      "hex": "fd0100002a2a072f00000161b9"
     },
     {
       "id": 51,
-      "hex": "fd0500004b2a0733000027000d1a34e523",
-      "payloadHex": "27000d1a34",
+      "name": "MISSION_REQUEST_INT",
+      "style": "pattern",
+      "sequence": 43,
       "values": {
-        "target_system": [
-          13
-        ],
-        "target_component": [
-          26
-        ],
-        "seq": [
-          39
-        ],
-        "mission_type": [
-          52
-        ]
+        "seq": 4106,
+        "target_system": 77,
+        "target_component": 114,
+        "mission_type": 151
       },
-      "variant": "distinct"
+      "hex": "fd0500002b2a073300000a104d7297650b"
     },
     {
       "id": 51,
-      "hex": "fd0100004c2a07330000001924",
-      "payloadHex": "00",
+      "name": "MISSION_REQUEST_INT",
+      "style": "minimal",
+      "sequence": 44,
       "values": {
-        "target_system": [
-          0
-        ],
-        "target_component": [
-          0
-        ],
-        "seq": [
-          0
-        ],
-        "mission_type": [
-          0
-        ]
+        "seq": 1,
+        "target_system": 0,
+        "target_component": 0,
+        "mission_type": 0
       },
-      "variant": "zero"
-    },
-    {
-      "id": 51,
-      "hex": "fd0500004d2a07330000ffffffffffaae5",
-      "payloadHex": "ffffffffff",
-      "values": {
-        "target_system": [
-          255
-        ],
-        "target_component": [
-          255
-        ],
-        "seq": [
-          65535
-        ],
-        "mission_type": [
-          255
-        ]
-      },
-      "variant": "limits"
+      "hex": "fd0100002c2a0733000001c0ee"
     },
     {
       "id": 70,
-      "hex": "fd2600004e2a074600002700340041004e005b006800750082000d1a8f009c00a900b600c300d000dd00ea00f700040123a7",
-      "payloadHex": "2700340041004e005b006800750082000d1a8f009c00a900b600c300d000dd00ea00f7000401",
+      "name": "RC_CHANNELS_OVERRIDE",
+      "style": "pattern",
+      "sequence": 45,
       "values": {
-        "target_system": [
-          13
-        ],
-        "target_component": [
-          26
-        ],
-        "chan1_raw": [
-          39
-        ],
-        "chan2_raw": [
-          52
-        ],
-        "chan3_raw": [
-          65
-        ],
-        "chan4_raw": [
-          78
-        ],
-        "chan5_raw": [
-          91
-        ],
-        "chan6_raw": [
-          104
-        ],
-        "chan7_raw": [
-          117
-        ],
-        "chan8_raw": [
-          130
-        ],
-        "chan9_raw": [
-          143
-        ],
-        "chan10_raw": [
-          156
-        ],
-        "chan11_raw": [
-          169
-        ],
-        "chan12_raw": [
-          182
-        ],
-        "chan13_raw": [
-          195
-        ],
-        "chan14_raw": [
-          208
-        ],
-        "chan15_raw": [
-          221
-        ],
-        "chan16_raw": [
-          234
-        ],
-        "chan17_raw": [
-          247
-        ],
-        "chan18_raw": [
-          260
-        ]
+        "chan1_raw": 4106,
+        "chan2_raw": 8205,
+        "chan3_raw": 12304,
+        "chan4_raw": 16403,
+        "chan5_raw": 20502,
+        "chan6_raw": 24601,
+        "chan7_raw": 28700,
+        "chan8_raw": 32799,
+        "target_system": 80,
+        "target_component": 117,
+        "chan9_raw": 45096,
+        "chan10_raw": 49195,
+        "chan11_raw": 53294,
+        "chan12_raw": 57393,
+        "chan13_raw": 61492,
+        "chan14_raw": 55,
+        "chan15_raw": 4154,
+        "chan16_raw": 8253,
+        "chan17_raw": 12352,
+        "chan18_raw": 16451
       },
-      "variant": "distinct"
+      "hex": "fd2600002d2a074600000a100d2010301340165019601c701f80507528b02bc02ed031e034f037003a103d20403043406e45"
     },
     {
       "id": 70,
-      "hex": "fd0100004f2a0746000000ada4",
-      "payloadHex": "00",
+      "name": "RC_CHANNELS_OVERRIDE",
+      "style": "minimal",
+      "sequence": 46,
       "values": {
-        "target_system": [
-          0
-        ],
-        "target_component": [
-          0
-        ],
-        "chan1_raw": [
-          0
-        ],
-        "chan2_raw": [
-          0
-        ],
-        "chan3_raw": [
-          0
-        ],
-        "chan4_raw": [
-          0
-        ],
-        "chan5_raw": [
-          0
-        ],
-        "chan6_raw": [
-          0
-        ],
-        "chan7_raw": [
-          0
-        ],
-        "chan8_raw": [
-          0
-        ],
-        "chan9_raw": [
-          0
-        ],
-        "chan10_raw": [
-          0
-        ],
-        "chan11_raw": [
-          0
-        ],
-        "chan12_raw": [
-          0
-        ],
-        "chan13_raw": [
-          0
-        ],
-        "chan14_raw": [
-          0
-        ],
-        "chan15_raw": [
-          0
-        ],
-        "chan16_raw": [
-          0
-        ],
-        "chan17_raw": [
-          0
-        ],
-        "chan18_raw": [
-          0
-        ]
+        "chan1_raw": 1,
+        "chan2_raw": 0,
+        "chan3_raw": 0,
+        "chan4_raw": 0,
+        "chan5_raw": 0,
+        "chan6_raw": 0,
+        "chan7_raw": 0,
+        "chan8_raw": 0,
+        "target_system": 0,
+        "target_component": 0,
+        "chan9_raw": 0,
+        "chan10_raw": 0,
+        "chan11_raw": 0,
+        "chan12_raw": 0,
+        "chan13_raw": 0,
+        "chan14_raw": 0,
+        "chan15_raw": 0,
+        "chan16_raw": 0,
+        "chan17_raw": 0,
+        "chan18_raw": 0
       },
-      "variant": "zero"
-    },
-    {
-      "id": 70,
-      "hex": "fd260000502a07460000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffbb79",
-      "payloadHex": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
-      "values": {
-        "target_system": [
-          255
-        ],
-        "target_component": [
-          255
-        ],
-        "chan1_raw": [
-          65535
-        ],
-        "chan2_raw": [
-          65535
-        ],
-        "chan3_raw": [
-          65535
-        ],
-        "chan4_raw": [
-          65535
-        ],
-        "chan5_raw": [
-          65535
-        ],
-        "chan6_raw": [
-          65535
-        ],
-        "chan7_raw": [
-          65535
-        ],
-        "chan8_raw": [
-          65535
-        ],
-        "chan9_raw": [
-          65535
-        ],
-        "chan10_raw": [
-          65535
-        ],
-        "chan11_raw": [
-          65535
-        ],
-        "chan12_raw": [
-          65535
-        ],
-        "chan13_raw": [
-          65535
-        ],
-        "chan14_raw": [
-          65535
-        ],
-        "chan15_raw": [
-          65535
-        ],
-        "chan16_raw": [
-          65535
-        ],
-        "chan17_raw": [
-          65535
-        ],
-        "chan18_raw": [
-          65535
-        ]
-      },
-      "variant": "limits"
+      "hex": "fd0100002e2a0746000001cbef"
     },
     {
       "id": 73,
-      "hex": "fd260000512a07490000000004c100001441000024c100003441f4fffffff3ffffff000064c1270041000d1a344e5bc3ba41",
-      "payloadHex": "000004c100001441000024c100003441f4fffffff3ffffff000064c1270041000d1a344e5bc3",
+      "name": "MISSION_ITEM_INT",
+      "style": "pattern",
+      "sequence": 47,
       "values": {
-        "target_system": [
-          13
-        ],
-        "target_component": [
-          26
-        ],
-        "seq": [
-          39
-        ],
-        "frame": [
-          52
-        ],
-        "command": [
-          65
-        ],
-        "current": [
-          78
-        ],
-        "autocontinue": [
-          91
-        ],
-        "param1": [
-          -8.25
-        ],
-        "param2": [
-          9.25
-        ],
-        "param3": [
-          -10.25
-        ],
-        "param4": [
-          11.25
-        ],
-        "x": [
-          -12
-        ],
-        "y": [
-          -13
-        ],
-        "z": [
-          -14.25
-        ],
-        "mission_type": [
-          195
-        ]
+        "param1": -16.125,
+        "param2": -14.75,
+        "param3": -13.375,
+        "param4": -12.0,
+        "x": -1760206720,
+        "y": 894229041,
+        "z": -7.875,
+        "seq": 32799,
+        "command": 36898,
+        "target_system": 117,
+        "target_component": 154,
+        "frame": 191,
+        "current": 228,
+        "autocontinue": 9,
+        "mission_type": 46
       },
-      "variant": "distinct"
+      "hex": "fd2600002f2a07490000000081c100006cc1000056c1000040c18060159731da4c350000fcc01f802290759abfe4092e5a61"
     },
     {
       "id": 73,
-      "hex": "fd010000522a07490000002bd2",
-      "payloadHex": "00",
+      "name": "MISSION_ITEM_INT",
+      "style": "minimal",
+      "sequence": 48,
       "values": {
-        "target_system": [
-          0
-        ],
-        "target_component": [
-          0
-        ],
-        "seq": [
-          0
-        ],
-        "frame": [
-          0
-        ],
-        "command": [
-          0
-        ],
-        "current": [
-          0
-        ],
-        "autocontinue": [
-          0
-        ],
-        "param1": [
-          0
-        ],
-        "param2": [
-          0
-        ],
-        "param3": [
-          0
-        ],
-        "param4": [
-          0
-        ],
-        "x": [
-          0
-        ],
-        "y": [
-          0
-        ],
-        "z": [
-          0
-        ],
-        "mission_type": [
-          0
-        ]
+        "param1": 1,
+        "param2": 0,
+        "param3": 0,
+        "param4": 0,
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "seq": 0,
+        "command": 0,
+        "target_system": 0,
+        "target_component": 0,
+        "frame": 0,
+        "current": 0,
+        "autocontinue": 0,
+        "mission_type": 0
       },
-      "variant": "zero"
-    },
-    {
-      "id": 73,
-      "hex": "fd260000532a07490000000004c100001441000024c1000034410000008000000080000064c1ffffffffffffffffffff2ffc",
-      "payloadHex": "000004c100001441000024c1000034410000008000000080000064c1ffffffffffffffffffff",
-      "values": {
-        "target_system": [
-          255
-        ],
-        "target_component": [
-          255
-        ],
-        "seq": [
-          65535
-        ],
-        "frame": [
-          255
-        ],
-        "command": [
-          65535
-        ],
-        "current": [
-          255
-        ],
-        "autocontinue": [
-          255
-        ],
-        "param1": [
-          -8.25
-        ],
-        "param2": [
-          9.25
-        ],
-        "param3": [
-          -10.25
-        ],
-        "param4": [
-          11.25
-        ],
-        "x": [
-          -2147483648
-        ],
-        "y": [
-          -2147483648
-        ],
-        "z": [
-          -14.25
-        ],
-        "mission_type": [
-          255
-        ]
-      },
-      "variant": "limits"
+      "hex": "fd040000302a074900000000803f93f6"
     },
     {
       "id": 74,
-      "hex": "fd130000542a074a00000000a03f000010c00000a8400000c8c0fdff34bf42",
-      "payloadHex": "0000a03f000010c00000a8400000c8c0fdff34",
+      "name": "VFR_HUD",
+      "style": "pattern",
+      "sequence": 49,
       "values": {
-        "airspeed": [
-          1.25
-        ],
-        "groundspeed": [
-          -2.25
-        ],
-        "heading": [
-          -3
-        ],
-        "throttle": [
-          52
-        ],
-        "alt": [
-          5.25
-        ],
-        "climb": [
-          -6.25
-        ]
+        "airspeed": -16.125,
+        "groundspeed": -14.75,
+        "alt": -13.375,
+        "climb": -12.0,
+        "heading": -12266,
+        "throttle": 24601
       },
-      "variant": "distinct"
+      "hex": "fd140000312a074a0000000081c100006cc1000056c1000040c116d01960c815"
     },
     {
       "id": 74,
-      "hex": "fd010000552a074a0000007841",
-      "payloadHex": "00",
+      "name": "VFR_HUD",
+      "style": "minimal",
+      "sequence": 50,
       "values": {
-        "airspeed": [
-          0
-        ],
-        "groundspeed": [
-          0
-        ],
-        "heading": [
-          0
-        ],
-        "throttle": [
-          0
-        ],
-        "alt": [
-          0
-        ],
-        "climb": [
-          0
-        ]
+        "airspeed": 1,
+        "groundspeed": 0,
+        "alt": 0,
+        "climb": 0,
+        "heading": 0,
+        "throttle": 0
       },
-      "variant": "zero"
-    },
-    {
-      "id": 74,
-      "hex": "fd140000562a074a00000000a03f000010c00000a8400000c8c00080ffffb178",
-      "payloadHex": "0000a03f000010c00000a8400000c8c00080ffff",
-      "values": {
-        "airspeed": [
-          1.25
-        ],
-        "groundspeed": [
-          -2.25
-        ],
-        "heading": [
-          -32768
-        ],
-        "throttle": [
-          65535
-        ],
-        "alt": [
-          5.25
-        ],
-        "climb": [
-          -6.25
-        ]
-      },
-      "variant": "limits"
+      "hex": "fd040000322a074a00000000803ff0c5"
     },
     {
       "id": 75,
-      "hex": "fd230000572a074b00000000e840000004c100001441000024c1f5fffffff4ffffff0000544134000d1a27414e2ea5",
-      "payloadHex": "0000e840000004c100001441000024c1f5fffffff4ffffff0000544134000d1a27414e",
+      "name": "COMMAND_INT",
+      "style": "pattern",
+      "sequence": 51,
       "values": {
-        "target_system": [
-          13
-        ],
-        "target_component": [
-          26
-        ],
-        "frame": [
-          39
-        ],
-        "command": [
-          52
-        ],
-        "current": [
-          65
-        ],
-        "autocontinue": [
-          78
-        ],
-        "param1": [
-          7.25
-        ],
-        "param2": [
-          -8.25
-        ],
-        "param3": [
-          9.25
-        ],
-        "param4": [
-          -10.25
-        ],
-        "x": [
-          -11
-        ],
-        "y": [
-          -12
-        ],
-        "z": [
-          13.25
-        ]
+        "param1": -16.125,
+        "param2": -14.75,
+        "param3": -13.375,
+        "param4": -12.0,
+        "x": -1760206720,
+        "y": 894229041,
+        "z": -7.875,
+        "command": 32799,
+        "target_system": 80,
+        "target_component": 117,
+        "frame": 154,
+        "current": 191,
+        "autocontinue": 228
       },
-      "variant": "distinct"
+      "hex": "fd230000332a074b0000000081c100006cc1000056c1000040c18060159731da4c350000fcc01f8050759abfe44db0"
     },
     {
       "id": 75,
-      "hex": "fd010000582a074b000000b3db",
-      "payloadHex": "00",
+      "name": "COMMAND_INT",
+      "style": "minimal",
+      "sequence": 52,
       "values": {
-        "target_system": [
-          0
-        ],
-        "target_component": [
-          0
-        ],
-        "frame": [
-          0
-        ],
-        "command": [
-          0
-        ],
-        "current": [
-          0
-        ],
-        "autocontinue": [
-          0
-        ],
-        "param1": [
-          0
-        ],
-        "param2": [
-          0
-        ],
-        "param3": [
-          0
-        ],
-        "param4": [
-          0
-        ],
-        "x": [
-          0
-        ],
-        "y": [
-          0
-        ],
-        "z": [
-          0
-        ]
+        "param1": 1,
+        "param2": 0,
+        "param3": 0,
+        "param4": 0,
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "command": 0,
+        "target_system": 0,
+        "target_component": 0,
+        "frame": 0,
+        "current": 0,
+        "autocontinue": 0
       },
-      "variant": "zero"
-    },
-    {
-      "id": 75,
-      "hex": "fd230000592a074b00000000e840000004c100001441000024c1000000800000008000005441ffffffffffffff3850",
-      "payloadHex": "0000e840000004c100001441000024c1000000800000008000005441ffffffffffffff",
-      "values": {
-        "target_system": [
-          255
-        ],
-        "target_component": [
-          255
-        ],
-        "frame": [
-          255
-        ],
-        "command": [
-          65535
-        ],
-        "current": [
-          255
-        ],
-        "autocontinue": [
-          255
-        ],
-        "param1": [
-          7.25
-        ],
-        "param2": [
-          -8.25
-        ],
-        "param3": [
-          9.25
-        ],
-        "param4": [
-          -10.25
-        ],
-        "x": [
-          -2147483648
-        ],
-        "y": [
-          -2147483648
-        ],
-        "z": [
-          13.25
-        ]
-      },
-      "variant": "limits"
+      "hex": "fd040000342a074b00000000803f6a9a"
     },
     {
       "id": 76,
-      "hex": "fd2100005a2a074c00000000a8400000c8c00000e840000004c100001441000024c10000344127000d1a34aba5",
-      "payloadHex": "0000a8400000c8c00000e840000004c100001441000024c10000344127000d1a34",
+      "name": "COMMAND_LONG",
+      "style": "pattern",
+      "sequence": 53,
       "values": {
-        "target_system": [
-          13
-        ],
-        "target_component": [
-          26
-        ],
-        "command": [
-          39
-        ],
-        "confirmation": [
-          52
-        ],
-        "param1": [
-          5.25
-        ],
-        "param2": [
-          -6.25
-        ],
-        "param3": [
-          7.25
-        ],
-        "param4": [
-          -8.25
-        ],
-        "param5": [
-          9.25
-        ],
-        "param6": [
-          -10.25
-        ],
-        "param7": [
-          11.25
-        ]
+        "param1": -16.125,
+        "param2": -14.75,
+        "param3": -13.375,
+        "param4": -12.0,
+        "param5": -10.625,
+        "param6": -9.25,
+        "param7": -7.875,
+        "command": 32799,
+        "target_system": 80,
+        "target_component": 117,
+        "confirmation": 154
       },
-      "variant": "distinct"
+      "hex": "fd210000352a074c0000000081c100006cc1000056c1000040c100002ac1000014c10000fcc01f8050759a2595"
     },
     {
       "id": 76,
-      "hex": "fd0100005b2a074c0000008904",
-      "payloadHex": "00",
+      "name": "COMMAND_LONG",
+      "style": "minimal",
+      "sequence": 54,
       "values": {
-        "target_system": [
-          0
-        ],
-        "target_component": [
-          0
-        ],
-        "command": [
-          0
-        ],
-        "confirmation": [
-          0
-        ],
-        "param1": [
-          0
-        ],
-        "param2": [
-          0
-        ],
-        "param3": [
-          0
-        ],
-        "param4": [
-          0
-        ],
-        "param5": [
-          0
-        ],
-        "param6": [
-          0
-        ],
-        "param7": [
-          0
-        ]
+        "param1": 1,
+        "param2": 0,
+        "param3": 0,
+        "param4": 0,
+        "param5": 0,
+        "param6": 0,
+        "param7": 0,
+        "command": 0,
+        "target_system": 0,
+        "target_component": 0,
+        "confirmation": 0
       },
-      "variant": "zero"
-    },
-    {
-      "id": 76,
-      "hex": "fd2100005c2a074c00000000a8400000c8c00000e840000004c100001441000024c100003441ffffffffffb540",
-      "payloadHex": "0000a8400000c8c00000e840000004c100001441000024c100003441ffffffffff",
-      "values": {
-        "target_system": [
-          255
-        ],
-        "target_component": [
-          255
-        ],
-        "command": [
-          65535
-        ],
-        "confirmation": [
-          255
-        ],
-        "param1": [
-          5.25
-        ],
-        "param2": [
-          -6.25
-        ],
-        "param3": [
-          7.25
-        ],
-        "param4": [
-          -8.25
-        ],
-        "param5": [
-          9.25
-        ],
-        "param6": [
-          -10.25
-        ],
-        "param7": [
-          11.25
-        ]
-      },
-      "variant": "limits"
+      "hex": "fd040000362a074c00000000803f70c8"
     },
     {
       "id": 77,
-      "hex": "fd0a00005d2a074d00000d001a27fcffffff414e38d5",
-      "payloadHex": "0d001a27fcffffff414e",
+      "name": "COMMAND_ACK",
+      "style": "pattern",
+      "sequence": 55,
       "values": {
-        "command": [
-          13
-        ],
-        "result": [
-          26
-        ],
-        "progress": [
-          39
-        ],
-        "result_param2": [
-          -4
-        ],
-        "target_system": [
-          65
-        ],
-        "target_component": [
-          78
-        ]
+        "command": 4106,
+        "result": 77,
+        "progress": 114,
+        "result_param2": -119675185,
+        "target_system": 188,
+        "target_component": 225
       },
-      "variant": "distinct"
+      "hex": "fd0a0000372a074d00000a104d72cfe6ddf8bce1f20b"
     },
     {
       "id": 77,
-      "hex": "fd0100005e2a074d00000092fc",
-      "payloadHex": "00",
+      "name": "COMMAND_ACK",
+      "style": "minimal",
+      "sequence": 56,
       "values": {
-        "command": [
-          0
-        ],
-        "result": [
-          0
-        ],
-        "progress": [
-          0
-        ],
-        "result_param2": [
-          0
-        ],
-        "target_system": [
-          0
-        ],
-        "target_component": [
-          0
-        ]
+        "command": 1,
+        "result": 0,
+        "progress": 0,
+        "result_param2": 0,
+        "target_system": 0,
+        "target_component": 0
       },
-      "variant": "zero"
-    },
-    {
-      "id": 77,
-      "hex": "fd0a00005f2a074d0000ffffffff00000080ffffc9b2",
-      "payloadHex": "ffffffff00000080ffff",
-      "values": {
-        "command": [
-          65535
-        ],
-        "result": [
-          255
-        ],
-        "progress": [
-          255
-        ],
-        "result_param2": [
-          -2147483648
-        ],
-        "target_system": [
-          255
-        ],
-        "target_component": [
-          255
-        ]
-      },
-      "variant": "limits"
-    },
-    {
-      "id": 82,
-      "hex": "fd330000602a075200000d0000000000a8400000ac400000b0400000b4400000c8c00000e840000004c1000014411a2734000024c1000026c1000028c1fed8",
-      "payloadHex": "0d0000000000a8400000ac400000b0400000b4400000c8c00000e840000004c1000014411a2734000024c1000026c1000028c1",
-      "values": {
-        "time_boot_ms": [
-          13
-        ],
-        "target_system": [
-          26
-        ],
-        "target_component": [
-          39
-        ],
-        "type_mask": [
-          52
-        ],
-        "q": [
-          5.25,
-          5.375,
-          5.5,
-          5.625
-        ],
-        "body_roll_rate": [
-          -6.25
-        ],
-        "body_pitch_rate": [
-          7.25
-        ],
-        "body_yaw_rate": [
-          -8.25
-        ],
-        "thrust": [
-          9.25
-        ],
-        "thrust_body": [
-          -10.25,
-          -10.375,
-          -10.5
-        ]
-      },
-      "variant": "distinct"
-    },
-    {
-      "id": 82,
-      "hex": "fd010000612a0752000000e122",
-      "payloadHex": "00",
-      "values": {
-        "time_boot_ms": [
-          0
-        ],
-        "target_system": [
-          0
-        ],
-        "target_component": [
-          0
-        ],
-        "type_mask": [
-          0
-        ],
-        "q": [
-          0,
-          0,
-          0,
-          0
-        ],
-        "body_roll_rate": [
-          0
-        ],
-        "body_pitch_rate": [
-          0
-        ],
-        "body_yaw_rate": [
-          0
-        ],
-        "thrust": [
-          0
-        ],
-        "thrust_body": [
-          0,
-          0,
-          0
-        ]
-      },
-      "variant": "zero"
-    },
-    {
-      "id": 82,
-      "hex": "fd330000622a07520000ffffffff0000a8400000ac400000b0400000b4400000c8c00000e840000004c100001441ffffff000024c1000026c1000028c172e5",
-      "payloadHex": "ffffffff0000a8400000ac400000b0400000b4400000c8c00000e840000004c100001441ffffff000024c1000026c1000028c1",
-      "values": {
-        "time_boot_ms": [
-          4294967295
-        ],
-        "target_system": [
-          255
-        ],
-        "target_component": [
-          255
-        ],
-        "type_mask": [
-          255
-        ],
-        "q": [
-          5.25,
-          5.375,
-          5.5,
-          5.625
-        ],
-        "body_roll_rate": [
-          -6.25
-        ],
-        "body_pitch_rate": [
-          7.25
-        ],
-        "body_yaw_rate": [
-          -8.25
-        ],
-        "thrust": [
-          9.25
-        ],
-        "thrust_body": [
-          -10.25,
-          -10.375,
-          -10.5
-        ]
-      },
-      "variant": "limits"
-    },
-    {
-      "id": 83,
-      "hex": "fd250000632a075300000d00000000005040000058400000604000006840000088c00000a8400000c8c00000e8401a3069",
-      "payloadHex": "0d00000000005040000058400000604000006840000088c00000a8400000c8c00000e8401a",
-      "values": {
-        "time_boot_ms": [
-          13
-        ],
-        "type_mask": [
-          26
-        ],
-        "q": [
-          3.25,
-          3.375,
-          3.5,
-          3.625
-        ],
-        "body_roll_rate": [
-          -4.25
-        ],
-        "body_pitch_rate": [
-          5.25
-        ],
-        "body_yaw_rate": [
-          -6.25
-        ],
-        "thrust": [
-          7.25
-        ]
-      },
-      "variant": "distinct"
-    },
-    {
-      "id": 83,
-      "hex": "fd010000642a075300000079eb",
-      "payloadHex": "00",
-      "values": {
-        "time_boot_ms": [
-          0
-        ],
-        "type_mask": [
-          0
-        ],
-        "q": [
-          0,
-          0,
-          0,
-          0
-        ],
-        "body_roll_rate": [
-          0
-        ],
-        "body_pitch_rate": [
-          0
-        ],
-        "body_yaw_rate": [
-          0
-        ],
-        "thrust": [
-          0
-        ]
-      },
-      "variant": "zero"
-    },
-    {
-      "id": 83,
-      "hex": "fd250000652a07530000ffffffff00005040000058400000604000006840000088c00000a8400000c8c00000e840ff9cde",
-      "payloadHex": "ffffffff00005040000058400000604000006840000088c00000a8400000c8c00000e840ff",
-      "values": {
-        "time_boot_ms": [
-          4294967295
-        ],
-        "type_mask": [
-          255
-        ],
-        "q": [
-          3.25,
-          3.375,
-          3.5,
-          3.625
-        ],
-        "body_roll_rate": [
-          -4.25
-        ],
-        "body_pitch_rate": [
-          5.25
-        ],
-        "body_yaw_rate": [
-          -6.25
-        ],
-        "thrust": [
-          7.25
-        ]
-      },
-      "variant": "limits"
+      "hex": "fd010000382a074d000001fa2b"
     },
     {
       "id": 84,
-      "hex": "fd350000662a075400000d0000000000c8c00000e840000004c100001441000024c100003441000044c100005441000064c100007441000082c141001a27341c89",
-      "payloadHex": "0d0000000000c8c00000e840000004c100001441000024c100003441000044c100005441000064c100007441000082c141001a2734",
+      "name": "SET_POSITION_TARGET_LOCAL_NED",
+      "style": "pattern",
+      "sequence": 57,
       "values": {
-        "time_boot_ms": [
-          13
-        ],
-        "target_system": [
-          26
-        ],
-        "target_component": [
-          39
-        ],
-        "coordinate_frame": [
-          52
-        ],
-        "type_mask": [
-          65
-        ],
-        "x": [
-          -6.25
-        ],
-        "y": [
-          7.25
-        ],
-        "z": [
-          -8.25
-        ],
-        "vx": [
-          9.25
-        ],
-        "vy": [
-          -10.25
-        ],
-        "vz": [
-          11.25
-        ],
-        "afx": [
-          -12.25
-        ],
-        "afy": [
-          13.25
-        ],
-        "afz": [
-          -14.25
-        ],
-        "yaw": [
-          15.25
-        ],
-        "yaw_rate": [
-          -16.25
-        ]
+        "time_boot_ms": 2654435772,
+        "x": -14.75,
+        "y": -13.375,
+        "z": -12.0,
+        "vx": -10.625,
+        "vy": -9.25,
+        "vz": -7.875,
+        "afx": -6.5,
+        "afy": -5.125,
+        "afz": -3.75,
+        "yaw": -2.375,
+        "yaw_rate": -1.0,
+        "type_mask": 53294,
+        "target_system": 9,
+        "target_component": 46,
+        "coordinate_frame": 83
       },
-      "variant": "distinct"
+      "hex": "fd350000392a07540000bc79379e00006cc1000056c1000040c100002ac1000014c10000fcc00000d0c00000a4c0000070c0000018c0000080bf2ed0092e533b03"
     },
     {
       "id": 84,
-      "hex": "fd010000672a07540000003d58",
-      "payloadHex": "00",
+      "name": "SET_POSITION_TARGET_LOCAL_NED",
+      "style": "minimal",
+      "sequence": 58,
       "values": {
-        "time_boot_ms": [
-          0
-        ],
-        "target_system": [
-          0
-        ],
-        "target_component": [
-          0
-        ],
-        "coordinate_frame": [
-          0
-        ],
-        "type_mask": [
-          0
-        ],
-        "x": [
-          0
-        ],
-        "y": [
-          0
-        ],
-        "z": [
-          0
-        ],
-        "vx": [
-          0
-        ],
-        "vy": [
-          0
-        ],
-        "vz": [
-          0
-        ],
-        "afx": [
-          0
-        ],
-        "afy": [
-          0
-        ],
-        "afz": [
-          0
-        ],
-        "yaw": [
-          0
-        ],
-        "yaw_rate": [
-          0
-        ]
+        "time_boot_ms": 1,
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "vx": 0,
+        "vy": 0,
+        "vz": 0,
+        "afx": 0,
+        "afy": 0,
+        "afz": 0,
+        "yaw": 0,
+        "yaw_rate": 0,
+        "type_mask": 0,
+        "target_system": 0,
+        "target_component": 0,
+        "coordinate_frame": 0
       },
-      "variant": "zero"
-    },
-    {
-      "id": 84,
-      "hex": "fd350000682a07540000ffffffff0000c8c00000e840000004c100001441000024c100003441000044c100005441000064c100007441000082c1ffffffffff5e7c",
-      "payloadHex": "ffffffff0000c8c00000e840000004c100001441000024c100003441000044c100005441000064c100007441000082c1ffffffffff",
-      "values": {
-        "time_boot_ms": [
-          4294967295
-        ],
-        "target_system": [
-          255
-        ],
-        "target_component": [
-          255
-        ],
-        "coordinate_frame": [
-          255
-        ],
-        "type_mask": [
-          65535
-        ],
-        "x": [
-          -6.25
-        ],
-        "y": [
-          7.25
-        ],
-        "z": [
-          -8.25
-        ],
-        "vx": [
-          9.25
-        ],
-        "vy": [
-          -10.25
-        ],
-        "vz": [
-          11.25
-        ],
-        "afx": [
-          -12.25
-        ],
-        "afy": [
-          13.25
-        ],
-        "afz": [
-          -14.25
-        ],
-        "yaw": [
-          15.25
-        ],
-        "yaw_rate": [
-          -16.25
-        ]
-      },
-      "variant": "limits"
+      "hex": "fd0100003a2a0754000001b1c5"
     },
     {
       "id": 85,
-      "hex": "fd330000692a075500000d000000000088c00000a8400000c8c00000e840000004c100001441000024c100003441000044c100005441000064c127001ab2e5",
-      "payloadHex": "0d000000000088c00000a8400000c8c00000e840000004c100001441000024c100003441000044c100005441000064c127001a",
+      "name": "POSITION_TARGET_LOCAL_NED",
+      "style": "pattern",
+      "sequence": 59,
       "values": {
-        "time_boot_ms": [
-          13
-        ],
-        "coordinate_frame": [
-          26
-        ],
-        "type_mask": [
-          39
-        ],
-        "x": [
-          -4.25
-        ],
-        "y": [
-          5.25
-        ],
-        "z": [
-          -6.25
-        ],
-        "vx": [
-          7.25
-        ],
-        "vy": [
-          -8.25
-        ],
-        "vz": [
-          9.25
-        ],
-        "afx": [
-          -10.25
-        ],
-        "afy": [
-          11.25
-        ],
-        "afz": [
-          -12.25
-        ],
-        "yaw": [
-          13.25
-        ],
-        "yaw_rate": [
-          -14.25
-        ]
+        "time_boot_ms": 2654435772,
+        "x": -14.75,
+        "y": -13.375,
+        "z": -12.0,
+        "vx": -10.625,
+        "vy": -9.25,
+        "vz": -7.875,
+        "afx": -6.5,
+        "afy": -5.125,
+        "afz": -3.75,
+        "yaw": -2.375,
+        "yaw_rate": -1.0,
+        "type_mask": 53294,
+        "coordinate_frame": 9
       },
-      "variant": "distinct"
+      "hex": "fd3300003b2a07550000bc79379e00006cc1000056c1000040c100002ac1000014c10000fcc00000d0c00000a4c0000070c0000018c0000080bf2ed009403c"
     },
     {
       "id": 85,
-      "hex": "fd0100006a2a07550000003fdb",
-      "payloadHex": "00",
+      "name": "POSITION_TARGET_LOCAL_NED",
+      "style": "minimal",
+      "sequence": 60,
       "values": {
-        "time_boot_ms": [
-          0
-        ],
-        "coordinate_frame": [
-          0
-        ],
-        "type_mask": [
-          0
-        ],
-        "x": [
-          0
-        ],
-        "y": [
-          0
-        ],
-        "z": [
-          0
-        ],
-        "vx": [
-          0
-        ],
-        "vy": [
-          0
-        ],
-        "vz": [
-          0
-        ],
-        "afx": [
-          0
-        ],
-        "afy": [
-          0
-        ],
-        "afz": [
-          0
-        ],
-        "yaw": [
-          0
-        ],
-        "yaw_rate": [
-          0
-        ]
+        "time_boot_ms": 1,
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "vx": 0,
+        "vy": 0,
+        "vz": 0,
+        "afx": 0,
+        "afy": 0,
+        "afz": 0,
+        "yaw": 0,
+        "yaw_rate": 0,
+        "type_mask": 0,
+        "coordinate_frame": 0
       },
-      "variant": "zero"
-    },
-    {
-      "id": 85,
-      "hex": "fd3300006b2a07550000ffffffff000088c00000a8400000c8c00000e840000004c100001441000024c100003441000044c100005441000064c1ffffff9535",
-      "payloadHex": "ffffffff000088c00000a8400000c8c00000e840000004c100001441000024c100003441000044c100005441000064c1ffffff",
-      "values": {
-        "time_boot_ms": [
-          4294967295
-        ],
-        "coordinate_frame": [
-          255
-        ],
-        "type_mask": [
-          65535
-        ],
-        "x": [
-          -4.25
-        ],
-        "y": [
-          5.25
-        ],
-        "z": [
-          -6.25
-        ],
-        "vx": [
-          7.25
-        ],
-        "vy": [
-          -8.25
-        ],
-        "vz": [
-          9.25
-        ],
-        "afx": [
-          -10.25
-        ],
-        "afy": [
-          11.25
-        ],
-        "afz": [
-          -12.25
-        ],
-        "yaw": [
-          13.25
-        ],
-        "yaw_rate": [
-          -14.25
-        ]
-      },
-      "variant": "limits"
+      "hex": "fd0100003c2a0755000001dfe1"
     },
     {
       "id": 86,
-      "hex": "fd3500006c2a075600000d000000fafffffff9ffffff000004c100001441000024c100003441000044c100005441000064c100007441000082c141001a27347f9e",
-      "payloadHex": "0d000000fafffffff9ffffff000004c100001441000024c100003441000044c100005441000064c100007441000082c141001a2734",
+      "name": "SET_POSITION_TARGET_GLOBAL_INT",
+      "style": "pattern",
+      "sequence": 61,
       "values": {
-        "time_boot_ms": [
-          13
-        ],
-        "target_system": [
-          26
-        ],
-        "target_component": [
-          39
-        ],
-        "coordinate_frame": [
-          52
-        ],
-        "type_mask": [
-          65
-        ],
-        "lat_int": [
-          -6
-        ],
-        "lon_int": [
-          -7
-        ],
-        "alt": [
-          -8.25
-        ],
-        "vx": [
-          9.25
-        ],
-        "vy": [
-          -10.25
-        ],
-        "vz": [
-          11.25
-        ],
-        "afx": [
-          -12.25
-        ],
-        "afy": [
-          13.25
-        ],
-        "afz": [
-          -14.25
-        ],
-        "yaw": [
-          15.25
-        ],
-        "yaw_rate": [
-          -16.25
-        ]
+        "time_boot_ms": 2654435772,
+        "lat_int": -1133579411,
+        "lon_int": 1520856350,
+        "alt": -12.0,
+        "vx": -10.625,
+        "vy": -9.25,
+        "vz": -7.875,
+        "afx": -6.5,
+        "afy": -5.125,
+        "afz": -3.75,
+        "yaw": -2.375,
+        "yaw_rate": -1.0,
+        "type_mask": 53294,
+        "target_system": 9,
+        "target_component": 46,
+        "coordinate_frame": 83
       },
-      "variant": "distinct"
+      "hex": "fd3500003d2a07560000bc79379e6df36ebc1e6da65a000040c100002ac1000014c10000fcc00000d0c00000a4c0000070c0000018c0000080bf2ed0092e530d38"
     },
     {
       "id": 86,
-      "hex": "fd0100006d2a07560000003443",
-      "payloadHex": "00",
+      "name": "SET_POSITION_TARGET_GLOBAL_INT",
+      "style": "minimal",
+      "sequence": 62,
       "values": {
-        "time_boot_ms": [
-          0
-        ],
-        "target_system": [
-          0
-        ],
-        "target_component": [
-          0
-        ],
-        "coordinate_frame": [
-          0
-        ],
-        "type_mask": [
-          0
-        ],
-        "lat_int": [
-          0
-        ],
-        "lon_int": [
-          0
-        ],
-        "alt": [
-          0
-        ],
-        "vx": [
-          0
-        ],
-        "vy": [
-          0
-        ],
-        "vz": [
-          0
-        ],
-        "afx": [
-          0
-        ],
-        "afy": [
-          0
-        ],
-        "afz": [
-          0
-        ],
-        "yaw": [
-          0
-        ],
-        "yaw_rate": [
-          0
-        ]
+        "time_boot_ms": 1,
+        "lat_int": 0,
+        "lon_int": 0,
+        "alt": 0,
+        "vx": 0,
+        "vy": 0,
+        "vz": 0,
+        "afx": 0,
+        "afy": 0,
+        "afz": 0,
+        "yaw": 0,
+        "yaw_rate": 0,
+        "type_mask": 0,
+        "target_system": 0,
+        "target_component": 0,
+        "coordinate_frame": 0
       },
-      "variant": "zero"
-    },
-    {
-      "id": 86,
-      "hex": "fd3500006e2a07560000ffffffff0000008000000080000004c100001441000024c100003441000044c100005441000064c100007441000082c1ffffffffffb4cc",
-      "payloadHex": "ffffffff0000008000000080000004c100001441000024c100003441000044c100005441000064c100007441000082c1ffffffffff",
-      "values": {
-        "time_boot_ms": [
-          4294967295
-        ],
-        "target_system": [
-          255
-        ],
-        "target_component": [
-          255
-        ],
-        "coordinate_frame": [
-          255
-        ],
-        "type_mask": [
-          65535
-        ],
-        "lat_int": [
-          -2147483648
-        ],
-        "lon_int": [
-          -2147483648
-        ],
-        "alt": [
-          -8.25
-        ],
-        "vx": [
-          9.25
-        ],
-        "vy": [
-          -10.25
-        ],
-        "vz": [
-          11.25
-        ],
-        "afx": [
-          -12.25
-        ],
-        "afy": [
-          13.25
-        ],
-        "afz": [
-          -14.25
-        ],
-        "yaw": [
-          15.25
-        ],
-        "yaw_rate": [
-          -16.25
-        ]
-      },
-      "variant": "limits"
+      "hex": "fd0100003e2a0756000001b5ee"
     },
     {
       "id": 87,
-      "hex": "fd3300006f2a075700000d000000fcfffffffbffffff0000c8c00000e840000004c100001441000024c100003441000044c100005441000064c127001ae080",
-      "payloadHex": "0d000000fcfffffffbffffff0000c8c00000e840000004c100001441000024c100003441000044c100005441000064c127001a",
+      "name": "POSITION_TARGET_GLOBAL_INT",
+      "style": "pattern",
+      "sequence": 63,
       "values": {
-        "time_boot_ms": [
-          13
-        ],
-        "coordinate_frame": [
-          26
-        ],
-        "type_mask": [
-          39
-        ],
-        "lat_int": [
-          -4
-        ],
-        "lon_int": [
-          -5
-        ],
-        "alt": [
-          -6.25
-        ],
-        "vx": [
-          7.25
-        ],
-        "vy": [
-          -8.25
-        ],
-        "vz": [
-          9.25
-        ],
-        "afx": [
-          -10.25
-        ],
-        "afy": [
-          11.25
-        ],
-        "afz": [
-          -12.25
-        ],
-        "yaw": [
-          13.25
-        ],
-        "yaw_rate": [
-          -14.25
-        ]
+        "time_boot_ms": 2654435772,
+        "lat_int": -1133579411,
+        "lon_int": 1520856350,
+        "alt": -12.0,
+        "vx": -10.625,
+        "vy": -9.25,
+        "vz": -7.875,
+        "afx": -6.5,
+        "afy": -5.125,
+        "afz": -3.75,
+        "yaw": -2.375,
+        "yaw_rate": -1.0,
+        "type_mask": 53294,
+        "coordinate_frame": 9
       },
-      "variant": "distinct"
+      "hex": "fd3300003f2a07570000bc79379e6df36ebc1e6da65a000040c100002ac1000014c10000fcc00000d0c00000a4c0000070c0000018c0000080bf2ed009598d"
     },
     {
       "id": 87,
-      "hex": "fd010000702a0757000000c70f",
-      "payloadHex": "00",
+      "name": "POSITION_TARGET_GLOBAL_INT",
+      "style": "minimal",
+      "sequence": 64,
       "values": {
-        "time_boot_ms": [
-          0
-        ],
-        "coordinate_frame": [
-          0
-        ],
-        "type_mask": [
-          0
-        ],
-        "lat_int": [
-          0
-        ],
-        "lon_int": [
-          0
-        ],
-        "alt": [
-          0
-        ],
-        "vx": [
-          0
-        ],
-        "vy": [
-          0
-        ],
-        "vz": [
-          0
-        ],
-        "afx": [
-          0
-        ],
-        "afy": [
-          0
-        ],
-        "afz": [
-          0
-        ],
-        "yaw": [
-          0
-        ],
-        "yaw_rate": [
-          0
-        ]
+        "time_boot_ms": 1,
+        "lat_int": 0,
+        "lon_int": 0,
+        "alt": 0,
+        "vx": 0,
+        "vy": 0,
+        "vz": 0,
+        "afx": 0,
+        "afy": 0,
+        "afz": 0,
+        "yaw": 0,
+        "yaw_rate": 0,
+        "type_mask": 0,
+        "coordinate_frame": 0
       },
-      "variant": "zero"
-    },
-    {
-      "id": 87,
-      "hex": "fd330000712a07570000ffffffff00000080000000800000c8c00000e840000004c100001441000024c100003441000044c100005441000064c1ffffffede0",
-      "payloadHex": "ffffffff00000080000000800000c8c00000e840000004c100001441000024c100003441000044c100005441000064c1ffffff",
-      "values": {
-        "time_boot_ms": [
-          4294967295
-        ],
-        "coordinate_frame": [
-          255
-        ],
-        "type_mask": [
-          65535
-        ],
-        "lat_int": [
-          -2147483648
-        ],
-        "lon_int": [
-          -2147483648
-        ],
-        "alt": [
-          -6.25
-        ],
-        "vx": [
-          7.25
-        ],
-        "vy": [
-          -8.25
-        ],
-        "vz": [
-          9.25
-        ],
-        "afx": [
-          -10.25
-        ],
-        "afy": [
-          11.25
-        ],
-        "afz": [
-          -12.25
-        ],
-        "yaw": [
-          13.25
-        ],
-        "yaw_rate": [
-          -14.25
-        ]
-      },
-      "variant": "limits"
+      "hex": "fd010000402a075700000197fb"
     },
     {
       "id": 93,
-      "hex": "fd510000722a075d00000d000000000000003400000000000000000010c0000018c0000020c0000028c0000030c0000038c0000040c0000048c0000050c0000058c0000060c0000068c0000070c0000078c0000080c0000084c02772ce",
-      "payloadHex": "0d000000000000003400000000000000000010c0000018c0000020c0000028c0000030c0000038c0000040c0000048c0000050c0000058c0000060c0000068c0000070c0000078c0000080c0000084c027",
+      "name": "HIL_ACTUATOR_CONTROLS",
+      "style": "pattern",
+      "sequence": 65,
       "values": {
-        "time_usec": [
-          13,
-          0
-        ],
+        "time_usec": 1234567890136,
+        "flags": 2469135780259,
         "controls": [
-          -2.25,
-          -2.375,
-          -2.5,
-          -2.625,
-          -2.75,
-          -2.875,
-          -3.0,
-          -3.125,
-          -3.25,
-          -3.375,
-          -3.5,
-          -3.625,
-          -3.75,
-          -3.875,
-          -4.0,
-          -4.125
+          11.375,
+          12.75,
+          14.125,
+          15.5,
+          16.875,
+          18.25,
+          19.625,
+          21.0,
+          22.375,
+          23.75,
+          25.125,
+          26.5,
+          27.875,
+          29.25,
+          30.625,
+          32.0
         ],
-        "mode": [
-          39
-        ],
-        "flags": [
-          52,
-          0
-        ]
+        "mode": 151
       },
-      "variant": "distinct"
+      "hex": "fd510000412a075d0000d804fb711f010000a309f6e33e0200000000364100004c410000624100007841000087410000924100009d410000a8410000b3410000be410000c9410000d4410000df410000ea410000f5410000004297ce03"
     },
     {
       "id": 93,
-      "hex": "fd010000732a075d000000f5e1",
-      "payloadHex": "00",
+      "name": "HIL_ACTUATOR_CONTROLS",
+      "style": "minimal",
+      "sequence": 66,
       "values": {
-        "time_usec": [
-          0,
-          0
-        ],
+        "time_usec": 1,
+        "flags": 0,
         "controls": [
           0,
           0,
@@ -4043,636 +1192,206 @@
           0,
           0
         ],
-        "mode": [
-          0
-        ],
-        "flags": [
-          0,
-          0
-        ]
+        "mode": 0
       },
-      "variant": "zero"
-    },
-    {
-      "id": 93,
-      "hex": "fd510000742a075d0000ffffffffffffffffffffffffffffffff000010c0000018c0000020c0000028c0000030c0000038c0000040c0000048c0000050c0000058c0000060c0000068c0000070c0000078c0000080c0000084c0ff6a4a",
-      "payloadHex": "ffffffffffffffffffffffffffffffff000010c0000018c0000020c0000028c0000030c0000038c0000040c0000048c0000050c0000058c0000060c0000068c0000070c0000078c0000080c0000084c0ff",
-      "values": {
-        "time_usec": [
-          4294967295,
-          4294967295
-        ],
-        "controls": [
-          -2.25,
-          -2.375,
-          -2.5,
-          -2.625,
-          -2.75,
-          -2.875,
-          -3.0,
-          -3.125,
-          -3.25,
-          -3.375,
-          -3.5,
-          -3.625,
-          -3.75,
-          -3.875,
-          -4.0,
-          -4.125
-        ],
-        "mode": [
-          255
-        ],
-        "flags": [
-          4294967295,
-          4294967295
-        ]
-      },
-      "variant": "limits"
+      "hex": "fd010000422a075d0000011a94"
     },
     {
       "id": 105,
-      "hex": "fd3f0000752a076900000d00000000000000000010c000005040000088c00000a8400000c8c00000e840000004c100001441000024c100003441000044c100005441000064c1c300d011a3",
-      "payloadHex": "0d00000000000000000010c000005040000088c00000a8400000c8c00000e840000004c100001441000024c100003441000044c100005441000064c1c300d0",
+      "name": "HIGHRES_IMU",
+      "style": "pattern",
+      "sequence": 67,
       "values": {
-        "time_usec": [
-          13,
-          0
-        ],
-        "xacc": [
-          -2.25
-        ],
-        "yacc": [
-          3.25
-        ],
-        "zacc": [
-          -4.25
-        ],
-        "xgyro": [
-          5.25
-        ],
-        "ygyro": [
-          -6.25
-        ],
-        "zgyro": [
-          7.25
-        ],
-        "xmag": [
-          -8.25
-        ],
-        "ymag": [
-          9.25
-        ],
-        "zmag": [
-          -10.25
-        ],
-        "abs_pressure": [
-          11.25
-        ],
-        "diff_pressure": [
-          -12.25
-        ],
-        "pressure_alt": [
-          13.25
-        ],
-        "temperature": [
-          -14.25
-        ],
-        "fields_updated": [
-          195
-        ],
-        "id": [
-          208
-        ]
+        "time_usec": 1234567890136,
+        "xacc": -14.75,
+        "yacc": -13.375,
+        "zacc": -12.0,
+        "xgyro": -10.625,
+        "ygyro": -9.25,
+        "zgyro": -7.875,
+        "xmag": -6.5,
+        "ymag": -5.125,
+        "zmag": -3.75,
+        "abs_pressure": -2.375,
+        "diff_pressure": -1.0,
+        "pressure_alt": 0.375,
+        "temperature": 1.75,
+        "fields_updated": 61492,
+        "id": 83
       },
-      "variant": "distinct"
+      "hex": "fd3f0000432a07690000d804fb711f01000000006cc1000056c1000040c100002ac1000014c10000fcc00000d0c00000a4c0000070c0000018c0000080bf0000c03e0000e03f34f053509d"
     },
     {
       "id": 105,
-      "hex": "fd010000762a0769000000c0df",
-      "payloadHex": "00",
+      "name": "HIGHRES_IMU",
+      "style": "minimal",
+      "sequence": 68,
       "values": {
-        "time_usec": [
-          0,
-          0
-        ],
-        "xacc": [
-          0
-        ],
-        "yacc": [
-          0
-        ],
-        "zacc": [
-          0
-        ],
-        "xgyro": [
-          0
-        ],
-        "ygyro": [
-          0
-        ],
-        "zgyro": [
-          0
-        ],
-        "xmag": [
-          0
-        ],
-        "ymag": [
-          0
-        ],
-        "zmag": [
-          0
-        ],
-        "abs_pressure": [
-          0
-        ],
-        "diff_pressure": [
-          0
-        ],
-        "pressure_alt": [
-          0
-        ],
-        "temperature": [
-          0
-        ],
-        "fields_updated": [
-          0
-        ],
-        "id": [
-          0
-        ]
+        "time_usec": 1,
+        "xacc": 0,
+        "yacc": 0,
+        "zacc": 0,
+        "xgyro": 0,
+        "ygyro": 0,
+        "zgyro": 0,
+        "xmag": 0,
+        "ymag": 0,
+        "zmag": 0,
+        "abs_pressure": 0,
+        "diff_pressure": 0,
+        "pressure_alt": 0,
+        "temperature": 0,
+        "fields_updated": 0,
+        "id": 0
       },
-      "variant": "zero"
-    },
-    {
-      "id": 105,
-      "hex": "fd3f0000772a07690000ffffffffffffffff000010c000005040000088c00000a8400000c8c00000e840000004c100001441000024c100003441000044c100005441000064c1ffffffa711",
-      "payloadHex": "ffffffffffffffff000010c000005040000088c00000a8400000c8c00000e840000004c100001441000024c100003441000044c100005441000064c1ffffff",
-      "values": {
-        "time_usec": [
-          4294967295,
-          4294967295
-        ],
-        "xacc": [
-          -2.25
-        ],
-        "yacc": [
-          3.25
-        ],
-        "zacc": [
-          -4.25
-        ],
-        "xgyro": [
-          5.25
-        ],
-        "ygyro": [
-          -6.25
-        ],
-        "zgyro": [
-          7.25
-        ],
-        "xmag": [
-          -8.25
-        ],
-        "ymag": [
-          9.25
-        ],
-        "zmag": [
-          -10.25
-        ],
-        "abs_pressure": [
-          11.25
-        ],
-        "diff_pressure": [
-          -12.25
-        ],
-        "pressure_alt": [
-          13.25
-        ],
-        "temperature": [
-          -14.25
-        ],
-        "fields_updated": [
-          65535
-        ],
-        "id": [
-          255
-        ]
-      },
-      "variant": "limits"
+      "hex": "fd010000442a0769000001ff20"
     },
     {
       "id": 107,
-      "hex": "fd410000782a076b00000d00000000000000000010c000005040000088c00000a8400000c8c00000e840000004c100001441000024c100003441000044c100005441000064c1c3000000d02fe1",
-      "payloadHex": "0d00000000000000000010c000005040000088c00000a8400000c8c00000e840000004c100001441000024c100003441000044c100005441000064c1c3000000d0",
+      "name": "HIL_SENSOR",
+      "style": "pattern",
+      "sequence": 69,
       "values": {
-        "time_usec": [
-          13,
-          0
-        ],
-        "xacc": [
-          -2.25
-        ],
-        "yacc": [
-          3.25
-        ],
-        "zacc": [
-          -4.25
-        ],
-        "xgyro": [
-          5.25
-        ],
-        "ygyro": [
-          -6.25
-        ],
-        "zgyro": [
-          7.25
-        ],
-        "xmag": [
-          -8.25
-        ],
-        "ymag": [
-          9.25
-        ],
-        "zmag": [
-          -10.25
-        ],
-        "abs_pressure": [
-          11.25
-        ],
-        "diff_pressure": [
-          -12.25
-        ],
-        "pressure_alt": [
-          13.25
-        ],
-        "temperature": [
-          -14.25
-        ],
-        "fields_updated": [
-          195
-        ],
-        "id": [
-          208
-        ]
+        "time_usec": 1234567890136,
+        "xacc": -14.75,
+        "yacc": -13.375,
+        "zacc": -12.0,
+        "xgyro": -10.625,
+        "ygyro": -9.25,
+        "zgyro": -7.875,
+        "xmag": -6.5,
+        "ymag": -5.125,
+        "zmag": -3.75,
+        "abs_pressure": -2.375,
+        "diff_pressure": -1.0,
+        "pressure_alt": 0.375,
+        "temperature": 1.75,
+        "fields_updated": 1161830762,
+        "id": 83
       },
-      "variant": "distinct"
+      "hex": "fd410000452a076b0000d804fb711f01000000006cc1000056c1000040c100002ac1000014c10000fcc00000d0c00000a4c0000070c0000018c0000080bf0000c03e0000e03f6a214045537136"
     },
     {
       "id": 107,
-      "hex": "fd010000792a076b000000f058",
-      "payloadHex": "00",
+      "name": "HIL_SENSOR",
+      "style": "minimal",
+      "sequence": 70,
       "values": {
-        "time_usec": [
-          0,
-          0
-        ],
-        "xacc": [
-          0
-        ],
-        "yacc": [
-          0
-        ],
-        "zacc": [
-          0
-        ],
-        "xgyro": [
-          0
-        ],
-        "ygyro": [
-          0
-        ],
-        "zgyro": [
-          0
-        ],
-        "xmag": [
-          0
-        ],
-        "ymag": [
-          0
-        ],
-        "zmag": [
-          0
-        ],
-        "abs_pressure": [
-          0
-        ],
-        "diff_pressure": [
-          0
-        ],
-        "pressure_alt": [
-          0
-        ],
-        "temperature": [
-          0
-        ],
-        "fields_updated": [
-          0
-        ],
-        "id": [
-          0
-        ]
+        "time_usec": 1,
+        "xacc": 0,
+        "yacc": 0,
+        "zacc": 0,
+        "xgyro": 0,
+        "ygyro": 0,
+        "zgyro": 0,
+        "xmag": 0,
+        "ymag": 0,
+        "zmag": 0,
+        "abs_pressure": 0,
+        "diff_pressure": 0,
+        "pressure_alt": 0,
+        "temperature": 0,
+        "fields_updated": 0,
+        "id": 0
       },
-      "variant": "zero"
-    },
-    {
-      "id": 107,
-      "hex": "fd4100007a2a076b0000ffffffffffffffff000010c000005040000088c00000a8400000c8c00000e840000004c100001441000024c100003441000044c100005441000064c1ffffffffff7887",
-      "payloadHex": "ffffffffffffffff000010c000005040000088c00000a8400000c8c00000e840000004c100001441000024c100003441000044c100005441000064c1ffffffffff",
-      "values": {
-        "time_usec": [
-          4294967295,
-          4294967295
-        ],
-        "xacc": [
-          -2.25
-        ],
-        "yacc": [
-          3.25
-        ],
-        "zacc": [
-          -4.25
-        ],
-        "xgyro": [
-          5.25
-        ],
-        "ygyro": [
-          -6.25
-        ],
-        "zgyro": [
-          7.25
-        ],
-        "xmag": [
-          -8.25
-        ],
-        "ymag": [
-          9.25
-        ],
-        "zmag": [
-          -10.25
-        ],
-        "abs_pressure": [
-          11.25
-        ],
-        "diff_pressure": [
-          -12.25
-        ],
-        "pressure_alt": [
-          13.25
-        ],
-        "temperature": [
-          -14.25
-        ],
-        "fields_updated": [
-          4294967295
-        ],
-        "id": [
-          255
-        ]
-      },
-      "variant": "limits"
+      "hex": "fd010000462a076b000001121d"
     },
     {
       "id": 113,
-      "hex": "fd2600007b2a077100000d00000000000000fdfffffffcfffffffbffffff4e005b006800f7fff6fff5ff9c001aa9b6c3f719",
-      "payloadHex": "0d00000000000000fdfffffffcfffffffbffffff4e005b006800f7fff6fff5ff9c001aa9b6c3",
+      "name": "HIL_GPS",
+      "style": "pattern",
+      "sequence": 71,
       "values": {
-        "time_usec": [
-          13,
-          0
-        ],
-        "fix_type": [
-          26
-        ],
-        "lat": [
-          -3
-        ],
-        "lon": [
-          -4
-        ],
-        "alt": [
-          -5
-        ],
-        "eph": [
-          78
-        ],
-        "epv": [
-          91
-        ],
-        "vel": [
-          104
-        ],
-        "vn": [
-          -9
-        ],
-        "ve": [
-          -10
-        ],
-        "vd": [
-          -11
-        ],
-        "cog": [
-          156
-        ],
-        "satellites_visible": [
-          169
-        ],
-        "id": [
-          182
-        ],
-        "yaw": [
-          195
-        ]
+        "time_usec": 1234567890136,
+        "lat": -1133579411,
+        "lon": 1520856350,
+        "alt": -119675185,
+        "eph": 20502,
+        "epv": 24601,
+        "vel": 28700,
+        "vn": 31,
+        "ve": 4130,
+        "vd": 8229,
+        "cog": 45096,
+        "fix_type": 191,
+        "satellites_visible": 228,
+        "id": 9,
+        "yaw": 61492
       },
-      "variant": "distinct"
+      "hex": "fd270000472a07710000d804fb711f0100006df36ebc1e6da65acfe6ddf8165019601c701f002210252028b0bfe40934f0aa4e"
     },
     {
       "id": 113,
-      "hex": "fd0100007c2a0771000000f827",
-      "payloadHex": "00",
+      "name": "HIL_GPS",
+      "style": "minimal",
+      "sequence": 72,
       "values": {
-        "time_usec": [
-          0,
-          0
-        ],
-        "fix_type": [
-          0
-        ],
-        "lat": [
-          0
-        ],
-        "lon": [
-          0
-        ],
-        "alt": [
-          0
-        ],
-        "eph": [
-          0
-        ],
-        "epv": [
-          0
-        ],
-        "vel": [
-          0
-        ],
-        "vn": [
-          0
-        ],
-        "ve": [
-          0
-        ],
-        "vd": [
-          0
-        ],
-        "cog": [
-          0
-        ],
-        "satellites_visible": [
-          0
-        ],
-        "id": [
-          0
-        ],
-        "yaw": [
-          0
-        ]
+        "time_usec": 1,
+        "lat": 0,
+        "lon": 0,
+        "alt": 0,
+        "eph": 0,
+        "epv": 0,
+        "vel": 0,
+        "vn": 0,
+        "ve": 0,
+        "vd": 0,
+        "cog": 0,
+        "fix_type": 0,
+        "satellites_visible": 0,
+        "id": 0,
+        "yaw": 0
       },
-      "variant": "zero"
-    },
-    {
-      "id": 113,
-      "hex": "fd2700007d2a07710000ffffffffffffffff000000800000008000000080ffffffffffff008000800080ffffffffffffff1688",
-      "payloadHex": "ffffffffffffffff000000800000008000000080ffffffffffff008000800080ffffffffffffff",
-      "values": {
-        "time_usec": [
-          4294967295,
-          4294967295
-        ],
-        "fix_type": [
-          255
-        ],
-        "lat": [
-          -2147483648
-        ],
-        "lon": [
-          -2147483648
-        ],
-        "alt": [
-          -2147483648
-        ],
-        "eph": [
-          65535
-        ],
-        "epv": [
-          65535
-        ],
-        "vel": [
-          65535
-        ],
-        "vn": [
-          -32768
-        ],
-        "ve": [
-          -32768
-        ],
-        "vd": [
-          -32768
-        ],
-        "cog": [
-          65535
-        ],
-        "satellites_visible": [
-          255
-        ],
-        "id": [
-          255
-        ],
-        "yaw": [
-          65535
-        ]
-      },
-      "variant": "limits"
+      "hex": "fd010000482a077100000176c5"
     },
     {
       "id": 147,
-      "hex": "fd3300007e2a07930000f9fffffff8fffffffcff41004e005b006800750082008f009c00a900b600faff0d1a27f7f6ffffff8f9c00a900b600c300a9b6dc7f",
-      "payloadHex": "f9fffffff8fffffffcff41004e005b006800750082008f009c00a900b600faff0d1a27f7f6ffffff8f9c00a900b600c300a9b6",
+      "name": "BATTERY_STATUS",
+      "style": "pattern",
+      "sequence": 73,
       "values": {
-        "id": [
-          13
-        ],
-        "battery_function": [
-          26
-        ],
-        "type": [
-          39
-        ],
-        "temperature": [
-          -4
-        ],
+        "current_consumed": 506952124,
+        "energy_consumed": -1133579411,
+        "temperature": -20464,
         "voltages": [
-          65,
-          78,
-          91,
-          104,
-          117,
-          130,
-          143,
-          156,
-          169,
-          182
+          49243,
+          53342,
+          57441,
+          61540,
+          103,
+          4202,
+          8301,
+          12400,
+          16499,
+          20598
         ],
-        "current_battery": [
-          -6
-        ],
-        "current_consumed": [
-          -7
-        ],
-        "energy_consumed": [
-          -8
-        ],
-        "battery_remaining": [
-          -9
-        ],
-        "time_remaining": [
-          -10
-        ],
-        "charge_state": [
-          143
-        ],
+        "current_battery": -12266,
+        "id": 225,
+        "battery_function": 6,
+        "type": 43,
+        "battery_remaining": -48,
+        "time_remaining": -1372929803,
+        "charge_state": 154,
         "voltages_ext": [
-          156,
-          169,
-          182,
-          195
+          16643,
+          20742,
+          24841,
+          28940
         ],
-        "mode": [
-          169
-        ],
-        "fault_bitmask": [
-          182
-        ]
+        "mode": 228,
+        "fault_bitmask": 2802362297
       },
-      "variant": "distinct"
+      "hex": "fd360000492a07930000bc79371e6df36ebc10b05bc05ed061e064f067006a106d2070307340765016d0e1062bd0f5c02aae9a0341065109610c71e4b9a708a7c2e0"
     },
     {
       "id": 147,
-      "hex": "fd0100007f2a07930000007e12",
-      "payloadHex": "00",
+      "name": "BATTERY_STATUS",
+      "style": "minimal",
+      "sequence": 74,
       "values": {
-        "id": [
-          0
-        ],
-        "battery_function": [
-          0
-        ],
-        "type": [
-          0
-        ],
-        "temperature": [
-          0
-        ],
+        "current_consumed": 1,
+        "energy_consumed": 0,
+        "temperature": 0,
         "voltages": [
           0,
           0,
@@ -4685,394 +1404,81 @@
           0,
           0
         ],
-        "current_battery": [
-          0
-        ],
-        "current_consumed": [
-          0
-        ],
-        "energy_consumed": [
-          0
-        ],
-        "battery_remaining": [
-          0
-        ],
-        "time_remaining": [
-          0
-        ],
-        "charge_state": [
-          0
-        ],
+        "current_battery": 0,
+        "id": 0,
+        "battery_function": 0,
+        "type": 0,
+        "battery_remaining": 0,
+        "time_remaining": 0,
+        "charge_state": 0,
         "voltages_ext": [
           0,
           0,
           0,
           0
         ],
-        "mode": [
-          0
-        ],
-        "fault_bitmask": [
-          0
-        ]
+        "mode": 0,
+        "fault_bitmask": 0
       },
-      "variant": "zero"
-    },
-    {
-      "id": 147,
-      "hex": "fd360000802a0793000000000080000000800080ffffffffffffffffffffffffffffffffffffffff0080ffffff8000000080ffffffffffffffffffffffffffff48d0",
-      "payloadHex": "00000080000000800080ffffffffffffffffffffffffffffffffffffffff0080ffffff8000000080ffffffffffffffffffffffffffff",
-      "values": {
-        "id": [
-          255
-        ],
-        "battery_function": [
-          255
-        ],
-        "type": [
-          255
-        ],
-        "temperature": [
-          -32768
-        ],
-        "voltages": [
-          65535,
-          65535,
-          65535,
-          65535,
-          65535,
-          65535,
-          65535,
-          65535,
-          65535,
-          65535
-        ],
-        "current_battery": [
-          -32768
-        ],
-        "current_consumed": [
-          -2147483648
-        ],
-        "energy_consumed": [
-          -2147483648
-        ],
-        "battery_remaining": [
-          -128
-        ],
-        "time_remaining": [
-          -2147483648
-        ],
-        "charge_state": [
-          255
-        ],
-        "voltages_ext": [
-          65535,
-          65535,
-          65535,
-          65535
-        ],
-        "mode": [
-          255
-        ],
-        "fault_bitmask": [
-          4294967295
-        ]
-      },
-      "variant": "limits"
+      "hex": "fd0100004a2a07930000014f71"
     },
     {
       "id": 193,
-      "hex": "fd1a0000812a07c10000000010c000005040000088c00000a8400000c8c00d000000e8404425",
-      "payloadHex": "000010c000005040000088c00000a8400000c8c00d000000e840",
+      "name": "EKF_STATUS_REPORT",
+      "style": "pattern",
+      "sequence": 75,
       "values": {
-        "flags": [
-          13
-        ],
-        "velocity_variance": [
-          -2.25
-        ],
-        "pos_horiz_variance": [
-          3.25
-        ],
-        "pos_vert_variance": [
-          -4.25
-        ],
-        "compass_variance": [
-          5.25
-        ],
-        "terrain_alt_variance": [
-          -6.25
-        ],
-        "airspeed_variance": [
-          7.25
-        ]
+        "velocity_variance": -16.125,
+        "pos_horiz_variance": -14.75,
+        "pos_vert_variance": -13.375,
+        "compass_variance": -12.0,
+        "terrain_alt_variance": -10.625,
+        "flags": 24601,
+        "airspeed_variance": -7.875
       },
-      "variant": "distinct"
+      "hex": "fd1a00004b2a07c10000000081c100006cc1000056c1000040c100002ac119600000fcc0ad02"
     },
     {
       "id": 193,
-      "hex": "fd010000822a07c1000000ba85",
-      "payloadHex": "00",
+      "name": "EKF_STATUS_REPORT",
+      "style": "minimal",
+      "sequence": 76,
       "values": {
-        "flags": [
-          0
-        ],
-        "velocity_variance": [
-          0
-        ],
-        "pos_horiz_variance": [
-          0
-        ],
-        "pos_vert_variance": [
-          0
-        ],
-        "compass_variance": [
-          0
-        ],
-        "terrain_alt_variance": [
-          0
-        ],
-        "airspeed_variance": [
-          0
-        ]
+        "velocity_variance": 1,
+        "pos_horiz_variance": 0,
+        "pos_vert_variance": 0,
+        "compass_variance": 0,
+        "terrain_alt_variance": 0,
+        "flags": 0,
+        "airspeed_variance": 0
       },
-      "variant": "zero"
-    },
-    {
-      "id": 193,
-      "hex": "fd1a0000832a07c10000000010c000005040000088c00000a8400000c8c0ffff0000e84042f8",
-      "payloadHex": "000010c000005040000088c00000a8400000c8c0ffff0000e840",
-      "values": {
-        "flags": [
-          65535
-        ],
-        "velocity_variance": [
-          -2.25
-        ],
-        "pos_horiz_variance": [
-          3.25
-        ],
-        "pos_vert_variance": [
-          -4.25
-        ],
-        "compass_variance": [
-          5.25
-        ],
-        "terrain_alt_variance": [
-          -6.25
-        ],
-        "airspeed_variance": [
-          7.25
-        ]
-      },
-      "variant": "limits"
+      "hex": "fd0400004c2a07c100000000803f77de"
     },
     {
       "id": 253,
-      "hex": "fd360000842a07fd00000d53746174757320313233000000000000000000000000000000000000000000000000000000000000000000000000000000002700347b89",
-      "payloadHex": "0d5374617475732031323300000000000000000000000000000000000000000000000000000000000000000000000000000000270034",
+      "name": "STATUSTEXT",
+      "style": "pattern",
+      "sequence": 77,
       "values": {
-        "severity": [
-          13
-        ],
-        "text": [
-          83,
-          116,
-          97,
-          116,
-          117,
-          115,
-          32,
-          49,
-          50,
-          51,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0
-        ],
-        "id": [
-          39
-        ],
-        "chunk_seq": [
-          52
-        ]
+        "severity": 40,
+        "text": "MIRAGE statustext 2",
+        "id": 12304,
+        "chunk_seq": 151
       },
-      "variant": "distinct"
+      "hex": "fd3600004d2a07fd0000284d49524147452073746174757374657874203200000000000000000000000000000000000000000000000000000000000000103097c6d5"
     },
     {
       "id": 253,
-      "hex": "fd010000852a07fd000000f0ec",
-      "payloadHex": "00",
+      "name": "STATUSTEXT",
+      "style": "minimal",
+      "sequence": 78,
       "values": {
-        "severity": [
-          0
-        ],
-        "text": [
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0
-        ],
-        "id": [
-          0
-        ],
-        "chunk_seq": [
-          0
-        ]
+        "severity": 1,
+        "text": "",
+        "id": 0,
+        "chunk_seq": 0
       },
-      "variant": "zero"
-    },
-    {
-      "id": 253,
-      "hex": "fd360000862a07fd0000ff5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5affffff2686",
-      "payloadHex": "ff5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5affffff",
-      "values": {
-        "severity": [
-          255
-        ],
-        "text": [
-          90,
-          90,
-          90,
-          90,
-          90,
-          90,
-          90,
-          90,
-          90,
-          90,
-          90,
-          90,
-          90,
-          90,
-          90,
-          90,
-          90,
-          90,
-          90,
-          90,
-          90,
-          90,
-          90,
-          90,
-          90,
-          90,
-          90,
-          90,
-          90,
-          90,
-          90,
-          90,
-          90,
-          90,
-          90,
-          90,
-          90,
-          90,
-          90,
-          90,
-          90,
-          90,
-          90,
-          90,
-          90,
-          90,
-          90,
-          90,
-          90,
-          90
-        ],
-        "id": [
-          65535
-        ],
-        "chunk_seq": [
-          255
-        ]
-      },
-      "variant": "limits"
+      "hex": "fd0100004e2a07fd00000157fc"
     }
   ]
 }

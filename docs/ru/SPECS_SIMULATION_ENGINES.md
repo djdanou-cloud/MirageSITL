@@ -121,7 +121,7 @@ model-report v7 заменяет схему одного профиля v6 об�
 отдельные доказательства; производственная интеграция BET ABI/сессии открыта.
 
 
-<!-- source-sha256: 6ea1f1b919710e22fae7dce6d5c94bc1aca6c1fb35e5e566b3ec753212deb7d4 -->
+<!-- source-sha256: 45ef88796c59180a502bd9453ec6f84ce31ae57d71236e0a2da991980b7510a3 -->
 
 Английский источник: [Source of truth](../SPECS_SIMULATION_ENGINES.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -579,7 +579,8 @@ artifact, только после scalar reference. Float64 для физики/
 `bet_bound_dispose(arena)` используют непересекающиеся области вызывающей
 стороны с выравниванием 8 байт. Заголовок конфигурации: 128 байт;
 u32 version/totalBytes/nAlpha/nRe/nMach/nStations/bladeCount/spinSign/
-azimuthSamples по смещениям 0/4/8/12/16/20/24/28/32; 36..39 нулевой резерв;
+azimuthSamples по смещениям 0/4/8/12/16/20/24/28/32; 36..39 нулевой резерв
+в версии 1 и слово параметров ядра в версии 2 (TASK-091, ниже);
 f64 radius/root/inertia/bearing/dt/initialOmega/inflowTau/inflowLimit/
 minConfidence по 40/48/56/64/72/80/88/96/104; 112..127 нулевой резерв.
 Далее четыре массива f64 станций (radius/chord/twist/width), оси
@@ -610,6 +611,52 @@ magic/bytes/memoryPages/reserved по 0/4/8/12; f64 omega/induced по 16/24;
 поток, dispose аннулирует арену. Рост памяти после init отклоняется.
 Новая раскладка SAB или допуск автопилота из этого интерфейса не следуют.
 
+Стоимость ядра (TASK-091, в работе). Инициализация и reset проверяют всю
+конфигурацию; каждый шаг перепроверяет только заголовок, количества, dt,
+диапазоны скаляров и границы срезов и читает поляру без повторного просмотра
+её значений, поскольку конфигурация неизменяема. Без параметров ядра шаг
+вычисляет ротор через `Rotor::evaluate_fast`, результаты которого побитово
+идентичны эталонному ядру (`Rotor::evaluate`, `PolarTable::lookup`): его поиск
+в поляре (`PreparedPolar`) вычисляет логарифмы оси чисел Рейнольдса, масштабы
+догадки и шаги углов ячейки один раз за вычисление, угадывает каждый интервал
+за O(1) и уточняет его по соседям до индекса двоичного поиска и читает углы
+CL, CD и достоверности ячейки через одно окно; угол атаки приводится точным
+условным вычитанием (Стербенц) с `rem_euclid` как запасным путём; скорость
+элемента вычисляется один раз. Эталон остаётся в крейте вместе с
+`bound::step_reference` и `bound_v2::step_reference` для тестов и
+бенчмарков; ни один экспорт WASM их не вызывает.
+
+Конфигурация версии 2 (TASK-091) добавляет два необязательных режима,
+меняющих численную схему; версия 1 сохраняет нулевой резерв в байте 36 и
+остаётся вариантом по умолчанию, а `encodeBoundRotor` пишет версию 2, только
+когда `kernelOptions` не равен нулю. Любой другой бит параметров
+отклоняется. Конфигурация с параметрами вычисляет ротор через
+`Rotor::evaluate_sampled`, который при полной выборке совпадает с эталоном в
+пределах заявленного допуска T1 (1e-12 относительно, флаги идентичны):
+относительная скорость каждого элемента раскладывается только по
+касательному направлению и оси, где векторные произведения силы элемента
+сводятся к скалярным, множители полос и азимутов формируются один раз, а
+четыре суммы на азимут поворачиваются в силу, момент и нагрузки махового
+движения. Параметр 1 (сокращённый предиктор): прогноз полушага вычисляет
+азимутальные отсчёты 0 и N/2 (N чётное), у которых первые гармоники взаимно
+уничтожаются, и использует только их осевую силу и момент. Параметр 2
+(выборка для висения): вычисление в середине шага использует каждый второй
+азимутальный отсчёт (N чётное, не меньше 4), пока мера режима
+m = max(|поперечная скорость воздуха| / (Omega R), |угловая скорость тела в
+плоскости ротора| / Omega, |циклический шаг|) в начале шага остаётся малой:
+режим включается ниже 0,05 и выключается выше 0,10, а остановленный вал
+вычисляется полностью. Его состояние (f64 0 или 1) занимает байты 56..63
+заголовка арены только при параметре 2; иначе байты остаются нулевыми, а
+reset их обнуляет. Выходной флаг 64 отмечает середину шага с выборкой для
+висения, флаг 128 — сокращённый прогноз; `BetFlightDynamics` сообщает их в
+`samplingFlags` и никогда как ModelOutsideValidity. Режимы оцениваются по
+наборам TASK-033 (T2): `node scripts/check-bet-runtime.mjs --kernel-options 3`
+повторяет 18 сравнений с обоими режимами относительно неизменных эталонов
+4800 Гц и добавляет шесть траекторий полёта вперёд относительно полного ядра
+на той же частоте (пределы 0,1 м и 0,5 градуса, отчёт
+`test-results/validation/bet-runtime-modes.json`). `BetFlightConfiguration`
+и `buildProfileDynamics` принимают `kernelOptions`; по умолчанию 0.
+
 Конфигурация dt допускает 400/800/1200 Гц и 4800 Гц для офлайн-эталона;
 часы сессии по-прежнему ограничены 400/800/1200 Гц. `BetFlightDynamics`
 прогнозирует скорость, угловую скорость и ориентацию корпуса на полушаге для
@@ -627,8 +674,10 @@ magic/bytes/memoryPages/reserved по 0/4/8/12; f64 omega/induced по 16/24;
 гравитацией и корпуса с четырьмя роторами на синтетической площадке. Проверяются
 и интерфейсы шага v2 из TASK-088: миллион шагов активного ротора через
 `BetRotorEngineV2` и миллион шагов неподвижного тела через
-`BetRigidBodyBackendV2`, каждый в обоих WASM-вариантах.
-`scripts/bet-runtime-graphs.ts` перечисляет восемь графов; отчёт должен
+`BetRigidBodyBackendV2`, каждый в обоих WASM-вариантах, и миллион шагов
+корпуса с четырьмя роторами на приводе ESC и общей шине TASK-092 на
+синтетической площадке. `scripts/bet-runtime-graphs.ts` перечисляет девять
+графов; отчёт должен
 содержать ровно по одному образцу каждого, и `scripts/validate-models.mjs`
 допускает только этот набор. JS-проверки требуют ноль GC, менее 0.01 добавочного байта/шаг, стабильную память
 WASM и обнаружение аллоцирующего контроля. Это проверки ПО, не измеренная
@@ -1523,98 +1572,91 @@ HITL (TASK-050), композиция РЭБ (TASK-054/055/058), нативны�
 
 ### Закреплённое подмножество MAVLink2
 
-packages/mavlink/dialect.lock.json закрепляет коммит MAVLink XML
-2e2b6af99084e4fde9bb304c84bb9253a1a98b6f, хеши ardupilotmega.xml и всех
-рекурсивно включённых им XML-файлов, лицензии, pymavlink 2.4.50, файлов
-генератора и сгенерированного модуля Python. Старый генератор 2.4.49
-отклоняет схему закреплённого XML; проверка сохранена с совместимым 2.4.50.
-generate-mavlink-fixtures.py проверяет чистоту/коммит/версию и использует
-официальный генератор. Полученный Python остаётся вне репозитория; эталонные
-кадры зарегистрированы через SHA-256 как синтетические протокольные эталоны,
-не измерения самолёта. Уведомление upstream о выводе генератора сохранено
-в packages/mavlink/NOTICE.
+`packages/mavlink/dialect.lock.json` (схема 2) закрепляет коммит MAVLink
+2e2b6af99084e4fde9bb304c84bb9253a1a98b6f, диалект `ardupilotmega.xml` с хешем
+каждого включаемого им файла определений (common, standard, minimal,
+uAvionix, icarous, loweheiser, cubepilot и csAirLink) и лицензии, хеши
+pymavlink 2.4.50 и файлов генератора, ID поддерживаемых сообщений и
+высокочастотное подмножество. Старый генератор 2.4.49 отклоняет схему
+закреплённого XML; проверка сохранена с совместимым 2.4.50.
+`generate-mavlink-fixtures.py` (исходники из `MIRAGE_MAVLINK_SOURCE` и
+`MIRAGE_MAVGEN_OUTPUT`) проверяет чистоту/коммит/версию и использует
+официальный генератор. Он также пишет `packages/mavlink/src/message-table.ts`
+(TASK-150): для каждого поддерживаемого сообщения его ID, имя, CRC_EXTRA,
+полную длину полезной нагрузки MAVLink2 и поля в порядке на проводе (имя, тип
+на проводе, смещение в байтах, длина массива, единицы, признак расширения),
+взятые из собственного парсера генератора. `definition(id)` читает эту
+таблицу, поэтому кодек не может разойтись с генератором. Полученный Python
+остаётся вне репозитория; эталонные кадры зарегистрированы через SHA-256 как
+синтетические протокольные эталоны, которые pymavlink упаковывает из
+записанных значений полей, а не измерения самолёта. Уведомление upstream о
+выводе генератора сохранено в packages/mavlink/NOTICE.
 
-| Message ID | Message | Full payload bytes | Base payload bytes | CRC_EXTRA |
-| --- | --- | --- | --- | --- |
-| 0 | HEARTBEAT | 9 | 9 | 50 |
-| 1 | SYS_STATUS | 43 | 31 | 124 |
-| 20 | PARAM_REQUEST_READ | 20 | 20 | 214 |
-| 21 | PARAM_REQUEST_LIST | 2 | 2 | 159 |
-| 22 | PARAM_VALUE | 25 | 25 | 220 |
-| 23 | PARAM_SET | 23 | 23 | 168 |
-| 24 | GPS_RAW_INT | 52 | 30 | 24 |
-| 27 | RAW_IMU | 29 | 26 | 144 |
-| 30 | ATTITUDE | 28 | 28 | 39 |
-| 32 | LOCAL_POSITION_NED | 28 | 28 | 185 |
-| 33 | GLOBAL_POSITION_INT | 28 | 28 | 104 |
-| 36 | SERVO_OUTPUT_RAW | 37 | 21 | 222 |
-| 37 | MISSION_REQUEST_PARTIAL_LIST | 7 | 6 | 212 |
-| 38 | MISSION_WRITE_PARTIAL_LIST | 7 | 6 | 9 |
-| 39 | MISSION_ITEM | 38 | 37 | 254 |
-| 40 | MISSION_REQUEST | 5 | 4 | 230 |
-| 41 | MISSION_SET_CURRENT | 4 | 4 | 28 |
-| 42 | MISSION_CURRENT | 18 | 2 | 28 |
-| 43 | MISSION_REQUEST_LIST | 3 | 2 | 132 |
-| 44 | MISSION_COUNT | 9 | 4 | 221 |
-| 45 | MISSION_CLEAR_ALL | 3 | 2 | 232 |
-| 46 | MISSION_ITEM_REACHED | 2 | 2 | 11 |
-| 47 | MISSION_ACK | 8 | 3 | 153 |
-| 51 | MISSION_REQUEST_INT | 5 | 4 | 196 |
-| 70 | RC_CHANNELS_OVERRIDE | 38 | 18 | 124 |
-| 73 | MISSION_ITEM_INT | 38 | 37 | 38 |
-| 74 | VFR_HUD | 20 | 20 | 20 |
-| 75 | COMMAND_INT | 35 | 35 | 158 |
-| 76 | COMMAND_LONG | 33 | 33 | 152 |
-| 77 | COMMAND_ACK | 10 | 3 | 143 |
-| 82 | SET_ATTITUDE_TARGET | 51 | 39 | 49 |
-| 83 | ATTITUDE_TARGET | 37 | 37 | 22 |
-| 84 | SET_POSITION_TARGET_LOCAL_NED | 53 | 53 | 143 |
-| 85 | POSITION_TARGET_LOCAL_NED | 51 | 51 | 140 |
-| 86 | SET_POSITION_TARGET_GLOBAL_INT | 53 | 53 | 5 |
-| 87 | POSITION_TARGET_GLOBAL_INT | 51 | 51 | 150 |
-| 93 | HIL_ACTUATOR_CONTROLS | 81 | 81 | 47 |
-| 105 | HIGHRES_IMU | 63 | 62 | 93 |
-| 107 | HIL_SENSOR | 65 | 64 | 108 |
-| 113 | HIL_GPS | 39 | 36 | 124 |
-| 147 | BATTERY_STATUS | 54 | 36 | 154 |
-| 193 | EKF_STATUS_REPORT | 26 | 22 | 71 |
-| 253 | STATUSTEXT | 54 | 51 | 83 |
+| Message ID | Message | Full payload bytes | CRC_EXTRA |
+| --- | --- | --- | --- |
+| 0 | HEARTBEAT | 9 | 50 |
+| 1 | SYS_STATUS | 43 | 124 |
+| 20 | PARAM_REQUEST_READ | 20 | 214 |
+| 21 | PARAM_REQUEST_LIST | 2 | 159 |
+| 22 | PARAM_VALUE | 25 | 220 |
+| 23 | PARAM_SET | 23 | 168 |
+| 24 | GPS_RAW_INT | 52 | 24 |
+| 27 | RAW_IMU | 29 | 144 |
+| 30 | ATTITUDE | 28 | 39 |
+| 32 | LOCAL_POSITION_NED | 28 | 185 |
+| 33 | GLOBAL_POSITION_INT | 28 | 104 |
+| 36 | SERVO_OUTPUT_RAW | 37 | 222 |
+| 40 | MISSION_REQUEST | 5 | 230 |
+| 41 | MISSION_SET_CURRENT | 4 | 28 |
+| 42 | MISSION_CURRENT | 18 | 28 |
+| 43 | MISSION_REQUEST_LIST | 3 | 132 |
+| 44 | MISSION_COUNT | 9 | 221 |
+| 45 | MISSION_CLEAR_ALL | 3 | 232 |
+| 46 | MISSION_ITEM_REACHED | 2 | 11 |
+| 47 | MISSION_ACK | 8 | 153 |
+| 51 | MISSION_REQUEST_INT | 5 | 196 |
+| 70 | RC_CHANNELS_OVERRIDE | 38 | 124 |
+| 73 | MISSION_ITEM_INT | 38 | 38 |
+| 74 | VFR_HUD | 20 | 20 |
+| 75 | COMMAND_INT | 35 | 158 |
+| 76 | COMMAND_LONG | 33 | 152 |
+| 77 | COMMAND_ACK | 10 | 143 |
+| 84 | SET_POSITION_TARGET_LOCAL_NED | 53 | 143 |
+| 85 | POSITION_TARGET_LOCAL_NED | 51 | 140 |
+| 86 | SET_POSITION_TARGET_GLOBAL_INT | 53 | 5 |
+| 87 | POSITION_TARGET_GLOBAL_INT | 51 | 150 |
+| 93 | HIL_ACTUATOR_CONTROLS | 81 | 47 |
+| 105 | HIGHRES_IMU | 63 | 93 |
+| 107 | HIL_SENSOR | 65 | 108 |
+| 113 | HIL_GPS | 39 | 124 |
+| 147 | BATTERY_STATUS | 54 | 154 |
+| 193 | EKF_STATUS_REPORT | 26 | 71 |
+| 253 | STATUSTEXT | 54 | 83 |
 
-Каталог TASK-150. Lock содержит 43 сообщения из таблицы выше; для каждого поля
-записаны имя из XML, тип на проводе, смещение, размер массива и единицы из XML.
-Каталог генерирует `generate-mavlink-fixtures.py` из закреплённого XML;
-`definition(id)` читает только этот lock, поэтому кодек и lock не могут
-расходиться. Базовая длина payload не включает поля расширений MAVLink2.
-Файл эталонов содержит 137 кадров официального генератора: 5 исторических
-кадров TASK-037, по одному кадру с различными значениями, нулевому и с
-граничными значениями для каждого сообщения и 3 запроса построителей параметров.
-Флаг `--check` заново генерирует кадры и lock и сравнивает их без записи.
-`MessagePayload(id)` держит для каждого поля один фиксированный `Float64Array`
-в единицах провода; поиск по имени выполняется один раз при инициализации.
-Поля u64/i64 хранятся как два слова u32 (младшее, старшее; i64 в
-дополнительном коде), никогда не BigInt; поля char — коды ASCII. `pack()`
-проверяет каждое значение по типу на проводе до записи первого байта, поэтому
-неверное значение оставляет payload без изменений; float сохраняют NaN и
-бесконечность как неизвестные значения MAVLink, а конечные значения вне f32
-отклоняются. `decode(frame)` читает кадр с проверенным CRC, дополненный нулями,
-того же ID в те же массивы, поэтому усечённый кадр очищает устаревшие поля
-расширений. `parameterListInto`, `parameterReadInto` и `parameterSetInto` —
-холодные построители: они проверяют ID получателя, имя (1–16 печатных символов
-ASCII), индекс и тип параметра до изменения любого байта; `param_value` —
-носитель float в MAVLink.
-
-Парсер теперь поглощает весь конверт кадра с неподдерживаемым ID, подписью,
-ненулевыми флагами совместимости, пустым payload, payload длиннее сообщения
-или system ID 0 и затем ищет следующий 0xFD. Корректный кадр внутри такого
-конверта никогда не принимается; так исправление TASK-047 действует для
-каждого отказа. G1: `node scripts/check-mavlink-allocation.mjs` прогревает
-4 000 000 шагов, затем выполняет реальные pack, encode, parse и decode для
-16 ID телеметрии 0, 1, 24, 27, 30, 32, 33, 36, 74, 77, 83, 85, 87, 105, 147 и
-193 в окнах N/2N по 1 000 000 и 2 000 000 шагов; наклон равен 0 байт на шаг
-без событий GC, а выделяющий положительный контроль обнаруживается.
-Построители команд, миссий, параметров и STATUSTEXT холодные и в этот набор G1
-не входят.
-
+TASK-150 добавляет сообщения наземной станции фазы 1. `packInto(id, values,
+payload)` — холодный построитель для команд, параметров, миссий и целей
+позиции: незаданные поля равны нулю, а неизвестное сообщение или поле,
+полезная нагрузка неверной длины, нецелое или выходящее за диапазон целое,
+значение, неконечное в своём типе на проводе, массив неверной длины или
+текст не ASCII либо не помещающийся возвращают false и оставляют полезную
+нагрузку без изменений. 64-битные целые ограничены точным диапазоном
+JavaScript. `readNumber(view, field, index)` и `readText(payload, field)`
+читают любое поле; 64-битные поля читаются как два 32-битных слова, поэтому
+BigInt не создаётся. Для высокочастотного подмножества телеметрии
+(SYS_STATUS, ATTITUDE, LOCAL_POSITION_NED, GLOBAL_POSITION_INT,
+SERVO_OUTPUT_RAW, VFR_HUD и BATTERY_STATUS) есть заранее выделенные цели
+(`newAttitude`/`attitudeInto` и т. д.) с полями, названными по единицам, в
+единицах провода. Каждый декодер читает свои поля прямыми геттерами DataView
+по смещениям, однократно разрешённым из таблицы, типы которых он проверяет
+при загрузке; декодер принимает только свой ID сообщения. SERVO_OUTPUT_RAW
+декодирует все 16 выходов, причём выходы 9–16 — расширения и читаются как 0
+от отправителей без них, а BATTERY_STATUS объединяет элементы 1–10 и
+элементы расширения 11–14. Эталоны содержат два кадра pymavlink на каждое
+поддерживаемое сообщение: один с отдельным значением в каждом поле и один,
+усечённый до первого поля; кодек воспроизводит каждый байт, а читатели —
+каждое значение. Компонент `mavlink` в `node scripts/bench-links-ew.mjs` для
+G1 также кодирует, разбирает и декодирует один кадр высокочастотной
+телеметрии на тик.
 
 encodeInto пишет в буфер вызывающего и возвращает точную длину (0 при ошибке).
 Усечение конечных нулей MAVLink2 сохраняет хотя бы один байт данных. MavParser
@@ -2822,7 +2864,8 @@ Configure допускает 400/800/1200 Гц только до первого 
 ветер NED м/с (35..37); точный нулевой резерв (38..39). Значения конечны,
 модуль <=1e9. Пределы широты/долготы 90/180 градусов, модуль высоты <=100000 м,
 квадрат нормы кватерниона отличается от 1 не более чем на 1e-6; воздушная
-скорость/батарея/ток/высота неотрицательны. Байты 384..511, 640..767 и 896..1023
+скорость/батарея/ток/высота неотрицательны (связь TASK-092 передаёт ток
+шины при рекуперации как 0). Байты 384..511, 640..767 и 896..1023
 нулевые. С байта 512 идут 32 u32 PWM в микросекундах. С байта 768 — шестнадцать
 f64 диагностики: гироскоп град/с[3], магнитное поле миллигаусс[3], углы Эйлера
 roll/pitch/yaw в градусах[3], удельная сила[3], скорость NED[3] и последний
@@ -3028,13 +3071,13 @@ payload; неизвестные payload не допускаются. Повре�
 | `provenance` | один ID набора данных или `null` на раздел | не `null` ровно тогда, когда в разделе есть данные; известные ID | — |
 | `massProperties` | `massKg` > 0, `cgOffsetBodyM`, `inertiaCgKgM2` | точная симметрия, положительная определённость по Холецкому, неравенство треугольника твёрдого тела | рантайм v1 (TASK-033) |
 | `rotors` (≤32) | `RotorGeometry` из v1 без изменений; тест требует совпадения схемы с v1 | проверки v1: уникальные ID и каналы, единичные кватернионы втулки (1e-6), станции, ширины квадратуры | рантайм v1 |
-| `motors` (≤32) | `id`, `rotorId`, `kvRpmPerV`, `resistanceOhm`, `currentLimitA` (нативный `Motor`) | уникальные ID, известный ротор, один двигатель на ротор | TASK-092 |
-| `escs` (≤32) | `id`, `motorId`, целые `pwmMinUs`/`pwmMaxUs` в [800, 2200], `commandTauS` | размах ≥100 мкс (граница `ExternalSitl`), известный двигатель, один ESC на двигатель | ШИМ через профиль; запаздывание TASK-092 |
+| `motors` (≤32) | `id`, `rotorId`, `kvRpmPerV`, `resistanceOhm`, `currentLimitA` (нативный `Motor`); необязательный `noLoadCurrentA` ≥0 (TASK-092) | уникальные ID, известный ротор, один двигатель на ротор | привод ESC (TASK-092) |
+| `escs` (≤32) | `id`, `motorId`, целые `pwmMinUs`/`pwmMaxUs` в [800, 2200], `commandTauS`; необязательные `updateRateHz` >0 и `brakeCurrentLimitA` ≥0 (TASK-092) | размах ≥100 мкс (граница `ExternalSitl`), известный двигатель, один ESC на двигатель | ШИМ через профиль; запаздывание, удержание и торможение в приводе ESC (TASK-092) |
 | `battery` | `openCircuitFullV`, `openCircuitEmptyV`, `internalResistanceOhm` ≥0, `capacityAh`, `currentLimitA` (нативный `Battery`, заряд 3600·А·ч Кл) | полное ≥ пустого | TASK-092 |
 | `airframe.drag` | `dragAreaBodyM2` (тензор C_D·A, м²), `centerOfPressureBodyM` | симметричный положительно определённый, так что сопротивление всегда диссипативно | TASK-096 |
 | `controlSurfaces` (≤16) | `id`, `function`, `actuatorChannel`, пределы отклонения в ±π/2, `rateLimitRadS` | уникальные ID и каналы, не канал ротора, min < max | TASK-109 |
 | `landingGear` (≤8) | поля `ContactWheel` плюс `id`; точка крепления от опорной точки | уникальные ID, обод < шины, последний узел кривой шины ≥ шина − обод; законы стойки и шины остаются нативными | TASK-095 |
-| `sensorMounts` (≤32) | `sensor`, `instance` (0–7), `positionBodyM`, `sensorToBody` | уникальные пары датчик/экземпляр, норма кватерниона в пределах 1e-6 | TASK-114 |
+| `sensorMounts` (≤32) | `sensor`, `instance` (0–7), `positionBodyM`, `sensorToBody` | уникальные пары датчик/экземпляр, норма кватерниона в пределах 1e-6 | конвейер датчиков (TASK-147); никогда не твёрдое тело |
 | `rotorWakePairs` (≤64) | `upstreamRotorId`, `downstreamRotorId` | известные роторы, без пар с самим собой и повторов, ацикличность | TASK-101 |
 | `ardupilot` | `vehicle: "copter"`, `frameClass`, `frameType` | допускается только 1/1 (quad X) с проверкой геометрии ниже | профиль параметров |
 
@@ -3078,29 +3121,38 @@ ArduPilot он отказывает, называя задачу-владель�
 наклонный октокоптер и базовый квадрокоптер паритета проходят туда и обратно
 точно.
 
-`ardupilotParameterProfile({ sha256, manifest })` (профиль v1) требует
-допущенную раму и двигатель с ESC для каждого ротора с одним общим диапазоном
-ШИМ. Он выводит две строки комментария и затем строки `NAME value`,
-отсортированные по имени, с концами строк LF и завершающим переводом строки:
+`ardupilotParameterProfile({ sha256, manifest }, { thrustExpo? })` (профиль
+v2, TASK-092) требует допущенную раму и двигатель с ESC для каждого ротора с
+одним общим диапазоном ШИМ. Он выводит две строки комментария и затем строки
+`NAME value`, отсортированные по имени, с концами строк LF и завершающим
+переводом строки. Для фикстуры, батарея которой охватывает напряжение
+холостого хода от 16,8 В до 13,2 В:
 
 ```text
-# MirageSITL ArduPilot parameter profile v1
+# MirageSITL ArduPilot parameter profile v2
 # modelId 87; manifest sha256 <64 lowercase hex>
+BATT_MONITOR 4
 FRAME_CLASS 1
 FRAME_TYPE 1
-MOT_BAT_VOLT_MAX 0
-MOT_BAT_VOLT_MIN 0
+MOT_BAT_VOLT_MAX 16.8
+MOT_BAT_VOLT_MIN 13.2
 MOT_PWM_MAX 2000
 MOT_PWM_MIN 1000
 ```
 
-Профиль выводит только имена параметров, встречающиеся в
-`scripts/sitl/driver.mjs`, `scripts/prepare-autopilot-parity.mjs` или
-`packages/autopilot/src/external-sitl.ts`; это проверяет тест. Компенсация
-напряжения остаётся отключённой (`MOT_BAT_VOLT_* 0`), как в настройках
-паритета TASK-047, пока TASK-092 не начнёт передавать напряжение батареи.
-Имена `MOT_THST_EXPO`, `BATT_*`, `INS_POS*` и `SIM_*` ждут этих доказательств
-или каталога из закреплённых исходников TASK-089.
+При наличии батареи привод передаёт напряжение и ток шины, поэтому
+`BATT_MONITOR 4` читает оба значения, а компенсация напряжения охватывает
+диапазон напряжения холостого хода пакета (`MOT_BAT_VOLT_MAX` — полный,
+`MOT_BAT_VOLT_MIN` — пустой; закреплённая прошивка поднимает минимум не ниже
+0,6 максимума). Без батареи профиль сохраняет `MOT_BAT_VOLT_* 0`, как в
+настройках паритета TASK-047, и не выводит `BATT_MONITOR`. `thrustExpo`,
+конечный в пределах [−1, 1], добавляет `MOT_THST_EXPO`; без него остаётся
+значение прошивки по умолчанию. Профиль выводит только имена параметров,
+встречающиеся в `scripts/sitl/driver.mjs`, `scripts/prepare-autopilot-parity.mjs`,
+`packages/autopilot/src/external-sitl.ts` или в закреплённых настройках
+Copter по умолчанию из `tests/fixtures/sitl/ardupilot-catalog.json`; это
+проверяет тест. Имена `INS_POS*` и `SIM_*` остаются за конфигурацией датчиков
+(TASK-147).
 
 `VehicleRegistry` хеширует точные байты содержимого (≤1 МиБ, строгий UTF-8)
 и допускает схемы 1 и 2. ID модели с другим хешем считается коллизией.
@@ -3449,6 +3501,12 @@ IMU ArduPilot остаются включёнными, поэтому модел
 нужна пропатченная прошивка, добавляет `; patches <id> <sha256>` ко второй
 строке заголовка; профили upstream не меняются.
 
+Схема 3 матрицы владения (TASK-147) добавляет восемь источников: задержку и
+рассогласование IMU, рассогласование магнитометра, шум положения, шум скорости
+и задержку приёмника GNSS в SITL, а также напряжение и ток батареи. Матрица
+схемы 1 или 2 читает каждый из них как его штатного владельца и сохраняет свой
+профиль; таблица — в разделе «Ошибки датчиков в тракте внешнего SITL».
+
 Настройка — `imuNoiseFloorMatrix('ardupilot' | 'off', path)`. В командной
 строке:
 
@@ -3611,7 +3669,15 @@ SIM_GYR_FLOOR 0
 | 136 / 144 / 152 | f64 × 3 | m/s | external_wake_hub_x/y/z |
 | 160 / 168 / 176 | f64 × 3 | 1 | ground_normal_hub_x/y/z |
 | 184 | f64 | m | ground_distance |
-| 192..255 | u32[16] | — | reserved_zero |
+| 192 | f64 | Ω | motor_resistance |
+| 200 | f64 | N m/A | motor_torque_constant |
+| 208 | f64 | A | motor_current_limit |
+| 216 | f64 | A | motor_brake_current_limit |
+| 224 | f64 | N m | motor_no_load_torque |
+| 232 | f64 | s | esc_command_tau |
+| 240 | f64 | s | esc_update_period |
+| 248 | u32 | bitmask | drive_flags |
+| 252 | u32 | — | reserved_zero |
 
 ### Bound rotor step output v2
 
@@ -3639,8 +3705,9 @@ SIM_GYR_FLOOR 0
 Поля привязанного ротора, принадлежащие последующим задачам, и их
 нейтральные значения:
 
-* `drive_mode` 0 (момент) и нулевые `esc_duty` и `bus_voltage`; режим 1 —
-  TASK-092.
+* `drive_mode` 0 (момент) с нулевыми `esc_duty`, `bus_voltage` и параметрами
+  привода. TASK-092 реализует режим 1 (раздел «Электромеханический привод»);
+  без допустимых параметров привода запись режима 1 недопустима (−3).
 * Нулевые `external_wake_hub_x/y/z` (TASK-101).
 * Сброшенный бит 0 `input_flags` и нулевые `ground_normal_hub_x/y/z` и
   `ground_distance` (TASK-100).
@@ -4091,6 +4158,7 @@ interface AircraftProfile {
   battery: { card: string | null };
   groundClearanceM: number | null;  // > 0 (decision F-07)
   sensorConfiguration: null;        // schema 3 holds a sensor configuration (TASK-143)
+  // schema 4 (TASK-144) adds propellerPolars: { card: string; polar: string }[], one or more
 }
 ```
 
@@ -4194,8 +4262,8 @@ interface ResolvedComponents {
       radialStationM: number[]; chordM: number[]; twistRad: number[]; quadratureWidthM: number[];
       shaftInertiaKgM2: number; bearingViscousNmPerRadS: number; azimuthSamples: number;
     };
-    motor: { kvRpmPerV: number; resistanceOhm: number; currentLimitA: number } | null;
-    esc: { pwmMinUs: number; pwmMaxUs: number; commandTauS: number } | null;
+    motor: { kvRpmPerV: number; resistanceOhm: number; currentLimitA: number; noLoadCurrentA?: number } | null;
+    esc: { pwmMinUs: number; pwmMaxUs: number; commandTauS: number; updateRateHz?: number; brakeCurrentLimitA?: number } | null;
   }[];
   battery: { card: string | null; values: BatterySpec } | null; // card equal to the profile's
 }
@@ -4217,7 +4285,8 @@ declare function deriveVehicleManifest(profile: unknown, components: ResolvedCom
 | `rotorWakePairs` | По одной на соосную пару, от верхнего ротора к нижнему |
 | `massProperties` | Аппарат и полезная нагрузка: общие масса и центр масс, обе инерции перенесены к нему по теореме Штейнера |
 | `datasets` | Один синтетический набор данных `aircraft-profile-derivation`, исходный SHA-256 которого — хеш канонических входных данных вывода |
-| `ardupilot`, `airframe.drag`, `sensorMounts`, `landingGear`, `controlSurfaces` | null или пусто; ими владеют TASK-142, TASK-096, TASK-147 и TASK-187 |
+| `sensorMounts` | Крепление IMU, если конфигурация датчиков задаёт положение или ориентацию IMU (вывод 2, TASK-147); иначе пусто |
+| `ardupilot`, `airframe.drag`, `landingGear`, `controlSurfaces` | null или пусто; ими владеют TASK-142, TASK-096 и TASK-187 |
 
 С d_i = c_i − c для центра масс каждой части c_i и общего центра масс c:
 
@@ -4227,7 +4296,8 @@ J = \sum_i \left( J_i + m_i\left(\lVert d_i \rVert^2 \mathbf{1} - d_i d_i^{\math
 
 `profileSha256` — SHA-256 канонического JSON профиля, поэтому переименование
 сохранённого профиля ничего не меняет. `inputSha256` — SHA-256 канонического
-`{derivationVersion: 1, profile, components}`. Манифест проходит
+`{derivationVersion: 2, profile, components}` (`DERIVATION_VERSION`; 2 с тех
+пор, как TASK-147 добавила крепление IMU). Манифест проходит
 `validateVehicleManifest`, а `bytes` — его канонический JSON по RFC 8785,
 который `VehicleRegistry` принимает без изменений; −0 во входных данных
 становится 0. Любое изменение геометрии, выходов, массовых характеристик,
@@ -4704,15 +4774,16 @@ Chromium и проверяет, что метку меняют только мо
 Схема профиля 3 хранит конфигурацию датчиков, а схемы 1 и 2 хранят `null`,
 что означает значения ArduPilot по умолчанию: каждый источник ошибки остаётся
 за штатным SITL ArduPilot, и MirageSITL ничего не вносит.
-`PROFILE_SCHEMA_VERSION` равна 3. Схема 3 всегда содержит расчёт, и её
+`PROFILE_SCHEMA_VERSION` была равна 3, пока схема 4 (TASK-144, раздел
+«Динамика по профилю») не добавила поляры пропеллеров. Схема 3 всегда содержит расчёт, и её
 конфигурация никогда не равна значениям по умолчанию, поэтому у значений по
 умолчанию ровно одна кодировка (`null`).
 `withSensorConfiguration(profile, config)` записывает схему 3 для
 конфигурации и `null` в остальных случаях, причём схема 1 остаётся 1, а схемы
-2 и 3 становятся 2. `bindMeasurements` сохраняет схему 3, а редактор Aircraft
+2 и 3 становятся 2; схема 4 сохраняет свои поляры пропеллеров. `bindMeasurements` сохраняет схему 3, а редактор Aircraft
 переносит конфигурацию без изменений. Существующие записи схем 1 и 2 никогда
-не перезаписываются, и зависимости не меняются. Вывод манифеста аппарата не
-читает конфигурацию; `sensorMounts` остаётся пустым до TASK-147.
+не перезаписываются, и зависимости не меняются. Вывод 2 (TASK-147) читает
+только положение и ориентацию IMU — для крепления IMU в манифесте.
 
 ### Схема и поля
 
@@ -4735,10 +4806,10 @@ interface SensorConfiguration {
     gyroNoiseDensityRadSPerSqrtHz: number | null;  // [0, 0.001]
     accelBiasMps2: [number, number, number] | null; // each [-2, 2], constant, sensor axes
     gyroBiasRadS: [number, number, number] | null;  // each [-0.2, 0.2]
-    latencyUs: number | null;                       // integer [0, 100000]; locked in mapping 1
+    latencyUs: number | null;                       // integer [0, 100000]; MirageSITL in mapping 2
     positionBodyM: [number, number, number] | null; // each [-2, 2], body FRD from the reference point; null at the CG
     orientationRad: [number, number, number] | null; }; // roll, yaw (-π, π], pitch [-π/2, π/2]; locked
-  gnss: { preset: PresetReference | null;           // every value locked in mapping 1
+  gnss: { preset: PresetReference | null;           // ArduPilot's receiver in mapping 2
     updateRateHz: number | null;                    // integer [1, 20]
     horizontalSigmaM: number | null;                // [0, 100], 1σ per horizontal axis
     verticalSigmaM: number | null;                  // [0, 100]
@@ -4753,7 +4824,7 @@ interface SensorConfiguration {
     biasGauss: [number, number, number] | null;     // each [-0.4, 0.4], net hard iron after COMPASS_OFS
     positionBodyM: [number, number, number] | null; // locked
     orientationRad: [number, number, number] | null; }; // locked
-  battery: { preset: PresetReference | null;        // every value locked in mapping 1
+  battery: { preset: PresetReference | null;        // MirageSITL in mapping 2
     voltageGainError: number | null; voltageOffsetV: number | null; voltageNoiseRmsV: number | null;
     currentGainError: number | null; currentOffsetA: number | null; currentNoiseRmsA: number | null; };
 }
@@ -4762,8 +4833,10 @@ interface PresetReference { catalogVersion: number; id: string }  // e.g. { cata
 
 ### Отображение владения 1
 
-`sensor-ownership.ts` назначает каждому полю одного владельца на `native-json`
-(`SENSOR_OWNERSHIP_MAPPING_VERSION` 1). Интерфейс не предлагает выбора
+Отображение 2 (TASK-147, раздел «Ошибки датчиков в тракте внешнего SITL»)
+заменяет это отображение; оно остаётся здесь как запись того, что поставила
+TASK-143. `sensor-ownership.ts` назначало каждому полю одного владельца на
+`native-json` (`SENSOR_OWNERSHIP_MAPPING_VERSION` 1). Интерфейс не предлагает выбора
 владельца, поэтому не может породить недопустимую матрицу.
 
 | Владелец | Поля | Источник TASK-089 и доставка |
@@ -4809,7 +4882,9 @@ INS_ACCOFFS и INS_ACCSCAL из файлов значений по умолча�
 скомпилированные частоты выборки IMU, предполагаемые задержки EKF и шум
 ArduPilot без зерна.
 
-Для TASK-147: шум барометра отображается в SIM_BAROn_RND как полуширина
+TASK-147 реализует эти преобразования с градиентом на высоте точки старта
+(раздел «Ошибки датчиков в тракте внешнего SITL»). Как планировалось здесь:
+шум барометра отображается в SIM_BAROn_RND как полуширина
 равномерного распределения в метрах, √3·σ·|dh/dp|, а смещение — в
 SIM_BAROn_GLITCH = bias·dh/dp, с градиентом ISA −0.0832 m/Pa на уровне моря;
 задержка отображается в SIM_BAROn_DELAY в миллисекундах. Шум магнитометра
@@ -4840,8 +4915,9 @@ RMS. Пресет никогда не заполняет поле, которо�
 2.8 mdps/√Hz), MS5611-01BA03 (2.7 Pa RMS при OSR 1024, настройке ArduPilot),
 RM3100 (15 nT при cycle count 200), NEO-M9N (2.0 m CEP50, 1.699 m на ось) и
 INA226 (шаг 1.25 mV, 0.361 mV RMS). `applySensorPreset` записывает только
-применимые поля; NEO-M9N и INA226 в отображении 1 ничего не заполняют и
-сохраняют свою ссылку.
+применимые поля; NEO-M9N и INA226 в отображении 1 ничего не заполняли и
+сохраняли свою ссылку; отображение 2 заполняет горизонтальную ошибку GNSS и
+шум напряжения батареи.
 
 ### Копия для эксперимента
 
@@ -4864,6 +4940,888 @@ INA226 (шаг 1.25 mV, 0.361 mV RMS). `applySensorPreset` записывает 
 круговой перенос. `tests/browser/sensors-tab.spec.ts` задаёт датчики через
 интерфейс в Chromium и сравнивает сохранённый профиль с ожидаемой
 конфигурацией. Результаты фиксирует запись дорожной карты.
+
+## Ошибки датчиков в тракте внешнего SITL (TASK-147)
+
+Область S08 во время выполнения. Конфигурация датчиков (TASK-143) действует в
+нативном ArduPilot SITL, на штатной прошивке по решению D-10, двумя путями:
+генерируемые параметры SITL задают ошибки, которыми владеет ArduPilot, и
+считываются обратно до arm, а MirageSITL искажает отправляемую им строку
+состояния JSON. Код вне `stepInto` выполняется только при конфигурации.
+
+### Схема 3 матрицы владения
+
+`OWNERSHIP_MATRIX_SCHEMA_VERSION` равна 3. Схема 3 перечисляет 33 источника:
+25 источников схем 1 и 2 (`ERROR_SOURCE_IDS_V1`) и ещё восемь. Матрица схемы 1
+или 2 их не перечисляет и читает каждый как его штатного владельца,
+`stockOwner(source, path)`: ArduPilot, если закреплённая прошивка его
+применяет, иначе никто. Её профиль параметров не меняется, а
+`ownerOf(matrix, source)` отвечает для любой схемы. `imuNoiseFloorMatrix`
+остаётся в схеме 2.
+
+| Источник | ArduPilot применяет его через | Нейтральная настройка | Доставка MirageSITL | Штатный владелец |
+|---|---|---|---|---|
+| `imu.latency` | ничего: в SITL нет задержки IMU | нет | `json:imu.accel_body`, `json:imu.gyro` | никто |
+| `imu.misalignment` | `SIM_IMU_ORIENT`, дискретные повороты | `SIM_IMU_ORIENT 0` | `json:imu.accel_body`, `json:imu.gyro` | ArduPilot |
+| `mag.misalignment` | `SIM_MAGn_ORIENT`, дискретные повороты | `SIM_MAGn_ORIENT 0` | только `hal:magnetic-field` | ArduPilot |
+| `gnss.position-noise` | окружность `SIM_GPSn_HNSE`, синусоида `SIM_GPSn_NOISE`, период 12,6 с | `HNSE 0`, `NOISE 0` | нет | ArduPilot |
+| `gnss.velocity-noise` | `SIM_GPSn_VERR`, равномерный по каждой оси | `VERR 0` | нет | ArduPilot |
+| `gnss.delay` | `SIM_GPSn_LAG_MS`, штатно 100 мс | `LAG_MS 0` | нет | ArduPilot |
+| `battery.voltage` | ничего: аналоговая цепь делит и умножает на 10,1 | нет | `json:battery.voltage` | никто |
+| `battery.current` | ничего: аналоговая цепь делит и умножает на 17 | нет | `json:battery.current` | никто |
+
+Каталог фиксирует исходные факты каждой строки, прочитанные из закреплённых
+файлов `SIM_GPS.cpp`, `SIM_Compass.cpp`, `AP_InertialSensor_SITL.cpp`,
+`SIM_JSON.cpp`, `SITL_State_common.cpp`, `AnalogIn.cpp`,
+`AP_HAL/board/sitl.h`, `AP_BattMonitor_Analog.cpp` и `AP_Math.cpp`. Параметры
+`SIM_GPSn_*` собираются под `#if AP_SIM_GPS_ENABLED`, которое валидатор
+допускает только через занесённый в каталог факт `sim-gps-enabled`
+(`SIM_config.h` определяет его как `AP_SIM_ENABLED`). Пока MirageSITL владеет
+`gnss.receiver` (GPS_INPUT), приёмник ArduPilot не работает, поэтому три
+источника приёмника не могут принадлежать ArduPilot. Конструктор закреплённого
+`SITL.h` задаёт каждому `SIM_MAGn_OFS` значение (5, 13, −18) мГс, образующее
+пару с `COMPASS_OFSn` из `copter.parm` (факт `compass-stock-offsets`).
+
+Оракул JSON получает `expectedBatteryLine`: SIM_JSON читает необязательный
+раздел `"battery":{"voltage":V,"current":A}` как float32, а в остальных случаях
+использует `SIM_BATT_VOLTAGE` и 0 А. `encodeStateLineInto` пишет его после
+`velocity_wind`, пока установлен `batteryValid`; текст ни одного из ключей не
+встречается в строке раньше. Валидатор моста требует в нём конечные числа.
+
+### Отображение владения 2
+
+`SENSOR_OWNERSHIP_MAPPING_VERSION` равна 2. Отображение 1 (TASK-143) — запись
+того, что поставила TASK-143; отображение 2 заменяет его во всех разрешениях.
+
+| Владелец | Поля | Источник и доставка |
+|---|---|---|
+| MirageSITL | Плотности шума, смещения, положение, задержка и ориентация IMU | пять источников отображения 1, `imu.latency`, `imu.misalignment`; векторы IMU в JSON |
+| MirageSITL | Коэффициент, смещение и шум измерения напряжения и тока батареи | `battery.voltage`, `battery.current`; раздел батареи JSON |
+| ArduPilot SITL | Шум, смещение и задержка барометра; шум и смещение магнитометра | как в отображении 1 |
+| ArduPilot SITL | Частота GNSS, горизонтальная и вертикальная ошибки положения, ошибка скорости и задержка | `gnss.receiver` (частота), `gnss.position-noise`, `gnss.velocity-noise`, `gnss.delay` |
+| Заблокировано | Положение магнитометра | источника нет: однородное поле Земли одинаково в любой точке корпуса |
+| ArduPilot SITL, заблокировано | Ориентация магнитометра | `mag.misalignment`: `SIM_MAGn_ORIENT` принимает только дискретные повороты на 45°, а MirageSITL не поставляет данные магнитометра на `native-json`; малое рассогласование требует изменения прошивки (D-10) |
+
+`sensorOwnershipMatrix` выводит матрицу схемы 3. Значения ArduPilot по
+умолчанию дают каждому источнику его штатного владельца. В режиме заданных
+ошибок источник, которым владеет MirageSITL, имеет владельца `mirage`, пока
+одно из его полей содержит значение; остальные сохраняют штатного владельца.
+Ideal переводит в `none` каждый источник, который можно отключить параметром;
+пороги шума IMU, `gnss.receiver` и `mag.hard-iron` остаются за ArduPilot, а
+источники, которые ArduPilot никогда не применяет, получают `none`. Ideal
+теперь записывает 159 нейтрализующих настроек (143, ориентации IMU и трёх
+магнитометров и двенадцать настроек приёмника). Частота GNSS — это настройка,
+а не ошибка, поэтому Ideal сохраняет собственную частоту ArduPilot.
+
+### Параметры SITL
+
+`sensorRuntime(config, catalog, context)` проверяет матрицу по закреплённому
+каталогу и возвращает параметры, их текст `.parm`
+(`# MirageSITL sensor parameters v1`), планы ошибок MirageSITL и остаточные
+члены. Контекст содержит высоту точки старта, `COMPASS_OFSn` аппарата
+(`STOCK_COMPASS_OFFSETS_MILLIGAUSS` для закреплённого `copter.parm`) и ЦМ.
+Параметры — это нейтрализующие настройки профиля владения и значения, которыми
+владеет ArduPilot; имя, которое получило бы два значения, приводит к ошибке
+вызова.
+
+| Поле | Параметры SITL (n — каждый экземпляр) | Значение |
+|---|---|---|
+| Шум барометра σ (Па) | `SIM_BAROn_RND` (BARO, BAR2, BAR3) | √3·σ·\|dh/dp\| м — полуширина равномерного шума SITL |
+| Смещение барометра b (Па) | `SIM_BAROn_GLITCH` | b·dh/dp м; показание выше на b — это высота ниже на b·\|dh/dp\| |
+| Задержка барометра (мкс) | `SIM_BAROn_DELAY` | задержка/1000 мс |
+| Шум магнитометра σ (Гс) | `SIM_MAG_RND` | √3·1000·σ мГс |
+| Смещение магнитометра b (Гс) | `SIM_MAGn_OFS_{X,Y,Z}` | COMPASS_OFSn − 1000·b мГс; Ideal записывает b = 0 |
+| Частота GNSS (Гц) | `SIM_GPSn_HZ` (GPS1, GPS2) | частота |
+| Горизонтальное σ GNSS (м) | `SIM_GPSn_HNSE` | √2·σ: окружность радиуса r даёт r/√2 по оси |
+| Вертикальное σ GNSS (м) | `SIM_GPSn_NOISE` | √2·σ: синусоида амплитуды A даёт A/√2 |
+| σ скорости GNSS (м/с) | `SIM_GPSn_VERR_{X,Y,Z}` | √3·σ — полуширина равномерного шума |
+| Задержка GNSS (мкс) | `SIM_GPSn_LAG_MS` | задержка/1000 мс |
+
+dh/dp — наклон стандартной атмосферы 1976 года ArduPilot
+(`AP_Baro_atmosphere.cpp`) на высоте точки старта h, с геопотенциальной высотой
+H = R_E·h/(R_E + h), R_E = 6 356 766 м, R_air = 287,053072 Дж/(кг·К), и
+температурой T и давлением p тропосферы:
+
+\[
+\frac{dh}{dp} = -\frac{R_{\mathrm{air}}\,T\,(R_E + h)^2}{p\,g\,R_E^2}
+\]
+
+Он равен −0,0832 м/Па на уровне моря и на 5,8 % круче на высоте 584 м точки
+старта нативной обвязки. Сессия внешнего SITL записывает параметры в файл
+значений по умолчанию после `copter.parm` и собственных значений пользователя,
+затем до arm считывает полный список параметров (`param_count` записей). Каждое
+сгенерированное имя, которое есть в сборке, должно сообщить своё значение как
+float32; имя, которого нет в списке, допускается только для занесённого в
+каталог экземпляра, который сборка не компилирует (`INS_MAX_INSTANCES`,
+`HAL_COMPASS_MAX_SENSORS`), или для `SIM_GPS2_*`, пока `SIM_GPS2_ENABLE`
+равен 0 и скрывает остальную часть своей группы.
+
+### Ошибки MirageSITL в строке состояния JSON
+
+`packages/sensors/src/configured.ts` применяет планы `sensorRuntime`.
+`ConfiguredImu.stepInto(f_cg, ω, ω̇, accelOut, gyroOut)` принимает удельную силу
+в ЦМ, угловую скорость и угловое ускорение в осях корпуса FRD и записывает
+векторы IMU в осях датчика:
+
+\[
+f_{\mathrm{IMU}} = R^{\mathsf T}\left(f_{\mathrm{cg}} + \dot\omega\times r + \omega\times(\omega\times r)\right) + b_a + \sigma_a n_a,
+\qquad
+\omega_{\mathrm{IMU}} = R^{\mathsf T}\omega + b_g + \sigma_g n_g,
+\qquad
+\sigma = N\sqrt{f_s/2}
+\]
+
+r — положение IMU минус ЦМ, R = Rz(yaw)·Ry(pitch)·Rx(roll) переводит оси
+датчика в оси корпуса (`lever-arm.ts`), N — односторонняя амплитудная
+плотность шума, f_s — частота выборки. Кинематическая часть задерживается на
+величину задержки: целые выборки точно, дробные — линейной интерполяцией между
+двумя соседними выборками, а пока истории недостаточно — самой старой
+выборкой. Смещение и шум добавляются при доставке. Каждый член шума берёт
+стандартные нормальные значения (косинусная ветвь Бокса–Мюллера) из
+собственного фиксированного потока: акселерометр 0x00147001, гироскоп
+0x00147002, напряжение батареи 0x00147003 и ток 0x00147004. Нулевой член
+пропускает свои вычисления и выборки, поэтому конфигурация из нулей доставляет
+каждый бит отсутствующей, включая −0. `ConfiguredBattery` измеряет
+(1 + коэффициент)·истина + смещение + шум. Истинное состояние батареи задаёт
+сессия; нативная обвязка отправляет 12,6 В и 0 А ArduPilot, пока TASK-092 не
+добавит модель батареи. В нативном драйвере ω̇ — обратная разность ω на
+800 Гц, та же разность, что даёт удельную силу синтетического квадрокоптера.
+
+### Крепление IMU в манифесте
+
+`DERIVATION_VERSION` равна 2. Если конфигурация датчиков профиля задаёт
+положение или ориентацию IMU, выведенный манифест содержит одну запись
+`sensorMounts`: `imu`, экземпляр 0, положение (ЦМ, если задана только
+ориентация) и кватернион из осей датчика в оси корпуса для R из `trig.ts`,
+поэтому Node и Chromium выводят одинаковые байты. Иначе раздел остаётся
+пустым. Манифест вывода 2 без крепления отличается от вывода 1 только версией
+внутри набора данных. Крепления потребляет конвейер датчиков, поэтому
+`projectVehicleToModelV1` больше их не отвергает.
+
+### Нативная обвязка
+
+`MIRAGE_SITL_SENSORS` указывает на JSON-файл `{configuration, seed}` для
+`scripts/sitl/driver.mjs`; драйвер записывает сгенерированные параметры,
+задерживает arm, пока полный список их не подтвердит, и применяет планы к
+каждой строке состояния. Он работает только на штатной прошивке без случая EW.
+`node scripts/run-sitl-sensors.mjs NEW_DIRECTORY` запускает
+`scripts/sitl/sensor-probe.mjs`: девять наземных случаев на новых экземплярах
+SITL, каждый из которых считывает обратно свои параметры и записывает
+HIGHRES_IMU, SYS_STATUS и GPS_RAW_INT в течение 6 с после установления 20 с.
+`node scripts/check-sitl-sensors.mjs --input DIRECTORY [--report PATH]`
+заново вычисляет каждое среднее по телеметрии и оценивает его по пределам,
+заданным из модели шума:
+
+| Проверка | Случаи | Ожидается |
+|---|---|---|
+| Пара hard-iron | Ideal против нулевой нейтрали TASK-089 | равные средние магнитометра в пределах 1e-6 Гс |
+| Смещение магнитометра один раз | заданный против Ideal | b в пределах 1e-5 Гс |
+| Смещение акселерометра один раз | imu-bias против значений ArduPilot по умолчанию, поверх пользовательского `SIM_ACC1_BIAS` 0,4 м/с² | 1,001·b в пределах 1e-3 м/с², и `SIM_ACC1_BIAS_X` считан обратно как 0 |
+| Смещение гироскопа один раз | то же | b в пределах 1e-4 рад/с |
+| Рассогласование | imu-tilt (тангаж 0,05 рад) против значений по умолчанию | 1,001·(g sin θ, 0, g(1 − cos θ)) в пределах 1e-3 м/с² |
+| Смещение барометра один раз | заданный против Ideal | +30 Па в пределах 1 Па |
+| Ошибки батареи один раз | заданный и Ideal | 12 702 мВ и 40 сА; 12 600 мВ и 0 сА |
+| Частота GNSS | заданный и Ideal | 60 и 30 решений за 6 с, ±1 |
+| Нулевые члены | zero-terms, Ideal и значения по умолчанию | одинаковый SHA-256 первых 8000 доставленных строк |
+| Seed | два прогона с seed 7, один с seed 8 | равны, затем различаются и отличаются от Ideal |
+
+1,001 — это `INS_ACCSCAL` из `copter.parm`, масштабирующий каждую разность
+акселерометра. Аудит не проходит, если записанный им исходный файл изменился
+после захвата.
+
+### Остаточные члены (отображение 2)
+
+Ideal перечисляет пороги шума IMU (D-10), собственную частоту приёмника GNSS в
+SITL и фиксированную точность 0,3 м, `INS_ACCOFFS` и `INS_ACCSCAL`,
+скомпилированные частоты выборки IMU, задержки, принятые EKF, и шум ArduPilot
+без зерна. Режим заданных ошибок добавляет штатные члены без значения и, пока
+задана ошибка положения GNSS, детерминированное блуждание приёмника. Пара
+hard-iron больше не остаточный член: захват показывает, что она в сумме даёт
+ноль. Снимок датчиков 2 (`SENSOR_SNAPSHOT_VERSION`) добавляет тексты
+остаточных членов в запись эксперимента и несёт отображение 2 и его матрицу
+схемы 3.
+
+### Проверка (TASK-147)
+
+`tests/lever-arm.test.ts` проверяет центростремительный и касательный члены,
+формулировку через кососимметричные матрицы, порядок поворотов и кватернион
+по независимому коду. `tests/sensor-configured.test.ts` проверяет побитовую
+идентичность нулевых членов, точные смещения, коэффициенты и задержки, σ шума,
+независимость и белизну в пределах пяти стандартных ошибок, а также seed.
+`tests/error-ownership.test.ts` проверяет схему 3, штатных владельцев и
+условие GNSS; `tests/sensor-config.test.ts` проверяет отображение 2, параметры
+по их формулам, наклон барометра по конечной разности атмосферы ArduPilot и
+крепление IMU; `tests/integration/sitl-sensors.test.ts` ломает каждую проверку
+аудита по одному разу. Запись дорожной карты фиксирует нативные захваты.
+
+## Электромеханический привод (TASK-092)
+
+Производственный привод заменяет идеальный ESC-источник момента на ESC,
+двигатель постоянного тока, управляемый напряжением, и одну шину батареи,
+общую для всех двигателей, поэтому зависимость тяги от газа и просадка
+батареи следуют из физики. Это режим привода 1 интерфейса v2 и экспорт
+`bet_bus_step`; режим привода 0 и интерфейсы v1 побитово не меняются. Дайджест
+траектории из 4000 изменяющихся шагов v1 одинаков до и после изменения.
+
+### Закон двигателя и ESC
+
+`DriveMotor` (`native/bet/src/motor.rs`) принимает сопротивление обмотки R,
+постоянную момента в СИ k_t = k_e, ограничение тока I_max, ограничение тока
+торможения I_brake ≥ 0, момент холостого хода τ₀ = k_t·I₀ (I₀ — ток холостого
+хода из карточки), запаздывание команды τ_cmd и период обновления ESC T_esc.
+Прежний `Motor` из TASK-025, без торможения и трения, остаётся для своих
+тестов.
+
+\[
+i = \operatorname{clamp}\!\left(\frac{d\,V_{\mathrm{bus}} - k_e\,\Omega}{R},\; -I_{\mathrm{brake}},\; I_{\max}\right),
+\qquad
+\tau_{\mathrm{em}} = k_t\, i,
+\qquad
+P_{\mathrm{terminal}} = i\,(i\,R + k_e\,\Omega)
+\]
+
+ESC берёт выборку целевой скважности, когда истёк его счётчик (с точностью
+dt·1e-9), удерживает её на T_esc (каждый шаг, если T_esc короче шага) и
+следует за ней по закону d ← d* + (d − d*)·exp(−dt/τ_cmd). Отключение питания
+или нулевое напряжение шины обесточивает мост: ток нулевой, поэтому нет ни
+привода, ни торможения; отключение также обнуляет состояние ESC, который
+затем берёт выборку заново.
+
+За один шаг вал (`Shaft::step_driven`) интегрирует
+J·dΩ/dt = τ_drive − (b + B)·Ω + s·Q_air − τ₀ точным вязким решением при
+постоянном моменте. В пределах ограничений тока, при начальной скорости,
+τ_drive = k_t·d·V/R и B = k_t²/R, поэтому противо-ЭДС неявна и электрическая
+постоянная времени не ограничивает шаг; на ограничении τ_drive = k_t·i_limit
+и B = 0. Кулоновский момент τ₀ противодействует вращению; остановленный вал
+остаётся неподвижным, пока суммарный момент не превышает τ₀. Торможение или
+трение, останавливающие вал, входят в модель; флаг 16 ставит только
+аэродинамический момент, который повернул бы вал назад сильнее τ₀. При τ₀ = 0,
+B = 0 и неотрицательном приводе `step_driven` побитово равен `step` из v1.
+
+### Запись и арена режима привода 1
+
+Режим привода 1 использует `esc_duty` (целевая скважность [0, 1]) и
+`bus_voltage` (В ≥ 0) на их зарезервированных смещениях, требует
+`motor_torque` = 0 и читает параметры в байтах 192–247 и `drive_flags` в байте
+248 (бит 0: отключение питания); см. таблицу входа «Интерфейсы шага v2».
+Режим привода 0 по-прежнему требует нейтральных байтов 120–135 и 192–255.
+Состояние ESC (скважность, удерживаемая цель, счётчик) занимает байты 32–55
+заголовка арены, которые v1 требует нулевыми, поэтому активная арена ESC
+отклоняет шаги по моменту, пока её не очистит `bet_bound_reset` или
+отключение питания. Всё вычисляется до любой записи; отклонённая запись не
+меняет ни арену, ни выход.
+
+Режим привода 1 записывает электрические выходы при скорости середины шага,
+где вычислялась аэродинамика: `motor_current` i, `bus_current` =
+P_terminal/V (0 при V = 0), `electrical_power` = P_terminal и `copper_loss` =
+i²·R, с битом достоверности 1. `shaft_power` — электромагнитный момент при
+начальной скорости, умноженный на эту скорость. Флаг выхода 32 отмечает шаг,
+ток которого стоял на ограничении.
+
+### Общая шина
+
+`bet_bus_step(input, output, dt)` выполняет шаг батареи TASK-026: линейное
+напряжение холостого хода между пустым и полным значениями, внутреннее
+сопротивление, заряд в кулонах, ограничение тока в обоих направлениях.
+Отрицательная нагрузка рекуперирует: ток — отрицательный корень того же
+квадратного уравнения, а заряд никогда не превышает 1 (флаг 2, если пакет был
+полон). Нагрузка сверх того, что пакет может отдать или принять, ограничивается
+(флаг 1). Положительные нагрузки дают значения TASK-026 побитово.
+
+\[
+I = \frac{2P}{V_{oc} + \sqrt{V_{oc}^2 - 4\,R_{\mathrm{int}}\,P}},
+\qquad
+V_{\mathrm{bus}} = V_{oc} - I\,R_{\mathrm{int}}
+\]
+
+### Вход общей шины v1
+
+| Смещение байта | Тип данных | Единицы | Имя поля |
+| ---: | --- | --- | --- |
+| 0 | u32 | version | version |
+| 4 | u32 | — | reserved_zero |
+| 8 | f64 | В | open_circuit_full |
+| 16 | f64 | В | open_circuit_empty |
+| 24 | f64 | Ом | internal_resistance |
+| 32 | f64 | Кл | capacity_coulomb |
+| 40 | f64 | А | current_limit |
+| 48 | f64 | 1 | state_of_charge |
+| 56 | f64 | Вт | motor_power |
+| 64 | f64 | Вт | house_power |
+| 72..127 | u32[14] | — | reserved_zero |
+
+### Выход общей шины v1
+
+| Смещение байта | Тип данных | Единицы | Имя поля |
+| ---: | --- | --- | --- |
+| 0 | f64 | 1 | state_of_charge |
+| 8 | f64 | В | voltage |
+| 16 | f64 | А | current |
+| 24 | f64 | Вт | delivered_power |
+| 32 | f64 | Вт | internal_loss |
+| 40 | f64 | Вт | source_power |
+| 48 | u32 | битовая маска | flags |
+| 52..127 | u32[19] | — | reserved_zero |
+
+Статусы: 0, −2 длина записи или указатели, −3 недопустимый вход или заряд,
+−7 версия. `BetBus` (`@mirage/wasm-bet/bus`) владеет одной парой записей в
+собственном экземпляре.
+
+### Связь и энергетический баланс
+
+На каждом такте роторы используют напряжение, которое шина дала на предыдущем
+такте (напряжение холостого хода до первого шага). Затем шина отдаёт сумму
+мощностей двигателей на клеммах: запаздывание на один такт, без итераций. На
+каждом такте, где шина не ограничена, мощность источника V_oc·I равна
+внутренним потерям I²·R_int плюс отданной мощности, а отданная мощность равна
+сумме мощностей на клеммах, каждая из которых — потери в меди плюс k_t·i·Ω;
+ток шины, сообщаемый для каждого двигателя, — его мощность на клеммах,
+делённая на запаздывающее напряжение, а ток пакета — корень выше.
+
+### Динамика полёта, манифест и профиль параметров
+
+`BetFlightConfiguration.drive` (`EscDriveConfiguration`) выбирает привод:
+один `EscDriveMotor` на ротор в порядке роторов (R, k_t, I_max, I_brake, τ₀,
+τ_cmd, T_esc), `BusBattery`, начальный заряд в (0, 1] и постоянную бортовую
+нагрузку ≥ 0 Вт. Без него каждый ротор получает duty·`motorMaxTorqueNm` через
+интерфейс v1, и траектория из 4000 записей состояния даёт тот же SHA-256, что
+код и сборка WASM d1aeaca. С ним роторы работают в режиме привода 1
+интерфейса v2 с ограниченной скважностью в качестве `esc_duty` и
+запаздывающим напряжением шины, а шина отдаёт сумму их мощностей на клеммах
+плюс бортовую нагрузку. `electrical` (`Float64Array` из заряда, напряжения
+шины и тока шины), `busLimited` и `driveLimited` описывают последний шаг;
+геттеры `stateOfCharge` и `batteryCurrentA` читают `electrical` для холодного
+кода, потому что V8 хранит поля классов в тегированном виде и число double,
+записанное в такое поле или возвращённое невстроенным геттером, может
+выделять память. `state.batteryVoltage` — напряжение шины, которое
+`PhysicsSessionV2` публикует вместе с током шины (`batteryCurrentA` в
+`FlightStateV2`, читаемый из `SessionDynamics.electrical`), а HAL передаёт как
+значения датчиков 20 и 21. Контракт HAL сохраняет значение 21 неотрицательным, поэтому показание
+тока у автопилота — однополярный датчик модуля питания: `WasmSitlCoupling` и
+нативная строка JSON передают max(0, I), и рекуперирующая шина показывает
+0 А, тогда как `FlightStateV2` сохраняет знаковый ток. Флаг выхода 32 —
+моделируемое ограничение и не входит в `validityFlags`.
+
+Отказы двигателя (`useMotorFaults`) идут по физическому пути. Отключение
+питания с остаточной долей r масштабирует целевую скважность ESC на r; при
+r = 0 также ставится флаг привода «отключение питания», поэтому мост не
+проводит ток и ротор вращается по инерции. Без привода ESC r масштабирует
+момент привода. Синтетическая мгновенная потеря тяги по-прежнему
+масштабирует весь силовой винт ротора.
+
+`escDriveFromManifest(manifest, initialStateOfCharge, housePowerW = 0)`
+(`@mirage/physics/drive`) переводит проверенный манифест аппарата в привод:
+k_t = k_e = 60/(2π·KV), τ₀ = k_t·`noLoadCurrentA`, T_esc = 1/`updateRateHz`,
+I_brake = `brakeCurrentLimitA`, τ_cmd = `commandTauS`. Он выбрасывает ошибку с
+именем поля, если у двигателя нет `noLoadCurrentA`, у ESC нет `updateRateHz`
+или `brakeCurrentLimitA` либо у аппарата нет батареи; ничего не подставляется
+по умолчанию.
+
+`thrustExpoOfDrive` подбирает кривую тяги ArduPilot (`Thrust_Linearization`)
+под привод. Автопилот отображает исполнительную команду a ∈ [0, 1] в выход
+`MOT_SPIN_MIN + (MOT_SPIN_MAX − MOT_SPIN_MIN)·a` и моделирует долю тяги как
+(1 − e)·a + e·a². При скважности ESC, линейной по ШИМ на
+`MOT_PWM_MIN..MAX`, и закреплённых значениях по умолчанию 0,15 и 0,95
+статическая развёртка при `MOT_BAT_VOLT_MAX`, где масштаб по напряжению равен
+1, даёт тягу T(a) одного ротора в неподвижном воздухе после установления его
+скорости; тогда
+
+\[
+e = \frac{\sum_k \left(y_k - a_k\right)\left(a_k^2 - a_k\right)}{\sum_k \left(a_k^2 - a_k\right)^2},
+\qquad
+y_k = \frac{T(a_k)}{T(1)}
+\]
+
+а подбор вне [−1, 1] выбрасывает ошибку. Для ротора паритета на синтетическом
+приводе 300 KV, 0,1 Ом при 16,8 В девять выборок дают e = 0,853
+(среднеквадратичный остаток 0,006); тот же ротор под моментом duty·0,2 Н·м
+даёт e = −0,252 (среднеквадратичный остаток 0,047). Данных стенда тяги в
+репозитории нет; по SA-01 эти значения сообщаются для оценки пользователем, а
+не принимаются по допуску.
+
+### Проверка (TASK-092)
+
+`native/bet/tests/drive.rs` проверяет удержание и запаздывание ESC, закон
+момента, тождество мощности на клеммах, ведомый вал по точному решению и его
+побитовое равенство v1, рекуперацию и запись шины по замкнутым формулам.
+`native/bet/tests/bound_v2.rs` проверяет баланс энергии и момента за 4000
+шагов, отключение питания, флаг ограничения тока, недопустимые записи привода
+и отсутствие выделений памяти за 1 000 000 шагов ESC и шины.
+`tests/wasm-abi-v2.test.ts` сравнивает адаптеры WASM с нативным эталоном и
+эталонными записями. `tests/drive-chain.test.ts` на каждом такте набора
+высоты и тормозящего снижения проверяет интеграл заряда побитово, напряжение
+пакета и баланс мощности шины в пределах 1e-9; отказы с полным и частичным
+отключением; отображение манифеста; подбор тяги и дайджест пути по моменту.
+`scripts/check-bet-runtime.mjs --allocation` добавляет граф привода ESC и
+нативные тесты выделений памяти привода. Запись дорожной карты фиксирует
+нативный полёт ArduCopter на приводе.
+
+## Динамика по профилю (TASK-144)
+
+Версия профиля аппарата и его карточки компонентов строят динамику полёта
+сессии: до 16 роторов BET на приводе и шине батареи TASK-092,
+регистрируемых и загружаемых через `model.load`. Demo остаётся вариантом по
+умолчанию. По решениям заказчика от 2026-10-30 физическое значение, которого
+нет в карточке, принимает документированное допущенное значение и
+указывается как допущение с флагом, а поляра профиля каждого пропеллера берётся
+из версионированного каталога времени выполнения.
+
+### Каталог поляр v1
+
+`@mirage/physics/polar-catalog` перечисляет поляры, которые может выбрать
+профиль. У каждой записи есть стабильный текстовый ID, хранимый в профилях, и
+числовой ID — `polarId` ротора в выведенном манифесте; числовые ID никогда не
+используются повторно.
+
+| ID | Числовой ID | Профиль | Источник |
+| --- | ---: | --- | --- |
+| `naca6409-neuralfoil-v1` | 1 | NACA6409 | Предсказание NeuralFoil 0.3.3, `tests/fixtures/polars/naca6409-neuralfoil.json` |
+| `naca0012-neuralfoil-v1` | 2 | NACA0012 | Предсказание NeuralFoil 0.3.3, `tests/fixtures/polars/naca0012-neuralfoil.json` |
+
+Файлы каталога в `packages/physics/polars/` — побайтно идентичные копии этих
+фикстур с их происхождением и ограничениями; производственный
+`parseNeuralFoilPolar` читает их один раз. `catalogPolarForAirfoil`
+сопоставляет имя профиля из карточки без учёта регистра, пробелов, дефисов и
+подчёркиваний и не допускает более свободных совпадений. Таблица XFOIL
+SDA1075 — вход кольцевой диагностики BEM для одного числа Рейнольдса в другом
+формате — в каталог не входит.
+
+### Схема профиля 4
+
+Схема 4 добавляет `propellerPolars`: одну или несколько записей
+`{ card, polar }` в порядке возрастания карточки, каждая для карточки
+пропеллера, которую использует мотор профиля, и с ID из каталога. Профиль
+записывается в наименьшей схеме, вмещающей его содержимое: 4 при выбранной
+поляре, иначе 3 при конфигурации датчиков, иначе 2, а профиль схемы 1, расчёт
+которого остаётся неявным предварительным, остаётся схемой 1. Схема 4 хранит
+конфигурацию датчиков или `null` и всегда расчёт. Это правило применяет
+`withProfileContent`; его используют `withSensorConfiguration`,
+`withPropellerPolars` и `bindMeasurements`, поэтому каждая из них сохраняет
+содержимое остальных. `PROFILE_SCHEMA_VERSION` равна 4; записи схем 1–3
+остаются допустимыми и никогда не перезаписываются. Вкладка Aircraft
+перечисляет каждую используемую карточку пропеллера с выбором поляры; выбор для
+карточки, которую больше не использует ни один мотор, отбрасывается при
+сохранении профиля.
+
+### Разрешение компонентов
+
+`resolveComponents(profile, cards)` (`@mirage/aircraft/resolve-components`)
+превращает профиль и версии его карточек в разрешённые компоненты TASK-138 с
+полями привода манифеста v2, допущениями и значениями, которых по-прежнему
+нет. Профиль, в котором чего-либо нет, не разрешается и не может летать.
+Геометрия пропеллера — вывод TASK-139 с 16 полосами; её флаги (допущенные
+вырез у комля, хорда или крутка) становятся допущениями. Инерция вала —
+m·R²/3 пропеллера.
+
+| Значение | Откуда берётся | Если в карточке нет | ID допущения |
+| --- | --- | --- | --- |
+| Поляра | выбор профиля | профиль каталога, совпадающий с профилем карточки; иначе отсутствует | `polar-from-card-airfoil` |
+| Масса пропеллера (инерция вала) | карточка пропеллера | отсутствует | — |
+| Инерция ротора мотора | — | 0, всегда | `motor-rotor-inertia` |
+| Трение подшипника | — | 0, всегда; потери несёт ток холостого хода | `bearing-drag` |
+| Полосы и выборки по азимуту | — | 16 (TASK-139) и 8 (валидация TASK-033), всегда | `rotor-numerics` |
+| Сопротивление обмотки | карточка мотора | отсутствует | — |
+| Ток холостого хода | карточка мотора | 0, потери пренебрегаются | `motor-no-load-current` |
+| Ограничение тока мотора | карточка мотора | номинал ESC | `motor-current-limit` |
+| Диапазон ШИМ | — | 1000–2000 мкс, значения MOT_PWM_MIN/MAX по умолчанию закреплённого ArduPilot, всегда | `esc-pwm-range` |
+| Частота обновления ESC | карточка ESC | 490 Гц, `AP_MOTORS_SPEED_DEFAULT` закреплённого ArduPilot | `esc-update-rate` |
+| Запаздывание команды ESC | — | один период обновления, всегда | `esc-command-lag` |
+| Ограничение тока торможения | — | номинал ESC, всегда | `esc-brake-current` |
+| Напряжения элементов | карточка батареи | отсутствуют | — |
+| Сопротивление пакета | карточка батареи | 0, без просадки | `pack-resistance` |
+| Ограничение тока пакета | карточка батареи | сумма номиналов ESC | `pack-current-limit` |
+
+Напряжения холостого хода батареи — число элементов × напряжение элемента.
+Каждое допущение называет свой объект (карточку или батарею) один раз,
+сколько бы моторов его ни использовало. Вывод манифеста передаёт необязательные
+`noLoadCurrentA`, `updateRateHz` и `brakeCurrentLimitA` дальше, поэтому
+манифест разрешённого профиля несёт привод; существующие входы вывода дают те
+же байты.
+
+### Построение динамики
+
+`buildProfileDynamics(manifest, options)` (`@mirage/physics/profile-dynamics`)
+требует мотор и ESC для каждого ротора и батарею. Она проецирует тело и
+роторы в дескриптор v1 (крепления датчиков, пары следа и рама ArduPilot
+используются в другом месте; сопротивление планера, рули и шасси
+по-прежнему отказываются по умолчанию), связывает поляру каталога каждого
+ротора, берёт привод из `escDriveFromManifest` (начальный заряд 1 и без
+бортовой нагрузки, если не заданы) и воздух из тропосферы МСА на 0 м, если он
+не задан. Запаздывание потока 0,1 с, предел потока 500 м/с и минимальная
+достоверность 0,9 — настройки TASK-033. Кадры актуаторов для модели несут её
+ID модели как ID карты моторов; без автопилота ручки пилота задают только
+общий газ, а аппарат начинает в начале координат на синтетической площадке с
+остановленными моторами. Объявленные пары следа роторов не моделируются до
+TASK-101: построение указывает это ограничение и устанавливает
+`CONFIGURATION_FLAG_WAKE_UNMODELED` (бит 16) в новом поле `configurationFlags`
+у `BetFlightConfiguration`, которое `BetFlightDynamics` на каждом шаге
+объединяет по ИЛИ с `validityFlags`, поэтому сессия сообщает
+ModelOutsideValidity. Флаги конфигурации используют только биты 16–31; без
+них шаг не меняется.
+
+### Сессия и Worker
+
+`profileModelPort(registry, module, options)` допускает манифест схемы 2 из
+`VehicleRegistry`, когда запрошенный хеш равен зарегистрированному, модуль BET
+загружен и аппарат строится; при отклонении (`ASSET_MISSING`) сессия ничего не
+меняет. Worker физики хранит реестр и принимает два холодных сообщения:
+`{ type: "bet.module", bytes, sha256 }` проверяет хеш, компилирует модуль и
+требует отсутствия импортов и наличия экспортов `bet_bound_step_v2`,
+`bet_bus_step` и `bet_body_step`, отвечая `bet.module.ready` или
+`bet.module.reject`; `{ type: "model.register", bytes, sha256 }` регистрирует
+манифест, отвечая `model.registered` с его ID модели или `model.reject`. Demo
+работает, пока `model.load` протокола управления v2 не назовёт
+зарегистрированные ID и хеш. Запуск экспериментов из вкладки Run и lockstep
+SITL остаются за TASK-153 и TASK-154.
+
+### Проверка балансировки висения
+
+`tests/support/hover-trim.ts` — чисто физический эталон, независимый от
+суммирования по раме и интегратора тела. Он прогоняет каждый отличающийся
+ротор до установившегося режима в неподвижном воздухе по эффективному
+напряжению мотора u = d·V, от которого закон мотора TASK-092 зависит только
+через их произведение, затем методом Ньютона с шагами минимальной нормы решает
+шестиосевой баланс сил и моментов относительно ЦМ для u каждого ротора и крена
+и тангажа висения и переводит u в скважности при напряжении нагруженной
+батареи. Затем динамика летит из положения балансировки и с балансировочными
+скоростями роторов, используя балансировку как прямую связь и лёгкий контур
+вокруг неё (демпфирование ориентации, угловых скоростей и вертикальной
+скорости, переводимое в u обратной матрицей минимальной нормы для строк тяги и
+моментов якобиана балансировки). Поток через ротор начинается с нуля, поэтому
+первые десятые доли секунды несут избыточную тягу, которую висение без
+обратной связи никогда не забыло бы; если балансировка верна, установившиеся
+поправки контура исчезают.
+
+| Конфигурация | Скважность висения | Обороты висения, об/мин | Мощность моторов | Поправка контура через 4 с | Ошибка ориентации |
+| --- | --- | --- | ---: | ---: | ---: |
+| quad X | 0,396–0,407 | 4344–4461 | 127,8 Вт | 9,3e-5 от u | 4,4e-4 рад |
+| hexa X | 0,421–0,465 | 4569–5018 | 246,9 Вт | 6,9e-5 | 8,5e-5 рад |
+| octa X | 0,472–0,481 | 5037–5130 | 390,4 Вт | 6,5e-5 | 1,5e-4 рад |
+| coaxial X8 | 0,442 | 4757 | 320,5 Вт | 6,2e-5 | 0 |
+| шестнадцать моторов | 0,487–0,499 | 5050–5168 | 792,3 Вт | 8,0e-5 | 2,7e-4 рад |
+
+Это фикстуры S19 с примерами карточек и NACA6409; соосные роторы видят
+невозмущённый поток, поэтому их пары имеют одну скважность. Пределы приёмки,
+заданные до первого прогона: поправка меньше 2e-3 от u, вертикальная скорость
+меньше 0,02 м/с, угловая скорость меньше 0,005 рад/с и ошибка ориентации
+меньше 0,01 рад.
+
+### Вычисления и выделение памяти
+
+`node scripts/bench-profile-dynamics.mjs` запускает фикстуру S19 с
+шестнадцатью моторами на примерах карточек в Node 24 (V8,
+`--single-threaded`). Её роторы раскручиваются из покоя до 0,8 своей
+балансировочной скважности висения, поэтому аппарат остаётся на синтетической
+площадке, а каждый ротор вращается со скоростью, близкой к полётной. Скрипт
+пишет `test-results/bench/profile-dynamics-16.json` с хешами манифеста, WASM и
+исходников. Шаг — только `BetFlightDynamics`, а не браузерный Worker или
+сессия; используется скалярная сборка WASM. Бюджет — период шага (A-04
+требует 400 Гц для каждой конфигурации), а A-05 оценивает среднее отношение к
+реальному времени, которое должно быть не меньше 0,99. Прогон ниже выполнен в
+облачном контейнере (Intel Xeon 2,80 ГГц, 4 CPU), а не на целевом Apple
+Silicon.
+
+| Частота | Период | Среднее | p50 | p95 | p99 | Период / среднее |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 400 Гц | 2,500 мс | 1,149 мс | 1,059 мс | 1,762 мс | 2,162 мс | 2,18 |
+| 800 Гц | 1,250 мс | 1,142 мс | 1,056 мс | 1,694 мс | 2,148 мс | 1,09 |
+| 1200 Гц | 0,833 мс | 1,129 мс | 1,056 мс | 1,651 мс | 2,056 мс | 0,74 |
+
+При 400 Гц шаг p99 укладывается в период. При 800 Гц среднее сохраняет
+реальное время, но один шаг из двадцати длиннее периода, и часы должны его
+догонять. При 1200 Гц даже среднее превышает период, поэтому модель с 16
+роторами не может работать там в реальном времени, пока TASK-091 не добавит
+вычислительный запас. G1 при 400 Гц: после 110 000 шагов прогрева 1 000 000
+шагов увеличивают молодое поколение на 2960 байт (0,00296 Б/шаг) при нуле
+событий GC, а память BET WASM сохраняет размер на момент arm;
+выделяющий память положительный контроль в том же стенде обнаруживается (30
+событий GC).
+
+### Проверка (TASK-144)
+
+`tests/polar-catalog.test.ts` проверяет байты, хеши и разбор каталога по
+фикстурам, сопоставление профилей и правила схемы 4.
+`tests/resolve-components.test.ts` проверяет каждое значение и допущение
+таблицы выше на примерах карточек. `tests/profile-dynamics.test.ts` загружает
+пять конфигураций S19 и удерживает их сбалансированное висение; проверяет, что
+quad X распределяет тягу висения по плечам относительно ЦМ,
+T_front·(L/√2 − x_cg) = T_rear·(L/√2 + x_cg), для двух длин луча в пределах
+1e-6; проверяет, что 11-дюймовый пропеллер висит медленнее и с меньшей
+мощностью, чем 10-дюймовый, как предсказывает теория импульса (с 4403 до
+3638 об/мин, с 127,8 до 117,4 Вт, отношение 0,918 при идеальном 0,909); и
+загружает модель с шестнадцатью моторами через реестр сессии.
+`tests/browser/profile-dynamics.spec.ts` выводит манифест с шестнадцатью
+моторами в Chromium и загружает его в Worker физики приложения.
+`tests/aircraft-editor.test.ts` проверяет выбор поляр в форме вкладки Aircraft.
+
+## Чтение и запись DataFlash (TASK-178)
+
+`@mirage/dataflash` читает журналы DataFlash ArduPilot (`.BIN`) и записывает
+записи экспериментов MirageSITL как файлы DataFlash. Эталоном для разбиения
+на записи, значений полей и времён служит pymavlink 2.4.50, чей `DFReader`
+использует `mavlogdump.py`. Оба направления работают на холодном пути.
+
+### Чтение
+
+`DataFlashReader` инкрементальный: `push(chunk)` принимает байты в порядке
+файла, а `finish()` возвращает журнал; `readDataFlash(bytes)` делает и то, и
+другое. Запись — это заголовок 0xA3 0x95, байт типа, определённого записью
+FMT, и тело той длины, которую FMT объявляет. Сама FMT (тип 128, 89 байт,
+`BBnNZ`) встроена. Байты, не начинающие определённую запись, пропускаются до
+следующей, как их пропускает pymavlink. Модуль сообщает каждый повреждённый
+диапазон со смещениями в байтах:
+
+| Вид | Диапазон |
+| --- | --- |
+| `skipped` | От первого байта, не начинающего определённую запись, до следующего заголовка определённого типа или до конца файла. |
+| `truncated` | Запись с допустимым заголовком, которую обрывает конец файла. |
+| `bad-format` | Запись FMT с неизвестным символом формата, с Length, отличающейся от размера её формата, с числом столбцов, отличающимся от формата, или переопределяющая FMT. Её тип остаётся неопределённым. |
+
+pymavlink же падает на неизвестном символе формата, а записи типа с неверной
+Length позже пропускает. Запись FMT, повторяющая текущее определение своего
+типа, ничего не меняет. Отличающаяся начинает новую группу, и последующие
+записи этого типа используют её.
+
+Результат — простой объект, поэтому Worker может его передать: число
+прочитанных байт, число записей, повреждённые диапазоны, часы, индекс группы
+каждой записи в порядке файла (`order`) и по одной группе на каждое
+определение сообщения. У группы есть тип, имя, формат, число записей, смещение
+каждой записи в байтах и отметка времени pymavlink для каждой записи. Её
+столбцы типизированы:
+
+| Формат | Столбец | Значение |
+| --- | --- | --- |
+| b, M | Int8Array | как записано |
+| B | Uint8Array | как записано |
+| h, H, i, I | Int16Array, Uint16Array, Int32Array, Uint32Array | как записано |
+| q, Q | BigInt64Array, BigUint64Array | как записано |
+| f | Float32Array | как записано |
+| d | Float64Array | как записано |
+| g | Float32Array | binary16, расширенное точно |
+| c, C, e, E | Float64Array | целое, делённое на 100 |
+| L | Float64Array | целое, делённое на 10^7 |
+| a | Int16Array | 32 значения на запись |
+| n, N, Z | Uint8Array | 4, 16 или 64 байта на запись |
+
+Масштабированные форматы делят, а не умножают, как и pymavlink, поэтому
+значения — те же числа double. `columnText(column, row)` декодирует текст как
+pymavlink: UTF-8, иначе Latin-1, с обрезкой по первому NUL. pymavlink
+возвращает FILE.Data как сырые байты; столбец хранит эти байты.
+
+У каждого столбца также есть единица, множитель, масштаб значения и признак
+экземпляра. Они берутся из последней записи FMTU его типа и разрешаются по
+итоговым таблицам UNIT и MULT журнала. Идентификатор без записи UNIT даёт
+`''`, а без записи MULT — `null`. Масштаб значения переводит хранимое
+значение в единицу: 1, если формат уже масштабирует значение (c, C, e, E, L)
+или множителя нет, иначе множитель. Признак экземпляра отмечает столбец `#`.
+pymavlink разрешает каждую FMTU по таблицам в том виде, в каком они есть на
+момент её чтения. В журналах ArduPilot записи FMTU идут раньше UNIT, поэтому
+pymavlink теряет эти единицы; модуль чтения это не воспроизводит.
+
+Времена следуют `init_clock` и микросекундным часам pymavlink. Первая запись
+GPS с GWk > 0 задаёт базу времени:
+
+$$
+t_\mathrm{base} = 315964800 + 604800\,\mathrm{GWk} + 0.001\,\mathrm{GMS} - 18 - 10^{-6}\,\mathrm{TimeUS}
+$$
+
+Запись, первый столбец которой TimeUS, получает t_base + 10^-6·TimeUS.
+Запись, первый столбец которой TimeMS, получает t_base + 0,001·TimeMS, кроме
+случаев, когда её имя начинается с ACC или GYR или это время раньше
+предыдущего.
+Любая другая запись повторяет предыдущее время; первое время — t_base плюс
+первый TimeUS журнала. Без недели GPS база времени и первое время равны 0, как
+в pymavlink. Журналы со старыми часами дают `clock: 'unsupported'` и времена
+NaN: запись GPS с ненулевыми T, Week или GPSTime, запись TIME со StartTime или
+полное отсутствие TimeUS.
+
+`parseSource(source, chunkBytes, onProgress)` читает Blob, ArrayBuffer или
+Uint8Array чанками и после каждого сообщает число прочитанных байт.
+`transferables(log)` перечисляет буферы журнала. `dataflash.worker.ts`
+принимает `{ type: 'parse', id, source, chunkBytes? }` (по умолчанию чанки по
+1 МиБ, не больше 64 МиБ). После каждого чанка он отвечает
+`{ type: 'progress', id, bytes, total }`, затем `{ type: 'result', id, log }`
+с переданными буферами. На любое другое сообщение он отвечает
+`{ type: 'error', id, message }` с id −1, если у сообщения нет допустимого id.
+
+### Запись
+
+`DataFlashWriter.append(record)` проверяет одну запись и кодирует её;
+недопустимая запись вызывает `RangeError` и ничего не пишет. `bytes()`
+возвращает журнал, а `writeDataFlash(records)` делает и то, и другое. Журнал
+начинается с FMT для FMT, UNIT, MULT и FMTU, затем идут таблицы UNIT и MULT,
+затем FMT и FMTU для каждого сообщения MirageSITL. Каждое время — TimeUS в
+микросекундах (безопасное целое ≥ 0). Имена начинаются с `MS`; в закреплённых
+исходниках ArduPilot нет четырёхсимвольных имён журнала, начинающихся с `MS`.
+
+```text
+type name format            columns                                                     units             multipliers
+240  MSTR QLLfffffffffffff  TimeUS,Lat,Lng,Alt,PN,PE,PD,VN,VE,VD,Roll,Pitch,Yaw,GX,GY,GZ sDUmmmmnnndddkkk  FGG0000000000000
+241  MSMO QBffffff          TimeUS,Inst,Cmd,RPM,Thr,Trq,Curr,Volt                        s#-qNtAv          F--00000
+242  MSEV QBZ               TimeUS,Kind,Text                                             s--               F--
+243  MSPC QINfffB           TimeUS,Seq,Name,Req,Old,Act,Stat                             s------           F------
+UNIT - "" # instance s s D deglatitude U deglongitude m m n m/s d deg k deg/s q rpm N N t N.m A A v V
+MULT - 0  0 1  F 1e-6  G 1e-7
+```
+
+| Сообщение | Запись | Содержимое |
+| --- | --- | --- |
+| MSTR | `truth` | Широта и долгота в градусах (L, в пределах ±90 и ±180, округлённые до 10^-7), высота над средним уровнем моря, положение и скорость в NED, крен, тангаж и рыскание в градусах и угловые скорости корпуса в градусах в секунду. |
+| MSMO | `motor` | Индекс мотора от 0 до 15 (экземпляр), нормированная команда, обороты, тяга, момент, ток и напряжение. |
+| MSEV | `event` | Вид (0 `note`, 1 `environment`, 2 `fault`, 3 `command`) и текст не длиннее 64 байт UTF-8 без NUL. |
+| MSPC | `parameter` | Порядковый номер запроса (uint32), имя (от 1 до 16 символов из A–Z, 0–9 и `_`), запрошенное, предыдущее и подтверждённое значения и статус (0 `requested`, 1 `confirmed`, 2 `rejected`). Предыдущее или подтверждённое значение `null` записывается как NaN. |
+
+В ArduPilot нет единицы для ньютона, поэтому модуль записи добавляет `N` в
+таблицу UNIT. Поля с плавающей точкой должны быть конечными и оставаться
+конечными во float32, и хранятся они как float32. У записей должны быть ровно
+перечисленные поля. `readExperimentRecords(log)` читает записи MirageSITL
+журнала обратно в порядке файла. Он превращает NaN обратно в `null` и
+игнорирует прочие сообщения. Он отклоняет сообщение MS, определение которого
+отличается от приведённой выше таблицы.
+
+### Проверка (TASK-178)
+
+`scripts/generate-dataflash-fixtures.py` пишет
+`tests/fixtures/dataflash/reference.json` по выводу
+`mavlogdump.py --format json` из pymavlink 2.4.50. Он охватывает:
+
+* `sitl-copter.bin`: первые 100 011 байт (2 259 записей, оканчивающихся на
+  границе записи) журнала SITL ArduCopter V4.8.0-dev (8ab6afde) из прогона
+  TASK-147;
+* четыре повреждённые копии: вставлено 37 байт мусора, байт типа заменён
+  неопределённым типом, обнулено 300 байт и обрезана последняя запись. Для
+  каждой скрипт проверяет, что pymavlink теряет ровно зафиксированные записи и
+  сообщает те же пропущенные диапазоны;
+* образец модуля записи из фиксированных входных значений, каждое из которых
+  точно представимо в своём типе на проводе. Скрипт проверяет, что pymavlink
+  читает каждое входное значение без изменений.
+
+`tests/dataflash.test.ts` точно сравнивает каждую запись, время и значение
+поля фрагмента при размерах чанков от 1 байта до 64 КиБ; повреждённые
+диапазоны и сохранившиеся записи каждой повреждённой копии; единицы;
+отклонение, переопределение и обрыв FMT; правила базы времени, TimeMS и часов
+до TimeUS; половинные числа; и декодирование текста как в pymavlink. Для
+модуля записи он проверяет байты образца, его чтение pymavlink, идентичный
+повторный разбор и отклонение недопустимых записей.
+`tests/browser/dataflash-worker.spec.ts` разбирает фрагмент в Worker в
+Chromium.
+
+## Пределы батареи и силовой установки (TASK-146)
+
+С приводом TASK-092 `BetFlightDynamics` фиксирует электрические величины
+каждого шага и сверяет их с номиналами компонентов и с ограничениями, которые
+применила модель. Предупреждение о номинале (`warning`) и моделируемое
+ограничение (`limited`) везде остаются раздельными: предупреждение никогда не
+меняет физику, а ограничение никогда не сообщается как предупреждение. Нагрев,
+охлаждение и старение не моделируются.
+
+### Номиналы limit ratings v1
+
+`componentRatings(profile, cards)` (`@mirage/aircraft/resolve-components`)
+строит номиналы по карточкам, на которые ссылается профиль, по одной записи на
+мотор в порядке профиля, то есть в порядке роторов выведенного манифеста.
+Номиналами становятся только значения, указанные в карточке, и никогда не
+предполагаемые; null никогда не проверяется. `parseLimitRatings(value,
+motorCount?)` (`@mirage/physics/limit-monitor`) проверяет их из
+непроверенных входных данных: ровно эти ключи, каждый номинал — положительное
+конечное число или null, от 1 до 16 моторов.
+
+```json
+{
+  "schemaVersion": 1,
+  "motors": [{ "motorCurrentA": 30, "motorPowerW": 450, "escCurrentA": 30, "escVoltageV": 25.2, "rpm": null }],
+  "battery": { "emptyVoltageV": 13.2 }
+}
+```
+
+| Номинал | Значение карточки |
+| --- | --- |
+| `motorCurrentA` | Максимальный ток из карточки мотора |
+| `motorPowerW` | Максимальная мощность из карточки мотора |
+| `escCurrentA` | Максимальный ток из карточки ESC |
+| `escVoltageV` | Максимальное напряжение из карточки ESC |
+| `rpm` | Всегда null: в схеме карточек 1 нет номинала оборотов |
+| `emptyVoltageV` | Число последовательных элементов батареи × напряжение разряженного элемента |
+
+### Телеметрия и маски
+
+`PowerTelemetry` хранит в заранее выделенных массивах пять чисел double на
+мотор (обороты в об/мин, ток мотора, ток шины и электрическую мощность из байт
+144, 152 и 160 записи bound-rotor v2, а также скважность ESC) и шесть для
+батареи (степень заряда, напряжение шины, ток шины, мощность шины, остаток и
+полный заряд в А·ч). Она записывается после шага шины на каждом тике. Сброс
+восстанавливает ненагруженную батарею: начальную степень заряда, напряжение
+холостого хода, отсутствие тока.
+
+| Вид | Объект | Бит | Условие | Сравнивается с |
+| --- | --- | --- | --- | --- |
+| warning | мотор | MotorCurrent | \|ток мотора\| > `motorCurrentA` | номиналом |
+| warning | мотор | MotorPower | электрическая мощность > `motorPowerW` | номиналом |
+| warning | мотор | EscCurrent | \|ток мотора\| > `escCurrentA` | номиналом |
+| warning | мотор | EscVoltage | напряжение шины > `escVoltageV` | номиналом |
+| warning | мотор | Rpm | \|обороты\| > `rpm` | номиналом |
+| warning | батарея | UnderVoltage | напряжение шины < `emptyVoltageV` | номиналом |
+| limited | мотор | CurrentLimit | флаг выхода 32 bound-rotor v2 | пределом тока привода или, для отрицательного тока, его пределом торможения |
+| limited | батарея | PackCurrent | флаг 1 общей шины (разряд или рекуперация) | пределом тока батареи |
+| limited | батарея | Charge | флаг 2 общей шины (рекуперация в полную батарею) | степенью заряда 1 |
+
+Мотор, номинал которого равен его собственному пределу тока (TASK-144 берёт
+предел привода из карточки мотора), ограничивается ровно на номинале, поэтому
+показывает `limited` и не показывает `warning`.
+
+### События
+
+`LimitMonitor.evaluate` превращает каждый изменившийся бит маски в событие в
+ограниченном буфере исходящих на 256 событий: тик, объект (индекс мотора или
+батарея), величина, вид, фронт (`start` или `end`), значение и номинал или
+предел. События сверх ёмкости учитываются в `dropped`. Величины: `motor-current`,
+`motor-power`, `esc-current`, `esc-voltage`, `rpm`, `battery-voltage`
+(предупреждения) и `current-limit`, `pack-current-limit`, `charge-limit`
+(ограничения). `evaluate` не выделяет память; `drain` создаёт объекты событий и
+выполняется только после пакета вычислений. При создании монитор один раз
+проходит каждую ветвь событий на синтетической телеметрии и затем
+сбрасывается. V8 компилирует `evaluate` с обратной связью по типам тех ветвей,
+которые уже выполнялись, и ветвь, впервые выбранная в полёте, например при
+пересечении батареей напряжения разряда, вызвала бы его деоптимизацию; после
+этого неоптимизированный код упаковывает числа double, пока его снова не
+оптимизируют. Значения и пределы событий передаются через типизированный
+массив, а не как аргументы вызова.
+
+### Сессия, Worker и UI
+
+`PhysicsSessionV2.attachPowerChannel` публикует телеметрию питания v1
+([Shared Memory](SPECS_SHARED_MEMORY.md)) после каждого шага. Каждый образец
+записи несёт телеметрию шага (`SessionRecordSample.power`), а
+`drainLimitEvents` опустошает буфер исходящих после прокачки. В записи AAR v1
+нет свободных байт, поэтому значения каждого мотора доходят до хука записи, а
+сохраняет их формат recorder v2 из TASK-162. Worker физики подключает канал по
+`power.attach`, привязывает номиналы к хешу манифеста по `limits.register` и
+отправляет `limits.events` после каждой прокачки. `profileModelPort` передаёт
+номиналы модели в её динамику и отклоняет `model.load`, номиналы которого
+перечисляют другое число моторов. `PowerPanel` вкладки Run читает канал четыре
+раза в секунду и показывает величины и состояние батареи, строку на каждый
+мотор и последние события пределов, помечая каждое `Warning` или `Limited`.
+Для демо он сообщает, что электрической модели нет.
+
+### Проверка (TASK-146)
+
+`tests/limit-monitor.test.ts` на каждом шаге заново вычисляет общую шину по
+опубликованным мощностям моторов (V_oc линейно по степени заряда, корень для
+тока выше, V = V_oc − I·R_int, ΔSOC = −I·dt/C) и совпадает по напряжению, току,
+мощности, степени заряда и остатку заряда с относительной точностью 1e-12 на
+4 000 шагах. Он также проверяет, что превышенные номиналы дают предупреждение,
+а два прогона, с номиналами и без, остаются побитно одинаковыми; что мотор на
+пределе тока и батарея на пределе тока дают `limited`; что разряженная батарея
+предупреждает о пониженном напряжении; а также схему номиналов, границу буфера
+исходящих и предел торможения. `tests/power-channel.test.ts` проверяет каждое
+смещение байта канала, отказ от разорванного чтения и сессию, которая публикует
+четыре мотора, передаёт данные в хук записи и выбирает событие предела, пока
+ABI v2 сохраняет свой размер. `tests/browser/power-panel.spec.ts` запускает
+профиль quad X в Worker физики приложения с пределом тока батареи 15 А и
+номиналом мощности мотора 60 Вт и проверяет, что панель показывает батарею как
+`Limited`, а мощность каждого мотора — как `Warning`; он также проверяет панель
+вкладки Run для демо. `scripts/bench-profile-dynamics.mjs` измеряет G1 с
+монитором и публикацией канала в цикле шага.
 
 ## Назначение выходов ArduPilot и параметры рамы (TASK-142)
 
@@ -4971,91 +5929,3 @@ TASK-128 не нашла препятствий для 16 моторов; про
 вкладку Aircraft, проверяет его 16 строк и файл параметров, меняет местами два
 выхода в таблице лучей, проверяет переместившиеся функции и новую версию и
 отказывает гексе, у которой все моторы вращаются в одну сторону.
-
-## Чтение и запись DataFlash (TASK-178)
-
-`packages/dataflash`: `reader.ts`, `writer.ts` и `dataflash.worker.ts`.
-Код анализа, никогда не часть шага физики.
-
-### Чтение
-
-`DataflashReader.push(chunk)` принимает фрагменты любого размера и разбирает
-каждую полную запись; хранится только неразобранный остаток. `finish()`
-возвращает журнал: форматы по типу, по одной таблице на имя сообщения и
-повреждённые диапазоны. `readDataflash(bytes, chunkBytes)` делает и то и
-другое для журнала в памяти. Запись — это `A3 95 type` и тело, размеченное
-записью FMT этого типа; FMT (тип 128) задан заранее, а собственное
-определение FMT в журнале должно повторять его разметку `BBnNZ`. Запись FMT
-с неизвестными символами формата или с размерами, не дающими в сумме её
-длину, — повреждённый диапазон `invalid-format`, и она ничего не определяет.
-
-Значения следуют pymavlink 2.4.50 DFReader, эталону: `b B h H i I f d q Q`
-как записаны (64-битные целые как числа JavaScript, точные до 2^53); `g` как
-IEEE половинной точности; `M` как int8; `c C e E` делятся на 100, а `L` на
-1e7, вычисляясь как `raw / (1 / multiplier)`, как в DFReader; `n N Z` — текст
-UTF-8 (Latin-1, если это не корректный UTF-8) до первого NUL; `a` — 32 int16;
-поле `Z` сообщения FILE — сырые байты. Числовые поля становятся столбцами
-`Float64Array`. Единицы берутся из записей UNIT, MULT (округлённых до 7
-значащих цифр) и FMTU в порядке журнала, с префиксами DFReader (µ, m, c, d,
-n) или множителем `%.4g`; поля с собственным множителем сохраняют свою
-единицу. `#` в ID единиц называет поле экземпляра. `timestampS` — часы
-DFReader в микросекундах с нулевой базой времени: `0 + TimeUS · 0.000001` для
-записи, первое поле которой TimeUS, иначе время предыдущей записи, 0 до
-первой. `gpsTimeBaseS` — база времени DFReader по первой записи GPS с
-GWk > 0: 315 964 800 + 604 800·GWk + 0,001·GMS − 18 − 0,000001·TimeUS, в
-секундах Unix.
-
-Повреждение никогда не останавливает чтение. Байты, не начинающие запись
-известного типа, пропускаются до следующей записи известного типа и
-сообщаются одним диапазоном: `unknown-type`, если диапазон начинается с байтов
-заголовка и неопределённого типа, иначе `bad-header`. Неполная запись или
-меньше трёх байт в конце — `truncated`. Диапазоны — абсолютные смещения в
-байтах [start, end).
-
-### Worker
-
-`dataflash.worker.ts` принимает сообщения `{ kind: "chunk", bytes }` с
-передаваемыми `ArrayBuffer` и `{ kind: "finish" }`. На каждый фрагмент он
-отвечает сообщением о ходе, на завершение — одним результатом, числовые
-столбцы, отметки времени и смещения которого передаются, а не копируются.
-`createDataflashHandler` — тот же обработчик без глобального объекта Worker,
-для тестов.
-
-### Запись
-
-`DataflashWriter` пишет самоописывающий журнал: записи FMT для FMT, UNIT,
-MULT, FMTU и сообщений MirageSITL, затем записи UNIT с ID и подписями
-ArduPilot, записи MULT и по записи FMTU на тип сообщения.
-
-| Message | Format | Columns | Contents |
-| --- | --- | --- | --- |
-| MTRU | Qdddfffffff | TimeUS,PN,PE,PD,VN,VE,VD,QW,QX,QY,QZ | Truth: NED position (m), NED velocity (m/s), body-to-NED quaternion |
-| MMOT | QBHfffff | TimeUS,Instance,PWM,Thr,RPM,Curr,Volt,Temp | One motor: PWM (µs), throttle 0–1, rpm, A, V, °C; NaN when not modelled |
-| MEVT | QHZ | TimeUS,Id,Text | Experiment event |
-| MPRM | QNffBZ | TimeUS,Name,Req,Conf,Stat,Text | Parameter change: requested, confirmed (NaN until confirmed), status 0 requested, 1 confirmed, 2 rejected |
-
-Ни одно имя сообщения MirageSITL не встречается в закреплённых исходниках
-ArduPilot или в его журнале, поэтому эти записи никогда не принимаются за
-данные автопилота. TimeUS — целое от 0 до 2^53 − 1; целые числа, текст ASCII
-и имена параметров проверяются до записи первого байта. Одинаковые вызовы
-дают одинаковые байты.
-
-### Проверка (TASK-178)
-
-`scripts/generate-dataflash-fixtures.py` вырезает эталонный журнал размером
-39 379 байт из настоящего журнала DataFlash закреплённого нативного SITL
-(690 из 41 714 записей, скопированных без изменений: все записи FMT, UNIT,
-MULT и FMTU, первые четыре записи каждого другого типа и записи GPS до первой
-с корректной неделей). pymavlink 2.4.50 декодирует его в
-`tests/fixtures/dataflash/reference.json` со всеми значениями, единицами и
-отметками времени и базой времени GPS; в четырёх повреждённых копиях
-изменён байт заголовка, подставлен неопределённый тип, вставлены семь байт и
-усечена последняя запись — по смещениям, выбранным генератором. Генератор
-также перечисляет 216 имён сообщений журнала, найденных в закреплённых
-исходниках и в исходном журнале.
-`--check` заново генерирует и сравнивает. `tests/dataflash.test.ts` требует,
-чтобы каждое значение, отметка времени и единица совпадали с DFReader при
-фрагментах 1, 3, 89, 4096 и 1 048 576 байт, база времени GPS совпадала,
-каждая повреждённая копия сообщала ровно свой диапазон при числе записей
-DFReader, а вывод записи заново разбирался в записанные значения — и этим
-чтением, и pymavlink DFReader.

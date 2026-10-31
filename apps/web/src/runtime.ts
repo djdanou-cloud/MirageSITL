@@ -9,6 +9,8 @@ import {
 import {
   ControlFlag,
   PilotWriterV2,
+  PowerReaderV1,
+  createPowerChannelV1,
   RuntimeFlagV2,
   StateReaderV2,
   UNKNOWN_U32,
@@ -33,6 +35,8 @@ import { newMavFrame, type MavFrame } from "@mirage/mavlink/codec";
 import { GamepadAdapter, type GamepadCalibration } from "@mirage/input";
 import { ScriptedPilot, newStickCommand, type FlightPlan } from "@mirage/input/scripted-flight";
 import { applyAutopilotTelemetry } from "./hud/telemetry";
+import { EVENT_LOG_SIZE, parseLimitEventsMessage } from "./run/PowerPanel";
+import type { LimitEvent } from "@mirage/physics/limit-monitor";
 
 // Main-thread runtime on ABI v2 and Control Protocol v2 (TASK-085). Main owns
 // the pilot mailbox and creates every SAB; the physics Worker owns the state
@@ -117,6 +121,13 @@ export class SimulationRuntime {
   readonly sensorBuffer = createSpscQueue("sensor");
   readonly actuatorBuffer = createSpscQueue("actuator");
   readonly reader = new StateReaderV2(this.stateBuffer);
+  /** TASK-146 power telemetry v1, written by the physics Worker after every step. */
+  readonly powerBuffer = createPowerChannelV1();
+  readonly power = new PowerReaderV1(this.powerBuffer);
+  /** The latest limit events, oldest first, at most `EVENT_LOG_SIZE`. */
+  private limitLog: readonly LimitEvent[] = [];
+  /** Stable accessor for the power panel. */
+  readonly limitEvents = (): readonly LimitEvent[] => this.limitLog;
   readonly pilotWriter = new PilotWriterV2(this.stateBuffer);
   readonly header = newHeaderSnapshotV2();
   readonly gamepad = new GamepadAdapter();
@@ -174,6 +185,11 @@ export class SimulationRuntime {
         this.notice = rejection;
         return;
       }
+      const limits = parseLimitEventsMessage(data);
+      if (limits) {
+        this.limitLog = [...this.limitLog, ...limits.events].slice(-EVENT_LOG_SIZE);
+        return;
+      }
       if (isPilotRejection(data)) {
         // Diagnostics (TASK-073): the Worker blocked the armed latch on an invalid pilot sample.
         this.pilotRejection = data;
@@ -193,6 +209,7 @@ export class SimulationRuntime {
       actuatorBuffer: this.actuatorBuffer,
     };
     this.worker.postMessage(init);
+    this.worker.postMessage({ type: "power.attach", buffer: this.powerBuffer });
     document.addEventListener("visibilitychange", this.onVisibility);
     this.raf = requestAnimationFrame(this.frame);
   }

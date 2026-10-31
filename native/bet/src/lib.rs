@@ -7,6 +7,8 @@
 //! shaft/inflow state; feature-gated exports also verify reference kernels.
 //! `bound_v2` and `body_abi_v2` (TASK-088) are the step interfaces v2 with
 //! fail-closed fields for later tasks; neutral records run the v1 steps.
+//! `bound_v2` drive mode 1 and `bus_abi` (TASK-092) are the production ESC,
+//! motor and shared battery bus.
 //!
 //! On wasm32 the global allocator traps: any heap allocation aborts the module,
 //! so the kernels provably run allocation-free (a no_std build is not used
@@ -30,6 +32,7 @@ pub mod body_abi;
 pub mod body_abi_v2;
 pub mod bound;
 pub mod bound_v2;
+pub mod bus_abi;
 pub mod inflow;
 pub mod shaft;
 pub mod flapping;
@@ -252,6 +255,24 @@ mod wasm_exports {
         // SAFETY: all regions are validated and pairwise disjoint.
         let (arena,input,out)=unsafe{(bytes_mut(handle,len),bytes(ip,n),bytes_mut(op,m))};
         crate::bound_v2::step(arena,input,out,dt)
+    }
+
+    /// Shared battery bus record version (TASK-092).
+    #[no_mangle]
+    pub extern "C" fn bet_bus_version() -> u32 { crate::bus_abi::VERSION }
+
+    /// One shared-bus step over validated, disjoint caller-owned records.
+    #[no_mangle]
+    pub extern "C" fn bet_bus_step(input_ptr: u32, out_ptr: u32, dt: f64) -> i32 {
+        let il = crate::bus_abi::INPUT_BYTES;
+        let ol = crate::bus_abi::OUTPUT_BYTES;
+        if !caller_region(input_ptr, il) || !caller_region(out_ptr, ol)
+            || abi::regions_overlap(input_ptr, il, out_ptr, ol) {
+            return abi::STATUS_BAD_POINTER;
+        }
+        // SAFETY: both regions are in caller memory, aligned and disjoint.
+        let (input, out) = unsafe { (bytes(input_ptr, il), bytes_mut(out_ptr, ol)) };
+        crate::bus_abi::step(input, out, dt)
     }
 
     /// Invalidates a bound rotor without affecting another handle.

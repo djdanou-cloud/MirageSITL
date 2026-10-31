@@ -1,207 +1,379 @@
-// TASK-178 (S14, S15): DataFlash reader and writer. Oracle: pymavlink 2.4.50
-// DFReader's decoding of a reference log cut from a real pinned-SITL log
-// (tests/fixtures/dataflash/reference.json, scripts/generate-dataflash-fixtures.py),
-// damaged copies whose ranges the generator chose, and, when the pinned
-// Python environment is present, DFReader re-reading the writer's output.
-import { spawnSync } from "node:child_process";
-import { createHash } from "node:crypto";
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { readFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { describe, expect, test } from "vitest";
-import { DataflashReader, readDataflash, type Column, type DataflashLog } from "../packages/dataflash/src/reader.ts";
-import { DataflashWriter, MIRAGE_MESSAGES } from "../packages/dataflash/src/writer.ts";
-import { createDataflashHandler, type DataflashResponse } from "../packages/dataflash/src/dataflash.worker.ts";
+import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import { describe, expect, it } from 'vitest';
+import {
+  DataFlashReader, columnText, parseSource, readDataFlash, type DataFlashColumn, type DataFlashLog, type DataFlashValues,
+} from '../packages/dataflash/src/reader.ts';
+import {
+  DataFlashWriter, MIRAGE_MESSAGES, readExperimentRecords, writeDataFlash, type ExperimentRecord,
+} from '../packages/dataflash/src/writer.ts';
 
-interface FixtureMessage { type: string; timestampS: number; values: Record<string, unknown> }
-interface Damaged { id: string; ranges: [number, number, string][]; pymavlinkMessages: number; base64: string }
-interface Fixture {
-  referenceBase64: string; referenceSha256: string; gpsTimeBaseS: number; units: Record<string, Record<string, string>>;
-  messages: FixtureMessage[]; damaged: Damaged[]; ardupilotLogNames: string[];
+// Oracle: pymavlink 2.4.50 mavlogdump --format json (scripts/generate-dataflash-fixtures.py).
+type Cell = number | string | null | readonly number[];
+interface EncodedRecords { names: string[]; order: number[]; groups: Record<string, { format: string; columns: string[]; rows: Cell[][] }> }
+interface Units { [name: string]: { [column: string]: { unit: string; multiplier: number | null; valueScale: number; instance: boolean } } }
+interface Edit { kind: 'insert' | 'set' | 'zero' | 'cut'; offset?: number; hex?: string; length?: number }
+interface DamagedCase { name: string; edit: Edit; removed: [number, number]; ranges: { start: number; end: number; kind: string }[]; pymavlinkSkipped: [number, number][] }
+interface Reference {
+  slice: { file: string; sha256: string; bytes: number; records: number };
+  records: EncodedRecords; units: Units; damaged: DamagedCase[];
+  writer: { input: unknown[]; sha256: string; bytes: number; records: EncodedRecords; units: Units };
 }
-const parsed: unknown = JSON.parse(readFileSync(new URL("./fixtures/dataflash/reference.json", import.meta.url), "utf8"));
-// The registry pins this file's SHA-256 (tests/fixtures.test.ts); its shape is checked by use below.
-const fixture = parsed as Fixture;
-const reference = new Uint8Array(Buffer.from(fixture.referenceBase64, "base64"));
-const PYTHON = new URL("../.cache/task-127/venv/bin/python", import.meta.url).pathname;
 
-/** A fixture value in the reader's representation. */
-function expected(value: unknown): unknown {
-  if (value === "NaN") return NaN;
-  if (value === "Infinity") return Infinity;
-  if (value === "-Infinity") return -Infinity;
-  if (typeof value === "object" && value !== null && "base64" in value) return new Uint8Array(Buffer.from(String(value.base64), "base64"));
-  if (Array.isArray(value)) return Int16Array.from(value.map(Number));
-  return value;
+function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
-function cell(column: Column, row: number): unknown {
-  return column[row];
+function isEncoded(value: unknown): value is EncodedRecords {
+  return isObject(value) && Array.isArray(value.names) && Array.isArray(value.order) && isObject(value.groups) &&
+    Object.values(value.groups).every(g => isObject(g) && typeof g.format === 'string' && Array.isArray(g.columns) && Array.isArray(g.rows));
 }
-function totalRows(log: DataflashLog): number {
-  let rows = 0;
-  for (const table of log.tables.values()) rows += table.count;
-  return rows;
+function loadReference(): Reference {
+  const value: unknown = JSON.parse(readFileSync(new URL('./fixtures/dataflash/reference.json', import.meta.url), 'utf8'));
+  if (!isObject(value) || !isObject(value.slice) || !isEncoded(value.records) || !isObject(value.units) || !Array.isArray(value.damaged) ||
+      !isObject(value.writer) || !isEncoded(value.writer.records) || !Array.isArray(value.writer.input)) throw new Error('Invalid DataFlash reference');
+  // Shape validated above; the remaining leaves are compared value by value below.
+  return value as unknown as Reference;
 }
-function compare(log: DataflashLog): string[] {
-  const differences: string[] = [];
-  const byType = new Map<string, FixtureMessage[]>();
-  for (const message of fixture.messages) byType.set(message.type, [...(byType.get(message.type) ?? []), message]);
-  if (totalRows(log) !== fixture.messages.length) differences.push(`${totalRows(log)} records, pymavlink ${fixture.messages.length}`);
-  for (const [type, messages] of byType) {
-    const table = log.tables.get(type);
-    if (!table) { differences.push(`no ${type} table`); continue; }
-    if (table.count !== messages.length) differences.push(`${type}: ${table.count} rows, pymavlink ${messages.length}`);
-    messages.forEach((message, row) => {
-      if (!Object.is(table.timestampS[row], message.timestampS)) differences.push(`${type}[${row}] time ${table.timestampS[row]} != ${message.timestampS}`);
-      for (const [name, value] of Object.entries(message.values)) {
-        const column = table.columns[name];
-        if (!column) { differences.push(`${type}.${name} missing`); continue; }
-        const got = cell(column, row), want = expected(value);
-        const equal = want instanceof Int16Array || want instanceof Uint8Array
-          ? got instanceof want.constructor && Buffer.from((got as Int16Array | Uint8Array).buffer).equals(Buffer.from(want.buffer))
-          : Object.is(got, want);
-        if (!equal) differences.push(`${type}[${row}].${name}: ${String(got)} != ${String(want)}`);
-      }
+
+const reference = loadReference();
+const slice = new Uint8Array(readFileSync(new URL(`./fixtures/dataflash/${reference.slice.file}`, import.meta.url)));
+const sha256 = (bytes: Uint8Array) => createHash('sha256').update(bytes).digest('hex');
+const hex = (bytes: Uint8Array) => Buffer.from(bytes).toString('hex');
+
+function expectedNumber(cell: Cell): number {
+  if (cell === 'NaN') return NaN;
+  if (cell === 'Infinity') return Infinity;
+  if (cell === '-Infinity') return -Infinity;
+  if (typeof cell !== 'number') throw new Error(`Expected a number, got ${JSON.stringify(cell)}`);
+  return cell;
+}
+function same(actual: unknown, expected: unknown): boolean {
+  if (typeof actual === 'number' && typeof expected === 'number') return Object.is(actual, expected);
+  return JSON.stringify(actual) === JSON.stringify(expected);
+}
+function actualCell(group: string, column: DataFlashColumn, row: number): unknown {
+  const char = column.format;
+  if (char === 'a') return Array.from(column.values.subarray(row * 32, row * 32 + 32), Number);
+  if (char === 'n' || char === 'N' || char === 'Z') {
+    if (group === 'FILE' && char === 'Z') return hex(new Uint8Array(column.values.buffer, column.values.byteOffset + row * column.width, column.width));
+    return columnText(column, row);
+  }
+  const value = column.values[row];
+  return typeof value === 'bigint' ? value.toString() : value;
+}
+/** Every record, in order, against mavlogdump: type, timestamp and each field value. */
+function mismatches(log: DataFlashLog, expected: EncodedRecords, removed: [number, number] = [0, 0]): string[] {
+  const errors: string[] = [], rows = new Map<number, number>(), refRows = new Map<string, number>();
+  let i = 0;
+  for (let k = 0; k < expected.order.length; k++) {
+    const name = expected.names[expected.order[k] ?? -1] ?? '?', refRow = refRows.get(name) ?? 0;
+    refRows.set(name, refRow + 1);
+    if (k >= removed[0] && k < removed[1]) continue;
+    const groupIndex = log.order[i++], group = groupIndex === undefined ? undefined : log.groups[groupIndex];
+    if (!group) { errors.push(`record ${k}: missing`); break; }
+    const row = rows.get(groupIndex ?? -1) ?? 0;
+    rows.set(groupIndex ?? -1, row + 1);
+    const ref = expected.groups[name], cells = ref?.rows[refRow];
+    if (group.name !== name || !ref || !cells) { errors.push(`record ${k}: ${group.name} != ${name}`); continue; }
+    if (group.format !== ref.format || group.columns.map(c => c.name).join() !== ref.columns.join()) errors.push(`${name}: definition differs`);
+    if (!Object.is(group.timestampsS[row], expectedNumber(cells[0] ?? null))) errors.push(`record ${k} ${name}: time ${group.timestampsS[row]} != ${String(cells[0])}`);
+    group.columns.forEach((column, c) => {
+      const want = cells[c + 1] ?? null, got = actualCell(name, column, row);
+      const ok = typeof got === 'number' ? Object.is(got, expectedNumber(want)) : same(got, want);
+      if (!ok) errors.push(`record ${k} ${name}.${column.name}: ${String(got)} != ${JSON.stringify(want)}`);
     });
+    if (errors.length > 20) break;
   }
-  return differences;
+  if (i !== log.records) errors.push(`record count ${log.records} != ${i}`);
+  return errors;
+}
+function unitMismatches(log: DataFlashLog, units: Units): string[] {
+  const errors: string[] = [];
+  for (const group of log.groups) {
+    const want = units[group.name];
+    for (const column of group.columns) {
+      const expected = want?.[column.name] ?? { unit: '', multiplier: null, valueScale: 1, instance: false };
+      const actual = { unit: column.unit, multiplier: column.multiplier, valueScale: column.valueScale, instance: column.instance };
+      if (JSON.stringify(actual) !== JSON.stringify(expected)) errors.push(`${group.name}.${column.name}: ${JSON.stringify(actual)} != ${JSON.stringify(expected)}`);
+    }
+  }
+  return errors;
+}
+function applyEdit(data: Uint8Array, edit: Edit): Uint8Array {
+  const offset = edit.offset ?? 0;
+  if (edit.kind === 'insert') {
+    const extra = Buffer.from(edit.hex ?? '', 'hex');
+    return Uint8Array.from([...data.subarray(0, offset), ...extra, ...data.subarray(offset)]);
+  }
+  const copy = data.slice();
+  if (edit.kind === 'set') copy.set(Buffer.from(edit.hex ?? '', 'hex'), offset);
+  else if (edit.kind === 'zero') copy.fill(0, offset, offset + (edit.length ?? 0));
+  else return copy.subarray(0, edit.length ?? 0);
+  return copy;
+}
+function readInChunks(data: Uint8Array, size: number): DataFlashLog {
+  const reader = new DataFlashReader();
+  for (let at = 0; at < data.length; at += size) reader.push(data.subarray(at, at + size));
+  return reader.finish();
+}
+function numbers(values: DataFlashValues | undefined): number[] {
+  const out: number[] = [];
+  for (let i = 0; values && i < values.length; i++) out.push(Number(values[i]));
+  return out;
+}
+/** A raw record: header, type, body. */
+function record(type: number, body: number[]): number[] { return [0xa3, 0x95, type, ...body]; }
+function text(value: string, width: number): number[] {
+  const out = new Array<number>(width).fill(0);
+  for (let i = 0; i < value.length && i < width; i++) out[i] = value.charCodeAt(i);
+  return out;
+}
+/** Little-endian unsigned integer bytes. */
+function le(value: number, bytes: number): number[] {
+  return Array.from({ length: bytes }, (_, i) => Math.floor(value / 2 ** (8 * i)) % 256);
+}
+function u64(value: number): number[] { return le(value, 8); }
+function f64(value: number): number[] {
+  const view = new DataView(new ArrayBuffer(8));
+  view.setFloat64(0, value, true);
+  return Array.from(new Uint8Array(view.buffer));
+}
+function fmt(type: number, length: number, name: string, format: string, columns: string): number[] {
+  return record(128, [type, length, ...text(name, 4), ...text(format, 16), ...text(columns, 64)]);
 }
 
-describe("DataFlash reader against pymavlink DFReader", () => {
-  test("the reference log is the one the fixture names", () => {
-    expect(createHash("sha256").update(reference).digest("hex")).toBe(fixture.referenceSha256);
+describe('DataFlash reader against pymavlink mavlogdump (TASK-178)', () => {
+  it('uses the registered SITL slice', () => {
+    expect(slice.length).toBe(reference.slice.bytes);
+    expect(sha256(slice)).toBe(reference.slice.sha256);
   });
-  test.each([1, 3, 89, 4096, 1 << 20])("decodes every value, timestamp and unit identically in chunks of %i bytes", chunk => {
-    const log = readDataflash(reference, chunk);
+  it('reads every record, time and field value of the reference slice exactly', () => {
+    const log = readDataFlash(slice);
+    expect(log.records).toBe(reference.slice.records);
     expect(log.damaged).toEqual([]);
-    expect(compare(log)).toEqual([]);
-    expect(log.gpsTimeBaseS).toBe(fixture.gpsTimeBaseS);
-    for (const format of log.formats.values()) {
-      const want = fixture.units[format.name];
-      if (want) expect(Object.fromEntries(format.columns.map((column, i) => [column, format.units?.[i] ?? ""]))).toEqual(want);
-      else expect(format.units).toBeNull();
+    expect(log.clock).toBe('usec');
+    expect(mismatches(log, reference.records)).toEqual([]);
+    const gps = log.groups.find(g => g.name === 'GPS');
+    expect(gps?.columns.find(c => c.name === 'GWk')?.values[0]).toBe(2442);
+  });
+  it('resolves FMTU units against the final UNIT and MULT tables', () => {
+    const log = readDataFlash(slice);
+    expect(unitMismatches(log, reference.units)).toEqual([]);
+    const lat = log.groups.find(g => g.name === 'POS')?.columns.find(c => c.name === 'Lat');
+    expect(lat).toMatchObject({ unit: 'deglatitude', valueScale: 1 });
+    expect(log.groups.find(g => g.name === 'IMU')?.columns.find(c => c.name === 'I')?.instance).toBe(true);
+  });
+  it('gives the same result for any chunking', () => {
+    const whole = readDataFlash(slice);
+    for (const size of [1, 2, 3, 7, 89, 4096, 65536]) {
+      const log = readInChunks(slice, size);
+      expect(log.records).toBe(whole.records);
+      expect(mismatches(log, reference.records)).toEqual([]);
+      expect(log.groups.map(g => [g.name, g.count, Array.from(g.offsets)])).toEqual(whole.groups.map(g => [g.name, g.count, Array.from(g.offsets)]));
     }
   });
-  test.each(fixture.damaged.map(item => [item.id, item] as const))("reports the damaged range of the %s copy and keeps every other record", (_, item) => {
-    const log = readDataflash(new Uint8Array(Buffer.from(item.base64, "base64")), 777);
-    expect(log.damaged.map(range => [range.start, range.end, range.reason])).toEqual(item.ranges);
-    expect(totalRows(log)).toBe(item.pymavlinkMessages);
+  it('records the byte offset and global order of every record', () => {
+    const log = readDataFlash(slice);
+    const offsets: number[] = [], rows = new Map<number, number>();
+    for (const index of log.order) {
+      const group = log.groups[index], row = rows.get(index) ?? 0;
+      rows.set(index, row + 1);
+      offsets.push(group?.offsets[row] ?? NaN);
+    }
+    expect(offsets[0]).toBe(0);
+    for (let i = 1; i < offsets.length; i++) expect(offsets[i]).toBeGreaterThan(offsets[i - 1] ?? Infinity);
+    expect(log.bytes).toBe(slice.length);
   });
-  test("refuses an FMT record whose format does not fit its length", () => {
-    const fmt = new Uint8Array(89);
-    fmt.set([0xa3, 0x95, 0x80, 0x40, 3 + 4]);
-    fmt.set(Buffer.from("BADX"), 5);
-    fmt.set(Buffer.from("QQ"), 9);
-    fmt.set(Buffer.from("A,B"), 25);
-    const log = readDataflash(fmt);
-    expect(log.damaged).toEqual([{ start: 0, end: 89, reason: "invalid-format" }]);
-    expect(log.formats.has(0x40)).toBe(false);
-    const reader = new DataflashReader();
-    reader.push(reference.subarray(0, 10));
-    reader.finish();
-    expect(() => reader.push(reference)).toThrow(/finished/);
+  it.each(reference.damaged.map(c => [c.name, c] as const))('reports the damaged ranges of %s and keeps every other record', (_, damaged) => {
+    const data = applyEdit(slice, damaged.edit), log = readDataFlash(data);
+    expect(log.damaged).toEqual(damaged.ranges);
+    expect(damaged.pymavlinkSkipped).toEqual(damaged.ranges.filter(r => r.kind === 'skipped').map(r => [r.start, r.end - r.start]));
+    expect(mismatches(log, reference.records, damaged.removed)).toEqual([]);
+    expect(readInChunks(data, 5).damaged).toEqual(damaged.ranges);
+  });
+  it('rejects FMT records with an unknown format character or a wrong length', () => {
+    const data = Uint8Array.from([
+      ...fmt(10, 3 + 8 + 1, 'GOOD', 'QB', 'TimeUS,V'),
+      ...fmt(11, 3 + 8 + 1, 'BADC', 'QX', 'TimeUS,V'),
+      ...fmt(12, 3 + 8 + 2, 'BADL', 'QB', 'TimeUS,V'),
+      ...fmt(13, 3 + 8 + 1, 'BADN', 'QB', 'TimeUS'),
+      ...record(10, [1, 0, 0, 0, 0, 0, 0, 0, 7]),
+      ...record(11, [2, 0, 0, 0, 0, 0, 0, 0, 8]),
+      ...record(10, [3, 0, 0, 0, 0, 0, 0, 0, 9]),
+    ]);
+    const log = readDataFlash(data), fmtLength = 89;
+    expect(log.damaged).toEqual([
+      { start: fmtLength, end: 2 * fmtLength, kind: 'bad-format' },
+      { start: 2 * fmtLength, end: 3 * fmtLength, kind: 'bad-format' },
+      { start: 3 * fmtLength, end: 4 * fmtLength, kind: 'bad-format' },
+      { start: 4 * fmtLength + 12, end: 4 * fmtLength + 24, kind: 'skipped' },
+    ]);
+    const good = log.groups.find(g => g.name === 'GOOD');
+    expect(numbers(good?.columns[1]?.values)).toEqual([7, 9]);
+    expect(log.groups.map(g => g.name)).toEqual(['FMT', 'GOOD']);
+  });
+  it('reports a cut final record and a cut header as truncated', () => {
+    const header = fmt(10, 12, 'GOOD', 'QB', 'TimeUS,V');
+    const one = readDataFlash(Uint8Array.from([...header, ...record(10, [1, 0, 0, 0])]));
+    expect(one.damaged).toEqual([{ start: 89, end: 96, kind: 'truncated' }]);
+    const two = readDataFlash(Uint8Array.from([...header, 0xa3, 0x95]));
+    expect(two.damaged).toEqual([{ start: 89, end: 91, kind: 'skipped' }]);
+    expect(readDataFlash(new Uint8Array(0))).toMatchObject({ records: 0, damaged: [], clock: 'unsupported' });
+  });
+  it('switches to a redefined format and starts a new group', () => {
+    const data = Uint8Array.from([
+      ...fmt(10, 12, 'OLD', 'QB', 'TimeUS,V'), ...record(10, [1, 0, 0, 0, 0, 0, 0, 0, 5]),
+      ...fmt(10, 13, 'NEW', 'Qh', 'TimeUS,W'), ...record(10, [2, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff]),
+      ...fmt(10, 13, 'NEW', 'Qh', 'TimeUS,W'), ...record(10, [3, 0, 0, 0, 0, 0, 0, 0, 2, 0]),
+    ]);
+    const log = readDataFlash(data);
+    expect(log.groups.map(g => [g.name, g.count])).toEqual([['FMT', 3], ['OLD', 1], ['NEW', 2]]);
+    expect(numbers(log.groups[2]?.columns[1]?.values)).toEqual([-1, 2]);
+  });
+  it('follows pymavlink when no GPS gives a week: TimeUS from a zero timebase', () => {
+    const data = Uint8Array.from([...fmt(20, 12, 'GPS', 'QB', 'TimeUS,Status'), ...record(20, [1, 0, 0, 0, 0, 0, 0, 0, 3]),
+      ...fmt(21, 4, 'NONE', 'B', 'V'), ...record(21, [9])]);
+    const log = readDataFlash(data);
+    expect(log).toMatchObject({ clock: 'usec', timebaseS: 0 });
+    expect(Array.from(log.groups[0]?.timestampsS ?? [])).toEqual([0, 0.000001]);
+    expect(Array.from(log.groups[1]?.timestampsS ?? [])).toEqual([0.000001]);
+    expect(Array.from(log.groups[2]?.timestampsS ?? [])).toEqual([0.000001]);
+  });
+  it('takes the timebase from the first GPS record with a week', () => {
+    // 315964800 + 604800 × 2442 + 100 − 18 − 2 = 1792886480 s, exact in float64.
+    const data = Uint8Array.from([...fmt(20, 18, 'GPS', 'QBHI', 'TimeUS,Status,GWk,GMS'),
+      ...record(20, [...u64(1_000_000), 0, ...le(0, 2), ...le(0, 4)]),
+      ...record(20, [...u64(2_000_000), 3, ...le(2442, 2), ...le(100_000, 4)]),
+      ...record(20, [...u64(3_000_000), 3, ...le(2442, 2), ...le(900_000, 4)])]);
+    const log = readDataFlash(data);
+    expect(log).toMatchObject({ clock: 'usec', timebaseS: 1792886480 });
+    expect(Array.from(log.groups[1]?.timestampsS ?? [])).toEqual([1792886481, 1792886482, 1792886483]);
+    expect(log.groups[0]?.timestampsS[0]).toBe(1792886481);
+  });
+  it('uses a leading TimeMS only when it does not go back, and never for ACC or GYR', () => {
+    const data = Uint8Array.from([
+      ...fmt(23, 12, 'TUS', 'QB', 'TimeUS,V'), ...record(23, [...u64(1000), 1]),
+      ...fmt(24, 8, 'TMS', 'IB', 'TimeMS,V'), ...record(24, [...le(5, 4), 0]), ...record(24, [...le(2, 4), 0]),
+      ...fmt(25, 8, 'ACC1', 'IB', 'TimeMS,V'), ...record(25, [...le(9, 4), 0]),
+      ...fmt(26, 8, 'GYR1', 'IB', 'TimeMS,V'), ...record(26, [...le(9, 4), 0]),
+    ]);
+    const times = readDataFlash(data).groups.slice(1).map(g => Array.from(g.timestampsS));
+    expect(times).toEqual([[1000 * 0.000001], [5 * 0.001, 5 * 0.001], [5 * 0.001], [5 * 0.001]]);
+  });
+  it('decodes half floats', () => {
+    const data = Uint8Array.from([...fmt(22, 15, 'HALF', 'gggggg', 'A,B,C,D,E,F'),
+      ...record(22, [...le(0x3e00, 2), ...le(0x8000, 2), ...le(0x7bff, 2), ...le(0x0001, 2), ...le(0x7c00, 2), ...le(0x7e00, 2)])]);
+    const values = readDataFlash(data).groups[1]?.columns.map(c => c.values[0]);
+    expect(values).toEqual([1.5, -0, 65504, 2 ** -24, Infinity, NaN]);
+    expect(Object.is(values?.[1], -0)).toBe(true);
+  });
+  it('resolves units declared before their UNIT and MULT records, and missing ids', () => {
+    const data = Uint8Array.from([
+      ...fmt(119, 76, 'UNIT', 'QbZ', 'TimeUS,Id,Label'), ...fmt(120, 20, 'MULT', 'Qbd', 'TimeUS,Id,Mult'),
+      ...fmt(118, 44, 'FMTU', 'QBNN', 'TimeUS,FmtType,UnitIds,MultIds'), ...fmt(50, 15, 'XYZ', 'Qhc', 'TimeUS,A,B'),
+      ...record(118, [...u64(0), 50, ...text('sz', 16), ...text('FB', 16)]),
+      ...record(119, [...u64(0), 0x73, ...text('s', 64)]), ...record(119, [...u64(0), 0x6d, ...text('m', 64)]),
+      ...record(120, [...u64(0), 0x46, ...f64(1e-6)]), ...record(120, [...u64(0), 0x42, ...f64(0.01)]),
+      ...record(50, [...u64(5), ...le(7, 2), ...le(250, 2)]),
+    ]);
+    const group = readDataFlash(data).groups.find(g => g.name === 'XYZ');
+    expect(group?.columns.map(c => [c.name, c.unit, c.multiplier, c.valueScale, c.instance])).toEqual([
+      ['TimeUS', 's', 1e-6, 1e-6, false], ['A', '', 0.01, 0.01, false], ['B', '', null, 1, false]]);
+    expect(group?.columns[2]?.values[0]).toBe(2.5);
+  });
+  it('leaves times unset for logs with pre-TimeUS clocks', () => {
+    const data = Uint8Array.from([...fmt(20, 14, 'GPS', 'IIHB', 'T,TimeMS,Week,Status'),
+      ...record(20, [1, 0, 0, 0, 2, 0, 0, 0, 0x8a, 0x09, 3])]);
+    const log = readDataFlash(data);
+    expect(log.clock).toBe('unsupported');
+    expect(Number.isNaN(log.groups[1]?.timestampsS[0])).toBe(true);
+  });
+  it('decodes pymavlink text: UTF-8, Latin-1 fallback, cut at the first NUL', () => {
+    const name = [0x4d, 0xc3, 0xa9, 0, 0x41], latin = [0x4d, 0xe9, 0, 0xff];
+    const data = Uint8Array.from([...fmt(30, 3 + 8 + 16, 'TXT', 'QN', 'TimeUS,S'),
+      ...record(30, [1, 0, 0, 0, 0, 0, 0, 0, ...name, ...new Array<number>(11).fill(0)]),
+      ...record(30, [2, 0, 0, 0, 0, 0, 0, 0, ...latin, ...new Array<number>(12).fill(0)])]);
+    const column = readDataFlash(data).groups[1]?.columns[1];
+    if (!column) throw new Error('missing column');
+    expect([columnText(column, 0), columnText(column, 1)]).toEqual(['Mé', 'Mé']);
+  });
+  it('parses a Blob in chunks with progress', async () => {
+    const progress: number[] = [];
+    const log = await parseSource(new Blob([slice]), 4096, bytes => progress.push(bytes));
+    expect(mismatches(log, reference.records)).toEqual([]);
+    expect(progress.at(-1)).toBe(slice.length);
+    expect(progress.length).toBe(Math.ceil(slice.length / 4096));
+    await expect(parseSource(new Blob([slice]), 0, () => undefined)).rejects.toThrow(RangeError);
   });
 });
 
-describe("DataFlash writer", () => {
-  function sample(): DataflashWriter {
-    const writer = new DataflashWriter();
-    writer.truth(1_000_000, [1.5, -2.25, -10.125], [0.5, 0.25, -0.125], [1, 0, 0, 0]);
-    writer.motor(1_000_000, 3, 1500, 0.4, 7200.5, 4.25, 15.75, NaN);
-    writer.event(1_250_000, 7, "Motor 3 fault injected");
-    writer.parameter(1_500_000, "MOT_THST_EXPO", 0.65, NaN, "requested", "");
-    writer.parameter(1_520_000, "MOT_THST_EXPO", 0.65, 0.65, "confirmed", "read back");
-    writer.parameter(1_530_000, "WP_SPD", 50, 10, "rejected", "out of range");
-    writer.truth(2 ** 40 + 7, [0, 0, 0], [0, 0, 0], [0.5, 0.5, 0.5, 0.5]);
-    return writer;
-  }
-  test("uses names the pinned ArduPilot never logs", () => {
-    const names = new Set(fixture.ardupilotLogNames);
-    for (const message of MIRAGE_MESSAGES) expect(names.has(message.name)).toBe(false);
+describe('DataFlash writer for MirageSITL records (TASK-178)', () => {
+  const input: unknown[] = reference.writer.input;
+  // Validated by the writer; used where typed records are needed.
+  const records = (): ExperimentRecord[] => readExperimentRecords(readDataFlash(writeDataFlash(input)));
+  it('writes the recorded sample byte for byte', () => {
+    const bytes = writeDataFlash(input);
+    expect(bytes.length).toBe(reference.writer.bytes);
+    expect(sha256(bytes)).toBe(reference.writer.sha256);
   });
-  test("output re-parses to the written values, with units", () => {
-    const bytes = sample().bytes();
-    const log = readDataflash(bytes, 50);
+  it('reads back as pymavlink reads it, with its units', () => {
+    const log = readDataFlash(writeDataFlash(input));
     expect(log.damaged).toEqual([]);
-    const truth = log.tables.get("MTRU")!, motor = log.tables.get("MMOT")!, event = log.tables.get("MEVT")!, parameter = log.tables.get("MPRM")!;
-    expect(Array.from(truth.columns.TimeUS as Float64Array)).toEqual([1_000_000, 2 ** 40 + 7]);
-    expect(Array.from(truth.columns.PE as Float64Array)).toEqual([-2.25, 0]);
-    expect(Array.from(truth.columns.QX as Float64Array)).toEqual([0, 0.5]);
-    expect((motor.columns.RPM as Float64Array)[0]).toBe(Math.fround(7200.5));
-    expect((motor.columns.Thr as Float64Array)[0]).toBe(Math.fround(0.4));
-    expect((motor.columns.Temp as Float64Array)[0]).toBeNaN();
-    expect(event.columns.Text).toEqual(["Motor 3 fault injected"]);
-    expect(parameter.columns.Name).toEqual(["MOT_THST_EXPO", "MOT_THST_EXPO", "WP_SPD"]);
-    expect(Array.from(parameter.columns.Stat as Float64Array)).toEqual([0, 1, 2]);
-    expect((parameter.columns.Conf as Float64Array)[0]).toBeNaN();
-    expect(truth.format.units).toEqual(["µs", "m", "m", "m", "m/s", "m/s", "m/s", "", "", "", ""]);
-    expect(motor.format.units).toEqual(["µs", "instance", "us", "", "rpm", "A", "V", "degC"]);
-    expect(Array.from(truth.timestampS)).toEqual([1_000_000 * 0.000001, (2 ** 40 + 7) * 0.000001]);
-    // Writing again reproduces the same bytes.
-    expect(Buffer.from(sample().bytes()).equals(Buffer.from(bytes))).toBe(true);
+    expect(mismatches(log, reference.writer.records)).toEqual([]);
+    expect(unitMismatches(log, reference.writer.units)).toEqual([]);
   });
-  test("refuses values that do not fit their fields", () => {
-    const writer = new DataflashWriter();
-    expect(() => writer.truth(-1, [0, 0, 0], [0, 0, 0], [1, 0, 0, 0])).toThrow(/integer/);
-    expect(() => writer.truth(1.5, [0, 0, 0], [0, 0, 0], [1, 0, 0, 0])).toThrow(/integer/);
-    expect(() => writer.truth(0, [0, 0], [0, 0, 0], [1, 0, 0, 0])).toThrow(/3 position/);
-    expect(() => writer.motor(0, 256, 1500, 0, 0, 0, 0, 0)).toThrow(/0 to 255/);
-    expect(() => writer.event(0, 1, "é")).toThrow(/printable ASCII/);
-    expect(() => writer.event(0, 1, "x".repeat(65))).toThrow(/at most 64/);
-    expect(() => writer.parameter(0, "lower", 1, 1, "confirmed", "")).toThrow(/name/);
+  it('re-parses into identical records', () => {
+    expect(readExperimentRecords(readDataFlash(writeDataFlash(input)))).toEqual(input);
   });
-  test.skipIf(!existsSync(PYTHON))("pymavlink DFReader reads the writer's output with the same values and units", () => {
-    const directory = mkdtempSync(join(tmpdir(), "mirage-dataflash-"));
-    try {
-      const path = join(directory, "mirage.BIN");
-      writeFileSync(path, sample().bytes());
-      const program = [
-        "import json, math, sys",
-        "from pymavlink import DFReader",
-        "r = DFReader.DFReader_binary(sys.argv[1], zero_time_base=True)",
-        "out = []",
-        "while True:",
-        "    m = r.recv_msg()",
-        "    if m is None: break",
-        "    if m.get_type() in ('MTRU', 'MMOT', 'MEVT', 'MPRM'):",
-        "        out.append([m.get_type(), {c: ('NaN' if isinstance(getattr(m, c), float) and math.isnan(getattr(m, c)) else getattr(m, c)) for c in m._fieldnames}, {c: m.fmt.get_unit(c) for c in m._fieldnames}])",
-        "print(json.dumps(out))",
-      ].join("\n");
-      const run = spawnSync(PYTHON, ["-I", "-c", program, path], { encoding: "utf8" });
-      expect(run.status).toBe(0);
-      const decoded: unknown = JSON.parse(run.stdout);
-      const log = readDataflash(sample().bytes());
-      const rows = new Map<string, number>();
-      expect(Array.isArray(decoded) && decoded.length === 7).toBe(true);
-      for (const entry of decoded as [string, Record<string, unknown>, Record<string, string>][]) {
-        const [type, values, units] = entry;
-        const row = rows.get(type) ?? 0;
-        rows.set(type, row + 1);
-        const table = log.tables.get(type)!;
-        for (const [name, value] of Object.entries(values)) expect(cell(table.columns[name]!, row)).toStrictEqual(expected(value));
-        expect(table.format.units).toEqual(table.format.columns.map(column => units[column]));
-      }
-    } finally {
-      rmSync(directory, { recursive: true, force: true });
-    }
+  it('uses MirageSITL names that the ArduPilot log does not', () => {
+    const names = MIRAGE_MESSAGES.map(m => m.name);
+    expect(names).toEqual(['MSTR', 'MSMO', 'MSEV', 'MSPC']);
+    for (const name of names) expect(reference.records.names).not.toContain(name);
+    expect(readExperimentRecords(readDataFlash(slice))).toEqual([]);
   });
-});
-
-describe("DataFlash Worker handler", () => {
-  test("parses transferred chunks and transfers numeric columns back", () => {
-    const responses: [DataflashResponse, Transferable[]][] = [];
-    const handle = createDataflashHandler((response, transfer) => responses.push([response, transfer]));
-    for (let offset = 0; offset < reference.length; offset += 10000) handle({ kind: "chunk", bytes: reference.slice(offset, offset + 10000).buffer });
-    handle({ kind: "finish" });
-    const [result, transfer] = responses.at(-1)!;
-    if (result.kind !== "result") throw new Error(result.kind);
-    expect(responses.filter(([response]) => response.kind === "progress")).toHaveLength(Math.ceil(reference.length / 10000));
-    expect(result.bytes).toBe(reference.length);
-    expect(result.gpsTimeBaseS).toBe(fixture.gpsTimeBaseS);
-    expect(result.tables.reduce((sum, table) => sum + table.timestampS.length, 0)).toBe(fixture.messages.length);
-    expect(transfer.length).toBeGreaterThan(result.tables.length * 2);
-    handle({ kind: "unknown" });
-    expect(responses.at(-1)![0]).toEqual({ kind: "error", message: "Unknown DataFlash request" });
+  it('rejects invalid records and leaves the output unchanged', () => {
+    const writer = new DataFlashWriter();
+    writer.append({ kind: 'event', timeUs: 1, event: 'note', text: 'ok' });
+    const before = writer.bytes();
+    const truth = records().find(r => r.kind === 'truth');
+    const motor = records().find(r => r.kind === 'motor');
+    const parameter = records().find(r => r.kind === 'parameter');
+    if (!truth || !motor || !parameter) throw new Error('fixture lacks a record kind');
+    const invalid: unknown[] = [
+      { kind: 'event', timeUs: -1, event: 'note', text: 'x' },
+      { kind: 'event', timeUs: 1.5, event: 'note', text: 'x' },
+      { kind: 'event', timeUs: 2 ** 53, event: 'note', text: 'x' },
+      { kind: 'event', timeUs: 1, event: 'other', text: 'x' },
+      { kind: 'event', timeUs: 1, event: 'note', text: 'x'.repeat(65) },
+      { kind: 'event', timeUs: 1, event: 'note', text: 'a\u0000b' },
+      { ...truth, latitudeDeg: 90.5 },
+      { ...truth, longitudeDeg: -181 },
+      { ...truth, northM: NaN },
+      { ...truth, yawDeg: Infinity },
+      { ...motor, motor: 16 },
+      { ...motor, motor: 1.5 },
+      { ...motor, rpm: NaN },
+      { ...parameter, name: '' },
+      { ...parameter, name: 'A'.repeat(17) },
+      { ...parameter, name: 'BAD NAME' },
+      { ...parameter, status: 'pending' },
+      { ...parameter, requestedValue: NaN },
+      { ...parameter, previousValue: NaN },
+      { ...parameter, sequence: -1 },
+      { ...parameter, sequence: 2 ** 32 },
+      { kind: 'other', timeUs: 1 },
+      { ...motor, extra: 1 },
+    ];
+    for (const value of invalid) expect(() => writer.append(value), JSON.stringify(value)).toThrow(RangeError);
+    expect(writer.bytes()).toEqual(before);
+  });
+  it('quantizes values to their wire types', () => {
+    const log = readDataFlash(writeDataFlash([{ kind: 'motor', timeUs: 5, motor: 2, command: 0.1, rpm: 1 / 3, thrustN: 1e-50,
+      torqueNm: -0, currentA: 3.4028234663852886e38, voltageV: 16 }]));
+    const [read] = readExperimentRecords(log);
+    expect(read).toEqual({ kind: 'motor', timeUs: 5, motor: 2, command: Math.fround(0.1), rpm: Math.fround(1 / 3), thrustN: 0,
+      torqueNm: -0, currentA: 3.4028234663852886e38, voltageV: 16 });
+    expect(() => writeDataFlash([{ kind: 'motor', timeUs: 5, motor: 2, command: 0, rpm: 0, thrustN: 0, torqueNm: 0, currentA: 1e39, voltageV: 0 }]))
+      .toThrow(RangeError);
   });
 });

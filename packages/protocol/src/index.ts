@@ -9,6 +9,7 @@ export * from './spsc-v2.ts';
 export * from './sensor-frame.ts';
 export * from './actuator-frame.ts';
 export * from './interpolation.ts';
+export * from './power-v1.ts';
 
 export const ABI_VERSION = 1;
 export const PHYSICS_HZ = 400;

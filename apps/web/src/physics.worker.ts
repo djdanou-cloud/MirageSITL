@@ -2,8 +2,11 @@
 import { AarRecord } from '@mirage/aar/record';
 import { RecordingHandoff } from '@mirage/aar/handoff';
 import { createSessionFaultPort } from '@mirage/ew/session-port';
-import { isWorkerInitV2, tickToNumber, type CommandResultV2, type ControlCommandV2, type WorkerFaultV2 } from '@mirage/protocol';
+import { isWorkerInitV2, tickToNumber, validatePowerChannelV1, type CommandResultV2, type ControlCommandV2, type WorkerFaultV2 } from '@mirage/protocol';
+import { parseLimitRatings, type LimitEvent, type LimitRatings } from '@mirage/physics/limit-monitor';
 import { PhysicsSessionV2, type SessionClock } from '@mirage/physics';
+import { profileModelPort } from '@mirage/physics/profile-dynamics';
+import { VehicleRegistry } from '@mirage/physics/vehicle-manifest';
 import { ScenarioBinder } from '@mirage/scenarios/bind';
 import { parseScenario } from '@mirage/scenarios/schema';
 
@@ -20,7 +23,18 @@ let timer: ReturnType<typeof setTimeout> | undefined;
 let binder: ScenarioBinder | null = null;
 let haltPosted = false;
 let recorder: { handoff: RecordingHandoff; record: AarRecord } | null = null;
+// Profile dynamics (TASK-144): manifests registered by hash and the BET module they run on. The demo stays the
+// default; a registered model runs only after a Control Protocol v2 `model.load` names its ID and hash.
+const registry = new VehicleRegistry();
+let betModule: WebAssembly.Module | null = null;
+// TASK-146 limit ratings by manifest SHA-256, bound before model.load; a model without ratings checks none.
+const ratings = new Map<string, LimitRatings>();
 type WorkerNotice = CommandResultV2 | WorkerFaultV2
+  | { type: "bet.module.ready"; sha256: string } | { type: "bet.module.reject"; message: string }
+  | { type: "model.registered"; modelId: number; sha256: string } | { type: "model.reject"; message: string }
+  | { type: "limits.registered"; sha256: string } | { type: "limits.reject"; message: string }
+  | { type: "limits.events"; events: LimitEvent[]; dropped: number }
+  | { type: "power.attached" } | { type: "power.reject"; message: string }
   | { type: "scenario.submit"; command: ControlCommandV2 }
   | { type: "scenario.reject"; message: string }
   | { type: "pilot.rejected"; count: number; ageMs: number; wallMs: number; sampleWallMs: number; sampleId: number; expectedEpoch: number;
@@ -35,6 +49,12 @@ function flush(): void {
     binder?.observe(event);
     post(event);
   });
+  // TASK-146: limit events leave after the compute batch, as one message.
+  const events: LimitEvent[] = [];
+  if (session && session.drainLimitEvents(event => events.push(event)) > 0) post({ type: "limits.events", events, dropped: session.limitEventsDropped });
+}
+function isTyped<T extends string>(data: unknown, type: T): data is { type: T } & Record<string, unknown> {
+  return typeof data === "object" && data !== null && !Array.isArray(data) && "type" in data && data.type === type;
 }
 function armScenario(value: unknown): void {
   try {
@@ -68,6 +88,23 @@ function armRecording(queue: SharedArrayBuffer): void {
     if (active.handoff.push(active.record.words)) notedLost = active.handoff.lost;
   });
 }
+function isBinaryMessage<T extends string>(data: unknown, type: T): data is { type: T; bytes: Uint8Array; sha256: string } {
+  return typeof data === "object" && data !== null && "type" in data && data.type === type && "bytes" in data &&
+    data.bytes instanceof Uint8Array && "sha256" in data && typeof data.sha256 === "string" && /^[a-f0-9]{64}$/.test(data.sha256);
+}
+function hex(buffer: ArrayBuffer): string {
+  return Array.from(new Uint8Array(buffer), value => value.toString(16).padStart(2, "0")).join("");
+}
+/** Cold: verifies the BET module's hash, compiles it and checks it imports nothing and exports the drive and bus. */
+async function loadBetModule(bytes: Uint8Array, sha256: string): Promise<void> {
+  const copy = new Uint8Array(bytes);
+  if (hex(await crypto.subtle.digest("SHA-256", copy)) !== sha256) throw new Error("BET module SHA-256 mismatch");
+  const module = await WebAssembly.compile(copy);
+  if (WebAssembly.Module.imports(module).length !== 0) throw new Error("The BET module must not import host functions");
+  const names = new Set(WebAssembly.Module.exports(module).map(entry => entry.name));
+  for (const name of ["bet_bound_step_v2", "bet_bus_step", "bet_body_step"]) if (!names.has(name)) throw new Error(`The BET module lacks ${name}`);
+  betModule = module;
+}
 function isScenarioArm(data: unknown): data is { type: "scenario.arm"; scenario: unknown } {
   return typeof data === "object" && data !== null && "type" in data && data.type === "scenario.arm" && "scenario" in data;
 }
@@ -99,7 +136,8 @@ addEventListener('message', (event: MessageEvent<unknown>) => {
   if (!session) {
     if (!isWorkerInitV2(data)) { post({ type: 'fault-v2', protocolVersion: 2, message: 'Expected init-v2' }); return; }
     try {
-      session = new PhysicsSessionV2(data, clock, undefined, createSessionFaultPort());
+      session = new PhysicsSessionV2(data, clock, undefined, createSessionFaultPort(),
+        profileModelPort(registry, () => betModule, {}, sha256 => ratings.get(sha256) ?? null));
       const created = session;
       created.setBeforeTick((tick) => {
         if (!binder) return;
@@ -122,6 +160,37 @@ addEventListener('message', (event: MessageEvent<unknown>) => {
     return;
   }
   const current = session;
+  if (isBinaryMessage(data, "bet.module")) {
+    loadBetModule(data.bytes, data.sha256).then(() => post({ type: "bet.module.ready", sha256: data.sha256 }),
+      (error: unknown) => post({ type: "bet.module.reject", message: error instanceof Error ? error.message : "Invalid BET module" }));
+    return;
+  }
+  if (isBinaryMessage(data, "model.register")) {
+    registry.register(data.bytes, data.sha256).then(record => post({ type: "model.registered", modelId: record.manifest.modelId, sha256: record.sha256 }),
+      (error: unknown) => post({ type: "model.reject", message: error instanceof Error ? error.message : "Invalid model" }));
+    return;
+  }
+  if (isTyped(data, "limits.register")) {
+    try {
+      const sha256 = data.sha256;
+      if (typeof sha256 !== "string" || !/^[a-f0-9]{64}$/.test(sha256)) throw new Error("limits.register needs a manifest SHA-256");
+      ratings.set(sha256, parseLimitRatings(data.ratings));
+      post({ type: "limits.registered", sha256 });
+    } catch (error) {
+      post({ type: "limits.reject", message: error instanceof Error ? error.message : "Invalid limit ratings" });
+    }
+    return;
+  }
+  if (isTyped(data, "power.attach")) {
+    try {
+      validatePowerChannelV1(data.buffer);
+      current.attachPowerChannel(data.buffer);
+      post({ type: "power.attached" });
+    } catch (error) {
+      post({ type: "power.reject", message: error instanceof Error ? error.message : "Invalid power channel" });
+    }
+    return;
+  }
   if (isScenarioArm(data)) {
     armScenario(data.scenario);
     return;

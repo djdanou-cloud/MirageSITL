@@ -566,7 +566,8 @@ This separate interface leaves the legacy rotor arena ABI v1 unchanged.
 `bet_bound_dispose(arena)` use disjoint caller-owned 8-byte-aligned regions.
 Configuration header: 128 bytes; u32 version/totalBytes/nAlpha/nRe/nMach/
 nStations/bladeCount/spinSign/azimuthSamples at 0/4/8/12/16/20/24/28/32;
-36..39 reserved zero; f64 radius/root/inertia/bearing/dt/initialOmega/
+36..39 reserved zero in version 1 and the kernel options word in version 2
+(TASK-091, below); f64 radius/root/inertia/bearing/dt/initialOmega/
 inflowTau/inflowLimit/minConfidence at 40/48/56/64/72/80/88/96/104;
 112..127 reserved zero. Then four station f64 arrays (radius/chord/twist/width),
 alpha-radian/Re/Mach axes, and flattened CL/CD/confidence arrays in
@@ -593,6 +594,52 @@ do not change output or state. Reset restores configured initial speed and
 zero inflow. Disposal invalidates the arena. Growth after init is rejected.
 No new SAB byte layout or autopilot admission follows from this interface.
 
+Kernel cost (TASK-091, in progress). Initialization and reset validate the
+whole configuration; each step rechecks only the header, the counts, the
+dt, the scalar ranges and the slice bounds, and reads the polar without
+rescanning its values, since the configuration is immutable. Without kernel
+options the step evaluates the rotor with `Rotor::evaluate_fast`, whose
+results are bit-identical to the reference kernel (`Rotor::evaluate`,
+`PolarTable::lookup`): its polar lookups (`PreparedPolar`) compute the
+Reynolds-axis logarithms, the guess scales and the corner strides once per
+evaluation, guess each bracket in O(1) and correct it against its neighbours
+to the binary search's index, and read a cell's CL, CD and confidence
+corners through one window; the angle of attack wraps by exact conditional
+subtraction (Sterbenz) with `rem_euclid` as fallback; and the element speed
+is taken once. The reference stays in the crate with `bound::step_reference`
+and `bound_v2::step_reference` for tests and benchmarks; no WASM export
+calls them.
+
+Configuration version 2 (TASK-091) adds two opt-in modes that change the
+numerics; version 1 keeps byte 36 reserved zero and stays the default, and
+`encodeBoundRotor` writes version 2 only when `kernelOptions` is nonzero.
+Any other option bit is rejected. A configuration with options evaluates
+the rotor with `Rotor::evaluate_sampled`, which agrees with the reference
+within the declared tolerance T1 (1e-12 relative, flags identical) when it
+samples in full: each element's relative velocity is resolved on the
+tangential direction and the axis only, where the cross products of the
+element force reduce to scalar products, per-strip and per-azimuth factors
+are formed once, and four sums per azimuth are rotated into the force,
+moment and flapping loads. Option 1 (reduced predictor): the
+half-step prediction evaluates azimuth samples 0 and N/2 (N even), whose
+first harmonics cancel, and uses only their axial force and torque.
+Option 2 (hover sampling): the midpoint evaluation uses every other azimuth
+sample (N even, at least 4) while the regime measure
+m = max(|transverse air velocity| / (Omega R), |in-plane body rate| / Omega,
+|cyclic pitch|) at the start of the step stays low: it engages below 0.05
+and disengages above 0.10, and a stopped shaft samples in full. Its state
+(f64 0 or 1) occupies arena header bytes 56..63 only with option 2; the
+bytes stay zero otherwise, and reset clears them. Output flag 64 marks a
+midpoint with hover sampling and flag 128 a reduced prediction;
+`BetFlightDynamics` reports them in `samplingFlags` and never as
+ModelOutsideValidity. The modes are judged by the TASK-033 suites (T2):
+`node scripts/check-bet-runtime.mjs --kernel-options 3` repeats the 18
+comparisons with both modes against the unchanged 4800 Hz references and
+adds six forward-flight trajectories against the full kernel at the same
+rate (limits 0.1 m and 0.5 degrees, report
+`test-results/validation/bet-runtime-modes.json`). `BetFlightConfiguration`
+and `buildProfileDynamics` take `kernelOptions`; the default is 0.
+
 The configured dt accepts 400/800/1200 Hz plus 4800 Hz for offline reference
 integration. The session clock remains limited to 400/800/1200 Hz.
 `BetFlightDynamics` predicts midpoint body velocity, rate and orientation for
@@ -609,8 +656,9 @@ WASM variant, and one million steps each of the stationary four-rotor body with
 zero gravity and of the four-rotor body on the synthetic pad. It also probes the
 step interfaces v2 of TASK-088: one million active-rotor steps through
 `BetRotorEngineV2` and one million stationary body steps through
-`BetRigidBodyBackendV2`, each in both WASM variants.
-`scripts/bet-runtime-graphs.ts` lists the eight graphs; a report must hold
+`BetRigidBodyBackendV2`, each in both WASM variants, and one million steps of
+the four-rotor body on the TASK-092 ESC drive and shared bus on the synthetic
+pad. `scripts/bet-runtime-graphs.ts` lists the nine graphs; a report must hold
 exactly one sample of each, and `scripts/validate-models.mjs` admits only that
 set. The JS probes require zero GC, less than 0.01 incremental bytes/step, stable
 WASM memory and an allocating positive control. These are software checks,
@@ -1487,94 +1535,88 @@ specified in the sections below.
 
 ### Pinned MAVLink2 subset
 
-`packages/mavlink/dialect.lock.json` pins MAVLink XML commit
-2e2b6af99084e4fde9bb304c84bb9253a1a98b6f, the hashes of ardupilotmega.xml and
-every XML file it includes recursively, the license, pymavlink 2.4.50, the
-generator files and the generated Python module. The older 2.4.49 generator
-rejects the pinned XML schema; validation is retained with the compatible 2.4.50.
-`generate-mavlink-fixtures.py` verifies source cleanliness/commit/version and
-uses the official generator. Generated Python stays outside the repository;
-checked-in golden frames are SHA-256 registered synthetic protocol oracles.
-They are not aircraft measurements. The upstream generated-output notice is
-retained in packages/mavlink/NOTICE.
+`packages/mavlink/dialect.lock.json` (schema 2) pins MAVLink commit
+2e2b6af99084e4fde9bb304c84bb9253a1a98b6f, the dialect `ardupilotmega.xml` with
+the hash of every definition file it includes (common, standard, minimal,
+uAvionix, icarous, loweheiser, cubepilot and csAirLink) and of the license,
+pymavlink 2.4.50 and generator-file hashes, the supported message IDs and the
+high-rate subset. The older 2.4.49 generator rejects the pinned XML schema;
+validation is retained with the compatible 2.4.50.
+`generate-mavlink-fixtures.py` (sources from `MIRAGE_MAVLINK_SOURCE` and
+`MIRAGE_MAVGEN_OUTPUT`) verifies source cleanliness/commit/version and uses the
+official generator. It also writes `packages/mavlink/src/message-table.ts`
+(TASK-150): for each supported message its ID, name, CRC_EXTRA, full MAVLink2
+payload length and fields in wire order (name, wire type, byte offset, array
+length, units, extension), taken from the generator's own parser.
+`definition(id)` reads this table, so the codec cannot drift from the
+generator. Generated Python stays outside the repository; checked-in golden
+frames are SHA-256 registered synthetic protocol oracles packed by pymavlink
+from recorded field values. They are not aircraft measurements. The upstream
+generated-output notice is retained in packages/mavlink/NOTICE.
 
-| Message ID | Message | Full payload bytes | Base payload bytes | CRC_EXTRA |
-| --- | --- | --- | --- | --- |
-| 0 | HEARTBEAT | 9 | 9 | 50 |
-| 1 | SYS_STATUS | 43 | 31 | 124 |
-| 20 | PARAM_REQUEST_READ | 20 | 20 | 214 |
-| 21 | PARAM_REQUEST_LIST | 2 | 2 | 159 |
-| 22 | PARAM_VALUE | 25 | 25 | 220 |
-| 23 | PARAM_SET | 23 | 23 | 168 |
-| 24 | GPS_RAW_INT | 52 | 30 | 24 |
-| 27 | RAW_IMU | 29 | 26 | 144 |
-| 30 | ATTITUDE | 28 | 28 | 39 |
-| 32 | LOCAL_POSITION_NED | 28 | 28 | 185 |
-| 33 | GLOBAL_POSITION_INT | 28 | 28 | 104 |
-| 36 | SERVO_OUTPUT_RAW | 37 | 21 | 222 |
-| 37 | MISSION_REQUEST_PARTIAL_LIST | 7 | 6 | 212 |
-| 38 | MISSION_WRITE_PARTIAL_LIST | 7 | 6 | 9 |
-| 39 | MISSION_ITEM | 38 | 37 | 254 |
-| 40 | MISSION_REQUEST | 5 | 4 | 230 |
-| 41 | MISSION_SET_CURRENT | 4 | 4 | 28 |
-| 42 | MISSION_CURRENT | 18 | 2 | 28 |
-| 43 | MISSION_REQUEST_LIST | 3 | 2 | 132 |
-| 44 | MISSION_COUNT | 9 | 4 | 221 |
-| 45 | MISSION_CLEAR_ALL | 3 | 2 | 232 |
-| 46 | MISSION_ITEM_REACHED | 2 | 2 | 11 |
-| 47 | MISSION_ACK | 8 | 3 | 153 |
-| 51 | MISSION_REQUEST_INT | 5 | 4 | 196 |
-| 70 | RC_CHANNELS_OVERRIDE | 38 | 18 | 124 |
-| 73 | MISSION_ITEM_INT | 38 | 37 | 38 |
-| 74 | VFR_HUD | 20 | 20 | 20 |
-| 75 | COMMAND_INT | 35 | 35 | 158 |
-| 76 | COMMAND_LONG | 33 | 33 | 152 |
-| 77 | COMMAND_ACK | 10 | 3 | 143 |
-| 82 | SET_ATTITUDE_TARGET | 51 | 39 | 49 |
-| 83 | ATTITUDE_TARGET | 37 | 37 | 22 |
-| 84 | SET_POSITION_TARGET_LOCAL_NED | 53 | 53 | 143 |
-| 85 | POSITION_TARGET_LOCAL_NED | 51 | 51 | 140 |
-| 86 | SET_POSITION_TARGET_GLOBAL_INT | 53 | 53 | 5 |
-| 87 | POSITION_TARGET_GLOBAL_INT | 51 | 51 | 150 |
-| 93 | HIL_ACTUATOR_CONTROLS | 81 | 81 | 47 |
-| 105 | HIGHRES_IMU | 63 | 62 | 93 |
-| 107 | HIL_SENSOR | 65 | 64 | 108 |
-| 113 | HIL_GPS | 39 | 36 | 124 |
-| 147 | BATTERY_STATUS | 54 | 36 | 154 |
-| 193 | EKF_STATUS_REPORT | 26 | 22 | 71 |
-| 253 | STATUSTEXT | 54 | 51 | 83 |
+| Message ID | Message | Full payload bytes | CRC_EXTRA |
+| --- | --- | --- | --- |
+| 0 | HEARTBEAT | 9 | 50 |
+| 1 | SYS_STATUS | 43 | 124 |
+| 20 | PARAM_REQUEST_READ | 20 | 214 |
+| 21 | PARAM_REQUEST_LIST | 2 | 159 |
+| 22 | PARAM_VALUE | 25 | 220 |
+| 23 | PARAM_SET | 23 | 168 |
+| 24 | GPS_RAW_INT | 52 | 24 |
+| 27 | RAW_IMU | 29 | 144 |
+| 30 | ATTITUDE | 28 | 39 |
+| 32 | LOCAL_POSITION_NED | 28 | 185 |
+| 33 | GLOBAL_POSITION_INT | 28 | 104 |
+| 36 | SERVO_OUTPUT_RAW | 37 | 222 |
+| 40 | MISSION_REQUEST | 5 | 230 |
+| 41 | MISSION_SET_CURRENT | 4 | 28 |
+| 42 | MISSION_CURRENT | 18 | 28 |
+| 43 | MISSION_REQUEST_LIST | 3 | 132 |
+| 44 | MISSION_COUNT | 9 | 221 |
+| 45 | MISSION_CLEAR_ALL | 3 | 232 |
+| 46 | MISSION_ITEM_REACHED | 2 | 11 |
+| 47 | MISSION_ACK | 8 | 153 |
+| 51 | MISSION_REQUEST_INT | 5 | 196 |
+| 70 | RC_CHANNELS_OVERRIDE | 38 | 124 |
+| 73 | MISSION_ITEM_INT | 38 | 38 |
+| 74 | VFR_HUD | 20 | 20 |
+| 75 | COMMAND_INT | 35 | 158 |
+| 76 | COMMAND_LONG | 33 | 152 |
+| 77 | COMMAND_ACK | 10 | 143 |
+| 84 | SET_POSITION_TARGET_LOCAL_NED | 53 | 143 |
+| 85 | POSITION_TARGET_LOCAL_NED | 51 | 140 |
+| 86 | SET_POSITION_TARGET_GLOBAL_INT | 53 | 5 |
+| 87 | POSITION_TARGET_GLOBAL_INT | 51 | 150 |
+| 93 | HIL_ACTUATOR_CONTROLS | 81 | 47 |
+| 105 | HIGHRES_IMU | 63 | 93 |
+| 107 | HIL_SENSOR | 65 | 108 |
+| 113 | HIL_GPS | 39 | 124 |
+| 147 | BATTERY_STATUS | 54 | 154 |
+| 193 | EKF_STATUS_REPORT | 26 | 71 |
+| 253 | STATUSTEXT | 54 | 83 |
 
-TASK-150 catalog. The lock holds the 43 messages below with every field's XML
-name, wire type, offset, array count and XML units, generated from the pinned
-XML by `generate-mavlink-fixtures.py`; `definition(id)` reads only this lock,
-so the codec and the lock cannot disagree. Base payload bytes exclude MAVLink2
-extension fields. The golden file holds 137 frames from the official generator
-(5 historical TASK-037 frames, a distinct-value, an all-zero and a range-limit
-frame per message, and 3 parameter-builder requests); `--check` regenerates
-them and the lock and compares without writing. `MessagePayload(id)` keeps one
-fixed `Float64Array` per field in wire units, resolved by name once at
-initialization. u64/i64 fields are two u32 words (low, high; i64 in two's
-complement), never BigInt; char fields are ASCII byte codes. `pack()` checks
-every value against its wire type before writing any byte, so an invalid value
-leaves the payload unchanged; floats keep NaN and infinity as MAVLink unknown
-sentinels and finite values beyond f32 are refused. `decode(frame)` reads a
-CRC-checked, zero-padded frame of the same ID into the same arrays, so a
-truncated frame clears stale extension fields. `parameterListInto`,
-`parameterReadInto` and `parameterSetInto` are cold builders that validate
-target IDs, names (1–16 printable ASCII characters), index and parameter type
-before changing a byte; `param_value` is the MAVLink float carrier.
-
-The parser now consumes the whole envelope of an unsupported ID, a signed
-frame, nonzero compatibility flags, an empty payload, a payload longer than the
-message, or system ID 0, then searches for the next 0xFD. A valid frame inside
-such an envelope is never admitted, which keeps the TASK-047 repair for every
-rejection. G1: `node scripts/check-mavlink-allocation.mjs` warms 4,000,000
-steps, then runs real pack, encode, parse and decode for the 16 telemetry IDs
-0, 1, 24, 27, 30, 32, 33, 36, 74, 77, 83, 85, 87, 105, 147 and 193 in N/2N
-windows of 1,000,000 and 2,000,000 steps; the slope is 0 bytes per step with no
-GC events, and an allocating positive control is detected. Command, mission,
-parameter and STATUSTEXT builders are cold and not part of this G1 set.
-
+TASK-150 adds the Phase 1 ground-station messages. `packInto(id, values,
+payload)` is the cold builder for commands, parameters, missions and position
+targets: unset fields are zero, and an unknown message or field, a payload of
+the wrong length, a non-integer or out-of-range integer, a value that is not
+finite in its wire type, an array of the wrong length or text that is not
+ASCII or does not fit return false and leave the payload unchanged. 64-bit
+integers are limited to the exact JavaScript range. `readNumber(view, field,
+index)` and `readText(payload, field)` read any field; 64-bit fields are read
+as two 32-bit words, so no BigInt is created. The high-rate telemetry subset
+(SYS_STATUS, ATTITUDE, LOCAL_POSITION_NED, GLOBAL_POSITION_INT,
+SERVO_OUTPUT_RAW, VFR_HUD and BATTERY_STATUS) has preallocated targets
+(`newAttitude`/`attitudeInto` and so on) with unit-named fields in the wire's
+units. Each decoder reads its fields with direct DataView getters at offsets
+resolved once from the table, whose wire types it asserts at load; a decoder
+accepts only its own message ID. SERVO_OUTPUT_RAW decodes all 16 outputs,
+outputs 9 to 16 being extensions that read 0 from senders without them, and
+BATTERY_STATUS joins cells 1 to 10 and the extension cells 11 to 14. The
+goldens hold two pymavlink frames per supported message, one with a distinct
+value in every field and one truncated to its first field; the codec
+reproduces every byte and the readers every value. The `mavlink` component of
+`node scripts/bench-links-ew.mjs` also encodes, parses and decodes one
+high-rate telemetry frame per tick for G1.
 
 `encodeInto` writes into caller storage and returns exact length (0 on invalid
 inputs). MAVLink2 trailing-zero truncation retains at least one payload byte.
@@ -2752,7 +2794,8 @@ battery V/A (20..21); nonnegative height AGL m (22); twelve normalized RC inputs
 in [0,1] (23..34); wind NED m/s (35..37); exact zero reserved values (38..39).
 Every value is finite with absolute magnitude <=1e9. Latitude/longitude limits
 are 90/180 degrees, altitude magnitude <=100000 m, squared quaternion norm
-within 1e-6 of 1, and airspeed/battery/current/height are nonnegative. Bytes
+within 1e-6 of 1, and airspeed/battery/current/height are nonnegative (the
+TASK-092 coupling sends a regenerating bus current as 0). Bytes
 384..511, 640..767 and 896..1023 stay zero. Byte 512 contains 32 u32 PWM values
 in microseconds. Byte 768 contains sixteen f64 diagnostics: gyro deg/s[3],
 magnetic milli-gauss[3], Euler roll/pitch/yaw degrees[3], specific force[3],
@@ -2952,13 +2995,13 @@ rotorless body:
 | `provenance` | one dataset ID or `null` per section | non-null exactly when the section has data; known IDs | — |
 | `massProperties` | `massKg` > 0, `cgOffsetBodyM`, `inertiaCgKgM2` | exact symmetry, Cholesky positive definiteness, rigid-body triangle inequality | v1 runtime (TASK-033) |
 | `rotors` (≤32) | v1 `RotorGeometry`, unchanged; the schema is test-enforced identical to v1 | the v1 checks: unique IDs and channels, unit hub quaternions (1e-6), stations, quadrature widths | v1 runtime |
-| `motors` (≤32) | `id`, `rotorId`, `kvRpmPerV`, `resistanceOhm`, `currentLimitA` (native `Motor`) | unique IDs, known rotor, one motor per rotor | TASK-092 |
-| `escs` (≤32) | `id`, `motorId`, integer `pwmMinUs`/`pwmMaxUs` in [800, 2200], `commandTauS` | span ≥100 µs (the `ExternalSitl` boundary), known motor, one ESC per motor | PWM via the profile; lag TASK-092 |
+| `motors` (≤32) | `id`, `rotorId`, `kvRpmPerV`, `resistanceOhm`, `currentLimitA` (native `Motor`); optional `noLoadCurrentA` ≥0 (TASK-092) | unique IDs, known rotor, one motor per rotor | the ESC drive (TASK-092) |
+| `escs` (≤32) | `id`, `motorId`, integer `pwmMinUs`/`pwmMaxUs` in [800, 2200], `commandTauS`; optional `updateRateHz` >0 and `brakeCurrentLimitA` ≥0 (TASK-092) | span ≥100 µs (the `ExternalSitl` boundary), known motor, one ESC per motor | PWM via the profile; lag, hold and braking in the ESC drive (TASK-092) |
 | `battery` | `openCircuitFullV`, `openCircuitEmptyV`, `internalResistanceOhm` ≥0, `capacityAh`, `currentLimitA` (native `Battery`, charge 3600·Ah C) | full ≥ empty | TASK-092 |
 | `airframe.drag` | `dragAreaBodyM2` (C_D·A tensor, m²), `centerOfPressureBodyM` | symmetric positive definite, so drag always dissipates | TASK-096 |
 | `controlSurfaces` (≤16) | `id`, `function`, `actuatorChannel`, deflection limits within ±π/2, `rateLimitRadS` | unique IDs and channels, not a rotor channel, min < max | TASK-109 |
 | `landingGear` (≤8) | the `ContactWheel` fields plus `id`; anchor from the reference point | unique IDs, rim < tire, last tire knot ≥ tire − rim; strut and tire laws stay native | TASK-095 |
-| `sensorMounts` (≤32) | `sensor`, `instance` (0–7), `positionBodyM`, `sensorToBody` | unique sensor/instance pairs, quaternion norm within 1e-6 | TASK-114 |
+| `sensorMounts` (≤32) | `sensor`, `instance` (0–7), `positionBodyM`, `sensorToBody` | unique sensor/instance pairs, quaternion norm within 1e-6 | the sensor pipeline (TASK-147); never the rigid body |
 | `rotorWakePairs` (≤64) | `upstreamRotorId`, `downstreamRotorId` | known rotors, no self or duplicate pairs, acyclic | TASK-101 |
 | `ardupilot` | `vehicle: "copter"`, `frameClass`, `frameType` | only 1/1 (quad X) is admitted, with the geometry check below | parameter profile |
 
@@ -2998,28 +3041,36 @@ owning task, for any motor, ESC, battery, drag, surface, gear, sensor mount,
 wake pair or ArduPilot frame data. The demo quad, the tilted octo and the
 parity base quad round-trip exactly.
 
-`ardupilotParameterProfile({ sha256, manifest })` (profile v1) needs an
-admitted frame and a motor plus ESC for every rotor, all sharing one PWM
-range. It emits two comment lines and then `NAME value` lines sorted by name,
-with LF line endings and a final newline:
+`ardupilotParameterProfile({ sha256, manifest }, { thrustExpo? })` (profile
+v2, TASK-092) needs an admitted frame and a motor plus ESC for every rotor, all
+sharing one PWM range. It emits two comment lines and then `NAME value` lines
+sorted by name, with LF line endings and a final newline. For the fixture,
+whose battery spans 16.8 V to 13.2 V open-circuit:
 
 ```text
-# MirageSITL ArduPilot parameter profile v1
+# MirageSITL ArduPilot parameter profile v2
 # modelId 87; manifest sha256 <64 lowercase hex>
+BATT_MONITOR 4
 FRAME_CLASS 1
 FRAME_TYPE 1
-MOT_BAT_VOLT_MAX 0
-MOT_BAT_VOLT_MIN 0
+MOT_BAT_VOLT_MAX 16.8
+MOT_BAT_VOLT_MIN 13.2
 MOT_PWM_MAX 2000
 MOT_PWM_MIN 1000
 ```
 
-The profile emits only parameter names that appear in `scripts/sitl/driver.mjs`,
-`scripts/prepare-autopilot-parity.mjs` or `packages/autopilot/src/external-sitl.ts`;
-the test enforces this. Voltage compensation stays disabled (`MOT_BAT_VOLT_* 0`),
-as in the TASK-047 parity defaults, until TASK-092 delivers battery voltage.
-`MOT_THST_EXPO`, `BATT_*`, `INS_POS*` and `SIM_*` names wait for that evidence
-or for the TASK-089 pinned-source catalog.
+With a battery the drive delivers the bus voltage and current, so
+`BATT_MONITOR 4` reads both and voltage compensation spans the pack's
+open-circuit range (`MOT_BAT_VOLT_MAX` full, `MOT_BAT_VOLT_MIN` empty; the
+pinned firmware raises the minimum to at least 0.6 of the maximum). Without a
+battery the profile keeps `MOT_BAT_VOLT_* 0`, as in the TASK-047 parity
+defaults, and omits `BATT_MONITOR`. `thrustExpo`, finite within [−1, 1], adds
+`MOT_THST_EXPO`; absent, the firmware default stays. The profile emits only
+parameter names that appear in `scripts/sitl/driver.mjs`,
+`scripts/prepare-autopilot-parity.mjs`, `packages/autopilot/src/external-sitl.ts`
+or the pinned copter defaults of `tests/fixtures/sitl/ardupilot-catalog.json`;
+the test enforces this. `INS_POS*` and `SIM_*` names stay with the sensor
+configuration (TASK-147).
 
 `VehicleRegistry` hashes the exact payload bytes (≤1 MiB, fatal UTF-8) and
 admits schemas 1 and 2. A model ID with a different hash is a collision.
@@ -3353,6 +3404,12 @@ Without the patch, any owner other than `ardupilot` is rejected. A profile that
 needs patched firmware appends `; patches <id> <sha256>` to its second header
 line; upstream profiles are unchanged.
 
+Ownership matrix schema 3 (TASK-147) adds eight sources: IMU latency and
+misalignment, magnetometer misalignment, the SITL GNSS receiver's position
+noise, velocity noise and delay, and battery voltage and current. A schema 1 or
+2 matrix reads each of them as its stock owner and keeps its profile; section
+"Sensor errors in the external-SITL path" has the table.
+
 The setting is `imuNoiseFloorMatrix('ardupilot' | 'off', path)`. On the command
 line:
 
@@ -3506,7 +3563,15 @@ zero. `native/bet/include/bet_bound.h` defines the sizes, bits and status.
 | 136 / 144 / 152 | f64 × 3 | m/s | external_wake_hub_x/y/z |
 | 160 / 168 / 176 | f64 × 3 | 1 | ground_normal_hub_x/y/z |
 | 184 | f64 | m | ground_distance |
-| 192..255 | u32[16] | — | reserved_zero |
+| 192 | f64 | Ω | motor_resistance |
+| 200 | f64 | N m/A | motor_torque_constant |
+| 208 | f64 | A | motor_current_limit |
+| 216 | f64 | A | motor_brake_current_limit |
+| 224 | f64 | N m | motor_no_load_torque |
+| 232 | f64 | s | esc_command_tau |
+| 240 | f64 | s | esc_update_period |
+| 248 | u32 | bitmask | drive_flags |
+| 252 | u32 | — | reserved_zero |
 
 ### Bound rotor step output v2
 
@@ -3533,8 +3598,9 @@ zero. `native/bet/include/bet_bound.h` defines the sizes, bits and status.
 
 Bound-rotor fields owned by later tasks, with their neutral values:
 
-* `drive_mode` 0 (torque) and zero `esc_duty` and `bus_voltage`; mode 1 is
-  TASK-092.
+* `drive_mode` 0 (torque) with zero `esc_duty`, `bus_voltage` and drive
+  parameters. TASK-092 implements mode 1 (section "Electromechanical drive");
+  without valid drive parameters a mode 1 record is invalid (−3).
 * Zero `external_wake_hub_x/y/z` (TASK-101).
 * `input_flags` bit 0 clear, with zero `ground_normal_hub_x/y/z` and
   `ground_distance` (TASK-100).
@@ -3975,6 +4041,7 @@ interface AircraftProfile {
   battery: { card: string | null };
   groundClearanceM: number | null;  // > 0 (decision F-07)
   sensorConfiguration: null;        // schema 3 holds a sensor configuration (TASK-143)
+  // schema 4 (TASK-144) adds propellerPolars: { card: string; polar: string }[], one or more
 }
 ```
 
@@ -4073,8 +4140,8 @@ interface ResolvedComponents {
       radialStationM: number[]; chordM: number[]; twistRad: number[]; quadratureWidthM: number[];
       shaftInertiaKgM2: number; bearingViscousNmPerRadS: number; azimuthSamples: number;
     };
-    motor: { kvRpmPerV: number; resistanceOhm: number; currentLimitA: number } | null;
-    esc: { pwmMinUs: number; pwmMaxUs: number; commandTauS: number } | null;
+    motor: { kvRpmPerV: number; resistanceOhm: number; currentLimitA: number; noLoadCurrentA?: number } | null;
+    esc: { pwmMinUs: number; pwmMaxUs: number; commandTauS: number; updateRateHz?: number; brakeCurrentLimitA?: number } | null;
   }[];
   battery: { card: string | null; values: BatterySpec } | null; // card equal to the profile's
 }
@@ -4096,7 +4163,8 @@ values. The derived manifest holds:
 | `rotorWakePairs` | One per coaxial pair, from the upper rotor to the lower one |
 | `massProperties` | The aircraft and the payload: combined mass and CG, both inertias moved to it by the parallel-axis theorem |
 | `datasets` | One synthetic dataset, `aircraft-profile-derivation`, whose source SHA-256 is that of the canonical derivation input |
-| `ardupilot`, `airframe.drag`, `sensorMounts`, `landingGear`, `controlSurfaces` | Null or empty; TASK-142, TASK-096, TASK-147 and TASK-187 own them |
+| `sensorMounts` | The IMU mount when the sensor configuration states the IMU position or orientation (derivation 2, TASK-147); otherwise empty |
+| `ardupilot`, `airframe.drag`, `landingGear`, `controlSurfaces` | Null or empty; TASK-142, TASK-096 and TASK-187 own them |
 
 With d_i = c_i − c for each part's CG c_i and the combined CG c:
 
@@ -4106,7 +4174,8 @@ J = \sum_i \left( J_i + m_i\left(\lVert d_i \rVert^2 \mathbf{1} - d_i d_i^{\math
 
 `profileSha256` is the SHA-256 of the profile's canonical JSON, so renaming the
 stored profile changes nothing. `inputSha256` is the SHA-256 of the canonical
-`{derivationVersion: 1, profile, components}`. The manifest passes
+`{derivationVersion: 2, profile, components}` (`DERIVATION_VERSION`; 2 since
+TASK-147 added the IMU mount). The manifest passes
 `validateVehicleManifest`, and `bytes` is its RFC 8785 canonical JSON, which a
 `VehicleRegistry` admits unchanged; −0 in the inputs becomes 0. Any change to
 geometry, outputs, mass properties, components or the model ID changes the
@@ -4564,14 +4633,16 @@ nothing. Configuration-time code only; never call it from a physics step.
 Profile schema 3 holds a sensor configuration, and schemas 1 and 2 hold
 `null`, which means the ArduPilot defaults: every error source stays with
 ArduPilot's stock SITL and MirageSITL injects nothing. `PROFILE_SCHEMA_VERSION`
-is 3. Schema 3 always has a calculation, and its configuration never equals
+was 3 until schema 4 (TASK-144, section "Profile-driven dynamics") added
+propeller polars. Schema 3 always has a calculation, and its configuration never equals
 the defaults, so the defaults have exactly one encoding (`null`).
 `withSensorConfiguration(profile, config)` writes schema 3 for a configuration
-and `null` otherwise, where schema 1 stays 1 and schemas 2 and 3 become 2.
+and `null` otherwise, where schema 1 stays 1 and schemas 2 and 3 become 2;
+schema 4 keeps its propeller polars.
 `bindMeasurements` keeps schema 3, and the Aircraft editor carries the
 configuration unchanged. Existing schema 1 and 2 records are never rewritten,
-and dependencies do not change. The vehicle manifest derivation does not read
-the configuration; `sensorMounts` stays empty until TASK-147.
+and dependencies do not change. Derivation 2 (TASK-147) reads only the IMU
+position and orientation, for the manifest's IMU mount.
 
 ### Schema and fields
 
@@ -4594,10 +4665,10 @@ interface SensorConfiguration {
     gyroNoiseDensityRadSPerSqrtHz: number | null;  // [0, 0.001]
     accelBiasMps2: [number, number, number] | null; // each [-2, 2], constant, sensor axes
     gyroBiasRadS: [number, number, number] | null;  // each [-0.2, 0.2]
-    latencyUs: number | null;                       // integer [0, 100000]; locked in mapping 1
+    latencyUs: number | null;                       // integer [0, 100000]; MirageSITL in mapping 2
     positionBodyM: [number, number, number] | null; // each [-2, 2], body FRD from the reference point; null at the CG
     orientationRad: [number, number, number] | null; }; // roll, yaw (-π, π], pitch [-π/2, π/2]; locked
-  gnss: { preset: PresetReference | null;           // every value locked in mapping 1
+  gnss: { preset: PresetReference | null;           // ArduPilot's receiver in mapping 2
     updateRateHz: number | null;                    // integer [1, 20]
     horizontalSigmaM: number | null;                // [0, 100], 1σ per horizontal axis
     verticalSigmaM: number | null;                  // [0, 100]
@@ -4612,7 +4683,7 @@ interface SensorConfiguration {
     biasGauss: [number, number, number] | null;     // each [-0.4, 0.4], net hard iron after COMPASS_OFS
     positionBodyM: [number, number, number] | null; // locked
     orientationRad: [number, number, number] | null; }; // locked
-  battery: { preset: PresetReference | null;        // every value locked in mapping 1
+  battery: { preset: PresetReference | null;        // MirageSITL in mapping 2
     voltageGainError: number | null; voltageOffsetV: number | null; voltageNoiseRmsV: number | null;
     currentGainError: number | null; currentOffsetA: number | null; currentNoiseRmsA: number | null; };
 }
@@ -4621,7 +4692,9 @@ interface PresetReference { catalogVersion: number; id: string }  // e.g. { cata
 
 ### Ownership mapping 1
 
-`sensor-ownership.ts` gives each field one owner on `native-json`
+Mapping 2 (TASK-147, section "Sensor errors in the external-SITL path")
+replaces this mapping; it stays here as the record of what TASK-143 shipped.
+`sensor-ownership.ts` gave each field one owner on `native-json`
 (`SENSOR_OWNERSHIP_MAPPING_VERSION` 1). The UI offers no owner choice, so it
 cannot produce an inadmissible matrix.
 
@@ -4665,7 +4738,9 @@ others are the stock GNSS receiver, the hard-iron pairing (inferred),
 INS_ACCOFFS and INS_ACCSCAL from the defaults files (inferred), the compiled
 IMU sample rates, the EKF's assumed delays, and ArduPilot's unseeded noise.
 
-For TASK-147: barometer noise maps to SIM_BAROn_RND as a uniform half-width in
+TASK-147 implements these conversions with the gradient at the home altitude
+(section "Sensor errors in the external-SITL path"). As planned here:
+barometer noise maps to SIM_BAROn_RND as a uniform half-width in
 metres, √3·σ·|dh/dp|, and bias to SIM_BAROn_GLITCH = bias·dh/dp, with the ISA
 gradient −0.0832 m/Pa at sea level; latency maps to SIM_BAROn_DELAY in
 milliseconds. Magnetometer noise maps to SIM_MAG_RND = √3·1000·σ mG, and bias
@@ -4694,7 +4769,8 @@ Catalog 1 holds ICM-42688-P (accelerometer 70 µg/√Hz, gyroscope 2.8 mdps/√H
 MS5611-01BA03 (2.7 Pa RMS at OSR 1024, ArduPilot's setting), RM3100 (15 nT at
 cycle count 200), NEO-M9N (2.0 m CEP50, 1.699 m per axis) and INA226 (1.25 mV
 step, 0.361 mV RMS). `applySensorPreset` writes only applicable fields; NEO-M9N
-and INA226 fill nothing in mapping 1 and keep their reference.
+and INA226 filled nothing in mapping 1 and kept their reference; mapping 2
+fills the GNSS horizontal error and the battery voltage noise.
 
 ### Experiment copy
 
@@ -4716,6 +4792,853 @@ experiment copy in a project store. `tests/sensor-form.test.ts` checks the
 form's display units and byte round trip. `tests/browser/sensors-tab.spec.ts`
 sets sensors through the UI in Chromium and compares the stored profile with
 the expected configuration. The roadmap entry records the results.
+
+## Sensor errors in the external-SITL path (TASK-147)
+
+Scope S08 at run time. A sensor configuration (TASK-143) takes effect on
+native ArduPilot SITL, stock firmware under decision D-10, through two routes:
+generated SITL parameters set the errors ArduPilot owns and are read back
+before arming, and MirageSITL distorts the JSON state line it sends. Code
+outside `stepInto` runs at configuration time only.
+
+### Ownership matrix schema 3
+
+`OWNERSHIP_MATRIX_SCHEMA_VERSION` is 3. Schema 3 lists 33 sources: the 25 of
+schemas 1 and 2 (`ERROR_SOURCE_IDS_V1`) and eight more. A schema 1 or 2 matrix
+does not list them and reads each as its stock owner, `stockOwner(source,
+path)`: ArduPilot where the pinned firmware applies it, nobody otherwise. Its
+parameter profile is unchanged, and `ownerOf(matrix, source)` answers for any
+schema. `imuNoiseFloorMatrix` stays at schema 2.
+
+| Source | ArduPilot applies it with | Neutral setting | MirageSITL delivery | Stock owner |
+|---|---|---|---|---|
+| `imu.latency` | nothing: SITL has no IMU delay | none | `json:imu.accel_body`, `json:imu.gyro` | nobody |
+| `imu.misalignment` | `SIM_IMU_ORIENT`, discrete rotations | `SIM_IMU_ORIENT 0` | `json:imu.accel_body`, `json:imu.gyro` | ArduPilot |
+| `mag.misalignment` | `SIM_MAGn_ORIENT`, discrete rotations | `SIM_MAGn_ORIENT 0` | `hal:magnetic-field` only | ArduPilot |
+| `gnss.position-noise` | `SIM_GPSn_HNSE` circle, `SIM_GPSn_NOISE` sine, period 12.6 s | `HNSE 0`, `NOISE 0` | none | ArduPilot |
+| `gnss.velocity-noise` | `SIM_GPSn_VERR`, uniform per axis | `VERR 0` | none | ArduPilot |
+| `gnss.delay` | `SIM_GPSn_LAG_MS`, 100 ms stock | `LAG_MS 0` | none | ArduPilot |
+| `battery.voltage` | nothing: the analog chain divides and multiplies by 10.1 | none | `json:battery.voltage` | nobody |
+| `battery.current` | nothing: the analog chain divides and multiplies by 17 | none | `json:battery.current` | nobody |
+
+The catalog records the source facts behind each row, read from the pinned
+files `SIM_GPS.cpp`, `SIM_Compass.cpp`, `AP_InertialSensor_SITL.cpp`,
+`SIM_JSON.cpp`, `SITL_State_common.cpp`, `AnalogIn.cpp`,
+`AP_HAL/board/sitl.h`, `AP_BattMonitor_Analog.cpp` and `AP_Math.cpp`.
+`SIM_GPSn_*` parameters are built under `#if AP_SIM_GPS_ENABLED`, which the
+validator admits only through the cataloged fact `sim-gps-enabled`
+(`SIM_config.h` defines it as `AP_SIM_ENABLED`). While MirageSITL owns
+`gnss.receiver` (GPS_INPUT), ArduPilot's receiver does not run, so the three
+receiver sources cannot be ArduPilot's. The pinned `SITL.h` constructor sets
+every `SIM_MAGn_OFS` to (5, 13, −18) mG, which pairs with `COMPASS_OFSn` of
+`copter.parm` (fact `compass-stock-offsets`).
+
+The JSON oracle gains `expectedBatteryLine`: SIM_JSON reads the optional
+section `"battery":{"voltage":V,"current":A}` as float32 and otherwise uses
+`SIM_BATT_VOLTAGE` and 0 A. `encodeStateLineInto` writes it after
+`velocity_wind` while `batteryValid` is set; neither key's text occurs earlier
+in the line. The bridge validator requires finite numbers in it.
+
+### Ownership mapping 2
+
+`SENSOR_OWNERSHIP_MAPPING_VERSION` is 2. Mapping 1 (TASK-143) is the record of
+what TASK-143 shipped; mapping 2 replaces it for every resolution.
+
+| Owner | Fields | Source and delivery |
+|---|---|---|
+| MirageSITL | IMU noise densities, biases, position, latency and orientation | the five mapping 1 sources, `imu.latency`, `imu.misalignment`; JSON IMU vectors |
+| MirageSITL | Battery voltage and current gain, offset and noise | `battery.voltage`, `battery.current`; JSON battery section |
+| ArduPilot SITL | Barometer noise, bias and latency; magnetometer noise and bias | as in mapping 1 |
+| ArduPilot SITL | GNSS rate, horizontal and vertical position error, velocity error and latency | `gnss.receiver` (rate), `gnss.position-noise`, `gnss.velocity-noise`, `gnss.delay` |
+| Locked | Magnetometer position | no source: a uniform Earth field reads the same anywhere on the airframe |
+| ArduPilot SITL, locked | Magnetometer orientation | `mag.misalignment`: `SIM_MAGn_ORIENT` takes only discrete 45° rotations and MirageSITL delivers no magnetometer data on `native-json`; a small misalignment needs a firmware change (D-10) |
+
+`sensorOwnershipMatrix` derives a schema 3 matrix. The ArduPilot defaults give
+every source its stock owner. In specified mode a MirageSITL-owned source is
+`mirage` while one of its fields holds a value; the others keep their stock
+owner. Ideal sets every source a parameter can switch off to `none`; the IMU
+floors, `gnss.receiver` and `mag.hard-iron` stay with ArduPilot, and sources
+ArduPilot never applies are `none`. Ideal now writes 159 neutralizing settings
+(143, the IMU and three magnetometer orientations, and twelve receiver
+settings). The GNSS rate is a setting, not an error, so Ideal keeps
+ArduPilot's own.
+
+### SITL parameters
+
+`sensorRuntime(config, catalog, context)` validates the matrix against the
+pinned catalog and returns the parameters, their `.parm` text
+(`# MirageSITL sensor parameters v1`), the MirageSITL error plans and the
+residuals. The context holds the home altitude, the vehicle's `COMPASS_OFSn`
+(`STOCK_COMPASS_OFFSETS_MILLIGAUSS` for the pinned `copter.parm`) and the CG.
+The parameters are the ownership profile's neutralizing settings and the
+ArduPilot-owned values; a name that would receive two values fails the call.
+
+| Field | SITL parameters (n = each instance) | Value |
+|---|---|---|
+| Barometer noise σ (Pa) | `SIM_BAROn_RND` (BARO, BAR2, BAR3) | √3·σ·\|dh/dp\| m, the half-width of SITL's uniform noise |
+| Barometer bias b (Pa) | `SIM_BAROn_GLITCH` | b·dh/dp m; a reading higher by b is an altitude lower by b·\|dh/dp\| |
+| Barometer latency (µs) | `SIM_BAROn_DELAY` | latency/1000 ms |
+| Magnetometer noise σ (G) | `SIM_MAG_RND` | √3·1000·σ mG |
+| Magnetometer bias b (G) | `SIM_MAGn_OFS_{X,Y,Z}` | COMPASS_OFSn − 1000·b mG; Ideal writes b = 0 |
+| GNSS rate (Hz) | `SIM_GPSn_HZ` (GPS1, GPS2) | the rate |
+| GNSS horizontal σ (m) | `SIM_GPSn_HNSE` | √2·σ: a circle of radius r gives r/√2 per axis |
+| GNSS vertical σ (m) | `SIM_GPSn_NOISE` | √2·σ: a sine of amplitude A gives A/√2 |
+| GNSS velocity σ (m/s) | `SIM_GPSn_VERR_{X,Y,Z}` | √3·σ, the half-width of uniform noise |
+| GNSS latency (µs) | `SIM_GPSn_LAG_MS` | latency/1000 ms |
+
+dh/dp is the slope of ArduPilot's 1976 standard atmosphere
+(`AP_Baro_atmosphere.cpp`) at the home altitude h, with geopotential height
+H = R_E·h/(R_E + h), R_E = 6 356 766 m, R_air = 287.053072 J/(kg·K), and the
+troposphere's temperature T and pressure p:
+
+\[
+\frac{dh}{dp} = -\frac{R_{\mathrm{air}}\,T\,(R_E + h)^2}{p\,g\,R_E^2}
+\]
+
+It is −0.0832 m/Pa at sea level and 5.8 % steeper at the 584 m home of the
+native harness. An external-SITL session writes the parameters into a defaults
+file after `copter.parm` and the user's own defaults, then reads the complete
+parameter list (`param_count` entries) before arming. Every generated name the
+build holds must report its value as float32; a name the list lacks is
+accepted only for a cataloged instance the build does not compile
+(`INS_MAX_INSTANCES`, `HAL_COMPASS_MAX_SENSORS`) or for `SIM_GPS2_*` while
+`SIM_GPS2_ENABLE` is 0, which hides the rest of its group.
+
+### MirageSITL errors on the JSON state line
+
+`packages/sensors/src/configured.ts` applies the plans of `sensorRuntime`.
+`ConfiguredImu.stepInto(f_cg, ω, ω̇, accelOut, gyroOut)` takes the CG specific
+force, angular velocity and angular acceleration in body FRD and writes the
+sensor-axis IMU vectors:
+
+\[
+f_{\mathrm{IMU}} = R^{\mathsf T}\left(f_{\mathrm{cg}} + \dot\omega\times r + \omega\times(\omega\times r)\right) + b_a + \sigma_a n_a,
+\qquad
+\omega_{\mathrm{IMU}} = R^{\mathsf T}\omega + b_g + \sigma_g n_g,
+\qquad
+\sigma = N\sqrt{f_s/2}
+\]
+
+r is the IMU position minus the CG, R = Rz(yaw)·Ry(pitch)·Rx(roll) maps sensor
+axes to body axes (`lever-arm.ts`), N is the one-sided noise amplitude density
+and f_s the sample rate. The kinematic part is delayed by the latency: whole
+samples exactly, fractions by linear interpolation between the two bracketing
+samples, and the oldest sample before enough history exists. Bias and noise are
+added at delivery. Each noise term draws standard normals (Box–Muller cosine)
+on its own fixed stream: accelerometer 0x00147001, gyroscope 0x00147002,
+battery voltage 0x00147003 and current 0x00147004. A zero term skips its
+arithmetic and its draws, so a configuration of zeros delivers every bit of an
+absent one, −0 included. `ConfiguredBattery` measures
+(1 + gain)·true + offset + noise. The session supplies the battery truth; the
+native harness sends ArduPilot's 12.6 V and 0 A until TASK-092 adds a battery
+model. In the native driver ω̇ is the backward difference of ω at 800 Hz, the
+same difference that gives the synthetic quad's specific force.
+
+### IMU mount in the manifest
+
+`DERIVATION_VERSION` is 2. When a profile's sensor configuration states the
+IMU position or orientation, the derived manifest holds one `sensorMounts`
+entry: `imu`, instance 0, the position (the CG when only the orientation is
+stated) and the sensor-to-body quaternion of R from `trig.ts`, so Node and
+Chromium derive the same bytes. Otherwise the section stays empty. A
+derivation 2 manifest without a mount differs from derivation 1 only in the
+version inside its dataset. The sensor pipeline consumes the mounts, so
+`projectVehicleToModelV1` no longer refuses them.
+
+### Native harness
+
+`MIRAGE_SITL_SENSORS` names a JSON file `{configuration, seed}` for
+`scripts/sitl/driver.mjs`; the driver writes the generated parameters, holds
+arming until the complete list confirms them, and applies the plans on every
+state line. It runs only on stock firmware without an EW case.
+`node scripts/run-sitl-sensors.mjs NEW_DIRECTORY` runs
+`scripts/sitl/sensor-probe.mjs`: nine ground cases on fresh SITL instances,
+each reading back its parameters and recording HIGHRES_IMU, SYS_STATUS and
+GPS_RAW_INT for 6 s after a 20 s settle. `node scripts/check-sitl-sensors.mjs
+--input DIRECTORY [--report PATH]` recomputes every mean from the telemetry and
+judges against limits fixed from the noise model:
+
+| Check | Cases | Expected |
+|---|---|---|
+| Hard-iron pairing | Ideal against TASK-089's zero neutral | equal magnetometer means within 1e-6 G |
+| Magnetometer bias once | specified against Ideal | b within 1e-5 G |
+| Accelerometer bias once | imu-bias against the ArduPilot defaults, over a user `SIM_ACC1_BIAS` of 0.4 m/s² | 1.001·b within 1e-3 m/s², and `SIM_ACC1_BIAS_X` read back as 0 |
+| Gyroscope bias once | the same | b within 1e-4 rad/s |
+| Misalignment | imu-tilt (pitch 0.05 rad) against the defaults | 1.001·(g sin θ, 0, g(1 − cos θ)) within 1e-3 m/s² |
+| Barometer bias once | specified against Ideal | +30 Pa within 1 Pa |
+| Battery errors once | specified and Ideal | 12 702 mV and 40 cA; 12 600 mV and 0 cA |
+| GNSS rate | specified and Ideal | 60 and 30 fixes in 6 s, ±1 |
+| Zero terms | zero-terms, Ideal and the defaults | identical SHA-256 of the first 8000 delivered lines |
+| Seeds | two runs with seed 7, one with seed 8 | equal, then different, and different from Ideal |
+
+The 1.001 is `INS_ACCSCAL` of `copter.parm`, which scales every accelerometer
+difference. The audit fails when a source it records changed after the capture.
+
+### Residuals (mapping 2)
+
+Ideal lists the IMU noise floors (D-10), the SITL GNSS receiver's own rate and
+fixed 0.3 m accuracy, `INS_ACCOFFS` and `INS_ACCSCAL`, the compiled IMU sample
+rates, the EKF's assumed delays and ArduPilot's unseeded noise. Specified mode
+adds the stock terms without a value and, while a GNSS position error is set,
+the receiver's deterministic wander. The hard-iron pairing is no longer a
+residual: the capture shows it nets to zero. Sensor snapshot 2
+(`SENSOR_SNAPSHOT_VERSION`) adds the residual texts to the experiment record
+and carries mapping 2 and its schema 3 matrix.
+
+### Verification (TASK-147)
+
+`tests/lever-arm.test.ts` checks centripetal and tangential terms, a
+skew-matrix formulation, the rotation order and quaternion against independent
+code. `tests/sensor-configured.test.ts` checks bit identity of zero terms, exact
+biases, gains, offsets and delays, the noise σ, independence and whiteness
+within five standard errors, and seeds. `tests/error-ownership.test.ts` checks
+schema 3, the stock owners and the GNSS condition; `tests/sensor-config.test.ts`
+checks mapping 2, the parameters against their formulas, the barometer slope
+against a finite difference of ArduPilot's atmosphere and the IMU mount;
+`tests/integration/sitl-sensors.test.ts` breaks each audit check once. The
+roadmap entry records the native captures.
+
+## Electromechanical drive (TASK-092)
+
+The production drive replaces the ideal torque-source ESC with an ESC, a
+voltage-driven DC motor and one battery bus shared by all motors, so the
+throttle-to-thrust curve and battery sag follow from the physics. It is
+interface v2 drive mode 1 and the `bet_bus_step` export; drive mode 0 and the
+v1 interfaces are unchanged bit for bit. A trajectory digest of 4000 varying
+v1 steps is identical before and after the change.
+
+### Motor and ESC law
+
+`DriveMotor` (`native/bet/src/motor.rs`) takes the winding resistance R, the
+SI torque constant k_t = k_e, the current limit I_max, the brake current limit
+I_brake ≥ 0, the no-load torque τ₀ = k_t·I₀ (I₀ the card's no-load current),
+the command lag τ_cmd and the ESC update period T_esc. The legacy TASK-025
+`Motor`, without braking or friction, stays for its own tests.
+
+\[
+i = \operatorname{clamp}\!\left(\frac{d\,V_{\mathrm{bus}} - k_e\,\Omega}{R},\; -I_{\mathrm{brake}},\; I_{\max}\right),
+\qquad
+\tau_{\mathrm{em}} = k_t\, i,
+\qquad
+P_{\mathrm{terminal}} = i\,(i\,R + k_e\,\Omega)
+\]
+
+The ESC samples its target duty when its countdown has run out (within
+dt·1e-9), holds it for T_esc (every step when T_esc is shorter than the step)
+and follows it with d ← d* + (d − d*)·exp(−dt/τ_cmd). A power cut, or a zero
+bus voltage, makes the bridge unpowered: zero current, so no drive and no
+braking; a cut also zeroes the ESC state, which resamples afterwards.
+
+Over one step the shaft (`Shaft::step_driven`) integrates
+J·dΩ/dt = τ_drive − (b + B)·Ω + s·Q_air − τ₀ with the exact constant-torque
+viscous solution. Inside the current limits, at the start speed,
+τ_drive = k_t·d·V/R and B = k_t²/R, so the back-EMF is implicit and the
+electrical time constant does not limit the step; at a limit,
+τ_drive = k_t·i_limit and B = 0. The Coulomb torque τ₀ opposes rotation; a
+stopped shaft stays stopped while the net torque does not exceed τ₀. Braking
+or friction that stops the shaft is inside the model; only an air torque that
+would turn it backwards past τ₀ sets flag 16. With τ₀ = 0, B = 0 and a
+non-negative drive, `step_driven` equals the v1 `step` bit for bit.
+
+### Drive mode 1 record and arena
+
+Drive mode 1 uses `esc_duty` (target duty [0, 1]) and `bus_voltage` (V ≥ 0) at
+their reserved offsets, requires `motor_torque` = 0, and reads the parameters
+at bytes 192–247 and `drive_flags` at 248 (bit 0: power cut); see the input
+table of "Step interfaces v2". Drive mode 0 still requires bytes 120–135 and
+192–255 to be neutral. The ESC state (duty, held target, countdown) occupies
+arena header bytes 32–55, which v1 requires to be zero, so a live ESC arena
+refuses torque steps until `bet_bound_reset` or a power cut clears it.
+Everything is computed before anything is written; a rejected record changes
+neither the arena nor the output.
+
+Drive mode 1 writes the electrical outputs at the midpoint speed, where the
+aerodynamics were evaluated: `motor_current` i, `bus_current` = P_terminal/V
+(0 at V = 0), `electrical_power` = P_terminal and `copper_loss` = i²·R, with
+validity bit 1. `shaft_power` is the electromagnetic torque at the start speed
+times that speed. Output flag 32 marks a step whose current sat at a limit.
+
+### Shared bus
+
+`bet_bus_step(input, output, dt)` steps the TASK-026 battery: linear
+open-circuit voltage between the empty and full values, internal resistance,
+charge in coulombs, a current limit in both directions. A negative demand
+regenerates: the current is the negative root of the same quadratic, and the
+charge never exceeds 1 (flag 2 when the pack was full). A demand beyond what
+the pack can deliver or absorb is limited (flag 1). Positive demands give the
+TASK-026 values bit for bit.
+
+\[
+I = \frac{2P}{V_{oc} + \sqrt{V_{oc}^2 - 4\,R_{\mathrm{int}}\,P}},
+\qquad
+V_{\mathrm{bus}} = V_{oc} - I\,R_{\mathrm{int}}
+\]
+
+### Shared bus input v1
+
+| Byte Offset | Data Type | Units | Field Name |
+| ---: | --- | --- | --- |
+| 0 | u32 | version | version |
+| 4 | u32 | — | reserved_zero |
+| 8 | f64 | V | open_circuit_full |
+| 16 | f64 | V | open_circuit_empty |
+| 24 | f64 | Ω | internal_resistance |
+| 32 | f64 | C | capacity_coulomb |
+| 40 | f64 | A | current_limit |
+| 48 | f64 | 1 | state_of_charge |
+| 56 | f64 | W | motor_power |
+| 64 | f64 | W | house_power |
+| 72..127 | u32[14] | — | reserved_zero |
+
+### Shared bus output v1
+
+| Byte Offset | Data Type | Units | Field Name |
+| ---: | --- | --- | --- |
+| 0 | f64 | 1 | state_of_charge |
+| 8 | f64 | V | voltage |
+| 16 | f64 | A | current |
+| 24 | f64 | W | delivered_power |
+| 32 | f64 | W | internal_loss |
+| 40 | f64 | W | source_power |
+| 48 | u32 | bitmask | flags |
+| 52..127 | u32[19] | — | reserved_zero |
+
+Statuses: 0, −2 record length or pointers, −3 invalid input or charge, −7
+version. `BetBus` (`@mirage/wasm-bet/bus`) owns one record pair in its own
+instance.
+
+### Coupling and energy budget
+
+Each tick the rotors use the bus voltage the bus produced on the previous
+tick (the open-circuit voltage before the first step). The bus then delivers
+the sum of the motors' terminal powers: one-tick lag, no iteration. On every
+tick the bus is not limited, the source power V_oc·I equals the internal loss
+I²·R_int plus the delivered power, and the delivered power equals the summed
+terminal powers, each of which is copper loss plus k_t·i·Ω; the bus current
+reported per motor is its terminal power over the lagged voltage, and the
+pack current is the root above.
+
+### Flight dynamics, manifest and parameter profile
+
+`BetFlightConfiguration.drive` (`EscDriveConfiguration`) selects the drive:
+one `EscDriveMotor` per rotor in rotor order (R, k_t, I_max, I_brake, τ₀,
+τ_cmd, T_esc), the `BusBattery`, the initial state of charge in (0, 1] and a
+constant house load ≥ 0 W. Absent, each rotor gets duty·`motorMaxTorqueNm`
+through interface v1, and a trajectory of 4000 state records hashes to the
+same SHA-256 as the d1aeaca code and WASM build. With it, the rotors run
+interface v2 drive mode 1 with the clamped duty as `esc_duty` and the lagged
+bus voltage, and the bus delivers their summed terminal power plus the house
+load. `electrical` (a `Float64Array` of state of charge, bus voltage and bus
+current), `busLimited` and `driveLimited` report the last step; the
+`stateOfCharge` and `batteryCurrentA` getters read `electrical` for cold code,
+because V8 keeps class fields tagged and a double stored in one, or returned
+by a getter that is not inlined, can allocate. `state.batteryVoltage` is the
+bus voltage, which `PhysicsSessionV2` publishes with the bus current
+(`batteryCurrentA` of `FlightStateV2`, read from `SessionDynamics.electrical`)
+and the HAL delivers as sensor values 20 and 21. The HAL
+contract keeps value 21 nonnegative, so the autopilot's current reading is a
+unipolar power-module sensor: `WasmSitlCoupling` and the native JSON line send
+max(0, I), and a regenerating bus reads 0 A while `FlightStateV2` keeps the
+signed current. Output flag 32 is a modeled clamp and does not enter
+`validityFlags`.
+
+Motor faults (`useMotorFaults`) take the physical path. A power cut with
+remaining fraction r scales the ESC target duty by r; r = 0 also sets the
+power-cut drive flag, so the bridge carries no current and the rotor coasts.
+Without the ESC drive, r scales the drive torque. A synthetic instant thrust
+loss still scales the rotor's whole wrench.
+
+`escDriveFromManifest(manifest, initialStateOfCharge, housePowerW = 0)`
+(`@mirage/physics/drive`) maps a validated vehicle manifest onto the drive:
+k_t = k_e = 60/(2π·KV), τ₀ = k_t·`noLoadCurrentA`, T_esc = 1/`updateRateHz`,
+I_brake = `brakeCurrentLimitA`, τ_cmd = `commandTauS`. It throws, naming the
+field, when a motor lacks `noLoadCurrentA`, an ESC lacks `updateRateHz` or
+`brakeCurrentLimitA`, or the vehicle lacks a battery; nothing is defaulted.
+
+`thrustExpoOfDrive` fits ArduPilot's thrust curve (`Thrust_Linearization`)
+to the drive. The autopilot maps actuator a ∈ [0, 1] to the output
+`MOT_SPIN_MIN + (MOT_SPIN_MAX − MOT_SPIN_MIN)·a` and models the thrust
+fraction as (1 − e)·a + e·a². With the ESC duty linear in PWM over
+`MOT_PWM_MIN..MAX` and the pinned defaults 0.15 and 0.95, a static sweep at
+`MOT_BAT_VOLT_MAX`, where voltage scaling is 1, gives the thrust T(a) of one
+rotor in still air once its speed has settled; then
+
+\[
+e = \frac{\sum_k \left(y_k - a_k\right)\left(a_k^2 - a_k\right)}{\sum_k \left(a_k^2 - a_k\right)^2},
+\qquad
+y_k = \frac{T(a_k)}{T(1)}
+\]
+
+and a fit outside [−1, 1] throws. For the parity rotor on the synthetic
+300 KV, 0.1 Ω drive at 16.8 V, nine samples give e = 0.853 (RMS residual
+0.006); the same rotor driven by duty·0.2 N·m gives e = −0.252 (RMS residual
+0.047). No thrust-stand data are in the repository; under SA-01 these
+values are reported for the user to judge, not accepted against a tolerance.
+
+
+### Verification (TASK-092)
+
+`native/bet/tests/drive.rs` checks the ESC hold and lag, the torque law, the
+terminal-power identity, the driven shaft against the exact solution and its
+v1 bit equality, regeneration and the bus record against closed forms.
+`native/bet/tests/bound_v2.rs` checks the energy and torque balance over 4000
+steps, the power cut, the current-limit flag, invalid drive records and zero
+allocations over 1,000,000 ESC and bus steps. `tests/wasm-abi-v2.test.ts`
+compares the WASM adapters with the native reference and the golden records.
+`tests/drive-chain.test.ts` checks, every tick of a climb and a braking
+descent, the charge integral bit for bit, the pack voltage and the bus power
+balance within 1e-9; the cut and partial-cut faults; the manifest mapping;
+the thrust fit; and the torque-path digest. `scripts/check-bet-runtime.mjs
+--allocation` adds the ESC-drive graph and the native drive allocator tests.
+The roadmap entry records the native ArduCopter flight on the drive.
+
+## Profile-driven dynamics (TASK-144)
+
+An aircraft profile version and its component cards build the session's
+flight dynamics: up to 16 BET rotors on the TASK-092 drive and battery bus,
+registered and loaded through `model.load`. The demo stays the default. By
+the stakeholder decisions of 2026-10-30, a physics value that a card lacks
+takes a documented assumed value and is listed as a flagged assumption, and
+each propeller's airfoil polar comes from a versioned runtime catalog.
+
+### Polar catalog v1
+
+`@mirage/physics/polar-catalog` lists the polars a profile may choose. Each
+entry has a stable text ID, stored in profiles, and a numeric ID, the rotor
+`polarId` of a derived manifest; numeric IDs are never reused.
+
+| ID | Numeric ID | Airfoil | Source |
+| --- | ---: | --- | --- |
+| `naca6409-neuralfoil-v1` | 1 | NACA6409 | NeuralFoil 0.3.3 prediction, `tests/fixtures/polars/naca6409-neuralfoil.json` |
+| `naca0012-neuralfoil-v1` | 2 | NACA0012 | NeuralFoil 0.3.3 prediction, `tests/fixtures/polars/naca0012-neuralfoil.json` |
+
+The catalog files under `packages/physics/polars/` are byte-identical copies
+of those fixtures, with the fixtures' provenance and limitations; the
+production `parseNeuralFoilPolar` reads them once. `catalogPolarForAirfoil`
+matches a card's airfoil name ignoring case, spaces, hyphens and underscores,
+and nothing looser. The SDA1075 XFOIL table, a single-Reynolds input of the
+annular BEM diagnostic in another format, is not in the catalog.
+
+### Profile schema 4
+
+Schema 4 adds `propellerPolars`: one or more `{ card, polar }` entries in
+ascending card order, each for a propeller card that a motor of the profile
+uses and naming a catalog ID. A profile is written in the lowest schema that
+holds its content: 4 with a chosen polar, else 3 with a sensor configuration,
+else 2, and a schema 1 profile whose calculation stays the implicit
+preliminary one stays 1. Schema 4 holds a sensor configuration or `null` and
+always a calculation. `withProfileContent` applies this rule;
+`withSensorConfiguration`, `withPropellerPolars` and `bindMeasurements` use it,
+so each keeps the others' content. `PROFILE_SCHEMA_VERSION` is 4; records in
+schemas 1 to 3 stay valid and are never rewritten. The Aircraft tab lists each
+propeller card in use with a polar selector; a choice for a card that no motor
+uses any more is dropped when the profile is saved.
+
+### Component resolution
+
+`resolveComponents(profile, cards)` (`@mirage/aircraft/resolve-components`)
+turns a profile and its card versions into the TASK-138 resolved components,
+with the drive fields of manifest v2, the assumptions and the values still
+missing. A profile with anything missing does not resolve and cannot fly.
+Propeller geometry is the TASK-139 derivation with 16 strips; its flags
+(assumed root cutout, chord or twist) become assumptions. The shaft inertia is
+the propeller's m·R²/3.
+
+| Value | Taken from | When the card has none | Assumption ID |
+| --- | --- | --- | --- |
+| Polar | the profile's choice | a catalog airfoil matching the card's airfoil; else missing | `polar-from-card-airfoil` |
+| Propeller mass (shaft inertia) | propeller card | missing | — |
+| Motor rotor inertia | — | 0, always | `motor-rotor-inertia` |
+| Bearing drag | — | 0, always; the no-load current carries the losses | `bearing-drag` |
+| Strips and azimuth samples | — | 16 (TASK-139) and 8 (TASK-033 validation), always | `rotor-numerics` |
+| Winding resistance | motor card | missing | — |
+| No-load current | motor card | 0, losses neglected | `motor-no-load-current` |
+| Motor current limit | motor card | the ESC rating | `motor-current-limit` |
+| PWM range | — | 1000–2000 µs, MOT_PWM_MIN/MAX defaults of the pinned ArduPilot, always | `esc-pwm-range` |
+| ESC update rate | ESC card | 490 Hz, `AP_MOTORS_SPEED_DEFAULT` of the pinned ArduPilot | `esc-update-rate` |
+| ESC command lag | — | one update period, always | `esc-command-lag` |
+| Brake current limit | — | the ESC rating, always | `esc-brake-current` |
+| Cell voltages | battery card | missing | — |
+| Pack resistance | battery card | 0, no sag | `pack-resistance` |
+| Pack current limit | battery card | the summed ESC ratings | `pack-current-limit` |
+
+The battery's open-circuit voltages are cells × cell voltage. Each assumption
+names its subject (a card or the battery) once, however many motors share it.
+The manifest derivation passes the optional `noLoadCurrentA`, `updateRateHz`
+and `brakeCurrentLimitA` through, so a resolved profile's manifest carries the
+drive; existing derivation inputs give the same bytes.
+
+### Building the dynamics
+
+`buildProfileDynamics(manifest, options)` (`@mirage/physics/profile-dynamics`)
+needs a motor and an ESC for every rotor and a battery. It projects the body
+and rotors to the v1 descriptor (sensor mounts, wake pairs and the ArduPilot
+frame are consumed elsewhere; drag, control surfaces and landing gear still
+fail closed), binds each rotor's catalog polar, takes the drive from
+`escDriveFromManifest` (initial state of charge 1 and no house load unless
+given) and the air from the ISA troposphere at 0 m unless given. Inflow lag
+0.1 s, inflow limit 500 m/s and minimum confidence 0.9 are the TASK-033
+settings. Actuator frames for the model carry its model ID as the motor map
+ID; without an autopilot the pilot sticks command collective only, and the
+vehicle starts at the origin on the synthetic pad with the motors stopped.
+Declared rotor-wake pairs are not modeled until TASK-101: the build lists the
+limitation and sets `CONFIGURATION_FLAG_WAKE_UNMODELED` (bit 16) in the new
+`configurationFlags` of `BetFlightConfiguration`, which `BetFlightDynamics` ORs
+into `validityFlags` every step, so the session reports ModelOutsideValidity.
+Configuration flags use bits 16 to 31 only; with none, the step is unchanged.
+
+### Session and Worker
+
+`profileModelPort(registry, module, options)` admits a schema 2 manifest from
+the `VehicleRegistry` when the requested hash equals the registered one, the
+BET module is loaded and the vehicle builds; the session changes nothing on a
+rejection (`ASSET_MISSING`). The physics Worker holds a registry and accepts
+two cold messages: `{ type: "bet.module", bytes, sha256 }` checks the hash,
+compiles the module and requires no imports and the `bet_bound_step_v2`,
+`bet_bus_step` and `bet_body_step` exports, answering `bet.module.ready` or
+`bet.module.reject`; `{ type: "model.register", bytes, sha256 }` registers a
+manifest, answering `model.registered` with its model ID or `model.reject`.
+The demo runs until a Control Protocol v2 `model.load` names a registered ID
+and hash. Starting experiments from the Run tab and the SITL lockstep stay with
+TASK-153 and TASK-154.
+
+### Hover trim check
+
+`tests/support/hover-trim.ts` is a physics-only oracle independent of the frame
+summation and the body integrator. It sweeps each distinct rotor to steady
+state in still air over the effective motor voltage u = d·V, on which the
+TASK-092 motor law depends only through their product, then solves the six-axis
+force and moment balance about the CG for every rotor's u and the hover roll
+and pitch by minimum-norm Newton steps, and turns u into duties at the
+battery's loaded voltage. The dynamics then fly from the trim attitude and
+rotor speeds with the trim as feed-forward and a light loop around it
+(attitude, rate and vertical-speed damping mapped to u by the minimum-norm
+inverse of the thrust and moment rows of the trim Jacobian). Rotor inflow
+starts at zero, so the first tenths of a second carry excess thrust that an
+open-loop hover would never forget; if the trim is right, the loop's steady
+corrections vanish.
+
+| Configuration | Hover duty | Hover rpm | Motor power | Loop correction after 4 s | Attitude error |
+| --- | --- | --- | ---: | ---: | ---: |
+| quad X | 0.396–0.407 | 4344–4461 | 127.8 W | 9.3e-5 of u | 4.4e-4 rad |
+| hexa X | 0.421–0.465 | 4569–5018 | 246.9 W | 6.9e-5 | 8.5e-5 rad |
+| octa X | 0.472–0.481 | 5037–5130 | 390.4 W | 6.5e-5 | 1.5e-4 rad |
+| coaxial X8 | 0.442 | 4757 | 320.5 W | 6.2e-5 | 0 |
+| sixteen motors | 0.487–0.499 | 5050–5168 | 792.3 W | 8.0e-5 | 2.7e-4 rad |
+
+These are the S19 fixtures with the example cards and NACA6409; the coaxial
+rotors see free-stream inflow, so their pairs share one duty. The acceptance
+limits, set before the first run, are a correction below 2e-3 of u, vertical
+speed below 0.02 m/s, body rate below 0.005 rad/s and attitude error below
+0.01 rad.
+
+### Compute and allocation
+
+`node scripts/bench-profile-dynamics.mjs` runs the sixteen-motor S19 fixture
+on the example cards in Node 24 (V8, `--single-threaded`). Its rotors spin up
+from rest to 0.8 of their hover-trim duty, so the vehicle stays on the
+synthetic pad while every rotor runs near flight speed. It writes
+`test-results/bench/profile-dynamics-16.json` with the manifest, WASM and
+source hashes. The step is `BetFlightDynamics` alone, not the browser Worker
+or the session; the scalar WASM build is used. The budget is the step period
+(A-04 requires 400 Hz for every configuration), and A-05 judges the average
+real-time ratio, which must be at least 0.99. The run below is from the cloud
+container (Intel Xeon at 2.80 GHz, 4 CPUs), not the Apple Silicon target.
+
+| Rate | Period | Mean | p50 | p95 | p99 | Period / mean |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 400 Hz | 2.500 ms | 1.149 ms | 1.059 ms | 1.762 ms | 2.162 ms | 2.18 |
+| 800 Hz | 1.250 ms | 1.142 ms | 1.056 ms | 1.694 ms | 2.148 ms | 1.09 |
+| 1200 Hz | 0.833 ms | 1.129 ms | 1.056 ms | 1.651 ms | 2.056 ms | 0.74 |
+
+At 400 Hz the p99 step stays inside the period. At 800 Hz the average keeps
+real time, but one step in twenty takes longer than the period and must be
+caught up by the clock. At 1200 Hz even the average exceeds the period, so the
+16-rotor model cannot run in real time there until TASK-091 adds compute
+headroom. G1 at 400 Hz: after 110,000 warm-up steps, 1,000,000 steps grow the
+young generation by 2,960 bytes (0.00296 B/step) with zero GC events, and the
+BET WASM memory keeps its armed size; an allocating positive
+control in the same harness is detected (30 GC events).
+
+### Verification (TASK-144)
+
+`tests/polar-catalog.test.ts` checks the catalog bytes, hashes and parse
+against the fixtures, airfoil matching and the schema 4 rules.
+`tests/resolve-components.test.ts` checks every value and assumption of the
+table above against the example cards. `tests/profile-dynamics.test.ts` loads
+the five S19 configurations and holds their trimmed hover; checks that a quad
+X splits its hover thrust by the lever arms about the CG,
+T_front·(L/√2 − x_cg) = T_rear·(L/√2 + x_cg), for two arm lengths within 1e-6;
+checks that an 11-inch propeller hovers slower and on less power than a
+10-inch one, as momentum theory predicts (4403 to 3638 rpm, 127.8 to 117.4 W,
+a ratio of 0.918 against the ideal 0.909); and loads the sixteen-motor model
+through the session registry. `tests/browser/profile-dynamics.spec.ts` derives
+the sixteen-motor manifest in Chromium and loads it into the application's
+physics Worker. `tests/aircraft-editor.test.ts` checks the polar choices of the
+Aircraft tab form.
+
+## DataFlash reader and writer (TASK-178)
+
+`@mirage/dataflash` reads ArduPilot DataFlash logs (`.BIN`) and writes
+MirageSITL experiment records as DataFlash files. pymavlink 2.4.50, whose
+`DFReader` `mavlogdump.py` uses, is the oracle for framing, field values and
+times. Both directions run on the cold path.
+
+### Reader
+
+`DataFlashReader` is incremental: `push(chunk)` takes bytes in file order and
+`finish()` returns the log; `readDataFlash(bytes)` does both. A record is the
+header 0xA3 0x95, a type byte that an FMT record has defined, and the body
+length that FMT declares. FMT itself (type 128, 89 bytes, `BBnNZ`) is built in.
+Bytes that do not start a defined record are skipped up to the next one, as
+pymavlink skips them. The reader reports every damaged range with its byte
+offsets:
+
+| Kind | Range |
+| --- | --- |
+| `skipped` | From the first byte that does not start a defined record up to the next header of a defined type, or to the end of the file. |
+| `truncated` | A record with a valid header that the end of the file cuts short. |
+| `bad-format` | An FMT record that has an unknown format character, a Length that differs from the size of its format, a column count that differs from its format, or that redefines FMT. Its type stays undefined. |
+
+pymavlink instead fails on an unknown format character and later skips the
+records of a type whose Length is wrong. An FMT record that repeats the current
+definition of its type changes nothing. One that differs starts a new group,
+and later records of that type use it.
+
+The result is a plain object, so a Worker can transfer it: the bytes read, the
+record count, the damaged ranges, the clock, the group index of every record
+in file order (`order`), and one group per message definition. A group has its
+type, name, format, record count, the byte offset of each record and
+pymavlink's timestamp of each record. Its columns are typed:
+
+| Format | Column | Value |
+| --- | --- | --- |
+| b, M | Int8Array | as logged |
+| B | Uint8Array | as logged |
+| h, H, i, I | Int16Array, Uint16Array, Int32Array, Uint32Array | as logged |
+| q, Q | BigInt64Array, BigUint64Array | as logged |
+| f | Float32Array | as logged |
+| d | Float64Array | as logged |
+| g | Float32Array | binary16 widened exactly |
+| c, C, e, E | Float64Array | integer divided by 100 |
+| L | Float64Array | integer divided by 10^7 |
+| a | Int16Array | 32 values per record |
+| n, N, Z | Uint8Array | 4, 16 or 64 bytes per record |
+
+The scaled formats divide rather than multiply, as pymavlink does, so the
+values are the same doubles. `columnText(column, row)` decodes text as
+pymavlink does: UTF-8, else Latin-1, cut at the first NUL. pymavlink returns
+FILE.Data as raw bytes; the column holds those bytes.
+
+Each column also has a unit, a multiplier, a value scale and an instance flag.
+These come from the last FMTU record of its type, resolved against the log's
+final UNIT and MULT tables. An identifier with no UNIT entry gives `''`, and no
+MULT entry gives `null`. The value scale converts the stored value to the unit:
+1 where the format already scales the value (c, C, e, E, L) or where there is
+no multiplier, else the multiplier. The instance flag marks the `#` column.
+pymavlink resolves each FMTU against the tables as they stand when it reads
+that FMTU. In ArduPilot logs, FMTU records precede UNIT, so pymavlink loses
+those units; the reader does not reproduce that.
+
+Times follow pymavlink's `init_clock` and microsecond clock. The first GPS
+record with GWk > 0 sets the timebase:
+
+$$
+t_\mathrm{base} = 315964800 + 604800\,\mathrm{GWk} + 0.001\,\mathrm{GMS} - 18 - 10^{-6}\,\mathrm{TimeUS}
+$$
+
+A record whose first column is TimeUS gets t_base + 10^-6·TimeUS. A record
+whose first column is TimeMS gets t_base + 0.001·TimeMS, unless its name
+starts with ACC or GYR or that time is earlier than the previous one. Any other
+record repeats the previous time; the first time is t_base plus the first
+TimeUS of the log. Without a GPS week the timebase and the first time are 0,
+as in pymavlink. Logs
+with older clocks give `clock: 'unsupported'` and NaN times: a GPS record with
+a non-zero T, Week or GPSTime, a TIME record with StartTime, or no TimeUS at
+all.
+
+`parseSource(source, chunkBytes, onProgress)` reads a Blob, ArrayBuffer or
+Uint8Array in chunks and reports the bytes read after each. `transferables(log)`
+lists the log's buffers. `dataflash.worker.ts` takes
+`{ type: 'parse', id, source, chunkBytes? }` (1 MiB chunks by default, at most
+64 MiB). It replies `{ type: 'progress', id, bytes, total }` after each chunk,
+then `{ type: 'result', id, log }` with the buffers transferred. It answers any
+other message with `{ type: 'error', id, message }`, using id −1 when the
+message has no valid id.
+
+### Writer
+
+`DataFlashWriter.append(record)` validates one record and encodes it; an
+invalid record throws `RangeError` and writes nothing. `bytes()` returns the
+log and `writeDataFlash(records)` does both. The log starts with FMT for FMT,
+UNIT, MULT and FMTU, then the UNIT and MULT tables, then FMT and FMTU for each
+MirageSITL message. Every time is TimeUS in microseconds (a safe integer
+≥ 0). The names start with `MS`; in the pinned ArduPilot source, no
+four-character log name starts with `MS`.
+
+```text
+type name format            columns                                                     units             multipliers
+240  MSTR QLLfffffffffffff  TimeUS,Lat,Lng,Alt,PN,PE,PD,VN,VE,VD,Roll,Pitch,Yaw,GX,GY,GZ sDUmmmmnnndddkkk  FGG0000000000000
+241  MSMO QBffffff          TimeUS,Inst,Cmd,RPM,Thr,Trq,Curr,Volt                        s#-qNtAv          F--00000
+242  MSEV QBZ               TimeUS,Kind,Text                                             s--               F--
+243  MSPC QINfffB           TimeUS,Seq,Name,Req,Old,Act,Stat                             s------           F------
+UNIT - "" # instance s s D deglatitude U deglongitude m m n m/s d deg k deg/s q rpm N N t N.m A A v V
+MULT - 0  0 1  F 1e-6  G 1e-7
+```
+
+| Message | Record | Content |
+| --- | --- | --- |
+| MSTR | `truth` | Latitude and longitude in degrees (L, within ±90 and ±180, rounded to 10^-7), altitude above mean sea level, NED position and velocity, roll, pitch and yaw in degrees, and body rates in degrees per second. |
+| MSMO | `motor` | Motor index 0 to 15 (instance), normalized command, rpm, thrust, torque, current and voltage. |
+| MSEV | `event` | Kind (0 `note`, 1 `environment`, 2 `fault`, 3 `command`) and text of at most 64 UTF-8 bytes without NUL. |
+| MSPC | `parameter` | Request sequence (uint32), name (1 to 16 of A–Z, 0–9 and `_`), requested, previous and confirmed values, and status (0 `requested`, 1 `confirmed`, 2 `rejected`). A previous or confirmed value of `null` is written as NaN. |
+
+ArduPilot defines no unit for newton, so the writer adds `N` to the UNIT table.
+Float fields must be finite and remain finite in float32, and they are stored
+as float32. Records must have exactly the listed fields.
+`readExperimentRecords(log)` reads the MirageSITL records of a log back, in
+file order. It turns NaN back into `null` and ignores other messages. It
+rejects an MS message whose definition differs from the table above.
+
+### Verification (TASK-178)
+
+`scripts/generate-dataflash-fixtures.py` writes
+`tests/fixtures/dataflash/reference.json` from pymavlink 2.4.50's
+`mavlogdump.py --format json`, covering:
+
+* `sitl-copter.bin`: the first 100,011 bytes (2,259 records, ending on a
+  record boundary) of an ArduCopter V4.8.0-dev (8ab6afde) SITL log from the
+  TASK-147 run;
+* four damaged copies: 37 garbage bytes inserted, a type byte set to an
+  undefined type, 300 bytes zeroed, and a cut final record. For each, the
+  script checks that pymavlink loses exactly the recorded records and reports
+  the same skipped ranges;
+* a writer sample from fixed inputs, each exactly representable in its wire
+  type. The script checks that pymavlink reads every input back unchanged.
+
+`tests/dataflash.test.ts` compares every record, time and field value of the
+slice exactly, at chunk sizes from 1 byte to 64 KiB; the damaged ranges and
+surviving records of each damaged copy; the units; FMT rejection,
+redefinition and truncation; the timebase, TimeMS and pre-TimeUS clock rules;
+half floats; and pymavlink text decoding. For the writer it checks the
+sample's bytes, pymavlink's reading of it, the identical re-parse and the
+rejection of invalid records. `tests/browser/dataflash-worker.spec.ts` parses
+the slice in the Worker in Chromium.
+
+## Battery and propulsion limits (TASK-146)
+
+With the TASK-092 drive, `BetFlightDynamics` records the electrical values of
+every step and checks them against the component ratings and against the
+clamps the model applied. A rating `warning` and a modeled `limited` clamp
+stay separate everywhere: a warning never changes physics, and a clamp is
+never reported as a warning. Heating, cooling and aging are not modeled.
+
+### Limit ratings v1
+
+`componentRatings(profile, cards)` (`@mirage/aircraft/resolve-components`)
+builds the ratings from the cards a profile references, one entry per motor
+in profile order, which is the derived manifest's rotor order. Only values a
+card states become ratings, never assumed ones; null is never checked.
+`parseLimitRatings(value, motorCount?)` (`@mirage/physics/limit-monitor`)
+validates them from unknown input: exactly these keys, each rating a
+positive finite number or null, 1 to 16 motors.
+
+```json
+{
+  "schemaVersion": 1,
+  "motors": [{ "motorCurrentA": 30, "motorPowerW": 450, "escCurrentA": 30, "escVoltageV": 25.2, "rpm": null }],
+  "battery": { "emptyVoltageV": 13.2 }
+}
+```
+
+| Rating | Card value |
+| --- | --- |
+| `motorCurrentA` | Motor card maximum current |
+| `motorPowerW` | Motor card maximum power |
+| `escCurrentA` | ESC card maximum current |
+| `escVoltageV` | ESC card maximum voltage |
+| `rpm` | Always null: component card schema 1 has no speed rating |
+| `emptyVoltageV` | Battery cells in series × empty cell voltage |
+
+### Telemetry and masks
+
+`PowerTelemetry` holds, in preallocated arrays, five doubles per motor
+(speed in rev/min, motor current, bus current and electrical power from
+bound-rotor v2 record bytes 144, 152 and 160, and the ESC duty) and six for
+the battery (state of charge, bus voltage, bus current, bus power, remaining
+and total charge in Ah). It is written after the bus step of every tick. A
+reset restores the unloaded pack: the initial state of charge, the
+open-circuit voltage, no current.
+
+| Kind | Subject | Bit | Condition | Compared with |
+| --- | --- | --- | --- | --- |
+| warning | motor | MotorCurrent | \|motor current\| > `motorCurrentA` | the rating |
+| warning | motor | MotorPower | electrical power > `motorPowerW` | the rating |
+| warning | motor | EscCurrent | \|motor current\| > `escCurrentA` | the rating |
+| warning | motor | EscVoltage | bus voltage > `escVoltageV` | the rating |
+| warning | motor | Rpm | \|speed\| > `rpm` | the rating |
+| warning | battery | UnderVoltage | bus voltage < `emptyVoltageV` | the rating |
+| limited | motor | CurrentLimit | bound-rotor v2 output flag 32 | the drive's current limit, or its brake limit for a negative current |
+| limited | battery | PackCurrent | shared bus flag 1 (discharging or regenerating) | the pack current limit |
+| limited | battery | Charge | shared bus flag 2 (regeneration into a full pack) | a state of charge of 1 |
+
+A motor rated at its own current limit (TASK-144 takes the drive limit from
+the motor card) is clamped exactly at the rating, so it shows `limited` and no
+`warning`.
+
+### Events
+
+`LimitMonitor.evaluate` turns every mask bit that changes into an event in
+a bounded outbox of 256: tick, subject (motor index or battery), quantity,
+kind, edge (`start` or `end`), value and the rating or limit. Events beyond
+the capacity are counted in `dropped`. The quantities are `motor-current`,
+`motor-power`, `esc-current`, `esc-voltage`, `rpm`, `battery-voltage`
+(warnings) and `current-limit`, `pack-current-limit`, `charge-limit`
+(limited). `evaluate` allocates nothing; `drain` builds the event objects and
+runs only after the compute batch. The monitor runs every event branch once
+on synthetic telemetry at construction and then resets. V8 compiles
+`evaluate` with the type feedback of the branches it has executed, and a
+branch first taken in flight, such as a pack crossing its empty voltage, would
+deoptimize it; the unoptimized code then boxes doubles until it is optimized
+again. Event values and limits pass through a typed array, never as call
+arguments.
+
+### Session, Worker and UI
+
+`PhysicsSessionV2.attachPowerChannel` publishes power telemetry v1
+([Shared Memory](SPECS_SHARED_MEMORY.md)) after every step. Each recording
+sample carries the step's telemetry (`SessionRecordSample.power`), and
+`drainLimitEvents` empties the outbox after a pump. The AAR v1 record has no
+free bytes, so the per-motor values reach the recording hook, and the
+recorder v2 format of TASK-162 stores them. The physics Worker attaches the
+channel on `power.attach`, binds ratings to a manifest hash on
+`limits.register`, and posts `limits.events` after each pump.
+`profileModelPort` passes a model's ratings to its dynamics and refuses a
+`model.load` whose ratings list another motor count. The Run tab's
+`PowerPanel` reads the channel four times a second and shows the battery
+values and status, a row per motor, and the newest limit events, labeling
+each `Warning` or `Limited`. For the demo it states that there is no
+electrical model.
+
+### Verification (TASK-146)
+
+`tests/limit-monitor.test.ts` recomputes the shared bus from the published
+per-motor powers each step (V_oc linear in the state of charge, the current
+root above, V = V_oc − I·R_int, ΔSOC = −I·dt/C) and matches voltage,
+current, power, state of charge and remaining charge within 1e-12 relative
+over 4,000 steps. It also checks that exceeded ratings warn while two runs,
+one with and one without ratings, stay bit-identical; that a motor at its
+current limit and a pack at its current limit are `limited`; that a low pack
+warns of under-voltage; and the ratings schema, the outbox bound and the
+brake limit. `tests/power-channel.test.ts` checks every byte offset of the
+channel, the torn-read refusal, and a session that publishes four motors,
+feeds the recording hook and drains a limit event while ABI v2 keeps its
+size. `tests/browser/power-panel.spec.ts` runs a quad X profile in the
+application's physics Worker with a 15 A pack limit and a 60 W motor power
+rating and checks that the panel shows the pack `Limited` and each motor's
+power as a `Warning`; it also checks the Run tab's panel for the demo.
+`scripts/bench-profile-dynamics.mjs` measures G1 with the monitor and the
+channel publish in the step loop.
 
 ## ArduPilot output mapping and frame parameters (TASK-142)
 
@@ -4817,86 +5740,3 @@ mapping, unequal arms and four uncontrollable layouts with their reasons.
 Aircraft tab, checks its 16 rows and parameter file, swaps two outputs in the
 arm table and checks the moved functions and the new version, and refuses a
 hexa whose motors all turn one way.
-
-## DataFlash reader and writer (TASK-178)
-
-`packages/dataflash`: `reader.ts`, `writer.ts` and `dataflash.worker.ts`.
-Analysis code, never part of a physics step.
-
-### Reader
-
-`DataflashReader.push(chunk)` accepts chunks of any size and parses every
-complete record; it keeps only the unparsed tail. `finish()` returns the log:
-the formats by type, one table per message name and the damaged ranges.
-`readDataflash(bytes, chunkBytes)` does both for a log in memory. A record is
-`A3 95 type` and a body laid out by the type's FMT record; FMT (type 128) is
-predefined, and a log's own definition of FMT must repeat its layout
-`BBnNZ`. An FMT record whose format characters are unknown or whose sizes do
-not add up to its length is a damaged `invalid-format` range and defines
-nothing.
-
-Values follow pymavlink 2.4.50 DFReader, the oracle: `b B h H i I f d q Q`
-as stored (64-bit integers as JavaScript numbers, exact to 2^53); `g` as
-IEEE half precision; `M` as int8; `c C e E` divided by 100 and `L` by 1e7,
-computed as `raw / (1 / multiplier)` as DFReader does; `n N Z` as UTF-8 text
-(Latin-1 if not valid UTF-8) up to the first NUL; `a` as 32 int16; and the
-`Z` field of FILE as raw bytes. Numeric fields become `Float64Array` columns.
-Units come from UNIT, MULT (rounded to 7 significant digits) and FMTU records
-in log order, with DFReader's prefixes (µ, m, c, d, n) or a `%.4g` factor;
-fields with their own multiplier keep their unit. A `#` in the unit IDs names
-the instance field. `timestampS` is DFReader's microsecond clock with a zero
-time base: `0 + TimeUS · 0.000001` for a record whose first field is TimeUS,
-otherwise the previous record's time, 0 before the first. `gpsTimeBaseS` is
-DFReader's time base from the first GPS record with GWk > 0:
-315,964,800 + 604,800·GWk + 0.001·GMS − 18 − 0.000001·TimeUS, in Unix
-seconds.
-
-Damage never stops the reader. Bytes that do not start a record of a known
-type are skipped up to the next record of a known type and reported as one
-range: `unknown-type` when the range begins with the header bytes and an
-undefined type, otherwise `bad-header`. A partial record or fewer than three
-bytes at the end is `truncated`. Ranges are absolute byte offsets
-[start, end).
-
-### Worker
-
-`dataflash.worker.ts` takes `{ kind: "chunk", bytes }` messages with
-transferred `ArrayBuffer`s and `{ kind: "finish" }`. It answers each chunk
-with progress and the finish with one result whose numeric columns,
-timestamps and offsets are transferred. `createDataflashHandler` is the same
-handler without the Worker global, for tests.
-
-### Writer
-
-`DataflashWriter` writes a self-describing log: FMT records for FMT, UNIT,
-MULT, FMTU and the MirageSITL messages, then UNIT records with ArduPilot's
-IDs and labels, MULT records and an FMTU record per message type.
-
-| Message | Format | Columns | Contents |
-| --- | --- | --- | --- |
-| MTRU | Qdddfffffff | TimeUS,PN,PE,PD,VN,VE,VD,QW,QX,QY,QZ | Truth: NED position (m), NED velocity (m/s), body-to-NED quaternion |
-| MMOT | QBHfffff | TimeUS,Instance,PWM,Thr,RPM,Curr,Volt,Temp | One motor: PWM (µs), throttle 0–1, rpm, A, V, °C; NaN when not modelled |
-| MEVT | QHZ | TimeUS,Id,Text | Experiment event |
-| MPRM | QNffBZ | TimeUS,Name,Req,Conf,Stat,Text | Parameter change: requested, confirmed (NaN until confirmed), status 0 requested, 1 confirmed, 2 rejected |
-
-No MirageSITL message name occurs in the pinned ArduPilot source or its log,
-so these records are never taken for autopilot data. TimeUS is an integer
-from 0 to 2^53 − 1; integers, ASCII text and parameter names are checked
-before a byte is written. The same calls give the same bytes.
-
-### Verification (TASK-178)
-
-`scripts/generate-dataflash-fixtures.py` cuts a 39,379-byte reference log
-from a real DataFlash log of the pinned native SITL (690 of 41,714 records,
-copied verbatim: every FMT, UNIT, MULT and FMTU record, the first four of
-every other type and GPS records until one has a valid week). pymavlink
-2.4.50 decodes it into `tests/fixtures/dataflash/reference.json` with every
-value, unit and timestamp and the GPS time base; four damaged copies have a
-flipped header byte, an undefined type, seven inserted bytes and a truncated
-last record, at offsets the generator chose. It also lists 216 log message
-names found in the pinned source and in the source log. `--check` regenerates and compares.
-`tests/dataflash.test.ts` requires every value, timestamp and unit to equal
-DFReader's in chunks of 1, 3, 89, 4096 and 1,048,576 bytes, the GPS time base
-to be equal, each damaged copy to report exactly its range with DFReader's
-record count, and the writer's output to re-parse to the written values,
-both in this reader and in pymavlink DFReader.

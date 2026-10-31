@@ -128,3 +128,54 @@ fn rejects_invalid_tables() {
     assert_eq!(check(&t.alpha, &t.re, &t.mach, &t.cl, &t.cd[1..]), Some(PolarError::Shape));
     assert_eq!(check(&[], &t.re, &t.mach, &[], &[]), Some(PolarError::Shape));
 }
+
+#[path = "support/neuralfoil.rs"]
+mod neuralfoil;
+
+/// TASK-091: the prepared lookup returns the reference lookup's exact bits
+/// (coefficients and flags) on every query: nodes, cell interiors, clamped
+/// and non-finite queries, single-node and duplicated Mach axes, the
+/// non-uniform NeuralFoil Reynolds axis and an irregular alpha axis.
+#[test]
+fn prepared_lookup_returns_the_reference_bits() {
+    let check = |table: &PolarTable, alphas: &[f64], res: &[f64], machs: &[f64]| {
+        let prepared = table.prepare();
+        let mut count = 0usize;
+        for &a in alphas {
+            for &r in res {
+                for &m in machs {
+                    let (want, got) = (table.lookup(a, r, m), prepared.lookup(a, r, m));
+                    assert_eq!((want.cl.to_bits(), want.cd.to_bits(), want.flags), (got.cl.to_bits(), got.cd.to_bits(), got.flags),
+                        "alpha {a} Re {r} Mach {m}");
+                    count += 1;
+                }
+            }
+        }
+        count
+    };
+    let mut alphas: Vec<f64> = (-1400..=1400).map(|k| k as f64 * 0.0005).collect();
+    alphas.extend([-std::f64::consts::PI, std::f64::consts::PI, f64::NAN, f64::INFINITY, -0.0]);
+    let mut res: Vec<f64> = (0..=160).map(|k| 10f64.powf(2.5 + k as f64 * 0.025)).collect();
+    res.extend([1000.0, 5000.0, 1e4, 2e4, 4e4, 6e4, 1e5, 2e5, 5e5, 1e6, f64::NAN]);
+    let machs = [0.0, 0.05, 0.3, 0.6, -0.1, f64::NAN];
+    let mut count = 0;
+    for mach_nodes in [vec![0.0], vec![0.0, 0.3]] {
+        let p = neuralfoil::naca6409(&mach_nodes);
+        // The node alphas themselves, so every exact node is queried too.
+        let nodes: Vec<f64> = p.alpha.iter().copied().chain(alphas.iter().copied()).collect();
+        let table = PolarTable::new(&p.alpha, &p.re, &p.mach, &p.cl, &p.cd).unwrap().with_confidence(&p.confidence, 0.9).unwrap();
+        count += check(&table, &nodes, &res, &machs);
+        let plain = PolarTable::new(&p.alpha, &p.re, &p.mach, &p.cl, &p.cd).unwrap();
+        count += check(&plain, &alphas[..400], &res, &machs);
+    }
+    // An irregular alpha axis: the O(1) guess is wrong and is corrected.
+    let t = tables();
+    let irregular_alpha = [-3.0, -2.9, -1.0, -0.05, 0.0, 0.01, 0.4, 2.5, 3.1];
+    let n = irregular_alpha.len() * t.re.len() * t.mach.len();
+    let (cl, cd): (Vec<f64>, Vec<f64>) = (0..n).map(|k| ((k as f64 * 0.37).sin(), 0.01 + (k as f64 * 0.11).cos().abs())).unzip();
+    let irregular = PolarTable::new(&irregular_alpha, &t.re, &t.mach, &cl, &cd).unwrap();
+    count += check(&irregular, &alphas, &res, &machs);
+    let synthetic = PolarTable::new(&t.alpha, &t.re, &t.mach, &t.cl, &t.cd).unwrap();
+    count += check(&synthetic, &alphas, &res, &machs);
+    assert!(count > 2_000_000, "{count} queries");
+}

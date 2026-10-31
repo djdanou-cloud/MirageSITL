@@ -2,8 +2,9 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { createHash } from 'node:crypto';
 import {
-  DELIVERY_PATHS, ERROR_SOURCES, ERROR_SOURCE_IDS, FIRMWARE_PATCHES, IMU_NOISE_FLOOR_SETTINGS, JSON_ORACLE_KEYS, PINNED_ARDUPILOT_COMMIT,
-  imuNoiseFloorMatrix, isImuNoiseFloorSetting, ownershipParameterProfile, parseArduPilotCatalog, validateOwnershipMatrix, type ErrorSourceId,
+  DELIVERY_PATHS, ERROR_SOURCES, ERROR_SOURCE_IDS, ERROR_SOURCE_IDS_V1, FIRMWARE_PATCHES, IMU_NOISE_FLOOR_SETTINGS, JSON_ORACLE_KEYS,
+  PINNED_ARDUPILOT_COMMIT, imuNoiseFloorMatrix, isImuNoiseFloorSetting, ownerOf, ownershipParameterProfile, parseArduPilotCatalog,
+  stockOwner, validateOwnershipMatrix, type ErrorSourceId,
 } from '@mirage/autopilot/error-ownership';
 import catalogJson from './fixtures/sitl/ardupilot-catalog.json';
 import ownership from './fixtures/sitl/error-ownership.json';
@@ -29,7 +30,8 @@ describe('pinned ArduPilot source catalog', () => {
   it('comes from the commit pinned in source.lock.json', () => {
     expect(lock.commit).toBe(PINNED_ARDUPILOT_COMMIT);
     expect(catalogJson.ardupilotCommit).toBe(lock.commit);
-    expect(catalogJson.upstream.length).toBe(13);
+    // Thirteen files since TASK-089 and six that TASK-147 added for its facts.
+    expect(catalogJson.upstream.length).toBe(19);
     expect(() => parseArduPilotCatalog({ ...catalogJson, ardupilotCommit: 'f'.repeat(40) })).toThrow('pinned');
     expect(() => parseArduPilotCatalog({ ...catalogJson, extra: 1 })).toThrow('fields');
     // Schema 1 had no patch section; it must be regenerated, not reinterpreted.
@@ -53,16 +55,20 @@ describe('pinned ArduPilot source catalog', () => {
     expect(catalogJson.jsonBackendDefaults.INS_ACCSCAL_X).toBe('1.001');
   });
 
-  it('contains every JSON key the TASK-041 oracle writes', () => {
-    const line: unknown = JSON.parse(protocol.expectedLine);
-    if (typeof line !== 'object' || line === null) throw new Error('Oracle line is not an object');
-    const fields: [string, unknown][] = Object.entries(line);
-    const keys = fields.flatMap(([key, value]) => (typeof value === 'object' && value !== null && !Array.isArray(value)
-      ? Object.keys(value).map(inner => `${key}.${inner}`) : [key]));
-    expect(keys.sort()).toEqual([...JSON_ORACLE_KEYS].sort());
+  it('contains every JSON key the TASK-041 oracle and its TASK-147 battery line write', () => {
+    const keysOf = (text: string): string[] => {
+      const line: unknown = JSON.parse(text);
+      if (typeof line !== 'object' || line === null) throw new Error('Oracle line is not an object');
+      const fields: [string, unknown][] = Object.entries(line);
+      return fields.flatMap(([key, value]) => (typeof value === 'object' && value !== null && !Array.isArray(value)
+        ? Object.keys(value).map(inner => `${key}.${inner}`) : [key]));
+    };
+    const plain = keysOf(protocol.expectedLine), battery = keysOf(protocol.expectedBatteryLine);
+    expect(battery).toEqual([...plain, 'battery.voltage', 'battery.current']);
+    expect([...battery].sort()).toEqual([...JSON_ORACLE_KEYS].sort());
     for (const key of JSON_ORACLE_KEYS) expect(catalog.jsonKeys.has(key), key).toBe(true);
-    // Optional upstream keys exist but are not oracle-covered delivery paths yet.
-    expect(catalog.jsonKeys.has('battery.voltage')).toBe(true);
+    // Optional upstream keys that no delivery path uses stay outside the oracle.
+    expect(catalog.jsonKeys.has('airspeed')).toBe(true);
   });
 
   it('records the firmware patch the repository applies, and rejects patches that leave the pinned sources', () => {
@@ -120,7 +126,7 @@ describe('ownership matrices and profiles', () => {
   it('validates the evidenced parity matrices, which neutralize nothing', () => {
     for (const matrix of [parityNative, parityBrowser]) {
       const valid = validateOwnershipMatrix(matrix, catalog);
-      expect(valid.entries.length).toBe(ERROR_SOURCE_IDS.length);
+      expect(valid.entries.length).toBe(ERROR_SOURCE_IDS_V1.length);
       expect(settings(ownershipParameterProfile(matrix, catalog))).toEqual([]);
     }
   });
@@ -168,7 +174,8 @@ describe('ownership matrices and profiles', () => {
 
   it('rejects deliveries without repository evidence for the matrix path', () => {
     const invalid: [string, Matrix, string][] = [
-      ['uncovered JSON key', own(parityNative, 'imu.accel.bias', 'mirage', ['json:battery.voltage']), 'repository evidence'],
+      ['another source\'s JSON key', own(parityNative, 'imu.accel.bias', 'mirage', ['json:battery.voltage']), 'exactly json:imu.accel_body'],
+      ['unknown delivery', own(parityNative, 'imu.accel.bias', 'mirage', ['json:imu.mag']), 'repository evidence'],
       ['browser field on the native path', own(parityNative, 'imu.gyro.bias', 'mirage', ['hal:gyro']), 'exactly json:imu.gyro'],
       ['partial vibration delivery', own(parityNative, 'imu.vibration', 'mirage', ['json:imu.accel_body']), 'exactly'],
       ['no delivery', own(parityNative, 'imu.accel.bias', 'mirage'), 'exactly'],
@@ -210,7 +217,8 @@ describe('ownership matrices and profiles', () => {
       ['repeated patch', { ...patched, firmwarePatches: ['imu-noise-floor', 'imu-noise-floor'] }, 'Unknown or repeated'],
       ['schema 2 without patches', { ...parityNative, schemaVersion: 2 }, 'fields'],
       ['schema 1 with patches', { ...parityNative, firmwarePatches: [] }, 'fields'],
-      ['schema 3', { ...patched, schemaVersion: 3 }, 'Unsupported ownership matrix schema'],
+      ['schema 3 without its sources', { ...patched, schemaVersion: 3 }, 'Error source imu.latency has no owner'],
+      ['schema 4', { ...patched, schemaVersion: 4 }, 'Unsupported ownership matrix schema'],
     ];
     for (const [label, input, message] of invalid) expect(() => validateOwnershipMatrix(input, catalog), label).toThrow(message);
     const unpatchedCatalog = parseArduPilotCatalog({ ...catalogJson, patches: [] });
@@ -239,5 +247,77 @@ describe('ownership matrices and profiles', () => {
     const conditional = parseArduPilotCatalog({ ...catalogJson, simParameters: catalogJson.simParameters.map(p =>
       (p.name === 'SIM_MAG_RND' ? { ...p, conditions: ['#if AP_SIM_ENABLED', '#if AP_SIM_MAG_EXPERIMENTAL'] } : p)) });
     expect(() => validateOwnershipMatrix(parityNative, conditional)).toThrow('unverified build condition');
+  });
+});
+
+describe('ownership matrix schema 3 (TASK-147)', () => {
+  /** A schema 3 version of a schema 1 or 2 matrix: each new source at its stock owner, then the changes. */
+  function schema3(matrix: Matrix, changes: Partial<Record<ErrorSourceId, [string, string[]?]>> = {}): unknown {
+    const base = { ...matrix, schemaVersion: 3, firmwarePatches: [], entries: [...matrix.entries,
+      ...ERROR_SOURCE_IDS.filter(id => !ERROR_SOURCE_IDS_V1.some(v1 => v1 === id)).map(source =>
+        ({ source, owner: stockOwner(source, matrix.path === 'browser-hal' ? 'browser-hal' : 'native-json'), delivery: [] as string[] }))] };
+    return { ...base, entries: base.entries.map(entry => {
+      const change = changes[entry.source as ErrorSourceId];
+      return change ? { source: entry.source, owner: change[0], delivery: change[1] ?? [] } : entry;
+    }) };
+  }
+
+  it('reads each source a schema 1 or 2 matrix omits as its stock owner, and leaves its profile unchanged', () => {
+    const added = ERROR_SOURCE_IDS.filter(id => !ERROR_SOURCE_IDS_V1.some(v1 => v1 === id));
+    expect(added).toEqual(['imu.latency', 'imu.misalignment', 'mag.misalignment', 'gnss.position-noise', 'gnss.velocity-noise', 'gnss.delay',
+      'battery.voltage', 'battery.current']);
+    const valid = validateOwnershipMatrix(parityNative, catalog);
+    // Stock SITL applies the orientations, the receiver's wander, velocity error and 100 ms lag; it has no IMU delay or battery error.
+    expect(added.map(id => ownerOf(valid, id))).toEqual(['none', 'ardupilot', 'ardupilot', 'ardupilot', 'ardupilot', 'ardupilot', 'none', 'none']);
+    expect(added.map(id => ownerOf(validateOwnershipMatrix(parityBrowser, catalog), id)))
+      .toEqual(['none', 'ardupilot', 'ardupilot', 'ardupilot', 'ardupilot', 'ardupilot', 'none', 'none']);
+    expect(ownershipParameterProfile(schema3(parityNative), catalog)).toBe(ownershipParameterProfile(parityNative, catalog));
+    const swapped = { ...parityNative, entries: [...parityNative.entries.slice(1), { source: 'imu.latency', owner: 'none', delivery: [] }] };
+    expect(() => validateOwnershipMatrix(swapped, catalog)).toThrow('Error source imu.latency needs ownership matrix schema 3');
+  });
+
+  it('neutralizes the new ArduPilot sources through cataloged parameters, admitting the GNSS build condition by its fact', () => {
+    const off = schema3(parityNative, { 'imu.misalignment': ['none'], 'mag.misalignment': ['none'], 'gnss.position-noise': ['none'],
+      'gnss.velocity-noise': ['none'], 'gnss.delay': ['none'] });
+    expect(settings(ownershipParameterProfile(off, catalog))).toEqual(['SIM_GPS1_HNSE 0', 'SIM_GPS1_LAG_MS 0', 'SIM_GPS1_NOISE 0',
+      'SIM_GPS1_VERR_X 0', 'SIM_GPS1_VERR_Y 0', 'SIM_GPS1_VERR_Z 0', 'SIM_GPS2_HNSE 0', 'SIM_GPS2_LAG_MS 0', 'SIM_GPS2_NOISE 0',
+      'SIM_GPS2_VERR_X 0', 'SIM_GPS2_VERR_Y 0', 'SIM_GPS2_VERR_Z 0', 'SIM_IMU_ORIENT 0', 'SIM_MAG1_ORIENT 0', 'SIM_MAG2_ORIENT 0', 'SIM_MAG3_ORIENT 0']);
+    expect(catalog.parameters.get('SIM_GPS1_LAG_MS')?.conditions).toEqual(['#if AP_SIM_GPS_ENABLED']);
+    const withoutFact = parseArduPilotCatalog({ ...catalogJson, facts: catalogJson.facts.filter(f => f.id !== 'sim-gps-enabled') });
+    expect(() => validateOwnershipMatrix(off, withoutFact)).toThrow('Fact sim-gps-enabled for gnss.position-noise');
+    // The build condition is admitted by that fact alone: a catalog that cites it but lists another condition fails.
+    const otherCondition = parseArduPilotCatalog({ ...catalogJson, simParameters: catalogJson.simParameters.map(p =>
+      (p.name === 'SIM_GPS2_LAG_MS' ? { ...p, conditions: ['#if AP_SIM_GPS_ENABLED', '#if AP_SIM_GPS_EXTRA'] } : p)) });
+    expect(() => validateOwnershipMatrix(off, otherCondition)).toThrow('SIM_GPS2_LAG_MS depends on an unverified build condition');
+  });
+
+  it('delivers MirageSITL IMU latency, misalignment and battery errors only on evidenced paths', () => {
+    const both = ['json:imu.accel_body', 'json:imu.gyro'];
+    const mirage = schema3(parityNative, { 'imu.latency': ['mirage', both], 'imu.misalignment': ['mirage', both],
+      'battery.voltage': ['mirage', ['json:battery.voltage']], 'battery.current': ['mirage', ['json:battery.current']] });
+    expect(validateOwnershipMatrix(mirage, catalog).entries.filter(e => e.owner === 'mirage').map(e => e.source))
+      .toEqual(['imu.latency', 'imu.misalignment', 'battery.voltage', 'battery.current']);
+    // MirageSITL owning the misalignment switches ArduPilot's discrete one off; latency and battery need nothing switched off.
+    expect(settings(ownershipParameterProfile(mirage, catalog))).toEqual(['SIM_IMU_ORIENT 0']);
+    const invalid: [string, unknown, string][] = [
+      ['IMU latency on one vector', schema3(parityNative, { 'imu.latency': ['mirage', ['json:imu.gyro']] }), 'exactly json:imu.accel_body, json:imu.gyro'],
+      ['ArduPilot IMU latency', schema3(parityNative, { 'imu.latency': ['ardupilot'] }), 'ArduPilot does not apply imu.latency'],
+      ['ArduPilot battery error', schema3(parityNative, { 'battery.voltage': ['ardupilot'] }), 'ArduPilot does not apply battery.voltage'],
+      ['battery on the browser path', schema3(parityBrowser, { 'battery.current': ['mirage', ['json:battery.current']] }), 'No repository-evidenced path'],
+      ['wrong battery key', schema3(parityNative, { 'battery.voltage': ['mirage', ['json:battery.current']] }), 'exactly json:battery.voltage'],
+      ['magnetometer misalignment on native-json', schema3(parityNative, { 'mag.misalignment': ['mirage', ['hal:magnetic-field']] }), 'No repository-evidenced path'],
+      ['receiver error while GPS_INPUT replaces the receiver', schema3(ewNative, { 'gnss.delay': ['ardupilot'] }), 'receiver does not run'],
+    ];
+    for (const [label, input, message] of invalid) expect(() => validateOwnershipMatrix(input, catalog), label).toThrow(message);
+    // With GPS_INPUT, the receiver's own errors are switched off rather than left to a receiver that does not run.
+    const ew = schema3(ewNative, { 'gnss.position-noise': ['none'], 'gnss.velocity-noise': ['none'], 'gnss.delay': ['none'] });
+    expect(validateOwnershipMatrix(ew, catalog).entries.find(e => e.source === 'gnss.receiver')?.owner).toBe('mirage');
+  });
+
+  it('keeps the TASK-089 IMU noise-floor matrices at schema 2 with their 25 sources', () => {
+    for (const setting of IMU_NOISE_FLOOR_SETTINGS) {
+      const matrix = imuNoiseFloorMatrix(setting, 'native-json');
+      expect([matrix.schemaVersion, matrix.entries.length]).toEqual([2, 25]);
+    }
   });
 });

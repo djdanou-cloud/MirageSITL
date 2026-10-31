@@ -5,7 +5,6 @@
   "type": "module",
   "exports": {
     "./reader": "./src/reader.ts",
-    "./writer": "./src/writer.ts",
-    "./worker": "./src/dataflash.worker.ts"
+    "./writer": "./src/writer.ts"
   }
 }

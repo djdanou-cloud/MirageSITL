@@ -35,10 +35,14 @@ def main():
     floor = run.get("imuNoiseFloor") or {}
     read_back = {check["name"] for check in floor.get("expected", [])}
     read_back.update(run.get("frameExpectedParameters", {}).keys())
+    # TASK-147: a run with sensor errors also forwards SYS_STATUS and the complete parameter list.
+    sensors = "sensors" in run
+    if sensors:
+        wanted = wanted | {"SYS_STATUS"}
 
     def forwarded(message):
         kind = message.get_type()
-        return ((kind in wanted or kind == "PARAM_VALUE" and message.param_id in read_back)
+        return ((kind in wanted or kind == "PARAM_VALUE" and (sensors or message.param_id in read_back))
                 and message.get_srcSystem() == 1 and message.get_srcComponent() == 1)
 
     observed = [message.to_dict() for message in messages if forwarded(message)]

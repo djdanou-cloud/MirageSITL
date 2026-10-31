@@ -118,6 +118,29 @@ describe("ArduPilot JSON protocol against the pinned upstream", () => {
     expect(validateStateLine(ascii(fixture.readmeExampleLine))).toBeNull();
   });
 
+  it("encodes the TASK-147 battery section after velocity_wind, and omits it unless valid", () => {
+    const out = new Uint8Array(MAX_STATE_LINE_BYTES), state = stateFromFixture();
+    expect(lineText(out.subarray(0, encodeStateLineInto(state, out)))).toBe(fixture.expectedLine);
+    state.batteryVoltageV = fixture.battery.voltageV; state.batteryCurrentA = fixture.battery.currentA; state.batteryValid = true;
+    const n = encodeStateLineInto(state, out);
+    expect(lineText(out.subarray(0, n))).toBe(fixture.expectedBatteryLine);
+    const { mask, values } = upstreamParse(fixture.expectedBatteryLine.trim());
+    for (const key of ["timestamp", "gyro", "accel_body", "position", "velocity", "quaternion", "velocity_wind", "voltage", "current"]) {
+      expect(mask & bit(key), key).not.toBe(0n);
+    }
+    // SIM_JSON reads both as float32 and every other field as before.
+    expect(values.get("voltage")).toEqual([Math.fround(fixture.battery.voltageV)]);
+    expect(values.get("current")).toEqual([Math.fround(fixture.battery.currentA)]);
+    expect(values.get("velocity_wind")).toEqual(fixture.state.windNedMps.map(Math.fround));
+    expect(validateStateLine(out.subarray(0, n))).toBeNull();
+    for (const bad of [Number.NaN, Infinity, 2e6]) {
+      state.batteryCurrentA = bad;
+      expect(encodeStateLineInto(state, out), String(bad)).toBe(0);
+    }
+    expect(validateStateLine(ascii(fixture.expectedBatteryLine.replace(/"current":[0-9.]+/, '"current":"12.5"')))).toBe("battery");
+    expect(validateStateLine(ascii(fixture.expectedBatteryLine.replace(/"battery":\{[^}]*\}/, '"battery":[1,2]')))).toBe("battery");
+  });
+
   it("rejects lines upstream would misread or refuse", () => {
     const good = fixture.expectedLine;
     // velocity_wind before velocity: strstr("velocity") lands inside velocity_wind.

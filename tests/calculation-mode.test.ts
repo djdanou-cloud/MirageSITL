@@ -316,7 +316,9 @@ describe('calculation modes and labels', () => {
       ['a repeated set', { ...base, calculation: { mode: 'measured', measurementSets: ['f1'.repeat(32), 'f1'.repeat(32)] } }, 'ascending'],
       ['another mode', { ...base, calculation: { mode: 'calibrated', measurementSets: [] } }, 'Invalid aircraft profile'],
       ['schema 3 without a sensor configuration', { ...base, schemaVersion: 3 }, 'Schema 3 profiles need a sensor configuration'],
-      ['schema 4', { ...base, schemaVersion: 4 }, '/schemaVersion must be equal to one of the allowed values'],
+      // Schema 4 (TASK-144) needs propeller polars; no schema 5 exists.
+      ['schema 4 without propeller polars', { ...base, schemaVersion: 4 }, 'Propeller polars appear exactly in schema 4'],
+      ['schema 5', { ...base, schemaVersion: 5 }, '/schemaVersion must be equal to one of the allowed values'],
     ];
     for (const [label, input, message] of invalid) expect(() => validateAircraftProfile(input), label).toThrow(message);
   });

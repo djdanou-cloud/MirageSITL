@@ -4,11 +4,11 @@
   "hz": 400,
   "warmupSteps": 4000000,
   "method": "warmed V8 N/2N new-space windows and GC observation; allocating positive control; I/O excluded",
-  "node": "v24.19.0",
+  "node": "v24.22.2",
   "samples": [
     {
       "steps": 1000000,
-      "bytes": 6736,
+      "bytes": 6376,
       "gcEvents": 0
     },
     {
@@ -42,22 +42,33 @@
   "controlDetected": true,
   "positiveControl": {
     "steps": 2000000,
-    "bytes": -516696,
+    "bytes": -517032,
     "gcEvents": 62
   },
-  "received": 22000000,
+  "received": 44000000,
+  "decodedTelemetry": 22000000,
+  "highRateMessages": [
+    1,
+    30,
+    32,
+    33,
+    36,
+    74,
+    147
+  ],
   "checksum": 2811453551.3865004,
   "sourceSha256": {
     "packages/ew/src/volumes.ts": "713d03b1533a555ddb4bd90a3937abf7035d86e304dc69f2dc1c119fb82510cb",
     "packages/ew/src/gnss-jamming.ts": "bbc5fd1feabca94ac5882b8dbdfb13b9df2065906ed602108f34f9af6fede800",
-    "packages/ew/src/magnetic.ts": "34af1d49a7ad574c18910b48a07f8965285c77a87055fe3f8f2cbefe20aae713",
-    "packages/physics/src/motor-fault.ts": "943017b02f0ebdd55c653c7664da196c4b033664418f09ac7c7dbd9bc819f50b",
-    "packages/mavlink/src/codec.ts": "9661a9db6f3024d4a12b4d9aea5faf74b1d1027ee895ea3446ec2782e925e1ee",
-    "packages/mavlink/src/messages.ts": "c2582780c993ba2a07a35d733d99b8645ac58a35464b6529053bfc00ab9adff7",
+    "packages/ew/src/magnetic.ts": "e737488cc27daf9b3dcca810b8c2d9b7e099ab21559e14672d9f363af8e93ef9",
+    "packages/physics/src/motor-fault.ts": "c5e7658281666c3d889d0e251144f7f80c9fb56d975ef8107be8c38deddbe018",
+    "packages/mavlink/src/codec.ts": "7c675d81946462d30e8c23bc6946a4ee7b2e0b2ec1d191afec1bf5770495d7ad",
+    "packages/mavlink/src/messages.ts": "ce69212e88acff5c6360ddc8a89b27b7977c502554b14e67a569772faa011f75",
+    "packages/mavlink/src/message-table.ts": "674dec5cc73b294e404961d3a4b140a391a0c6bda8d6bf654a97e7bb5962e556",
     "packages/mavlink/src/samples.ts": "140774039f0d3dbbe492e0d9b018b8fce1d4dd631804e75cd8e64b150e97885d",
     "packages/mavlink/src/sensor-mapping.ts": "5b7f3ee996d36cb9751b3327a3b84a3676266748fe3c838b79353b99350a74d1",
     "packages/mavlink/src/rc-override.ts": "510b3e211fd3dd412e2be455cb39f90a349c8a3c7b1fbc87be0f93ffd07c5a3a",
-    "packages/autopilot/src/state-machine.ts": "c982b3db9e756b4a0c932035342794ba574f5d2dfce3a01ec6c84102a2193cef",
-    "scripts/bench-links-ew.mjs": "7b43284b0fedeb0f49eac5113d5b1d0de55aa88d258eaa2dfca9cbfe4775ba30"
+    "packages/autopilot/src/state-machine.ts": "be6793a4ba59063d635c8b8ffc11851c5b9b9ca1266ffbf0a0c64d1a42934593",
+    "scripts/bench-links-ew.mjs": "52e1f940a704c3f1766d328ef6f5fd6a17a3c2d2cb68ef40a3a053d756a10f07"
   }
 }

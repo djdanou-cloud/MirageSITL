@@ -1,6 +1,6 @@
 //! Versioned caller-owned production rotor/polar binding; see bet_bound.h.
 use crate::{blade::{Rotor, RotorGeometry, RotorInput}, inflow::AxialInflow,
-    polar::PolarTable, shaft::Shaft, Vec3};
+    motor::DriveTorque, polar::PolarTable, shaft::Shaft, Vec3};
 
 /// Independent binding version (legacy arena ABI remains v1).
 pub const VERSION: u32 = 1;
@@ -14,6 +14,20 @@ pub const INPUT_BYTES: u32 = 128;
 pub const OUTPUT_BYTES: u32 = 128;
 /// Live arena identity.
 pub const MAGIC: u32 = 0x424e4431;
+/// Configuration version 2 (TASK-091): version 1 plus the kernel options word at byte 36.
+pub const CONFIG_VERSION_OPTIONS: u32 = 2;
+/// Kernel option: the half-step prediction uses azimuth samples 0 and N/2 (N even).
+pub const OPTION_REDUCED_PREDICTOR: u32 = 1;
+/// Kernel option: near hover the midpoint uses every other azimuth sample (N even, at least 4).
+pub const OPTION_HOVER_SAMPLING: u32 = 2;
+/// Output flag: this step's midpoint loads used hover sampling.
+pub const FLAG_HOVER_SAMPLING: u32 = 64;
+/// Output flag: this step's half-step prediction used the reduced predictor.
+pub const FLAG_REDUCED_PREDICTOR: u32 = 128;
+/// Hover sampling starts when the regime measure falls below this value.
+pub const HOVER_ENTER: f64 = 0.05;
+/// Hover sampling stops when the regime measure rises above this value.
+pub const HOVER_LEAVE: f64 = 0.10;
 
 fn u(b: &[u8], p: usize) -> Option<u32> { Some(u32::from_le_bytes(b.get(p..p+4)?.try_into().ok()?)) }
 fn f(b: &[u8], p: usize) -> Option<f64> { Some(f64::from_le_bytes(b.get(p..p+8)?.try_into().ok()?)) }
@@ -34,12 +48,28 @@ fn doubles(b: &[u8], start: usize, n: usize) -> Option<&[f64]> {
 struct Config<'a> {
     geometry: RotorGeometry<'a>, polar: PolarTable<'a>, azimuth: usize,
     inertia: f64, damping: f64, dt: f64, initial: f64, tau: f64, limit: f64,
+    /// Kernel options (configuration version 2); 0 for version 1.
+    options: u32,
 }
 
-fn config(b: &[u8]) -> Result<Config<'_>, i32> {
-    if u(b,0) != Some(VERSION) { return Err(-7); }
+/// Full validation of a configuration: every axis, coefficient and confidence
+/// value, the geometry and the shaft. Initialization and reset use it.
+fn config(b: &[u8]) -> Result<Config<'_>, i32> { parse_config(b, true) }
+
+/// The configuration a step reads (TASK-091). The configuration is immutable
+/// after initialization, where `config` validated it, so a step rechecks only
+/// the header, the counts and the slice bounds that memory safety needs and
+/// does not rescan the polar values.
+fn step_config(b: &[u8]) -> Result<Config<'_>, i32> { parse_config(b, false) }
+
+fn parse_config(b: &[u8], full: bool) -> Result<Config<'_>, i32> {
+    let version = u(b,0);
+    if version != Some(VERSION) && version != Some(CONFIG_VERSION_OPTIONS) { return Err(-7); }
     let parse = || {
-        if b.len() < CONFIG_HEADER || u(b,4)? as usize != b.len() || !zero(b,36,40) || !zero(b,112,128) { return None; }
+        if b.len() < CONFIG_HEADER || u(b,4)? as usize != b.len() || !zero(b,112,128) { return None; }
+        // Version 1 keeps byte 36 reserved zero; version 2 carries the kernel options there.
+        let options=if version==Some(VERSION) {if !zero(b,36,40) {return None;} 0} else {u(b,36)?};
+        if options & !(OPTION_REDUCED_PREDICTOR|OPTION_HOVER_SAMPLING) != 0 { return None; }
         let na=u(b,8)? as usize;let nr=u(b,12)? as usize;let nm=u(b,16)? as usize;
         let ns=u(b,20)? as usize;let count=na.checked_mul(nr)?.checked_mul(nm)?;
         if !(1..=361).contains(&na) || !(1..=32).contains(&nr) || !(1..=8).contains(&nm)
@@ -51,7 +81,8 @@ fn config(b: &[u8]) -> Result<Config<'_>, i32> {
         let radius=take(ns)?;let chord=take(ns)?;let twist=take(ns)?;let width=take(ns)?;
         let alpha=take(na)?;let re=take(nr)?;let mach=take(nm)?;
         let cl=take(count)?;let cd=take(count)?;let confidence=take(count)?;
-        let polar=PolarTable::new(alpha,re,mach,cl,cd).ok()?.with_confidence(confidence,f(b,104)?).ok()?;
+        let polar=if full {PolarTable::new(alpha,re,mach,cl,cd).ok()?.with_confidence(confidence,f(b,104)?).ok()?}
+            else {PolarTable::validated(alpha,re,mach,cl,cd,confidence,f(b,104)?)};
         let geometry=RotorGeometry{blade_count:u(b,24)?,spin_sign:u(b,28)? as i32,radius_m:f(b,40)?,
             cutout_m:f(b,48)?,radius,chord,twist,width};
         let azimuth=u(b,32)? as usize;
@@ -61,7 +92,7 @@ fn config(b: &[u8]) -> Result<Config<'_>, i32> {
         if ![initial,tau,limit].iter().all(|v|v.is_finite()) || initial<0.0 || tau<=0.0 || limit<=0.0
             || ![400.0,800.0,1200.0,4800.0].iter().any(|hz|dt==1.0/hz) {return None;}
         Shaft::new(inertia,damping,geometry.spin_sign).ok()?;
-        Some(Config{geometry,polar,azimuth,inertia,damping,dt,initial,tau,limit})
+        Some(Config{geometry,polar,azimuth,inertia,damping,dt,initial,tau,limit,options})
     };
     parse().ok_or(-3)
 }
@@ -85,13 +116,85 @@ pub fn memory_pages(arena: &[u8]) -> Option<u32> {u(arena,8)}
 
 /// One allocation-free fixed step; negative status preserves state and output.
 pub fn step(arena: &mut [u8], input: &[u8], out: &mut [u8], dt: f64) -> i32 {
-    if arena_len(arena)!=Some(arena.len() as u32) {return -1;}
-    if input.len()!=INPUT_BYTES as usize || out.len()!=OUTPUT_BYTES as usize {return -2;}
-    if u(input,0)!=Some(VERSION) {return -7;}
-    if !zero(input,4,8) || !zero(input,112,128) || !zero(arena,12,16) || !zero(arena,32,64) {return -3;}
-    let (state,bytes)=arena.split_at_mut(ARENA_HEADER);
-    let c=match config(bytes) {Ok(c)=>c,Err(e)=>return e};
-    if dt.to_bits()!=c.dt.to_bits() {return -4;}
+    match advance(arena,input,out.len(),dt,None) {
+        Ok(a) => { commit(arena,out,&a); 0 }
+        Err(status) => status,
+    }
+}
+
+/// `step` on the reference kernel (TASK-091): the configuration fully
+/// revalidated and `Rotor::evaluate` on every step, as before TASK-091. For
+/// tests and benchmarks only; no WASM export calls it.
+pub fn step_reference(arena: &mut [u8], input: &[u8], out: &mut [u8], dt: f64) -> i32 {
+    match advance_with(arena,input,out.len(),dt,None,Kernel::Reference) {
+        Ok(a) => { commit(arena,out,&a); 0 }
+        Err(status) => status,
+    }
+}
+
+/// Which rotor kernel a step runs.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Kernel {
+    /// `step_config` and `Rotor::evaluate_fast`, or `Rotor::evaluate_sampled`
+    /// with kernel options (configuration version 2).
+    Production,
+    /// `config` and `Rotor::evaluate`, the scalar reference.
+    Reference,
+}
+
+/// A computed step, not yet written: the output record, the next shaft and
+/// inflow state, and the speed at the midpoint.
+pub(crate) struct Advanced {
+    pub(crate) staged: [u8; 128],
+    pub(crate) omega: f64,
+    pub(crate) induced: f64,
+    pub(crate) half_omega: f64,
+    /// The next hover-sampling state (arena bytes 56..64) when the option is on.
+    pub(crate) hover_state: Option<f64>,
+}
+
+/// Writes a computed step into the arena state and the output record.
+pub(crate) fn commit(arena: &mut [u8], out: &mut [u8], a: &Advanced) {
+    put(arena,16,a.omega);put(arena,24,a.induced);
+    if let Some(state)=a.hover_state {put(arena,56,state);}
+    out.copy_from_slice(&a.staged);
+}
+
+/// Computes one step without writing anything. `esc` is `None` for the v1
+/// torque drive, read from the record, and the ESC drive's torque law for
+/// interface v2 drive mode 1 (TASK-092), whose ESC state occupies arena
+/// header bytes 32..56.
+pub(crate) fn advance(arena: &[u8], input: &[u8], out_len: usize, dt: f64, esc: Option<DriveTorque>) -> Result<Advanced, i32> {
+    advance_with(arena,input,out_len,dt,esc,Kernel::Production)
+}
+
+/// `advance` on a chosen kernel.
+pub(crate) fn advance_with(arena: &[u8], input: &[u8], out_len: usize, dt: f64, esc: Option<DriveTorque>, kernel: Kernel)
+    -> Result<Advanced, i32> {
+    if arena_len(arena)!=Some(arena.len() as u32) {return Err(-1);}
+    if input.len()!=INPUT_BYTES as usize || out_len!=OUTPUT_BYTES as usize {return Err(-2);}
+    if u(input,0)!=Some(VERSION) {return Err(-7);}
+    // Bytes 32..56 hold the TASK-092 ESC state, free in torque mode; 56..64 hold the hover-sampling state.
+    let drive_state_free=esc.is_some() || zero(arena,32,56);
+    if !zero(input,4,8) || !zero(input,112,128) || !zero(arena,12,16) || !drive_state_free {return Err(-3);}
+    let (state,bytes)=arena.split_at(ARENA_HEADER);
+    let c=if kernel==Kernel::Production {step_config(bytes)?} else {config(bytes)?};
+    let hover_option=c.options & OPTION_HOVER_SAMPLING != 0;
+    let hover_previous=f(state,56).ok_or(-3)?;
+    let hover_state_valid=if hover_option {hover_previous==0.0 || hover_previous==1.0} else {zero(state,56,64)};
+    if !hover_state_valid {return Err(-3);}
+    if dt.to_bits()!=c.dt.to_bits() {return Err(-4);}
+    // The options apply to the production kernel only; the reference always samples in full.
+    let production=kernel==Kernel::Production;
+    let samples=c.azimuth;
+    let reduced_predictor=production && c.options & OPTION_REDUCED_PREDICTOR != 0 && samples % 2 == 0;
+    let hover_capable=production && hover_option && samples % 2 == 0 && samples >= 4;
+    // The exact production kernel without options; the T1 kernel of the opt-in configurations with them.
+    let evaluate=|rotor:&Rotor<'_>,i:RotorInput| match (kernel,c.options) {
+        (Kernel::Reference,_)=>rotor.evaluate(i),
+        (Kernel::Production,0)=>rotor.evaluate_fast(i),
+        (Kernel::Production,_)=>rotor.evaluate_sampled(i,1),
+    };
     let compute=|| {
         let omega=f(state,16)?;let induced=f(state,24)?;
         let motor=f(input,104)?;
@@ -99,40 +202,58 @@ pub fn step(arena: &mut [u8], input: &[u8], out: &mut [u8], dt: f64) -> i32 {
             air_velocity_hub_mps:vec(input,32)?,body_rate_hub_rad_s:vec(input,56)?,omega_rad_s:omega,
             induced_mps:induced,collective_rad:f(input,80)?,cyclic_cos_rad:f(input,88)?,cyclic_sin_rad:f(input,96)?};
         let rotor=Rotor::new(c.geometry,c.polar,c.azimuth).ok()?;
-        let first=rotor.evaluate(i).ok()?;
+        // Reduced predictor: samples 0 and N/2, whose first harmonics cancel; only the axial force and torque are used.
+        let first=if reduced_predictor {rotor.evaluate_sampled(i,samples/2)} else {evaluate(&rotor,i)}.ok()?;
+        // Hover sampling: the regime measure at the start of the step, with hysteresis between HOVER_ENTER and HOVER_LEAVE.
+        let tip=omega*c.geometry.radius_m;
+        let regime=if omega>0.0 && tip>0.0 {
+            (i.air_velocity_hub_mps.x.hypot(i.air_velocity_hub_mps.y)/tip)
+                .max(i.body_rate_hub_rad_s.x.hypot(i.body_rate_hub_rad_s.y)/omega)
+                .max(i.cyclic_cos_rad.hypot(i.cyclic_sin_rad))
+        } else {f64::INFINITY};
+        let hover=hover_capable && if hover_previous==1.0 {regime<=HOVER_LEAVE} else {regime<HOVER_ENTER};
         let shaft_model=Shaft::new(c.inertia,c.damping,c.geometry.spin_sign).ok()?;
         let flow_model=AxialInflow::new(i.density_kg_m3,c.geometry.radius_m,c.tau,c.limit).ok()?;
         let transverse=i.air_velocity_hub_mps.x.hypot(i.air_velocity_hub_mps.y);
-        let half_shaft=shaft_model.step(omega,first.moment_nm.z,motor,dt*0.5).ok()?;
+        let shaft_step=|q:f64,h:f64| match esc {
+            None=>shaft_model.step(omega,q,motor,h),
+            Some(t)=>shaft_model.step_driven(omega,q,t.constant_nm,t.damping,t.friction_nm,h),
+        };
+        let half_shaft=shaft_step(first.moment_nm.z,dt*0.5).ok()?;
         let half_flow=flow_model.step(induced,first.force_n.z,i.air_velocity_hub_mps.z,transverse,dt*0.5).ok()?;
         let mut midpoint=i;midpoint.omega_rad_s=half_shaft.omega_rad_s;midpoint.induced_mps=half_flow.velocity_mps;
-        let aero=rotor.evaluate(midpoint).ok()?;
-        let shaft=shaft_model.step(omega,aero.moment_nm.z,motor,dt).ok()?;
+        let aero=if hover {rotor.evaluate_sampled(midpoint,2)} else {evaluate(&rotor,midpoint)}.ok()?;
+        let shaft=shaft_step(aero.moment_nm.z,dt).ok()?;
         let flow=flow_model.step(induced,aero.force_n.z,i.air_velocity_hub_mps.z,transverse,dt).ok()?;
         let spin=c.geometry.spin_sign as f64;
         let h=spin*c.inertia*half_shaft.omega_rad_s;
         let dh=Vec3::new(0.0,0.0,spin*c.inertia*(shaft.omega_rad_s-omega)/dt)
             .add(i.body_rate_hub_rad_s.cross(Vec3::new(0.0,0.0,h)));
         let transmitted=aero.moment_nm.add(dh.scale(-1.0));
-        let power=motor*omega;
+        // The motor's electromagnetic torque at the start speed times that speed.
+        let power=match esc {None=>motor*omega,Some(t)=>(t.constant_nm-t.damping*omega)*omega};
         if !transmitted.norm().is_finite() || !power.is_finite() {return None;}
         let flags=first.flags | aero.flags | if flow.outside_validity || half_flow.outside_validity {8}else{0}
-            | if shaft.reverse_limited || half_shaft.reverse_limited {16}else{0};
-        Some((aero,shaft,flow,transmitted,power,flags,spin*c.inertia*shaft.omega_rad_s))
+            | if shaft.reverse_limited || half_shaft.reverse_limited {16}else{0}
+            | if hover {FLAG_HOVER_SAMPLING}else{0} | if reduced_predictor {FLAG_REDUCED_PREDICTOR}else{0};
+        Some((aero,shaft,flow,transmitted,power,flags,spin*c.inertia*shaft.omega_rad_s,half_shaft.omega_rad_s,hover))
     };
-    let Some((aero,shaft,flow,transmitted,power,flags,h))=compute() else{return -3;};
+    let Some((aero,shaft,flow,transmitted,power,flags,h,half_omega,hover))=compute() else{return Err(-3);};
     let mut staged=[0u8;128];
     write_vec(&mut staged,0,aero.force_n);write_vec(&mut staged,24,aero.moment_nm);write_vec(&mut staged,48,transmitted);
     put(&mut staged,72,shaft.omega_rad_s);put(&mut staged,80,aero.moment_nm.z);put(&mut staged,88,power);
     put(&mut staged,96,flow.velocity_mps);word(&mut staged,112,flags);put(&mut staged,120,h);
-    put(state,16,shaft.omega_rad_s);put(state,24,flow.velocity_mps);out.copy_from_slice(&staged);0
+    let hover_state=(production && hover_option).then_some(if hover {1.0} else {0.0});
+    Ok(Advanced{staged,omega:shaft.omega_rad_s,induced:flow.velocity_mps,half_omega,hover_state})
 }
 
 /// Restores initial speed and zero inflow; invalid handles remain untouched.
 pub fn reset(arena: &mut [u8]) -> i32 {
     if arena_len(arena)!=Some(arena.len() as u32) {return -1;}
     let initial=match config(&arena[ARENA_HEADER..]) {Ok(c)=>c.initial,Err(e)=>return e};
-    put(arena,16,initial);put(arena,24,0.0);0
+    // Bytes 32..56 hold the TASK-092 ESC state, 56..64 the hover-sampling state; a reset returns
+    // them to an unpowered ESC and full sampling.
+    put(arena,16,initial);put(arena,24,0.0);arena[32..64].fill(0);0
 }
 
 /// Invalidates a live handle.

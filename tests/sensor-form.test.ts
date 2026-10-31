@@ -87,9 +87,9 @@ describe('sensor form', () => {
     // Every parse error at once; locked fields are never parsed.
     expect(errors(edit(base, f => {
       f.values['barometer.noiseRmsPa'] = [editQuantity('x')]; f.values['magnetometer.noiseRmsGauss'] = [editQuantity('y')];
-      f.values['gnss.horizontalSigmaM'] = [editQuantity('z')];
+      f.values['magnetometer.positionBodyM'] = [editQuantity('z'), editQuantity(''), editQuantity('')];
     }))).toEqual(['Barometer noise (1σ) (Pa) is not a decimal number', 'Magnetometer noise (1σ per axis) (mG) is not a decimal number']);
-    expect(sensorField('gnss.horizontalSigmaM').applicable).toBe(false);
+    expect(sensorField('magnetometer.positionBodyM').applicable).toBe(false);
   });
 
   test('a preset fills its applicable fields, keeps the others and records the reference', () => {
@@ -102,7 +102,7 @@ describe('sensor form', () => {
       gyroNoiseDensityRadSPerSqrtHz: (2.8 * Math.PI) / 180000 });
     expect(config?.imu.accelBiasMps2).toEqual([(1 * 9.80665) / 1000, (2 * 9.80665) / 1000, (3 * 9.80665) / 1000]);
     const gnss = applyPresetToForm(formFromSensors(null), { catalogVersion: 1, id: 'gnss-neo-m9n' });
-    expect(gnss.applied).toEqual([]);
-    expect(built(gnss.form)?.gnss.preset).toEqual({ catalogVersion: 1, id: 'gnss-neo-m9n' });
+    expect(gnss.applied).toEqual(['gnss.horizontalSigmaM']);
+    expect(built(gnss.form)?.gnss).toMatchObject({ preset: { catalogVersion: 1, id: 'gnss-neo-m9n' }, horizontalSigmaM: 1.6986436005760381 });
   });
 });

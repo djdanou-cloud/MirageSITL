@@ -3,7 +3,7 @@ import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { viteFileUrl } from "../support/vite-url";
 
-// TASK-143 (S08): the Sensors tab. A quad X profile is seeded through the
+// TASK-143 (S08), ownership mapping 2 of TASK-147: the Sensors tab. A quad X profile is seeded through the
 // application's own store modules; the test then sets sensors through the UI
 // alone and compares the stored profile with the configuration written out
 // here. Every field shows its owner, locked fields are disabled with their
@@ -22,15 +22,14 @@ const QUAD = readFileSync(new URL("../fixtures/aircraft/quad-x.json", import.met
 /** Hand-typed owner text of every field in specified mode. */
 const OWNERS: readonly [string, string][] = [
   ["imu.accelNoiseDensityMps2PerSqrtHz", "MirageSITL"], ["imu.gyroNoiseDensityRadSPerSqrtHz", "MirageSITL"], ["imu.accelBiasMps2", "MirageSITL"],
-  ["imu.gyroBiasRadS", "MirageSITL"], ["imu.latencyUs", "Nobody yet"], ["imu.positionBodyM", "MirageSITL"], ["imu.orientationRad", "Nobody yet"],
-  ["gnss.updateRateHz", "ArduPilot SITL; cannot be set on native-json yet"], ["gnss.horizontalSigmaM", "ArduPilot SITL; cannot be set on native-json yet"],
-  ["gnss.verticalSigmaM", "ArduPilot SITL; cannot be set on native-json yet"], ["gnss.velocitySigmaMps", "ArduPilot SITL; cannot be set on native-json yet"],
-  ["gnss.latencyUs", "ArduPilot SITL; cannot be set on native-json yet"],
+  ["imu.gyroBiasRadS", "MirageSITL"], ["imu.latencyUs", "MirageSITL"], ["imu.positionBodyM", "MirageSITL"], ["imu.orientationRad", "MirageSITL"],
+  ["gnss.updateRateHz", "ArduPilot SITL"], ["gnss.horizontalSigmaM", "ArduPilot SITL"], ["gnss.verticalSigmaM", "ArduPilot SITL"],
+  ["gnss.velocitySigmaMps", "ArduPilot SITL"], ["gnss.latencyUs", "ArduPilot SITL"],
   ["barometer.noiseRmsPa", "ArduPilot SITL"], ["barometer.biasPa", "ArduPilot SITL"], ["barometer.latencyUs", "ArduPilot SITL"],
-  ["magnetometer.noiseRmsGauss", "ArduPilot SITL"], ["magnetometer.biasGauss", "ArduPilot SITL"], ["magnetometer.positionBodyM", "Nobody yet"],
-  ["magnetometer.orientationRad", "Nobody yet"],
-  ["battery.voltageGainError", "Nobody yet"], ["battery.voltageOffsetV", "Nobody yet"], ["battery.voltageNoiseRmsV", "Nobody yet"],
-  ["battery.currentGainError", "Nobody yet"], ["battery.currentOffsetA", "Nobody yet"], ["battery.currentNoiseRmsA", "Nobody yet"],
+  ["magnetometer.noiseRmsGauss", "ArduPilot SITL"], ["magnetometer.biasGauss", "ArduPilot SITL"], ["magnetometer.positionBodyM", "Nobody on native-json"],
+  ["magnetometer.orientationRad", "ArduPilot SITL; cannot be set on native-json"],
+  ["battery.voltageGainError", "MirageSITL"], ["battery.voltageOffsetV", "MirageSITL"], ["battery.voltageNoiseRmsV", "MirageSITL"],
+  ["battery.currentGainError", "MirageSITL"], ["battery.currentOffsetA", "MirageSITL"], ["battery.currentNoiseRmsA", "MirageSITL"],
   ["imu-accel-noise-floor", "ArduPilot SITL (fixed)"], ["imu-gyro-noise-floor", "ArduPilot SITL (fixed)"], ["imu-sample-rates", "ArduPilot SITL (fixed)"],
 ];
 /** The configuration the UI steps below must store. */
@@ -38,11 +37,12 @@ const EXPECTED = {
   schemaVersion: 1, mode: "specified",
   imu: { preset: { catalogVersion: 1, id: "imu-icm-42688-p" }, accelNoiseDensityMps2PerSqrtHz: (70 * 9.80665) / 1e6,
     gyroNoiseDensityRadSPerSqrtHz: (2.8 * Math.PI) / 180000, accelBiasMps2: null, gyroBiasRadS: [(0.5 * Math.PI) / 180, 0, 0],
-    latencyUs: null, positionBodyM: [0.03, 0, -0.02], orientationRad: null },
-  gnss: { preset: null, updateRateHz: null, horizontalSigmaM: null, verticalSigmaM: null, velocitySigmaMps: null, latencyUs: null },
+    latencyUs: 2500, positionBodyM: [0.03, 0, -0.02], orientationRad: null },
+  gnss: { preset: { catalogVersion: 1, id: "gnss-neo-m9n" }, updateRateHz: 10, horizontalSigmaM: 1.6986436005760381, verticalSigmaM: null,
+    velocitySigmaMps: null, latencyUs: null },
   barometer: { preset: { catalogVersion: 1, id: "baro-ms5611" }, noiseRmsPa: 2.7, biasPa: -30, latencyUs: 20000 },
   magnetometer: { preset: null, noiseRmsGauss: 0.003, biasGauss: null, positionBodyM: null, orientationRad: null },
-  battery: { preset: null, voltageGainError: null, voltageOffsetV: null, voltageNoiseRmsV: null, currentGainError: null, currentOffsetA: null, currentNoiseRmsA: null },
+  battery: { preset: null, voltageGainError: null, voltageOffsetV: -0.15, voltageNoiseRmsV: null, currentGainError: null, currentOffsetA: null, currentNoiseRmsA: null },
 };
 
 async function seed(page: Page): Promise<void> {
@@ -87,15 +87,17 @@ test("sensors are set through the UI, every field shows its owner, and the confi
   const editor = tab.getByTestId("sensor-editor");
   for (const [path, owner] of OWNERS) await expect(tab.getByTestId(`owner-${path}`), path).toHaveText(owner);
   // A locked field is disabled and described by its reason.
-  const gnss = label(tab, "GNSS horizontal position error (1σ per axis) (m)");
-  await expect(gnss).toBeDisabled();
-  await expect(gnss).toHaveAccessibleDescription(/AP_SIM_GPS_ENABLED/);
-  await expect(label(tab, "Voltage offset (V)")).toBeDisabled();
+  const magnetometerX = label(tab, "Magnetometer position (m) X");
+  await expect(magnetometerX).toBeDisabled();
+  await expect(magnetometerX).toHaveAccessibleDescription(/uniform Earth field/);
+  await expect(label(tab, "Magnetometer orientation (°) roll")).toHaveAccessibleDescription(/SIM_MAGn_ORIENT/);
   await expect(tab.getByRole("region", { name: "What ArduPilot still adds in Ideal mode" })).toBeVisible();
   await expect(tab.getByText(/adds uniform noise of up to ±0\.01 m\/s² to each accelerometer axis/)).toBeVisible();
   // The box lists what Ideal keeps, in every mode: the hard-iron pairing, never the drift Ideal switches off.
   const residuals = tab.getByRole("region", { name: "What ArduPilot still adds in Ideal mode" });
-  await expect(residuals).toContainText("stock pairing of SIM_MAGn_OFS with COMPASS_OFSn");
+  // TASK-147 confirmed the hard-iron pairing nets to zero, so Ideal no longer lists it.
+  await expect(residuals).toContainText("Ideal removes its position wander, velocity error and 100 ms lag");
+  await expect(residuals).not.toContainText("SIM_MAGn_OFS");
   await expect(residuals).not.toContainText("SIM_DRIFT_SPEED");
 
   // Presets and typed values.
@@ -108,9 +110,11 @@ test("sensors are set through the UI, every field shows its owner, and the confi
   await expect(label(tab, "Barometer noise (1σ) (Pa)")).toHaveValue("2.7");
   await label(tab, "GNSS preset").selectOption({ label: "u-blox NEO-M9N" });
   await tab.getByRole("button", { name: "Apply GNSS preset", exact: true }).click();
-  await expect(status).toContainText("Applied NEO-M9N: no value. Not applied: GNSS horizontal position error (1σ per axis) (m): ArduPilot's SITL receiver");
-  await label(tab, "GNSS preset").selectOption({ label: "No preset" });
-  await tab.getByRole("button", { name: "Apply GNSS preset", exact: true }).click();
+  await expect(status).toHaveText("Applied NEO-M9N: GNSS horizontal position error (1σ per axis) (m).");
+  await expect(label(tab, "GNSS horizontal position error (1σ per axis) (m)")).toHaveValue("1.69864360058");
+  await label(tab, "GNSS update rate (Hz)").fill("10");
+  await label(tab, "IMU latency (ms)").fill("2.5");
+  await label(tab, "Voltage offset (V)").fill("-0.15");
   for (const [axis, value] of [["X", "0.5"], ["Y", "0"], ["Z", "0"]]) await label(tab, `Gyroscope bias (°/s) ${axis}`).fill(value!);
   for (const [axis, value] of [["X", "0.03"], ["Y", "0"], ["Z", "-0.02"]]) await label(tab, `IMU position (m) ${axis}`).fill(value!);
   await label(tab, "Barometer bias (Pa)").fill("-30");
@@ -131,13 +135,15 @@ test("sensors are set through the UI, every field shows its owner, and the confi
   let stored = await versions(page);
   expect(stored.map(v => v.payload.schemaVersion)).toEqual([1, 3]);
   expect(stored[1]?.payload.sensorConfiguration).toEqual(EXPECTED);
-  expect(JSON.parse(await editor.getAttribute("data-resolved") ?? "{}")).toMatchObject({ state: "specified", mappingVersion: 1 });
+  expect(JSON.parse(await editor.getAttribute("data-resolved") ?? "{}")).toMatchObject({ state: "specified", mappingVersion: 2 });
 
   // Ideal keeps the values but uses none of them.
   await tab.getByRole("radio", { name: "Ideal sensors" }).check();
   await expect(tab.getByTestId("owner-imu.gyroBiasRadS")).toHaveText("MirageSITL, off in Ideal");
   await expect(tab.getByTestId("owner-barometer.noiseRmsPa")).toHaveText("ArduPilot SITL, switched off in Ideal");
-  await expect(tab.getByTestId("owner-magnetometer.biasGauss")).toHaveText("ArduPilot SITL, stock pairing kept in Ideal");
+  await expect(tab.getByTestId("owner-magnetometer.biasGauss")).toHaveText("ArduPilot SITL, paired to zero in Ideal");
+  await expect(tab.getByTestId("owner-gnss.updateRateHz")).toHaveText("ArduPilot SITL, kept in Ideal");
+  await expect(tab.getByTestId("owner-battery.voltageOffsetV")).toHaveText("MirageSITL, off in Ideal");
   await expect(label(tab, "Barometer bias (Pa)")).toBeDisabled();
   await save.click();
   await expect(status).toHaveText("Saved version 3 of Quad X.");

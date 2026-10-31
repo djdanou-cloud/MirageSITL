@@ -38,7 +38,17 @@ motor's position, spin and thrust axis. Component cards are created, edited and
 copied in the Components tab too (TASK-192), each value with its source. The
 Sensors tab (TASK-143) sets Ideal sensors or specified errors per profile, shows
 who applies each error, MirageSITL or ArduPilot SITL, and offers per-sensor
-presets with cited datasheet values.
+presets with cited datasheet values. Native ArduPilot SITL applies the
+configuration (TASK-147): generated SITL parameters, read back before arming,
+set ArduPilot's errors, and MirageSITL distorts the IMU and battery values it
+sends. The production drive (TASK-092) gives the BET flight dynamics a
+voltage-driven motor, an ESC and a shared battery bus, so the throttle-to-thrust
+curve and battery sag follow from the physics; native ArduCopter flies on it and
+reads the bus voltage and current. An aircraft profile and its component cards
+now build those dynamics for up to 16 rotors (TASK-144): every value a card
+lacks is either a listed assumption or a reason the profile cannot fly yet,
+each propeller's airfoil polar is chosen in the Aircraft tab, and the physics
+Worker loads the model through `model.load`.
 
 The running application uses binary ABI **v2** (TASK-085): session epochs, EKF/EW
 status fields, sensor/actuator queues, and Control Protocol v2. The demo physics

@@ -228,18 +228,43 @@ implementation.
   without files, each value known with its source or stored as not known, and
   every save is a new card version. TASK-143 is DONE: the Sensors tab stores
   sensor configuration schema 1 in profile schema 3, shows every field's owner
-  on the external-SITL path, and offers cited per-sensor presets (SA-02); fields
-  no owner can apply yet wait for TASK-147, which also applies the rest at run
-  time. TASK-150 is DONE: the MAVLink codec reads its 43 messages from the
-  generated dialect lock, with G1 for the 16 telemetry IDs. TASK-142 is DONE:
+  on the external-SITL path, and offers cited per-sensor presets (SA-02).
+  TASK-147 is DONE: ownership mapping 2 and matrix schema 3 apply the
+  configuration on native ArduPilot SITL, with generated `SIM_*` parameters
+  read back before arming and MirageSITL's IMU and battery errors on the JSON
+  state line (`MIRAGE_SITL_SENSORS`, `node scripts/run-sitl-sensors.mjs`,
+  `node scripts/check-sitl-sensors.mjs`); the magnetometer's position and
+  orientation stay locked on `native-json`. TASK-144 is DONE: a profile version
+  and its component cards build `BetFlightDynamics` with up to 16 rotors on the
+  TASK-092 drive (`resolveComponents` lists every assumed value and blocks
+  flight on missing ones, profile schema 4 picks each propeller's polar from the
+  runtime catalog, `buildProfileDynamics` and `profileModelPort` load it through
+  `model.load`, and the physics Worker accepts the BET module and manifests by
+  hash); all five S19 configurations hold a trimmed hover, and in Node the
+  16-rotor step averages 1.15 ms, which keeps real time at 400 Hz and, without
+  tail margin, at 800 Hz, but not at 1200 Hz until TASK-091
+  (`node scripts/bench-profile-dynamics.mjs`). TASK-150 is DONE: the MAVLink
+  codec reads a message table that pymavlink 2.4.50 generates from the pinned
+  `ardupilotmega.xml` and its includes, and supports 38 messages, adding the
+  parameter, command, status, telemetry, mission and position-target messages
+  of Phase 1, with a cold `packInto` builder, field readers and preallocated
+  decoders for the high-rate telemetry subset, all byte- and value-exact
+  against pymavlink goldens. TASK-178 is DONE: `packages/dataflash` reads
+  DataFlash logs, in a Worker if needed, with the field values and times of
+  pymavlink's `mavlogdump`, reports damaged byte ranges, and writes MirageSITL
+  truth, motor, event and parameter-change records under `MS` names that
+  pymavlink reads back unchanged. TASK-146 is DONE: with the TASK-092 drive,
+  `BetFlightDynamics` checks every step against card ratings and the model's
+  clamps, keeps a rating `warning` apart from a modeled `limited` clamp,
+  publishes per-motor and battery values in the separate power telemetry v1
+  channel and shows them in the Run tab's power panel; the AAR v1 record has
+  no room for them, so TASK-162 stores them. TASK-142 is DONE:
   the Aircraft tab maps each motor to an output and generates the frame
   parameters from the TASK-128 catalog (the S19 octa-x fixture spins the
-  mirror of stock OCTA X, so it uses the scripting matrix). TASK-178 is DONE:
-  `packages/dataflash` reads DataFlash as pymavlink DFReader does and writes
-  MirageSITL records. TASK-151 (the local launcher, `apps/launcher`) and
-  TASK-152 (`scripts/install-macos.mjs` and the Project tab's first-run check)
-  are DONE: both pass with the network switched off.
-  Decisions D-04
+  mirror of stock OCTA X, so it uses the scripting matrix). TASK-151 (the
+  local launcher, `apps/launcher`) and TASK-152 (`scripts/install-macos.mjs`
+  and the Project tab's first-run check) are DONE: both pass with the network
+  switched off. Decisions D-04
   and D-06 to D-12 are decided. TASK-127 and TASK-128 are DONE: stock
   ArduCopter `8ab6afd` builds and flies natively on Apple Silicon
   ([macos-sitl.md](docs/decisions/macos-sitl.md)), and its stock frames and
@@ -290,8 +315,19 @@ implementation.
   * TASK-090: fidelity metrics and `scripts/check-fidelity.mjs`, which never passes
     synthetic data; real flight and bench data remain BLOCKED_EXTERNAL.
 
-  BET compute headroom (TASK-091) and the physics tasks TASK-092–TASK-123 are not
-  implemented. TASK-166 (not implemented) gives every
+  TASK-092 is DONE: `BetFlightDynamics` takes an optional production drive
+  (voltage-driven motor, ESC hold and lag, shared battery bus over bound-rotor v2
+  drive mode 1 and `bet_bus_step`), the torque drive stays bit for bit as before,
+  the ArduPilot profile v2 sets `BATT_MONITOR`, `MOT_BAT_VOLT_*` and a fitted
+  `MOT_THST_EXPO`, and native ArduCopter hovers on it with measured bus current
+  (`MIRAGE_PARITY_DRIVE=esc`); the browser WASM hover is BLOCKED_EXTERNAL without
+  an Emscripten toolchain and the TASK-045 artifact. TASK-091 (BET compute
+  headroom) is IN_PROGRESS: the default rotor step stays bit-identical and is
+  about 1.3x faster, and the opt-in kernel modes of bound configuration
+  version 2 (reduced predictor, hover sampling; off by default) reach about
+  3.5x and keep the octocopter at 1200 Hz inside G3 in Node, short of the 5x
+  target (`node scripts/bench-bet.mjs`). The physics tasks TASK-093–TASK-123
+  are not implemented. TASK-166 (not implemented) gives every
   environment, sensor-error, EW and fault effect an on/off switch and an intensity
   control. Effects that MirageSITL injects are off by default, and off must be
   bitwise identical to absent; ArduPilot's own SITL errors keep the TASK-089

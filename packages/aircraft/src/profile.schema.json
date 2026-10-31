@@ -1,8 +1,8 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://mirage-sitl.invalid/schemas/aircraft-profile.schema.json",
-  "title": "MirageSITL aircraft profile schema 1, 2 and 3",
-  "description": "Multirotor aircraft profile (TASK-138). SI units; positions are body FRD metres from the body reference point. Code checks what the schema cannot express: ascending unique arm and motor IDs, known arms, one single motor or one upper and one lower motor per arm, a pair separation exactly for pairs, unique outputs, distinct arm mounts, and realizable inertia tensors; and, from schema 2 (TASK-140), a calculation exactly in schema 2, no measurement set in preliminary mode, and measurement sets in ascending order without repeats; and, from schema 3 (TASK-143), a sensor configuration exactly in schema 3, which also needs a calculation and never equals the ArduPilot defaults, which are stored as null.",
+  "title": "MirageSITL aircraft profile schema 1, 2, 3 and 4",
+  "description": "Multirotor aircraft profile (TASK-138). SI units; positions are body FRD metres from the body reference point. Code checks what the schema cannot express: ascending unique arm and motor IDs, known arms, one single motor or one upper and one lower motor per arm, a pair separation exactly for pairs, unique outputs, distinct arm mounts, and realizable inertia tensors; and, from schema 2 (TASK-140), a calculation exactly in schema 2, no measurement set in preliminary mode, and measurement sets in ascending order without repeats; and, from schema 3 (TASK-143), a sensor configuration exactly in schema 3, which also needs a calculation and never equals the ArduPilot defaults, which are stored as null; and, from schema 4 (TASK-144), propeller polars exactly in schema 4: one or more in ascending card order, each for a propeller card that a motor uses and naming a polar-catalog entry; schema 4 holds a sensor configuration or null.",
   "definitions": {
     "cardReference": {
       "description": "SHA-256 address of a component-card version in the project store (TASK-136, TASK-139), or null while none is selected.",
@@ -38,7 +38,7 @@
     "sensorConfiguration"
   ],
   "properties": {
-    "schemaVersion": { "enum": [1, 2, 3] },
+    "schemaVersion": { "enum": [1, 2, 3, 4] },
     "units": { "const": "SI" },
     "bodyFrame": { "const": "FRD" },
     "arms": {
@@ -160,11 +160,26 @@
       "exclusiveMinimum": 0
     },
     "sensorConfiguration": {
-      "description": "null in schemas 1 and 2, meaning ArduPilot defaults; sensor configuration schema 1 in schema 3 (TASK-143).",
+      "description": "null in schemas 1 and 2, meaning ArduPilot defaults; sensor configuration schema 1 in schema 3 (TASK-143); either in schema 4.",
       "anyOf": [{ "type": "null" }, { "$ref": "https://mirage-sitl.invalid/schemas/sensor-configuration.schema.json" }]
     },
+    "propellerPolars": {
+      "description": "Schema 4 only (TASK-144): the polar-catalog entry the BET rotors of each propeller card use.",
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 16,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["card", "polar"],
+        "properties": {
+          "card": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+          "polar": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,63}$" }
+        }
+      }
+    },
     "calculation": {
-      "description": "Schemas 2 and 3 (TASK-140): the S04 calculation mode of this profile version and the measurement-set versions it binds.",
+      "description": "Schemas 2, 3 and 4 (TASK-140): the S04 calculation mode of this profile version and the measurement-set versions it binds.",
       "type": "object",
       "additionalProperties": false,
       "required": ["mode", "measurementSets"],

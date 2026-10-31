@@ -1,4 +1,6 @@
 //! Quasi-static shared battery bus. Each motor's requested bus power is counted once.
+//! A negative total demand (regeneration, TASK-092) charges the pack within the
+//! same current limit; the charge never exceeds 1.
 /// Invalid parameters/load/state or overflow.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct BatteryError;
@@ -28,6 +30,8 @@ pub struct BatteryOutput {
     pub source_power_w: f64,
     /// Demand exceeded voltage/current/charge domain.
     pub power_limited: bool,
+    /// Regeneration met a full pack: the charge stayed at 1 and the excess was not stored.
+    pub charge_limited: bool,
 }
 impl Battery {
     /// Voc endpoints V, nonnegative resistance ohm, capacity coulomb, current limit A.
@@ -59,6 +63,7 @@ impl Battery {
         })
     }
     /// Stable low-current quadratic root. Motors <=32, house load counted separately.
+    /// A motor's power is negative while it regenerates.
     pub fn step(
         &self,
         soc: f64,
@@ -77,7 +82,7 @@ impl Battery {
         }
         let mut demand = house_power_w;
         for power in motor_power_w {
-            if !power.is_finite() || *power < 0.0 {
+            if !power.is_finite() {
                 return Err(BatteryError);
             }
             demand += power;
@@ -94,9 +99,13 @@ impl Battery {
                 internal_loss_w: 0.0,
                 source_power_w: 0.0,
                 power_limited: demand > 0.0,
+                charge_limited: false,
             });
         }
         let voc = self.empty + (self.full - self.empty) * soc;
+        if demand < 0.0 {
+            return self.charge(soc, voc, demand, dt);
+        }
         let max_i =
             self.current_limit
                 .min(soc * self.capacity_c / dt)
@@ -136,6 +145,34 @@ impl Battery {
             internal_loss_w: loss,
             source_power_w: source,
             power_limited: demand > max_power,
+            charge_limited: false,
+        })
+    }
+    /// Charging by regeneration: the same quadratic root with a negative power,
+    /// the current limit in both directions, and the charge capped at 1.
+    fn charge(&self, soc: f64, voc: f64, demand: f64, dt: f64) -> Result<BatteryOutput, BatteryError> {
+        let max_i = self.current_limit;
+        let min_power = -max_i * (voc + max_i * self.resistance);
+        let requested = demand.max(min_power);
+        let current = 2.0 * requested / (voc + (voc * voc - 4.0 * self.resistance * requested).sqrt());
+        let voltage = voc - current * self.resistance;
+        let delivered = voltage * current;
+        let loss = current * current * self.resistance;
+        let source = voc * current;
+        let raw = soc - current * dt / self.capacity_c;
+        let next = raw.min(1.0);
+        if ![min_power, current, voltage, delivered, loss, source, next].iter().all(|v| v.is_finite()) {
+            return Err(BatteryError);
+        }
+        Ok(BatteryOutput {
+            soc: next,
+            voltage_v: voltage,
+            current_a: current,
+            delivered_power_w: delivered,
+            internal_loss_w: loss,
+            source_power_w: source,
+            power_limited: demand < min_power,
+            charge_limited: raw > 1.0,
         })
     }
 }

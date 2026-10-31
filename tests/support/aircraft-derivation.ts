@@ -74,19 +74,31 @@ export function engineSensitiveVariant(profile: AircraftProfile): unknown {
 
 /**
  * SHA-256 of each fixture's derived manifest with `syntheticComponents` and
- * FIXTURE_MODEL_ID, recorded from derivation 1 in Node 24.22.2. They lock the
+ * FIXTURE_MODEL_ID, recorded from derivation 2 in Node 24.22.2. They lock the
  * bytes; the oracle checks in tests/aircraft-profile.test.ts establish
  * correctness. The browser test requires Chromium to produce the same bytes.
  */
 export const RECORDED_MANIFEST_SHA256: { readonly [name in FixtureName]: string } = {
+  'quad-x': '5ebbcf5c52019d6c4e5fc0507261d8d1d97a84bad7a5c8d2311a8f66fab27a94',
+  'hexa-x': '2cc9ba2e04fe4b8375297bebdfcb77f1084e5ba8524a4ba2c6c6ced87b42536f',
+  'octa-x': '6ed13bf2cd3e241eb72f73c537a0dff9ff508ab5e43d8d893669758bf8e2e10c',
+  'coaxial-x8': '36b6b2b41e8caf8a995c04b9f3fad17059e8227e95553793f8f7d45cc0c8de9f',
+  'octa-coaxial-16': '07cefdebea5c6d5694b3a1583fd32e85c0e77e9fb23447880a02c30358aa55c7',
+};
+/**
+ * The same, recorded from derivation 1 (TASK-138). Derivation 2 (TASK-147)
+ * adds IMU mounts, which no fixture states, so restoring the version in the
+ * dataset reproduces these bytes exactly.
+ */
+export const RECORDED_V1_MANIFEST_SHA256: { readonly [name in FixtureName]: string } = {
   'quad-x': 'a9e2cc46f6bc0b7b34740a70375e4dc5e43f6d7ce6a03a87111455e3c36a473c',
   'hexa-x': '81eb2d27eecd75378f6b000f74bc3d5d6c8317417439cc846f6607e61c857669',
   'octa-x': '12865479561e2e62a8fc3f8b355f82684f8164569110240262af9f1026fe97fe',
   'coaxial-x8': '603ec04b0a9ea12075f6e2da7aa96f7cde558407cc83305d1106d00310f5899a',
   'octa-coaxial-16': 'c07b18cdf07e6139d07efd76e8df4647ffd0eb5dcfeb15f153d02002df0b6306',
 };
-/** The same, for `engineSensitiveVariant` of the 16-motor fixture. */
-export const RECORDED_ENGINE_SENSITIVE_SHA256 = '234f0d6e891346a377fc266fcd347f6f34355d15c5c543a70890806b8c889cae';
+export const RECORDED_ENGINE_SENSITIVE_SHA256 = '7a238276cb89edaa0fca11e512dd0ada640c3aae2810645bb5b891dab0cda948';
+export const RECORDED_V1_ENGINE_SENSITIVE_SHA256 = '234f0d6e891346a377fc266fcd347f6f34355d15c5c543a70890806b8c889cae';
 
 /**
  * TASK-139: strip counts of the propeller geometry byte check for

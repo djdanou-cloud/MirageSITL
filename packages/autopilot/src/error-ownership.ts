@@ -8,8 +8,9 @@
 /** ArduPilot commit pinned in native/ardupilot/source.lock.json. */
 export const PINNED_ARDUPILOT_COMMIT = '8ab6afde107a91df1b5f60ade8f333cb8a61b190';
 export const OWNERSHIP_PROFILE_VERSION = 1;
-/** JSON state keys covered by the TASK-041 oracle (tests/fixtures/sitl/json-protocol.json). */
-export const JSON_ORACLE_KEYS = ['timestamp', 'imu.gyro', 'imu.accel_body', 'position', 'velocity', 'quaternion', 'velocity_wind'] as const;
+/** JSON state keys covered by the TASK-041 oracle and its TASK-147 battery line (tests/fixtures/sitl/json-protocol.json). */
+export const JSON_ORACLE_KEYS = ['timestamp', 'imu.gyro', 'imu.accel_body', 'position', 'velocity', 'quaternion', 'velocity_wind',
+  'battery.voltage', 'battery.current'] as const;
 
 export type AutopilotPath = 'native-json' | 'browser-hal';
 export type ErrorOwner = 'ardupilot' | 'mirage' | 'none';
@@ -40,17 +41,28 @@ export const DELIVERY_PATHS = {
   'mavlink:gps-input': { path: 'native-json', evidence: 'TASK-059 GPS_INPUT injection (scripts/sitl/driver.mjs, telemetry.py)', jsonKey: null,
     enablers: [['GPS1_TYPE', 14], ['GPS2_TYPE', 0], ['GPS1_RATE_MS', 100]] },
   'mavlink:sim-mag-offsets': { path: 'native-json', evidence: 'TASK-059 magnetic case: PARAM_SET of SIM_MAGn_OFS_* (telemetry.py)', jsonKey: null, enablers: [] },
+  'json:battery.voltage': { path: 'native-json', evidence: 'TASK-147 JSON state line battery section', jsonKey: 'battery.voltage', enablers: [] },
+  'json:battery.current': { path: 'native-json', evidence: 'TASK-147 JSON state line battery section', jsonKey: 'battery.current', enablers: [] },
 } as const satisfies Record<string, DeliveryDefinition>;
 export type DeliveryPath = keyof typeof DELIVERY_PATHS;
 
-export const ERROR_SOURCE_IDS = ['imu.accel.noise-floor', 'imu.gyro.noise-floor', 'imu.accel.noise', 'imu.gyro.noise',
+/** The 25 sources of matrix schemas 1 and 2. */
+export const ERROR_SOURCE_IDS_V1 = ['imu.accel.noise-floor', 'imu.gyro.noise-floor', 'imu.accel.noise', 'imu.gyro.noise',
   'imu.accel.bias', 'imu.gyro.bias', 'imu.accel.scale', 'imu.gyro.scale', 'imu.gyro.drift', 'imu.vibration',
   'imu.lever-arm', 'imu.board-trim', 'baro.noise', 'baro.drift', 'baro.glitch', 'baro.delay', 'baro.wind',
   'baro.ground-effect', 'mag.noise', 'mag.hard-iron', 'mag.soft-iron', 'mag.delay', 'mag.anomaly', 'mag.motor',
   'gnss.receiver'] as const;
+/** Every source; schema 3 (TASK-147) adds the last eight, which a schema 1 or 2 matrix reads as their stock owner. */
+export const ERROR_SOURCE_IDS = [...ERROR_SOURCE_IDS_V1, 'imu.latency', 'imu.misalignment', 'mag.misalignment',
+  'gnss.position-noise', 'gnss.velocity-noise', 'gnss.delay', 'battery.voltage', 'battery.current'] as const;
 export type ErrorSourceId = typeof ERROR_SOURCE_IDS[number];
+export const OWNERSHIP_MATRIX_SCHEMA_VERSION = 3;
+/** The sources each matrix schema lists. */
+export function matrixSources(schemaVersion: 1 | 2 | 3): readonly ErrorSourceId[] {
+  return schemaVersion === 3 ? ERROR_SOURCE_IDS : ERROR_SOURCE_IDS_V1;
+}
 export interface ErrorSourceDefinition {
-  readonly sensor: 'imu' | 'baro' | 'mag' | 'gnss';
+  readonly sensor: 'imu' | 'baro' | 'mag' | 'gnss' | 'battery';
   /** Paths on which ArduPilot's SITL backends apply this error. */
   readonly ardupilotPaths: readonly AutopilotPath[];
   /** Catalog parameters and the values that disable ArduPilot's version of the error. */
@@ -75,6 +87,8 @@ const imus = (suffix: string, value: number): Setting[] => [1, 2, 3, 4, 5].map(i
 const gyros = (suffix: string, value: number): Setting[] => [1, 2, 3, 4, 5].map(i => [`SIM_GYR${i}_${suffix}`, value]);
 const baros = (suffix: string): Setting[] => ['BARO', 'BAR2', 'BAR3'].map(b => [`SIM_${b}_${suffix}`, 0]);
 const mags = (suffix: string, value: number): Setting[] => [1, 2, 3].map(i => [`SIM_MAG${i}_${suffix}`, value]);
+const gpss = (suffix: string, value: number): Setting[] => [1, 2].map(i => [`SIM_GPS${i}_${suffix}`, value]);
+const BATTERY_CHAIN = ['analog-average-is-latest'];
 
 export const ERROR_SOURCES: { readonly [id in ErrorSourceId]: ErrorSourceDefinition } = {
   // Upstream constants; the imu-noise-floor patch turns them into SIM_ACC_FLOOR and SIM_GYR_FLOOR with the same defaults.
@@ -122,11 +136,41 @@ export const ERROR_SOURCES: { readonly [id in ErrorSourceId]: ErrorSourceDefinit
     facts: ['aircraft-mag-motor', 'aircraft-body-mag-field'], deliveries: MAG },
   // GPS_INPUT replaces the whole SITL receiver, so MirageSITL owns all of its errors at once.
   'gnss.receiver': { sensor: 'gnss', ardupilotPaths: BOTH, neutralize: [], fixed: false, facts: [], deliveries: ['mavlink:gps-input'] },
+  // Schema 3 (TASK-147). ArduPilot has no IMU delay, so only MirageSITL or nobody applies one.
+  'imu.latency': { sensor: 'imu', ardupilotPaths: [], neutralize: [], fixed: false, facts: [], deliveries: [...ACCEL, ...GYRO] },
+  // SIM_IMU_ORIENT takes ArduPilot's discrete rotations; 0 is none.
+  'imu.misalignment': { sensor: 'imu', ardupilotPaths: BOTH, neutralize: [['SIM_IMU_ORIENT', 0]], fixed: false,
+    facts: ['ins-imu-orient-accel', 'ins-imu-orient-gyro'], deliveries: [...ACCEL, ...GYRO] },
+  'mag.misalignment': { sensor: 'mag', ardupilotPaths: BOTH, neutralize: mags('ORIENT', 0), fixed: false, facts: ['compass-orient'], deliveries: MAG },
+  // The SITL receiver's position error is a deterministic wander: a circle and a vertical sine with a 12.6 s period.
+  'gnss.position-noise': { sensor: 'gnss', ardupilotPaths: BOTH, neutralize: [...gpss('HNSE', 0), ...gpss('NOISE', 0)], fixed: false,
+    facts: ['sim-gps-enabled', 'gps-wander-period', 'gps-horizontal-wander', 'gps-vertical-wander'], deliveries: [] },
+  'gnss.velocity-noise': { sensor: 'gnss', ardupilotPaths: BOTH, neutralize: gpss('VERR', 0), fixed: false,
+    facts: ['sim-gps-enabled', 'gps-velocity-error', 'rand-float-uniform'], deliveries: [] },
+  'gnss.delay': { sensor: 'gnss', ardupilotPaths: BOTH, neutralize: gpss('LAG_MS', 0), fixed: false, facts: ['sim-gps-enabled', 'gps-lag'], deliveries: [] },
+  // The SITL analog chain divides and multiplies by the same scale, so ArduPilot adds no measurement error.
+  'battery.voltage': { sensor: 'battery', ardupilotPaths: [], neutralize: [], fixed: false,
+    facts: ['json-battery-voltage', 'analog-voltage-pin', 'battery-voltage-scale', 'battery-analog-voltage', ...BATTERY_CHAIN],
+    deliveries: ['json:battery.voltage'] },
+  'battery.current': { sensor: 'battery', ardupilotPaths: [], neutralize: [], fixed: false,
+    facts: ['json-battery-current', 'analog-current-pin', 'battery-current-scale', 'battery-analog-current', ...BATTERY_CHAIN],
+    deliveries: ['json:battery.current'] },
 };
+/** The GNSS sources of ArduPilot's SITL receiver, which does not run while GPS_INPUT replaces it. */
+const RECEIVER_SOURCES: readonly ErrorSourceId[] = ['gnss.position-noise', 'gnss.velocity-noise', 'gnss.delay'];
+
+/** The owner a schema 1 or 2 matrix implies for a source it does not list: ArduPilot where the firmware applies it, nobody otherwise. */
+export function stockOwner(source: ErrorSourceId, path: AutopilotPath): ErrorOwner {
+  return ERROR_SOURCES[source].ardupilotPaths.includes(path) ? 'ardupilot' : 'none';
+}
+/** A source's owner in a validated matrix of any schema. */
+export function ownerOf(matrix: OwnershipMatrix, source: ErrorSourceId): ErrorOwner {
+  return matrix.entries.find(entry => entry.source === source)?.owner ?? stockOwner(source, matrix.path);
+}
 
 export interface OwnershipEntry { readonly source: ErrorSourceId; readonly owner: ErrorOwner; readonly delivery: readonly DeliveryPath[] }
 export interface OwnershipMatrix {
-  readonly schemaVersion: 1 | 2; readonly id: string; readonly path: AutopilotPath;
+  readonly schemaVersion: 1 | 2 | 3; readonly id: string; readonly path: AutopilotPath;
   /** Firmware patches the target build applies; a schema 1 matrix targets upstream firmware. */
   readonly firmwarePatches: readonly FirmwarePatchId[];
   readonly entries: readonly OwnershipEntry[];
@@ -267,8 +311,8 @@ export function parseArduPilotCatalog(input: unknown): ArduPilotCatalog {
  */
 export function validateOwnershipMatrix(input: unknown, catalog: ArduPilotCatalog): OwnershipMatrix {
   const version = record(input) ? input.schemaVersion : undefined;
-  if (version !== 1 && version !== 2) throw new Error('Unsupported ownership matrix schema');
-  // Schema 2 adds the firmware patches of the target build; schema 1 targets upstream firmware.
+  if (version !== 1 && version !== 2 && version !== 3) throw new Error('Unsupported ownership matrix schema');
+  // Schema 2 adds the firmware patches of the target build; schema 1 targets upstream firmware; schema 3 adds sources.
   const value = exact(input, version === 1 ? ['schemaVersion', 'id', 'path', 'entries'] : ['schemaVersion', 'id', 'path', 'firmwarePatches', 'entries'],
     'ownership matrix');
   const id = text(value.id, 'matrix ID');
@@ -276,17 +320,18 @@ export function validateOwnershipMatrix(input: unknown, catalog: ArduPilotCatalo
   const path = value.path;
   if (path !== 'native-json' && path !== 'browser-hal') throw new Error('Unknown autopilot path');
   const firmwarePatches: FirmwarePatchId[] = [];
-  for (const item of version === 2 ? list(value.firmwarePatches, 'firmware patch', 8) : []) {
+  for (const item of version !== 1 ? list(value.firmwarePatches, 'firmware patch', 8) : []) {
     if (!isPatch(item) || firmwarePatches.includes(item)) throw new Error(`Unknown or repeated firmware patch ${String(item)}`);
     if (!catalog.patches.has(item)) throw new Error(`Firmware patch ${item} is not in the pinned-source catalog`);
     const paths: readonly AutopilotPath[] = FIRMWARE_PATCHES[item].paths;
     if (!paths.includes(path)) throw new Error(`No ${path} build applies the ${item} firmware patch`);
     firmwarePatches.push(item);
   }
-  const entries: OwnershipEntry[] = [];
-  for (const item of list(value.entries, 'entry', ERROR_SOURCE_IDS.length)) {
+  const sources = matrixSources(version), entries: OwnershipEntry[] = [];
+  for (const item of list(value.entries, 'entry', sources.length)) {
     const entry = exact(item, ['source', 'owner', 'delivery'], 'ownership entry');
     if (!isSource(entry.source)) throw new Error('Unknown error source');
+    if (!sources.includes(entry.source)) throw new Error(`Error source ${entry.source} needs ownership matrix schema 3`);
     if (entries.some(other => other.source === entry.source)) throw new Error(`Error source ${entry.source} has two owners`);
     const owner = entry.owner;
     if (owner !== 'ardupilot' && owner !== 'mirage' && owner !== 'none') throw new Error(`Unknown owner for ${entry.source}`);
@@ -296,7 +341,11 @@ export function validateOwnershipMatrix(input: unknown, catalog: ArduPilotCatalo
     });
     entries.push({ source: entry.source, owner, delivery });
   }
-  for (const source of ERROR_SOURCE_IDS) if (!entries.some(entry => entry.source === source)) throw new Error(`Error source ${source} has no owner`);
+  for (const source of sources) if (!entries.some(entry => entry.source === source)) throw new Error(`Error source ${source} has no owner`);
+  const admitted = (condition: string): boolean => condition === '#if AP_SIM_ENABLED' ||
+    /^#if (INS_MAX_INSTANCES|HAL_COMPASS_MAX_SENSORS) > [1-9]$/.test(condition) ||
+    // SIM_config.h defines AP_SIM_GPS_ENABLED as AP_SIM_ENABLED (fact sim-gps-enabled).
+    (condition === '#if AP_SIM_GPS_ENABLED' && catalog.facts.has('sim-gps-enabled'));
   for (const entry of entries) {
     const source = ERROR_SOURCES[entry.source], appliedByArduPilot = source.ardupilotPaths.includes(path);
     for (const fact of source.facts) if (!catalog.facts.has(fact)) throw new Error(`Fact ${fact} for ${entry.source} is not in the catalog`);
@@ -313,7 +362,7 @@ export function validateOwnershipMatrix(input: unknown, catalog: ArduPilotCatalo
         throw new Error(patch ? `Parameter ${name} for ${entry.source} is not added by the ${patch.id} patch`
           : `Parameter ${name} for ${entry.source} is not in the pinned-source catalog`);
       }
-      if (parameter.conditions.some(condition => condition !== '#if AP_SIM_ENABLED' && !/^#if (INS_MAX_INSTANCES|HAL_COMPASS_MAX_SENSORS) > [1-9]$/.test(condition))) {
+      if (!parameter.conditions.every(admitted)) {
         throw new Error(`Parameter ${name} depends on an unverified build condition`);
       }
     }
@@ -344,6 +393,13 @@ export function validateOwnershipMatrix(input: unknown, catalog: ArduPilotCatalo
       if (key !== null && (!JSON_ORACLE_KEYS.some(k => k === key) || !catalog.jsonKeys.has(key))) {
         throw new Error(`JSON key ${key} is not covered by the oracle and the catalog`);
       }
+    }
+  }
+  // GPS_INPUT replaces ArduPilot's receiver, which then applies none of its own errors.
+  const receiver = entries.find(entry => entry.source === 'gnss.receiver')?.owner;
+  for (const entry of entries) {
+    if (receiver === 'mirage' && RECEIVER_SOURCES.includes(entry.source) && entry.owner === 'ardupilot') {
+      throw new Error(`ArduPilot's receiver does not run while MirageSITL owns gnss.receiver, so it cannot apply ${entry.source}`);
     }
   }
   entries.sort((a, b) => ERROR_SOURCE_IDS.indexOf(a.source) - ERROR_SOURCE_IDS.indexOf(b.source));
@@ -402,7 +458,7 @@ export function imuNoiseFloorMatrix(setting: ImuNoiseFloorSetting, path: Autopil
   const off = setting === 'off';
   return {
     schemaVersion: 2, id: `imu-noise-floor-${setting}-${path}`, path, firmwarePatches: off ? ['imu-noise-floor'] : [],
-    entries: ERROR_SOURCE_IDS.map(source => ({ source, delivery: [],
+    entries: ERROR_SOURCE_IDS_V1.map(source => ({ source, delivery: [],
       owner: off && ERROR_SOURCES[source].patch?.id === 'imu-noise-floor' ? 'none'
         : ERROR_SOURCES[source].ardupilotPaths.includes(path) ? 'ardupilot' : 'none' })),
   };

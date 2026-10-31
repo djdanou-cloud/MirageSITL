@@ -1,70 +1,42 @@
-import { DataflashReader, type Column, type DataflashLog } from "./reader.ts";
+/// <reference lib="webworker" />
+/**
+ * DataFlash parsing Worker (TASK-178).
+ *
+ * Request:  { type: 'parse', id, source: Blob | ArrayBuffer | Uint8Array, chunkBytes? }
+ * Replies:  { type: 'progress', id, bytes, total } after each chunk,
+ *           { type: 'result', id, log } with the log's buffers transferred,
+ *           { type: 'error', id, message } for a rejected request or a failed read.
+ * Any other message is rejected with id -1.
+ */
+import { parseSource, transferables } from './reader.ts';
 
-// DataFlash parsing off the main thread (TASK-178). Main sends chunks as
-// transferred ArrayBuffers, then "finish"; the Worker answers with progress
-// and one result whose numeric columns are transferred, not copied.
+const DEFAULT_CHUNK_BYTES = 1 << 20;
+const MAX_CHUNK_BYTES = 64 << 20;
+const scope = self as DedicatedWorkerGlobalScope;
 
-export type DataflashRequest =
-  | { readonly kind: "chunk"; readonly bytes: ArrayBuffer }
-  | { readonly kind: "finish" };
-export interface DataflashTableResult {
-  readonly name: string;
-  readonly columns: Readonly<Record<string, Column>>;
-  readonly units: readonly string[] | null;
-  readonly timestampS: Float64Array;
-  readonly offsets: Float64Array;
-}
-export type DataflashResponse =
-  | { readonly kind: "progress"; readonly bytes: number }
-  | { readonly kind: "result"; readonly bytes: number; readonly tables: readonly DataflashTableResult[]; readonly damaged: DataflashLog["damaged"]; readonly gpsTimeBaseS: number | null }
-  | { readonly kind: "error"; readonly message: string };
-
-function isRequest(value: unknown): value is DataflashRequest {
-  if (typeof value !== "object" || value === null) return false;
-  const kind: unknown = Reflect.get(value, "kind");
-  return kind === "finish" || (kind === "chunk" && Reflect.get(value, "bytes") instanceof ArrayBuffer);
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-/** The Worker's message handler, separate from the global so tests can drive it. */
-export function createDataflashHandler(post: (response: DataflashResponse, transfer: Transferable[]) => void): (data: unknown) => void {
-  let reader = new DataflashReader();
-  let received = 0;
-  return data => {
-    try {
-      if (!isRequest(data)) throw new Error("Unknown DataFlash request");
-      if (data.kind === "chunk") {
-        reader.push(new Uint8Array(data.bytes));
-        received += data.bytes.byteLength;
-        post({ kind: "progress", bytes: received }, []);
-        return;
-      }
-      const log = reader.finish();
-      const transfer: Transferable[] = [];
-      const tables = [...log.tables.values()].map(table => {
-        for (const column of Object.values(table.columns)) if (column instanceof Float64Array) transfer.push(column.buffer);
-        transfer.push(table.timestampS.buffer, table.offsets.buffer);
-        return { name: table.name, columns: table.columns, units: table.format.units, timestampS: table.timestampS, offsets: table.offsets };
-      });
-      post({ kind: "result", bytes: log.bytes, tables, damaged: log.damaged, gpsTimeBaseS: log.gpsTimeBaseS }, transfer);
-      reader = new DataflashReader();
-      received = 0;
-    } catch (error) {
-      post({ kind: "error", message: error instanceof Error ? error.message : String(error) }, []);
-      reader = new DataflashReader();
-      received = 0;
+scope.onmessage = ({ data }: MessageEvent<unknown>) => {
+  void handle(data);
+};
+
+async function handle(data: unknown): Promise<void> {
+  const id = isRecord(data) && Number.isSafeInteger(data.id) && typeof data.id === 'number' ? data.id : -1;
+  try {
+    if (!isRecord(data) || data.type !== 'parse' || id < 0) throw new Error('Expected { type: "parse", id, source }');
+    const source = data.source;
+    if (!(source instanceof Blob) && !(source instanceof ArrayBuffer) && !(source instanceof Uint8Array)) {
+      throw new Error('source must be a Blob, ArrayBuffer or Uint8Array');
     }
-  };
-}
-
-interface WorkerScope {
-  onmessage: ((event: MessageEvent<unknown>) => void) | null;
-  postMessage(message: unknown, transfer: Transferable[]): void;
-}
-function isWorkerScope(value: unknown): value is WorkerScope {
-  return typeof value === "object" && value !== null && "postMessage" in value && "onmessage" in value && typeof document === "undefined";
-}
-if (isWorkerScope(globalThis)) {
-  const scope = globalThis;
-  const handle = createDataflashHandler((response, transfer) => scope.postMessage(response, transfer));
-  scope.onmessage = event => handle(event.data);
+    const chunkBytes = data.chunkBytes === undefined ? DEFAULT_CHUNK_BYTES : data.chunkBytes;
+    if (typeof chunkBytes !== 'number' || !Number.isSafeInteger(chunkBytes) || chunkBytes < 1 || chunkBytes > MAX_CHUNK_BYTES) {
+      throw new Error(`chunkBytes must be an integer from 1 to ${MAX_CHUNK_BYTES}`);
+    }
+    const log = await parseSource(source, chunkBytes, (bytes, total) => scope.postMessage({ type: 'progress', id, bytes, total }));
+    scope.postMessage({ type: 'result', id, log }, transferables(log));
+  } catch (error) {
+    scope.postMessage({ type: 'error', id, message: error instanceof Error ? error.message : String(error) });
+  }
 }

@@ -50,7 +50,7 @@ it('pause leaves the clock unchanged, growth faults, and stopping cannot publish
 });
 it('couples real motor channel semantics to one physics step and ideal SI observations',()=>{
   const {port}=peer();let torque=0;
-  const physics={state:newState(),hz:800 as const,nowMs:0,fault:'',windNedMps:new Float64Array(3),
+  const physics={state:newState(),hz:800 as const,nowMs:0,fault:'',windNedMps:new Float64Array(3),electrical:new Float64Array([0.9,16.2,7.5]),
     useActuators:(frame:ActuatorFrameV2)=>{torque=frame.normalizedActuators[1]??0;},
     stepNow:()=>{physics.state.tick++;physics.state.ad=9.80665;physics.state.vn=10;physics.state.down=-2;}};
   const coupling=new WasmSitlCoupling(port,physics,{latitudeRad:0,longitudeRad:0,altitudeMslM:0,
@@ -60,4 +60,9 @@ it('couples real motor channel semantics to one physics step and ideal SI observ
   expect(port.input[6]).toBe(0);expect(port.input[7]).toBe(0);expect(port.input[8]).toBe(0); // free fall
   expect(port.input[16]).toBe(0.2);expect(port.input[18]).toBe(0.4);
   expect(port.input[19]).toBeCloseTo(10,2);expect(port.input[22]).toBe(2);expect(coupling.fault).toBe('');
+  // TASK-092: the battery bus current reaches HAL sensor value 21; a regenerating
+  // bus reads 0, as on a unipolar power module, and the frame stays valid.
+  expect(port.input[21]).toBe(7.5);
+  physics.electrical[2]=-3;
+  expect(coupling.stepInto()).toBe(true);expect(port.input[21]).toBe(0);expect(coupling.fault).toBe('');
 });

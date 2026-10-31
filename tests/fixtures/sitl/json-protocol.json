@@ -138,6 +138,11 @@
     ]
   },
   "expectedLine": "\n{\"timestamp\":12.345678900,\"imu\":{\"gyro\":[0.010000000,-0.020000000,0.500000000],\"accel_body\":[0.100000000,-0.200000000,-9.806650000]},\"position\":[1234.567800000,-98.765432100,-50.250000000],\"velocity\":[1.500000000,-0.250000000,0.125000000],\"quaternion\":[0.923380517,0.102597835,-0.205195670,0.307793506],\"velocity_wind\":[3.200000000,0.000000000,-0.700000000]}\n",
+  "battery": {
+    "voltageV": 15.123456789,
+    "currentA": 12.5
+  },
+  "expectedBatteryLine": "\n{\"timestamp\":12.345678900,\"imu\":{\"gyro\":[0.010000000,-0.020000000,0.500000000],\"accel_body\":[0.100000000,-0.200000000,-9.806650000]},\"position\":[1234.567800000,-98.765432100,-50.250000000],\"velocity\":[1.500000000,-0.250000000,0.125000000],\"quaternion\":[0.923380517,0.102597835,-0.205195670,0.307793506],\"velocity_wind\":[3.200000000,0.000000000,-0.700000000],\"battery\":{\"voltage\":15.123456789,\"current\":12.500000000}}\n",
   "readmeExampleLine": "\n{\"timestamp\":2500,\"imu\":{\"gyro\":[0,0,0],\"accel_body\":[0,0,0]},\"position\":[0,0,0],\"attitude\":[0,0,0],\"velocity\":[0,0,0]}\n",
   "servoMapping": "Motor channel order and MOT_PWM_MIN/MAX are vehicle parameters; the backend takes them as explicit configuration (default 1000/2000 us) rather than inferring them from upstream."
 }
