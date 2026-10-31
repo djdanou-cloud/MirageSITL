@@ -429,3 +429,54 @@ distribution and release gates. Store its SHA-256 in trusted local acceptance
 configuration before calling admitWasmParity. Missing captures exit 2 and
 failed/unverified evidence exits 1; never replace a failed capture with a
 synthetic trace or update goldens to hide a mismatch.
+
+## Local launcher (TASK-151)
+
+A web page cannot start programs. The launcher (`apps/launcher`) is the one
+local service that does: the user starts it, it binds 127.0.0.1 only, and it
+starts and stops owned ArduPilot SITL processes for the web application.
+
+```bash
+npm run start -w @mirage/launcher
+```
+
+Settings, all optional: `MIRAGE_LAUNCHER_HOME` (default
+`~/Library/Application Support/MirageSITL/launcher`), `MIRAGE_LAUNCHER_PORT`
+(default 47800), `MIRAGE_LAUNCHER_ORIGIN` (the one web origin it accepts,
+default `http://127.0.0.1:5173`) and `MIRAGE_LAUNCHER_PYTHON` (default
+`venv/bin/python` in the home folder). On first start the launcher writes a
+random 64-hex token to `token` in its home folder with mode 0600 and refuses
+to start if others can read that file. It prints the token file path, never
+the token; the web application sends the token as `Authorization: Bearer`.
+Never put the token in a URL, a repository file or a log: the launcher
+rejects any request with a query string.
+
+`catalog.json` in the home folder lists the installed SITL builds (written by
+installation, TASK-152): ID, firmware version, source commit, the executable
+and ArduPilot's `copter.parm` with their SHA-256. A build is usable only when
+its commit is one MirageSITL supports (`scripts/sitl.lock.json`), both files
+still have their recorded hashes and the executable passes the native
+Mach-O64/ELF64 admission. `GET /v1/prerequisites` reports the platform,
+Node.js 24, a writable home with at least 2 GiB free, pymavlink 2.4.50 in the
+launcher Python and a usable build, each with a fix instruction.
+
+Each experiment gets `experiments/<id>/` in the home folder with
+`experiment.json`, `experiment.parm` (the requested parameters, loaded after
+`copter.parm`), an optional `scripts/frame.lua`, `stdout-<run>.log`,
+`stderr-<run>.log`, `owner-<run>.json` and SITL's own `logs/` with its
+DataFlash files. SITL runs in its own POSIX process group with
+`--model JSON:127.0.0.1`. Its JSON physics go to the bridge the run hosts,
+on the bridge's JSON port, and its serial0 (`udpclient:`) goes to a loopback
+relay that forwards MAVLink to the same bridge. The bridge accepts the web
+origin and the launcher token, as in TASK-040. Stop sends SIGTERM to the
+owned group and SIGKILL after 3 s. A crash is recorded with its exit code or
+signal, and restart begins a new run in the same folder. One experiment runs
+at a time. The launcher never signals a process it did not start, and no
+request names a process ID. Stopping the launcher (Ctrl-C) stops its runs.
+
+Check with fake executables and, when `.cache/task-127` holds the pinned
+build, the real ArduCopter in JSON lockstep through the hosted bridge:
+
+```bash
+npx --no-install vitest run tests/launcher.test.ts
+```

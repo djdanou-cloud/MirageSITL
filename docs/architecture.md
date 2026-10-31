@@ -101,6 +101,7 @@ Workspace packages, services, and native crates:
 | Directory | Responsibility |
 | --- | --- |
 | `apps/bridge` | Local WS to ArduPilot JSON/UDP and MAVLink |
+| `apps/launcher` | Loopback service that starts and stops owned SITL processes (TASK-151) |
 | `packages/wasm-jsbsim` | Pinned JSBSim/Emscripten with C ABI |
 | `packages/wasm-bet` | Rotor/frame wrapper, native reference and WASM |
 | `packages/sensors` | IMU/GNSS/magnetometer, noise, bias, timestamps |
@@ -538,6 +539,20 @@ for TASK-147. Ideal switches off every error a setting can switch off and keeps
 typed values inert; the tab states what ArduPilot still adds, first the fixed
 IMU noise floors of stock firmware (decision D-10). TASK-147 applies the
 configuration at run time, and the Aircraft editor keeps it when it saves.
+
+## Local launcher (TASK-151)
+
+`apps/launcher` is the loopback service the user starts; a web page cannot
+start programs, so it is the only component that starts SITL. API v1 on
+127.0.0.1 (default port 47800) needs the locally generated token in an
+`Authorization: Bearer` header, the one configured web origin and a loopback
+Host; query strings are refused. It reports prerequisites with fixes, keeps
+the catalog of installed SITL builds with their hashes and the supported
+source commits, and starts and stops owned SITL process groups with a
+working folder and parameter file per experiment. Each run hosts its own
+WebSocket bridge (`apps/bridge`) for JSON physics, and a loopback relay
+carries SITL's MAVLink into that bridge. Diagnostics and DataFlash logs are
+served by name. The [runbook](operations/runbook.md) gives the operation.
 
 ## Phase 0 contracts: fixtures, capabilities, and models
 
