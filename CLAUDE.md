@@ -238,7 +238,7 @@ implementation.
   `packages/dataflash` reads DataFlash as pymavlink DFReader does and writes
   MirageSITL records. TASK-151 (the local launcher, `apps/launcher`) and
   TASK-152 (`scripts/install-macos.mjs` and the Project tab's first-run check)
-  are IN_PROGRESS: only their runs with the network switched off remain.
+  are DONE: both pass with the network switched off.
   Decisions D-04
   and D-06 to D-12 are decided. TASK-127 and TASK-128 are DONE: stock
   ArduCopter `8ab6afd` builds and flies natively on Apple Silicon

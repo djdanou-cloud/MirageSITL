@@ -1,6 +1,6 @@
 # CLAUDE.md — MirageSITL agent instructions
 
-<!-- source-sha256: f747d54a4a9974b537df03f592417a3d7842f4caa25f1b257ea665821eab4c85 -->
+<!-- source-sha256: 29432e2faba6a97095590aecb50c234996e62fe4783528f10a022d4f4e15bdc0 -->
 
 Английский источник: [Source of truth](../../CLAUDE.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -263,7 +263,7 @@ TASK-127–TASK-192 и решения D-01–D-12, а у каждой откры
   так же, как pymavlink DFReader, и пишет записи MirageSITL. TASK-151
   (локальный запускатель, `apps/launcher`) и TASK-152
   (`scripts/install-macos.mjs` и проверка первого запуска на вкладке Project)
-  в состоянии IN_PROGRESS: остались только их прогоны с выключенной сетью.
+  выполнены: обе проходят с выключенной сетью.
   Решения D-04 и D-06–D-12 приняты.
   TASK-127 и TASK-128 выполнены: штатный ArduCopter `8ab6afd` собирается и
   летает нативно на Apple Silicon ([macos-sitl.md](macos-sitl.md)), а его штатные

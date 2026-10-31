@@ -1,7 +1,8 @@
 // TASK-151 (S01, S02): the local launcher. Fake SITL executables check
 // start, stop, crash, restart, TERM-resistant and forking children; the real
-// pinned ArduCopter build from TASK-127, when present, runs in JSON lockstep
-// against a WebSocket client through the launcher's own bridge and relay.
+// pinned ArduCopter build from TASK-127 and the TASK-152 installation, when
+// present, run in JSON lockstep against a WebSocket client through the
+// launcher's own bridge and relay.
 import { spawn, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
@@ -11,7 +12,7 @@ import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, test } from "vitest";
 import { WebSocket } from "ws";
 import { decodeRecord, encodeRecord } from "../apps/bridge/src/framing.ts";
-import { parseCatalog, writeCatalogEntry, type FirmwareEntry } from "../apps/launcher/src/catalog.ts";
+import { parseCatalog, readCatalog, writeCatalogEntry, type FirmwareEntry } from "../apps/launcher/src/catalog.ts";
 import { checkPrerequisites } from "../apps/launcher/src/prerequisites.ts";
 import { ensureToken, startLauncher } from "../apps/launcher/src/server.ts";
 import sitlLock from "../scripts/sitl.lock.json" with { type: "json" };
@@ -226,6 +227,37 @@ describe("launcher with fake SITL executables", () => {
   });
 });
 
+/**
+ * Launches a stationary JSON lockstep experiment of a real ArduCopter build,
+ * waits for a HEARTBEAT through the relay after 800 frames, and stops it.
+ */
+async function flyLockstep(launcher: Launcher, token: string, firmwareId: string): Promise<void> {
+  const parameters = readFileSync(join(ROOT, "tests/fixtures/sitl/parameters.parm"), "utf8").split("\n").filter(line => /^[A-Z]/.test(line))
+    .map(line => { const [name, value] = line.trim().split(/\s+/); return { name: name!, value: Number(value) }; });
+  const started = await call(launcher, token, "POST", "/v1/experiments", spec(parameters, firmwareId));
+  expect(started.status).toBe(201);
+  const id = String(field(started.json, "id")), pid = Number(field(started.json, "runs", 0, "pid"));
+  const bridgePort = Number(field(started.json, "ports", "bridge"));
+  const ws = new WebSocket(`ws://127.0.0.1:${bridgePort}`, ["mirage-v1", `session.${token}`], { origin: ORIGIN });
+  let servo = 0, heartbeat = false, sequence = 0;
+  ws.on("message", data => {
+    if (!Buffer.isBuffer(data)) return;
+    const record = decodeRecord(data);
+    if (!record) return;
+    if (record.channel === 1 && record.payload[0] === 0xfd && record.payload[7] === 0 && record.payload[8] === 0 && record.payload[9] === 0) heartbeat = true;
+    if (record.channel !== 3) return;
+    // A stationary aircraft on the ground, one state line per servo frame at 800 Hz.
+    const line = `\n${JSON.stringify({ timestamp: servo++ / 800, imu: { gyro: [0, 0, 0], accel_body: [0, 0, -9.80665] }, position: [0, 0, 0], quaternion: [1, 0, 0, 0], velocity: [0, 0, 0] })}\n`;
+    ws.send(encodeRecord({ channel: 2, epoch: 1, sequence: sequence++, payload: Buffer.from(line) }));
+  });
+  await until(() => heartbeat && servo > 800, 60000, "a heartbeat after 800 lockstep frames");
+  ws.close();
+  const stopped = await call(launcher, token, "POST", `/v1/experiments/${id}/stop`);
+  expect(field(stopped.json, "state")).toBe("stopped");
+  expect(alive(pid)).toBe(false);
+  expect(spawnSync("/bin/ps", ["-g", String(pid), "-o", "pid="], { encoding: "utf8" }).stdout.trim()).toBe("");
+}
+
 const realAvailable = existsSync(REAL_BINARY) && existsSync(REAL_DEFAULTS);
 describe.skipIf(!realAvailable)("launcher with the real pinned ArduCopter SITL (TASK-127 build)", () => {
   test("runs JSON lockstep through the hosted bridge, carries MAVLink through the relay, and stops the owned group", async () => {
@@ -240,32 +272,35 @@ describe.skipIf(!realAvailable)("launcher with the real pinned ArduCopter SITL (
       const checksList: readonly unknown[] = Array.isArray(list) ? list : [];
       const firmware = checksList.find(check => field(check, "id") === "firmware");
       expect(field(firmware, "status")).toBe("ok");
-      const parameters = readFileSync(join(ROOT, "tests/fixtures/sitl/parameters.parm"), "utf8").split("\n").filter(line => /^[A-Z]/.test(line))
-        .map(line => { const [name, value] = line.trim().split(/\s+/); return { name: name!, value: Number(value) }; });
-      const started = await call(launcher, token, "POST", "/v1/experiments", spec(parameters, "arducopter-8ab6afde"));
-      expect(started.status).toBe(201);
-      const id = String(field(started.json, "id")), pid = Number(field(started.json, "runs", 0, "pid"));
-      const bridgePort = Number(field(started.json, "ports", "bridge"));
-      const ws = new WebSocket(`ws://127.0.0.1:${bridgePort}`, ["mirage-v1", `session.${token}`], { origin: ORIGIN });
-      let servo = 0, heartbeat = false, sequence = 0;
-      ws.on("message", data => {
-        if (!Buffer.isBuffer(data)) return;
-        const record = decodeRecord(data);
-        if (!record) return;
-        if (record.channel === 1 && record.payload[0] === 0xfd && record.payload[7] === 0 && record.payload[8] === 0 && record.payload[9] === 0) heartbeat = true;
-        if (record.channel !== 3) return;
-        // A stationary aircraft on the ground, one state line per servo frame at 800 Hz.
-        const line = `\n${JSON.stringify({ timestamp: servo++ / 800, imu: { gyro: [0, 0, 0], accel_body: [0, 0, -9.80665] }, position: [0, 0, 0], quaternion: [1, 0, 0, 0], velocity: [0, 0, 0] })}\n`;
-        ws.send(encodeRecord({ channel: 2, epoch: 1, sequence: sequence++, payload: Buffer.from(line) }));
-      });
-      await until(() => heartbeat && servo > 800, 60000, "a heartbeat after 800 lockstep frames");
-      ws.close();
-      const stopped = await call(launcher, token, "POST", `/v1/experiments/${id}/stop`);
-      expect(field(stopped.json, "state")).toBe("stopped");
-      expect(alive(pid)).toBe(false);
-      expect(spawnSync("/bin/ps", ["-g", String(pid), "-o", "pid="], { encoding: "utf8" }).stdout.trim()).toBe("");
+      await flyLockstep(launcher, token, "arducopter-8ab6afde");
     } finally {
       await launcher.close();
     }
   }, 120000);
+});
+
+// TASK-152: the launcher folder of the clean installation in .cache/task-152/home
+// (node scripts/install-macos.mjs --home .cache/task-152/home), used as it is:
+// its own token, catalog, Python environment and installed build.
+const INSTALL_HOME = join(ROOT, ".cache/task-152/home");
+describe.skipIf(!existsSync(join(INSTALL_HOME, "install-manifest.json")))("launcher on the TASK-152 installation", () => {
+  test("restarts with the same token and every prerequisite OK, then launches the installed build", async () => {
+    const token = ensureToken(INSTALL_HOME);
+    const [installed] = readCatalog(INSTALL_HOME);
+    if (!installed) throw new Error("The installation has no firmware in its catalog");
+    expect(installed.commit).toBe(sitlLock.commit);
+    for (let start = 1; start <= 2; start++) {
+      const launcher = await startLauncher({ home: INSTALL_HOME, origin: ORIGIN, port: 0, python: join(INSTALL_HOME, "venv/bin/python") });
+      try {
+        expect(ensureToken(INSTALL_HOME)).toBe(token);
+        const checks = await call(launcher, token, "GET", "/v1/prerequisites");
+        const list = field(checks.json, "checks");
+        const statuses = (Array.isArray(list) ? list : []).map(check => `${String(field(check, "id"))}:${String(field(check, "status"))}`);
+        expect(statuses).toEqual(["platform:ok", "node:ok", "storage:ok", "pymavlink:ok", "installation:ok", "firmware:ok"]);
+        if (start === 2) await flyLockstep(launcher, token, installed.id);
+      } finally {
+        await launcher.close();
+      }
+    }
+  }, 180000);
 });
