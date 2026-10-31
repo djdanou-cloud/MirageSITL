@@ -115,6 +115,7 @@ html[data-g3="1"] .terrain-status { top: 12px; bottom: auto; left: 50%; transfor
 .measurement-form { display: grid; gap: 10px; margin-top: 12px; }
 .field { min-width: 0; }
 .table-scroll { overflow-x: auto; max-width: 100%; }
+.code-block { max-width: 100%; max-height: 240px; overflow: auto; margin: 0 0 12px; padding: 8px; background: #0c1721; border: 1px solid #293541; border-radius: 4px; font: 11px ui-monospace, monospace; white-space: pre; }
 .entry-table { border-collapse: collapse; font-size: 12px; }
 .entry-table th { text-align: left; font-weight: 400; color: #9fb4c1; padding: 4px; white-space: nowrap; }
 .entry-table td { padding: 2px; }
