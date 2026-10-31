@@ -103,6 +103,16 @@ export class GroundContact implements ContactBackend {
     private lastDt = 0;
     private status = 0;
     readonly wheelCount: number;
+    /** Gravity the native world applies, m/s² down; a flight model on this contact must use the same. */
+    readonly gravityMps2 = 9.80665;
+    /** Airframe plus unsprung wheel masses, kg (TASK-095). */
+    readonly vehicleMassKg: number;
+    /**
+     * Airframe tensor plus each unsprung mass as a point at its wheel anchor, about the body
+     * origin, body FRD, row-major (TASK-095); what a flight model on this contact must declare.
+     */
+    readonly vehicleInertiaKgM2 = new Float64Array(9);
+    private readonly config: Float64Array;
     /** Cold host setup from build manifest plus actual bytes; no step-time I/O. */
     static async initialize(bytes: Uint8Array<ArrayBuffer>, manifest: unknown): Promise<void> {
         if (!record(manifest) || manifest.schemaVersion !== 1 || manifest.abiVersion !== 2 || manifest.precision !== "f64" ||
@@ -116,6 +126,34 @@ export class GroundContact implements ContactBackend {
         if (WebAssembly.Module.imports(compiled).length !== 0)
             throw new Error("Contact artifact has host imports");
         this.artifact = compiled;
+    }
+    /**
+     * A contact for a flight model's vehicle (TASK-095): `vehicle` gives the whole vehicle's
+     * mass and inertia about its origin; the airframe gets them less each unsprung wheel mass,
+     * taken as a point at its anchor. The unsprung masses then move the vehicle's centre of
+     * mass by sum(m_w r_w)/M from the body origin; light gear keeps that small.
+     */
+    static async forVehicle(state: BodyTruth, vehicle: { readonly massKg: number; readonly inertiaBodyKgM2: readonly number[] },
+        options: ContactOptions & { readonly hullRadiusM?: number; readonly restitution?: number; readonly friction?: number } = {}): Promise<GroundContact> {
+        const wheels = options.wheels ?? [], inertia = vehicle.inertiaBodyKgM2;
+        if (options.inertiaKgM2 || options.inertiaDiagonalKgM2 || inertia.length !== 9 || !inertia.every(Number.isFinite) ||
+            !Number.isFinite(vehicle.massKg))
+            throw new Error("Invalid vehicle mass properties");
+        let mass = vehicle.massKg;
+        const airframe = Array.from(inertia);
+        for (const w of wheels) {
+            const m = w.unsprungMassKg, r = w.anchorBodyM, r2 = r[0] * r[0] + r[1] * r[1] + r[2] * r[2];
+            mass -= m;
+            for (let i = 0; i < 3; i++)
+                for (let j = 0; j < 3; j++)
+                    airframe[i * 3 + j] = airframe[i * 3 + j]! - m * ((i === j ? r2 : 0) - r[i]! * r[j]!);
+        }
+        // Symmetric by construction; keep it exactly symmetric for the native check.
+        airframe[3] = airframe[1]!; airframe[6] = airframe[2]!; airframe[7] = airframe[5]!;
+        if (!(mass > 0))
+            throw new Error("Unsprung masses exceed the vehicle mass");
+        return this.create(state, mass, options.hullRadiusM ?? 0.1, options.restitution ?? 0, options.friction ?? 0.7,
+            { ...options, inertiaKgM2: airframe });
     }
     static async create(state: BodyTruth, mass = 1, radius = 0.1, restitution = 0, friction = 0.7, options: ContactOptions = {}): Promise<GroundContact> {
         if (!this.artifact)
@@ -155,6 +193,7 @@ export class GroundContact implements ContactBackend {
             state.quaternionBodyToNed.length !== 4 || state.angularVelocityBodyRadS.length !== 3)
             throw new Error("Invalid contact configuration");
         const c = new Float64Array(memory, config, 1312);
+        this.config = c;
         c.fill(0);
         c[0] = 1;
         c[2] = mass;
@@ -230,9 +269,44 @@ export class GroundContact implements ContactBackend {
                 c[b + 96 + j] = p[1];
             }
         }
+        // The vehicle the contact integrates: airframe plus unsprung point masses at their anchors.
+        const t = this.vehicleInertiaKgM2;
+        t[0] = c[19]!; t[4] = c[20]!; t[8] = c[21]!;
+        t[1] = t[3] = c[0] >= 2 ? c[28]! : 0; t[2] = t[6] = c[0] >= 2 ? c[29]! : 0; t[5] = t[7] = c[0] >= 2 ? c[30]! : 0;
+        let vehicleMass = mass;
+        for (let i = 0; i < this.wheelCount; i++) {
+            const b = 32 + i * 160, m = c[b + 3]!, r0 = c[b]!, r1 = c[b + 1]!, r2 = c[b + 2]!, rr = r0 * r0 + r1 * r1 + r2 * r2, r = [r0, r1, r2];
+            vehicleMass += m;
+            for (let a = 0; a < 3; a++)
+                for (let k = 0; k < 3; k++)
+                    t[a * 3 + k] = t[a * 3 + k]! + m * ((a === k ? rr : 0) - r[a]! * r[k]!);
+        }
+        this.vehicleMassKg = vehicleMass;
         const result = module.contact_initialize();
         if (result !== 0)
             throw new Error("Contact initialization failed (" + result + ")");
+    }
+    /**
+     * Restarts the session from `state` with the same configuration (TASK-095): cold, it
+     * rebuilds the native world, so a flight model's reset never steps from a stale contact.
+     */
+    reset(state: BodyTruth): void {
+        if (this.disposed || this.module.memory.buffer !== this.buffer || state.positionNedM.length !== 3 || state.velocityNedMps.length !== 3 ||
+            state.quaternionBodyToNed.length !== 4 || state.angularVelocityBodyRadS.length !== 3)
+            throw new Error("Invalid contact reset");
+        const c = this.config;
+        c.set(state.positionNedM, 6);
+        c.set(state.velocityNedMps, 9);
+        c.set(state.quaternionBodyToNed, 12);
+        c.set(state.angularVelocityBodyRadS, 16);
+        this.module.contact_dispose();
+        const result = this.module.contact_initialize();
+        this.status = result;
+        this.lastDt = 0;
+        if (result !== 0) {
+            this.disposed = true;
+            throw new Error("Contact initialization failed (" + result + ")");
+        }
     }
     get lastStatus(): number { return this.status; }
     get allocationCalls(): number { return this.module.contact_allocation_calls(); }

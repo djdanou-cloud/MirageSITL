@@ -2966,6 +2966,26 @@ the NeuralFoil/rotor envelope remain recorded, including low-confidence and
 out-of-domain operation during spool/landing; passing autopilot parity does
 not turn those flags into a model-fidelity PASS.
 
+`BetFlightConfiguration.contact` (TASK-095) makes compliant Rapier contact the
+body integrator in place of the BET rigid body: the rotor wrench goes to
+`GroundContact.stepInto`, which integrates gravity, the body and the ground
+reaction, so the attitude evolves continuously through touchdown. It excludes
+`syntheticGroundDownM`. Its vehicle mass, inertia and gravity must equal the
+model's (relative 1e-12), else construction fails. `GroundContact.forVehicle`
+builds such a contact: the airframe gets the vehicle's mass and inertia less each
+unsprung wheel mass taken as a point at its anchor, so the unsprung masses move
+the vehicle's centre of mass by Σm_w r_w/M from the body origin, small for light
+gear. The dynamics owns the contact: `reset` restarts it from the initial state
+through the synchronous `GroundContact.reset` (a cold re-initialization of the
+same instance) and repeats the same steps, and `dispose` disposes it. A synthetic
+2 kg four-rotor fixture on four short legs (`tests/flight-contact.test.ts`)
+rests, climbs 2.5 m, descends on a vertical-speed loop and lands at 0.29 m/s at
+400/800/1200 Hz, back within 0.12 mm of its resting height, tilted at most
+7.7·10⁻⁶ rad, its attitude changing at most 6·10⁻⁵ rad per step.
+`node scripts/bench-flight-contact.mjs` repeats takeoffs and landings for 10⁶
+steps at 400 Hz: 0.00296 B/step with no GC event and no native allocator call
+(`test-results/bench/flight-contact.json`).
+
 The common origin is -35.362938/149.165085 degrees, 584 m MSL, with an explicit
 synthetic zero geoid offset. The browser magnetic field uses the pinned
 pymavlink/AP_Declination table at this origin; native JSON derives its field

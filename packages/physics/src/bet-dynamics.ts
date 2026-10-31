@@ -58,6 +58,23 @@ export interface BetFlightConfiguration {
    * absent checks none, and the modeled clamps are reported either way.
    */
   limitRatings?: LimitRatings | null;
+  /**
+   * TASK-095: compliant Rapier contact as this model's body integrator, in place of the
+   * BET rigid body and of `syntheticGroundDownM` (the two exclude each other). Its vehicle
+   * mass, inertia and gravity must equal the model's (`GroundContact.forVehicle` builds such
+   * a contact). The dynamics takes ownership: `reset` restarts it, `dispose` disposes it.
+   */
+  contact?: FlightContact;
+}
+/** What `BetFlightDynamics` needs of its contact; `GroundContact` provides it. */
+export interface FlightContact {
+  readonly integrationOwner: 'rapier';
+  readonly gravityMps2: number;
+  readonly vehicleMassKg: number;
+  readonly vehicleInertiaKgM2: Float64Array;
+  stepInto(wrenchBody: Float64Array, dt: number, out: BodyTruth): boolean;
+  reset(state: BodyTruth): void;
+  dispose(): void;
 }
 /** Rotor output flags of the TASK-091 opt-in modes: informational, never validity breaches. */
 const SAMPLING_FLAGS=ROTOR_FLAG_HOVER_SAMPLING|ROTOR_FLAG_REDUCED_PREDICTOR;
@@ -107,6 +124,7 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
   private readonly motorMapId:number;
   private pendingActuator=false;
   private readonly groundDown:number|undefined;
+  private readonly contact:FlightContact|null;
   private readonly bus:BetBus|null;
   private readonly initialSoc:number;
   private readonly housePowerW:number;
@@ -136,6 +154,16 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
     const model=validateModelManifest(configuration.manifest),n=model.rotorCount;
     if(configuration.syntheticGroundDownM!==undefined&&!Number.isFinite(configuration.syntheticGroundDownM))throw Error('Invalid synthetic ground plane');
     this.groundDown=configuration.syntheticGroundDownM;
+    const contact=configuration.contact??null;
+    if(contact) {
+      const m=model.inertiaBodyKgM2,t=contact.vehicleInertiaKgM2,scale=Math.max(...m.map(Math.abs));
+      if(configuration.syntheticGroundDownM!==undefined)throw Error('A contact and the synthetic pad exclude each other');
+      if(contact.gravityMps2!==(configuration.gravityMps2??9.80665))throw Error('Contact gravity differs from the model');
+      if(Math.abs(contact.vehicleMassKg-model.massKg)>1e-12*model.massKg || t.length!==9 ||
+          m.some((v,i)=>Math.abs(t[i]!-v)>1e-12*scale))
+        throw Error('Contact vehicle mass properties differ from the model');
+    }
+    this.contact=contact;
     const flags=configuration.configurationFlags??0;
     if((flags>>>0)!==flags || (flags&0xffff)!==0)throw Error('Configuration flags must use bits 16 to 31');
     this.configurationFlags=flags;
@@ -195,7 +223,7 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
     this.reset();
   }
   reset():void {
-    this.engine?.reset();this.escEngine?.reset();this.body.reset(this.initial);
+    this.engine?.reset();this.escEngine?.reset();this.body.reset(this.initial);this.contact?.reset(this.initial);
     const e=this.electrical;e[0]=this.initialSoc;e[2]=0;this.busLimited=false;this.driveLimited=false;
     // Before the first bus step the motors see the unloaded pack.
     e[1]=this.bus?this.bus.openCircuitV(this.initialSoc):0;
@@ -293,7 +321,11 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
       e[0]=o[0]!;e[1]=o[1]!;e[2]=o[2]!;
       this.busLimited=this.bus.output[6]!!==0;
     }
-    if(!this.frame.sumInto(this.hub,this.wrench) || !this.body.stepInto(this.wrench,this.dt,this.truth)){
+    if(!this.frame.sumInto(this.hub,this.wrench)){this.fault='BET body integration failed';return;}
+    // TASK-095: with a contact, Rapier alone integrates the body, gravity and ground reaction included.
+    if(this.contact){
+      if(!this.contact.stepInto(this.wrench,this.dt,this.truth)){this.fault='Contact step failed';return;}
+    } else if(!this.body.stepInto(this.wrench,this.dt,this.truth)){
       this.fault='BET body integration failed';return;
     }
     if(this.groundDown!==undefined&&this.truth.positionNedM[2]!>this.groundDown) {
@@ -340,5 +372,5 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
     s.p=t.angularVelocityBodyRadS[0]!;s.q=t.angularVelocityBodyRadS[1]!;s.r=t.angularVelocityBodyRadS[2]!;
     s.an=t.accelerationNedMps2[0]!;s.ae=t.accelerationNedMps2[1]!;s.ad=t.accelerationNedMps2[2]!;
   }
-  dispose():void {this.engine?.dispose();this.escEngine?.dispose();}
+  dispose():void {this.engine?.dispose();this.escEngine?.dispose();this.contact?.dispose();}
 }
