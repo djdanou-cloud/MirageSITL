@@ -4,6 +4,7 @@ import importlib.metadata
 import json
 from pathlib import Path
 import sys
+import struct
 from pymavlink.dialects.v20 import ardupilotmega
 
 
@@ -33,6 +34,7 @@ def main():
     run = json.loads((directory / "run.json").read_text())
     floor = run.get("imuNoiseFloor") or {}
     read_back = {check["name"] for check in floor.get("expected", [])}
+    read_back.update(run.get("frameExpectedParameters", {}).keys())
     # TASK-147: a run with sensor errors also forwards SYS_STATUS and the complete parameter list.
     sensors = "sensors" in run
     if sensors:
@@ -59,12 +61,44 @@ def main():
     bad = [message for message in messages if message.get_type() == "BAD_DATA"]
     if bad:
         raise ValueError("Malformed or CRC-invalid bytes in raw MAVLink stream")
+    outbound_audit = {}
+    if run.get("task") == "TASK-128":
+        transmitted = (directory / "tx.raw").read_bytes()
+        if len(transmitted) > 32 * 1024 * 1024:
+            raise ValueError("Outbound MAVLink capture exceeds budget")
+        tx_parser = ardupilotmega.MAVLink(None)
+        tx_parser.robust_parsing = True
+        tx_messages = tx_parser.parse_buffer(transmitted) or []
+        if any(message.get_type() == "BAD_DATA" for message in tx_messages):
+            raise ValueError("Malformed outbound MAVLink bytes")
+        motor_commands = [message for message in tx_messages
+                          if message.get_type() == "COMMAND_LONG" and message.command == 209]
+        expected = [command for command in run["commands"] if command["kind"] == "motor-test"]
+        if len(motor_commands) != len(expected):
+            raise ValueError("Motor command capture count differs")
+        for message, command in zip(motor_commands, expected):
+            duration = struct.unpack("<f", struct.pack("<f", command["durationS"]))[0]
+            if (message.target_system != 1 or message.target_component != 1
+                    or message.confirmation != 0
+                    or [message.param1, message.param2, message.param3, message.param4,
+                        message.param5, message.param6, message.param7]
+                    != [command["sequence"], 1, command["pwmUs"], duration, 1, 0, 0]):
+                raise ValueError("Motor command differs from original outgoing bytes")
+        # Confirm each final parameter value from independently decoded incoming bytes.
+        actual_parameters = {message.param_id: message.param_value for message in messages
+                             if forwarded(message) and message.get_type() == "PARAM_VALUE"}
+        for name, value in run["frameExpectedParameters"].items():
+            if actual_parameters.get(name) != value or run["parameterValues"].get(name) != value:
+                raise ValueError("Frame parameter lacks matching real read-back: " + name)
+        outbound_audit = {"outboundSha256": digest(transmitted), "outboundMessages": len(tx_messages),
+                          "motorTestCommands": len(motor_commands),
+                          "frameParametersChecked": len(run["frameExpectedParameters"])}
     report = {"schemaVersion": 1, "status": "PASS", "pymavlink": version,
               "messages": len(messages), "recordedObservations": len(original),
               "filteredRawMessages": len(observed), "rawSha256": digest(raw),
               "wireFramesChecked": wire_frames_checked, "readBackParameters": sorted(read_back),
               "decodedSha256": digest(decoded),
-              "generatorSha256": digest(Path(__file__).read_bytes())}
+              "generatorSha256": digest(Path(__file__).read_bytes()), **outbound_audit}
     (directory / "mavlink-audit.json").write_text(json.dumps(report, indent=2) + "\n")
     print(f"PASS: {len(original)} recorded observations match original CRC-checked MAVLink")
 

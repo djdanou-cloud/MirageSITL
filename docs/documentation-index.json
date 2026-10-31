@@ -118,6 +118,18 @@
       "ru": "docs/ru/sitl-clock.md"
     },
     {
+      "en": "docs/decisions/macos-sitl.md",
+      "ru": "docs/ru/macos-sitl.md"
+    },
+    {
+      "en": "docs/decisions/ardupilot-frames.md",
+      "ru": "docs/ru/ardupilot-frames.md"
+    },
+    {
+      "en": "docs/operations/install-macos.md",
+      "ru": "docs/ru/install-macos.md"
+    },
+    {
       "en": "ui_implementation_plan.md",
       "ru": "docs/ru/ui_implementation_plan.md"
     }

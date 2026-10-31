@@ -24,7 +24,7 @@ node scripts/release-manifest.mjs --input /path/to/release-input.json --sha256 <
 node scripts/bench-terrain-scenarios.mjs 400
 ```
 
-SITL requires MIRAGE_SITL_SOURCE at the pinned clean commit, MIRAGE_SITL_BINARY with MIRAGE_SITL_BINARY_SHA256, and MIRAGE_SITL_DRIVER with MIRAGE_SITL_DRIVER_SHA256. No secrets are required. The Node driver (`scripts/sitl/driver.mjs`) receives --binary and --parameters, owns firmware/bridge lifecycle and outputs only a JSON trace after cleanup. It runs the JSON backend, drives RC/commands and records original autopilot diagnostics; it is separate from the demo. Native ELF and source checks reject absent/fake inputs; hashes establish declared identity but not reproducibility of a locally built binary. Retain build logs/toolchain evidence separately. The parent creates a private working directory, bounds stdout/stderr to 16 MiB, enforces 120 s and terminates its owned POSIX process group on failure. Windows descendant containment still requires a verified driver/job-object implementation; do not use global kill commands. Never delete shared source/build caches during cleanup.
+SITL requires MIRAGE_SITL_SOURCE at the pinned clean commit, MIRAGE_SITL_BINARY with MIRAGE_SITL_BINARY_SHA256, and MIRAGE_SITL_DRIVER with MIRAGE_SITL_DRIVER_SHA256. No secrets are required. The Node driver (`scripts/sitl/driver.mjs`) receives --binary and --parameters, owns firmware/bridge lifecycle and outputs only a JSON trace after cleanup. It runs the JSON backend, drives RC/commands and records original autopilot diagnostics; it is separate from the demo. Native Mach-O64 (macOS) or ELF64 (Linux), execute-permission and source checks reject absent/fake inputs; hashes establish declared identity but not reproducibility of a locally built binary. Retain build logs/toolchain evidence separately. The parent creates a private working directory, bounds stdout/stderr to 16 MiB, enforces 120 s and terminates its owned POSIX process group on failure. Windows descendant containment still requires a verified driver/job-object implementation; do not use global kill commands. Never delete shared source/build caches during cleanup.
 
 A release input contains schemaVersion=1, artifacts [{path,sha256,license}], systemReportPath and systemReportSha256. Inventory is limited to 4096 files, 64 MiB/file and 512 MiB total from apps/web/dist, packages/wasm-bet/dist or test-results/validation. Traversal, symlink escape, duplicates, absent licenses and mismatched hashes are rejected. The output records actual file sizes/hashes, source revision/dirty state, npm lock hash, dataset registry hash and Node version. Complete dependency-license review, actual compiler versions and clean-machine/raw G0–G4 evidence are still prerequisites: inventory generation deliberately remains BLOCKED_EXTERNAL even for a supplied green summary. It cannot authorize publication.
 
@@ -34,16 +34,19 @@ Accessibility checklist: keyboard Tab reaches the skip link and core actions; En
 
 ## Native SITL flight (TASK-042)
 
-Run the whole harness on Linux or inside WSL Ubuntu. Use Node 24, a virtual
-environment with pymavlink 2.4.50, the clean source at the commit in
-`scripts/sitl.lock.json`, its native ArduCopter ELF, and the scalar body WASM
+Phase 1 runs the whole harness natively on macOS Apple Silicon (TASK-127);
+Linux remains supported for regressions, and WSL evidence is historical. Use
+Node 24, a virtual environment with pymavlink 2.4.50, the clean source at the
+commit in `scripts/sitl.lock.json`, its matching native ArduCopter executable,
+and the scalar body WASM
 from `node scripts/build-wasm.mjs`. Existing source/builds may be reused after
 checking their identities; preserve build logs/compiler versions. No physical
 FC, external flight log, cloud credentials or measured polar is required for
 this synthetic-aircraft integration. `scripts/sitl/driver.mjs` is the reference
 closed-loop driver; it is separate from the demo.
 
-Set the paths below in the Linux shell. Values are local paths, not secrets.
+See [the macOS build record](../decisions/macos-sitl.md) for native prerequisites.
+Set the paths below in a POSIX shell. Values are local paths, not secrets.
 The capture directory must be new. The firmware parameters keep ARMING_CHECK=1
 and EKF3 enabled. Do not disable checks or alter the frozen flight tolerances.
 
@@ -52,8 +55,8 @@ export MIRAGE_SITL_SOURCE=/path/to/pinned/ardupilot
 export MIRAGE_SITL_BINARY=/path/to/native/arducopter
 export MIRAGE_SITL_PYTHON=/path/to/venv/bin/python
 export MIRAGE_SITL_DRIVER="$PWD/scripts/sitl/driver.mjs"
-export MIRAGE_SITL_BINARY_SHA256=$(sha256sum "$MIRAGE_SITL_BINARY" | cut -d ' ' -f 1)
-export MIRAGE_SITL_DRIVER_SHA256=$(sha256sum "$MIRAGE_SITL_DRIVER" | cut -d ' ' -f 1)
+export MIRAGE_SITL_BINARY_SHA256=$(shasum -a 256 "$MIRAGE_SITL_BINARY" | cut -d ' ' -f 1)
+export MIRAGE_SITL_DRIVER_SHA256=$(shasum -a 256 "$MIRAGE_SITL_DRIVER" | cut -d ' ' -f 1)
 export MIRAGE_SITL_CAPTURE_DIR="$PWD/.cache/task-042/capture-new"
 node scripts/run-sitl.mjs
 "$MIRAGE_SITL_PYTHON" scripts/sitl/check-raw.py --input "$MIRAGE_SITL_CAPTURE_DIR"
@@ -61,7 +64,10 @@ node scripts/check-sitl-capture.mjs --input "$MIRAGE_SITL_CAPTURE_DIR"
 ```
 
 `run-sitl` executes firmware/driver and returns 0 only for a completed flight;
-without prerequisites it returns 2. `check-sitl-capture` independently checks
+without prerequisites it returns 2. It writes `sitl-report.json` to
+`test-results/validation/`, replacing the committed report even when the run is
+blocked; `--out DIR` writes it to `DIR` instead, for example for a regression
+run. `check-sitl-capture` independently checks
 the saved v2 trace against full-rate physics and original decoded telemetry,
 verifies unchanged source hashes, frame/cadence/PWM counters and writes
 `test-results/validation/task-042-flight.json`. `check-raw.py` first independently
@@ -440,3 +446,54 @@ distribution and release gates. Store its SHA-256 in trusted local acceptance
 configuration before calling admitWasmParity. Missing captures exit 2 and
 failed/unverified evidence exits 1; never replace a failed capture with a
 synthetic trace or update goldens to hide a mismatch.
+
+## Local launcher (TASK-151)
+
+A web page cannot start programs. The launcher (`apps/launcher`) is the one
+local service that does: the user starts it, it binds 127.0.0.1 only, and it
+starts and stops owned ArduPilot SITL processes for the web application.
+
+```bash
+npm run start -w @mirage/launcher
+```
+
+Settings, all optional: `MIRAGE_LAUNCHER_HOME` (default
+`~/Library/Application Support/MirageSITL/launcher`), `MIRAGE_LAUNCHER_PORT`
+(default 47800), `MIRAGE_LAUNCHER_ORIGIN` (the one web origin it accepts,
+default `http://127.0.0.1:5173`) and `MIRAGE_LAUNCHER_PYTHON` (default
+`venv/bin/python` in the home folder). On first start the launcher writes a
+random 64-hex token to `token` in its home folder with mode 0600 and refuses
+to start if others can read that file. It prints the token file path, never
+the token; the web application sends the token as `Authorization: Bearer`.
+Never put the token in a URL, a repository file or a log: the launcher
+rejects any request with a query string.
+
+`catalog.json` in the home folder lists the installed SITL builds (written by
+installation, TASK-152): ID, firmware version, source commit, the executable
+and ArduPilot's `copter.parm` with their SHA-256. A build is usable only when
+its commit is one MirageSITL supports (`scripts/sitl.lock.json`), both files
+still have their recorded hashes and the executable passes the native
+Mach-O64/ELF64 admission. `GET /v1/prerequisites` reports the platform,
+Node.js 24, a writable home with at least 2 GiB free, pymavlink 2.4.50 in the
+launcher Python and a usable build, each with a fix instruction.
+
+Each experiment gets `experiments/<id>/` in the home folder with
+`experiment.json`, `experiment.parm` (the requested parameters, loaded after
+`copter.parm`), an optional `scripts/frame.lua`, `stdout-<run>.log`,
+`stderr-<run>.log`, `owner-<run>.json` and SITL's own `logs/` with its
+DataFlash files. SITL runs in its own POSIX process group with
+`--model JSON:127.0.0.1`. Its JSON physics go to the bridge the run hosts,
+on the bridge's JSON port, and its serial0 (`udpclient:`) goes to a loopback
+relay that forwards MAVLink to the same bridge. The bridge accepts the web
+origin and the launcher token, as in TASK-040. Stop sends SIGTERM to the
+owned group and SIGKILL after 3 s. A crash is recorded with its exit code or
+signal, and restart begins a new run in the same folder. One experiment runs
+at a time. The launcher never signals a process it did not start, and no
+request names a process ID. Stopping the launcher (Ctrl-C) stops its runs.
+
+Check with fake executables and, when `.cache/task-127` holds the pinned
+build, the real ArduCopter in JSON lockstep through the hosted bridge:
+
+```bash
+npx --no-install vitest run tests/launcher.test.ts
+```

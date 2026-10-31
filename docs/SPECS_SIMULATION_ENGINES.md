@@ -652,8 +652,15 @@ free flight. No contact, battery or autopilot simulation is implied.
 4/6/8 rotors across scalar/SIMD and 400/800/1200 Hz against 4800 Hz; tolerances
 remain 0.1 m and 0.5 degrees. `--allocation` counts one million native bound
 steps with a positive control, probes one million active-rotor steps in each
-WASM variant and one million stationary four-rotor body steps with zero gravity.
-The JS probes require zero GC, less than 0.01 incremental bytes/step, stable
+WASM variant, and one million steps each of the stationary four-rotor body with
+zero gravity and of the four-rotor body on the synthetic pad. It also probes the
+step interfaces v2 of TASK-088: one million active-rotor steps through
+`BetRotorEngineV2` and one million stationary body steps through
+`BetRigidBodyBackendV2`, each in both WASM variants, and one million steps of
+the four-rotor body on the TASK-092 ESC drive and shared bus on the synthetic
+pad. `scripts/bet-runtime-graphs.ts` lists the nine graphs; a report must hold
+exactly one sample of each, and `scripts/validate-models.mjs` admits only that
+set. The JS probes require zero GC, less than 0.01 incremental bytes/step, stable
 WASM memory and an allocating positive control. These are software checks,
 not measured aerodynamic validation or target-device real-time guarantees.
 Reports `bet-runtime.json` and `bet-runtime-allocation.json` under
@@ -3819,7 +3826,9 @@ pass-through statuses, all leaving state and output unchanged; and zero
 allocator calls and bytes over 10^6 steps. `native/bet/examples/interface_v2_reference.rs`
 prints native outputs for the WASM parity test `tests/wasm-abi-v2.test.ts`.
 `packages/wasm-bet/src/rotor-v2.ts` and `body-v2.ts` are the allocation-free
-adapters.
+adapters. `node scripts/check-bet-runtime.mjs --allocation` measures them on
+the JS side: 10^6 steps of each in both WASM variants, with zero GC events,
+less than 0.01 incremental bytes per step and stable WASM memory.
 
 Native and WASM agree to 1e-12 relative. Native glibc and the WASM libm may
 differ by an ulp in trigonometric functions, and a vector component's
@@ -5764,3 +5773,104 @@ rating and checks that the panel shows the pack `Limited` and each motor's
 power as a `Warning`; it also checks the Run tab's panel for the demo.
 `scripts/bench-profile-dynamics.mjs` measures G1 with the monitor and the
 channel publish in the step loop.
+
+## ArduPilot output mapping and frame parameters (TASK-142)
+
+`packages/aircraft/src/output-mapping.ts` and `frame-parameters.ts`, shown in
+the Aircraft tab by `apps/web/src/aircraft/OutputMapping.tsx`. Configuration-time
+code only.
+
+### Mapping record
+
+```json
+{ "schemaVersion": 1, "entries": [{ "motorId": 1, "output": 1 }] }
+```
+
+The record is the profile's own assignment of each motor to an ArduPilot servo
+output (SERVOn): one entry per motor in ascending motor ID order, outputs 1–16
+and unique. `outputMappingOf(profile)` reads it; `validateOutputMapping(input,
+profile)` checks it from `unknown` and refuses an incomplete, misordered,
+out-of-range, fractional or repeated assignment or an extra field with its
+reason; `withOutputMapping(profile, input)` returns a new validated profile
+in which only the outputs change. A profile and its own mapping round-trip to
+the same canonical bytes.
+
+### Frame selection
+
+The only source is the TASK-128 catalog of the pinned firmware
+(`tests/fixtures/sitl/frames.json`, ArduCopter V4.8.0-dev, commit
+`8ab6afde107a91df1b5f60ade8f333cb8a61b190`), validated from `unknown` once at
+module load by `parseFrameCatalog`. `frameConfiguration(profile,
+profileSha256)` decides in this order:
+
+1. **Stock frame.** Every motor sits at one of a stock X frame's azimuths
+   (within 1e-9°, wrapped to (−180°, 180°]) with that motor's spin, one to one,
+   and all arms are equally long. ArduPilot allocates by azimuth and spin, so
+   the arm height, the coaxial level and the tilt do not select the frame; a
+   coaxial motor on the other level than in the catalog only adds a note. Each
+   profile motor takes the matched stock motor number, output function and
+   normalized factors from the catalog.
+2. **Stock scripting matrix.** Otherwise, if the layout can be controlled,
+   frame class 15 with the generated Lua file, `SCR_ENABLE 1` and
+   `SERVO_32_ENABLE 1` (32-channel packets, as TASK-128 flew it; motors stay on
+   outputs 1–16). ArduPilot motor k is the k-th motor in ascending motor ID
+   order, with test order k. With arm length L, azimuth a and the longest arm
+   L_max, the raw factors are roll = −L·sin a / L_max, pitch = L·cos a / L_max
+   and yaw = +1 for counter-clockwise, −1 for clockwise; ArduPilot normalizes
+   them so the largest magnitude of each is 0.5. For equal arms these are the
+   TASK-128 paired-16 factors cos(a + 90°) and cos(a).
+3. **Refused.** No parameters, with every applicable reason:
+   `no-yaw-authority` (one spin direction only), `no-roll-authority` or
+   `no-pitch-authority` (no motor off the body x or y axis), else
+   `dependent-axes` when the rows thrust, roll, pitch and yaw of the raw factor
+   matrix have rank below 4 (for example three motors, or one coaxial pair).
+
+Notes are structured as well: `stock-frame`, `scripting-frame` (with the
+TASK-128 frame ID when the layout is the one flown), `stock-spin-mismatch`,
+`stock-unequal-arms`, `coaxial-level-differs`, `thrust-axis-tilt-ignored`
+(ArduPilot's matrix assumes vertical thrust; the simulation applies the tilt,
+the allocation does not compensate it) and `thirty-two-channel-packets`.
+
+### Generated parameters
+
+`FRAME_CLASS`, `FRAME_TYPE`, `SERVO_32_ENABLE`, `SCR_ENABLE` for the scripting
+matrix, then `SERVO1_FUNCTION` to `SERVOn_FUNCTION` for every packet channel,
+0 where no motor is assigned. Motor functions follow the catalog: 33–40 for
+motors 1–8, 82–85 for 9–12, 160–163 for 13–16. Only names TASK-128 set and
+read back on the pinned firmware are written (`FRAME_PARAMETER_NAMES`); any
+other name is an internal error. `parameterFileText` writes one `NAME value`
+line each, in that order. The result carries the profile version's SHA-256,
+or null for unsaved edits, and the firmware identity; the Lua file names the
+same version. The TASK-128 harness lines `ARMING_SKIPCHK`, `MOT_PWM_MIN`,
+`MOT_PWM_MAX` and `SIM_RATE_HZ` belong to the run, not the frame, and are not
+generated here.
+
+### S19 configurations
+
+| Fixture | Frame | Output functions, outputs 1 to n |
+| --- | --- | --- |
+| quad-x | stock quad-x (1/1) | 33, 34, 35, 36 |
+| hexa-x | stock hexa-x (2/1) | 37, 33, 36, 38, 34, 35 |
+| octa-x | scripting matrix (15/1) | 33 to 40 |
+| coaxial-x8 | stock x8 (4/1) | 33, 36, 35, 34, 38, 39, 40, 37 |
+| octa-coaxial-16 | scripting matrix (15/1), flown as paired-16 | 33 to 40, 82 to 85, 160 to 163 |
+
+The octa-x fixture puts a counter-clockwise motor at 22.5°, where stock OCTA X
+has a clockwise one; every spin is the mirror, so the stock frame would yaw the
+wrong way and the scripting matrix is used. TASK-128 found no 16-motor
+blocker; the 16-motor profile maps every motor.
+
+### Verification (TASK-142)
+
+`tests/output-mapping.test.ts` builds a profile from each of the five catalog
+frames and requires the generated parameter file to equal, byte for byte, the
+frame and output lines of the file the TASK-128 harness set, read back and
+flew (`scripts/sitl/multirotor.mjs`, run in a separate Node process), and the
+normalized factors to equal the catalog's source-derived factors; the paired-16
+Lua calls equal the flown calls to 1e-14. It checks the S19 fixtures against
+the hand-typed table above, mapping round trips and rejections, a changed
+mapping, unequal arms and four uncontrollable layouts with their reasons.
+`tests/browser/output-mapping.spec.ts` builds the 16-motor profile through the
+Aircraft tab, checks its 16 rows and parameter file, swaps two outputs in the
+arm table and checks the moved functions and the new version, and refuses a
+hexa whose motors all turn one way.

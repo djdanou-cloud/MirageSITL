@@ -1,4 +1,4 @@
-// Cold Linux integration driver. The parent harness owns this process group.
+// Cold macOS/Linux integration driver. The parent harness owns this process group.
 import {spawn} from 'node:child_process';
 import {createSocket} from 'node:dgram';
 import {createServer} from 'node:net';
@@ -8,15 +8,20 @@ import {join,resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {createHash} from 'node:crypto';
 import {once} from 'node:events';
+import {readNativeExecutable} from './native-binary.ts';
+import {cpus,release} from 'node:os';
 import {QuadReference,configuration} from './quad.mjs';
 import {ExternalSitlLockstep,newSitlPhysicsState,MAX_STATE_LINE_BYTES} from '../../packages/autopilot/src/external-sitl.ts';
 import {LiveEkfWarmup} from '../../packages/autopilot/src/live-warmup.ts';
 import {imuNoiseFloorMatrix,isImuNoiseFloorSetting,ownershipParameterProfile,parseArduPilotCatalog} from '../../packages/autopilot/src/error-ownership.ts';
+// Frame feasibility has its own trace contract; keep legacy v2 quad captures intact.
+if(process.env.MIRAGE_SITL_FRAME){await import('./frames-driver.mjs');process.exit(0);}
 const root=fileURLToPath(new URL('../../',import.meta.url));
 const sha=b=>createHash('sha256').update(b).digest('hex');
 const args=process.argv.slice(2);
-if(process.platform==='win32'||args.length!==4||args[0]!=='--binary'||args[2]!=='--parameters')throw Error('Run the owned SITL driver on Linux with --binary PATH --parameters PATH');
+if(!['linux','darwin'].includes(process.platform)||args.length!==4||args[0]!=='--binary'||args[2]!=='--parameters')throw Error('Run the owned SITL driver on macOS or Linux with --binary PATH --parameters PATH');
 const binary=resolve(args[1]),parameters=resolve(args[3]);
+const nativeBinary=readNativeExecutable(binary);
 const source=process.env.MIRAGE_SITL_SOURCE,python=process.env.MIRAGE_SITL_PYTHON;
 const ewModule=process.env.MIRAGE_EW_CASE?await import('./ew-observations.ts'):null;
 const experiment=ewModule?new ewModule.EwObservations(process.env.MIRAGE_EW_CASE):null,PLAN=ewModule?.PLAN;
@@ -52,12 +57,12 @@ const SENSOR_CONFIRM_DEADLINE_S=30,BATTERY_TRUTH_V=12.6,BATTERY_TRUTH_A=0;
 const directory=resolve(process.env.MIRAGE_SITL_CAPTURE_DIR??join(root,'.cache/task-042/capture'));
 mkdirSync(directory,{recursive:true});
 if(existsSync(join(directory,'run.json'))||existsSync(join(directory,'physics.ndjson')))throw Error('Capture directory already contains evidence; select a new directory');
-const sourceFiles=['scripts/sitl/driver.mjs','scripts/sitl/quad.mjs','scripts/sitl/telemetry.py','scripts/run-sitl.mjs','scripts/sitl.lock.json',
+const sourceFiles=['scripts/sitl/driver.mjs','scripts/sitl/quad.mjs','scripts/sitl/telemetry.py','scripts/run-sitl.mjs','scripts/sitl.lock.json','scripts/sitl/native-binary.ts',
   'packages/wasm-bet/src/backend.ts','packages/autopilot/src/external-sitl.ts','tests/fixtures/sitl/parameters.parm',
   'native/bet/src/rigid_body.rs','native/bet/src/body_abi.rs','native/bet/src/math.rs','native/bet/src/lib.rs',
   'native/Cargo.lock','native/rust-toolchain.toml'];
 sourceFiles.push('packages/autopilot/src/live-warmup.ts','packages/autopilot/src/ekf-status.ts','packages/autopilot/src/warmup.ts',
-  'packages/mavlink/src/codec.ts','packages/protocol/src/layout-v2.ts','packages/autopilot/src/error-ownership.ts',
+  'packages/mavlink/src/codec.ts','packages/mavlink/dialect.lock.json','packages/protocol/src/layout-v2.ts','packages/autopilot/src/error-ownership.ts',
   'tests/fixtures/sitl/ardupilot-catalog.json');
 if(sensors)sourceFiles.push('scripts/sitl/json-modules.mjs','packages/sensors/src/configured.ts','packages/sensors/src/lever-arm.ts',
   'packages/aircraft/src/sensor-parameters.ts','packages/aircraft/src/sensor-ownership.ts','packages/aircraft/src/sensor-fields.ts',
@@ -264,7 +269,7 @@ writeFileSync(join(directory,'run.json'),JSON.stringify({status:failure?'FAIL':'
   ...(sensors?{sensors:{inputSha256:sha(sensorInput),seed:sensors.input.seed,configuration:sensors.input.configuration,matrixId:sensors.runtime.matrix.id,
     expected:sensors.runtime.parameters,reported:Object.fromEntries(sensors.runtime.parameters.map(p=>[p.name,parameterValues[p.name]??null])),
     parameterCount:sensors.count,listedParameters:sensors.indices.size,confirmedS:sensorsConfirmedS,residuals:sensors.runtime.residuals.map(r=>r.id)}}:{}),
-  sourceInputs,wasmSha256:sha(wasm),node:process.version,python,firmwarePid:firmware.pid,telemetryPid:telemetry.pid,
+  sourceInputs,nativeBinary:nativeBinary.identity,host:{platform:process.platform,architecture:process.arch,osRelease:release(),cpu:cpus()[0]?.model},wasmSha256:sha(wasm),node:process.version,python,firmwarePid:firmware.pid,telemetryPid:telemetry.pid,
   warmup:{firstReady,imuSource:gate.imuSource,epoch:1,configuredSpeed:2,disposedReady:gate.warmup.ready,disposedEwAllowed:gate.warmup.ewAllowed,parserFrames:gate.parser.frames,badCrc:gate.parser.badCrc},
   childExit:[{pid:firmware.pid,code:firmware.exitCode,signal:firmware.signalCode},{pid:telemetry.pid,code:telemetry.exitCode,signal:telemetry.signalCode}],
   defaultsSha256:sha(readFileSync(join(source,'Tools/autotest/default_params/copter.parm'))),extraParametersSha256:sha(readFileSync(extra))},null,2)+'\n');

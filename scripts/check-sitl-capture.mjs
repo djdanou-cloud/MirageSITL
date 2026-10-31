@@ -20,6 +20,13 @@ const traceBytes=read('flight.json'),trace=JSON.parse(traceBytes),run=JSON.parse
 const rawAudit=JSON.parse(read('mavlink-audit.json'));
 if(rawAudit.status!=='PASS'||rawAudit.pymavlink!=='2.4.50'||rawAudit.rawSha256!==sha(read('mavlink.raw'))||rawAudit.decodedSha256!==sha(read('telemetry.ndjson'))||
   rawAudit.generatorSha256!==sha(readFileSync(join(root,'scripts/sitl/check-raw.py'))))throw Error('Missing or stale raw MAVLink audit');
+// Historical captures predate host admission. New captures bind their native format
+// to the recorded host while remaining replayable on a different audit machine.
+if(run.host) {
+  const expected=run.host.platform==='darwin'?'mach-o64':run.host.platform==='linux'?'elf64':null;
+  if(!expected||!['arm64','x64'].includes(run.host.architecture)||run.nativeBinary?.format!==expected||
+    run.nativeBinary?.architecture!==run.host.architecture)throw Error('Native capture host/binary identity mismatch');
+}
 const verdict=assessFlight(trace);
 if(trace.schemaVersion!==2||run.status!=='captured')throw Error('Capture is not a completed native v2 flight');
 if(!Array.isArray(run.sourceInputs)||run.sourceInputs.length<10)throw Error('Missing source identities');
@@ -63,12 +70,12 @@ const stages=['arm','takeoff','hold','land'].map(stage=>{
 });
 const files=['flight.json','run.json','physics.ndjson','telemetry.ndjson','mavlink.raw','mavlink-audit.json','firmware.log'];
 for(const name of readdirSync(join(directory,'dataflash')))files.push('dataflash/'+name);
-const report={schemaVersion:1,task:'TASK-042',status:'PASS',scope:'Native ArduCopter JSON/MAVLink integration with synthetic quad and Rust WASM rigid body; not measured aircraft fidelity or browser READY',
+const report={schemaVersion:1,task:run.host?.platform==='darwin'?'TASK-127':'TASK-042',status:'PASS',scope:'Native ArduCopter JSON/MAVLink integration with synthetic quad and Rust WASM rigid body; not measured aircraft fidelity or browser READY',
   sourceRevision:execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim(),validatorSha256:sha(readFileSync(fileURLToPath(import.meta.url))),
   captureDirectory:relative(root,directory).replaceAll('\\','/'),firmwareSha256:trace.provenance.firmwareSha256,modelSha256:trace.provenance.modelSha256,
   traceFileSha256:sha(traceBytes),driverStdoutSha256:sha(Buffer.from(traceBytes.toString().trimEnd())),
   metrics:{...verdict.metrics,physicsFrames:physics.length,wallS:run.wallS,simS:run.timeS,telemetryEvents:telemetry.length},
-  stages,stats:run.stats,sourceInputs:run.sourceInputs,rawMavlinkAudit:rawAudit,runtime:{node:run.node,python:run.python},childExit:run.childExit,
+  stages,stats:run.stats,sourceInputs:run.sourceInputs,rawMavlinkAudit:rawAudit,runtime:{node:run.node,python:run.python,...(run.host?{host:run.host,nativeBinary:run.nativeBinary}:{})},childExit:run.childExit,
   artifacts:files.map(file=>({file:relative(root,join(directory,file)).replaceAll('\\','/'),sha256:sha(read(file)),bytes:statSync(join(directory,file)).size}))};
 writeFileSync(output,JSON.stringify(report,null,2)+'\n');
 console.log(`Verified ${physics.length} actual physics frames, ${trace.samples.length} scored samples and original telemetry; hold=${verdict.metrics.holdDurationS}s`);

@@ -1,4 +1,4 @@
-/** Local Linux capture driver. Bundle with esbuild before execution in WSL. */
+/** Local macOS/Linux capture driver. Bundle with esbuild before execution. */
 import {spawn,execFileSync} from 'node:child_process';
 import {createSocket} from 'node:dgram';
 import {createServer,createConnection,type Socket} from 'node:net';
@@ -16,13 +16,14 @@ import {validateModelManifest} from '../../packages/physics/src/model-manifest.t
 import {parityAircraft,parityEscDrive,PARITY_ESC_BATTERY,PARITY_ESC_MOTOR,PARITY_HZ,PARITY_ORIGIN} from '../../tests/support/autopilot-parity.ts';
 import {ParityTelemetry,ParityCommands,commandLong} from '../../tests/support/parity-mavlink.ts';
 import {parityIdentity} from './parity-identity.ts';
+import {readNativeExecutable} from '../../scripts/sitl/native-binary.ts';
 
 const [rootArg,binaryArg,sourceArg,defaultsArg,outputArg]=process.argv.slice(2);
-if(process.platform!=='linux'||!rootArg||!binaryArg||!sourceArg||!defaultsArg||!outputArg)throw Error('Expected Linux ROOT ELF SOURCE DEFAULTS OUTPUT');
+if(!['linux','darwin'].includes(process.platform)||!rootArg||!binaryArg||!sourceArg||!defaultsArg||!outputArg)throw Error('Expected macOS/Linux ROOT BINARY SOURCE DEFAULTS OUTPUT');
 const root=resolve(rootArg),binary=resolve(binaryArg),source=resolve(sourceArg),output=resolve(outputArg);
 const sourceCommit=execFileSync('git',['-C',source,'rev-parse','HEAD'],{encoding:'utf8'}).trim();
 if(sourceCommit!=='8ab6afde107a91df1b5f60ade8f333cb8a61b190'||execFileSync('git',['-C',source,'status','--porcelain','--untracked-files=no'],{encoding:'utf8'}).trim())throw Error('Pinned native source not clean');
-const bytes=readFileSync(binary);if(bytes.subarray(0,4).toString('hex')!=='7f454c46')throw Error('Native ELF required');
+const {bytes}=readNativeExecutable(binary);
 const bodyBytes=readFileSync(join(root,'packages/wasm-bet/dist/mirage_bet.scalar.wasm'));
 const defaultsText=readFileSync(resolve(defaultsArg),'utf8'),identity=parityIdentity(root,defaultsText);
 // MIRAGE_PARITY_DRIVE=esc (TASK-092): the parity aircraft on the ESC drive and shared bus. The JSON line then

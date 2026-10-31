@@ -264,11 +264,25 @@ implementation.
   version 2 gives Rapier the full inertia tensor. TASK-095 is IN_PROGRESS:
   contact sessions now run without Rapier's CCD, so they travel kilometres
   without an allocation, the gear's strut and tire loads step implicitly (drop
-  peaks no longer depend on the step rate), and the wheels have static, Coulomb
-  and brush-tire friction (contact configuration version 3); the flight-session
-  wiring, hull shapes and SITL takeoff and landing remain. Decisions D-04
-  and D-06 to D-12 are decided. D-01 and D-02 still wait on TASK-127 and
-  TASK-128. TASK-129 records D-03: JSON lockstep without `no_lockstep` owns
+  peaks no longer depend on the step rate), the wheels have static, Coulomb
+  and brush-tire friction (contact configuration version 3), and
+  `BetFlightConfiguration.contact` makes `GroundContact` the flight model's
+  body integrator in place of the attitude-resetting synthetic pad; gear in
+  aircraft profiles, terrain planes, hull shapes and SITL takeoff and landing
+  remain. TASK-142 is DONE:
+  the Aircraft tab maps each motor to an output and generates the frame
+  parameters from the TASK-128 catalog (the S19 octa-x fixture spins the
+  mirror of stock OCTA X, so it uses the scripting matrix). TASK-151 (the
+  local launcher, `apps/launcher`) and TASK-152 (`scripts/install-macos.mjs`
+  and the Project tab's first-run check) are DONE: both pass with the network
+  switched off. Decisions D-04
+  and D-06 to D-12 are decided. TASK-127 and TASK-128 are DONE: stock
+  ArduCopter `8ab6afd` builds and flies natively on Apple Silicon
+  ([macos-sitl.md](docs/decisions/macos-sitl.md)), and its stock frames and
+  scripting matrix drive all five S19 configurations, 16 motors included
+  ([ardupilot-frames.md](docs/decisions/ardupilot-frames.md)). That is the
+  evidence for D-01 and D-02; the stakeholder has not recorded either
+  decision yet. TASK-129 records D-03: JSON lockstep without `no_lockstep` owns
   simulated time, a 60 s pause does not induce a failsafe, parameter access
   waits until resume, and acceleration is host-limited
   ([sitl-clock.md](docs/decisions/sitl-clock.md)). TASK-136 defined the project archive of D-05, TASK-139 its
@@ -291,13 +305,14 @@ implementation.
   (accessibility sign-off; TASK-074 HUD freshness, TASK-075 fault ACKs, TASK-078 full-rate recording, and TASK-079 scenario ACK binding are done and do not admit browser READY), TASK-082 (multi-hour integrated soak), and TASK-083 (clean-machine
   release and assistive screen-reader sign-off) remain open.
 * **Physics fidelity program (TASK-087–TASK-123, roadmap Phases 7–13):** registered
-  2026-10-26 from the physics fidelity review. TASK-087–TASK-090 are IN_PROGRESS with a
-  first increment each:
+  2026-10-26 from the physics fidelity review. TASK-087, TASK-089 and TASK-090 are
+  IN_PROGRESS with a first increment each, and TASK-088 is DONE:
   * TASK-087: the strict vehicle manifest v2 (`vehicle-manifest.ts`), an ArduPilot
     profile limited to evidenced names, and an optional `SessionModelPort` for
     `model.load`; the default demo backend is unchanged.
   * TASK-088: bound-rotor and body step interfaces v2 with fail-closed later-task
-    fields (status −8); neutral records run v1 bitwise.
+    fields (status −8); neutral records run v1 bitwise. The JS GC probes of
+    `check-bet-runtime.mjs --allocation` cover the v2 adapters.
   * TASK-089: a pinned-source SITL catalog and a 25-source error-ownership matrix. By
     the user's 2026-10-26 decision ArduPilot defaults stay the default, and the opt-in
     `imu-noise-floor` firmware patch (`scripts/build-ardupilot-sitl.mjs`) adds

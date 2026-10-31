@@ -12,13 +12,15 @@ import { AircraftScheme3D, type RenderedRotor } from "./AircraftScheme3D";
 import { ArmTable, type CardOption, type CardOptions } from "./ArmTable";
 import { MassProperties } from "./MassProperties";
 import { POLAR_CATALOG } from "@mirage/physics/polar-catalog";
+import { OutputMapping } from "./OutputMapping";
 import { choosePropellerPolar, emptyForm, formFromProfile, profileFromForm, propellerCardsOf, type ProfileForm } from "./profile-form";
 
 // The Aircraft tab (TASK-141, S03): create, open, edit, save and copy aircraft
 // profiles of the open project without editing files. Every saved version goes
 // through validateAircraftProfile and profileDraft (TASK-138); while the form
 // is invalid, Save is disabled and the reasons are listed. The 3D scheme draws
-// the layout derivation of the last valid form.
+// the layout derivation of the last valid form, and the ArduPilot outputs
+// and frame parameters of the valid form follow it (TASK-142).
 
 interface Editing {
   /** Null for a profile that is not stored yet. */
@@ -247,6 +249,7 @@ export function AircraftEditor({ storeState, project, active }: { storeState: St
             ) : <p>The scheme appears once the arms, motors and mass properties are valid.</p>}
           </section>
           <ArmTable form={editing.form} cards={library.cards} onChange={setForm} />
+          <OutputMapping profile={result?.ok ? result.profile : null} profileSha256={!dirty && editing.head ? editing.head.sha256 : null} />
           <section className="project-section" aria-labelledby="propulsion-heading">
             <h3 id="propulsion-heading">Propulsion and battery</h3>
             <p className="hint">Cards come from the Components tab. Choose cards here for every motor at once, or per motor in its arm.</p>

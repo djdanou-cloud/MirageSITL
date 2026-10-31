@@ -12,6 +12,7 @@ import {
   DEFAULT_NAVIGATION, TABS, forcedTab, loadNavigation, panelId, saveNavigation, tabForKey, tabId,
   type NavigationState, type TabId,
 } from "./navigation";
+import { FirstRun } from "./FirstRun";
 import { ProjectBar } from "./ProjectBar";
 import { ProjectPanel } from "./ProjectPanel";
 import { describeProjectError, nameLanguage } from "./project-files";
@@ -128,7 +129,14 @@ export function AppShell({ run }: { run: (visible: boolean) => ReactNode }) {
   const content = (tab: TabId): ReactNode => {
     switch (tab) {
       case "project":
-        return <ProjectPanel storeState={storeState} project={project} projects={projects} onOpen={openProject} onRefresh={refreshProjects} />;
+        return (
+          <>
+            <ProjectPanel storeState={storeState} project={project} projects={projects} onOpen={openProject} onRefresh={refreshProjects} />
+            <div className="project-panel first-run-panel">
+              <FirstRun />
+            </div>
+          </>
+        );
       case "aircraft":
         return <AircraftEditor storeState={storeState} project={project} active={navigation.tab === "aircraft"} />;
       case "components":

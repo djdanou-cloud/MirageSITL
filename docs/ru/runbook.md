@@ -8,7 +8,7 @@
 PowerShell/zsh и проверки перед расширением поддерживаемого покрытия.
 
 ## Локальные проверки
-<!-- source-sha256: 20893f8f0ef1b845add94d4687bee31d3caaca4d97812805b9024723a4486cee -->
+<!-- source-sha256: e15a006c974f2cf57ba2aa68cfc63b8fd6c3483ca8dd21fa6bf601388bb35e53 -->
 
 Использовать существующий изолированный checkout, сохраняя локальные изменения. Node закреплён .nvmrc; Rust 1.97.0 и wasm32-unknown-unknown — native/rust-toolchain.toml. Зависимости ставить через npm ci. В облаке активировать CARGO_HOME=/workspace/.cache/mirage-cargo, RUSTUP_HOME=/workspace/.cache/mirage-rustup и добавить CARGO_HOME/bin в начало PATH; не переопределять HOME. Запустить lint, typecheck, check:docs, CI=true npm test, npm run build и locked native tests. Модульный набор тестов не изменяет отслеживаемые свидетельства в test-results/: тесты записывают создаваемые отчёты во временные или игнорируемые каталоги (validate-models, check-propeller-bem и bench-links-ew принимают --out DIR), а глобальная настройка Vitest tests/support/tracked-results.ts завершает прогон ошибкой, если меняется вывод git status --porcelain -- test-results/. Браузерные прогоны дают ту же гарантию: Playwright пишет отчёт JUnit, трассы и захваты прошивки TASK-045 в test-results/browser/, где нет отслеживаемых файлов, а последний настроенный репортёр tests/support/tracked-results-reporter.ts повторяет проверку после того, как остальные репортёры записали свои файлы. Браузерный артефакт CI выгружает test-results/browser/ и playwright-report/. Запустить npm run dev; проверить HTTP, COOP same-origin, COEP require-corp и настоящий Worker READY. Начать с нулевого газа, армировать, летать, приостановить и сбросить. Браузерные тесты используют системный Chromium только при наличии. Установка/запуск на чистой восстановленной машине для сертификации выпуска ещё не выполнялись.
 
@@ -25,7 +25,7 @@ node scripts/release-manifest.mjs --input /path/to/release-input.json --sha256 <
 node scripts/bench-terrain-scenarios.mjs 400
 ```
 
-SITL требует MIRAGE_SITL_SOURCE на закреплённом чистом коммите, MIRAGE_SITL_BINARY с MIRAGE_SITL_BINARY_SHA256 и MIRAGE_SITL_DRIVER с MIRAGE_SITL_DRIVER_SHA256. Секреты не нужны. Node-драйвер (`scripts/sitl/driver.mjs`) получает --binary и --parameters, владеет жизненным циклом прошивки/моста и выдаёт только JSON-трассу после очистки. Он запускает JSON-backend, управляет RC/командами и пишет исходную диагностику автопилота; он отделён от демо. Проверки ELF/исходников отклоняют отсутствующие/поддельные входы; хеши устанавливают заявленную идентичность, но не воспроизводимость локального бинарника. Отдельно сохранять логи сборки/инструментария. Родитель создаёт закрытый рабочий каталог, ограничивает stdout/stderr 16 MiB, задаёт 120 с и при отказе завершает свою POSIX-группу процессов. Для потомков Windows нужен проверенный драйвер/job-object; глобальные команды kill запрещены. Общие кеши исходников/сборки при очистке не удалять.
+SITL требует MIRAGE_SITL_SOURCE на закреплённом чистом коммите, MIRAGE_SITL_BINARY с MIRAGE_SITL_BINARY_SHA256 и MIRAGE_SITL_DRIVER с MIRAGE_SITL_DRIVER_SHA256. Секреты не нужны. Node-драйвер (`scripts/sitl/driver.mjs`) получает --binary и --parameters, владеет жизненным циклом прошивки/моста и выдаёт только JSON-трассу после очистки. Он запускает JSON-backend, управляет RC/командами и пишет исходную диагностику автопилота; он отделён от демо. Проверки Mach-O64 (macOS) или ELF64 (Linux), разрешения исполнения и исходников отклоняют отсутствующие/поддельные входы; хеши устанавливают заявленную идентичность, но не воспроизводимость локального бинарника. Отдельно сохранять логи сборки/инструментария. Родитель создаёт закрытый рабочий каталог, ограничивает stdout/stderr 16 MiB, задаёт 120 с и при отказе завершает свою POSIX-группу процессов. Для потомков Windows нужен проверенный драйвер/job-object; глобальные команды kill запрещены. Общие кеши исходников/сборки при очистке не удалять.
 
 Вход выпуска содержит schemaVersion=1, artifacts [{path,sha256,license}], systemReportPath и systemReportSha256. Инвентарь ограничен 4096 файлами, 64 MiB/файл и 512 MiB суммарно из apps/web/dist, packages/wasm-bet/dist или test-results/validation. Выход за пути, symlink-побег, повторы, отсутствие лицензий и несовпадения хешей отклоняются. Вывод фиксирует фактические размеры/хеши, ревизию/dirty, npm lock, хеш реестра данных и версию Node. Полная проверка лицензий зависимостей, реальных версий компиляторов и чистой машины/исходных G0–G4-свидетельств остаётся обязательной: создание инвентаря намеренно сохраняет BLOCKED_EXTERNAL даже при предоставленной зелёной сводке. Публикацию оно не разрешает.
 
@@ -35,16 +35,18 @@ SITL требует MIRAGE_SITL_SOURCE на закреплённом чисто�
 
 ## Нативный полёт SITL (TASK-042)
 
-Запускать весь harness на Linux или внутри WSL Ubuntu. Нужны Node 24,
-виртуальная среда с pymavlink 2.4.50, чистые исходники на коммите из
-`scripts/sitl.lock.json`, их нативный ArduCopter ELF и scalar WASM тела из
+Фаза 1 запускает весь harness нативно на macOS Apple Silicon (TASK-127);
+Linux сохраняется для регрессий, доказательства WSL остаются историческими.
+Нужны Node 24, виртуальная среда с pymavlink 2.4.50, чистые исходники на коммите
+из `scripts/sitl.lock.json`, соответствующий нативный ArduCopter и scalar WASM тела из
 `node scripts/build-wasm.mjs`. Существующие исходники/сборки допустимы после
 проверки идентичности; сохранять логи сборки/версии компилятора. Для этой
 интеграции синтетического аппарата не нужны физический FC, внешний полётный
 лог, облачные credentials или измеренная поляра. `scripts/sitl/driver.mjs` —
 эталонный замкнутый драйвер; он отделён от демо.
 
-Задать пути ниже в Linux shell. Это локальные пути, а не секреты. Каталог
+Нативные prerequisites приведены в [записи сборки macOS](macos-sitl.md).
+Задать пути ниже в POSIX shell. Это локальные пути, а не секреты. Каталог
 захвата должен быть новым. Параметры сохраняют ARMING_CHECK=1 и включённый
 EKF3. Не отключать проверки и не менять закреплённые допуски полёта.
 
@@ -53,8 +55,8 @@ export MIRAGE_SITL_SOURCE=/path/to/pinned/ardupilot
 export MIRAGE_SITL_BINARY=/path/to/native/arducopter
 export MIRAGE_SITL_PYTHON=/path/to/venv/bin/python
 export MIRAGE_SITL_DRIVER="$PWD/scripts/sitl/driver.mjs"
-export MIRAGE_SITL_BINARY_SHA256=$(sha256sum "$MIRAGE_SITL_BINARY" | cut -d ' ' -f 1)
-export MIRAGE_SITL_DRIVER_SHA256=$(sha256sum "$MIRAGE_SITL_DRIVER" | cut -d ' ' -f 1)
+export MIRAGE_SITL_BINARY_SHA256=$(shasum -a 256 "$MIRAGE_SITL_BINARY" | cut -d ' ' -f 1)
+export MIRAGE_SITL_DRIVER_SHA256=$(shasum -a 256 "$MIRAGE_SITL_DRIVER" | cut -d ' ' -f 1)
 export MIRAGE_SITL_CAPTURE_DIR="$PWD/.cache/task-042/capture-new"
 node scripts/run-sitl.mjs
 "$MIRAGE_SITL_PYTHON" scripts/sitl/check-raw.py --input "$MIRAGE_SITL_CAPTURE_DIR"
@@ -62,7 +64,10 @@ node scripts/check-sitl-capture.mjs --input "$MIRAGE_SITL_CAPTURE_DIR"
 ```
 
 `run-sitl` запускает firmware/драйвер и возвращает 0 только после полного
-полёта; без prerequisites возвращает 2. `check-sitl-capture` независимо
+полёта; без prerequisites возвращает 2. Он пишет `sitl-report.json` в
+`test-results/validation/`, заменяя закоммиченный отчёт даже при
+заблокированном прогоне; `--out DIR` пишет его в `DIR`, например для
+регрессионного прогона. `check-sitl-capture` независимо
 проверяет сохранённую v2-трассу по полночастотной физике и исходной
 декодированной телеметрии, неизменные хеши исходников, счётчики кадров,
 частоты/PWM и пишет `test-results/validation/task-042-flight.json`.
@@ -458,3 +463,59 @@ JSON аудита сохраняется рядом с каждым захват
 Отсутствие захватов даёт код 2, неуспешные/непроверенные данные — код 1;
 не заменяйте проваленный захват синтетической трассой и не обновляйте golden
 для сокрытия расхождения.
+
+## Локальный запускатель (TASK-151)
+
+Веб-страница не может запускать программы. Запускатель (`apps/launcher`) —
+единственная локальная служба, которая это делает: пользователь запускает
+его сам, он слушает только 127.0.0.1 и запускает и останавливает
+принадлежащие ему процессы ArduPilot SITL для веб-приложения.
+
+```bash
+npm run start -w @mirage/launcher
+```
+
+Все настройки необязательны: `MIRAGE_LAUNCHER_HOME` (по умолчанию
+`~/Library/Application Support/MirageSITL/launcher`), `MIRAGE_LAUNCHER_PORT`
+(по умолчанию 47800), `MIRAGE_LAUNCHER_ORIGIN` (единственный принимаемый
+веб-origin, по умолчанию `http://127.0.0.1:5173`) и `MIRAGE_LAUNCHER_PYTHON`
+(по умолчанию `venv/bin/python` в домашней папке). При первом запуске
+запускатель записывает случайный токен из 64 шестнадцатеричных символов в
+файл `token` домашней папки с правами 0600 и не запускается, если файл
+доступен для чтения другим. Он печатает путь к файлу токена, но никогда сам
+токен; веб-приложение передаёт токен как `Authorization: Bearer`. Никогда не
+помещайте токен в URL, файл репозитория или журнал: запускатель отклоняет
+любой запрос со строкой запроса.
+
+`catalog.json` в домашней папке перечисляет установленные сборки SITL (его
+записывает установка, TASK-152): ID, версию прошивки, коммит исходников,
+исполняемый файл и `copter.parm` ArduPilot с их SHA-256. Сборка пригодна,
+только если её коммит поддерживается MirageSITL (`scripts/sitl.lock.json`),
+оба файла сохранили записанные хеши, а исполняемый файл проходит нативный
+допуск Mach-O64/ELF64. `GET /v1/prerequisites` сообщает о платформе,
+Node.js 24, записываемой домашней папке минимум с 2 ГиБ свободного места,
+pymavlink 2.4.50 в Python запускателя и пригодной сборке, каждый пункт с
+инструкцией по исправлению.
+
+Каждый эксперимент получает папку `experiments/<id>/` в домашней папке с
+`experiment.json`, `experiment.parm` (запрошенные параметры, загружаемые после
+`copter.parm`), необязательным `scripts/frame.lua`, `stdout-<run>.log`,
+`stderr-<run>.log`, `owner-<run>.json` и собственной папкой SITL `logs/` с
+файлами DataFlash. SITL работает в собственной группе процессов POSIX с
+`--model JSON:127.0.0.1`. Его физика JSON идёт на порт JSON моста, который
+размещает запуск, а serial0 (`udpclient:`) — на локальный ретранслятор,
+передающий MAVLink в тот же мост. Мост принимает веб-origin и токен
+запускателя, как в TASK-040. Остановка посылает SIGTERM группе процессов
+запуска и SIGKILL через 3 с. Аварийное завершение записывается с кодом выхода
+или сигналом, а перезапуск начинает новый запуск в той же папке. Одновременно
+выполняется один эксперимент. Запускатель никогда не посылает сигнал процессу,
+который не запускал, и ни один запрос не указывает ID процесса. Остановка
+запускателя (Ctrl-C) останавливает его запуски.
+
+Проверка с поддельными исполняемыми файлами и, если `.cache/task-127`
+содержит закреплённую сборку, с настоящим ArduCopter в режиме JSON lockstep
+через размещённый мост:
+
+```bash
+npx --no-install vitest run tests/launcher.test.ts
+```

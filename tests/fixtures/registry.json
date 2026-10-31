@@ -1663,6 +1663,61 @@
       }
     },
     {
+      "path": "sitl/frames.json",
+      "manifest": {
+        "formatVersion": 1,
+        "id": "sitl-phase1-frames-v1",
+        "sourceSha256": "e17967e0f5b12d43862f9ffb8ec2d945d362b4ef6a17ef200efdd8d3dde9b38e",
+        "units": {
+          "motorCount": "1",
+          "positionFrdM": "m",
+          "heightM": "m",
+          "rollFactor": "1",
+          "pitchFactor": "1",
+          "yawFactor": "1",
+          "pwmUs": "us"
+        },
+        "validityEnvelope": {
+          "motorCount": {
+            "min": 4,
+            "max": 16
+          },
+          "positionFrdM": {
+            "min": -0.2,
+            "max": 0.2
+          },
+          "heightM": {
+            "min": -0.03,
+            "max": 0.03
+          },
+          "rollFactor": {
+            "min": -0.5,
+            "max": 0.5
+          },
+          "pitchFactor": {
+            "min": -0.5,
+            "max": 0.5
+          },
+          "yawFactor": {
+            "min": -1,
+            "max": 1
+          },
+          "pwmUs": {
+            "min": 1000,
+            "max": 2000
+          }
+        },
+        "tolerance": {
+          "absolute": 1e-12,
+          "relative": 0
+        },
+        "provenance": {
+          "kind": "synthetic",
+          "derivation": "Pinned ArduPilot source X-frame tables, motor function enums and JSON packet layouts; Python struct wire oracles; explicitly synthetic arm radius, pair separation and custom stock-Lua 16-motor geometry. Not aircraft measurements or native flight evidence."
+        }
+      }
+    },
+    {
       "path": "dataflash/sitl-copter.bin",
       "manifest": {
         "formatVersion": 1,

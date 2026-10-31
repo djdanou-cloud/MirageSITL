@@ -18,6 +18,15 @@ pinned sources; the catalog records its hash, the upstream and patched file
 hashes, the SIM_* parameters it adds and the facts it establishes.
 Usage (repository root): python3 tests/fixtures/sitl/generate.py
 """
+# Frame generation is an independent local-source mode. Do not regenerate the
+# sensor/error catalog while another task owns that contract.
+import sys
+if "--frames-only" in sys.argv:
+    sys.argv.remove("--frames-only")
+    from generate_frames import main
+    main()
+    raise SystemExit(0)
+
 import hashlib
 import json
 import math
