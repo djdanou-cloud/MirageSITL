@@ -8,7 +8,7 @@
 PowerShell/zsh и проверки перед расширением поддерживаемого покрытия.
 
 ## Локальные проверки
-<!-- source-sha256: 13395ca578514c1a4e567fcf96f86e19c2934cb4631a502ba3b0a952f9226d15 -->
+<!-- source-sha256: c202c9780e38f931e9ed544823f214890559c7b1cc143ebe4edf43c4c171a62e -->
 
 Использовать существующий изолированный checkout, сохраняя локальные изменения. Node закреплён .nvmrc; Rust 1.97.0 и wasm32-unknown-unknown — native/rust-toolchain.toml. Зависимости ставить через npm ci. В облаке активировать CARGO_HOME=/workspace/.cache/mirage-cargo, RUSTUP_HOME=/workspace/.cache/mirage-rustup и добавить CARGO_HOME/bin в начало PATH; не переопределять HOME. Запустить lint, typecheck, check:docs, CI=true npm test, npm run build и locked native tests. Модульный набор тестов не изменяет отслеживаемые свидетельства в test-results/: тесты записывают создаваемые отчёты во временные или игнорируемые каталоги (validate-models, check-propeller-bem и bench-links-ew принимают --out DIR), а глобальная настройка Vitest tests/support/tracked-results.ts завершает прогон ошибкой, если меняется вывод git status --porcelain -- test-results/. Браузерные прогоны дают ту же гарантию: Playwright пишет отчёт JUnit, трассы и захваты прошивки TASK-045 в test-results/browser/, где нет отслеживаемых файлов, а последний настроенный репортёр tests/support/tracked-results-reporter.ts повторяет проверку после того, как остальные репортёры записали свои файлы. Браузерный артефакт CI выгружает test-results/browser/ и playwright-report/. Запустить npm run dev; проверить HTTP, COOP same-origin, COEP require-corp и настоящий Worker READY. Начать с нулевого газа, армировать, летать, приостановить и сбросить. Браузерные тесты используют системный Chromium только при наличии. Установка/запуск на чистой восстановленной машине для сертификации выпуска ещё не выполнялись.
 
@@ -64,7 +64,10 @@ node scripts/check-sitl-capture.mjs --input "$MIRAGE_SITL_CAPTURE_DIR"
 ```
 
 `run-sitl` запускает firmware/драйвер и возвращает 0 только после полного
-полёта; без prerequisites возвращает 2. `check-sitl-capture` независимо
+полёта; без prerequisites возвращает 2. Он пишет `sitl-report.json` в
+`test-results/validation/`, заменяя закоммиченный отчёт даже при
+заблокированном прогоне; `--out DIR` пишет его в `DIR`, например для
+регрессионного прогона. `check-sitl-capture` независимо
 проверяет сохранённую v2-трассу по полночастотной физике и исходной
 декодированной телеметрии, неизменные хеши исходников, счётчики кадров,
 частоты/PWM и пишет `test-results/validation/task-042-flight.json`.

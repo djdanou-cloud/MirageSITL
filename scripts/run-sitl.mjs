@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { readNativeExecutable } from "./sitl/native-binary.ts";
 import { fileURLToPath } from "node:url";
-import { sha256, hash, report, exact, finite, provenance } from "./validation/evidence.mjs";
+import { sha256, hash, report, exact, finite, provenance, outputDirectory } from "./validation/evidence.mjs";
 const pin = JSON.parse(readFileSync(new URL("./sitl.lock.json", import.meta.url)));
 /** Own a single child only. Timeout/overflow wait for exit before releasing resources. */
 export function runOwned(command, args, options = {}) {
@@ -117,9 +117,11 @@ export async function runSitl(env = process.env) {
   } finally { rmSync(cwd, { recursive: true, force: true }); }
 }
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  // --out DIR writes sitl-report.json there; without it the run replaces the committed report.
+  const directory = outputDirectory("test-results/validation");
   let result;
   try { result = await runSitl(); } catch (error) { result = report("sitl-report", "FAIL", [error.message]); }
-  mkdirSync("test-results/validation", { recursive: true });
-  writeFileSync("test-results/validation/sitl-report.json", JSON.stringify(result, null, 2) + "\n");
+  mkdirSync(directory, { recursive: true });
+  writeFileSync(join(directory, "sitl-report.json"), JSON.stringify(result, null, 2) + "\n");
   console.log(`SITL: ${result.status}`); process.exitCode = result.status === "PASS" ? 0 : result.status === "FAIL" ? 1 : 2;
 }

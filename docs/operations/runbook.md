@@ -64,7 +64,10 @@ node scripts/check-sitl-capture.mjs --input "$MIRAGE_SITL_CAPTURE_DIR"
 ```
 
 `run-sitl` executes firmware/driver and returns 0 only for a completed flight;
-without prerequisites it returns 2. `check-sitl-capture` independently checks
+without prerequisites it returns 2. It writes `sitl-report.json` to
+`test-results/validation/`, replacing the committed report even when the run is
+blocked; `--out DIR` writes it to `DIR` instead, for example for a regression
+run. `check-sitl-capture` independently checks
 the saved v2 trace against full-rate physics and original decoded telemetry,
 verifies unchanged source hashes, frame/cadence/PWM counters and writes
 `test-results/validation/task-042-flight.json`. `check-raw.py` first independently
