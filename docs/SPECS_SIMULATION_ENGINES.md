@@ -4809,3 +4809,86 @@ mapping, unequal arms and four uncontrollable layouts with their reasons.
 Aircraft tab, checks its 16 rows and parameter file, swaps two outputs in the
 arm table and checks the moved functions and the new version, and refuses a
 hexa whose motors all turn one way.
+
+## DataFlash reader and writer (TASK-178)
+
+`packages/dataflash`: `reader.ts`, `writer.ts` and `dataflash.worker.ts`.
+Analysis code, never part of a physics step.
+
+### Reader
+
+`DataflashReader.push(chunk)` accepts chunks of any size and parses every
+complete record; it keeps only the unparsed tail. `finish()` returns the log:
+the formats by type, one table per message name and the damaged ranges.
+`readDataflash(bytes, chunkBytes)` does both for a log in memory. A record is
+`A3 95 type` and a body laid out by the type's FMT record; FMT (type 128) is
+predefined, and a log's own definition of FMT must repeat its layout
+`BBnNZ`. An FMT record whose format characters are unknown or whose sizes do
+not add up to its length is a damaged `invalid-format` range and defines
+nothing.
+
+Values follow pymavlink 2.4.50 DFReader, the oracle: `b B h H i I f d q Q`
+as stored (64-bit integers as JavaScript numbers, exact to 2^53); `g` as
+IEEE half precision; `M` as int8; `c C e E` divided by 100 and `L` by 1e7,
+computed as `raw / (1 / multiplier)` as DFReader does; `n N Z` as UTF-8 text
+(Latin-1 if not valid UTF-8) up to the first NUL; `a` as 32 int16; and the
+`Z` field of FILE as raw bytes. Numeric fields become `Float64Array` columns.
+Units come from UNIT, MULT (rounded to 7 significant digits) and FMTU records
+in log order, with DFReader's prefixes (µ, m, c, d, n) or a `%.4g` factor;
+fields with their own multiplier keep their unit. A `#` in the unit IDs names
+the instance field. `timestampS` is DFReader's microsecond clock with a zero
+time base: `0 + TimeUS · 0.000001` for a record whose first field is TimeUS,
+otherwise the previous record's time, 0 before the first. `gpsTimeBaseS` is
+DFReader's time base from the first GPS record with GWk > 0:
+315,964,800 + 604,800·GWk + 0.001·GMS − 18 − 0.000001·TimeUS, in Unix
+seconds.
+
+Damage never stops the reader. Bytes that do not start a record of a known
+type are skipped up to the next record of a known type and reported as one
+range: `unknown-type` when the range begins with the header bytes and an
+undefined type, otherwise `bad-header`. A partial record or fewer than three
+bytes at the end is `truncated`. Ranges are absolute byte offsets
+[start, end).
+
+### Worker
+
+`dataflash.worker.ts` takes `{ kind: "chunk", bytes }` messages with
+transferred `ArrayBuffer`s and `{ kind: "finish" }`. It answers each chunk
+with progress and the finish with one result whose numeric columns,
+timestamps and offsets are transferred. `createDataflashHandler` is the same
+handler without the Worker global, for tests.
+
+### Writer
+
+`DataflashWriter` writes a self-describing log: FMT records for FMT, UNIT,
+MULT, FMTU and the MirageSITL messages, then UNIT records with ArduPilot's
+IDs and labels, MULT records and an FMTU record per message type.
+
+| Message | Format | Columns | Contents |
+| --- | --- | --- | --- |
+| MTRU | Qdddfffffff | TimeUS,PN,PE,PD,VN,VE,VD,QW,QX,QY,QZ | Truth: NED position (m), NED velocity (m/s), body-to-NED quaternion |
+| MMOT | QBHfffff | TimeUS,Instance,PWM,Thr,RPM,Curr,Volt,Temp | One motor: PWM (µs), throttle 0–1, rpm, A, V, °C; NaN when not modelled |
+| MEVT | QHZ | TimeUS,Id,Text | Experiment event |
+| MPRM | QNffBZ | TimeUS,Name,Req,Conf,Stat,Text | Parameter change: requested, confirmed (NaN until confirmed), status 0 requested, 1 confirmed, 2 rejected |
+
+No MirageSITL message name occurs in the pinned ArduPilot source or its log,
+so these records are never taken for autopilot data. TimeUS is an integer
+from 0 to 2^53 − 1; integers, ASCII text and parameter names are checked
+before a byte is written. The same calls give the same bytes.
+
+### Verification (TASK-178)
+
+`scripts/generate-dataflash-fixtures.py` cuts a 39,379-byte reference log
+from a real DataFlash log of the pinned native SITL (690 of 41,714 records,
+copied verbatim: every FMT, UNIT, MULT and FMTU record, the first four of
+every other type and GPS records until one has a valid week). pymavlink
+2.4.50 decodes it into `tests/fixtures/dataflash/reference.json` with every
+value, unit and timestamp and the GPS time base; four damaged copies have a
+flipped header byte, an undefined type, seven inserted bytes and a truncated
+last record, at offsets the generator chose. It also lists 216 log message
+names found in the pinned source and in the source log. `--check` regenerates and compares.
+`tests/dataflash.test.ts` requires every value, timestamp and unit to equal
+DFReader's in chunks of 1, 3, 89, 4096 and 1,048,576 bytes, the GPS time base
+to be equal, each damaged copy to report exactly its range with DFReader's
+record count, and the writer's output to re-parse to the written values,
+both in this reader and in pymavlink DFReader.

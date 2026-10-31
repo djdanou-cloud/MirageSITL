@@ -1716,6 +1716,36 @@
           "derivation": "Pinned ArduPilot source X-frame tables, motor function enums and JSON packet layouts; Python struct wire oracles; explicitly synthetic arm radius, pair separation and custom stock-Lua 16-motor geometry. Not aircraft measurements or native flight evidence."
         }
       }
+    },
+    {
+      "path": "dataflash/reference.json",
+      "manifest": {
+        "formatVersion": 1,
+        "id": "dataflash-sitl-reference-v1",
+        "sourceSha256": "177b47244058cc79482a20878e86ad6facb43bade987b3488b1c2eff2049ff7c",
+        "units": {
+          "timestampS": "s",
+          "byteOffset": "1"
+        },
+        "validityEnvelope": {
+          "timestampS": {
+            "min": 0,
+            "max": 100
+          },
+          "byteOffset": {
+            "min": 0,
+            "max": 39379
+          }
+        },
+        "tolerance": {
+          "absolute": 0,
+          "relative": 0
+        },
+        "provenance": {
+          "kind": "synthetic",
+          "derivation": "Records copied verbatim from a DataFlash log of the pinned native ArduCopter SITL (commit 8ab6afde107a91df1b5f60ade8f333cb8a61b190) flying the synthetic TASK-128 quad; values, units and timestamps decoded by pymavlink 2.4.50 DFReader; damaged copies made at chosen offsets. Protocol oracle, not aircraft measurements."
+        }
+      }
     }
   ]
 }
