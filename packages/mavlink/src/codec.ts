@@ -1,65 +1,31 @@
-/** Pinned common/ardupilotmega-dialect subset. No signing keys: signed frames fail closed. */
+import lock from "../dialect.lock.json" with { type: "json" };
+
+/** Wire units and names come from the pinned XML; conversion to SI belongs to callers. */
+export interface MessageField {
+  readonly name: string;
+  readonly type: string;
+  readonly offset: number;
+  readonly count: number;
+  readonly units: string;
+}
 export interface MessageDefinition {
   readonly id: number;
   readonly name: string;
   readonly crcExtra: number;
   readonly length: number;
+  readonly minLength: number;
+  readonly fields: readonly MessageField[];
 }
-const RC = Object.freeze({
-  id: 70,
-  name: "RC_CHANNELS_OVERRIDE",
-  crcExtra: 124,
-  length: 38,
-});
-const ACTUATOR = Object.freeze({
-  id: 93,
-  name: "HIL_ACTUATOR_CONTROLS",
-  crcExtra: 47,
-  length: 81,
-});
-const SENSOR = Object.freeze({
-  id: 107,
-  name: "HIL_SENSOR",
-  crcExtra: 108,
-  length: 65,
-});
-const GPS = Object.freeze({
-  id: 113,
-  name: "HIL_GPS",
-  crcExtra: 124,
-  length: 39,
-});
-const HEARTBEAT = Object.freeze({id:0,name:"HEARTBEAT",crcExtra:50,length:9});
-const EKF = Object.freeze({id:193,name:"EKF_STATUS_REPORT",crcExtra:71,length:26});
-// Independent pymavlink 2.4.50 wire oracle: warmup-sensors.json.
-const GPS_RAW = Object.freeze({id:24,name:"GPS_RAW_INT",crcExtra:24,length:52});
-const RAW_IMU = Object.freeze({id:27,name:"RAW_IMU",crcExtra:144,length:29});
-const HIGHRES_IMU = Object.freeze({id:105,name:"HIGHRES_IMU",crcExtra:93,length:63});
-// Independent pymavlink 2.4.50 oracle: wasm-parameters.json.
-const PARAM_READ=Object.freeze({id:20,name:'PARAM_REQUEST_READ',crcExtra:214,length:20});
-const PARAM_VALUE=Object.freeze({id:22,name:'PARAM_VALUE',crcExtra:220,length:25});
-const PARAM_SET=Object.freeze({id:23,name:'PARAM_SET',crcExtra:168,length:23});
+// Initialization is cold. The checked-in catalog is generated from the pinned XML,
+// and the tests independently pack every field with official pymavlink.
+const definitions = new Map<number, MessageDefinition>();
+for (const entry of lock.definitions) {
+  for (const field of entry.fields) Object.freeze(field);
+  Object.freeze(entry.fields);
+  definitions.set(entry.id, Object.freeze(entry));
+}
 export function definition(id: number): MessageDefinition | null {
-  switch (id) {
-    case 20:return PARAM_READ;
-    case 22:return PARAM_VALUE;
-    case 23:return PARAM_SET;
-    case 24: return GPS_RAW;
-    case 27: return RAW_IMU;
-    case 105: return HIGHRES_IMU;
-    case 0: return HEARTBEAT;
-    case 193: return EKF;
-    case 70:
-      return RC;
-    case 93:
-      return ACTUATOR;
-    case 107:
-      return SENSOR;
-    case 113:
-      return GPS;
-    default:
-      return null;
-  }
+  return definitions.get(id) ?? null;
 }
 export function crcByte(crc: number, byte: number): number {
   let t = (byte ^ (crc & 255)) & 255;
@@ -176,8 +142,9 @@ export class MavParser {
       const id =
           this.buffer[7]! + this.buffer[8]! * 256 + this.buffer[9]! * 65536,
         d = definition(id);
-      if (!d && this.buffer[2] === 0 && this.buffer[3] === 0 && n >= 1 && this.buffer[5] !== 0) {
-        // Unknown payloads may contain 0xfd. They are never admitted, and their
+      if (!d || this.buffer[2] !== 0 || this.buffer[3] !== 0 ||
+          n < 1 || n > d.length || this.buffer[5] === 0) {
+        // Unsupported payloads and signatures may contain 0xfd. Their
         // bounded envelope must not turn a payload byte into a partial header
         // that delays a later known frame and misstates its receive freshness.
         this.unsupported++;
@@ -187,23 +154,11 @@ export class MavParser {
         this.length -= next;
         continue;
       }
-      let good = false;
-      if (
-        !d ||
-        this.buffer[2] !== 0 ||
-        this.buffer[3] !== 0 ||
-        n < 1 ||
-        n > d.length ||
-        this.buffer[5] === 0
-      ) {
-        this.unsupported++;
-      } else {
-        let crc = 65535;
-        for (let i = 1; i < n + 10; i++) crc = crcByte(crc, this.buffer[i]!);
-        crc = crcByte(crc, d.crcExtra);
-        good = crc === (this.buffer[n + 10]! | (this.buffer[n + 11]! << 8));
-        if (!good) this.badCrc++;
-      }
+      let crc = 65535;
+      for (let i = 1; i < n + 10; i++) crc = crcByte(crc, this.buffer[i]!);
+      crc = crcByte(crc, d.crcExtra);
+      const good = crc === (this.buffer[n + 10]! | (this.buffer[n + 11]! << 8));
+      if (!good) this.badCrc++;
       if (good) {
         const f = this.frame;
         f.id = id;

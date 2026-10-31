@@ -1481,9 +1481,10 @@ specified in the sections below.
 
 ### Pinned MAVLink2 subset
 
-`packages/mavlink/dialect.lock.json` pins common XML commit
-2e2b6af99084e4fde9bb304c84bb9253a1a98b6f, common/standard/minimal XML and license
-hashes, pymavlink 2.4.50 and generator-file hashes. The older 2.4.49 generator
+`packages/mavlink/dialect.lock.json` pins MAVLink XML commit
+2e2b6af99084e4fde9bb304c84bb9253a1a98b6f, the hashes of ardupilotmega.xml and
+every XML file it includes recursively, the license, pymavlink 2.4.50, the
+generator files and the generated Python module. The older 2.4.49 generator
 rejects the pinned XML schema; validation is retained with the compatible 2.4.50.
 `generate-mavlink-fixtures.py` verifies source cleanliness/commit/version and
 uses the official generator. Generated Python stays outside the repository;
@@ -1491,12 +1492,83 @@ checked-in golden frames are SHA-256 registered synthetic protocol oracles.
 They are not aircraft measurements. The upstream generated-output notice is
 retained in packages/mavlink/NOTICE.
 
-| Message ID | Message | Full payload bytes | CRC_EXTRA |
-| --- | --- | --- | --- |
-| 70 | RC_CHANNELS_OVERRIDE | 38 | 124 |
-| 93 | HIL_ACTUATOR_CONTROLS | 81 | 47 |
-| 107 | HIL_SENSOR | 65 | 108 |
-| 113 | HIL_GPS | 39 | 124 |
+| Message ID | Message | Full payload bytes | Base payload bytes | CRC_EXTRA |
+| --- | --- | --- | --- | --- |
+| 0 | HEARTBEAT | 9 | 9 | 50 |
+| 1 | SYS_STATUS | 43 | 31 | 124 |
+| 20 | PARAM_REQUEST_READ | 20 | 20 | 214 |
+| 21 | PARAM_REQUEST_LIST | 2 | 2 | 159 |
+| 22 | PARAM_VALUE | 25 | 25 | 220 |
+| 23 | PARAM_SET | 23 | 23 | 168 |
+| 24 | GPS_RAW_INT | 52 | 30 | 24 |
+| 27 | RAW_IMU | 29 | 26 | 144 |
+| 30 | ATTITUDE | 28 | 28 | 39 |
+| 32 | LOCAL_POSITION_NED | 28 | 28 | 185 |
+| 33 | GLOBAL_POSITION_INT | 28 | 28 | 104 |
+| 36 | SERVO_OUTPUT_RAW | 37 | 21 | 222 |
+| 37 | MISSION_REQUEST_PARTIAL_LIST | 7 | 6 | 212 |
+| 38 | MISSION_WRITE_PARTIAL_LIST | 7 | 6 | 9 |
+| 39 | MISSION_ITEM | 38 | 37 | 254 |
+| 40 | MISSION_REQUEST | 5 | 4 | 230 |
+| 41 | MISSION_SET_CURRENT | 4 | 4 | 28 |
+| 42 | MISSION_CURRENT | 18 | 2 | 28 |
+| 43 | MISSION_REQUEST_LIST | 3 | 2 | 132 |
+| 44 | MISSION_COUNT | 9 | 4 | 221 |
+| 45 | MISSION_CLEAR_ALL | 3 | 2 | 232 |
+| 46 | MISSION_ITEM_REACHED | 2 | 2 | 11 |
+| 47 | MISSION_ACK | 8 | 3 | 153 |
+| 51 | MISSION_REQUEST_INT | 5 | 4 | 196 |
+| 70 | RC_CHANNELS_OVERRIDE | 38 | 18 | 124 |
+| 73 | MISSION_ITEM_INT | 38 | 37 | 38 |
+| 74 | VFR_HUD | 20 | 20 | 20 |
+| 75 | COMMAND_INT | 35 | 35 | 158 |
+| 76 | COMMAND_LONG | 33 | 33 | 152 |
+| 77 | COMMAND_ACK | 10 | 3 | 143 |
+| 82 | SET_ATTITUDE_TARGET | 51 | 39 | 49 |
+| 83 | ATTITUDE_TARGET | 37 | 37 | 22 |
+| 84 | SET_POSITION_TARGET_LOCAL_NED | 53 | 53 | 143 |
+| 85 | POSITION_TARGET_LOCAL_NED | 51 | 51 | 140 |
+| 86 | SET_POSITION_TARGET_GLOBAL_INT | 53 | 53 | 5 |
+| 87 | POSITION_TARGET_GLOBAL_INT | 51 | 51 | 150 |
+| 93 | HIL_ACTUATOR_CONTROLS | 81 | 81 | 47 |
+| 105 | HIGHRES_IMU | 63 | 62 | 93 |
+| 107 | HIL_SENSOR | 65 | 64 | 108 |
+| 113 | HIL_GPS | 39 | 36 | 124 |
+| 147 | BATTERY_STATUS | 54 | 36 | 154 |
+| 193 | EKF_STATUS_REPORT | 26 | 22 | 71 |
+| 253 | STATUSTEXT | 54 | 51 | 83 |
+
+TASK-150 catalog. The lock holds the 43 messages below with every field's XML
+name, wire type, offset, array count and XML units, generated from the pinned
+XML by `generate-mavlink-fixtures.py`; `definition(id)` reads only this lock,
+so the codec and the lock cannot disagree. Base payload bytes exclude MAVLink2
+extension fields. The golden file holds 137 frames from the official generator
+(5 historical TASK-037 frames, a distinct-value, an all-zero and a range-limit
+frame per message, and 3 parameter-builder requests); `--check` regenerates
+them and the lock and compares without writing. `MessagePayload(id)` keeps one
+fixed `Float64Array` per field in wire units, resolved by name once at
+initialization. u64/i64 fields are two u32 words (low, high; i64 in two's
+complement), never BigInt; char fields are ASCII byte codes. `pack()` checks
+every value against its wire type before writing any byte, so an invalid value
+leaves the payload unchanged; floats keep NaN and infinity as MAVLink unknown
+sentinels and finite values beyond f32 are refused. `decode(frame)` reads a
+CRC-checked, zero-padded frame of the same ID into the same arrays, so a
+truncated frame clears stale extension fields. `parameterListInto`,
+`parameterReadInto` and `parameterSetInto` are cold builders that validate
+target IDs, names (1–16 printable ASCII characters), index and parameter type
+before changing a byte; `param_value` is the MAVLink float carrier.
+
+The parser now consumes the whole envelope of an unsupported ID, a signed
+frame, nonzero compatibility flags, an empty payload, a payload longer than the
+message, or system ID 0, then searches for the next 0xFD. A valid frame inside
+such an envelope is never admitted, which keeps the TASK-047 repair for every
+rejection. G1: `node scripts/check-mavlink-allocation.mjs` warms 4,000,000
+steps, then runs real pack, encode, parse and decode for the 16 telemetry IDs
+0, 1, 24, 27, 30, 32, 33, 36, 74, 77, 83, 85, 87, 105, 147 and 193 in N/2N
+windows of 1,000,000 and 2,000,000 steps; the slope is 0 bytes per step with no
+GC events, and an allocating positive control is detected. Command, mission,
+parameter and STATUSTEXT builders are cold and not part of this G1 set.
+
 
 `encodeInto` writes into caller storage and returns exact length (0 on invalid
 inputs). MAVLink2 trailing-zero truncation retains at least one payload byte.

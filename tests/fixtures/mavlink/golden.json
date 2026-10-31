@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "provenance": "Official pymavlink 2.4.50 generator with pinned common XML; no simulator-derived goldens.",
+  "provenance": "Official pymavlink 2.4.50 generator with pinned ardupilotmega XML; no simulator-derived goldens.",
   "sourceCommit": "2e2b6af99084e4fde9bb304c84bb9253a1a98b6f",
   "frames": [
     {
@@ -27,6 +27,5052 @@
       "id": 113,
       "hex": "fd240000022a077100000000000000000000000000000000000000000000ffffffffffff000000000000ffff00ff0328",
       "payloadHex": "0000000000000000000000000000000000000000ffffffffffff000000000000ffff00ff"
+    },
+    {
+      "id": 21,
+      "hex": "fd010000032a0715000001dd5e",
+      "payloadHex": "01",
+      "values": {
+        "target_system": [
+          1
+        ],
+        "target_component": [
+          0
+        ]
+      },
+      "variant": "parameter-builder"
+    },
+    {
+      "id": 20,
+      "hex": "fd110000042a07140000ffff01014d4f545f544853545f4558504fea1e",
+      "payloadHex": "ffff01014d4f545f544853545f4558504f",
+      "values": {
+        "target_system": [
+          1
+        ],
+        "target_component": [
+          1
+        ],
+        "param_id": [
+          77,
+          79,
+          84,
+          95,
+          84,
+          72,
+          83,
+          84,
+          95,
+          69,
+          88,
+          80,
+          79,
+          0,
+          0,
+          0
+        ],
+        "param_index": [
+          -1
+        ]
+      },
+      "variant": "parameter-builder"
+    },
+    {
+      "id": 23,
+      "hex": "fd170000052a071700000000484101014142434445464748494a4b4c4d4e4f5009bbfc",
+      "payloadHex": "0000484101014142434445464748494a4b4c4d4e4f5009",
+      "values": {
+        "target_system": [
+          1
+        ],
+        "target_component": [
+          1
+        ],
+        "param_id": [
+          65,
+          66,
+          67,
+          68,
+          69,
+          70,
+          71,
+          72,
+          73,
+          74,
+          75,
+          76,
+          77,
+          78,
+          79,
+          80
+        ],
+        "param_value": [
+          12.5
+        ],
+        "param_type": [
+          9
+        ]
+      },
+      "variant": "parameter-builder"
+    },
+    {
+      "id": 0,
+      "hex": "fd090000062a07000000340000000d1a27414ed026",
+      "payloadHex": "340000000d1a27414e",
+      "values": {
+        "type": [
+          13
+        ],
+        "autopilot": [
+          26
+        ],
+        "base_mode": [
+          39
+        ],
+        "custom_mode": [
+          52
+        ],
+        "system_status": [
+          65
+        ],
+        "mavlink_version": [
+          78
+        ]
+      },
+      "variant": "distinct"
+    },
+    {
+      "id": 0,
+      "hex": "fd010000072a070000000020bd",
+      "payloadHex": "00",
+      "values": {
+        "type": [
+          0
+        ],
+        "autopilot": [
+          0
+        ],
+        "base_mode": [
+          0
+        ],
+        "custom_mode": [
+          0
+        ],
+        "system_status": [
+          0
+        ],
+        "mavlink_version": [
+          0
+        ]
+      },
+      "variant": "zero"
+    },
+    {
+      "id": 0,
+      "hex": "fd090000082a07000000ffffffffffffffffff3f05",
+      "payloadHex": "ffffffffffffffffff",
+      "values": {
+        "type": [
+          255
+        ],
+        "autopilot": [
+          255
+        ],
+        "base_mode": [
+          255
+        ],
+        "custom_mode": [
+          4294967295
+        ],
+        "system_status": [
+          255
+        ],
+        "mavlink_version": [
+          255
+        ]
+      },
+      "variant": "limits"
+    },
+    {
+      "id": 1,
+      "hex": "fd280000092a070100000d0000001a0000002700000034004100faff6800750082008f009c00a900f9b6000000c3000000d009ac",
+      "payloadHex": "0d0000001a0000002700000034004100faff6800750082008f009c00a900f9b6000000c3000000d0",
+      "values": {
+        "onboard_control_sensors_present": [
+          13
+        ],
+        "onboard_control_sensors_enabled": [
+          26
+        ],
+        "onboard_control_sensors_health": [
+          39
+        ],
+        "load": [
+          52
+        ],
+        "voltage_battery": [
+          65
+        ],
+        "current_battery": [
+          -6
+        ],
+        "battery_remaining": [
+          -7
+        ],
+        "drop_rate_comm": [
+          104
+        ],
+        "errors_comm": [
+          117
+        ],
+        "errors_count1": [
+          130
+        ],
+        "errors_count2": [
+          143
+        ],
+        "errors_count3": [
+          156
+        ],
+        "errors_count4": [
+          169
+        ],
+        "onboard_control_sensors_present_extended": [
+          182
+        ],
+        "onboard_control_sensors_enabled_extended": [
+          195
+        ],
+        "onboard_control_sensors_health_extended": [
+          208
+        ]
+      },
+      "variant": "distinct"
+    },
+    {
+      "id": 1,
+      "hex": "fd0100000a2a0701000000c3a7",
+      "payloadHex": "00",
+      "values": {
+        "onboard_control_sensors_present": [
+          0
+        ],
+        "onboard_control_sensors_enabled": [
+          0
+        ],
+        "onboard_control_sensors_health": [
+          0
+        ],
+        "load": [
+          0
+        ],
+        "voltage_battery": [
+          0
+        ],
+        "current_battery": [
+          0
+        ],
+        "battery_remaining": [
+          0
+        ],
+        "drop_rate_comm": [
+          0
+        ],
+        "errors_comm": [
+          0
+        ],
+        "errors_count1": [
+          0
+        ],
+        "errors_count2": [
+          0
+        ],
+        "errors_count3": [
+          0
+        ],
+        "errors_count4": [
+          0
+        ],
+        "onboard_control_sensors_present_extended": [
+          0
+        ],
+        "onboard_control_sensors_enabled_extended": [
+          0
+        ],
+        "onboard_control_sensors_health_extended": [
+          0
+        ]
+      },
+      "variant": "zero"
+    },
+    {
+      "id": 1,
+      "hex": "fd2b00000b2a07010000ffffffffffffffffffffffffffffffff0080ffffffffffffffffffffffff80ffffffffffffffffffffffff1e57",
+      "payloadHex": "ffffffffffffffffffffffffffffffff0080ffffffffffffffffffffffff80ffffffffffffffffffffffff",
+      "values": {
+        "onboard_control_sensors_present": [
+          4294967295
+        ],
+        "onboard_control_sensors_enabled": [
+          4294967295
+        ],
+        "onboard_control_sensors_health": [
+          4294967295
+        ],
+        "load": [
+          65535
+        ],
+        "voltage_battery": [
+          65535
+        ],
+        "current_battery": [
+          -32768
+        ],
+        "battery_remaining": [
+          -128
+        ],
+        "drop_rate_comm": [
+          65535
+        ],
+        "errors_comm": [
+          65535
+        ],
+        "errors_count1": [
+          65535
+        ],
+        "errors_count2": [
+          65535
+        ],
+        "errors_count3": [
+          65535
+        ],
+        "errors_count4": [
+          65535
+        ],
+        "onboard_control_sensors_present_extended": [
+          4294967295
+        ],
+        "onboard_control_sensors_enabled_extended": [
+          4294967295
+        ],
+        "onboard_control_sensors_health_extended": [
+          4294967295
+        ]
+      },
+      "variant": "limits"
+    },
+    {
+      "id": 20,
+      "hex": "fd1400000c2a07140000fcff0d1a4142434445464748494a4b4c4d4e4f5009ff",
+      "payloadHex": "fcff0d1a4142434445464748494a4b4c4d4e4f50",
+      "values": {
+        "target_system": [
+          13
+        ],
+        "target_component": [
+          26
+        ],
+        "param_id": [
+          65,
+          66,
+          67,
+          68,
+          69,
+          70,
+          71,
+          72,
+          73,
+          74,
+          75,
+          76,
+          77,
+          78,
+          79,
+          80
+        ],
+        "param_index": [
+          -4
+        ]
+      },
+      "variant": "distinct"
+    },
+    {
+      "id": 20,
+      "hex": "fd0100000d2a071400000089a3",
+      "payloadHex": "00",
+      "values": {
+        "target_system": [
+          0
+        ],
+        "target_component": [
+          0
+        ],
+        "param_id": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "param_index": [
+          0
+        ]
+      },
+      "variant": "zero"
+    },
+    {
+      "id": 20,
+      "hex": "fd1400000e2a071400000080ffff5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5ae7dc",
+      "payloadHex": "0080ffff5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a",
+      "values": {
+        "target_system": [
+          255
+        ],
+        "target_component": [
+          255
+        ],
+        "param_id": [
+          90,
+          90,
+          90,
+          90,
+          90,
+          90,
+          90,
+          90,
+          90,
+          90,
+          90,
+          90,
+          90,
+          90,
+          90,
+          90
+        ],
+        "param_index": [
+          -32768
+        ]
+      },
+      "variant": "limits"
+    },
+    {
+      "id": 21,
+      "hex": "fd0200000f2a071500000d1a5ef1",
+      "payloadHex": "0d1a",
+      "values": {
+        "target_system": [
+          13
+        ],
+        "target_component": [
+          26
+        ]
+      },
+      "variant": "distinct"
+    },
+    {
+      "id": 21,
+      "hex": "fd010000102a0715000000ad96",
+      "payloadHex": "00",
+      "values": {
+        "target_system": [
+          0
+        ],
+        "target_component": [
+          0
+        ]
+      },
+      "variant": "zero"
+    },
+    {
+      "id": 21,
+      "hex": "fd020000112a07150000ffffb27b",
+      "payloadHex": "ffff",
+      "values": {
+        "target_system": [
+          255
+        ],
+        "target_component": [
+          255
+        ]
+      },
+      "variant": "limits"
+    },
+    {
+      "id": 22,
+      "hex": "fd190000122a07160000000010c0340041004142434445464748494a4b4c4d4e4f50273dba",
+      "payloadHex": "000010c0340041004142434445464748494a4b4c4d4e4f5027",
+      "values": {
+        "param_id": [
+          65,
+          66,
+          67,
+          68,
+          69,
+          70,
+          71,
+          72,
+          73,
+          74,
+          75,
+          76,
+          77,
+          78,
+          79,
+          80
+        ],
+        "param_value": [
+          -2.25
+        ],
+        "param_type": [
+          39
+        ],
+        "param_count": [
+          52
+        ],
+        "param_index": [
+          65
+        ]
+      },
+      "variant": "distinct"
+    },
+    {
+      "id": 22,
+      "hex": "fd010000132a07160000002e71",
+      "payloadHex": "00",
+      "values": {
+        "param_id": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "param_value": [
+          0
+        ],
+        "param_type": [
+          0
+        ],
+        "param_count": [
+          0
+        ],
+        "param_index": [
+          0
+        ]
+      },
+      "variant": "zero"
+    },
+    {
+      "id": 22,
+      "hex": "fd190000142a07160000000010c0ffffffff5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5aff9cc5",
+      "payloadHex": "000010c0ffffffff5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5aff",
+      "values": {
+        "param_id": [
+          90,
+          90,
+          90,
+          90,
+          90,
+          90,
+          90,
+          90,
+          90,
+          90,
+          90,
+          90,
+          90,
+          90,
+          90,
+          90
+        ],
+        "param_value": [
+          -2.25
+        ],
+        "param_type": [
+          255
+        ],
+        "param_count": [
+          65535
+        ],
+        "param_index": [
+          65535
+        ]
+      },
+      "variant": "limits"
+    },
+    {
+      "id": 23,
+      "hex": "fd170000152a07170000000088c00d1a4142434445464748494a4b4c4d4e4f5041d7f1",
+      "payloadHex": "000088c00d1a4142434445464748494a4b4c4d4e4f5041",
+      "values": {
+        "target_system": [
+          13
+        ],
+        "target_component": [
+          26
+        ],
+        "param_id": [
+          65,
+          66,
+          67,
+          68,
+          69,
+          70,
+          71,
+          72,
+          73,
+          74,
+          75,
+          76,
+          77,
+          78,
+          79,
+          80
+        ],
+        "param_value": [
+          -4.25
+        ],
+        "param_type": [
+          65
+        ]
+      },
+      "variant": "distinct"
+    },
+    {
+      "id": 23,
+      "hex": "fd010000162a0717000000a8d8",
+      "payloadHex": "00",
+      "values": {
+        "target_system": [
+          0
+        ],
+        "target_component": [
+          0
+        ],
+        "param_id": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "param_value": [
+          0
+        ],
+        "param_type": [
+          0
+        ]
+      },
+      "variant": "zero"
+    },
+    {
+      "id": 23,
+      "hex": "fd170000172a07170000000088c0ffff5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5aff953b",
+      "payloadHex": "000088c0ffff5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5aff",
+      "values": {
+        "target_system": [
+          255
+        ],
+        "target_component": [
+          255
+        ],
+        "param_id": [
+          90,
+          90,
+          90,
+          90,
+          90,
+          90,
+          90,
+          90,
+          90,
+          90,
+          90,
+          90,
+          90,
+          90,
+          90,
+          90
+        ],
+        "param_value": [
+          -4.25
+        ],
+        "param_type": [
+          255
+        ]
+      },
+      "variant": "limits"
+    },
+    {
+      "id": 24,
+      "hex": "fd330000182a071800000d00000000000000fdfffffffcfffffffbffffff4e005b00680075001a82f5ffffff9c000000a9000000b6000000c3000000d00e5a",
+      "payloadHex": "0d00000000000000fdfffffffcfffffffbffffff4e005b00680075001a82f5ffffff9c000000a9000000b6000000c3000000d0",
+      "values": {
+        "time_usec": [
+          13,
+          0
+        ],
+        "fix_type": [
+          26
+        ],
+        "lat": [
+          -3
+        ],
+        "lon": [
+          -4
+        ],
+        "alt": [
+          -5
+        ],
+        "eph": [
+          78
+        ],
+        "epv": [
+          91
+        ],
+        "vel": [
+          104
+        ],
+        "cog": [
+          117
+        ],
+        "satellites_visible": [
+          130
+        ],
+        "alt_ellipsoid": [
+          -11
+        ],
+        "h_acc": [
+          156
+        ],
+        "v_acc": [
+          169
+        ],
+        "vel_acc": [
+          182
+        ],
+        "hdg_acc": [
+          195
+        ],
+        "yaw": [
+          208
+        ]
+      },
+      "variant": "distinct"
+    },
+    {
+      "id": 24,
+      "hex": "fd010000192a07180000006db6",
+      "payloadHex": "00",
+      "values": {
+        "time_usec": [
+          0,
+          0
+        ],
+        "fix_type": [
+          0
+        ],
+        "lat": [
+          0
+        ],
+        "lon": [
+          0
+        ],
+        "alt": [
+          0
+        ],
+        "eph": [
+          0
+        ],
+        "epv": [
+          0
+        ],
+        "vel": [
+          0
+        ],
+        "cog": [
+          0
+        ],
+        "satellites_visible": [
+          0
+        ],
+        "alt_ellipsoid": [
+          0
+        ],
+        "h_acc": [
+          0
+        ],
+        "v_acc": [
+          0
+        ],
+        "vel_acc": [
+          0
+        ],
+        "hdg_acc": [
+          0
+        ],
+        "yaw": [
+          0
+        ]
+      },
+      "variant": "zero"
+    },
+    {
+      "id": 24,
+      "hex": "fd3400001a2a07180000ffffffffffffffff000000800000008000000080ffffffffffffffffffff00000080ffffffffffffffffffffffffffffffffffffcb5d",
+      "payloadHex": "ffffffffffffffff000000800000008000000080ffffffffffffffffffff00000080ffffffffffffffffffffffffffffffffffff",
+      "values": {
+        "time_usec": [
+          4294967295,
+          4294967295
+        ],
+        "fix_type": [
+          255
+        ],
+        "lat": [
+          -2147483648
+        ],
+        "lon": [
+          -2147483648
+        ],
+        "alt": [
+          -2147483648
+        ],
+        "eph": [
+          65535
+        ],
+        "epv": [
+          65535
+        ],
+        "vel": [
+          65535
+        ],
+        "cog": [
+          65535
+        ],
+        "satellites_visible": [
+          255
+        ],
+        "alt_ellipsoid": [
+          -2147483648
+        ],
+        "h_acc": [
+          4294967295
+        ],
+        "v_acc": [
+          4294967295
+        ],
+        "vel_acc": [
+          4294967295
+        ],
+        "hdg_acc": [
+          4294967295
+        ],
+        "yaw": [
+          65535
+        ]
+      },
+      "variant": "limits"
+    },
+    {
+      "id": 27,
+      "hex": "fd1d00001b2a071b00000d00000000000000fefffdfffcfffbfffafff9fff8fff7fff6ff8ff4ff8515",
+      "payloadHex": "0d00000000000000fefffdfffcfffbfffafff9fff8fff7fff6ff8ff4ff",
+      "values": {
+        "time_usec": [
+          13,
+          0
+        ],
+        "xacc": [
+          -2
+        ],
+        "yacc": [
+          -3
+        ],
+        "zacc": [
+          -4
+        ],
+        "xgyro": [
+          -5
+        ],
+        "ygyro": [
+          -6
+        ],
+        "zgyro": [
+          -7
+        ],
+        "xmag": [
+          -8
+        ],
+        "ymag": [
+          -9
+        ],
+        "zmag": [
+          -10
+        ],
+        "id": [
+          143
+        ],
+        "temperature": [
+          -12
+        ]
+      },
+      "variant": "distinct"
+    },
+    {
+      "id": 27,
+      "hex": "fd0100001c2a071b0000008034",
+      "payloadHex": "00",
+      "values": {
+        "time_usec": [
+          0,
+          0
+        ],
+        "xacc": [
+          0
+        ],
+        "yacc": [
+          0
+        ],
+        "zacc": [
+          0
+        ],
+        "xgyro": [
+          0
+        ],
+        "ygyro": [
+          0
+        ],
+        "zgyro": [
+          0
+        ],
+        "xmag": [
+          0
+        ],
+        "ymag": [
+          0
+        ],
+        "zmag": [
+          0
+        ],
+        "id": [
+          0
+        ],
+        "temperature": [
+          0
+        ]
+      },
+      "variant": "zero"
+    },
+    {
+      "id": 27,
+      "hex": "fd1d00001d2a071b0000ffffffffffffffff008000800080008000800080008000800080ff00801c61",
+      "payloadHex": "ffffffffffffffff008000800080008000800080008000800080ff0080",
+      "values": {
+        "time_usec": [
+          4294967295,
+          4294967295
+        ],
+        "xacc": [
+          -32768
+        ],
+        "yacc": [
+          -32768
+        ],
+        "zacc": [
+          -32768
+        ],
+        "xgyro": [
+          -32768
+        ],
+        "ygyro": [
+          -32768
+        ],
+        "zgyro": [
+          -32768
+        ],
+        "xmag": [
+          -32768
+        ],
+        "ymag": [
+          -32768
+        ],
+        "zmag": [
+          -32768
+        ],
+        "id": [
+          255
+        ],
+        "temperature": [
+          -32768
+        ]
+      },
+      "variant": "limits"
+    },
+    {
+      "id": 30,
+      "hex": "fd1c00001e2a071e00000d000000000010c000005040000088c00000a8400000c8c00000e8405f14",
+      "payloadHex": "0d000000000010c000005040000088c00000a8400000c8c00000e840",
+      "values": {
+        "time_boot_ms": [
+          13
+        ],
+        "roll": [
+          -2.25
+        ],
+        "pitch": [
+          3.25
+        ],
+        "yaw": [
+          -4.25
+        ],
+        "rollspeed": [
+          5.25
+        ],
+        "pitchspeed": [
+          -6.25
+        ],
+        "yawspeed": [
+          7.25
+        ]
+      },
+      "variant": "distinct"
+    },
+    {
+      "id": 30,
+      "hex": "fd0100001f2a071e0000003059",
+      "payloadHex": "00",
+      "values": {
+        "time_boot_ms": [
+          0
+        ],
+        "roll": [
+          0
+        ],
+        "pitch": [
+          0
+        ],
+        "yaw": [
+          0
+        ],
+        "rollspeed": [
+          0
+        ],
+        "pitchspeed": [
+          0
+        ],
+        "yawspeed": [
+          0
+        ]
+      },
+      "variant": "zero"
+    },
+    {
+      "id": 30,
+      "hex": "fd1c0000202a071e0000ffffffff000010c000005040000088c00000a8400000c8c00000e8405077",
+      "payloadHex": "ffffffff000010c000005040000088c00000a8400000c8c00000e840",
+      "values": {
+        "time_boot_ms": [
+          4294967295
+        ],
+        "roll": [
+          -2.25
+        ],
+        "pitch": [
+          3.25
+        ],
+        "yaw": [
+          -4.25
+        ],
+        "rollspeed": [
+          5.25
+        ],
+        "pitchspeed": [
+          -6.25
+        ],
+        "yawspeed": [
+          7.25
+        ]
+      },
+      "variant": "limits"
+    },
+    {
+      "id": 32,
+      "hex": "fd1c0000212a072000000d000000000010c000005040000088c00000a8400000c8c00000e840e915",
+      "payloadHex": "0d000000000010c000005040000088c00000a8400000c8c00000e840",
+      "values": {
+        "time_boot_ms": [
+          13
+        ],
+        "x": [
+          -2.25
+        ],
+        "y": [
+          3.25
+        ],
+        "z": [
+          -4.25
+        ],
+        "vx": [
+          5.25
+        ],
+        "vy": [
+          -6.25
+        ],
+        "vz": [
+          7.25
+        ]
+      },
+      "variant": "distinct"
+    },
+    {
+      "id": 32,
+      "hex": "fd010000222a0720000000fbc6",
+      "payloadHex": "00",
+      "values": {
+        "time_boot_ms": [
+          0
+        ],
+        "x": [
+          0
+        ],
+        "y": [
+          0
+        ],
+        "z": [
+          0
+        ],
+        "vx": [
+          0
+        ],
+        "vy": [
+          0
+        ],
+        "vz": [
+          0
+        ]
+      },
+      "variant": "zero"
+    },
+    {
+      "id": 32,
+      "hex": "fd1c0000232a07200000ffffffff000010c000005040000088c00000a8400000c8c00000e8406b57",
+      "payloadHex": "ffffffff000010c000005040000088c00000a8400000c8c00000e840",
+      "values": {
+        "time_boot_ms": [
+          4294967295
+        ],
+        "x": [
+          -2.25
+        ],
+        "y": [
+          3.25
+        ],
+        "z": [
+          -4.25
+        ],
+        "vx": [
+          5.25
+        ],
+        "vy": [
+          -6.25
+        ],
+        "vz": [
+          7.25
+        ]
+      },
+      "variant": "limits"
+    },
+    {
+      "id": 33,
+      "hex": "fd1b0000242a072100000d000000fefffffffdfffffffcfffffffbfffffffafff9fff8ff75cde2",
+      "payloadHex": "0d000000fefffffffdfffffffcfffffffbfffffffafff9fff8ff75",
+      "values": {
+        "time_boot_ms": [
+          13
+        ],
+        "lat": [
+          -2
+        ],
+        "lon": [
+          -3
+        ],
+        "alt": [
+          -4
+        ],
+        "relative_alt": [
+          -5
+        ],
+        "vx": [
+          -6
+        ],
+        "vy": [
+          -7
+        ],
+        "vz": [
+          -8
+        ],
+        "hdg": [
+          117
+        ]
+      },
+      "variant": "distinct"
+    },
+    {
+      "id": 33,
+      "hex": "fd010000252a0721000000b596",
+      "payloadHex": "00",
+      "values": {
+        "time_boot_ms": [
+          0
+        ],
+        "lat": [
+          0
+        ],
+        "lon": [
+          0
+        ],
+        "alt": [
+          0
+        ],
+        "relative_alt": [
+          0
+        ],
+        "vx": [
+          0
+        ],
+        "vy": [
+          0
+        ],
+        "vz": [
+          0
+        ],
+        "hdg": [
+          0
+        ]
+      },
+      "variant": "zero"
+    },
+    {
+      "id": 33,
+      "hex": "fd1c0000262a07210000ffffffff00000080000000800000008000000080008000800080ffff6d1c",
+      "payloadHex": "ffffffff00000080000000800000008000000080008000800080ffff",
+      "values": {
+        "time_boot_ms": [
+          4294967295
+        ],
+        "lat": [
+          -2147483648
+        ],
+        "lon": [
+          -2147483648
+        ],
+        "alt": [
+          -2147483648
+        ],
+        "relative_alt": [
+          -2147483648
+        ],
+        "vx": [
+          -32768
+        ],
+        "vy": [
+          -32768
+        ],
+        "vz": [
+          -32768
+        ],
+        "hdg": [
+          65535
+        ]
+      },
+      "variant": "limits"
+    },
+    {
+      "id": 36,
+      "hex": "fd240000272a072400000d0000002700340041004e005b006800750082001a8f009c00a900b600c300d000dd00ead93e",
+      "payloadHex": "0d0000002700340041004e005b006800750082001a8f009c00a900b600c300d000dd00ea",
+      "values": {
+        "time_usec": [
+          13
+        ],
+        "port": [
+          26
+        ],
+        "servo1_raw": [
+          39
+        ],
+        "servo2_raw": [
+          52
+        ],
+        "servo3_raw": [
+          65
+        ],
+        "servo4_raw": [
+          78
+        ],
+        "servo5_raw": [
+          91
+        ],
+        "servo6_raw": [
+          104
+        ],
+        "servo7_raw": [
+          117
+        ],
+        "servo8_raw": [
+          130
+        ],
+        "servo9_raw": [
+          143
+        ],
+        "servo10_raw": [
+          156
+        ],
+        "servo11_raw": [
+          169
+        ],
+        "servo12_raw": [
+          182
+        ],
+        "servo13_raw": [
+          195
+        ],
+        "servo14_raw": [
+          208
+        ],
+        "servo15_raw": [
+          221
+        ],
+        "servo16_raw": [
+          234
+        ]
+      },
+      "variant": "distinct"
+    },
+    {
+      "id": 36,
+      "hex": "fd010000282a072400000081da",
+      "payloadHex": "00",
+      "values": {
+        "time_usec": [
+          0
+        ],
+        "port": [
+          0
+        ],
+        "servo1_raw": [
+          0
+        ],
+        "servo2_raw": [
+          0
+        ],
+        "servo3_raw": [
+          0
+        ],
+        "servo4_raw": [
+          0
+        ],
+        "servo5_raw": [
+          0
+        ],
+        "servo6_raw": [
+          0
+        ],
+        "servo7_raw": [
+          0
+        ],
+        "servo8_raw": [
+          0
+        ],
+        "servo9_raw": [
+          0
+        ],
+        "servo10_raw": [
+          0
+        ],
+        "servo11_raw": [
+          0
+        ],
+        "servo12_raw": [
+          0
+        ],
+        "servo13_raw": [
+          0
+        ],
+        "servo14_raw": [
+          0
+        ],
+        "servo15_raw": [
+          0
+        ],
+        "servo16_raw": [
+          0
+        ]
+      },
+      "variant": "zero"
+    },
+    {
+      "id": 36,
+      "hex": "fd250000292a07240000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffd4d2",
+      "payloadHex": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "values": {
+        "time_usec": [
+          4294967295
+        ],
+        "port": [
+          255
+        ],
+        "servo1_raw": [
+          65535
+        ],
+        "servo2_raw": [
+          65535
+        ],
+        "servo3_raw": [
+          65535
+        ],
+        "servo4_raw": [
+          65535
+        ],
+        "servo5_raw": [
+          65535
+        ],
+        "servo6_raw": [
+          65535
+        ],
+        "servo7_raw": [
+          65535
+        ],
+        "servo8_raw": [
+          65535
+        ],
+        "servo9_raw": [
+          65535
+        ],
+        "servo10_raw": [
+          65535
+        ],
+        "servo11_raw": [
+          65535
+        ],
+        "servo12_raw": [
+          65535
+        ],
+        "servo13_raw": [
+          65535
+        ],
+        "servo14_raw": [
+          65535
+        ],
+        "servo15_raw": [
+          65535
+        ],
+        "servo16_raw": [
+          65535
+        ]
+      },
+      "variant": "limits"
+    },
+    {
+      "id": 37,
+      "hex": "fd0700002a2a07250000fdfffcff0d1a411bc9",
+      "payloadHex": "fdfffcff0d1a41",
+      "values": {
+        "target_system": [
+          13
+        ],
+        "target_component": [
+          26
+        ],
+        "start_index": [
+          -3
+        ],
+        "end_index": [
+          -4
+        ],
+        "mission_type": [
+          65
+        ]
+      },
+      "variant": "distinct"
+    },
+    {
+      "id": 37,
+      "hex": "fd0100002b2a07250000004ff4",
+      "payloadHex": "00",
+      "values": {
+        "target_system": [
+          0
+        ],
+        "target_component": [
+          0
+        ],
+        "start_index": [
+          0
+        ],
+        "end_index": [
+          0
+        ],
+        "mission_type": [
+          0
+        ]
+      },
+      "variant": "zero"
+    },
+    {
+      "id": 37,
+      "hex": "fd0700002c2a0725000000800080ffffffef66",
+      "payloadHex": "00800080ffffff",
+      "values": {
+        "target_system": [
+          255
+        ],
+        "target_component": [
+          255
+        ],
+        "start_index": [
+          -32768
+        ],
+        "end_index": [
+          -32768
+        ],
+        "mission_type": [
+          255
+        ]
+      },
+      "variant": "limits"
+    },
+    {
+      "id": 38,
+      "hex": "fd0700002d2a07260000fdfffcff0d1a41474a",
+      "payloadHex": "fdfffcff0d1a41",
+      "values": {
+        "target_system": [
+          13
+        ],
+        "target_component": [
+          26
+        ],
+        "start_index": [
+          -3
+        ],
+        "end_index": [
+          -4
+        ],
+        "mission_type": [
+          65
+        ]
+      },
+      "variant": "distinct"
+    },
+    {
+      "id": 38,
+      "hex": "fd0100002e2a07260000008a73",
+      "payloadHex": "00",
+      "values": {
+        "target_system": [
+          0
+        ],
+        "target_component": [
+          0
+        ],
+        "start_index": [
+          0
+        ],
+        "end_index": [
+          0
+        ],
+        "mission_type": [
+          0
+        ]
+      },
+      "variant": "zero"
+    },
+    {
+      "id": 38,
+      "hex": "fd0700002f2a0726000000800080ffffff0a16",
+      "payloadHex": "00800080ffffff",
+      "values": {
+        "target_system": [
+          255
+        ],
+        "target_component": [
+          255
+        ],
+        "start_index": [
+          -32768
+        ],
+        "end_index": [
+          -32768
+        ],
+        "mission_type": [
+          255
+        ]
+      },
+      "variant": "limits"
+    },
+    {
+      "id": 39,
+      "hex": "fd260000302a07270000000004c100001441000024c100003441000044c100005441000064c1270041000d1a344e5bc33bf1",
+      "payloadHex": "000004c100001441000024c100003441000044c100005441000064c1270041000d1a344e5bc3",
+      "values": {
+        "target_system": [
+          13
+        ],
+        "target_component": [
+          26
+        ],
+        "seq": [
+          39
+        ],
+        "frame": [
+          52
+        ],
+        "command": [
+          65
+        ],
+        "current": [
+          78
+        ],
+        "autocontinue": [
+          91
+        ],
+        "param1": [
+          -8.25
+        ],
+        "param2": [
+          9.25
+        ],
+        "param3": [
+          -10.25
+        ],
+        "param4": [
+          11.25
+        ],
+        "x": [
+          -12.25
+        ],
+        "y": [
+          13.25
+        ],
+        "z": [
+          -14.25
+        ],
+        "mission_type": [
+          195
+        ]
+      },
+      "variant": "distinct"
+    },
+    {
+      "id": 39,
+      "hex": "fd010000312a07270000003411",
+      "payloadHex": "00",
+      "values": {
+        "target_system": [
+          0
+        ],
+        "target_component": [
+          0
+        ],
+        "seq": [
+          0
+        ],
+        "frame": [
+          0
+        ],
+        "command": [
+          0
+        ],
+        "current": [
+          0
+        ],
+        "autocontinue": [
+          0
+        ],
+        "param1": [
+          0
+        ],
+        "param2": [
+          0
+        ],
+        "param3": [
+          0
+        ],
+        "param4": [
+          0
+        ],
+        "x": [
+          0
+        ],
+        "y": [
+          0
+        ],
+        "z": [
+          0
+        ],
+        "mission_type": [
+          0
+        ]
+      },
+      "variant": "zero"
+    },
+    {
+      "id": 39,
+      "hex": "fd260000322a07270000000004c100001441000024c100003441000044c100005441000064c1fffffffffffffffffffffafe",
+      "payloadHex": "000004c100001441000024c100003441000044c100005441000064c1ffffffffffffffffffff",
+      "values": {
+        "target_system": [
+          255
+        ],
+        "target_component": [
+          255
+        ],
+        "seq": [
+          65535
+        ],
+        "frame": [
+          255
+        ],
+        "command": [
+          65535
+        ],
+        "current": [
+          255
+        ],
+        "autocontinue": [
+          255
+        ],
+        "param1": [
+          -8.25
+        ],
+        "param2": [
+          9.25
+        ],
+        "param3": [
+          -10.25
+        ],
+        "param4": [
+          11.25
+        ],
+        "x": [
+          -12.25
+        ],
+        "y": [
+          13.25
+        ],
+        "z": [
+          -14.25
+        ],
+        "mission_type": [
+          255
+        ]
+      },
+      "variant": "limits"
+    },
+    {
+      "id": 40,
+      "hex": "fd050000332a0728000027000d1a344814",
+      "payloadHex": "27000d1a34",
+      "values": {
+        "target_system": [
+          13
+        ],
+        "target_component": [
+          26
+        ],
+        "seq": [
+          39
+        ],
+        "mission_type": [
+          52
+        ]
+      },
+      "variant": "distinct"
+    },
+    {
+      "id": 40,
+      "hex": "fd010000342a07280000006070",
+      "payloadHex": "00",
+      "values": {
+        "target_system": [
+          0
+        ],
+        "target_component": [
+          0
+        ],
+        "seq": [
+          0
+        ],
+        "mission_type": [
+          0
+        ]
+      },
+      "variant": "zero"
+    },
+    {
+      "id": 40,
+      "hex": "fd050000352a07280000ffffffffff07d2",
+      "payloadHex": "ffffffffff",
+      "values": {
+        "target_system": [
+          255
+        ],
+        "target_component": [
+          255
+        ],
+        "seq": [
+          65535
+        ],
+        "mission_type": [
+          255
+        ]
+      },
+      "variant": "limits"
+    },
+    {
+      "id": 41,
+      "hex": "fd040000362a0729000027000d1a69b0",
+      "payloadHex": "27000d1a",
+      "values": {
+        "target_system": [
+          13
+        ],
+        "target_component": [
+          26
+        ],
+        "seq": [
+          39
+        ]
+      },
+      "variant": "distinct"
+    },
+    {
+      "id": 41,
+      "hex": "fd010000372a072900000021a9",
+      "payloadHex": "00",
+      "values": {
+        "target_system": [
+          0
+        ],
+        "target_component": [
+          0
+        ],
+        "seq": [
+          0
+        ]
+      },
+      "variant": "zero"
+    },
+    {
+      "id": 41,
+      "hex": "fd040000382a07290000ffffffffdc37",
+      "payloadHex": "ffffffff",
+      "values": {
+        "target_system": [
+          255
+        ],
+        "target_component": [
+          255
+        ],
+        "seq": [
+          65535
+        ]
+      },
+      "variant": "limits"
+    },
+    {
+      "id": 42,
+      "hex": "fd0f0000392a072a00000d001a002734410000004e0000005b0cac",
+      "payloadHex": "0d001a002734410000004e0000005b",
+      "values": {
+        "seq": [
+          13
+        ],
+        "total": [
+          26
+        ],
+        "mission_state": [
+          39
+        ],
+        "mission_mode": [
+          52
+        ],
+        "mission_id": [
+          65
+        ],
+        "fence_id": [
+          78
+        ],
+        "rally_points_id": [
+          91
+        ]
+      },
+      "variant": "distinct"
+    },
+    {
+      "id": 42,
+      "hex": "fd0100003a2a072a000000300e",
+      "payloadHex": "00",
+      "values": {
+        "seq": [
+          0
+        ],
+        "total": [
+          0
+        ],
+        "mission_state": [
+          0
+        ],
+        "mission_mode": [
+          0
+        ],
+        "mission_id": [
+          0
+        ],
+        "fence_id": [
+          0
+        ],
+        "rally_points_id": [
+          0
+        ]
+      },
+      "variant": "zero"
+    },
+    {
+      "id": 42,
+      "hex": "fd1200003b2a072a0000ffffffffffffffffffffffffffffffffffff1d04",
+      "payloadHex": "ffffffffffffffffffffffffffffffffffff",
+      "values": {
+        "seq": [
+          65535
+        ],
+        "total": [
+          65535
+        ],
+        "mission_state": [
+          255
+        ],
+        "mission_mode": [
+          255
+        ],
+        "mission_id": [
+          4294967295
+        ],
+        "fence_id": [
+          4294967295
+        ],
+        "rally_points_id": [
+          4294967295
+        ]
+      },
+      "variant": "limits"
+    },
+    {
+      "id": 43,
+      "hex": "fd0300003c2a072b00000d1a27c0d2",
+      "payloadHex": "0d1a27",
+      "values": {
+        "target_system": [
+          13
+        ],
+        "target_component": [
+          26
+        ],
+        "mission_type": [
+          39
+        ]
+      },
+      "variant": "distinct"
+    },
+    {
+      "id": 43,
+      "hex": "fd0100003d2a072b000000bb81",
+      "payloadHex": "00",
+      "values": {
+        "target_system": [
+          0
+        ],
+        "target_component": [
+          0
+        ],
+        "mission_type": [
+          0
+        ]
+      },
+      "variant": "zero"
+    },
+    {
+      "id": 43,
+      "hex": "fd0300003e2a072b0000ffffff3465",
+      "payloadHex": "ffffff",
+      "values": {
+        "target_system": [
+          255
+        ],
+        "target_component": [
+          255
+        ],
+        "mission_type": [
+          255
+        ]
+      },
+      "variant": "limits"
+    },
+    {
+      "id": 44,
+      "hex": "fd0600003f2a072c000027000d1a3441a630",
+      "payloadHex": "27000d1a3441",
+      "values": {
+        "target_system": [
+          13
+        ],
+        "target_component": [
+          26
+        ],
+        "count": [
+          39
+        ],
+        "mission_type": [
+          52
+        ],
+        "opaque_id": [
+          65
+        ]
+      },
+      "variant": "distinct"
+    },
+    {
+      "id": 44,
+      "hex": "fd010000402a072c000000874c",
+      "payloadHex": "00",
+      "values": {
+        "target_system": [
+          0
+        ],
+        "target_component": [
+          0
+        ],
+        "count": [
+          0
+        ],
+        "mission_type": [
+          0
+        ],
+        "opaque_id": [
+          0
+        ]
+      },
+      "variant": "zero"
+    },
+    {
+      "id": 44,
+      "hex": "fd090000412a072c0000ffffffffffffffffff6cdc",
+      "payloadHex": "ffffffffffffffffff",
+      "values": {
+        "target_system": [
+          255
+        ],
+        "target_component": [
+          255
+        ],
+        "count": [
+          65535
+        ],
+        "mission_type": [
+          255
+        ],
+        "opaque_id": [
+          4294967295
+        ]
+      },
+      "variant": "limits"
+    },
+    {
+      "id": 45,
+      "hex": "fd030000422a072d00000d1a27008d",
+      "payloadHex": "0d1a27",
+      "values": {
+        "target_system": [
+          13
+        ],
+        "target_component": [
+          26
+        ],
+        "mission_type": [
+          39
+        ]
+      },
+      "variant": "distinct"
+    },
+    {
+      "id": 45,
+      "hex": "fd010000432a072d0000003dab",
+      "payloadHex": "00",
+      "values": {
+        "target_system": [
+          0
+        ],
+        "target_component": [
+          0
+        ],
+        "mission_type": [
+          0
+        ]
+      },
+      "variant": "zero"
+    },
+    {
+      "id": 45,
+      "hex": "fd030000442a072d0000ffffff688a",
+      "payloadHex": "ffffff",
+      "values": {
+        "target_system": [
+          255
+        ],
+        "target_component": [
+          255
+        ],
+        "mission_type": [
+          255
+        ]
+      },
+      "variant": "limits"
+    },
+    {
+      "id": 46,
+      "hex": "fd010000452a072e00000dadce",
+      "payloadHex": "0d",
+      "values": {
+        "seq": [
+          13
+        ]
+      },
+      "variant": "distinct"
+    },
+    {
+      "id": 46,
+      "hex": "fd010000462a072e00000005f4",
+      "payloadHex": "00",
+      "values": {
+        "seq": [
+          0
+        ]
+      },
+      "variant": "zero"
+    },
+    {
+      "id": 46,
+      "hex": "fd020000472a072e0000ffff02fe",
+      "payloadHex": "ffff",
+      "values": {
+        "seq": [
+          65535
+        ]
+      },
+      "variant": "limits"
+    },
+    {
+      "id": 47,
+      "hex": "fd050000482a072f00000d1a273441f708",
+      "payloadHex": "0d1a273441",
+      "values": {
+        "target_system": [
+          13
+        ],
+        "target_component": [
+          26
+        ],
+        "type": [
+          39
+        ],
+        "mission_type": [
+          52
+        ],
+        "opaque_id": [
+          65
+        ]
+      },
+      "variant": "distinct"
+    },
+    {
+      "id": 47,
+      "hex": "fd010000492a072f00000068f9",
+      "payloadHex": "00",
+      "values": {
+        "target_system": [
+          0
+        ],
+        "target_component": [
+          0
+        ],
+        "type": [
+          0
+        ],
+        "mission_type": [
+          0
+        ],
+        "opaque_id": [
+          0
+        ]
+      },
+      "variant": "zero"
+    },
+    {
+      "id": 47,
+      "hex": "fd0800004a2a072f0000ffffffffffffffff9241",
+      "payloadHex": "ffffffffffffffff",
+      "values": {
+        "target_system": [
+          255
+        ],
+        "target_component": [
+          255
+        ],
+        "type": [
+          255
+        ],
+        "mission_type": [
+          255
+        ],
+        "opaque_id": [
+          4294967295
+        ]
+      },
+      "variant": "limits"
+    },
+    {
+      "id": 51,
+      "hex": "fd0500004b2a0733000027000d1a34e523",
+      "payloadHex": "27000d1a34",
+      "values": {
+        "target_system": [
+          13
+        ],
+        "target_component": [
+          26
+        ],
+        "seq": [
+          39
+        ],
+        "mission_type": [
+          52
+        ]
+      },
+      "variant": "distinct"
+    },
+    {
+      "id": 51,
+      "hex": "fd0100004c2a07330000001924",
+      "payloadHex": "00",
+      "values": {
+        "target_system": [
+          0
+        ],
+        "target_component": [
+          0
+        ],
+        "seq": [
+          0
+        ],
+        "mission_type": [
+          0
+        ]
+      },
+      "variant": "zero"
+    },
+    {
+      "id": 51,
+      "hex": "fd0500004d2a07330000ffffffffffaae5",
+      "payloadHex": "ffffffffff",
+      "values": {
+        "target_system": [
+          255
+        ],
+        "target_component": [
+          255
+        ],
+        "seq": [
+          65535
+        ],
+        "mission_type": [
+          255
+        ]
+      },
+      "variant": "limits"
+    },
+    {
+      "id": 70,
+      "hex": "fd2600004e2a074600002700340041004e005b006800750082000d1a8f009c00a900b600c300d000dd00ea00f700040123a7",
+      "payloadHex": "2700340041004e005b006800750082000d1a8f009c00a900b600c300d000dd00ea00f7000401",
+      "values": {
+        "target_system": [
+          13
+        ],
+        "target_component": [
+          26
+        ],
+        "chan1_raw": [
+          39
+        ],
+        "chan2_raw": [
+          52
+        ],
+        "chan3_raw": [
+          65
+        ],
+        "chan4_raw": [
+          78
+        ],
+        "chan5_raw": [
+          91
+        ],
+        "chan6_raw": [
+          104
+        ],
+        "chan7_raw": [
+          117
+        ],
+        "chan8_raw": [
+          130
+        ],
+        "chan9_raw": [
+          143
+        ],
+        "chan10_raw": [
+          156
+        ],
+        "chan11_raw": [
+          169
+        ],
+        "chan12_raw": [
+          182
+        ],
+        "chan13_raw": [
+          195
+        ],
+        "chan14_raw": [
+          208
+        ],
+        "chan15_raw": [
+          221
+        ],
+        "chan16_raw": [
+          234
+        ],
+        "chan17_raw": [
+          247
+        ],
+        "chan18_raw": [
+          260
+        ]
+      },
+      "variant": "distinct"
+    },
+    {
+      "id": 70,
+      "hex": "fd0100004f2a0746000000ada4",
+      "payloadHex": "00",
+      "values": {
+        "target_system": [
+          0
+        ],
+        "target_component": [
+          0
+        ],
+        "chan1_raw": [
+          0
+        ],
+        "chan2_raw": [
+          0
+        ],
+        "chan3_raw": [
+          0
+        ],
+        "chan4_raw": [
+          0
+        ],
+        "chan5_raw": [
+          0
+        ],
+        "chan6_raw": [
+          0
+        ],
+        "chan7_raw": [
+          0
+        ],
+        "chan8_raw": [
+          0
+        ],
+        "chan9_raw": [
+          0
+        ],
+        "chan10_raw": [
+          0
+        ],
+        "chan11_raw": [
+          0
+        ],
+        "chan12_raw": [
+          0
+        ],
+        "chan13_raw": [
+          0
+        ],
+        "chan14_raw": [
+          0
+        ],
+        "chan15_raw": [
+          0
+        ],
+        "chan16_raw": [
+          0
+        ],
+        "chan17_raw": [
+          0
+        ],
+        "chan18_raw": [
+          0
+        ]
+      },
+      "variant": "zero"
+    },
+    {
+      "id": 70,
+      "hex": "fd260000502a07460000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffbb79",
+      "payloadHex": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "values": {
+        "target_system": [
+          255
+        ],
+        "target_component": [
+          255
+        ],
+        "chan1_raw": [
+          65535
+        ],
+        "chan2_raw": [
+          65535
+        ],
+        "chan3_raw": [
+          65535
+        ],
+        "chan4_raw": [
+          65535
+        ],
+        "chan5_raw": [
+          65535
+        ],
+        "chan6_raw": [
+          65535
+        ],
+        "chan7_raw": [
+          65535
+        ],
+        "chan8_raw": [
+          65535
+        ],
+        "chan9_raw": [
+          65535
+        ],
+        "chan10_raw": [
+          65535
+        ],
+        "chan11_raw": [
+          65535
+        ],
+        "chan12_raw": [
+          65535
+        ],
+        "chan13_raw": [
+          65535
+        ],
+        "chan14_raw": [
+          65535
+        ],
+        "chan15_raw": [
+          65535
+        ],
+        "chan16_raw": [
+          65535
+        ],
+        "chan17_raw": [
+          65535
+        ],
+        "chan18_raw": [
+          65535
+        ]
+      },
+      "variant": "limits"
+    },
+    {
+      "id": 73,
+      "hex": "fd260000512a07490000000004c100001441000024c100003441f4fffffff3ffffff000064c1270041000d1a344e5bc3ba41",
+      "payloadHex": "000004c100001441000024c100003441f4fffffff3ffffff000064c1270041000d1a344e5bc3",
+      "values": {
+        "target_system": [
+          13
+        ],
+        "target_component": [
+          26
+        ],
+        "seq": [
+          39
+        ],
+        "frame": [
+          52
+        ],
+        "command": [
+          65
+        ],
+        "current": [
+          78
+        ],
+        "autocontinue": [
+          91
+        ],
+        "param1": [
+          -8.25
+        ],
+        "param2": [
+          9.25
+        ],
+        "param3": [
+          -10.25
+        ],
+        "param4": [
+          11.25
+        ],
+        "x": [
+          -12
+        ],
+        "y": [
+          -13
+        ],
+        "z": [
+          -14.25
+        ],
+        "mission_type": [
+          195
+        ]
+      },
+      "variant": "distinct"
+    },
+    {
+      "id": 73,
+      "hex": "fd010000522a07490000002bd2",
+      "payloadHex": "00",
+      "values": {
+        "target_system": [
+          0
+        ],
+        "target_component": [
+          0
+        ],
+        "seq": [
+          0
+        ],
+        "frame": [
+          0
+        ],
+        "command": [
+          0
+        ],
+        "current": [
+          0
+        ],
+        "autocontinue": [
+          0
+        ],
+        "param1": [
+          0
+        ],
+        "param2": [
+          0
+        ],
+        "param3": [
+          0
+        ],
+        "param4": [
+          0
+        ],
+        "x": [
+          0
+        ],
+        "y": [
+          0
+        ],
+        "z": [
+          0
+        ],
+        "mission_type": [
+          0
+        ]
+      },
+      "variant": "zero"
+    },
+    {
+      "id": 73,
+      "hex": "fd260000532a07490000000004c100001441000024c1000034410000008000000080000064c1ffffffffffffffffffff2ffc",
+      "payloadHex": "000004c100001441000024c1000034410000008000000080000064c1ffffffffffffffffffff",
+      "values": {
+        "target_system": [
+          255
+        ],
+        "target_component": [
+          255
+        ],
+        "seq": [
+          65535
+        ],
+        "frame": [
+          255
+        ],
+        "command": [
+          65535
+        ],
+        "current": [
+          255
+        ],
+        "autocontinue": [
+          255
+        ],
+        "param1": [
+          -8.25
+        ],
+        "param2": [
+          9.25
+        ],
+        "param3": [
+          -10.25
+        ],
+        "param4": [
+          11.25
+        ],
+        "x": [
+          -2147483648
+        ],
+        "y": [
+          -2147483648
+        ],
+        "z": [
+          -14.25
+        ],
+        "mission_type": [
+          255
+        ]
+      },
+      "variant": "limits"
+    },
+    {
+      "id": 74,
+      "hex": "fd130000542a074a00000000a03f000010c00000a8400000c8c0fdff34bf42",
+      "payloadHex": "0000a03f000010c00000a8400000c8c0fdff34",
+      "values": {
+        "airspeed": [
+          1.25
+        ],
+        "groundspeed": [
+          -2.25
+        ],
+        "heading": [
+          -3
+        ],
+        "throttle": [
+          52
+        ],
+        "alt": [
+          5.25
+        ],
+        "climb": [
+          -6.25
+        ]
+      },
+      "variant": "distinct"
+    },
+    {
+      "id": 74,
+      "hex": "fd010000552a074a0000007841",
+      "payloadHex": "00",
+      "values": {
+        "airspeed": [
+          0
+        ],
+        "groundspeed": [
+          0
+        ],
+        "heading": [
+          0
+        ],
+        "throttle": [
+          0
+        ],
+        "alt": [
+          0
+        ],
+        "climb": [
+          0
+        ]
+      },
+      "variant": "zero"
+    },
+    {
+      "id": 74,
+      "hex": "fd140000562a074a00000000a03f000010c00000a8400000c8c00080ffffb178",
+      "payloadHex": "0000a03f000010c00000a8400000c8c00080ffff",
+      "values": {
+        "airspeed": [
+          1.25
+        ],
+        "groundspeed": [
+          -2.25
+        ],
+        "heading": [
+          -32768
+        ],
+        "throttle": [
+          65535
+        ],
+        "alt": [
+          5.25
+        ],
+        "climb": [
+          -6.25
+        ]
+      },
+      "variant": "limits"
+    },
+    {
+      "id": 75,
+      "hex": "fd230000572a074b00000000e840000004c100001441000024c1f5fffffff4ffffff0000544134000d1a27414e2ea5",
+      "payloadHex": "0000e840000004c100001441000024c1f5fffffff4ffffff0000544134000d1a27414e",
+      "values": {
+        "target_system": [
+          13
+        ],
+        "target_component": [
+          26
+        ],
+        "frame": [
+          39
+        ],
+        "command": [
+          52
+        ],
+        "current": [
+          65
+        ],
+        "autocontinue": [
+          78
+        ],
+        "param1": [
+          7.25
+        ],
+        "param2": [
+          -8.25
+        ],
+        "param3": [
+          9.25
+        ],
+        "param4": [
+          -10.25
+        ],
+        "x": [
+          -11
+        ],
+        "y": [
+          -12
+        ],
+        "z": [
+          13.25
+        ]
+      },
+      "variant": "distinct"
+    },
+    {
+      "id": 75,
+      "hex": "fd010000582a074b000000b3db",
+      "payloadHex": "00",
+      "values": {
+        "target_system": [
+          0
+        ],
+        "target_component": [
+          0
+        ],
+        "frame": [
+          0
+        ],
+        "command": [
+          0
+        ],
+        "current": [
+          0
+        ],
+        "autocontinue": [
+          0
+        ],
+        "param1": [
+          0
+        ],
+        "param2": [
+          0
+        ],
+        "param3": [
+          0
+        ],
+        "param4": [
+          0
+        ],
+        "x": [
+          0
+        ],
+        "y": [
+          0
+        ],
+        "z": [
+          0
+        ]
+      },
+      "variant": "zero"
+    },
+    {
+      "id": 75,
+      "hex": "fd230000592a074b00000000e840000004c100001441000024c1000000800000008000005441ffffffffffffff3850",
+      "payloadHex": "0000e840000004c100001441000024c1000000800000008000005441ffffffffffffff",
+      "values": {
+        "target_system": [
+          255
+        ],
+        "target_component": [
+          255
+        ],
+        "frame": [
+          255
+        ],
+        "command": [
+          65535
+        ],
+        "current": [
+          255
+        ],
+        "autocontinue": [
+          255
+        ],
+        "param1": [
+          7.25
+        ],
+        "param2": [
+          -8.25
+        ],
+        "param3": [
+          9.25
+        ],
+        "param4": [
+          -10.25
+        ],
+        "x": [
+          -2147483648
+        ],
+        "y": [
+          -2147483648
+        ],
+        "z": [
+          13.25
+        ]
+      },
+      "variant": "limits"
+    },
+    {
+      "id": 76,
+      "hex": "fd2100005a2a074c00000000a8400000c8c00000e840000004c100001441000024c10000344127000d1a34aba5",
+      "payloadHex": "0000a8400000c8c00000e840000004c100001441000024c10000344127000d1a34",
+      "values": {
+        "target_system": [
+          13
+        ],
+        "target_component": [
+          26
+        ],
+        "command": [
+          39
+        ],
+        "confirmation": [
+          52
+        ],
+        "param1": [
+          5.25
+        ],
+        "param2": [
+          -6.25
+        ],
+        "param3": [
+          7.25
+        ],
+        "param4": [
+          -8.25
+        ],
+        "param5": [
+          9.25
+        ],
+        "param6": [
+          -10.25
+        ],
+        "param7": [
+          11.25
+        ]
+      },
+      "variant": "distinct"
+    },
+    {
+      "id": 76,
+      "hex": "fd0100005b2a074c0000008904",
+      "payloadHex": "00",
+      "values": {
+        "target_system": [
+          0
+        ],
+        "target_component": [
+          0
+        ],
+        "command": [
+          0
+        ],
+        "confirmation": [
+          0
+        ],
+        "param1": [
+          0
+        ],
+        "param2": [
+          0
+        ],
+        "param3": [
+          0
+        ],
+        "param4": [
+          0
+        ],
+        "param5": [
+          0
+        ],
+        "param6": [
+          0
+        ],
+        "param7": [
+          0
+        ]
+      },
+      "variant": "zero"
+    },
+    {
+      "id": 76,
+      "hex": "fd2100005c2a074c00000000a8400000c8c00000e840000004c100001441000024c100003441ffffffffffb540",
+      "payloadHex": "0000a8400000c8c00000e840000004c100001441000024c100003441ffffffffff",
+      "values": {
+        "target_system": [
+          255
+        ],
+        "target_component": [
+          255
+        ],
+        "command": [
+          65535
+        ],
+        "confirmation": [
+          255
+        ],
+        "param1": [
+          5.25
+        ],
+        "param2": [
+          -6.25
+        ],
+        "param3": [
+          7.25
+        ],
+        "param4": [
+          -8.25
+        ],
+        "param5": [
+          9.25
+        ],
+        "param6": [
+          -10.25
+        ],
+        "param7": [
+          11.25
+        ]
+      },
+      "variant": "limits"
+    },
+    {
+      "id": 77,
+      "hex": "fd0a00005d2a074d00000d001a27fcffffff414e38d5",
+      "payloadHex": "0d001a27fcffffff414e",
+      "values": {
+        "command": [
+          13
+        ],
+        "result": [
+          26
+        ],
+        "progress": [
+          39
+        ],
+        "result_param2": [
+          -4
+        ],
+        "target_system": [
+          65
+        ],
+        "target_component": [
+          78
+        ]
+      },
+      "variant": "distinct"
+    },
+    {
+      "id": 77,
+      "hex": "fd0100005e2a074d00000092fc",
+      "payloadHex": "00",
+      "values": {
+        "command": [
+          0
+        ],
+        "result": [
+          0
+        ],
+        "progress": [
+          0
+        ],
+        "result_param2": [
+          0
+        ],
+        "target_system": [
+          0
+        ],
+        "target_component": [
+          0
+        ]
+      },
+      "variant": "zero"
+    },
+    {
+      "id": 77,
+      "hex": "fd0a00005f2a074d0000ffffffff00000080ffffc9b2",
+      "payloadHex": "ffffffff00000080ffff",
+      "values": {
+        "command": [
+          65535
+        ],
+        "result": [
+          255
+        ],
+        "progress": [
+          255
+        ],
+        "result_param2": [
+          -2147483648
+        ],
+        "target_system": [
+          255
+        ],
+        "target_component": [
+          255
+        ]
+      },
+      "variant": "limits"
+    },
+    {
+      "id": 82,
+      "hex": "fd330000602a075200000d0000000000a8400000ac400000b0400000b4400000c8c00000e840000004c1000014411a2734000024c1000026c1000028c1fed8",
+      "payloadHex": "0d0000000000a8400000ac400000b0400000b4400000c8c00000e840000004c1000014411a2734000024c1000026c1000028c1",
+      "values": {
+        "time_boot_ms": [
+          13
+        ],
+        "target_system": [
+          26
+        ],
+        "target_component": [
+          39
+        ],
+        "type_mask": [
+          52
+        ],
+        "q": [
+          5.25,
+          5.375,
+          5.5,
+          5.625
+        ],
+        "body_roll_rate": [
+          -6.25
+        ],
+        "body_pitch_rate": [
+          7.25
+        ],
+        "body_yaw_rate": [
+          -8.25
+        ],
+        "thrust": [
+          9.25
+        ],
+        "thrust_body": [
+          -10.25,
+          -10.375,
+          -10.5
+        ]
+      },
+      "variant": "distinct"
+    },
+    {
+      "id": 82,
+      "hex": "fd010000612a0752000000e122",
+      "payloadHex": "00",
+      "values": {
+        "time_boot_ms": [
+          0
+        ],
+        "target_system": [
+          0
+        ],
+        "target_component": [
+          0
+        ],
+        "type_mask": [
+          0
+        ],
+        "q": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "body_roll_rate": [
+          0
+        ],
+        "body_pitch_rate": [
+          0
+        ],
+        "body_yaw_rate": [
+          0
+        ],
+        "thrust": [
+          0
+        ],
+        "thrust_body": [
+          0,
+          0,
+          0
+        ]
+      },
+      "variant": "zero"
+    },
+    {
+      "id": 82,
+      "hex": "fd330000622a07520000ffffffff0000a8400000ac400000b0400000b4400000c8c00000e840000004c100001441ffffff000024c1000026c1000028c172e5",
+      "payloadHex": "ffffffff0000a8400000ac400000b0400000b4400000c8c00000e840000004c100001441ffffff000024c1000026c1000028c1",
+      "values": {
+        "time_boot_ms": [
+          4294967295
+        ],
+        "target_system": [
+          255
+        ],
+        "target_component": [
+          255
+        ],
+        "type_mask": [
+          255
+        ],
+        "q": [
+          5.25,
+          5.375,
+          5.5,
+          5.625
+        ],
+        "body_roll_rate": [
+          -6.25
+        ],
+        "body_pitch_rate": [
+          7.25
+        ],
+        "body_yaw_rate": [
+          -8.25
+        ],
+        "thrust": [
+          9.25
+        ],
+        "thrust_body": [
+          -10.25,
+          -10.375,
+          -10.5
+        ]
+      },
+      "variant": "limits"
+    },
+    {
+      "id": 83,
+      "hex": "fd250000632a075300000d00000000005040000058400000604000006840000088c00000a8400000c8c00000e8401a3069",
+      "payloadHex": "0d00000000005040000058400000604000006840000088c00000a8400000c8c00000e8401a",
+      "values": {
+        "time_boot_ms": [
+          13
+        ],
+        "type_mask": [
+          26
+        ],
+        "q": [
+          3.25,
+          3.375,
+          3.5,
+          3.625
+        ],
+        "body_roll_rate": [
+          -4.25
+        ],
+        "body_pitch_rate": [
+          5.25
+        ],
+        "body_yaw_rate": [
+          -6.25
+        ],
+        "thrust": [
+          7.25
+        ]
+      },
+      "variant": "distinct"
+    },
+    {
+      "id": 83,
+      "hex": "fd010000642a075300000079eb",
+      "payloadHex": "00",
+      "values": {
+        "time_boot_ms": [
+          0
+        ],
+        "type_mask": [
+          0
+        ],
+        "q": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "body_roll_rate": [
+          0
+        ],
+        "body_pitch_rate": [
+          0
+        ],
+        "body_yaw_rate": [
+          0
+        ],
+        "thrust": [
+          0
+        ]
+      },
+      "variant": "zero"
+    },
+    {
+      "id": 83,
+      "hex": "fd250000652a07530000ffffffff00005040000058400000604000006840000088c00000a8400000c8c00000e840ff9cde",
+      "payloadHex": "ffffffff00005040000058400000604000006840000088c00000a8400000c8c00000e840ff",
+      "values": {
+        "time_boot_ms": [
+          4294967295
+        ],
+        "type_mask": [
+          255
+        ],
+        "q": [
+          3.25,
+          3.375,
+          3.5,
+          3.625
+        ],
+        "body_roll_rate": [
+          -4.25
+        ],
+        "body_pitch_rate": [
+          5.25
+        ],
+        "body_yaw_rate": [
+          -6.25
+        ],
+        "thrust": [
+          7.25
+        ]
+      },
+      "variant": "limits"
+    },
+    {
+      "id": 84,
+      "hex": "fd350000662a075400000d0000000000c8c00000e840000004c100001441000024c100003441000044c100005441000064c100007441000082c141001a27341c89",
+      "payloadHex": "0d0000000000c8c00000e840000004c100001441000024c100003441000044c100005441000064c100007441000082c141001a2734",
+      "values": {
+        "time_boot_ms": [
+          13
+        ],
+        "target_system": [
+          26
+        ],
+        "target_component": [
+          39
+        ],
+        "coordinate_frame": [
+          52
+        ],
+        "type_mask": [
+          65
+        ],
+        "x": [
+          -6.25
+        ],
+        "y": [
+          7.25
+        ],
+        "z": [
+          -8.25
+        ],
+        "vx": [
+          9.25
+        ],
+        "vy": [
+          -10.25
+        ],
+        "vz": [
+          11.25
+        ],
+        "afx": [
+          -12.25
+        ],
+        "afy": [
+          13.25
+        ],
+        "afz": [
+          -14.25
+        ],
+        "yaw": [
+          15.25
+        ],
+        "yaw_rate": [
+          -16.25
+        ]
+      },
+      "variant": "distinct"
+    },
+    {
+      "id": 84,
+      "hex": "fd010000672a07540000003d58",
+      "payloadHex": "00",
+      "values": {
+        "time_boot_ms": [
+          0
+        ],
+        "target_system": [
+          0
+        ],
+        "target_component": [
+          0
+        ],
+        "coordinate_frame": [
+          0
+        ],
+        "type_mask": [
+          0
+        ],
+        "x": [
+          0
+        ],
+        "y": [
+          0
+        ],
+        "z": [
+          0
+        ],
+        "vx": [
+          0
+        ],
+        "vy": [
+          0
+        ],
+        "vz": [
+          0
+        ],
+        "afx": [
+          0
+        ],
+        "afy": [
+          0
+        ],
+        "afz": [
+          0
+        ],
+        "yaw": [
+          0
+        ],
+        "yaw_rate": [
+          0
+        ]
+      },
+      "variant": "zero"
+    },
+    {
+      "id": 84,
+      "hex": "fd350000682a07540000ffffffff0000c8c00000e840000004c100001441000024c100003441000044c100005441000064c100007441000082c1ffffffffff5e7c",
+      "payloadHex": "ffffffff0000c8c00000e840000004c100001441000024c100003441000044c100005441000064c100007441000082c1ffffffffff",
+      "values": {
+        "time_boot_ms": [
+          4294967295
+        ],
+        "target_system": [
+          255
+        ],
+        "target_component": [
+          255
+        ],
+        "coordinate_frame": [
+          255
+        ],
+        "type_mask": [
+          65535
+        ],
+        "x": [
+          -6.25
+        ],
+        "y": [
+          7.25
+        ],
+        "z": [
+          -8.25
+        ],
+        "vx": [
+          9.25
+        ],
+        "vy": [
+          -10.25
+        ],
+        "vz": [
+          11.25
+        ],
+        "afx": [
+          -12.25
+        ],
+        "afy": [
+          13.25
+        ],
+        "afz": [
+          -14.25
+        ],
+        "yaw": [
+          15.25
+        ],
+        "yaw_rate": [
+          -16.25
+        ]
+      },
+      "variant": "limits"
+    },
+    {
+      "id": 85,
+      "hex": "fd330000692a075500000d000000000088c00000a8400000c8c00000e840000004c100001441000024c100003441000044c100005441000064c127001ab2e5",
+      "payloadHex": "0d000000000088c00000a8400000c8c00000e840000004c100001441000024c100003441000044c100005441000064c127001a",
+      "values": {
+        "time_boot_ms": [
+          13
+        ],
+        "coordinate_frame": [
+          26
+        ],
+        "type_mask": [
+          39
+        ],
+        "x": [
+          -4.25
+        ],
+        "y": [
+          5.25
+        ],
+        "z": [
+          -6.25
+        ],
+        "vx": [
+          7.25
+        ],
+        "vy": [
+          -8.25
+        ],
+        "vz": [
+          9.25
+        ],
+        "afx": [
+          -10.25
+        ],
+        "afy": [
+          11.25
+        ],
+        "afz": [
+          -12.25
+        ],
+        "yaw": [
+          13.25
+        ],
+        "yaw_rate": [
+          -14.25
+        ]
+      },
+      "variant": "distinct"
+    },
+    {
+      "id": 85,
+      "hex": "fd0100006a2a07550000003fdb",
+      "payloadHex": "00",
+      "values": {
+        "time_boot_ms": [
+          0
+        ],
+        "coordinate_frame": [
+          0
+        ],
+        "type_mask": [
+          0
+        ],
+        "x": [
+          0
+        ],
+        "y": [
+          0
+        ],
+        "z": [
+          0
+        ],
+        "vx": [
+          0
+        ],
+        "vy": [
+          0
+        ],
+        "vz": [
+          0
+        ],
+        "afx": [
+          0
+        ],
+        "afy": [
+          0
+        ],
+        "afz": [
+          0
+        ],
+        "yaw": [
+          0
+        ],
+        "yaw_rate": [
+          0
+        ]
+      },
+      "variant": "zero"
+    },
+    {
+      "id": 85,
+      "hex": "fd3300006b2a07550000ffffffff000088c00000a8400000c8c00000e840000004c100001441000024c100003441000044c100005441000064c1ffffff9535",
+      "payloadHex": "ffffffff000088c00000a8400000c8c00000e840000004c100001441000024c100003441000044c100005441000064c1ffffff",
+      "values": {
+        "time_boot_ms": [
+          4294967295
+        ],
+        "coordinate_frame": [
+          255
+        ],
+        "type_mask": [
+          65535
+        ],
+        "x": [
+          -4.25
+        ],
+        "y": [
+          5.25
+        ],
+        "z": [
+          -6.25
+        ],
+        "vx": [
+          7.25
+        ],
+        "vy": [
+          -8.25
+        ],
+        "vz": [
+          9.25
+        ],
+        "afx": [
+          -10.25
+        ],
+        "afy": [
+          11.25
+        ],
+        "afz": [
+          -12.25
+        ],
+        "yaw": [
+          13.25
+        ],
+        "yaw_rate": [
+          -14.25
+        ]
+      },
+      "variant": "limits"
+    },
+    {
+      "id": 86,
+      "hex": "fd3500006c2a075600000d000000fafffffff9ffffff000004c100001441000024c100003441000044c100005441000064c100007441000082c141001a27347f9e",
+      "payloadHex": "0d000000fafffffff9ffffff000004c100001441000024c100003441000044c100005441000064c100007441000082c141001a2734",
+      "values": {
+        "time_boot_ms": [
+          13
+        ],
+        "target_system": [
+          26
+        ],
+        "target_component": [
+          39
+        ],
+        "coordinate_frame": [
+          52
+        ],
+        "type_mask": [
+          65
+        ],
+        "lat_int": [
+          -6
+        ],
+        "lon_int": [
+          -7
+        ],
+        "alt": [
+          -8.25
+        ],
+        "vx": [
+          9.25
+        ],
+        "vy": [
+          -10.25
+        ],
+        "vz": [
+          11.25
+        ],
+        "afx": [
+          -12.25
+        ],
+        "afy": [
+          13.25
+        ],
+        "afz": [
+          -14.25
+        ],
+        "yaw": [
+          15.25
+        ],
+        "yaw_rate": [
+          -16.25
+        ]
+      },
+      "variant": "distinct"
+    },
+    {
+      "id": 86,
+      "hex": "fd0100006d2a07560000003443",
+      "payloadHex": "00",
+      "values": {
+        "time_boot_ms": [
+          0
+        ],
+        "target_system": [
+          0
+        ],
+        "target_component": [
+          0
+        ],
+        "coordinate_frame": [
+          0
+        ],
+        "type_mask": [
+          0
+        ],
+        "lat_int": [
+          0
+        ],
+        "lon_int": [
+          0
+        ],
+        "alt": [
+          0
+        ],
+        "vx": [
+          0
+        ],
+        "vy": [
+          0
+        ],
+        "vz": [
+          0
+        ],
+        "afx": [
+          0
+        ],
+        "afy": [
+          0
+        ],
+        "afz": [
+          0
+        ],
+        "yaw": [
+          0
+        ],
+        "yaw_rate": [
+          0
+        ]
+      },
+      "variant": "zero"
+    },
+    {
+      "id": 86,
+      "hex": "fd3500006e2a07560000ffffffff0000008000000080000004c100001441000024c100003441000044c100005441000064c100007441000082c1ffffffffffb4cc",
+      "payloadHex": "ffffffff0000008000000080000004c100001441000024c100003441000044c100005441000064c100007441000082c1ffffffffff",
+      "values": {
+        "time_boot_ms": [
+          4294967295
+        ],
+        "target_system": [
+          255
+        ],
+        "target_component": [
+          255
+        ],
+        "coordinate_frame": [
+          255
+        ],
+        "type_mask": [
+          65535
+        ],
+        "lat_int": [
+          -2147483648
+        ],
+        "lon_int": [
+          -2147483648
+        ],
+        "alt": [
+          -8.25
+        ],
+        "vx": [
+          9.25
+        ],
+        "vy": [
+          -10.25
+        ],
+        "vz": [
+          11.25
+        ],
+        "afx": [
+          -12.25
+        ],
+        "afy": [
+          13.25
+        ],
+        "afz": [
+          -14.25
+        ],
+        "yaw": [
+          15.25
+        ],
+        "yaw_rate": [
+          -16.25
+        ]
+      },
+      "variant": "limits"
+    },
+    {
+      "id": 87,
+      "hex": "fd3300006f2a075700000d000000fcfffffffbffffff0000c8c00000e840000004c100001441000024c100003441000044c100005441000064c127001ae080",
+      "payloadHex": "0d000000fcfffffffbffffff0000c8c00000e840000004c100001441000024c100003441000044c100005441000064c127001a",
+      "values": {
+        "time_boot_ms": [
+          13
+        ],
+        "coordinate_frame": [
+          26
+        ],
+        "type_mask": [
+          39
+        ],
+        "lat_int": [
+          -4
+        ],
+        "lon_int": [
+          -5
+        ],
+        "alt": [
+          -6.25
+        ],
+        "vx": [
+          7.25
+        ],
+        "vy": [
+          -8.25
+        ],
+        "vz": [
+          9.25
+        ],
+        "afx": [
+          -10.25
+        ],
+        "afy": [
+          11.25
+        ],
+        "afz": [
+          -12.25
+        ],
+        "yaw": [
+          13.25
+        ],
+        "yaw_rate": [
+          -14.25
+        ]
+      },
+      "variant": "distinct"
+    },
+    {
+      "id": 87,
+      "hex": "fd010000702a0757000000c70f",
+      "payloadHex": "00",
+      "values": {
+        "time_boot_ms": [
+          0
+        ],
+        "coordinate_frame": [
+          0
+        ],
+        "type_mask": [
+          0
+        ],
+        "lat_int": [
+          0
+        ],
+        "lon_int": [
+          0
+        ],
+        "alt": [
+          0
+        ],
+        "vx": [
+          0
+        ],
+        "vy": [
+          0
+        ],
+        "vz": [
+          0
+        ],
+        "afx": [
+          0
+        ],
+        "afy": [
+          0
+        ],
+        "afz": [
+          0
+        ],
+        "yaw": [
+          0
+        ],
+        "yaw_rate": [
+          0
+        ]
+      },
+      "variant": "zero"
+    },
+    {
+      "id": 87,
+      "hex": "fd330000712a07570000ffffffff00000080000000800000c8c00000e840000004c100001441000024c100003441000044c100005441000064c1ffffffede0",
+      "payloadHex": "ffffffff00000080000000800000c8c00000e840000004c100001441000024c100003441000044c100005441000064c1ffffff",
+      "values": {
+        "time_boot_ms": [
+          4294967295
+        ],
+        "coordinate_frame": [
+          255
+        ],
+        "type_mask": [
+          65535
+        ],
+        "lat_int": [
+          -2147483648
+        ],
+        "lon_int": [
+          -2147483648
+        ],
+        "alt": [
+          -6.25
+        ],
+        "vx": [
+          7.25
+        ],
+        "vy": [
+          -8.25
+        ],
+        "vz": [
+          9.25
+        ],
+        "afx": [
+          -10.25
+        ],
+        "afy": [
+          11.25
+        ],
+        "afz": [
+          -12.25
+        ],
+        "yaw": [
+          13.25
+        ],
+        "yaw_rate": [
+          -14.25
+        ]
+      },
+      "variant": "limits"
+    },
+    {
+      "id": 93,
+      "hex": "fd510000722a075d00000d000000000000003400000000000000000010c0000018c0000020c0000028c0000030c0000038c0000040c0000048c0000050c0000058c0000060c0000068c0000070c0000078c0000080c0000084c02772ce",
+      "payloadHex": "0d000000000000003400000000000000000010c0000018c0000020c0000028c0000030c0000038c0000040c0000048c0000050c0000058c0000060c0000068c0000070c0000078c0000080c0000084c027",
+      "values": {
+        "time_usec": [
+          13,
+          0
+        ],
+        "controls": [
+          -2.25,
+          -2.375,
+          -2.5,
+          -2.625,
+          -2.75,
+          -2.875,
+          -3.0,
+          -3.125,
+          -3.25,
+          -3.375,
+          -3.5,
+          -3.625,
+          -3.75,
+          -3.875,
+          -4.0,
+          -4.125
+        ],
+        "mode": [
+          39
+        ],
+        "flags": [
+          52,
+          0
+        ]
+      },
+      "variant": "distinct"
+    },
+    {
+      "id": 93,
+      "hex": "fd010000732a075d000000f5e1",
+      "payloadHex": "00",
+      "values": {
+        "time_usec": [
+          0,
+          0
+        ],
+        "controls": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "mode": [
+          0
+        ],
+        "flags": [
+          0,
+          0
+        ]
+      },
+      "variant": "zero"
+    },
+    {
+      "id": 93,
+      "hex": "fd510000742a075d0000ffffffffffffffffffffffffffffffff000010c0000018c0000020c0000028c0000030c0000038c0000040c0000048c0000050c0000058c0000060c0000068c0000070c0000078c0000080c0000084c0ff6a4a",
+      "payloadHex": "ffffffffffffffffffffffffffffffff000010c0000018c0000020c0000028c0000030c0000038c0000040c0000048c0000050c0000058c0000060c0000068c0000070c0000078c0000080c0000084c0ff",
+      "values": {
+        "time_usec": [
+          4294967295,
+          4294967295
+        ],
+        "controls": [
+          -2.25,
+          -2.375,
+          -2.5,
+          -2.625,
+          -2.75,
+          -2.875,
+          -3.0,
+          -3.125,
+          -3.25,
+          -3.375,
+          -3.5,
+          -3.625,
+          -3.75,
+          -3.875,
+          -4.0,
+          -4.125
+        ],
+        "mode": [
+          255
+        ],
+        "flags": [
+          4294967295,
+          4294967295
+        ]
+      },
+      "variant": "limits"
+    },
+    {
+      "id": 105,
+      "hex": "fd3f0000752a076900000d00000000000000000010c000005040000088c00000a8400000c8c00000e840000004c100001441000024c100003441000044c100005441000064c1c300d011a3",
+      "payloadHex": "0d00000000000000000010c000005040000088c00000a8400000c8c00000e840000004c100001441000024c100003441000044c100005441000064c1c300d0",
+      "values": {
+        "time_usec": [
+          13,
+          0
+        ],
+        "xacc": [
+          -2.25
+        ],
+        "yacc": [
+          3.25
+        ],
+        "zacc": [
+          -4.25
+        ],
+        "xgyro": [
+          5.25
+        ],
+        "ygyro": [
+          -6.25
+        ],
+        "zgyro": [
+          7.25
+        ],
+        "xmag": [
+          -8.25
+        ],
+        "ymag": [
+          9.25
+        ],
+        "zmag": [
+          -10.25
+        ],
+        "abs_pressure": [
+          11.25
+        ],
+        "diff_pressure": [
+          -12.25
+        ],
+        "pressure_alt": [
+          13.25
+        ],
+        "temperature": [
+          -14.25
+        ],
+        "fields_updated": [
+          195
+        ],
+        "id": [
+          208
+        ]
+      },
+      "variant": "distinct"
+    },
+    {
+      "id": 105,
+      "hex": "fd010000762a0769000000c0df",
+      "payloadHex": "00",
+      "values": {
+        "time_usec": [
+          0,
+          0
+        ],
+        "xacc": [
+          0
+        ],
+        "yacc": [
+          0
+        ],
+        "zacc": [
+          0
+        ],
+        "xgyro": [
+          0
+        ],
+        "ygyro": [
+          0
+        ],
+        "zgyro": [
+          0
+        ],
+        "xmag": [
+          0
+        ],
+        "ymag": [
+          0
+        ],
+        "zmag": [
+          0
+        ],
+        "abs_pressure": [
+          0
+        ],
+        "diff_pressure": [
+          0
+        ],
+        "pressure_alt": [
+          0
+        ],
+        "temperature": [
+          0
+        ],
+        "fields_updated": [
+          0
+        ],
+        "id": [
+          0
+        ]
+      },
+      "variant": "zero"
+    },
+    {
+      "id": 105,
+      "hex": "fd3f0000772a07690000ffffffffffffffff000010c000005040000088c00000a8400000c8c00000e840000004c100001441000024c100003441000044c100005441000064c1ffffffa711",
+      "payloadHex": "ffffffffffffffff000010c000005040000088c00000a8400000c8c00000e840000004c100001441000024c100003441000044c100005441000064c1ffffff",
+      "values": {
+        "time_usec": [
+          4294967295,
+          4294967295
+        ],
+        "xacc": [
+          -2.25
+        ],
+        "yacc": [
+          3.25
+        ],
+        "zacc": [
+          -4.25
+        ],
+        "xgyro": [
+          5.25
+        ],
+        "ygyro": [
+          -6.25
+        ],
+        "zgyro": [
+          7.25
+        ],
+        "xmag": [
+          -8.25
+        ],
+        "ymag": [
+          9.25
+        ],
+        "zmag": [
+          -10.25
+        ],
+        "abs_pressure": [
+          11.25
+        ],
+        "diff_pressure": [
+          -12.25
+        ],
+        "pressure_alt": [
+          13.25
+        ],
+        "temperature": [
+          -14.25
+        ],
+        "fields_updated": [
+          65535
+        ],
+        "id": [
+          255
+        ]
+      },
+      "variant": "limits"
+    },
+    {
+      "id": 107,
+      "hex": "fd410000782a076b00000d00000000000000000010c000005040000088c00000a8400000c8c00000e840000004c100001441000024c100003441000044c100005441000064c1c3000000d02fe1",
+      "payloadHex": "0d00000000000000000010c000005040000088c00000a8400000c8c00000e840000004c100001441000024c100003441000044c100005441000064c1c3000000d0",
+      "values": {
+        "time_usec": [
+          13,
+          0
+        ],
+        "xacc": [
+          -2.25
+        ],
+        "yacc": [
+          3.25
+        ],
+        "zacc": [
+          -4.25
+        ],
+        "xgyro": [
+          5.25
+        ],
+        "ygyro": [
+          -6.25
+        ],
+        "zgyro": [
+          7.25
+        ],
+        "xmag": [
+          -8.25
+        ],
+        "ymag": [
+          9.25
+        ],
+        "zmag": [
+          -10.25
+        ],
+        "abs_pressure": [
+          11.25
+        ],
+        "diff_pressure": [
+          -12.25
+        ],
+        "pressure_alt": [
+          13.25
+        ],
+        "temperature": [
+          -14.25
+        ],
+        "fields_updated": [
+          195
+        ],
+        "id": [
+          208
+        ]
+      },
+      "variant": "distinct"
+    },
+    {
+      "id": 107,
+      "hex": "fd010000792a076b000000f058",
+      "payloadHex": "00",
+      "values": {
+        "time_usec": [
+          0,
+          0
+        ],
+        "xacc": [
+          0
+        ],
+        "yacc": [
+          0
+        ],
+        "zacc": [
+          0
+        ],
+        "xgyro": [
+          0
+        ],
+        "ygyro": [
+          0
+        ],
+        "zgyro": [
+          0
+        ],
+        "xmag": [
+          0
+        ],
+        "ymag": [
+          0
+        ],
+        "zmag": [
+          0
+        ],
+        "abs_pressure": [
+          0
+        ],
+        "diff_pressure": [
+          0
+        ],
+        "pressure_alt": [
+          0
+        ],
+        "temperature": [
+          0
+        ],
+        "fields_updated": [
+          0
+        ],
+        "id": [
+          0
+        ]
+      },
+      "variant": "zero"
+    },
+    {
+      "id": 107,
+      "hex": "fd4100007a2a076b0000ffffffffffffffff000010c000005040000088c00000a8400000c8c00000e840000004c100001441000024c100003441000044c100005441000064c1ffffffffff7887",
+      "payloadHex": "ffffffffffffffff000010c000005040000088c00000a8400000c8c00000e840000004c100001441000024c100003441000044c100005441000064c1ffffffffff",
+      "values": {
+        "time_usec": [
+          4294967295,
+          4294967295
+        ],
+        "xacc": [
+          -2.25
+        ],
+        "yacc": [
+          3.25
+        ],
+        "zacc": [
+          -4.25
+        ],
+        "xgyro": [
+          5.25
+        ],
+        "ygyro": [
+          -6.25
+        ],
+        "zgyro": [
+          7.25
+        ],
+        "xmag": [
+          -8.25
+        ],
+        "ymag": [
+          9.25
+        ],
+        "zmag": [
+          -10.25
+        ],
+        "abs_pressure": [
+          11.25
+        ],
+        "diff_pressure": [
+          -12.25
+        ],
+        "pressure_alt": [
+          13.25
+        ],
+        "temperature": [
+          -14.25
+        ],
+        "fields_updated": [
+          4294967295
+        ],
+        "id": [
+          255
+        ]
+      },
+      "variant": "limits"
+    },
+    {
+      "id": 113,
+      "hex": "fd2600007b2a077100000d00000000000000fdfffffffcfffffffbffffff4e005b006800f7fff6fff5ff9c001aa9b6c3f719",
+      "payloadHex": "0d00000000000000fdfffffffcfffffffbffffff4e005b006800f7fff6fff5ff9c001aa9b6c3",
+      "values": {
+        "time_usec": [
+          13,
+          0
+        ],
+        "fix_type": [
+          26
+        ],
+        "lat": [
+          -3
+        ],
+        "lon": [
+          -4
+        ],
+        "alt": [
+          -5
+        ],
+        "eph": [
+          78
+        ],
+        "epv": [
+          91
+        ],
+        "vel": [
+          104
+        ],
+        "vn": [
+          -9
+        ],
+        "ve": [
+          -10
+        ],
+        "vd": [
+          -11
+        ],
+        "cog": [
+          156
+        ],
+        "satellites_visible": [
+          169
+        ],
+        "id": [
+          182
+        ],
+        "yaw": [
+          195
+        ]
+      },
+      "variant": "distinct"
+    },
+    {
+      "id": 113,
+      "hex": "fd0100007c2a0771000000f827",
+      "payloadHex": "00",
+      "values": {
+        "time_usec": [
+          0,
+          0
+        ],
+        "fix_type": [
+          0
+        ],
+        "lat": [
+          0
+        ],
+        "lon": [
+          0
+        ],
+        "alt": [
+          0
+        ],
+        "eph": [
+          0
+        ],
+        "epv": [
+          0
+        ],
+        "vel": [
+          0
+        ],
+        "vn": [
+          0
+        ],
+        "ve": [
+          0
+        ],
+        "vd": [
+          0
+        ],
+        "cog": [
+          0
+        ],
+        "satellites_visible": [
+          0
+        ],
+        "id": [
+          0
+        ],
+        "yaw": [
+          0
+        ]
+      },
+      "variant": "zero"
+    },
+    {
+      "id": 113,
+      "hex": "fd2700007d2a07710000ffffffffffffffff000000800000008000000080ffffffffffff008000800080ffffffffffffff1688",
+      "payloadHex": "ffffffffffffffff000000800000008000000080ffffffffffff008000800080ffffffffffffff",
+      "values": {
+        "time_usec": [
+          4294967295,
+          4294967295
+        ],
+        "fix_type": [
+          255
+        ],
+        "lat": [
+          -2147483648
+        ],
+        "lon": [
+          -2147483648
+        ],
+        "alt": [
+          -2147483648
+        ],
+        "eph": [
+          65535
+        ],
+        "epv": [
+          65535
+        ],
+        "vel": [
+          65535
+        ],
+        "vn": [
+          -32768
+        ],
+        "ve": [
+          -32768
+        ],
+        "vd": [
+          -32768
+        ],
+        "cog": [
+          65535
+        ],
+        "satellites_visible": [
+          255
+        ],
+        "id": [
+          255
+        ],
+        "yaw": [
+          65535
+        ]
+      },
+      "variant": "limits"
+    },
+    {
+      "id": 147,
+      "hex": "fd3300007e2a07930000f9fffffff8fffffffcff41004e005b006800750082008f009c00a900b600faff0d1a27f7f6ffffff8f9c00a900b600c300a9b6dc7f",
+      "payloadHex": "f9fffffff8fffffffcff41004e005b006800750082008f009c00a900b600faff0d1a27f7f6ffffff8f9c00a900b600c300a9b6",
+      "values": {
+        "id": [
+          13
+        ],
+        "battery_function": [
+          26
+        ],
+        "type": [
+          39
+        ],
+        "temperature": [
+          -4
+        ],
+        "voltages": [
+          65,
+          78,
+          91,
+          104,
+          117,
+          130,
+          143,
+          156,
+          169,
+          182
+        ],
+        "current_battery": [
+          -6
+        ],
+        "current_consumed": [
+          -7
+        ],
+        "energy_consumed": [
+          -8
+        ],
+        "battery_remaining": [
+          -9
+        ],
+        "time_remaining": [
+          -10
+        ],
+        "charge_state": [
+          143
+        ],
+        "voltages_ext": [
+          156,
+          169,
+          182,
+          195
+        ],
+        "mode": [
+          169
+        ],
+        "fault_bitmask": [
+          182
+        ]
+      },
+      "variant": "distinct"
+    },
+    {
+      "id": 147,
+      "hex": "fd0100007f2a07930000007e12",
+      "payloadHex": "00",
+      "values": {
+        "id": [
+          0
+        ],
+        "battery_function": [
+          0
+        ],
+        "type": [
+          0
+        ],
+        "temperature": [
+          0
+        ],
+        "voltages": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "current_battery": [
+          0
+        ],
+        "current_consumed": [
+          0
+        ],
+        "energy_consumed": [
+          0
+        ],
+        "battery_remaining": [
+          0
+        ],
+        "time_remaining": [
+          0
+        ],
+        "charge_state": [
+          0
+        ],
+        "voltages_ext": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "mode": [
+          0
+        ],
+        "fault_bitmask": [
+          0
+        ]
+      },
+      "variant": "zero"
+    },
+    {
+      "id": 147,
+      "hex": "fd360000802a0793000000000080000000800080ffffffffffffffffffffffffffffffffffffffff0080ffffff8000000080ffffffffffffffffffffffffffff48d0",
+      "payloadHex": "00000080000000800080ffffffffffffffffffffffffffffffffffffffff0080ffffff8000000080ffffffffffffffffffffffffffff",
+      "values": {
+        "id": [
+          255
+        ],
+        "battery_function": [
+          255
+        ],
+        "type": [
+          255
+        ],
+        "temperature": [
+          -32768
+        ],
+        "voltages": [
+          65535,
+          65535,
+          65535,
+          65535,
+          65535,
+          65535,
+          65535,
+          65535,
+          65535,
+          65535
+        ],
+        "current_battery": [
+          -32768
+        ],
+        "current_consumed": [
+          -2147483648
+        ],
+        "energy_consumed": [
+          -2147483648
+        ],
+        "battery_remaining": [
+          -128
+        ],
+        "time_remaining": [
+          -2147483648
+        ],
+        "charge_state": [
+          255
+        ],
+        "voltages_ext": [
+          65535,
+          65535,
+          65535,
+          65535
+        ],
+        "mode": [
+          255
+        ],
+        "fault_bitmask": [
+          4294967295
+        ]
+      },
+      "variant": "limits"
+    },
+    {
+      "id": 193,
+      "hex": "fd1a0000812a07c10000000010c000005040000088c00000a8400000c8c00d000000e8404425",
+      "payloadHex": "000010c000005040000088c00000a8400000c8c00d000000e840",
+      "values": {
+        "flags": [
+          13
+        ],
+        "velocity_variance": [
+          -2.25
+        ],
+        "pos_horiz_variance": [
+          3.25
+        ],
+        "pos_vert_variance": [
+          -4.25
+        ],
+        "compass_variance": [
+          5.25
+        ],
+        "terrain_alt_variance": [
+          -6.25
+        ],
+        "airspeed_variance": [
+          7.25
+        ]
+      },
+      "variant": "distinct"
+    },
+    {
+      "id": 193,
+      "hex": "fd010000822a07c1000000ba85",
+      "payloadHex": "00",
+      "values": {
+        "flags": [
+          0
+        ],
+        "velocity_variance": [
+          0
+        ],
+        "pos_horiz_variance": [
+          0
+        ],
+        "pos_vert_variance": [
+          0
+        ],
+        "compass_variance": [
+          0
+        ],
+        "terrain_alt_variance": [
+          0
+        ],
+        "airspeed_variance": [
+          0
+        ]
+      },
+      "variant": "zero"
+    },
+    {
+      "id": 193,
+      "hex": "fd1a0000832a07c10000000010c000005040000088c00000a8400000c8c0ffff0000e84042f8",
+      "payloadHex": "000010c000005040000088c00000a8400000c8c0ffff0000e840",
+      "values": {
+        "flags": [
+          65535
+        ],
+        "velocity_variance": [
+          -2.25
+        ],
+        "pos_horiz_variance": [
+          3.25
+        ],
+        "pos_vert_variance": [
+          -4.25
+        ],
+        "compass_variance": [
+          5.25
+        ],
+        "terrain_alt_variance": [
+          -6.25
+        ],
+        "airspeed_variance": [
+          7.25
+        ]
+      },
+      "variant": "limits"
+    },
+    {
+      "id": 253,
+      "hex": "fd360000842a07fd00000d53746174757320313233000000000000000000000000000000000000000000000000000000000000000000000000000000002700347b89",
+      "payloadHex": "0d5374617475732031323300000000000000000000000000000000000000000000000000000000000000000000000000000000270034",
+      "values": {
+        "severity": [
+          13
+        ],
+        "text": [
+          83,
+          116,
+          97,
+          116,
+          117,
+          115,
+          32,
+          49,
+          50,
+          51,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "id": [
+          39
+        ],
+        "chunk_seq": [
+          52
+        ]
+      },
+      "variant": "distinct"
+    },
+    {
+      "id": 253,
+      "hex": "fd010000852a07fd000000f0ec",
+      "payloadHex": "00",
+      "values": {
+        "severity": [
+          0
+        ],
+        "text": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "id": [
+          0
+        ],
+        "chunk_seq": [
+          0
+        ]
+      },
+      "variant": "zero"
+    },
+    {
+      "id": 253,
+      "hex": "fd360000862a07fd0000ff5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5affffff2686",
+      "payloadHex": "ff5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5affffff",
+      "values": {
+        "severity": [
+          255
+        ],
+        "text": [
+          90,
+          90,
+          90,
+          90,
+          90,
+          90,
+          90,
+          90,
+          90,
+          90,
+          90,
+          90,
+          90,
+          90,
+          90,
+          90,
+          90,
+          90,
+          90,
+          90,
+          90,
+          90,
+          90,
+          90,
+          90,
+          90,
+          90,
+          90,
+          90,
+          90,
+          90,
+          90,
+          90,
+          90,
+          90,
+          90,
+          90,
+          90,
+          90,
+          90,
+          90,
+          90,
+          90,
+          90,
+          90,
+          90,
+          90,
+          90,
+          90,
+          90
+        ],
+        "id": [
+          65535
+        ],
+        "chunk_seq": [
+          255
+        ]
+      },
+      "variant": "limits"
     }
   ]
 }

@@ -121,7 +121,7 @@ model-report v7 заменяет схему одного профиля v6 об�
 отдельные доказательства; производственная интеграция BET ABI/сессии открыта.
 
 
-<!-- source-sha256: c6496065c727ff00b4c67ab5f52745dbe07e0a9ba9bd1a28908895fc33c8b509 -->
+<!-- source-sha256: c79680e19344063f5909f60b123c272c8041a77c201882f48d5d9f7336abdc35 -->
 
 Английский источник: [Source of truth](../SPECS_SIMULATION_ENGINES.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -1517,9 +1517,10 @@ HITL (TASK-050), композиция РЭБ (TASK-054/055/058), нативны�
 
 ### Закреплённое подмножество MAVLink2
 
-packages/mavlink/dialect.lock.json закрепляет коммит common XML
-2e2b6af99084e4fde9bb304c84bb9253a1a98b6f, хеши common/standard/minimal XML
-и лицензии, pymavlink 2.4.50 и файлов генератора. Старый генератор 2.4.49
+packages/mavlink/dialect.lock.json закрепляет коммит MAVLink XML
+2e2b6af99084e4fde9bb304c84bb9253a1a98b6f, хеши ardupilotmega.xml и всех
+рекурсивно включённых им XML-файлов, лицензии, pymavlink 2.4.50, файлов
+генератора и сгенерированного модуля Python. Старый генератор 2.4.49
 отклоняет схему закреплённого XML; проверка сохранена с совместимым 2.4.50.
 generate-mavlink-fixtures.py проверяет чистоту/коммит/версию и использует
 официальный генератор. Полученный Python остаётся вне репозитория; эталонные
@@ -1527,12 +1528,87 @@ generate-mavlink-fixtures.py проверяет чистоту/коммит/ве
 не измерения самолёта. Уведомление upstream о выводе генератора сохранено
 в packages/mavlink/NOTICE.
 
-| Message ID | Message | Full payload bytes | CRC_EXTRA |
-| --- | --- | --- | --- |
-| 70 | RC_CHANNELS_OVERRIDE | 38 | 124 |
-| 93 | HIL_ACTUATOR_CONTROLS | 81 | 47 |
-| 107 | HIL_SENSOR | 65 | 108 |
-| 113 | HIL_GPS | 39 | 124 |
+| Message ID | Message | Full payload bytes | Base payload bytes | CRC_EXTRA |
+| --- | --- | --- | --- | --- |
+| 0 | HEARTBEAT | 9 | 9 | 50 |
+| 1 | SYS_STATUS | 43 | 31 | 124 |
+| 20 | PARAM_REQUEST_READ | 20 | 20 | 214 |
+| 21 | PARAM_REQUEST_LIST | 2 | 2 | 159 |
+| 22 | PARAM_VALUE | 25 | 25 | 220 |
+| 23 | PARAM_SET | 23 | 23 | 168 |
+| 24 | GPS_RAW_INT | 52 | 30 | 24 |
+| 27 | RAW_IMU | 29 | 26 | 144 |
+| 30 | ATTITUDE | 28 | 28 | 39 |
+| 32 | LOCAL_POSITION_NED | 28 | 28 | 185 |
+| 33 | GLOBAL_POSITION_INT | 28 | 28 | 104 |
+| 36 | SERVO_OUTPUT_RAW | 37 | 21 | 222 |
+| 37 | MISSION_REQUEST_PARTIAL_LIST | 7 | 6 | 212 |
+| 38 | MISSION_WRITE_PARTIAL_LIST | 7 | 6 | 9 |
+| 39 | MISSION_ITEM | 38 | 37 | 254 |
+| 40 | MISSION_REQUEST | 5 | 4 | 230 |
+| 41 | MISSION_SET_CURRENT | 4 | 4 | 28 |
+| 42 | MISSION_CURRENT | 18 | 2 | 28 |
+| 43 | MISSION_REQUEST_LIST | 3 | 2 | 132 |
+| 44 | MISSION_COUNT | 9 | 4 | 221 |
+| 45 | MISSION_CLEAR_ALL | 3 | 2 | 232 |
+| 46 | MISSION_ITEM_REACHED | 2 | 2 | 11 |
+| 47 | MISSION_ACK | 8 | 3 | 153 |
+| 51 | MISSION_REQUEST_INT | 5 | 4 | 196 |
+| 70 | RC_CHANNELS_OVERRIDE | 38 | 18 | 124 |
+| 73 | MISSION_ITEM_INT | 38 | 37 | 38 |
+| 74 | VFR_HUD | 20 | 20 | 20 |
+| 75 | COMMAND_INT | 35 | 35 | 158 |
+| 76 | COMMAND_LONG | 33 | 33 | 152 |
+| 77 | COMMAND_ACK | 10 | 3 | 143 |
+| 82 | SET_ATTITUDE_TARGET | 51 | 39 | 49 |
+| 83 | ATTITUDE_TARGET | 37 | 37 | 22 |
+| 84 | SET_POSITION_TARGET_LOCAL_NED | 53 | 53 | 143 |
+| 85 | POSITION_TARGET_LOCAL_NED | 51 | 51 | 140 |
+| 86 | SET_POSITION_TARGET_GLOBAL_INT | 53 | 53 | 5 |
+| 87 | POSITION_TARGET_GLOBAL_INT | 51 | 51 | 150 |
+| 93 | HIL_ACTUATOR_CONTROLS | 81 | 81 | 47 |
+| 105 | HIGHRES_IMU | 63 | 62 | 93 |
+| 107 | HIL_SENSOR | 65 | 64 | 108 |
+| 113 | HIL_GPS | 39 | 36 | 124 |
+| 147 | BATTERY_STATUS | 54 | 36 | 154 |
+| 193 | EKF_STATUS_REPORT | 26 | 22 | 71 |
+| 253 | STATUSTEXT | 54 | 51 | 83 |
+
+Каталог TASK-150. Lock содержит 43 сообщения из таблицы выше; для каждого поля
+записаны имя из XML, тип на проводе, смещение, размер массива и единицы из XML.
+Каталог генерирует `generate-mavlink-fixtures.py` из закреплённого XML;
+`definition(id)` читает только этот lock, поэтому кодек и lock не могут
+расходиться. Базовая длина payload не включает поля расширений MAVLink2.
+Файл эталонов содержит 137 кадров официального генератора: 5 исторических
+кадров TASK-037, по одному кадру с различными значениями, нулевому и с
+граничными значениями для каждого сообщения и 3 запроса построителей параметров.
+Флаг `--check` заново генерирует кадры и lock и сравнивает их без записи.
+`MessagePayload(id)` держит для каждого поля один фиксированный `Float64Array`
+в единицах провода; поиск по имени выполняется один раз при инициализации.
+Поля u64/i64 хранятся как два слова u32 (младшее, старшее; i64 в
+дополнительном коде), никогда не BigInt; поля char — коды ASCII. `pack()`
+проверяет каждое значение по типу на проводе до записи первого байта, поэтому
+неверное значение оставляет payload без изменений; float сохраняют NaN и
+бесконечность как неизвестные значения MAVLink, а конечные значения вне f32
+отклоняются. `decode(frame)` читает кадр с проверенным CRC, дополненный нулями,
+того же ID в те же массивы, поэтому усечённый кадр очищает устаревшие поля
+расширений. `parameterListInto`, `parameterReadInto` и `parameterSetInto` —
+холодные построители: они проверяют ID получателя, имя (1–16 печатных символов
+ASCII), индекс и тип параметра до изменения любого байта; `param_value` —
+носитель float в MAVLink.
+
+Парсер теперь поглощает весь конверт кадра с неподдерживаемым ID, подписью,
+ненулевыми флагами совместимости, пустым payload, payload длиннее сообщения
+или system ID 0 и затем ищет следующий 0xFD. Корректный кадр внутри такого
+конверта никогда не принимается; так исправление TASK-047 действует для
+каждого отказа. G1: `node scripts/check-mavlink-allocation.mjs` прогревает
+4 000 000 шагов, затем выполняет реальные pack, encode, parse и decode для
+16 ID телеметрии 0, 1, 24, 27, 30, 32, 33, 36, 74, 77, 83, 85, 87, 105, 147 и
+193 в окнах N/2N по 1 000 000 и 2 000 000 шагов; наклон равен 0 байт на шаг
+без событий GC, а выделяющий положительный контроль обнаруживается.
+Построители команд, миссий, параметров и STATUSTEXT холодные и в этот набор G1
+не входят.
+
 
 encodeInto пишет в буфер вызывающего и возвращает точную длину (0 при ошибке).
 Усечение конечных нулей MAVLink2 сохраняет хотя бы один байт данных. MavParser
