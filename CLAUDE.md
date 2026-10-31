@@ -230,7 +230,16 @@ implementation.
   sensor configuration schema 1 in profile schema 3, shows every field's owner
   on the external-SITL path, and offers cited per-sensor presets (SA-02); fields
   no owner can apply yet wait for TASK-147, which also applies the rest at run
-  time. Decisions D-04
+  time. TASK-150 is DONE: the MAVLink codec reads its 43 messages from the
+  generated dialect lock, with G1 for the 16 telemetry IDs. TASK-142 is DONE:
+  the Aircraft tab maps each motor to an output and generates the frame
+  parameters from the TASK-128 catalog (the S19 octa-x fixture spins the
+  mirror of stock OCTA X, so it uses the scripting matrix). TASK-178 is DONE:
+  `packages/dataflash` reads DataFlash as pymavlink DFReader does and writes
+  MirageSITL records. TASK-151 (the local launcher, `apps/launcher`) and
+  TASK-152 (`scripts/install-macos.mjs` and the Project tab's first-run check)
+  are IN_PROGRESS: only their runs with the network switched off remain.
+  Decisions D-04
   and D-06 to D-12 are decided. TASK-127 and TASK-128 are DONE: stock
   ArduCopter `8ab6afd` builds and flies natively on Apple Silicon
   ([macos-sitl.md](docs/decisions/macos-sitl.md)), and its stock frames and

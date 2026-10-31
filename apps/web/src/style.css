@@ -83,10 +83,11 @@ html[data-g3="1"] .terrain-status { top: 12px; bottom: auto; left: 50%; transfor
 .project-section { border: 1px solid #293541; border-radius: 8px; background: #101b26; padding: 18px; min-width: 0; }
 .project-section h3 { font-size: 13px; font-weight: 600; margin: 0 0 12px; color: #d6e2ea; }
 .project-panel label { display: block; font-size: 12px; color: #a9bcc8; margin-bottom: 6px; }
-.project-panel input[type=text] { width: 100%; padding: 8px; background: #0c1721; border: 1px solid #314957; border-radius: 4px; color: inherit; }
+.project-panel input[type=text], .project-panel input[type=password] { width: 100%; padding: 8px; background: #0c1721; border: 1px solid #314957; border-radius: 4px; color: inherit; }
 .project-panel input[type=file] { width: 100%; max-width: 100%; font-size: 12px; }
 .inline-form { display: grid; gap: 8px; justify-items: start; }
 .inline-form input { justify-self: stretch; }
+.first-run-panel { margin-top: 16px; }
 .button-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
 .project-name { font-size: 15px; color: #e1f4f2; }
 .project-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; font-size: 13px; }
