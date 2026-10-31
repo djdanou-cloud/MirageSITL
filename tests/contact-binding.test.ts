@@ -90,3 +90,41 @@ test("wheel braking dissipates motion while travel and rim constraints hold", as
     }
     expect(speeds[1]!).toBeLessThan(speeds[0]!);
 });
+// TASK-095: a cornering stiffness reaches the native brush law. Rolling at 5 m/s with a
+// 0.05 m/s side velocity, the closed form v_y = v_y0 ((v0 - b t)/v0)^(k/b) (k = sum C_a / m,
+// b = rolling mu g) holds within 5 %. Without it the side force sticks: the airframe then only
+// rocks on its struts, and its sideways drift over 1 s stays below a fifth of the brush drift.
+test.each([400, 800, 1200])("the brush tire decays a side velocity at %i Hz", async (hz) => {
+    const lateral: number[] = [], drift: number[] = [];
+    for (const cornering of [20, 0]) {
+        const truth = newBodyTruth();
+        truth.positionNedM[2] = -0.501;
+        truth.velocityNedMps[0] = 5;
+        truth.velocityNedMps[1] = 0.05;
+        const base = syntheticGearOptions(4);
+        const options = { ...base, wheels: (base.wheels ?? []).map(w => ({ ...w, anchorBodyM: [w.anchorBodyM[0], w.anchorBodyM[1], 0.4] as const,
+            corneringStiffnessNpRad: cornering })) };
+        const contact = await GroundContact.create(truth, 1.5, 0.1, 0, 0, options);
+        const wrench = new Float64Array(6);
+        try {
+            for (let i = 0; i < hz; i++) {
+                expect(contact.stepInto(wrench, 1 / hz, truth)).toBe(true);
+                if (i + 1 === 0.3 * hz)
+                    lateral.push(truth.velocityNedMps[1]);
+            }
+            drift.push(Math.abs(truth.positionNedM[1]!));
+        }
+        finally {
+            contact.dispose();
+        }
+    }
+    const k = 4 * 20 / 2.3, b = 0.02 * 9.80665;
+    const expected = 0.05 * ((5 - b * 0.3) / 5) ** (k / b);
+    expect(Math.abs(lateral[0]! - expected)).toBeLessThan(0.05 * expected);
+    expect(drift[1]!).toBeLessThan(0.2 * drift[0]!);
+});
+test("rejects a negative cornering stiffness", async () => {
+    const base = syntheticGearOptions(1);
+    const options = { ...base, wheels: (base.wheels ?? []).map(w => ({ ...w, corneringStiffnessNpRad: -1 })) };
+    await expect(GroundContact.create(newBodyTruth(), 1, 0.1, 0, 0, options)).rejects.toThrow("Invalid cornering stiffness");
+});

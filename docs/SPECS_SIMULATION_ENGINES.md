@@ -1083,6 +1083,9 @@ entries, so the inertia is [[19, 28, 29], [28, 20, 30], [29, 30, 21]] about the
 CG in body FRD; it must be positive definite), and [31] stays zero. Rapier then
 receives `MassProperties::with_inertia_matrix`, which diagonalizes the tensor
 into a principal-axis frame; version 1 keeps its diagonal path bit for bit.
+Version 3 (TASK-095) keeps version 2's inertia slots and adds each wheel's brush
+cornering stiffness in its slot [28]; `GroundContact` writes it when a wheel has a
+positive `corneringStiffnessNpRad`.
 `GroundContact` takes `inertiaKgM2` (row-major, exactly symmetric) and writes
 version 2 only when a product is non-zero. Against the 4800 Hz RK4 body, a free
 body with principal moments (0.02, 0.03, 0.045) kg m² turned 0.7 rad about
@@ -1107,7 +1110,8 @@ anchor body FRD m; [3]=unsprung mass kg; [4]=tire radius m; [5]=rigid rim radius
 [16]=tire damping N s/m; [17]=knot count 2..64; [18..27]=gas area, volume,
 charge pressure, ambient pressure, exponent, hydraulic area, fluid density,
 discharge coefficient, compression orifice, rebound orifice in the SI units
-specified below; [28..31]=zero; [32..95]=tire deflection knots m;
+specified below; [28]=brush cornering stiffness N/rad (version 3, ≥ 0; zero in
+versions 1 and 2); [29..31]=zero; [32..95]=tire deflection knots m;
 [96..159]=tire force knots N. Unused entries are zero. The last knot must cover
 the tire-radius minus rim-radius distance. All values must be finite.
 
@@ -1164,10 +1168,30 @@ within 5 % of the three rates' mean and of a 100 kHz RK4 reference at 400/800/12
 from 2 m, where explicit loads gave 39.6/32.8/31.4 g from 0.5 m. Tires up to 10⁷ N/m
 (ω·Δt about 18 at 400 Hz) settle at their static deflection within 1 % at every rate.
 
-Rolling uses a kinematic longitudinal resistance, separate lateral resistance,
-and brake interpolation, regularized below 0.1 m/s; their combined magnitude
-is capped by max(longitudinal mu,lateral mu) times tire normal load. It is passive
-but does not represent wheel spin, static tire slip, anti-skid or steering.
+Tangential friction (TASK-095) is static below breakaway and Coulomb above, per
+axis of the ground plane: longitudinal along the projected heading, lateral across
+it. Each axis first asks for the force that stops the contact against a stick
+anchor within the step, f = −m·(v/Δt + β·d/Δt²), with v the wheel's tangential
+speed, d its offset from the anchor and m the wheel plus its load share of the
+airframe. Below the axis limit μN (longitudinal μ is rolling + (braking − rolling)·b
+for brake input b, lateral μ the lateral coefficient) it sticks; above, it slides
+at μN against that request and the anchor follows. β = 0.2 is constraint
+stabilization like Rapier's error reduction: the fraction of the anchor offset
+removed per step, so a held wheel keeps a static offset of order gΔt²/β instead of
+creeping. While a wheel rolls (|v_long| > 0.1 m/s) and has a cornering stiffness
+C_α (configuration version 3), its side force is the brush law F_y = C_α·tan α
+with tan α = v_lat/|v_long|, solved as an implicit damper of C_α/|v_long| and capped
+at the lateral μN. The combined tangential force stays capped by max(longitudinal
+μ, lateral μ)·N. Rolling remains kinematic: no wheel spin, anti-skid or steering.
+The fixtures (`native/contact/tests/contact.rs`, the drop fixture's aircraft) pass
+their declared tolerances at 400/800/1200 Hz: braked nose-down and side-on on a 10°
+slope it creeps at most 5.4·10⁻⁷ m in 5 s (limit 1 mm); unbraked on 10° it rolls at
+1.5098 m/s², braked on 40° (past breakaway) it slides at 1.0437 m/s², against
+Coulomb 1.5098 and 1.0450 m/s² (limit 5 %); a 2 m/s sideways slide stops in
+0.4025–0.4061 m against v²/(2μg) = 0.4079 m (limit 5 %) and then stays at rest; and
+with C_α = 20 N/rad a 0.05 m/s side velocity at 5 m/s decays to 6.247·10⁻³ m/s in
+0.3 s against the closed form v_y0·((v0 − bt)/v0)^(k/b) = 6.127·10⁻³ m/s (limit 5 %,
+k = ΣC_α/m, b = μ_roll·g).
 Cold initialization exercises contact transitions and all supported rates.
 Actual armed allocations fault the session; stable memory alone is not evidence.
 `node scripts/check-contact-binding.mjs` builds native and WASM from the frozen

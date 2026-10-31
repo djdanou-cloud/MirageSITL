@@ -29,6 +29,11 @@ struct Wheel {
     x: [f64; 64],
     f: [f64; 64],
     strut: Strut,
+    /// Brush cornering stiffness N/rad (configuration version 3); 0 keeps the lateral stick.
+    cornering: f64,
+    /// Static friction anchor: the ground point the contact sticks to (TASK-095).
+    hold: Vector,
+    held: bool,
 }
 pub struct Contact {
     world: PhysicsWorld,
@@ -47,6 +52,11 @@ pub struct Contact {
     ground: [RigidBodyHandle; PLANE_SLOTS],
     planes: [(Vector, f64); PLANE_SLOTS],
 }
+/// Fraction of the stick-anchor offset a sticking contact removes per step: constraint
+/// stabilization like Rapier's own error reduction, so a held wheel cannot creep (TASK-095).
+const BETA: f64 = 0.2;
+/// Below this longitudinal speed a wheel is not rolling and its side force sticks.
+const ROLLING_MPS: f64 = 0.1;
 /// θ-method weight of the end-of-step load for a stroke with Ω² = dt²·K/m (TASK-095): the
 /// trapezoidal ½, free of numerical damping, while the mode is resolved, and 1 − 1/Ω² above
 /// Ω = √2, which bounds the step's spectral radius near 1/Ω so an unresolved stiff tire
@@ -94,9 +104,9 @@ fn positive_definite(m: [f64; 9]) -> bool {
     m[0] > 0.0 && minor2 > 0.0 && det > 0.0
 }
 fn valid_state(c: &[f64; CONFIG_COUNT]) -> bool {
-    let reserved = if c[0] == 2.0 { c[31] == 0.0 && positive_definite(inertia_tensor(c)) } else { c[28..32].iter().all(|x| *x == 0.0) };
+    let reserved = if c[0] >= 2.0 { c[31] == 0.0 && positive_definite(inertia_tensor(c)) } else { c[28..32].iter().all(|x| *x == 0.0) };
     c.iter().all(|x| x.is_finite())
-        && (c[0] == 1.0 || c[0] == 2.0)
+        && (c[0] == 1.0 || c[0] == 2.0 || c[0] == 3.0)
         && reserved
         && c[1] == 0.0
         && c[2] > 0.0
@@ -147,7 +157,7 @@ impl Contact {
         let inertia = vec(c, 19);
         // Version 1 keeps its diagonal path bit for bit; version 2 diagonalizes the full tensor
         // into a principal-axis frame (parry's `with_inertia_matrix`).
-        let inertia_matrix = (c[0] == 2.0).then(|| {
+        let inertia_matrix = (c[0] >= 2.0).then(|| {
             let m = inertia_tensor(c);
             Matrix::from_cols(Vector::new(m[0], m[3], m[6]), Vector::new(m[1], m[4], m[7]), Vector::new(m[2], m[5], m[8]))
         });
@@ -187,7 +197,9 @@ impl Contact {
                 || w[17] < 2.0
                 || w[17] > 64.0
                 || w[17].fract() != 0.0
-                || w[28..32].iter().any(|v| *v != 0.0)
+                || w[29..32].iter().any(|v| *v != 0.0)
+                || w[28] < 0.0
+                || (c[0] < 3.0 && w[28] != 0.0)
             {
                 return Err(-2);
             }
@@ -258,6 +270,9 @@ impl Contact {
                 x: xs,
                 f: fs,
                 strut,
+                cornering: w[28],
+                hold: Vector::ZERO,
+                held: false,
             });
         }
         let mut result = Self {
@@ -338,7 +353,8 @@ impl Contact {
         b.set_angvel(omega, true);
         b.reset_forces(false);
         b.reset_torques(false);
-        for w in &self.wheels {
+        for w in &mut self.wheels {
+            w.held = false;
             let b = &mut self.world.bodies[w.handle];
             b.set_rotation(q, true);
             b.set_translation(p + q * w.anchor, true);
@@ -475,6 +491,7 @@ impl Contact {
         // stiffness of K + C/dt. `a` holds gravity and the airframe acceleration from thrust and
         // strut loads; the airframe's own motion, slow beside the wheel's, stays explicit.
         let body_accel = ((force - axis * strut_sum) / self.mass).dot(axis);
+        let mut loads = [0.0; MAX_WHEELS];
         for (i, w) in self.wheels.iter().enumerate() {
             let (ground_normal, _) = self.planes[i + 1];
             let mass = self.world.bodies[w.handle].mass();
@@ -512,37 +529,78 @@ impl Contact {
                 }
             }
             let support = weighted(theta, s0, s0 + ks * dt * v1 + cs * dv);
-            let wv = self.world.bodies[w.handle].linvel();
-            let tangent = wv - ground_normal * wv.dot(ground_normal);
+            loads[i] = normal;
+            strut_force[i] = axis * support;
+            points[i] = p + q * w.anchor;
+            if !finite(strut_force[i]) {
+                return Err(-3);
+            }
+            out[32 + i * 8 + 2] = normal;
+            out[32 + i * 8 + 3] = support;
+        }
+        // Tangential friction (TASK-095): static below breakaway, Coulomb above, brush side
+        // force while rolling. Each axis of the ground plane first asks for the force that
+        // stops the contact against its anchor point within the step, f = -m (v/dt + BETA d/dt^2),
+        // with m the wheel plus its load share of the airframe. Below the axis limit mu N it
+        // sticks; above it slides at mu N against that request and the anchor follows. While
+        // rolling, a wheel with a cornering stiffness takes the brush force C_a tan(alpha),
+        // solved as an implicit damper of C_a/|v_long|, capped at the lateral mu N.
+        let total: f64 = loads[..self.wheels.len()].iter().sum();
+        for (i, w) in self.wheels.iter_mut().enumerate() {
+            let normal = loads[i];
+            if normal <= 0.0 {
+                w.held = false;
+                wheel_force[i] = Vector::ZERO;
+                continue;
+            }
+            let (ground_normal, ground_offset) = self.planes[i + 1];
+            let wb = &self.world.bodies[w.handle];
+            let wp = wb.translation();
+            let wv = wb.linvel();
+            let mass = wb.mass() + self.mass * normal / total;
+            let point = wp - ground_normal * (ground_normal.dot(wp) - ground_offset);
+            if !w.held {
+                w.hold = point;
+                w.held = true;
+            }
             let forward = q * Vector::X;
             let projected = forward - ground_normal * forward.dot(ground_normal);
             let heading = if projected.length_squared() > 1e-12 {
                 projected.normalize()
             } else {
-                Vector::ZERO
+                ground_normal.any_orthonormal_vector()
             };
-            let longitudinal = heading * tangent.dot(heading);
-            let lateral = tangent - longitudinal;
-            // Kinematic rolling approximation: no wheel-spin/anti-skid model.
+            let side = ground_normal.cross(heading);
+            let offset = point - w.hold;
+            let (vl, vy) = (wv.dot(heading), wv.dot(side));
+            let stick = |v: f64, d: f64| -mass * (v / dt + BETA * d / (dt * dt));
             let mu = w.rolling + (w.braking - w.rolling) * input[6 + i];
-            let resistance = longitudinal * (mu / longitudinal.length().max(0.1))
-                + lateral * (w.lateral / lateral.length().max(0.1));
-            // Combined tangential force is bounded by the larger configured mu.
-            let magnitude = resistance.length();
-            let limit = mu.max(w.lateral);
-            let friction = if magnitude > limit && magnitude > 0.0 {
-                resistance * (limit / magnitude)
+            let (limit_l, limit_y) = (mu * normal, w.lateral * normal);
+            let want_l = stick(vl, offset.dot(heading));
+            let brush = w.cornering > 0.0 && vl.abs() > ROLLING_MPS;
+            let want_y = if brush {
+                -vy / (vl.abs() / w.cornering + dt / mass)
             } else {
-                resistance
+                stick(vy, offset.dot(side))
             };
-            wheel_force[i] = (ground_normal - friction) * normal;
-            strut_force[i] = axis * support;
-            points[i] = p + q * w.anchor;
-            if !finite(wheel_force[i]) || !finite(strut_force[i]) {
+            let slide_l = want_l.abs() > limit_l;
+            let slide_y = brush || want_y.abs() > limit_y;
+            let mut tangential = heading * want_l.clamp(-limit_l, limit_l) + side * want_y.clamp(-limit_y, limit_y);
+            // Combined tangential force is bounded by the larger configured mu.
+            let cap = mu.max(w.lateral) * normal;
+            if tangential.length() > cap {
+                tangential *= cap / tangential.length();
+            }
+            if slide_l {
+                w.hold += heading * offset.dot(heading);
+            }
+            if slide_y {
+                w.hold += side * offset.dot(side);
+            }
+            wheel_force[i] = ground_normal * normal + tangential;
+            if !finite(wheel_force[i]) {
                 return Err(-3);
             }
-            out[32 + i * 8 + 2] = normal;
-            out[32 + i * 8 + 3] = support;
         }
         let b = &mut self.world.bodies[self.body];
         b.reset_forces(false);

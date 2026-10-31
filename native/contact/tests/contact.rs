@@ -196,6 +196,7 @@ fn moving_planes_through_the_abi_never_allocate() {
 // most 0.6 of the 400 Hz error (first order); without the products at least five
 // times further from RK4.
 use mirage_bet::{frame::Wrench, rigid_body::{BodyParameters, BodyState}, Vec3};
+use rapier3d_f64::prelude::{Rotation, Vector};
 
 /// Principal moments (0.02, 0.03, 0.045) kg m² turned 0.7 rad about (1, 2, 3): all products non-zero.
 fn tensor() -> [f64; 9] {
@@ -443,4 +444,136 @@ fn stiff_tires_land_and_settle_at_every_rate() {
                 "{hz} Hz, {stiffness} N/m: deflection {low}..{high} m, expected {expected} m");
         }
     }
+}
+
+// TASK-095 increment 2b: static friction below breakaway, Coulomb friction above, and the
+// brush tire. Tolerances declared before measuring; every oracle is analytic.
+const G: f64 = 9.80665;
+/// `quad_gear` resting 1 mm above a plane tilted by `slope_rad` about East (downslope is
+/// North), the airframe pitched to match and yawed by `yaw_rad`, moving at `velocity`.
+fn quad_on_slope(slope_rad: f64, yaw_rad: f64, velocity: [f64; 3]) -> [f64; CONFIG_COUNT] {
+    let mut c = quad_gear(0.0);
+    let n = slope(slope_rad);
+    c[22] = n[0];
+    c[23] = n[1];
+    c[24] = n[2];
+    for k in 0..3 {
+        c[6 + k] = n[k] * 0.501;
+        c[9 + k] = velocity[k];
+    }
+    // Pitch about East by -slope (body up onto the normal), then yaw about the normal.
+    let pitch = Rotation::from_axis_angle(Vector::Y, -slope_rad);
+    let q = Rotation::from_axis_angle(Vector::new(-n[0], -n[1], -n[2]), yaw_rad) * pitch;
+    c[12] = q.w;
+    c[13] = q.x;
+    c[14] = q.y;
+    c[15] = q.z;
+    c
+}
+fn run(c: &[f64; CONFIG_COUNT], hz: usize, brakes: f64, seconds: f64, mut each: impl FnMut(usize, &[f64; OUTPUT_COUNT])) {
+    let mut contact = Contact::new(c).unwrap();
+    let mut input = [0.0; INPUT_COUNT];
+    input[14] = 1.0 / hz as f64;
+    for i in 0..4 {
+        input[6 + i] = brakes;
+    }
+    for k in 0..(seconds * hz as f64).round() as usize {
+        let o = contact.step(&input).unwrap();
+        each(k, &o);
+    }
+}
+fn distance(a: [f64; 3], b: [f64; 3]) -> f64 {
+    ((a[0] - b[0]).powi(2) + (a[1] - b[1]).powi(2) + (a[2] - b[2]).powi(2)).sqrt()
+}
+#[test]
+fn a_braked_or_side_on_aircraft_holds_a_slope_without_creep() {
+    for hz in [400, 800, 1200] {
+        // Braked nose-down (mu 0.7) and side-on unbraked (lateral mu 0.5), both above tan 10 deg.
+        for (yaw, brakes) in [(0.0, 1.0), (std::f64::consts::FRAC_PI_2, 0.0)] {
+            let (mut settled, mut last) = ([0.0; 3], [0.0; 3]);
+            run(&quad_on_slope(10f64.to_radians(), yaw, [0.0; 3]), hz, brakes, 7.0, |k, o| {
+                if k + 1 == 2 * hz {
+                    settled = [o[0], o[1], o[2]];
+                }
+                last = [o[0], o[1], o[2]];
+            });
+            let creep = distance(settled, last);
+            println!("hold {hz} Hz, yaw {yaw:.2}, brakes {brakes}: creep {creep:.2e} m in 5 s");
+            assert!(creep < 1e-3, "{hz} Hz, yaw {yaw}, brakes {brakes}: {creep} m in 5 s");
+        }
+    }
+}
+#[test]
+fn rolling_and_braked_sliding_follow_coulomb_down_the_slope() {
+    for hz in [400, 800, 1200] {
+        // Unbraked on 10 deg: rolling resistance 0.02. Braked on 40 deg: past breakaway (0.84 > 0.7).
+        for (degrees, brakes, mu) in [(10.0f64, 0.0, 0.02), (40.0, 1.0, 0.7)] {
+            let a = degrees.to_radians();
+            let down = [a.cos(), 0.0, a.sin()];
+            let mut v = [0.0; 2];
+            run(&quad_on_slope(a, 0.0, [0.0; 3]), hz, brakes, 2.0, |k, o| {
+                let along = o[3] * down[0] + o[4] * down[1] + o[5] * down[2];
+                if k + 1 == hz {
+                    v[0] = along;
+                }
+                v[1] = along;
+            });
+            let measured = v[1] - v[0];
+            let expected = G * (a.sin() - mu * a.cos());
+            println!("slope {hz} Hz, {degrees} deg, brakes {brakes}: {measured:.4} m/s2, Coulomb {expected:.4}");
+            assert!((measured - expected).abs() < 0.05 * expected, "{hz} Hz, {degrees} deg: {measured} m/s2 against {expected}");
+        }
+    }
+}
+#[test]
+fn a_sideways_slide_stops_at_the_coulomb_distance_and_stays() {
+    for hz in [400, 800, 1200] {
+        let (mut start, mut stop, mut speed) = ([0.0; 3], [0.0; 3], 0.0f64);
+        // The stop leaves the airframe rocking on its struts, decaying about tenfold per 0.5 s
+        // at every rate; "stays" is checked once that has died out.
+        run(&quad_on_slope(0.0, 0.0, [0.0, 2.0, 0.0]), hz, 0.0, 4.0, |k, o| {
+            if k == 0 {
+                start = [o[0], o[1], 0.0];
+            }
+            stop = [o[0], o[1], 0.0];
+            if k >= 4 * hz - hz / 4 {
+                speed = speed.max((o[3].powi(2) + o[4].powi(2)).sqrt());
+            }
+        });
+        let travelled = distance(start, stop);
+        let expected = 4.0 / (2.0 * 0.5 * G);
+        println!("slide {hz} Hz: {travelled:.4} m against {expected:.4} m, final speed {speed:.1e} m/s");
+        assert!((travelled - expected).abs() < 0.05 * expected, "{hz} Hz: {travelled} m against {expected} m");
+        assert!(speed < 1e-6, "{hz} Hz: still sliding at {speed} m/s");
+    }
+}
+#[test]
+fn the_brush_tire_decays_a_small_side_velocity_like_the_linear_model() {
+    for hz in [400, 800, 1200] {
+        let mut c = quad_on_slope(0.0, 0.0, [5.0, 0.05, 0.0]);
+        c[0] = 3.0;
+        for i in 0..4 {
+            c[32 + i * 160 + 28] = 20.0; // cornering stiffness, N/rad
+        }
+        let mut lateral = 0.0;
+        run(&c, hz, 0.0, 0.3, |_, o| lateral = o[4]);
+        // m dv_y/dt = -sum(C_a) v_y / v_x with v_x = v0 - mu_r g t: a closed form.
+        let (k, b) = (4.0 * 20.0 / 2.3, 0.02 * G);
+        let expected = 0.05 * ((5.0 - b * 0.3) / 5.0f64).powf(k / b);
+        println!("brush {hz} Hz: {lateral:.4e} m/s against {expected:.4e} m/s");
+        assert!((lateral - expected).abs() < 0.05 * expected, "{hz} Hz: {lateral} m/s against {expected} m/s");
+    }
+}
+#[test]
+fn version_3_alone_accepts_a_cornering_stiffness() {
+    let mut c = quad_gear(0.0);
+    c[32 + 28] = 20.0;
+    assert!(Contact::new(&c).is_err());
+    c[0] = 3.0;
+    assert!(Contact::new(&c).is_ok());
+    c[32 + 28] = -1.0;
+    assert!(Contact::new(&c).is_err());
+    c[32 + 28] = 20.0;
+    c[32 + 29] = 1.0;
+    assert!(Contact::new(&c).is_err());
 }

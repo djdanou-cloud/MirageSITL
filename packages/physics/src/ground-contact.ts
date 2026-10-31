@@ -61,6 +61,12 @@ export interface ContactWheel {
     readonly rollingCoefficient: number;
     readonly lateralCoefficient: number;
     readonly brakingCoefficient: number;
+    /**
+     * Brush-model cornering stiffness C_a, N/rad (TASK-095): while rolling, the side force is
+     * C_a·tan(slip angle), capped at the lateral coefficient times the load. Omitted or 0: the
+     * side force sticks up to that cap. A positive value writes contact configuration version 3.
+     */
+    readonly corneringStiffnessNpRad?: number;
 }
 export interface ContactOptions {
     readonly inertiaDiagonalKgM2?: readonly [
@@ -208,6 +214,14 @@ export class GroundContact implements ContactBackend {
             c[b + 15] = w.brakingCoefficient;
             c[b + 16] = w.tireDampingNsPm;
             c[b + 17] = w.tireLoadCurve.length;
+            const cornering = w.corneringStiffnessNpRad ?? 0;
+            if (!Number.isFinite(cornering) || cornering < 0)
+                throw new Error("Invalid cornering stiffness");
+            if (cornering > 0) {
+                // Version 3 adds the wheel's cornering stiffness and keeps version 2's inertia slots.
+                c[0] = 3;
+                c[b + 28] = cornering;
+            }
             for (let j = 0; j < w.tireLoadCurve.length; j++) {
                 const p = w.tireLoadCurve[j];
                 if (!p)

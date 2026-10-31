@@ -318,7 +318,9 @@ with fail-closed fields for later tasks; neutral records run the v1 steps
 bitwise. TASK-094 adds the CG offset to the body step (the moment moves to the
 CG, M_cg = M_O − r_c × F) with angular-acceleration and reference-position
 outputs, and Rapier contact configuration version 2 keeps the full inertia
-tensor. The rest of this section is not implemented yet. The program keeps the current
+tensor. TASK-095 (in progress) steps the gear's strut and tire loads implicitly
+and adds static, Coulomb and brush-tire friction (contact configuration version 3).
+The rest of this section is not implemented yet. The program keeps the current
 ownership model: MirageSITL is ArduPilot's external flight-dynamics model.
 Native runs exchange JSON state lines with `--model JSON` (TASK-041). The
 browser build fills ArduPilot's `sitl_fdm` through the HAL mailbox (TASK-046),

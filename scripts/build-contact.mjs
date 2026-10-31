@@ -84,6 +84,9 @@ try {
             // Cargo emits both abort/unwind cdylibs for integration tests;
             // serialize their linker outputs on Windows.
             args.push("--test", "contract", "--jobs", "1");
+            // Tests build their dependencies with unwinding; a target shared with the abort-only
+            // library builds (check-contact-binding.mjs) fails on the panic strategy (TASK-095).
+            args.push("--target-dir", join(build, "target-test"));
         }
         args.push("--locked");
         if (!process.argv.includes("--native"))
