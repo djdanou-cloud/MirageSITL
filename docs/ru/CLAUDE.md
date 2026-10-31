@@ -1,6 +1,6 @@
 # CLAUDE.md — MirageSITL agent instructions
 
-<!-- source-sha256: c6f23b3bad48a2e844ce63539ff7eaf71399779535c64b776dffaf2e19122148 -->
+<!-- source-sha256: e2ac9c3d6852852cb1290956fc62d351bd220d5380bf304567aa208de7adf5fd -->
 
 Английский источник: [Source of truth](../../CLAUDE.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -293,6 +293,11 @@ TASK-127–TASK-192 и решения D-01–D-12, а у каждой откры
   TASK-151 (локальный запускатель, `apps/launcher`) и TASK-152
   (`scripts/install-macos.mjs` и проверка первого запуска на вкладке Project)
   выполнены: обе проходят с выключенной сетью.
+  TASK-153 в статусе IN_PROGRESS: `SitlJsonLink` и `GroundStation`
+  (`packages/autopilot`) выполняют полёт профиля квадрокоптера X из S19 в
+  PhysicsSessionV2 с нативным ArduCopter через лаунчер, READY от LiveEkfWarmup,
+  с G1 для шага lockstep; остаются физический Worker, клиент WebSocket и
+  вкладка Run.
   Решения D-04 и D-06–D-12 приняты.
   TASK-127 и TASK-128 выполнены: штатный ArduCopter `8ab6afd` собирается и
   летает нативно на Apple Silicon ([macos-sitl.md](macos-sitl.md)), а его штатные

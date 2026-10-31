@@ -42,14 +42,16 @@ export function newServoFrame(): ServoFrame {
 export function decodeServoPacketInto(bytes: Uint8Array, out: ServoFrame): boolean {
   const length = bytes.byteLength;
   if (length !== SERVO_PACKET_16_BYTES && length !== SERVO_PACKET_32_BYTES) return false;
-  const view = new DataView(bytes.buffer, bytes.byteOffset, length);
-  const magic = view.getUint16(0, true);
+  // Little-endian reads byte by byte: a DataView per datagram would allocate (TASK-153).
+  const magic = (bytes[0] as number) | ((bytes[1] as number) << 8); // length checked above
   const channels = magic === SERVO_MAGIC_16 ? 16 : magic === SERVO_MAGIC_32 ? 32 : 0;
   if (channels === 0 || length !== 8 + 2 * channels) return false;
   out.channels = channels;
-  out.frameRateHz = view.getUint16(2, true);
-  out.frameCount = view.getUint32(4, true);
-  for (let i = 0; i < 32; i++) out.pwmUs[i] = i < channels ? view.getUint16(8 + 2 * i, true) : 0;
+  out.frameRateHz = (bytes[2] as number) | ((bytes[3] as number) << 8);
+  out.frameCount = ((bytes[4] as number) | ((bytes[5] as number) << 8) | ((bytes[6] as number) << 16) | ((bytes[7] as number) << 24)) >>> 0;
+  for (let i = 0; i < 32; i++) {
+    out.pwmUs[i] = i < channels ? (bytes[8 + 2 * i] as number) | ((bytes[9 + 2 * i] as number) << 8) : 0;
+  }
   return true;
 }
 
@@ -200,7 +202,7 @@ export class ExternalSitlLockstep implements StepGate {
     if (!(dt > 0) || (this.lastTimestampS > -Infinity && !(dt < MAX_TIMESTAMP_STEP_S))) return 0;
     const n = encodeStateLineInto(state, this.reply);
     if (n === 0 || out.length < n) return 0;
-    out.set(this.reply.subarray(0, n));
+    copyBytes(this.reply, n, out);
     this.replyLength = n;
     this.replyFrame = this.lastFrame;
     this.lastTimestampS = state.timestampS;
@@ -210,7 +212,7 @@ export class ExternalSitlLockstep implements StepGate {
   /** Copies the last reply for a duplicate frame; 0 if that frame has not been answered yet. */
   resendReplyInto(out: Uint8Array): number {
     if (this.replyFrame !== this.lastFrame || this.replyLength === 0 || out.length < this.replyLength) return 0;
-    out.set(this.reply.subarray(0, this.replyLength));
+    copyBytes(this.reply, this.replyLength, out);
     this.stats.repliesResent++;
     return this.replyLength;
   }
@@ -226,14 +228,24 @@ export class ExternalSitlLockstep implements StepGate {
   }
 }
 
+/** Copies the first `length` bytes; a subarray view per reply would allocate (TASK-153). */
+function copyBytes(source: Uint8Array, length: number, out: Uint8Array): void {
+  for (let i = 0; i < length; i++) out[i] = source[i] as number; // length <= both lengths (checked by callers)
+}
+
 function put(out: Uint8Array, at: number, bytes: Uint8Array): number {
   if (at + bytes.length > out.length) return -1;
   out.set(bytes, at);
   return at + bytes.length;
 }
 
-/** Writes a finite |v| <= 1e6 with exactly nine decimals ("-0.000000001"); -1 on overflow. */
-function writeNumber(out: Uint8Array, at: number, value: number): number {
+// Doubles reach the writers through this slot, never as call arguments: V8 boxes a double argument of a helper it
+// does not inline, which allocated about 48 bytes per state line (TASK-153 G1, scripts/check-sitl-link-allocation.mjs).
+const NUMBER = new Float64Array(2); // [value, vector scale]
+
+/** Writes NUMBER[0], finite with |v| <= 1e6, with exactly nine decimals ("-0.000000001"); -1 on overflow. */
+function writeNumber(out: Uint8Array, at: number): number {
+  const value = NUMBER[0] as number;
   if (!(Math.abs(value) <= ENC_LIMIT)) return -1;
   let scaled = Math.round(Math.abs(value) * SCALE);
   let digits = 1;
@@ -251,11 +263,13 @@ function writeNumber(out: Uint8Array, at: number, value: number): number {
   if (negative) out[pos] = 45; // "-"
   return at + length;
 }
-function writeVector(out: Uint8Array, at: number, v: Float64Array, count: number, scale: number): number {
+/** Writes `count` values of `v`, each times NUMBER[1]. */
+function writeVector(out: Uint8Array, at: number, v: Float64Array, count: number): number {
   let p = at;
   for (let i = 0; i < count && p >= 0; i++) {
     if (i > 0) { if (p >= out.length) return -1; out[p++] = 44; } // ","
-    p = writeNumber(out, p, (v[i] as number) * scale); // i < count <= v.length (validated by caller)
+    NUMBER[0] = (v[i] as number) * (NUMBER[1] as number); // i < count <= v.length (validated by caller)
+    p = writeNumber(out, p);
   }
   return p;
 }
@@ -271,27 +285,33 @@ export function encodeStateLineInto(state: SitlPhysicsState, out: Uint8Array): n
     state.velocityNedMps.length < 3 || q.length < 4 || state.windNedMps.length < 3) return 0;
   const norm = Math.sqrt((q[0] as number) ** 2 + (q[1] as number) ** 2 + (q[2] as number) ** 2 + (q[3] as number) ** 2);
   if (!(norm > 1e-9) || !Number.isFinite(norm)) return 0;
+  NUMBER[1] = 1;
   let p = put(out, 0, KEY.open);
-  if (p >= 0) p = writeNumber(out, p, state.timestampS);
+  NUMBER[0] = state.timestampS;
+  if (p >= 0) p = writeNumber(out, p);
   if (p >= 0) p = put(out, p, KEY.gyro);
-  if (p >= 0) p = writeVector(out, p, state.gyroBodyRadS, 3, 1);
+  if (p >= 0) p = writeVector(out, p, state.gyroBodyRadS, 3);
   if (p >= 0) p = put(out, p, KEY.accel);
-  if (p >= 0) p = writeVector(out, p, state.accelBodyMps2, 3, 1);
+  if (p >= 0) p = writeVector(out, p, state.accelBodyMps2, 3);
   if (p >= 0) p = put(out, p, KEY.position);
-  if (p >= 0) p = writeVector(out, p, state.positionNedM, 3, 1);
+  if (p >= 0) p = writeVector(out, p, state.positionNedM, 3);
   if (p >= 0) p = put(out, p, KEY.velocity);
-  if (p >= 0) p = writeVector(out, p, state.velocityNedMps, 3, 1);
+  if (p >= 0) p = writeVector(out, p, state.velocityNedMps, 3);
   if (p >= 0) p = put(out, p, KEY.quaternion);
-  if (p >= 0) p = writeVector(out, p, q, 4, 1 / norm);
+  NUMBER[1] = 1 / norm;
+  if (p >= 0) p = writeVector(out, p, q, 4);
+  NUMBER[1] = 1;
   if (p >= 0 && state.windValid) {
     p = put(out, p, KEY.wind);
-    if (p >= 0) p = writeVector(out, p, state.windNedMps, 3, 1);
+    if (p >= 0) p = writeVector(out, p, state.windNedMps, 3);
   }
   if (p >= 0 && state.batteryValid) {
     p = put(out, p, KEY.battery);
-    if (p >= 0) p = writeNumber(out, p, state.batteryVoltageV);
+    NUMBER[0] = state.batteryVoltageV;
+    if (p >= 0) p = writeNumber(out, p);
     if (p >= 0) p = put(out, p, KEY.current);
-    if (p >= 0) p = writeNumber(out, p, state.batteryCurrentA);
+    NUMBER[0] = state.batteryCurrentA;
+    if (p >= 0) p = writeNumber(out, p);
     if (p >= 0) p = put(out, p, KEY.batteryClose);
   } else if (p >= 0) p = put(out, p, KEY.close);
   return p > 0 ? p : 0;

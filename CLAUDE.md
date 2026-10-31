@@ -264,7 +264,11 @@ implementation.
   mirror of stock OCTA X, so it uses the scripting matrix). TASK-151 (the
   local launcher, `apps/launcher`) and TASK-152 (`scripts/install-macos.mjs`
   and the Project tab's first-run check) are DONE: both pass with the network
-  switched off. Decisions D-04
+  switched off. TASK-153 is IN_PROGRESS: `SitlJsonLink` and `GroundStation`
+  (`packages/autopilot`) fly the S19 quad X profile in PhysicsSessionV2 with
+  native ArduCopter through the launcher, READY from LiveEkfWarmup, with G1 for
+  the lockstep step; the physics Worker, the WebSocket client and the Run tab
+  remain. Decisions D-04
   and D-06 to D-12 are decided. TASK-127 and TASK-128 are DONE: stock
   ArduCopter `8ab6afd` builds and flies natively on Apple Silicon
   ([macos-sitl.md](docs/decisions/macos-sitl.md)), and its stock frames and

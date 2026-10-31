@@ -5740,3 +5740,72 @@ mapping, unequal arms and four uncontrollable layouts with their reasons.
 Aircraft tab, checks its 16 rows and parameter file, swaps two outputs in the
 arm table and checks the moved functions and the new version, and refuses a
 hexa whose motors all turn one way.
+
+## Browser physics as the JSON lockstep backend (TASK-153)
+
+Increment 1 is the headless core that the physics Worker runs; the Worker,
+the WebSocket client and the Run tab come next.
+
+### Link
+
+`SitlJsonLink` (`packages/autopilot/src/sitl-link.ts`) runs in the thread
+that owns the PhysicsSessionV2 in `sitl-lockstep` mode, on the session's
+state buffer and actuator queue. It reads bridge records (version 1, 16-byte
+header, apps/bridge/src/framing.ts) of the run's epoch: channel 1 is MAVLink
+in both directions, channel 3 servo packets from SITL; channel 2 state lines
+leave through `outbound`. For each new servo frame it writes one
+ActuatorFrameV2 for the session's next tick: the published epoch and tick
+plus one, the Armed flag, the profile's model ID as the motor map ID, and
+each rotor channel's ESC duty (pwm − 1000 µs) / 1000 µs, clamped to [0, 1]
+and counted when clamped. After the owner pumps the session, `poll()` checks
+that the published tick is that tick and encodes the JSON line from the
+published state: `timestamp` the simulated time, `imu.gyro` the body rates,
+`imu.accel_body` the body specific force, `position`, `velocity` and
+`quaternion` in NED, and `battery` when the model publishes a pack voltage.
+A resent frame is answered with the stored reply and never steps; a lost
+frame is counted and the next one steps once; a frame that arrives before the
+reply is held and SITL resends it; a frame 0 after a higher count reports a
+restart, and the owner starts a new epoch and calls `reset()`. A frame that
+cannot be delivered forgets the frame counter, so SITL's resend steps. The
+owner reads the stepped state from `link.state`: a second FlightStateV2
+object read from the same buffer makes the state decoder polymorphic, which
+allocated about 637 kB after a full GC in the G1 probe.
+
+### Ground station
+
+`GroundStation` (`packages/autopilot/src/ground-station.ts`) packs the
+application's MAVLink2 HEARTBEAT (type GCS, system 255, component 190) and
+COMMAND_LONG requests: DO_SET_MODE with ArduCopter's custom mode, arm,
+NAV_TAKEOFF, NAV_LAND and SET_MESSAGE_INTERVAL. It is a cold path. The
+launcher's relay forwards to SITL only after SITL's first datagram, so stream
+requests repeat until acknowledged. LiveEkfWarmup needs GPS within 0.3 s of
+the IMU, so EKF_STATUS_REPORT, GPS_RAW_INT and GLOBAL_POSITION_INT are
+requested at 10 Hz.
+
+### Rate and parameters
+
+ArduCopter's pre-arm check requires the gyro at 1.8 times its 400 Hz loop
+(at 400 Hz physics: "PreArm: Gyro 0 rate 400Hz < loop rate*1.8 720Hz"), so
+integrated sessions run at 800 Hz or 1200 Hz. MOT_PWM_MIN and MOT_PWM_MAX are
+set to 1000 µs and 2000 µs, the link's duty span; the frame parameters come
+from the TASK-142 generator.
+
+### Allocation
+
+`decodeServoPacketInto` reads the datagram byte by byte, the lockstep copies
+replies without a subarray view, and `encodeStateLineInto` passes doubles to
+its writers through a preallocated slot, because V8 boxes a double argument
+of a helper it does not inline. `node scripts/check-sitl-link-allocation.mjs`
+measures receive, pump and poll per servo record on the quad X profile after
+110,000 warmup steps, with an allocating positive control; WebSocket I/O is
+excluded.
+
+### Verification (TASK-153)
+
+`tests/external-sitl-session.test.ts` drives a real session with the quad X
+profile through lost, resent, stale, held, foreign-epoch and damaged records,
+checks the replies with the bridge's state-line validator, and decodes the
+ground station's frames with pymavlink 2.4.50.
+`tests/external-sitl-flight.test.ts` flies the profile with the installed
+native ArduCopter through the launcher: READY from LiveEkfWarmup, GUIDED,
+arm, take-off to 5 m, a 10 s hold and LAND.
