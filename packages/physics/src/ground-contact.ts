@@ -68,6 +68,11 @@ export interface ContactOptions {
         number,
         number
     ];
+    /**
+     * Full symmetric inertia tensor about the CG, body FRD, row-major (TASK-094). With non-zero
+     * products the contact uses configuration version 2; it replaces `inertiaDiagonalKgM2`.
+     */
+    readonly inertiaKgM2?: readonly number[];
     readonly groundNormalNed?: readonly [
         number,
         number,
@@ -155,7 +160,22 @@ export class GroundContact implements ContactBackend {
         c.set(state.quaternionBodyToNed, 12);
         c.set(state.angularVelocityBodyRadS, 16);
         const inertia = 0.4 * mass * radius * radius;
-        c.set(options.inertiaDiagonalKgM2 ?? [inertia, inertia, inertia], 19);
+        const tensor = options.inertiaKgM2;
+        if (tensor) {
+            if (options.inertiaDiagonalKgM2 || tensor.length !== 9 || !tensor.every(Number.isFinite) ||
+                tensor[1] !== tensor[3] || tensor[2] !== tensor[6] || tensor[5] !== tensor[7])
+                throw new Error("Invalid contact inertia tensor");
+            c.set([tensor[0]!, tensor[4]!, tensor[8]!], 19);
+            // Version 2 only when a product of inertia is non-zero; a diagonal tensor stays version 1 bit for bit.
+            if (tensor[1] !== 0 || tensor[2] !== 0 || tensor[5] !== 0) {
+                c[0] = 2;
+                c[28] = tensor[1]!;
+                c[29] = tensor[2]!;
+                c[30] = tensor[5]!;
+            }
+        }
+        else
+            c.set(options.inertiaDiagonalKgM2 ?? [inertia, inertia, inertia], 19);
         c.set(options.groundNormalNed ?? [0, 0, -1], 22);
         c[25] = options.groundOffsetM ?? 0;
         c[26] = 9.80665;

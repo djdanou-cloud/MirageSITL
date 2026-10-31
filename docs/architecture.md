@@ -315,7 +315,10 @@ matrix with evidenced delivery paths, and a neutralizing parameter profile
 (`error-ownership.ts`). TASK-088 has started: bound-rotor and rigid-body step
 interfaces v2 (`bound_v2.rs`, `body_abi_v2.rs`, `rotor-v2.ts`, `body-v2.ts`)
 with fail-closed fields for later tasks; neutral records run the v1 steps
-bitwise. The rest of this section is not implemented yet. The program keeps the current
+bitwise. TASK-094 adds the CG offset to the body step (the moment moves to the
+CG, M_cg = M_O − r_c × F) with angular-acceleration and reference-position
+outputs, and Rapier contact configuration version 2 keeps the full inertia
+tensor. The rest of this section is not implemented yet. The program keeps the current
 ownership model: MirageSITL is ArduPilot's external flight-dynamics model.
 Native runs exchange JSON state lines with `--model JSON` (TASK-041). The
 browser build fills ArduPilot's `sitl_fdm` through the HAL mailbox (TASK-046),

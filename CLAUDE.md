@@ -258,7 +258,11 @@ implementation.
   clamps, keeps a rating `warning` apart from a modeled `limited` clamp,
   publishes per-motor and battery values in the separate power telemetry v1
   channel and shows them in the Run tab's power panel; the AAR v1 record has
-  no room for them, so TASK-162 stores them. Decisions D-04
+  no room for them, so TASK-162 stores them. TASK-094 is DONE for Phase 1: the
+  body step v2 takes a CG offset (the moment moves to the CG) and reports the
+  angular acceleration and the reference point, and contact configuration
+  version 2 gives Rapier the full inertia tensor; contact sessions that travel
+  tens of metres still allocate in Rapier's broad phase (TASK-095). Decisions D-04
   and D-06 to D-12 are decided. D-01 and D-02 still wait on TASK-127 and
   TASK-128. TASK-129 records D-03: JSON lockstep without `no_lockstep` owns
   simulated time, a 60 s pause does not induce a failsafe, parameter access

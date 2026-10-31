@@ -168,7 +168,8 @@ describe('WASM step interfaces v2', () => {
           for (let i = 0; i < a.length; i++) expect(Object.is(a[i], b[i])).toBe(true);
         }
       }
-      expect(t2.validity).toBe(BODY_V2.validSpecificForce);
+      // TASK-094: angular acceleration and reference position are valid on every step.
+      expect(t2.validity).toBe(BODY_V2.validSpecificForce | BODY_V2.validAngularAcceleration | BODY_V2.validReferencePosition);
       expect([...t2.specificForceBodyMps2]).toEqual([0.5 / 1.5, -0.2 / 1.5, -15 / 1.5]);
     }
   });
@@ -177,10 +178,10 @@ describe('WASM step interfaces v2', () => {
     const definition = rotorDefinition(), config = encodeBoundRotor(definition, 1 / 400), steps = 200;
     const toHex = (bytes: Uint8Array) => Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
     const native = spawnSync(referenceBinary, [], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024,
-      input: `bound ${steps} ${toHex(config)} ${iface.boundInputHex}\nbody ${steps} ${iface.bodyInputHex}\n` });
+      input: `bound ${steps} ${toHex(config)} ${iface.boundInputHex}\nbody ${steps} ${iface.bodyInputHex}\nbody ${steps} ${iface.bodyOffsetInputHex}\n` });
     expect(native.status, native.stderr).toBe(0);
     const lines = native.stdout.trim().split('\n').map(hex);
-    expect(lines.length).toBe(2 * steps);
+    expect(lines.length).toBe(3 * steps);
     for (const { variant, module } of modules) {
       const r = raw(module), { arena, input, output } = boundArena(r, config);
       new Uint8Array(r.memory.buffer, input, 256).set(hex(iface.boundInputHex));
@@ -200,15 +201,18 @@ describe('WASM step interfaces v2', () => {
       const bodyIn = output + 256, bodyOut = bodyIn + 448;
       if (r.memory.buffer.byteLength < bodyOut + 256) r.memory.grow(1);
       const body = new DataView(r.memory.buffer);
-      new Uint8Array(r.memory.buffer, bodyIn, 448).set(hex(iface.bodyInputHex));
-      for (let step = 0; step < steps; step++) {
-        expect(r.bodyV2(bodyIn, bodyOut, 1 / 800)).toBe(0);
-        const expected = new DataView(lines[steps + step]!.buffer);
-        for (let p = 0; p < 200; p += 8) {
-          expect(relative(body.getFloat64(bodyOut + p, true), expected.getFloat64(p, true)), `${variant} body step ${step} byte ${p}`).toBeLessThanOrEqual(1e-12);
+      // The neutral record, then the TASK-094 record with a CG offset.
+      for (const [record, first] of [[iface.bodyInputHex, steps], [iface.bodyOffsetInputHex, 2 * steps]] as const) {
+        new Uint8Array(r.memory.buffer, bodyIn, 448).set(hex(record));
+        for (let step = 0; step < steps; step++) {
+          expect(r.bodyV2(bodyIn, bodyOut, 1 / 800)).toBe(0);
+          const expected = new DataView(lines[first + step]!.buffer);
+          for (let p = 0; p < 200; p += 8) {
+            expect(relative(body.getFloat64(bodyOut + p, true), expected.getFloat64(p, true)), `${variant} body step ${step} byte ${p}`).toBeLessThanOrEqual(1e-12);
+          }
+          expect(body.getUint32(bodyOut + 200, true)).toBe(expected.getUint32(200, true));
+          new Uint8Array(r.memory.buffer, bodyIn + 96, 104).set(new Uint8Array(r.memory.buffer, bodyOut, 104));
         }
-        expect(body.getUint32(bodyOut + 200, true)).toBe(expected.getUint32(200, true));
-        new Uint8Array(r.memory.buffer, bodyIn + 96, 104).set(new Uint8Array(r.memory.buffer, bodyOut, 104));
       }
     }
   });

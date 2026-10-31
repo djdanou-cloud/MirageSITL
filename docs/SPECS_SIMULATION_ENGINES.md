@@ -1077,7 +1077,22 @@ Configuration header: [0]=version 1, [1]=0, [2]=airframe mass kg,
 [6..8]=position NED m, [9..11]=velocity NED m/s, [12..15]=unit quaternion wxyz,
 [16..18]=body angular velocity rad/s, [19..21]=positive diagonal inertia kg m²,
 [22..24]=outward unit plane normal NED, [25]=plane offset n·p m,
-[26]=gravity down m/s², [27]=wheel count 0..8, [28..31]=zero.
+[26]=gravity down m/s², [27]=wheel count 0..8, [28..31]=zero. Version 2
+(TASK-094) puts the products of inertia I_xy, I_xz, I_yz in [28..30] (tensor
+entries, so the inertia is [[19, 28, 29], [28, 20, 30], [29, 30, 21]] about the
+CG in body FRD; it must be positive definite), and [31] stays zero. Rapier then
+receives `MassProperties::with_inertia_matrix`, which diagonalizes the tensor
+into a principal-axis frame; version 1 keeps its diagonal path bit for bit.
+`GroundContact` takes `inertiaKgM2` (row-major, exactly symmetric) and writes
+version 2 only when a product is non-zero. Against the 4800 Hz RK4 body, a free
+body with principal moments (0.02, 0.03, 0.045) kg m² turned 0.7 rad about
+(1, 2, 3) and ω = (3, 7, 2) rad/s has, after 1 s, a rate error of 1.15e-3 and
+an attitude error of 1.14e-3 rad at 400 Hz, and a rate error of 3.85e-4 at
+1200 Hz (first order). Without the products the rate error is 1.15, so the
+products act. The budget, set before the implementation, was 2 %, 0.02 rad, a
+1200 Hz error at most 0.6 of the 400 Hz one, and at least a fivefold
+difference without the products
+(`native/contact/tests/contact.rs`, `tests/rigid-body-v2.test.ts`).
 
 Each wheel starts at 32+160*i. Its fields are [0..2]=fully extended wheel-center
 anchor body FRD m; [3]=unsprung mass kg; [4]=tire radius m; [5]=rigid rim radius m
@@ -3652,14 +3667,50 @@ Rigid-body fields owned by later tasks, with their neutral values:
 * `gravity_model` 0 (constant `gravity_down` along NED down, the v1
   semantics) with zero `gravity_n/e/d`; models 1 (NED vector) and 2 (WGS84)
   are TASK-108.
-* Zero `cg_offset_body_x/y/z` (TASK-094).
 * `input_flags` bit 0 clear, with zero `mass_rate` and `inertia_rate`
   (TASK-119).
 
 Output `validity` bit 1 marks `specific_force_body_x/y/z` and is always set.
 The body-frame force is constant over the step, so the CG specific force is
-F/m exactly. Bits 2 (`angular_acceleration_body_x/y/z`) and 4
-(`reference_position_n/e/d`) wait for TASK-094.
+F/m exactly. TASK-094 sets bits 2 (`angular_acceleration_body_x/y/z`) and 4
+(`reference_position_n/e/d`) on every step.
+
+TASK-094 implements `cg_offset_body_x/y/z`. The state is the CG's, as
+`inertia_cg` names it. r_c points from the body reference point O, about
+which `moment_body` is given, to the CG; gravity acts at the CG. The step
+moves the moment to the CG and then runs the v1 step:
+
+$$
+M_{cg} = M_O - r_c \times F
+$$
+
+This is the CG form of the equations of motion about O,
+m(a_O + ω̇ × r_c + ω × (ω × r_c)) = F and
+I_O·ω̇ + ω × (I_O·ω) + m·r_c × a_O = M_O with
+I_O = I_cg + m(|r_c|²·1 − r_c·r_cᵀ); both give the same motion. A zero
+offset, −0 included, skips the transfer, so output bytes 0..127 equal v1 bit
+for bit. The outputs are ω̇ = I_cg⁻¹(M_cg − ω × I_cg·ω) at the end state and
+p_O = p_cg − R·r_c. `BodyParameters::angular_acceleration` computes ω̇, and
+`BetRigidBodyBackendV2` takes r_c as `cgOffsetBodyM` and reports
+`angularAccelerationBodyRadS2` and `referencePositionNedM`. Earth-rotation
+terms and the gravity models stay with TASK-108 (Phase 1: delivered by
+TASK-148), and mass-property rates with TASK-119 (deferred).
+
+`native/bet/tests/body_abi_v2.rs` checks, after 1 s at 400 Hz, the exact
+single-axis rotation of a body-fixed force through O with r_c = (0.01, 0, 0) m
+(ω_y = αt and θ = αt²/2 within 1e-9, α = −1.25 rad/s², with the reference
+position within 1e-12). Over 400 steps of a tumbling body with products of
+inertia it checks that the angular-acceleration output equals the ω̇ of the
+coupled equations about O, solved as a 6×6 system, within 1e-12 relative.
+It also checks that a −0 offset reproduces v1, and that an offset step makes
+no allocation over 10^6 steps. `native/bet/tests/rigid_body.rs` checks torque-free
+precession of an axisymmetric body, I = diag(0.05, 0.05, 0.08), with
+ω₀ = (1, 0, 2) rad/s, against the closed form
+ω = (ω₁ cos Ωt, ω₁ sin Ωt, ω₃), Ω = (I₃ − I₁)ω₃/I₁. It checks the same body
+with its principal frame turned 0.7 rad about (1, 2, 3), so every product of
+inertia is non-zero. Both hold the rates within 1e-9 relative and world
+angular momentum within 1e-10 over 2 s at 400 Hz. `tests/rigid-body-v2.test.ts`
+repeats the CG-offset case and the v1 bit equality through the WASM adapter.
 
 Checks run in a fixed order: record length, version (−7), reserved words,
 unknown flags and modes (−3), non-finite values (−3), then later-task fields.

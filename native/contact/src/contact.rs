@@ -35,7 +35,10 @@ pub struct Contact {
     body: RigidBodyHandle,
     wheels: Vec<Wheel>,
     mass: f64,
+    /// Diagonal inertia of a version 1 configuration.
     inertia: Vector,
+    /// Full inertia tensor of a version 2 configuration (TASK-094), body FRD about the CG.
+    inertia_matrix: Option<Matrix>,
     radius: f64,
     /// Configured plane: the collider-local normal of every ground halfspace.
     normal: Vector,
@@ -64,9 +67,21 @@ fn vec(s: &[f64], i: usize) -> Vector {
 fn finite(v: Vector) -> bool {
     v.x.is_finite() && v.y.is_finite() && v.z.is_finite()
 }
+/// Version 2 (TASK-094) adds the products of inertia I_xy, I_xz, I_yz in slots 28..30.
+fn inertia_tensor(c: &[f64; CONFIG_COUNT]) -> [f64; 9] {
+    [c[19], c[28], c[29], c[28], c[20], c[30], c[29], c[30], c[21]]
+}
+/// Positive definite by leading principal minors (Sylvester); the tensor is symmetric by construction.
+fn positive_definite(m: [f64; 9]) -> bool {
+    let minor2 = m[0] * m[4] - m[1] * m[3];
+    let det = m[0] * (m[4] * m[8] - m[5] * m[7]) - m[1] * (m[3] * m[8] - m[5] * m[6]) + m[2] * (m[3] * m[7] - m[4] * m[6]);
+    m[0] > 0.0 && minor2 > 0.0 && det > 0.0
+}
 fn valid_state(c: &[f64; CONFIG_COUNT]) -> bool {
+    let reserved = if c[0] == 2.0 { c[31] == 0.0 && positive_definite(inertia_tensor(c)) } else { c[28..32].iter().all(|x| *x == 0.0) };
     c.iter().all(|x| x.is_finite())
-        && c[0] == 1.0
+        && (c[0] == 1.0 || c[0] == 2.0)
+        && reserved
         && c[1] == 0.0
         && c[2] > 0.0
         && c[3] > 0.0
@@ -81,7 +96,6 @@ fn valid_state(c: &[f64; CONFIG_COUNT]) -> bool {
         && c[27] >= 0.0
         && c[27] <= MAX_WHEELS as f64
         && c[27].fract() == 0.0
-        && c[28..32].iter().all(|x| *x == 0.0)
 }
 impl Contact {
     pub fn new(c: &[f64; CONFIG_COUNT]) -> Result<Self, i32> {
@@ -110,10 +124,20 @@ impl Contact {
         }
         let groups_moving = slot_groups(0).1;
         let inertia = vec(c, 19);
+        // Version 1 keeps its diagonal path bit for bit; version 2 diagonalizes the full tensor
+        // into a principal-axis frame (parry's `with_inertia_matrix`).
+        let inertia_matrix = (c[0] == 2.0).then(|| {
+            let m = inertia_tensor(c);
+            Matrix::from_cols(Vector::new(m[0], m[3], m[6]), Vector::new(m[1], m[4], m[7]), Vector::new(m[2], m[5], m[8]))
+        });
+        let mass_properties = match inertia_matrix {
+            Some(m) => MassProperties::with_inertia_matrix(Vector::ZERO, c[2], m),
+            None => MassProperties::new(Vector::ZERO, c[2], inertia),
+        };
         let (body, _) = world.insert(
             RigidBodyBuilder::dynamic()
                 .can_sleep(false)
-                .additional_mass_properties(MassProperties::new(Vector::ZERO, c[2], inertia)),
+                .additional_mass_properties(mass_properties),
             ColliderBuilder::ball(c[3])
                 .density(0.0)
                 .friction(c[5])
@@ -221,6 +245,7 @@ impl Contact {
             wheels,
             mass: c[2],
             inertia,
+            inertia_matrix,
             radius: c[3],
             normal,
             offset: c[25],
@@ -323,7 +348,11 @@ impl Contact {
     fn angular_momentum(&self) -> Vector {
         let b = &self.world.bodies[self.body];
         let q = *b.rotation();
-        q * (self.inertia * (q.inverse() * b.angvel()))
+        let local = q.inverse() * b.angvel();
+        match self.inertia_matrix {
+            Some(m) => q * (m * local),
+            None => q * (self.inertia * local),
+        }
     }
     pub fn step(&mut self, input: &[f64; INPUT_COUNT]) -> Result<[f64; OUTPUT_COUNT], i32> {
         let dt = input[14];

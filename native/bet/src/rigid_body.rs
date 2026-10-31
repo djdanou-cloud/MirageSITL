@@ -46,6 +46,10 @@ impl BodyParameters {
             inverse: inverse_spd(inertia).ok_or(BodyError)?,
         })
     }
+    /// Euler's equations about the CG in body axes: I⁻¹(M − ω × I·ω) (TASK-094).
+    pub fn angular_acceleration(&self, omega: Vec3, moment: Vec3) -> Vec3 {
+        multiply(self.inverse, moment.add(omega.cross(multiply(self.inertia, omega)).scale(-1.0)))
+    }
     fn derivative(&self, y: [f64; 13], load: Wrench, g: f64) -> Result<[f64; 13], BodyError> {
         let q = normalize([y[6], y[7], y[8], y[9]]).ok_or(BodyError)?;
         let w = Vec3::new(y[10], y[11], y[12]);

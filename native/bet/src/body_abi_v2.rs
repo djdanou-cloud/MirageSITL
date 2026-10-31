@@ -1,9 +1,15 @@
 //! Rigid-body step interface v2 (TASK-088): 448-byte input and 256-byte output,
-//! little endian. Gravity model, CG offset and mass-property rates belong to
-//! later tasks and are fail-closed: they must be neutral, otherwise the step
-//! returns `UNSUPPORTED` and leaves the output unchanged. A neutral record runs
-//! exactly the v1 body step, so output bytes 0..128 equal the v1 output record.
-use crate::body_abi;
+//! little endian. The gravity model and mass-property rates belong to later
+//! tasks and are fail-closed: they must be neutral, otherwise the step returns
+//! `UNSUPPORTED` and leaves the output unchanged. A record without a CG offset
+//! runs exactly the v1 body step, so output bytes 0..128 equal the v1 output.
+//!
+//! TASK-094: the state is the CG's; `cg_offset_body` r_c points from the body
+//! reference point O, about which the moment is given, to the CG. The step
+//! moves the moment to the CG, M_cg = M_O − r_c × F, which is the CG form of
+//! the equations of motion about O. It reports the angular acceleration at the
+//! end state and the reference point's position p_O = p_cg − R·r_c.
+use crate::{body_abi, math::rotate, rigid_body::BodyParameters, Vec3};
 
 /// Step record version.
 pub const VERSION: u32 = 2;
@@ -23,7 +29,7 @@ pub const GRAVITY_WGS84: u32 = 2;
 pub const INPUT_MASS_RATES: u32 = 1;
 /// Output validity bit: specific force at the CG.
 pub const VALID_SPECIFIC_FORCE: u32 = 1;
-/// Output validity bit: angular acceleration (TASK-094).
+/// Output validity bit: angular acceleration at the end state (TASK-094).
 pub const VALID_ANGULAR_ACCELERATION: u32 = 2;
 /// Output validity bit: reference-point position (TASK-094).
 pub const VALID_REFERENCE_POSITION: u32 = 4;
@@ -48,23 +54,53 @@ pub fn step(input: &[u8], out: &mut [u8], dt: f64) -> i32 {
         return -3;
     }
     if !(16..384).step_by(8).all(|p| value(input, p).is_finite()) { return -3; }
-    // Gravity model and vector (TASK-108), CG offset (TASK-094), mass-property rates (TASK-119).
-    if gravity != GRAVITY_CONSTANT_DOWN || !neutral(input, 256, 280) || !neutral(input, 280, 304)
+    // Gravity model and vector (TASK-108), mass-property rates (TASK-119).
+    if gravity != GRAVITY_CONSTANT_DOWN || !neutral(input, 256, 280)
         || flags & INPUT_MASS_RATES != 0 || !neutral(input, 304, 384) {
         return UNSUPPORTED;
     }
     // v2 bytes 16..256 hold the v1 input fields 0..240 in the same order.
     let mut v1 = [0u8; body_abi::INPUT_BYTES as usize];
     v1[0..240].copy_from_slice(&input[16..256]);
+    let offset = vector(input, 280);
+    let force = vector(input, 200);
+    let mut moment = vector(input, 224);
+    // A zero offset (−0 included) skips the transfer, so the v1 bytes stay bit for bit.
+    let has_offset = !neutral(input, 280, 304);
+    if has_offset {
+        moment = moment.add(offset.cross(force).scale(-1.0));
+        put_vector(&mut v1, 208, moment);
+    }
     v1[240..244].copy_from_slice(&body_abi::VERSION.to_le_bytes());
     let mut staged = [0u8; body_abi::OUTPUT_BYTES as usize];
     let status = body_abi::step(&v1, &mut staged, dt);
     if status != 0 { return status; }
     let mass = value(input, 16);
+    let mut inertia = [0.0; 9];
+    for (i, entry) in inertia.iter_mut().enumerate() { *entry = value(input, 24 + 8 * i); }
+    // The v1 step validated the same mass and inertia.
+    let Ok(parameters) = BodyParameters::new(mass, inertia) else { return -3; };
+    let alpha = parameters.angular_acceleration(vector(&staged, 80), moment);
+    let position = vector(&staged, 0);
+    let reference = if has_offset {
+        let q = [value(&staged, 48), value(&staged, 56), value(&staged, 64), value(&staged, 72)];
+        position.add(rotate(q, offset).scale(-1.0))
+    } else {
+        position
+    };
     out.fill(0);
     out[0..128].copy_from_slice(&staged);
     // The body-frame force is constant over the step, so the CG specific force is F/m.
     for axis in 0..3 { put(out, 128 + 8 * axis, value(input, 200 + 8 * axis) / mass); }
-    out[200..204].copy_from_slice(&VALID_SPECIFIC_FORCE.to_le_bytes());
+    put_vector(out, 152, alpha);
+    put_vector(out, 176, reference);
+    let validity = VALID_SPECIFIC_FORCE | VALID_ANGULAR_ACCELERATION | VALID_REFERENCE_POSITION;
+    out[200..204].copy_from_slice(&validity.to_le_bytes());
     0
+}
+fn vector(b: &[u8], p: usize) -> Vec3 { Vec3::new(value(b, p), value(b, p + 8), value(b, p + 16)) }
+fn put_vector(b: &mut [u8], p: usize, v: Vec3) {
+    put(b, p, v.x);
+    put(b, p + 8, v.y);
+    put(b, p + 16, v.z);
 }

@@ -27,6 +27,10 @@ fn native_abi_rejects_invalid_frames_and_preserves_single_integration() {
         assert_eq!(contact_initialize(), 0);
         assert_eq!(contact_allocator_probe(), 1);
         let input = contact_input_ptr();
+        // The input buffer is process-global: another test may have left per-tick planes in it.
+        for i in 0..mirage_contact::contact::INPUT_COUNT {
+            input.add(i).write(0.0);
+        }
         input.add(14).write(1.0 / 400.0);
         let mut before = [0.0; OUTPUT_COUNT];
         std::ptr::copy_nonoverlapping(contact_output_ptr(), before.as_mut_ptr(), OUTPUT_COUNT);
@@ -184,4 +188,98 @@ fn moving_planes_through_the_abi_never_allocate() {
         assert_eq!(contact_allocation_bytes(), 0.0);
         contact_dispose();
     }
+}
+
+// TASK-094: a Rapier-owned airframe with products of inertia (contact configuration
+// version 2) against the RK4 body integrator. Budget set before the implementation:
+// rates within 2 % and attitude within 0.02 rad after 1 s at 400 Hz; at 1200 Hz at
+// most 0.6 of the 400 Hz error (first order); without the products at least five
+// times further from RK4.
+use mirage_bet::{frame::Wrench, rigid_body::{BodyParameters, BodyState}, Vec3};
+
+/// Principal moments (0.02, 0.03, 0.045) kg m² turned 0.7 rad about (1, 2, 3): all products non-zero.
+fn tensor() -> [f64; 9] {
+    let a = [1.0 / 14f64.sqrt(), 2.0 / 14f64.sqrt(), 3.0 / 14f64.sqrt()];
+    let (c, s) = ((0.7f64).cos(), (0.7f64).sin());
+    // Rodrigues' rotation matrix.
+    let r = [
+        c + a[0] * a[0] * (1.0 - c), a[0] * a[1] * (1.0 - c) - a[2] * s, a[0] * a[2] * (1.0 - c) + a[1] * s,
+        a[1] * a[0] * (1.0 - c) + a[2] * s, c + a[1] * a[1] * (1.0 - c), a[1] * a[2] * (1.0 - c) - a[0] * s,
+        a[2] * a[0] * (1.0 - c) - a[1] * s, a[2] * a[1] * (1.0 - c) + a[0] * s, c + a[2] * a[2] * (1.0 - c),
+    ];
+    let d = [0.02, 0.03, 0.045];
+    let mut m = [0.0; 9];
+    for i in 0..3 {
+        for j in i..3 {
+            m[i * 3 + j] = (0..3).map(|k| r[i * 3 + k] * d[k] * r[j * 3 + k]).sum();
+            m[j * 3 + i] = m[i * 3 + j];
+        }
+    }
+    m
+}
+/// Free tumbling body 1 m above the plane, no gravity, body rates (3, 7, 2) rad/s.
+fn tumbling(products: bool) -> [f64; CONFIG_COUNT] {
+    let mut c = sphere();
+    let m = tensor();
+    c[0] = if products { 2.0 } else { 1.0 };
+    c[2] = 1.5;
+    c[26] = 0.0;
+    c[16] = 3.0;
+    c[17] = 7.0;
+    c[18] = 2.0;
+    c[19] = m[0];
+    c[20] = m[4];
+    c[21] = m[8];
+    if products {
+        c[28] = m[1];
+        c[29] = m[2];
+        c[30] = m[5];
+    }
+    c
+}
+/// Rate (relative) and attitude (rad) errors of a Rapier session against RK4 after 1 s.
+fn against_rk4(config: [f64; CONFIG_COUNT], hz: usize) -> (f64, f64) {
+    let mut contact = Contact::new(&config).unwrap();
+    let mut input = [0.0; INPUT_COUNT];
+    input[14] = 1.0 / hz as f64;
+    let mut output = [0.0; OUTPUT_COUNT];
+    for _ in 0..hz {
+        output = contact.step(&input).unwrap();
+    }
+    let p = BodyParameters::new(1.5, tensor()).unwrap();
+    let mut s = BodyState { position: Vec3::new(0.0, 0.0, -1.0), velocity: Vec3::new(0.0, 0.0, 0.0), quaternion: [1.0, 0.0, 0.0, 0.0],
+        omega: Vec3::new(3.0, 7.0, 2.0) };
+    let zero = Vec3::new(0.0, 0.0, 0.0);
+    // The 4800 Hz RK4 solution is the reference.
+    for _ in 0..4800 {
+        s = p.step(s, Wrench { force: zero, moment: zero }, 0.0, 1.0 / 4800.0).unwrap().state;
+    }
+    let w = Vec3::new(output[10], output[11], output[12]);
+    let rate = w.add(s.omega.scale(-1.0)).norm() / s.omega.norm();
+    let dot = (0..4).map(|i| output[6 + i] * s.quaternion[i]).sum::<f64>().abs().min(1.0);
+    (rate, 2.0 * dot.acos())
+}
+#[test]
+fn a_rapier_airframe_with_products_of_inertia_matches_rk4_within_budget() {
+    let (rate400, angle400) = against_rk4(tumbling(true), 400);
+    let (rate1200, _) = against_rk4(tumbling(true), 1200);
+    let (diagonal, _) = against_rk4(tumbling(false), 400);
+    println!("rate error 400 Hz {rate400:.3e}, 1200 Hz {rate1200:.3e}, attitude {angle400:.3e} rad, without products {diagonal:.3e}");
+    assert!(rate400 < 0.02, "rate error {rate400}");
+    assert!(angle400 < 0.02, "attitude error {angle400}");
+    assert!(rate1200 <= 0.6 * rate400, "1200 Hz {rate1200} against 400 Hz {rate400}");
+    assert!(diagonal >= 5.0 * rate400, "without products {diagonal} against {rate400}");
+}
+#[test]
+fn version_2_rejects_an_indefinite_tensor_and_version_1_its_products() {
+    let mut c = tumbling(true);
+    c[28] = 0.05; // |I_xy| larger than the diagonal allows
+    assert!(Contact::new(&c).is_err());
+    let mut v1 = tumbling(false);
+    v1[28] = 0.001;
+    assert!(Contact::new(&v1).is_err());
+    let mut v2 = tumbling(true);
+    v2[31] = 1.0;
+    assert!(Contact::new(&v2).is_err());
+    assert!(Contact::new(&tumbling(true)).is_ok());
 }
