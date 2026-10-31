@@ -59,6 +59,35 @@ function localTiles(): Plugin {
   return { name: 'local-g3-tiles', configureServer: attach, configurePreviewServer: attach };
 }
 
+// TASK-153: the BET WASM module that scripts/build-wasm.mjs writes to
+// packages/wasm-bet/dist (not tracked), served read-only at /__bet/ to loopback
+// clients. The Run tab checks each file against manifest.json and the physics
+// Worker checks the module's hash again before compiling it.
+function localBetModule(): Plugin {
+  const root = fileURLToPath(new URL('../../packages/wasm-bet/dist/', import.meta.url));
+  const FILES: Record<string, string> = {
+    'manifest.json': 'application/json', 'mirage_bet.scalar.wasm': 'application/wasm', 'mirage_bet.simd128.wasm': 'application/wasm',
+  };
+  const attach = (server: { middlewares: { use: (handler: (req: import('node:http').IncomingMessage, res: import('node:http').ServerResponse, next: () => void) => void) => void } }) => {
+    server.middlewares.use((req, res, next) => {
+      const url = req.url ?? '';
+      if (!url.startsWith('/__bet/')) { next(); return; }
+      const peer = req.socket.remoteAddress;
+      if (req.method !== 'GET' || !['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(peer ?? '')) { res.statusCode = 403; res.end(); return; }
+      const name = url.slice('/__bet/'.length).split('?')[0] ?? '';
+      const type = FILES[name];
+      if (!type) { res.statusCode = 404; res.end(); return; }
+      let bytes: Buffer;
+      try { bytes = readFileSync(resolve(root, name)); } catch { res.statusCode = 404; res.end(); return; }
+      res.setHeader('Content-Type', type);
+      res.setHeader('Cache-Control', 'no-store');
+      res.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
+      res.end(bytes);
+    });
+  };
+  return { name: 'local-bet-module', configureServer: attach, configurePreviewServer: attach };
+}
+
 // TASK-073 generated terrain/buildings (scripts/geodata), served read-only from
 // MIRAGE_GEODATA_DIR at /geodata/ to loopback clients only. The data stays out of
 // the repository (it is large and licensed); nothing is served when the variable is unset.
@@ -98,7 +127,7 @@ const headers = {
   'Cross-Origin-Embedder-Policy': 'require-corp',
 };
 export default defineConfig({
-  plugins: [react(), tailwindcss(), localArdupilot(), localTiles(), localGeodata()],
+  plugins: [react(), tailwindcss(), localArdupilot(), localTiles(), localGeodata(), localBetModule()],
   server: { headers },
   preview: { headers },
   worker: { format: 'es' },

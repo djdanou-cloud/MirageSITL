@@ -170,10 +170,13 @@ export class SimulationRuntime {
   private frames = 0;
   private disposed = false;
   private readonly report: (stats: ViewStats) => void;
+  /** TASK-153: observers of every Worker message (model registration and the integrated SITL session); they only read. */
+  private readonly listeners = new Set<(data: unknown) => void>();
 
   constructor(report: (stats: ViewStats) => void) {
     this.report = report;
     this.worker.onmessage = ({ data }: MessageEvent<unknown>) => {
+      for (const listener of this.listeners) listener(data);
       const command = scenarioSubmit(data);
       if (command) {
         this.requestId = Math.max(this.requestId, command.requestId);
@@ -296,6 +299,16 @@ export class SimulationRuntime {
     this.commands.track(parsed.command);
     this.worker.postMessage(parsed.command);
     return parsed.command;
+  }
+
+  /** Observes every Worker message until the returned function is called. */
+  listen(listener: (data: unknown) => void): () => void {
+    this.listeners.add(listener);
+    return () => { this.listeners.delete(listener); };
+  }
+  /** Posts a Worker message outside Control Protocol v2 (bet.module, model.register, limits.register, sitl.*); the Worker validates it. */
+  postToWorker(message: Record<string, unknown>): void {
+    if (!this.disposed) this.worker.postMessage(message);
   }
 
   /** Loads a scenario into the physics Worker. Faults apply only after its ACK. */
@@ -448,8 +461,13 @@ export class SimulationRuntime {
     p.deviceGeneration = this.deviceGeneration;
     this.pilotWriter.publish(p);
   }
+  /**
+   * Pause when the page is hidden (the demo's pilot safety). An integrated SITL session clears it: the autopilot flies
+   * the vehicle and the Worker steps on SITL's frames whether or not the page is visible.
+   */
+  pauseWhenHidden = true;
   private onVisibility = () => {
-    if (!document.hidden) return;
+    if (!document.hidden || !this.pauseWhenHidden) return;
     this.disarm();
     // A pending start ACK can arrive after visibilitychange; queue the pause regardless.
     if (this.ready) this.send("sim.pause");

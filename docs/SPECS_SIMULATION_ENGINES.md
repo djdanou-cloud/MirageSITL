@@ -5809,3 +5809,34 @@ ground station's frames with pymavlink 2.4.50.
 `tests/external-sitl-flight.test.ts` flies the profile with the installed
 native ArduCopter through the launcher: READY from LiveEkfWarmup, GUIDED,
 arm, take-off to 5 m, a 10 s hold and LAND.
+
+### Physics Worker and Run tab (increment 2)
+
+`SitlBridgeClient` (`apps/web/src/sitl/bridge-client.ts`) is the link in the
+physics Worker. The Worker opens the run's bridge on `sitl.connect` (port,
+token, bridge epoch, motor channels, motor map ID and speed-up from Main),
+with the token as a WebSocket subprotocol and never in the URL, and only
+while the session is in sitl-lockstep. For each new servo frame the client
+acknowledges the previous reply's IMU sample to LiveEkfWarmup, pumps the
+session, polls and sends the reply; every 80 steps it checks readiness,
+flushes session events and posts `sitl.status`, so READY is re-evaluated
+ten times per simulated second at 800 Hz and stale diagnostics revoke it.
+MAVLink chunks are fed to LiveEkfWarmup at the current simulated time and
+posted to Main as `sitl.mavlink`; `sitl.mavlink.send` carries Main's
+ground-station frames back. A SITL restart ends the session with a fault.
+
+Main's `SitlRun` (`apps/web/src/sitl/sitl-run.ts`) prepares the vehicle from a
+stored profile version and the exact card versions it names (derived
+manifest with model ID 153, component ratings, TASK-142 frame parameters and
+script, MOT_PWM_MIN and MOT_PWM_MAX), gives the Worker the BET module from
+`/__bet/` checked against its manifest, registers the manifest and ratings,
+configures 800 Hz sitl-lockstep, loads the model and starts the session,
+asks the launcher for a run of the first usable build, and connects the
+Worker. It sends the ground-station heartbeat each wall second and repeats
+stream requests until acknowledged; Take off sets GUIDED and arms, retrying
+each second, then sends NAV_TAKEOFF once the heartbeat reports armed; Land
+sets LAND. Its stages follow the autopilot's own heartbeat and the published truth:
+flying means the climb has settled within 0.5 m of the target below 0.3 m/s
+vertical speed, and landed means disarmed after LAND. The Run tab's ArduPilot SITL backend
+(`apps/web/src/run/SitlFlight.tsx`) takes the launcher's port and token for
+the page only, and the session keeps running while the page is hidden.

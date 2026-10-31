@@ -56,7 +56,7 @@ function PlannedPanel({ label, description, project }: { label: string; descript
 }
 
 /** `run` renders the Run tab; `visible` is false while another tab is open. */
-export function AppShell({ run }: { run: (visible: boolean) => ReactNode }) {
+export function AppShell({ run }: { run: (visible: boolean, storeState: StoreState, project: StoredVersion | null) => ReactNode }) {
   const [storeState, setStoreState] = useState<StoreState>({ status: "opening" });
   const [navigation, setNavigation] = useState<NavigationState>(
     FORCED_TAB ? { ...DEFAULT_NAVIGATION, tab: FORCED_TAB } : DEFAULT_NAVIGATION);
@@ -144,7 +144,7 @@ export function AppShell({ run }: { run: (visible: boolean) => ReactNode }) {
       case "sensors":
         return <SensorsTab storeState={storeState} project={project} active={navigation.tab === "sensors"} />;
       case "run":
-        return run(navigation.tab === "run");
+        return run(navigation.tab === "run", storeState, project);
       default: {
         const label = TABS.find(entry => entry.id === tab)?.label ?? tab;
         return <PlannedPanel label={label} description={PLANNED[tab]} project={project} />;

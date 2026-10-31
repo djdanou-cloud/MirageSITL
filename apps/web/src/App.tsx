@@ -2,7 +2,9 @@ import { Export } from "./aar/Export";
 import { PilotHud } from "./hud/PilotHud";
 import { hudTelemetry } from "./hud/telemetry";
 import { Console } from "./instructor/Console";
-import { AppShell } from "./shell/AppShell";
+import { AppShell, type StoreState } from "./shell/AppShell";
+import { SitlFlight } from "./run/SitlFlight";
+import type { StoredVersion } from "@mirage/project/schema";
 import { Component, useEffect, useRef, useState, type ReactNode } from "react";
 import {
   Activity,
@@ -692,11 +694,12 @@ function DemoFlight({ visible }: { visible: boolean }) {
 }
 
 /**
- * The Run tab (TASK-137). The synthetic demo is the only flight backend until
- * the integrated ArduPilot session (TASK-153, TASK-154); it is selected here
- * and labeled synthetic.
+ * The Run tab (TASK-137). The synthetic demo flies without project data; the
+ * ArduPilot SITL backend (TASK-153) flies an aircraft profile of the open
+ * project with native ArduPilot through the local launcher.
  */
-function RunTab({ visible }: { visible: boolean }) {
+function RunTab({ visible, storeState, project }: { visible: boolean; storeState: StoreState; project: StoredVersion | null }) {
+  const [backend, setBackend] = useState<"demo" | "ardupilot">("demo");
   return (
     <div className="run-tab">
       <div className="run-heading">
@@ -704,22 +707,26 @@ function RunTab({ visible }: { visible: boolean }) {
         <fieldset className="run-mode">
           <legend>Flight backend</legend>
           <label>
-            <input type="radio" name="flight-backend" value="demo" defaultChecked /> Synthetic demo
+            <input type="radio" name="flight-backend" value="demo" checked={backend === "demo"} onChange={() => setBackend("demo")} /> Synthetic demo
           </label>
           <label>
-            <input type="radio" name="flight-backend" value="ardupilot" disabled /> ArduPilot SITL (not available yet)
+            <input type="radio" name="flight-backend" value="ardupilot" checked={backend === "ardupilot"} onChange={() => setBackend("ardupilot")} /> ArduPilot SITL
           </label>
         </fieldset>
       </div>
-      <p className="synthetic-note">
-        Synthetic demo: a simplified collective-thrust quadcopter. It does not use project data and is not
-        validated for tuning, pilot training or real-flight settings.
-      </p>
-      <DemoFlight visible={visible} />
+      {backend === "demo" ? (
+        <>
+          <p className="synthetic-note">
+            Synthetic demo: a simplified collective-thrust quadcopter. It does not use project data and is not
+            validated for tuning, pilot training or real-flight settings.
+          </p>
+          <DemoFlight visible={visible} />
+        </>
+      ) : <SitlFlight storeState={storeState} project={project} visible={visible} />}
     </div>
   );
 }
 
 export default function App() {
-  return <AppShell run={visible => <RunTab visible={visible} />} />;
+  return <AppShell run={(visible, storeState, project) => <RunTab visible={visible} storeState={storeState} project={project} />} />;
 }

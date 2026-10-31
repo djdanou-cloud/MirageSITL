@@ -8,6 +8,7 @@ import { PhysicsSessionV2, type SessionClock } from '@mirage/physics';
 import { profileModelPort } from '@mirage/physics/profile-dynamics';
 import { VehicleRegistry } from '@mirage/physics/vehicle-manifest';
 import { ScenarioBinder } from '@mirage/scenarios/bind';
+import { SitlBridgeClient, bridgeSocketArguments, type SitlNotice } from './sitl/bridge-client';
 import { parseScenario } from '@mirage/scenarios/schema';
 
 // Thin message adapter around PhysicsSessionV2 (ABI v2, Control Protocol v2).
@@ -23,13 +24,16 @@ let timer: ReturnType<typeof setTimeout> | undefined;
 let binder: ScenarioBinder | null = null;
 let haltPosted = false;
 let recorder: { handoff: RecordingHandoff; record: AarRecord } | null = null;
+// TASK-153: the integrated SITL session, on the init buffers; one at a time.
+let buffers: { state: SharedArrayBuffer; actuator: SharedArrayBuffer } | null = null;
+let sitl: { client: SitlBridgeClient; socket: WebSocket } | null = null;
 // Profile dynamics (TASK-144): manifests registered by hash and the BET module they run on. The demo stays the
 // default; a registered model runs only after a Control Protocol v2 `model.load` names its ID and hash.
 const registry = new VehicleRegistry();
 let betModule: WebAssembly.Module | null = null;
 // TASK-146 limit ratings by manifest SHA-256, bound before model.load; a model without ratings checks none.
 const ratings = new Map<string, LimitRatings>();
-type WorkerNotice = CommandResultV2 | WorkerFaultV2
+type WorkerNotice = CommandResultV2 | WorkerFaultV2 | SitlNotice | { type: "sitl.reject"; message: string }
   | { type: "bet.module.ready"; sha256: string } | { type: "bet.module.reject"; message: string }
   | { type: "model.registered"; modelId: number; sha256: string } | { type: "model.reject"; message: string }
   | { type: "limits.registered"; sha256: string } | { type: "limits.reject"; message: string }
@@ -105,6 +109,60 @@ async function loadBetModule(bytes: Uint8Array, sha256: string): Promise<void> {
   for (const name of ["bet_bound_step_v2", "bet_bus_step", "bet_body_step"]) if (!names.has(name)) throw new Error(`The BET module lacks ${name}`);
   betModule = module;
 }
+function uint(value: unknown, max: number): number | null {
+  return typeof value === "number" && Number.isInteger(value) && value >= 0 && value <= max ? value : null;
+}
+/**
+ * `sitl.connect`: opens the run's bridge (port and token from Main, which got them from the launcher) and steps the
+ * session on its servo frames. The session must be in sitl-lockstep with the profile model loaded and started.
+ */
+function connectSitl(data: Record<string, unknown>): void {
+  const current = session;
+  if (!current || !buffers) throw new Error("The physics session is not initialized");
+  if (current.mode !== "sitl-lockstep") throw new Error("Configure the session for sitl-lockstep before connecting SITL");
+  if (sitl) throw new Error("An integrated SITL session is already connected");
+  const port = uint(data.port, 65535), bridgeEpoch = uint(data.bridgeEpoch, 0xffffffff), motorMapId = uint(data.motorMapId, 0xffffffff);
+  const channels: unknown = data.motorChannels;
+  if (port === null || bridgeEpoch === null || motorMapId === null || typeof data.token !== "string" || typeof data.speedup !== "number" ||
+    !Array.isArray(channels) || channels.length < 1 || channels.length > 16) throw new Error("Invalid sitl.connect message");
+  const motorChannels = channels.map(channel => uint(channel, 16));
+  if (motorChannels.some(channel => channel === null || channel === 0)) throw new Error("Invalid motor channels");
+  const [url, protocols] = bridgeSocketArguments(port, data.token);
+  const socket = new WebSocket(url, protocols);
+  socket.binaryType = "arraybuffer";
+  const client = new SitlBridgeClient(buffers.state, buffers.actuator, {
+    bridgeEpoch, motorChannels: motorChannels.map(Number), motorMapId, sessionEpoch: current.currentEpoch, speedup: data.speedup,
+  }, {
+    pump: () => { current.pump(); },
+    flush,
+    post,
+    send: record => { if (socket.readyState === WebSocket.OPEN) socket.send(record); },
+    close: reason => socket.close(1000, reason.slice(0, 120)),
+    nowMs: () => performance.now(),
+  });
+  sitl = { client, socket };
+  socket.onopen = () => client.opened();
+  socket.onmessage = event => { if (event.data instanceof ArrayBuffer) client.receive(new Uint8Array(event.data)); };
+  socket.onclose = event => {
+    client.closed(event.code, event.reason);
+    if (sitl?.client === client) sitl = null;
+  };
+}
+function handleSitl(data: unknown): boolean {
+  if (isTyped(data, "sitl.connect")) {
+    try { connectSitl(data); } catch (error) { post({ type: "sitl.reject", message: error instanceof Error ? error.message : "Invalid sitl.connect" }); }
+    return true;
+  }
+  if (isTyped(data, "sitl.mavlink.send")) {
+    if (!(data.bytes instanceof Uint8Array) || !sitl?.client.sendMavlink(data.bytes)) post({ type: "sitl.reject", message: "No open SITL session for MAVLink" });
+    return true;
+  }
+  if (isTyped(data, "sitl.disconnect")) {
+    sitl?.client.close();
+    return true;
+  }
+  return false;
+}
 function isScenarioArm(data: unknown): data is { type: "scenario.arm"; scenario: unknown } {
   return typeof data === "object" && data !== null && "type" in data && data.type === "scenario.arm" && "scenario" in data;
 }
@@ -153,6 +211,7 @@ addEventListener('message', (event: MessageEvent<unknown>) => {
           created.handle(command);
         }
       });
+      buffers = { state: data.stateBuffer, actuator: data.actuatorBuffer };
       post(session.readyEvent());
     } catch (error) {
       post({ type: 'fault-v2', protocolVersion: 2, message: error instanceof Error ? error.message : 'Initialization failed' });
@@ -191,6 +250,7 @@ addEventListener('message', (event: MessageEvent<unknown>) => {
     }
     return;
   }
+  if (handleSitl(data)) return;
   if (isScenarioArm(data)) {
     armScenario(data.scenario);
     return;
@@ -209,5 +269,5 @@ addEventListener('message', (event: MessageEvent<unknown>) => {
   // A model load completes asynchronously; deliver its final result when it settles.
   void current.settled().then(() => { flush(); schedule(); });
   schedule();
-  if (current.disposed) { clearTimeout(timer); close(); }
+  if (current.disposed) { clearTimeout(timer); sitl?.client.close(); close(); }
 });

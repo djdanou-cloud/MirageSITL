@@ -586,6 +586,19 @@ WebSocket bridge (`apps/bridge`) for JSON physics, and a loopback relay
 carries SITL's MAVLink into that bridge. Diagnostics and DataFlash logs are
 served by name. The [runbook](operations/runbook.md) gives the operation.
 
+## Integrated SITL session (TASK-153)
+
+The Run tab's ArduPilot SITL backend flies an aircraft profile of the open
+project with native ArduPilot. Main prepares the vehicle and acts as the
+ground station; the launcher starts an owned SITL run and its bridge; the
+physics Worker owns the WebSocket to that bridge and runs `SitlJsonLink`
+between it and the PhysicsSessionV2 in sitl-lockstep, so each servo frame is
+stepped and answered in the Worker without a round trip through Main.
+MAVLink passes Worker → Main for the ground station and Main → Worker for its
+commands. READY comes from LiveEkfWarmup in the Worker on this run's
+acknowledged JSON IMU samples and CRC-checked autopilot diagnostics. The
+contract is in [SPECS_SIMULATION_ENGINES.md](SPECS_SIMULATION_ENGINES.md).
+
 ## Phase 0 contracts: fixtures, capabilities, and models
 
 TASK-004–006 introduce configuration-time boundaries; they do not add a new
