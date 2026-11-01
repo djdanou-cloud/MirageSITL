@@ -96,8 +96,11 @@ implementation.
   drive Rapier ground contact via contact ABI v2 (TASK-065), supplying each wheel
   and the airframe with the underlying terrain triangle plane every tick and pausing
   stepping when ground is missing. Profile flight sessions stand on the decision
-  D-07 supports of TASK-095 (manifest derivation 3); terrain planes in sessions
-  and live terrain admission remain open.
+  D-07 supports of TASK-095, and their standard hull (a body cylinder and arm
+  capsules, not measured) and propeller discs report every ground contact
+  through contact ABI v3 (manifest derivation 4; accident events are TASK-149,
+  the propeller clearance check TASK-195); terrain planes in sessions and live
+  terrain admission remain open.
 * **JSBSim WASM, contact backend, and UIUC propellers (TASK-030, TASK-031, TASK-086):**
   `node scripts/build-jsbsim.mjs` requires verified `JSBSIM_SOURCE_DIR` and
   `MIRAGE_EMSDK_DIR` checkouts with Emscripten 4.0.15 (aircraft XML remains local

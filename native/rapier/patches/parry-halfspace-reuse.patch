@@ -1,0 +1,33 @@
+--- a/src/query/contact_manifolds/contact_manifolds_halfspace_pfm.rs
++++ b/src/query/contact_manifolds/contact_manifolds_halfspace_pfm.rs
+@@ -1,4 +1,4 @@
+-use crate::math::{Pose, Real};
++use crate::math::{Pose, Real, Vector};
+ use crate::query::{ContactManifold, TrackedContact};
+ use crate::shape::{HalfSpace, PackedFeatureId, PolygonalFeature, PolygonalFeatureMap, Shape};
+ 
+@@ -56,9 +56,14 @@
+     let mut feature2 = PolygonalFeature::default();
+     pfm2.local_support_feature(-normal1_2, &mut feature2);
+ 
+-    // We do this clone to perform contact tracking and transfer impulses.
+-    // TODO: find a more efficient way of doing this.
+-    let old_manifold_points = core::mem::take(&mut manifold.points);
++    // MirageSITL (TASK-095): keep the points' storage rather than taking it, so a manifold
++    // that meets the plane step after step allocates nothing. A polygonal feature has at most
++    // four vertices, so the previous points fit on the stack for the impulse transfer.
++    let filler = TrackedContact::new(Vector::ZERO, Vector::ZERO, PackedFeatureId::UNKNOWN, PackedFeatureId::UNKNOWN, 0.0);
++    let mut old_manifold_points = [filler; 4];
++    let kept = manifold.points.len().min(4);
++    old_manifold_points[..kept].copy_from_slice(&manifold.points[..kept]);
++    manifold.points.clear();
+ 
+     for i in 0..feature2.num_vertices {
+         let vtx2 = feature2.vertices[i];
+@@ -89,5 +94,5 @@
+     // println!("Found contacts: {}", manifold.points.len());
+ 
+     // Transfer impulses.
+-    manifold.match_contacts(&old_manifold_points);
++    manifold.match_contacts(&old_manifold_points[..kept]);
+ }

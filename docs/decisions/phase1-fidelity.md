@@ -112,6 +112,14 @@ profile without a clearance uses the lowest point of its body hull. The body
 hull and every propeller disk are separate contact shapes that never carry
 support.
 
+TASK-095 implements this (2026-11-01). The body hull is the standard hull that
+derivation 4 works out from the arms and propellers by the user's decision of
+that day (a body cylinder and one capsule per arm, marked not measured; body
+size fields are TASK-196), and each rotor adds a propeller disc. A profile
+without a clearance rests with the hull's lowest point one static deflection
+`δ_s` above the ground, so the resting hull stays clear of it and a hard
+landing that doubles the load reaches it.
+
 **Default parameters (F-08, decided).** Defaults are derived from numbers
 the stakeholder chose on 2026-10-28, rather than stored as fixed spring
 constants: the static deflection `δ_s` under the aircraft's weight, the damping

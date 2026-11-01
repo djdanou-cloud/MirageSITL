@@ -82,26 +82,32 @@ describe('the standard landing gear on the ground contact (TASK-095)', () => {
   for (const name of FIXTURE_NAMES) {
     it(`${name} starts on its extended feet and comes to rest on them at 400, 800 and 1200 Hz`, async () => {
       const built = await build(profileOf(name)), { configuration, gear, derived, limitations } = built;
-      // Decision F-07 places the supports at the profile's ground clearance; octa-x states none, so it stays on the pad and says so.
-      if (derived.manifest.landingGear.length === 0) {
-        expect(name).toBe('octa-x');
-        expect([gear, configuration.syntheticGroundDownM]).toEqual([null, 0]);
-        expect(limitations.some(text => text.includes('no landing gear'))).toBe(true);
-        return;
-      }
+      // Every S19 configuration stands on the decision D-07 supports; octa-x, without a ground clearance, on supports below its
+      // standard hull (derivation 4).
       if (!gear) throw new Error('No gear');
+      expect(limitations.some(text => text.includes('no landing gear'))).toBe(false);
       const { touchM, restM } = standardGearHeights(derived.manifest);
       expect(configuration.syntheticGroundDownM).toBeUndefined();
       expect(configuration.initialBody.positionNedM[2]).toBeCloseTo(-touchM, 12);
-      // The contact sphere about the CG stays clear of the ground with every strut and foot fully compressed.
-      expect(gear.hullRadiusM).toBeGreaterThan(0);
-      for (const wheel of gear.wheels) expect(gear.hullRadiusM).toBeLessThan(wheel.anchorBodyM[2] - wheel.strutTravelM + wheel.rimRadiusM);
+      // The hull, then a propeller disc per rotor, each named for TASK-149.
+      const hull = derived.manifest.hull ?? [];
+      expect(gear.shapes).toHaveLength(hull.length + derived.manifest.rotorCount);
+      expect(gear.parts).toEqual([...hull.map(shape => ({ part: 'hull', hullId: shape.id })),
+        ...derived.manifest.rotors.map(rotor => ({ part: 'propeller', rotorId: rotor.id }))]);
       for (const hz of [400, 800, 1200] as const) {
         const d = profileFlightDynamics(module, built, hz), frame = newActuatorFrameV2(), pilot = newInput();
         frame.motorMapId = configuration.motorMapId; frame.actuatorFlags = ActuatorFlagV2.Armed; frame.actuatorCount = derived.manifest.rotorCount;
         try {
-          for (let k = 0; k < 2 * hz; k++) { d.useActuators(frame); d.nowMs = (k + 1) * 1000 / hz; d.stepNow(pilot); }
+          // No hull or propeller shape touches the ground on the way to rest (the D-07 supports alone carry the aircraft).
+          const report = new Float64Array(8);
+          let touched = 0;
+          for (let k = 0; k < 2 * hz; k++) {
+            d.useActuators(frame); d.nowMs = (k + 1) * 1000 / hz; d.stepNow(pilot);
+            for (let i = 0; i < d.contactShapeCount; i++) { d.contactShapeStateInto(i, report); touched += report[6]!; }
+          }
           expect(d.fault).toBe('');
+          expect(d.contactShapeCount).toBe(gear.shapes.length);
+          expect(touched, `${hz} Hz shapes touching`).toBe(0);
           expect(Math.abs(d.state.down + restM), `${hz} Hz rest height`).toBeLessThan(1e-4);
           expect(Math.abs(d.state.vd)).toBeLessThan(1e-4);
           // At rest, not chattering on the feet' friction (a wide stance once flipped the yaw rate every step).
@@ -110,6 +116,50 @@ describe('the standard landing gear on the ground contact (TASK-095)', () => {
       }
     }, 300000);
   }
+  it('a quad tipped onto its side strikes with the shape that geometry puts lowest, at 400, 800 and 1200 Hz', async () => {
+    // Oracle from the geometry alone, not the contact: rolled 60 degrees right side down and pitched 10 degrees nose down (so one
+    // disc is lowest, not a pair), each shape's lowest point sits at down = c·d + h·|a·d| + r·√(1 − (a·d)²) for a cylinder (centre
+    // c, axis a) and max over its ends + r for a capsule, with d the world down axis in body coordinates. Dropped from 5 mm above
+    // the deepest one, that shape strikes first and alone.
+    const built = await build(profileOf('quad-x')), { gear } = built;
+    if (!gear) throw new Error('No gear');
+    const roll = Math.PI / 3, pitch = -Math.PI / 18;
+    // Body-to-NED R = Ry(pitch)·Rx(roll) (ZYX Euler, no yaw); d = Rᵀ·[0, 0, 1].
+    const down: [number, number, number] = [-Math.sin(pitch), Math.cos(pitch) * Math.sin(roll), Math.cos(pitch) * Math.cos(roll)];
+    const [cr, sr, cp, sp] = [Math.cos(roll / 2), Math.sin(roll / 2), Math.cos(pitch / 2), Math.sin(pitch / 2)];
+    const dot = (a: readonly number[], b: readonly number[]) => a[0]! * b[0]! + a[1]! * b[1]! + a[2]! * b[2]!;
+    const lowest = gear.shapes.map(shape => {
+      if (shape.kind === 'capsule') return Math.max(dot(shape.startBodyM, down), dot(shape.endBodyM, down)) + shape.radiusM;
+      const along = dot(shape.axisBody, down);
+      return dot(shape.centerBodyM, down) + shape.halfHeightM * Math.abs(along) + shape.radiusM * Math.sqrt(Math.max(0, 1 - along * along));
+    });
+    const deepest = lowest.indexOf(Math.max(...lowest)), second = Math.max(...lowest.filter((_, i) => i !== deepest));
+    expect(gear.parts[deepest]?.part).toBe('propeller');
+    expect(lowest[deepest]! - second, 'a unique deepest shape').toBeGreaterThan(0.002);
+    const initialBody = { ...built.configuration.initialBody, positionNedM: Float64Array.from([0, 0, -(lowest[deepest]! + 0.005)]),
+      quaternionBodyToNed: Float64Array.from([cp * cr, cp * sr, sp * cr, -sp * sr]) };
+    const tipped = { ...built, configuration: { ...built.configuration, initialBody } };
+    for (const hz of [400, 800, 1200] as const) {
+      const d = profileFlightDynamics(module, tipped, hz), frame = newActuatorFrameV2(), pilot = newInput(), report = new Float64Array(8);
+      frame.motorMapId = built.configuration.motorMapId; frame.actuatorFlags = ActuatorFlagV2.Armed; frame.actuatorCount = 4;
+      try {
+        const first: number[] = [];
+        for (let k = 0; k < hz && first.length === 0; k++) {
+          d.useActuators(frame); d.nowMs = (k + 1) * 1000 / hz; d.stepNow(pilot);
+          for (let i = 0; i < d.contactShapeCount; i++) if (d.contactShapeStateInto(i, report) && report[6] === 1) first.push(i);
+        }
+        expect(d.fault).toBe('');
+        expect(first, `${hz} Hz first strike`).toEqual([deepest]);
+        d.contactShapeStateInto(deepest, report);
+        // The reported point is on the struck disc: within its radius of its hub, on the low (right) side.
+        const disc = gear.shapes[deepest]!;
+        if (disc.kind !== 'cylinder') throw new Error('Expected a disc');
+        const offset = [report[3]! - disc.centerBodyM[0], report[4]! - disc.centerBodyM[1], report[5]! - disc.centerBodyM[2]];
+        expect(Math.hypot(...offset)).toBeLessThan(disc.radiusM + disc.halfHeightM + 1e-6);
+        expect(report[4]!).toBeGreaterThan(0);
+      } finally { d.dispose(); }
+    }
+  }, 300000);
   it('stays on the synthetic pad for benchmarks of the BET compute alone', async () => {
     const { derived } = await build(profileOf('quad-x'));
     const pad = buildProfileDynamics(derived.manifest, { syntheticPad: true });

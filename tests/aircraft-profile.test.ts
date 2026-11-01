@@ -7,7 +7,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { MAX_ACTUATORS } from '../packages/protocol/src/index.ts';
-import { projectVehicleToModelV1, validateVehicleManifest, VehicleRegistry, withoutLandingGear, type VehicleManifest } from '../packages/physics/src/vehicle-manifest.ts';
+import { projectVehicleToModelV1, validateVehicleManifest, VehicleRegistry, withoutHull, withoutLandingGear, type VehicleManifest } from '../packages/physics/src/vehicle-manifest.ts';
 import { canonicalBytes, ProjectStoreError } from '../packages/project/src/schema.ts';
 import { MemoryBackend, ProjectStore } from '../packages/project/src/store.ts';
 import schema from '../packages/aircraft/src/profile.schema.json';
@@ -17,7 +17,7 @@ import {
 import { deriveLayout, type RotorLayout } from '../packages/aircraft/src/layout.ts';
 import { PIO2_PARTS, sinCos, tan } from '../packages/aircraft/src/trig.ts';
 import {
-  combineMassProperties, deriveVehicleManifest, DERIVED_DATASET_ID, STANDARD_GEAR_DATASET_ID, type ResolvedComponents,
+  combineMassProperties, deriveVehicleManifest, DERIVED_DATASET_ID, STANDARD_GEAR_DATASET_ID, STANDARD_HULL_DATASET_ID, type ResolvedComponents,
 } from '../packages/aircraft/src/derive-manifest.ts';
 import {
   engineSensitiveVariant, FIXTURE_MODEL_ID, FIXTURE_NAMES, RECORDED_ENGINE_SENSITIVE_SHA256, RECORDED_MANIFEST_SHA256,
@@ -35,20 +35,25 @@ type Mutable<T> = { -readonly [K in keyof T]: Mutable<T[K]> };
 type ProfileData = Mutable<AircraftProfile>;
 
 /**
- * SHA-256 of a derivation 3 manifest put back to derivation 1: the version in
- * the input hash and in the description, and without the standard gear and
- * its dataset (derivation 3; none without a ground clearance). Without IMU mounts (derivation 2) nothing else
- * changed, so it must equal the TASK-138 recording.
+ * SHA-256 of a derivation 4 manifest put back to derivation 1: the version in
+ * the input hash and in the description, and without the standard gear
+ * (derivation 3), the standard hull (derivation 4) and their datasets. Without
+ * IMU mounts (derivation 2) nothing else changed, so it must equal the
+ * TASK-138 recording.
  */
 function asDerivation1(manifest: VehicleManifest, profile: unknown, components: ResolvedComponents): string {
   const hash = (value: unknown) => createHash('sha256').update(canonicalBytes(value)).digest('hex');
-  const [dataset, gear] = manifest.datasets;
-  if (!dataset || dataset.kind !== 'synthetic' || (gear !== undefined && gear.id !== STANDARD_GEAR_DATASET_ID) || manifest.sensorMounts.length > 0) {
-    throw new Error('Expected the profile dataset, the gear dataset or none, and no sensor mounts');
+  const [dataset, gear, hull] = manifest.datasets;
+  if (!dataset || dataset.kind !== 'synthetic' || gear?.id !== STANDARD_GEAR_DATASET_ID || hull?.id !== STANDARD_HULL_DATASET_ID ||
+    manifest.datasets.length !== 3 || manifest.sensorMounts.length > 0) {
+    throw new Error('Expected the profile, gear and hull datasets, and no sensor mounts');
   }
-  return hash({ ...manifest, landingGear: [], provenance: { ...manifest.provenance, landingGear: null },
+  const withoutHull: Record<string, unknown> = { ...manifest }, sections: Record<string, unknown> = { ...manifest.provenance };
+  delete withoutHull.hull;
+  delete sections.hull;
+  return hash({ ...withoutHull, landingGear: [], provenance: { ...sections, landingGear: null },
     datasets: [{ ...dataset, sourceSha256: hash({ derivationVersion: 1, profile: validateAircraftProfile(profile), components }),
-      derivation: dataset.derivation.replace('derivation 3 ', 'derivation 1 ') }] });
+      derivation: dataset.derivation.replace('derivation 4 ', 'derivation 1 ') }] });
 }
 
 function fixture(name: FixtureName): ProfileData {
@@ -293,28 +298,37 @@ describe('manifest derivation', () => {
     expect(manifest.rotorWakePairs).toEqual(deriveLayout(validateAircraftProfile(profile)).wakePairs.map(pair =>
       ({ upstreamRotorId: pair.upstreamMotorId, downstreamRotorId: pair.downstreamMotorId })));
     expect(manifest.massProperties).toEqual(combineMassProperties(profile.massProperties, profile.payload));
-    // One synthetic dataset names the exact inputs, and every profile section points to it; the standard gear, which needs the
-    // ground clearance, has its own.
-    const geared = profile.groundClearanceM !== null;
+    // One synthetic dataset names the exact inputs, and every profile section points to it; the standard gear and the standard
+    // hull have their own.
     expect(manifest.datasets).toEqual([{ id: DERIVED_DATASET_ID, kind: 'synthetic', sourceSha256: derived.inputSha256,
       derivation: expect.stringContaining(derived.profileSha256) as unknown },
-    ...(geared ? [{ id: STANDARD_GEAR_DATASET_ID, kind: 'synthetic', sourceSha256: null,
-      derivation: expect.stringContaining('synthetic and not measured') as unknown }] : [])]);
+    { id: STANDARD_GEAR_DATASET_ID, kind: 'synthetic', sourceSha256: null, derivation: expect.stringContaining('synthetic and not measured') as unknown },
+    { id: STANDARD_HULL_DATASET_ID, kind: 'synthetic', sourceSha256: null, derivation: expect.stringContaining('synthetic and not measured') as unknown }]);
     expect(manifest.provenance).toEqual({ massProperties: DERIVED_DATASET_ID, rotors: DERIVED_DATASET_ID, motors: DERIVED_DATASET_ID,
-      escs: DERIVED_DATASET_ID, battery: DERIVED_DATASET_ID, airframeDrag: null, controlSurfaces: null,
-      landingGear: geared ? STANDARD_GEAR_DATASET_ID : null,
-      sensorMounts: null, rotorWakePairs: manifest.rotorWakePairs.length > 0 ? DERIVED_DATASET_ID : null });
+      escs: DERIVED_DATASET_ID, battery: DERIVED_DATASET_ID, airframeDrag: null, controlSurfaces: null, landingGear: STANDARD_GEAR_DATASET_ID,
+      sensorMounts: null, rotorWakePairs: manifest.rotorWakePairs.length > 0 ? DERIVED_DATASET_ID : null, hull: STANDARD_HULL_DATASET_ID });
     // The dataset hashes are those of the canonical profile and of the canonical derivation input.
     const hash = (value: unknown) => createHash('sha256').update(canonicalBytes(value)).digest('hex');
     const validated = validateAircraftProfile(profile), components = syntheticComponents(validated);
     expect(derived.profileSha256).toBe(hash(validated));
-    expect(derived.inputSha256).toBe(hash({ derivationVersion: 3, profile: validated, components }));
+    expect(derived.inputSha256).toBe(hash({ derivationVersion: 4, profile: validated, components }));
+    // The standard hull as the user decided on 2026-11-01 (TASK-095 increment 4): a body cylinder about the body z axis through
+    // the reference point, radius a quarter of the shortest arm and half-height 0.4 of that radius, and one capsule per arm from the
+    // body axis to its mount at the arm's height, radius 5 % of the arm's largest propeller radius (0.14 m for every synthetic rotor).
+    const shortest = Math.min(...profile.arms.map(arm => arm.lengthM)), bodyRadius = shortest / 4;
+    expect(manifest.hull).toEqual([
+      { id: 0, kind: 'cylinder', centerBodyM: [0, 0, 0], axisBody: [0, 0, 1], radiusM: bodyRadius, halfHeightM: 0.4 * bodyRadius },
+      ...profile.arms.map((arm, i) => ({ id: i + 1, kind: 'capsule', startBodyM: [0, 0, -arm.heightM || 0],
+        endBodyM: [expect.closeTo(arm.lengthM * Math.cos(arm.azimuthRad), 12) as unknown, expect.closeTo(arm.lengthM * Math.sin(arm.azimuthRad), 12) as unknown,
+          -arm.heightM || 0], radiusM: 0.05 * 0.14 })),
+    ]);
     // The standard gear against decision D-07 as docs/decisions/phase1-fidelity.md states it: one support under each arm at the arm's
     // motor radius (F-07), the reference point at the ground clearance at rest, k = m·g/(N·δ_s) and c = 2·ζ·√(k·m/N) with δ_s = 5 mm,
-    // ζ = 0.7, μ_s = 0.6 and μ_k = 0.5 (F-08). A profile without a clearance has no supports until the body hull exists.
-    const clearance = profile.groundClearanceM;
-    if (clearance === null) expect(manifest.landingGear).toEqual([]);
-    else {
+    // ζ = 0.7, μ_s = 0.6 and μ_k = 0.5 (F-08). A profile without a clearance rests with the hull's lowest point (the body's
+    // bottom or an arm's underside, level) one static deflection above the ground.
+    const lowest = Math.max(0.4 * bodyRadius, ...profile.arms.map(arm => -arm.heightM + 0.05 * 0.14));
+    const clearance = profile.groundClearanceM ?? lowest + 0.005;
+    {
       const n = profile.arms.length, m = manifest.massProperties.massKg, k = m * 9.80665 / (n * 0.005);
       expect(manifest.landingGear).toHaveLength(n);
       manifest.landingGear.forEach((gear, i) => {
@@ -408,15 +422,16 @@ describe('manifest derivation', () => {
     const derived = await deriveVehicleManifest(quad, syntheticComponents(validateAircraftProfile(quad), false), { modelId: FIXTURE_MODEL_ID });
     expect([derived.manifest.motors, derived.manifest.escs, derived.manifest.battery]).toEqual([[], [], null]);
     expect([derived.manifest.provenance.motors, derived.manifest.provenance.escs, derived.manifest.provenance.battery]).toEqual([null, null, null]);
-    // The ground contact, not the rigid body, consumes the gear (TASK-095), so it is taken out before the projection.
-    const v1 = projectVehicleToModelV1(withoutLandingGear(derived.manifest));
+    // The ground contact, not the rigid body, consumes the gear and the hull (TASK-095), so they are taken out before the projection.
+    expect(() => projectVehicleToModelV1(withoutLandingGear(derived.manifest))).toThrow('hull (TASK-095)');
+    const v1 = projectVehicleToModelV1(withoutHull(withoutLandingGear(derived.manifest)));
     const cg = quad.massProperties.cgOffsetBodyM;
     // The v1 descriptor is CG-referenced: hub minus CG.
     expectVector(v1.rotors[0]!.hubPositionBodyM, derived.manifest.rotors[0]!.hubPositionBodyM.map((value, i) => value - cg[i]!), 'v1 hub');
     // Wake pairs have no v1 consumer yet (TASK-101), so a coaxial manifest fails closed there.
     const x8 = fixture('coaxial-x8');
     const coaxial = await deriveVehicleManifest(x8, syntheticComponents(validateAircraftProfile(x8), false), { modelId: FIXTURE_MODEL_ID });
-    expect(() => projectVehicleToModelV1(withoutLandingGear(coaxial.manifest))).toThrow('rotorWakePairs (TASK-101)');
+    expect(() => projectVehicleToModelV1(withoutHull(withoutLandingGear(coaxial.manifest)))).toThrow('rotorWakePairs (TASK-101)');
     expect(() => projectVehicleToModelV1(derived.manifest)).toThrow('landingGear (TASK-095)');
   });
 

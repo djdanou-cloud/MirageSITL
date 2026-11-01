@@ -1,5 +1,5 @@
 //! Same-source native captures for independent WASM comparison and G1 evidence.
-use mirage_contact::contact::{CONFIG_COUNT, OUTPUT_COUNT};
+use mirage_contact::contact::{CONFIG_COUNT, OUTPUT_COUNT, SHAPE_BASE, SHAPE_STRIDE};
 use mirage_contact::*;
 fn main() {
     unsafe {
@@ -7,7 +7,9 @@ fn main() {
         print!("{{\"schemaVersion\":1,\"cases\":[");
         let mut first = true;
         for hz in [400, 800, 1200] {
-            for wheels in [0, 3, 8] {
+            // The last case drops a version 5 hull (a body cylinder, four arm capsules and four
+            // propeller discs, TASK-095) onto the ground without wheels.
+            for (wheels, shapes) in [(0, 0), (3, 0), (8, 0), (0, 9)] {
                 let mut c = [0.0; CONFIG_COUNT];
                 c[0] = 1.0;
                 c[2] = if wheels == 0 { 1.0 } else { 10.0 };
@@ -42,6 +44,32 @@ fn main() {
                     c[b + 33] = 0.05;
                     c[b + 97] = 1000.0;
                 }
+                if shapes > 0 {
+                    c[0] = 5.0;
+                    c[1] = shapes as f64;
+                    let body = SHAPE_BASE;
+                    c[body] = 2.0;
+                    c[body + 6] = 1.0;
+                    c[body + 7] = 0.06;
+                    c[body + 8] = 0.025;
+                    for i in 0..4 {
+                        let a = std::f64::consts::FRAC_PI_4 + std::f64::consts::FRAC_PI_2 * i as f64;
+                        let (x, y) = (0.25 * a.cos(), 0.25 * a.sin());
+                        let arm = SHAPE_BASE + (1 + i) * SHAPE_STRIDE;
+                        c[arm] = 1.0;
+                        c[arm + 4] = x;
+                        c[arm + 5] = y;
+                        c[arm + 7] = 0.007;
+                        let disc = SHAPE_BASE + (5 + i) * SHAPE_STRIDE;
+                        c[disc] = 2.0;
+                        c[disc + 1] = x;
+                        c[disc + 2] = y;
+                        c[disc + 3] = -0.04;
+                        c[disc + 6] = 1.0;
+                        c[disc + 7] = 0.13;
+                        c[disc + 8] = 0.003;
+                    }
+                }
                 std::ptr::copy_nonoverlapping(c.as_ptr(), contact_config_ptr(), CONFIG_COUNT);
                 assert_eq!(contact_initialize(), 0);
                 let input = contact_input_ptr();
@@ -62,7 +90,7 @@ fn main() {
                     assert_eq!(
                         status,
                         0,
-                        "rate={hz} wheels={wheels} tick={i} calls={} bytes={}",
+                        "rate={hz} wheels={wheels} shapes={shapes} tick={i} calls={} bytes={}",
                         contact_allocation_calls(),
                         contact_allocation_bytes()
                     );
@@ -80,7 +108,7 @@ fn main() {
                     print!(",");
                 }
                 first = false;
-                print!("{{\"hz\":{hz},\"wheels\":{wheels},\"steps\":{steps},\"allocationCalls\":{},\"allocationBytes\":{},\"config\":[",contact_allocation_calls(),contact_allocation_bytes());
+                print!("{{\"hz\":{hz},\"wheels\":{wheels},\"shapes\":{shapes},\"steps\":{steps},\"allocationCalls\":{},\"allocationBytes\":{},\"config\":[",contact_allocation_calls(),contact_allocation_bytes());
                 for (j, v) in c.iter().enumerate() {
                     if j > 0 {
                         print!(",");

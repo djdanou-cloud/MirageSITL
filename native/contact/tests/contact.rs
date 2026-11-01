@@ -688,3 +688,210 @@ fn a_light_airframe_on_a_wide_stance_rests_without_yaw_chatter() {
         assert!(rate < 1e-4, "{hz} Hz: {rate} rad/s");
     }
 }
+
+// TASK-095 increment 4: hull and propeller shapes (configuration version 5).
+use mirage_contact::contact::{MAX_SHAPES, SHAPE_BASE, SHAPE_OUTPUT_BASE, SHAPE_OUTPUT_STRIDE, SHAPE_STRIDE};
+fn capsule(c: &mut [f64; CONFIG_COUNT], start: [f64; 3], end: [f64; 3], radius: f64) {
+    let i = c[1] as usize;
+    let s = SHAPE_BASE + i * SHAPE_STRIDE;
+    c[0] = 5.0;
+    c[1] += 1.0;
+    c[s] = 1.0;
+    c[s + 1..s + 4].copy_from_slice(&start);
+    c[s + 4..s + 7].copy_from_slice(&end);
+    c[s + 7] = radius;
+}
+fn cylinder(c: &mut [f64; CONFIG_COUNT], centre: [f64; 3], axis: [f64; 3], radius: f64, half_height: f64) {
+    let i = c[1] as usize;
+    let s = SHAPE_BASE + i * SHAPE_STRIDE;
+    c[0] = 5.0;
+    c[1] += 1.0;
+    c[s] = 2.0;
+    c[s + 1..s + 4].copy_from_slice(&centre);
+    c[s + 4..s + 7].copy_from_slice(&axis);
+    c[s + 7] = radius;
+    c[s + 8] = half_height;
+}
+/// A 1 kg body without wheels whose shapes alone meet the level ground through the origin.
+fn hull_body(drop_m: f64) -> [f64; CONFIG_COUNT] {
+    let mut c = sphere();
+    c[4] = 0.0;
+    c[8] = -drop_m;
+    c[19] = 0.01;
+    c[20] = 0.01;
+    c[21] = 0.01;
+    c
+}
+/// Report of shape `i` from a step output: penetration, impulse, force, point, touching.
+fn report(o: &[f64; OUTPUT_COUNT], i: usize) -> [f64; 7] {
+    let b = SHAPE_OUTPUT_BASE + i * SHAPE_OUTPUT_STRIDE;
+    [o[b], o[b + 1], o[b + 2], o[b + 3], o[b + 4], o[b + 5], o[b + 6]]
+}
+/// Settles a configuration for `seconds` and returns the last output.
+fn settle(c: &[f64; CONFIG_COUNT], hz: usize, seconds: f64) -> [f64; OUTPUT_COUNT] {
+    let mut last = [0.0; OUTPUT_COUNT];
+    run(c, hz, 0.0, seconds, |_, o| last = *o);
+    last
+}
+#[test]
+fn hull_shapes_rest_on_their_geometric_lowest_point() {
+    // Oracles from the geometry alone: a horizontal capsule rests at its axis depth plus its
+    // radius, a vertical cylinder at its half-height. The CG then sits that far above the
+    // ground, and the shapes carry m g.
+    let cases: [(&str, f64, fn(&mut [f64; CONFIG_COUNT])); 2] = [
+        ("capsule", 0.05 + 0.03, |c| capsule(c, [-0.2, 0.0, 0.05], [0.2, 0.0, 0.05], 0.03)),
+        ("cylinder", 0.04, |c| cylinder(c, [0.0; 3], [0.0, 0.0, 1.0], 0.1, 0.04)),
+    ];
+    for (name, depth, build) in cases {
+        for hz in [400, 800, 1200] {
+            let mut c = hull_body(depth + 0.02);
+            build(&mut c);
+            let o = settle(&c, hz, 1.5);
+            let r = report(&o, 0);
+            println!("{name} {hz} Hz: CG {:.5} m against {depth:.5}, force {:.4} N, point z {:.5}", -o[2], r[2], r[5]);
+            assert!((-o[2] - depth).abs() < 2e-3, "{name} {hz} Hz: CG height {} against {depth}", -o[2]);
+            assert!((r[2] - 9.80665).abs() < 0.02 * 9.80665, "{name} {hz} Hz: force {}", r[2]);
+            assert!((r[1] - r[2] / hz as f64).abs() < 1e-9 * r[2].max(1.0), "{name} {hz} Hz: impulse {} against force dt", r[1]);
+            assert_eq!(r[6], 1.0, "{name} {hz} Hz: touching");
+            assert!(r[0] >= 0.0 && r[0] < 2e-3, "{name} {hz} Hz: penetration {}", r[0]);
+            assert!((r[5] - depth).abs() < 2e-3, "{name} {hz} Hz: point depth {} against {depth}", r[5]);
+        }
+    }
+}
+#[test]
+fn a_tilted_disc_reports_its_rim_point_and_depth() {
+    // A disc tilted by a about x (axis [0, -sin a, cos a]) has its lowest rim point at
+    // y = r cos a - h sin a, z = h cos a + r sin a below its centre. Held 1 mm too low for one
+    // step, it reports that point and 1 mm of penetration (a lone disc would roll flat later).
+    let (a, r, h): (f64, f64, f64) = (0.5, 0.1, 0.04);
+    let (y, z) = (r * a.cos() - h * a.sin(), h * a.cos() + r * a.sin());
+    for hz in [400, 800, 1200] {
+        let mut c = hull_body(z - 0.001);
+        cylinder(&mut c, [0.0; 3], [0.0, -a.sin(), a.cos()], r, h);
+        let mut contact = Contact::new(&c).unwrap();
+        let mut input = [0.0; INPUT_COUNT];
+        input[14] = 1.0 / hz as f64;
+        let o = contact.step(&input).unwrap();
+        let p = report(&o, 0);
+        println!("tilted disc {hz} Hz: penetration {:.6} m, point [{:.5}, {:.5}, {:.5}] against [0, {y:.5}, {z:.5}]", p[0], p[3], p[4], p[5]);
+        assert!((p[0] - 0.001).abs() < 1e-6, "{hz} Hz: penetration {}", p[0]);
+        assert!(p[3].abs() < 1e-6 && (p[4] - y).abs() < 1e-6 && (p[5] - z).abs() < 1e-6, "{hz} Hz: point {:?}", &p[3..6]);
+        assert_eq!(p[6], 1.0);
+        assert!(p[2] > 0.0, "{hz} Hz: force {}", p[2]);
+        assert_eq!([o[22], o[23], o[24]], [p[3], p[4], p[5]], "{hz} Hz: airframe point");
+    }
+}
+#[test]
+fn only_the_shape_that_touches_reports_contact() {
+    // The quad rests on its four feet (tire bottoms at 0.5 m below the CG). Shape 0 is a body
+    // cylinder well above the ground; shape 1 a capsule under arm 0 reaching 0.45 m down, which
+    // stays clear on the feet; shape 2 a disc under arm 2 reaching 0.52 m down, below the feet,
+    // so it touches and lifts that side.
+    for hz in [400, 800, 1200] {
+        // Version 5 wheels state their kinetic ratio, as version 4 introduced.
+        let mut c = kinetic(quad_gear(0.0), 1.0);
+        cylinder(&mut c, [0.0, 0.0, 0.0], [0.0, 0.0, 1.0], 0.08, 0.03);
+        capsule(&mut c, [0.0, 0.0, 0.42], [0.3, 0.0, 0.42], 0.03);
+        cylinder(&mut c, [-0.3, 0.0, 0.5], [0.0, 0.0, 1.0], 0.1, 0.02);
+        let o = settle(&c, hz, 2.0);
+        let (body, arm, disc) = (report(&o, 0), report(&o, 1), report(&o, 2));
+        println!("touch {hz} Hz: disc force {:.3} N at x {:.3}, body {:?}, arm {:?}", disc[2], disc[3], body, arm);
+        assert_eq!(body, [0.0; 7], "{hz} Hz: body");
+        assert_eq!(arm, [0.0; 7], "{hz} Hz: arm");
+        assert_eq!(disc[6], 1.0, "{hz} Hz: disc touching");
+        assert!(disc[2] > 0.1, "{hz} Hz: disc force {}", disc[2]);
+        assert!((disc[3] + 0.3).abs() < 0.11, "{hz} Hz: disc point x {}", disc[3]);
+        for i in 3..MAX_SHAPES {
+            assert_eq!(report(&o, i), [0.0; 7], "{hz} Hz: unused slot {i}");
+        }
+    }
+}
+#[test]
+fn version_5_without_shapes_is_version_4_bit_for_bit() {
+    let base = kinetic(quad_on_slope(0.2, 0.3, [0.5, 0.2, 0.0]), 0.8);
+    let mut five = base;
+    five[0] = 5.0;
+    for hz in [400, 800, 1200] {
+        let (mut a, mut b) = (Vec::new(), Vec::new());
+        run(&base, hz, 0.3, 1.0, |_, o| a.push(*o));
+        run(&five, hz, 0.3, 1.0, |_, o| b.push(*o));
+        assert!(a.iter().zip(&b).all(|(x, y)| x.iter().zip(y).all(|(p, q)| p.to_bits() == q.to_bits())), "{hz} Hz");
+    }
+}
+#[test]
+fn version_5_alone_accepts_valid_shapes() {
+    let mut good = hull_body(0.2);
+    capsule(&mut good, [0.0; 3], [0.1, 0.0, 0.0], 0.02);
+    assert!(Contact::new(&good).is_ok());
+    let mut v4 = good;
+    v4[0] = 4.0;
+    assert_eq!(Contact::new(&v4).err(), Some(-2), "shapes before version 5");
+    let cases: [(&str, fn(&mut [f64; CONFIG_COUNT])); 8] = [
+        ("unknown kind", |c| c[SHAPE_BASE] = 3.0),
+        ("zero radius", |c| c[SHAPE_BASE + 7] = 0.0),
+        ("reserved slot", |c| c[SHAPE_BASE + 9] = 1.0),
+        ("capsule half-height slot", |c| c[SHAPE_BASE + 8] = 0.1),
+        ("too many shapes", |c| c[1] = (MAX_SHAPES + 1) as f64),
+        ("fractional count", |c| c[1] = 0.5),
+        ("slot past the count", |c| c[SHAPE_BASE + SHAPE_STRIDE] = 1.0),
+        ("cylinder axis not unit", |c| {
+            c[SHAPE_BASE] = 2.0;
+            c[SHAPE_BASE + 4] = 0.5;
+            c[SHAPE_BASE + 8] = 0.01;
+        }),
+    ];
+    for (name, spoil) in cases {
+        let mut c = good;
+        spoil(&mut c);
+        assert_eq!(Contact::new(&c).err(), Some(-2), "{name}");
+    }
+}
+#[test]
+fn a_tumbling_hull_on_the_ground_never_allocates() {
+    // A quad hull with eight propeller discs bounces and tumbles across the ground under
+    // alternating thrust and torque for 120,000 steps: every shape meets the ground from many
+    // attitudes. Any allocation inside a step faults the ABI with -6.
+    let _abi = ABI.lock().unwrap();
+    unsafe {
+        let mut c = kinetic(quad_gear(0.0), 0.8);
+        cylinder(&mut c, [0.0; 3], [0.0, 0.0, 1.0], 0.08, 0.03);
+        for i in 0..4 {
+            let a = std::f64::consts::FRAC_PI_2 * i as f64;
+            // Arms reach past the discs (0.4 + 0.14 m), so a capsule can meet the ground too.
+            capsule(&mut c, [0.0; 3], [0.6 * a.cos(), 0.6 * a.sin(), 0.0], 0.01);
+            for (k, z) in [-0.03, 0.03].iter().enumerate() {
+                let tilt = 0.1 * (k as f64 - 0.5);
+                cylinder(&mut c, [0.4 * a.cos(), 0.4 * a.sin(), *z], [tilt.sin(), 0.0, tilt.cos()], 0.14, 0.0035);
+            }
+        }
+        assert_eq!(c[1], 13.0);
+        // Light in rotation, so the torques tip it over onto its arms and discs.
+        for k in 0..3 {
+            c[19 + k] = 0.03;
+        }
+        std::ptr::copy_nonoverlapping(c.as_ptr(), contact_config_ptr(), CONFIG_COUNT);
+        assert_eq!(contact_initialize(), 0);
+        let input = contact_input_ptr();
+        for i in 0..INPUT_COUNT {
+            input.add(i).write(0.0);
+        }
+        input.add(14).write(1.0 / 1200.0);
+        let mut touched = [false; 13];
+        for k in 0..120_000usize {
+            let phase = (k / 900) % 4;
+            input.add(2).write(if phase == 0 { -40.0 } else { 0.0 });
+            input.add(3).write([0.6, -0.5, 0.0, 0.3][phase]);
+            input.add(4).write([0.2, 0.6, -0.5, 0.0][phase]);
+            assert_eq!(contact_step(), 0, "step {k}");
+            for (i, t) in touched.iter_mut().enumerate() {
+                *t |= contact_output_ptr().add(SHAPE_OUTPUT_BASE + i * SHAPE_OUTPUT_STRIDE + 6).read() == 1.0;
+            }
+        }
+        assert_eq!(contact_allocation_calls(), 0.0);
+        println!("tumbling hull: shapes that touched {touched:?}");
+        let capsules = [1, 4, 7, 10].iter().filter(|i| touched[**i]).count();
+        let discs = [2, 3, 5, 6, 8, 9, 11, 12].iter().filter(|i| touched[**i]).count();
+        assert!(capsules >= 2 && discs >= 4, "{touched:?}");
+        contact_dispose();
+    }
+}

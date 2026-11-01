@@ -3,12 +3,20 @@ use mirage_bet::landing_gear::{Damping, DampingLaw, GasStrut, LinearStrut, Tange
 use rapier3d_f64::{na::Unit, prelude::*};
 
 pub const MAX_WHEELS: usize = 8;
-pub const CONFIG_COUNT: usize = 32 + MAX_WHEELS * 160;
+/// Hull and propeller shapes of configuration version 5 (TASK-095), after the wheels.
+pub const MAX_SHAPES: usize = 32;
+pub const SHAPE_BASE: usize = 32 + MAX_WHEELS * 160;
+pub const SHAPE_STRIDE: usize = 16;
+pub const CONFIG_COUNT: usize = SHAPE_BASE + MAX_SHAPES * SHAPE_STRIDE;
 /// Planes: slot 0 the airframe sphere, slots 1..=MAX_WHEELS the wheels; [nx, ny, nz, offset].
 pub const PLANE_SLOTS: usize = 1 + MAX_WHEELS;
 pub const PLANE_BASE: usize = 16;
 pub const INPUT_COUNT: usize = PLANE_BASE + 4 * PLANE_SLOTS;
-pub const OUTPUT_COUNT: usize = 32 + MAX_WHEELS * 8;
+/// Per-shape contact reports after the wheel states: [penetration m, normal impulse N s,
+/// normal force N, deepest point body FRD from the CG (3), touching 0/1, reserved].
+pub const SHAPE_OUTPUT_BASE: usize = 32 + MAX_WHEELS * 8;
+pub const SHAPE_OUTPUT_STRIDE: usize = 8;
+pub const OUTPUT_COUNT: usize = SHAPE_OUTPUT_BASE + MAX_SHAPES * SHAPE_OUTPUT_STRIDE;
 
 #[derive(Clone, Copy)]
 enum Strut {
@@ -38,9 +46,20 @@ struct Wheel {
     hold: Vector,
     held: bool,
 }
+/// A hull or propeller shape: its collider and its pose on the airframe (body FRD from the CG).
+#[derive(Clone, Copy)]
+struct Shape {
+    collider: ColliderHandle,
+    pose: Pose,
+}
 pub struct Contact {
     world: PhysicsWorld,
     body: RigidBodyHandle,
+    /// Configuration version 5 shapes, which replace the airframe sphere; none before version 5.
+    shapes: [Option<Shape>; MAX_SHAPES],
+    shape_count: usize,
+    /// The airframe ground halfspace's collider, which every shape meets.
+    ground_collider: ColliderHandle,
     wheels: Vec<Wheel>,
     mass: f64,
     /// Diagonal inertia of a version 1 configuration.
@@ -109,9 +128,9 @@ fn positive_definite(m: [f64; 9]) -> bool {
 fn valid_state(c: &[f64; CONFIG_COUNT]) -> bool {
     let reserved = if c[0] >= 2.0 { c[31] == 0.0 && positive_definite(inertia_tensor(c)) } else { c[28..32].iter().all(|x| *x == 0.0) };
     c.iter().all(|x| x.is_finite())
-        && (c[0] == 1.0 || c[0] == 2.0 || c[0] == 3.0 || c[0] == 4.0)
+        && (c[0] == 1.0 || c[0] == 2.0 || c[0] == 3.0 || c[0] == 4.0 || c[0] == 5.0)
         && reserved
-        && c[1] == 0.0
+        && valid_shapes(c)
         && c[2] > 0.0
         && c[3] > 0.0
         && (0.0..=1.0).contains(&c[4])
@@ -125,6 +144,49 @@ fn valid_state(c: &[f64; CONFIG_COUNT]) -> bool {
         && c[27] >= 0.0
         && c[27] <= MAX_WHEELS as f64
         && c[27].fract() == 0.0
+}
+/// Version 5 (TASK-095) holds `c[1]` shapes, each [kind, ...]: kind 1 a capsule [start (3),
+/// end (3), radius], kind 2 a cylinder [centre (3), unit axis (3), radius, half-height], body FRD
+/// metres from the CG, the rest of the record zero. Every slot past the count, and every shape
+/// slot before version 5, is zero.
+fn valid_shapes(c: &[f64; CONFIG_COUNT]) -> bool {
+    let count = if c[0] >= 5.0 { c[1] } else { 0.0 };
+    if (c[0] < 5.0 && c[1] != 0.0) || !(0.0..=MAX_SHAPES as f64).contains(&count) || count.fract() != 0.0 {
+        return false;
+    }
+    (0..MAX_SHAPES).all(|i| {
+        let s = &c[SHAPE_BASE + i * SHAPE_STRIDE..SHAPE_BASE + (i + 1) * SHAPE_STRIDE];
+        if i >= count as usize {
+            return s.iter().all(|v| *v == 0.0);
+        }
+        match s[0] {
+            1.0 => s[7] > 0.0 && s[8..].iter().all(|v| *v == 0.0),
+            2.0 => s[7] > 0.0 && s[8] > 0.0 && (vec(s, 4).length_squared() - 1.0).abs() < 1e-10 && s[9..].iter().all(|v| *v == 0.0),
+            _ => false,
+        }
+    })
+}
+/// The collider of a validated shape record, posed on the airframe.
+fn shape_collider(s: &[f64], friction: f64, restitution: f64) -> (ColliderBuilder, Pose) {
+    let pose = if s[0] == 1.0 {
+        Pose::identity()
+    } else {
+        // Rapier's cylinder runs along its local y axis.
+        Pose::from_parts(vec(s, 1), Rotation::from_rotation_arc(Vector::Y, vec(s, 4)))
+    };
+    let builder = if s[0] == 1.0 {
+        ColliderBuilder::capsule_from_endpoints(vec(s, 1), vec(s, 4), s[7])
+    } else {
+        ColliderBuilder::cylinder(s[8], s[7]).position(pose)
+    };
+    (
+        builder
+            .density(0.0)
+            .friction(friction)
+            .restitution(restitution)
+            .collision_groups(slot_groups(0).1),
+        pose,
+    )
 }
 impl Contact {
     pub fn new(c: &[f64; CONFIG_COUNT]) -> Result<Self, i32> {
@@ -142,19 +204,22 @@ impl Contact {
         world.integration_parameters.max_ccd_substeps = 0;
         let normal = vec(c, 22);
         let mut ground = [RigidBodyHandle::invalid(); PLANE_SLOTS];
+        let mut ground_collider = ColliderHandle::invalid();
         for (slot, handle) in ground.iter_mut().enumerate() {
             let (groups_ground, _) = slot_groups(slot);
             // Wheel rims are rigid bottom-out constraints without friction.
             let (friction, restitution) = if slot == 0 { (c[5], c[4]) } else { (0.0, 0.0) };
-            *handle = world
-                .insert(
-                    RigidBodyBuilder::fixed().translation(normal * c[25]),
-                    ColliderBuilder::halfspace(Unit::new_unchecked(normal))
-                        .friction(friction)
-                        .restitution(restitution)
-                        .collision_groups(groups_ground),
-                )
-                .0;
+            let (body, collider) = world.insert(
+                RigidBodyBuilder::fixed().translation(normal * c[25]),
+                ColliderBuilder::halfspace(Unit::new_unchecked(normal))
+                    .friction(friction)
+                    .restitution(restitution)
+                    .collision_groups(groups_ground),
+            );
+            *handle = body;
+            if slot == 0 {
+                ground_collider = collider;
+            }
         }
         let groups_moving = slot_groups(0).1;
         let inertia = vec(c, 19);
@@ -168,16 +233,29 @@ impl Contact {
             Some(m) => MassProperties::with_inertia_matrix(Vector::ZERO, c[2], m),
             None => MassProperties::new(Vector::ZERO, c[2], inertia),
         };
-        let (body, _) = world.insert(
-            RigidBodyBuilder::dynamic()
-                .can_sleep(false)
-                .additional_mass_properties(mass_properties),
-            ColliderBuilder::ball(c[3])
-                .density(0.0)
-                .friction(c[5])
-                .restitution(c[4])
-                .collision_groups(groups_moving),
-        );
+        let body_builder = RigidBodyBuilder::dynamic().can_sleep(false).additional_mass_properties(mass_properties);
+        let shape_count = if c[0] >= 5.0 { c[1] as usize } else { 0 };
+        let mut shapes = [None; MAX_SHAPES];
+        // Version 5 shapes replace the airframe sphere: all of them meet the airframe ground plane.
+        let body = if shape_count == 0 {
+            world
+                .insert(
+                    body_builder,
+                    ColliderBuilder::ball(c[3])
+                        .density(0.0)
+                        .friction(c[5])
+                        .restitution(c[4])
+                        .collision_groups(groups_moving),
+                )
+                .0
+        } else {
+            let body = world.insert_body(body_builder);
+            for (i, slot) in shapes.iter_mut().take(shape_count).enumerate() {
+                let (builder, pose) = shape_collider(&c[SHAPE_BASE + i * SHAPE_STRIDE..], c[5], c[4]);
+                *slot = Some(Shape { collider: world.insert_collider(builder, Some(body)), pose });
+            }
+            body
+        };
         let q = Rotation::from_xyzw(c[13], c[14], c[15], c[12]);
         world.bodies[body].set_rotation(q, true);
         world.bodies[body].set_translation(vec(c, 6), true);
@@ -284,6 +362,9 @@ impl Contact {
         let mut result = Self {
             world,
             body,
+            shapes,
+            shape_count,
+            ground_collider,
             wheels,
             mass: c[2],
             inertia,
@@ -660,7 +741,11 @@ impl Contact {
             moment.z,
         ];
         out[..values.len()].copy_from_slice(&values);
-        let point = r.inverse() * (-self.planes[0].0 * self.radius);
+        let point = if self.shape_count == 0 {
+            r.inverse() * (-self.planes[0].0 * self.radius)
+        } else {
+            self.report_shapes(dt, &mut out)
+        };
         out[22] = point.x;
         out[23] = point.y;
         out[24] = point.z;
@@ -669,5 +754,52 @@ impl Contact {
             return Err(-3);
         }
         Ok(out)
+    }
+    /// Writes each shape's contact with the airframe ground plane in this step and returns the
+    /// deepest touching point (body FRD from the CG), or zero without one. Rapier finds contacts
+    /// at the start of the step, so penetration and point describe the pose before integration,
+    /// and the impulse is what the solver applied over the step. A point touches once it is at or
+    /// inside the plane or carries an impulse; points within the prediction distance that carry
+    /// none are not contact.
+    fn report_shapes(&self, dt: f64, out: &mut [f64; OUTPUT_COUNT]) -> Vector {
+        let mut deepest = (0.0f64, Vector::ZERO, false);
+        for (i, shape) in self.shapes.iter().take(self.shape_count).enumerate() {
+            let Some(shape) = shape else { continue };
+            let mut penetration = 0.0f64;
+            let mut impulse = 0.0;
+            let mut touching = false;
+            let mut point = Vector::ZERO;
+            let mut closest = f64::INFINITY;
+            if let Some(pair) = self.world.contact_pair(shape.collider, self.ground_collider) {
+                let first = pair.collider1 == shape.collider;
+                for manifold in pair.manifolds() {
+                    for p in &manifold.points {
+                        if p.dist > 0.0 && p.data.impulse <= 0.0 {
+                            continue;
+                        }
+                        touching = true;
+                        impulse += p.data.impulse.abs();
+                        penetration = penetration.max(-p.dist);
+                        if p.dist < closest {
+                            closest = p.dist;
+                            let local = if first { p.local_p1 } else { p.local_p2 };
+                            point = shape.pose.translation + shape.pose.rotation * local;
+                        }
+                    }
+                }
+            }
+            let b = SHAPE_OUTPUT_BASE + i * SHAPE_OUTPUT_STRIDE;
+            out[b] = penetration;
+            out[b + 1] = impulse;
+            out[b + 2] = impulse / dt;
+            out[b + 3] = point.x;
+            out[b + 4] = point.y;
+            out[b + 5] = point.z;
+            out[b + 6] = if touching { 1.0 } else { 0.0 };
+            if touching && (!deepest.2 || -closest > deepest.0) {
+                deepest = (-closest, point, true);
+            }
+        }
+        deepest.1
     }
 }

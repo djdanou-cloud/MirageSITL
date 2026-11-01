@@ -1,17 +1,18 @@
 {
   "schemaVersion": 1,
-  "wasmSha256": "cde87e0ea0d7acd3b1dfe4885bdc2d902a7f6d69a090bbd4e6106162ac5d2bc8",
+  "wasmSha256": "1cd7aca68ed131bc5757fd456051894f76347900923b8b89e82fca35d2f73b0d",
   "manifest": {
     "schemaVersion": 1,
-    "abiVersion": 2,
+    "abiVersion": 3,
     "toolchain": "1.97.0",
     "sourceCommit": "b716d375efc0201003f0cd9ef7168eee0b62c177",
     "patchSha256": "327d04277393a775987e92a2c16c49d08f930646ea808723d82e864ae07eac09",
+    "parryPatchSha256": "3cfcb33ef5c3a2d0ecba042e9fad3bcb242d3b6c26f11941f8e9170f84dd6666",
     "engineVersion": "0.36.0",
     "precision": "f64",
     "memoryBytes": 16777216,
-    "bytes": 2022039,
-    "sha256": "cde87e0ea0d7acd3b1dfe4885bdc2d902a7f6d69a090bbd4e6106162ac5d2bc8",
+    "bytes": 2062039,
+    "sha256": "1cd7aca68ed131bc5757fd456051894f76347900923b8b89e82fca35d2f73b0d",
     "inputs": [
       {
         "file": "native/bet/Cargo.toml",
@@ -35,23 +36,27 @@
       },
       {
         "file": "native/contact/src/lib.rs",
-        "sha256": "036c098b8adce2b576fa50d2b8323855e642616fd3ba5be42946ff4be886f763"
+        "sha256": "5bb49ca74136de0bab9556b567c89ba11afca565c7a9b370c554e3b401c2109c"
       },
       {
         "file": "native/contact/src/contact.rs",
-        "sha256": "53918ae0cd2aaae7ff8fac2063391f94afa6c458591d0e498de2a8aa539d5483"
+        "sha256": "1647b38cca5599ab53866ea0ff069c8cd0685b60136e8a99004f5f4c1f33189b"
       },
       {
         "file": "native/contact/Cargo.lock",
-        "sha256": "48f10546083da774ac03a21c9da816505d5685310f8595b24cee1524c9ea79fe"
+        "sha256": "5bf281c94805618ecbf23824a4260460708fc8e03b9eb51c261708e90236e564"
       },
       {
         "file": "native/rapier/source.lock.json",
-        "sha256": "00f114de98f5cae1f3ee0a691e977738b6cce5caecf44512a5fd6ee44cb52cfd"
+        "sha256": "4de27890011351af904fd552af164b913fb9ef613c00ed7d17bb7ab962e33981"
       },
       {
         "file": "native/rapier/patches/reuse-step-buffers.patch",
         "sha256": "327d04277393a775987e92a2c16c49d08f930646ea808723d82e864ae07eac09"
+      },
+      {
+        "file": "native/rapier/patches/parry-halfspace-reuse.patch",
+        "sha256": "3cfcb33ef5c3a2d0ecba042e9fad3bcb242d3b6c26f11941f8e9170f84dd6666"
       },
       {
         "file": "native/bet/src/landing_gear.rs",
@@ -59,7 +64,7 @@
       },
       {
         "file": "scripts/build-contact.mjs",
-        "sha256": "b40fef00d293324658774ea5e1c2165e5673c7e9a59b6670c31d5069f65a92a0"
+        "sha256": "3883a45125c55ca5147ed9464cad36c0e0e2dfc9cb91cb5f0f3eb49498e4574a"
       }
     ]
   },
@@ -67,6 +72,7 @@
     {
       "hz": 400,
       "wheels": 0,
+      "shapes": 0,
       "nativeSteps": 1000000,
       "positionErrorM": 0,
       "angleErrorRad": 0,
@@ -77,6 +83,7 @@
     {
       "hz": 400,
       "wheels": 3,
+      "shapes": 0,
       "nativeSteps": 1000000,
       "positionErrorM": 0,
       "angleErrorRad": 0,
@@ -87,6 +94,18 @@
     {
       "hz": 400,
       "wheels": 8,
+      "shapes": 0,
+      "nativeSteps": 1000000,
+      "positionErrorM": 0,
+      "angleErrorRad": 0,
+      "allocationCalls": 0,
+      "allocationBytes": 0,
+      "passed": true
+    },
+    {
+      "hz": 400,
+      "wheels": 0,
+      "shapes": 9,
       "nativeSteps": 1000000,
       "positionErrorM": 0,
       "angleErrorRad": 0,
@@ -97,6 +116,7 @@
     {
       "hz": 800,
       "wheels": 0,
+      "shapes": 0,
       "nativeSteps": 1000000,
       "positionErrorM": 0,
       "angleErrorRad": 0,
@@ -107,6 +127,7 @@
     {
       "hz": 800,
       "wheels": 3,
+      "shapes": 0,
       "nativeSteps": 1000000,
       "positionErrorM": 0,
       "angleErrorRad": 0,
@@ -117,6 +138,7 @@
     {
       "hz": 800,
       "wheels": 8,
+      "shapes": 0,
       "nativeSteps": 1000000,
       "positionErrorM": 0,
       "angleErrorRad": 2.9802322387695312e-8,
@@ -125,8 +147,20 @@
       "passed": true
     },
     {
+      "hz": 800,
+      "wheels": 0,
+      "shapes": 9,
+      "nativeSteps": 1000000,
+      "positionErrorM": 0,
+      "angleErrorRad": 0,
+      "allocationCalls": 0,
+      "allocationBytes": 0,
+      "passed": true
+    },
+    {
       "hz": 1200,
       "wheels": 0,
+      "shapes": 0,
       "nativeSteps": 1000000,
       "positionErrorM": 0,
       "angleErrorRad": 0,
@@ -137,6 +171,7 @@
     {
       "hz": 1200,
       "wheels": 3,
+      "shapes": 0,
       "nativeSteps": 1000000,
       "positionErrorM": 0,
       "angleErrorRad": 0,
@@ -147,6 +182,18 @@
     {
       "hz": 1200,
       "wheels": 8,
+      "shapes": 0,
+      "nativeSteps": 1000000,
+      "positionErrorM": 0,
+      "angleErrorRad": 0,
+      "allocationCalls": 0,
+      "allocationBytes": 0,
+      "passed": true
+    },
+    {
+      "hz": 1200,
+      "wheels": 0,
+      "shapes": 9,
       "nativeSteps": 1000000,
       "positionErrorM": 0,
       "angleErrorRad": 0,

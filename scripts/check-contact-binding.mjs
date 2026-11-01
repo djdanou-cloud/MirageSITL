@@ -32,7 +32,7 @@ for (const c of native.cases) {
         }
     }
     const passed = positionErrorM <= .1 && angleErrorRad <= Math.PI / 360 && c.allocationCalls === 0 && c.allocationBytes === 0 && x.contact_allocation_calls() === 0 && x.contact_allocation_bytes() === 0;
-    results.push({ hz: c.hz, wheels: c.wheels, nativeSteps: c.steps, positionErrorM, angleErrorRad, allocationCalls: c.allocationCalls, allocationBytes: c.allocationBytes, passed });
+    results.push({ hz: c.hz, wheels: c.wheels, shapes: c.shapes, nativeSteps: c.steps, positionErrorM, angleErrorRad, allocationCalls: c.allocationCalls, allocationBytes: c.allocationBytes, passed });
     x.contact_dispose();
 }
 const report = { schemaVersion: 1, wasmSha256: createHash("sha256").update(bytes).digest("hex"), manifest: JSON.parse(readFileSync("packages/physics/dist/contact/manifest.json", "utf8")), cases: results, passed: results.every(x => x.passed), scope: "Synthetic numerical and allocation verification; NASA measured fidelity deferred by user." };

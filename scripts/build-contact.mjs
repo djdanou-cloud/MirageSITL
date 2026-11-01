@@ -1,7 +1,8 @@
-// Pinned direct f64 Rapier ABI; storage-reuse patch, no wasm-bindgen wrappers.
+// Pinned direct f64 Rapier ABI; storage-reuse patches of Rapier and parry, no wasm-bindgen wrappers.
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, writeFileSync, copyFileSync, rmdirSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync, copyFileSync, rmdirSync, rmSync, readdirSync } from "node:fs";
+import { homedir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { verifyCheckout } from "./build-jsbsim.mjs";
@@ -37,7 +38,7 @@ try {
     if (sha(readFileSync(join(source, "LICENSE"), "utf8").replaceAll("\r\n", "\n")) !== pin.licenseSha256)
         throw new Error("Rapier license hash mismatch");
     const patch = join(root, "native/rapier/patches/reuse-step-buffers.patch");
-    const files = ["native/bet/Cargo.toml", "native/bet/src/lib.rs", "native/bet/src/frame.rs", "native/bet/src/math.rs", "native/rust-toolchain.toml", "native/contact/src/lib.rs", "native/contact/src/contact.rs", "native/contact/Cargo.lock", "native/rapier/source.lock.json", "native/rapier/patches/reuse-step-buffers.patch", "native/bet/src/landing_gear.rs", "scripts/build-contact.mjs"];
+    const files = ["native/bet/Cargo.toml", "native/bet/src/lib.rs", "native/bet/src/frame.rs", "native/bet/src/math.rs", "native/rust-toolchain.toml", "native/contact/src/lib.rs", "native/contact/src/contact.rs", "native/contact/Cargo.lock", "native/rapier/source.lock.json", "native/rapier/patches/reuse-step-buffers.patch", "native/rapier/patches/parry-halfspace-reuse.patch", "native/bet/src/landing_gear.rs", "scripts/build-contact.mjs"];
     const inputs = files.filter(f => existsSync(join(root, f))).map(file => ({ file, sha256: sha(readFileSync(join(root, file))) }));
     const out = join(root, "packages/physics/dist/contact");
     const manifestPath = join(out, "manifest.json");
@@ -69,9 +70,10 @@ try {
             const paths = execFileSync("git", ["ls-files"], { cwd: source, encoding: "utf8" }).trim().split("\n");
             writeFileSync(stampPath, JSON.stringify({ commit: pin.commit, patch: sha(readFileSync(patch)), files: paths.map(path => ({ path, sha256: sha(readFileSync(join(prepared, path))) })) }));
         }
+        const parry = await prepareParry();
         const build = join(cache, "binding");
         mkdirSync(build, { recursive: true });
-        const manifest = `[package]\nname="mirage-contact"\nversion="0.1.0"\nedition="2021"\nrust-version="1.97"\n[lib]\npath=${JSON.stringify(join(root, "native/contact/src/lib.rs").replaceAll("\\", "/"))}\ncrate-type=["cdylib","rlib"]\n[dependencies]\nrapier3d-f64={path=${JSON.stringify(join(prepared, "crates/rapier3d-f64").replaceAll("\\", "/"))},default-features=false,features=["dim3","f64","std","enhanced-determinism"]}\nmirage-bet={path=${JSON.stringify(join(root, "native/bet").replaceAll("\\", "/"))}}\n[profile.release]\nlto=true\ncodegen-units=1\npanic="abort"\nstrip=true\n`;
+        const manifest = `[package]\nname="mirage-contact"\nversion="0.1.0"\nedition="2021"\nrust-version="1.97"\n[lib]\npath=${JSON.stringify(join(root, "native/contact/src/lib.rs").replaceAll("\\", "/"))}\ncrate-type=["cdylib","rlib"]\n[dependencies]\nrapier3d-f64={path=${JSON.stringify(join(prepared, "crates/rapier3d-f64").replaceAll("\\", "/"))},default-features=false,features=["dim3","f64","std","enhanced-determinism"]}\nmirage-bet={path=${JSON.stringify(join(root, "native/bet").replaceAll("\\", "/"))}}\n[patch.crates-io]\nparry3d-f64={path=${JSON.stringify(parry.replaceAll("\\", "/"))}}\n[profile.release]\nlto=true\ncodegen-units=1\npanic="abort"\nstrip=true\n`;
         const extra = `\n[[bin]]\nname="contact-probe"\npath=${JSON.stringify(join(root, "native/contact/src/probe.rs").replaceAll("\\", "/"))}\n[[test]]\nname="contract"\npath=${JSON.stringify(join(root, "native/contact/tests/contact.rs").replaceAll("\\", "/"))}\n`;
         writeFileSync(join(build, "Cargo.toml"), manifest.replace("mirage-bet={path=", 'mirage-bet={features=["embedded-kernels"],path=') + extra);
         const committed = join(root, "native/contact/Cargo.lock");
@@ -103,13 +105,37 @@ try {
             return;
         }
         const { instance } = await WebAssembly.instantiate(bytes, {});
-        if (instance.exports.contact_abi_version() !== 2)
+        if (instance.exports.contact_abi_version() !== 3)
             throw new Error("Contact ABI mismatch");
         mkdirSync(out, { recursive: true });
         writeFileSync(join(out, "contact.wasm"), bytes);
         writeFileSync(join(out,"LICENSE.rapier.txt"),readFileSync(join(source,"LICENSE"),"utf8").replaceAll("\r\n","\n"));
         const finalInputs = files.map(file => ({ file, sha256: sha(readFileSync(join(root, file))) }));
-        writeFileSync(manifestPath, JSON.stringify({ schemaVersion: 1, abiVersion: 2, toolchain: "1.97.0", sourceCommit: pin.commit, patchSha256: sha(readFileSync(patch)), engineVersion: pin.nativeVersion, precision: "f64", memoryBytes: 16777216, bytes: bytes.length, sha256: sha(bytes), inputs: finalInputs }, null, 2) + "\n");
+        writeFileSync(manifestPath, JSON.stringify({ schemaVersion: 1, abiVersion: 3, toolchain: "1.97.0", sourceCommit: pin.commit, patchSha256: sha(readFileSync(patch)), parryPatchSha256: sha(readFileSync(join(root, pin.parry.patch))), engineVersion: pin.nativeVersion, precision: "f64", memoryBytes: 16777216, bytes: bytes.length, sha256: sha(bytes), inputs: finalInputs }, null, 2) + "\n");
+    }
+    /**
+     * The pinned parry crate with its storage-reuse patch (TASK-095): the contact manifold of a
+     * capsule or cylinder on a halfspace took its point storage every step and allocated anew.
+     * The archive comes from Cargo's cache or crates.io and must match the pinned SHA-256.
+     */
+    async function prepareParry() {
+        const { crate, version, sha256 } = pin.parry, name = `${crate}-${version}.crate`;
+        const home = process.env.CARGO_HOME ?? join(homedir(), ".cargo"), registry = join(home, "registry/cache");
+        const cached = existsSync(registry) ? readdirSync(registry).map(d => join(registry, d, name)).find(existsSync) : undefined;
+        const archive = cached ? readFileSync(cached) : Buffer.from(await (await fetch(`https://static.crates.io/crates/${crate}/${name}`)).arrayBuffer());
+        if (sha(archive) !== sha256)
+            throw new Error(`${name} does not match its pinned SHA-256`);
+        const parryPatch = join(root, pin.parry.patch), prepared = join(cache, "parry-patched"), dir = join(prepared, `${crate}-${version}`);
+        const stampPath = join(prepared, ".mirage-source.json"), stamp = JSON.stringify({ sha256, patch: sha(readFileSync(parryPatch)) });
+        if (existsSync(stampPath) && readFileSync(stampPath, "utf8") === stamp)
+            return dir;
+        rmSync(prepared, { recursive: true, force: true });
+        mkdirSync(prepared, { recursive: true });
+        execFileSync("tar", ["-xzf", "-", "-C", prepared], { input: archive });
+        execFileSync("git", ["apply", "--check", parryPatch], { cwd: dir });
+        execFileSync("git", ["apply", parryPatch], { cwd: dir });
+        writeFileSync(stampPath, stamp);
+        return dir;
     }
 }
 catch (error) {

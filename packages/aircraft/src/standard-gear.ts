@@ -9,13 +9,15 @@ import { sinCos } from './trig.ts';
 // reference point at that clearance above level ground when it rests on them.
 // The spring and damper follow from the decided static deflection and damping
 // ratio, the friction from the decided coefficients. A profile without a
-// clearance gets no supports until the body hull exists (TASK-095 increment
-// 4), since F-07 places them at the hull's lowest point. The supports are
+// clearance stands on supports below its standard hull (TASK-095 increment
+// 4), as F-07 places them at the hull's lowest point: the derivation passes
+// the clearance that leaves that point one static deflection above the
+// ground at rest, so a hard landing that doubles the load reaches it. The supports are
 // synthetic, not any aircraft's measured legs, and the vehicle manifest
 // declares them as their own synthetic dataset. Configuration-time code only.
 
 /** Version of the rules; a change of any rule is a new version. */
-export const STANDARD_GEAR_VERSION = 1;
+export const STANDARD_GEAR_VERSION = 2;
 /** Standard gravity, m/s², as the contact engine applies it. */
 const GRAVITY_MPS2 = 9.80665;
 
@@ -62,14 +64,15 @@ export interface StandardGearLeg {
 }
 
 /**
- * The standard gear of a validated profile and its vehicle mass (kg, payload
- * included): one support per arm in ascending arm ID order, or none without a
- * ground clearance.
+ * The standard gear of a validated profile, its vehicle mass (kg, payload
+ * included) and the resting height of the reference point above the ground
+ * (the profile's clearance, or the one the derivation works out from the
+ * hull): one support per arm in ascending arm ID order.
  */
-export function standardLandingGear(profile: AircraftProfile, massKg: number): StandardGearLeg[] {
+export function standardLandingGear(profile: AircraftProfile, massKg: number, clearanceM: number): StandardGearLeg[] {
   if (!(massKg > 0) || !Number.isFinite(massKg)) throw new Error('The standard gear needs a positive vehicle mass');
-  const clearance = profile.groundClearanceM;
-  if (clearance === null) return [];
+  if (!(clearanceM > 0) || !Number.isFinite(clearanceM)) throw new Error('The standard gear needs a positive ground clearance');
+  const clearance = clearanceM;
   const g = STANDARD_GEAR, n = profile.arms.length, share = massKg / n;
   const k = (massKg * GRAVITY_MPS2) / (n * g.staticDeflectionM), footStiffness = g.footStiffnessFactor * k;
   const strutStiffness = (k * footStiffness) / (footStiffness - k), damping = 2 * g.dampingRatio * Math.sqrt(k * share);
@@ -105,6 +108,6 @@ export function standardGearDerivation(): string {
   const g = STANDARD_GEAR;
   return `Standard landing gear ${STANDARD_GEAR_VERSION} of @mirage/aircraft, synthetic and not measured: the basic support approximation ` +
     `of decision D-07 (F-07, F-08), one support under each arm at its motor radius and the reference point at the profile's ground ` +
-    `clearance at rest, static deflection ${g.staticDeflectionM} m, damping ratio ${g.dampingRatio}, friction ${g.staticFriction} static and ` +
+    `clearance at rest, or without one where the standard hull's lowest point rests one static deflection above the ground, static deflection ${g.staticDeflectionM} m, damping ratio ${g.dampingRatio}, friction ${g.staticFriction} static and ` +
     `${g.kineticFriction} kinetic.`;
 }

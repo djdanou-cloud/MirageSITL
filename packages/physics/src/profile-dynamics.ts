@@ -4,11 +4,13 @@ import type { BoundPolar } from '../../wasm-bet/src/rotor.ts';
 import { isaTroposphere } from './atmosphere.ts';
 import { BetFlightDynamics, CONFIGURATION_FLAG_WAKE_UNMODELED, type BetFlightConfiguration } from './bet-dynamics.ts';
 import { escDriveFromManifest } from './drive.ts';
-import { GroundContact, type ContactWheel } from './ground-contact.ts';
+import { GroundContact, type ContactShape, type ContactWheel } from './ground-contact.ts';
 import type { LimitRatings } from './limit-monitor.ts';
 import { boundCatalogPolar } from './polar-catalog.ts';
 import type { SessionModelPort } from './session-v2.ts';
-import { deriveVehicle, projectVehicleToModelV1, validateVehicleManifest, withoutLandingGear, type VehicleManifest, type VehicleRegistry } from './vehicle-manifest.ts';
+import {
+  deriveVehicle, projectVehicleToModelV1, validateVehicleManifest, withoutHull, withoutLandingGear, type VehicleManifest, type VehicleRegistry,
+} from './vehicle-manifest.ts';
 
 // Flight dynamics from a vehicle manifest v2 with motors, ESCs and a battery
 // (TASK-144): the manifest an aircraft profile derives (TASK-138) from its
@@ -20,6 +22,11 @@ import { deriveVehicle, projectVehicleToModelV1, validateVehicleManifest, withou
  * assumptions by the profile resolver, not properties of a propeller.
  */
 export const PROFILE_ROTOR_SETTINGS = Object.freeze({ inflowTauS: 0.1, inflowLimitMps: 500, minimumConfidence: 0.9 });
+/**
+ * Half the thickness of a propeller disc as a contact shape (TASK-095), as a fraction of the rotor
+ * radius: a 10 in propeller is a disc 6.4 mm thick. A contact model setting, not a propeller property.
+ */
+export const PROPELLER_DISC_HALF_THICKNESS_OF_RADIUS = 0.025;
 
 export interface ProfileDynamicsOptions {
   /** Initial battery state of charge in (0, 1]; defaults to 1. */
@@ -38,16 +45,29 @@ export interface ProfileDynamicsOptions {
    */
   readonly syntheticPad?: boolean;
 }
-/** The landing gear of a build as the ground contact takes it (TASK-095). */
+/** What a contact shape of a build stands for: a hull shape of the manifest, or the disc of a rotor. */
+export type ProfileShapePart =
+  | { readonly part: 'hull'; readonly hullId: number }
+  | { readonly part: 'propeller'; readonly rotorId: number };
+/** The landing gear and contact shapes of a build as the ground contact takes them (TASK-095). */
 export interface ProfileGear {
   /** The manifest's gear with anchors relative to the CG, as `ContactWheel` takes them. */
   readonly wheels: readonly ContactWheel[];
   /**
-   * Radius of the airframe's contact sphere about the CG, m: half the height of the CG over the
-   * ground with every strut and foot fully compressed, so only the feet carry the vehicle. The
-   * compound hull of the arms and body is later TASK-095 work.
+   * Radius of the airframe's contact sphere about the CG, m, for a manifest without a hull: half the
+   * height of the CG over the ground with every strut and foot fully compressed, so only the feet
+   * carry the vehicle. With shapes the contact builds no sphere; the value is then the smallest
+   * shape radius, which the contact configuration still states.
    */
   readonly hullRadiusM: number;
+  /**
+   * The manifest's hull, then one propeller disc per rotor in rotor order, relative to the CG; empty
+   * for a manifest without a hull. They never carry the vehicle at rest; TASK-149 classifies their
+   * contact reports (`GroundContact.shapeStateInto`) as accidents.
+   */
+  readonly shapes: readonly ContactShape[];
+  /** What each of `shapes` stands for, in the same order. */
+  readonly parts: readonly ProfileShapePart[];
   /** The vehicle's mass and inertia about the CG, as the projected model declares them and the contact must match. */
   readonly vehicle: { readonly massKg: number; readonly inertiaBodyKgM2: readonly number[] };
 }
@@ -81,10 +101,10 @@ export function buildProfileDynamics(input: VehicleManifest, options: ProfileDyn
   // The drive, the sensor mounts and the gear are consumed here, by the sensor pipeline and by the contact; the rest projects
   // to the v1 body and rotors.
   const p = manifest.provenance;
-  const model = projectVehicleToModelV1(withoutLandingGear({
+  const model = projectVehicleToModelV1(withoutHull(withoutLandingGear({
     ...manifest, motors: [], escs: [], battery: null, sensorMounts: [], rotorWakePairs: [], ardupilot: null,
     provenance: { ...p, motors: null, escs: null, battery: null, sensorMounts: null, rotorWakePairs: null },
-  }));
+  })));
   const gear = options.syntheticPad === true ? null : profileGear(manifest, model);
   const polars = new Map<number, BoundPolar>();
   for (const rotor of model.rotors) if (!polars.has(rotor.polarId)) polars.set(rotor.polarId, boundCatalogPolar(rotor.polarId));
@@ -127,9 +147,45 @@ function profileGear(manifest: VehicleManifest, vehicle: ProfileGear['vehicle'])
   }));
   // Height of the CG over the ground with each strut at the end of its travel and each foot squashed to its rim.
   const clearance = Math.min(...wheels.map(wheel => wheel.anchorBodyM[2] - wheel.strutTravelM + wheel.rimRadiusM));
-  if (!(clearance > 0)) throw new Error('The landing gear does not hold the CG above the ground when fully compressed');
-  return Object.freeze({ wheels: Object.freeze(wheels), hullRadiusM: clearance / 2, vehicle });
+  // Without a hull the sphere about the CG is the airframe's bottom-out; with one the hull is, and the sphere is not built.
+  if (!manifest.hull && !(clearance > 0)) throw new Error('The landing gear does not hold the CG above the ground when fully compressed');
+  const derived = deriveVehicle(manifest), shapes: ContactShape[] = [], parts: ProfileShapePart[] = [];
+  if (manifest.hull) {
+    for (const shape of derived.hullCg) {
+      shapes.push(shape.kind === 'capsule'
+        ? { kind: 'capsule', startBodyM: triple(shape.startBodyM), endBodyM: triple(shape.endBodyM), radiusM: shape.radiusM }
+        : { kind: 'cylinder', centerBodyM: triple(shape.centerBodyM), axisBody: triple(shape.axisBody), radiusM: shape.radiusM,
+          halfHeightM: shape.halfHeightM });
+      parts.push({ part: 'hull', hullId: shape.id });
+    }
+    manifest.rotors.forEach((rotor, i) => {
+      shapes.push({
+        kind: 'cylinder', centerBodyM: triple(derived.rotorHubPositionCgM.slice(3 * i, 3 * i + 3)), axisBody: thrustAxis(rotor.hubToBody),
+        radiusM: rotor.radiusM, halfHeightM: PROPELLER_DISC_HALF_THICKNESS_OF_RADIUS * rotor.radiusM,
+      });
+      parts.push({ part: 'propeller', rotorId: rotor.id });
+    });
+  }
+  const hullRadiusM = manifest.hull ? Math.min(...shapes.map(shape => shape.radiusM)) : clearance / 2;
+  return Object.freeze({ wheels: Object.freeze(wheels), hullRadiusM, shapes: Object.freeze(shapes),
+    parts: Object.freeze(parts), vehicle });
 }
+function triple(values: readonly number[]): [number, number, number] {
+  return [values[0] ?? 0, values[1] ?? 0, values[2] ?? 0];
+}
+/** A hub's +z (thrust) axis in body axes from its wxyz hub-to-body quaternion, normalized. */
+function thrustAxis(q: readonly number[]): [number, number, number] {
+  const [w = 1, x = 0, y = 0, z = 0] = q, n = Math.hypot(w, x, y, z);
+  const axis: [number, number, number] = [2 * (x * z + w * y) / (n * n), 2 * (y * z - w * x) / (n * n), 1 - 2 * (x * x + y * y) / (n * n)];
+  const length = Math.hypot(...axis);
+  return [axis[0] / length, axis[1] / length, axis[2] / length];
+}
+
+/**
+ * Friction of the airframe's sphere or shapes on the ground: decision F-08's static coefficient,
+ * which Rapier's rigid contact applies for sticking and sliding alike.
+ */
+const HULL_FRICTION = 0.6;
 
 /**
  * The flight dynamics of a build at `hz`: on a new ground contact with the build's gear, or on
@@ -139,7 +195,8 @@ function profileGear(manifest: VehicleManifest, vehicle: ProfileGear['vehicle'])
 export function profileFlightDynamics(module: WebAssembly.Module, build: ProfileDynamicsBuild, hz: PhysicsHz): BetFlightDynamics {
   const { configuration, gear } = build;
   if (!gear) return new BetFlightDynamics(module, configuration, hz);
-  const contact = GroundContact.forVehicleNow(configuration.initialBody, gear.vehicle, { wheels: gear.wheels, hullRadiusM: gear.hullRadiusM });
+  const contact = GroundContact.forVehicleNow(configuration.initialBody, gear.vehicle,
+    { wheels: gear.wheels, hullRadiusM: gear.hullRadiusM, friction: HULL_FRICTION, ...(gear.shapes.length > 0 ? { shapes: gear.shapes } : {}) });
   return new BetFlightDynamics(module, { ...configuration, contact }, hz);
 }
 

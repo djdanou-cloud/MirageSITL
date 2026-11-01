@@ -5,8 +5,9 @@ import { DemoDynamics, PhysicsSessionV2, type SessionModelPort } from '@mirage/p
 import { validateModelManifest, type ModelDescriptor } from '@mirage/physics/model-manifest';
 import {
   VehicleRegistry, deriveVehicle, migrateModelManifestV1, motorTorqueConstantNmPerA, projectVehicleToModelV1,
-  registryModelPort, symmetricEigen3, validateVehicleManifest, type VehicleDataset, type VehicleManifest,
+  registryModelPort, symmetricEigen3, validateVehicleManifest, withoutHull, type VehicleDataset, type VehicleManifest,
 } from '@mirage/physics/vehicle-manifest';
+import { canonicalBytes } from '@mirage/project/schema';
 import { StateReaderV2, createSharedMemoryV2, createSpscQueue, newFlightStateV2, newHeaderSnapshotV2,
   type CommandResultV2, type PhysicsHz } from '@mirage/protocol';
 import { ardupilotParameterProfile } from '@mirage/physics/ardupilot-profile';
@@ -194,6 +195,32 @@ describe('vehicle manifest v2 schema and validation', () => {
       ['duplicate surface channel', withSurfaces([surface, { ...surface, id: 1 }])],
       ['17 surfaces', withSurfaces(Array.from({ length: 17 }, (_, i) => ({ ...surface, id: i % 16, actuatorChannel: 8 + i })))],
       ['sensor instance 8', edit(c => { c.sensorMounts = [{ ...c.sensorMounts[0]!, instance: 8 }, ...c.sensorMounts.slice(1)]; })],
+    ];
+    for (const [label, input] of invalid) expect(() => validateVehicleManifest(input), label).toThrow();
+  });
+
+  it('accepts an optional hull with its own dataset and keeps manifests without one unchanged (TASK-095)', () => {
+    const body = { id: 0, kind: 'cylinder', centerBodyM: [0, 0, 0], axisBody: [0, 0, 1], radiusM: 0.05, halfHeightM: 0.02 } as const;
+    const arm = { id: 1, kind: 'capsule', startBodyM: [0, 0, 0], endBodyM: [0.2, 0.2, 0], radiusM: 0.007 } as const;
+    const hullDataset = { id: 'synthetic-hull', kind: 'synthetic', sourceSha256: null, derivation: 'Synthetic test hull' } as const;
+    const withHull = (items: readonly unknown[], provenance: unknown = 'synthetic-hull') => ({ ...quad, hull: items,
+      datasets: [...quad.datasets, hullDataset], provenance: { ...quad.provenance, hull: provenance } });
+    const manifest = validateVehicleManifest(withHull([body, arm]));
+    expect(manifest.hull).toEqual([body, arm]);
+    // Taking the hull out gives the manifest without it, byte for byte (tests/aircraft-profile.test.ts checks the v1 refusal).
+    expect(canonicalBytes(withoutHull(manifest))).toEqual(canonicalBytes(validateVehicleManifest(quad)));
+    const invalid: [string, unknown][] = [
+      ['hull without provenance', { ...withHull([body]), provenance: quad.provenance }],
+      ['provenance without hull', { ...quad, provenance: { ...quad.provenance, hull: 'synthetic-airframe' } }],
+      ['empty hull', withHull([])],
+      ['unknown hull dataset', withHull([body], 'missing')],
+      ['axis not unit', withHull([{ ...body, axisBody: [0, 0, 2] }])],
+      ['zero radius', withHull([{ ...arm, radiusM: 0 }])],
+      ['zero half-height', withHull([{ ...body, halfHeightM: 0 }])],
+      ['capsule with a half-height', withHull([{ ...arm, halfHeightM: 0.01 }])],
+      ['unknown kind', withHull([{ ...arm, kind: 'box' }])],
+      ['duplicate shape ID', withHull([body, { ...arm, id: 0 }])],
+      ['17 shapes', withHull(Array.from({ length: 17 }, (_, i) => ({ ...arm, id: i % 16 })))],
     ];
     for (const [label, input] of invalid) expect(() => validateVehicleManifest(input), label).toThrow();
   });

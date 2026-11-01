@@ -12,5 +12,12 @@
     "std",
     "enhanced-determinism"
   ],
-  "profiler": false
+  "profiler": false,
+  "parry": {
+    "crate": "parry3d-f64",
+    "version": "0.31.1",
+    "sha256": "ffb9e04261f1783d8f66f36767b2b73132a63c9b30b12a5ed47e1faa240f7591",
+    "license": "Apache-2.0",
+    "patch": "native/rapier/patches/parry-halfspace-reuse.patch"
+  }
 }

@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "engine": "rapier",
   "version": "0.36.0",
-  "adapterSha256": "35c039861070fbf8e8c0313561ec1ac5cd7b3087086a9f30e286871f91996743",
+  "adapterSha256": "6341593c9dce34fedbf672a9cf8bd7b17f8afba0c1918818fe189cc55e8e4c04",
   "hz": 1200,
   "wheelCount": 3,
   "warmupSteps": 4000000,
@@ -25,7 +25,7 @@
   ],
   "positiveControl": {
     "steps": 1000000,
-    "bytes": 743144,
+    "bytes": 743176,
     "gcEvents": 30
   },
   "impacts": 18544,

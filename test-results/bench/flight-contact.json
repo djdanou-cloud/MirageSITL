@@ -13,39 +13,39 @@
       "steps": 20000,
       "warmupSteps": 20000,
       "periodMs": 2.5,
-      "meanMs": 0.2248487407500003,
-      "p50Ms": 0.21345800000017334,
-      "p95Ms": 0.2866250000006403,
-      "p99Ms": 0.37433299999975134,
-      "maxMs": 3.2529999999997017,
+      "meanMs": 0.11640261769999934,
+      "p50Ms": 0.11483299999963492,
+      "p95Ms": 0.12683299999935116,
+      "p99Ms": 0.17374999999992724,
+      "maxMs": 2.317917000000307,
       "p99WithinPeriod": true,
-      "realtimeRatioAtMean": 11.118585728614967
+      "realtimeRatioAtMean": 21.477180233550833
     },
     {
       "hz": 800,
       "steps": 20000,
       "warmupSteps": 20000,
       "periodMs": 1.25,
-      "meanMs": 0.20822016040000763,
-      "p50Ms": 0.20679200000085984,
-      "p95Ms": 0.2249999999985448,
-      "p99Ms": 0.24183300000004238,
-      "maxMs": 2.453624999998283,
+      "meanMs": 0.11719352744999587,
+      "p50Ms": 0.11533400000007532,
+      "p95Ms": 0.12745799999902374,
+      "p99Ms": 0.1770410000008269,
+      "maxMs": 2.5663750000003347,
       "p99WithinPeriod": true,
-      "realtimeRatioAtMean": 6.003261152035662
+      "realtimeRatioAtMean": 10.666118062990723
     },
     {
       "hz": 1200,
       "steps": 20000,
       "warmupSteps": 20000,
       "periodMs": 0.8333333333333334,
-      "meanMs": 0.20794990999999155,
-      "p50Ms": 0.20695899999918765,
-      "p95Ms": 0.2232079999994312,
-      "p99Ms": 0.23341599999912432,
-      "maxMs": 0.3898749999971187,
+      "meanMs": 0.11669639280001229,
+      "p50Ms": 0.11487500000293949,
+      "p95Ms": 0.1266670000004524,
+      "p99Ms": 0.17712499999834108,
+      "maxMs": 0.4055419999967853,
       "p99WithinPeriod": true,
-      "realtimeRatioAtMean": 4.007375301741497
+      "realtimeRatioAtMean": 7.141037639110689
     }
   ],
   "allocation": {
@@ -53,7 +53,7 @@
     "bytes": 2960,
     "bytesPerStep": 0.00296,
     "gcEvents": 0,
-    "elapsedMs": 206191.136458,
+    "elapsedMs": 116439.374833,
     "warmupSteps": 110000,
     "airborneSteps": 299304,
     "touchdowns": 358,
@@ -62,10 +62,10 @@
     "nativeAllocationBytes": 0,
     "positiveControl": {
       "steps": 1000000,
-      "bytes": 742832,
-      "bytesPerStep": 0.742832,
+      "bytes": 742872,
+      "bytesPerStep": 0.742872,
       "gcEvents": 30,
-      "elapsedMs": 9.802083000016864
+      "elapsedMs": 9.95441700000083
     },
     "controlDetected": true
   },
@@ -75,8 +75,8 @@
     "arch": "arm64",
     "cpu": "Apple M5",
     "cpus": 10,
-    "wasmSha256": "7f4ed0424fa5a9d7830c5a92854ec16ee6c829a1f0af3196f05f7ac1e81b572e",
-    "contactSha256": "cde87e0ea0d7acd3b1dfe4885bdc2d902a7f6d69a090bbd4e6106162ac5d2bc8",
+    "wasmSha256": "906011473ab3e49338f0c5e6a63a4c91dbf553e87d6f2cc56a8df698e3e57f13",
+    "contactSha256": "1cd7aca68ed131bc5757fd456051894f76347900923b8b89e82fca35d2f73b0d",
     "sourceInputs": [
       {
         "file": "node_modules/fast-deep-equal/index.js",
@@ -352,7 +352,7 @@
       },
       {
         "file": "packages/physics/src/bet-dynamics.ts",
-        "sha256": "bfd7bb5041ea0b52fc556c7ac671f44d11a0a63df9f0ed0ce1d6ab267ee47a7b"
+        "sha256": "32fbe14805eee440621208dbeaa32f36472ab2c9345c3c973e494cddd0b3e404"
       },
       {
         "file": "packages/physics/src/frame.ts",
@@ -360,7 +360,7 @@
       },
       {
         "file": "packages/physics/src/ground-contact.ts",
-        "sha256": "35c039861070fbf8e8c0313561ec1ac5cd7b3087086a9f30e286871f91996743"
+        "sha256": "6341593c9dce34fedbf672a9cf8bd7b17f8afba0c1918818fe189cc55e8e4c04"
       },
       {
         "file": "packages/physics/src/limit-monitor.ts",
@@ -432,7 +432,7 @@
       },
       {
         "file": "packages/wasm-bet/src/rotor.ts",
-        "sha256": "1503a8ef01bf24dbd556d3dd9ca7b8995e0f6dd87b6907526d442d05598a1818"
+        "sha256": "81d4cabd4d7e5fd52f152204de234d93a35802c1a3ec3d6a298f55755aaaaa6c"
       },
       {
         "file": "tests/bet-runtime-fixture.ts",

@@ -63,6 +63,15 @@ export interface LandingGearSpec {
   /** μ_k/μ_s in (0, 1] (TASK-095, decision F-08); absent means one coefficient for sticking and sliding. */
   readonly kineticFrictionRatio?: number;
 }
+/**
+ * A contact shape of the airframe (TASK-095): a capsule between two points, or a cylinder about a
+ * unit axis through its centre. Positions are from the body reference point.
+ */
+export type HullShape =
+  | { readonly id: number; readonly kind: 'capsule'; readonly startBodyM: readonly number[]; readonly endBodyM: readonly number[];
+    readonly radiusM: number }
+  | { readonly id: number; readonly kind: 'cylinder'; readonly centerBodyM: readonly number[]; readonly axisBody: readonly number[];
+    readonly radiusM: number; readonly halfHeightM: number };
 export interface SensorMount {
   readonly sensor: 'imu' | 'baro' | 'mag' | 'gnss' | 'airspeed' | 'rangefinder'; readonly instance: number;
   readonly positionBodyM: readonly number[]; readonly sensorToBody: readonly number[];
@@ -73,7 +82,8 @@ export interface VehicleManifest {
   readonly schemaVersion: 2; readonly modelId: number; readonly kind: 'demo' | 'bet' | 'jsbsim';
   readonly units: 'SI'; readonly worldFrame: 'NED'; readonly bodyFrame: 'FRD'; readonly quaternionOrder: 'wxyz';
   readonly datasets: readonly VehicleDataset[];
-  readonly provenance: { readonly [section in VehicleSection]: string | null };
+  /** Every section's dataset; `hull` is present exactly when the manifest has a hull (TASK-095). */
+  readonly provenance: { readonly [section in VehicleSection]: string | null } & { readonly hull?: string };
   readonly massProperties: MassProperties;
   readonly rotorCount: number; readonly rotorCapacity: 32; readonly rotors: readonly RotorGeometry[];
   readonly motors: readonly MotorSpec[]; readonly escs: readonly EscSpec[]; readonly battery: BatterySpec | null;
@@ -81,6 +91,11 @@ export interface VehicleManifest {
   readonly controlSurfaces: readonly ControlSurfaceSpec[]; readonly landingGear: readonly LandingGearSpec[];
   readonly sensorMounts: readonly SensorMount[]; readonly rotorWakePairs: readonly RotorWakePair[];
   readonly ardupilot: ArduPilotFrame | null;
+  /**
+   * Optional (TASK-095): the airframe's contact shapes, at most 16. A manifest without them keeps
+   * its bytes; the contact then gives the airframe a single sphere.
+   */
+  readonly hull?: readonly HullShape[];
 }
 export interface DerivedVehicle {
   /** Ascending principal moments about the CG. */
@@ -92,6 +107,8 @@ export interface DerivedVehicle {
   /** Hub positions relative to the CG, three per rotor in `rotors` order. */
   readonly rotorHubPositionCgM: readonly number[];
   readonly landingGearAnchorCgM: readonly number[];
+  /** The hull with positions relative to the CG, in `hull` order (TASK-095). */
+  readonly hullCg: readonly HullShape[];
   readonly sensorPositionCgM: readonly number[];
 }
 export type VerifiedVehicle =
@@ -297,6 +314,13 @@ export function validateVehicleManifest(input: unknown): VehicleManifest {
     if (!manifest.datasets.some(item => item.id === id)) throw new Error(`Provenance for ${section} names an unknown dataset`);
     referenced.add(id);
   }
+  if ((manifest.hull !== undefined) !== (manifest.provenance.hull !== undefined)) {
+    throw new Error('Provenance for hull must name a dataset exactly when the manifest has a hull');
+  }
+  if (manifest.provenance.hull !== undefined) {
+    if (!manifest.datasets.some(item => item.id === manifest.provenance.hull)) throw new Error('Provenance for hull names an unknown dataset');
+    referenced.add(manifest.provenance.hull);
+  }
   if (referenced.size !== manifest.datasets.length) throw new Error('Every dataset must be referenced by a section');
 
   const rotorIds = manifest.rotors.map(rotor => rotor.id);
@@ -328,6 +352,14 @@ export function validateVehicleManifest(input: unknown): VehicleManifest {
     if (gear.rimRadiusM >= gear.tireRadiusM) throw new Error('Rim radius must be below tire radius');
     const last = gear.tireLoadCurve[gear.tireLoadCurve.length - 1]!; // schema: at least two knots
     if (last[0]! + 1e-12 < gear.tireRadiusM - gear.rimRadiusM) throw new Error('Tire curve must reach rim contact');
+  }
+  const hull = manifest.hull ?? [];
+  unique(hull.map(shape => shape.id), 'Duplicate hull shape ID');
+  for (const shape of hull) {
+    // Mirrors the native shape checks of contact configuration version 5.
+    if (shape.kind === 'cylinder' && Math.abs(Math.hypot(shape.axisBody[0]!, shape.axisBody[1]!, shape.axisBody[2]!) - 1) > 1e-12) {
+      throw new Error('Hull cylinder axis must be a unit vector');
+    }
   }
   unique(manifest.sensorMounts.map(mount => `${mount.sensor}:${mount.instance}`), 'Duplicate sensor mount');
   for (const mount of manifest.sensorMounts) {
@@ -367,12 +399,22 @@ function projectRotorBody(manifest: VehicleManifest): ModelDescriptor {
  * the rigid body; the gear's dataset goes too when no other section names it.
  */
 export function withoutLandingGear(input: VehicleManifest): VehicleManifest {
+  return withoutSections(input, true, false);
+}
+/** The manifest without its hull (TASK-095), which also goes to the ground contact; the hull's dataset goes when no other section names it. */
+export function withoutHull(input: VehicleManifest): VehicleManifest {
+  return withoutSections(input, false, true);
+}
+function withoutSections(input: VehicleManifest, dropGear: boolean, dropHull: boolean): VehicleManifest {
   const manifest = validateVehicleManifest(input);
-  const gear = manifest.provenance.landingGear;
-  const provenance = { ...manifest.provenance, landingGear: null };
+  const { hull, ...rest } = manifest, { hull: hullDataset, ...sections } = manifest.provenance;
+  const dropped = [dropGear ? manifest.provenance.landingGear : null, dropHull ? hullDataset ?? null : null];
+  const provenance = { ...sections, landingGear: dropGear ? null : sections.landingGear,
+    ...(dropHull || hullDataset === undefined ? {} : { hull: hullDataset }) };
   const named = new Set(Object.values(provenance));
-  return validateVehicleManifest({ ...manifest, landingGear: [], provenance,
-    datasets: manifest.datasets.filter(dataset => dataset.id !== gear || named.has(dataset.id)) });
+  return validateVehicleManifest({ ...rest, landingGear: dropGear ? [] : manifest.landingGear, provenance,
+    ...(dropHull || hull === undefined ? {} : { hull }),
+    datasets: manifest.datasets.filter(dataset => !dropped.includes(dataset.id) || named.has(dataset.id)) });
 }
 
 /**
@@ -389,6 +431,7 @@ export function projectVehicleToModelV1(input: VehicleManifest): ModelDescriptor
     throw new Error(`The v1 runtime cannot consume ${unsupported.map(section => `${section} (${SECTION_OWNERS[section]})`).join(', ')}`);
   }
   if (manifest.ardupilot) throw new Error('The v1 runtime does not consume ArduPilot frame declarations');
+  if (manifest.hull) throw new Error('The v1 runtime cannot consume hull (TASK-095)');
   return validateModelManifest(projectRotorBody(manifest));
 }
 
@@ -422,6 +465,9 @@ export function deriveVehicle(input: VehicleManifest): DerivedVehicle {
     motorTorqueConstantNmPerA: manifest.motors.map(motor => motorTorqueConstantNmPerA(motor.kvRpmPerV)),
     rotorHubPositionCgM: manifest.rotors.flatMap(rotor => shifted(rotor.hubPositionBodyM, cg)),
     landingGearAnchorCgM: manifest.landingGear.flatMap(gear => shifted(gear.anchorBodyM, cg)),
+    hullCg: (manifest.hull ?? []).map(shape => shape.kind === 'capsule'
+      ? { ...shape, startBodyM: shifted(shape.startBodyM, cg), endBodyM: shifted(shape.endBodyM, cg) }
+      : { ...shape, centerBodyM: shifted(shape.centerBodyM, cg) }),
     sensorPositionCgM: manifest.sensorMounts.flatMap(mount => shifted(mount.positionBodyM, cg)),
   });
 }

@@ -1090,6 +1090,13 @@ The production `GroundContact` adapter loads the verified artifact from
 before creating isolated sessions. This replaces the allocating provider wrappers.
 The frozen Rapier 0.36.0 f64 source and storage-reuse patch are recorded in the
 manifest alongside source hashes, artifact SHA-256 and fixed 16 MiB memory.
+Since TASK-095 the build also patches parry3d-f64 0.31.1, pinned by the SHA-256
+of its crate archive in `native/rapier/source.lock.json`: the contact manifold of
+a capsule or cylinder on a halfspace took its point storage every step, so a
+hull shape in contact allocated at every step;
+`native/rapier/patches/parry-halfspace-reuse.patch` keeps the storage and copies
+the previous points (at most four) to the stack for the impulse transfer. The
+manifest records the patch's SHA-256 as `parryPatchSha256`.
 No imports, shared memory or concurrent/reentrant ABI access are allowed.
 The separate contact lockfile is required; standalone BET retains its own ABI
 and trapping allocator through the explicit `embedded-kernels` composition feature.
@@ -1122,7 +1129,20 @@ positive `corneringStiffnessNpRad`. Version 4 (TASK-095, decision F-08) keeps
 version 3's slots and adds each wheel's kinetic over static friction ratio
 μ_k/μ_s in its slot [29], in (0, 1] on every wheel; `GroundContact` writes it
 when any wheel has a `kineticFrictionRatio` below 1, and a ratio of 1 gives
-version 3's trajectory bit for bit.
+version 3's trajectory bit for bit. Version 5 (TASK-095) keeps version 4's
+slots, so every wheel states its ratio, and adds up to 32 hull and propeller
+shapes: [1] holds their count, 0 to 32 (zero before version 5), and shape i
+starts at 1312+16*i. A capsule is [0]=1, [1..3] and [4..6] its end points and
+[7] its radius; a cylinder is [0]=2, [1..3] its centre, [4..6] its unit axis
+(within 1e-10), [7] its radius and [8] its half-height. Positions are body FRD
+metres from the CG, the rest of a record is zero, and every record past the
+count, and before version 5 every record, is zero. With shapes the airframe has
+no sphere: the shapes, with the airframe's friction [5] and restitution [4],
+meet the airframe ground plane (plane slot 0), and with zero shapes version 5
+gives version 4's trajectory bit for bit. Because the buffers grow, the
+artifact is contact ABI v3: `contact_abi_version` returns 3, and the regions
+hold 1824, 52 and 352 values. `GroundContact` writes version 5 when
+`ContactOptions.shapes` is non-empty.
 `GroundContact` takes `inertiaKgM2` (row-major, exactly symmetric) and writes
 version 2 only when a product is non-zero. Against the 4800 Hz RK4 body, a free
 body with principal moments (0.02, 0.03, 0.045) kg m² turned 0.7 rad about
@@ -1165,7 +1185,14 @@ diagnostic lever arm body m; [25]=wheel count; [26..31]=zero. Each wheel at
 strut load N, excess tire/rim overlap m, raw strut compression m, signed wheel
 distance from the plane m, and zero. Wheel compressions and distances describe
 the start of the step, the tire and strut loads the ones the step applied (TASK-095);
-body state describes the completed step.
+body state describes the completed step. In ABI v3 each shape at 96+8*i reports
+its deepest penetration m (≥ 0), its normal impulse N s and force N, its deepest
+touching point body FRD m from the CG, 1 when it touches and 0 otherwise, and
+zero (`GroundContact.shapeStateInto`). A contact point touches when it is at or
+inside the plane or carries an impulse; Rapier finds the points at the start of
+the step, so penetration and point describe the pose before it, while the
+impulse is the step's. With shapes, the diagnostic point [22..24] is the deepest
+touching shape point, or zero when none touches.
 
 The diagnostic hull point cannot represent a multiple-contact couple. Consumers
 must use `ContactImpulse.momentBodyNms` when transferring the angular impulse;
@@ -3146,6 +3173,7 @@ rotorless body:
 | `airframe.drag` | `dragAreaBodyM2` (C_D·A tensor, m²), `centerOfPressureBodyM` | symmetric positive definite, so drag always dissipates | TASK-096 |
 | `controlSurfaces` (≤16) | `id`, `function`, `actuatorChannel`, deflection limits within ±π/2, `rateLimitRadS` | unique IDs and channels, not a rotor channel, min < max | TASK-109 |
 | `landingGear` (≤8) | the `ContactWheel` fields plus `id` (the cornering stiffness excepted; optional `kineticFrictionRatio`); anchor from the reference point | unique IDs, rim < tire, last tire knot ≥ tire − rim, kinetic friction ratio in (0, 1]; strut and tire laws stay native | TASK-095 |
+| `hull` (optional, 1–16) | `id` 0–15 and a capsule (`startBodyM`, `endBodyM`, `radiusM`) or a cylinder (`centerBodyM`, unit `axisBody`, `radiusM`, `halfHeightM`), from the reference point; its own `provenance.hull` dataset | unique IDs, positive radius and half-height, unit axis within 1e-12; present exactly with `provenance.hull`; a manifest without it keeps its bytes | the ground contact (TASK-095); `projectVehicleToModelV1` refuses it |
 | `sensorMounts` (≤32) | `sensor`, `instance` (0–7), `positionBodyM`, `sensorToBody` | unique sensor/instance pairs, quaternion norm within 1e-6 | the sensor pipeline (TASK-147); never the rigid body |
 | `rotorWakePairs` (≤64) | `upstreamRotorId`, `downstreamRotorId` | known rotors, no self or duplicate pairs, acyclic | TASK-101 |
 | `ardupilot` | `vehicle: "copter"`, `frameClass`, `frameType` | only 1/1 (quad X) is admitted, with the geometry check below | parameter profile |
@@ -4347,9 +4375,10 @@ values. The derived manifest holds:
 | `battery` | The resolved values, or null |
 | `rotorWakePairs` | One per coaxial pair, from the upper rotor to the lower one |
 | `massProperties` | The aircraft and the payload: combined mass and CG, both inertias moved to it by the parallel-axis theorem |
-| `datasets` | The synthetic dataset `aircraft-profile-derivation`, whose source SHA-256 is that of the canonical derivation input, and, with supports, the synthetic dataset `standard-landing-gear` of the gear rules, without a source (derivation 3, TASK-095) |
+| `datasets` | The synthetic dataset `aircraft-profile-derivation`, whose source SHA-256 is that of the canonical derivation input, then the synthetic datasets `standard-landing-gear` of the gear rules (derivation 3, TASK-095) and `standard-hull` of the hull rules (derivation 4, TASK-095), without a source |
 | `sensorMounts` | The IMU mount when the sensor configuration states the IMU position or orientation (derivation 2, TASK-147); otherwise empty |
-| `landingGear` | The decision D-07 supports when the profile states its ground clearance, otherwise empty (derivation 3, TASK-095; section "Standard landing gear") |
+| `landingGear` | The decision D-07 supports; a profile without a ground clearance stands on supports below its standard hull (derivations 3 and 4, TASK-095; section "Standard landing gear") |
+| `hull` | The standard hull: a body cylinder and one capsule per arm (derivation 4, TASK-095; section "Standard hull and propeller discs") |
 | `ardupilot`, `airframe.drag`, `controlSurfaces` | Null or empty; TASK-142 and TASK-096 own them |
 
 With d_i = c_i − c for each part's CG c_i and the combined CG c:
@@ -4360,9 +4389,9 @@ J = \sum_i \left( J_i + m_i\left(\lVert d_i \rVert^2 \mathbf{1} - d_i d_i^{\math
 
 `profileSha256` is the SHA-256 of the profile's canonical JSON, so renaming the
 stored profile changes nothing. `inputSha256` is the SHA-256 of the canonical
-`{derivationVersion: 3, profile, components}` (`DERIVATION_VERSION`; 2 since
+`{derivationVersion: 4, profile, components}` (`DERIVATION_VERSION`; 2 since
 TASK-147 added the IMU mount, 3 since TASK-095 added the standard landing
-gear). The manifest passes
+gear, 4 since TASK-095 added the standard hull). The manifest passes
 `validateVehicleManifest`, and `bytes` is its RFC 8785 canonical JSON, which a
 `VehicleRegistry` admits unchanged; −0 in the inputs becomes 0. Any change to
 geometry, outputs, mass properties, components or the model ID changes the
@@ -5125,7 +5154,7 @@ same difference that gives the synthetic quad's specific force.
 ### IMU mount in the manifest
 
 `DERIVATION_VERSION` was 2 until derivation 3 added the standard landing gear
-(TASK-095). When a profile's sensor configuration states the
+(TASK-095), and derivation 4 the standard hull (TASK-095). When a profile's sensor configuration states the
 IMU position or orientation, the derived manifest holds one `sensorMounts`
 entry: `imu`, instance 0, the position (the CG when only the orientation is
 stated) and the sensor-to-body quaternion of R from `trig.ts`, so Node and
@@ -5551,10 +5580,12 @@ their own synthetic dataset `standard-landing-gear`.
 The unsprung foot loads its foot but not its strut, so a support compresses
 0.991·δ_s under its share; the anchors put the reference point exactly at the
 clearance with that deflection. F-07 places the supports of a profile without
-a clearance at the lowest point of its body hull, which does not exist before
-the compound hull (TASK-095 increment 4). Such a profile gets no supports: its
-manifest has no gear, and its dynamics stand on the synthetic pad and list
-that limitation. Of the S19 fixtures only octa-x states no clearance. The
+a clearance at the lowest point of its body hull. Derivation 4 (rules version
+2) reads that as the clearance that leaves the standard hull's lowest point,
+level, one static deflection δ_s above the ground at rest: the hull stays off
+the ground on the supports, and a hard landing that doubles the load reaches
+it. Of the S19 fixtures only octa-x states no clearance; it rests at 0.04 m.
+Derivation 3 gave such a profile no supports and the synthetic pad. The
 anchors use the package's own sine and cosine (`trig.ts`), so Node and
 Chromium derive the same bytes. The vehicle manifest v2 gains the optional
 `landingGear[].kineticFrictionRatio` in (0, 1]; existing manifests stay valid
@@ -5565,8 +5596,9 @@ holds the wheels with anchors relative to the CG
 (`deriveVehicle().landingGearAnchorCgM`), the vehicle's mass and inertia about
 the CG as the projected model declares them, and the radius of the airframe's
 contact sphere about the CG, half the CG's height over the ground with every
-strut and foot fully compressed, so only the supports carry the vehicle until
-the compound hull. The vehicle starts with its fully extended feet touching the
+strut and foot fully compressed, so only the supports carry the vehicle; with a
+hull (derivation 4) the contact has shapes instead of the sphere (section
+"Standard hull and propeller discs"). The vehicle starts with its fully extended feet touching the
 ground plane through the origin. `profileFlightDynamics(module, build, hz)`
 creates the dynamics on a new `GroundContact.forVehicleNow` contact (a
 synchronous `forVehicle` once the artifact is compiled), because the session
@@ -5580,9 +5612,9 @@ At rest, rigid-plate statics give the struts the loads Fᵢ = a + b·xᵢ + c·y
 balance the sprung weight and its moments about the CG; the feet add their own
 weight. The plane through the support compressions gives the CG's sink and the
 rest pitch and roll (`tests/support/standard-gear.ts` computes them from the
-manifest). The four S19 configurations with a clearance come to rest within
-0.1 mm of that height at 400, 800 and 1200 Hz with body rates below 10⁻⁶ rad/s,
-and octa-x stands on the pad (`tests/profile-dynamics.test.ts`). On the quad X
+manifest). All five S19 configurations come to rest within 0.1 mm of that
+height at 400, 800 and 1200 Hz with body rates below 10⁻⁶ rad/s, no hull or
+propeller shape touching on the way (`tests/profile-dynamics.test.ts`). On the quad X
 the lockstep session's accelerometer reads −g·sin(pitch) forward within 5 %
 (`tests/external-sitl-session.test.ts`). Native ArduCopter `8ab6afd` warms up,
 takes off to 5 m, holds within 0.06 m and lands in LAND mode on the quad X's
@@ -5596,6 +5628,56 @@ dot product turns the published quaternion's rounding into 10⁻⁴ rad.
 `node scripts/check-sitl-link-allocation.mjs` keeps G1 on the supports: 10⁶
 lockstep steps at 400 Hz with 0.00404 B/step and no GC event, the quad on its
 feet throughout, and the contact faults the session on any native allocation.
+
+### Standard hull and propeller discs
+
+Aircraft profiles give no body or arm size. By the user's decision of
+2026-11-01 (TASK-095 increment 4) derivation 4 works the frame out from the
+arms and propellers, marked not measured, and body size fields are a later
+task (TASK-196); a propeller clearance check that blocks a run, with a
+previewed fix, is TASK-195. The standard hull
+(`packages/aircraft/src/standard-hull.ts`, rules version 1, synthetic dataset
+`standard-hull`) is:
+
+| Shape | Geometry | Size |
+| --- | --- | --- |
+| Body (ID 0) | A cylinder about the body z axis through the reference point | Radius 0.25 times the shortest arm; half-height 0.4 times that radius |
+| Arm i (ID i + 1) | A capsule from the body axis to the arm's motor mount, both at the arm's height | Radius 0.05 times the largest propeller radius on the arm |
+
+A 10 in quadcopter on 0.225 m arms gets a body 0.11 m across and 0.045 m tall
+and arms 13 mm thick; an octocopter with 44 in propellers on 1.25 m arms a body
+0.63 m across and 0.25 m tall and arms 56 mm thick. A body that hangs low, or a
+pod below it, is not represented until TASK-196.
+
+`buildProfileDynamics` adds one propeller disc per rotor: a cylinder at the hub
+about its thrust axis, its radius the rotor's and half its thickness 0.025 times
+that radius (`PROPELLER_DISC_HALF_THICKNESS_OF_RADIUS`, a contact model
+setting). `ProfileGear.shapes` lists the hull, then the discs in rotor order,
+relative to the CG, and `ProfileGear.parts` names each one (`hull` with its ID,
+or `propeller` with its rotor ID). The contact takes them as configuration
+version 5 shapes with the airframe friction 0.6 (F-08's static coefficient, which
+Rapier's rigid contact applies to sticking and sliding alike) and no
+restitution. They never carry the vehicle at rest; each step reports their
+contact, which `BetFlightDynamics.contactShapeStateInto` passes on, and TASK-149
+turns the reports into accident events with the F-09 thresholds. The hull and
+the discs are rigid Rapier contacts, not compliant like the supports: a strike
+is reported, not modelled as damage, and continuing after it is labelled
+(F-09).
+
+Checks: in `native/contact/tests/contact.rs` a horizontal capsule and a vertical
+cylinder rest with the CG at their geometric depth (0.0798–0.0799 m against
+0.08 m, 0.03997 m against 0.04 m) and carry m·g within 0.01 %; a tilted disc held
+1 mm too low reports 1 mm of penetration and its analytic rim point within
+10⁻⁶ m; on a quad's feet only a disc that reaches below the feet reports
+contact; version 5 without shapes is version 4 bit for bit; invalid shape
+records are rejected; and a quad hull with eight discs tumbling across the
+ground for 120,000 steps through the C ABI allocates nothing (before the parry
+patch it faulted at step 2,367). `tests/contact-binding.test.ts` checks the same
+rest and reports through the WASM contact at 400, 800 and 1200 Hz. In
+`tests/profile-dynamics.test.ts` a quad X rolled 60 degrees and pitched 10
+degrees nose down, dropped 5 mm above its lowest shape, strikes first and alone
+with the propeller disc that the geometry puts lowest, at a point on that disc,
+at all three rates.
 
 ### Compute and allocation
 

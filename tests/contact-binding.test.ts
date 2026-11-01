@@ -162,3 +162,43 @@ test("rejects a kinetic friction ratio outside (0, 1]", async () => {
         await expect(GroundContact.create(newBodyTruth(), 1, 0.1, 0, 0, options)).rejects.toThrow("Invalid kinetic friction ratio");
     }
 });
+// TASK-095 increment 4: hull and propeller shapes cross the WASM contact (configuration version 5).
+test.each([400, 800, 1200])("hull shapes carry the airframe and report their contact at %i Hz", async (hz) => {
+    // Oracle: a horizontal capsule 0.05 m below the CG with radius 0.03 rests with the CG 0.08 m
+    // over the ground and carries m g; a cylinder above it never touches.
+    const truth = newBodyTruth();
+    truth.positionNedM[2] = -0.1;
+    const contact = await GroundContact.create(truth, 1, 0.1, 0, 0.6, {
+        inertiaDiagonalKgM2: [0.01, 0.01, 0.01],
+        shapes: [
+            { kind: "capsule", startBodyM: [-0.2, 0, 0.05], endBodyM: [0.2, 0, 0.05], radiusM: 0.03 },
+            { kind: "cylinder", centerBodyM: [0, 0, -0.1], axisBody: [0, 0, 1], radiusM: 0.1, halfHeightM: 0.02 },
+        ],
+    });
+    const wrench = new Float64Array(6), low = new Float64Array(8), high = new Float64Array(8);
+    try {
+        expect(contact.shapeCount).toBe(2);
+        for (let i = 0; i < 1.5 * hz; i++)
+            expect(contact.stepInto(wrench, 1 / hz, truth)).toBe(true);
+        expect(contact.shapeStateInto(0, low)).toBe(true);
+        expect(contact.shapeStateInto(1, high)).toBe(true);
+        expect(contact.shapeStateInto(2, high)).toBe(false);
+        expect(Math.abs(-truth.positionNedM[2] - 0.08)).toBeLessThan(2e-3);
+        expect(Math.abs(low[2]! - 9.80665)).toBeLessThan(0.02 * 9.80665);
+        expect(low[1]).toBeCloseTo(low[2]! / hz, 12);
+        expect(low[6]).toBe(1);
+        expect(Math.abs(low[5]! - 0.08)).toBeLessThan(2e-3);
+        expect(Array.from(high)).toEqual([0, 0, 0, 0, 0, 0, 0, 0]);
+        expect(contact.allocationCalls).toBe(0);
+    }
+    finally {
+        contact.dispose();
+    }
+});
+test("an invalid shape is rejected before the native session starts", async () => {
+    const truth = newBodyTruth();
+    const cylinder = { kind: "cylinder" as const, centerBodyM: [0, 0, 0] as const, axisBody: [0, 0, 0.5] as const, radiusM: 0.1, halfHeightM: 0.01 };
+    await expect(GroundContact.create(truth, 1, 0.1, 0, 0.6, { shapes: [cylinder] })).rejects.toThrow("Invalid contact shape");
+    await expect(GroundContact.create(truth, 1, 0.1, 0, 0.6, { shapes: [{ ...cylinder, axisBody: [0, 0, 1], radiusM: 0 }] }))
+        .rejects.toThrow("Invalid contact shape");
+});

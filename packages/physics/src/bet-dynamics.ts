@@ -75,6 +75,9 @@ export interface FlightContact {
   stepInto(wrenchBody: Float64Array, dt: number, out: BodyTruth): boolean;
   reset(state: BodyTruth): void;
   dispose(): void;
+  /** Hull and propeller shapes and their last-step contact reports (TASK-095, `GroundContact`). */
+  readonly shapeCount?: number;
+  shapeStateInto?(index: number, out: Float64Array): boolean;
 }
 /** Rotor output flags of the TASK-091 opt-in modes: informational, never validity breaches. */
 const SAMPLING_FLAGS=ROTOR_FLAG_HOVER_SAMPLING|ROTOR_FLAG_REDUCED_PREDICTOR;
@@ -372,5 +375,9 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
     s.p=t.angularVelocityBodyRadS[0]!;s.q=t.angularVelocityBodyRadS[1]!;s.r=t.angularVelocityBodyRadS[2]!;
     s.an=t.accelerationNedMps2[0]!;s.ae=t.accelerationNedMps2[1]!;s.ad=t.accelerationNedMps2[2]!;
   }
+  /** The contact's hull and propeller shapes (TASK-095); 0 without a contact or shapes. */
+  get contactShapeCount():number {return this.contact?.shapeCount??0;}
+  /** Shape `index`'s contact report of the last step (`GroundContact.shapeStateInto`); false without one. */
+  contactShapeStateInto(index:number,out:Float64Array):boolean {return this.contact?.shapeStateInto?.(index,out)??false;}
   dispose():void {this.engine?.dispose();this.escEngine?.dispose();this.contact?.dispose();}
 }

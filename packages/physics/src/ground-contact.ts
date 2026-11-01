@@ -18,8 +18,31 @@ function exportsValid(v: WebAssembly.Exports): v is WebAssembly.Exports & Export
         "contact_allocation_bytes"].every(name => typeof v[name] === "function");
 }
 function record(v: unknown): v is Record<string, unknown> { return typeof v === "object" && v !== null && !Array.isArray(v); }
-/** Contact ABI v2 input: v1's 16 values plus [nN, nE, nD, offsetM] for the airframe and 8 wheel slots. */
+/** Contact ABI input (v2, unchanged in v3): v1's 16 values plus [nN, nE, nD, offsetM] for the airframe and 8 wheel slots. */
 const PLANE_BASE = 16, PLANE_SLOTS = 9, INPUT_COUNT = PLANE_BASE + 4 * PLANE_SLOTS;
+/**
+ * Contact ABI v3 buffers (TASK-095): the configuration adds 32 shape records of 16 values after the
+ * eight wheels, the output 32 shape reports of 8 values after the wheel states.
+ */
+const MAX_SHAPES = 32, SHAPE_BASE = 32 + 8 * 160, SHAPE_STRIDE = 16, CONFIG_COUNT = SHAPE_BASE + MAX_SHAPES * SHAPE_STRIDE;
+const SHAPE_OUTPUT_BASE = 32 + 8 * 8, SHAPE_OUTPUT_STRIDE = 8, OUTPUT_COUNT = SHAPE_OUTPUT_BASE + MAX_SHAPES * SHAPE_OUTPUT_STRIDE;
+/** A capsule between two points, body FRD metres from the CG. */
+export interface ContactCapsule {
+    readonly kind: "capsule";
+    readonly startBodyM: readonly [number, number, number];
+    readonly endBodyM: readonly [number, number, number];
+    readonly radiusM: number;
+}
+/** A cylinder about a unit axis through its centre, body FRD metres from the CG. */
+export interface ContactCylinder {
+    readonly kind: "cylinder";
+    readonly centerBodyM: readonly [number, number, number];
+    readonly axisBody: readonly [number, number, number];
+    readonly radiusM: number;
+    readonly halfHeightM: number;
+}
+/** A hull or propeller shape of configuration version 5 (TASK-095). */
+export type ContactShape = ContactCapsule | ContactCylinder;
 export interface LinearSuspension {
     readonly kind: "linear";
     readonly stiffnessNpm: number;
@@ -92,6 +115,12 @@ export interface ContactOptions {
     ];
     readonly groundOffsetM?: number;
     readonly wheels?: readonly ContactWheel[];
+    /**
+     * Hull and propeller shapes (TASK-095), at most 32: they replace the airframe sphere, meet the
+     * airframe ground plane with its friction and restitution, and report their contact every step
+     * (`shapeStateInto`). Any shape writes configuration version 5.
+     */
+    readonly shapes?: readonly ContactShape[];
 }
 /** Isolated fixed-topology f64 Rapier world. Prismatic strut stops, separate tire
  * compliance, one integration owner. Rolling is kinematic; no wheel-spin model.
@@ -109,6 +138,8 @@ export class GroundContact implements ContactBackend {
     private lastDt = 0;
     private status = 0;
     readonly wheelCount: number;
+    /** Configured hull and propeller shapes, in `ContactOptions.shapes` order. */
+    readonly shapeCount: number;
     /** Gravity the native world applies, m/s² down; a flight model on this contact must use the same. */
     readonly gravityMps2 = 9.80665;
     /** Airframe plus unsprung wheel masses, kg (TASK-095). */
@@ -121,7 +152,7 @@ export class GroundContact implements ContactBackend {
     private readonly config: Float64Array;
     /** Cold host setup from build manifest plus actual bytes; no step-time I/O. */
     static async initialize(bytes: Uint8Array<ArrayBuffer>, manifest: unknown): Promise<void> {
-        if (!record(manifest) || manifest.schemaVersion !== 1 || manifest.abiVersion !== 2 || manifest.precision !== "f64" ||
+        if (!record(manifest) || manifest.schemaVersion !== 1 || manifest.abiVersion !== 3 || manifest.precision !== "f64" ||
             manifest.sourceCommit !== "b716d375efc0201003f0cd9ef7168eee0b62c177" || manifest.engineVersion !== "0.36.0" ||
             manifest.memoryBytes !== 16777216 || manifest.bytes !== bytes.byteLength || typeof manifest.sha256 !== "string")
             throw new Error("Invalid contact artifact manifest");
@@ -179,7 +210,7 @@ export class GroundContact implements ContactBackend {
         if (!this.artifact)
             throw new Error("Initialize the verified contact artifact before creating a session");
         const instance = new WebAssembly.Instance(this.artifact, {});
-        if (!exportsValid(instance.exports) || instance.exports.contact_abi_version() !== 2)
+        if (!exportsValid(instance.exports) || instance.exports.contact_abi_version() !== 3)
             throw new Error("Invalid contact ABI exports");
         return new GroundContact(instance.exports, state, mass, radius, restitution, friction, options);
     }
@@ -193,7 +224,7 @@ export class GroundContact implements ContactBackend {
         const regions: readonly (readonly [
             number,
             number
-        ])[] = [[config, 1312 * 8], [input, INPUT_COUNT * 8], [output, 96 * 8]];
+        ])[] = [[config, CONFIG_COUNT * 8], [input, INPUT_COUNT * 8], [output, OUTPUT_COUNT * 8]];
         for (let i = 0; i < regions.length; i++) {
             const a = regions[i];
             if (!a)
@@ -209,10 +240,11 @@ export class GroundContact implements ContactBackend {
         this.input = input / 8;
         this.output = output / 8;
         this.wheelCount = options.wheels?.length ?? 0;
-        if (this.wheelCount > 8 || state.positionNedM.length !== 3 || state.velocityNedMps.length !== 3 ||
+        this.shapeCount = options.shapes?.length ?? 0;
+        if (this.wheelCount > 8 || this.shapeCount > MAX_SHAPES || state.positionNedM.length !== 3 || state.velocityNedMps.length !== 3 ||
             state.quaternionBodyToNed.length !== 4 || state.angularVelocityBodyRadS.length !== 3)
             throw new Error("Invalid contact configuration");
-        const c = new Float64Array(memory, config, 1312);
+        const c = new Float64Array(memory, config, CONFIG_COUNT);
         this.config = c;
         c.fill(0);
         c[0] = 1;
@@ -294,9 +326,35 @@ export class GroundContact implements ContactBackend {
         const ratios = (options.wheels ?? []).map(w => w.kineticFrictionRatio ?? 1);
         if (ratios.some(r => !(r > 0 && r <= 1)))
             throw new Error("Invalid kinetic friction ratio");
-        if (ratios.some(r => r < 1)) {
+        if (ratios.some(r => r < 1) || this.shapeCount > 0) {
             c[0] = 4;
             ratios.forEach((r, i) => { c[32 + i * 160 + 29] = r; });
+        }
+        // Version 5 adds the shapes after the wheels; it keeps version 4's wheel fields.
+        if (this.shapeCount > 0) {
+            c[0] = 5;
+            c[1] = this.shapeCount;
+            for (let i = 0; i < this.shapeCount; i++) {
+                const shape = options.shapes?.[i], b = SHAPE_BASE + i * SHAPE_STRIDE;
+                if (!shape || !(shape.radiusM > 0))
+                    throw new Error("Invalid contact shape");
+                if (shape.kind === "capsule") {
+                    c[b] = 1;
+                    c.set(shape.startBodyM, b + 1);
+                    c.set(shape.endBodyM, b + 4);
+                    c[b + 7] = shape.radiusM;
+                }
+                else {
+                    const [x, y, z] = shape.axisBody;
+                    if (!(shape.halfHeightM > 0) || Math.abs(x * x + y * y + z * z - 1) > 1e-12)
+                        throw new Error("Invalid contact shape");
+                    c[b] = 2;
+                    c.set(shape.centerBodyM, b + 1);
+                    c.set(shape.axisBody, b + 4);
+                    c[b + 7] = shape.radiusM;
+                    c[b + 8] = shape.halfHeightM;
+                }
+            }
         }
         // The vehicle the contact integrates: airframe plus unsprung point masses at their anchors.
         const t = this.vehicleInertiaKgM2;
@@ -341,7 +399,7 @@ export class GroundContact implements ContactBackend {
     get allocationCalls(): number { return this.module.contact_allocation_calls(); }
     get allocationBytes(): number { return this.module.contact_allocation_bytes(); }
     /** groundPlanes (ABI v2): 4 * (1 + wheelCount) values [nN, nE, nD, offsetM] for the airframe
-     * sphere then each wheel, unit normals facing up (nD < 0), height above plane = n.x - offset.
+     * (its sphere, or every hull and propeller shape) then each wheel, unit normals facing up (nD < 0), height above plane = n.x - offset.
      * Omitted: every contact uses the configured plane. */
     stepInto(w: Float64Array, dt: number, out: BodyTruth, brakes?: Float64Array, groundPlanes?: Float64Array): boolean {
         if (this.disposed || this.module.memory.buffer !== this.buffer || w.length !== 6 ||
@@ -381,6 +439,7 @@ export class GroundContact implements ContactBackend {
         this.lastDt = dt;
         return true;
     }
+    /** The airframe's contact impulse of the last step; its point is the sphere's lowest point, or with shapes the deepest touching shape point (zero when none touches). */
     impulseInto(out: ContactImpulse): void {
         for (let i = 0; i < 3; i++) {
             out.impulseNed[i] = this.heap[this.output + 16 + i]!;
@@ -389,6 +448,19 @@ export class GroundContact implements ContactBackend {
                 out.momentBodyNms[i] = this.heap[this.output + 19 + i]!;
         }
         out.dt = this.lastDt;
+    }
+    /**
+     * Shape `index`'s contact in the last step (TASK-095): penetration m, normal impulse N·s, normal
+     * force N, the deepest touching point body FRD from the CG (3 values), touching 0 or 1, reserved.
+     * Contacts are found at the start of the step, so penetration and point describe the pose
+     * before it; the impulse is what the step applied.
+     */
+    shapeStateInto(index: number, out: Float64Array): boolean {
+        if (this.disposed || !Number.isInteger(index) || index < 0 || index >= this.shapeCount || out.length !== 8 || out.buffer === this.buffer)
+            return false;
+        for (let i = 0; i < 8; i++)
+            out[i] = this.heap[this.output + SHAPE_OUTPUT_BASE + index * SHAPE_OUTPUT_STRIDE + i]!;
+        return true;
     }
     /** compression m, tire deflection m, tire force N, strut force N, rim-overlap
      * diagnostic m, raw strut compression m, wheel-plane distance m, reserved.

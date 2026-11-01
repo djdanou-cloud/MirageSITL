@@ -141,7 +141,7 @@ unit and browser stages can seed the TASK-127 and TASK-152 checklists.
 | S15 Experiments from logs | Fidelity metrics and capture schema (unmerged) | Log extraction and completion, re-simulation, fidelity labels | TASK-133, TASK-182–TASK-184 |
 | S16 Projects, reproducibility | Checksummed archives, seeded PRNG | Project store, versions, experiment records, Repeat and Create variant | TASK-136, TASK-165 |
 | S17 Terrain, visualization | 3D Tiles adapter, LOD budgets, collision chunks, renderer, FPV camera, WorldCover | Runtime terrain selection and coverage, elevation data, geometry-driven aircraft, onboard view, trajectory and telemetry panels | TASK-131, TASK-185, TASK-186 |
-| S18 Contact, accidents | Rapier contact and terrain planes | Contact in flight sessions, slopes, accident detection and pause | TASK-133, TASK-149, TASK-187; TASK-094, TASK-095 |
+| S18 Contact, accidents | Rapier contact and terrain planes | Contact in flight sessions, slopes, accident detection and pause, propeller clearance | TASK-133, TASK-149, TASK-187, TASK-195; TASK-094, TASK-095 |
 | S19 Acceptance | System matrix and release tools, evidence conventions | Phase 1 matrix, macOS evidence, the 16-motor hour, installation and offline acceptance | TASK-132, TASK-188–TASK-191 |
 
 ## 4. Disposition of existing roadmap tasks
@@ -167,6 +167,7 @@ deletion instruction.
 | TASK-102, TASK-104, TASK-105, TASK-107, TASK-114, TASK-116, TASK-117, TASK-118, TASK-119, TASK-123 | Deferred: not required by S01–S19. Load-dependent sag and electrical limits come from TASK-092 and TASK-146; heating, cooling, aging and terrain-induced flow are excluded. | Scope section 2 |
 | TASK-109–TASK-113 | Deferred: fixed-wing, VTOL and other aircraft classes are later stages. | Scope section 2 |
 | TASK-194 | Deferred: decision D-07 keeps gear editing out of Phase 1; TASK-095 delivers the standard supports. Registered 2026-11-01. | S18, D-07 |
+| TASK-196 | Deferred: S03 lists no body size among the aircraft inputs; TASK-095 derives a standard hull from the arms and propellers. Registered 2026-11-01. | S03, S18 |
 | TASK-120, TASK-121, TASK-122 | Deferred: flexible structures and multi-aircraft wakes are excluded, and thermals and microbursts are not among the S07 weather settings. | Scope section 2, S07 |
 | TASK-073 | Not a Phase 1 blocker: its gate depends on Windows-measured integrated GPUs and on thermal and FPV views that Phase 1 excludes. Its evidence and harness are preserved, and TASK-132 sets the Phase 1 rendering criteria. | Scope sections 2 and 3 |
 | TASK-080 | The automated keyboard and axe checks remain regressions for new UI. The manual screen-reader sign-off is not an S19 item unless decision D-12 adds it. | S19 |
@@ -267,6 +268,7 @@ Exit: Profile-driven dynamics with propulsion, battery, aerodynamics, sensors, e
 | TASK-147 | Sensor error configuration in the external-SITL path | S08 | 035, 089, 143 |
 | TASK-148 | Location and geographic environment | S07 | 036, 093, 131 |
 | TASK-149 | Accident detection and automatic pause | S18 | 095, 144 |
+| TASK-195 | Propeller clearance check with a previewed fix | S03, S18 | 095, 141, 154 |
 
 #### Stage P1.5: Integrated External-SITL Session
 
@@ -357,7 +359,7 @@ Exit: S19 executed on macOS with PASS, FAIL, BLOCKED and NOT_RUN recorded.
 | TASK-188 | Phase 1 acceptance matrix harness | S19 | 132, 134, 158 |
 | TASK-189 | Sixteen-motor one-hour simulated-time run with recording | S19 | 091, 162, 175, 188 |
 | TASK-190 | macOS delivery: installation, restart, offline operation and recovery | S01, S19 | 152, 179, 188 |
-| TASK-191 | Phase 1 acceptance report | S19 | 096, 098, 099, 100, 101, 106, 145, 163, 167, 170, 171, 174, 176, 177, 181, 184, 185, 187, 189, 190 |
+| TASK-191 | Phase 1 acceptance report | S19 | 096, 098, 099, 100, 101, 106, 145, 163, 167, 170, 171, 174, 176, 177, 181, 184, 185, 187, 189, 190, 195 |
 
 ### 5.3 Parallel tracks and critical path
 

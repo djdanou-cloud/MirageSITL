@@ -76,7 +76,7 @@ With `--dist apps/web/dist`, all 27 are named and none is unused.
 | Node.js | 24 LTS | Yes | Reviewed (MIT) | Ready | — |
 | Rust toolchain with wasm32 | 1.97.0 | Yes (rustup) | Reviewed (MIT or Apache-2.0) | Ready | — |
 | BET WebAssembly artifacts | Built from `native/bet` | No (built locally) | Not applicable (project-owned) | Ready | — |
-| Rapier contact WebAssembly | Rapier `b716d375` | Yes (source clone and crates) | Reviewed (Apache-2.0) | Ready | — |
+| Rapier contact WebAssembly | Rapier `b716d375`, patched parry3d-f64 0.31.1 | Yes (source clone and crates) | Reviewed (Apache-2.0) | Ready | — |
 | ArduPilot ArduCopter source | `8ab6afde` | Yes (source clone and submodules) | Restricted (GPL-3.0-or-later) | Pending | D-01, D-02 |
 | ArduPilot build prerequisites on macOS | Not pinned | Yes | Reviewed (open-source tools) | Pending | D-02 (TASK-127) |
 | pymavlink | 2.4.50 | Yes | Reviewed (LGPL-3.0, unmodified tool) | Ready | — |
