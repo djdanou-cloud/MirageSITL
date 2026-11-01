@@ -10,6 +10,7 @@ import { armMounts, frdToRender, schemeDimensions } from "../aircraft/scheme-geo
 import { nedToRenderBasis, nedToRenderPositionInto } from "../coordinates";
 import type { SimulationRuntime } from "../runtime";
 import { chaseOffset, drawnSpinRadS, onboardCamera, TRAIL_CAPACITY, TrailBuffer } from "./flight-view-geometry";
+import { TURNING_RPM } from "@mirage/autopilot/motor-test";
 
 // The Run tab's flight view (TASK-185, S17): the aircraft of the chosen
 // profile, drawn from its layout exactly as the Aircraft tab's scheme draws it
@@ -20,7 +21,8 @@ import { chaseOffset, drawnSpinRadS, onboardCamera, TRAIL_CAPACITY, TrailBuffer 
 // onboard camera is TASK-067's mounted camera with a plain lens. The last two
 // minutes of the trajectory are drawn, and the route and its points when a
 // flight task provides one (TASK-172). The ground is the synthetic level pad:
-// real terrain belongs to TASK-186.
+// real terrain belongs to TASK-186. During the motor check (TASK-157) a ring
+// marks the rotor the physics actually turns, in its spin colour.
 
 /** A route point in local NED metres from the session origin. */
 export interface RoutePoint { readonly northM: number; readonly eastM: number; readonly downM: number; readonly label: string }
@@ -35,6 +37,8 @@ export interface FlightViewProbe {
   readonly aircraft: readonly number[];
   readonly trailPoints: number;
   readonly routePoints: number;
+  /** The motor whose rotor is ringed as turning (motor check), or null. */
+  readonly ringed: number | null;
   /** Renderer resources, to show that switching views leaks nothing. */
   readonly geometries: number;
   readonly textures: number;
@@ -43,8 +47,9 @@ export interface FlightViewProbe {
 
 const PROBE_EVERY_FRAMES = 20;
 
-function Aircraft({ layout, runtime, aircraft, spinners }: {
+function Aircraft({ layout, runtime, aircraft, spinners, rings, ringTurning }: {
   layout: AircraftLayout; runtime: RefObject<SimulationRuntime | null>; aircraft: RefObject<Group | null>; spinners: RefObject<(Group | null)[]>;
+  rings: RefObject<(Mesh | null)[]>; ringTurning: boolean;
 }) {
   const { discRadius, span } = schemeDimensions(layout);
   const mounts = armMounts(layout);
@@ -67,6 +72,13 @@ function Aircraft({ layout, runtime, aircraft, spinners }: {
     }
     const reading = sim !== null && sim.power.latest(power.current);
     const rows = spinners.current;
+    // The ring marks the fastest rotor that turns (motor check); power rows are in the layout's motor order.
+    let fastest = -1, fastestRpm = TURNING_RPM;
+    for (let i = 0; ringTurning && reading && i < Math.min(layout.rotors.length, power.current.motorCount); i++) {
+      const rpm = Math.abs(power.current.motors[i * 5] ?? 0);
+      if (rpm >= fastestRpm) { fastest = i; fastestRpm = rpm; }
+    }
+    for (let i = 0; i < rings.current.length; i++) { const ring = rings.current[i]; if (ring) ring.visible = i === fastest; }
     for (let i = 0; i < layout.rotors.length; i++) {
       const spinner = rows[i], rotor = layout.rotors[i];
       if (!spinner || !rotor) continue;
@@ -94,6 +106,10 @@ function Aircraft({ layout, runtime, aircraft, spinners }: {
             <Rotor rotor={rotor} discRadius={discRadius} />
             {/* The turning blade, at the hub about its thrust axis. */}
             <group position={[x, y, z]} quaternion={rotorQuaternion(rotor.hubToBody)}>
+              <mesh ref={object => { rings.current[index] = object; }} name={`ring-${rotor.motorId}`} visible={false}>
+                <torusGeometry args={[discRadius * 1.18, discRadius * 0.07, 8, 48]} />
+                <meshBasicMaterial color={rotor.spinSign === 1 ? SPIN_COLORS.ccw : SPIN_COLORS.cw} />
+              </mesh>
               <group ref={object => { spinners.current[index] = object; }} name={`blade-${rotor.motorId}`}>
                 <mesh position={[0, 0, discRadius * 0.08]}>
                   <boxGeometry args={[discRadius * 1.9, discRadius * 0.08, discRadius * 0.02]} />
@@ -207,8 +223,9 @@ function Cameras({ mode, layout, runtime, aircraft }: {
 }
 
 /** Reports the drawn rotors and the renderer's resources every PROBE_EVERY_FRAMES frames, when they changed. */
-function Probe({ mode, aircraft, trail, routePoints, onProbe }: {
-  mode: FlightViewMode; aircraft: RefObject<Group | null>; trail: TrailBuffer; routePoints: number; onProbe: (probe: FlightViewProbe) => void;
+function Probe({ mode, aircraft, trail, routePoints, layout, rings, onProbe }: {
+  mode: FlightViewMode; aircraft: RefObject<Group | null>; trail: TrailBuffer; routePoints: number; layout: AircraftLayout;
+  rings: RefObject<(Mesh | null)[]>; onProbe: (probe: FlightViewProbe) => void;
 }) {
   const gl = useThree(state => state.gl);
   const frames = useRef(0), last = useRef("");
@@ -232,7 +249,9 @@ function Probe({ mode, aircraft, trail, routePoints, onProbe }: {
         spin: color === SPIN_COLORS.ccw ? "ccw" : color === SPIN_COLORS.cw ? "cw" : "unknown", label: typeof text === "string" ? text : "" });
     });
     rotors.sort((a, b) => a.motorId - b.motorId);
+    const ringedIndex = rings.current.findIndex(ring => ring?.visible === true);
     const probe: FlightViewProbe = { mode, rotors, aircraft: group.position.toArray(), trailPoints: trail.count, routePoints,
+      ringed: ringedIndex < 0 ? null : layout.rotors[ringedIndex]?.motorId ?? null,
       geometries: gl.info.memory.geometries, textures: gl.info.memory.textures, programs: gl.info.programs?.length ?? 0 };
     const json = JSON.stringify(probe);
     if (json !== last.current) { last.current = json; onProbe(probe); }
@@ -240,18 +259,21 @@ function Probe({ mode, aircraft, trail, routePoints, onProbe }: {
   return null;
 }
 
-export function FlightView({ runtime, layout, name, route = [], active, onProbe }: {
+export function FlightView({ runtime, layout, name, route = [], active, ringTurning = false, onProbe }: {
   runtime: RefObject<SimulationRuntime | null>;
   layout: AircraftLayout;
   name: string;
   route?: readonly RoutePoint[];
   /** False while the Run tab is hidden: the view stops drawing and the session runs on. */
   active: boolean;
+  /** True during the motor check: the rotor that turns is ringed. */
+  ringTurning?: boolean;
   onProbe?: (probe: FlightViewProbe) => void;
 }) {
   const [mode, setMode] = useState<FlightViewMode>("external");
   const aircraft = useRef<Group | null>(null);
   const spinners = useRef<(Group | null)[]>([]);
+  const rings = useRef<(Mesh | null)[]>([]);
   const trail = useMemo(() => new TrailBuffer(), []);
   const { span } = schemeDimensions(layout);
   const chase = chaseOffset(layout);
@@ -274,11 +296,11 @@ export function FlightView({ runtime, layout, name, route = [], active, onProbe 
           <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.02, 0]} receiveShadow>
             <planeGeometry args={[2000, 2000]} /><meshStandardMaterial color="#14232d" roughness={1} />
           </mesh>
-          <Aircraft layout={layout} runtime={runtime} aircraft={aircraft} spinners={spinners} />
+          <Aircraft layout={layout} runtime={runtime} aircraft={aircraft} spinners={spinners} rings={rings} ringTurning={ringTurning} />
           <Trail runtime={runtime} aircraft={aircraft} trail={trail} />
           <Route route={route} size={Math.max(0.15, span * 0.08)} />
           <Cameras mode={mode} layout={layout} runtime={runtime} aircraft={aircraft} />
-          {onProbe && <Probe mode={mode} aircraft={aircraft} trail={trail} routePoints={route.length} onProbe={onProbe} />}
+          {onProbe && <Probe mode={mode} aircraft={aircraft} trail={trail} routePoints={route.length} layout={layout} rings={rings} onProbe={onProbe} />}
         </Canvas>
       </div>
       <p className="hint">

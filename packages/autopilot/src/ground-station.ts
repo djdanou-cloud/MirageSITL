@@ -10,8 +10,10 @@ import { encodeInto } from "@mirage/mavlink/codec";
 import { packInto } from "@mirage/mavlink/messages";
 
 export const MavCommand = {
-  NavTakeoff: 22, NavLand: 21, DoSetMode: 176, ComponentArmDisarm: 400, SetMessageInterval: 511, RequestMessage: 512,
+  NavTakeoff: 22, NavLand: 21, DoSetMode: 176, DoMotorTest: 209, ComponentArmDisarm: 400, SetMessageInterval: 511, RequestMessage: 512,
 } as const;
+/** MOTOR_TEST_THROTTLE_TYPE (common.xml): a raw PWM value, which ArduCopter accepts without the RC calibration check (motor_test.cpp). */
+const MOTOR_TEST_THROTTLE_PWM = 1;
 /** ArduCopter custom modes (ArduCopter/mode.h, enum class Mode::Number). */
 export const CopterMode = { Stabilize: 0, AltHold: 2, Guided: 4, Loiter: 5, Land: 9 } as const;
 /** MAV_MODE_FLAG_CUSTOM_MODE_ENABLED. */
@@ -71,6 +73,15 @@ export class GroundStation {
   /** Requests `messageId` every `intervalUs` microseconds (SET_MESSAGE_INTERVAL). */
   messageIntervalInto(messageId: number, intervalUs: number, out: Uint8Array): number {
     return this.commandInto(MavCommand.SetMessageInterval, [messageId, intervalUs], out);
+  }
+
+  /**
+   * MAV_CMD_DO_MOTOR_TEST of one motor: ArduCopter spins the frame motor whose
+   * test order is `testOrder` at `pwmUs` for `timeoutS` (AP_MotorsMatrix::output_test_seq).
+   */
+  motorTestInto(testOrder: number, pwmUs: number, timeoutS: number, out: Uint8Array): number {
+    if (!Number.isInteger(testOrder) || testOrder < 1 || testOrder > 32 || !(pwmUs >= 1000 && pwmUs <= 2000) || !(timeoutS > 0 && timeoutS <= 10)) return 0;
+    return this.commandInto(MavCommand.DoMotorTest, [testOrder, MOTOR_TEST_THROTTLE_PWM, pwmUs, timeoutS, 1, 0], out);
   }
 
   /** Requests one message by ID (MAV_CMD_REQUEST_MESSAGE), for example AUTOPILOT_VERSION (148). */

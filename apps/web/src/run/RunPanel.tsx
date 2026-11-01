@@ -12,6 +12,7 @@ import { DEFAULT_HOME, LauncherClient, RuntimePhysics, SITL_PHYSICS_HZ, prepared
 import { FlightTelemetry } from "./FlightTelemetry";
 import { FlightView, type FlightViewProbe } from "./FlightView";
 import { CompatibilityList, ManualConnect } from "./ManualConnect";
+import { MotorCheckPanel } from "./MotorCheck";
 import { PowerPanel } from "./PowerPanel";
 import { SessionController, failureText, type CatalogEntry, type ConnectionSpec, type ControllerView, type Ownership, type PreparedRun,
   type RunState } from "./session-controller";
@@ -76,6 +77,7 @@ export function RunPanel({ storeState, project, visible }: { storeState: StoreSt
   const [view, setView] = useState<ControllerView | null>(null);
   const [telemetry, setTelemetry] = useState<Telemetry>({ altitudeM: 0, simTimeS: 0 });
   const [probe, setProbe] = useState("");
+  const [motorRefusal, setMotorRefusal] = useState("");
   const store = storeState.status === "ready" ? storeState.store : null;
   const projectId = project?.record.id ?? null;
 
@@ -214,9 +216,12 @@ export function RunPanel({ storeState, project, visible }: { storeState: StoreSt
       <ManualConnect disabled={busy || !profileSha} again={Boolean(failed) && external} onConnect={connect} onError={setError} />
       {layout && chosen && (
         <div className="flight-view-area" data-testid="flight-view" data-probe={probe}>
-          <FlightView runtime={runtime} layout={layout} name={chosen.record.name} active={visible}
+          <FlightView runtime={runtime} layout={layout} name={chosen.record.name} active={visible} ringTurning={view?.motorCheck?.running === true}
             onProbe={(next: FlightViewProbe) => setProbe(JSON.stringify(next))} />
           <div className="flight-view-panels">
+            <MotorCheckPanel check={view?.motorCheck ?? null} refusal={motorRefusal}
+              disabled={!(state.name === "warming" || state.name === "ready") || view?.armed === true}
+              onCheck={() => setMotorRefusal(controller.current?.checkMotors() ?? "No run is active")} />
             <FlightTelemetry runtime={runtime} />
             <PowerPanel reader={runtime.current?.power ?? null} events={runtime.current?.limitEvents ?? NO_LIMIT_EVENTS} />
           </div>

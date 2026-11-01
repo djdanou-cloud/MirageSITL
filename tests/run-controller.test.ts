@@ -371,6 +371,12 @@ class ScriptedPhysics implements PhysicsPort {
   }
   altitudeM(): number { return this.altitude; }
   verticalSpeedMps(): number { return this.verticalSpeed; }
+  /** Each rotor's speed as power telemetry would report it, rev/min (TASK-157). */
+  speeds: number[] = [];
+  motorSpeedsInto(out: Float64Array): boolean {
+    for (let i = 0; i < out.length; i++) out[i] = this.speeds[i] ?? 0;
+    return true;
+  }
   frames(): SentFrame[] { return decodeSent(this.sent); }
 }
 
@@ -2301,5 +2307,88 @@ describe('SessionController connections to a SITL the user started (TASK-155)', 
       expect(h.launcher.disconnects).toEqual([id, id]);
       expect(h.launcher.stops).toEqual([]);
     });
+  });
+});
+
+// ---- TASK-157: the motor check on scripted ports ------------------------------------------------
+//
+// Oracles: the S19 quad X frame of the TASK-128 catalog (ArduPilot test order
+// 1, 2, 3, 4 = motors 1, 4, 2, 3; motors 1 and 2 counter-clockwise), the
+// MAV_CMD_DO_MOTOR_TEST parameters of common.xml (motor instance, throttle
+// type 1 = PWM, value, timeout, count) and the declared test throttle of
+// 1150 us for 1.5 s.
+
+const DO_MOTOR_TEST = 209;
+describe('the motor check (TASK-157)', () => {
+  /** Statuses every 0.1 s of simulated time from `fromS` to `toS`, with `turning` (a motor ID or none) at 2,000 rev/min. */
+  function run(h: Harness, fromS: number, toS: number, turning: number | null): number {
+    let t = fromS;
+    for (; t <= toS + 1e-9; t += 0.1) {
+      h.physics.speeds = h.run.motorTest.physics.map(rotor => (rotor.motorId === turning ? 2000 : 0));
+      status(h, { ready: true, reason: '', simTimeS: t });
+    }
+    return t;
+  }
+
+  test('spins every motor once in ArduPilot\'s test order and passes when the right rotor turns', async () => {
+    const h = harness();
+    await reach(h, 'ready');
+    expect(h.run.motorTest.expected.map(m => [m.testOrder, m.motorId, m.output, m.spin])).toEqual([
+      [1, 1, 1, 'ccw'], [2, 4, 4, 'cw'], [3, 2, 2, 'ccw'], [4, 3, 3, 'cw']]);
+    expect(h.controller.checkMotors()).toBeNull();
+    let t = 40;
+    for (const motor of h.run.motorTest.expected) {
+      t = run(h, t, t, null); // the step's command goes out on the next status
+      const sent = commands(h.physics.frames(), DO_MOTOR_TEST).at(-1);
+      expect(sent?.params.slice(0, 5)).toEqual([motor.testOrder, 1, 1150, 1.5, 1]);
+      expect(h.controller.view.motorCheck?.testing).toBe(motor.motorId);
+      expect(h.controller.takeOff(5)).toBe(false);
+      mav(h, commandAck(DO_MOTOR_TEST, 0));
+      t = run(h, t, t + 1.5, motor.motorId);
+      t = run(h, t, t + 1.5, null);
+    }
+    const check = h.controller.view.motorCheck;
+    expect(check?.running).toBe(false);
+    expect(check?.passed).toBe(true);
+    expect(check?.results.map(r => [r.expected.motorId, r.observed?.motorId, r.pass])).toEqual([[1, 1, true], [4, 4, true], [2, 2, true], [3, 3, true]]);
+    expect(commands(h.physics.frames(), DO_MOTOR_TEST)).toHaveLength(4);
+    // Afterwards the flight may start.
+    expect(h.controller.takeOff(5)).toBe(true);
+  });
+
+  test('refuses before the parameters are loaded, while armed or airborne, and while a check runs', async () => {
+    const h = harness();
+    await reach(h, 'loading-parameters');
+    expect(h.controller.checkMotors()).toBe('Check the motors once the parameters are loaded, before take-off');
+    mav(h, ...parameterList(h.run.parameters));
+    mav(h, heartbeat(STABILIZE, true));
+    expect(h.controller.checkMotors()).toBe('Disarm before checking the motors');
+    mav(h, heartbeat(STABILIZE, false));
+    h.physics.altitude = 1;
+    expect(h.controller.checkMotors()).toBe('Land before checking the motors');
+    h.physics.altitude = 0;
+    expect(h.controller.checkMotors()).toBeNull();
+    expect(h.controller.checkMotors()).toBe('A motor check is already running');
+    // In flight: no check at all.
+    const flying = harness();
+    await reach(flying, 'flying');
+    expect(flying.controller.checkMotors()).toBe('Check the motors once the parameters are loaded, before take-off');
+  });
+
+  test('a wrong rotor fails that motor, and an ArduPilot refusal stops the check with its reason', async () => {
+    const h = harness();
+    await reach(h, 'ready');
+    expect(h.controller.checkMotors()).toBeNull();
+    let t = run(h, 40, 40, null);
+    mav(h, commandAck(DO_MOTOR_TEST, 0));
+    t = run(h, t, t + 1.5, 2); // ArduPilot tested motor 1, the physics turned motor 2
+    t = run(h, t, t + 1.6, null);
+    const first = h.controller.view.motorCheck?.results[0];
+    expect(first).toMatchObject({ pass: false, observed: { motorId: 2 } });
+    expect(first?.reason).toBe('Output 1 should turn motor 1, but motor 2 turned: the motor mapping is swapped');
+    mav(h, statusText('Motor Test: vehicle not landed'), commandAck(DO_MOTOR_TEST, 4));
+    run(h, t, t + 0.2, null);
+    expect(h.controller.view.motorCheck).toMatchObject({ running: false, passed: false,
+      stopped: 'ArduPilot refused the motor test (MAV_RESULT 4): Motor Test: vehicle not landed' });
   });
 });

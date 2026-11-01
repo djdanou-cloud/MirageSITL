@@ -296,7 +296,11 @@ implementation.
   with external and onboard views, a two-minute trajectory and flight and
   per-motor panels; it holds 60 FPS on the M5 with no late frame, and A-06
   now judges macOS by the median and no interval above 25 ms (stakeholder,
-  2026-11-01). Decisions D-04
+  2026-11-01). TASK-157 is DONE: before flight the Run tab's motor check has
+  ArduPilot spin each motor alone and compares its frame (test order, output,
+  spin) with the rotor the physics turned; all five S19 configurations pass
+  against native ArduCopter, and a swapped mapping or a reversed spin is
+  caught on exactly that motor. Decisions D-04
   and D-06 to D-12 are decided. TASK-127 and TASK-128 are DONE: stock
   ArduCopter `8ab6afd` builds and flies natively on Apple Silicon
   ([macos-sitl.md](docs/decisions/macos-sitl.md)), and its stock frames and

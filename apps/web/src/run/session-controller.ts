@@ -22,6 +22,7 @@
 import { EXPERIMENT_SCHEMA_VERSION, type ExperimentParameter, type ExperimentPayload, type ExperimentSitl } from "@mirage/aircraft/experiment";
 import { readAutopilotVersion, verifiedCommit } from "@mirage/autopilot/autopilot-version";
 import { CopterMode, GroundStation } from "@mirage/autopilot/ground-station";
+import { MotorCheck, type ExpectedMotor, type MotorCheckResult, type PhysicsRotor } from "@mirage/autopilot/motor-test";
 import { ParameterReadback, type AbsentRule, type ParameterDifference } from "@mirage/autopilot/parameter-readback";
 import { MavParser, type MavFrame } from "@mirage/mavlink/codec";
 import { fieldOf, readNumber } from "@mirage/mavlink/messages";
@@ -93,6 +94,8 @@ export interface PreparedRun {
   readonly motorChannels: readonly number[];
   /** The absent-parameter rule of the pinned ArduPilot catalog. */
   readonly absentRule: AbsentRule;
+  /** The motor check (TASK-157): ArduPilot's test order and the physics rotors in power-telemetry order. */
+  readonly motorTest: { readonly expected: readonly ExpectedMotor[]; readonly physics: readonly PhysicsRotor[] };
 }
 export interface PhysicsPort {
   /** Loads the BET module, the manifest and its ratings and starts the session in sitl-lockstep at `physicsHz`; resolves with the module's SHA-256. */
@@ -103,6 +106,8 @@ export interface PhysicsPort {
   /** Truth of the latest published tick, for the flight stages. */
   altitudeM(): number;
   verticalSpeedMps(): number;
+  /** Each rotor's speed, rev/min, in rotor order from the latest power telemetry; false when none was published. */
+  motorSpeedsInto(out: Float64Array): boolean;
 }
 export interface RecordPort { create(payload: ExperimentPayload): Promise<{ readonly sha256: string }> }
 export interface ClockPort {
@@ -260,7 +265,25 @@ export interface ControllerView {
   readonly ownership: Ownership;
   /** The checks a connection has passed so far; empty for a launcher-owned run. */
   readonly compatibility: readonly CompatibilityCheck[];
+  /** The motor check of this run (TASK-157), or null before one is started. */
+  readonly motorCheck: MotorCheckView | null;
 }
+export interface MotorCheckView {
+  readonly running: boolean;
+  /** Motors judged so far, and in all. */
+  readonly step: number;
+  readonly total: number;
+  /** The motor ArduPilot is testing now, or null. */
+  readonly testing: number | null;
+  readonly results: readonly MotorCheckResult[];
+  /** Why the check stopped before the last motor, or null. */
+  readonly stopped: string | null;
+  readonly passed: boolean;
+}
+/** MAV_CMD_DO_MOTOR_TEST (common.xml). */
+const MOTOR_TEST_COMMAND = 209;
+/** Ground clearance above which the aircraft counts as airborne for the motor check, m. */
+const MOTOR_CHECK_MAX_ALTITUDE_M = 0.3;
 
 const ACTIVE: ReadonlySet<RunStateName> = new Set(["starting", "loading-parameters", "warming", "ready", "running", "paused"]);
 
@@ -289,6 +312,8 @@ export class SessionController {
   private external: ExternalFacts | null = null;
   private prepared: PreparedRun | null = null;
   private compatibility: CompatibilityCheck[] = [];
+  private motorCheck: MotorCheck | null = null;
+  private motorSpeeds = new Float64Array(0);
   private readback: ParameterReadback | null = null;
   private parametersSinceS = 0;
   private lastParameterRequestS = 0;
@@ -311,7 +336,7 @@ export class SessionController {
   get state(): RunState { return this.stateValue; }
   get view(): ControllerView {
     return { state: this.stateValue, status: this.status, mode: this.mode, armed: this.armed, statusText: this.statusText, recordSha256: this.recordSha256,
-      ownership: this.ownership, compatibility: this.compatibility };
+      ownership: this.ownership, compatibility: this.compatibility, motorCheck: this.motorCheckView() };
   }
   get active(): boolean { return ACTIVE.has(this.stateValue.name); }
   /** The current state name, read afresh after an await (not narrowed by earlier checks). */
@@ -331,6 +356,7 @@ export class SessionController {
       return;
     }
     if (cancelled()) return;
+    this.prepared = prepared;
     this.set({ name: "starting", step: "firmware", experimentId: null });
     let firmware: CatalogEntry | undefined;
     try { firmware = (await this.launcher.catalog()).find(entry => entry.id === request.firmwareId); } catch (error) {
@@ -504,10 +530,28 @@ export class SessionController {
     }
   }
 
-  /** GUIDED, arm, then NAV_TAKEOFF to `altitudeM`; only when READY. */
+  /**
+   * Starts the motor check (TASK-157): ArduPilot's motor test spins each motor
+   * alone in its test order. Returns the refusal, or null when it started.
+   * Only on the ground, disarmed, while warming or READY.
+   */
+  checkMotors(): string | null {
+    const s = this.stateValue, prepared = this.prepared;
+    if (this.motorCheck && !this.motorCheck.done) return "A motor check is already running";
+    if (s.name !== "warming" && s.name !== "ready") return "Check the motors once the parameters are loaded, before take-off";
+    if (this.armed) return "Disarm before checking the motors";
+    if (this.physics.altitudeM() > MOTOR_CHECK_MAX_ALTITUDE_M) return "Land before checking the motors";
+    if (!prepared) return "The aircraft is not prepared";
+    this.motorCheck = new MotorCheck(prepared.motorTest.expected, prepared.motorTest.physics);
+    this.motorSpeeds = new Float64Array(prepared.motorTest.physics.length);
+    this.emit();
+    return null;
+  }
+
+  /** GUIDED, arm, then NAV_TAKEOFF to `altitudeM`; only when READY and no motor check runs. */
   takeOff(altitudeM: number): boolean {
     const s = this.stateValue;
-    if (s.name !== "ready" || !(altitudeM >= 1 && altitudeM <= 100)) return false;
+    if (s.name !== "ready" || !(altitudeM >= 1 && altitudeM <= 100) || (this.motorCheck !== null && !this.motorCheck.done)) return false;
     this.takeoffM = altitudeM;
     this.set({ name: "running", experimentId: s.experimentId, flight: "arming", warning: null });
     this.send(this.gcs.setModeInto(CopterMode.Guided, this.packet));
@@ -548,6 +592,7 @@ export class SessionController {
   private progress(): void {
     const s = this.stateValue, status = this.status;
     if (!status) return;
+    if (this.motorCheck && !this.motorCheck.done) this.stepMotorCheck(status.simTimeS);
     switch (s.name) {
       case "loading-parameters": {
         const elapsed = status.simTimeS - this.parametersSinceS;
@@ -656,6 +701,13 @@ export class SessionController {
         this.checkHome(s.experimentId, readNumber(frame.view, GPS_LAT) / 1e7, readNumber(frame.view, GPS_LON) / 1e7, readNumber(frame.view, GPS_ALT) / 1000);
         return;
       }
+      case 77: { // COMMAND_ACK: only the motor test's acknowledgement is used
+        if (frame.view.getUint16(0, true) === MOTOR_TEST_COMMAND && this.motorCheck) {
+          this.motorCheck.ack(frame.view.getUint8(2), this.status?.simTimeS ?? 0, this.statusText.at(-1) ?? "");
+          this.emit();
+        }
+        return;
+      }
       case 253: {
         const text = new TextDecoder().decode(frame.payload.subarray(1, 51)).replace(/\0[\s\S]*$/, "");
         this.statusText = [...this.statusText, text].slice(-8);
@@ -738,6 +790,24 @@ export class SessionController {
     } else {
       this.emit();
     }
+  }
+
+  /** One motor-check tick on a status: the rotors' speeds in, ArduPilot's next motor-test command out. */
+  private stepMotorCheck(simTimeS: number): void {
+    const check = this.motorCheck;
+    if (!check) return;
+    if (!this.physics.motorSpeedsInto(this.motorSpeeds)) this.motorSpeeds.fill(0);
+    const before = check.step;
+    const action = check.observe(simTimeS, this.motorSpeeds);
+    if (action.kind === "command") this.send(this.gcs.motorTestInto(action.testOrder, action.pwmUs, action.timeoutS, this.packet));
+    if (action.kind !== "wait" || check.step !== before) this.emit();
+  }
+  private motorCheckView(): MotorCheckView | null {
+    const check = this.motorCheck;
+    if (!check) return null;
+    const running = !check.done;
+    return { running, step: check.step, total: check.expected.length, testing: running ? check.expected[check.step]?.motorId ?? null : null,
+      results: check.results, stopped: check.stoppedReason, passed: check.passed };
   }
 
   /** Ground-station duties once per wall second: heartbeat, stream requests until their messages arrive, retries, and the heartbeat deadlines. */
@@ -849,7 +919,7 @@ export class SessionController {
   private reset(ownership: Ownership): void {
     this.status = null; this.mode = null; this.armed = false; this.statusText = []; this.recordSha256 = null;
     this.experimentId = null; this.readback = null; this.heartbeatSeen = false; this.streamSeenMs.clear();
-    this.ownership = ownership; this.external = null; this.prepared = null; this.compatibility = [];
+    this.ownership = ownership; this.external = null; this.prepared = null; this.compatibility = []; this.motorCheck = null;
     this.parser.reset();
   }
 

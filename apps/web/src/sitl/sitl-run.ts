@@ -23,7 +23,9 @@ import { sensorRuntime, STOCK_COMPASS_OFFSETS_MILLIGAUSS } from "@mirage/aircraf
 import { parseArduPilotCatalog, type ArduPilotCatalog } from "@mirage/autopilot/error-ownership";
 import catalogFile from "../../../../tests/fixtures/sitl/ardupilot-catalog.json" with { type: "json" };
 import { catalogAbsentRule, type AbsentRule } from "@mirage/autopilot/parameter-readback";
+import { expectedMotors, physicsRotors, type ExpectedMotor, type PhysicsRotor } from "@mirage/autopilot/motor-test";
 import type { LimitRatings } from "@mirage/physics/limit-monitor";
+import { newPowerSnapshotV1 } from "@mirage/protocol";
 import type { StoredVersion } from "@mirage/project/schema";
 import type { ProjectStore } from "@mirage/project/store";
 import type { SimulationRuntime } from "../runtime";
@@ -55,6 +57,8 @@ export interface PreparedVehicle {
   readonly sensorSnapshot: SensorSnapshot;
   /** 1-based servo output of every rotor, in rotor order. */
   readonly motorChannels: readonly number[];
+  /** The motor check (TASK-157): ArduPilot's test order from the frame configuration, and the physics rotors of the manifest. */
+  readonly motorTest: { readonly expected: readonly ExpectedMotor[]; readonly physics: readonly PhysicsRotor[] };
 }
 
 let arduPilotCatalog: ArduPilotCatalog | null = null;
@@ -135,6 +139,7 @@ export async function prepareVehicle(store: ProjectStore, stored: StoredVersion)
     profileName: stored.record.name, profileSha256: stored.sha256, derived, ratings: componentRatings(profile, cards),
     parameters, frameScript: frame.script, sensorSnapshot: sensorSnapshot(stored),
     motorChannels: derived.manifest.rotors.map(rotor => rotor.motorChannel + 1),
+    motorTest: { expected: expectedMotors(frame.motors), physics: physicsRotors(derived.manifest.rotors) },
   };
 }
 
@@ -163,6 +168,7 @@ export async function preparedRun(store: ProjectStore, stored: StoredVersion): P
       profile: { sha256: stored.sha256, id: stored.record.id, version: stored.record.version, name: stored.record.name },
       parameters: vehicle.parameters, frameScript: vehicle.frameScript, sensors: vehicle.sensorSnapshot,
       manifestSha256: vehicle.derived.sha256, modelId: SITL_MODEL_ID, motorChannels: vehicle.motorChannels, absentRule: parameterAbsentRule(),
+      motorTest: vehicle.motorTest,
     },
   };
 }
@@ -311,6 +317,12 @@ export class RuntimePhysics implements PhysicsPort {
   sendMavlink(bytes: Uint8Array): void { this.runtime.postToWorker({ type: "sitl.mavlink.send", bytes }); }
   altitudeM(): number { return -this.runtime.current.downM; }
   verticalSpeedMps(): number { return this.runtime.current.vdMps; }
+  private readonly power = newPowerSnapshotV1();
+  motorSpeedsInto(out: Float64Array): boolean {
+    if (!this.runtime.power.latest(this.power)) return false;
+    for (let i = 0; i < out.length; i++) out[i] = i < this.power.motorCount ? this.power.motors[i * 5] ?? 0 : 0;
+    return true;
+  }
 
   /** Posts a Worker message and resolves on its acceptance notice. */
   private request(message: Record<string, unknown>, ok: string, reject: string): Promise<void> {

@@ -29,10 +29,15 @@ export function exampleCard(type: 'motor' | 'propeller' | 'esc' | 'battery'): Co
 export interface ExampleCardAddresses { readonly motor: string; readonly propeller: string; readonly esc: string; readonly battery: string }
 const PLACEHOLDERS: ExampleCardAddresses = { motor: MOTOR, propeller: PROPELLER, esc: ESC, battery: BATTERY };
 
-/** The S19 quad X (or another tests/fixtures/aircraft layout) on the example cards at `addresses`. */
-export async function quadProfile(addresses: ExampleCardAddresses = PLACEHOLDERS, layout = 'quad-x'):
+/**
+ * The S19 quad X (or another tests/fixtures/aircraft layout) on the example
+ * cards at `addresses`; `edit` may change the fixture first (TASK-157 builds a
+ * profile with one spin reversed this way).
+ */
+export async function quadProfile(addresses: ExampleCardAddresses = PLACEHOLDERS, layout = 'quad-x',
+  edit: (fixture: AircraftProfile) => AircraftProfile = fixture => fixture):
 Promise<{ profile: AircraftProfile; derived: DerivedVehicleManifest }> {
-  const fixture = validateAircraftProfile(json(`aircraft/${layout}.json`));
+  const fixture = validateAircraftProfile(edit(validateAircraftProfile(json(`aircraft/${layout}.json`))));
   const { motor, propeller, esc, battery } = addresses;
   const profile = withPropellerPolars(validateAircraftProfile({ ...fixture, battery: { card: battery },
     motors: fixture.motors.map(item => ({ ...item, components: { motor, propeller, esc } })) }),

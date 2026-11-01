@@ -6323,3 +6323,56 @@ measured 3,601 external-view intervals (median 16.665 ms, p95 17.660 ms, p99
 17.670 ms, maximum 17.680 ms) and 1,801 onboard-view intervals (median
 16.665 ms, p99 17.670 ms, maximum 17.675 ms): 60 frames per second with no
 skipped frame.
+
+## Motor check before flight (TASK-157)
+
+Before take-off, the Run tab's motor check asks ArduPilot to spin each frame
+motor alone and shows which physics rotor turned. ArduCopter's own motor test
+(`MAV_CMD_DO_MOTOR_TEST`, `ArduCopter/motor_test.cpp` at 8ab6afde) spins the
+motor whose test order is requested (`AP_MotorsMatrix::output_test_seq`):
+`GroundStation.motorTestInto` sends the test order, throttle type 1 (a PWM
+value, which ArduCopter accepts without the RC calibration check), 1150 us
+(15 % of the 1000-2000 us range), a 1.5 s timeout and a count of 1.
+
+`MotorCheck` (`packages/autopilot/src/motor-test.ts`) compares, motor by
+motor in test order:
+
+| | Expected (ArduPilot's frame) | Observed (the physics as it runs) |
+|---|---|---|
+| Motor | the profile motor with that test order in the TASK-142 frame configuration | the rotor whose speed rose |
+| Output | that motor's servo output | the output that drives that rotor in the manifest the session runs |
+| Spin | the sign of its ArduPilot yaw factor (positive is counter-clockwise) | that rotor's spin in the model |
+
+Speeds come from power telemetry v1, rows in the manifest's rotor order, and
+are judged from 0.5 s after ArduPilot's acknowledgement to the end of the
+spin; the next motor waits 1.5 s more for the last one to stop, all in
+simulated time. A rotor turned when its peak reached 300 rev/min and at least
+half of the step's largest peak. A motor passes when exactly the expected
+rotor turned with the expected spin; otherwise the result names what turned:
+no motor, several motors, "the motor mapping is swapped" or "the spin is
+reversed". A refusal by ArduPilot (with its last status text) or no
+acknowledgement within 3 s stops the check.
+
+`SessionController.checkMotors` starts it only while warming or READY,
+disarmed and below 0.3 m, and refuses otherwise with the reason; Take off
+waits until it ends. The Run tab's motor-check panel shows the progress and,
+per test, the expected and the turned motor, output and spin with pass or
+fail, and the flight view rings the fastest turning rotor in its spin colour.
+
+### Verification (TASK-157)
+
+`tests/motor-check-sitl.test.ts` runs the installed native ArduCopter against
+the physics session in Node: every motor of all five S19 configurations
+passes (4, 6, 8, 8 and 16 motors, the 16-motor octa with its scripting
+frame). Faults are injected in the model the physics runs while ArduPilot
+keeps the profile's frame: motors 1 and 2 on each other's outputs fail on
+exactly those two motors ("the motor mapping is swapped"), and motor 3 with
+its spin reversed fails on exactly that motor ("the spin is reversed").
+Swapping channels inside the JSON link would not inject a fault, because the
+link reads a channel and writes the same actuator slot.
+`tests/motor-test.test.ts` covers the expectation from the frame catalog, the
+judgement cases, refusals and the command's encoding;
+`tests/run-controller.test.ts` the controller's sequence and refusals; and
+`tests/browser/motor-test.spec.ts`, through the Run tab with the installed
+ArduCopter, the check before flight (motors 1, 4, 2 and 3 ringed in turn,
+all passing) and no check in flight.
