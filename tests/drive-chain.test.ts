@@ -6,7 +6,7 @@ import { BetFlightDynamics, type BetFlightConfiguration } from '@mirage/physics/
 import { ARDUPILOT_SPIN_RANGE, escDriveFromManifest, fitThrustExpo, thrustExpoOfDrive } from '@mirage/physics/drive';
 import { MotorFaults } from '@mirage/physics/motor-fault';
 import { validateVehicleManifest } from '@mirage/physics/vehicle-manifest';
-import { BetRotorEngine } from '@mirage/wasm-bet/rotor';
+import { BetRotorEngine, KERNEL_OPTION_EXACT } from '@mirage/wasm-bet/rotor';
 import { BOUND_V2_INPUT_DOUBLES, BOUND_V2_OUTPUT_SLOTS } from '@mirage/wasm-bet/rotor-v2';
 import { validateModelManifest } from '../packages/physics/src/model-manifest.ts';
 import { PhysicsSessionV2 } from '../packages/physics/src/session-v2.ts';
@@ -203,21 +203,41 @@ describe('ESC drive in flight', () => {
     expect(bad(c => { c.drive = { ...c.drive!, battery: { ...BATTERY, capacityAh: 0 } }; })).toThrow('bus battery');
   });
 
-  it('keeps the torque drive bit for bit as before TASK-092', () => {
-    // SHA-256 of 4000 state records computed with the d1aeaca BetFlightDynamics
-    // and the d1aeaca WASM build, both before any TASK-092 change.
-    const d = new BetFlightDynamics(module, parityAircraft(), HZ), hash = createHash('sha256'), record = new Float64Array(16);
+  /** The 4000 state records of the torque-drive flight below, 16 values each. */
+  function torqueFlight(configuration: BetFlightConfiguration): Float64Array {
+    const d = new BetFlightDynamics(module, configuration, HZ), records = new Float64Array(4000 * 16);
     const input = { flags: 3, throttle: 0.7, roll: 0.02, pitch: -0.01, yaw: 0.03, wallTimeMs: 0 };
     for (let i = 0; i < 4000; i++) {
       d.nowMs = (i + 0.5) / 0.8; input.wallTimeMs = d.nowMs; input.throttle = 0.6 + 0.2 * Math.sin(i / 300);
       d.stepNow(input);
       const s = d.state;
-      record.set([s.north, s.east, s.down, s.qw, s.qx, s.qy, s.qz, s.vn, s.ve, s.vd, s.p, s.q, s.r, s.batteryVoltage, d.referenceRotorRpm, d.validityFlags]);
-      hash.update(new Uint8Array(record.buffer));
+      records.set([s.north, s.east, s.down, s.qw, s.qx, s.qy, s.qz, s.vn, s.ve, s.vd, s.p, s.q, s.r, s.batteryVoltage, d.referenceRotorRpm, d.validityFlags], i * 16);
     }
     expect(d.fault).toBe('');
-    expect(hash.digest('hex')).toBe('0149633376a2365bec389ffbb28dc261a8f93a128d8a0d7766aeabffe84ab26d');
     expect(d.batteryCurrentA).toBe(0);
     d.dispose();
+    return records;
+  }
+
+  it('keeps the torque drive bit for bit as before TASK-092', () => {
+    // SHA-256 of 4000 state records computed with the d1aeaca BetFlightDynamics
+    // and the d1aeaca WASM build, both before any TASK-092 change. Since TASK-091
+    // increment 3 the rotor kernel of those builds is the exact kernel (option 4).
+    const records = torqueFlight({ ...parityAircraft(), kernelOptions: KERNEL_OPTION_EXACT });
+    expect(createHash('sha256').update(new Uint8Array(records.buffer)).digest('hex')).toBe('0149633376a2365bec389ffbb28dc261a8f93a128d8a0d7766aeabffe84ab26d');
+  });
+
+  it('keeps the default rotor kernel within the TASK-091 limits of the exact kernel over the same flight', () => {
+    // Declared before implementation: each of the 16 recorded values within 1e-9 relative
+    // (absolute floor 1e-12) of the exact kernel's, and the flags (value 15) equal.
+    const exact = torqueFlight({ ...parityAircraft(), kernelOptions: KERNEL_OPTION_EXACT }), fast = torqueFlight(parityAircraft());
+    let worst = 0;
+    for (let i = 0; i < exact.length; i++) {
+      const a = exact[i]!, b = fast[i]!; // both arrays hold 4000 * 16 values
+      if (i % 16 === 15) expect(b, `flags at record ${Math.floor(i / 16)}`).toBe(a);
+      const bound = 1e-9 * Math.max(Math.abs(a), Math.abs(b)) + 1e-12;
+      worst = Math.max(worst, Math.abs(a - b) / bound);
+    }
+    expect(worst).toBeLessThanOrEqual(1);
   });
 });

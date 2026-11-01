@@ -597,30 +597,56 @@ No new SAB byte layout or autopilot admission follows from this interface.
 Kernel cost (TASK-091, in progress). Initialization and reset validate the
 whole configuration; each step rechecks only the header, the counts, the
 dt, the scalar ranges and the slice bounds, and reads the polar without
-rescanning its values, since the configuration is immutable. Without kernel
-options the step evaluates the rotor with `Rotor::evaluate_fast`, whose
-results are bit-identical to the reference kernel (`Rotor::evaluate`,
-`PolarTable::lookup`): its polar lookups (`PreparedPolar`) compute the
-Reynolds-axis logarithms, the guess scales and the corner strides once per
-evaluation, guess each bracket in O(1) and correct it against its neighbours
-to the binary search's index, and read a cell's CL, CD and confidence
-corners through one window; the angle of attack wraps by exact conditional
+rescanning its values, since the configuration is immutable. The default
+kernel (increment 3) is `Rotor::evaluate_sampled`, which agrees with the
+reference kernel (`Rotor::evaluate`, `PolarTable::lookup`) within the
+declared tolerance T1: every force, moment and flapping component within
+1e-12 of its vector's norm (absolute floor 1e-15) and identical flags, with
+shaft speed and inflow within 1e-9 relative over closed loops. Each
+element's relative velocity is resolved on the tangential direction and the
+axis only, where the cross products of the element force reduce to scalar
+products. Per azimuth sample a branch-free strip pass, which the compiler
+vectorizes (f64x2 in the SIMD128 build), forms the speed, the angle of
+attack with the exact conditional wrap, and the Reynolds and Mach numbers.
+Its `atan2` and `ln` are kernel functions with exact Taylor coefficients,
+within 2e-15 of the platform functions: atan after reduction by multiples
+of pi/8 to |t| <= tan(pi/16), with terms up to t^19, and ln through
+2 atanh((m - 1)/(m + 1)) with m in [sqrt(1/2), sqrt(2)), with terms up to
+s^17. A pass of scalar polar lookups (`KernelPolar`) follows. It keeps the
+reference clamping, flags and brackets; the Reynolds bracket starts from the
+strip's bracket at the previous azimuth sample, and the Reynolds-axis
+logarithms use the same `ln`. The Reynolds and two-node Mach weights
+multiply by interval reciprocals, and a query clamped onto the last node
+keeps the weight 1. The confidence corners are skipped once the evaluation
+has flagged a low-confidence corner, and the trilinear sums take Re and Mach
+first on both alpha nodes, then alpha. Four sums along the blade per
+azimuth sample are rotated into the force, moment and flapping loads. Three
+cases fall back to the increment 2 kernel: a table with fewer than two
+alpha nodes, more than 32 Reynolds nodes or a Reynolds node that is not a
+positive normal number; a non-finite intermediate; and a shifted angle
+outside [-2 pi, 4 pi) before the wrap.
+
+Kernel option 4 (configuration version 2) runs the exact kernel
+`Rotor::evaluate_fast` instead, whose results are bit-identical to the
+reference: its polar lookups (`PreparedPolar`) compute the Reynolds-axis
+logarithms, the guess scales and the corner strides once per evaluation,
+guess each bracket in O(1) and correct it against its neighbours to the
+binary search's index, and read a cell's CL, CD and confidence corners
+through one window; the angle of attack wraps by exact conditional
 subtraction (Sterbenz) with `rem_euclid` as fallback; and the element speed
 is taken once. The reference stays in the crate with `bound::step_reference`
-and `bound_v2::step_reference` for tests and benchmarks; no WASM export
-calls them.
+and `bound_v2::step_reference` for tests and benchmarks; no production WASM
+export calls them. The feature-gated test export `bet_test_kernel_t1`
+compares the default kernel with the reference inside the scalar and
+SIMD128 test builds.
 
-Configuration version 2 (TASK-091) adds two opt-in modes that change the
-numerics; version 1 keeps byte 36 reserved zero and stays the default, and
-`encodeBoundRotor` writes version 2 only when `kernelOptions` is nonzero.
-Any other option bit is rejected. A configuration with options evaluates
-the rotor with `Rotor::evaluate_sampled`, which agrees with the reference
-within the declared tolerance T1 (1e-12 relative, flags identical) when it
-samples in full: each element's relative velocity is resolved on the
-tangential direction and the axis only, where the cross products of the
-element force reduce to scalar products, per-strip and per-azimuth factors
-are formed once, and four sums per azimuth are rotated into the force,
-moment and flapping loads. Option 1 (reduced predictor): the
+Configuration version 2 (TASK-091) carries the kernel options word at byte
+36: two opt-in modes that change the numerics (options 1 and 2) and the
+exact kernel (option 4). Version 1 keeps byte 36 reserved zero and runs the
+default kernel, and `encodeBoundRotor` writes version 2 only when
+`kernelOptions` is nonzero. Any other option bit, and option 4 together with
+option 1 or 2, is rejected. The modes evaluate with the default kernel.
+Option 1 (reduced predictor): the
 half-step prediction evaluates azimuth samples 0 and N/2 (N even), whose
 first harmonics cancel, and uses only their axial force and torque.
 Option 2 (hover sampling): the midpoint evaluation uses every other azimuth

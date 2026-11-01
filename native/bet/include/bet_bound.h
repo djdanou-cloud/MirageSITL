@@ -21,10 +21,14 @@
  * prediction uses azimuth samples 0 and N/2. Option 2: near hover the midpoint
  * uses every other azimuth sample; its state (f64 0 or 1) sits in arena header
  * bytes 56..63, which stay zero without it. Output flags 64 and 128 report the
- * steps that used them and are not validity breaches. */
+ * steps that used them and are not validity breaches. Option 4 (TASK-091
+ * increment 3) runs the exact kernel, bitwise equal to the reference, instead
+ * of the default kernel, which agrees with it within T1 (1e-12 relative);
+ * it cannot combine with options 1 and 2. */
 #define BET_BOUND_CONFIG_VERSION_OPTIONS 2
 #define BET_BOUND_OPTION_REDUCED_PREDICTOR 1
 #define BET_BOUND_OPTION_HOVER_SAMPLING 2
+#define BET_BOUND_OPTION_EXACT_KERNEL 4
 #define BET_BOUND_HOVER_SAMPLING 64
 #define BET_BOUND_REDUCED_PREDICTOR 128
 uint32_t bet_bound_version(void);

@@ -66,6 +66,13 @@ fn naca_config(dt: f64) -> Vec<u8> {
     c
 }
 fn arena_for(c: &[u8]) -> Vec<u8> { let mut a = vec![0u8; 64 + c.len()]; assert_eq!(bound::init(c, &mut a, 0), 0); a }
+/// `c` as configuration version 2 with the given kernel options.
+fn with_options(c: &[u8], options: u32) -> Vec<u8> {
+    let mut v2 = c.to_vec();
+    word(&mut v2, 0, bound::CONFIG_VERSION_OPTIONS);
+    word(&mut v2, 36, options);
+    v2
+}
 
 /// TASK-091 tolerance T1 for one output record: vectors per component within
 /// 1e-12 of their norm, scalars within 1e-12 relative (floor 1e-15), flags equal.
@@ -83,17 +90,20 @@ fn assert_t1(want: &[u8], got: &[u8], context: &str) {
     assert_eq!(want[116..120], got[116..120], "{context}: validity");
 }
 
-/// TASK-091: the production step (configuration checked once, fast kernel)
-/// against `step_reference` on twin arenas, within the declared T1: 1e5 closed-loop steps from rest
-/// in forward flight with body rates and cyclic (1e5 steps at 400 Hz and 2e4
-/// at 1200 Hz, which keeps the debug-build test short), then shaft speed and
-/// inflow within 1e-9 relative, and outputs within T1 on every step.
+/// TASK-091: the production step (configuration checked once) against
+/// `step_reference` on twin arenas, within the declared T1: 1e5 closed-loop
+/// steps from rest in forward flight with body rates and cyclic (1e5 steps at
+/// 400 Hz and 2e4 at 1200 Hz, which keeps the debug-build test short), then
+/// shaft speed and inflow within 1e-9 relative, and outputs within T1 on every
+/// step. The default kernel (increment 3) is held to T1; the exact kernel
+/// (option 4) to bitwise equality on every record, stricter than T1.
 #[test]
 fn production_step_matches_the_reference_over_a_closed_loop() {
-    for (hz, steps) in [(400.0, 100_000), (1200.0, 20_000)] {
+    for (hz, steps, exact) in [(400.0, 100_000, false), (1200.0, 20_000, false), (400.0, 100_000, true), (1200.0, 20_000, true)] {
         let dt = 1.0 / hz;
         let c = naca_config(dt);
-        let (mut fast, mut reference) = (arena_for(&c), arena_for(&c));
+        let production = if exact { with_options(&c, bound::OPTION_EXACT_KERNEL) } else { c.clone() };
+        let (mut fast, mut reference) = (arena_for(&production), arena_for(&c));
         let mut input = vec![0u8; 128];
         word(&mut input, 0, 1);
         for (at, v) in [(8, 1.225), (16, 1.7894e-5), (24, 340.294), (32, 6.0), (40, -1.5), (48, -2.0), (56, 0.4), (64, -0.2), (72, 0.05),
@@ -115,19 +125,23 @@ fn production_step_matches_the_reference_over_a_closed_loop() {
             assert!((x - y).abs() <= 1e-9 * x.abs().max(y.abs()), "{hz} Hz state at {at}: {x} {y}");
         }
         assert!(get(&fast, 16) > 100.0, "the shaft spun up");
-        println!("{hz} Hz: {bitwise} of {steps} output records bitwise identical");
-        // Without kernel options the production kernel is exact, stricter than T1.
-        assert_eq!(bitwise, steps);
+        println!("{hz} Hz, {} kernel: {bitwise} of {steps} output records bitwise identical", if exact { "exact" } else { "default" });
+        if exact {
+            assert_eq!(bitwise, steps);
+        }
     }
 }
 
-/// TASK-091: the same comparison for the TASK-092 ESC drive (interface v2 drive mode 1).
+/// TASK-091: the same comparison for the TASK-092 ESC drive (interface v2
+/// drive mode 1), for the default kernel (T1) and the exact kernel (bitwise).
 #[test]
 fn production_esc_step_matches_the_reference_over_a_closed_loop() {
     use mirage_bet::bound_v2;
+    for exact in [false, true] {
     let dt = 1.0 / 800.0;
     let c = naca_config(dt);
-    let (mut fast, mut reference) = (arena_for(&c), arena_for(&c));
+    let production = if exact { with_options(&c, bound::OPTION_EXACT_KERNEL) } else { c.clone() };
+    let (mut fast, mut reference) = (arena_for(&production), arena_for(&c));
     let mut input = vec![0u8; 256];
     word(&mut input, 0, bound_v2::VERSION);
     word(&mut input, 8, bound_v2::DRIVE_ESC_DUTY);
@@ -150,19 +164,26 @@ fn production_esc_step_matches_the_reference_over_a_closed_loop() {
         assert!((x - y).abs() <= 1e-9 * x.abs().max(y.abs()) + 1e-15, "state at {at}: {x} {y}");
     }
     assert!(get(&fast, 16) > 100.0, "the shaft spun up");
-    assert_eq!(a, b, "without kernel options the final records are bitwise identical");
+    if exact {
+        assert_eq!(a, b, "the exact kernel's final records are bitwise identical");
+    }
+    }
 }
 
 /// TASK-091 configuration version 2: the options word is read only there,
-/// unknown option bits and a version-1 configuration with a nonzero options
-/// word are rejected, and an option-free version 2 steps exactly as version 1.
+/// unknown option bits, the exact kernel (4) combined with another option and
+/// a version-1 configuration with a nonzero options word are rejected, the
+/// exact kernel alone is accepted, and an option-free version 2 steps exactly
+/// as version 1.
 #[test]
 fn configuration_version_two_carries_only_the_known_kernel_options() {
     let dt = 1.0 / 400.0;
     let v1 = naca_config(dt);
+    let mut a = vec![0u8; 64 + v1.len()];
+    assert_eq!(bound::init(&with_options(&v1, bound::OPTION_EXACT_KERNEL), &mut a, 0), 0, "the exact kernel alone");
     let mut with_options = v1.clone();
     word(&mut with_options, 0, bound::CONFIG_VERSION_OPTIONS);
-    for bad in [4u32, 8, 0x8000_0000, 7] {
+    for bad in [8u32, 0x8000_0000, 5, 6, 7, 12] {
         word(&mut with_options, 36, bad);
         let mut a = vec![0u8; 64 + v1.len()];
         assert_eq!(bound::init(&with_options, &mut a, 0), -3, "options {bad:#x}");

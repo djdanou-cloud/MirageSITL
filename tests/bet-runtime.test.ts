@@ -1,7 +1,7 @@
 import {execFileSync} from 'node:child_process';
 import {readFileSync} from 'node:fs';
 import {beforeAll,expect,it} from 'vitest';
-import {BetRotorEngine,encodeBoundRotor,KERNEL_OPTION_HOVER_SAMPLING,KERNEL_OPTION_REDUCED_PREDICTOR,ROTOR_FLAG_HOVER_SAMPLING,
+import {BetRotorEngine,encodeBoundRotor,KERNEL_OPTION_EXACT,KERNEL_OPTION_HOVER_SAMPLING,KERNEL_OPTION_REDUCED_PREDICTOR,ROTOR_FLAG_HOVER_SAMPLING,
   ROTOR_FLAG_REDUCED_PREDICTOR,type BoundRotorDefinition} from '@mirage/wasm-bet/rotor';
 import {BetFlightDynamics} from '@mirage/physics/bet-dynamics';
 import {PhysicsSessionV2} from '../packages/physics/src/session-v2.ts';
@@ -114,7 +114,10 @@ it('encodes the TASK-091 kernel options as configuration version 2 and reports t
   const both=KERNEL_OPTION_REDUCED_PREDICTOR|KERNEL_OPTION_HOVER_SAMPLING;
   const encoded=new DataView(encodeBoundRotor({...rotorDefinition(),kernelOptions:both},1/400).buffer);
   expect([encoded.getUint32(0,true),encoded.getUint32(36,true)]).toEqual([2,3]);
-  for(const bad of [4,-1,0.5])expect(()=>encodeBoundRotor({...rotorDefinition(),kernelOptions:bad},1/400)).toThrow('kernel options');
+  // The exact kernel (TASK-091 increment 3) stands alone; any combination with it or an unknown bit is refused.
+  const exact=new DataView(encodeBoundRotor({...rotorDefinition(),kernelOptions:KERNEL_OPTION_EXACT},1/400).buffer);
+  expect([exact.getUint32(0,true),exact.getUint32(36,true)]).toEqual([2,4]);
+  for(const bad of [5,6,7,8,-1,0.5])expect(()=>encodeBoundRotor({...rotorDefinition(),kernelOptions:bad},1/400)).toThrow('kernel options');
   for(const module of modules) {
     const full=new BetFlightDynamics(module,flightConfiguration(0,4),400),modes=new BetFlightDynamics(module,flightConfiguration(0,4,both),400);
     const pilot={flags:3,throttle:0.5,roll:0,pitch:0,yaw:0,wallTimeMs:0};

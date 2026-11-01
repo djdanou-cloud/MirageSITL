@@ -20,6 +20,9 @@ pub const CONFIG_VERSION_OPTIONS: u32 = 2;
 pub const OPTION_REDUCED_PREDICTOR: u32 = 1;
 /// Kernel option: near hover the midpoint uses every other azimuth sample (N even, at least 4).
 pub const OPTION_HOVER_SAMPLING: u32 = 2;
+/// Kernel option (TASK-091 increment 3): the exact kernel `Rotor::evaluate_fast`, bitwise equal
+/// to the reference, instead of the default T1 kernel; not combinable with options 1 and 2.
+pub const OPTION_EXACT_KERNEL: u32 = 4;
 /// Output flag: this step's midpoint loads used hover sampling.
 pub const FLAG_HOVER_SAMPLING: u32 = 64;
 /// Output flag: this step's half-step prediction used the reduced predictor.
@@ -69,7 +72,8 @@ fn parse_config(b: &[u8], full: bool) -> Result<Config<'_>, i32> {
         if b.len() < CONFIG_HEADER || u(b,4)? as usize != b.len() || !zero(b,112,128) { return None; }
         // Version 1 keeps byte 36 reserved zero; version 2 carries the kernel options there.
         let options=if version==Some(VERSION) {if !zero(b,36,40) {return None;} 0} else {u(b,36)?};
-        if options & !(OPTION_REDUCED_PREDICTOR|OPTION_HOVER_SAMPLING) != 0 { return None; }
+        if options & !(OPTION_REDUCED_PREDICTOR|OPTION_HOVER_SAMPLING|OPTION_EXACT_KERNEL) != 0
+            || (options & OPTION_EXACT_KERNEL != 0 && options != OPTION_EXACT_KERNEL) { return None; }
         let na=u(b,8)? as usize;let nr=u(b,12)? as usize;let nm=u(b,16)? as usize;
         let ns=u(b,20)? as usize;let count=na.checked_mul(nr)?.checked_mul(nm)?;
         if !(1..=361).contains(&na) || !(1..=32).contains(&nr) || !(1..=8).contains(&nm)
@@ -135,8 +139,8 @@ pub fn step_reference(arena: &mut [u8], input: &[u8], out: &mut [u8], dt: f64) -
 /// Which rotor kernel a step runs.
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Kernel {
-    /// `step_config` and `Rotor::evaluate_fast`, or `Rotor::evaluate_sampled`
-    /// with kernel options (configuration version 2).
+    /// `step_config` and the T1 kernel `Rotor::evaluate_sampled`, or the exact
+    /// kernel `Rotor::evaluate_fast` with `OPTION_EXACT_KERNEL`.
     Production,
     /// `config` and `Rotor::evaluate`, the scalar reference.
     Reference,
@@ -189,11 +193,12 @@ pub(crate) fn advance_with(arena: &[u8], input: &[u8], out_len: usize, dt: f64, 
     let samples=c.azimuth;
     let reduced_predictor=production && c.options & OPTION_REDUCED_PREDICTOR != 0 && samples % 2 == 0;
     let hover_capable=production && hover_option && samples % 2 == 0 && samples >= 4;
-    // The exact production kernel without options; the T1 kernel of the opt-in configurations with them.
-    let evaluate=|rotor:&Rotor<'_>,i:RotorInput| match (kernel,c.options) {
+    // The T1 kernel by default (TASK-091 increment 3); the exact kernel with OPTION_EXACT_KERNEL.
+    let exact=c.options & OPTION_EXACT_KERNEL != 0;
+    let evaluate=|rotor:&Rotor<'_>,i:RotorInput| match (kernel,exact) {
         (Kernel::Reference,_)=>rotor.evaluate(i),
-        (Kernel::Production,0)=>rotor.evaluate_fast(i),
-        (Kernel::Production,_)=>rotor.evaluate_sampled(i,1),
+        (Kernel::Production,true)=>rotor.evaluate_fast(i),
+        (Kernel::Production,false)=>rotor.evaluate_sampled(i,1),
     };
     let compute=|| {
         let omega=f(state,16)?;let induced=f(state,24)?;
@@ -205,13 +210,13 @@ pub(crate) fn advance_with(arena: &[u8], input: &[u8], out_len: usize, dt: f64, 
         // Reduced predictor: samples 0 and N/2, whose first harmonics cancel; only the axial force and torque are used.
         let first=if reduced_predictor {rotor.evaluate_sampled(i,samples/2)} else {evaluate(&rotor,i)}.ok()?;
         // Hover sampling: the regime measure at the start of the step, with hysteresis between HOVER_ENTER and HOVER_LEAVE.
-        let tip=omega*c.geometry.radius_m;
-        let regime=if omega>0.0 && tip>0.0 {
+        // Only configurations with the option form it (its hypot calls are libm calls on wasm32).
+        let regime=|| { let tip=omega*c.geometry.radius_m; if omega>0.0 && tip>0.0 {
             (i.air_velocity_hub_mps.x.hypot(i.air_velocity_hub_mps.y)/tip)
                 .max(i.body_rate_hub_rad_s.x.hypot(i.body_rate_hub_rad_s.y)/omega)
                 .max(i.cyclic_cos_rad.hypot(i.cyclic_sin_rad))
-        } else {f64::INFINITY};
-        let hover=hover_capable && if hover_previous==1.0 {regime<=HOVER_LEAVE} else {regime<HOVER_ENTER};
+        } else {f64::INFINITY} };
+        let hover=hover_capable && { let m=regime(); if hover_previous==1.0 {m<=HOVER_LEAVE} else {m<HOVER_ENTER} };
         let shaft_model=Shaft::new(c.inertia,c.damping,c.geometry.spin_sign).ok()?;
         let flow_model=AxialInflow::new(i.density_kg_m3,c.geometry.radius_m,c.tau,c.limit).ok()?;
         let transverse=i.air_velocity_hub_mps.x.hypot(i.air_velocity_hub_mps.y);

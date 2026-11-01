@@ -1,8 +1,11 @@
 //! Prescribed-state scalar BET, SI hub coordinates; section 3 of engine spec.
 use crate::{
-    element_force, polar::PolarTable, quadrature::AzimuthGrid, Vec3, MIN_RELATIVE_SPEED_MPS,
+    element_force,
+    polar::{clamp_select, ln_kernel, PolarTable},
+    quadrature::AzimuthGrid,
+    Vec3, MIN_RELATIVE_SPEED_MPS,
 };
-use std::f64::consts::{PI, TAU};
+use std::f64::consts::{FRAC_PI_2, FRAC_PI_4, FRAC_PI_8, PI, TAU};
 /// Configuration, non-finite input, or numerical overflow error.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct RotorError;
@@ -310,17 +313,151 @@ impl<'a> Rotor<'a> {
         Ok(out)
     }
 
-    /// The kernel of the TASK-091 opt-in configurations, on every `stride`-th
-    /// azimuth sample from sample 0, each weighted by the blade count over the
-    /// samples used; a stride that does not divide the sample count is an
-    /// error. It agrees with `evaluate` within the declared tolerance T1 (1e-12
-    /// relative, flags identical) at a stride of 1: each element's relative
-    /// velocity is resolved on the tangential direction and the axis only,
-    /// where the cross products of `element_force` reduce to scalar products;
-    /// per-strip and per-azimuth factors are formed once and four sums per
-    /// azimuth are rotated into the loads; the polar lookups are those of
-    /// `evaluate_fast`.
+    /// The default production kernel (TASK-091 increment 3) on every
+    /// `stride`-th azimuth sample from sample 0, each weighted by the blade
+    /// count over the samples used; a stride that does not divide the sample
+    /// count is an error. At a stride of 1 it agrees with `evaluate` within the
+    /// declared tolerance T1 (1e-12 relative, flags identical). Each element's
+    /// relative velocity is resolved on the tangential direction and the axis
+    /// only, where the cross products of `element_force` reduce to scalar
+    /// products. Per azimuth sample, a branch-free strip pass that the compiler
+    /// vectorizes forms the speed, the angle of attack (`atan2_kernel` and the
+    /// exact conditional wrap), the Reynolds and Mach numbers and the Reynolds
+    /// logarithm (`ln_kernel`); a pass of `KernelPolar::sample` lookups follows,
+    /// each strip's Reynolds bracket starting from its bracket at the previous
+    /// sample, with four sums along the blade rotated into the force, moment and
+    /// flapping loads. Tables `KernelPolar` cannot serve, non-finite
+    /// intermediates and angles outside the conditional wrap fall back to
+    /// `evaluate_resolved`, the increment 2 kernel.
     pub fn evaluate_sampled(&self, i: RotorInput, stride: usize) -> Result<RotorWrench, RotorError> {
+        if stride == 0 || self.grid.len() % stride != 0 {
+            return Err(RotorError);
+        }
+        let polar = self.polar.prepare_kernel();
+        if !polar.usable() {
+            return self.evaluate_resolved(i, stride);
+        }
+        let scalars = [
+            i.density_kg_m3,
+            i.viscosity_pa_s,
+            i.sound_speed_mps,
+            i.omega_rad_s,
+            i.induced_mps,
+            i.collective_rad,
+            i.cyclic_cos_rad,
+            i.cyclic_sin_rad,
+            i.air_velocity_hub_mps.x,
+            i.air_velocity_hub_mps.y,
+            i.air_velocity_hub_mps.z,
+            i.body_rate_hub_rad_s.x,
+            i.body_rate_hub_rad_s.y,
+            i.body_rate_hub_rad_s.z,
+        ];
+        if !scalars.iter().all(|x| x.is_finite())
+            || !(0.05..=2.0).contains(&i.density_kg_m3)
+            || i.viscosity_pa_s <= 0.0
+            || i.sound_speed_mps <= 0.0
+            || i.omega_rad_s < 0.0
+        {
+            return Err(RotorError);
+        }
+        let zero = Vec3::new(0.0, 0.0, 0.0);
+        let mut out = RotorWrench {
+            force_n: zero,
+            moment_nm: zero,
+            flap_load_nm: zero,
+            flags: 0,
+        };
+        let g = self.geometry;
+        let n = g.radius.len().min(MAX_STRIPS);
+        let (radius, twist) = (&g.radius[..n], &g.twist[..n]);
+        let spin = g.spin_sign as f64;
+        let weight = g.blade_count as f64 / (self.grid.len() / stride) as f64;
+        // Per-strip factors: Re = (rho c / mu) U and the element force over U, 1/2 rho c dr weight.
+        let (mut reynolds_per_speed, mut force_per_speed) = ([0.0; MAX_STRIPS], [0.0; MAX_STRIPS]);
+        for k in 0..n {
+            reynolds_per_speed[k] = i.density_kg_m3 * g.chord[k] / i.viscosity_pa_s;
+            force_per_speed[k] = 0.5 * i.density_kg_m3 * g.chord[k] * g.width[k] * weight;
+        }
+        let inverse_sound = 1.0 / i.sound_speed_mps;
+        let (air, rate) = (i.air_velocity_hub_mps, i.body_rate_hub_rad_s);
+        let axial_air = air.z - i.induced_mps;
+        let z = Vec3::new(0.0, 0.0, 1.0);
+        let (re_first, re_last) = polar.reynolds_bounds();
+        // Strip pass outputs, and each strip's Reynolds bracket carried across azimuth samples.
+        let mut lanes = Lanes::new();
+        let mut hint = [usize::MAX; MAX_STRIPS];
+        for j in (0..self.grid.len()).step_by(stride) {
+            let (c, s) = self.grid.sample(j).ok_or(RotorError)?;
+            let et = Vec3::new(-spin * s, spin * c, 0.0);
+            let swept = rate.cross(Vec3::new(c, s, 0.0));
+            let (air_t, per_radius_t, per_radius_z) = (air.dot(et), swept.dot(et) + i.omega_rad_s, swept.z);
+            let pitch = i.collective_rad + i.cyclic_cos_rad * c + i.cyclic_sin_rad * s;
+            // Pass 1, branch-free so that it vectorizes, in two loops that each keep their constants in
+            // registers: velocity, speed and angle of attack; then Re, Mach and ln Re.
+            let mut regular = true;
+            for k in 0..n {
+                let r = radius[k];
+                let (u_t, u_z) = (air_t - r * per_radius_t, axial_air - r * per_radius_z);
+                let speed = crate::sqrt(u_t * u_t + u_z * u_z);
+                let x = pitch + twist[k] - atan2_kernel(-u_z, -u_t) + PI;
+                // `wrap_angle` on [-TAU, 2 TAU); anything else (or a non-finite value) takes the fallback.
+                regular &= (x >= -TAU) & (x < 2.0 * TAU) & (speed <= f64::MAX);
+                let wrapped = if x < 0.0 { x + TAU } else if x >= TAU { x - TAU } else { x };
+                lanes.u_t[k] = u_t;
+                lanes.u_z[k] = u_z;
+                lanes.speed[k] = speed;
+                lanes.alpha[k] = wrapped - PI;
+            }
+            for k in 0..n {
+                let speed = lanes.speed[k];
+                let reynolds = reynolds_per_speed[k] * speed;
+                lanes.reynolds[k] = reynolds;
+                lanes.ln_reynolds[k] = ln_kernel(clamp_select(reynolds, re_first, re_last));
+                lanes.mach[k] = speed * inverse_sound;
+            }
+            if !regular {
+                return self.evaluate_resolved(i, stride);
+            }
+            // Pass 2: polar lookups and the element force on et and z, summed along the blade with its moments.
+            let (mut force_t, mut force_z, mut moment_t, mut moment_z) = (0.0, 0.0, 0.0, 0.0);
+            for k in 0..n {
+                let speed = lanes.speed[k];
+                if !(speed >= MIN_RELATIVE_SPEED_MPS) {
+                    continue;
+                }
+                if hint[k] == usize::MAX {
+                    hint[k] = polar.reynolds_guess(lanes.ln_reynolds[k]);
+                }
+                let p = polar.sample(lanes.alpha[k], lanes.reynolds[k], lanes.ln_reynolds[k], lanes.mach[k], &mut hint[k], out.flags);
+                out.flags |= p.flags;
+                // Drag along (u_t, u_z)/U, lift along (u_z, -u_t)/U (spin x (d x e_r)); q/U = force_per_speed U.
+                let (u_t, u_z, r) = (lanes.u_t[k], lanes.u_z[k], radius[k]);
+                let q = force_per_speed[k] * speed;
+                let (f_t, f_z) = (q * (p.cl * u_z + p.cd * u_t), q * (p.cd * u_z - p.cl * u_t));
+                force_t += f_t;
+                force_z += f_z;
+                moment_t += r * f_t;
+                moment_z += r * f_z;
+            }
+            // r er x (f_t et + f_z z) = spin r f_t z - spin r f_z et; flap loads (1, c, s) r f_z.
+            out.force_n = out.force_n.add(et.scale(force_t)).add(z.scale(force_z));
+            out.moment_nm = out.moment_nm.add(z.scale(spin * moment_t)).add(et.scale(-spin * moment_z));
+            out.flap_load_nm = out.flap_load_nm.add(Vec3::new(1.0, c, s).scale(moment_z));
+        }
+        if !out.force_n.norm().is_finite()
+            || !out.moment_nm.norm().is_finite()
+            || !out.flap_load_nm.norm().is_finite()
+        {
+            return Err(RotorError);
+        }
+        Ok(out)
+    }
+
+    /// The T1 kernel of TASK-091 increment 2, kept as the fallback of
+    /// `evaluate_sampled` for tables `KernelPolar` cannot serve and for steps
+    /// with a non-finite intermediate or an angle outside the conditional wrap.
+    fn evaluate_resolved(&self, i: RotorInput, stride: usize) -> Result<RotorWrench, RotorError> {
         if stride == 0 || self.grid.len() % stride != 0 {
             return Err(RotorError);
         }
@@ -417,6 +554,66 @@ impl<'a> Rotor<'a> {
         }
         Ok(out)
     }
+}
+
+/// Most strips of a rotor (`RotorGeometry`).
+const MAX_STRIPS: usize = 64;
+
+/// Per-strip results of the strip pass of `evaluate_sampled`.
+struct Lanes {
+    u_t: [f64; MAX_STRIPS],
+    u_z: [f64; MAX_STRIPS],
+    speed: [f64; MAX_STRIPS],
+    alpha: [f64; MAX_STRIPS],
+    reynolds: [f64; MAX_STRIPS],
+    ln_reynolds: [f64; MAX_STRIPS],
+    mach: [f64; MAX_STRIPS],
+}
+
+impl Lanes {
+    fn new() -> Self {
+        let zero = [0.0; MAX_STRIPS];
+        Self { u_t: zero, u_z: zero, speed: zero, alpha: zero, reynolds: zero, ln_reynolds: zero, mach: zero }
+    }
+}
+
+/// tan(pi/16) and tan(3 pi/16): the bounds between the reduction centres of `atan2_kernel`.
+const TAN_PI_16: f64 = 0.198_912_367_379_658_0;
+const TAN_3PI_16: f64 = 0.668_178_637_919_298_9;
+/// tan(pi/8) = sqrt(2) - 1, the middle reduction centre.
+const TAN_PI_8: f64 = 0.414_213_562_373_095_03;
+
+/// `atan2(y, x)` of the TASK-091 production kernel, without branches or calls
+/// so that the strip pass vectorizes. With t = min(|x|, |y|) / max(|x|, |y|),
+/// atan t = k pi/8 + atan(t'), t' = (t - c)/(1 + c t), c = tan(k pi/8) for the
+/// nearest k in {0, 1, 2}, so |t'| <= tan(pi/16); atan(t') is its Taylor series
+/// `t' - t'^3/3 + ... - t'^19/19` (exact rational coefficients; the omitted
+/// terms sum to below 9e-17 rad). One division forms t' from |x|
+/// and |y| directly; the octant and the sign of y then place the angle.
+/// Declared accuracy (TASK-091): within 2e-15 rad of `f64::atan2` for finite
+/// arguments whose larger magnitude is a normal number. Smaller arguments
+/// (both zero included) give a finite angle in the right quadrant only;
+/// callers mask those elements by their speed.
+#[inline(always)]
+pub fn atan2_kernel(y: f64, x: f64) -> f64 {
+    let (ax, ay) = (x.abs(), y.abs());
+    let swap = ay > ax;
+    let (num, den) = if swap { (ax, ay) } else { (ay, ax) };
+    let middle = num > TAN_PI_16 * den;
+    let upper = num > TAN_3PI_16 * den;
+    let c = if upper { 1.0 } else if middle { TAN_PI_8 } else { 0.0 };
+    let base = if upper { FRAC_PI_4 } else if middle { FRAC_PI_8 } else { 0.0 };
+    // Both zero: 0 / MIN_POSITIVE keeps the angle finite (0, or pi for x = -0), so the
+    // element stays on the vectorized path; callers mask it by its speed.
+    let divisor = den + c * num;
+    let t = (num - c * den) / if divisor < f64::MIN_POSITIVE { f64::MIN_POSITIVE } else { divisor };
+    let z = t * t;
+    let series = -1.0 / 3.0 + z * (1.0 / 5.0 + z * (-1.0 / 7.0 + z * (1.0 / 9.0 + z * (-1.0 / 11.0
+        + z * (1.0 / 13.0 + z * (-1.0 / 15.0 + z * (1.0 / 17.0 + z * (-1.0 / 19.0))))))));
+    let octant = base + (t + t * (z * series));
+    let quadrant = if swap { FRAC_PI_2 - octant } else { octant };
+    let half = if x < 0.0 { PI - quadrant } else { quadrant };
+    half.copysign(y)
 }
 
 /// `x.rem_euclid(TAU)` with the same bits. On [TAU, 2·TAU) the subtraction is

@@ -15,6 +15,9 @@ export interface BoundRotorDefinition {
 export const KERNEL_OPTION_REDUCED_PREDICTOR = 1;
 /** Kernel option (configuration version 2, TASK-091): near hover the midpoint uses every other azimuth sample. */
 export const KERNEL_OPTION_HOVER_SAMPLING = 2;
+/** Kernel option (configuration version 2, TASK-091 increment 3): the exact kernel, bitwise equal to the
+ * reference, instead of the default kernel (within T1, 1e-12 relative); not combinable with the other options. */
+export const KERNEL_OPTION_EXACT = 4;
 /** Rotor output flag: the midpoint loads used hover sampling. Informational, not a validity breach. */
 export const ROTOR_FLAG_HOVER_SAMPLING = 64;
 /** Rotor output flag: the half-step prediction used the reduced predictor. Informational, not a validity breach. */
@@ -101,7 +104,7 @@ export function encodeBoundRotor(d: BoundRotorDefinition, dtS: number): Uint8Arr
       !Number.isInteger(g.bladeCount) || !Number.isInteger(g.azimuthSamples) || ![1,-1].includes(g.spinSign))
     throw Error('Invalid bound rotor payload shape');
   const options=d.kernelOptions??0;
-  if(!Number.isInteger(options) || options<0 || options>(KERNEL_OPTION_REDUCED_PREDICTOR|KERNEL_OPTION_HOVER_SAMPLING))
+  if(!Number.isInteger(options) || options<0 || (options>(KERNEL_OPTION_REDUCED_PREDICTOR|KERNEL_OPTION_HOVER_SAMPLING) && options!==KERNEL_OPTION_EXACT))
     throw Error('Invalid bound rotor kernel options');
   const bytes=new Uint8Array(128+(ns*4+na+nr+nm+count*3)*8),v=new DataView(bytes.buffer);
   // Version 1 unless a kernel option is on (TASK-091); version 2 carries the options word at byte 36.
