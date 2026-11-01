@@ -116,14 +116,14 @@ function isBinaryMessage<T extends string>(data: unknown, type: T): data is { ty
 function hex(buffer: ArrayBuffer): string {
   return Array.from(new Uint8Array(buffer), value => value.toString(16).padStart(2, "0")).join("");
 }
-/** Cold: verifies the BET module's hash, compiles it and checks it imports nothing and exports the drive and bus. */
+/** Cold: verifies the BET module's hash, compiles it and checks it imports nothing and exports the drive steps and bus. */
 async function loadBetModule(bytes: Uint8Array, sha256: string): Promise<void> {
   const copy = new Uint8Array(bytes);
   if (hex(await crypto.subtle.digest("SHA-256", copy)) !== sha256) throw new Error("BET module SHA-256 mismatch");
   const module = await WebAssembly.compile(copy);
   if (WebAssembly.Module.imports(module).length !== 0) throw new Error("The BET module must not import host functions");
   const names = new Set(WebAssembly.Module.exports(module).map(entry => entry.name));
-  for (const name of ["bet_bound_step_v2", "bet_bus_step", "bet_body_step"]) if (!names.has(name)) throw new Error(`The BET module lacks ${name}`);
+  for (const name of ["bet_bound_step_v2", "bet_bus_step", "bet_drive_step", "bet_body_step"]) if (!names.has(name)) throw new Error(`The BET module lacks ${name}`);
   betModule = module;
 }
 function uint(value: unknown, max: number): number | null {

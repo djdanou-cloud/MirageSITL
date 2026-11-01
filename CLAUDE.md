@@ -372,7 +372,9 @@ implementation.
 
   TASK-092 is DONE: `BetFlightDynamics` takes an optional production drive
   (voltage-driven motor, ESC hold and lag, shared battery bus over bound-rotor v2
-  drive mode 1 and `bet_bus_step`), the torque drive stays bit for bit as before,
+  drive mode 1 and `bet_bus_step`; `bet_drive_step` steps all motors and the bus
+  together and, while the pack is at its limit, lowers the motors' supply
+  voltage so they draw only what it delivers), the torque drive stays bit for bit as before,
   the ArduPilot profile v2 sets `BATT_MONITOR`, `MOT_BAT_VOLT_*` and a fitted
   `MOT_THST_EXPO`, and native ArduCopter hovers on it with measured bus current
   (`MIRAGE_PARITY_DRIVE=esc`); the browser WASM hover is BLOCKED_EXTERNAL without

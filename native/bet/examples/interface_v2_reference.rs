@@ -8,9 +8,15 @@
 //!                                             output 0..104 feeds input 96..200
 //! bus <steps> <input hex>                  -> one output hex line per step;
 //!                                             output charge 0..8 feeds input 48..56
+//! drive <steps> <rotors> <config hex> <step input hex> <bus input hex>
+//!                                          -> per step the drive output line, then
+//!                                             one output line per rotor; output
+//!                                             charge 0..8 feeds bus input 48..56 and
+//!                                             output voltage 8..16 every step input 128..136
 //! ```
-//! `bound` also runs drive mode 1 records (TASK-092); `bus` is the TASK-092 shared bus.
-use mirage_bet::{body_abi_v2, bound, bound_v2, bus_abi};
+//! `bound` also runs drive mode 1 records (TASK-092); `bus` is the TASK-092 shared bus;
+//! `drive` is the TASK-092 ESC drive step over identical rotors.
+use mirage_bet::{body_abi_v2, bound, bound_v2, bus_abi, drive_bus};
 use std::io::{self, BufRead, Write};
 
 fn decode(hex: &str) -> Result<Vec<u8>, String> {
@@ -55,6 +61,26 @@ fn run(line: &str, out: &mut impl Write) -> Result<(), String> {
                 if status != 0 { return Err(format!("bus step status {status}")); }
                 writeln!(out, "{}", encode(&output)).map_err(|e| e.to_string())?;
                 input[48..56].copy_from_slice(&output[0..8]);
+            }
+            Ok(())
+        }
+        ["drive", n, rotors, config, input, bus] => {
+            let (config, mut input, mut bus) = (decode(config)?, decode(input)?, decode(bus)?);
+            let count = steps(rotors)?;
+            let mut arenas = vec![vec![0u8; bound::ARENA_HEADER + config.len()]; count];
+            for arena in &mut arenas { if bound::init(&config, arena, 0) != 0 { return Err("bound init failed".into()); } }
+            let dt = f64::from_le_bytes(config[72..80].try_into().map_err(|_| "short config")?);
+            let mut outputs = vec![vec![0u8; bound_v2::OUTPUT_BYTES as usize]; count];
+            let mut output = vec![0u8; drive_bus::OUTPUT_BYTES as usize];
+            for _ in 0..steps(n)? {
+                let mut table: Vec<drive_bus::DriveRotor<'_>> = arenas.iter_mut().zip(outputs.iter_mut())
+                    .map(|(arena, out)| drive_bus::DriveRotor { arena, input: &input, output: out }).collect();
+                let status = drive_bus::step(&mut table, &bus, &mut output, dt);
+                if status != 0 { return Err(format!("drive step status {status}")); }
+                writeln!(out, "{}", encode(&output)).map_err(|e| e.to_string())?;
+                for o in &outputs { writeln!(out, "{}", encode(o)).map_err(|e| e.to_string())?; }
+                bus[48..56].copy_from_slice(&output[0..8]);
+                input[128..136].copy_from_slice(&output[8..16]);
             }
             Ok(())
         }

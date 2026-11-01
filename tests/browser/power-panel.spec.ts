@@ -5,9 +5,11 @@ import { readFileSync } from 'node:fs';
 import { viteFileUrl } from '../support/vite-url';
 
 // TASK-146: the application's physics Worker runs a quad X profile on the
-// example cards with a 2 A pack limit and a 10 W motor power rating. The
+// example cards with a 2 A pack limit and a 5 W motor power rating. The
 // power panel must show the pack as Limited (the model clamps its current)
 // and each motor's power as a Warning (the rating is exceeded, physics runs on).
+// The limited pack delivers about 2 A × 16.8 V, so each of the four motors
+// gets about 8.4 W (TASK-092 drive step), above the 5 W rating.
 // At 30 % throttle, below the hover's 40 %, the quad stays on its standard
 // landing gear (TASK-095) and the run is steady; an open-loop climb would
 // pitch over and fall, as no pad levels it any more.
@@ -65,7 +67,7 @@ test('the power panel keeps a rating warning apart from a modeled limit on a run
     const edited: Record<string, unknown> = { ...cards };
     const battery = edited.battery as { values: Record<string, unknown> }, motor = edited.motor as { values: Record<string, unknown> };
     edited.battery = { ...battery, values: { ...battery.values, maxDischargeCurrentA: 2 } };
-    edited.motor = { ...motor, values: { ...motor.values, maxPowerW: 10 } };
+    edited.motor = { ...motor, values: { ...motor.values, maxPowerW: 5 } };
     const cardMap = new Map(Object.entries(edited).map(([type, value]) => [ids[type as keyof typeof ids], components.validateComponentCard(value)]));
     const resolved = resolver.resolveComponents(fitted, cardMap);
     if (!resolved.components) throw new Error(`Missing: ${resolved.missing.join('; ')}`);

@@ -5192,8 +5192,8 @@ roadmap entry records the native captures.
 The production drive replaces the ideal torque-source ESC with an ESC, a
 voltage-driven DC motor and one battery bus shared by all motors, so the
 throttle-to-thrust curve and battery sag follow from the physics. It is
-interface v2 drive mode 1 and the `bet_bus_step` export; drive mode 0 and the
-v1 interfaces are unchanged bit for bit. A trajectory digest of 4000 varying
+interface v2 drive mode 1 and the `bet_bus_step` and `bet_drive_step` exports;
+drive mode 0 and the v1 interfaces are unchanged bit for bit. A trajectory digest of 4000 varying
 v1 steps is identical before and after the change.
 
 ### Motor and ESC law
@@ -5296,16 +5296,122 @@ Statuses: 0, −2 record length or pointers, −3 invalid input or charge, −7
 version. `BetBus` (`@mirage/wasm-bet/bus`) owns one record pair in its own
 instance.
 
+### ESC drive step
+
+`bet_drive_step(table, count, bus_input, bus_output, dt)` steps `count` (1
+to 32) bound rotors in drive mode 1 and the shared bus in one call. The table
+holds one entry per rotor: its arena and its step input and output records.
+Every step input carries the same `bus_voltage` bits, the candidate voltage,
+and the bus input is a shared bus input v1 record whose `motor_power` is zero,
+because the step computes it. Every region follows the pointer rules of
+`bet_bound_step_v2` and `bet_bus_step`, and no two of the table, the bus
+records and the rotors' arenas and records overlap. Statuses: 0; −1 an
+invalid arena; −2 a rotor count outside 1 to 32, a record length, a pointer
+or an overlap; −3 invalid input or state, a rotor not in drive mode 1,
+unequal bus voltages or a non-zero `motor_power`; −4 a step that differs from
+an arena's configured step; −5 memory grown since an arena's initialization;
+−7 a version; −8 a later-task field. The first failing rotor or record
+decides, and a non-zero status writes no arena and no output.
+
+The step first predicts every rotor up to its bus voltage: the ESC command,
+the torque law validated at the candidate voltage, and the rotor's predictor
+evaluation at the start state, none of which depend on the voltage. The
+terminal power P_k(V) of rotor k at any voltage V then needs only the torque
+law at the start speed, the exact half-step shaft solution and the electrical
+law at the midpoint speed, without another blade-element evaluation; the
+completed step at V writes exactly that P_k(V) at output byte 160. The rules
+below choose the supply voltage, every rotor is completed at it, and the bus
+steps at the summed terminal power, added in rotor order from zero, plus the
+house load. `bet_drive_version()` returns 1. With a battery,
+`BetRotorEngineV2` (`@mirage/wasm-bet/rotor-v2`) builds the table and both bus
+records in its own instance, and `stepBusInto()` writes the rotor records and
+the charge and house load the caller put in `busInput`, calls the step and
+reads the rotor outputs and `busOutput`; the two values pass through a typed
+array because V8 can box a double call argument.
+
+### ESC drive step table entry v1
+
+| Byte Offset | Data Type | Units | Field Name |
+| ---: | --- | --- | --- |
+| 0 | u32 | address | arena |
+| 4 | u32 | address | step_input |
+| 8 | u32 | address | step_output |
+
+### ESC drive step output v1
+
+| Byte Offset | Data Type | Units | Field Name |
+| ---: | --- | --- | --- |
+| 0 | f64 | 1 | state_of_charge |
+| 8 | f64 | V | voltage |
+| 16 | f64 | A | current |
+| 24 | f64 | W | delivered_power |
+| 32 | f64 | W | internal_loss |
+| 40 | f64 | W | source_power |
+| 48 | u32 | bitmask | flags |
+| 52 | u32 | — | reserved_zero |
+| 56 | f64 | V | supply_voltage |
+| 64 | f64 | W | motor_power |
+| 72..127 | u32[14] | — | reserved_zero |
+
+Bytes 0–51 are the shared bus output v1 of the bus step the drive step ran.
+`supply_voltage` is the voltage every motor ran on and `motor_power` the
+summed terminal power the bus delivered besides the house load. Flag 1 also
+marks a step whose supply voltage was lowered to the pack's limit, although
+that bus step itself needed no clamp.
+
 ### Coupling and energy budget
 
-Each tick the rotors use the bus voltage the bus produced on the previous
-tick (the open-circuit voltage before the first step). The bus then delivers
-the sum of the motors' terminal powers: one-tick lag, no iteration. On every
-tick the bus is not limited, the source power V_oc·I equals the internal loss
-I²·R_int plus the delivered power, and the delivered power equals the summed
-terminal powers, each of which is copper loss plus k_t·i·Ω; the bus current
-reported per motor is its terminal power over the lagged voltage, and the
-pack current is the root above.
+Each tick the rotors are first offered the bus voltage the bus produced on the
+previous tick (the open-circuit voltage before the first step), V_lag: a
+one-tick lag, with no iteration while the pack is within its limit. The pack's
+discharge limit at the tick's charge is the largest power the shared bus
+delivers without flag 1, and the battery limits every demand above it:
+
+\[
+P_{\max} = I_m\,\bigl(V_{oc} - I_m\,R_{\mathrm{int}}\bigr),
+\qquad
+I_m = \min\!\left(I_{\mathrm{limit}},\; \frac{\mathrm{SOC}\,C}{dt},\; \frac{V_{oc}}{2\,R_{\mathrm{int}}}\right)
+\]
+
+(an empty pack delivers nothing). When the house load P_h plus the summed
+terminal powers at V_lag does not exceed P_max, every motor runs at V_lag and
+the bus delivers that sum: the per-rotor `bet_bound_step_v2` steps followed by
+`bet_bus_step`, bit for bit. Otherwise the pack is at its limit, and the step
+lowers the supply voltage of all motors to a voltage V_s that bisection finds
+in [0, V_lag):
+
+\[
+P_h + \sum_k P_k(V_s) \le P_{\max} < P_h + \sum_k P_k(V_s^{+})
+\]
+
+where V_s⁺ is the next double above V_s. At 0 V every bridge is unpowered, so
+P_k(0) = 0 and the bracket [0, V_lag] holds whenever P_h ≤ P_max; the search
+keeps the lower end within the limit and stops when the bracket holds two
+adjacent doubles, or after 128 halvings. Every rotor then completes its step
+at V_s, the bus delivers P_h + Σ P_k(V_s) without a clamp, and the step sets
+flag 1. When the summed power rises with the voltage, as it does for driving
+motors, V_s is the highest voltage within the limit. A house load above P_max
+leaves the motors at 0 V, and the bus supplies the house load only up to its
+limit.
+
+So on every tick, limited or not, the source power V_oc·I equals the internal
+loss I²·R_int plus the delivered power, and the delivered power equals the
+summed terminal powers plus the house load, each terminal power being copper
+loss plus k_t·i·Ω. There are two exceptions: a house load above P_max, and
+the regeneration case at the end of this section. On a limited tick the delivered power equals P_max to the
+resolution of V_s wherever the summed power is continuous in the voltage near
+V_s; where it jumps there (a motor's current reaching its limit at V_s), the
+delivered power stays below P_max, never above. A pack that cannot carry the
+hover power therefore keeps the vehicle on the ground at any throttle. The bus
+current reported per motor is its terminal power over the voltage it ran on,
+V_lag or V_s, and the pack current is the root above. On a limited tick the
+motors' bus currents therefore sum to more than the pack current: the bus
+balances power between the pack at its terminal voltage and the motors at
+V_s, with no limiter loss. Regeneration is unchanged: a braking demand beyond the pack's charge-current limit (flag 1 with a negative
+current) is absorbed only up to that limit, and the excess braking power is
+not stored, as with a full pack (flag 2). Raising the supply voltage could not
+remove it, because a braking current held at the ESC's brake limit draws the
+same power at any voltage.
 
 ### Flight dynamics, manifest and parameter profile
 
@@ -5316,9 +5422,13 @@ constant house load ≥ 0 W. Absent, each rotor gets duty·`motorMaxTorqueNm`
 through interface v1, and a trajectory of 4000 state records hashes to the
 same SHA-256 as the d1aeaca code and WASM build. With it, the rotors run
 interface v2 drive mode 1 with the clamped duty as `esc_duty` and the lagged
-bus voltage, and the bus delivers their summed terminal power plus the house
-load. `electrical` (a `Float64Array` of state of charge, bus voltage and bus
-current), `busLimited` and `driveLimited` report the last step; the
+bus voltage through one `bet_drive_step` per tick, which lowers the supply
+voltage when the pack is at its limit, and the bus delivers their summed
+terminal power plus the house load. `electrical` (a `Float64Array` of state of
+charge, bus voltage, bus current and the motors' supply voltage), `busLimited`
+(drive step flag 1 or 2) and `driveLimited` report the last step; the
+supply voltage equals the bus voltage of the previous step except on a step
+the pack limited, and it is not part of power telemetry v1; the
 `stateOfCharge` and `batteryCurrentA` getters read `electrical` for cold code,
 because V8 keeps class fields tagged and a double stored in one, or returned
 by a getter that is not inlined, can allocate. `state.batteryVoltage` is the
@@ -5380,6 +5490,25 @@ balance within 1e-9; the cut and partial-cut faults; the manifest mapping;
 the thrust fit; and the torque-path digest. `scripts/check-bet-runtime.mjs
 --allocation` adds the ESC-drive graph and the native drive allocator tests.
 The roadmap entry records the native ArduCopter flight on the drive.
+
+`native/bet/tests/drive_bus.rs` checks the drive step: within the limit, the
+arenas, rotor outputs and bus record equal the per-rotor steps and
+`bet_bus_step` bit for bit over 2000 steps; on a 5 A pack, every limited step
+closes source = loss + delivered and delivered = Σ P_k + P_h within 1e-12,
+holds the pack current within 1e-9 of its limit, equals each rotor stepped
+alone at the reported supply voltage bit for bit, and exceeds the limit one
+double above it; a house load above the limit leaves the motors unpowered;
+invalid steps change nothing; and limited and unlimited steps allocate
+nothing. `tests/wasm-abi-v2.test.ts` checks the two layouts against
+`interface-v2.json`, the WASM step against the native reference on a 3 A pack
+within 1e-12, the adapter, the rejections and 10⁶ limited steps without
+allocation traps. `tests/limit-monitor.test.ts` flies the quad X profile on a
+2 A pack: every step closes the bus against the published per-motor powers
+within 1e-12, a limited step carries each motor's bus current at the supply
+voltage, and momentum theory bounds the hover power above the pack's limit,
+so at 20 to 100 % throttle the quad's CG never rises above the height where
+its fully extended supports touch the ground (TASK-095), while the 125 A pack
+lifts it.
 
 ## Profile-driven dynamics (TASK-144)
 
@@ -5487,7 +5616,7 @@ BET module is loaded and the vehicle builds; the session changes nothing on a
 rejection (`ASSET_MISSING`). The physics Worker holds a registry and accepts
 two cold messages: `{ type: "bet.module", bytes, sha256 }` checks the hash,
 compiles the module and requires no imports and the `bet_bound_step_v2`,
-`bet_bus_step` and `bet_body_step` exports, answering `bet.module.ready` or
+`bet_bus_step`, `bet_drive_step` and `bet_body_step` exports, answering `bet.module.ready` or
 `bet.module.reject`; `{ type: "model.register", bytes, sha256 }` registers a
 manifest, answering `model.registered` with its model ID or `model.reject`;
 `{ type: "contact.module", bytes, manifest }` (TASK-095) passes the Rapier
@@ -5833,7 +5962,9 @@ positive finite number or null, 1 to 16 motors.
 (speed in rev/min, motor current, bus current and electrical power from
 bound-rotor v2 record bytes 144, 152 and 160, and the ESC duty) and six for
 the battery (state of charge, bus voltage, bus current, bus power, remaining
-and total charge in Ah). It is written after the bus step of every tick. A
+and total charge in Ah). It is written after the drive step of every tick. A
+motor's bus current is its electrical power over the voltage it ran on, which
+on a step the pack limited is the lowered supply voltage. A
 reset restores the unloaded pack: the initial state of charge, the
 open-circuit voltage, no current.
 
@@ -5846,8 +5977,8 @@ open-circuit voltage, no current.
 | warning | motor | Rpm | \|speed\| > `rpm` | the rating |
 | warning | battery | UnderVoltage | bus voltage < `emptyVoltageV` | the rating |
 | limited | motor | CurrentLimit | bound-rotor v2 output flag 32 | the drive's current limit, or its brake limit for a negative current |
-| limited | battery | PackCurrent | shared bus flag 1 (discharging or regenerating) | the pack current limit |
-| limited | battery | Charge | shared bus flag 2 (regeneration into a full pack) | a state of charge of 1 |
+| limited | battery | PackCurrent | drive step flag 1 (discharging: the supply voltage lowered to the pack's limit; regenerating: the pack's charge-current limit) | the pack current limit |
+| limited | battery | Charge | drive step flag 2 (regeneration into a full pack) | a state of charge of 1 |
 
 A motor rated at its own current limit (TASK-144 takes the drive limit from
 the motor card) is clamped exactly at the rating, so it shows `limited` and no
@@ -5897,13 +6028,17 @@ over 4,000 steps. It also checks that exceeded ratings warn while two runs,
 one with and one without ratings, stay bit-identical; that a motor at its
 current limit and a pack at its current limit are `limited`; that a low pack
 warns of under-voltage; and the ratings schema, the outbox bound and the
-brake limit. `tests/power-channel.test.ts` checks every byte offset of the
+brake limit. On a 2 A pack it checks that the motors draw exactly what the
+limited pack delivers and that the quad stays on its landing gear at any
+throttle (Verification (TASK-092)). `tests/power-channel.test.ts` checks every byte offset of the
 channel, the torn-read refusal, and a session that publishes four motors,
 feeds the recording hook and drains a limit event while ABI v2 keeps its
 size. `tests/browser/power-panel.spec.ts` runs a quad X profile in the
-application's physics Worker with a 15 A pack limit and a 60 W motor power
-rating and checks that the panel shows the pack `Limited` and each motor's
-power as a `Warning`; it also checks the Run tab's panel for the demo.
+application's physics Worker at 30 % throttle with a 2 A pack limit and a 5 W
+motor power rating; the limited pack gives each motor about 8.4 W. It checks
+that the panel shows the pack `Limited` and each motor's power as a `Warning`,
+and that the quad stays on its landing gear; it also checks the Run tab's panel
+for the demo.
 `scripts/bench-profile-dynamics.mjs` measures G1 with the monitor and the
 channel publish in the step loop.
 

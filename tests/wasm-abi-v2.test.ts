@@ -8,7 +8,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { specFields } from './support/spec-layout.ts';
 import { BetRotorEngine, encodeBoundRotor, type BoundRotorDefinition } from '@mirage/wasm-bet/rotor';
 import { BetRigidBodyBackend, newBodyTruth } from '@mirage/wasm-bet/backend';
-import { BOUND_V2, BOUND_V2_DRIVE_DOUBLES, BOUND_V2_INPUT_DOUBLES, BOUND_V2_OUTPUT_SLOTS, BetRotorEngineV2 } from '@mirage/wasm-bet/rotor-v2';
+import { BOUND_V2, BOUND_V2_DRIVE_DOUBLES, BOUND_V2_INPUT_DOUBLES, BOUND_V2_OUTPUT_SLOTS, BetRotorEngineV2, DRIVE_V1, DriveBusSlot } from '@mirage/wasm-bet/rotor-v2';
 import { BUS_V1, BetBus } from '@mirage/wasm-bet/bus';
 import { BODY_V2, BetRigidBodyBackendV2, newBodyTruthV2 } from '@mirage/wasm-bet/body-v2';
 import iface from './fixtures/wasm-abi/interface-v2.json';
@@ -31,7 +31,7 @@ beforeAll(() => {
 interface Raw {
   memory: WebAssembly.Memory; heap: number;
   init: (...a: number[]) => number; boundV1: (...a: number[]) => number; boundV2: (...a: number[]) => number;
-  bodyV2: (...a: number[]) => number; bus: (...a: number[]) => number;
+  bodyV2: (...a: number[]) => number; bus: (...a: number[]) => number; drive: (...a: number[]) => number;
 }
 function fn(value: unknown): (...a: number[]) => number {
   if (typeof value !== 'function') throw new Error('Missing export');
@@ -43,9 +43,9 @@ function raw(module: WebAssembly.Module): Raw {
     throw new Error('Missing memory exports');
   }
   if (fn(e.bet_bound_v2_version)() !== 2 || fn(e.bet_body_v2_version)() !== 2 || fn(e.bet_bound_version)() !== 1 ||
-      fn(e.bet_bus_version)() !== 1) throw new Error('Wrong versions');
+      fn(e.bet_bus_version)() !== 1 || fn(e.bet_drive_version)() !== 1) throw new Error('Wrong versions');
   return { memory: e.memory, heap: Math.ceil(e.__heap_base.value / 64) * 64, init: fn(e.bet_bound_init), boundV1: fn(e.bet_bound_step),
-    boundV2: fn(e.bet_bound_step_v2), bodyV2: fn(e.bet_body_step_v2), bus: fn(e.bet_bus_step) };
+    boundV2: fn(e.bet_bound_step_v2), bodyV2: fn(e.bet_body_step_v2), bus: fn(e.bet_bus_step), drive: fn(e.bet_drive_step) };
 }
 /** Bound arena at the heap base: config, arena, a v2 input and a v2 output region. */
 function boundArena(r: Raw, config: Uint8Array) {
@@ -83,7 +83,8 @@ function parityError(actual: DataView, at: number, expected: DataView, p: number
 describe('specification layouts, fixture and header', () => {
   const headings: [string, keyof typeof iface.layouts][] = [['### Bound rotor step input v2', 'boundInputV2'],
     ['### Bound rotor step output v2', 'boundOutputV2'], ['### Rigid-body step input v2', 'bodyInputV2'], ['### Rigid-body step output v2', 'bodyOutputV2'],
-    ['### Shared bus input v1', 'busInputV1'], ['### Shared bus output v1', 'busOutputV1']];
+    ['### Shared bus input v1', 'busInputV1'], ['### Shared bus output v1', 'busOutputV1'],
+    ['### ESC drive step table entry v1', 'driveTableEntryV1'], ['### ESC drive step output v1', 'driveOutputV1']];
   for (const [heading, key] of headings) {
     it(`${heading} matches the golden layout and covers every byte once`, () => {
       const spec = specFields(heading, engineSpec), layout = iface.layouts[key];
@@ -137,6 +138,20 @@ describe('specification layouts, fixture and header', () => {
     expect([define('BET_BUS_INPUT_BYTES'), define('BET_BUS_OUTPUT_BYTES'), define('BET_BUS_VERSION')]).toEqual([128, 128, iface.busVersion]);
     expect([define('BET_BOUND_V2_DRIVE_POWER_CUT'), define('BET_BOUND_V2_FLAG_CURRENT_LIMITED'), define('BET_BUS_FLAG_POWER_LIMITED'),
       define('BET_BUS_FLAG_CHARGE_LIMITED')]).toEqual([BOUND_V2.drivePowerCut, BOUND_V2.flagCurrentLimited, BUS_V1.flagPowerLimited, BUS_V1.flagChargeLimited]);
+    // The ESC drive step (TASK-092): its output repeats the bus output and adds the supply voltage and motor power.
+    const driveOut: [number, string][] = [[DRIVE_V1.output.stateOfCharge, 'state_of_charge'], [DRIVE_V1.output.voltage, 'voltage'],
+      [DRIVE_V1.output.current, 'current'], [DRIVE_V1.output.deliveredPower, 'delivered_power'], [DRIVE_V1.output.internalLoss, 'internal_loss'],
+      [DRIVE_V1.output.sourcePower, 'source_power'], [DRIVE_V1.output.flags, 'flags'], [DRIVE_V1.output.supplyVoltage, 'supply_voltage'],
+      [DRIVE_V1.output.motorPower, 'motor_power']];
+    for (const [value, name] of driveOut) expect(value, name).toBe(offset('driveOutputV1', name));
+    for (const name of ['state_of_charge', 'voltage', 'current', 'delivered_power', 'internal_loss', 'source_power', 'flags']) {
+      expect(offset('driveOutputV1', name), name).toBe(offset('busOutputV1', name));
+    }
+    expect([offset('driveTableEntryV1', 'arena'), offset('driveTableEntryV1', 'step_input'), offset('driveTableEntryV1', 'step_output')]).toEqual([0, 4, 8]);
+    expect([define('BET_DRIVE_VERSION'), define('BET_DRIVE_TABLE_ENTRY_BYTES'), define('BET_DRIVE_OUTPUT_BYTES'), define('BET_DRIVE_MAX_ROTORS')])
+      .toEqual([iface.driveVersion, iface.layouts.driveTableEntryV1.bytes, iface.layouts.driveOutputV1.bytes, DRIVE_V1.maxRotors]);
+    expect([DRIVE_V1.version, DRIVE_V1.tableEntryBytes, DRIVE_V1.outputBytes, DRIVE_V1.flagPowerLimited, DRIVE_V1.flagChargeLimited])
+      .toEqual([iface.driveVersion, 12, 128, BUS_V1.flagPowerLimited, BUS_V1.flagChargeLimited]);
   });
 });
 
@@ -405,4 +420,162 @@ describe('TASK-092 drive mode 1 and shared bus records', () => {
       rotor.dispose();
     }
   }, 240000);
+});
+
+describe('TASK-092 ESC drive step', () => {
+  const read = (view: DataView, at: number) => view.getFloat64(at, true);
+  const ROTORS = 3, DT = 1 / 400;
+  /** Three bound arenas from one configuration, their v2 records, the table and the bus records, at the heap base. */
+  function driveRig(r: Raw, config: Uint8Array, stepInput: Uint8Array, busInput: Uint8Array) {
+    const configAt = r.heap, size = config.length + 64;
+    let at = configAt + Math.ceil(config.length / 64) * 64;
+    const arenas: number[] = [], inputs: number[] = [], outputs: number[] = [];
+    for (let k = 0; k < ROTORS; k++) {
+      arenas.push(at); at += Math.ceil(size / 64) * 64; inputs.push(at); at += 256; outputs.push(at); at += 256;
+    }
+    const table = at, busIn = table + 64, busOut = busIn + 128, end = busOut + 128;
+    if (r.memory.buffer.byteLength < end) r.memory.grow(Math.ceil((end - r.memory.buffer.byteLength) / 65536));
+    new Uint8Array(r.memory.buffer, configAt, config.length).set(config);
+    const view = new DataView(r.memory.buffer);
+    for (let k = 0; k < ROTORS; k++) {
+      expect(r.init(configAt, config.length, arenas[k]!, size)).toBe(0);
+      new Uint8Array(r.memory.buffer, inputs[k], 256).set(stepInput);
+      view.setUint32(table + 12 * k, arenas[k]!, true); view.setUint32(table + 12 * k + 4, inputs[k]!, true); view.setUint32(table + 12 * k + 8, outputs[k]!, true);
+    }
+    new Uint8Array(r.memory.buffer, busIn, 128).set(busInput);
+    return { arenas, inputs, outputs, table, busIn, busOut, view, size };
+  }
+
+  it('agrees with the native reference on a current-limited pack', () => {
+    const config = encodeBoundRotor(rotorDefinition(), DT), steps = 300;
+    const toHex = (bytes: Uint8Array) => Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
+    const native = spawnSync(referenceBinary, [], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024,
+      input: `drive ${steps} ${ROTORS} ${toHex(config)} ${iface.escInputHex} ${iface.driveBusInputHex}\n` });
+    expect(native.status, native.stderr).toBe(0);
+    const lines = native.stdout.trim().split('\n').map(hex);
+    expect(lines.length).toBe(steps * (1 + ROTORS));
+    let limited = 0;
+    for (const { variant, module } of modules) {
+      const r = raw(module), rig = driveRig(r, config, hex(iface.escInputHex), hex(iface.driveBusInputHex)), view = rig.view;
+      for (let step = 0; step < steps; step++) {
+        expect(r.drive(rig.table, ROTORS, rig.busIn, rig.busOut, DT), `${variant} step ${step}`).toBe(0);
+        const expected = new DataView(lines[step * (1 + ROTORS)]!.buffer);
+        expect(view.getUint32(rig.busOut + 48, true)).toBe(expected.getUint32(48, true));
+        if ((view.getUint32(rig.busOut + 48, true) & DRIVE_V1.flagPowerLimited) !== 0) limited++;
+        for (const p of [0, 8, 16, 24, 32, 40, 56, 64]) {
+          expect(relative(read(view, rig.busOut + p), read(expected, p)), `${variant} drive step ${step} byte ${p}`).toBeLessThanOrEqual(1e-12);
+        }
+        for (let k = 0; k < ROTORS; k++) {
+          const rotor = new DataView(lines[step * (1 + ROTORS) + 1 + k]!.buffer), output = rig.outputs[k]!;
+          expect(view.getUint32(output + 112, true)).toBe(rotor.getUint32(112, true));
+          for (const p of [0, 8, 16, 24, 32, 40, 48, 56, 64, 72, 80, 88, 96, 104, 120, 144, 152, 160, 168]) {
+            expect(parityError(view, output, rotor, p), `${variant} rotor ${k} step ${step} byte ${p}`).toBeLessThanOrEqual(1e-12);
+          }
+        }
+        // The lag: the next step's charge and candidate voltage come from this step's bus output.
+        new Uint8Array(r.memory.buffer, rig.busIn + 48, 8).set(new Uint8Array(r.memory.buffer, rig.busOut, 8));
+        for (const input of rig.inputs) new Uint8Array(r.memory.buffer, input + 128, 8).set(new Uint8Array(r.memory.buffer, rig.busOut + 8, 8));
+      }
+    }
+    // The 3 A pack limits most steps in both variants.
+    expect(limited).toBeGreaterThan(steps);
+  });
+
+  it('writes the same records through the adapter, and only with a battery', () => {
+    for (const { module } of modules) {
+      const golden = hex(iface.escInputHex), g = new DataView(golden.buffer), bus = hex(iface.driveBusInputHex), b = new DataView(bus.buffer);
+      const battery = { openCircuitFullV: read(b, 8), openCircuitEmptyV: read(b, 16), internalResistanceOhm: read(b, 24),
+        capacityAh: read(b, 32) / 3600, currentLimitA: read(b, 40) };
+      const engine = new BetRotorEngineV2(module, Array.from({ length: ROTORS }, () => rotorDefinition()), 400, battery);
+      for (let k = 0; k < ROTORS; k++) {
+        for (let j = 0; j < BOUND_V2_INPUT_DOUBLES; j++) engine.input[k * BOUND_V2_INPUT_DOUBLES + j] = read(g, 16 + 8 * j);
+        for (let j = 0; j < BOUND_V2_DRIVE_DOUBLES; j++) engine.drive[k * BOUND_V2_DRIVE_DOUBLES + j] = read(g, 192 + 8 * j);
+        engine.driveMode[k] = g.getUint32(8, true);
+      }
+      const r = raw(module), rig = driveRig(r, encodeBoundRotor(rotorDefinition(), DT), golden, bus);
+      for (let step = 0; step < 20; step++) {
+        engine.busInput.set([read(b, 48), read(b, 64)]);
+        expect(engine.stepBusInto()).toBe(true);
+        expect(r.drive(rig.table, ROTORS, rig.busIn, rig.busOut, DT)).toBe(0);
+        for (let k = 0; k < ROTORS; k++) {
+          const o = k * BOUND_V2_OUTPUT_SLOTS, output = rig.outputs[k]!;
+          for (let j = 0; j < 14; j++) expect(Object.is(engine.output[o + j], read(rig.view, output + 8 * j))).toBe(true);
+          for (let j = 0; j < 7; j++) expect(Object.is(engine.output[o + 16 + j], read(rig.view, output + 120 + 8 * j))).toBe(true);
+        }
+        for (let j = 0; j < 6; j++) expect(Object.is(engine.busOutput[j], read(rig.view, rig.busOut + 8 * j))).toBe(true);
+        expect(engine.busOutput[DriveBusSlot.Flags]).toBe(rig.view.getUint32(rig.busOut + 48, true));
+        expect(Object.is(engine.busOutput[DriveBusSlot.SupplyVoltageV], read(rig.view, rig.busOut + 56))).toBe(true);
+        expect(Object.is(engine.busOutput[DriveBusSlot.MotorPowerW], read(rig.view, rig.busOut + 64))).toBe(true);
+      }
+      expect(engine.busOutput[DriveBusSlot.Flags]).toBe(DRIVE_V1.flagPowerLimited);
+      expect(engine.openCircuitV(0.5)).toBe(19.8 + (25.2 - 19.8) * 0.5);
+      engine.dispose();
+      const plain = new BetRotorEngineV2(module, [rotorDefinition()], 400);
+      expect(plain.stepBusInto()).toBe(false);
+      expect(plain.lastStatus).toBe(-3);
+      expect([plain.busInput.length, plain.busOutput.length]).toEqual([0, 0]);
+      plain.dispose();
+    }
+  });
+
+  it('rejects invalid steps with the fixture statuses and writes nothing', () => {
+    for (const { variant, module } of modules) {
+      const r = raw(module), rig = driveRig(r, encodeBoundRotor(rotorDefinition(), DT), hex(iface.escInputHex), hex(iface.driveBusInputHex));
+      const memory = () => new Uint8Array(r.memory.buffer);
+      const state = () => [...rig.arenas.map(a => memory().slice(a, a + 64)), ...rig.outputs.map(o => memory().slice(o, o + 256)),
+        memory().slice(rig.busOut, rig.busOut + 128)];
+      const attempt = (why: string, status: number, call: () => number) => {
+        for (const o of rig.outputs) memory().fill(0x5a, o, o + 256);
+        memory().fill(0x5a, rig.busOut, rig.busOut + 128);
+        const before = state();
+        expect(call(), `${variant}: ${why}`).toBe(status);
+        expect(state(), why).toEqual(before);
+      };
+      for (const rejection of iface.driveRejections) {
+        memory().set(hex(iface.driveBusInputHex), rig.busIn);
+        memory().set(hex(rejection.patch.hex), rig.busIn + rejection.patch.offset);
+        attempt(rejection.why, rejection.status, () => r.drive(rig.table, ROTORS, rig.busIn, rig.busOut, DT));
+      }
+      memory().set(hex(iface.driveBusInputHex), rig.busIn);
+      rig.view.setFloat64(rig.inputs[2]! + 128, 23.9, true);
+      attempt('unequal bus voltages', -3, () => r.drive(rig.table, ROTORS, rig.busIn, rig.busOut, DT));
+      rig.view.setFloat64(rig.inputs[2]! + 128, 24, true);
+      attempt('a mismatched step', -4, () => r.drive(rig.table, ROTORS, rig.busIn, rig.busOut, 1 / 800));
+      attempt('no rotors', -2, () => r.drive(rig.table, 0, rig.busIn, rig.busOut, DT));
+      attempt('33 rotors', -2, () => r.drive(rig.table, 33, rig.busIn, rig.busOut, DT));
+      attempt('the bus output on a step output', -2, () => r.drive(rig.table, ROTORS, rig.busIn, rig.outputs[0]!, DT));
+      rig.view.setUint32(rig.table + 12 + 8, rig.outputs[0]!, true);
+      attempt('two rotors on one output', -2, () => r.drive(rig.table, ROTORS, rig.busIn, rig.busOut, DT));
+      rig.view.setUint32(rig.table + 12 + 8, rig.outputs[1]!, true);
+      rig.view.setUint32(rig.table + 12, rig.inputs[1]!, true);
+      attempt('an input as an arena', -1, () => r.drive(rig.table, ROTORS, rig.busIn, rig.busOut, DT));
+      rig.view.setUint32(rig.table + 12, rig.arenas[1]!, true);
+      expect(r.drive(rig.table, ROTORS, rig.busIn, rig.busOut, DT)).toBe(0);
+    }
+  });
+
+  it('runs 10^6 limited drive steps without allocation traps or memory growth', () => {
+    for (const { module } of modules) {
+      const battery = { openCircuitFullV: 25.2, openCircuitEmptyV: 19.8, internalResistanceOhm: 0.02, capacityAh: 1e6, currentLimitA: 3 };
+      const engine = new BetRotorEngineV2(module, [cheapRotor(), cheapRotor()], 400, battery), before = engine.memoryBytes;
+      for (let k = 0; k < 2; k++) {
+        engine.driveMode[k] = BOUND_V2.driveEscDuty;
+        engine.drive.set([0.05, 0.05, 100, 50, 0.01, 0.02, 0], k * BOUND_V2_DRIVE_DOUBLES);
+        engine.input[k * BOUND_V2_INPUT_DOUBLES + 13] = 0.55; // esc_duty (byte 120)
+      }
+      let ok = true, soc = 0.9, limited = 0;
+      for (let i = 0; i < 1_000_000 && ok; i++) {
+        for (let k = 0; k < 2; k++) engine.input[k * BOUND_V2_INPUT_DOUBLES + 14] = i === 0 ? engine.openCircuitV(soc) : engine.busOutput[DriveBusSlot.VoltageV]!;
+        engine.busInput[0] = soc; engine.busInput[1] = 1;
+        ok = engine.stepBusInto();
+        soc = engine.busOutput[DriveBusSlot.StateOfCharge]!;
+        if (engine.busOutput[DriveBusSlot.Flags] === DRIVE_V1.flagPowerLimited) limited++;
+      }
+      expect(ok, `status ${engine.lastStatus}`).toBe(true);
+      expect(limited).toBeGreaterThan(990_000);
+      expect(engine.memoryStable).toBe(true);
+      expect(engine.memoryBytes).toBe(before);
+      engine.dispose();
+    }
+  }, 600000);
 });

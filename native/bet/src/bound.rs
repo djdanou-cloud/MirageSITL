@@ -1,6 +1,6 @@
 //! Versioned caller-owned production rotor/polar binding; see bet_bound.h.
-use crate::{blade::{Rotor, RotorGeometry, RotorInput}, inflow::AxialInflow,
-    motor::DriveTorque, polar::PolarTable, shaft::Shaft, Vec3};
+use crate::{blade::{Rotor, RotorError, RotorGeometry, RotorInput, RotorWrench}, inflow::AxialInflow,
+    motor::DriveTorque, polar::PolarTable, shaft::{Shaft, ShaftStep}, Vec3};
 
 /// Independent binding version (legacy arena ABI remains v1).
 pub const VERSION: u32 = 1;
@@ -48,6 +48,7 @@ fn doubles(b: &[u8], start: usize, n: usize) -> Option<&[f64]> {
     Some(unsafe { core::slice::from_raw_parts(bytes.as_ptr().cast::<f64>(),n) })
 }
 
+#[derive(Clone, Copy)]
 struct Config<'a> {
     geometry: RotorGeometry<'a>, polar: PolarTable<'a>, azimuth: usize,
     inertia: f64, damping: f64, dt: f64, initial: f64, tau: f64, limit: f64,
@@ -172,14 +173,68 @@ pub(crate) fn advance(arena: &[u8], input: &[u8], out_len: usize, dt: f64, esc: 
     advance_with(arena,input,out_len,dt,esc,Kernel::Production)
 }
 
-/// `advance` on a chosen kernel.
+/// `advance` on a chosen kernel: `predict_with`, then `complete`.
 pub(crate) fn advance_with(arena: &[u8], input: &[u8], out_len: usize, dt: f64, esc: Option<DriveTorque>, kernel: Kernel)
     -> Result<Advanced, i32> {
+    let predicted=predict_with(arena,input,out_len,dt,esc.is_some(),kernel)?;
+    complete(&predicted,dt,esc,kernel)
+}
+
+/// The part of a step that does not depend on the drive torque (TASK-092
+/// drive step): the validated state, input and configuration, and the
+/// predictor evaluation at the start state. `complete` finishes the step for
+/// one drive torque; `half_omega` gives the midpoint speed for another.
+#[derive(Clone, Copy)]
+pub(crate) struct Predicted<'a> {
+    c: Config<'a>,
+    rotor: Rotor<'a>,
+    i: RotorInput,
+    omega: f64,
+    induced: f64,
+    motor: f64,
+    first_moment_z: f64,
+    first_force_z: f64,
+    first_flags: u32,
+    hover: bool,
+    reduced_predictor: bool,
+    hover_option: bool,
+    production: bool,
+    shaft_model: Shaft,
+    flow_model: AxialInflow,
+    transverse: f64,
+}
+
+impl Predicted<'_> {
+    /// Shaft speed at the start of the step, rad/s.
+    pub(crate) fn omega(&self) -> f64 { self.omega }
+    fn shaft_step(&self, q: f64, h: f64, esc: Option<DriveTorque>) -> Option<ShaftStep> {
+        match esc {
+            None=>self.shaft_model.step(self.omega,q,self.motor,h),
+            Some(t)=>self.shaft_model.step_driven(self.omega,q,t.constant_nm,t.damping,t.friction_nm,h),
+        }.ok()
+    }
+}
+
+/// The rotor kernel `evaluate` of a step: the T1 kernel by default (TASK-091
+/// increment 3), the exact kernel with `OPTION_EXACT_KERNEL`, and the scalar
+/// reference for the reference kernel.
+fn evaluate(kernel: Kernel, options: u32, rotor: &Rotor<'_>, i: RotorInput) -> Result<RotorWrench, RotorError> {
+    match (kernel,options & OPTION_EXACT_KERNEL != 0) {
+        (Kernel::Reference,_)=>rotor.evaluate(i),
+        (Kernel::Production,true)=>rotor.evaluate_fast(i),
+        (Kernel::Production,false)=>rotor.evaluate_sampled(i,1),
+    }
+}
+
+/// Validates a step and evaluates its predictor, writing nothing. `esc_drive`
+/// says that interface v2 drive mode 1 owns arena header bytes 32..56.
+pub(crate) fn predict_with<'a>(arena: &'a [u8], input: &[u8], out_len: usize, dt: f64, esc_drive: bool, kernel: Kernel)
+    -> Result<Predicted<'a>, i32> {
     if arena_len(arena)!=Some(arena.len() as u32) {return Err(-1);}
     if input.len()!=INPUT_BYTES as usize || out_len!=OUTPUT_BYTES as usize {return Err(-2);}
     if u(input,0)!=Some(VERSION) {return Err(-7);}
     // Bytes 32..56 hold the TASK-092 ESC state, free in torque mode; 56..64 hold the hover-sampling state.
-    let drive_state_free=esc.is_some() || zero(arena,32,56);
+    let drive_state_free=esc_drive || zero(arena,32,56);
     if !zero(input,4,8) || !zero(input,112,128) || !zero(arena,12,16) || !drive_state_free {return Err(-3);}
     let (state,bytes)=arena.split_at(ARENA_HEADER);
     let c=if kernel==Kernel::Production {step_config(bytes)?} else {config(bytes)?};
@@ -193,14 +248,7 @@ pub(crate) fn advance_with(arena: &[u8], input: &[u8], out_len: usize, dt: f64, 
     let samples=c.azimuth;
     let reduced_predictor=production && c.options & OPTION_REDUCED_PREDICTOR != 0 && samples % 2 == 0;
     let hover_capable=production && hover_option && samples % 2 == 0 && samples >= 4;
-    // The T1 kernel by default (TASK-091 increment 3); the exact kernel with OPTION_EXACT_KERNEL.
-    let exact=c.options & OPTION_EXACT_KERNEL != 0;
-    let evaluate=|rotor:&Rotor<'_>,i:RotorInput| match (kernel,exact) {
-        (Kernel::Reference,_)=>rotor.evaluate(i),
-        (Kernel::Production,true)=>rotor.evaluate_fast(i),
-        (Kernel::Production,false)=>rotor.evaluate_sampled(i,1),
-    };
-    let compute=|| {
+    let predict=|| {
         let omega=f(state,16)?;let induced=f(state,24)?;
         let motor=f(input,104)?;
         let i=RotorInput{density_kg_m3:f(input,8)?,viscosity_pa_s:f(input,16)?,sound_speed_mps:f(input,24)?,
@@ -208,7 +256,7 @@ pub(crate) fn advance_with(arena: &[u8], input: &[u8], out_len: usize, dt: f64, 
             induced_mps:induced,collective_rad:f(input,80)?,cyclic_cos_rad:f(input,88)?,cyclic_sin_rad:f(input,96)?};
         let rotor=Rotor::new(c.geometry,c.polar,c.azimuth).ok()?;
         // Reduced predictor: samples 0 and N/2, whose first harmonics cancel; only the axial force and torque are used.
-        let first=if reduced_predictor {rotor.evaluate_sampled(i,samples/2)} else {evaluate(&rotor,i)}.ok()?;
+        let first=if reduced_predictor {rotor.evaluate_sampled(i,samples/2)} else {evaluate(kernel,c.options,&rotor,i)}.ok()?;
         // Hover sampling: the regime measure at the start of the step, with hysteresis between HOVER_ENTER and HOVER_LEAVE.
         // Only configurations with the option form it (its hypot calls are libm calls on wasm32).
         let regime=|| { let tip=omega*c.geometry.radius_m; if omega>0.0 && tip>0.0 {
@@ -220,35 +268,48 @@ pub(crate) fn advance_with(arena: &[u8], input: &[u8], out_len: usize, dt: f64, 
         let shaft_model=Shaft::new(c.inertia,c.damping,c.geometry.spin_sign).ok()?;
         let flow_model=AxialInflow::new(i.density_kg_m3,c.geometry.radius_m,c.tau,c.limit).ok()?;
         let transverse=i.air_velocity_hub_mps.x.hypot(i.air_velocity_hub_mps.y);
-        let shaft_step=|q:f64,h:f64| match esc {
-            None=>shaft_model.step(omega,q,motor,h),
-            Some(t)=>shaft_model.step_driven(omega,q,t.constant_nm,t.damping,t.friction_nm,h),
-        };
-        let half_shaft=shaft_step(first.moment_nm.z,dt*0.5).ok()?;
-        let half_flow=flow_model.step(induced,first.force_n.z,i.air_velocity_hub_mps.z,transverse,dt*0.5).ok()?;
+        Some(Predicted{c,rotor,i,omega,induced,motor,first_moment_z:first.moment_nm.z,first_force_z:first.force_n.z,
+            first_flags:first.flags,hover,reduced_predictor,hover_option,production,shaft_model,flow_model,transverse})
+    };
+    predict().ok_or(-3)
+}
+
+/// The shaft speed at the midpoint of a predicted step for one drive torque,
+/// the speed at which `complete` evaluates the aerodynamics; writes nothing.
+pub(crate) fn half_omega(p: &Predicted<'_>, dt: f64, esc: Option<DriveTorque>) -> Result<f64, i32> {
+    p.shaft_step(p.first_moment_z,dt*0.5,esc).map(|s|s.omega_rad_s).ok_or(-3)
+}
+
+/// Finishes a predicted step for one drive torque without writing anything.
+pub(crate) fn complete(p: &Predicted<'_>, dt: f64, esc: Option<DriveTorque>, kernel: Kernel) -> Result<Advanced, i32> {
+    let c=&p.c;
+    let compute=|| {
+        let (omega,induced,i)=(p.omega,p.induced,p.i);
+        let half_shaft=p.shaft_step(p.first_moment_z,dt*0.5,esc)?;
+        let half_flow=p.flow_model.step(induced,p.first_force_z,i.air_velocity_hub_mps.z,p.transverse,dt*0.5).ok()?;
         let mut midpoint=i;midpoint.omega_rad_s=half_shaft.omega_rad_s;midpoint.induced_mps=half_flow.velocity_mps;
-        let aero=if hover {rotor.evaluate_sampled(midpoint,2)} else {evaluate(&rotor,midpoint)}.ok()?;
-        let shaft=shaft_step(aero.moment_nm.z,dt).ok()?;
-        let flow=flow_model.step(induced,aero.force_n.z,i.air_velocity_hub_mps.z,transverse,dt).ok()?;
+        let aero=if p.hover {p.rotor.evaluate_sampled(midpoint,2)} else {evaluate(kernel,c.options,&p.rotor,midpoint)}.ok()?;
+        let shaft=p.shaft_step(aero.moment_nm.z,dt,esc)?;
+        let flow=p.flow_model.step(induced,aero.force_n.z,i.air_velocity_hub_mps.z,p.transverse,dt).ok()?;
         let spin=c.geometry.spin_sign as f64;
         let h=spin*c.inertia*half_shaft.omega_rad_s;
         let dh=Vec3::new(0.0,0.0,spin*c.inertia*(shaft.omega_rad_s-omega)/dt)
             .add(i.body_rate_hub_rad_s.cross(Vec3::new(0.0,0.0,h)));
         let transmitted=aero.moment_nm.add(dh.scale(-1.0));
         // The motor's electromagnetic torque at the start speed times that speed.
-        let power=match esc {None=>motor*omega,Some(t)=>(t.constant_nm-t.damping*omega)*omega};
+        let power=match esc {None=>p.motor*omega,Some(t)=>(t.constant_nm-t.damping*omega)*omega};
         if !transmitted.norm().is_finite() || !power.is_finite() {return None;}
-        let flags=first.flags | aero.flags | if flow.outside_validity || half_flow.outside_validity {8}else{0}
+        let flags=p.first_flags | aero.flags | if flow.outside_validity || half_flow.outside_validity {8}else{0}
             | if shaft.reverse_limited || half_shaft.reverse_limited {16}else{0}
-            | if hover {FLAG_HOVER_SAMPLING}else{0} | if reduced_predictor {FLAG_REDUCED_PREDICTOR}else{0};
-        Some((aero,shaft,flow,transmitted,power,flags,spin*c.inertia*shaft.omega_rad_s,half_shaft.omega_rad_s,hover))
+            | if p.hover {FLAG_HOVER_SAMPLING}else{0} | if p.reduced_predictor {FLAG_REDUCED_PREDICTOR}else{0};
+        Some((aero,shaft,flow,transmitted,power,flags,spin*c.inertia*shaft.omega_rad_s,half_shaft.omega_rad_s))
     };
-    let Some((aero,shaft,flow,transmitted,power,flags,h,half_omega,hover))=compute() else{return Err(-3);};
+    let Some((aero,shaft,flow,transmitted,power,flags,h,half_omega))=compute() else{return Err(-3);};
     let mut staged=[0u8;128];
     write_vec(&mut staged,0,aero.force_n);write_vec(&mut staged,24,aero.moment_nm);write_vec(&mut staged,48,transmitted);
     put(&mut staged,72,shaft.omega_rad_s);put(&mut staged,80,aero.moment_nm.z);put(&mut staged,88,power);
     put(&mut staged,96,flow.velocity_mps);word(&mut staged,112,flags);put(&mut staged,120,h);
-    let hover_state=(production && hover_option).then_some(if hover {1.0} else {0.0});
+    let hover_state=(p.production && p.hover_option).then_some(if p.hover {1.0} else {0.0});
     Ok(Advanced{staged,omega:shaft.omega_rad_s,induced:flow.velocity_mps,half_omega,hover_state})
 }
 
