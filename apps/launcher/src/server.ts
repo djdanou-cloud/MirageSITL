@@ -6,7 +6,9 @@ import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { startBridge } from "../../bridge/src/server.ts";
 import { nativeAdmission, readCatalog, verifyEntry, type ExecutableAdmission, type FirmwareEntry } from "./catalog.ts";
-import { dataflashPath, listDataflash, tail } from "./logs.ts";
+import { captureDataflash, dataflashPath, listDataflash, snapshotDataflash, tail, writeDataflashManifest, type DataflashCapture, type DataflashStamp } from "./logs.ts";
+import { checkLoggingParameters, LOGGING_PARAMETER } from "../../../packages/autopilot/src/dataflash-logging.ts";
+import { parseParameterMetadata, type ParameterMetadataCatalog } from "../../../packages/autopilot/src/param-metadata.ts";
 import { ConnectionRefused, ExternalConnection, type ConnectionSpec } from "./connections.ts";
 import { checkPrerequisites } from "./prerequisites.ts";
 import { OwnedProcess, type RunInfo, type RunState } from "./processes.ts";
@@ -22,7 +24,7 @@ import { MavlinkRelay } from "./relay.ts";
 //   GET  /v1/experiments/{id}             one experiment and its runs
 //   POST /v1/experiments/{id}/stop        stop its owned process group
 //   POST /v1/experiments/{id}/restart     start a new run of a stopped one
-//   GET  /v1/experiments/{id}/logs        diagnostics tails and DataFlash list
+//   GET  /v1/experiments/{id}/logs        diagnostics tails, DataFlash list and attachments (TASK-164)
 //   GET  /v1/experiments/{id}/dataflash/{name}  one DataFlash file
 //   POST /v1/connections                  connect to a SITL the user started
 //   GET  /v1/connections/{id}             one connection
@@ -58,6 +60,8 @@ export interface LauncherOptions {
   readonly port?: number;
   readonly python: string;
   readonly admit?: ExecutableAdmission;
+  /** Parameter metadata; defaults to data/ardupilot/param-metadata.json. */
+  readonly metadata?: ParameterMetadataCatalog;
 }
 interface ExperimentSpec {
   readonly firmwareId: string;
@@ -84,6 +88,10 @@ interface Experiment {
   relay: MavlinkRelay | null;
   launch: Launch;
   ports: { bridge: number; jsonPhysics: number; mavlinkRelay: number } | null;
+  /** TASK-164: logs/ as it was when the current run started, until its files are attached. */
+  logsBefore: ReadonlyMap<string, DataflashStamp> | null;
+  /** Every run's DataFlash attachments, as dataflash.json holds them. */
+  captures: DataflashCapture[];
 }
 class HttpError extends Error {
   readonly status: number;
@@ -165,6 +173,9 @@ export async function startLauncher(options: LauncherOptions) {
   const token = ensureToken(home);
   const admit = options.admit ?? nativeAdmission;
   const experiments = new Map<string, Experiment>();
+  // TASK-164: the generated parameter metadata, which checks every LOG_* parameter of a start.
+  const metadata: ParameterMetadataCatalog = options.metadata ??
+    parseParameterMetadata(JSON.parse(readFileSync(new URL("../../../data/ardupilot/param-metadata.json", import.meta.url), "utf8")));
   let server: Server | null = null;
 
   // True while a run starts, so admitRun refuses a second start; no await separates admitRun from launchRun.
@@ -227,7 +238,29 @@ export async function startLauncher(options: LauncherOptions) {
     return experiment;
   };
 
+  /**
+   * TASK-164: attaches the DataFlash files of the run that just ended, once
+   * per run (endRun runs both when the process exits and after a stop). A
+   * capture that fails is attached as missing with its reason.
+   */
+  function attachDataflash(experiment: Experiment): void {
+    const before = experiment.logsBefore, run = experiment.runs.length;
+    if (!before || run === 0) return;
+    experiment.logsBefore = null;
+    const expected = { firmwareVersion: experiment.firmware.firmwareVersion, commit: experiment.firmware.commit,
+      logging: experiment.spec.parameters.filter(parameter => LOGGING_PARAMETER.test(parameter.name)) };
+    let captures: DataflashCapture[];
+    try {
+      captures = captureDataflash(experiment.workDirectory, run, before, expected);
+    } catch (error) {
+      captures = [{ run, name: null, status: "missing", reason: `The DataFlash capture failed: ${error instanceof Error ? error.message : String(error)}` }];
+    }
+    experiment.captures.push(...captures);
+    writeDataflashManifest(experiment.workDirectory, experiment.id, expected, experiment.captures);
+  }
+
   async function endRun(experiment: Experiment): Promise<void> {
+    if (!experiment.process?.running) attachDataflash(experiment);
     const bridge = experiment.bridge, relay = experiment.relay;
     experiment.bridge = null;
     experiment.relay = null;
@@ -275,6 +308,8 @@ export async function startLauncher(options: LauncherOptions) {
         "--serial0", `udpclient:127.0.0.1:${relay.sitlPort}`, "--serial1", "none", "--serial2", "none",
         "--defaults", `${firmware.defaultParametersPath},${join(workDirectory, "experiment.parm")}`,
       ];
+      // Taken before SITL starts; it applies only once the run exists, so a failed spawn attaches nothing to an earlier run.
+      const logsBefore = snapshotDataflash(workDirectory);
       try {
         experiment.process = await OwnedProcess.start({ command: firmware.binaryPath, args, cwd: workDirectory, run }, () => { void endRun(experiment); });
       } catch (error) {
@@ -282,6 +317,7 @@ export async function startLauncher(options: LauncherOptions) {
         throw new HttpError(500, `SITL did not start: ${error instanceof Error ? error.message : String(error)}`, experiment.id);
       }
       experiment.runs.push(experiment.process.info);
+      experiment.logsBefore = logsBefore;
       experiment.launch = { phase: "launched" };
     } catch (error) {
       experiment.launch = { phase: "failed", error: error instanceof Error ? error.message : String(error) };
@@ -314,6 +350,8 @@ export async function startLauncher(options: LauncherOptions) {
       const firmware = readCatalog(home).find(entry => entry.id === spec.firmwareId);
       if (!firmware) throw new HttpError(404, `No installed firmware ${spec.firmwareId}`);
       // Every refusal comes before the folder, experiment.json and the registration below.
+      const loggingReasons = checkLoggingParameters(spec.parameters, metadata.forCommit(firmware.commit));
+      if (loggingReasons.length > 0) throw new HttpError(400, `The logging parameters cannot be used: ${loggingReasons.join("; ")}`);
       admitRun(firmware);
       const experimentId = newId();
       const workDirectory = join(home, "experiments", experimentId);
@@ -324,7 +362,8 @@ export async function startLauncher(options: LauncherOptions) {
         writeFileSync(join(workDirectory, "scripts", "frame.lua"), spec.frameScript, { mode: 0o600 });
       }
       writeFileSync(join(workDirectory, "experiment.json"), `${JSON.stringify({ id: experimentId, firmware, spec }, null, 2)}\n`, { mode: 0o600 });
-      const experiment: Experiment = { id: experimentId, spec, firmware, workDirectory, runs: [], process: null, bridge: null, relay: null, launch: { phase: "launching" }, ports: null };
+      const experiment: Experiment = { id: experimentId, spec, firmware, workDirectory, runs: [], process: null, bridge: null, relay: null, launch: { phase: "launching" }, ports: null,
+        logsBefore: null, captures: [] };
       experiments.set(experimentId, experiment);
       await launchRun(experiment);
       send(201, view(experiment));
@@ -345,7 +384,7 @@ export async function startLauncher(options: LauncherOptions) {
         const run = experiment.runs.length;
         send(200, {
           run, stdout: tail(join(experiment.workDirectory, `stdout-${run}.log`)), stderr: tail(join(experiment.workDirectory, `stderr-${run}.log`)),
-          dataflash: listDataflash(experiment.workDirectory),
+          dataflash: listDataflash(experiment.workDirectory), attachments: experiment.captures,
         });
       } else if (method === "GET" && action === "dataflash" && name !== undefined && parts.length === 5) {
         const path = dataflashPath(experiment.workDirectory, name);

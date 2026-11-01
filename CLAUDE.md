@@ -306,7 +306,11 @@ implementation.
   `timeout`, `stale`) and shows exact float32 values, with metadata generated
   offline from the pinned source (`data/ardupilot/param-metadata.json`,
   `scripts/generate-param-metadata.mjs`); `node scripts/check-param-sitl.mjs`
-  passes against native ArduCopter. Decisions D-04
+  passes against native ArduCopter. TASK-164 is DONE: the launcher refuses
+  `LOG_*` parameters the firmware's metadata or SITL cannot honour, and
+  attaches each run's DataFlash files to the experiment (`dataflash.json`:
+  size, SHA-256, complete/truncated/damaged/empty/missing, firmware from VER,
+  logging read back from PARM). Decisions D-04
   and D-06 to D-12 are decided. TASK-127 and TASK-128 are DONE: stock
   ArduCopter `8ab6afd` builds and flies natively on Apple Silicon
   ([macos-sitl.md](docs/decisions/macos-sitl.md)), and its stock frames and

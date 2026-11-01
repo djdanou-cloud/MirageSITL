@@ -1,6 +1,6 @@
 # CLAUDE.md — MirageSITL agent instructions
 
-<!-- source-sha256: 8df1f83a04461301e49a2129a14d926b7bc5a8e7e3cafbf2916ff3b1727a6340 -->
+<!-- source-sha256: 6fe91ae5342ff477ab3becff6838299d530239b7a3ff7324e77aea92643d4a40 -->
 
 Английский источник: [Source of truth](../../CLAUDE.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -337,6 +337,11 @@ TASK-127–TASK-192 и решения D-01–D-12, а у каждой откры
   метаданные генерируются офлайн из закреплённых исходников
   (`data/ardupilot/param-metadata.json`, `scripts/generate-param-metadata.mjs`);
   `node scripts/check-param-sitl.mjs` проходит с нативным ArduCopter.
+  TASK-164 выполнена: launcher отклоняет параметры `LOG_*`, которые не
+  допускают метаданные прошивки или SITL, и прикрепляет файлы DataFlash
+  каждого прогона к эксперименту (`dataflash.json`: размер, SHA-256,
+  complete/truncated/damaged/empty/missing, прошивка из VER, журналирование,
+  прочитанное обратно из PARM).
   Решения D-04 и D-06–D-12 приняты.
   TASK-127 и TASK-128 выполнены: штатный ArduCopter `8ab6afd` собирается и
   летает нативно на Apple Silicon ([macos-sitl.md](macos-sitl.md)), а его штатные

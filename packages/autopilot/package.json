@@ -26,9 +26,11 @@
     "./param-service": "./src/param-service.ts",
     "./param-metadata": "./src/param-metadata.ts",
     "./autopilot-version": "./src/autopilot-version.ts",
-    "./motor-test": "./src/motor-test.ts"
+    "./motor-test": "./src/motor-test.ts",
+    "./dataflash-logging": "./src/dataflash-logging.ts"
   },
   "dependencies": {
+    "@mirage/dataflash": "0.1.0",
     "@mirage/mavlink": "0.1.0",
     "@mirage/physics": "0.1.0",
     "@mirage/sensors": "0.1.0",

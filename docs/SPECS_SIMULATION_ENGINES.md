@@ -6490,3 +6490,69 @@ ArduCopter, holding the vehicle at rest in JSON lockstep. It writes
 `test-results/validation/param-sitl.json`, whose judge `assessParamRun`
 rejects false evidence (`tests/integration/param-sitl.test.ts`); without an
 installed, verified firmware it exits 2 (`BLOCKED_EXTERNAL`).
+
+## DataFlash capture per experiment (TASK-164)
+
+ArduPilot's own DataFlash logs of an integrated run stay ArduPilot's: the
+launcher checks how they are configured, attaches each run's files to the
+experiment with their hashes, and reads what they contain. It never writes
+into them, and they are kept apart from the MirageSITL recorder (TASK-162).
+
+### Logging parameters
+
+An experiment's `LOG_*` parameters travel in its parameter list like any other
+(`experiment.parm`). Before the launcher creates anything for a start, it
+checks them against the generated metadata of the firmware's exact commit
+(TASK-159; `checkLoggingParameters` in
+`packages/autopilot/src/dataflash-logging.ts`). Every reason is named, and the
+start is refused with HTTP 400:
+
+| Check | Refused when |
+| --- | --- |
+| metadata | MirageSITL has no metadata for the firmware's commit |
+| name | the name is not a parameter of that commit |
+| value | the value is not finite; an enumerated parameter's value is not one of its values; a bitmask sets a bit the metadata does not declare or is not a whole number; a declared range does not hold it |
+| `LOG_BACKEND_TYPE` | it lacks the File backend (bit 0), the only one whose output the launcher collects, or it requests the Block backend (bit 2), which SITL does not have |
+
+Parameters whose names do not start with `LOG_` are not checked here. A start
+without `LOG_*` parameters runs with the build's defaults.
+
+### Attachment
+
+The launcher lists `logs/` with each file's size and modification time just
+before it starts a run. When the run ends (it exits, crashes or is stopped),
+every DataFlash file that is new, or whose size or modification time changed,
+belongs to that run. The launcher reads and hashes each one, and appends to the
+experiment:
+
+| Field | Meaning |
+| --- | --- |
+| run | the launcher run number |
+| name, bytes, sha256 | the file in `logs/`, its size and the SHA-256 of its bytes |
+| status | `complete` (ends at a record boundary, nothing damaged), `truncated` (only the tail after the last whole record is missing, as when SITL is stopped by a signal), `damaged` (a skipped or bad-format range inside), `empty` (no bytes, or no record) |
+| records, truncatedBytes, damaged | whole records read, bytes in the cut tail, damaged ranges inside |
+| firmware | the version string and git hash of the log's VER record, and whether the hash is the build's commit; null without a VER record |
+| logging | each configured `LOG_*` parameter with the value the log's PARM records hold (its last occurrence), and `confirmed` when every one holds the configured float32 |
+
+A run that wrote no file is attached as `missing` with the reason; a file that
+cannot be read is attached as missing with the read error. Nothing is
+synthesized. The attachments of every run are written to the experiment
+folder's `dataflash.json` (schema 1: experiment ID, firmware version, commit,
+captures) through a temporary file and a rename, and returned as
+`attachments` by `GET /v1/experiments/{id}/logs`. The files themselves stay in
+`logs/` and are served by `GET /v1/experiments/{id}/dataflash/{name}`. The
+experiment record (TASK-154) names the launcher experiment whose folder holds
+them; the project store gains no record kind for them in this task.
+
+### Verification (TASK-164)
+
+`tests/dataflash-capture.test.ts` checks the `LOG_*` rules against the
+metadata of 8ab6afde. It reads the VER and PARM records of the real SITL log
+slice of TASK-178, and classifies that slice whole, with its tail cut, with a
+damaged range inside, and with no bytes. It attributes files to runs (new,
+grown, or rewritten at the same size) and writes the manifest atomically.
+Through the launcher with the shared fake SITL, it refuses an unusable logging
+configuration before creating anything and attaches both runs' 6-byte logs as
+truncated. With the TASK-127 build, it attaches the real log of a 20-second
+lockstep run through the launcher's own bridge on free ports, with the hash,
+the firmware from VER and every configured `LOG_*` value read back from PARM.
