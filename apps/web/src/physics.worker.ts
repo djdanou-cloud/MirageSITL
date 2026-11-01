@@ -1,10 +1,12 @@
 /// <reference lib="webworker" />
 import { AarRecord } from '@mirage/aar/record';
 import { RecordingHandoff } from '@mirage/aar/handoff';
+import { isProducerPlan, RecordingProducerV2 } from '@mirage/aar/recorder-v2';
 import { createSessionFaultPort } from '@mirage/ew/session-port';
 import { isWorkerInitV2, tickToNumber, validatePowerChannelV1, type CommandResultV2, type ControlCommandV2, type WorkerFaultV2 } from '@mirage/protocol';
 import { parseLimitRatings, type LimitEvent, type LimitRatings } from '@mirage/physics/limit-monitor';
 import { PhysicsSessionV2, type SessionClock } from '@mirage/physics';
+import { GroundContact } from '@mirage/physics/ground-contact';
 import { profileModelPort } from '@mirage/physics/profile-dynamics';
 import { VehicleRegistry } from '@mirage/physics/vehicle-manifest';
 import { ScenarioBinder } from '@mirage/scenarios/bind';
@@ -35,10 +37,12 @@ let betModule: WebAssembly.Module | null = null;
 const ratings = new Map<string, LimitRatings>();
 type WorkerNotice = CommandResultV2 | WorkerFaultV2 | SitlNotice | { type: "sitl.reject"; message: string }
   | { type: "bet.module.ready"; sha256: string } | { type: "bet.module.reject"; message: string }
+  | { type: "contact.module.ready"; sha256: string } | { type: "contact.module.reject"; message: string }
   | { type: "model.registered"; modelId: number; sha256: string } | { type: "model.reject"; message: string }
   | { type: "limits.registered"; sha256: string } | { type: "limits.reject"; message: string }
   | { type: "limits.events"; events: LimitEvent[]; dropped: number }
   | { type: "power.attached" } | { type: "power.reject"; message: string }
+  | { type: "recording-v2.armed" } | { type: "recording-v2.reject"; message: string }
   | { type: "scenario.submit"; command: ControlCommandV2 }
   | { type: "scenario.reject"; message: string }
   | { type: "pilot.rejected"; count: number; ageMs: number; wallMs: number; sampleWallMs: number; sampleId: number; expectedEpoch: number;
@@ -91,6 +95,19 @@ function armRecording(queue: SharedArrayBuffer): void {
     if (!active.record.encode(sample.state, pilot, sample.sensor, sample.actuator, 0, lost, false)) return;
     if (active.handoff.push(active.record.words)) notedLost = active.handoff.lost;
   });
+}
+/**
+ * TASK-162: arms recorder v2's producer on the session's record hook. It replaces a TASK-076 recorder; the flight
+ * queues keep one consumer, and a full recording queue drops and counts rows instead of waiting.
+ */
+function armRecordingV2(data: Record<string, unknown>): void {
+  if (!session) throw new Error("The physics session is not initialized");
+  if (!(data.queue instanceof SharedArrayBuffer) || !isProducerPlan(data.plan)) throw new Error("Invalid recording-v2.arm message");
+  if (data.plan.physicsHz !== session.hz) throw new Error(`The recording plan is for ${data.plan.physicsHz} Hz; the session runs ${session.hz} Hz`);
+  const producer = new RecordingProducerV2(data.queue, data.plan);
+  recorder = null;
+  session.setRecorder(sample => producer.record(sample));
+  post({ type: "recording-v2.armed" });
 }
 function isBinaryMessage<T extends string>(data: unknown, type: T): data is { type: T; bytes: Uint8Array; sha256: string } {
   return typeof data === "object" && data !== null && "type" in data && data.type === type && "bytes" in data &&
@@ -224,6 +241,15 @@ addEventListener('message', (event: MessageEvent<unknown>) => {
       (error: unknown) => post({ type: "bet.module.reject", message: error instanceof Error ? error.message : "Invalid BET module" }));
     return;
   }
+  // TASK-095: the contact module the profile vehicles stand on; GroundContact.initialize checks it against its build manifest.
+  if (typeof data === "object" && data !== null && "type" in data && data.type === "contact.module" && "bytes" in data &&
+    data.bytes instanceof Uint8Array && "manifest" in data) {
+    const bytes = new Uint8Array(data.bytes), manifest: unknown = data.manifest;
+    const sha256 = typeof manifest === "object" && manifest !== null && "sha256" in manifest ? String(manifest.sha256) : "";
+    GroundContact.initialize(bytes, manifest).then(() => post({ type: "contact.module.ready", sha256 }),
+      (error: unknown) => post({ type: "contact.module.reject", message: error instanceof Error ? error.message : "Invalid contact module" }));
+    return;
+  }
   if (isBinaryMessage(data, "model.register")) {
     registry.register(data.bytes, data.sha256).then(record => post({ type: "model.registered", modelId: record.manifest.modelId, sha256: record.sha256 }),
       (error: unknown) => post({ type: "model.reject", message: error instanceof Error ? error.message : "Invalid model" }));
@@ -259,7 +285,11 @@ addEventListener('message', (event: MessageEvent<unknown>) => {
     armRecording(data.queue);
     return;
   }
-  if (isRecordingStop(data)) {
+  if (isTyped(data, "recording-v2.arm")) {
+    try { armRecordingV2(data); } catch (error) { post({ type: "recording-v2.reject", message: error instanceof Error ? error.message : "Invalid recording-v2.arm" }); }
+    return;
+  }
+  if (isRecordingStop(data) || isTyped(data, "recording-v2.stop")) {
     recorder = null;
     current.setRecorder(null);
     return;

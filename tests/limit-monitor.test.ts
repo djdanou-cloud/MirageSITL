@@ -1,16 +1,18 @@
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { beforeAll, describe, expect, it } from 'vitest';
+import { prepareContact } from './contact-support.ts';
+import { standardGearHeights } from './support/standard-gear.ts';
 import { validateComponentCard, type ComponentCard } from '@mirage/aircraft/components';
 import { deriveVehicleManifest } from '@mirage/aircraft/derive-manifest';
 import { validateAircraftProfile, withPropellerPolars, type AircraftProfile } from '@mirage/aircraft/profile';
 import { componentRatings, resolveComponents } from '@mirage/aircraft/resolve-components';
-import { BetFlightDynamics } from '@mirage/physics/bet-dynamics';
+import type { BetFlightDynamics } from '@mirage/physics/bet-dynamics';
 import {
   BatteryColumn, BatteryLimited, LimitMonitor, MotorColumn, MotorLimited, MotorWarning, PowerTelemetry, LIMIT_OUTBOX_CAPACITY,
   parseLimitRatings, type LimitEvent, type LimitRatings,
 } from '@mirage/physics/limit-monitor';
-import { buildProfileDynamics } from '@mirage/physics/profile-dynamics';
+import { buildProfileDynamics, profileFlightDynamics } from '@mirage/physics/profile-dynamics';
 import { validateVehicleManifest } from '@mirage/physics/vehicle-manifest';
 import { ActuatorFlagV2, newActuatorFrameV2, newInput } from '@mirage/protocol';
 
@@ -21,9 +23,11 @@ import { ActuatorFlagV2, newActuatorFrameV2, newInput } from '@mirage/protocol';
 
 const MOTOR = '11'.repeat(32), PROPELLER = '22'.repeat(32), ESC = '33'.repeat(32), BATTERY = '44'.repeat(32);
 let module: WebAssembly.Module;
-beforeAll(() => {
+beforeAll(async () => {
   execFileSync(process.execPath, ['scripts/build-wasm.mjs'], { stdio: 'pipe' });
   module = new WebAssembly.Module(readFileSync('packages/wasm-bet/dist/mirage_bet.scalar.wasm'));
+  // The vehicle stands on its standard landing gear (TASK-095).
+  await prepareContact();
 }, 600000);
 
 function json(path: string): unknown {
@@ -52,10 +56,10 @@ async function quadDynamics(edits: CardEdits, options: { ratings?: LimitRatings 
   if (!resolved.components) throw new Error(`Missing: ${resolved.missing.join('; ')}`);
   const derived = await deriveVehicleManifest(profile, resolved.components, { modelId: 146 });
   const ratings = options.ratings === undefined ? componentRatings(profile, set) : options.ratings;
-  const { configuration } = buildProfileDynamics(derived.manifest, { initialStateOfCharge: options.soc ?? 1, limitRatings: ratings,
+  const build = buildProfileDynamics(derived.manifest, { initialStateOfCharge: options.soc ?? 1, limitRatings: ratings,
     housePowerW: options.houseW ?? 0 });
   const manifest = validateVehicleManifest(derived.manifest);
-  return { d: new BetFlightDynamics(module, configuration, options.hz ?? 400), manifest, ratings, motorMapId: configuration.motorMapId };
+  return { d: profileFlightDynamics(module, build, options.hz ?? 400), manifest, ratings, motorMapId: build.configuration.motorMapId };
 }
 /** Runs at a fixed duty on every motor; `each` sees the dynamics after every step. */
 function run(q: { d: BetFlightDynamics; motorMapId: number }, duty: number, steps: number, each: (step: number) => void = () => undefined): void {
@@ -319,8 +323,10 @@ describe('a pack at its discharge limit feeds back to the motors (TASK-092 drive
     d.dispose();
   }, 300000);
 
-  it('keeps the quad on the pad at any throttle when the limit is below hover power', async () => {
+  it('keeps the quad on its gear at any throttle when the limit is below hover power', async () => {
     const q = await quadDynamics({ battery: { maxDischargeCurrentA: 2 } }), { manifest } = q;
+    // On its feet: the CG never rises above where the fully extended supports touch the ground (TASK-095, D-07).
+    const { touchM } = standardGearHeights(manifest);
     const battery = manifest.battery!, g = 9.80665, rho = 1.225, n = manifest.rotorCount;
     // Momentum theory: hovering needs at least n·T^1.5/sqrt(2ρA) of shaft power, T = m·g/n per rotor.
     const thrust = manifest.massProperties.massKg * g / n, area = Math.PI * manifest.rotors[0]!.radiusM ** 2;
@@ -330,21 +336,22 @@ describe('a pack at its discharge limit feeds back to the motors (TASK-092 drive
     q.d.dispose();
     for (const throttle of [0.2, 0.4, 0.6, 0.8, 1]) {
       const limited = await quadDynamics({ battery: { maxDischargeCurrentA: 2 } });
-      let highest = 0;
-      run(limited, throttle, 1600, () => { highest = Math.min(highest, limited.d.state.down); });
-      // The synthetic pad holds a vehicle whose thrust is below its weight exactly at 0 m.
-      expect(highest, `throttle ${throttle}`).toBe(0);
+      let highest = -Infinity;
+      run(limited, throttle, 1600, () => { highest = Math.max(highest, -limited.d.state.down); });
+      // The run starts with the feet touching, so the highest CG is the touch height itself (rounding aside).
+      expect(highest, `throttle ${throttle}`).toBeLessThanOrEqual(touchM + 1e-9);
       // A low throttle draws less than 2 A; full throttle holds the pack at its limit.
       const current = limited.d.power!.battery[BatteryColumn.CurrentA]!;
       if (throttle === 1) expect(limited.d.busLimited && Math.abs(current - 2) <= 1e-9).toBe(true);
       else expect(current).toBeLessThanOrEqual(2 * (1 + 1e-12));
       limited.d.dispose();
     }
-    // Control: the same quad on its 125 A example pack leaves the pad at 80 % throttle.
+    // Control: the same quad on its 125 A example pack leaves the ground at 80 % throttle.
     const free = await quadDynamics({});
-    run(free, 0.8, 800);
-    expect(free.d.state.down).toBeLessThan(-0.3);
-    expect(free.d.busLimited).toBe(false);
+    let freeHighest = -Infinity, freeLimited = false;
+    run(free, 0.8, 800, () => { freeHighest = Math.max(freeHighest, -free.d.state.down); freeLimited ||= free.d.busLimited; });
+    expect(freeHighest).toBeGreaterThan(touchM + 0.3);
+    expect(freeLimited).toBe(false);
     free.d.dispose();
   }, 300000);
 });

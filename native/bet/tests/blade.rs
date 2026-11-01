@@ -182,17 +182,20 @@ fn within_t1(a: Vec3, b: Vec3) -> bool {
     (a.x - b.x).abs() <= scale && (a.y - b.y).abs() <= scale && (a.z - b.z).abs() <= scale
 }
 
-/// TASK-091: `evaluate_fast` (bitwise) and `evaluate_sampled` at stride 1
-/// (within T1) against the reference `evaluate` on the NACA6409
+/// TASK-091: the exact kernel `evaluate_fast` (bitwise) and the default kernel
+/// `evaluate_sampled` at stride 1 (within T1) against the reference `evaluate` on the NACA6409
 /// surrogate over axial, edgewise (advance ratio up to 0.3), climbing,
 /// descending and reverse-flow states, body rates, cyclic pitch, both spin
-/// directions and 1, 3, 8 and 64 azimuth samples.
+/// directions, 1, 3, 8 and 64 azimuth samples, and 16 strips as well as
+/// 1, 3, 5 and 63 (the SIMD tails of the strip pass).
 #[test]
 fn production_kernel_matches_the_reference_within_t1() {
     let p = neuralfoil::naca6409(&[0.0, 0.3]);
     let polar = PolarTable::new(&p.alpha, &p.re, &p.mach, &p.cl, &p.cd).unwrap().with_confidence(&p.confidence, 0.9).unwrap();
     // The example 10 x 4.5 in propeller geometry family: 16 strips, tapered and twisted.
-    let (radius_m, cutout_m, n) = (0.127, 0.0127, 16usize);
+    let (radius_m, cutout_m) = (0.127, 0.0127);
+    // 16 strips as the example propeller, and 1, 3, 5 and 63 for the SIMD tails of the strip pass.
+    for n in [16usize, 1, 3, 5, 63] {
     let width = (radius_m - cutout_m) / n as f64;
     let r: Vec<f64> = (0..n).map(|k| cutout_m + (k as f64 + 0.5) * width).collect();
     let chord: Vec<f64> = r.iter().map(|x| 0.025 - 0.08 * (x - 0.06)).collect();
@@ -212,7 +215,7 @@ fn production_kernel_matches_the_reference_within_t1() {
                                 omega_rad_s: omega, induced_mps: induced, collective_rad: collective, cyclic_cos_rad: cyclic.0, cyclic_sin_rad: cyclic.1 };
                             match (rotor.evaluate(i), rotor.evaluate_fast(i), rotor.evaluate_sampled(i, 1)) {
                                 (Ok(a), Ok(b), Ok(t)) => {
-                                    // The default production kernel is exact; the opt-in kernel is within T1.
+                                    // The exact kernel (option 4) is bitwise; the default kernel (increment 3) is within T1.
                                     assert_eq!(a, b);
                                     assert!(within_t1(a.force_n, t.force_n) && within_t1(a.moment_nm, t.moment_nm) && within_t1(a.flap_load_nm, t.flap_load_nm),
                                         "{a:?} {t:?}");
@@ -238,8 +241,63 @@ fn production_kernel_matches_the_reference_within_t1() {
     bad.induced_mps = f64::NAN;
     assert!(rotor.evaluate(bad).is_err() && rotor.evaluate_fast(bad).is_err());
     assert_eq!(checked + errors, 2 * 4 * 5 * 5 * 5 * 3);
-    // The opt-in kernel reassociates the reference arithmetic, so most states differ in the last bits only.
-    println!("T1 checked {checked} states, {bitwise} of them bitwise for the opt-in kernel, {errors} rejected by all");
+    // The default kernel reassociates the reference arithmetic, so most states differ in the last bits only.
+    println!("T1 with {n} strips: checked {checked} states, {bitwise} of them bitwise for the default kernel, {errors} rejected by all");
+    }
+}
+
+/// TASK-091 increment 3 component accuracy, declared before implementation:
+/// the kernel atan2 within 2e-15 rad and the kernel ln within
+/// 2e-15 x max(1, |ln x|) of the platform functions, over 1e6+ arguments each.
+#[test]
+fn kernel_atan2_and_ln_meet_their_declared_accuracy() {
+    use mirage_bet::{blade::atan2_kernel, polar::ln_kernel};
+    // A fixed xorshift stream: reproducible arguments without a dependency.
+    let mut state = 0x9E37_79B9_7F4A_7C15u64;
+    let mut next = || { state ^= state << 13; state ^= state >> 7; state ^= state << 17; (state >> 11) as f64 / (1u64 << 53) as f64 };
+    let (mut worst_atan, mut worst_ln) = (0.0f64, 0.0f64);
+    let mut atan_case = |y: f64, x: f64| {
+        let error = (atan2_kernel(y, x) - y.atan2(x)).abs();
+        assert!(error <= 2e-15, "atan2({y:e}, {x:e}): {error:e}");
+        worst_atan = worst_atan.max(error);
+    };
+    for _ in 0..1_000_000 {
+        // Magnitudes over 1e-6..1e6 in both signs, every octant and ratio.
+        let (a, b) = (10f64.powf(12.0 * next() - 6.0), 10f64.powf(12.0 * next() - 6.0));
+        let (sy, sx) = (if next() < 0.5 { -1.0 } else { 1.0 }, if next() < 0.5 { -1.0 } else { 1.0 });
+        atan_case(sy * a, sx * b);
+    }
+    // Reduction boundaries, exact octant edges, axes and signed zeros.
+    for (y, x) in [(1.0, 1.0), (-1.0, 1.0), (1.0, -1.0), (-1.0, -1.0), (0.0, 1.0), (-0.0, 1.0), (0.0, -1.0), (-0.0, -1.0),
+        (1.0, 0.0), (1.0, -0.0), (-1.0, 0.0), (-1.0, -0.0), (0.198_912_367_379_658, 1.0), (0.668_178_637_919_298_9, 1.0), (0.414_213_562_373_095, 1.0)] {
+        atan_case(y, x);
+        for k in -64i64..=64 {
+            // Bit neighbours; below a zero the bits wrap to NaN, which is outside the domain.
+            let neighbour = f64::from_bits(y.to_bits().wrapping_add_signed(k));
+            if neighbour.is_finite() && neighbour.signum() == y.signum() {
+                atan_case(neighbour, x);
+            }
+        }
+    }
+    let mut ln_case = |x: f64| {
+        let want = x.ln();
+        let error = (ln_kernel(x) - want).abs();
+        assert!(error <= 2e-15 * want.abs().max(1.0), "ln({x:e}): {error:e}");
+        worst_ln = worst_ln.max(error / want.abs().max(1.0));
+    };
+    for _ in 0..1_000_000 {
+        ln_case(10f64.powf(600.0 * next() - 300.0));
+    }
+    for x in [f64::MIN_POSITIVE, f64::MAX, 1.0, 2.0, 0.5, std::f64::consts::SQRT_2, std::f64::consts::FRAC_1_SQRT_2, 1e3, 1e6] {
+        ln_case(x);
+        for k in -64i64..=64 {
+            let neighbour = f64::from_bits(x.to_bits().wrapping_add_signed(k));
+            if neighbour.is_normal() {
+                ln_case(neighbour);
+            }
+        }
+    }
+    println!("kernel atan2 worst {worst_atan:e} rad, kernel ln worst {worst_ln:e} (relative to max(1, |ln x|))");
 }
 
 #[test]

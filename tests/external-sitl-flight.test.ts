@@ -3,6 +3,8 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { performance } from 'node:perf_hooks';
 import { describe, expect, test } from 'vitest';
+import { prepareContact } from './contact-support.ts';
+import { standardGearHeights } from './support/standard-gear.ts';
 import { WebSocket } from 'ws';
 import { frameConfiguration } from '@mirage/aircraft/frame-parameters';
 import { GroundStation, CopterMode } from '@mirage/autopilot/ground-station';
@@ -25,6 +27,9 @@ import { quadProfile } from './support/quad-profile.ts';
 // the TASK-150 codec. READY comes only from LiveEkfWarmup on this run's
 // acknowledged JSON IMU samples and CRC-checked EKF, GPS and heartbeat
 // messages. Truth altitude is read from the session's published state.
+// TASK-095: the quad stands, takes off and lands on its standard landing gear
+// on the Rapier contact, and its attitude changes each step only by what its
+// body rate turns it (no pad resetting it level).
 
 const ROOT = process.cwd();
 const HOME = join(ROOT, '.cache/task-152/home');
@@ -39,7 +44,11 @@ describe.skipIf(!installed)('native ArduCopter flies the quad X profile through 
   test('warms up to READY, arms in GUIDED, takes off to 5 m, holds and lands', async () => {
     execFileSync(process.execPath, ['scripts/build-wasm.mjs'], { stdio: 'pipe' });
     const module = new WebAssembly.Module(readFileSync('packages/wasm-bet/dist/mirage_bet.scalar.wasm'));
+    // The vehicle stands on its standard landing gear (TASK-095).
+    await prepareContact();
     const { profile, derived } = await quadProfile();
+    // Heights of the CG with the fully extended feet touching the ground and at rest on them, from the gear's rules.
+    const { touchM, restM } = standardGearHeights(derived.manifest);
     const frame = frameConfiguration(profile);
     if (!frame.ok) throw new Error('The quad X profile has no ArduPilot frame');
     expect(frame.kind).toBe('stock');
@@ -109,6 +118,8 @@ describe.skipIf(!installed)('native ArduCopter flies the quad X profile through 
       type Stage = 'warmup' | 'guided' | 'arm' | 'takeoff' | 'hold' | 'land' | 'landed';
       let stage: Stage = 'warmup', stageAtS = 0, lastCommandS = -10, lastHeartbeatS = -10, readyAtS = -1, holdStartS = 0;
       let armedAtS = -1, takeoffAtS = -1, holdMinM = Infinity, holdMaxM = -Infinity, maxAltitudeM = 0, simTimeS = 0;
+      // Attitude continuity: the largest step turn beyond the body rate's own turn over the step, and the touchdown.
+      let qw = 1, qx = 0, qy = 0, qz = 0, rate = 0, steps = 0, turnExcessRad = 0, maxTurnRad = 0, touchdownAtS = -1, touchdownSinkMps = 0, turnExcessAtS = -1, turnExcessStage = '';
       const mavlink = new Uint8Array(4096), wallStart = performance.now();
       const diagnostics = () => JSON.stringify({ simTimeS, reason: warmup.warmup.reason, imuTimeS: warmup.imuTimeS, gpsTimeS: warmup.gpsTimeS,
         health: warmup.monitor.snapshot(simTimeS * 1000), acks: acks.slice(-6), text: text.slice(-6), frames: warmup.parser.frames });
@@ -140,6 +151,19 @@ describe.skipIf(!installed)('native ArduCopter flies the quad X profile through 
           if (ready && readyAtS < 0) readyAtS = simTimeS;
           const altitudeM = -truth.downM;
           maxAltitudeM = Math.max(maxAltitudeM, altitudeM);
+          // The step's turn from the vector part of q_prev⁻¹ ⊗ q, w₁v₂ − w₂v₁ − v₁ × v₂: well conditioned for small turns, unlike
+          // 2·acos(q_prev · q), which turns the published quaternion's rounding into turns of 10⁻⁴ rad.
+          const vx = qw * truth.qx - truth.qw * qx - (qy * truth.qz - qz * truth.qy);
+          const vy = qw * truth.qy - truth.qw * qy - (qz * truth.qx - qx * truth.qz);
+          const vz = qw * truth.qz - truth.qw * qz - (qx * truth.qy - qy * truth.qx);
+          const turn = 2 * Math.asin(Math.min(1, Math.hypot(vx, vy, vz))), nowRate = Math.hypot(truth.pRadS, truth.qRadS, truth.rRadS);
+          if (steps++ > 0) {
+            const excess = turn - 1.05 * Math.max(rate, nowRate) / HZ;
+            if (excess > turnExcessRad) { turnExcessRad = excess; turnExcessAtS = simTimeS; turnExcessStage = stage; }
+            maxTurnRad = Math.max(maxTurnRad, turn);
+          }
+          qw = truth.qw; qx = truth.qx; qy = truth.qy; qz = truth.qz; rate = nowRate;
+          if (stage === 'land' && touchdownAtS < 0 && altitudeM <= touchM) { touchdownAtS = simTimeS; touchdownSinkMps = truth.vdMps; }
           if (simTimeS - lastHeartbeatS >= 1) {
             // The relay forwards to SITL only after SITL's first datagram, so requests repeat until acknowledged.
             const accepted = acks.filter(a => a.command === 511 && a.result === 0).length;
@@ -164,7 +188,7 @@ describe.skipIf(!installed)('native ArduCopter flies the quad X profile through 
               if (simTimeS - holdStartS >= HOLD_S) { send(gcs.setModeInto(CopterMode.Land, packet)); lastCommandS = simTimeS; next('land'); }
               break;
             case 'land':
-              if (!armed && altitudeM < 0.05) { next('landed'); clearTimeout(wall); resolve(); }
+              if (!armed && Math.abs(altitudeM - restM) < 1e-3 && Math.abs(truth.vdMps) < 0.01) { next('landed'); clearTimeout(wall); resolve(); }
               else if (mode !== CopterMode.Land && retry) { send(gcs.setModeInto(CopterMode.Land, packet)); lastCommandS = simTimeS; }
               break;
             case 'landed': break;
@@ -177,6 +201,7 @@ describe.skipIf(!installed)('native ArduCopter flies the quad X profile through 
       mkdirSync(join(ROOT, 'test-results/validation'), { recursive: true });
       writeFileSync(join(ROOT, 'test-results/validation/task-153-flight.json'), JSON.stringify({ task: 'TASK-153', firmware: { id: firmware.id, commit: firmware.commit },
         manifestSha256: derived.sha256, hz: HZ, speedup: SPEEDUP, readyAtS, armedAtS, takeoffAtS, holdStartS, holdMinM, holdMaxM, maxAltitudeM,
+        gear: { touchM, restM, touchdownAtS, touchdownSinkMps, landedAltitudeM: -link.state.downM, maxTurnRad, turnExcessRad, turnExcessAtS, turnExcessStage, steps },
         landedAtS: simTimeS, wallS: (performance.now() - wallStart) / 1000, lockstep: link.lockstepStats, link: link.stats, acks, text }, null, 2) + '\n');
       expect(readyAtS).toBeGreaterThanOrEqual(30);
       expect(everArmed).toBe(true);
@@ -184,6 +209,11 @@ describe.skipIf(!installed)('native ArduCopter flies the quad X profile through 
       expect(maxAltitudeM).toBeGreaterThan(TAKEOFF_M - 0.5);
       expect(holdMaxM - holdMinM).toBeLessThan(1);
       expect(link.lockstepStats.duplicates + link.lockstepStats.gaps).toBe(0);
+      // On the gear: no step turned the body more than its rate did, and it touched down at ArduCopter's landing speed.
+      expect(turnExcessRad).toBeLessThan(1e-6);
+      expect(touchdownAtS).toBeGreaterThan(holdStartS);
+      expect(touchdownSinkMps).toBeGreaterThan(0.1);
+      expect(touchdownSinkMps).toBeLessThan(1);
       expect(session.fault).toBe('');
     } finally {
       ws?.close();

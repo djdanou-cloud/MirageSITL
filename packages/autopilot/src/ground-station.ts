@@ -1,7 +1,9 @@
 // Ground-station commands for an integrated SITL session (TASK-153): the
-// application's own MAVLink2 heartbeat and COMMAND_LONG requests, packed with
-// the TASK-150 codec. Cold path: one call per user action or per second, never
-// inside the physics step. Command and mode numbers are those of the pinned
+// application's own MAVLink2 heartbeat and COMMAND_LONG requests, and the
+// parameter requests of the TASK-154 read-back and the TASK-159 parameter
+// service, packed with the TASK-150
+// codec. Cold path: one call per user action or per second, never inside the
+// physics step. Command and mode numbers are those of the pinned
 // ardupilotmega.xml/common.xml (MAVLink 2e2b6af99084e4fde9bb304c84bb9253a1a98b6f)
 // and of ArduCopter's mode table at 8ab6afde107a91df1b5f60ade8f333cb8a61b190
 // (ArduCopter/mode.h).
@@ -9,14 +11,18 @@ import { encodeInto } from "@mirage/mavlink/codec";
 import { packInto } from "@mirage/mavlink/messages";
 
 export const MavCommand = {
-  NavTakeoff: 22, NavLand: 21, DoSetMode: 176, ComponentArmDisarm: 400, SetMessageInterval: 511,
+  NavTakeoff: 22, NavLand: 21, DoSetMode: 176, DoMotorTest: 209, ComponentArmDisarm: 400, SetMessageInterval: 511, RequestMessage: 512,
 } as const;
+/** MOTOR_TEST_THROTTLE_TYPE (common.xml): a raw PWM value, which ArduCopter accepts without the RC calibration check (motor_test.cpp). */
+const MOTOR_TEST_THROTTLE_PWM = 1;
 /** ArduCopter custom modes (ArduCopter/mode.h, enum class Mode::Number). */
 export const CopterMode = { Stabilize: 0, AltHold: 2, Guided: 4, Loiter: 5, Land: 9 } as const;
 /** MAV_MODE_FLAG_CUSTOM_MODE_ENABLED. */
 const CUSTOM_MODE_ENABLED = 1;
 /** MAVLink message IDs. */
-const HEARTBEAT = 0, COMMAND_LONG = 76;
+const HEARTBEAT = 0, PARAM_REQUEST_READ = 20, PARAM_REQUEST_LIST = 21, PARAM_SET = 23, COMMAND_LONG = 76;
+/** An ArduPilot parameter name: 1 to 16 (AP_MAX_NAME_SIZE) printable ASCII characters, no space. */
+const PARAMETER_NAME = /^[\x21-\x7e]{1,16}$/;
 /** MAV_TYPE_GCS, MAV_AUTOPILOT_INVALID, MAV_STATE_ACTIVE. */
 const GCS_TYPE = 6, NO_AUTOPILOT = 8, ACTIVE = 4;
 
@@ -24,6 +30,9 @@ export class GroundStation {
   private sequence = 0;
   private readonly heartbeatPayload = new Uint8Array(9);
   private readonly commandPayload = new Uint8Array(33);
+  private readonly listPayload = new Uint8Array(2);
+  private readonly readPayload = new Uint8Array(20);
+  private readonly setPayload = new Uint8Array(23);
 
   /**
    * @param systemId the ground station's system ID (255, as Mission Planner and pymavlink use)
@@ -66,6 +75,62 @@ export class GroundStation {
   /** Requests `messageId` every `intervalUs` microseconds (SET_MESSAGE_INTERVAL). */
   messageIntervalInto(messageId: number, intervalUs: number, out: Uint8Array): number {
     return this.commandInto(MavCommand.SetMessageInterval, [messageId, intervalUs], out);
+  }
+
+  /**
+   * MAV_CMD_DO_MOTOR_TEST of one motor: ArduCopter spins the frame motor whose
+   * test order is `testOrder` at `pwmUs` for `timeoutS` (AP_MotorsMatrix::output_test_seq).
+   */
+  motorTestInto(testOrder: number, pwmUs: number, timeoutS: number, out: Uint8Array): number {
+    if (!Number.isInteger(testOrder) || testOrder < 1 || testOrder > 32 || !(pwmUs >= 1000 && pwmUs <= 2000) || !(timeoutS > 0 && timeoutS <= 10)) return 0;
+    return this.commandInto(MavCommand.DoMotorTest, [testOrder, MOTOR_TEST_THROTTLE_PWM, pwmUs, timeoutS, 1, 0], out);
+  }
+
+  /** Requests one message by ID (MAV_CMD_REQUEST_MESSAGE), for example AUTOPILOT_VERSION (148). */
+  requestMessageInto(messageId: number, out: Uint8Array): number {
+    return this.commandInto(MavCommand.RequestMessage, [messageId], out);
+  }
+
+  /** PARAM_REQUEST_LIST: the autopilot answers with every parameter as PARAM_VALUE, by index. */
+  paramRequestListInto(out: Uint8Array): number {
+    if (!packInto(PARAM_REQUEST_LIST, { target_system: this.targetSystem, target_component: this.targetComponent }, this.listPayload)) return 0;
+    return this.frame(PARAM_REQUEST_LIST, this.listPayload, out);
+  }
+  /**
+   * PARAM_REQUEST_READ of one parameter by name (param_index -1); returns 0 for
+   * a name that is not 1 to 16 printable ASCII characters. A control character
+   * is refused because a NUL would cut the name short on the wire and so read
+   * another parameter.
+   */
+  paramRequestReadInto(name: string, out: Uint8Array): number {
+    if (!PARAMETER_NAME.test(name)) return 0;
+    if (!packInto(PARAM_REQUEST_READ, { target_system: this.targetSystem, target_component: this.targetComponent, param_id: name,
+      param_index: -1 }, this.readPayload)) return 0;
+    return this.frame(PARAM_REQUEST_READ, this.readPayload, out);
+  }
+
+  /**
+   * PARAM_REQUEST_READ of the list entry at `index` (param_id empty), which
+   * ArduPilot answers with that entry's PARAM_VALUE and index; returns 0 for
+   * an index outside 0..32767 (param_index is int16 on the wire).
+   */
+  paramRequestReadIndexInto(index: number, out: Uint8Array): number {
+    if (!Number.isInteger(index) || index < 0 || index > 32767) return 0;
+    if (!packInto(PARAM_REQUEST_READ, { target_system: this.targetSystem, target_component: this.targetComponent, param_id: "",
+      param_index: index }, this.readPayload)) return 0;
+    return this.frame(PARAM_REQUEST_READ, this.readPayload, out);
+  }
+  /**
+   * PARAM_SET of one parameter: `value` is sent as its float32 with the
+   * MAV_PARAM_TYPE the autopilot reported for it. Returns 0 for an invalid
+   * name (as paramRequestReadInto), a type outside 1..10 or a value that is
+   * not finite as a float32.
+   */
+  paramSetInto(name: string, value: number, paramType: number, out: Uint8Array): number {
+    if (!PARAMETER_NAME.test(name) || !Number.isInteger(paramType) || paramType < 1 || paramType > 10) return 0;
+    if (!packInto(PARAM_SET, { target_system: this.targetSystem, target_component: this.targetComponent, param_id: name,
+      param_value: value, param_type: paramType }, this.setPayload)) return 0;
+    return this.frame(PARAM_SET, this.setPayload, out);
   }
 
   private frame(id: number, payload: Uint8Array, out: Uint8Array): number {

@@ -597,30 +597,56 @@ No new SAB byte layout or autopilot admission follows from this interface.
 Kernel cost (TASK-091, in progress). Initialization and reset validate the
 whole configuration; each step rechecks only the header, the counts, the
 dt, the scalar ranges and the slice bounds, and reads the polar without
-rescanning its values, since the configuration is immutable. Without kernel
-options the step evaluates the rotor with `Rotor::evaluate_fast`, whose
-results are bit-identical to the reference kernel (`Rotor::evaluate`,
-`PolarTable::lookup`): its polar lookups (`PreparedPolar`) compute the
-Reynolds-axis logarithms, the guess scales and the corner strides once per
-evaluation, guess each bracket in O(1) and correct it against its neighbours
-to the binary search's index, and read a cell's CL, CD and confidence
-corners through one window; the angle of attack wraps by exact conditional
+rescanning its values, since the configuration is immutable. The default
+kernel (increment 3) is `Rotor::evaluate_sampled`, which agrees with the
+reference kernel (`Rotor::evaluate`, `PolarTable::lookup`) within the
+declared tolerance T1: every force, moment and flapping component within
+1e-12 of its vector's norm (absolute floor 1e-15) and identical flags, with
+shaft speed and inflow within 1e-9 relative over closed loops. Each
+element's relative velocity is resolved on the tangential direction and the
+axis only, where the cross products of the element force reduce to scalar
+products. Per azimuth sample a branch-free strip pass, which the compiler
+vectorizes (f64x2 in the SIMD128 build), forms the speed, the angle of
+attack with the exact conditional wrap, and the Reynolds and Mach numbers.
+Its `atan2` and `ln` are kernel functions with exact Taylor coefficients,
+within 2e-15 of the platform functions: atan after reduction by multiples
+of pi/8 to |t| <= tan(pi/16), with terms up to t^19, and ln through
+2 atanh((m - 1)/(m + 1)) with m in [sqrt(1/2), sqrt(2)), with terms up to
+s^17. A pass of scalar polar lookups (`KernelPolar`) follows. It keeps the
+reference clamping, flags and brackets; the Reynolds bracket starts from the
+strip's bracket at the previous azimuth sample, and the Reynolds-axis
+logarithms use the same `ln`. The Reynolds and two-node Mach weights
+multiply by interval reciprocals, and a query clamped onto the last node
+keeps the weight 1. The confidence corners are skipped once the evaluation
+has flagged a low-confidence corner, and the trilinear sums take Re and Mach
+first on both alpha nodes, then alpha. Four sums along the blade per
+azimuth sample are rotated into the force, moment and flapping loads. Three
+cases fall back to the increment 2 kernel: a table with fewer than two
+alpha nodes, more than 32 Reynolds nodes or a Reynolds node that is not a
+positive normal number; a non-finite intermediate; and a shifted angle
+outside [-2 pi, 4 pi) before the wrap.
+
+Kernel option 4 (configuration version 2) runs the exact kernel
+`Rotor::evaluate_fast` instead, whose results are bit-identical to the
+reference: its polar lookups (`PreparedPolar`) compute the Reynolds-axis
+logarithms, the guess scales and the corner strides once per evaluation,
+guess each bracket in O(1) and correct it against its neighbours to the
+binary search's index, and read a cell's CL, CD and confidence corners
+through one window; the angle of attack wraps by exact conditional
 subtraction (Sterbenz) with `rem_euclid` as fallback; and the element speed
 is taken once. The reference stays in the crate with `bound::step_reference`
-and `bound_v2::step_reference` for tests and benchmarks; no WASM export
-calls them.
+and `bound_v2::step_reference` for tests and benchmarks; no production WASM
+export calls them. The feature-gated test export `bet_test_kernel_t1`
+compares the default kernel with the reference inside the scalar and
+SIMD128 test builds.
 
-Configuration version 2 (TASK-091) adds two opt-in modes that change the
-numerics; version 1 keeps byte 36 reserved zero and stays the default, and
-`encodeBoundRotor` writes version 2 only when `kernelOptions` is nonzero.
-Any other option bit is rejected. A configuration with options evaluates
-the rotor with `Rotor::evaluate_sampled`, which agrees with the reference
-within the declared tolerance T1 (1e-12 relative, flags identical) when it
-samples in full: each element's relative velocity is resolved on the
-tangential direction and the axis only, where the cross products of the
-element force reduce to scalar products, per-strip and per-azimuth factors
-are formed once, and four sums per azimuth are rotated into the force,
-moment and flapping loads. Option 1 (reduced predictor): the
+Configuration version 2 (TASK-091) carries the kernel options word at byte
+36: two opt-in modes that change the numerics (options 1 and 2) and the
+exact kernel (option 4). Version 1 keeps byte 36 reserved zero and runs the
+default kernel, and `encodeBoundRotor` writes version 2 only when
+`kernelOptions` is nonzero. Any other option bit, and option 4 together with
+option 1 or 2, is rejected. The modes evaluate with the default kernel.
+Option 1 (reduced predictor): the
 half-step prediction evaluates azimuth samples 0 and N/2 (N even), whose
 first harmonics cancel, and uses only their axial force and torque.
 Option 2 (hover sampling): the midpoint evaluation uses every other azimuth
@@ -1092,7 +1118,11 @@ receives `MassProperties::with_inertia_matrix`, which diagonalizes the tensor
 into a principal-axis frame; version 1 keeps its diagonal path bit for bit.
 Version 3 (TASK-095) keeps version 2's inertia slots and adds each wheel's brush
 cornering stiffness in its slot [28]; `GroundContact` writes it when a wheel has a
-positive `corneringStiffnessNpRad`.
+positive `corneringStiffnessNpRad`. Version 4 (TASK-095, decision F-08) keeps
+version 3's slots and adds each wheel's kinetic over static friction ratio
+μ_k/μ_s in its slot [29], in (0, 1] on every wheel; `GroundContact` writes it
+when any wheel has a `kineticFrictionRatio` below 1, and a ratio of 1 gives
+version 3's trajectory bit for bit.
 `GroundContact` takes `inertiaKgM2` (row-major, exactly symmetric) and writes
 version 2 only when a product is non-zero. Against the 4800 Hz RK4 body, a free
 body with principal moments (0.02, 0.03, 0.045) kg m² turned 0.7 rad about
@@ -1118,7 +1148,8 @@ anchor body FRD m; [3]=unsprung mass kg; [4]=tire radius m; [5]=rigid rim radius
 charge pressure, ambient pressure, exponent, hydraulic area, fluid density,
 discharge coefficient, compression orifice, rebound orifice in the SI units
 specified below; [28]=brush cornering stiffness N/rad (version 3, ≥ 0; zero in
-versions 1 and 2); [29..31]=zero; [32..95]=tire deflection knots m;
+versions 1 and 2); [29]=kinetic friction ratio μ_k/μ_s (version 4, in (0, 1];
+zero in versions 1 to 3); [30..31]=zero; [32..95]=tire deflection knots m;
 [96..159]=tire force knots N. Unused entries are zero. The last knot must cover
 the tire-radius minus rim-radius distance. All values must be finite.
 
@@ -1180,9 +1211,17 @@ axis of the ground plane: longitudinal along the projected heading, lateral acro
 it. Each axis first asks for the force that stops the contact against a stick
 anchor within the step, f = −m·(v/Δt + β·d/Δt²), with v the wheel's tangential
 speed, d its offset from the anchor and m the wheel plus its load share of the
-airframe. Below the axis limit μN (longitudinal μ is rolling + (braking − rolling)·b
-for brake input b, lateral μ the lateral coefficient) it sticks; above, it slides
-at μN against that request and the anchor follows. β = 0.2 is constraint
+airframe's effective mass at the contact point along that axis t,
+1/(1/M + (r×t)·I⁻¹·(r×t)) for r from the airframe's centre of mass and I⁻¹ its
+world inverse inertia. With shares of the translational mass alone, as before
+2026-11-01, the feet together over-correct a rotation whenever the stance is
+wide against the inertia (M·r² > 2·I): a quad on supports under its motors
+(decision F-07) then flipped its yaw rate every step at the friction limit, at
+about 0.09 rad/s. With the effective mass no mode of the airframe is corrected
+by more than it moved. Below the axis limit μN (longitudinal μ is rolling +
+(braking − rolling)·b for brake input b, lateral μ the lateral coefficient) it
+sticks; above, it slides at μN, or at μ_k/μ_s of it in version 4, against that
+request and the anchor follows. β = 0.2 is constraint
 stabilization like Rapier's error reduction: the fraction of the anchor offset
 removed per step, so a held wheel keeps a static offset of order gΔt²/β instead of
 creeping. While a wheel rolls (|v_long| > 0.1 m/s) and has a cornering stiffness
@@ -1198,7 +1237,15 @@ Coulomb 1.5098 and 1.0450 m/s² (limit 5 %); a 2 m/s sideways slide stops in
 0.4025–0.4061 m against v²/(2μg) = 0.4079 m (limit 5 %) and then stays at rest; and
 with C_α = 20 N/rad a 0.05 m/s side velocity at 5 m/s decays to 6.247·10⁻³ m/s in
 0.3 s against the closed form v_y0·((v0 − bt)/v0)^(k/b) = 6.127·10⁻³ m/s (limit 5 %,
-k = ΣC_α/m, b = μ_roll·g).
+k = ΣC_α/m, b = μ_roll·g). These values were measured before the effective mass;
+with it every fixture still passes its tolerance (creep at most 5.2·10⁻⁷ m, the rolls, slides and sideways stop unchanged to four digits, and the brush decay 6.266–6.315·10⁻³ m/s, within 3.1 % of the closed form). Version 4 adds
+three: a 2 m/s sideways slide at μ_k = 0.8·μ_s stops at v²/(2μ_k·g) = 0.5099 m within 5 % (0.5039–0.5075 m);
+braked at μ_s = 0.7 and μ_k = 0.525, the aircraft holds a slope of tan 0.45 after
+dropping onto it (creep at most 3.3·10⁻⁶ m in 3 s, limit 1 mm) and slides down
+tan 0.6 at g·(sin θ − μ_k·cos θ) = 0.6307 m/s² within 5 % (0.6307 m/s²); and a
+1.5 kg airframe of 0.02 kg m² yaw inertia on feet 0.3 m out (M·r² seven times I)
+rests with body rates below 10⁻⁴ rad/s after 1 s at all three rates (at most
+7.8·10⁻¹² rad/s).
 Cold initialization exercises contact transitions and all supported rates.
 Actual armed allocations fault the session; stable memory alone is not evidence.
 `node scripts/check-contact-binding.mjs` builds native and WASM from the frozen
@@ -3098,7 +3145,7 @@ rotorless body:
 | `battery` | `openCircuitFullV`, `openCircuitEmptyV`, `internalResistanceOhm` ≥0, `capacityAh`, `currentLimitA` (native `Battery`, charge 3600·Ah C) | full ≥ empty | TASK-092 |
 | `airframe.drag` | `dragAreaBodyM2` (C_D·A tensor, m²), `centerOfPressureBodyM` | symmetric positive definite, so drag always dissipates | TASK-096 |
 | `controlSurfaces` (≤16) | `id`, `function`, `actuatorChannel`, deflection limits within ±π/2, `rateLimitRadS` | unique IDs and channels, not a rotor channel, min < max | TASK-109 |
-| `landingGear` (≤8) | the `ContactWheel` fields plus `id`; anchor from the reference point | unique IDs, rim < tire, last tire knot ≥ tire − rim; strut and tire laws stay native | TASK-095 |
+| `landingGear` (≤8) | the `ContactWheel` fields plus `id` (the cornering stiffness excepted; optional `kineticFrictionRatio`); anchor from the reference point | unique IDs, rim < tire, last tire knot ≥ tire − rim, kinetic friction ratio in (0, 1]; strut and tire laws stay native | TASK-095 |
 | `sensorMounts` (≤32) | `sensor`, `instance` (0–7), `positionBodyM`, `sensorToBody` | unique sensor/instance pairs, quaternion norm within 1e-6 | the sensor pipeline (TASK-147); never the rigid body |
 | `rotorWakePairs` (≤64) | `upstreamRotorId`, `downstreamRotorId` | known rotors, no self or duplicate pairs, acyclic | TASK-101 |
 | `ardupilot` | `vehicle: "copter"`, `frameClass`, `frameType` | only 1/1 (quad X) is admitted, with the geometry check below | parameter profile |
@@ -4113,8 +4160,12 @@ kept.
 * Deleting projects or versions, and garbage collection of unreferenced
   records.
 * References to artifacts outside the store, such as the ArduPilot build or
-  terrain data. The tasks that add them to experiments (TASK-154, TASK-165
-  and TASK-186) extend the dependency model with a schema version bump.
+  terrain data. TASK-154 records the ArduPilot build's identity (catalog ID,
+  version, commit and file hashes) as experiment payload data, not as a
+  dependency (user decision of 2026-11-01), and TASK-155 records the version
+  and verified commit that a SITL the user started reports the same way;
+  TASK-165 and TASK-186 decide whether their artifacts need a
+  dependency-model change.
 * Binary attachments and recordings (TASK-140, TASK-162 and TASK-164).
 * Mutable user-interface state. It lives in local settings, outside the
   records and the archives.
@@ -4296,9 +4347,10 @@ values. The derived manifest holds:
 | `battery` | The resolved values, or null |
 | `rotorWakePairs` | One per coaxial pair, from the upper rotor to the lower one |
 | `massProperties` | The aircraft and the payload: combined mass and CG, both inertias moved to it by the parallel-axis theorem |
-| `datasets` | One synthetic dataset, `aircraft-profile-derivation`, whose source SHA-256 is that of the canonical derivation input |
+| `datasets` | The synthetic dataset `aircraft-profile-derivation`, whose source SHA-256 is that of the canonical derivation input, and, with supports, the synthetic dataset `standard-landing-gear` of the gear rules, without a source (derivation 3, TASK-095) |
 | `sensorMounts` | The IMU mount when the sensor configuration states the IMU position or orientation (derivation 2, TASK-147); otherwise empty |
-| `ardupilot`, `airframe.drag`, `landingGear`, `controlSurfaces` | Null or empty; TASK-142, TASK-096 and TASK-187 own them |
+| `landingGear` | The decision D-07 supports when the profile states its ground clearance, otherwise empty (derivation 3, TASK-095; section "Standard landing gear") |
+| `ardupilot`, `airframe.drag`, `controlSurfaces` | Null or empty; TASK-142 and TASK-096 own them |
 
 With d_i = c_i − c for each part's CG c_i and the combined CG c:
 
@@ -4308,8 +4360,9 @@ J = \sum_i \left( J_i + m_i\left(\lVert d_i \rVert^2 \mathbf{1} - d_i d_i^{\math
 
 `profileSha256` is the SHA-256 of the profile's canonical JSON, so renaming the
 stored profile changes nothing. `inputSha256` is the SHA-256 of the canonical
-`{derivationVersion: 2, profile, components}` (`DERIVATION_VERSION`; 2 since
-TASK-147 added the IMU mount). The manifest passes
+`{derivationVersion: 3, profile, components}` (`DERIVATION_VERSION`; 2 since
+TASK-147 added the IMU mount, 3 since TASK-095 added the standard landing
+gear). The manifest passes
 `validateVehicleManifest`, and `bytes` is its RFC 8785 canonical JSON, which a
 `VehicleRegistry` admits unchanged; −0 in the inputs becomes 0. Any change to
 geometry, outputs, mass properties, components or the model ID changes the
@@ -4913,7 +4966,8 @@ configuration (`null` stays `null`), its resolution, its ownership matrix, the
 mapping version and the sources of every referenced preset, deep-frozen. The
 experiment record of TASK-154 and TASK-165 embeds it verbatim from its exact
 aircraft-profile dependency; the project store already fixes an experiment's
-inputs after version 1.
+inputs after version 1. The record is described in "Experiment record" of
+the TASK-154 section.
 
 ### Verification (TASK-143)
 
@@ -5070,7 +5124,8 @@ same difference that gives the synthetic quad's specific force.
 
 ### IMU mount in the manifest
 
-`DERIVATION_VERSION` is 2. When a profile's sensor configuration states the
+`DERIVATION_VERSION` was 2 until derivation 3 added the standard landing gear
+(TASK-095). When a profile's sensor configuration states the
 IMU position or orientation, the derived manifest holds one `sensorMounts`
 entry: `imu`, instance 0, the position (the CG when only the orientation is
 stated) and the sensor-to-body quaternion of R from `trig.ts`, so Node and
@@ -5451,7 +5506,8 @@ allocation traps. `tests/limit-monitor.test.ts` flies the quad X profile on a
 2 A pack: every step closes the bus against the published per-motor powers
 within 1e-12, a limited step carries each motor's bus current at the supply
 voltage, and momentum theory bounds the hover power above the pack's limit,
-so the quad stays on the pad at 20 to 100 % throttle while the 125 A pack
+so at 20 to 100 % throttle the quad's CG never rises above the height where
+its fully extended supports touch the ground (TASK-095), while the 125 A pack
 lifts it.
 
 ## Profile-driven dynamics (TASK-144)
@@ -5534,15 +5590,18 @@ drive; existing derivation inputs give the same bytes.
 
 `buildProfileDynamics(manifest, options)` (`@mirage/physics/profile-dynamics`)
 needs a motor and an ESC for every rotor and a battery. It projects the body
-and rotors to the v1 descriptor (sensor mounts, wake pairs and the ArduPilot
-frame are consumed elsewhere; drag, control surfaces and landing gear still
-fail closed), binds each rotor's catalog polar, takes the drive from
+and rotors to the v1 descriptor (sensor mounts, wake pairs, the ArduPilot
+frame and, through `withoutLandingGear`, the landing gear are consumed
+elsewhere; drag and control surfaces still fail closed), binds each rotor's
+catalog polar, takes the drive from
 `escDriveFromManifest` (initial state of charge 1 and no house load unless
 given) and the air from the ISA troposphere at 0 m unless given. Inflow lag
 0.1 s, inflow limit 500 m/s and minimum confidence 0.9 are the TASK-033
 settings. Actuator frames for the model carry its model ID as the motor map
 ID; without an autopilot the pilot sticks command collective only, and the
-vehicle starts at the origin on the synthetic pad with the motors stopped.
+vehicle starts with the motors stopped on its landing gear over the origin
+(section "Standard landing gear"), or at the origin on the synthetic pad when
+the manifest has no gear.
 Declared rotor-wake pairs are not modeled until TASK-101: the build lists the
 limitation and sets `CONFIGURATION_FLAG_WAKE_UNMODELED` (bit 16) in the new
 `configurationFlags` of `BetFlightConfiguration`, which `BetFlightDynamics` ORs
@@ -5559,9 +5618,12 @@ two cold messages: `{ type: "bet.module", bytes, sha256 }` checks the hash,
 compiles the module and requires no imports and the `bet_bound_step_v2`,
 `bet_bus_step`, `bet_drive_step` and `bet_body_step` exports, answering `bet.module.ready` or
 `bet.module.reject`; `{ type: "model.register", bytes, sha256 }` registers a
-manifest, answering `model.registered` with its model ID or `model.reject`.
-The demo runs until a Control Protocol v2 `model.load` names a registered ID
-and hash. Starting experiments from the Run tab and the SITL lockstep stay with
+manifest, answering `model.registered` with its model ID or `model.reject`;
+`{ type: "contact.module", bytes, manifest }` (TASK-095) passes the Rapier
+contact module and its build manifest to `GroundContact.initialize`, answering
+`contact.module.ready` or `contact.module.reject`. A vehicle with landing gear
+loads only once the contact module is ready. The demo runs until a Control
+Protocol v2 `model.load` names a registered ID and hash. Starting experiments from the Run tab and the SITL lockstep stay with
 TASK-153 and TASK-154.
 
 ### Hover trim check
@@ -5594,12 +5656,84 @@ limits, set before the first run, are a correction below 2e-3 of u, vertical
 speed below 0.02 m/s, body rate below 0.005 rad/s and attitude error below
 0.01 rad.
 
+### Standard landing gear
+
+Aircraft profiles describe no landing gear, and Phase 1 has no gear editor
+(S18; an editor is TASK-194). Derivation 3 therefore gives every vehicle the
+basic support approximation that decision D-07 fixed on 2026-10-28
+([phase1-fidelity.md](decisions/phase1-fidelity.md), F-07 and F-08;
+`packages/aircraft/src/standard-gear.ts`, rules version 1). The supports are
+synthetic, not any aircraft's measured legs, and the manifest declares them as
+their own synthetic dataset `standard-landing-gear`.
+
+| Rule | Value | Source |
+| --- | --- | --- |
+| Supports | One under each arm, at the arm's motor radius and azimuth, in ascending arm ID order | F-07 |
+| Height | The reference point rests at the profile's `groundClearanceM` above level ground | F-07 |
+| Stiffness, N supports, mass m | k = m·g/(N·δ_s), δ_s = 5 mm | F-08 |
+| Damping | c = 2·ζ·√(k·m/N), ζ = 0.7, on the strut | F-08 |
+| Friction | μ_s = 0.6 rolling, lateral and braking; μ_k = 0.5 while sliding (`kineticFrictionRatio` 5/6) | F-08 |
+| Support point | A linear strut on a rubber foot of radius 0.01 m on a 0.005 m rim; the foot is ten times stiffer than the support, so the strut has 10/9 of k and the pair k | Engineering choice |
+| Unsprung mass | 1 % of the support's share of the vehicle, on the foot | Engineering choice |
+| Strut travel | Five static deflections, 25 mm | Engineering choice |
+
+The unsprung foot loads its foot but not its strut, so a support compresses
+0.991·δ_s under its share; the anchors put the reference point exactly at the
+clearance with that deflection. F-07 places the supports of a profile without
+a clearance at the lowest point of its body hull, which does not exist before
+the compound hull (TASK-095 increment 4). Such a profile gets no supports: its
+manifest has no gear, and its dynamics stand on the synthetic pad and list
+that limitation. Of the S19 fixtures only octa-x states no clearance. The
+anchors use the package's own sine and cosine (`trig.ts`), so Node and
+Chromium derive the same bytes. The vehicle manifest v2 gains the optional
+`landingGear[].kineticFrictionRatio` in (0, 1]; existing manifests stay valid
+with the same bytes.
+
+`buildProfileDynamics` hands the gear to the contact: `ProfileDynamicsBuild.gear`
+holds the wheels with anchors relative to the CG
+(`deriveVehicle().landingGearAnchorCgM`), the vehicle's mass and inertia about
+the CG as the projected model declares them, and the radius of the airframe's
+contact sphere about the CG, half the CG's height over the ground with every
+strut and foot fully compressed, so only the supports carry the vehicle until
+the compound hull. The vehicle starts with its fully extended feet touching the
+ground plane through the origin. `profileFlightDynamics(module, build, hz)`
+creates the dynamics on a new `GroundContact.forVehicleNow` contact (a
+synchronous `forVehicle` once the artifact is compiled), because the session
+builds the dynamics again at each rate change and the dynamics owns and
+disposes its contact; `profileModelPort` rejects a vehicle with gear before the
+contact module is loaded. The Run tab's SITL load fetches the module and its
+manifest from the loopback-only `/__contact/` route of the development server,
+which serves `packages/physics/dist/contact/` as `/__bet/` serves the BET module.
+
+At rest, rigid-plate statics give the struts the loads Fᵢ = a + b·xᵢ + c·yᵢ that
+balance the sprung weight and its moments about the CG; the feet add their own
+weight. The plane through the support compressions gives the CG's sink and the
+rest pitch and roll (`tests/support/standard-gear.ts` computes them from the
+manifest). The four S19 configurations with a clearance come to rest within
+0.1 mm of that height at 400, 800 and 1200 Hz with body rates below 10⁻⁶ rad/s,
+and octa-x stands on the pad (`tests/profile-dynamics.test.ts`). On the quad X
+the lockstep session's accelerometer reads −g·sin(pitch) forward within 5 %
+(`tests/external-sitl-session.test.ts`). Native ArduCopter `8ab6afd` warms up,
+takes off to 5 m, holds within 0.06 m and lands in LAND mode on the quad X's
+supports through `SitlJsonLink` (`tests/external-sitl-flight.test.ts`, 800 Hz,
+speedup 4): touchdown at 0.44 m/s, at rest 0.1 µm from the predicted height and
+disarmed. No step turned the body more than 1.05 times its body rate over the
+step (largest excess 1.1·10⁻¹⁰ rad in 58,432 steps, the single-precision
+quaternion of the published state), so no pad resets the attitude. The step
+turn is measured as 2·asin of the vector part of q_prev⁻¹ ⊗ q; 2·acos of their
+dot product turns the published quaternion's rounding into 10⁻⁴ rad.
+`node scripts/check-sitl-link-allocation.mjs` keeps G1 on the supports: 10⁶
+lockstep steps at 400 Hz with 0.00404 B/step and no GC event, the quad on its
+feet throughout, and the contact faults the session on any native allocation.
+
 ### Compute and allocation
 
 `node scripts/bench-profile-dynamics.mjs` runs the sixteen-motor S19 fixture
 on the example cards in Node 24 (V8, `--single-threaded`). Its rotors spin up
 from rest to 0.8 of their hover-trim duty, so the vehicle stays on the
-synthetic pad while every rotor runs near flight speed. It writes
+synthetic pad while every rotor runs near flight speed; `syntheticPad: true`
+keeps it there instead of on its gear (TASK-095), so the step times the BET
+compute alone, as before. It writes
 `test-results/bench/profile-dynamics-16.json` with the manifest, WASM and
 source hashes. The step is `BetFlightDynamics` alone, not the browser Worker
 or the session; the scalar WASM build is used. The budget is the step period
@@ -5895,14 +6029,16 @@ one with and one without ratings, stay bit-identical; that a motor at its
 current limit and a pack at its current limit are `limited`; that a low pack
 warns of under-voltage; and the ratings schema, the outbox bound and the
 brake limit. On a 2 A pack it checks that the motors draw exactly what the
-limited pack delivers and that the quad stays on the pad at any throttle
-(Verification (TASK-092)). `tests/power-channel.test.ts` checks every byte offset of the
+limited pack delivers and that the quad stays on its landing gear at any
+throttle (Verification (TASK-092)). `tests/power-channel.test.ts` checks every byte offset of the
 channel, the torn-read refusal, and a session that publishes four motors,
 feeds the recording hook and drains a limit event while ABI v2 keeps its
 size. `tests/browser/power-panel.spec.ts` runs a quad X profile in the
-application's physics Worker with a 15 A pack limit and a 60 W motor power
-rating and checks that the panel shows the pack `Limited` and each motor's
-power as a `Warning`; it also checks the Run tab's panel for the demo.
+application's physics Worker at 30 % throttle with a 2 A pack limit and a 5 W
+motor power rating; the limited pack gives each motor about 8.4 W. It checks
+that the panel shows the pack `Limited` and each motor's power as a `Warning`,
+and that the quad stays on its landing gear; it also checks the Run tab's panel
+for the demo.
 `scripts/bench-profile-dynamics.mjs` measures G1 with the monitor and the
 channel publish in the step loop.
 
@@ -6106,3 +6242,735 @@ flying means the climb has settled within 0.5 m of the target below 0.3 m/s
 vertical speed, and landed means disarmed after LAND. The Run tab's ArduPilot SITL backend
 (`apps/web/src/run/SitlFlight.tsx`) takes the launcher's port and token for
 the page only, and the session keeps running while the page is hidden.
+
+## Experiment start, stop and failures (TASK-154)
+
+### Run states
+
+`SessionController` (`apps/web/src/run/session-controller.ts`) is a pure state
+machine on four injected ports: the launcher, the physics Worker, the
+experiment record store and a clock. The Run panel
+(`apps/web/src/run/RunPanel.tsx`) only renders its state. The states are a
+discriminated union:
+
+| State | Entered on | Left on |
+|---|---|---|
+| idle | first view; a completed user Stop | Start |
+| starting | Start: prepare, firmware, physics, launcher, record, connecting | ArduPilot's first heartbeat; a failure; Stop |
+| loading parameters | the first heartbeat from system 1, component 1 with autopilot 3: PARAM_REQUEST_LIST is sent | the list is complete and every generated parameter reads back; a mismatch, an absent name or 30 s of simulated time |
+| warming | parameters confirmed while READY is false; READY revoked | READY |
+| ready | READY from the Worker's LiveEkfWarmup | Take off; READY revoked |
+| running | Take off: arming, climbing, flying (within 0.5 m of the target below 0.3 m/s), landing | disarmed after LAND, back to ready or warming |
+| paused | none yet: synchronized pause and its control are TASK-156 | — |
+| stopping | a user Stop, or any failure once the launcher owns a run | the launcher's stop answer |
+| failed | a failure, after stopping when a run was owned | Start again, or Stop again after a failed stop |
+
+Every Start, a restart included, is a new launcher experiment with a new
+record and a fresh physics Worker; changing the profile, the build or the
+speed therefore always means a new run. Stop cancels a start in any step: a
+run the launcher reports after the Stop is stopped at once. A failure after
+the launcher owns a run silences the ground-station beat and the bridge,
+stops the run, collects the launcher's run state, exit code, signal, exit
+reason, stdout and stderr tails and DataFlash list, and only then shows
+failed, so a failed state never leaves an owned process. A READY loss in
+flight is shown as a warning. The ground station sends only while the
+Worker's bridge socket is open, and the first heartbeat must arrive within
+60 s of wall time.
+
+Each failure has a reason kind, its text and a restart path:
+
+| Reason | Text begins | Restart |
+|---|---|---|
+| vehicle | The aircraft profile cannot run | fix the profile, then Start again |
+| firmware | ArduPilot build … cannot be started | reinstall or choose another build |
+| launcher-unreachable | No MirageSITL launcher answered on 127.0.0.1:port | start the launcher or check the port |
+| launcher-foreign | Port … answers, but not as the MirageSITL launcher | enter the launcher's port |
+| launcher-refused | The launcher refused the run | Start again |
+| physics | The physics session could not be prepared | Start again |
+| record | The experiment record could not be saved | Start again |
+| no-heartbeat | SITL started but sent no heartbeat | Start again |
+| parameters | ArduPilot did not confirm the initial parameters | Start again |
+| sitl-ended | SITL ended (while starting, during EKF warmup, …) with the launcher's exit reason | Start again |
+| bridge-lost | The bridge to SITL closed … while SITL kept running | Start again |
+| sitl-restarted | SITL restarted on its own | Start again |
+| stop-failed | Stopping SITL failed | Stop again, which ends as the stop was meant to |
+
+A program on the launcher's port that does not answer CORS reads as
+launcher-unreachable in Chromium, which reports a failed preflight as a
+network error; launcher-foreign needs an answer the browser may read.
+
+### Experiment record
+
+`packages/aircraft/src/experiment.ts` defines experiment payload schema 2
+(TASK-155) in record envelope v1, and the application registers
+`validateExperiment` for the `experiment` kind. The record has exactly one
+dependency, its aircraft-profile version, and the payload holds:
+
+| Field | Content |
+|---|---|
+| profile | SHA-256, item ID, version and name of the profile version |
+| sitl | `ownership: "launcher"`: the launcher experiment ID, which names `experiments/<id>/`, and `ardupilot`, the launcher catalog ID, firmware version, commit, binary SHA-256 and default-parameter SHA-256 of the build that ran, as the launcher's view reports them; or `ownership: "external"` for a SITL the user started (see the TASK-155 section) |
+| session | physics rate (800 or 1200 Hz), `sitl-lockstep`, speed-up (null for an external SITL), home, model ID, manifest SHA-256 and BET module SHA-256 |
+| parameters | exactly the list sent to the launcher, in its order, each tagged frame, output, pwm or sensor; for an external SITL the same generated list, which it was confirmed to hold |
+| frameScript | the Lua of a scripting-matrix frame, or null (always null for an external SITL) |
+| sensors | `sensorSnapshot()` of the profile version, verbatim |
+
+Schema 1, which TASK-154 wrote, had `ardupilot` and `launcher` at the top
+level and a required speed-up. It stays valid on reads and archive imports;
+`readExperiment` presents it as schema 2 with a launcher-owned `sitl`, and
+`createExperimentRecord` writes only schema 2.
+
+`createExperimentRecord` recomputes the snapshot from the stored profile
+version and requires canonical-byte equality, cross-checks the frame and
+output parameters, the frame script and the manifest against that version, and
+writes the record once, after the launcher has started SITL and before the
+bridge connects; no unrecorded run flies. A start the launcher refuses writes
+no record. Run outcomes (failures, exit codes) stay in the launcher's
+experiment view and logs; the record holds only inputs, which the store fixes
+after version 1. In the worst Phase 1 case, the 16-motor octa with its
+scripting-matrix Lua, every preset cited and 206 parameters, the record
+encodes to 26,226 bytes against the 1 MiB limit.
+
+### Initial parameters and read-back
+
+`prepareVehicle` (`apps/web/src/sitl/sitl-run.ts`) builds the frame and output
+parameters (TASK-142), MOT_PWM_MIN and MOT_PWM_MAX, and the ArduPilot-owned
+sensor parameters of `sensorRuntime` (TASK-147) with the launcher's home
+altitude, the stock compass offsets and the aircraft's CG; the names must be
+disjoint. A profile that sets any MirageSITL-owned sensor error term (IMU
+noise, bias, latency, position or orientation; battery measurement errors) is
+refused at start with the terms named, because the browser path does not apply
+them on the JSON line yet (user decision of 2026-11-01); any stored value
+counts, a neutral one included. `ParameterReadback`
+(`packages/autopilot/src/parameter-readback.ts`) collects PARAM_VALUE by
+index against param_count and compares each generated value as float32; a
+name the complete list lacks is accepted only under the absent rule of the
+pinned ArduPilot catalog, which `scripts/check-sitl-sensors.mjs` now imports
+from it.
+
+### Launcher changes
+
+`POST /v1/experiments` checks the body, the build, the one running
+experiment and the build's files before it creates anything, so a refused
+start leaves no experiment and no folder; a spawn failure answers 500 with
+the experiment ID. An experiment's view reports the build identity without
+machine paths, the state `starting` or `start-failed` (with `startError`)
+around a launch, and ports only while a bridge is open. A run's `reason` is
+null after a requested stop and otherwise `exit code N` or `killed by
+SIGNAL`, followed by the last stderr line. `closeBridge(experimentId)` on the
+object `startLauncher` returns ends a run's bridge and relay without stopping
+SITL; no HTTP route reaches it, and it exists only to inject bridge loss in
+tests (user decision of 2026-11-01).
+
+### Verification (TASK-154)
+
+`tests/run-controller.test.ts` drives the controller on scripted ports and on
+a real launcher with the shared fake SITL (`tests/support/fake-sitl.mjs`,
+`tests/support/fake-firmware.ts`): every transition, Stop from every state,
+each failure kind with its restart, and the record payload.
+`tests/experiment-record.test.ts`, `tests/parameter-readback.test.ts` and
+`tests/launcher.test.ts` cover the record, the read-back and the launcher.
+`tests/browser/run-panel.spec.ts` runs the four DoD faults through the Run
+tab with the installed ArduCopter behind a wrapper: a missing binary, a busy
+port (a fake SITL that cannot bind a held port, and a program that is not the
+launcher on its port), SITL killed during EKF warmup, and bridge loss; each
+shows its reason and diagnostic log, leaves no owned process and reaches READY
+again on Start again.
+
+## Manual connection to a running SITL (TASK-155)
+
+A user who started ArduCopter themselves connects the Run tab to it instead
+of having the launcher start one (S02). The launcher owns only the
+connection: its bridge and MAVLink relay. Disconnect, and every failure of a
+connection, closes those and never signals the SITL process, which keeps
+running. The decisions of 2026-11-01 set the policy: a SITL with built-in
+physics is refused; only verified source commits connect; the SITL's
+parameters are read, never written, and every difference is a reason to
+refuse; a connection is recorded as experiment payload schema 2.
+
+### Launcher API
+
+`POST /v1/connections` takes the connection descriptor:
+
+```json
+{ "jsonPhysicsPort": 9002, "mavlink": { "transport": "tcp", "port": 5760 } }
+```
+
+`jsonPhysicsPort` is the UDP port SITL sends JSON servo packets to
+(`--sim-port-out`, 9002 + 10·instance by default), which the bridge binds.
+MAVLink is either SITL's TCP server (`tcp`, SERIAL0 on 5760 + 10·instance by
+default), to which `MavlinkTcpRelay` connects and whose byte stream it passes
+to the bridge in datagrams of at most 2048 bytes, or a UDP port SITL or
+MAVProxy sends to (`udp`), which `MavlinkRelay` binds and whose source port
+it learns. A port that cannot be used is refused with 409 and a reason
+(nothing accepts the TCP connection, the JSON or UDP port is in use), and a
+refused connection leaves nothing open and nothing registered. One experiment
+run or one open connection exists at a time. The view
+(`GET /v1/connections/{id}`) is:
+
+| Field | Content |
+|---|---|
+| id | the connection ID, in the format of experiment IDs |
+| ownership | `external` |
+| state | `open`; `sitl-closed` when SITL ended its TCP connection; `disconnected` after `POST /v1/connections/{id}/disconnect` |
+| closedReason | why SITL's side ended, or null |
+| endpoints | the descriptor |
+| ports | the bridge port and record epoch (1) while open, else null |
+| physics | servo packets received and rejected, foreign senders, and the latest packet's rate and channel count (null before the first) |
+| mavlink | bytes received from SITL and datagrams dropped |
+
+The counters stay readable after the connection closes, as its diagnostics.
+SITL closing its TCP connection marks the connection `sitl-closed` before its
+bridge closes.
+
+### Compatibility
+
+`SessionController.connect` checks, in this order, and refuses with every
+reason named (failure kind `incompatible`, restart path fix-first):
+
+| Check | Passes when | Limit |
+|---|---|---|
+| frame script | the profile needs no frame script, which MirageSITL installs only in a SITL it starts | before connecting |
+| JSON physics | JSON servo packets reach the physics port; MAVLink without them means a built-in physics model, which cannot fly the profile and whose clock MirageSITL cannot pause | first packet within 15 s of wall time |
+| armed | ArduPilot's first heartbeat (system 1, component 1, autopilot 3) says disarmed | first heartbeat within 60 s of wall time |
+| version | `AUTOPILOT_VERSION` (requested with `MAV_CMD_REQUEST_MESSAGE` once per wall second) has a `flight_custom_version` git hash that is the first 8 characters of exactly one verified commit of the pinned catalog | within 10 s of simulated time |
+| parameters | the complete PARAM_VALUE list holds every generated frame, output, PWM and sensor parameter at its float32 value, under the catalog's absent rule; the first 12 differences are listed and the rest counted | within 30 s of simulated time |
+| home | the first 3D GPS fix lies within 10 m horizontally and 5 m vertically of the session's home | — |
+
+Physics steps at the session's rate, 800 Hz as for Start. The rate in SITL's
+first servo packets is only its `SIM_RATE_HZ` default (1200 Hz), since
+`SIM_JSON` adopts the step of the physics peer's replies
+(`Aircraft::adjust_frame_time` with 1/Δt), so it is shown and not checked.
+The clock is then classified as TASK-129 found it: MirageSITL is the JSON
+lockstep peer and its replies never set `no_lockstep`, so SITL's simulated
+time waits for each reply and the connection can be paused once TASK-156
+adds pause. A SITL whose clock MirageSITL cannot hold, one with built-in
+physics, is refused at the JSON check, and the reason says that its clock
+cannot be paused. The panel lists the checks a connection passed.
+
+The ground station now requests the EKF_STATUS_REPORT, GPS_RAW_INT and
+GLOBAL_POSITION_INT streams once per wall second until each stream's message
+arrives, and again after 2 s of wall time without one, for owned runs too. An
+acknowledgement does not prove a stream runs: a link's first send pass sets
+every interval from its `SRn_` stream rates (`GCS_MAVLINK::update_send`,
+`initialise_message_intervals_from_streamrates`), overwriting an interval
+acknowledged before it. A TCP SITL starts its scheduler only when the
+launcher connects, so the first requests reach that window; stopping after
+the acknowledgements left the connection without GPS, and so without READY.
+
+A SITL connected again keeps its clock: `SIM_JSON` treats the new session's
+earlier timestamps as a physics reset and does not reset the autopilot, so
+its GPS time leads the new session's physics clock by the time it already
+ran. `LiveEkfWarmup` therefore compares GPS time in the session clock in
+JSON lockstep, shifted by the autopilot's lead, which GLOBAL_POSITION_INT's
+`time_boot_ms` bounds from below (sent at or before the step at which it is
+received). The largest bound seen, never below 0, is used, so a wrong time
+can only keep the GPS stale; without GLOBAL_POSITION_INT a leading GPS stays
+incoherent. A SITL that starts with the session has a lead of 0.
+
+`ParameterReadback.differences()` gives every generated parameter a complete
+list does not hold. The git hash identifies the source commit only: a binary
+built from a changed working tree reports the same hash, and MirageSITL has
+no binary hash of a SITL it did not start.
+
+### States, failures and record
+
+A connection runs the TASK-154 states with ownership `external`: starting
+(prepare, launcher, probing, physics, connecting, version), loading
+parameters, warming, ready and running. Failures specific to a connection:
+
+| Reason | Text begins | Restart |
+|---|---|---|
+| incompatible | This SITL cannot be used with this profile, and every reason | restart the SITL as the reasons say, then Connect again |
+| sitl-silent | The SITL sent no heartbeat for 10 s; MirageSITL disconnected | Connect again |
+
+`sitl-ended` carries the launcher's `closedReason` when SITL closed its TCP
+connection; a launcher refusal of the ports asks the user to check the SITL
+and its ports. Heartbeat silence is measured in wall time, so TASK-156 must
+suspend it while paused. Diagnostics name the connection and the launcher's
+counters instead of process logs.
+
+The record is written once every check has passed, when the home check
+completes during warming, and READY waits for it. Its `sitl` is:
+
+| Field | Content |
+|---|---|
+| ownership | `external` |
+| connectionId | the launcher connection ID |
+| ardupilot | `commit` (the verified commit), `gitHash` (its first 8 characters, as reported) and `firmwareVersion` (`flight_sw_version` as text, for example `4.8.0-dev`) |
+| endpoints | the connection descriptor |
+
+`session.speedup` is null, because SITL's own command line set it, and
+`frameScript` is null. The record name is `<profile> connection <id>`.
+
+### Verification (TASK-155)
+
+`tests/launcher-connections.test.ts` checks refusals that leave nothing open,
+both MAVLink transports and the servo packets through the bridge, disconnect,
+SITL closing its TCP connection, and three connect and disconnect cycles
+against the pinned ArduCopter that leave its process running.
+`tests/run-controller.test.ts` drives every check, refusal and failure of a
+connection on scripted ports; `tests/experiment-record.test.ts` covers schema
+2, the external variant and schema 1 reads; `tests/autopilot-version.test.ts`
+checks the version decoder against the pymavlink goldens of message 148,
+which the codec now supports (`scripts/generate-mavlink-fixtures.py`);
+`tests/sitl-bridge-client.test.ts` admits READY with an autopilot clock 120 s
+ahead only when GLOBAL_POSITION_INT bounds the lead.
+`tests/browser/manual-connect.spec.ts` starts the installed ArduCopter as a
+user would and, through the Run tab alone, connects and disconnects twice to
+READY, refuses a SITL with built-in physics and one whose parameters differ,
+and finds each process still running afterwards.
+
+## Flight view in the Run tab (TASK-185)
+
+With the ArduPilot SITL backend, the Run tab shows the chosen aircraft
+profile in 3D from the moment the profile is chosen, and flies it at the
+physics session's pose during a run (S17). `apps/web/src/run/FlightView.tsx`
+draws the aircraft from the TASK-138 layout of the stored profile version
+with the Aircraft tab's own parts (`Rotor` and `Strut` of
+`AircraftScheme3D.tsx`, sized by `schemeDimensions`): the body with its
+forward cone, a strut to each arm's mean hub, and per rotor its motor number,
+a disc coloured by spin with a turning arrow, and its thrust axis. Each disc
+also carries a blade that turns about the thrust axis at a display rate that
+follows the motor's speed from power telemetry v1 (rows in the manifest's
+rotor order, which is the layout's motor order), capped at 4π rad/s at
+12,000 rev/min so that a 60 Hz display never shows it turning backwards.
+
+The scene reads the session only: each frame interpolates the pose between
+adjacent ticks of one epoch (`interpolatePoseInto`) and places the aircraft
+group, with no change to the physics. The views are:
+
+| View | Camera |
+|---|---|
+| External | follows the aircraft from behind, right and above, at an offset scaled to its span |
+| Onboard | TASK-067's `FpvCamera` at the front of the drawn body, looking along body forward, with a plain 90° lens: no fisheye and no analog effects |
+
+The trajectory keeps one sample per 0.1 s of simulated time for 120 s in a
+preallocated ring (`TrailBuffer`), restarted on a new session epoch; the
+route and its points are drawn when a flight task provides one (TASK-172),
+and the view says when none is loaded. The ground is the synthetic level pad
+and is labelled so; real terrain is TASK-186. Beside the view, the flight
+panel shows altitude above the pad, ground and vertical speed, roll, pitch
+and heading of the session's truth, and the TASK-146 power panel shows the
+battery and each motor's speed, current, power and command; both refresh
+every 250 ms, never per physics step.
+
+A probe reports, every 20 frames and only on change, the drawn rotors in the
+aircraft's own frame, the aircraft's position, the trail and route counts
+and the renderer's geometries, textures and programs, which the browser
+tests read.
+
+### Verification (TASK-185)
+
+`tests/browser/flight-view.spec.ts` compares the drawn rotors of all five
+S19 configurations with their layouts mapped to render axes in the test
+(position and thrust axis within 1e-6 m, motor number and spin), and switches
+between the external and onboard views 20 times, and away from the Run tab
+and back, with the renderer's geometries, textures and programs unchanged.
+`tests/browser/external-sitl.spec.ts` checks during the real ArduCopter hover
+that the drawn aircraft is at the session's altitude, the trail holds the
+climb and the hover, every motor shows its speed and the pack supplies
+current, and the onboard view switches in flight.
+`tests/flight-view-geometry.test.ts` covers the trail ring, the cameras, the
+blade rate and the flight values. `tests/browser/flight-view-frames.spec.ts`
+(opt-in, `MIRAGE_FRAME_TIME=1`) measures frame times against A-06 in visible
+full-screen Google Chrome on the real GPU during a SITL hover: 60 s of the
+external view and 30 s of the onboard view after 5 s of warmup each, the
+intervals between `requestAnimationFrame` callbacks, which Chrome paces to
+the display. On macOS it passes, per the A-06 amendment of 2026-11-01, with
+the median at most 16.680 ms and no interval above 25 ms, and reports the
+p99; elsewhere the median and p99 limits apply. On 2026-11-01, Google Chrome
+156.0.8078.80 on the M5 (Mac17,4, Apple M5 with 10 GPU cores, built-in
+display 1710 x 1107 points at 2x and 60 Hz, window filling the screen)
+measured 3,601 external-view intervals (median 16.665 ms, p95 17.660 ms, p99
+17.670 ms, maximum 17.680 ms) and 1,801 onboard-view intervals (median
+16.665 ms, p99 17.670 ms, maximum 17.675 ms): 60 frames per second with no
+skipped frame.
+
+## Motor check before flight (TASK-157)
+
+Before take-off, the Run tab's motor check asks ArduPilot to spin each frame
+motor alone and shows which physics rotor turned. ArduCopter's own motor test
+(`MAV_CMD_DO_MOTOR_TEST`, `ArduCopter/motor_test.cpp` at 8ab6afde) spins the
+motor whose test order is requested (`AP_MotorsMatrix::output_test_seq`):
+`GroundStation.motorTestInto` sends the test order, throttle type 1 (a PWM
+value, which ArduCopter accepts without the RC calibration check), 1150 us
+(15 % of the 1000-2000 us range), a 1.5 s timeout and a count of 1.
+
+`MotorCheck` (`packages/autopilot/src/motor-test.ts`) compares, motor by
+motor in test order:
+
+| | Expected (ArduPilot's frame) | Observed (the physics as it runs) |
+|---|---|---|
+| Motor | the profile motor with that test order in the TASK-142 frame configuration | the rotor whose speed rose |
+| Output | that motor's servo output | the output that drives that rotor in the manifest the session runs |
+| Spin | the sign of its ArduPilot yaw factor (positive is counter-clockwise) | that rotor's spin in the model |
+
+Speeds come from power telemetry v1, rows in the manifest's rotor order, and
+are judged from 0.5 s after ArduPilot's acknowledgement to the end of the
+spin; the next motor waits 1.5 s more for the last one to stop, all in
+simulated time. A rotor turned when its peak reached 300 rev/min and at least
+half of the step's largest peak. A motor passes when exactly the expected
+rotor turned with the expected spin; otherwise the result names what turned:
+no motor, several motors, "the motor mapping is swapped" or "the spin is
+reversed". A refusal by ArduPilot (with its last status text) or no
+acknowledgement within 3 s stops the check.
+
+`SessionController.checkMotors` starts it only while warming or READY,
+disarmed and below 0.3 m, and refuses otherwise with the reason; Take off
+waits until it ends. The Run tab's motor-check panel shows the progress and,
+per test, the expected and the turned motor, output and spin with pass or
+fail, and the flight view rings the fastest turning rotor in its spin colour.
+
+### Verification (TASK-157)
+
+`tests/motor-check-sitl.test.ts` runs the installed native ArduCopter against
+the physics session in Node: every motor of all five S19 configurations
+passes (4, 6, 8, 8 and 16 motors, the 16-motor octa with its scripting
+frame). Faults are injected in the model the physics runs while ArduPilot
+keeps the profile's frame: motors 1 and 2 on each other's outputs fail on
+exactly those two motors ("the motor mapping is swapped"), and motor 3 with
+its spin reversed fails on exactly that motor ("the spin is reversed").
+Swapping channels inside the JSON link would not inject a fault, because the
+link reads a channel and writes the same actuator slot.
+`tests/motor-test.test.ts` covers the expectation from the frame catalog, the
+judgement cases, refusals and the command's encoding;
+`tests/run-controller.test.ts` the controller's sequence and refusals; and
+`tests/browser/motor-test.spec.ts`, through the Run tab with the installed
+ArduCopter, the check before flight (motors 1, 4, 2 and 3 ringed in turn,
+all passing) and no check in flight.
+
+## ArduPilot parameter service (TASK-159)
+
+`ParameterService` (`packages/autopilot/src/param-service.ts`) is the cold-path
+parameter client of an integrated session: it downloads the autopilot's
+complete parameter list, writes parameters and classifies every write by
+read-back. It follows ArduPilot's handlers at 8ab6afde
+(`libraries/GCS_MAVLink/GCS_Param.cpp`) and sends through the session's
+`GroundStation`, so its frames share the ground station's MAVLink sequence.
+`GroundStation.paramSetInto(name, value, paramType)` packs PARAM_SET (23) with
+the float32 value and the MAV_PARAM_TYPE the autopilot reported, and
+`paramRequestReadIndexInto(index)` packs PARAM_REQUEST_READ (20) with an empty
+name and `param_index` 0 to 32767.
+
+Every timeout runs on a clock the caller passes in seconds, normally the
+SITL's simulated time. A paused lockstep SITL answers nothing and its time
+stands (TASK-129), so a pause neither retries nor times out a request.
+
+### List download
+
+`requestList(nowS)` sends PARAM_REQUEST_LIST. ArduPilot streams every
+parameter as PARAM_VALUE with its index and `param_count`, and ignores the
+request until its parameters are ready. Values are the float32 numbers of the
+wire, stored exactly; a PARAM_VALUE with an empty name or a non-finite value
+(an index read past the list) is not stored. A PARAM_VALUE from another system
+or component is ignored.
+
+| Situation | Action |
+|---|---|
+| No PARAM_VALUE for `listRetryS` (2 s) after a list request | resend the request, at most `maxListRequests` (5) times; then `failed` |
+| `param_count` known, no new index for `gapS` (1 s) | read the first `indexBatch` (20) missing indices by index; after `maxGapRounds` (5) rounds without a new index, `failed` with the missing indices |
+| `param_count` changes during the download | restart: the indices received so far are dropped and the list is requested again; list entries still carrying the replaced count are ignored, because ArduPilot fixed that count when the replaced stream began |
+| `param_count` changes after the download completed | `stale` is true: the autopilot renumbered its list, for example after an `*_ENABLE` write; download again |
+| every index below `param_count` received | `complete` |
+
+A download state is `idle`, `downloading` (received, total or null),
+`complete` (total) or `failed` (received, total, missing indices, reason).
+
+### Writes and their states
+
+`set(name, value, nowS)` sends PARAM_SET followed by PARAM_REQUEST_READ of the
+same name. ArduPilot answers PARAM_SET with the stored value outside the list
+(`param_index` 65535). It answers a parameter the ground station may not write
+(`allow_set_via_mavlink`: read-only, or `AP_PARAM_FLAG_INTERNAL_USE_ONLY` such
+as `BARO1_DEVID`) with its old value. It answers an unknown name only with
+PARAM_ERROR, which is outside the TASK-150 message set.
+
+| State | Meaning |
+|---|---|
+| `requested` | PARAM_SET sent; `attempts` sends so far |
+| `confirmed` | an answer outside the list holds the requested float32; `rebootRequired` and `outsideRange` come from the metadata, null without metadata for the commit |
+| `refused` by `service` | not sent: the name is not in the downloaded list, the value is not finite, the value is outside the float32 range, the parameter's integer type cannot carry it exactly (not an integer, outside the type's limits, or not exact in float32), or its type is not one PARAM_SET's float32 carries |
+| `refused` by `autopilot` | answers kept another value: after the first differing answer one more read is sent, and the write is refused when the latest answer still differs after `writeRetryS` (1 s) without an answer; `reported` holds that value |
+| `timeout` | no answer after `writeAttempts` (3) sends, `writeRetryS` apart |
+| `stale` | the outcome no longer describes the autopilot: a newer write of the same name replaced a pending write, or the autopilot later reported another value for a confirmed one |
+
+Answers inside the list never decide a write. A differing answer alone never
+refuses one, because an answer sent before ArduPilot handled the write, or to
+a write it replaced, can still be in flight. `rebootPending()` lists the names
+whose current confirmed write needs a reboot according to the metadata.
+ArduPilot does not enforce declared ranges, and neither does the service:
+`outsideRange` reports a confirmed value outside the declared range.
+
+### Value display
+
+`formatParameterValue(value)` returns the shortest decimal (1 to 9
+significant digits) that parses back to exactly the same float32. For
+example, `Math.fround(0.00017)` is shown as `0.00017`, never `0.00`, and -0
+keeps its sign. `parseParameterValue(text)` accepts one finite decimal number
+and returns its float32, or null.
+
+### Metadata
+
+`scripts/generate-param-metadata.mjs` runs ArduPilot's own
+`Tools/autotest/param_metadata/param_parse.py --vehicle ArduCopter --format
+json` in a temporary directory on a clean checkout at a commit of
+`scripts/sitl.lock.json` (its Python needs `lxml`, which the TASK-127
+environment has). It writes `data/ardupilot/param-metadata.json` (schema 1):
+`versions` holds one entry per supported commit with the vehicle, the
+parameter count, the SHA-256 of the upstream output and of the four generator
+files, the anomalies and one record per parameter. A record keeps `group`,
+`displayName`, `description` and, when the source declares them, `units`,
+`range` ([low, high]), `increment`, `values` and `bitmask` ([number, label]
+pairs, ascending), and the flags `rebootRequired`, `readOnly` and `volatile`,
+plus the user level. The upstream fields `path` and `Calibration` are dropped. An
+upstream field the generator does not know fails the run. A reversed range is
+left out of its record and listed under `anomalies`; at 8ab6afde that is
+`TA_GSP_AIRBRAKE`. The file is written one parameter per line, and
+`--check` regenerates it and exits 1 on any difference.
+
+`parseParameterMetadata` (`packages/autopilot/src/param-metadata.ts`)
+validates the file from `unknown`. `forCommit(commit)` returns the metadata
+of exactly that commit or null; the metadata of another commit is never
+substituted. The file is GPL-3.0-or-later text generated from the ArduPilot
+source (`config/offline-inventory.json`, row `ardupilot-parameter-metadata`).
+
+### Verification (TASK-159)
+
+`tests/param-service.test.ts` runs the service against a scripted autopilot
+that answers as the pinned handlers do. It covers the list download with the
+autopilot not ready, lost entries recovered by index and the failure that
+names the missing indices, the restart on a new count with the replaced
+stream's entries dropped, the stale list, each write state, and no timeout
+while the clock stands. It also checks float32 formatting over 1,000,000
+sampled bit patterns. The PARAM_SET and index-read frames are decoded by
+pymavlink 2.4.50. Further tests cover the metadata facts read from the
+pinned source, the validator's refusals and the generator's conversion. It
+also checks byte-for-byte regeneration from the TASK-127 checkout.
+
+`scripts/check-param-sitl.mjs` runs the service against the installed native
+ArduCopter, holding the vehicle at rest in JSON lockstep. It writes
+`test-results/validation/param-sitl.json`, whose judge `assessParamRun`
+rejects false evidence (`tests/integration/param-sitl.test.ts`); without an
+installed, verified firmware it exits 2 (`BLOCKED_EXTERNAL`).
+
+## DataFlash capture per experiment (TASK-164)
+
+ArduPilot's own DataFlash logs of an integrated run stay ArduPilot's: the
+launcher checks how they are configured, attaches each run's files to the
+experiment with their hashes, and reads what they contain. It never writes
+into them, and they are kept apart from the MirageSITL recorder (TASK-162).
+
+### Logging parameters
+
+An experiment's `LOG_*` parameters travel in its parameter list like any other
+(`experiment.parm`). Before the launcher creates anything for a start, it
+checks them against the generated metadata of the firmware's exact commit
+(TASK-159; `checkLoggingParameters` in
+`packages/autopilot/src/dataflash-logging.ts`). Every reason is named, and the
+start is refused with HTTP 400:
+
+| Check | Refused when |
+| --- | --- |
+| metadata | MirageSITL has no metadata for the firmware's commit |
+| name | the name is not a parameter of that commit |
+| value | the value is not finite; an enumerated parameter's value is not one of its values; a bitmask sets a bit the metadata does not declare or is not a whole number; a declared range does not hold it |
+| `LOG_BACKEND_TYPE` | it lacks the File backend (bit 0), the only one whose output the launcher collects, or it requests the Block backend (bit 2), which SITL does not have |
+
+Parameters whose names do not start with `LOG_` are not checked here. A start
+without `LOG_*` parameters runs with the build's defaults.
+
+### Attachment
+
+The launcher lists `logs/` with each file's size and modification time just
+before it starts a run. When the run ends (it exits, crashes or is stopped),
+every DataFlash file that is new, or whose size or modification time changed,
+belongs to that run. The launcher reads and hashes each one, and appends to the
+experiment:
+
+| Field | Meaning |
+| --- | --- |
+| run | the launcher run number |
+| name, bytes, sha256 | the file in `logs/`, its size and the SHA-256 of its bytes |
+| status | `complete` (ends at a record boundary, nothing damaged), `truncated` (only the tail after the last whole record is missing, as when SITL is stopped by a signal), `damaged` (a skipped or bad-format range inside), `empty` (no bytes, or no record) |
+| records, truncatedBytes, damaged | whole records read, bytes in the cut tail, damaged ranges inside |
+| firmware | the version string and git hash of the log's VER record, and whether the hash is the build's commit; null without a VER record |
+| logging | each configured `LOG_*` parameter with the value the log's PARM records hold (its last occurrence), and `confirmed` when every one holds the configured float32 |
+
+A run that wrote no file is attached as `missing` with the reason; a file that
+cannot be read is attached as missing with the read error. Nothing is
+synthesized. The attachments of every run are written to the experiment
+folder's `dataflash.json` (schema 1: experiment ID, firmware version, commit,
+captures) through a temporary file and a rename, and returned as
+`attachments` by `GET /v1/experiments/{id}/logs`. The files themselves stay in
+`logs/` and are served by `GET /v1/experiments/{id}/dataflash/{name}`. The
+experiment record (TASK-154) names the launcher experiment whose folder holds
+them; the project store gains no record kind for them in this task.
+
+### Verification (TASK-164)
+
+`tests/dataflash-capture.test.ts` checks the `LOG_*` rules against the
+metadata of 8ab6afde. It reads the VER and PARM records of the real SITL log
+slice of TASK-178, and classifies that slice whole, with its tail cut, with a
+damaged range inside, and with no bytes. It attributes files to runs (new,
+grown, or rewritten at the same size) and writes the manifest atomically.
+Through the launcher with the shared fake SITL, it refuses an unusable logging
+configuration before creating anything and attaches both runs' 6-byte logs as
+truncated. With the TASK-127 build, it attaches the real log of a 20-second
+lockstep run through the launcher's own bridge on free ports, with the hash,
+the firmware from VER and every configured `LOG_*` value read back from PARM.
+
+## Recording format v2 (TASK-162)
+
+Recorder v2 records a whole run, signal by signal, at per-signal rates. It
+replaces neither the TASK-076 AAR record nor its archives, which stay as they
+are. The Logging tab (TASK-163) and the Run tab's controller (TASK-163,
+TASK-165) start recordings and send their events; this section defines what
+they record into.
+
+### Signal catalog
+
+`packages/aar/src/signal-catalog.ts` lists every signal with a fixed numeric
+ID, a group, named channels with units and a value type. The IDs are stored in
+records and never reused.
+
+| ID | Signal | Channels (units) | Type | Source |
+| ---: | --- | --- | --- | --- |
+| 1 | truth.position | north, east, down (m) | f64 | physics tick |
+| 2 | truth.velocity | north, east, down (m/s) | f64 | physics tick |
+| 3 | truth.attitude | qw, qx, qy, qz (1) | f64 | physics tick |
+| 4 | truth.bodyRates | p, q, r (rad/s) | f64 | physics tick |
+| 5 | truth.acceleration | north, east, down (m/s^2) | f64 | physics tick |
+| 6 | truth.specificForce | x, y, z body (m/s^2) | f64 | physics tick |
+| 7 | truth.air | trueAirspeed (m/s), ambientPressure (Pa), groundClearance (m) | f64 | physics tick |
+| 8 | pilot | roll, pitch, yaw, throttle (1) | f32 | physics tick |
+| 9 | actuators | output1..output16 (1) | f32 | physics tick, when the tick has an actuator frame |
+| 10–14 | motors.speed, motors.current, motors.busCurrent, motors.power, motors.command | motor1..motor16 (rev/min, A, A, W, 1) | f32 | physics tick, when the dynamics has an electrical drive (power telemetry v1) |
+| 15 | battery | stateOfCharge (1), voltage (V), current (A), power (W), remaining (Ah) | f64 | physics tick, with an electrical drive |
+| 16–20 | sensors.imu, sensors.gnss, sensors.magnetometer, sensors.barometer, sensors.airspeed | the SensorFrameV2 values of the kind; GNSS adds latitude, longitude (deg) and altitude (m MSL) | f64 | sensor frames, aperiodic |
+| 32 | autopilot.attitude | roll, pitch, yaw (rad), roll/pitch/yaw rates (rad/s) | f32 | ATTITUDE |
+| 33 | autopilot.localPosition | north, east, down (m), velocities (m/s) | f32 | LOCAL_POSITION_NED |
+| 34 | autopilot.globalPosition | latitude, longitude (deg), MSL and relative altitude (m), velocities (m/s), heading (deg) | f64 | GLOBAL_POSITION_INT |
+| 35 | autopilot.gps | latitude, longitude (deg), MSL altitude (m), fix type, satellites, eph, epv | f64 | GPS_RAW_INT |
+| 36 | autopilot.ekf | flags, velocity, horizontal and vertical position, compass and terrain variances | f32 | EKF_STATUS_REPORT |
+| 64 | events.parameter | a parameter name (16 ASCII bytes) and its float32 value; a flag marks the snapshot | — | event |
+| 65–68 | events.weather, events.fault, events.pause, events.accident | a registry code and up to three numbers (pause: 1 paused, 0 resumed) | f64 | event |
+| 127 | gap | rows lost here | — | recorder |
+
+### Rates
+
+A plan (`planRates`) takes one common rate (default 50 Hz, A-09) with
+per-group and per-signal overrides. A rate is 0 (not recorded) or a whole
+number from 1 to 2000 Hz; a signal override wins over its group's. The source
+rate is the physics rate (400, 800 or 1200 Hz) for physics signals and the
+upper bound for sensor frames, and the stream rate the session requests
+(10 Hz on the Run tab) for telemetry. The effective rate is min(requested,
+source). A request above the source rate is capped, and the plan and the
+record's header mark it `capped` with both rates: 2 kHz is reached only by a
+source that produces it, and no Phase 1 source does. Events have no rate and
+are always recorded.
+
+| Source | Which samples are kept |
+| --- | --- |
+| physics tick | an integer accumulator per signal adds the effective rate each tick and keeps the tick when the sum reaches the physics rate, subtracting it; N ticks keep exactly floor(N · effective / physics) samples, evenly spaced when the effective rate divides the physics rate, and never one tick twice |
+| sensor frame | a frame is kept when at least physics / effective ticks passed since the last kept frame of its kind |
+| telemetry | a message is kept when at least 1 / effective seconds of simulated time passed since the last kept message of its signal (5·10⁻⁷ s of slack for rounding) |
+
+A kept physics sample whose source produced nothing in that tick (no
+electrical drive, no actuator frame) writes no row; the producer counts it as
+absent per signal, and the catalog entry reports the counts. An absent sample
+is therefore never stored, and never read, as zero.
+
+### Rows and chunks
+
+A row is one kept sample, a gap or an event. Its header is 40 bytes
+little-endian, followed by the payload and padding to 8 bytes.
+
+| Byte Offset | Data Type | Units | Field Name |
+| ---: | --- | --- | --- |
+| 0 | u16 | ID | signal |
+| 2 | u16 | bitmask | flags: bit0 Gap, bit1 Snapshot (parameter rows only) |
+| 4 | u32 | bitmask | presence: bit i set when channel i holds a value |
+| 8 | u32 | ticks | tick lo |
+| 12 | u32 | ticks | tick hi |
+| 16 | f64 | s | simulated time |
+| 24 | u32 | epoch | session epoch |
+| 28 | u32 | rows | lost: rows the producer dropped immediately before this row |
+| 32 | u16 | channels | channel count, equal to the catalog's |
+| 34 | u16 | bytes | payload bytes: channels × 4 (f32) or × 8 (f64); 20 for a parameter row; 0 for a gap |
+| 36 | u32 | — | reserved_zero |
+| 40 | bytes | — | payload |
+
+A chunk is a 48-byte header followed by rows, at most 65,536 bytes.
+
+| Byte Offset | Data Type | Units | Field Name |
+| ---: | --- | --- | --- |
+| 0 | u32 | magic | 0x3243524d ("MRC2") |
+| 4 | u32 | version | 2 |
+| 8 | u32 | index | chunk index, from 0 without gaps in numbering |
+| 12 | u32 | rows | row count |
+| 16 | u32 | bytes | payload bytes after the header |
+| 20 | u32 | ticks | first tick lo |
+| 24 | u32 | ticks | first tick hi |
+| 28 | u32 | ticks | last tick lo |
+| 32 | u32 | ticks | last tick hi |
+| 36 | u32 | key | the record ID's first 4 bytes |
+| 40 | u32 | — | reserved_zero |
+| 44 | u32 | CRC | CRC-32/ISO-HDLC of the chunk with bytes 44..47 taken as zero |
+
+A reader checks every chunk: magic, version, its index, the record key, the
+CRC and each row against the catalog (signal, channel count, payload size,
+flags, presence bits within the channel count, a finite time). A failing chunk
+is reported as corrupt and its rows are not used.
+
+The record's header is JSON (schema `formatVersion` 2): the record ID (32 hex
+characters), the experiment ID or null, the start time, the physics rate, the
+common rate, the model SHA-256 or null, the firmware commit and binary
+SHA-256 or null, and the signal table with each signal's source, requested and
+effective rate and `capped`. A header is accepted only when its signals equal
+this version's catalog and every effective rate equals min(requested, source).
+
+### Producer, recorder and storage
+
+The producer (`RecordingProducerV2`) runs in the physics Worker's record hook
+and writes rows into recording queue v2 ([Shared Memory](SPECS_SHARED_MEMORY.md),
+"Recording queue v2"). It allocates nothing after construction and never
+waits. The recorder Worker (`recorder-v2.worker.ts`) drains the queue every
+10 ms and Main's telemetry and event rows into chunks. It seals a chunk when
+it is full or after one second of wall time with rows in it, which bounds what
+a crash can lose. While it records, it holds the Web Lock
+`mirage-recording-<record ID>`. When the recording closes, rows the producer
+lost after its last delivered row become one gap row, so every lost row is in
+the record.
+
+Storage is the persistent IndexedDB database `mirage-recordings`, without the
+32 MiB cap of TASK-076. Store `entries` holds one catalog entry per record:
+the header; the status `recording`, `closed` or `interrupted`; the chunk
+indices used and stored; bytes and rows per signal; dropped chunks and rows;
+producer losses; and absent samples per signal. Store `chunks` holds the
+chunks keyed by [record ID, index]. A chunk and its entry are written in one
+transaction, and one transaction is in flight at a time, with at most 64
+chunks waiting. A chunk that cannot wait, or whose transaction fails, is
+dropped; its index stays unused and the entry counts it, so a reader names it
+as missing. `listRecordings` marks a record that is still `recording` while
+no Web Lock holds it as `interrupted`, and it then reopens with every chunk
+stored before the restart. A-08 limits a recording to 2 GB per simulated
+hour; the Logging tab (TASK-163) estimates a plan's size before it starts.
+
+### Verification (TASK-162)
+
+`tests/recorder-v2.test.ts` runs one simulated hour at 400 Hz (1,440,000
+ticks) through the producer, the queue, the consumer and the stream writer. It
+checks every stored chunk's CRC and rows, and finds for each signal exactly
+floor(ticks · effective / source) rows in strictly increasing ticks: 2 kHz
+capped to 400, 7 Hz on a source it does not divide, and IMU frames at 100 Hz.
+It adds telemetry at 10 Hz, a 1,410-parameter snapshot and pause events, and
+keeps the record within the A-08 budget. Other tests cover absent samples,
+drops with every lost row accounted for, corrupted and dropped chunks, chunks
+of another record or index, refused rows and headers, an interrupted record,
+and telemetry decoding. `node scripts/bench-aar.mjs HZ v2` is G1 for the
+producer at its worst case (every physics signal at the physics rate, 16
+motors and an IMU frame each tick). `tests/browser/recorder-v2.spec.ts` arms
+the application's physics Worker in Chrome. It records the demo session,
+closes and relaunches the browser on the same profile, and reopens a closed
+record with exact rates and a cut-off record as interrupted.

@@ -1,6 +1,7 @@
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { beforeAll, describe, expect, it } from 'vitest';
+import { prepareContact } from './contact-support.ts';
 import { validateComponentCard, type ComponentCard } from '@mirage/aircraft/components';
 import { deriveVehicleManifest } from '@mirage/aircraft/derive-manifest';
 import { validateAircraftProfile, withPropellerPolars } from '@mirage/aircraft/profile';
@@ -82,9 +83,11 @@ describe('power telemetry v1 channel', () => {
 describe('the session publishes power telemetry next to ABI v2', () => {
   const MOTOR = '11'.repeat(32), PROPELLER = '22'.repeat(32), ESC = '33'.repeat(32), BATTERY = '44'.repeat(32);
   let module: WebAssembly.Module;
-  beforeAll(() => {
+  beforeAll(async () => {
     execFileSync(process.execPath, ['scripts/build-wasm.mjs'], { stdio: 'pipe' });
     module = new WebAssembly.Module(readFileSync('packages/wasm-bet/dist/mirage_bet.scalar.wasm'));
+    // The vehicle stands on its standard landing gear (TASK-095).
+    await prepareContact();
   }, 600000);
   const json = (path: string): unknown => JSON.parse(readFileSync(new URL(path, import.meta.url), 'utf8'));
   function card(type: string): ComponentCard {

@@ -1,17 +1,23 @@
 // TASK-091: BET kernel compute benchmark (Node/V8 and native host evidence, not browser,
 // Worker or target-hardware timing).
 //
-//   node scripts/bench-bet.mjs [--steps N] [--out PATH] [--baseline PATH] [--fixtures a,b] [--variants a,b] [--rates a,b] [--kernel-options N]
+//   node scripts/bench-bet.mjs [--steps N] [--out PATH] [--baseline PATH] [--fixtures a,b] [--variants a,b] [--rates a,b]
+//                              [--kernel-options N] [--sections flight,rotor,native]
 //
-// --kernel-options turns on the TASK-091 opt-in modes (1 reduced predictor, 2 hover sampling, 3 both) for every rotor.
+// --kernel-options turns on the TASK-091 opt-in modes (1 reduced predictor, 2 hover sampling, 3 both) or the
+// exact kernel (4) for every rotor. --sections selects the parts of the report to run (all by default).
 //
 // WASM: BetFlightDynamics with the TASK-092 drive for the S19 quad X (4 rotors), octa X
 // (8 rotors) and sixteen-motor (16 rotors) fixtures on the example component cards and
 // NACA6409, in the scalar and SIMD128 builds, at 400, 800 and 1200 Hz. The rotors spin up
 // from rest to 0.8 of their hover-trim duty, so each vehicle stays on the synthetic pad
-// with every rotor near flight speed. Native: the bound-rotor step of one sixteen-motor
-// rotor (`native/bet/examples/bench_bound.rs`, release build). With --baseline, every row
-// is compared with the same row of a baseline report from the same CPU model.
+// with every rotor near flight speed. Rotor ticks (TASK-091 increment 3): the production
+// bound-rotor tick alone, `BetRotorEngine.stepInto` of 8 and 16 copies of the sixteen-motor
+// rotor (alternating spin) in still air under a fixed motor torque, in both builds and at
+// 400, 800 and 1200 Hz; a flight step adds about 0.1 ms of record transfer, body, contact
+// and bus work to it. Native: the bound-rotor step of one sixteen-motor rotor
+// (`native/bet/examples/bench_bound.rs`, release build). With --baseline, every row is
+// compared with the same row of a baseline report from the same CPU model.
 import { createRequire } from 'node:module';
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
@@ -36,7 +42,9 @@ const fixtures = list('fixtures', ['quad-x', 'octa-x', 'octa-coaxial-16']);
 const variantNames = list('variants', ['scalar', 'simd128']);
 const rates = list('rates', ['400', '800', '1200']).map(Number);
 const kernelOptions = Number(option('kernel-options', '0'));
-if (![0, 1, 2, 3].includes(kernelOptions)) { console.error('Invalid --kernel-options'); process.exit(2); }
+if (![0, 1, 2, 3, 4].includes(kernelOptions)) { console.error('Invalid --kernel-options'); process.exit(2); }
+const sections = list('sections', ['flight', 'rotor', 'native']);
+const loadStart = os.loadavg();
 
 const require = createRequire(import.meta.url);
 const { build } = createRequire(require.resolve('vite/package.json'))('esbuild');
@@ -49,7 +57,7 @@ export { resolveComponents } from './packages/aircraft/src/resolve-components.ts
 export { deriveVehicleManifest } from './packages/aircraft/src/derive-manifest.ts';
 export { buildProfileDynamics } from './packages/physics/src/profile-dynamics.ts';
 export { BetFlightDynamics } from './packages/physics/src/bet-dynamics.ts';
-export { encodeBoundRotor } from './packages/wasm-bet/src/rotor.ts';
+export { BetRotorEngine, encodeBoundRotor } from './packages/wasm-bet/src/rotor.ts';
 export { trimHover } from './tests/support/hover-trim.ts';
 export { newActuatorFrameV2, newInput, ActuatorFlagV2 } from './packages/protocol/src/index.ts';`, resolveDir: root, sourcefile: 'bench-bet-entry.ts', loader: 'ts' },
 bundle: true, platform: 'node', format: 'esm', outfile: bundle, metafile: true });
@@ -70,7 +78,8 @@ async function vehicleOf(fixture) {
   const resolved = M.resolveComponents(profile, cards);
   if (!resolved.components) throw new Error(`Missing: ${resolved.missing.join('; ')}`);
   const derived = await M.deriveVehicleManifest(profile, resolved.components, { modelId: 91 });
-  return { fixture, derived, configuration: M.buildProfileDynamics(derived.manifest, { kernelOptions }).configuration };
+  // The BET compute alone, on the synthetic pad as before TASK-095: the gear's contact is timed by scripts/bench-flight-contact.mjs.
+  return { fixture, derived, configuration: M.buildProfileDynamics(derived.manifest, { kernelOptions, syntheticPad: true }).configuration };
 }
 const vehicles = [];
 for (const fixture of fixtures) vehicles.push(await vehicleOf(fixture));
@@ -87,7 +96,7 @@ function summary(samples, periodMs) {
 
 // ---- WASM flight steps -----------------------------------------------------------------
 const wasm = [];
-for (const variant of variants) {
+for (const variant of sections.includes('flight') ? variants : []) {
   for (const v of vehicles) {
     const trim = M.trimHover(variant.module, v.configuration);
     for (const hz of rates) {
@@ -112,14 +121,38 @@ for (const variant of variants) {
   }
 }
 
-// ---- native bound-rotor steps ---------------------------------------------------------------
+// ---- one sixteen-motor rotor, for the rotor ticks and the native steps ---------------------------
 const sixteen = (await vehicleOf('octa-coaxial-16')).configuration, rotor = sixteen.manifest.rotors[0];
 const definition = { geometry: rotor, polar: sixteen.polars.get(rotor.polarId), initialOmegaRadS: 500, inflowTauS: 0.1, inflowLimitMps: 500, minimumConfidence: 0.9, kernelOptions };
+
+// ---- WASM bound-rotor ticks -------------------------------------------------------------------
+const rotorTicks = [];
+for (const variant of sections.includes('rotor') ? variants : []) {
+  for (const count of [8, 16]) {
+    const definitions = Array.from({ length: count }, (_, i) => ({ ...definition, geometry: { ...rotor, spinSign: i % 2 === 0 ? rotor.spinSign : -rotor.spinSign } }));
+    for (const hz of rates) {
+      const e = new M.BetRotorEngine(variant.module, definitions, hz);
+      // ISA sea level and still air (the engine's defaults), and the native example's motor torque.
+      for (let i = 0; i < count; i++) e.input[i * 13 + 12] = 0.12;
+      const tick = () => { if (!e.stepInto()) throw new Error(`rotor tick failed: ${variant.name} ${count} rotors ${hz} Hz`); };
+      for (let i = 0; i < 20000; i++) tick();
+      const samples = new Float64Array(steps);
+      for (let i = 0; i < steps; i++) { const start = performance.now(); tick(); samples[i] = performance.now() - start; }
+      const omegaRadS = e.output[9], flags = e.output[14];
+      e.dispose();
+      const row = { variant: variant.name, rotors: count, hz, steps, warmupSteps: 20000, periodMs: 1000 / hz, ...summary(samples, 1000 / hz), omegaRadS, flags };
+      rotorTicks.push(row);
+      console.log(`rotor tick ${variant.name} ${count} rotors ${hz} Hz: mean ${row.meanMs.toFixed(4)} ms, p50 ${row.p50Ms.toFixed(4)} ms, p99 ${row.p99Ms.toFixed(4)} ms, ${omegaRadS.toFixed(3)} rad/s, flags ${flags}`);
+    }
+  }
+}
+
+// ---- native bound-rotor steps ---------------------------------------------------------------
 const nativeDir = resolve(root, 'native');
-execFileSync('cargo', ['build', '--release', '--locked', '-p', 'mirage-bet', '--example', 'bench_bound'], { cwd: nativeDir, stdio: 'pipe' });
+if (sections.includes('native')) execFileSync('cargo', ['build', '--release', '--locked', '-p', 'mirage-bet', '--example', 'bench_bound'], { cwd: nativeDir, stdio: 'pipe' });
 const binary = resolve(nativeDir, 'target/release/examples/bench_bound');
 const native = [];
-for (const hz of rates) {
+for (const hz of sections.includes('native') ? rates : []) {
   const configPath = resolve(root, `.cache/bench-bet/rotor-${hz}.bin`);
   writeFileSync(configPath, M.encodeBoundRotor(definition, 1 / hz));
   const row = JSON.parse(execFileSync(binary, [configPath, String(hz), String(Math.max(steps, 100000))], { encoding: 'utf8' }));
@@ -142,9 +175,12 @@ if (baselinePath) {
   comparison = { baseline: baselinePath, baselineCommit: baseline.identity.commit,
     wasm: wasm.map(r => { const b = before.get(key(r)); return b ? { variant: r.variant, fixture: r.fixture, hz: r.hz,
       meanSpeedup: b.meanMs / r.meanMs, p50Speedup: b.p50Ms / r.p50Ms, p99Speedup: b.p99Ms / r.p99Ms } : null; }).filter(Boolean),
+    rotorTicks: rotorTicks.map(r => { const b = (baseline.rotorTicks ?? []).find(x => x.variant === r.variant && x.rotors === r.rotors && x.hz === r.hz);
+      return b ? { variant: r.variant, rotors: r.rotors, hz: r.hz, meanSpeedup: b.meanMs / r.meanMs, p50Speedup: b.p50Ms / r.p50Ms, p99Speedup: b.p99Ms / r.p99Ms } : null; }).filter(Boolean),
     native: native.map(r => { const n = baseline.native.find(x => x.hz === r.hz), b = n && (n.production ?? n); return b ? { hz: r.hz,
       meanSpeedup: b.meanUs / r.production.meanUs, p50Speedup: b.p50Us / r.production.p50Us, p99Speedup: b.p99Us / r.production.p99Us } : null; }).filter(Boolean) };
   for (const c of comparison.wasm) console.log(`speed-up ${c.variant} ${c.fixture} ${c.hz} Hz: mean ${c.meanSpeedup.toFixed(2)}x, p99 ${c.p99Speedup.toFixed(2)}x`);
+  for (const c of comparison.rotorTicks) console.log(`speed-up rotor tick ${c.variant} ${c.rotors} rotors ${c.hz} Hz: mean ${c.meanSpeedup.toFixed(2)}x, p50 ${c.p50Speedup.toFixed(2)}x, p99 ${c.p99Speedup.toFixed(2)}x`);
   for (const c of comparison.native) console.log(`speed-up native ${c.hz} Hz: mean ${c.meanSpeedup.toFixed(2)}x, p50 ${c.p50Speedup.toFixed(2)}x`);
 }
 
@@ -155,12 +191,13 @@ const report = {
   vehicles: vehicles.map(v => ({ fixture: v.fixture, rotors: v.derived.manifest.rotorCount, manifestSha256: v.derived.sha256 })),
   load: 'synthetic pad at 0.8 x hover-trim duty, spun up from rest; cards tests/fixtures/components/*-example.json; polar naca6409-neuralfoil-v1',
   budget: 'Step period 1/hz; A-05 judges the mean real-time ratio (at least 0.99); the G3 compute limit is 0.4167 ms at 1200 Hz',
-  rows: { fixtures, variants: variantNames, rates }, kernelOptions, wasm, native, comparison,
+  rows: { fixtures, variants: variantNames, rates, sections }, kernelOptions, wasm, rotorTicks, native, comparison,
   identity: { commit: git('rev-parse', 'HEAD'), dirty: git('status', '--porcelain', '--', 'native/bet/src', 'packages') !== '',
     node: process.version, platform: process.platform, arch: process.arch, cpu, cpus: os.cpus().length, rustc,
+    loadAverage: { start: loadStart, end: os.loadavg() },
     wasmSha256: Object.fromEntries(variants.map(v => [v.name, sha(v.bytes)])),
     sourceInputs: [...new Set(sources)].sort().map(file => ({ file, sha256: sha(read(file)) })) },
-  scope: 'Node/V8 single-threaded compute of BetFlightDynamics, and native compute of one bound-rotor step; not browser Worker, session or target-hardware timing',
+  scope: 'Node/V8 single-threaded compute of BetFlightDynamics flight steps and of BetRotorEngine rotor ticks, and native compute of one bound-rotor step; not browser Worker, session or target-hardware timing',
 };
 if (!existsSync(dirname(out))) mkdirSync(dirname(out), { recursive: true });
 writeFileSync(out, JSON.stringify(report, null, 2) + '\n');

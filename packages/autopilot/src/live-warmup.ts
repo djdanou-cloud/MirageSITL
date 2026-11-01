@@ -5,7 +5,17 @@ import { EkfWarmup } from "./warmup.ts";
 
 /** Batch/I/O admission. GPS and report clocks come from CRC-checked firmware.
  * External JSON may explicitly use the acknowledged encoded IMU sample clock.
- * Neither mode invents measurement time from arrival. One instance per epoch. */
+ * Neither mode invents measurement time from arrival. One instance per epoch.
+ *
+ * In JSON lockstep the autopilot's clock advances exactly by the session's
+ * steps, but it need not start with the session: a SITL the user started and
+ * connected to again keeps its clock across a new physics session (SIM_JSON
+ * treats the earlier timestamps as a physics reset and does not reset the
+ * autopilot; TASK-155). GPS time is therefore compared in the session clock,
+ * shifted by the autopilot's lead. GLOBAL_POSITION_INT's time_boot_ms, sent at
+ * or before the step at which it is received, bounds that lead from below; the
+ * largest bound seen, never below 0, is used, so a wrong time can only keep
+ * the GPS stale, never make it fresh. */
 export class LiveEkfWarmup {
   readonly monitor: EkfMonitor;
   readonly warmup: EkfWarmup;
@@ -13,6 +23,8 @@ export class LiveEkfWarmup {
   imuTimeS = -1;
   reportedImuTimeS = -1;
   gpsTimeS = -1;
+  /** JSON lockstep: how far the autopilot's clock leads the session's, seconds (0 for a SITL that starts with the session). */
+  autopilotLeadS = 0;
   readonly imuSource: "mavlink" | "json-lockstep";
   private lastAcknowledgedFrame = -1;
   private lastAcknowledgedTimeS = -1;
@@ -54,7 +66,7 @@ export class LiveEkfWarmup {
     if (this.disposed) return false;
     return this.warmup.observe({
       epoch: this.monitor.epoch, simTimeS, wallTimeMs,
-      imuTimeS: this.imuTimeS, gpsTimeS: this.gpsTimeS,
+      imuTimeS: this.imuTimeS, gpsTimeS: this.gpsTimeS < 0 || this.imuSource !== "json-lockstep" ? this.gpsTimeS : this.gpsTimeS - this.autopilotLeadS,
       health: this.monitor.snapshot(simTimeS * 1000),
     });
   }
@@ -68,6 +80,11 @@ export class LiveEkfWarmup {
   private receive(frame: MavFrame): void {
     if (frame.systemId !== this.monitor.systemId || frame.componentId !== this.monitor.componentId) return;
     this.monitor.ingest(frame, this.receivedSimS * 1000);
+    if (frame.id === 33 && this.imuSource === "json-lockstep") {
+      const lead = frame.view.getUint32(0, true) / 1000 - this.receivedSimS; // time_boot_ms
+      if (lead > this.autopilotLeadS) this.autopilotLeadS = lead;
+      return;
+    }
     if (frame.id !== 24 && frame.id !== 27 && frame.id !== 105) return;
     // Wire u64 microseconds; avoid BigInt or unsafe integer conversion.
     const micros = frame.view.getUint32(0, true) + 4294967296 * frame.view.getUint32(4, true);

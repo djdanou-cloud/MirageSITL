@@ -13,39 +13,39 @@
       "steps": 20000,
       "warmupSteps": 20000,
       "periodMs": 2.5,
-      "meanMs": 0.25123717075000185,
-      "p50Ms": 0.22830600000088452,
-      "p95Ms": 0.3650889999998981,
-      "p99Ms": 0.44944700000087323,
-      "maxMs": 4.453185000000303,
+      "meanMs": 0.2248487407500003,
+      "p50Ms": 0.21345800000017334,
+      "p95Ms": 0.2866250000006403,
+      "p99Ms": 0.37433299999975134,
+      "maxMs": 3.2529999999997017,
       "p99WithinPeriod": true,
-      "realtimeRatioAtMean": 9.950756858696163
+      "realtimeRatioAtMean": 11.118585728614967
     },
     {
       "hz": 800,
       "steps": 20000,
       "warmupSteps": 20000,
       "periodMs": 1.25,
-      "meanMs": 0.24151946334998048,
-      "p50Ms": 0.22360000000116997,
-      "p95Ms": 0.3603690000018105,
-      "p99Ms": 0.4136880000005476,
-      "maxMs": 4.251262000001589,
+      "meanMs": 0.20822016040000763,
+      "p50Ms": 0.20679200000085984,
+      "p95Ms": 0.2249999999985448,
+      "p99Ms": 0.24183300000004238,
+      "maxMs": 2.453624999998283,
       "p99WithinPeriod": true,
-      "realtimeRatioAtMean": 5.175566319425995
+      "realtimeRatioAtMean": 6.003261152035662
     },
     {
       "hz": 1200,
       "steps": 20000,
       "warmupSteps": 20000,
       "periodMs": 0.8333333333333334,
-      "meanMs": 0.2401093936999985,
-      "p50Ms": 0.22456999999849359,
-      "p95Ms": 0.34605099999680533,
-      "p99Ms": 0.4148300000015297,
-      "maxMs": 12.475343999998586,
+      "meanMs": 0.20794990999999155,
+      "p50Ms": 0.20695899999918765,
+      "p95Ms": 0.2232079999994312,
+      "p99Ms": 0.23341599999912432,
+      "maxMs": 0.3898749999971187,
       "p99WithinPeriod": true,
-      "realtimeRatioAtMean": 3.4706402797990097
+      "realtimeRatioAtMean": 4.007375301741497
     }
   ],
   "allocation": {
@@ -53,7 +53,7 @@
     "bytes": 2960,
     "bytesPerStep": 0.00296,
     "gcEvents": 0,
-    "elapsedMs": 237096.660323,
+    "elapsedMs": 206191.136458,
     "warmupSteps": 110000,
     "airborneSteps": 299304,
     "touchdowns": 358,
@@ -65,18 +65,18 @@
       "bytes": 742832,
       "bytesPerStep": 0.742832,
       "gcEvents": 30,
-      "elapsedMs": 11.292637999984436
+      "elapsedMs": 9.802083000016864
     },
     "controlDetected": true
   },
   "identity": {
-    "node": "v24.22.2",
-    "platform": "linux",
-    "arch": "x64",
-    "cpu": "Intel(R) Xeon(R) Processor @ 2.10GHz",
-    "cpus": 4,
-    "wasmSha256": "bf97c3afbab7b90dbc77b8bf3afe33e119b1a19283ab7e01607cd55765ee8d8f",
-    "contactSha256": "23595fa5d1d7a3e1b6c66bb5a51f4e6700b48e8a01e71028762f689900031705",
+    "node": "v24.22.1",
+    "platform": "darwin",
+    "arch": "arm64",
+    "cpu": "Apple M5",
+    "cpus": 10,
+    "wasmSha256": "7f4ed0424fa5a9d7830c5a92854ec16ee6c829a1f0af3196f05f7ac1e81b572e",
+    "contactSha256": "cde87e0ea0d7acd3b1dfe4885bdc2d902a7f6d69a090bbd4e6106162ac5d2bc8",
     "sourceInputs": [
       {
         "file": "node_modules/fast-deep-equal/index.js",
@@ -360,7 +360,7 @@
       },
       {
         "file": "packages/physics/src/ground-contact.ts",
-        "sha256": "4c4ef749e1ef3ab307a453f73da9ee6bb41370a553f70684f496271bd36d41df"
+        "sha256": "35c039861070fbf8e8c0313561ec1ac5cd7b3087086a9f30e286871f91996743"
       },
       {
         "file": "packages/physics/src/limit-monitor.ts",

@@ -5,9 +5,14 @@ import { readFileSync } from 'node:fs';
 import { viteFileUrl } from '../support/vite-url';
 
 // TASK-146: the application's physics Worker runs a quad X profile on the
-// example cards with a 15 A pack limit and a 60 W motor power rating. The
+// example cards with a 2 A pack limit and a 5 W motor power rating. The
 // power panel must show the pack as Limited (the model clamps its current)
 // and each motor's power as a Warning (the rating is exceeded, physics runs on).
+// The limited pack delivers about 2 A × 16.8 V, so each of the four motors
+// gets about 8.4 W (TASK-092 drive step), above the 5 W rating.
+// At 30 % throttle, below the hover's 40 %, the quad stays on its standard
+// landing gear (TASK-095) and the run is steady; an open-loop climb would
+// pitch over and fall, as no pad levels it any more.
 
 const read = (path: string): unknown => JSON.parse(readFileSync(new URL(path, import.meta.url), 'utf8'));
 
@@ -21,9 +26,13 @@ test('the Run tab shows the power panel without an electrical model for the demo
 test('the power panel keeps a rating warning apart from a modeled limit on a running profile', async ({ page }) => {
   test.setTimeout(300000);
   execFileSync(process.execPath, ['scripts/build-wasm.mjs'], { stdio: 'pipe' });
+  execFileSync(process.execPath, ['scripts/build-contact.mjs'], { stdio: 'pipe' });
   const wasm = readFileSync('packages/wasm-bet/dist/mirage_bet.scalar.wasm');
   const input = {
     bytes: Array.from(wasm), wasmSha256: createHash('sha256').update(wasm).digest('hex'),
+    // The Rapier contact the vehicle's standard landing gear stands on (TASK-095).
+    contactBytes: Array.from(readFileSync('packages/physics/dist/contact/contact.wasm')),
+    contactManifest: JSON.parse(readFileSync('packages/physics/dist/contact/manifest.json', 'utf8')) as unknown,
     profile: read('../fixtures/aircraft/quad-x.json'),
     cards: Object.fromEntries(['motor', 'propeller', 'esc', 'battery'].map(type => [type, read(`../fixtures/components/${type}-example.json`)])),
     urls: {
@@ -43,7 +52,7 @@ test('the power panel keeps a rating warning apart from a modeled limit on a run
     'window.$RefreshSig$=()=>(t)=>t;window.__vite_plugin_react_preamble_installed__=true;</script><main id="root"></main>',
     headers: { 'Cross-Origin-Opener-Policy': 'same-origin', 'Cross-Origin-Embedder-Policy': 'require-corp' } }));
   await page.goto('/power-panel-test');
-  const report = await page.evaluate(async ({ bytes, wasmSha256, profile, cards, urls }) => {
+  const report = await page.evaluate(async ({ bytes, wasmSha256, contactBytes, contactManifest, profile, cards, urls }) => {
     const p = await import(urls.protocol) as typeof import('@mirage/protocol');
     const profiles = await import(urls.profile) as typeof import('@mirage/aircraft/profile');
     const components = await import(urls.components) as typeof import('@mirage/aircraft/components');
@@ -57,8 +66,8 @@ test('the power panel keeps a rating warning apart from a modeled limit on a run
     [{ card: ids.propeller, polar: 'naca6409-neuralfoil-v1' }]);
     const edited: Record<string, unknown> = { ...cards };
     const battery = edited.battery as { values: Record<string, unknown> }, motor = edited.motor as { values: Record<string, unknown> };
-    edited.battery = { ...battery, values: { ...battery.values, maxDischargeCurrentA: 15 } };
-    edited.motor = { ...motor, values: { ...motor.values, maxPowerW: 60 } };
+    edited.battery = { ...battery, values: { ...battery.values, maxDischargeCurrentA: 2 } };
+    edited.motor = { ...motor, values: { ...motor.values, maxPowerW: 5 } };
     const cardMap = new Map(Object.entries(edited).map(([type, value]) => [ids[type as keyof typeof ids], components.validateComponentCard(value)]));
     const resolved = resolver.resolveComponents(fitted, cardMap);
     if (!resolved.components) throw new Error(`Missing: ${resolved.missing.join('; ')}`);
@@ -79,7 +88,7 @@ test('the power panel keeps a rating warning apart from a modeled limit on a run
     const root = document.getElementById('root');
     if (!root) throw new Error('No root element');
     host.mountPowerPanel(root, power, worker);
-    const reader = new p.StateReaderV2(stateBuffer), header = p.newHeaderSnapshotV2(), pilot = new p.PilotWriterV2(stateBuffer);
+    const reader = new p.StateReaderV2(stateBuffer), header = p.newHeaderSnapshotV2(), state = p.newFlightStateV2(), pilot = new p.PilotWriterV2(stateBuffer);
     const ready = next(d => d.type === 'ready-v2');
     worker.postMessage({ type: 'init-v2', protocolVersion: 2, stateBuffer, sensorBuffer: p.createSpscQueue('sensor'), actuatorBuffer: p.createSpscQueue('actuator') });
     await ready;
@@ -95,6 +104,9 @@ test('the power panel keeps a rating warning apart from a modeled limit on a run
     const moduleReady = next(d => d.type === 'bet.module.ready');
     worker.postMessage({ type: 'bet.module', bytes: new Uint8Array(bytes), sha256: wasmSha256 });
     await moduleReady;
+    const contactReady = next(d => d.type === 'contact.module.ready');
+    worker.postMessage({ type: 'contact.module', bytes: new Uint8Array(contactBytes), manifest: contactManifest });
+    await contactReady;
     const registered = next(d => d.type === 'model.registered');
     worker.postMessage({ type: 'model.register', bytes: derived.bytes, sha256: derived.sha256 });
     await registered;
@@ -107,7 +119,7 @@ test('the power panel keeps a rating warning apart from a modeled limit on a run
     result = next(final(2));
     worker.postMessage({ protocolVersion: 2, requestId: 2, expectedEpoch: header.sessionEpoch, type: 'sim.start' });
     await result;
-    // Arm at zero throttle, then hold 80 % throttle with fresh pilot samples.
+    // Arm at zero throttle, then hold 30 % throttle with fresh pilot samples.
     const sample = p.newPilotInputV2();
     sample.expectedEpoch = header.sessionEpoch; sample.flags = 3;
     let sampleId = 0;
@@ -120,21 +132,24 @@ test('the power panel keeps a rating warning apart from a modeled limit on a run
       }
     };
     await fly(0, 300);
-    await fly(0.8, 2500);
+    await fly(0.3, 2500);
     const snapshot = p.newPowerSnapshotV1(), powerRead = new p.PowerReaderV1(power).latest(snapshot);
+    if (!reader.latest(state)) throw new Error('No state published');
     // Keep the pilot fresh while the panel is checked: a stale pilot stops the motors, which then brake.
     setInterval(() => {
       sample.sampledWallTimeMs = performance.timeOrigin + performance.now(); sample.inputSampleId = ++sampleId;
       pilot.publish(sample);
     }, 20);
     return { attach, rejectedRatings, load, powerRead, motorCount: snapshot.motorCount, batteryLimited: snapshot.batteryLimited,
-      currentA: snapshot.currentA, motorWarning: Array.from(snapshot.motorWarning.subarray(0, 4)) };
+      currentA: snapshot.currentA, motorWarning: Array.from(snapshot.motorWarning.subarray(0, 4)), downM: state.downM };
   }, input);
   expect(report.attach).toMatchObject({ type: 'power.attached' });
   expect(report.rejectedRatings).toMatchObject({ type: 'limits.reject' });
   expect(report.load).toMatchObject({ type: 'ack-v2', status: 'applied' });
   expect(report).toMatchObject({ powerRead: true, motorCount: 4, batteryLimited: 1 });
-  expect(report.currentA).toBeCloseTo(15, 6);
+  expect(report.currentA).toBeCloseTo(2, 6);
+  // On its feet: the CG no higher than where the quad X's fully extended supports touch the ground, 0.105 m (TASK-095, D-07).
+  expect(report.downM).toBeGreaterThan(-0.106);
   expect(report.motorWarning).toEqual([2, 2, 2, 2]);
 
   const panel = page.getByTestId('power-panel');

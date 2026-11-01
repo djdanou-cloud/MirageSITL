@@ -4,10 +4,11 @@ import type { BoundPolar } from '../../wasm-bet/src/rotor.ts';
 import { isaTroposphere } from './atmosphere.ts';
 import { BetFlightDynamics, CONFIGURATION_FLAG_WAKE_UNMODELED, type BetFlightConfiguration } from './bet-dynamics.ts';
 import { escDriveFromManifest } from './drive.ts';
+import { GroundContact, type ContactWheel } from './ground-contact.ts';
 import type { LimitRatings } from './limit-monitor.ts';
 import { boundCatalogPolar } from './polar-catalog.ts';
 import type { SessionModelPort } from './session-v2.ts';
-import { projectVehicleToModelV1, validateVehicleManifest, type VehicleManifest, type VehicleRegistry } from './vehicle-manifest.ts';
+import { deriveVehicle, projectVehicleToModelV1, validateVehicleManifest, withoutLandingGear, type VehicleManifest, type VehicleRegistry } from './vehicle-manifest.ts';
 
 // Flight dynamics from a vehicle manifest v2 with motors, ESCs and a battery
 // (TASK-144): the manifest an aircraft profile derives (TASK-138) from its
@@ -31,11 +32,32 @@ export interface ProfileDynamicsOptions {
   readonly kernelOptions?: number;
   /** TASK-146 component ratings, in rotor order; null or absent checks none. */
   readonly limitRatings?: LimitRatings | null;
+  /**
+   * Stand on the synthetic pad at the origin even with landing gear: for benchmarks that time the
+   * BET compute alone (scripts/bench-bet.mjs, bench-profile-dynamics.mjs). Flight sessions never set it.
+   */
+  readonly syntheticPad?: boolean;
+}
+/** The landing gear of a build as the ground contact takes it (TASK-095). */
+export interface ProfileGear {
+  /** The manifest's gear with anchors relative to the CG, as `ContactWheel` takes them. */
+  readonly wheels: readonly ContactWheel[];
+  /**
+   * Radius of the airframe's contact sphere about the CG, m: half the height of the CG over the
+   * ground with every strut and foot fully compressed, so only the feet carry the vehicle. The
+   * compound hull of the arms and body is later TASK-095 work.
+   */
+  readonly hullRadiusM: number;
+  /** The vehicle's mass and inertia about the CG, as the projected model declares them and the contact must match. */
+  readonly vehicle: { readonly massKg: number; readonly inertiaBodyKgM2: readonly number[] };
 }
 export interface ProfileDynamicsBuild {
+  /** Without a contact: each dynamics gets its own (`profileFlightDynamics`), since the dynamics owns and disposes it. */
   readonly configuration: BetFlightConfiguration;
   /** Declared model parts that the dynamics does not model, in words; each also sets a configuration validity flag. */
   readonly limitations: readonly string[];
+  /** The gear the vehicle stands on, or null for a manifest without gear, which stands on the synthetic pad. */
+  readonly gear: ProfileGear | null;
 }
 
 /**
@@ -43,10 +65,12 @@ export interface ProfileDynamicsBuild {
  * rotors run in manifest order on the ESC drive (`escDriveFromManifest`) with
  * their catalog polars. Actuator frames for the model carry its model ID as
  * the motor map ID. Without an autopilot the pilot sticks command collective
- * only (attitude control is the autopilot's), and the vehicle starts on the
- * synthetic pad at the origin, motors stopped. Throws when the manifest lacks
- * the drive, names a polar outside the catalog, or has a section the runtime
- * cannot consume (airframe drag, control surfaces, landing gear).
+ * only (attitude control is the autopilot's). With landing gear (TASK-095)
+ * the vehicle starts on its fully extended feet over the origin, motors
+ * stopped, on the ground contact; without gear it starts on the synthetic pad
+ * at the origin. Throws when the manifest lacks the drive, names a polar
+ * outside the catalog, or has a section the runtime cannot consume (airframe
+ * drag, control surfaces).
  */
 export function buildProfileDynamics(input: VehicleManifest, options: ProfileDynamicsOptions = {}): ProfileDynamicsBuild {
   const manifest = validateVehicleManifest(input);
@@ -54,21 +78,29 @@ export function buildProfileDynamics(input: VehicleManifest, options: ProfileDyn
     throw new Error('Profile dynamics need a motor and an ESC for every rotor and a battery');
   }
   const drive = escDriveFromManifest(manifest, options.initialStateOfCharge ?? 1, options.housePowerW ?? 0);
-  // The drive and the sensor mounts are consumed here and by the sensor pipeline; the rest projects to the v1 body and rotors.
+  // The drive, the sensor mounts and the gear are consumed here, by the sensor pipeline and by the contact; the rest projects
+  // to the v1 body and rotors.
   const p = manifest.provenance;
-  const model = projectVehicleToModelV1({
+  const model = projectVehicleToModelV1(withoutLandingGear({
     ...manifest, motors: [], escs: [], battery: null, sensorMounts: [], rotorWakePairs: [], ardupilot: null,
     provenance: { ...p, motors: null, escs: null, battery: null, sensorMounts: null, rotorWakePairs: null },
-  });
+  }));
+  const gear = options.syntheticPad === true ? null : profileGear(manifest, model);
   const polars = new Map<number, BoundPolar>();
   for (const rotor of model.rotors) if (!polars.has(rotor.polarId)) polars.set(rotor.polarId, boundCatalogPolar(rotor.polarId));
   const limitations: string[] = [];
   let configurationFlags = 0;
+  if (!gear && options.syntheticPad !== true) {
+    limitations.push('The vehicle has no landing gear, so it stands on the synthetic pad, which holds it level on touchdown; decision F-07 ' +
+      'places the supports at the profile\'s ground clearance, and a profile without one waits for the body hull (TASK-095).');
+  }
   if (manifest.rotorWakePairs.length > 0) {
     limitations.push(`${manifest.rotorWakePairs.length} declared rotor-wake pairs are not modeled until TASK-101; each rotor sees free-stream inflow.`);
     configurationFlags |= CONFIGURATION_FLAG_WAKE_UNMODELED;
   }
   const air = isaTroposphere(0), n = model.rotorCount, initialBody = newBodyTruth();
+  // On the gear the CG starts where the fully extended feet just touch the ground plane through the origin.
+  if (gear) initialBody.positionNedM[2] = -Math.max(...gear.wheels.map(wheel => wheel.anchorBodyM[2] + wheel.tireRadiusM));
   const configuration: BetFlightConfiguration = {
     manifest: model, polars,
     initialOmegaRadS: new Array<number>(n).fill(0), motorMaxTorqueNm: new Array<number>(n).fill(0),
@@ -77,17 +109,46 @@ export function buildProfileDynamics(input: VehicleManifest, options: ProfileDyn
     pilotMix: Array.from({ length: n }, () => [1, 0, 0, 0]).flat(), motorMapId: manifest.modelId,
     initialBody, minimumConfidence: PROFILE_ROTOR_SETTINGS.minimumConfidence,
     densityKgM3: options.densityKgM3 ?? air.densityKgM3, viscosityPaS: options.viscosityPaS ?? air.dynamicViscosityPaS,
-    soundMps: options.soundMps ?? air.speedOfSoundMps, syntheticGroundDownM: 0, drive, configurationFlags,
+    soundMps: options.soundMps ?? air.speedOfSoundMps, syntheticGroundDownM: gear ? undefined : 0, drive, configurationFlags,
     kernelOptions: options.kernelOptions ?? 0, limitRatings: options.limitRatings ?? null,
   };
-  return Object.freeze({ configuration, limitations: Object.freeze(limitations) });
+  return Object.freeze({ configuration, limitations: Object.freeze(limitations), gear });
+}
+
+function profileGear(manifest: VehicleManifest, vehicle: ProfileGear['vehicle']): ProfileGear | null {
+  if (manifest.landingGear.length === 0) return null;
+  const anchors = deriveVehicle(manifest).landingGearAnchorCgM;
+  const wheels = manifest.landingGear.map((gear, i): ContactWheel => ({
+    anchorBodyM: [anchors[3 * i] ?? 0, anchors[3 * i + 1] ?? 0, anchors[3 * i + 2] ?? 0], unsprungMassKg: gear.unsprungMassKg,
+    tireRadiusM: gear.tireRadiusM, rimRadiusM: gear.rimRadiusM, strutTravelM: gear.strutTravelM, suspension: gear.suspension,
+    tireLoadCurve: gear.tireLoadCurve.map(([x, f]) => [x ?? 0, f ?? 0] as const), tireDampingNsPm: gear.tireDampingNsPm,
+    rollingCoefficient: gear.rollingCoefficient, lateralCoefficient: gear.lateralCoefficient, brakingCoefficient: gear.brakingCoefficient,
+    ...(gear.kineticFrictionRatio === undefined ? {} : { kineticFrictionRatio: gear.kineticFrictionRatio }),
+  }));
+  // Height of the CG over the ground with each strut at the end of its travel and each foot squashed to its rim.
+  const clearance = Math.min(...wheels.map(wheel => wheel.anchorBodyM[2] - wheel.strutTravelM + wheel.rimRadiusM));
+  if (!(clearance > 0)) throw new Error('The landing gear does not hold the CG above the ground when fully compressed');
+  return Object.freeze({ wheels: Object.freeze(wheels), hullRadiusM: clearance / 2, vehicle });
+}
+
+/**
+ * The flight dynamics of a build at `hz`: on a new ground contact with the build's gear, or on
+ * the synthetic pad without gear. Every call creates its own contact, which the dynamics owns;
+ * the contact artifact must be initialized (`GroundContact.initialize`). Cold.
+ */
+export function profileFlightDynamics(module: WebAssembly.Module, build: ProfileDynamicsBuild, hz: PhysicsHz): BetFlightDynamics {
+  const { configuration, gear } = build;
+  if (!gear) return new BetFlightDynamics(module, configuration, hz);
+  const contact = GroundContact.forVehicleNow(configuration.initialBody, gear.vehicle, { wheels: gear.wheels, hullRadiusM: gear.hullRadiusM });
+  return new BetFlightDynamics(module, { ...configuration, contact }, hz);
 }
 
 /**
  * `model.load` admission (TASK-144) for vehicles with a production drive: the
  * requested hash must equal the registered payload hash, and the vehicle must
  * build (`buildProfileDynamics`) before the session changes anything. The BET
- * module comes from `module()` at load time; without one the load fails.
+ * module comes from `module()` at load time; without one the load fails, as it
+ * does for a vehicle with gear before the contact artifact is initialized.
  * `ratings` gives the TASK-146 limit ratings bound to a manifest hash, or null.
  */
 export function profileModelPort(registry: VehicleRegistry, module: () => WebAssembly.Module | null,
@@ -104,8 +165,9 @@ export function profileModelPort(registry: VehicleRegistry, module: () => WebAss
       if (limitRatings && limitRatings.motors.length !== record.manifest.rotorCount) {
         throw new Error(`Model ${modelId} has ${record.manifest.rotorCount} rotors; its limit ratings list ${limitRatings.motors.length} motors`);
       }
-      const { configuration } = buildProfileDynamics(record.manifest, { ...options, limitRatings });
-      resolve((hz: PhysicsHz) => new BetFlightDynamics(bet, configuration, hz));
+      const build = buildProfileDynamics(record.manifest, { ...options, limitRatings });
+      if (build.gear && !GroundContact.ready) throw new Error('The contact module is not loaded');
+      resolve((hz: PhysicsHz) => profileFlightDynamics(bet, build, hz));
     }),
   };
 }

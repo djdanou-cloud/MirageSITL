@@ -1,15 +1,17 @@
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { beforeAll, describe, expect, it } from 'vitest';
+import { prepareContact } from './contact-support.ts';
+import { standardGearHeights } from './support/standard-gear.ts';
 import { validateComponentCard, type ComponentCard } from '@mirage/aircraft/components';
 import { deriveVehicleManifest } from '@mirage/aircraft/derive-manifest';
 import { validateAircraftProfile, withPropellerPolars, type AircraftProfile } from '@mirage/aircraft/profile';
 import { resolveComponents } from '@mirage/aircraft/resolve-components';
 import { CONFIGURATION_FLAG_WAKE_UNMODELED } from '@mirage/physics/bet-dynamics';
-import { buildProfileDynamics, profileModelPort } from '@mirage/physics/profile-dynamics';
+import { buildProfileDynamics, profileFlightDynamics, profileModelPort } from '@mirage/physics/profile-dynamics';
 import { VehicleRegistry } from '@mirage/physics/vehicle-manifest';
 import { PhysicsSessionV2 } from '../packages/physics/src/session-v2.ts';
-import { StateReaderV2, VehicleFlagV2, createSharedMemoryV2, createSpscQueue, newFlightStateV2, newHeaderSnapshotV2,
+import { ActuatorFlagV2, StateReaderV2, VehicleFlagV2, newActuatorFrameV2, newInput, createSharedMemoryV2, createSpscQueue, newFlightStateV2, newHeaderSnapshotV2,
   type CommandResultV2 } from '@mirage/protocol';
 import { FIXTURE_NAMES, type FixtureName } from './support/aircraft-derivation.ts';
 import { holdHover, trimHover } from './support/hover-trim.ts';
@@ -21,9 +23,11 @@ import { holdHover, trimHover } from './support/hover-trim.ts';
 
 const MOTOR = '11'.repeat(32), PROPELLER = '22'.repeat(32), ESC = '33'.repeat(32), BATTERY = '44'.repeat(32);
 let module: WebAssembly.Module;
-beforeAll(() => {
+beforeAll(async () => {
   execFileSync(process.execPath, ['scripts/build-wasm.mjs'], { stdio: 'pipe' });
   module = new WebAssembly.Module(readFileSync('packages/wasm-bet/dist/mirage_bet.scalar.wasm'));
+  // The vehicle stands on its standard landing gear (TASK-095).
+  await prepareContact();
 }, 600000);
 
 function json(path: string): unknown {
@@ -58,7 +62,7 @@ describe('S19 configurations on the example cards', () => {
       const { derived, configuration, limitations } = await build(profileOf(name));
       expect(configuration.drive?.motors).toHaveLength(derived.manifest.rotorCount);
       const coaxial = derived.manifest.rotorWakePairs.length > 0;
-      expect(limitations.length > 0).toBe(coaxial);
+      expect(limitations.some(text => text.includes('rotor-wake pairs'))).toBe(coaxial);
       expect((configuration.configurationFlags ?? 0) & CONFIGURATION_FLAG_WAKE_UNMODELED).toBe(coaxial ? CONFIGURATION_FLAG_WAKE_UNMODELED : 0);
       const trim = trimHover(module, configuration);
       // The static balance converges and leaves every motor inside its range.
@@ -72,6 +76,45 @@ describe('S19 configurations on the example cards', () => {
       expect(hold.attitudeErrorRad).toBeLessThan(0.01);
     }, 300000);
   }
+});
+
+describe('the standard landing gear on the ground contact (TASK-095)', () => {
+  for (const name of FIXTURE_NAMES) {
+    it(`${name} starts on its extended feet and comes to rest on them at 400, 800 and 1200 Hz`, async () => {
+      const built = await build(profileOf(name)), { configuration, gear, derived, limitations } = built;
+      // Decision F-07 places the supports at the profile's ground clearance; octa-x states none, so it stays on the pad and says so.
+      if (derived.manifest.landingGear.length === 0) {
+        expect(name).toBe('octa-x');
+        expect([gear, configuration.syntheticGroundDownM]).toEqual([null, 0]);
+        expect(limitations.some(text => text.includes('no landing gear'))).toBe(true);
+        return;
+      }
+      if (!gear) throw new Error('No gear');
+      const { touchM, restM } = standardGearHeights(derived.manifest);
+      expect(configuration.syntheticGroundDownM).toBeUndefined();
+      expect(configuration.initialBody.positionNedM[2]).toBeCloseTo(-touchM, 12);
+      // The contact sphere about the CG stays clear of the ground with every strut and foot fully compressed.
+      expect(gear.hullRadiusM).toBeGreaterThan(0);
+      for (const wheel of gear.wheels) expect(gear.hullRadiusM).toBeLessThan(wheel.anchorBodyM[2] - wheel.strutTravelM + wheel.rimRadiusM);
+      for (const hz of [400, 800, 1200] as const) {
+        const d = profileFlightDynamics(module, built, hz), frame = newActuatorFrameV2(), pilot = newInput();
+        frame.motorMapId = configuration.motorMapId; frame.actuatorFlags = ActuatorFlagV2.Armed; frame.actuatorCount = derived.manifest.rotorCount;
+        try {
+          for (let k = 0; k < 2 * hz; k++) { d.useActuators(frame); d.nowMs = (k + 1) * 1000 / hz; d.stepNow(pilot); }
+          expect(d.fault).toBe('');
+          expect(Math.abs(d.state.down + restM), `${hz} Hz rest height`).toBeLessThan(1e-4);
+          expect(Math.abs(d.state.vd)).toBeLessThan(1e-4);
+          // At rest, not chattering on the feet' friction (a wide stance once flipped the yaw rate every step).
+          expect(Math.hypot(d.state.p, d.state.q, d.state.r), `${hz} Hz body rate`).toBeLessThan(1e-6);
+        } finally { d.dispose(); }
+      }
+    }, 300000);
+  }
+  it('stays on the synthetic pad for benchmarks of the BET compute alone', async () => {
+    const { derived } = await build(profileOf('quad-x'));
+    const pad = buildProfileDynamics(derived.manifest, { syntheticPad: true });
+    expect([pad.gear, pad.configuration.syntheticGroundDownM, pad.configuration.initialBody.positionNedM[2]]).toEqual([null, 0, 0]);
+  });
 });
 
 describe('geometry and component changes change the forces', () => {

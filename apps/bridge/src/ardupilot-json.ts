@@ -91,6 +91,9 @@ export class JsonPhysicsEndpoint {
   readonly stats: JsonPhysicsStats = { servoAccepted: 0, servoRejected: 0, foreignSender: 0, linesSent: 0,
     linesRejected: 0, noPeer: 0 };
   private peerPort = -1;
+  /** The frame rate (Hz) and channel count (16 or 32) of the latest accepted servo packet; 0 before the first. */
+  servoRateHz = 0;
+  servoChannels = 0;
   private constructor(private readonly socket: Socket, readonly localPort: number) {}
 
   /** Binds 127.0.0.1:localPort (0 picks a free port). `onServo` receives validated datagrams. */
@@ -107,6 +110,8 @@ export class JsonPhysicsEndpoint {
       if (!isServoDatagram(bytes)) { endpoint.stats.servoRejected++; return; }
       endpoint.peerPort = remote.port; // a restarted SITL may use a new ephemeral port
       endpoint.stats.servoAccepted++;
+      endpoint.servoRateHz = scratchFrame.frameRateHz; // isServoDatagram decoded it
+      endpoint.servoChannels = scratchFrame.channels;
       onServo(bytes);
     });
     socket.on("error", onError);

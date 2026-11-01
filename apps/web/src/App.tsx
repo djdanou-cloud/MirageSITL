@@ -3,7 +3,7 @@ import { PilotHud } from "./hud/PilotHud";
 import { hudTelemetry } from "./hud/telemetry";
 import { Console } from "./instructor/Console";
 import { AppShell, type StoreState } from "./shell/AppShell";
-import { SitlFlight } from "./run/SitlFlight";
+import { RunPanel } from "./run/RunPanel";
 import type { StoredVersion } from "@mirage/project/schema";
 import { Component, useEffect, useRef, useState, type ReactNode } from "react";
 import {
@@ -722,7 +722,7 @@ function RunTab({ visible, storeState, project }: { visible: boolean; storeState
           </p>
           <DemoFlight visible={visible} />
         </>
-      ) : <SitlFlight storeState={storeState} project={project} visible={visible} />}
+      ) : <RunPanel storeState={storeState} project={project} visible={visible} />}
     </div>
   );
 }

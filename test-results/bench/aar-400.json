@@ -1,46 +1,46 @@
 {
   "schemaVersion": 1,
   "hz": 400,
-  "node": "v24.19.0",
-  "platform": "win32",
-  "arch": "x64",
+  "node": "v24.22.1",
+  "platform": "darwin",
+  "arch": "arm64",
   "warmupSteps": 4000000,
   "windows": [
     {
       "steps": 1000000,
-      "heapDelta": 20152,
+      "heapDelta": 20288,
       "gcEvents": 0,
-      "elapsedMs": 2935.250400000001
+      "elapsedMs": 4270.8864170000015
     },
     {
       "steps": 2000000,
       "heapDelta": 792,
       "gcEvents": 0,
-      "elapsedMs": 5901.468000000001
+      "elapsedMs": 8622.080749999997
     },
     {
       "steps": 1000000,
       "heapDelta": 792,
       "gcEvents": 0,
-      "elapsedMs": 2942.4401
+      "elapsedMs": 4338.098374999998
     },
     {
       "steps": 2000000,
       "heapDelta": 760,
       "gcEvents": 0,
-      "elapsedMs": 5846.284200000002
+      "elapsedMs": 8578.961624999996
     },
     {
       "steps": 1000000,
-      "heapDelta": 8304,
+      "heapDelta": 9032,
       "gcEvents": 0,
-      "elapsedMs": 2933.397399999998
+      "elapsedMs": 4287.218208000006
     },
     {
       "steps": 2000000,
       "heapDelta": 1184,
       "gcEvents": 0,
-      "elapsedMs": 5860.092499999999
+      "elapsedMs": 8483.546708000002
     }
   ],
   "incrementalBytesPerStep": 0,
@@ -53,7 +53,7 @@
     "packages/protocol/src/state-v2.ts": "dd3973ff459bf58e1accee3d669050c14acfd4157ede1d1d16f862244cfb9c64",
     "packages/protocol/src/sensor-frame.ts": "6713d33452376bd5adcae40db335e45c1ad77d6c304ab83cd40110c0263ec8d3",
     "packages/protocol/src/actuator-frame.ts": "8817e6d1c568a5afd488f01a7f3430fd4edb5e0d869ece8831c762b1924de8ac",
-    "scripts/bench-aar.mjs": "ee8450d64fd36731c76a32c6089400f78c80261c9a4fa3c58b301dd19d273c45"
+    "scripts/bench-aar.mjs": "1a3c500f40a0e9726a8e0eda066bb3706289f98d8d3c4463ca67f07be07e4e96"
   },
   "passed": true,
   "limits": "Node synchronous producer graph only; allocation slope includes profiler/heap query overhead. No browser timing or full production Worker wiring claim."

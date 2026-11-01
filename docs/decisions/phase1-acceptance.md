@@ -22,7 +22,7 @@ to A-08, A-11 and A-12; D-05 includes A-09.
 | A-03 | Supported Chrome versions | Minimum: the stable Chrome version current on 2026-10-28. Every later stable release is supported, and the current stable version is the default. Each run records the exact version | Decided | Stakeholder | 2026-10-28 | TASK-152, TASK-188, TASK-190 |
 | A-04 | Physics rate for each matrix configuration | 400 Hz for every configuration; 800 and 1200 Hz stay selectable options | Decided | Stakeholder | 2026-10-28 | TASK-153, TASK-175, TASK-189 |
 | A-05 | Real-time criteria: required ratio of simulated to wall time, allowed dropped intervals, and how the actual rate is reported | A real-time run averages at least 0.99 of simulated time per wall-clock second; every dropped interval is reported, never hidden. Automated lockstep runs may run slower than real time, and their actual ratio is reported | Decided | Stakeholder | 2026-10-28 | TASK-175, TASK-189, TASK-191 |
-| A-06 | Rendering criteria for the Phase 1 scene: frame-time limits, canvas and display | 60 frames per second on the M5's built-in display with the Chrome window filling the screen: median frame time at most 16.680 ms and p99 at most 17.665 ms, the 60 FPS limits accepted on 2026-10-23 | Decided | Stakeholder | 2026-10-28 | TASK-185, TASK-191 |
+| A-06 | Rendering criteria for the Phase 1 scene: frame-time limits, canvas and display | 60 frames per second on the M5's built-in display with the Chrome window filling the screen: median frame time at most 16.680 ms and p99 at most 17.665 ms, the 60 FPS limits accepted on 2026-10-23. On macOS, which has no displayed-frame timing source, the frame clock's p99 is reported, not judged: a run passes with the median at most 16.680 ms and no frame interval above 25 ms (amended 2026-11-01) | Decided | Stakeholder | 2026-10-28, amended 2026-11-01 | TASK-185, TASK-191 |
 | A-07 | Workload of the 16-motor one-hour run: signals, rates, flight task and effects | A repeated flight circuit for one continuous simulated hour, with wind and repeatable gusts on, recording every available signal at the default rate (A-09) | Decided | Stakeholder | 2026-10-28 | TASK-189 |
 | A-08 | Storage budget for recordings | At most 2 GB per simulated hour; the UI warns when free disk space falls below 10 GB | Decided | Stakeholder | 2026-10-28 | TASK-163, TASK-189 |
 | A-09 | Default common logging frequency | 50 Hz | Decided | Stakeholder | 2026-10-28 | TASK-162, TASK-163 |
@@ -50,6 +50,15 @@ and none of them is Phase 1 acceptance evidence.
   1080 and 1x) were decided on 2026-10-23 for the G3 scene with terrain,
   buildings, thermal and FPV on the least performant integrated GPU. Whether
   the Phase 1 scene reuses them is part of this decision.
+  Amendment of 2026-11-01 (stakeholder): Chrome's frame clock on the M5 moves
+  about 1 ms around each refresh, so its p99 read 17.670 ms with no late
+  frame, both on 2026-10-22 (TASK-073, fixture scene) and on 2026-11-01
+  (TASK-185 flight view: 3,601 and 1,801 intervals, maximum 17.680 ms). macOS
+  has no displayed-frame timing source (TASK-073, user decision of
+  2026-10-22), so on macOS the p99 is reported and the run passes when the
+  median is at most 16.680 ms and no interval exceeds 25 ms, 1.5 refresh
+  intervals at 60 Hz, so that no frame was skipped. Windows keeps the median
+  and p99 limits.
 * **A-07 and A-08:** S13 requires the UI to estimate MB per simulated hour
   and to show actual growth. An example such as 2 MB per hour is not a
   guaranteed size.

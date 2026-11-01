@@ -758,6 +758,12 @@
           "brakingCoefficient": {
             "type": "number",
             "minimum": 0
+          },
+          "kineticFrictionRatio": {
+            "description": "Kinetic over static friction coefficient (TASK-095, decision F-08); absent means 1.",
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "maximum": 1
           }
         }
       }

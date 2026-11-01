@@ -6,9 +6,12 @@ import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { startBridge } from "../../bridge/src/server.ts";
 import { nativeAdmission, readCatalog, verifyEntry, type ExecutableAdmission, type FirmwareEntry } from "./catalog.ts";
-import { dataflashPath, listDataflash, tail } from "./logs.ts";
+import { captureDataflash, dataflashPath, listDataflash, snapshotDataflash, tail, writeDataflashManifest, type DataflashCapture, type DataflashStamp } from "./logs.ts";
+import { checkLoggingParameters, LOGGING_PARAMETER } from "../../../packages/autopilot/src/dataflash-logging.ts";
+import { parseParameterMetadata, type ParameterMetadataCatalog } from "../../../packages/autopilot/src/param-metadata.ts";
+import { ConnectionRefused, ExternalConnection, type ConnectionSpec } from "./connections.ts";
 import { checkPrerequisites } from "./prerequisites.ts";
-import { OwnedProcess, type RunInfo } from "./processes.ts";
+import { OwnedProcess, type RunInfo, type RunState } from "./processes.ts";
 import { MavlinkRelay } from "./relay.ts";
 
 // MirageSITL local launcher (TASK-151, S01/S02). A web page cannot start
@@ -21,13 +24,26 @@ import { MavlinkRelay } from "./relay.ts";
 //   GET  /v1/experiments/{id}             one experiment and its runs
 //   POST /v1/experiments/{id}/stop        stop its owned process group
 //   POST /v1/experiments/{id}/restart     start a new run of a stopped one
-//   GET  /v1/experiments/{id}/logs        diagnostics tails and DataFlash list
+//   GET  /v1/experiments/{id}/logs        diagnostics tails, DataFlash list and attachments (TASK-164)
 //   GET  /v1/experiments/{id}/dataflash/{name}  one DataFlash file
+//   POST /v1/connections                  connect to a SITL the user started
+//   GET  /v1/connections/{id}             one connection
+//   POST /v1/connections/{id}/disconnect  release it; the SITL keeps running
 // Every request needs `Authorization: Bearer <token>` and the exact
 // configured Origin; Host must name the loopback listener. The token is
 // generated locally into <home>/token (mode 0600) and is never printed, put
 // in a URL or accepted from one. Each run hosts its own WebSocket bridge
 // (TASK-040) for JSON physics and MAVLink, authenticated with the same token.
+// A start is checked completely (body, firmware, one running experiment,
+// firmware files) before anything is created, so a refused start leaves no
+// experiment and no folder. An experiment's view echoes the identity of the
+// build it runs, without machine paths. Its state is "starting" while a run
+// is being launched and "start-failed" (with startError) when the launch
+// failed before SITL ran; otherwise it is the state of its latest run. Its
+// ports are null whenever no bridge and relay are open. A connection
+// (TASK-155) has ownership "external": the launcher owns its bridge and relay,
+// never the SITL process, so disconnecting signals nothing. One experiment
+// run or one open connection at a time.
 
 export const LAUNCHER_API_VERSION = 1;
 export const DEFAULT_LAUNCHER_PORT = 47800;
@@ -44,6 +60,8 @@ export interface LauncherOptions {
   readonly port?: number;
   readonly python: string;
   readonly admit?: ExecutableAdmission;
+  /** Parameter metadata; defaults to data/ardupilot/param-metadata.json. */
+  readonly metadata?: ParameterMetadataCatalog;
 }
 interface ExperimentSpec {
   readonly firmwareId: string;
@@ -53,6 +71,12 @@ interface ExperimentSpec {
   readonly rateHz: number;
   readonly home: readonly [number, number, number, number];
 }
+/** Where the latest launch of an experiment stands; "launched" defers to its latest run. */
+type Launch =
+  | { readonly phase: "launching" }
+  | { readonly phase: "launched" }
+  | { readonly phase: "failed"; readonly error: string };
+type ExperimentState = RunState | "starting" | "start-failed";
 interface Experiment {
   readonly id: string;
   readonly spec: ExperimentSpec;
@@ -62,13 +86,21 @@ interface Experiment {
   process: OwnedProcess | null;
   bridge: { readonly port: number; close(): Promise<void> } | null;
   relay: MavlinkRelay | null;
+  launch: Launch;
   ports: { bridge: number; jsonPhysics: number; mavlinkRelay: number } | null;
+  /** TASK-164: logs/ as it was when the current run started, until its files are attached. */
+  logsBefore: ReadonlyMap<string, DataflashStamp> | null;
+  /** Every run's DataFlash attachments, as dataflash.json holds them. */
+  captures: DataflashCapture[];
 }
 class HttpError extends Error {
   readonly status: number;
-  constructor(status: number, message: string) {
+  /** The experiment the failed request created, so its logs stay reachable. */
+  readonly experimentId: string | null;
+  constructor(status: number, message: string, experimentId: string | null = null) {
     super(message);
     this.status = status;
+    this.experimentId = experimentId;
   }
 }
 
@@ -90,6 +122,20 @@ function finite(value: unknown, label: string, min: number, max: number): number
   if (typeof value !== "number" || !Number.isFinite(value) || value < min || value > max) throw new HttpError(400, `${label} must be a number from ${min} to ${max}`);
   return value;
 }
+/** Validates a connection request from `unknown`: the JSON physics port and the MAVLink transport and port. */
+export function parseConnectionSpec(input: unknown): ConnectionSpec {
+  if (!isRecord(input)) throw new HttpError(400, "The request body must be a JSON object");
+  if (Object.keys(input).sort().join(",") !== "jsonPhysicsPort,mavlink") throw new HttpError(400, "Expected jsonPhysicsPort and mavlink");
+  const { jsonPhysicsPort, mavlink } = input;
+  if (!isRecord(mavlink) || Object.keys(mavlink).sort().join(",") !== "port,transport") throw new HttpError(400, "mavlink must be { transport, port }");
+  const { transport, port } = mavlink;
+  if (transport !== "tcp" && transport !== "udp") throw new HttpError(400, "mavlink.transport must be tcp or udp");
+  const jsonPort = finite(jsonPhysicsPort, "jsonPhysicsPort", 1, 65535), mavlinkPort = finite(port, "mavlink.port", 1, 65535);
+  if (!Number.isInteger(jsonPort) || !Number.isInteger(mavlinkPort)) throw new HttpError(400, "Ports must be integers");
+  if (transport === "udp" && jsonPort === mavlinkPort) throw new HttpError(400, "The JSON physics port and the MAVLink UDP port must differ");
+  return { jsonPhysicsPort: jsonPort, mavlink: { transport, port: mavlinkPort } };
+}
+
 /** Validates a start request from `unknown`. */
 export function parseExperimentSpec(input: unknown): ExperimentSpec {
   if (!isRecord(input)) throw new HttpError(400, "The request body must be a JSON object");
@@ -127,12 +173,37 @@ export async function startLauncher(options: LauncherOptions) {
   const token = ensureToken(home);
   const admit = options.admit ?? nativeAdmission;
   const experiments = new Map<string, Experiment>();
+  // TASK-164: the generated parameter metadata, which checks every LOG_* parameter of a start.
+  const metadata: ParameterMetadataCatalog = options.metadata ??
+    parseParameterMetadata(JSON.parse(readFileSync(new URL("../../../data/ardupilot/param-metadata.json", import.meta.url), "utf8")));
   let server: Server | null = null;
 
-  const view = (experiment: Experiment) => ({
-    id: experiment.id, firmwareId: experiment.firmware.id, state: experiment.runs.at(-1)?.state ?? "stopped",
-    runs: experiment.runs, workDirectory: experiment.workDirectory, ports: experiment.ports,
-  });
+  // True while a run starts, so admitRun refuses a second start; no await separates admitRun from launchRun.
+  let launching = false;
+  const connections = new Map<string, ExternalConnection>();
+  /** A connection being opened, so a start or a second connection waits its turn. */
+  let connecting = false;
+  const openConnection = (): boolean => connecting || [...connections.values()].some(connection => connection.state === "open");
+  const newId = () => `${new Date().toISOString().replace(/[-:.TZ]/g, "")}-${randomBytes(4).toString("hex")}`;
+
+  const stateOf = (experiment: Experiment): ExperimentState => {
+    const { launch } = experiment;
+    switch (launch.phase) {
+      case "launching": return "starting";
+      case "failed": return "start-failed";
+      // A launched experiment always has a run: launchRun pushes it before marking the launch done.
+      case "launched": return experiment.runs.at(-1)?.state ?? "starting";
+      default: { const unreachable: never = launch; return unreachable; }
+    }
+  };
+  const view = (experiment: Experiment) => {
+    const { id, firmwareVersion, commit, binarySha256, defaultParametersSha256 } = experiment.firmware;
+    return {
+      id: experiment.id, firmwareId: id, firmware: { id, firmwareVersion, commit, binarySha256, defaultParametersSha256 },
+      state: stateOf(experiment), startError: experiment.launch.phase === "failed" ? experiment.launch.error : null,
+      runs: experiment.runs, workDirectory: experiment.workDirectory, ports: experiment.ports,
+    };
+  };
   const authorized = (request: IncomingMessage): boolean => {
     const header = request.headers.authorization ?? "";
     const supplied = header.startsWith("Bearer ") ? header.slice(7) : "";
@@ -167,47 +238,93 @@ export async function startLauncher(options: LauncherOptions) {
     return experiment;
   };
 
+  /**
+   * TASK-164: attaches the DataFlash files of the run that just ended, once
+   * per run (endRun runs both when the process exits and after a stop). A
+   * capture that fails is attached as missing with its reason.
+   */
+  function attachDataflash(experiment: Experiment): void {
+    const before = experiment.logsBefore, run = experiment.runs.length;
+    if (!before || run === 0) return;
+    experiment.logsBefore = null;
+    const expected = { firmwareVersion: experiment.firmware.firmwareVersion, commit: experiment.firmware.commit,
+      logging: experiment.spec.parameters.filter(parameter => LOGGING_PARAMETER.test(parameter.name)) };
+    let captures: DataflashCapture[];
+    try {
+      captures = captureDataflash(experiment.workDirectory, run, before, expected);
+    } catch (error) {
+      captures = [{ run, name: null, status: "missing", reason: `The DataFlash capture failed: ${error instanceof Error ? error.message : String(error)}` }];
+    }
+    experiment.captures.push(...captures);
+    writeDataflashManifest(experiment.workDirectory, experiment.id, expected, experiment.captures);
+  }
+
   async function endRun(experiment: Experiment): Promise<void> {
+    if (!experiment.process?.running) attachDataflash(experiment);
     const bridge = experiment.bridge, relay = experiment.relay;
     experiment.bridge = null;
     experiment.relay = null;
+    // The ports named the bridge and relay just closed; a view must not offer them.
+    experiment.ports = null;
     relay?.close();
     await bridge?.close();
   }
-  async function startRun(experiment: Experiment): Promise<void> {
-    if ([...experiments.values()].some(other => other.process?.running)) throw new HttpError(409, "Another experiment is running; stop it first");
-    const status = verifyEntry(experiment.firmware, admit);
-    if (!status.usable) throw new HttpError(409, `Firmware ${experiment.firmware.id} cannot be started: ${status.reason}`);
-    const run = experiment.runs.length + 1;
-    const relay = await MavlinkRelay.open();
-    let bridge;
+  /** The checks of a start or restart, before it creates anything: no other run, and firmware files as installed. */
+  function admitRun(firmware: FirmwareEntry): void {
+    if (launching || [...experiments.values()].some(other => other.process?.running)) throw new HttpError(409, "Another experiment is running; stop it first");
+    if (openConnection()) throw new HttpError(409, "A connection to an external SITL is open; disconnect it first");
+    const status = verifyEntry(firmware, admit);
+    if (!status.usable) throw new HttpError(409, `Firmware ${firmware.id} cannot be started: ${status.reason}`);
+  }
+  /** Starts the next run of an admitted experiment; call it right after admitRun, with no await between. */
+  async function launchRun(experiment: Experiment): Promise<void> {
+    launching = true;
+    experiment.launch = { phase: "launching" };
     try {
-      // physicsPort is unused in ArduPilot JSON mode; the bridge only requires it to differ from the MAVLink port.
-      bridge = await startBridge({ port: 0, origin: options.origin, token, epoch: run, udp: { mavlinkPort: relay.bridgePort, physicsPort: relay.sitlPort }, ardupilotJson: { localPort: 0 } });
+      const run = experiment.runs.length + 1;
+      let relay: MavlinkRelay, bridge: Awaited<ReturnType<typeof startBridge>>;
+      try {
+        relay = await MavlinkRelay.open();
+      } catch (error) {
+        throw new HttpError(500, `The MAVLink relay did not start: ${error instanceof Error ? error.message : String(error)}`, experiment.id);
+      }
+      try {
+        // physicsPort is unused in ArduPilot JSON mode; the bridge only requires it to differ from the MAVLink port.
+        bridge = await startBridge({ port: 0, origin: options.origin, token, epoch: run, udp: { mavlinkPort: relay.bridgePort, physicsPort: relay.sitlPort }, ardupilotJson: { localPort: 0 } });
+      } catch (error) {
+        relay.close();
+        throw new HttpError(500, `The bridge did not start: ${error instanceof Error ? error.message : String(error)}`, experiment.id);
+      }
+      // The bridge's MAVLink socket is its only UDP socket in JSON mode.
+      relay.attachBridge(bridge.udpLocalPorts[0]!);
+      const jsonPort = bridge.jsonPhysics!.localPort;
+      experiment.relay = relay;
+      experiment.bridge = bridge;
+      experiment.ports = { bridge: bridge.port, jsonPhysics: jsonPort, mavlinkRelay: relay.sitlPort };
+      const { spec, firmware, workDirectory } = experiment;
+      const args = [
+        "--model", "JSON:127.0.0.1", "--speedup", String(spec.speedup), "--rate", String(spec.rateHz),
+        "--home", spec.home.join(","), "--sim-port-out", String(jsonPort),
+        "--serial0", `udpclient:127.0.0.1:${relay.sitlPort}`, "--serial1", "none", "--serial2", "none",
+        "--defaults", `${firmware.defaultParametersPath},${join(workDirectory, "experiment.parm")}`,
+      ];
+      // Taken before SITL starts; it applies only once the run exists, so a failed spawn attaches nothing to an earlier run.
+      const logsBefore = snapshotDataflash(workDirectory);
+      try {
+        experiment.process = await OwnedProcess.start({ command: firmware.binaryPath, args, cwd: workDirectory, run }, () => { void endRun(experiment); });
+      } catch (error) {
+        await endRun(experiment);
+        throw new HttpError(500, `SITL did not start: ${error instanceof Error ? error.message : String(error)}`, experiment.id);
+      }
+      experiment.runs.push(experiment.process.info);
+      experiment.logsBefore = logsBefore;
+      experiment.launch = { phase: "launched" };
     } catch (error) {
-      relay.close();
+      experiment.launch = { phase: "failed", error: error instanceof Error ? error.message : String(error) };
       throw error;
+    } finally {
+      launching = false;
     }
-    // The bridge's MAVLink socket is its only UDP socket in JSON mode.
-    relay.attachBridge(bridge.udpLocalPorts[0]!);
-    const jsonPort = bridge.jsonPhysics!.localPort;
-    experiment.relay = relay;
-    experiment.bridge = bridge;
-    experiment.ports = { bridge: bridge.port, jsonPhysics: jsonPort, mavlinkRelay: relay.sitlPort };
-    const { spec, firmware, workDirectory } = experiment;
-    const args = [
-      "--model", "JSON:127.0.0.1", "--speedup", String(spec.speedup), "--rate", String(spec.rateHz),
-      "--home", spec.home.join(","), "--sim-port-out", String(jsonPort),
-      "--serial0", `udpclient:127.0.0.1:${relay.sitlPort}`, "--serial1", "none", "--serial2", "none",
-      "--defaults", `${firmware.defaultParametersPath},${join(workDirectory, "experiment.parm")}`,
-    ];
-    try {
-      experiment.process = await OwnedProcess.start({ command: firmware.binaryPath, args, cwd: workDirectory, run }, () => { void endRun(experiment); });
-    } catch (error) {
-      await endRun(experiment);
-      throw new HttpError(500, `SITL did not start: ${error instanceof Error ? error.message : String(error)}`);
-    }
-    experiment.runs.push(experiment.process.info);
   }
 
   async function route(request: IncomingMessage, response: ServerResponse): Promise<void> {
@@ -222,7 +339,8 @@ export async function startLauncher(options: LauncherOptions) {
     if (parts[0] !== `v${LAUNCHER_API_VERSION}`) throw new HttpError(404, "Unknown API version or path");
     const [, resource, id, action, name] = parts;
     if (method === "GET" && resource === "status" && parts.length === 2) {
-      send(200, { apiVersion: LAUNCHER_API_VERSION, launcherPid: process.pid, experiments: [...experiments.values()].map(view) });
+      send(200, { apiVersion: LAUNCHER_API_VERSION, launcherPid: process.pid, experiments: [...experiments.values()].map(view),
+        connections: [...connections.values()].map(connection => connection.view()) });
     } else if (method === "GET" && resource === "prerequisites" && parts.length === 2) {
       send(200, { checks: checkPrerequisites({ home, python: options.python, admit }) });
     } else if (method === "GET" && resource === "catalog" && parts.length === 2) {
@@ -231,7 +349,11 @@ export async function startLauncher(options: LauncherOptions) {
       const spec = parseExperimentSpec(await readBody(request));
       const firmware = readCatalog(home).find(entry => entry.id === spec.firmwareId);
       if (!firmware) throw new HttpError(404, `No installed firmware ${spec.firmwareId}`);
-      const experimentId = `${new Date().toISOString().replace(/[-:.TZ]/g, "")}-${randomBytes(4).toString("hex")}`;
+      // Every refusal comes before the folder, experiment.json and the registration below.
+      const loggingReasons = checkLoggingParameters(spec.parameters, metadata.forCommit(firmware.commit));
+      if (loggingReasons.length > 0) throw new HttpError(400, `The logging parameters cannot be used: ${loggingReasons.join("; ")}`);
+      admitRun(firmware);
+      const experimentId = newId();
       const workDirectory = join(home, "experiments", experimentId);
       mkdirSync(join(workDirectory, "logs"), { recursive: true, mode: 0o700 });
       writeFileSync(join(workDirectory, "experiment.parm"), spec.parameters.map(parameter => `${parameter.name} ${parameter.value}\n`).join(""), { mode: 0o600 });
@@ -240,9 +362,10 @@ export async function startLauncher(options: LauncherOptions) {
         writeFileSync(join(workDirectory, "scripts", "frame.lua"), spec.frameScript, { mode: 0o600 });
       }
       writeFileSync(join(workDirectory, "experiment.json"), `${JSON.stringify({ id: experimentId, firmware, spec }, null, 2)}\n`, { mode: 0o600 });
-      const experiment: Experiment = { id: experimentId, spec, firmware, workDirectory, runs: [], process: null, bridge: null, relay: null, ports: null };
+      const experiment: Experiment = { id: experimentId, spec, firmware, workDirectory, runs: [], process: null, bridge: null, relay: null, launch: { phase: "launching" }, ports: null,
+        logsBefore: null, captures: [] };
       experiments.set(experimentId, experiment);
-      await startRun(experiment);
+      await launchRun(experiment);
       send(201, view(experiment));
     } else if (resource === "experiments" && id !== undefined) {
       const experiment = experimentOf(id);
@@ -254,13 +377,14 @@ export async function startLauncher(options: LauncherOptions) {
         send(200, view(experiment));
       } else if (method === "POST" && action === "restart" && parts.length === 4) {
         if (experiment.process?.running) throw new HttpError(409, "The experiment is still running");
-        await startRun(experiment);
+        admitRun(experiment.firmware);
+        await launchRun(experiment);
         send(200, view(experiment));
       } else if (method === "GET" && action === "logs" && parts.length === 4) {
         const run = experiment.runs.length;
         send(200, {
           run, stdout: tail(join(experiment.workDirectory, `stdout-${run}.log`)), stderr: tail(join(experiment.workDirectory, `stderr-${run}.log`)),
-          dataflash: listDataflash(experiment.workDirectory),
+          dataflash: listDataflash(experiment.workDirectory), attachments: experiment.captures,
         });
       } else if (method === "GET" && action === "dataflash" && name !== undefined && parts.length === 5) {
         const path = dataflashPath(experiment.workDirectory, name);
@@ -269,6 +393,33 @@ export async function startLauncher(options: LauncherOptions) {
         createReadStream(path).pipe(response);
       } else {
         throw new HttpError(404, "Unknown experiment action");
+      }
+    } else if (method === "POST" && resource === "connections" && parts.length === 2) {
+      const spec = parseConnectionSpec(await readBody(request));
+      if (launching || [...experiments.values()].some(other => other.process?.running)) throw new HttpError(409, "An experiment is running; stop it first");
+      if (openConnection()) throw new HttpError(409, "A connection to an external SITL is open; disconnect it first");
+      connecting = true;
+      try {
+        const connection = await ExternalConnection.open(newId(), spec, { origin: options.origin, token });
+        connections.set(connection.id, connection);
+        send(201, connection.view());
+      } catch (error) {
+        // A refused connection leaves nothing open and nothing registered.
+        if (error instanceof ConnectionRefused) throw new HttpError(409, error.message);
+        throw error;
+      } finally {
+        connecting = false;
+      }
+    } else if (resource === "connections" && id !== undefined) {
+      const connection = connections.get(id);
+      if (!connection) throw new HttpError(404, "No connection of this launcher has that ID");
+      if (method === "GET" && parts.length === 3) {
+        send(200, connection.view());
+      } else if (method === "POST" && action === "disconnect" && parts.length === 4) {
+        await connection.disconnect();
+        send(200, connection.view());
+      } else {
+        throw new HttpError(404, "Unknown connection action");
       }
     } else {
       throw new HttpError(404, "Unknown API path");
@@ -299,7 +450,8 @@ export async function startLauncher(options: LauncherOptions) {
     route(request, response).catch((error: unknown) => {
       const status = error instanceof HttpError ? error.status : 500;
       if (!response.headersSent) response.writeHead(status, { "content-type": "application/json" });
-      response.end(JSON.stringify({ error: error instanceof Error ? error.message : String(error) }));
+      const experimentId = error instanceof HttpError ? error.experimentId : null;
+      response.end(JSON.stringify({ error: error instanceof Error ? error.message : String(error), ...(experimentId === null ? {} : { experimentId }) }));
     });
   });
   await new Promise<void>((done, reject) => {
@@ -311,8 +463,21 @@ export async function startLauncher(options: LauncherOptions) {
   return {
     port: address.port,
     tokenPath: join(home, "token"),
-    /** Stops every owned run, then the listener. */
+    /**
+     * Fault injection for tests, reachable in-process only: no HTTP route
+     * calls it. Ends the run's bridge and relay as a lost bridge would,
+     * without signalling SITL, which keeps running until stopped. Resolves
+     * false when the experiment is unknown or has no bridge open.
+     */
+    closeBridge: async (experimentId: string): Promise<boolean> => {
+      const experiment = experiments.get(experimentId);
+      if (!experiment || (experiment.bridge === null && experiment.relay === null)) return false;
+      await endRun(experiment);
+      return true;
+    },
+    /** Releases every connection, stops every owned run, then closes the listener. */
     close: async () => {
+      for (const connection of connections.values()) await connection.disconnect();
       for (const experiment of experiments.values()) {
         await experiment.process?.stop();
         await endRun(experiment);

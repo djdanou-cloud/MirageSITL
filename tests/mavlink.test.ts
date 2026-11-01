@@ -214,6 +214,8 @@ it("keeps the dialect lock, the generated table and the codec in agreement", () 
   for (const [id, crcExtra, length] of [[0, 50, 9], [20, 214, 20], [22, 220, 25], [23, 168, 23], [24, 24, 52], [27, 144, 29], [70, 124, 38],
     [93, 47, 81], [105, 93, 63], [107, 108, 65], [113, 124, 39], [193, 71, 26]] as const)
     expect(definition(id)).toMatchObject({ crcExtra, length });
+  // TASK-155: AUTOPILOT_VERSION as MAVLink publishes it (CRC extra 178; 60 base bytes and the 18-byte uid2 extension).
+  expect(definition(148)).toMatchObject({ name: "AUTOPILOT_VERSION", crcExtra: 178, length: 78 });
   expect(definition(9999)).toBeNull();
 });
 

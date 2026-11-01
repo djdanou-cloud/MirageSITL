@@ -1,0 +1,64 @@
+{
+  "schemaVersion": 1,
+  "hz": 800,
+  "node": "v24.22.1",
+  "platform": "darwin",
+  "arch": "arm64",
+  "warmupSteps": 4000000,
+  "windows": [
+    {
+      "steps": 1000000,
+      "heapDelta": 20208,
+      "gcEvents": 0,
+      "elapsedMs": 8093.652082999997
+    },
+    {
+      "steps": 2000000,
+      "heapDelta": 792,
+      "gcEvents": 0,
+      "elapsedMs": 16010.852665999999
+    },
+    {
+      "steps": 1000000,
+      "heapDelta": 792,
+      "gcEvents": 0,
+      "elapsedMs": 7999.639875000001
+    },
+    {
+      "steps": 2000000,
+      "heapDelta": 760,
+      "gcEvents": 0,
+      "elapsedMs": 16071.616125
+    },
+    {
+      "steps": 1000000,
+      "heapDelta": 1472,
+      "gcEvents": 0,
+      "elapsedMs": 7908.144125000006
+    },
+    {
+      "steps": 2000000,
+      "heapDelta": 1184,
+      "gcEvents": 0,
+      "elapsedMs": 16110.361166000002
+    }
+  ],
+  "incrementalBytesPerStep": 0,
+  "errors": 0,
+  "producer": "TASK-162 RecordingProducerV2",
+  "rowsPerStep": 16,
+  "rows": 208000000,
+  "lost": 0,
+  "controlGc": 35,
+  "sourceHashes": {
+    "packages/aar/src/recorder-v2.ts": "f1e3d5bafe8ced25de67e6768fd2e2fb39fffea09bcdd6f69c5a7fc0980d4b62",
+    "packages/aar/src/format-v2.ts": "0ed2ce80b76c2655ce7f9d3baf4def4f34b90b46e9b02ec95945be83ae2e98fb",
+    "packages/aar/src/signal-catalog.ts": "572286c6b7d3f8def81c1b9d3639c71e10b0b4e51fbdaed516648e025afd10f9",
+    "packages/protocol/src/state-v2.ts": "dd3973ff459bf58e1accee3d669050c14acfd4157ede1d1d16f862244cfb9c64",
+    "packages/protocol/src/sensor-frame.ts": "6713d33452376bd5adcae40db335e45c1ad77d6c304ab83cd40110c0263ec8d3",
+    "packages/protocol/src/actuator-frame.ts": "8817e6d1c568a5afd488f01a7f3430fd4edb5e0d869ece8831c762b1924de8ac",
+    "scripts/bench-aar.mjs": "1a3c500f40a0e9726a8e0eda066bb3706289f98d8d3c4463ca67f07be07e4e96"
+  },
+  "passed": true,
+  "limits": "Node synchronous producer graph only; allocation slope includes profiler/heap query overhead. No browser timing or full production Worker wiring claim."
+}

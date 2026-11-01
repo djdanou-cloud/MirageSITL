@@ -95,8 +95,9 @@ implementation.
   native steps; unit tests count 9,000,000 WASM steps. Published collision chunks
   drive Rapier ground contact via contact ABI v2 (TASK-065), supplying each wheel
   and the airframe with the underlying terrain triangle plane every tick and pausing
-  stepping when ground is missing. Flight-session wiring and live terrain admission
-  remain open.
+  stepping when ground is missing. Profile flight sessions stand on the decision
+  D-07 supports of TASK-095 (manifest derivation 3); terrain planes in sessions
+  and live terrain admission remain open.
 * **JSBSim WASM, contact backend, and UIUC propellers (TASK-030, TASK-031, TASK-086):**
   `node scripts/build-jsbsim.mjs` requires verified `JSBSIM_SOURCE_DIR` and
   `MIRAGE_EMSDK_DIR` checkouts with Emscripten 4.0.15 (aircraft XML remains local
@@ -245,7 +246,8 @@ implementation.
   tail margin, at 800 Hz, but not at 1200 Hz until TASK-091
   (`node scripts/bench-profile-dynamics.mjs`). TASK-150 is DONE: the MAVLink
   codec reads a message table that pymavlink 2.4.50 generates from the pinned
-  `ardupilotmega.xml` and its includes, and supports 38 messages, adding the
+  `ardupilotmega.xml` and its includes, and supports 39 messages (TASK-155 added
+  AUTOPILOT_VERSION), adding the
   parameter, command, status, telemetry, mission and position-target messages
   of Phase 1, with a cold `packInto` builder, field readers and preallocated
   decoders for the high-rate telemetry subset, all byte- and value-exact
@@ -275,12 +277,49 @@ implementation.
   mirror of stock OCTA X, so it uses the scripting matrix). TASK-151 (the
   local launcher, `apps/launcher`) and TASK-152 (`scripts/install-macos.mjs`
   and the Project tab's first-run check) are DONE: both pass with the network
-  switched off. TASK-153 is IN_PROGRESS: the Run tab's ArduPilot SITL backend
+  switched off. TASK-153 is DONE: the Run tab's ArduPilot SITL backend
   flies an aircraft profile with native ArduCopter through the launcher, the
   physics Worker stepping PhysicsSessionV2 on SITL's frames (`SitlJsonLink`),
   READY from LiveEkfWarmup and revoked when diagnostics go stale, with G1 for
-  the lockstep step; only the flight in Google Chrome remains (not installed on
-  the M5). Decisions D-04
+  the lockstep step. TASK-154 is DONE: the Run tab's run states (`SessionController`),
+  the immutable experiment record (`@mirage/aircraft/experiment`), parameter
+  read-back and the four DoD faults pass against the installed ArduCopter.
+  TASK-155 is DONE:
+  the Run tab's Connect attaches to an ArduCopter SITL the user started (the
+  launcher owns only the connection, `POST /v1/connections`), refuses it with
+  every reason unless it runs JSON physics, is disarmed, reports a verified
+  commit, already holds the profile's parameters (nothing is written to it)
+  and starts at the session's home, records it as experiment schema 2, and
+  leaves it running across connect and disconnect cycles. All three pass in
+  Google Chrome 156 on the M5. TASK-185 is DONE: the Run tab's SITL
+  backend draws the chosen profile's aircraft in 3D (the Aircraft tab's own
+  rotor parts, blades turning with each motor's speed) at the session's pose,
+  with external and onboard views, a two-minute trajectory and flight and
+  per-motor panels; it holds 60 FPS on the M5 with no late frame, and A-06
+  now judges macOS by the median and no interval above 25 ms (stakeholder,
+  2026-11-01). TASK-157 is DONE: before flight the Run tab's motor check has
+  ArduPilot spin each motor alone and compares its frame (test order, output,
+  spin) with the rotor the physics turned; all five S19 configurations pass
+  against native ArduCopter, and a swapped mapping or a reversed spin is
+  caught on exactly that motor. TASK-159 is DONE: `ParameterService`
+  (`@mirage/autopilot/param-service`) downloads ArduPilot's complete parameter
+  list, classifies every write by read-back (`confirmed`, `refused`,
+  `timeout`, `stale`) and shows exact float32 values, with metadata generated
+  offline from the pinned source (`data/ardupilot/param-metadata.json`,
+  `scripts/generate-param-metadata.mjs`); `node scripts/check-param-sitl.mjs`
+  passes against native ArduCopter. TASK-164 is DONE: the launcher refuses
+  `LOG_*` parameters the firmware's metadata or SITL cannot honour, and
+  attaches each run's DataFlash files to the experiment (`dataflash.json`:
+  size, SHA-256, complete/truncated/damaged/empty/missing, firmware from VER,
+  logging read back from PARM).
+  TASK-162 is DONE: recorder v2
+  (`packages/aar`) records a run signal by signal at effective rates
+  min(requested, source) from a 30-signal catalog, through a zero-allocation
+  producer in the physics Worker (`recording-v2.arm`), into checksummed
+  format v2 chunks in the persistent IndexedDB database `mirage-recordings`,
+  without the 32 MiB cap; records reopen after a restart, a cut-off one as
+  interrupted. The Logging tab and the Run tab's wiring are TASK-163/165.
+  Decisions D-04
   and D-06 to D-12 are decided. TASK-127 and TASK-128 are DONE: stock
   ArduCopter `8ab6afd` builds and flies natively on Apple Silicon
   ([macos-sitl.md](docs/decisions/macos-sitl.md)), and its stock frames and

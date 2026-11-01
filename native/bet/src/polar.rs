@@ -207,6 +207,191 @@ impl PreparedPolar<'_> {
     }
 }
 
+/// ln 2 split so that `k * LN2_HI` is exact for |k| < 2^20: LN2_HI keeps the
+/// leading 21 significant bits of ln 2 (0x3FE62E42FEE00000) and LN2_LO is
+/// ln 2 - LN2_HI rounded to double.
+const LN2_HI: f64 = 6.931_471_803_691_238_164_90e-1;
+const LN2_LO: f64 = 1.908_214_929_270_587_700_02e-10;
+
+/// Natural logarithm of the TASK-091 production kernel, written without
+/// branches or calls so that the strip pass vectorizes. For a positive normal
+/// finite `x = 2^e m`, with m scaled into [sqrt(1/2), sqrt(2)),
+/// `ln x = e ln 2 + 2 atanh(s)`, `s = (m - 1)/(m + 1)`, |s| <= 0.1716, and
+/// atanh is its Taylor series `s + s^3/3 + ... + s^17/17` (exact rational
+/// coefficients; the omitted terms sum to below 1.6e-16 absolute in ln x). The
+/// exponent is read with the 2^52 bias trick (exact for e in [-1022, 1023]).
+/// Declared accuracy (TASK-091): within 2e-15 x max(1, |ln x|) of `f64::ln`.
+/// Zero, subnormal, negative and non-finite arguments are outside its domain;
+/// callers clamp onto a validated positive normal axis first.
+#[inline(always)]
+pub fn ln_kernel(x: f64) -> f64 {
+    const SQRT2: f64 = std::f64::consts::SQRT_2;
+    const BIAS: u64 = 0x4330_0000_0000_0000; // 2^52 as f64 bits
+    let bits = x.to_bits();
+    let mantissa = f64::from_bits((bits & 0x000F_FFFF_FFFF_FFFF) | 0x3FF0_0000_0000_0000);
+    let exponent = f64::from_bits(BIAS | (bits >> 52)) - (4_503_599_627_370_496.0 + 1023.0);
+    let high = mantissa > SQRT2;
+    let m = if high { mantissa * 0.5 } else { mantissa };
+    let e = if high { exponent + 1.0 } else { exponent };
+    let s = (m - 1.0) / (m + 1.0);
+    let z = s * s;
+    let series = 1.0 / 3.0 + z * (1.0 / 5.0 + z * (1.0 / 7.0 + z * (1.0 / 9.0 + z * (1.0 / 11.0
+        + z * (1.0 / 13.0 + z * (1.0 / 15.0 + z * (1.0 / 17.0)))))));
+    let atanh2 = 2.0 * s + 2.0 * s * (z * series);
+    e * LN2_HI + (atanh2 + e * LN2_LO)
+}
+
+/// The polar lookup of the TASK-091 production kernel. It keeps the
+/// reference semantics (clamping and its flag, the bracket indices, the
+/// clamped weights, the low-confidence rule and the trilinear order) but takes
+/// the Reynolds logarithms from `ln_kernel`, both for the axis and for the
+/// query, so its results agree with `PolarTable::lookup` within the declared
+/// tolerance T1 rather than bitwise. Axis bounds, scales and strides are read
+/// once per evaluation, and each query reads its corners as two-node windows.
+#[derive(Clone, Copy, Debug)]
+pub struct KernelPolar<'a> {
+    alpha: &'a [f64],
+    reynolds: &'a [f64],
+    mach: &'a [f64],
+    cl: &'a [f64],
+    cd: &'a [f64],
+    /// Confidence values and threshold; an empty slice without confidence.
+    confidence: &'a [f64],
+    threshold: f64,
+    ln_re: [f64; MAX_REYNOLDS_NODES],
+    /// 1 / (ln_re[i + 1] - ln_re[i]) for each Reynolds interval.
+    inverse_ln_width: [f64; MAX_REYNOLDS_NODES],
+    usable: bool,
+    alpha_first: f64,
+    alpha_last: f64,
+    alpha_scale: f64,
+    re_first: f64,
+    re_last: f64,
+    re_scale: f64,
+    mach_first: f64,
+    mach_last: f64,
+    mach_scale: f64,
+    /// 1 / (mach[1] - mach[0]) for a two-node Mach axis.
+    inverse_mach_width: f64,
+    n_alpha: usize,
+    n_re: usize,
+    n_mach: usize,
+    /// Flat-index strides to the next Re and Mach node; 0 on a single-node axis.
+    stride_re: usize,
+    stride_mach: usize,
+}
+
+/// `x` clamped onto `[first, last]` by comparisons, which compile to selects;
+/// equal to `x.clamp(first, last)` for finite `x` and `first <= last`.
+/// (`f64::max` and `f64::min` lower to library calls on wasm32.)
+#[inline(always)]
+pub fn clamp_select(x: f64, first: f64, last: f64) -> f64 {
+    let low = if x < first { first } else { x };
+    if low > last { last } else { low }
+}
+
+/// The two values at `at` and `at + 1`, or `None` past the end.
+#[inline(always)]
+fn pair(values: &[f64], at: usize) -> Option<(f64, f64)> {
+    match values.get(at..at.wrapping_add(2)) {
+        Some(&[v0, v1]) => Some((v0, v1)),
+        _ => None,
+    }
+}
+
+impl KernelPolar<'_> {
+    /// False when the table cannot use this lookup (fewer than two alpha
+    /// nodes, more than `MAX_REYNOLDS_NODES` Reynolds nodes, or a Reynolds node
+    /// that is not a positive normal number); the caller then uses the
+    /// reference lookup.
+    pub fn usable(&self) -> bool {
+        self.usable
+    }
+
+    /// The Reynolds axis bounds `(first, last)`, positive normal numbers when `usable`.
+    pub fn reynolds_bounds(&self) -> (f64, f64) {
+        (self.re_first, self.re_last)
+    }
+
+    /// The Reynolds bracket guess for `ln_reynolds`, used to seed `sample`'s hint.
+    pub fn reynolds_guess(&self, ln_reynolds: f64) -> usize {
+        let last = self.n_re.saturating_sub(2);
+        let guess = (ln_reynolds - self.ln_re[0]) * self.re_scale;
+        if guess > 0.0 { (guess as usize).min(last) } else { 0 }
+    }
+
+    /// One query for finite `alpha_rad`, `reynolds` and `mach` on a usable
+    /// table, where `ln_reynolds` is `ln_kernel` of `reynolds` clamped onto
+    /// its axis and `hint` the strip's last Reynolds bracket, updated here. The
+    /// result is the reference lookup's within T1: equal clamping, flags and
+    /// brackets, and weights that differ only through the logarithm.
+    /// `known_flags` are the flags the caller has already collected for its
+    /// output: when they hold `FLAG_LOW_CONFIDENCE`, this query skips the
+    /// corner scan, which could only set that flag again (and leaves it out of
+    /// the returned flags).
+    #[inline(always)]
+    pub fn sample(&self, alpha_rad: f64, reynolds: f64, ln_reynolds: f64, mach: f64, hint: &mut usize, known_flags: u32) -> PolarSample {
+        const MISSING: PolarSample = PolarSample { cl: f64::NAN, cd: f64::NAN, flags: FLAG_OUTSIDE_POLAR_VALIDITY };
+        let inside = alpha_rad >= self.alpha_first && alpha_rad <= self.alpha_last
+            && reynolds >= self.re_first && reynolds <= self.re_last
+            && mach >= self.mach_first && mach <= self.mach_last;
+        let mut flags = if inside { 0 } else { FLAG_OUTSIDE_POLAR_VALIDITY };
+        let a = clamp_select(alpha_rad, self.alpha_first, self.alpha_last);
+        let r = clamp_select(reynolds, self.re_first, self.re_last);
+        let m = clamp_select(mach, self.mach_first, self.mach_last);
+        // Brackets and weights as `bracket`: the largest i <= n - 2 with axis[i] <= x, t clamped to [0, 1].
+        let ia = guessed_index(self.alpha, a, (a - self.alpha_first) * self.alpha_scale);
+        let Some((a0, a1)) = pair(self.alpha, ia) else { return MISSING };
+        let ta = ((a - a0) / (a1 - a0)).clamp(0.0, 1.0);
+        let (im, tm) = match self.n_mach {
+            1 => (0, 0.0),
+            // Two nodes: the bracket is 0 without a search, and the weight takes the interval's
+            // reciprocal; a query clamped onto the last node keeps the reference weight 1 exactly.
+            2 => (0, if m >= self.mach_last { 1.0 } else { ((m - self.mach_first) * self.inverse_mach_width).clamp(0.0, 1.0) }),
+            _ => {
+                let i = guessed_index(self.mach, m, (m - self.mach_first) * self.mach_scale);
+                let Some((m0, m1)) = pair(self.mach, i) else { return MISSING };
+                (i, ((m - m0) / (m1 - m0)).clamp(0.0, 1.0))
+            }
+        };
+        let (ir, tr) = if self.n_re < 2 {
+            (0, 0.0)
+        } else {
+            let i = guessed_index(self.reynolds, r, *hint as f64 + 0.5);
+            *hint = i;
+            let (Some(&l0), Some(&inverse)) = (self.ln_re.get(i), self.inverse_ln_width.get(i)) else { return MISSING };
+            // The interval's reciprocal; a query clamped onto the last node keeps the reference weight 1 exactly.
+            (i, if r >= self.re_last { 1.0 } else { ((ln_reynolds - l0) * inverse).clamp(0.0, 1.0) })
+        };
+        let base = (im * self.n_re + ir) * self.n_alpha + ia;
+        let (sr, sm) = (self.stride_re, self.stride_mach);
+        if known_flags & FLAG_LOW_CONFIDENCE == 0 && !self.confidence.is_empty() {
+            // As the reference: a corner flags when it is low and its weight product is positive.
+            let rows = [(0, 1.0 - tm, 1.0 - tr), (sr, 1.0 - tm, tr), (sm, tm, 1.0 - tr), (sm + sr, tm, tr)];
+            for (offset, wm, wr) in rows {
+                if let Some((c0, c1)) = pair(self.confidence, base + offset) {
+                    if (c0 < self.threshold && wm * wr * (1.0 - ta) > 0.0) || (c1 < self.threshold && wm * wr * ta > 0.0) {
+                        flags |= FLAG_LOW_CONFIDENCE;
+                        break;
+                    }
+                }
+            }
+        }
+        // The trilinear interpolation with Re and Mach first, on both alpha nodes at once (they are
+        // adjacent, so the two lanes vectorize), and alpha last: the same weights as `trilinear`,
+        // whose order (alpha, Re, Mach) differs from it in rounding only.
+        let interpolate = |table: &[f64]| -> f64 {
+            let (Some(r00), Some(r01), Some(r10), Some(r11)) = (pair(table, base), pair(table, base + sr), pair(table, base + sm), pair(table, base + sm + sr))
+            else { return f64::NAN };
+            let (low0, low1) = (r00.0 + tr * (r01.0 - r00.0), r00.1 + tr * (r01.1 - r00.1));
+            let (high0, high1) = (r10.0 + tr * (r11.0 - r10.0), r10.1 + tr * (r11.1 - r10.1));
+            let (v0, v1) = (low0 + tm * (high0 - low0), low1 + tm * (high1 - low1));
+            v0 + ta * (v1 - v0)
+        };
+        PolarSample { cl: interpolate(self.cl), cd: interpolate(self.cd), flags }
+    }
+}
+
 impl<'a> PolarTable<'a> {
     /// Validates and borrows a table. Rejects empty axes, mismatched lengths,
     /// non-finite or non-increasing axes, Re <= 0, Mach < 0, non-finite
@@ -325,6 +510,34 @@ impl<'a> PolarTable<'a> {
             re_scale: if n == nr && n >= 2 { guess_scale(ln_re[0], ln_re[n - 1], n) } else { 0.0 },
             mach_scale: guess_scale(mach_first, mach_last, nm),
             stride_alpha: usize::from(na >= 2), stride_re: if nr >= 2 { na } else { 0 }, stride_mach: if nm >= 2 { nr * na } else { 0 },
+        }
+    }
+
+    /// The lookup state of the TASK-091 production kernel (`KernelPolar`).
+    pub fn prepare_kernel(&self) -> KernelPolar<'a> {
+        let (mut ln_re, mut inverse_ln_width) = ([0.0; MAX_REYNOLDS_NODES], [0.0; MAX_REYNOLDS_NODES]);
+        let (na, nr, nm) = (self.alpha_rad.len(), self.reynolds.len(), self.mach.len());
+        let usable = na >= 2 && nr <= MAX_REYNOLDS_NODES && self.reynolds.iter().all(|re| re.is_normal() && *re > 0.0);
+        if usable {
+            for (slot, re) in ln_re.iter_mut().zip(self.reynolds.iter()) {
+                *slot = ln_kernel(*re);
+            }
+            for i in 1..nr {
+                inverse_ln_width[i - 1] = 1.0 / (ln_re[i] - ln_re[i - 1]);
+            }
+        }
+        let bounds = |axis: &[f64]| (axis.first().copied().unwrap_or(0.0), axis.last().copied().unwrap_or(0.0));
+        let ((alpha_first, alpha_last), (re_first, re_last), (mach_first, mach_last)) = (bounds(self.alpha_rad), bounds(self.reynolds), bounds(self.mach));
+        let (confidence, threshold) = self.confidence.unwrap_or((&[], 0.0));
+        KernelPolar {
+            alpha: self.alpha_rad, reynolds: self.reynolds, mach: self.mach, cl: self.cl, cd: self.cd, confidence, threshold,
+            ln_re, inverse_ln_width, usable,
+            alpha_first, alpha_last, alpha_scale: guess_scale(alpha_first, alpha_last, na),
+            re_first, re_last, re_scale: if usable && nr >= 2 { guess_scale(ln_re[0], ln_re[nr - 1], nr) } else { 0.0 },
+            mach_first, mach_last, mach_scale: guess_scale(mach_first, mach_last, nm),
+            inverse_mach_width: if nm == 2 { 1.0 / (mach_last - mach_first) } else { 0.0 },
+            n_alpha: na, n_re: nr, n_mach: nm,
+            stride_re: if nr >= 2 { na } else { 0 }, stride_mach: if nm >= 2 { nr * na } else { 0 },
         }
     }
 

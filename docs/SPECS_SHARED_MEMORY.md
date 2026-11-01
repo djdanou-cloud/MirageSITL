@@ -606,3 +606,36 @@ ratings v1 to a manifest hash before `model.load` (`limits.registered` or
 `limits.reject`). Both are specified in
 [Simulation Engines](SPECS_SIMULATION_ENGINES.md), section "Battery and
 propulsion limits (TASK-146)".
+
+## Recording queue v2 (TASK-162)
+
+Recorder v2 has its own SharedArrayBuffer of 345,152 bytes, created on Main
+(`createRecordingQueueV2`) and handed to the physics Worker with
+`{ type: "recording-v2.arm", queue, plan }`. The Worker answers
+`recording-v2.armed`, or `recording-v2.reject` for another buffer, an invalid
+plan or a plan for another physics rate; `recording-v2.stop` (or
+`recording.stop`) detaches the producer. ABI v2 and the flight queues are
+unchanged: the producer runs inside the session's record hook, which already
+copies each tick, so the flight sensor and actuator queues keep one consumer.
+Arming v2 replaces a TASK-076 recorder. Every shared word is accessed as an
+atomic int32.
+
+| Byte Offset | Data Type | Units | Field Name |
+| ---: | --- | --- | --- |
+| 0 | u32 | magic | magic = 0x32515241 ("ARQ2") |
+| 4 | u32 | version | version = 1 |
+| 8 | u32 | rows | write counter (producer) |
+| 12 | u32 | rows | read counter (consumer) |
+| 16 | u32 | rows | lost: rows dropped because the queue was full |
+| 20..63 | u32[11] | — | reserved_zero |
+| 64 + 8·id | u32 | rows | kept: rows of signal `id` (0..127) the producer delivered |
+| 68 + 8·id | u32 | samples | absent: kept samples of signal `id` whose source produced nothing |
+| 1088 + 168·k | bytes[168] | — | slot k of 2048: one format v2 row, padded to 8 bytes |
+
+The producer writes a complete row into private scratch, stores its words and
+then the modular write counter; the consumer copies a row's words before it
+stores the read counter. A full queue drops the new row, increments `lost` and
+never blocks physics; the next delivered row carries the number of rows lost
+immediately before it. The row layout, the rate rule and the storage are
+specified in [Simulation Engines](SPECS_SIMULATION_ENGINES.md), section
+"Recording format v2 (TASK-162)".

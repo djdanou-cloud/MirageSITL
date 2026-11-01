@@ -1,12 +1,15 @@
 import { spawn, type ChildProcess } from "node:child_process";
 import { openSync, closeSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { lastLine } from "./logs.ts";
 
 // Owned SITL processes (TASK-151). The launcher starts every SITL process in
 // its own POSIX process group and keeps the ChildProcess handle; it signals
 // only groups it started and has not yet seen exit. No request ever names a
 // process ID, so a process the launcher did not start cannot be signalled
 // through it. Each run records its owner in owner.json beside its logs.
+// When a run ends by itself, its reason names the exit code or signal and
+// the last line SITL wrote to stderr, such as ArduPilot's bind failure.
 
 export type RunState = "running" | "stopping" | "stopped" | "exited" | "crashed";
 export interface RunInfo {
@@ -17,6 +20,8 @@ export interface RunInfo {
   exitCode: number | null;
   signal: string | null;
   endedAt: string | null;
+  /** Why the run ended: null while running and after a requested stop; otherwise "exit code N" or "killed by SIGNAL", then ": " and the last stderr line when there is one and it can be read. */
+  reason: string | null;
 }
 export interface OwnedSpec {
   readonly command: string;
@@ -34,7 +39,7 @@ export class OwnedProcess {
   private readonly exited: Promise<void>;
   private killTimer: NodeJS.Timeout | null = null;
 
-  private constructor(child: ChildProcess, info: RunInfo, onEnd: (info: RunInfo) => void) {
+  private constructor(child: ChildProcess, info: RunInfo, stderrPath: string, onEnd: (info: RunInfo) => void) {
     this.child = child;
     this.info = info;
     this.exited = new Promise(done => {
@@ -46,6 +51,7 @@ export class OwnedProcess {
         info.signal = signal;
         info.endedAt = new Date().toISOString();
         info.state = info.state === "stopping" ? "stopped" : code === 0 ? "exited" : "crashed";
+        info.reason = info.state === "stopped" ? null : exitReason(code, signal, readLastLine(stderrPath));
         onEnd(info);
         done();
       });
@@ -54,8 +60,9 @@ export class OwnedProcess {
 
   /** Spawns the command in a new process group with its output in run files. */
   static start(spec: OwnedSpec, onEnd: (info: RunInfo) => void = () => undefined): Promise<OwnedProcess> {
+    const stderrPath = join(spec.cwd, `stderr-${spec.run}.log`);
     const stdout = openSync(join(spec.cwd, `stdout-${spec.run}.log`), "a", 0o600);
-    const stderr = openSync(join(spec.cwd, `stderr-${spec.run}.log`), "a", 0o600);
+    const stderr = openSync(stderrPath, "a", 0o600);
     return new Promise((done, reject) => {
       const child = spawn(spec.command, spec.args, { cwd: spec.cwd, shell: false, detached: true, stdio: ["ignore", stdout, stderr], env: { PATH: "/usr/bin:/bin:/usr/sbin:/sbin" } });
       const closeFiles = () => { closeSync(stdout); closeSync(stderr); };
@@ -63,9 +70,9 @@ export class OwnedProcess {
       child.once("spawn", () => {
         closeFiles();
         // spawn succeeded, so the child has a PID.
-        const info: RunInfo = { run: spec.run, pid: child.pid!, startedAt: new Date().toISOString(), state: "running", exitCode: null, signal: null, endedAt: null };
+        const info: RunInfo = { run: spec.run, pid: child.pid!, startedAt: new Date().toISOString(), state: "running", exitCode: null, signal: null, endedAt: null, reason: null };
         writeFileSync(join(spec.cwd, `owner-${spec.run}.json`), `${JSON.stringify({ launcherPid: process.pid, pid: info.pid, processGroup: info.pid, startedAt: info.startedAt, command: spec.command, args: spec.args }, null, 2)}\n`, { mode: 0o600 });
-        done(new OwnedProcess(child, info, onEnd));
+        done(new OwnedProcess(child, info, stderrPath, onEnd));
       });
     });
   }
@@ -95,4 +102,24 @@ export class OwnedProcess {
       if (!(error instanceof Error && "code" in error && error.code === "ESRCH")) throw error;
     }
   }
+}
+
+/**
+ * The last stderr line for an exit reason, or null when the log cannot be
+ * read (EACCES, EMFILE, a directory in its place). It runs inside the exit
+ * listener, so a read error must not stop the run from being marked ended.
+ */
+function readLastLine(path: string): string | null {
+  try {
+    return lastLine(path);
+  } catch {
+    return null;
+  }
+}
+
+/** "exit code N" or "killed by SIGNAL", joined with ": " to the last stderr line when there is one. */
+function exitReason(code: number | null, signal: string | null, stderrLine: string | null): string {
+  // Node reports exactly one of code and signal for an exited child.
+  const ending = code !== null ? `exit code ${code}` : `killed by ${signal ?? "an unknown signal"}`;
+  return stderrLine === null ? ending : `${ending}: ${stderrLine}`;
 }

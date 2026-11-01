@@ -3,16 +3,18 @@ import { useEffect, useMemo, useRef } from "react";
 import { CanvasTexture, Mesh, MeshStandardMaterial, Quaternion, Sprite, SpriteMaterial, Vector3, type Object3D } from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import type { AircraftLayout, RotorLayout } from "@mirage/aircraft/layout";
-import { frdToRender, rotorRenderPose } from "./scheme-geometry";
+import { armMounts, frdToRender, rotorRenderPose, schemeDimensions } from "./scheme-geometry";
 
 // The aircraft scheme (TASK-141, S03): every rotor drawn from the TASK-138
 // layout derivation, whose hub positions, hub orientations and spin signs are
 // the vehicle manifest's rotor fields. Each rotor shows its motor number, a
 // disc colored by spin with an arrow in the turning direction, and its thrust
 // axis. A table repeats the scheme in text. The scheme draws only on change.
+// The Run tab's flight view (TASK-185) draws the same Rotor and Strut on the
+// flying aircraft, so the editor and the flight show one model.
 
 export const SPIN_COLORS = { ccw: "#5fd3b0", cw: "#e8a65d" } as const;
-const BODY_COLOR = "#8fa3b0";
+export const BODY_COLOR = "#8fa3b0";
 
 /** What the scene graph holds after rendering, read back from the drawn objects. */
 export interface RenderedRotor {
@@ -44,7 +46,7 @@ function labelTexture(text: string): CanvasTexture {
   return new CanvasTexture(canvas);
 }
 
-function Rotor({ rotor, discRadius }: { rotor: RotorLayout; discRadius: number }) {
+export function Rotor({ rotor, discRadius }: { rotor: RotorLayout; discRadius: number }) {
   const pose = rotorRenderPose(rotor), spin = rotor.spinSign === 1 ? "ccw" : "cw";
   const label = useMemo(() => {
     const sprite = new Sprite(new SpriteMaterial({ map: labelTexture(String(rotor.motorId)), depthTest: false }));
@@ -91,7 +93,7 @@ function Rotor({ rotor, discRadius }: { rotor: RotorLayout; discRadius: number }
 }
 
 /** A thin box from the reference point to a body FRD point. */
-function Strut({ to, thickness }: { to: readonly number[]; thickness: number }) {
+export function Strut({ to, thickness }: { to: readonly number[]; thickness: number }) {
   const end = new Vector3(...frdToRender(to));
   const length = end.length();
   if (length === 0) return null;
@@ -159,14 +161,8 @@ export function AircraftScheme3D({ layout, name, onRendered }: {
   name: string;
   onRendered?: (rotors: readonly RenderedRotor[]) => void;
 }) {
-  const reach = Math.max(0.1, ...layout.rotors.map(rotor => Math.hypot(...rotor.hubPositionBodyM)));
-  const discRadius = Math.max(0.04, Math.min(0.35 * reach, 0.25));
-  const span = reach + discRadius * 2;
-  const mounts = new Map<number, number[]>();
-  for (const rotor of layout.rotors) {
-    const sum = mounts.get(rotor.armId) ?? [0, 0, 0, 0];
-    mounts.set(rotor.armId, [sum[0]! + rotor.hubPositionBodyM[0]!, sum[1]! + rotor.hubPositionBodyM[1]!, sum[2]! + rotor.hubPositionBodyM[2]!, sum[3]! + 1]);
-  }
+  const { discRadius, span } = schemeDimensions(layout);
+  const mounts = armMounts(layout);
   return (
     <div className="aircraft-scheme">
       <div className="scheme-canvas" role="img" aria-label={`3D scheme of ${name}: ${layout.rotors.length} motors, forward is marked by the arrow on the body`}>
@@ -182,9 +178,7 @@ export function AircraftScheme3D({ layout, name, onRendered }: {
             <coneGeometry args={[span * 0.04, span * 0.1, 12]} />
             <meshStandardMaterial color="#9af0d1" />
           </mesh>
-          {[...mounts.values()].map((sum, index) => (
-            <Strut key={index} to={[sum[0]! / sum[3]!, sum[1]! / sum[3]!, sum[2]! / sum[3]!]} thickness={span * 0.015} />
-          ))}
+          {mounts.map((mount, index) => <Strut key={index} to={mount} thickness={span * 0.015} />)}
           {layout.rotors.map(rotor => <Rotor key={rotor.motorId} rotor={rotor} discRadius={discRadius} />)}
           <Controls span={span} />
           {onRendered && <Probe onRendered={onRendered} />}
