@@ -70,7 +70,8 @@ async function vehicleOf(fixture) {
   const resolved = M.resolveComponents(profile, cards);
   if (!resolved.components) throw new Error(`Missing: ${resolved.missing.join('; ')}`);
   const derived = await M.deriveVehicleManifest(profile, resolved.components, { modelId: 91 });
-  return { fixture, derived, configuration: M.buildProfileDynamics(derived.manifest, { kernelOptions }).configuration };
+  // The BET compute alone, on the synthetic pad as before TASK-095: the gear's contact is timed by scripts/bench-flight-contact.mjs.
+  return { fixture, derived, configuration: M.buildProfileDynamics(derived.manifest, { kernelOptions, syntheticPad: true }).configuration };
 }
 const vehicles = [];
 for (const fixture of fixtures) vehicles.push(await vehicleOf(fixture));

@@ -41,6 +41,7 @@ const users: ChildProcess[] = [];
 test.beforeAll(async () => {
   test.setTimeout(600000);
   execFileSync(process.execPath, ["scripts/build-wasm.mjs"], { stdio: "pipe" });
+  execFileSync(process.execPath, ["scripts/build-contact.mjs"], { stdio: "pipe" });
   scratch = mkdtempSync(join(tmpdir(), "mirage-manual-connect-"));
   const home = join(scratch, "home");
   launcher = await startLauncher({ home, origin: ORIGIN, port: 0, python: join(INSTALL_HOME, "venv/bin/python"), admit: path => readFileSync(path) });

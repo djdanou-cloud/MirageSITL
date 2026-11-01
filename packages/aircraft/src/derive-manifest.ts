@@ -3,6 +3,7 @@ import {
 } from '@mirage/physics/vehicle-manifest';
 import { canonicalBytes, decodeUtf8, sha256Hex } from '@mirage/project/schema';
 import { deriveLayout } from './layout.ts';
+import { standardGearDerivation, standardLandingGear } from './standard-gear.ts';
 import type { EulerZyxRad } from './sensor-fields.ts';
 import { sinCos } from './trig.ts';
 import { validateAircraftProfile, type AircraftProfile, type ComponentReferences } from './profile.ts';
@@ -14,10 +15,12 @@ import { validateAircraftProfile, type AircraftProfile, type ComponentReferences
 // canonical JSON (RFC 8785): the same inputs give the same bytes on every
 // engine. Configuration-time code only.
 
-/** Bumped whenever the same inputs would give different manifest bytes; 2 adds the IMU mount (TASK-147). */
-export const DERIVATION_VERSION = 2;
-/** The one dataset of a derived manifest. */
+/** Bumped whenever the same inputs would give different manifest bytes; 2 adds the IMU mount (TASK-147), 3 the standard landing gear (TASK-095). */
+export const DERIVATION_VERSION = 3;
+/** The dataset of a derived manifest's profile values; the standard gear has its own. */
 export const DERIVED_DATASET_ID = 'aircraft-profile-derivation';
+/** The synthetic dataset of the standard landing gear (derivation 3, TASK-095), until profiles describe their gear (TASK-194). */
+export const STANDARD_GEAR_DATASET_ID = 'standard-landing-gear';
 const MAX_DESCRIPTION_LENGTH = 1024;
 
 /** The rotor geometry fields that come from a propeller (and motor) rather than from the layout. */
@@ -188,6 +191,10 @@ export async function deriveVehicleManifest(input: unknown, components: Resolved
   const rotorWakePairs = layout.wakePairs.map(pair =>
     ({ upstreamRotorId: pair.upstreamMotorId, downstreamRotorId: pair.downstreamMotorId }));
   const dataset = DERIVED_DATASET_ID;
+  // The decision D-07 supports (F-07, F-08), or none for a profile without a ground clearance.
+  const landingGear = standardLandingGear(profile, massProperties.massKg);
+  const gearDatasets = landingGear.length > 0
+    ? [{ id: STANDARD_GEAR_DATASET_ID, kind: 'synthetic', sourceSha256: null, derivation: standardGearDerivation() }] : [];
   const candidate = {
     schemaVersion: 2, modelId: options.modelId, kind: 'bet',
     units: 'SI', worldFrame: 'NED', bodyFrame: 'FRD', quaternionOrder: 'wxyz',
@@ -195,16 +202,16 @@ export async function deriveVehicleManifest(input: unknown, components: Resolved
       id: dataset, kind: 'synthetic', sourceSha256: inputSha256,
       derivation: `Derived by @mirage/aircraft derivation ${DERIVATION_VERSION} from the aircraft profile with canonical ` +
         `SHA-256 ${profileSha256}. Components: ${components.description}`,
-    }],
+    }, ...gearDatasets],
     provenance: {
       massProperties: dataset, rotors: dataset, motors: motors.length > 0 ? dataset : null,
       escs: escs.length > 0 ? dataset : null, battery: battery ? dataset : null, airframeDrag: null,
-      controlSurfaces: null, landingGear: null, sensorMounts: sensorMounts.length > 0 ? dataset : null,
+      controlSurfaces: null, landingGear: landingGear.length > 0 ? STANDARD_GEAR_DATASET_ID : null, sensorMounts: sensorMounts.length > 0 ? dataset : null,
       rotorWakePairs: rotorWakePairs.length > 0 ? dataset : null,
     },
     massProperties,
     rotorCount: rotors.length, rotorCapacity: 32, rotors, motors, escs, battery,
-    airframe: { drag: null }, controlSurfaces: [], landingGear: [], sensorMounts, rotorWakePairs, ardupilot: null,
+    airframe: { drag: null }, controlSurfaces: [], landingGear, sensorMounts, rotorWakePairs, ardupilot: null,
   };
   // The canonical JSON round trip turns any -0 from the inputs into 0, so the manifest equals its bytes exactly.
   const manifest = validateVehicleManifest(JSON.parse(decodeUtf8(canonicalBytes(candidate))));

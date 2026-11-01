@@ -5,8 +5,9 @@
 // S19 quad X profile (BET rotors on the TASK-092 drive), and SitlJsonLink.poll
 // encodes the JSON state record. The WebSocket send is I/O and excluded. The
 // servo record is preallocated; only its frame count changes between steps.
-// The PWM keeps the quad on the synthetic pad with its rotors spinning, so a
-// million steps stay bounded. After warmup it reports young-generation bytes
+// The PWM keeps the quad on its standard landing gear (TASK-095, the Rapier
+// contact, which faults the session on any native allocation) with its rotors
+// spinning, so a million steps stay bounded. After warmup it reports young-generation bytes
 // and GC events over N steps, with an allocating positive control.
 //
 //   node scripts/check-sitl-link-allocation.mjs [--steps N] [--out PATH]
@@ -42,6 +43,7 @@ await build({ stdin: { contents: `
 export { quadProfile } from './tests/support/quad-profile.ts';
 export { VehicleRegistry } from './packages/physics/src/vehicle-manifest.ts';
 export { profileModelPort } from './packages/physics/src/profile-dynamics.ts';
+export { GroundContact } from './packages/physics/src/ground-contact.ts';
 export { PhysicsSessionV2 } from './packages/physics/src/session-v2.ts';
 export { SitlJsonLink } from './packages/autopilot/src/sitl-link.ts';
 export { StateReaderV2, createSharedMemoryV2, createSpscQueue, newHeaderSnapshotV2 } from './packages/protocol/src/index.ts';`,
@@ -50,9 +52,15 @@ const M = await import(pathToFileURL(bundle).href);
 const sha = bytes => createHash('sha256').update(bytes).digest('hex');
 const wasmBytes = readFileSync(resolve(root, 'packages/wasm-bet/dist/mirage_bet.scalar.wasm'));
 const module = new WebAssembly.Module(wasmBytes);
+const contactBytes = readFileSync(resolve(root, 'packages/physics/dist/contact/contact.wasm'));
+await M.GroundContact.initialize(new Uint8Array(contactBytes), JSON.parse(readFileSync(resolve(root, 'packages/physics/dist/contact/manifest.json'), 'utf8')));
 
 const HZ = 400, EPOCH = 1, PWM_US = 1300;
 const { derived } = await M.quadProfile();
+// CG height with the fully extended feet touching the ground: on the gear, the CG is above the ground and no higher.
+const gear = derived.manifest.landingGear[0];
+const touchM = gear.anchorBodyM[2] - derived.manifest.massProperties.cgOffsetBodyM[2] + gear.tireRadiusM;
+const onGear = () => -link.state.downM > 0 && -link.state.downM <= touchM;
 const registry = new M.VehicleRegistry();
 await registry.register(derived.bytes, derived.sha256);
 const stateBuffer = M.createSharedMemoryV2(), actuatorBuffer = M.createSpscQueue('actuator');
@@ -103,9 +111,9 @@ async function measure(fn, n) {
 }
 run(100000); await measure(run, 10000);
 // The link's own state object: a second FlightStateV2 here would make the state decoder polymorphic.
-const onPad = link.state.downM === 0;
+const onPad = onGear();
 const allocation = await measure(run, steps);
-const stillOnPad = link.state.downM === 0;
+const stillOnPad = onGear();
 const sink = { value: null };
 const positive = await measure(n => { for (let i = 0; i < n; i++) sink.value = { i }; }, 1000000);
 observer.disconnect();
@@ -114,14 +122,14 @@ const counts = { ...link.lockstepStats, replies: link.stats.replies, held: link.
 const passed = allocation.gcEvents === 0 && allocation.bytesPerStep < 0.01 && controlDetected && onPad && stillOnPad &&
   counts.steps === frame && counts.duplicates === 0 && counts.gaps === 0 && session.fault === '';
 console.log(`G1 lockstep at ${HZ} Hz: ${allocation.steps} steps, ${allocation.bytesPerStep.toFixed(6)} B/step, ${allocation.gcEvents} GC events; ` +
-  `control detected ${controlDetected}; on the pad ${onPad && stillOnPad}`);
+  `control detected ${controlDetected}; on the gear ${onPad && stillOnPad}`);
 const report = {
   schemaVersion: 1, task: 'TASK-153', status: passed ? 'pass' : 'failed', generatedAt: new Date().toISOString(),
   scope: 'SitlJsonLink.receive + PhysicsSessionV2.pump + SitlJsonLink.poll per servo record, S19 quad X profile on the example cards; WebSocket I/O excluded; Node/V8, not browser or target-hardware evidence',
   hz: HZ, pwmUs: PWM_US, warmupSteps: 110000, allocation: { ...allocation, positiveControl: positive, controlDetected },
   counts, replyBytes: sent,
   identity: { node: process.version, platform: process.platform, arch: process.arch, cpu: os.cpus()[0]?.model, wasmSha256: sha(wasmBytes),
-    manifestSha256: derived.sha256 },
+    manifestSha256: derived.sha256, contactSha256: sha(contactBytes) },
 };
 mkdirSync(dirname(out), { recursive: true });
 writeFileSync(out, JSON.stringify(report, null, 2) + '\n');

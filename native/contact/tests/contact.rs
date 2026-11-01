@@ -577,3 +577,114 @@ fn version_3_alone_accepts_a_cornering_stiffness() {
     c[32 + 29] = 1.0;
     assert!(Contact::new(&c).is_err());
 }
+#[test]
+fn version_4_alone_accepts_a_kinetic_friction_ratio() {
+    let mut c = quad_gear(0.0);
+    c[32 + 29] = 0.8;
+    assert!(Contact::new(&c).is_err());
+    // Version 4 needs a ratio on every wheel.
+    c[0] = 4.0;
+    assert!(Contact::new(&c).is_err());
+    c = kinetic(quad_gear(0.0), 0.8);
+    assert!(Contact::new(&c).is_ok());
+    for bad in [0.0, -0.1, 1.1, f64::NAN] {
+        c[32 + 29] = bad;
+        assert!(Contact::new(&c).is_err(), "ratio {bad}");
+    }
+    c[32 + 29] = 1.0;
+    c[32 + 30] = 1.0;
+    assert!(Contact::new(&c).is_err());
+}
+/// The quad gear with every wheel's kinetic coefficient at `ratio` of its static one (version 4).
+fn kinetic(mut c: [f64; CONFIG_COUNT], ratio: f64) -> [f64; CONFIG_COUNT] {
+    c[0] = 4.0;
+    for i in 0..4 {
+        c[32 + i * 160 + 29] = ratio;
+    }
+    c
+}
+#[test]
+fn a_kinetic_ratio_of_1_is_version_3_bit_for_bit() {
+    for velocity in [[0.0, 2.0, 0.0], [1.0, 0.5, 0.0]] {
+        let (mut a, mut b) = (Vec::new(), Vec::new());
+        let mut v3 = quad_on_slope(0.0, 0.0, velocity);
+        v3[0] = 3.0;
+        run(&v3, 800, 0.0, 2.0, |_, o| a.extend_from_slice(o));
+        run(&kinetic(quad_on_slope(0.0, 0.0, velocity), 1.0), 800, 0.0, 2.0, |_, o| b.extend_from_slice(o));
+        assert!(a.iter().zip(&b).all(|(x, y)| x.to_bits() == y.to_bits()));
+    }
+}
+#[test]
+fn a_kinetic_slide_stops_at_its_own_coulomb_distance() {
+    for hz in [400, 800, 1200] {
+        // Lateral mu_s 0.5 and ratio 0.8: the slide decelerates at mu_k g = 0.4 g.
+        let (mut start, mut stop) = ([0.0; 3], [0.0; 3]);
+        run(&kinetic(quad_on_slope(0.0, 0.0, [0.0, 2.0, 0.0]), 0.8), hz, 0.0, 4.0, |k, o| {
+            if k == 0 {
+                start = [o[0], o[1], 0.0];
+            }
+            stop = [o[0], o[1], 0.0];
+        });
+        let travelled = distance(start, stop);
+        let expected = 4.0 / (2.0 * 0.4 * G);
+        println!("kinetic slide {hz} Hz: {travelled:.4} m against {expected:.4} m");
+        assert!((travelled - expected).abs() < 0.05 * expected, "{hz} Hz: {travelled} m against {expected} m");
+    }
+}
+#[test]
+fn below_the_kinetic_limit_an_aircraft_holds_and_above_it_a_sliding_one_slides_at_mu_k() {
+    for hz in [400, 800, 1200] {
+        // Braked mu_s 0.7 and ratio 0.75 (mu_k 0.525): a slope of tan 0.45 holds even after the drop onto
+        // it; on tan 0.6 an aircraft sliding down keeps sliding at g (sin - mu_k cos), where version 3 holds.
+        let hold = 0.45f64.atan();
+        let (mut settled, mut last) = ([0.0; 3], [0.0; 3]);
+        run(&kinetic(quad_on_slope(hold, 0.0, [0.0; 3]), 0.75), hz, 1.0, 5.0, |k, o| {
+            if k + 1 == 2 * hz {
+                settled = [o[0], o[1], o[2]];
+            }
+            last = [o[0], o[1], o[2]];
+        });
+        let creep = distance(settled, last);
+        let a = 0.6f64.atan();
+        let down = [a.cos(), 0.0, a.sin()];
+        let v0 = [0.5 * down[0], 0.0, 0.5 * down[2]];
+        let mut v = [0.0; 2];
+        run(&kinetic(quad_on_slope(a, 0.0, v0), 0.75), hz, 1.0, 2.0, |k, o| {
+            let along = o[3] * down[0] + o[4] * down[1] + o[5] * down[2];
+            if k + 1 == hz {
+                v[0] = along;
+            }
+            v[1] = along;
+        });
+        let measured = v[1] - v[0];
+        let expected = G * (a.sin() - 0.525 * a.cos());
+        println!("hysteresis {hz} Hz: creep {creep:.2e} m at rest; sliding {measured:.4} m/s2 against {expected:.4}");
+        assert!(creep < 1e-3, "{hz} Hz: {creep} m in 3 s");
+        assert!((measured - expected).abs() < 0.05 * expected, "{hz} Hz: {measured} m/s2 against {expected}");
+    }
+}
+#[test]
+fn a_light_airframe_on_a_wide_stance_rests_without_yaw_chatter() {
+    // Feet 0.3 m out under a 1.5 kg airframe of 0.02 kg m^2 yaw inertia: M r^2 = 0.135 kg m^2,
+    // almost seven times I. Correcting with the translational mass share alone made the yaw
+    // rate flip sign every step at the friction limit.
+    for hz in [400, 800, 1200] {
+        let mut c = quad_on_slope(0.0, 0.0, [0.0; 3]);
+        for k in 0..3 {
+            c[19 + k] = [0.015, 0.015, 0.02][k];
+        }
+        for i in 0..4 {
+            let b = 32 + i * 160;
+            c[b] *= 1.5;
+            c[b + 1] *= 1.5;
+        }
+        let mut rate = 0.0f64;
+        run(&c, hz, 0.0, 3.0, |k, o| {
+            if k >= hz {
+                rate = rate.max((o[10].powi(2) + o[11].powi(2) + o[12].powi(2)).sqrt());
+            }
+        });
+        println!("wide stance {hz} Hz: largest body rate after 1 s {rate:.2e} rad/s");
+        assert!(rate < 1e-4, "{hz} Hz: {rate} rad/s");
+    }
+}

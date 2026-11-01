@@ -67,6 +67,12 @@ export interface ContactWheel {
      * side force sticks up to that cap. A positive value writes contact configuration version 3.
      */
     readonly corneringStiffnessNpRad?: number;
+    /**
+     * Kinetic over static friction coefficient μ_k/μ_s in (0, 1] (TASK-095, decision F-08): a
+     * sliding contact takes this fraction of its breakaway limit. Omitted or 1: one coefficient for
+     * both. A value below 1 on any wheel writes contact configuration version 4.
+     */
+    readonly kineticFrictionRatio?: number;
 }
 export interface ContactOptions {
     readonly inertiaDiagonalKgM2?: readonly [
@@ -135,6 +141,14 @@ export class GroundContact implements ContactBackend {
      */
     static async forVehicle(state: BodyTruth, vehicle: { readonly massKg: number; readonly inertiaBodyKgM2: readonly number[] },
         options: ContactOptions & { readonly hullRadiusM?: number; readonly restitution?: number; readonly friction?: number } = {}): Promise<GroundContact> {
+        return Promise.resolve().then(() => this.forVehicleNow(state, vehicle, options));
+    }
+    /**
+     * `forVehicle` without awaiting (TASK-095): a flight session builds its dynamics synchronously,
+     * again at each physics-rate change, once `initialize` has compiled the artifact. Cold.
+     */
+    static forVehicleNow(state: BodyTruth, vehicle: { readonly massKg: number; readonly inertiaBodyKgM2: readonly number[] },
+        options: ContactOptions & { readonly hullRadiusM?: number; readonly restitution?: number; readonly friction?: number } = {}): GroundContact {
         const wheels = options.wheels ?? [], inertia = vehicle.inertiaBodyKgM2;
         if (options.inertiaKgM2 || options.inertiaDiagonalKgM2 || inertia.length !== 9 || !inertia.every(Number.isFinite) ||
             !Number.isFinite(vehicle.massKg))
@@ -152,13 +166,19 @@ export class GroundContact implements ContactBackend {
         airframe[3] = airframe[1]!; airframe[6] = airframe[2]!; airframe[7] = airframe[5]!;
         if (!(mass > 0))
             throw new Error("Unsprung masses exceed the vehicle mass");
-        return this.create(state, mass, options.hullRadiusM ?? 0.1, options.restitution ?? 0, options.friction ?? 0.7,
+        return this.createNow(state, mass, options.hullRadiusM ?? 0.1, options.restitution ?? 0, options.friction ?? 0.7,
             { ...options, inertiaKgM2: airframe });
     }
     static async create(state: BodyTruth, mass = 1, radius = 0.1, restitution = 0, friction = 0.7, options: ContactOptions = {}): Promise<GroundContact> {
+        return Promise.resolve().then(() => this.createNow(state, mass, radius, restitution, friction, options));
+    }
+    /** True once `initialize` has compiled the verified artifact, so contacts can be created. */
+    static get ready(): boolean { return this.artifact !== undefined; }
+    /** `create` without awaiting: instantiates the compiled artifact synchronously. Cold. */
+    static createNow(state: BodyTruth, mass = 1, radius = 0.1, restitution = 0, friction = 0.7, options: ContactOptions = {}): GroundContact {
         if (!this.artifact)
             throw new Error("Initialize the verified contact artifact before creating a session");
-        const instance = await WebAssembly.instantiate(this.artifact, {});
+        const instance = new WebAssembly.Instance(this.artifact, {});
         if (!exportsValid(instance.exports) || instance.exports.contact_abi_version() !== 2)
             throw new Error("Invalid contact ABI exports");
         return new GroundContact(instance.exports, state, mass, radius, restitution, friction, options);
@@ -268,6 +288,15 @@ export class GroundContact implements ContactBackend {
                 c[b + 32 + j] = p[0];
                 c[b + 96 + j] = p[1];
             }
+        }
+        // Version 4 adds the kinetic friction ratio, which every wheel then states; with none below 1
+        // the configuration keeps its earlier version bit for bit.
+        const ratios = (options.wheels ?? []).map(w => w.kineticFrictionRatio ?? 1);
+        if (ratios.some(r => !(r > 0 && r <= 1)))
+            throw new Error("Invalid kinetic friction ratio");
+        if (ratios.some(r => r < 1)) {
+            c[0] = 4;
+            ratios.forEach((r, i) => { c[32 + i * 160 + 29] = r; });
         }
         // The vehicle the contact integrates: airframe plus unsprung point masses at their anchors.
         const t = this.vehicleInertiaKgM2;

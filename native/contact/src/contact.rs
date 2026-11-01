@@ -31,6 +31,9 @@ struct Wheel {
     strut: Strut,
     /// Brush cornering stiffness N/rad (configuration version 3); 0 keeps the lateral stick.
     cornering: f64,
+    /// Kinetic over static friction coefficient in (0, 1] (configuration version 4): a sliding
+    /// contact takes this fraction of the breakaway limit; 1 before version 4.
+    kinetic: f64,
     /// Static friction anchor: the ground point the contact sticks to (TASK-095).
     hold: Vector,
     held: bool,
@@ -106,7 +109,7 @@ fn positive_definite(m: [f64; 9]) -> bool {
 fn valid_state(c: &[f64; CONFIG_COUNT]) -> bool {
     let reserved = if c[0] >= 2.0 { c[31] == 0.0 && positive_definite(inertia_tensor(c)) } else { c[28..32].iter().all(|x| *x == 0.0) };
     c.iter().all(|x| x.is_finite())
-        && (c[0] == 1.0 || c[0] == 2.0 || c[0] == 3.0)
+        && (c[0] == 1.0 || c[0] == 2.0 || c[0] == 3.0 || c[0] == 4.0)
         && reserved
         && c[1] == 0.0
         && c[2] > 0.0
@@ -197,9 +200,11 @@ impl Contact {
                 || w[17] < 2.0
                 || w[17] > 64.0
                 || w[17].fract() != 0.0
-                || w[29..32].iter().any(|v| *v != 0.0)
+                || w[30..32].iter().any(|v| *v != 0.0)
                 || w[28] < 0.0
                 || (c[0] < 3.0 && w[28] != 0.0)
+                || (c[0] < 4.0 && w[29] != 0.0)
+                || (c[0] >= 4.0 && !(w[29] > 0.0 && w[29] <= 1.0))
             {
                 return Err(-2);
             }
@@ -271,6 +276,7 @@ impl Contact {
                 f: fs,
                 strut,
                 cornering: w[28],
+                kinetic: if c[0] >= 4.0 { w[29] } else { 1.0 },
                 hold: Vector::ZERO,
                 held: false,
             });
@@ -539,13 +545,24 @@ impl Contact {
             out[32 + i * 8 + 3] = support;
         }
         // Tangential friction (TASK-095): static below breakaway, Coulomb above, brush side
-        // force while rolling. Each axis of the ground plane first asks for the force that
+        // force while rolling. Each axis t of the ground plane first asks for the force that
         // stops the contact against its anchor point within the step, f = -m (v/dt + BETA d/dt^2),
-        // with m the wheel plus its load share of the airframe. Below the axis limit mu N it
-        // sticks; above it slides at mu N against that request and the anchor follows. While
-        // rolling, a wheel with a cornering stiffness takes the brush force C_a tan(alpha),
-        // solved as an implicit damper of C_a/|v_long|, capped at the lateral mu N.
+        // with m the wheel plus its load share of the airframe's effective mass at the contact
+        // point along t, 1/(1/M + (r x t).I^-1.(r x t)) for r from the airframe's centre of mass.
+        // Shares of the translational mass alone over-correct a rotation whenever the stance is
+        // wide against the inertia (M r^2 > 2 I): a quad on feet under its motors then chatters
+        // in yaw at every step. With the effective mass no mode is corrected by more than it
+        // moved. Below the axis limit mu N it
+        // sticks; above it slides at the kinetic fraction of mu N (1 before configuration version
+        // 4) against that request and the anchor follows. While rolling, a wheel with a cornering
+        // stiffness takes the brush force C_a tan(alpha), solved as an implicit damper of
+        // C_a/|v_long|, capped at the lateral mu N.
         let total: f64 = loads[..self.wheels.len()].iter().sum();
+        let (com, inv) = {
+            let props = self.world.bodies[self.body].mass_properties();
+            (props.world_com, props.effective_world_inv_inertia)
+        };
+        let airframe = self.mass;
         for (i, w) in self.wheels.iter_mut().enumerate() {
             let normal = loads[i];
             if normal <= 0.0 {
@@ -557,8 +574,15 @@ impl Contact {
             let wb = &self.world.bodies[w.handle];
             let wp = wb.translation();
             let wv = wb.linvel();
-            let mass = wb.mass() + self.mass * normal / total;
             let point = wp - ground_normal * (ground_normal.dot(wp) - ground_offset);
+            let rel = point - com;
+            let effective = |t: Vector| {
+                let a = rel.cross(t);
+                let q = a.x * a.x * inv.m11 + a.y * a.y * inv.m22 + a.z * a.z * inv.m33
+                    + 2.0 * (a.x * a.y * inv.m12 + a.x * a.z * inv.m13 + a.y * a.z * inv.m23);
+                1.0 / (1.0 / airframe + q)
+            };
+            let share = normal / total;
             if !w.held {
                 w.hold = point;
                 w.held = true;
@@ -573,21 +597,26 @@ impl Contact {
             let side = ground_normal.cross(heading);
             let offset = point - w.hold;
             let (vl, vy) = (wv.dot(heading), wv.dot(side));
-            let stick = |v: f64, d: f64| -mass * (v / dt + BETA * d / (dt * dt));
+            let (mass_l, mass_y) = (wb.mass() + share * effective(heading), wb.mass() + share * effective(side));
+            let stick = |m: f64, v: f64, d: f64| -m * (v / dt + BETA * d / (dt * dt));
             let mu = w.rolling + (w.braking - w.rolling) * input[6 + i];
             let (limit_l, limit_y) = (mu * normal, w.lateral * normal);
-            let want_l = stick(vl, offset.dot(heading));
+            let want_l = stick(mass_l, vl, offset.dot(heading));
             let brush = w.cornering > 0.0 && vl.abs() > ROLLING_MPS;
             let want_y = if brush {
-                -vy / (vl.abs() / w.cornering + dt / mass)
+                -vy / (vl.abs() / w.cornering + dt / mass_y)
             } else {
-                stick(vy, offset.dot(side))
+                stick(mass_y, vy, offset.dot(side))
             };
             let slide_l = want_l.abs() > limit_l;
-            let slide_y = brush || want_y.abs() > limit_y;
-            let mut tangential = heading * want_l.clamp(-limit_l, limit_l) + side * want_y.clamp(-limit_y, limit_y);
-            // Combined tangential force is bounded by the larger configured mu.
-            let cap = mu.max(w.lateral) * normal;
+            let over_y = want_y.abs() > limit_y;
+            let slide_y = brush || over_y;
+            // A sliding axis takes the kinetic limit; with a ratio of 1 this is the clamp exactly.
+            let force_l = if slide_l { want_l.signum() * (limit_l * w.kinetic) } else { want_l };
+            let force_y = if over_y { want_y.signum() * (limit_y * w.kinetic) } else { want_y };
+            let mut tangential = heading * force_l + side * force_y;
+            // Combined tangential force is bounded by the larger configured mu, kinetic while sliding.
+            let cap = mu.max(w.lateral) * normal * if slide_l || over_y { w.kinetic } else { 1.0 };
             if tangential.length() > cap {
                 tangential *= cap / tangential.length();
             }

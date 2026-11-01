@@ -44,6 +44,7 @@ function catalogEntry(): { binaryPath: string; defaultParametersPath: string; fi
 test("the Run tab flies the quad X profile with native ArduCopter: READY, take-off to 5 m, hold and land", async ({ page }) => {
   test.setTimeout(600000);
   execFileSync(process.execPath, ["scripts/build-wasm.mjs"], { stdio: "pipe" });
+  execFileSync(process.execPath, ["scripts/build-contact.mjs"], { stdio: "pipe" });
   const entry = catalogEntry();
   const home = mkdtempSync(join(tmpdir(), "mirage-external-sitl-"));
   copyFileSync(join(HOME, "token"), join(home, "token"));
@@ -144,7 +145,9 @@ test("the Run tab flies the quad X profile with native ArduCopter: READY, take-o
     await expect(panel.getByTestId("sitl-armed")).toHaveText("Disarmed", { timeout: 120000 });
     await expect(stage).toHaveAttribute("data-state", "ready", { timeout: 60000 });
     await expect(ready).toHaveText("READY");
-    expect(await meters()).toBeLessThan(0.1);
+    // On its feet: the quad X profile's reference point rests at its 0.12 m ground clearance on the decision D-07 supports
+    // (TASK-095), so its CG, 0.02 m lower, shows 0.10 m.
+    expect(Math.abs((await meters()) - 0.1)).toBeLessThan(0.006);
     await expect(panel.getByTestId("sitl-frames")).toContainText(" 0 lost, 0 resent");
     await panel.getByRole("button", { name: "Stop run" }).click();
     await expect(stage).toHaveAttribute("data-state", "idle", { timeout: 30000 });

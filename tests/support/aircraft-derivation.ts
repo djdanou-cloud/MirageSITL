@@ -74,21 +74,24 @@ export function engineSensitiveVariant(profile: AircraftProfile): unknown {
 
 /**
  * SHA-256 of each fixture's derived manifest with `syntheticComponents` and
- * FIXTURE_MODEL_ID, recorded from derivation 2 in Node 24.22.2. They lock the
- * bytes; the oracle checks in tests/aircraft-profile.test.ts establish
- * correctness. The browser test requires Chromium to produce the same bytes.
+ * FIXTURE_MODEL_ID, recorded from derivation 3 (TASK-095, the standard
+ * landing gear of decision D-07) in Node 24.22.1. They lock the bytes; the
+ * oracle checks in tests/aircraft-profile.test.ts establish correctness, and
+ * taking the gear out again reproduces the derivation 1 recordings below. The browser test
+ * requires Chromium to produce the same bytes.
  */
 export const RECORDED_MANIFEST_SHA256: { readonly [name in FixtureName]: string } = {
-  'quad-x': '5ebbcf5c52019d6c4e5fc0507261d8d1d97a84bad7a5c8d2311a8f66fab27a94',
-  'hexa-x': '2cc9ba2e04fe4b8375297bebdfcb77f1084e5ba8524a4ba2c6c6ced87b42536f',
-  'octa-x': '6ed13bf2cd3e241eb72f73c537a0dff9ff508ab5e43d8d893669758bf8e2e10c',
-  'coaxial-x8': '36b6b2b41e8caf8a995c04b9f3fad17059e8227e95553793f8f7d45cc0c8de9f',
-  'octa-coaxial-16': '07cefdebea5c6d5694b3a1583fd32e85c0e77e9fb23447880a02c30358aa55c7',
+  'quad-x': '34484ad0c9a6b6c10c36e853c05712249eb21d3cc7aae960c7cf09aa2865bcb3',
+  'hexa-x': '286bc4a46e203c801d51cb69a45870419e05c3a99743d700a5eb251ca02cda1a',
+  'octa-x': '0d369a3e1b65ad2d798d8ba27ba100d0f0e2d10b67e951f88e030ae2d587fb00',
+  'coaxial-x8': '1c885b8941bd7c39fafb6c967aa383088f06b3426ed3df439c7ab21aa11372fa',
+  'octa-coaxial-16': '2e9929517851a1097d4433fa83ef6fbca1bd0ddc2c89cab6eb38324c8263c52d',
 };
 /**
  * The same, recorded from derivation 1 (TASK-138). Derivation 2 (TASK-147)
- * adds IMU mounts, which no fixture states, so restoring the version in the
- * dataset reproduces these bytes exactly.
+ * adds IMU mounts, which no fixture states, and derivation 3 the standard
+ * gear, so restoring the version in the dataset and taking the gear and its
+ * dataset out reproduces these bytes exactly.
  */
 export const RECORDED_V1_MANIFEST_SHA256: { readonly [name in FixtureName]: string } = {
   'quad-x': 'a9e2cc46f6bc0b7b34740a70375e4dc5e43f6d7ce6a03a87111455e3c36a473c',
@@ -97,7 +100,7 @@ export const RECORDED_V1_MANIFEST_SHA256: { readonly [name in FixtureName]: stri
   'coaxial-x8': '603ec04b0a9ea12075f6e2da7aa96f7cde558407cc83305d1106d00310f5899a',
   'octa-coaxial-16': 'c07b18cdf07e6139d07efd76e8df4647ffd0eb5dcfeb15f153d02002df0b6306',
 };
-export const RECORDED_ENGINE_SENSITIVE_SHA256 = '7a238276cb89edaa0fca11e512dd0ada640c3aae2810645bb5b891dab0cda948';
+export const RECORDED_ENGINE_SENSITIVE_SHA256 = '05d203ed325fe9a75b7a8f16ec49f360e2e5bd0158387801959ef725ff710f09';
 export const RECORDED_V1_ENGINE_SENSITIVE_SHA256 = '234f0d6e891346a377fc266fcd347f6f34355d15c5c543a70890806b8c889cae';
 
 /**

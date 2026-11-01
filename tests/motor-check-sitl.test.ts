@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { performance } from 'node:perf_hooks';
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
+import { prepareContact } from './contact-support.ts';
 import { WebSocket } from 'ws';
 import { frameConfiguration } from '@mirage/aircraft/frame-parameters';
 import type { AircraftProfile } from '@mirage/aircraft/profile';
@@ -43,10 +44,12 @@ const CONFIGURATIONS = ['quad-x', 'hexa-x', 'octa-x', 'coaxial-x8', 'octa-coaxia
 
 let module: WebAssembly.Module;
 let home = '';
-beforeAll(() => {
+beforeAll(async () => {
   if (!installed) return;
   execFileSync(process.execPath, ['scripts/build-wasm.mjs'], { stdio: 'pipe' });
   module = new WebAssembly.Module(readFileSync('packages/wasm-bet/dist/mirage_bet.scalar.wasm'));
+  // The vehicle stands on its standard landing gear (TASK-095).
+  await prepareContact();
   home = mkdtempSync(join(tmpdir(), 'mirage-motor-check-'));
   copyFileSync(join(HOME, 'catalog.json'), join(home, 'catalog.json'));
 }, 600000);

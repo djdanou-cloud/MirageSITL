@@ -2,6 +2,8 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { beforeAll, describe, expect, it } from 'vitest';
+import { prepareContact } from './contact-support.ts';
+import { standardGearHeights } from './support/standard-gear.ts';
 import { GroundStation, MavCommand } from '@mirage/autopilot/ground-station';
 import { BRIDGE_HEADER_BYTES, SitlJsonLink } from '@mirage/autopilot/sitl-link';
 import { MavParser, type MavFrame } from '@mirage/mavlink/codec';
@@ -23,9 +25,11 @@ import { quadProfile } from './support/quad-profile.ts';
 
 const EPOCH = 7, HZ = 400, GRAVITY = 9.80665;
 let module: WebAssembly.Module;
-beforeAll(() => {
+beforeAll(async () => {
   execFileSync(process.execPath, ['scripts/build-wasm.mjs'], { stdio: 'pipe' });
   module = new WebAssembly.Module(readFileSync('packages/wasm-bet/dist/mirage_bet.scalar.wasm'));
+  // The vehicle stands on its standard landing gear (TASK-095).
+  await prepareContact();
 }, 600000);
 
 /** A session in sitl-lockstep with the quad profile loaded and started, and a link on its buffers. */
@@ -142,17 +146,23 @@ describe('SitlJsonLink on a profile session in sitl-lockstep', () => {
   it('feeds the PWM of each rotor channel to the dynamics and answers with the published state', async () => {
     const h = await harness();
     let frame = 0, last = stateOf(h.deliver(servoRecord(frame++, 1000)).reply);
-    // Motors stopped on the synthetic pad: level, at rest, and the accelerometer reads -g along body z.
-    for (let i = 0; i < 199; i++) last = stateOf(h.deliver(servoRecord(frame++, 1000)).reply);
-    expect(last.timestamp).toBeCloseTo(200 / HZ, 9);
-    expect(last.position[2]).toBe(0);
-    expect(last.accel[0]).toBeCloseTo(0, 9);
-    expect(last.accel[2]).toBeCloseTo(-GRAVITY, 6);
+    // Motors stopped on the standard gear (TASK-095): after 1 s at rest, the accelerometer reading g, and the CG where the gear's
+    // rules put it (tests/support/standard-gear.ts).
+    for (let i = 0; i < 799; i++) last = stateOf(h.deliver(servoRecord(frame++, 1000)).reply);
+    expect(last.timestamp).toBeCloseTo(800 / HZ, 9);
+    const { restM, pitchRad } = standardGearHeights(h.derived.manifest);
+    expect(Math.abs(last.position[2]! + restM)).toBeLessThan(1e-4);
+    // The CG lies ahead of the supports' centre, so the front supports compress more and the body pitches nose down by the statics'
+    // angle; the accelerometer then reads −g·sin(pitch) forward.
+    expect(Math.abs(last.accel[0]! / (-GRAVITY * Math.sin(pitchRad)) - 1)).toBeLessThan(0.05);
+    expect(Math.hypot(last.accel[0]!, last.accel[1]!, last.accel[2]!)).toBeCloseTo(GRAVITY, 2);
     expect(last.voltage).toBeGreaterThan(10);
-    // Full PWM on the four rotor channels: the quad climbs off the pad.
-    for (let i = 0; i < 800; i++) last = stateOf(h.deliver(servoRecord(frame++, 2000)).reply);
-    expect(last.position[2]).toBeLessThan(-0.5);
-    expect(h.link.lockstepStats).toMatchObject({ steps: 1000, duplicates: 0, gaps: 0 });
+    // Full PWM on the four rotor channels: the quad climbs off its feet. Without an autopilot, and with the CG ahead of the
+    // rotors' centre, it also pitches over, so the peak height is what counts.
+    let peak = 0;
+    for (let i = 0; i < 800; i++) { last = stateOf(h.deliver(servoRecord(frame++, 2000)).reply); peak = Math.min(peak, last.position[2]!); }
+    expect(peak).toBeLessThan(-1);
+    expect(h.link.lockstepStats).toMatchObject({ steps: 1600, duplicates: 0, gaps: 0 });
     // MAVLink records pass through unchanged.
     const mavlink = Uint8Array.from([0xfd, 9, 0, 0, 1, 1, 1, 0, 0, 0]);
     expect(h.link.receive(encodeRecord({ channel: 1, epoch: EPOCH, sequence: 0, payload: mavlink }))).toBe('mavlink');

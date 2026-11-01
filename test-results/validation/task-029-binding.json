@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "wasmSha256": "23595fa5d1d7a3e1b6c66bb5a51f4e6700b48e8a01e71028762f689900031705",
+  "wasmSha256": "cde87e0ea0d7acd3b1dfe4885bdc2d902a7f6d69a090bbd4e6106162ac5d2bc8",
   "manifest": {
     "schemaVersion": 1,
     "abiVersion": 2,
@@ -10,8 +10,8 @@
     "engineVersion": "0.36.0",
     "precision": "f64",
     "memoryBytes": 16777216,
-    "bytes": 2016917,
-    "sha256": "23595fa5d1d7a3e1b6c66bb5a51f4e6700b48e8a01e71028762f689900031705",
+    "bytes": 2022039,
+    "sha256": "cde87e0ea0d7acd3b1dfe4885bdc2d902a7f6d69a090bbd4e6106162ac5d2bc8",
     "inputs": [
       {
         "file": "native/bet/Cargo.toml",
@@ -39,7 +39,7 @@
       },
       {
         "file": "native/contact/src/contact.rs",
-        "sha256": "129c93fc925c56600f491e8fc8afd1b8631627c4837efe26e575eaf5a44eae27"
+        "sha256": "53918ae0cd2aaae7ff8fac2063391f94afa6c458591d0e498de2a8aa539d5483"
       },
       {
         "file": "native/contact/Cargo.lock",
@@ -79,7 +79,7 @@
       "wheels": 3,
       "nativeSteps": 1000000,
       "positionErrorM": 0,
-      "angleErrorRad": 4.2146848510894035e-8,
+      "angleErrorRad": 0,
       "allocationCalls": 0,
       "allocationBytes": 0,
       "passed": true
@@ -119,7 +119,7 @@
       "wheels": 8,
       "nativeSteps": 1000000,
       "positionErrorM": 0,
-      "angleErrorRad": 0,
+      "angleErrorRad": 2.9802322387695312e-8,
       "allocationCalls": 0,
       "allocationBytes": 0,
       "passed": true
@@ -149,7 +149,7 @@
       "wheels": 8,
       "nativeSteps": 1000000,
       "positionErrorM": 0,
-      "angleErrorRad": 2.9802322387695312e-8,
+      "angleErrorRad": 0,
       "allocationCalls": 0,
       "allocationBytes": 0,
       "passed": true

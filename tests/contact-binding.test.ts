@@ -128,3 +128,37 @@ test("rejects a negative cornering stiffness", async () => {
     const options = { ...base, wheels: (base.wheels ?? []).map(w => ({ ...w, corneringStiffnessNpRad: -1 })) };
     await expect(GroundContact.create(newBodyTruth(), 1, 0.1, 0, 0, options)).rejects.toThrow("Invalid cornering stiffness");
 });
+// TASK-095 (decision F-08): a kinetic friction ratio reaches the native law. Sliding sideways at
+// 2 m/s on the lateral mu_s of 0.5, the aircraft stops after v²/(2 mu_k g) within 5 %: with the
+// ratio 0.8 at mu_k = 0.4, and without it at mu_s.
+test.each([400, 800, 1200])("a kinetic friction ratio lengthens the slide to its own Coulomb distance at %i Hz", async (hz) => {
+    const travelled: number[] = [];
+    for (const ratio of [0.8, 1]) {
+        const truth = newBodyTruth();
+        truth.positionNedM[2] = -0.501;
+        truth.velocityNedMps[1] = 2;
+        const base = syntheticGearOptions(4);
+        const options = { ...base, wheels: (base.wheels ?? []).map(w => ({ ...w, kineticFrictionRatio: ratio })) };
+        const contact = await GroundContact.create(truth, 1.5, 0.1, 0, 0, options);
+        const wrench = new Float64Array(6);
+        try {
+            for (let i = 0; i < 4 * hz; i++)
+                expect(contact.stepInto(wrench, 1 / hz, truth)).toBe(true);
+            travelled.push(Math.hypot(truth.positionNedM[0]!, truth.positionNedM[1]!));
+        }
+        finally {
+            contact.dispose();
+        }
+    }
+    for (const [i, mu] of [[0, 0.4], [1, 0.5]] as const) {
+        const expected = 4 / (2 * mu * 9.80665);
+        expect(Math.abs(travelled[i]! - expected), `mu_k ${mu}`).toBeLessThan(0.05 * expected);
+    }
+});
+test("rejects a kinetic friction ratio outside (0, 1]", async () => {
+    const base = syntheticGearOptions(1);
+    for (const ratio of [0, -0.5, 1.5, Number.NaN]) {
+        const options = { ...base, wheels: (base.wheels ?? []).map(w => ({ ...w, kineticFrictionRatio: ratio })) };
+        await expect(GroundContact.create(newBodyTruth(), 1, 0.1, 0, 0, options)).rejects.toThrow("Invalid kinetic friction ratio");
+    }
+});

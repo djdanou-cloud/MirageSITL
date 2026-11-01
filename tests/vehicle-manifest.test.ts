@@ -167,6 +167,7 @@ describe('vehicle manifest v2 schema and validation', () => {
       provenance: { ...quad.provenance, landingGear: 'synthetic-quad-v2-airframe' } });
     expect(() => validateVehicleManifest(withSurfaces([surface]))).not.toThrow();
     expect(() => validateVehicleManifest(withGear([gear]))).not.toThrow();
+    expect(() => validateVehicleManifest(withGear([{ ...gear, kineticFrictionRatio: 0.5 / 0.6 }]))).not.toThrow();
     const invalid: [string, unknown][] = [
       ['PWM below 800 us', edit(c => { c.escs = c.escs.map(e => ({ ...e, pwmMinUs: 700 })); })],
       ['PWM above 2200 us', edit(c => { c.escs = c.escs.map(e => ({ ...e, pwmMaxUs: 2300 })); })],
@@ -182,6 +183,8 @@ describe('vehicle manifest v2 schema and validation', () => {
       ['nine wheels', withGear(Array.from({ length: 9 }, (_, i) => ({ ...gear, id: i % 8 })))],
       ['wheel ID 8', withGear([{ ...gear, id: 8 }])],
       ['rim not inside tire', withGear([{ ...gear, rimRadiusM: 0.015 }])],
+      ['zero kinetic friction ratio', withGear([{ ...gear, kineticFrictionRatio: 0 }])],
+      ['kinetic above static friction', withGear([{ ...gear, kineticFrictionRatio: 1.2 }])],
       ['tire curve short of the rim', withGear([{ ...gear, tireLoadCurve: [[0, 0], [0.004, 40]] }])],
       ['single tire knot', withGear([{ ...gear, tireLoadCurve: [[0, 0]] }])],
       ['duplicate wheel ID', withGear([gear, gear])],
