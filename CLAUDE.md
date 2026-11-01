@@ -95,8 +95,9 @@ implementation.
   native steps; unit tests count 9,000,000 WASM steps. Published collision chunks
   drive Rapier ground contact via contact ABI v2 (TASK-065), supplying each wheel
   and the airframe with the underlying terrain triangle plane every tick and pausing
-  stepping when ground is missing. Flight-session wiring and live terrain admission
-  remain open.
+  stepping when ground is missing. Profile flight sessions stand on the decision
+  D-07 supports of TASK-095 (manifest derivation 3); terrain planes in sessions
+  and live terrain admission remain open.
 * **JSBSim WASM, contact backend, and UIUC propellers (TASK-030, TASK-031, TASK-086):**
   `node scripts/build-jsbsim.mjs` requires verified `JSBSIM_SOURCE_DIR` and
   `MIRAGE_EMSDK_DIR` checkouts with Emscripten 4.0.15 (aircraft XML remains local

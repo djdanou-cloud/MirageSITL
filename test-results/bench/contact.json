@@ -2,14 +2,14 @@
   "schemaVersion": 1,
   "engine": "rapier",
   "version": "0.36.0",
-  "adapterSha256": "619ca6ed80938e6a963f214fa5f9edb9886b4ecfa4f310d44333dd1a09d2695f",
+  "adapterSha256": "35c039861070fbf8e8c0313561ec1ac5cd7b3087086a9f30e286871f91996743",
   "hz": 400,
   "wheelCount": 0,
   "warmupSteps": 4000000,
   "samples": [
     {
       "steps": 1000000,
-      "bytes": 3520,
+      "bytes": 3664,
       "gcEvents": 0
     },
     {

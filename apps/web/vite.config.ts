@@ -64,17 +64,28 @@ function localTiles(): Plugin {
 // clients. The Run tab checks each file against manifest.json and the physics
 // Worker checks the module's hash again before compiling it.
 function localBetModule(): Plugin {
-  const root = fileURLToPath(new URL('../../packages/wasm-bet/dist/', import.meta.url));
-  const FILES: Record<string, string> = {
+  return localModule('local-bet-module', '/__bet/', '../../packages/wasm-bet/dist/', {
     'manifest.json': 'application/json', 'mirage_bet.scalar.wasm': 'application/wasm', 'mirage_bet.simd128.wasm': 'application/wasm',
-  };
+  });
+}
+// TASK-095: the Rapier contact module that scripts/build-contact.mjs writes to
+// packages/physics/dist/contact (not tracked), served the same way at
+// /__contact/; the physics Worker checks it against its manifest
+// (`GroundContact.initialize`) before compiling it.
+function localContactModule(): Plugin {
+  return localModule('local-contact-module', '/__contact/', '../../packages/physics/dist/contact/', {
+    'manifest.json': 'application/json', 'contact.wasm': 'application/wasm',
+  });
+}
+function localModule(pluginName: string, prefix: string, directory: string, FILES: Record<string, string>): Plugin {
+  const root = fileURLToPath(new URL(directory, import.meta.url));
   const attach = (server: { middlewares: { use: (handler: (req: import('node:http').IncomingMessage, res: import('node:http').ServerResponse, next: () => void) => void) => void } }) => {
     server.middlewares.use((req, res, next) => {
       const url = req.url ?? '';
-      if (!url.startsWith('/__bet/')) { next(); return; }
+      if (!url.startsWith(prefix)) { next(); return; }
       const peer = req.socket.remoteAddress;
       if (req.method !== 'GET' || !['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(peer ?? '')) { res.statusCode = 403; res.end(); return; }
-      const name = url.slice('/__bet/'.length).split('?')[0] ?? '';
+      const name = url.slice(prefix.length).split('?')[0] ?? '';
       const type = FILES[name];
       if (!type) { res.statusCode = 404; res.end(); return; }
       let bytes: Buffer;
@@ -85,7 +96,7 @@ function localBetModule(): Plugin {
       res.end(bytes);
     });
   };
-  return { name: 'local-bet-module', configureServer: attach, configurePreviewServer: attach };
+  return { name: pluginName, configureServer: attach, configurePreviewServer: attach };
 }
 
 // TASK-073 generated terrain/buildings (scripts/geodata), served read-only from
@@ -127,7 +138,7 @@ const headers = {
   'Cross-Origin-Embedder-Policy': 'require-corp',
 };
 export default defineConfig({
-  plugins: [react(), tailwindcss(), localArdupilot(), localTiles(), localGeodata(), localBetModule()],
+  plugins: [react(), tailwindcss(), localArdupilot(), localTiles(), localGeodata(), localBetModule(), localContactModule()],
   server: { headers },
   preview: { headers },
   worker: { format: 'es' },

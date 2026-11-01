@@ -77,6 +77,7 @@ test("the flight view holds 60 FPS on the M5's built-in display during an ArduPi
   const context = await browser.newContext({ viewport: { width: display.width, height: display.height }, deviceScaleFactor: display.scale, baseURL });
   const page = await context.newPage();
   execFileSync(process.execPath, ["scripts/build-wasm.mjs"], { stdio: "pipe" });
+  execFileSync(process.execPath, ["scripts/build-contact.mjs"], { stdio: "pipe" });
   const home = mkdtempSync(join(tmpdir(), "mirage-frame-times-"));
   copyFileSync(join(HOME, "catalog.json"), join(home, "catalog.json"));
   const token = ensureToken(home);

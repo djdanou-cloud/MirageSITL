@@ -5,6 +5,7 @@ import { createSessionFaultPort } from '@mirage/ew/session-port';
 import { isWorkerInitV2, tickToNumber, validatePowerChannelV1, type CommandResultV2, type ControlCommandV2, type WorkerFaultV2 } from '@mirage/protocol';
 import { parseLimitRatings, type LimitEvent, type LimitRatings } from '@mirage/physics/limit-monitor';
 import { PhysicsSessionV2, type SessionClock } from '@mirage/physics';
+import { GroundContact } from '@mirage/physics/ground-contact';
 import { profileModelPort } from '@mirage/physics/profile-dynamics';
 import { VehicleRegistry } from '@mirage/physics/vehicle-manifest';
 import { ScenarioBinder } from '@mirage/scenarios/bind';
@@ -35,6 +36,7 @@ let betModule: WebAssembly.Module | null = null;
 const ratings = new Map<string, LimitRatings>();
 type WorkerNotice = CommandResultV2 | WorkerFaultV2 | SitlNotice | { type: "sitl.reject"; message: string }
   | { type: "bet.module.ready"; sha256: string } | { type: "bet.module.reject"; message: string }
+  | { type: "contact.module.ready"; sha256: string } | { type: "contact.module.reject"; message: string }
   | { type: "model.registered"; modelId: number; sha256: string } | { type: "model.reject"; message: string }
   | { type: "limits.registered"; sha256: string } | { type: "limits.reject"; message: string }
   | { type: "limits.events"; events: LimitEvent[]; dropped: number }
@@ -222,6 +224,15 @@ addEventListener('message', (event: MessageEvent<unknown>) => {
   if (isBinaryMessage(data, "bet.module")) {
     loadBetModule(data.bytes, data.sha256).then(() => post({ type: "bet.module.ready", sha256: data.sha256 }),
       (error: unknown) => post({ type: "bet.module.reject", message: error instanceof Error ? error.message : "Invalid BET module" }));
+    return;
+  }
+  // TASK-095: the contact module the profile vehicles stand on; GroundContact.initialize checks it against its build manifest.
+  if (typeof data === "object" && data !== null && "type" in data && data.type === "contact.module" && "bytes" in data &&
+    data.bytes instanceof Uint8Array && "manifest" in data) {
+    const bytes = new Uint8Array(data.bytes), manifest: unknown = data.manifest;
+    const sha256 = typeof manifest === "object" && manifest !== null && "sha256" in manifest ? String(manifest.sha256) : "";
+    GroundContact.initialize(bytes, manifest).then(() => post({ type: "contact.module.ready", sha256 }),
+      (error: unknown) => post({ type: "contact.module.reject", message: error instanceof Error ? error.message : "Invalid contact module" }));
     return;
   }
   if (isBinaryMessage(data, "model.register")) {

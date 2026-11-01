@@ -7,7 +7,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { MAX_ACTUATORS } from '../packages/protocol/src/index.ts';
-import { projectVehicleToModelV1, validateVehicleManifest, VehicleRegistry, type VehicleManifest } from '../packages/physics/src/vehicle-manifest.ts';
+import { projectVehicleToModelV1, validateVehicleManifest, VehicleRegistry, withoutLandingGear, type VehicleManifest } from '../packages/physics/src/vehicle-manifest.ts';
 import { canonicalBytes, ProjectStoreError } from '../packages/project/src/schema.ts';
 import { MemoryBackend, ProjectStore } from '../packages/project/src/store.ts';
 import schema from '../packages/aircraft/src/profile.schema.json';
@@ -17,7 +17,7 @@ import {
 import { deriveLayout, type RotorLayout } from '../packages/aircraft/src/layout.ts';
 import { PIO2_PARTS, sinCos, tan } from '../packages/aircraft/src/trig.ts';
 import {
-  combineMassProperties, deriveVehicleManifest, DERIVED_DATASET_ID, type ResolvedComponents,
+  combineMassProperties, deriveVehicleManifest, DERIVED_DATASET_ID, STANDARD_GEAR_DATASET_ID, type ResolvedComponents,
 } from '../packages/aircraft/src/derive-manifest.ts';
 import {
   engineSensitiveVariant, FIXTURE_MODEL_ID, FIXTURE_NAMES, RECORDED_ENGINE_SENSITIVE_SHA256, RECORDED_MANIFEST_SHA256,
@@ -35,16 +35,20 @@ type Mutable<T> = { -readonly [K in keyof T]: Mutable<T[K]> };
 type ProfileData = Mutable<AircraftProfile>;
 
 /**
- * SHA-256 of a derivation 2 manifest with its dataset put back to derivation 1:
- * the version in the input hash and in the description. Without IMU mounts
- * nothing else changed, so it must equal the TASK-138 recording.
+ * SHA-256 of a derivation 3 manifest put back to derivation 1: the version in
+ * the input hash and in the description, and without the standard gear and
+ * its dataset (derivation 3; none without a ground clearance). Without IMU mounts (derivation 2) nothing else
+ * changed, so it must equal the TASK-138 recording.
  */
 function asDerivation1(manifest: VehicleManifest, profile: unknown, components: ResolvedComponents): string {
   const hash = (value: unknown) => createHash('sha256').update(canonicalBytes(value)).digest('hex');
-  const [dataset] = manifest.datasets;
-  if (!dataset || dataset.kind !== 'synthetic' || manifest.sensorMounts.length > 0) throw new Error('Expected one synthetic dataset and no sensor mounts');
-  return hash({ ...manifest, datasets: [{ ...dataset, sourceSha256: hash({ derivationVersion: 1, profile: validateAircraftProfile(profile), components }),
-    derivation: dataset.derivation.replace('derivation 2 ', 'derivation 1 ') }] });
+  const [dataset, gear] = manifest.datasets;
+  if (!dataset || dataset.kind !== 'synthetic' || (gear !== undefined && gear.id !== STANDARD_GEAR_DATASET_ID) || manifest.sensorMounts.length > 0) {
+    throw new Error('Expected the profile dataset, the gear dataset or none, and no sensor mounts');
+  }
+  return hash({ ...manifest, landingGear: [], provenance: { ...manifest.provenance, landingGear: null },
+    datasets: [{ ...dataset, sourceSha256: hash({ derivationVersion: 1, profile: validateAircraftProfile(profile), components }),
+      derivation: dataset.derivation.replace('derivation 3 ', 'derivation 1 ') }] });
 }
 
 function fixture(name: FixtureName): ProfileData {
@@ -289,17 +293,50 @@ describe('manifest derivation', () => {
     expect(manifest.rotorWakePairs).toEqual(deriveLayout(validateAircraftProfile(profile)).wakePairs.map(pair =>
       ({ upstreamRotorId: pair.upstreamMotorId, downstreamRotorId: pair.downstreamMotorId })));
     expect(manifest.massProperties).toEqual(combineMassProperties(profile.massProperties, profile.payload));
-    // One synthetic dataset names the exact inputs; every section with data points to it.
+    // One synthetic dataset names the exact inputs, and every profile section points to it; the standard gear, which needs the
+    // ground clearance, has its own.
+    const geared = profile.groundClearanceM !== null;
     expect(manifest.datasets).toEqual([{ id: DERIVED_DATASET_ID, kind: 'synthetic', sourceSha256: derived.inputSha256,
-      derivation: expect.stringContaining(derived.profileSha256) as unknown }]);
+      derivation: expect.stringContaining(derived.profileSha256) as unknown },
+    ...(geared ? [{ id: STANDARD_GEAR_DATASET_ID, kind: 'synthetic', sourceSha256: null,
+      derivation: expect.stringContaining('synthetic and not measured') as unknown }] : [])]);
     expect(manifest.provenance).toEqual({ massProperties: DERIVED_DATASET_ID, rotors: DERIVED_DATASET_ID, motors: DERIVED_DATASET_ID,
-      escs: DERIVED_DATASET_ID, battery: DERIVED_DATASET_ID, airframeDrag: null, controlSurfaces: null, landingGear: null,
+      escs: DERIVED_DATASET_ID, battery: DERIVED_DATASET_ID, airframeDrag: null, controlSurfaces: null,
+      landingGear: geared ? STANDARD_GEAR_DATASET_ID : null,
       sensorMounts: null, rotorWakePairs: manifest.rotorWakePairs.length > 0 ? DERIVED_DATASET_ID : null });
     // The dataset hashes are those of the canonical profile and of the canonical derivation input.
     const hash = (value: unknown) => createHash('sha256').update(canonicalBytes(value)).digest('hex');
     const validated = validateAircraftProfile(profile), components = syntheticComponents(validated);
     expect(derived.profileSha256).toBe(hash(validated));
-    expect(derived.inputSha256).toBe(hash({ derivationVersion: 2, profile: validated, components }));
+    expect(derived.inputSha256).toBe(hash({ derivationVersion: 3, profile: validated, components }));
+    // The standard gear against decision D-07 as docs/decisions/phase1-fidelity.md states it: one support under each arm at the arm's
+    // motor radius (F-07), the reference point at the ground clearance at rest, k = m·g/(N·δ_s) and c = 2·ζ·√(k·m/N) with δ_s = 5 mm,
+    // ζ = 0.7, μ_s = 0.6 and μ_k = 0.5 (F-08). A profile without a clearance has no supports until the body hull exists.
+    const clearance = profile.groundClearanceM;
+    if (clearance === null) expect(manifest.landingGear).toEqual([]);
+    else {
+      const n = profile.arms.length, m = manifest.massProperties.massKg, k = m * 9.80665 / (n * 0.005);
+      expect(manifest.landingGear).toHaveLength(n);
+      manifest.landingGear.forEach((gear, i) => {
+        const arm = profile.arms[i]!;
+        expect(gear.anchorBodyM[0]).toBeCloseTo(arm.lengthM * Math.cos(arm.azimuthRad), 12);
+        expect(gear.anchorBodyM[1]).toBeCloseTo(arm.lengthM * Math.sin(arm.azimuthRad), 12);
+        if (gear.suspension.kind !== 'linear') throw new Error('Expected a linear strut');
+        // The strut and the foot in series have the support's stiffness k; the strut carries the damping c.
+        const knot = gear.tireLoadCurve[1]!, foot = knot[1]! / knot[0]!;
+        expect(1 / (1 / gear.suspension.stiffnessNpm + 1 / foot)).toBeCloseTo(k, 6);
+        expect(gear.suspension.compressionDamping).toBeCloseTo(2 * 0.7 * Math.sqrt(k * m / n), 9);
+        expect(gear.suspension.reboundDamping).toBe(gear.suspension.compressionDamping);
+        // At rest on level ground, with the CG over the reference point, the support compresses δ_s (within 1 %, the unsprung foot
+        // loading the foot but not the strut) and the reference point sits at the clearance.
+        const share = m / n, deflection = (share - gear.unsprungMassKg) * 9.80665 / gear.suspension.stiffnessNpm + share * 9.80665 / foot;
+        expect(Math.abs(deflection / 0.005 - 1)).toBeLessThan(0.01);
+        expect(gear.anchorBodyM[2]! + gear.tireRadiusM - deflection).toBeCloseTo(clearance, 12);
+        expect(gear.strutTravelM).toBeGreaterThan(deflection);
+        expect([gear.rollingCoefficient, gear.lateralCoefficient, gear.brakingCoefficient]).toEqual([0.6, 0.6, 0.6]);
+        expect(gear.kineticFrictionRatio).toBeCloseTo(0.5 / 0.6, 15);
+      });
+    }
     // The bytes are the canonical form of the manifest, and the session registry admits them.
     const parsed: unknown = JSON.parse(new TextDecoder().decode(derived.bytes));
     expect(parsed).toEqual(manifest);
@@ -371,14 +408,16 @@ describe('manifest derivation', () => {
     const derived = await deriveVehicleManifest(quad, syntheticComponents(validateAircraftProfile(quad), false), { modelId: FIXTURE_MODEL_ID });
     expect([derived.manifest.motors, derived.manifest.escs, derived.manifest.battery]).toEqual([[], [], null]);
     expect([derived.manifest.provenance.motors, derived.manifest.provenance.escs, derived.manifest.provenance.battery]).toEqual([null, null, null]);
-    const v1 = projectVehicleToModelV1(derived.manifest);
+    // The ground contact, not the rigid body, consumes the gear (TASK-095), so it is taken out before the projection.
+    const v1 = projectVehicleToModelV1(withoutLandingGear(derived.manifest));
     const cg = quad.massProperties.cgOffsetBodyM;
     // The v1 descriptor is CG-referenced: hub minus CG.
     expectVector(v1.rotors[0]!.hubPositionBodyM, derived.manifest.rotors[0]!.hubPositionBodyM.map((value, i) => value - cg[i]!), 'v1 hub');
     // Wake pairs have no v1 consumer yet (TASK-101), so a coaxial manifest fails closed there.
     const x8 = fixture('coaxial-x8');
     const coaxial = await deriveVehicleManifest(x8, syntheticComponents(validateAircraftProfile(x8), false), { modelId: FIXTURE_MODEL_ID });
-    expect(() => projectVehicleToModelV1(coaxial.manifest)).toThrow('rotorWakePairs (TASK-101)');
+    expect(() => projectVehicleToModelV1(withoutLandingGear(coaxial.manifest))).toThrow('rotorWakePairs (TASK-101)');
+    expect(() => projectVehicleToModelV1(derived.manifest)).toThrow('landingGear (TASK-095)');
   });
 
   test('resolved components must cover exactly the profile motors and their referenced cards', async () => {

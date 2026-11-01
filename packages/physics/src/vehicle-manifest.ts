@@ -60,6 +60,8 @@ export interface LandingGearSpec {
   readonly suspension: LinearSuspension | GasSuspension; readonly tireLoadCurve: readonly (readonly number[])[];
   readonly tireDampingNsPm: number; readonly rollingCoefficient: number; readonly lateralCoefficient: number;
   readonly brakingCoefficient: number;
+  /** μ_k/μ_s in (0, 1] (TASK-095, decision F-08); absent means one coefficient for sticking and sliding. */
+  readonly kineticFrictionRatio?: number;
 }
 export interface SensorMount {
   readonly sensor: 'imu' | 'baro' | 'mag' | 'gnss' | 'airspeed' | 'rangefinder'; readonly instance: number;
@@ -357,6 +359,20 @@ function projectRotorBody(manifest: VehicleManifest): ModelDescriptor {
     rotorCount: manifest.rotorCount, rotorCapacity: 32,
     rotors: manifest.rotors.map(rotor => ({ ...rotor, hubPositionBodyM: shifted(rotor.hubPositionBodyM, cg) })),
   };
+}
+
+/**
+ * The manifest without its landing gear, for runtimes that hand the gear to
+ * the ground contact (`GroundContact.forVehicle`, TASK-095) and the rest to
+ * the rigid body; the gear's dataset goes too when no other section names it.
+ */
+export function withoutLandingGear(input: VehicleManifest): VehicleManifest {
+  const manifest = validateVehicleManifest(input);
+  const gear = manifest.provenance.landingGear;
+  const provenance = { ...manifest.provenance, landingGear: null };
+  const named = new Set(Object.values(provenance));
+  return validateVehicleManifest({ ...manifest, landingGear: [], provenance,
+    datasets: manifest.datasets.filter(dataset => dataset.id !== gear || named.has(dataset.id)) });
 }
 
 /**

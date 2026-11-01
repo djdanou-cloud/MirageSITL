@@ -77,6 +77,7 @@ const experiments = () => launcherExperiments(api().port, token, ORIGIN);
 test.beforeAll(async () => {
   test.setTimeout(600000);
   execFileSync(process.execPath, ["scripts/build-wasm.mjs"], { stdio: "pipe" });
+  execFileSync(process.execPath, ["scripts/build-contact.mjs"], { stdio: "pipe" });
   build = installedBuild();
   scratch = mkdtempSync(join(tmpdir(), "mirage-run-panel-"));
   home = join(scratch, "home");

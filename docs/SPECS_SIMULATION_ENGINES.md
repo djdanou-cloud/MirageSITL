@@ -1092,7 +1092,11 @@ receives `MassProperties::with_inertia_matrix`, which diagonalizes the tensor
 into a principal-axis frame; version 1 keeps its diagonal path bit for bit.
 Version 3 (TASK-095) keeps version 2's inertia slots and adds each wheel's brush
 cornering stiffness in its slot [28]; `GroundContact` writes it when a wheel has a
-positive `corneringStiffnessNpRad`.
+positive `corneringStiffnessNpRad`. Version 4 (TASK-095, decision F-08) keeps
+version 3's slots and adds each wheel's kinetic over static friction ratio
+μ_k/μ_s in its slot [29], in (0, 1] on every wheel; `GroundContact` writes it
+when any wheel has a `kineticFrictionRatio` below 1, and a ratio of 1 gives
+version 3's trajectory bit for bit.
 `GroundContact` takes `inertiaKgM2` (row-major, exactly symmetric) and writes
 version 2 only when a product is non-zero. Against the 4800 Hz RK4 body, a free
 body with principal moments (0.02, 0.03, 0.045) kg m² turned 0.7 rad about
@@ -1118,7 +1122,8 @@ anchor body FRD m; [3]=unsprung mass kg; [4]=tire radius m; [5]=rigid rim radius
 charge pressure, ambient pressure, exponent, hydraulic area, fluid density,
 discharge coefficient, compression orifice, rebound orifice in the SI units
 specified below; [28]=brush cornering stiffness N/rad (version 3, ≥ 0; zero in
-versions 1 and 2); [29..31]=zero; [32..95]=tire deflection knots m;
+versions 1 and 2); [29]=kinetic friction ratio μ_k/μ_s (version 4, in (0, 1];
+zero in versions 1 to 3); [30..31]=zero; [32..95]=tire deflection knots m;
 [96..159]=tire force knots N. Unused entries are zero. The last knot must cover
 the tire-radius minus rim-radius distance. All values must be finite.
 
@@ -1180,9 +1185,17 @@ axis of the ground plane: longitudinal along the projected heading, lateral acro
 it. Each axis first asks for the force that stops the contact against a stick
 anchor within the step, f = −m·(v/Δt + β·d/Δt²), with v the wheel's tangential
 speed, d its offset from the anchor and m the wheel plus its load share of the
-airframe. Below the axis limit μN (longitudinal μ is rolling + (braking − rolling)·b
-for brake input b, lateral μ the lateral coefficient) it sticks; above, it slides
-at μN against that request and the anchor follows. β = 0.2 is constraint
+airframe's effective mass at the contact point along that axis t,
+1/(1/M + (r×t)·I⁻¹·(r×t)) for r from the airframe's centre of mass and I⁻¹ its
+world inverse inertia. With shares of the translational mass alone, as before
+2026-11-01, the feet together over-correct a rotation whenever the stance is
+wide against the inertia (M·r² > 2·I): a quad on supports under its motors
+(decision F-07) then flipped its yaw rate every step at the friction limit, at
+about 0.09 rad/s. With the effective mass no mode of the airframe is corrected
+by more than it moved. Below the axis limit μN (longitudinal μ is rolling +
+(braking − rolling)·b for brake input b, lateral μ the lateral coefficient) it
+sticks; above, it slides at μN, or at μ_k/μ_s of it in version 4, against that
+request and the anchor follows. β = 0.2 is constraint
 stabilization like Rapier's error reduction: the fraction of the anchor offset
 removed per step, so a held wheel keeps a static offset of order gΔt²/β instead of
 creeping. While a wheel rolls (|v_long| > 0.1 m/s) and has a cornering stiffness
@@ -1198,7 +1211,15 @@ Coulomb 1.5098 and 1.0450 m/s² (limit 5 %); a 2 m/s sideways slide stops in
 0.4025–0.4061 m against v²/(2μg) = 0.4079 m (limit 5 %) and then stays at rest; and
 with C_α = 20 N/rad a 0.05 m/s side velocity at 5 m/s decays to 6.247·10⁻³ m/s in
 0.3 s against the closed form v_y0·((v0 − bt)/v0)^(k/b) = 6.127·10⁻³ m/s (limit 5 %,
-k = ΣC_α/m, b = μ_roll·g).
+k = ΣC_α/m, b = μ_roll·g). These values were measured before the effective mass;
+with it every fixture still passes its tolerance (creep at most 5.2·10⁻⁷ m, the rolls, slides and sideways stop unchanged to four digits, and the brush decay 6.266–6.315·10⁻³ m/s, within 3.1 % of the closed form). Version 4 adds
+three: a 2 m/s sideways slide at μ_k = 0.8·μ_s stops at v²/(2μ_k·g) = 0.5099 m within 5 % (0.5039–0.5075 m);
+braked at μ_s = 0.7 and μ_k = 0.525, the aircraft holds a slope of tan 0.45 after
+dropping onto it (creep at most 3.3·10⁻⁶ m in 3 s, limit 1 mm) and slides down
+tan 0.6 at g·(sin θ − μ_k·cos θ) = 0.6307 m/s² within 5 % (0.6307 m/s²); and a
+1.5 kg airframe of 0.02 kg m² yaw inertia on feet 0.3 m out (M·r² seven times I)
+rests with body rates below 10⁻⁴ rad/s after 1 s at all three rates (at most
+7.8·10⁻¹² rad/s).
 Cold initialization exercises contact transitions and all supported rates.
 Actual armed allocations fault the session; stable memory alone is not evidence.
 `node scripts/check-contact-binding.mjs` builds native and WASM from the frozen
@@ -3098,7 +3119,7 @@ rotorless body:
 | `battery` | `openCircuitFullV`, `openCircuitEmptyV`, `internalResistanceOhm` ≥0, `capacityAh`, `currentLimitA` (native `Battery`, charge 3600·Ah C) | full ≥ empty | TASK-092 |
 | `airframe.drag` | `dragAreaBodyM2` (C_D·A tensor, m²), `centerOfPressureBodyM` | symmetric positive definite, so drag always dissipates | TASK-096 |
 | `controlSurfaces` (≤16) | `id`, `function`, `actuatorChannel`, deflection limits within ±π/2, `rateLimitRadS` | unique IDs and channels, not a rotor channel, min < max | TASK-109 |
-| `landingGear` (≤8) | the `ContactWheel` fields plus `id`; anchor from the reference point | unique IDs, rim < tire, last tire knot ≥ tire − rim; strut and tire laws stay native | TASK-095 |
+| `landingGear` (≤8) | the `ContactWheel` fields plus `id` (the cornering stiffness excepted; optional `kineticFrictionRatio`); anchor from the reference point | unique IDs, rim < tire, last tire knot ≥ tire − rim, kinetic friction ratio in (0, 1]; strut and tire laws stay native | TASK-095 |
 | `sensorMounts` (≤32) | `sensor`, `instance` (0–7), `positionBodyM`, `sensorToBody` | unique sensor/instance pairs, quaternion norm within 1e-6 | the sensor pipeline (TASK-147); never the rigid body |
 | `rotorWakePairs` (≤64) | `upstreamRotorId`, `downstreamRotorId` | known rotors, no self or duplicate pairs, acyclic | TASK-101 |
 | `ardupilot` | `vehicle: "copter"`, `frameClass`, `frameType` | only 1/1 (quad X) is admitted, with the geometry check below | parameter profile |
@@ -4300,9 +4321,10 @@ values. The derived manifest holds:
 | `battery` | The resolved values, or null |
 | `rotorWakePairs` | One per coaxial pair, from the upper rotor to the lower one |
 | `massProperties` | The aircraft and the payload: combined mass and CG, both inertias moved to it by the parallel-axis theorem |
-| `datasets` | One synthetic dataset, `aircraft-profile-derivation`, whose source SHA-256 is that of the canonical derivation input |
+| `datasets` | The synthetic dataset `aircraft-profile-derivation`, whose source SHA-256 is that of the canonical derivation input, and, with supports, the synthetic dataset `standard-landing-gear` of the gear rules, without a source (derivation 3, TASK-095) |
 | `sensorMounts` | The IMU mount when the sensor configuration states the IMU position or orientation (derivation 2, TASK-147); otherwise empty |
-| `ardupilot`, `airframe.drag`, `landingGear`, `controlSurfaces` | Null or empty; TASK-142, TASK-096 and TASK-187 own them |
+| `landingGear` | The decision D-07 supports when the profile states its ground clearance, otherwise empty (derivation 3, TASK-095; section "Standard landing gear") |
+| `ardupilot`, `airframe.drag`, `controlSurfaces` | Null or empty; TASK-142 and TASK-096 own them |
 
 With d_i = c_i − c for each part's CG c_i and the combined CG c:
 
@@ -4312,8 +4334,9 @@ J = \sum_i \left( J_i + m_i\left(\lVert d_i \rVert^2 \mathbf{1} - d_i d_i^{\math
 
 `profileSha256` is the SHA-256 of the profile's canonical JSON, so renaming the
 stored profile changes nothing. `inputSha256` is the SHA-256 of the canonical
-`{derivationVersion: 2, profile, components}` (`DERIVATION_VERSION`; 2 since
-TASK-147 added the IMU mount). The manifest passes
+`{derivationVersion: 3, profile, components}` (`DERIVATION_VERSION`; 2 since
+TASK-147 added the IMU mount, 3 since TASK-095 added the standard landing
+gear). The manifest passes
 `validateVehicleManifest`, and `bytes` is its RFC 8785 canonical JSON, which a
 `VehicleRegistry` admits unchanged; −0 in the inputs becomes 0. Any change to
 geometry, outputs, mass properties, components or the model ID changes the
@@ -5075,7 +5098,8 @@ same difference that gives the synthetic quad's specific force.
 
 ### IMU mount in the manifest
 
-`DERIVATION_VERSION` is 2. When a profile's sensor configuration states the
+`DERIVATION_VERSION` was 2 until derivation 3 added the standard landing gear
+(TASK-095). When a profile's sensor configuration states the
 IMU position or orientation, the derived manifest holds one `sensorMounts`
 entry: `imu`, instance 0, the position (the CG when only the orientation is
 stated) and the sensor-to-body quaternion of R from `trig.ts`, so Node and
@@ -5411,15 +5435,18 @@ drive; existing derivation inputs give the same bytes.
 
 `buildProfileDynamics(manifest, options)` (`@mirage/physics/profile-dynamics`)
 needs a motor and an ESC for every rotor and a battery. It projects the body
-and rotors to the v1 descriptor (sensor mounts, wake pairs and the ArduPilot
-frame are consumed elsewhere; drag, control surfaces and landing gear still
-fail closed), binds each rotor's catalog polar, takes the drive from
+and rotors to the v1 descriptor (sensor mounts, wake pairs, the ArduPilot
+frame and, through `withoutLandingGear`, the landing gear are consumed
+elsewhere; drag and control surfaces still fail closed), binds each rotor's
+catalog polar, takes the drive from
 `escDriveFromManifest` (initial state of charge 1 and no house load unless
 given) and the air from the ISA troposphere at 0 m unless given. Inflow lag
 0.1 s, inflow limit 500 m/s and minimum confidence 0.9 are the TASK-033
 settings. Actuator frames for the model carry its model ID as the motor map
 ID; without an autopilot the pilot sticks command collective only, and the
-vehicle starts at the origin on the synthetic pad with the motors stopped.
+vehicle starts with the motors stopped on its landing gear over the origin
+(section "Standard landing gear"), or at the origin on the synthetic pad when
+the manifest has no gear.
 Declared rotor-wake pairs are not modeled until TASK-101: the build lists the
 limitation and sets `CONFIGURATION_FLAG_WAKE_UNMODELED` (bit 16) in the new
 `configurationFlags` of `BetFlightConfiguration`, which `BetFlightDynamics` ORs
@@ -5436,9 +5463,12 @@ two cold messages: `{ type: "bet.module", bytes, sha256 }` checks the hash,
 compiles the module and requires no imports and the `bet_bound_step_v2`,
 `bet_bus_step` and `bet_body_step` exports, answering `bet.module.ready` or
 `bet.module.reject`; `{ type: "model.register", bytes, sha256 }` registers a
-manifest, answering `model.registered` with its model ID or `model.reject`.
-The demo runs until a Control Protocol v2 `model.load` names a registered ID
-and hash. Starting experiments from the Run tab and the SITL lockstep stay with
+manifest, answering `model.registered` with its model ID or `model.reject`;
+`{ type: "contact.module", bytes, manifest }` (TASK-095) passes the Rapier
+contact module and its build manifest to `GroundContact.initialize`, answering
+`contact.module.ready` or `contact.module.reject`. A vehicle with landing gear
+loads only once the contact module is ready. The demo runs until a Control
+Protocol v2 `model.load` names a registered ID and hash. Starting experiments from the Run tab and the SITL lockstep stay with
 TASK-153 and TASK-154.
 
 ### Hover trim check
@@ -5471,12 +5501,84 @@ limits, set before the first run, are a correction below 2e-3 of u, vertical
 speed below 0.02 m/s, body rate below 0.005 rad/s and attitude error below
 0.01 rad.
 
+### Standard landing gear
+
+Aircraft profiles describe no landing gear, and Phase 1 has no gear editor
+(S18; an editor is TASK-194). Derivation 3 therefore gives every vehicle the
+basic support approximation that decision D-07 fixed on 2026-10-28
+([phase1-fidelity.md](decisions/phase1-fidelity.md), F-07 and F-08;
+`packages/aircraft/src/standard-gear.ts`, rules version 1). The supports are
+synthetic, not any aircraft's measured legs, and the manifest declares them as
+their own synthetic dataset `standard-landing-gear`.
+
+| Rule | Value | Source |
+| --- | --- | --- |
+| Supports | One under each arm, at the arm's motor radius and azimuth, in ascending arm ID order | F-07 |
+| Height | The reference point rests at the profile's `groundClearanceM` above level ground | F-07 |
+| Stiffness, N supports, mass m | k = m·g/(N·δ_s), δ_s = 5 mm | F-08 |
+| Damping | c = 2·ζ·√(k·m/N), ζ = 0.7, on the strut | F-08 |
+| Friction | μ_s = 0.6 rolling, lateral and braking; μ_k = 0.5 while sliding (`kineticFrictionRatio` 5/6) | F-08 |
+| Support point | A linear strut on a rubber foot of radius 0.01 m on a 0.005 m rim; the foot is ten times stiffer than the support, so the strut has 10/9 of k and the pair k | Engineering choice |
+| Unsprung mass | 1 % of the support's share of the vehicle, on the foot | Engineering choice |
+| Strut travel | Five static deflections, 25 mm | Engineering choice |
+
+The unsprung foot loads its foot but not its strut, so a support compresses
+0.991·δ_s under its share; the anchors put the reference point exactly at the
+clearance with that deflection. F-07 places the supports of a profile without
+a clearance at the lowest point of its body hull, which does not exist before
+the compound hull (TASK-095 increment 4). Such a profile gets no supports: its
+manifest has no gear, and its dynamics stand on the synthetic pad and list
+that limitation. Of the S19 fixtures only octa-x states no clearance. The
+anchors use the package's own sine and cosine (`trig.ts`), so Node and
+Chromium derive the same bytes. The vehicle manifest v2 gains the optional
+`landingGear[].kineticFrictionRatio` in (0, 1]; existing manifests stay valid
+with the same bytes.
+
+`buildProfileDynamics` hands the gear to the contact: `ProfileDynamicsBuild.gear`
+holds the wheels with anchors relative to the CG
+(`deriveVehicle().landingGearAnchorCgM`), the vehicle's mass and inertia about
+the CG as the projected model declares them, and the radius of the airframe's
+contact sphere about the CG, half the CG's height over the ground with every
+strut and foot fully compressed, so only the supports carry the vehicle until
+the compound hull. The vehicle starts with its fully extended feet touching the
+ground plane through the origin. `profileFlightDynamics(module, build, hz)`
+creates the dynamics on a new `GroundContact.forVehicleNow` contact (a
+synchronous `forVehicle` once the artifact is compiled), because the session
+builds the dynamics again at each rate change and the dynamics owns and
+disposes its contact; `profileModelPort` rejects a vehicle with gear before the
+contact module is loaded. The Run tab's SITL load fetches the module and its
+manifest from the loopback-only `/__contact/` route of the development server,
+which serves `packages/physics/dist/contact/` as `/__bet/` serves the BET module.
+
+At rest, rigid-plate statics give the struts the loads Fᵢ = a + b·xᵢ + c·yᵢ that
+balance the sprung weight and its moments about the CG; the feet add their own
+weight. The plane through the support compressions gives the CG's sink and the
+rest pitch and roll (`tests/support/standard-gear.ts` computes them from the
+manifest). The four S19 configurations with a clearance come to rest within
+0.1 mm of that height at 400, 800 and 1200 Hz with body rates below 10⁻⁶ rad/s,
+and octa-x stands on the pad (`tests/profile-dynamics.test.ts`). On the quad X
+the lockstep session's accelerometer reads −g·sin(pitch) forward within 5 %
+(`tests/external-sitl-session.test.ts`). Native ArduCopter `8ab6afd` warms up,
+takes off to 5 m, holds within 0.06 m and lands in LAND mode on the quad X's
+supports through `SitlJsonLink` (`tests/external-sitl-flight.test.ts`, 800 Hz,
+speedup 4): touchdown at 0.44 m/s, at rest 0.1 µm from the predicted height and
+disarmed. No step turned the body more than 1.05 times its body rate over the
+step (largest excess 1.1·10⁻¹⁰ rad in 58,432 steps, the single-precision
+quaternion of the published state), so no pad resets the attitude. The step
+turn is measured as 2·asin of the vector part of q_prev⁻¹ ⊗ q; 2·acos of their
+dot product turns the published quaternion's rounding into 10⁻⁴ rad.
+`node scripts/check-sitl-link-allocation.mjs` keeps G1 on the supports: 10⁶
+lockstep steps at 400 Hz with 0.00404 B/step and no GC event, the quad on its
+feet throughout, and the contact faults the session on any native allocation.
+
 ### Compute and allocation
 
 `node scripts/bench-profile-dynamics.mjs` runs the sixteen-motor S19 fixture
 on the example cards in Node 24 (V8, `--single-threaded`). Its rotors spin up
 from rest to 0.8 of their hover-trim duty, so the vehicle stays on the
-synthetic pad while every rotor runs near flight speed. It writes
+synthetic pad while every rotor runs near flight speed; `syntheticPad: true`
+keeps it there instead of on its gear (TASK-095), so the step times the BET
+compute alone, as before. It writes
 `test-results/bench/profile-dynamics-16.json` with the manifest, WASM and
 source hashes. The step is `BetFlightDynamics` alone, not the browser Worker
 or the session; the scalar WASM build is used. The budget is the step period

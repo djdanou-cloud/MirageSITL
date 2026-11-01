@@ -22,6 +22,7 @@ test.skip(!existsSync(join(HOME, "install-manifest.json")), "Needs the TASK-152 
 test("the motor check spins each motor alone before flight, rings the turning rotor, and passes", async ({ page }) => {
   test.setTimeout(600000);
   execFileSync(process.execPath, ["scripts/build-wasm.mjs"], { stdio: "pipe" });
+  execFileSync(process.execPath, ["scripts/build-contact.mjs"], { stdio: "pipe" });
   const home = mkdtempSync(join(tmpdir(), "mirage-motor-test-"));
   copyFileSync(join(HOME, "catalog.json"), join(home, "catalog.json"));
   const token = ensureToken(home);

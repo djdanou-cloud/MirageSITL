@@ -65,7 +65,8 @@ const resolved = M.resolveComponents(profile, cards);
 if (!resolved.components) { console.error(`Missing: ${resolved.missing.join('; ')}`); process.exit(1); }
 const derived = await M.deriveVehicleManifest(profile, resolved.components, { modelId: 144 });
 const ratings = M.componentRatings(profile, cards);
-const { configuration } = M.buildProfileDynamics(derived.manifest, { limitRatings: ratings });
+// The BET compute alone, on the synthetic pad as before TASK-095: the gear's contact is timed by scripts/bench-flight-contact.mjs.
+const { configuration } = M.buildProfileDynamics(derived.manifest, { limitRatings: ratings, syntheticPad: true });
 // The BET WASM comes from scripts/build-wasm.mjs (packages/wasm-bet/dist is not tracked).
 const wasmBytes = read('packages/wasm-bet/dist/mirage_bet.scalar.wasm');
 const module = new WebAssembly.Module(wasmBytes);

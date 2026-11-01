@@ -7,16 +7,21 @@ import { viteFileUrl } from '../support/vite-url';
 // TASK-144: the application's physics Worker loads a profile-derived model.
 // Chromium derives the 16-rotor manifest from the S19 fixture and the example
 // cards, the Worker verifies the BET module and the manifest by hash, and a
-// Control Protocol v2 model.load switches the session from the demo to it.
+// Control Protocol v2 model.load switches the session from the demo to it,
+// once the Worker also has the contact module the vehicle's gear stands on.
 
 const read = (path: string): unknown => JSON.parse(readFileSync(new URL(path, import.meta.url), 'utf8'));
 
 test('the physics Worker registers and loads 16-rotor profile dynamics, keeping the demo until model.load', async ({ page }) => {
   test.setTimeout(300000);
   execFileSync(process.execPath, ['scripts/build-wasm.mjs'], { stdio: 'pipe' });
+  execFileSync(process.execPath, ['scripts/build-contact.mjs'], { stdio: 'pipe' });
   const wasm = readFileSync('packages/wasm-bet/dist/mirage_bet.scalar.wasm');
   const input = {
     bytes: Array.from(wasm), wasmSha256: createHash('sha256').update(wasm).digest('hex'),
+    // The Rapier contact the vehicle's standard landing gear stands on (TASK-095).
+    contactBytes: Array.from(readFileSync('packages/physics/dist/contact/contact.wasm')),
+    contactManifest: JSON.parse(readFileSync('packages/physics/dist/contact/manifest.json', 'utf8')) as unknown,
     profile: read('../fixtures/aircraft/octa-coaxial-16.json'),
     cards: Object.fromEntries(['motor', 'propeller', 'esc', 'battery'].map(type => [type, read(`../fixtures/components/${type}-example.json`)])),
     urls: {
@@ -32,7 +37,7 @@ test('the physics Worker registers and loads 16-rotor profile dynamics, keeping 
   await page.route('**/profile-dynamics-test', route => route.fulfill({ contentType: 'text/html', body: '<!doctype html><title>Profile dynamics check</title>',
     headers: { 'Cross-Origin-Opener-Policy': 'same-origin', 'Cross-Origin-Embedder-Policy': 'require-corp' } }));
   await page.goto('/profile-dynamics-test');
-  const report = await page.evaluate(async ({ bytes, wasmSha256, profile, cards, urls }) => {
+  const report = await page.evaluate(async ({ bytes, wasmSha256, contactBytes, contactManifest, profile, cards, urls }) => {
     const p = await import(urls.protocol) as typeof import('@mirage/protocol');
     const profiles = await import(urls.profile) as typeof import('@mirage/aircraft/profile');
     const components = await import(urls.components) as typeof import('@mirage/aircraft/components');
@@ -83,13 +88,21 @@ test('the physics Worker registers and loads 16-rotor profile dynamics, keeping 
       const registered = next(d => d.type === 'model.registered');
       worker.postMessage({ type: 'model.register', bytes: derived.bytes, sha256: derived.sha256 });
       const registration = await registered;
+      // The vehicle stands on its landing gear, so a load before the contact module is rejected too.
       reader.readHeader(header);
       result = next(final(8));
       worker.postMessage({ protocolVersion: 2, requestId: 8, expectedEpoch: header.sessionEpoch, type: 'model.load', modelId: 144, manifestSha256: derived.sha256 });
+      const noContact = await result;
+      const contactReady = next(d => d.type === 'contact.module.ready');
+      worker.postMessage({ type: 'contact.module', bytes: new Uint8Array(contactBytes), manifest: contactManifest });
+      await contactReady;
+      reader.readHeader(header);
+      result = next(final(9));
+      worker.postMessage({ protocolVersion: 2, requestId: 9, expectedEpoch: header.sessionEpoch, type: 'model.load', modelId: 144, manifestSha256: derived.sha256 });
       const load = await result;
       await new Promise(resolve => setTimeout(resolve, 50));
       if (!reader.latest(state)) throw new Error('No state published');
-      return { demoModel, early, rejectedModule, registration, load, modelId: state.modelId, batteryVoltage: state.batteryVoltage,
+      return { demoModel, early, rejectedModule, registration, noContact, load, modelId: state.modelId, batteryVoltage: state.batteryVoltage,
         outsideValidity: (state.vehicleFlags & p.VehicleFlagV2.ModelOutsideValidity) !== 0, rotors: derived.manifest.rotorCount };
     } finally { worker.terminate(); }
   }, input);
@@ -98,6 +111,7 @@ test('the physics Worker registers and loads 16-rotor profile dynamics, keeping 
   expect(report.early).toMatchObject({ type: 'reject-v2', code: 'ASSET_MISSING' });
   expect(report.rejectedModule).toMatchObject({ type: 'bet.module.reject', message: 'BET module SHA-256 mismatch' });
   expect(report.registration).toMatchObject({ type: 'model.registered', modelId: 144 });
+  expect(report.noContact).toMatchObject({ type: 'reject-v2', message: expect.stringContaining('The contact module is not loaded') });
   expect(report.load).toMatchObject({ type: 'ack-v2', status: 'applied' });
   expect(report.modelId).toBe(144);
   expect(report.batteryVoltage).toBeCloseTo(16.8, 4);

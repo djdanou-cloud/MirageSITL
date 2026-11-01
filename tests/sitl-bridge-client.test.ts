@@ -1,6 +1,7 @@
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { beforeAll, describe, expect, it } from 'vitest';
+import { prepareContact } from './contact-support.ts';
 import { encodeInto } from '@mirage/mavlink/codec';
 import { packInto } from '@mirage/mavlink/messages';
 import { profileModelPort } from '@mirage/physics/profile-dynamics';
@@ -20,9 +21,11 @@ import { quadProfile } from './support/quad-profile.ts';
 
 const HZ = 800, EPOCH = 3;
 let module: WebAssembly.Module;
-beforeAll(() => {
+beforeAll(async () => {
   execFileSync(process.execPath, ['scripts/build-wasm.mjs'], { stdio: 'pipe' });
   module = new WebAssembly.Module(readFileSync('packages/wasm-bet/dist/mirage_bet.scalar.wasm'));
+  // The vehicle stands on its standard landing gear (TASK-095).
+  await prepareContact();
 }, 600000);
 
 function servoRecord(frameCount: number): Uint8Array {

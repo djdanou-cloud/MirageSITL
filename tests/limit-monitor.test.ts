@@ -1,16 +1,17 @@
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { beforeAll, describe, expect, it } from 'vitest';
+import { prepareContact } from './contact-support.ts';
 import { validateComponentCard, type ComponentCard } from '@mirage/aircraft/components';
 import { deriveVehicleManifest } from '@mirage/aircraft/derive-manifest';
 import { validateAircraftProfile, withPropellerPolars, type AircraftProfile } from '@mirage/aircraft/profile';
 import { componentRatings, resolveComponents } from '@mirage/aircraft/resolve-components';
-import { BetFlightDynamics } from '@mirage/physics/bet-dynamics';
+import type { BetFlightDynamics } from '@mirage/physics/bet-dynamics';
 import {
   BatteryColumn, BatteryLimited, LimitMonitor, MotorColumn, MotorLimited, MotorWarning, PowerTelemetry, LIMIT_OUTBOX_CAPACITY,
   parseLimitRatings, type LimitEvent, type LimitRatings,
 } from '@mirage/physics/limit-monitor';
-import { buildProfileDynamics } from '@mirage/physics/profile-dynamics';
+import { buildProfileDynamics, profileFlightDynamics } from '@mirage/physics/profile-dynamics';
 import { validateVehicleManifest } from '@mirage/physics/vehicle-manifest';
 import { ActuatorFlagV2, newActuatorFrameV2, newInput } from '@mirage/protocol';
 
@@ -21,9 +22,11 @@ import { ActuatorFlagV2, newActuatorFrameV2, newInput } from '@mirage/protocol';
 
 const MOTOR = '11'.repeat(32), PROPELLER = '22'.repeat(32), ESC = '33'.repeat(32), BATTERY = '44'.repeat(32);
 let module: WebAssembly.Module;
-beforeAll(() => {
+beforeAll(async () => {
   execFileSync(process.execPath, ['scripts/build-wasm.mjs'], { stdio: 'pipe' });
   module = new WebAssembly.Module(readFileSync('packages/wasm-bet/dist/mirage_bet.scalar.wasm'));
+  // The vehicle stands on its standard landing gear (TASK-095).
+  await prepareContact();
 }, 600000);
 
 function json(path: string): unknown {
@@ -52,9 +55,9 @@ async function quadDynamics(edits: CardEdits, options: { ratings?: LimitRatings 
   if (!resolved.components) throw new Error(`Missing: ${resolved.missing.join('; ')}`);
   const derived = await deriveVehicleManifest(profile, resolved.components, { modelId: 146 });
   const ratings = options.ratings === undefined ? componentRatings(profile, set) : options.ratings;
-  const { configuration } = buildProfileDynamics(derived.manifest, { initialStateOfCharge: options.soc ?? 1, limitRatings: ratings });
+  const build = buildProfileDynamics(derived.manifest, { initialStateOfCharge: options.soc ?? 1, limitRatings: ratings });
   const manifest = validateVehicleManifest(derived.manifest);
-  return { d: new BetFlightDynamics(module, configuration, options.hz ?? 400), manifest, ratings, motorMapId: configuration.motorMapId };
+  return { d: profileFlightDynamics(module, build, options.hz ?? 400), manifest, ratings, motorMapId: build.configuration.motorMapId };
 }
 /** Runs at a fixed duty on every motor; `each` sees the dynamics after every step. */
 function run(q: { d: BetFlightDynamics; motorMapId: number }, duty: number, steps: number, each: (step: number) => void = () => undefined): void {

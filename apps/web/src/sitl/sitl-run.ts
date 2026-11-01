@@ -302,6 +302,9 @@ export class RuntimePhysics implements PhysicsPort {
     runtime.pauseWhenHidden = false;
     const module = await fetchBetModule();
     await this.request({ type: "bet.module", bytes: module.bytes, sha256: module.sha256 }, "bet.module.ready", "bet.module.reject");
+    // The vehicle stands on its landing gear on the Rapier contact (TASK-095).
+    const contact = await fetchContactModule();
+    await this.request({ type: "contact.module", bytes: contact.bytes, manifest: contact.manifest }, "contact.module.ready", "contact.module.reject");
     await this.request({ type: "model.register", bytes: vehicle.derived.bytes, sha256: vehicle.derived.sha256 }, "model.registered", "model.reject");
     await this.request({ type: "limits.register", sha256: vehicle.derived.sha256, ratings: vehicle.ratings }, "limits.registered", "limits.reject");
     await this.control({ type: "sim.configure", hz: physicsHz, clockMode: "sitl-lockstep" });
@@ -349,6 +352,15 @@ export class RuntimePhysics implements PhysicsPort {
       requestId = command.requestId;
     });
   }
+}
+
+/** The contact module and its build manifest from /__contact/ (Vite, loopback only); the Worker checks one against the other. */
+async function fetchContactModule(): Promise<{ bytes: Uint8Array; manifest: unknown }> {
+  const manifest: unknown = await (await fetch("/__contact/manifest.json", { cache: "no-store" })).json().catch(() => null);
+  if (typeof field(manifest, "sha256") !== "string") throw new Error("No contact module is built; run node scripts/build-contact.mjs");
+  const response = await fetch("/__contact/contact.wasm", { cache: "no-store" });
+  if (!response.ok) throw new Error("The contact module contact.wasm is not served");
+  return { bytes: new Uint8Array(await response.arrayBuffer()), manifest };
 }
 
 /** The scalar BET module from /__bet/ (Vite, loopback only), checked against its manifest. */
