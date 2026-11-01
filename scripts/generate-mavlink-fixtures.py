@@ -33,9 +33,10 @@ spec = importlib.util.spec_from_file_location('dialect', OUTPUT + '.py')
 m = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(m)
 
-# Messages the codec supports: the 12 before TASK-150 and the Phase 1 ground-station set.
+# Messages the codec supports: the 12 before TASK-150, the Phase 1 ground-station set, and
+# AUTOPILOT_VERSION (148), whose flight_custom_version identifies a SITL the user started (TASK-155).
 SUPPORTED = [0, 1, 20, 21, 22, 23, 24, 27, 30, 32, 33, 36, 40, 41, 42, 43, 44, 45, 46, 47, 51, 70, 73, 74, 75, 76, 77,
-             84, 85, 86, 87, 93, 105, 107, 113, 147, 193, 253]
+             84, 85, 86, 87, 93, 105, 107, 113, 147, 148, 193, 253]
 # The preallocated high-rate telemetry decoders cover these.
 HIGH_RATE = [1, 30, 32, 33, 36, 74, 147]
 

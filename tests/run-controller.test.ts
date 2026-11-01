@@ -30,14 +30,15 @@ import { readCatalog, writeCatalogEntry, type FirmwareEntry } from '../apps/laun
 import { ensureToken, startLauncher } from '../apps/launcher/src/server.ts';
 import {
   failureText, HEARTBEAT_DEADLINE_S, LauncherError, PARAMETER_DEADLINE_S, SessionController, type CatalogEntry, type ClockPort,
-  type ControllerView, type LauncherExperiment, type LauncherFirmware, type LauncherLogs, type LauncherPort, type LauncherRun,
-  type LauncherRunState, type PhysicsPort, type PreparedRun, type RecordPort, type RunState, type StartRequest, type StartSpec,
+  type ConnectionSpec, type ControllerView, type LauncherConnection, type LauncherExperiment, type LauncherFirmware, type LauncherLogs,
+  type LauncherPort, type LauncherRun, type LauncherRunState, type PhysicsPort, type PreparedRun, type RecordPort, type RunState,
+  type StartRequest, type StartSpec,
 } from '../apps/web/src/run/session-controller.ts';
 import type { SitlStatus } from '../apps/web/src/sitl/bridge-client.ts';
 import { DEFAULT_HOME, LauncherClient, parseLauncherExperiment, preparedRun } from '../apps/web/src/sitl/sitl-run.ts';
 import { validateComponentCard } from '../packages/aircraft/src/components.ts';
 import {
-  createExperimentRecord, experimentRecordName, readExperiment, validateExperiment, type ExperimentPayload,
+  createExperimentRecord, experimentRecordName, readExperiment, validateExperiment, type ExperimentPayload, type LauncherSitl,
 } from '../packages/aircraft/src/experiment.ts';
 import { profileDraft, validateAircraftProfile, withSensorConfiguration } from '../packages/aircraft/src/profile.ts';
 import { DEFAULT_SENSOR_CONFIGURATION, type SensorConfiguration } from '../packages/aircraft/src/sensor-fields.ts';
@@ -50,6 +51,11 @@ import { writeFakeFirmware } from './support/fake-firmware.ts';
 import { exampleCard, quadProfile } from './support/quad-profile.ts';
 
 const sha = (text: string) => createHash('sha256').update(text).digest('hex');
+/** The launcher-owned SITL of a record payload. */
+function owned(payload: ExperimentPayload | undefined): LauncherSitl {
+  if (payload?.sitl.ownership !== 'launcher') throw new Error('The record is not of a launcher-owned SITL');
+  return payload.sitl;
+}
 function field(value: unknown, key: string | number): unknown {
   return typeof value === 'object' && value !== null ? Reflect.get(value, key) : undefined;
 }
@@ -103,6 +109,14 @@ function paramValue(name: string, value: number, count: number, index: number): 
 }
 function commandAck(command: number, result: number): Uint8Array {
   return autopilotFrame(COMMAND_ACK, { command, result });
+}
+/** One message of a requested stream as ArduCopter sends it: EKF_STATUS_REPORT, GPS_RAW_INT or GLOBAL_POSITION_INT. */
+function streamMessage(id: 193 | 24 | 33): Uint8Array {
+  switch (id) {
+    case 193: return autopilotFrame(193, { velocity_variance: 0.1, pos_horiz_variance: 0.1, pos_vert_variance: 0.1, compass_variance: 0.1, terrain_alt_variance: 0, flags: 1 | 2 | 4 | 16 | 32 });
+    case 24: return autopilotFrame(24, { time_usec: 1000000, fix_type: 3, lat: -353632610, lon: 1491652300, alt: 584000, eph: 100, epv: 100, vel: 0, cog: 0, satellites_visible: 10 });
+    case 33: return autopilotFrame(33, { time_boot_ms: 1000, lat: -353632610, lon: 1491652300, alt: 584000, relative_alt: 0, vx: 0, vy: 0, vz: 0, hdg: 0 });
+  }
 }
 function statusText(text: string): Uint8Array {
   return autopilotFrame(STATUSTEXT, { severity: 6, text });
@@ -249,7 +263,66 @@ class ScriptedLauncher implements LauncherPort {
     this.events.push('launcher.logs');
     return this.logsAnswer(id);
   }
+
+  // A SITL the user started (TASK-155): connections the scripted launcher opens, polls and releases.
+  readonly connectSpecs: ConnectionSpec[] = [];
+  readonly disconnects: string[] = [];
+  private readonly connectionViews = new Map<string, Mutable<LauncherConnection>>();
+  private connected = 0;
+  connectAnswer: ((spec: ConnectionSpec) => Promise<LauncherConnection>) | null = null;
+  disconnectAnswer: ((id: string) => Promise<LauncherConnection>) | null = null;
+  /** What the SITL sends once the launcher has been polled `afterPolls` times: its servo rate and channels (null: no JSON) and MAVLink bytes. */
+  probe: { rateHz: number | null; channels: number | null; bytesFromSitl: number; afterPolls: number } = { rateHz: 1200, channels: 16, bytesFromSitl: 512, afterPolls: 0 };
+  private polls = 0;
+  get lastConnectionId(): string { return experimentId(1000 + this.connected); }
+  connectionView(id: string): LauncherConnection {
+    const view = this.connectionViews.get(id);
+    if (!view) throw new Error(`No scripted connection ${id}`);
+    return structuredClone(view);
+  }
+  private observe(view: Mutable<LauncherConnection>): void {
+    if (view.state !== 'open' || this.polls < this.probe.afterPolls) return;
+    view.physics = { servoPackets: this.probe.rateHz === null ? 0 : 3, rateHz: this.probe.rateHz, channels: this.probe.channels };
+    view.mavlink = { bytesFromSitl: this.probe.bytesFromSitl };
+  }
+  /** SITL ended its TCP connection: the launcher marks the connection and closes its bridge. */
+  closeBySitl(id: string, reason: string): void {
+    const view = this.connectionViews.get(id);
+    if (!view) throw new Error(`No scripted connection ${id}`);
+    Object.assign(view, { state: 'sitl-closed', closedReason: reason, ports: null });
+  }
+  connect(spec: ConnectionSpec): Promise<LauncherConnection> {
+    this.events.push('launcher.connect');
+    this.connectSpecs.push(spec);
+    if (this.connectAnswer) return this.connectAnswer(spec);
+    const id = experimentId(1000 + ++this.connected);
+    this.polls = 0;
+    const view: Mutable<LauncherConnection> = { id, state: 'open', closedReason: null, endpoints: structuredClone(spec), ports: { bridge: 52000 + this.connected, epoch: 1 },
+      physics: { servoPackets: 0, rateHz: null, channels: null }, mavlink: { bytesFromSitl: 0 } };
+    this.connectionViews.set(id, view);
+    this.observe(view);
+    return Promise.resolve(structuredClone(view));
+  }
+  connection(id: string): Promise<LauncherConnection> {
+    this.events.push('launcher.connection');
+    const view = this.connectionViews.get(id);
+    if (!view) return Promise.reject(new LauncherError('refused', 'No connection of this launcher has that ID', 404));
+    this.polls++;
+    this.observe(view);
+    return Promise.resolve(structuredClone(view));
+  }
+  disconnect(id: string): Promise<LauncherConnection> {
+    this.events.push(`launcher.disconnect ${id}`);
+    this.disconnects.push(id);
+    if (this.disconnectAnswer) return this.disconnectAnswer(id);
+    const view = this.connectionViews.get(id);
+    if (!view) return Promise.reject(new LauncherError('refused', 'No connection of this launcher has that ID', 404));
+    if (view.state === 'open') view.state = 'disconnected';
+    view.ports = null;
+    return Promise.resolve(structuredClone(view));
+  }
 }
+type Mutable<T> = { -readonly [K in keyof T]: Mutable<T[K]> };
 
 /**
  * The physics Worker as the controller sees it. Like the real Worker
@@ -275,8 +348,10 @@ class ScriptedPhysics implements PhysicsPort {
   deliver: (data: unknown) => void = () => undefined;
   loadAnswer: () => Promise<{ readonly betModuleSha256: string }> = () => Promise.resolve({ betModuleSha256: BET_SHA });
   constructor(private readonly events: string[]) {}
-  load(): Promise<{ readonly betModuleSha256: string }> {
+  readonly loads: (800 | 1200)[] = [];
+  load(physicsHz: 800 | 1200): Promise<{ readonly betModuleSha256: string }> {
     this.events.push('physics.load');
+    this.loads.push(physicsHz);
     return this.loadAnswer();
   }
   connect(port: number, bridgeEpoch: number, speedup: number): void {
@@ -335,8 +410,9 @@ class StoreRecords implements RecordPort {
     this.events.push('record.create');
     this.payloads.push(payload);
     if (this.answer) return this.answer(payload);
-    const stored = await createExperimentRecord(this.fixture.store, this.fixture.projectId,
-      { name: experimentRecordName(this.fixture.stored.record.name, payload.launcher.experimentId), payload });
+    const { sitl } = payload;
+    const stored = await createExperimentRecord(this.fixture.store, this.fixture.projectId, { name: experimentRecordName(this.fixture.stored.record.name,
+      sitl.ownership === 'external' ? sitl.connectionId : sitl.experimentId, sitl.ownership), payload });
     this.stored.push(stored);
     return { sha256: stored.sha256 };
   }
@@ -483,7 +559,7 @@ async function reach(h: Harness, stage: Stage): Promise<string> {
  */
 async function restarted(h: Harness, recordsBefore: number): Promise<void> {
   const startsBefore = h.launcher.count('start');
-  const earlier = h.records.payloads.map(payload => payload.launcher.experimentId);
+  const earlier = h.records.payloads.map(payload => owned(payload).experimentId);
   expect(h.controller.state.name).toBe('failed');
   await h.controller.start(h.request);
   const id = h.launcher.lastId;
@@ -491,7 +567,7 @@ async function restarted(h: Harness, recordsBefore: number): Promise<void> {
   expect(h.controller.state).toEqual({ name: 'starting', step: 'connecting', experimentId: id });
   expect(earlier).not.toContain(id);
   expect(h.records.payloads).toHaveLength(recordsBefore + 1);
-  expect(h.records.payloads.at(-1)?.launcher.experimentId).toBe(id);
+  expect(owned(h.records.payloads.at(-1)).experimentId).toBe(id);
   expect(h.physics.connects.at(-1)).toEqual({ port: h.launcher.bridgeOf(id), bridgeEpoch: 1, speedup: 1 });
   status(h, { state: 'open', simTimeS: 0.1 });
   mav(h, heartbeat(STABILIZE, false));
@@ -521,7 +597,7 @@ describe('SessionController run states on scripted ports', () => {
     expect(h.launcher.starts).toEqual([{ firmwareId: BUILD.id, parameters: h.run.parameters.map(p => ({ name: p.name, value: p.value })),
       frameScript: h.run.frameScript, speedup: 1, rateHz: 800, home: DEFAULT_HOME }]);
 
-    // The ground station beats once a wall second and asks for the EKF, GPS and position streams until they are acknowledged.
+    // The ground station beats once a wall second and asks for the EKF, GPS and position streams until their messages arrive.
     status(h, { state: 'open', simTimeS: 0 });
     h.clock.advance(1000);
     const first = h.physics.frames();
@@ -538,12 +614,26 @@ describe('SessionController run states on scripted ports', () => {
     const list = parameterList(h.run.parameters);
     mav(h, ...list.slice(0, 3));
     expect(h.controller.state).toEqual({ name: 'loading-parameters', experimentId: id, received: 3, total: list.length });
+    // Acknowledgements alone do not stop the requests: ArduPilot's first send pass on a link resets intervals set before it.
     mav(h, commandAck(SET_MESSAGE_INTERVAL, 0), commandAck(SET_MESSAGE_INTERVAL, 0), commandAck(SET_MESSAGE_INTERVAL, 0));
     mav(h, ...list.slice(3));
     expect(h.controller.state).toMatchObject({ name: 'warming', experimentId: id });
-    const sentBefore = h.physics.sent.length;
+    let sentBefore = h.physics.sent.length;
+    h.clock.advance(1000);
+    expect(commands(decodeSent(h.physics.sent.slice(sentBefore)), SET_MESSAGE_INTERVAL).map(frame => frame.params[0])).toEqual([193, 24, 33]);
+    // Once a stream's message arrives it is not requested again; a stream silent for more than 2 s wall is requested again.
+    mav(h, streamMessage(193), streamMessage(24));
+    sentBefore = h.physics.sent.length;
+    h.clock.advance(1000);
+    expect(commands(decodeSent(h.physics.sent.slice(sentBefore)), SET_MESSAGE_INTERVAL).map(frame => frame.params[0])).toEqual([33]);
+    mav(h, streamMessage(33));
+    sentBefore = h.physics.sent.length;
     h.clock.advance(1000);
     expect(commands(decodeSent(h.physics.sent.slice(sentBefore)), SET_MESSAGE_INTERVAL)).toEqual([]);
+    mav(h, streamMessage(193), streamMessage(33));
+    sentBefore = h.physics.sent.length;
+    h.clock.advance(1000);
+    expect(commands(decodeSent(h.physics.sent.slice(sentBefore)), SET_MESSAGE_INTERVAL).map(frame => frame.params[0])).toEqual([24]);
 
     // STATUSTEXT reaches the view; the Worker's READY makes the run ready.
     mav(h, statusText('EKF3 IMU0 is using GPS'));
@@ -663,10 +753,10 @@ describe('SessionController run states on scripted ports', () => {
     expect(payload.frameScript).toBe(posted.frameScript);
     // The build identity is the launcher's answer, not the catalog request.
     const view = h.launcher.view(h.launcher.lastId);
-    expect(payload.ardupilot).toEqual({ catalogId: view.firmware.id, firmwareVersion: view.firmware.firmwareVersion, commit: view.firmware.commit,
+    expect(owned(payload).ardupilot).toEqual({ catalogId: view.firmware.id, firmwareVersion: view.firmware.firmwareVersion, commit: view.firmware.commit,
       binarySha256: view.firmware.binarySha256, defaultParametersSha256: view.firmware.defaultParametersSha256 });
-    expect(payload.ardupilot.firmwareVersion).not.toBe(BUILD.firmwareVersion);
-    expect(payload.launcher).toEqual({ experimentId: h.launcher.lastId });
+    expect(owned(payload).ardupilot.firmwareVersion).not.toBe(BUILD.firmwareVersion);
+    expect(owned(payload).experimentId).toBe(h.launcher.lastId);
     expect(payload.session).toEqual({ physicsHz: 800, clockMode: 'sitl-lockstep', speedup: 1, home: DEFAULT_HOME, modelId: 153,
       manifestSha256: h.run.manifestSha256, betModuleSha256: BET_SHA });
     expect(payload.profile).toEqual({ sha256: fixture.stored.sha256, id: fixture.stored.record.id, version: fixture.stored.record.version,
@@ -1202,7 +1292,7 @@ describe('fault injection on scripted ports', () => {
     const second = h.launcher.lastId;
     expect(second).not.toBe(first);
     expect(h.launcher.count('start')).toBe(2);
-    expect(h.records.payloads.map(payload => payload.launcher.experimentId)).toEqual([first, second]);
+    expect(h.records.payloads.map(payload => owned(payload).experimentId)).toEqual([first, second]);
     expect(h.records.stored).toHaveLength(2);
     expect(h.controller.view.recordSha256).toBe(h.records.stored[1]?.sha256);
     expect(h.controller.view.recordSha256).not.toBe(firstRecord);
@@ -1616,6 +1706,9 @@ describe('the real launcher with the fake SITL', () => {
         stop: id => { events.push(`launcher.stop ${id}`); return client.stop(id); },
         experiment: id => { events.push('launcher.experiment'); return client.experiment(id); },
         logs: id => { events.push('launcher.logs'); return client.logs(id); },
+        connect: spec => { events.push('launcher.connect'); return client.connect(spec); },
+        disconnect: id => { events.push(`launcher.disconnect ${id}`); return client.disconnect(id); },
+        connection: id => { events.push('launcher.connection'); return client.connection(id); },
       };
       const physics = new BridgePhysics(events), clock = new FakeClock(), records = new StoreRecords(fixture, events);
       const controller = new SessionController(counted, physics, records, clock, view => {
@@ -1666,7 +1759,7 @@ describe('the real launcher with the fake SITL', () => {
       const id = await connectedId(h, firmwareId);
       expect(earlier).not.toContain(id);
       expect(await experimentIds(client())).toEqual([...before, id]);
-      expect(h.records.payloads.map(payload => payload.launcher.experimentId)).toEqual([...earlier, id]);
+      expect(h.records.payloads.map(payload => owned(payload).experimentId)).toEqual([...earlier, id]);
       expect(h.records.stored).toHaveLength(earlier.length + 1);
       await warm(h);
       const pid = await runPid(id);
@@ -1736,7 +1829,7 @@ describe('the real launcher with the fake SITL', () => {
         expect(groupMembers(pid)).toEqual([]);
         // The held port still belongs to its holder.
         expect(holder.listening).toBe(true);
-        expect(h.records.payloads.map(payload => payload.launcher.experimentId)).toEqual([id]);
+        expect(h.records.payloads.map(payload => owned(payload).experimentId)).toEqual([id]);
         await close(holder);
         await restartAndStop(h, [id]);
       } finally {
@@ -1809,11 +1902,11 @@ describe('the real launcher with the fake SITL', () => {
       // The build is the one the launcher recorded and ran.
       const recorded = field(readJson(join(workDirectory(id), 'experiment.json')), 'firmware');
       const identity = identityOf(recorded);
-      expect(payload.ardupilot).toEqual({ catalogId: identity.id, firmwareVersion: identity.firmwareVersion, commit: identity.commit,
+      expect(owned(payload).ardupilot).toEqual({ catalogId: identity.id, firmwareVersion: identity.firmwareVersion, commit: identity.commit,
         binarySha256: identity.binarySha256, defaultParametersSha256: identity.defaultParametersSha256 });
-      expect(payload.ardupilot.binarySha256).toBe(fileSha(fake.binary));
-      expect(payload.ardupilot.defaultParametersSha256).toBe(fileSha(fakeDefaults));
-      expect(payload.ardupilot.commit).toBe(SITL_COMMIT);
+      expect(owned(payload).ardupilot.binarySha256).toBe(fileSha(fake.binary));
+      expect(owned(payload).ardupilot.defaultParametersSha256).toBe(fileSha(fakeDefaults));
+      expect(owned(payload).ardupilot.commit).toBe(SITL_COMMIT);
       // And the installed catalog entry of that build.
       expect(identity).toEqual(identityOf(readCatalog(launcherHome).find(item => item.id === 'fake')));
       // The arguments SITL got: those defaults and that parameter file, the session's rate, speed-up and home.
@@ -1867,6 +1960,346 @@ describe('the real launcher with the fake SITL', () => {
       expect(failed(nothing).reason.kind).toBe('launcher-unreachable');
       expect(failureText(failed(nothing).reason)).toContain(String(port));
       expect(nothing.events.filter(event => event.startsWith('launcher.') && event !== 'launcher.catalog')).toEqual([]);
+    });
+  });
+});
+
+// ---- TASK-155: a SITL the user started -----------------------------------------------------------
+//
+// Oracles: the user decisions of 2026-11-01 (a SITL with built-in physics is
+// refused; only verified source commits connect; parameters are checked, never
+// written, and every difference is named; a connection is recorded as schema
+// 2), the launcher's ownership rule (a connection is disconnected, never
+// stopped), ArduPilot's AUTOPILOT_VERSION layout (flight_sw_version packs
+// major, minor, patch and type; flight_custom_version is the git hash), and
+// the declared limits: first servo packet within 15 s of wall time, version
+// within 10 s of simulated time, GPS within 10 m and 5 m of home, heartbeat
+// silence of 10 s wall.
+
+const PARAM_SET = 23, REQUEST_MESSAGE = 512, AUTOPILOT_VERSION_ID = 148, GPS_RAW_INT = 24;
+const ENDPOINTS: ConnectionSpec = { jsonPhysicsPort: 9002, mavlink: { transport: 'tcp', port: 5760 } };
+/** FIRMWARE_VERSION_TYPE_DEV (common.xml). */
+const VERSION_DEV = 0, VERSION_OFFICIAL = 255;
+function autopilotVersion(gitHash: string, major = 4, minor = 8, patch = 0, type = VERSION_DEV): Uint8Array {
+  const custom = Array.from({ length: 8 }, (_, i) => gitHash.charCodeAt(i) || 0);
+  return autopilotFrame(AUTOPILOT_VERSION_ID, { capabilities: 0, uid: 0, flight_sw_version: ((major << 24) | (minor << 16) | (patch << 8) | type) >>> 0,
+    middleware_sw_version: 0, os_sw_version: 0, board_version: 0, vendor_id: 0, product_id: 0, flight_custom_version: custom,
+    middleware_custom_version: Array.from({ length: 8 }, () => 0), os_custom_version: Array.from({ length: 8 }, () => 0) });
+}
+/** A 3D GPS fix `northM` metres north and `upM` metres above the default home. */
+function gpsFix(northM = 0, upM = 0): Uint8Array {
+  const [lat, lon, alt] = DEFAULT_HOME;
+  return autopilotFrame(GPS_RAW_INT, { time_usec: 0, fix_type: 3, lat: Math.round((lat + northM / 111194.9) * 1e7), lon: Math.round(lon * 1e7),
+    alt: Math.round((alt + upM) * 1000), eph: 100, epv: 100, vel: 0, cog: 0, satellites_visible: 10 });
+}
+function connectRequest(prepare: () => Promise<PreparedRun> = () => Promise.resolve(prepared)) {
+  return { prepare, endpoints: ENDPOINTS, physicsHz: 800 as const, home: DEFAULT_HOME, verifiedCommits: [SITL_COMMIT] };
+}
+/** True when the connection was released before the panel showed failed, and nothing was ever stopped. */
+function disconnectedBeforeFailed(h: Harness): boolean {
+  const released = h.events.findIndex(event => event.startsWith('launcher.disconnect')), shown = h.events.indexOf('state:failed');
+  return released >= 0 && shown > released && h.launcher.stops.length === 0;
+}
+type ConnectStage = 'connecting' | 'version' | 'loading-parameters' | 'warming' | 'ready';
+/** Drives a connection with ArduCopter's frames until `stage`; returns the connection ID. */
+async function connectTo(h: Harness, stage: ConnectStage): Promise<string> {
+  await h.controller.connect(connectRequest());
+  const id = h.launcher.lastConnectionId;
+  expect(h.controller.state).toEqual({ name: 'starting', step: 'connecting', experimentId: id });
+  if (stage === 'connecting') return id;
+  status(h, { state: 'open', simTimeS: 0.5 });
+  mav(h, heartbeat(STABILIZE, false));
+  expect(h.controller.state).toEqual({ name: 'starting', step: 'version', experimentId: id });
+  if (stage === 'version') return id;
+  mav(h, autopilotVersion(SITL_COMMIT.slice(0, 8)));
+  expect(h.controller.state).toMatchObject({ name: 'loading-parameters', experimentId: id });
+  if (stage === 'loading-parameters') return id;
+  mav(h, ...parameterList(h.run.parameters));
+  expect(h.controller.state).toMatchObject({ name: 'warming', experimentId: id });
+  if (stage === 'warming') return id;
+  status(h, { ready: true, reason: '', simTimeS: 40 });
+  mav(h, gpsFix(1, 0.5));
+  // The record goes through the real store (manifest derivation, hashing) before READY.
+  await until(() => h.controller.state.name !== 'warming', 10000, 'the connection record');
+  expect(h.controller.state).toEqual({ name: 'ready', experimentId: id });
+  return id;
+}
+function reasons(h: Harness): readonly string[] {
+  const reason = failed(h).reason;
+  if (reason.kind !== 'incompatible') throw new Error(`Expected incompatible, the reason is ${reason.kind}`);
+  return reason.reasons;
+}
+
+describe('SessionController connections to a SITL the user started (TASK-155)', () => {
+  test('connects at the session rate, checks version, parameters and home without writing, records schema 2, becomes READY and disconnects', async () => {
+    const h = harness();
+    await h.controller.connect(connectRequest());
+    const id = h.launcher.lastConnectionId;
+    expect(h.launcher.connectSpecs).toEqual([ENDPOINTS]);
+    // Physics steps at the session's rate, which SIM_JSON adopts, not at the 1200 Hz default its first packets announce.
+    expect(h.physics.loads).toEqual([800]);
+    expect(h.physics.connects).toEqual([{ port: h.launcher.connectionView(id).ports?.bridge, bridgeEpoch: 1, speedup: 1 }]);
+    expect(h.events.indexOf('launcher.connect')).toBeLessThan(h.events.indexOf('physics.load'));
+    expect(h.controller.view.ownership).toBe('external');
+    expect(h.controller.view.compatibility.map(check => check.check)).toEqual(['physics', 'clock']);
+    expect(h.controller.view.compatibility[0]?.text).toBe('JSON physics on UDP port 9002 with 16 servo channels; MirageSITL steps it at 800 Hz, which SITL adopts (it announced 1200 Hz)');
+    expect(h.controller.view.compatibility[1]?.text).toContain('can be paused once pause is available (TASK-156)');
+    status(h, { state: 'open', simTimeS: 0.5 });
+    mav(h, heartbeat(STABILIZE, false));
+    expect(h.controller.state).toEqual({ name: 'starting', step: 'version', experimentId: id });
+    const versionRequests = () => commands(h.physics.frames(), REQUEST_MESSAGE);
+    expect(versionRequests().map(frame => frame.params[0])).toEqual([AUTOPILOT_VERSION_ID]);
+    h.clock.advance(1000);
+    expect(versionRequests().length).toBe(2);
+    mav(h, autopilotVersion(SITL_COMMIT.slice(0, 8)));
+    expect(h.controller.state).toMatchObject({ name: 'loading-parameters', experimentId: id });
+    expect(listRequests(h.physics.frames())).toHaveLength(1);
+    mav(h, ...parameterList(h.run.parameters));
+    expect(h.controller.state).toMatchObject({ name: 'warming', experimentId: id });
+    // READY waits for the home check and the record.
+    status(h, { ready: true, reason: '', simTimeS: 40 });
+    expect(h.controller.state.name).toBe('warming');
+    expect(h.records.payloads).toEqual([]);
+    mav(h, autopilotFrame(GPS_RAW_INT, { time_usec: 0, fix_type: 2, lat: 0, lon: 0, alt: 0, eph: 0, epv: 0, vel: 0, cog: 0, satellites_visible: 4 }));
+    expect(h.records.payloads).toEqual([]);
+    mav(h, gpsFix(3, -2));
+    await until(() => h.controller.state.name !== 'warming', 10000, 'the connection record');
+    expect(h.controller.state).toEqual({ name: 'ready', experimentId: id });
+    expect(h.controller.view.compatibility.map(check => check.check)).toEqual(['physics', 'clock', 'armed', 'version', 'parameters', 'home']);
+    // The record: schema 2, external, written once, readable from the store.
+    expect(h.records.payloads).toHaveLength(1);
+    const payload = h.records.payloads[0];
+    expect(payload?.sitl).toEqual({ ownership: 'external', connectionId: id,
+      ardupilot: { commit: SITL_COMMIT, gitHash: SITL_COMMIT.slice(0, 8), firmwareVersion: '4.8.0-dev' }, endpoints: ENDPOINTS });
+    expect(payload?.session).toMatchObject({ physicsHz: 800, speedup: null, home: DEFAULT_HOME, betModuleSha256: BET_SHA });
+    expect(payload?.frameScript).toBeNull();
+    expect(payload?.parameters).toEqual(h.run.parameters);
+    const stored = h.records.stored[0];
+    if (!stored) throw new Error('No stored record');
+    expect(readExperiment(stored)).toEqual(payload);
+    expect(stored.record.name).toBe(`${fixture.stored.record.name} connection ${id}`);
+    expect(h.controller.view.recordSha256).toBe(stored.sha256);
+    // Nothing was written to the SITL: no PARAM_SET, and the launcher never started or stopped a process.
+    expect(h.physics.frames().filter(frame => frame.id === PARAM_SET)).toEqual([]);
+    expect([h.launcher.count('start'), h.launcher.count('catalog'), h.launcher.stops]).toEqual([0, 0, []]);
+    // The flight runs as for a launcher-owned SITL.
+    expect(h.controller.takeOff(TAKEOFF_M)).toBe(true);
+    await h.controller.stop();
+    expect(h.launcher.disconnects).toEqual([id]);
+    expect(h.launcher.stops).toEqual([]);
+    expect(h.controller.state).toEqual({ name: 'idle', last: `Disconnected from connection ${id}; the SITL keeps running` });
+  });
+
+  test('a launcher-owned start still configures physics at its requested rate', async () => {
+    const h = harness();
+    await h.controller.start(h.request);
+    expect(h.physics.loads).toEqual([800]);
+    expect(h.controller.view.ownership).toBe('launcher');
+    expect(h.controller.view.compatibility).toEqual([]);
+  });
+
+  describe('refuses an incompatible SITL, names every reason, records nothing and only disconnects', () => {
+    test('a profile that needs a frame script, before any connection', async () => {
+      const h = harness();
+      await h.controller.connect(connectRequest(() => Promise.resolve({ ...prepared, frameScript: 'MotorsMatrix:init(16)\n' })));
+      expect(reasons(h)).toEqual(['this profile\'s frame needs a MirageSITL frame script, which MirageSITL installs only in a SITL it starts; use Start SITL run']);
+      expect(failed(h).restart).toMatchObject({ kind: 'fix-first' });
+      expect([h.launcher.count('connect'), h.launcher.disconnects.length, h.records.payloads.length]).toEqual([0, 0, 0]);
+    });
+
+    test('built-in physics: MAVLink but no JSON servo packets within 15 s', async () => {
+      const h = harness();
+      h.launcher.probe = { rateHz: null, channels: null, bytesFromSitl: 4096, afterPolls: 0 };
+      const connecting = h.controller.connect(connectRequest());
+      await settle();
+      expect(h.controller.state).toMatchObject({ name: 'starting', step: 'probing' });
+      for (let ms = 0; ms <= 15000; ms += 250) { h.clock.advance(250); await settle(); }
+      await connecting;
+      expect(reasons(h)[0]).toContain('the SITL talks MAVLink but sent no JSON physics packets to UDP port 9002 within 15 s: it runs a built-in physics model');
+      expect(reasons(h)[0]).toContain('start it with --model JSON and --sim-port-out 9002');
+      expect(failed(h).restart).toEqual({ kind: 'fix-first', instruction: 'Restart your SITL as the reasons say, or choose another profile, then press Connect again' });
+      expect(disconnectedBeforeFailed(h)).toBe(true);
+      expect(h.physics.loads).toEqual([]);
+      expect(failed(h).diagnostics).toMatchObject({ ownership: 'external', launcherState: null, stdout: '', connection: { servoPackets: 0, rateHz: null, bytesFromSitl: 4096 } });
+    });
+
+    test('nothing at all within 15 s', async () => {
+      const h = harness();
+      h.launcher.probe = { rateHz: null, channels: null, bytesFromSitl: 0, afterPolls: 0 };
+      const connecting = h.controller.connect(connectRequest());
+      for (let ms = 0; ms <= 15000; ms += 250) { await settle(); h.clock.advance(250); }
+      await connecting;
+      expect(reasons(h)[0]).toContain('no JSON physics packets reached UDP port 9002 within 15 s');
+      expect(disconnectedBeforeFailed(h)).toBe(true);
+    });
+
+    test('JSON packets that arrive after a few polls are accepted, whatever rate they announce', async () => {
+      const h = harness();
+      h.launcher.probe = { rateHz: 400, channels: 32, bytesFromSitl: 0, afterPolls: 3 };
+      const connecting = h.controller.connect(connectRequest());
+      for (let i = 0; i < 4; i++) { await settle(); h.clock.advance(250); }
+      await connecting;
+      expect(h.controller.state).toMatchObject({ name: 'starting', step: 'connecting' });
+      expect(h.physics.loads).toEqual([800]);
+      expect(h.launcher.count('connection')).toBe(3);
+      expect(h.controller.view.compatibility[0]?.text).toContain('with 32 servo channels; MirageSITL steps it at 800 Hz, which SITL adopts (it announced 400 Hz)');
+    });
+
+    test('an armed SITL', async () => {
+      const h = harness();
+      await connectTo(h, 'connecting');
+      status(h, { state: 'open', simTimeS: 0.5 });
+      mav(h, heartbeat(GUIDED, true));
+      await settle();
+      expect(reasons(h)[0]).toContain('the SITL is armed: disarm it before connecting');
+      expect(disconnectedBeforeFailed(h)).toBe(true);
+    });
+
+    test.each([
+      ['another commit', autopilotVersion('0123abcd', 4, 6, 2, VERSION_OFFICIAL), 'the SITL reports ArduPilot 4.6.2 built from commit 0123abcd; MirageSITL has verified only commit 8ab6afde'],
+      ['no git hash', autopilotVersion('', 4, 7, 0), 'the SITL reports ArduPilot 4.7.0-dev built from a source without a git hash'],
+    ])('a version from %s', async (_label, frame, message) => {
+      const h = harness();
+      await connectTo(h, 'version');
+      mav(h, frame);
+      await settle();
+      expect(reasons(h)[0]).toContain(message);
+      expect(disconnectedBeforeFailed(h)).toBe(true);
+      expect(listRequests(h.physics.frames())).toEqual([]);
+    });
+
+    test('no version within 10 s of simulated time', async () => {
+      const h = harness();
+      await connectTo(h, 'version');
+      status(h, { simTimeS: 10.4 });
+      h.clock.advance(1000);
+      expect(h.controller.state.name).toBe('starting');
+      status(h, { simTimeS: 10.6 });
+      h.clock.advance(1000);
+      await settle();
+      expect(reasons(h)).toEqual(['the SITL did not report its version (AUTOPILOT_VERSION) within 10 s of simulated time']);
+    });
+
+    test('parameters that differ: every difference is named and nothing is written', async () => {
+      const h = harness();
+      await connectTo(h, 'loading-parameters');
+      const [first, second, third] = h.run.parameters;
+      if (!first || !second || !third) throw new Error('Too few generated parameters');
+      const list = parameterList(h.run.parameters.filter(p => p.name !== third.name).map(p =>
+        p.name === first.name ? { ...p, value: first.value + 1 } : p.name === second.name ? { ...p, value: second.value + 2 } : p));
+      mav(h, ...list);
+      await settle();
+      const [text] = reasons(h);
+      expect(text).toContain('the SITL\'s parameters differ from what this profile needs (MirageSITL writes nothing to a SITL it did not start)');
+      expect(text).toContain(`${first.name} is ${first.value + 1} (needs ${first.value})`);
+      expect(text).toContain(`${second.name} is ${second.value + 2} (needs ${second.value})`);
+      expect(text).toContain(`${third.name} does not exist (needs ${third.value})`);
+      expect(h.physics.frames().filter(frame => frame.id === PARAM_SET)).toEqual([]);
+      expect(disconnectedBeforeFailed(h)).toBe(true);
+      expect(h.records.payloads).toEqual([]);
+    });
+
+    test('more than 12 differences are counted after the first 12', async () => {
+      const h = harness();
+      await connectTo(h, 'loading-parameters');
+      expect(h.run.parameters.length).toBeGreaterThan(15);
+      mav(h, ...parameterList(h.run.parameters.map((p, index) => (index < 15 ? { ...p, value: p.value + 1 } : p))));
+      await settle();
+      expect(reasons(h)[0]).toContain('and 3 more parameters differ');
+      expect((reasons(h)[0] ?? '').split(' (needs ').length - 1).toBe(12);
+    });
+
+    test('a GPS fix away from the session home', async () => {
+      const h = harness();
+      await connectTo(h, 'warming');
+      mav(h, gpsFix(1000, 0));
+      await settle();
+      expect(reasons(h)[0]).toContain('the SITL\'s GPS puts it 1000 m from and 0 m above or below the session\'s home: start it with --home -35.363261,149.16523,584,0');
+      expect(disconnectedBeforeFailed(h)).toBe(true);
+      expect(h.records.payloads).toEqual([]);
+      const high = harness();
+      await connectTo(high, 'warming');
+      mav(high, gpsFix(0, 6));
+      await settle();
+      expect(reasons(high)[0]).toContain('0 m from and 6 m above or below');
+    });
+
+    test('a launcher refusal of the ports, with nothing to release', async () => {
+      const h = harness();
+      h.launcher.connectAnswer = () => Promise.reject(new LauncherError('refused', 'Nothing accepts MAVLink TCP connections on 127.0.0.1:5760; start SITL first', 409));
+      await h.controller.connect(connectRequest());
+      expect(failed(h).reason).toEqual({ kind: 'launcher-refused', message: 'Nothing accepts MAVLink TCP connections on 127.0.0.1:5760; start SITL first' });
+      expect(failed(h).restart).toEqual({ kind: 'fix-first', instruction: 'Check that your SITL is running and which ports it uses, then press Connect again' });
+      expect(h.launcher.disconnects).toEqual([]);
+    });
+  });
+
+  describe('after admission', () => {
+    test('SITL closing its TCP connection is sitl-ended with the launcher\'s reason; Connect again is a new connection', async () => {
+      const h = harness();
+      const id = await connectTo(h, 'ready');
+      h.launcher.closeBySitl(id, 'SITL closed its MAVLink TCP connection');
+      status(h, { state: 'closed', message: 'Bridge closed' });
+      await settle();
+      expect(failed(h).reason).toEqual({ kind: 'sitl-ended', during: 'ready', ending: 'SITL closed its MAVLink TCP connection' });
+      expect(failureText(failed(h).reason)).toBe('SITL ended while ready (SITL closed its MAVLink TCP connection)');
+      expect(failed(h).restart).toEqual({ kind: 'start-again' });
+      expect(disconnectedBeforeFailed(h)).toBe(true);
+      expect(failed(h).diagnostics).toMatchObject({ ownership: 'external', experimentId: id, ending: 'SITL closed its MAVLink TCP connection' });
+      await h.controller.connect(connectRequest());
+      expect(h.launcher.lastConnectionId).not.toBe(id);
+      expect(h.controller.view.compatibility.map(check => check.check)).toEqual(['physics', 'clock']);
+      expect(h.controller.view.recordSha256).toBeNull();
+    });
+
+    test('a bridge lost while the connection stays open is bridge-lost', async () => {
+      const h = harness();
+      await connectTo(h, 'warming');
+      status(h, { state: 'closed', message: 'Bridge peer unresponsive' });
+      await settle();
+      expect(failed(h).reason).toEqual({ kind: 'bridge-lost', message: 'Bridge peer unresponsive' });
+      expect(disconnectedBeforeFailed(h)).toBe(true);
+    });
+
+    test('heartbeat silence of 10 s wall disconnects with sitl-silent', async () => {
+      const h = harness();
+      await connectTo(h, 'ready');
+      h.clock.advance(9000);
+      expect(h.controller.state.name).toBe('ready');
+      h.clock.advance(2000);
+      await settle();
+      expect(failed(h).reason).toEqual({ kind: 'sitl-silent', seconds: 10 });
+      expect(failureText(failed(h).reason)).toContain('the SITL itself was not stopped');
+      expect(disconnectedBeforeFailed(h)).toBe(true);
+    });
+
+    test('Disconnect while probing releases the connection and stays idle', async () => {
+      const h = harness();
+      h.launcher.probe = { rateHz: 1200, channels: 16, bytesFromSitl: 0, afterPolls: 100 };
+      const connecting = h.controller.connect(connectRequest());
+      await settle();
+      expect(h.controller.state).toMatchObject({ name: 'starting', step: 'probing' });
+      await h.controller.stop();
+      h.clock.advance(250);
+      await connecting;
+      await settle();
+      expect(h.controller.state.name).toBe('idle');
+      expect(h.launcher.disconnects).toEqual([h.launcher.lastConnectionId]);
+      expect(h.physics.loads).toEqual([]);
+    });
+
+    test('a failed disconnect offers Disconnect again with the original reason', async () => {
+      const h = harness();
+      const id = await connectTo(h, 'ready');
+      h.launcher.disconnectAnswer = () => Promise.reject(new LauncherError('unreachable', 'No MirageSITL launcher answered on 127.0.0.1:47800'));
+      h.clock.advance(11000);
+      await settle();
+      expect(failed(h).restart).toEqual({ kind: 'stop-again', experimentId: id, prior: { kind: 'sitl-silent', seconds: 10 }, during: 'ready' });
+      h.launcher.disconnectAnswer = null;
+      await h.controller.stop();
+      expect(failed(h).reason).toEqual({ kind: 'sitl-silent', seconds: 10 });
+      expect(h.launcher.disconnects).toEqual([id, id]);
+      expect(h.launcher.stops).toEqual([]);
     });
   });
 });

@@ -365,7 +365,7 @@ test("missing binary: the refusal names ENOENT, a start after restoring it reach
     catalogId: FIRMWARE_ID, firmwareVersion: ardupilot.firmwareVersion, commit: ardupilot.commit, binarySha256: sha256(binary),
     defaultParametersSha256: sha256(ardupilot.defaultParametersPath),
   });
-  expect(record.ardupilot.defaultParametersSha256).toBe(ardupilot.defaultParametersSha256);
+  expect(record.ardupilot?.defaultParametersSha256).toBe(ardupilot.defaultParametersSha256);
 
   await stopRun(page, view);
 });

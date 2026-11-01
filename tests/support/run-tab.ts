@@ -23,6 +23,7 @@ type SensorFields = typeof import("../../packages/aircraft/src/sensor-fields");
 type Components = typeof import("../../packages/aircraft/src/components");
 type Derivation = typeof import("../../packages/aircraft/src/derive-manifest");
 type Resolution = typeof import("../../packages/aircraft/src/resolve-components");
+type SitlRun = typeof import("../../apps/web/src/sitl/sitl-run");
 
 const urls = {
   store: viteFileUrl(new URL("../../packages/project/src/store.ts", import.meta.url)),
@@ -32,6 +33,7 @@ const urls = {
   sensors: viteFileUrl(new URL("../../packages/aircraft/src/sensor-ownership.ts", import.meta.url)),
   schema: viteFileUrl(new URL("../../packages/project/src/schema.ts", import.meta.url)),
   sensorFields: viteFileUrl(new URL("../../packages/aircraft/src/sensor-fields.ts", import.meta.url)),
+  sitlRun: viteFileUrl(new URL("../../apps/web/src/sitl/sitl-run.ts", import.meta.url)),
 };
 const read = (path: string): string => readFileSync(new URL(path, import.meta.url), "utf8");
 const QUAD = read("../fixtures/aircraft/quad-x.json");
@@ -98,11 +100,18 @@ export interface StoredExperiment {
   readonly sha256: string;
   readonly dependencies: readonly { readonly kind: string; readonly sha256: string }[];
   readonly profile: { readonly sha256: string; readonly id: string; readonly version: number; readonly name: string };
+  readonly ownership: "launcher" | "external";
+  /** The launcher-owned build and experiment; null for an external SITL. */
   readonly ardupilot: { readonly catalogId: string; readonly firmwareVersion: string; readonly commit: string; readonly binarySha256: string;
-    readonly defaultParametersSha256: string };
-  readonly launcherExperimentId: string;
+    readonly defaultParametersSha256: string } | null;
+  readonly launcherExperimentId: string | null;
+  /** An external SITL as the record names it; null for a launcher-owned one. */
+  readonly external: {
+    readonly connectionId: string; readonly ardupilot: { readonly commit: string; readonly gitHash: string; readonly firmwareVersion: string };
+    readonly endpoints: { readonly jsonPhysicsPort: number; readonly mavlink: { readonly transport: "tcp" | "udp"; readonly port: number } };
+  } | null;
   readonly session: {
-    readonly physicsHz: number; readonly clockMode: string; readonly speedup: number;
+    readonly physicsHz: number; readonly clockMode: string; readonly speedup: number | null;
     readonly home: readonly number[]; readonly modelId: number; readonly manifestSha256: string; readonly betModuleSha256: string;
   };
   readonly parameters: readonly { readonly name: string; readonly value: number; readonly source: string }[];
@@ -141,9 +150,14 @@ export async function readExperimentRecords(page: Page, seeded: SeededProject): 
         profilePayload: profile.record.payload, cards,
         experiments: list.map(stored => {
           const payload = readExperiment(stored);
+          const { sitl } = payload;
           return {
             sha256: stored.sha256, dependencies: stored.record.dependencies.map(d => ({ kind: d.kind, sha256: d.sha256 })),
-            profile: { ...payload.profile }, ardupilot: { ...payload.ardupilot }, launcherExperimentId: payload.launcher.experimentId,
+            profile: { ...payload.profile }, ownership: sitl.ownership,
+            ardupilot: sitl.ownership === "launcher" ? { ...sitl.ardupilot } : null,
+            launcherExperimentId: sitl.ownership === "launcher" ? sitl.experimentId : null,
+            external: sitl.ownership === "external" ? { connectionId: sitl.connectionId, ardupilot: { ...sitl.ardupilot },
+              endpoints: { jsonPhysicsPort: sitl.endpoints.jsonPhysicsPort, mavlink: { ...sitl.endpoints.mavlink } } } : null,
             session: { ...payload.session, home: [...payload.session.home] },
             parameters: payload.parameters.map(p => ({ name: p.name, value: p.value, source: p.source })),
             frameScript: payload.frameScript,
@@ -155,6 +169,25 @@ export async function readExperimentRecords(page: Page, seeded: SeededProject): 
       store.close();
     }
   }, { urls, projectId: seeded.projectId, profileSha256: seeded.profileSha256 });
+}
+
+/**
+ * The initial parameters the Run tab generates for the seeded profile version
+ * (prepareVehicle in the page, from IndexedDB), in launch order: what a user
+ * would give a SITL they start themselves (TASK-155).
+ */
+export async function generatedParameters(page: Page, seeded: SeededProject): Promise<{ name: string; value: number; source: string }[]> {
+  return page.evaluate(async ({ urls, profileSha256 }) => {
+    const { ProjectStore } = await import(urls.store) as Store;
+    const { prepareVehicle } = await import(urls.sitlRun) as SitlRun;
+    const store = await ProjectStore.openIndexedDb();
+    try {
+      const vehicle = await prepareVehicle(store, await store.get(profileSha256));
+      return vehicle.parameters.map(p => ({ name: p.name, value: p.value, source: p.source }));
+    } finally {
+      store.close();
+    }
+  }, { urls, profileSha256: seeded.profileSha256 });
 }
 
 /**

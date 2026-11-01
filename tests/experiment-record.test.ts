@@ -1,4 +1,5 @@
-// TASK-154: experiment payload schema 1 and its record in the project store.
+// TASK-154, TASK-155: experiment payload schema 2 (launcher-owned and external
+// SITLs), schema 1 records read as schema 2, and the record in the project store.
 // Oracles: the launcher's own start-request limits (parseExperimentSpec), the
 // TASK-128 frame catalog through frameConfiguration, the pinned ArduPilot
 // catalog through sensorRuntime, a sensor snapshot recomputed independently
@@ -14,6 +15,7 @@ import { validateComponentCard, type ComponentCard } from '../packages/aircraft/
 import { deriveVehicleManifest } from '../packages/aircraft/src/derive-manifest.ts';
 import {
   createExperimentRecord, experimentRecordName, readExperiment, validateExperiment, type ExperimentParameter, type ExperimentPayload,
+  type ExperimentPayloadV1, type ExternalSitl, type LauncherSitl,
 } from '../packages/aircraft/src/experiment.ts';
 import { frameConfiguration } from '../packages/aircraft/src/frame-parameters.ts';
 import { resolveComponents } from '../packages/aircraft/src/resolve-components.ts';
@@ -53,6 +55,20 @@ function at<T>(items: readonly T[], index: number): T {
   const item = items[index < 0 ? items.length + index : index];
   if (item === undefined) throw new Error(`The fixture has no entry ${index}`);
   return item;
+}
+/** A schema 2 payload; the fixtures never build schema 1 through this. */
+function current(payload: ExperimentPayload | ExperimentPayloadV1): ExperimentPayload {
+  if (payload.schemaVersion !== 2) throw new Error('The fixture is not schema 2');
+  return payload;
+}
+/** The launcher-owned SITL of a fixture payload, or of its mutable copy. */
+function ownedSitl(payload: ExperimentPayload): LauncherSitl {
+  if (payload.sitl.ownership !== 'launcher') throw new Error('The fixture SITL is not launcher-owned');
+  return payload.sitl;
+}
+function ownedEdit(payload: Mutable<ExperimentPayload>): Mutable<LauncherSitl> {
+  if (payload.sitl.ownership !== 'launcher') throw new Error('The fixture SITL is not launcher-owned');
+  return payload.sitl;
 }
 function configured<T>(configuration: T | null): T {
   if (configuration === null) throw new Error('The fixture has no sensor configuration');
@@ -111,14 +127,14 @@ function payloadOf(fixture: Fixture, stored = fixture.stored, profile = fixture.
     ...frame.parameters.map((p): ExperimentParameter => ({ ...p, source: /^SERVO[0-9]+_FUNCTION$/.test(p.name) ? 'output' : 'frame' })),
     ...PWM, ...runtime.parameters.map((p): ExperimentParameter => ({ ...p, source: 'sensor' })),
   ];
-  return validateExperiment({
-    schemaVersion: 1,
+  return current(validateExperiment({
+    schemaVersion: 2,
     profile: { sha256: stored.sha256, id: stored.record.id, version: stored.record.version, name: stored.record.name },
-    ardupilot: FIRMWARE, launcher: { experimentId: EXPERIMENT_ID },
+    sitl: { ownership: 'launcher', experimentId: EXPERIMENT_ID, ardupilot: FIRMWARE },
     session: { physicsHz: 800, clockMode: 'sitl-lockstep', speedup: 4, home: HOME, modelId: 153, manifestSha256: fixture.manifestSha256,
       betModuleSha256: hash('mirage_bet.wasm') },
     parameters, frameScript: frame.script, sensors: sensorSnapshot(stored),
-  });
+  }));
 }
 function edit(payload: ExperimentPayload, change: (copy: Mutable<ExperimentPayload>) => void): unknown {
   // structuredClone keeps the shape; the cast only removes readonly from the copy.
@@ -128,7 +144,7 @@ function edit(payload: ExperimentPayload, change: (copy: Mutable<ExperimentPaylo
 }
 const ICM_42688: SensorConfiguration = validateSensorConfiguration(applySensorPreset(DEFAULT_SENSOR_CONFIGURATION, { catalogVersion: 1, id: 'imu-icm-42688-p' }).configuration);
 
-describe('experiment payload schema 1', () => {
+describe('experiment payload schema 2', () => {
   test('the payload of an S19 quad X run validates, and its parameters are a start request the launcher accepts', async () => {
     const fixture = await storedProfile('quad-x', 'S19 quad X', null);
     const payload = payloadOf(fixture);
@@ -140,12 +156,12 @@ describe('experiment payload schema 1', () => {
     expect(payload.parameters.filter(p => p.source === 'sensor')).toEqual([]);
     expect(payload.sensors).toMatchObject({ schemaVersion: 2, profileSha256: fixture.stored.sha256, configuration: null, resolution: { state: 'ardupilot-defaults' } });
     // The same values, without source tags, pass the launcher's own request validator.
-    const spec = parseExperimentSpec({ firmwareId: payload.ardupilot.catalogId, parameters: payload.parameters.map(({ name, value }) => ({ name, value })),
+    const spec = parseExperimentSpec({ firmwareId: ownedSitl(payload).ardupilot.catalogId, parameters: payload.parameters.map(({ name, value }) => ({ name, value })),
       frameScript: payload.frameScript, speedup: payload.session.speedup, rateHz: payload.session.physicsHz, home: payload.session.home });
     expect(spec.parameters.map(p => p.name)).toEqual(payload.parameters.map(p => p.name));
   });
 
-  test('refuses payloads outside schema 1 with a reason', async () => {
+  test('refuses payloads outside schema 2 with a reason', async () => {
     const fixture = await storedProfile('quad-x', 'S19 quad X', ICM_42688);
     const payload = payloadOf(fixture);
     expect(payload.parameters.filter(p => p.source === 'sensor').length).toBeGreaterThan(0);
@@ -156,7 +172,7 @@ describe('experiment payload schema 1', () => {
     const cases: [string, unknown, string][] = [
       ['an extra key', edit(payload, p => { Object.assign(p.session, { rateHz: 800 }); }), 'session has an unexpected field rateHz'],
       ['an extra top-level key', edit(payload, p => { Object.assign(p, { outcome: 'landed' }); }), 'the payload has an unexpected field outcome'],
-      ['a missing key', edit(payload, p => { Reflect.deleteProperty(p.ardupilot, 'binarySha256'); }), 'ardupilot lacks binarySha256'],
+      ['a missing key', edit(payload, p => { Reflect.deleteProperty(ownedEdit(p).ardupilot, 'binarySha256'); }), 'ardupilot lacks binarySha256'],
       ['a duplicate parameter name', edit(payload, p => { p.parameters.push({ name: 'FRAME_TYPE', value: 1, source: 'frame' }); }), 'parameter FRAME_TYPE is listed twice'],
       ['a non-SIM sensor name', edit(payload, p => { p.parameters.push({ name: 'INS_GYROFFS_X', value: 0, source: 'sensor' }); }), 'sensor parameter INS_GYROFFS_X is not a SIM_ parameter'],
       ['a 17-character name', edit(payload, p => { p.parameters.push({ name: 'SIM_ACC1_RND_XYZW', value: 0, source: 'sensor' }); }), `parameter ${payload.parameters.length + 1} name must be an ArduPilot parameter name of at most 16 characters`],
@@ -180,10 +196,13 @@ describe('experiment payload schema 1', () => {
       ['400 Hz physics', edit(payload, p => { Object.assign(p.session, { physicsHz: 400 }); }), 'session.physicsHz must be one of 800, 1200'],
       ['a speedup below the launcher limit', edit(payload, p => { p.session.speedup = 0.05; }), 'session.speedup must be a number from 0.1 to 100'],
       ['a home heading beyond 360', edit(payload, p => { p.session.home[3] = 361; }), 'home heading must be a number from 0 to 360'],
-      ['a launcher ID of another format', edit(payload, p => { p.launcher.experimentId = 'run-1'; }), 'launcher.experimentId must be a launcher experiment ID'],
-      ['a short commit', edit(payload, p => { p.ardupilot.commit = '8ab6afd'; }), 'ardupilot.commit must be a 40-digit lowercase commit'],
-      ['another experiment schema', edit(payload, p => { Object.assign(p, { schemaVersion: 2 }); }), 'unsupported experiment schema 2'],
-      ['an empty firmware version', edit(payload, p => { p.ardupilot.firmwareVersion = ''; }), 'ardupilot.firmwareVersion must be non-empty text'],
+      ['a launcher ID of another format', edit(payload, p => { ownedEdit(p).experimentId = 'run-1'; }), 'sitl.experimentId must be a launcher experiment ID'],
+      ['a short commit', edit(payload, p => { ownedEdit(p).ardupilot.commit = '8ab6afd'; }), 'ardupilot.commit must be a 40-digit lowercase commit'],
+      ['another experiment schema', edit(payload, p => { Object.assign(p, { schemaVersion: 3 }); }), 'unsupported experiment schema 3'],
+      ['an empty firmware version', edit(payload, p => { ownedEdit(p).ardupilot.firmwareVersion = ''; }), 'ardupilot.firmwareVersion must be non-empty text'],
+      ['another SITL ownership', edit(payload, p => { Object.assign(p.sitl, { ownership: 'user' }); }), 'sitl.ownership must be launcher or external'],
+      ['schema 1 fields in schema 2', edit(payload, p => { Object.assign(p, { launcher: { experimentId: EXPERIMENT_ID } }); }), 'the payload has an unexpected field launcher'],
+      ['a launcher SITL without a speedup', edit(payload, p => { p.session.speedup = null; }), 'session.speedup must be a number from 0.1 to 100'],
       ['a padded profile name', edit(payload, p => { p.profile.name = ' S19 quad X'; }), 'profile.name must be a stored record name (NFC, without leading or trailing white space)'],
       ['a non-NFC profile name', edit(payload, p => { p.profile.name = 'Cafe\u0301 quad'; }), 'profile.name must be a stored record name (NFC, without leading or trailing white space)'],
       ['model ID 0', edit(payload, p => { p.session.modelId = 0; }), 'session.modelId must be an integer from 1 to 4294967295'],
@@ -241,7 +260,7 @@ describe('experiment payload schema 1', () => {
     const versions = [FIRMWARE.firmwareVersion, 'V'.repeat(129), 'ArduCopter\u0007V4.8.0', 'ArduCopter\nV4.8.0', ''];
     const verdicts = versions.map(firmwareVersion => [
       admitted(() => parseCatalog({ schemaVersion: 1, firmware: [{ ...entry, firmwareVersion }] })),
-      admitted(() => validateExperiment(edit(payload, p => { p.ardupilot.firmwareVersion = firmwareVersion; }))),
+      admitted(() => validateExperiment(edit(payload, p => { ownedEdit(p).ardupilot.firmwareVersion = firmwareVersion; }))),
     ]);
     expect(verdicts).toEqual([[true, true], [true, true], [true, true], [true, true], [false, false]]);
   });
@@ -268,7 +287,7 @@ describe('the experiment record', () => {
     expect(Buffer.from(canonicalBytes(Reflect.get(kept.record.payload, 'sensors'))).equals(Buffer.from(canonicalBytes(sensorSnapshot(await fixture.store.get(dependency)))))).toBe(true);
     expect(Buffer.from(canonicalBytes(kept.record.payload)).equals(Buffer.from(canonicalBytes(payload)))).toBe(true);
     expect(readExperiment(kept)).toEqual(payload);
-    expect(readExperiment(kept).ardupilot).toEqual(FIRMWARE);
+    expect(ownedSitl(readExperiment(kept)).ardupilot).toEqual(FIRMWARE);
 
     // A snapshot that is well formed but not the stored version's is refused, and so is a profile named by another version.
     const tampered = edit(payload, p => { at(p.sensors.residuals, 0).text = 'ArduPilot adds no noise.'; });
@@ -389,5 +408,77 @@ describe('the experiment record', () => {
     expect(bytes).toBe((await fixture.store.get(record.sha256)).bytes.byteLength);
     expect(bytes).toBeGreaterThan(payload.frameScript?.length ?? 0);
     expect(bytes).toBeLessThan(MAX_RECORD_BYTES);
+  });
+});
+
+describe('schema 1 records and external SITLs (TASK-155)', () => {
+  /** The TASK-154 form of a launcher-owned payload. */
+  function schema1Of(payload: ExperimentPayload): unknown {
+    const { profile, session, parameters, frameScript, sensors } = payload, sitl = ownedSitl(payload);
+    return structuredClone({ schemaVersion: 1, profile, ardupilot: sitl.ardupilot, launcher: { experimentId: sitl.experimentId }, session, parameters, frameScript, sensors });
+  }
+  const EXTERNAL = {
+    ownership: 'external', connectionId: EXPERIMENT_ID,
+    ardupilot: { commit: PINNED_ARDUPILOT_COMMIT, gitHash: PINNED_ARDUPILOT_COMMIT.slice(0, 8), firmwareVersion: '4.8.0-dev' },
+    endpoints: { jsonPhysicsPort: 9002, mavlink: { transport: 'tcp', port: 5760 } },
+  } as const;
+  function externalOf(payload: ExperimentPayload): unknown {
+    return edit(payload, p => { Object.assign(p, { sitl: structuredClone(EXTERNAL) }); p.session.speedup = null; });
+  }
+
+  test('a TASK-154 schema 1 record still validates and reads as schema 2, and new records are schema 2', async () => {
+    const fixture = await storedProfile('quad-x', 'S19 quad X', ICM_42688);
+    const payload = payloadOf(fixture);
+    const v1 = schema1Of(payload);
+    expect(validateExperiment(v1)).toMatchObject({ schemaVersion: 1, launcher: { experimentId: EXPERIMENT_ID }, ardupilot: FIRMWARE });
+    await expect(createExperimentRecord(fixture.store, fixture.projectId, { name: 'Run 1', payload: v1 }))
+      .rejects.toThrow('new experiments are schema 2; schema 1 is only read');
+    // Stored as TASK-154 stored it, it reads as the schema 2 payload of the same run.
+    const stored = await fixture.store.createItem(fixture.projectId, 'experiment', { name: 'Run 1', payload: v1, dependencies: [fixture.stored.sha256] });
+    expect(readExperiment(stored)).toEqual(payload);
+    expect(Reflect.get(stored.record.payload, 'schemaVersion')).toBe(1);
+    // Schema 1 keeps its own rules: no sitl field, and a speedup.
+    expect(() => validateExperiment(edit(payload, p => { Object.assign(p, { schemaVersion: 1 }); }))).toThrow('the payload lacks ardupilot');
+  });
+
+  test('an external SITL payload validates and is stored, and its own rules refuse what MirageSITL cannot know or did not do', async () => {
+    const fixture = await storedProfile('quad-x', 'S19 quad X', ICM_42688);
+    const payload = payloadOf(fixture);
+    const external = current(validateExperiment(externalOf(payload)));
+    expect(external.sitl).toEqual(EXTERNAL);
+    expect(external.session.speedup).toBeNull();
+    const name = experimentRecordName(fixture.stored.record.name, EXPERIMENT_ID, 'external');
+    expect(name).toBe(`S19 quad X connection ${EXPERIMENT_ID}`);
+    const record = await createExperimentRecord(fixture.store, fixture.projectId, { name, payload: external });
+    expect(readExperiment(await fixture.store.get(record.sha256))).toEqual(external);
+
+    const variant = (change: (sitl: Mutable<ExternalSitl>, copy: Mutable<ExperimentPayload>) => void): unknown =>
+      edit(external, copy => {
+        if (copy.sitl.ownership !== 'external') throw new Error('The fixture SITL is not external');
+        change(copy.sitl, copy);
+      });
+    const cases: [string, unknown, string][] = [
+      ['a speedup', variant((_, p) => { p.session.speedup = 4; }), 'session.speedup must be null for an external SITL'],
+      ['a git hash of another commit', variant(sitl => { sitl.ardupilot.gitHash = '0123abcd'; }),
+        'sitl.ardupilot.gitHash must be the first 8 characters of sitl.ardupilot.commit'],
+      ['a git hash of another form', variant(sitl => { sitl.ardupilot.gitHash = '8AB6AFDE'; }),
+        'sitl.ardupilot.gitHash must be 8 lowercase hexadecimal digits'],
+      ['a binary hash MirageSITL never read', variant(sitl => { Object.assign(sitl.ardupilot, { binarySha256: hash('binary') }); }),
+        'sitl.ardupilot has an unexpected field binarySha256'],
+      ['a launcher experiment', variant(sitl => { Object.assign(sitl, { experimentId: EXPERIMENT_ID }); }), 'sitl has an unexpected field experimentId'],
+      ['a connection ID of another format', variant(sitl => { sitl.connectionId = 'connection-1'; }), 'sitl.connectionId must be a launcher connection ID'],
+      ['a serial MAVLink transport', variant(sitl => { Object.assign(sitl.endpoints.mavlink, { transport: 'serial' }); }),
+        'sitl.endpoints.mavlink.transport must be one of tcp, udp'],
+      ['one UDP port for both', variant(sitl => { sitl.endpoints.jsonPhysicsPort = 14550; sitl.endpoints.mavlink = { transport: 'udp', port: 14550 }; }),
+        'sitl.endpoints must use two different UDP ports'],
+      ['port 0', variant(sitl => { sitl.endpoints.jsonPhysicsPort = 0; }), 'sitl.endpoints.jsonPhysicsPort must be an integer from 1 to 65535'],
+    ];
+    for (const [label, input, message] of cases) expect(() => validateExperiment(input), label).toThrow(message);
+
+    // A frame that needs a MirageSITL frame script cannot have been flown by an external SITL.
+    const octa = await storedProfile('octa-coaxial-16', 'S19 octa coaxial 16', null);
+    const scripted = payloadOf(octa);
+    expect(scripted.frameScript).not.toBeNull();
+    expect(() => validateExperiment(externalOf(scripted))).toThrow('an external SITL has no frame script');
   });
 });

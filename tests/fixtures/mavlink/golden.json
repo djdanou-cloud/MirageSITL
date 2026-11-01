@@ -1423,10 +1423,144 @@
       "hex": "fd0100004a2a07930000014f71"
     },
     {
+      "id": 148,
+      "name": "AUTOPILOT_VERSION",
+      "style": "pattern",
+      "sequence": 75,
+      "values": {
+        "capabilities": 1234567890136,
+        "uid": 2469135780259,
+        "flight_sw_version": 3668339998,
+        "middleware_sw_version": 2027808463,
+        "os_sw_version": 387276928,
+        "board_version": 3041712689,
+        "vendor_id": 28700,
+        "product_id": 32799,
+        "flight_custom_version": [
+          30,
+          67,
+          104,
+          141,
+          178,
+          215,
+          252,
+          33
+        ],
+        "middleware_custom_version": [
+          33,
+          70,
+          107,
+          144,
+          181,
+          218,
+          255,
+          36
+        ],
+        "os_custom_version": [
+          36,
+          73,
+          110,
+          147,
+          184,
+          221,
+          2,
+          39
+        ],
+        "uid2": [
+          39,
+          76,
+          113,
+          150,
+          187,
+          224,
+          5,
+          42,
+          79,
+          116,
+          153,
+          190,
+          227,
+          8,
+          45,
+          82,
+          119,
+          156
+        ]
+      },
+      "hex": "fd4e00004b2a07940000d804fb711f010000a309f6e33e0200001e6da6dacfe6dd788060151731da4cb51c701f801e43688db2d7fc2121466b90b5daff2424496e93b8dd0227274c7196bbe0052a4f7499bee3082d52779c0abf"
+    },
+    {
+      "id": 148,
+      "name": "AUTOPILOT_VERSION",
+      "style": "minimal",
+      "sequence": 76,
+      "values": {
+        "capabilities": 1,
+        "uid": 0,
+        "flight_sw_version": 0,
+        "middleware_sw_version": 0,
+        "os_sw_version": 0,
+        "board_version": 0,
+        "vendor_id": 0,
+        "product_id": 0,
+        "flight_custom_version": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "middleware_custom_version": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "os_custom_version": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "uid2": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "hex": "fd0100004c2a079400000168f1"
+    },
+    {
       "id": 193,
       "name": "EKF_STATUS_REPORT",
       "style": "pattern",
-      "sequence": 75,
+      "sequence": 77,
       "values": {
         "velocity_variance": -16.125,
         "pos_horiz_variance": -14.75,
@@ -1436,13 +1570,13 @@
         "flags": 24601,
         "airspeed_variance": -7.875
       },
-      "hex": "fd1a00004b2a07c10000000081c100006cc1000056c1000040c100002ac119600000fcc0ad02"
+      "hex": "fd1a00004d2a07c10000000081c100006cc1000056c1000040c100002ac119600000fcc0f68b"
     },
     {
       "id": 193,
       "name": "EKF_STATUS_REPORT",
       "style": "minimal",
-      "sequence": 76,
+      "sequence": 78,
       "values": {
         "velocity_variance": 1,
         "pos_horiz_variance": 0,
@@ -1452,33 +1586,33 @@
         "flags": 0,
         "airspeed_variance": 0
       },
-      "hex": "fd0400004c2a07c100000000803f77de"
+      "hex": "fd0400004e2a07c100000000803f5575"
     },
     {
       "id": 253,
       "name": "STATUSTEXT",
       "style": "pattern",
-      "sequence": 77,
+      "sequence": 79,
       "values": {
         "severity": 40,
         "text": "MIRAGE statustext 2",
         "id": 12304,
         "chunk_seq": 151
       },
-      "hex": "fd3600004d2a07fd0000284d49524147452073746174757374657874203200000000000000000000000000000000000000000000000000000000000000103097c6d5"
+      "hex": "fd3600004f2a07fd0000284d49524147452073746174757374657874203200000000000000000000000000000000000000000000000000000000000000103097be3a"
     },
     {
       "id": 253,
       "name": "STATUSTEXT",
       "style": "minimal",
-      "sequence": 78,
+      "sequence": 80,
       "values": {
         "severity": 1,
         "text": "",
         "id": 0,
         "chunk_seq": 0
       },
-      "hex": "fd0100004e2a07fd00000157fc"
+      "hex": "fd010000502a07fd0000012297"
     }
   ]
 }

@@ -492,7 +492,7 @@ a new run in the same folder; the Run tab never restarts, it starts a new
 experiment (TASK-154). A start is checked completely before anything is
 created, so a refused start leaves no experiment and no folder, and an
 experiment's view echoes its build's identity without machine paths. One
-experiment runs at a time. The launcher never signals a process it did not start, and no
+experiment runs, or one connection is open, at a time. The launcher never signals a process it did not start, and no
 request names a process ID. Stopping the launcher (Ctrl-C) stops its runs.
 
 Check with fake executables and, when `.cache/task-127` holds the pinned
@@ -500,4 +500,32 @@ build, the real ArduCopter in JSON lockstep through the hosted bridge:
 
 ```bash
 npx --no-install vitest run tests/launcher.test.ts
+```
+
+### Connecting to a SITL you started (TASK-155)
+
+The Run tab can also connect to an ArduCopter SITL the user started. The
+launcher then owns only the connection (`POST /v1/connections`): Disconnect
+closes its bridge and relay, and neither Disconnect nor a failure ever
+signals the SITL. The SITL must be the verified source commit
+(`scripts/sitl.lock.json`), use MirageSITL as its JSON physics (which steps
+it at 800 Hz; SITL adopts that rate), be disarmed, already hold the aircraft profile's
+generated frame, output, PWM and sensor parameters (MirageSITL writes
+nothing to it), and start at the session's home. A profile that needs a
+frame script cannot connect; use Start for it. For SITL instance 0, with the
+profile's parameters in `profile.parm`:
+
+```bash
+arducopter --model JSON:127.0.0.1 --speedup 1 --home -35.363261,149.16523,584,0 --defaults copter.parm,profile.parm
+```
+
+Then enter JSON physics port 9002 and MAVLink TCP port 5760 in the Run tab
+and press Connect to running SITL; instance N uses 9002 + 10·N and
+5760 + 10·N. With MAVProxy in front, give it an `--out udp:127.0.0.1:PORT`
+and choose MAVLink UDP with that port. A refusal lists every reason, for
+example each parameter that differs with both values. Check the connection
+layer, including connect and disconnect cycles against the pinned build:
+
+```bash
+npx --no-install vitest run tests/launcher-connections.test.ts
 ```

@@ -245,7 +245,8 @@ implementation.
   tail margin, at 800 Hz, but not at 1200 Hz until TASK-091
   (`node scripts/bench-profile-dynamics.mjs`). TASK-150 is DONE: the MAVLink
   codec reads a message table that pymavlink 2.4.50 generates from the pinned
-  `ardupilotmega.xml` and its includes, and supports 38 messages, adding the
+  `ardupilotmega.xml` and its includes, and supports 39 messages (TASK-155 added
+  AUTOPILOT_VERSION), adding the
   parameter, command, status, telemetry, mission and position-target messages
   of Phase 1, with a cold `packInto` builder, field readers and preallocated
   decoders for the high-rate telemetry subset, all byte- and value-exact
@@ -283,7 +284,14 @@ implementation.
   the M5). TASK-154 is IN_PROGRESS: the Run tab's run states (`SessionController`),
   the immutable experiment record (`@mirage/aircraft/experiment`), parameter
   read-back and the four DoD faults pass against the installed ArduCopter in
-  Chromium; only the runs in Google Chrome remain. Decisions D-04
+  Chromium; only the runs in Google Chrome remain. TASK-155 is IN_PROGRESS:
+  the Run tab's Connect attaches to an ArduCopter SITL the user started (the
+  launcher owns only the connection, `POST /v1/connections`), refuses it with
+  every reason unless it runs JSON physics, is disarmed, reports a verified
+  commit, already holds the profile's parameters (nothing is written to it)
+  and starts at the session's home, records it as experiment schema 2, and
+  leaves it running across connect and disconnect cycles in Chromium; only
+  the runs in Google Chrome remain. Decisions D-04
   and D-06 to D-12 are decided. TASK-127 and TASK-128 are DONE: stock
   ArduCopter `8ab6afd` builds and flies natively on Apple Silicon
   ([macos-sitl.md](docs/decisions/macos-sitl.md)), and its stock frames and

@@ -10,7 +10,7 @@ import { encodeInto } from "@mirage/mavlink/codec";
 import { packInto } from "@mirage/mavlink/messages";
 
 export const MavCommand = {
-  NavTakeoff: 22, NavLand: 21, DoSetMode: 176, ComponentArmDisarm: 400, SetMessageInterval: 511,
+  NavTakeoff: 22, NavLand: 21, DoSetMode: 176, ComponentArmDisarm: 400, SetMessageInterval: 511, RequestMessage: 512,
 } as const;
 /** ArduCopter custom modes (ArduCopter/mode.h, enum class Mode::Number). */
 export const CopterMode = { Stabilize: 0, AltHold: 2, Guided: 4, Loiter: 5, Land: 9 } as const;
@@ -71,6 +71,11 @@ export class GroundStation {
   /** Requests `messageId` every `intervalUs` microseconds (SET_MESSAGE_INTERVAL). */
   messageIntervalInto(messageId: number, intervalUs: number, out: Uint8Array): number {
     return this.commandInto(MavCommand.SetMessageInterval, [messageId, intervalUs], out);
+  }
+
+  /** Requests one message by ID (MAV_CMD_REQUEST_MESSAGE), for example AUTOPILOT_VERSION (148). */
+  requestMessageInto(messageId: number, out: Uint8Array): number {
+    return this.commandInto(MavCommand.RequestMessage, [messageId], out);
   }
 
   /** PARAM_REQUEST_LIST: the autopilot answers with every parameter as PARAM_VALUE, by index. */

@@ -40,8 +40,9 @@ function autopilotFrame(id: number, values: Record<string, number | readonly num
   return out.slice(0, n);
 }
 /** What ArduCopter sends at 10 Hz once its EKF has converged, as one channel 1 record. */
-function diagnostics(simTimeS: number, sequence: number, gpsOnly = false): Uint8Array {
-  const usec = Math.round(simTimeS * 1e6);
+function diagnostics(simTimeS: number, sequence: number, gpsOnly = false, leadS = 0, position = false): Uint8Array {
+  // An autopilot clock leading the session by leadS stamps its GPS and its time_boot_ms with that lead.
+  const usec = Math.round((simTimeS + leadS) * 1e6);
   const all = [
     autopilotFrame(0, { custom_mode: 0, type: 2, autopilot: 3, base_mode: 81, system_status: 3, mavlink_version: 3 }, 9),
     autopilotFrame(193, { flags: 1 | 2 | 4 | 16 | 32, velocity_variance: 0.1, pos_horiz_variance: 0.1, pos_vert_variance: 0.1,
@@ -49,6 +50,8 @@ function diagnostics(simTimeS: number, sequence: number, gpsOnly = false): Uint8
     autopilotFrame(24, { time_usec: usec, fix_type: 3, lat: -353632610, lon: 1491652300, alt: 584000, eph: 100, epv: 100, vel: 0, cog: 0,
       satellites_visible: 10 }, 52),
   ];
+  if (position) all.push(autopilotFrame(33, { time_boot_ms: Math.round((simTimeS + leadS) * 1000), lat: -353632610, lon: 1491652300, alt: 584000,
+    relative_alt: 0, vx: 0, vy: 0, vz: 0, hdg: 0 }, 28));
   const frames = gpsOnly ? all.slice(2) : all;
   const bytes = new Uint8Array(frames.reduce((sum, frame) => sum + frame.length, 0));
   let at = 0;
@@ -115,6 +118,22 @@ describe('SitlBridgeClient in the physics Worker', () => {
     expect(h.sitl.ready).toBe(true);
     run(0.5, 'none');
     expect(h.statuses().at(-1)).toMatchObject({ ready: false, reason: 'Sensor timestamps are incoherent' });
+  }, 300000);
+
+  it('compares GPS in the session clock when the autopilot clock leads it, as after a reconnect (TASK-155)', async () => {
+    // A SITL connected again keeps its clock: its GPS is 120 s ahead of the new session's physics clock.
+    for (const [position, expected] of [[false, false], [true, true]] as const) {
+      const h = await client();
+      h.sitl.opened();
+      let mavlink = 0;
+      for (let frame = 0; frame < 32 * HZ; frame++) {
+        expect(h.sitl.receive(servoRecord(frame))).toBe('step');
+        if ((frame + 1) % 80 === 0) h.sitl.receive(diagnostics((frame + 1) / HZ, mavlink++, false, 120, position));
+      }
+      // Without GLOBAL_POSITION_INT the lead is unknown, so the GPS stays in the future and READY is withheld.
+      expect(h.sitl.ready, `with GLOBAL_POSITION_INT ${String(position)}`).toBe(expected);
+      if (!expected) expect(h.statuses().at(-1)).toMatchObject({ ready: false, reason: 'Sensor timestamps are incoherent' });
+    }
   }, 300000);
 
   it('ends READY on a SITL restart and closes the socket', async () => {

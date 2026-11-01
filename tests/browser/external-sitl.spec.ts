@@ -83,8 +83,8 @@ test("the Run tab flies the quad X profile with native ArduCopter: READY, take-o
       catalogId: FIRMWARE_ID, firmwareVersion: entry.firmwareVersion, commit: entry.commit,
       binarySha256: sha256(entry.binaryPath), defaultParametersSha256: sha256(entry.defaultParametersPath),
     });
-    expect(record?.ardupilot.binarySha256).toBe(entry.binarySha256);
-    expect(record?.ardupilot.defaultParametersSha256).toBe(entry.defaultParametersSha256);
+    expect(record?.ardupilot?.binarySha256).toBe(entry.binarySha256);
+    expect(record?.ardupilot?.defaultParametersSha256).toBe(entry.defaultParametersSha256);
     await expect(panel.getByTestId("sitl-record")).toHaveText(record?.sha256 ?? "missing");
 
     await panel.getByLabel("Take-off altitude, m").fill("5");

@@ -4115,8 +4115,10 @@ kept.
 * References to artifacts outside the store, such as the ArduPilot build or
   terrain data. TASK-154 records the ArduPilot build's identity (catalog ID,
   version, commit and file hashes) as experiment payload data, not as a
-  dependency (user decision of 2026-11-01); TASK-165 and TASK-186 decide
-  whether their artifacts need a dependency-model change.
+  dependency (user decision of 2026-11-01), and TASK-155 records the version
+  and verified commit that a SITL the user started reports the same way;
+  TASK-165 and TASK-186 decide whether their artifacts need a
+  dependency-model change.
 * Binary attachments and recordings (TASK-140, TASK-162 and TASK-164).
 * Mutable user-interface state. It lives in local settings, outside the
   records and the archives.
@@ -6036,20 +6038,24 @@ network error; launcher-foreign needs an answer the browser may read.
 
 ### Experiment record
 
-`packages/aircraft/src/experiment.ts` defines experiment payload schema 1 in
-record envelope v1, and the application registers `validateExperiment` for
-the `experiment` kind. The record has exactly one dependency, its
-aircraft-profile version, and the payload holds:
+`packages/aircraft/src/experiment.ts` defines experiment payload schema 2
+(TASK-155) in record envelope v1, and the application registers
+`validateExperiment` for the `experiment` kind. The record has exactly one
+dependency, its aircraft-profile version, and the payload holds:
 
 | Field | Content |
 |---|---|
 | profile | SHA-256, item ID, version and name of the profile version |
-| ardupilot | the launcher catalog ID, firmware version, commit, binary SHA-256 and default-parameter SHA-256 of the build that ran, as the launcher's view reports them |
-| launcher | the launcher experiment ID, which names `experiments/<id>/` |
-| session | physics rate (800 or 1200 Hz), `sitl-lockstep`, speed-up, home, model ID, manifest SHA-256 and BET module SHA-256 |
-| parameters | exactly the list sent to the launcher, in its order, each tagged frame, output, pwm or sensor |
-| frameScript | the Lua of a scripting-matrix frame, or null |
+| sitl | `ownership: "launcher"`: the launcher experiment ID, which names `experiments/<id>/`, and `ardupilot`, the launcher catalog ID, firmware version, commit, binary SHA-256 and default-parameter SHA-256 of the build that ran, as the launcher's view reports them; or `ownership: "external"` for a SITL the user started (see the TASK-155 section) |
+| session | physics rate (800 or 1200 Hz), `sitl-lockstep`, speed-up (null for an external SITL), home, model ID, manifest SHA-256 and BET module SHA-256 |
+| parameters | exactly the list sent to the launcher, in its order, each tagged frame, output, pwm or sensor; for an external SITL the same generated list, which it was confirmed to hold |
+| frameScript | the Lua of a scripting-matrix frame, or null (always null for an external SITL) |
 | sensors | `sensorSnapshot()` of the profile version, verbatim |
+
+Schema 1, which TASK-154 wrote, had `ardupilot` and `launcher` at the top
+level and a required speed-up. It stays valid on reads and archive imports;
+`readExperiment` presents it as schema 2 with a launcher-owned `sitl`, and
+`createExperimentRecord` writes only schema 2.
 
 `createExperimentRecord` recomputes the snapshot from the stored profile
 version and requires canonical-byte equality, cross-checks the frame and
@@ -6107,3 +6113,147 @@ port (a fake SITL that cannot bind a held port, and a program that is not the
 launcher on its port), SITL killed during EKF warmup, and bridge loss; each
 shows its reason and diagnostic log, leaves no owned process and reaches READY
 again on Start again.
+
+## Manual connection to a running SITL (TASK-155)
+
+A user who started ArduCopter themselves connects the Run tab to it instead
+of having the launcher start one (S02). The launcher owns only the
+connection: its bridge and MAVLink relay. Disconnect, and every failure of a
+connection, closes those and never signals the SITL process, which keeps
+running. The decisions of 2026-11-01 set the policy: a SITL with built-in
+physics is refused; only verified source commits connect; the SITL's
+parameters are read, never written, and every difference is a reason to
+refuse; a connection is recorded as experiment payload schema 2.
+
+### Launcher API
+
+`POST /v1/connections` takes the connection descriptor:
+
+```json
+{ "jsonPhysicsPort": 9002, "mavlink": { "transport": "tcp", "port": 5760 } }
+```
+
+`jsonPhysicsPort` is the UDP port SITL sends JSON servo packets to
+(`--sim-port-out`, 9002 + 10·instance by default), which the bridge binds.
+MAVLink is either SITL's TCP server (`tcp`, SERIAL0 on 5760 + 10·instance by
+default), to which `MavlinkTcpRelay` connects and whose byte stream it passes
+to the bridge in datagrams of at most 2048 bytes, or a UDP port SITL or
+MAVProxy sends to (`udp`), which `MavlinkRelay` binds and whose source port
+it learns. A port that cannot be used is refused with 409 and a reason
+(nothing accepts the TCP connection, the JSON or UDP port is in use), and a
+refused connection leaves nothing open and nothing registered. One experiment
+run or one open connection exists at a time. The view
+(`GET /v1/connections/{id}`) is:
+
+| Field | Content |
+|---|---|
+| id | the connection ID, in the format of experiment IDs |
+| ownership | `external` |
+| state | `open`; `sitl-closed` when SITL ended its TCP connection; `disconnected` after `POST /v1/connections/{id}/disconnect` |
+| closedReason | why SITL's side ended, or null |
+| endpoints | the descriptor |
+| ports | the bridge port and record epoch (1) while open, else null |
+| physics | servo packets received and rejected, foreign senders, and the latest packet's rate and channel count (null before the first) |
+| mavlink | bytes received from SITL and datagrams dropped |
+
+The counters stay readable after the connection closes, as its diagnostics.
+SITL closing its TCP connection marks the connection `sitl-closed` before its
+bridge closes.
+
+### Compatibility
+
+`SessionController.connect` checks, in this order, and refuses with every
+reason named (failure kind `incompatible`, restart path fix-first):
+
+| Check | Passes when | Limit |
+|---|---|---|
+| frame script | the profile needs no frame script, which MirageSITL installs only in a SITL it starts | before connecting |
+| JSON physics | JSON servo packets reach the physics port; MAVLink without them means a built-in physics model, which cannot fly the profile and whose clock MirageSITL cannot pause | first packet within 15 s of wall time |
+| armed | ArduPilot's first heartbeat (system 1, component 1, autopilot 3) says disarmed | first heartbeat within 60 s of wall time |
+| version | `AUTOPILOT_VERSION` (requested with `MAV_CMD_REQUEST_MESSAGE` once per wall second) has a `flight_custom_version` git hash that is the first 8 characters of exactly one verified commit of the pinned catalog | within 10 s of simulated time |
+| parameters | the complete PARAM_VALUE list holds every generated frame, output, PWM and sensor parameter at its float32 value, under the catalog's absent rule; the first 12 differences are listed and the rest counted | within 30 s of simulated time |
+| home | the first 3D GPS fix lies within 10 m horizontally and 5 m vertically of the session's home | — |
+
+Physics steps at the session's rate, 800 Hz as for Start. The rate in SITL's
+first servo packets is only its `SIM_RATE_HZ` default (1200 Hz), since
+`SIM_JSON` adopts the step of the physics peer's replies
+(`Aircraft::adjust_frame_time` with 1/Δt), so it is shown and not checked.
+The clock is then classified as TASK-129 found it: MirageSITL is the JSON
+lockstep peer and its replies never set `no_lockstep`, so SITL's simulated
+time waits for each reply and the connection can be paused once TASK-156
+adds pause. A SITL whose clock MirageSITL cannot hold, one with built-in
+physics, is refused at the JSON check, and the reason says that its clock
+cannot be paused. The panel lists the checks a connection passed.
+
+The ground station now requests the EKF_STATUS_REPORT, GPS_RAW_INT and
+GLOBAL_POSITION_INT streams once per wall second until each stream's message
+arrives, and again after 2 s of wall time without one, for owned runs too. An
+acknowledgement does not prove a stream runs: a link's first send pass sets
+every interval from its `SRn_` stream rates (`GCS_MAVLINK::update_send`,
+`initialise_message_intervals_from_streamrates`), overwriting an interval
+acknowledged before it. A TCP SITL starts its scheduler only when the
+launcher connects, so the first requests reach that window; stopping after
+the acknowledgements left the connection without GPS, and so without READY.
+
+A SITL connected again keeps its clock: `SIM_JSON` treats the new session's
+earlier timestamps as a physics reset and does not reset the autopilot, so
+its GPS time leads the new session's physics clock by the time it already
+ran. `LiveEkfWarmup` therefore compares GPS time in the session clock in
+JSON lockstep, shifted by the autopilot's lead, which GLOBAL_POSITION_INT's
+`time_boot_ms` bounds from below (sent at or before the step at which it is
+received). The largest bound seen, never below 0, is used, so a wrong time
+can only keep the GPS stale; without GLOBAL_POSITION_INT a leading GPS stays
+incoherent. A SITL that starts with the session has a lead of 0.
+
+`ParameterReadback.differences()` gives every generated parameter a complete
+list does not hold. The git hash identifies the source commit only: a binary
+built from a changed working tree reports the same hash, and MirageSITL has
+no binary hash of a SITL it did not start.
+
+### States, failures and record
+
+A connection runs the TASK-154 states with ownership `external`: starting
+(prepare, launcher, probing, physics, connecting, version), loading
+parameters, warming, ready and running. Failures specific to a connection:
+
+| Reason | Text begins | Restart |
+|---|---|---|
+| incompatible | This SITL cannot be used with this profile, and every reason | restart the SITL as the reasons say, then Connect again |
+| sitl-silent | The SITL sent no heartbeat for 10 s; MirageSITL disconnected | Connect again |
+
+`sitl-ended` carries the launcher's `closedReason` when SITL closed its TCP
+connection; a launcher refusal of the ports asks the user to check the SITL
+and its ports. Heartbeat silence is measured in wall time, so TASK-156 must
+suspend it while paused. Diagnostics name the connection and the launcher's
+counters instead of process logs.
+
+The record is written once every check has passed, when the home check
+completes during warming, and READY waits for it. Its `sitl` is:
+
+| Field | Content |
+|---|---|
+| ownership | `external` |
+| connectionId | the launcher connection ID |
+| ardupilot | `commit` (the verified commit), `gitHash` (its first 8 characters, as reported) and `firmwareVersion` (`flight_sw_version` as text, for example `4.8.0-dev`) |
+| endpoints | the connection descriptor |
+
+`session.speedup` is null, because SITL's own command line set it, and
+`frameScript` is null. The record name is `<profile> connection <id>`.
+
+### Verification (TASK-155)
+
+`tests/launcher-connections.test.ts` checks refusals that leave nothing open,
+both MAVLink transports and the servo packets through the bridge, disconnect,
+SITL closing its TCP connection, and three connect and disconnect cycles
+against the pinned ArduCopter that leave its process running.
+`tests/run-controller.test.ts` drives every check, refusal and failure of a
+connection on scripted ports; `tests/experiment-record.test.ts` covers schema
+2, the external variant and schema 1 reads; `tests/autopilot-version.test.ts`
+checks the version decoder against the pymavlink goldens of message 148,
+which the codec now supports (`scripts/generate-mavlink-fixtures.py`);
+`tests/sitl-bridge-client.test.ts` admits READY with an autopilot clock 120 s
+ahead only when GLOBAL_POSITION_INT bounds the lead.
+`tests/browser/manual-connect.spec.ts` starts the installed ArduCopter as a
+user would and, through the Run tab alone, connects and disconnects twice to
+READY, refuses a SITL with built-in physics and one whose parameters differ,
+and finds each process still running afterwards.

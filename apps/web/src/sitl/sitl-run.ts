@@ -27,8 +27,8 @@ import type { LimitRatings } from "@mirage/physics/limit-monitor";
 import type { StoredVersion } from "@mirage/project/schema";
 import type { ProjectStore } from "@mirage/project/store";
 import type { SimulationRuntime } from "../runtime";
-import { LauncherError, type CatalogEntry, type LauncherExperiment, type LauncherLogs, type LauncherPort, type LauncherRunState, type PhysicsPort,
-  type PreparedRun, type StartSpec } from "../run/session-controller";
+import { LauncherError, type CatalogEntry, type ConnectionSpec, type LauncherConnection, type LauncherExperiment, type LauncherLogs, type LauncherPort,
+  type LauncherRunState, type PhysicsPort, type PreparedRun, type StartSpec } from "../run/session-controller";
 
 /** Model ID of the vehicle an integrated session loads. */
 export const SITL_MODEL_ID = 153;
@@ -144,6 +144,11 @@ function field(value: unknown, ...path: (string | number)[]): unknown {
   return current;
 }
 
+/** Source commits whose SITL behaviour MirageSITL has verified: the pinned catalog's (apps/launcher/src/catalog.ts COMPATIBLE_COMMITS). */
+export function verifiedCommits(): readonly string[] {
+  return [pinnedArduPilotCatalog().commit];
+}
+
 /** The absent-parameter rule of the pinned ArduPilot catalog, for the parameter read-back. */
 export function parameterAbsentRule(): AbsentRule {
   return catalogAbsentRule(pinnedArduPilotCatalog());
@@ -197,6 +202,29 @@ export function parseLauncherExperiment(value: unknown): LauncherExperiment {
   };
 }
 
+const CONNECTION_STATES: readonly LauncherConnection["state"][] = ["open", "sitl-closed", "disconnected"];
+const count = (value: unknown, label: string): number => {
+  if (typeof value !== "number" || !Number.isInteger(value) || value < 0) throw new LauncherError("foreign", `The launcher's answer lacks ${label}`);
+  return value;
+};
+/** A connection view (apps/launcher/src/connections.ts view()), validated from unknown. */
+export function parseLauncherConnection(value: unknown): LauncherConnection {
+  const state = CONNECTION_STATES.find(item => item === field(value, "state"));
+  if (field(value, "ownership") !== "external" || state === undefined) throw new LauncherError("foreign", "The launcher's answer is not a connection");
+  const transport = field(value, "endpoints", "mavlink", "transport");
+  if (transport !== "tcp" && transport !== "udp") throw new LauncherError("foreign", "The launcher's connection lacks its MAVLink transport");
+  const bridge = integerOrNull(field(value, "ports", "bridge")), epoch = integerOrNull(field(value, "ports", "epoch"));
+  return {
+    id: text(field(value, "id"), "a connection ID"), state, closedReason: textOrNull(field(value, "closedReason")),
+    endpoints: { jsonPhysicsPort: count(field(value, "endpoints", "jsonPhysicsPort"), "the JSON physics port"),
+      mavlink: { transport, port: count(field(value, "endpoints", "mavlink", "port"), "the MAVLink port") } },
+    ports: bridge !== null && epoch !== null ? { bridge, epoch } : null,
+    physics: { servoPackets: count(field(value, "physics", "servoPackets"), "the servo packet count"),
+      rateHz: integerOrNull(field(value, "physics", "rateHz")), channels: integerOrNull(field(value, "physics", "channels")) },
+    mavlink: { bytesFromSitl: count(field(value, "mavlink", "bytesFromSitl"), "the MAVLink byte count") },
+  };
+}
+
 /** The launcher API (TASK-151) on 127.0.0.1; the token goes in the Authorization header only. */
 export class LauncherClient implements LauncherPort {
   constructor(readonly port: number, private readonly token: string) {
@@ -236,6 +264,11 @@ export class LauncherClient implements LauncherPort {
   }
   async start(spec: StartSpec): Promise<LauncherExperiment> { return parseLauncherExperiment(await this.call("POST", "/v1/experiments", spec)); }
   async stop(id: string): Promise<LauncherExperiment> { return parseLauncherExperiment(await this.call("POST", `/v1/experiments/${encodeURIComponent(id)}/stop`)); }
+  async connect(spec: ConnectionSpec): Promise<LauncherConnection> { return parseLauncherConnection(await this.call("POST", "/v1/connections", spec)); }
+  async disconnect(id: string): Promise<LauncherConnection> {
+    return parseLauncherConnection(await this.call("POST", `/v1/connections/${encodeURIComponent(id)}/disconnect`));
+  }
+  async connection(id: string): Promise<LauncherConnection> { return parseLauncherConnection(await this.call("GET", `/v1/connections/${encodeURIComponent(id)}`)); }
   async experiment(id: string): Promise<LauncherExperiment> { return parseLauncherExperiment(await this.call("GET", `/v1/experiments/${encodeURIComponent(id)}`)); }
   async logs(id: string): Promise<LauncherLogs> {
     const json = await this.call("GET", `/v1/experiments/${encodeURIComponent(id)}/logs`);
@@ -258,14 +291,14 @@ export class RuntimePhysics implements PhysicsPort {
     return this.vehicleValue;
   }
 
-  async load(): Promise<{ betModuleSha256: string }> {
+  async load(physicsHz: 800 | 1200): Promise<{ betModuleSha256: string }> {
     const { vehicle, runtime } = this;
     runtime.pauseWhenHidden = false;
     const module = await fetchBetModule();
     await this.request({ type: "bet.module", bytes: module.bytes, sha256: module.sha256 }, "bet.module.ready", "bet.module.reject");
     await this.request({ type: "model.register", bytes: vehicle.derived.bytes, sha256: vehicle.derived.sha256 }, "model.registered", "model.reject");
     await this.request({ type: "limits.register", sha256: vehicle.derived.sha256, ratings: vehicle.ratings }, "limits.registered", "limits.reject");
-    await this.control({ type: "sim.configure", hz: SITL_PHYSICS_HZ, clockMode: "sitl-lockstep" });
+    await this.control({ type: "sim.configure", hz: physicsHz, clockMode: "sitl-lockstep" });
     await this.control({ type: "model.load", modelId: SITL_MODEL_ID, manifestSha256: vehicle.derived.sha256 });
     await this.control({ type: "sim.start" });
     return { betModuleSha256: module.sha256 };

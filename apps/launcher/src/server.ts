@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import { startBridge } from "../../bridge/src/server.ts";
 import { nativeAdmission, readCatalog, verifyEntry, type ExecutableAdmission, type FirmwareEntry } from "./catalog.ts";
 import { dataflashPath, listDataflash, tail } from "./logs.ts";
+import { ConnectionRefused, ExternalConnection, type ConnectionSpec } from "./connections.ts";
 import { checkPrerequisites } from "./prerequisites.ts";
 import { OwnedProcess, type RunInfo, type RunState } from "./processes.ts";
 import { MavlinkRelay } from "./relay.ts";
@@ -23,6 +24,9 @@ import { MavlinkRelay } from "./relay.ts";
 //   POST /v1/experiments/{id}/restart     start a new run of a stopped one
 //   GET  /v1/experiments/{id}/logs        diagnostics tails and DataFlash list
 //   GET  /v1/experiments/{id}/dataflash/{name}  one DataFlash file
+//   POST /v1/connections                  connect to a SITL the user started
+//   GET  /v1/connections/{id}             one connection
+//   POST /v1/connections/{id}/disconnect  release it; the SITL keeps running
 // Every request needs `Authorization: Bearer <token>` and the exact
 // configured Origin; Host must name the loopback listener. The token is
 // generated locally into <home>/token (mode 0600) and is never printed, put
@@ -34,7 +38,10 @@ import { MavlinkRelay } from "./relay.ts";
 // build it runs, without machine paths. Its state is "starting" while a run
 // is being launched and "start-failed" (with startError) when the launch
 // failed before SITL ran; otherwise it is the state of its latest run. Its
-// ports are null whenever no bridge and relay are open.
+// ports are null whenever no bridge and relay are open. A connection
+// (TASK-155) has ownership "external": the launcher owns its bridge and relay,
+// never the SITL process, so disconnecting signals nothing. One experiment
+// run or one open connection at a time.
 
 export const LAUNCHER_API_VERSION = 1;
 export const DEFAULT_LAUNCHER_PORT = 47800;
@@ -107,6 +114,20 @@ function finite(value: unknown, label: string, min: number, max: number): number
   if (typeof value !== "number" || !Number.isFinite(value) || value < min || value > max) throw new HttpError(400, `${label} must be a number from ${min} to ${max}`);
   return value;
 }
+/** Validates a connection request from `unknown`: the JSON physics port and the MAVLink transport and port. */
+export function parseConnectionSpec(input: unknown): ConnectionSpec {
+  if (!isRecord(input)) throw new HttpError(400, "The request body must be a JSON object");
+  if (Object.keys(input).sort().join(",") !== "jsonPhysicsPort,mavlink") throw new HttpError(400, "Expected jsonPhysicsPort and mavlink");
+  const { jsonPhysicsPort, mavlink } = input;
+  if (!isRecord(mavlink) || Object.keys(mavlink).sort().join(",") !== "port,transport") throw new HttpError(400, "mavlink must be { transport, port }");
+  const { transport, port } = mavlink;
+  if (transport !== "tcp" && transport !== "udp") throw new HttpError(400, "mavlink.transport must be tcp or udp");
+  const jsonPort = finite(jsonPhysicsPort, "jsonPhysicsPort", 1, 65535), mavlinkPort = finite(port, "mavlink.port", 1, 65535);
+  if (!Number.isInteger(jsonPort) || !Number.isInteger(mavlinkPort)) throw new HttpError(400, "Ports must be integers");
+  if (transport === "udp" && jsonPort === mavlinkPort) throw new HttpError(400, "The JSON physics port and the MAVLink UDP port must differ");
+  return { jsonPhysicsPort: jsonPort, mavlink: { transport, port: mavlinkPort } };
+}
+
 /** Validates a start request from `unknown`. */
 export function parseExperimentSpec(input: unknown): ExperimentSpec {
   if (!isRecord(input)) throw new HttpError(400, "The request body must be a JSON object");
@@ -148,6 +169,11 @@ export async function startLauncher(options: LauncherOptions) {
 
   // True while a run starts, so admitRun refuses a second start; no await separates admitRun from launchRun.
   let launching = false;
+  const connections = new Map<string, ExternalConnection>();
+  /** A connection being opened, so a start or a second connection waits its turn. */
+  let connecting = false;
+  const openConnection = (): boolean => connecting || [...connections.values()].some(connection => connection.state === "open");
+  const newId = () => `${new Date().toISOString().replace(/[-:.TZ]/g, "")}-${randomBytes(4).toString("hex")}`;
 
   const stateOf = (experiment: Experiment): ExperimentState => {
     const { launch } = experiment;
@@ -213,6 +239,7 @@ export async function startLauncher(options: LauncherOptions) {
   /** The checks of a start or restart, before it creates anything: no other run, and firmware files as installed. */
   function admitRun(firmware: FirmwareEntry): void {
     if (launching || [...experiments.values()].some(other => other.process?.running)) throw new HttpError(409, "Another experiment is running; stop it first");
+    if (openConnection()) throw new HttpError(409, "A connection to an external SITL is open; disconnect it first");
     const status = verifyEntry(firmware, admit);
     if (!status.usable) throw new HttpError(409, `Firmware ${firmware.id} cannot be started: ${status.reason}`);
   }
@@ -276,7 +303,8 @@ export async function startLauncher(options: LauncherOptions) {
     if (parts[0] !== `v${LAUNCHER_API_VERSION}`) throw new HttpError(404, "Unknown API version or path");
     const [, resource, id, action, name] = parts;
     if (method === "GET" && resource === "status" && parts.length === 2) {
-      send(200, { apiVersion: LAUNCHER_API_VERSION, launcherPid: process.pid, experiments: [...experiments.values()].map(view) });
+      send(200, { apiVersion: LAUNCHER_API_VERSION, launcherPid: process.pid, experiments: [...experiments.values()].map(view),
+        connections: [...connections.values()].map(connection => connection.view()) });
     } else if (method === "GET" && resource === "prerequisites" && parts.length === 2) {
       send(200, { checks: checkPrerequisites({ home, python: options.python, admit }) });
     } else if (method === "GET" && resource === "catalog" && parts.length === 2) {
@@ -287,7 +315,7 @@ export async function startLauncher(options: LauncherOptions) {
       if (!firmware) throw new HttpError(404, `No installed firmware ${spec.firmwareId}`);
       // Every refusal comes before the folder, experiment.json and the registration below.
       admitRun(firmware);
-      const experimentId = `${new Date().toISOString().replace(/[-:.TZ]/g, "")}-${randomBytes(4).toString("hex")}`;
+      const experimentId = newId();
       const workDirectory = join(home, "experiments", experimentId);
       mkdirSync(join(workDirectory, "logs"), { recursive: true, mode: 0o700 });
       writeFileSync(join(workDirectory, "experiment.parm"), spec.parameters.map(parameter => `${parameter.name} ${parameter.value}\n`).join(""), { mode: 0o600 });
@@ -326,6 +354,33 @@ export async function startLauncher(options: LauncherOptions) {
         createReadStream(path).pipe(response);
       } else {
         throw new HttpError(404, "Unknown experiment action");
+      }
+    } else if (method === "POST" && resource === "connections" && parts.length === 2) {
+      const spec = parseConnectionSpec(await readBody(request));
+      if (launching || [...experiments.values()].some(other => other.process?.running)) throw new HttpError(409, "An experiment is running; stop it first");
+      if (openConnection()) throw new HttpError(409, "A connection to an external SITL is open; disconnect it first");
+      connecting = true;
+      try {
+        const connection = await ExternalConnection.open(newId(), spec, { origin: options.origin, token });
+        connections.set(connection.id, connection);
+        send(201, connection.view());
+      } catch (error) {
+        // A refused connection leaves nothing open and nothing registered.
+        if (error instanceof ConnectionRefused) throw new HttpError(409, error.message);
+        throw error;
+      } finally {
+        connecting = false;
+      }
+    } else if (resource === "connections" && id !== undefined) {
+      const connection = connections.get(id);
+      if (!connection) throw new HttpError(404, "No connection of this launcher has that ID");
+      if (method === "GET" && parts.length === 3) {
+        send(200, connection.view());
+      } else if (method === "POST" && action === "disconnect" && parts.length === 4) {
+        await connection.disconnect();
+        send(200, connection.view());
+      } else {
+        throw new HttpError(404, "Unknown connection action");
       }
     } else {
       throw new HttpError(404, "Unknown API path");
@@ -381,8 +436,9 @@ export async function startLauncher(options: LauncherOptions) {
       await endRun(experiment);
       return true;
     },
-    /** Stops every owned run, then the listener. */
+    /** Releases every connection, stops every owned run, then closes the listener. */
     close: async () => {
+      for (const connection of connections.values()) await connection.disconnect();
       for (const experiment of experiments.values()) {
         await experiment.process?.stop();
         await endRun(experiment);

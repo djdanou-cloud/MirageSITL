@@ -145,4 +145,27 @@ export class ParameterReadback {
     }
     return { kind: "confirmed" };
   }
+
+  /**
+   * Every generated parameter the complete list does not hold, in the given
+   * order: `reported` null for an absent name the rule does not excuse.
+   * Null while the list is incomplete. A SITL the user started is judged by
+   * all of them at once (TASK-155), since nothing is written to it.
+   */
+  differences(): readonly ParameterDifference[] | null {
+    if (this.verdict().kind === "incomplete") return null;
+    const differences: ParameterDifference[] = [];
+    for (const parameter of this.expected) {
+      const reported = this.values.get(parameter.name);
+      if (reported === undefined) {
+        if (!this.absent(parameter.name, this.lookup)) differences.push({ name: parameter.name, expected: parameter.value, reported: null });
+      } else if (reported !== Math.fround(parameter.value)) {
+        differences.push({ name: parameter.name, expected: parameter.value, reported });
+      }
+    }
+    return differences;
+  }
 }
+
+/** A generated parameter the autopilot holds at another value (its float32), or not at all (null). */
+export interface ParameterDifference { readonly name: string; readonly expected: number; readonly reported: number | null }

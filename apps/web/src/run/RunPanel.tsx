@@ -5,8 +5,10 @@ import { CopterMode } from "@mirage/autopilot/ground-station";
 import { SimulationRuntime } from "../runtime";
 import type { StoreState } from "../shell/AppShell";
 import { DEFAULT_LAUNCHER_PORT } from "../shell/FirstRun";
-import { DEFAULT_HOME, LauncherClient, RuntimePhysics, SITL_PHYSICS_HZ, preparedRun } from "../sitl/sitl-run";
-import { SessionController, failureText, type CatalogEntry, type ControllerView, type RunState } from "./session-controller";
+import { DEFAULT_HOME, LauncherClient, RuntimePhysics, SITL_PHYSICS_HZ, preparedRun, verifiedCommits } from "../sitl/sitl-run";
+import { CompatibilityList, ManualConnect } from "./ManualConnect";
+import { SessionController, failureText, type CatalogEntry, type ConnectionSpec, type ControllerView, type Ownership, type PreparedRun,
+  type RunState } from "./session-controller";
 
 // Run tab, ArduPilot SITL backend (TASK-153, TASK-154): an aircraft profile
 // version of the open project flies with an installed ArduPilot build that the
@@ -14,23 +16,27 @@ import { SessionController, failureText, type CatalogEntry, type ControllerView,
 // Start, a restart included, is a new experiment with its own record and a
 // fresh physics Worker. The launcher token is typed or pasted for this page
 // only, as on the Project tab: it is never stored, logged or put in a URL.
+// Connect (TASK-155) flies the same profile with a SITL the user started; the
+// launcher owns only that connection, and Disconnect leaves the SITL running.
 
 const MODE_NAMES: Readonly<Record<number, string>> = Object.fromEntries(Object.entries(CopterMode).map(([name, value]) => [value, name.toUpperCase()]));
 const STEP_TEXT = { prepare: "preparing the vehicle", firmware: "checking the ArduPilot build", physics: "loading the physics",
-  launcher: "starting SITL", record: "saving the experiment record", connecting: "connecting to SITL" } as const;
+  launcher: "starting SITL", record: "saving the experiment record", connecting: "connecting to SITL",
+  probing: "waiting for the SITL's JSON physics packets", version: "checking the SITL's ArduPilot version" } as const;
 const FLIGHT_TEXT = { arming: "Arming", climbing: "Taking off", flying: "Flying", landing: "Landing" } as const;
 
-/** The stage line for a run state. */
-export function stateText(state: RunState): string {
+/** The stage line for a run state; a connection says Connecting and Disconnecting. */
+export function stateText(state: RunState, ownership: Ownership = "launcher"): string {
+  const external = ownership === "external";
   switch (state.name) {
     case "idle": return state.last ?? "Not started";
-    case "starting": return `Starting: ${STEP_TEXT[state.step]}`;
+    case "starting": return external ? `Connecting: ${state.step === "launcher" ? "opening the connection" : STEP_TEXT[state.step]}` : `Starting: ${STEP_TEXT[state.step]}`;
     case "loading-parameters": return `Loading parameters: ${state.received} of ${state.total ?? "?"} received`;
     case "warming": return "Waiting for the autopilot (EKF warmup)";
     case "ready": return "READY";
     case "running": return FLIGHT_TEXT[state.flight];
     case "paused": return `Paused at ${state.atSimTimeS.toFixed(1)} s`;
-    case "stopping": return "Stopping SITL";
+    case "stopping": return external ? "Disconnecting" : "Stopping SITL";
     case "failed": return "Failed";
     default: { const never: never = state; return never; }
   }
@@ -95,14 +101,14 @@ export function RunPanel({ storeState, project, visible }: { storeState: StoreSt
       setBuildId(current => entries.some(entry => entry.id === current && entry.usable) ? current : entries.find(entry => entry.usable)?.id ?? "");
     }, (cause: unknown) => { setBuilds(null); setError(cause instanceof Error ? cause.message : String(cause)); });
   };
-  const start = () => {
+  /** A fresh session for every Start and Connect: the previous run's model and epoch stay with the old Worker. */
+  const freshSession = (): { next: SessionController; prepare: () => Promise<PreparedRun> } | null => {
     setError("");
     const stored = profiles.find(entry => entry.sha256 === profileSha);
     const launcher = client();
-    if (!launcher) return;
-    if (!store || !projectId || !stored) { setError("Open a project and choose an aircraft profile."); return; }
-    if (typeof SharedArrayBuffer === "undefined" || !crossOriginIsolated) { setError("This page is not cross-origin isolated, so the physics Worker cannot share memory."); return; }
-    // Every Start is a new experiment on a fresh session: the previous run's model and epoch stay with the old Worker.
+    if (!launcher) return null;
+    if (!store || !projectId || !stored) { setError("Open a project and choose an aircraft profile."); return null; }
+    if (typeof SharedArrayBuffer === "undefined" || !crossOriginIsolated) { setError("This page is not cross-origin isolated, so the physics Worker cannot share memory."); return null; }
     unlisten.current?.();
     runtime.current?.dispose();
     const fresh = new SimulationRuntime(() => undefined);
@@ -110,22 +116,36 @@ export function RunPanel({ storeState, project, visible }: { storeState: StoreSt
     const physics = new RuntimePhysics(fresh, launcher.bearer);
     let profileName = stored.record.name;
     const next = new SessionController(launcher, physics, {
-      create: payload => createExperimentRecord(store, projectId, { name: experimentRecordName(profileName, payload.launcher.experimentId), payload }),
+      create: payload => {
+        const { sitl } = payload;
+        const name = experimentRecordName(profileName, sitl.ownership === "external" ? sitl.connectionId : sitl.experimentId, sitl.ownership);
+        return createExperimentRecord(store, projectId, { name, payload });
+      },
     }, { nowMs: () => performance.now(), every: (ms, callback) => { const timer = setInterval(callback, ms); return () => clearInterval(timer); } }, setView);
     controller.current = next;
     unlisten.current = fresh.listen(data => next.worker(data));
-    void next.start({
+    return {
+      next,
       prepare: async () => {
         const { vehicle, run } = await preparedRun(store, stored);
         physics.use(vehicle);
         profileName = vehicle.profileName;
         return run;
       },
-      firmwareId: buildId, speedup, physicsHz: SITL_PHYSICS_HZ, home: DEFAULT_HOME,
-    });
+    };
+  };
+  const start = () => {
+    const session = freshSession();
+    if (session) void session.next.start({ prepare: session.prepare, firmwareId: buildId, speedup, physicsHz: SITL_PHYSICS_HZ, home: DEFAULT_HOME });
+  };
+  const connect = (endpoints: ConnectionSpec) => {
+    const session = freshSession();
+    if (session) void session.next.connect({ prepare: session.prepare, endpoints, physicsHz: SITL_PHYSICS_HZ, home: DEFAULT_HOME, verifiedCommits: verifiedCommits() });
   };
   const status = view?.status ?? null;
   const stopAgain = failed?.restart.kind === "stop-again";
+  const external = view?.ownership === "external";
+  const busy = active || stopAgain || state.name === "stopping";
   return (
     <section className="sitl-flight" aria-labelledby="sitl-heading">
       <h3 id="sitl-heading">ArduPilot SITL</h3>
@@ -160,8 +180,8 @@ export function RunPanel({ storeState, project, visible }: { storeState: StoreSt
         </select>
       </div>
       <div className="sitl-actions">
-        <button type="button" onClick={start} disabled={active || stopAgain || state.name === "stopping" || !profileSha || !buildId}>
-          {failed ? "Start again" : "Start SITL run"}
+        <button type="button" onClick={start} disabled={busy || !profileSha || !buildId}>
+          {failed && !external ? "Start again" : "Start SITL run"}
         </button>
         <label htmlFor="sitl-altitude">Take-off altitude, m</label>
         <input id="sitl-altitude" type="text" inputMode="decimal" value={altitude} onChange={event => setAltitude(event.target.value)} />
@@ -169,11 +189,12 @@ export function RunPanel({ storeState, project, visible }: { storeState: StoreSt
         <button type="button" onClick={() => controller.current?.land()}
           disabled={state.name !== "running" || (state.flight !== "climbing" && state.flight !== "flying")}>Land</button>
         <button type="button" onClick={() => void controller.current?.stop()} disabled={!active && !stopAgain}>
-          {stopAgain ? "Stop again" : "Stop run"}
+          {external ? (stopAgain ? "Disconnect again" : "Disconnect") : stopAgain ? "Stop again" : "Stop run"}
         </button>
       </div>
+      <ManualConnect disabled={busy || !profileSha} again={Boolean(failed) && external} onConnect={connect} onError={setError} />
       <dl className="sitl-status">
-        <dt>Stage</dt><dd data-testid="sitl-stage" data-state={state.name}>{stateText(state)}</dd>
+        <dt>Stage</dt><dd data-testid="sitl-stage" data-state={state.name} data-ownership={view?.ownership ?? "launcher"}>{stateText(state, view?.ownership)}</dd>
         <dt>Autopilot admission</dt>
         <dd data-testid="sitl-ready">{status?.ready ? "READY" : "Not ready"}{status && !status.ready ? `: ${status.reason}` : ""}</dd>
         <dt>Autopilot mode</dt>
@@ -185,12 +206,29 @@ export function RunPanel({ storeState, project, visible }: { storeState: StoreSt
         <dd data-testid="sitl-frames">{status ? `${status.steps} stepped, ${status.droppedFrames} lost, ${status.duplicates} resent, ${status.held} held` : "None"}</dd>
         <dt>Experiment record</dt><dd data-testid="sitl-record">{view?.recordSha256 ?? "None"}</dd>
       </dl>
+      {external && view && <CompatibilityList checks={view.compatibility} />}
       {state.name === "running" && state.warning && <p className="alert" role="status">{state.warning}</p>}
       {failed && (
         <div className="sitl-failure">
-          <p className="alert" role="alert" data-testid="sitl-failure" data-reason={failed.reason.kind}>{failureText(failed.reason)}</p>
+          <p className="alert" role="alert" data-testid="sitl-failure" data-reason={failed.reason.kind}>
+            {failed.reason.kind === "incompatible" ? "This SITL cannot be used with this profile:" : failureText(failed.reason)}
+          </p>
+          {failed.reason.kind === "incompatible" && (
+            <ul data-testid="sitl-incompatible">{failed.reason.reasons.map(reason => <li key={reason}>{reason}</li>)}</ul>
+          )}
           {failed.restart.kind === "fix-first" && <p className="hint" data-testid="sitl-fix">{failed.restart.instruction}</p>}
-          {failed.diagnostics && (
+          {failed.diagnostics?.connection && (
+            <details data-testid="sitl-diagnostics">
+              <summary>Diagnostics of connection {failed.diagnostics.experimentId}</summary>
+              <p>
+                MirageSITL did not start this SITL, so it has no process logs, and it stopped nothing.
+                {failed.diagnostics.ending ? ` ${failed.diagnostics.ending}.` : ""} The launcher received {failed.diagnostics.connection.servoPackets} JSON
+                servo packets{failed.diagnostics.connection.rateHz === null ? "" : ` at ${failed.diagnostics.connection.rateHz} Hz`} and{" "}
+                {failed.diagnostics.connection.bytesFromSitl} bytes of MAVLink from it.
+              </p>
+            </details>
+          )}
+          {failed.diagnostics && !failed.diagnostics.connection && (
             <details data-testid="sitl-diagnostics">
               <summary>Diagnostic log of experiment {failed.diagnostics.experimentId}</summary>
               <p>

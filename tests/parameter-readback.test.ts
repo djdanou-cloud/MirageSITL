@@ -111,6 +111,23 @@ describe('ParameterReadback over pymavlink PARAM_VALUE', () => {
     expect(otherSystem.verdict()).toEqual({ kind: 'incomplete', received: 0, total: null });
   });
 
+  it.skipIf(!existsSync(PYTHON))('lists every difference of a complete list in the given order, for a SITL the user started (TASK-155)', () => {
+    const readback = new ParameterReadback(EXPECTED, rule);
+    feed(readback, pymavlinkFrames([LIST[0]!, LIST[1]!]));
+    expect(readback.differences()).toBeNull();
+    // MOT_PWM_MIN at another value and SIM_GPS1_HNSE missing: the verdict names the first, differences() all of them.
+    const differing = new ParameterReadback(EXPECTED, rule);
+    feed(differing, pymavlinkFrames([['FRAME_CLASS', 1, 3, 0], ['MOT_PWM_MIN', 1100, 3, 1], ['SIM_GPS2_ENABLE', 0, 3, 2]]));
+    expect(differing.verdict()).toEqual({ kind: 'mismatch', name: 'MOT_PWM_MIN', reported: 1100, expected: 1000 });
+    expect(differing.differences()).toEqual([
+      { name: 'MOT_PWM_MIN', expected: 1000, reported: 1100 }, { name: 'SIM_GPS1_HNSE', expected: Math.SQRT2 * 1.5, reported: null },
+    ]);
+    // A complete, matching list has none, with the float32 comparison of the verdict.
+    const matching = new ParameterReadback(EXPECTED, rule);
+    feed(matching, pymavlinkFrames(LIST));
+    expect(matching.differences()).toEqual([]);
+  });
+
   it.skipIf(!existsSync(PYTHON))('judges presence from the current enumeration only, so a name a renumbered list drops is absent', () => {
     // The complete list of four confirms; then the autopilot renumbers it to three without SIM_GPS1_HNSE (hidden, say, by an *_ENABLE change).
     const shrunk = new ParameterReadback(EXPECTED, rule);

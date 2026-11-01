@@ -22,18 +22,29 @@ import {
 } from './sensor-ownership.ts';
 import type { PresetCitation } from './sensor-presets.ts';
 
-// Experiment payload schema 1 (TASK-154): what one integrated run used, kept
+// Experiment payload schema 2 (TASK-155): what one integrated run used, kept
 // as an `experiment` record in the unchanged record envelope v1 (TASK-136).
-// It names the exact aircraft profile version (its only dependency), the
-// ArduPilot build the launcher started as data (user decision of 2026-11-01:
-// no dependency-model change), the launcher experiment whose folder holds the
-// logs, the session settings, every generated initial parameter in the order
-// the launcher received it, the frame script, and the TASK-143 sensor
-// snapshot of the profile version verbatim. An experiment's inputs are fixed
-// at version 1; the store allows only renaming afterwards.
+// It names the exact aircraft profile version (its only dependency), the SITL
+// the run used as data (user decision of 2026-11-01: no dependency-model
+// change), the session settings, every generated initial parameter, the frame
+// script, and the TASK-143 sensor snapshot of the profile version verbatim.
+// The SITL is one of two kinds. A launcher-owned SITL names the ArduPilot
+// build the launcher started and the launcher experiment whose folder holds
+// the logs. An external SITL, one the user started and MirageSITL connected
+// to (user decision of 2026-11-01), names the connection, the verified source
+// commit its reported git hash matched, the version it reported and the
+// endpoints; it has no binary hash (MirageSITL never read the binary), no
+// speedup (SITL's own command line set it), no frame script (MirageSITL can
+// install one only in a SITL it starts), and its parameters are the generated
+// ones the autopilot was confirmed to hold, written by nobody. Schema 1
+// (TASK-154, launcher-owned only) stays readable: readExperiment presents it
+// as schema 2, and new records are always schema 2. An experiment's inputs are
+// fixed at version 1; the store allows only renaming afterwards.
 // Configuration-time code only; never call it from a physics step.
 
-export const EXPERIMENT_SCHEMA_VERSION = 1;
+export const EXPERIMENT_SCHEMA_VERSION = 2;
+/** The TASK-154 schema, still accepted by validateExperiment and readExperiment. */
+export const EXPERIMENT_SCHEMA_VERSION_1 = 1;
 /** Launcher API v1 limits (apps/launcher/src/server.ts parseExperimentSpec). */
 export const MAX_EXPERIMENT_PARAMETERS = 4096;
 export const MAX_FRAME_SCRIPT_BYTES = 64 * 1024;
@@ -53,8 +64,10 @@ export const PWM_PARAMETER_NAMES: ReadonlySet<string> = new Set(['MOT_PWM_MIN', 
 const SCRIPTING_ENABLE = 'SCR_ENABLE';
 if (!FRAME_PARAMETER_NAMES.has(SCRIPTING_ENABLE)) throw new Error(`${SCRIPTING_ENABLE} is not a TASK-128 frame parameter`);
 const OUTPUT_FUNCTION = /^SERVO[1-9][0-9]?_FUNCTION$/;
-/** Launcher experiment IDs: the UTC start time as 17 digits, '-' and 8 random hexadecimal digits. */
+/** Launcher experiment and connection IDs: the UTC start time as 17 digits, '-' and 8 random hexadecimal digits. */
 const LAUNCHER_EXPERIMENT_ID = /^[0-9]{17}-[0-9a-f]{8}$/;
+/** The first 8 characters of a git commit, as ArduPilot reports them in AUTOPILOT_VERSION. */
+const GIT_HASH = /^[0-9a-f]{8}$/;
 /** Launcher catalog entry IDs (apps/launcher/src/catalog.ts). */
 const CATALOG_ID = /^[a-z0-9][a-z0-9.-]{0,63}$/;
 const COMMIT = /^[0-9a-f]{40}$/;
@@ -78,11 +91,33 @@ export interface ExperimentFirmware {
   /** ArduPilot's copter.parm of the same source: the first initial-parameter layer. */
   readonly defaultParametersSha256: string;
 }
+/** A SITL the launcher started and owns, with the launcher experiment whose folder holds its logs. */
+export interface LauncherSitl {
+  readonly ownership: 'launcher';
+  readonly experimentId: string;
+  readonly ardupilot: ExperimentFirmware;
+}
+/** A SITL the user started; MirageSITL connected to it and owned only the connection. */
+export interface ExternalSitl {
+  readonly ownership: 'external';
+  /** The launcher connection, in the format of launcher experiment IDs. */
+  readonly connectionId: string;
+  readonly ardupilot: {
+    /** The verified source commit whose first 8 characters equal `gitHash`. */
+    readonly commit: string;
+    /** flight_custom_version of the autopilot's AUTOPILOT_VERSION. */
+    readonly gitHash: string;
+    /** flight_sw_version as text, for example 4.7.0-dev. */
+    readonly firmwareVersion: string;
+  };
+  readonly endpoints: { readonly jsonPhysicsPort: number; readonly mavlink: { readonly transport: 'tcp' | 'udp'; readonly port: number } };
+}
+export type ExperimentSitl = LauncherSitl | ExternalSitl;
 export interface ExperimentSession {
   readonly physicsHz: ExperimentPhysicsHz;
   readonly clockMode: 'sitl-lockstep';
-  /** Simulated seconds per wall second, as the launcher received it. */
-  readonly speedup: number;
+  /** Simulated seconds per wall second as the launcher received it; null for an external SITL, whose own command line set it. */
+  readonly speedup: number | null;
   /** Latitude and longitude in degrees (WGS-84), altitude above mean sea level in metres, heading in degrees. */
   readonly home: readonly [latitudeDeg: number, longitudeDeg: number, altitudeM: number, headingDeg: number];
   readonly modelId: number;
@@ -99,14 +134,28 @@ export interface ExperimentParameter {
 export interface ExperimentPayload {
   readonly schemaVersion: typeof EXPERIMENT_SCHEMA_VERSION;
   readonly profile: ExperimentProfile;
-  readonly ardupilot: ExperimentFirmware;
-  readonly launcher: { readonly experimentId: string };
+  readonly sitl: ExperimentSitl;
   readonly session: ExperimentSession;
-  /** Exactly the list POSTed to the launcher, in that order, which is also experiment.parm order. */
+  /**
+   * Launcher-owned: exactly the list POSTed to the launcher, in that order,
+   * which is also experiment.parm order. External: the same generated list,
+   * which the autopilot was confirmed to hold.
+   */
   readonly parameters: readonly ExperimentParameter[];
   /** The exact Lua text of a scripting-matrix frame, or null for a stock frame. */
   readonly frameScript: string | null;
   /** sensorSnapshot() of the profile version, verbatim. */
+  readonly sensors: SensorSnapshot;
+}
+/** Experiment payload schema 1 (TASK-154): a launcher-owned SITL only. */
+export interface ExperimentPayloadV1 {
+  readonly schemaVersion: typeof EXPERIMENT_SCHEMA_VERSION_1;
+  readonly profile: ExperimentProfile;
+  readonly ardupilot: ExperimentFirmware;
+  readonly launcher: { readonly experimentId: string };
+  readonly session: ExperimentSession & { readonly speedup: number };
+  readonly parameters: readonly ExperimentParameter[];
+  readonly frameScript: string | null;
   readonly sensors: SensorSnapshot;
 }
 /** What createExperimentRecord stores: the record name and the payload. */
@@ -203,14 +252,15 @@ function firmwareOf(value: unknown): ExperimentFirmware {
   };
 }
 
-function sessionOf(value: unknown): ExperimentSession {
+function sessionOf(value: unknown, ownership: ExperimentSitl['ownership']): ExperimentSession {
   const s = exact(value, ['physicsHz', 'clockMode', 'speedup', 'home', 'modelId', 'manifestSha256', 'betModuleSha256'], 'session');
+  if (ownership === 'external' && s.speedup !== null) fail('session.speedup must be null for an external SITL, whose own command line set it');
   if (s.clockMode !== 'sitl-lockstep') fail('session.clockMode must be sitl-lockstep');
   const home = list(s.home, 'session.home', 4);
   if (home.length !== 4) fail('session.home must be [latitudeDeg, longitudeDeg, altitudeM, headingDeg]');
   return {
     physicsHz: oneOf(s.physicsHz, EXPERIMENT_PHYSICS_HZ, 'session.physicsHz'), clockMode: 'sitl-lockstep',
-    speedup: finite(s.speedup, 'session.speedup', 0.1, 100),
+    speedup: ownership === 'external' ? null : finite(s.speedup, 'session.speedup', 0.1, 100),
     home: [finite(home[0], 'home latitude', -90, 90), finite(home[1], 'home longitude', -180, 180),
       finite(home[2], 'home altitude', -500, 9000), finite(home[3], 'home heading', 0, 360)],
     modelId: integer(s.modelId, 'session.modelId', 1, MAX_MODEL_ID),
@@ -441,28 +491,86 @@ function snapshotOf(value: unknown, profileSha256: string): SensorSnapshot {
   };
 }
 
-/** Validates experiment payload schema 1 from `unknown`; returns a deep-frozen copy. Registered for the `experiment` kind. */
-export function validateExperiment(payload: unknown): ExperimentPayload {
-  const version = isRecord(payload) ? payload.schemaVersion : undefined;
-  if (version !== EXPERIMENT_SCHEMA_VERSION) fail(`unsupported experiment schema ${String(version)}; this reader knows schema ${EXPERIMENT_SCHEMA_VERSION}`);
+function sitlOf(value: unknown): ExperimentSitl {
+  const ownership = isRecord(value) ? value.ownership : undefined;
+  if (ownership === 'launcher') {
+    const l = exact(value, ['ownership', 'experimentId', 'ardupilot'], 'sitl');
+    return { ownership, experimentId: matching(l.experimentId, LAUNCHER_EXPERIMENT_ID, 'sitl.experimentId', 'a launcher experiment ID'), ardupilot: firmwareOf(l.ardupilot) };
+  }
+  if (ownership !== 'external') return fail('sitl.ownership must be launcher or external');
+  const e = exact(value, ['ownership', 'connectionId', 'ardupilot', 'endpoints'], 'sitl');
+  const a = exact(e.ardupilot, ['commit', 'gitHash', 'firmwareVersion'], 'sitl.ardupilot');
+  const commit = matching(a.commit, COMMIT, 'sitl.ardupilot.commit', 'a 40-digit lowercase commit');
+  const gitHash = matching(a.gitHash, GIT_HASH, 'sitl.ardupilot.gitHash', '8 lowercase hexadecimal digits');
+  if (!commit.startsWith(gitHash)) fail('sitl.ardupilot.gitHash must be the first 8 characters of sitl.ardupilot.commit');
+  const ends = exact(e.endpoints, ['jsonPhysicsPort', 'mavlink'], 'sitl.endpoints');
+  const mavlink = exact(ends.mavlink, ['transport', 'port'], 'sitl.endpoints.mavlink');
+  const transport = oneOf<'tcp' | 'udp'>(mavlink.transport, ['tcp', 'udp'], 'sitl.endpoints.mavlink.transport');
+  const jsonPhysicsPort = integer(ends.jsonPhysicsPort, 'sitl.endpoints.jsonPhysicsPort', 1, 65535);
+  const port = integer(mavlink.port, 'sitl.endpoints.mavlink.port', 1, 65535);
+  if (transport === 'udp' && port === jsonPhysicsPort) fail('sitl.endpoints must use two different UDP ports');
+  return {
+    ownership, connectionId: matching(e.connectionId, LAUNCHER_EXPERIMENT_ID, 'sitl.connectionId', 'a launcher connection ID'),
+    ardupilot: { commit, gitHash, firmwareVersion: text(a.firmwareVersion, 'sitl.ardupilot.firmwareVersion', 64) },
+    endpoints: { jsonPhysicsPort, mavlink: { transport, port } },
+  };
+}
+
+function payloadV1Of(payload: unknown): ExperimentPayloadV1 {
   const p = exact(payload, ['schemaVersion', 'profile', 'ardupilot', 'launcher', 'session', 'parameters', 'frameScript', 'sensors'], 'the payload');
   const profile = profileOf(p.profile);
   const launcher = exact(p.launcher, ['experimentId'], 'launcher');
   const parameters = parametersOf(p.parameters);
-  return freeze({
-    schemaVersion: EXPERIMENT_SCHEMA_VERSION, profile, ardupilot: firmwareOf(p.ardupilot),
+  const session = sessionOf(p.session, 'launcher');
+  return {
+    schemaVersion: EXPERIMENT_SCHEMA_VERSION_1, profile, ardupilot: firmwareOf(p.ardupilot),
     launcher: { experimentId: matching(launcher.experimentId, LAUNCHER_EXPERIMENT_ID, 'launcher.experimentId', 'a launcher experiment ID') },
-    session: sessionOf(p.session), parameters, frameScript: frameScriptOf(p.frameScript, parameters), sensors: snapshotOf(p.sensors, profile.sha256),
-  });
+    session: { ...session, speedup: session.speedup ?? fail('session.speedup is required') }, parameters,
+    frameScript: frameScriptOf(p.frameScript, parameters), sensors: snapshotOf(p.sensors, profile.sha256),
+  };
+}
+function payloadOf(payload: unknown): ExperimentPayload {
+  const p = exact(payload, ['schemaVersion', 'profile', 'sitl', 'session', 'parameters', 'frameScript', 'sensors'], 'the payload');
+  const profile = profileOf(p.profile);
+  const sitl = sitlOf(p.sitl);
+  const parameters = parametersOf(p.parameters);
+  const frameScript = frameScriptOf(p.frameScript, parameters);
+  if (sitl.ownership === 'external' && frameScript !== null) fail('an external SITL has no frame script: MirageSITL installs one only in a SITL it starts');
+  return {
+    schemaVersion: EXPERIMENT_SCHEMA_VERSION, profile, sitl, session: sessionOf(p.session, sitl.ownership), parameters, frameScript,
+    sensors: snapshotOf(p.sensors, profile.sha256),
+  };
 }
 
 /**
- * The record name '<profile name> run <launcher experiment ID>'. The profile
- * name is shortened by code points so that the whole name stays within the
- * store's MAX_NAME_CODE_POINTS.
+ * Validates an experiment payload of schema 2, or of schema 1 as stored by
+ * TASK-154, from `unknown`; returns a deep-frozen copy of what was given.
+ * Registered for the `experiment` kind, so imports of schema 1 records keep
+ * working.
  */
-export function experimentRecordName(profileName: string, experimentId: string): string {
-  const suffix = ` run ${experimentId}`;
+export function validateExperiment(payload: unknown): ExperimentPayload | ExperimentPayloadV1 {
+  const version = isRecord(payload) ? payload.schemaVersion : undefined;
+  if (version === EXPERIMENT_SCHEMA_VERSION) return freeze(payloadOf(payload));
+  if (version === EXPERIMENT_SCHEMA_VERSION_1) return freeze(payloadV1Of(payload));
+  return fail(`unsupported experiment schema ${String(version)}; this reader knows schemas ${EXPERIMENT_SCHEMA_VERSION_1} and ${EXPERIMENT_SCHEMA_VERSION}`);
+}
+
+/** A schema 1 payload as schema 2: its launcher and ardupilot fields become a launcher-owned SITL. */
+export function migrateExperiment(payload: ExperimentPayload | ExperimentPayloadV1): ExperimentPayload {
+  if (payload.schemaVersion === EXPERIMENT_SCHEMA_VERSION) return payload;
+  const { profile, ardupilot, launcher, session, parameters, frameScript, sensors } = payload;
+  return freeze({ schemaVersion: EXPERIMENT_SCHEMA_VERSION, profile, sitl: { ownership: 'launcher', experimentId: launcher.experimentId, ardupilot },
+    session, parameters, frameScript, sensors });
+}
+
+/**
+ * The record name '<profile name> run <launcher experiment ID>', or
+ * '<profile name> connection <connection ID>' for an external SITL. The
+ * profile name is shortened by code points so that the whole name stays
+ * within the store's MAX_NAME_CODE_POINTS.
+ */
+export function experimentRecordName(profileName: string, experimentId: string, ownership: ExperimentSitl['ownership'] = 'launcher'): string {
+  const suffix = ownership === 'external' ? ` connection ${experimentId}` : ` run ${experimentId}`;
   const room = MAX_NAME_CODE_POINTS - [...suffix].length;
   if (room < 1) throw new Error('The launcher experiment ID is too long for a record name');
   return `${[...profileName].slice(0, room).join('').trimEnd()}${suffix}`;
@@ -481,7 +589,9 @@ export function experimentRecordName(profileName: string, experimentId: string):
  * record's only dependency.
  */
 export async function createExperimentRecord(store: ProjectStore, projectId: string, inputs: ExperimentInputs): Promise<StoredVersion> {
-  const payload = validateExperiment(inputs.payload);
+  const validated = validateExperiment(inputs.payload);
+  if (validated.schemaVersion !== EXPERIMENT_SCHEMA_VERSION) fail(`new experiments are schema ${EXPERIMENT_SCHEMA_VERSION}; schema ${validated.schemaVersion} is only read`);
+  const payload = validated;
   const stored = await store.get(payload.profile.sha256);
   const record = stored.record;
   if (record.kind !== 'aircraft-profile' || record.projectId !== projectId) fail(`profile ${stored.sha256} is not an aircraft profile of this project`);
@@ -515,14 +625,15 @@ export async function createExperimentRecord(store: ProjectStore, projectId: str
 }
 
 /**
- * The payload of a stored experiment version. The store applies validators
- * only on writes and imports, so this validates again, and checks that the
- * record depends on exactly the profile version the payload names.
+ * The payload of a stored experiment version, schema 1 presented as schema 2.
+ * The store applies validators only on writes and imports, so this validates
+ * again, and checks that the record depends on exactly the profile version
+ * the payload names.
  */
 export function readExperiment(stored: StoredVersion): ExperimentPayload {
   const record = stored.record;
   if (record.kind !== 'experiment') throw new Error(`Record ${stored.sha256} is of kind ${record.kind}, not an experiment`);
-  const payload = validateExperiment(record.payload);
+  const payload = migrateExperiment(validateExperiment(record.payload));
   const [dependency, ...others] = record.dependencies;
   if (others.length > 0 || dependency?.kind !== 'aircraft-profile' || dependency.sha256 !== payload.profile.sha256) {
     fail(`experiment record ${stored.sha256} must depend on exactly the aircraft profile version ${payload.profile.sha256}`);
