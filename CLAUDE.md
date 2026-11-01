@@ -276,22 +276,21 @@ implementation.
   mirror of stock OCTA X, so it uses the scripting matrix). TASK-151 (the
   local launcher, `apps/launcher`) and TASK-152 (`scripts/install-macos.mjs`
   and the Project tab's first-run check) are DONE: both pass with the network
-  switched off. TASK-153 is IN_PROGRESS: the Run tab's ArduPilot SITL backend
+  switched off. TASK-153 is DONE: the Run tab's ArduPilot SITL backend
   flies an aircraft profile with native ArduCopter through the launcher, the
   physics Worker stepping PhysicsSessionV2 on SITL's frames (`SitlJsonLink`),
   READY from LiveEkfWarmup and revoked when diagnostics go stale, with G1 for
-  the lockstep step; only the flight in Google Chrome remains (not installed on
-  the M5). TASK-154 is IN_PROGRESS: the Run tab's run states (`SessionController`),
+  the lockstep step. TASK-154 is DONE: the Run tab's run states (`SessionController`),
   the immutable experiment record (`@mirage/aircraft/experiment`), parameter
-  read-back and the four DoD faults pass against the installed ArduCopter in
-  Chromium; only the runs in Google Chrome remain. TASK-155 is IN_PROGRESS:
+  read-back and the four DoD faults pass against the installed ArduCopter.
+  TASK-155 is DONE:
   the Run tab's Connect attaches to an ArduCopter SITL the user started (the
   launcher owns only the connection, `POST /v1/connections`), refuses it with
   every reason unless it runs JSON physics, is disarmed, reports a verified
   commit, already holds the profile's parameters (nothing is written to it)
   and starts at the session's home, records it as experiment schema 2, and
-  leaves it running across connect and disconnect cycles in Chromium; only
-  the runs in Google Chrome remain. Decisions D-04
+  leaves it running across connect and disconnect cycles. All three pass in
+  Google Chrome 156 on the M5. Decisions D-04
   and D-06 to D-12 are decided. TASK-127 and TASK-128 are DONE: stock
   ArduCopter `8ab6afd` builds and flies natively on Apple Silicon
   ([macos-sitl.md](docs/decisions/macos-sitl.md)), and its stock frames and

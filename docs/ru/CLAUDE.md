@@ -1,6 +1,6 @@
 # CLAUDE.md — MirageSITL agent instructions
 
-<!-- source-sha256: a49914c08194e9a4ba21291cdbbd640f19acae72bced84bf7e9e5fb501560bb1 -->
+<!-- source-sha256: 7ebd0299c98b2a94eccaf9d2007db682eff05d7d9114e76a84364bfb33f7c17b -->
 
 Английский источник: [Source of truth](../../CLAUDE.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -304,24 +304,22 @@ TASK-127–TASK-192 и решения D-01–D-12, а у каждой откры
   TASK-151 (локальный запускатель, `apps/launcher`) и TASK-152
   (`scripts/install-macos.mjs` и проверка первого запуска на вкладке Project)
   выполнены: обе проходят с выключенной сетью.
-  TASK-153 в статусе IN_PROGRESS: бэкенд ArduPilot SITL вкладки Run
+  TASK-153 выполнена: бэкенд ArduPilot SITL вкладки Run
   выполняет полёт профиля аппарата с нативным ArduCopter через лаунчер,
   физический Worker шагает PhysicsSessionV2 по кадрам SITL (`SitlJsonLink`),
   READY даёт LiveEkfWarmup, и он отзывается при устаревшей диагностике, с G1
-  для шага lockstep; остаётся только полёт в Google Chrome (на M5 не
-  установлен).
-  TASK-154 в статусе IN_PROGRESS: состояния прогона вкладки Run
+  для шага lockstep.
+  TASK-154 выполнена: состояния прогона вкладки Run
   (`SessionController`), неизменяемая запись эксперимента
   (`@mirage/aircraft/experiment`), чтение параметров обратно и четыре отказа из
-  DoD проходят с установленным ArduCopter в Chromium; остаются только прогоны в
-  Google Chrome. TASK-155 в статусе IN_PROGRESS: Connect вкладки Run
+  DoD проходят с установленным ArduCopter. TASK-155 выполнена: Connect вкладки Run
   подключается к ArduCopter SITL, запущенному пользователем (лаунчеру
   принадлежит только подключение, `POST /v1/connections`), отклоняет его,
   называя каждую причину, если он не работает с JSON-физикой, взведён, не
   сообщает проверенный коммит, не содержит параметры профиля (в него ничего
   не записывается) или стартует не в home сессии, записывает его как схему 2
-  эксперимента и оставляет работающим в циклах подключения и отключения в
-  Chromium; остаются только прогоны в Google Chrome.
+  эксперимента и оставляет работающим в циклах подключения и отключения. Все
+  три проходят в Google Chrome 156 на M5.
   Решения D-04 и D-06–D-12 приняты.
   TASK-127 и TASK-128 выполнены: штатный ArduCopter `8ab6afd` собирается и
   летает нативно на Apple Silicon ([macos-sitl.md](macos-sitl.md)), а его штатные
