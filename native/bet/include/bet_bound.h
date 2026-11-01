@@ -75,4 +75,15 @@ int32_t bet_body_step_v2(uint32_t input, uint32_t output, double dt);
 #define BET_BUS_FLAG_CHARGE_LIMITED 2
 uint32_t bet_bus_version(void);
 int32_t bet_bus_step(uint32_t input, uint32_t output, double dt);
+/* ESC drive step (TASK-092): every drive-mode-1 rotor and the shared bus in one
+ * call. The table holds `count` (1..32) entries of three u32 words: arena,
+ * step input v2, step output v2. The bus input is a shared bus input record with
+ * motor_power zero; the 128-byte output repeats the bus output in bytes 0..51
+ * and adds the supply voltage at 56 and the summed terminal power at 64. */
+#define BET_DRIVE_VERSION 1
+#define BET_DRIVE_TABLE_ENTRY_BYTES 12
+#define BET_DRIVE_OUTPUT_BYTES 128
+#define BET_DRIVE_MAX_ROTORS 32
+uint32_t bet_drive_version(void);
+int32_t bet_drive_step(uint32_t table, uint32_t count, uint32_t bus_input, uint32_t bus_output, double dt);
 #endif

@@ -9,8 +9,8 @@ export const ALLOCATION_GRAPHS: readonly (readonly [graph: string, variant: Allo
   ["active-neuralfoil-rotor-v2", "scalar"], ["active-neuralfoil-rotor-v2", "simd128"],
   ["stationary-zero-gravity-body-v2", "scalar"], ["stationary-zero-gravity-body-v2", "simd128"],
   ["stationary-zero-gravity-four-rotor-flight", "scalar"], ["synthetic-pad-four-rotor-flight", "scalar"],
-  // TASK-092 ESC drive and shared bus.
-  ["esc-drive-bus-synthetic-pad-four-rotor", "scalar"],
+  // TASK-092 ESC drive and shared bus, within and at the pack's limit.
+  ["esc-drive-bus-synthetic-pad-four-rotor", "scalar"], ["esc-drive-limited-pack-synthetic-pad-four-rotor", "scalar"],
 ];
 
 function field(value: unknown, key: string): unknown {

@@ -106,15 +106,7 @@ impl Battery {
         if demand < 0.0 {
             return self.charge(soc, voc, demand, dt);
         }
-        let max_i =
-            self.current_limit
-                .min(soc * self.capacity_c / dt)
-                .min(if self.resistance > 0.0 {
-                    voc / (2.0 * self.resistance)
-                } else {
-                    f64::INFINITY
-                });
-        let max_power = max_i * (voc - max_i * self.resistance);
+        let max_power = self.max_power(soc, voc, dt);
         let requested = demand.min(max_power);
         let current = if self.resistance == 0.0 {
             requested / voc
@@ -147,6 +139,35 @@ impl Battery {
             power_limited: demand > max_power,
             charge_limited: false,
         })
+    }
+    /// The largest power the pack delivers over one step at this charge, W: the
+    /// discharge limit of `step` (the current limit, the remaining charge and the
+    /// maximum-power point). A demand above it is limited; an empty pack delivers 0.
+    pub fn discharge_limit_w(&self, soc: f64, dt: f64) -> Result<f64, BatteryError> {
+        if ![soc, dt].iter().all(|v| v.is_finite()) || !(0.0..=1.0).contains(&soc) || dt <= 0.0 || dt > 0.01 {
+            return Err(BatteryError);
+        }
+        if soc == 0.0 {
+            return Ok(0.0);
+        }
+        let voc = self.empty + (self.full - self.empty) * soc;
+        let limit = self.max_power(soc, voc, dt);
+        if !limit.is_finite() {
+            return Err(BatteryError);
+        }
+        Ok(limit)
+    }
+    /// The discharge limit at open-circuit voltage `voc`, the same operations for `step` and `discharge_limit_w`.
+    fn max_power(&self, soc: f64, voc: f64, dt: f64) -> f64 {
+        let max_i =
+            self.current_limit
+                .min(soc * self.capacity_c / dt)
+                .min(if self.resistance > 0.0 {
+                    voc / (2.0 * self.resistance)
+                } else {
+                    f64::INFINITY
+                });
+        max_i * (voc - max_i * self.resistance)
     }
     /// Charging by regeneration: the same quadratic root with a negative power,
     /// the current limit in both directions, and the charge capped at 1.

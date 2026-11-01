@@ -17,6 +17,27 @@ export interface BusBattery {
 function callable(value: unknown): value is (...args: number[]) => number { return typeof value === 'function'; }
 
 /**
+ * Validates a pack and writes a shared bus input record at `at`: version, the
+ * pack values and zero charge, power and reserved bytes (cold).
+ */
+export function writeBusInput(view: DataView, at: number, battery: BusBattery): void {
+  const values = [battery.openCircuitFullV, battery.openCircuitEmptyV, battery.internalResistanceOhm, battery.capacityAh, battery.currentLimitA];
+  if (!values.every(Number.isFinite) || battery.openCircuitEmptyV <= 0 || battery.openCircuitFullV < battery.openCircuitEmptyV ||
+      battery.internalResistanceOhm < 0 || battery.capacityAh <= 0 || battery.currentLimitA <= 0) throw new Error('Invalid bus battery');
+  const I = BUS_V1.input;
+  for (let i = 0; i < BUS_V1.inputBytes; i++) view.setUint8(at + i, 0);
+  view.setUint32(at, BUS_V1.version, true);
+  view.setFloat64(at + I.openCircuitFull, battery.openCircuitFullV, true); view.setFloat64(at + I.openCircuitEmpty, battery.openCircuitEmptyV, true);
+  view.setFloat64(at + I.internalResistance, battery.internalResistanceOhm, true);
+  view.setFloat64(at + I.capacityCoulomb, battery.capacityAh * 3600, true); view.setFloat64(at + I.currentLimit, battery.currentLimitA, true);
+}
+
+/** Open-circuit voltage of a pack at a charge, the bus voltage with no load; 0 for an empty pack. */
+export function openCircuitV(battery: BusBattery, soc: number): number {
+  return soc <= 0 ? 0 : battery.openCircuitEmptyV + (battery.openCircuitFullV - battery.openCircuitEmptyV) * soc;
+}
+
+/**
  * One shared bus in its own WASM instance. `stepInto` advances the charge by
  * one tick for a signed motor power (negative while regenerating) and a house
  * load, and writes the bus state into `output`:
@@ -34,9 +55,8 @@ export class BetBus {
   private readonly nativeStep: (...args: number[]) => number;
   constructor(module: WebAssembly.Module, battery: BusBattery, hz: 400 | 800 | 1200 | 4800) {
     if (![400, 800, 1200, 4800].includes(hz)) throw new Error('Invalid bus rate');
-    const values = [battery.openCircuitFullV, battery.openCircuitEmptyV, battery.internalResistanceOhm, battery.capacityAh, battery.currentLimitA];
-    if (!values.every(Number.isFinite) || battery.openCircuitEmptyV <= 0 || battery.openCircuitFullV < battery.openCircuitEmptyV ||
-        battery.internalResistanceOhm < 0 || battery.capacityAh <= 0 || battery.currentLimitA <= 0) throw new Error('Invalid bus battery');
+    // Validates the pack before the instance is created.
+    writeBusInput(new DataView(new ArrayBuffer(BUS_V1.inputBytes)), 0, battery);
     const e = new WebAssembly.Instance(module, {}).exports;
     if (!(e.memory instanceof WebAssembly.Memory) || !(e.__heap_base instanceof WebAssembly.Global) ||
         typeof e.__heap_base.value !== 'number' || !callable(e.bet_bus_version) || e.bet_bus_version() !== BUS_V1.version ||
@@ -46,12 +66,7 @@ export class BetBus {
     const end = this.outputAt + BUS_V1.outputBytes;
     if (this.memory.buffer.byteLength < end) this.memory.grow(Math.ceil((end - this.memory.buffer.byteLength) / 65536));
     this.buffer = this.memory.buffer; this.view = new DataView(this.buffer);
-    new Uint8Array(this.buffer, this.inputAt, BUS_V1.inputBytes).fill(0);
-    const v = this.view, at = this.inputAt, I = BUS_V1.input;
-    v.setUint32(at, BUS_V1.version, true);
-    v.setFloat64(at + I.openCircuitFull, battery.openCircuitFullV, true); v.setFloat64(at + I.openCircuitEmpty, battery.openCircuitEmptyV, true);
-    v.setFloat64(at + I.internalResistance, battery.internalResistanceOhm, true);
-    v.setFloat64(at + I.capacityCoulomb, battery.capacityAh * 3600, true); v.setFloat64(at + I.currentLimit, battery.currentLimitA, true);
+    writeBusInput(this.view, this.inputAt, battery);
   }
   get memoryStable(): boolean { return this.memory.buffer === this.buffer; }
   /** Open-circuit voltage at a charge, the bus voltage with no load. */

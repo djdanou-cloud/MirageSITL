@@ -8,7 +8,8 @@
 //! `bound_v2` and `body_abi_v2` (TASK-088) are the step interfaces v2 with
 //! fail-closed fields for later tasks; neutral records run the v1 steps.
 //! `bound_v2` drive mode 1 and `bus_abi` (TASK-092) are the production ESC,
-//! motor and shared battery bus.
+//! motor and shared battery bus; `drive_bus` steps all motors and the bus
+//! together, so a pack at its limit lowers the motors' supply voltage.
 //!
 //! On wasm32 the global allocator traps: any heap allocation aborts the module,
 //! so the kernels provably run allocation-free (a no_std build is not used
@@ -33,6 +34,7 @@ pub mod body_abi_v2;
 pub mod bound;
 pub mod bound_v2;
 pub mod bus_abi;
+pub mod drive_bus;
 pub mod inflow;
 pub mod shaft;
 pub mod flapping;
@@ -273,6 +275,53 @@ mod wasm_exports {
         // SAFETY: both regions are in caller memory, aligned and disjoint.
         let (input, out) = unsafe { (bytes(input_ptr, il), bytes_mut(out_ptr, ol)) };
         crate::bus_abi::step(input, out, dt)
+    }
+
+    /// ESC drive step record version (TASK-092).
+    #[no_mangle]
+    pub extern "C" fn bet_drive_version() -> u32 { crate::drive_bus::VERSION }
+
+    /// Every rotor's drive-mode-1 step and the shared bus in one call (TASK-092).
+    /// `table` holds `count` entries of three u32 words: arena handle, step input
+    /// record and step output record. Every region is checked as for
+    /// `bet_bound_step_v2` and `bet_bus_step`, and no two regions overlap.
+    #[no_mangle]
+    pub extern "C" fn bet_drive_step(table:u32,count:u32,bus_input:u32,bus_output:u32,dt:f64)->i32 {
+        use crate::drive_bus::{DriveRotor, MAX_ROTORS, OUTPUT_BYTES, TABLE_ENTRY_BYTES};
+        let (n,m)=(crate::bound_v2::INPUT_BYTES,crate::bound_v2::OUTPUT_BYTES);
+        let (il,ol)=(crate::bus_abi::INPUT_BYTES,OUTPUT_BYTES);
+        if count==0 || count as usize>MAX_ROTORS {return -2;}
+        let table_len=count*TABLE_ENTRY_BYTES;
+        if !caller_region(table,table_len) || !caller_region(bus_input,il) || !caller_region(bus_output,ol) {return -2;}
+        // Every region with its length: the table, the two bus records, then per rotor its arena, input and output.
+        let mut regions=[(0u32,0u32);3+3*MAX_ROTORS];
+        regions[0]=(table,table_len);regions[1]=(bus_input,il);regions[2]=(bus_output,ol);
+        // SAFETY: the table region is validated; the slice is dropped before any mutable slice is made.
+        let words=unsafe{bytes(table,table_len)};
+        let entry=|k:usize,w:usize| { let at=k*12+w*4; u32::from_le_bytes([words[at],words[at+1],words[at+2],words[at+3]]) };
+        for k in 0..count as usize {
+            let (handle,ip,op)=(entry(k,0),entry(k,1),entry(k,2));
+            let Some(len)=bound_len(handle) else{return -1;};
+            // SAFETY: bound_len checked the full immutable arena region.
+            if crate::bound::memory_pages(unsafe{bytes(handle,len)})!=Some(memory_pages()) {return -5;}
+            if !caller_region(ip,n) || !caller_region(op,m) {return -2;}
+            regions[3+3*k]=(handle,len);regions[4+3*k]=(ip,n);regions[5+3*k]=(op,m);
+        }
+        let used=3+3*count as usize;
+        for a in 0..used {
+            for b in a+1..used {
+                if abi::regions_overlap(regions[a].0,regions[a].1,regions[b].0,regions[b].1) {return -2;}
+            }
+        }
+        let mut rotors:[DriveRotor<'_>;MAX_ROTORS]=core::array::from_fn(|_| DriveRotor{arena:Default::default(),input:&[],output:Default::default()});
+        for (k,rotor) in rotors.iter_mut().enumerate().take(count as usize) {
+            let ((handle,len),(ip,_),(op,_))=(regions[3+3*k],regions[4+3*k],regions[5+3*k]);
+            // SAFETY: all regions are validated and pairwise disjoint.
+            *rotor=unsafe{DriveRotor{arena:bytes_mut(handle,len),input:bytes(ip,n),output:bytes_mut(op,m)}};
+        }
+        // SAFETY: both bus regions are validated and disjoint from every other region.
+        let (input,out)=unsafe{(bytes(bus_input,il),bytes_mut(bus_output,ol))};
+        crate::drive_bus::step(&mut rotors[..count as usize],input,out,dt)
     }
 
     /// Invalidates a bound rotor without affecting another handle.

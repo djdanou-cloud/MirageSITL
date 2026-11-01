@@ -47,12 +47,13 @@ function quad(): AircraftProfile {
     motors: fixture.motors.map(motor => ({ ...motor, components: { motor: MOTOR, propeller: PROPELLER, esc: ESC } })) });
   return withPropellerPolars(fitted, [{ card: PROPELLER, polar: 'naca6409-neuralfoil-v1' }]);
 }
-async function quadDynamics(edits: CardEdits, options: { ratings?: LimitRatings | null; soc?: number; hz?: 400 | 800 } = {}) {
+async function quadDynamics(edits: CardEdits, options: { ratings?: LimitRatings | null; soc?: number; hz?: 400 | 800; houseW?: number } = {}) {
   const profile = quad(), set = cards(edits), resolved = resolveComponents(profile, set);
   if (!resolved.components) throw new Error(`Missing: ${resolved.missing.join('; ')}`);
   const derived = await deriveVehicleManifest(profile, resolved.components, { modelId: 146 });
   const ratings = options.ratings === undefined ? componentRatings(profile, set) : options.ratings;
-  const { configuration } = buildProfileDynamics(derived.manifest, { initialStateOfCharge: options.soc ?? 1, limitRatings: ratings });
+  const { configuration } = buildProfileDynamics(derived.manifest, { initialStateOfCharge: options.soc ?? 1, limitRatings: ratings,
+    housePowerW: options.houseW ?? 0 });
   const manifest = validateVehicleManifest(derived.manifest);
   return { d: new BetFlightDynamics(module, configuration, options.hz ?? 400), manifest, ratings, motorMapId: configuration.motorMapId };
 }
@@ -275,5 +276,75 @@ describe('warnings never change physics; modeled clamps are limited', () => {
     const wrong = parseLimitRatings({ schemaVersion: 1, battery: { emptyVoltageV: null },
       motors: [{ motorCurrentA: null, motorPowerW: null, escCurrentA: null, escVoltageV: null, rpm: null }] });
     await expect(quadDynamics({}, { ratings: wrong })).rejects.toThrow('motor count');
+  }, 300000);
+});
+
+describe('a pack at its discharge limit feeds back to the motors (TASK-092 drive step)', () => {
+  // Oracles: the shared-bus model recomputed from the previous charge (V_oc linear in the charge,
+  // V = V_oc - I R, source V_oc I = loss I^2 R + delivered V I), the per-motor powers the motors
+  // published, and momentum theory, whose ideal induced power bounds every rotor's hover power from below.
+  it('gives the motors exactly what the limited pack delivers, at the lowered supply voltage', async () => {
+    const q = await quadDynamics({ battery: { maxDischargeCurrentA: 2 } }, { houseW: 2 }), { d, manifest } = q;
+    const battery = manifest.battery!, R = battery.internalResistanceOhm, capacityC = battery.capacityAh * 3600, dt = 1 / d.hz;
+    const t = d.power!;
+    let soc = 1, packV = battery.openCircuitFullV, limited = 0;
+    run(q, 0.8, 1200, () => {
+      const b = t.battery, current = b[BatteryColumn.CurrentA]!, volts = b[BatteryColumn.VoltageV]!;
+      const voc = battery.openCircuitEmptyV + (battery.openCircuitFullV - battery.openCircuitEmptyV) * soc;
+      let terminal = 0;
+      for (let i = 0; i < 4; i++) terminal += t.motors[i * MotorColumn.stride + MotorColumn.ElectricalPowerW]!;
+      const delivered = volts * current, loss = current * current * R, source = voc * current;
+      // Tolerances set before the run: a few roundings of the same quantities.
+      expect(Math.abs(source - (loss + delivered))).toBeLessThanOrEqual(1e-12 * source);
+      expect(Math.abs(delivered - (terminal + 2))).toBeLessThanOrEqual(1e-12 * delivered);
+      expect(current).toBeLessThanOrEqual(2 * (1 + 1e-12));
+      expect(d.stateOfCharge).toBe(soc - current * dt / capacityC);
+      if (d.busLimited) {
+        limited++;
+        expect(t.batteryMasks[1]! & BatteryLimited.PackCurrent).toBe(BatteryLimited.PackCurrent);
+        // At the limit: 2 A, while the motors ran below the previous step's pack voltage.
+        expect(Math.abs(current - 2)).toBeLessThanOrEqual(1e-9);
+        const supply = d.electrical[3]!;
+        expect(supply).toBeLessThan(packV);
+        for (let i = 0; i < 4; i++) {
+          const row = i * MotorColumn.stride, power = t.motors[row + MotorColumn.ElectricalPowerW]!;
+          expect(Math.abs(t.motors[row + MotorColumn.BusCurrentA]! * supply - power)).toBeLessThanOrEqual(4 * Number.EPSILON * Math.abs(power));
+        }
+      } else expect(d.electrical[3]).toBe(packV);
+      soc = d.stateOfCharge; packV = volts;
+    });
+    // Spinning up, the motors draw more than 2 A within a few steps; from then on the pack limits every step.
+    expect(limited).toBeGreaterThan(1190);
+    expect(drainAll(d)).toContainEqual(expect.objectContaining({ subject: 'battery', quantity: 'pack-current-limit', kind: 'limited', edge: 'start', limit: 2 }));
+    d.dispose();
+  }, 300000);
+
+  it('keeps the quad on the pad at any throttle when the limit is below hover power', async () => {
+    const q = await quadDynamics({ battery: { maxDischargeCurrentA: 2 } }), { manifest } = q;
+    const battery = manifest.battery!, g = 9.80665, rho = 1.225, n = manifest.rotorCount;
+    // Momentum theory: hovering needs at least n·T^1.5/sqrt(2ρA) of shaft power, T = m·g/n per rotor.
+    const thrust = manifest.massProperties.massKg * g / n, area = Math.PI * manifest.rotors[0]!.radiusM ** 2;
+    const idealHoverW = n * thrust ** 1.5 / Math.sqrt(2 * rho * area);
+    const packMaxW = 2 * (battery.openCircuitFullV - 2 * battery.internalResistanceOhm);
+    expect(packMaxW).toBeLessThan(0.75 * idealHoverW);
+    q.d.dispose();
+    for (const throttle of [0.2, 0.4, 0.6, 0.8, 1]) {
+      const limited = await quadDynamics({ battery: { maxDischargeCurrentA: 2 } });
+      let highest = 0;
+      run(limited, throttle, 1600, () => { highest = Math.min(highest, limited.d.state.down); });
+      // The synthetic pad holds a vehicle whose thrust is below its weight exactly at 0 m.
+      expect(highest, `throttle ${throttle}`).toBe(0);
+      // A low throttle draws less than 2 A; full throttle holds the pack at its limit.
+      const current = limited.d.power!.battery[BatteryColumn.CurrentA]!;
+      if (throttle === 1) expect(limited.d.busLimited && Math.abs(current - 2) <= 1e-9).toBe(true);
+      else expect(current).toBeLessThanOrEqual(2 * (1 + 1e-12));
+      limited.d.dispose();
+    }
+    // Control: the same quad on its 125 A example pack leaves the pad at 80 % throttle.
+    const free = await quadDynamics({});
+    run(free, 0.8, 800);
+    expect(free.d.state.down).toBeLessThan(-0.3);
+    expect(free.d.busLimited).toBe(false);
+    free.d.dispose();
   }, 300000);
 });

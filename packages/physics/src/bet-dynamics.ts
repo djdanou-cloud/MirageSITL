@@ -2,8 +2,8 @@
 import { ControlFlag, INPUT_CLOCK_TOLERANCE_MS, INPUT_TIMEOUT_MS, StateFlag, ActuatorFlagV2, newState,
   type PilotInput, type PhysicsHz, type ActuatorFrameV2 } from '@mirage/protocol';
 import { BetRotorEngine, ROTOR_FLAG_HOVER_SAMPLING, ROTOR_FLAG_REDUCED_PREDICTOR, type BoundPolar } from '../../wasm-bet/src/rotor.ts';
-import { BOUND_V2, BOUND_V2_DRIVE_DOUBLES, BOUND_V2_INPUT_DOUBLES, BOUND_V2_OUTPUT_SLOTS, BetRotorEngineV2 } from '../../wasm-bet/src/rotor-v2.ts';
-import { BetBus, type BusBattery } from '../../wasm-bet/src/bus.ts';
+import { BOUND_V2, BOUND_V2_DRIVE_DOUBLES, BOUND_V2_INPUT_DOUBLES, BOUND_V2_OUTPUT_SLOTS, BetRotorEngineV2, DriveBusSlot } from '../../wasm-bet/src/rotor-v2.ts';
+import type { BusBattery } from '../../wasm-bet/src/bus.ts';
 import { BetRigidBodyBackend, newBodyTruth, type BodyTruth } from '../../wasm-bet/src/backend.ts';
 import type { MotorFaults } from './motor-fault.ts';
 import { validateModelManifest } from './model-manifest.ts';
@@ -94,7 +94,11 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
   get batteryCurrentA():number{return this.electrical[2]!;}
   /** Bus state of charge, 1 without an ESC drive. */
   get stateOfCharge():number{return this.electrical[0]!;}
-  /** The bus could not deliver or absorb the demand on the last step. */
+  /**
+   * The pack was at its limit on the last step: discharging, the motors' supply
+   * voltage was lowered until they drew what it delivers; regenerating, it
+   * absorbed only its charge-current limit or met a full pack.
+   */
   busLimited=false;
   /** A motor current sat at its limit on the last step: a modeled clamp, not a validity breach. */
   driveLimited=false;
@@ -125,7 +129,6 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
   private pendingActuator=false;
   private readonly groundDown:number|undefined;
   private readonly contact:FlightContact|null;
-  private readonly bus:BetBus|null;
   private readonly initialSoc:number;
   private readonly housePowerW:number;
   private readonly configurationFlags:number;
@@ -134,12 +137,14 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
   private readonly input:Float64Array;
   private readonly output:Float64Array;
   /**
-   * [state of charge, bus voltage V, bus current A] of the last step (TASK-092).
-   * Per-step doubles live in a typed array: V8 keeps class fields tagged, so a
-   * double stored in a field or returned by a non-inlined getter can allocate.
-   * Hot-path readers index this array; the getters are for cold code.
+   * [state of charge, bus voltage V, bus current A, supply voltage V] of the
+   * last step (TASK-092): the pack's charge, terminal voltage and current, and
+   * the voltage the motors ran on, below the pack's voltage only on a step the
+   * pack limited. Per-step doubles live in a typed array: V8 keeps class fields
+   * tagged, so a double stored in a field or returned by a non-inlined getter
+   * can allocate. Hot-path readers index this array; the getters are for cold code.
    */
-  readonly electrical=new Float64Array([1,0,0]);
+  readonly electrical=new Float64Array([1,0,0,0]);
   private faults:MotorFaults|null=null;
   private readonly unit=new Float64Array([1]);
   private readonly fraction=new Float64Array(1);
@@ -185,21 +190,20 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
     if(drive) {
       const soc=drive.initialStateOfCharge,house=drive.housePowerW??0;
       if(drive.motors.length!==n || !Number.isFinite(soc) || soc<=0 || soc>1 || !Number.isFinite(house) || house<0)throw Error('Invalid ESC drive configuration');
-      const esc=new BetRotorEngineV2(module,definitions,hz);
+      const esc=new BetRotorEngineV2(module,definitions,hz,drive.battery);
       drive.motors.forEach((m,i)=>{
         const values=[m.resistanceOhm,m.torqueConstantNmPerA,m.currentLimitA,m.brakeCurrentLimitA,m.noLoadTorqueNm,m.commandTauS,m.updatePeriodS];
         if(!values.every(Number.isFinite))throw Error('Invalid ESC drive motor');
         esc.drive.set(values,i*BOUND_V2_DRIVE_DOUBLES);esc.driveMode[i]=BOUND_V2.driveEscDuty;
       });
-      this.escEngine=esc;this.engine=null;
-      this.bus=new BetBus(module,drive.battery,hz);this.initialSoc=soc;this.housePowerW=house;
+      this.escEngine=esc;this.engine=null;this.initialSoc=soc;this.housePowerW=house;
       this.power=new PowerTelemetry(n);this.capacityAh=drive.battery.capacityAh;
       this.limits=new LimitMonitor(n,configuration.limitRatings??null,drive.motors.map(m=>m.currentLimitA),
         drive.motors.map(m=>m.brakeCurrentLimitA),drive.battery.currentLimitA,hz);
       this.input=this.escEngine.input;this.output=this.escEngine.output;this.inputStride=BOUND_V2_INPUT_DOUBLES;this.outputStride=BOUND_V2_OUTPUT_SLOTS;
     } else {
       if(configuration.limitRatings)throw Error('Limit ratings need the ESC drive');
-      this.engine=new BetRotorEngine(module,definitions,hz);this.escEngine=null;this.bus=null;this.initialSoc=1;this.housePowerW=0;
+      this.engine=new BetRotorEngine(module,definitions,hz);this.escEngine=null;this.initialSoc=1;this.housePowerW=0;
       this.power=null;this.limits=null;this.capacityAh=0;
       this.input=this.engine.input;this.output=this.engine.output;this.inputStride=13;this.outputStride=16;
     }
@@ -226,7 +230,7 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
     this.engine?.reset();this.escEngine?.reset();this.body.reset(this.initial);this.contact?.reset(this.initial);
     const e=this.electrical;e[0]=this.initialSoc;e[2]=0;this.busLimited=false;this.driveLimited=false;
     // Before the first bus step the motors see the unloaded pack.
-    e[1]=this.bus?this.bus.openCircuitV(this.initialSoc):0;
+    e[1]=this.escEngine?this.escEngine.openCircuitV(this.initialSoc):0;e[3]=e[1];
     this.truth.positionNedM.set(this.initial.positionNedM);this.truth.velocityNedMps.set(this.initial.velocityNedMps);
     this.truth.quaternionBodyToNed.set(this.initial.quaternionBodyToNed);this.truth.angularVelocityBodyRadS.set(this.initial.angularVelocityBodyRadS);
     this.truth.accelerationNedMps2.fill(0);this.angularAcceleration.fill(0);Object.assign(this.state,newState());this.state.batteryVoltage=e[1]!;
@@ -295,15 +299,21 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
         esc.driveFlags[i]=fraction===0?BOUND_V2.drivePowerCut:0;
       } else input[b+12]=faults?duty*this.torque[i]!*fraction:duty*this.torque[i]!;
     }
-    if(esc?!esc.stepInto():!this.engine!.stepInto()){this.fault='BET rotor step failed';return;}
+    // With the ESC drive the rotors and the shared bus step together (TASK-092), at the previous step's bus voltage
+    // unless the pack is at its limit, which lowers the motors' supply until they draw what it delivers.
+    if(esc){
+      // Charge and house load go through the engine's typed array: V8 can box a double call argument.
+      esc.busInput[0]=this.electrical[0]!;esc.busInput[1]=this.housePowerW;
+      if(!esc.stepBusInto()){this.fault='BET drive step failed';return;}
+    }
+    else if(!this.engine!.stepInto()){this.fault='BET rotor step failed';return;}
     this.validityFlags=this.configurationFlags;this.samplingFlags=0;
-    const output=this.output,stride=this.outputStride;let terminalPowerW=0;this.driveLimited=false;
+    const output=this.output,stride=this.outputStride;this.driveLimited=false;
     for(let i=0;i<this.rotorCount;i++) {
       const a=i*stride,b=i*6;
       for(let j=0;j<3;j++){this.hub[b+j]=output[a+j]!;this.hub[b+3+j]=output[a+6+j]!;}
       const flags=output[a+14]!;
       if(esc) {
-        terminalPowerW+=output[a+21]!; // electrical_power (record byte 160)
         if((flags&BOUND_V2.flagCurrentLimited)!==0)this.driveLimited=true;
         this.validityFlags|=flags&~(BOUND_V2.flagCurrentLimited|SAMPLING_FLAGS);
       } else this.validityFlags|=flags&~SAMPLING_FLAGS;
@@ -314,12 +324,11 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
         for(let j=0;j<6;j++)this.hub[b+j]=this.faultScaled[j]!;
       }
     }
-    if(this.bus) {
-      // One-tick lag: these motors ran on the previous bus voltage; the bus now delivers their summed terminal power.
-      const e=this.electrical,o=this.bus.output;
-      if(!this.bus.stepInto(e[0]!,terminalPowerW,this.housePowerW)){this.fault='Battery bus step failed';return;}
-      e[0]=o[0]!;e[1]=o[1]!;e[2]=o[2]!;
-      this.busLimited=this.bus.output[6]!!==0;
+    if(esc) {
+      // The bus delivered the motors' summed terminal power and the house load.
+      const e=this.electrical,o=esc.busOutput;
+      e[0]=o[DriveBusSlot.StateOfCharge]!;e[1]=o[DriveBusSlot.VoltageV]!;e[2]=o[DriveBusSlot.CurrentA]!;e[3]=o[DriveBusSlot.SupplyVoltageV]!;
+      this.busLimited=o[DriveBusSlot.Flags]!!==0;
     }
     if(!this.frame.sumInto(this.hub,this.wrench)){this.fault='BET body integration failed';return;}
     // TASK-095: with a contact, Rapier alone integrates the body, gravity and ground reaction included.
@@ -339,9 +348,9 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
     this.angularAcceleration[2]=(rates[2]!-oldRz)/this.dt;
     s.tick++;s.simTime=s.tick/this.hz;s.wallTimeMs=this.nowMs;s.spool=sum/this.rotorCount;
     s.flags=(external?this.externalArmed:valid)?0:StateFlag.InputFailsafe;
-    if(this.bus)s.batteryVoltage=this.electrical[1]!;
+    if(esc)s.batteryVoltage=this.electrical[1]!;
     this.referenceRotorRpm=output[9]!*60/(2*Math.PI);this.pendingActuator=false;
-    if(this.power&&this.bus)this.recordPower(this.power,this.bus.output,s.tick);
+    if(this.power&&esc)this.recordPower(this.power,esc.busOutput,s.tick);
     this.copyTruth();
   }
   /** TASK-146: electrical telemetry of this step and its limit masks; reads only, never changes physics. */
@@ -360,7 +369,7 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
     b[BatteryColumn.StateOfCharge]=e[0]!;b[BatteryColumn.VoltageV]=e[1]!;b[BatteryColumn.CurrentA]=e[2]!;
     b[BatteryColumn.PowerW]=e[1]!*e[2]!;b[BatteryColumn.RemainingAh]=e[0]!*this.capacityAh;
     // The bus flags word (slot 6) is read here, not passed: V8 can box a double call argument.
-    const flags=bus[6]!;
+    const flags=bus[DriveBusSlot.Flags]!;
     t.batteryMasks[1]=((flags&1)!==0?BatteryLimited.PackCurrent:0)|((flags&2)!==0?BatteryLimited.Charge:0);
     this.limits?.evaluate(t,tick);
   }

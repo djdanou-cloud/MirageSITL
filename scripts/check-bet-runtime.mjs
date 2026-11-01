@@ -98,6 +98,9 @@ if(!allocation){
   for(const name of ['v2_step_allocates_zero_over_one_million_steps','esc_steps_allocate_zero_over_one_million_steps','bus_steps_allocate_zero_over_one_million_steps',
     'opt_in_kernel_modes_allocate_zero_over_one_million_steps'])
     if(!drive.includes(`${name} ... ok`))throw Error(`Native ${name} did not execute`);
+  // TASK-092 drive step: all motors and the bus in one call, within and at the pack's limit.
+  const driveBus=execFileSync('cargo',['test','--release','-p','mirage-bet','--test','drive_bus','--locked','allocate'],{cwd:resolve(root,'native'),encoding:'utf8',stdio:['ignore','pipe','pipe'],timeout:300000});
+  if(!driveBus.includes('drive_steps_allocate_zero_within_and_at_the_limit ... ok'))throw Error('Native drive step allocator check did not execute');
   const events=[],observer=new PerformanceObserver(list=>{for(const e of list.getEntries())events.push(e.startTime);});observer.observe({entryTypes:['gc']});
   const settle=()=>new Promise(r=>setTimeout(r,30));
   const young=()=>v8.getHeapSpaceStatistics().find(s=>s.space_name==='new_space').space_used_size;
@@ -155,12 +158,22 @@ if(!allocation){
   escRun(100000);await measure(escRun,10000);
   const escGraph={graph:'esc-drive-bus-synthetic-pad-four-rotor',variant:'scalar',...await measure(escRun,1000000),memoryStable:esc.escEngine.memoryStable};
   samples.push(escGraph);esc.dispose();console.log(JSON.stringify(escGraph));
+  // TASK-092: the same vehicle on a 2 A pack at 0.8 throttle. Every step is limited, so the drive step lowers the
+  // supply voltage by bisection; the starved motors cannot lift the vehicle off the pad.
+  const starved=flightConfiguration(0,4);starved.initialBody.positionNedM[2]=0;starved.initialOmegaRadS=[0,0,0,0];starved.syntheticGroundDownM=0;
+  starved.drive={...driven.drive,battery:{...driven.drive.battery,currentLimitA:2}};
+  const limited=new BetFlightDynamics(modules[0],starved,400),limitedPilot={...escPilot,throttle:0.8};
+  const limitedRun=n=>{for(let i=0;i<n;i++){limited.nowMs=0;limited.stepNow(limitedPilot);
+    if(limited.fault||!limited.busLimited||!(limited.electrical[3]<limited.electrical[1])||limited.state.down!==0)throw Error('Limited ESC drive allocation step failed');}};
+  limitedRun(100000);await measure(limitedRun,10000);
+  const limitedGraph={graph:'esc-drive-limited-pack-synthetic-pad-four-rotor',variant:'scalar',...await measure(limitedRun,1000000),memoryStable:limited.escEngine.memoryStable};
+  samples.push(limitedGraph);limited.dispose();console.log(JSON.stringify(limitedGraph));
   const sink={value:null};const control=n=>{for(let i=0;i<n;i++)sink.value={i};};
   const positive=await measure(control,1000000),controlDetected=positive.gcEvents>0 || positive.bytes>1000000;
   const passed=completeAllocationSamples(samples)&&samples.every(s=>s.gcEvents===0&&s.bytesPerStep<0.01&&s.memoryStable)&&controlDetected;
   const report={schemaVersion:1,status:passed?'pass':'failed',...identity,warmupSteps:100000,samples,positiveControl:positive,controlDetected,
-    nativeAllocator:{steps:1000000,calls:0,bytes:0,positiveControlDetected:true,driveSteps:{boundV2:1000000,esc:1000000,bus:1000000}},
-    scope:'Active NeuralFoil rotor graph through step interfaces v1 and v2 and a stationary body through interface v2, each in both WASM variants, plus stationary four-rotor body, synthetic-pad and ESC-drive bus (synthetic pad) graphs; native counted allocator checks (bound v1, v2, ESC drive, bus) and WASM trapping allocator; no measured aerodynamic acceptance or hardware realtime claim'};
+    nativeAllocator:{steps:1000000,calls:0,bytes:0,positiveControlDetected:true,driveSteps:{boundV2:1000000,esc:1000000,bus:1000000,driveStepWithinLimit:300000,driveStepAtLimit:300000}},
+    scope:'Active NeuralFoil rotor graph through step interfaces v1 and v2 and a stationary body through interface v2, each in both WASM variants, plus stationary four-rotor body, synthetic-pad, ESC-drive bus and limited-pack ESC-drive (synthetic pad) graphs; native counted allocator checks (bound v1, v2, ESC drive, bus, drive step within and at the pack limit) and WASM trapping allocator; no measured aerodynamic acceptance or hardware realtime claim'};
   writeFileSync(resolve(root,'test-results/validation/bet-runtime-allocation.json'),JSON.stringify(report,null,2)+'\n');
   observer.disconnect();if(!passed)process.exitCode=1;
 }
