@@ -1,6 +1,7 @@
 /// <reference lib="webworker" />
 import { AarRecord } from '@mirage/aar/record';
 import { RecordingHandoff } from '@mirage/aar/handoff';
+import { isProducerPlan, RecordingProducerV2 } from '@mirage/aar/recorder-v2';
 import { createSessionFaultPort } from '@mirage/ew/session-port';
 import { isWorkerInitV2, tickToNumber, validatePowerChannelV1, type CommandResultV2, type ControlCommandV2, type WorkerFaultV2 } from '@mirage/protocol';
 import { parseLimitRatings, type LimitEvent, type LimitRatings } from '@mirage/physics/limit-monitor';
@@ -41,6 +42,7 @@ type WorkerNotice = CommandResultV2 | WorkerFaultV2 | SitlNotice | { type: "sitl
   | { type: "limits.registered"; sha256: string } | { type: "limits.reject"; message: string }
   | { type: "limits.events"; events: LimitEvent[]; dropped: number }
   | { type: "power.attached" } | { type: "power.reject"; message: string }
+  | { type: "recording-v2.armed" } | { type: "recording-v2.reject"; message: string }
   | { type: "scenario.submit"; command: ControlCommandV2 }
   | { type: "scenario.reject"; message: string }
   | { type: "pilot.rejected"; count: number; ageMs: number; wallMs: number; sampleWallMs: number; sampleId: number; expectedEpoch: number;
@@ -93,6 +95,19 @@ function armRecording(queue: SharedArrayBuffer): void {
     if (!active.record.encode(sample.state, pilot, sample.sensor, sample.actuator, 0, lost, false)) return;
     if (active.handoff.push(active.record.words)) notedLost = active.handoff.lost;
   });
+}
+/**
+ * TASK-162: arms recorder v2's producer on the session's record hook. It replaces a TASK-076 recorder; the flight
+ * queues keep one consumer, and a full recording queue drops and counts rows instead of waiting.
+ */
+function armRecordingV2(data: Record<string, unknown>): void {
+  if (!session) throw new Error("The physics session is not initialized");
+  if (!(data.queue instanceof SharedArrayBuffer) || !isProducerPlan(data.plan)) throw new Error("Invalid recording-v2.arm message");
+  if (data.plan.physicsHz !== session.hz) throw new Error(`The recording plan is for ${data.plan.physicsHz} Hz; the session runs ${session.hz} Hz`);
+  const producer = new RecordingProducerV2(data.queue, data.plan);
+  recorder = null;
+  session.setRecorder(sample => producer.record(sample));
+  post({ type: "recording-v2.armed" });
 }
 function isBinaryMessage<T extends string>(data: unknown, type: T): data is { type: T; bytes: Uint8Array; sha256: string } {
   return typeof data === "object" && data !== null && "type" in data && data.type === type && "bytes" in data &&
@@ -270,7 +285,11 @@ addEventListener('message', (event: MessageEvent<unknown>) => {
     armRecording(data.queue);
     return;
   }
-  if (isRecordingStop(data)) {
+  if (isTyped(data, "recording-v2.arm")) {
+    try { armRecordingV2(data); } catch (error) { post({ type: "recording-v2.reject", message: error instanceof Error ? error.message : "Invalid recording-v2.arm" }); }
+    return;
+  }
+  if (isRecordingStop(data) || isTyped(data, "recording-v2.stop")) {
     recorder = null;
     current.setRecorder(null);
     return;
