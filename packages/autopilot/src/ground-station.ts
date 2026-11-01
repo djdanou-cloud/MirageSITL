@@ -1,6 +1,7 @@
 // Ground-station commands for an integrated SITL session (TASK-153): the
 // application's own MAVLink2 heartbeat and COMMAND_LONG requests, and the
-// parameter requests of the TASK-154 read-back, packed with the TASK-150
+// parameter requests of the TASK-154 read-back and the TASK-159 parameter
+// service, packed with the TASK-150
 // codec. Cold path: one call per user action or per second, never inside the
 // physics step. Command and mode numbers are those of the pinned
 // ardupilotmega.xml/common.xml (MAVLink 2e2b6af99084e4fde9bb304c84bb9253a1a98b6f)
@@ -19,7 +20,7 @@ export const CopterMode = { Stabilize: 0, AltHold: 2, Guided: 4, Loiter: 5, Land
 /** MAV_MODE_FLAG_CUSTOM_MODE_ENABLED. */
 const CUSTOM_MODE_ENABLED = 1;
 /** MAVLink message IDs. */
-const HEARTBEAT = 0, PARAM_REQUEST_READ = 20, PARAM_REQUEST_LIST = 21, COMMAND_LONG = 76;
+const HEARTBEAT = 0, PARAM_REQUEST_READ = 20, PARAM_REQUEST_LIST = 21, PARAM_SET = 23, COMMAND_LONG = 76;
 /** An ArduPilot parameter name: 1 to 16 (AP_MAX_NAME_SIZE) printable ASCII characters, no space. */
 const PARAMETER_NAME = /^[\x21-\x7e]{1,16}$/;
 /** MAV_TYPE_GCS, MAV_AUTOPILOT_INVALID, MAV_STATE_ACTIVE. */
@@ -31,6 +32,7 @@ export class GroundStation {
   private readonly commandPayload = new Uint8Array(33);
   private readonly listPayload = new Uint8Array(2);
   private readonly readPayload = new Uint8Array(20);
+  private readonly setPayload = new Uint8Array(23);
 
   /**
    * @param systemId the ground station's system ID (255, as Mission Planner and pymavlink use)
@@ -105,6 +107,30 @@ export class GroundStation {
     if (!packInto(PARAM_REQUEST_READ, { target_system: this.targetSystem, target_component: this.targetComponent, param_id: name,
       param_index: -1 }, this.readPayload)) return 0;
     return this.frame(PARAM_REQUEST_READ, this.readPayload, out);
+  }
+
+  /**
+   * PARAM_REQUEST_READ of the list entry at `index` (param_id empty), which
+   * ArduPilot answers with that entry's PARAM_VALUE and index; returns 0 for
+   * an index outside 0..32767 (param_index is int16 on the wire).
+   */
+  paramRequestReadIndexInto(index: number, out: Uint8Array): number {
+    if (!Number.isInteger(index) || index < 0 || index > 32767) return 0;
+    if (!packInto(PARAM_REQUEST_READ, { target_system: this.targetSystem, target_component: this.targetComponent, param_id: "",
+      param_index: index }, this.readPayload)) return 0;
+    return this.frame(PARAM_REQUEST_READ, this.readPayload, out);
+  }
+  /**
+   * PARAM_SET of one parameter: `value` is sent as its float32 with the
+   * MAV_PARAM_TYPE the autopilot reported for it. Returns 0 for an invalid
+   * name (as paramRequestReadInto), a type outside 1..10 or a value that is
+   * not finite as a float32.
+   */
+  paramSetInto(name: string, value: number, paramType: number, out: Uint8Array): number {
+    if (!PARAMETER_NAME.test(name) || !Number.isInteger(paramType) || paramType < 1 || paramType > 10) return 0;
+    if (!packInto(PARAM_SET, { target_system: this.targetSystem, target_component: this.targetComponent, param_id: name,
+      param_value: value, param_type: paramType }, this.setPayload)) return 0;
+    return this.frame(PARAM_SET, this.setPayload, out);
   }
 
   private frame(id: number, payload: Uint8Array, out: Uint8Array): number {

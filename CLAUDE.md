@@ -300,7 +300,13 @@ implementation.
   ArduPilot spin each motor alone and compares its frame (test order, output,
   spin) with the rotor the physics turned; all five S19 configurations pass
   against native ArduCopter, and a swapped mapping or a reversed spin is
-  caught on exactly that motor. Decisions D-04
+  caught on exactly that motor. TASK-159 is DONE: `ParameterService`
+  (`@mirage/autopilot/param-service`) downloads ArduPilot's complete parameter
+  list, classifies every write by read-back (`confirmed`, `refused`,
+  `timeout`, `stale`) and shows exact float32 values, with metadata generated
+  offline from the pinned source (`data/ardupilot/param-metadata.json`,
+  `scripts/generate-param-metadata.mjs`); `node scripts/check-param-sitl.mjs`
+  passes against native ArduCopter. Decisions D-04
   and D-06 to D-12 are decided. TASK-127 and TASK-128 are DONE: stock
   ArduCopter `8ab6afd` builds and flies natively on Apple Silicon
   ([macos-sitl.md](docs/decisions/macos-sitl.md)), and its stock frames and

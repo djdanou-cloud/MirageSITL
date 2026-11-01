@@ -44,6 +44,9 @@
     { "origin": "https://content.u-blox.com", "use": "documentation-link", "reason": "Datasheet citation of the TASK-143 GNSS sensor preset." },
     { "origin": "https://www.ti.com", "use": "documentation-link", "reason": "Datasheet citation of the TASK-143 battery-monitor sensor preset." },
     { "origin": "https://www.flir.com", "use": "documentation-link", "reason": "FLIR ADAS dataset agreement page cited by the sample fetcher." },
+    { "origin": "https://docs.zubax.com", "use": "documentation-link", "reason": "Link inside ArduPilot parameter descriptions (data/ardupilot/param-metadata.json, TASK-159); never fetched." },
+    { "origin": "https://uavchallenge.org", "use": "documentation-link", "reason": "Link inside ArduPilot parameter descriptions (data/ardupilot/param-metadata.json, TASK-159); never fetched." },
+    { "origin": "https://terrain.ardupilot.org", "use": "documentation-link", "reason": "Link inside ArduPilot parameter descriptions (data/ardupilot/param-metadata.json, TASK-159); MirageSITL never fetches terrain from it." },
     { "origin": "https://tile.googleapis.com", "use": "online-optional", "reason": "Google Photorealistic 3D Tiles upstream of the optional tiles worker; needs keys and a deployment and is never an offline source." }
   ],
   "items": [
@@ -186,14 +189,17 @@
       "id": "ardupilot-parameter-metadata",
       "category": "metadata",
       "item": "ArduPilot parameter metadata (names, ranges, units, descriptions)",
-      "version": "Generated from the selected ArduPilot source by its param_metadata tooling",
-      "source": "The local ArduPilot checkout; no download beyond the source",
+      "version": "ArduPilot 8ab6afde107a91df1b5f60ade8f333cb8a61b190, ArduCopter, 5799 parameters (scripts/generate-param-metadata.mjs)",
+      "source": "Generated offline from the pinned ArduPilot checkout by its Tools/autotest/param_metadata/param_parse.py; no download beyond the source",
       "license": "GPL-3.0-or-later (generated from the ArduPilot source)",
       "licenseStatus": "restricted",
-      "decision": "TASK-159 generates and stores it locally; D-02 covers redistribution with any prebuilt firmware.",
-      "neededFor": "The Parameters tab (TASK-159, TASK-160)",
+      "decision": "TASK-159 generated it from the pinned source and keeps it in the repository, so the parameter service and the Parameters tab read it offline; D-02 covers redistribution with any prebuilt firmware.",
+      "neededFor": "The parameter service and the Parameters tab (TASK-159, TASK-160)",
       "installDownload": false,
-      "status": "pending"
+      "status": "ready",
+      "files": [
+        { "path": "data/ardupilot/param-metadata.json", "bytes": 1734597, "sha256": "1b0645bc1d0cc38253231512d24e21092273ccfd6c81aa749d4aadc0fd9f98cd" }
+      ]
     },
     {
       "id": "uavlogviewer",

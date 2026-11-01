@@ -83,11 +83,12 @@ describe("offline inventory (TASK-131)", () => {
     expect(origins.length).toBeGreaterThan(0);
     expect(origins.filter(origin => origin.use === "UNLISTED")).toEqual([]);
     expect(report.fields.npmRuntimePackages).toBeGreaterThan(0);
-    // The three WorldCover tiles are hashed on every run.
-    expect(report.fields.hashedFiles).toBe(3);
-    // Unresolved items stay pending on their decisions rather than being marked ready.
+    // The three WorldCover tiles and the TASK-159 parameter metadata are hashed on every run.
+    expect(report.fields.hashedFiles).toBe(4);
+    // Unresolved items stay pending on their decisions rather than being marked ready; the metadata TASK-159 generated is ready.
     const pending = report.fields.pendingItems;
-    expect(isStrings(pending) ? pending : []).toEqual(expect.arrayContaining(["uavlogviewer", "ardupilot-source", "ardupilot-parameter-metadata"]));
+    expect(isStrings(pending) ? pending : []).toEqual(expect.arrayContaining(["uavlogviewer", "ardupilot-source"]));
+    expect(isStrings(pending) ? pending : []).not.toContain("ardupilot-parameter-metadata");
     expect(rows(report, "openLicenses").filter(entry => typeof entry.decision !== "string" || entry.decision === "")).toEqual([]);
   }, 120000);
 

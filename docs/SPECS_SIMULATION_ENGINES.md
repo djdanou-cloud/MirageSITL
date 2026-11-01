@@ -6376,3 +6376,117 @@ judgement cases, refusals and the command's encoding;
 `tests/browser/motor-test.spec.ts`, through the Run tab with the installed
 ArduCopter, the check before flight (motors 1, 4, 2 and 3 ringed in turn,
 all passing) and no check in flight.
+
+## ArduPilot parameter service (TASK-159)
+
+`ParameterService` (`packages/autopilot/src/param-service.ts`) is the cold-path
+parameter client of an integrated session: it downloads the autopilot's
+complete parameter list, writes parameters and classifies every write by
+read-back. It follows ArduPilot's handlers at 8ab6afde
+(`libraries/GCS_MAVLink/GCS_Param.cpp`) and sends through the session's
+`GroundStation`, so its frames share the ground station's MAVLink sequence.
+`GroundStation.paramSetInto(name, value, paramType)` packs PARAM_SET (23) with
+the float32 value and the MAV_PARAM_TYPE the autopilot reported, and
+`paramRequestReadIndexInto(index)` packs PARAM_REQUEST_READ (20) with an empty
+name and `param_index` 0 to 32767.
+
+Every timeout runs on a clock the caller passes in seconds, normally the
+SITL's simulated time. A paused lockstep SITL answers nothing and its time
+stands (TASK-129), so a pause neither retries nor times out a request.
+
+### List download
+
+`requestList(nowS)` sends PARAM_REQUEST_LIST. ArduPilot streams every
+parameter as PARAM_VALUE with its index and `param_count`, and ignores the
+request until its parameters are ready. Values are the float32 numbers of the
+wire, stored exactly; a PARAM_VALUE with an empty name or a non-finite value
+(an index read past the list) is not stored. A PARAM_VALUE from another system
+or component is ignored.
+
+| Situation | Action |
+|---|---|
+| No PARAM_VALUE for `listRetryS` (2 s) after a list request | resend the request, at most `maxListRequests` (5) times; then `failed` |
+| `param_count` known, no new index for `gapS` (1 s) | read the first `indexBatch` (20) missing indices by index; after `maxGapRounds` (5) rounds without a new index, `failed` with the missing indices |
+| `param_count` changes during the download | restart: the indices received so far are dropped and the list is requested again; list entries still carrying the replaced count are ignored, because ArduPilot fixed that count when the replaced stream began |
+| `param_count` changes after the download completed | `stale` is true: the autopilot renumbered its list, for example after an `*_ENABLE` write; download again |
+| every index below `param_count` received | `complete` |
+
+A download state is `idle`, `downloading` (received, total or null),
+`complete` (total) or `failed` (received, total, missing indices, reason).
+
+### Writes and their states
+
+`set(name, value, nowS)` sends PARAM_SET followed by PARAM_REQUEST_READ of the
+same name. ArduPilot answers PARAM_SET with the stored value outside the list
+(`param_index` 65535). It answers a parameter the ground station may not write
+(`allow_set_via_mavlink`: read-only, or `AP_PARAM_FLAG_INTERNAL_USE_ONLY` such
+as `BARO1_DEVID`) with its old value. It answers an unknown name only with
+PARAM_ERROR, which is outside the TASK-150 message set.
+
+| State | Meaning |
+|---|---|
+| `requested` | PARAM_SET sent; `attempts` sends so far |
+| `confirmed` | an answer outside the list holds the requested float32; `rebootRequired` and `outsideRange` come from the metadata, null without metadata for the commit |
+| `refused` by `service` | not sent: the name is not in the downloaded list, the value is not finite, the value is outside the float32 range, the parameter's integer type cannot carry it exactly (not an integer, outside the type's limits, or not exact in float32), or its type is not one PARAM_SET's float32 carries |
+| `refused` by `autopilot` | answers kept another value: after the first differing answer one more read is sent, and the write is refused when the latest answer still differs after `writeRetryS` (1 s) without an answer; `reported` holds that value |
+| `timeout` | no answer after `writeAttempts` (3) sends, `writeRetryS` apart |
+| `stale` | the outcome no longer describes the autopilot: a newer write of the same name replaced a pending write, or the autopilot later reported another value for a confirmed one |
+
+Answers inside the list never decide a write. A differing answer alone never
+refuses one, because an answer sent before ArduPilot handled the write, or to
+a write it replaced, can still be in flight. `rebootPending()` lists the names
+whose current confirmed write needs a reboot according to the metadata.
+ArduPilot does not enforce declared ranges, and neither does the service:
+`outsideRange` reports a confirmed value outside the declared range.
+
+### Value display
+
+`formatParameterValue(value)` returns the shortest decimal (1 to 9
+significant digits) that parses back to exactly the same float32. For
+example, `Math.fround(0.00017)` is shown as `0.00017`, never `0.00`, and -0
+keeps its sign. `parseParameterValue(text)` accepts one finite decimal number
+and returns its float32, or null.
+
+### Metadata
+
+`scripts/generate-param-metadata.mjs` runs ArduPilot's own
+`Tools/autotest/param_metadata/param_parse.py --vehicle ArduCopter --format
+json` in a temporary directory on a clean checkout at a commit of
+`scripts/sitl.lock.json` (its Python needs `lxml`, which the TASK-127
+environment has). It writes `data/ardupilot/param-metadata.json` (schema 1):
+`versions` holds one entry per supported commit with the vehicle, the
+parameter count, the SHA-256 of the upstream output and of the four generator
+files, the anomalies and one record per parameter. A record keeps `group`,
+`displayName`, `description` and, when the source declares them, `units`,
+`range` ([low, high]), `increment`, `values` and `bitmask` ([number, label]
+pairs, ascending), and the flags `rebootRequired`, `readOnly` and `volatile`,
+plus the user level. The upstream fields `path` and `Calibration` are dropped. An
+upstream field the generator does not know fails the run. A reversed range is
+left out of its record and listed under `anomalies`; at 8ab6afde that is
+`TA_GSP_AIRBRAKE`. The file is written one parameter per line, and
+`--check` regenerates it and exits 1 on any difference.
+
+`parseParameterMetadata` (`packages/autopilot/src/param-metadata.ts`)
+validates the file from `unknown`. `forCommit(commit)` returns the metadata
+of exactly that commit or null; the metadata of another commit is never
+substituted. The file is GPL-3.0-or-later text generated from the ArduPilot
+source (`config/offline-inventory.json`, row `ardupilot-parameter-metadata`).
+
+### Verification (TASK-159)
+
+`tests/param-service.test.ts` runs the service against a scripted autopilot
+that answers as the pinned handlers do. It covers the list download with the
+autopilot not ready, lost entries recovered by index and the failure that
+names the missing indices, the restart on a new count with the replaced
+stream's entries dropped, the stale list, each write state, and no timeout
+while the clock stands. It also checks float32 formatting over 1,000,000
+sampled bit patterns. The PARAM_SET and index-read frames are decoded by
+pymavlink 2.4.50. Further tests cover the metadata facts read from the
+pinned source, the validator's refusals and the generator's conversion. It
+also checks byte-for-byte regeneration from the TASK-127 checkout.
+
+`scripts/check-param-sitl.mjs` runs the service against the installed native
+ArduCopter, holding the vehicle at rest in JSON lockstep. It writes
+`test-results/validation/param-sitl.json`, whose judge `assessParamRun`
+rejects false evidence (`tests/integration/param-sitl.test.ts`); without an
+installed, verified firmware it exits 2 (`BLOCKED_EXTERNAL`).

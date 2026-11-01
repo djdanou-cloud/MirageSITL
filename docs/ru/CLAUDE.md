@@ -1,6 +1,6 @@
 # CLAUDE.md — MirageSITL agent instructions
 
-<!-- source-sha256: 53c9b1cd3087330db53b84d7462e316772fd3a3dcab66b4eb515ddba97433fd2 -->
+<!-- source-sha256: 8df1f83a04461301e49a2129a14d926b7bc5a8e7e3cafbf2916ff3b1727a6340 -->
 
 Английский источник: [Source of truth](../../CLAUDE.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -330,7 +330,13 @@ TASK-127–TASK-192 и решения D-01–D-12, а у каждой откры
   каждый мотор по отдельности и сравнивает его раму (порядок теста, выход,
   направление) с ротором, который вращала физика; все пять конфигураций S19
   проходят с нативным ArduCopter, а перестановка выходов или обратное вращение
-  обнаруживаются ровно на этом моторе.
+  обнаруживаются ровно на этом моторе. TASK-159 выполнена: `ParameterService`
+  (`@mirage/autopilot/param-service`) загружает полный список параметров
+  ArduPilot, классифицирует каждую запись обратным чтением (`confirmed`,
+  `refused`, `timeout`, `stale`) и показывает точные значения float32, а
+  метаданные генерируются офлайн из закреплённых исходников
+  (`data/ardupilot/param-metadata.json`, `scripts/generate-param-metadata.mjs`);
+  `node scripts/check-param-sitl.mjs` проходит с нативным ArduCopter.
   Решения D-04 и D-06–D-12 приняты.
   TASK-127 и TASK-128 выполнены: штатный ArduCopter `8ab6afd` собирается и
   летает нативно на Apple Silicon ([macos-sitl.md](macos-sitl.md)), а его штатные
