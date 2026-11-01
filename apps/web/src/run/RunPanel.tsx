@@ -1,12 +1,18 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createExperimentRecord, experimentRecordName } from "@mirage/aircraft/experiment";
+import { deriveLayout, type AircraftLayout } from "@mirage/aircraft/layout";
+import { readAircraftProfile } from "@mirage/aircraft/profile";
+import type { LimitEvent } from "@mirage/physics/limit-monitor";
 import type { StoredVersion } from "@mirage/project/schema";
 import { CopterMode } from "@mirage/autopilot/ground-station";
 import { SimulationRuntime } from "../runtime";
 import type { StoreState } from "../shell/AppShell";
 import { DEFAULT_LAUNCHER_PORT } from "../shell/FirstRun";
 import { DEFAULT_HOME, LauncherClient, RuntimePhysics, SITL_PHYSICS_HZ, preparedRun, verifiedCommits } from "../sitl/sitl-run";
+import { FlightTelemetry } from "./FlightTelemetry";
+import { FlightView, type FlightViewProbe } from "./FlightView";
 import { CompatibilityList, ManualConnect } from "./ManualConnect";
+import { PowerPanel } from "./PowerPanel";
 import { SessionController, failureText, type CatalogEntry, type ConnectionSpec, type ControllerView, type Ownership, type PreparedRun,
   type RunState } from "./session-controller";
 
@@ -18,12 +24,22 @@ import { SessionController, failureText, type CatalogEntry, type ConnectionSpec,
 // only, as on the Project tab: it is never stored, logged or put in a URL.
 // Connect (TASK-155) flies the same profile with a SITL the user started; the
 // launcher owns only that connection, and Disconnect leaves the SITL running.
+// The flight view (TASK-185) shows the chosen profile's aircraft from the
+// moment it is chosen and flies it at the session's pose; the flight and
+// per-motor panels read the session at display rate.
 
 const MODE_NAMES: Readonly<Record<number, string>> = Object.fromEntries(Object.entries(CopterMode).map(([name, value]) => [value, name.toUpperCase()]));
 const STEP_TEXT = { prepare: "preparing the vehicle", firmware: "checking the ArduPilot build", physics: "loading the physics",
   launcher: "starting SITL", record: "saving the experiment record", connecting: "connecting to SITL",
   probing: "waiting for the SITL's JSON physics packets", version: "checking the SITL's ArduPilot version" } as const;
 const FLIGHT_TEXT = { arming: "Arming", climbing: "Taking off", flying: "Flying", landing: "Landing" } as const;
+const NO_LIMIT_EVENTS = (): readonly LimitEvent[] => [];
+
+/** The rotor layout of a stored profile version, or null when it does not validate. */
+function layoutOf(stored: StoredVersion | undefined): AircraftLayout | null {
+  if (!stored) return null;
+  try { return deriveLayout(readAircraftProfile(stored)); } catch { return null; }
+}
 
 /** The stage line for a run state; a connection says Connecting and Disconnecting. */
 export function stateText(state: RunState, ownership: Ownership = "launcher"): string {
@@ -59,6 +75,7 @@ export function RunPanel({ storeState, project, visible }: { storeState: StoreSt
   const [altitude, setAltitude] = useState("5");
   const [view, setView] = useState<ControllerView | null>(null);
   const [telemetry, setTelemetry] = useState<Telemetry>({ altitudeM: 0, simTimeS: 0 });
+  const [probe, setProbe] = useState("");
   const store = storeState.status === "ready" ? storeState.store : null;
   const projectId = project?.record.id ?? null;
 
@@ -142,6 +159,8 @@ export function RunPanel({ storeState, project, visible }: { storeState: StoreSt
     const session = freshSession();
     if (session) void session.next.connect({ prepare: session.prepare, endpoints, physicsHz: SITL_PHYSICS_HZ, home: DEFAULT_HOME, verifiedCommits: verifiedCommits() });
   };
+  const chosen = profiles.find(entry => entry.sha256 === profileSha);
+  const layout = useMemo(() => layoutOf(chosen), [chosen]);
   const status = view?.status ?? null;
   const stopAgain = failed?.restart.kind === "stop-again";
   const external = view?.ownership === "external";
@@ -193,6 +212,16 @@ export function RunPanel({ storeState, project, visible }: { storeState: StoreSt
         </button>
       </div>
       <ManualConnect disabled={busy || !profileSha} again={Boolean(failed) && external} onConnect={connect} onError={setError} />
+      {layout && chosen && (
+        <div className="flight-view-area" data-testid="flight-view" data-probe={probe}>
+          <FlightView runtime={runtime} layout={layout} name={chosen.record.name} active={visible}
+            onProbe={(next: FlightViewProbe) => setProbe(JSON.stringify(next))} />
+          <div className="flight-view-panels">
+            <FlightTelemetry runtime={runtime} />
+            <PowerPanel reader={runtime.current?.power ?? null} events={runtime.current?.limitEvents ?? NO_LIMIT_EVENTS} />
+          </div>
+        </div>
+      )}
       <dl className="sitl-status">
         <dt>Stage</dt><dd data-testid="sitl-stage" data-state={state.name} data-ownership={view?.ownership ?? "launcher"}>{stateText(state, view?.ownership)}</dd>
         <dt>Autopilot admission</dt>

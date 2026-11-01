@@ -107,6 +107,37 @@ test("the Run tab flies the quad X profile with native ArduCopter: READY, take-o
     expect(readings.length).toBeGreaterThan(3);
     expect(Math.min(...readings)).toBeGreaterThan(4.5);
     expect(Math.max(...readings)).toBeLessThan(5.5);
+
+    // TASK-185: in the hover, the flight view draws the aircraft at the session's altitude (render up = -down)
+    // with its trajectory, and the panels show the session's flight and per-motor values.
+    const view = panel.getByTestId("flight-view");
+    const probed = async () => {
+      const text = await view.getAttribute("data-probe");
+      const parsed: unknown = text ? JSON.parse(text) : null;
+      const at = field(parsed, "aircraft");
+      return { mode: field(parsed, "mode"), up: Array.isArray(at) ? Number(at[1]) : Number.NaN, trail: Number(field(parsed, "trailPoints")) };
+    };
+    await expect.poll(async () => (await probed()).up).toBeGreaterThan(4.5);
+    const hover = await probed();
+    expect(hover.up).toBeLessThan(5.5);
+    // One sample per 0.1 s of simulated time: the climb and more than 10 s of hover.
+    expect(hover.trail).toBeGreaterThan(100);
+    const flightAltitude = Number.parseFloat((await panel.getByTestId("flight-altitude").textContent()) ?? "NaN");
+    expect(Math.abs(flightAltitude - 5)).toBeLessThan(0.5);
+    // Every motor turns, and its current is a number: a decelerating motor may brake regeneratively, so one motor's
+    // current can be negative for a moment, while the pack as a whole supplies the hover.
+    for (let motor = 1; motor <= 4; motor++) {
+      const cells = panel.getByTestId(`power-motor-${motor}`).locator("td");
+      expect(Number.parseFloat((await cells.nth(0).textContent()) ?? "NaN"), `motor ${motor} speed`).toBeGreaterThan(1000);
+      expect(Number.isFinite(Number.parseFloat((await cells.nth(1).textContent()) ?? "NaN")), `motor ${motor} current`).toBe(true);
+    }
+    const packCurrent = panel.getByTestId("power-battery").locator("div", { hasText: "Current" }).locator("dd");
+    expect(Number.parseFloat((await packCurrent.textContent()) ?? "NaN")).toBeGreaterThan(0);
+    await panel.getByRole("radio", { name: "Onboard" }).check();
+    await expect.poll(async () => (await probed()).mode).toBe("onboard");
+    await panel.getByRole("radio", { name: "External" }).check();
+    await expect.poll(async () => (await probed()).mode).toBe("external");
+
     await panel.getByRole("button", { name: "Land" }).click();
     await expect(panel.getByTestId("sitl-mode")).toHaveText("LAND", { timeout: 30000 });
     // Landed: disarmed on the ground, and the run is READY again.

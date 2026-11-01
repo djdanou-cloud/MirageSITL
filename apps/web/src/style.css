@@ -154,6 +154,14 @@ html[data-g3="1"] .terrain-status { top: 12px; bottom: auto; left: 50%; transfor
 .form-errors li { font-size: 12px; color: #efbd8f; }
 .copy-form { margin-top: 12px; }
 .scheme-canvas { height: 360px; width: 100%; border: 1px solid #293541; border-radius: 6px; background: #0a141e; touch-action: none; }
+/* TASK-185: the Run tab's flight view with its flight and per-motor panels beside it (below it on narrow screens). */
+.flight-view-area { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 16px; margin: 16px 0; }
+.flight-view-canvas { height: 440px; width: 100%; border: 1px solid #293541; border-radius: 6px; background: #0a141e; touch-action: none; }
+.flight-view-mode { display: flex; gap: 16px; border: 0; padding: 0; margin: 0 0 8px; }
+.flight-view-panels { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.flight-telemetry dl { display: grid; grid-template-columns: auto auto; gap: 2px 12px; margin: 0; }
+.flight-telemetry dd { margin: 0; font-variant-numeric: tabular-nums; }
+@media (max-width: 900px) { .flight-view-area { grid-template-columns: minmax(0, 1fr); } .flight-view-canvas { height: 320px; } }
 .scheme-table { border-collapse: collapse; font-size: 12px; margin-top: 8px; }
 .scheme-table caption { text-align: left; color: #d6e2ea; padding-bottom: 4px; }
 .scheme-table th, .scheme-table td { text-align: left; padding: 3px 8px 3px 0; color: #a9bcc8; font-weight: 400; white-space: nowrap; }

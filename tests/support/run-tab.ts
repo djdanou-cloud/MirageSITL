@@ -37,6 +37,8 @@ const urls = {
 };
 const read = (path: string): string => readFileSync(new URL(path, import.meta.url), "utf8");
 const QUAD = read("../fixtures/aircraft/quad-x.json");
+/** The five S19 configurations (TASK-138 fixtures). */
+export const S19_FIXTURES = ["quad-x", "hexa-x", "octa-x", "coaxial-x8", "octa-coaxial-16"] as const;
 const CARDS = Object.fromEntries(["motor", "propeller", "esc", "battery"].map(type => [type, read(`../fixtures/components/${type}-example.json`)]));
 
 export interface SeededProject {
@@ -91,6 +93,49 @@ export async function seedQuadProject(page: Page, profileName: string, options: 
       store.close();
     }
   }, { urls, quad: QUAD, cards: CARDS, profileName, mirageOwned: options.mirageOwnedSensorErrors === true });
+  await page.reload();
+  return seeded;
+}
+
+/**
+ * Creates a project with the example cards and one profile per named S19
+ * fixture (named after the fixture), every motor on the example motor,
+ * propeller and ESC, and opens it on the Run tab after a reload.
+ */
+export async function seedProfiles(page: Page, fixtures: readonly (typeof S19_FIXTURES)[number][]): Promise<{ projectId: string; profiles: Record<string, string> }> {
+  const texts = Object.fromEntries(fixtures.map(name => [name, read(`../fixtures/aircraft/${name}.json`)]));
+  await page.goto("/");
+  const seeded = await page.evaluate(async ({ urls, texts, cards }) => {
+    const { ProjectStore } = await import(urls.store) as Store;
+    const { profileDraft, validateAircraftProfile, withPropellerPolars } = await import(urls.profile) as Profiles;
+    const { saveNavigation } = await import(urls.navigation) as Navigation;
+    const store = await ProjectStore.openIndexedDb();
+    try {
+      const project = await store.createProject("Flight view project");
+      const ids: Record<string, string> = {};
+      for (const [type, text] of Object.entries(cards)) {
+        const card: unknown = JSON.parse(text);
+        if (typeof card !== "object" || card === null) throw new Error(`Invalid ${type} card fixture`);
+        const values: unknown = Reflect.get(card, "values");
+        const provenance = Object.fromEntries(Object.entries(typeof values === "object" && values !== null ? values : {})
+          .map(([key, value]) => [key, value === null ? null : "example"]));
+        ids[type] = (await store.createItem(project.record.id, "component-card", { name: `Example ${type}`, payload: { ...card, provenance } })).sha256;
+      }
+      const propeller = ids.propeller, motor = ids.motor, esc = ids.esc, battery = ids.battery;
+      if (propeller === undefined || motor === undefined || esc === undefined || battery === undefined) throw new Error("A component card fixture is missing");
+      const profiles: Record<string, string> = {};
+      for (const [name, text] of Object.entries(texts)) {
+        const fixture = validateAircraftProfile(JSON.parse(text));
+        const profile = withPropellerPolars(validateAircraftProfile({ ...fixture, battery: { card: battery },
+          motors: fixture.motors.map(entry => ({ ...entry, components: { motor, propeller, esc } })) }), [{ card: propeller, polar: "naca6409-neuralfoil-v1" }]);
+        profiles[name] = (await store.createItem(project.record.id, "aircraft-profile", profileDraft(name, profile))).sha256;
+      }
+      await saveNavigation(store, { tab: "run", projectId: project.record.id });
+      return { projectId: project.record.id, profiles };
+    } finally {
+      store.close();
+    }
+  }, { urls, texts, cards: CARDS });
   await page.reload();
   return seeded;
 }

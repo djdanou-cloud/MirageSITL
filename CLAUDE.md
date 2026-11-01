@@ -290,7 +290,13 @@ implementation.
   commit, already holds the profile's parameters (nothing is written to it)
   and starts at the session's home, records it as experiment schema 2, and
   leaves it running across connect and disconnect cycles. All three pass in
-  Google Chrome 156 on the M5. Decisions D-04
+  Google Chrome 156 on the M5. TASK-185 is DONE: the Run tab's SITL
+  backend draws the chosen profile's aircraft in 3D (the Aircraft tab's own
+  rotor parts, blades turning with each motor's speed) at the session's pose,
+  with external and onboard views, a two-minute trajectory and flight and
+  per-motor panels; it holds 60 FPS on the M5 with no late frame, and A-06
+  now judges macOS by the median and no interval above 25 ms (stakeholder,
+  2026-11-01). Decisions D-04
   and D-06 to D-12 are decided. TASK-127 and TASK-128 are DONE: stock
   ArduCopter `8ab6afd` builds and flies natively on Apple Silicon
   ([macos-sitl.md](docs/decisions/macos-sitl.md)), and its stock frames and

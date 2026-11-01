@@ -6257,3 +6257,69 @@ ahead only when GLOBAL_POSITION_INT bounds the lead.
 user would and, through the Run tab alone, connects and disconnects twice to
 READY, refuses a SITL with built-in physics and one whose parameters differ,
 and finds each process still running afterwards.
+
+## Flight view in the Run tab (TASK-185)
+
+With the ArduPilot SITL backend, the Run tab shows the chosen aircraft
+profile in 3D from the moment the profile is chosen, and flies it at the
+physics session's pose during a run (S17). `apps/web/src/run/FlightView.tsx`
+draws the aircraft from the TASK-138 layout of the stored profile version
+with the Aircraft tab's own parts (`Rotor` and `Strut` of
+`AircraftScheme3D.tsx`, sized by `schemeDimensions`): the body with its
+forward cone, a strut to each arm's mean hub, and per rotor its motor number,
+a disc coloured by spin with a turning arrow, and its thrust axis. Each disc
+also carries a blade that turns about the thrust axis at a display rate that
+follows the motor's speed from power telemetry v1 (rows in the manifest's
+rotor order, which is the layout's motor order), capped at 4π rad/s at
+12,000 rev/min so that a 60 Hz display never shows it turning backwards.
+
+The scene reads the session only: each frame interpolates the pose between
+adjacent ticks of one epoch (`interpolatePoseInto`) and places the aircraft
+group, with no change to the physics. The views are:
+
+| View | Camera |
+|---|---|
+| External | follows the aircraft from behind, right and above, at an offset scaled to its span |
+| Onboard | TASK-067's `FpvCamera` at the front of the drawn body, looking along body forward, with a plain 90° lens: no fisheye and no analog effects |
+
+The trajectory keeps one sample per 0.1 s of simulated time for 120 s in a
+preallocated ring (`TrailBuffer`), restarted on a new session epoch; the
+route and its points are drawn when a flight task provides one (TASK-172),
+and the view says when none is loaded. The ground is the synthetic level pad
+and is labelled so; real terrain is TASK-186. Beside the view, the flight
+panel shows altitude above the pad, ground and vertical speed, roll, pitch
+and heading of the session's truth, and the TASK-146 power panel shows the
+battery and each motor's speed, current, power and command; both refresh
+every 250 ms, never per physics step.
+
+A probe reports, every 20 frames and only on change, the drawn rotors in the
+aircraft's own frame, the aircraft's position, the trail and route counts
+and the renderer's geometries, textures and programs, which the browser
+tests read.
+
+### Verification (TASK-185)
+
+`tests/browser/flight-view.spec.ts` compares the drawn rotors of all five
+S19 configurations with their layouts mapped to render axes in the test
+(position and thrust axis within 1e-6 m, motor number and spin), and switches
+between the external and onboard views 20 times, and away from the Run tab
+and back, with the renderer's geometries, textures and programs unchanged.
+`tests/browser/external-sitl.spec.ts` checks during the real ArduCopter hover
+that the drawn aircraft is at the session's altitude, the trail holds the
+climb and the hover, every motor shows its speed and the pack supplies
+current, and the onboard view switches in flight.
+`tests/flight-view-geometry.test.ts` covers the trail ring, the cameras, the
+blade rate and the flight values. `tests/browser/flight-view-frames.spec.ts`
+(opt-in, `MIRAGE_FRAME_TIME=1`) measures frame times against A-06 in visible
+full-screen Google Chrome on the real GPU during a SITL hover: 60 s of the
+external view and 30 s of the onboard view after 5 s of warmup each, the
+intervals between `requestAnimationFrame` callbacks, which Chrome paces to
+the display. On macOS it passes, per the A-06 amendment of 2026-11-01, with
+the median at most 16.680 ms and no interval above 25 ms, and reports the
+p99; elsewhere the median and p99 limits apply. On 2026-11-01, Google Chrome
+156.0.8078.80 on the M5 (Mac17,4, Apple M5 with 10 GPU cores, built-in
+display 1710 x 1107 points at 2x and 60 Hz, window filling the screen)
+measured 3,601 external-view intervals (median 16.665 ms, p95 17.660 ms, p99
+17.670 ms, maximum 17.680 ms) and 1,801 onboard-view intervals (median
+16.665 ms, p99 17.670 ms, maximum 17.675 ms): 60 frames per second with no
+skipped frame.
