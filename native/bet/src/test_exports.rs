@@ -105,6 +105,92 @@ pub extern "C" fn bet_test_blade(stations: u32, azimuth: u32, spin: i32, kind: u
         _ => f64::NAN,
     }
 }
+/// TASK-091 increment 3: the default rotor kernel (`Rotor::evaluate_sampled`
+/// at stride 1) against the scalar reference (`Rotor::evaluate`) inside this
+/// WASM build, so the scalar and SIMD128 builds each check the strip pass and
+/// its tails. A synthetic polar (25 irregular alpha nodes over +-0.5 rad, six
+/// Reynolds and two Mach nodes, some low-confidence cells) and a tapered,
+/// twisted rotor of `stations` strips are evaluated over 96 states (both spin
+/// directions, stopped and spinning shafts, axial, edgewise and oblique flow,
+/// body rates and cyclic). Returns the largest T1 ratio
+/// |a - b| / (1e-12 max(|a|, |b|) + 1e-15) over every vector component (at most
+/// 1 passes), or +inf when the flags or the error status differ.
+#[no_mangle]
+pub extern "C" fn bet_test_kernel_t1(stations: u32, azimuth: u32) -> f64 {
+    const NA: usize = 25;
+    const NR: usize = 6;
+    const COUNT: usize = NA * NR * 2;
+    let n = stations as usize;
+    if n == 0 || n > 64 {
+        return f64::NAN;
+    }
+    let mut alpha = [0.0; NA];
+    for (k, a) in alpha.iter_mut().enumerate() {
+        *a = -0.5 + k as f64 / (NA - 1) as f64 + 0.004 * (k as f64).sin();
+    }
+    let reynolds = [1e3, 3e3, 2e4, 1e5, 4e5, 1e6];
+    let mach = [0.0, 0.3];
+    let (mut cl, mut cd, mut confidence) = ([0.0; COUNT], [0.0; COUNT], [0.0; COUNT]);
+    for m in 0..2 {
+        for r in 0..NR {
+            for a in 0..NA {
+                let at = (m * NR + r) * NA + a;
+                let x = alpha[a];
+                cl[at] = 5.7 * x / (1.0 + 4.0 * x * x) * (1.0 + 0.02 * r as f64) * (1.0 + 0.1 * m as f64);
+                cd[at] = 0.01 + 0.4 * x * x + 0.05 / (1.0 + r as f64);
+                confidence[at] = if (a + 3 * r + m) % 11 == 0 { 0.5 } else { 0.95 };
+            }
+        }
+    }
+    let Ok(polar) = PolarTable::new(&alpha, &reynolds, &mach, &cl, &cd).and_then(|p| p.with_confidence(&confidence, 0.9)) else {
+        return f64::NAN;
+    };
+    let (radius_m, cutout_m) = (0.127, 0.0127);
+    let (mut radius, mut chord, mut twist, mut width) = ([0.0; 64], [0.0; 64], [0.0; 64], [0.0; 64]);
+    for k in 0..n {
+        width[k] = (radius_m - cutout_m) / n as f64;
+        radius[k] = cutout_m + (k as f64 + 0.5) * width[k];
+        chord[k] = 0.025 - 0.08 * (radius[k] - 0.06);
+        twist[k] = (0.1143 / (2.0 * std::f64::consts::PI * radius[k])).atan();
+    }
+    let mut worst = 0.0f64;
+    for spin in [1, -1] {
+        let geometry = RotorGeometry {
+            blade_count: 2, spin_sign: spin, radius_m, cutout_m,
+            radius: &radius[..n], chord: &chord[..n], twist: &twist[..n], width: &width[..n],
+        };
+        let Ok(rotor) = Rotor::new(geometry, polar, azimuth as usize) else { return f64::NAN };
+        for omega in [0.0, 150.0, 900.0] {
+            for induced in [-0.5, 2.5] {
+                for air in [Vec3::new(0.0, 0.0, 0.0), Vec3::new(0.3 * 530.0 * radius_m, 0.0, 0.0), Vec3::new(-4.0, 6.0, 0.0), Vec3::new(0.0, 0.0, -8.0)] {
+                    for (rate, cyclic) in [(Vec3::new(0.0, 0.0, 0.0), (0.0, 0.0)), (Vec3::new(2.0, -3.0, 0.5), (0.05, -0.08))] {
+                        let input = RotorInput {
+                            density_kg_m3: 1.225, viscosity_pa_s: 1.7894e-5, sound_speed_mps: 340.294,
+                            air_velocity_hub_mps: air, body_rate_hub_rad_s: rate, omega_rad_s: omega, induced_mps: induced,
+                            collective_rad: 0.1, cyclic_cos_rad: cyclic.0, cyclic_sin_rad: cyclic.1,
+                        };
+                        match (rotor.evaluate(input), rotor.evaluate_sampled(input, 1)) {
+                            (Ok(a), Ok(b)) => {
+                                if a.flags != b.flags {
+                                    return f64::INFINITY;
+                                }
+                                for (x, y) in [(a.force_n, b.force_n), (a.moment_nm, b.moment_nm), (a.flap_load_nm, b.flap_load_nm)] {
+                                    let scale = 1e-12 * x.norm().max(y.norm()) + 1e-15;
+                                    for d in [x.x - y.x, x.y - y.y, x.z - y.z] {
+                                        worst = worst.max(d.abs() / scale);
+                                    }
+                                }
+                            }
+                            (Err(_), Err(_)) => {}
+                            _ => return f64::INFINITY,
+                        }
+                    }
+                }
+            }
+        }
+    }
+    worst
+}
 /// case 0 inflow, 1 passive shaft, 2 hinge oscillator, 3 momentum transmission.
 #[no_mangle]
 pub extern "C" fn bet_test_dynamics(case: u32, steps: u32, dt: f64) -> f64 {

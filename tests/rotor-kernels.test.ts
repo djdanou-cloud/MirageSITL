@@ -18,6 +18,7 @@ interface Harness {
   ) => number;
   memory: WebAssembly.Memory;
   blade: (n: number, az: number, spin: number, kind: number) => number;
+  kernelT1: (n: number, az: number) => number;
   dynamics: (kind: number, steps: number, dt: number) => number;
 }
 function numericExport(
@@ -63,13 +64,15 @@ beforeAll(async () => {
       bet_test_dynamics: dynamics,
       bet_test_coaxial: wake,
       bet_test_propulsion: propulsion,
+      bet_test_kernel_t1: kernelT1,
     } = instance.exports;
     if (
       !(memory instanceof WebAssembly.Memory) ||
       !numericExport(blade) ||
       !numericExport(dynamics) ||
       !numericExport(wake) ||
-      !numericExport(propulsion)
+      !numericExport(propulsion) ||
+      !numericExport(kernelT1)
     )
       throw new Error("Missing numerical harness exports");
     // WebAssembly exports were instantiated locally from the pinned test-feature build.
@@ -79,6 +82,7 @@ beforeAll(async () => {
       coaxial: (d, overlap, enabled, quantity, n) =>
         Number(wake(d, overlap, enabled, quantity, n)),
       blade: (n, az, spin, kind) => Number(blade(n, az, spin, kind)),
+      kernelT1: (n, az) => Number(kernelT1(n, az)),
       dynamics: (kind, steps, dt) => Number(dynamics(kind, steps, dt)),
     });
   }
@@ -103,6 +107,17 @@ it("matches independent discrete annulus sums with SIMD tail counts and spin rev
         );
       }
   }
+});
+it("keeps the TASK-091 default rotor kernel within T1 of the reference for SIMD tails 1/3/5/63 in scalar and SIMD128 WASM", () => {
+  // T1, declared before implementation: every component within 1e-12 of its vector's norm
+  // (floor 1e-15) and identical flags; the export returns the largest ratio to that bound.
+  for (const module of modules)
+    for (const n of [1, 3, 5, 16, 63])
+      for (const az of [1, 3, 8]) {
+        const ratio = module.kernelT1(n, az);
+        expect(Number.isFinite(ratio), `${n} strips, ${az} azimuth samples`).toBe(true);
+        expect(ratio).toBeLessThanOrEqual(1);
+      }
 });
 it("matches analytic inflow, passive shaft, oscillator and inertial moment on scalar/SIMD WASM", () => {
   for (const module of modules)

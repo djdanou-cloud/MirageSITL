@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "benchmark": "bet-kernel",
   "task": "TASK-091",
-  "generatedAt": "2026-10-30T09:05:16.467Z",
+  "generatedAt": "2026-11-01T09:03:27.136Z",
   "vehicles": [
     {
       "fixture": "quad-x",
@@ -36,6 +36,11 @@
       400,
       800,
       1200
+    ],
+    "sections": [
+      "flight",
+      "rotor",
+      "native"
     ]
   },
   "kernelOptions": 3,
@@ -48,12 +53,12 @@
       "steps": 20000,
       "warmupSteps": 20000,
       "periodMs": 2.5,
-      "meanMs": 0.10164926739999174,
-      "p50Ms": 0.10497300000133691,
-      "p95Ms": 0.1576119999990624,
-      "p99Ms": 0.19618500000069616,
-      "maxMs": 2.5259160000023257,
-      "realtimeRatioAtMean": 24.594373023491197
+      "meanMs": 0.023161446499998375,
+      "p50Ms": 0.02291700000023411,
+      "p95Ms": 0.023290999999971973,
+      "p99Ms": 0.03308400000014444,
+      "maxMs": 0.07212500000014188,
+      "realtimeRatioAtMean": 107.93799083317941
     },
     {
       "variant": "scalar",
@@ -63,12 +68,12 @@
       "steps": 20000,
       "warmupSteps": 20000,
       "periodMs": 1.25,
-      "meanMs": 0.09348237855000098,
-      "p50Ms": 0.09030600000187405,
-      "p95Ms": 0.14843200000177603,
-      "p99Ms": 0.1818230000026233,
-      "maxMs": 9.295819000002666,
-      "realtimeRatioAtMean": 13.371504013790275
+      "meanMs": 0.022963362900000357,
+      "p50Ms": 0.022875000000567525,
+      "p95Ms": 0.023042000000714324,
+      "p99Ms": 0.024917000000641565,
+      "maxMs": 0.10612499999933789,
+      "realtimeRatioAtMean": 54.4345358057282
     },
     {
       "variant": "scalar",
@@ -78,12 +83,12 @@
       "steps": 20000,
       "warmupSteps": 20000,
       "periodMs": 0.8333333333333334,
-      "meanMs": 0.10543801280001334,
-      "p50Ms": 0.10378299999865703,
-      "p95Ms": 0.15950800000064191,
-      "p99Ms": 0.22135999999954947,
-      "maxMs": 3.629506000001129,
-      "realtimeRatioAtMean": 7.903537929095226
+      "meanMs": 0.022928660650001483,
+      "p50Ms": 0.022832999999991443,
+      "p95Ms": 0.023042000000714324,
+      "p99Ms": 0.02504199999930279,
+      "maxMs": 0.10670800000025338,
+      "realtimeRatioAtMean": 36.3446145439498
     },
     {
       "variant": "scalar",
@@ -93,12 +98,12 @@
       "steps": 20000,
       "warmupSteps": 20000,
       "periodMs": 2.5,
-      "meanMs": 0.16145710614999478,
-      "p50Ms": 0.13820700000360375,
-      "p95Ms": 0.2566189999997732,
-      "p99Ms": 0.3013040000005276,
-      "maxMs": 6.338499999998021,
-      "realtimeRatioAtMean": 15.483988655646302
+      "meanMs": 0.04494199224998938,
+      "p50Ms": 0.04470799999944575,
+      "p95Ms": 0.04645899999923131,
+      "p99Ms": 0.049082999999882304,
+      "maxMs": 0.574624999999287,
+      "realtimeRatioAtMean": 55.62726249637032
     },
     {
       "variant": "scalar",
@@ -108,12 +113,12 @@
       "steps": 20000,
       "warmupSteps": 20000,
       "periodMs": 1.25,
-      "meanMs": 0.17058508899998379,
-      "p50Ms": 0.14611600000353064,
-      "p95Ms": 0.2643120000066119,
-      "p99Ms": 0.32901700000365963,
-      "maxMs": 2.5273850000012317,
-      "realtimeRatioAtMean": 7.327721357873893
+      "meanMs": 0.04493805589999929,
+      "p50Ms": 0.04470799999944575,
+      "p95Ms": 0.04649999999855936,
+      "p99Ms": 0.04862499999944703,
+      "maxMs": 0.10858300000109011,
+      "realtimeRatioAtMean": 27.816067583823088
     },
     {
       "variant": "scalar",
@@ -123,12 +128,12 @@
       "steps": 20000,
       "warmupSteps": 20000,
       "periodMs": 0.8333333333333334,
-      "meanMs": 0.20812140854995959,
-      "p50Ms": 0.20670999999856576,
-      "p95Ms": 0.31004099999699974,
-      "p99Ms": 0.38845500000024913,
-      "maxMs": 8.286301000000094,
-      "realtimeRatioAtMean": 4.004073099155926
+      "meanMs": 0.044945443899989,
+      "p50Ms": 0.04474999999911233,
+      "p95Ms": 0.04650000000037835,
+      "p99Ms": 0.048499999998966814,
+      "maxMs": 0.07466699999895354,
+      "realtimeRatioAtMean": 18.54099684025008
     },
     {
       "variant": "scalar",
@@ -138,12 +143,12 @@
       "steps": 20000,
       "warmupSteps": 20000,
       "periodMs": 2.5,
-      "meanMs": 0.3428024095999528,
-      "p50Ms": 0.2832629999902565,
-      "p95Ms": 0.5444580000039423,
-      "p99Ms": 0.6302490000089165,
-      "maxMs": 5.7407620000012685,
-      "realtimeRatioAtMean": 7.292830884466293
+      "meanMs": 0.08867277490000415,
+      "p50Ms": 0.08837499999935972,
+      "p95Ms": 0.09129100000063772,
+      "p99Ms": 0.09479099999953178,
+      "maxMs": 0.11000000000058208,
+      "realtimeRatioAtMean": 28.193546472626323
     },
     {
       "variant": "scalar",
@@ -153,12 +158,12 @@
       "steps": 20000,
       "warmupSteps": 20000,
       "periodMs": 1.25,
-      "meanMs": 0.34440717410004074,
-      "p50Ms": 0.28260999999474734,
-      "p95Ms": 0.560631000000285,
-      "p99Ms": 0.7295519999897806,
-      "maxMs": 6.571293000000878,
-      "realtimeRatioAtMean": 3.6294249771838656
+      "meanMs": 0.08888830344999278,
+      "p50Ms": 0.08858300000065356,
+      "p95Ms": 0.09149999999863212,
+      "p99Ms": 0.09475000000020373,
+      "maxMs": 0.10554100000081235,
+      "realtimeRatioAtMean": 14.062592618872866
     },
     {
       "variant": "scalar",
@@ -168,12 +173,12 @@
       "steps": 20000,
       "warmupSteps": 20000,
       "periodMs": 0.8333333333333334,
-      "meanMs": 0.36779956509993134,
-      "p50Ms": 0.28827400000591297,
-      "p95Ms": 0.675998000006075,
-      "p99Ms": 0.7693920000019716,
-      "maxMs": 14.210468999997829,
-      "realtimeRatioAtMean": 2.265726804508092
+      "meanMs": 0.08883965445000358,
+      "p50Ms": 0.08845800000199233,
+      "p95Ms": 0.09133300000030431,
+      "p99Ms": 0.09466700000120909,
+      "maxMs": 0.5892079999975977,
+      "realtimeRatioAtMean": 9.380195572488518
     },
     {
       "variant": "simd128",
@@ -183,12 +188,12 @@
       "steps": 20000,
       "warmupSteps": 20000,
       "periodMs": 2.5,
-      "meanMs": 0.08354289445000176,
-      "p50Ms": 0.07205499999690801,
-      "p95Ms": 0.12719800000195391,
-      "p99Ms": 0.18161100000725128,
-      "maxMs": 8.21762700000545,
-      "realtimeRatioAtMean": 29.92474723863182
+      "meanMs": 0.019927561700009755,
+      "p50Ms": 0.019833999998809304,
+      "p95Ms": 0.02012499999909778,
+      "p99Ms": 0.021667000000888947,
+      "maxMs": 0.045959000002767425,
+      "realtimeRatioAtMean": 125.45438511921789
     },
     {
       "variant": "simd128",
@@ -198,12 +203,12 @@
       "steps": 20000,
       "warmupSteps": 20000,
       "periodMs": 1.25,
-      "meanMs": 0.07994614414989773,
-      "p50Ms": 0.0721029999840539,
-      "p95Ms": 0.12089000002015382,
-      "p99Ms": 0.16355699999257922,
-      "maxMs": 4.875597999984166,
-      "realtimeRatioAtMean": 15.635525806676432
+      "meanMs": 0.019914829350004038,
+      "p50Ms": 0.019874999998137355,
+      "p95Ms": 0.020000000000436557,
+      "p99Ms": 0.02033300000039162,
+      "maxMs": 0.03533400000014808,
+      "realtimeRatioAtMean": 62.76729657237794
     },
     {
       "variant": "simd128",
@@ -213,12 +218,12 @@
       "steps": 20000,
       "warmupSteps": 20000,
       "periodMs": 0.8333333333333334,
-      "meanMs": 0.08573178389990062,
-      "p50Ms": 0.07231600000523031,
-      "p95Ms": 0.14213500000187196,
-      "p99Ms": 0.17639400000916794,
-      "maxMs": 0.8209100000094622,
-      "realtimeRatioAtMean": 9.720237879411481
+      "meanMs": 0.019847570749995977,
+      "p50Ms": 0.019790999998804182,
+      "p95Ms": 0.01991700000144192,
+      "p99Ms": 0.020249999997759005,
+      "maxMs": 0.4144579999992857,
+      "realtimeRatioAtMean": 41.98666647068142
     },
     {
       "variant": "simd128",
@@ -228,12 +233,12 @@
       "steps": 20000,
       "warmupSteps": 20000,
       "periodMs": 2.5,
-      "meanMs": 0.19098105599991105,
-      "p50Ms": 0.1548789999797009,
-      "p95Ms": 0.30790599997271784,
-      "p99Ms": 0.4153140000125859,
-      "maxMs": 5.610308000002988,
-      "realtimeRatioAtMean": 13.090303574408786
+      "meanMs": 0.03882246710000909,
+      "p50Ms": 0.03858300000138115,
+      "p95Ms": 0.040374999996856786,
+      "p99Ms": 0.04175000000395812,
+      "maxMs": 0.055499999994935934,
+      "realtimeRatioAtMean": 64.39570142618305
     },
     {
       "variant": "simd128",
@@ -243,12 +248,12 @@
       "steps": 20000,
       "warmupSteps": 20000,
       "periodMs": 1.25,
-      "meanMs": 0.18039913924988069,
-      "p50Ms": 0.15158099998370744,
-      "p95Ms": 0.2709210000175517,
-      "p99Ms": 0.35137300001224503,
-      "maxMs": 4.4353790000022855,
-      "realtimeRatioAtMean": 6.9290796242024015
+      "meanMs": 0.039028416599996854,
+      "p50Ms": 0.0385420000020531,
+      "p95Ms": 0.04133400000137044,
+      "p99Ms": 0.05333299999620067,
+      "maxMs": 0.12404199999582488,
+      "realtimeRatioAtMean": 32.02794550471465
     },
     {
       "variant": "simd128",
@@ -258,12 +263,12 @@
       "steps": 20000,
       "warmupSteps": 20000,
       "periodMs": 0.8333333333333334,
-      "meanMs": 0.1696932878499574,
-      "p50Ms": 0.14756000001216307,
-      "p95Ms": 0.2524390000035055,
-      "p99Ms": 0.33564999999362044,
-      "maxMs": 5.203187000006437,
-      "realtimeRatioAtMean": 4.9108208338220525
+      "meanMs": 0.03883138310000395,
+      "p50Ms": 0.038708000000042375,
+      "p95Ms": 0.03920799999468727,
+      "p99Ms": 0.041875000002619345,
+      "maxMs": 0.055416999995941296,
+      "realtimeRatioAtMean": 21.460305217231593
     },
     {
       "variant": "simd128",
@@ -273,12 +278,12 @@
       "steps": 20000,
       "warmupSteps": 20000,
       "periodMs": 2.5,
-      "meanMs": 0.36932507220001864,
-      "p50Ms": 0.31640700000571087,
-      "p95Ms": 0.5627870000025723,
-      "p99Ms": 0.6440810000058264,
-      "maxMs": 4.352654000016628,
-      "realtimeRatioAtMean": 6.769104477819076
+      "meanMs": 0.07665630745000453,
+      "p50Ms": 0.076374999996915,
+      "p95Ms": 0.07899999999790452,
+      "p99Ms": 0.08224999999947613,
+      "maxMs": 0.10070900000573602,
+      "realtimeRatioAtMean": 32.6131023416502
     },
     {
       "variant": "simd128",
@@ -288,12 +293,12 @@
       "steps": 20000,
       "warmupSteps": 20000,
       "periodMs": 1.25,
-      "meanMs": 0.34962922940027347,
-      "p50Ms": 0.31095700000878423,
-      "p95Ms": 0.5134339999931399,
-      "p99Ms": 0.5880720000131987,
-      "maxMs": 4.454037999996217,
-      "realtimeRatioAtMean": 3.575215957041555
+      "meanMs": 0.07691030849998169,
+      "p50Ms": 0.07662499999423744,
+      "p95Ms": 0.07941700000083074,
+      "p99Ms": 0.08283300000039162,
+      "maxMs": 0.41758300000219606,
+      "realtimeRatioAtMean": 16.252697777181552
     },
     {
       "variant": "simd128",
@@ -303,12 +308,206 @@
       "steps": 20000,
       "warmupSteps": 20000,
       "periodMs": 0.8333333333333334,
-      "meanMs": 0.372340202400049,
-      "p50Ms": 0.31851199999800883,
-      "p95Ms": 0.5566069999767933,
-      "p99Ms": 0.7112539999943692,
-      "maxMs": 4.792080999992322,
-      "realtimeRatioAtMean": 2.2380965793158833
+      "meanMs": 0.0764864864499883,
+      "p50Ms": 0.07620899999892572,
+      "p95Ms": 0.07899999999790452,
+      "p99Ms": 0.08245799999713199,
+      "maxMs": 0.10574999999516876,
+      "realtimeRatioAtMean": 10.895170794362732
+    }
+  ],
+  "rotorTicks": [
+    {
+      "variant": "scalar",
+      "rotors": 8,
+      "hz": 400,
+      "steps": 20000,
+      "warmupSteps": 20000,
+      "periodMs": 2.5,
+      "meanMs": 0.041287843250002336,
+      "p50Ms": 0.041125000003376044,
+      "p95Ms": 0.041459000000031665,
+      "p99Ms": 0.04520800000318559,
+      "maxMs": 0.062000000005355105,
+      "realtimeRatioAtMean": 60.55051083347296,
+      "omegaRadS": 653.7862479670802,
+      "flags": 196
+    },
+    {
+      "variant": "scalar",
+      "rotors": 8,
+      "hz": 800,
+      "steps": 20000,
+      "warmupSteps": 20000,
+      "periodMs": 1.25,
+      "meanMs": 0.041265553049990196,
+      "p50Ms": 0.04112499999610009,
+      "p95Ms": 0.04141700000036508,
+      "p99Ms": 0.044291999998677056,
+      "maxMs": 0.3934579999986454,
+      "realtimeRatioAtMean": 30.291609044612017,
+      "omegaRadS": 653.7862479670765,
+      "flags": 196
+    },
+    {
+      "variant": "scalar",
+      "rotors": 8,
+      "hz": 1200,
+      "steps": 20000,
+      "warmupSteps": 20000,
+      "periodMs": 0.8333333333333334,
+      "meanMs": 0.04116914800000632,
+      "p50Ms": 0.04104199999710545,
+      "p95Ms": 0.04133400000137044,
+      "p99Ms": 0.04420900000695838,
+      "maxMs": 0.06254199999966659,
+      "realtimeRatioAtMean": 20.24169490544729,
+      "omegaRadS": 653.7862479670729,
+      "flags": 196
+    },
+    {
+      "variant": "scalar",
+      "rotors": 16,
+      "hz": 400,
+      "steps": 20000,
+      "warmupSteps": 20000,
+      "periodMs": 2.5,
+      "meanMs": 0.08238902889999372,
+      "p50Ms": 0.08208299999387236,
+      "p95Ms": 0.08483299999352312,
+      "p99Ms": 0.0879579999964335,
+      "maxMs": 0.12108399999851827,
+      "realtimeRatioAtMean": 30.343845938936543,
+      "omegaRadS": 653.7862479670802,
+      "flags": 196
+    },
+    {
+      "variant": "scalar",
+      "rotors": 16,
+      "hz": 800,
+      "steps": 20000,
+      "warmupSteps": 20000,
+      "periodMs": 1.25,
+      "meanMs": 0.08260896314999154,
+      "p50Ms": 0.08224999999947613,
+      "p95Ms": 0.08512500000506407,
+      "p99Ms": 0.08837499999935972,
+      "maxMs": 0.15166700000554556,
+      "realtimeRatioAtMean": 15.131529949485003,
+      "omegaRadS": 653.7862479670765,
+      "flags": 196
+    },
+    {
+      "variant": "scalar",
+      "rotors": 16,
+      "hz": 1200,
+      "steps": 20000,
+      "warmupSteps": 20000,
+      "periodMs": 0.8333333333333334,
+      "meanMs": 0.0824634245500245,
+      "p50Ms": 0.08220799999980954,
+      "p95Ms": 0.08504099999845494,
+      "p99Ms": 0.08816700000170385,
+      "maxMs": 0.10262499999953434,
+      "realtimeRatioAtMean": 10.105490256808475,
+      "omegaRadS": 653.7862479670729,
+      "flags": 196
+    },
+    {
+      "variant": "simd128",
+      "rotors": 8,
+      "hz": 400,
+      "steps": 20000,
+      "warmupSteps": 20000,
+      "periodMs": 2.5,
+      "meanMs": 0.03520988355001027,
+      "p50Ms": 0.03512500000942964,
+      "p95Ms": 0.03537500000675209,
+      "p99Ms": 0.03829100000439212,
+      "maxMs": 0.06070799998997245,
+      "realtimeRatioAtMean": 71.00279091946247,
+      "omegaRadS": 653.7862479670802,
+      "flags": 196
+    },
+    {
+      "variant": "simd128",
+      "rotors": 8,
+      "hz": 800,
+      "steps": 20000,
+      "warmupSteps": 20000,
+      "periodMs": 1.25,
+      "meanMs": 0.03501137259997558,
+      "p50Ms": 0.034916999997221865,
+      "p95Ms": 0.03512500000942964,
+      "p99Ms": 0.03795900000841357,
+      "maxMs": 0.1341249999968568,
+      "realtimeRatioAtMean": 35.70268478993799,
+      "omegaRadS": 653.7862479670765,
+      "flags": 196
+    },
+    {
+      "variant": "simd128",
+      "rotors": 8,
+      "hz": 1200,
+      "steps": 20000,
+      "warmupSteps": 20000,
+      "periodMs": 0.8333333333333334,
+      "meanMs": 0.03505487249992875,
+      "p50Ms": 0.03495800000382587,
+      "p95Ms": 0.03516699999454431,
+      "p99Ms": 0.03804200000013225,
+      "maxMs": 0.0816659999982221,
+      "realtimeRatioAtMean": 23.77225400933999,
+      "omegaRadS": 653.7862479670729,
+      "flags": 196
+    },
+    {
+      "variant": "simd128",
+      "rotors": 16,
+      "hz": 400,
+      "steps": 20000,
+      "warmupSteps": 20000,
+      "periodMs": 2.5,
+      "meanMs": 0.07021269714998561,
+      "p50Ms": 0.06983399999444373,
+      "p95Ms": 0.0725840000086464,
+      "p99Ms": 0.07583300000987947,
+      "maxMs": 0.09116700000595301,
+      "realtimeRatioAtMean": 35.606095499502004,
+      "omegaRadS": 653.7862479670802,
+      "flags": 196
+    },
+    {
+      "variant": "simd128",
+      "rotors": 16,
+      "hz": 800,
+      "steps": 20000,
+      "warmupSteps": 20000,
+      "periodMs": 1.25,
+      "meanMs": 0.07011029880001733,
+      "p50Ms": 0.069999999992433,
+      "p95Ms": 0.07074999999895226,
+      "p99Ms": 0.07291600000462495,
+      "maxMs": 0.0866669999959413,
+      "realtimeRatioAtMean": 17.829049674506464,
+      "omegaRadS": 653.7862479670765,
+      "flags": 196
+    },
+    {
+      "variant": "simd128",
+      "rotors": 16,
+      "hz": 1200,
+      "steps": 20000,
+      "warmupSteps": 20000,
+      "periodMs": 0.8333333333333334,
+      "meanMs": 0.0702583773499813,
+      "p50Ms": 0.07016700001258869,
+      "p95Ms": 0.07074999999895226,
+      "p99Ms": 0.07208399999944959,
+      "maxMs": 0.10437499999534339,
+      "realtimeRatioAtMean": 11.860981775628144,
+      "omegaRadS": 653.7862479670729,
+      "flags": 196
     }
   ],
   "native": [
@@ -317,20 +516,20 @@
       "steps": 100000,
       "warmupSteps": 20000,
       "production": {
-        "meanUs": 15.324418180000121,
-        "p50Us": 12.903,
-        "p95Us": 22.319,
-        "p99Us": 44.891,
-        "maxUs": 3174.53,
+        "meanUs": 3.5259955100005795,
+        "p50Us": 3.541,
+        "p95Us": 3.583,
+        "p99Us": 3.625,
+        "maxUs": 17.333,
         "omegaRadS": 653.7895235734738,
         "hubForceZN": 8.140544833658502
       },
       "reference": {
-        "meanUs": 58.650081740000026,
-        "p50Us": 42.887,
-        "p95Us": 108.085,
-        "p99Us": 150.943,
-        "maxUs": 6985.712,
+        "meanUs": 27.882956380001264,
+        "p50Us": 27.833,
+        "p95Us": 28,
+        "p99Us": 28.583,
+        "maxUs": 62.208,
         "omegaRadS": 653.789523573474,
         "hubForceZN": 8.1405448336585
       },
@@ -341,20 +540,20 @@
       "steps": 100000,
       "warmupSteps": 20000,
       "production": {
-        "meanUs": 17.052960939999952,
-        "p50Us": 13.342,
-        "p95Us": 23.287,
-        "p99Us": 54.04,
-        "maxUs": 2759.116,
+        "meanUs": 3.5480023700008303,
+        "p50Us": 3.542,
+        "p95Us": 3.584,
+        "p99Us": 3.666,
+        "maxUs": 19.792,
         "omegaRadS": 653.7895235734703,
         "hubForceZN": 8.140544833658424
       },
       "reference": {
-        "meanUs": 59.87829399999989,
-        "p50Us": 43.182,
-        "p95Us": 99.443,
-        "p99Us": 146.17,
-        "maxUs": 20808.215,
+        "meanUs": 27.96522495000038,
+        "p50Us": 27.875,
+        "p95Us": 28.083,
+        "p99Us": 30.916,
+        "maxUs": 54.625,
         "omegaRadS": 653.7895235734704,
         "hubForceZN": 8.14054483365843
       },
@@ -365,20 +564,20 @@
       "steps": 100000,
       "warmupSteps": 20000,
       "production": {
-        "meanUs": 15.436586470000009,
-        "p50Us": 12.914,
-        "p95Us": 21.492,
-        "p99Us": 46.022,
-        "maxUs": 2885.702,
-        "omegaRadS": 653.7895235734668,
-        "hubForceZN": 8.140544833658351
+        "meanUs": 3.5462014600009244,
+        "p50Us": 3.542,
+        "p95Us": 3.584,
+        "p99Us": 3.666,
+        "maxUs": 21.208,
+        "omegaRadS": 653.7895235734667,
+        "hubForceZN": 8.14054483365835
       },
       "reference": {
-        "meanUs": 66.84464576999933,
-        "p50Us": 59.295,
-        "p95Us": 113.45,
-        "p99Us": 153.971,
-        "maxUs": 4214.313,
+        "meanUs": 30.316770050001196,
+        "p50Us": 28.125,
+        "p95Us": 41.084,
+        "p99Us": 57.75,
+        "maxUs": 3087.5,
         "omegaRadS": 653.7895235734668,
         "hubForceZN": 8.140544833658351
       },
@@ -386,187 +585,297 @@
     }
   ],
   "comparison": {
-    "baseline": "test-results/bench/bet-baseline.json",
+    "baseline": "test-results/bench/bet-baseline-m5.json",
     "baselineCommit": "58116ba007897f1aa09005839bb36f63f5af356a",
     "wasm": [
       {
         "variant": "scalar",
         "fixture": "quad-x",
         "hz": 400,
-        "meanSpeedup": 3.333861596035672,
-        "p50Speedup": 2.7235860649530914,
-        "p99Speedup": 3.1621734587184824
+        "meanSpeedup": 6.339437923275409,
+        "p50Speedup": 6.199895274215104,
+        "p99Speedup": 6.450761697439685
       },
       {
         "variant": "scalar",
         "fixture": "quad-x",
         "hz": 800,
-        "meanSpeedup": 3.5054381315802736,
-        "p50Speedup": 3.1263814141809436,
-        "p99Speedup": 3.2198896728699125
+        "meanSpeedup": 6.391585023463387,
+        "p50Speedup": 6.200349726687594,
+        "p99Speedup": 8.725609021708257
       },
       {
         "variant": "scalar",
         "fixture": "quad-x",
         "hz": 1200,
-        "meanSpeedup": 2.996254532027343,
-        "p50Speedup": 2.7148858676405356,
-        "p99Speedup": 2.685661366132328
+        "meanSpeedup": 6.452366045637036,
+        "p50Speedup": 6.209959269416401,
+        "p99Speedup": 9.079746027016308
       },
       {
         "variant": "scalar",
         "fixture": "octa-x",
         "hz": 400,
-        "meanSpeedup": 3.8028814911969024,
-        "p50Speedup": 3.9021829573445124,
-        "p99Speedup": 3.6465065183185477
+        "meanSpeedup": 6.680414829630768,
+        "p50Speedup": 6.485595419271745,
+        "p99Speedup": 8.652873703726389
       },
       {
         "variant": "scalar",
         "fixture": "octa-x",
         "hz": 800,
-        "meanSpeedup": 3.637268908363025,
-        "p50Speedup": 3.7448807795897636,
-        "p99Speedup": 3.2481209177472103
+        "meanSpeedup": 6.680213756198269,
+        "p50Speedup": 6.480943007959802,
+        "p99Speedup": 8.814910025816761
       },
       {
         "variant": "scalar",
         "fixture": "octa-x",
         "hz": 1200,
-        "meanSpeedup": 2.9537112463965034,
-        "p50Speedup": 2.6191669489763565,
-        "p99Speedup": 2.998234029701951
+        "meanSpeedup": 6.680978458420935,
+        "p50Speedup": 6.482301676103282,
+        "p99Speedup": 8.845360825007509
       },
       {
         "variant": "scalar",
         "fixture": "octa-coaxial-16",
         "hz": 400,
-        "meanSpeedup": 3.8714068888801316,
-        "p50Speedup": 4.013556306501889,
-        "p99Speedup": 3.9893962544277377
+        "meanSpeedup": 6.768966017775983,
+        "p50Speedup": 6.612446959095385,
+        "p99Speedup": 8.461594455082471
       },
       {
         "variant": "scalar",
         "fixture": "octa-coaxial-16",
         "hz": 800,
-        "meanSpeedup": 3.540303133307606,
-        "p50Speedup": 3.8113336399995466,
-        "p99Speedup": 3.0215844792989697
+        "meanSpeedup": 6.742349082937804,
+        "p50Speedup": 6.587979634865937,
+        "p99Speedup": 8.505277044740758
       },
       {
         "variant": "scalar",
         "fixture": "octa-coaxial-16",
         "hz": 1200,
-        "meanSpeedup": 3.331487170238996,
-        "p50Speedup": 3.771051152756529,
-        "p99Speedup": 2.9183511135605635
+        "meanSpeedup": 6.494755744742444,
+        "p50Speedup": 6.5082638085466975,
+        "p99Speedup": 6.253066010379312
       },
       {
         "variant": "simd128",
         "fixture": "quad-x",
         "hz": 400,
-        "meanSpeedup": 3.531763791434566,
-        "p50Speedup": 3.6977586566408274,
-        "p99Speedup": 3.0339682066112577
+        "meanSpeedup": 7.158799234829156,
+        "p50Speedup": 7.157305636856156,
+        "p99Speedup": 7.086444824307392
       },
       {
         "variant": "simd128",
         "fixture": "quad-x",
         "hz": 800,
-        "meanSpeedup": 3.5797725536784935,
-        "p50Speedup": 3.649390456027614,
-        "p99Speedup": 3.4027036446889327
+        "meanSpeedup": 7.173446560309973,
+        "p50Speedup": 7.129962265327944,
+        "p99Speedup": 8.03496778638561
       },
       {
         "variant": "simd128",
         "fixture": "quad-x",
         "hz": 1200,
-        "meanSpeedup": 3.566768915680075,
-        "p50Speedup": 3.699582387641289,
-        "p99Speedup": 3.3184405362012743
+        "meanSpeedup": 7.196756341076598,
+        "p50Speedup": 7.189732707427011,
+        "p99Speedup": 7.495901234886575
       },
       {
         "variant": "simd128",
         "fixture": "octa-x",
         "hz": 400,
-        "meanSpeedup": 3.1961511554325095,
-        "p50Speedup": 3.4740733092918283,
-        "p99Speedup": 2.7161786021617225
+        "meanSpeedup": 7.486732372035615,
+        "p50Speedup": 7.515175077057328,
+        "p99Speedup": 7.242514969356521
       },
       {
         "variant": "simd128",
         "fixture": "octa-x",
         "hz": 800,
-        "meanSpeedup": 3.4973846952562555,
-        "p50Speedup": 3.590957970012393,
-        "p99Speedup": 3.384764907900275
+        "meanSpeedup": 7.460614170808113,
+        "p50Speedup": 7.53183539969702,
+        "p99Speedup": 5.668797930526823
       },
       {
         "variant": "simd128",
         "fixture": "octa-x",
         "hz": 1200,
-        "meanSpeedup": 3.654933961195458,
-        "p50Speedup": 3.637245865992497,
-        "p99Speedup": 3.591136600698735
+        "meanSpeedup": 7.487203193385964,
+        "p50Speedup": 7.495220626206901,
+        "p99Speedup": 7.211940297961823
       },
       {
         "variant": "simd128",
         "fixture": "octa-coaxial-16",
         "hz": 400,
-        "meanSpeedup": 3.3135669307798814,
-        "p50Speedup": 3.425711188366262,
-        "p99Speedup": 3.402025521640336
+        "meanSpeedup": 7.576495011566468,
+        "p50Speedup": 7.591371522355422,
+        "p99Speedup": 7.209726444089502
       },
       {
         "variant": "simd128",
         "fixture": "octa-coaxial-16",
         "hz": 800,
-        "meanSpeedup": 3.6028662204835054,
-        "p50Speedup": 3.5380743960991166,
-        "p99Speedup": 4.184715477014136
+        "meanSpeedup": 7.561673070133826,
+        "p50Speedup": 7.577487765689971,
+        "p99Speedup": 7.170052998059274
       },
       {
         "variant": "simd128",
         "fixture": "octa-coaxial-16",
         "hz": 1200,
-        "meanSpeedup": 3.2256886260422384,
-        "p50Speedup": 3.3818600241615906,
-        "p99Speedup": 3.3056882633305555
+        "meanSpeedup": 7.605702902570731,
+        "p50Speedup": 7.617210565550292,
+        "p99Speedup": 7.201642048223011
+      }
+    ],
+    "rotorTicks": [
+      {
+        "variant": "scalar",
+        "rotors": 8,
+        "hz": 400,
+        "meanSpeedup": 6.925696473621686,
+        "p50Speedup": 6.934127659395106,
+        "p99Speedup": 6.567797733800222
+      },
+      {
+        "variant": "scalar",
+        "rotors": 8,
+        "hz": 800,
+        "meanSpeedup": 7.009763618077251,
+        "p50Speedup": 6.941227964854584,
+        "p99Speedup": 8.936896054111067
+      },
+      {
+        "variant": "scalar",
+        "rotors": 8,
+        "hz": 1200,
+        "meanSpeedup": 6.965160314939377,
+        "p50Speedup": 6.966449003267981,
+        "p99Speedup": 6.735053947841917
+      },
+      {
+        "variant": "scalar",
+        "rotors": 16,
+        "hz": 400,
+        "meanSpeedup": 6.959713975344397,
+        "p50Speedup": 6.978192805526108,
+        "p99Speedup": 6.6684326613649585
+      },
+      {
+        "variant": "scalar",
+        "rotors": 16,
+        "hz": 800,
+        "meanSpeedup": 6.9171239803889755,
+        "p50Speedup": 6.935659574536129,
+        "p99Speedup": 6.61149646438274
+      },
+      {
+        "variant": "scalar",
+        "rotors": 16,
+        "hz": 1200,
+        "meanSpeedup": 6.954359294795649,
+        "p50Speedup": 6.96910276343967,
+        "p99Speedup": 6.646001338030673
+      },
+      {
+        "variant": "simd128",
+        "rotors": 8,
+        "hz": 400,
+        "meanSpeedup": 8.21171786152473,
+        "p50Speedup": 8.206405691269829,
+        "p99Speedup": 7.853229218088393
+      },
+      {
+        "variant": "simd128",
+        "rotors": 8,
+        "hz": 800,
+        "meanSpeedup": 8.254066007397745,
+        "p50Speedup": 8.252885414177353,
+        "p99Speedup": 7.943860478345295
+      },
+      {
+        "variant": "simd128",
+        "rotors": 8,
+        "hz": 1200,
+        "meanSpeedup": 8.247135949522374,
+        "p50Speedup": 8.243234739349722,
+        "p99Speedup": 7.90463172344434
+      },
+      {
+        "variant": "simd128",
+        "rotors": 16,
+        "hz": 400,
+        "meanSpeedup": 8.230395363755871,
+        "p50Speedup": 8.260660997133748,
+        "p99Speedup": 7.7928870005029625
+      },
+      {
+        "variant": "simd128",
+        "rotors": 16,
+        "hz": 800,
+        "meanSpeedup": 8.239813619221355,
+        "p50Speedup": 8.237500000704209,
+        "p99Speedup": 8.110935870744568
+      },
+      {
+        "variant": "simd128",
+        "rotors": 16,
+        "hz": 1200,
+        "meanSpeedup": 8.210103153627843,
+        "p50Speedup": 8.211951485880277,
+        "p99Speedup": 8.183161311936441
       }
     ],
     "native": [
       {
         "hz": 400,
-        "meanSpeedup": 3.275249294325961,
-        "p50Speedup": 3.328760753313183,
-        "p99Speedup": 2.4953108640930255
+        "meanSpeedup": 7.991389657213742,
+        "p50Speedup": 7.931092911606891,
+        "p99Speedup": 8.574896551724137
       },
       {
         "hz": 800,
-        "meanSpeedup": 2.9129994529853125,
-        "p50Speedup": 3.1939739169539796,
-        "p99Speedup": 2.0174500370096227
+        "meanSpeedup": 8.012981293469036,
+        "p50Speedup": 7.999435347261435,
+        "p99Speedup": 8.558374249863611
       },
       {
         "hz": 1200,
-        "meanSpeedup": 3.4756097932834904,
-        "p50Speedup": 3.3184141242062877,
-        "p99Speedup": 2.6997740211203336
+        "meanSpeedup": 7.985992944685131,
+        "p50Speedup": 7.975719932241672,
+        "p99Speedup": 8.524277141298418
       }
     ]
   },
   "identity": {
-    "commit": "e28e71435f6c799d46e439f66aab86bc8c760566",
+    "commit": "e7d09a98a28e28299a1e37a6611e28f4178e70bf",
     "dirty": true,
-    "node": "v24.22.2",
-    "platform": "linux",
-    "arch": "x64",
-    "cpu": "Intel(R) Xeon(R) Processor @ 2.80GHz",
-    "cpus": 4,
+    "node": "v24.22.1",
+    "platform": "darwin",
+    "arch": "arm64",
+    "cpu": "Apple M5",
+    "cpus": 10,
     "rustc": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+    "loadAverage": {
+      "start": [
+        1.251953125,
+        1.6162109375,
+        3.0634765625
+      ],
+      "end": [
+        1.349609375,
+        1.55224609375,
+        2.89111328125
+      ]
+    },
     "wasmSha256": {
-      "scalar": "0faa9237d88a64b929d3a45c38abd4cd1db8cb0f9023978e9f0bbdbc2a3d821e",
-      "simd128": "53ece8cf321e86a997e4c76539d46f579a7ac312b35f80223d3c046d78921e9e"
+      "scalar": "906011473ab3e49338f0c5e6a63a4c91dbf553e87d6f2cc56a8df698e3e57f13",
+      "simd128": "89f809635c93becb206a28cb3f3b0022c45484ff7a31bf0559eb776176cb980f"
     },
     "sourceInputs": [
       {
@@ -883,7 +1192,7 @@
       },
       {
         "file": "packages/aircraft/src/resolve-components.ts",
-        "sha256": "b98917841b685d26352362cb61c1fb84c74e9fe50af178333e395a32a56ba673"
+        "sha256": "cba37aed432c4696b1194cce5159a15cd381aa236e83bc0d0f89d4272c83dfc5"
       },
       {
         "file": "packages/aircraft/src/sensor-config.schema.json",
@@ -1175,7 +1484,7 @@
       },
       {
         "file": "packages/physics/src/bet-dynamics.ts",
-        "sha256": "04ce97e70d9b861f993fccc26783e0bc3e753b16d348d0f479981d921be5a109"
+        "sha256": "bfd7bb5041ea0b52fc556c7ac671f44d11a0a63df9f0ed0ce1d6ab267ee47a7b"
       },
       {
         "file": "packages/physics/src/drive.ts",
@@ -1184,6 +1493,10 @@
       {
         "file": "packages/physics/src/frame.ts",
         "sha256": "70ccd4a728aa5dc86157c06ca866994e83f086171de1d08654aa4aed967a4d9e"
+      },
+      {
+        "file": "packages/physics/src/limit-monitor.ts",
+        "sha256": "08c09d117d08b73f0292d1cf929cd40fa02efa488e957ac2175ac1036b99bd79"
       },
       {
         "file": "packages/physics/src/model-manifest.ts",
@@ -1199,7 +1512,7 @@
       },
       {
         "file": "packages/physics/src/profile-dynamics.ts",
-        "sha256": "eb42183ae911ef704465ef8a205c0b828cec7070595fbfdc320ef1345fcdf439"
+        "sha256": "45ccfe8dcfda2ca552d5c1ef506229f533a72b59fbccd20bde07ad072c14f9de"
       },
       {
         "file": "packages/physics/src/vehicle-manifest.ts",
@@ -1483,7 +1796,7 @@
       },
       {
         "file": "packages/protocol/src/index.ts",
-        "sha256": "1dea63f8d0751a69db5a884bbc8fd3fa3279aea3f33c0d86696d8f0f6e955fdc"
+        "sha256": "39ce55bf6e239d73afdbf058395fa337809e25ba3eb61b009db1df3a007f74c7"
       },
       {
         "file": "packages/protocol/src/interpolation.ts",
@@ -1496,6 +1809,10 @@
       {
         "file": "packages/protocol/src/pilot-v2.ts",
         "sha256": "77fa4d148443d9b5e9d8a6240e2debfc4d6cc75b7d680de66849aa07ed89da3c"
+      },
+      {
+        "file": "packages/protocol/src/power-v1.ts",
+        "sha256": "a84156561bbb3b5ca3ba2136249bb6c39fa40a576763829d06d17f0013b59ff7"
       },
       {
         "file": "packages/protocol/src/sensor-frame.ts",
@@ -1523,11 +1840,11 @@
       },
       {
         "file": "packages/wasm-bet/src/rotor.ts",
-        "sha256": "1503a8ef01bf24dbd556d3dd9ca7b8995e0f6dd87b6907526d442d05598a1818"
+        "sha256": "81d4cabd4d7e5fd52f152204de234d93a35802c1a3ec3d6a298f55755aaaaa6c"
       },
       {
         "file": "scripts/bench-bet.mjs",
-        "sha256": "ce9f6dc4c6ac615698690955ed038e97706a907245716417eb235aed9f0600d3"
+        "sha256": "e08cfe43ebccb938e7a87e0bd070f67b1d3730d4e0c4de020740dd17ebe6c2d0"
       },
       {
         "file": "tests/support/hover-trim.ts",
@@ -1535,5 +1852,5 @@
       }
     ]
   },
-  "scope": "Node/V8 single-threaded compute of BetFlightDynamics, and native compute of one bound-rotor step; not browser Worker, session or target-hardware timing"
+  "scope": "Node/V8 single-threaded compute of BetFlightDynamics flight steps and of BetRotorEngine rotor ticks, and native compute of one bound-rotor step; not browser Worker, session or target-hardware timing"
 }
