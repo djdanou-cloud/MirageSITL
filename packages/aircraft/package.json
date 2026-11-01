@@ -18,7 +18,8 @@
     "./sensor-ownership": "./src/sensor-ownership.ts",
     "./sensor-parameters": "./src/sensor-parameters.ts",
     "./output-mapping": "./src/output-mapping.ts",
-    "./frame-parameters": "./src/frame-parameters.ts"
+    "./frame-parameters": "./src/frame-parameters.ts",
+    "./experiment": "./src/experiment.ts"
   },
   "dependencies": {
     "@mirage/autopilot": "0.1.0",

@@ -4113,8 +4113,10 @@ kept.
 * Deleting projects or versions, and garbage collection of unreferenced
   records.
 * References to artifacts outside the store, such as the ArduPilot build or
-  terrain data. The tasks that add them to experiments (TASK-154, TASK-165
-  and TASK-186) extend the dependency model with a schema version bump.
+  terrain data. TASK-154 records the ArduPilot build's identity (catalog ID,
+  version, commit and file hashes) as experiment payload data, not as a
+  dependency (user decision of 2026-11-01); TASK-165 and TASK-186 decide
+  whether their artifacts need a dependency-model change.
 * Binary attachments and recordings (TASK-140, TASK-162 and TASK-164).
 * Mutable user-interface state. It lives in local settings, outside the
   records and the archives.
@@ -4913,7 +4915,8 @@ configuration (`null` stays `null`), its resolution, its ownership matrix, the
 mapping version and the sources of every referenced preset, deep-frozen. The
 experiment record of TASK-154 and TASK-165 embeds it verbatim from its exact
 aircraft-profile dependency; the project store already fixes an experiment's
-inputs after version 1.
+inputs after version 1. The record is described in "Experiment record" of
+the TASK-154 section.
 
 ### Verification (TASK-143)
 
@@ -5974,3 +5977,133 @@ flying means the climb has settled within 0.5 m of the target below 0.3 m/s
 vertical speed, and landed means disarmed after LAND. The Run tab's ArduPilot SITL backend
 (`apps/web/src/run/SitlFlight.tsx`) takes the launcher's port and token for
 the page only, and the session keeps running while the page is hidden.
+
+## Experiment start, stop and failures (TASK-154)
+
+### Run states
+
+`SessionController` (`apps/web/src/run/session-controller.ts`) is a pure state
+machine on four injected ports: the launcher, the physics Worker, the
+experiment record store and a clock. The Run panel
+(`apps/web/src/run/RunPanel.tsx`) only renders its state. The states are a
+discriminated union:
+
+| State | Entered on | Left on |
+|---|---|---|
+| idle | first view; a completed user Stop | Start |
+| starting | Start: prepare, firmware, physics, launcher, record, connecting | ArduPilot's first heartbeat; a failure; Stop |
+| loading parameters | the first heartbeat from system 1, component 1 with autopilot 3: PARAM_REQUEST_LIST is sent | the list is complete and every generated parameter reads back; a mismatch, an absent name or 30 s of simulated time |
+| warming | parameters confirmed while READY is false; READY revoked | READY |
+| ready | READY from the Worker's LiveEkfWarmup | Take off; READY revoked |
+| running | Take off: arming, climbing, flying (within 0.5 m of the target below 0.3 m/s), landing | disarmed after LAND, back to ready or warming |
+| paused | none yet: synchronized pause and its control are TASK-156 | — |
+| stopping | a user Stop, or any failure once the launcher owns a run | the launcher's stop answer |
+| failed | a failure, after stopping when a run was owned | Start again, or Stop again after a failed stop |
+
+Every Start, a restart included, is a new launcher experiment with a new
+record and a fresh physics Worker; changing the profile, the build or the
+speed therefore always means a new run. Stop cancels a start in any step: a
+run the launcher reports after the Stop is stopped at once. A failure after
+the launcher owns a run silences the ground-station beat and the bridge,
+stops the run, collects the launcher's run state, exit code, signal, exit
+reason, stdout and stderr tails and DataFlash list, and only then shows
+failed, so a failed state never leaves an owned process. A READY loss in
+flight is shown as a warning. The ground station sends only while the
+Worker's bridge socket is open, and the first heartbeat must arrive within
+60 s of wall time.
+
+Each failure has a reason kind, its text and a restart path:
+
+| Reason | Text begins | Restart |
+|---|---|---|
+| vehicle | The aircraft profile cannot run | fix the profile, then Start again |
+| firmware | ArduPilot build … cannot be started | reinstall or choose another build |
+| launcher-unreachable | No MirageSITL launcher answered on 127.0.0.1:port | start the launcher or check the port |
+| launcher-foreign | Port … answers, but not as the MirageSITL launcher | enter the launcher's port |
+| launcher-refused | The launcher refused the run | Start again |
+| physics | The physics session could not be prepared | Start again |
+| record | The experiment record could not be saved | Start again |
+| no-heartbeat | SITL started but sent no heartbeat | Start again |
+| parameters | ArduPilot did not confirm the initial parameters | Start again |
+| sitl-ended | SITL ended (while starting, during EKF warmup, …) with the launcher's exit reason | Start again |
+| bridge-lost | The bridge to SITL closed … while SITL kept running | Start again |
+| sitl-restarted | SITL restarted on its own | Start again |
+| stop-failed | Stopping SITL failed | Stop again, which ends as the stop was meant to |
+
+A program on the launcher's port that does not answer CORS reads as
+launcher-unreachable in Chromium, which reports a failed preflight as a
+network error; launcher-foreign needs an answer the browser may read.
+
+### Experiment record
+
+`packages/aircraft/src/experiment.ts` defines experiment payload schema 1 in
+record envelope v1, and the application registers `validateExperiment` for
+the `experiment` kind. The record has exactly one dependency, its
+aircraft-profile version, and the payload holds:
+
+| Field | Content |
+|---|---|
+| profile | SHA-256, item ID, version and name of the profile version |
+| ardupilot | the launcher catalog ID, firmware version, commit, binary SHA-256 and default-parameter SHA-256 of the build that ran, as the launcher's view reports them |
+| launcher | the launcher experiment ID, which names `experiments/<id>/` |
+| session | physics rate (800 or 1200 Hz), `sitl-lockstep`, speed-up, home, model ID, manifest SHA-256 and BET module SHA-256 |
+| parameters | exactly the list sent to the launcher, in its order, each tagged frame, output, pwm or sensor |
+| frameScript | the Lua of a scripting-matrix frame, or null |
+| sensors | `sensorSnapshot()` of the profile version, verbatim |
+
+`createExperimentRecord` recomputes the snapshot from the stored profile
+version and requires canonical-byte equality, cross-checks the frame and
+output parameters, the frame script and the manifest against that version, and
+writes the record once, after the launcher has started SITL and before the
+bridge connects; no unrecorded run flies. A start the launcher refuses writes
+no record. Run outcomes (failures, exit codes) stay in the launcher's
+experiment view and logs; the record holds only inputs, which the store fixes
+after version 1. In the worst Phase 1 case, the 16-motor octa with its
+scripting-matrix Lua, every preset cited and 206 parameters, the record
+encodes to 26,226 bytes against the 1 MiB limit.
+
+### Initial parameters and read-back
+
+`prepareVehicle` (`apps/web/src/sitl/sitl-run.ts`) builds the frame and output
+parameters (TASK-142), MOT_PWM_MIN and MOT_PWM_MAX, and the ArduPilot-owned
+sensor parameters of `sensorRuntime` (TASK-147) with the launcher's home
+altitude, the stock compass offsets and the aircraft's CG; the names must be
+disjoint. A profile that sets any MirageSITL-owned sensor error term (IMU
+noise, bias, latency, position or orientation; battery measurement errors) is
+refused at start with the terms named, because the browser path does not apply
+them on the JSON line yet (user decision of 2026-11-01); any stored value
+counts, a neutral one included. `ParameterReadback`
+(`packages/autopilot/src/parameter-readback.ts`) collects PARAM_VALUE by
+index against param_count and compares each generated value as float32; a
+name the complete list lacks is accepted only under the absent rule of the
+pinned ArduPilot catalog, which `scripts/check-sitl-sensors.mjs` now imports
+from it.
+
+### Launcher changes
+
+`POST /v1/experiments` checks the body, the build, the one running
+experiment and the build's files before it creates anything, so a refused
+start leaves no experiment and no folder; a spawn failure answers 500 with
+the experiment ID. An experiment's view reports the build identity without
+machine paths, the state `starting` or `start-failed` (with `startError`)
+around a launch, and ports only while a bridge is open. A run's `reason` is
+null after a requested stop and otherwise `exit code N` or `killed by
+SIGNAL`, followed by the last stderr line. `closeBridge(experimentId)` on the
+object `startLauncher` returns ends a run's bridge and relay without stopping
+SITL; no HTTP route reaches it, and it exists only to inject bridge loss in
+tests (user decision of 2026-11-01).
+
+### Verification (TASK-154)
+
+`tests/run-controller.test.ts` drives the controller on scripted ports and on
+a real launcher with the shared fake SITL (`tests/support/fake-sitl.mjs`,
+`tests/support/fake-firmware.ts`): every transition, Stop from every state,
+each failure kind with its restart, and the record payload.
+`tests/experiment-record.test.ts`, `tests/parameter-readback.test.ts` and
+`tests/launcher.test.ts` cover the record, the read-back and the launcher.
+`tests/browser/run-panel.spec.ts` runs the four DoD faults through the Run
+tab with the installed ArduCopter behind a wrapper: a missing binary, a busy
+port (a fake SITL that cannot bind a held port, and a program that is not the
+launcher on its port), SITL killed during EKF warmup, and bridge loss; each
+shows its reason and diagnostic log, leaves no owned process and reaches READY
+again on Start again.

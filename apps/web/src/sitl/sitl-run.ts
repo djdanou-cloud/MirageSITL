@@ -1,24 +1,34 @@
-// Integrated ArduPilot SITL run from the Run tab (TASK-153). Main prepares
-// the vehicle from a stored aircraft profile version and its component cards,
-// gives the physics Worker the BET module, the derived manifest and its
-// ratings, loads the model in sitl-lockstep, starts an owned SITL run through
-// the local launcher, connects the Worker to that run's bridge, and acts as
-// the ground station: heartbeat, telemetry stream requests, mode, arm,
-// take-off and land. The autopilot's own heartbeat, acknowledgements and
-// status text are shown as they arrive; READY comes from the Worker's
+// Integrated ArduPilot SITL run from the Run tab (TASK-153, TASK-154): what
+// Main prepares and talks to. prepareVehicle turns a stored aircraft profile
+// version and its component cards into the derived manifest, ratings, initial
+// parameters and sensor snapshot; LauncherClient is the launcher API (TASK-151)
+// with validated answers; RuntimePhysics gives the physics Worker the BET
+// module, the manifest and its ratings, loads the model in sitl-lockstep and
+// connects the Worker to the run's bridge. The run states and the ground
+// station are in ../run/session-controller.ts. READY comes from the Worker's
 // LiveEkfWarmup only.
+//
+// TASK-154: the initial parameters carry their source (frame, output, PWM or
+// the ArduPilot-owned sensor parameters of TASK-147), and a profile that sets
+// a MirageSITL-owned sensor error is refused, because this path does not
+// apply those errors on the JSON line yet.
 import { readComponentCard, type ComponentCard } from "@mirage/aircraft/components";
-import { deriveVehicleManifest, type DerivedVehicleManifest } from "@mirage/aircraft/derive-manifest";
-import { frameConfiguration, type ParameterValue } from "@mirage/aircraft/frame-parameters";
-import { profileDependencies, readAircraftProfile } from "@mirage/aircraft/profile";
+import { combineMassProperties, deriveVehicleManifest, type DerivedVehicleManifest } from "@mirage/aircraft/derive-manifest";
+import { FRAME_PARAMETER_NAMES, frameConfiguration, type ParameterValue } from "@mirage/aircraft/frame-parameters";
+import { profileDependencies, readAircraftProfile, type AircraftProfile } from "@mirage/aircraft/profile";
 import { componentRatings, resolveComponents } from "@mirage/aircraft/resolve-components";
-import { CopterMode, GroundStation, MavCommand } from "@mirage/autopilot/ground-station";
-import { MavParser, type MavFrame } from "@mirage/mavlink/codec";
+import { sensorField, type Vector3 } from "@mirage/aircraft/sensor-fields";
+import { resolveSensorConfiguration, sensorSnapshot, type SensorSnapshot } from "@mirage/aircraft/sensor-ownership";
+import { sensorRuntime, STOCK_COMPASS_OFFSETS_MILLIGAUSS } from "@mirage/aircraft/sensor-parameters";
+import { parseArduPilotCatalog, type ArduPilotCatalog } from "@mirage/autopilot/error-ownership";
+import catalogFile from "../../../../tests/fixtures/sitl/ardupilot-catalog.json" with { type: "json" };
+import { catalogAbsentRule, type AbsentRule } from "@mirage/autopilot/parameter-readback";
 import type { LimitRatings } from "@mirage/physics/limit-monitor";
 import type { StoredVersion } from "@mirage/project/schema";
 import type { ProjectStore } from "@mirage/project/store";
 import type { SimulationRuntime } from "../runtime";
-import type { SitlStatus } from "./bridge-client";
+import { LauncherError, type CatalogEntry, type LauncherExperiment, type LauncherLogs, type LauncherPort, type LauncherRunState, type PhysicsPort,
+  type PreparedRun, type StartSpec } from "../run/session-controller";
 
 /** Model ID of the vehicle an integrated session loads. */
 export const SITL_MODEL_ID = 153;
@@ -26,25 +36,83 @@ export const SITL_MODEL_ID = 153;
 export const SITL_PHYSICS_HZ = 800;
 /** The link maps 1000-2000 us to ESC duty 0-1; the autopilot's PWM range is pinned to the same span. */
 const PWM_PARAMETERS: readonly ParameterValue[] = [{ name: "MOT_PWM_MIN", value: 1000 }, { name: "MOT_PWM_MAX", value: 2000 }];
-/** EKF_STATUS_REPORT, GPS_RAW_INT and GLOBAL_POSITION_INT at 10 Hz: LiveEkfWarmup needs GPS within 0.3 s of the IMU. */
-const STREAMS: readonly (readonly [number, number])[] = [[193, 100000], [24, 100000], [33, 100000]];
 /** Default home: ArduPilot's SITL test site (CMAC, Canberra), as the launcher tests use. */
 export const DEFAULT_HOME: readonly [number, number, number, number] = [-35.363261, 149.16523, 584, 0];
+
+/** Where an initial parameter comes from: the frame, a motor output's function, the PWM range, or a sensor configuration. */
+export type ParameterSource = "frame" | "output" | "pwm" | "sensor";
+export interface TaggedParameter extends ParameterValue { readonly source: ParameterSource }
 
 export interface PreparedVehicle {
   readonly profileName: string;
   readonly profileSha256: string;
   readonly derived: DerivedVehicleManifest;
   readonly ratings: LimitRatings;
-  readonly parameters: readonly ParameterValue[];
+  /** Every initial parameter in launch order: frame and output, PWM, then sensor; names are unique. */
+  readonly parameters: readonly TaggedParameter[];
   readonly frameScript: string | null;
+  /** The sensor section of the stored profile version, as an experiment record copies it. */
+  readonly sensorSnapshot: SensorSnapshot;
   /** 1-based servo output of every rotor, in rotor order. */
   readonly motorChannels: readonly number[];
+}
+
+let arduPilotCatalog: ArduPilotCatalog | null = null;
+/**
+ * The pinned-source ArduPilot catalog (TASK-089), parsed once on first use.
+ * A static JSON import, as frame-parameters.ts reads frames.json: Vite's dev
+ * server serves a dynamic JSON import as a JavaScript module, which Chromium
+ * refuses under the JSON import attribute.
+ */
+function pinnedArduPilotCatalog(): ArduPilotCatalog {
+  arduPilotCatalog ??= parseArduPilotCatalog(catalogFile);
+  return arduPilotCatalog;
+}
+
+/** The frame parameters TASK-142 emits: SERVOn_FUNCTION sets an output, every other name the frame. */
+function frameSource(name: string): ParameterSource {
+  if (!FRAME_PARAMETER_NAMES.has(name)) throw new Error(`${name} is not a frame parameter`);
+  return /^SERVO[0-9]+_FUNCTION$/.test(name) ? "output" : "frame";
+}
+
+/**
+ * Refuses a sensor configuration that specifies a MirageSITL-owned error
+ * (IMU noise, bias, latency, position or orientation; battery measurement
+ * errors). TASK-147 applies those on the JSON state line through
+ * ConfiguredImu and ConfiguredBattery in the native driver, but this run path
+ * sends the truth, so the run would silently lack them. Any stored value
+ * counts, a neutral one (an explicit zero, or an IMU position at the CG)
+ * included: the profile configures the term, and this path applies none.
+ */
+function refuseMirageSensorErrors(profile: AircraftProfile): void {
+  const owned = resolveSensorConfiguration(profile.sensorConfiguration).fields
+    .filter(field => field.owner === "mirage" && field.effective.kind === "specified").map(field => `${sensorField(field.path).label} (${field.path})`);
+  if (owned.length > 0) {
+    throw new Error(`The Run tab does not apply MirageSITL-owned sensor errors yet; clear ${owned.join(", ")} in the Sensors tab, or use Ideal`);
+  }
+}
+
+/** Throws when two initial parameters share a name: the frame, PWM and sensor names must be disjoint. */
+export function requireUniqueNames(parameters: readonly TaggedParameter[]): void {
+  const sources = new Map<string, ParameterSource>();
+  for (const parameter of parameters) {
+    const earlier = sources.get(parameter.name);
+    if (earlier !== undefined) throw new Error(`${parameter.name} is generated twice, as a parameter of sources ${earlier} and ${parameter.source}`);
+    sources.set(parameter.name, parameter.source);
+  }
+}
+
+/** The CG of the aircraft with its payload, body FRD metres. */
+function cgBodyM(profile: AircraftProfile): Vector3 {
+  const [x, y, z, ...rest] = combineMassProperties(profile.massProperties, profile.payload).cgOffsetBodyM;
+  if (x === undefined || y === undefined || z === undefined || rest.length > 0) throw new Error("The profile's CG is not a 3-vector");
+  return [x, y, z];
 }
 
 /** Resolves a stored profile version and the exact card versions it names into what an integrated session needs. */
 export async function prepareVehicle(store: ProjectStore, stored: StoredVersion): Promise<PreparedVehicle> {
   const profile = readAircraftProfile(stored);
+  refuseMirageSensorErrors(profile);
   const cards = new Map<string, ComponentCard>();
   for (const dependency of profileDependencies(profile)) {
     if (dependency.kind === "component-card") cards.set(dependency.sha256, readComponentCard(await store.get(dependency.sha256)));
@@ -53,10 +121,19 @@ export async function prepareVehicle(store: ProjectStore, stored: StoredVersion)
   if (!resolved.components) throw new Error(`The profile cannot fly yet: ${resolved.missing.join("; ")}`);
   const frame = frameConfiguration(profile, stored.sha256);
   if (!frame.ok) throw new Error(`ArduPilot has no frame for this profile: ${frame.reasons.map(reason => reason.message).join(" ")}`);
+  // The barometer parameters scale with the home altitude, so the launcher's home and this context share DEFAULT_HOME.
+  const sensors = sensorRuntime(profile.sensorConfiguration, pinnedArduPilotCatalog(),
+    { homeAltitudeM: DEFAULT_HOME[2], compassOffsetsMilliGauss: STOCK_COMPASS_OFFSETS_MILLIGAUSS, cgBodyM: cgBodyM(profile) });
+  const parameters: TaggedParameter[] = [
+    ...frame.parameters.map(parameter => ({ name: parameter.name, value: parameter.value, source: frameSource(parameter.name) })),
+    ...PWM_PARAMETERS.map(parameter => ({ name: parameter.name, value: parameter.value, source: "pwm" as const })),
+    ...sensors.parameters.map(parameter => ({ name: parameter.name, value: parameter.value, source: "sensor" as const })),
+  ];
+  requireUniqueNames(parameters);
   const derived = await deriveVehicleManifest(profile, resolved.components, { modelId: SITL_MODEL_ID });
   return {
     profileName: stored.record.name, profileSha256: stored.sha256, derived, ratings: componentRatings(profile, cards),
-    parameters: [...frame.parameters, ...PWM_PARAMETERS], frameScript: frame.script,
+    parameters, frameScript: frame.script, sensorSnapshot: sensorSnapshot(stored),
     motorChannels: derived.manifest.rotors.map(rotor => rotor.motorChannel + 1),
   };
 }
@@ -67,191 +144,140 @@ function field(value: unknown, ...path: (string | number)[]): unknown {
   return current;
 }
 
+/** The absent-parameter rule of the pinned ArduPilot catalog, for the parameter read-back. */
+export function parameterAbsentRule(): AbsentRule {
+  return catalogAbsentRule(pinnedArduPilotCatalog());
+}
+
+/** What the session controller starts from: the prepared vehicle with the identity of its profile version. */
+export async function preparedRun(store: ProjectStore, stored: StoredVersion): Promise<{ vehicle: PreparedVehicle; run: PreparedRun }> {
+  const vehicle = await prepareVehicle(store, stored);
+  return {
+    vehicle,
+    run: {
+      profile: { sha256: stored.sha256, id: stored.record.id, version: stored.record.version, name: stored.record.name },
+      parameters: vehicle.parameters, frameScript: vehicle.frameScript, sensors: vehicle.sensorSnapshot,
+      manifestSha256: vehicle.derived.sha256, modelId: SITL_MODEL_ID, motorChannels: vehicle.motorChannels, absentRule: parameterAbsentRule(),
+    },
+  };
+}
+
+const STATES: ReadonlySet<string> = new Set(["starting", "start-failed", "running", "stopping", "stopped", "exited", "crashed"]);
+function isLauncherState(value: unknown): value is LauncherRunState {
+  return typeof value === "string" && STATES.has(value);
+}
+function launcherState(value: unknown): LauncherRunState {
+  if (!isLauncherState(value)) throw new LauncherError("foreign", `The launcher reported an unknown state ${String(value)}`);
+  return value;
+}
+const text = (value: unknown, label: string): string => {
+  if (typeof value !== "string") throw new LauncherError("foreign", `The launcher's answer lacks ${label}`);
+  return value;
+};
+const integerOrNull = (value: unknown): number | null => (typeof value === "number" && Number.isInteger(value) ? value : null);
+const textOrNull = (value: unknown): string | null => (typeof value === "string" ? value : null);
+/** An experiment view (apps/launcher/src/server.ts view()), validated from unknown. */
+export function parseLauncherExperiment(value: unknown): LauncherExperiment {
+  const runs = field(value, "runs"), ports = field(value, "ports"), firmware = field(value, "firmware");
+  if (!Array.isArray(runs)) throw new LauncherError("foreign", "The launcher's answer has no runs");
+  const list: readonly unknown[] = runs;
+  const bridge = field(ports, "bridge");
+  return {
+    id: text(field(value, "id"), "an experiment ID"), state: launcherState(field(value, "state")), startError: textOrNull(field(value, "startError")),
+    firmware: { id: text(field(firmware, "id"), "the firmware ID"), firmwareVersion: text(field(firmware, "firmwareVersion"), "the firmware version"),
+      commit: text(field(firmware, "commit"), "the firmware commit"), binarySha256: text(field(firmware, "binarySha256"), "the binary SHA-256"),
+      defaultParametersSha256: text(field(firmware, "defaultParametersSha256"), "the default-parameter SHA-256") },
+    runs: list.map(run => {
+      const number = integerOrNull(field(run, "run")), pid = integerOrNull(field(run, "pid"));
+      if (number === null || pid === null) throw new LauncherError("foreign", "The launcher's run lacks its number or PID");
+      return { run: number, pid, state: launcherState(field(run, "state")), exitCode: integerOrNull(field(run, "exitCode")),
+        signal: textOrNull(field(run, "signal")), reason: textOrNull(field(run, "reason")) };
+    }),
+    ports: typeof bridge === "number" && Number.isInteger(bridge) ? { bridge } : null,
+  };
+}
+
 /** The launcher API (TASK-151) on 127.0.0.1; the token goes in the Authorization header only. */
-export class LauncherClient {
+export class LauncherClient implements LauncherPort {
   constructor(readonly port: number, private readonly token: string) {
     if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error("Enter the launcher's port (1 to 65535)");
     if (!/^[0-9a-f]{64}$/.test(token)) throw new Error("The launcher token is 64 lower-case hexadecimal characters");
   }
   get bearer(): string { return this.token; }
   async call(method: "GET" | "POST", path: string, body?: unknown): Promise<unknown> {
-    const response = await fetch(`http://127.0.0.1:${this.port}${path}`, {
-      method, cache: "no-store", headers: { authorization: `Bearer ${this.token}`, ...(body === undefined ? {} : { "content-type": "application/json" }) },
-      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-    });
-    const text = await response.text();
-    const json: unknown = text === "" ? null : JSON.parse(text);
+    let response: Response;
+    try {
+      response = await fetch(`http://127.0.0.1:${this.port}${path}`, {
+        method, cache: "no-store", headers: { authorization: `Bearer ${this.token}`, ...(body === undefined ? {} : { "content-type": "application/json" }) },
+        ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+      });
+    } catch {
+      // The browser reports a refused connection and a foreign server without CORS alike.
+      throw new LauncherError("unreachable", `No MirageSITL launcher answered on 127.0.0.1:${this.port}; start it with npm run start -w @mirage/launcher, or check the port`);
+    }
+    const raw = await response.text();
+    let json: unknown;
+    try { json = raw === "" ? null : JSON.parse(raw); } catch {
+      throw new LauncherError("foreign", `Port ${this.port} answers, but not as the MirageSITL launcher`, response.status);
+    }
     if (!response.ok) {
-      const reason = field(json, "error");
-      throw new Error(`Launcher ${method} ${path}: ${typeof reason === "string" ? reason : `status ${response.status}`}`);
+      const reason = field(json, "error"), experimentId = field(json, "experimentId");
+      throw new LauncherError("refused", typeof reason === "string" ? reason : `status ${response.status}`, response.status,
+        typeof experimentId === "string" ? experimentId : null);
     }
     return json;
   }
-  /** The first installed SITL build the launcher reports as usable. */
-  async firmware(): Promise<string> {
+  async catalog(): Promise<readonly CatalogEntry[]> {
     const list = field(await this.call("GET", "/v1/catalog"), "firmware");
-    const entries: readonly unknown[] = Array.isArray(list) ? list : [];
-    const usable = entries.find(item => field(item, "usable") === true);
-    const id = field(usable, "entry", "id");
-    if (typeof id !== "string") throw new Error("The launcher has no usable SITL build; run node scripts/install-macos.mjs");
-    return id;
+    if (!Array.isArray(list)) throw new LauncherError("foreign", `Port ${this.port} answers, but not as the MirageSITL launcher`);
+    const entries: readonly unknown[] = list;
+    return entries.map(item => ({ id: text(field(item, "entry", "id"), "a catalog ID"), firmwareVersion: text(field(item, "entry", "firmwareVersion"), "a firmware version"),
+      usable: field(item, "usable") === true, reason: textOrNull(field(item, "reason")) }));
+  }
+  async start(spec: StartSpec): Promise<LauncherExperiment> { return parseLauncherExperiment(await this.call("POST", "/v1/experiments", spec)); }
+  async stop(id: string): Promise<LauncherExperiment> { return parseLauncherExperiment(await this.call("POST", `/v1/experiments/${encodeURIComponent(id)}/stop`)); }
+  async experiment(id: string): Promise<LauncherExperiment> { return parseLauncherExperiment(await this.call("GET", `/v1/experiments/${encodeURIComponent(id)}`)); }
+  async logs(id: string): Promise<LauncherLogs> {
+    const json = await this.call("GET", `/v1/experiments/${encodeURIComponent(id)}/logs`);
+    const dataflash = field(json, "dataflash");
+    const files: readonly unknown[] = Array.isArray(dataflash) ? dataflash : [];
+    return { stdout: textOrNull(field(json, "stdout")) ?? "", stderr: textOrNull(field(json, "stderr")) ?? "",
+      dataflash: files.flatMap(file => { const name = typeof file === "string" ? file : field(file, "name"); return typeof name === "string" ? [name] : []; }) };
   }
 }
 
-export type AutopilotStage = "idle" | "preparing" | "warming" | "ready" | "arming" | "climbing" | "flying" | "landing" | "landed" | "stopped" | "failed";
-export interface RunView {
-  readonly stage: AutopilotStage;
-  readonly message: string;
-  readonly status: SitlStatus | null;
-  /** From the autopilot's heartbeat, or null before the first one. */
-  readonly mode: number | null;
-  readonly armed: boolean;
-  readonly statusText: readonly string[];
-  readonly experimentId: string | null;
-}
+/** The physics Worker of a SimulationRuntime as the session controller's PhysicsPort. */
+export class RuntimePhysics implements PhysicsPort {
+  private vehicleValue: PreparedVehicle | null = null;
+  constructor(private readonly runtime: SimulationRuntime, private readonly token: string) {}
 
-function isStatus(data: unknown): data is SitlStatus {
-  return field(data, "type") === "sitl.status" && typeof field(data, "ready") === "boolean" && typeof field(data, "simTimeS") === "number" &&
-    typeof field(data, "state") === "string" && typeof field(data, "reason") === "string";
-}
-
-/** One integrated run: start(), then takeOff()/land(), then stop(). */
-export class SitlRun {
-  private view: RunView = { stage: "idle", message: "", status: null, mode: null, armed: false, statusText: [], experimentId: null };
-  private readonly gcs = new GroundStation();
-  private readonly packet = new Uint8Array(64);
-  private readonly parser: MavParser;
-  private readonly acks: { command: number; result: number }[] = [];
-  private heartbeat: ReturnType<typeof setInterval> | undefined;
-  private unlisten: (() => void) | null = null;
-  private takeoffM = 0;
-  /** Set by stop(): the socket's close that follows is the end of the run, not a failure. */
-  private stopping = false;
-
-  constructor(private readonly runtime: SimulationRuntime, private readonly launcher: LauncherClient, private readonly onChange: (view: RunView) => void) {
-    this.parser = new MavParser((frame: MavFrame) => this.autopilot(frame));
+  /** The vehicle this session flies, set once it is prepared. */
+  use(vehicle: PreparedVehicle): void { this.vehicleValue = vehicle; }
+  private get vehicle(): PreparedVehicle {
+    if (!this.vehicleValue) throw new Error("The vehicle is not prepared");
+    return this.vehicleValue;
   }
 
-  get current(): RunView { return this.view; }
-
-  async start(vehicle: PreparedVehicle, speedup: number): Promise<void> {
-    if (this.view.stage !== "idle") throw new Error("This run has already started");
-    this.update({ stage: "preparing", message: `Preparing ${vehicle.profileName}` });
-    this.unlisten = this.runtime.listen(data => this.worker(data));
-    try {
-      this.runtime.pauseWhenHidden = false;
-      const module = await fetchBetModule();
-      await this.request({ type: "bet.module", bytes: module.bytes, sha256: module.sha256 }, "bet.module.ready", "bet.module.reject");
-      await this.request({ type: "model.register", bytes: vehicle.derived.bytes, sha256: vehicle.derived.sha256 }, "model.registered", "model.reject");
-      await this.request({ type: "limits.register", sha256: vehicle.derived.sha256, ratings: vehicle.ratings }, "limits.registered", "limits.reject");
-      await this.control({ type: "sim.configure", hz: SITL_PHYSICS_HZ, clockMode: "sitl-lockstep" });
-      await this.control({ type: "model.load", modelId: SITL_MODEL_ID, manifestSha256: vehicle.derived.sha256 });
-      await this.control({ type: "sim.start" });
-      const firmwareId = await this.launcher.firmware();
-      const started = await this.launcher.call("POST", "/v1/experiments", { firmwareId, parameters: vehicle.parameters,
-        frameScript: vehicle.frameScript, speedup, rateHz: SITL_PHYSICS_HZ, home: DEFAULT_HOME });
-      const experimentId = field(started, "id"), port = field(started, "ports", "bridge"), runs = field(started, "runs");
-      if (typeof experimentId !== "string" || typeof port !== "number" || !Array.isArray(runs)) throw new Error("The launcher's answer has no run");
-      this.update({ stage: "warming", experimentId, message: `SITL run ${experimentId} started` });
-      this.runtime.reader.readHeader(this.runtime.header);
-      this.runtime.postToWorker({ type: "sitl.connect", port, token: this.launcher.bearer, bridgeEpoch: runs.length,
-        motorChannels: vehicle.motorChannels, motorMapId: SITL_MODEL_ID, speedup });
-      this.heartbeat = setInterval(() => this.beat(), 1000);
-    } catch (error) {
-      this.update({ stage: "failed", message: error instanceof Error ? error.message : String(error) });
-      await this.stop();
-    }
+  async load(): Promise<{ betModuleSha256: string }> {
+    const { vehicle, runtime } = this;
+    runtime.pauseWhenHidden = false;
+    const module = await fetchBetModule();
+    await this.request({ type: "bet.module", bytes: module.bytes, sha256: module.sha256 }, "bet.module.ready", "bet.module.reject");
+    await this.request({ type: "model.register", bytes: vehicle.derived.bytes, sha256: vehicle.derived.sha256 }, "model.registered", "model.reject");
+    await this.request({ type: "limits.register", sha256: vehicle.derived.sha256, ratings: vehicle.ratings }, "limits.registered", "limits.reject");
+    await this.control({ type: "sim.configure", hz: SITL_PHYSICS_HZ, clockMode: "sitl-lockstep" });
+    await this.control({ type: "model.load", modelId: SITL_MODEL_ID, manifestSha256: vehicle.derived.sha256 });
+    await this.control({ type: "sim.start" });
+    return { betModuleSha256: module.sha256 };
   }
-
-  /** GUIDED, arm, then NAV_TAKEOFF to `altitudeM`; only after READY. */
-  takeOff(altitudeM: number): void {
-    if (this.view.stage !== "ready" && this.view.stage !== "landed") return;
-    if (!(altitudeM >= 1 && altitudeM <= 100)) { this.update({ message: "Take-off altitude must be 1 to 100 m" }); return; }
-    this.takeoffM = altitudeM;
-    this.update({ stage: "arming", message: "Setting GUIDED and arming" });
-    this.send(this.gcs.setModeInto(CopterMode.Guided, this.packet));
+  connect(port: number, bridgeEpoch: number, speedup: number): void {
+    this.runtime.postToWorker({ type: "sitl.connect", port, token: this.token, bridgeEpoch, motorChannels: this.vehicle.motorChannels,
+      motorMapId: SITL_MODEL_ID, speedup });
   }
-  land(): void {
-    if (this.view.stage !== "climbing" && this.view.stage !== "flying") return;
-    this.update({ stage: "landing", message: "LAND" });
-    this.send(this.gcs.setModeInto(CopterMode.Land, this.packet));
-  }
-
-  async stop(): Promise<void> {
-    this.stopping = true;
-    clearInterval(this.heartbeat);
-    this.heartbeat = undefined;
-    this.runtime.postToWorker({ type: "sitl.disconnect" });
-    const id = this.view.experimentId;
-    if (id) {
-      try { await this.launcher.call("POST", `/v1/experiments/${id}/stop`); } catch (error) {
-        this.update({ message: `Stopping the SITL run failed: ${error instanceof Error ? error.message : String(error)}` });
-      }
-    }
-    this.unlisten?.();
-    this.unlisten = null;
-    if (this.view.stage !== "failed") this.update({ stage: "stopped" });
-  }
-
-  /** Ground-station duties once per wall second: heartbeat, stream requests until acknowledged, and command retries. */
-  private beat(): void {
-    this.send(this.gcs.heartbeatInto(this.packet));
-    if (this.acks.filter(a => a.command === MavCommand.SetMessageInterval && a.result === 0).length < STREAMS.length) {
-      for (const [id, us] of STREAMS) this.send(this.gcs.messageIntervalInto(id, us, this.packet));
-    }
-    const { stage, mode, armed } = this.view;
-    if (stage === "arming") {
-      if (mode !== CopterMode.Guided) this.send(this.gcs.setModeInto(CopterMode.Guided, this.packet));
-      else if (!armed) this.send(this.gcs.armInto(true, this.packet));
-    } else if (stage === "landing" && mode !== CopterMode.Land) this.send(this.gcs.setModeInto(CopterMode.Land, this.packet));
-  }
-
-  private send(n: number): void {
-    if (n > 0) this.runtime.postToWorker({ type: "sitl.mavlink.send", bytes: this.packet.slice(0, n) });
-  }
-
-  private autopilot(frame: MavFrame): void {
-    if (frame.systemId !== 1 || frame.componentId !== 1) return;
-    if (frame.id === 0) {
-      const mode = frame.view.getUint32(0, true), armed = (frame.view.getUint8(6) & 128) !== 0, was = this.view;
-      this.update({ mode, armed });
-      if (was.stage === "arming" && armed) {
-        this.send(this.gcs.takeoffInto(this.takeoffM, this.packet));
-        this.update({ stage: "climbing", message: `Taking off to ${this.takeoffM} m` });
-      }
-      if (was.stage === "landing" && !armed) this.update({ stage: "landed", message: "Landed and disarmed" });
-    } else if (frame.id === 77) {
-      const command = frame.view.getUint16(0, true), result = frame.view.getUint8(2);
-      this.acks.push({ command, result });
-      if (result !== 0 && command !== MavCommand.SetMessageInterval) this.update({ message: `ArduPilot refused command ${command} (MAV_RESULT ${result})` });
-    } else if (frame.id === 253) {
-      const text = new TextDecoder().decode(frame.payload.subarray(1, 51)).replace(/\0[\s\S]*$/, "");
-      this.update({ statusText: [...this.view.statusText, text].slice(-8) });
-    }
-  }
-
-  private worker(data: unknown): void {
-    if (field(data, "type") === "sitl.mavlink") {
-      const bytes = field(data, "bytes");
-      if (bytes instanceof Uint8Array) this.parser.push(bytes);
-      return;
-    }
-    if (field(data, "type") === "sitl.reject") { this.update({ stage: "failed", message: String(field(data, "message")) }); return; }
-    if (!isStatus(data)) return;
-    let stage = this.view.stage;
-    if (data.state === "closed" || data.state === "fault") stage = this.stopping && data.state === "closed" ? this.view.stage : "failed";
-    else if (stage === "warming" && data.ready) stage = "ready";
-    else if (stage === "ready" && !data.ready) stage = "warming"; // stale diagnostics revoke READY
-    // Flying once the climb has settled at the target: within 0.5 m and below 0.3 m/s vertical speed (truth, as the panel shows it).
-    const truth = this.runtime.current;
-    if (stage === "climbing" && Math.abs(-truth.downM - this.takeoffM) < 0.5 && Math.abs(truth.vdMps) < 0.3) stage = "flying";
-    this.update({ status: data, stage, ...(data.message && stage === "failed" ? { message: data.message } : {}) });
-  }
-
-  private update(change: Partial<RunView>): void {
-    this.view = { ...this.view, ...change };
-    this.onChange(this.view);
-  }
+  disconnect(): void { this.runtime.postToWorker({ type: "sitl.disconnect" }); }
+  sendMavlink(bytes: Uint8Array): void { this.runtime.postToWorker({ type: "sitl.mavlink.send", bytes }); }
+  altitudeM(): number { return -this.runtime.current.downM; }
+  verticalSpeedMps(): number { return this.runtime.current.vdMps; }
 
   /** Posts a Worker message and resolves on its acceptance notice. */
   private request(message: Record<string, unknown>, ok: string, reject: string): Promise<void> {
@@ -264,7 +290,6 @@ export class SitlRun {
       this.runtime.postToWorker(message);
     });
   }
-
   /** Submits a Control Protocol v2 command and resolves on its applied acknowledgement. */
   private control(payload: Record<string, unknown>): Promise<void> {
     return new Promise((resolve, fail) => {

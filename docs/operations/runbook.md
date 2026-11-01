@@ -487,8 +487,12 @@ on the bridge's JSON port, and its serial0 (`udpclient:`) goes to a loopback
 relay that forwards MAVLink to the same bridge. The bridge accepts the web
 origin and the launcher token, as in TASK-040. Stop sends SIGTERM to the
 owned group and SIGKILL after 3 s. A crash is recorded with its exit code or
-signal, and restart begins a new run in the same folder. One experiment runs
-at a time. The launcher never signals a process it did not start, and no
+signal and a reason (the ending and the last stderr line), and restart begins
+a new run in the same folder; the Run tab never restarts, it starts a new
+experiment (TASK-154). A start is checked completely before anything is
+created, so a refused start leaves no experiment and no folder, and an
+experiment's view echoes its build's identity without machine paths. One
+experiment runs at a time. The launcher never signals a process it did not start, and no
 request names a process ID. Stopping the launcher (Ctrl-C) stops its runs.
 
 Check with fake executables and, when `.cache/task-127` holds the pinned

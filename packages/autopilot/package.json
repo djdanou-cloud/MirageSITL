@@ -21,7 +21,8 @@
     "./wasm-parity": "./src/wasm-parity.ts",
     "./error-ownership": "./src/error-ownership.ts",
     "./sitl-link": "./src/sitl-link.ts",
-    "./ground-station": "./src/ground-station.ts"
+    "./ground-station": "./src/ground-station.ts",
+    "./parameter-readback": "./src/parameter-readback.ts"
   },
   "dependencies": {
     "@mirage/mavlink": "0.1.0",

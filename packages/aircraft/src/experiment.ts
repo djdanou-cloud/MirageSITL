@@ -1,0 +1,531 @@
+import {
+  DELIVERY_PATHS, ERROR_SOURCE_IDS, FIRMWARE_PATCHES, matrixSources, OWNERSHIP_MATRIX_SCHEMA_VERSION, type DeliveryPath, type ErrorOwner,
+  type ErrorSourceId, type FirmwarePatchId, type OwnershipEntry, type OwnershipMatrix,
+} from '@mirage/autopilot/error-ownership';
+import {
+  MAX_NAME_CODE_POINTS, MAX_VERSION, SHA256_HEX, UUID_V4, canonicalBytes, equalBytes, normalizeName, type StoredVersion,
+} from '@mirage/project/schema';
+import type { ProjectStore } from '@mirage/project/store';
+import { readComponentCard, type ComponentCard } from './components.ts';
+import { deriveVehicleManifest } from './derive-manifest.ts';
+import { FRAME_PARAMETER_NAMES, frameConfiguration } from './frame-parameters.ts';
+import { profileDependencies, readAircraftProfile } from './profile.ts';
+import { resolveComponents } from './resolve-components.ts';
+import { validateSensorConfiguration } from './sensor-config.ts';
+import {
+  SENSOR_FIELDS, SENSOR_KINDS, SENSOR_OWNERSHIP_MAPPING_VERSION, type FieldOwner, type FieldValue, type PresetReference,
+  type SensorConfiguration, type SensorFieldPath, type SensorKind,
+} from './sensor-fields.ts';
+import {
+  RESIDUALS, SENSOR_SNAPSHOT_VERSION, sensorSnapshot, type Effective, type ResidualId, type Residual, type ResolvedField,
+  type ResolvedSensorConfiguration, type SensorSnapshot, type SensorState,
+} from './sensor-ownership.ts';
+import type { PresetCitation } from './sensor-presets.ts';
+
+// Experiment payload schema 1 (TASK-154): what one integrated run used, kept
+// as an `experiment` record in the unchanged record envelope v1 (TASK-136).
+// It names the exact aircraft profile version (its only dependency), the
+// ArduPilot build the launcher started as data (user decision of 2026-11-01:
+// no dependency-model change), the launcher experiment whose folder holds the
+// logs, the session settings, every generated initial parameter in the order
+// the launcher received it, the frame script, and the TASK-143 sensor
+// snapshot of the profile version verbatim. An experiment's inputs are fixed
+// at version 1; the store allows only renaming afterwards.
+// Configuration-time code only; never call it from a physics step.
+
+export const EXPERIMENT_SCHEMA_VERSION = 1;
+/** Launcher API v1 limits (apps/launcher/src/server.ts parseExperimentSpec). */
+export const MAX_EXPERIMENT_PARAMETERS = 4096;
+export const MAX_FRAME_SCRIPT_BYTES = 64 * 1024;
+/** ArduPilot parameter names: at most 16 characters (AP_MAX_NAME_SIZE). */
+export const PARAMETER_NAME = /^[A-Z][A-Z0-9_]{0,15}$/;
+/** Parameter values travel as float32 in PARAM_SET; the launcher refuses larger magnitudes. */
+export const MAX_PARAMETER_MAGNITUDE = 3.4e38;
+/** The physics rates an integrated session runs: ArduCopter's pre-arm gyro check needs at least 1.8 times its 400 Hz loop. */
+export const EXPERIMENT_PHYSICS_HZ = [800, 1200] as const;
+export type ExperimentPhysicsHz = typeof EXPERIMENT_PHYSICS_HZ[number];
+/** Where each generated parameter came from. */
+export const PARAMETER_SOURCES = ['frame', 'output', 'pwm', 'sensor'] as const;
+export type ParameterSource = typeof PARAMETER_SOURCES[number];
+/** The autopilot's PWM range, which the SITL link pins to its 1000-2000 us span. */
+export const PWM_PARAMETER_NAMES: ReadonlySet<string> = new Set(['MOT_PWM_MIN', 'MOT_PWM_MAX']);
+/** The TASK-128 scripting-enable parameter, which a frame script needs at 1. */
+const SCRIPTING_ENABLE = 'SCR_ENABLE';
+if (!FRAME_PARAMETER_NAMES.has(SCRIPTING_ENABLE)) throw new Error(`${SCRIPTING_ENABLE} is not a TASK-128 frame parameter`);
+const OUTPUT_FUNCTION = /^SERVO[1-9][0-9]?_FUNCTION$/;
+/** Launcher experiment IDs: the UTC start time as 17 digits, '-' and 8 random hexadecimal digits. */
+const LAUNCHER_EXPERIMENT_ID = /^[0-9]{17}-[0-9a-f]{8}$/;
+/** Launcher catalog entry IDs (apps/launcher/src/catalog.ts). */
+const CATALOG_ID = /^[a-z0-9][a-z0-9.-]{0,63}$/;
+const COMMIT = /^[0-9a-f]{40}$/;
+const MATRIX_ID = /^[a-z0-9][a-z0-9-]{0,63}$/;
+const MAX_MODEL_ID = 4294967295;
+const MAX_TEXT = 4096;
+
+export interface ExperimentProfile {
+  /** Address of the exact aircraft-profile version, which is also the record's only dependency. */
+  readonly sha256: string;
+  readonly id: string;
+  readonly version: number;
+  readonly name: string;
+}
+/** The installed build the launcher started, as its catalog entry reports it (machine-local paths left out). */
+export interface ExperimentFirmware {
+  readonly catalogId: string;
+  readonly firmwareVersion: string;
+  readonly commit: string;
+  readonly binarySha256: string;
+  /** ArduPilot's copter.parm of the same source: the first initial-parameter layer. */
+  readonly defaultParametersSha256: string;
+}
+export interface ExperimentSession {
+  readonly physicsHz: ExperimentPhysicsHz;
+  readonly clockMode: 'sitl-lockstep';
+  /** Simulated seconds per wall second, as the launcher received it. */
+  readonly speedup: number;
+  /** Latitude and longitude in degrees (WGS-84), altitude above mean sea level in metres, heading in degrees. */
+  readonly home: readonly [latitudeDeg: number, longitudeDeg: number, altitudeM: number, headingDeg: number];
+  readonly modelId: number;
+  /** SHA-256 of the derived vehicle manifest v2 the Worker loaded. */
+  readonly manifestSha256: string;
+  /** SHA-256 of the BET WASM module the Worker ran. */
+  readonly betModuleSha256: string;
+}
+export interface ExperimentParameter {
+  readonly name: string;
+  readonly value: number;
+  readonly source: ParameterSource;
+}
+export interface ExperimentPayload {
+  readonly schemaVersion: typeof EXPERIMENT_SCHEMA_VERSION;
+  readonly profile: ExperimentProfile;
+  readonly ardupilot: ExperimentFirmware;
+  readonly launcher: { readonly experimentId: string };
+  readonly session: ExperimentSession;
+  /** Exactly the list POSTed to the launcher, in that order, which is also experiment.parm order. */
+  readonly parameters: readonly ExperimentParameter[];
+  /** The exact Lua text of a scripting-matrix frame, or null for a stock frame. */
+  readonly frameScript: string | null;
+  /** sensorSnapshot() of the profile version, verbatim. */
+  readonly sensors: SensorSnapshot;
+}
+/** What createExperimentRecord stores: the record name and the payload. */
+export interface ExperimentInputs {
+  readonly name: string;
+  readonly payload: unknown;
+}
+
+function fail(message: string): never {
+  throw new Error(`Invalid experiment: ${message}`);
+}
+function freeze<T>(value: T): T {
+  if (typeof value === 'object' && value !== null) {
+    for (const item of Object.values(value)) freeze(item);
+    Object.freeze(value);
+  }
+  return value;
+}
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+/** A plain object with exactly `keys`; names the first missing or unexpected field. */
+function exact(value: unknown, keys: readonly string[], label: string): Record<string, unknown> {
+  if (!isRecord(value)) return fail(`${label} must be an object`);
+  for (const key of keys) if (!Object.hasOwn(value, key)) fail(`${label} lacks ${key}`);
+  for (const key of Object.keys(value)) if (!keys.includes(key)) fail(`${label} has an unexpected field ${key}`);
+  return value;
+}
+function list(value: unknown, label: string, max: number): readonly unknown[] {
+  if (!Array.isArray(value)) return fail(`${label} must be a list`);
+  if (value.length > max) fail(`${label} may have at most ${max} entries`);
+  const items: readonly unknown[] = value;
+  return items;
+}
+function text(value: unknown, label: string, max = MAX_TEXT): string {
+  if (typeof value !== 'string' || value.length === 0 || value.length > max) return fail(`${label} must be text of 1 to ${max} characters`);
+  return value;
+}
+function nullableText(value: unknown, label: string): string | null {
+  return value === null ? null : text(value, label);
+}
+function matching(value: unknown, pattern: RegExp, label: string, format: string): string {
+  if (typeof value !== 'string' || !pattern.test(value)) return fail(`${label} must be ${format}`);
+  return value;
+}
+function sha256(value: unknown, label: string): string {
+  return matching(value, SHA256_HEX, label, 'a lowercase SHA-256');
+}
+function finite(value: unknown, label: string, min: number, max: number): number {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < min || value > max) return fail(`${label} must be a number from ${min} to ${max}`);
+  return value;
+}
+function integer(value: unknown, label: string, min: number, max: number): number {
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < min || value > max) return fail(`${label} must be an integer from ${min} to ${max}`);
+  return value;
+}
+function oneOf<T extends string | number>(value: unknown, options: readonly T[], label: string): T {
+  const found = options.find(option => option === value);
+  if (found === undefined) return fail(`${label} must be one of ${options.join(', ')}`);
+  return found;
+}
+function boolean(value: unknown, label: string): boolean {
+  if (typeof value !== 'boolean') return fail(`${label} must be true or false`);
+  return value;
+}
+
+function profileOf(value: unknown): ExperimentProfile {
+  const p = exact(value, ['sha256', 'id', 'version', 'name'], 'profile');
+  const name = typeof p.name === 'string' ? p.name : fail('profile.name must be text');
+  let normalized: string;
+  try {
+    normalized = normalizeName(name);
+  } catch (cause) {
+    return fail(`profile.name: ${cause instanceof Error ? cause.message : 'rejected'}`);
+  }
+  if (normalized !== name) fail('profile.name must be a stored record name (NFC, without leading or trailing white space)');
+  return {
+    sha256: sha256(p.sha256, 'profile.sha256'), id: matching(p.id, UUID_V4, 'profile.id', 'a UUID v4'),
+    version: integer(p.version, 'profile.version', 1, MAX_VERSION), name,
+  };
+}
+
+function firmwareOf(value: unknown): ExperimentFirmware {
+  const a = exact(value, ['catalogId', 'firmwareVersion', 'commit', 'binarySha256', 'defaultParametersSha256'], 'ardupilot');
+  // Exactly the launcher catalog's rule (apps/launcher/src/catalog.ts parseCatalog): the record is
+  // written after the launcher started SITL, so any version it admits must be recordable.
+  const firmwareVersion = typeof a.firmwareVersion === 'string' && a.firmwareVersion !== '' ? a.firmwareVersion
+    : fail('ardupilot.firmwareVersion must be non-empty text, as the launcher catalog requires');
+  return {
+    catalogId: matching(a.catalogId, CATALOG_ID, 'ardupilot.catalogId', 'a launcher catalog ID'), firmwareVersion,
+    commit: matching(a.commit, COMMIT, 'ardupilot.commit', 'a 40-digit lowercase commit'),
+    binarySha256: sha256(a.binarySha256, 'ardupilot.binarySha256'),
+    defaultParametersSha256: sha256(a.defaultParametersSha256, 'ardupilot.defaultParametersSha256'),
+  };
+}
+
+function sessionOf(value: unknown): ExperimentSession {
+  const s = exact(value, ['physicsHz', 'clockMode', 'speedup', 'home', 'modelId', 'manifestSha256', 'betModuleSha256'], 'session');
+  if (s.clockMode !== 'sitl-lockstep') fail('session.clockMode must be sitl-lockstep');
+  const home = list(s.home, 'session.home', 4);
+  if (home.length !== 4) fail('session.home must be [latitudeDeg, longitudeDeg, altitudeM, headingDeg]');
+  return {
+    physicsHz: oneOf(s.physicsHz, EXPERIMENT_PHYSICS_HZ, 'session.physicsHz'), clockMode: 'sitl-lockstep',
+    speedup: finite(s.speedup, 'session.speedup', 0.1, 100),
+    home: [finite(home[0], 'home latitude', -90, 90), finite(home[1], 'home longitude', -180, 180),
+      finite(home[2], 'home altitude', -500, 9000), finite(home[3], 'home heading', 0, 360)],
+    modelId: integer(s.modelId, 'session.modelId', 1, MAX_MODEL_ID),
+    manifestSha256: sha256(s.manifestSha256, 'session.manifestSha256'),
+    betModuleSha256: sha256(s.betModuleSha256, 'session.betModuleSha256'),
+  };
+}
+
+/** Whether a name may carry a source tag: SITL sensor parameters, the TASK-128 frame and output names, or the PWM range. */
+function admits(source: ParameterSource, name: string): boolean {
+  switch (source) {
+    case 'sensor': return name.startsWith('SIM_');
+    case 'frame': return FRAME_PARAMETER_NAMES.has(name) && !OUTPUT_FUNCTION.test(name);
+    case 'output': return FRAME_PARAMETER_NAMES.has(name) && OUTPUT_FUNCTION.test(name);
+    case 'pwm': return PWM_PARAMETER_NAMES.has(name);
+    default: {
+      const unexpected: never = source;
+      return unexpected;
+    }
+  }
+}
+/**
+ * The generated list in POST order: the frame parameters, the output functions,
+ * the PWM pair MOT_PWM_MIN then MOT_PWM_MAX, then the SIM_* sensor parameters.
+ */
+function parametersOf(value: unknown): ExperimentParameter[] {
+  const names = new Set<string>();
+  let previous: ParameterSource = 'frame';
+  const parameters = list(value, 'parameters', MAX_EXPERIMENT_PARAMETERS).map((item, index) => {
+    const p = exact(item, ['name', 'value', 'source'], `parameter ${index + 1}`);
+    const name = matching(p.name, PARAMETER_NAME, `parameter ${index + 1} name`, 'an ArduPilot parameter name of at most 16 characters');
+    if (names.has(name)) fail(`parameter ${name} is listed twice`);
+    names.add(name);
+    const source = oneOf(p.source, PARAMETER_SOURCES, `parameter ${name} source`);
+    if (!admits(source, name)) {
+      fail(source === 'sensor' ? `sensor parameter ${name} is not a SIM_ parameter`
+        : source === 'pwm' ? `pwm parameter ${name} is not MOT_PWM_MIN or MOT_PWM_MAX`
+          : `${source} parameter ${name} is not a TASK-128 ${source} parameter`);
+    }
+    if (PARAMETER_SOURCES.indexOf(source) < PARAMETER_SOURCES.indexOf(previous)) {
+      fail(`${source} parameter ${name} follows the ${previous} parameters; the order is ${PARAMETER_SOURCES.join(', ')}`);
+    }
+    previous = source;
+    return { name, value: finite(p.value, `parameter ${name}`, -MAX_PARAMETER_MAGNITUDE, MAX_PARAMETER_MAGNITUDE), source };
+  });
+  const pwm = parameters.filter(p => p.source === 'pwm');
+  const [minimum, maximum] = pwm;
+  if (pwm.length !== 2 || minimum?.name !== 'MOT_PWM_MIN' || maximum?.name !== 'MOT_PWM_MAX') fail('parameters must give MOT_PWM_MIN then MOT_PWM_MAX');
+  if (minimum.value >= maximum.value) fail('MOT_PWM_MIN must be below MOT_PWM_MAX');
+  return parameters;
+}
+
+function frameScriptOf(value: unknown, parameters: readonly ExperimentParameter[]): string | null {
+  if (value !== null && (typeof value !== 'string' || value.length === 0 || value.length > MAX_FRAME_SCRIPT_BYTES || /[^\t\n\x20-\x7e]/.test(value))) {
+    fail(`frameScript must be null or printable ASCII Lua of 1 to ${MAX_FRAME_SCRIPT_BYTES} bytes`);
+  }
+  const scripting = parameters.some(p => p.source === 'frame' && p.name === SCRIPTING_ENABLE && p.value === 1);
+  if (value === null && scripting) fail(`frame parameter ${SCRIPTING_ENABLE} 1 needs a frame script`);
+  if (value !== null && !scripting) fail(`a frame script needs frame parameter ${SCRIPTING_ENABLE} 1`);
+  return value;
+}
+
+// Sensor snapshot schema 2 (TASK-143, TASK-147). The shapes are checked here;
+// createExperimentRecord compares the bytes with a snapshot recomputed from
+// the stored profile. Reading never recomputes, so a stored snapshot stays
+// readable after later code moves to another snapshot version.
+
+function fieldValue(value: unknown, label: string): FieldValue {
+  if (typeof value === 'number') return finite(value, label, -Number.MAX_VALUE, Number.MAX_VALUE);
+  const items = list(value, label, 3);
+  if (items.length !== 3) fail(`${label} must be a number or three numbers`);
+  return items.map((item, index) => finite(item, `${label}[${index}]`, -Number.MAX_VALUE, Number.MAX_VALUE));
+}
+function effectiveOf(value: unknown, label: string): Effective {
+  const kind = isRecord(value) ? value.kind : undefined;
+  switch (kind) {
+    case 'specified':
+      return { kind, value: fieldValue(exact(value, ['kind', 'value'], label).value, `${label}.value`) };
+    case 'neutral': {
+      const neutral = exact(value, ['kind', 'value'], label).value;
+      return { kind, value: neutral === 'at-cg' ? neutral : fieldValue(neutral, `${label}.value`) };
+    }
+    case 'neutralized':
+    case 'ardupilot-stock':
+    case 'not-applied':
+      exact(value, ['kind'], label);
+      return { kind };
+    default:
+      return fail(`${label}.kind must be specified, neutral, neutralized, ardupilot-stock or not-applied`);
+  }
+}
+function isSource(value: unknown): value is ErrorSourceId {
+  return ERROR_SOURCE_IDS.some(id => id === value);
+}
+function isResidual(value: unknown): value is ResidualId {
+  return typeof value === 'string' && Object.hasOwn(RESIDUALS, value);
+}
+function isDelivery(value: unknown): value is DeliveryPath {
+  return typeof value === 'string' && Object.hasOwn(DELIVERY_PATHS, value);
+}
+function isPatch(value: unknown): value is FirmwarePatchId {
+  return typeof value === 'string' && Object.hasOwn(FIRMWARE_PATCHES, value);
+}
+function stateOf(configuration: SensorConfiguration | null): SensorState {
+  return configuration === null ? 'ardupilot-defaults' : configuration.mode === 'ideal' ? 'ideal' : 'specified';
+}
+
+function resolutionOf(value: unknown, configuration: SensorConfiguration | null): ResolvedSensorConfiguration {
+  const r = exact(value, ['mappingVersion', 'path', 'state', 'fields', 'residuals'], 'sensors.resolution');
+  if (r.mappingVersion !== SENSOR_OWNERSHIP_MAPPING_VERSION) fail(`sensors.resolution.mappingVersion must be ${SENSOR_OWNERSHIP_MAPPING_VERSION}`);
+  if (r.path !== 'native-json') fail('sensors.resolution.path must be native-json');
+  const state = oneOf<SensorState>(r.state, ['ardupilot-defaults', 'specified', 'ideal'], 'sensors.resolution.state');
+  if (state !== stateOf(configuration)) fail(`sensors.resolution.state ${state} does not match the configuration`);
+  const items = list(r.fields, 'sensors.resolution.fields', SENSOR_FIELDS.length);
+  if (items.length !== SENSOR_FIELDS.length) fail(`sensors.resolution.fields must list all ${SENSOR_FIELDS.length} sensor fields`);
+  const fields = items.map((item, index): ResolvedField => {
+    const label = `sensors.resolution.fields[${index}]`;
+    const f = exact(item, ['path', 'owner', 'source', 'applicable', 'reason', 'stored', 'effective'], label);
+    const path: SensorFieldPath | undefined = SENSOR_FIELDS[index]?.path;
+    if (path === undefined || f.path !== path) return fail(`${label}.path must be ${String(path)}, in sensor field order`);
+    if (f.source !== null && !isSource(f.source)) fail(`${label}.source must be null or a TASK-089 error source`);
+    return {
+      path, owner: oneOf<FieldOwner>(f.owner, ['ardupilot', 'mirage', 'unassigned'], `${label}.owner`), source: f.source,
+      applicable: boolean(f.applicable, `${label}.applicable`), reason: nullableText(f.reason, `${label}.reason`),
+      stored: f.stored === null ? null : fieldValue(f.stored, `${label}.stored`), effective: effectiveOf(f.effective, `${label}.effective`),
+    };
+  });
+  const residuals = list(r.residuals, 'sensors.resolution.residuals', Object.keys(RESIDUALS).length).map(item => {
+    if (!isResidual(item)) return fail(`sensors.resolution.residuals: ${String(item)} is not a known residual`);
+    return item;
+  });
+  if (new Set(residuals).size !== residuals.length) fail('sensors.resolution.residuals lists a residual twice');
+  return { mappingVersion: SENSOR_OWNERSHIP_MAPPING_VERSION, path: 'native-json', state, fields, residuals };
+}
+
+function matrixOf(value: unknown): OwnershipMatrix {
+  const m = exact(value, ['schemaVersion', 'id', 'path', 'firmwarePatches', 'entries'], 'sensors.ownershipMatrix');
+  if (m.schemaVersion !== OWNERSHIP_MATRIX_SCHEMA_VERSION) fail(`sensors.ownershipMatrix.schemaVersion must be ${OWNERSHIP_MATRIX_SCHEMA_VERSION}`);
+  if (m.path !== 'native-json') fail('sensors.ownershipMatrix.path must be native-json');
+  const firmwarePatches = list(m.firmwarePatches, 'sensors.ownershipMatrix.firmwarePatches', Object.keys(FIRMWARE_PATCHES).length).map(item => {
+    if (!isPatch(item)) return fail(`sensors.ownershipMatrix.firmwarePatches: ${String(item)} is not a known firmware patch`);
+    return item;
+  });
+  if (new Set(firmwarePatches).size !== firmwarePatches.length) fail('sensors.ownershipMatrix.firmwarePatches lists a patch twice');
+  const sources = matrixSources(OWNERSHIP_MATRIX_SCHEMA_VERSION);
+  const items = list(m.entries, 'sensors.ownershipMatrix.entries', sources.length);
+  if (items.length !== sources.length) fail(`sensors.ownershipMatrix.entries must list all ${sources.length} error sources`);
+  const entries = items.map((item, index): OwnershipEntry => {
+    const label = `sensors.ownershipMatrix.entries[${index}]`;
+    const e = exact(item, ['source', 'owner', 'delivery'], label);
+    const source = sources[index];
+    if (source === undefined || e.source !== source) return fail(`${label}.source must be ${String(source)}, in error source order`);
+    const owner = oneOf<ErrorOwner>(e.owner, ['ardupilot', 'mirage', 'none'], `${label}.owner`);
+    const delivery = list(e.delivery, `${label}.delivery`, Object.keys(DELIVERY_PATHS).length).map(path => {
+      if (!isDelivery(path) || DELIVERY_PATHS[path].path !== 'native-json') return fail(`${label}.delivery: ${String(path)} is not a native-json delivery path`);
+      return path;
+    });
+    if (owner !== 'mirage' && delivery.length > 0) fail(`${label}: only a MirageSITL-owned source has a delivery path`);
+    return { source, owner, delivery };
+  });
+  return {
+    schemaVersion: OWNERSHIP_MATRIX_SCHEMA_VERSION, id: matching(m.id, MATRIX_ID, 'sensors.ownershipMatrix.id', 'a matrix ID'), path: 'native-json',
+    firmwarePatches, entries,
+  };
+}
+
+function residualsOf(value: unknown, ids: readonly ResidualId[]): Residual[] {
+  const items = list(value, 'sensors.residuals', ids.length);
+  if (items.length !== ids.length) fail('sensors.residuals must state every residual of the resolution');
+  return items.map((item, index) => {
+    const r = exact(item, ['id', 'text', 'verified'], `sensors.residuals[${index}]`);
+    const id = ids[index];
+    if (id === undefined || r.id !== id) return fail(`sensors.residuals[${index}].id must be ${String(id)}, in resolution order`);
+    return { id, text: text(r.text, `sensors.residuals[${index}].text`), verified: boolean(r.verified, `sensors.residuals[${index}].verified`) };
+  });
+}
+
+function citationOf(value: unknown, label: string): PresetCitation {
+  const c = exact(value, ['id', 'kind', 'title', 'publisher', 'documentNumber', 'revision', 'url'], label);
+  return {
+    id: text(c.id, `${label}.id`, 64), kind: oneOf<PresetCitation['kind']>(c.kind, ['specification', 'ardupilot-source'], `${label}.kind`),
+    title: text(c.title, `${label}.title`), publisher: text(c.publisher, `${label}.publisher`),
+    documentNumber: nullableText(c.documentNumber, `${label}.documentNumber`), revision: nullableText(c.revision, `${label}.revision`),
+    url: nullableText(c.url, `${label}.url`),
+  };
+}
+function presetsOf(value: unknown, configuration: SensorConfiguration | null): SensorSnapshot['presets'] {
+  // The snapshot cites every preset the configuration references, in sensor order.
+  const referenced: SensorKind[] = configuration === null ? [] : SENSOR_KINDS.filter(kind => configuration[kind].preset !== null);
+  const items = list(value, 'sensors.presets', SENSOR_KINDS.length);
+  if (items.length !== referenced.length) fail('sensors.presets must cite exactly the presets the configuration references');
+  return items.map((item, index) => {
+    const label = `sensors.presets[${index}]`;
+    const p = exact(item, ['sensor', 'reference', 'citations'], label);
+    const sensor = referenced[index];
+    if (sensor === undefined || p.sensor !== sensor) return fail(`${label}.sensor must be ${String(sensor)}, in sensor order`);
+    const r = exact(p.reference, ['catalogVersion', 'id'], `${label}.reference`);
+    const reference: PresetReference = { catalogVersion: integer(r.catalogVersion, `${label}.reference.catalogVersion`, 1, MAX_VERSION),
+      id: text(r.id, `${label}.reference.id`, 128) };
+    const stored = configuration?.[sensor].preset;
+    if (stored?.catalogVersion !== reference.catalogVersion || stored.id !== reference.id) fail(`${label}.reference must be the configuration's ${sensor} preset`);
+    const citations = list(p.citations, `${label}.citations`, 64).map((citation, at) => citationOf(citation, `${label}.citations[${at}]`));
+    return { sensor, reference, citations };
+  });
+}
+
+function snapshotOf(value: unknown, profileSha256: string): SensorSnapshot {
+  const version = isRecord(value) ? value.schemaVersion : undefined;
+  if (version !== SENSOR_SNAPSHOT_VERSION) {
+    fail(`sensors must be a sensor snapshot of schema ${SENSOR_SNAPSHOT_VERSION}, not ${typeof version === 'number' ? `schema ${version}` : 'an unversioned value'}`);
+  }
+  const s = exact(value, ['schemaVersion', 'profileSha256', 'mappingVersion', 'configuration', 'resolution', 'ownershipMatrix', 'residuals', 'presets'], 'sensors');
+  if (sha256(s.profileSha256, 'sensors.profileSha256') !== profileSha256) fail('sensors.profileSha256 must equal profile.sha256');
+  if (s.mappingVersion !== SENSOR_OWNERSHIP_MAPPING_VERSION) fail(`sensors.mappingVersion must be ${SENSOR_OWNERSHIP_MAPPING_VERSION}`);
+  let configuration: SensorConfiguration | null = null;
+  if (s.configuration !== null) {
+    try {
+      configuration = validateSensorConfiguration(s.configuration);
+    } catch (cause) {
+      fail(`sensors.configuration: ${cause instanceof Error ? cause.message : 'rejected'}`);
+    }
+  }
+  const resolution = resolutionOf(s.resolution, configuration);
+  return {
+    schemaVersion: SENSOR_SNAPSHOT_VERSION, profileSha256, mappingVersion: SENSOR_OWNERSHIP_MAPPING_VERSION, configuration, resolution,
+    ownershipMatrix: matrixOf(s.ownershipMatrix), residuals: residualsOf(s.residuals, resolution.residuals),
+    presets: presetsOf(s.presets, configuration),
+  };
+}
+
+/** Validates experiment payload schema 1 from `unknown`; returns a deep-frozen copy. Registered for the `experiment` kind. */
+export function validateExperiment(payload: unknown): ExperimentPayload {
+  const version = isRecord(payload) ? payload.schemaVersion : undefined;
+  if (version !== EXPERIMENT_SCHEMA_VERSION) fail(`unsupported experiment schema ${String(version)}; this reader knows schema ${EXPERIMENT_SCHEMA_VERSION}`);
+  const p = exact(payload, ['schemaVersion', 'profile', 'ardupilot', 'launcher', 'session', 'parameters', 'frameScript', 'sensors'], 'the payload');
+  const profile = profileOf(p.profile);
+  const launcher = exact(p.launcher, ['experimentId'], 'launcher');
+  const parameters = parametersOf(p.parameters);
+  return freeze({
+    schemaVersion: EXPERIMENT_SCHEMA_VERSION, profile, ardupilot: firmwareOf(p.ardupilot),
+    launcher: { experimentId: matching(launcher.experimentId, LAUNCHER_EXPERIMENT_ID, 'launcher.experimentId', 'a launcher experiment ID') },
+    session: sessionOf(p.session), parameters, frameScript: frameScriptOf(p.frameScript, parameters), sensors: snapshotOf(p.sensors, profile.sha256),
+  });
+}
+
+/**
+ * The record name '<profile name> run <launcher experiment ID>'. The profile
+ * name is shortened by code points so that the whole name stays within the
+ * store's MAX_NAME_CODE_POINTS.
+ */
+export function experimentRecordName(profileName: string, experimentId: string): string {
+  const suffix = ` run ${experimentId}`;
+  const room = MAX_NAME_CODE_POINTS - [...suffix].length;
+  if (room < 1) throw new Error('The launcher experiment ID is too long for a record name');
+  return `${[...profileName].slice(0, room).join('').trimEnd()}${suffix}`;
+}
+
+/**
+ * Stores an experiment as a new item of `projectId`. The payload must name the
+ * stored profile version exactly (address, item, version and name), and what
+ * MirageSITL generates from that version is recomputed and compared: the
+ * sensor snapshot byte for byte, the frame and output parameters (values and
+ * order) and the frame script of frameConfiguration, and the SHA-256 of the
+ * vehicle manifest derived from it and its component cards with the
+ * session's model ID. The PWM pair and the SIM_* sensor parameters are checked
+ * by form only; they also depend on the session context (home altitude,
+ * compass offsets) and the ArduPilot catalog. The profile version becomes the
+ * record's only dependency.
+ */
+export async function createExperimentRecord(store: ProjectStore, projectId: string, inputs: ExperimentInputs): Promise<StoredVersion> {
+  const payload = validateExperiment(inputs.payload);
+  const stored = await store.get(payload.profile.sha256);
+  const record = stored.record;
+  if (record.kind !== 'aircraft-profile' || record.projectId !== projectId) fail(`profile ${stored.sha256} is not an aircraft profile of this project`);
+  if (record.id !== payload.profile.id || record.version !== payload.profile.version || record.name !== payload.profile.name) {
+    fail(`profile must give the id, version and name of stored version ${stored.sha256}`);
+  }
+  if (!equalBytes(canonicalBytes(payload.sensors), canonicalBytes(sensorSnapshot(stored)))) {
+    fail('sensors must be the sensor snapshot of the stored profile version');
+  }
+  const profile = readAircraftProfile(stored);
+  const frame = frameConfiguration(profile, stored.sha256);
+  if (!frame.ok) return fail(`ArduPilot has no frame for profile ${stored.sha256}`);
+  // parametersOf fixed the order, so the frame and output entries are the head of the list.
+  const generated = payload.parameters.filter(p => p.source === 'frame' || p.source === 'output');
+  if (generated.length !== frame.parameters.length ||
+    generated.some((p, index) => p.name !== frame.parameters[index]?.name || p.value !== frame.parameters[index]?.value)) {
+    fail('the frame and output parameters must be the ones frameConfiguration generates for the stored profile version, in its order');
+  }
+  if (payload.frameScript !== frame.script) fail('frameScript must be the script frameConfiguration generates for the stored profile version');
+  const cards = new Map<string, ComponentCard>();
+  for (const dependency of profileDependencies(profile)) {
+    if (dependency.kind === 'component-card') cards.set(dependency.sha256, readComponentCard(await store.get(dependency.sha256)));
+  }
+  const resolved = resolveComponents(profile, cards);
+  if (!resolved.components) return fail(`profile ${stored.sha256} cannot be derived: ${resolved.missing.join('; ')}`);
+  const derived = await deriveVehicleManifest(profile, resolved.components, { modelId: payload.session.modelId });
+  if (derived.sha256 !== payload.session.manifestSha256) {
+    fail('session.manifestSha256 must be the manifest derived from the stored profile version with session.modelId');
+  }
+  return store.createItem(projectId, 'experiment', { name: inputs.name, payload, dependencies: [stored.sha256] });
+}
+
+/**
+ * The payload of a stored experiment version. The store applies validators
+ * only on writes and imports, so this validates again, and checks that the
+ * record depends on exactly the profile version the payload names.
+ */
+export function readExperiment(stored: StoredVersion): ExperimentPayload {
+  const record = stored.record;
+  if (record.kind !== 'experiment') throw new Error(`Record ${stored.sha256} is of kind ${record.kind}, not an experiment`);
+  const payload = validateExperiment(record.payload);
+  const [dependency, ...others] = record.dependencies;
+  if (others.length > 0 || dependency?.kind !== 'aircraft-profile' || dependency.sha256 !== payload.profile.sha256) {
+    fail(`experiment record ${stored.sha256} must depend on exactly the aircraft profile version ${payload.profile.sha256}`);
+  }
+  return payload;
+}

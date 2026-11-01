@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 
 import { Radio } from "lucide-react";
 import type { StoredVersion } from "@mirage/project/schema";
 import { validateComponentCard } from "@mirage/aircraft/components";
+import { validateExperiment } from "@mirage/aircraft/experiment";
 import { validateMeasurementSet } from "@mirage/aircraft/measurements";
 import { validateAircraftProfile } from "@mirage/aircraft/profile";
 import { ProjectStore } from "@mirage/project/store";
@@ -75,6 +76,7 @@ export function AppShell({ run }: { run: (visible: boolean, storeState: StoreSta
         const ready = await ProjectStore.openIndexedDb({
           validators: {
             "component-card": validateComponentCard, "measurement-set": validateMeasurementSet, "aircraft-profile": validateAircraftProfile,
+            "experiment": validateExperiment,
           },
         });
         opened = ready;

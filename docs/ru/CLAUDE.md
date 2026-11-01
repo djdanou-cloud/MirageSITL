@@ -1,6 +1,6 @@
 # CLAUDE.md — MirageSITL agent instructions
 
-<!-- source-sha256: 5192cfc2245bbb20d5705ffdb1eb59a21e31daa8b2c1ce90bcb7a8784bf98cef -->
+<!-- source-sha256: a2ef2450586bc2a20e02eb50c4705d070e357ba531db4957897e926dd7b70ecb -->
 
 Английский источник: [Source of truth](../../CLAUDE.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -310,6 +310,11 @@ TASK-127–TASK-192 и решения D-01–D-12, а у каждой откры
   READY даёт LiveEkfWarmup, и он отзывается при устаревшей диагностике, с G1
   для шага lockstep; остаётся только полёт в Google Chrome (на M5 не
   установлен).
+  TASK-154 в статусе IN_PROGRESS: состояния прогона вкладки Run
+  (`SessionController`), неизменяемая запись эксперимента
+  (`@mirage/aircraft/experiment`), чтение параметров обратно и четыре отказа из
+  DoD проходят с установленным ArduCopter в Chromium; остаются только прогоны в
+  Google Chrome.
   Решения D-04 и D-06–D-12 приняты.
   TASK-127 и TASK-128 выполнены: штатный ArduCopter `8ab6afd` собирается и
   летает нативно на Apple Silicon ([macos-sitl.md](macos-sitl.md)), а его штатные

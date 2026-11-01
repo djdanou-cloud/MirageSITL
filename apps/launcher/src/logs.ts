@@ -9,6 +9,8 @@ import { join } from "node:path";
 export const DATAFLASH_NAME = /^[0-9]{1,8}\.BIN$/;
 /** Largest diagnostic tail returned in one response. */
 export const MAX_TAIL_BYTES = 64 * 1024;
+/** Bytes read from the end of a log to find its last line for an exit reason. */
+export const MAX_LAST_LINE_BYTES = 4 * 1024;
 
 export interface DataflashFile {
   readonly name: string;
@@ -27,6 +29,20 @@ export function tail(path: string, limit = MAX_TAIL_BYTES): string {
   } finally {
     closeSync(fd);
   }
+}
+
+/**
+ * The last non-empty line of a log, trimmed, from at most `limit` bytes at
+ * its end; null when the file is absent or holds only blank lines. A line
+ * longer than `limit` comes back as its final `limit` bytes.
+ */
+export function lastLine(path: string, limit = MAX_LAST_LINE_BYTES): string | null {
+  const lines = tail(path, limit).split(/\r?\n/);
+  for (let index = lines.length - 1; index >= 0; index--) {
+    const line = lines[index]?.trim() ?? "";
+    if (line !== "") return line;
+  }
+  return null;
 }
 
 export function listDataflash(workDirectory: string): DataflashFile[] {

@@ -280,7 +280,10 @@ implementation.
   physics Worker stepping PhysicsSessionV2 on SITL's frames (`SitlJsonLink`),
   READY from LiveEkfWarmup and revoked when diagnostics go stale, with G1 for
   the lockstep step; only the flight in Google Chrome remains (not installed on
-  the M5). Decisions D-04
+  the M5). TASK-154 is IN_PROGRESS: the Run tab's run states (`SessionController`),
+  the immutable experiment record (`@mirage/aircraft/experiment`), parameter
+  read-back and the four DoD faults pass against the installed ArduCopter in
+  Chromium; only the runs in Google Chrome remain. Decisions D-04
   and D-06 to D-12 are decided. TASK-127 and TASK-128 are DONE: stock
   ArduCopter `8ab6afd` builds and flies natively on Apple Silicon
   ([macos-sitl.md](docs/decisions/macos-sitl.md)), and its stock frames and

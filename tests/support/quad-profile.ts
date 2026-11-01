@@ -15,7 +15,8 @@ const MOTOR = '11'.repeat(32), PROPELLER = '22'.repeat(32), ESC = '33'.repeat(32
 function json(path: string): unknown {
   return JSON.parse(readFileSync(join(process.cwd(), 'tests/fixtures', path), 'utf8'));
 }
-function card(type: string): ComponentCard {
+/** An example card fixture with every known value marked 'example'. */
+export function exampleCard(type: 'motor' | 'propeller' | 'esc' | 'battery'): ComponentCard {
   const base = json(`components/${type}-example.json`);
   if (typeof base !== 'object' || base === null || !('values' in base) || typeof base.values !== 'object' || base.values === null) {
     throw new Error(`Invalid ${type} card fixture`);
@@ -24,12 +25,19 @@ function card(type: string): ComponentCard {
   return validateComponentCard({ ...base, provenance });
 }
 
-export async function quadProfile(): Promise<{ profile: AircraftProfile; derived: DerivedVehicleManifest }> {
-  const fixture = validateAircraftProfile(json('aircraft/quad-x.json'));
-  const profile = withPropellerPolars(validateAircraftProfile({ ...fixture, battery: { card: BATTERY },
-    motors: fixture.motors.map(motor => ({ ...motor, components: { motor: MOTOR, propeller: PROPELLER, esc: ESC } })) }),
-  [{ card: PROPELLER, polar: 'naca6409-neuralfoil-v1' }]);
-  const cards = new Map([[MOTOR, card('motor')], [PROPELLER, card('propeller')], [ESC, card('esc')], [BATTERY, card('battery')]]);
+/** Card addresses of the four example cards; stored cards have their own SHA-256 addresses. */
+export interface ExampleCardAddresses { readonly motor: string; readonly propeller: string; readonly esc: string; readonly battery: string }
+const PLACEHOLDERS: ExampleCardAddresses = { motor: MOTOR, propeller: PROPELLER, esc: ESC, battery: BATTERY };
+
+/** The S19 quad X (or another tests/fixtures/aircraft layout) on the example cards at `addresses`. */
+export async function quadProfile(addresses: ExampleCardAddresses = PLACEHOLDERS, layout = 'quad-x'):
+Promise<{ profile: AircraftProfile; derived: DerivedVehicleManifest }> {
+  const fixture = validateAircraftProfile(json(`aircraft/${layout}.json`));
+  const { motor, propeller, esc, battery } = addresses;
+  const profile = withPropellerPolars(validateAircraftProfile({ ...fixture, battery: { card: battery },
+    motors: fixture.motors.map(item => ({ ...item, components: { motor, propeller, esc } })) }),
+  [{ card: propeller, polar: 'naca6409-neuralfoil-v1' }]);
+  const cards = new Map([[motor, exampleCard('motor')], [propeller, exampleCard('propeller')], [esc, exampleCard('esc')], [battery, exampleCard('battery')]]);
   const resolved = resolveComponents(profile, cards);
   if (!resolved.components) throw new Error(`Missing: ${resolved.missing.join('; ')}`);
   return { profile, derived: await deriveVehicleManifest(profile, resolved.components, { modelId: 153 }) };

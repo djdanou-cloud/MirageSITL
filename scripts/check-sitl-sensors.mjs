@@ -11,6 +11,7 @@ import {existsSync,readFileSync,statSync,writeFileSync,mkdirSync} from 'node:fs'
 import {dirname,join,resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {createHash} from 'node:crypto';
+import {absentAllowed as absentAllowedByLookup} from '../packages/autopilot/src/parameter-readback.ts';
 
 const root=fileURLToPath(new URL('../',import.meta.url));
 const sha=bytes=>createHash('sha256').update(bytes).digest('hex');
@@ -45,14 +46,12 @@ export function windowMeans(events,startS,endS){
     gnssFixes:new Set(of('GPS_RAW_INT').map(m=>m.time_usec)).size};
 }
 
-/** True for a generated parameter the build legitimately lacks: a cataloged instance it does not compile, or a hidden second receiver. */
+/**
+ * True for a generated parameter the build legitimately lacks: a cataloged instance it does not compile, or a hidden second receiver.
+ * The one rule is TASK-154's (packages/autopilot/src/parameter-readback.ts); this reads it over a {name: value} parameter list.
+ */
 export function absentAllowed(name,catalogConditions,parameters){
-  const base=catalogConditions.has(name)?name:name.replace(/_[XYZ]$/,'');
-  const conditions=catalogConditions.get(base);
-  if(!conditions)return false;
-  if(conditions.some(c=>/^#if (INS_MAX_INSTANCES|HAL_COMPASS_MAX_SENSORS) > [1-9]$/.test(c)))return true;
-  // SIM_GPS2_ENABLE carries AP_PARAM_FLAG_ENABLE: the rest of its group is hidden while it is 0.
-  return name.startsWith('SIM_GPS2_')&&parameters.SIM_GPS2_ENABLE===0;
+  return absentAllowedByLookup(name,catalogConditions,key=>parameters[key]);
 }
 
 /**
