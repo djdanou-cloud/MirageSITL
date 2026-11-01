@@ -300,7 +300,14 @@ implementation.
   ArduPilot spin each motor alone and compares its frame (test order, output,
   spin) with the rotor the physics turned; all five S19 configurations pass
   against native ArduCopter, and a swapped mapping or a reversed spin is
-  caught on exactly that motor. Decisions D-04
+  caught on exactly that motor. TASK-162 is DONE: recorder v2
+  (`packages/aar`) records a run signal by signal at effective rates
+  min(requested, source) from a 30-signal catalog, through a zero-allocation
+  producer in the physics Worker (`recording-v2.arm`), into checksummed
+  format v2 chunks in the persistent IndexedDB database `mirage-recordings`,
+  without the 32 MiB cap; records reopen after a restart, a cut-off one as
+  interrupted. The Logging tab and the Run tab's wiring are TASK-163/165.
+  Decisions D-04
   and D-06 to D-12 are decided. TASK-127 and TASK-128 are DONE: stock
   ArduCopter `8ab6afd` builds and flies natively on Apple Silicon
   ([macos-sitl.md](docs/decisions/macos-sitl.md)), and its stock frames and

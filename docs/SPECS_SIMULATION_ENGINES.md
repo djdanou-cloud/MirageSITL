@@ -6376,3 +6376,158 @@ judgement cases, refusals and the command's encoding;
 `tests/browser/motor-test.spec.ts`, through the Run tab with the installed
 ArduCopter, the check before flight (motors 1, 4, 2 and 3 ringed in turn,
 all passing) and no check in flight.
+
+## Recording format v2 (TASK-162)
+
+Recorder v2 records a whole run, signal by signal, at per-signal rates. It
+replaces neither the TASK-076 AAR record nor its archives, which stay as they
+are. The Logging tab (TASK-163) and the Run tab's controller (TASK-163,
+TASK-165) start recordings and send their events; this section defines what
+they record into.
+
+### Signal catalog
+
+`packages/aar/src/signal-catalog.ts` lists every signal with a fixed numeric
+ID, a group, named channels with units and a value type. The IDs are stored in
+records and never reused.
+
+| ID | Signal | Channels (units) | Type | Source |
+| ---: | --- | --- | --- | --- |
+| 1 | truth.position | north, east, down (m) | f64 | physics tick |
+| 2 | truth.velocity | north, east, down (m/s) | f64 | physics tick |
+| 3 | truth.attitude | qw, qx, qy, qz (1) | f64 | physics tick |
+| 4 | truth.bodyRates | p, q, r (rad/s) | f64 | physics tick |
+| 5 | truth.acceleration | north, east, down (m/s^2) | f64 | physics tick |
+| 6 | truth.specificForce | x, y, z body (m/s^2) | f64 | physics tick |
+| 7 | truth.air | trueAirspeed (m/s), ambientPressure (Pa), groundClearance (m) | f64 | physics tick |
+| 8 | pilot | roll, pitch, yaw, throttle (1) | f32 | physics tick |
+| 9 | actuators | output1..output16 (1) | f32 | physics tick, when the tick has an actuator frame |
+| 10–14 | motors.speed, motors.current, motors.busCurrent, motors.power, motors.command | motor1..motor16 (rev/min, A, A, W, 1) | f32 | physics tick, when the dynamics has an electrical drive (power telemetry v1) |
+| 15 | battery | stateOfCharge (1), voltage (V), current (A), power (W), remaining (Ah) | f64 | physics tick, with an electrical drive |
+| 16–20 | sensors.imu, sensors.gnss, sensors.magnetometer, sensors.barometer, sensors.airspeed | the SensorFrameV2 values of the kind; GNSS adds latitude, longitude (deg) and altitude (m MSL) | f64 | sensor frames, aperiodic |
+| 32 | autopilot.attitude | roll, pitch, yaw (rad), roll/pitch/yaw rates (rad/s) | f32 | ATTITUDE |
+| 33 | autopilot.localPosition | north, east, down (m), velocities (m/s) | f32 | LOCAL_POSITION_NED |
+| 34 | autopilot.globalPosition | latitude, longitude (deg), MSL and relative altitude (m), velocities (m/s), heading (deg) | f64 | GLOBAL_POSITION_INT |
+| 35 | autopilot.gps | latitude, longitude (deg), MSL altitude (m), fix type, satellites, eph, epv | f64 | GPS_RAW_INT |
+| 36 | autopilot.ekf | flags, velocity, horizontal and vertical position, compass and terrain variances | f32 | EKF_STATUS_REPORT |
+| 64 | events.parameter | a parameter name (16 ASCII bytes) and its float32 value; a flag marks the snapshot | — | event |
+| 65–68 | events.weather, events.fault, events.pause, events.accident | a registry code and up to three numbers (pause: 1 paused, 0 resumed) | f64 | event |
+| 127 | gap | rows lost here | — | recorder |
+
+### Rates
+
+A plan (`planRates`) takes one common rate (default 50 Hz, A-09) with
+per-group and per-signal overrides. A rate is 0 (not recorded) or a whole
+number from 1 to 2000 Hz; a signal override wins over its group's. The source
+rate is the physics rate (400, 800 or 1200 Hz) for physics signals and the
+upper bound for sensor frames, and the stream rate the session requests
+(10 Hz on the Run tab) for telemetry. The effective rate is min(requested,
+source). A request above the source rate is capped, and the plan and the
+record's header mark it `capped` with both rates: 2 kHz is reached only by a
+source that produces it, and no Phase 1 source does. Events have no rate and
+are always recorded.
+
+| Source | Which samples are kept |
+| --- | --- |
+| physics tick | an integer accumulator per signal adds the effective rate each tick and keeps the tick when the sum reaches the physics rate, subtracting it; N ticks keep exactly floor(N · effective / physics) samples, evenly spaced when the effective rate divides the physics rate, and never one tick twice |
+| sensor frame | a frame is kept when at least physics / effective ticks passed since the last kept frame of its kind |
+| telemetry | a message is kept when at least 1 / effective seconds of simulated time passed since the last kept message of its signal (5·10⁻⁷ s of slack for rounding) |
+
+A kept physics sample whose source produced nothing in that tick (no
+electrical drive, no actuator frame) writes no row; the producer counts it as
+absent per signal, and the catalog entry reports the counts. An absent sample
+is therefore never stored, and never read, as zero.
+
+### Rows and chunks
+
+A row is one kept sample, a gap or an event. Its header is 40 bytes
+little-endian, followed by the payload and padding to 8 bytes.
+
+| Byte Offset | Data Type | Units | Field Name |
+| ---: | --- | --- | --- |
+| 0 | u16 | ID | signal |
+| 2 | u16 | bitmask | flags: bit0 Gap, bit1 Snapshot (parameter rows only) |
+| 4 | u32 | bitmask | presence: bit i set when channel i holds a value |
+| 8 | u32 | ticks | tick lo |
+| 12 | u32 | ticks | tick hi |
+| 16 | f64 | s | simulated time |
+| 24 | u32 | epoch | session epoch |
+| 28 | u32 | rows | lost: rows the producer dropped immediately before this row |
+| 32 | u16 | channels | channel count, equal to the catalog's |
+| 34 | u16 | bytes | payload bytes: channels × 4 (f32) or × 8 (f64); 20 for a parameter row; 0 for a gap |
+| 36 | u32 | — | reserved_zero |
+| 40 | bytes | — | payload |
+
+A chunk is a 48-byte header followed by rows, at most 65,536 bytes.
+
+| Byte Offset | Data Type | Units | Field Name |
+| ---: | --- | --- | --- |
+| 0 | u32 | magic | 0x3243524d ("MRC2") |
+| 4 | u32 | version | 2 |
+| 8 | u32 | index | chunk index, from 0 without gaps in numbering |
+| 12 | u32 | rows | row count |
+| 16 | u32 | bytes | payload bytes after the header |
+| 20 | u32 | ticks | first tick lo |
+| 24 | u32 | ticks | first tick hi |
+| 28 | u32 | ticks | last tick lo |
+| 32 | u32 | ticks | last tick hi |
+| 36 | u32 | key | the record ID's first 4 bytes |
+| 40 | u32 | — | reserved_zero |
+| 44 | u32 | CRC | CRC-32/ISO-HDLC of the chunk with bytes 44..47 taken as zero |
+
+A reader checks every chunk: magic, version, its index, the record key, the
+CRC and each row against the catalog (signal, channel count, payload size,
+flags, presence bits within the channel count, a finite time). A failing chunk
+is reported as corrupt and its rows are not used.
+
+The record's header is JSON (schema `formatVersion` 2): the record ID (32 hex
+characters), the experiment ID or null, the start time, the physics rate, the
+common rate, the model SHA-256 or null, the firmware commit and binary
+SHA-256 or null, and the signal table with each signal's source, requested and
+effective rate and `capped`. A header is accepted only when its signals equal
+this version's catalog and every effective rate equals min(requested, source).
+
+### Producer, recorder and storage
+
+The producer (`RecordingProducerV2`) runs in the physics Worker's record hook
+and writes rows into recording queue v2 ([Shared Memory](SPECS_SHARED_MEMORY.md),
+"Recording queue v2"). It allocates nothing after construction and never
+waits. The recorder Worker (`recorder-v2.worker.ts`) drains the queue every
+10 ms and Main's telemetry and event rows into chunks. It seals a chunk when
+it is full or after one second of wall time with rows in it, which bounds what
+a crash can lose. While it records, it holds the Web Lock
+`mirage-recording-<record ID>`. When the recording closes, rows the producer
+lost after its last delivered row become one gap row, so every lost row is in
+the record.
+
+Storage is the persistent IndexedDB database `mirage-recordings`, without the
+32 MiB cap of TASK-076. Store `entries` holds one catalog entry per record:
+the header; the status `recording`, `closed` or `interrupted`; the chunk
+indices used and stored; bytes and rows per signal; dropped chunks and rows;
+producer losses; and absent samples per signal. Store `chunks` holds the
+chunks keyed by [record ID, index]. A chunk and its entry are written in one
+transaction, and one transaction is in flight at a time, with at most 64
+chunks waiting. A chunk that cannot wait, or whose transaction fails, is
+dropped; its index stays unused and the entry counts it, so a reader names it
+as missing. `listRecordings` marks a record that is still `recording` while
+no Web Lock holds it as `interrupted`, and it then reopens with every chunk
+stored before the restart. A-08 limits a recording to 2 GB per simulated
+hour; the Logging tab (TASK-163) estimates a plan's size before it starts.
+
+### Verification (TASK-162)
+
+`tests/recorder-v2.test.ts` runs one simulated hour at 400 Hz (1,440,000
+ticks) through the producer, the queue, the consumer and the stream writer. It
+checks every stored chunk's CRC and rows, and finds for each signal exactly
+floor(ticks · effective / source) rows in strictly increasing ticks: 2 kHz
+capped to 400, 7 Hz on a source it does not divide, and IMU frames at 100 Hz.
+It adds telemetry at 10 Hz, a 1,410-parameter snapshot and pause events, and
+keeps the record within the A-08 budget. Other tests cover absent samples,
+drops with every lost row accounted for, corrupted and dropped chunks, chunks
+of another record or index, refused rows and headers, an interrupted record,
+and telemetry decoding. `node scripts/bench-aar.mjs HZ v2` is G1 for the
+producer at its worst case (every physics signal at the physics rate, 16
+motors and an IMU frame each tick). `tests/browser/recorder-v2.spec.ts` arms
+the application's physics Worker in Chrome. It records the demo session,
+closes and relaunches the browser on the same profile, and reopens a closed
+record with exact rates and a cut-off record as interrupted.
