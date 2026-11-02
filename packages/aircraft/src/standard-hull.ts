@@ -1,4 +1,5 @@
-import type { HullShape } from '@mirage/physics/vehicle-manifest';
+import { PROPELLER_DISC_HALF_THICKNESS_OF_RADIUS, type HullShape } from '@mirage/physics/vehicle-manifest';
+import type { RotorLayout } from './layout.ts';
 import type { AircraftProfile } from './profile.ts';
 import { sinCos } from './trig.ts';
 
@@ -52,7 +53,19 @@ export function standardHull(profile: AircraftProfile, propellerRadiusM: (motorI
   return [body, ...arms];
 }
 
-/** The depth (body FRD z, down) of a hull's lowest point below the reference point with the body level. */
+/**
+ * The propeller disc of a rotor as physics builds it from the manifest (TASK-095): a cylinder at
+ * the hub about the thrust axis with the rotor radius, its ID the motor ID. It is not part of the
+ * manifest's hull.
+ */
+export function propellerDisc(rotor: RotorLayout, radiusM: number): HullShape {
+  return {
+    id: rotor.motorId, kind: 'cylinder', centerBodyM: [...rotor.hubPositionBodyM], axisBody: [...rotor.thrustAxisBody], radiusM,
+    halfHeightM: PROPELLER_DISC_HALF_THICKNESS_OF_RADIUS * radiusM,
+  };
+}
+
+/** The depth (body FRD z, down) of the lowest point of hull shapes or propeller discs below the reference point with the body level. */
 export function hullLowestDepthM(hull: readonly HullShape[]): number {
   return Math.max(...hull.map(shape => {
     if (shape.kind === 'capsule') return Math.max(shape.startBodyM[2]!, shape.endBodyM[2]!) + shape.radiusM;

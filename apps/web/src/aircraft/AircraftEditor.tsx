@@ -3,13 +3,14 @@ import { bindMeasurements, type MeasurementCandidate } from "@mirage/aircraft/ca
 import { readComponentCard, type ComponentType } from "@mirage/aircraft/components";
 import { deriveLayout, type AircraftLayout } from "@mirage/aircraft/layout";
 import { readMeasurementSet } from "@mirage/aircraft/measurements";
-import { calculationSettings, profileDraft, readAircraftProfile } from "@mirage/aircraft/profile";
+import { calculationSettings, profileDraft, readAircraftProfile, type AircraftProfile } from "@mirage/aircraft/profile";
 import type { StoredVersion } from "@mirage/project/schema";
 import type { StoreState } from "../shell/AppShell";
 import { nameLanguage } from "../shell/project-files";
 import { describeLibraryError } from "../library/library-data";
 import { AircraftScheme3D, type RenderedRotor } from "./AircraftScheme3D";
 import { ArmTable, type CardOption, type CardOptions } from "./ArmTable";
+import { ClearancePanel } from "./ClearancePanel";
 import { MassProperties } from "./MassProperties";
 import { POLAR_CATALOG } from "@mirage/physics/polar-catalog";
 import { OutputMapping } from "./OutputMapping";
@@ -20,7 +21,8 @@ import { choosePropellerPolar, emptyForm, formFromProfile, profileFromForm, prop
 // through validateAircraftProfile and profileDraft (TASK-138); while the form
 // is invalid, Save is disabled and the reasons are listed. The 3D scheme draws
 // the layout derivation of the last valid form, and the ArduPilot outputs
-// and frame parameters of the valid form follow it (TASK-142).
+// and frame parameters of the valid form follow it (TASK-142). The propeller
+// clearance of the valid form, with its proposed fix, follows them (TASK-195).
 
 interface Editing {
   /** Null for a profile that is not stored yet. */
@@ -36,8 +38,10 @@ interface Library {
   readonly profiles: readonly StoredVersion[];
   readonly cards: CardOptions & { readonly battery: readonly CardOption[] };
   readonly candidates: readonly MeasurementCandidate[];
+  /** The propeller radius of each readable propeller card, m. */
+  readonly propellerRadii: ReadonlyMap<string, number>;
 }
-const EMPTY_LIBRARY: Library = { profiles: [], cards: { motor: [], propeller: [], esc: [], battery: [] }, candidates: [] };
+const EMPTY_LIBRARY: Library = { profiles: [], cards: { motor: [], propeller: [], esc: [], battery: [] }, candidates: [], propellerRadii: new Map() };
 
 function editingOf(stored: StoredVersion): Editing {
   const form = formFromProfile(readAircraftProfile(stored));
@@ -69,9 +73,12 @@ export function AircraftEditor({ storeState, project, active }: { storeState: St
         store.listItems(projectId, "aircraft-profile"), store.listItems(projectId, "component-card"), store.listItems(projectId, "measurement-set"),
       ]);
       const cards: { [type in ComponentType]: CardOption[] } = { motor: [], propeller: [], esc: [], battery: [] };
+      const propellerRadii = new Map<string, number>();
       for (const stored of cardHeads) {
         try {
-          cards[readComponentCard(stored).type].push({ sha256: stored.sha256, name: stored.record.name });
+          const card = readComponentCard(stored);
+          cards[card.type].push({ sha256: stored.sha256, name: stored.record.name });
+          if (card.type === "propeller") propellerRadii.set(stored.sha256, card.values.diameterM / 2);
         } catch {
           // An unreadable card cannot be selected; the Components tab shows why.
         }
@@ -84,7 +91,7 @@ export function AircraftEditor({ storeState, project, active }: { storeState: St
         }
       });
       if (cancelled) return;
-      setLibrary({ profiles, cards, candidates });
+      setLibrary({ profiles, cards, candidates, propellerRadii });
       // The Sensors tab may have saved a newer version of the open profile; follow it unless there are unsaved changes.
       setEditing(current => {
         if (!current?.itemId || current.name !== current.savedName || JSON.stringify(current.form) !== current.savedForm) return current;
@@ -110,6 +117,17 @@ export function AircraftEditor({ storeState, project, active }: { storeState: St
   if (layout) lastLayout.current = layout;
   if (!editing) lastLayout.current = null;
   const shownLayout = layout ?? lastLayout.current;
+  // Each motor's propeller radius from its card, or null while a motor has none.
+  const radii = useMemo(() => {
+    if (!result?.ok) return null;
+    const entries: [number, number][] = [];
+    for (const motor of result.profile.motors) {
+      const radius = motor.components.propeller === null ? undefined : library.propellerRadii.get(motor.components.propeller);
+      if (radius === undefined) return null;
+      entries.push([motor.id, radius]);
+    }
+    return new Map(entries);
+  }, [result, library.propellerRadii]);
 
   const setForm = (form: ProfileForm) => setEditing(current => (current ? { ...current, form } : current));
   const perform = (action: () => Promise<string>) => {
@@ -126,9 +144,12 @@ export function AircraftEditor({ storeState, project, active }: { storeState: St
     }
   };
   const save = () => {
-    if (!store || !projectId || !editing || !result?.ok || nameError) return;
+    if (result?.ok) persist(result.profile);
+  };
+  const persist = (validProfile: AircraftProfile, saved = "Saved") => {
+    if (!store || !projectId || !editing || nameError) return;
     perform(async () => {
-      let profile = result.profile;
+      let profile = validProfile;
       // A measured profile binds the newest measurement sets of exactly its new combinations (TASK-140).
       if (calculationSettings(profile).mode === "measured") profile = await bindMeasurements(profile, "measured", library.candidates);
       const draft = profileDraft(editing.name, profile);
@@ -138,7 +159,7 @@ export function AircraftEditor({ storeState, project, active }: { storeState: St
       setEditing(editingOf(stored));
       setRevision(value => value + 1);
       if (stored.sha256 === editing.head?.sha256) return "Nothing changed, so no version was saved.";
-      return stored.record.version === 1 ? `Created ${stored.record.name}.` : `Saved version ${stored.record.version} of ${stored.record.name}.`;
+      return stored.record.version === 1 ? `Created ${stored.record.name}.` : `${saved} version ${stored.record.version} of ${stored.record.name}.`;
     });
   };
   const copy = () => {
@@ -249,6 +270,8 @@ export function AircraftEditor({ storeState, project, active }: { storeState: St
             ) : <p>The scheme appears once the arms, motors and mass properties are valid.</p>}
           </section>
           <ArmTable form={editing.form} cards={library.cards} onChange={setForm} />
+          <ClearancePanel profile={result?.ok ? result.profile : null} radii={radii} dirty={dirty} saveBlocked={nameError !== null} busy={busy}
+            onSave={fixed => persist(fixed, "Saved the propeller clearance fix as")} />
           <OutputMapping profile={result?.ok ? result.profile : null} profileSha256={!dirty && editing.head ? editing.head.sha256 : null} />
           <section className="project-section" aria-labelledby="propulsion-heading">
             <h3 id="propulsion-heading">Propulsion and battery</h3>

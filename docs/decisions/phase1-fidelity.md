@@ -118,7 +118,9 @@ that day (a body cylinder and one capsule per arm, marked not measured; body
 size fields are TASK-196), and each rotor adds a propeller disc. A profile
 without a clearance rests with the hull's lowest point one static deflection
 `δ_s` above the ground, so the resting hull stays clear of it and a hard
-landing that doubles the load reaches it.
+landing that doubles the load reaches it. Since derivation 5 (TASK-195,
+2026-11-02) that lowest point includes the propeller discs, since no disc may
+carry support and the lower rotor of a coaxial pair can hang below the hull.
 
 **Default parameters (F-08, decided).** Defaults are derived from numbers
 the stakeholder chose on 2026-10-28, rather than stored as fixed spring

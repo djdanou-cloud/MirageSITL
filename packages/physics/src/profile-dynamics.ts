@@ -9,7 +9,8 @@ import type { LimitRatings } from './limit-monitor.ts';
 import { boundCatalogPolar } from './polar-catalog.ts';
 import type { SessionModelPort } from './session-v2.ts';
 import {
-  deriveVehicle, projectVehicleToModelV1, validateVehicleManifest, withoutHull, withoutLandingGear, type VehicleManifest, type VehicleRegistry,
+  deriveVehicle, PROPELLER_DISC_HALF_THICKNESS_OF_RADIUS, projectVehicleToModelV1, validateVehicleManifest, withoutHull, withoutLandingGear,
+  type VehicleManifest, type VehicleRegistry,
 } from './vehicle-manifest.ts';
 
 // Flight dynamics from a vehicle manifest v2 with motors, ESCs and a battery
@@ -22,11 +23,8 @@ import {
  * assumptions by the profile resolver, not properties of a propeller.
  */
 export const PROFILE_ROTOR_SETTINGS = Object.freeze({ inflowTauS: 0.1, inflowLimitMps: 500, minimumConfidence: 0.9 });
-/**
- * Half the thickness of a propeller disc as a contact shape (TASK-095), as a fraction of the rotor
- * radius: a 10 in propeller is a disc 6.4 mm thick. A contact model setting, not a propeller property.
- */
-export const PROPELLER_DISC_HALF_THICKNESS_OF_RADIUS = 0.025;
+/** The propeller disc thickness lives with the hull shapes; it stays exported here too. */
+export { PROPELLER_DISC_HALF_THICKNESS_OF_RADIUS };
 
 export interface ProfileDynamicsOptions {
   /** Initial battery state of charge in (0, 1]; defaults to 1. */

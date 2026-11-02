@@ -12,12 +12,15 @@ import { sinCos } from './trig.ts';
 // clearance stands on supports below its standard hull (TASK-095 increment
 // 4), as F-07 places them at the hull's lowest point: the derivation passes
 // the clearance that leaves that point one static deflection above the
-// ground at rest, so a hard landing that doubles the load reaches it. The supports are
+// ground at rest, so a hard landing that doubles the load reaches it. Rules 3
+// (TASK-195) count the propeller discs in that lowest point, since F-07 lets
+// no disc carry support and the lower rotor of a coaxial pair can hang below
+// the hull. The supports are
 // synthetic, not any aircraft's measured legs, and the vehicle manifest
 // declares them as their own synthetic dataset. Configuration-time code only.
 
 /** Version of the rules; a change of any rule is a new version. */
-export const STANDARD_GEAR_VERSION = 2;
+export const STANDARD_GEAR_VERSION = 3;
 /** Standard gravity, m/s², as the contact engine applies it. */
 const GRAVITY_MPS2 = 9.80665;
 
@@ -98,6 +101,15 @@ export function standardLandingGear(profile: AircraftProfile, massKg: number, cl
   });
 }
 
+/**
+ * The height of the reference point above the ground at rest: the profile's clearance, or the one
+ * that leaves the lowest of the standard hull and the propeller discs one static deflection above
+ * the ground (`hullLowestDepthM` of both).
+ */
+export function restingClearanceM(profile: AircraftProfile, lowestDepthM: number): number {
+  return profile.groundClearanceM ?? lowestDepthM + STANDARD_GEAR.staticDeflectionM;
+}
+
 /** Turns -0 into 0, so values and their canonical JSON agree. */
 function clean(value: number): number {
   return value === 0 ? 0 : value;
@@ -108,6 +120,6 @@ export function standardGearDerivation(): string {
   const g = STANDARD_GEAR;
   return `Standard landing gear ${STANDARD_GEAR_VERSION} of @mirage/aircraft, synthetic and not measured: the basic support approximation ` +
     `of decision D-07 (F-07, F-08), one support under each arm at its motor radius and the reference point at the profile's ground ` +
-    `clearance at rest, or without one where the standard hull's lowest point rests one static deflection above the ground, static deflection ${g.staticDeflectionM} m, damping ratio ${g.dampingRatio}, friction ${g.staticFriction} static and ` +
+    `clearance at rest, or without one where the lowest point of the standard hull and the propeller discs rests one static deflection above the ground, static deflection ${g.staticDeflectionM} m, damping ratio ${g.dampingRatio}, friction ${g.staticFriction} static and ` +
     `${g.kineticFriction} kinetic.`;
 }

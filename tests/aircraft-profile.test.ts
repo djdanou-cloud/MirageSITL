@@ -35,9 +35,10 @@ type Mutable<T> = { -readonly [K in keyof T]: Mutable<T[K]> };
 type ProfileData = Mutable<AircraftProfile>;
 
 /**
- * SHA-256 of a derivation 4 manifest put back to derivation 1: the version in
+ * SHA-256 of a derivation 5 manifest put back to derivation 1: the version in
  * the input hash and in the description, and without the standard gear
- * (derivation 3), the standard hull (derivation 4) and their datasets. Without
+ * (derivation 3), the standard hull (derivation 4) and their datasets; derivation 5
+ * changes only the supports, which go too. Without
  * IMU mounts (derivation 2) nothing else changed, so it must equal the
  * TASK-138 recording.
  */
@@ -53,7 +54,7 @@ function asDerivation1(manifest: VehicleManifest, profile: unknown, components: 
   delete sections.hull;
   return hash({ ...withoutHull, landingGear: [], provenance: { ...sections, landingGear: null },
     datasets: [{ ...dataset, sourceSha256: hash({ derivationVersion: 1, profile: validateAircraftProfile(profile), components }),
-      derivation: dataset.derivation.replace('derivation 4 ', 'derivation 1 ') }] });
+      derivation: dataset.derivation.replace('derivation 5 ', 'derivation 1 ') }] });
 }
 
 function fixture(name: FixtureName): ProfileData {
@@ -311,7 +312,7 @@ describe('manifest derivation', () => {
     const hash = (value: unknown) => createHash('sha256').update(canonicalBytes(value)).digest('hex');
     const validated = validateAircraftProfile(profile), components = syntheticComponents(validated);
     expect(derived.profileSha256).toBe(hash(validated));
-    expect(derived.inputSha256).toBe(hash({ derivationVersion: 4, profile: validated, components }));
+    expect(derived.inputSha256).toBe(hash({ derivationVersion: 5, profile: validated, components }));
     // The standard hull as the user decided on 2026-11-01 (TASK-095 increment 4): a body cylinder about the body z axis through
     // the reference point, radius a quarter of the shortest arm and half-height 0.4 of that radius, and one capsule per arm from the
     // body axis to its mount at the arm's height, radius 5 % of the arm's largest propeller radius (0.14 m for every synthetic rotor).
@@ -388,7 +389,7 @@ describe('manifest derivation', () => {
   test('a change to geometry or components changes the manifest; the model ID is the only other input', async () => {
     const base = fixture('octa-x'), components = syntheticComponents(validateAircraftProfile(base));
     const reference = await deriveVehicleManifest(base, components, { modelId: FIXTURE_MODEL_ID });
-    const longer = edit('octa-x', c => { c.arms[0]!.lengthM = 0.351; });
+    const longer = edit('octa-x', c => { c.arms[0]!.lengthM = 0.386; });
     const heavier = edit('octa-x', c => { c.massProperties.massKg = 4.3; });
     const remapped = edit('octa-x', c => { c.motors[0]!.output = 8; c.motors[7]!.output = 1; });
     const otherPropeller = structuredClone(components) as Mutable<ResolvedComponents>;

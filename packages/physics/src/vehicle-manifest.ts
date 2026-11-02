@@ -72,6 +72,11 @@ export type HullShape =
     readonly radiusM: number }
   | { readonly id: number; readonly kind: 'cylinder'; readonly centerBodyM: readonly number[]; readonly axisBody: readonly number[];
     readonly radiusM: number; readonly halfHeightM: number };
+/**
+ * Half the thickness of a propeller disc as a contact shape (TASK-095), as a fraction of the rotor
+ * radius: a 10 in propeller is a disc 6.4 mm thick. A contact model setting, not a propeller property.
+ */
+export const PROPELLER_DISC_HALF_THICKNESS_OF_RADIUS = 0.025;
 export interface SensorMount {
   readonly sensor: 'imu' | 'baro' | 'mag' | 'gnss' | 'airspeed' | 'rangefinder'; readonly instance: number;
   readonly positionBodyM: readonly number[]; readonly sensorToBody: readonly number[];

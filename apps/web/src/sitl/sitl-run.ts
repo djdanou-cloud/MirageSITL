@@ -12,6 +12,7 @@
 // the ArduPilot-owned sensor parameters of TASK-147), and a profile that sets
 // a MirageSITL-owned sensor error is refused, because this path does not
 // apply those errors on the JSON line yet.
+import { describeClash, propellerClearance } from "@mirage/aircraft/clearance";
 import { readComponentCard, type ComponentCard } from "@mirage/aircraft/components";
 import { combineMassProperties, deriveVehicleManifest, type DerivedVehicleManifest } from "@mirage/aircraft/derive-manifest";
 import { FRAME_PARAMETER_NAMES, frameConfiguration, type ParameterValue } from "@mirage/aircraft/frame-parameters";
@@ -96,6 +97,15 @@ function refuseMirageSensorErrors(profile: AircraftProfile): void {
   }
 }
 
+/** No run starts from a profile whose propellers clash (TASK-195); the Aircraft tab lists the clashes and proposes a fix. */
+function refuseClashes(profile: AircraftProfile, motors: readonly { readonly motorId: number; readonly rotor: { readonly radiusM: number } }[]): void {
+  const radii = new Map(motors.map(motor => [motor.motorId, motor.rotor.radiusM]));
+  const { clashes } = propellerClearance(profile, motorId => radii.get(motorId) ?? Number.NaN);
+  if (clashes.length > 0) {
+    throw new Error(`the propellers clash. ${clashes.map(describeClash).join(". ")}. The Aircraft tab proposes a fix`);
+  }
+}
+
 /** Throws when two initial parameters share a name: the frame, PWM and sensor names must be disjoint. */
 export function requireUniqueNames(parameters: readonly TaggedParameter[]): void {
   const sources = new Map<string, ParameterSource>();
@@ -123,6 +133,7 @@ export async function prepareVehicle(store: ProjectStore, stored: StoredVersion)
   }
   const resolved = resolveComponents(profile, cards);
   if (!resolved.components) throw new Error(`The profile cannot fly yet: ${resolved.missing.join("; ")}`);
+  refuseClashes(profile, resolved.components.motors);
   const frame = frameConfiguration(profile, stored.sha256);
   if (!frame.ok) throw new Error(`ArduPilot has no frame for this profile: ${frame.reasons.map(reason => reason.message).join(" ")}`);
   // The barometer parameters scale with the home altitude, so the launcher's home and this context share DEFAULT_HOME.

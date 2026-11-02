@@ -64,7 +64,7 @@ export const RECIPES: readonly Recipe[] = [
   },
   {
     fixture: 'octa-x', name: 'Octa X',
-    layout: { count: '8', lengthM: '0.35', firstAzimuthDeg: '22.5', coaxial: false, pairSeparationM: '' },
+    layout: { count: '8', lengthM: '0.385', firstAzimuthDeg: '22.5', coaxial: false, pairSeparationM: '' },
     arms: all(8, { heightM: '-0.01', outwardTiltDeg: TILT_0035 }),
     motors: [],
     mass: { massKg: '4.2', cg: ['0', '0.004', '0.035'], inertia: ['0.11', '0.11', '0.2', '0', '0', '0'] },

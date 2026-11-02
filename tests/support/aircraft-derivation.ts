@@ -74,34 +74,36 @@ export function engineSensitiveVariant(profile: AircraftProfile): unknown {
 
 /**
  * SHA-256 of each fixture's derived manifest with `syntheticComponents` and
- * FIXTURE_MODEL_ID, recorded from derivation 4 (TASK-095, the standard
- * landing gear of decision D-07 and the standard hull) in Node 24.22.1. They
- * lock the bytes; the oracle checks in tests/aircraft-profile.test.ts establish
- * correctness, and taking the gear and the hull out again reproduces the
- * derivation 1 recordings below. The browser test
- * requires Chromium to produce the same bytes.
+ * FIXTURE_MODEL_ID, recorded from derivation 5 (TASK-095, the standard
+ * landing gear of decision D-07 and the standard hull; TASK-195, the propeller
+ * discs in the supports' clearance) in Node 24.22.1. They lock the bytes; the
+ * oracle checks in tests/aircraft-profile.test.ts establish correctness, and
+ * taking the gear and the hull out again reproduces the derivation 1
+ * recordings below. The browser test requires Chromium to produce the same bytes.
  */
 export const RECORDED_MANIFEST_SHA256: { readonly [name in FixtureName]: string } = {
-  'quad-x': '90bffd2c70166328daf7066a46eee5a198178252ead9dec4dfb1b830de16b179',
-  'hexa-x': '5a0cf7db2c6b55fa4cdb7e00ecb0a520e67d13f904ceda8baae0200bd005c947',
-  'octa-x': '5a026ffd0fd8e8269d10ec52475ef94795f1a0d6e73a8a66fd38049cb25321ef',
-  'coaxial-x8': '211266c82dff1116a5661a54f1ae13719d87fa371d26e6d16f06ab44379465e2',
-  'octa-coaxial-16': 'dec28c097747bfd569e72189e06cee89565de823c865aecdd3e2bea063db3326',
+  'quad-x': 'fa7deed311741380a4863105cd35ebfe7cc07b7a5d52f7b140c44ffb90eb5d32',
+  'hexa-x': '4d3e3c7ee1bb5b56a6516c8231d86b86bbe44f83b5a40fb8cbed8bc17750d1e1',
+  'octa-x': '54cad2cab659593f34b5fec2d41c286633e4865900eee1360432a15ebb486e27',
+  'coaxial-x8': 'd565b9f91b95c8559ce43ecc54205928802bc501283bddba61c4989060bacc84',
+  'octa-coaxial-16': '1e9adc6302fda954e94953077ef2bc98b6788f716ad0af72841067a75a5405ee',
 };
 /**
  * The same, recorded from derivation 1 (TASK-138). Derivation 2 (TASK-147)
- * adds IMU mounts, which no fixture states, derivation 3 the standard gear and
- * derivation 4 the standard hull, so restoring the version in the dataset and
- * taking the gear, the hull and their datasets out reproduces these bytes exactly.
+ * adds IMU mounts, which no fixture states, derivation 3 the standard gear,
+ * derivation 4 the standard hull and derivation 5 a rule of the gear, so
+ * restoring the version in the dataset and taking the gear, the hull and their
+ * datasets out reproduces these bytes exactly. Octa-x is re-recorded that way
+ * for its version 2 fixture (TASK-195), whose arms are 0.385 m instead of 0.35 m.
  */
 export const RECORDED_V1_MANIFEST_SHA256: { readonly [name in FixtureName]: string } = {
   'quad-x': 'a9e2cc46f6bc0b7b34740a70375e4dc5e43f6d7ce6a03a87111455e3c36a473c',
   'hexa-x': '81eb2d27eecd75378f6b000f74bc3d5d6c8317417439cc846f6607e61c857669',
-  'octa-x': '12865479561e2e62a8fc3f8b355f82684f8164569110240262af9f1026fe97fe',
+  'octa-x': 'cedbfc4098ba315ef921ce68602044e6abe770c0be44676ec16b56b213d67e22',
   'coaxial-x8': '603ec04b0a9ea12075f6e2da7aa96f7cde558407cc83305d1106d00310f5899a',
   'octa-coaxial-16': 'c07b18cdf07e6139d07efd76e8df4647ffd0eb5dcfeb15f153d02002df0b6306',
 };
-export const RECORDED_ENGINE_SENSITIVE_SHA256 = '43dae6f020a4f0642c9835c1a63ff40c2dad2aa229b757b6a00c9de6442b92b3';
+export const RECORDED_ENGINE_SENSITIVE_SHA256 = 'd4f7d4b1b6c49fe0dd4c075cfade257fd01e6018c3c2c6a2f80bcf7edc2b93d3';
 export const RECORDED_V1_ENGINE_SENSITIVE_SHA256 = '234f0d6e891346a377fc266fcd347f6f34355d15c5c543a70890806b8c889cae';
 
 /**

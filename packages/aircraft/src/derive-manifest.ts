@@ -3,8 +3,8 @@ import {
 } from '@mirage/physics/vehicle-manifest';
 import { canonicalBytes, decodeUtf8, sha256Hex } from '@mirage/project/schema';
 import { deriveLayout } from './layout.ts';
-import { STANDARD_GEAR, standardGearDerivation, standardLandingGear } from './standard-gear.ts';
-import { hullLowestDepthM, standardHull, standardHullDerivation } from './standard-hull.ts';
+import { restingClearanceM, standardGearDerivation, standardLandingGear } from './standard-gear.ts';
+import { hullLowestDepthM, propellerDisc, standardHull, standardHullDerivation } from './standard-hull.ts';
 import type { EulerZyxRad } from './sensor-fields.ts';
 import { sinCos } from './trig.ts';
 import { validateAircraftProfile, type AircraftProfile, type ComponentReferences } from './profile.ts';
@@ -18,9 +18,10 @@ import { validateAircraftProfile, type AircraftProfile, type ComponentReferences
 
 /**
  * Bumped whenever the same inputs would give different manifest bytes; 2 adds the IMU mount (TASK-147), 3 the standard
- * landing gear (TASK-095), 4 the standard hull and the supports of a profile without a ground clearance (TASK-095).
+ * landing gear (TASK-095), 4 the standard hull and the supports of a profile without a ground clearance (TASK-095), 5
+ * the propeller discs in those supports' clearance (TASK-195).
  */
-export const DERIVATION_VERSION = 4;
+export const DERIVATION_VERSION = 5;
 /** The dataset of a derived manifest's profile values; the standard gear has its own. */
 export const DERIVED_DATASET_ID = 'aircraft-profile-derivation';
 /** The synthetic dataset of the standard landing gear (derivation 3, TASK-095), until profiles describe their gear (TASK-194). */
@@ -197,10 +198,12 @@ export async function deriveVehicleManifest(input: unknown, components: Resolved
   const rotorWakePairs = layout.wakePairs.map(pair =>
     ({ upstreamRotorId: pair.upstreamMotorId, downstreamRotorId: pair.downstreamMotorId }));
   const dataset = DERIVED_DATASET_ID;
-  const hull = standardHull(profile, motorId => resolved.get(motorId)?.rotor.radiusM ?? Number.NaN);
+  const radius = (motorId: number): number => resolved.get(motorId)?.rotor.radiusM ?? Number.NaN;
+  const hull = standardHull(profile, radius);
   // The decision D-07 supports (F-07, F-08). A profile without a ground clearance stands on supports that leave the
-  // hull's lowest point one static deflection above the ground at rest.
-  const clearance = profile.groundClearanceM ?? hullLowestDepthM(hull) + STANDARD_GEAR.staticDeflectionM;
+  // lowest point of the hull and the propeller discs one static deflection above the ground at rest.
+  const discs = layout.rotors.map(rotor => propellerDisc(rotor, radius(rotor.motorId)));
+  const clearance = restingClearanceM(profile, hullLowestDepthM([...hull, ...discs]));
   const landingGear = standardLandingGear(profile, massProperties.massKg, clearance);
   const contactDatasets = [
     { id: STANDARD_GEAR_DATASET_ID, kind: 'synthetic', sourceSha256: null, derivation: standardGearDerivation() },

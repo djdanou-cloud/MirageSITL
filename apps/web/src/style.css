@@ -172,3 +172,12 @@ html[data-g3="1"] .terrain-status { top: 12px; bottom: auto; left: 50%; transfor
 .synthetic-note { margin-top: 10px; font-size: 12px; color: #efd59a; }
 .demo-status { margin-top: 16px; flex-wrap: wrap; }
 .console-title { font-size: 19px; font-weight: 550; letter-spacing: -.3px; margin: 10px 0; }
+.clearance-views { display: flex; flex-wrap: wrap; gap: 18px; margin-top: 12px; }
+.clearance-view { margin: 0; width: min(320px, 100%); }
+.clearance-view svg { display: block; width: 100%; height: auto; background: #0c1721; border: 1px solid #293541; border-radius: 6px; }
+.clearance-body { fill: #8fa3b0; fill-opacity: 0.35; stroke: #8fa3b0; }
+.clearance-arm { stroke: #8fa3b0; stroke-linecap: round; }
+.clearance-disc { fill: #5fd3b0; fill-opacity: 0.12; stroke: #5fd3b0; }
+.clearance-disc.clash, .clearance-body.clash { fill: #ef8f6f; fill-opacity: 0.22; stroke: #ef8f6f; }
+.clearance-label { fill: #e1f4f2; font-family: system-ui, sans-serif; }
+.clearance-fix h4 { margin: 12px 0 6px; font-size: 13px; }

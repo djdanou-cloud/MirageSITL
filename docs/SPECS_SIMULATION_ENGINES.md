@@ -4377,7 +4377,7 @@ values. The derived manifest holds:
 | `massProperties` | The aircraft and the payload: combined mass and CG, both inertias moved to it by the parallel-axis theorem |
 | `datasets` | The synthetic dataset `aircraft-profile-derivation`, whose source SHA-256 is that of the canonical derivation input, then the synthetic datasets `standard-landing-gear` of the gear rules (derivation 3, TASK-095) and `standard-hull` of the hull rules (derivation 4, TASK-095), without a source |
 | `sensorMounts` | The IMU mount when the sensor configuration states the IMU position or orientation (derivation 2, TASK-147); otherwise empty |
-| `landingGear` | The decision D-07 supports; a profile without a ground clearance stands on supports below its standard hull (derivations 3 and 4, TASK-095; section "Standard landing gear") |
+| `landingGear` | The decision D-07 supports; a profile without a ground clearance stands on supports below its standard hull and propeller discs (derivations 3 and 4, TASK-095, and 5, TASK-195; section "Standard landing gear") |
 | `hull` | The standard hull: a body cylinder and one capsule per arm (derivation 4, TASK-095; section "Standard hull and propeller discs") |
 | `ardupilot`, `airframe.drag`, `controlSurfaces` | Null or empty; TASK-142 and TASK-096 own them |
 
@@ -4389,9 +4389,10 @@ J = \sum_i \left( J_i + m_i\left(\lVert d_i \rVert^2 \mathbf{1} - d_i d_i^{\math
 
 `profileSha256` is the SHA-256 of the profile's canonical JSON, so renaming the
 stored profile changes nothing. `inputSha256` is the SHA-256 of the canonical
-`{derivationVersion: 4, profile, components}` (`DERIVATION_VERSION`; 2 since
+`{derivationVersion: 5, profile, components}` (`DERIVATION_VERSION`; 2 since
 TASK-147 added the IMU mount, 3 since TASK-095 added the standard landing
-gear, 4 since TASK-095 added the standard hull). The manifest passes
+gear, 4 since TASK-095 added the standard hull, 5 since TASK-195 counts the
+propeller discs in the supports of a profile without a clearance). The manifest passes
 `validateVehicleManifest`, and `bytes` is its RFC 8785 canonical JSON, which a
 `VehicleRegistry` admits unchanged; −0 in the inputs becomes 0. Any change to
 geometry, outputs, mass properties, components or the model ID changes the
@@ -5154,7 +5155,8 @@ same difference that gives the synthetic quad's specific force.
 ### IMU mount in the manifest
 
 `DERIVATION_VERSION` was 2 until derivation 3 added the standard landing gear
-(TASK-095), and derivation 4 the standard hull (TASK-095). When a profile's sensor configuration states the
+(TASK-095), derivation 4 the standard hull (TASK-095) and derivation 5 the
+propeller discs in the supports' clearance (TASK-195). When a profile's sensor configuration states the
 IMU position or orientation, the derived manifest holds one `sensorMounts`
 entry: `imu`, instance 0, the position (the CG when only the orientation is
 stated) and the sensor-to-body quaternion of R from `trig.ts`, so Node and
@@ -5584,8 +5586,15 @@ a clearance at the lowest point of its body hull. Derivation 4 (rules version
 2) reads that as the clearance that leaves the standard hull's lowest point,
 level, one static deflection δ_s above the ground at rest: the hull stays off
 the ground on the supports, and a hard landing that doubles the load reaches
-it. Of the S19 fixtures only octa-x states no clearance; it rests at 0.04 m.
-Derivation 3 gave such a profile no supports and the synthetic pad. The
+it. Derivation 5 (rules version 3, TASK-195) takes the lowest point of the
+standard hull and the propeller discs together, since F-07 lets no disc carry
+support and the lower rotor of a coaxial pair can hang below the hull: the
+coaxial X8 without its clearance would rest at 0.0535 m, its lower discs'
+0.0485 m plus δ_s, instead of 0.035 m with those discs 13.5 mm in the ground.
+Of the S19 fixtures only octa-x states no clearance; on its 0.385 m arms it
+rests at 0.0435 m, below its body, under both rules (0.04 m on its former
+0.35 m arms). Derivation 3 gave such a profile no supports and
+the synthetic pad. The
 anchors use the package's own sine and cosine (`trig.ts`), so Node and
 Chromium derive the same bytes. The vehicle manifest v2 gains the optional
 `landingGear[].kineticFrictionRatio` in (0, 1]; existing manifests stay valid
@@ -5634,8 +5643,8 @@ feet throughout, and the contact faults the session on any native allocation.
 Aircraft profiles give no body or arm size. By the user's decision of
 2026-11-01 (TASK-095 increment 4) derivation 4 works the frame out from the
 arms and propellers, marked not measured, and body size fields are a later
-task (TASK-196); a propeller clearance check that blocks a run, with a
-previewed fix, is TASK-195. The standard hull
+task (TASK-196); the propeller clearance check that blocks a run, with a
+previewed fix, is TASK-195 (section "Propeller clearance"). The standard hull
 (`packages/aircraft/src/standard-hull.ts`, rules version 1, synthetic dataset
 `standard-hull`) is:
 
@@ -5678,6 +5687,86 @@ rest and reports through the WASM contact at 400, 800 and 1200 Hz. In
 degrees nose down, dropped 5 mm above its lowest shape, strikes first and alone
 with the propeller disc that the geometry puts lowest, at a point on that disc,
 at all three rates.
+
+### Propeller clearance
+
+By the user's decisions of 2026-11-01 (TASK-095 increment 4) a profile whose
+propellers clash still saves, but no run starts from it, and a fix shows how
+it changes the profile before it saves a new version; it never edits a
+profile silently. `packages/aircraft/src/clearance.ts` (TASK-195) checks the
+parts the flight physics uses, at the geometry the manifest derivation gives:
+each propeller is its propeller disc and the body the standard hull's
+cylinder (`clearanceShapes(profile, propellerRadiusM)`).
+
+| Clash | When | Size reported |
+| --- | --- | --- |
+| `propellers` | Two discs of motors on different arms overlap or touch | How far the tips overlap seen from above: R₁ + R₂ minus the hubs' horizontal distance |
+| `propeller-body` | A disc overlaps or touches the body cylinder | R + body radius minus the hub's horizontal distance from the body axis |
+| `ground` | With a stated ground clearance, the lowest point of a hull shape or a disc, level, at or below the ground at rest | Depth below the ground |
+
+The two rotors of a coaxial pair share their arm's axis by design and are not
+checked against each other. A propeller is not checked against the arm
+capsules: a real propeller turns above its arm, while the standard arms lie at
+hub height. Without a stated clearance, derivation 5 rests the lowest part one
+static deflection above the ground, so no part reaches it. Parts closer than
+1 µm touch. Distances come from the GJK distance algorithm on the shapes'
+support functions (Gilbert, Johnson and Keerthi 1988, with Ericson's
+closest-point regions for the simplex), which converges from above, so a pair
+is never reported clear when it is not by more than that tolerance.
+`propellerClearance(profile, propellerRadiusM)` returns the clearance at rest,
+whether the profile states it, and every clash; `describeClash` words one in
+millimetres. Each motor's propeller radius is half its propeller card's
+diameter, which is the derived manifest's rotor radius. The check takes the
+profile rather than the manifest, because the Aircraft tab checks a profile
+whose motor, ESC or battery cards are not chosen yet, and a manifest does not
+say whether its supports came from a stated clearance.
+
+`clearanceFix(profile, propellerRadiusM)` returns null for a profile without a
+clash, or the fixed profile, each changed value before and after, the common
+arm factor and the fixed profile's report:
+
+1. Every arm grows by one common factor, so the aircraft keeps its shape,
+   until each propeller is at least 5 % of the larger propeller diameter from
+   every propeller on another arm and from the body (`fixTipGapOfDiameter`:
+   the closest tip gaps of large production multirotors are about 5 % of the
+   diameter). The factor is found by bisection, and each length is rounded up
+   to the whole millimetre.
+2. A stated ground clearance that leaves a part at or below the ground then
+   rises to the lowest part plus δ_s, rounded up to the millimetre: the
+   derivation's rule for a profile without one.
+3. Propellers whose hubs coincide seen from above stay as they are, since no
+   arm length parts them; they remain in the fixed report.
+
+The fix changes nothing else: the mass properties stay as entered, and the
+Aircraft tab says that longer arms usually weigh more. The tab's clearance
+section lists every clash, draws the aircraft from above to scale with the
+clashing discs marked, and offers "Propose a fix", which shows the changed
+values now and after the fix and both top views; "Save the fixed version"
+stores a new profile version, together with any other unsaved change of the
+form. The Run tab refuses a start or connection whose profile clashes, as a
+`vehicle` failure that names each clash.
+
+| Example | Check | Fix |
+| --- | --- | --- |
+| Octa X on 0.35 m arms with 0.28 m propellers | Each of the eight neighbouring pairs overlaps by 2R − 2L·sin(π/8) = 12.1 mm | 0.385 m arms: 2L·sin(π/8) ≥ 1.05·2R needs 0.38414 m. The octa-x fixture (version 2) has them |
+| Octocopter with 1.12 m (44 in) propellers on 0.25 m arms | All 28 pairs overlap, the neighbours by 928.7 mm, and each disc reaches 372.5 mm into the body | 1.537 m arms (1.5365 m needed) |
+| Quad X on 0.17 m arms with the example card's 0.254 m propellers | Four neighbouring pairs overlap by 0.254 − 0.17·√2 = 13.6 mm | 0.189 m arms |
+| Coaxial X8 with a 0.03 m clearance | The body touches the ground and the four lower discs reach 18.5 mm below it | A 0.054 m clearance |
+
+Checks: `tests/aircraft-clearance.test.ts` compares distances with closed forms
+(discs side by side and stacked, capsules parallel and crossing, a capsule
+above a disc) and tilted discs with an independent sampled distance; finds the
+cases above, the fixes and their minimality (at 0.384 m a neighbouring octa-x
+pair is nearer than the 5 % gap); exempts a coaxial pair whose discs touch;
+clears alternate hexa arms 6 cm apart in height but not 5 mm apart; rests a
+coaxial X8 without a clearance on the derivation 5 supports; leaves stacked
+propellers in the fixed report; and has the Run tab's preparation refuse the
+short quad with each clash named and admit its fixed version.
+`tests/browser/propeller-clearance.spec.ts` shortens the quad's arms in the
+Aircraft tab, saves the clashing version, and applies and saves the fix
+through the UI alone; with the TASK-152 installation the Run tab refuses the
+clashing version and flies the fixed one with native ArduCopter (READY,
+take-off to 5 m, a 10 s hold within 0.5 m, LAND and disarm).
 
 ### Compute and allocation
 

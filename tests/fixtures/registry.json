@@ -1386,16 +1386,16 @@
       "path": "aircraft/octa-x.json",
       "manifest": {
         "formatVersion": 1,
-        "id": "aircraft-octa-x-v1",
-        "sourceSha256": "3e03172783b09ecb8d92551699598f9056b1f29bbd46c1d5d93b501759f16650",
+        "id": "aircraft-octa-x-v2",
+        "sourceSha256": "336735320d7f75b5839a6489cd3f7311dc1fdc0be86c8116889c204fd66d03e6",
         "units": {
           "armLengthM": "m",
           "massKg": "kg"
         },
         "validityEnvelope": {
           "armLengthM": {
-            "min": 0.35,
-            "max": 0.35
+            "min": 0.385,
+            "max": 0.385
           },
           "massKg": {
             "min": 4.2,
@@ -1408,7 +1408,7 @@
         },
         "provenance": {
           "kind": "synthetic",
-          "derivation": "Hand-specified synthetic octo X aircraft profile: eight 0.35 m arms below the reference point with 0.035 rad outward tilt and no ground clearance. TASK-138 schema, layout and derivation tests only; not a measured aircraft."
+          "derivation": "Hand-specified synthetic octo X aircraft profile: eight 0.385 m arms below the reference point with 0.035 rad outward tilt and no ground clearance. Version 2 (TASK-195) lengthens the arms from 0.35 m, on which neighbouring 0.28 m propellers overlap by 12 mm, to the propeller clearance fix. TASK-138 schema, layout and derivation tests only; not a measured aircraft."
         }
       }
     },
