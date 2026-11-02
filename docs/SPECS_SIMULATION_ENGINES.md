@@ -3953,7 +3953,7 @@ shows whether the origin's storage is persistent.
 ### Records
 
 ```typescript
-type ItemKind = "project" | "component-card" | "measurement-set" | "aircraft-profile" | "experiment";
+type ItemKind = "project" | "component-card" | "measurement-set" | "aircraft-profile" | "experiment" | "parameter-set" | "parameter-log";
 interface Dependency { kind: ItemKind; sha256: string }
 interface ProjectRecord {
   schemaVersion: 1;
@@ -3995,11 +3995,12 @@ interface ProjectRecord {
   be a stored version of the same project. TASK-140 added the
   `measurement-set` kind without changing the envelope version: records of the
   other kinds keep their bytes and meaning, and a reader without the kind
-  rejects its records as an unknown kind.
+  rejects its records as an unknown kind. TASK-160 added `parameter-set` and
+  `parameter-log` in the same way; each may depend only on an experiment.
 * **Payloads.** A project's payload is `{}`. The store does not interpret
-  card, measurement-set, profile and experiment payloads beyond the canonical
-  JSON limits. Their owner tasks (TASK-138, TASK-139, TASK-140, TASK-154 and
-  TASK-165) register
+  card, measurement-set, profile, experiment, parameter-set and parameter-log
+  payloads beyond the canonical JSON limits. Their owner tasks (TASK-138,
+  TASK-139, TASK-140, TASK-154, TASK-160 and TASK-165) register
   payload validators, which apply when a version is written or imported, not
   when it is read.
 
@@ -6822,11 +6823,15 @@ PARAM_ERROR, which is outside the TASK-150 message set.
 | `refused` by `service` | not sent: the name is not in the downloaded list, the value is not finite, the value is outside the float32 range, the parameter's integer type cannot carry it exactly (not an integer, outside the type's limits, or not exact in float32), or its type is not one PARAM_SET's float32 carries |
 | `refused` by `autopilot` | answers kept another value: after the first differing answer one more read is sent, and the write is refused when the latest answer still differs after `writeRetryS` (1 s) without an answer; `reported` holds that value |
 | `timeout` | no answer after `writeAttempts` (3) sends, `writeRetryS` apart |
-| `stale` | the outcome no longer describes the autopilot: a newer write of the same name replaced a pending write, or the autopilot later reported another value for a confirmed one |
+| `stale` | the outcome no longer describes the autopilot: a newer write of the same name replaced a pending write or was confirmed after a confirmed one, or the autopilot still reports another value for a confirmed one after one more read and `writeRetryS` without an answer |
 
 Answers inside the list never decide a write. A differing answer alone never
 refuses one, because an answer sent before ArduPilot handled the write, or to
-a write it replaced, can still be in flight. `rebootPending()` lists the names
+a write it replaced, can still be in flight. For the same reason one differing
+answer never makes a confirmed write stale: ArduPilot answers a read by name
+from a queue, so the answer to a read sent before a write can arrive after the
+write's confirmation. TASK-160 saw this when a paused SITL resumed with two
+writes of one parameter waiting. `rebootPending()` lists the names
 whose current confirmed write needs a reboot according to the metadata.
 ArduPilot does not enforce declared ranges, and neither does the service:
 `outsideRange` reports a confirmed value outside the declared range.
@@ -6882,6 +6887,149 @@ ArduCopter, holding the vehicle at rest in JSON lockstep. It writes
 `test-results/validation/param-sitl.json`, whose judge `assessParamRun`
 rejects false evidence (`tests/integration/param-sitl.test.ts`); without an
 installed, verified firmware it exits 2 (`BLOCKED_EXTERNAL`).
+
+## Parameters tab (TASK-160)
+
+The Parameters tab shows and writes the parameters of the SITL that the Run
+tab's current run talks to, through the TASK-159 parameter service. The Run
+tab attaches each new session to a `SessionLink`
+(`apps/web/src/run/session-link.ts`), which the shell shares with the
+Parameters tab.
+
+### Loading and writing
+
+When a run loads its parameters, the session controller creates the run's
+`ParameterService` with the metadata of the SITL's exact source commit (the
+catalog commit of a launcher-owned run, the verified commit of a
+connection) and downloads the complete list with it; the start's read-back
+(TASK-154) reads the same PARAM_VALUE stream. The service resends
+PARAM_REQUEST_LIST every 2 s of simulated time while nothing answers, at most
+15 times, and reads missing entries by index. When that recovery fails before
+the start's 30 s deadline, the list is requested again. Every PARAM_VALUE goes
+to the service, and every Worker status of an open bridge ticks it on the
+SITL's simulated time.
+
+The browser fetches `data/ardupilot/param-metadata.json` as a separate asset
+when the first run starts (`apps/web/src/params/metadata.ts`). Without it a
+run shows its parameters without restart, range and description facts, and a
+confirmed write says that whether it needs a restart is not known.
+
+`setParameter(name, value)` writes a finite float32. It is refused with its
+reason, and without a change entry, in these cases:
+
+| Situation | Refusal |
+|---|---|
+| no run has loaded its parameters | No run has loaded its parameters |
+| a SITL that MirageSITL did not start (TASK-155) | MirageSITL writes nothing to it (decision of 2026-11-01), so its parameters are shown read-only |
+| the run is not warming, READY, flying or paused | Parameters can be written once the run has loaded them, until it stops |
+| the bridge is not open | The bridge to SITL is not open |
+| the list is not complete, or the autopilot renumbered it | Download the list (again) first |
+
+Otherwise the service writes it, and a refusal by the service is a change
+like any other.
+
+Writes are possible in flight and while paused. ArduPilot 8ab6afde's
+PARAM_SET handler (`GCS_Param.cpp`, `handle_param_set`) refuses nothing
+because the vehicle is armed, so no change needs a disarm. A paused lockstep
+SITL answers after Resume and its simulated time stands (TASK-129), so a
+write sent while paused stays `requested` and is neither resent nor timed
+out; a newer write of the same parameter makes it `stale`.
+
+### Parameter change
+
+```typescript
+interface ParameterChange {
+  writeId: number;          // the parameter service's write ID, unique in the run
+  name: string;
+  oldValue: number | null;  // what the autopilot reported before the write
+  newValue: number;         // the requested float32
+  requestedAt: string;      // wall time of the request, UTC
+  tick: number;             // session tick and simulated time when it was sent
+  simTimeS: number;
+  experimentId: string;     // launcher experiment or connection ID
+  whilePaused: boolean;
+  outcome: WriteState;      // the write's latest state (TASK-159)
+}
+```
+
+The tab words each outcome as follows:
+
+| Outcome | Shown as |
+|---|---|
+| `requested` | waiting for ArduPilot's answer; sent while paused, a paused SITL answers after Resume |
+| `confirmed`, `rebootRequired` true | Stored, not applied: ArduPilot uses it only after SITL restarts |
+| `confirmed`, `rebootRequired` false | Confirmed and applied |
+| `confirmed` without metadata | Confirmed; whether it needs a restart is not known |
+| `refused` | Refused before sending (by the service) or Refused by ArduPilot, with the reason |
+| `timeout` | No answer from ArduPilot after its sends |
+| `stale` | No longer current, with the reason |
+
+A confirmed value outside its declared range says so. A restart-required
+change is never called applied, and the tab lists the confirmed values that
+wait for a restart.
+
+### Records
+
+TASK-160 adds two record kinds to schema v1 of the project store, after
+`experiment`; each may depend only on an experiment.
+
+`parameter-log` is one item per run, with a new version whenever a change of
+the run is made or settles. Each version holds every change so far with its
+latest outcome (`ParameterLogWriter`), so the history persists with the
+experiment record it depends on and travels in the project archive.
+
+```typescript
+interface ParameterLog {
+  schemaVersion: 1;
+  experimentId: string;
+  experimentSha256: string;   // the run's experiment record, its dependency
+  changes: ParameterChange[]; // 1..2000, in write order
+}
+```
+
+`parameter-set` holds the values the running SITL reports when it is saved,
+sorted by name, with the run they come from. Saving again under the same item
+creates a new version.
+
+```typescript
+interface ParameterSet {
+  schemaVersion: 1;
+  source: { kind: "run"; experimentId: string; experimentSha256: string; firmwareCommit: string; tick: number; simTimeS: number };
+  parameters: { name: string; value: number }[]; // 1..8192 float32 values, sorted by name, unique
+}
+```
+
+`validateParameterSet` and `validateParameterLog`
+(`apps/web/src/params/parameter-sets.ts`) validate both payloads from
+`unknown`; the shell registers them as the kinds' payload validators.
+
+### Comparison and restore
+
+A set is compared with the running SITL or with another set: the comparison
+lists, by name, every parameter whose value differs or that only one side
+holds. Sending a set back writes only the parameters whose live value
+differs. It skips, with the reason, a parameter the running SITL does not
+list and one that ArduPilot's metadata marks read-only (such as `BARO1_DEVID`
+or the `STAT_` counters) or as changed by the autopilot itself (volatile).
+Parameters the set does not hold are left alone. Each write is a change in
+the history, from which a change's old value can also be sent back.
+
+### Verification (TASK-160)
+
+`tests/run-controller.test.ts` drives the controller on scripted ports: the
+download, a write in flight confirmed and logged with its old value, wall
+time and tick, a restart-required write, refusals by the service and by the
+autopilot, a write nobody answers (timeout), a write while paused that is
+neither resent nor timed out and is made stale by a newer one, which is
+confirmed after Resume, and the refusals before the list is loaded, while it
+is renumbered (then downloaded again), for a connection and after the run
+stops. `tests/parameter-sets.test.ts` covers both payloads, their records and
+dependencies in the store, and comparison and restore with the pinned
+metadata. `tests/browser/parameters-tab.spec.ts` runs the tab against native
+ArduCopter 8ab6afde (the TASK-152 installation): every write state except the
+timeout, which a real ArduPilot does not produce for a listed parameter, a
+write in flight and while paused, a set compared and sent back, an old value
+sent back from the history, and the history after a reload.
 
 ## DataFlash capture per experiment (TASK-164)
 

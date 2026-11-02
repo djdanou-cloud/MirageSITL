@@ -4,6 +4,7 @@ import { hudTelemetry } from "./hud/telemetry";
 import { Console } from "./instructor/Console";
 import { AppShell, type StoreState } from "./shell/AppShell";
 import { RunPanel } from "./run/RunPanel";
+import type { SessionLink } from "./run/session-link";
 import type { StoredVersion } from "@mirage/project/schema";
 import { Component, useEffect, useRef, useState, type ReactNode } from "react";
 import {
@@ -698,7 +699,7 @@ function DemoFlight({ visible }: { visible: boolean }) {
  * ArduPilot SITL backend (TASK-153) flies an aircraft profile of the open
  * project with native ArduPilot through the local launcher.
  */
-function RunTab({ visible, storeState, project }: { visible: boolean; storeState: StoreState; project: StoredVersion | null }) {
+function RunTab({ visible, storeState, project, link }: { visible: boolean; storeState: StoreState; project: StoredVersion | null; link: SessionLink }) {
   const [backend, setBackend] = useState<"demo" | "ardupilot">("demo");
   return (
     <div className="run-tab">
@@ -722,11 +723,11 @@ function RunTab({ visible, storeState, project }: { visible: boolean; storeState
           </p>
           <DemoFlight visible={visible} />
         </>
-      ) : <RunPanel storeState={storeState} project={project} visible={visible} />}
+      ) : <RunPanel storeState={storeState} project={project} visible={visible} link={link} />}
     </div>
   );
 }
 
 export default function App() {
-  return <AppShell run={(visible, storeState, project) => <RunTab visible={visible} storeState={storeState} project={project} />} />;
+  return <AppShell run={(visible, storeState, project, link) => <RunTab visible={visible} storeState={storeState} project={project} link={link} />} />;
 }

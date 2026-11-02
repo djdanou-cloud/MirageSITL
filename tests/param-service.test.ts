@@ -351,18 +351,59 @@ describe('ParameterService writes', () => {
     expect(state(service, write)).toMatchObject({ kind: 'requested', attempts: 1 });
   });
 
-  it('marks a replaced pending write and a contradicted confirmed write stale', () => {
+  it('marks a replaced pending write stale, and a confirmed write once the autopilot still reports another value after a quiet retry interval', () => {
     const { autopilot, service } = downloaded();
     const first = service.set('SIM_SPEEDUP', 2, 1);
     const second = service.set('SIM_SPEEDUP', 4, 1);
     expect(state(service, first)).toMatchObject({ kind: 'stale', reason: `write ${second.id} of the same parameter replaced it`, reported: null });
     autopilot.flush(service, 1);
     expect(state(service, second)).toMatchObject({ kind: 'confirmed', value: 4 });
-    const other = new FakeAutopilot([]);
-    other.value('SIM_SPEEDUP', 5, REAL32, 8, 65535);
-    other.flush(service, 2);
+    // Something else changed it on the autopilot: the contradiction is read once more, and stands after a quiet interval.
+    const changed = autopilot.parameters.find(p => p.name === 'SIM_SPEEDUP');
+    if (!changed) throw new Error('No SIM_SPEEDUP');
+    changed.value = 5;
+    autopilot.requests.length = 0;
+    autopilot.value('SIM_SPEEDUP', 5, REAL32, 8, 65535);
+    autopilot.flush(service, 2);
+    expect(autopilot.requests).toEqual([{ kind: 'read-name', name: 'SIM_SPEEDUP' }]);
+    expect(state(service, second).kind).toBe('confirmed');
+    autopilot.flush(service, 2.2);
+    service.tick(3.19);
+    expect(state(service, second).kind).toBe('confirmed');
+    service.tick(3.2);
     expect(state(service, second)).toMatchObject({ kind: 'stale', reason: 'the autopilot now reports 5', reported: 5 });
     expect(service.writes().map(w => w.kind)).toEqual(['stale', 'stale']);
+  });
+
+  it('keeps a confirmed write when a queued answer from before it arrives late, as after a paused SITL resumes', () => {
+    const { autopilot, service } = downloaded();
+    // Written while paused: two writes of one parameter wait in the autopilot's input.
+    const first = service.set('SIM_SPEEDUP', 3, 5);
+    const second = service.set('SIM_SPEEDUP', 3.5, 5);
+    // ArduPilot answers each write at once and each read from a queue: the read after the first write reports 3 after the second is confirmed.
+    autopilot.requests.length = 0;
+    const late = new FakeAutopilot([]);
+    late.value('SIM_SPEEDUP', 3, REAL32, 8, 65535);
+    late.value('SIM_SPEEDUP', 3.5, REAL32, 8, 65535);
+    late.value('SIM_SPEEDUP', 3, REAL32, 8, 65535);
+    late.value('SIM_SPEEDUP', 3.5, REAL32, 8, 65535);
+    late.flush(service, 5.01);
+    expect(state(service, first).kind).toBe('stale');
+    expect(state(service, second)).toMatchObject({ kind: 'confirmed', value: 3.5 });
+    service.tick(7);
+    expect(state(service, second)).toMatchObject({ kind: 'confirmed', value: 3.5 });
+    expect(service.get('SIM_SPEEDUP')?.value).toBe(3.5);
+  });
+
+  it('replaces a confirmed write by a newer confirmed write of the same parameter', () => {
+    const { autopilot, service } = downloaded();
+    const first = service.set('SIM_SPEEDUP', 2, 1);
+    autopilot.flush(service, 1);
+    expect(state(service, first).kind).toBe('confirmed');
+    const second = service.set('SIM_SPEEDUP', 4, 2);
+    autopilot.flush(service, 2);
+    expect(state(service, first)).toMatchObject({ kind: 'stale', reason: `write ${second.id} of the same parameter replaced it`, reported: null });
+    expect(state(service, second)).toMatchObject({ kind: 'confirmed', value: 4 });
   });
 });
 

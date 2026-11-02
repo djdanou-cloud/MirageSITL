@@ -1,9 +1,12 @@
-import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { Radio } from "lucide-react";
 import type { StoredVersion } from "@mirage/project/schema";
 import { validateComponentCard } from "@mirage/aircraft/components";
 import { validateExperiment } from "@mirage/aircraft/experiment";
 import { LoggingTab } from "../logging/LoggingTab";
+import { validateParameterLog, validateParameterSet } from "../params/parameter-sets";
+import { ParametersTab } from "../params/ParametersTab";
+import { SessionLink } from "../run/session-link";
 import { validateMeasurementSet } from "@mirage/aircraft/measurements";
 import { validateAircraftProfile } from "@mirage/aircraft/profile";
 import { ProjectStore } from "@mirage/project/store";
@@ -31,11 +34,10 @@ export type StoreState =
   | { readonly status: "unavailable"; readonly reason: string };
 
 /** What each tab will hold; the shell says so until the tab's own task lands. */
-const PLANNED: { readonly [tab in Exclude<TabId, "project" | "aircraft" | "components" | "sensors" | "run" | "logging">]: string } = {
+const PLANNED: { readonly [tab in Exclude<TabId, "project" | "aircraft" | "components" | "sensors" | "run" | "logging" | "parameters">]: string } = {
   faults: "Motor faults, sensor and GNSS interference, EKF drift and link loss, applied manually or on a schedule.",
   weather: "Wind, gusts, turbulence, temperature and pressure, and the location of the flight.",
   tasks: "Takeoff, hover, landing, routes and tuning maneuvers, with initial conditions.",
-  parameters: "ArduPilot parameters read from the running SITL, with their history, sets and export.",
   experiments: "Experiments with their exact inputs: Repeat, Create variant, comparison, export and import.",
   analysis: "Flight logs in UAVLogViewer, with two flights or two intervals side by side.",
 };
@@ -56,8 +58,12 @@ function PlannedPanel({ label, description, project }: { label: string; descript
   );
 }
 
-/** `run` renders the Run tab; `visible` is false while another tab is open. */
-export function AppShell({ run }: { run: (visible: boolean, storeState: StoreState, project: StoredVersion | null) => ReactNode }) {
+/**
+ * `run` renders the Run tab; `visible` is false while another tab is open. The Run tab attaches its
+ * SITL session to `link`, through which the Parameters tab reads and writes that run's parameters.
+ */
+export function AppShell({ run }: { run: (visible: boolean, storeState: StoreState, project: StoredVersion | null, link: SessionLink) => ReactNode }) {
+  const link = useMemo(() => new SessionLink(), []);
   const [storeState, setStoreState] = useState<StoreState>({ status: "opening" });
   const [navigation, setNavigation] = useState<NavigationState>(
     FORCED_TAB ? { ...DEFAULT_NAVIGATION, tab: FORCED_TAB } : DEFAULT_NAVIGATION);
@@ -76,7 +82,7 @@ export function AppShell({ run }: { run: (visible: boolean, storeState: StoreSta
         const ready = await ProjectStore.openIndexedDb({
           validators: {
             "component-card": validateComponentCard, "measurement-set": validateMeasurementSet, "aircraft-profile": validateAircraftProfile,
-            "experiment": validateExperiment,
+            "experiment": validateExperiment, "parameter-set": validateParameterSet, "parameter-log": validateParameterLog,
           },
         });
         opened = ready;
@@ -146,9 +152,11 @@ export function AppShell({ run }: { run: (visible: boolean, storeState: StoreSta
       case "sensors":
         return <SensorsTab storeState={storeState} project={project} active={navigation.tab === "sensors"} />;
       case "run":
-        return run(navigation.tab === "run", storeState, project);
+        return run(navigation.tab === "run", storeState, project, link);
       case "logging":
         return <LoggingTab storeState={storeState} project={project} active={navigation.tab === "logging"} />;
+      case "parameters":
+        return <ParametersTab storeState={storeState} project={project} link={link} active={navigation.tab === "parameters"} />;
       default: {
         const label = TABS.find(entry => entry.id === tab)?.label ?? tab;
         return <PlannedPanel label={label} description={PLANNED[tab]} project={project} />;

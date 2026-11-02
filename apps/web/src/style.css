@@ -181,3 +181,13 @@ html[data-g3="1"] .terrain-status { top: 12px; bottom: auto; left: 50%; transfor
 .clearance-disc.clash, .clearance-body.clash { fill: #ef8f6f; fill-opacity: 0.22; stroke: #ef8f6f; }
 .clearance-label { fill: #e1f4f2; font-family: system-ui, sans-serif; }
 .clearance-fix h4 { margin: 12px 0 6px; font-size: 13px; }
+
+/* Parameters tab (TASK-160) */
+.parameters-panel { display: grid; gap: 16px; }
+.parameters-panel h4 { margin: 12px 0 6px; font-size: 13px; color: #d6e2ea; }
+.parameters-panel tr.selected th, .parameters-panel tr.selected td { color: #e1f4f2; }
+.link-button { border: 0; background: transparent; padding: 0; color: #7fe0c0; text-decoration: underline; font-family: ui-monospace, monospace; }
+.parameter-editor { margin-top: 12px; border-top: 1px solid #293541; padding-top: 12px; }
+.parameter-history .parameter-outcome { white-space: normal; min-width: 240px; }
+.parameter-earlier details { margin-top: 6px; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }

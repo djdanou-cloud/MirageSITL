@@ -105,6 +105,11 @@ implementation.
   TASK-156 is DONE: a run pauses through one path (the user, a hidden tab,
   an accident, later missing terrain), the physics and ArduPilot's simulated
   time stand still together in JSON lockstep, and Resume continues both.
+  TASK-160 is DONE: the Parameters tab reads the running SITL's complete
+  list through the TASK-159 service and writes before and during flight and
+  while paused; a value that needs a restart is never called applied. Every
+  change is the run's `parameter-log` record, and `parameter-set` records are
+  saved, compared and sent back (two new project record kinds).
   TASK-163 is DONE: the Logging tab plans what a Run-tab run records, with
   size estimates and storage warnings, and every run records with recorder v2
   into its experiment's record (experiment payload schema 3).

@@ -407,7 +407,7 @@ export interface ExportResult {
   readonly missing: readonly MissingDependency[];
 }
 
-const CONTENT_KINDS: readonly ItemKind[] = ['component-card', 'measurement-set', 'aircraft-profile', 'experiment'];
+const CONTENT_KINDS: readonly ItemKind[] = ['component-card', 'measurement-set', 'aircraft-profile', 'experiment', 'parameter-set', 'parameter-log'];
 function kindOrder(kind: ItemKind): number {
   return ITEM_KINDS.indexOf(kind);
 }

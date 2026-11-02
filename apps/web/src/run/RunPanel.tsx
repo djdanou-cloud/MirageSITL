@@ -6,7 +6,10 @@ import { describeAccident } from "@mirage/physics/accident";
 import type { LimitEvent } from "@mirage/physics/limit-monitor";
 import type { StoredVersion } from "@mirage/project/schema";
 import { CopterMode } from "@mirage/autopilot/ground-station";
+import type { ParameterMetadataCatalog } from "@mirage/autopilot/param-metadata";
 import { loadLoggingSettings, type LoggingSettings } from "../logging/logging-settings";
+import { ParameterLogWriter } from "../params/log-writer";
+import { loadParameterMetadata } from "../params/metadata";
 import { RunRecorder } from "../logging/run-recorder";
 import { SimulationRuntime } from "../runtime";
 import type { StoreState } from "../shell/AppShell";
@@ -19,6 +22,7 @@ import { MotorCheckPanel } from "./MotorCheck";
 import { PowerPanel } from "./PowerPanel";
 import { SessionController, failureText, type CatalogEntry, type ConnectionSpec, type ControllerView, type Ownership, type PauseReason,
   type PreparedRun, type RunState } from "./session-controller";
+import type { SessionLink } from "./session-link";
 
 // Run tab, ArduPilot SITL backend (TASK-153, TASK-154): an aircraft profile
 // version of the open project flies with an installed ArduPilot build that the
@@ -33,6 +37,9 @@ import { SessionController, failureText, type CatalogEntry, type ConnectionSpec,
 // per-motor panels read the session at display rate. An accident (TASK-149)
 // is listed with its part and contact load; the run, paused on its tick, may
 // continue, and is then labelled as not validated for a damaged aircraft.
+// The session is attached to the shell's link, so the Parameters tab (TASK-160)
+// reads and writes the run's parameters, and each run's parameter changes are
+// saved as its parameter log.
 
 const MODE_NAMES: Readonly<Record<number, string>> = Object.fromEntries(Object.entries(CopterMode).map(([name, value]) => [value, name.toUpperCase()]));
 const STEP_TEXT = { prepare: "preparing the vehicle", firmware: "checking the ArduPilot build", physics: "loading the physics",
@@ -80,7 +87,7 @@ export function stateText(state: RunState, ownership: Ownership = "launcher"): s
 
 interface Telemetry { altitudeM: number; simTimeS: number }
 
-export function RunPanel({ storeState, project, visible }: { storeState: StoreState; project: StoredVersion | null; visible: boolean }) {
+export function RunPanel({ storeState, project, visible, link }: { storeState: StoreState; project: StoredVersion | null; visible: boolean; link: SessionLink }) {
   const runtime = useRef<SimulationRuntime | null>(null);
   const controller = useRef<SessionController | null>(null);
   const unlisten = useRef<(() => void) | null>(null);
@@ -146,7 +153,7 @@ export function RunPanel({ storeState, project, visible }: { storeState: StoreSt
     }, (cause: unknown) => { setBuilds(null); setError(cause instanceof Error ? cause.message : String(cause)); });
   };
   /** A fresh session for every Start and Connect: the previous run's model and epoch stay with the old Worker. */
-  const freshSession = (logging: LoggingSettings): { next: SessionController; prepare: () => Promise<PreparedRun> } | null => {
+  const freshSession = (logging: LoggingSettings, metadata: ParameterMetadataCatalog | null): { next: SessionController; prepare: () => Promise<PreparedRun> } | null => {
     setError("");
     const stored = profiles.find(entry => entry.sha256 === profileSha);
     const launcher = client();
@@ -159,16 +166,21 @@ export function RunPanel({ storeState, project, visible }: { storeState: StoreSt
     runtime.current = fresh;
     const physics = new RuntimePhysics(fresh, launcher.bearer);
     let profileName = stored.record.name;
-    const next = new SessionController(launcher, physics, {
+    // TASK-160: the run's parameter changes are saved as versions of its parameter log.
+    const changes = new ParameterLogWriter(store, projectId, setError);
+    const next: SessionController = new SessionController(launcher, physics, {
       create: payload => {
         const { sitl } = payload;
         const name = experimentRecordName(profileName, sitl.ownership === "external" ? sitl.connectionId : sitl.experimentId, sitl.ownership);
         return createExperimentRecord(store, projectId, { name, payload });
       },
-    }, { nowMs: () => performance.now(), every: (ms, callback) => { const timer = setInterval(callback, ms); return () => clearInterval(timer); } }, setView,
+    }, { nowMs: () => performance.now(), utcNow: () => new Date().toISOString(),
+      every: (ms, callback) => { const timer = setInterval(callback, ms); return () => clearInterval(timer); } },
+    view => { setView(view); link.publish(next, view); changes.update(view); },
     // TASK-163: the run records with the Logging tab's settings.
-    new RunRecorder(fresh, logging, SITL_PHYSICS_HZ));
+    new RunRecorder(fresh, logging, SITL_PHYSICS_HZ), metadata);
     controller.current = next;
+    link.attach(next);
     unlisten.current = fresh.listen(data => next.worker(data));
     return {
       next,
@@ -184,15 +196,20 @@ export function RunPanel({ storeState, project, visible }: { storeState: StoreSt
     if (!store) { setError("Open a project and choose an aircraft profile."); return null; }
     return loadLoggingSettings(store);
   };
+  /** ArduPilot's parameter metadata; a run without it shows its parameters without restart and range facts. */
+  const metadata = (): Promise<ParameterMetadataCatalog | null> => loadParameterMetadata().catch((cause: unknown) => {
+    setError(cause instanceof Error ? cause.message : String(cause));
+    return null;
+  });
   const start = () => {
-    void logging().then(settings => {
-      const session = settings && freshSession(settings);
+    void Promise.all([logging(), metadata()]).then(([settings, catalog]) => {
+      const session = settings && freshSession(settings, catalog);
       if (session) void session.next.start({ prepare: session.prepare, firmwareId: buildId, speedup, physicsHz: SITL_PHYSICS_HZ, home: DEFAULT_HOME });
     });
   };
   const connect = (endpoints: ConnectionSpec) => {
-    void logging().then(settings => {
-      const session = settings && freshSession(settings);
+    void Promise.all([logging(), metadata()]).then(([settings, catalog]) => {
+      const session = settings && freshSession(settings, catalog);
       if (session) void session.next.connect({ prepare: session.prepare, endpoints, physicsHz: SITL_PHYSICS_HZ, home: DEFAULT_HOME, verifiedCommits: verifiedCommits() });
     });
   };

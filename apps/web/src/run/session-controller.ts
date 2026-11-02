@@ -26,6 +26,14 @@
 // autopilot's telemetry, the parameter snapshot and the run's accidents and
 // pauses go into it, and every end of the run closes it.
 //
+// The run's parameters (TASK-160) come from the TASK-159 parameter service,
+// which downloads the autopilot's complete list when the run loads its
+// parameters and classifies every later write by read-back. Writes are
+// possible from warmup until the run stops, in flight and while paused; a
+// paused lockstep SITL answers them after Resume. Each write is a parameter
+// change with its old and new value, wall and simulated time, experiment and
+// outcome.
+//
 // Connect (TASK-155) runs the same states against a SITL the user started.
 // The launcher owns only the connection, so Stop and every failure
 // disconnect and never signal the process. A connection is refused, naming
@@ -39,10 +47,13 @@ import { EXPERIMENT_SCHEMA_VERSION, type ExperimentParameter, type ExperimentPay
 import { readAutopilotVersion, verifiedCommit } from "@mirage/autopilot/autopilot-version";
 import { CopterMode, GroundStation } from "@mirage/autopilot/ground-station";
 import { MotorCheck, type ExpectedMotor, type MotorCheckResult, type PhysicsRotor } from "@mirage/autopilot/motor-test";
+import type { ParameterMetadataCatalog, ParameterMetadataSet } from "@mirage/autopilot/param-metadata";
+import { ParameterService, type DownloadState, type ParameterValue } from "@mirage/autopilot/param-service";
 import { ParameterReadback, type AbsentRule, type ParameterDifference } from "@mirage/autopilot/parameter-readback";
 import { MavParser, type MavFrame } from "@mirage/mavlink/codec";
 import { fieldOf, readNumber } from "@mirage/mavlink/messages";
 import type { AccidentEvent } from "@mirage/physics/accident";
+import type { ParameterChange } from "../params/parameter-sets";
 import type { SitlStatus } from "../sitl/bridge-client";
 
 // ---- the launcher as the controller sees it ------------------------------------------------
@@ -157,6 +168,8 @@ export interface RecordingPort {
 }
 export interface ClockPort {
   nowMs(): number;
+  /** The current UTC time as YYYY-MM-DDTHH:mm:ss.sssZ, for the parameter change log. */
+  utcNow(): string;
   every(ms: number, callback: () => void): () => void;
 }
 
@@ -291,8 +304,13 @@ const MAV_AUTOPILOT_ARDUPILOTMEGA = 3;
 export const HEARTBEAT_DEADLINE_S = 60;
 /** The parameter list confirmed within this simulated time of the first heartbeat (scripts/sitl/driver.mjs). */
 export const PARAMETER_DEADLINE_S = 30;
-/** PARAM_REQUEST_LIST repeated at this simulated-time interval while the list is incomplete. */
-const PARAMETER_RETRY_S = 5;
+/**
+ * The parameter service resends PARAM_REQUEST_LIST every 2 s of simulated time while nothing
+ * answers (ArduPilot ignores it until its parameters are ready), up to the start's deadline.
+ */
+const PARAMETER_LIST_REQUESTS = PARAMETER_DEADLINE_S / 2;
+/** The states in which the run's parameters can be written (TASK-160). */
+const WRITABLE: ReadonlySet<RunStateName> = new Set(["warming", "ready", "running", "paused"]);
 /** A SITL the user started sends its first JSON servo packet within this wall time of the connection. */
 export const PROBE_DEADLINE_S = 15;
 /** Its AUTOPILOT_VERSION within this simulated time of its first heartbeat; requested once per wall second until then. */
@@ -345,6 +363,25 @@ export interface ControllerView {
   readonly pauses: readonly PauseEvent[];
   /** Wall time the run has been paused so far, ms, which simulated time does not count. */
   readonly pausedWallMs: number;
+  /** The run's parameters (TASK-160), or null before it loads them. */
+  readonly parameters: ParameterView | null;
+}
+/** The parameter state of a run (TASK-160); the list itself is read with `parameterList()`. */
+export interface ParameterView {
+  /** Increases whenever the list, its download or a write changes. */
+  readonly revision: number;
+  readonly download: DownloadState;
+  /** The autopilot renumbered its list after the download: download it again. */
+  readonly stale: boolean;
+  /** Why a write is refused now, or null when parameters can be written. */
+  readonly writeRefusal: string | null;
+  /** Every parameter change of the run, oldest first. */
+  readonly changes: readonly ParameterChange[];
+  /** Confirmed values that take effect only after a restart, by ArduPilot's metadata. */
+  readonly rebootPending: readonly string[];
+  /** The ArduPilot source commit of the run's SITL, and whether MirageSITL has metadata for it. */
+  readonly firmwareCommit: string | null;
+  readonly metadata: boolean;
 }
 export interface MotorCheckView {
   readonly running: boolean;
@@ -394,7 +431,10 @@ export class SessionController {
   private motorSpeeds = new Float64Array(0);
   private readback: ParameterReadback | null = null;
   private parametersSinceS = 0;
-  private lastParameterRequestS = 0;
+  private params: ParameterService | null = null;
+  private paramMetadata: ParameterMetadataSet | null = null;
+  private changes: ParameterChange[] = [];
+  private firmwareCommit: string | null = null;
   private heartbeatSeen = false;
   private lastHeartbeatMs = 0;
   private accidents: AccidentEvent[] = [];
@@ -416,13 +456,14 @@ export class SessionController {
   private readonly parser = new MavParser(frame => this.autopilot(frame));
 
   constructor(private readonly launcher: LauncherPort, private readonly physics: PhysicsPort, private readonly records: RecordPort,
-    private readonly clock: ClockPort, private readonly onChange: (view: ControllerView) => void, private readonly recording: RecordingPort | null = null) {}
+    private readonly clock: ClockPort, private readonly onChange: (view: ControllerView) => void, private readonly recording: RecordingPort | null = null,
+    private readonly metadata: ParameterMetadataCatalog | null = null) {}
 
   get state(): RunState { return this.stateValue; }
   get view(): ControllerView {
     return { state: this.stateValue, status: this.status, mode: this.mode, armed: this.armed, statusText: this.statusText, recordSha256: this.recordSha256,
       ownership: this.ownership, compatibility: this.compatibility, motorCheck: this.motorCheckView(), accidents: this.accidents,
-      afterAccident: this.afterAccident, pauses: this.pauses, pausedWallMs: this.pausedWallTotal() };
+      afterAccident: this.afterAccident, pauses: this.pauses, pausedWallMs: this.pausedWallTotal(), parameters: this.parameterView() };
   }
   get active(): boolean { return ACTIVE.has(this.stateValue.name); }
   /** The current state name, read afresh after an await (not narrowed by earlier checks). */
@@ -475,6 +516,7 @@ export class SessionController {
     // Stopped while the launcher was starting SITL: the run it reports is stopped at once, and the state stays idle.
     if (cancelled()) { await this.launcher.stop(experiment.id).catch(() => undefined); return; }
     this.experimentId = experiment.id;
+    this.firmwareCommit = experiment.firmware.commit;
     const run = experiment.runs.at(-1);
     if (experiment.state === "start-failed" || !run || !experiment.ports) {
       await this.stopAfter({ kind: "launcher-refused", message: experiment.startError ?? "SITL did not start" }, "starting");
@@ -721,6 +763,44 @@ export class SessionController {
     return s.name === "paused" && s.reason === "accident" && this.resume();
   }
 
+  /** The run's parameters as the autopilot reported them (TASK-160), in list order; empty before the run loads them. */
+  parameterList(): readonly ParameterValue[] { return this.params?.parameters() ?? []; }
+  /** ArduPilot's metadata for the run's exact source commit, or null. */
+  get parameterMetadata(): ParameterMetadataSet | null { return this.paramMetadata; }
+  /** The session's latest published tick and simulated time, s. */
+  tickNow(): { readonly tick: number; readonly simTimeS: number } { return this.physics.tickNow(); }
+
+  /**
+   * Writes one parameter (TASK-160): the parameter service sends PARAM_SET and
+   * classifies the write by read-back, and the change is logged with its old
+   * value and the tick it was sent on. Returns why the write was not sent, or
+   * null; a write the service refuses is logged as refused. `value` must be a
+   * finite float32, as parseParameterValue gives.
+   */
+  setParameter(name: string, value: number): string | null {
+    const refusal = this.writeRefusal(), params = this.params, s = this.stateValue;
+    if (refusal !== null || !params || !("experimentId" in s) || s.experimentId === null) return refusal ?? "No run has loaded its parameters";
+    if (!Number.isFinite(value) || Math.fround(value) !== value) return "The value must be a finite float32";
+    const at = this.physics.tickNow(), old = params.get(name)?.value ?? null;
+    const outcome = params.set(name, value, this.status?.simTimeS ?? at.simTimeS);
+    this.changes = [...this.changes, { writeId: outcome.id, name, oldValue: old, newValue: value, requestedAt: this.clock.utcNow(), tick: at.tick,
+      simTimeS: at.simTimeS, experimentId: s.experimentId, whilePaused: s.name === "paused", outcome }];
+    // A pending write of the same name is now stale.
+    this.syncChanges();
+    this.emit();
+    return null;
+  }
+  /** Downloads the complete list again, for example after the autopilot renumbered it; returns why not, or null. */
+  refreshParameters(): string | null {
+    const params = this.params;
+    if (!params || !WRITABLE.has(this.stateValue.name)) return "Parameters can be downloaded once the run has loaded them, until it stops";
+    if (this.status?.state !== "open") return "The bridge to SITL is not open";
+    if (params.download().kind === "downloading") return "The list is being downloaded";
+    params.requestList(this.status.simTimeS);
+    this.emit();
+    return null;
+  }
+
   /** Every message from the physics Worker. */
   worker(data: unknown): void {
     const type = field(data, "type");
@@ -779,14 +859,19 @@ export class SessionController {
     const s = this.stateValue, status = this.status;
     if (!status) return;
     if (this.motorCheck && !this.motorCheck.done) this.stepMotorCheck(status.simTimeS);
+    // The Worker accepts MAVLink only while its bridge socket is open.
+    if (this.params && status.state === "open") {
+      this.params.tick(status.simTimeS);
+      this.syncChanges();
+    }
     switch (s.name) {
       case "loading-parameters": {
         const elapsed = status.simTimeS - this.parametersSinceS;
         if (elapsed > PARAMETER_DEADLINE_S) {
           void this.stopAfter({ kind: "parameters", message: `the parameter list was not complete after ${PARAMETER_DEADLINE_S} s of simulated time (${s.received} of ${s.total ?? "?"} received)` }, s.name);
-        } else if (status.simTimeS - this.lastParameterRequestS >= PARAMETER_RETRY_S) {
-          this.lastParameterRequestS = status.simTimeS;
-          this.send(this.gcs.paramRequestListInto(this.packet));
+        } else if (this.params?.download().kind === "failed" && status.state === "open") {
+          // Entries the index reads did not recover: the start's deadline allows the whole list again.
+          this.params.requestList(status.simTimeS);
         }
         return;
       }
@@ -858,12 +943,14 @@ export class SessionController {
           return;
         }
         external.version = { commit, gitHash: reported.gitHash, firmwareVersion: reported.firmwareVersion };
+        this.firmwareCommit = commit;
         this.compatibility = [...this.compatibility, { check: "version", text: `ArduPilot ${reported.firmwareVersion}, commit ${reported.gitHash} (verified)` }];
         this.requestParameters(s.experimentId);
         return;
       }
       case 22: { // PARAM_VALUE
-        if (s.name !== "loading-parameters" || !this.readback) return;
+        if (this.params?.ingest(frame, this.status?.simTimeS ?? 0)) this.syncChanges();
+        if (s.name !== "loading-parameters" || !this.readback) { if (this.params) this.emit(); return; }
         this.readback.ingest(frame);
         const verdict = this.readback.verdict();
         if (verdict.kind === "incomplete") { this.set({ ...s, received: verdict.received, total: verdict.total }); return; }
@@ -919,10 +1006,46 @@ export class SessionController {
     this.set({ name: "starting", step: "version", experimentId });
     this.send(this.gcs.requestMessageInto(148, this.packet));
   }
+  /** The run loads its parameters through the parameter service, which downloads the autopilot's complete list (TASK-160). */
   private requestParameters(experimentId: string): void {
-    this.parametersSinceS = this.lastParameterRequestS = this.status?.simTimeS ?? 0;
+    const now = this.status?.simTimeS ?? 0;
+    this.parametersSinceS = now;
+    this.paramMetadata = this.firmwareCommit === null ? null : this.metadata?.forCommit(this.firmwareCommit) ?? null;
+    this.params = new ParameterService({ ground: this.gcs, send: frame => this.physics.sendMavlink(frame.slice()), metadata: this.paramMetadata,
+      timing: { maxListRequests: PARAMETER_LIST_REQUESTS } });
     this.set({ name: "loading-parameters", experimentId, received: 0, total: null });
-    this.send(this.gcs.paramRequestListInto(this.packet));
+    this.params.requestList(now);
+  }
+  /** Why parameters cannot be written now, or null. */
+  private writeRefusal(): string | null {
+    const params = this.params;
+    if (!params) return "No run has loaded its parameters";
+    if (this.ownership === "external") return "MirageSITL writes nothing to a SITL it did not start (decision of 2026-11-01), so its parameters are shown read-only";
+    if (!WRITABLE.has(this.stateValue.name)) return "Parameters can be written once the run has loaded them, until it stops";
+    if (this.status?.state !== "open") return "The bridge to SITL is not open";
+    const download = params.download();
+    if (download.kind !== "complete") return download.kind === "downloading" ? "The list is being downloaded" : "Download the parameter list first";
+    if (params.stale) return "The autopilot renumbered its list: download it again first";
+    return null;
+  }
+  /** Each logged change takes its write's latest state. */
+  private syncChanges(): void {
+    const params = this.params;
+    if (!params) return;
+    let changed = false;
+    const next = this.changes.map(change => {
+      const outcome = params.write(change.writeId);
+      if (!outcome || outcome === change.outcome) return change;
+      changed = true;
+      return { ...change, outcome };
+    });
+    if (changed) this.changes = next;
+  }
+  private parameterView(): ParameterView | null {
+    const params = this.params;
+    if (!params) return null;
+    return { revision: params.revision, download: params.download(), stale: params.stale, writeRefusal: this.writeRefusal(), changes: this.changes,
+      rebootPending: params.rebootPending(), firmwareCommit: this.firmwareCommit, metadata: this.paramMetadata !== null };
   }
   /** A connection is never written to: every generated parameter it does not hold is a reason to refuse it. */
   private judgeExternalParameters(experimentId: string): void {
@@ -1130,6 +1253,7 @@ export class SessionController {
     this.experimentId = null; this.readback = null; this.heartbeatSeen = false; this.streamSeenMs.clear();
     this.ownership = ownership; this.external = null; this.prepared = null; this.compatibility = []; this.motorCheck = null;
     this.accidents = []; this.afterAccident = false; this.resumeTo = null; this.pauses = []; this.pausing = false;
+    this.params = null; this.paramMetadata = null; this.changes = []; this.firmwareCommit = null;
     this.parser.reset();
   }
 

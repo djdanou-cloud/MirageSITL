@@ -21,6 +21,12 @@
 //   differs after the autopilot has been quiet for a retry interval, so
 //   answers in flight from before the write, or from a write it replaced,
 //   cannot refuse it.
+// * ArduPilot answers a read by name from a queue, so the answer to a read
+//   sent before a write can arrive after the write's confirmation (TASK-160
+//   saw it when a paused SITL resumed with two writes queued). A confirmed
+//   write that an answer contradicts is therefore read once more, and it is
+//   stale only when the latest answer still differs after a quiet retry
+//   interval. A newer confirmed write of the same name replaces it at once.
 //
 // Values are the float32 numbers of the wire, stored exactly. Timeouts run on
 // a clock the caller passes in seconds, normally the SITL's simulated time,
@@ -180,6 +186,8 @@ export class ParameterService {
   private readonly pending = new Map<string, PendingWrite>();
   /** The latest confirmed write per name, watched for a later change. */
   private readonly confirmed = new Map<string, number>();
+  /** Confirmed writes an answer contradicted: the latest differing value and when it came; one read was sent at the first. */
+  private readonly doubted = new Map<string, { reported: number; answeredS: number }>();
   private revisionValue = 0;
 
   constructor(options: ParameterServiceOptions) {
@@ -303,7 +311,7 @@ export class ParameterService {
       if (this.receivedIndices === count) this.phase = "complete";
     }
     if (index === NOT_LISTED) this.answerWrite(name, value, nowS);
-    this.watchConfirmed(name, value);
+    this.watchConfirmed(name, value, nowS);
     this.changed();
     return true;
   }
@@ -311,6 +319,15 @@ export class ParameterService {
   /** Resends unanswered requests and times out writes; call it from the session's control loop. */
   tick(nowS: number): void {
     const t = this.timing;
+    for (const [name, doubt] of [...this.doubted]) {
+      if (nowS - doubt.answeredS < t.writeRetryS) continue;
+      this.doubted.delete(name);
+      const id = this.confirmed.get(name), state = id === undefined ? undefined : this.states.get(id);
+      if (state?.kind !== "confirmed") continue;
+      this.confirmed.delete(name);
+      this.settle({ kind: "stale", id: state.id, name, requested: state.requested, reported: doubt.reported,
+        reason: `the autopilot now reports ${formatParameterValue(doubt.reported)}` });
+    }
     for (const write of [...this.pending.values()]) {
       if (write.reported !== null) {
         if (nowS - write.answeredS < t.writeRetryS) continue;
@@ -351,6 +368,11 @@ export class ParameterService {
     if (value === write.wire) {
       this.pending.delete(name);
       const metadata = this.metadata?.get(name);
+      const replaced = this.confirmed.get(name), earlier = replaced === undefined ? undefined : this.states.get(replaced);
+      if (earlier?.kind === "confirmed") {
+        this.settle({ kind: "stale", id: earlier.id, name, requested: earlier.requested, reported: null, reason: `write ${write.id} of the same parameter replaced it` });
+      }
+      this.doubted.delete(name);
       this.confirmed.set(name, write.id);
       this.settle({ kind: "confirmed", id: write.id, name, requested: write.requested, value,
         rebootRequired: metadata ? metadata.rebootRequired : null, outsideRange: metadata ? outsideRange(metadata, value) : null });
@@ -361,13 +383,14 @@ export class ParameterService {
     }
   }
 
-  private watchConfirmed(name: string, value: number): void {
+  /** An answer that contradicts a confirmed write starts one more read; an answer that agrees ends the doubt. */
+  private watchConfirmed(name: string, value: number, nowS: number): void {
     const id = this.confirmed.get(name);
     const state = id === undefined ? undefined : this.states.get(id);
-    if (state?.kind !== "confirmed" || value === state.value) return;
-    this.confirmed.delete(name);
-    this.settle({ kind: "stale", id: state.id, name, requested: state.requested, reported: value,
-      reason: `the autopilot now reports ${formatParameterValue(value)}` });
+    if (state?.kind !== "confirmed") return;
+    if (value === state.value) { this.doubted.delete(name); return; }
+    if (!this.doubted.has(name)) this.send(this.ground.paramRequestReadInto(name, this.packet));
+    this.doubted.set(name, { reported: value, answeredS: nowS });
   }
 
   private sendWrite(write: PendingWrite, nowS: number): void {

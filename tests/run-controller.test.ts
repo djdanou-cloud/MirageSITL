@@ -47,7 +47,8 @@ import { profileDraft, validateAircraftProfile, withSensorConfiguration } from '
 import { DEFAULT_SENSOR_CONFIGURATION, type SensorConfiguration } from '../packages/aircraft/src/sensor-fields.ts';
 import { sensorSnapshot } from '../packages/aircraft/src/sensor-ownership.ts';
 import { definition, encodeInto, MavParser } from '../packages/mavlink/src/codec.ts';
-import { fieldOf, packInto, readNumber, type FieldValue } from '../packages/mavlink/src/messages.ts';
+import { fieldOf, packInto, readNumber, readText, type FieldValue } from '../packages/mavlink/src/messages.ts';
+import { parseParameterMetadata, type ParameterMetadataCatalog } from '../packages/autopilot/src/param-metadata.ts';
 import { canonicalBytes, type StoredVersion } from '../packages/project/src/schema.ts';
 import { MemoryBackend, ProjectStore } from '../packages/project/src/store.ts';
 import { writeFakeFirmware } from './support/fake-firmware.ts';
@@ -76,7 +77,7 @@ const SITL_COMMIT = (() => {
 // ---- MAVLink as ArduCopter sends it, and as the ground station sent it ------------------------
 
 /** MAVLink message IDs (common.xml). */
-const HEARTBEAT = 0, PARAM_REQUEST_LIST = 21, PARAM_VALUE = 22, COMMAND_LONG = 76, COMMAND_ACK = 77, STATUSTEXT = 253;
+const HEARTBEAT = 0, PARAM_REQUEST_READ = 20, PARAM_REQUEST_LIST = 21, PARAM_VALUE = 22, COMMAND_LONG = 76, COMMAND_ACK = 77, STATUSTEXT = 253;
 /** MAV_CMD numbers (common.xml). */
 const NAV_TAKEOFF = 22, DO_SET_MODE = 176, COMPONENT_ARM_DISARM = 400, SET_MESSAGE_INTERVAL = 511;
 /** ArduCopter custom modes (ArduCopter/mode.h, Mode::Number). */
@@ -404,6 +405,8 @@ class FakeClock implements ClockPort {
   private next = 0;
   private readonly timers = new Map<number, { readonly ms: number; due: number; readonly callback: () => void }>();
   nowMs(): number { return this.now; }
+  /** Wall time from 2026-11-02T00:00:00.000Z on. */
+  utcNow(): string { return new Date(Date.UTC(2026, 10, 2) + this.now).toISOString(); }
   every(ms: number, callback: () => void): () => void {
     const id = ++this.next;
     this.timers.set(id, { ms, due: this.now + ms, callback });
@@ -496,14 +499,15 @@ beforeAll(async () => {
   prepared = (await preparedRun(fixture.store, fixture.stored)).run;
 });
 
-function harness(prepare: () => Promise<PreparedRun> = () => Promise.resolve(prepared), recordingOf: ((events: string[]) => RecordingPort) | null = null): Harness {
+function harness(prepare: () => Promise<PreparedRun> = () => Promise.resolve(prepared), recordingOf: ((events: string[]) => RecordingPort) | null = null,
+  metadata: ParameterMetadataCatalog | null = null): Harness {
   const events: string[] = [], views: ControllerView[] = [];
   const launcher = new ScriptedLauncher(events), physics = new ScriptedPhysics(events), clock = new FakeClock();
   const records = new StoreRecords(fixture, events), recording = recordingOf?.(events) ?? null;
   const controller = new SessionController(launcher, physics, records, clock, view => {
     views.push(view);
     if (events.at(-1) !== `state:${view.state.name}`) events.push(`state:${view.state.name}`);
-  }, recording);
+  }, recording, metadata);
   physics.deliver = data => { controller.worker(data); };
   const request: StartRequest = { prepare, firmwareId: BUILD.id, speedup: 1, physicsHz: 800, home: DEFAULT_HOME };
   return { controller, launcher, physics, clock, records, events, views, request, run: prepared };
@@ -844,8 +848,8 @@ describe('deadlines and the parameter read-back', () => {
     h.clock.advance(120_000);
     for (const simTimeS of [8, 14, 20, 26, 31.9]) status(h, { state: 'open', simTimeS });
     expect(h.controller.state).toMatchObject({ name: 'loading-parameters', experimentId: id, received: 4 });
-    // The request is repeated while the list is incomplete.
-    expect(listRequests(h.physics.frames()).length).toBeGreaterThan(1);
+    // While the list is incomplete the parameter service (TASK-160) reads the missing entries by index.
+    expect(h.physics.frames().filter(frame => frame.id === PARAM_REQUEST_READ).length).toBeGreaterThan(0);
     expect(h.launcher.stops).toEqual([]);
     status(h, { state: 'open', simTimeS: 32.1 });
     await settle();
@@ -1052,6 +1056,130 @@ describe('one pause path (TASK-156)', () => {
     h.physics.pauseAnswer = () => Promise.resolve();
     await reach(h, 'ready');
     expect(h.controller.view.pauses).toEqual([]);
+  });
+});
+
+// ---- TASK-160: the run's parameters ---------------------------------------------------------------
+
+/** PARAM_SET, also declared with the connection tests further down. */
+const PARAM_SET_ID = 23, NOT_LISTED = 65535, INT8 = 2;
+const SET_ID = layoutOf(PARAM_SET_ID, 'param_id'), SET_VALUE = layoutOf(PARAM_SET_ID, 'param_value');
+/** Every PARAM_SET the ground station sent: name and float32 value. */
+function paramSets(h: Harness): { name: string; value: number }[] {
+  const sets: { name: string; value: number }[] = [];
+  const parser = new MavParser(frame => { if (frame.id === PARAM_SET_ID) sets.push({ name: readText(frame.payload, SET_ID), value: readNumber(frame.view, SET_VALUE) }); });
+  for (const chunk of h.physics.sent) parser.push(chunk);
+  return sets;
+}
+/** ArduPilot's answer to a write or a read by name: PARAM_VALUE outside the list with the list's count. */
+function answer(h: Harness, name: string, value: number, type = REAL32): Uint8Array {
+  return autopilotFrame(PARAM_VALUE, { param_id: name, param_value: value, param_type: type, param_count: h.run.parameters.length + OTHER_PARAMETERS.length,
+    param_index: NOT_LISTED });
+}
+let catalog: ParameterMetadataCatalog;
+beforeAll(() => { catalog = parseParameterMetadata(readJson('data/ardupilot/param-metadata.json')); });
+
+describe('the run\'s parameters (TASK-160)', () => {
+  test('the run downloads the complete list, and a write in flight is confirmed, applied and logged with its old value and tick', async () => {
+    const h = harness(undefined, null, catalog);
+    const id = await reach(h, 'flying');
+    const view = () => h.controller.view.parameters;
+    const total = h.run.parameters.length + OTHER_PARAMETERS.length;
+    expect(view()?.download).toEqual({ kind: 'complete', total });
+    expect(view()).toMatchObject({ stale: false, writeRefusal: null, firmwareCommit: SITL_COMMIT, metadata: true, changes: [], rebootPending: [] });
+    expect(h.controller.parameterList().map(p => p.name).slice(-3)).toEqual(['SYSID_THISMAV', 'FS_GCS_ENABLE', 'ARMING_CHECK']);
+    expect(h.controller.parameterMetadata?.get('FRAME_CLASS')?.rebootRequired).toBe(true);
+    h.physics.tick = 40800;
+    h.clock.advance(1500);
+    expect(h.controller.setParameter('FS_GCS_ENABLE', 1)).toBeNull();
+    expect(paramSets(h)).toEqual([{ name: 'FS_GCS_ENABLE', value: 1 }]);
+    expect(view()?.changes).toEqual([{ writeId: 1, name: 'FS_GCS_ENABLE', oldValue: 0, newValue: 1, requestedAt: '2026-11-02T00:00:02.500Z', tick: 40800,
+      simTimeS: 51, experimentId: id, whilePaused: false, outcome: { kind: 'requested', id: 1, name: 'FS_GCS_ENABLE', requested: 1, attempts: 1 } }]);
+    mav(h, answer(h, 'FS_GCS_ENABLE', 1));
+    expect(view()?.changes[0]?.outcome).toEqual({ kind: 'confirmed', id: 1, name: 'FS_GCS_ENABLE', requested: 1, value: 1, rebootRequired: false, outsideRange: false });
+    expect(h.controller.parameterList().find(p => p.name === 'FS_GCS_ENABLE')?.value).toBe(1);
+    expect(h.controller.state).toMatchObject({ name: 'running', flight: 'flying' });
+  });
+
+  test('a write whose metadata needs a restart is confirmed but pending a restart, never applied', async () => {
+    const h = harness(undefined, null, catalog);
+    await reach(h, 'ready');
+    const frameClass = h.controller.parameterList().find(p => p.name === 'FRAME_CLASS');
+    if (!frameClass) throw new Error('No FRAME_CLASS in the list');
+    expect(h.controller.setParameter('FRAME_CLASS', frameClass.value + 1)).toBeNull();
+    mav(h, answer(h, 'FRAME_CLASS', frameClass.value + 1));
+    expect(h.controller.view.parameters?.changes[0]?.outcome).toMatchObject({ kind: 'confirmed', rebootRequired: true });
+    expect(h.controller.view.parameters?.rebootPending).toEqual(['FRAME_CLASS']);
+  });
+
+  test('refusals by the service and by the autopilot, and a write nobody answers, end in their own logged states', async () => {
+    const h = harness(undefined, null, catalog);
+    await reach(h, 'ready');
+    const total = h.run.parameters.length + OTHER_PARAMETERS.length;
+    // ArduPilot reports FS_GCS_ENABLE as INT8.
+    mav(h, autopilotFrame(PARAM_VALUE, { param_id: 'FS_GCS_ENABLE', param_value: 0, param_type: INT8, param_count: total, param_index: total - 2 }));
+    expect(h.controller.setParameter('FS_GCS_ENABLE', 1.5)).toBeNull();
+    expect(paramSets(h)).toEqual([]);
+    expect(h.controller.setParameter('ARMING_CHECK', 0)).toBeNull();
+    mav(h, answer(h, 'ARMING_CHECK', 1));
+    status(h, { ready: true, reason: '', simTimeS: 41.5 });
+    expect(h.controller.setParameter('SYSID_THISMAV', 2)).toBeNull();
+    for (const simTimeS of [42.6, 43.7, 44.8]) status(h, { ready: true, reason: '', simTimeS });
+    expect(h.controller.view.parameters?.changes.map(change => change.outcome)).toEqual([
+      { kind: 'refused', id: 1, name: 'FS_GCS_ENABLE', requested: 1.5, by: 'service', reason: 'an integer from -128 to 127 is required', reported: null },
+      { kind: 'refused', id: 2, name: 'ARMING_CHECK', requested: 0, by: 'autopilot', reason: 'the autopilot kept 1', reported: 1 },
+      { kind: 'timeout', id: 3, name: 'SYSID_THISMAV', requested: 2, attempts: 3 },
+    ]);
+    expect(paramSets(h).filter(set => set.name === 'SYSID_THISMAV')).toHaveLength(3);
+  });
+
+  test('a write while paused waits for Resume without retry or timeout, a newer write makes it stale, and the answer after Resume confirms the newer one', async () => {
+    const h = harness(undefined, null, catalog);
+    await reach(h, 'ready');
+    expect(h.controller.pause('user')).toBe(true);
+    await settle();
+    expect(h.controller.state.name).toBe('paused');
+    expect(h.controller.setParameter('ARMING_CHECK', 0)).toBeNull();
+    // Simulated time stands while paused, however long the wall time.
+    h.clock.advance(120_000);
+    for (let i = 0; i < 5; i++) status(h, { ready: true, reason: '', simTimeS: 40 });
+    expect(h.controller.view.parameters?.changes[0]).toMatchObject({ whilePaused: true, outcome: { kind: 'requested', attempts: 1 } });
+    expect(h.controller.setParameter('ARMING_CHECK', 2)).toBeNull();
+    expect(h.controller.view.parameters?.changes.map(change => change.outcome.kind)).toEqual(['stale', 'requested']);
+    expect(h.controller.resume()).toBe(true);
+    await settle();
+    mav(h, answer(h, 'ARMING_CHECK', 2));
+    expect(h.controller.view.parameters?.changes.map(change => [change.whilePaused, change.outcome.kind])).toEqual([[true, 'stale'], [true, 'confirmed']]);
+    expect(h.controller.state.name).toBe('ready');
+  });
+
+  test('writes are refused before the list is loaded, while it is renumbered, for a SITL MirageSITL did not start, and after the run stops', async () => {
+    const h = harness(undefined, null, catalog);
+    expect(h.controller.setParameter('ARMING_CHECK', 0)).toBe('No run has loaded its parameters');
+    await reach(h, 'loading-parameters');
+    expect(h.controller.setParameter('ARMING_CHECK', 0)).toBe('Parameters can be written once the run has loaded them, until it stops');
+    mav(h, ...parameterList(h.run.parameters));
+    status(h, { ready: true, reason: '', simTimeS: 40 });
+    // An *_ENABLE write showed a group: the autopilot's list has a new count.
+    const total = h.run.parameters.length + OTHER_PARAMETERS.length;
+    mav(h, autopilotFrame(PARAM_VALUE, { param_id: 'ARMING_CHECK', param_value: 1, param_type: REAL32, param_count: total + 3, param_index: total - 1 }));
+    expect(h.controller.view.parameters).toMatchObject({ stale: true, writeRefusal: 'The autopilot renumbered its list: download it again first' });
+    const before = listRequests(h.physics.frames()).length;
+    expect(h.controller.refreshParameters()).toBeNull();
+    expect(listRequests(h.physics.frames())).toHaveLength(before + 1);
+    expect(h.controller.view.parameters?.download).toEqual({ kind: 'downloading', received: 0, total: null });
+    const renumbered: (readonly [string, number])[] = [...h.run.parameters.map(p => [p.name, p.value] as const), ...OTHER_PARAMETERS, ['NEW_A', 1], ['NEW_B', 2], ['NEW_C', 3]];
+    mav(h, ...renumbered.map(([name, value], index) => paramValue(name, value, total + 3, index)));
+    expect(h.controller.view.parameters).toMatchObject({ download: { kind: 'complete', total: total + 3 }, stale: false, writeRefusal: null });
+    await h.controller.stop();
+    expect(h.controller.setParameter('ARMING_CHECK', 0)).toBe('Parameters can be written once the run has loaded them, until it stops');
+    expect(paramSets(h)).toEqual([]);
+
+    const c = harness(undefined, null, catalog);
+    await connectTo(c, 'ready');
+    expect(c.controller.view.parameters?.download.kind).toBe('complete');
+    expect(c.controller.setParameter('ARMING_CHECK', 0)).toMatch(/^MirageSITL writes nothing to a SITL it did not start/);
+    expect(paramSets(c)).toEqual([]);
   });
 });
 
