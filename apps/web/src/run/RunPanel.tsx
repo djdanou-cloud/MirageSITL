@@ -6,6 +6,8 @@ import { describeAccident } from "@mirage/physics/accident";
 import type { LimitEvent } from "@mirage/physics/limit-monitor";
 import type { StoredVersion } from "@mirage/project/schema";
 import { CopterMode } from "@mirage/autopilot/ground-station";
+import { loadLoggingSettings, type LoggingSettings } from "../logging/logging-settings";
+import { RunRecorder } from "../logging/run-recorder";
 import { SimulationRuntime } from "../runtime";
 import type { StoreState } from "../shell/AppShell";
 import { DEFAULT_LAUNCHER_PORT } from "../shell/FirstRun";
@@ -34,7 +36,7 @@ import { SessionController, failureText, type CatalogEntry, type ConnectionSpec,
 
 const MODE_NAMES: Readonly<Record<number, string>> = Object.fromEntries(Object.entries(CopterMode).map(([name, value]) => [value, name.toUpperCase()]));
 const STEP_TEXT = { prepare: "preparing the vehicle", firmware: "checking the ArduPilot build", physics: "loading the physics",
-  launcher: "starting SITL", record: "saving the experiment record", connecting: "connecting to SITL",
+  launcher: "starting SITL", record: "saving the experiment record", recording: "opening the recording", connecting: "connecting to SITL",
   probing: "waiting for the SITL's JSON physics packets", version: "checking the SITL's ArduPilot version" } as const;
 const FLIGHT_TEXT = { arming: "Arming", climbing: "Taking off", flying: "Flying", landing: "Landing" } as const;
 const PAUSE_TEXT: Readonly<Record<PauseReason, string>> = { accident: "accident" };
@@ -131,7 +133,7 @@ export function RunPanel({ storeState, project, visible }: { storeState: StoreSt
     }, (cause: unknown) => { setBuilds(null); setError(cause instanceof Error ? cause.message : String(cause)); });
   };
   /** A fresh session for every Start and Connect: the previous run's model and epoch stay with the old Worker. */
-  const freshSession = (): { next: SessionController; prepare: () => Promise<PreparedRun> } | null => {
+  const freshSession = (logging: LoggingSettings): { next: SessionController; prepare: () => Promise<PreparedRun> } | null => {
     setError("");
     const stored = profiles.find(entry => entry.sha256 === profileSha);
     const launcher = client();
@@ -150,7 +152,9 @@ export function RunPanel({ storeState, project, visible }: { storeState: StoreSt
         const name = experimentRecordName(profileName, sitl.ownership === "external" ? sitl.connectionId : sitl.experimentId, sitl.ownership);
         return createExperimentRecord(store, projectId, { name, payload });
       },
-    }, { nowMs: () => performance.now(), every: (ms, callback) => { const timer = setInterval(callback, ms); return () => clearInterval(timer); } }, setView);
+    }, { nowMs: () => performance.now(), every: (ms, callback) => { const timer = setInterval(callback, ms); return () => clearInterval(timer); } }, setView,
+    // TASK-163: the run records with the Logging tab's settings.
+    new RunRecorder(fresh, logging, SITL_PHYSICS_HZ));
     controller.current = next;
     unlisten.current = fresh.listen(data => next.worker(data));
     return {
@@ -163,13 +167,21 @@ export function RunPanel({ storeState, project, visible }: { storeState: StoreSt
       },
     };
   };
+  const logging = async (): Promise<LoggingSettings | null> => {
+    if (!store) { setError("Open a project and choose an aircraft profile."); return null; }
+    return loadLoggingSettings(store);
+  };
   const start = () => {
-    const session = freshSession();
-    if (session) void session.next.start({ prepare: session.prepare, firmwareId: buildId, speedup, physicsHz: SITL_PHYSICS_HZ, home: DEFAULT_HOME });
+    void logging().then(settings => {
+      const session = settings && freshSession(settings);
+      if (session) void session.next.start({ prepare: session.prepare, firmwareId: buildId, speedup, physicsHz: SITL_PHYSICS_HZ, home: DEFAULT_HOME });
+    });
   };
   const connect = (endpoints: ConnectionSpec) => {
-    const session = freshSession();
-    if (session) void session.next.connect({ prepare: session.prepare, endpoints, physicsHz: SITL_PHYSICS_HZ, home: DEFAULT_HOME, verifiedCommits: verifiedCommits() });
+    void logging().then(settings => {
+      const session = settings && freshSession(settings);
+      if (session) void session.next.connect({ prepare: session.prepare, endpoints, physicsHz: SITL_PHYSICS_HZ, home: DEFAULT_HOME, verifiedCommits: verifiedCommits() });
+    });
   };
   const chosen = profiles.find(entry => entry.sha256 === profileSha);
   const layout = useMemo(() => layoutOf(chosen), [chosen]);

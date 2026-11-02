@@ -13,6 +13,12 @@
 // accidents, and it may continue, labelled as not validated for a physically
 // damaged aircraft. The user pause and its other reasons are TASK-156.
 //
+// A run records (TASK-163) when the controller has a recording port: the
+// recording is prepared before the experiment record, which names it, and
+// started after the record and before the autopilot's first frame; the
+// autopilot's telemetry, the parameter snapshot and the run's accidents and
+// pauses go into it, and every end of the run closes it.
+//
 // Connect (TASK-155) runs the same states against a SITL the user started.
 // The launcher owns only the connection, so Stop and every failure
 // disconnect and never signal the process. A connection is refused, naming
@@ -22,7 +28,7 @@
 // it), and its GPS puts it at the session's home; the profile must need no
 // frame script. Its experiment record is written once all of that holds,
 // before READY can be shown.
-import { EXPERIMENT_SCHEMA_VERSION, type ExperimentParameter, type ExperimentPayload, type ExperimentSitl } from "@mirage/aircraft/experiment";
+import { EXPERIMENT_SCHEMA_VERSION, type ExperimentParameter, type ExperimentPayload, type ExperimentRecording, type ExperimentSitl } from "@mirage/aircraft/experiment";
 import { readAutopilotVersion, verifiedCommit } from "@mirage/autopilot/autopilot-version";
 import { CopterMode, GroundStation } from "@mirage/autopilot/ground-station";
 import { MotorCheck, type ExpectedMotor, type MotorCheckResult, type PhysicsRotor } from "@mirage/autopilot/motor-test";
@@ -116,6 +122,28 @@ export interface PhysicsPort {
   resume(): Promise<void>;
 }
 export interface RecordPort { create(payload: ExperimentPayload): Promise<{ readonly sha256: string }> }
+/** Who a run's recording belongs to: the recording header's identity. */
+export interface RecordingStart {
+  /** The launcher experiment or connection ID. */
+  readonly experimentId: string;
+  readonly modelSha256: string;
+  readonly firmware: { readonly commit: string; readonly binarySha256: string } | null;
+}
+/** A run's recording (TASK-163, recorder v2). */
+export interface RecordingPort {
+  /** Creates the run's record; what it returns goes into the experiment record. */
+  prepare(identity: RecordingStart): ExperimentRecording;
+  /** Opens the record and arms the physics Worker's producer; resolves once it records. */
+  start(): Promise<void>;
+  /** An autopilot message; the recording keeps the catalog's telemetry at its rate. */
+  telemetry(frame: MavFrame): void;
+  /** The parameter snapshot, once the autopilot holds the run's parameters. */
+  parameters(list: readonly { readonly name: string; readonly value: number }[]): void;
+  accidents(events: readonly AccidentEvent[]): void;
+  pause(paused: boolean): void;
+  /** Closes the record; idempotent. */
+  stop(): Promise<void>;
+}
 export interface ClockPort {
   nowMs(): number;
   every(ms: number, callback: () => void): () => void;
@@ -146,7 +174,7 @@ export interface ConnectRequest {
 // ---- states ---------------------------------------------------------------------------------
 
 export type Ownership = ExperimentSitl["ownership"];
-export type StartStep = "prepare" | "firmware" | "physics" | "launcher" | "record" | "connecting" | "probing" | "version";
+export type StartStep = "prepare" | "firmware" | "physics" | "launcher" | "record" | "recording" | "connecting" | "probing" | "version";
 export type FlightStep = "arming" | "climbing" | "flying" | "landing";
 export type FailureReason =
   | { readonly kind: "vehicle"; readonly message: string }
@@ -156,6 +184,8 @@ export type FailureReason =
   | { readonly kind: "launcher-refused"; readonly message: string }
   | { readonly kind: "physics"; readonly message: string }
   | { readonly kind: "record"; readonly message: string }
+  /** The run's recording could not be prepared or started (TASK-163). */
+  | { readonly kind: "recording"; readonly message: string }
   | { readonly kind: "no-heartbeat"; readonly seconds: number }
   | { readonly kind: "parameters"; readonly message: string }
   | { readonly kind: "sitl-ended"; readonly during: RunStateName; readonly ending: string }
@@ -209,6 +239,7 @@ export function failureText(reason: FailureReason): string {
     case "launcher-refused": return `The launcher refused the run: ${reason.message}`;
     case "physics": return `The physics session could not be prepared: ${reason.message}`;
     case "record": return `The experiment record could not be saved: ${reason.message}`;
+    case "recording": return `The run's recording could not start: ${reason.message}`;
     case "no-heartbeat": return `SITL started but sent no heartbeat within ${reason.seconds} s`;
     case "parameters": return `ArduPilot did not confirm the initial parameters: ${reason.message}`;
     case "sitl-ended": return `SITL ended ${STATE_PHRASE[reason.during]} (${reason.ending})`;
@@ -349,7 +380,7 @@ export class SessionController {
   private readonly parser = new MavParser(frame => this.autopilot(frame));
 
   constructor(private readonly launcher: LauncherPort, private readonly physics: PhysicsPort, private readonly records: RecordPort,
-    private readonly clock: ClockPort, private readonly onChange: (view: ControllerView) => void) {}
+    private readonly clock: ClockPort, private readonly onChange: (view: ControllerView) => void, private readonly recording: RecordingPort | null = null) {}
 
   get state(): RunState { return this.stateValue; }
   get view(): ControllerView {
@@ -415,13 +446,21 @@ export class SessionController {
     }
 
     this.set({ name: "starting", step: "record", experimentId: experiment.id });
+    let recording: ExperimentRecording | null;
+    try {
+      recording = this.recording?.prepare({ experimentId: experiment.id, modelSha256: prepared.manifestSha256,
+        firmware: { commit: experiment.firmware.commit, binarySha256: experiment.firmware.binarySha256 } }) ?? null;
+    } catch (error) {
+      await this.stopAfter({ kind: "recording", message: messageOf(error) }, "starting");
+      return;
+    }
     const payload: ExperimentPayload = {
       schemaVersion: EXPERIMENT_SCHEMA_VERSION, profile: prepared.profile,
       sitl: { ownership: "launcher", experimentId: experiment.id, ardupilot: { catalogId: experiment.firmware.id, firmwareVersion: experiment.firmware.firmwareVersion,
         commit: experiment.firmware.commit, binarySha256: experiment.firmware.binarySha256, defaultParametersSha256: experiment.firmware.defaultParametersSha256 } },
       session: { physicsHz: request.physicsHz, clockMode: "sitl-lockstep", speedup: request.speedup, home: request.home, modelId: prepared.modelId,
         manifestSha256: prepared.manifestSha256, betModuleSha256 },
-      parameters: prepared.parameters, frameScript: prepared.frameScript, sensors: prepared.sensors,
+      parameters: prepared.parameters, frameScript: prepared.frameScript, sensors: prepared.sensors, recording,
     };
     try { this.recordSha256 = (await this.records.create(payload)).sha256; } catch (error) {
       // No unrecorded run flies; after a Stop, the stop already ended the run.
@@ -429,6 +468,15 @@ export class SessionController {
       return;
     }
     if (cancelled()) return;
+    // The recording takes every tick: it records before the autopilot's first frame steps the physics.
+    if (this.recording) {
+      this.set({ name: "starting", step: "recording", experimentId: experiment.id });
+      try { await this.recording.start(); } catch (error) {
+        if (!cancelled()) await this.stopAfter({ kind: "recording", message: messageOf(error) }, "starting");
+        return;
+      }
+      if (cancelled()) return;
+    }
 
     this.readback = new ParameterReadback(prepared.parameters, prepared.absentRule);
     this.set({ name: "starting", step: "connecting", experimentId: experiment.id });
@@ -597,6 +645,7 @@ export class SessionController {
       if (generation !== this.generation || this.stateValue !== s) return;
       this.resumeTo = null;
       this.afterAccident = true;
+      this.recording?.pause(false);
       // The autopilot sent nothing while it waited; its heartbeat count starts again now.
       this.lastHeartbeatMs = this.clock.nowMs();
       this.set(before);
@@ -637,10 +686,12 @@ export class SessionController {
   /** The physics session paused itself on an accident's tick (F-09); the autopilot waits in lockstep. */
   private accident(events: readonly AccidentEvent[]): void {
     this.accidents = [...this.accidents, ...events];
+    this.recording?.accidents(events);
     const s = this.stateValue;
     switch (s.name) {
       case "loading-parameters": case "warming": case "ready": case "running":
         this.resumeTo = s;
+        this.recording?.pause(true);
         this.set({ name: "paused", experimentId: s.experimentId, atSimTimeS: events[0]?.simTimeS ?? 0, reason: "accident", accidents: events });
         return;
       case "paused":
@@ -696,6 +747,7 @@ export class SessionController {
 
   private autopilot(frame: MavFrame): void {
     if (frame.systemId !== 1 || frame.componentId !== 1) return;
+    this.recording?.telemetry(frame);
     if (frame.id === 193 || frame.id === 24 || frame.id === 33) this.streamSeenMs.set(frame.id, this.clock.nowMs());
     const s = this.stateValue;
     switch (frame.id) {
@@ -746,6 +798,7 @@ export class SessionController {
         if (this.ownership === "external") { this.judgeExternalParameters(s.experimentId); return; }
         switch (verdict.kind) {
           case "confirmed":
+            this.recording?.parameters(this.prepared?.parameters ?? []);
             this.set(this.status?.ready ? { name: "ready", experimentId: s.experimentId } : { name: "warming", experimentId: s.experimentId, reason: this.status?.reason ?? "" });
             return;
           case "mismatch":
@@ -832,12 +885,20 @@ export class SessionController {
   private async recordConnection(experimentId: string): Promise<void> {
     const external = this.external, prepared = this.prepared, generation = this.generation;
     if (!external?.version || !prepared) return;
+    let recording: ExperimentRecording | null;
+    try {
+      // MirageSITL never read an external SITL's binary, so the recording names no firmware.
+      recording = this.recording?.prepare({ experimentId: external.connectionId, modelSha256: prepared.manifestSha256, firmware: null }) ?? null;
+    } catch (error) {
+      await this.stopAfter({ kind: "recording", message: messageOf(error) }, this.stateName());
+      return;
+    }
     const payload: ExperimentPayload = {
       schemaVersion: EXPERIMENT_SCHEMA_VERSION, profile: prepared.profile,
       sitl: { ownership: "external", connectionId: external.connectionId, ardupilot: external.version, endpoints: external.spec },
       session: { physicsHz: external.physicsHz, clockMode: "sitl-lockstep", speedup: null, home: external.home, modelId: prepared.modelId,
         manifestSha256: prepared.manifestSha256, betModuleSha256: external.betModuleSha256 },
-      parameters: prepared.parameters, frameScript: null, sensors: prepared.sensors,
+      parameters: prepared.parameters, frameScript: null, sensors: prepared.sensors, recording,
     };
     try {
       const { sha256 } = await this.records.create(payload);
@@ -846,6 +907,15 @@ export class SessionController {
     } catch (error) {
       if (generation === this.generation) await this.stopAfter({ kind: "record", message: messageOf(error) }, this.stateName());
       return;
+    }
+    // A connection records from its record on: the checks before it ran before anything was recorded.
+    if (this.recording) {
+      try { await this.recording.start(); } catch (error) {
+        if (generation === this.generation) await this.stopAfter({ kind: "recording", message: messageOf(error) }, this.stateName());
+        return;
+      }
+      if (generation !== this.generation) return;
+      this.recording.parameters(prepared.parameters);
     }
     const s = this.stateValue;
     if (s.name === "warming" && s.experimentId === experimentId) {
@@ -972,6 +1042,8 @@ export class SessionController {
     this.stopTimer?.();
     this.stopTimer = null;
     this.physics.disconnect();
+    // The record closes on its own; a failure to close is the recording's, shown in the Logging tab.
+    void this.recording?.stop().catch(() => undefined);
   }
 
   /** Resolves after `ms` on the injected clock. */
@@ -1014,6 +1086,7 @@ function restartFor(reason: FailureReason, ownership: Ownership): RestartPath {
     case "incompatible": return { kind: "fix-first", instruction: "Restart your SITL as the reasons say, or choose another profile, then press Connect again" };
     case "launcher-refused":
       return ownership === "external" ? { kind: "fix-first", instruction: "Check that your SITL is running and which ports it uses, then press Connect again" } : { kind: "start-again" };
+    case "recording": return { kind: "fix-first", instruction: `Free storage or lower the rates in the Logging tab, then press ${again} again` };
     case "physics": case "record": case "no-heartbeat": case "parameters":
     case "sitl-ended": case "bridge-lost": case "sitl-restarted": case "sitl-silent":
       return { kind: "start-again" };

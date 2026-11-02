@@ -306,6 +306,13 @@ export class SimulationRuntime {
     this.listeners.add(listener);
     return () => { this.listeners.delete(listener); };
   }
+  /**
+   * The latest published state into `out`, read now rather than at the last animation frame, which
+   * a hidden page does not run (TASK-163 recording rows); false when none could be read.
+   */
+  latestInto(out: FlightStateV2): boolean {
+    return !this.disposed && this.reader.latest(out);
+  }
   /** Posts a Worker message outside Control Protocol v2 (bet.module, model.register, limits.register, sitl.*); the Worker validates it. */
   postToWorker(message: Record<string, unknown>): void {
     if (!this.disposed) this.worker.postMessage(message);

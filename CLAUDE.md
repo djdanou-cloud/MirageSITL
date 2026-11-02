@@ -102,6 +102,9 @@ implementation.
   propeller strike that meets decision F-09 pauses the physics session on its
   tick, and the autopilot with it in lockstep; the Run tab lists it and may
   continue the run, labelled as not validated for a damaged aircraft.
+  TASK-163 is DONE: the Logging tab plans what a Run-tab run records, with
+  size estimates and storage warnings, and every run records with recorder v2
+  into its experiment's record (experiment payload schema 3).
   TASK-195 is DONE: no run starts from a profile whose propellers overlap each
   other, reach the body or the ground, and the Aircraft tab proposes the fix
   (longer arms or a larger clearance) and saves it only on confirmation.

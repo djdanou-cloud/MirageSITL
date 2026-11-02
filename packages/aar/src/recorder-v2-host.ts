@@ -141,6 +141,21 @@ export class RecorderV2Host {
     this.worker.postMessage({ type: "rows", rows });
   }
 
+  /** The record's catalog entry so far (TASK-163: the Logging tab's growth and gaps). */
+  status(timeoutMs = 5000): Promise<CatalogEntry> {
+    return this.ready.then(() => new Promise<CatalogEntry>((resolve, reject) => {
+      const timer = setTimeout(() => { this.worker.removeEventListener("message", listener); reject(new Error("The recorder did not answer in time")); }, timeoutMs);
+      const listener = ({ data }: MessageEvent<unknown>): void => {
+        if (typeof data !== "object" || data === null || !("type" in data) || data.type !== "status" || !("entry" in data)) return;
+        clearTimeout(timer);
+        this.worker.removeEventListener("message", listener);
+        try { resolve(parseCatalogEntry(data.entry)); } catch (error) { reject(error instanceof Error ? error : new Error(String(error))); }
+      };
+      this.worker.addEventListener("message", listener);
+      this.worker.postMessage({ type: "status" });
+    }));
+  }
+
   /** Seals the last chunk, marks the record closed and ends the Worker; resolves with the catalog entry. */
   close(timeoutMs = 10000): Promise<CatalogEntry> {
     this.closing ??= this.ready.then(() => new Promise<CatalogEntry>((resolve, reject) => {

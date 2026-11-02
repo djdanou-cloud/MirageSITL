@@ -36,15 +36,27 @@ import type { PresetCitation } from './sensor-presets.ts';
 // endpoints; it has no binary hash (MirageSITL never read the binary), no
 // speedup (SITL's own command line set it), no frame script (MirageSITL can
 // install one only in a SITL it starts), and its parameters are the generated
-// ones the autopilot was confirmed to hold, written by nobody. Schema 1
-// (TASK-154, launcher-owned only) stays readable: readExperiment presents it
-// as schema 2, and new records are always schema 2. An experiment's inputs are
-// fixed at version 1; the store allows only renaming afterwards.
+// ones the autopilot was confirmed to hold, written by nobody. Schema 3
+// (TASK-163) adds the run's recording: the ID of its recorder v2 record and
+// the Logging tab's settings it was made with, the storage warning reserve
+// included, or null for a run that records nothing. Schemas 1 (TASK-154,
+// launcher-owned only) and 2 stay readable: readExperiment presents them as
+// schema 3 without a recording, and new records are always schema 3. An
+// experiment's inputs are fixed at version 1; the store allows only renaming
+// afterwards.
 // Configuration-time code only; never call it from a physics step.
 
-export const EXPERIMENT_SCHEMA_VERSION = 2;
+export const EXPERIMENT_SCHEMA_VERSION = 3;
 /** The TASK-154 schema, still accepted by validateExperiment and readExperiment. */
 export const EXPERIMENT_SCHEMA_VERSION_1 = 1;
+/** The TASK-155 schema, still accepted by validateExperiment and readExperiment. */
+export const EXPERIMENT_SCHEMA_VERSION_2 = 2;
+/** Recorder v2 record IDs: 32 lowercase hexadecimal digits. */
+const RECORD_ID = /^[0-9a-f]{32}$/;
+/** Recording rates are 0 or whole hertz up to 2000 (the TASK-162 signal catalog). */
+const MAX_RECORDING_HZ = 2000;
+/** Recording group and signal names of the TASK-162 catalog, such as motors or truth.position. */
+const RECORDING_NAME = /^[a-z][A-Za-z]*(\.[a-z][A-Za-z]*)?$/;
 /** Launcher API v1 limits (apps/launcher/src/server.ts parseExperimentSpec). */
 export const MAX_EXPERIMENT_PARAMETERS = 4096;
 export const MAX_FRAME_SCRIPT_BYTES = 64 * 1024;
@@ -146,7 +158,25 @@ export interface ExperimentPayload {
   readonly frameScript: string | null;
   /** sensorSnapshot() of the profile version, verbatim. */
   readonly sensors: SensorSnapshot;
+  /** The run's recording (TASK-163), or null for a run that records nothing. */
+  readonly recording: ExperimentRecording | null;
 }
+/**
+ * The recording of a run (TASK-163): its recorder v2 record and the Logging tab settings it was made
+ * with. Rates are 0 or whole hertz; a group or a signal absent here records at the common rate.
+ */
+export interface ExperimentRecording {
+  readonly recordId: string;
+  readonly commonHz: number;
+  readonly groups: Readonly<Record<string, number>>;
+  readonly signals: Readonly<Record<string, number>>;
+  /** The run length the size estimate was made for, simulated minutes. */
+  readonly durationMin: number;
+  /** The storage warning reserve, MB (10⁶ bytes). */
+  readonly reserveMb: number;
+}
+/** Experiment payload schema 2 (TASK-155): schema 3 without the recording. */
+export type ExperimentPayloadV2 = Omit<ExperimentPayload, 'schemaVersion' | 'recording'> & { readonly schemaVersion: typeof EXPERIMENT_SCHEMA_VERSION_2 };
 /** Experiment payload schema 1 (TASK-154): a launcher-owned SITL only. */
 export interface ExperimentPayloadV1 {
   readonly schemaVersion: typeof EXPERIMENT_SCHEMA_VERSION_1;
@@ -529,38 +559,64 @@ function payloadV1Of(payload: unknown): ExperimentPayloadV1 {
     frameScript: frameScriptOf(p.frameScript, parameters), sensors: snapshotOf(p.sensors, profile.sha256),
   };
 }
-function payloadOf(payload: unknown): ExperimentPayload {
-  const p = exact(payload, ['schemaVersion', 'profile', 'sitl', 'session', 'parameters', 'frameScript', 'sensors'], 'the payload');
+function ratesOf(value: unknown, label: string): Record<string, number> {
+  if (!isRecord(value)) return fail(`${label} must be an object`);
+  const rates: Record<string, number> = {};
+  for (const [name, rate] of Object.entries(value)) {
+    rates[matching(name, RECORDING_NAME, `${label} names`, 'catalog names')] = integer(rate, `${label}.${name}`, 0, MAX_RECORDING_HZ);
+  }
+  return rates;
+}
+function recordingOf(value: unknown): ExperimentRecording | null {
+  if (value === null) return null;
+  const r = exact(value, ['recordId', 'commonHz', 'groups', 'signals', 'durationMin', 'reserveMb'], 'recording');
+  return {
+    recordId: matching(r.recordId, RECORD_ID, 'recording.recordId', '32 lowercase hexadecimal digits'),
+    commonHz: integer(r.commonHz, 'recording.commonHz', 0, MAX_RECORDING_HZ), groups: ratesOf(r.groups, 'recording.groups'),
+    signals: ratesOf(r.signals, 'recording.signals'), durationMin: integer(r.durationMin, 'recording.durationMin', 1, 24 * 60),
+    reserveMb: finite(r.reserveMb, 'recording.reserveMb', 0, 1e9),
+  };
+}
+/** Schema 3, or schema 2 (`recording` absent from both the keys and the result). */
+function payloadOf(payload: unknown, version: typeof EXPERIMENT_SCHEMA_VERSION | typeof EXPERIMENT_SCHEMA_VERSION_2): ExperimentPayload | ExperimentPayloadV2 {
+  const keys = ['schemaVersion', 'profile', 'sitl', 'session', 'parameters', 'frameScript', 'sensors'];
+  const p = exact(payload, version === EXPERIMENT_SCHEMA_VERSION ? [...keys, 'recording'] : keys, 'the payload');
   const profile = profileOf(p.profile);
   const sitl = sitlOf(p.sitl);
   const parameters = parametersOf(p.parameters);
   const frameScript = frameScriptOf(p.frameScript, parameters);
   if (sitl.ownership === 'external' && frameScript !== null) fail('an external SITL has no frame script: MirageSITL installs one only in a SITL it starts');
-  return {
-    schemaVersion: EXPERIMENT_SCHEMA_VERSION, profile, sitl, session: sessionOf(p.session, sitl.ownership), parameters, frameScript,
-    sensors: snapshotOf(p.sensors, profile.sha256),
-  };
+  const common = { profile, sitl, session: sessionOf(p.session, sitl.ownership), parameters, frameScript, sensors: snapshotOf(p.sensors, profile.sha256) };
+  return version === EXPERIMENT_SCHEMA_VERSION ? { schemaVersion: version, ...common, recording: recordingOf(p.recording) }
+    : { schemaVersion: version, ...common };
 }
 
 /**
- * Validates an experiment payload of schema 2, or of schema 1 as stored by
- * TASK-154, from `unknown`; returns a deep-frozen copy of what was given.
- * Registered for the `experiment` kind, so imports of schema 1 records keep
- * working.
+ * Validates an experiment payload of schema 3, or of schema 2 (TASK-155) or 1
+ * (TASK-154) as stored then, from `unknown`; returns a deep-frozen copy of
+ * what was given. Registered for the `experiment` kind, so imports of older
+ * records keep working.
  */
-export function validateExperiment(payload: unknown): ExperimentPayload | ExperimentPayloadV1 {
+export function validateExperiment(payload: unknown): ExperimentPayload | ExperimentPayloadV2 | ExperimentPayloadV1 {
   const version = isRecord(payload) ? payload.schemaVersion : undefined;
-  if (version === EXPERIMENT_SCHEMA_VERSION) return freeze(payloadOf(payload));
+  if (version === EXPERIMENT_SCHEMA_VERSION || version === EXPERIMENT_SCHEMA_VERSION_2) return freeze(payloadOf(payload, version));
   if (version === EXPERIMENT_SCHEMA_VERSION_1) return freeze(payloadV1Of(payload));
-  return fail(`unsupported experiment schema ${String(version)}; this reader knows schemas ${EXPERIMENT_SCHEMA_VERSION_1} and ${EXPERIMENT_SCHEMA_VERSION}`);
+  return fail(`unsupported experiment schema ${String(version)}; this reader knows schemas ${EXPERIMENT_SCHEMA_VERSION_1} to ${EXPERIMENT_SCHEMA_VERSION}`);
 }
 
-/** A schema 1 payload as schema 2: its launcher and ardupilot fields become a launcher-owned SITL. */
-export function migrateExperiment(payload: ExperimentPayload | ExperimentPayloadV1): ExperimentPayload {
+/**
+ * An older payload as schema 3 without a recording; a schema 1 payload's launcher and ardupilot
+ * fields become a launcher-owned SITL.
+ */
+export function migrateExperiment(payload: ExperimentPayload | ExperimentPayloadV2 | ExperimentPayloadV1): ExperimentPayload {
   if (payload.schemaVersion === EXPERIMENT_SCHEMA_VERSION) return payload;
+  if (payload.schemaVersion === EXPERIMENT_SCHEMA_VERSION_2) {
+    const { profile, sitl, session, parameters, frameScript, sensors } = payload;
+    return freeze({ schemaVersion: EXPERIMENT_SCHEMA_VERSION, profile, sitl, session, parameters, frameScript, sensors, recording: null });
+  }
   const { profile, ardupilot, launcher, session, parameters, frameScript, sensors } = payload;
   return freeze({ schemaVersion: EXPERIMENT_SCHEMA_VERSION, profile, sitl: { ownership: 'launcher', experimentId: launcher.experimentId, ardupilot },
-    session, parameters, frameScript, sensors });
+    session, parameters, frameScript, sensors, recording: null });
 }
 
 /**

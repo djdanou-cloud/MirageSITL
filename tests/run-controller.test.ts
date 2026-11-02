@@ -31,9 +31,12 @@ import { ensureToken, startLauncher } from '../apps/launcher/src/server.ts';
 import {
   failureText, HEARTBEAT_DEADLINE_S, LauncherError, PARAMETER_DEADLINE_S, SessionController, type CatalogEntry, type ClockPort,
   type ConnectionSpec, type ControllerView, type LauncherConnection, type LauncherExperiment, type LauncherFirmware, type LauncherLogs,
-  type LauncherPort, type LauncherRun, type LauncherRunState, type PhysicsPort, type PreparedRun, type RecordPort, type RunState,
-  type StartRequest, type StartSpec,
+  type LauncherPort, type LauncherRun, type LauncherRunState, type PhysicsPort, type PreparedRun, type RecordingPort, type RecordingStart, type RecordPort,
+  type RunState, type StartRequest, type StartSpec,
 } from '../apps/web/src/run/session-controller.ts';
+import type { ExperimentRecording } from '../packages/aircraft/src/experiment.ts';
+import type { MavFrame } from '../packages/mavlink/src/codec.ts';
+import type { AccidentEvent } from '../packages/physics/src/accident.ts';
 import type { SitlStatus } from '../apps/web/src/sitl/bridge-client.ts';
 import { DEFAULT_HOME, LauncherClient, parseLauncherExperiment, preparedRun } from '../apps/web/src/sitl/sitl-run.ts';
 import { validateComponentCard } from '../packages/aircraft/src/components.ts';
@@ -484,14 +487,14 @@ beforeAll(async () => {
   prepared = (await preparedRun(fixture.store, fixture.stored)).run;
 });
 
-function harness(prepare: () => Promise<PreparedRun> = () => Promise.resolve(prepared)): Harness {
+function harness(prepare: () => Promise<PreparedRun> = () => Promise.resolve(prepared), recordingOf: ((events: string[]) => RecordingPort) | null = null): Harness {
   const events: string[] = [], views: ControllerView[] = [];
   const launcher = new ScriptedLauncher(events), physics = new ScriptedPhysics(events), clock = new FakeClock();
-  const records = new StoreRecords(fixture, events);
+  const records = new StoreRecords(fixture, events), recording = recordingOf?.(events) ?? null;
   const controller = new SessionController(launcher, physics, records, clock, view => {
     views.push(view);
     if (events.at(-1) !== `state:${view.state.name}`) events.push(`state:${view.state.name}`);
-  });
+  }, recording);
   physics.deliver = data => { controller.worker(data); };
   const request: StartRequest = { prepare, firmwareId: BUILD.id, speedup: 1, physicsHz: 800, home: DEFAULT_HOME };
   return { controller, launcher, physics, clock, records, events, views, request, run: prepared };
@@ -948,6 +951,67 @@ function accidentMessage(tick: number, rotorId: number): Record<string, unknown>
   return { type: 'accident.events', dropped: 0, total: 1, events: [{ tick, simTimeS: tick / 800, part: { part: 'propeller', rotorId },
     pointBodyM: [0.1, 0.2, 0.03], penetrationM: 0.0005, impulseNs: 0.01, forceN: 8, rotorSpeedRadS: 900 }] };
 }
+
+/** A recording port that logs what the controller gives it (TASK-163). */
+class ScriptedRecording implements RecordingPort {
+  readonly calls: string[] = [];
+  readonly frames: number[] = [];
+  identity: RecordingStart | null = null;
+  startAnswer: () => Promise<void> = () => Promise.resolve();
+  constructor(private readonly events: string[]) {}
+  prepare(identity: RecordingStart): ExperimentRecording {
+    this.identity = identity;
+    this.events.push('recording.prepare');
+    return { recordId: 'c'.repeat(32), commonHz: 50, groups: {}, signals: {}, durationMin: 60, reserveMb: 500 };
+  }
+  start(): Promise<void> { this.events.push('recording.start'); return this.startAnswer(); }
+  telemetry(frame: MavFrame): void { this.frames.push(frame.id); }
+  parameters(list: readonly { readonly name: string; readonly value: number }[]): void { this.calls.push(`parameters:${list.length}`); }
+  accidents(events: readonly AccidentEvent[]): void { this.calls.push(`accidents:${events.map(e => e.tick).join(',')}`); }
+  pause(paused: boolean): void { this.calls.push(`pause:${paused ? 1 : 0}`); }
+  stop(): Promise<void> { this.events.push('recording.stop'); return Promise.resolve(); }
+}
+
+describe('the run\'s recording (TASK-163)', () => {
+  test('is prepared before the record, which names it, records before the first frame, and gets the telemetry, parameters, accidents and pauses', async () => {
+    const made: ScriptedRecording[] = [];
+    const h = harness(undefined, events => { const made1 = new ScriptedRecording(events); made.push(made1); return made1; });
+    const [r] = made;
+    if (!r) throw new Error('No recording');
+    const id = await reach(h, 'flying');
+    // The recording sits between the record and the bridge: no tick of the run goes unrecorded.
+    const at = (event: string) => h.events.indexOf(event);
+    expect([at('recording.prepare') < at('record.create'), at('record.create') < at('recording.start'), at('recording.start') < at('physics.connect')])
+      .toEqual([true, true, true]);
+    expect(r.identity).toEqual({ experimentId: id, modelSha256: h.run.manifestSha256, firmware: { commit: FIRMWARE.commit, binarySha256: FIRMWARE.binarySha256 } });
+    expect(h.views.flatMap(view => (view.state.name === 'starting' ? [view.state.step] : []))).toContain('recording');
+    expect(h.records.payloads.at(-1)?.recording?.recordId).toBe('c'.repeat(32));
+    // Every autopilot frame reaches it, and the snapshot follows the confirmed parameters.
+    expect(r.frames).toContain(0);
+    expect(r.calls).toEqual([`parameters:${h.run.parameters.length}`]);
+    h.controller.worker(accidentMessage(41000, 3));
+    expect(h.controller.continueAfterAccident()).toBe(true);
+    await settle();
+    expect(r.calls.slice(1)).toEqual(['accidents:41000', 'pause:1', 'pause:0']);
+    await h.controller.stop();
+    expect(at('recording.stop')).toBeGreaterThan(at('recording.start'));
+  });
+
+  test('a recording that cannot start stops the run with its reason and a fix', async () => {
+    const h = harness(undefined, events => {
+      const recording = new ScriptedRecording(events);
+      recording.startAnswer = () => Promise.reject(new Error('QuotaExceededError'));
+      return recording;
+    });
+    await h.controller.start(h.request);
+    await until(() => h.controller.state.name === 'failed', 5000, 'the failed recording');
+    expect(failed(h).reason).toEqual({ kind: 'recording', message: 'QuotaExceededError' });
+    expect(failed(h).restart).toEqual({ kind: 'fix-first', instruction: 'Free storage or lower the rates in the Logging tab, then press Start again' });
+    expect(stoppedBeforeFailed(h)).toBe(true);
+    expect(h.events).not.toContain('physics.connect');
+    expect(h.events).toContain('recording.stop');
+  });
+});
 
 describe('accident pause (TASK-149)', () => {
   test('an accident in flight pauses the run with it; continuing returns to the flight, labelled, and the next accident pauses again', async () => {

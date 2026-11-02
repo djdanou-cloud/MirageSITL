@@ -6425,8 +6425,8 @@ network error; launcher-foreign needs an answer the browser may read.
 
 ### Experiment record
 
-`packages/aircraft/src/experiment.ts` defines experiment payload schema 2
-(TASK-155) in record envelope v1, and the application registers
+`packages/aircraft/src/experiment.ts` defines experiment payload schema 3
+(TASK-163) in record envelope v1, and the application registers
 `validateExperiment` for the `experiment` kind. The record has exactly one
 dependency, its aircraft-profile version, and the payload holds:
 
@@ -6438,11 +6438,13 @@ dependency, its aircraft-profile version, and the payload holds:
 | parameters | exactly the list sent to the launcher, in its order, each tagged frame, output, pwm or sensor; for an external SITL the same generated list, which it was confirmed to hold |
 | frameScript | the Lua of a scripting-matrix frame, or null (always null for an external SITL) |
 | sensors | `sensorSnapshot()` of the profile version, verbatim |
+| recording | the run's recorder v2 record ID and the Logging tab settings it records with (common, group and signal rates, the run length and the storage reserve; TASK-163), or null for a run that records nothing |
 
 Schema 1, which TASK-154 wrote, had `ardupilot` and `launcher` at the top
-level and a required speed-up. It stays valid on reads and archive imports;
-`readExperiment` presents it as schema 2 with a launcher-owned `sitl`, and
-`createExperimentRecord` writes only schema 2.
+level and a required speed-up; schema 2, which TASK-155 wrote, had no
+`recording`. Both stay valid on reads and archive imports; `readExperiment`
+presents them as schema 3 without a recording (schema 1 with a launcher-owned
+`sitl`), and `createExperimentRecord` writes only schema 3.
 
 `createExperimentRecord` recomputes the snapshot from the stored profile
 version and requires canonical-byte equality, cross-checks the frame and
@@ -6510,7 +6512,8 @@ connection, closes those and never signals the SITL process, which keeps
 running. The decisions of 2026-11-01 set the policy: a SITL with built-in
 physics is refused; only verified source commits connect; the SITL's
 parameters are read, never written, and every difference is a reason to
-refuse; a connection is recorded as experiment payload schema 2.
+refuse; a connection is recorded as experiment payload schema 2, which is
+schema 3 since TASK-163.
 
 ### Launcher API
 
@@ -7098,3 +7101,94 @@ motors and an IMU frame each tick). `tests/browser/recorder-v2.spec.ts` arms
 the application's physics Worker in Chrome. It records the demo session,
 closes and relaunches the browser on the same profile, and reopens a closed
 record with exact rates and a cut-off record as interrupted.
+
+## Logging tab and run recording (TASK-163)
+
+The Logging tab (`apps/web/src/logging/LoggingTab.tsx`) holds what the next
+Run-tab run records, in the store's local settings (`logging`, schema 1;
+`logging-settings.ts`): the common rate, A-09's 50 Hz by default, a rate per
+group and per signal that overrides it (0 records none), the run length the
+estimate totals (60 simulated minutes) and a storage reserve (500 MB). The
+plan is `planRates` of the signal catalog at the Run tab's 800 Hz physics rate
+with the 10 Hz autopilot streams the Run tab requests. The tab lists every
+signal with its source, the source's rate (an upper bound for an aperiodic
+source), the requested and effective rates, and why an effective rate is
+lower: limited to the source's rate, or not produced in a Run-tab run. A rate
+that is not a whole number of hertz from 1 to 2000 or 0, a rate for an event,
+and an unknown name are refused with the reason, and nothing invalid can be
+saved; 2 kHz is offered, and a source that produces less records at its own
+rate.
+
+`size-estimate.ts` estimates a plan from the catalog and the format: every row
+has a fixed width (the 40-byte header and all of its signal's channels,
+padded to 8 bytes), a physics signal keeps exactly its effective rate of
+samples per simulated second, an aperiodic one at most its effective rate,
+and rows fill 64 KiB chunks behind 48-byte headers. A Run-tab run produces
+truth, pilot input, actuator outputs, motors, battery and autopilot telemetry,
+but no MirageSITL sensor frames, since the SITL computes its own sensors
+(`RUN_TAB_SOURCES`). Events are not estimated. The tab shows the size per
+simulated hour and for the run length, marked as an upper bound while
+telemetry is in the plan, and the free storage from
+`navigator.storage.estimate()`, read again every 2 s.
+
+Storage warnings (`storage-warning.ts`, lead defaults open to change): before
+a run, when the run length needs more than is free beyond the reserve; at any
+time, when the free storage is below the reserve; and while a run records,
+when the rest of the run length at the measured growth needs more than is
+free beyond the reserve. The reserve and the run length are recorded in the
+experiment.
+
+A run records when its `SessionController` has a recording port
+(`RecordingPort`; the Run tab's is `RunRecorder` of `run-recorder.ts`, on
+recorder v2's `RecorderV2Host`):
+
+1. `prepare`, before the experiment record: the recorder Worker's record is
+   created with the run's identity (the launcher experiment or connection ID,
+   the manifest SHA-256 and, for a launcher-owned SITL, the commit and binary
+   SHA-256), and the record's ID and the Logging tab's settings become the
+   experiment payload's `recording` (schema 3).
+2. `start`, after the experiment record and before the bridge connects: the
+   recorder Worker opens the record and the physics Worker's producer is
+   armed (`recording-v2.arm`), so the run's first tick is recorded. A
+   connection to a SITL the user started records from its record on. A
+   recording that cannot start stops the run as failure `recording`, with
+   the instruction to free storage or lower the rates.
+3. While the run lasts, Main adds every autopilot message the catalog
+   records, decimated by simulated time; the parameter snapshot once the
+   autopilot holds the run's parameters; the accident rows of TASK-149 and a
+   pause row (1 paused, 0 resumed) for each pause. Rows take the latest
+   physics tick (`SimulationRuntime.latestInto`, read when the row is made, so
+   a hidden page stamps them too).
+4. Every end of the run closes the record: the producer is detached
+   (`recording.stop`), the last chunk sealed and the catalog entry closed.
+
+Once a second the recorder publishes the record's catalog entry
+(`RecorderV2Host.status`) to the Logging tab (`recording-monitor.ts`), which
+shows the stored bytes, the growth per simulated hour and per real second,
+and the gaps: rows the producer lost and chunks storage refused, each a gap in
+the record.
+
+Checks: `tests/size-estimate.test.ts` records 120 simulated seconds of the
+default plan and 30 of a plan with 800 Hz truth, motors requested at 2 kHz and
+the battery at 7 Hz through the producer, the consumer and the stream writer,
+and the stored bytes are within 0.5 % of the estimate, declared before the
+runs (0.0006 % and 0.005 % measured), with exact physics row counts.
+`tests/logging-tab.test.ts` checks the defaults, the refusals, the settings'
+round trip and the warnings. `tests/run-controller.test.ts` checks the order
+prepare, record, start, connect, the telemetry, snapshot, accident and pause
+calls, the close on Stop, and a recording that cannot start.
+`tests/experiment-record.test.ts` checks schema 3's `recording`, its refusals,
+and schema 2 records read as schema 3 without one.
+`tests/browser/logging-tab.spec.ts` uses the tab alone: the estimate it shows
+equals the module's, an unsupported rate is refused with its reason, 2 kHz is
+capped at 800 Hz, the settings survive a reload, the tab fits 390 px and passes
+axe, and a low quota (600 MB with 50 MB used, injected before the page loads)
+warns before any run. With the TASK-152 installation a Run-tab run of the quad
+X with native ArduCopter records while the tab shows its growth with no gap;
+after Stop the record is closed with no lost row, every physics signal holds
+exactly floor(ticks·50/800) rows (2,157 over 34,514 ticks), the experiment
+record names the record and the settings, and the stored 2,713,080 bytes are
+2.95 % below the estimate for the recorded time plus the parameter snapshot,
+within the 10 % declared: ArduCopter streamed EKF_STATUS_REPORT, GPS_RAW_INT
+and GLOBAL_POSITION_INT below 10 Hz and ATTITUDE and LOCAL_POSITION_NED not at
+all, which the upper bound allows.

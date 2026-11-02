@@ -1,5 +1,6 @@
-// TASK-154, TASK-155: experiment payload schema 2 (launcher-owned and external
-// SITLs), schema 1 records read as schema 2, and the record in the project store.
+// TASK-154, TASK-155, TASK-163: experiment payload schema 3 (launcher-owned and
+// external SITLs, and the run's recording), schema 1 and 2 records read as
+// schema 3, and the record in the project store.
 // Oracles: the launcher's own start-request limits (parseExperimentSpec), the
 // TASK-128 frame catalog through frameConfiguration, the pinned ArduPilot
 // catalog through sensorRuntime, a sensor snapshot recomputed independently
@@ -15,7 +16,7 @@ import { validateComponentCard, type ComponentCard } from '../packages/aircraft/
 import { deriveVehicleManifest } from '../packages/aircraft/src/derive-manifest.ts';
 import {
   createExperimentRecord, experimentRecordName, readExperiment, validateExperiment, type ExperimentParameter, type ExperimentPayload,
-  type ExperimentPayloadV1, type ExternalSitl, type LauncherSitl,
+  type ExperimentPayloadV1, type ExperimentPayloadV2, type ExternalSitl, type LauncherSitl,
 } from '../packages/aircraft/src/experiment.ts';
 import { frameConfiguration } from '../packages/aircraft/src/frame-parameters.ts';
 import { resolveComponents } from '../packages/aircraft/src/resolve-components.ts';
@@ -56,9 +57,9 @@ function at<T>(items: readonly T[], index: number): T {
   if (item === undefined) throw new Error(`The fixture has no entry ${index}`);
   return item;
 }
-/** A schema 2 payload; the fixtures never build schema 1 through this. */
-function current(payload: ExperimentPayload | ExperimentPayloadV1): ExperimentPayload {
-  if (payload.schemaVersion !== 2) throw new Error('The fixture is not schema 2');
+/** A schema 3 payload; the fixtures never build schema 1 or 2 through this. */
+function current(payload: ExperimentPayload | ExperimentPayloadV2 | ExperimentPayloadV1): ExperimentPayload {
+  if (payload.schemaVersion !== 3) throw new Error('The fixture is not schema 3');
   return payload;
 }
 /** The launcher-owned SITL of a fixture payload, or of its mutable copy. */
@@ -128,12 +129,12 @@ function payloadOf(fixture: Fixture, stored = fixture.stored, profile = fixture.
     ...PWM, ...runtime.parameters.map((p): ExperimentParameter => ({ ...p, source: 'sensor' })),
   ];
   return current(validateExperiment({
-    schemaVersion: 2,
+    schemaVersion: 3,
     profile: { sha256: stored.sha256, id: stored.record.id, version: stored.record.version, name: stored.record.name },
     sitl: { ownership: 'launcher', experimentId: EXPERIMENT_ID, ardupilot: FIRMWARE },
     session: { physicsHz: 800, clockMode: 'sitl-lockstep', speedup: 4, home: HOME, modelId: 153, manifestSha256: fixture.manifestSha256,
       betModuleSha256: hash('mirage_bet.wasm') },
-    parameters, frameScript: frame.script, sensors: sensorSnapshot(stored),
+    parameters, frameScript: frame.script, sensors: sensorSnapshot(stored), recording: RECORDING,
   }));
 }
 function edit(payload: ExperimentPayload, change: (copy: Mutable<ExperimentPayload>) => void): unknown {
@@ -142,9 +143,11 @@ function edit(payload: ExperimentPayload, change: (copy: Mutable<ExperimentPaylo
   change(copy);
   return copy;
 }
+/** The Logging tab's defaults (A-09) with one override, as a run records them (TASK-163). */
+const RECORDING = { recordId: 'a'.repeat(32), commonHz: 50, groups: { motors: 400 }, signals: { 'truth.position': 800 }, durationMin: 60, reserveMb: 500 };
 const ICM_42688: SensorConfiguration = validateSensorConfiguration(applySensorPreset(DEFAULT_SENSOR_CONFIGURATION, { catalogVersion: 1, id: 'imu-icm-42688-p' }).configuration);
 
-describe('experiment payload schema 2', () => {
+describe('experiment payload schema 3', () => {
   test('the payload of an S19 quad X run validates, and its parameters are a start request the launcher accepts', async () => {
     const fixture = await storedProfile('quad-x', 'S19 quad X', null);
     const payload = payloadOf(fixture);
@@ -161,7 +164,7 @@ describe('experiment payload schema 2', () => {
     expect(spec.parameters.map(p => p.name)).toEqual(payload.parameters.map(p => p.name));
   });
 
-  test('refuses payloads outside schema 2 with a reason', async () => {
+  test('refuses payloads outside schema 3 with a reason', async () => {
     const fixture = await storedProfile('quad-x', 'S19 quad X', ICM_42688);
     const payload = payloadOf(fixture);
     expect(payload.parameters.filter(p => p.source === 'sensor').length).toBeGreaterThan(0);
@@ -198,10 +201,17 @@ describe('experiment payload schema 2', () => {
       ['a home heading beyond 360', edit(payload, p => { p.session.home[3] = 361; }), 'home heading must be a number from 0 to 360'],
       ['a launcher ID of another format', edit(payload, p => { ownedEdit(p).experimentId = 'run-1'; }), 'sitl.experimentId must be a launcher experiment ID'],
       ['a short commit', edit(payload, p => { ownedEdit(p).ardupilot.commit = '8ab6afd'; }), 'ardupilot.commit must be a 40-digit lowercase commit'],
-      ['another experiment schema', edit(payload, p => { Object.assign(p, { schemaVersion: 3 }); }), 'unsupported experiment schema 3'],
+      ['another experiment schema', edit(payload, p => { Object.assign(p, { schemaVersion: 4 }); }), 'unsupported experiment schema 4'],
       ['an empty firmware version', edit(payload, p => { ownedEdit(p).ardupilot.firmwareVersion = ''; }), 'ardupilot.firmwareVersion must be non-empty text'],
       ['another SITL ownership', edit(payload, p => { Object.assign(p.sitl, { ownership: 'user' }); }), 'sitl.ownership must be launcher or external'],
-      ['schema 1 fields in schema 2', edit(payload, p => { Object.assign(p, { launcher: { experimentId: EXPERIMENT_ID } }); }), 'the payload has an unexpected field launcher'],
+      ['schema 1 fields in schema 3', edit(payload, p => { Object.assign(p, { launcher: { experimentId: EXPERIMENT_ID } }); }), 'the payload has an unexpected field launcher'],
+      ['no recording field', edit(payload, p => { Reflect.deleteProperty(p, 'recording'); }), 'the payload lacks recording'],
+      ['a recording ID that is not one', edit(payload, p => { Object.assign(p, { recording: { ...RECORDING, recordId: 'A'.repeat(32) } }); }), 'recording.recordId must be 32 lowercase hexadecimal digits'],
+      ['a rate above 2 kHz', edit(payload, p => { Object.assign(p, { recording: { ...RECORDING, groups: { motors: 2001 } } }); }), 'recording.groups.motors must be an integer from 0 to 2000'],
+      ['a fractional rate', edit(payload, p => { Object.assign(p, { recording: { ...RECORDING, commonHz: 2.5 } }); }), 'recording.commonHz must be an integer from 0 to 2000'],
+      ['a name that is no catalog name', edit(payload, p => { Object.assign(p, { recording: { ...RECORDING, signals: { 'truth position': 1 } } }); }), 'recording.signals names must be catalog names'],
+      ['a negative reserve', edit(payload, p => { Object.assign(p, { recording: { ...RECORDING, reserveMb: -1 } }); }), 'recording.reserveMb must be a number from 0 to'],
+      ['a recording field it does not know', edit(payload, p => { Object.assign(p, { recording: { ...RECORDING, quotaMb: 1 } }); }), 'recording has an unexpected field quotaMb'],
       ['a launcher SITL without a speedup', edit(payload, p => { p.session.speedup = null; }), 'session.speedup must be a number from 0.1 to 100'],
       ['a padded profile name', edit(payload, p => { p.profile.name = ' S19 quad X'; }), 'profile.name must be a stored record name (NFC, without leading or trailing white space)'],
       ['a non-NFC profile name', edit(payload, p => { p.profile.name = 'Cafe\u0301 quad'; }), 'profile.name must be a stored record name (NFC, without leading or trailing white space)'],
@@ -426,19 +436,36 @@ describe('schema 1 records and external SITLs (TASK-155)', () => {
     return edit(payload, p => { Object.assign(p, { sitl: structuredClone(EXTERNAL) }); p.session.speedup = null; });
   }
 
-  test('a TASK-154 schema 1 record still validates and reads as schema 2, and new records are schema 2', async () => {
+  test('a TASK-154 schema 1 record still validates and reads as schema 3 without a recording, and new records are schema 3', async () => {
     const fixture = await storedProfile('quad-x', 'S19 quad X', ICM_42688);
     const payload = payloadOf(fixture);
     const v1 = schema1Of(payload);
     expect(validateExperiment(v1)).toMatchObject({ schemaVersion: 1, launcher: { experimentId: EXPERIMENT_ID }, ardupilot: FIRMWARE });
     await expect(createExperimentRecord(fixture.store, fixture.projectId, { name: 'Run 1', payload: v1 }))
-      .rejects.toThrow('new experiments are schema 2; schema 1 is only read');
-    // Stored as TASK-154 stored it, it reads as the schema 2 payload of the same run.
+      .rejects.toThrow('new experiments are schema 3; schema 1 is only read');
+    // Stored as TASK-154 stored it, it reads as the schema 3 payload of the same run, which recorded nothing.
     const stored = await fixture.store.createItem(fixture.projectId, 'experiment', { name: 'Run 1', payload: v1, dependencies: [fixture.stored.sha256] });
-    expect(readExperiment(stored)).toEqual(payload);
+    expect(readExperiment(stored)).toEqual({ ...payload, recording: null });
     expect(Reflect.get(stored.record.payload, 'schemaVersion')).toBe(1);
     // Schema 1 keeps its own rules: no sitl field, and a speedup.
     expect(() => validateExperiment(edit(payload, p => { Object.assign(p, { schemaVersion: 1 }); }))).toThrow('the payload lacks ardupilot');
+  });
+
+  test('a TASK-155 schema 2 record still validates and reads as schema 3 without a recording', async () => {
+    const fixture = await storedProfile('quad-x', 'S19 quad X', ICM_42688);
+    const payload = payloadOf(fixture);
+    const v2 = edit(payload, p => { Object.assign(p, { schemaVersion: 2 }); Reflect.deleteProperty(p, 'recording'); });
+    expect(validateExperiment(v2)).toMatchObject({ schemaVersion: 2, sitl: payload.sitl });
+    expect(Object.hasOwn(validateExperiment(v2), 'recording')).toBe(false);
+    await expect(createExperimentRecord(fixture.store, fixture.projectId, { name: 'Run 2', payload: v2 }))
+      .rejects.toThrow('new experiments are schema 3; schema 2 is only read');
+    const stored = await fixture.store.createItem(fixture.projectId, 'experiment', { name: 'Run 2', payload: v2, dependencies: [fixture.stored.sha256] });
+    expect(readExperiment(stored)).toEqual({ ...payload, recording: null });
+    // Schema 2 has no recording field.
+    expect(() => validateExperiment(edit(payload, p => { Object.assign(p, { schemaVersion: 2 }); }))).toThrow('the payload has an unexpected field recording');
+    // A schema 3 run that recorded nothing says so.
+    expect(current(validateExperiment(edit(payload, p => { Object.assign(p, { recording: null }); }))).recording).toBeNull();
+    expect(payload.recording).toEqual(RECORDING);
   });
 
   test('an external SITL payload validates and is stored, and its own rules refuse what MirageSITL cannot know or did not do', async () => {

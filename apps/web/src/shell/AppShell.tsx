@@ -3,6 +3,7 @@ import { Radio } from "lucide-react";
 import type { StoredVersion } from "@mirage/project/schema";
 import { validateComponentCard } from "@mirage/aircraft/components";
 import { validateExperiment } from "@mirage/aircraft/experiment";
+import { LoggingTab } from "../logging/LoggingTab";
 import { validateMeasurementSet } from "@mirage/aircraft/measurements";
 import { validateAircraftProfile } from "@mirage/aircraft/profile";
 import { ProjectStore } from "@mirage/project/store";
@@ -30,12 +31,11 @@ export type StoreState =
   | { readonly status: "unavailable"; readonly reason: string };
 
 /** What each tab will hold; the shell says so until the tab's own task lands. */
-const PLANNED: { readonly [tab in Exclude<TabId, "project" | "aircraft" | "components" | "sensors" | "run">]: string } = {
+const PLANNED: { readonly [tab in Exclude<TabId, "project" | "aircraft" | "components" | "sensors" | "run" | "logging">]: string } = {
   faults: "Motor faults, sensor and GNSS interference, EKF drift and link loss, applied manually or on a schedule.",
   weather: "Wind, gusts, turbulence, temperature and pressure, and the location of the flight.",
   tasks: "Takeoff, hover, landing, routes and tuning maneuvers, with initial conditions.",
   parameters: "ArduPilot parameters read from the running SITL, with their history, sets and export.",
-  logging: "Recorded signals and rates, with size estimates and storage warnings.",
   experiments: "Experiments with their exact inputs: Repeat, Create variant, comparison, export and import.",
   analysis: "Flight logs in UAVLogViewer, with two flights or two intervals side by side.",
 };
@@ -147,6 +147,8 @@ export function AppShell({ run }: { run: (visible: boolean, storeState: StoreSta
         return <SensorsTab storeState={storeState} project={project} active={navigation.tab === "sensors"} />;
       case "run":
         return run(navigation.tab === "run", storeState, project);
+      case "logging":
+        return <LoggingTab storeState={storeState} project={project} active={navigation.tab === "logging"} />;
       default: {
         const label = TABS.find(entry => entry.id === tab)?.label ?? tab;
         return <PlannedPanel label={label} description={PLANNED[tab]} project={project} />;
