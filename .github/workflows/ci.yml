@@ -16,7 +16,8 @@ concurrency:
 jobs:
   unit:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    # The job took 6-10 min from 2026-10-30 to 2026-11-02 and a 10 min limit cancelled it twice.
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v6
         with:
@@ -41,7 +42,9 @@ jobs:
           retention-days: 14
 
   browser:
-    runs-on: ubuntu-latest
+    # Fixed release: Playwright installs Chromium only on the Ubuntu releases it builds for, and
+    # ubuntu-latest became 26.04, which 1.56.1 has no build for (checked by tests/ci.test.ts).
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6

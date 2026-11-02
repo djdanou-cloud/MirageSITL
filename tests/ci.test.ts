@@ -81,6 +81,25 @@ describe('pull request CI contract', () => {
     // playwright-report/ is the HTML reporter's default folder.
     for (const output of [junit, outputDir, 'playwright-report/']) expect(uploaded.some(path => output.startsWith(path)), output).toBe(true);
   });
+  it('runs the browser job on an Ubuntu release that the pinned Playwright installs Chromium on', () => {
+    const document: unknown = parse(readFileSync(join(root, '.github/workflows/ci.yml'), 'utf8'));
+    const image = record(record(record(document).jobs).browser)['runs-on'];
+    // A moving label such as ubuntu-latest changes release under the job: it became 26.04 on
+    // 2026-10-31, which Playwright 1.56.1 has no build for, and every browser job failed to install.
+    const release = typeof image === 'string' ? /^ubuntu-(\d\d\.\d\d)$/.exec(image)?.[1] : undefined;
+    if (release === undefined) throw new Error(`Expected a fixed ubuntu-YY.MM browser runner, got ${String(image)}`);
+    // The dry run lists a download URL for each browser only when the host platform has a build.
+    const downloads = (platform: string): boolean[] => {
+      const result = spawnSync(process.execPath, ['node_modules/@playwright/test/cli.js', 'install', '--dry-run', 'chromium'],
+        { cwd: root, encoding: 'utf8', env: { ...process.env, PLAYWRIGHT_HOST_PLATFORM_OVERRIDE: platform } });
+      expect(result.status, result.stderr).toBe(0);
+      return result.stdout.split(/\n\s*\n/).filter(section => section.startsWith('browser: ')).map(section => section.includes('Download url:'));
+    };
+    expect(downloads('ubuntu99.04-x64')).not.toContain(true);
+    const runner = downloads(`ubuntu${release}-x64`);
+    expect(runner.length).toBeGreaterThan(0);
+    expect(runner).not.toContain(false);
+  }, 20_000);
   it('pins one Rust toolchain across native/rust-toolchain.toml and every workflow that installs it', () => {
     const toolchain = readFileSync(join(root, 'native/rust-toolchain.toml'), 'utf8');
     const channel = /^channel = "([^"]+)"$/m.exec(toolchain)?.[1];
