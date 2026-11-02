@@ -10,6 +10,7 @@ import { MavParser, type MavFrame } from '@mirage/mavlink/codec';
 import { profileModelPort } from '@mirage/physics/profile-dynamics';
 import { VehicleRegistry } from '@mirage/physics/vehicle-manifest';
 import { PhysicsSessionV2 } from '../packages/physics/src/session-v2.ts';
+import type { AccidentEvent } from '../packages/physics/src/accident.ts';
 import { StateReaderV2, createSharedMemoryV2, createSpscQueue, newFlightStateV2, newHeaderSnapshotV2, tickToNumber,
   type CommandResultV2 } from '@mirage/protocol';
 import { decodeRecord, encodeRecord } from '../apps/bridge/src/framing.ts';
@@ -158,11 +159,21 @@ describe('SitlJsonLink on a profile session in sitl-lockstep', () => {
     expect(Math.hypot(last.accel[0]!, last.accel[1]!, last.accel[2]!)).toBeCloseTo(GRAVITY, 2);
     expect(last.voltage).toBeGreaterThan(10);
     // Full PWM on the four rotor channels: the quad climbs off its feet. Without an autopilot, and with the CG ahead of the
-    // rotors' centre, it also pitches over, so the peak height is what counts.
+    // rotors' centre, it also pitches over, so the peak height is what counts; when it comes down on a turning propeller, the
+    // strike is an accident (TASK-149), the session pauses on that tick, and the frame after it gets no reply.
     let peak = 0;
-    for (let i = 0; i < 800; i++) { last = stateOf(h.deliver(servoRecord(frame++, 2000)).reply); peak = Math.min(peak, last.position[2]!); }
+    for (let i = 0; i < 800; i++) {
+      const { reply } = h.deliver(servoRecord(frame++, 2000));
+      if (!reply) break;
+      last = stateOf(reply); peak = Math.min(peak, last.position[2]!);
+    }
     expect(peak).toBeLessThan(-1);
-    expect(h.link.lockstepStats).toMatchObject({ steps: 1600, duplicates: 0, gaps: 0 });
+    if (!h.session.running) {
+      const strikes: AccidentEvent[] = [];
+      h.session.drainAccidents(event => strikes.push(event));
+      expect(strikes.length, 'the pause is an accident').toBeGreaterThan(0);
+    }
+    expect(h.link.lockstepStats).toMatchObject({ steps: frame, duplicates: 0, gaps: 0 });
     // MAVLink records pass through unchanged.
     const mavlink = Uint8Array.from([0xfd, 9, 0, 0, 1, 1, 1, 0, 0, 0]);
     expect(h.link.receive(encodeRecord({ channel: 1, epoch: EPOCH, sequence: 0, payload: mavlink }))).toBe('mavlink');

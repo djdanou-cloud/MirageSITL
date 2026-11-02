@@ -329,6 +329,7 @@ export class RuntimePhysics implements PhysicsPort {
   }
   disconnect(): void { this.runtime.postToWorker({ type: "sitl.disconnect" }); }
   sendMavlink(bytes: Uint8Array): void { this.runtime.postToWorker({ type: "sitl.mavlink.send", bytes }); }
+  resume(): Promise<void> { return this.control({ type: "sim.start" }); }
   altitudeM(): number { return -this.runtime.current.downM; }
   verticalSpeedMps(): number { return this.runtime.current.vdMps; }
   private readonly power = newPowerSnapshotV1();

@@ -377,6 +377,12 @@ class ScriptedPhysics implements PhysicsPort {
     for (let i = 0; i < out.length; i++) out[i] = this.speeds[i] ?? 0;
     return true;
   }
+  /** The session's sim.start acknowledgement after an accident pause (TASK-149). */
+  resumeAnswer: () => Promise<void> = () => Promise.resolve();
+  resume(): Promise<void> {
+    this.events.push('physics.resume');
+    return this.resumeAnswer();
+  }
   frames(): SentFrame[] { return decodeSent(this.sent); }
 }
 
@@ -936,6 +942,70 @@ describe('deadlines and the parameter read-back', () => {
 });
 
 // ---- Stop ---------------------------------------------------------------------------------------------
+
+/** A Worker accident message as physics.worker.ts posts it (TASK-149). */
+function accidentMessage(tick: number, rotorId: number): Record<string, unknown> {
+  return { type: 'accident.events', dropped: 0, total: 1, events: [{ tick, simTimeS: tick / 800, part: { part: 'propeller', rotorId },
+    pointBodyM: [0.1, 0.2, 0.03], penetrationM: 0.0005, impulseNs: 0.01, forceN: 8, rotorSpeedRadS: 900 }] };
+}
+
+describe('accident pause (TASK-149)', () => {
+  test('an accident in flight pauses the run with it; continuing returns to the flight, labelled, and the next accident pauses again', async () => {
+    const h = harness();
+    const id = await reach(h, 'flying');
+    h.controller.worker(accidentMessage(41000, 3));
+    expect(h.controller.state).toMatchObject({ name: 'paused', experimentId: id, atSimTimeS: 41000 / 800, reason: 'accident' });
+    const paused = h.controller.state;
+    if (paused.name !== 'paused') throw new Error('Expected paused');
+    expect(paused.accidents.map(event => [event.tick, event.part])).toEqual([[41000, { part: 'propeller', rotorId: 3 }]]);
+    expect(h.controller.view.afterAccident).toBe(false);
+    // Paused: no flight-stage command and no stop.
+    expect(h.controller.land()).toBe(false);
+    expect(h.events.filter(event => event.startsWith('launcher.stop'))).toEqual([]);
+    expect(h.controller.continueAfterAccident()).toBe(true);
+    await settle();
+    expect(h.events).toContain('physics.resume');
+    expect(h.controller.state).toMatchObject({ name: 'running', experimentId: id, flight: 'flying' });
+    expect(h.controller.view.afterAccident).toBe(true);
+    expect(h.controller.view.accidents).toHaveLength(1);
+    h.controller.worker(accidentMessage(42000, 1));
+    expect(h.controller.state).toMatchObject({ name: 'paused', reason: 'accident' });
+    expect(h.controller.view.accidents).toHaveLength(2);
+    expect(h.controller.continueAfterAccident()).toBe(true);
+    await settle();
+    expect(h.controller.state).toMatchObject({ name: 'running', flight: 'flying' });
+    await h.controller.stop();
+    expect(h.controller.state).toMatchObject({ name: 'idle' });
+  });
+
+  test('continuing is refused unless an accident paused the run, and a failed resume stops the run with its reason', async () => {
+    const h = harness();
+    await reach(h, 'ready');
+    expect(h.controller.continueAfterAccident()).toBe(false);
+    h.controller.worker({ type: 'accident.events', events: [{ tick: 'one' }], dropped: 0, total: 1 });
+    expect(h.controller.state.name).toBe('ready');
+    h.controller.worker(accidentMessage(32000, 2));
+    expect(h.controller.state).toMatchObject({ name: 'paused', reason: 'accident' });
+    h.physics.resumeAnswer = () => Promise.reject(new Error('sim.start: Session is faulted'));
+    expect(h.controller.continueAfterAccident()).toBe(true);
+    await until(() => h.controller.state.name === 'failed', 5000, 'the failed resume');
+    expect(failed(h).reason).toEqual({ kind: 'physics', message: 'sim.start: Session is faulted' });
+    expect(stoppedBeforeFailed(h)).toBe(true);
+  });
+
+  test('a new run forgets the previous run\'s accidents and label', async () => {
+    const h = harness();
+    await reach(h, 'ready');
+    h.controller.worker(accidentMessage(32000, 2));
+    expect(h.controller.continueAfterAccident()).toBe(true);
+    await settle();
+    expect(h.controller.view.afterAccident).toBe(true);
+    await h.controller.stop();
+    await reach(h, 'ready');
+    expect(h.controller.view.accidents).toEqual([]);
+    expect(h.controller.view.afterAccident).toBe(false);
+  });
+});
 
 describe('user Stop', () => {
   test.each(STAGES)('from %s calls launcher.stop exactly once and ends idle', async stage => {

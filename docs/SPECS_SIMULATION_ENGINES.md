@@ -5668,7 +5668,8 @@ version 5 shapes with the airframe friction 0.6 (F-08's static coefficient, whic
 Rapier's rigid contact applies to sticking and sliding alike) and no
 restitution. They never carry the vehicle at rest; each step reports their
 contact, which `BetFlightDynamics.contactShapeStateInto` passes on, and TASK-149
-turns the reports into accident events with the F-09 thresholds. The hull and
+turns the reports into accident events with the F-09 thresholds (section
+"Accidents"). The hull and
 the discs are rigid Rapier contacts, not compliant like the supports: a strike
 is reported, not modelled as damage, and continuing after it is labelled
 (F-09).
@@ -5767,6 +5768,93 @@ Aircraft tab, saves the clashing version, and applies and saves the fix
 through the UI alone; with the TASK-152 installation the Run tab refuses the
 clashing version and flies the fixed one with native ArduCopter (READY,
 take-off to 5 m, a 10 s hold within 0.5 m, LAND and disarm).
+
+### Accidents
+
+Decision F-09 makes a contact of the body hull or a propeller disc an
+accident, recorded with its tick, location, impulse and load, on which the run
+pauses; contact on the support points alone, a hard landing included, is not
+one ([phase1-fidelity.md](decisions/phase1-fidelity.md)). TASK-149 implements
+it in `packages/physics/src/accident.ts`:
+
+| Shape | Counts when it touches and | Threshold |
+| --- | --- | --- |
+| Propeller disc of a turning rotor | Always | The rotor turns at least 1 rad/s (under 10 rpm), Claude's reading of "while its rotor turns" |
+| Hull shape, or the disc of a stopped rotor | Its penetration or its normal force reaches the threshold | 1 mm, or 5 % of the aircraft's weight m·g |
+
+`AccidentMonitor` reads the contact's shape reports of the last step (contact
+ABI v3: penetration, normal impulse and force, deepest point, touching) and
+the rotor speeds, all into a typed array (`BetFlightDynamics.rotorSpeedsInto`), since
+a double returned from a call that V8 does not inline is boxed. An accident is raised
+on the tick a shape starts to meet the criteria, so a contact that goes on
+after the run continues is not raised again, and a new contact after the
+shape has lifted is. Several shapes may strike on one tick; each is an event.
+`check` allocates nothing: events wait in an outbox of 64, the overflow is
+counted in `dropped`, and `drain` hands them out after the compute batch. The
+constructor runs the raising branch once on a synthetic report, so a first
+strike in flight does not deoptimize the step. `BetFlightDynamics` builds the
+monitor when its configuration names the contact's shapes
+(`contactParts`, which `profileFlightDynamics` passes from `ProfileGear.parts`),
+and `reset` clears it.
+
+After each step `PhysicsSessionV2` writes the tick and simulated time into the
+monitor's `at` array and calls `check`. On an accident it pauses through the
+user pause's path, `pause()` and the control processor's `paused()`, before the
+tick is published, so that tick's state carries the paused flag and a later
+`sim.start` is admitted as after `sim.pause`. The clock's catch-up ends after
+that tick (`MultiRateClock.stopRequested`, which the remaining deadlines do not
+count as drops), and in `sitl-lockstep` the paused session takes no further
+actuator frame: the autopilot's next frame stays queued and the autopilot
+waits for its reply, as in TASK-129. A new epoch clears the monitor.
+`drainAccidents`, `accidentsDropped` and `accidentTotal` serve the Worker,
+which posts `{ type: "accident.events", events, dropped, total }` after the
+compute batch. After a resumed pump the SITL bridge client answers the frame
+the paused session held (`SitlBridgeClient.answer`), since no new frame
+arrives to trigger the reply.
+
+The Run tab shows the run as `paused` with reason `accident` and its
+accidents, each named as the profile names its part (`describeAccident`: a
+motor, the body or an arm) with its force and depth. "Continue after the
+accident" resumes the session with `sim.start` and returns to the state before
+the pause; the rest of the run is then labelled as not validated for a
+physically damaged aircraft (`ControllerView.afterAccident`), and a further
+accident pauses it again. While paused, a connected SITL's silence is not a
+heartbeat loss. TASK-156 adds the user pause and its other reasons.
+
+An event becomes `events.accident` rows of recorder v2 (TASK-162), each a code
+and up to three numbers, and the pause an `events.pause` row with 1 on the
+same tick:
+
+| Code | Numbers |
+| --- | --- |
+| 1 | A hull shape: its ID, the normal force N, the penetration m |
+| 2 | A propeller: its rotor ID, the normal force N, the penetration m |
+| 3 | The deepest point, body FRD metres from the CG |
+| 4 | The normal impulse N·s, and for a propeller its rotor speed rad/s |
+
+The recording's catalog entry counts its `events.accident` rows, so a
+recording with an accident is marked as one. The experiment record does not
+change: its inputs are fixed at version 1 (TASK-154, TASK-155).
+
+Checks: `tests/accident.test.ts` applies the thresholds to scripted reports
+(below and at 1 mm and 5 % of the weight, a propeller just below and at
+1 rad/s, a stopped one at 1.2 mm), raises a continuing contact once and a new
+one again, counts the outbox overflow and writes the record rows.
+`tests/accident-session.test.ts` runs the quad X on the example cards: rolled
+60 degrees and pitched 10 degrees nose down 5 mm above its lowest shape, with
+stopped rotors in an interactive session and turning ones in lockstep, the
+session pauses on the tick on which an independent run of the same dynamics
+first meets F-09 in its raw reports, publishes that tick marked paused, and
+steps no further (in lockstep the next frame waits until `sim.start`);
+continued after each pause, it raises exactly the plain run's later strikes in
+one second, each on its tick, the bouncing propeller again only once it has
+lifted; upside down, its body strikes; and a new epoch forgets the accidents.
+Dropped level 0.2 m onto its supports with the motors off, the same quad
+touches down at more than 1.9 m/s and is stopped at more than 3 g with no
+accident. The events and the pause read back from a
+recording. `tests/run-controller.test.ts` pauses a flying run on an accident,
+continues it labelled, pauses it again on a second accident, fails a refused
+resume with its reason and forgets a run's accidents in the next.
 
 ### Compute and allocation
 

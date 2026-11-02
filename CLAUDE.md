@@ -98,7 +98,10 @@ implementation.
   stepping when ground is missing. Profile flight sessions stand on the decision
   D-07 supports of TASK-095, and their standard hull (a body cylinder and arm
   capsules, not measured) and propeller discs report every ground contact
-  through contact ABI v3 (manifest derivation 5; accident events are TASK-149).
+  through contact ABI v3 (manifest derivation 5). TASK-149 is DONE: a hull or
+  propeller strike that meets decision F-09 pauses the physics session on its
+  tick, and the autopilot with it in lockstep; the Run tab lists it and may
+  continue the run, labelled as not validated for a damaged aircraft.
   TASK-195 is DONE: no run starts from a profile whose propellers overlap each
   other, reach the body or the ground, and the Aircraft tab proposes the fix
   (longer arms or a larger clearance) and saves it only on confirmation.

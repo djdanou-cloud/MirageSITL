@@ -7,8 +7,11 @@
 // failure after the launcher owns a run always passes through stopping, so
 // failed is shown only once the run's process group is gone, with the
 // launcher's diagnostics and a restart path. A restart is a new experiment
-// with a new record (user decision of 2026-11-01). `paused` is part of the
-// union and the view; synchronized pause and its control belong to TASK-156.
+// with a new record (user decision of 2026-11-01). An accident (TASK-149,
+// decision F-09) pauses the physics session on its tick, and with it the
+// autopilot, which waits in JSON lockstep: the run is `paused` with the
+// accidents, and it may continue, labelled as not validated for a physically
+// damaged aircraft. The user pause and its other reasons are TASK-156.
 //
 // Connect (TASK-155) runs the same states against a SITL the user started.
 // The launcher owns only the connection, so Stop and every failure
@@ -26,6 +29,7 @@ import { MotorCheck, type ExpectedMotor, type MotorCheckResult, type PhysicsRoto
 import { ParameterReadback, type AbsentRule, type ParameterDifference } from "@mirage/autopilot/parameter-readback";
 import { MavParser, type MavFrame } from "@mirage/mavlink/codec";
 import { fieldOf, readNumber } from "@mirage/mavlink/messages";
+import type { AccidentEvent } from "@mirage/physics/accident";
 import type { SitlStatus } from "../sitl/bridge-client";
 
 // ---- the launcher as the controller sees it ------------------------------------------------
@@ -108,6 +112,8 @@ export interface PhysicsPort {
   verticalSpeedMps(): number;
   /** Each rotor's speed, rev/min, in rotor order from the latest power telemetry; false when none was published. */
   motorSpeedsInto(out: Float64Array): boolean;
+  /** Resumes a session that paused itself (an accident, TASK-149) with sim.start; resolves on its applied acknowledgement. */
+  resume(): Promise<void>;
 }
 export interface RecordPort { create(payload: ExperimentPayload): Promise<{ readonly sha256: string }> }
 export interface ClockPort {
@@ -175,6 +181,8 @@ export interface Diagnostics {
   readonly connection: { readonly servoPackets: number; readonly rateHz: number | null; readonly bytesFromSitl: number } | null;
 }
 export type RunStateName = RunState["name"];
+/** Why a run is paused: an accident (TASK-149). TASK-156 adds the user, missing terrain and a hidden tab. */
+export type PauseReason = "accident";
 export type RunState =
   | { readonly name: "idle"; readonly last: string | null }
   | { readonly name: "starting"; readonly step: StartStep; readonly experimentId: string | null }
@@ -182,7 +190,9 @@ export type RunState =
   | { readonly name: "warming"; readonly experimentId: string; readonly reason: string }
   | { readonly name: "ready"; readonly experimentId: string }
   | { readonly name: "running"; readonly experimentId: string; readonly flight: FlightStep; readonly warning: string | null }
-  | { readonly name: "paused"; readonly experimentId: string; readonly atSimTimeS: number }
+  | { readonly name: "paused"; readonly experimentId: string; readonly atSimTimeS: number; readonly reason: PauseReason;
+      /** The accidents that paused the run, for reason `accident`. */
+      readonly accidents: readonly AccidentEvent[] }
   | { readonly name: "stopping"; readonly experimentId: string; readonly cause: "user" | "failure" }
   | { readonly name: "failed"; readonly reason: FailureReason; readonly during: RunStateName; readonly diagnostics: Diagnostics | null;
       readonly restart: RestartPath };
@@ -267,6 +277,10 @@ export interface ControllerView {
   readonly compatibility: readonly CompatibilityCheck[];
   /** The motor check of this run (TASK-157), or null before one is started. */
   readonly motorCheck: MotorCheckView | null;
+  /** Every accident of this run (TASK-149), oldest first. */
+  readonly accidents: readonly AccidentEvent[];
+  /** The run continued after an accident: what follows is not validated for a physically damaged aircraft (F-09). */
+  readonly afterAccident: boolean;
 }
 export interface MotorCheckView {
   readonly running: boolean;
@@ -319,6 +333,10 @@ export class SessionController {
   private lastParameterRequestS = 0;
   private heartbeatSeen = false;
   private lastHeartbeatMs = 0;
+  private accidents: AccidentEvent[] = [];
+  private afterAccident = false;
+  /** The state a paused run returns to. */
+  private resumeTo: RunState | null = null;
   private connectedAtMs = 0;
   private takeoffM = 0;
   /** Wall time at which each stream's message last arrived. */
@@ -336,7 +354,8 @@ export class SessionController {
   get state(): RunState { return this.stateValue; }
   get view(): ControllerView {
     return { state: this.stateValue, status: this.status, mode: this.mode, armed: this.armed, statusText: this.statusText, recordSha256: this.recordSha256,
-      ownership: this.ownership, compatibility: this.compatibility, motorCheck: this.motorCheckView() };
+      ownership: this.ownership, compatibility: this.compatibility, motorCheck: this.motorCheckView(), accidents: this.accidents,
+      afterAccident: this.afterAccident };
   }
   get active(): boolean { return ACTIVE.has(this.stateValue.name); }
   /** The current state name, read afresh after an await (not narrowed by earlier checks). */
@@ -565,9 +584,36 @@ export class SessionController {
     return true;
   }
 
+  /**
+   * Continues a run that an accident paused (TASK-149): the session resumes, and the autopilot with
+   * it, and the rest of the run is labelled as not validated for a physically damaged aircraft.
+   * False unless an accident paused the run.
+   */
+  continueAfterAccident(): boolean {
+    const s = this.stateValue, before = this.resumeTo;
+    if (s.name !== "paused" || s.reason !== "accident" || !before) return false;
+    const generation = this.generation;
+    this.physics.resume().then(() => {
+      if (generation !== this.generation || this.stateValue !== s) return;
+      this.resumeTo = null;
+      this.afterAccident = true;
+      // The autopilot sent nothing while it waited; its heartbeat count starts again now.
+      this.lastHeartbeatMs = this.clock.nowMs();
+      this.set(before);
+    }, (error: unknown) => {
+      if (generation === this.generation && this.stateValue === s) void this.stopAfter({ kind: "physics", message: messageOf(error) }, "paused");
+    });
+    return true;
+  }
+
   /** Every message from the physics Worker. */
   worker(data: unknown): void {
     const type = field(data, "type");
+    if (type === "accident.events") {
+      const events = parseAccidents(field(data, "events"));
+      if (events.length > 0 && this.active) this.accident(events);
+      return;
+    }
     if (type === "sitl.mavlink") {
       const bytes = field(data, "bytes");
       if (bytes instanceof Uint8Array && this.active) this.parser.push(bytes);
@@ -587,6 +633,23 @@ export class SessionController {
   }
 
   // ---- internals ----------------------------------------------------------------------------
+
+  /** The physics session paused itself on an accident's tick (F-09); the autopilot waits in lockstep. */
+  private accident(events: readonly AccidentEvent[]): void {
+    this.accidents = [...this.accidents, ...events];
+    const s = this.stateValue;
+    switch (s.name) {
+      case "loading-parameters": case "warming": case "ready": case "running":
+        this.resumeTo = s;
+        this.set({ name: "paused", experimentId: s.experimentId, atSimTimeS: events[0]?.simTimeS ?? 0, reason: "accident", accidents: events });
+        return;
+      case "paused":
+        this.set({ ...s, accidents: [...s.accidents, ...events] });
+        return;
+      default:
+        this.emit();
+    }
+  }
 
   /** Advances on a status: version and parameter deadlines, warmup, READY revocation and the climb. */
   private progress(): void {
@@ -814,7 +877,9 @@ export class SessionController {
   private beat(): void {
     if (!this.active) return;
     if (this.stateValue.name === "starting") this.progress();
-    if (this.ownership === "external" && this.heartbeatSeen && this.clock.nowMs() - this.lastHeartbeatMs > HEARTBEAT_LOSS_S * 1000) {
+    // A paused autopilot waits in lockstep and sends nothing, so silence then is no loss.
+    if (this.ownership === "external" && this.heartbeatSeen && this.stateValue.name !== "paused" &&
+      this.clock.nowMs() - this.lastHeartbeatMs > HEARTBEAT_LOSS_S * 1000) {
       void this.stopAfter({ kind: "sitl-silent", seconds: HEARTBEAT_LOSS_S }, this.stateValue.name);
       return;
     }
@@ -920,6 +985,7 @@ export class SessionController {
     this.status = null; this.mode = null; this.armed = false; this.statusText = []; this.recordSha256 = null;
     this.experimentId = null; this.readback = null; this.heartbeatSeen = false; this.streamSeenMs.clear();
     this.ownership = ownership; this.external = null; this.prepared = null; this.compatibility = []; this.motorCheck = null;
+    this.accidents = []; this.afterAccident = false; this.resumeTo = null;
     this.parser.reset();
   }
 
@@ -979,6 +1045,25 @@ function field(value: unknown, ...path: (string | number)[]): unknown {
   for (const key of path) current = typeof current === "object" && current !== null ? Reflect.get(current, key) : undefined;
   return current;
 }
+/** The events of a Worker `accident.events` message, validated from unknown; invalid entries are left out. */
+export function parseAccidents(value: unknown): AccidentEvent[] {
+  if (!Array.isArray(value)) return [];
+  const list: readonly unknown[] = value, finite = (x: unknown): x is number => typeof x === "number" && Number.isFinite(x);
+  return list.flatMap((item): AccidentEvent[] => {
+    const part = field(item, "part"), kind = field(part, "part"), point = field(item, "pointBodyM"), speed = field(item, "rotorSpeedRadS");
+    const id = kind === "hull" ? field(part, "hullId") : field(part, "rotorId");
+    const xyz: readonly unknown[] = Array.isArray(point) ? point : [];
+    const [x, y, z] = xyz;
+    const tick = field(item, "tick"), simTimeS = field(item, "simTimeS"), penetrationM = field(item, "penetrationM");
+    const impulseNs = field(item, "impulseNs"), forceN = field(item, "forceN");
+    if ((kind !== "hull" && kind !== "propeller") || !finite(id) || xyz.length !== 3 || !finite(x) || !finite(y) || !finite(z) ||
+      !finite(tick) || !finite(simTimeS) || !finite(penetrationM) || !finite(impulseNs) || !finite(forceN) ||
+      (kind === "propeller" ? !finite(speed) : speed !== null)) return [];
+    return [{ tick, simTimeS, part: kind === "hull" ? { part: "hull", hullId: id } : { part: "propeller", rotorId: id }, pointBodyM: [x, y, z],
+      penetrationM, impulseNs, forceN, rotorSpeedRadS: kind === "propeller" && finite(speed) ? speed : null }];
+  });
+}
+
 function isStatus(data: unknown): data is SitlStatus {
   return field(data, "type") === "sitl.status" && typeof field(data, "ready") === "boolean" && typeof field(data, "simTimeS") === "number" &&
     typeof field(data, "state") === "string" && typeof field(data, "reason") === "string" && typeof field(data, "message") === "string";

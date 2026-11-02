@@ -57,6 +57,11 @@ export class MultiRateClock {
    * call. Remaining overdue deadlines are dropped and counted. Returns the
    * number of executed steps. Allocation-free.
    */
+  /**
+   * Set by a step that pauses the session (TASK-149): the current catch-up ends after that step,
+   * and the request clears. Allocation-free.
+   */
+  stopRequested = false;
   advance(nowMs: number, step: (tick: TickId) => void): number {
     this.nowMs = nowMs;
     return this.advanceNow(step);
@@ -65,12 +70,14 @@ export class MultiRateClock {
   advanceNow(step: (tick: TickId) => void): number {
     const nowMs = this.nowMs;
     let count = 0;
-    while (nowMs >= this.nextMs && count < this.maxCatchUp) {
+    while (!this.stopRequested && nowMs >= this.nextMs && count < this.maxCatchUp) {
       this.incrementTick();
       step(this.tick);
       count++; this.scheduled++;
       this.nextMs = this.deadline(this.scheduled + 1);
     }
+    // A step that paused the session (TASK-149) ends the catch-up there; the deadlines it leaves are not drops.
+    if (this.stopRequested) { this.stopRequested = false; return count; }
     if (nowMs >= this.nextMs) {
       // Number of deadlines n with deadline(n) <= nowMs, computed from integers.
       const due = Math.floor(((nowMs - this.originMs) * this.hz) / 1000);

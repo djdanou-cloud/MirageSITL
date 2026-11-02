@@ -319,6 +319,14 @@ export class ControlProcessorV2 {
     this.haltReason = reason;
   }
 
+  /**
+   * The target paused itself (an accident, TASK-149), as a sim.pause would: the session counts as
+   * paused and a later sim.start resumes it. Allocation-free, so the hot path may call it.
+   */
+  paused(): void {
+    this.running = false;
+  }
+
   /** Admits one command. Results go to the outbox; call drain() afterwards. */
   submit(input: unknown): void {
     const parsed = parseControlCommandV2(input);

@@ -1,3 +1,4 @@
+import type { ContactShapePart } from './accident.ts';
 import type { PhysicsHz } from '@mirage/protocol';
 import { newBodyTruth } from '../../wasm-bet/src/backend.ts';
 import type { BoundPolar } from '../../wasm-bet/src/rotor.ts';
@@ -44,9 +45,7 @@ export interface ProfileDynamicsOptions {
   readonly syntheticPad?: boolean;
 }
 /** What a contact shape of a build stands for: a hull shape of the manifest, or the disc of a rotor. */
-export type ProfileShapePart =
-  | { readonly part: 'hull'; readonly hullId: number }
-  | { readonly part: 'propeller'; readonly rotorId: number };
+export type ProfileShapePart = ContactShapePart;
 /** The landing gear and contact shapes of a build as the ground contact takes them (TASK-095). */
 export interface ProfileGear {
   /** The manifest's gear with anchors relative to the CG, as `ContactWheel` takes them. */
@@ -195,7 +194,8 @@ export function profileFlightDynamics(module: WebAssembly.Module, build: Profile
   if (!gear) return new BetFlightDynamics(module, configuration, hz);
   const contact = GroundContact.forVehicleNow(configuration.initialBody, gear.vehicle,
     { wheels: gear.wheels, hullRadiusM: gear.hullRadiusM, friction: HULL_FRICTION, ...(gear.shapes.length > 0 ? { shapes: gear.shapes } : {}) });
-  return new BetFlightDynamics(module, { ...configuration, contact }, hz);
+  // TASK-149: the dynamics checks the shapes' contact reports against decision F-09.
+  return new BetFlightDynamics(module, { ...configuration, contact, ...(gear.shapes.length > 0 ? { contactParts: gear.parts } : {}) }, hz);
 }
 
 /**

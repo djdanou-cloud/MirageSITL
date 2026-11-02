@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createExperimentRecord, experimentRecordName } from "@mirage/aircraft/experiment";
 import { deriveLayout, type AircraftLayout } from "@mirage/aircraft/layout";
 import { readAircraftProfile } from "@mirage/aircraft/profile";
+import { describeAccident } from "@mirage/physics/accident";
 import type { LimitEvent } from "@mirage/physics/limit-monitor";
 import type { StoredVersion } from "@mirage/project/schema";
 import { CopterMode } from "@mirage/autopilot/ground-station";
@@ -14,8 +15,8 @@ import { FlightView, type FlightViewProbe } from "./FlightView";
 import { CompatibilityList, ManualConnect } from "./ManualConnect";
 import { MotorCheckPanel } from "./MotorCheck";
 import { PowerPanel } from "./PowerPanel";
-import { SessionController, failureText, type CatalogEntry, type ConnectionSpec, type ControllerView, type Ownership, type PreparedRun,
-  type RunState } from "./session-controller";
+import { SessionController, failureText, type CatalogEntry, type ConnectionSpec, type ControllerView, type Ownership, type PauseReason,
+  type PreparedRun, type RunState } from "./session-controller";
 
 // Run tab, ArduPilot SITL backend (TASK-153, TASK-154): an aircraft profile
 // version of the open project flies with an installed ArduPilot build that the
@@ -27,19 +28,28 @@ import { SessionController, failureText, type CatalogEntry, type ConnectionSpec,
 // launcher owns only that connection, and Disconnect leaves the SITL running.
 // The flight view (TASK-185) shows the chosen profile's aircraft from the
 // moment it is chosen and flies it at the session's pose; the flight and
-// per-motor panels read the session at display rate.
+// per-motor panels read the session at display rate. An accident (TASK-149)
+// is listed with its part and contact load; the run, paused on its tick, may
+// continue, and is then labelled as not validated for a damaged aircraft.
 
 const MODE_NAMES: Readonly<Record<number, string>> = Object.fromEntries(Object.entries(CopterMode).map(([name, value]) => [value, name.toUpperCase()]));
 const STEP_TEXT = { prepare: "preparing the vehicle", firmware: "checking the ArduPilot build", physics: "loading the physics",
   launcher: "starting SITL", record: "saving the experiment record", connecting: "connecting to SITL",
   probing: "waiting for the SITL's JSON physics packets", version: "checking the SITL's ArduPilot version" } as const;
 const FLIGHT_TEXT = { arming: "Arming", climbing: "Taking off", flying: "Flying", landing: "Landing" } as const;
+const PAUSE_TEXT: Readonly<Record<PauseReason, string>> = { accident: "accident" };
 const NO_LIMIT_EVENTS = (): readonly LimitEvent[] => [];
 
 /** The rotor layout of a stored profile version, or null when it does not validate. */
 function layoutOf(stored: StoredVersion | undefined): AircraftLayout | null {
   if (!stored) return null;
   try { return deriveLayout(readAircraftProfile(stored)); } catch { return null; }
+}
+
+/** The arm IDs of a stored profile version in ascending order, which number the standard hull's arm shapes; empty when it does not validate. */
+function armIdsOf(stored: StoredVersion | undefined): readonly number[] {
+  if (!stored) return [];
+  try { return readAircraftProfile(stored).arms.map(arm => arm.id); } catch { return []; }
 }
 
 /** The stage line for a run state; a connection says Connecting and Disconnecting. */
@@ -52,7 +62,7 @@ export function stateText(state: RunState, ownership: Ownership = "launcher"): s
     case "warming": return "Waiting for the autopilot (EKF warmup)";
     case "ready": return "READY";
     case "running": return FLIGHT_TEXT[state.flight];
-    case "paused": return `Paused at ${state.atSimTimeS.toFixed(1)} s`;
+    case "paused": return `Paused at ${state.atSimTimeS.toFixed(1)} s: ${PAUSE_TEXT[state.reason]}`;
     case "stopping": return external ? "Disconnecting" : "Stopping SITL";
     case "failed": return "Failed";
     default: { const never: never = state; return never; }
@@ -163,6 +173,8 @@ export function RunPanel({ storeState, project, visible }: { storeState: StoreSt
   };
   const chosen = profiles.find(entry => entry.sha256 === profileSha);
   const layout = useMemo(() => layoutOf(chosen), [chosen]);
+  const armIds = useMemo(() => armIdsOf(chosen), [chosen]);
+  const accidents = view?.accidents ?? [];
   const status = view?.status ?? null;
   const stopAgain = failed?.restart.kind === "stop-again";
   const external = view?.ownership === "external";
@@ -242,6 +254,26 @@ export function RunPanel({ storeState, project, visible }: { storeState: StoreSt
       </dl>
       {external && view && <CompatibilityList checks={view.compatibility} />}
       {state.name === "running" && state.warning && <p className="alert" role="status">{state.warning}</p>}
+      {view?.afterAccident && (
+        <p className="alert" role="status" data-testid="sitl-after-accident">
+          Continued after an accident: the rest of this run is not validated for a physically damaged aircraft.
+        </p>
+      )}
+      {accidents.length > 0 && (
+        <div className="sitl-accidents">
+          <h4>Accidents</h4>
+          <ul data-testid="sitl-accidents">{accidents.map((event, index) => <li key={index}>{describeAccident(event, armIds)}</li>)}</ul>
+          {state.name === "paused" && state.reason === "accident" && (
+            <>
+              <p className="hint">
+                The run paused on the accident's tick, and the autopilot with it. It can continue, but what follows is not validated
+                for a physically damaged aircraft.
+              </p>
+              <button type="button" onClick={() => controller.current?.continueAfterAccident()}>Continue after the accident</button>
+            </>
+          )}
+        </div>
+      )}
       {failed && (
         <div className="sitl-failure">
           <p className="alert" role="alert" data-testid="sitl-failure" data-reason={failed.reason.kind}>

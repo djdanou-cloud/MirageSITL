@@ -133,6 +133,16 @@ export class SitlBridgeClient {
     }
   }
 
+  /**
+   * Sends the reply to the frame the session stepped outside a `step` event: after a pause (TASK-149,
+   * TASK-156) the autopilot's frame waits, held, until a resumed pump steps it. Nothing without one.
+   */
+  answer(): void {
+    if (this.state !== "open") return;
+    const n = this.link.poll();
+    if (n > 0) this.host.send(this.link.outbound.subarray(0, n));
+  }
+
   /** Sends one MAVLink chunk from Main's ground station; false while the socket is not open. */
   sendMavlink(bytes: Uint8Array): boolean {
     if (this.state !== "open") return false;

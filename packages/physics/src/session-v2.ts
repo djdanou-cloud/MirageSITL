@@ -7,6 +7,7 @@ import { SteppingPolicy, newPumpReport, type StepGate } from './clock-policy.ts'
 import { DemoDynamics } from './demo-dynamics.ts';
 import { MotorFaults } from './motor-fault.ts';
 import type { LimitEvent } from './limit-monitor.ts';
+import type { AccidentEvent } from './accident.ts';
 
 // Physics Worker session on ABI v2 (TASK-085). Owns the state ring writer,
 // pilot mailbox reader, actuator queue consumer, Control Protocol v2
@@ -90,6 +91,15 @@ export interface SessionDynamics {
   readonly power?: PowerTelemetrySource | null;
   /** TASK-146 limit events of the dynamics; `drain` is cold. */
   readonly limits?: { readonly dropped: number; drain(sink: (event: LimitEvent) => void): number } | null;
+  /**
+   * TASK-149 accident monitor of a dynamics with hull and propeller shapes (`AccidentMonitor`):
+   * after each step the session writes [tick, simulated time] into `at` and calls `check`, which
+   * must not allocate; `drain` is cold.
+   */
+  readonly accidents?: {
+    readonly at: Float64Array; readonly dropped: number; readonly total: number;
+    check(): number; drain(sink: (event: AccidentEvent) => void): number; reset(): void;
+  } | null;
   reset(): void; stepNow(input: PilotInput): void; dispose?(): void;
   useActuators?(frame: ActuatorFrameV2): void;
   /**
@@ -218,6 +228,12 @@ export class PhysicsSessionV2 {
   drainLimitEvents(sink: (event: LimitEvent) => void): number { return this.dynamics.limits?.drain(sink) ?? 0; }
   /** Limit events the active dynamics' outbox could not hold. */
   get limitEventsDropped(): number { return this.dynamics.limits?.dropped ?? 0; }
+  /** Cold: hands the active dynamics' accident events (TASK-149) to `sink` after a pump; returns how many. */
+  drainAccidents(sink: (event: AccidentEvent) => void): number { return this.dynamics.accidents?.drain(sink) ?? 0; }
+  /** Accident events the active dynamics' outbox could not hold. */
+  get accidentsDropped(): number { return this.dynamics.accidents?.dropped ?? 0; }
+  /** Accidents raised in this epoch: once one is, the run continues only as not validated for a damaged aircraft. */
+  get accidentTotal(): number { return this.dynamics.accidents?.total ?? 0; }
 
   readyEvent(): CommandResultV2 {
     return { type: 'ready-v2', protocolVersion: 2, abiVersion: 2, epoch: this.epoch, hz: this.policy.hz };
@@ -257,6 +273,7 @@ export class PhysicsSessionV2 {
   rotorCount(): number { return this.dynamics.rotorCount ?? DEMO_ROTOR_COUNT; }
   start(): void {
     this.runningValue = true;
+    this.policy.clock.stopRequested = false;
     this.policy.resume(this.clock.monotonicMs());
     this.writer.setRuntimeFlags(RuntimeFlagV2.Ready | RuntimeFlagV2.Running);
   }
@@ -380,6 +397,7 @@ export class PhysicsSessionV2 {
     this.policy.resetEpoch(this.clock.monotonicMs());
     this.latch = 'disarmed';
     this.actuatorPending = false;
+    this.dynamics.accidents?.reset();
     this.publishEpochStart();
   }
 
@@ -391,6 +409,8 @@ export class PhysicsSessionV2 {
   /** SITL lockstep gate: the autopilot's actuator frame for exactly this tick of this epoch. */
   private actuatorReady(tick: TickId): boolean {
     if (this.policy.mode !== 'sitl-lockstep') return true;
+    // A paused session takes no further frame, so the autopilot waits on the one it sent (TASK-129).
+    if (!this.runningValue) return false;
     for (;;) {
       if (!this.actuatorPending) {
         if (!this.actuators.tryPop(this.actuatorCodec.words)) return false;
@@ -441,6 +461,16 @@ export class PhysicsSessionV2 {
     if (this.actuatorPending) this.dynamics.useActuators?.(this.actuator);
     this.dynamics.nowMs = this.wallMsNow;
     this.dynamics.stepNow(this.dynamicsInput);
+    // TASK-149 (F-09): a strike pauses the run on this tick, through the user pause's path, before the tick is published.
+    const accidents = this.dynamics.accidents;
+    if (accidents) {
+      accidents.at[0] = tickToNumber(tick); accidents.at[1] = accidents.at[0] / this.policy.hz;
+      if (accidents.check() > 0 && this.runningValue) {
+        this.pause();
+        this.processor.paused();
+        this.policy.clock.stopRequested = true;
+      }
+    }
     if (this.faults && this.faultMessage === "") {
       const d = this.dynamics.state, context = this.faultContext;
       context.dtS = 1 / this.policy.hz;

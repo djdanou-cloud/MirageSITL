@@ -1,4 +1,5 @@
 /** Configurable rigid-rotor BET flight dynamics; one WASM body integrator owns truth. */
+import { AccidentMonitor, type ContactShapePart } from './accident.ts';
 import { ControlFlag, INPUT_CLOCK_TOLERANCE_MS, INPUT_TIMEOUT_MS, StateFlag, ActuatorFlagV2, newState,
   type PilotInput, type PhysicsHz, type ActuatorFrameV2 } from '@mirage/protocol';
 import { BetRotorEngine, ROTOR_FLAG_HOVER_SAMPLING, ROTOR_FLAG_REDUCED_PREDICTOR, type BoundPolar } from '../../wasm-bet/src/rotor.ts';
@@ -65,6 +66,11 @@ export interface BetFlightConfiguration {
    * a contact). The dynamics takes ownership: `reset` restarts it, `dispose` disposes it.
    */
   contact?: FlightContact;
+  /**
+   * TASK-149: what each of the contact's shapes stands for, in its shape order. With it the
+   * dynamics checks every step's shape reports against decision F-09 (`accidents`).
+   */
+  contactParts?: readonly ContactShapePart[];
 }
 /** What `BetFlightDynamics` needs of its contact; `GroundContact` provides it. */
 export interface FlightContact {
@@ -152,6 +158,8 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
   readonly power:PowerTelemetry|null;
   /** TASK-146 rating and clamp monitor over `power`; null without the ESC drive. */
   readonly limits:LimitMonitor|null;
+  /** TASK-149 accident monitor over the contact's shape reports; null without contact shapes. */
+  readonly accidents:AccidentMonitor|null;
   private readonly capacityAh:number;
   constructor(module:WebAssembly.Module,configuration:BetFlightConfiguration,hz:H) {
     const model=validateModelManifest(configuration.manifest),n=model.rotorCount;
@@ -207,6 +215,9 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
       this.input=this.engine.input;this.output=this.engine.output;this.inputStride=13;this.outputStride=16;
     }
     this.body=new BetRigidBodyBackend(new WebAssembly.Instance(module,{}),model.massKg,model.inertiaBodyKgM2,configuration.gravityMps2??9.80665);
+    const parts=configuration.contactParts;
+    if(parts&&(!contact||parts.length!==(contact.shapeCount??0)))throw Error('Contact parts must name every contact shape');
+    this.accidents=parts&&parts.length>0?new AccidentMonitor(this,parts,model.rotors.map(r=>r.id),model.massKg):null;
     this.initial=structuredClone(configuration.initialBody);
     this.frame=new FrameLayout(model);this.rotations=new Float64Array(n*9);this.positions=new Float64Array(n*3);
     this.channels=new Uint32Array(n);this.hub=new Float64Array(n*6);
@@ -235,7 +246,7 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
     this.truth.accelerationNedMps2.fill(0);this.angularAcceleration.fill(0);Object.assign(this.state,newState());this.state.batteryVoltage=e[1]!;
     this.state.flags=StateFlag.InputFailsafe;this.pendingActuator=false;this.externalArmed=false;this.fault='';this.validityFlags=this.configurationFlags;
     this.referenceRotorRpm=this.output[9]!*60/(2*Math.PI);
-    this.limits?.reset();
+    this.limits?.reset();this.accidents?.reset();
     const t=this.power;
     if(t) {
       t.clear();
@@ -377,6 +388,10 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
   }
   /** The contact's hull and propeller shapes (TASK-095); 0 without a contact or shapes. */
   get contactShapeCount():number {return this.contact?.shapeCount??0;}
+  /** Rotor `index`'s speed after the last step, rad/s; cold, as a boxed return. */
+  rotorSpeedRadS(index:number):number {return this.output[index*this.outputStride+9]!;}
+  /** Every rotor's speed after the last step, rad/s, into `out` in rotor order (TASK-149); allocation-free. */
+  rotorSpeedsInto(out:Float64Array):void {for(let i=0;i<this.rotorCount&&i<out.length;i++)out[i]=this.output[i*this.outputStride+9]!;}
   /** Shape `index`'s contact report of the last step (`GroundContact.shapeStateInto`); false without one. */
   contactShapeStateInto(index:number,out:Float64Array):boolean {return this.contact?.shapeStateInto?.(index,out)??false;}
   dispose():void {this.engine?.dispose();this.escEngine?.dispose();this.contact?.dispose();}

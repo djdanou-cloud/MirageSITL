@@ -85,6 +85,7 @@ export class SteppingPolicy {
       case 'sitl-lockstep': {
         const t = this.clock.tick, next = this.nextTick;
         while (out.executed < this.clock.maxCatchUp) {
+          if (this.clock.stopRequested) { this.clock.stopRequested = false; return; }
           next.lo = (t.lo + 1) >>> 0; next.hi = next.lo === 0 ? (t.hi + 1) >>> 0 : t.hi;
           if (!gate.ready(next)) { out.waiting = true; return; }
           this.clock.stepOnce(step);

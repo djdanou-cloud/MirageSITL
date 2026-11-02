@@ -5,6 +5,7 @@ import { isProducerPlan, RecordingProducerV2 } from '@mirage/aar/recorder-v2';
 import { createSessionFaultPort } from '@mirage/ew/session-port';
 import { isWorkerInitV2, tickToNumber, validatePowerChannelV1, type CommandResultV2, type ControlCommandV2, type WorkerFaultV2 } from '@mirage/protocol';
 import { parseLimitRatings, type LimitEvent, type LimitRatings } from '@mirage/physics/limit-monitor';
+import type { AccidentEvent } from '@mirage/physics/accident';
 import { PhysicsSessionV2, type SessionClock } from '@mirage/physics';
 import { GroundContact } from '@mirage/physics/ground-contact';
 import { profileModelPort } from '@mirage/physics/profile-dynamics';
@@ -41,6 +42,7 @@ type WorkerNotice = CommandResultV2 | WorkerFaultV2 | SitlNotice | { type: "sitl
   | { type: "model.registered"; modelId: number; sha256: string } | { type: "model.reject"; message: string }
   | { type: "limits.registered"; sha256: string } | { type: "limits.reject"; message: string }
   | { type: "limits.events"; events: LimitEvent[]; dropped: number }
+  | { type: "accident.events"; events: AccidentEvent[]; dropped: number; total: number }
   | { type: "power.attached" } | { type: "power.reject"; message: string }
   | { type: "recording-v2.armed" } | { type: "recording-v2.reject"; message: string }
   | { type: "scenario.submit"; command: ControlCommandV2 }
@@ -60,6 +62,11 @@ function flush(): void {
   // TASK-146: limit events leave after the compute batch, as one message.
   const events: LimitEvent[] = [];
   if (session && session.drainLimitEvents(event => events.push(event)) > 0) post({ type: "limits.events", events, dropped: session.limitEventsDropped });
+  // TASK-149: accidents, which paused the session on their tick, leave the same way.
+  const accidents: AccidentEvent[] = [];
+  if (session && session.drainAccidents(event => accidents.push(event)) > 0) {
+    post({ type: "accident.events", events: accidents, dropped: session.accidentsDropped, total: session.accidentTotal });
+  }
 }
 function isTyped<T extends string>(data: unknown, type: T): data is { type: T } & Record<string, unknown> {
   return typeof data === "object" && data !== null && !Array.isArray(data) && "type" in data && data.type === type;
@@ -189,6 +196,8 @@ function pump(): void {
   timer = undefined;
   if (!session) return;
   const delay = session.pump();
+  // A SITL frame that waited while the session was paused is answered once a resumed pump has stepped it.
+  sitl?.client.answer();
   flush();
   const rejection = session.pilotRejection;
   if (rejection.pending) {
