@@ -198,6 +198,8 @@ function pump(): void {
   const delay = session.pump();
   // A SITL frame that waited while the session was paused is answered once a resumed pump has stepped it.
   sitl?.client.answer();
+  // An accident pauses the session inside the pump (TASK-149, TASK-156).
+  sitl?.client.setPaused(!session.running);
   flush();
   const rejection = session.pilotRejection;
   if (rejection.pending) {
@@ -304,6 +306,8 @@ addEventListener('message', (event: MessageEvent<unknown>) => {
     return;
   }
   current.handle(data);
+  // sim.pause and sim.start pause and resume the run's clock (TASK-156).
+  sitl?.client.setPaused(!current.running);
   flush();
   // A model load completes asynchronously; deliver its final result when it settles.
   void current.settled().then(() => { flush(); schedule(); });

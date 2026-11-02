@@ -125,7 +125,7 @@ test("connect and disconnect cycles reach READY, record schema 2 and leave the S
     const checks = panel.getByTestId("sitl-compatibility").getByRole("listitem");
     await expect(checks).toHaveCount(6);
     await expect(checks.nth(0)).toHaveText(new RegExp(`^JSON physics on UDP port ${sitl.jsonPort} with 16 servo channels; MirageSITL steps it at 800 Hz, which SITL adopts`));
-    await expect(checks.nth(1)).toContainText("can be paused once pause is available (TASK-156)");
+    await expect(checks.nth(1)).toContainText("so Pause stops it with the physics (TASK-156)");
     await expect(checks.nth(3)).toHaveText("ArduPilot 4.8.0-dev, commit 8ab6afde (verified)");
     await expect(checks.nth(4)).toHaveText(`All ${parameters.length} frame, output, PWM and sensor parameters match the profile`);
     await expect(panel.getByRole("button", { name: "Start SITL run" })).toBeDisabled();

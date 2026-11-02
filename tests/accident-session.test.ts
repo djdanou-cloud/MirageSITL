@@ -77,18 +77,23 @@ function tipped(built: ProfileDynamicsBuild, roll = Math.PI / 3, pitch = -Math.P
  */
 function strikes(build: ProfileDynamicsBuild, massKg: number, duty: number, ticks: number): { tick: number; shape: number }[] {
   const d = profileFlightDynamics(module, build, 400), frame = armed(build, duty), pilot = newInput(), report = new Float64Array(8);
-  // The hull, then one propeller disc per rotor in rotor order (TASK-095).
-  const parts = build.gear?.parts ?? [], hullCount = parts.filter(part => part.part === 'hull').length, met = new Set<number>();
+  // The hull, then one propeller disc per rotor in rotor order (TASK-095). A shape that struck counts again after 0.25 s clear.
+  const parts = build.gear?.parts ?? [], hullCount = parts.filter(part => part.part === 'hull').length;
+  const struck = new Set<number>(), lastContact = new Map<number, number>();
   const found: { tick: number; shape: number }[] = [];
   try {
     for (let k = 1; k <= ticks; k++) {
       d.useActuators(frame); d.nowMs = k * 2.5; d.stepNow(pilot);
       for (let i = 0; i < d.contactShapeCount; i++) {
         d.contactShapeStateInto(i, report);
+        if (report[6] !== 1) {
+          if (struck.has(i) && k / 400 - (lastContact.get(i) ?? 0) >= 0.25 - 1e-6) struck.delete(i);
+          continue;
+        }
+        lastContact.set(i, k / 400);
         const turning = parts[i]?.part === 'propeller' && Math.abs(d.rotorSpeedRadS(i - hullCount)) >= 1;
-        const meets = report[6] === 1 && (turning || report[0]! >= 0.001 || report[2]! >= 0.05 * massKg * 9.80665);
-        if (meets && !met.has(i)) found.push({ tick: k, shape: i });
-        if (meets) met.add(i); else met.delete(i);
+        const meets = turning || report[0]! >= 0.001 || report[2]! >= 0.05 * massKg * 9.80665;
+        if (meets && !struck.has(i)) { found.push({ tick: k, shape: i }); struck.add(i); }
       }
     }
     return found;

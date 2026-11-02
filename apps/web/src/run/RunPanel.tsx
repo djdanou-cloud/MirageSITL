@@ -39,7 +39,14 @@ const STEP_TEXT = { prepare: "preparing the vehicle", firmware: "checking the Ar
   launcher: "starting SITL", record: "saving the experiment record", recording: "opening the recording", connecting: "connecting to SITL",
   probing: "waiting for the SITL's JSON physics packets", version: "checking the SITL's ArduPilot version" } as const;
 const FLIGHT_TEXT = { arming: "Arming", climbing: "Taking off", flying: "Flying", landing: "Landing" } as const;
-const PAUSE_TEXT: Readonly<Record<PauseReason, string>> = { accident: "accident" };
+const PAUSE_TEXT: Readonly<Record<PauseReason, string>> = { accident: "accident", user: "by you", visibility: "the tab was hidden", terrain: "no terrain" };
+const PAUSE_HINT: Readonly<Record<PauseReason, string>> = {
+  accident: "The run paused on the accident's tick, and the autopilot with it. It can continue, but what follows is not validated for a physically damaged aircraft.",
+  user: "The physics and the autopilot's simulated time stand still together; position, velocity and the flight are kept. Resume continues both.",
+  visibility: "This run paused because its tab was hidden: the browser slows a hidden page's timers, which run the ground station, so a run never goes on there unwatched. Resume when you are back.",
+  terrain: "The run paused because no terrain is loaded under the aircraft.",
+};
+const PAUSABLE_STATES: ReadonlySet<string> = new Set(["loading-parameters", "warming", "ready", "running"]);
 const NO_LIMIT_EVENTS = (): readonly LimitEvent[] => [];
 
 /** The rotor layout of a stored profile version, or null when it does not validate. */
@@ -109,6 +116,12 @@ export function RunPanel({ storeState, project, visible }: { storeState: StoreSt
     }, (cause: unknown) => { if (!cancelled) setError(cause instanceof Error ? cause.message : String(cause)); });
     return () => { cancelled = true; };
   }, [store, projectId, visible]);
+  // TASK-156 visibility policy: a hidden tab pauses an active run, which waits for the user's Resume.
+  useEffect(() => {
+    const hidden = () => { if (document.hidden) controller.current?.pause("visibility"); };
+    document.addEventListener("visibilitychange", hidden);
+    return () => document.removeEventListener("visibilitychange", hidden);
+  }, []);
   useEffect(() => {
     const timer = setInterval(() => {
       const state = runtime.current?.current;
@@ -233,6 +246,10 @@ export function RunPanel({ storeState, project, visible }: { storeState: StoreSt
         <button type="button" onClick={() => controller.current?.takeOff(Number(altitude))} disabled={state.name !== "ready"}>Take off</button>
         <button type="button" onClick={() => controller.current?.land()}
           disabled={state.name !== "running" || (state.flight !== "climbing" && state.flight !== "flying")}>Land</button>
+        <button type="button" onClick={() => controller.current?.pause("user")} disabled={!PAUSABLE_STATES.has(state.name)}>Pause</button>
+        <button type="button" onClick={() => controller.current?.resume()} disabled={state.name !== "paused"}>
+          {state.name === "paused" && state.reason === "accident" ? "Continue after the accident" : "Resume"}
+        </button>
         <button type="button" onClick={() => void controller.current?.stop()} disabled={!active && !stopAgain}>
           {external ? (stopAgain ? "Disconnect again" : "Disconnect") : stopAgain ? "Stop again" : "Stop run"}
         </button>
@@ -275,15 +292,21 @@ export function RunPanel({ storeState, project, visible }: { storeState: StoreSt
         <div className="sitl-accidents">
           <h4>Accidents</h4>
           <ul data-testid="sitl-accidents">{accidents.map((event, index) => <li key={index}>{describeAccident(event, armIds)}</li>)}</ul>
-          {state.name === "paused" && state.reason === "accident" && (
-            <>
-              <p className="hint">
-                The run paused on the accident's tick, and the autopilot with it. It can continue, but what follows is not validated
-                for a physically damaged aircraft.
-              </p>
-              <button type="button" onClick={() => controller.current?.continueAfterAccident()}>Continue after the accident</button>
-            </>
-          )}
+        </div>
+      )}
+      {state.name === "paused" && <p className="hint" role="status" data-testid="sitl-pause-hint">{PAUSE_HINT[state.reason]}</p>}
+      {view && view.pauses.length > 0 && (
+        <div className="sitl-pauses">
+          <h4>Pauses</h4>
+          <ul data-testid="sitl-pauses">
+            {view.pauses.map((pause, index) => (
+              <li key={index} data-reason={pause.reason}>
+                {`At ${pause.simTimeS.toFixed(2)} s (tick ${pause.tick}), ${PAUSE_TEXT[pause.reason]}: `}
+                {pause.resumedWallMs === null ? "paused now" : `resumed after ${((pause.resumedWallMs - pause.pausedWallMs) / 1000).toFixed(1)} s of wall time`}
+              </li>
+            ))}
+          </ul>
+          <p className="hint">Simulated time stood still for {(view.pausedWallMs / 1000).toFixed(1)} s of wall time; the run&apos;s simulated duration does not count it.</p>
         </div>
       )}
       {failed && (

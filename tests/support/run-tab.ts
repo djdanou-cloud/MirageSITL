@@ -54,12 +54,14 @@ export interface SeedOptions {
    * (battery.voltageOffsetV), which the external-SITL path cannot apply yet.
    */
   readonly mirageOwnedSensorErrors?: boolean;
+  /** Moves the aircraft's CG to this body FRD offset, m (TASK-156: a nose-heavy quad that tips over on take-off). */
+  readonly cgOffsetBodyM?: readonly [number, number, number];
 }
 
 /** Creates a project with the example component cards and the S19 quad X profile, and opens it on the Run tab after a reload. */
 export async function seedQuadProject(page: Page, profileName: string, options: SeedOptions = {}): Promise<SeededProject> {
   await page.goto("/");
-  const seeded = await page.evaluate(async ({ urls, quad, cards, profileName, mirageOwned }) => {
+  const seeded = await page.evaluate(async ({ urls, quad, cards, profileName, mirageOwned, cg }) => {
     const { ProjectStore } = await import(urls.store) as Store;
     const { profileDraft, validateAircraftProfile, withPropellerPolars, withSensorConfiguration } = await import(urls.profile) as Profiles;
     const { DEFAULT_SENSOR_CONFIGURATION: D } = await import(urls.sensorFields) as SensorFields;
@@ -79,7 +81,8 @@ export async function seedQuadProject(page: Page, profileName: string, options: 
       }
       const propeller = ids.propeller, motor = ids.motor, esc = ids.esc, battery = ids.battery;
       if (propeller === undefined || motor === undefined || esc === undefined || battery === undefined) throw new Error("A component card fixture is missing");
-      const fixture = validateAircraftProfile(JSON.parse(quad));
+      const parsed = validateAircraftProfile(JSON.parse(quad));
+      const fixture = cg ? validateAircraftProfile({ ...parsed, massProperties: { ...parsed.massProperties, cgOffsetBodyM: cg } }) : parsed;
       const polared = withPropellerPolars(validateAircraftProfile({ ...fixture, battery: { card: battery },
         motors: fixture.motors.map(entry => ({ ...entry, components: { motor, propeller, esc } })) }),
       [{ card: propeller, polar: "naca6409-neuralfoil-v1" }]);
@@ -92,7 +95,7 @@ export async function seedQuadProject(page: Page, profileName: string, options: 
     } finally {
       store.close();
     }
-  }, { urls, quad: QUAD, cards: CARDS, profileName, mirageOwned: options.mirageOwnedSensorErrors === true });
+  }, { urls, quad: QUAD, cards: CARDS, profileName, mirageOwned: options.mirageOwnedSensorErrors === true, cg: options.cgOffsetBodyM ? [...options.cgOffsetBodyM] : null });
   await page.reload();
   return seeded;
 }

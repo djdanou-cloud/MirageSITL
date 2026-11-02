@@ -10,10 +10,12 @@
 //
 // The monitor reads the contact reports of the last step (TASK-095, contact
 // ABI v3 per-shape output) and the rotor speeds. An accident is raised on the
-// tick a shape starts to meet the criteria, so a contact that continues after
-// the run resumes does not raise it again; a new contact does. `check` runs in
-// the physics step and allocates nothing: events wait in a bounded outbox,
-// and `drain` hands them out after the compute batch.
+// tick a shape starts to meet the criteria. The shape counts again only once
+// it has been clear of the ground for 0.25 s of simulated time, so a contact
+// that goes on after the run resumes, a bounce and the contact chatter of a
+// wreck at rest stay one accident, and the next strike is a new one. `check`
+// runs in the physics step and allocates nothing: events wait in a bounded
+// outbox, and `drain` hands them out after the compute batch.
 
 /** The F-09 thresholds. */
 export const ACCIDENT_RULES = Object.freeze({
@@ -23,6 +25,8 @@ export const ACCIDENT_RULES = Object.freeze({
   penetrationM: 0.001,
   /** ... or once its normal force reaches this fraction of the aircraft's weight. */
   forceOfWeight: 0.05,
+  /** A shape that raised an accident counts again once it has touched nothing for this long, s. */
+  rearmClearS: 0.25,
 });
 /** Standard gravity, m/s², as the contact engine applies it. */
 const GRAVITY_MPS2 = 9.80665;
@@ -78,8 +82,10 @@ export class AccidentMonitor {
   private readonly report = new Float64Array(8);
   private readonly speeds: Float64Array;
   private readonly propellers: boolean;
-  /** Whether each shape met the criteria on the previous tick. */
-  private readonly meeting: Uint8Array;
+  /** Whether each shape may raise an accident: not since its last one, or clear of the ground for `rearmClearS` since. */
+  private readonly armed: Uint8Array;
+  /** Simulated time each shape last touched the ground, s. */
+  private readonly lastContactS: Float64Array;
   private readonly outbox = new Float64Array(ACCIDENT_OUTBOX_CAPACITY * Column.stride);
   private head = 0;
   private count = 0;
@@ -101,7 +107,8 @@ export class AccidentMonitor {
       if (index < 0) throw new RangeError(`Contact shape ${i} names unknown rotor ${part.rotorId}`);
       this.kinds[i] = 1; this.ids[i] = part.rotorId; this.rotorIndex[i] = index;
     });
-    this.meeting = new Uint8Array(parts.length);
+    this.armed = new Uint8Array(parts.length).fill(1);
+    this.lastContactS = new Float64Array(parts.length).fill(-Infinity);
     this.speeds = new Float64Array(rotorIds.length);
     this.propellers = parts.some(part => part.part === 'propeller');
     this.forceLimitN = ACCIDENT_RULES.forceOfWeight * massKg * GRAVITY_MPS2;
@@ -119,18 +126,24 @@ export class AccidentMonitor {
   check(): number {
     const report = this.report, n = this.kinds.length, speeds = this.speeds;
     if (this.propellers) this.source.rotorSpeedsInto(speeds);
+    const now = this.at[1]!;
     let raised = 0;
     for (let i = 0; i < n; i++) {
-      if (!this.source.contactShapeStateInto(i, report)) { this.meeting[i] = 0; continue; }
+      const touching = this.source.contactShapeStateInto(i, report) && report[6]! !== 0;
+      if (!touching) {
+        // A microsecond of slack absorbs the rounding of tick times exactly 0.25 s apart.
+        if (this.armed[i] === 0 && now - this.lastContactS[i]! >= ACCIDENT_RULES.rearmClearS - 1e-6) this.armed[i] = 1;
+        continue;
+      }
+      this.lastContactS[i] = now;
       const rotor = this.rotorIndex[i]!;
-      const touching = report[6]! !== 0;
       const turning = rotor >= 0 && Math.abs(speeds[rotor]!) >= ACCIDENT_RULES.turningRadS;
-      const meets = touching && (turning || report[0]! >= ACCIDENT_RULES.penetrationM || report[2]! >= this.forceLimitN);
-      if (meets && this.meeting[i] === 0) {
+      const meets = turning || report[0]! >= ACCIDENT_RULES.penetrationM || report[2]! >= this.forceLimitN;
+      if (meets && this.armed[i] === 1) {
+        this.armed[i] = 0;
         this.queue(i);
         raised++;
       }
-      this.meeting[i] = meets ? 1 : 0;
     }
     this.total += raised;
     return raised;
@@ -166,9 +179,10 @@ export class AccidentMonitor {
     return drained;
   }
 
-  /** Forgets queued events, the previous tick's contacts and the counters (a new epoch). */
+  /** Forgets queued events, the shapes' contacts and the counters (a new epoch). */
   reset(): void {
-    this.meeting.fill(0);
+    this.armed.fill(1);
+    this.lastContactS.fill(-Infinity);
     this.head = 0; this.count = 0; this.dropped = 0; this.total = 0;
   }
 

@@ -5786,9 +5786,11 @@ it in `packages/physics/src/accident.ts`:
 ABI v3: penetration, normal impulse and force, deepest point, touching) and
 the rotor speeds, all into a typed array (`BetFlightDynamics.rotorSpeedsInto`), since
 a double returned from a call that V8 does not inline is boxed. An accident is raised
-on the tick a shape starts to meet the criteria, so a contact that goes on
-after the run continues is not raised again, and a new contact after the
-shape has lifted is. Several shapes may strike on one tick; each is an event.
+on the tick a shape starts to meet the criteria. The shape counts again only
+once it has touched nothing for 0.25 s of simulated time (TASK-156): a contact
+that goes on after the run continues, a bounce, and the contact chatter of a
+wreck at rest stay one accident, and the next strike is a new one. Several
+shapes may strike on one tick; each is an event.
 `check` allocates nothing: events wait in an outbox of 64, the overflow is
 counted in `dropped`, and `drain` hands them out after the compute batch. The
 constructor runs the raising branch once on a synthetic report, so a first
@@ -5847,8 +5849,9 @@ session pauses on the tick on which an independent run of the same dynamics
 first meets F-09 in its raw reports, publishes that tick marked paused, and
 steps no further (in lockstep the next frame waits until `sim.start`);
 continued after each pause, it raises exactly the plain run's later strikes in
-one second, each on its tick, the bouncing propeller again only once it has
-lifted; upside down, its body strikes; and a new epoch forgets the accidents.
+one second, each on its tick (motor 1's propeller at tick 13, whose bounces stay
+that strike, and motor 4's at tick 68); upside down, its body strikes; and a
+new epoch forgets the accidents.
 Dropped level 0.2 m onto its supports with the motors off, the same quad
 touches down at more than 1.9 m/s and is stopped at more than 3 g with no
 accident. The events and the pause read back from a
@@ -6570,8 +6573,7 @@ first servo packets is only its `SIM_RATE_HZ` default (1200 Hz), since
 (`Aircraft::adjust_frame_time` with 1/Δt), so it is shown and not checked.
 The clock is then classified as TASK-129 found it: MirageSITL is the JSON
 lockstep peer and its replies never set `no_lockstep`, so SITL's simulated
-time waits for each reply and the connection can be paused once TASK-156
-adds pause. A SITL whose clock MirageSITL cannot hold, one with built-in
+time waits for each reply and Pause (TASK-156) stops it with the physics. A SITL whose clock MirageSITL cannot hold, one with built-in
 physics, is refused at the JSON check, and the reason says that its clock
 cannot be paused. The panel lists the checks a connection passed.
 
@@ -6613,8 +6615,8 @@ parameters, warming, ready and running. Failures specific to a connection:
 
 `sitl-ended` carries the launcher's `closedReason` when SITL closed its TCP
 connection; a launcher refusal of the ports asks the user to check the SITL
-and its ports. Heartbeat silence is measured in wall time, so TASK-156 must
-suspend it while paused. Diagnostics name the connection and the launcher's
+and its ports. Heartbeat silence is measured in wall time, so TASK-156
+suspends it while paused. Diagnostics name the connection and the launcher's
 counters instead of process logs.
 
 The record is written once every check has passed, when the home check
@@ -7192,3 +7194,61 @@ record names the record and the settings, and the stored 2,713,080 bytes are
 within the 10 % declared: ArduCopter streamed EKF_STATUS_REPORT, GPS_RAW_INT
 and GLOBAL_POSITION_INT below 10 Hz and ATTITUDE and LOCAL_POSITION_NED not at
 all, which the upper bound allows.
+
+## Pause and resume of an integrated session (TASK-156)
+
+A Run-tab run pauses through one path with a reason (`PauseReason`): `user`
+(the Pause button), `visibility` (its tab was hidden), `accident` (TASK-149)
+and `terrain` (missing terrain, which TASK-186 raises). The physics session
+pauses as for `sim.pause` (an accident pauses it on the accident's tick from
+inside the step); in JSON lockstep the autopilot then waits on the frame the
+paused session holds, so its simulated time stops with the physics, as
+decision D-03 records ([sitl-clock.md](decisions/sitl-clock.md)): position,
+velocity, the aircraft's state and the flight are kept, and neither side
+times out. Resume sends `sim.start`; after the resumed pump the SITL bridge
+client answers the held frame, and both clocks go on. A run can pause while
+loading parameters, warming, READY or flying, and returns to that state on
+Resume; an accident also pauses a start once SITL runs (connecting, probing,
+checking the version), since an aircraft that tips over on its supports does
+so before the autopilot's first heartbeat, and Resume then restarts the
+start's heartbeat deadline. A run continued after an accident stays
+labelled. An accident's shape counts again only once it has touched nothing
+for 0.25 s (section "Accidents"), so a wreck's contact chatter does not pause
+the run on every tick.
+
+The visibility policy: a hidden tab pauses an active run, which then waits
+for the user's Resume, also when the tab is shown again. The ground station
+(heartbeat, flight commands, the MAVLink parser) runs on the page's main
+thread, whose timers a browser slows in a hidden tab, so a run never goes on
+there unwatched, and a run with manual input (TASK-174) never continues on
+stale input.
+
+While paused, the ground station keeps sending its heartbeat, which the
+autopilot reads on resume (TASK-129 found a 60 s hold without a failsafe),
+and a connected SITL's silence is not a heartbeat loss; the bridge keeps the
+session's WebSocket alive with its 1 s ping, which the browser answers.
+Parameter reads and writes sent while paused wait until resume (D-03). Each
+pause is logged
+(`ControllerView.pauses`: reason, tick and simulated time of the pause, wall
+time of the pause and of the resume) and recorded as an `events.pause` row,
+1 on pause and 0 on resume (TASK-163). Simulated time does not advance while
+paused, so a run's simulated duration excludes paused wall time; the Run tab
+shows the paused wall time, and the speed the bridge client reports leaves it
+out (`SitlBridgeClient.setPaused`).
+
+Checks: `tests/run-controller.test.ts` pauses a flying run for the user and
+resumes it to the same flight with the pause logged (600 s of wall time on
+the fake clock), pauses a READY run for a hidden tab, refuses a second pause
+while one is pending and a pause outside a run, pauses a start on an accident
+before the first heartbeat and restarts its deadline on Resume, fails a
+refused `sim.pause` with its reason, and starts the next run without pauses.
+`tests/browser/sitl-pause.spec.ts` with native ArduCopter, through the Run tab
+alone: a user pause of more than 10 minutes of wall time in a 5 m hover, with
+simulated time, altitude and stepped frames unchanged throughout, resumes into
+a hover within 0.5 m of 5 m for 10 s of simulated time, armed in GUIDED, with
+no failsafe or EKF message, the pause logged and both rows recorded; and a
+quad whose CG is 0.152 m forward, 7 mm inside its front supports, tips onto
+its nose while it settles at the start: the run pauses on that accident before
+the autopilot's first heartbeat, continues labelled (the rocking wreck strikes
+once more), loads its parameters, then pauses when its tab is hidden and waits
+for Resume after the tab is shown again, with every pause recorded.

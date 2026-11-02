@@ -97,6 +97,10 @@ export class SitlBridgeClient {
   }
 
   /** One inbound record. */
+  /** Wall time the session spent paused, ms, and when the current pause began (TASK-156). */
+  private pausedTotalMs = 0;
+  private pausedSinceMs: number | null = null;
+
   receive(record: Uint8Array): LinkEvent {
     const link = this.link, event = link.receive(record);
     switch (event) {
@@ -143,6 +147,16 @@ export class SitlBridgeClient {
     if (n > 0) this.host.send(this.link.outbound.subarray(0, n));
   }
 
+  /**
+   * The session paused or resumed (TASK-156): paused wall time is not part of the run's speed, since
+   * simulated time stands still meanwhile.
+   */
+  setPaused(paused: boolean): void {
+    const now = this.host.nowMs();
+    if (paused && this.pausedSinceMs === null) this.pausedSinceMs = now;
+    if (!paused && this.pausedSinceMs !== null) { this.pausedTotalMs += now - this.pausedSinceMs; this.pausedSinceMs = null; }
+  }
+
   /** Sends one MAVLink chunk from Main's ground station; false while the socket is not open. */
   sendMavlink(bytes: Uint8Array): boolean {
     if (this.state !== "open") return false;
@@ -168,7 +182,8 @@ export class SitlBridgeClient {
 
   private report(): void {
     const s = this.link.lockstep.stats, simTimeS = this.link.state.simTimeS;
-    const wallS = (this.host.nowMs() - this.openedAtMs) / 1000;
+    const now = this.host.nowMs(), paused = this.pausedTotalMs + (this.pausedSinceMs === null ? 0 : now - this.pausedSinceMs);
+    const wallS = (now - this.openedAtMs - paused) / 1000;
     this.host.post({
       type: "sitl.status", state: this.state, ready: this.ready, reason: this.warmup.warmup.reason,
       simTimeS, steps: s.steps, duplicates: s.duplicates, gaps: s.gaps, droppedFrames: s.droppedFrames, held: this.link.stats.held,

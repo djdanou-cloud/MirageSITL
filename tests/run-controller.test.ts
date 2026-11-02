@@ -380,12 +380,21 @@ class ScriptedPhysics implements PhysicsPort {
     for (let i = 0; i < out.length; i++) out[i] = this.speeds[i] ?? 0;
     return true;
   }
-  /** The session's sim.start acknowledgement after an accident pause (TASK-149). */
+  /** The session's sim.start acknowledgement after a pause (TASK-149, TASK-156). */
   resumeAnswer: () => Promise<void> = () => Promise.resolve();
   resume(): Promise<void> {
     this.events.push('physics.resume');
     return this.resumeAnswer();
   }
+  /** The session's sim.pause acknowledgement (TASK-156). */
+  pauseAnswer: () => Promise<void> = () => Promise.resolve();
+  pause(): Promise<void> {
+    this.events.push('physics.pause');
+    return this.pauseAnswer();
+  }
+  /** The latest published tick, as the session would report it. */
+  tick = 0;
+  tickNow(): { tick: number; simTimeS: number } { return { tick: this.tick, simTimeS: this.tick / 800 }; }
   frames(): SentFrame[] { return decodeSent(this.sent); }
 }
 
@@ -971,6 +980,80 @@ class ScriptedRecording implements RecordingPort {
   pause(paused: boolean): void { this.calls.push(`pause:${paused ? 1 : 0}`); }
   stop(): Promise<void> { this.events.push('recording.stop'); return Promise.resolve(); }
 }
+
+describe('one pause path (TASK-156)', () => {
+  test('the user pauses a flying run and resumes it to the same flight, and each pause is logged with its tick and wall time', async () => {
+    const h = harness();
+    const id = await reach(h, 'flying');
+    h.physics.tick = 40800;
+    expect(h.controller.pause('user')).toBe(true);
+    // A second request while the first is pending is refused.
+    expect(h.controller.pause('user')).toBe(false);
+    await settle();
+    expect(h.events).toContain('physics.pause');
+    expect(h.controller.state).toEqual({ name: 'paused', experimentId: id, atSimTimeS: 51, reason: 'user', accidents: [] });
+    expect(h.controller.takeOff(TAKEOFF_M)).toBe(false);
+    expect(h.controller.land()).toBe(false);
+    h.clock.advance(600_000);
+    expect(h.controller.view.pausedWallMs).toBe(600_000);
+    expect(h.controller.resume()).toBe(true);
+    await settle();
+    expect(h.controller.state).toMatchObject({ name: 'running', experimentId: id, flight: 'flying' });
+    expect(h.controller.view.afterAccident).toBe(false);
+    expect(h.controller.view.pauses).toEqual([{ reason: 'user', tick: 40800, simTimeS: 51, pausedWallMs: expect.any(Number) as unknown,
+      resumedWallMs: expect.any(Number) as unknown }]);
+    const [pause] = h.controller.view.pauses;
+    expect((pause?.resumedWallMs ?? 0) - (pause?.pausedWallMs ?? 0)).toBe(600_000);
+    // A long pause is no heartbeat loss: the clock of the loss check starts again on resume.
+    expect(h.controller.state.name).toBe('running');
+    await h.controller.stop();
+  });
+
+  test('a hidden tab pauses a READY run, which waits for the user; nothing pauses outside a run', async () => {
+    const h = harness();
+    expect(h.controller.pause('visibility')).toBe(false);
+    await reach(h, 'ready');
+    h.physics.tick = 32000;
+    expect(h.controller.pause('visibility')).toBe(true);
+    await settle();
+    expect(h.controller.state).toMatchObject({ name: 'paused', reason: 'visibility', atSimTimeS: 40 });
+    expect(h.controller.resume()).toBe(true);
+    await settle();
+    expect(h.controller.state).toMatchObject({ name: 'ready' });
+    expect(h.controller.view.pauses.map(p => p.reason)).toEqual(['visibility']);
+  });
+
+  test('an accident before the first heartbeat pauses the start, and Resume restarts its heartbeat deadline', async () => {
+    const h = harness();
+    const id = await reach(h, 'connecting');
+    status(h, { state: 'open', simTimeS: 0.3 });
+    h.controller.worker(accidentMessage(240, 1));
+    expect(h.controller.state).toMatchObject({ name: 'paused', experimentId: id, reason: 'accident' });
+    // The frozen autopilot sends no heartbeat; the paused start does not fail for it.
+    h.clock.advance((HEARTBEAT_DEADLINE_S + 30) * 1000);
+    expect(h.controller.state.name).toBe('paused');
+    expect(h.controller.resume()).toBe(true);
+    await settle();
+    expect(h.controller.state).toEqual({ name: 'starting', step: 'connecting', experimentId: id });
+    expect(h.controller.view.afterAccident).toBe(true);
+    h.clock.advance((HEARTBEAT_DEADLINE_S - 1) * 1000);
+    expect(h.controller.state.name).toBe('starting');
+    mav(h, heartbeat(STABILIZE, false));
+    expect(h.controller.state).toMatchObject({ name: 'loading-parameters', experimentId: id });
+  });
+
+  test('a refused pause stops the run with its reason, and a new run starts with no pauses', async () => {
+    const h = harness();
+    await reach(h, 'ready');
+    h.physics.pauseAnswer = () => Promise.reject(new Error('sim.pause: Session is faulted'));
+    expect(h.controller.pause('user')).toBe(true);
+    await until(() => h.controller.state.name === 'failed', 5000, 'the failed pause');
+    expect(failed(h).reason).toEqual({ kind: 'physics', message: 'sim.pause: Session is faulted' });
+    h.physics.pauseAnswer = () => Promise.resolve();
+    await reach(h, 'ready');
+    expect(h.controller.view.pauses).toEqual([]);
+  });
+});
 
 describe('the run\'s recording (TASK-163)', () => {
   test('is prepared before the record, which names it, records before the first frame, and gets the telemetry, parameters, accidents and pauses', async () => {
@@ -2183,7 +2266,7 @@ describe('SessionController connections to a SITL the user started (TASK-155)', 
     expect(h.controller.view.ownership).toBe('external');
     expect(h.controller.view.compatibility.map(check => check.check)).toEqual(['physics', 'clock']);
     expect(h.controller.view.compatibility[0]?.text).toBe('JSON physics on UDP port 9002 with 16 servo channels; MirageSITL steps it at 800 Hz, which SITL adopts (it announced 1200 Hz)');
-    expect(h.controller.view.compatibility[1]?.text).toContain('can be paused once pause is available (TASK-156)');
+    expect(h.controller.view.compatibility[1]?.text).toContain('so Pause stops it with the physics (TASK-156)');
     status(h, { state: 'open', simTimeS: 0.5 });
     mav(h, heartbeat(STABILIZE, false));
     expect(h.controller.state).toEqual({ name: 'starting', step: 'version', experimentId: id });

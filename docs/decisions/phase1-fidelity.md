@@ -153,8 +153,10 @@ The thresholds filter numerical grazing contacts, not real strikes. TASK-149
 checks them with its hard-landing and strike fixtures and records any change
 here. TASK-149 (2026-11-02) reads "while its rotor turns" as a rotor speed of
 at least 1 rad/s (under 10 rpm), and raises an accident on the tick a shape
-starts to meet the criteria, so a contact that continues after the run
-resumes is not a new accident; the thresholds are unchanged.
+starts to meet the criteria. Since TASK-156 a shape counts again only once it
+has touched nothing for 0.25 s, so a contact that continues after the run
+resumes, a bounce and a wreck's contact chatter are not new accidents; the
+thresholds are unchanged.
 Continuing after an accident is labeled, and it is never presented as a
 validated simulation of a damaged aircraft.
 

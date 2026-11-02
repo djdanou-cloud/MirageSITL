@@ -102,6 +102,9 @@ implementation.
   propeller strike that meets decision F-09 pauses the physics session on its
   tick, and the autopilot with it in lockstep; the Run tab lists it and may
   continue the run, labelled as not validated for a damaged aircraft.
+  TASK-156 is DONE: a run pauses through one path (the user, a hidden tab,
+  an accident, later missing terrain), the physics and ArduPilot's simulated
+  time stand still together in JSON lockstep, and Resume continues both.
   TASK-163 is DONE: the Logging tab plans what a Run-tab run records, with
   size estimates and storage warnings, and every run records with recorder v2
   into its experiment's record (experiment payload schema 3).

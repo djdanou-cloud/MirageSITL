@@ -59,12 +59,18 @@ describe('F-09 accident criteria', () => {
     expect(events.map(e => [e.part, e.rotorSpeedRadS])).toEqual([[{ part: 'propeller', rotorId: 1 }, -1], [{ part: 'propeller', rotorId: 2 }, 0]]);
   });
 
-  it('raises once per contact: a contact that continues is not raised again, a new one is', () => {
+  it('raises once per contact: a contact that goes on, a bounce or chatter is not raised again; a strike after 0.25 s clear is', () => {
     const { source, monitor, step } = setup();
     source.touch(0, 0.002, 0);
     expect([step(), step(), step()]).toEqual([1, 0, 0]);
+    // Lifted for 10 ticks (25 ms at 400 Hz) and back: the same strike.
     source.lift(0);
+    for (let i = 0; i < 10; i++) expect(step()).toBe(0);
+    source.touch(0, 0.002, 0);
     expect(step()).toBe(0);
+    // Clear for 100 ticks, 0.25 s: the next contact is a new accident.
+    source.lift(0);
+    for (let i = 0; i < 100; i++) expect(step()).toBe(0);
     source.touch(0, 0.002, 0);
     expect(step()).toBe(1);
     expect(monitor.total).toBe(2);
@@ -81,8 +87,9 @@ describe('F-09 accident criteria', () => {
     expect(monitor.check()).toBe(2);
     expect(monitor.pending).toBe(2);
     for (let i = 0; i < ACCIDENT_OUTBOX_CAPACITY; i++) {
-      source.lift(2); monitor.check();
-      source.touch(2, 0, 1); monitor.check();
+      // A second clear of the ground re-arms the disc.
+      monitor.at[1] = 10 + 2 * i; source.lift(2); monitor.check();
+      monitor.at[1] = 11 + 2 * i; source.touch(2, 0, 1); monitor.check();
     }
     expect(monitor.pending).toBe(ACCIDENT_OUTBOX_CAPACITY);
     expect(monitor.dropped).toBe(2);

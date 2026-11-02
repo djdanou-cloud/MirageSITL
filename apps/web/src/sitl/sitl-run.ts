@@ -26,7 +26,7 @@ import catalogFile from "../../../../tests/fixtures/sitl/ardupilot-catalog.json"
 import { catalogAbsentRule, type AbsentRule } from "@mirage/autopilot/parameter-readback";
 import { expectedMotors, physicsRotors, type ExpectedMotor, type PhysicsRotor } from "@mirage/autopilot/motor-test";
 import type { LimitRatings } from "@mirage/physics/limit-monitor";
-import { newPowerSnapshotV1 } from "@mirage/protocol";
+import { newFlightStateV2, newPowerSnapshotV1 } from "@mirage/protocol";
 import type { StoredVersion } from "@mirage/project/schema";
 import type { ProjectStore } from "@mirage/project/store";
 import type { SimulationRuntime } from "../runtime";
@@ -330,6 +330,13 @@ export class RuntimePhysics implements PhysicsPort {
   disconnect(): void { this.runtime.postToWorker({ type: "sitl.disconnect" }); }
   sendMavlink(bytes: Uint8Array): void { this.runtime.postToWorker({ type: "sitl.mavlink.send", bytes }); }
   resume(): Promise<void> { return this.control({ type: "sim.start" }); }
+  pause(): Promise<void> { return this.control({ type: "sim.pause" }); }
+  private readonly latest = newFlightStateV2();
+  tickNow(): { tick: number; simTimeS: number } {
+    const s = this.latest;
+    this.runtime.latestInto(s);
+    return { tick: s.tickId.hi * 2 ** 32 + s.tickId.lo, simTimeS: s.simTimeS };
+  }
   altitudeM(): number { return -this.runtime.current.downM; }
   verticalSpeedMps(): number { return this.runtime.current.vdMps; }
   private readonly power = newPowerSnapshotV1();

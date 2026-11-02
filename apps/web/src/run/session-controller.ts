@@ -11,7 +11,14 @@
 // decision F-09) pauses the physics session on its tick, and with it the
 // autopilot, which waits in JSON lockstep: the run is `paused` with the
 // accidents, and it may continue, labelled as not validated for a physically
-// damaged aircraft. The user pause and its other reasons are TASK-156.
+// damaged aircraft. TASK-156 gives every pause that one path: the user's
+// Pause, a hidden tab (the browser slows a hidden page's timers, which run the
+// ground station, so a run never goes on there unwatched), an accident and,
+// with TASK-186, missing terrain. In JSON lockstep the autopilot waits on the
+// frame the paused session holds, so its simulated time stops with the
+// physics; Resume continues both, and a run continued after an accident
+// stays labelled. Each pause and resume is logged with its tick, simulated
+// time and wall time.
 //
 // A run records (TASK-163) when the controller has a recording port: the
 // recording is prepared before the experiment record, which names it, and
@@ -118,8 +125,12 @@ export interface PhysicsPort {
   verticalSpeedMps(): number;
   /** Each rotor's speed, rev/min, in rotor order from the latest power telemetry; false when none was published. */
   motorSpeedsInto(out: Float64Array): boolean;
-  /** Resumes a session that paused itself (an accident, TASK-149) with sim.start; resolves on its applied acknowledgement. */
+  /** Resumes a paused session with sim.start (TASK-149, TASK-156); resolves on its applied acknowledgement. */
   resume(): Promise<void>;
+  /** Pauses the session with sim.pause (TASK-156); resolves on its applied acknowledgement. */
+  pause(): Promise<void>;
+  /** The session's latest published tick and simulated time, s. */
+  tickNow(): { readonly tick: number; readonly simTimeS: number };
 }
 export interface RecordPort { create(payload: ExperimentPayload): Promise<{ readonly sha256: string }> }
 /** Who a run's recording belongs to: the recording header's identity. */
@@ -211,8 +222,26 @@ export interface Diagnostics {
   readonly connection: { readonly servoPackets: number; readonly rateHz: number | null; readonly bytesFromSitl: number } | null;
 }
 export type RunStateName = RunState["name"];
-/** Why a run is paused: an accident (TASK-149). TASK-156 adds the user, missing terrain and a hidden tab. */
-export type PauseReason = "accident";
+/** Why a run is paused: an accident (TASK-149), the user, a hidden tab, or missing terrain (TASK-186), through one path (TASK-156). */
+export type PauseReason = "accident" | "user" | "visibility" | "terrain";
+/** One pause of a run and its resume (TASK-156). */
+export interface PauseEvent {
+  readonly reason: PauseReason;
+  /** The tick and simulated time the run paused on. */
+  readonly tick: number;
+  readonly simTimeS: number;
+  /** Wall time of the pause and of the resume, ms (the controller's clock); null while paused. */
+  readonly pausedWallMs: number;
+  readonly resumedWallMs: number | null;
+}
+/** The states a run can pause from. */
+const PAUSABLE: ReadonlySet<RunStateName> = new Set(["loading-parameters", "warming", "ready", "running"]);
+/**
+ * The starting steps in which SITL runs and the physics steps, so an accident can happen and pause
+ * the run: an aircraft that tips over on its supports does so before the autopilot's first
+ * heartbeat. Without this the frozen autopilot would end the start as a lost heartbeat.
+ */
+const ACCIDENT_STEPS: ReadonlySet<StartStep> = new Set(["connecting", "probing", "version"]);
 export type RunState =
   | { readonly name: "idle"; readonly last: string | null }
   | { readonly name: "starting"; readonly step: StartStep; readonly experimentId: string | null }
@@ -312,6 +341,10 @@ export interface ControllerView {
   readonly accidents: readonly AccidentEvent[];
   /** The run continued after an accident: what follows is not validated for a physically damaged aircraft (F-09). */
   readonly afterAccident: boolean;
+  /** Every pause of this run, oldest first (TASK-156). */
+  readonly pauses: readonly PauseEvent[];
+  /** Wall time the run has been paused so far, ms, which simulated time does not count. */
+  readonly pausedWallMs: number;
 }
 export interface MotorCheckView {
   readonly running: boolean;
@@ -366,6 +399,9 @@ export class SessionController {
   private lastHeartbeatMs = 0;
   private accidents: AccidentEvent[] = [];
   private afterAccident = false;
+  private pauses: PauseEvent[] = [];
+  /** A user or hidden-tab pause waiting for its acknowledgement. */
+  private pausing = false;
   /** The state a paused run returns to. */
   private resumeTo: RunState | null = null;
   private connectedAtMs = 0;
@@ -386,7 +422,7 @@ export class SessionController {
   get view(): ControllerView {
     return { state: this.stateValue, status: this.status, mode: this.mode, armed: this.armed, statusText: this.statusText, recordSha256: this.recordSha256,
       ownership: this.ownership, compatibility: this.compatibility, motorCheck: this.motorCheckView(), accidents: this.accidents,
-      afterAccident: this.afterAccident };
+      afterAccident: this.afterAccident, pauses: this.pauses, pausedWallMs: this.pausedWallTotal() };
   }
   get active(): boolean { return ACTIVE.has(this.stateValue.name); }
   /** The current state name, read afresh after an await (not narrowed by earlier checks). */
@@ -541,7 +577,7 @@ export class SessionController {
     const { physicsHz } = request;
     this.compatibility = [
       { check: "physics", text: `JSON physics on UDP port ${port} with ${connection.physics.channels ?? "?"} servo channels; MirageSITL steps it at ${physicsHz} Hz, which SITL adopts (it announced ${rateHz} Hz)` },
-      { check: "clock", text: "JSON lockstep: SITL's clock waits for each MirageSITL reply, which never sets no_lockstep, so this connection can be paused once pause is available (TASK-156)" },
+      { check: "clock", text: "JSON lockstep: SITL's clock waits for each MirageSITL reply, which never sets no_lockstep, so Pause stops it with the physics (TASK-156)" },
     ];
 
     this.set({ name: "starting", step: "physics", experimentId: connection.id });
@@ -633,26 +669,56 @@ export class SessionController {
   }
 
   /**
-   * Continues a run that an accident paused (TASK-149): the session resumes, and the autopilot with
-   * it, and the rest of the run is labelled as not validated for a physically damaged aircraft.
-   * False unless an accident paused the run.
+   * Pauses the run (TASK-156) for the user or because its tab was hidden: the physics session stops
+   * stepping, and the autopilot, which waits on its next frame in JSON lockstep, with it. False when
+   * the run cannot pause now.
    */
-  continueAfterAccident(): boolean {
+  pause(reason: "user" | "visibility"): boolean {
+    const s = this.stateValue;
+    if (!PAUSABLE.has(s.name) || this.pausing || !("experimentId" in s) || s.experimentId === null) return false;
+    const generation = this.generation;
+    this.pausing = true;
+    this.physics.pause().then(() => {
+      this.pausing = false;
+      // An accident may have paused the run first; then that pause stands.
+      if (generation !== this.generation || this.stateValue !== s) return;
+      this.enterPause(reason, []);
+    }, (error: unknown) => {
+      this.pausing = false;
+      if (generation === this.generation && this.stateValue === s) void this.stopAfter({ kind: "physics", message: messageOf(error) }, s.name);
+    });
+    return true;
+  }
+
+  /**
+   * Resumes a paused run, whatever paused it: the session steps again, and the autopilot with it.
+   * After an accident (TASK-149) the rest of the run is labelled as not validated for a physically
+   * damaged aircraft. False unless the run is paused.
+   */
+  resume(): boolean {
     const s = this.stateValue, before = this.resumeTo;
-    if (s.name !== "paused" || s.reason !== "accident" || !before) return false;
+    if (s.name !== "paused" || !before) return false;
     const generation = this.generation;
     this.physics.resume().then(() => {
       if (generation !== this.generation || this.stateValue !== s) return;
       this.resumeTo = null;
-      this.afterAccident = true;
+      if (s.reason === "accident") this.afterAccident = true;
       this.recording?.pause(false);
-      // The autopilot sent nothing while it waited; its heartbeat count starts again now.
+      const last = this.pauses.at(-1);
+      if (last && last.resumedWallMs === null) this.pauses = [...this.pauses.slice(0, -1), { ...last, resumedWallMs: this.clock.nowMs() }];
+      // The autopilot sent nothing while it waited; its heartbeat count, and a start's first-heartbeat deadline, start again now.
       this.lastHeartbeatMs = this.clock.nowMs();
+      if (before.name === "starting") this.connectedAtMs = this.clock.nowMs();
       this.set(before);
     }, (error: unknown) => {
       if (generation === this.generation && this.stateValue === s) void this.stopAfter({ kind: "physics", message: messageOf(error) }, "paused");
     });
     return true;
+  }
+  /** Continues a run that an accident paused (TASK-149); `resume` for that pause. */
+  continueAfterAccident(): boolean {
+    const s = this.stateValue;
+    return s.name === "paused" && s.reason === "accident" && this.resume();
   }
 
   /** Every message from the physics Worker. */
@@ -688,18 +754,24 @@ export class SessionController {
     this.accidents = [...this.accidents, ...events];
     this.recording?.accidents(events);
     const s = this.stateValue;
-    switch (s.name) {
-      case "loading-parameters": case "warming": case "ready": case "running":
-        this.resumeTo = s;
-        this.recording?.pause(true);
-        this.set({ name: "paused", experimentId: s.experimentId, atSimTimeS: events[0]?.simTimeS ?? 0, reason: "accident", accidents: events });
-        return;
-      case "paused":
-        this.set({ ...s, accidents: [...s.accidents, ...events] });
-        return;
-      default:
-        this.emit();
-    }
+    if (PAUSABLE.has(s.name) || (s.name === "starting" && ACCIDENT_STEPS.has(s.step))) { this.enterPause("accident", events); return; }
+    if (s.name === "paused") { this.set({ ...s, reason: "accident", accidents: [...s.accidents, ...events] }); return; }
+    this.emit();
+  }
+  /** The one path into `paused` (TASK-156): the state to return to, the pause row and the log entry. */
+  private enterPause(reason: PauseReason, accidents: readonly AccidentEvent[]): void {
+    const s = this.stateValue;
+    if (!("experimentId" in s) || s.experimentId === null) return;
+    const at = this.physics.tickNow(), first = accidents[0];
+    this.resumeTo = s;
+    this.recording?.pause(true);
+    this.pauses = [...this.pauses, { reason, tick: first?.tick ?? at.tick, simTimeS: first?.simTimeS ?? at.simTimeS, pausedWallMs: this.clock.nowMs(), resumedWallMs: null }];
+    this.set({ name: "paused", experimentId: s.experimentId, atSimTimeS: first?.simTimeS ?? at.simTimeS, reason, accidents });
+  }
+  /** Wall time spent paused so far, ms. */
+  private pausedWallTotal(): number {
+    const now = this.clock.nowMs();
+    return this.pauses.reduce((sum, pause) => sum + ((pause.resumedWallMs ?? now) - pause.pausedWallMs), 0);
   }
 
   /** Advances on a status: version and parameter deadlines, warmup, READY revocation and the climb. */
@@ -1057,7 +1129,7 @@ export class SessionController {
     this.status = null; this.mode = null; this.armed = false; this.statusText = []; this.recordSha256 = null;
     this.experimentId = null; this.readback = null; this.heartbeatSeen = false; this.streamSeenMs.clear();
     this.ownership = ownership; this.external = null; this.prepared = null; this.compatibility = []; this.motorCheck = null;
-    this.accidents = []; this.afterAccident = false; this.resumeTo = null;
+    this.accidents = []; this.afterAccident = false; this.resumeTo = null; this.pauses = []; this.pausing = false;
     this.parser.reset();
   }
 
