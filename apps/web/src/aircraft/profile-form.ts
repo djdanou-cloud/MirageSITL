@@ -1,9 +1,9 @@
 import {
-  propellerPolarsOf, validateAircraftProfile, withPropellerPolars, type AircraftProfile, type CalculationSettings, type ProfileMotor,
-  type PropellerPolar, type SpinDirection,
+  airframeDragOf, propellerPolarsOf, validateAircraftProfile, withAirframeDrag, withPropellerPolars, type AircraftProfile, type CalculationSettings,
+  type ProfileMotor, type PropellerPolar, type SpinDirection, type StatedAirframeDrag,
 } from '@mirage/aircraft/profile';
 import type { SensorConfiguration } from '@mirage/aircraft/sensor-fields';
-import type { MassProperties } from '@mirage/physics/vehicle-manifest';
+import type { AirframeDrag, MassProperties } from '@mirage/physics/vehicle-manifest';
 import { parseDecimal } from '../library/library-data';
 
 // The aircraft editor's form (TASK-141, S03): the text a user types, turned
@@ -49,6 +49,15 @@ export interface MassForm {
   /** Inertia tensor entries about the CG, kg·m². */
   readonly inertia: { readonly xx: string; readonly yy: string; readonly zz: string; readonly xy: string; readonly xz: string; readonly yz: string };
 }
+/** TASK-096: drag areas the user states for the airframe without its rotors, with their source. */
+export interface DragForm {
+  /** C_D·A along body x, y and z, m². */
+  readonly areas: readonly [string, string, string];
+  /** The center of pressure, body FRD metres from the reference point. */
+  readonly cop: readonly [string, string, string];
+  readonly maxAirspeedMps: string;
+  readonly source: string;
+}
 export interface ProfileForm {
   readonly arms: readonly ArmForm[];
   readonly mass: MassForm;
@@ -64,6 +73,10 @@ export interface ProfileForm {
   readonly sensorConfiguration: SensorConfiguration | null;
   /** Chosen catalog polars of propeller cards (TASK-144); a choice for a card no motor uses any more is dropped on save. */
   readonly propellerPolars: readonly PropellerPolar[];
+  /** TASK-096: whether the profile states its drag; otherwise it flies the standard hull's preliminary estimate. */
+  readonly dragStated: boolean;
+  /** Kept while the drag is not stated, so stating it again restores the values. */
+  readonly drag: DragForm;
 }
 export type FormResult = { readonly ok: true; readonly profile: AircraftProfile } | { readonly ok: false; readonly errors: readonly string[] };
 
@@ -83,6 +96,26 @@ export function editAngle(text: string): AngleField {
 export function emptyMotor(spin: SpinDirection = 'ccw'): MotorForm {
   return { id: '', spin, output: '', motor: null, propeller: null, esc: null };
 }
+export function emptyDrag(): DragForm {
+  return { areas: ['', '', ''], cop: ['', '', ''], maxAirspeedMps: '', source: '' };
+}
+/** Four significant digits of a value the estimate gives, as the form shows it. */
+function shown(value: number): string {
+  return String(Number(value.toPrecision(4)));
+}
+/** The drag form filled from the standard hull's estimate (TASK-096), for the user to adjust, with no source yet. */
+export function dragFormFromEstimate(estimate: AirframeDrag & { readonly maxAirspeedMps?: number }): DragForm {
+  const t = estimate.dragAreaBodyM2, c = estimate.centerOfPressureBodyM;
+  return {
+    areas: [shown(t[0] ?? 0), shown(t[4] ?? 0), shown(t[8] ?? 0)], cop: [shown(c[0] ?? 0), shown(c[1] ?? 0), shown(c[2] ?? 0)],
+    maxAirspeedMps: estimate.maxAirspeedMps === undefined ? '' : shown(estimate.maxAirspeedMps), source: '',
+  };
+}
+function dragForm(drag: StatedAirframeDrag): DragForm {
+  const a = drag.dragAreasM2.map(String), c = drag.centerOfPressureBodyM.map(String);
+  return { areas: [a[0] ?? '', a[1] ?? '', a[2] ?? ''], cop: [c[0] ?? '', c[1] ?? '', c[2] ?? ''], maxAirspeedMps: String(drag.maxAirspeedMps),
+    source: drag.source };
+}
 export function emptyMass(): MassForm {
   return { massKg: '', cg: ['', '', ''], inertia: { xx: '', yy: '', zz: '', xy: '', xz: '', yz: '' } };
 }
@@ -90,7 +123,7 @@ export function emptyMass(): MassForm {
 export function emptyForm(): ProfileForm {
   return {
     arms: [], mass: emptyMass(), payloadEnabled: false, payload: emptyMass(), batteryCard: null, groundClearanceM: '',
-    calculation: { mode: 'preliminary', measurementSets: [] }, sensorConfiguration: null, propellerPolars: [],
+    calculation: { mode: 'preliminary', measurementSets: [] }, sensorConfiguration: null, propellerPolars: [], dragStated: false, drag: emptyDrag(),
   };
 }
 
@@ -122,8 +155,12 @@ export function formFromProfile(profile: AircraftProfile): ProfileForm {
     payload: profile.payload ? massForm(profile.payload) : emptyMass(), batteryCard: profile.battery.card,
     groundClearanceM: profile.groundClearanceM === null ? '' : String(profile.groundClearanceM),
     calculation: profile.schemaVersion === 1 ? null : profile.calculation, sensorConfiguration: profile.sensorConfiguration,
-    propellerPolars: propellerPolarsOf(profile),
+    propellerPolars: propellerPolarsOf(profile), ...dragOf(profile),
   };
+}
+function dragOf(profile: AircraftProfile): { dragStated: boolean; drag: DragForm } {
+  const stated = airframeDragOf(profile);
+  return { dragStated: stated !== null, drag: stated ? dragForm(stated) : emptyDrag() };
 }
 
 /** Collects parse errors so that every field at fault is reported at once. */
@@ -196,6 +233,15 @@ export function profileFromForm(form: ProfileForm): FormResult {
   const massProperties = read.mass(form.mass, 'Aircraft');
   const payload = form.payloadEnabled ? read.mass(form.payload, 'Payload') : null;
   const groundClearanceM = form.groundClearanceM.trim() === '' ? null : read.positive(form.groundClearanceM, 'Ground clearance', 'm');
+  let drag: StatedAirframeDrag | null = null;
+  if (form.dragStated) {
+    const d = form.drag;
+    const dragAreasM2 = d.areas.map((text, i) => read.positive(text, `Drag area ${'xyz'[i] ?? ''}`, 'm²'));
+    const centerOfPressureBodyM = d.cop.map((text, i) => read.number(text, `Center of pressure ${'xyz'[i] ?? ''}`));
+    const maxAirspeedMps = read.positive(d.maxAirspeedMps, 'Drag airspeed range', 'm/s');
+    if (d.source.trim() === '') read.errors.push('Say where the drag areas come from');
+    drag = { dragAreasM2, centerOfPressureBodyM, maxAirspeedMps, source: d.source.trim() };
+  }
   if (read.errors.length > 0) return { ok: false, errors: read.errors };
   const candidate = {
     schemaVersion: form.sensorConfiguration ? 3 : form.calculation ? 2 : 1, units: 'SI', bodyFrame: 'FRD', arms,
@@ -205,7 +251,9 @@ export function profileFromForm(form: ProfileForm): FormResult {
   try {
     const used = new Set(motors.map(motor => motor.components.propeller));
     // Schema 4 exactly when a polar is chosen (TASK-144).
-    const profile = withPropellerPolars(validateAircraftProfile(candidate), form.propellerPolars.filter(entry => used.has(entry.card)));
+    const polars = withPropellerPolars(validateAircraftProfile(candidate), form.propellerPolars.filter(entry => used.has(entry.card)));
+    // Schema 5 exactly when drag is stated (TASK-096).
+    const profile = drag ? withAirframeDrag(polars, drag) : polars;
     return { ok: true, profile };
   } catch (cause) {
     return { ok: false, errors: [cause instanceof Error ? cause.message.replace(/^Invalid aircraft profile: /, '') : String(cause)] };

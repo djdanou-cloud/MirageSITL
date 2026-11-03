@@ -20,7 +20,9 @@
     "./output-mapping": "./src/output-mapping.ts",
     "./frame-parameters": "./src/frame-parameters.ts",
     "./experiment": "./src/experiment.ts",
-    "./clearance": "./src/clearance.ts"
+    "./clearance": "./src/clearance.ts",
+    "./standard-hull": "./src/standard-hull.ts",
+    "./standard-hull-drag": "./src/standard-hull-drag.ts"
   },
   "dependencies": {
     "@mirage/autopilot": "0.1.0",

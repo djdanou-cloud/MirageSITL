@@ -12,6 +12,7 @@ import { AircraftScheme3D, type RenderedRotor } from "./AircraftScheme3D";
 import { ArmTable, type CardOption, type CardOptions } from "./ArmTable";
 import { ClearancePanel } from "./ClearancePanel";
 import { MassProperties } from "./MassProperties";
+import { AirframeDrag } from "./AirframeDrag";
 import { POLAR_CATALOG } from "@mirage/physics/polar-catalog";
 import { OutputMapping } from "./OutputMapping";
 import { choosePropellerPolar, emptyForm, formFromProfile, profileFromForm, propellerCardsOf, type ProfileForm } from "./profile-form";
@@ -312,6 +313,7 @@ export function AircraftEditor({ storeState, project, active }: { storeState: St
             )}
           </section>
           <MassProperties form={editing.form} onChange={setForm} />
+          <AirframeDrag form={editing.form} profile={result?.ok ? result.profile : null} radii={radii} onChange={setForm} />
         </>
       )}
     </div>

@@ -574,8 +574,9 @@ widest shape, the body, reaches Reynolds number 2·10⁵ in ISA sea-level air
 (ν = 1.4607e-5 m²/s): 26 m/s for the S19 quad X, 13.9 m/s for the 16-rotor
 octocopter. The quad X gets a frontal drag area of 0.012 m², which alone needs
 a lean of 2.9° at 10 m/s. Only +, −, ×, ÷ and √ enter, so the bytes do not
-depend on the engine's transcendental functions. Drag areas the user enters
-with their source remain.
+depend on the engine's transcendental functions. A profile may instead state
+its drag areas with their source (profile schema 5); the derivation then
+writes that diagonal tensor in the profile's own dataset.
 
 In SITL (`tests/airframe-drag-sitl.test.ts`, native ArduCopter 8ab6afde)
 the S19 quad X holds position in GUIDED in a steady north wind. Its trimmed
@@ -586,14 +587,23 @@ since EKF3 models rotor drag as `MCOEF·V·ρ/ρ0`), and `EK3_DRAG_BCOEF_X/Y` is
 m/(C_D·A) from the manifest (130 kg/m²), since EKF3 models body drag along
 each axis as `½·ρ·u²/BCOEF`. Set in flight, they let EKF3 learn the
 along-wind component within 10 s (−8.14 m/s against the true −8 m/s);
-without them its wind stays zero. The cross-wind component does not converge:
-with drag fusion on, the EKF's z-gyro bias estimate walks, its heading holds
-while the airframe turns about 0.045°/s, and its cross-wind estimate reaches
-−2.07 m/s after 175 s. The same happens without the airframe drag and with a
-linear-only calibration that matches the measured drag on both axes, while
-ArduPilot's built-in quad holds its heading in the same wind with drag fusion,
-so the cause lies between EKF3 and the BET rotor model. TASK-096 keeps it
-open.
+without them its wind stays zero. The cross-wind component carries an error
+that EKF3's drag model explains. EKF3 predicts each body axis's drag from that
+axis's airspeed alone (`½·ρ·u²/BCOEF` and `MCOEF·u`), and ArduPilot's built-in
+SITL multicopter computes its drag in the same per-axis form
+(`SIM_Frame.cpp`), so its own SITL never shows a mismatch. Drag along the
+relative wind, the contract's and a bluff body's, together with the BET
+rotors' side forces, leaves a persistent sideways drag innovation (XKF2 `IDY`,
++0.003 to +0.03 m/s² against about +0.001 on the built-in quad) that EKF3
+absorbs into heading and cross-wind. With ArduPilot's default simulated gyro
+drift (`SIM_DRIFT_SPEED`, 0.05°/s per minute, which both models' EKF tracks in
+`XKF1.GZ`) the heading then turns about 0.045°/s, and the cross-wind estimate
+reaches −2.07 m/s after 175 s; the built-in quad holds its heading in the same
+test. With the drift off, the heading settles about 2° off and the cross-wind
+estimate about 0.5 m/s off. The along-wind component converges either way. By
+the user's decision of 2026-11-03 this meets TASK-096's convergence, and
+MirageSITL keeps its drag along the relative wind rather than EKF3's per-axis
+form.
 
 Verification (TASK-096): `tests/airframe-drag.test.ts` checks the force and
 moment against the formula within 1e-12 on the first step of a level vehicle
@@ -4420,6 +4430,8 @@ interface AircraftProfile {
   groundClearanceM: number | null;  // > 0 (decision F-07)
   sensorConfiguration: null;        // schema 3 holds a sensor configuration (TASK-143)
   // schema 4 (TASK-144) adds propellerPolars: { card: string; polar: string }[], one or more
+  // schema 5 (TASK-096) adds airframeDrag: { dragAreasM2: number[]; centerOfPressureBodyM: number[];
+  //   maxAirspeedMps: number; source: string }, with propellerPolars zero or more
 }
 ```
 
@@ -5618,10 +5630,26 @@ else 2, and a schema 1 profile whose calculation stays the implicit
 preliminary one stays 1. Schema 4 holds a sensor configuration or `null` and
 always a calculation. `withProfileContent` applies this rule;
 `withSensorConfiguration`, `withPropellerPolars` and `bindMeasurements` use it,
-so each keeps the others' content. `PROFILE_SCHEMA_VERSION` is 4; records in
-schemas 1 to 3 stay valid and are never rewritten. The Aircraft tab lists each
+so each keeps the others' content. `PROFILE_SCHEMA_VERSION` was 4 until
+schema 5 (TASK-096) added stated airframe drag; records in schemas 1 to 4 stay
+valid and are never rewritten. The Aircraft tab lists each
 propeller card in use with a polar selector; a choice for a card that no motor
 uses any more is dropped when the profile is saved.
+
+### Profile schema 5
+
+Schema 5 (TASK-096) adds `airframeDrag`: drag areas the user states for the
+airframe without its rotors, C_D·A along body x, y and z (each above 0 m²),
+the center of pressure from the reference point, the top of the airspeed
+range the values hold for (above 0 m/s), and where they come from (1 to 1024
+characters, not blank). A profile is written in schema 5 exactly while it
+states drag; its propeller polars may then be none. `withAirframeDrag(profile,
+drag)` writes it, and with null returns the profile to schema 4 or lower,
+byte for byte. The derivation turns stated drag into the diagonal tensor in
+the profile's own dataset, without the `standard-hull-drag` dataset; profiles
+without it derive as before. The Aircraft tab's Body drag section shows the
+standard hull's estimate and lets the user state the values, which start from
+that estimate and cannot be saved without a source.
 
 ### Component resolution
 

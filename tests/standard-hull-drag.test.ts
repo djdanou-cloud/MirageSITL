@@ -1,7 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { deriveVehicleManifest } from '@mirage/aircraft/derive-manifest';
-import { validateAircraftProfile } from '@mirage/aircraft/profile';
+import { DERIVED_DATASET_ID, STANDARD_HULL_DRAG_DATASET_ID, deriveVehicleManifest } from '@mirage/aircraft/derive-manifest';
+import { airframeDragOf, validateAircraftProfile, withAirframeDrag, withPropellerPolars, type StatedAirframeDrag } from '@mirage/aircraft/profile';
+import { canonicalBytes } from '@mirage/project/schema';
 import type { HullShape } from '@mirage/physics/vehicle-manifest';
 import { STANDARD_HULL_DRAG, standardHullDrag } from '../packages/aircraft/src/standard-hull-drag.ts';
 import { FIXTURE_MODEL_ID, FIXTURE_NAMES, syntheticComponents } from './support/aircraft-derivation.ts';
@@ -76,5 +77,58 @@ describe('the standard hull drag estimate', () => {
       const shortest = Math.min(...profile.arms.map(arm => arm.lengthM));
       expect(close(drag.maxAirspeedMps, 2e5 * 1.4607e-5 / (0.5 * shortest)), name).toBe(true);
     }
+  });
+});
+
+describe('stated airframe drag (profile schema 5)', () => {
+  const fixture = (name: string) => validateAircraftProfile(JSON.parse(readFileSync(new URL(`./fixtures/aircraft/${name}.json`, import.meta.url), 'utf8')));
+  const STATED: StatedAirframeDrag = { dragAreasM2: [0.015, 0.018, 0.04], centerOfPressureBodyM: [0.01, 0, -0.02], maxAirspeedMps: 15,
+    source: 'Wind-tunnel test of the frame without propellers, 2026-10-30' };
+
+  it('is schema 5 exactly while drag is stated, and removing it restores the profile byte for byte', () => {
+    for (const name of FIXTURE_NAMES) {
+      const profile = fixture(name), stated = withAirframeDrag(profile, STATED);
+      expect(stated.schemaVersion).toBe(5);
+      expect(airframeDragOf(stated)).toEqual(STATED);
+      expect(airframeDragOf(profile)).toBeNull();
+      // A schema 1 profile comes back as schema 2: stating drag gave it an explicit preliminary calculation.
+      const back = withAirframeDrag(stated, null);
+      expect(back.schemaVersion).toBe(profile.schemaVersion === 1 ? 2 : profile.schemaVersion);
+      if (profile.schemaVersion !== 1) expect(Buffer.from(canonicalBytes(back)).equals(Buffer.from(canonicalBytes(profile)))).toBe(true);
+    }
+    // Polars stay optional in schema 5 and keep it schema 5 when removed.
+    const quad = fixture('quad-x'), propeller = quad.motors[0]?.components.propeller;
+    if (propeller) {
+      const both = withPropellerPolars(withAirframeDrag(quad, STATED), [{ card: propeller, polar: 'naca6409-neuralfoil-v1' }]);
+      expect(both.schemaVersion).toBe(5);
+      expect(withPropellerPolars(both, []).schemaVersion).toBe(5);
+    }
+  });
+
+  it('refuses drag without a source, with an area that is not positive, or outside schema 5', () => {
+    const base = withAirframeDrag(fixture('quad-x'), STATED);
+    const bad = [
+      { ...base, airframeDrag: { ...STATED, source: '   ' } },
+      { ...base, airframeDrag: { ...STATED, source: '' } },
+      { ...base, airframeDrag: { ...STATED, dragAreasM2: [0.015, 0, 0.04] } },
+      { ...base, airframeDrag: { ...STATED, dragAreasM2: [0.015, 0.018] } },
+      { ...base, airframeDrag: { ...STATED, maxAirspeedMps: 0 } },
+      { ...base, airframeDrag: { ...STATED, centerOfPressureBodyM: [0, 0] } },
+      { ...base, schemaVersion: 4 },
+    ];
+    for (const input of bad) expect(() => validateAircraftProfile(input)).toThrow();
+    const withoutDrag: Record<string, unknown> = { ...base };
+    delete withoutDrag.airframeDrag;
+    expect(() => validateAircraftProfile(withoutDrag)).toThrow('exactly in schema 5');
+  });
+
+  it('flies the stated drag instead of the estimate, as a profile value', async () => {
+    const profile = withAirframeDrag(fixture('quad-x'), STATED);
+    const { manifest } = await deriveVehicleManifest(profile, syntheticComponents(profile), { modelId: FIXTURE_MODEL_ID });
+    expect(manifest.airframe.drag).toEqual({ dragAreaBodyM2: [0.015, 0, 0, 0, 0.018, 0, 0, 0, 0.04], centerOfPressureBodyM: [0.01, 0, -0.02],
+      maxAirspeedMps: 15 });
+    expect(manifest.provenance.airframeDrag).toBe(DERIVED_DATASET_ID);
+    // The flight dynamics take a drag block from the CG either way (tests/profile-dynamics.test.ts).
+    expect(manifest.datasets.map(dataset => dataset.id)).not.toContain(STANDARD_HULL_DRAG_DATASET_ID);
   });
 });

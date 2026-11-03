@@ -26,10 +26,12 @@ import { quadProfile } from './support/quad-profile.ts';
 // ArduPilot's own SITL calibration does. Then EK3_DRAG_BCOEF_X/Y = m/(C_D·A) from the manifest and that MCOEF are set in
 // flight, and the EKF must learn the wind from drag. Declared before the run: over the last 10 s of a 60 s fusion its
 // XKF2 wind is within 1.0 m/s of the true wind along it, while without fusion (the negative control) it stays within
-// 0.5 m/s of zero. The cross-wind estimate is recorded, not asserted: with drag fusion on, the EKF's z-gyro bias walks and
-// its heading holds while the airframe turns about 0.045°/s, so the cross-wind estimate drifts (−2.07 m/s after 175 s).
-// That happens without the airframe drag too and with a linear-only calibration, and ArduPilot's built-in quad holds its
-// heading in the same test, so it lies between EKF3 and the BET rotor model; TASK-096 keeps it open.
+// 0.5 m/s of zero. The cross-wind estimate is recorded, not asserted. EKF3 predicts each body axis's drag from that axis's
+// airspeed alone (½·ρ·u²/BCOEF and MCOEF·u), as ArduPilot's built-in SITL multicopter computes it (SIM_Frame.cpp), so its
+// own SITL never shows a mismatch; drag along the relative wind, the contract's and a bluff body's, with the BET rotors' side
+// forces, leaves a persistent sideways innovation that EKF3 absorbs into heading and cross-wind. With ArduPilot's default
+// simulated gyro drift (SIM_DRIFT_SPEED 0.05°/s per minute) the heading then turns about 0.045°/s and the cross-wind estimate
+// reaches −2.07 m/s after 175 s; without it the heading settles about 2° off and the cross-wind estimate about 0.5 m/s off.
 
 const ROOT = process.cwd();
 const HOME = join(ROOT, '.cache/task-152/home');

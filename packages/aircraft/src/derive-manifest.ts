@@ -8,7 +8,7 @@ import { hullLowestDepthM, propellerDisc, standardHull, standardHullDerivation }
 import { standardHullDrag, standardHullDragDerivation } from './standard-hull-drag.ts';
 import type { EulerZyxRad } from './sensor-fields.ts';
 import { sinCos } from './trig.ts';
-import { validateAircraftProfile, type AircraftProfile, type ComponentReferences } from './profile.ts';
+import { airframeDragOf, validateAircraftProfile, type AircraftProfile, type ComponentReferences } from './profile.ts';
 
 // Derivation of the vehicle manifest v2 (TASK-087) that physics consumes from
 // an aircraft profile (TASK-138). The profile gives geometry, spins, outputs
@@ -208,10 +208,14 @@ export async function deriveVehicleManifest(input: unknown, components: Resolved
   const discs = layout.rotors.map(rotor => propellerDisc(rotor, radius(rotor.motorId)));
   const clearance = restingClearanceM(profile, hullLowestDepthM([...hull, ...discs]));
   const landingGear = standardLandingGear(profile, massProperties.massKg, clearance);
+  // Drag areas the profile states (TASK-096) are profile values; without them the standard hull's estimate has its own dataset.
+  const stated = airframeDragOf(profile), [ax = 0, ay = 0, az = 0] = stated?.dragAreasM2 ?? [];
+  const drag = stated ? { dragAreaBodyM2: [ax, 0, 0, 0, ay, 0, 0, 0, az], centerOfPressureBodyM: [...stated.centerOfPressureBodyM],
+    maxAirspeedMps: stated.maxAirspeedMps } : standardHullDrag(hull);
   const contactDatasets = [
     { id: STANDARD_GEAR_DATASET_ID, kind: 'synthetic', sourceSha256: null, derivation: standardGearDerivation() },
     { id: STANDARD_HULL_DATASET_ID, kind: 'synthetic', sourceSha256: null, derivation: standardHullDerivation() },
-    { id: STANDARD_HULL_DRAG_DATASET_ID, kind: 'synthetic', sourceSha256: null, derivation: standardHullDragDerivation() },
+    ...(stated ? [] : [{ id: STANDARD_HULL_DRAG_DATASET_ID, kind: 'synthetic', sourceSha256: null, derivation: standardHullDragDerivation() }]),
   ];
   const candidate = {
     schemaVersion: 2, modelId: options.modelId, kind: 'bet',
@@ -223,13 +227,13 @@ export async function deriveVehicleManifest(input: unknown, components: Resolved
     }, ...contactDatasets],
     provenance: {
       massProperties: dataset, rotors: dataset, motors: motors.length > 0 ? dataset : null,
-      escs: escs.length > 0 ? dataset : null, battery: battery ? dataset : null, airframeDrag: STANDARD_HULL_DRAG_DATASET_ID,
+      escs: escs.length > 0 ? dataset : null, battery: battery ? dataset : null, airframeDrag: stated ? dataset : STANDARD_HULL_DRAG_DATASET_ID,
       controlSurfaces: null, landingGear: STANDARD_GEAR_DATASET_ID, sensorMounts: sensorMounts.length > 0 ? dataset : null,
       rotorWakePairs: rotorWakePairs.length > 0 ? dataset : null, hull: STANDARD_HULL_DATASET_ID,
     },
     massProperties,
     rotorCount: rotors.length, rotorCapacity: 32, rotors, motors, escs, battery,
-    airframe: { drag: standardHullDrag(hull) }, controlSurfaces: [], landingGear, sensorMounts, rotorWakePairs, ardupilot: null, hull,
+    airframe: { drag }, controlSurfaces: [], landingGear, sensorMounts, rotorWakePairs, ardupilot: null, hull,
   };
   // The canonical JSON round trip turns any -0 from the inputs into 0, so the manifest equals its bytes exactly.
   const manifest = validateVehicleManifest(JSON.parse(decodeUtf8(canonicalBytes(candidate))));

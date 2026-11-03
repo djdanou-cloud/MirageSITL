@@ -10,14 +10,15 @@ import type { SensorConfiguration } from './sensor-fields.ts';
 // Aircraft profile schema 1 (TASK-138, S03): the product-level description of
 // a multirotor with one to eight arms and up to 16 motors. Schema 2 (TASK-140,
 // S04) adds the calculation mode of the profile version, schema 3 (TASK-143,
-// S08) its sensor configuration, and schema 4 (TASK-144, S05) the airfoil
-// polar of each propeller. Each profile has one canonical schema: the lowest
+// S08) its sensor configuration, schema 4 (TASK-144, S05) the airfoil polar
+// of each propeller, and schema 5 (TASK-096, S05) drag areas the user states
+// for the airframe. Each profile has one canonical schema: the lowest
 // that holds its content. Configuration-time code only; never call it from a
 // physics step. Units are SI; positions are body FRD metres from the body
 // reference point.
 
 /** The newest schema; a profile is written in the lowest schema that holds its content, and every schema stays valid. */
-export const PROFILE_SCHEMA_VERSION = 4;
+export const PROFILE_SCHEMA_VERSION = 5;
 export type MotorLevel = 'single' | 'upper' | 'lower';
 export type SpinDirection = 'ccw' | 'cw';
 export interface ArmSpec {
@@ -58,6 +59,20 @@ export interface PropellerPolar {
   /** A `POLAR_CATALOG` ID of `@mirage/physics/polar-catalog`. */
   readonly polar: string;
 }
+/**
+ * TASK-096: drag areas the user states for the airframe without its rotors (whose drag the BET rotors produce), with their
+ * source; without them a profile flies the standard hull's preliminary estimate.
+ */
+export interface StatedAirframeDrag {
+  /** C_D·A along body x, y and z, m²: a diagonal drag-area tensor. */
+  readonly dragAreasM2: readonly number[];
+  /** The center of pressure, body FRD metres from the reference point. */
+  readonly centerOfPressureBodyM: readonly number[];
+  /** The top of the airspeed range the values hold for, m/s. */
+  readonly maxAirspeedMps: number;
+  /** Where the values came from, 1..1024 characters. */
+  readonly source: string;
+}
 export type CalculationMode = 'preliminary' | 'measured';
 /** The S04 input mode of a profile version and the measurement sets it binds. */
 export interface CalculationSettings {
@@ -84,7 +99,8 @@ interface ProfileFields {
  * Schema 1 has no calculation and reads as preliminary; schema 2 states it.
  * Schemas 1 and 2 hold the ArduPilot sensor defaults as null; schema 3 holds a
  * sensor configuration (TASK-143) and always a calculation. Schema 4 adds
- * chosen propeller polars (TASK-144) to either sensor case.
+ * chosen propeller polars (TASK-144) to either sensor case, and schema 5
+ * stated airframe drag (TASK-096), with any polars.
  */
 export type AircraftProfile =
   | (ProfileFields & { readonly schemaVersion: 1; readonly sensorConfiguration: null })
@@ -94,6 +110,12 @@ export type AircraftProfile =
     readonly schemaVersion: 4; readonly calculation: CalculationSettings; readonly sensorConfiguration: SensorConfiguration | null;
     /** One or more entries in ascending card order; a profile without a chosen polar is written in schema 3 or lower. */
     readonly propellerPolars: readonly PropellerPolar[];
+  })
+  | (ProfileFields & {
+    readonly schemaVersion: 5; readonly calculation: CalculationSettings; readonly sensorConfiguration: SensorConfiguration | null;
+    /** Zero or more entries in ascending card order. */
+    readonly propellerPolars: readonly PropellerPolar[];
+    readonly airframeDrag: StatedAirframeDrag;
   });
 
 // Union types express nullable fields, as in the vehicle manifest schema.
@@ -163,10 +185,11 @@ export function validateAircraftProfile(input: unknown): AircraftProfile {
     return fail(`${error?.instancePath || '/'} ${error?.message ?? 'does not match the schema'}`);
   }
   if (profile.schemaVersion === 1 && 'calculation' in profile) fail('Schema 1 profiles have no calculation');
-  if (profile.schemaVersion !== 3 && profile.schemaVersion !== 4 && profile.sensorConfiguration !== null) {
+  if (profile.schemaVersion < 3 && profile.sensorConfiguration !== null) {
     fail(`Schema ${profile.schemaVersion} profiles hold no sensor configuration`);
   }
-  if ((profile.schemaVersion === 4) !== ('propellerPolars' in profile)) fail('Propeller polars appear exactly in schema 4');
+  if ((profile.schemaVersion >= 4) !== ('propellerPolars' in profile)) fail('Propeller polars appear exactly in schemas 4 and 5');
+  if ((profile.schemaVersion === 5) !== ('airframeDrag' in profile)) fail('Stated airframe drag appears exactly in schema 5');
   if (profile.schemaVersion === 3 && profile.sensorConfiguration === null) fail('Schema 3 profiles need a sensor configuration');
   if (profile.sensorConfiguration !== null) {
     try {
@@ -176,9 +199,10 @@ export function validateAircraftProfile(input: unknown): AircraftProfile {
     }
     if (isDefaultSensorConfiguration(profile.sensorConfiguration)) fail('ArduPilot sensor defaults are stored as null');
   }
-  if (profile.schemaVersion === 4) {
+  if (profile.schemaVersion === 5 && profile.airframeDrag.source.trim() === '') fail('Stated airframe drag needs its source');
+  if (profile.schemaVersion === 4 || profile.schemaVersion === 5) {
     const propellers = new Set(profile.motors.map(motor => motor.components.propeller));
-    if (profile.propellerPolars.length === 0) fail('Schema 4 profiles choose at least one propeller polar');
+    if (profile.schemaVersion === 4 && profile.propellerPolars.length === 0) fail('Schema 4 profiles choose at least one propeller polar');
     profile.propellerPolars.forEach((entry, index) => {
       if (index > 0 && entry.card <= profile.propellerPolars[index - 1]!.card) fail('Propeller polars must be unique and in ascending card order');
       if (!propellers.has(entry.card)) fail(`Propeller polar for card ${entry.card.slice(0, 12)}, which no motor uses`);
@@ -247,18 +271,24 @@ export function sensorConfigurationOf(profile: AircraftProfile): SensorConfigura
 
 /** The chosen propeller polars of a profile; none below schema 4. */
 export function propellerPolarsOf(profile: AircraftProfile): readonly PropellerPolar[] {
-  return profile.schemaVersion === 4 ? profile.propellerPolars : [];
+  return profile.schemaVersion === 4 || profile.schemaVersion === 5 ? profile.propellerPolars : [];
+}
+
+/** The airframe drag a profile states (TASK-096), or null: the standard hull's preliminary estimate. */
+export function airframeDragOf(profile: AircraftProfile): StatedAirframeDrag | null {
+  return profile.schemaVersion === 5 ? profile.airframeDrag : null;
 }
 
 /**
- * The profile in its canonical schema for the given content: schema 4 with
- * any propeller polar, else schema 3 with a sensor configuration, else schema
- * 2, except that a schema 1 profile whose calculation stays the implicit
- * preliminary one stays schema 1. Dependencies do not change.
+ * The profile in its canonical schema for the given content: schema 5 with
+ * stated airframe drag, else schema 4 with any propeller polar, else schema 3
+ * with a sensor configuration, else schema 2, except that a schema 1 profile
+ * whose calculation stays the implicit preliminary one stays schema 1.
+ * Dependencies do not change.
  */
 export function withProfileContent(profile: AircraftProfile, content: {
   readonly calculation?: CalculationSettings; readonly sensorConfiguration?: SensorConfiguration | null;
-  readonly propellerPolars?: readonly PropellerPolar[];
+  readonly propellerPolars?: readonly PropellerPolar[]; readonly airframeDrag?: StatedAirframeDrag | null;
 }): AircraftProfile {
   const config = content.sensorConfiguration === undefined ? profile.sensorConfiguration : content.sensorConfiguration;
   const sensors = config && isDefaultSensorConfiguration(config) ? null : config;
@@ -269,6 +299,10 @@ export function withProfileContent(profile: AircraftProfile, content: {
     units: profile.units, bodyFrame: profile.bodyFrame, arms: profile.arms, motors: profile.motors,
     massProperties: profile.massProperties, payload: profile.payload, battery: profile.battery, groundClearanceM: profile.groundClearanceM,
   };
+  const drag = content.airframeDrag === undefined ? airframeDragOf(profile) : content.airframeDrag;
+  if (drag) {
+    return validateAircraftProfile({ ...fields, schemaVersion: 5, calculation, sensorConfiguration: sensors, propellerPolars: polars, airframeDrag: drag });
+  }
   if (polars.length > 0) {
     return validateAircraftProfile({ ...fields, schemaVersion: 4, calculation, sensorConfiguration: sensors, propellerPolars: polars });
   }
@@ -285,6 +319,11 @@ export function withProfileContent(profile: AircraftProfile, content: {
  */
 export function withSensorConfiguration(profile: AircraftProfile, config: SensorConfiguration | null): AircraftProfile {
   return withProfileContent(profile, { sensorConfiguration: config });
+}
+
+/** The profile with stated airframe drag (TASK-096), or with null the standard hull's estimate again (schema 4 or lower). */
+export function withAirframeDrag(profile: AircraftProfile, drag: StatedAirframeDrag | null): AircraftProfile {
+  return withProfileContent(profile, { airframeDrag: drag });
 }
 
 /** The profile with these propeller polars (TASK-144); an empty list returns it to schema 3 or lower. */

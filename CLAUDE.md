@@ -428,15 +428,19 @@ implementation.
   and a uniform mean wind with a seeded TASK-032 gust, the published airspeed
   is relative to the air, the SITL JSON line carries `velocity_wind` (no
   `airspeed` until the TASK-089 oracle covers it), and a weather the model
-  refuses faults the session. TASK-096 is IN_PROGRESS: `BetFlightDynamics`
+  refuses faults the session. TASK-096 is DONE: `BetFlightDynamics`
   applies airframe drag from a manifest's drag-area tensor and center of
   pressure (`buildProfileDynamics` consumes the block), flagged beyond the
   data's airspeed range; profiles get a preliminary estimate from the
-  standard hull (manifest derivation 6); in native SITL the quad holds station
+  standard hull (manifest derivation 6) unless they state drag areas with
+  their source (profile schema 5, the Aircraft tab's Body drag section); in
+  native SITL the quad holds station
   in wind with its lean shown against the body drag, and EKF3 drag fusion
-  learns the along-wind component. Open: the cross-wind estimate and heading
-  drift under drag fusion (between EKF3 and the BET rotor model; ArduPilot's
-  built-in quad does not drift) and user-entered drag areas. The physics tasks TASK-097–TASK-123
+  learns the along-wind component; its cross-wind estimate and heading are
+  pulled because EKF3 models drag per body axis, as ArduPilot's built-in SITL
+  multicopter does, not along the relative wind (with ArduPilot's default
+  simulated gyro drift the heading turns about 0.045°/s); by the user's
+  decision of 2026-11-03 that result meets the DoD. The physics tasks TASK-097–TASK-123
   are not implemented. TASK-166 (not implemented) gives every
   environment, sensor-error, EW and fault effect an on/off switch and an intensity
   control. Effects that MirageSITL injects are off by default, and off must be
