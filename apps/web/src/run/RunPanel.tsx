@@ -17,7 +17,9 @@ import { RunRecorder } from "../logging/run-recorder";
 import { SimulationRuntime } from "../runtime";
 import type { StoreState } from "../shell/AppShell";
 import { DEFAULT_LAUNCHER_PORT } from "../shell/FirstRun";
-import { DEFAULT_HOME, LauncherClient, RuntimePhysics, SITL_PHYSICS_HZ, preparedRun, verifiedCommits } from "../sitl/sitl-run";
+import { LauncherClient, RuntimePhysics, SITL_PHYSICS_HZ, preparedRun, verifiedCommits } from "../sitl/sitl-run";
+import { environmentFor } from "../weather/conditions";
+import { DEFAULT_LOCATION, describeLocation, homeOf, loadLocation, type LocationChoice } from "../weather/location";
 import { FlightTelemetry } from "./FlightTelemetry";
 import { FlightView, type FlightViewProbe } from "./FlightView";
 import { CompatibilityList, ManualConnect } from "./ManualConnect";
@@ -51,7 +53,9 @@ import type { SessionLink } from "./session-link";
 // record names its parent and the inputs that changed.
 // The session is attached to the shell's link, so the Parameters tab (TASK-160)
 // reads and writes the run's parameters, and each run's parameter changes are
-// saved as its parameter log.
+// saved as its parameter log. The project's location (TASK-148, the Weather
+// and location tab) is the run's home and gives the physics its gravity and
+// air; a planned run keeps its parent's home and environment instead.
 
 const MODE_NAMES: Readonly<Record<number, string>> = Object.fromEntries(Object.entries(CopterMode).map(([name, value]) => [value, name.toUpperCase()]));
 const STEP_TEXT = { prepare: "preparing the vehicle", firmware: "checking the ArduPilot build", physics: "loading the physics",
@@ -108,6 +112,8 @@ export function RunPanel({ storeState, project, visible, link }: { storeState: S
   const [error, setError] = useState("");
   const [profiles, setProfiles] = useState<readonly StoredVersion[]>([]);
   const [profileSha, setProfileSha] = useState("");
+  // TASK-148: the project's location, read again whenever the tab is shown.
+  const [location, setLocation] = useState<LocationChoice>(DEFAULT_LOCATION);
   // TASK-165: the run the Experiments tab planned, and the stored profile version it names.
   const plan = useSyncExternalStore(link.subscribe, link.plan);
   const [plannedProfile, setPlannedProfile] = useState<StoredVersion | null>(null);
@@ -147,6 +153,12 @@ export function RunPanel({ storeState, project, visible, link }: { storeState: S
       setProfiles(list);
       setProfileSha(current => list.some(stored => stored.sha256 === current) ? current : list[0]?.sha256 ?? "");
     }, (cause: unknown) => { if (!cancelled) setError(cause instanceof Error ? cause.message : String(cause)); });
+    return () => { cancelled = true; };
+  }, [store, projectId, visible]);
+  useEffect(() => {
+    if (!store || !projectId) { setLocation(DEFAULT_LOCATION); return; }
+    let cancelled = false;
+    void loadLocation(store, projectId).then(found => { if (!cancelled) setLocation(found); });
     return () => { cancelled = true; };
   }, [store, projectId, visible]);
   // A planned run selects its parent's profile version, which need not be the head, its build and its speed.
@@ -196,7 +208,7 @@ export function RunPanel({ storeState, project, visible, link }: { storeState: S
     }, (cause: unknown) => { setBuilds(null); setError(cause instanceof Error ? cause.message : String(cause)); });
   };
   /** A fresh session for every Start and Connect: the previous run's model and epoch stay with the old Worker. */
-  const freshSession = (logging: LoggingSettings | null, metadata: ParameterMetadataCatalog | null): { next: SessionController; prepare: () => Promise<PreparedRun> } | null => {
+  const freshSession = (logging: LoggingSettings | null, metadata: ParameterMetadataCatalog | null, homeAltitudeM: number): { next: SessionController; prepare: () => Promise<PreparedRun> } | null => {
     setError("");
     const stored = choices.find(entry => entry.sha256 === profileSha);
     // The plan belongs to this run: the record names its parent, and the next run is an original again.
@@ -231,7 +243,7 @@ export function RunPanel({ storeState, project, visible, link }: { storeState: S
     return {
       next,
       prepare: async () => {
-        const { vehicle, run } = await preparedRun(store, stored);
+        const { vehicle, run } = await preparedRun(store, stored, homeAltitudeM);
         physics.use(vehicle);
         profileName = vehicle.profileName;
         return run;
@@ -247,24 +259,30 @@ export function RunPanel({ storeState, project, visible, link }: { storeState: S
     setError(cause instanceof Error ? cause.message : String(cause));
     return null;
   });
+  const failed_ = (cause: unknown) => setError(cause instanceof Error ? cause.message : String(cause));
   const start = () => {
-    // A planned run records with its parent's setup, or not at all when the parent recorded nothing, and starts at its home.
+    // A planned run records with its parent's setup, or not at all when the parent recorded nothing, and starts at its home,
+    // in its parent's environment (TASK-148: the parent's location, its conditions at today's date; none if the parent had none).
     const parent = plan?.parent ?? null;
     const settingsFor = parent ? Promise.resolve(parent.recording ? loggingOf(parent.recording) : null) : logging();
-    void Promise.all([settingsFor, metadata()]).then(([settings, catalog]) => {
+    const environment = parent ? (parent.environment ? environmentFor(parent.environment.location) : Promise.resolve(null)) : environmentFor(location);
+    const home = parent?.session.home ?? homeOf(location);
+    void Promise.all([settingsFor, metadata(), environment]).then(([settings, catalog, conditions]) => {
       if (!parent && !settings) return;
-      const session = freshSession(settings, catalog);
+      const session = freshSession(settings, catalog, home[2]);
       if (!session) return;
       link.planRun(null);
       void session.next.start({ prepare: session.prepare, firmwareId: buildId, speedup, physicsHz: parent?.session.physicsHz ?? SITL_PHYSICS_HZ,
-        home: parent?.session.home ?? DEFAULT_HOME });
-    });
+        home, environment: conditions });
+    }, failed_);
   };
   const connect = (endpoints: ConnectionSpec) => {
-    void Promise.all([logging(), metadata()]).then(([settings, catalog]) => {
-      const session = settings && freshSession(settings, catalog);
-      if (session) void session.next.connect({ prepare: session.prepare, endpoints, physicsHz: SITL_PHYSICS_HZ, home: DEFAULT_HOME, verifiedCommits: verifiedCommits() });
-    });
+    void Promise.all([logging(), metadata(), environmentFor(location)]).then(([settings, catalog, environment]) => {
+      const session = settings && freshSession(settings, catalog, location.groundElevationMslM);
+      if (session) {
+        void session.next.connect({ prepare: session.prepare, endpoints, physicsHz: SITL_PHYSICS_HZ, home: homeOf(location), environment, verifiedCommits: verifiedCommits() });
+      }
+    }, failed_);
   };
   const chosen = choices.find(entry => entry.sha256 === profileSha);
   const layout = useMemo(() => layoutOf(chosen), [chosen]);
@@ -281,6 +299,9 @@ export function RunPanel({ storeState, project, visible, link }: { storeState: S
         An installed ArduPilot build, started by the local launcher, flies the chosen aircraft profile. The physics runs in this page in
         lockstep with the autopilot at 800 Hz. READY comes only from the autopilot's own EKF diagnostics in this run. Every start is a new
         experiment with its own record; changing the profile, the build or the speed needs a new start.
+      </p>
+      <p className="hint" data-testid="sitl-location">
+        {`Location: ${plan ? `the parent run's home ${plan.parent.session.home.join(", ")}` : describeLocation(location)} (Weather and location tab).`}
       </p>
       <div className="sitl-form">
         <label htmlFor="sitl-profile">Aircraft profile</label>

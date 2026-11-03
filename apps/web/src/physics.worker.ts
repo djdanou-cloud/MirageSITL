@@ -8,7 +8,8 @@ import { parseLimitRatings, type LimitEvent, type LimitRatings } from '@mirage/p
 import type { AccidentEvent } from '@mirage/physics/accident';
 import { PhysicsSessionV2, type SessionClock } from '@mirage/physics';
 import { GroundContact } from '@mirage/physics/ground-contact';
-import { profileModelPort } from '@mirage/physics/profile-dynamics';
+import { atmosphereFromState } from '@mirage/physics/atmosphere';
+import { profileModelPort, type ProfileDynamicsOptions } from '@mirage/physics/profile-dynamics';
 import { VehicleRegistry } from '@mirage/physics/vehicle-manifest';
 import { ScenarioBinder } from '@mirage/scenarios/bind';
 import { SitlBridgeClient, bridgeSocketArguments, type SitlNotice } from './sitl/bridge-client';
@@ -36,11 +37,17 @@ const registry = new VehicleRegistry();
 let betModule: WebAssembly.Module | null = null;
 // TASK-146 limit ratings by manifest SHA-256, bound before model.load; a model without ratings checks none.
 const ratings = new Map<string, LimitRatings>();
+// TASK-148: the location's gravity and origin air, set by environment.set before model.load; without them a model
+// flies at standard gravity with a sea-level ISA origin. The model port reads this object when it builds, and the
+// Run tab starts a fresh Worker for every run, so one run's environment never reaches the next.
+const environment: { gravityMps2?: number; originAir?: { readonly temperatureK: number; readonly pressurePa: number } } = {};
+const environmentOptions: ProfileDynamicsOptions = environment;
 type WorkerNotice = CommandResultV2 | WorkerFaultV2 | SitlNotice | { type: "sitl.reject"; message: string }
   | { type: "bet.module.ready"; sha256: string } | { type: "bet.module.reject"; message: string }
   | { type: "contact.module.ready"; sha256: string } | { type: "contact.module.reject"; message: string }
   | { type: "model.registered"; modelId: number; sha256: string } | { type: "model.reject"; message: string }
   | { type: "limits.registered"; sha256: string } | { type: "limits.reject"; message: string }
+  | { type: "environment.ready" } | { type: "environment.reject"; message: string }
   | { type: "limits.events"; events: LimitEvent[]; dropped: number }
   | { type: "accident.events"; events: AccidentEvent[]; dropped: number; total: number }
   /** Manual control's stick commands stopped for INPUT_TIMEOUT_MS: the session paused before its next tick (TASK-174). */
@@ -236,7 +243,7 @@ addEventListener('message', (event: MessageEvent<unknown>) => {
     if (!isWorkerInitV2(data)) { post({ type: 'fault-v2', protocolVersion: 2, message: 'Expected init-v2' }); return; }
     try {
       session = new PhysicsSessionV2(data, clock, undefined, createSessionFaultPort(),
-        profileModelPort(registry, () => betModule, {}, sha256 => ratings.get(sha256) ?? null));
+        profileModelPort(registry, () => betModule, environmentOptions, sha256 => ratings.get(sha256) ?? null));
       const created = session;
       created.setBeforeTick((tick) => {
         if (!binder) return;
@@ -287,6 +294,22 @@ addEventListener('message', (event: MessageEvent<unknown>) => {
       post({ type: "limits.registered", sha256 });
     } catch (error) {
       post({ type: "limits.reject", message: error instanceof Error ? error.message : "Invalid limit ratings" });
+    }
+    return;
+  }
+  if (isTyped(data, "environment.set")) {
+    try {
+      const gravity = data.gravityMps2, air = data.originAir;
+      if (typeof gravity !== "number" || !Number.isFinite(gravity) || gravity < 9.7 || gravity > 9.9) throw new Error("environment.set needs a gravity of 9.7 to 9.9 m/s²");
+      if (typeof air !== "object" || air === null || !("temperatureK" in air) || !("pressurePa" in air) ||
+        typeof air.temperatureK !== "number" || typeof air.pressurePa !== "number") throw new Error("environment.set needs the origin air's temperature and pressure");
+      // The atmosphere envelope, as the model will check it again.
+      atmosphereFromState({ temperatureK: air.temperatureK, pressurePa: air.pressurePa });
+      environment.gravityMps2 = gravity;
+      environment.originAir = { temperatureK: air.temperatureK, pressurePa: air.pressurePa };
+      post({ type: "environment.ready" });
+    } catch (error) {
+      post({ type: "environment.reject", message: error instanceof Error ? error.message : "Invalid environment" });
     }
     return;
   }

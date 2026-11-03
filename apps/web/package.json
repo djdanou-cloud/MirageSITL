@@ -20,6 +20,7 @@
     "@mirage/project": "0.1.0",
     "@mirage/protocol": "0.1.0",
     "@mirage/scenarios": "0.1.0",
+    "@mirage/sensors": "0.1.0",
     "@mirage/terrain": "0.1.0",
     "@react-three/fiber": "9.4.0",
     "lucide-react": "0.548.0",

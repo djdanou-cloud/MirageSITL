@@ -21,6 +21,7 @@ import {
   type ResolvedSensorConfiguration, type SensorSnapshot, type SensorState,
 } from './sensor-ownership.ts';
 import type { PresetCitation } from './sensor-presets.ts';
+import { LOCATION_ENVELOPE, STANDARD_SEA_LEVEL_PRESSURE_PA, WMM_BLACKOUT_NT, WMM_CAUTION_NT, type EffectiveConditions } from '@mirage/sensors/environment';
 
 // Experiment payload schema 2 (TASK-155): what one integrated run used, kept
 // as an `experiment` record in the unchanged record envelope v1 (TASK-136).
@@ -45,12 +46,20 @@ import type { PresetCitation } from './sensor-presets.ts';
 // original run, a repeat of a parent experiment with the same inputs, or a
 // variant of one with the changed inputs listed; the parent is named by its
 // record's SHA-256 as data, and createExperimentRecord checks the claim
-// against the parent's inputs. Older schemas read as schema 4 originals, and
-// new records are always schema 4. An experiment's inputs are fixed at
-// version 1; the store allows only renaming afterwards.
+// against the parent's inputs. Schema 5 (TASK-148) adds the environment: the
+// location the run flew at (the site or coordinates, the ground elevation, the
+// heading, a measured QNH and an ISA temperature offset) and the effective
+// conditions the calculation used there, which must be consistent with the
+// session's home. A record without one (null, and every older schema) flew at
+// standard gravity 9.80665 m/s² with a sea-level ISA origin. Older schemas
+// read as schema 5 originals without an environment, and new records are
+// always schema 5. An experiment's inputs are fixed at version 1; the store
+// allows only renaming afterwards.
 // Configuration-time code only; never call it from a physics step.
 
-export const EXPERIMENT_SCHEMA_VERSION = 4;
+export const EXPERIMENT_SCHEMA_VERSION = 5;
+/** The TASK-165 schema, still accepted by validateExperiment and readExperiment. */
+export const EXPERIMENT_SCHEMA_VERSION_4 = 4;
 /** The TASK-163 schema, still accepted by validateExperiment and readExperiment. */
 export const EXPERIMENT_SCHEMA_VERSION_3 = 3;
 /** The TASK-154 schema, still accepted by validateExperiment and readExperiment. */
@@ -168,10 +177,31 @@ export interface ExperimentPayload {
   readonly recording: ExperimentRecording | null;
   /** Where the run comes from (TASK-165). */
   readonly lineage: ExperimentLineage;
+  /** The location and the effective conditions of the run (TASK-148); null for a run at standard gravity with a sea-level ISA origin. */
+  readonly environment: ExperimentEnvironment | null;
+}
+/** The location of a run (TASK-148): the home ArduPilot started at, and what the air was derived from there. */
+export interface ExperimentLocation {
+  /** The built-in site the location was chosen from, or null for coordinates. */
+  readonly site: string | null;
+  readonly latitudeDeg: number;
+  readonly longitudeDeg: number;
+  /** Ground elevation above mean sea level at the origin, m: the home altitude. */
+  readonly groundElevationMslM: number;
+  readonly headingDeg: number;
+  /** Measured sea-level pressure (QNH), Pa; null for the ISA standard 101325 Pa. */
+  readonly measuredQnhPa: number | null;
+  /** ISA temperature offset, K. */
+  readonly temperatureOffsetK: number;
+}
+/** The environment of a run (TASK-148): its location and the conditions `effectiveConditions` gave the calculation there. */
+export interface ExperimentEnvironment {
+  readonly location: ExperimentLocation;
+  readonly conditions: EffectiveConditions;
 }
 /** One input a variant changed (TASK-165), as experimentChanges names it. */
-export const EXPERIMENT_INPUTS = ['aircraft profile', 'ArduPilot build', 'speed', 'physics rate', 'home', 'initial parameters', 'frame script', 'sensors',
-  'recording setup', 'SITL'] as const;
+export const EXPERIMENT_INPUTS = ['aircraft profile', 'ArduPilot build', 'speed', 'physics rate', 'home', 'conditions', 'initial parameters', 'frame script',
+  'sensors', 'recording setup', 'SITL'] as const;
 export type ExperimentInput = typeof EXPERIMENT_INPUTS[number];
 /**
  * An original run; a repeat of the experiment record `of` with the same inputs; or a variant of it with `changes`,
@@ -181,8 +211,10 @@ export type ExperimentLineage =
   | { readonly kind: 'original' }
   | { readonly kind: 'repeat'; readonly of: string }
   | { readonly kind: 'variant'; readonly of: string; readonly changes: readonly ExperimentInput[] };
+/** Experiment payload schema 4 (TASK-165): schema 5 without the environment. */
+export type ExperimentPayloadV4 = Omit<ExperimentPayload, 'schemaVersion' | 'environment'> & { readonly schemaVersion: typeof EXPERIMENT_SCHEMA_VERSION_4 };
 /** Experiment payload schema 3 (TASK-163): schema 4 without the lineage. */
-export type ExperimentPayloadV3 = Omit<ExperimentPayload, 'schemaVersion' | 'lineage'> & { readonly schemaVersion: typeof EXPERIMENT_SCHEMA_VERSION_3 };
+export type ExperimentPayloadV3 = Omit<ExperimentPayload, 'schemaVersion' | 'lineage' | 'environment'> & { readonly schemaVersion: typeof EXPERIMENT_SCHEMA_VERSION_3 };
 /**
  * The recording of a run (TASK-163): its recorder v2 record and the Logging tab settings it was made
  * with. Rates are 0 or whole hertz; a group or a signal absent here records at the common rate.
@@ -198,7 +230,7 @@ export interface ExperimentRecording {
   readonly reserveMb: number;
 }
 /** Experiment payload schema 2 (TASK-155): schema 3 without the recording. */
-export type ExperimentPayloadV2 = Omit<ExperimentPayload, 'schemaVersion' | 'recording' | 'lineage'> & { readonly schemaVersion: typeof EXPERIMENT_SCHEMA_VERSION_2 };
+export type ExperimentPayloadV2 = Omit<ExperimentPayload, 'schemaVersion' | 'recording' | 'lineage' | 'environment'> & { readonly schemaVersion: typeof EXPERIMENT_SCHEMA_VERSION_2 };
 /** Experiment payload schema 1 (TASK-154): a launcher-owned SITL only. */
 export interface ExperimentPayloadV1 {
   readonly schemaVersion: typeof EXPERIMENT_SCHEMA_VERSION_1;
@@ -612,31 +644,122 @@ function lineageOf(value: unknown): ExperimentLineage {
   }
   return { kind, of: sha256(l.of, 'lineage.of'), changes };
 }
-/** Schema 4, 3 (no `lineage`) or 2 (no `recording` either): absent fields are absent from both the keys and the result. */
-function payloadOf(payload: unknown, version: typeof EXPERIMENT_SCHEMA_VERSION | typeof EXPERIMENT_SCHEMA_VERSION_3 | typeof EXPERIMENT_SCHEMA_VERSION_2):
-  ExperimentPayload | ExperimentPayloadV3 | ExperimentPayloadV2 {
+const MAGNETIC_ZONES = ['normal', 'caution', 'blackout'] as const;
+const PRESSURE_SOURCES = ['standard', 'measured'] as const;
+function locationOf(value: unknown): ExperimentLocation {
+  const env = LOCATION_ENVELOPE;
+  const l = exact(value, ['site', 'latitudeDeg', 'longitudeDeg', 'groundElevationMslM', 'headingDeg', 'measuredQnhPa', 'temperatureOffsetK'], 'environment.location');
+  return {
+    site: l.site === null ? null : text(l.site, 'environment.location.site', 64),
+    // Off the poles, as effectiveConditions requires.
+    latitudeDeg: finite(l.latitudeDeg, 'environment.location.latitudeDeg', -89.9, 89.9), longitudeDeg: finite(l.longitudeDeg, 'environment.location.longitudeDeg', -180, 180),
+    groundElevationMslM: finite(l.groundElevationMslM, 'environment.location.groundElevationMslM', env.minElevationM, env.maxElevationM),
+    headingDeg: finite(l.headingDeg, 'environment.location.headingDeg', 0, 360),
+    measuredQnhPa: l.measuredQnhPa === null ? null : finite(l.measuredQnhPa, 'environment.location.measuredQnhPa', env.minSeaLevelPressurePa, env.maxSeaLevelPressurePa),
+    temperatureOffsetK: finite(l.temperatureOffsetK, 'environment.location.temperatureOffsetK', -env.maxTemperatureOffsetK, env.maxTemperatureOffsetK),
+  };
+}
+function geoidOf(value: unknown): EffectiveConditions['geoid'] {
+  const status = isRecord(value) ? value.status : undefined;
+  if (status === 'AVAILABLE') {
+    const g = exact(value, ['status', 'model', 'sha256', 'undulationM'], 'environment.conditions.geoid');
+    return { status, model: text(g.model, 'environment.conditions.geoid.model', 64), sha256: sha256(g.sha256, 'environment.conditions.geoid.sha256'),
+      undulationM: finite(g.undulationM, 'environment.conditions.geoid.undulationM', -200, 200) };
+  }
+  if (status !== 'BLOCKED_EXTERNAL') return fail('environment.conditions.geoid.status must be AVAILABLE or BLOCKED_EXTERNAL');
+  const g = exact(value, ['status', 'reason', 'undulationM'], 'environment.conditions.geoid');
+  if (g.undulationM !== 0) fail('environment.conditions.geoid.undulationM must be 0 without a geoid grid');
+  return { status, reason: text(g.reason, 'environment.conditions.geoid.reason'), undulationM: 0 };
+}
+/**
+ * The effective conditions as `effectiveConditions` of @mirage/sensors/environment records them, checked by form and
+ * for consistency with the location: evaluated at its coordinates and elevation, h = H + N, the WMM zone of the
+ * horizontal field, and the air from its sea-level pressure and temperature offset. The gravity, field and air
+ * values themselves depend on the data files of the computer that ran, and are recorded, not recomputed.
+ */
+function conditionsOf(value: unknown, location: ExperimentLocation): EffectiveConditions {
+  const env = LOCATION_ENVELOPE, at = 'environment.conditions';
+  const c = exact(value, ['schemaVersion', 'latitudeDeg', 'longitudeDeg', 'groundElevationMslM', 'geoid', 'ellipsoidalHeightM', 'gravityMps2', 'magnetic', 'air'], at);
+  if (c.schemaVersion !== 1) fail(`${at}.schemaVersion must be 1`);
+  if (c.latitudeDeg !== location.latitudeDeg || c.longitudeDeg !== location.longitudeDeg || c.groundElevationMslM !== location.groundElevationMslM) {
+    fail(`${at} must be evaluated at environment.location`);
+  }
+  const geoid = geoidOf(c.geoid);
+  const ellipsoidalHeightM = finite(c.ellipsoidalHeightM, `${at}.ellipsoidalHeightM`, env.minElevationM - 200, env.maxElevationM + 200);
+  if (ellipsoidalHeightM !== location.groundElevationMslM + geoid.undulationM) fail(`${at}.ellipsoidalHeightM must be the ground elevation plus the geoid undulation`);
+  const m = exact(c.magnetic, ['model', 'decimalYear', 'northNt', 'eastNt', 'downNt', 'horizontalNt', 'totalNt', 'declinationDeg', 'inclinationDeg', 'zone'], `${at}.magnetic`);
+  const horizontalNt = finite(m.horizontalNt, `${at}.magnetic.horizontalNt`, 0, 1e5);
+  const zone = oneOf(m.zone, MAGNETIC_ZONES, `${at}.magnetic.zone`);
+  if (zone !== (horizontalNt < WMM_BLACKOUT_NT ? 'blackout' : horizontalNt < WMM_CAUTION_NT ? 'caution' : 'normal')) fail(`${at}.magnetic.zone does not match the horizontal field`);
+  const a = exact(c.air, ['seaLevelPressurePa', 'seaLevelPressureSource', 'temperatureOffsetK', 'temperatureK', 'pressurePa', 'densityKgM3'], `${at}.air`);
+  const seaLevelPressurePa = finite(a.seaLevelPressurePa, `${at}.air.seaLevelPressurePa`, env.minSeaLevelPressurePa, env.maxSeaLevelPressurePa);
+  const seaLevelPressureSource = oneOf(a.seaLevelPressureSource, PRESSURE_SOURCES, `${at}.air.seaLevelPressureSource`);
+  if (seaLevelPressureSource !== (location.measuredQnhPa === null ? 'standard' : 'measured') || seaLevelPressurePa !== (location.measuredQnhPa ?? STANDARD_SEA_LEVEL_PRESSURE_PA) ||
+    a.temperatureOffsetK !== location.temperatureOffsetK) {
+    fail(`${at}.air must come from the location's sea-level pressure and temperature offset`);
+  }
+  return {
+    schemaVersion: 1, latitudeDeg: location.latitudeDeg, longitudeDeg: location.longitudeDeg, groundElevationMslM: location.groundElevationMslM, geoid, ellipsoidalHeightM,
+    gravityMps2: finite(c.gravityMps2, `${at}.gravityMps2`, 9.7, 9.9),
+    magnetic: {
+      model: text(m.model, `${at}.magnetic.model`, 64), decimalYear: finite(m.decimalYear, `${at}.magnetic.decimalYear`, 2000, 2100),
+      northNt: finite(m.northNt, `${at}.magnetic.northNt`, -1e5, 1e5), eastNt: finite(m.eastNt, `${at}.magnetic.eastNt`, -1e5, 1e5),
+      downNt: finite(m.downNt, `${at}.magnetic.downNt`, -1e5, 1e5), horizontalNt, totalNt: finite(m.totalNt, `${at}.magnetic.totalNt`, 0, 1e5),
+      declinationDeg: finite(m.declinationDeg, `${at}.magnetic.declinationDeg`, -180, 180), inclinationDeg: finite(m.inclinationDeg, `${at}.magnetic.inclinationDeg`, -90, 90), zone,
+    },
+    air: {
+      seaLevelPressurePa, seaLevelPressureSource, temperatureOffsetK: location.temperatureOffsetK,
+      temperatureK: finite(a.temperatureK, `${at}.air.temperatureK`, 180, 330), pressurePa: finite(a.pressurePa, `${at}.air.pressurePa`, 1000, 120000),
+      densityKgM3: finite(a.densityKgM3, `${at}.air.densityKgM3`, 0.05, 2),
+    },
+  };
+}
+/** The environment of a run, or null; the session's home must be its location (TASK-148: home and origin consistency). */
+function environmentOf(value: unknown, home: ExperimentSession['home']): ExperimentEnvironment | null {
+  if (value === null) return null;
+  const e = exact(value, ['location', 'conditions'], 'environment');
+  const location = locationOf(e.location);
+  if (home[0] !== location.latitudeDeg || home[1] !== location.longitudeDeg || home[2] !== location.groundElevationMslM || home[3] !== location.headingDeg) {
+    fail("session.home must be the environment's location: its latitude, longitude, ground elevation and heading");
+  }
+  return { location, conditions: conditionsOf(e.conditions, location) };
+}
+type ReadableVersion = typeof EXPERIMENT_SCHEMA_VERSION | typeof EXPERIMENT_SCHEMA_VERSION_4 | typeof EXPERIMENT_SCHEMA_VERSION_3 | typeof EXPERIMENT_SCHEMA_VERSION_2;
+/** Schema 5, 4 (no `environment`), 3 (no `lineage` either) or 2 (no `recording` either): absent fields are absent from both the keys and the result. */
+function payloadOf(payload: unknown, version: ReadableVersion): ExperimentPayload | ExperimentPayloadV4 | ExperimentPayloadV3 | ExperimentPayloadV2 {
   const keys = ['schemaVersion', 'profile', 'sitl', 'session', 'parameters', 'frameScript', 'sensors'];
-  const p = exact(payload, version === EXPERIMENT_SCHEMA_VERSION ? [...keys, 'recording', 'lineage'] : version === EXPERIMENT_SCHEMA_VERSION_3
-    ? [...keys, 'recording'] : keys, 'the payload');
+  const extra = version === EXPERIMENT_SCHEMA_VERSION ? ['recording', 'lineage', 'environment'] : version === EXPERIMENT_SCHEMA_VERSION_4 ? ['recording', 'lineage']
+    : version === EXPERIMENT_SCHEMA_VERSION_3 ? ['recording'] : [];
+  const p = exact(payload, [...keys, ...extra], 'the payload');
   const profile = profileOf(p.profile);
   const sitl = sitlOf(p.sitl);
   const parameters = parametersOf(p.parameters);
   const frameScript = frameScriptOf(p.frameScript, parameters);
   if (sitl.ownership === 'external' && frameScript !== null) fail('an external SITL has no frame script: MirageSITL installs one only in a SITL it starts');
-  const common = { profile, sitl, session: sessionOf(p.session, sitl.ownership), parameters, frameScript, sensors: snapshotOf(p.sensors, profile.sha256) };
-  if (version === EXPERIMENT_SCHEMA_VERSION) return { schemaVersion: version, ...common, recording: recordingOf(p.recording), lineage: lineageOf(p.lineage) };
-  return version === EXPERIMENT_SCHEMA_VERSION_3 ? { schemaVersion: version, ...common, recording: recordingOf(p.recording) } : { schemaVersion: version, ...common };
+  const session = sessionOf(p.session, sitl.ownership);
+  const common = { profile, sitl, session, parameters, frameScript, sensors: snapshotOf(p.sensors, profile.sha256) };
+  switch (version) {
+    case EXPERIMENT_SCHEMA_VERSION:
+      return { schemaVersion: version, ...common, recording: recordingOf(p.recording), lineage: lineageOf(p.lineage), environment: environmentOf(p.environment, session.home) };
+    case EXPERIMENT_SCHEMA_VERSION_4: return { schemaVersion: version, ...common, recording: recordingOf(p.recording), lineage: lineageOf(p.lineage) };
+    case EXPERIMENT_SCHEMA_VERSION_3: return { schemaVersion: version, ...common, recording: recordingOf(p.recording) };
+    case EXPERIMENT_SCHEMA_VERSION_2: return { schemaVersion: version, ...common };
+    default: {
+      const unexpected: never = version;
+      return unexpected;
+    }
+  }
 }
 
 /**
- * Validates an experiment payload of schema 4, or of schema 3 (TASK-163), 2
- * (TASK-155) or 1 (TASK-154) as stored then, from `unknown`; returns a
- * deep-frozen copy of what was given. Registered for the `experiment` kind, so
- * imports of older records keep working.
+ * Validates an experiment payload of schema 5, or of schema 4 (TASK-165), 3
+ * (TASK-163), 2 (TASK-155) or 1 (TASK-154) as stored then, from `unknown`;
+ * returns a deep-frozen copy of what was given. Registered for the
+ * `experiment` kind, so imports of older records keep working.
  */
-export function validateExperiment(payload: unknown): ExperimentPayload | ExperimentPayloadV3 | ExperimentPayloadV2 | ExperimentPayloadV1 {
+export function validateExperiment(payload: unknown): ExperimentPayload | ExperimentPayloadV4 | ExperimentPayloadV3 | ExperimentPayloadV2 | ExperimentPayloadV1 {
   const version = isRecord(payload) ? payload.schemaVersion : undefined;
-  if (version === EXPERIMENT_SCHEMA_VERSION || version === EXPERIMENT_SCHEMA_VERSION_3 || version === EXPERIMENT_SCHEMA_VERSION_2) {
+  if (version === EXPERIMENT_SCHEMA_VERSION || version === EXPERIMENT_SCHEMA_VERSION_4 || version === EXPERIMENT_SCHEMA_VERSION_3 || version === EXPERIMENT_SCHEMA_VERSION_2) {
     return freeze(payloadOf(payload, version));
   }
   if (version === EXPERIMENT_SCHEMA_VERSION_1) return freeze(payloadV1Of(payload));
@@ -644,20 +767,22 @@ export function validateExperiment(payload: unknown): ExperimentPayload | Experi
 }
 
 /**
- * An older payload as schema 4: an original run, without a recording before schema 3; a schema 1 payload's launcher
- * and ardupilot fields become a launcher-owned SITL.
+ * An older payload as schema 5: without an environment before schema 5 (standard gravity and a sea-level ISA
+ * origin), an original run without a recording before schema 3; a schema 1 payload's launcher and ardupilot fields
+ * become a launcher-owned SITL.
  */
-export function migrateExperiment(payload: ExperimentPayload | ExperimentPayloadV3 | ExperimentPayloadV2 | ExperimentPayloadV1): ExperimentPayload {
+export function migrateExperiment(payload: ExperimentPayload | ExperimentPayloadV4 | ExperimentPayloadV3 | ExperimentPayloadV2 | ExperimentPayloadV1): ExperimentPayload {
   const original = { kind: 'original' } as const;
   if (payload.schemaVersion === EXPERIMENT_SCHEMA_VERSION) return payload;
-  if (payload.schemaVersion === EXPERIMENT_SCHEMA_VERSION_3) return freeze({ ...payload, schemaVersion: EXPERIMENT_SCHEMA_VERSION, lineage: original });
+  if (payload.schemaVersion === EXPERIMENT_SCHEMA_VERSION_4) return freeze({ ...payload, schemaVersion: EXPERIMENT_SCHEMA_VERSION, environment: null });
+  if (payload.schemaVersion === EXPERIMENT_SCHEMA_VERSION_3) return freeze({ ...payload, schemaVersion: EXPERIMENT_SCHEMA_VERSION, lineage: original, environment: null });
   if (payload.schemaVersion === EXPERIMENT_SCHEMA_VERSION_2) {
     const { profile, sitl, session, parameters, frameScript, sensors } = payload;
-    return freeze({ schemaVersion: EXPERIMENT_SCHEMA_VERSION, profile, sitl, session, parameters, frameScript, sensors, recording: null, lineage: original });
+    return freeze({ schemaVersion: EXPERIMENT_SCHEMA_VERSION, profile, sitl, session, parameters, frameScript, sensors, recording: null, lineage: original, environment: null });
   }
   const { profile, ardupilot, launcher, session, parameters, frameScript, sensors } = payload;
   return freeze({ schemaVersion: EXPERIMENT_SCHEMA_VERSION, profile, sitl: { ownership: 'launcher', experimentId: launcher.experimentId, ardupilot },
-    session, parameters, frameScript, sensors, recording: null, lineage: original });
+    session, parameters, frameScript, sensors, recording: null, lineage: original, environment: null });
 }
 
 /** Canonical JSON text of a value, for comparing inputs. */
@@ -672,9 +797,14 @@ function buildOf(sitl: ExperimentSitl): unknown {
   return sitl.ownership === 'launcher' ? { catalogId: sitl.ardupilot.catalogId, commit: sitl.ardupilot.commit, binarySha256: sitl.ardupilot.binarySha256 }
     : { commit: sitl.ardupilot.commit };
 }
+/** What the user chose of the environment beyond the home (TASK-148): the sea-level pressure and the temperature offset, or no environment. */
+function conditionsInput(environment: ExperimentEnvironment | null): unknown {
+  return environment ? { measuredQnhPa: environment.location.measuredQnhPa, temperatureOffsetK: environment.location.temperatureOffsetK } : null;
+}
 /**
  * The inputs in which `child` differs from `parent` (TASK-165), in EXPERIMENT_INPUTS order. The run's own identity
- * (launcher experiment or connection ID, the recording it made, its lineage and the BET module build) is not an input.
+ * (launcher experiment or connection ID, the recording it made, its lineage, the BET module build and the
+ * date-dependent magnetic field of its conditions) is not an input.
  */
 export function experimentChanges(parent: ExperimentPayload, child: ExperimentPayload): ExperimentInput[] {
   const changes: ExperimentInput[] = [];
@@ -684,6 +814,7 @@ export function experimentChanges(parent: ExperimentPayload, child: ExperimentPa
   check('speed', parent.session.speedup !== child.session.speedup);
   check('physics rate', parent.session.physicsHz !== child.session.physicsHz);
   check('home', !same(parent.session.home, child.session.home));
+  check('conditions', !same(conditionsInput(parent.environment), conditionsInput(child.environment)));
   check('initial parameters', !same(parent.parameters, child.parameters));
   check('frame script', parent.frameScript !== child.frameScript);
   check('sensors', !same(parent.sensors, child.sensors));

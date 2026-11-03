@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
+import { airAtOrigin } from '../../packages/physics/src/atmosphere';
 import { viteFileUrl } from '../support/vite-url';
 
 // TASK-144: the application's physics Worker loads a profile-derived model.
@@ -17,8 +18,11 @@ test('the physics Worker registers and loads 16-rotor profile dynamics, keeping 
   execFileSync(process.execPath, ['scripts/build-wasm.mjs'], { stdio: 'pipe' });
   execFileSync(process.execPath, ['scripts/build-contact.mjs'], { stdio: 'pipe' });
   const wasm = readFileSync('packages/wasm-bet/dist/mirage_bet.scalar.wasm');
+  // TASK-148: the location's gravity and origin air, set through environment.set before the load; the vehicle then
+  // stands in the air of CMAC's elevation (584 m), 6.6 kPa below sea level, and the Worker refuses an impossible gravity.
+  const originAir = airAtOrigin(101325, 0, 584), gravityMps2 = 9.79650;
   const input = {
-    bytes: Array.from(wasm), wasmSha256: createHash('sha256').update(wasm).digest('hex'),
+    bytes: Array.from(wasm), wasmSha256: createHash('sha256').update(wasm).digest('hex'), originAir, gravityMps2,
     // The Rapier contact the vehicle's standard landing gear stands on (TASK-095).
     contactBytes: Array.from(readFileSync('packages/physics/dist/contact/contact.wasm')),
     contactManifest: JSON.parse(readFileSync('packages/physics/dist/contact/manifest.json', 'utf8')) as unknown,
@@ -37,7 +41,7 @@ test('the physics Worker registers and loads 16-rotor profile dynamics, keeping 
   await page.route('**/profile-dynamics-test', route => route.fulfill({ contentType: 'text/html', body: '<!doctype html><title>Profile dynamics check</title>',
     headers: { 'Cross-Origin-Opener-Policy': 'same-origin', 'Cross-Origin-Embedder-Policy': 'require-corp' } }));
   await page.goto('/profile-dynamics-test');
-  const report = await page.evaluate(async ({ bytes, wasmSha256, contactBytes, contactManifest, profile, cards, urls }) => {
+  const report = await page.evaluate(async ({ bytes, wasmSha256, contactBytes, contactManifest, profile, cards, urls, originAir, gravityMps2 }) => {
     const p = await import(urls.protocol) as typeof import('@mirage/protocol');
     const profiles = await import(urls.profile) as typeof import('@mirage/aircraft/profile');
     const components = await import(urls.components) as typeof import('@mirage/aircraft/components');
@@ -96,6 +100,12 @@ test('the physics Worker registers and loads 16-rotor profile dynamics, keeping 
       const contactReady = next(d => d.type === 'contact.module.ready');
       worker.postMessage({ type: 'contact.module', bytes: new Uint8Array(contactBytes), manifest: contactManifest });
       await contactReady;
+      const badEnvironment = next(d => d.type === 'environment.reject');
+      worker.postMessage({ type: 'environment.set', gravityMps2: 5, originAir });
+      const rejectedEnvironment = await badEnvironment;
+      const environmentReady = next(d => d.type === 'environment.ready');
+      worker.postMessage({ type: 'environment.set', gravityMps2, originAir });
+      await environmentReady;
       reader.readHeader(header);
       result = next(final(9));
       worker.postMessage({ protocolVersion: 2, requestId: 9, expectedEpoch: header.sessionEpoch, type: 'model.load', modelId: 144, manifestSha256: derived.sha256 });
@@ -103,7 +113,8 @@ test('the physics Worker registers and loads 16-rotor profile dynamics, keeping 
       await new Promise(resolve => setTimeout(resolve, 50));
       if (!reader.latest(state)) throw new Error('No state published');
       return { demoModel, early, rejectedModule, registration, noContact, load, modelId: state.modelId, batteryVoltage: state.batteryVoltage,
-        outsideValidity: (state.vehicleFlags & p.VehicleFlagV2.ModelOutsideValidity) !== 0, rotors: derived.manifest.rotorCount };
+        outsideValidity: (state.vehicleFlags & p.VehicleFlagV2.ModelOutsideValidity) !== 0, rotors: derived.manifest.rotorCount,
+        rejectedEnvironment, ambientPressurePa: state.ambientPressurePa, specificForceZBodyMps2: state.specificForceZBodyMps2, downM: state.downM };
     } finally { worker.terminate(); }
   }, input);
   expect(report.rotors).toBe(16);
@@ -116,4 +127,11 @@ test('the physics Worker registers and loads 16-rotor profile dynamics, keeping 
   expect(report.modelId).toBe(144);
   expect(report.batteryVoltage).toBeCloseTo(16.8, 4);
   expect(report.outsideValidity).toBe(true);
+  expect(report.rejectedEnvironment).toMatchObject({ type: 'environment.reject', message: 'environment.set needs a gravity of 9.7 to 9.9 m/s²' });
+  // The published air is the origin air at the CG's height above the pad (a few metres at most), not the sea-level ISA.
+  expect(Math.abs(report.ambientPressurePa - originAir.pressurePa)).toBeLessThan(100);
+  expect(101325 - report.ambientPressurePa).toBeGreaterThan(6000);
+  expect(Math.abs(report.downM)).toBeLessThan(2);
+  // Standing on its gear, the specific force is the location's gravity, not 9.80665 (the difference is 0.01 m/s²; the gear settles within 0.005).
+  expect(Math.abs(report.specificForceZBodyMps2 + gravityMps2)).toBeLessThan(0.005);
 });

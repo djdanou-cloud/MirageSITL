@@ -14,6 +14,7 @@ import { ProjectStore } from "@mirage/project/store";
 import { AircraftEditor } from "../aircraft/AircraftEditor";
 import { ComponentsPanel } from "../library/ComponentsPanel";
 import { SensorsTab } from "../sensors/SensorsTab";
+import { WeatherTab } from "../weather/WeatherTab";
 import {
   DEFAULT_NAVIGATION, TABS, forcedTab, loadNavigation, panelId, saveNavigation, tabForKey, tabId,
   type NavigationState, type TabId,
@@ -35,9 +36,8 @@ export type StoreState =
   | { readonly status: "unavailable"; readonly reason: string };
 
 /** What each tab will hold; the shell says so until the tab's own task lands. */
-const PLANNED: { readonly [tab in Exclude<TabId, "project" | "aircraft" | "components" | "sensors" | "run" | "logging" | "parameters" | "experiments">]: string } = {
+const PLANNED: { readonly [tab in Exclude<TabId, "project" | "aircraft" | "components" | "sensors" | "run" | "logging" | "parameters" | "experiments" | "weather">]: string } = {
   faults: "Motor faults, sensor and GNSS interference, EKF drift and link loss, applied manually or on a schedule.",
-  weather: "Wind, gusts, turbulence, temperature and pressure, and the location of the flight.",
   tasks: "Takeoff, hover, landing, routes and tuning maneuvers, with initial conditions.",
   analysis: "Flight logs in UAVLogViewer, with two flights or two intervals side by side.",
 };
@@ -151,6 +151,8 @@ export function AppShell({ run }: { run: (visible: boolean, storeState: StoreSta
         return <ComponentsPanel storeState={storeState} project={project} active={navigation.tab === "components"} />;
       case "sensors":
         return <SensorsTab storeState={storeState} project={project} active={navigation.tab === "sensors"} />;
+      case "weather":
+        return <WeatherTab storeState={storeState} project={project} active={navigation.tab === "weather"} />;
       case "run":
         return run(navigation.tab === "run", storeState, project, link);
       case "logging":

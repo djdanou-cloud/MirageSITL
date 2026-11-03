@@ -513,7 +513,7 @@ function harness(prepare: () => Promise<PreparedRun> = () => Promise.resolve(pre
     if (events.at(-1) !== `state:${view.state.name}`) events.push(`state:${view.state.name}`);
   }, recording, metadata);
   physics.deliver = data => { controller.worker(data); };
-  const request: StartRequest = { prepare, firmwareId: BUILD.id, speedup: 1, physicsHz: 800, home: DEFAULT_HOME };
+  const request: StartRequest = { prepare, firmwareId: BUILD.id, speedup: 1, physicsHz: 800, home: DEFAULT_HOME, environment: null };
   return { controller, launcher, physics, clock, records, events, views, request, run: prepared };
 }
 const BASE_STATUS: SitlStatus = {
@@ -2204,7 +2204,7 @@ describe('the real launcher with the fake SITL', () => {
         if (events.at(-1) !== `state:${view.state.name}`) events.push(`state:${view.state.name}`);
       });
       physics.deliver = data => { controller.worker(data); };
-      const request: StartRequest = { prepare: () => Promise.resolve(prepared), firmwareId: 'fake', speedup: 1, physicsHz: 800, home: DEFAULT_HOME };
+      const request: StartRequest = { prepare: () => Promise.resolve(prepared), firmwareId: 'fake', speedup: 1, physicsHz: 800, home: DEFAULT_HOME, environment: null };
       // ScriptedLauncher is only used for its event counting here.
       return { controller, launcher: new ScriptedLauncher(events), physics, clock, records, events, views, request, run: prepared };
     }
@@ -2481,7 +2481,7 @@ function gpsFix(northM = 0, upM = 0): Uint8Array {
     alt: Math.round((alt + upM) * 1000), eph: 100, epv: 100, vel: 0, cog: 0, satellites_visible: 10 });
 }
 function connectRequest(prepare: () => Promise<PreparedRun> = () => Promise.resolve(prepared)) {
-  return { prepare, endpoints: ENDPOINTS, physicsHz: 800 as const, home: DEFAULT_HOME, verifiedCommits: [SITL_COMMIT] };
+  return { prepare, endpoints: ENDPOINTS, physicsHz: 800 as const, home: DEFAULT_HOME, environment: null, verifiedCommits: [SITL_COMMIT] };
 }
 /** True when the connection was released before the panel showed failed, and nothing was ever stopped. */
 function disconnectedBeforeFailed(h: Harness): boolean {

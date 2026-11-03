@@ -8,7 +8,7 @@
 // its archive round trip, and MAX_RECORD_BYTES for the worst Phase 1 case.
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
-import { describe, expect, test } from 'vitest';
+import { beforeAll, describe, expect, test } from 'vitest';
 import { parseCatalog } from '../apps/launcher/src/catalog.ts';
 import { parseExperimentSpec } from '../apps/launcher/src/server.ts';
 import { parseArduPilotCatalog, PINNED_ARDUPILOT_COMMIT } from '../packages/autopilot/src/error-ownership.ts';
@@ -17,9 +17,13 @@ import { deriveVehicleManifest } from '../packages/aircraft/src/derive-manifest.
 import {
   experimentChanges,
   createExperimentRecord, experimentRecordName, readExperiment, validateExperiment, type ExperimentParameter, type ExperimentPayload,
-  type ExperimentPayloadV1, type ExperimentPayloadV2, type ExperimentPayloadV3, type ExternalSitl, type LauncherSitl,
+  type ExperimentEnvironment, type ExperimentPayloadV1, type ExperimentPayloadV2, type ExperimentPayloadV3, type ExperimentPayloadV4, type ExternalSitl,
+  type LauncherSitl,
 } from '../packages/aircraft/src/experiment.ts';
-import { externalDependencies, lineageFor, trajectoryDifference } from '../apps/web/src/experiments/lifecycle.ts';
+import { effectiveConditions } from '../packages/sensors/src/environment.ts';
+import { WorldMagneticModel, parseWmmCoefficients } from '../packages/sensors/src/geomagnetic.ts';
+import { NO_GEOID, loadEgm96Geoid, type GeoidModel } from '../packages/sensors/src/geoid.ts';
+import { conditionsText, externalDependencies, lineageFor, trajectoryDifference } from '../apps/web/src/experiments/lifecycle.ts';
 import { frameConfiguration } from '../packages/aircraft/src/frame-parameters.ts';
 import { resolveComponents } from '../packages/aircraft/src/resolve-components.ts';
 import {
@@ -59,9 +63,9 @@ function at<T>(items: readonly T[], index: number): T {
   if (item === undefined) throw new Error(`The fixture has no entry ${index}`);
   return item;
 }
-/** A schema 4 payload; the fixtures never build schema 1 to 3 through this. */
-function current(payload: ExperimentPayload | ExperimentPayloadV3 | ExperimentPayloadV2 | ExperimentPayloadV1): ExperimentPayload {
-  if (payload.schemaVersion !== 4) throw new Error('The fixture is not schema 4');
+/** A schema 5 payload; the fixtures never build schema 1 to 4 through this. */
+function current(payload: ExperimentPayload | ExperimentPayloadV4 | ExperimentPayloadV3 | ExperimentPayloadV2 | ExperimentPayloadV1): ExperimentPayload {
+  if (payload.schemaVersion !== 5) throw new Error('The fixture is not schema 5');
   return payload;
 }
 /** The launcher-owned SITL of a fixture payload, or of its mutable copy. */
@@ -131,12 +135,12 @@ function payloadOf(fixture: Fixture, stored = fixture.stored, profile = fixture.
     ...PWM, ...runtime.parameters.map((p): ExperimentParameter => ({ ...p, source: 'sensor' })),
   ];
   return current(validateExperiment({
-    schemaVersion: 4,
+    schemaVersion: 5,
     profile: { sha256: stored.sha256, id: stored.record.id, version: stored.record.version, name: stored.record.name },
     sitl: { ownership: 'launcher', experimentId: EXPERIMENT_ID, ardupilot: FIRMWARE },
     session: { physicsHz: 800, clockMode: 'sitl-lockstep', speedup: 4, home: HOME, modelId: 153, manifestSha256: fixture.manifestSha256,
       betModuleSha256: hash('mirage_bet.wasm') },
-    parameters, frameScript: frame.script, sensors: sensorSnapshot(stored), recording: RECORDING, lineage: { kind: 'original' },
+    parameters, frameScript: frame.script, sensors: sensorSnapshot(stored), recording: RECORDING, lineage: { kind: 'original' }, environment: null,
   }));
 }
 function edit(payload: ExperimentPayload, change: (copy: Mutable<ExperimentPayload>) => void): unknown {
@@ -149,7 +153,7 @@ function edit(payload: ExperimentPayload, change: (copy: Mutable<ExperimentPaylo
 const RECORDING = { recordId: 'a'.repeat(32), commonHz: 50, groups: { motors: 400 }, signals: { 'truth.position': 800 }, durationMin: 60, reserveMb: 500 };
 const ICM_42688: SensorConfiguration = validateSensorConfiguration(applySensorPreset(DEFAULT_SENSOR_CONFIGURATION, { catalogVersion: 1, id: 'imu-icm-42688-p' }).configuration);
 
-describe('experiment payload schema 4', () => {
+describe('experiment payload schema 5', () => {
   test('the payload of an S19 quad X run validates, and its parameters are a start request the launcher accepts', async () => {
     const fixture = await storedProfile('quad-x', 'S19 quad X', null);
     const payload = payloadOf(fixture);
@@ -166,7 +170,7 @@ describe('experiment payload schema 4', () => {
     expect(spec.parameters.map(p => p.name)).toEqual(payload.parameters.map(p => p.name));
   });
 
-  test('refuses payloads outside schema 4 with a reason', async () => {
+  test('refuses payloads outside schema 5 with a reason', async () => {
     const fixture = await storedProfile('quad-x', 'S19 quad X', ICM_42688);
     const payload = payloadOf(fixture);
     expect(payload.parameters.filter(p => p.source === 'sensor').length).toBeGreaterThan(0);
@@ -203,10 +207,10 @@ describe('experiment payload schema 4', () => {
       ['a home heading beyond 360', edit(payload, p => { p.session.home[3] = 361; }), 'home heading must be a number from 0 to 360'],
       ['a launcher ID of another format', edit(payload, p => { ownedEdit(p).experimentId = 'run-1'; }), 'sitl.experimentId must be a launcher experiment ID'],
       ['a short commit', edit(payload, p => { ownedEdit(p).ardupilot.commit = '8ab6afd'; }), 'ardupilot.commit must be a 40-digit lowercase commit'],
-      ['another experiment schema', edit(payload, p => { Object.assign(p, { schemaVersion: 5 }); }), 'unsupported experiment schema 5'],
+      ['another experiment schema', edit(payload, p => { Object.assign(p, { schemaVersion: 6 }); }), 'unsupported experiment schema 6'],
       ['an empty firmware version', edit(payload, p => { ownedEdit(p).ardupilot.firmwareVersion = ''; }), 'ardupilot.firmwareVersion must be non-empty text'],
       ['another SITL ownership', edit(payload, p => { Object.assign(p.sitl, { ownership: 'user' }); }), 'sitl.ownership must be launcher or external'],
-      ['schema 1 fields in schema 3', edit(payload, p => { Object.assign(p, { launcher: { experimentId: EXPERIMENT_ID } }); }), 'the payload has an unexpected field launcher'],
+      ['schema 1 fields in schema 5', edit(payload, p => { Object.assign(p, { launcher: { experimentId: EXPERIMENT_ID } }); }), 'the payload has an unexpected field launcher'],
       ['no recording field', edit(payload, p => { Reflect.deleteProperty(p, 'recording'); }), 'the payload lacks recording'],
       ['a recording ID that is not one', edit(payload, p => { Object.assign(p, { recording: { ...RECORDING, recordId: 'A'.repeat(32) } }); }), 'recording.recordId must be 32 lowercase hexadecimal digits'],
       ['a rate above 2 kHz', edit(payload, p => { Object.assign(p, { recording: { ...RECORDING, groups: { motors: 2001 } } }); }), 'recording.groups.motors must be an integer from 0 to 2000'],
@@ -438,14 +442,14 @@ describe('schema 1 records and external SITLs (TASK-155)', () => {
     return edit(payload, p => { Object.assign(p, { sitl: structuredClone(EXTERNAL) }); p.session.speedup = null; });
   }
 
-  test('a TASK-154 schema 1 record still validates and reads as schema 4 without a recording, and new records are schema 4', async () => {
+  test('a TASK-154 schema 1 record still validates and reads as schema 5 without a recording, and new records are schema 5', async () => {
     const fixture = await storedProfile('quad-x', 'S19 quad X', ICM_42688);
     const payload = payloadOf(fixture);
     const v1 = schema1Of(payload);
     expect(validateExperiment(v1)).toMatchObject({ schemaVersion: 1, launcher: { experimentId: EXPERIMENT_ID }, ardupilot: FIRMWARE });
     await expect(createExperimentRecord(fixture.store, fixture.projectId, { name: 'Run 1', payload: v1 }))
-      .rejects.toThrow('new experiments are schema 4; schema 1 is only read');
-    // Stored as TASK-154 stored it, it reads as the schema 4 payload of the same original run, which recorded nothing.
+      .rejects.toThrow('new experiments are schema 5; schema 1 is only read');
+    // Stored as TASK-154 stored it, it reads as the schema 5 payload of the same original run, which recorded nothing.
     const stored = await fixture.store.createItem(fixture.projectId, 'experiment', { name: 'Run 1', payload: v1, dependencies: [fixture.stored.sha256] });
     expect(readExperiment(stored)).toEqual({ ...payload, recording: null });
     expect(Reflect.get(stored.record.payload, 'schemaVersion')).toBe(1);
@@ -453,35 +457,36 @@ describe('schema 1 records and external SITLs (TASK-155)', () => {
     expect(() => validateExperiment(edit(payload, p => { Object.assign(p, { schemaVersion: 1 }); }))).toThrow('the payload lacks ardupilot');
   });
 
-  test('a TASK-155 schema 2 record still validates and reads as schema 4 without a recording', async () => {
+  test('a TASK-155 schema 2 record still validates and reads as schema 5 without a recording', async () => {
     const fixture = await storedProfile('quad-x', 'S19 quad X', ICM_42688);
     const payload = payloadOf(fixture);
-    const v2 = edit(payload, p => { Object.assign(p, { schemaVersion: 2 }); Reflect.deleteProperty(p, 'recording'); Reflect.deleteProperty(p, 'lineage'); });
+    const v2 = edit(payload, p => { Object.assign(p, { schemaVersion: 2 }); for (const key of ['recording', 'lineage', 'environment']) Reflect.deleteProperty(p, key); });
     expect(validateExperiment(v2)).toMatchObject({ schemaVersion: 2, sitl: payload.sitl });
     expect(Object.hasOwn(validateExperiment(v2), 'recording')).toBe(false);
     await expect(createExperimentRecord(fixture.store, fixture.projectId, { name: 'Run 2', payload: v2 }))
-      .rejects.toThrow('new experiments are schema 4; schema 2 is only read');
+      .rejects.toThrow('new experiments are schema 5; schema 2 is only read');
     const stored = await fixture.store.createItem(fixture.projectId, 'experiment', { name: 'Run 2', payload: v2, dependencies: [fixture.stored.sha256] });
     expect(readExperiment(stored)).toEqual({ ...payload, recording: null });
     // Schema 2 has no recording field.
-    expect(() => validateExperiment(edit(payload, p => { Object.assign(p, { schemaVersion: 2 }); Reflect.deleteProperty(p, 'lineage'); })))
+    expect(() => validateExperiment(edit(payload, p => { Object.assign(p, { schemaVersion: 2 }); Reflect.deleteProperty(p, 'lineage'); Reflect.deleteProperty(p, 'environment'); })))
       .toThrow('the payload has an unexpected field recording');
-    // A schema 4 run that recorded nothing says so.
+    // A schema 5 run that recorded nothing says so.
     expect(current(validateExperiment(edit(payload, p => { Object.assign(p, { recording: null }); }))).recording).toBeNull();
     expect(payload.recording).toEqual(RECORDING);
   });
 
-  test('a TASK-163 schema 3 record still validates and reads as a schema 4 original run (TASK-165)', async () => {
+  test('a TASK-163 schema 3 record still validates and reads as a schema 5 original run (TASK-165)', async () => {
     const fixture = await storedProfile('quad-x', 'S19 quad X', ICM_42688);
     const payload = payloadOf(fixture);
-    const v3 = edit(payload, p => { Object.assign(p, { schemaVersion: 3 }); Reflect.deleteProperty(p, 'lineage'); });
+    const v3 = edit(payload, p => { Object.assign(p, { schemaVersion: 3 }); Reflect.deleteProperty(p, 'lineage'); Reflect.deleteProperty(p, 'environment'); });
     expect(validateExperiment(v3)).toMatchObject({ schemaVersion: 3, recording: RECORDING });
     expect(Object.hasOwn(validateExperiment(v3), 'lineage')).toBe(false);
     await expect(createExperimentRecord(fixture.store, fixture.projectId, { name: 'Run 3', payload: v3 }))
-      .rejects.toThrow('new experiments are schema 4; schema 3 is only read');
+      .rejects.toThrow('new experiments are schema 5; schema 3 is only read');
     const stored = await fixture.store.createItem(fixture.projectId, 'experiment', { name: 'Run 3', payload: v3, dependencies: [fixture.stored.sha256] });
     expect(readExperiment(stored)).toEqual(payload);
-    expect(() => validateExperiment(edit(payload, p => { Object.assign(p, { schemaVersion: 3 }); }))).toThrow('the payload has an unexpected field lineage');
+    expect(() => validateExperiment(edit(payload, p => { Object.assign(p, { schemaVersion: 3 }); Reflect.deleteProperty(p, 'environment'); })))
+      .toThrow('the payload has an unexpected field lineage');
   });
 
   test('an external SITL payload validates and is stored, and its own rules refuse what MirageSITL cannot know or did not do', async () => {
@@ -608,5 +613,105 @@ describe('experiment lineage (TASK-165)', () => {
       .toEqual({ comparedTicks: 2, maxHorizontalM: 0, maxVerticalM: 0, atSimTimeS: null, firstDifferentTick: null });
     const d = trajectoryDifference([row(16, 0, 0, -1), row(32, 3, 4, -2), row(40, 0, 0, 0)], [row(16, 0, 0, -1), row(32, 0, 0, -2.5)]);
     expect(d).toEqual({ comparedTicks: 2, maxHorizontalM: 5, maxVerticalM: 0.5, atSimTimeS: 32 / 800, firstDifferentTick: 32 });
+  });
+  // ---- the environment of a run (TASK-148) ----
+  const magnetic = new WorldMagneticModel(parseWmmCoefficients(readFileSync(new URL('../data/geomagnetic/WMM_2025.COF', import.meta.url), 'utf8')));
+  let geoid: GeoidModel = NO_GEOID;
+  beforeAll(async () => { geoid = await loadEgm96Geoid(new Uint8Array(readFileSync(new URL('../data/geoid/WW15MGH.DAC', import.meta.url)))); });
+  const LOCATION = { site: 'cmac', latitudeDeg: HOME[0], longitudeDeg: HOME[1], groundElevationMslM: HOME[2], headingDeg: HOME[3], measuredQnhPa: null, temperatureOffsetK: 0 } as const;
+  /** The environment the Run tab records: the location and effectiveConditions there at the run's date. */
+  function environmentOf(location: ExperimentEnvironment['location'] = LOCATION, decimalYear = 2026.5, models = { geoid, magnetic }): ExperimentEnvironment {
+    return { location, conditions: effectiveConditions({
+      latitudeDeg: location.latitudeDeg, longitudeDeg: location.longitudeDeg, groundElevationMslM: location.groundElevationMslM, decimalYear,
+      ...(location.measuredQnhPa === null ? {} : { measuredQnhPa: location.measuredQnhPa }), temperatureOffsetK: location.temperatureOffsetK }, models) };
+  }
+  function withEnvironment(payload: ExperimentPayload, environment: ExperimentEnvironment, change: (copy: Mutable<ExperimentPayload>) => void = () => undefined): unknown {
+    return edit(payload, p => { Object.assign(p, { environment: structuredClone(environment) }); change(p); });
+  }
+
+  test('records the location with its conditions, consistent with the home, and reads them back', async () => {
+    const fixture = await storedProfile('quad-x', 'S19 quad X', null);
+    const environment = environmentOf();
+    expect(environment.conditions.geoid.status).toBe('AVAILABLE');
+    const payload = current(validateExperiment(withEnvironment(payloadOf(fixture), environment)));
+    expect(payload.environment).toEqual(environment);
+    expect(Object.isFrozen(payload.environment?.conditions.magnetic)).toBe(true);
+    const stored = await createExperimentRecord(fixture.store, fixture.projectId, { name: 'Run at CMAC', payload });
+    expect(readExperiment(stored).environment).toEqual(environment);
+    // A measured QNH and a temperature offset, and the conditions without the geoid grid, are recorded as they were.
+    const measured = environmentOf({ ...LOCATION, site: null, measuredQnhPa: 102000, temperatureOffsetK: 7 });
+    expect(current(validateExperiment(withEnvironment(payload, measured))).environment).toEqual(measured);
+    const blocked = environmentOf(LOCATION, 2026.5, { geoid: NO_GEOID, magnetic });
+    expect(blocked.conditions.geoid.status).toBe('BLOCKED_EXTERNAL');
+    expect(current(validateExperiment(withEnvironment(payload, blocked))).environment).toEqual(blocked);
+    // The Experiments tab names the conditions a record flew in, and says so when a record has none.
+    expect(conditionsText(null)).toBe('Standard gravity 9.80665 m/s² and a sea-level ISA origin (recorded without a location)');
+    expect(conditionsText(environment)).toBe(`cmac: gravity ${environment.conditions.gravityMps2.toFixed(5)} m/s², sea-level pressure 1013.25 hPa standard, ISA +0 K, ` +
+      `air ${(environment.conditions.air.pressurePa / 100).toFixed(2)} hPa and ${environment.conditions.air.densityKgM3.toFixed(4)} kg/m³, ` +
+      `field ${environment.conditions.magnetic.totalNt.toFixed(0)} nT with declination ${environment.conditions.magnetic.declinationDeg.toFixed(2)}°`);
+    expect(conditionsText(measured)).toMatch(/^-35\.363261°, 149\.16523°, 584 m: gravity 9\.7\d{4} m\/s², sea-level pressure 1020\.00 hPa measured, ISA \+7 K, air /);
+  });
+
+  test("refuses an environment that is not the session's home, not its own conditions or outside the envelope", async () => {
+    const fixture = await storedProfile('quad-x', 'S19 quad X', null);
+    const base = payloadOf(fixture), environment = environmentOf();
+    const broken = (change: (e: Mutable<ExperimentEnvironment>, p: Mutable<ExperimentPayload>) => void): unknown => withEnvironment(base, environment, p => {
+      const e = p.environment;
+      if (!e) throw new Error('No environment');
+      change(e, p);
+    });
+    const cases: [string, unknown, string][] = [
+      ['a home elsewhere', broken((_, p) => { p.session.home = [-35.36, 149.16, 600, 0]; }), "session.home must be the environment's location"],
+      ['conditions at another point', broken(e => { e.conditions.latitudeDeg = -35; }), 'environment.conditions must be evaluated at environment.location'],
+      ['a height that is not H + N', broken(e => { e.conditions.ellipsoidalHeightM += 1; }), 'must be the ground elevation plus the geoid undulation'],
+      ['a zone that does not match the field', broken(e => { e.conditions.magnetic.zone = 'blackout'; }), 'magnetic.zone does not match the horizontal field'],
+      ['air from another sea-level pressure', broken(e => { e.conditions.air.seaLevelPressurePa = 102000; }), "air must come from the location's sea-level pressure"],
+      ['a measured source without a QNH', broken(e => { e.conditions.air.seaLevelPressureSource = 'measured'; }), "air must come from the location's sea-level pressure"],
+      ['gravity off the Earth', broken(e => { e.conditions.gravityMps2 = 9.5; }), 'environment.conditions.gravityMps2 must be a number from 9.7 to 9.9'],
+      ['an undulation without a grid', broken(e => { e.conditions.geoid = { status: 'BLOCKED_EXTERNAL', reason: 'none', undulationM: 0 }; }),
+        'must be the ground elevation plus the geoid undulation'],
+      ['an extra condition', broken(e => { Object.assign(e.conditions, { humidity: 0.5 }); }), 'environment.conditions has an unexpected field humidity'],
+      ['a site name of 65 characters', broken(e => { e.location.site = 'x'.repeat(65); }), 'environment.location.site must be text of 1 to 64 characters'],
+      ['a location at the pole', broken((e, p) => { e.location.latitudeDeg = 90; e.conditions.latitudeDeg = 90; p.session.home = [90, HOME[1], HOME[2], HOME[3]]; }),
+        'environment.location.latitudeDeg must be a number from -89.9 to 89.9'],
+      ['a QNH outside the recorded extremes', broken((e, p) => { e.location.measuredQnhPa = 80000; e.conditions.air.seaLevelPressurePa = 80000;
+        e.conditions.air.seaLevelPressureSource = 'measured'; void p; }), 'environment.location.measuredQnhPa must be a number from 87000 to 108500'],
+      ['an environment without conditions', edit(base, p => { Object.assign(p, { environment: { location: LOCATION } }); }), 'environment lacks conditions'],
+    ];
+    for (const [name, value, message] of cases) expect(() => validateExperiment(value), name).toThrow(message);
+  });
+
+  test('a TASK-165 schema 4 record still validates and reads as schema 5 without an environment, and the conditions are a lineage input', async () => {
+    const fixture = await storedProfile('quad-x', 'S19 quad X', null);
+    const payload = payloadOf(fixture);
+    const v4 = edit(payload, p => { Object.assign(p, { schemaVersion: 4 }); Reflect.deleteProperty(p, 'environment'); });
+    expect(validateExperiment(v4)).toMatchObject({ schemaVersion: 4, lineage: { kind: 'original' } });
+    expect(Object.hasOwn(validateExperiment(v4), 'environment')).toBe(false);
+    await expect(createExperimentRecord(fixture.store, fixture.projectId, { name: 'Run 4', payload: v4 }))
+      .rejects.toThrow('new experiments are schema 5; schema 4 is only read');
+    const stored = await fixture.store.createItem(fixture.projectId, 'experiment', { name: 'Run 4', payload: v4, dependencies: [fixture.stored.sha256] });
+    // Read as schema 5, it flew at standard gravity with a sea-level ISA origin: no environment.
+    expect(readExperiment(stored)).toEqual(payload);
+    expect(readExperiment(stored).environment).toBeNull();
+    expect(() => validateExperiment(edit(payload, p => { Object.assign(p, { schemaVersion: 4 }); }))).toThrow('the payload has an unexpected field environment');
+    // A run that gained the location's conditions differs from one without them in its conditions, not its home.
+    const located = current(validateExperiment(rerun(payload, { kind: 'original' }, p => { Object.assign(p, { environment: structuredClone(environmentOf()) }); })));
+    expect(experimentChanges(payload, located)).toEqual(['conditions']);
+    const qnh = current(validateExperiment(rerun(located, { kind: 'original' }, p => {
+      Object.assign(p, { environment: structuredClone(environmentOf({ ...LOCATION, measuredQnhPa: 102000 })) });
+    })));
+    expect(experimentChanges(located, qnh)).toEqual(['conditions']);
+    // The date of a run, and with it the magnetic field of its conditions, is not an input: a repeat a year later keeps them.
+    const later = current(validateExperiment(rerun(located, { kind: 'original' }, p => { Object.assign(p, { environment: structuredClone(environmentOf(LOCATION, 2027.5)) }); })));
+    expect(later.environment?.conditions.magnetic.decimalYear).toBe(2027.5);
+    expect(later.environment?.conditions.magnetic.northNt).not.toBe(located.environment?.conditions.magnetic.northNt);
+    expect(experimentChanges(located, later)).toEqual([]);
+    // A variant that moved must list its home and its conditions.
+    const moved = current(validateExperiment(rerun(located, { kind: 'original' }, p => {
+      const location = { ...LOCATION, site: null, latitudeDeg: 31.5, longitudeDeg: 34.9, groundElevationMslM: 250, headingDeg: 90, measuredQnhPa: 101000 };
+      p.session.home = [31.5, 34.9, 250, 90];
+      Object.assign(p, { environment: structuredClone(environmentOf(location)) });
+    })));
+    expect(experimentChanges(located, moved)).toEqual(['home', 'conditions']);
   });
 });

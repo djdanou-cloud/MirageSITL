@@ -58,7 +58,8 @@
 // frame script. Its experiment record is written once all of that holds,
 // before READY can be shown.
 import {
-  EXPERIMENT_SCHEMA_VERSION, type ExperimentLineage, type ExperimentParameter, type ExperimentPayload, type ExperimentRecording, type ExperimentSitl,
+  EXPERIMENT_SCHEMA_VERSION, type ExperimentEnvironment, type ExperimentLineage, type ExperimentParameter, type ExperimentPayload, type ExperimentRecording,
+  type ExperimentSitl,
 } from "@mirage/aircraft/experiment";
 import { readAutopilotVersion, verifiedCommit } from "@mirage/autopilot/autopilot-version";
 import { CopterMode, GroundStation } from "@mirage/autopilot/ground-station";
@@ -145,8 +146,11 @@ export interface PreparedRun {
   readonly motorTest: { readonly expected: readonly ExpectedMotor[]; readonly physics: readonly PhysicsRotor[] };
 }
 export interface PhysicsPort {
-  /** Loads the BET module, the manifest and its ratings and starts the session in sitl-lockstep at `physicsHz`; resolves with the module's SHA-256. */
-  load(physicsHz: 800 | 1200): Promise<{ readonly betModuleSha256: string }>;
+  /**
+   * Loads the BET module, the manifest and its ratings, gives the physics the environment's gravity and origin air
+   * (TASK-148) and starts the session in sitl-lockstep at `physicsHz`; resolves with the module's SHA-256.
+   */
+  load(physicsHz: 800 | 1200, environment: ExperimentEnvironment | null): Promise<{ readonly betModuleSha256: string }>;
   connect(port: number, bridgeEpoch: number, speedup: number): void;
   disconnect(): void;
   sendMavlink(bytes: Uint8Array): void;
@@ -209,6 +213,8 @@ export interface StartRequest {
   readonly speedup: number;
   readonly physicsHz: 800 | 1200;
   readonly home: readonly [number, number, number, number];
+  /** The location and its effective conditions (TASK-148), which `home` must be the location of; null flies at standard gravity with a sea-level ISA origin. */
+  readonly environment: ExperimentEnvironment | null;
   /** A repeat or a variant of a stored experiment (TASK-165); an original run when absent. */
   readonly lineage?: ExperimentLineage;
 }
@@ -223,6 +229,8 @@ export interface ConnectRequest {
   readonly physicsHz: 800 | 1200;
   /** The session's home, which the SITL's own --home must match. */
   readonly home: readonly [number, number, number, number];
+  /** The location and its effective conditions (TASK-148), or null; `home` is its location. */
+  readonly environment: ExperimentEnvironment | null;
   /** Source commits whose SITL behaviour MirageSITL has verified (the pinned ArduPilot catalog). */
   readonly verifiedCommits: readonly string[];
 }
@@ -461,6 +469,7 @@ interface ExternalFacts {
   physicsHz: 800 | 1200;
   betModuleSha256: string;
   home: readonly [number, number, number, number];
+  environment: ExperimentEnvironment | null;
   verifiedCommits: readonly string[];
   version: { readonly commit: string; readonly gitHash: string; readonly firmwareVersion: string } | null;
   versionSinceS: number;
@@ -557,7 +566,7 @@ export class SessionController {
     if (!firmware.usable) { this.fail({ kind: "firmware", message: `ArduPilot build ${firmware.id} cannot be started: ${firmware.reason ?? "unusable"}` }, "starting", null); return; }
     this.set({ name: "starting", step: "physics", experimentId: null });
     let betModuleSha256: string;
-    try { ({ betModuleSha256 } = await this.physics.load(request.physicsHz)); } catch (error) {
+    try { ({ betModuleSha256 } = await this.physics.load(request.physicsHz, request.environment)); } catch (error) {
       if (!cancelled()) this.fail({ kind: "physics", message: messageOf(error) }, "starting", null);
       return;
     }
@@ -601,6 +610,7 @@ export class SessionController {
       session: { physicsHz: request.physicsHz, clockMode: "sitl-lockstep", speedup: request.speedup, home: request.home, modelId: prepared.modelId,
         manifestSha256: prepared.manifestSha256, betModuleSha256 },
       parameters: prepared.parameters, frameScript: prepared.frameScript, sensors: prepared.sensors, recording, lineage: request.lineage ?? { kind: "original" },
+      environment: request.environment,
     };
     try { this.recordSha256 = (await this.records.create(payload)).sha256; } catch (error) {
       // No unrecorded run flies; after a Stop, the stop already ended the run.
@@ -688,7 +698,7 @@ export class SessionController {
 
     this.set({ name: "starting", step: "physics", experimentId: connection.id });
     let betModuleSha256: string;
-    try { ({ betModuleSha256 } = await this.physics.load(physicsHz)); } catch (error) {
+    try { ({ betModuleSha256 } = await this.physics.load(physicsHz, request.environment)); } catch (error) {
       if (!cancelled()) await this.stopAfter({ kind: "physics", message: messageOf(error) }, "starting");
       return;
     }
@@ -697,7 +707,7 @@ export class SessionController {
       await this.stopAfter({ kind: "sitl-ended", during: "starting", ending: connection.closedReason ?? "the connection closed" }, "starting");
       return;
     }
-    this.external = { spec: request.endpoints, connectionId: connection.id, physicsHz, betModuleSha256, home: request.home,
+    this.external = { spec: request.endpoints, connectionId: connection.id, physicsHz, betModuleSha256, home: request.home, environment: request.environment,
       verifiedCommits: request.verifiedCommits, version: null, versionSinceS: 0, homeChecked: false };
     this.readback = new ParameterReadback(prepared.parameters, prepared.absentRule);
     this.set({ name: "starting", step: "connecting", experimentId: connection.id });
@@ -1264,7 +1274,7 @@ export class SessionController {
       sitl: { ownership: "external", connectionId: external.connectionId, ardupilot: external.version, endpoints: external.spec },
       session: { physicsHz: external.physicsHz, clockMode: "sitl-lockstep", speedup: null, home: external.home, modelId: prepared.modelId,
         manifestSha256: prepared.manifestSha256, betModuleSha256: external.betModuleSha256 },
-      parameters: prepared.parameters, frameScript: null, sensors: prepared.sensors, recording, lineage: { kind: "original" },
+      parameters: prepared.parameters, frameScript: null, sensors: prepared.sensors, recording, lineage: { kind: "original" }, environment: external.environment,
     };
     try {
       const { sha256 } = await this.records.create(payload);

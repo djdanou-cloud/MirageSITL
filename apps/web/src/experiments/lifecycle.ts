@@ -5,7 +5,7 @@
 // tab shows how a repeat or a variant differs from its parent, inputs and
 // recorded trajectory, and the user decides. An exported experiment lists
 // what its archive cannot hold. Cold path, configuration time.
-import { experimentChanges, type ExperimentLineage, type ExperimentPayload, type ExperimentRecording } from "@mirage/aircraft/experiment";
+import { experimentChanges, type ExperimentEnvironment, type ExperimentLineage, type ExperimentPayload, type ExperimentRecording } from "@mirage/aircraft/experiment";
 import type { LoggingSettings } from "../logging/logging-settings";
 
 /** A run the Experiments tab asked the Run tab to start (TASK-165). */
@@ -31,6 +31,16 @@ export function loggingOf(recording: ExperimentRecording): LoggingSettings {
     reserveMb: recording.reserveMb };
 }
 
+/** How the record describes the conditions it flew in (TASK-148); a record without an environment flew before the location existed. */
+export function conditionsText(environment: ExperimentEnvironment | null): string {
+  if (!environment) return "Standard gravity 9.80665 m/s² and a sea-level ISA origin (recorded without a location)";
+  const { location, conditions } = environment, air = conditions.air;
+  const where = location.site ?? `${location.latitudeDeg}°, ${location.longitudeDeg}°, ${location.groundElevationMslM} m`;
+  const pressure = `${(air.seaLevelPressurePa / 100).toFixed(2)} hPa ${air.seaLevelPressureSource}`;
+  return `${where}: gravity ${conditions.gravityMps2.toFixed(5)} m/s², sea-level pressure ${pressure}, ISA ${air.temperatureOffsetK >= 0 ? "+" : ""}${air.temperatureOffsetK} K, ` +
+    `air ${(air.pressurePa / 100).toFixed(2)} hPa and ${air.densityKgM3.toFixed(4)} kg/m³, field ${conditions.magnetic.totalNt.toFixed(0)} nT ` +
+    `with declination ${conditions.magnetic.declinationDeg.toFixed(2)}°`;
+}
 /** How the record names where it comes from. */
 export function lineageText(lineage: ExperimentLineage, nameOf: (sha256: string) => string): string {
   switch (lineage.kind) {

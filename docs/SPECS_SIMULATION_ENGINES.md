@@ -2163,8 +2163,9 @@ authoritative EGM96 grid (below), which opens the gate.
 
 TASK-148 supplies what a location changes in the physics: normal gravity, the
 geomagnetic main field and the geoid. Each model is verified against
-independent reference data; the effective-conditions record and its session
-wiring follow in later increments of the task.
+independent reference data, the effective-conditions record combines them for
+one location, and the flight sessions, the Run tab and the experiment record
+carry them.
 
 **Normal gravity** (`packages/sensors/src/gravity.ts`) is the gravity of the
 WGS84 level ellipsoid after NIMA TR8350.2 (3rd edition, amendment 1). On the
@@ -2262,6 +2263,38 @@ exactly the former values. `node scripts/bench-flight-contact.mjs --location`
 repeats takeoffs and landings there for 10⁶ steps at 0.00296 B/step with no GC
 event and no native allocator call (`test-results/bench/flight-contact-location.json`),
 and `node scripts/bench-physics.mjs` keeps the session step at zero allocation.
+
+**In the application** the Weather and location tab (`apps/web/src/weather/`)
+keeps one location per project in the store's local setting `weather.location`
+(`LocationChoice`: a built-in site or coordinates, the ground elevation above
+mean sea level, the heading, a measured QNH or the standard sea-level pressure,
+and an ISA temperature offset, all inside the envelope above; the default is
+ArduPilot's SITL test site CMAC, the Run tab's former fixed home). Phase 1 has
+no offline map and the TASK-131 inventory holds no elevation data, so the
+elevation is typed and the synthetic pad stands at any coordinates. As the form
+changes, the tab shows the effective conditions from the same models the run
+uses, loaded in the browser from the repository's data files (`WMM_2025.COF`
+after its SHA-256 check and `WW15MGH.DAC` through `loadEgm96Geoid`) at the
+current date; a saved location is the next run's home and environment. The Run
+tab starts a launcher run and connects an external SITL at that location:
+ArduPilot's `--home` is the location's latitude, longitude, elevation and
+heading, the barometer parameters of TASK-147 are generated at that elevation,
+and the physics Worker receives `environment.set` (the gravity and the origin
+air of the conditions, refused outside 9.7 to 9.9 m/s² or with an invalid air)
+before `model.load`, so `profileModelPort` builds the profile dynamics with
+them. A repeat or variant of an experiment keeps its parent's home and
+environment. On the Phase 1 path ArduPilot SITL computes its own magnetic field
+from its declination tables at the home; the WMM2025 field is shown and
+recorded for comparison and is not written to the autopilot. Experiment payload
+schema 5 records the location and its conditions as `environment` (null for a
+run recorded without one), which `validateExperiment` checks for consistency
+with the session's home and the location (see "Experiment record").
+`tests/weather-location.test.ts` checks the setting, the envelope and the form;
+`tests/browser/location.spec.ts` chooses a location through the UI alone,
+compares the shown conditions with the models evaluated in Node, and finds the
+saved location in the Run tab after a reload; `tests/browser/profile-dynamics.spec.ts`
+sets the environment on the physics Worker and reads the location's gravity
+and air back from the published state.
 
 ## Implemented ArduPilot JSON lockstep: TASK-041
 
@@ -6728,8 +6761,8 @@ network error; launcher-foreign needs an answer the browser may read.
 
 ### Experiment record
 
-`packages/aircraft/src/experiment.ts` defines experiment payload schema 4
-(TASK-165) in record envelope v1, and the application registers
+`packages/aircraft/src/experiment.ts` defines experiment payload schema 5
+(TASK-148) in record envelope v1, and the application registers
 `validateExperiment` for the `experiment` kind. The record has exactly one
 dependency, its aircraft-profile version, and the payload holds:
 
@@ -6743,13 +6776,15 @@ dependency, its aircraft-profile version, and the payload holds:
 | sensors | `sensorSnapshot()` of the profile version, verbatim |
 | recording | the run's recorder v2 record ID and the Logging tab settings it records with (common, group and signal rates, the run length and the storage reserve; TASK-163), or null for a run that records nothing |
 | lineage | an original run, or a repeat or variant of a parent experiment (TASK-165; see "Experiment lifecycle") |
+| environment | the location of the run (site, coordinates, ground elevation, heading, measured QNH, temperature offset) with the effective conditions evaluated there (TASK-148), or null for a run without a location; the session's home must be the location, the conditions must be evaluated at it with h = H + N, the WMM zone must match the horizontal field, and the air must come from the location's sea-level pressure |
 
 Schema 1, which TASK-154 wrote, had `ardupilot` and `launcher` at the top
 level and a required speed-up; schema 2, which TASK-155 wrote, had no
-`recording`, and schema 3, which TASK-163 wrote, no `lineage`. All stay valid
-on reads and archive imports; `readExperiment` presents them as schema 4
-original runs, without a recording before schema 3 (schema 1 with a
-launcher-owned `sitl`), and `createExperimentRecord` writes only schema 4.
+`recording`, schema 3, which TASK-163 wrote, no `lineage`, and schema 4, which
+TASK-165 wrote, no `environment`. All stay valid on reads and archive imports;
+`readExperiment` presents them as schema 5 original runs without an
+environment, without a recording before schema 3 (schema 1 with a
+launcher-owned `sitl`), and `createExperimentRecord` writes only schema 5.
 
 `createExperimentRecord` recomputes the snapshot from the stored profile
 version and requires canonical-byte equality, cross-checks the frame and
@@ -7553,10 +7588,11 @@ ArduCopter 8ab6afde with a mocked controller through the Run tab.
 ## Experiment lifecycle (TASK-165)
 
 An experiment fixes its inputs: the aircraft profile version, the ArduPilot
-build, the speed, the physics rate, the home, the initial parameters, the
-frame script, the TASK-143 sensor snapshot of its profile version and the
-recording setup. Weather, location, the flight task and the fault schedule
-join them when their tasks land (TASK-148, TASK-167, TASK-169, TASK-172).
+build, the speed, the physics rate, the home, the conditions of its location
+(the measured QNH and the temperature offset; TASK-148), the initial
+parameters, the frame script, the TASK-143 sensor snapshot of its profile
+version and the recording setup. Weather, the flight task and the fault
+schedule join them when their tasks land (TASK-167, TASK-169, TASK-172).
 Results (the recording, the parameter log, the DataFlash files) belong to
 the run. Its inputs never change after version 1.
 
@@ -7569,19 +7605,21 @@ type ExperimentLineage =
   | { kind: "original" }
   | { kind: "repeat"; of: string }   // the parent experiment record's SHA-256
   | { kind: "variant"; of: string; changes: ExperimentInput[] };
-type ExperimentInput = "aircraft profile" | "ArduPilot build" | "speed" | "physics rate" | "home" | "initial parameters" | "frame script" |
-  "sensors" | "recording setup" | "SITL";
+type ExperimentInput = "aircraft profile" | "ArduPilot build" | "speed" | "physics rate" | "home" | "conditions" | "initial parameters" |
+  "frame script" | "sensors" | "recording setup" | "SITL";
 ```
 
 `experimentChanges(parent, child)` lists the inputs that differ, in that
-order. The run's own identity (launcher experiment or connection ID, the
+order; the `conditions` input compares the location's measured QNH and
+temperature offset, and the date of a run, with the magnetic field of its
+conditions, is not an input. The run's own identity (launcher experiment or connection ID, the
 recording record it made, its lineage and the BET module build) is not an
 input. `createExperimentRecord` reads the parent, which must be an
 experiment of the same project, and refuses a repeat whose inputs differ and
 a variant whose `changes` are not exactly the computed list; a variant needs
 at least one change. The parent is named as data, not as a store dependency,
-and is never changed. Schema 3 records read as schema 4 original runs, and
-new records are always schema 4.
+and is never changed. Schema 3 and 4 records read as schema 5 original runs,
+and new records are always schema 5.
 
 ### Repeat and Create variant
 
@@ -7619,8 +7657,8 @@ this browser does not hold and the build it needs.
 
 ### Verification (TASK-165)
 
-`tests/experiment-record.test.ts` checks schema 4 and the migration of
-schema 3, the input changes and what is not an input, the refusals of a false
+`tests/experiment-record.test.ts` checks schema 5, the migrations of schemas
+1 to 4 and the environment's consistency checks, the input changes and what is not an input, the refusals of a false
 repeat or variant and of a parent from elsewhere, the unchanged parent, an
 exported experiment imported into an empty store and its external
 dependencies, and the trajectory difference against a hand-computed oracle.
