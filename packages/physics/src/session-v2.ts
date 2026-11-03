@@ -117,6 +117,10 @@ export interface SessionDynamics {
    */
   setWeather?(weather: Float64Array): string | null;
   readonly weatherActive?: boolean;
+  /** TASK-148: the air follows the CG's height (a weather or the location's origin air); the session publishes `air`'s pressure. */
+  readonly airActive?: boolean;
+  /** TASK-148: gravity the dynamics applies, m/s² down; the published specific force subtracts it. Absent: 9.80665. */
+  readonly gravityMps2?: number;
   readonly windNedMps?: Float64Array;
   readonly air?: Float64Array;
 }
@@ -548,7 +552,7 @@ export class PhysicsSessionV2 {
     s.anMps2 = d.an; s.aeMps2 = d.ae; s.adMps2 = d.ad;
     s.pRadS = d.p; s.qRadS = d.q; s.rRadS = d.r;
     // Ideal specific force f_b = R_nb^T (a_n - g_n), g_n = [0, 0, g] (SPECS_SIMULATION_ENGINES section 1).
-    rotateNedToBody(d.qw, d.qx, d.qy, d.qz, d.an, d.ae, d.ad - STANDARD_GRAVITY_MPS2, this.bodyScratch);
+    rotateNedToBody(d.qw, d.qx, d.qy, d.qz, d.an, d.ae, d.ad - (this.dynamics.gravityMps2 ?? STANDARD_GRAVITY_MPS2), this.bodyScratch);
     s.specificForceXBodyMps2 = this.bodyScratch[0]!; s.specificForceYBodyMps2 = this.bodyScratch[1]!;
     s.specificForceZBodyMps2 = this.bodyScratch[2]!;
     // Relative to the air: the weather's wind (TASK-093), or still air. Not Math.hypot (allocates).
@@ -557,8 +561,8 @@ export class PhysicsSessionV2 {
     s.trueAirspeedMps = Math.sqrt(rn * rn + re * re + rd * rd);
     // Only a dynamics with an electrical drive reports a bus current (TASK-092); the demo has none.
     s.batteryVoltage = d.batteryVoltage; const electrical = this.dynamics.electrical; s.batteryCurrentA = electrical ? electrical[2]! : 0;
-    // The weather's ISA air at the CG (TASK-093), or the standard atmosphere with the origin at mean sea level.
-    const air = calm ? undefined : this.dynamics.air;
+    // The weather's (TASK-093) or the location's (TASK-148) ISA air at the CG, or the standard atmosphere with the origin at mean sea level.
+    const air = calm && this.dynamics.airActive !== true ? undefined : this.dynamics.air;
     s.ambientPressurePa = air ? air[AIR_PRESSURE]! : isaPressurePa(-d.down);
     s.scheduledWallTimeMs = scheduledWallMs;
     s.groundClearanceM = -d.down; s.referenceRotorRpm = this.dynamics.referenceRotorRpm ?? 0;

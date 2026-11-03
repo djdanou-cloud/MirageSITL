@@ -43,6 +43,10 @@ export interface ProfileDynamicsOptions {
    * BET compute alone (scripts/bench-bet.mjs, bench-profile-dynamics.mjs). Flight sessions never set it.
    */
   readonly syntheticPad?: boolean;
+  /** TASK-148: the location's normal gravity, m/s² down, for the body and the ground contact; defaults to 9.80665. */
+  readonly gravityMps2?: number;
+  /** TASK-148: the air at the ground origin; the rotors then meet ISA air at the CG's height (`BetFlightConfiguration.originAir`). */
+  readonly originAir?: { readonly temperatureK: number; readonly pressurePa: number };
 }
 /** What a contact shape of a build stands for: a hull shape of the manifest, or the disc of a rotor. */
 export type ProfileShapePart = ContactShapePart;
@@ -140,6 +144,8 @@ export function buildProfileDynamics(input: VehicleManifest, options: ProfileDyn
     soundMps: options.soundMps ?? air.speedOfSoundMps, syntheticGroundDownM: gear ? undefined : 0, drive, configurationFlags,
     kernelOptions: options.kernelOptions ?? 0, limitRatings: options.limitRatings ?? null,
     ...(airframeDrag ? { airframeDrag } : {}),
+    ...(options.gravityMps2 === undefined ? {} : { gravityMps2: options.gravityMps2 }),
+    ...(options.originAir ? { originAir: options.originAir } : {}),
   };
   return Object.freeze({ configuration, limitations: Object.freeze(limitations), gear });
 }
@@ -205,7 +211,8 @@ export function profileFlightDynamics(module: WebAssembly.Module, build: Profile
   const { configuration, gear } = build;
   if (!gear) return new BetFlightDynamics(module, configuration, hz);
   const contact = GroundContact.forVehicleNow(configuration.initialBody, gear.vehicle,
-    { wheels: gear.wheels, hullRadiusM: gear.hullRadiusM, friction: HULL_FRICTION, ...(gear.shapes.length > 0 ? { shapes: gear.shapes } : {}) });
+    { wheels: gear.wheels, hullRadiusM: gear.hullRadiusM, friction: HULL_FRICTION, gravityMps2: configuration.gravityMps2 ?? 9.80665,
+      ...(gear.shapes.length > 0 ? { shapes: gear.shapes } : {}) });
   // TASK-149: the dynamics checks the shapes' contact reports against decision F-09.
   return new BetFlightDynamics(module, { ...configuration, contact, ...(gear.shapes.length > 0 ? { contactParts: gear.parts } : {}) }, hz);
 }

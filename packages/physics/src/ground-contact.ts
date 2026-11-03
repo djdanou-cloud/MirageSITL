@@ -108,6 +108,8 @@ export interface ContactOptions {
      * products the contact uses configuration version 2; it replaces `inertiaDiagonalKgM2`.
      */
     readonly inertiaKgM2?: readonly number[];
+    /** Gravity of the native world, m/s² down (TASK-148: the location's normal gravity); defaults to 9.80665. */
+    readonly gravityMps2?: number;
     readonly groundNormalNed?: readonly [
         number,
         number,
@@ -141,7 +143,7 @@ export class GroundContact implements ContactBackend {
     /** Configured hull and propeller shapes, in `ContactOptions.shapes` order. */
     readonly shapeCount: number;
     /** Gravity the native world applies, m/s² down; a flight model on this contact must use the same. */
-    readonly gravityMps2 = 9.80665;
+    readonly gravityMps2: number;
     /** Airframe plus unsprung wheel masses, kg (TASK-095). */
     readonly vehicleMassKg: number;
     /**
@@ -275,7 +277,11 @@ export class GroundContact implements ContactBackend {
             c.set(options.inertiaDiagonalKgM2 ?? [inertia, inertia, inertia], 19);
         c.set(options.groundNormalNed ?? [0, 0, -1], 22);
         c[25] = options.groundOffsetM ?? 0;
-        c[26] = 9.80665;
+        const gravity = options.gravityMps2 ?? 9.80665;
+        if (!Number.isFinite(gravity) || gravity < 0 || gravity > 20)
+            throw new Error("Invalid contact gravity");
+        c[26] = gravity;
+        this.gravityMps2 = gravity;
         c[27] = this.wheelCount;
         for (let i = 0; i < this.wheelCount; i++) {
             const w = options.wheels?.[i];

@@ -52,6 +52,13 @@ export interface BetFlightConfiguration {
   densityKgM3: number; viscosityPaS: number; soundMps: number;
   /** Defaults to Earth gravity; zero is useful for inertial/support allocation fixtures. */
   gravityMps2?: number;
+  /**
+   * TASK-148: the air at the ground origin (the location's effective conditions). With it the rotors
+   * and drag meet ISA air at the CG's height above the origin every step, and the session publishes
+   * that pressure; a weather.set replaces it until the next reset. Absent, the air is the configured
+   * constant state, bit for bit as before.
+   */
+  originAir?: { readonly temperatureK: number; readonly pressurePa: number };
   /** Opt-in synthetic flat pad: inelastic, no-slip support at this NED down.
    * This numerical fixture is independent of Rapier/measured landing fidelity. */
   syntheticGroundDownM?: number;
@@ -141,7 +148,13 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
   readonly atmosphere:Float64Array;
   /** A weather.set is in effect (TASK-093); until one is, the configured atmosphere and no wind stay, bit for bit. */
   weatherActive=false;
-  /** While weatherActive, the ISA air at the CG after the last step: atmosphereAtHeightInto's output (AIR_* slots). */
+  /** Gravity the body integrator applies, m/s² down (the configuration's, 9.80665 by default). */
+  readonly gravityMps2:number;
+  /** True when the air follows the CG's height: a weather.set is in effect, or the configuration has an origin air. */
+  get airActive():boolean {return this.weatherActive||this.originAir!==null;}
+  /** TASK-148: the configured air at the origin (atmosphereAtHeightInto's input with height 0), or null. */
+  private readonly originAir:Float64Array|null;
+  /** While airActive, the ISA air at the CG after the last step: atmosphereAtHeightInto's output (AIR_* slots). */
   readonly air=new Float64Array(5);
   nowMs=0.5;
   validityFlags=0;
@@ -284,6 +297,13 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
     this.atmosphere=new Float64Array([configuration.densityKgM3,configuration.viscosityPaS,configuration.soundMps]);
     if(!this.atmosphere.every(Number.isFinite) || this.atmosphere[0]!<0.05 || this.atmosphere[0]!>2 ||
         this.atmosphere[1]!<=0 || this.atmosphere[2]!<=0)throw Error('Invalid BET atmosphere');
+    this.gravityMps2=configuration.gravityMps2??9.80665;
+    const origin=configuration.originAir;
+    if(origin) {
+      const reference=new Float64Array([origin.temperatureK,origin.pressurePa,0]),probe=new Float64Array(5);
+      if(!atmosphereAtHeightInto(reference,probe))throw Error('The origin air lies outside the atmosphere envelope');
+      this.originAir=reference;
+    } else this.originAir=null;
     this.baseAtmosphere=new Float64Array(this.atmosphere);
     this.gust=new Wind({meanNedMps:[0,0,0],gustRmsMps:0,bandwidthHz:WEATHER_GUST_BANDWIDTH_HZ,hz},0);
     for(let i=0;i<n;i++) {
@@ -307,8 +327,9 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
     this.state.flags=StateFlag.InputFailsafe;this.pendingActuator=false;this.externalArmed=false;this.fault='';this.validityFlags=this.configurationFlags;
     this.referenceRotorRpm=this.output[9]!*60/(2*Math.PI);
     this.limits?.reset();this.accidents?.reset();
-    // A new epoch starts without weather, as configured.
+    // A new epoch starts without weather, as configured; with an origin air (TASK-148) at the initial CG height.
     this.weatherActive=false;this.windNedMps.fill(0);this.atmosphere.set(this.baseAtmosphere);
+    if(this.originAir){this.airReference.set(this.originAir);this.updateAir();}
     this.dragWrenchBody.fill(0);
     const t=this.power;
     if(t) {
@@ -448,7 +469,7 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
     this.referenceRotorRpm=output[9]!*60/(2*Math.PI);this.pendingActuator=false;
     if(this.power&&this.bus)this.recordPower(this.power,this.bus.output,s.tick);
     this.copyTruth();
-    if(this.weatherActive&&!this.updateAir())this.fault='BET atmosphere outside its envelope';
+    if((this.weatherActive||this.originAir!==null)&&!this.updateAir())this.fault='BET atmosphere outside its envelope';
   }
   /** TASK-093: the ISA air at the CG's new height, for the next step's rotors and the session's published pressure. */
   private updateAir():boolean {

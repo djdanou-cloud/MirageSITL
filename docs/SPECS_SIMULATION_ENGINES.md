@@ -2243,6 +2243,26 @@ within ±50 K. `magneticNedGauss` gives the field as `IdealSensors` takes it.
 standard air equal to ISA at H, a measured QNH that round-trips, the blocked
 gate without the grid, and the blackout zone near the magnetic pole.
 
+**In flight sessions** the conditions enter through two opt-in options, which
+leave every configuration without them bit for bit as before.
+`BetFlightConfiguration.gravityMps2` (and `ProfileDynamicsOptions.gravityMps2`)
+sets the body integrator's gravity; `ContactOptions.gravityMps2` sets the Rapier
+world's, and the contact must match the model's as before.
+`BetFlightConfiguration.originAir` is the air at the ground origin: from reset the
+rotors and drag meet ISA air at the CG's height above the origin every step, a
+`weather.set` replaces it until the next reset, and `airActive` tells the
+session so. `PhysicsSessionV2` subtracts the dynamics' `gravityMps2` in the
+published specific force and publishes the dynamics' air pressure while
+`airActive`, instead of 9.80665 and a sea-level origin. In
+`tests/geographic-session.test.ts` an aircraft at rest on its legs at the CMAC
+site publishes its local normal gravity as specific force within 10⁻⁶ m/s² and
+exactly the float32 rounding of the origin air's pressure at its height, 6.6 kPa
+below the former sea-level value; without the options the session publishes
+exactly the former values. `node scripts/bench-flight-contact.mjs --location`
+repeats takeoffs and landings there for 10⁶ steps at 0.00296 B/step with no GC
+event and no native allocator call (`test-results/bench/flight-contact-location.json`),
+and `node scripts/bench-physics.mjs` keeps the session step at zero allocation.
+
 ## Implemented ArduPilot JSON lockstep: TASK-041
 
 The protocol is pinned to ArduPilot commit
