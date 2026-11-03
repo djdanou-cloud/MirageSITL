@@ -7123,6 +7123,71 @@ against a stored set (each checked against an oracle from the
 all-parameters file), an experiment record's generated parameters, and the
 simulator settings.
 
+## Run speed (TASK-175)
+
+In JSON lockstep every physics step answers one SITL frame, so a real-time
+run and an accelerated run take the same step sequence. Only ArduPilot's own
+`--speedup` pacing differs, and acceleration is limited by the host, never
+reached by skipping steps or simplifying the model.
+
+### Modes
+
+| Run tab choice | `--speedup` | Mode |
+|---|---|---|
+| Real time | 1 | `real-time` |
+| Accelerated, at most 2× or 4× | 2 or 4 | `capped` |
+| As fast as possible | 100, the launcher's largest, which no host reaches | `as-fast-as-possible` |
+| a SITL the user started (TASK-155) | its own command line | `external` |
+
+No acceleration factor is promised: the Run tab shows the speed the host
+reached.
+
+### Measurement
+
+`RunSpeedMeter` (`apps/web/src/run/run-speed.ts`) takes one sample per Worker
+status of an open bridge: the controller's wall time and the session's
+simulated time. Paused wall time (TASK-156) is not running time. The meter
+reports:
+
+| Value | Meaning |
+|---|---|
+| `windowSpeed` | simulated over running wall time over the last 5 s |
+| `averageSpeed` | the same over the whole run |
+| `intervals`, `dropped` | completed 1 s intervals of running wall time; for a real-time run, every interval that advanced less than 0.99 s of simulated time, with its start and its advance |
+| `realTime` | for a real-time run with a completed interval, whether it averages at least 0.99 (decision A-05); null otherwise |
+| `startup` | SITL's start-up before the autopilot's first heartbeat: its simulated and wall time |
+
+Interval boundaries are interpolated between samples, and running wall time
+is summed in milliseconds from the clock's own differences, so intervals
+close at exact boundaries. The run is judged from the autopilot's first
+heartbeat. Before it SITL boots: on the reference Mac that took about 10 s
+of wall time for 2 s of simulated time when it was counted as part of the
+run, so every real-time run would have read as behind real time. The start-up
+is measured and shown on its own, never folded into the verdict or hidden.
+A real-time run is called real time only while it averages at least 0.99;
+otherwise it says that it is behind, with its average. Every dropped interval
+is listed. An accelerated run reports the speed it reached and is never
+judged against real time.
+
+### Verification (TASK-175)
+
+`tests/run-speed.test.ts` checks the meter against hand-computed ratios: a
+steady real-time run, a stalled second as a dropped interval, interpolated
+boundaries, paused time left out, start-up kept apart, and the window
+against the average. On a real `PhysicsSessionV2` in sitl-lockstep with the
+quad profile, it also checks that the same servo frames delivered at real
+time and at 25 times that pace give byte-identical state lines: 1106 frames
+until the climb without an autopilot tips the quad and two propellers
+strike, on the same tick at both paces, with the same accident reports. That
+tolerance, identical bytes, was declared before the test.
+`tests/browser/run-speed.spec.ts` runs native ArduCopter 8ab6afde through the
+Run tab in real time and as fast as possible. The tolerances were declared
+before the test: the speed the panel reports over an interval agrees with
+the test's own measurement of simulated over wall time over the same 20 s
+within 5 %, and the two runs' recorded
+truth trajectories over their first 20 s of simulated time are identical row
+for row.
+
 ## DataFlash capture per experiment (TASK-164)
 
 ArduPilot's own DataFlash logs of an integrated run stay ArduPilot's: the

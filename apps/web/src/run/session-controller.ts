@@ -34,6 +34,10 @@
 // change with its old and new value, wall and simulated time, experiment and
 // outcome.
 //
+// The run's speed (TASK-175) is measured from the Worker's statuses: the
+// simulated over the running wall time, with paused time left out, and, for a
+// real-time run, whether it holds A-05's ratio and which intervals dropped.
+//
 // Connect (TASK-155) runs the same states against a SITL the user started.
 // The launcher owns only the connection, so Stop and every failure
 // disconnect and never signal the process. A connection is refused, naming
@@ -54,6 +58,7 @@ import { MavParser, type MavFrame } from "@mirage/mavlink/codec";
 import { fieldOf, readNumber } from "@mirage/mavlink/messages";
 import type { AccidentEvent } from "@mirage/physics/accident";
 import type { ParameterChange } from "../params/parameter-sets";
+import { RunSpeedMeter, type RunSpeedView } from "./run-speed";
 import type { SitlStatus } from "../sitl/bridge-client";
 
 // ---- the launcher as the controller sees it ------------------------------------------------
@@ -365,6 +370,8 @@ export interface ControllerView {
   readonly pausedWallMs: number;
   /** The run's parameters (TASK-160), or null before it loads them. */
   readonly parameters: ParameterView | null;
+  /** The measured run speed (TASK-175). */
+  readonly speed: RunSpeedView;
 }
 /** The parameter state of a run (TASK-160); the list itself is read with `parameterList()`. */
 export interface ParameterView {
@@ -435,6 +442,7 @@ export class SessionController {
   private paramMetadata: ParameterMetadataSet | null = null;
   private changes: ParameterChange[] = [];
   private firmwareCommit: string | null = null;
+  private speed = new RunSpeedMeter(1);
   private heartbeatSeen = false;
   private lastHeartbeatMs = 0;
   private accidents: AccidentEvent[] = [];
@@ -463,7 +471,8 @@ export class SessionController {
   get view(): ControllerView {
     return { state: this.stateValue, status: this.status, mode: this.mode, armed: this.armed, statusText: this.statusText, recordSha256: this.recordSha256,
       ownership: this.ownership, compatibility: this.compatibility, motorCheck: this.motorCheckView(), accidents: this.accidents,
-      afterAccident: this.afterAccident, pauses: this.pauses, pausedWallMs: this.pausedWallTotal(), parameters: this.parameterView() };
+      afterAccident: this.afterAccident, pauses: this.pauses, pausedWallMs: this.pausedWallTotal(), parameters: this.parameterView(),
+      speed: this.speed.view };
   }
   get active(): boolean { return ACTIVE.has(this.stateValue.name); }
   /** The current state name, read afresh after an await (not narrowed by earlier checks). */
@@ -474,6 +483,7 @@ export class SessionController {
     const from = this.stateValue.name;
     if (from !== "idle" && from !== "failed") return;
     this.reset("launcher");
+    this.speed = new RunSpeedMeter(request.speedup);
     const generation = ++this.generation;
     const cancelled = () => generation !== this.generation;
     let prepared: PreparedRun;
@@ -568,6 +578,8 @@ export class SessionController {
     const from = this.stateValue.name;
     if (from !== "idle" && from !== "failed") return;
     this.reset("external");
+    // A SITL the user started paces itself by its own --speedup.
+    this.speed = new RunSpeedMeter(null);
     const generation = ++this.generation;
     const cancelled = () => generation !== this.generation;
     let prepared: PreparedRun;
@@ -744,6 +756,7 @@ export class SessionController {
     this.physics.resume().then(() => {
       if (generation !== this.generation || this.stateValue !== s) return;
       this.resumeTo = null;
+      this.speed.resume(this.clock.nowMs());
       if (s.reason === "accident") this.afterAccident = true;
       this.recording?.pause(false);
       const last = this.pauses.at(-1);
@@ -821,6 +834,8 @@ export class SessionController {
     if (!isStatus(data)) return;
     this.status = data;
     if (!this.active) { this.emit(); return; }
+    // A paused session holds its time; the meter leaves paused wall time out.
+    if (data.state === "open" && this.stateValue.name !== "paused") this.speed.sample(this.clock.nowMs(), data.simTimeS);
     if (data.state === "fault") { void this.stopAfter(data.message.startsWith("SITL restarted") ? { kind: "sitl-restarted" } : { kind: "bridge-lost", message: data.message }, this.stateValue.name); return; }
     if (data.state === "closed") { void this.bridgeClosed(data.message); return; }
     this.progress();
@@ -843,6 +858,7 @@ export class SessionController {
     const s = this.stateValue;
     if (!("experimentId" in s) || s.experimentId === null) return;
     const at = this.physics.tickNow(), first = accidents[0];
+    this.speed.pause(this.clock.nowMs(), at.simTimeS);
     this.resumeTo = s;
     this.recording?.pause(true);
     this.pauses = [...this.pauses, { reason, tick: first?.tick ?? at.tick, simTimeS: first?.simTimeS ?? at.simTimeS, pausedWallMs: this.clock.nowMs(), resumedWallMs: null }];
@@ -917,6 +933,8 @@ export class SessionController {
         this.lastHeartbeatMs = this.clock.nowMs();
         if (!this.heartbeatSeen) {
           this.heartbeatSeen = true;
+          // The autopilot has booted: its run speed is judged from here (TASK-175).
+          if (this.status) this.speed.begin(this.clock.nowMs(), this.status.simTimeS);
           if (s.name === "starting" && s.experimentId) this.firstHeartbeat(s.experimentId, armed);
         }
         if (s.name === "running") {

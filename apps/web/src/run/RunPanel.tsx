@@ -20,6 +20,8 @@ import { FlightView, type FlightViewProbe } from "./FlightView";
 import { CompatibilityList, ManualConnect } from "./ManualConnect";
 import { MotorCheckPanel } from "./MotorCheck";
 import { PowerPanel } from "./PowerPanel";
+import { AS_FAST_AS_POSSIBLE } from "./run-speed";
+import { SpeedIndicator } from "./SpeedIndicator";
 import { SessionController, failureText, type CatalogEntry, type ConnectionSpec, type ControllerView, type Ownership, type PauseReason,
   type PreparedRun, type RunState } from "./session-controller";
 import type { SessionLink } from "./session-link";
@@ -37,6 +39,7 @@ import type { SessionLink } from "./session-link";
 // per-motor panels read the session at display rate. An accident (TASK-149)
 // is listed with its part and contact load; the run, paused on its tick, may
 // continue, and is then labelled as not validated for a damaged aircraft.
+// The run's measured speed (TASK-175) is shown with the pace it was asked for.
 // The session is attached to the shell's link, so the Parameters tab (TASK-160)
 // reads and writes the run's parameters, and each run's parameter changes are
 // saved as its parameter log.
@@ -251,7 +254,10 @@ export function RunPanel({ storeState, project, visible, link }: { storeState: S
         </select>
         <label htmlFor="sitl-speed">Speed</label>
         <select id="sitl-speed" value={speedup} disabled={active} onChange={event => setSpeedup(Number(event.target.value))}>
-          {[1, 2, 4].map(value => <option key={value} value={value}>{value === 1 ? "Real time" : `Up to ${value}×`}</option>)}
+          {/* TASK-175: real time, a cap, or as fast as this computer runs; the measured pace is shown below. */}
+          {[1, 2, 4, AS_FAST_AS_POSSIBLE].map(value => (
+            <option key={value} value={value}>{value === 1 ? "Real time" : value === AS_FAST_AS_POSSIBLE ? "As fast as possible" : `Accelerated, at most ${value}×`}</option>
+          ))}
         </select>
       </div>
       <div className="sitl-actions">
@@ -293,7 +299,8 @@ export function RunPanel({ storeState, project, visible, link }: { storeState: S
         <dd data-testid="sitl-mode">{view?.mode === null || view?.mode === undefined ? "No heartbeat" : MODE_NAMES[view.mode] ?? `Mode ${view.mode}`}</dd>
         <dt>Armed</dt><dd data-testid="sitl-armed">{view?.armed ? "Armed" : "Disarmed"}</dd>
         <dt>Altitude above the pad</dt><dd data-testid="sitl-altitude">{telemetry.altitudeM.toFixed(2)} m</dd>
-        <dt>Simulated time</dt><dd data-testid="sitl-sim-time">{telemetry.simTimeS.toFixed(1)} s{status && status.speed > 0 ? ` (${status.speed.toFixed(2)}× real time)` : ""}</dd>
+        <dt>Simulated time</dt><dd data-testid="sitl-sim-time">{telemetry.simTimeS.toFixed(1)} s</dd>
+        {view && <SpeedIndicator speed={view.speed} />}
         <dt>Lockstep frames</dt>
         <dd data-testid="sitl-frames">{status ? `${status.steps} stepped, ${status.droppedFrames} lost, ${status.duplicates} resent, ${status.held} held` : "None"}</dd>
         <dt>Experiment record</dt><dd data-testid="sitl-record">{view?.recordSha256 ?? "None"}</dd>
