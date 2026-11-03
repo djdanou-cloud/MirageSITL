@@ -9,7 +9,7 @@ import { validateAircraftProfile, withPropellerPolars, type AircraftProfile } fr
 import { resolveComponents } from '@mirage/aircraft/resolve-components';
 import { CONFIGURATION_FLAG_WAKE_UNMODELED } from '@mirage/physics/bet-dynamics';
 import { buildProfileDynamics, profileFlightDynamics, profileModelPort } from '@mirage/physics/profile-dynamics';
-import { VehicleRegistry } from '@mirage/physics/vehicle-manifest';
+import { VehicleRegistry, validateVehicleManifest, withoutAirframeDrag } from '@mirage/physics/vehicle-manifest';
 import { PhysicsSessionV2 } from '../packages/physics/src/session-v2.ts';
 import { ActuatorFlagV2, StateReaderV2, VehicleFlagV2, newActuatorFrameV2, newInput, createSharedMemoryV2, createSpscQueue, newFlightStateV2, newHeaderSnapshotV2,
   type CommandResultV2 } from '@mirage/protocol';
@@ -190,6 +190,38 @@ describe('geometry and component changes change the forces', () => {
     // Ideal hover power T^1.5/sqrt(2ρA) falls with disk area; at a fixed thrust coefficient Ω ∝ 1/D².
     expect(mean(large.omegaRadS)).toBeLessThan(mean(small.omegaRadS));
     expect(large.motorPowerW).toBeLessThan(small.motorPowerW);
+  }, 300000);
+
+  it('turns an airframe drag block into body drag about the CG, and lists a block without an airspeed range', async () => {
+    // TASK-096: the manifest's center of pressure is from the body reference point; the dynamics takes it from the CG.
+    const { derived, configuration } = await build(profileOf('quad-x'));
+    const m = withoutAirframeDrag(derived.manifest), cg = m.massProperties.cgOffsetBodyM;
+    // A derived manifest carries the standard hull's preliminary drag (derivation 6), its center of pressure taken from the CG.
+    const estimate = derived.manifest.airframe.drag;
+    if (!estimate?.maxAirspeedMps) throw new Error('The derived manifest has no drag estimate');
+    expect(configuration.airframeDrag).toEqual({ dragAreaBodyM2: estimate.dragAreaBodyM2,
+      centerOfPressureCgM: estimate.centerOfPressureBodyM.map((value, i) => value - cg[i]!), maxAirspeedMps: estimate.maxAirspeedMps });
+    const withDrag = (maxAirspeedMps?: number) => validateVehicleManifest({
+      ...m, airframe: { drag: { dragAreaBodyM2: [0.012, 0, 0, 0, 0.012, 0, 0, 0, 0.03], centerOfPressureBodyM: [0.02, 0, -0.01],
+        ...(maxAirspeedMps === undefined ? {} : { maxAirspeedMps }) } },
+      provenance: { ...m.provenance, airframeDrag: 'test-drag' },
+      datasets: [...m.datasets, { id: 'test-drag', kind: 'synthetic', sourceSha256: null, derivation: 'Test drag areas, not measured' }],
+    });
+    expect(buildProfileDynamics(m).configuration.airframeDrag).toBeUndefined();
+    const ranged = buildProfileDynamics(withDrag(20));
+    expect(ranged.configuration.airframeDrag).toEqual({ dragAreaBodyM2: [0.012, 0, 0, 0, 0.012, 0, 0, 0, 0.03],
+      centerOfPressureCgM: [0.02 - cg[0]!, 0 - cg[1]!, -0.01 - cg[2]!], maxAirspeedMps: 20 });
+    expect(ranged.limitations.some(text => text.includes('airspeed range'))).toBe(false);
+    const open = buildProfileDynamics(withDrag());
+    expect(open.configuration.airframeDrag?.maxAirspeedMps).toBe(Infinity);
+    expect(open.limitations.some(text => text.includes('no airspeed range'))).toBe(true);
+    // The dynamics accept it and apply it on the first step in the configured air at rest: zero relative wind, zero drag.
+    const d = profileFlightDynamics(module, ranged, 400), pilot = newInput();
+    try {
+      d.nowMs = 0; pilot.wallTimeMs = 0; d.stepNow(pilot);
+      expect(d.fault).toBe('');
+      expect(Array.from(d.dragWrenchBody).every(value => Math.abs(value) < 1e-12)).toBe(true);
+    } finally { d.dispose(); }
   }, 300000);
 });
 

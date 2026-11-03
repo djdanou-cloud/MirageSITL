@@ -85,9 +85,10 @@ export interface ProfileDynamicsBuild {
  * only (attitude control is the autopilot's). With landing gear (TASK-095)
  * the vehicle starts on its fully extended feet over the origin, motors
  * stopped, on the ground contact; without gear it starts on the synthetic pad
- * at the origin. Throws when the manifest lacks the drive, names a polar
- * outside the catalog, or has a section the runtime cannot consume (airframe
- * drag, control surfaces).
+ * at the origin. An airframe drag block (TASK-096) becomes the dynamics' body
+ * drag, its center of pressure taken from the CG. Throws when the manifest
+ * lacks the drive, names a polar outside the catalog, or has a section the
+ * runtime cannot consume (control surfaces).
  */
 export function buildProfileDynamics(input: VehicleManifest, options: ProfileDynamicsOptions = {}): ProfileDynamicsBuild {
   const manifest = validateVehicleManifest(input);
@@ -95,12 +96,14 @@ export function buildProfileDynamics(input: VehicleManifest, options: ProfileDyn
     throw new Error('Profile dynamics need a motor and an ESC for every rotor and a battery');
   }
   const drive = escDriveFromManifest(manifest, options.initialStateOfCharge ?? 1, options.housePowerW ?? 0);
-  // The drive, the sensor mounts and the gear are consumed here, by the sensor pipeline and by the contact; the rest projects
-  // to the v1 body and rotors.
-  const p = manifest.provenance;
+  // The drive, the airframe drag, the sensor mounts and the gear are consumed here, by the sensor pipeline and by the
+  // contact; the rest projects to the v1 body and rotors.
+  // A dataset that only consumed sections name leaves with them.
+  const provenance = { ...manifest.provenance, motors: null, escs: null, battery: null, airframeDrag: null, sensorMounts: null, rotorWakePairs: null };
+  const named = new Set<string | null | undefined>(Object.values(provenance));
   const model = projectVehicleToModelV1(withoutHull(withoutLandingGear({
-    ...manifest, motors: [], escs: [], battery: null, sensorMounts: [], rotorWakePairs: [], ardupilot: null,
-    provenance: { ...p, motors: null, escs: null, battery: null, sensorMounts: null, rotorWakePairs: null },
+    ...manifest, motors: [], escs: [], battery: null, airframe: { drag: null }, sensorMounts: [], rotorWakePairs: [], ardupilot: null,
+    provenance, datasets: manifest.datasets.filter(dataset => named.has(dataset.id)),
   })));
   const gear = options.syntheticPad === true ? null : profileGear(manifest, model);
   const polars = new Map<number, BoundPolar>();
@@ -110,6 +113,14 @@ export function buildProfileDynamics(input: VehicleManifest, options: ProfileDyn
   if (!gear && options.syntheticPad !== true) {
     limitations.push('The vehicle has no landing gear, so it stands on the synthetic pad, which holds it level on touchdown; decision F-07 ' +
       'places the supports at the profile\'s ground clearance, and a profile without one waits for the body hull (TASK-095).');
+  }
+  const drag = manifest.airframe.drag, cg = manifest.massProperties.cgOffsetBodyM;
+  const airframeDrag = drag ? {
+    dragAreaBodyM2: [...drag.dragAreaBodyM2], centerOfPressureCgM: drag.centerOfPressureBodyM.map((value, i) => value - cg[i]!),
+    maxAirspeedMps: drag.maxAirspeedMps ?? Infinity,
+  } : null;
+  if (drag && drag.maxAirspeedMps === undefined) {
+    limitations.push('The airframe drag data state no airspeed range, so no step flags the drag as outside its data (TASK-096).');
   }
   if (manifest.rotorWakePairs.length > 0) {
     limitations.push(`${manifest.rotorWakePairs.length} declared rotor-wake pairs are not modeled until TASK-101; each rotor sees free-stream inflow.`);
@@ -128,6 +139,7 @@ export function buildProfileDynamics(input: VehicleManifest, options: ProfileDyn
     densityKgM3: options.densityKgM3 ?? air.densityKgM3, viscosityPaS: options.viscosityPaS ?? air.dynamicViscosityPaS,
     soundMps: options.soundMps ?? air.speedOfSoundMps, syntheticGroundDownM: gear ? undefined : 0, drive, configurationFlags,
     kernelOptions: options.kernelOptions ?? 0, limitRatings: options.limitRatings ?? null,
+    ...(airframeDrag ? { airframeDrag } : {}),
   };
   return Object.freeze({ configuration, limitations: Object.freeze(limitations), gear });
 }

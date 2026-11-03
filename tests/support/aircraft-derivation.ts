@@ -74,14 +74,27 @@ export function engineSensitiveVariant(profile: AircraftProfile): unknown {
 
 /**
  * SHA-256 of each fixture's derived manifest with `syntheticComponents` and
- * FIXTURE_MODEL_ID, recorded from derivation 5 (TASK-095, the standard
- * landing gear of decision D-07 and the standard hull; TASK-195, the propeller
- * discs in the supports' clearance) in Node 24.22.1. They lock the bytes; the
- * oracle checks in tests/aircraft-profile.test.ts establish correctness, and
- * taking the gear and the hull out again reproduces the derivation 1
- * recordings below. The browser test requires Chromium to produce the same bytes.
+ * FIXTURE_MODEL_ID, recorded from derivation 6 (TASK-096, the standard hull's
+ * preliminary airframe drag) in Node 24.22.1. They lock the bytes; the oracle
+ * checks in tests/aircraft-profile.test.ts and tests/standard-hull-drag.test.ts
+ * establish correctness, and taking the drag and its dataset out again
+ * reproduces the derivation 5 recordings below. The browser test requires
+ * Chromium to produce the same bytes.
  */
 export const RECORDED_MANIFEST_SHA256: { readonly [name in FixtureName]: string } = {
+  'quad-x': 'bcb2778cfe070f61cb31efec12c748d5421a8f895dd78e9077ea2bd0551f77e4',
+  'hexa-x': 'ac5179c361ca314ec391af8a9472b68ca7d3338f80745e2acc6a0ff8e12c0d13',
+  'octa-x': '524411cd4ecb860fe53d8a1091f966466435b1f2f588dbb486f575a96da3d686',
+  'coaxial-x8': 'd2d56bffd170a093fcdc827bf7651f4e7899626657789600b8786a72a4cc64b9',
+  'octa-coaxial-16': '564ef2aceb44e3d1af11aad1dff530a8f63334a84ba8552260ee48c3b376b214',
+};
+/**
+ * The same, recorded from derivation 5 (TASK-095, the standard landing gear of
+ * decision D-07 and the standard hull; TASK-195, the propeller discs in the
+ * supports' clearance) in Node 24.22.1; taking the gear and the hull out again
+ * reproduces the derivation 1 recordings below.
+ */
+export const RECORDED_V5_MANIFEST_SHA256: { readonly [name in FixtureName]: string } = {
   'quad-x': 'fa7deed311741380a4863105cd35ebfe7cc07b7a5d52f7b140c44ffb90eb5d32',
   'hexa-x': '4d3e3c7ee1bb5b56a6516c8231d86b86bbe44f83b5a40fb8cbed8bc17750d1e1',
   'octa-x': '54cad2cab659593f34b5fec2d41c286633e4865900eee1360432a15ebb486e27',
@@ -103,7 +116,8 @@ export const RECORDED_V1_MANIFEST_SHA256: { readonly [name in FixtureName]: stri
   'coaxial-x8': '603ec04b0a9ea12075f6e2da7aa96f7cde558407cc83305d1106d00310f5899a',
   'octa-coaxial-16': 'c07b18cdf07e6139d07efd76e8df4647ffd0eb5dcfeb15f153d02002df0b6306',
 };
-export const RECORDED_ENGINE_SENSITIVE_SHA256 = 'd4f7d4b1b6c49fe0dd4c075cfade257fd01e6018c3c2c6a2f80bcf7edc2b93d3';
+export const RECORDED_ENGINE_SENSITIVE_SHA256 = 'a595142e2497578d55c1fa7ea0e52230e00b356fe8bf15f3b793028b57f1d44c';
+export const RECORDED_V5_ENGINE_SENSITIVE_SHA256 = 'd4f7d4b1b6c49fe0dd4c075cfade257fd01e6018c3c2c6a2f80bcf7edc2b93d3';
 export const RECORDED_V1_ENGINE_SENSITIVE_SHA256 = '234f0d6e891346a377fc266fcd347f6f34355d15c5c543a70890806b8c889cae';
 
 /**

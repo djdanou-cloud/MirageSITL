@@ -373,7 +373,7 @@ export async function validateModels() {
   const betRuntime = diagnostic("test-results/validation/bet-runtime.json", [], (value) =>
     runtimeEvidence(value) && Array.isArray(value.cases) && value.cases.length === 18 &&
     value.cases.every((item) => item.passed === true && item.positionErrorM <= 0.1 && item.attitudeErrorRad <= Math.PI / 360), [["sourceInputs"]]);
-  // Exactly the graphs scripts/check-bet-runtime.mjs --allocation measures (TASK-033, TASK-047, TASK-088, TASK-092, TASK-093).
+  // Exactly the graphs scripts/check-bet-runtime.mjs --allocation measures (TASK-033, TASK-047, TASK-088, TASK-092, TASK-093, TASK-096).
   const betRuntimeAllocation = diagnostic("test-results/validation/bet-runtime-allocation.json", [], (value) =>
     runtimeEvidence(value) && value.controlDetected === true && value.nativeAllocator?.steps === 1000000 &&
     value.nativeAllocator.calls === 0 && value.nativeAllocator.bytes === 0 && value.nativeAllocator.positiveControlDetected === true &&

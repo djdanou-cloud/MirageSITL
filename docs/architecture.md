@@ -914,6 +914,14 @@ above the origin's air and the mean wind plus the seeded gust, the published
 airspeed is relative to the air, and the SITL link sends the wind as
 `velocity_wind`. SPECS_SIMULATION_ENGINES ("Weather and atmosphere in flight
 sessions") gives the equations, the order within a step and the envelope.
+
+TASK-096 adds airframe drag on the same air: a drag-area tensor and center of
+pressure from the vehicle manifest give the body `−½·ρ·|v_a|·(C_D·A)·v_a` and
+its moment every step, from the velocity relative to the air that the rotors
+see, flagged beyond the data's airspeed range. Aircraft profiles get a
+preliminary estimate from the standard hull's body cylinder and arm capsules
+(manifest derivation 6), labeled preliminary (SPECS_SIMULATION_ENGINES,
+"Airframe drag").
 `kernel-test-exports` builds separate scalar/SIMD numerical test artifacts;
 the production artifact/ABI stays unchanged. Allocation tests cover 1e6 native
 kernel steps and million-step WASM dynamics with stable memory. Synthetic

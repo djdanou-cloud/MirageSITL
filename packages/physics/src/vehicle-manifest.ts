@@ -44,9 +44,14 @@ export interface BatterySpec {
   readonly capacityAh: number; readonly currentLimitA: number;
 }
 export interface AirframeDrag {
-  /** Row-major symmetric drag-area tensor (C_D·A), body FRD, m^2. */
+  /** Row-major symmetric drag-area tensor (C_D·A), body FRD, m^2, of the airframe without its rotors (TASK-096). */
   readonly dragAreaBodyM2: readonly number[];
   readonly centerOfPressureBodyM: readonly number[];
+  /**
+   * Optional (TASK-096): the top of the source data's airspeed range, m/s; faster steps set the model's
+   * outside-validity flag. Without it the data state no range, and the profile dynamics lists that limitation.
+   */
+  readonly maxAirspeedMps?: number;
 }
 export interface ControlSurfaceSpec {
   readonly id: number; readonly function: 'aileron' | 'elevator' | 'rudder' | 'flap' | 'elevon' | 'ruddervator';
@@ -409,6 +414,13 @@ export function withoutLandingGear(input: VehicleManifest): VehicleManifest {
 /** The manifest without its hull (TASK-095), which also goes to the ground contact; the hull's dataset goes when no other section names it. */
 export function withoutHull(input: VehicleManifest): VehicleManifest {
   return withoutSections(input, false, true);
+}
+/** The manifest without its airframe drag (TASK-096), which the BET flight dynamics consumes; its dataset goes when no other section names it. */
+export function withoutAirframeDrag(input: VehicleManifest): VehicleManifest {
+  const manifest = validateVehicleManifest(input);
+  const provenance = { ...manifest.provenance, airframeDrag: null }, named = new Set<string | null | undefined>(Object.values(provenance));
+  return validateVehicleManifest({ ...manifest, airframe: { drag: null }, provenance,
+    datasets: manifest.datasets.filter(dataset => dataset.id !== manifest.provenance.airframeDrag || named.has(dataset.id)) });
 }
 function withoutSections(input: VehicleManifest, dropGear: boolean, dropHull: boolean): VehicleManifest {
   const manifest = validateVehicleManifest(input);

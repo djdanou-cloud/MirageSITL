@@ -21,6 +21,18 @@ export interface EscDriveMotor {
   /** ESC update period; 0 updates every physics step. */
   readonly updatePeriodS: number;
 }
+/**
+ * Airframe drag (TASK-096): the airframe without its rotors, whose momentum drag the BET rotors produce themselves.
+ * F = −½·ρ·|v_a|·(C_D·A)·v_a in body FRD, v_a the velocity relative to the air, and the moment r_cp × F about the CG.
+ */
+export interface AirframeDragConfiguration {
+  /** Row-major symmetric positive-definite drag-area tensor (C_D·A), body FRD, m². */
+  readonly dragAreaBodyM2: readonly number[];
+  /** The center of pressure relative to the CG, body FRD, m. */
+  readonly centerOfPressureCgM: readonly number[];
+  /** The top of the source data's airspeed range, m/s; beyond it a step sets VALIDITY_FLAG_DRAG_OUTSIDE_RANGE. Infinity states none. */
+  readonly maxAirspeedMps: number;
+}
 /** Voltage-driven motors on one shared battery bus (TASK-092), one motor per rotor in rotor order. */
 export interface EscDriveConfiguration {
   readonly motors: readonly EscDriveMotor[];
@@ -45,6 +57,8 @@ export interface BetFlightConfiguration {
   syntheticGroundDownM?: number;
   /** The production drive (TASK-092). Absent, each rotor gets duty·motorMaxTorqueNm, bit for bit as before. */
   drive?: EscDriveConfiguration;
+  /** TASK-096 airframe drag. Absent, the rotors alone meet the air, bit for bit as before. */
+  airframeDrag?: AirframeDragConfiguration;
   /**
    * Configuration-level validity flags (TASK-144), ORed into `validityFlags`
    * every step, for model parts declared but not modeled; 0 by default.
@@ -92,6 +106,8 @@ export interface FlightContact {
 const SAMPLING_FLAGS=ROTOR_FLAG_HOVER_SAMPLING|ROTOR_FLAG_REDUCED_PREDICTOR;
 /** A vehicle declares rotor-wake pairs that the dynamics does not model until TASK-101. */
 export const CONFIGURATION_FLAG_WAKE_UNMODELED = 1 << 16;
+/** A step's airspeed exceeded the airframe drag data's range (TASK-096); a step flag, never a configuration flag. */
+export const VALIDITY_FLAG_DRAG_OUTSIDE_RANGE = 1 << 17;
 
 /**
  * The bandwidth of a weather.set's synthetic gust (TASK-093): the first-order Gauss-Markov wind of TASK-032, which is
@@ -119,6 +135,8 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
   driveLimited=false;
   /** The wind every rotor's inflow sees this step, NED m/s: zero, or a weather.set's mean wind and gust (TASK-093). */
   readonly windNedMps=new Float64Array(3);
+  /** TASK-096: the airframe drag force and moment of the last step, body FRD about the CG [N, N, N, N m, N m, N m]; zero without drag. */
+  readonly dragWrenchBody=new Float64Array(6);
   /** [density kg/m³, dynamic viscosity Pa s, speed of sound m/s] the rotors see this step. */
   readonly atmosphere:Float64Array;
   /** A weather.set is in effect (TASK-093); until one is, the configured atmosphere and no wind stay, bit for bit. */
@@ -156,6 +174,10 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
   private readonly candidate=new Float64Array(3);
   private readonly candidateAir=new Float64Array(5);
   private readonly gust:Wind;
+  /** TASK-096: the drag-area tensor (row-major), the center of pressure from the CG and the airspeed range, or null without drag. */
+  private readonly dragArea:Float64Array|null;
+  private readonly dragCenter=new Float64Array(3);
+  private readonly dragMaxAirspeedMps:number;
   private readonly groundDown:number|undefined;
   private readonly contact:FlightContact|null;
   private readonly bus:BetBus|null;
@@ -201,6 +223,18 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
     this.contact=contact;
     const flags=configuration.configurationFlags??0;
     if((flags>>>0)!==flags || (flags&0xffff)!==0)throw Error('Configuration flags must use bits 16 to 31');
+    if((flags&VALIDITY_FLAG_DRAG_OUTSIDE_RANGE)!==0)throw Error('Bit 17 is the airframe drag step flag, not a configuration flag');
+    const drag=configuration.airframeDrag;
+    if(drag) {
+      const c=drag.dragAreaBodyM2,r=drag.centerOfPressureCgM;
+      // Symmetric and positive definite (leading principal minors), as the vehicle manifest requires.
+      const symmetric=c.length===9&&c.every(Number.isFinite)&&c[1]===c[3]&&c[2]===c[6]&&c[5]===c[7];
+      const m1=c[0]!,m2=c[0]!*c[4]!-c[1]!*c[3]!,
+        m3=c[0]!*(c[4]!*c[8]!-c[5]!*c[7]!)-c[1]!*(c[3]!*c[8]!-c[5]!*c[6]!)+c[2]!*(c[3]!*c[7]!-c[4]!*c[6]!);
+      if(!symmetric||!(m1>0&&m2>0&&m3>0)||r.length!==3||!r.every(Number.isFinite)||!(drag.maxAirspeedMps>0))
+        throw Error('Invalid airframe drag');
+      this.dragArea=new Float64Array(c);this.dragCenter.set(r);this.dragMaxAirspeedMps=drag.maxAirspeedMps;
+    } else {this.dragArea=null;this.dragMaxAirspeedMps=Infinity;}
     this.configurationFlags=flags;
     if (model.kind!=='bet' || ![400,800,1200,4800].includes(hz) ||
         configuration.initialOmegaRadS.length!==n || configuration.motorMaxTorqueNm.length!==n ||
@@ -275,6 +309,7 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
     this.limits?.reset();this.accidents?.reset();
     // A new epoch starts without weather, as configured.
     this.weatherActive=false;this.windNedMps.fill(0);this.atmosphere.set(this.baseAtmosphere);
+    this.dragWrenchBody.fill(0);
     const t=this.power;
     if(t) {
       t.clear();
@@ -384,6 +419,14 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
       this.busLimited=this.bus.output[6]!!==0;
     }
     if(!this.frame.sumInto(this.hub,this.wrench)){this.fault='BET body integration failed';return;}
+    if(this.dragArea){
+      // TASK-096: F = ½·ρ·|u|·(C_D·A)·u with u = (fx, fy, fz), the air's velocity past the body at the step's midpoint: −v_a.
+      const c=this.dragArea,k=0.5*this.atmosphere[0]!*Math.sqrt(fx*fx+fy*fy+fz*fz),r=this.dragCenter,d=this.dragWrenchBody,w=this.wrench;
+      const dx=k*(c[0]!*fx+c[1]!*fy+c[2]!*fz),dy=k*(c[3]!*fx+c[4]!*fy+c[5]!*fz),dz=k*(c[6]!*fx+c[7]!*fy+c[8]!*fz);
+      d[0]=dx;d[1]=dy;d[2]=dz;d[3]=r[1]!*dz-r[2]!*dy;d[4]=r[2]!*dx-r[0]!*dz;d[5]=r[0]!*dy-r[1]!*dx;
+      for(let i=0;i<6;i++)w[i]=w[i]!+d[i]!;
+      if(fx*fx+fy*fy+fz*fz>this.dragMaxAirspeedMps*this.dragMaxAirspeedMps)this.validityFlags|=VALIDITY_FLAG_DRAG_OUTSIDE_RANGE;
+    }
     // TASK-095: with a contact, Rapier alone integrates the body, gravity and ground reaction included.
     if(this.contact){
       if(!this.contact.stepInto(this.wrench,this.dt,this.truth)){this.fault='Contact step failed';return;}

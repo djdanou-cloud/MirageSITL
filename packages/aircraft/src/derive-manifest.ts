@@ -5,6 +5,7 @@ import { canonicalBytes, decodeUtf8, sha256Hex } from '@mirage/project/schema';
 import { deriveLayout } from './layout.ts';
 import { restingClearanceM, standardGearDerivation, standardLandingGear } from './standard-gear.ts';
 import { hullLowestDepthM, propellerDisc, standardHull, standardHullDerivation } from './standard-hull.ts';
+import { standardHullDrag, standardHullDragDerivation } from './standard-hull-drag.ts';
 import type { EulerZyxRad } from './sensor-fields.ts';
 import { sinCos } from './trig.ts';
 import { validateAircraftProfile, type AircraftProfile, type ComponentReferences } from './profile.ts';
@@ -19,15 +20,17 @@ import { validateAircraftProfile, type AircraftProfile, type ComponentReferences
 /**
  * Bumped whenever the same inputs would give different manifest bytes; 2 adds the IMU mount (TASK-147), 3 the standard
  * landing gear (TASK-095), 4 the standard hull and the supports of a profile without a ground clearance (TASK-095), 5
- * the propeller discs in those supports' clearance (TASK-195).
+ * the propeller discs in those supports' clearance (TASK-195), 6 the standard hull's preliminary airframe drag (TASK-096).
  */
-export const DERIVATION_VERSION = 5;
+export const DERIVATION_VERSION = 6;
 /** The dataset of a derived manifest's profile values; the standard gear has its own. */
 export const DERIVED_DATASET_ID = 'aircraft-profile-derivation';
 /** The synthetic dataset of the standard landing gear (derivation 3, TASK-095), until profiles describe their gear (TASK-194). */
 export const STANDARD_GEAR_DATASET_ID = 'standard-landing-gear';
 /** The synthetic dataset of the standard hull (derivation 4, TASK-095), until profiles describe their body (TASK-196). */
 export const STANDARD_HULL_DATASET_ID = 'standard-hull';
+/** The synthetic dataset of the standard hull's preliminary drag (derivation 6, TASK-096), until profiles give drag areas. */
+export const STANDARD_HULL_DRAG_DATASET_ID = 'standard-hull-drag';
 const MAX_DESCRIPTION_LENGTH = 1024;
 
 /** The rotor geometry fields that come from a propeller (and motor) rather than from the layout. */
@@ -208,6 +211,7 @@ export async function deriveVehicleManifest(input: unknown, components: Resolved
   const contactDatasets = [
     { id: STANDARD_GEAR_DATASET_ID, kind: 'synthetic', sourceSha256: null, derivation: standardGearDerivation() },
     { id: STANDARD_HULL_DATASET_ID, kind: 'synthetic', sourceSha256: null, derivation: standardHullDerivation() },
+    { id: STANDARD_HULL_DRAG_DATASET_ID, kind: 'synthetic', sourceSha256: null, derivation: standardHullDragDerivation() },
   ];
   const candidate = {
     schemaVersion: 2, modelId: options.modelId, kind: 'bet',
@@ -219,13 +223,13 @@ export async function deriveVehicleManifest(input: unknown, components: Resolved
     }, ...contactDatasets],
     provenance: {
       massProperties: dataset, rotors: dataset, motors: motors.length > 0 ? dataset : null,
-      escs: escs.length > 0 ? dataset : null, battery: battery ? dataset : null, airframeDrag: null,
+      escs: escs.length > 0 ? dataset : null, battery: battery ? dataset : null, airframeDrag: STANDARD_HULL_DRAG_DATASET_ID,
       controlSurfaces: null, landingGear: STANDARD_GEAR_DATASET_ID, sensorMounts: sensorMounts.length > 0 ? dataset : null,
       rotorWakePairs: rotorWakePairs.length > 0 ? dataset : null, hull: STANDARD_HULL_DATASET_ID,
     },
     massProperties,
     rotorCount: rotors.length, rotorCapacity: 32, rotors, motors, escs, battery,
-    airframe: { drag: null }, controlSurfaces: [], landingGear, sensorMounts, rotorWakePairs, ardupilot: null, hull,
+    airframe: { drag: standardHullDrag(hull) }, controlSurfaces: [], landingGear, sensorMounts, rotorWakePairs, ardupilot: null, hull,
   };
   // The canonical JSON round trip turns any -0 from the inputs into 0, so the manifest equals its bytes exactly.
   const manifest = validateVehicleManifest(JSON.parse(decodeUtf8(canonicalBytes(candidate))));

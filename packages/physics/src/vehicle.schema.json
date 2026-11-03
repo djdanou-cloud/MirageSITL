@@ -534,6 +534,10 @@
             },
             "centerOfPressureBodyM": {
               "$ref": "#/definitions/vector3"
+            },
+            "maxAirspeedMps": {
+              "type": "number",
+              "exclusiveMinimum": 0
             }
           }
         }

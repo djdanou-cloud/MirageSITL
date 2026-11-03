@@ -12,8 +12,8 @@ describe('BET runtime allocation graphs', () => {
       expect(ALLOCATION_GRAPHS.filter(([name]) => name === graph).map(([, variant]) => variant)).toEqual(['scalar', 'simd128']);
     }
   });
-  it('include the TASK-093 weather graphs of the dynamics and of the session', () => {
-    for (const graph of ['weather-synthetic-pad-four-rotor', 'weather-session-synthetic-pad']) {
+  it('include the TASK-093 weather graphs of the dynamics and of the session, and the TASK-096 drag graph', () => {
+    for (const graph of ['weather-synthetic-pad-four-rotor', 'weather-session-synthetic-pad', 'airframe-drag-weather-pad-four-rotor']) {
       expect(ALLOCATION_GRAPHS.filter(([name]) => name === graph).map(([, variant]) => variant)).toEqual(['scalar']);
     }
   });

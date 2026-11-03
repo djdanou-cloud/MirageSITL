@@ -532,6 +532,82 @@ tick ("embedded weak objects cleared"), which then boxes numbers until it is
 recompiled. Measured with that GC, the session averaged 44 B per tick; a
 fresh process measures 0 with or without it.
 
+### Airframe drag (TASK-096)
+
+`BetFlightConfiguration.airframeDrag` gives the airframe without its rotors a
+drag-area tensor (C_D·A) in body FRD, m², symmetric positive definite, its
+center of pressure relative to the CG, and the top of its data's airspeed
+range. Before integration every step adds `F = −½·ρ·|v_a|·(C_D·A)·v_a` and
+`M = r_cp × F`, body FRD about the CG, to the rotors' wrench. Here v_a is the
+velocity relative to the air at the step's midpoint, the same body-axis air
+velocity the rotors' inflow uses (TASK-093: the weather's wind, or still air),
+and ρ is the density the rotors read. `dragWrenchBody` holds the last step's
+force and moment. The BET rotors produce their own momentum (H-force) drag,
+so the tensor holds the airframe alone: rotor discs counted in it would count
+their drag twice. A step whose airspeed |v_a| exceeds the data's range sets
+`VALIDITY_FLAG_DRAG_OUTSIDE_RANGE`, bit 17 of `validityFlags`, which the
+session publishes as ModelOutsideValidity; configuration flags may not use
+that bit. Without `airframeDrag` the rotors alone meet the air, bit for bit
+as before. The computation is a few products in the TypeScript step, so the
+registered Rust kernel (`native/bet/src/airframe.rs`) was not needed.
+
+The vehicle manifest's `airframe.drag` gains an optional `maxAirspeedMps`.
+`buildProfileDynamics` consumes the block: its center of pressure moves from
+the body reference point to the CG; a block without a range gets no validity
+flag, and the build lists that limitation; and the drag's dataset leaves the
+rotor-and-body projection with it, which itself still refuses drag data
+(`withoutAirframeDrag` takes it out, as `withoutHull` the hull).
+
+Aircraft profiles get a preliminary estimate from the standard hull (manifest
+derivation 6, `standardHullDrag` of `@mirage/aircraft`) in its own synthetic
+dataset `standard-hull-drag`, labeled preliminary and not measured. Each body
+cylinder or arm capsule of unit axis a adds
+`C_across·A_side·(I − a·aᵀ) + C_along·A_end·(a·aᵀ)`. C_across = 1.2 is the
+generally accepted subcritical value of a circular cylinder of infinite span
+(NACA, ntrs.nasa.gov 19930083675, which measured about 1.0 itself), so an upper
+estimate; C_along = 1.17 is a flat disk or blunt end facing the flow (Hoerner,
+Fluid-Dynamic Drag, 1965, as aerospaceweb.org q0231 quotes it). A cylinder's
+side area is its diameter times its height and its end area πr²; an arm counts
+from the body radius outward. The center of pressure is the shapes' centers
+weighted by the traces of their tensors, and the airspeed range ends where the
+widest shape, the body, reaches Reynolds number 2·10⁵ in ISA sea-level air
+(ν = 1.4607e-5 m²/s): 26 m/s for the S19 quad X, 13.9 m/s for the 16-rotor
+octocopter. The quad X gets a frontal drag area of 0.012 m², which alone needs
+a lean of 2.9° at 10 m/s. Only +, −, ×, ÷ and √ enter, so the bytes do not
+depend on the engine's transcendental functions. Drag areas the user enters
+with their source remain.
+
+In SITL (`tests/airframe-drag-sitl.test.ts`, native ArduCopter 8ab6afde)
+the S19 quad X holds position in GUIDED in a steady north wind. Its trimmed
+lean, shown and not judged (F-02), is 2.03° at 4 m/s and 4.58° at 8 m/s,
+against 0.44° and 1.76° for the body drag alone (1.65° and 2.83° without any
+airframe drag). The rotors' share calibrates `EK3_DRAG_MCOEF` (0.062 1/s,
+since EKF3 models rotor drag as `MCOEF·V·ρ/ρ0`), and `EK3_DRAG_BCOEF_X/Y` is
+m/(C_D·A) from the manifest (130 kg/m²), since EKF3 models body drag along
+each axis as `½·ρ·u²/BCOEF`. Set in flight, they let EKF3 learn the
+along-wind component within 10 s (−8.14 m/s against the true −8 m/s);
+without them its wind stays zero. The cross-wind component does not converge:
+with drag fusion on, the EKF's z-gyro bias estimate walks, its heading holds
+while the airframe turns about 0.045°/s, and its cross-wind estimate reaches
+−2.07 m/s after 175 s. The same happens without the airframe drag and with a
+linear-only calibration that matches the measured drag on both axes, while
+ArduPilot's built-in quad holds its heading in the same wind with drag fusion,
+so the cause lies between EKF3 and the BET rotor model. TASK-096 keeps it
+open.
+
+Verification (TASK-096): `tests/airframe-drag.test.ts` checks the force and
+moment against the formula within 1e-12 on the first step of a level vehicle
+at rest in four constant winds (v_a = −wind), the extra acceleration F/m
+within 1e-10 and the turn rate I⁻¹·M·dt within 1e-5, the validity flag on
+either side of the range, the refusals, and Galilean invariance with drag
+(within 1e-9 over 400 steps). `tests/profile-dynamics.test.ts` checks the
+consumed block, `tests/standard-hull-drag.test.ts` the estimate against drag
+areas worked out by hand for a body with an arm along x and at 45° and its
+properties on the five S19 fixtures, and `tests/aircraft-profile.test.ts`
+takes derivation 6 back to the recorded derivation 5 bytes.
+`node scripts/check-bet-runtime.mjs --allocation` measures drag in a gusty wind
+(G1).
+
 ### Native rotor reference kernels (TASK-020–023)
 
 These are public Rust numerical APIs, tested natively and in scalar/SIMD WASM
@@ -3255,7 +3331,7 @@ rotorless body:
 | `motors` (≤32) | `id`, `rotorId`, `kvRpmPerV`, `resistanceOhm`, `currentLimitA` (native `Motor`); optional `noLoadCurrentA` ≥0 (TASK-092) | unique IDs, known rotor, one motor per rotor | the ESC drive (TASK-092) |
 | `escs` (≤32) | `id`, `motorId`, integer `pwmMinUs`/`pwmMaxUs` in [800, 2200], `commandTauS`; optional `updateRateHz` >0 and `brakeCurrentLimitA` ≥0 (TASK-092) | span ≥100 µs (the `ExternalSitl` boundary), known motor, one ESC per motor | PWM via the profile; lag, hold and braking in the ESC drive (TASK-092) |
 | `battery` | `openCircuitFullV`, `openCircuitEmptyV`, `internalResistanceOhm` ≥0, `capacityAh`, `currentLimitA` (native `Battery`, charge 3600·Ah C) | full ≥ empty | TASK-092 |
-| `airframe.drag` | `dragAreaBodyM2` (C_D·A tensor, m²), `centerOfPressureBodyM` | symmetric positive definite, so drag always dissipates | TASK-096 |
+| `airframe.drag` | `dragAreaBodyM2` (C_D·A tensor, m²), `centerOfPressureBodyM`; optional `maxAirspeedMps` > 0 (TASK-096) | symmetric positive definite, so drag always dissipates | the BET flight dynamics through `buildProfileDynamics` (TASK-096) |
 | `controlSurfaces` (≤16) | `id`, `function`, `actuatorChannel`, deflection limits within ±π/2, `rateLimitRadS` | unique IDs and channels, not a rotor channel, min < max | TASK-109 |
 | `landingGear` (≤8) | the `ContactWheel` fields plus `id` (the cornering stiffness excepted; optional `kineticFrictionRatio`); anchor from the reference point | unique IDs, rim < tire, last tire knot ≥ tire − rim, kinetic friction ratio in (0, 1]; strut and tire laws stay native | TASK-095 |
 | `hull` (optional, 1–16) | `id` 0–15 and a capsule (`startBodyM`, `endBodyM`, `radiusM`) or a cylinder (`centerBodyM`, unit `axisBody`, `radiusM`, `halfHeightM`), from the reference point; its own `provenance.hull` dataset | unique IDs, positive radius and half-height, unit axis within 1e-12; present exactly with `provenance.hull`; a manifest without it keeps its bytes | the ground contact (TASK-095); `projectVehicleToModelV1` refuses it |
@@ -4464,11 +4540,12 @@ values. The derived manifest holds:
 | `battery` | The resolved values, or null |
 | `rotorWakePairs` | One per coaxial pair, from the upper rotor to the lower one |
 | `massProperties` | The aircraft and the payload: combined mass and CG, both inertias moved to it by the parallel-axis theorem |
-| `datasets` | The synthetic dataset `aircraft-profile-derivation`, whose source SHA-256 is that of the canonical derivation input, then the synthetic datasets `standard-landing-gear` of the gear rules (derivation 3, TASK-095) and `standard-hull` of the hull rules (derivation 4, TASK-095), without a source |
+| `datasets` | The synthetic dataset `aircraft-profile-derivation`, whose source SHA-256 is that of the canonical derivation input, then the synthetic datasets `standard-landing-gear` of the gear rules (derivation 3, TASK-095), `standard-hull` of the hull rules (derivation 4, TASK-095) and `standard-hull-drag` of the hull's preliminary drag (derivation 6, TASK-096), without a source |
 | `sensorMounts` | The IMU mount when the sensor configuration states the IMU position or orientation (derivation 2, TASK-147); otherwise empty |
 | `landingGear` | The decision D-07 supports; a profile without a ground clearance stands on supports below its standard hull and propeller discs (derivations 3 and 4, TASK-095, and 5, TASK-195; section "Standard landing gear") |
 | `hull` | The standard hull: a body cylinder and one capsule per arm (derivation 4, TASK-095; section "Standard hull and propeller discs") |
-| `ardupilot`, `airframe.drag`, `controlSurfaces` | Null or empty; TASK-142 and TASK-096 own them |
+| `airframe.drag` | The standard hull's preliminary drag (derivation 6, TASK-096; section "Airframe drag") |
+| `ardupilot`, `controlSurfaces` | Null or empty; TASK-142 owns `ardupilot` |
 
 With d_i = c_i − c for each part's CG c_i and the combined CG c:
 
@@ -4478,15 +4555,17 @@ J = \sum_i \left( J_i + m_i\left(\lVert d_i \rVert^2 \mathbf{1} - d_i d_i^{\math
 
 `profileSha256` is the SHA-256 of the profile's canonical JSON, so renaming the
 stored profile changes nothing. `inputSha256` is the SHA-256 of the canonical
-`{derivationVersion: 5, profile, components}` (`DERIVATION_VERSION`; 2 since
+`{derivationVersion: 6, profile, components}` (`DERIVATION_VERSION`; 2 since
 TASK-147 added the IMU mount, 3 since TASK-095 added the standard landing
 gear, 4 since TASK-095 added the standard hull, 5 since TASK-195 counts the
-propeller discs in the supports of a profile without a clearance). The manifest passes
+propeller discs in the supports of a profile without a clearance, 6 since
+TASK-096 adds the standard hull's preliminary drag). The manifest passes
 `validateVehicleManifest`, and `bytes` is its RFC 8785 canonical JSON, which a
 `VehicleRegistry` admits unchanged; −0 in the inputs becomes 0. Any change to
 geometry, outputs, mass properties, components or the model ID changes the
 bytes. A manifest without motor, ESC and battery values and without pairs
-projects to the v1 runtime descriptor today. Motors, ESCs, the battery and wake
+projects to the v1 runtime descriptor once its gear, hull and drag are taken
+out. Motors, ESCs, the battery and wake
 pairs wait for TASK-092 and TASK-101, and TASK-144 builds the dynamics.
 
 ### Project store
@@ -5244,8 +5323,9 @@ same difference that gives the synthetic quad's specific force.
 ### IMU mount in the manifest
 
 `DERIVATION_VERSION` was 2 until derivation 3 added the standard landing gear
-(TASK-095), derivation 4 the standard hull (TASK-095) and derivation 5 the
-propeller discs in the supports' clearance (TASK-195). When a profile's sensor configuration states the
+(TASK-095), derivation 4 the standard hull (TASK-095), derivation 5 the
+propeller discs in the supports' clearance (TASK-195) and derivation 6 the
+standard hull's preliminary drag (TASK-096). When a profile's sensor configuration states the
 IMU position or orientation, the derived manifest holds one `sensorMounts`
 entry: `imu`, instance 0, the position (the CG when only the orientation is
 stated) and the sensor-to-body quaternion of R from `trig.ts`, so Node and

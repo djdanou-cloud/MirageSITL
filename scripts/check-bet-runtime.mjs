@@ -219,12 +219,28 @@ if(!allocation){
   const sessionGraph={graph:'weather-session-synthetic-pad',variant:'scalar',...total,bytesPerStep:total.bytes/total.steps,windows,
     weatherApplications:sent-warmupApplications,warmupApplications,memoryStable:sessionDynamics?.engine.memoryStable===true};
   samples.push(sessionGraph);session.dispose();console.log(JSON.stringify(sessionGraph));
+  // TASK-096: airframe drag on the same pad in the same gusty wind; the 3.8 m/s data range puts the step above it about half the time.
+  const dragged=padded();
+  dragged.airframeDrag={dragAreaBodyM2:[0.02,0.003,-0.001,0.003,0.025,0.002,-0.001,0.002,0.04],centerOfPressureCgM:[0.01,-0.02,-0.03],maxAirspeedMps:3.8};
+  const draggy=new BetFlightDynamics(modules[0],dragged,400);
+  if(draggy.setWeather(weathers[0])!==null)throw Error('Weather refused');
+  let flaggedSteps=0;
+  const dragRun=n=>{for(let i=0;i<n;i++){
+    draggy.nowMs=0;draggy.stepNow(pilot);
+    if(draggy.fault||draggy.state.down!==0)throw Error('Airframe drag allocation step failed');
+    if(draggy.validityFlags&(1<<17))flaggedSteps++;}};
+  dragRun(100000);await measure(dragRun,10000);
+  flaggedSteps=0;
+  const dragGraph={graph:'airframe-drag-weather-pad-four-rotor',variant:'scalar',...await measure(dragRun,1000000),flaggedSteps,
+    memoryStable:draggy.engine.memoryStable};
+  if(!(flaggedSteps>0&&flaggedSteps<1000000))throw Error('The drag validity flag did not switch');
+  samples.push(dragGraph);draggy.dispose();console.log(JSON.stringify(dragGraph));
   const sink={value:null};const control=n=>{for(let i=0;i<n;i++)sink.value={i};};
   const positive=await measure(control,1000000),controlDetected=positive.gcEvents>0 || positive.bytes>1000000;
   const passed=completeAllocationSamples(samples)&&samples.every(s=>s.gcEvents===0&&s.bytesPerStep<0.01&&s.memoryStable)&&controlDetected;
   const report={schemaVersion:1,status:passed?'pass':'failed',...identity,warmupSteps:100000,samples,positiveControl:positive,controlDetected,
     nativeAllocator:{steps:1000000,calls:0,bytes:0,positiveControlDetected:true,driveSteps:{boundV2:1000000,esc:1000000,bus:1000000}},
-    scope:'Active NeuralFoil rotor graph through step interfaces v1 and v2 and a stationary body through interface v2, each in both WASM variants, plus stationary four-rotor body, synthetic-pad and ESC-drive bus (synthetic pad) graphs, and the TASK-093 weather graphs (gust and per-step air with a weather re-applied every 1000 steps, and the real session applying scheduled weather.set commands, on the synthetic pad); native counted allocator checks (bound v1, v2, ESC drive, bus) and WASM trapping allocator; no measured aerodynamic acceptance or hardware realtime claim'};
+    scope:'Active NeuralFoil rotor graph through step interfaces v1 and v2 and a stationary body through interface v2, each in both WASM variants, plus stationary four-rotor body, synthetic-pad and ESC-drive bus (synthetic pad) graphs, and the TASK-093 weather graphs (gust and per-step air with a weather re-applied every 1000 steps, and the real session applying scheduled weather.set commands, on the synthetic pad, and TASK-096 airframe drag in that wind); native counted allocator checks (bound v1, v2, ESC drive, bus) and WASM trapping allocator; no measured aerodynamic acceptance or hardware realtime claim'};
   writeFileSync(resolve(root,'test-results/validation/bet-runtime-allocation.json'),JSON.stringify(report,null,2)+'\n');
   observer.disconnect();if(!passed)process.exitCode=1;
 }

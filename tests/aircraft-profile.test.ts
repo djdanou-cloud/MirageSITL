@@ -7,7 +7,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { MAX_ACTUATORS } from '../packages/protocol/src/index.ts';
-import { projectVehicleToModelV1, validateVehicleManifest, VehicleRegistry, withoutHull, withoutLandingGear, type VehicleManifest } from '../packages/physics/src/vehicle-manifest.ts';
+import { projectVehicleToModelV1, validateVehicleManifest, VehicleRegistry, withoutAirframeDrag, withoutHull, withoutLandingGear, type VehicleManifest } from '../packages/physics/src/vehicle-manifest.ts';
 import { canonicalBytes, ProjectStoreError } from '../packages/project/src/schema.ts';
 import { MemoryBackend, ProjectStore } from '../packages/project/src/store.ts';
 import schema from '../packages/aircraft/src/profile.schema.json';
@@ -17,11 +17,12 @@ import {
 import { deriveLayout, type RotorLayout } from '../packages/aircraft/src/layout.ts';
 import { PIO2_PARTS, sinCos, tan } from '../packages/aircraft/src/trig.ts';
 import {
-  combineMassProperties, deriveVehicleManifest, DERIVED_DATASET_ID, STANDARD_GEAR_DATASET_ID, STANDARD_HULL_DATASET_ID, type ResolvedComponents,
+  combineMassProperties, deriveVehicleManifest, DERIVED_DATASET_ID, STANDARD_GEAR_DATASET_ID, STANDARD_HULL_DATASET_ID, STANDARD_HULL_DRAG_DATASET_ID,
+  type ResolvedComponents,
 } from '../packages/aircraft/src/derive-manifest.ts';
 import {
   engineSensitiveVariant, FIXTURE_MODEL_ID, FIXTURE_NAMES, RECORDED_ENGINE_SENSITIVE_SHA256, RECORDED_MANIFEST_SHA256,
-  RECORDED_V1_ENGINE_SENSITIVE_SHA256, RECORDED_V1_MANIFEST_SHA256,
+  RECORDED_V1_ENGINE_SENSITIVE_SHA256, RECORDED_V1_MANIFEST_SHA256, RECORDED_V5_ENGINE_SENSITIVE_SHA256, RECORDED_V5_MANIFEST_SHA256,
   syntheticComponents, type FixtureName,
 } from './support/aircraft-derivation.ts';
 
@@ -34,6 +35,22 @@ type Vector = [number, number, number];
 type Mutable<T> = { -readonly [K in keyof T]: Mutable<T[K]> };
 type ProfileData = Mutable<AircraftProfile>;
 
+/**
+ * A derivation 6 manifest put back to derivation 5: without the standard hull's preliminary drag (TASK-096) and its
+ * dataset, and with version 5 in the input hash and in the description. Nothing else changed, so its bytes must equal
+ * the derivation 5 recording.
+ */
+function toDerivation5(manifest: VehicleManifest, profile: unknown, components: ResolvedComponents): VehicleManifest {
+  const hash = (value: unknown) => createHash('sha256').update(canonicalBytes(value)).digest('hex');
+  const [dataset, gear, hull, drag] = manifest.datasets;
+  if (!dataset || dataset.kind !== 'synthetic' || !gear || !hull || drag?.id !== STANDARD_HULL_DRAG_DATASET_ID || manifest.datasets.length !== 4) {
+    throw new Error('Expected the profile, gear, hull and drag datasets');
+  }
+  return { ...manifest, airframe: { drag: null }, provenance: { ...manifest.provenance, airframeDrag: null },
+    datasets: [{ ...dataset, sourceSha256: hash({ derivationVersion: 5, profile: validateAircraftProfile(profile), components }),
+      derivation: dataset.derivation.replace('derivation 6 ', 'derivation 5 ') }, gear, hull] };
+}
+const manifestSha256 = (manifest: VehicleManifest) => createHash('sha256').update(canonicalBytes(manifest)).digest('hex');
 /**
  * SHA-256 of a derivation 5 manifest put back to derivation 1: the version in
  * the input hash and in the description, and without the standard gear
@@ -299,20 +316,22 @@ describe('manifest derivation', () => {
     expect(manifest.rotorWakePairs).toEqual(deriveLayout(validateAircraftProfile(profile)).wakePairs.map(pair =>
       ({ upstreamRotorId: pair.upstreamMotorId, downstreamRotorId: pair.downstreamMotorId })));
     expect(manifest.massProperties).toEqual(combineMassProperties(profile.massProperties, profile.payload));
-    // One synthetic dataset names the exact inputs, and every profile section points to it; the standard gear and the standard
-    // hull have their own.
+    // One synthetic dataset names the exact inputs, and every profile section points to it; the standard gear, the standard
+    // hull and the hull's preliminary drag (TASK-096) have their own.
     expect(manifest.datasets).toEqual([{ id: DERIVED_DATASET_ID, kind: 'synthetic', sourceSha256: derived.inputSha256,
       derivation: expect.stringContaining(derived.profileSha256) as unknown },
     { id: STANDARD_GEAR_DATASET_ID, kind: 'synthetic', sourceSha256: null, derivation: expect.stringContaining('synthetic and not measured') as unknown },
-    { id: STANDARD_HULL_DATASET_ID, kind: 'synthetic', sourceSha256: null, derivation: expect.stringContaining('synthetic and not measured') as unknown }]);
+    { id: STANDARD_HULL_DATASET_ID, kind: 'synthetic', sourceSha256: null, derivation: expect.stringContaining('synthetic and not measured') as unknown },
+    { id: STANDARD_HULL_DRAG_DATASET_ID, kind: 'synthetic', sourceSha256: null, derivation: expect.stringContaining('a preliminary estimate') as unknown }]);
     expect(manifest.provenance).toEqual({ massProperties: DERIVED_DATASET_ID, rotors: DERIVED_DATASET_ID, motors: DERIVED_DATASET_ID,
-      escs: DERIVED_DATASET_ID, battery: DERIVED_DATASET_ID, airframeDrag: null, controlSurfaces: null, landingGear: STANDARD_GEAR_DATASET_ID,
+      escs: DERIVED_DATASET_ID, battery: DERIVED_DATASET_ID, airframeDrag: STANDARD_HULL_DRAG_DATASET_ID, controlSurfaces: null,
+      landingGear: STANDARD_GEAR_DATASET_ID,
       sensorMounts: null, rotorWakePairs: manifest.rotorWakePairs.length > 0 ? DERIVED_DATASET_ID : null, hull: STANDARD_HULL_DATASET_ID });
     // The dataset hashes are those of the canonical profile and of the canonical derivation input.
     const hash = (value: unknown) => createHash('sha256').update(canonicalBytes(value)).digest('hex');
     const validated = validateAircraftProfile(profile), components = syntheticComponents(validated);
     expect(derived.profileSha256).toBe(hash(validated));
-    expect(derived.inputSha256).toBe(hash({ derivationVersion: 5, profile: validated, components }));
+    expect(derived.inputSha256).toBe(hash({ derivationVersion: 6, profile: validated, components }));
     // The standard hull as the user decided on 2026-11-01 (TASK-095 increment 4): a body cylinder about the body z axis through
     // the reference point, radius a quarter of the shortest arm and half-height 0.4 of that radius, and one capsule per arm from the
     // body axis to its mount at the arm's height, radius 5 % of the arm's largest propeller radius (0.14 m for every synthetic rotor).
@@ -376,14 +395,18 @@ describe('manifest derivation', () => {
       expect(Buffer.from(second.bytes).equals(Buffer.from(first.bytes)), name).toBe(true);
       expect(second.sha256).toBe(first.sha256);
       expect(first.sha256, `${name} recorded bytes`).toBe(RECORDED_MANIFEST_SHA256[name]);
-      expect(asDerivation1(first.manifest, profile, components), `${name} derivation 1 bytes`).toBe(RECORDED_V1_MANIFEST_SHA256[name]);
+      const derivation5 = toDerivation5(first.manifest, profile, components);
+      expect(manifestSha256(derivation5), `${name} derivation 5 bytes`).toBe(RECORDED_V5_MANIFEST_SHA256[name]);
+      expect(asDerivation1(derivation5, profile, components), `${name} derivation 1 bytes`).toBe(RECORDED_V1_MANIFEST_SHA256[name]);
     }
     // Arm angles at which Node's and Chromium's Math functions disagree; the browser test derives the same bytes.
     const variant = engineSensitiveVariant(validateAircraftProfile(fixture('octa-coaxial-16')));
     const sensitive = await deriveVehicleManifest(variant, syntheticComponents(validateAircraftProfile(variant)), { modelId: FIXTURE_MODEL_ID });
     checkAgainstOracle(structuredClone(validateAircraftProfile(variant)) as ProfileData, deriveLayout(validateAircraftProfile(variant)).rotors);
     expect(sensitive.sha256).toBe(RECORDED_ENGINE_SENSITIVE_SHA256);
-    expect(asDerivation1(sensitive.manifest, variant, syntheticComponents(validateAircraftProfile(variant)))).toBe(RECORDED_V1_ENGINE_SENSITIVE_SHA256);
+    const sensitive5 = toDerivation5(sensitive.manifest, variant, syntheticComponents(validateAircraftProfile(variant)));
+    expect(manifestSha256(sensitive5)).toBe(RECORDED_V5_ENGINE_SENSITIVE_SHA256);
+    expect(asDerivation1(sensitive5, variant, syntheticComponents(validateAircraftProfile(variant)))).toBe(RECORDED_V1_ENGINE_SENSITIVE_SHA256);
   });
 
   test('a change to geometry or components changes the manifest; the model ID is the only other input', async () => {
@@ -423,16 +446,18 @@ describe('manifest derivation', () => {
     const derived = await deriveVehicleManifest(quad, syntheticComponents(validateAircraftProfile(quad), false), { modelId: FIXTURE_MODEL_ID });
     expect([derived.manifest.motors, derived.manifest.escs, derived.manifest.battery]).toEqual([[], [], null]);
     expect([derived.manifest.provenance.motors, derived.manifest.provenance.escs, derived.manifest.provenance.battery]).toEqual([null, null, null]);
-    // The ground contact, not the rigid body, consumes the gear and the hull (TASK-095), so they are taken out before the projection.
-    expect(() => projectVehicleToModelV1(withoutLandingGear(derived.manifest))).toThrow('hull (TASK-095)');
-    const v1 = projectVehicleToModelV1(withoutHull(withoutLandingGear(derived.manifest)));
+    // The ground contact, not the rigid body, consumes the gear and the hull (TASK-095), and the flight dynamics the drag
+    // (TASK-096), so they are taken out before the projection.
+    expect(() => projectVehicleToModelV1(withoutLandingGear(derived.manifest))).toThrow('airframeDrag (TASK-096)');
+    expect(() => projectVehicleToModelV1(withoutAirframeDrag(withoutLandingGear(derived.manifest)))).toThrow('hull (TASK-095)');
+    const v1 = projectVehicleToModelV1(withoutAirframeDrag(withoutHull(withoutLandingGear(derived.manifest))));
     const cg = quad.massProperties.cgOffsetBodyM;
     // The v1 descriptor is CG-referenced: hub minus CG.
     expectVector(v1.rotors[0]!.hubPositionBodyM, derived.manifest.rotors[0]!.hubPositionBodyM.map((value, i) => value - cg[i]!), 'v1 hub');
     // Wake pairs have no v1 consumer yet (TASK-101), so a coaxial manifest fails closed there.
     const x8 = fixture('coaxial-x8');
     const coaxial = await deriveVehicleManifest(x8, syntheticComponents(validateAircraftProfile(x8), false), { modelId: FIXTURE_MODEL_ID });
-    expect(() => projectVehicleToModelV1(withoutHull(withoutLandingGear(coaxial.manifest)))).toThrow('rotorWakePairs (TASK-101)');
+    expect(() => projectVehicleToModelV1(withoutAirframeDrag(withoutHull(withoutLandingGear(coaxial.manifest))))).toThrow('rotorWakePairs (TASK-101)');
     expect(() => projectVehicleToModelV1(derived.manifest)).toThrow('landingGear (TASK-095)');
   });
 
