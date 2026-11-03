@@ -6,6 +6,7 @@ import { validateExperiment } from "@mirage/aircraft/experiment";
 import { LoggingTab } from "../logging/LoggingTab";
 import { validateParameterLog, validateParameterSet } from "../params/parameter-sets";
 import { ParametersTab } from "../params/ParametersTab";
+import { ExperimentsTab } from "../experiments/ExperimentsTab";
 import { SessionLink } from "../run/session-link";
 import { validateMeasurementSet } from "@mirage/aircraft/measurements";
 import { validateAircraftProfile } from "@mirage/aircraft/profile";
@@ -34,11 +35,10 @@ export type StoreState =
   | { readonly status: "unavailable"; readonly reason: string };
 
 /** What each tab will hold; the shell says so until the tab's own task lands. */
-const PLANNED: { readonly [tab in Exclude<TabId, "project" | "aircraft" | "components" | "sensors" | "run" | "logging" | "parameters">]: string } = {
+const PLANNED: { readonly [tab in Exclude<TabId, "project" | "aircraft" | "components" | "sensors" | "run" | "logging" | "parameters" | "experiments">]: string } = {
   faults: "Motor faults, sensor and GNSS interference, EKF drift and link loss, applied manually or on a schedule.",
   weather: "Wind, gusts, turbulence, temperature and pressure, and the location of the flight.",
   tasks: "Takeoff, hover, landing, routes and tuning maneuvers, with initial conditions.",
-  experiments: "Experiments with their exact inputs: Repeat, Create variant, comparison, export and import.",
   analysis: "Flight logs in UAVLogViewer, with two flights or two intervals side by side.",
 };
 
@@ -157,6 +157,8 @@ export function AppShell({ run }: { run: (visible: boolean, storeState: StoreSta
         return <LoggingTab storeState={storeState} project={project} active={navigation.tab === "logging"} />;
       case "parameters":
         return <ParametersTab storeState={storeState} project={project} link={link} active={navigation.tab === "parameters"} />;
+      case "experiments":
+        return <ExperimentsTab storeState={storeState} project={project} link={link} active={navigation.tab === "experiments"} onRun={() => selectTab("run")} />;
       default: {
         const label = TABS.find(entry => entry.id === tab)?.label ?? tab;
         return <PlannedPanel label={label} description={PLANNED[tab]} project={project} />;

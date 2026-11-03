@@ -57,7 +57,9 @@
 // it), and its GPS puts it at the session's home; the profile must need no
 // frame script. Its experiment record is written once all of that holds,
 // before READY can be shown.
-import { EXPERIMENT_SCHEMA_VERSION, type ExperimentParameter, type ExperimentPayload, type ExperimentRecording, type ExperimentSitl } from "@mirage/aircraft/experiment";
+import {
+  EXPERIMENT_SCHEMA_VERSION, type ExperimentLineage, type ExperimentParameter, type ExperimentPayload, type ExperimentRecording, type ExperimentSitl,
+} from "@mirage/aircraft/experiment";
 import { readAutopilotVersion, verifiedCommit } from "@mirage/autopilot/autopilot-version";
 import { CopterMode, GroundStation } from "@mirage/autopilot/ground-station";
 import { MotorCheck, type ExpectedMotor, type MotorCheckResult, type PhysicsRotor } from "@mirage/autopilot/motor-test";
@@ -207,6 +209,8 @@ export interface StartRequest {
   readonly speedup: number;
   readonly physicsHz: 800 | 1200;
   readonly home: readonly [number, number, number, number];
+  /** A repeat or a variant of a stored experiment (TASK-165); an original run when absent. */
+  readonly lineage?: ExperimentLineage;
 }
 export interface ConnectRequest {
   readonly prepare: () => Promise<PreparedRun>;
@@ -596,7 +600,7 @@ export class SessionController {
         commit: experiment.firmware.commit, binarySha256: experiment.firmware.binarySha256, defaultParametersSha256: experiment.firmware.defaultParametersSha256 } },
       session: { physicsHz: request.physicsHz, clockMode: "sitl-lockstep", speedup: request.speedup, home: request.home, modelId: prepared.modelId,
         manifestSha256: prepared.manifestSha256, betModuleSha256 },
-      parameters: prepared.parameters, frameScript: prepared.frameScript, sensors: prepared.sensors, recording,
+      parameters: prepared.parameters, frameScript: prepared.frameScript, sensors: prepared.sensors, recording, lineage: request.lineage ?? { kind: "original" },
     };
     try { this.recordSha256 = (await this.records.create(payload)).sha256; } catch (error) {
       // No unrecorded run flies; after a Stop, the stop already ended the run.
@@ -1260,7 +1264,7 @@ export class SessionController {
       sitl: { ownership: "external", connectionId: external.connectionId, ardupilot: external.version, endpoints: external.spec },
       session: { physicsHz: external.physicsHz, clockMode: "sitl-lockstep", speedup: null, home: external.home, modelId: prepared.modelId,
         manifestSha256: prepared.manifestSha256, betModuleSha256: external.betModuleSha256 },
-      parameters: prepared.parameters, frameScript: null, sensors: prepared.sensors, recording,
+      parameters: prepared.parameters, frameScript: null, sensors: prepared.sensors, recording, lineage: { kind: "original" },
     };
     try {
       const { sha256 } = await this.records.create(payload);

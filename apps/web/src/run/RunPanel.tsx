@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { createExperimentRecord, experimentRecordName } from "@mirage/aircraft/experiment";
 import { deriveLayout, type AircraftLayout } from "@mirage/aircraft/layout";
 import { readAircraftProfile } from "@mirage/aircraft/profile";
@@ -9,6 +9,7 @@ import { CopterMode } from "@mirage/autopilot/ground-station";
 import { GamepadAdapter, defaultCalibration } from "@mirage/input";
 import { loadCalibration } from "@mirage/input/calibration-store";
 import type { ParameterMetadataCatalog } from "@mirage/autopilot/param-metadata";
+import { lineageFor, loggingOf } from "../experiments/lifecycle";
 import { loadLoggingSettings, type LoggingSettings } from "../logging/logging-settings";
 import { ParameterLogWriter } from "../params/log-writer";
 import { loadParameterMetadata } from "../params/metadata";
@@ -44,7 +45,10 @@ import type { SessionLink } from "./session-link";
 // continue, and is then labelled as not validated for a damaged aircraft.
 // The run's measured speed (TASK-175) is shown with the pace it was asked for.
 // Manual control (TASK-174) flies the run with the USB controller calibrated
-// in the synthetic demo's radio panel (TASK-038).
+// in the synthetic demo's radio panel (TASK-038). A run the Experiments tab
+// planned (TASK-165) loads its parent's inputs: a repeat locks them, its
+// recording setup and home included, and a variant lets them change; the
+// record names its parent and the inputs that changed.
 // The session is attached to the shell's link, so the Parameters tab (TASK-160)
 // reads and writes the run's parameters, and each run's parameter changes are
 // saved as its parameter log.
@@ -104,6 +108,10 @@ export function RunPanel({ storeState, project, visible, link }: { storeState: S
   const [error, setError] = useState("");
   const [profiles, setProfiles] = useState<readonly StoredVersion[]>([]);
   const [profileSha, setProfileSha] = useState("");
+  // TASK-165: the run the Experiments tab planned, and the stored profile version it names.
+  const plan = useSyncExternalStore(link.subscribe, link.plan);
+  const [plannedProfile, setPlannedProfile] = useState<StoredVersion | null>(null);
+  const repeat = plan?.kind === "repeat";
   const [port, setPort] = useState(String(DEFAULT_LAUNCHER_PORT));
   const [token, setToken] = useState("");
   const [builds, setBuilds] = useState<readonly CatalogEntry[] | null>(null);
@@ -141,6 +149,21 @@ export function RunPanel({ storeState, project, visible, link }: { storeState: S
     }, (cause: unknown) => { if (!cancelled) setError(cause instanceof Error ? cause.message : String(cause)); });
     return () => { cancelled = true; };
   }, [store, projectId, visible]);
+  // A planned run selects its parent's profile version, which need not be the head, its build and its speed.
+  useEffect(() => {
+    if (!plan || !store) { setPlannedProfile(null); return; }
+    let cancelled = false;
+    store.get(plan.parent.profile.sha256).then(stored => {
+      if (cancelled) return;
+      setPlannedProfile(stored);
+      setProfileSha(stored.sha256);
+      if (plan.parent.sitl.ownership === "launcher") setBuildId(plan.parent.sitl.ardupilot.catalogId);
+      if (plan.parent.session.speedup !== null) setSpeedup(plan.parent.session.speedup);
+    }, (cause: unknown) => { if (!cancelled) setError(cause instanceof Error ? cause.message : String(cause)); });
+    return () => { cancelled = true; };
+  }, [plan, store]);
+  const choices = useMemo(() => plannedProfile && !profiles.some(entry => entry.sha256 === plannedProfile.sha256) ? [...profiles, plannedProfile] : profiles,
+    [profiles, plannedProfile]);
   // TASK-156 visibility policy: a hidden tab pauses an active run, which waits for the user's Resume.
   useEffect(() => {
     const hidden = () => { if (document.hidden) controller.current?.pause("visibility"); };
@@ -167,13 +190,17 @@ export function RunPanel({ storeState, project, visible, link }: { storeState: S
     if (!launcher) return;
     launcher.catalog().then(entries => {
       setBuilds(entries);
-      setBuildId(current => entries.some(entry => entry.id === current && entry.usable) ? current : entries.find(entry => entry.usable)?.id ?? "");
+      const planned = plan?.parent.sitl.ownership === "launcher" ? plan.parent.sitl.ardupilot.catalogId : null;
+      setBuildId(current => planned && entries.some(entry => entry.id === planned) ? planned
+        : entries.some(entry => entry.id === current && entry.usable) ? current : entries.find(entry => entry.usable)?.id ?? "");
     }, (cause: unknown) => { setBuilds(null); setError(cause instanceof Error ? cause.message : String(cause)); });
   };
   /** A fresh session for every Start and Connect: the previous run's model and epoch stay with the old Worker. */
-  const freshSession = (logging: LoggingSettings, metadata: ParameterMetadataCatalog | null): { next: SessionController; prepare: () => Promise<PreparedRun> } | null => {
+  const freshSession = (logging: LoggingSettings | null, metadata: ParameterMetadataCatalog | null): { next: SessionController; prepare: () => Promise<PreparedRun> } | null => {
     setError("");
-    const stored = profiles.find(entry => entry.sha256 === profileSha);
+    const stored = choices.find(entry => entry.sha256 === profileSha);
+    // The plan belongs to this run: the record names its parent, and the next run is an original again.
+    const planned = plan;
     const launcher = client();
     if (!launcher) return null;
     if (!store || !projectId || !stored) { setError("Open a project and choose an aircraft profile."); return null; }
@@ -190,13 +217,13 @@ export function RunPanel({ storeState, project, visible, link }: { storeState: S
       create: payload => {
         const { sitl } = payload;
         const name = experimentRecordName(profileName, sitl.ownership === "external" ? sitl.connectionId : sitl.experimentId, sitl.ownership);
-        return createExperimentRecord(store, projectId, { name, payload });
+        return createExperimentRecord(store, projectId, { name, payload: { ...payload, lineage: lineageFor(planned, payload) } });
       },
     }, { nowMs: () => performance.now(), utcNow: () => new Date().toISOString(),
       every: (ms, callback) => { const timer = setInterval(callback, ms); return () => clearInterval(timer); } },
     view => { setView(view); link.publish(next, view); changes.update(view); },
     // TASK-163: the run records with the Logging tab's settings.
-    new RunRecorder(fresh, logging, SITL_PHYSICS_HZ), metadata);
+    logging ? new RunRecorder(fresh, logging, SITL_PHYSICS_HZ) : null, metadata);
     controller.current = next;
     next.setInput(adapter);
     link.attach(next);
@@ -221,9 +248,16 @@ export function RunPanel({ storeState, project, visible, link }: { storeState: S
     return null;
   });
   const start = () => {
-    void Promise.all([logging(), metadata()]).then(([settings, catalog]) => {
-      const session = settings && freshSession(settings, catalog);
-      if (session) void session.next.start({ prepare: session.prepare, firmwareId: buildId, speedup, physicsHz: SITL_PHYSICS_HZ, home: DEFAULT_HOME });
+    // A planned run records with its parent's setup, or not at all when the parent recorded nothing, and starts at its home.
+    const parent = plan?.parent ?? null;
+    const settingsFor = parent ? Promise.resolve(parent.recording ? loggingOf(parent.recording) : null) : logging();
+    void Promise.all([settingsFor, metadata()]).then(([settings, catalog]) => {
+      if (!parent && !settings) return;
+      const session = freshSession(settings, catalog);
+      if (!session) return;
+      link.planRun(null);
+      void session.next.start({ prepare: session.prepare, firmwareId: buildId, speedup, physicsHz: parent?.session.physicsHz ?? SITL_PHYSICS_HZ,
+        home: parent?.session.home ?? DEFAULT_HOME });
     });
   };
   const connect = (endpoints: ConnectionSpec) => {
@@ -232,7 +266,7 @@ export function RunPanel({ storeState, project, visible, link }: { storeState: S
       if (session) void session.next.connect({ prepare: session.prepare, endpoints, physicsHz: SITL_PHYSICS_HZ, home: DEFAULT_HOME, verifiedCommits: verifiedCommits() });
     });
   };
-  const chosen = profiles.find(entry => entry.sha256 === profileSha);
+  const chosen = choices.find(entry => entry.sha256 === profileSha);
   const layout = useMemo(() => layoutOf(chosen), [chosen]);
   const armIds = useMemo(() => armIdsOf(chosen), [chosen]);
   const accidents = view?.accidents ?? [];
@@ -250,9 +284,9 @@ export function RunPanel({ storeState, project, visible, link }: { storeState: S
       </p>
       <div className="sitl-form">
         <label htmlFor="sitl-profile">Aircraft profile</label>
-        <select id="sitl-profile" value={profileSha} disabled={active} onChange={event => setProfileSha(event.target.value)}>
-          {profiles.length === 0 && <option value="">No aircraft profile in this project</option>}
-          {profiles.map(entry => <option key={entry.sha256} value={entry.sha256}>{entry.record.name} (version {entry.record.version})</option>)}
+        <select id="sitl-profile" value={profileSha} disabled={active || repeat} onChange={event => setProfileSha(event.target.value)}>
+          {choices.length === 0 && <option value="">No aircraft profile in this project</option>}
+          {choices.map(entry => <option key={entry.sha256} value={entry.sha256}>{entry.record.name} (version {entry.record.version})</option>)}
         </select>
         <label htmlFor="sitl-port">Launcher port</label>
         <input id="sitl-port" type="text" inputMode="numeric" value={port} disabled={active} onChange={event => setPort(event.target.value)} />
@@ -260,7 +294,7 @@ export function RunPanel({ storeState, project, visible, link }: { storeState: S
         <input id="sitl-token" type="password" autoComplete="off" spellCheck={false} value={token} disabled={active} onChange={event => setToken(event.target.value)} />
         <button type="button" onClick={listBuilds} disabled={active}>List ArduPilot builds</button>
         <label htmlFor="sitl-build">ArduPilot build</label>
-        <select id="sitl-build" value={buildId} disabled={active || !builds} onChange={event => setBuildId(event.target.value)}>
+        <select id="sitl-build" value={buildId} disabled={active || !builds || repeat} onChange={event => setBuildId(event.target.value)}>
           {!builds && <option value="">List the launcher's builds first</option>}
           {builds?.map(entry => (
             <option key={entry.id} value={entry.id} disabled={!entry.usable}>
@@ -269,16 +303,24 @@ export function RunPanel({ storeState, project, visible, link }: { storeState: S
           ))}
         </select>
         <label htmlFor="sitl-speed">Speed</label>
-        <select id="sitl-speed" value={speedup} disabled={active} onChange={event => setSpeedup(Number(event.target.value))}>
+        <select id="sitl-speed" value={speedup} disabled={active || repeat} onChange={event => setSpeedup(Number(event.target.value))}>
           {/* TASK-175: real time, a cap, or as fast as this computer runs; the measured pace is shown below. */}
           {[1, 2, 4, AS_FAST_AS_POSSIBLE].map(value => (
             <option key={value} value={value}>{value === 1 ? "Real time" : value === AS_FAST_AS_POSSIBLE ? "As fast as possible" : `Accelerated, at most ${value}×`}</option>
           ))}
         </select>
       </div>
+      {plan && (
+        <p className="hint" role="status" data-testid="sitl-plan" data-kind={plan.kind}>
+          {plan.kind === "repeat"
+            ? `Repeat of ${plan.parentName}: the same aircraft profile version, ArduPilot build, speed, home and recording setup. List the builds, then start it.`
+            : `Variant of ${plan.parentName}: its inputs are loaded; change the profile version, the build or the speed, then start it. The record lists what changed.`}
+          <button type="button" onClick={() => link.planRun(null)} disabled={active}>Cancel the {plan.kind}</button>
+        </p>
+      )}
       <div className="sitl-actions">
         <button type="button" onClick={start} disabled={busy || !profileSha || !buildId}>
-          {failed && !external ? "Start again" : "Start SITL run"}
+          {plan ? `Start ${plan.kind}` : failed && !external ? "Start again" : "Start SITL run"}
         </button>
         <label htmlFor="sitl-altitude">Take-off altitude, m</label>
         <input id="sitl-altitude" type="text" inputMode="decimal" value={altitude} onChange={event => setAltitude(event.target.value)} />

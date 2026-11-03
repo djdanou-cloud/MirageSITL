@@ -115,6 +115,11 @@ implementation.
   SITL, an experiment record or a parameter set, all or changed or chosen, and
   the aircraft profile as a separate project archive; native ArduCopter loads
   an exported file back to the same values (`scripts/check-param-file-sitl.mjs`).
+  TASK-165 is DONE: the Experiments tab repeats an experiment or runs a
+  variant of it in the Run tab, as a new record (experiment payload schema 4)
+  whose lineage names the parent and the changed inputs; differences are shown,
+  never judged (user decision of 2026-11-03), and an exported experiment lists
+  what its archive cannot hold.
   TASK-174 is DONE: the Run tab flies a run by hand with the calibrated USB
   controller (RC override at 25 Hz), and losing the controller pauses the run
   (user decision of 2026-11-03), detected in Main or, for a stalled page, by a

@@ -41,12 +41,18 @@ import type { PresetCitation } from './sensor-presets.ts';
 // the Logging tab's settings it was made with, the storage warning reserve
 // included, or null for a run that records nothing. Schemas 1 (TASK-154,
 // launcher-owned only) and 2 stay readable: readExperiment presents them as
-// schema 3 without a recording, and new records are always schema 3. An
-// experiment's inputs are fixed at version 1; the store allows only renaming
-// afterwards.
+// schema 3 without a recording. Schema 4 (TASK-165) adds the lineage: an
+// original run, a repeat of a parent experiment with the same inputs, or a
+// variant of one with the changed inputs listed; the parent is named by its
+// record's SHA-256 as data, and createExperimentRecord checks the claim
+// against the parent's inputs. Older schemas read as schema 4 originals, and
+// new records are always schema 4. An experiment's inputs are fixed at
+// version 1; the store allows only renaming afterwards.
 // Configuration-time code only; never call it from a physics step.
 
-export const EXPERIMENT_SCHEMA_VERSION = 3;
+export const EXPERIMENT_SCHEMA_VERSION = 4;
+/** The TASK-163 schema, still accepted by validateExperiment and readExperiment. */
+export const EXPERIMENT_SCHEMA_VERSION_3 = 3;
 /** The TASK-154 schema, still accepted by validateExperiment and readExperiment. */
 export const EXPERIMENT_SCHEMA_VERSION_1 = 1;
 /** The TASK-155 schema, still accepted by validateExperiment and readExperiment. */
@@ -160,7 +166,23 @@ export interface ExperimentPayload {
   readonly sensors: SensorSnapshot;
   /** The run's recording (TASK-163), or null for a run that records nothing. */
   readonly recording: ExperimentRecording | null;
+  /** Where the run comes from (TASK-165). */
+  readonly lineage: ExperimentLineage;
 }
+/** One input a variant changed (TASK-165), as experimentChanges names it. */
+export const EXPERIMENT_INPUTS = ['aircraft profile', 'ArduPilot build', 'speed', 'physics rate', 'home', 'initial parameters', 'frame script', 'sensors',
+  'recording setup', 'SITL'] as const;
+export type ExperimentInput = typeof EXPERIMENT_INPUTS[number];
+/**
+ * An original run; a repeat of the experiment record `of` with the same inputs; or a variant of it with `changes`,
+ * the inputs that differ, in EXPERIMENT_INPUTS order and never empty.
+ */
+export type ExperimentLineage =
+  | { readonly kind: 'original' }
+  | { readonly kind: 'repeat'; readonly of: string }
+  | { readonly kind: 'variant'; readonly of: string; readonly changes: readonly ExperimentInput[] };
+/** Experiment payload schema 3 (TASK-163): schema 4 without the lineage. */
+export type ExperimentPayloadV3 = Omit<ExperimentPayload, 'schemaVersion' | 'lineage'> & { readonly schemaVersion: typeof EXPERIMENT_SCHEMA_VERSION_3 };
 /**
  * The recording of a run (TASK-163): its recorder v2 record and the Logging tab settings it was made
  * with. Rates are 0 or whole hertz; a group or a signal absent here records at the common rate.
@@ -176,7 +198,7 @@ export interface ExperimentRecording {
   readonly reserveMb: number;
 }
 /** Experiment payload schema 2 (TASK-155): schema 3 without the recording. */
-export type ExperimentPayloadV2 = Omit<ExperimentPayload, 'schemaVersion' | 'recording'> & { readonly schemaVersion: typeof EXPERIMENT_SCHEMA_VERSION_2 };
+export type ExperimentPayloadV2 = Omit<ExperimentPayload, 'schemaVersion' | 'recording' | 'lineage'> & { readonly schemaVersion: typeof EXPERIMENT_SCHEMA_VERSION_2 };
 /** Experiment payload schema 1 (TASK-154): a launcher-owned SITL only. */
 export interface ExperimentPayloadV1 {
   readonly schemaVersion: typeof EXPERIMENT_SCHEMA_VERSION_1;
@@ -577,46 +599,97 @@ function recordingOf(value: unknown): ExperimentRecording | null {
     reserveMb: finite(r.reserveMb, 'recording.reserveMb', 0, 1e9),
   };
 }
-/** Schema 3, or schema 2 (`recording` absent from both the keys and the result). */
-function payloadOf(payload: unknown, version: typeof EXPERIMENT_SCHEMA_VERSION | typeof EXPERIMENT_SCHEMA_VERSION_2): ExperimentPayload | ExperimentPayloadV2 {
+function lineageOf(value: unknown): ExperimentLineage {
+  const kind = isRecord(value) ? value.kind : undefined;
+  if (kind === 'original') { exact(value, ['kind'], 'lineage'); return { kind }; }
+  if (kind === 'repeat') { const l = exact(value, ['kind', 'of'], 'lineage'); return { kind, of: sha256(l.of, 'lineage.of') }; }
+  if (kind !== 'variant') return fail('lineage.kind must be original, repeat or variant');
+  const l = exact(value, ['kind', 'of', 'changes'], 'lineage');
+  const changes = list(l.changes, 'lineage.changes', EXPERIMENT_INPUTS.length).map((change, index) => oneOf(change, EXPERIMENT_INPUTS, `lineage.changes[${index}]`));
+  if (changes.length === 0) fail('a variant changes at least one input; one that changes none is a repeat');
+  if (changes.some((change, index) => index > 0 && EXPERIMENT_INPUTS.indexOf(change) <= EXPERIMENT_INPUTS.indexOf(changes[index - 1] ?? change))) {
+    fail('lineage.changes must follow the order of EXPERIMENT_INPUTS without repeats');
+  }
+  return { kind, of: sha256(l.of, 'lineage.of'), changes };
+}
+/** Schema 4, 3 (no `lineage`) or 2 (no `recording` either): absent fields are absent from both the keys and the result. */
+function payloadOf(payload: unknown, version: typeof EXPERIMENT_SCHEMA_VERSION | typeof EXPERIMENT_SCHEMA_VERSION_3 | typeof EXPERIMENT_SCHEMA_VERSION_2):
+  ExperimentPayload | ExperimentPayloadV3 | ExperimentPayloadV2 {
   const keys = ['schemaVersion', 'profile', 'sitl', 'session', 'parameters', 'frameScript', 'sensors'];
-  const p = exact(payload, version === EXPERIMENT_SCHEMA_VERSION ? [...keys, 'recording'] : keys, 'the payload');
+  const p = exact(payload, version === EXPERIMENT_SCHEMA_VERSION ? [...keys, 'recording', 'lineage'] : version === EXPERIMENT_SCHEMA_VERSION_3
+    ? [...keys, 'recording'] : keys, 'the payload');
   const profile = profileOf(p.profile);
   const sitl = sitlOf(p.sitl);
   const parameters = parametersOf(p.parameters);
   const frameScript = frameScriptOf(p.frameScript, parameters);
   if (sitl.ownership === 'external' && frameScript !== null) fail('an external SITL has no frame script: MirageSITL installs one only in a SITL it starts');
   const common = { profile, sitl, session: sessionOf(p.session, sitl.ownership), parameters, frameScript, sensors: snapshotOf(p.sensors, profile.sha256) };
-  return version === EXPERIMENT_SCHEMA_VERSION ? { schemaVersion: version, ...common, recording: recordingOf(p.recording) }
-    : { schemaVersion: version, ...common };
+  if (version === EXPERIMENT_SCHEMA_VERSION) return { schemaVersion: version, ...common, recording: recordingOf(p.recording), lineage: lineageOf(p.lineage) };
+  return version === EXPERIMENT_SCHEMA_VERSION_3 ? { schemaVersion: version, ...common, recording: recordingOf(p.recording) } : { schemaVersion: version, ...common };
 }
 
 /**
- * Validates an experiment payload of schema 3, or of schema 2 (TASK-155) or 1
- * (TASK-154) as stored then, from `unknown`; returns a deep-frozen copy of
- * what was given. Registered for the `experiment` kind, so imports of older
- * records keep working.
+ * Validates an experiment payload of schema 4, or of schema 3 (TASK-163), 2
+ * (TASK-155) or 1 (TASK-154) as stored then, from `unknown`; returns a
+ * deep-frozen copy of what was given. Registered for the `experiment` kind, so
+ * imports of older records keep working.
  */
-export function validateExperiment(payload: unknown): ExperimentPayload | ExperimentPayloadV2 | ExperimentPayloadV1 {
+export function validateExperiment(payload: unknown): ExperimentPayload | ExperimentPayloadV3 | ExperimentPayloadV2 | ExperimentPayloadV1 {
   const version = isRecord(payload) ? payload.schemaVersion : undefined;
-  if (version === EXPERIMENT_SCHEMA_VERSION || version === EXPERIMENT_SCHEMA_VERSION_2) return freeze(payloadOf(payload, version));
+  if (version === EXPERIMENT_SCHEMA_VERSION || version === EXPERIMENT_SCHEMA_VERSION_3 || version === EXPERIMENT_SCHEMA_VERSION_2) {
+    return freeze(payloadOf(payload, version));
+  }
   if (version === EXPERIMENT_SCHEMA_VERSION_1) return freeze(payloadV1Of(payload));
   return fail(`unsupported experiment schema ${String(version)}; this reader knows schemas ${EXPERIMENT_SCHEMA_VERSION_1} to ${EXPERIMENT_SCHEMA_VERSION}`);
 }
 
 /**
- * An older payload as schema 3 without a recording; a schema 1 payload's launcher and ardupilot
- * fields become a launcher-owned SITL.
+ * An older payload as schema 4: an original run, without a recording before schema 3; a schema 1 payload's launcher
+ * and ardupilot fields become a launcher-owned SITL.
  */
-export function migrateExperiment(payload: ExperimentPayload | ExperimentPayloadV2 | ExperimentPayloadV1): ExperimentPayload {
+export function migrateExperiment(payload: ExperimentPayload | ExperimentPayloadV3 | ExperimentPayloadV2 | ExperimentPayloadV1): ExperimentPayload {
+  const original = { kind: 'original' } as const;
   if (payload.schemaVersion === EXPERIMENT_SCHEMA_VERSION) return payload;
+  if (payload.schemaVersion === EXPERIMENT_SCHEMA_VERSION_3) return freeze({ ...payload, schemaVersion: EXPERIMENT_SCHEMA_VERSION, lineage: original });
   if (payload.schemaVersion === EXPERIMENT_SCHEMA_VERSION_2) {
     const { profile, sitl, session, parameters, frameScript, sensors } = payload;
-    return freeze({ schemaVersion: EXPERIMENT_SCHEMA_VERSION, profile, sitl, session, parameters, frameScript, sensors, recording: null });
+    return freeze({ schemaVersion: EXPERIMENT_SCHEMA_VERSION, profile, sitl, session, parameters, frameScript, sensors, recording: null, lineage: original });
   }
   const { profile, ardupilot, launcher, session, parameters, frameScript, sensors } = payload;
   return freeze({ schemaVersion: EXPERIMENT_SCHEMA_VERSION, profile, sitl: { ownership: 'launcher', experimentId: launcher.experimentId, ardupilot },
-    session, parameters, frameScript, sensors, recording: null });
+    session, parameters, frameScript, sensors, recording: null, lineage: original });
+}
+
+/** Canonical JSON text of a value, for comparing inputs. */
+const same = (a: unknown, b: unknown): boolean => equalBytes(canonicalBytes(a), canonicalBytes(b));
+/** The recording setup of a run: its rates and limits without the record that was made. */
+function recordingSetup(recording: ExperimentRecording | null): unknown {
+  if (!recording) return null;
+  return { commonHz: recording.commonHz, groups: recording.groups, signals: recording.signals, durationMin: recording.durationMin, reserveMb: recording.reserveMb };
+}
+/** The build a SITL ran: a launcher-owned SITL's binary, or the commit an external SITL reported. */
+function buildOf(sitl: ExperimentSitl): unknown {
+  return sitl.ownership === 'launcher' ? { catalogId: sitl.ardupilot.catalogId, commit: sitl.ardupilot.commit, binarySha256: sitl.ardupilot.binarySha256 }
+    : { commit: sitl.ardupilot.commit };
+}
+/**
+ * The inputs in which `child` differs from `parent` (TASK-165), in EXPERIMENT_INPUTS order. The run's own identity
+ * (launcher experiment or connection ID, the recording it made, its lineage and the BET module build) is not an input.
+ */
+export function experimentChanges(parent: ExperimentPayload, child: ExperimentPayload): ExperimentInput[] {
+  const changes: ExperimentInput[] = [];
+  const check = (input: ExperimentInput, differs: boolean) => { if (differs) changes.push(input); };
+  check('aircraft profile', parent.profile.sha256 !== child.profile.sha256);
+  check('ArduPilot build', !same(buildOf(parent.sitl), buildOf(child.sitl)));
+  check('speed', parent.session.speedup !== child.session.speedup);
+  check('physics rate', parent.session.physicsHz !== child.session.physicsHz);
+  check('home', !same(parent.session.home, child.session.home));
+  check('initial parameters', !same(parent.parameters, child.parameters));
+  check('frame script', parent.frameScript !== child.frameScript);
+  check('sensors', !same(parent.sensors, child.sensors));
+  check('recording setup', !same(recordingSetup(parent.recording), recordingSetup(child.recording)));
+  check('SITL', parent.sitl.ownership !== child.sitl.ownership);
+  return changes;
 }
 
 /**
@@ -676,6 +749,17 @@ export async function createExperimentRecord(store: ProjectStore, projectId: str
   const derived = await deriveVehicleManifest(profile, resolved.components, { modelId: payload.session.modelId });
   if (derived.sha256 !== payload.session.manifestSha256) {
     fail('session.manifestSha256 must be the manifest derived from the stored profile version with session.modelId');
+  }
+  // TASK-165: a repeat keeps every input of its parent, and a variant lists exactly the ones it changed.
+  const lineage = payload.lineage;
+  if (lineage.kind !== 'original') {
+    const parentStored = await store.get(lineage.of);
+    if (parentStored.record.kind !== 'experiment' || parentStored.record.projectId !== projectId) fail(`lineage.of ${lineage.of} is not an experiment of this project`);
+    const changes = experimentChanges(readExperiment(parentStored), payload);
+    if (lineage.kind === 'repeat' && changes.length > 0) fail(`a repeat keeps its parent's inputs, but these differ: ${changes.join(', ')}`);
+    if (lineage.kind === 'variant' && !same(changes, lineage.changes)) {
+      fail(`a variant must list the inputs it changed: ${changes.length > 0 ? changes.join(', ') : 'none, which is a repeat'}`);
+    }
   }
   return store.createItem(projectId, 'experiment', { name: inputs.name, payload, dependencies: [stored.sha256] });
 }

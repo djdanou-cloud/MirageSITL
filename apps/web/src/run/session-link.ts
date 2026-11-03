@@ -1,7 +1,10 @@
 // The Run tab's current SITL session, shared with the tabs that read it
 // (TASK-160): the Parameters tab reads and writes the parameters of the run
 // the Run tab owns. The Run tab is the only writer; any tab may subscribe.
-// The shell creates one link and passes it to both.
+// The shell creates one link and passes it to both. The Experiments tab also
+// plans the Run tab's next run through it: a repeat or a variant of a stored
+// experiment (TASK-165), which the Run tab loads and the user starts.
+import type { PlannedRun } from "../experiments/lifecycle";
 import type { ControllerView, SessionController } from "./session-controller";
 
 export interface LinkedSession {
@@ -12,6 +15,7 @@ export interface LinkedSession {
 
 export class SessionLink {
   private current: LinkedSession | null = null;
+  private plannedRun: PlannedRun | null = null;
   private readonly listeners = new Set<() => void>();
 
   /** A new session replaces the previous one: every Start and Connect makes a fresh controller. */
@@ -25,6 +29,13 @@ export class SessionLink {
     this.current = { controller, view };
     this.notify();
   }
+  /** Plans the Run tab's next run, or clears the plan; the Run tab clears it when the run starts. */
+  planRun(plan: PlannedRun | null): void {
+    this.plannedRun = plan;
+    this.notify();
+  }
+  /** For useSyncExternalStore: the planned run. */
+  readonly plan = (): PlannedRun | null => this.plannedRun;
   /** For useSyncExternalStore: the snapshot changes identity on every attach and publish. */
   readonly snapshot = (): LinkedSession | null => this.current;
   readonly subscribe = (listener: () => void): (() => void) => {

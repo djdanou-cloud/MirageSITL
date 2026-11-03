@@ -6432,8 +6432,8 @@ network error; launcher-foreign needs an answer the browser may read.
 
 ### Experiment record
 
-`packages/aircraft/src/experiment.ts` defines experiment payload schema 3
-(TASK-163) in record envelope v1, and the application registers
+`packages/aircraft/src/experiment.ts` defines experiment payload schema 4
+(TASK-165) in record envelope v1, and the application registers
 `validateExperiment` for the `experiment` kind. The record has exactly one
 dependency, its aircraft-profile version, and the payload holds:
 
@@ -6446,12 +6446,14 @@ dependency, its aircraft-profile version, and the payload holds:
 | frameScript | the Lua of a scripting-matrix frame, or null (always null for an external SITL) |
 | sensors | `sensorSnapshot()` of the profile version, verbatim |
 | recording | the run's recorder v2 record ID and the Logging tab settings it records with (common, group and signal rates, the run length and the storage reserve; TASK-163), or null for a run that records nothing |
+| lineage | an original run, or a repeat or variant of a parent experiment (TASK-165; see "Experiment lifecycle") |
 
 Schema 1, which TASK-154 wrote, had `ardupilot` and `launcher` at the top
 level and a required speed-up; schema 2, which TASK-155 wrote, had no
-`recording`. Both stay valid on reads and archive imports; `readExperiment`
-presents them as schema 3 without a recording (schema 1 with a launcher-owned
-`sitl`), and `createExperimentRecord` writes only schema 3.
+`recording`, and schema 3, which TASK-163 wrote, no `lineage`. All stay valid
+on reads and archive imports; `readExperiment` presents them as schema 4
+original runs, without a recording before schema 3 (schema 1 with a
+launcher-owned `sitl`), and `createExperimentRecord` writes only schema 4.
 
 `createExperimentRecord` recomputes the snapshot from the stored profile
 version and requires canonical-byte equality, cross-checks the frame and
@@ -6520,7 +6522,7 @@ running. The decisions of 2026-11-01 set the policy: a SITL with built-in
 physics is refused; only verified source commits connect; the SITL's
 parameters are read, never written, and every difference is a reason to
 refuse; a connection is recorded as experiment payload schema 2, which is
-schema 3 since TASK-163.
+schema 3 since TASK-163 and schema 4 since TASK-165.
 
 ### Launcher API
 
@@ -7251,6 +7253,85 @@ stepping, 250 ms of silence is still fresh, and 1 ms more pauses the session
 before the frame, unanswered, while the running state reported after a pump
 never refreshes it. `tests/browser/manual-flight.spec.ts` flies native
 ArduCopter 8ab6afde with a mocked controller through the Run tab.
+
+## Experiment lifecycle (TASK-165)
+
+An experiment fixes its inputs: the aircraft profile version, the ArduPilot
+build, the speed, the physics rate, the home, the initial parameters, the
+frame script, the TASK-143 sensor snapshot of its profile version and the
+recording setup. Weather, location, the flight task and the fault schedule
+join them when their tasks land (TASK-148, TASK-167, TASK-169, TASK-172).
+Results (the recording, the parameter log, the DataFlash files) belong to
+the run. Its inputs never change after version 1.
+
+### Lineage
+
+Experiment payload schema 4 adds `lineage`:
+
+```typescript
+type ExperimentLineage =
+  | { kind: "original" }
+  | { kind: "repeat"; of: string }   // the parent experiment record's SHA-256
+  | { kind: "variant"; of: string; changes: ExperimentInput[] };
+type ExperimentInput = "aircraft profile" | "ArduPilot build" | "speed" | "physics rate" | "home" | "initial parameters" | "frame script" |
+  "sensors" | "recording setup" | "SITL";
+```
+
+`experimentChanges(parent, child)` lists the inputs that differ, in that
+order. The run's own identity (launcher experiment or connection ID, the
+recording record it made, its lineage and the BET module build) is not an
+input. `createExperimentRecord` reads the parent, which must be an
+experiment of the same project, and refuses a repeat whose inputs differ and
+a variant whose `changes` are not exactly the computed list; a variant needs
+at least one change. The parent is named as data, not as a store dependency,
+and is never changed. Schema 3 records read as schema 4 original runs, and
+new records are always schema 4.
+
+### Repeat and Create variant
+
+The Experiments tab lists the project's experiments with their inputs and
+lineage. Repeat and Create variant plan the Run tab's next run through
+`SessionLink.planRun`; the Run tab switches to the ArduPilot SITL backend
+and loads the parent's profile version (which need not be its profile's
+head), ArduPilot build, speed, physics rate and home, and its recording setup
+(or none, when the parent recorded nothing). A repeat locks them; a variant
+lets the profile version, the build and the speed change. The record's
+lineage is computed with `lineageFor` when it is written: a variant that
+changed nothing is recorded as a repeat. A run with a SITL started by hand is
+repeated by connecting that SITL again.
+
+### Differences, never judged
+
+By the user's decision of 2026-11-03, MirageSITL does not judge
+reproduction; it stores no tolerance. For a repeat or a variant, the tab
+shows the inputs that differ from the parent and, from the two recordings,
+the largest horizontal and vertical difference of `truth.position` at the
+recorded ticks both hold, where it occurs and the first tick at which the
+positions differ (`trajectoryDifference`).
+
+### Export and import
+
+Export the experiment writes a project archive of the project record, the
+experiment and its profile with that profile's whole dependency closure
+(`ProjectStore.exportItems`, TASK-161). The tab lists what the archive cannot
+hold (`externalDependencies`): the ArduPilot build a repeat would start,
+which the receiving launcher must have installed (or the hand-started SITL),
+and the recording, which stays in the browser storage of the computer that
+made it. Import experiments imports an archive with the store's checks, then
+lists the missing project records and, per imported experiment, a recording
+this browser does not hold and the build it needs.
+
+### Verification (TASK-165)
+
+`tests/experiment-record.test.ts` checks schema 4 and the migration of
+schema 3, the input changes and what is not an input, the refusals of a false
+repeat or variant and of a parent from elsewhere, the unchanged parent, an
+exported experiment imported into an empty store and its external
+dependencies, and the trajectory difference against a hand-computed oracle.
+`tests/browser/experiments-tab.spec.ts` runs native ArduCopter 8ab6afde
+through the application alone: an original run, its repeat and a variant at
+another speed, the comparison, and an export imported into another browser
+profile.
 
 ## DataFlash capture per experiment (TASK-164)
 

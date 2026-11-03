@@ -6,7 +6,7 @@ import { AppShell, type StoreState } from "./shell/AppShell";
 import { RunPanel } from "./run/RunPanel";
 import type { SessionLink } from "./run/session-link";
 import type { StoredVersion } from "@mirage/project/schema";
-import { Component, useEffect, useRef, useState, type ReactNode } from "react";
+import { Component, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import {
   Activity,
   Cpu,
@@ -701,6 +701,9 @@ function DemoFlight({ visible }: { visible: boolean }) {
  */
 function RunTab({ visible, storeState, project, link }: { visible: boolean; storeState: StoreState; project: StoredVersion | null; link: SessionLink }) {
   const [backend, setBackend] = useState<"demo" | "ardupilot">("demo");
+  // A repeat or a variant planned in the Experiments tab (TASK-165) runs with the ArduPilot SITL backend.
+  const plan = useSyncExternalStore(link.subscribe, link.plan);
+  useEffect(() => { if (plan) setBackend("ardupilot"); }, [plan]);
   return (
     <div className="run-tab">
       <div className="run-heading">
