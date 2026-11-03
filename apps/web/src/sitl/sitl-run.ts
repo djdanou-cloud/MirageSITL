@@ -331,6 +331,7 @@ export class RuntimePhysics implements PhysicsPort {
   sendMavlink(bytes: Uint8Array): void { this.runtime.postToWorker({ type: "sitl.mavlink.send", bytes }); }
   resume(): Promise<void> { return this.control({ type: "sim.start" }); }
   pause(): Promise<void> { return this.control({ type: "sim.pause" }); }
+  manualInput(active: boolean): void { this.runtime.postToWorker({ type: "sitl.manual", active }); }
   private readonly latest = newFlightStateV2();
   tickNow(): { tick: number; simTimeS: number } {
     const s = this.latest;

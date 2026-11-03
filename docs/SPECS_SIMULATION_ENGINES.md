@@ -7188,6 +7188,70 @@ within 5 %, and the two runs' recorded
 truth trajectories over their first 20 s of simulated time are identical row
 for row.
 
+## Manual flight with a controller (TASK-174)
+
+The Run tab flies an integrated run with the USB controller calibrated in
+the radio panel (TASK-038), through the `GamepadAdapter` and its
+calibration.
+
+### Taking and releasing control
+
+`takeManual(mode)` takes manual control in altitude hold, loiter or
+stabilize:
+
+| Where | Conditions | What MirageSITL does |
+|---|---|---|
+| on the ground at READY, disarmed | the controller is connected and valid, throttle at most 5 % (the TASK-038 rearm rule) | sets the mode, then arms once the heartbeat reports it; an arm request waits while the throttle is up |
+| in flight, armed in GUIDED (climbing or flying) | the controller is connected and valid; altitude hold or loiter only, which hold with the throttle centred | sets the mode |
+
+The controller's sticks then go to ArduPilot as RC_CHANNELS_OVERRIDE at
+`MANUAL_RATE_HZ` (25 Hz), mapped by `PilotRcMapper`. MirageSITL commands the
+mode itself, so the mode channel carries the ignore sentinel. Releasing
+control sends the release sentinels and, while armed, sets GUIDED, where
+ArduPilot holds position. A landing that ArduPilot disarms ends manual
+control, and the run is READY again.
+
+### Losing the controller
+
+By the user's decision of 2026-11-03, losing the controller in flight
+**pauses** the run through the TASK-156 path, with pause reason
+`controller`:
+
+| Cause | Detected by |
+|---|---|
+| unplugged, invalid axes or a different device (a new `GamepadAdapter` generation) | the session controller, at each 40 ms period |
+| no stick command for `INPUT_TIMEOUT_MS` (250 ms, the existing input timeout), for example a stalled page | the physics Worker's watchdog, before it steps the next SITL frame |
+
+The watchdog runs in the Worker because a stalled main thread cannot notice
+its own silence. ArduPilot would otherwise go on applying the last override
+for its RC_OVERRIDE_TIME. `SitlBridgeClient.setManual(true)` arms it, each
+RC_CHANNELS_OVERRIDE that Main sends refreshes it, and only a real resume,
+not the running state reported after every pump, restarts its interval. When
+it fires, the session pauses before the frame (`holdForInput`, as after an
+accident), so thrust is never held on stale input. The Worker posts
+`sitl.input-stale` with the simulated time and the silence.
+
+A run paused for its controller resumes only once a controller is connected.
+If it is the same device that never left (a stall), manual control goes on.
+A controller that was unplugged and plugged back in, or swapped, counts as a
+new device (TASK-038) and never takes over silently: Resume releases manual
+control, ArduPilot holds position in GUIDED, and the user may take manual
+control again.
+
+### Verification (TASK-174)
+
+`tests/run-controller.test.ts` drives the controller on scripted ports with a
+scripted controller: refusals, mode and arm with the throttle down,
+overrides at 25 Hz with their PWM, an unplug that pauses and a Resume that
+waits for the controller, a swap whose Resume releases to GUIDED with the
+release sentinels, the Worker's stale-input pause, a landing that ends manual
+control, and an in-flight takeover. `tests/sitl-bridge-client.test.ts`
+checks the watchdog on a real session: overrides every 40 ms keep the frames
+stepping, 250 ms of silence is still fresh, and 1 ms more pauses the session
+before the frame, unanswered, while the running state reported after a pump
+never refreshes it. `tests/browser/manual-flight.spec.ts` flies native
+ArduCopter 8ab6afde with a mocked controller through the Run tab.
+
 ## DataFlash capture per experiment (TASK-164)
 
 ArduPilot's own DataFlash logs of an integrated run stay ArduPilot's: the

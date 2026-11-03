@@ -6,6 +6,8 @@ import { describeAccident } from "@mirage/physics/accident";
 import type { LimitEvent } from "@mirage/physics/limit-monitor";
 import type { StoredVersion } from "@mirage/project/schema";
 import { CopterMode } from "@mirage/autopilot/ground-station";
+import { GamepadAdapter, defaultCalibration } from "@mirage/input";
+import { loadCalibration } from "@mirage/input/calibration-store";
 import type { ParameterMetadataCatalog } from "@mirage/autopilot/param-metadata";
 import { loadLoggingSettings, type LoggingSettings } from "../logging/logging-settings";
 import { ParameterLogWriter } from "../params/log-writer";
@@ -18,6 +20,7 @@ import { DEFAULT_HOME, LauncherClient, RuntimePhysics, SITL_PHYSICS_HZ, prepared
 import { FlightTelemetry } from "./FlightTelemetry";
 import { FlightView, type FlightViewProbe } from "./FlightView";
 import { CompatibilityList, ManualConnect } from "./ManualConnect";
+import { ManualControl } from "./ManualControl";
 import { MotorCheckPanel } from "./MotorCheck";
 import { PowerPanel } from "./PowerPanel";
 import { AS_FAST_AS_POSSIBLE } from "./run-speed";
@@ -40,6 +43,8 @@ import type { SessionLink } from "./session-link";
 // is listed with its part and contact load; the run, paused on its tick, may
 // continue, and is then labelled as not validated for a damaged aircraft.
 // The run's measured speed (TASK-175) is shown with the pace it was asked for.
+// Manual control (TASK-174) flies the run with the USB controller calibrated
+// in the synthetic demo's radio panel (TASK-038).
 // The session is attached to the shell's link, so the Parameters tab (TASK-160)
 // reads and writes the run's parameters, and each run's parameter changes are
 // saved as its parameter log.
@@ -48,13 +53,15 @@ const MODE_NAMES: Readonly<Record<number, string>> = Object.fromEntries(Object.e
 const STEP_TEXT = { prepare: "preparing the vehicle", firmware: "checking the ArduPilot build", physics: "loading the physics",
   launcher: "starting SITL", record: "saving the experiment record", recording: "opening the recording", connecting: "connecting to SITL",
   probing: "waiting for the SITL's JSON physics packets", version: "checking the SITL's ArduPilot version" } as const;
-const FLIGHT_TEXT = { arming: "Arming", climbing: "Taking off", flying: "Flying", landing: "Landing" } as const;
-const PAUSE_TEXT: Readonly<Record<PauseReason, string>> = { accident: "accident", user: "by you", visibility: "the tab was hidden", terrain: "no terrain" };
+const FLIGHT_TEXT = { arming: "Arming", climbing: "Taking off", flying: "Flying", landing: "Landing", manual: "Manual control" } as const;
+const PAUSE_TEXT: Readonly<Record<PauseReason, string>> = { accident: "accident", user: "by you", visibility: "the tab was hidden", terrain: "no terrain",
+  controller: "controller lost" };
 const PAUSE_HINT: Readonly<Record<PauseReason, string>> = {
   accident: "The run paused on the accident's tick, and the autopilot with it. It can continue, but what follows is not validated for a physically damaged aircraft.",
   user: "The physics and the autopilot's simulated time stand still together; position, velocity and the flight are kept. Resume continues both.",
   visibility: "This run paused because its tab was hidden: the browser slows a hidden page's timers, which run the ground station, so a run never goes on there unwatched. Resume when you are back.",
   terrain: "The run paused because no terrain is loaded under the aircraft.",
+  controller: "The run paused because the controller disconnected, was swapped or stopped sending: ArduPilot never flies on a held stick. If the same controller stayed connected, Resume continues in manual control; one that was unplugged and plugged back in, or swapped, does not take over, so Resume gives the flight back to MirageSITL, which holds position, and you can take manual control again.",
 };
 const PAUSABLE_STATES: ReadonlySet<string> = new Set(["loading-parameters", "warming", "ready", "running"]);
 const NO_LIMIT_EVENTS = (): readonly LimitEvent[] => [];
@@ -107,6 +114,14 @@ export function RunPanel({ storeState, project, visible, link }: { storeState: S
   const [telemetry, setTelemetry] = useState<Telemetry>({ altitudeM: 0, simTimeS: 0 });
   const [probe, setProbe] = useState("");
   const [motorRefusal, setMotorRefusal] = useState("");
+  const [manualRefusal, setManualRefusal] = useState("");
+  // TASK-174: the controller calibrated in the radio panel (TASK-038), or the default axes.
+  const adapter = useMemo(() => {
+    const stored = (() => { try { return loadCalibration(localStorage); } catch { return null; } })();
+    const pad = new GamepadAdapter(stored?.axes ?? defaultCalibration());
+    if (stored) pad.modeCalibration = stored.mode;
+    return pad;
+  }, []);
   const store = storeState.status === "ready" ? storeState.store : null;
   const projectId = project?.record.id ?? null;
 
@@ -183,6 +198,7 @@ export function RunPanel({ storeState, project, visible, link }: { storeState: S
     // TASK-163: the run records with the Logging tab's settings.
     new RunRecorder(fresh, logging, SITL_PHYSICS_HZ), metadata);
     controller.current = next;
+    next.setInput(adapter);
     link.attach(next);
     unlisten.current = fresh.listen(data => next.worker(data));
     return {
@@ -270,7 +286,8 @@ export function RunPanel({ storeState, project, visible, link }: { storeState: S
         <button type="button" onClick={() => controller.current?.land()}
           disabled={state.name !== "running" || (state.flight !== "climbing" && state.flight !== "flying")}>Land</button>
         <button type="button" onClick={() => controller.current?.pause("user")} disabled={!PAUSABLE_STATES.has(state.name)}>Pause</button>
-        <button type="button" onClick={() => controller.current?.resume()} disabled={state.name !== "paused"}>
+        <button type="button" onClick={() => { if (controller.current?.resume() === false) setManualRefusal(controller.current.resumeBlocker() ?? ""); else setManualRefusal(""); }}
+          disabled={state.name !== "paused"}>
           {state.name === "paused" && state.reason === "accident" ? "Continue after the accident" : "Resume"}
         </button>
         <button type="button" onClick={() => void controller.current?.stop()} disabled={!active && !stopAgain}>
@@ -278,6 +295,10 @@ export function RunPanel({ storeState, project, visible, link }: { storeState: S
         </button>
       </div>
       <ManualConnect disabled={busy || !profileSha} again={Boolean(failed) && external} onConnect={connect} onError={setError} />
+      <ManualControl adapter={adapter} manual={view?.manual ?? null}
+        canTake={state.name === "ready" || (state.name === "running" && (state.flight === "climbing" || state.flight === "flying"))}
+        onTake={mode => setManualRefusal(controller.current?.takeManual(mode) ?? "No run is active")}
+        onRelease={() => setManualRefusal(controller.current?.releaseManual() ?? "")} refusal={manualRefusal} />
       {layout && chosen && (
         <div className="flight-view-area" data-testid="flight-view" data-probe={probe}>
           <FlightView runtime={runtime} layout={layout} name={chosen.record.name} active={visible} ringTurning={view?.motorCheck?.running === true}

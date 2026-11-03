@@ -38,6 +38,16 @@
 // simulated over the running wall time, with paused time left out, and, for a
 // real-time run, whether it holds A-05's ratio and which intervals dropped.
 //
+// Manual flight (TASK-174) sends the calibrated USB controller's sticks as
+// RC_CHANNELS_OVERRIDE at MANUAL_RATE_HZ, with MirageSITL commanding the flight
+// mode. A controller that disconnects, becomes invalid or is swapped pauses
+// the run (user decision of 2026-11-03), as does the physics Worker when no
+// stick command reached it for INPUT_TIMEOUT_MS, so thrust is never held on
+// stale input. A run resumes in manual control only on the same, never
+// unplugged controller; after an unplug or a swap, which the GamepadAdapter
+// counts as a new device (TASK-038), Resume releases manual control and
+// ArduPilot holds position in GUIDED.
+//
 // Connect (TASK-155) runs the same states against a SITL the user started.
 // The launcher owns only the connection, so Stop and every failure
 // disconnect and never signal the process. A connection is refused, naming
@@ -55,6 +65,8 @@ import type { ParameterMetadataCatalog, ParameterMetadataSet } from "@mirage/aut
 import { ParameterService, type DownloadState, type ParameterValue } from "@mirage/autopilot/param-service";
 import { ParameterReadback, type AbsentRule, type ParameterDifference } from "@mirage/autopilot/parameter-readback";
 import { MavParser, type MavFrame } from "@mirage/mavlink/codec";
+import { PilotRcMapper } from "@mirage/mavlink/rc-override";
+import { UNKNOWN_U32, newPilotInputV2, type PilotInput } from "@mirage/protocol";
 import { fieldOf, readNumber } from "@mirage/mavlink/messages";
 import type { AccidentEvent } from "@mirage/physics/accident";
 import type { ParameterChange } from "../params/parameter-sets";
@@ -147,6 +159,17 @@ export interface PhysicsPort {
   pause(): Promise<void>;
   /** The session's latest published tick and simulated time, s. */
   tickNow(): { readonly tick: number; readonly simTimeS: number };
+  /** Manual control started or ended: the Worker's stale-input watchdog follows it (TASK-174). */
+  manualInput(active: boolean): void;
+}
+/** The calibrated USB controller (GamepadAdapter of TASK-038). */
+export interface PilotInputPort {
+  /** Fills `out` with the controller's sticks now, flags Connected when they are valid. */
+  poll(out: PilotInput, nowMs: number, armed: boolean): void;
+  readonly status: "connected" | "disconnected" | "invalid-axes" | "unavailable";
+  /** Changes whenever the device behind the selection changes, a replug included. */
+  readonly generation: number;
+  readonly deviceName: string;
 }
 export interface RecordPort { create(payload: ExperimentPayload): Promise<{ readonly sha256: string }> }
 /** Who a run's recording belongs to: the recording header's identity. */
@@ -204,7 +227,10 @@ export interface ConnectRequest {
 
 export type Ownership = ExperimentSitl["ownership"];
 export type StartStep = "prepare" | "firmware" | "physics" | "launcher" | "record" | "recording" | "connecting" | "probing" | "version";
-export type FlightStep = "arming" | "climbing" | "flying" | "landing";
+export type FlightStep = "arming" | "climbing" | "flying" | "landing" | "manual";
+/** The flight modes manual control can fly (ArduCopter's own). */
+export type ManualMode = "stabilize" | "alt-hold" | "loiter";
+const MANUAL_MODES: Readonly<Record<ManualMode, number>> = { stabilize: CopterMode.Stabilize, "alt-hold": CopterMode.AltHold, loiter: CopterMode.Loiter };
 export type FailureReason =
   | { readonly kind: "vehicle"; readonly message: string }
   | { readonly kind: "firmware"; readonly message: string }
@@ -240,8 +266,11 @@ export interface Diagnostics {
   readonly connection: { readonly servoPackets: number; readonly rateHz: number | null; readonly bytesFromSitl: number } | null;
 }
 export type RunStateName = RunState["name"];
-/** Why a run is paused: an accident (TASK-149), the user, a hidden tab, or missing terrain (TASK-186), through one path (TASK-156). */
-export type PauseReason = "accident" | "user" | "visibility" | "terrain";
+/**
+ * Why a run is paused: an accident (TASK-149), the user, a hidden tab, missing terrain (TASK-186), or a lost or stale
+ * controller in manual flight (TASK-174), through one path (TASK-156).
+ */
+export type PauseReason = "accident" | "user" | "visibility" | "terrain" | "controller";
 /** One pause of a run and its resume (TASK-156). */
 export interface PauseEvent {
   readonly reason: PauseReason;
@@ -337,6 +366,10 @@ const STREAMS: readonly (readonly [number, number])[] = [[193, 100000], [24, 100
 const STREAM_SILENCE_MS = 2000;
 /** At most this many parameter differences are listed one by one. */
 const LISTED_DIFFERENCES = 12;
+/** Manual control sends the sticks at this rate (TASK-174); the Worker's watchdog pauses after INPUT_TIMEOUT_MS without one. */
+export const MANUAL_RATE_HZ = 25;
+/** Arming in manual control needs the throttle at or below this (the pilot mailbox v2 rearm rule, TASK-038). */
+const ARM_THROTTLE_MAX = 0.05;
 /** WGS-84 mean radius for the home distance, metres. */
 const EARTH_RADIUS_M = 6371008.8;
 function gpsField(name: string, type: string) {
@@ -372,6 +405,14 @@ export interface ControllerView {
   readonly parameters: ParameterView | null;
   /** The measured run speed (TASK-175). */
   readonly speed: RunSpeedView;
+  /** Manual control (TASK-174), or null when MirageSITL flies the run. */
+  readonly manual: ManualView | null;
+}
+export interface ManualView {
+  readonly mode: ManualMode;
+  readonly device: string;
+  /** Why an arm waits, or null. */
+  readonly waiting: string | null;
 }
 /** The parameter state of a run (TASK-160); the list itself is read with `parameterList()`. */
 export interface ParameterView {
@@ -443,6 +484,12 @@ export class SessionController {
   private changes: ParameterChange[] = [];
   private firmwareCommit: string | null = null;
   private speed = new RunSpeedMeter(1);
+  private input: PilotInputPort | null = null;
+  private manual: { mode: ManualMode; generation: number; device: string; armedOnce: boolean; waiting: string | null } | null = null;
+  private stopManualTimer: (() => void) | null = null;
+  private readonly pilot: PilotInput = { roll: 0, pitch: 0, yaw: 0, throttle: 0, flags: 0, wallTimeMs: 0 };
+  private readonly pilotV2 = newPilotInputV2();
+  private readonly mapper = new PilotRcMapper();
   private heartbeatSeen = false;
   private lastHeartbeatMs = 0;
   private accidents: AccidentEvent[] = [];
@@ -472,7 +519,8 @@ export class SessionController {
     return { state: this.stateValue, status: this.status, mode: this.mode, armed: this.armed, statusText: this.statusText, recordSha256: this.recordSha256,
       ownership: this.ownership, compatibility: this.compatibility, motorCheck: this.motorCheckView(), accidents: this.accidents,
       afterAccident: this.afterAccident, pauses: this.pauses, pausedWallMs: this.pausedWallTotal(), parameters: this.parameterView(),
-      speed: this.speed.view };
+      speed: this.speed.view,
+      manual: this.manual ? { mode: this.manual.mode, device: this.manual.device, waiting: this.manual.waiting } : null };
   }
   get active(): boolean { return ACTIVE.has(this.stateValue.name); }
   /** The current state name, read afresh after an await (not narrowed by earlier checks). */
@@ -727,7 +775,7 @@ export class SessionController {
    * stepping, and the autopilot, which waits on its next frame in JSON lockstep, with it. False when
    * the run cannot pause now.
    */
-  pause(reason: "user" | "visibility"): boolean {
+  pause(reason: "user" | "visibility" | "controller"): boolean {
     const s = this.stateValue;
     if (!PAUSABLE.has(s.name) || this.pausing || !("experimentId" in s) || s.experimentId === null) return false;
     const generation = this.generation;
@@ -751,10 +799,15 @@ export class SessionController {
    */
   resume(): boolean {
     const s = this.stateValue, before = this.resumeTo;
-    if (s.name !== "paused" || !before) return false;
+    if (s.name !== "paused" || !before || this.resumeBlocker() !== null) return false;
     const generation = this.generation;
     this.physics.resume().then(() => {
       if (generation !== this.generation || this.stateValue !== s) return;
+      // TASK-174: manual control goes on with the same controller only; a swapped or replugged one is never taken silently,
+      // and releasing it changes the state the run returns to.
+      if (this.manual && this.input && this.input.generation !== this.manual.generation) this.endManual();
+      else if (this.manual) this.physics.manualInput(true);
+      const to = this.resumeTo ?? before;
       this.resumeTo = null;
       this.speed.resume(this.clock.nowMs());
       if (s.reason === "accident") this.afterAccident = true;
@@ -763,8 +816,8 @@ export class SessionController {
       if (last && last.resumedWallMs === null) this.pauses = [...this.pauses.slice(0, -1), { ...last, resumedWallMs: this.clock.nowMs() }];
       // The autopilot sent nothing while it waited; its heartbeat count, and a start's first-heartbeat deadline, start again now.
       this.lastHeartbeatMs = this.clock.nowMs();
-      if (before.name === "starting") this.connectedAtMs = this.clock.nowMs();
-      this.set(before);
+      if (to.name === "starting") this.connectedAtMs = this.clock.nowMs();
+      this.set(to);
     }, (error: unknown) => {
       if (generation === this.generation && this.stateValue === s) void this.stopAfter({ kind: "physics", message: messageOf(error) }, "paused");
     });
@@ -774,6 +827,51 @@ export class SessionController {
   continueAfterAccident(): boolean {
     const s = this.stateValue;
     return s.name === "paused" && s.reason === "accident" && this.resume();
+  }
+
+  /** The calibrated USB controller manual control reads (TASK-174). */
+  setInput(input: PilotInputPort | null): void { this.input = input; }
+
+  /**
+   * Takes manual control (TASK-174): on the ground at READY, disarmed, with the throttle down, MirageSITL sets `mode` and
+   * arms; in flight, armed in GUIDED, it switches to `mode` (altitude hold or loiter, which hold with the throttle
+   * centred). The sticks then go to ArduPilot at MANUAL_RATE_HZ. Returns why not, or null.
+   */
+  takeManual(mode: ManualMode): string | null {
+    const s = this.stateValue, input = this.input;
+    if (this.manual) return "Manual control is already on";
+    if (!input) return "No controller is set up";
+    input.poll(this.pilot, this.clock.nowMs(), this.armed);
+    if (input.status !== "connected") return `The controller is ${input.status === "invalid-axes" ? "not calibrated for its axes" : "not connected"}`;
+    const onGround = s.name === "ready" && !this.armed;
+    const inFlight = s.name === "running" && (s.flight === "climbing" || s.flight === "flying") && this.armed;
+    if (!onGround && !inFlight) return "Take manual control at READY on the ground, or in flight";
+    if (inFlight && mode === "stabilize") return "In flight, take manual control in altitude hold or loiter, which hold with the throttle centred";
+    if (onGround && this.pilot.throttle > ARM_THROTTLE_MAX) return "Lower the throttle to take manual control on the ground";
+    if (!("experimentId" in s) || s.experimentId === null) return "No run is active";
+    this.manual = { mode, generation: input.generation, device: input.deviceName, armedOnce: inFlight, waiting: null };
+    this.physics.manualInput(true);
+    this.stopManualTimer = this.clock.every(1000 / MANUAL_RATE_HZ, () => this.manualTick());
+    this.send(this.gcs.setModeInto(MANUAL_MODES[mode], this.packet));
+    this.manualTick();
+    this.set({ name: "running", experimentId: s.experimentId, flight: "manual", warning: null });
+    return null;
+  }
+  /**
+   * Gives the flight back to MirageSITL: the override is released and, while armed, ArduPilot holds position in GUIDED.
+   * Possible while paused, when it takes effect with Resume. Returns why not, or null.
+   */
+  releaseManual(): string | null {
+    if (!this.manual) return "Manual control is not on";
+    this.endManual();
+    return null;
+  }
+  /** Why Resume is not possible now, or null (TASK-174: a run paused for its controller waits for it). */
+  resumeBlocker(): string | null {
+    const s = this.stateValue;
+    if (s.name !== "paused" || s.reason !== "controller" || !this.manual || !this.input) return null;
+    this.input.poll(this.pilot, this.clock.nowMs(), this.armed);
+    return this.input.status === "connected" ? null : "Reconnect the controller, or release manual control";
   }
 
   /** The run's parameters as the autopilot reported them (TASK-160), in list order; empty before the run loads them. */
@@ -822,6 +920,11 @@ export class SessionController {
       if (events.length > 0 && this.active) this.accident(events);
       return;
     }
+    if (type === "sitl.input-stale") {
+      // The Worker paused the session: Main sent no stick command for INPUT_TIMEOUT_MS (TASK-174).
+      if (this.manual && this.active && this.stateValue.name !== "paused") this.enterPause("controller", []);
+      return;
+    }
     if (type === "sitl.mavlink") {
       const bytes = field(data, "bytes");
       if (bytes instanceof Uint8Array && this.active) this.parser.push(bytes);
@@ -868,6 +971,47 @@ export class SessionController {
   private pausedWallTotal(): number {
     const now = this.clock.nowMs();
     return this.pauses.reduce((sum, pause) => sum + ((pause.resumedWallMs ?? now) - pause.pausedWallMs), 0);
+  }
+
+  /**
+   * One manual-control period: the controller's sticks out as RC_CHANNELS_OVERRIDE. A disconnected, invalid or
+   * swapped controller pauses the run instead (user decision of 2026-11-03). Nothing is sent while paused.
+   */
+  private manualTick(): void {
+    const manual = this.manual, input = this.input;
+    if (!manual || !input || this.stateValue.name === "paused" || this.status?.state !== "open") return;
+    input.poll(this.pilot, this.clock.nowMs(), this.armed);
+    if (input.status !== "connected" || input.generation !== manual.generation) {
+      this.pause("controller");
+      return;
+    }
+    const p = this.pilotV2;
+    p.roll = this.pilot.roll; p.pitch = this.pilot.pitch; p.yaw = this.pilot.yaw; p.throttle = this.pilot.throttle;
+    // MirageSITL commands the mode itself, so the mode channel is left to ArduPilot (ignore sentinel).
+    p.flags = this.pilot.flags & 1; p.calibratedModeSlot = UNKNOWN_U32;
+    if (this.mapper.mapInto(p)) this.send(this.gcs.rcOverrideInto(this.mapper.channels, this.packet));
+  }
+  /** Ends manual control: the override is released and, while armed, ArduPilot holds position in GUIDED. */
+  private endManual(): void {
+    this.stopManualTimer?.();
+    this.stopManualTimer = null;
+    this.manual = null;
+    this.physics.manualInput(false);
+    const p = this.pilotV2;
+    p.flags = 0; p.calibratedModeSlot = UNKNOWN_U32;
+    if (this.status?.state === "open" && this.mapper.mapInto(p)) this.send(this.gcs.rcOverrideInto(this.mapper.channels, this.packet));
+    const s = this.stateValue, back = this.armed ? { flight: "flying" as const } : null;
+    if (this.armed && this.status?.state === "open") this.send(this.gcs.setModeInto(CopterMode.Guided, this.packet));
+    if (s.name === "running" && s.flight === "manual") {
+      this.set(back ? { ...s, flight: back.flight } : this.status?.ready ? { name: "ready", experimentId: s.experimentId }
+        : { name: "warming", experimentId: s.experimentId, reason: this.status?.reason ?? "" });
+    } else if (s.name === "paused" && this.resumeTo?.name === "running" && this.resumeTo.flight === "manual") {
+      const to = this.resumeTo;
+      this.resumeTo = back ? { ...to, flight: back.flight } : { name: "ready", experimentId: to.experimentId };
+      this.emit();
+    } else {
+      this.emit();
+    }
   }
 
   /** Advances on a status: version and parameter deadlines, warmup, READY revocation and the climb. */
@@ -936,6 +1080,11 @@ export class SessionController {
           // The autopilot has booted: its run speed is judged from here (TASK-175).
           if (this.status) this.speed.begin(this.clock.nowMs(), this.status.simTimeS);
           if (s.name === "starting" && s.experimentId) this.firstHeartbeat(s.experimentId, armed);
+        }
+        if (s.name === "running" && s.flight === "manual" && this.manual) {
+          if (armed) { this.manual.armedOnce = true; this.manual.waiting = null; }
+          // Landed and disarmed by ArduPilot (or the pilot): MirageSITL takes the run back.
+          else if (was && this.manual.armedOnce) this.endManual();
         }
         if (s.name === "running") {
           if (s.flight === "arming" && armed) {
@@ -1182,6 +1331,15 @@ export class SessionController {
       else if (!this.armed) this.send(this.gcs.armInto(true, this.packet));
     } else if (s.name === "running" && s.flight === "landing" && this.mode !== CopterMode.Land) {
       this.send(this.gcs.setModeInto(CopterMode.Land, this.packet));
+    } else if (s.name === "running" && s.flight === "manual" && this.manual) {
+      const manual = this.manual, wanted = MANUAL_MODES[manual.mode];
+      if (this.mode !== wanted) this.send(this.gcs.setModeInto(wanted, this.packet));
+      else if (!this.armed && !manual.armedOnce) {
+        // Zero-throttle arming (TASK-038): the arm request waits for the throttle.
+        const waiting = this.pilot.throttle > ARM_THROTTLE_MAX ? "Lower the throttle to arm" : null;
+        if (waiting === null) this.send(this.gcs.armInto(true, this.packet));
+        if (waiting !== manual.waiting) { manual.waiting = waiting; this.emit(); }
+      }
     }
   }
 
@@ -1254,6 +1412,9 @@ export class SessionController {
   private quiet(): void {
     this.stopTimer?.();
     this.stopTimer = null;
+    this.stopManualTimer?.();
+    this.stopManualTimer = null;
+    this.manual = null;
     this.physics.disconnect();
     // The record closes on its own; a failure to close is the recording's, shown in the Logging tab.
     void this.recording?.stop().catch(() => undefined);

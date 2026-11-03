@@ -9,6 +9,7 @@
 // (ArduCopter/mode.h).
 import { encodeInto } from "@mirage/mavlink/codec";
 import { packInto } from "@mirage/mavlink/messages";
+import { RcOverride } from "@mirage/mavlink/rc-override";
 
 export const MavCommand = {
   NavTakeoff: 22, NavLand: 21, DoSetMode: 176, DoMotorTest: 209, ComponentArmDisarm: 400, SetMessageInterval: 511, RequestMessage: 512,
@@ -20,7 +21,7 @@ export const CopterMode = { Stabilize: 0, AltHold: 2, Guided: 4, Loiter: 5, Land
 /** MAV_MODE_FLAG_CUSTOM_MODE_ENABLED. */
 const CUSTOM_MODE_ENABLED = 1;
 /** MAVLink message IDs. */
-const HEARTBEAT = 0, PARAM_REQUEST_READ = 20, PARAM_REQUEST_LIST = 21, PARAM_SET = 23, COMMAND_LONG = 76;
+const HEARTBEAT = 0, PARAM_REQUEST_READ = 20, PARAM_REQUEST_LIST = 21, PARAM_SET = 23, RC_CHANNELS_OVERRIDE = 70, COMMAND_LONG = 76;
 /** An ArduPilot parameter name: 1 to 16 (AP_MAX_NAME_SIZE) printable ASCII characters, no space. */
 const PARAMETER_NAME = /^[\x21-\x7e]{1,16}$/;
 /** MAV_TYPE_GCS, MAV_AUTOPILOT_INVALID, MAV_STATE_ACTIVE. */
@@ -33,6 +34,7 @@ export class GroundStation {
   private readonly listPayload = new Uint8Array(2);
   private readonly readPayload = new Uint8Array(20);
   private readonly setPayload = new Uint8Array(23);
+  private readonly rcOverride = new RcOverride();
 
   /**
    * @param systemId the ground station's system ID (255, as Mission Planner and pymavlink use)
@@ -131,6 +133,16 @@ export class GroundStation {
     if (!packInto(PARAM_SET, { target_system: this.targetSystem, target_component: this.targetComponent, param_id: name,
       param_value: value, param_type: paramType }, this.setPayload)) return 0;
     return this.frame(PARAM_SET, this.setPayload, out);
+  }
+
+  /**
+   * RC_CHANNELS_OVERRIDE of 18 channels (TASK-174): PWM 800..2200 us, or the
+   * TASK-038 sentinels (65535 ignore; 0 release for channels 1-8, 65534 for
+   * 9-18). Returns 0 for a value outside them.
+   */
+  rcOverrideInto(channels: Uint16Array, out: Uint8Array): number {
+    if (!this.rcOverride.into(channels, this.targetSystem, this.targetComponent)) return 0;
+    return this.frame(RC_CHANNELS_OVERRIDE, this.rcOverride.payload, out);
   }
 
   private frame(id: number, payload: Uint8Array, out: Uint8Array): number {

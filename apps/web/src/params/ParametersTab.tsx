@@ -127,17 +127,23 @@ export function ParametersTab({ storeState, project, link, active }: { storeStat
 
   const download = parameters?.download;
   // TASK-161: only ArduPilot's reported values are exported; a pending write's value is named in the preview, never written to the file.
+  // The session view is a new object at every Worker status, so the memo keys on what changes rarely: the change list's
+  // identity and the list's revision. Recomputing on every status redrew the export preview about ten times a second
+  // and blocked the main thread for some 300 ms, which stopped manual control's stick commands (TASK-174).
+  const changes = parameters?.changes ?? null, recordSha256 = view?.recordSha256 ?? null;
   const live = useMemo((): LiveParameters | null => {
-    if (!parameters || download?.kind !== "complete" || !experimentId) return null;
-    const pending = new Map(parameters.changes.flatMap(c => c.outcome.kind === "requested" ? [[c.name, c.outcome.requested] as const] : []));
-    return { list, pending, experimentId, recordSha256: view?.recordSha256 ?? null };
-  }, [parameters, download?.kind, experimentId, list, view?.recordSha256]);
+    if (!changes || download?.kind !== "complete" || !experimentId) return null;
+    const pending = new Map(changes.flatMap(c => c.outcome.kind === "requested" ? [[c.name, c.outcome.requested] as const] : []));
+    return { list, pending, experimentId, recordSha256 };
+  }, [changes, download?.kind, experimentId, list, recordSha256]);
   const statusText = !parameters ? "No run has loaded its parameters. Start or connect a run with the ArduPilot SITL backend in the Run tab."
     : download?.kind === "downloading" ? `Downloading the parameter list: ${download.received} of ${download.total ?? "?"} received`
       : download?.kind === "failed" ? `The download failed: ${download.reason}`
         : download?.kind === "complete" ? `${download.total} parameters of ArduPilot ${parameters.firmwareCommit?.slice(0, 8) ?? "of unknown source"} in run ${experimentId ?? "?"}`
           : "The parameter list has not been requested";
 
+  // A hidden tab keeps its state but draws nothing: the session updates it at every Worker status.
+  if (!active) return <div className="parameters-panel" />;
   return (
     <div className="parameters-panel">
       <h2>Parameters</h2>

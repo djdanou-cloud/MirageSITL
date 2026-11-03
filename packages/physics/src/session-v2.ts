@@ -282,6 +282,16 @@ export class PhysicsSessionV2 {
     this.latch = 'disarmed';
     this.writer.setRuntimeFlags(RuntimeFlagV2.Ready | (this.faultMessage ? RuntimeFlagV2.Fault : 0));
   }
+  /**
+   * Pauses a running session from its host, as an accident does (TASK-174: manual control's input went stale), so a
+   * later sim.start resumes it. The tick, simulated time and latest published state are kept.
+   */
+  holdForInput(): void {
+    if (!this.runningValue) return;
+    this.pause();
+    this.processor.paused();
+    this.policy.clock.stopRequested = true;
+  }
   dispose(): void {
     this.runningValue = false; this.disposedValue = true;
     this.discardPrepared();

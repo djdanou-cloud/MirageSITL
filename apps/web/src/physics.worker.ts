@@ -43,6 +43,8 @@ type WorkerNotice = CommandResultV2 | WorkerFaultV2 | SitlNotice | { type: "sitl
   | { type: "limits.registered"; sha256: string } | { type: "limits.reject"; message: string }
   | { type: "limits.events"; events: LimitEvent[]; dropped: number }
   | { type: "accident.events"; events: AccidentEvent[]; dropped: number; total: number }
+  /** Manual control's stick commands stopped for INPUT_TIMEOUT_MS: the session paused before its next tick (TASK-174). */
+  | { type: "sitl.input-stale"; simTimeS: number; staleMs: number }
   | { type: "power.attached" } | { type: "power.reject"; message: string }
   | { type: "recording-v2.armed" } | { type: "recording-v2.reject"; message: string }
   | { type: "scenario.submit"; command: ControlCommandV2 }
@@ -163,6 +165,11 @@ function connectSitl(data: Record<string, unknown>): void {
     send: record => { if (socket.readyState === WebSocket.OPEN) socket.send(record); },
     close: reason => socket.close(1000, reason.slice(0, 120)),
     nowMs: () => performance.now(),
+    inputStale: staleMs => {
+      current.holdForInput();
+      client.setPaused(true);
+      post({ type: "sitl.input-stale", simTimeS: client.link.state.simTimeS, staleMs });
+    },
   });
   sitl = { client, socket };
   socket.onopen = () => client.opened();
@@ -179,6 +186,10 @@ function handleSitl(data: unknown): boolean {
   }
   if (isTyped(data, "sitl.mavlink.send")) {
     if (!(data.bytes instanceof Uint8Array) || !sitl?.client.sendMavlink(data.bytes)) post({ type: "sitl.reject", message: "No open SITL session for MAVLink" });
+    return true;
+  }
+  if (isTyped(data, "sitl.manual")) {
+    sitl?.client.setManual(data.active === true);
     return true;
   }
   if (isTyped(data, "sitl.disconnect")) {

@@ -11,6 +11,12 @@
 // Per servo record the work is receive, pump, poll and send; the status,
 // session events and readiness check run every `statusEverySteps` steps,
 // because they create messages.
+//
+// During manual control (TASK-174) a watchdog compares each servo frame's
+// arrival with Main's latest RC override: when Main has sent none for
+// INPUT_TIMEOUT_MS, the session pauses before stepping, so ArduPilot never
+// flies on to a held stick command while Main is stalled.
+import { INPUT_TIMEOUT_MS } from "@mirage/protocol";
 import { LiveEkfWarmup } from "@mirage/autopilot/live-warmup";
 import { BRIDGE_HEADER_BYTES, SitlJsonLink, type LinkEvent, type SitlLinkOptions } from "@mirage/autopilot/sitl-link";
 
@@ -27,6 +33,8 @@ export interface SitlStatus {
   message: string;
 }
 export type SitlNotice = SitlStatus | { type: "sitl.mavlink"; bytes: Uint8Array };
+/** MAVLink RC_CHANNELS_OVERRIDE. */
+const RC_CHANNELS_OVERRIDE = 70;
 
 export interface SitlBridgeHost {
   /** Runs due session ticks (PhysicsSessionV2.pump). */
@@ -39,6 +47,11 @@ export interface SitlBridgeHost {
   /** Closes the bridge socket. */
   close(reason: string): void;
   nowMs(): number;
+  /**
+   * Manual control's input went stale (TASK-174): the Worker pauses the session before it steps the frame, which then
+   * waits, as after an accident, until a resumed pump steps it.
+   */
+  inputStale?(staleMs: number): void;
 }
 
 export interface SitlConnectOptions extends SitlLinkOptions {
@@ -66,6 +79,9 @@ export class SitlBridgeClient {
   private openedAtMs = 0;
   private openedAtSimS = 0;
   private hasOpened = false;
+  /** Manual control (TASK-174): while active, a frame arriving INPUT_TIMEOUT_MS after the last RC override pauses the session. */
+  private manualActive = false;
+  private lastRcMs = 0;
 
   constructor(stateBuffer: SharedArrayBuffer, actuatorBuffer: SharedArrayBuffer, options: SitlConnectOptions, host: SitlBridgeHost,
     statusEverySteps = 80) {
@@ -107,6 +123,13 @@ export class SitlBridgeClient {
       case "step": {
         // The new frame acknowledges the previous reply: its IMU sample reached SITL.
         this.warmup.acknowledgeJsonImu(link.lockstep.lastFrameCount, link.repliedFrame, link.replyTimeS);
+        // Thrust is never held on stale input: Main's stick commands stopped, so the frame waits paused.
+        const staleMs = this.host.nowMs() - this.lastRcMs;
+        if (this.manualActive && this.host.inputStale && staleMs > INPUT_TIMEOUT_MS) {
+          this.manualActive = false;
+          this.host.inputStale(staleMs);
+          return event;
+        }
         this.host.pump();
         const n = link.poll();
         if (n > 0) this.host.send(link.outbound.subarray(0, n));
@@ -153,13 +176,24 @@ export class SitlBridgeClient {
    */
   setPaused(paused: boolean): void {
     const now = this.host.nowMs();
+    // Main resends stick commands when the run resumes: the watchdog starts its interval again at the resume only, since
+    // the Worker reports the running state after every pump.
+    if (!paused && this.pausedSinceMs !== null) this.lastRcMs = now;
     if (paused && this.pausedSinceMs === null) this.pausedSinceMs = now;
     if (!paused && this.pausedSinceMs !== null) { this.pausedTotalMs += now - this.pausedSinceMs; this.pausedSinceMs = null; }
+  }
+
+  /** Manual control started or ended (TASK-174); starting gives the first stick command one interval. */
+  setManual(active: boolean): void {
+    this.manualActive = active;
+    this.lastRcMs = this.host.nowMs();
   }
 
   /** Sends one MAVLink chunk from Main's ground station; false while the socket is not open. */
   sendMavlink(bytes: Uint8Array): boolean {
     if (this.state !== "open") return false;
+    // A MAVLink2 frame (0xFD) whose 24-bit message ID at bytes 7..9 is RC_CHANNELS_OVERRIDE (70) feeds the watchdog.
+    if (bytes[0] === 0xfd && bytes[7] === RC_CHANNELS_OVERRIDE && bytes[8] === 0 && bytes[9] === 0) this.lastRcMs = this.host.nowMs();
     const n = this.link.mavlinkRecordInto(bytes, this.mavlinkOut);
     if (n === 0) return false;
     this.host.send(this.mavlinkOut.subarray(0, n));

@@ -10,6 +10,8 @@ import { PhysicsSessionV2 } from '../packages/physics/src/session-v2.ts';
 import { StateReaderV2, createSharedMemoryV2, createSpscQueue, newHeaderSnapshotV2, type CommandResultV2 } from '@mirage/protocol';
 import { encodeRecord } from '../apps/bridge/src/framing.ts';
 import { SitlBridgeClient, bridgeSocketArguments, type SitlNotice, type SitlStatus } from '../apps/web/src/sitl/bridge-client.ts';
+import { GroundStation } from '../packages/autopilot/src/ground-station.ts';
+import { INPUT_TIMEOUT_MS } from '../packages/protocol/src/index.ts';
 import { quadProfile } from './support/quad-profile.ts';
 
 // TASK-153: the physics Worker's SITL client on a real session with the quad X
@@ -62,7 +64,7 @@ function diagnostics(simTimeS: number, sequence: number, gpsOnly = false, leadS 
   return encodeRecord({ channel: 1, epoch: EPOCH, sequence, payload: bytes });
 }
 
-async function client() {
+async function client(options: { readonly nowMs?: () => number; readonly inputStale?: () => void } = {}) {
   const { derived } = await quadProfile();
   const registry = new VehicleRegistry();
   await registry.register(derived.bytes, derived.sha256);
@@ -86,12 +88,47 @@ async function client() {
     bridgeEpoch: EPOCH, motorChannels: derived.manifest.rotors.map(rotor => rotor.motorChannel + 1), motorMapId: derived.manifest.modelId,
     sessionEpoch: header.sessionEpoch, speedup: 1,
   }, { pump: () => { session.pump(); }, flush: () => undefined, post: message => posted.push(message), send: record => sent.push(record.slice()),
-    close: reason => { closedWith = reason; }, nowMs: () => (wallMs += 0.1) });
+    close: reason => { closedWith = reason; }, nowMs: options.nowMs ?? (() => (wallMs += 0.1)), inputStale: options.inputStale });
   const statuses = () => posted.filter((m): m is SitlStatus => m.type === 'sitl.status');
-  return { sitl, posted, sent, statuses, closed: () => closedWith };
+  return { sitl, posted, sent, statuses, session, closed: () => closedWith };
 }
 
 describe('SitlBridgeClient in the physics Worker', () => {
+  it('pauses before stepping when manual control sent no RC override for INPUT_TIMEOUT_MS, and never otherwise (TASK-174)', async () => {
+    let nowMs = 0, stale = 0;
+    const h = await client({ nowMs: () => nowMs, inputStale: () => { stale++; h.session.holdForInput(); h.sitl.setPaused(true); } });
+    h.sitl.opened();
+    const override = new Uint8Array(64), ground = new GroundStation(), channels = new Uint16Array(18).fill(65535);
+    channels[2] = 1000;
+    const n = ground.rcOverrideInto(channels, override);
+    expect(n).toBeGreaterThan(0);
+    let frame = 0;
+    const step = () => h.sitl.receive(servoRecord(frame++));
+    // Without manual control a silent Main is no reason to stop.
+    nowMs = 10_000;
+    expect(step()).toBe('step');
+    expect(h.sent).toHaveLength(1);
+    h.sitl.setManual(true);
+    // The Worker reports the running state after every pump; that alone never refreshes the watchdog.
+    h.sitl.setPaused(false);
+    // Overrides every 40 ms keep the frames stepping.
+    for (let i = 0; i < 20; i++) {
+      nowMs += 40;
+      expect(h.sitl.sendMavlink(override.subarray(0, n))).toBe(true);
+      expect(step()).toBe('step');
+    }
+    expect([h.sent.length, stale]).toEqual([1 + 20 + 20, 0]);
+    // 250 ms without one is still fresh; past it the frame waits, unanswered, and the session is paused.
+    nowMs += INPUT_TIMEOUT_MS;
+    expect(step()).toBe('step');
+    expect(stale).toBe(0);
+    nowMs += 1;
+    h.sitl.setPaused(false);
+    const answered = h.sent.length;
+    expect(step()).toBe('step');
+    expect([stale, h.sent.length, h.session.running]).toEqual([1, answered, false]);
+  }, 120000);
+
   it('admits READY only after 30 s of live diagnostics and revokes it when they stop', async () => {
     const h = await client();
     h.sitl.opened();

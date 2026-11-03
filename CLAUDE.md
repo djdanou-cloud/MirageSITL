@@ -115,6 +115,10 @@ implementation.
   SITL, an experiment record or a parameter set, all or changed or chosen, and
   the aircraft profile as a separate project archive; native ArduCopter loads
   an exported file back to the same values (`scripts/check-param-file-sitl.mjs`).
+  TASK-174 is DONE: the Run tab flies a run by hand with the calibrated USB
+  controller (RC override at 25 Hz), and losing the controller pauses the run
+  (user decision of 2026-11-03), detected in Main or, for a stalled page, by a
+  watchdog in the physics Worker; a replugged controller never takes over.
   TASK-175 is DONE: a Run-tab run is real time, capped or as fast as
   possible, takes the same steps at any pace, and shows its measured speed; a
   real-time run is called real time only at A-05's 0.99 average, judged from

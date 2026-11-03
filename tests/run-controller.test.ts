@@ -32,8 +32,9 @@ import {
   failureText, HEARTBEAT_DEADLINE_S, LauncherError, PARAMETER_DEADLINE_S, SessionController, type CatalogEntry, type ClockPort,
   type ConnectionSpec, type ControllerView, type LauncherConnection, type LauncherExperiment, type LauncherFirmware, type LauncherLogs,
   type LauncherPort, type LauncherRun, type LauncherRunState, type PhysicsPort, type PreparedRun, type RecordingPort, type RecordingStart, type RecordPort,
-  type RunState, type StartRequest, type StartSpec,
+  type RunState, type StartRequest, type StartSpec, MANUAL_RATE_HZ, type PilotInputPort,
 } from '../apps/web/src/run/session-controller.ts';
+import type { PilotInput } from '../packages/protocol/src/index.ts';
 import type { ExperimentRecording } from '../packages/aircraft/src/experiment.ts';
 import type { MavFrame } from '../packages/mavlink/src/codec.ts';
 import type { AccidentEvent } from '../packages/physics/src/accident.ts';
@@ -396,6 +397,9 @@ class ScriptedPhysics implements PhysicsPort {
   /** The latest published tick, as the session would report it. */
   tick = 0;
   tickNow(): { tick: number; simTimeS: number } { return { tick: this.tick, simTimeS: this.tick / 800 }; }
+  /** The Worker's stale-input watchdog, as manual control switched it (TASK-174). */
+  readonly manual: boolean[] = [];
+  manualInput(active: boolean): void { this.manual.push(active); }
   frames(): SentFrame[] { return decodeSent(this.sent); }
 }
 
@@ -1180,6 +1184,139 @@ describe('the run\'s parameters (TASK-160)', () => {
     expect(c.controller.view.parameters?.download.kind).toBe('complete');
     expect(c.controller.setParameter('ARMING_CHECK', 0)).toMatch(/^MirageSITL writes nothing to a SITL it did not start/);
     expect(paramSets(c)).toEqual([]);
+  });
+});
+
+// ---- TASK-174: manual flight with a controller -----------------------------------------------------
+
+const ALT_HOLD = 2, RC_OVERRIDE = 70, SET_MODE = 176, ARM = 400;
+const RC_FIELDS = Array.from({ length: 8 }, (_, i) => layoutOf(RC_OVERRIDE, `chan${i + 1}_raw`));
+/** The first eight channels of every RC_CHANNELS_OVERRIDE the ground station sent, in order. */
+function overrides(h: Harness): number[][] {
+  const out: number[][] = [];
+  const parser = new MavParser(frame => { if (frame.id === RC_OVERRIDE) out.push(RC_FIELDS.map(field => readNumber(frame.view, field))); });
+  for (const chunk of h.physics.sent) parser.push(chunk);
+  return out;
+}
+/** A scripted USB controller: sticks, status and device generation set by the test. */
+class FakeController implements PilotInputPort {
+  status: PilotInputPort['status'] = 'connected';
+  generation = 1;
+  deviceName = 'Test transmitter';
+  sticks = { roll: 0, pitch: 0, yaw: 0, throttle: 0 };
+  poll(out: PilotInput, nowMs: number): void {
+    out.wallTimeMs = nowMs;
+    const ok = this.status === 'connected';
+    out.roll = ok ? this.sticks.roll : 0; out.pitch = ok ? this.sticks.pitch : 0; out.yaw = ok ? this.sticks.yaw : 0;
+    out.throttle = ok ? this.sticks.throttle : 0; out.flags = ok ? 1 : 0;
+  }
+}
+/** A READY run with a controller set; returns the controller. */
+async function manualHarness(): Promise<{ h: Harness; pad: FakeController; id: string }> {
+  const h = harness(), pad = new FakeController();
+  h.controller.setInput(pad);
+  const id = await reach(h, 'ready');
+  return { h, pad, id };
+}
+
+describe('manual flight with a controller (TASK-174)', () => {
+  test('on the ground it needs the throttle down, sets the mode, arms, and sends the sticks at 25 Hz', async () => {
+    const { h, pad, id } = await manualHarness();
+    expect(MANUAL_RATE_HZ).toBe(25);
+    pad.sticks.throttle = 0.4;
+    expect(h.controller.takeManual('alt-hold')).toBe('Lower the throttle to take manual control on the ground');
+    pad.sticks.throttle = 0;
+    pad.status = 'disconnected';
+    expect(h.controller.takeManual('alt-hold')).toBe('The controller is not connected');
+    pad.status = 'connected';
+    expect(h.controller.takeManual('alt-hold')).toBeNull();
+    expect(h.controller.state).toEqual({ name: 'running', experimentId: id, flight: 'manual', warning: null });
+    expect(h.physics.manual).toEqual([true]);
+    expect(commands(h.physics.frames(), SET_MODE).map(frame => frame.params[1])).toEqual([ALT_HOLD]);
+    // Throttle down, sticks centred: 1000 us throttle, 1500 us elsewhere; channels 5 to 8 ignored (65535).
+    expect(overrides(h).at(-1)).toEqual([1500, 1500, 1000, 1500, 65535, 65535, 65535, 65535]);
+    const before = overrides(h).length;
+    h.clock.advance(400);
+    expect(overrides(h).length - before).toBe(10);
+    // The mode is confirmed, so the next second's duty arms.
+    mav(h, heartbeat(ALT_HOLD, false));
+    h.clock.advance(1000);
+    expect(commands(h.physics.frames(), ARM).map(frame => frame.params[0])).toEqual([1]);
+    mav(h, heartbeat(ALT_HOLD, true));
+    pad.sticks = { roll: 0.5, pitch: -0.25, yaw: 1, throttle: 0.75 };
+    h.clock.advance(40);
+    expect(overrides(h).at(-1)).toEqual([1750, 1375, 1750, 2000, 65535, 65535, 65535, 65535]);
+    expect(h.controller.view.manual).toEqual({ mode: 'alt-hold', device: 'Test transmitter', waiting: null });
+  });
+
+  test('an unplugged controller pauses the run, which resumes only when it is back, and goes on in manual control', async () => {
+    const { h, pad } = await manualHarness();
+    expect(h.controller.takeManual('loiter')).toBeNull();
+    mav(h, heartbeat(5, true));
+    pad.status = 'disconnected';
+    h.clock.advance(40);
+    await settle();
+    expect(h.controller.state).toMatchObject({ name: 'paused', reason: 'controller' });
+    const sent = overrides(h).length;
+    h.clock.advance(1000);
+    expect(overrides(h).length).toBe(sent);
+    expect(h.controller.resumeBlocker()).toBe('Reconnect the controller, or release manual control');
+    expect(h.controller.resume()).toBe(false);
+    pad.status = 'connected';
+    expect(h.controller.resume()).toBe(true);
+    await settle();
+    expect(h.controller.state).toMatchObject({ name: 'running', flight: 'manual' });
+    expect(h.controller.view.manual?.mode).toBe('loiter');
+    h.clock.advance(40);
+    expect(overrides(h).length).toBeGreaterThan(sent);
+  });
+
+  test('a swapped controller pauses the run, and Resume gives the flight back to MirageSITL, holding position in GUIDED', async () => {
+    const { h, pad } = await manualHarness();
+    expect(h.controller.takeManual('alt-hold')).toBeNull();
+    mav(h, heartbeat(ALT_HOLD, true));
+    pad.generation = 2;
+    pad.deviceName = 'Another transmitter';
+    h.clock.advance(40);
+    await settle();
+    expect(h.controller.state).toMatchObject({ name: 'paused', reason: 'controller' });
+    expect(h.controller.resume()).toBe(true);
+    await settle();
+    expect(h.controller.state).toMatchObject({ name: 'running', flight: 'flying' });
+    expect(h.controller.view.manual).toBeNull();
+    // The override is released (0 for channels 1-4, the mapped ones) and the mode set to GUIDED.
+    expect(overrides(h).at(-1)).toEqual([0, 0, 0, 0, 0, 65535, 65535, 65535]);
+    expect(commands(h.physics.frames(), SET_MODE).at(-1)?.params[1]).toBe(GUIDED);
+    expect(h.physics.manual).toEqual([true, false]);
+  });
+
+  test('the Worker pauses the run when stick commands stop, and a landing that disarms ends manual control', async () => {
+    const { h, pad, id } = await manualHarness();
+    expect(h.controller.takeManual('alt-hold')).toBeNull();
+    mav(h, heartbeat(ALT_HOLD, true));
+    h.controller.worker({ type: 'sitl.input-stale', simTimeS: 45 });
+    expect(h.controller.state).toMatchObject({ name: 'paused', reason: 'controller' });
+    expect(h.controller.resume()).toBe(true);
+    await settle();
+    expect(h.controller.state).toMatchObject({ name: 'running', flight: 'manual' });
+    pad.sticks.throttle = 0;
+    mav(h, heartbeat(ALT_HOLD, false));
+    expect(h.controller.view.manual).toBeNull();
+    expect(h.controller.state).toEqual({ name: 'ready', experimentId: id });
+  });
+
+  test('in flight it takes over in altitude hold or loiter without arming, never in stabilize', async () => {
+    const h = harness(), pad = new FakeController();
+    h.controller.setInput(pad);
+    await reach(h, 'flying');
+    pad.sticks.throttle = 0.5;
+    expect(h.controller.takeManual('stabilize')).toBe('In flight, take manual control in altitude hold or loiter, which hold with the throttle centred');
+    expect(h.controller.takeManual('alt-hold')).toBeNull();
+    mav(h, heartbeat(ALT_HOLD, true));
+    h.clock.advance(1000);
+    expect(commands(h.physics.frames(), ARM).filter(frame => frame.params[0] === 1)).toHaveLength(1);
+    expect(h.controller.releaseManual()).toBeNull();
+    expect(h.controller.state).toMatchObject({ name: 'running', flight: 'flying' });
   });
 });
 
