@@ -76,9 +76,11 @@ implementation.
 * **Rust BET, propulsion, rigid-body, atmosphere, and sensors:** The `native/` Rust
   1.97.0 workspace (`mirage-bet`) provides scalar/SIMD128 WASM builds, checked C ABI
   arenas, polar lookup, a TypeScript atmosphere (standard ISA troposphere, or
-  absolute temperature and pressure; no temperature-offset input) and seeded
-  synthetic AR(1) gusts (TASK-032; not Dryden, no shear, not wired into flight
-  sessions), native rotor reference kernels with test-only WASM exports
+  the ISA above the origin's temperature and pressure, which `airAtOrigin`
+  derives from a sea-level pressure, a temperature offset and the elevation)
+  and seeded synthetic AR(1) gusts (TASK-032; not Dryden, no shear), which
+  `weather.set` drives in BET flight sessions (TASK-093), native rotor
+  reference kernels with test-only WASM exports
   (TASK-020–TASK-023), motor/battery/arbitrary-frame wrench/RK4 rigid-body WASM
   adapters, and ideal/noisy IMU/baro/mag/GNSS sensors (TASK-024–TASK-028, TASK-034,
   TASK-035). TASK-033 adds the production bound-rotor ABI, NeuralFoil confidence-aware
@@ -420,7 +422,13 @@ implementation.
   about 1.3x faster, and the opt-in kernel modes of bound configuration
   version 2 (reduced predictor, hover sampling; off by default) reach about
   3.5x and keep the octocopter at 1200 Hz inside G3 in Node, short of the 5x
-  target (`node scripts/bench-bet.mjs`). The physics tasks TASK-093–TASK-123
+  target (`node scripts/bench-bet.mjs`). TASK-093 is DONE: `weather.set`
+  applies on its tick to `BetFlightDynamics` (the demo still rejects it); every
+  step the rotors read the ISA air at the CG's height above the origin's air
+  and a uniform mean wind with a seeded TASK-032 gust, the published airspeed
+  is relative to the air, the SITL JSON line carries `velocity_wind` (no
+  `airspeed` until the TASK-089 oracle covers it), and a weather the model
+  refuses faults the session. The physics tasks TASK-096–TASK-123
   are not implemented. TASK-166 (not implemented) gives every
   environment, sensor-error, EW and fault effect an on/off switch and an intensity
   control. Effects that MirageSITL injects are off by default, and off must be

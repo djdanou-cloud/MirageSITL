@@ -434,10 +434,12 @@ finite temperatureK [180,330] and pressurePa [1000,120000], deriving density
 p=101325(T/288.15)^(9.80665/(287.05287*0.0065)), rho=p/(287.05287T),
 a=sqrt(1.4*287.05287T), and Sutherland viscosity with mu0=1.716e-5 Pa·s,
 T0=273.15 K, S=110.4 K. These dry-air SI values are shared backend inputs;
-this task does not connect weather to the current demo or JSBSim.
+this task does not connect weather to the current demo or JSBSim, and TASK-093
+connects it to the BET flight dynamics (see below).
 
 `Wind` preallocates three RNG streams (IDs 0/1/2), reset by the session seed.
-At fixed 400/800/1200 Hz, each gust component follows
+At fixed 400/800/1200 Hz (and the 4800 Hz BET convergence rate, TASK-093), each
+gust component follows
 x_next=a*x+sigma*sqrt(3*(1−a²))*(2u−1), a=exp(−2*pi*bandwidthHz/hz),
 u in [0,1). This bounded-innovation AR(1) has stationary variance sigma²
 and pole bandwidth in (0,hz/2); it is synthetic, not Gaussian OU or Dryden.
@@ -446,6 +448,89 @@ small that decay rounds to one is rejected during configuration.
 The caller owns length-three NED output; render grouping never advances RNG.
 Atmospheric setup may allocate; wind stepping reuses storage. The allocation
 probe is `node scripts/bench-wind.mjs`, report test-results/bench/wind.json.
+
+### Weather and atmosphere in flight sessions (TASK-093)
+
+A dynamics with an atmosphere and wind implements `SessionDynamics.setWeather`;
+today that is `BetFlightDynamics`, which `profileFlightDynamics` builds for
+aircraft profiles and the ArduPilot SITL path. The demo backend still rejects
+`weather.set` at admission. The session applies a due `weather.set` before
+integrating its tick: it copies the command into the `WEATHER_*` slots of
+`atmosphere.ts` (wind north, east and down, gust RMS, seed, temperature,
+pressure) and calls `setWeather(slots)`, so no number crosses a call where V8
+could box it; `Wind.configure` and `SeededRandom.resetFrom` read the slots in
+the same way.
+
+Every step evaluates the ISA troposphere at the CG's height h = −down above
+the origin, from the origin's air T0 = `temperatureK` and p0 = `pressurePa`
+(`atmosphereAtHeightInto`): T = T0 − L·h, p = p0·(1 − L·h/T0)^(g/(R·L)),
+ρ = p/(R·T), the Sutherland viscosity of TASK-032 and a = sqrt(1.4·R·T), with
+L = 0.0065 K/m, g = 9.80665 m/s² and R = 287.05287 J/(kg·K). The contract's
+temperature offset ΔT and sea-level pressure p0 reach the origin's air
+through `airAtOrigin(p0, ΔT, e)` for an origin e metres above mean sea level:
+T = 288.15 + ΔT − L·e and p = p0·(T/(288.15 + ΔT))^(g/(R·L)). A `weather.set`
+that carries this air gives every tick T = 288.15 + ΔT − L·(e + h) and
+p = p0·(1 − L·(e + h)/T0′)^(g/(R·L)), T0′ = 288.15 + ΔT, because the
+polytropic profile is the same from any datum. With ΔT = 0, p0 is the QNH of
+the ICAO altimeter relation. TASK-148 supplies the elevation and a measured
+QNH, and TASK-167 the Weather tab. TASK-032's Sutherland constants give
+1.78930e-5 Pa·s at sea level, 5.4e-5 below the ICAO table's 1.7894e-5; this
+task keeps them.
+
+Within a step the gust advances first. The wind of the tick is the mean plus
+the gust, one uniform field at the CG and every rotor hub: each hub's inflow
+is that wind minus the hub's velocity, rotation included (TASK-106 adds
+inter-hub coherence and TASK-107 shear). The rotors read the density,
+viscosity and speed of sound of the air at the CG at the start of the step.
+After integrating, the dynamics computes the air at the new height
+(`BetFlightDynamics.air`, the `AIR_*` slots), which the next step's rotors read
+and the session publishes; `setWeather` computes it for the first tick.
+
+While a weather is in effect the published `trueAirspeedMps` is |v − w|, the
+speed relative to the air, and `ambientPressurePa` is the weather's pressure
+at the CG. The SITL link writes `velocity_wind` = w into the JSON line (a key
+of the TASK-041 oracle). The line carries no `airspeed` until the TASK-089
+oracle covers that key, so `SIM_JSON` at the pinned commit still derives its
+airspeed from the ground velocity. Without a weather nothing changes, bit for
+bit: still air, the configured density, viscosity and speed of sound, no
+`velocity_wind`, and the standard atmosphere's pressure with the origin at
+mean sea level.
+
+`setWeather` refuses, changing nothing, a mean wind beyond 200 m/s per axis, a
+gust RMS outside 0..50 m/s or a seed that is not a uint32 (the gust model's
+envelope), and air outside 180..330 K, 1..120 kPa or 0.05..2 kg/m³ at the
+origin or at the CG. The session rejects such a command with OUT_OF_RANGE at
+its tick and faults, as for any scheduled command a model refuses; admission
+keeps the protocol v2 ranges (200..340 K) until TASK-166 aligns them. A
+vehicle that flies out of the air envelope faults the dynamics ("BET
+atmosphere outside its envelope"). Every new epoch (`sim.reset`,
+`sim.configure`, `model.load`) starts without weather.
+
+Verification (TASK-093): `tests/atmosphere.test.ts` checks the ISA above any
+reference air against its defining equations written independently, within
+1e-9 relative over 200 combinations of reference air and height (those
+outside the envelope refused), the standard tables at their printed
+precision, `airAtOrigin` against the contract formula, and `Wind.configure`
+against a newly built gust. `tests/weather-plumbing.test.ts` runs the real
+session on the synthetic BET quad: the weather applies on its exact tick in
+four epochs (400 Hz, 400 Hz after a reset, 800 Hz and 1200 Hz), the rotors'
+air and the published pressure match the oracle and the published airspeed
+is relative to the air; air outside the envelope is refused with
+OUT_OF_RANGE and a fault until a reset; a seeded gust replays bit for bit
+under fine, 10 ms and irregular wall pacing, and another seed differs; a
+constant wind flies the calm flight offset by the wind (Galilean invariance,
+within 1e-9 over 400 steps); an idle vehicle drifts downwind; and a reset
+restores the configured air bit for bit. `tests/external-sitl-session.test.ts`
+checks `velocity_wind` in the JSON line from the weather's tick, and
+`node scripts/check-bet-runtime.mjs --allocation` measures the weather graphs
+(G1): the gust and the per-step air with a weather re-applied every 1000
+steps, and the real session applying scheduled `weather.set` commands in
+4000-tick windows. That series has no forced full GC between its windows, as
+in the Worker: in the check's process, after its other graphs, a forced full
+GC that collects an applied command's shape makes V8 discard the optimized
+tick ("embedded weak objects cleared"), which then boxes numbers until it is
+recompiled. Measured with that GC, the session averaged 44 B per tick; a
+fresh process measures 0 with or without it.
 
 ### Native rotor reference kernels (TASK-020–023)
 

@@ -463,7 +463,9 @@ Normative runtime validation contract: TASK-010 implements JSON Schema
   the TypeScript validator enforces all three.
 * A backend that cannot model a scheduled command rejects it at admission
   with BAD_STATE and its reason (`ControlTargetV2.unsupportedReason`). The
-  demo backend has no atmosphere model, so it rejects every `weather.set`; a
+  demo backend has no atmosphere model, so it rejects every `weather.set`,
+  which a dynamics with an atmosphere and wind admits
+  (`SessionDynamics.setWeather`, TASK-093); a
   session without the EW port rejects every `fault.set`; and `motor-loss` is
   rejected unless the active dynamics reads a motor-fault table
   (`SessionDynamics.useMotorFaults`), which the demo quad does not. The
@@ -481,6 +483,22 @@ Normative runtime validation contract: TASK-010 implements JSON Schema
   releases the pilot arm latch; an externally armed autopilot must still
   disarm) and starts a fault-free epoch that cancels the remaining queue with
   BAD_STATE.
+* `weather.set` (TASK-093): `windNedMps` is the mean wind, the velocity of
+  the air mass in NED, m/s, one uniform field at the CG and every rotor hub;
+  `temperatureK` and `pressurePa` are the air at the session origin;
+  `turbulenceRmsMps` is the per-axis RMS of the TASK-032 synthetic gust
+  (bandwidth 1 Hz, not Dryden) and `seed` its uint32 seed. It applies before
+  its tick is integrated and holds until the next `weather.set` or the end of
+  the epoch; every new epoch starts without weather. The model refuses
+  weather outside its envelope (air of 180..330 K, 1..120 kPa and
+  0.05..2 kg/m³ at the origin and at the vehicle; a mean wind within
+  ±200 m/s per axis and an RMS of 0..50 m/s): the command receives
+  OUT_OF_RANGE at its tick and the session faults as above. Admission keeps
+  the v2 ranges until TASK-166 aligns them. While a weather is in effect the
+  published `trueAirspeedMps` is the speed relative to the air and
+  `ambientPressurePa` the weather's pressure at the CG; without one the air
+  is still and the pressure is the standard atmosphere's with the origin at
+  mean sea level.
 * Outside the command/result flow the Worker reports faults as
   `{ type: 'fault-v2', protocolVersion: 2, message }`. Before `ready-v2` (for
   example a failed `init-v2`) the Worker has no session and Main treats the

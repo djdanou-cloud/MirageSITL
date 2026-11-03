@@ -15,6 +15,16 @@ export class SeededRandom {
     uint32(seed); uint32(streamId);
     this.state = mix32(seed ^ mix32(streamId ^ 0x9e3779b9));
   }
+  /**
+   * reset() with the seed read from `values[index]`, for a seed applied on the physics step (TASK-093): no double crosses
+   * a call, where V8 can box it. The same state as reset(values[index], streamId).
+   */
+  resetFrom(values: Float64Array, index: number, streamId: number): void {
+    const seed = values[index]!;
+    if (!(seed >= 0 && seed <= 0xffffffff && seed === Math.floor(seed))) throw new Error('Expected uint32 seed/stream ID');
+    uint32(streamId);
+    this.state = mix32(seed ^ mix32(streamId ^ 0x9e3779b9));
+  }
   nextUint32(): number {
     this.state = (this.state + 0x6d2b79f5) >>> 0;
     let value = this.state;

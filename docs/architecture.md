@@ -905,6 +905,15 @@ input units, and the explicit absence of aeroelastic feedback/validated VRS.
 These are reference modules; the UI still runs demo dynamics. No browser
 ArduPilot session, browser JSBSim session, measured autogyro model, or
 production BET engine has been enabled in the UI.
+
+TASK-093 makes the atmosphere and the gust inputs of the flight: a
+`weather.set` applies at its tick to a dynamics with an atmosphere and wind
+(`BetFlightDynamics`, which the ArduPilot SITL path loads; the demo backend
+still rejects it). Every step the rotors read the ISA air at the CG's height
+above the origin's air and the mean wind plus the seeded gust, the published
+airspeed is relative to the air, and the SITL link sends the wind as
+`velocity_wind`. SPECS_SIMULATION_ENGINES ("Weather and atmosphere in flight
+sessions") gives the equations, the order within a step and the envelope.
 `kernel-test-exports` builds separate scalar/SIMD numerical test artifacts;
 the production artifact/ABI stays unchanged. Allocation tests cover 1e6 native
 kernel steps and million-step WASM dynamics with stable memory. Synthetic

@@ -54,8 +54,10 @@ async function harness() {
   expect(await command('sim.configure', { hz: HZ, clockMode: 'sitl-lockstep' })).toMatchObject({ status: 'applied' });
   expect(await command('model.load', { modelId: 153, manifestSha256: derived.sha256 })).toMatchObject({ status: 'applied' });
   expect(await command('sim.start')).toMatchObject({ status: 'applied' });
+  // As the physics Worker wires it: the session's wind goes to SITL as velocity_wind (TASK-093).
   const link = new SitlJsonLink(stateBuffer, actuatorBuffer, {
-    bridgeEpoch: EPOCH, motorChannels: derived.manifest.rotors.map(rotor => rotor.motorChannel + 1), motorMapId: derived.manifest.modelId });
+    bridgeEpoch: EPOCH, motorChannels: derived.manifest.rotors.map(rotor => rotor.motorChannel + 1), motorMapId: derived.manifest.modelId,
+    wind: session.wind });
   const tick = () => { expect(reader.latest(state)).toBe(true); return tickToNumber(state.tickId); };
   /** What the physics Worker does per record: receive, pump on a step, then poll for the reply. */
   const deliver = (record: Uint8Array) => {
@@ -68,7 +70,7 @@ async function harness() {
     }
     return { event, reply };
   };
-  return { profile, derived, session, link, reader, state, tick, deliver };
+  return { profile, derived, session, link, reader, state, tick, deliver, command };
 }
 function replyLength(record: Uint8Array): number {
   return new DataView(record.buffer, record.byteOffset).getUint32(12, true);
@@ -81,7 +83,10 @@ function servoRecord(frameCount: number, pwmUs: number | readonly number[], epoc
   for (let i = 0; i < 16; i++) view.setUint16(8 + 2 * i, typeof pwmUs === 'number' ? (i < 4 ? pwmUs : 0) : (pwmUs[i] ?? 0), true);
   return encodeRecord({ channel: 3, epoch, sequence: sequence >>> 0, payload: packet });
 }
-interface StateLine { timestamp: number; gyro: readonly number[]; accel: readonly number[]; position: readonly number[]; voltage: number | null }
+interface StateLine {
+  timestamp: number; gyro: readonly number[]; accel: readonly number[]; position: readonly number[]; voltage: number | null;
+  wind: readonly number[] | null;
+}
 const numbers = (value: unknown): readonly number[] => Array.isArray(value) && value.every(v => typeof v === 'number') ? value.map(Number) : [];
 /** The reply's JSON state line, after the bridge's own validator accepted it. */
 function stateOf(reply: Uint8Array | null): StateLine {
@@ -94,8 +99,9 @@ function stateOf(reply: Uint8Array | null): StateLine {
   const get = (value: unknown, key: string): unknown => typeof value === 'object' && value !== null ? Reflect.get(value, key) : undefined;
   const timestamp = get(parsed, 'timestamp'), voltage = get(get(parsed, 'battery'), 'voltage');
   if (typeof timestamp !== 'number') throw new Error('No timestamp');
+  const wind = get(parsed, 'velocity_wind');
   return { timestamp, gyro: numbers(get(get(parsed, 'imu'), 'gyro')), accel: numbers(get(get(parsed, 'imu'), 'accel_body')),
-    position: numbers(get(parsed, 'position')), voltage: typeof voltage === 'number' ? voltage : null };
+    position: numbers(get(parsed, 'position')), voltage: typeof voltage === 'number' ? voltage : null, wind: wind === undefined ? null : numbers(wind) };
 }
 
 describe('SitlJsonLink on a profile session in sitl-lockstep', () => {
@@ -181,6 +187,18 @@ describe('SitlJsonLink on a profile session in sitl-lockstep', () => {
     const out = new Uint8Array(64), n = h.link.mavlinkRecordInto(mavlink, out);
     expect(decodeRecord(out.subarray(0, n))).toMatchObject({ channel: 1, epoch: EPOCH, sequence: 0, payload: mavlink });
     expect(decodeRecord(out.subarray(0, h.link.mavlinkRecordInto(mavlink, out)))?.sequence).toBe(1);
+  }, 300000);
+
+  it('sends the wind of a weather.set as velocity_wind from the tick it applies, and none before', async () => {
+    // TASK-093: the TASK-041 oracle covers velocity_wind; airspeed waits until the TASK-089 oracle covers that key.
+    const h = await harness();
+    expect(await h.command('weather.set', { atTick: { lo: 3, hi: 0 }, windNedMps: [2.5, -1.25, 0.5], temperatureK: 288.15, pressurePa: 101325,
+      turbulenceRmsMps: 0, seed: 0 })).toMatchObject({ type: 'ack-v2', status: 'queued' });
+    const lines = [0, 1, 2, 3].map(frame => stateOf(h.deliver(servoRecord(frame, 1000)).reply));
+    expect(lines.map(line => line.wind)).toEqual([null, null, [2.5, -1.25, 0.5], [2.5, -1.25, 0.5]]);
+    expect(h.tick()).toBe(4);
+    const record = decodeRecord(h.deliver(servoRecord(4, 1000)).reply!);
+    expect(new TextDecoder().decode(record?.payload)).toContain('"velocity_wind":[2.500000000,-1.250000000,0.500000000]');
   }, 300000);
 });
 

@@ -12,6 +12,11 @@ describe('BET runtime allocation graphs', () => {
       expect(ALLOCATION_GRAPHS.filter(([name]) => name === graph).map(([, variant]) => variant)).toEqual(['scalar', 'simd128']);
     }
   });
+  it('include the TASK-093 weather graphs of the dynamics and of the session', () => {
+    for (const graph of ['weather-synthetic-pad-four-rotor', 'weather-session-synthetic-pad']) {
+      expect(ALLOCATION_GRAPHS.filter(([name]) => name === graph).map(([, variant]) => variant)).toEqual(['scalar']);
+    }
+  });
   it('admit exactly the complete set', () => {
     expect(completeAllocationSamples(complete())).toBe(true);
     expect(completeAllocationSamples(complete().reverse())).toBe(true);

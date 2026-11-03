@@ -11,6 +11,8 @@ export const ALLOCATION_GRAPHS: readonly (readonly [graph: string, variant: Allo
   ["stationary-zero-gravity-four-rotor-flight", "scalar"], ["synthetic-pad-four-rotor-flight", "scalar"],
   // TASK-092 ESC drive and shared bus.
   ["esc-drive-bus-synthetic-pad-four-rotor", "scalar"],
+  // TASK-093 weather: the seeded gust and the per-step air on the rotors, and the real session applying scheduled weather.set.
+  ["weather-synthetic-pad-four-rotor", "scalar"], ["weather-session-synthetic-pad", "scalar"],
 ];
 
 function field(value: unknown, key: string): unknown {

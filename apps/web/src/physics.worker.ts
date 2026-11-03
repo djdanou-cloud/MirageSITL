@@ -158,6 +158,8 @@ function connectSitl(data: Record<string, unknown>): void {
   socket.binaryType = "arraybuffer";
   const client = new SitlBridgeClient(buffers.state, buffers.actuator, {
     bridgeEpoch, motorChannels: motorChannels.map(Number), motorMapId, sessionEpoch: current.currentEpoch, speedup: data.speedup,
+    // TASK-093: a weather.set's wind goes to SITL as velocity_wind.
+    wind: current.wind,
   }, {
     pump: () => { current.pump(); },
     flush,

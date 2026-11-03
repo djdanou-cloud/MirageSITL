@@ -17,6 +17,18 @@ describe('versioned fixture provenance and random streams', () => {
     expect(() => new SeededRandom(-1, 0)).toThrow();
     expect(() => new SeededRandom(0, 0.5)).toThrow();
   });
+  it('reseeds from a typed slot exactly as from the same seed passed in (TASK-093)', () => {
+    const slots = new Float64Array([0, 1, 123, 2 ** 31, 0xfffffffe, 0xffffffff]);
+    for (let index = 0; index < slots.length; index++) for (const stream of [0, 1, 2, 7]) {
+      const reseeded = new SeededRandom(99, 3), reference = new SeededRandom(slots[index]!, stream);
+      reseeded.nextUint32();
+      reseeded.resetFrom(slots, index, stream);
+      for (let i = 0; i < 5; i++) expect(reseeded.nextUint32()).toBe(reference.nextUint32());
+    }
+    const rng = new SeededRandom(1, 0);
+    for (const bad of [-1, 0.5, 2 ** 32, NaN, Infinity]) expect(() => rng.resetFrom(new Float64Array([bad]), 0, 0)).toThrow();
+    expect(() => rng.resetFrom(new Float64Array([1]), 0, -1)).toThrow();
+  });
   it('keeps stream state separate and accepts zero seeds', () => {
     const a = new SeededRandom(0, 0), b = new SeededRandom(0, 1), control = new SeededRandom(0, 1);
     const firstA = a.nextUint32();

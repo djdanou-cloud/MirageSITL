@@ -47,6 +47,11 @@ export interface SitlLinkOptions {
   readonly motorMapId: number;
   readonly pwmMinUs?: number;
   readonly pwmMaxUs?: number;
+  /**
+   * The session's wind (TASK-093), read at every reply: while a weather.set is in effect its NED wind, m/s, goes to SITL
+   * as velocity_wind. The object stays the same; its fields change in place.
+   */
+  readonly wind?: { readonly nedMps: Float64Array; readonly active: boolean };
 }
 
 export interface SitlLinkStats {
@@ -86,6 +91,7 @@ export class SitlJsonLink {
   private readonly producer: SpscProducer;
   private readonly reader: StateReaderV2;
   private readonly physics = newSitlPhysicsState();
+  private readonly wind: SitlLinkOptions["wind"] | null;
   /** The tick the pending actuator frame is for, while its reply is outstanding. */
   private awaitingLo = 0;
   private awaitingHi = 0;
@@ -105,6 +111,7 @@ export class SitlJsonLink {
     this.actuatorCount = Math.max(...options.motorChannels);
     this.producer = new SpscProducer(actuatorBuffer, "actuator", "sitl-would-block");
     this.reader = new StateReaderV2(stateBuffer);
+    this.wind = options.wind ?? null;
   }
 
   get lockstepStats(): ExternalSitlStats { return this.lockstep.stats; }
@@ -220,6 +227,10 @@ export class SitlJsonLink {
     // A bus-driven model publishes its pack voltage and current; a model without a bus publishes 0 V and sends none.
     p.batteryValid = s.batteryVoltage > 0;
     p.batteryVoltageV = s.batteryVoltage; p.batteryCurrentA = s.batteryCurrentA;
+    // TASK-093: the weather's wind, as velocity_wind; without one the line carries no wind.
+    const wind = this.wind;
+    p.windValid = wind?.active === true;
+    if (wind?.active === true) p.windNedMps.set(wind.nedMps);
   }
 
   private writeHeader(channel: number, payload: number): number {

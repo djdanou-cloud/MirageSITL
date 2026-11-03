@@ -6,6 +6,8 @@ import { ActuatorFrameCodecV2, ControlFlag, ControlProcessorV2, HeaderV2, INPUT_
 import { SteppingPolicy, newPumpReport, type StepGate } from './clock-policy.ts';
 import { DemoDynamics } from './demo-dynamics.ts';
 import { MotorFaults } from './motor-fault.ts';
+import { AIR_PRESSURE, WEATHER_GUST_RMS, WEATHER_PRESSURE, WEATHER_SEED, WEATHER_SLOTS, WEATHER_TEMPERATURE, WEATHER_WIND_DOWN, WEATHER_WIND_EAST,
+  WEATHER_WIND_NORTH } from './atmosphere.ts';
 import type { LimitEvent } from './limit-monitor.ts';
 import type { AccidentEvent } from './accident.ts';
 
@@ -108,6 +110,15 @@ export interface SessionDynamics {
    * the session builds no table and rejects motor-loss at admission.
    */
   useMotorFaults?(faults: MotorFaults): void;
+  /**
+   * TASK-093: a dynamics with an atmosphere and wind applies a weather.set at its tick boundary from `weather` (the
+   * WEATHER_* slots of atmosphere.ts), allocation-free, and returns why not, or null. While `weatherActive`, `windNedMps`
+   * is the wind of the last step and `air` the ISA air at the CG after it (the AIR_* slots).
+   */
+  setWeather?(weather: Float64Array): string | null;
+  readonly weatherActive?: boolean;
+  readonly windNedMps?: Float64Array;
+  readonly air?: Float64Array;
 }
 
 /**
@@ -121,6 +132,11 @@ export interface SessionModelPort {
 interface PreparedModel { readonly modelId: number; readonly factory: (hz: PhysicsHz) => SessionDynamics; readonly dynamics: SessionDynamics }
 
 export class PhysicsSessionV2 {
+  /** The wind of the latest tick (TASK-093): while a weather.set is in effect, the dynamics' NED wind, m/s; the object never changes. */
+  readonly wind = { nedMps: new Float64Array(3), active: false };
+  /** TASK-093: a due weather.set in the WEATHER_* slots, and its reject, whose message is the dynamics' reason. */
+  private readonly weather = new Float64Array(WEATHER_SLOTS);
+  private readonly weatherReject: { code: 'OUT_OF_RANGE'; message: string } = { code: 'OUT_OF_RANGE', message: '' };
   private readonly writer: StateWriterV2;
   private readonly pilotReader: PilotReaderV2;
   private readonly actuators: SpscConsumer;
@@ -345,8 +361,21 @@ export class PhysicsSessionV2 {
     this.faults?.reset(this.faultSeed);
   }
   applyScheduled(command: ScheduledCommandV2, tick: TickId): ScheduledRejectV2 | null {
-    // Admission keeps weather.set, and fault.set without the EW port, out of the queue.
-    if (command.type !== "fault.set" || !this.faults) return NOT_MODELED;
+    // TASK-093: weather.set takes effect on its tick, before that tick's step; one the model refuses faults the session.
+    if (command.type === "weather.set") {
+      if (!this.dynamics.setWeather) return NOT_MODELED;
+      const w = this.weather, wind = command.windNedMps;
+      w[WEATHER_WIND_NORTH] = wind[0]; w[WEATHER_WIND_EAST] = wind[1]; w[WEATHER_WIND_DOWN] = wind[2];
+      w[WEATHER_GUST_RMS] = command.turbulenceRmsMps; w[WEATHER_SEED] = command.seed;
+      w[WEATHER_TEMPERATURE] = command.temperatureK; w[WEATHER_PRESSURE] = command.pressurePa;
+      const reason = this.dynamics.setWeather(w);
+      if (reason === null) return null;
+      this.weatherReject.message = reason;
+      this.enterFault(reason);
+      return this.weatherReject;
+    }
+    // Admission keeps fault.set without the EW port out of the queue.
+    if (!this.faults) return NOT_MODELED;
     const result = this.faults.apply(command, tick);
     if (result === "applied") return null;
     const failure = result === "registry-full" ? EW_REGISTRY_FULL : EW_FAULT_REJECTED;
@@ -354,7 +383,9 @@ export class PhysicsSessionV2 {
     return failure;
   }
   unsupportedReason(command: ScheduledCommandV2): string | null {
-    if (command.type === "weather.set") return "The demo backend has no atmosphere/wind model; weather.set is not supported";
+    if (command.type === "weather.set") {
+      return this.dynamics.setWeather ? null : "The demo backend has no atmosphere/wind model; weather.set is not supported";
+    }
     if (!this.faults) return "The demo backend has no sensor or fault model; fault.set is not supported";
     if (command.effect.kind === "motor-loss" && !this.motorFaults) {
       return "The active dynamics has no per-motor model; motor-loss is not supported";
@@ -408,6 +439,8 @@ export class PhysicsSessionV2 {
     this.latch = 'disarmed';
     this.actuatorPending = false;
     this.dynamics.accidents?.reset();
+    // Every new epoch starts without weather (TASK-093).
+    this.wind.active = false;
     this.publishEpochStart();
   }
 
@@ -471,6 +504,9 @@ export class PhysicsSessionV2 {
     if (this.actuatorPending) this.dynamics.useActuators?.(this.actuator);
     this.dynamics.nowMs = this.wallMsNow;
     this.dynamics.stepNow(this.dynamicsInput);
+    const wind = this.dynamics.windNedMps;
+    this.wind.active = this.dynamics.weatherActive === true && wind !== undefined;
+    if (this.wind.active && wind) this.wind.nedMps.set(wind);
     // TASK-149 (F-09): a strike pauses the run on this tick, through the user pause's path, before the tick is published.
     const accidents = this.dynamics.accidents;
     if (accidents) {
@@ -515,10 +551,15 @@ export class PhysicsSessionV2 {
     rotateNedToBody(d.qw, d.qx, d.qy, d.qz, d.an, d.ae, d.ad - STANDARD_GRAVITY_MPS2, this.bodyScratch);
     s.specificForceXBodyMps2 = this.bodyScratch[0]!; s.specificForceYBodyMps2 = this.bodyScratch[1]!;
     s.specificForceZBodyMps2 = this.bodyScratch[2]!;
-    s.trueAirspeedMps = Math.sqrt(d.vn * d.vn + d.ve * d.ve + d.vd * d.vd); // still air; not Math.hypot (allocates)
+    // Relative to the air: the weather's wind (TASK-093), or still air. Not Math.hypot (allocates).
+    const w = this.wind.nedMps, calm = !this.wind.active, rn = calm ? d.vn : d.vn - w[0]!, re = calm ? d.ve : d.ve - w[1]!,
+      rd = calm ? d.vd : d.vd - w[2]!;
+    s.trueAirspeedMps = Math.sqrt(rn * rn + re * re + rd * rd);
     // Only a dynamics with an electrical drive reports a bus current (TASK-092); the demo has none.
     s.batteryVoltage = d.batteryVoltage; const electrical = this.dynamics.electrical; s.batteryCurrentA = electrical ? electrical[2]! : 0;
-    s.ambientPressurePa = isaPressurePa(-d.down);
+    // The weather's ISA air at the CG (TASK-093), or the standard atmosphere with the origin at mean sea level.
+    const air = calm ? undefined : this.dynamics.air;
+    s.ambientPressurePa = air ? air[AIR_PRESSURE]! : isaPressurePa(-d.down);
     s.scheduledWallTimeMs = scheduledWallMs;
     s.groundClearanceM = -d.down; s.referenceRotorRpm = this.dynamics.referenceRotorRpm ?? 0;
     s.vehicleFlags = ((d.flags & 1) !== 0 ? VehicleFlagV2.GroundContact : 0) |
