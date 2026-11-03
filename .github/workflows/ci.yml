@@ -45,7 +45,8 @@ jobs:
     # Fixed release: Playwright installs Chromium only on the Ubuntu releases it builds for, and
     # ubuntu-latest became 26.04, which 1.56.1 has no build for (checked by tests/ci.test.ts).
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    # 137 tests took over 15 min on 2026-11-02 (the run reached test 136 of 137 without a failure), 94 took 8.3 min.
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v6
         with:
