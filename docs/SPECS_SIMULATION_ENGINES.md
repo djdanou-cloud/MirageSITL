@@ -2225,6 +2225,24 @@ whose 80 MB grid is too large for the repository, is recorded with its PROJ-data
 SHA-256 for a later local install; FABDEM heights refer to EGM2008, which
 differs from EGM96 by up to about a metre.
 
+**Effective conditions** (`packages/sensors/src/environment.ts`) combine these
+for one location. `effectiveConditions` takes the latitude and longitude, the
+ground elevation above mean sea level H, the decimal year (`decimalYearOf` a UTC
+date), an optional measured QNH and an ISA temperature offset, and returns the
+record that is shown and recorded (schema 1): the geoid undulation N with the
+gate status, the ellipsoidal height h = H + N, the normal gravity at h, the WMM
+field at h in nT with declination, inclination and the WMM zone (blackout below
+2000 nT of horizontal field, caution below 6000 nT), and the air at the ground
+from TASK-093's `airAtOrigin` (temperature, pressure and density, and whether the
+sea-level pressure is standard or measured). The ISA formula takes the elevation
+as geopotential height. Without the hashed grid N is 0, h equals H and the
+record carries the blocked gate. The envelope is latitudes within ±89.9°, H from
+−500 m to 9000 m (ArduPilot's home range), QNH from 870 to 1085 hPa and offsets
+within ±50 K. `magneticNedGauss` gives the field as `IdealSensors` takes it.
+`tests/environment.test.ts` checks the composition: each model evaluated at h,
+standard air equal to ISA at H, a measured QNH that round-trips, the blocked
+gate without the grid, and the blackout zone near the magnetic pole.
+
 ## Implemented ArduPilot JSON lockstep: TASK-041
 
 The protocol is pinned to ArduPilot commit

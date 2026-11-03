@@ -10,6 +10,9 @@
     "./latency": "./src/latency.ts",
     "./geodesy": "./src/geodesy.ts",
     "./geoid": "./src/geoid.ts",
+    "./gravity": "./src/gravity.ts",
+    "./geomagnetic": "./src/geomagnetic.ts",
+    "./environment": "./src/environment.ts",
     "./pipeline": "./src/pipeline.ts",
     "./configured": "./src/configured.ts",
     "./lever-arm": "./src/lever-arm.ts"
