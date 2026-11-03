@@ -311,7 +311,11 @@ implementation.
   body integrator in place of the attitude-resetting synthetic pad; native
   ArduCopter takes off and lands on the D-07 supports in the harness and the
   Run tab. Terrain planes in sessions remain for TASK-187, and browser-hosted
-  ArduCopter is not a Phase 1 flight mode. TASK-142 is DONE:
+  ArduCopter is not a Phase 1 flight mode. TASK-148 is IN_PROGRESS: WGS84
+  normal gravity (`gravity.ts`), the WMM2025 main field (`geomagnetic.ts`) and
+  the hashed EGM96 grid (`data/geoid/`, which opens the TASK-036 MSL gate) pass
+  their reference data; the effective conditions, their session wiring and the
+  location tab remain. TASK-142 is DONE:
   the Aircraft tab maps each motor to an output and generates the frame
   parameters from the TASK-128 catalog (the S19 octa-x fixture spins the
   mirror of stock OCTA X, so it uses the scripting matrix). TASK-151 (the

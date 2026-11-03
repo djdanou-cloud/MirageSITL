@@ -2156,9 +2156,74 @@ so poles and the antimeridian need no special cases; longitude is reported in
 bilinearly (longitude wraps, latitude clamps) and requires model, source,
 license and SHA-256 provenance. Without one, `NO_GEOID` sets `N=0`, MSL values
 are provisional, and `mslAccuracyGate` returns `BLOCKED_EXTERNAL`; a hash
-mismatch against the pinned payload also blocks. No authoritative grid
-(EGM96/EGM2008) is in the repository yet, so absolute MSL accuracy remains
-blocked while local NED/ECEF/geodetic conversions are verified.
+mismatch against the pinned payload also blocks. TASK-148 adds the
+authoritative EGM96 grid (below), which opens the gate.
+
+## Geographic environment: TASK-148
+
+TASK-148 supplies what a location changes in the physics: normal gravity, the
+geomagnetic main field and the geoid. Each model is verified against
+independent reference data; the effective-conditions record and its session
+wiring follow in later increments of the task.
+
+**Normal gravity** (`packages/sensors/src/gravity.ts`) is the gravity of the
+WGS84 level ellipsoid after NIMA TR8350.2 (3rd edition, amendment 1). On the
+ellipsoid it is Somigliana's closed formula (equation 4-1)
+
+$$
+\gamma(\varphi)=\gamma_e\,\frac{1+k\sin^2\varphi}{\sqrt{1-e^2\sin^2\varphi}}
+$$
+
+with the Table 3.4 constants γe = 9.7803253359 m/s², k = 0.00193185265241 and
+e² = 6.69437999014·10⁻³. Above and below the ellipsoid `normalGravity` evaluates
+the closed form in ellipsoidal-harmonic coordinates (equations 4-4 to 4-7),
+which is exact for the normal field at any height in the declared envelope of
+−1 km to 20 km; it also returns the component along the reduced latitude that
+tilts gravity from the ellipsoid normal. The second-order series of equation 4-3
+is not used: its free-air gradient is 3.5·10⁻⁵ too small at the equator, which
+is already 1.04·10⁻⁸ relative at 1 km and failed the declared 10⁻⁹ budget. The
+tests (`tests/gravity.test.ts`) derive γe and γp from the four defining
+constants and reproduce Table 3.4, integrate Somigliana over the ellipsoid
+surface to the tabulated mean 9.7976432222 m/s², and check every height against
+the gradient of the closed-form normal potential, differentiated numerically in
+ECEF (steps of 2 and 4 km with Richardson extrapolation; the oracle is good to
+about 10⁻¹⁰): all within 10⁻⁹ relative. Normal gravity has no anomalies or
+deflection of the vertical; those are TASK-108's deferred anomaly fields.
+
+**The WMM2025 main field** (`packages/sensors/src/geomagnetic.ts`) follows the
+WMM2025 technical report. The geodetic point is converted to geocentric
+spherical coordinates on WGS84, the degree-12 expansion with Schmidt
+semi-normalized associated Legendre functions gives the field with linear
+secular variation, and the result is rotated back to the geodetic
+north-east-down frame. `fieldInto` writes north, east and down components,
+horizontal and total intensity, declination and inclination, and their yearly
+rates into preallocated slots. Its envelope is the model's five years from
+2025.0, heights from −1 km to 850 km, and latitudes off the geographic poles.
+`parseWmmCoefficients` accepts only the complete WMM2025 file;
+`data/geomagnetic/WMM_2025.COF` (SHA-256 `dfa85978…582f`) was taken from
+pygeomag, since NOAA's site is not reachable from the build environment, and is
+authenticated by reproducing NOAA's 100 test values
+(`tests/fixtures/geomagnetic/WMM2025_TEST_VALUES.txt`). Y and Z agree within
+2.2·10⁻⁶ nT, every rate within 10⁻⁶ nT/yr, D and I to their published
+0.01°. X agrees within 7.2·10⁻⁴ nT (7.7·10⁻⁸ relative), above the 10⁻⁴ nT
+declared before the implementation; the implementation's geocentric north
+component equals the numerical θ-derivative of its own potential within
+2·10⁻¹² relative, so the residual is not in this code. NOAA states no numeric
+tolerance; the test budget is 10⁻³ nT for X, H and F and 10⁻⁵ nT for Y and Z.
+Only the main field is modeled: crustal anomalies, external fields and vehicle
+interference are TASK-108's, deferred in Phase 1.
+
+**The geoid** is NGA's EGM96 15-minute grid `data/geoid/WW15MGH.DAC` (721 rows
+from 90° N, 1440 columns from 0° E, big-endian int16 centimetres, SHA-256
+`9dcaf4ef…5acc`). `loadEgm96Geoid` checks the bytes against the pinned hash
+before decoding them into a `GridGeoid`, and `mslAccuracyGate` then reports
+`AVAILABLE`. [data/geoid/inventory.json](../data/geoid/inventory.json) records
+the provenance: every node agrees within 5.50 mm with OSGeo PROJ-data's
+independent GeoTIFF conversion of the same NGA model, the DAC rounding to
+centimetres and PROJ to millimetres (the test tolerance is 5.6 mm). EGM2008,
+whose 80 MB grid is too large for the repository, is recorded with its PROJ-data
+SHA-256 for a later local install; FABDEM heights refer to EGM2008, which
+differs from EGM96 by up to about a metre.
 
 ## Implemented ArduPilot JSON lockstep: TASK-041
 

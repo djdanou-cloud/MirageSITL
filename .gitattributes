@@ -4,3 +4,4 @@
 data/worldcover/**/*.tif binary
 # Docling archives of NASA/NACA reports: byte-exact (CRLF), hashed by the fixture generator.
 tests/fixtures/contact/nasa/*.md binary
+data/geoid/*.DAC binary
