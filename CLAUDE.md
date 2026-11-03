@@ -110,6 +110,11 @@ implementation.
   while paused; a value that needs a restart is never called applied. Every
   change is the run's `parameter-log` record, and `parameter-set` records are
   saved, compared and sent back (two new project record kinds).
+  TASK-161 is DONE: the Parameters tab exports ArduPilot parameter files
+  (NAME,VALUE at full float32 precision with a context header) of the running
+  SITL, an experiment record or a parameter set, all or changed or chosen, and
+  the aircraft profile as a separate project archive; native ArduCopter loads
+  an exported file back to the same values (`scripts/check-param-file-sitl.mjs`).
   TASK-163 is DONE: the Logging tab plans what a Run-tab run records, with
   size estimates and storage warnings, and every run records with recorder v2
   into its experiment's record (experiment payload schema 3).

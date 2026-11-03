@@ -4072,6 +4072,7 @@ declare class ProjectStore {
   listItems(projectId: string, kind?: "component-card" | "aircraft-profile" | "experiment"): Promise<StoredVersion[]>;
   missingDependencies(projectId: string): Promise<MissingDependency[]>;
   exportProject(projectId: string): Promise<ExportResult>;
+  exportItems(projectId: string, roots: string[]): Promise<ExportResult>; // the items of roots and their dependency closure (TASK-161)
   importArchive(input: Blob | Uint8Array): Promise<ImportReport>;
   storageReport(): Promise<StorageReport>;
   readSetting(key: string): Promise<unknown>;               // undefined when nothing is stored
@@ -4114,7 +4115,9 @@ interface ArchiveManifest {
 * **Export** writes every version of every item of one project. The project
   record comes first, then component cards, aircraft profiles and
   experiments, each ordered by id and version. Export also reports
-  dependencies that no stored version satisfies.
+  dependencies that no stored version satisfies. `exportItems` (TASK-161)
+  writes only the project record and the items holding the given versions with
+  their whole dependency closure, each with its whole history.
 * **Import** checks, in this order:
   1. the size, taken from the Blob or array length before any byte is read;
   2. the header, from its first 64 bytes only: magic, version, reserved bytes,
@@ -7030,6 +7033,95 @@ ArduCopter 8ab6afde (the TASK-152 installation): every write state except the
 timeout, which a real ArduPilot does not produce for a listed parameter, a
 write in flight and while paused, a set compared and sent back, an old value
 sent back from the history, and the history after a reload.
+
+## Parameter file export (TASK-161)
+
+The Parameters tab exports an ArduPilot parameter file for the user to load
+by hand into a ground station or SITL. MirageSITL never writes such a file
+to a flight controller.
+
+### File format
+
+`formatParamFile` (`packages/autopilot/src/param-file.ts`) writes `#`
+comment lines with the context, then one `NAME,VALUE` line per parameter,
+sorted by name. Each value is the shortest decimal that reads back to
+exactly its float32 (`formatParameterValue`, TASK-159), so ArduPilot's own
+loader gets the same float32: at 8ab6afde, `AP_Param::parse_param_line`
+skips `#` lines and splits a line on `,`, space, `=` and tab. A name that
+loader cannot read, a duplicate, or a value that is not a finite float32
+refuses the export. The header names:
+
+| Line | Content |
+|---|---|
+| purpose | an ArduPilot parameter file exported by MirageSITL for loading by hand, never written to a flight controller |
+| `Exported` | UTC time |
+| `Values` | where the values come from |
+| `Selection` | which parameters |
+| `Aircraft profile` | name, version and SHA-256 of the profile version, or none |
+| `ArduPilot` | firmware version and source commit, or not known |
+| `Experiment` | launcher experiment or connection ID and its record's SHA-256, or none |
+| `Parameters` | the number of lines that follow |
+
+`parseParamFile` reads such a file as the ArduPilot loader does, but it
+throws with the line number of the first line it cannot read, of a
+duplicate, or of a value that is not a finite float32.
+
+### Sources and selections
+
+| Source | Values | Shown as |
+|---|---|---|
+| the running SITL | the TASK-159 read-back: only values ArduPilot reported | SITL read-back; a parameter with a write still pending says so and the file holds ArduPilot's confirmed value |
+| an experiment record | the parameters MirageSITL generated from its saved profile at the start, as ArduPilot's float32 | Experiment record, generated from the saved profile (frame, output, PWM or sensor) |
+| a parameter set (TASK-160) | the set's values, read back from the run it names | Parameter set |
+
+The preview also marks a value that ArduPilot's metadata calls read-only or
+volatile. The context comes from the experiment record behind the values:
+the running SITL's, the record itself, or the run a set was read from.
+
+| Selection | Parameters exported |
+|---|---|
+| all | every value of the source |
+| changes | every value that differs from a chosen parameter set's, or that the set does not hold |
+| chosen | the named parameters and every parameter of the named groups; a group is a name up to its first underscore (RTL_ALT_M is in RTL, GPS1_DELAY_MS in GPS1) |
+
+A pending write never enters the file, because the running SITL's values
+are only those ArduPilot reported.
+
+### Simulator settings
+
+Settings that only the simulator uses are saved separately as a project
+archive: `ProjectStore.exportItems(projectId, roots)` writes the project
+record and the items holding `roots` with their whole dependency closure,
+each with its whole history, so the archive imports like a full one. The
+Parameters tab exports the aircraft profile version of the values' record
+with its component cards and measurement sets. Weather and location
+settings come with TASK-148 and TASK-167.
+
+### Verification (TASK-161)
+
+`tests/param-file.test.ts` checks the header and line format, the refusals,
+200,000 sampled float32 bit patterns read back exactly, ArduPilot's
+separators, and pymavlink 2.4.50's `MAVParmDict.load` reading 5,000 exported
+values bit for bit (where the TASK-152 Python environment exists). It also
+checks the three selections against hand-written oracles, and a subset
+archive with two profile versions whose dependencies differ: it imports into
+an empty store with nothing missing and holds no unrelated item.
+
+`scripts/check-param-file-sitl.mjs` runs two native ArduCopter SITLs at rest
+in lockstep. SITL A confirms four writes and its complete list is exported;
+SITL B starts in an empty directory from `copter.parm` followed by the
+exported file (`--defaults`), so ArduPilot's own loader reads it. Every
+exported value must read back as the same float32, except the parameters
+ArduPilot's metadata marks read-only or volatile, which the autopilot sets
+itself. That rule was fixed before the first run, and those values are only
+reported. The report is `test-results/validation/param-file-sitl.json`, and
+`tests/integration/param-file-sitl.test.ts` checks that its judge rejects
+false evidence. `tests/browser/parameter-export.spec.ts` exports from the
+Parameters tab against native ArduCopter: all parameters with a write
+pending while paused, the chosen parameters and groups and the changes
+against a stored set (each checked against an oracle from the
+all-parameters file), an experiment record's generated parameters, and the
+simulator settings.
 
 ## DataFlash capture per experiment (TASK-164)
 

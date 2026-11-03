@@ -577,6 +577,32 @@ export class ProjectStore {
   }
 
   /**
+   * Exports the items holding `roots` and everything they depend on, with the
+   * project record, as a project archive (TASK-161: an aircraft profile with its
+   * component cards and measurement sets). Each included item keeps its whole
+   * history, so the archive imports like a full one; dependencies of earlier
+   * versions are included too.
+   */
+  async exportItems(projectId: string, roots: readonly string[]): Promise<ExportResult> {
+    const all = await this.projectVersions(projectId);
+    const bySha = new Map(all.map(v => [v.sha256, v]));
+    const byId = groupById(all);
+    const items = new Set<string>([projectId]);
+    const queue = [...roots];
+    for (let sha256 = queue.pop(); sha256 !== undefined; sha256 = queue.pop()) {
+      const version = bySha.get(sha256);
+      if (!version) throw new ProjectStoreError('not-found', `Record ${sha256} is not a stored version of project ${projectId}`);
+      if (items.has(version.record.id)) continue;
+      items.add(version.record.id);
+      for (const member of byId.get(version.record.id) ?? []) queue.push(...member.record.dependencies.map(d => d.sha256));
+    }
+    const versions = all.filter(v => items.has(v.record.id));
+    const missing = await this.closure(versions);
+    const archive = await encodeArchive(projectId, this.timestamp(), versions);
+    return { archive, entries: versions.length, bytes: archive.byteLength, missing };
+  }
+
+  /**
    * Imports a project archive atomically. Items new to this store are added,
    * older local copies are fast-forwarded, and newer or equal local histories
    * are kept. A history that diverged from the local one refuses the whole

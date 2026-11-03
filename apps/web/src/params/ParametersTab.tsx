@@ -4,6 +4,7 @@ import { parseParameterValue } from "@mirage/autopilot/param-service";
 import type { StoredVersion } from "@mirage/project/schema";
 import type { StoreState } from "../shell/AppShell";
 import type { SessionLink } from "../run/session-link";
+import { ParameterExport, type LiveParameters } from "./ParameterExport";
 import { ParameterHistory, valueText } from "./ParameterHistory";
 import {
   compareParameters, readParameterLog, readParameterSet, restorePlan, saveParameterSet, snapshotOf, type ParameterLog, type ParameterSet,
@@ -18,7 +19,8 @@ import {
 // current) and whether ArduPilot uses it only after a restart; ArduPilot
 // 8ab6afde accepts writes while armed (GCS_Param.cpp handle_param_set), so
 // no change needs a disarm. Every change is logged with the run, and a set
-// of the current values can be saved, compared and sent back.
+// of the current values can be saved, compared and sent back. A parameter
+// file of the values is exported for loading by hand (TASK-161).
 
 /** Rows shown at once; a search narrows the rest. */
 const SHOWN_ROWS = 60;
@@ -124,6 +126,12 @@ export function ParametersTab({ storeState, project, link, active }: { storeStat
   };
 
   const download = parameters?.download;
+  // TASK-161: only ArduPilot's reported values are exported; a pending write's value is named in the preview, never written to the file.
+  const live = useMemo((): LiveParameters | null => {
+    if (!parameters || download?.kind !== "complete" || !experimentId) return null;
+    const pending = new Map(parameters.changes.flatMap(c => c.outcome.kind === "requested" ? [[c.name, c.outcome.requested] as const] : []));
+    return { list, pending, experimentId, recordSha256: view?.recordSha256 ?? null };
+  }, [parameters, download?.kind, experimentId, list, view?.recordSha256]);
   const statusText = !parameters ? "No run has loaded its parameters. Start or connect a run with the ArduPilot SITL backend in the Run tab."
     : download?.kind === "downloading" ? `Downloading the parameter list: ${download.received} of ${download.total ?? "?"} received`
       : download?.kind === "failed" ? `The download failed: ${download.reason}`
@@ -272,6 +280,8 @@ export function ParametersTab({ storeState, project, link, active }: { storeStat
           </>
         )}
       </section>
+
+      <ParameterExport store={store} projectId={projectId} live={live} sets={sets} metadata={metadata} />
     </div>
   );
 }

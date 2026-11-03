@@ -24,6 +24,7 @@
     "./ground-station": "./src/ground-station.ts",
     "./parameter-readback": "./src/parameter-readback.ts",
     "./param-service": "./src/param-service.ts",
+    "./param-file": "./src/param-file.ts",
     "./param-metadata": "./src/param-metadata.ts",
     "./autopilot-version": "./src/autopilot-version.ts",
     "./motor-test": "./src/motor-test.ts",
