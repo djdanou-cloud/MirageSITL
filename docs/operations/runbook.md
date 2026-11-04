@@ -486,7 +486,9 @@ DataFlash files. SITL runs in its own POSIX process group with
 on the bridge's JSON port, and its serial0 (`udpclient:`) goes to a loopback
 relay that forwards MAVLink to the same bridge. The bridge accepts the web
 origin and the launcher token, as in TASK-040. Stop sends SIGTERM to the
-owned group and SIGKILL after 3 s. A crash is recorded with its exit code or
+owned group and SIGKILL after 3 s. A group with nothing left alive in it is no
+error: macOS answers EPERM, not ESRCH, while its members have exited and are
+not yet reaped. A crash is recorded with its exit code or
 signal and a reason (the ending and the last stderr line), and restart begins
 a new run in the same folder; the Run tab never restarts, it starts a new
 experiment (TASK-154). A start is checked completely before anything is

@@ -17,7 +17,10 @@ export function runOwned(command, args, options = {}) {
       try {
         if (process.platform !== "win32" && child.pid) process.kill(-child.pid, signal);
         else child.kill(signal);
-      } catch (error) { if (error.code !== "ESRCH") throw error; }
+      } catch (error) {
+        // ESRCH: the group is gone. EPERM: on macOS the group still exists with nothing alive in it, its members exited and not yet reaped.
+        if (error.code !== "ESRCH" && error.code !== "EPERM") throw error;
+      }
     };
     const stop = message => {
       if (failed) return;
