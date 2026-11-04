@@ -243,3 +243,7 @@ html[data-g3="1"] .terrain-status { top: 12px; bottom: auto; left: 50%; transfor
 .compare-panel .sitl-form { display: grid; grid-template-columns: max-content minmax(0, 420px); gap: 6px 12px; align-items: center; font-size: 12px; margin-bottom: 8px; }
 .compare-panel .sitl-form select, .compare-panel .sitl-form input { width: 100%; min-width: 0; }
 @media (max-width: 800px) { .compare-panel .sitl-form { grid-template-columns: minmax(0, 1fr); } }
+.compare-panel textarea { width: 100%; min-width: 0; font-family: ui-monospace, monospace; font-size: 12px; background: #15262b; color: #d4eee5; border: 1px solid #30444a; border-radius: 4px; }
+.compare-panel input[type=text] { padding: 4px 6px; background: #15262b; color: #d4eee5; border: 1px solid #30444a; border-radius: 4px; }
+.compare-panel .sitl-actions { margin: 6px 0; }
+.compare-panel .sitl-actions { display: flex; flex-wrap: wrap; gap: 8px; }

@@ -4122,7 +4122,7 @@ shows whether the origin's storage is persistent.
 ### Records
 
 ```typescript
-type ItemKind = "project" | "component-card" | "measurement-set" | "aircraft-profile" | "experiment" | "parameter-set" | "parameter-log" | "flight-task";
+type ItemKind = "project" | "component-card" | "measurement-set" | "aircraft-profile" | "experiment" | "parameter-set" | "parameter-log" | "flight-task" | "experiment-batch";
 interface Dependency { kind: ItemKind; sha256: string }
 interface ProjectRecord {
   schemaVersion: 1;
@@ -4166,10 +4166,11 @@ interface ProjectRecord {
   other kinds keep their bytes and meaning, and a reader without the kind
   rejects its records as an unknown kind. TASK-160 added `parameter-set` and
   `parameter-log` in the same way; each may depend only on an experiment.
-  TASK-172 added `flight-task`, with no dependencies.
+  TASK-172 added `flight-task`, with no dependencies. TASK-176 added
+  `experiment-batch`, which may depend on an aircraft profile and on experiments.
 * **Payloads.** A project's payload is `{}`. The store does not interpret
-  card, measurement-set, profile, experiment, parameter-set, parameter-log and
-  flight-task payloads beyond the canonical JSON limits. Their owner tasks (TASK-138,
+  card, measurement-set, profile, experiment, parameter-set, parameter-log,
+  flight-task and experiment-batch payloads beyond the canonical JSON limits. Their owner tasks (TASK-138,
   TASK-139, TASK-140, TASK-154, TASK-160, TASK-165 and TASK-172) register
   payload validators, which apply when a version is written or imported, not
   when it is read.
@@ -6674,7 +6675,7 @@ dependency, its aircraft-profile version, and the payload holds:
 | profile | SHA-256, item ID, version and name of the profile version |
 | sitl | `ownership: "launcher"`: the launcher experiment ID, which names `experiments/<id>/`, and `ardupilot`, the launcher catalog ID, firmware version, commit, binary SHA-256 and default-parameter SHA-256 of the build that ran, as the launcher's view reports them; or `ownership: "external"` for a SITL the user started (see the TASK-155 section) |
 | session | physics rate (800 or 1200 Hz), `sitl-lockstep`, speed-up (null for an external SITL), home, model ID, manifest SHA-256 and BET module SHA-256 |
-| parameters | exactly the list sent to the launcher, in its order, each tagged frame, output, pwm, sensor or site; for an external SITL the same generated list without site, which it was confirmed to hold |
+| parameters | exactly the list sent to the launcher, in its order, each tagged frame, output, pwm, sensor, set or site (`set`: TASK-176, see "Parameter batches"); for an external SITL the same generated list without site, which it was confirmed to hold |
 | frameScript | the Lua of a scripting-matrix frame, or null (always null for an external SITL) |
 | sensors | `sensorSnapshot()` of the profile version, verbatim |
 | recording | the run's recorder v2 record ID and the Logging tab settings it records with (common, group and signal rates, the run length and the storage reserve; TASK-163), or null for a run that records nothing |
@@ -7984,6 +7985,98 @@ with gravity off, on a stiff pack whose voltage hardly moves, within 0.5 % set b
 and the sag and the limit by hand against the pack's law. `tests/browser/compare-experiments.spec.ts`
 flies one hover on two configurations with native ArduCopter 8ab6afde, and compares the page's
 numbers with what it works out from the recording's rows and the cards on its own.
+
+## Parameter batches (TASK-176)
+
+The user supplies several parameter sets on the Experiments tab. The scenario chosen
+on the Run tab runs once for each, in the order given, with every other input
+identical, and the results collect in one record. MirageSITL does not search for new
+values, does not choose what runs next from a result, never retries a failed run and
+does not say that a set is fit for real flight (S12, SA-01). There is no optimization
+path to switch on.
+
+### The record
+
+`packages/project/src/batch.ts` defines the payload of the `experiment-batch` item
+kind, and `validateExperimentBatch` checks it. The store keeps a new version after
+each run, so the runs finished so far survive a closed browser. A batch is not
+resumed: its record says how far it got.
+
+```typescript
+interface BatchParameter { name: string; value: number }
+interface BatchSet { name: string; parameters: BatchParameter[] }
+interface BatchScenario {
+  profileSha256: string;
+  flightTaskSha256: string;
+  firmwareId: string;
+  speedup: number;
+  physicsHz: 800 | 1200;
+  home: [number, number, number, number];
+}
+type BatchRun =
+  | { setIndex: number; state: "done"; experimentSha256: string }
+  | { setIndex: number; state: "failed"; experimentSha256: string | null; reason: string };
+interface ExperimentBatch {
+  schemaVersion: 1;
+  scenario: BatchScenario;
+  sets: BatchSet[];
+  runs: BatchRun[];
+  stopped: string | null;
+}
+```
+
+A batch holds 1 to 32 sets, each with its own name and at most 512 parameters, sorted
+by name, each once. An empty set runs the scenario as it stands, for comparison. Runs
+are in run order, at most one per set: a second run of one set is invalid, so a retry
+cannot be stored. A failed run's experiment is null when the run failed before it had
+one. `stopped` says why the batch stopped before its last set. The record depends on
+its aircraft profile version and the experiments so far (`batchDependencies`), and
+names its flight task as data, as an experiment does. The recording setup is the
+Logging tab's when each run starts, and that run's record holds it.
+
+### A set in an experiment
+
+A set's values are the run's initial parameters: ArduPilot boots with them and
+confirms them as it does the generated list, and a value it cannot confirm fails that
+run. `parameters` in the experiment record gains the tag `set`, with no new schema
+version, since a record without it means what it did. `createExperimentRecord` refuses
+a `set` parameter that names something the frame, PWM or site lists generate. The form
+(`batchSetOfText`) refuses such a name before the batch can start and names it in the
+reason, since the runs would otherwise not fly one aircraft. The run's start appends
+the set after the generated list and refuses a clash with any generated name. A planned
+repeat or variant carries its parent's `set` parameters, so a run of a batch can be
+repeated exactly. Two finished runs of one batch differ in `initial parameters` and
+nothing else, which is what `experimentChanges` reports for them.
+
+### The runner
+
+`BatchRunner` (`apps/web/src/experiments/batch-runner.ts`) is a state machine that the
+Run tab's views drive, through `RunDriver` in `apps/web/src/run/session-link.ts`. For
+each set in order it starts a fresh run with the set, flies the task from READY, stops
+the run when the task ends, records the outcome and stores the batch. Nothing in it
+reads a result to decide what runs next. While a batch runs, the Run tab's Start is
+disabled. A batch cannot start until the Run tab has a flight task and an ArduPilot
+build chosen.
+
+| What happens | What the batch records | What runs next |
+|---|---|---|
+| The task finishes | `done`, with the experiment | The next set |
+| The run cannot start, ArduPilot does not confirm the set, or the run fails | `failed`, with the reason and any experiment | The next set |
+| The task ends early, or an accident pauses the run | `failed`, with the reason, once the run has stopped | The next set |
+| The user stops the batch | The run under way as `failed`, and `stopped` | Nothing |
+| The run is stopped on the Run tab | That run as `failed`, and `stopped` | Nothing |
+| The Run tab's driver goes away | The run under way as `failed`, and `stopped` | Nothing |
+
+### Results
+
+The results table shows each run's highest point above where it stood, mean current,
+energy and minutes to a 20 % reserve, from `experimentMetrics` (see "Experiment
+comparison"), and a value the run cannot give reads as missing. Beside them it shows
+altitude RMS unless the task is a maneuver, whose request jumps on purpose. For a
+maneuver, a second table holds each run's rise time, overshoot, settling and end error
+for each change, grouped by change so that the sets read side by side. The two sets of
+a tuning batch may differ in little else. Nothing ranks the runs, and any two of them can
+be opened in the comparison.
 
 ## DataFlash capture per experiment (TASK-164)
 

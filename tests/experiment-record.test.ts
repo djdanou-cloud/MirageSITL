@@ -190,7 +190,10 @@ describe('experiment payload schema 5', () => {
       ['a frame name tagged output', edit(payload, p => { at(p.parameters, 0).source = 'output'; }), 'output parameter FRAME_CLASS is not a TASK-128 output parameter'],
       ['an unknown output', edit(payload, p => { p.parameters.push({ name: 'SERVO33_FUNCTION', value: 0, source: 'output' }); }), 'output parameter SERVO33_FUNCTION is not a TASK-128 output parameter'],
       ['another PWM name', edit(payload, p => { p.parameters.push({ name: 'MOT_SPIN_MIN', value: 0.15, source: 'pwm' }); }), 'pwm parameter MOT_SPIN_MIN is not MOT_PWM_MIN or MOT_PWM_MAX'],
-      ['an unknown source tag', edit(payload, p => { Object.assign(at(p.parameters, 0), { source: 'user' }); }), 'parameter FRAME_CLASS source must be one of frame, output, pwm, sensor, site'],
+      ['an unknown source tag', edit(payload, p => { Object.assign(at(p.parameters, 0), { source: 'user' }); }), 'parameter FRAME_CLASS source must be one of frame, output, pwm, sensor, set, site'],
+      ['a parameter set naming what the profile sets', edit(payload, p => { p.parameters.push({ name: 'SCR_ENABLE', value: 1, source: 'set' }); }), 'set parameter SCR_ENABLE is set by the aircraft profile or the run'],
+      ['a parameter set naming the home\'s declination', edit(payload, p => { p.parameters.push({ name: 'COMPASS_DEC', value: 0.1, source: 'set' }); }), 'set parameter COMPASS_DEC is set by the aircraft profile or the run'],
+      ['a parameter set after the site parameters', edit(payload, p => { p.parameters.push({ name: 'COMPASS_DEC', value: 0.1, source: 'site' }, { name: 'ATC_ANG_RLL_P', value: 4, source: 'set' }); }), 'set parameter ATC_ANG_RLL_P follows the site parameters'],
       ['another name as a site parameter', edit(payload, p => { p.parameters.push({ name: 'COMPASS_OFS_X', value: 0, source: 'site' }); }), 'site parameter COMPASS_OFS_X is not COMPASS_DEC'],
       ['a site parameter before the PWM pair', edit(payload, p => { p.parameters.unshift({ name: 'COMPASS_DEC', value: 0.2, source: 'site' }); }), 'follows the site parameters'],
       ['a frame script without SCR_ENABLE', edit(payload, p => { p.frameScript = 'MotorsMatrix:init(4)\n'; }), 'a frame script needs frame parameter SCR_ENABLE 1'],
@@ -531,6 +534,18 @@ describe('schema 1 records and external SITLs (TASK-155)', () => {
 });
 
 // ---- TASK-165: lineage, Repeat and Create variant ---------------------------------------------------
+
+describe('a parameter set as initial parameters (TASK-176)', () => {
+  test('is an input of its own: two runs of different sets differ in that and nothing else', async () => {
+    const fixture = await storedProfile('quad-x', 'S19 quad X', null);
+    const payload = payloadOf(fixture);
+    const withSet = (value: number) => current(validateExperiment(edit(payload, p => { p.parameters.push({ name: 'ATC_ANG_RLL_P', value, source: 'set' }); })));
+    expect(withSet(4).parameters.at(-1)).toEqual({ name: 'ATC_ANG_RLL_P', value: 4, source: 'set' });
+    expect(experimentChanges(withSet(4), withSet(5))).toEqual(['initial parameters']);
+    expect(experimentChanges(payload, withSet(4))).toEqual(['initial parameters']);
+    expect(experimentChanges(withSet(4), withSet(4))).toEqual([]);
+  });
+});
 
 describe('what a run\'s home gives ArduPilot (TASK-172)', () => {
   const withSite = (payload: ExperimentPayload, value: number) => current(validateExperiment(edit(payload, p => { p.parameters.push({ name: 'COMPASS_DEC', value, source: 'site' }); })));

@@ -4,6 +4,7 @@ import { deriveLayout, type AircraftLayout } from "@mirage/aircraft/layout";
 import { readAircraftProfile } from "@mirage/aircraft/profile";
 import { describeAccident } from "@mirage/physics/accident";
 import type { LimitEvent } from "@mirage/physics/limit-monitor";
+import type { RunDriver } from "./session-link";
 import type { StoredVersion } from "@mirage/project/schema";
 import { CopterMode } from "@mirage/autopilot/ground-station";
 import { GamepadAdapter, defaultCalibration } from "@mirage/input";
@@ -116,6 +117,7 @@ export function RunPanel({ storeState, project, visible, link }: { storeState: S
   const [profileSha, setProfileSha] = useState("");
   // TASK-165: the run the Experiments tab planned, and the stored profile version it names.
   const plan = useSyncExternalStore(link.subscribe, link.plan);
+  const batchRunning = useSyncExternalStore(link.subscribe, link.batchRunning);
   const [plannedProfile, setPlannedProfile] = useState<StoredVersion | null>(null);
   const repeat = plan?.kind === "repeat";
   const [port, setPort] = useState(String(DEFAULT_LAUNCHER_PORT));
@@ -227,7 +229,7 @@ export function RunPanel({ storeState, project, visible, link }: { storeState: S
     }, (cause: unknown) => { setBuilds(null); setError(cause instanceof Error ? cause.message : String(cause)); });
   };
   /** A fresh session for every Start and Connect: the previous run's model and epoch stay with the old Worker. */
-  const freshSession = (logging: LoggingSettings | null, metadata: ParameterMetadataCatalog | null, flightTask: ExperimentFlightTask | null): { next: SessionController; prepare: () => Promise<PreparedRun> } | null => {
+  const freshSession = (logging: LoggingSettings | null, metadata: ParameterMetadataCatalog | null, flightTask: ExperimentFlightTask | null, setParameters: readonly { readonly name: string; readonly value: number }[] = []): { next: SessionController; prepare: () => Promise<PreparedRun> } | null => {
     setError("");
     const stored = choices.find(entry => entry.sha256 === profileSha);
     // The plan belongs to this run: the record names its parent, and the next run is an original again.
@@ -265,7 +267,11 @@ export function RunPanel({ storeState, project, visible, link }: { storeState: S
         const { vehicle, run } = await preparedRun(store, stored);
         physics.use(vehicle, flightTask?.definition.initial.ground);
         profileName = vehicle.profileName;
-        return run;
+        if (setParameters.length === 0) return run;
+        // TASK-176: a parameter set is part of what this run boots with; the aircraft's own parameters stay the aircraft's.
+        const clash = setParameters.filter(parameter => run.parameters.some(generated => generated.name === parameter.name)).map(parameter => parameter.name);
+        if (clash.length > 0) throw new Error(`The parameter set names ${clash.join(", ")}, which the aircraft profile sets`);
+        return { ...run, parameters: [...run.parameters, ...setParameters.map(parameter => ({ name: parameter.name, value: parameter.value, source: "set" as const }))] };
       },
     };
   };
@@ -294,7 +300,8 @@ export function RunPanel({ storeState, project, visible, link }: { storeState: S
     const settingsFor = parent ? Promise.resolve(parent.recording ? loggingOf(parent.recording) : null) : logging();
     void Promise.all([settingsFor, metadata()]).then(([settings, catalog]) => {
       if (!parent && !settings) return;
-      const session = freshSession(settings, catalog, task.entry);
+      // A planned run boots with its parent's parameter set, if it had one: the set is one of its inputs.
+      const session = freshSession(settings, catalog, task.entry, parent?.parameters.filter(parameter => parameter.source === "set") ?? []);
       if (!session) return;
       link.planRun(null);
       void session.next.start({ prepare: session.prepare, firmwareId: buildId, speedup, physicsHz: parent?.session.physicsHz ?? SITL_PHYSICS_HZ,
@@ -315,6 +322,43 @@ export function RunPanel({ storeState, project, visible, link }: { storeState: S
       if (session) void session.next.connect({ prepare: session.prepare, endpoints, physicsHz: SITL_PHYSICS_HZ, home: DEFAULT_HOME, verifiedCommits: verifiedCommits(), flightTask: task.entry });
     });
   };
+  // TASK-176: a batch runs the scenario chosen here, one fresh run per set.
+  const driverState = useRef<RunDriver | null>(null);
+  driverState.current = {
+    scenario: () => {
+      const profile = choices.find(entry => entry.sha256 === profileSha);
+      if (!profile) return { kind: "refused", reason: "Choose an aircraft profile on the Run tab" };
+      if (!chosenTask) return { kind: "refused", reason: "Choose a flight task on the Run tab: a batch flies one scenario" };
+      if (!buildId) return { kind: "refused", reason: "List the ArduPilot builds on the Run tab and choose one" };
+      if (plan) return { kind: "refused", reason: "The Run tab has a repeat or a variant planned: start it or cancel it first" };
+      if (active && !batchRunning) return { kind: "refused", reason: "A run is under way on the Run tab: stop it first" };
+      return { kind: "ready", label: `${profile.record.name}, ${chosenTask.record.name}, ${buildId}, ${speedup}×`,
+        scenario: { profileSha256: profile.sha256, flightTaskSha256: chosenTask.sha256, firmwareId: buildId, speedup, physicsHz: SITL_PHYSICS_HZ, home: [...DEFAULT_HOME] } };
+    },
+    start: async set => {
+      const task = chosenFlightTask();
+      if (!task) return "The flight task cannot be read";
+      setTaskRefusal("");
+      const [settings, catalog] = await Promise.all([logging(), metadata()]);
+      if (!settings) return "The recording settings cannot be read";
+      const session = freshSession(settings, catalog, task.entry, set.parameters);
+      if (!session) return "The run could not be set up";
+      void session.next.start({ prepare: session.prepare, firmwareId: buildId, speedup, physicsHz: SITL_PHYSICS_HZ, home: DEFAULT_HOME, flightTask: task.entry });
+      return null;
+    },
+    // runTask answers null when it flies, so a missing controller cannot be told from it by `??`.
+    runTask: () => (controller.current ? controller.current.runTask() : "There is no run to fly"),
+    stop: () => controller.current?.stop() ?? Promise.resolve(),
+  };
+  useEffect(() => {
+    link.setDriver({
+      scenario: () => driverState.current?.scenario() ?? { kind: "refused", reason: "Open the Run tab to set up a run" },
+      start: set => driverState.current?.start(set) ?? Promise.resolve("The Run tab is not ready"),
+      runTask: () => (driverState.current ? driverState.current.runTask() : "The Run tab is not ready"),
+      stop: () => driverState.current?.stop() ?? Promise.resolve(),
+    });
+    return () => link.setDriver(null);
+  }, [link]);
   const chosen = choices.find(entry => entry.sha256 === profileSha);
   const chosenTask = plannedTask?.record.id === taskId ? plannedTask : tasks.find(entry => entry.record.id === taskId) ?? null;
   // The route of the running task, or of the chosen one before the run starts.
@@ -381,7 +425,7 @@ export function RunPanel({ storeState, project, visible, link }: { storeState: S
         </p>
       )}
       <div className="sitl-actions">
-        <button type="button" onClick={start} disabled={busy || !profileSha || !buildId}>
+        <button type="button" onClick={start} disabled={busy || batchRunning || !profileSha || !buildId}>
           {plan ? `Start ${plan.kind}` : failed && !external ? "Start again" : "Start SITL run"}
         </button>
         <label htmlFor="sitl-altitude">Take-off altitude, m</label>

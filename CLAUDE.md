@@ -348,7 +348,11 @@ implementation.
   duration estimate with its scenario and reserve, position and maneuver response and
   recorded limit exceedances, shown and not judged. `thrustCapacity` solves the thrust at
   full command. It found an open flight-model fault: at high demand the battery bus flips
-  every tick, and a pack at its limit is flagged while the motors draw on. TASK-142 is DONE:
+  every tick, and a pack at its limit is flagged while the motors draw on. TASK-176 is DONE:
+  the Experiments tab runs a batch of parameter sets the user supplies
+  (`packages/project/src/batch.ts`), one scenario from the Run tab once per set with every
+  other input identical. A failed run is recorded and never retried, and the next set
+  still runs. Nothing searches for values or ranks the sets. TASK-142 is DONE:
   the Aircraft tab maps each motor to an output and generates the frame
   parameters from the TASK-128 catalog (the S19 octa-x fixture spins the
   mirror of stock OCTA X, so it uses the scripting matrix). TASK-151 (the

@@ -82,7 +82,7 @@ export const MAX_PARAMETER_MAGNITUDE = 3.4e38;
 export const EXPERIMENT_PHYSICS_HZ = [800, 1200] as const;
 export type ExperimentPhysicsHz = typeof EXPERIMENT_PHYSICS_HZ[number];
 /** Where each generated parameter came from. */
-export const PARAMETER_SOURCES = ['frame', 'output', 'pwm', 'sensor', 'site'] as const;
+export const PARAMETER_SOURCES = ['frame', 'output', 'pwm', 'sensor', 'set', 'site'] as const;
 export type ParameterSource = typeof PARAMETER_SOURCES[number];
 /** The autopilot's PWM range, which the SITL link pins to its 1000-2000 us span. */
 export const PWM_PARAMETER_NAMES: ReadonlySet<string> = new Set(['MOT_PWM_MIN', 'MOT_PWM_MAX']);
@@ -347,6 +347,8 @@ function admits(source: ParameterSource, name: string): boolean {
     case 'frame': return FRAME_PARAMETER_NAMES.has(name) && !OUTPUT_FUNCTION.test(name);
     case 'output': return FRAME_PARAMETER_NAMES.has(name) && OUTPUT_FUNCTION.test(name);
     case 'pwm': return PWM_PARAMETER_NAMES.has(name);
+    // A batch's parameter set (TASK-176): anything but what the aircraft profile and the run themselves set.
+    case 'set': return !FRAME_PARAMETER_NAMES.has(name) && !PWM_PARAMETER_NAMES.has(name) && !SITE_PARAMETER_NAMES.has(name);
     case 'site': return SITE_PARAMETER_NAMES.has(name);
     default: {
       const unexpected: never = source;
@@ -372,7 +374,8 @@ function parametersOf(value: unknown): ExperimentParameter[] {
       fail(source === 'sensor' ? `sensor parameter ${name} is not a SIM_ parameter`
         : source === 'pwm' ? `pwm parameter ${name} is not MOT_PWM_MIN or MOT_PWM_MAX`
           : source === 'site' ? `site parameter ${name} is not ${[...SITE_PARAMETER_NAMES].join(' or ')}`
-            : `${source} parameter ${name} is not a TASK-128 ${source} parameter`);
+            : source === 'set' ? `set parameter ${name} is set by the aircraft profile or the run`
+              : `${source} parameter ${name} is not a TASK-128 ${source} parameter`);
     }
     if (PARAMETER_SOURCES.indexOf(source) < PARAMETER_SOURCES.indexOf(previous)) {
       fail(`${source} parameter ${name} follows the ${previous} parameters; the order is ${PARAMETER_SOURCES.join(', ')}`);
