@@ -4121,7 +4121,7 @@ shows whether the origin's storage is persistent.
 ### Records
 
 ```typescript
-type ItemKind = "project" | "component-card" | "measurement-set" | "aircraft-profile" | "experiment" | "parameter-set" | "parameter-log";
+type ItemKind = "project" | "component-card" | "measurement-set" | "aircraft-profile" | "experiment" | "parameter-set" | "parameter-log" | "flight-task";
 interface Dependency { kind: ItemKind; sha256: string }
 interface ProjectRecord {
   schemaVersion: 1;
@@ -4165,10 +4165,11 @@ interface ProjectRecord {
   other kinds keep their bytes and meaning, and a reader without the kind
   rejects its records as an unknown kind. TASK-160 added `parameter-set` and
   `parameter-log` in the same way; each may depend only on an experiment.
+  TASK-172 added `flight-task`, with no dependencies.
 * **Payloads.** A project's payload is `{}`. The store does not interpret
-  card, measurement-set, profile, experiment, parameter-set and parameter-log
-  payloads beyond the canonical JSON limits. Their owner tasks (TASK-138,
-  TASK-139, TASK-140, TASK-154, TASK-160 and TASK-165) register
+  card, measurement-set, profile, experiment, parameter-set, parameter-log and
+  flight-task payloads beyond the canonical JSON limits. Their owner tasks (TASK-138,
+  TASK-139, TASK-140, TASK-154, TASK-160, TASK-165 and TASK-172) register
   payload validators, which apply when a version is written or imported, not
   when it is read.
 
@@ -6655,8 +6656,8 @@ network error; launcher-foreign needs an answer the browser may read.
 
 ### Experiment record
 
-`packages/aircraft/src/experiment.ts` defines experiment payload schema 4
-(TASK-165) in record envelope v1, and the application registers
+`packages/aircraft/src/experiment.ts` defines experiment payload schema 5
+(TASK-172) in record envelope v1, and the application registers
 `validateExperiment` for the `experiment` kind. The record has exactly one
 dependency, its aircraft-profile version, and the payload holds:
 
@@ -6665,18 +6666,20 @@ dependency, its aircraft-profile version, and the payload holds:
 | profile | SHA-256, item ID, version and name of the profile version |
 | sitl | `ownership: "launcher"`: the launcher experiment ID, which names `experiments/<id>/`, and `ardupilot`, the launcher catalog ID, firmware version, commit, binary SHA-256 and default-parameter SHA-256 of the build that ran, as the launcher's view reports them; or `ownership: "external"` for a SITL the user started (see the TASK-155 section) |
 | session | physics rate (800 or 1200 Hz), `sitl-lockstep`, speed-up (null for an external SITL), home, model ID, manifest SHA-256 and BET module SHA-256 |
-| parameters | exactly the list sent to the launcher, in its order, each tagged frame, output, pwm or sensor; for an external SITL the same generated list, which it was confirmed to hold |
+| parameters | exactly the list sent to the launcher, in its order, each tagged frame, output, pwm, sensor or site; for an external SITL the same generated list without site, which it was confirmed to hold |
 | frameScript | the Lua of a scripting-matrix frame, or null (always null for an external SITL) |
 | sensors | `sensorSnapshot()` of the profile version, verbatim |
 | recording | the run's recorder v2 record ID and the Logging tab settings it records with (common, group and signal rates, the run length and the storage reserve; TASK-163), or null for a run that records nothing |
 | lineage | an original run, or a repeat or variant of a parent experiment (TASK-165; see "Experiment lifecycle") |
+| flightTask | the flight task the run was started with: its definition, its name and the SHA-256 of the `flight-task` record as data (TASK-172; see "Flight tasks"), or null |
 
 Schema 1, which TASK-154 wrote, had `ardupilot` and `launcher` at the top
 level and a required speed-up; schema 2, which TASK-155 wrote, had no
-`recording`, and schema 3, which TASK-163 wrote, no `lineage`. All stay valid
-on reads and archive imports; `readExperiment` presents them as schema 4
-original runs, without a recording before schema 3 (schema 1 with a
-launcher-owned `sitl`), and `createExperimentRecord` writes only schema 4.
+`recording`, schema 3, which TASK-163 wrote, no `lineage`, and schema 4, which
+TASK-165 wrote, no `flightTask`. All stay valid on reads and archive imports;
+`readExperiment` presents them as schema 5 runs without a task, original runs
+before schema 4, without a recording before schema 3 (schema 1 with a
+launcher-owned `sitl`), and `createExperimentRecord` writes only schema 5.
 
 `createExperimentRecord` recomputes the snapshot from the stored profile
 version and requires canonical-byte equality, cross-checks the frame and
@@ -6745,7 +6748,7 @@ running. The decisions of 2026-11-01 set the policy: a SITL with built-in
 physics is refused; only verified source commits connect; the SITL's
 parameters are read, never written, and every difference is a reason to
 refuse; a connection is recorded as experiment payload schema 2, which is
-schema 3 since TASK-163 and schema 4 since TASK-165.
+schema 3 since TASK-163, schema 4 since TASK-165 and schema 5 since TASK-172.
 
 ### Launcher API
 
@@ -7477,19 +7480,209 @@ before the frame, unanswered, while the running state reported after a pump
 never refreshes it. `tests/browser/manual-flight.spec.ts` flies native
 ArduCopter 8ab6afde with a mocked controller through the Run tab.
 
+## Flight tasks (TASK-172)
+
+A flight task says what ArduPilot should fly, from what initial conditions and
+how it ends (S10). ArduPilot receives the commands, and the physics computes
+the motion; nothing moves the aircraft but the motors ArduPilot drives. Mass
+and payload belong to the aircraft profile.
+
+### Task definition v1
+
+`packages/scenarios/src/flight-tasks.ts` defines the definition, and
+`flightTaskProblems` gives every reason a value is not one:
+
+```typescript
+interface FlightTaskDefinition {
+  schemaVersion: 1;
+  type: "takeoff" | "hover" | "landing" | "straight" | "climb" | "descent" | "acceleration" | "braking" | "turn" | "route";
+  parameters: Record<string, number>;   // the type's own numbers; empty for a route
+  route: { northM: number; eastM: number; altitudeM: number; speedMps: number }[] | null;   // 2 to 50 points; null unless a route
+  initial: {
+    ground: { northM: number; eastM: number; headingDeg: number; stateOfCharge: number };
+    air: { altitudeM: number; headingDeg: number; speedMps: number } | null;   // always null for a route
+  };
+  finish: "land" | "hold";   // a landing task always lands
+}
+```
+
+| Type | Parameters, with their limits |
+|---|---|
+| takeoff, landing | altitude 1–100 m |
+| hover | altitude, duration 1–3600 s |
+| straight | altitude, heading 0–360°, speed 0.5–20 m/s, distance 1–5000 m |
+| climb, descent | from and to altitude, rate 0.1–5 m/s |
+| acceleration, braking | altitude, heading, from and to speed 0–20 m/s, rate 0.1–5 m/s² |
+| turn | altitude, heading, speed, angle ±1080° (clockwise positive), rate 1–90 °/s |
+| route | its points: north and east ±5000 m, altitude, speed |
+
+Altitudes are metres above the pad, as the Run tab shows them; north and east
+are metres from the pad, in the session's frame; headings are degrees from
+north, clockwise. A task is a versioned `flight-task` item of the project
+store, with no dependencies, and `parseFlightTask` is its registered payload
+validator.
+
+### Initial conditions
+
+Ground values are in the physics at the first step: `ground.register` gives the
+Worker the values before `model.load`, bound to the manifest's SHA-256, and
+`buildProfileDynamics` places the vehicle (`initialGround`) with its battery
+(`initialStateOfCharge`). By the user's decision of 2026-11-04 an airborne
+start is a lead-in. ArduPilot needs about 41 s of simulated time to become
+READY, so an aircraft placed in the air at the start tick falls before anything
+can fly it. ArduPilot takes off and flies to the requested height, heading and
+speed instead, and the task's clock starts on arrival, with requested and actual
+shown there. Without `initial.air` the lead-in goes to the state the task's own
+parameters start from. Roll and pitch cannot be set on their own in the air;
+TASK-173 commands them. A route always starts from the ground. A SITL the user
+started stands at its own `--home`, so a task whose ground start is away from
+the pad cannot fly on a connection, and the Run tab says so.
+
+On the task's clock, an airborne start first flies to the state the task's own
+parameters start from: the same height and heading only change speed; another
+height or heading stops first, turns at 30 °/s, changes height at 1 m/s and then
+reaches the task's speed.
+
+### The compass declination at boot
+
+A vehicle keeps COMPASS_DEC between boots, and a MirageSITL run boots with an
+empty memory. Without it ArduPilot sets its first heading before it has a
+position, and is wrong by the local declination: 12.8° at the default home, at
+5.4 s of simulated time. When GPS arrives the heading swings back, and EKF3 takes
+part of that swing for a gyro error: it learned -1.76 °/s by 14 s, and had
+unlearned it only to -0.18 °/s at arming. It then holds the heading it believes
+while the true heading creeps away, about 2° during the first flight, although
+its own heading stays within 0.02° of the one commanded.
+
+A run the launcher starts is therefore given COMPASS_DEC before ArduPilot boots
+(`packages/aircraft/src/site-parameters.ts`), interpolated from ArduPilot's own
+table as `AP_Declination::get_mag_field_ef` does.
+`scripts/generate-declination.mjs` generates `data/ardupilot/declination.json`
+from the pinned source. COMPASS_AUTODEC stays on, and ArduPilot arrives at the
+same value once it knows where it is, so a run does not read this one back. The
+record holds it with source `site`, `createExperimentRecord` requires the value of
+the record's home, and comparing two experiments counts it as the home, so a
+record from before it can still be repeated. A parameter export leaves it out:
+where a run started is no part of the profile. A connection cannot set it, since
+its SITL is already running.
+
+### The runner
+
+`planFlightTask` turns a definition into stages, each measured (the task, on its
+clock) or not (the lead-in, the stop and the landing). `FlightTaskRunner` is a
+pure stage machine: `observe` takes the session's truth and the autopilot's mode,
+arming and mission reports, and returns the commands to send and what is
+requested at that moment. A stage's completion tolerances are operational,
+declared before the first flight, and do not judge fidelity (SA-01):
+
+| Stage ends | When |
+|---|---|
+| take-off or vertical | within 0.5 m of its altitude, vertical speed below 0.3 m/s, held for 2 s of simulated time |
+| heading | its turn done, within 5° |
+| speed | its change done, within 0.5 m/s, held for 2 s |
+| turn | its turn done, within 5° of the final heading, held for 2 s |
+| route leg | on ArduPilot's own MISSION_ITEM_REACHED |
+| landing | on ArduPilot's disarm |
+
+The 2 s holds count on the task's clock too, so a measured stage's trace shows any
+overshoot rather than ending on the moment it first arrived. A stage that takes
+60 s of simulated time beyond its plan fails the task, as does the autopilot
+disarming or leaving its flight mode.
+
+Every target is one ArduPilot can follow without correcting. A target whose speed
+changes in one step is one no aircraft can follow: ArduCopter's position
+controller shapes its correction within its own limits, so it falls behind, flies
+faster than asked to catch up, because the correction adds to the target's
+velocity, and then cannot stop in time. The first flights of this task did that: a
+2 m/s climb flew at 4.2 m/s and passed its end by 2.28 m, while the aircraft stayed
+within 5 cm of ArduPilot's own plan throughout. `packages/scenarios/src/smooth-motion.ts`
+therefore changes each value in the jerk limit's S-shape, within limits the runner
+reads from the autopilot's parameter list when the task starts
+(`guidanceLimitsOf`); a limit that is missing or unusable refuses the task.
+
+| What changes | Acceleration | Jerk |
+|---|---|---|
+| height | WP_ACC_Z | PSC_D_JERK |
+| speed | the stage's own rate; 2 m/s² in a lead-in or a stop | PSC_NE_JERK |
+| heading while flying | the smaller of ATC_ACC_Y_MAX and PSC_NE_JERK divided by the speed | not limited |
+| heading at rest, at 30 °/s | ATC_ACC_Y_MAX | not limited |
+
+What is requested is therefore what can be flown, and the trace shows it: with
+ArduCopter's defaults a climb at 2 m/s reaches 2 m/s after 2.2 s. A move too short
+for its rate peaks lower and still arrives. Each stage starts where the last one
+ended, so a moving target does not stall between stages.
+
+Guided stages (`packages/autopilot/src/guided.ts`) send
+SET_POSITION_TARGET_LOCAL_NED in MAV_FRAME_LOCAL_NED with `type_mask` 0: the
+position, velocity and acceleration of that moment, along a curve the sideways
+acceleration of speed times turn rate, and the yaw with its rate. ArduCopter
+carries them forward between messages. One goes out at every observation, which on
+the Run tab is every 80 physics steps (0.1 s at 800 Hz), well inside
+`GUID_TIMEOUT`. ArduPilot's local frame starts where
+it was at its first GPS fix, so the commands take the start position and the CG's
+rest height off. A route (`packages/autopilot/src/mission.ts`) is a mission: for
+each point a DO_CHANGE_SPEED and a NAV_WAYPOINT at a location computed as
+`Location::offset` does, uploaded by MISSION_COUNT, each MISSION_REQUEST_INT or
+MISSION_REQUEST answered with its MISSION_ITEM_INT, and MISSION_ACK. A route
+counts as uploaded only on ArduPilot's acceptance, and a refusal names its
+reason. It flies in AUTO after a guided take-off.
+
+### The run
+
+The Flight tasks tab (`apps/web/src/tasks/`) defines and versions tasks and shows
+the stages ArduPilot will be asked to fly. The route editor adds, removes and
+reorders points; the form's text and a definition convert both ways without
+change, percent included, so a stored task reopens unchanged and saving it again
+adds no version.
+
+The Run tab chooses a task before the start. `RunPanel` passes it to the
+controller as the experiment's `flightTask`, and from READY, `runTask` hands the
+flight to the runner, once per Worker status. A run flies its task once, as its
+first flight: ArduPilot's frame starts where the run started, and a repeat is a
+new experiment. A task that fails, or that the user ends with Land, hands the
+flight to ArduPilot's LAND, and the run goes on. Pause holds the task with the
+session. The panel shows the stage, the task's clock, requested next to actual,
+and the arrival; a value the stage does not request reads "not requested". The
+flight view draws a route's line and points.
+
+Each observation becomes an `events.flightTask` row at the latest physics tick,
+with the truth signals of the same ticks beside it. Experiment payload schema 5
+holds the definition with its record's SHA-256 (see "Experiment record"), and
+`createExperimentRecord` requires the definition and name of that stored version.
+
+### Verification (TASK-172)
+
+`tests/flight-tasks.test.ts` checks definitions, the plan, the runner against a
+simulated vehicle, the MAVLink packing and upload protocol, and the form's round
+trip. `tests/smooth-motion.test.ts` steps the profiles and checks them by
+differentiating and integrating numerically, and `tests/site-parameters.test.ts`
+checks the declination against the values ArduCopter itself reported at two
+places. `tests/profile-dynamics.test.ts` checks the ground start in the dynamics at
+400, 800 and 1200 Hz, and `tests/run-controller.test.ts` the controller's flow
+against scripted frames. `tests/integration/flight-tasks-sitl.test.ts` flies each
+of the ten types, an airborne start, a straight flight and a route from another
+place, and a climb and a descent at 5 m/s, with native ArduCopter 8ab6afde through
+the launcher's bridge at speed 4 and 800 Hz, observing as the Run tab does and
+reading the limits from the autopilot, and writes the traces to an ignored report.
+`tests/browser/flight-tasks.spec.ts` round-trips the route editor through a
+reload; flies a climb and a braking from the Run tab and measures their gaps from
+the recording, with the timing a user's run really has; and flies a stored route
+from another place in the application, reading the ground values and the requests
+back from the recording, then repeats it.
+
 ## Experiment lifecycle (TASK-165)
 
 An experiment fixes its inputs: the aircraft profile version, the ArduPilot
 build, the speed, the physics rate, the home, the initial parameters, the
-frame script, the TASK-143 sensor snapshot of its profile version and the
-recording setup. Weather, location, the flight task and the fault schedule
-join them when their tasks land (TASK-148, TASK-167, TASK-169, TASK-172).
+frame script, the TASK-143 sensor snapshot of its profile version, the
+recording setup and the flight task (TASK-172). Weather, location and the
+fault schedule join them when their tasks land (TASK-148, TASK-167, TASK-169).
 Results (the recording, the parameter log, the DataFlash files) belong to
 the run. Its inputs never change after version 1.
 
 ### Lineage
 
-Experiment payload schema 4 adds `lineage`:
+Experiment payload schema 4 added `lineage`:
 
 ```typescript
 type ExperimentLineage =
@@ -7497,7 +7690,7 @@ type ExperimentLineage =
   | { kind: "repeat"; of: string }   // the parent experiment record's SHA-256
   | { kind: "variant"; of: string; changes: ExperimentInput[] };
 type ExperimentInput = "aircraft profile" | "ArduPilot build" | "speed" | "physics rate" | "home" | "initial parameters" | "frame script" |
-  "sensors" | "recording setup" | "SITL";
+  "sensors" | "recording setup" | "SITL" | "flight task";
 ```
 
 `experimentChanges(parent, child)` lists the inputs that differ, in that
@@ -7507,8 +7700,8 @@ input. `createExperimentRecord` reads the parent, which must be an
 experiment of the same project, and refuses a repeat whose inputs differ and
 a variant whose `changes` are not exactly the computed list; a variant needs
 at least one change. The parent is named as data, not as a store dependency,
-and is never changed. Schema 3 records read as schema 4 original runs, and
-new records are always schema 4.
+and is never changed. Older records read as original runs. Schema 5 appended
+`flight task` to the inputs, so a stored `changes` list stays valid.
 
 ### Repeat and Create variant
 
@@ -7657,6 +7850,7 @@ records and never reused.
 | 36 | autopilot.ekf | flags, velocity, horizontal and vertical position, compass and terrain variances | f32 | EKF_STATUS_REPORT |
 | 64 | events.parameter | a parameter name (16 ASCII bytes) and its float32 value; a flag marks the snapshot | — | event |
 | 65–68 | events.weather, events.fault, events.pause, events.accident | a registry code and up to three numbers (pause: 1 paused, 0 resumed) | f64 | event |
+| 69 | events.flightTask | stage, measured, task time (s), requested north, east, altitude (m), speed (m/s), heading (deg), vertical speed (m/s); a channel the stage does not request is absent (TASK-172) | f64 | event |
 | 127 | gap | rows lost here | — | recorder |
 
 ### Rates

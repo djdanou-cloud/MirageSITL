@@ -280,6 +280,10 @@ describe('recorder v2 rows, gaps and storage', () => {
     expect(consumer.invalidRows).toBe(2);
     expect(() => valueRow(SignalId.TruthPosition, [1, 2, 3], 1, 0, 1)).toThrow();
     expect(() => valueRow(SignalId.Pause, [Number.NaN], 1, 0, 1)).toThrow(/finite/);
+    // TASK-172: a flight task's request leaves out what its stage does not request; the mask says which, and an absent channel is no zero.
+    const request = valueRow(SignalId.FlightTaskRequest, [2, 1, null, 3, null, 5, 0, null, null], 1, 0, 1);
+    expect(new DataView(request.buffer).getUint32(RowOffset.presence, true)).toBe(0b001101011);
+    expect(new RecordingConsumerV2(null, recordKey(RECORD_ID), { write: () => undefined }).appendRow(request)).toBe(true);
     expect(() => parameterRow('NAME WITH SPACE', 1, false, 1, 0, 1)).toThrow();
   });
 

@@ -277,13 +277,14 @@ export function gapRow(lost: number, tick: number, simTimeS: number, epoch: numb
   return row;
 }
 /** Cold: a row of `values` for a telemetry or event signal; channels beyond `values` are absent. */
-export function valueRow(id: number, values: readonly number[], tick: number, simTimeS: number, epoch: number): Uint8Array {
+export function valueRow(id: number, values: readonly (number | null)[], tick: number, simTimeS: number, epoch: number): Uint8Array {
   const signal = signalById(id);
   if (!signal || signal.valueType === "parameter" || signal.source === "physics" || values.length > signal.channels.length) throw new Error(`Invalid row for signal ${id}`);
   const f64 = signal.valueType === "f64", size = signal.channels.length * (f64 ? 8 : 4);
   const row = new Uint8Array(paddedRowBytes(size)), v = new DataView(row.buffer);
   v.setUint16(RowOffset.signal, id, true);
-  v.setUint32(RowOffset.presence, (2 ** values.length - 1) >>> 0, true);
+  // A null leaves its channel absent; the presence mask says so.
+  v.setUint32(RowOffset.presence, values.reduce<number>((mask, value, i) => (value === null ? mask : mask + 2 ** i), 0) >>> 0, true);
   v.setUint32(RowOffset.tickLo, tick % 2 ** 32, true);
   v.setUint32(RowOffset.tickHi, Math.floor(tick / 2 ** 32), true);
   v.setFloat64(RowOffset.simTimeS, simTimeS, true);
@@ -291,6 +292,7 @@ export function valueRow(id: number, values: readonly number[], tick: number, si
   v.setUint16(RowOffset.channelCount, signal.channels.length, true);
   v.setUint16(RowOffset.payloadBytes, size, true);
   values.forEach((value, i) => {
+    if (value === null) return;
     if (!Number.isFinite(value)) throw new Error(`Signal ${signal.name}: channel ${i} is not finite`);
     if (f64) v.setFloat64(ROW_HEADER_BYTES + i * 8, value, true);
     else v.setFloat32(ROW_HEADER_BYTES + i * 4, value, true);

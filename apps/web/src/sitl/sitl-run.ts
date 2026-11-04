@@ -27,11 +27,12 @@ import { catalogAbsentRule, type AbsentRule } from "@mirage/autopilot/parameter-
 import { expectedMotors, physicsRotors, type ExpectedMotor, type PhysicsRotor } from "@mirage/autopilot/motor-test";
 import type { LimitRatings } from "@mirage/physics/limit-monitor";
 import { newFlightStateV2, newPowerSnapshotV1 } from "@mirage/protocol";
+import { DEFAULT_GROUND_START, wrapDeg, type GroundStart } from "@mirage/scenarios/flight-tasks";
 import type { StoredVersion } from "@mirage/project/schema";
 import type { ProjectStore } from "@mirage/project/store";
 import type { SimulationRuntime } from "../runtime";
 import { LauncherError, type CatalogEntry, type ConnectionSpec, type LauncherConnection, type LauncherExperiment, type LauncherLogs, type LauncherPort,
-  type LauncherRunState, type PhysicsPort, type PreparedRun, type StartSpec } from "../run/session-controller";
+  type FlightTruth, type LauncherRunState, type PhysicsPort, type PreparedRun, type StartSpec } from "../run/session-controller";
 
 /** Model ID of the vehicle an integrated session loads. */
 export const SITL_MODEL_ID = 153;
@@ -299,10 +300,11 @@ export class LauncherClient implements LauncherPort {
 /** The physics Worker of a SimulationRuntime as the session controller's PhysicsPort. */
 export class RuntimePhysics implements PhysicsPort {
   private vehicleValue: PreparedVehicle | null = null;
+  private ground: GroundStart = DEFAULT_GROUND_START;
   constructor(private readonly runtime: SimulationRuntime, private readonly token: string) {}
 
-  /** The vehicle this session flies, set once it is prepared. */
-  use(vehicle: PreparedVehicle): void { this.vehicleValue = vehicle; }
+  /** The vehicle this session flies, set once it is prepared; a flight task's ground start with it (TASK-172). */
+  use(vehicle: PreparedVehicle, ground: GroundStart = DEFAULT_GROUND_START): void { this.vehicleValue = vehicle; this.ground = ground; }
   private get vehicle(): PreparedVehicle {
     if (!this.vehicleValue) throw new Error("The vehicle is not prepared");
     return this.vehicleValue;
@@ -318,6 +320,7 @@ export class RuntimePhysics implements PhysicsPort {
     await this.request({ type: "contact.module", bytes: contact.bytes, manifest: contact.manifest }, "contact.module.ready", "contact.module.reject");
     await this.request({ type: "model.register", bytes: vehicle.derived.bytes, sha256: vehicle.derived.sha256 }, "model.registered", "model.reject");
     await this.request({ type: "limits.register", sha256: vehicle.derived.sha256, ratings: vehicle.ratings }, "limits.registered", "limits.reject");
+    await this.request({ type: "ground.register", sha256: vehicle.derived.sha256, ground: this.ground }, "ground.registered", "ground.reject");
     await this.control({ type: "sim.configure", hz: physicsHz, clockMode: "sitl-lockstep" });
     await this.control({ type: "model.load", modelId: SITL_MODEL_ID, manifestSha256: vehicle.derived.sha256 });
     await this.control({ type: "sim.start" });
@@ -340,6 +343,13 @@ export class RuntimePhysics implements PhysicsPort {
   }
   altitudeM(): number { return -this.runtime.current.downM; }
   verticalSpeedMps(): number { return this.runtime.current.vdMps; }
+  flightTruth(): FlightTruth {
+    const s = this.latest;
+    this.runtime.latestInto(s);
+    // Yaw of the body-to-NED quaternion, as degrees from north, clockwise.
+    const yaw = Math.atan2(2 * (s.qw * s.qz + s.qx * s.qy), 1 - 2 * (s.qy * s.qy + s.qz * s.qz));
+    return { simTimeS: s.simTimeS, northM: s.northM, eastM: s.eastM, altitudeM: -s.downM, northMps: s.vnMps, eastMps: s.veMps, downMps: s.vdMps, headingDeg: wrapDeg(yaw * 180 / Math.PI) };
+  }
   private readonly power = newPowerSnapshotV1();
   motorSpeedsInto(out: Float64Array): boolean {
     if (!this.runtime.power.latest(this.power)) return false;

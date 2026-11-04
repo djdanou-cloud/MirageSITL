@@ -39,7 +39,7 @@ export const SignalId = {
   Battery: 15,
   SensorImu: 16, SensorGnss: 17, SensorMagnetometer: 18, SensorBarometer: 19, SensorAirspeed: 20,
   AutopilotAttitude: 32, AutopilotLocalPosition: 33, AutopilotGlobalPosition: 34, AutopilotGps: 35, AutopilotEkf: 36,
-  Parameter: 64, Weather: 65, Fault: 66, Pause: 67, Accident: 68,
+  Parameter: 64, Weather: 65, Fault: 66, Pause: 67, Accident: 68, FlightTaskRequest: 69,
   /** Rows lost before the row that follows; never a signal a plan selects. */
   Gap: 127,
 } as const;
@@ -91,6 +91,10 @@ const SIGNALS: readonly SignalInfo[] = [
   { id: SignalId.Fault, name: "events.fault", group: "events", source: "event", valueType: "f64", channels: ch("1", "code", "a", "b", "c") },
   { id: SignalId.Pause, name: "events.pause", group: "events", source: "event", valueType: "f64", channels: ch("1", "paused") },
   { id: SignalId.Accident, name: "events.accident", group: "events", source: "event", valueType: "f64", channels: ch("1", "code", "a", "b", "c") },
+  // TASK-172: what a flight task requests at this moment, beside the truth signals of the same ticks; a channel is absent where the stage requests nothing of it.
+  { id: SignalId.FlightTaskRequest, name: "events.flightTask", group: "events", source: "event", valueType: "f64",
+    channels: [...ch("1", "stage", "measured"), { name: "taskTime", unit: "s" }, ...ch("m", "north", "east", "altitude"), { name: "speed", unit: "m/s" },
+      { name: "heading", unit: "deg" }, { name: "verticalSpeed", unit: "m/s" }] },
 ];
 export const SIGNAL_CATALOG: readonly SignalInfo[] = Object.freeze(SIGNALS.map(signal => Object.freeze({ ...signal, channels: Object.freeze(signal.channels) })));
 const BY_ID = new Map(SIGNAL_CATALOG.map(signal => [signal.id, signal]));

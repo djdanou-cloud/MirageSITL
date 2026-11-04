@@ -1,6 +1,7 @@
 import { RecorderV2Host, type RowTime } from "@mirage/aar/recorder-v2-host";
 import type { ExperimentRecording } from "@mirage/aircraft/experiment";
 import type { MavFrame } from "@mirage/mavlink/codec";
+import type { FlightTaskStep } from "@mirage/scenarios/flight-tasks";
 import { accidentRows, type AccidentEvent } from "@mirage/physics/accident";
 import { newFlightStateV2, type FlightStateV2 } from "@mirage/protocol";
 import type { RecordingPort, RecordingStart } from "../run/session-controller";
@@ -13,8 +14,8 @@ import { recordingMonitor, type LiveRecording } from "./recording-monitor";
 // tab's settings: the recorder Worker opens the record, and the physics
 // Worker's producer (the full-rate fan-out of TASK-162) is armed on the
 // session. Main then adds the autopilot's telemetry, the parameter snapshot
-// and the run's events (TASK-149 accidents, TASK-156 pauses) at the latest
-// physics tick, and publishes the recording's growth to the Logging tab once
+// and the run's events (TASK-149 accidents, TASK-156 pauses, the requests of a
+// TASK-172 flight task) at the latest physics tick, and publishes the recording's growth to the Logging tab once
 // a second.
 
 /** What the recorder needs of the page's simulation runtime. */
@@ -82,6 +83,12 @@ export class RunRecorder implements RecordingPort {
     }
   }
   pause(paused: boolean): void { if (this.recording) this.host?.event("pause", [paused ? 1 : 0], this.at()); }
+  /** What a flight task requests now (TASK-172), at the latest physics tick, beside the truth the recording keeps at those ticks. */
+  flightTask(step: FlightTaskStep): void {
+    if (!this.recording) return;
+    const { requested: r } = step;
+    this.host?.event("flight-task", [step.stageIndex, step.measured ? 1 : 0, step.taskTimeS, r.northM, r.eastM, r.altitudeM, r.speedMps, r.headingDeg, r.verticalSpeedMps], this.at());
+  }
 
   /** Closes the record: the physics producer stops, the last chunk is sealed and the catalog entry closes. */
   async stop(): Promise<void> {

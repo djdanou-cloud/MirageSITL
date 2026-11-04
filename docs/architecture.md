@@ -411,9 +411,9 @@ location, Flight tasks, Parameters, Logging, Run, Experiments and Analysis
 
 The shell holds only navigation and project metadata. Physics stays in its
 Worker and reaches the UI only in decimated form, as before. TASK-140 fills
-the Components tab, TASK-141 the Aircraft tab and TASK-143 the Sensors tab. The other seven tabs state
-what they will hold and that it is not available yet; their own tasks fill
-them. The stored navigation format is in
+the Components tab, TASK-141 the Aircraft tab, TASK-143 the Sensors tab and
+TASK-172 the Flight tasks tab. The tabs whose tasks have not landed state what
+they will hold and that it is not available yet. The stored navigation format is in
 [SPECS_SIMULATION_ENGINES.md](SPECS_SIMULATION_ENGINES.md), section "Local
 settings (TASK-137)".
 

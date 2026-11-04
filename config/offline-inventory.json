@@ -203,6 +203,22 @@
       ]
     },
     {
+      "id": "ardupilot-declination-table",
+      "category": "reference-data",
+      "item": "ArduPilot compass declination table",
+      "version": "ArduPilot 8ab6afde107a91df1b5f60ade8f333cb8a61b190, libraries/AP_Declination/tables.cpp (scripts/generate-declination.mjs)",
+      "source": "Generated offline from the pinned ArduPilot checkout; tables.cpp is itself generated from the IGRF; no download beyond the source",
+      "license": "GPL-3.0-or-later (generated from the ArduPilot source)",
+      "licenseStatus": "restricted",
+      "decision": "TASK-172 generated it from the pinned source and keeps it in the repository, so a run's COMPASS_DEC comes from the table ArduPilot itself reads; D-02 covers redistribution with any prebuilt firmware.",
+      "neededFor": "COMPASS_DEC at the boot of a run (TASK-172)",
+      "installDownload": false,
+      "status": "ready",
+      "files": [
+        { "path": "data/ardupilot/declination.json", "bytes": 6891, "sha256": "1464d76226df8baeea4d14a1fc28fbcd3e12b9a694f119e20652f414ed9afde5" }
+      ]
+    },
+    {
       "id": "uavlogviewer",
       "category": "viewer",
       "item": "UAVLogViewer, patched and built locally for offline use",

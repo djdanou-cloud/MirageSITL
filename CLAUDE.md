@@ -321,7 +321,21 @@ implementation.
   A-04 is amended: runs with ArduPilot SITL use 800 Hz. Decision A-13 requires
   a steady hover (body rates within 1 °/s, standard deviation, in the flight's
   own log), so the quad flies that acceptance with a 40 Hz gyro filter, set in
-  the Parameters tab; at stock settings it oscillates at 10 Hz. TASK-142 is DONE:
+  the Parameters tab; at stock settings it oscillates at 10 Hz. TASK-172 is DONE:
+  the Flight tasks tab defines takeoff, hover, landing, straight, climb,
+  descent, acceleration, braking, turn and route tasks as versioned project
+  items (`packages/scenarios/src/flight-tasks.ts`), and the Run tab flies a
+  stored one with native ArduCopter through guided targets and uploaded
+  missions, requested next to actual and both recorded, the definition in
+  experiment payload schema 5. Ground values apply at the first physics step;
+  by the user's decision of 2026-11-04 an airborne start is a lead-in that
+  ArduPilot flies, and the task's clock starts on arrival. Every guided target
+  is one ArduPilot can follow without correcting: position, velocity and
+  acceleration on a path smoothed within the limits it reports (WP_ACC_Z,
+  PSC_D_JERK, PSC_NE_JERK, ATC_ACC_Y_MAX), so what is requested is what can be
+  flown. A run the launcher starts gets COMPASS_DEC at boot from its home, or
+  EKF3 learns a false gyro error and the true heading creeps about 2° from the
+  one commanded. TASK-142 is DONE:
   the Aircraft tab maps each motor to an output and generates the frame
   parameters from the TASK-128 catalog (the S19 octa-x fixture spins the
   mirror of stock OCTA X, so it uses the scripting matrix). TASK-151 (the

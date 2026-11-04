@@ -11,6 +11,7 @@ import { GroundContact } from '@mirage/physics/ground-contact';
 import { profileModelPort } from '@mirage/physics/profile-dynamics';
 import { VehicleRegistry } from '@mirage/physics/vehicle-manifest';
 import { ScenarioBinder } from '@mirage/scenarios/bind';
+import { parseGroundStart, type GroundStart } from '@mirage/scenarios/flight-tasks';
 import { SitlBridgeClient, bridgeSocketArguments, type SitlNotice } from './sitl/bridge-client';
 import { parseScenario } from '@mirage/scenarios/schema';
 
@@ -36,11 +37,13 @@ const registry = new VehicleRegistry();
 let betModule: WebAssembly.Module | null = null;
 // TASK-146 limit ratings by manifest SHA-256, bound before model.load; a model without ratings checks none.
 const ratings = new Map<string, LimitRatings>();
+const groundStarts = new Map<string, GroundStart>();
 type WorkerNotice = CommandResultV2 | WorkerFaultV2 | SitlNotice | { type: "sitl.reject"; message: string }
   | { type: "bet.module.ready"; sha256: string } | { type: "bet.module.reject"; message: string }
   | { type: "contact.module.ready"; sha256: string } | { type: "contact.module.reject"; message: string }
   | { type: "model.registered"; modelId: number; sha256: string } | { type: "model.reject"; message: string }
   | { type: "limits.registered"; sha256: string } | { type: "limits.reject"; message: string }
+  | { type: "ground.registered"; sha256: string } | { type: "ground.reject"; message: string }
   | { type: "limits.events"; events: LimitEvent[]; dropped: number }
   | { type: "accident.events"; events: AccidentEvent[]; dropped: number; total: number }
   /** Manual control's stick commands stopped for INPUT_TIMEOUT_MS: the session paused before its next tick (TASK-174). */
@@ -236,7 +239,10 @@ addEventListener('message', (event: MessageEvent<unknown>) => {
     if (!isWorkerInitV2(data)) { post({ type: 'fault-v2', protocolVersion: 2, message: 'Expected init-v2' }); return; }
     try {
       session = new PhysicsSessionV2(data, clock, undefined, createSessionFaultPort(),
-        profileModelPort(registry, () => betModule, {}, sha256 => ratings.get(sha256) ?? null));
+        profileModelPort(registry, () => betModule, {}, sha256 => ratings.get(sha256) ?? null, sha256 => {
+          const start = groundStarts.get(sha256);
+          return start ? { initialGround: start, initialStateOfCharge: start.stateOfCharge } : null;
+        }));
       const created = session;
       created.setBeforeTick((tick) => {
         if (!binder) return;
@@ -287,6 +293,18 @@ addEventListener('message', (event: MessageEvent<unknown>) => {
       post({ type: "limits.registered", sha256 });
     } catch (error) {
       post({ type: "limits.reject", message: error instanceof Error ? error.message : "Invalid limit ratings" });
+    }
+    return;
+  }
+  // TASK-172: where the vehicle stands, and its charge, at the start tick of the load that follows.
+  if (isTyped(data, "ground.register")) {
+    try {
+      const sha256 = data.sha256;
+      if (typeof sha256 !== "string" || !/^[a-f0-9]{64}$/.test(sha256)) throw new Error("ground.register needs a manifest SHA-256");
+      groundStarts.set(sha256, parseGroundStart(data.ground));
+      post({ type: "ground.registered", sha256 });
+    } catch (error) {
+      post({ type: "ground.reject", message: error instanceof Error ? error.message : "Invalid ground start" });
     }
     return;
   }

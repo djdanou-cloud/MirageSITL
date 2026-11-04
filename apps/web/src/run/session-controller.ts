@@ -57,20 +57,33 @@
 // it), and its GPS puts it at the session's home; the profile must need no
 // frame script. Its experiment record is written once all of that holds,
 // before READY can be shown.
+//
+// A flight task (TASK-172) is chosen before the start, so its ground values
+// are in the physics at the start tick, and the experiment record holds its
+// definition. From READY, Run task hands the flight to FlightTaskRunner: each
+// Worker status gives it the session's truth and the autopilot's reports, and
+// what it returns goes to the autopilot, with a route through MissionUpload.
+// A run flies its task once and only as its first flight: ArduPilot's own
+// frame starts where the run started, and a repeat is a new experiment. A
+// task that fails hands the flight to ArduPilot's LAND; the run goes on.
 import {
-  EXPERIMENT_SCHEMA_VERSION, type ExperimentLineage, type ExperimentParameter, type ExperimentPayload, type ExperimentRecording, type ExperimentSitl,
+  EXPERIMENT_SCHEMA_VERSION, type ExperimentFlightTask, type ExperimentLineage, type ExperimentParameter, type ExperimentPayload, type ExperimentRecording, type ExperimentSitl,
 } from "@mirage/aircraft/experiment";
 import { readAutopilotVersion, verifiedCommit } from "@mirage/autopilot/autopilot-version";
 import { CopterMode, GroundStation } from "@mirage/autopilot/ground-station";
+import { autopilotModeName, taskCommandInto } from "@mirage/autopilot/guided";
+import { MissionUpload, routeMissionItems, routePointReached } from "@mirage/autopilot/mission";
 import { MotorCheck, type ExpectedMotor, type MotorCheckResult, type PhysicsRotor } from "@mirage/autopilot/motor-test";
 import type { ParameterMetadataCatalog, ParameterMetadataSet } from "@mirage/autopilot/param-metadata";
 import { ParameterService, type DownloadState, type ParameterValue } from "@mirage/autopilot/param-service";
+import { siteParameters } from "@mirage/aircraft/site-parameters";
 import { ParameterReadback, type AbsentRule, type ParameterDifference } from "@mirage/autopilot/parameter-readback";
 import { MavParser, type MavFrame } from "@mirage/mavlink/codec";
 import { PilotRcMapper } from "@mirage/mavlink/rc-override";
 import { UNKNOWN_U32, newPilotInputV2, type PilotInput } from "@mirage/protocol";
 import { fieldOf, readNumber } from "@mirage/mavlink/messages";
 import type { AccidentEvent } from "@mirage/physics/accident";
+import { FlightTaskRunner, guidanceLimitsOf, type FlightTaskStep, type GuidanceLimits } from "@mirage/scenarios/flight-tasks";
 import type { ParameterChange } from "../params/parameter-sets";
 import { RunSpeedMeter, type RunSpeedView } from "./run-speed";
 import type { SitlStatus } from "../sitl/bridge-client";
@@ -144,6 +157,13 @@ export interface PreparedRun {
   /** The motor check (TASK-157): ArduPilot's test order and the physics rotors in power-telemetry order. */
   readonly motorTest: { readonly expected: readonly ExpectedMotor[]; readonly physics: readonly PhysicsRotor[] };
 }
+/** Truth of the latest published tick in a flight task's terms: north and east from the pad, height above it, heading from north. */
+export interface FlightTruth {
+  readonly simTimeS: number;
+  readonly northM: number; readonly eastM: number; readonly altitudeM: number;
+  readonly northMps: number; readonly eastMps: number; readonly downMps: number;
+  readonly headingDeg: number;
+}
 export interface PhysicsPort {
   /** Loads the BET module, the manifest and its ratings and starts the session in sitl-lockstep at `physicsHz`; resolves with the module's SHA-256. */
   load(physicsHz: 800 | 1200): Promise<{ readonly betModuleSha256: string }>;
@@ -153,6 +173,8 @@ export interface PhysicsPort {
   /** Truth of the latest published tick, for the flight stages. */
   altitudeM(): number;
   verticalSpeedMps(): number;
+  /** The truth a flight task is flown from (TASK-172). */
+  flightTruth(): FlightTruth;
   /** Each rotor's speed, rev/min, in rotor order from the latest power telemetry; false when none was published. */
   motorSpeedsInto(out: Float64Array): boolean;
   /** Resumes a paused session with sim.start (TASK-149, TASK-156); resolves on its applied acknowledgement. */
@@ -193,6 +215,8 @@ export interface RecordingPort {
   parameters(list: readonly { readonly name: string; readonly value: number }[]): void;
   accidents(events: readonly AccidentEvent[]): void;
   pause(paused: boolean): void;
+  /** What a flight task requests now (TASK-172). */
+  flightTask(step: FlightTaskStep): void;
   /** Closes the record; idempotent. */
   stop(): Promise<void>;
 }
@@ -211,6 +235,8 @@ export interface StartRequest {
   readonly home: readonly [number, number, number, number];
   /** A repeat or a variant of a stored experiment (TASK-165); an original run when absent. */
   readonly lineage?: ExperimentLineage;
+  /** The flight task this run may fly (TASK-172). */
+  readonly flightTask?: ExperimentFlightTask | null;
 }
 export interface ConnectRequest {
   readonly prepare: () => Promise<PreparedRun>;
@@ -225,13 +251,25 @@ export interface ConnectRequest {
   readonly home: readonly [number, number, number, number];
   /** Source commits whose SITL behaviour MirageSITL has verified (the pinned ArduPilot catalog). */
   readonly verifiedCommits: readonly string[];
+  /** The flight task this run may fly (TASK-172); a SITL the user started stands at its own home, so its ground start must be the pad. */
+  readonly flightTask?: ExperimentFlightTask | null;
 }
 
 // ---- states ---------------------------------------------------------------------------------
 
 export type Ownership = ExperimentSitl["ownership"];
 export type StartStep = "prepare" | "firmware" | "physics" | "launcher" | "record" | "recording" | "connecting" | "probing" | "version";
-export type FlightStep = "arming" | "climbing" | "flying" | "landing" | "manual";
+export type FlightStep = "arming" | "climbing" | "flying" | "landing" | "manual" | "task";
+/** A run's flight task as the panel shows it (TASK-172). */
+export interface FlightTaskView {
+  readonly name: string;
+  readonly task: ExperimentFlightTask;
+  /** Waiting for Run task; flying; finished; failed, or stopped with `reason`. */
+  readonly state: "waiting" | "running" | "done" | "failed";
+  readonly reason: string | null;
+  /** The runner's latest report; null before the task runs. */
+  readonly step: FlightTaskStep | null;
+}
 /** The flight modes manual control can fly (ArduCopter's own). */
 export type ManualMode = "stabilize" | "alt-hold" | "loiter";
 const MANUAL_MODES: Readonly<Record<ManualMode, number>> = { stabilize: CopterMode.Stabilize, "alt-hold": CopterMode.AltHold, loiter: CopterMode.Loiter };
@@ -385,6 +423,8 @@ const GPS_LAT = gpsField("lat", "int32_t"), GPS_LON = gpsField("lon", "int32_t")
 
 export interface ControllerView {
   readonly state: RunState;
+  /** The flight task this run may fly (TASK-172), or null. */
+  readonly flightTask: FlightTaskView | null;
   readonly status: SitlStatus | null;
   readonly mode: number | null;
   readonly armed: boolean;
@@ -478,6 +518,8 @@ export class SessionController {
   private ownership: Ownership = "launcher";
   private external: ExternalFacts | null = null;
   private prepared: PreparedRun | null = null;
+  /** What a run the launcher starts gave ArduPilot at boot: the read-back's list, and what follows from the run's home. */
+  private bootParameters: readonly ExperimentParameter[] = [];
   private compatibility: CompatibilityCheck[] = [];
   private motorCheck: MotorCheck | null = null;
   private motorSpeeds = new Float64Array(0);
@@ -505,13 +547,23 @@ export class SessionController {
   private resumeTo: RunState | null = null;
   private connectedAtMs = 0;
   private takeoffM = 0;
+  private everArmed = false;
+  private flightTaskEntry: ExperimentFlightTask | null = null;
+  private taskRunner: FlightTaskRunner | null = null;
+  private taskUpload: MissionUpload | null = null;
+  private taskRoutePoint = -1;
+  private taskStep: FlightTaskStep | null = null;
+  private taskState: FlightTaskView["state"] = "waiting";
+  private taskReason: string | null = null;
+  private home: readonly [number, number, number, number] | null = null;
   /** Wall time at which each stream's message last arrived. */
   private readonly streamSeenMs = new Map<number, number>();
   private stopTimer: (() => void) | null = null;
   /** Increased by every Start, Stop and failure stop, so a start chain that resumes after one of them ends instead of going on. */
   private generation = 0;
   private readonly gcs = new GroundStation();
-  private readonly packet = new Uint8Array(64);
+  /** The largest MAVLink 2 frame, for a mission item or a position target. */
+  private readonly packet = new Uint8Array(280);
   private readonly parser = new MavParser(frame => this.autopilot(frame));
 
   constructor(private readonly launcher: LauncherPort, private readonly physics: PhysicsPort, private readonly records: RecordPort,
@@ -523,7 +575,7 @@ export class SessionController {
     return { state: this.stateValue, status: this.status, mode: this.mode, armed: this.armed, statusText: this.statusText, recordSha256: this.recordSha256,
       ownership: this.ownership, compatibility: this.compatibility, motorCheck: this.motorCheckView(), accidents: this.accidents,
       afterAccident: this.afterAccident, pauses: this.pauses, pausedWallMs: this.pausedWallTotal(), parameters: this.parameterView(),
-      speed: this.speed.view,
+      speed: this.speed.view, flightTask: this.flightTaskView(),
       manual: this.manual ? { mode: this.manual.mode, device: this.manual.device, waiting: this.manual.waiting } : null };
   }
   get active(): boolean { return ACTIVE.has(this.stateValue.name); }
@@ -535,6 +587,8 @@ export class SessionController {
     const from = this.stateValue.name;
     if (from !== "idle" && from !== "failed") return;
     this.reset("launcher");
+    this.flightTaskEntry = request.flightTask ?? null;
+    this.home = request.home;
     this.speed = new RunSpeedMeter(request.speedup);
     const generation = ++this.generation;
     const cancelled = () => generation !== this.generation;
@@ -564,9 +618,12 @@ export class SessionController {
     if (cancelled()) return;
 
     this.set({ name: "starting", step: "launcher", experimentId: null });
+    // ArduPilot boots with an empty memory: what a vehicle would have kept about this place is given at boot, and not read back (site-parameters.ts).
+    const parameters: readonly ExperimentParameter[] = [...prepared.parameters, ...siteParameters(request.home).map(p => ({ ...p, source: "site" as const }))];
+    this.bootParameters = parameters;
     let experiment: LauncherExperiment;
     try {
-      experiment = await this.launcher.start({ firmwareId: firmware.id, parameters: prepared.parameters.map(p => ({ name: p.name, value: p.value })),
+      experiment = await this.launcher.start({ firmwareId: firmware.id, parameters: parameters.map(p => ({ name: p.name, value: p.value })),
         frameScript: prepared.frameScript, speedup: request.speedup, rateHz: request.physicsHz, home: request.home });
     } catch (error) {
       // A 500 after the folder exists names the experiment, so its logs stay reachable.
@@ -600,7 +657,8 @@ export class SessionController {
         commit: experiment.firmware.commit, binarySha256: experiment.firmware.binarySha256, defaultParametersSha256: experiment.firmware.defaultParametersSha256 } },
       session: { physicsHz: request.physicsHz, clockMode: "sitl-lockstep", speedup: request.speedup, home: request.home, modelId: prepared.modelId,
         manifestSha256: prepared.manifestSha256, betModuleSha256 },
-      parameters: prepared.parameters, frameScript: prepared.frameScript, sensors: prepared.sensors, recording, lineage: request.lineage ?? { kind: "original" },
+      parameters, frameScript: prepared.frameScript, sensors: prepared.sensors, recording, lineage: request.lineage ?? { kind: "original" },
+      flightTask: this.flightTaskEntry,
     };
     try { this.recordSha256 = (await this.records.create(payload)).sha256; } catch (error) {
       // No unrecorded run flies; after a Stop, the stop already ended the run.
@@ -630,6 +688,8 @@ export class SessionController {
     const from = this.stateValue.name;
     if (from !== "idle" && from !== "failed") return;
     this.reset("external");
+    this.flightTaskEntry = request.flightTask ?? null;
+    this.home = request.home;
     // A SITL the user started paces itself by its own --speedup.
     this.speed = new RunSpeedMeter(null);
     const generation = ++this.generation;
@@ -766,9 +826,71 @@ export class SessionController {
     this.send(this.gcs.setModeInto(CopterMode.Guided, this.packet));
     return true;
   }
+  /**
+   * Flies the run's flight task from READY (TASK-172), or says why it cannot: a run flies its task once, as its first
+   * flight, because ArduPilot's frame starts where the run started and the task's position targets count from there.
+   */
+  runTask(): string | null {
+    const s = this.stateValue, entry = this.flightTaskEntry;
+    if (!entry) return "This run was started without a flight task";
+    if (this.taskState !== "waiting") return "This run has flown its task; start a new run to fly it again";
+    if (this.everArmed) return "This run has already flown; a task flies as a run's first flight, so start a new run";
+    if (s.name !== "ready") return "Run the task once the run is READY";
+    if (this.motorCheck !== null && !this.motorCheck.done) return "A motor check is running";
+    let limits: GuidanceLimits;
+    try { limits = guidanceLimitsOf(name => this.params?.get(name)?.value); } catch (error) { return messageOf(error); }
+    this.taskRunner = new FlightTaskRunner(entry.definition, limits);
+    this.taskState = "running";
+    this.set({ name: "running", experimentId: s.experimentId, flight: "task", warning: null });
+    this.stepTask();
+    return null;
+  }
+  /** One observation of the flying task: what the runner returns goes to the autopilot, and its end hands the flight back. */
+  private stepTask(): void {
+    const runner = this.taskRunner, s = this.stateValue;
+    if (!runner || s.name !== "running" || s.flight !== "task" || this.status?.state !== "open") return;
+    const truth = this.physics.flightTruth();
+    this.taskUpload?.tick(truth.simTimeS);
+    const step = runner.observe({ ...truth, armed: this.armed, mode: autopilotModeName(this.mode), mission: this.taskUpload?.state ?? "idle", routePointReached: this.taskRoutePoint });
+    this.taskStep = step;
+    this.recording?.flightTask(step);
+    for (const command of step.commands) {
+      if (command.kind === "upload-route") this.uploadRoute(command.points, command.groundAltitudeM, truth.simTimeS);
+      else this.send(taskCommandInto(command, this.gcs, this.packet));
+    }
+    if (step.progress.state === "done") {
+      this.taskState = "done";
+      this.set(this.armed ? { ...s, flight: "flying" } : this.status.ready ? { name: "ready", experimentId: s.experimentId }
+        : { name: "warming", experimentId: s.experimentId, reason: this.status.reason });
+    } else if (step.progress.state === "failed") {
+      this.taskState = "failed";
+      this.taskReason = this.taskUpload?.state === "failed" ? `${step.progress.reason}: ${this.taskUpload.reason}` : step.progress.reason;
+      // The flight is ArduPilot's again, and comes down on its own LAND.
+      if (this.armed) {
+        this.set({ ...s, flight: "landing" });
+        this.send(this.gcs.setModeInto(CopterMode.Land, this.packet));
+      } else {
+        this.set(this.status.ready ? { name: "ready", experimentId: s.experimentId } : { name: "warming", experimentId: s.experimentId, reason: this.status.reason });
+      }
+    }
+  }
+  private uploadRoute(points: Parameters<typeof routeMissionItems>[0], groundAltitudeM: number, simTimeS: number): void {
+    const home = this.home;
+    if (!home) return;
+    const upload = new MissionUpload(routeMissionItems(points, { latitudeDeg: home[0], longitudeDeg: home[1] }, groundAltitudeM), {
+      sendCount: count => this.send(this.gcs.missionCountInto(count, this.packet)),
+      sendItem: item => this.send(this.gcs.missionItemInto(item, this.packet)),
+    });
+    this.taskUpload = upload;
+    upload.start(simTimeS);
+  }
   land(): boolean {
     const s = this.stateValue;
-    if (s.name !== "running" || (s.flight !== "climbing" && s.flight !== "flying")) return false;
+    if (s.name !== "running" || (s.flight !== "climbing" && s.flight !== "flying" && s.flight !== "task")) return false;
+    if (s.flight === "task") {
+      this.taskState = "failed";
+      this.taskReason = "You landed the aircraft during the task";
+    }
     this.set({ ...s, flight: "landing" });
     this.send(this.gcs.setModeInto(CopterMode.Land, this.packet));
     return true;
@@ -1020,8 +1142,10 @@ export class SessionController {
 
   /** Advances on a status: version and parameter deadlines, warmup, READY revocation and the climb. */
   private progress(): void {
-    const s = this.stateValue, status = this.status;
+    const status = this.status;
     if (!status) return;
+    this.stepTask();
+    const s = this.stateValue;
     if (this.motorCheck && !this.motorCheck.done) this.stepMotorCheck(status.simTimeS);
     // The Worker accepts MAVLink only while its bridge socket is open.
     if (this.params && status.state === "open") {
@@ -1069,6 +1193,11 @@ export class SessionController {
   private autopilot(frame: MavFrame): void {
     if (frame.systemId !== 1 || frame.componentId !== 1) return;
     this.recording?.telemetry(frame);
+    if (this.taskUpload) {
+      this.taskUpload.frame(frame, this.status?.simTimeS ?? 0);
+      const reached = routePointReached(frame);
+      if (reached !== null) this.taskRoutePoint = Math.max(this.taskRoutePoint, reached);
+    }
     if (frame.id === 193 || frame.id === 24 || frame.id === 33) this.streamSeenMs.set(frame.id, this.clock.nowMs());
     const s = this.stateValue;
     switch (frame.id) {
@@ -1078,6 +1207,7 @@ export class SessionController {
         this.mode = frame.view.getUint32(0, true);
         const armed = (frame.view.getUint8(6) & 128) !== 0, was = this.armed;
         this.armed = armed;
+        this.everArmed ||= armed;
         this.lastHeartbeatMs = this.clock.nowMs();
         if (!this.heartbeatSeen) {
           this.heartbeatSeen = true;
@@ -1128,7 +1258,7 @@ export class SessionController {
         if (this.ownership === "external") { this.judgeExternalParameters(s.experimentId); return; }
         switch (verdict.kind) {
           case "confirmed":
-            this.recording?.parameters(this.prepared?.parameters ?? []);
+            this.recording?.parameters(this.bootParameters);
             this.set(this.status?.ready ? { name: "ready", experimentId: s.experimentId } : { name: "warming", experimentId: s.experimentId, reason: this.status?.reason ?? "" });
             return;
           case "mismatch":
@@ -1265,6 +1395,7 @@ export class SessionController {
       session: { physicsHz: external.physicsHz, clockMode: "sitl-lockstep", speedup: null, home: external.home, modelId: prepared.modelId,
         manifestSha256: prepared.manifestSha256, betModuleSha256: external.betModuleSha256 },
       parameters: prepared.parameters, frameScript: null, sensors: prepared.sensors, recording, lineage: { kind: "original" },
+      flightTask: this.flightTaskEntry,
     };
     try {
       const { sha256 } = await this.records.create(payload);
@@ -1431,12 +1562,21 @@ export class SessionController {
     });
   }
 
+  private flightTaskView(): FlightTaskView | null {
+    const task = this.flightTaskEntry;
+    if (!task) return null;
+    // A run that ended under a flying task ended the task.
+    const ended = this.taskState === "running" && !this.active;
+    return { name: task.name, task, state: ended ? "failed" : this.taskState, reason: ended ? "The run ended during the task" : this.taskReason, step: this.taskStep };
+  }
   private reset(ownership: Ownership): void {
     this.status = null; this.mode = null; this.armed = false; this.statusText = []; this.recordSha256 = null;
     this.experimentId = null; this.readback = null; this.heartbeatSeen = false; this.streamSeenMs.clear();
     this.ownership = ownership; this.external = null; this.prepared = null; this.compatibility = []; this.motorCheck = null;
     this.accidents = []; this.afterAccident = false; this.resumeTo = null; this.pauses = []; this.pausing = false;
     this.params = null; this.paramMetadata = null; this.changes = []; this.firmwareCommit = null;
+    this.everArmed = false; this.flightTaskEntry = null; this.taskRunner = null; this.taskUpload = null; this.taskRoutePoint = -1; this.taskStep = null;
+    this.taskState = "waiting"; this.taskReason = null; this.home = null;
     this.parser.reset();
   }
 

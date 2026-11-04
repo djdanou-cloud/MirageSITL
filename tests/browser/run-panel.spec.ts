@@ -359,7 +359,7 @@ test("missing binary: the refusal names ENOENT, a start after restoring it reach
   expect(named.length).toBeGreaterThan(0);
   expect(named).toEqual(field(body, "parameters"));
   expect(named).toEqual(parameterFile(join(workDirectory, "experiment.parm")));
-  for (const parameter of record.parameters) expect(["frame", "output", "pwm", "sensor"]).toContain(parameter.source);
+  for (const parameter of record.parameters) expect(["frame", "output", "pwm", "sensor", "site"]).toContain(parameter.source);
 
   // The build identity is the launcher catalog entry's, hashed here independently.
   expect(record.ardupilot).toEqual({

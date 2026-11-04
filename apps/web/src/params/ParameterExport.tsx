@@ -96,7 +96,8 @@ export function ParameterExport({ store, projectId, live, sets, metadata }: {
       if (!found) return { candidates: [], label: "", record: null };
       return { label: `the parameters of experiment ${experimentIdOf(found.payload)}, generated from its saved profile`, record: found.stored.sha256,
         // ArduPilot holds every value as a float32, so the file holds the float32 of the generated value.
-        candidates: found.payload.parameters.map(p => ({ name: p.name, value: Math.fround(p.value), source: "experiment",
+        // Where that run started is no part of the profile, and a vehicle works its own COMPASS_DEC out wherever it is.
+        candidates: found.payload.parameters.filter(p => p.source !== "site").map(p => ({ name: p.name, value: Math.fround(p.value), source: "experiment",
           note: `Generated from the saved profile (${p.source})${Math.fround(p.value) === p.value ? "" : `; ${p.value} as ArduPilot's float32`}` })) };
     }
     const found = sets.find(s => s.stored.sha256 === sha);

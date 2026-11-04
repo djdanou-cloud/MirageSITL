@@ -191,3 +191,10 @@ html[data-g3="1"] .terrain-status { top: 12px; bottom: auto; left: 50%; transfor
 .parameter-history .parameter-outcome { white-space: normal; min-width: 240px; }
 .parameter-earlier details { margin-top: 6px; }
 .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* TASK-172: the flight task of a run and the route editor. */
+.sitl-task { border: 1px solid #293541; border-radius: 8px; background: #101b26; padding: 12px; margin: 12px 0; min-width: 0; overflow-x: auto; }
+.sitl-task h4 { margin: 0 0 8px; }
+.sitl-task table { margin-top: 8px; }
+.route-editor { margin: 12px 0; overflow-x: auto; }
+.route-editor input[type=text] { width: 72px; }

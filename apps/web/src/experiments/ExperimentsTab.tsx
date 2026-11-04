@@ -5,6 +5,7 @@ import type { StoredVersion } from "@mirage/project/schema";
 import type { ImportReport } from "@mirage/project/store";
 import type { StoreState } from "../shell/AppShell";
 import type { SessionLink } from "../run/session-link";
+import { TASK_TYPE_LABELS } from "../tasks/flight-task-form";
 import { externalDependencies, lineageText, trajectoryDifference, type PositionRow, type TrajectoryDifference } from "./lifecycle";
 
 // The Experiments tab (TASK-165, S16): every experiment of the project with
@@ -154,6 +155,7 @@ export function ExperimentsTab({ storeState, project, link, active, onRun }: {
             <dt>Speed and physics</dt><dd>{`${current.payload.session.speedup === null ? "set by the SITL" : `${current.payload.session.speedup}×`}, ${current.payload.session.physicsHz} Hz`}</dd>
             <dt>Home</dt><dd>{current.payload.session.home.join(", ")}</dd>
             <dt>Initial parameters</dt><dd>{current.payload.parameters.length}</dd>
+            <dt>Flight task</dt><dd data-testid="experiment-flight-task">{current.payload.flightTask ? `${current.payload.flightTask.name} (${TASK_TYPE_LABELS[current.payload.flightTask.definition.type]})` : "None"}</dd>
             <dt>Recording</dt><dd>{current.payload.recording ? `${current.payload.recording.commonHz} Hz common rate, record ${current.payload.recording.recordId}` : "None"}</dd>
           </dl>
           <div className="sitl-actions">

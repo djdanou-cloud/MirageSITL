@@ -1,5 +1,6 @@
 {
   "name": "@mirage/scenarios", "version": "0.1.0", "private": true, "type": "module",
-  "exports": { "./schema": "./src/schema.ts", "./runner": "./src/runner.ts", "./evaluate": "./src/evaluate.ts", "./bind": "./src/bind.ts" },
+  "exports": { "./schema": "./src/schema.ts", "./runner": "./src/runner.ts", "./evaluate": "./src/evaluate.ts", "./bind": "./src/bind.ts", "./flight-tasks": "./src/flight-tasks.ts",
+    "./smooth-motion": "./src/smooth-motion.ts" },
   "dependencies": { "@mirage/protocol": "0.1.0" }
 }

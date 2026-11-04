@@ -57,8 +57,8 @@ export function telemetryValues(frame: MavFrame): { readonly id: number; readonl
   }
 }
 
-export type EventKind = "weather" | "fault" | "pause" | "accident";
-const EVENT_SIGNAL: Readonly<Record<EventKind, number>> = { weather: SignalId.Weather, fault: SignalId.Fault, pause: SignalId.Pause, accident: SignalId.Accident };
+export type EventKind = "weather" | "fault" | "pause" | "accident" | "flight-task";
+const EVENT_SIGNAL: Readonly<Record<EventKind, number>> = { weather: SignalId.Weather, fault: SignalId.Fault, pause: SignalId.Pause, accident: SignalId.Accident, "flight-task": SignalId.FlightTaskRequest };
 
 function randomRecordId(): string {
   return Array.from(crypto.getRandomValues(new Uint8Array(16)), byte => byte.toString(16).padStart(2, "0")).join("");
@@ -124,8 +124,8 @@ export class RecorderV2Host {
   parameterChange(name: string, value: number, at: RowTime): void {
     this.add(parameterRow(name, value, false, at.tick, at.simTimeS, at.epoch));
   }
-  /** An event with up to four numbers (pause: [1] paused, [0] resumed; the others a registry code and arguments). */
-  event(kind: EventKind, values: readonly number[], at: RowTime): void {
+  /** An event's numbers, in its catalog channels (pause: [1] paused, [0] resumed; weather, fault and accident a registry code and arguments). */
+  event(kind: EventKind, values: readonly (number | null)[], at: RowTime): void {
     this.add(valueRow(EVENT_SIGNAL[kind], values, at.tick, at.simTimeS, at.epoch));
   }
 

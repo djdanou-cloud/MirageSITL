@@ -28,7 +28,9 @@
     "./param-metadata": "./src/param-metadata.ts",
     "./autopilot-version": "./src/autopilot-version.ts",
     "./motor-test": "./src/motor-test.ts",
-    "./dataflash-logging": "./src/dataflash-logging.ts"
+    "./dataflash-logging": "./src/dataflash-logging.ts",
+    "./guided": "./src/guided.ts",
+    "./mission": "./src/mission.ts"
   },
   "dependencies": {
     "@mirage/dataflash": "0.1.0",
