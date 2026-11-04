@@ -338,6 +338,13 @@ export class DataFlashReader {
       pos += group.length;
     }
     if (!final) return pos;
+    // Too few bytes left to name a type. The start of a header is a record cut short, as anywhere else in a record.
+    const left = data.length - pos;
+    if (left > 0 && data[pos] === HEAD1 && (left === 1 || data[pos + 1] === HEAD2)) {
+      this.endSkip(this.base + pos);
+      this.damage(this.base + pos, this.base + data.length, 'truncated');
+      return data.length;
+    }
     if (pos < data.length && this.skipStart < 0) this.skipStart = this.base + pos;
     this.endSkip(this.base + data.length);
     return data.length;

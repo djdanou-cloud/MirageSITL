@@ -91,6 +91,9 @@ describe("a DataFlash file judged from its own bytes", () => {
     expect(damaged.damaged.length).toBeGreaterThan(0);
     expect(assessDataflash(new Uint8Array(0))).toMatchObject({ status: "empty", records: 0, firmware: null });
     expect(assessDataflash(new Uint8Array([0xa3, 0x95, 0x80, 1, 2, 3]))).toMatchObject({ status: "truncated", records: 0, truncatedBytes: 6 });
+    // Cut one or two bytes into a header: only the tail is missing, whichever byte the signal stopped at.
+    expect(assessDataflash(new Uint8Array([0xa3]))).toMatchObject({ status: "truncated", records: 0, truncatedBytes: 1, damaged: [] });
+    expect(assessDataflash(new Uint8Array([0xa3, 0x95]))).toMatchObject({ status: "truncated", records: 0, truncatedBytes: 2, damaged: [] });
   });
 });
 

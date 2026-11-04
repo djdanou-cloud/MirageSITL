@@ -6127,7 +6127,7 @@ offsets:
 | Kind | Range |
 | --- | --- |
 | `skipped` | From the first byte that does not start a defined record up to the next header of a defined type, or to the end of the file. |
-| `truncated` | A record with a valid header that the end of the file cuts short. |
+| `truncated` | A record with a valid header that the end of the file cuts short, or the first one or two bytes of a header that end the file. |
 | `bad-format` | An FMT record that has an unknown format character, a Length that differs from the size of its format, a column count that differs from its format, or that redefines FMT. Its type stays undefined. |
 
 pymavlink instead fails on an unknown format character and later skips the
