@@ -2,7 +2,8 @@ import { expect, type Locator, type Page } from "@playwright/test";
 import type { MassText, Recipe } from "./aircraft-recipes";
 
 // TASK-141: types an aircraft recipe into the Aircraft tab, as a user would.
-// Shared by the aircraft editor (TASK-141) and output mapping (TASK-142) specs.
+// Shared by the aircraft editor (TASK-141), output mapping (TASK-142) and
+// nominal flight acceptance (TASK-158) specs.
 
 export async function createProject(page: Page, name: string): Promise<void> {
   await page.getByRole("tab", { name: "Project", exact: true }).click();
@@ -22,8 +23,8 @@ async function fillMass(scope: Locator, title: string, mass: MassText): Promise<
   }
 }
 
-/** Types a recipe into the Aircraft tab and saves it. */
-export async function build(page: Page, recipe: Recipe): Promise<void> {
+/** Types a recipe into the Aircraft tab and saves it; `beforeSave` adds what a recipe leaves out, such as the cards (TASK-158). */
+export async function build(page: Page, recipe: Recipe, beforeSave?: (tab: Locator) => Promise<void>): Promise<void> {
   const tab = panel(page);
   await tab.getByRole("button", { name: "New profile", exact: true }).click();
   await tab.getByLabel("Profile name", { exact: true }).fill(recipe.name);
@@ -53,6 +54,7 @@ export async function build(page: Page, recipe: Recipe): Promise<void> {
     await fillMass(tab, "Payload", recipe.payload);
   }
   if (recipe.groundClearanceM !== "") await tab.getByLabel("Ground clearance (m, optional)", { exact: true }).fill(recipe.groundClearanceM);
+  if (beforeSave) await beforeSave(tab);
   await expect(tab.getByRole("list", { name: "Problems to fix before saving" })).toHaveCount(0);
   await tab.getByRole("button", { name: "Save profile", exact: true }).click();
   await expect(tab.getByTestId("aircraft-status")).toHaveText(`Created ${recipe.name}.`);

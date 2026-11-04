@@ -20,7 +20,7 @@ to A-08, A-11 and A-12; D-05 includes A-09.
 | A-01 | Apple Silicon reference machines (model, chip, memory, display) | The stakeholder's 15-inch Apple M5 MacBook Air with 32 GB of memory is the only acceptance machine; its display mode is recorded with each run. The Apple M4 MacBook Air used for TASK-073 (Mac16,12, 8-core GPU, 16 GB) receives an estimate only, never a verdict | Decided | Stakeholder | 2026-10-28 | TASK-158, TASK-188, TASK-189, TASK-191 |
 | A-02 | Supported macOS versions | The stable macOS release current on 2026-10-28 and every later release; each run records the exact version | Decided | Stakeholder | 2026-10-28 | TASK-127, TASK-152, TASK-190 |
 | A-03 | Supported Chrome versions | Minimum: the stable Chrome version current on 2026-10-28. Every later stable release is supported, and the current stable version is the default. Each run records the exact version | Decided | Stakeholder | 2026-10-28 | TASK-152, TASK-188, TASK-190 |
-| A-04 | Physics rate for each matrix configuration | 400 Hz for every configuration; 800 and 1200 Hz stay selectable options | Decided | Stakeholder | 2026-10-28 | TASK-153, TASK-175, TASK-189 |
+| A-04 | Physics rate for each matrix configuration | 400 Hz for every configuration; 800 and 1200 Hz stay selectable options. Amended 2026-11-03: runs with ArduPilot SITL use 800 Hz, the lowest of these rates at which stock ArduCopter arms; runs without ArduPilot keep 400 Hz | Decided | Stakeholder | 2026-10-28, amended 2026-11-03 | TASK-153, TASK-158, TASK-175, TASK-189 |
 | A-05 | Real-time criteria: required ratio of simulated to wall time, allowed dropped intervals, and how the actual rate is reported | A real-time run averages at least 0.99 of simulated time per wall-clock second; every dropped interval is reported, never hidden. Automated lockstep runs may run slower than real time, and their actual ratio is reported | Decided | Stakeholder | 2026-10-28 | TASK-175, TASK-189, TASK-191 |
 | A-06 | Rendering criteria for the Phase 1 scene: frame-time limits, canvas and display | 60 frames per second on the M5's built-in display with the Chrome window filling the screen: median frame time at most 16.680 ms and p99 at most 17.665 ms, the 60 FPS limits accepted on 2026-10-23. On macOS, which has no displayed-frame timing source, the frame clock's p99 is reported, not judged: a run passes with the median at most 16.680 ms and no frame interval above 25 ms (amended 2026-11-01) | Decided | Stakeholder | 2026-10-28, amended 2026-11-01 | TASK-185, TASK-191 |
 | A-07 | Workload of the 16-motor one-hour run: signals, rates, flight task and effects | A repeated flight circuit for one continuous simulated hour, with wind and repeatable gusts on, recording every available signal at the default rate (A-09) | Decided | Stakeholder | 2026-10-28 | TASK-189 |
@@ -29,6 +29,7 @@ to A-08, A-11 and A-12; D-05 includes A-09.
 | A-10 | Which paired or coaxial configuration the matrix uses (arm count and motor pairing) | X8: four arms with two coaxial motors each (8 motors). Other configurations, such as eight arms with 16 motors, are tested separately on request | Decided | Stakeholder | 2026-10-28 | TASK-138, TASK-188 |
 | A-11 | TASK-073 is not a Phase 1 gate; its evidence is preserved | Decided | Confirmed by the stakeholder | Stakeholder | 2026-10-28 | TASK-191 |
 | A-12 | Application memory budget | The whole application (browser tabs, Workers and the local services it starts, including ArduPilot SITL) stays below 8 GB of memory on the reference machine | Decided | Stakeholder | 2026-10-28 | TASK-144, TASK-162, TASK-189, TASK-191 |
+| A-13 | Hover steadiness in the nominal flight acceptance | In each 10 s hold of TASK-158's still-air flight, the standard deviation of the roll, pitch and yaw rates in ArduPilot's own log is at most 1 °/s on each axis; flights in wind or gusts are not judged by it. The quad flies its acceptance with `INS_GYRO_FILTER` at 40 Hz, typed into the Parameters tab during the run; the other configurations fly stock settings | Decided | Stakeholder | 2026-11-04 | TASK-158 |
 
 ## Context for the decisions
 
@@ -41,6 +42,17 @@ and none of them is Phase 1 acceptance evidence.
   rendered the G3 scene, not a Phase 1 session.
 * **A-04:** The browser clock supports 400, 800 and 1200 Hz (ABI v2). S13 does
   not authorize raising the physics rate to offer 2 kHz recording.
+  Amendment of 2026-11-03 (stakeholder, TASK-158): in a run with ArduPilot
+  SITL the physics produces the autopilot's IMU samples, one per step in JSON
+  lockstep, and stock ArduCopter refuses to arm while a gyro's rate is below
+  1.8 times its 400 Hz main loop
+  (`AP_InertialSensor::pre_arm_check_gyro_backend_rate_hz` at commit
+  8ab6afd). At 400 Hz it reports "PreArm: Gyro 0 rate 400Hz < loop rate*1.8
+  720Hz", which TASK-153 found on 2026-10-31, after this decision. The
+  alternatives were halving the autopilot's loop rate (`SCHED_LOOP_RATE` 200),
+  which departs from the default of real flight controllers, and leaving the
+  flight cells of the matrix blocked. The stakeholder chose 800 Hz, the rate
+  of every SITL flight since TASK-153.
 * **A-05:** The only real-time measurement is `node scripts/bench-physics.mjs`
   on Windows Node: 516.7 Hz executed for an 800 Hz target, limited by about
   16 ms timer wakeups and the 8-step catch-up cap. It is neither macOS nor
@@ -67,6 +79,18 @@ and none of them is Phase 1 acceptance evidence.
   sources that produce at least that many samples.
 * **A-10:** S19 requires "a paired/coaxial configuration" alongside the
   eight-arm, 16-motor maximum.
+
+* **A-13:** TASK-158 found on 2026-11-03 that a height criterion cannot see an
+  attitude oscillation. At stock settings the S19 quad X holds 5 m within 0.1 m
+  while its roll rate swings ±85 °/s at 10 Hz, a standard deviation of 61 °/s;
+  the other four configurations measure at most 0.22 °/s. The stakeholder chose
+  to require a steady hover, with a limit about four times the steady aircraft's
+  worst reading. For the quad, the stakeholder chose the 40 Hz gyro filter over
+  rate gains at 0.8 of stock and over a redesign of the test quad. This is an
+  operational criterion for that flight, not a comparison with a measured
+  aircraft, so scope amendment SA-01 does not apply to it.
+  `node scripts/phase1/nominal-flight.mjs --stock-settings` keeps the negative
+  control: the quad at stock settings fails it.
 
 ## TASK-073 reconciliation (A-11)
 
@@ -104,7 +128,11 @@ one-hour run for the 16-motor configuration, and 5 global workflows. On
 2026-10-28 every value is decided and all 51 cells are NOT_RUN because no
 evidence exists yet. TASK-188 aggregates
 evidence into the matrix; missing evidence stays NOT_RUN, and failures are
-preserved.
+preserved. TASK-158 writes the profile-creation, output-mapping, start,
+flight-task and pause-resume cells of each configuration from
+`node scripts/phase1/nominal-flight.mjs`, only on the A-01 machine. Each cell
+cites its configuration's evidence report in
+`test-results/validation/phase1-nominal/` with the report's SHA-256.
 
 ## Recording a decision
 

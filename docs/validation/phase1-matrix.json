@@ -187,152 +187,227 @@
     {
       "configuration": "quad",
       "workflow": "profile-creation",
-      "verdict": "NOT_RUN",
-      "evidence": null
+      "verdict": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/quad.json",
+        "sha256": "3bc78cd270eb7a73b81794680e9c05afb98ffa85e38fa6f276d38b5d07652b58"
+      }
     },
     {
       "configuration": "hexa",
       "workflow": "profile-creation",
-      "verdict": "NOT_RUN",
-      "evidence": null
+      "verdict": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/hexa.json",
+        "sha256": "e7bb5edd0c5b14d50b789c9e02b0db7e8f330021bfd3cf2b77cfd7cdca2821ca"
+      }
     },
     {
       "configuration": "octo",
       "workflow": "profile-creation",
-      "verdict": "NOT_RUN",
-      "evidence": null
+      "verdict": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/octo.json",
+        "sha256": "6abf4d007ceb1bce871f09a09d30fe6cce98d37e3708823381c2ab72b1239e2b"
+      }
     },
     {
       "configuration": "x8",
       "workflow": "profile-creation",
-      "verdict": "NOT_RUN",
-      "evidence": null
+      "verdict": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/x8.json",
+        "sha256": "093efc02c1ae65e61806cd901c4bec75c124efd0ff358f98cb2e802ca4aa2c43"
+      }
     },
     {
       "configuration": "octo-paired-16",
       "workflow": "profile-creation",
-      "verdict": "NOT_RUN",
-      "evidence": null
+      "verdict": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/octo-paired-16.json",
+        "sha256": "4166cc10eea0843005c3f4f6cf2a897bde249eb4ccf8ee8e5c60273d89802f37"
+      }
     },
     {
       "configuration": "quad",
       "workflow": "output-mapping",
-      "verdict": "NOT_RUN",
-      "evidence": null
+      "verdict": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/quad.json",
+        "sha256": "3bc78cd270eb7a73b81794680e9c05afb98ffa85e38fa6f276d38b5d07652b58"
+      }
     },
     {
       "configuration": "hexa",
       "workflow": "output-mapping",
-      "verdict": "NOT_RUN",
-      "evidence": null
+      "verdict": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/hexa.json",
+        "sha256": "e7bb5edd0c5b14d50b789c9e02b0db7e8f330021bfd3cf2b77cfd7cdca2821ca"
+      }
     },
     {
       "configuration": "octo",
       "workflow": "output-mapping",
-      "verdict": "NOT_RUN",
-      "evidence": null
+      "verdict": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/octo.json",
+        "sha256": "6abf4d007ceb1bce871f09a09d30fe6cce98d37e3708823381c2ab72b1239e2b"
+      }
     },
     {
       "configuration": "x8",
       "workflow": "output-mapping",
-      "verdict": "NOT_RUN",
-      "evidence": null
+      "verdict": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/x8.json",
+        "sha256": "093efc02c1ae65e61806cd901c4bec75c124efd0ff358f98cb2e802ca4aa2c43"
+      }
     },
     {
       "configuration": "octo-paired-16",
       "workflow": "output-mapping",
-      "verdict": "NOT_RUN",
-      "evidence": null
+      "verdict": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/octo-paired-16.json",
+        "sha256": "4166cc10eea0843005c3f4f6cf2a897bde249eb4ccf8ee8e5c60273d89802f37"
+      }
     },
     {
       "configuration": "quad",
       "workflow": "start",
-      "verdict": "NOT_RUN",
-      "evidence": null
+      "verdict": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/quad.json",
+        "sha256": "3bc78cd270eb7a73b81794680e9c05afb98ffa85e38fa6f276d38b5d07652b58"
+      }
     },
     {
       "configuration": "hexa",
       "workflow": "start",
-      "verdict": "NOT_RUN",
-      "evidence": null
+      "verdict": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/hexa.json",
+        "sha256": "e7bb5edd0c5b14d50b789c9e02b0db7e8f330021bfd3cf2b77cfd7cdca2821ca"
+      }
     },
     {
       "configuration": "octo",
       "workflow": "start",
-      "verdict": "NOT_RUN",
-      "evidence": null
+      "verdict": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/octo.json",
+        "sha256": "6abf4d007ceb1bce871f09a09d30fe6cce98d37e3708823381c2ab72b1239e2b"
+      }
     },
     {
       "configuration": "x8",
       "workflow": "start",
-      "verdict": "NOT_RUN",
-      "evidence": null
+      "verdict": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/x8.json",
+        "sha256": "093efc02c1ae65e61806cd901c4bec75c124efd0ff358f98cb2e802ca4aa2c43"
+      }
     },
     {
       "configuration": "octo-paired-16",
       "workflow": "start",
-      "verdict": "NOT_RUN",
-      "evidence": null
+      "verdict": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/octo-paired-16.json",
+        "sha256": "4166cc10eea0843005c3f4f6cf2a897bde249eb4ccf8ee8e5c60273d89802f37"
+      }
     },
     {
       "configuration": "quad",
       "workflow": "flight-task",
-      "verdict": "NOT_RUN",
-      "evidence": null
+      "verdict": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/quad.json",
+        "sha256": "3bc78cd270eb7a73b81794680e9c05afb98ffa85e38fa6f276d38b5d07652b58"
+      }
     },
     {
       "configuration": "hexa",
       "workflow": "flight-task",
-      "verdict": "NOT_RUN",
-      "evidence": null
+      "verdict": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/hexa.json",
+        "sha256": "e7bb5edd0c5b14d50b789c9e02b0db7e8f330021bfd3cf2b77cfd7cdca2821ca"
+      }
     },
     {
       "configuration": "octo",
       "workflow": "flight-task",
-      "verdict": "NOT_RUN",
-      "evidence": null
+      "verdict": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/octo.json",
+        "sha256": "6abf4d007ceb1bce871f09a09d30fe6cce98d37e3708823381c2ab72b1239e2b"
+      }
     },
     {
       "configuration": "x8",
       "workflow": "flight-task",
-      "verdict": "NOT_RUN",
-      "evidence": null
+      "verdict": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/x8.json",
+        "sha256": "093efc02c1ae65e61806cd901c4bec75c124efd0ff358f98cb2e802ca4aa2c43"
+      }
     },
     {
       "configuration": "octo-paired-16",
       "workflow": "flight-task",
-      "verdict": "NOT_RUN",
-      "evidence": null
+      "verdict": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/octo-paired-16.json",
+        "sha256": "4166cc10eea0843005c3f4f6cf2a897bde249eb4ccf8ee8e5c60273d89802f37"
+      }
     },
     {
       "configuration": "quad",
       "workflow": "pause-resume",
-      "verdict": "NOT_RUN",
-      "evidence": null
+      "verdict": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/quad.json",
+        "sha256": "3bc78cd270eb7a73b81794680e9c05afb98ffa85e38fa6f276d38b5d07652b58"
+      }
     },
     {
       "configuration": "hexa",
       "workflow": "pause-resume",
-      "verdict": "NOT_RUN",
-      "evidence": null
+      "verdict": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/hexa.json",
+        "sha256": "e7bb5edd0c5b14d50b789c9e02b0db7e8f330021bfd3cf2b77cfd7cdca2821ca"
+      }
     },
     {
       "configuration": "octo",
       "workflow": "pause-resume",
-      "verdict": "NOT_RUN",
-      "evidence": null
+      "verdict": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/octo.json",
+        "sha256": "6abf4d007ceb1bce871f09a09d30fe6cce98d37e3708823381c2ab72b1239e2b"
+      }
     },
     {
       "configuration": "x8",
       "workflow": "pause-resume",
-      "verdict": "NOT_RUN",
-      "evidence": null
+      "verdict": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/x8.json",
+        "sha256": "093efc02c1ae65e61806cd901c4bec75c124efd0ff358f98cb2e802ca4aa2c43"
+      }
     },
     {
       "configuration": "octo-paired-16",
       "workflow": "pause-resume",
-      "verdict": "NOT_RUN",
-      "evidence": null
+      "verdict": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/octo-paired-16.json",
+        "sha256": "4166cc10eea0843005c3f4f6cf2a897bde249eb4ccf8ee8e5c60273d89802f37"
+      }
     },
     {
       "configuration": "quad",

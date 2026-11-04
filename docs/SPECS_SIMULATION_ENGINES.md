@@ -6067,7 +6067,8 @@ compute alone, as before. It writes
 `test-results/bench/profile-dynamics-16.json` with the manifest, WASM and
 source hashes. The step is `BetFlightDynamics` alone, not the browser Worker
 or the session; the scalar WASM build is used. The budget is the step period
-(A-04 requires 400 Hz for every configuration), and A-05 judges the average
+(A-04: 400 Hz for every configuration, and 800 Hz in runs with ArduPilot SITL
+since its amendment of 2026-11-03), and A-05 judges the average
 real-time ratio, which must be at least 0.99. The run below is from the cloud
 container (Intel Xeon at 2.80 GHz, 4 CPUs), not the Apple Silicon target.
 
@@ -6512,9 +6513,41 @@ requested at 10 Hz.
 
 ArduCopter's pre-arm check requires the gyro at 1.8 times its 400 Hz loop
 (at 400 Hz physics: "PreArm: Gyro 0 rate 400Hz < loop rate*1.8 720Hz"), so
-integrated sessions run at 800 Hz or 1200 Hz. MOT_PWM_MIN and MOT_PWM_MAX are
-set to 1000 µs and 2000 µs, the link's duty span; the frame parameters come
-from the TASK-142 generator.
+integrated sessions run at 800 Hz or 1200 Hz; decision A-04, amended on
+2026-11-03, sets 800 Hz for runs with ArduPilot SITL. MOT_PWM_MIN and
+MOT_PWM_MAX are set to 1000 µs and 2000 µs, the link's duty span; the frame
+parameters come from the TASK-142 generator.
+
+### Attitude oscillation of the quad X at stock gains
+
+TASK-158 found it in the flights' own DataFlash logs. With ArduCopter's stock
+rate gains (`ATC_RAT_RLL_P` and `_I` 0.135, `_D` 0.0036) and 20 Hz gyro filter
+(`INS_GYRO_FILTER`), the S19 quad X on the example cards holds 5 m within 0.1 m
+while its roll rate swings ±85 deg/s at 10.3 Hz (standard deviation 61 deg/s)
+and its motor commands spread from 15 % to 61 %, drawing 238 to 403 W at the
+moments sampled against 128 W when steady. This airframe is light and has
+much authority: it hovers at a learned `MOT_THST_HOVER` of 0.23, with moments of
+inertia of 0.016 and 0.017 kg·m² about roll and pitch. The other four S19
+configurations stay within 0.22 deg/s at the same gains.
+
+The headless harness of `tests/external-sitl-flight.test.ts` shows the same
+oscillation as the Run tab, at 800 Hz and at 1200 Hz (62.3 and 62.7 deg/s, both
+at 10.3 Hz), so neither the browser nor the step rate causes it. The rate gains
+on both axes at 0.95 and 0.9 of stock leave it (59.5 and 50.4 deg/s); at 0.8 and
+0.6 the quad is still (0.13 and 0.10 deg/s). At stock gains it is also still
+with a gyro filter of 30 or 40 Hz (0.13 and 0.07 deg/s), and with both moments of
+inertia at 0.02 kg·m² (0.11 deg/s), but not at 0.017 kg·m² (40 deg/s on both
+axes). Lowering the roll gains alone moves it to pitch (56 deg/s): both axes are
+above the limit, and the axis that oscillates hides the other, since they share
+the motors. A hand estimate of the loop (thrust slope 15 N per unit of thrust
+demand, mixer factor 0.5, the 20 Hz filters, a motor lag of 37 ms and 5 ms of
+delay) puts its −180° phase crossing at 10 Hz, the measured frequency, with a
+gain of about half what the flights imply; it uses the steady thrust slope, and
+the difference is not resolved. This is a result about these gains on this
+aircraft, and no measured aircraft confirms it. Decision A-13 of 2026-11-04 limits
+the body rates in each hold of TASK-158's flight to a standard deviation of
+1 deg/s, so the quad flies that acceptance with `INS_GYRO_FILTER` at 40 Hz, typed
+into the Parameters tab after READY, and the other configurations fly stock.
 
 ### Allocation
 

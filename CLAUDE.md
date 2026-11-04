@@ -311,7 +311,17 @@ implementation.
   body integrator in place of the attitude-resetting synthetic pad; native
   ArduCopter takes off and lands on the D-07 supports in the harness and the
   Run tab. Terrain planes in sessions remain for TASK-187, and browser-hosted
-  ArduCopter is not a Phase 1 flight mode. TASK-142 is DONE:
+  ArduCopter is not a Phase 1 flight mode. TASK-158 is DONE, which completes
+  milestone M3: `node scripts/phase1/nominal-flight.mjs` takes each of the five
+  S19 configurations through the UI alone in Google Chrome with native
+  ArduCopter, from typed component cards to a stopped run, and writes the
+  verdicts of its profile-creation, output-mapping, start, flight-task and
+  pause-resume workflows into `docs/validation/phase1-matrix.json`, each citing
+  its evidence report in `test-results/validation/phase1-nominal/`. Decision
+  A-04 is amended: runs with ArduPilot SITL use 800 Hz. Decision A-13 requires
+  a steady hover (body rates within 1 °/s, standard deviation, in the flight's
+  own log), so the quad flies that acceptance with a 40 Hz gyro filter, set in
+  the Parameters tab; at stock settings it oscillates at 10 Hz. TASK-142 is DONE:
   the Aircraft tab maps each motor to an output and generates the frame
   parameters from the TASK-128 catalog (the S19 octa-x fixture spins the
   mirror of stock OCTA X, so it uses the scripting matrix). TASK-151 (the
@@ -546,6 +556,16 @@ audits captured runs. Missing host prerequisites produce `BLOCKED_EXTERNAL`
 (exit 2). A passing child-process or structural trace test alone is not proof
 that ArduPilot flew. See the operational [runbook](docs/operations/runbook.md)
 for environment variable names, trace schema, and ownership limitations.
+
+TASK-158 adds `node scripts/phase1/nominal-flight.mjs [--configuration ID]...
+[--chrome PATH] [--stock-settings]`, the Phase 1 nominal flight acceptance on the
+reference Mac: it runs the opt-in `tests/browser/phase1-nominal.spec.ts` in
+Google Chrome on the Mac's GPU, about 15 minutes for the five configurations, and
+rewrites the tracked reports in `test-results/validation/phase1-nominal/`, and
+the matrix only on the A-01 machine. `--stock-settings` is the negative control
+of decision A-13, which fails the quad and never writes the matrix. It exits 0
+when every workflow passed, 1 when one failed or was not reached, and 2 for
+`BLOCKED_EXTERNAL`. Run speed is reported, not judged.
 
 Cargo check does not validate physics or browser execution: run native tests,
 WASM smoke, and reference parity too. Install missing targets through the
