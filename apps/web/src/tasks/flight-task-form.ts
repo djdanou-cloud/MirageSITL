@@ -6,19 +6,32 @@
 import type { ProjectStore } from "@mirage/project/store";
 import type { StoredVersion } from "@mirage/project/schema";
 import {
-  DEFAULT_GROUND_START, FLIGHT_TASK_PARAMETERS, FLIGHT_TASK_SCHEMA_VERSION, flightTaskProblems, parseFlightTask, planFlightTask,
+  DEFAULT_GROUND_START, FLIGHT_TASK_PARAMETERS, flightTaskProblems, flightTaskSchemaVersion, parseFlightTask, planFlightTask,
   type FlightTaskDefinition, type FlightTaskFinish, type FlightTaskStage, type FlightTaskType,
 } from "@mirage/scenarios/flight-tasks";
+import { MANEUVER_TYPES, isManeuverType, type ManeuverAxis } from "@mirage/scenarios/maneuvers";
 
 export const TASK_TYPE_LABELS: Readonly<Record<FlightTaskType, string>> = {
   takeoff: "Takeoff", hover: "Hover", landing: "Landing", straight: "Straight flight", climb: "Climb", descent: "Descent",
   acceleration: "Acceleration", braking: "Braking", turn: "Turn", route: "Route",
+  "roll-step": "Roll step", "roll-doublet": "Roll doublet", "pitch-step": "Pitch step", "pitch-doublet": "Pitch doublet",
+  "heading-step": "Heading step", "heading-doublet": "Heading doublet", "altitude-step": "Altitude step", "altitude-doublet": "Altitude doublet",
+};
+/** What a positive amplitude does, and the unit, by axis. */
+const AMPLITUDE_LABELS: Readonly<Record<ManeuverAxis, string>> = {
+  roll: "Amplitude (°, + rolls right)", pitch: "Amplitude (°, + pitches nose up)", heading: "Amplitude (°, + turns clockwise)", altitude: "Amplitude (m, + climbs)",
 };
 export const PARAMETER_LABELS: Readonly<Record<string, string>> = {
   altitudeM: "Altitude (m)", durationS: "Duration (s)", headingDeg: "Heading (°)", speedMps: "Speed (m/s)", distanceM: "Distance (m)",
   fromAltitudeM: "From altitude (m)", toAltitudeM: "To altitude (m)", rateMps: "Vertical rate (m/s)", fromSpeedMps: "From speed (m/s)", toSpeedMps: "To speed (m/s)",
-  rateMps2: "Speed change (m/s²)", angleDeg: "Turn angle (°, clockwise)", rateDegS: "Turn rate (°/s)",
+  rateMps2: "Speed change (m/s²)", angleDeg: "Turn angle (°, clockwise)", rateDegS: "Turn rate (°/s)", holdS: "Hold each value for (s)",
+  amplitudeDeg: "Amplitude (°)", amplitudeM: "Amplitude (m)",
 };
+/** A parameter's label on a task of this type: a maneuver's amplitude says what its sign does on that axis. */
+export function parameterLabel(type: FlightTaskType, key: string): string {
+  if ((key === "amplitudeDeg" || key === "amplitudeM") && isManeuverType(type)) return AMPLITUDE_LABELS[MANEUVER_TYPES[type].axis];
+  return PARAMETER_LABELS[key] ?? key;
+}
 /** A new task of each type starts from these; they are examples for the user to change, not recommendations. */
 const EXAMPLE_PARAMETERS: Readonly<Record<FlightTaskType, Readonly<Record<string, number>>>> = {
   takeoff: { altitudeM: 5 }, hover: { altitudeM: 5, durationS: 10 }, landing: { altitudeM: 5 },
@@ -26,6 +39,10 @@ const EXAMPLE_PARAMETERS: Readonly<Record<FlightTaskType, Readonly<Record<string
   climb: { fromAltitudeM: 5, toAltitudeM: 15, rateMps: 1 }, descent: { fromAltitudeM: 15, toAltitudeM: 5, rateMps: 1 },
   acceleration: { altitudeM: 10, headingDeg: 0, fromSpeedMps: 2, toSpeedMps: 8, rateMps2: 1 }, braking: { altitudeM: 10, headingDeg: 0, fromSpeedMps: 8, toSpeedMps: 0, rateMps2: 1 },
   turn: { altitudeM: 10, headingDeg: 0, speedMps: 4, angleDeg: 90, rateDegS: 15 }, route: {},
+  "roll-step": { altitudeM: 10, headingDeg: 0, amplitudeDeg: 10, holdS: 2 }, "roll-doublet": { altitudeM: 10, headingDeg: 0, amplitudeDeg: 10, holdS: 2 },
+  "pitch-step": { altitudeM: 10, headingDeg: 0, amplitudeDeg: 10, holdS: 2 }, "pitch-doublet": { altitudeM: 10, headingDeg: 0, amplitudeDeg: 10, holdS: 2 },
+  "heading-step": { altitudeM: 10, headingDeg: 0, amplitudeDeg: 45, holdS: 6 }, "heading-doublet": { altitudeM: 10, headingDeg: 0, amplitudeDeg: 30, holdS: 5 },
+  "altitude-step": { altitudeM: 10, amplitudeM: 3, holdS: 8 }, "altitude-doublet": { altitudeM: 10, amplitudeM: 2, holdS: 6 },
 };
 
 export interface RouteRow { readonly northM: string; readonly eastM: string; readonly altitudeM: string; readonly speedMps: string }
@@ -80,7 +97,7 @@ export function formOf(task: FlightTaskDefinition): TaskForm {
 function candidateOf(form: TaskForm): unknown {
   const limits: Readonly<Record<string, unknown>> = FLIGHT_TASK_PARAMETERS[form.type];
   return {
-    schemaVersion: FLIGHT_TASK_SCHEMA_VERSION, type: form.type,
+    schemaVersion: flightTaskSchemaVersion(form.type), type: form.type,
     parameters: Object.fromEntries(Object.keys(limits).map(key => [key, numberOf(form.parameters[key] ?? "")])),
     route: form.type === "route" ? form.route.map(row => ({ northM: numberOf(row.northM), eastM: numberOf(row.eastM), altitudeM: numberOf(row.altitudeM), speedMps: numberOf(row.speedMps) })) : null,
     initial: {
@@ -123,6 +140,8 @@ export function stageText(stage: FlightTaskStage): string {
     case "cruise": return `Fly ${stage.distanceM} m at ${stage.speedMps} m/s on heading ${stage.headingDeg}°`;
     case "turn": return `Turn ${stage.angleDeg}° at ${stage.rateDegS} °/s, flying ${stage.speedMps} m/s`;
     case "mission": return `Fly the ${stage.points.length} route points in AUTO`;
+    case "maneuver": return `The ${stage.axis} maneuver, ${stage.timeline.lengthS} s: ${stage.timeline.edges.length} sudden ${stage.timeline.edges.length === 1 ? "change" : "changes"} of the request`;
+    case "recover": return `Stop from whatever speed it ended with, and hold at ${stage.altitudeM} m on heading ${stage.headingDeg}°`;
     case "land": return "LAND mode, until ArduPilot disarms";
     default: { const never: never = stage; return never; }
   }

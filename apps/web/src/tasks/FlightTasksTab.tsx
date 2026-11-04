@@ -1,10 +1,12 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
 import type { StoredVersion } from "@mirage/project/schema";
 import { FLIGHT_TASK_PARAMETERS, FLIGHT_TASK_TYPES, SETTLE_S } from "@mirage/scenarios/flight-tasks";
+import { isManeuverType } from "@mirage/scenarios/maneuvers";
 import type { StoreState } from "../shell/AppShell";
 import {
-  PARAMETER_LABELS, TASK_TYPE_LABELS, formOf, formProblems, newTaskForm, planLines, readFlightTask, saveFlightTask, taskOfForm, withType, type TaskForm,
+  TASK_TYPE_LABELS, formOf, formProblems, newTaskForm, parameterLabel, planLines, readFlightTask, saveFlightTask, taskOfForm, withType, type TaskForm,
 } from "./flight-task-form";
+import { ManeuverPanel } from "./ManeuverPanel";
 import { RouteEditor } from "./RouteEditor";
 
 // The Flight tasks tab (TASK-172, S10): repeatable tasks as versioned items of
@@ -87,11 +89,16 @@ export function FlightTasksTab({ storeState, project, active }: { storeState: St
           <input id="task-name" type="text" value={name} onChange={event => setName(event.target.value)} />
           <label htmlFor="task-type">Task type</label>
           <select id="task-type" value={form.type} onChange={event => { const type = FLIGHT_TASK_TYPES.find(item => item === event.target.value); if (type) setForm(withType(form, type)); }}>
-            {FLIGHT_TASK_TYPES.map(type => <option key={type} value={type}>{TASK_TYPE_LABELS[type]}</option>)}
+            <optgroup label="Flights">
+              {FLIGHT_TASK_TYPES.filter(type => !isManeuverType(type)).map(type => <option key={type} value={type}>{TASK_TYPE_LABELS[type]}</option>)}
+            </optgroup>
+            <optgroup label="Tuning maneuvers">
+              {FLIGHT_TASK_TYPES.filter(isManeuverType).map(type => <option key={type} value={type}>{TASK_TYPE_LABELS[type]}</option>)}
+            </optgroup>
           </select>
           {Object.keys(limits).map(key => (
             <Fragment key={key}>
-              <label htmlFor={`task-parameter-${key}`}>{PARAMETER_LABELS[key] ?? key}</label>
+              <label htmlFor={`task-parameter-${key}`}>{parameterLabel(form.type, key)}</label>
               <input id={`task-parameter-${key}`} type="text" inputMode="decimal" value={form.parameters[key] ?? ""}
                 onChange={event => setForm({ ...form, parameters: { ...form.parameters, [key]: event.target.value } })} />
             </Fragment>
@@ -131,7 +138,9 @@ export function FlightTasksTab({ storeState, project, active }: { storeState: St
             <p className="hint" data-testid="task-plan-smooth">
               No aircraft changes speed at once, so every change starts and stops smoothly within ArduPilot&apos;s own limits (WP_ACC_Z, PSC_D_JERK, PSC_NE_JERK, ATC_ACC_Y_MAX).
               The requested values a run shows are that smooth path: a rate is reached after a short ramp, and each stage holds its end for {SETTLE_S} s so any overshoot is measured.
+              {isManeuverType(form.type) && " A tuning maneuver's own changes are the exception, and the way to and from it is still smooth."}
             </p>
+            {isManeuverType(form.type) && <ManeuverPanel task={taskOfForm(form)} />}
           </>
         )}
         <button type="button" onClick={save} disabled={problems.length > 0 || name.trim() === ""}>Save flight task</button>

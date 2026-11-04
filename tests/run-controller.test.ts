@@ -383,7 +383,7 @@ class ScriptedPhysics implements PhysicsPort {
   altitudeM(): number { return this.altitude; }
   verticalSpeedMps(): number { return this.verticalSpeed; }
   /** The truth a flight task flies from (TASK-172). */
-  truth: FlightTruth = { simTimeS: 0, northM: 0, eastM: 0, altitudeM: 0.2, northMps: 0, eastMps: 0, downMps: 0, headingDeg: 0 };
+  truth: FlightTruth = { simTimeS: 0, northM: 0, eastM: 0, altitudeM: 0.2, northMps: 0, eastMps: 0, downMps: 0, headingDeg: 0, rollDeg: 0, pitchDeg: 0 };
   flightTruth(): FlightTruth { return this.truth; }
   /** Each rotor's speed as power telemetry would report it, rev/min (TASK-157). */
   speeds: number[] = [];

@@ -28,6 +28,7 @@ import { expectedMotors, physicsRotors, type ExpectedMotor, type PhysicsRotor } 
 import type { LimitRatings } from "@mirage/physics/limit-monitor";
 import { newFlightStateV2, newPowerSnapshotV1 } from "@mirage/protocol";
 import { DEFAULT_GROUND_START, wrapDeg, type GroundStart } from "@mirage/scenarios/flight-tasks";
+import { eulerDegOf } from "@mirage/scenarios/maneuvers";
 import type { StoredVersion } from "@mirage/project/schema";
 import type { ProjectStore } from "@mirage/project/store";
 import type { SimulationRuntime } from "../runtime";
@@ -346,9 +347,9 @@ export class RuntimePhysics implements PhysicsPort {
   flightTruth(): FlightTruth {
     const s = this.latest;
     this.runtime.latestInto(s);
-    // Yaw of the body-to-NED quaternion, as degrees from north, clockwise.
-    const yaw = Math.atan2(2 * (s.qw * s.qz + s.qx * s.qy), 1 - 2 * (s.qy * s.qy + s.qz * s.qz));
-    return { simTimeS: s.simTimeS, northM: s.northM, eastM: s.eastM, altitudeM: -s.downM, northMps: s.vnMps, eastMps: s.veMps, downMps: s.vdMps, headingDeg: wrapDeg(yaw * 180 / Math.PI) };
+    // Yaw of the body-to-NED quaternion is the heading: degrees from north, clockwise.
+    const { rollDeg, pitchDeg, yawDeg } = eulerDegOf(s.qw, s.qx, s.qy, s.qz);
+    return { simTimeS: s.simTimeS, northM: s.northM, eastM: s.eastM, altitudeM: -s.downM, northMps: s.vnMps, eastMps: s.veMps, downMps: s.vdMps, headingDeg: wrapDeg(yawDeg), rollDeg, pitchDeg };
   }
   private readonly power = newPowerSnapshotV1();
   motorSpeedsInto(out: Float64Array): boolean {

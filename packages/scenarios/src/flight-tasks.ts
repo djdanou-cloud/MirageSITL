@@ -25,11 +25,18 @@
 // What is requested is therefore what can be flown: a climb at 2 m/s reaches 2 m/s
 // after ArduPilot's own ramp, and the trace shows that ramp.
 
+// Tuning maneuvers (maneuvers.ts, TASK-173) are tasks of their own types. Roll and pitch go to ArduPilot as an
+// attitude with the height held; heading and altitude go as position targets. Unlike every other stage, a maneuver
+// asks for sharp corners on purpose: how the aircraft answers a sudden change is what a maneuver measures.
+
+import { MANEUVER_TYPES, isManeuverType, maneuverTimeline, offsetAt, type ManeuverAxis, type ManeuverTimeline } from './maneuvers.ts';
 import { restToRest, speedChange, type MotionProfile } from './smooth-motion.ts';
 
-export const FLIGHT_TASK_SCHEMA_VERSION = 1;
-export const FLIGHT_TASK_TYPES = ['takeoff', 'hover', 'landing', 'straight', 'climb', 'descent', 'acceleration', 'braking', 'turn', 'route'] as const;
+export const FLIGHT_TASK_TYPES = ['takeoff', 'hover', 'landing', 'straight', 'climb', 'descent', 'acceleration', 'braking', 'turn', 'route',
+  'roll-step', 'roll-doublet', 'pitch-step', 'pitch-doublet', 'heading-step', 'heading-doublet', 'altitude-step', 'altitude-doublet'] as const;
 export type FlightTaskType = (typeof FLIGHT_TASK_TYPES)[number];
+/** Schema 2 adds the tuning maneuvers. A task of an earlier type stays schema 1, byte for byte, so its stored versions and their SHA-256 do not change. */
+export const flightTaskSchemaVersion = (type: FlightTaskType): 1 | 2 => (isManeuverType(type) ? 2 : 1);
 export const FLIGHT_TASK_FINISHES = ['land', 'hold'] as const;
 export type FlightTaskFinish = (typeof FLIGHT_TASK_FINISHES)[number];
 
@@ -40,6 +47,11 @@ export interface FlightTaskInitial { readonly ground: GroundStart; readonly air:
 
 /** The numeric parameters of each type: name, smallest and largest value. */
 const ALTITUDE = [1, 100] as const, HEADING = [0, 360] as const, SPEED = [0, 20] as const, CRUISE = [0.5, 20] as const;
+/** A lean up to ArduCopter's default ATC_ANGLE_MAX, held no longer than this: a lean held on keeps accelerating. */
+const LEAN = { altitudeM: ALTITUDE, headingDeg: HEADING, amplitudeDeg: [-30, 30], holdS: [0.5, 10] } as const;
+const HOLD = [0.5, 60] as const;
+/** A heading follows the shortest way round, so one change must stay below half a turn: a doublet's change is twice its amplitude. */
+const TURN_STEP = [-170, 170] as const, TURN_DOUBLET = [-85, 85] as const;
 export const FLIGHT_TASK_PARAMETERS = {
   takeoff: { altitudeM: ALTITUDE },
   hover: { altitudeM: ALTITUDE, durationS: [1, 3600] },
@@ -51,6 +63,11 @@ export const FLIGHT_TASK_PARAMETERS = {
   braking: { altitudeM: ALTITUDE, headingDeg: HEADING, fromSpeedMps: SPEED, toSpeedMps: SPEED, rateMps2: [0.1, 5] },
   turn: { altitudeM: ALTITUDE, headingDeg: HEADING, speedMps: CRUISE, angleDeg: [-1080, 1080], rateDegS: [1, 90] },
   route: {},
+  'roll-step': LEAN, 'roll-doublet': LEAN, 'pitch-step': LEAN, 'pitch-doublet': LEAN,
+  'heading-step': { altitudeM: ALTITUDE, headingDeg: HEADING, amplitudeDeg: TURN_STEP, holdS: HOLD },
+  'heading-doublet': { altitudeM: ALTITUDE, headingDeg: HEADING, amplitudeDeg: TURN_DOUBLET, holdS: HOLD },
+  'altitude-step': { altitudeM: ALTITUDE, amplitudeM: [-50, 50], holdS: HOLD },
+  'altitude-doublet': { altitudeM: ALTITUDE, amplitudeM: [-50, 50], holdS: HOLD },
 } as const satisfies Record<FlightTaskType, Record<string, readonly [number, number]>>;
 /** ArduPilot's waypoint storage holds far more; this bounds a route typed by hand. */
 export const MAX_ROUTE_POINTS = 50;
@@ -58,7 +75,7 @@ export const MIN_ROUTE_POINTS = 2;
 const POSITION_LIMIT_M = 5000;
 
 export interface FlightTaskDefinition {
-  readonly schemaVersion: typeof FLIGHT_TASK_SCHEMA_VERSION;
+  readonly schemaVersion: 1 | 2;
   readonly type: FlightTaskType;
   /** The type's own numbers, FLIGHT_TASK_PARAMETERS; empty for a route. */
   readonly parameters: Readonly<Record<string, number>>;
@@ -85,9 +102,11 @@ const AIR_LIMITS = { altitudeM: ALTITUDE, headingDeg: HEADING, speedMps: SPEED }
 export function flightTaskProblems(value: unknown): string[] {
   if (!isRecord(value)) return ['The task is not an object'];
   const problems = unexpected(value, ['schemaVersion', 'type', 'parameters', 'route', 'initial', 'finish'], 'The task');
-  if (value.schemaVersion !== FLIGHT_TASK_SCHEMA_VERSION) problems.push(`The task is not schema version ${FLIGHT_TASK_SCHEMA_VERSION}`);
   const type = FLIGHT_TASK_TYPES.find(item => item === value.type);
   if (!type) problems.push(`The task type must be one of ${FLIGHT_TASK_TYPES.join(', ')}`);
+  if (type ? value.schemaVersion !== flightTaskSchemaVersion(type) : value.schemaVersion !== 1 && value.schemaVersion !== 2) {
+    problems.push(`The task is not schema version ${type ? flightTaskSchemaVersion(type) : '1 or 2'}`);
+  }
   if (value.finish !== 'land' && value.finish !== 'hold') problems.push('The task must finish by land or hold');
   if (type === 'landing' && value.finish !== 'land') problems.push('A landing task finishes by landing');
   const parameters = value.parameters;
@@ -101,6 +120,11 @@ export function flightTaskProblems(value: unknown): string[] {
     if (type === 'acceleration' && typeof fromSpeed === 'number' && typeof toSpeed === 'number' && !(toSpeed > fromSpeed)) problems.push('An acceleration must end faster than it starts');
     if (type === 'braking' && typeof fromSpeed === 'number' && typeof toSpeed === 'number' && !(toSpeed < fromSpeed)) problems.push('A braking must end slower than it starts');
     if (type === 'turn' && inRange(parameters.angleDeg, -1080, 1080) && parameters.angleDeg === 0) problems.push('A turn must turn');
+    if (isManeuverType(type) && (parameters.amplitudeDeg === 0 || parameters.amplitudeM === 0)) problems.push('A maneuver must change something: its amplitude cannot be 0');
+    if (isManeuverType(type) && MANEUVER_TYPES[type].axis === 'altitude' && typeof parameters.altitudeM === 'number' && typeof parameters.amplitudeM === 'number') {
+      const reached = MANEUVER_TYPES[type].shape === 'doublet' ? [parameters.altitudeM + parameters.amplitudeM, parameters.altitudeM - parameters.amplitudeM] : [parameters.altitudeM + parameters.amplitudeM];
+      for (const altitudeM of reached) if (altitudeM < ALTITUDE[0] || altitudeM > ALTITUDE[1]) problems.push(`The maneuver would go to ${altitudeM} m, outside ${ALTITUDE[0]} to ${ALTITUDE[1]} m`);
+    }
   }
   const route = value.route;
   if (type === 'route') {
@@ -217,6 +241,10 @@ export type FlightTaskStage =
   | { readonly kind: 'cruise'; readonly altitudeM: number; readonly headingDeg: number; readonly speedMps: number; readonly distanceM: number }
   | { readonly kind: 'turn'; readonly altitudeM: number; readonly headingDeg: number; readonly speedMps: number; readonly angleDeg: number; readonly rateDegS: number }
   | { readonly kind: 'mission'; readonly points: readonly RoutePoint[] }
+  /** A heading of null holds the one it arrived on. */
+  | { readonly kind: 'maneuver'; readonly axis: ManeuverAxis; readonly altitudeM: number; readonly headingDeg: number | null; readonly timeline: ManeuverTimeline }
+  /** After a roll or pitch maneuver: stop smoothly from whatever speed and direction it ended with, and hold. */
+  | { readonly kind: 'recover'; readonly altitudeM: number; readonly headingDeg: number }
   | { readonly kind: 'land' };
 export type FlightTaskStageKind = FlightTaskStage['kind'];
 export interface PlannedStage {
@@ -243,6 +271,9 @@ function impliedStart(task: FlightTaskDefinition): { altitudeM: number; headingD
       if (!first) throw new Error('The route has no points');
       return { altitudeM: first.altitudeM, headingDeg: null, speedMps: 0 };
     }
+    case 'roll-step': case 'roll-doublet': case 'pitch-step': case 'pitch-doublet': case 'heading-step': case 'heading-doublet':
+      return { altitudeM: number(task, 'altitudeM'), headingDeg: number(task, 'headingDeg'), speedMps: 0 };
+    case 'altitude-step': case 'altitude-doublet': return { altitudeM: number(task, 'altitudeM'), headingDeg: null, speedMps: 0 };
     default: { const never: never = task.type; throw new Error(`Unhandled task type ${String(never)}`); }
   }
 }
@@ -305,6 +336,14 @@ export function planFlightTask(task: FlightTaskDefinition): readonly PlannedStag
       break;
     }
     case 'route': stages.push(own({ kind: 'mission', points: task.route ?? [] })); break;
+    case 'roll-step': case 'roll-doublet': case 'pitch-step': case 'pitch-doublet': case 'heading-step': case 'heading-doublet': case 'altitude-step': case 'altitude-doublet': {
+      const { axis, shape } = MANEUVER_TYPES[task.type], stageAltitudeM = number(task, 'altitudeM');
+      const amplitude = axis === 'altitude' ? number(task, 'amplitudeM') : number(task, 'amplitudeDeg');
+      const stageHeadingDeg = axis === 'altitude' ? null : number(task, 'headingDeg');
+      stages.push(own({ kind: 'maneuver', axis, altitudeM: stageAltitudeM, headingDeg: stageHeadingDeg, timeline: maneuverTimeline(axis, shape, amplitude, number(task, 'holdS')) }));
+      if (stageHeadingDeg !== null && (axis === 'roll' || axis === 'pitch')) stages.push(lead({ kind: 'recover', altitudeM: stageAltitudeM, headingDeg: stageHeadingDeg }));
+      break;
+    }
     default: { const never: never = task.type; throw new Error(`Unhandled task type ${String(never)}`); }
   }
   // A task that ends moving stops before it lands or holds.
@@ -325,6 +364,7 @@ export interface FlightTaskObservation {
   readonly northM: number; readonly eastM: number; readonly altitudeM: number;
   readonly northMps: number; readonly eastMps: number; readonly downMps: number;
   readonly headingDeg: number;
+  readonly rollDeg: number; readonly pitchDeg: number;
   readonly armed: boolean;
   readonly mode: AutopilotModeName;
   readonly mission: MissionUploadState;
@@ -338,20 +378,24 @@ export interface GuidedTarget {
   readonly northMps2: number; readonly eastMps2: number; readonly downMps2: number;
   readonly yawRad: number; readonly yawRateRadS: number;
 }
+/** An attitude to hold, with the height held where it is. */
+export interface AttitudeTarget { readonly rollRad: number; readonly pitchRad: number; readonly yawRad: number }
 export type FlightTaskCommand =
   | { readonly kind: 'set-mode'; readonly mode: 'guided' | 'auto' | 'land' }
   | { readonly kind: 'arm' }
   /** NAV_TAKEOFF to this height above where it armed. */
   | { readonly kind: 'takeoff'; readonly heightM: number }
   | { readonly kind: 'target'; readonly target: GuidedTarget }
+  | { readonly kind: 'attitude'; readonly target: AttitudeTarget }
   /** Heights above where it will arm; north and east from the pad. */
   | { readonly kind: 'upload-route'; readonly points: readonly RoutePoint[]; readonly groundAltitudeM: number };
 /** What is requested at this moment, beside which the actual values are shown; null where the stage requests nothing of it. */
 export interface FlightTaskRequest {
   readonly northM: number | null; readonly eastM: number | null; readonly altitudeM: number | null;
   readonly speedMps: number | null; readonly headingDeg: number | null; readonly verticalSpeedMps: number | null;
+  readonly rollDeg: number | null; readonly pitchDeg: number | null;
 }
-const NO_REQUEST: FlightTaskRequest = Object.freeze({ northM: null, eastM: null, altitudeM: null, speedMps: null, headingDeg: null, verticalSpeedMps: null });
+const NO_REQUEST: FlightTaskRequest = Object.freeze({ northM: null, eastM: null, altitudeM: null, speedMps: null, headingDeg: null, verticalSpeedMps: null, rollDeg: null, pitchDeg: null });
 /** The actual state where the task's clock started, against what was requested there. */
 export interface FlightTaskArrival { readonly simTimeS: number; readonly requested: FlightTaskRequest; readonly actual: FlightTaskRequest }
 export type FlightTaskProgress =
@@ -383,6 +427,8 @@ function plannedDurationS(stage: FlightTaskStage, motionS: number, fromNorthM: n
     case 'takeoff': return stage.altitudeM;
     case 'heading': case 'speed': case 'vertical': case 'turn': return motionS;
     case 'hold': return stage.durationS;
+    case 'maneuver': return stage.timeline.lengthS;
+    case 'recover': return motionS;
     case 'cruise': return stage.distanceM / stage.speedMps;
     case 'mission': {
       let distanceS = 0;
@@ -435,6 +481,9 @@ export class FlightTaskRunner {
   private curveElapsedS = 0;
   private curveNorthMps = 0;
   private curveEastMps = 0;
+  /** The direction a recover stage stops along. */
+  private courseNorth = 1;
+  private courseEast = 0;
 
   constructor(readonly task: FlightTaskDefinition, private readonly limits: GuidanceLimits) { this.stages = planFlightTask(task); }
 
@@ -509,6 +558,15 @@ export class FlightTaskRunner {
         const curveDegS2 = limits.horizontalJerkMps3 / stage.speedMps / DEG;
         return restToRest(Math.abs(stage.angleDeg), stage.rateDegS, Math.min(limits.yawAccelerationDegS2, curveDegS2), Number.POSITIVE_INFINITY);
       }
+      case 'recover': {
+        // From where it is and how it moves: a maneuver in attitude asks for neither.
+        const speedMps = Math.hypot(o.northMps, o.eastMps);
+        this.fromNorthM = this.targetNorthM = o.northM;
+        this.fromEastM = this.targetEastM = o.eastM;
+        this.courseNorth = speedMps > 0 ? o.northMps / speedMps : 1;
+        this.courseEast = speedMps > 0 ? o.eastMps / speedMps : 0;
+        return speedChange(speedMps, 0, LEAD_IN_ACCELERATION_MPS2, limits.horizontalJerkMps3);
+      }
       default: return restToRest(0, 1, 1, 1);
     }
   }
@@ -520,7 +578,9 @@ export class FlightTaskRunner {
 
   private step(o: FlightTaskObservation, commands: FlightTaskCommand[]): FlightTaskRequest {
     const { stage, measured } = this.planned;
-    this.stageStartS ??= this.lastStageEndS ?? o.simTimeS;
+    // From where the last stage ended, so a moving target does not stall between stages; a maneuver starts at rest, on its own first
+    // observation, so its first request is its time zero and each change comes at the time its timeline says.
+    this.stageStartS ??= stage.kind === 'maneuver' ? o.simTimeS : this.lastStageEndS ?? o.simTimeS;
     const motion = this.motion ??= this.beginStage(stage, o);
     const elapsed = o.simTimeS - this.stageStartS;
     const allowedS = plannedDurationS(stage, motion.durationS, this.originNorthM, this.originEastM) + STAGE_MARGIN_S;
@@ -566,19 +626,19 @@ export class FlightTaskRunner {
         this.targetEastM = this.fromEastM + now.distance * east;
         this.sendTarget(o, commands, stage.altitudeM, now.speed * north, now.speed * east, 0, now.acceleration * north, now.acceleration * east, 0, stage.headingDeg, 0);
         if (this.settled(o, elapsed >= motion.durationS && Math.abs(Math.hypot(o.northMps, o.eastMps) - stage.toSpeedMps) < COMPLETION.speedMps)) this.next(o);
-        return { northM: this.targetNorthM, eastM: this.targetEastM, altitudeM: stage.altitudeM, speedMps: now.speed, headingDeg: stage.headingDeg, verticalSpeedMps: 0 };
+        return { ...NO_REQUEST, northM: this.targetNorthM, eastM: this.targetEastM, altitudeM: stage.altitudeM, speedMps: now.speed, headingDeg: stage.headingDeg, verticalSpeedMps: 0 };
       }
       case 'hold': {
         this.sendTarget(o, commands, stage.altitudeM, 0, 0, 0, 0, 0, 0, this.holdHeadingDeg, 0);
         if (elapsed >= stage.durationS) this.next(o);
-        return { northM: this.targetNorthM, eastM: this.targetEastM, altitudeM: stage.altitudeM, speedMps: 0, headingDeg: this.holdHeadingDeg, verticalSpeedMps: 0 };
+        return { ...NO_REQUEST, northM: this.targetNorthM, eastM: this.targetEastM, altitudeM: stage.altitudeM, speedMps: 0, headingDeg: this.holdHeadingDeg, verticalSpeedMps: 0 };
       }
       case 'vertical': {
         const now = motion.sample(elapsed), sign = Math.sign(stage.toAltitudeM - stage.fromAltitudeM);
         const altitudeM = stage.fromAltitudeM + sign * now.distance, upMps = now.speed === 0 ? 0 : sign * now.speed;
         this.sendTarget(o, commands, altitudeM, 0, 0, -upMps, 0, 0, -sign * now.acceleration, this.holdHeadingDeg, 0);
         if (this.settled(o, elapsed >= motion.durationS && Math.abs(o.altitudeM - stage.toAltitudeM) < COMPLETION.altitudeM && Math.abs(o.downMps) < COMPLETION.verticalSpeedMps)) this.next(o);
-        return { northM: this.targetNorthM, eastM: this.targetEastM, altitudeM, speedMps: 0, headingDeg: this.holdHeadingDeg, verticalSpeedMps: upMps };
+        return { ...NO_REQUEST, northM: this.targetNorthM, eastM: this.targetEastM, altitudeM, speedMps: 0, headingDeg: this.holdHeadingDeg, verticalSpeedMps: upMps };
       }
       case 'cruise': {
         const flownM = stage.speedMps * elapsed, north = Math.cos(stage.headingDeg * DEG), east = Math.sin(stage.headingDeg * DEG);
@@ -586,7 +646,7 @@ export class FlightTaskRunner {
         this.targetEastM = this.fromEastM + flownM * east;
         this.sendTarget(o, commands, stage.altitudeM, stage.speedMps * north, stage.speedMps * east, 0, 0, 0, 0, stage.headingDeg, 0);
         if (flownM >= stage.distanceM) this.next(o);
-        return { northM: this.targetNorthM, eastM: this.targetEastM, altitudeM: stage.altitudeM, speedMps: stage.speedMps, headingDeg: stage.headingDeg, verticalSpeedMps: 0 };
+        return { ...NO_REQUEST, northM: this.targetNorthM, eastM: this.targetEastM, altitudeM: stage.altitudeM, speedMps: stage.speedMps, headingDeg: stage.headingDeg, verticalSpeedMps: 0 };
       }
       case 'turn': {
         const now = motion.sample(elapsed), headingDeg = wrapDeg(this.fromHeadingDeg + this.turnSign * now.distance), rateRadS = this.turnSign * now.speed * DEG;
@@ -600,7 +660,40 @@ export class FlightTaskRunner {
         this.sendTarget(o, commands, stage.altitudeM, northMps, eastMps, 0, -eastMps * rateRadS, northMps * rateRadS, 0, headingDeg, rateRadS);
         const finalDeg = wrapDeg(stage.headingDeg + stage.angleDeg);
         if (this.settled(o, elapsed >= motion.durationS && Math.abs(headingError(o.headingDeg, finalDeg)) < COMPLETION.headingDeg)) this.next(o);
-        return { northM: this.targetNorthM, eastM: this.targetEastM, altitudeM: stage.altitudeM, speedMps: stage.speedMps, headingDeg, verticalSpeedMps: 0 };
+        return { ...NO_REQUEST, northM: this.targetNorthM, eastM: this.targetEastM, altitudeM: stage.altitudeM, speedMps: stage.speedMps, headingDeg, verticalSpeedMps: 0 };
+      }
+      case 'maneuver': {
+        const offset = offsetAt(stage.timeline, elapsed), headingDeg = stage.headingDeg ?? this.holdHeadingDeg, done = elapsed >= stage.timeline.lengthS;
+        const atRest = { northM: this.targetNorthM, eastM: this.targetEastM, speedMps: 0 };
+        switch (stage.axis) {
+          case 'roll': case 'pitch': {
+            const rollDeg = stage.axis === 'roll' ? offset : 0, pitchDeg = stage.axis === 'pitch' ? offset : 0;
+            this.sendAttitude(o, commands, rollDeg, pitchDeg, headingDeg);
+            if (done) this.next(o);
+            return { ...NO_REQUEST, headingDeg, verticalSpeedMps: 0, rollDeg, pitchDeg };
+          }
+          case 'heading': {
+            const requestedDeg = wrapDeg(headingDeg + offset);
+            this.sendTarget(o, commands, stage.altitudeM, 0, 0, 0, 0, 0, 0, requestedDeg, 0);
+            if (done) this.next(o);
+            return { ...NO_REQUEST, ...atRest, altitudeM: stage.altitudeM, headingDeg: requestedDeg, verticalSpeedMps: 0 };
+          }
+          case 'altitude': {
+            const altitudeM = stage.altitudeM + offset;
+            this.sendTarget(o, commands, altitudeM, 0, 0, 0, 0, 0, 0, headingDeg, 0);
+            if (done) this.next(o);
+            return { ...NO_REQUEST, ...atRest, altitudeM, headingDeg };
+          }
+          default: { const never: never = stage.axis; throw new Error(`Unhandled maneuver axis ${String(never)}`); }
+        }
+      }
+      case 'recover': {
+        const now = motion.sample(elapsed);
+        this.targetNorthM = this.fromNorthM + now.distance * this.courseNorth;
+        this.targetEastM = this.fromEastM + now.distance * this.courseEast;
+        this.sendTarget(o, commands, stage.altitudeM, now.speed * this.courseNorth, now.speed * this.courseEast, 0, now.acceleration * this.courseNorth, now.acceleration * this.courseEast, 0, stage.headingDeg, 0);
+        if (this.settled(o, elapsed >= motion.durationS && Math.hypot(o.northMps, o.eastMps) < COMPLETION.speedMps)) this.next(o);
+        return { ...NO_REQUEST, northM: this.targetNorthM, eastM: this.targetEastM, altitudeM: stage.altitudeM, speedMps: now.speed, headingDeg: stage.headingDeg, verticalSpeedMps: 0 };
       }
       case 'mission': {
         if (o.mode !== 'auto' && o.routePointReached < stage.points.length - 1) this.request(o, commands, { kind: 'set-mode', mode: 'auto' });
@@ -610,7 +703,7 @@ export class FlightTaskRunner {
           this.targetNorthM = o.northM; this.targetEastM = o.eastM;
           this.next(o);
         }
-        return point ? { northM: point.northM, eastM: point.eastM, altitudeM: point.altitudeM, speedMps: point.speedMps, headingDeg: null, verticalSpeedMps: null } : NO_REQUEST;
+        return point ? { ...NO_REQUEST, northM: point.northM, eastM: point.eastM, altitudeM: point.altitudeM, speedMps: point.speedMps } : NO_REQUEST;
       }
       case 'land':
         if (!o.armed) { this.next(o); return NO_REQUEST; }
@@ -632,6 +725,11 @@ export class FlightTaskRunner {
       : { ...NO_REQUEST, altitudeM: air?.altitudeM ?? start.altitudeM, speedMps: air?.speedMps ?? start.speedMps, headingDeg: air?.headingDeg ?? start.headingDeg };
     this.arrival = { simTimeS: o.simTimeS, requested, actual: actualOf(o) };
   }
+  private sendAttitude(o: FlightTaskObservation, commands: FlightTaskCommand[], rollDeg: number, pitchDeg: number, headingDeg: number): void {
+    if (o.simTimeS - this.lastTargetS < TARGET_PERIOD_S) return;
+    this.lastTargetS = o.simTimeS;
+    commands.push({ kind: 'attitude', target: { rollRad: rollDeg * DEG, pitchRad: pitchDeg * DEG, yawRad: wrapDeg(headingDeg) * DEG } });
+  }
   private sendTarget(o: FlightTaskObservation, commands: FlightTaskCommand[], altitudeM: number, northMps: number, eastMps: number, downMps: number,
     northMps2: number, eastMps2: number, downMps2: number, headingDeg: number, yawRateRadS: number): void {
     if (o.simTimeS - this.lastTargetS < TARGET_PERIOD_S) return;
@@ -644,5 +742,5 @@ export class FlightTaskRunner {
 }
 
 function actualOf(o: FlightTaskObservation): FlightTaskRequest {
-  return { northM: o.northM, eastM: o.eastM, altitudeM: o.altitudeM, speedMps: Math.hypot(o.northMps, o.eastMps), headingDeg: o.headingDeg, verticalSpeedMps: -o.downMps };
+  return { northM: o.northM, eastM: o.eastM, altitudeM: o.altitudeM, speedMps: Math.hypot(o.northMps, o.eastMps), headingDeg: o.headingDeg, verticalSpeedMps: -o.downMps, rollDeg: o.rollDeg, pitchDeg: o.pitchDeg };
 }

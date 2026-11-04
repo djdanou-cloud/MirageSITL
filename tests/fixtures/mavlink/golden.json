@@ -945,58 +945,64 @@
       "hex": "fd010000382a074d000001fa2b"
     },
     {
-      "id": 84,
-      "name": "SET_POSITION_TARGET_LOCAL_NED",
+      "id": 82,
+      "name": "SET_ATTITUDE_TARGET",
       "style": "pattern",
       "sequence": 57,
       "values": {
         "time_boot_ms": 2654435772,
-        "x": -14.75,
-        "y": -13.375,
-        "z": -12.0,
-        "vx": -10.625,
-        "vy": -9.25,
-        "vz": -7.875,
-        "afx": -6.5,
-        "afy": -5.125,
-        "afz": -3.75,
-        "yaw": -2.375,
-        "yaw_rate": -1.0,
-        "type_mask": 53294,
-        "target_system": 9,
-        "target_component": 46,
-        "coordinate_frame": 83
+        "q": [
+          1.75,
+          3.125,
+          4.5,
+          5.875
+        ],
+        "body_roll_rate": -13.375,
+        "body_pitch_rate": -12.0,
+        "body_yaw_rate": -10.625,
+        "thrust": -9.25,
+        "target_system": 6,
+        "target_component": 43,
+        "type_mask": 80,
+        "thrust_body": [
+          78.75,
+          80.125,
+          81.5
+        ]
       },
-      "hex": "fd350000392a07540000bc79379e00006cc1000056c1000040c100002ac1000014c10000fcc00000d0c00000a4c0000070c0000018c0000080bf2ed0092e533b03"
+      "hex": "fd330000392a07520000bc79379e0000e03f00004840000090400000bc40000056c1000040c100002ac1000014c1062b5000809d420040a0420000a3426927"
     },
     {
-      "id": 84,
-      "name": "SET_POSITION_TARGET_LOCAL_NED",
+      "id": 82,
+      "name": "SET_ATTITUDE_TARGET",
       "style": "minimal",
       "sequence": 58,
       "values": {
         "time_boot_ms": 1,
-        "x": 0,
-        "y": 0,
-        "z": 0,
-        "vx": 0,
-        "vy": 0,
-        "vz": 0,
-        "afx": 0,
-        "afy": 0,
-        "afz": 0,
-        "yaw": 0,
-        "yaw_rate": 0,
-        "type_mask": 0,
+        "q": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "body_roll_rate": 0,
+        "body_pitch_rate": 0,
+        "body_yaw_rate": 0,
+        "thrust": 0,
         "target_system": 0,
         "target_component": 0,
-        "coordinate_frame": 0
+        "type_mask": 0,
+        "thrust_body": [
+          0,
+          0,
+          0
+        ]
       },
-      "hex": "fd0100003a2a0754000001b1c5"
+      "hex": "fd0100003a2a0752000001dca2"
     },
     {
-      "id": 85,
-      "name": "POSITION_TARGET_LOCAL_NED",
+      "id": 84,
+      "name": "SET_POSITION_TARGET_LOCAL_NED",
       "style": "pattern",
       "sequence": 59,
       "values": {
@@ -1013,13 +1019,15 @@
         "yaw": -2.375,
         "yaw_rate": -1.0,
         "type_mask": 53294,
-        "coordinate_frame": 9
+        "target_system": 9,
+        "target_component": 46,
+        "coordinate_frame": 83
       },
-      "hex": "fd3300003b2a07550000bc79379e00006cc1000056c1000040c100002ac1000014c10000fcc00000d0c00000a4c0000070c0000018c0000080bf2ed009403c"
+      "hex": "fd3500003b2a07540000bc79379e00006cc1000056c1000040c100002ac1000014c10000fcc00000d0c00000a4c0000070c0000018c0000080bf2ed0092e535335"
     },
     {
-      "id": 85,
-      "name": "POSITION_TARGET_LOCAL_NED",
+      "id": 84,
+      "name": "SET_POSITION_TARGET_LOCAL_NED",
       "style": "minimal",
       "sequence": 60,
       "values": {
@@ -1036,15 +1044,63 @@
         "yaw": 0,
         "yaw_rate": 0,
         "type_mask": 0,
+        "target_system": 0,
+        "target_component": 0,
         "coordinate_frame": 0
       },
-      "hex": "fd0100003c2a0755000001dfe1"
+      "hex": "fd0100003c2a075400000100d8"
+    },
+    {
+      "id": 85,
+      "name": "POSITION_TARGET_LOCAL_NED",
+      "style": "pattern",
+      "sequence": 61,
+      "values": {
+        "time_boot_ms": 2654435772,
+        "x": -14.75,
+        "y": -13.375,
+        "z": -12.0,
+        "vx": -10.625,
+        "vy": -9.25,
+        "vz": -7.875,
+        "afx": -6.5,
+        "afy": -5.125,
+        "afz": -3.75,
+        "yaw": -2.375,
+        "yaw_rate": -1.0,
+        "type_mask": 53294,
+        "coordinate_frame": 9
+      },
+      "hex": "fd3300003d2a07550000bc79379e00006cc1000056c1000040c100002ac1000014c10000fcc00000d0c00000a4c0000070c0000018c0000080bf2ed009de13"
+    },
+    {
+      "id": 85,
+      "name": "POSITION_TARGET_LOCAL_NED",
+      "style": "minimal",
+      "sequence": 62,
+      "values": {
+        "time_boot_ms": 1,
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "vx": 0,
+        "vy": 0,
+        "vz": 0,
+        "afx": 0,
+        "afy": 0,
+        "afz": 0,
+        "yaw": 0,
+        "yaw_rate": 0,
+        "type_mask": 0,
+        "coordinate_frame": 0
+      },
+      "hex": "fd0100003e2a0755000001b0ea"
     },
     {
       "id": 86,
       "name": "SET_POSITION_TARGET_GLOBAL_INT",
       "style": "pattern",
-      "sequence": 61,
+      "sequence": 63,
       "values": {
         "time_boot_ms": 2654435772,
         "lat_int": -1133579411,
@@ -1063,13 +1119,13 @@
         "target_component": 46,
         "coordinate_frame": 83
       },
-      "hex": "fd3500003d2a07560000bc79379e6df36ebc1e6da65a000040c100002ac1000014c10000fcc00000d0c00000a4c0000070c0000018c0000080bf2ed0092e530d38"
+      "hex": "fd3500003f2a07560000bc79379e6df36ebc1e6da65a000040c100002ac1000014c10000fcc00000d0c00000a4c0000070c0000018c0000080bf2ed0092e53650e"
     },
     {
       "id": 86,
       "name": "SET_POSITION_TARGET_GLOBAL_INT",
       "style": "minimal",
-      "sequence": 62,
+      "sequence": 64,
       "values": {
         "time_boot_ms": 1,
         "lat_int": 0,
@@ -1088,13 +1144,13 @@
         "target_component": 0,
         "coordinate_frame": 0
       },
-      "hex": "fd0100003e2a0756000001b5ee"
+      "hex": "fd010000402a0756000001c156"
     },
     {
       "id": 87,
       "name": "POSITION_TARGET_GLOBAL_INT",
       "style": "pattern",
-      "sequence": 63,
+      "sequence": 65,
       "values": {
         "time_boot_ms": 2654435772,
         "lat_int": -1133579411,
@@ -1111,13 +1167,13 @@
         "type_mask": 53294,
         "coordinate_frame": 9
       },
-      "hex": "fd3300003f2a07570000bc79379e6df36ebc1e6da65a000040c100002ac1000014c10000fcc00000d0c00000a4c0000070c0000018c0000080bf2ed009598d"
+      "hex": "fd330000412a07570000bc79379e6df36ebc1e6da65a000040c100002ac1000014c10000fcc00000d0c00000a4c0000070c0000018c0000080bf2ed0097df5"
     },
     {
       "id": 87,
       "name": "POSITION_TARGET_GLOBAL_INT",
       "style": "minimal",
-      "sequence": 64,
+      "sequence": 66,
       "values": {
         "time_boot_ms": 1,
         "lat_int": 0,
@@ -1134,13 +1190,13 @@
         "type_mask": 0,
         "coordinate_frame": 0
       },
-      "hex": "fd010000402a075700000197fb"
+      "hex": "fd010000422a0757000001f8f0"
     },
     {
       "id": 93,
       "name": "HIL_ACTUATOR_CONTROLS",
       "style": "pattern",
-      "sequence": 65,
+      "sequence": 67,
       "values": {
         "time_usec": 1234567890136,
         "flags": 2469135780259,
@@ -1164,13 +1220,13 @@
         ],
         "mode": 151
       },
-      "hex": "fd510000412a075d0000d804fb711f010000a309f6e33e0200000000364100004c410000624100007841000087410000924100009d410000a8410000b3410000be410000c9410000d4410000df410000ea410000f5410000004297ce03"
+      "hex": "fd510000432a075d0000d804fb711f010000a309f6e33e0200000000364100004c410000624100007841000087410000924100009d410000a8410000b3410000be410000c9410000d4410000df410000ea410000f54100000042975dad"
     },
     {
       "id": 93,
       "name": "HIL_ACTUATOR_CONTROLS",
       "style": "minimal",
-      "sequence": 66,
+      "sequence": 68,
       "values": {
         "time_usec": 1,
         "flags": 0,
@@ -1194,13 +1250,13 @@
         ],
         "mode": 0
       },
-      "hex": "fd010000422a075d0000011a94"
+      "hex": "fd010000442a075d000001ab89"
     },
     {
       "id": 105,
       "name": "HIGHRES_IMU",
       "style": "pattern",
-      "sequence": 67,
+      "sequence": 69,
       "values": {
         "time_usec": 1234567890136,
         "xacc": -14.75,
@@ -1219,61 +1275,11 @@
         "fields_updated": 61492,
         "id": 83
       },
-      "hex": "fd3f0000432a07690000d804fb711f01000000006cc1000056c1000040c100002ac1000014c10000fcc00000d0c00000a4c0000070c0000018c0000080bf0000c03e0000e03f34f053509d"
+      "hex": "fd3f0000452a07690000d804fb711f01000000006cc1000056c1000040c100002ac1000014c10000fcc00000d0c00000a4c0000070c0000018c0000080bf0000c03e0000e03f34f053afd5"
     },
     {
       "id": 105,
       "name": "HIGHRES_IMU",
-      "style": "minimal",
-      "sequence": 68,
-      "values": {
-        "time_usec": 1,
-        "xacc": 0,
-        "yacc": 0,
-        "zacc": 0,
-        "xgyro": 0,
-        "ygyro": 0,
-        "zgyro": 0,
-        "xmag": 0,
-        "ymag": 0,
-        "zmag": 0,
-        "abs_pressure": 0,
-        "diff_pressure": 0,
-        "pressure_alt": 0,
-        "temperature": 0,
-        "fields_updated": 0,
-        "id": 0
-      },
-      "hex": "fd010000442a0769000001ff20"
-    },
-    {
-      "id": 107,
-      "name": "HIL_SENSOR",
-      "style": "pattern",
-      "sequence": 69,
-      "values": {
-        "time_usec": 1234567890136,
-        "xacc": -14.75,
-        "yacc": -13.375,
-        "zacc": -12.0,
-        "xgyro": -10.625,
-        "ygyro": -9.25,
-        "zgyro": -7.875,
-        "xmag": -6.5,
-        "ymag": -5.125,
-        "zmag": -3.75,
-        "abs_pressure": -2.375,
-        "diff_pressure": -1.0,
-        "pressure_alt": 0.375,
-        "temperature": 1.75,
-        "fields_updated": 1161830762,
-        "id": 83
-      },
-      "hex": "fd410000452a076b0000d804fb711f01000000006cc1000056c1000040c100002ac1000014c10000fcc00000d0c00000a4c0000070c0000018c0000080bf0000c03e0000e03f6a214045537136"
-    },
-    {
-      "id": 107,
-      "name": "HIL_SENSOR",
       "style": "minimal",
       "sequence": 70,
       "values": {
@@ -1294,13 +1300,63 @@
         "fields_updated": 0,
         "id": 0
       },
-      "hex": "fd010000462a076b000001121d"
+      "hex": "fd010000462a0769000001902b"
+    },
+    {
+      "id": 107,
+      "name": "HIL_SENSOR",
+      "style": "pattern",
+      "sequence": 71,
+      "values": {
+        "time_usec": 1234567890136,
+        "xacc": -14.75,
+        "yacc": -13.375,
+        "zacc": -12.0,
+        "xgyro": -10.625,
+        "ygyro": -9.25,
+        "zgyro": -7.875,
+        "xmag": -6.5,
+        "ymag": -5.125,
+        "zmag": -3.75,
+        "abs_pressure": -2.375,
+        "diff_pressure": -1.0,
+        "pressure_alt": 0.375,
+        "temperature": 1.75,
+        "fields_updated": 1161830762,
+        "id": 83
+      },
+      "hex": "fd410000472a076b0000d804fb711f01000000006cc1000056c1000040c100002ac1000014c10000fcc00000d0c00000a4c0000070c0000018c0000080bf0000c03e0000e03f6a21404553f526"
+    },
+    {
+      "id": 107,
+      "name": "HIL_SENSOR",
+      "style": "minimal",
+      "sequence": 72,
+      "values": {
+        "time_usec": 1,
+        "xacc": 0,
+        "yacc": 0,
+        "zacc": 0,
+        "xgyro": 0,
+        "ygyro": 0,
+        "zgyro": 0,
+        "xmag": 0,
+        "ymag": 0,
+        "zmag": 0,
+        "abs_pressure": 0,
+        "diff_pressure": 0,
+        "pressure_alt": 0,
+        "temperature": 0,
+        "fields_updated": 0,
+        "id": 0
+      },
+      "hex": "fd010000482a076b0000011f2d"
     },
     {
       "id": 113,
       "name": "HIL_GPS",
       "style": "pattern",
-      "sequence": 71,
+      "sequence": 73,
       "values": {
         "time_usec": 1234567890136,
         "lat": -1133579411,
@@ -1318,13 +1374,13 @@
         "id": 9,
         "yaw": 61492
       },
-      "hex": "fd270000472a07710000d804fb711f0100006df36ebc1e6da65acfe6ddf8165019601c701f002210252028b0bfe40934f0aa4e"
+      "hex": "fd270000492a07710000d804fb711f0100006df36ebc1e6da65acfe6ddf8165019601c701f002210252028b0bfe40934f0b92e"
     },
     {
       "id": 113,
       "name": "HIL_GPS",
       "style": "minimal",
-      "sequence": 72,
+      "sequence": 74,
       "values": {
         "time_usec": 1,
         "lat": 0,
@@ -1342,13 +1398,13 @@
         "id": 0,
         "yaw": 0
       },
-      "hex": "fd010000482a077100000176c5"
+      "hex": "fd0100004a2a077100000119ce"
     },
     {
       "id": 147,
       "name": "BATTERY_STATUS",
       "style": "pattern",
-      "sequence": 73,
+      "sequence": 75,
       "values": {
         "current_consumed": 506952124,
         "energy_consumed": -1133579411,
@@ -1381,13 +1437,13 @@
         "mode": 228,
         "fault_bitmask": 2802362297
       },
-      "hex": "fd360000492a07930000bc79371e6df36ebc10b05bc05ed061e064f067006a106d2070307340765016d0e1062bd0f5c02aae9a0341065109610c71e4b9a708a7c2e0"
+      "hex": "fd3600004b2a07930000bc79371e6df36ebc10b05bc05ed061e064f067006a106d2070307340765016d0e1062bd0f5c02aae9a0341065109610c71e4b9a708a7ba0f"
     },
     {
       "id": 147,
       "name": "BATTERY_STATUS",
       "style": "minimal",
-      "sequence": 74,
+      "sequence": 76,
       "values": {
         "current_consumed": 1,
         "energy_consumed": 0,
@@ -1420,13 +1476,13 @@
         "mode": 0,
         "fault_bitmask": 0
       },
-      "hex": "fd0100004a2a07930000014f71"
+      "hex": "fd0100004c2a0793000001fe6c"
     },
     {
       "id": 148,
       "name": "AUTOPILOT_VERSION",
       "style": "pattern",
-      "sequence": 75,
+      "sequence": 77,
       "values": {
         "capabilities": 1234567890136,
         "uid": 2469135780259,
@@ -1487,13 +1543,13 @@
           156
         ]
       },
-      "hex": "fd4e00004b2a07940000d804fb711f010000a309f6e33e0200001e6da6dacfe6dd788060151731da4cb51c701f801e43688db2d7fc2121466b90b5daff2424496e93b8dd0227274c7196bbe0052a4f7499bee3082d52779c0abf"
+      "hex": "fd4e00004d2a07940000d804fb711f010000a309f6e33e0200001e6da6dacfe6dd788060151731da4cb51c701f801e43688db2d7fc2121466b90b5daff2424496e93b8dd0227274c7196bbe0052a4f7499bee3082d52779c49f9"
     },
     {
       "id": 148,
       "name": "AUTOPILOT_VERSION",
       "style": "minimal",
-      "sequence": 76,
+      "sequence": 78,
       "values": {
         "capabilities": 1,
         "uid": 0,
@@ -1554,13 +1610,13 @@
           0
         ]
       },
-      "hex": "fd0100004c2a079400000168f1"
+      "hex": "fd0100004e2a079400000107fa"
     },
     {
       "id": 193,
       "name": "EKF_STATUS_REPORT",
       "style": "pattern",
-      "sequence": 77,
+      "sequence": 79,
       "values": {
         "velocity_variance": -16.125,
         "pos_horiz_variance": -14.75,
@@ -1570,13 +1626,13 @@
         "flags": 24601,
         "airspeed_variance": -7.875
       },
-      "hex": "fd1a00004d2a07c10000000081c100006cc1000056c1000040c100002ac119600000fcc0f68b"
+      "hex": "fd1a00004f2a07c10000000081c100006cc1000056c1000040c100002ac119600000fcc0300b"
     },
     {
       "id": 193,
       "name": "EKF_STATUS_REPORT",
       "style": "minimal",
-      "sequence": 78,
+      "sequence": 80,
       "values": {
         "velocity_variance": 1,
         "pos_horiz_variance": 0,
@@ -1586,33 +1642,33 @@
         "flags": 0,
         "airspeed_variance": 0
       },
-      "hex": "fd0400004e2a07c100000000803f5575"
+      "hex": "fd040000502a07c100000000803fcd4d"
     },
     {
       "id": 253,
       "name": "STATUSTEXT",
       "style": "pattern",
-      "sequence": 79,
+      "sequence": 81,
       "values": {
         "severity": 40,
         "text": "MIRAGE statustext 2",
         "id": 12304,
         "chunk_seq": 151
       },
-      "hex": "fd3600004f2a07fd0000284d49524147452073746174757374657874203200000000000000000000000000000000000000000000000000000000000000103097be3a"
+      "hex": "fd360000512a07fd0000284d4952414745207374617475737465787420320000000000000000000000000000000000000000000000000000000000000010309743e5"
     },
     {
       "id": 253,
       "name": "STATUSTEXT",
       "style": "minimal",
-      "sequence": 80,
+      "sequence": 82,
       "values": {
         "severity": 1,
         "text": "",
         "id": 0,
         "chunk_seq": 0
       },
-      "hex": "fd010000502a07fd0000012297"
+      "hex": "fd010000522a07fd0000014d9c"
     }
   ]
 }

@@ -7,7 +7,7 @@ import { MissionUpload, offsetLocation, routeMissionItems, routePointReached, ro
 import { encodeInto, MavParser, type MavFrame } from '@mirage/mavlink/codec';
 import { fieldOf, packInto, readNumber } from '@mirage/mavlink/messages';
 import {
-  COMPLETION, FLIGHT_TASK_TYPES, FlightTaskRunner, GUIDANCE_PARAMETERS, LEAD_IN_ACCELERATION_MPS2, LEAD_IN_CLIMB_RATE_MPS, SETTLE_S, TARGET_PERIOD_S, flightTaskProblems, guidanceLimitsOf,
+  COMPLETION, FLIGHT_TASK_TYPES, FlightTaskRunner, GUIDANCE_PARAMETERS, LEAD_IN_ACCELERATION_MPS2, LEAD_IN_CLIMB_RATE_MPS, SETTLE_S, TARGET_PERIOD_S, flightTaskProblems, flightTaskSchemaVersion, guidanceLimitsOf,
   parseFlightTask, planFlightTask, wrapDeg,
   type AutopilotModeName, type FlightTaskCommand, type FlightTaskDefinition, type FlightTaskStep, type FlightTaskType, type GuidanceLimits, type GuidedTarget, type MissionUploadState,
   parseGroundStart,
@@ -32,12 +32,16 @@ const PARAMETERS: Record<FlightTaskType, Record<string, number>> = {
   braking: { altitudeM: 10, headingDeg: 45, fromSpeedMps: 8, toSpeedMps: 0, rateMps2: 2 },
   turn: { altitudeM: 10, headingDeg: 350, speedMps: 4, angleDeg: 90, rateDegS: 15 },
   route: {},
+  'roll-step': { altitudeM: 10, headingDeg: 30, amplitudeDeg: 10, holdS: 2 }, 'roll-doublet': { altitudeM: 10, headingDeg: 30, amplitudeDeg: 10, holdS: 2 },
+  'pitch-step': { altitudeM: 10, headingDeg: 30, amplitudeDeg: -10, holdS: 2 }, 'pitch-doublet': { altitudeM: 10, headingDeg: 30, amplitudeDeg: -10, holdS: 2 },
+  'heading-step': { altitudeM: 10, headingDeg: 350, amplitudeDeg: 45, holdS: 5 }, 'heading-doublet': { altitudeM: 10, headingDeg: 350, amplitudeDeg: 30, holdS: 5 },
+  'altitude-step': { altitudeM: 10, amplitudeM: 3, holdS: 5 }, 'altitude-doublet': { altitudeM: 10, amplitudeM: 3, holdS: 5 },
 };
 const ROUTE = [{ northM: 20, eastM: 0, altitudeM: 8, speedMps: 4 }, { northM: 20, eastM: 30, altitudeM: 12, speedMps: 6 }];
 /** ArduCopter's defaults at the pinned commit: WP_ACC_Z, PSC_D_JERK, PSC_NE_JERK and ATC_ACC_Y_MAX. */
 const LIMITS: GuidanceLimits = { verticalAccelerationMps2: 1, verticalJerkMps3: 5, horizontalJerkMps3: 5, yawAccelerationDegS2: 270 };
 const definition = (type: FlightTaskType, edit: Partial<FlightTaskDefinition> = {}): FlightTaskDefinition => ({
-  schemaVersion: 1, type, parameters: PARAMETERS[type], route: type === 'route' ? ROUTE : null, initial: { ground: GROUND, air: null }, finish: 'land', ...edit,
+  schemaVersion: flightTaskSchemaVersion(type), type, parameters: PARAMETERS[type], route: type === 'route' ? ROUTE : null, initial: { ground: GROUND, air: null }, finish: 'land', ...edit,
 });
 
 describe('task definition v1', () => {
@@ -113,7 +117,7 @@ describe('task definition v1', () => {
 
 /** A vehicle that does what it is commanded, as ArduPilot and the physics together would in still air. */
 class Vehicle {
-  simTimeS = 100; northM = 0; eastM = 0; altitudeM = 0.1; northMps = 0; eastMps = 0; downMps = 0; headingDeg = 0;
+  simTimeS = 100; northM = 0; eastM = 0; altitudeM = 0.1; northMps = 0; eastMps = 0; downMps = 0; headingDeg = 0; rollDeg = 0; pitchDeg = 0;
   armed = false; mode: AutopilotModeName = 'other'; mission: MissionUploadState = 'idle'; routePointReached = -1;
   climbTargetM: number | null = null;
   target: GuidedTarget | null = null;
@@ -130,6 +134,10 @@ class Vehicle {
       case 'arm': this.armed = true; break;
       case 'takeoff': this.climbTargetM = this.origin.altitudeM + command.heightM; break;
       case 'target': this.target = command.target; this.climbTargetM = null; break;
+      case 'attitude':
+        this.target = null;
+        this.rollDeg = command.target.rollRad * 180 / Math.PI; this.pitchDeg = command.target.pitchRad * 180 / Math.PI; this.headingDeg = wrapDeg(command.target.yawRad * 180 / Math.PI);
+        break;
       case 'upload-route': this.mission = 'uploading'; break;
       default: { const never: never = command; throw new Error(String(never)); }
     }
@@ -161,7 +169,7 @@ function run(task: FlightTaskDefinition, vehicle = new Vehicle(), dt = 0.05, sec
   const runner = new FlightTaskRunner(parseFlightTask(task), LIMITS), steps: FlightTaskStep[] = [];
   for (let i = 0; i < seconds / dt; i++) {
     const step = runner.observe({ simTimeS: vehicle.simTimeS, northM: vehicle.northM, eastM: vehicle.eastM, altitudeM: vehicle.altitudeM, northMps: vehicle.northMps, eastMps: vehicle.eastMps,
-      downMps: vehicle.downMps, headingDeg: vehicle.headingDeg, armed: vehicle.armed, mode: vehicle.mode, mission: vehicle.mission, routePointReached: vehicle.routePointReached });
+      downMps: vehicle.downMps, headingDeg: vehicle.headingDeg, rollDeg: vehicle.rollDeg, pitchDeg: vehicle.pitchDeg, armed: vehicle.armed, mode: vehicle.mode, mission: vehicle.mission, routePointReached: vehicle.routePointReached });
     steps.push(step);
     for (const command of step.commands) vehicle.apply(command);
     if (vehicle.mission === 'uploading') vehicle.mission = 'accepted';
@@ -185,7 +193,7 @@ describe('the stage runner against a vehicle that does what it is told', () => {
         for (let i = 0; i < 20000 && state === 'running'; i++) {
           if (vehicle.mode === 'auto') { autoAtS = autoAtS < 0 ? vehicle.simTimeS : autoAtS; vehicle.routePointReached = Math.min(1, Math.floor(vehicle.simTimeS - autoAtS) - 1); }
           const step = runner.observe({ simTimeS: vehicle.simTimeS, northM: vehicle.northM, eastM: vehicle.eastM, altitudeM: vehicle.altitudeM, northMps: 0, eastMps: 0, downMps: vehicle.downMps,
-            headingDeg: 0, armed: vehicle.armed, mode: vehicle.mode, mission: vehicle.mission, routePointReached: vehicle.routePointReached });
+            headingDeg: 0, rollDeg: 0, pitchDeg: 0, armed: vehicle.armed, mode: vehicle.mode, mission: vehicle.mission, routePointReached: vehicle.routePointReached });
           for (const command of step.commands) vehicle.apply(command);
           if (vehicle.mission === 'uploading') vehicle.mission = 'accepted';
           state = step.progress.state;
@@ -417,14 +425,14 @@ describe('the stage runner against a vehicle that does what it is told', () => {
     const { steps } = run(definition('turn'), new Vehicle(), 0.05, 600);
     expect(steps.at(-1)?.progress).toEqual({ state: 'done' });
     const unlimited = new FlightTaskRunner(parseFlightTask(definition('straight')), { ...LIMITS, yawAccelerationDegS2: Number.POSITIVE_INFINITY });
-    const step = unlimited.observe({ simTimeS: 0, northM: 0, eastM: 0, altitudeM: 0.1, northMps: 0, eastMps: 0, downMps: 0, headingDeg: 0, armed: true, mode: 'guided', mission: 'idle', routePointReached: -1 });
+    const step = unlimited.observe({ simTimeS: 0, northM: 0, eastM: 0, altitudeM: 0.1, northMps: 0, eastMps: 0, downMps: 0, headingDeg: 0, rollDeg: 0, pitchDeg: 0, armed: true, mode: 'guided', mission: 'idle', routePointReached: -1 });
     expect(step.progress).toEqual({ state: 'running' });
   });
 
   it('uploads a route once, flies it in AUTO, and asks for each point until ArduPilot reports it reached', () => {
     const vehicle = new Vehicle({ altitudeM: 0.15 }), runner = new FlightTaskRunner(parseFlightTask(definition('route')), LIMITS);
     const observe = () => {
-      const step = runner.observe({ simTimeS: vehicle.simTimeS, northM: 0, eastM: 0, altitudeM: vehicle.altitudeM, northMps: 0, eastMps: 0, downMps: vehicle.downMps, headingDeg: 0, armed: vehicle.armed,
+      const step = runner.observe({ simTimeS: vehicle.simTimeS, northM: 0, eastM: 0, altitudeM: vehicle.altitudeM, northMps: 0, eastMps: 0, downMps: vehicle.downMps, headingDeg: 0, rollDeg: 0, pitchDeg: 0, armed: vehicle.armed,
         mode: vehicle.mode, mission: vehicle.mission, routePointReached: vehicle.routePointReached });
       for (const command of step.commands) vehicle.apply(command);
       vehicle.step(0.05);
@@ -453,7 +461,7 @@ describe('the stage runner against a vehicle that does what it is told', () => {
     const refused = new Vehicle(), route = new FlightTaskRunner(parseFlightTask(definition('route')), LIMITS);
     const look = (runner: FlightTaskRunner, vehicle: Vehicle) => {
       const step = runner.observe({ simTimeS: vehicle.simTimeS, northM: vehicle.northM, eastM: vehicle.eastM, altitudeM: vehicle.altitudeM, northMps: vehicle.northMps, eastMps: vehicle.eastMps, downMps: vehicle.downMps,
-        headingDeg: vehicle.headingDeg, armed: vehicle.armed, mode: vehicle.mode, mission: vehicle.mission, routePointReached: vehicle.routePointReached });
+        headingDeg: vehicle.headingDeg, rollDeg: vehicle.rollDeg, pitchDeg: vehicle.pitchDeg, armed: vehicle.armed, mode: vehicle.mode, mission: vehicle.mission, routePointReached: vehicle.routePointReached });
       for (const command of step.commands) vehicle.apply(command);
       return step;
     };
@@ -476,7 +484,7 @@ describe('the stage runner against a vehicle that does what it is told', () => {
     stuck.armed = false;
     for (let i = 0; i < 2000 && progress.state === 'running'; i++) {
       stuck.simTimeS += 0.05;
-      const step = runner.observe({ simTimeS: stuck.simTimeS, northM: 0, eastM: 0, altitudeM: 0.1, northMps: 0, eastMps: 0, downMps: 0, headingDeg: 0, armed: false, mode: 'guided', mission: 'idle', routePointReached: -1 });
+      const step = runner.observe({ simTimeS: stuck.simTimeS, northM: 0, eastM: 0, altitudeM: 0.1, northMps: 0, eastMps: 0, downMps: 0, headingDeg: 0, rollDeg: 0, pitchDeg: 0, armed: false, mode: 'guided', mission: 'idle', routePointReached: -1 });
       progress = step.progress;
     }
     expect(progress).toEqual({ state: 'failed', reason: 'The arm stage did not finish within 90 s of simulated time' });
@@ -622,7 +630,7 @@ describe('the Flight tasks tab\'s form', () => {
   const definitions: readonly FlightTaskDefinition[] = [
     ...FLIGHT_TASK_TYPES.filter(type => type !== 'route').map(type => {
       const parameters = Object.fromEntries(Object.entries(formOf(parseTaskOfType(type)).parameters).map(([key, value]) => [key, Number(value)]));
-      return parseFlightTask({ schemaVersion: 1, type, parameters, route: null, initial: { ground: { northM: 10.25, eastM: -5.5, headingDeg: 359.5, stateOfCharge: 0.333 }, air: type === 'landing' ? null : { altitudeM: 12.5, headingDeg: 45, speedMps: 3 } },
+      return parseFlightTask({ schemaVersion: flightTaskSchemaVersion(type), type, parameters, route: null, initial: { ground: { northM: 10.25, eastM: -5.5, headingDeg: 359.5, stateOfCharge: 0.333 }, air: type === 'landing' ? null : { altitudeM: 12.5, headingDeg: 45, speedMps: 3 } },
         finish: type === 'landing' ? 'land' : 'hold' });
     }),
     parseFlightTask({ schemaVersion: 1, type: 'route', parameters: {}, route: [{ northM: 20, eastM: 0.1, altitudeM: 8, speedMps: 4 }, { northM: -3.75, eastM: 30, altitudeM: 12.125, speedMps: 6 }],

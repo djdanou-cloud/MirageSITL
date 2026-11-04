@@ -285,8 +285,8 @@ implementation.
   tail margin, at 800 Hz, but not at 1200 Hz until TASK-091
   (`node scripts/bench-profile-dynamics.mjs`). TASK-150 is DONE: the MAVLink
   codec reads a message table that pymavlink 2.4.50 generates from the pinned
-  `ardupilotmega.xml` and its includes, and supports 39 messages (TASK-155 added
-  AUTOPILOT_VERSION), adding the
+  `ardupilotmega.xml` and its includes, and supports 40 messages (TASK-155 added
+  AUTOPILOT_VERSION and TASK-173 SET_ATTITUDE_TARGET), adding the
   parameter, command, status, telemetry, mission and position-target messages
   of Phase 1, with a cold `packInto` builder, field readers and preallocated
   decoders for the high-rate telemetry subset, all byte- and value-exact
@@ -335,7 +335,13 @@ implementation.
   PSC_D_JERK, PSC_NE_JERK, ATC_ACC_Y_MAX), so what is requested is what can be
   flown. A run the launcher starts gets COMPASS_DEC at boot from its home, or
   EKF3 learns a false gyro error and the true heading creeps about 2° from the
-  one commanded. TASK-142 is DONE:
+  one commanded. TASK-173 is DONE: tuning maneuvers are flight tasks of eight
+  more types (`packages/scenarios/src/maneuvers.ts`), steps and doublets in roll,
+  pitch, heading and altitude, whose changes are sharp on purpose. The
+  Experiments tab charts requested against actual from the stored recording, with
+  delay, rise time, overshoot, settling and end error of each change, shown and
+  not judged. Roll and pitch can end a few tenths of a degree off the request
+  because EKF3 lags ArduPilot's simulated gyro drift (SIM_DRIFT_SPEED). TASK-142 is DONE:
   the Aircraft tab maps each motor to an output and generates the frame
   parameters from the TASK-128 catalog (the S19 octa-x fixture spins the
   mirror of stock OCTA X, so it uses the scripting matrix). TASK-151 (the

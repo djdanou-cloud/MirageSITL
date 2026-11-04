@@ -84,6 +84,7 @@ import { UNKNOWN_U32, newPilotInputV2, type PilotInput } from "@mirage/protocol"
 import { fieldOf, readNumber } from "@mirage/mavlink/messages";
 import type { AccidentEvent } from "@mirage/physics/accident";
 import { FlightTaskRunner, guidanceLimitsOf, type FlightTaskStep, type GuidanceLimits } from "@mirage/scenarios/flight-tasks";
+import { attitudeManeuverRefusal } from "@mirage/scenarios/maneuvers";
 import type { ParameterChange } from "../params/parameter-sets";
 import { RunSpeedMeter, type RunSpeedView } from "./run-speed";
 import type { SitlStatus } from "../sitl/bridge-client";
@@ -163,6 +164,7 @@ export interface FlightTruth {
   readonly northM: number; readonly eastM: number; readonly altitudeM: number;
   readonly northMps: number; readonly eastMps: number; readonly downMps: number;
   readonly headingDeg: number;
+  readonly rollDeg: number; readonly pitchDeg: number;
 }
 export interface PhysicsPort {
   /** Loads the BET module, the manifest and its ratings and starts the session in sitl-lockstep at `physicsHz`; resolves with the module's SHA-256. */
@@ -839,6 +841,8 @@ export class SessionController {
     if (this.motorCheck !== null && !this.motorCheck.done) return "A motor check is running";
     let limits: GuidanceLimits;
     try { limits = guidanceLimitsOf(name => this.params?.get(name)?.value); } catch (error) { return messageOf(error); }
+    const refusal = attitudeManeuverRefusal(entry.definition.type, name => this.params?.get(name)?.value);
+    if (refusal !== null) return refusal;
     this.taskRunner = new FlightTaskRunner(entry.definition, limits);
     this.taskState = "running";
     this.set({ name: "running", experimentId: s.experimentId, flight: "task", warning: null });

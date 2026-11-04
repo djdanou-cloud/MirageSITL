@@ -19,6 +19,7 @@ export function taskCommandInto(command: FlightTaskCommand, gcs: GroundStation, 
     case "arm": return gcs.armInto(true, out);
     case "takeoff": return gcs.takeoffInto(command.heightM, out);
     case "target": return gcs.positionTargetInto(command.target, out);
+    case "attitude": return gcs.attitudeTargetInto(command.target, out);
     case "upload-route": return 0;
     default: { const never: never = command; throw new Error(`Unhandled task command ${String(never)}`); }
   }

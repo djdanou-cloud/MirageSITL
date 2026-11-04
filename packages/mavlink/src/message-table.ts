@@ -278,6 +278,18 @@ export const MESSAGE_TABLE: readonly MessageLayout[] = Object.freeze([
     field("target_system", "uint8_t", 8, 0, "", true),
     field("target_component", "uint8_t", 9, 0, "", true),
   ]),
+  message(82, "SET_ATTITUDE_TARGET", 49, 51, [
+    field("time_boot_ms", "uint32_t", 0, 0, "ms", false),
+    field("q", "float", 4, 4, "", false),
+    field("body_roll_rate", "float", 20, 0, "rad/s", false),
+    field("body_pitch_rate", "float", 24, 0, "rad/s", false),
+    field("body_yaw_rate", "float", 28, 0, "rad/s", false),
+    field("thrust", "float", 32, 0, "", false),
+    field("target_system", "uint8_t", 36, 0, "", false),
+    field("target_component", "uint8_t", 37, 0, "", false),
+    field("type_mask", "uint8_t", 38, 0, "", false),
+    field("thrust_body", "float", 39, 3, "", true),
+  ]),
   message(84, "SET_POSITION_TARGET_LOCAL_NED", 143, 53, [
     field("time_boot_ms", "uint32_t", 0, 0, "ms", false),
     field("x", "float", 4, 0, "m", false),

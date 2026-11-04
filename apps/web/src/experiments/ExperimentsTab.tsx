@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { experimentChanges, readExperiment, type ExperimentPayload } from "@mirage/aircraft/experiment";
 import { listRecordings, reopenRecording } from "@mirage/aar/recorder-v2-host";
+import { isManeuverType } from "@mirage/scenarios/maneuvers";
 import type { StoredVersion } from "@mirage/project/schema";
 import type { ImportReport } from "@mirage/project/store";
 import type { StoreState } from "../shell/AppShell";
 import type { SessionLink } from "../run/session-link";
+import { ResponsePanel } from "../analysis/ResponsePanel";
 import { TASK_TYPE_LABELS } from "../tasks/flight-task-form";
 import { externalDependencies, lineageText, trajectoryDifference, type PositionRow, type TrajectoryDifference } from "./lifecycle";
 
@@ -164,6 +166,9 @@ export function ExperimentsTab({ storeState, project, link, active, onRun }: {
             <button type="button" onClick={exportSelected} disabled={!store}>Export the experiment</button>
           </div>
           {!launcherOwned && <p className="hint">A run with a SITL started by hand is repeated by connecting that SITL again in the Run tab.</p>}
+          {current.payload.flightTask && isManeuverType(current.payload.flightTask.definition.type) && (current.payload.recording
+            ? <ResponsePanel task={current.payload.flightTask.definition} recordId={current.payload.recording.recordId} />
+            : <p className="hint" data-testid="response-missing">This run recorded nothing, so its response cannot be shown.</p>)}
           {lineage && lineage.kind !== "original" && (
             <div data-testid="experiment-differences">
               <h4>{`Differences from ${nameOf(lineage.of)}`}</h4>

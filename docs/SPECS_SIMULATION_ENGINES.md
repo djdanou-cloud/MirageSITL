@@ -1903,6 +1903,7 @@ generated-output notice is retained in packages/mavlink/NOTICE.
 | 75 | COMMAND_INT | 35 | 158 |
 | 76 | COMMAND_LONG | 33 | 152 |
 | 77 | COMMAND_ACK | 10 | 143 |
+| 82 | SET_ATTITUDE_TARGET | 51 | 49 |
 | 84 | SET_POSITION_TARGET_LOCAL_NED | 53 | 143 |
 | 85 | POSITION_TARGET_LOCAL_NED | 51 | 140 |
 | 86 | SET_POSITION_TARGET_GLOBAL_INT | 53 | 5 |
@@ -7494,8 +7495,9 @@ and payload belong to the aircraft profile.
 
 ```typescript
 interface FlightTaskDefinition {
-  schemaVersion: 1;
-  type: "takeoff" | "hover" | "landing" | "straight" | "climb" | "descent" | "acceleration" | "braking" | "turn" | "route";
+  schemaVersion: 1 | 2;   // 2 for a tuning maneuver, 1 for every other type
+  type: "takeoff" | "hover" | "landing" | "straight" | "climb" | "descent" | "acceleration" | "braking" | "turn" | "route"
+    | "roll-step" | "roll-doublet" | "pitch-step" | "pitch-doublet" | "heading-step" | "heading-doublet" | "altitude-step" | "altitude-doublet";
   parameters: Record<string, number>;   // the type's own numbers; empty for a route
   route: { northM: number; eastM: number; altitudeM: number; speedMps: number }[] | null;   // 2 to 50 points; null unless a route
   initial: {
@@ -7515,12 +7517,19 @@ interface FlightTaskDefinition {
 | acceleration, braking | altitude, heading, from and to speed 0–20 m/s, rate 0.1–5 m/s² |
 | turn | altitude, heading, speed, angle ±1080° (clockwise positive), rate 1–90 °/s |
 | route | its points: north and east ±5000 m, altitude, speed |
+| roll-step, roll-doublet, pitch-step, pitch-doublet | altitude, heading, amplitude ±30°, hold 0.5–10 s |
+| heading-step | altitude, heading, amplitude ±170°, hold 0.5–60 s |
+| heading-doublet | altitude, heading, amplitude ±85°, hold 0.5–60 s |
+| altitude-step, altitude-doublet | altitude, amplitude ±50 m, hold 0.5–60 s; every altitude it reaches stays within 1–100 m |
 
 Altitudes are metres above the pad, as the Run tab shows them; north and east
 are metres from the pad, in the session's frame; headings are degrees from
 north, clockwise. A task is a versioned `flight-task` item of the project
 store, with no dependencies, and `parseFlightTask` is its registered payload
-validator.
+validator. Schema 2 adds the tuning maneuvers (see "Tuning maneuvers"). A task of
+an earlier type stays schema 1, byte for byte, so its stored versions and their
+SHA-256 do not change, and a definition whose version does not match its type is
+refused.
 
 ### Initial conditions
 
@@ -7582,6 +7591,8 @@ declared before the first flight, and do not judge fidelity (SA-01):
 | speed | its change done, within 0.5 m/s, held for 2 s |
 | turn | its turn done, within 5° of the final heading, held for 2 s |
 | route leg | on ArduPilot's own MISSION_ITEM_REACHED |
+| maneuver | at the end of its timeline, whatever the response did |
+| recover | its stop done, ground speed below 0.5 m/s, held for 2 s |
 | landing | on ArduPilot's disarm |
 
 The 2 s holds count on the task's clock too, so a measured stage's trace shows any
@@ -7669,6 +7680,101 @@ reload; flies a climb and a braking from the Run tab and measures their gaps fro
 the recording, with the timing a user's run really has; and flies a stored route
 from another place in the application, reading the ground values and the requests
 back from the recording, then repeats it.
+
+### Tuning maneuvers (TASK-173)
+
+A maneuver is a flight task of its own type, so it is defined, versioned, flown,
+recorded and repeated like any other, and the experiment record holds it. It
+commands sudden changes in roll, pitch, heading or altitude and shows how the
+aircraft answered. `packages/scenarios/src/maneuvers.ts` holds what is its own:
+when each change comes, and the metrics.
+
+A maneuver holds its start for 2 s, on a clock that starts on its own first
+observation, then changes the request:
+
+| Shape | Changes, at task time, with H the hold |
+|---|---|
+| roll or pitch step | 2 s: 0 to A; 2 + H: A to 0; ends at 2 + 2H |
+| heading or altitude step | 2 s: 0 to A; ends at 2 + H |
+| doublet, on any axis | 2 s: 0 to A; 2 + H: A to -A; 2 + 2H: -A to 0; ends at 2 + 3H |
+
+A roll or pitch step comes back level because a lean held on keeps accelerating.
+A heading follows the shortest way round, so one change stays below half a turn,
+which is why a doublet's amplitude is limited to half a step's. Positive amplitude
+rolls right, pitches the nose up, turns clockwise and climbs.
+
+Unlike every other stage these targets have sharp corners, on purpose: how the
+aircraft answers a sudden change is what a maneuver measures. The way to the
+maneuver and from it stays smooth. Heading and altitude go as position targets of
+no speed, with the yaw or the height changed at once. Roll and pitch go as
+SET_ATTITUDE_TARGET in GUIDED, with the attitude at every observation, the three
+body rates ignored (`type_mask` 7) and the thrust field exactly 0.5, which
+ArduCopter reads as a climb rate of none, so it holds the height and not the
+position. With GUID_OPTIONS bit 3 set that field would be half thrust, so the Run
+tab refuses a roll or pitch maneuver then, and says why. If the messages stop,
+ArduPilot levels the aircraft (GUID_TIMEOUT). After a roll or pitch maneuver a
+`recover` stage, not measured, stops the aircraft smoothly from whatever speed and
+direction it ended with, starting from where it actually is.
+
+A request of roll or pitch becomes an `events.flightTaskAttitude` row at the tick
+of its `events.flightTask` row. It is a signal of its own because a recording's
+reader requires a row to hold exactly its signal's channels: two more channels on
+`events.flightTask` would make recordings already stored unreadable.
+
+The Experiments tab computes the response from the stored recording on the run's
+simulated clock (`apps/web/src/analysis/response-series.ts`). An edge is the first
+recorded row of a new request. The actual value is the physics truth: roll, pitch
+and yaw from `truth.attitude`, height from `truth.position`, at the rate the
+Logging tab set, 50 Hz by default. For each edge, with its window ending at the
+next edge or at the end of the maneuver:
+
+| Metric | Definition |
+|---|---|
+| delay | from the edge to 10 % of the way from where it actually was to the request |
+| rise time | from 10 % to 90 % of that way |
+| overshoot | how far it passes the request, as a percentage of the change requested |
+| settling | from the edge to the last entry into the band around the request, 2, 5 or 10 % of the change requested, with 5 % shown first; none if it is outside at the end of the window |
+| end error | actual minus requested, averaged over the last 0.5 s of the window, or its last fifth if that is shorter |
+
+Crossings are interpolated between samples, and where it was at the edge is the
+last sample at or before the edge, since a response cannot start before its
+command. These describe the response. No limit applies to any of them, and the user
+judges (SA-01). A value the recording cannot give reads as missing: no sample
+around the edge, or a hole longer than 0.1 s or five sample spacings inside the
+window. A heading keeps counting past north so the lines stay continuous, so 395°
+is 35°, and the actual heading counts the same turns as the request.
+
+The chart (`ResponsePlot.tsx`) draws requested and actual on one axis and one time
+scale, with the request's corners at their recorded moments. Hovering reads both at
+a moment, and a table holds the same values. The line colors pass the palette
+validator against the panel's surface.
+
+A roll or pitch can end slightly off the request. In the first flights the true
+roll held 9.76° for a request of 10°, with ArduPilot's own estimate at 9.97°, so
+the difference lies between its estimate and the truth. It exists from before
+take-off and does not change with the lean. The cause
+is ArduPilot's simulated gyro drift, SIM_DRIFT_SPEED, which stays at its compiled
+0.05 by the decision of TASK-089: EKF3's learned gyro bias lags a drift that keeps
+moving, and the lag shows as tilt. Flown with SIM_DRIFT_SPEED at 0, the same step
+ends within 0.004° of the request, and rises alike both ways. Ideal mode on the
+Sensors tab switches the drift off, and the Experiments tab says so beside a roll
+or pitch.
+
+### Verification (TASK-173)
+
+`tests/maneuvers.test.ts` checks the metrics against the closed-form step response
+of a second-order system at five dampings, 1000 and 50 Hz and two bands, with
+oracles found by bisecting that closed form and tolerances set before the
+implementation from the error of linear interpolation. It also checks what an edge
+cannot say, the timelines, definitions and plans, the runner against a vehicle that
+does what it is commanded, the attitude's bytes and quaternion, and the refusal.
+`tests/response-series.test.ts` checks the series from rows written out by hand,
+and that one time scale draws a response 0.25 s late as 0.25 s late.
+`tests/integration/flight-tasks-sitl.test.ts` flies each of the eight types with
+native ArduCopter 8ab6afde at speed 4 and 800 Hz, with the truth sampled at 50 Hz.
+`tests/browser/maneuvers.spec.ts` defines one on the Flight tasks tab, flies a roll
+doublet and an altitude step from the Run tab, and compares the table's numbers and
+the chart's drawn lines with what it computes from the recording's own rows.
 
 ## Experiment lifecycle (TASK-165)
 
@@ -7851,6 +7957,7 @@ records and never reused.
 | 64 | events.parameter | a parameter name (16 ASCII bytes) and its float32 value; a flag marks the snapshot | — | event |
 | 65–68 | events.weather, events.fault, events.pause, events.accident | a registry code and up to three numbers (pause: 1 paused, 0 resumed) | f64 | event |
 | 69 | events.flightTask | stage, measured, task time (s), requested north, east, altitude (m), speed (m/s), heading (deg), vertical speed (m/s); a channel the stage does not request is absent (TASK-172) | f64 | event |
+| 70 | events.flightTaskAttitude | requested roll and pitch (deg), at the tick of the events.flightTask row; a channel the maneuver does not request is absent (TASK-173) | f64 | event |
 | 127 | gap | rows lost here | — | recorder |
 
 ### Rates

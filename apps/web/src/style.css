@@ -198,3 +198,34 @@ html[data-g3="1"] .terrain-status { top: 12px; bottom: auto; left: 50%; transfor
 .sitl-task table { margin-top: 8px; }
 .route-editor { margin: 12px 0; overflow-x: auto; }
 .route-editor input[type=text] { width: 72px; }
+
+/* The response chart (TASK-173): two lines on one time axis. The line colours pass the palette validator against the panel's surface. */
+.response-panel { margin-top: 14px; }
+.response-panel h4 { margin: 0 0 8px; }
+.response-plot { margin: 0 0 12px; }
+.response-legend { display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: 6px; font-size: 12px; color: #d6e2ea; }
+.response-legend span, .response-tooltip span { display: inline-flex; align-items: center; gap: 6px; }
+.response-key { display: inline-block; width: 16px; height: 2px; border-radius: 1px; }
+.response-key-requested { background: #d95926; }
+.response-key-actual { background: #3987e5; }
+/* The chart's text scales with it, so its width stays near the size it is drawn for. */
+.response-canvas { position: relative; max-width: 860px; }
+.response-canvas svg { display: block; width: 100%; height: auto; touch-action: none; }
+.response-line { fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.response-requested { stroke: #d95926; }
+.response-actual { stroke: #3987e5; }
+.response-grid { stroke: #293541; stroke-width: 1; vector-effect: non-scaling-stroke; }
+.response-tick { fill: #9fb4c1; font-size: 11px; }
+.response-crosshair { stroke: #9fb4c1; stroke-width: 1; vector-effect: non-scaling-stroke; }
+.response-dot { stroke: #101b26; stroke-width: 2; }
+.response-dot-requested { fill: #d95926; }
+.response-dot-actual { fill: #3987e5; }
+.response-tooltip { position: absolute; top: 8px; margin-left: 10px; display: grid; gap: 2px; padding: 6px 8px; font-size: 11px; color: #d6e2ea; background: #0b121b; border: 1px solid #293541; border-radius: 4px; pointer-events: none; white-space: nowrap; }
+.response-tooltip[data-flip="true"] { transform: translateX(calc(-100% - 20px)); }
+.response-panel .hint { max-width: 860px; }
+.response-panel table { border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.response-panel th, .response-panel td { padding: 4px 16px 4px 0; font-size: 12px; font-weight: 400; text-align: left; white-space: nowrap; }
+.response-panel thead th { color: #9fb4c1; }
+.response-panel tbody th { color: #d6e2ea; min-width: 0; }
+.response-panel details { margin-top: 8px; font-size: 12px; }
+.response-panel details table { margin-top: 6px; }

@@ -87,7 +87,9 @@ export class RunRecorder implements RecordingPort {
   flightTask(step: FlightTaskStep): void {
     if (!this.recording) return;
     const { requested: r } = step;
-    this.host?.event("flight-task", [step.stageIndex, step.measured ? 1 : 0, step.taskTimeS, r.northM, r.eastM, r.altitudeM, r.speedMps, r.headingDeg, r.verticalSpeedMps], this.at());
+    const at = this.at();
+    this.host?.event("flight-task", [step.stageIndex, step.measured ? 1 : 0, step.taskTimeS, r.northM, r.eastM, r.altitudeM, r.speedMps, r.headingDeg, r.verticalSpeedMps], at);
+    if (r.rollDeg !== null || r.pitchDeg !== null) this.host?.event("flight-task-attitude", [r.rollDeg, r.pitchDeg], at);
   }
 
   /** Closes the record: the physics producer stops, the last chunk is sealed and the catalog entry closes. */

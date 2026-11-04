@@ -1,4 +1,5 @@
 import { planFlightTask, type FlightTaskRequest } from "@mirage/scenarios/flight-tasks";
+import { isManeuverType } from "@mirage/scenarios/maneuvers";
 import { TASK_TYPE_LABELS, stageText } from "../tasks/flight-task-form";
 import type { FlightTaskView } from "./session-controller";
 
@@ -10,6 +11,7 @@ import type { FlightTaskView } from "./session-controller";
 const ROWS: readonly { readonly key: keyof FlightTaskRequest; readonly label: string; readonly digits: number }[] = [
   { key: "northM", label: "North, m", digits: 2 }, { key: "eastM", label: "East, m", digits: 2 }, { key: "altitudeM", label: "Altitude, m", digits: 2 },
   { key: "speedMps", label: "Ground speed, m/s", digits: 2 }, { key: "headingDeg", label: "Heading, °", digits: 1 }, { key: "verticalSpeedMps", label: "Vertical speed, m/s", digits: 2 },
+  { key: "rollDeg", label: "Roll, °", digits: 1 }, { key: "pitchDeg", label: "Pitch, °", digits: 1 },
 ];
 const value = (values: FlightTaskRequest | undefined, key: keyof FlightTaskRequest, digits: number): string => {
   const v = values?.[key];
@@ -27,6 +29,9 @@ export function FlightTaskPanel({ task, canRun, onRun, refusal }: { task: Flight
       <button type="button" onClick={onRun} disabled={!canRun}>Run task</button>
       {refusal && <p className="alert" role="alert">{refusal}</p>}
       <p data-testid="task-state" data-state={task.state}>{STATE_TEXT[task.state]}{task.reason ? `: ${task.reason}` : ""}</p>
+      {task.state === "done" && isManeuverType(entry.definition.type) && (
+        <p className="hint" data-testid="task-response-hint">Stop the run, then open its experiment on the Experiments tab for requested against actual, with rise time, overshoot and settling.</p>
+      )}
       {step && (
         <>
           <p data-testid="task-stage" data-stage={step.stage} data-measured={step.measured}>
