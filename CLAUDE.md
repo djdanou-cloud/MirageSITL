@@ -447,11 +447,11 @@ implementation.
   their source (profile schema 5, the Aircraft tab's Body drag section); in
   native SITL the quad holds station
   in wind with its lean shown against the body drag, and EKF3 drag fusion
-  learns the along-wind component; its cross-wind estimate and heading are
-  pulled because EKF3 models drag per body axis, as ArduPilot's built-in SITL
-  multicopter does, not along the relative wind (with ArduPilot's default
-  simulated gyro drift the heading turns about 0.045°/s); by the user's
-  decision of 2026-11-03 that result meets the DoD. The physics tasks TASK-097–TASK-123
+  learns the wind. That test flies the quad with a 40 Hz gyro filter: at stock
+  settings it holds altitude in a 10 Hz attitude oscillation (TASK-158), which
+  pulls EKF3's cross-wind estimate and heading. TASK-096 first put that
+  error down to EKF3's per-axis drag form; the comparison of 2026-11-04
+  corrects it. The physics tasks TASK-097–TASK-123
   are not implemented. TASK-166 (not implemented) gives every
   environment, sensor-error, EW and fault effect an on/off switch and an intensity
   control. Effects that MirageSITL injects are off by default, and off must be

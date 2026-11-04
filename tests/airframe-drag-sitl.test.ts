@@ -25,13 +25,13 @@ import { quadProfile } from './support/quad-profile.ts';
 // trimmed lean angle that decision F-02 shows and does not judge, and its rotor share calibrates EK3_DRAG_MCOEF as
 // ArduPilot's own SITL calibration does. Then EK3_DRAG_BCOEF_X/Y = m/(C_D·A) from the manifest and that MCOEF are set in
 // flight, and the EKF must learn the wind from drag. Declared before the run: over the last 10 s of a 60 s fusion its
-// XKF2 wind is within 1.0 m/s of the true wind along it, while without fusion (the negative control) it stays within
-// 0.5 m/s of zero. The cross-wind estimate is recorded, not asserted. EKF3 predicts each body axis's drag from that axis's
-// airspeed alone (½·ρ·u²/BCOEF and MCOEF·u), as ArduPilot's built-in SITL multicopter computes it (SIM_Frame.cpp), so its
-// own SITL never shows a mismatch; drag along the relative wind, the contract's and a bluff body's, with the BET rotors' side
-// forces, leaves a persistent sideways innovation that EKF3 absorbs into heading and cross-wind. With ArduPilot's default
-// simulated gyro drift (SIM_DRIFT_SPEED 0.05°/s per minute) the heading then turns about 0.045°/s and the cross-wind estimate
-// reaches −2.07 m/s after 175 s; without it the heading settles about 2° off and the cross-wind estimate about 0.5 m/s off.
+// XKF2 wind is within 1.0 m/s of the true wind, along it and across it, while without fusion (the negative control) it
+// stays within 0.5 m/s of zero. The quad flies with the 40 Hz gyro filter of the user's decision of 2026-11-04: at stock
+// settings it holds its altitude in a sustained 10 Hz attitude oscillation (TASK-158, roll rate ±85 deg/s), and the
+// oscillation pulls EKF3's heading and cross-wind estimate, −7.8° and −1.90 m/s after 175 s. TASK-096
+// first put that error down to EKF3's drag form, which predicts each body axis's drag from that axis's airspeed alone
+// (½·ρ·u²/BCOEF and MCOEF·u, as SIM_Frame.cpp computes it), while the contract's drag acts along the relative wind; the
+// comparison of 2026-11-04 shows that the oscillation is the main cause.
 
 const ROOT = process.cwd();
 const HOME = join(ROOT, '.cache/task-152/home');
@@ -63,7 +63,7 @@ describe.skipIf(!installed)('EKF3 drag fusion and the trimmed lean angle with ai
     const baseline = readFileSync(join(ROOT, 'tests/fixtures/sitl/parameters.parm'), 'utf8').split('\n').filter(line => /^[A-Z]/.test(line))
       .map(line => { const [name, value] = line.trim().split(/\s+/); return { name: name ?? '', value: Number(value) }; });
     const parameters = [...baseline, ...frame.parameters, { name: 'MOT_PWM_MIN', value: 1000 }, { name: 'MOT_PWM_MAX', value: 2000 },
-      { name: 'EK3_DRAG_BCOEF_X', value: 0 }, { name: 'EK3_DRAG_BCOEF_Y', value: 0 }, { name: 'EK3_DRAG_MCOEF', value: 0 }];
+      { name: 'EK3_DRAG_BCOEF_X', value: 0 }, { name: 'EK3_DRAG_BCOEF_Y', value: 0 }, { name: 'EK3_DRAG_MCOEF', value: 0 }, { name: 'INS_GYRO_FILTER', value: 40 }];
 
     const registry = new VehicleRegistry();
     await registry.register(derived.bytes, derived.sha256);
@@ -282,7 +282,7 @@ describe.skipIf(!installed)('EKF3 drag fusion and the trimmed lean angle with ai
       const trace = Array.from({ length: FUSION_S / 5 }, (_, k) => ({ fromS: 5 * k, ...mean(fusionStartS + 5 * k, fusionStartS + 5 * k + 5) }));
 
       const rho = 1.225 * (1 - 0.0065 * TAKEOFF_M / 288.15) ** 4.2559;
-      // The open finding: the true heading's change over the fusion hold and the cross-wind estimate's.
+      // The true heading's change over the fusion hold.
       const atFusion = truthTrace.filter(row => row.fromS >= fusionAtS), headingChangeDeg = (atFusion.at(-1)?.yawDeg ?? NaN) - (atFusion[0]?.yawDeg ?? NaN);
       const lean = holds.map(hold => {
         const bodyOnly = Math.atan(0.5 * rho * hold.airspeedMps ** 2 * drag.dragAreaBodyM2[0]! / (massKg * GRAVITY));
@@ -306,6 +306,7 @@ describe.skipIf(!installed)('EKF3 drag fusion and the trimmed lean angle with ai
       expect(Math.hypot(control.north, control.east)).toBeLessThan(0.5);
       expect(learned.rows).toBeGreaterThan(10);
       expect(Math.abs(learned.north - -WINDS_MPS[1])).toBeLessThan(1);
+      expect(Math.abs(learned.east)).toBeLessThan(1);
     } finally {
       ws?.close();
       if (experimentId) await api('POST', `/v1/experiments/${experimentId}/stop`);

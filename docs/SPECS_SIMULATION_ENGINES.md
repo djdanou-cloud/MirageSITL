@@ -579,31 +579,28 @@ its drag areas with their source (profile schema 5); the derivation then
 writes that diagonal tensor in the profile's own dataset.
 
 In SITL (`tests/airframe-drag-sitl.test.ts`, native ArduCopter 8ab6afde)
-the S19 quad X holds position in GUIDED in a steady north wind. Its trimmed
-lean, shown and not judged (F-02), is 2.03° at 4 m/s and 4.58° at 8 m/s,
-against 0.44° and 1.76° for the body drag alone (1.65° and 2.83° without any
-airframe drag). The rotors' share calibrates `EK3_DRAG_MCOEF` (0.062 1/s,
-since EKF3 models rotor drag as `MCOEF·V·ρ/ρ0`), and `EK3_DRAG_BCOEF_X/Y` is
-m/(C_D·A) from the manifest (130 kg/m²), since EKF3 models body drag along
-each axis as `½·ρ·u²/BCOEF`. Set in flight, they let EKF3 learn the
-along-wind component within 10 s (−8.14 m/s against the true −8 m/s);
-without them its wind stays zero. The cross-wind component carries an error
-that EKF3's drag model explains. EKF3 predicts each body axis's drag from that
-axis's airspeed alone (`½·ρ·u²/BCOEF` and `MCOEF·u`), and ArduPilot's built-in
-SITL multicopter computes its drag in the same per-axis form
-(`SIM_Frame.cpp`), so its own SITL never shows a mismatch. Drag along the
-relative wind, the contract's and a bluff body's, together with the BET
-rotors' side forces, leaves a persistent sideways drag innovation (XKF2 `IDY`,
-+0.003 to +0.03 m/s² against about +0.001 on the built-in quad) that EKF3
-absorbs into heading and cross-wind. With ArduPilot's default simulated gyro
-drift (`SIM_DRIFT_SPEED`, 0.05°/s per minute, which both models' EKF tracks in
-`XKF1.GZ`) the heading then turns about 0.045°/s, and the cross-wind estimate
-reaches −2.07 m/s after 175 s; the built-in quad holds its heading in the same
-test. With the drift off, the heading settles about 2° off and the cross-wind
-estimate about 0.5 m/s off. The along-wind component converges either way. By
-the user's decision of 2026-11-03 this meets TASK-096's convergence, and
-MirageSITL keeps its drag along the relative wind rather than EKF3's per-axis
-form.
+the S19 quad X holds position in GUIDED in a steady north wind, with the 40 Hz
+gyro filter it needs to fly steadily (section "Attitude oscillation of the quad
+X at stock gains"). Its trimmed lean, shown and not judged (F-02), is 1.81° at
+4 m/s and 4.58° at 8 m/s, against 0.44° and 1.76° for the body drag alone. The
+rotors' share calibrates `EK3_DRAG_MCOEF` (0.060 1/s, since EKF3 models rotor
+drag as `MCOEF·V·ρ/ρ0`), and `EK3_DRAG_BCOEF_X/Y` is m/(C_D·A) from the manifest
+(130 kg/m²), since EKF3 models body drag along each axis as `½·ρ·u²/BCOEF`. Set
+in flight, they let EKF3 learn the wind within 10 s: after 60 s it reads
+−8.33 m/s along the true −8 m/s wind and −0.13 m/s across it, with the heading
+0.11° from where it was; without them its wind stays zero.
+
+At stock settings the quad's attitude oscillation pulls that estimate. Over a
+175 s fusion the cross-wind estimate reaches −1.90 m/s and the heading turns
+7.8°, with XKF2 `IDY` growing to +0.041 m/s², against −0.11 m/s, 0.17° and a
+steady +0.003 m/s² with the 40 Hz filter; the along-wind estimate is −8.23 m/s
+and −8.33 m/s. TASK-096 first put that error down to EKF3's drag form, which
+predicts each body axis's drag from that axis's airspeed alone
+(`½·ρ·u²/BCOEF` and `MCOEF·u`, as ArduPilot's built-in SITL multicopter computes
+it in `SIM_Frame.cpp`), while the contract's drag acts along the relative wind.
+The comparison of 2026-11-04 shows that the oscillation is the main cause. By
+the user's decision of 2026-11-03 MirageSITL keeps its drag along the relative
+wind rather than EKF3's per-axis form.
 
 Verification (TASK-096): `tests/airframe-drag.test.ts` checks the force and
 moment against the formula within 1e-12 on the first step of a level vehicle
