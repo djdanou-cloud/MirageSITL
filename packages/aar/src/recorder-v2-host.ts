@@ -57,9 +57,9 @@ export function telemetryValues(frame: MavFrame): { readonly id: number; readonl
   }
 }
 
-export type EventKind = "weather" | "fault" | "pause" | "accident" | "flight-task" | "flight-task-attitude";
+export type EventKind = "weather" | "fault" | "pause" | "accident" | "flight-task" | "flight-task-attitude" | "limit";
 const EVENT_SIGNAL: Readonly<Record<EventKind, number>> = { weather: SignalId.Weather, fault: SignalId.Fault, pause: SignalId.Pause, accident: SignalId.Accident, "flight-task": SignalId.FlightTaskRequest,
-  "flight-task-attitude": SignalId.FlightTaskAttitudeRequest };
+  "flight-task-attitude": SignalId.FlightTaskAttitudeRequest, limit: SignalId.LimitEvent };
 
 function randomRecordId(): string {
   return Array.from(crypto.getRandomValues(new Uint8Array(16)), byte => byte.toString(16).padStart(2, "0")).join("");

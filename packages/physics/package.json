@@ -21,6 +21,7 @@
     "./profile-dynamics": "./src/profile-dynamics.ts",
     "./accident": "./src/accident.ts",
     "./limit-monitor": "./src/limit-monitor.ts",
+    "./thrust-capacity": "./src/thrust-capacity.ts",
     "./fidelity-metrics": "./src/fidelity-metrics.ts",
     "./bench-import": "./src/bench-import.ts"
   },

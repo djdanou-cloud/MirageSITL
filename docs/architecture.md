@@ -112,6 +112,7 @@ Workspace packages, services, and native crates:
 | `packages/thermal` | Surface material classes (WorldCover/OSM) with provenance; not temperatures |
 | `packages/aar` | Input/actuator/truth/EKF recording and replay |
 | `packages/scenarios` | Declarative training scenarios, tick runner, and trace rubrics |
+| `packages/analysis` | Result metrics and comparison of stored experiments (TASK-177) |
 | `packages/project` | Local project store: immutable versions, project archives (TASK-136) |
 | `packages/aircraft` | Aircraft profiles: arms, motors, mass properties, rotor layout and vehicle manifest derivation (TASK-138); component cards, the card exchange file and propeller geometry (TASK-139); measurement sets and calculation modes (TASK-140); component resolution with listed assumptions and propeller polars (TASK-144) |
 | `services/tiles-worker` | Cloudflare proxy, quotas, permitted caching |

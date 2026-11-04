@@ -229,3 +229,17 @@ html[data-g3="1"] .terrain-status { top: 12px; bottom: auto; left: 50%; transfor
 .response-panel tbody th { color: #d6e2ea; min-width: 0; }
 .response-panel details { margin-top: 8px; font-size: 12px; }
 .response-panel details table { margin-top: 6px; }
+
+/* The comparison of two experiments (TASK-177). */
+.compare-panel table { border-collapse: collapse; font-variant-numeric: tabular-nums; margin-bottom: 8px; }
+.compare-panel th, .compare-panel td { padding: 3px 16px 3px 0; font-size: 12px; font-weight: 400; text-align: left; vertical-align: top; }
+.compare-panel thead th { color: #9fb4c1; }
+.compare-panel tbody th { color: #d6e2ea; min-width: 0; }
+.compare-panel tbody th[scope=rowgroup] { padding-top: 10px; font-weight: 600; }
+.compare-panel td.compare-number, .compare-panel th.compare-number { text-align: right; }
+.compare-panel tr[data-flagged="true"] td, .compare-panel tr[data-flagged="true"] th { color: #f0b37a; }
+.compare-panel .hint { max-width: 860px; }
+.compare-panel h4 { margin: 14px 0 6px; }
+.compare-panel .sitl-form { display: grid; grid-template-columns: max-content minmax(0, 420px); gap: 6px 12px; align-items: center; font-size: 12px; margin-bottom: 8px; }
+.compare-panel .sitl-form select, .compare-panel .sitl-form input { width: 100%; min-width: 0; }
+@media (max-width: 800px) { .compare-panel .sitl-form { grid-template-columns: minmax(0, 1fr); } }

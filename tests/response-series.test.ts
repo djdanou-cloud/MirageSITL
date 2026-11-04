@@ -2,7 +2,7 @@ import { describe, expect, test } from 'vitest';
 import { flightTaskSchemaVersion, parseFlightTask, type FlightTaskType } from '@mirage/scenarios/flight-tasks';
 import type { ResponseSeries } from '@mirage/scenarios/maneuvers';
 import { PLOT_BOX, niceTicks, plotGeometry, thinned } from '../apps/web/src/analysis/response-geometry.ts';
-import { maneuverSeries, valueAt, type RecordedRow } from '../apps/web/src/analysis/response-series.ts';
+import { maneuverSeries, valueAt, type RecordedRow } from '@mirage/analysis/response-series';
 
 // The series a chart and its metrics read, from rows as a recording holds them, and
 // the chart's one time scale. The quaternions and rows here are written out by hand.

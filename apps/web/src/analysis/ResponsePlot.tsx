@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from "react";
 import { PLOT_BOX, plotGeometry } from "./response-geometry";
-import { valueAt, type ManeuverSeries } from "./response-series";
+import { valueAt, type ManeuverSeries } from "@mirage/analysis/response-series";
 
 // Requested against actual on one time axis (TASK-173): the request as the corners
 // it really had, and the truth the recording holds. Hovering reads both at a moment,

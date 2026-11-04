@@ -7,6 +7,7 @@ import type { ImportReport } from "@mirage/project/store";
 import type { StoreState } from "../shell/AppShell";
 import type { SessionLink } from "../run/session-link";
 import { ResponsePanel } from "../analysis/ResponsePanel";
+import { ComparePanel } from "../compare/ComparePanel";
 import { TASK_TYPE_LABELS } from "../tasks/flight-task-form";
 import { externalDependencies, lineageText, trajectoryDifference, type PositionRow, type TrajectoryDifference } from "./lifecycle";
 
@@ -198,6 +199,7 @@ export function ExperimentsTab({ storeState, project, link, active, onRun }: {
           </ul>
         </section>
       )}
+      {store && experiments.length > 1 && <ComparePanel store={store} experiments={experiments} />}
       <section className="project-section" aria-labelledby="experiments-import-heading">
         <h3 id="experiments-import-heading">Import experiments</h3>
         <label htmlFor="experiments-import">Experiment archive (.mirageproj)</label>

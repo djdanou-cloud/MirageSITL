@@ -341,7 +341,14 @@ implementation.
   Experiments tab charts requested against actual from the stored recording, with
   delay, rise time, overshoot, settling and end error of each change, shown and
   not judged. Roll and pitch can end a few tenths of a degree off the request
-  because EKF3 lags ArduPilot's simulated gyro drift (SIM_DRIFT_SPEED). TASK-142 is DONE:
+  because EKF3 lags ArduPilot's simulated gyro drift (SIM_DRIFT_SPEED). TASK-177 is
+  DONE: the Experiments tab compares two flown experiments (`packages/analysis`),
+  listing the inputs held equal and flagging one that differs, accounting for the
+  components' own mass, and showing thrust margin, RPM, current, power, energy, a
+  duration estimate with its scenario and reserve, position and maneuver response and
+  recorded limit exceedances, shown and not judged. `thrustCapacity` solves the thrust at
+  full command. It found an open flight-model fault: at high demand the battery bus flips
+  every tick, and a pack at its limit is flagged while the motors draw on. TASK-142 is DONE:
   the Aircraft tab maps each motor to an output and generates the frame
   parameters from the TASK-128 catalog (the S19 octa-x fixture spins the
   mirror of stock OCTA X, so it uses the scripting matrix). TASK-151 (the

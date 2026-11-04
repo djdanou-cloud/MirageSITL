@@ -5518,6 +5518,10 @@ terminal powers, each of which is copper loss plus k_t·i·Ω; the bus current
 reported per motor is its terminal power over the lagged voltage, and the
 pack current is the root above.
 
+This coupling flips every tick between two voltages at high demand, and a limited bus
+does not hold the motors back: TASK-177 measured both, and they are open (see "Thrust
+at full command").
+
 ### Flight dynamics, manifest and parameter profile
 
 `BetFlightConfiguration.drive` (`EscDriveConfiguration`) selects the drive:
@@ -6328,6 +6332,9 @@ branch first taken in flight, such as a pack crossing its empty voltage, would
 deoptimize it; the unoptimized code then boxes doubles until it is optimized
 again. Event values and limits pass through a typed array, never as call
 arguments.
+
+Since TASK-177 the recorder keeps these events as `events.limit` rows, so a stored
+experiment can say what it exceeded (see "Limit exceedances").
 
 ### Session, Worker and UI
 
@@ -7722,7 +7729,7 @@ reader requires a row to hold exactly its signal's channels: two more channels o
 `events.flightTask` would make recordings already stored unreadable.
 
 The Experiments tab computes the response from the stored recording on the run's
-simulated clock (`apps/web/src/analysis/response-series.ts`). An edge is the first
+simulated clock (`packages/analysis/src/response-series.ts`). An edge is the first
 recorded row of a new request. The actual value is the physics truth: roll, pitch
 and yaw from `truth.attitude`, height from `truth.position`, at the rate the
 Logging tab set, 50 Hz by default. For each edge, with its window ending at the
@@ -7855,6 +7862,129 @@ through the application alone: an original run, its repeat and a variant at
 another speed, the comparison, and an export imported into another browser
 profile.
 
+## Experiment comparison (TASK-177)
+
+Two flown experiments side by side, on the Experiments tab, which the twelve tabs of
+TASK-137 leave as its place: different conditions for one aircraft, or equal
+conditions for different configurations. `packages/analysis` is pure and reads a
+stored recording. Nothing in it says which experiment is better: the metrics
+describe, no limit applies to any of them, and the user judges (SA-01). A value the
+recording cannot give reads as missing, never as zero.
+
+### Inputs held equal and inputs that differ
+
+`comparisonControls` lists 21 inputs: arms and motor layout, motors, propellers, ESCs,
+battery, aircraft mass with CG and inertia, payload, other aircraft settings, flight
+task, start position and lead-in, battery charge at the start, weather, home,
+ArduPilot build, initial parameters, frame script, sensors, physics rate, speed,
+recording setup and SITL ownership. Each row gives both values, whether they differ,
+and whether it is held equal. One held equal that differs is flagged, and the
+comparison still shows, because what that means is the user's to judge. The user may
+change what is held.
+
+| Comparison | Held equal by default |
+|---|---|
+| Different configurations, equal conditions | payload, battery, flight task, start, charge, weather, home, ArduPilot build, physics rate |
+| One aircraft, different conditions | every aircraft input, payload, initial parameters, frame script, sensors, ArduPilot build, physics rate |
+
+Speed, recording setup and SITL ownership do not change the physics, so neither kind
+holds them by default. A run has no weather to choose until TASK-167, so that row reads
+still air. The start and the charge are inputs of their own, apart from what the task
+flies. A sensor snapshot names the profile version it was copied from; that name
+is left out of the comparison, as is the COMPASS_DEC that follows from the home.
+
+### Mass
+
+A profile states its aircraft's mass, and component cards state their own.
+`massAccounting` lists motors, propellers, ESCs and battery for each aircraft, the
+stated aircraft mass, the payload and the total. It flags a change of 1 g or more that
+the components and the stated mass do not agree on: heavier motors on an aircraft that
+states the same mass, or a stated change no component explains. Both using one card is
+no difference even if the card states no mass; a different card with no mass makes the
+difference not known, and nothing is flagged.
+
+### Metrics
+
+Each is computed from the recording, on its own clock, in `experimentMetrics`. Airborne
+means more than 0.5 m above the height of the first row. The two are compared over the
+task's measured part if both have one, or else from the first to the last moment
+airborne.
+
+| Metric | Definition | Unit |
+|---|---|---|
+| highest | largest height over the first row's | m |
+| mean and largest motor command | the mean over the motors at each row, then by trapezoids over time; the largest is any motor's | 0 to 1 |
+| mean and largest rotor speed | in the same way, `motors.speed` | rev/min |
+| mean and largest battery current, power | `battery`, by trapezoids; the largest is its largest row | A, W |
+| lowest battery voltage | its smallest row | V |
+| energy | ∫P dt by trapezoids, over 3600 | Wh |
+| charge | remaining at the start of the window less remaining at its end | Ah |
+| flight duration | (Q₀ − r·Q) / Ī, with Q₀ the charge the run started at, Q the capacity, r the reserve and Ī the window's mean current | min |
+| position | RMS and largest of horizontal and altitude difference between each measured request and the first truth row at or after its tick; none for a maneuver, whose request jumps on purpose | m |
+| maneuver response | as in "Tuning maneuvers", at a 5 % band | s, % |
+
+The duration estimate names its scenario and its reserve: it flies on as the window
+flew, from the charge the run started at to a reserve the user types, 20 % at first and
+theirs to change. It holds the current constant, so it leaves out the voltage falling
+as the pack empties, and it is not an endurance figure for a real aircraft.
+
+### Limit exceedances
+
+The recorder now keeps the limit monitor's events as `events.limit` rows, each at its
+own tick: code 0, the monitor reports into this recording; code 1, a change of an
+exceedance with its subject, quantity, edge, value and limit; code 2, events the monitor
+could not hold. `limitSummary` adds up each quantity on each subject: how many times,
+for how long, and against what limit, a rating warning kept apart from a modeled clamp.
+A recording without code 0 is older, and says it does not know, never that there were
+none. A brief clamp at the drive's current limit as a motor starts is normal, and shows.
+
+### Thrust at full command
+
+Takeoff capability and thrust margin come from `thrustCapacity`
+(`packages/physics/src/thrust-capacity.ts`), in a Worker: every rotor at full duty on
+the same rotor engine and battery as flight, in still air with the aircraft held
+still, until speeds and voltage settle, at the charge the run started at. The result is
+the upward force, the weight with the payload, and their ratio. Above 1 it can lift off,
+and the rest is its margin. It is a calculation and carries the profile's label.
+
+It solves the steady state, and there it differs from a flight on purpose. In flight
+the motors run on the previous tick's bus voltage with no iteration (see "Coupling
+and energy budget"), and that loop has two faults, measured for TASK-177 on the example
+cards, a 125 A pack of 0.018 Ω:
+
+| Aircraft | Hover duty | The bus starts to flip at duty | Motors draw at full duty | The pack can deliver |
+|---|---|---|---|---|
+| quad X, 4 motors | about 0.40 | 1.00 | 722 and 1874 W in turn | 1819 W |
+| hexa X, 6 motors | about 0.45 | 0.85 | 1470 and 2040 W in turn | 1819 W |
+| octa X, 8 motors | about 0.50 | 0.80 | 2229 W | 1819 W |
+| coaxial X8, 8 motors | about 0.45 | 0.80 | 2229 W | 1819 W |
+| octa coaxial, 16 motors | 0.50 | 0.60 | 4458 W | 1819 W |
+
+First, at high demand the bus flips every tick between two voltages, for example 14.55 and
+15.99 V on the quad at full duty, because the motors' current is very sensitive to the
+voltage of the tick before. The rotors' inertia averages the thrust, but a recorded
+current or power is one phase of that swing. Second, a pack at its current limit is
+flagged while the motors go on drawing what they ask, beyond what it delivers, and with
+less current there is less sag, so the voltage rises and the thrust goes up. Holding the
+quad's pack to half its current raised its thrust from 78.2 to 89.3 N in a flight.
+Normal hover and gentle flight are stable and unaffected. `thrustCapacity` moves the
+voltage slowly towards its target, so it settles where the motors and the pack agree,
+and at the pack's limit it lowers the voltage until the motors ask for no more than the
+pack delivers. For the quad that is 78.45 N at 15.29 V and 83.65 A, with 1279 W on both
+sides. For 16 motors on one example pack it is 153.6 N, a ratio of 1.84, where a flight
+reaches 285.8 N, 3.43, by drawing 4458 W. The tab says so when the pack limits an aircraft.
+
+### Verification (TASK-177)
+
+`tests/experiment-metrics.test.ts` and `tests/experiment-compare.test.ts` check the metrics
+and the comparison on rows and inputs written out by hand, with each expected figure's
+arithmetic next to it. `tests/thrust-capacity.test.ts` checks the thrust against an
+oracle that shares none of its loop, the flight dynamics on a body 100 000 times heavier
+with gravity off, on a stiff pack whose voltage hardly moves, within 0.5 % set beforehand;
+and the sag and the limit by hand against the pack's law. `tests/browser/compare-experiments.spec.ts`
+flies one hover on two configurations with native ArduCopter 8ab6afde, and compares the page's
+numbers with what it works out from the recording's rows and the cards on its own.
+
 ## DataFlash capture per experiment (TASK-164)
 
 ArduPilot's own DataFlash logs of an integrated run stay ArduPilot's: the
@@ -7958,6 +8088,7 @@ records and never reused.
 | 65–68 | events.weather, events.fault, events.pause, events.accident | a registry code and up to three numbers (pause: 1 paused, 0 resumed) | f64 | event |
 | 69 | events.flightTask | stage, measured, task time (s), requested north, east, altitude (m), speed (m/s), heading (deg), vertical speed (m/s); a channel the stage does not request is absent (TASK-172) | f64 | event |
 | 70 | events.flightTaskAttitude | requested roll and pitch (deg), at the tick of the events.flightTask row; a channel the maneuver does not request is absent (TASK-173) | f64 | event |
+| 71 | events.limit | code, subject (a motor's index, or -1 for the battery), quantity, edge, value and limit; code 0: the monitor reports into this recording; code 1: an exceedance changed; code 2: events the monitor could not hold, in the value channel (TASK-177) | f64 | event |
 | 127 | gap | rows lost here | — | recorder |
 
 ### Rates

@@ -33,7 +33,8 @@ const AXES: Readonly<Record<ManeuverAxis, { readonly label: string; readonly uni
   roll: { label: "Roll", unit: "°" }, pitch: { label: "Pitch", unit: "°" }, heading: { label: "Heading", unit: "°" }, altitude: { label: "Altitude", unit: "m" },
 };
 
-function channel(row: RecordedRow, index: number): number | null {
+/** A channel of a row, null where the row's presence mask says it is absent. */
+export function channel(row: RecordedRow, index: number): number | null {
   const value = row.values?.[index];
   return value !== undefined && (row.presence & (1 << index)) !== 0 ? value : null;
 }

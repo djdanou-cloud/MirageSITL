@@ -395,7 +395,7 @@ async function fetchContactModule(): Promise<{ bytes: Uint8Array; manifest: unkn
 }
 
 /** The scalar BET module from /__bet/ (Vite, loopback only), checked against its manifest. */
-async function fetchBetModule(): Promise<{ bytes: Uint8Array; sha256: string }> {
+export async function fetchBetModule(): Promise<{ bytes: Uint8Array; sha256: string }> {
   const manifest: unknown = await (await fetch("/__bet/manifest.json", { cache: "no-store" })).json().catch(() => null);
   const artifacts = field(manifest, "artifacts");
   const list: readonly unknown[] = Array.isArray(artifacts) ? artifacts : [];

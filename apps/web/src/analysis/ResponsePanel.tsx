@@ -3,7 +3,7 @@ import { reopenRecording } from "@mirage/aar/recorder-v2-host";
 import type { FlightTaskDefinition } from "@mirage/scenarios/flight-tasks";
 import { maneuverResponse, type EdgeResponse } from "@mirage/scenarios/maneuvers";
 import { ResponsePlot } from "./ResponsePlot";
-import { maneuverSeries, valueAt, type SeriesResult } from "./response-series";
+import { maneuverSeries, valueAt, type SeriesResult } from "@mirage/analysis/response-series";
 
 // A flown maneuver's response on the Experiments tab (TASK-173, S10): the chart, and
 // rise time, overshoot and settling of each change, computed from the stored

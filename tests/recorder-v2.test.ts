@@ -4,6 +4,7 @@
 // the A-08 budget (2 GB per simulated hour) and the record reopened from
 // storage. The one-hour run is simulated time, accelerated: the producer
 // sees every one of its 1,440,000 ticks.
+import { limitDroppedRow, limitEventRow, limitMonitorRow } from '@mirage/physics/limit-monitor';
 import { describe, expect, it } from 'vitest';
 import { newActuatorFrameV2, newFlightStateV2, newSensorFrameV2, type PowerTelemetrySource } from '../packages/protocol/src/index.ts';
 import { checkRow, chunkCrc, decodeChunk, headerFromPlan, parseRecordHeader, recordKey, RowOffset, CHUNK_HEADER_BYTES } from '../packages/aar/src/format-v2.ts';
@@ -285,6 +286,13 @@ describe('recorder v2 rows, gaps and storage', () => {
     expect(new DataView(request.buffer).getUint32(RowOffset.presence, true)).toBe(0b001101011);
     expect(new RecordingConsumerV2(null, recordKey(RECORD_ID), { write: () => undefined }).appendRow(request)).toBe(true);
     expect(() => parameterRow('NAME WITH SPACE', 1, false, 1, 0, 1)).toThrow();
+    // TASK-177: a limit the model does not state stays absent, and a row of any code is one the recording takes.
+    const clamp = valueRow(SignalId.LimitEvent, limitEventRow({ tick: 9, simTimeS: 1, subject: 'battery', quantity: 'pack-current-limit', kind: 'limited', edge: 'start', value: 80, limit: Number.NaN }), 9, 1, 1);
+    expect(new DataView(clamp.buffer).getUint32(RowOffset.presence, true)).toBe(0b011111);
+    const asConsumer = new RecordingConsumerV2(null, recordKey(RECORD_ID), { write: () => undefined });
+    expect(asConsumer.appendRow(clamp)).toBe(true);
+    expect(asConsumer.appendRow(valueRow(SignalId.LimitEvent, limitMonitorRow(), 0, 0, 1))).toBe(true);
+    expect(asConsumer.appendRow(valueRow(SignalId.LimitEvent, limitDroppedRow(7), 10, 2, 1))).toBe(true);
   });
 
   it('reopens a record cut off by a restart as interrupted, with every chunk written before', async () => {
