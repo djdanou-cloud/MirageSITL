@@ -8,7 +8,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { specFields } from './support/spec-layout.ts';
 import { BetRotorEngine, encodeBoundRotor, type BoundRotorDefinition } from '@mirage/wasm-bet/rotor';
 import { BetRigidBodyBackend, newBodyTruth } from '@mirage/wasm-bet/backend';
-import { BOUND_V2, BOUND_V2_DRIVE_DOUBLES, BOUND_V2_INPUT_DOUBLES, BOUND_V2_OUTPUT_SLOTS, BetRotorEngineV2 } from '@mirage/wasm-bet/rotor-v2';
+import { BOUND_V2, BOUND_V2_DRIVE_DOUBLES, BOUND_V2_INPUT_DOUBLES, BOUND_V2_OUTPUT_SLOTS, BetRotorEngineV2, BUS_SOLUTION_V1 } from '@mirage/wasm-bet/rotor-v2';
 import { BUS_V1, BetBus } from '@mirage/wasm-bet/bus';
 import { BODY_V2, BetRigidBodyBackendV2, newBodyTruthV2 } from '@mirage/wasm-bet/body-v2';
 import iface from './fixtures/wasm-abi/interface-v2.json';
@@ -31,7 +31,7 @@ beforeAll(() => {
 interface Raw {
   memory: WebAssembly.Memory; heap: number;
   init: (...a: number[]) => number; boundV1: (...a: number[]) => number; boundV2: (...a: number[]) => number;
-  bodyV2: (...a: number[]) => number; bus: (...a: number[]) => number;
+  bodyV2: (...a: number[]) => number; bus: (...a: number[]) => number; busSolve: (...a: number[]) => number;
 }
 function fn(value: unknown): (...a: number[]) => number {
   if (typeof value !== 'function') throw new Error('Missing export');
@@ -43,9 +43,9 @@ function raw(module: WebAssembly.Module): Raw {
     throw new Error('Missing memory exports');
   }
   if (fn(e.bet_bound_v2_version)() !== 2 || fn(e.bet_body_v2_version)() !== 2 || fn(e.bet_bound_version)() !== 1 ||
-      fn(e.bet_bus_version)() !== 1) throw new Error('Wrong versions');
+      fn(e.bet_bus_version)() !== 1 || fn(e.bet_bus_solve_version)() !== 1) throw new Error('Wrong versions');
   return { memory: e.memory, heap: Math.ceil(e.__heap_base.value / 64) * 64, init: fn(e.bet_bound_init), boundV1: fn(e.bet_bound_step),
-    boundV2: fn(e.bet_bound_step_v2), bodyV2: fn(e.bet_body_step_v2), bus: fn(e.bet_bus_step) };
+    boundV2: fn(e.bet_bound_step_v2), bodyV2: fn(e.bet_body_step_v2), bus: fn(e.bet_bus_step), busSolve: fn(e.bet_bound_bus_solve_v2) };
 }
 /** Bound arena at the heap base: config, arena, a v2 input and a v2 output region. */
 function boundArena(r: Raw, config: Uint8Array) {
@@ -83,7 +83,7 @@ function parityError(actual: DataView, at: number, expected: DataView, p: number
 describe('specification layouts, fixture and header', () => {
   const headings: [string, keyof typeof iface.layouts][] = [['### Bound rotor step input v2', 'boundInputV2'],
     ['### Bound rotor step output v2', 'boundOutputV2'], ['### Rigid-body step input v2', 'bodyInputV2'], ['### Rigid-body step output v2', 'bodyOutputV2'],
-    ['### Shared bus input v1', 'busInputV1'], ['### Shared bus output v1', 'busOutputV1']];
+    ['### Shared bus input v1', 'busInputV1'], ['### Shared bus output v1', 'busOutputV1'], ['### Shared bus solution v1', 'busSolutionV1']];
   for (const [heading, key] of headings) {
     it(`${heading} matches the golden layout and covers every byte once`, () => {
       const spec = specFields(heading, engineSpec), layout = iface.layouts[key];
@@ -135,6 +135,10 @@ describe('specification layouts, fixture and header', () => {
     const busOut: [number, string][] = [[BUS_V1.output.voltage, 'voltage'], [BUS_V1.output.current, 'current'], [BUS_V1.output.flags, 'flags']];
     for (const [value, name] of busOut) expect(value, name).toBe(offset('busOutputV1', name));
     expect([define('BET_BUS_INPUT_BYTES'), define('BET_BUS_OUTPUT_BYTES'), define('BET_BUS_VERSION')]).toEqual([128, 128, iface.busVersion]);
+    const solution: [number, string][] = [[BUS_SOLUTION_V1.motorVoltage, 'motor_voltage'], [BUS_SOLUTION_V1.packVoltage, 'pack_voltage'],
+      [BUS_SOLUTION_V1.flags, 'flags'], [BUS_SOLUTION_V1.iterations, 'iterations']];
+    for (const [value, name] of solution) expect(value, name).toBe(offset('busSolutionV1', name));
+    expect([define('BET_BUS_SOLUTION_BYTES'), define('BET_BUS_SOLUTION_VERSION')]).toEqual([BUS_SOLUTION_V1.outputBytes, BUS_SOLUTION_V1.version]);
     expect([define('BET_BOUND_V2_DRIVE_POWER_CUT'), define('BET_BOUND_V2_FLAG_CURRENT_LIMITED'), define('BET_BUS_FLAG_POWER_LIMITED'),
       define('BET_BUS_FLAG_CHARGE_LIMITED')]).toEqual([BOUND_V2.drivePowerCut, BOUND_V2.flagCurrentLimited, BUS_V1.flagPowerLimited, BUS_V1.flagChargeLimited]);
   });
@@ -305,6 +309,103 @@ describe('WASM step interfaces v2', () => {
     expect(rotor.lastStatus).toBe(BOUND_V2.unsupported);
     rotor.input[BOUND_V2_INPUT_DOUBLES - 1] = 0;
     expect(rotor.stepInto()).toBe(true);
+  });
+});
+
+describe('TASK-197 the bus and the ESC rotors solved together', () => {
+  const read = (view: DataView, at: number) => view.getFloat64(at, true);
+  /** A rotor at the golden ESC record, a bus record and a table of one pair, in fresh memory. */
+  function setup(r: Raw) {
+    const { arena, input, output } = boundArena(r, encodeBoundRotor(rotorDefinition(), 1 / 400));
+    const table = output + 256, bus = table + 64, solution = bus + 128;
+    if (r.memory.buffer.byteLength < solution + 64) r.memory.grow(1);
+    const view = new DataView(r.memory.buffer), memory = new Uint8Array(r.memory.buffer);
+    memory.set(hex(iface.escInputHex), input);
+    memory.set(hex(iface.busInputHex), bus);
+    view.setFloat64(bus + BUS_V1.input.motorPower, 0, true);
+    view.setFloat64(bus + BUS_V1.input.housePower, 0, true);
+    view.setUint32(table, arena, true); view.setUint32(table + 4, input, true);
+    return { arena, input, table, bus, solution, view, memory };
+  }
+  it('finds the voltage by hand, and changes neither the arena nor the record', () => {
+    const results: number[][] = [];
+    for (const { module } of modules) {
+      const r = raw(module), s = setup(r), dt = 1 / 400, g = s.view;
+      const arenaLength = encodeBoundRotor(rotorDefinition(), dt).length + 64, before = s.memory.slice(s.arena, s.arena + arenaLength), recordBefore = s.memory.slice(s.input, s.input + 256);
+      expect(r.busSolve(s.table, 1, s.bus, s.solution, dt)).toBe(0);
+      expect(Array.from(s.memory.subarray(s.arena, s.arena + arenaLength))).toEqual(Array.from(before));
+      expect(Array.from(s.memory.subarray(s.input, s.input + 256))).toEqual(Array.from(recordBefore));
+      // The first step samples the target, from a duty of 0: d = u·(1 - e^(-dt/tau)). This record's duty is so far below the back-EMF
+      // that the winding brakes at its limit whatever the voltage: P = i·(i·R + k·w) is flat, and V·(Voc - V) = Rb·P gives the voltage.
+      const u = read(g, s.input + BOUND_V2.input.escDuty), tau = read(g, s.input + BOUND_V2.input.escCommandTau), R = read(g, s.input + BOUND_V2.input.motorResistance), k = read(g, s.input + BOUND_V2.input.motorTorqueConstant);
+      const soc = read(g, s.bus + BUS_V1.input.stateOfCharge), full = read(g, s.bus + BUS_V1.input.openCircuitFull), empty = read(g, s.bus + BUS_V1.input.openCircuitEmpty), Rb = read(g, s.bus + BUS_V1.input.internalResistance);
+      const d = u * (1 - Math.exp(-dt / tau)), w = rotorDefinition().initialOmegaRadS, Voc = empty + (full - empty) * soc, brake = read(g, s.input + BOUND_V2.input.motorBrakeCurrentLimit);
+      const clamped = -brake, power = clamped * (clamped * R + k * w), expected = (Voc + Math.sqrt(Voc * Voc - 4 * Rb * power)) / 2;
+      expect((d * expected - k * w) / R).toBeLessThan(clamped);
+      expect(Math.abs(read(g, s.solution + BUS_SOLUTION_V1.motorVoltage) - expected)).toBeLessThanOrEqual(1e-8);
+      expect(read(g, s.solution + BUS_SOLUTION_V1.packVoltage)).toBe(read(g, s.solution + BUS_SOLUTION_V1.motorVoltage));
+      expect(g.getUint32(s.solution + BUS_SOLUTION_V1.flags, true)).toBe(0);
+      expect(g.getUint32(s.solution + BUS_SOLUTION_V1.iterations, true)).toBeGreaterThan(0);
+      results.push([read(g, s.solution), read(g, s.solution + 8)]);
+      // With a brake limit it does not reach, P = d·V·(d·V - k·w)/R, and the voltage has a closed form.
+      g.setFloat64(s.input + BOUND_V2.input.motorBrakeCurrentLimit, 1e4, true);
+      expect(r.busSolve(s.table, 1, s.bus, s.solution, dt)).toBe(0);
+      const free = (Voc + (Rb / R) * d * k * w) / (1 + d * d * Rb / R);
+      expect(Math.abs(read(g, s.solution + BUS_SOLUTION_V1.motorVoltage) - free)).toBeLessThanOrEqual(1e-8);
+    }
+    expect(results[1]).toEqual(results[0]);
+  });
+  it('rejects bad records and pointers with their statuses, and leaves the solution untouched', () => {
+    for (const { module } of modules) {
+      const r = raw(module), s = setup(r), dt = 1 / 400;
+      s.view.setFloat64(s.solution, 123.5, true);
+      const rejected = (status: number, call: () => number) => { expect(call()).toBe(status); expect(read(s.view, s.solution)).toBe(123.5); };
+      rejected(-3, () => r.busSolve(s.table, 0, s.bus, s.solution, dt));
+      rejected(-3, () => r.busSolve(s.table, 33, s.bus, s.solution, dt));
+      rejected(-3, () => r.busSolve(s.table, 1, s.bus, s.solution, 0));
+      rejected(-2, () => r.busSolve(s.table, 1, s.bus, s.bus, dt));
+      rejected(-2, () => r.busSolve(s.table, 1, s.bus, s.table, dt));
+      rejected(-2, () => r.busSolve(s.table, 1, s.bus, s.input, dt));
+      rejected(-2, () => r.busSolve(s.table, 1, s.bus, s.arena, dt));
+      rejected(-2, () => r.busSolve(0, 1, s.bus, s.solution, dt));
+      // A motor power is the step's input, not the solve's.
+      s.view.setFloat64(s.bus + BUS_V1.input.motorPower, 1, true);
+      rejected(-3, () => r.busSolve(s.table, 1, s.bus, s.solution, dt));
+      s.view.setFloat64(s.bus + BUS_V1.input.motorPower, 0, true);
+      s.view.setUint32(s.bus, 99, true);
+      rejected(-7, () => r.busSolve(s.table, 1, s.bus, s.solution, dt));
+      s.view.setUint32(s.bus, 1, true);
+      // A rotor in torque mode has no ESC to solve for.
+      s.view.setUint32(s.input + BOUND_V2.input.driveMode, BOUND_V2.driveTorque, true);
+      rejected(-3, () => r.busSolve(s.table, 1, s.bus, s.solution, dt));
+      s.view.setUint32(s.input + BOUND_V2.input.driveMode, BOUND_V2.driveEscDuty, true);
+      s.view.setFloat64(s.input + BOUND_V2.input.escDuty, 2, true);
+      rejected(-3, () => r.busSolve(s.table, 1, s.bus, s.solution, dt));
+      s.view.setFloat64(s.input + BOUND_V2.input.escDuty, 0.5, true);
+      // An arena that is not one.
+      s.view.setUint32(s.table, s.input, true);
+      rejected(-1, () => r.busSolve(s.table, 1, s.bus, s.solution, dt));
+    }
+  });
+  it('the adapter refuses to solve without a battery, and writes what the raw call writes', () => {
+    for (const { module } of modules) {
+      const r = raw(module), s = setup(r), dt = 1 / 400, g = hex(iface.escInputHex), golden = new DataView(g.buffer);
+      const engine = new BetRotorEngineV2(module, [rotorDefinition()], 400);
+      for (let j = 0; j < BOUND_V2_INPUT_DOUBLES; j++) engine.input[j] = read(golden, 16 + 8 * j);
+      for (let j = 0; j < BOUND_V2_DRIVE_DOUBLES; j++) engine.drive[j] = read(golden, 192 + 8 * j);
+      engine.driveMode[0] = golden.getUint32(8, true);
+      expect(engine.solveBusInto()).toBe(false);
+      expect(engine.lastStatus).toBe(-3);
+      const bus = s.bus, v = s.view, I = BUS_V1.input;
+      engine.attachBattery({ openCircuitFullV: read(v, bus + I.openCircuitFull), openCircuitEmptyV: read(v, bus + I.openCircuitEmpty), internalResistanceOhm: read(v, bus + I.internalResistance),
+        capacityAh: read(v, bus + I.capacityCoulomb) / 3600, currentLimitA: read(v, bus + I.currentLimit) });
+      engine.busState[0] = read(v, bus + I.stateOfCharge); engine.busState[1] = 0;
+      expect(engine.solveBusInto()).toBe(true);
+      expect(r.busSolve(s.table, 1, s.bus, s.solution, dt)).toBe(0);
+      expect(engine.busSolution[0]).toBe(read(v, s.solution));
+      expect(engine.busLimited).toBe(false);
+      engine.dispose();
+    }
   });
 });
 

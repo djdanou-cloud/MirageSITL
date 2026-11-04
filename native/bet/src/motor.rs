@@ -120,7 +120,7 @@ impl Motor {
 /// Production voltage-driven motor behind an ESC (TASK-092). Unlike [`Motor`],
 /// the winding current is signed: below the back-EMF the ESC brakes, down to
 /// `-brake_current_limit_a`. A Coulomb no-load torque opposes rotation.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Default)]
 pub struct DriveMotor {
     resistance_ohm: f64,
     torque_constant: f64,
@@ -235,6 +235,15 @@ impl DriveMotor {
             friction_nm,
             current_limited: false,
         })
+    }
+    /// The terminal power at a bus voltage, as [`DriveMotor::electrical`] gives it, and its slope with
+    /// that voltage: `(d/R)·(2·i·R + k_e·Ω)` inside the current limits, and flat at a limit (TASK-197).
+    pub fn load(&self, duty: f64, voltage: f64, omega: f64, power_cut: bool) -> Result<(f64, f64), MotorError> {
+        let point = self.electrical(duty, voltage, omega, power_cut)?;
+        let free = (duty * voltage - self.torque_constant * omega) / self.resistance_ohm;
+        let flat = power_cut || voltage == 0.0 || free > self.current_limit_a || free < -self.brake_current_limit_a;
+        let slope = if flat { 0.0 } else { duty / self.resistance_ohm * (2.0 * point.current_a * self.resistance_ohm + self.torque_constant * omega) };
+        Ok((point.terminal_power_w, slope))
     }
     /// The electrical operating point at speed `omega`; an unpowered bridge draws nothing.
     pub fn electrical(&self, duty: f64, voltage: f64, omega: f64, power_cut: bool) -> Result<DriveElectrical, MotorError> {

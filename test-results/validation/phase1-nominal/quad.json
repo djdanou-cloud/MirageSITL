@@ -14,7 +14,7 @@
     ]
   },
   "settings": "acceptance",
-  "recordedAt": "2026-11-03T23:52:30.310Z",
+  "recordedAt": "2026-11-04T19:58:31.384Z",
   "criteria": {
     "physicsHz": 800,
     "speedup": 1,
@@ -60,14 +60,14 @@
     "lowPowerMode": true,
     "loadAverages": {
       "before": [
-        2.60546875,
-        2.13818359375,
-        2.07666015625
+        1.21044921875,
+        1.4287109375,
+        1.58251953125
       ],
       "after": [
-        2.73291015625,
-        2.3623046875,
-        2.24462890625
+        2.33544921875,
+        1.85498046875,
+        1.6611328125
       ]
     }
   },
@@ -84,72 +84,122 @@
     "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)"
   },
   "application": {
-    "commit": "587d8306818fa2b945eaa8b512d74a1013443470",
+    "commit": "9d490589c39291db7edbfb64ddfdcb24bd04a602",
     "uncommitted": [
       {
         "status": " M",
-        "path": "CLAUDE.md",
-        "sha256": "450e79be17be2fc844406e2a4a206779b1b7a9a68d8e7bf56f9a3efd93789397"
-      },
-      {
-        "status": " M",
-        "path": "docs/PROJECT_ROADMAP.md",
-        "sha256": "8b7c4d417f9ea696be903a1463676f1492b0306c0d37edf83230e44356281311"
-      },
-      {
-        "status": " M",
         "path": "docs/SPECS_SIMULATION_ENGINES.md",
-        "sha256": "2ca03498d6e257274741adeb7e1aec16101712a8f686e5931d08933479161d46"
-      },
-      {
-        "status": " M",
-        "path": "docs/decisions/phase1-acceptance.md",
-        "sha256": "53ee4acd800dec295fb99ba684f3183ef7df788334d420f92b9526f791a353a5"
-      },
-      {
-        "status": " M",
-        "path": "docs/ru/CLAUDE.md",
-        "sha256": "9000a17d94432e1efd88bdce42e8e48eeb4675934ae8b1eaa340019ce8acc84b"
-      },
-      {
-        "status": " M",
-        "path": "docs/ru/PROJECT_ROADMAP.md",
-        "sha256": "a72b9fc2b7bd600b94d24cfe9a06df166448b659cbeec4bd7813d5ef3f7158b9"
+        "sha256": "ca652aa695b9930fe9322c7377c24a7cbe609f387e1a48ce3620e7b2bc4315d4"
       },
       {
         "status": " M",
         "path": "docs/ru/SPECS_SIMULATION_ENGINES.md",
-        "sha256": "bc89f593a94fcd5593764f824176bc3888611cb6ee365f9d5c2e6eef08b9d82e"
+        "sha256": "20c3940c842237c151985203f0a5b7efe6bb394d282c54d0fbe16510f27bbbd8"
       },
       {
         "status": " M",
-        "path": "docs/ru/phase1-acceptance.md",
-        "sha256": "95e9179e69961299da4b46132bf248590fdf8e89c5abb7e11ade5db6490bdf31"
+        "path": "native/bet/include/bet_bound.h",
+        "sha256": "8196dc88bae16dc7c4f27dd492459c759a3502086944e04c4d27ac6ccddd62c1"
       },
       {
         "status": " M",
-        "path": "tests/airframe-drag-sitl.test.ts",
-        "sha256": "063a1b90ce39065c4d1ae8cffda5ad9eac815bae263f2ee086e05c1440a065c6"
+        "path": "native/bet/src/battery.rs",
+        "sha256": "e86878b57f504b624f7b8e3868efe1408e3104934e189000adbb57e056ea31ec"
       },
       {
         "status": " M",
-        "path": "tests/support/aircraft-ui.ts",
-        "sha256": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f"
+        "path": "native/bet/src/bound_v2.rs",
+        "sha256": "99e110c69b68330eb285c8a283e9e5c3bfe58d0dfefeff55d243385734e3a595"
+      },
+      {
+        "status": " M",
+        "path": "native/bet/src/bus_abi.rs",
+        "sha256": "2252b2120362d8fcd2ca4726e8b77d9509455515c99be82d4dec7e1c7d3b1697"
+      },
+      {
+        "status": " M",
+        "path": "native/bet/src/lib.rs",
+        "sha256": "f035f27fd9dddbcbc6bc9a0bcb8262b77bfa6efa8f18b13357d8c08fa3427146"
+      },
+      {
+        "status": " M",
+        "path": "native/bet/src/motor.rs",
+        "sha256": "072258fc95a561cdb85e3f4098dd7829aa675119a9a20c5ee117a4c395667bb3"
+      },
+      {
+        "status": " M",
+        "path": "native/bet/tests/allocation.rs",
+        "sha256": "8a0dd49f8ebfbbc0ce1f6b3764b801f037416943c099a9e46e82964109a3f96f"
+      },
+      {
+        "status": " M",
+        "path": "packages/physics/src/bet-dynamics.ts",
+        "sha256": "a81a1aba61904bf5b05adb9f2cc411737a5e94fc0c71819cff15b4716dd55767"
+      },
+      {
+        "status": " M",
+        "path": "packages/physics/src/thrust-capacity.ts",
+        "sha256": "7c76726cdb5b0f2c48c19e762ec7f7e025615f4f26cdaa4ba63f837eeae4f67a"
+      },
+      {
+        "status": " M",
+        "path": "packages/wasm-bet/src/rotor-v2.ts",
+        "sha256": "c7a686676317466915d55471c419bdda403b66fdf33b9a36256e487dd578c4ec"
+      },
+      {
+        "status": " M",
+        "path": "scripts/check-bet-runtime.mjs",
+        "sha256": "c5f603030be2d0c880720b408f1800cda1fc21ad776d675901f1c912c160202d"
+      },
+      {
+        "status": " M",
+        "path": "tests/browser/native-bootstrap.spec.ts",
+        "sha256": "920abb720e469e3f4ba24f2c3f7f4132efb90a42ae553303439293bfaf9be416"
+      },
+      {
+        "status": " M",
+        "path": "tests/fixtures/registry.json",
+        "sha256": "e03d2e442338aa9ecd0228fd9025cb3d028eb3ec7618bb0c926504137cc86e60"
+      },
+      {
+        "status": " M",
+        "path": "tests/fixtures/wasm-abi/generate.py",
+        "sha256": "8197dae4c02c6bd0491473807fb09f4733c6057f7af5e3903852171f5694b7f8"
+      },
+      {
+        "status": " M",
+        "path": "tests/fixtures/wasm-abi/interface-v2.json",
+        "sha256": "7a5a48ae03148f11f3eed55c364c2d0af35fb8f509520ebf9b78d698e854248e"
+      },
+      {
+        "status": " M",
+        "path": "tests/limit-monitor.test.ts",
+        "sha256": "20c34f55e8d874327585dacdce4eba8beb9ba6a3966113d0ebafb0b70ab7adf0"
+      },
+      {
+        "status": " M",
+        "path": "tests/thrust-capacity.test.ts",
+        "sha256": "ffc17ce30c3460bfef63738691c7e1793a40d256461db083a4f8279cca20a052"
+      },
+      {
+        "status": " M",
+        "path": "tests/wasm-abi-v2.test.ts",
+        "sha256": "cfacac64f21bc05585b998dd506b6bb278b6921bec2d6299c82684cd2eab863c"
       },
       {
         "status": "??",
-        "path": "scripts/phase1/",
-        "sha256": null
+        "path": "native/bet/src/bus_solve.rs",
+        "sha256": "fa4cbf276319e6eeaf2894fc94a881227168a1a7c4fafd8292366bb7f8ece11b"
       },
       {
         "status": "??",
-        "path": "tests/browser/phase1-nominal.spec.ts",
-        "sha256": "9493c6ad1eb3030dc8700fc4a8dc9762a940994a415265ea72f53ad63c090747"
+        "path": "native/bet/tests/bus_solve.rs",
+        "sha256": "8e59086c8591900ba56804742bc365abe46dd59097cefca3214daeab5f9ed5f4"
       },
       {
         "status": "??",
-        "path": "tests/integration/phase1-nominal.test.ts",
-        "sha256": "788a75cbf83a2e270cbbb06ae6536826fef9f30447f563c91408ceb5f01eb44d"
+        "path": "tests/bus-coupling.test.ts",
+        "sha256": "89a49abeb67bf861b8c9e944d75acfec9177eaa423751e72090d410c1d2f9e9c"
       }
     ]
   },
@@ -184,40 +234,40 @@
   },
   "captures": {
     "run": {
-      "path": "test-results/phase1/nominal/2026-11-03T23-50-02-655Z/quad.json",
-      "bytes": 9718,
-      "sha256": "1ec8cd7defad8207de74570bdd4bf600db758b464b6f996b6582f1efe2c22964"
+      "path": "test-results/phase1/nominal/2026-11-04T19-56-03-066Z/quad.json",
+      "bytes": 9719,
+      "sha256": "397909df943842153377e82c81c1e9562b991941b1c9ab88357936a08547eafc"
     },
     "experimentRecord": {
-      "sha256": "11d7994f465222ab54c5f97535d2c815f097c18884e94581ba64a2eecae78c2c",
-      "launcherExperimentId": "20261103235014024-29d2c169"
+      "sha256": "186ef6d9ba7a1a850d0f257205fbf829c1d279372c1f1c2f27407310d083b33f",
+      "launcherExperimentId": "20261104195613309-1a84dd51"
     },
     "dataflash": [
       {
         "name": "00000001.BIN",
-        "bytes": 2514944,
-        "sha256": "d6939ddad3d834efaa83f3569c7402b16344ff2a49a7be0707b7153b28d30729",
+        "bytes": 2572288,
+        "sha256": "c3a192b9befa9f3dc12afa89cccd5fa0de9fbd5c0d1bb8a2408cf99f41b7d595",
         "status": "truncated",
-        "records": 50459,
-        "truncatedBytes": 16,
+        "records": 51593,
+        "truncatedBytes": 55,
         "firmwareMatchesBuild": true
       }
     ],
     "recording": {
-      "recordId": "774883eb028312a2c3398cce15de6eb8",
+      "recordId": "9a3eb2fa24e7da250c5725d99c880021",
       "status": "closed",
-      "chunks": 101,
-      "bytes": 6297904,
+      "chunks": 103,
+      "bytes": 6344328,
       "droppedChunks": 0,
       "droppedRows": 0,
       "producerLost": 0
     },
     "speed": {
       "verdict": "Real time",
-      "average": 1.0011390500238173,
-      "dropped": 1,
-      "simElapsedS": 98.4,
-      "runningWallS": 98.28804500000179
+      "average": 1.0011073174441583,
+      "dropped": 0,
+      "simElapsedS": 99.3,
+      "runningWallS": 99.19016500000656
     },
     "power": {
       "hover": {
@@ -232,43 +282,43 @@
         ]
       },
       "limitEvents": [
-        "Limited 94.94 s Motor 3: motor current at the drive's limit ended, -29.32 A (limit 30.00 A)",
-        "Limited 94.94 s Motor 3: motor current at the drive's limit, -29.42 A (limit 30.00 A)"
+        "Limited 95.84 s Motor 1: motor current at the drive's limit ended, -29.19 A (limit 30.00 A)",
+        "Limited 95.83 s Motor 1: motor current at the drive's limit, -29.45 A (limit 30.00 A)"
       ]
     },
     "steadiness": {
       "hold": {
-        "fromS": 63.9,
-        "toS": 73.9,
+        "fromS": 64.7,
+        "toS": 74.7,
         "samples": 100,
         "roll": {
-          "sdDegS": 0.08129570387911789,
-          "peakDegS": 0.255240261554718
+          "sdDegS": 0.06695134005522008,
+          "peakDegS": 0.2160591185092926
         },
         "pitch": {
-          "sdDegS": 0.0905967499799238,
-          "peakDegS": 0.20960098505020142
+          "sdDegS": 0.07660055051521182,
+          "peakDegS": 0.19791774451732635
         },
         "yaw": {
-          "sdDegS": 0.03423449065127584,
-          "peakDegS": 0.1402391642332077
+          "sdDegS": 0.03588254190131341,
+          "peakDegS": 0.13195984065532684
         }
       },
       "afterResume": {
-        "fromS": 74.2,
-        "toS": 84.2,
-        "samples": 100,
+        "fromS": 74.9,
+        "toS": 85.1,
+        "samples": 102,
         "roll": {
-          "sdDegS": 0.07110355755268595,
-          "peakDegS": 0.2060226947069168
+          "sdDegS": 0.07494159291549864,
+          "peakDegS": 0.25908163189888
         },
         "pitch": {
-          "sdDegS": 0.0763697539038524,
-          "peakDegS": 0.17860938608646393
+          "sdDegS": 0.07071121448937728,
+          "peakDegS": 0.24154944717884064
         },
         "yaw": {
-          "sdDegS": 0.031498882547519653,
-          "peakDegS": 0.1579245626926422
+          "sdDegS": 0.023850542162046805,
+          "peakDegS": 0.0788915604352951
         }
       }
     },
@@ -309,30 +359,30 @@
         "cards": [
           {
             "type": "motor",
-            "sha256": "572de7a3f017d8581a0c060fb4fee3231f05c706f1063b9280000442f2ee1c28",
+            "sha256": "338764cf7663de403d9c453d5332f2e158f78af217083b7c9496028a94fee551",
             "sourceKind": "synthetic",
             "differences": []
           },
           {
             "type": "propeller",
-            "sha256": "182f6628b57f4c1f6e031e66704a06bc11d9823b1e24e8de6a917a9636cc10cb",
+            "sha256": "95457a13188ea54476f621f2502c09170d2a8e4f167c5e8829bd521371b79f94",
             "sourceKind": "synthetic",
             "differences": []
           },
           {
             "type": "esc",
-            "sha256": "5925b2b658d11055bf1627794af96067cc43f7d29801e2be86f6fc46ae2fab05",
+            "sha256": "c0945cf0b3a71072c98a62ee940589f35b890ff3a06c67fa0c01279add0e15c6",
             "sourceKind": "synthetic",
             "differences": []
           },
           {
             "type": "battery",
-            "sha256": "53b26405039dff0dd6f3e6391ef896a05d25bb0414b29db1f59afad736976b52",
+            "sha256": "1f90aaeabaf97eb72665f77bcf0db7c51febd3dc78781e9c1e1e9d4d606437a6",
             "sourceKind": "synthetic",
             "differences": []
           }
         ],
-        "sha256": "f90d71933ecc97894d557c2c23d1f87d3a598567c3f64eaf46503585ca90b201",
+        "sha256": "b1719aa304656cbf193c608eba854fbcd8a6da51998e26cb9234d21a76dbb62a",
         "version": 1,
         "motors": 4,
         "differences": []
@@ -366,9 +416,9 @@
     "start": {
       "facts": {
         "ready": "READY",
-        "readyAtSimS": 41.1,
-        "recordSha256": "11d7994f465222ab54c5f97535d2c815f097c18884e94581ba64a2eecae78c2c",
-        "profileSha256": "f90d71933ecc97894d557c2c23d1f87d3a598567c3f64eaf46503585ca90b201",
+        "readyAtSimS": 41.5,
+        "recordSha256": "186ef6d9ba7a1a850d0f257205fbf829c1d279372c1f1c2f27407310d083b33f",
+        "profileSha256": "b1719aa304656cbf193c608eba854fbcd8a6da51998e26cb9234d21a76dbb62a",
         "physicsHz": 800,
         "clockMode": "sitl-lockstep",
         "speedup": 1,
@@ -438,16 +488,15 @@
         "stage": "Flying",
         "armed": "Armed",
         "mode": "GUIDED",
-        "startSimS": 63.9,
-        "endSimS": 73.9,
+        "startSimS": 64.7,
+        "endSimS": 74.7,
         "readingsM": [
-          5.02,
-          5.01,
-          5.01,
+          5,
           5.01,
           5.01,
           5.02,
           5.02,
+          5.03,
           5.03,
           5.04,
           5.04,
@@ -456,25 +505,25 @@
           5.05,
           5.05,
           5.05,
+          5.05,
+          5.05,
+          5.04,
+          5.04,
+          5.04,
+          5.04,
+          5.04,
+          5.04,
+          5.04,
+          5.04,
+          5.04,
+          5.05,
+          5.05,
+          5.05,
+          5.05,
+          5.05,
           5.06,
           5.06,
-          5.05,
-          5.05,
-          5.04,
-          5.04,
-          5.04,
-          5.04,
-          5.04,
-          5.04,
-          5.04,
-          5.04,
-          5.04,
-          5.05,
-          5.05,
-          5.05,
-          5.05,
-          5.05,
-          5.05,
+          5.06,
           5.06,
           5.06,
           5.06
@@ -486,30 +535,31 @@
       "facts": {
         "stage": "paused",
         "before": {
-          "simS": 74.2,
+          "simS": 74.9,
           "altitudeM": 5.06,
-          "stepped": 59360
+          "stepped": 59840
         },
         "after": {
-          "simS": 74.2,
+          "simS": 74.9,
           "altitudeM": 5.06,
-          "stepped": 59360
+          "stepped": 59840
         },
-        "wallS": 31.279,
+        "wallS": 31.268,
         "resumedStage": "Flying",
-        "resumedAtSimS": 74.2,
+        "resumedAtSimS": 74.9,
         "hold": {
           "stage": "Flying",
           "armed": "Armed",
           "mode": "GUIDED",
-          "startSimS": 74.2,
-          "endSimS": 84.2,
+          "startSimS": 74.9,
+          "endSimS": 85.1,
           "readingsM": [
             5.06,
             5.06,
-            5.06,
-            5.06,
-            5.06,
+            5.07,
+            5.07,
+            5.07,
+            5.07,
             5.07,
             5.07,
             5.07,
@@ -560,7 +610,7 @@
         "ready": "READY",
         "altitudeM": 0.1,
         "restAltitudeM": 0.0999951111111111,
-        "frames": "79600 stepped, 0 lost, 0 resent, 28 held",
+        "frames": "80320 stepped, 0 lost, 0 resent, 28 held",
         "failsafeMessages": []
       },
       "error": null
@@ -568,7 +618,7 @@
     "stop": {
       "facts": {
         "state": "idle",
-        "text": "Run 20261103235014024-29d2c169 stopped",
+        "text": "Run 20261104195613309-1a84dd51 stopped",
         "launcherState": "stopped",
         "group": "",
         "members": [],

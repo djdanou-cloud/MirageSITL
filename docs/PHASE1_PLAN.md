@@ -129,7 +129,7 @@ unit and browser stages can seed the TASK-127 and TASK-152 checklists.
 | S03 Aircraft editor, motor mapping | Model manifest v1 with up to 32 rotors, vehicle manifest v2 increment (unmerged), frame wrench | Arms and pairs, editor and 3D scheme, output mapping, the 16-motor frame path, motor test | TASK-128, TASK-135, TASK-138, TASK-141, TASK-142, TASK-144, TASK-157 |
 | S04 Components, input modes | Motor and ESC configuration schema, UIUC data, bench import (unmerged) | Versioned cards, calculation modes, combination-bound measurements, calibration | TASK-139, TASK-140, TASK-145, TASK-192 |
 | S05 Flight aerodynamics | BET with free shaft and axial inflow; coaxial reference (test-only); descent flagged only | Edgewise and descent inflow, vortex ring state, ground effect, coaxial coupling and body drag in production | TASK-144, TASK-145; TASK-096–TASK-101 |
-| S06 Battery, propulsion limits | Motor, ESC and battery kernels (test-only) | Production drive and bus, limit monitor, UI and logs | TASK-146; TASK-092 |
+| S06 Battery, propulsion limits | Motor, ESC and battery kernels (test-only) | Production drive and bus, limit monitor, UI and logs | TASK-146, TASK-197; TASK-092 |
 | S07 Weather, geography | ISA atmosphere, AR(1) gusts, WGS84 | Weather in sessions, turbulence spectra, discrete gusts, schedules, location choice, geographic gravity and magnetic field, geoid | TASK-148, TASK-166, TASK-167; TASK-093, TASK-106 |
 | S08 Sensors tab | Sensor kernels; ownership catalog (unmerged) | Configuration schema and UI, placement and orientation, battery sensing, single ownership in the SITL path, per-sensor presets with cited sources (SA-02) | TASK-143, TASK-147; TASK-089 |
 | S09 Faults, EKF drift | EW engine and motor faults, acknowledgement ledger, scenario runner, historical native EW evidence | Delivery to external SITL, frozen and missing readings, pilot and ground-station link loss, schedule UI, EKF estimate charts, refreshed evidence | TASK-166, TASK-168–TASK-171 |
@@ -265,6 +265,7 @@ Exit: Profile-driven dynamics with propulsion, battery, aerodynamics, sensors, e
 | TASK-144 | Profile-driven multirotor dynamics with up to 16 rotors | S03, S05 | 088, 092, 138 |
 | TASK-145 | Measured-mode propulsion calibration | S04, S05 | 140, 144 |
 | TASK-146 | Battery and propulsion limits: warnings versus modeled limiting | S06 | 092, 139, 144 |
+| TASK-197 | Battery bus and motors solved together in the flight step | S06 | 092, 146, 177 |
 | TASK-147 | Sensor error configuration in the external-SITL path | S08 | 035, 089, 143 |
 | TASK-148 | Location and geographic environment | S07 | 036, 093, 131 |
 | TASK-149 | Accident detection and automatic pause | S18 | 095, 144 |

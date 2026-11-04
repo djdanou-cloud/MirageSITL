@@ -1,4 +1,5 @@
 /** Bound-rotor step interface v2 (TASK-088) on v1 arenas; no hot-path host objects or views. */
+import { BUS_V1, type BusBattery } from './bus.ts';
 import { encodeBoundRotor, type BoundRotorDefinition } from './rotor.ts';
 
 /** Byte offsets of the 256-byte input and output records (SPECS_SIMULATION_ENGINES.md). */
@@ -24,6 +25,8 @@ export const BOUND_V2_OUTPUT_FLAGS_SLOT = 14;
 export const BOUND_V2_OUTPUT_VALIDITY_SLOT = 15;
 /** Drive row: the seven f64 drive-mode-1 parameters at record bytes 192..247, in record order. */
 export const BOUND_V2_DRIVE_DOUBLES = 7;
+/** Byte offsets of the 64-byte bus solution record (TASK-197). */
+export const BUS_SOLUTION_V1 = { version: 1, outputBytes: 64, motorVoltage: 0, packVoltage: 8, flags: 16, iterations: 20, flagLimited: 1 } as const;
 
 function callable(value: unknown): value is (...args: number[]) => number { return typeof value === 'function'; }
 
@@ -46,6 +49,14 @@ export class BetRotorEngineV2 {
   readonly driveFlags: Uint32Array;
   readonly output: Float64Array;
   readonly dtS: number;
+  /** [state of charge, house load W], read by `solveBusInto`. */
+  readonly busState = new Float64Array(2);
+  /** [the voltage the motors run on V, the pack's terminal voltage V], written by `solveBusInto`. */
+  readonly busSolution = new Float64Array(2);
+  /** The last solve found the pack at its limit. */
+  busLimited = false;
+  /** Steps of the last solve's root search. */
+  busIterations = 0;
   lastStatus = 0;
   private readonly memory: WebAssembly.Memory;
   private readonly buffer: ArrayBuffer;
@@ -54,7 +65,12 @@ export class BetRotorEngineV2 {
   private readonly inputs: Uint32Array;
   private readonly outputs: Uint32Array;
   private readonly initial: Float64Array;
+  private readonly tableAt: number;
+  private readonly busAt: number;
+  private readonly solutionAt: number;
+  private batteryAttached = false;
   private readonly nativeStep: (...args: number[]) => number;
+  private readonly nativeSolve: (...args: number[]) => number;
   private readonly nativeReset: (...args: number[]) => number;
   private readonly nativeDispose: (...args: number[]) => number;
   private disposed = false;
@@ -64,10 +80,11 @@ export class BetRotorEngineV2 {
     if (!(e.memory instanceof WebAssembly.Memory) || !(e.__heap_base instanceof WebAssembly.Global) ||
         typeof e.__heap_base.value !== 'number' || !callable(e.bet_bound_version) || e.bet_bound_version() !== 1 ||
         !callable(e.bet_bound_v2_version) || e.bet_bound_v2_version() !== BOUND_V2.version ||
-        !callable(e.bet_bound_init) || !callable(e.bet_bound_step_v2) || !callable(e.bet_bound_reset) || !callable(e.bet_bound_dispose))
+        !callable(e.bet_bound_init) || !callable(e.bet_bound_step_v2) || !callable(e.bet_bound_reset) || !callable(e.bet_bound_dispose) ||
+        !callable(e.bet_bus_solve_version) || e.bet_bus_solve_version() !== BUS_SOLUTION_V1.version || !callable(e.bet_bound_bus_solve_v2))
       throw new Error('Missing bound rotor step interface v2');
     this.count = definitions.length; this.dtS = 1 / hz; this.memory = e.memory;
-    this.nativeStep = e.bet_bound_step_v2; this.nativeReset = e.bet_bound_reset; this.nativeDispose = e.bet_bound_dispose;
+    this.nativeStep = e.bet_bound_step_v2; this.nativeSolve = e.bet_bound_bus_solve_v2; this.nativeReset = e.bet_bound_reset; this.nativeDispose = e.bet_bound_dispose;
     this.handles = new Uint32Array(this.count); this.inputs = new Uint32Array(this.count); this.outputs = new Uint32Array(this.count);
     this.initial = new Float64Array(this.count); this.inputFlags = new Uint32Array(this.count); this.driveMode = new Uint32Array(this.count);
     this.drive = new Float64Array(this.count * BOUND_V2_DRIVE_DOUBLES); this.driveFlags = new Uint32Array(this.count);
@@ -83,6 +100,9 @@ export class BetRotorEngineV2 {
       const row = i * BOUND_V2_INPUT_DOUBLES;
       this.input[row] = 1.225; this.input[row + 1] = 1.789e-5; this.input[row + 2] = 340;
     }
+    this.tableAt = at; at += Math.ceil(this.count * 8 / 64) * 64;
+    this.busAt = at; at += BUS_V1.inputBytes;
+    this.solutionAt = at; at += BUS_SOLUTION_V1.outputBytes;
     if (at > 64 * 1024 * 1024) throw new Error('Bound rotor memory budget exceeded');
     if (this.memory.buffer.byteLength < at) this.memory.grow(Math.ceil((at - this.memory.buffer.byteLength) / 65536));
     this.buffer = this.memory.buffer; this.view = new DataView(this.buffer);
@@ -95,7 +115,19 @@ export class BetRotorEngineV2 {
       new Uint8Array(this.buffer, ip, BOUND_V2.inputBytes).fill(0);
       this.view.setUint32(ip, BOUND_V2.version, true);
       this.output[i * BOUND_V2_OUTPUT_SLOTS + 9] = this.initial[i]!;
+      this.view.setUint32(this.tableAt + i * 8, handle, true);
+      this.view.setUint32(this.tableAt + i * 8 + 4, ip, true);
     }
+  }
+  /** The pack `solveBusInto` solves against; configuration time. Invalid values fail the solve. */
+  attachBattery(battery: BusBattery): void {
+    const v = this.view, at = this.busAt, I = BUS_V1.input;
+    new Uint8Array(this.buffer, at, BUS_V1.inputBytes).fill(0);
+    v.setUint32(at, BUS_V1.version, true);
+    v.setFloat64(at + I.openCircuitFull, battery.openCircuitFullV, true); v.setFloat64(at + I.openCircuitEmpty, battery.openCircuitEmptyV, true);
+    v.setFloat64(at + I.internalResistance, battery.internalResistanceOhm, true);
+    v.setFloat64(at + I.capacityCoulomb, battery.capacityAh * 3600, true); v.setFloat64(at + I.currentLimit, battery.currentLimitA, true);
+    this.batteryAttached = true;
   }
   get memoryStable(): boolean { return this.memory.buffer === this.buffer; }
   get memoryBytes(): number { return this.buffer.byteLength; }
@@ -105,13 +137,8 @@ export class BetRotorEngineV2 {
     for (let i = 0; i < this.input.length; i++) if (!Number.isFinite(this.input[i])) { this.lastStatus = -3; return false; }
     for (let i = 0; i < this.drive.length; i++) if (!Number.isFinite(this.drive[i])) { this.lastStatus = -3; return false; }
     for (let i = 0; i < this.count; i++) {
-      const ip = this.inputs[i]!, op = this.outputs[i]!, row = i * BOUND_V2_INPUT_DOUBLES, out = i * BOUND_V2_OUTPUT_SLOTS;
-      this.view.setUint32(ip + BOUND_V2.input.flags, this.inputFlags[i]!, true);
-      this.view.setUint32(ip + BOUND_V2.input.driveMode, this.driveMode[i]!, true);
-      for (let j = 0; j < BOUND_V2_INPUT_DOUBLES; j++) this.view.setFloat64(ip + 16 + j * 8, this.input[row + j]!, true);
-      const drive = i * BOUND_V2_DRIVE_DOUBLES;
-      for (let j = 0; j < BOUND_V2_DRIVE_DOUBLES; j++) this.view.setFloat64(ip + BOUND_V2.input.motorResistance + j * 8, this.drive[drive + j]!, true);
-      this.view.setUint32(ip + BOUND_V2.input.driveFlags, this.driveFlags[i]!, true);
+      const ip = this.inputs[i]!, op = this.outputs[i]!, out = i * BOUND_V2_OUTPUT_SLOTS;
+      this.writeRecord(i);
       const status = this.nativeStep(this.handles[i]!, ip, op, this.dtS);
       this.lastStatus = status;
       if (status !== 0) return false;
@@ -121,6 +148,36 @@ export class BetRotorEngineV2 {
       for (let j = 0; j < 7; j++) this.output[out + 16 + j] = this.view.getFloat64(op + 120 + j * 8, true);
     }
     return true;
+  }
+  /**
+   * Solves the shared bus and the ESC motors together for the step `stepInto` is about to take, from the target
+   * duties and drive fields in `input`, `drive` and `driveFlags` and from `busState` (TASK-197): writes `busSolution`,
+   * `busLimited` and `busIterations`, and changes no rotor. The caller puts the motor voltage in each rotor's input
+   * before `stepInto`. Allocation-free; false on any non-zero status (see `lastStatus`), with the results unchanged.
+   */
+  solveBusInto(): boolean {
+    if (this.disposed || !this.memoryStable) return false;
+    if (!this.batteryAttached) { this.lastStatus = -3; return false; }
+    for (let i = 0; i < this.count; i++) this.writeRecord(i);
+    const v = this.view, I = BUS_V1.input, at = this.solutionAt;
+    v.setFloat64(this.busAt + I.stateOfCharge, this.busState[0]!, true);
+    v.setFloat64(this.busAt + I.housePower, this.busState[1]!, true);
+    const status = this.nativeSolve(this.tableAt, this.count, this.busAt, at, this.dtS);
+    this.lastStatus = status;
+    if (status !== 0) return false;
+    this.busSolution[0] = v.getFloat64(at + BUS_SOLUTION_V1.motorVoltage, true);
+    this.busSolution[1] = v.getFloat64(at + BUS_SOLUTION_V1.packVoltage, true);
+    this.busLimited = (v.getUint32(at + BUS_SOLUTION_V1.flags, true) & BUS_SOLUTION_V1.flagLimited) !== 0;
+    this.busIterations = v.getUint32(at + BUS_SOLUTION_V1.iterations, true);
+    return true;
+  }
+  private writeRecord(i: number): void {
+    const v = this.view, ip = this.inputs[i]!, row = i * BOUND_V2_INPUT_DOUBLES, drive = i * BOUND_V2_DRIVE_DOUBLES;
+    v.setUint32(ip + BOUND_V2.input.flags, this.inputFlags[i]!, true);
+    v.setUint32(ip + BOUND_V2.input.driveMode, this.driveMode[i]!, true);
+    for (let j = 0; j < BOUND_V2_INPUT_DOUBLES; j++) v.setFloat64(ip + 16 + j * 8, this.input[row + j]!, true);
+    for (let j = 0; j < BOUND_V2_DRIVE_DOUBLES; j++) v.setFloat64(ip + BOUND_V2.input.motorResistance + j * 8, this.drive[drive + j]!, true);
+    v.setUint32(ip + BOUND_V2.input.driveFlags, this.driveFlags[i]!, true);
   }
   reset(): void {
     if (this.disposed || !this.memoryStable) throw new Error('Cannot reset an invalid bound rotor engine');

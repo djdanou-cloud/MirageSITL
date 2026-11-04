@@ -153,6 +153,10 @@ LAYOUTS = {
         (0, "f64", "state_of_charge"), (8, "f64", "voltage"), (16, "f64", "current"), (24, "f64", "delivered_power"),
         (32, "f64", "internal_loss"), (40, "f64", "source_power"), (48, "u32", "flags"), (52, "u32", (19, "reserved_zero")),
     ])),
+    # TASK-197: the bus and the ESC motors solved together for one step.
+    "busSolutionV1": (64, fields([
+        (0, "f64", "motor_voltage"), (8, "f64", "pack_voltage"), (16, "u32", "flags"), (20, "u32", "iterations"), (24, "u32", (10, "reserved_zero")),
+    ])),
 }
 for name, (size, layout) in LAYOUTS.items():
     covered = []

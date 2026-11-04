@@ -96,7 +96,7 @@ if(!allocation){
   if(report.status!=='pass')process.exitCode=1;
 }else{
   const native=execFileSync('cargo',['test','--release','-p','mirage-bet','--test','allocation','--locked'],{cwd:resolve(root,'native'),encoding:'utf8',stdio:['ignore','pipe','pipe'],timeout:300000});
-  if(!native.includes('production_bound_step_allocates_zero_over_one_million_steps ... ok') || !native.includes('test result: ok. 2 passed;'))throw Error('Native bound allocator check did not execute');
+  if(!native.includes('production_bound_step_allocates_zero_over_one_million_steps ... ok') || !native.includes('bus_solve_allocates_zero_over_one_million_steps ... ok') || !native.includes('test result: ok. 3 passed;'))throw Error('Native bound allocator check did not execute');
   // TASK-092: the ESC drive mode and the shared bus under the same counting allocator.
   const drive=execFileSync('cargo',['test','--release','-p','mirage-bet','--test','bound_v2','--locked','allocate'],{cwd:resolve(root,'native'),encoding:'utf8',stdio:['ignore','pipe','pipe'],timeout:300000});
   // TASK-091: the opt-in kernel modes run under the same counting allocator.

@@ -1187,8 +1187,8 @@ Infeasible requested power saturates at the admissible maximum; return
 `power_limited` rather than a negative discriminant/NaN. A depleted pack is a
 hard cut. Update `SOC=max(0,SOC-I*dt/Qc)`; source power equals delivered power plus
 `I²Rb` at this step's held SOC. This is a lumped electrical model, not a chemical
-energy or calibrated battery-life claim. Power availability must be fed back to
-actuators by a future backend before flight dynamics can use the coupled model.
+energy or calibrated battery-life claim. TASK-197 feeds power availability back to the
+actuators (see "Solving the bus with the motors").
 
 ### Frame aggregation and body integration
 
@@ -5508,20 +5508,82 @@ Statuses: 0, −2 record length or pointers, −3 invalid input or charge, −7
 version. `BetBus` (`@mirage/wasm-bet/bus`) owns one record pair in its own
 instance.
 
+### Solving the bus with the motors (TASK-197)
+
+An ESC multiplies the bus voltage by its duty, so what the motors draw depends on the
+voltage, and the voltage on what they draw. Physically the two agree at once, because the
+electrical time constants are far shorter than a tick. `bet_bound_bus_solve_v2(table, count,
+bus, output, dt)` finds that agreement for the step the rotors are about to take, from
+each motor's filtered duty for the step and the speed the step starts at. `table` holds
+`count` pairs of u32, an arena and its v2 input record as `bet_bound_step_v2` takes them,
+and `bus` is a shared bus input v1 with `motor_power` zero. It changes neither, and writes
+only the record below. `bet_bus_solve_version` returns 1.
+
+\[
+V\,(V_{oc} - V) = R_{\mathrm{int}}\Big(P_{\mathrm{house}} + \sum_k P_k(V)\Big),
+\qquad
+P_k(V) = i_k\,(i_k R_k + k_t \Omega_k),
+\qquad
+i_k = \operatorname{clamp}\Big(\frac{d_k V - k_t \Omega_k}{R_k},\, -I_{\mathrm{brake}},\, I_{\max}\Big)
+\]
+
+The upper branch of that equation is the bus voltage, found by a safeguarded Newton search
+to 1e-9 V, in at most 9 steps over 20 000 random mixes of motors and packs. When the
+motors at the pack's lowest voltage, V_oc − I_cap·R_int, still ask for more than it delivers,
+the pack stays at that voltage and at I_cap, flag 1 is set, and the voltage the ESCs
+multiply falls to the V_m below. That is the same as every ESC's effective duty falling by one
+shared factor, since the winding sees d·V either way. The house load is served first; if
+it takes everything, V_m is 0.
+
+\[
+P_{\mathrm{house}} + \sum_k P_k(V_m) = I_{\mathrm{cap}}\,(V_{oc} - I_{\mathrm{cap}} R_{\mathrm{int}})
+\]
+
+A real pack does not stop at its rated current: its voltage sags further and it heats. The
+model has treated the rating as a ceiling since TASK-026 and flags reaching it, so a result
+at the limit means the rating was reached, not what the pack would do beyond it.
+Regeneration beyond what the pack absorbs does not hold the motors back: the excess is not
+stored, as in the bus step, and flag 1 is set.
+
+### Shared bus solution v1
+
+| Byte Offset | Data Type | Units | Field Name |
+| ---: | --- | --- | --- |
+| 0 | f64 | V | motor_voltage |
+| 8 | f64 | V | pack_voltage |
+| 16 | u32 | bitmask | flags |
+| 20 | u32 | 1 | iterations |
+| 24..63 | u32[10] | — | reserved_zero |
+
+Statuses: those of the bus records and of `bet_bound_step_v2`, and −3 for a count outside
+1 to 32 or a rotor not in drive mode 1. A negative status leaves the output unchanged.
+
 ### Coupling and energy budget
 
-Each tick the rotors use the bus voltage the bus produced on the previous
-tick (the open-circuit voltage before the first step). The bus then delivers
-the sum of the motors' terminal powers: one-tick lag, no iteration. On every
-tick the bus is not limited, the source power V_oc·I equals the internal loss
-I²·R_int plus the delivered power, and the delivered power equals the summed
-terminal powers, each of which is copper loss plus k_t·i·Ω; the bus current
-reported per motor is its terminal power over the lagged voltage, and the
-pack current is the root above.
+Each tick, before the rotors step, the bus and the motors are solved together (see "Solving
+the bus with the motors"), and every rotor runs on the voltage found. A one-tick lag between
+them is unstable once the loop gain passes 1: on the example quad at full duty, 803 W/V
+times 0.0013 V/W is 1.05, and until TASK-197 the bus flipped every tick between 14.55 and 15.99 V.
 
-This coupling flips every tick between two voltages at high demand, and a limited bus
-does not hold the motors back: TASK-177 measured both, and they are open (see "Thrust
-at full command").
+The rotors then step, and the bus delivers the sum of the motors' terminal powers,
+evaluated at the midpoint speed where the aerodynamics were. So the pack's voltage after a tick
+can differ from the one the motors ran on by what half a tick of spin-up changed the current:
+at most 0.042 V on the hardest steps of the example cards, and nothing once the speeds settle.
+On every tick the bus is not limited, the source power V_oc·I equals the internal
+loss I²·R_int plus the delivered power, and the delivered power equals the summed
+terminal powers, each of which is copper loss plus k_t·i·Ω. The bus current recorded per
+motor is its terminal power over the pack's voltage, so with the house load these sum to the
+pack's current, which is the root above.
+
+### Verification (TASK-197)
+
+`native/bet/tests/bus_solve.rs` checks the solver by hand: the voltage's closed form for equal
+motors, the pack's law at its limit, flat loads at a current limit, regeneration, a dead pack,
+and 20 000 random mixes for consistency and the step count. `tests/bus-coupling.test.ts`
+flies the dynamics on a body too heavy to move on all five S19 configurations: the bus settles
+at every duty, and a flight at full command matches `thrustCapacity` within 0.5 %.
+`tests/integration/flight-tasks-sitl.test.ts` flies a climb with native ArduCopter on a pack
+limited just above hover current, which stays within 0.1 A of the limit in every physics step.
 
 ### Flight dynamics, manifest and parameter profile
 
@@ -5531,8 +5593,8 @@ one `EscDriveMotor` per rotor in rotor order (R, k_t, I_max, I_brake, τ₀,
 constant house load ≥ 0 W. Absent, each rotor gets duty·`motorMaxTorqueNm`
 through interface v1, and a trajectory of 4000 state records hashes to the
 same SHA-256 as the d1aeaca code and WASM build. With it, the rotors run
-interface v2 drive mode 1 with the clamped duty as `esc_duty` and the lagged
-bus voltage, and the bus delivers their summed terminal power plus the house
+interface v2 drive mode 1 with the clamped duty as `esc_duty` and the voltage
+solved for this tick, and the bus delivers their summed terminal power plus the house
 load. `electrical` (a `Float64Array` of state of charge, bus voltage and bus
 current), `busLimited` and `driveLimited` report the last step; the
 `stateOfCharge` and `batteryCurrentA` getters read `electrical` for cold code,
@@ -7948,41 +8010,28 @@ still, until speeds and voltage settle, at the charge the run started at. The re
 the upward force, the weight with the payload, and their ratio. Above 1 it can lift off,
 and the rest is its margin. It is a calculation and carries the profile's label.
 
-It solves the steady state, and there it differs from a flight on purpose. In flight
-the motors run on the previous tick's bus voltage with no iteration (see "Coupling
-and energy budget"), and that loop has two faults, measured for TASK-177 on the example
-cards, a 125 A pack of 0.018 Ω:
+The rotors and the pack are solved together as in a flight (TASK-197), so a flight at full
+command settles on the same thrust. On the example cards, a 125 A pack of 0.018 Ω:
 
-| Aircraft | Hover duty | The bus starts to flip at duty | Motors draw at full duty | The pack can deliver |
-|---|---|---|---|---|
-| quad X, 4 motors | about 0.40 | 1.00 | 722 and 1874 W in turn | 1819 W |
-| hexa X, 6 motors | about 0.45 | 0.85 | 1470 and 2040 W in turn | 1819 W |
-| octa X, 8 motors | about 0.50 | 0.80 | 2229 W | 1819 W |
-| coaxial X8, 8 motors | about 0.45 | 0.80 | 2229 W | 1819 W |
-| octa coaxial, 16 motors | 0.50 | 0.60 | 4458 W | 1819 W |
+| Aircraft | Bus at full duty | Pack current | Thrust | Thrust over weight | The pack holds it back |
+|---|---|---|---|---|---|
+| quad X, 4 motors | 15.29 V | 83.65 A | 78.45 N | 5.333 | no |
+| hexa X, 6 motors | 14.70 V | 116.94 A | 109.05 N | 4.044 | no |
+| octa X, 8 motors | 14.55 V | 125 A | 124.30 N | 3.018 | yes |
+| coaxial X8, 8 motors | 14.55 V | 125 A | 124.37 N | 3.523 | yes |
+| octa coaxial, 16 motors | 14.55 V | 125 A | 153.55 N | 1.842 | yes |
 
-First, at high demand the bus flips every tick between two voltages, for example 14.55 and
-15.99 V on the quad at full duty, because the motors' current is very sensitive to the
-voltage of the tick before. The rotors' inertia averages the thrust, but a recorded
-current or power is one phase of that swing. Second, a pack at its current limit is
-flagged while the motors go on drawing what they ask, beyond what it delivers, and with
-less current there is less sag, so the voltage rises and the thrust goes up. Holding the
-quad's pack to half its current raised its thrust from 78.2 to 89.3 N in a flight.
-Normal hover and gentle flight are stable and unaffected. `thrustCapacity` moves the
-voltage slowly towards its target, so it settles where the motors and the pack agree,
-and at the pack's limit it lowers the voltage until the motors ask for no more than the
-pack delivers. For the quad that is 78.45 N at 15.29 V and 83.65 A, with 1279 W on both
-sides. For 16 motors on one example pack it is 153.6 N, a ratio of 1.84, where a flight
-reaches 285.8 N, 3.43, by drawing 4458 W. The tab says so when the pack limits an aircraft.
+Before TASK-197 a flight's motors drew on past the limit, up to 4458 W from the 1819 W this
+pack delivers on 16 motors, and reached 285.7 N. The tab says so when the pack limits an aircraft.
 
 ### Verification (TASK-177)
 
 `tests/experiment-metrics.test.ts` and `tests/experiment-compare.test.ts` check the metrics
 and the comparison on rows and inputs written out by hand, with each expected figure's
 arithmetic next to it. `tests/thrust-capacity.test.ts` checks the thrust against an
-oracle that shares none of its loop, the flight dynamics on a body 100 000 times heavier
-with gravity off, on a stiff pack whose voltage hardly moves, within 0.5 % set beforehand;
-and the sag and the limit by hand against the pack's law. `tests/browser/compare-experiments.spec.ts`
+oracle, the flight dynamics on a body 100 000 times heavier with gravity off, on a stiff
+pack whose voltage hardly moves, within 0.5 % set beforehand; and the sag and the limit by
+hand against the pack's law. `tests/bus-coupling.test.ts` flies the real pack (TASK-197). `tests/browser/compare-experiments.spec.ts`
 flies one hover on two configurations with native ArduCopter 8ab6afde, and compares the page's
 numbers with what it works out from the recording's rows and the cards on its own.
 

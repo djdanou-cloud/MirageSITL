@@ -9,7 +9,7 @@
     "tuning": []
   },
   "settings": "acceptance",
-  "recordedAt": "2026-11-04T00:03:21.583Z",
+  "recordedAt": "2026-11-04T20:09:25.883Z",
   "criteria": {
     "physicsHz": 800,
     "speedup": 1,
@@ -55,14 +55,14 @@
     "lowPowerMode": true,
     "loadAverages": {
       "before": [
-        2.60546875,
-        2.13818359375,
-        2.07666015625
+        1.21044921875,
+        1.4287109375,
+        1.58251953125
       ],
       "after": [
-        2.73291015625,
-        2.3623046875,
-        2.24462890625
+        2.33544921875,
+        1.85498046875,
+        1.6611328125
       ]
     }
   },
@@ -79,72 +79,122 @@
     "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)"
   },
   "application": {
-    "commit": "587d8306818fa2b945eaa8b512d74a1013443470",
+    "commit": "9d490589c39291db7edbfb64ddfdcb24bd04a602",
     "uncommitted": [
       {
         "status": " M",
-        "path": "CLAUDE.md",
-        "sha256": "450e79be17be2fc844406e2a4a206779b1b7a9a68d8e7bf56f9a3efd93789397"
-      },
-      {
-        "status": " M",
-        "path": "docs/PROJECT_ROADMAP.md",
-        "sha256": "8b7c4d417f9ea696be903a1463676f1492b0306c0d37edf83230e44356281311"
-      },
-      {
-        "status": " M",
         "path": "docs/SPECS_SIMULATION_ENGINES.md",
-        "sha256": "2ca03498d6e257274741adeb7e1aec16101712a8f686e5931d08933479161d46"
-      },
-      {
-        "status": " M",
-        "path": "docs/decisions/phase1-acceptance.md",
-        "sha256": "53ee4acd800dec295fb99ba684f3183ef7df788334d420f92b9526f791a353a5"
-      },
-      {
-        "status": " M",
-        "path": "docs/ru/CLAUDE.md",
-        "sha256": "9000a17d94432e1efd88bdce42e8e48eeb4675934ae8b1eaa340019ce8acc84b"
-      },
-      {
-        "status": " M",
-        "path": "docs/ru/PROJECT_ROADMAP.md",
-        "sha256": "a72b9fc2b7bd600b94d24cfe9a06df166448b659cbeec4bd7813d5ef3f7158b9"
+        "sha256": "ca652aa695b9930fe9322c7377c24a7cbe609f387e1a48ce3620e7b2bc4315d4"
       },
       {
         "status": " M",
         "path": "docs/ru/SPECS_SIMULATION_ENGINES.md",
-        "sha256": "bc89f593a94fcd5593764f824176bc3888611cb6ee365f9d5c2e6eef08b9d82e"
+        "sha256": "20c3940c842237c151985203f0a5b7efe6bb394d282c54d0fbe16510f27bbbd8"
       },
       {
         "status": " M",
-        "path": "docs/ru/phase1-acceptance.md",
-        "sha256": "95e9179e69961299da4b46132bf248590fdf8e89c5abb7e11ade5db6490bdf31"
+        "path": "native/bet/include/bet_bound.h",
+        "sha256": "8196dc88bae16dc7c4f27dd492459c759a3502086944e04c4d27ac6ccddd62c1"
       },
       {
         "status": " M",
-        "path": "tests/airframe-drag-sitl.test.ts",
-        "sha256": "063a1b90ce39065c4d1ae8cffda5ad9eac815bae263f2ee086e05c1440a065c6"
+        "path": "native/bet/src/battery.rs",
+        "sha256": "e86878b57f504b624f7b8e3868efe1408e3104934e189000adbb57e056ea31ec"
       },
       {
         "status": " M",
-        "path": "tests/support/aircraft-ui.ts",
-        "sha256": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f"
+        "path": "native/bet/src/bound_v2.rs",
+        "sha256": "99e110c69b68330eb285c8a283e9e5c3bfe58d0dfefeff55d243385734e3a595"
+      },
+      {
+        "status": " M",
+        "path": "native/bet/src/bus_abi.rs",
+        "sha256": "2252b2120362d8fcd2ca4726e8b77d9509455515c99be82d4dec7e1c7d3b1697"
+      },
+      {
+        "status": " M",
+        "path": "native/bet/src/lib.rs",
+        "sha256": "f035f27fd9dddbcbc6bc9a0bcb8262b77bfa6efa8f18b13357d8c08fa3427146"
+      },
+      {
+        "status": " M",
+        "path": "native/bet/src/motor.rs",
+        "sha256": "072258fc95a561cdb85e3f4098dd7829aa675119a9a20c5ee117a4c395667bb3"
+      },
+      {
+        "status": " M",
+        "path": "native/bet/tests/allocation.rs",
+        "sha256": "8a0dd49f8ebfbbc0ce1f6b3764b801f037416943c099a9e46e82964109a3f96f"
+      },
+      {
+        "status": " M",
+        "path": "packages/physics/src/bet-dynamics.ts",
+        "sha256": "a81a1aba61904bf5b05adb9f2cc411737a5e94fc0c71819cff15b4716dd55767"
+      },
+      {
+        "status": " M",
+        "path": "packages/physics/src/thrust-capacity.ts",
+        "sha256": "7c76726cdb5b0f2c48c19e762ec7f7e025615f4f26cdaa4ba63f837eeae4f67a"
+      },
+      {
+        "status": " M",
+        "path": "packages/wasm-bet/src/rotor-v2.ts",
+        "sha256": "c7a686676317466915d55471c419bdda403b66fdf33b9a36256e487dd578c4ec"
+      },
+      {
+        "status": " M",
+        "path": "scripts/check-bet-runtime.mjs",
+        "sha256": "c5f603030be2d0c880720b408f1800cda1fc21ad776d675901f1c912c160202d"
+      },
+      {
+        "status": " M",
+        "path": "tests/browser/native-bootstrap.spec.ts",
+        "sha256": "920abb720e469e3f4ba24f2c3f7f4132efb90a42ae553303439293bfaf9be416"
+      },
+      {
+        "status": " M",
+        "path": "tests/fixtures/registry.json",
+        "sha256": "e03d2e442338aa9ecd0228fd9025cb3d028eb3ec7618bb0c926504137cc86e60"
+      },
+      {
+        "status": " M",
+        "path": "tests/fixtures/wasm-abi/generate.py",
+        "sha256": "8197dae4c02c6bd0491473807fb09f4733c6057f7af5e3903852171f5694b7f8"
+      },
+      {
+        "status": " M",
+        "path": "tests/fixtures/wasm-abi/interface-v2.json",
+        "sha256": "7a5a48ae03148f11f3eed55c364c2d0af35fb8f509520ebf9b78d698e854248e"
+      },
+      {
+        "status": " M",
+        "path": "tests/limit-monitor.test.ts",
+        "sha256": "20c34f55e8d874327585dacdce4eba8beb9ba6a3966113d0ebafb0b70ab7adf0"
+      },
+      {
+        "status": " M",
+        "path": "tests/thrust-capacity.test.ts",
+        "sha256": "ffc17ce30c3460bfef63738691c7e1793a40d256461db083a4f8279cca20a052"
+      },
+      {
+        "status": " M",
+        "path": "tests/wasm-abi-v2.test.ts",
+        "sha256": "cfacac64f21bc05585b998dd506b6bb278b6921bec2d6299c82684cd2eab863c"
       },
       {
         "status": "??",
-        "path": "scripts/phase1/",
-        "sha256": null
+        "path": "native/bet/src/bus_solve.rs",
+        "sha256": "fa4cbf276319e6eeaf2894fc94a881227168a1a7c4fafd8292366bb7f8ece11b"
       },
       {
         "status": "??",
-        "path": "tests/browser/phase1-nominal.spec.ts",
-        "sha256": "9493c6ad1eb3030dc8700fc4a8dc9762a940994a415265ea72f53ad63c090747"
+        "path": "native/bet/tests/bus_solve.rs",
+        "sha256": "8e59086c8591900ba56804742bc365abe46dd59097cefca3214daeab5f9ed5f4"
       },
       {
         "status": "??",
-        "path": "tests/integration/phase1-nominal.test.ts",
-        "sha256": "788a75cbf83a2e270cbbb06ae6536826fef9f30447f563c91408ceb5f01eb44d"
+        "path": "tests/bus-coupling.test.ts",
+        "sha256": "89a49abeb67bf861b8c9e944d75acfec9177eaa423751e72090d410c1d2f9e9c"
       }
     ]
   },
@@ -179,46 +229,46 @@
   },
   "captures": {
     "run": {
-      "path": "test-results/phase1/nominal/2026-11-03T23-50-02-655Z/octo-paired-16.json",
-      "bytes": 12711,
-      "sha256": "82ced352f2fb4166adcee68caeccd844d3ceb287f1df5d3e2989ec72fe282e96"
+      "path": "test-results/phase1/nominal/2026-11-04T19-56-03-066Z/octo-paired-16.json",
+      "bytes": 12719,
+      "sha256": "f2caf58e9b17f894bda8ba993a4a6334713fc792e6862ba689d7ef8e5b73d211"
     },
     "experimentRecord": {
-      "sha256": "b2669cf83eb4c145b43ee8a29879116ee00a96e0638c6d87b3dba68f7db08504",
-      "launcherExperimentId": "20261104000031028-7cdf5f15"
+      "sha256": "458d38cad0f1548e7117cec8db799f5d0fcdd048ddb7f13d32b2e782ffbedd65",
+      "launcherExperimentId": "20261104200634053-594eed03"
     },
     "dataflash": [
       {
         "name": "00000001.BIN",
-        "bytes": 3432448,
-        "sha256": "af7c851995fd7d34e698b685fcb7b9eb441066b199c34681a31d3e9ab460c4f5",
+        "bytes": 3514368,
+        "sha256": "65f0dba01d0f96a21b5f554c0f589352375ec97f7566b6912cefa1298cf2fd9f",
         "status": "truncated",
-        "records": 69061,
-        "truncatedBytes": 11,
+        "records": 70695,
+        "truncatedBytes": 44,
         "firmwareMatchesBuild": true
       }
     ],
     "recording": {
-      "recordId": "ae5f788a1abc55b61bf0f7e66694eb07",
+      "recordId": "21fcee3a6f78caca21934611b25734d6",
       "status": "closed",
-      "chunks": 138,
-      "bytes": 8613440,
+      "chunks": 142,
+      "bytes": 8728128,
       "droppedChunks": 0,
       "droppedRows": 0,
       "producerLost": 0
     },
     "speed": {
       "verdict": "Real time",
-      "average": 0.9984009338888525,
-      "dropped": 3,
-      "simElapsedS": 135.2,
-      "runningWallS": 135.41654000000284
+      "average": 1.0007992483828296,
+      "dropped": 2,
+      "simElapsedS": 136.8,
+      "runningWallS": 136.69118000000717
     },
     "power": {
       "hover": {
         "voltageV": 15.72,
         "currentA": 50.6,
-        "powerW": 796,
+        "powerW": 795,
         "commandPercent": [
           50,
           50,
@@ -230,7 +280,7 @@
           50,
           50,
           50,
-          49,
+          50,
           49,
           49,
           50,
@@ -239,49 +289,49 @@
         ]
       },
       "limitEvents": [
-        "Limited 131.69 s Motor 16: motor current at the drive's limit ended, -28.50 A (limit 30.00 A)",
-        "Limited 131.69 s Motor 15: motor current at the drive's limit ended, -28.73 A (limit 30.00 A)",
-        "Limited 131.69 s Motor 14: motor current at the drive's limit ended, -28.66 A (limit 30.00 A)",
-        "Limited 131.69 s Motor 8: motor current at the drive's limit ended, -28.50 A (limit 30.00 A)",
-        "Limited 131.69 s Motor 7: motor current at the drive's limit ended, -28.73 A (limit 30.00 A)",
-        "Limited 131.69 s Motor 6: motor current at the drive's limit ended, -28.66 A (limit 30.00 A)",
-        "Limited 131.69 s Motor 13: motor current at the drive's limit ended, -29.20 A (limit 30.00 A)",
-        "Limited 131.69 s Motor 12: motor current at the drive's limit ended, -28.71 A (limit 30.00 A)"
+        "Limited 132.27 s Motor 16: motor current at the drive's limit ended, -28.91 A (limit 30.00 A)",
+        "Limited 132.27 s Motor 15: motor current at the drive's limit ended, -28.98 A (limit 30.00 A)",
+        "Limited 132.27 s Motor 14: motor current at the drive's limit ended, -28.50 A (limit 30.00 A)",
+        "Limited 132.27 s Motor 9: motor current at the drive's limit ended, -28.61 A (limit 30.00 A)",
+        "Limited 132.27 s Motor 8: motor current at the drive's limit ended, -28.91 A (limit 30.00 A)",
+        "Limited 132.27 s Motor 7: motor current at the drive's limit ended, -28.98 A (limit 30.00 A)",
+        "Limited 132.27 s Motor 6: motor current at the drive's limit ended, -28.50 A (limit 30.00 A)",
+        "Limited 132.27 s Motor 1: motor current at the drive's limit ended, -28.61 A (limit 30.00 A)"
       ]
     },
     "steadiness": {
       "hold": {
-        "fromS": 100.4,
-        "toS": 110.4,
+        "fromS": 100.9,
+        "toS": 110.9,
         "samples": 100,
         "roll": {
-          "sdDegS": 0.05977633823631947,
-          "peakDegS": 0.2312784641981125
+          "sdDegS": 0.06998413098582044,
+          "peakDegS": 0.20350606739521027
         },
         "pitch": {
-          "sdDegS": 0.0771126294158794,
-          "peakDegS": 0.24144266545772552
+          "sdDegS": 0.06247495784757977,
+          "peakDegS": 0.14604662358760834
         },
         "yaw": {
-          "sdDegS": 0.016574758356010175,
-          "peakDegS": 0.041424382477998734
+          "sdDegS": 0.019499867598732082,
+          "peakDegS": 0.06016650050878525
         }
       },
       "afterResume": {
-        "fromS": 110.9,
-        "toS": 121,
+        "fromS": 111.3,
+        "toS": 121.4,
         "samples": 101,
         "roll": {
-          "sdDegS": 0.05871781677904691,
-          "peakDegS": 0.20951542258262634
+          "sdDegS": 0.05880763903047875,
+          "peakDegS": 0.18542149662971497
         },
         "pitch": {
-          "sdDegS": 0.06772044945760579,
-          "peakDegS": 0.21744272112846375
+          "sdDegS": 0.07236832780561617,
+          "peakDegS": 0.20856402814388275
         },
         "yaw": {
-          "sdDegS": 0.004728187772185034,
-          "peakDegS": 0.048906359821558
+          "sdDegS": 0.005629788388283078,
+          "peakDegS": 0.03826296329498291
         }
       }
     },
@@ -322,30 +372,30 @@
         "cards": [
           {
             "type": "motor",
-            "sha256": "058fe2c6f839e187f4e2fed34552cf961c897c8af795ffb899680dd5eb09b0c0",
+            "sha256": "6ec6760c355036e66586a2711f1ec61beb8bcaacd2f72325a2eae43b81cd9b22",
             "sourceKind": "synthetic",
             "differences": []
           },
           {
             "type": "propeller",
-            "sha256": "84be1456fc4b3f24e58565b31b846e414d37b33936cb926c58eccf96a467c14e",
+            "sha256": "d5dc3fb147472fe745d31674ba877d74f5687b369255ca6e7c0c5daed86c5718",
             "sourceKind": "synthetic",
             "differences": []
           },
           {
             "type": "esc",
-            "sha256": "fc5781940070136899f9d99d5985137c04f9d0536ee51ef053f3a0053e351214",
+            "sha256": "26665f00031ab2b684847936cf48f6926a256de1b05faaf9c6f4797eb75ed3bc",
             "sourceKind": "synthetic",
             "differences": []
           },
           {
             "type": "battery",
-            "sha256": "292fb3bedcad17dfd030983c53b1e64a605be6dd77197ede96dd80b21eb9eb0e",
+            "sha256": "3f8716a654754dbc978b9c00d68f17a8ec4450f0f606bc7401f7696b4c648b0b",
             "sourceKind": "synthetic",
             "differences": []
           }
         ],
-        "sha256": "450bdfb00d25c80015e75e9e471caeb2b9f039219ee110af5e37a7f9906ce6a4",
+        "sha256": "9b9101beb9ab3da893ca6fdf28d35721369c448cb532053cb7749e3099e8f8fd",
         "version": 1,
         "motors": 16,
         "differences": []
@@ -427,9 +477,9 @@
     "start": {
       "facts": {
         "ready": "READY",
-        "readyAtSimS": 41,
-        "recordSha256": "b2669cf83eb4c145b43ee8a29879116ee00a96e0638c6d87b3dba68f7db08504",
-        "profileSha256": "450bdfb00d25c80015e75e9e471caeb2b9f039219ee110af5e37a7f9906ce6a4",
+        "readyAtSimS": 41.1,
+        "recordSha256": "458d38cad0f1548e7117cec8db799f5d0fcdd048ddb7f13d32b2e782ffbedd65",
+        "profileSha256": "9b9101beb9ab3da893ca6fdf28d35721369c448cb532053cb7749e3099e8f8fd",
         "physicsHz": 800,
         "clockMode": "sitl-lockstep",
         "speedup": 1,
@@ -563,14 +613,13 @@
         "stage": "Flying",
         "armed": "Armed",
         "mode": "GUIDED",
-        "startSimS": 100.4,
-        "endSimS": 110.4,
+        "startSimS": 100.9,
+        "endSimS": 110.9,
         "readingsM": [
           5.09,
           5.1,
-          5.1,
           5.11,
-          5.12,
+          5.11,
           5.12,
           5.13,
           5.14,
@@ -580,6 +629,7 @@
           5.15,
           5.15,
           5.15,
+          5.16,
           5.15,
           5.15,
           5.15,
@@ -609,24 +659,24 @@
       "facts": {
         "stage": "paused",
         "before": {
-          "simS": 110.9,
+          "simS": 111.3,
           "altitudeM": 5.17,
-          "stepped": 88640
+          "stepped": 89040
         },
         "after": {
-          "simS": 110.9,
+          "simS": 111.3,
           "altitudeM": 5.17,
-          "stepped": 88640
+          "stepped": 89040
         },
-        "wallS": 31.426,
+        "wallS": 31.409,
         "resumedStage": "Flying",
-        "resumedAtSimS": 110.9,
+        "resumedAtSimS": 111.3,
         "hold": {
           "stage": "Flying",
           "armed": "Armed",
           "mode": "GUIDED",
-          "startSimS": 110.9,
-          "endSimS": 121,
+          "startSimS": 111.3,
+          "endSimS": 121.4,
           "readingsM": [
             5.17,
             5.17,
@@ -639,7 +689,7 @@
             5.17,
             5.17,
             5.17,
-            5.17,
+            5.18,
             5.18,
             5.18,
             5.18,
@@ -669,7 +719,7 @@
         "log": {
           "count": 1,
           "reason": "user",
-          "wallS": 32.5
+          "wallS": 32.6
         }
       },
       "error": null
@@ -682,7 +732,7 @@
         "ready": "READY",
         "altitudeM": 0.2,
         "restAltitudeM": 0.19705707577148507,
-        "frames": "109040 stepped, 0 lost, 0 resent, 28 held",
+        "frames": "110320 stepped, 0 lost, 0 resent, 28 held",
         "failsafeMessages": []
       },
       "error": null
@@ -690,7 +740,7 @@
     "stop": {
       "facts": {
         "state": "idle",
-        "text": "Run 20261104000031028-7cdf5f15 stopped",
+        "text": "Run 20261104200634053-594eed03 stopped",
         "launcherState": "stopped",
         "group": "",
         "members": [],

@@ -14,10 +14,9 @@ import { FIXTURE_NAMES, type FixtureName } from './support/aircraft-derivation.t
 
 // The thrust at full command against an oracle that shares none of its loop: the flight dynamics itself, on a body
 // a hundred thousand times heavier with gravity off, so it stays still in still air. Its thrust is mass times the
-// acceleration its integrator reports. The dynamics' bus flips between two voltages at high demand and flags its pack
-// limit without enforcing it, so the oracle flies a stiff pack, whose voltage hardly moves and which no demand reaches the
-// limit of: rotors, drive and frame are what it checks. The sag and the limit are checked by hand against the
-// pack's own law. The tolerance, 0.5 % of the thrust, was set before the first run: it allows for the speed the heavy body
+// acceleration its integrator reports. The two share the bus solve of TASK-197, so the oracle flies a stiff pack, whose
+// voltage hardly moves and which no demand reaches the limit of: rotors, drive and frame are what it checks. The sag and the
+// limit are checked by hand against the pack's own law, and tests/bus-coupling.test.ts flies the real pack. The tolerance, 0.5 % of the thrust, was set before the first run: it allows for the speed the heavy body
 // gathers, about a thousandth of a metre per second against an induced velocity of metres per second.
 
 const MOTOR = 'a'.repeat(64), PROPELLER = 'b'.repeat(64), ESC = 'c'.repeat(64), BATTERY = 'd'.repeat(64);
@@ -96,9 +95,6 @@ describe('the thrust at full command', () => {
     // V = V_full - R·I at a full pack, and the motors draw what it delivers, V·I.
     expect(Math.abs(capacity.busVoltageV - (battery.openCircuitFullV - battery.internalResistanceOhm * capacity.busCurrentA))).toBeLessThanOrEqual(1e-9);
     expect(Math.abs(capacity.motorPowerW - capacity.busVoltageV * capacity.busCurrentA) / capacity.motorPowerW).toBeLessThanOrEqual(1e-3);
-    // A flight's bus flips here between 14.55 and 15.99 V: this stands between them, and the current is under the 125 A it touches on the way.
-    expect(capacity.busVoltageV).toBeGreaterThan(14.55);
-    expect(capacity.busVoltageV).toBeLessThan(15.99);
     expect(capacity.busCurrentA).toBeLessThan(battery.currentLimitA);
   }, 120000);
 
@@ -143,7 +139,8 @@ describe('the thrust at full command', () => {
     const limitA = free.busCurrentA / 2, limited = thrustCapacity(module, { ...configuration, drive: { ...drive, battery: { ...drive.battery, currentLimitA: limitA } } });
     expect(limited.packLimited).toBe(true);
     expect(limited.thrustN).toBeLessThan(free.thrustN);
-    expect(limited.busCurrentA).toBe(limitA);
+    // Settled to a millionth of the speed, so a motor's power and the pack's current sit that close to the limit.
+    expect(Math.abs(limited.busCurrentA - limitA)).toBeLessThanOrEqual(1e-4);
     // The pack delivers (V_full - R·I_limit)·I_limit, by hand, and that is all the motors get.
     const delivered = (drive.battery.openCircuitFullV - drive.battery.internalResistanceOhm * limitA) * limitA;
     expect(Math.abs(limited.motorPowerW - delivered) / delivered).toBeLessThanOrEqual(1e-3);

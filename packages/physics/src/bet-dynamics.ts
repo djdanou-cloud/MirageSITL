@@ -261,7 +261,7 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
         esc.drive.set(values,i*BOUND_V2_DRIVE_DOUBLES);esc.driveMode[i]=BOUND_V2.driveEscDuty;
       });
       this.escEngine=esc;this.engine=null;
-      this.bus=new BetBus(module,drive.battery,hz);this.initialSoc=soc;this.housePowerW=house;
+      this.bus=new BetBus(module,drive.battery,hz);esc.attachBattery(drive.battery);this.initialSoc=soc;this.housePowerW=house;
       this.power=new PowerTelemetry(n);this.capacityAh=drive.battery.capacityAh;
       this.limits=new LimitMonitor(n,configuration.limitRatings??null,drive.motors.map(m=>m.currentLimitA),
         drive.motors.map(m=>m.brakeCurrentLimitA),drive.battery.currentLimitA,hz);
@@ -388,9 +388,16 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
       let fraction=1;
       if(faults){if(!faults.driveTorqueFromArrayInto(i,this.unit,this.fraction)){this.fault='BET motor fault table mismatch';return;}fraction=this.fraction[0]!;}
       if(esc) {
-        input[b+12]=0;input[b+13]=duty*fraction;input[b+14]=this.electrical[1]!;
+        input[b+12]=0;input[b+13]=duty*fraction;
         esc.driveFlags[i]=fraction===0?BOUND_V2.drivePowerCut:0;
       } else input[b+12]=faults?duty*this.torque[i]!*fraction:duty*this.torque[i]!;
+    }
+    if(esc){
+      // TASK-197: the motors and the bus agree within this step, as they physically do, and a pack at its limit holds the motors back.
+      const q=esc.busState;q[0]=this.electrical[0]!;q[1]=this.housePowerW;
+      if(!esc.solveBusInto()){this.fault='Battery bus solve failed';return;}
+      const voltage=esc.busSolution;
+      for(let i=0;i<this.rotorCount;i++)input[i*this.inputStride+14]=voltage[0]!;
     }
     if(esc?!esc.stepInto():!this.engine!.stepInto()){this.fault='BET rotor step failed';return;}
     this.validityFlags=this.configurationFlags;this.samplingFlags=0;
@@ -412,11 +419,11 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
       }
     }
     if(this.bus) {
-      // One-tick lag: these motors ran on the previous bus voltage; the bus now delivers their summed terminal power.
+      // The bus delivers the summed terminal power of these motors, which ran on the voltage solved above.
       const e=this.electrical,o=this.bus.output;
       if(!this.bus.stepInto(e[0]!,terminalPowerW,this.housePowerW)){this.fault='Battery bus step failed';return;}
       e[0]=o[0]!;e[1]=o[1]!;e[2]=o[2]!;
-      this.busLimited=this.bus.output[6]!!==0;
+      this.busLimited=this.bus.output[6]!!==0||esc!.busLimited;
     }
     if(!this.frame.sumInto(this.hub,this.wrench)){this.fault='BET body integration failed';return;}
     if(this.dragArea){
@@ -464,7 +471,8 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
       const a=i*stride,b=i*MotorColumn.stride;
       m[b+MotorColumn.Rpm]=output[a+9]!*60/(2*Math.PI);
       m[b+MotorColumn.MotorCurrentA]=output[a+19]!; // motor_current (record byte 144)
-      m[b+MotorColumn.BusCurrentA]=output[a+20]!; // bus_current (record byte 152)
+      // Over the pack's voltage, not the rotor's bus_current over the motors': at a limit those differ, and these must sum to the pack's current.
+      m[b+MotorColumn.BusCurrentA]=e[1]!>0?output[a+21]!/e[1]!:0;
       m[b+MotorColumn.ElectricalPowerW]=output[a+21]!; // electrical_power (record byte 160)
       m[b+MotorColumn.Command]=input[i*this.inputStride+13]!; // esc_duty as the ESC received it
       t.motorLimited[i]=(output[a+14]!&BOUND_V2.flagCurrentLimited)!==0?MotorLimited.CurrentLimit:0;
@@ -474,9 +482,11 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
     b[BatteryColumn.PowerW]=e[1]!*e[2]!;b[BatteryColumn.RemainingAh]=e[0]!*this.capacityAh;
     // The bus flags word (slot 6) is read here, not passed: V8 can box a double call argument.
     const flags=bus[6]!;
-    t.batteryMasks[1]=((flags&1)!==0?BatteryLimited.PackCurrent:0)|((flags&2)!==0?BatteryLimited.Charge:0);
+    t.batteryMasks[1]=((flags&1)!==0||this.escEngine!.busLimited?BatteryLimited.PackCurrent:0)|((flags&2)!==0?BatteryLimited.Charge:0);
     this.limits?.evaluate(t,tick);
   }
+  /** The voltage the motors ran on in the last step, V (TASK-197): the bus voltage, below it only while the pack is limited. Cold, as a boxed return. */
+  get motorBusVoltageV():number {return this.input[14]!;}
   private copyTruth():void {
     const s=this.state,t=this.truth;
     s.north=t.positionNedM[0]!;s.east=t.positionNedM[1]!;s.down=t.positionNedM[2]!;

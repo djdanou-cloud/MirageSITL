@@ -33,6 +33,7 @@ pub mod body_abi_v2;
 pub mod bound;
 pub mod bound_v2;
 pub mod bus_abi;
+pub mod bus_solve;
 pub mod inflow;
 pub mod shaft;
 pub mod flapping;
@@ -273,6 +274,43 @@ mod wasm_exports {
         // SAFETY: both regions are in caller memory, aligned and disjoint.
         let (input, out) = unsafe { (bytes(input_ptr, il), bytes_mut(out_ptr, ol)) };
         crate::bus_abi::step(input, out, dt)
+    }
+
+    /// Bus solution record version (TASK-197).
+    #[no_mangle]
+    pub extern "C" fn bet_bus_solve_version() -> u32 { crate::bus_abi::SOLUTION_VERSION }
+
+    /// Solves the shared bus and `count` ESC rotors together for one step (TASK-197). `table` holds
+    /// `count` pairs of u32: an arena and its v2 input record, as `bet_bound_step_v2` takes them.
+    /// Reads the arenas and records, changes neither, and writes only the solution.
+    #[no_mangle]
+    pub extern "C" fn bet_bound_bus_solve_v2(table:u32,count:u32,bus:u32,op:u32,dt:f64)->i32 {
+        if count==0 || count>32 {return -3;}
+        let (tl,il,ol)=(count*8,crate::bus_abi::INPUT_BYTES,crate::bus_abi::SOLUTION_BYTES);
+        let n=crate::bound_v2::INPUT_BYTES;
+        if !caller_region(table,tl) || !caller_region(bus,il) || !caller_region(op,ol)
+            || abi::regions_overlap(table,tl,op,ol) || abi::regions_overlap(bus,il,op,ol) {return -2;}
+        // SAFETY: the table is in caller memory and disjoint from the output.
+        let pairs=unsafe{bytes(table,tl)};
+        let mut loads=[crate::bus_solve::MotorLoad::default();32];
+        for (i,load) in loads.iter_mut().enumerate().take(count as usize) {
+            let at=i*8;
+            let handle=u32::from_le_bytes([pairs[at],pairs[at+1],pairs[at+2],pairs[at+3]]);
+            let ip=u32::from_le_bytes([pairs[at+4],pairs[at+5],pairs[at+6],pairs[at+7]]);
+            let Some(len)=bound_len(handle) else{return -1;};
+            // SAFETY: bound_len checked the full immutable arena region.
+            let arena=unsafe{bytes(handle,len)};
+            if crate::bound::memory_pages(arena)!=Some(memory_pages()) {return -5;}
+            if !caller_region(ip,n) || abi::regions_overlap(ip,n,op,ol) || abi::regions_overlap(handle,len,op,ol) {return -2;}
+            // SAFETY: the input record is in caller memory and disjoint from the output.
+            match crate::bound_v2::esc_load(arena,unsafe{bytes(ip,n)},dt) {
+                Ok(value)=>*load=value,
+                Err(status)=>return status,
+            }
+        }
+        // SAFETY: both records are in caller memory and disjoint from each other.
+        let (input,out)=unsafe{(bytes(bus,il),bytes_mut(op,ol))};
+        crate::bus_abi::solve(input,&loads[..count as usize],out,dt)
     }
 
     /// Invalidates a bound rotor without affecting another handle.

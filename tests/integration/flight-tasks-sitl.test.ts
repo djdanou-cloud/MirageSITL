@@ -74,7 +74,8 @@ interface TruthRow { t: number; rollDeg: number; pitchDeg: number; yawDeg: numbe
 interface EstimateRow { t: number; rollDeg: number; pitchDeg: number; yawDeg: number }
 
 interface Row { t: number; stage: string; measured: boolean; taskT: number | null; requested: FlightTaskStep['requested']; actual: FlightTaskStep['actual'] }
-interface Flight { steps: FlightTaskStep[]; rows: Row[]; truth: TruthRow[]; estimate: EstimateRow[]; text: string[]; simTimeS: number; wallS: number; lockstep: { duplicates: number; gaps: number } }
+interface Flight { steps: FlightTaskStep[]; rows: Row[]; truth: TruthRow[]; estimate: EstimateRow[]; text: string[]; simTimeS: number; wallS: number;
+  /** The highest pack current and lowest bus voltage of any physics step. */ pack: { maxCurrentA: number; minVoltageV: number }; lockstep: { duplicates: number; gaps: number } }
 
 let module: WebAssembly.Module;
 let home = '';
@@ -100,8 +101,8 @@ afterAll(() => {
 });
 
 /** Starts SITL, waits for READY and flies the task from there. */
-async function fly(task: FlightTaskDefinition): Promise<Flight> {
-  const { profile, derived } = await quadProfile();
+async function fly(task: FlightTaskDefinition, packLimitA?: number): Promise<Flight> {
+  const { profile, derived } = await quadProfile(undefined, 'quad-x', undefined, packLimitA);
   const frame = frameConfiguration(profile);
   if (!frame.ok) throw new Error('The quad X profile has no ArduPilot frame');
   const baseline = readFileSync(join(ROOT, 'tests/fixtures/sitl/parameters.parm'), 'utf8').split('\n').filter(line => /^[A-Z]/.test(line))
@@ -147,6 +148,7 @@ async function fly(task: FlightTaskDefinition): Promise<Flight> {
     let upload: MissionUpload | null = null, runner: FlightTaskRunner | null = null;
     const steps: FlightTaskStep[] = [], rows: Row[] = [], truthRows: TruthRow[] = [], wallStart = performance.now(), reported = new Map<string, number>(), wanted = [...GUIDANCE_PARAMETERS, 'GUID_OPTIONS'];
     const estimateRows: EstimateRow[] = [];
+    const pack = { maxCurrentA: 0, minVoltageV: Number.POSITIVE_INFINITY };
     let stepsSinceTruth = 0;
     const parser = new MavParser((m: MavFrame) => {
       if (m.systemId !== 1 || m.componentId !== 1) return;
@@ -183,6 +185,8 @@ async function fly(task: FlightTaskDefinition): Promise<Flight> {
         ws.send(link.outbound.slice(0, n));
         const truth = link.state;
         simTimeS = truth.simTimeS;
+        pack.maxCurrentA = Math.max(pack.maxCurrentA, truth.batteryCurrentA);
+        if (truth.batteryVoltage > 0) pack.minVoltageV = Math.min(pack.minVoltageV, truth.batteryVoltage);
         ready ||= warmup.observe(simTimeS, performance.now());
         if (++stepsSinceTruth >= TRUTH_EVERY_STEPS) {
           stepsSinceTruth = 0;
@@ -226,7 +230,7 @@ async function fly(task: FlightTaskDefinition): Promise<Flight> {
         if (step.progress.state !== 'running') { clearTimeout(wall); resolve(); }
       });
     });
-    return { steps, rows, truth: truthRows, estimate: estimateRows, text, simTimeS, wallS: (performance.now() - wallStart) / 1000, lockstep: link.lockstepStats };
+    return { steps, rows, truth: truthRows, estimate: estimateRows, text, simTimeS, wallS: (performance.now() - wallStart) / 1000, pack, lockstep: link.lockstepStats };
   } finally {
     socket?.close();
     if (experimentId) await api('POST', `/v1/experiments/${experimentId}/stop`);
@@ -422,4 +426,28 @@ describe.skipIf(!installed)('each maneuver with native ArduCopter (TASK-173)', (
       expect(moved / change, `moved towards ${edge.to}`).toBeGreaterThan(0.8);
     }
   }, 600000);
+});
+
+// TASK-197: a pack at its limit holds the motors back in a real flight. The same climb on the example pack and on one limited just
+// above the 7.7 A this quad hovers at. Set before the first run: the current stays at or under the limit in every physics step to
+// 0.1 A, which allows for the half tick between the bus solve and the motors' power; the free flight goes past that limit, or the
+// test shows nothing; and both finish, since 9 A still lifts the aircraft. How well each climbs is shown and not judged (SA-01).
+describe.skipIf(!installed)('the pack limit with native ArduCopter (TASK-197)', () => {
+  test('a climb on a pack limited just above hover current stays at the limit and still gets there', async () => {
+    const task: FlightTaskDefinition = { ...taskOf('altitude-step'), parameters: { altitudeM: 10, amplitudeM: 6, holdS: 12 } };
+    const limitA = 9;
+    const free = await fly(task), limited = await fly(task, limitA);
+    const response = { free: responseOf(free, 'altitude-step'), limited: responseOf(limited, 'altitude-step') };
+    const line = (flight: Flight, edges: readonly EdgeResponse[]) => ({ sim: flight.simTimeS, maxCurrentA: +flight.pack.maxCurrentA.toFixed(2), minVoltageV: +flight.pack.minVoltageV.toFixed(3),
+      edges: edges.map(edge => ({ from: edge.from, to: edge.to, rise: edge.riseTimeS === null ? null : +edge.riseTimeS.toFixed(2), overshoot: edge.overshootPercent === null ? null : +edge.overshootPercent.toFixed(1), settling: edge.settlingTimeS === null ? null : +edge.settlingTimeS.toFixed(2) })),
+      text: flight.text.filter(message => /thrust|fail|crash|battery|motor/i.test(message)).slice(0, 6) });
+    console.log(`EVID free ${JSON.stringify(line(free, response.free.edges))}`);
+    console.log(`EVID limited ${JSON.stringify(line(limited, response.limited.edges))}`);
+    expect(free.steps.at(-1)?.progress, free.text.slice(-6).join(' | ')).toEqual({ state: 'done' });
+    expect(limited.steps.at(-1)?.progress, limited.text.slice(-6).join(' | ')).toEqual({ state: 'done' });
+    expect(free.pack.maxCurrentA).toBeGreaterThan(limitA + 1);
+    expect(limited.pack.maxCurrentA).toBeLessThanOrEqual(limitA + 0.1);
+    expect(limited.lockstep.duplicates + limited.lockstep.gaps).toBe(0);
+    near(limited.steps.at(-1)?.actual.altitudeM, limited.steps[0]?.actual.altitudeM ?? 0, 0.05, 'landed height');
+  }, 900000);
 });

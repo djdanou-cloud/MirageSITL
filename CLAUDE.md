@@ -347,8 +347,10 @@ implementation.
   components' own mass, and showing thrust margin, RPM, current, power, energy, a
   duration estimate with its scenario and reserve, position and maneuver response and
   recorded limit exceedances, shown and not judged. `thrustCapacity` solves the thrust at
-  full command. It found an open flight-model fault: at high demand the battery bus flips
-  every tick, and a pack at its limit is flagged while the motors draw on. TASK-176 is DONE:
+  full command. TASK-197 is DONE: the flight step solves the battery bus and the motors
+  together (`native/bet/src/bus_solve.rs`), so the voltage no longer flips every tick at high
+  demand, a pack at its limit holds the motors back, and a flight at full command settles on
+  the thrust `thrustCapacity` gives. TASK-176 is DONE:
   the Experiments tab runs a batch of parameter sets the user supplies
   (`packages/project/src/batch.ts`), one scenario from the Run tab once per set with every
   other input identical. A failed run is recorded and never retried, and the next set
