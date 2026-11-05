@@ -126,6 +126,8 @@ export function TerrainSource({ store, projectId, location, onElevation }: {
           ? <button type="button" onClick={() => onElevation(Math.round(elevation.mslM * 10) / 10)}>Use the terrain height as the ground elevation</button>
           : <p className="hint">A built-in site keeps its own elevation; choose coordinates to use the terrain&apos;s.</p>
       )}
+      {/* The table scrolls sideways on a narrow screen; the region takes focus so the keyboard can scroll it too. */}
+      <div className="table-scroll" role="region" aria-label="Terrain sources" tabIndex={0}>
       <table className="scheme-table" data-testid="terrain-sources">
         <caption>Terrain sources of the inventory, at the location</caption>
         <thead><tr><th scope="col">Source</th><th scope="col">Layer</th><th scope="col">Coverage</th><th scope="col">Detail</th><th scope="col">License</th><th scope="col">Status</th></tr></thead>
@@ -142,6 +144,7 @@ export function TerrainSource({ store, projectId, location, onElevation }: {
           ))}
         </tbody>
       </table>
+      </div>
     </section>
   );
 }

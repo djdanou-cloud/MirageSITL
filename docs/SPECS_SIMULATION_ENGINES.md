@@ -6260,6 +6260,101 @@ the thrust fit; and the torque-path digest. `scripts/check-bet-runtime.mjs
 --allocation` adds the ESC-drive graph and the native drive allocator tests.
 The roadmap entry records the native ArduCopter flight on the drive.
 
+## Propulsion calibration: TASK-145
+
+In measured mode (TASK-140), TASK-145 fits the BET rotor and the DC motor of
+one exact bench combination to that combination's static bench data, records
+and shows the residuals, and flags flight outside what the bench measured.
+MirageSITL sets no fit tolerance (SA-01): the residuals are shown, never
+judged. A calibration belongs to its combination and is never transferred.
+
+**Scaling the BET model, not the TASK-103 table mode.** The fit scales the
+section polar of the combination's propeller: every lift coefficient by s_L and
+every drag coefficient by s_D, with the angle, Reynolds-number and Mach axes and
+the confidence unchanged. The reasons: (1) a table of the bench's C_T and C_P
+versus RPM holds only where a static bench measured, at one density and zero
+advance ratio, while a flight needs loads in climb, descent, forward flight and
+wind, which the BET gives from the geometry and the inflow; scaling its polar
+moves the level of its static loads to the bench and keeps their dependence on
+inflow, advance ratio, density and Reynolds number; (2) the two scales are what
+the two measured curves, thrust and torque versus RPM, can set: a static bench
+cannot identify more free parameters, and RPM-dependent factors would fit the
+noise; (3) the table mode of TASK-103 does not exist yet. Scales are confined to
+0.25 to 4: beyond them the polar, not its level, is wrong.
+
+**The static solve** (`staticLoads`, `packages/physics/src/propulsion-calibration.ts`)
+gives the BET rotor's thrust and torque at each bench speed in still air at the
+bench's air (density as measured or p/(R·T); viscosity and sound speed from the
+temperature, or of the ISA sea level when only a density is given): each speed
+is a bound rotor of its own on the drive-mode-0 shaft with no motor torque and a
+shaft inertia of 10⁶ kg·m², so it holds its speed to 10⁻⁶ while its inflow
+(lag 5 ms) settles over 400 steps at 800 Hz; thrust is the axial hub force,
+torque the magnitude of the aerodynamic shaft torque. A speed that does not
+settle to 10⁻⁹ or does not hold throws.
+
+**The rotor fit** (`fitPropulsion`) minimizes, by Levenberg–Marquardt in
+x = (ln s_L, ln s_D) with central differences,
+
+```text
+S(x) = Σ_i ((T_i(x) - T_i,bench) / rms(T_bench))² + Σ_i ((Q_i(x) - Q_i,bench) / rms(Q_bench))²
+```
+
+from s_L = s_D = 1, so both curves count alike whatever their units, until a
+step moves x by less than 10⁻¹¹. Without torque at every point it fits s_L
+alone, keeps s_D = 1 and says so. It needs 3 to 32 points of a bench propeller
+whose diameter is the rotor's.
+
+**The motor fit** (`fitMotor`), when the bench has torque, voltage and current at
+every point, holds the motor card's KV (supply-side data cannot separate KV from
+the winding resistance) and fits the winding resistance R and the no-load current
+I₀ of the TASK-092 DC motor, with a lossless ESC, to the supply power by
+Gauss–Newton:
+
+```text
+I_m = K_v Q + I_0,   V_m = ω / K_v + R I_m,   P_model = V_m I_m = V I
+```
+
+K_v in rad/s per volt. The ESC's losses therefore appear in R and I₀, which the
+record says. A point whose model motor voltage exceeds its supply voltage lies
+beyond full duty and is shown as such.
+
+**The envelope** is the bench's RPM range, its density and its advance ratio,
+J = 0 for a static bench. A flight step is outside it when a rotor turns more
+than 10% beyond the RPM range (F-03), when J = V/(nD) of the airspeed at the CG
+exceeds 0.02 (the J of a 0.5 m/s draught on a 10-inch propeller at 6000 rpm:
+the drift of a hover in still air stays below it, while wind, forward flight,
+climb and descent do not; an engineering default under F-03), or when the air density differs from the
+bench's by more than 10% (F-03's margin applied to the single density of a
+run). These only raise the flag; static data are never extended silently.
+
+**Planned in the second increment of this task**, with the interfaces fixed
+here: a `propulsion-calibration` record of the project store, holding the
+combination key, the measurement set's SHA-256, the polar and the BET module it
+was fitted with, s_L, s_D, R and I₀ (or what was not fitted), every residual and
+the envelope, and depending on the measurement set and the combination's cards;
+profile schema 6, whose calculation settings bind calibrations as they bind
+measurement sets, a motor using one only when its combination key is the
+calibration's; the vehicle manifest's optional `propulsionCalibrations` section
+(derivation 7), from which `buildProfileDynamics` scales each calibrated rotor's
+polar and takes R and I₀; `VALIDITY_FLAG_CALIBRATION_EXTRAPOLATION` (bit 18) in
+`BetFlightDynamics`, which the session reports as `ModelOutsideValidity`; the
+recorder v2 signal `truth.validity` (ID 21) with the dynamics' validity bits; and
+the Aircraft tab's calculation panel, which fits a bound measurement set, shows
+its residuals and binds the result as a new profile version.
+
+**Verification.** `tests/propulsion-calibration.test.ts` declares before the
+implementation: bench data that the rotor itself gives with its polar scaled by
+s_L = 0.9 and s_D = 1.2, and the electrical power of a known motor (KV 900, R =
+0.08 Ω, I₀ = 0.6 A), are fitted back from the unscaled polar within 10⁻⁹
+relative; a thrust-only bench gives s_L back within 10⁻⁹ with s_D = 1 and names
+what it could not fit; the static solve at a speed equals within 10⁻⁶ the thrust
+of the free shaft settled on the TASK-092 ESC drive at that speed (the same rotor
+reached by a motor balancing its aerodynamic torque); a motor fit alone gives R
+and I₀ back; the repository's bench CSV v2 fixture is refused on a rotor of
+another diameter and fitted on one of its own, with every residual kept. A real
+bench file (G4) is still to be fitted and its residuals shown before measured
+mode is called working.
+
 ## Profile-driven dynamics (TASK-144)
 
 An aircraft profile version and its component cards build the session's
@@ -8654,6 +8749,74 @@ hand against the pack's law. `tests/bus-coupling.test.ts` flies the real pack (T
 flies one hover on two configurations with native ArduCopter 8ab6afde, and compares the page's
 numbers with what it works out from the recording's rows and the cards on its own.
 
+
+## Fidelity assessment: TASK-184
+
+TASK-184 sets a real flight log beside the log of a simulated run of one
+aircraft profile version and compares them quantity by quantity and regime by
+regime with the TASK-090 time-domain metrics. MirageSITL sets no fidelity limit
+and gives no verdict (SA-01, F-05): every number is shown, and the user judges
+how far to trust the results. What a log lacks is shown as missing, never
+filled in. Operational acceptance (TASK-188) and fidelity stay separate reports.
+
+**Logs and alignment** (`assessFidelity`, `packages/analysis/src/fidelity.ts`).
+Both logs are ArduPilot DataFlash logs, read the same way: the real one, and
+ArduPilot's own log of the simulated run or the one written from its recording.
+The comparison takes an interval of the real log and an offset for the simulated
+one, t_sim = t_real + offset, and reads the simulated series at the real
+instants, straight between its neighbours; instants outside the simulated log
+are left out. `logOrigin` tells a real log from a simulated one: a log that sets
+any `SIM_` parameter, or holds MirageSITL's `MS` messages, is simulated.
+
+**Quantities.** Roll, pitch and heading (ATT; a heading is unwrapped and the
+simulated one moved by the whole turns that bring its start nearest the real
+start), roll, pitch and yaw rate (RATE), height above the origin and climb rate
+(XKF1, first EKF core), battery voltage and current (BAT, first battery) and the
+first motor output (RCOU). For each, over the interval and in each regime:
+
+```text
+e_i = s(t_i + offset) - m(t_i),   RMS = sqrt(mean(e²)),   bias = mean(e),   Theil = RMS / (sqrt(mean(s²)) + sqrt(mean(m²))),   max |e_i|
+```
+
+with the mean, minimum and maximum of each series. Side by side, one number
+per log: the energy used (BAT.EnrgTot at the end of the interval minus at its
+start), the overshoot of the largest step of the desired roll and pitch of at
+least 5° (the peak of (actual − before)/(desired − before) until the desired
+value moves again, minus 1, in percent), and for each body rate its spread
+about its mean and the dominant frequency of a Hann-windowed FFT over the
+largest power-of-two number of samples. The paths, north, east and height each
+from its log's own origin, are compared with the TASK-183 `pathDifference`.
+
+**Regimes** come from the real log's EKF height (from its first sample) and
+velocity at the latest XKF1 row: ground below 0.5 m, then forward at 1 m/s or
+more horizontally, climb or descent at 0.5 m/s or more vertically, else hover.
+These bounds only sort samples (an engineering default); the result lists the
+seconds of each regime, and a quantity with no sample in a regime has a missing
+row there with the reason.
+
+**Planned in the second increment of this task**, with the interfaces fixed
+here: a `fidelity-comparison` record of the project store, holding the profile
+version's SHA-256, the experiment, both logs' SHA-256 and origins, the interval
+and offset, the regimes and every row and number above, and no limit and no
+verdict, depending on the profile version and the experiment, and refusing
+unhashed input; the `flight-checked` label of TASK-133, which a profile version
+shows, with the regimes compared, only while it has a comparison with a real log
+— a new profile version has none, so a change of geometry, mass, motor or
+propeller resets it and earlier comparisons show as belonging to the previous
+version; the Experiments tab's fidelity report (`FidelityReport.tsx`) with the
+two series of each quantity charted; and `scripts/check-fidelity.mjs` reporting
+the same metrics with no limit, exit 0 when compared, 2 without real data.
+
+**Verification.** `tests/fidelity-assessment.test.ts` declares before the
+implementation, on a flight written here whose metrics follow in closed form
+(float32 storage the only error): a roll 2° above the real one gives bias and
+RMS 2, an identical pitch RMS 0, a height 10% above bias 0.1·mean(h) and RMS
+0.1·rms(h), a heading written 0..360 in one log and −180..180 in the other RMS
+0; the regimes 1.5, 3.5, 4, 4 and 3 s within one sample; overshoots of 20% and
+40%; 4 Hz oscillations of amplitude 4 and 2 with spreads 4/√2 and 2/√2;
+energies 0.8 and 0.96 Wh; missing rows with their reasons; and the origin of
+each log. At least one real flight log (G4) is still to be compared before
+the task is done.
 
 ## Experiment from a log (TASK-182)
 
