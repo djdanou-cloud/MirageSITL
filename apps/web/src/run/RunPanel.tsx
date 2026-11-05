@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { createExperimentRecord, experimentRecordName, isSetParameter, type ExperimentFlightTask } from "@mirage/aircraft/experiment";
+import { createExperimentRecord, experimentRecordName, isSetParameter, type ExperimentEnvironment, type ExperimentFlightTask, type ExperimentTerrain } from "@mirage/aircraft/experiment";
 import { deriveLayout, type AircraftLayout } from "@mirage/aircraft/layout";
 import { readAircraftProfile } from "@mirage/aircraft/profile";
 import { describeAccident } from "@mirage/physics/accident";
@@ -29,6 +29,8 @@ import { LauncherClient, RuntimePhysics, SITL_PHYSICS_HZ, preparedRun, verifiedC
 import { readFlightTask } from "../tasks/flight-task-form";
 import { FlightTaskPanel } from "./FlightTaskPanel";
 import { environmentAtHome, environmentFor } from "../weather/conditions";
+import { runTerrainFor } from "../weather/local-terrain";
+import { loadTerrainChoice } from "../weather/terrain-store";
 import { DEFAULT_LOCATION, describeLocation, homeOf, loadLocation, type LocationChoice } from "../weather/location";
 import { FlightTelemetry } from "./FlightTelemetry";
 import { FlightView, type FlightViewProbe, type RoutePoint } from "./FlightView";
@@ -39,7 +41,7 @@ import { PowerPanel } from "./PowerPanel";
 import { AS_FAST_AS_POSSIBLE } from "./run-speed";
 import { SpeedIndicator } from "./SpeedIndicator";
 import { SessionController, failureText, type CatalogEntry, type ConnectionSpec, type ControllerView, type Ownership, type PauseReason,
-  type PreparedRun, type RunState } from "./session-controller";
+  type PreparedRun, type RunState, type RunTerrainInput } from "./session-controller";
 import type { SessionLink } from "./session-link";
 
 // Run tab, ArduPilot SITL backend (TASK-153, TASK-154): an aircraft profile
@@ -82,7 +84,7 @@ const PAUSE_HINT: Readonly<Record<PauseReason, string>> = {
   accident: "The run paused on the accident's tick, and the autopilot with it. It can continue, but what follows is not validated for a physically damaged aircraft.",
   user: "The physics and the autopilot's simulated time stand still together; position, velocity and the flight are kept. Resume continues both.",
   visibility: "This run paused because its tab was hidden: the browser slows a hidden page's timers, which run the ground station, so a run never goes on there unwatched. Resume when you are back.",
-  terrain: "The run paused because no terrain is loaded under the aircraft.",
+  terrain: "The run paused because no terrain is loaded under the aircraft: the loaded terrain ends here. A run loads its terrain before it starts, so it cannot resume; stop it, and load a larger radius or choose a location the terrain covers.",
   controller: "The run paused because the controller disconnected, was swapped or stopped sending: ArduPilot never flies on a held stick. If the same controller stayed connected, Resume continues in manual control; one that was unplugged and plugged back in, or swapped, does not take over, so Resume gives the flight back to MirageSITL, which holds position, and you can take manual control again.",
 };
 const PAUSABLE_STATES: ReadonlySet<string> = new Set(["loading-parameters", "warming", "ready", "running"]);
@@ -326,6 +328,17 @@ export function RunPanel({ storeState, project, visible, link }: { storeState: S
     const loaded = await loadWeatherSchedule(store, projectId);
     return loaded.entries.length > 0 ? loaded : null;
   };
+  /**
+   * The ground of a run (TASK-186): a planned run stands on its parent's (the pad, or the local terrain with the parent's radius),
+   * anything else on the Weather and location tab's choice; real terrain is built here around the run's home, or the start is refused.
+   */
+  const runTerrain = async (environment: ExperimentEnvironment | null, parentTerrain?: ExperimentTerrain | null): Promise<RunTerrainInput | null> => {
+    if (parentTerrain !== undefined) {
+      return parentTerrain ? runTerrainFor({ schemaVersion: 1, sourceId: parentTerrain.sourceId, radiusM: parentTerrain.radiusM }, environment) : null;
+    }
+    if (!store || !projectId) return null;
+    return runTerrainFor(await loadTerrainChoice(store, projectId), environment);
+  };
   const faultSchedule = async (): Promise<FaultSchedule | null> => {
     if (!store || !projectId) return null;
     const loaded = await loadFaultSchedule(store, projectId);
@@ -359,7 +372,8 @@ export function RunPanel({ storeState, project, visible, link }: { storeState: S
     const home = parent?.session.home ?? logHome ?? homeOf(location);
     const environment = parent ? (parent.environment ? environmentFor(parent.environment.location) : Promise.resolve(null))
       : logHome ? environmentAtHome(logHome) : environmentFor(location);
-    void Promise.all([settingsFor, metadata(), faultSchedule(), environment, weatherSchedule()]).then(([settings, catalog, schedule, conditions, weatherNext]) => {
+    const terrainFor = environment.then(conditions => runTerrain(conditions, parent ? parent.terrain : undefined));
+    void Promise.all([settingsFor, metadata(), faultSchedule(), environment, weatherSchedule(), terrainFor]).then(([settings, catalog, schedule, conditions, weatherNext, terrain]) => {
       if (!parent && !settings) return;
       // A planned run boots with its parent's parameter set, if it had one: the set is one of its inputs.
       // A log from another build may name parameters this one lacks, which the start would refuse.
@@ -375,7 +389,7 @@ export function RunPanel({ storeState, project, visible, link }: { storeState: S
       link.planRun(null);
       link.planFromLog(null);
       void session.next.start({ prepare: session.prepare, firmwareId: buildId, speedup, physicsHz: parent?.session.physicsHz ?? SITL_PHYSICS_HZ,
-        home, environment: conditions, flightTask: task.entry, faults, weather });
+        home, environment: conditions, flightTask: task.entry, faults, weather, terrain });
     }, failed_);
   };
   const connect = (endpoints: ConnectionSpec) => {
@@ -387,11 +401,13 @@ export function RunPanel({ storeState, project, visible, link }: { storeState: S
       return;
     }
     setTaskRefusal("");
-    void Promise.all([logging(), metadata(), faultSchedule(), environmentFor(location), weatherSchedule()]).then(([settings, catalog, schedule, environment, weather]) => {
+    const environmentNow = environmentFor(location);
+    void Promise.all([logging(), metadata(), faultSchedule(), environmentNow, weatherSchedule(), environmentNow.then(environment => runTerrain(environment))])
+      .then(([settings, catalog, schedule, environment, weather, terrain]) => {
       const session = settings && freshSession(settings, catalog, location.groundElevationMslM, task.entry);
       if (session) {
         void session.next.connect({ prepare: session.prepare, endpoints, physicsHz: SITL_PHYSICS_HZ, home: homeOf(location), environment, verifiedCommits: verifiedCommits(),
-          flightTask: task.entry, faults: schedule, weather });
+          flightTask: task.entry, faults: schedule, weather, terrain });
       }
     }, failed_);
   };
@@ -415,10 +431,13 @@ export function RunPanel({ storeState, project, visible, link }: { storeState: S
       // TASK-148: every run of a batch starts at the project's location, in its conditions.
       const [settings, catalog, schedule, environment, weather] = await Promise.all([logging(), metadata(), faultSchedule(), environmentFor(location), weatherSchedule()]);
       if (!settings) return "The recording settings cannot be read";
+      // TASK-186: every run of a batch stands on the same ground; a terrain that cannot be built fails the set, as the record says.
+      let terrain: RunTerrainInput | null;
+      try { terrain = await runTerrain(environment); } catch (cause) { return cause instanceof Error ? cause.message : String(cause); }
       const session = freshSession(settings, catalog, location.groundElevationMslM, task.entry, set.parameters);
       if (!session) return "The run could not be set up";
       void session.next.start({ prepare: session.prepare, firmwareId: buildId, speedup, physicsHz: SITL_PHYSICS_HZ, home: homeOf(location), environment, flightTask: task.entry,
-        faults: schedule, weather });
+        faults: schedule, weather, terrain });
       return null;
     },
     // runTask answers null when it flies, so a missing controller cannot be told from it by `??`.
@@ -579,6 +598,11 @@ export function RunPanel({ storeState, project, visible, link }: { storeState: S
         </div>
       )}
       {state.name === "paused" && <p className="hint" role="status" data-testid="sitl-pause-hint">{PAUSE_HINT[state.reason]}</p>}
+      {view?.terrainMissing && (
+        <p className="hint" data-testid="sitl-terrain-missing">
+          {`The terrain ended at ${view.terrainMissing.northM.toFixed(1)} m north and ${view.terrainMissing.eastM.toFixed(1)} m east of the home, ${view.terrainMissing.simTimeS.toFixed(2)} s into the run (tick ${view.terrainMissing.tick}).`}
+        </p>
+      )}
       {view && view.pauses.length > 0 && (
         <div className="sitl-pauses">
           <h4>Pauses</h4>

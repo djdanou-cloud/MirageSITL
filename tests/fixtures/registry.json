@@ -1818,6 +1818,41 @@
           "derivation": "Hand-written from the Control Protocol v3 contract in docs/SPECS_SHARED_MEMORY.md and each model's envelope (TASK-166); values are exact; not generated from parser output."
         }
       }
+    },
+    {
+      "path": "terrain-qm-slope/terrain-manifest.json",
+      "manifest": {
+        "formatVersion": 1,
+        "id": "terrain-qm-slope-plane-v1",
+        "sourceSha256": "a8dd6d36a93dae0b2390c10159c4861365fb39acf907f64676dec4c10f5f9074",
+        "units": {
+          "longitudeRad": "rad",
+          "latitudeRad": "rad",
+          "heightM": "m"
+        },
+        "validityEnvelope": {
+          "longitudeRad": {
+            "min": 0.6082233823966567,
+            "max": 0.6086068775936282
+          },
+          "latitudeRad": {
+            "min": 0.5616287159646304,
+            "max": 0.5620122111616017
+          },
+          "heightM": {
+            "min": 100,
+            "max": 150
+          }
+        },
+        "tolerance": {
+          "absolute": 0.0067,
+          "relative": 0
+        },
+        "provenance": {
+          "kind": "synthetic",
+          "derivation": "The tilted plane h = 120 + 900 (lon - 34.87) - 1500 (lat - 32.2) m, ellipsoidal, and the bounding box of four level-14 EPSG:4326 TMS tiles that tests/fixtures/terrain-qm-slope/generate.py wrote from it with the independent quantized-mesh-encoder 1.1 package (13 by 13 vertex grids); layer.json and the .terrain tiles beside this file are that encoder's output; longitude and latitude are stored in degrees. Tolerance: one height quantization step of a tile spanning under 40 m, plus the slope times one u/v quantization step and half a float32 step, the encoder holding coordinates in float32 (TASK-186)."
+        }
+      }
     }
   ]
 }

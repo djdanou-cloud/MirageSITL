@@ -67,7 +67,7 @@
 // frame starts where the run started, and a repeat is a new experiment. A
 // task that fails hands the flight to ArduPilot's LAND; the run goes on.
 import {
-  EXPERIMENT_SCHEMA_VERSION, type ExperimentEnvironment, type ExperimentFlightTask, type ExperimentLineage, type ExperimentParameter, type ExperimentPayload,
+  EXPERIMENT_SCHEMA_VERSION, type ExperimentEnvironment, type ExperimentFlightTask, type ExperimentLineage, type ExperimentParameter, type ExperimentPayload, type ExperimentTerrain,
   type ExperimentRecording, type ExperimentSitl,
 } from "@mirage/aircraft/experiment";
 import { readAutopilotVersion, verifiedCommit } from "@mirage/autopilot/autopilot-version";
@@ -178,7 +178,7 @@ export interface PhysicsPort {
    * Loads the BET module, the manifest and its ratings, gives the physics the environment's gravity and origin air
    * (TASK-148) and starts the session in sitl-lockstep at `physicsHz`; resolves with the module's SHA-256.
    */
-  load(physicsHz: 800 | 1200, environment: ExperimentEnvironment | null): Promise<{ readonly betModuleSha256: string }>;
+  load(physicsHz: 800 | 1200, environment: ExperimentEnvironment | null, terrain?: readonly TerrainChunk[] | null): Promise<{ readonly betModuleSha256: string }>;
   connect(port: number, bridgeEpoch: number, speedup: number): void;
   disconnect(): void;
   sendMavlink(bytes: Uint8Array): void;
@@ -244,6 +244,10 @@ export interface ClockPort {
   every(ms: number, callback: () => void): () => void;
 }
 
+/** One chunk of a real-terrain run's lattice (TASK-186): 129 by 129 posts 4 m apart, down from the home, m. */
+export interface TerrainChunk { readonly northIndex: number; readonly eastIndex: number; readonly downM: Float64Array }
+/** The real terrain a run stands on (TASK-186): what its record says, and the chunks the physics checks under the vehicle. */
+export interface RunTerrainInput { readonly record: ExperimentTerrain; readonly chunks: readonly TerrainChunk[] }
 export interface StartRequest {
   readonly prepare: () => Promise<PreparedRun>;
   readonly firmwareId: string;
@@ -260,6 +264,8 @@ export interface StartRequest {
   readonly faults?: FaultSchedule | null;
   /** The weather this run applies by itself (TASK-167). */
   readonly weather?: WeatherSchedule | null;
+  /** The real terrain this run stands on (TASK-186); the synthetic pad when absent. */
+  readonly terrain?: RunTerrainInput | null;
 }
 export interface ConnectRequest {
   readonly prepare: () => Promise<PreparedRun>;
@@ -282,6 +288,8 @@ export interface ConnectRequest {
   readonly faults?: FaultSchedule | null;
   /** The weather this run applies by itself (TASK-167). */
   readonly weather?: WeatherSchedule | null;
+  /** The real terrain this run stands on (TASK-186); the synthetic pad when absent. */
+  readonly terrain?: RunTerrainInput | null;
 }
 
 // ---- states ---------------------------------------------------------------------------------
@@ -489,6 +497,15 @@ export interface ControllerView {
   readonly faultPlan: FaultPlanView | null;
   /** The weather this run applies by itself (TASK-167), or null; it counts from the same first arming. */
   readonly weatherPlan: WeatherPlanView | null;
+  /** Where the run reached ground its real terrain does not hold (TASK-186), or null. */
+  readonly terrainMissing: TerrainMissing | null;
+}
+/** The first tick of a real-terrain run with no published ground within 8 m of the vehicle (TASK-186). */
+export interface TerrainMissing {
+  readonly tick: number;
+  readonly simTimeS: number;
+  readonly northM: number;
+  readonly eastM: number;
 }
 export interface WeatherPlanView {
   readonly schedule: WeatherSchedule;
@@ -574,6 +591,7 @@ interface ExternalFacts {
   betModuleSha256: string;
   home: readonly [number, number, number, number];
   environment: ExperimentEnvironment | null;
+  terrain: ExperimentTerrain | null;
   verifiedCommits: readonly string[];
   version: { readonly commit: string; readonly gitHash: string; readonly firmwareVersion: string } | null;
   versionSinceS: number;
@@ -632,6 +650,7 @@ export class SessionController {
   private heartbeatSeen = false;
   private lastHeartbeatMs = 0;
   private accidents: AccidentEvent[] = [];
+  private terrainMiss: TerrainMissing | null = null;
   private afterAccident = false;
   private pauses: PauseEvent[] = [];
   /** A user or hidden-tab pause waiting for its acknowledgement. */
@@ -669,7 +688,7 @@ export class SessionController {
   get view(): ControllerView {
     return { state: this.stateValue, status: this.status, mode: this.mode, armed: this.armed, statusText: this.statusText, recordSha256: this.recordSha256,
       ownership: this.ownership, compatibility: this.compatibility, motorCheck: this.motorCheckView(), accidents: this.accidents,
-      afterAccident: this.afterAccident, pauses: this.pauses, pausedWallMs: this.pausedWallTotal(), parameters: this.parameterView(),
+      afterAccident: this.afterAccident, terrainMissing: this.terrainMiss, pauses: this.pauses, pausedWallMs: this.pausedWallTotal(), parameters: this.parameterView(),
       speed: this.speed.view, flightTask: this.flightTaskView(),
       manual: this.manual ? { mode: this.manual.mode, device: this.manual.device, waiting: this.manual.waiting } : null,
       effects: this.effects.map(item => this.effectEntry(item)),
@@ -710,7 +729,7 @@ export class SessionController {
     if (!firmware.usable) { this.fail({ kind: "firmware", message: `ArduPilot build ${firmware.id} cannot be started: ${firmware.reason ?? "unusable"}` }, "starting", null); return; }
     this.set({ name: "starting", step: "physics", experimentId: null });
     let betModuleSha256: string;
-    try { ({ betModuleSha256 } = await this.physics.load(request.physicsHz, request.environment)); } catch (error) {
+    try { ({ betModuleSha256 } = await this.physics.load(request.physicsHz, request.environment, request.terrain?.chunks ?? null)); } catch (error) {
       if (!cancelled()) this.fail({ kind: "physics", message: messageOf(error) }, "starting", null);
       return;
     }
@@ -758,6 +777,7 @@ export class SessionController {
         manifestSha256: prepared.manifestSha256, betModuleSha256 },
       parameters, frameScript: prepared.frameScript, sensors: prepared.sensors, recording, lineage: request.lineage ?? { kind: "original" },
       flightTask: this.flightTaskEntry, faults: this.faultPlan?.schedule ?? null, environment: request.environment, weather: this.weatherPlan?.schedule ?? null,
+      terrain: request.terrain?.record ?? null,
     };
     try { this.recordSha256 = (await this.records.create(payload)).sha256; } catch (error) {
       // No unrecorded run flies; after a Stop, the stop already ended the run.
@@ -848,7 +868,7 @@ export class SessionController {
 
     this.set({ name: "starting", step: "physics", experimentId: connection.id });
     let betModuleSha256: string;
-    try { ({ betModuleSha256 } = await this.physics.load(physicsHz, request.environment)); } catch (error) {
+    try { ({ betModuleSha256 } = await this.physics.load(physicsHz, request.environment, request.terrain?.chunks ?? null)); } catch (error) {
       if (!cancelled()) await this.stopAfter({ kind: "physics", message: messageOf(error) }, "starting");
       return;
     }
@@ -858,6 +878,7 @@ export class SessionController {
       return;
     }
     this.external = { spec: request.endpoints, connectionId: connection.id, physicsHz, betModuleSha256, home: request.home, environment: request.environment,
+      terrain: request.terrain?.record ?? null,
       verifiedCommits: request.verifiedCommits, version: null, versionSinceS: 0, homeChecked: false };
     this.readback = new ParameterReadback(prepared.parameters, prepared.absentRule);
     this.set({ name: "starting", step: "connecting", experimentId: connection.id });
@@ -1097,6 +1118,8 @@ export class SessionController {
   /** Why Resume is not possible now, or null (TASK-174: a run paused for its controller waits for it). */
   resumeBlocker(): string | null {
     const s = this.stateValue;
+    // TASK-186: a run's terrain is loaded before it starts and never streamed, so ground that is missing stays missing.
+    if (s.name === "paused" && s.reason === "terrain") return "The terrain under the aircraft is not loaded, and a run loads its terrain only before it starts: stop the run";
     if (s.name !== "paused" || s.reason !== "controller" || !this.manual || !this.input) return null;
     this.input.poll(this.pilot, this.clock.nowMs(), this.armed);
     return this.input.status === "connected" ? null : "Reconnect the controller, or release manual control";
@@ -1289,6 +1312,14 @@ export class SessionController {
       if (events.length > 0 && this.active) this.accident(events);
       return;
     }
+    if (type === "terrain.missing") {
+      // The session paused itself on the tick: the ground under the aircraft is not in the run's terrain (TASK-186).
+      const tick = field(data, "tick"), simTimeS = field(data, "simTimeS"), northM = field(data, "northM"), eastM = field(data, "eastM");
+      if (this.active && [tick, simTimeS, northM, eastM].every(value => typeof value === "number" && Number.isFinite(value))) {
+        this.terrainMissed({ tick: Number(tick), simTimeS: Number(simTimeS), northM: Number(northM), eastM: Number(eastM) });
+      }
+      return;
+    }
     if (type === "sitl.input-stale") {
       // The Worker paused the session: Main sent no stick command for INPUT_TIMEOUT_MS (TASK-174).
       if (this.manual && this.active && this.stateValue.name !== "paused") this.enterPause("controller", []);
@@ -1323,6 +1354,14 @@ export class SessionController {
     const s = this.stateValue;
     if (PAUSABLE.has(s.name) || (s.name === "starting" && ACCIDENT_STEPS.has(s.step))) { this.enterPause("accident", events); return; }
     if (s.name === "paused") { this.set({ ...s, reason: "accident", accidents: [...s.accidents, ...events] }); return; }
+    this.emit();
+  }
+  /** A real-terrain run reached ground it does not hold (TASK-186): the session paused on that tick, and the autopilot waits with it. */
+  private terrainMissed(at: TerrainMissing): void {
+    this.terrainMiss ??= at;
+    const s = this.stateValue;
+    if (PAUSABLE.has(s.name) || (s.name === "starting" && ACCIDENT_STEPS.has(s.step))) { this.enterPause("terrain", []); return; }
+    if (s.name === "paused" && s.reason !== "accident") { this.set({ ...s, reason: "terrain" }); return; }
     this.emit();
   }
   /** The one path into `paused` (TASK-156): the state to return to, the pause row and the log entry. */
@@ -1667,6 +1706,7 @@ export class SessionController {
         manifestSha256: prepared.manifestSha256, betModuleSha256: external.betModuleSha256 },
       parameters: prepared.parameters, frameScript: null, sensors: prepared.sensors, recording, lineage: { kind: "original" },
       flightTask: this.flightTaskEntry, faults: this.faultPlan?.schedule ?? null, environment: external.environment, weather: this.weatherPlan?.schedule ?? null,
+      terrain: external.terrain,
     };
     try {
       const { sha256 } = await this.records.create(payload);
@@ -1844,7 +1884,7 @@ export class SessionController {
     this.status = null; this.mode = null; this.armed = false; this.statusText = []; this.recordSha256 = null;
     this.experimentId = null; this.readback = null; this.heartbeatSeen = false; this.streamSeenMs.clear();
     this.ownership = ownership; this.external = null; this.prepared = null; this.compatibility = []; this.motorCheck = null;
-    this.accidents = []; this.afterAccident = false; this.resumeTo = null; this.pauses = []; this.pausing = false;
+    this.accidents = []; this.afterAccident = false; this.terrainMiss = null; this.resumeTo = null; this.pauses = []; this.pausing = false;
     this.params = null; this.paramMetadata = null; this.changes = []; this.firmwareCommit = null;
     this.effects = []; this.faultRestore.clear(); this.gcsLinkLost = false; this.faultPlan = null; this.weatherPlan = null;
     this.everArmed = false; this.flightTaskEntry = null; this.taskRunner = null; this.taskUpload = null; this.taskRoutePoint = -1; this.taskStep = null;

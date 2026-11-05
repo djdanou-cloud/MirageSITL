@@ -32,12 +32,13 @@ export {BetRigidBodyBackendV2,newBodyTruthV2} from './packages/wasm-bet/src/body
 export {BetFlightDynamics} from './packages/physics/src/bet-dynamics.ts';
 export {MotorFaults} from './packages/physics/src/motor-fault.ts';
 export {PhysicsSessionV2} from './packages/physics/src/session-v2.ts';
+export {CollisionChunks} from './packages/terrain/src/collision-chunks.ts';
 export {createSessionFaultPort} from './packages/ew/src/session-port.ts';
 export {WEATHER_DISCRETE_DOWN,WEATHER_DISCRETE_DURATION,WEATHER_DISCRETE_EAST,WEATHER_DISCRETE_NORTH,WEATHER_GUST_RMS,WEATHER_PRESSURE,WEATHER_SEED,WEATHER_SLOTS,WEATHER_TEMPERATURE,WEATHER_WIND_DOWN,WEATHER_WIND_EAST,WEATHER_WIND_NORTH} from './packages/physics/src/atmosphere.ts';
 export {StateReaderV2,createSharedMemoryV2,createSpscQueue,newFlightStateV2,newHeaderSnapshotV2,tickToNumber} from '@mirage/protocol';
 export {flightConfiguration,rotorDefinition} from './tests/bet-runtime-fixture.ts';`,resolveDir:root,sourcefile:'bet-runtime-entry.ts',loader:'ts'},
   bundle:true,platform:'node',format:'esm',packages:'external',outfile:bundle,metafile:true});
-const {BetRotorEngine,BetRotorEngineV2,BetRigidBodyBackendV2,newBodyTruthV2,BetFlightDynamics,MotorFaults,PhysicsSessionV2,createSessionFaultPort,WEATHER_DISCRETE_DOWN,WEATHER_DISCRETE_DURATION,
+const {BetRotorEngine,BetRotorEngineV2,BetRigidBodyBackendV2,newBodyTruthV2,BetFlightDynamics,MotorFaults,PhysicsSessionV2,CollisionChunks,createSessionFaultPort,WEATHER_DISCRETE_DOWN,WEATHER_DISCRETE_DURATION,
   WEATHER_DISCRETE_EAST,WEATHER_DISCRETE_NORTH,WEATHER_GUST_RMS,WEATHER_PRESSURE,
   WEATHER_SEED,WEATHER_SLOTS,WEATHER_TEMPERATURE,WEATHER_WIND_DOWN,WEATHER_WIND_EAST,WEATHER_WIND_NORTH,StateReaderV2,createSharedMemoryV2,createSpscQueue,
   newFlightStateV2,newHeaderSnapshotV2,tickToNumber,flightConfiguration,rotorDefinition}=await import(pathToFileURL(bundle).href);
@@ -201,6 +202,10 @@ if(!allocation){
   const session=new PhysicsSessionV2({type:'init-v2',protocolVersion:2,stateBuffer,sensorBuffer:createSpscQueue('sensor'),actuatorBuffer:createSpscQueue('actuator')},
     {monotonicMs:()=>fake.mono,wallMs:()=>1.79e12+fake.mono},hz=>(sessionDynamics=new BetFlightDynamics(modules[0],padded(),hz)),createSessionFaultPort());
   session.attachDelivery(true);
+  // TASK-186: a real-terrain run checks the published ground under the vehicle every tick; four chunks around the pad hold it.
+  const ground=new CollisionChunks(1,129,4);
+  for(const [northIndex,eastIndex] of [[-1,-1],[-1,0],[0,-1],[0,0]])ground.stage({version:1,epoch:1,revision:0,resolution:129,spacingM:4,northIndex,eastIndex,downM:new Float64Array(129*129)});
+  ground.publishAtTick(1,0);session.attachGround(ground);
   // TASK-169: a tick-boundary EW command is rare, and a drift reaches its top speed, slows and holds only after seconds, so V8 would still be interpreting these
   // paths when the windows below reach them, and its first tiers box numbers. tests/ew-pipeline.test.ts holds them to zero when warmed; this warms every path the
   // same way, on an engine of its own: each effect on, a drift to its top speed, off with its offset held, on again, and off by a step to the truth.
@@ -247,6 +252,7 @@ if(!allocation){
   }
   const appliedWeather=results.filter(r=>r.type==='ack-v2'&&r.status==='applied'&&r.requestId>1).length;
   if(appliedWeather!==sent||!session.wind.active||results.some(r=>r.type==='reject-v2'))throw Error('A scheduled weather.set was not applied');
+  if(session.terrainMissing[0]!==0||!session.running)throw Error('The session left its terrain');
   const sessionGraph={graph:'weather-session-synthetic-pad',variant:'scalar',...total,bytesPerStep:total.bytes/total.steps,windows,
     weatherApplications:sent-warmupApplications,warmupApplications,memoryStable:sessionDynamics?.engine.memoryStable===true};
   samples.push(sessionGraph);session.dispose();console.log(JSON.stringify(sessionGraph));

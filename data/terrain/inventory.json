@@ -114,6 +114,19 @@
       "offline": false
     },
     {
+      "id": "r2-region-cache",
+      "name": "Persistent region cache on Cloudflare R2",
+      "kind": "imagery-and-mesh",
+      "source": "services/tiles-worker/src/r2-cache.ts (TASK-064)",
+      "license": "Only for permitted datasets: the Google tiles' terms forbid persistent caching without permission",
+      "licenseStatus": "restricted",
+      "coverage": "The regions a deployment has cached; online only",
+      "resolution": "As the cached dataset",
+      "readiness": "needs-keys-or-deployment",
+      "decision": "Not a Phase 1 source: the proxy binds no bucket by default, and persistent caching needs a deployment, keys and the stakeholder's permission (CLAUDE.md section 9); TASK-186 shows it as not ready.",
+      "offline": false
+    },
+    {
       "id": "quantized-mesh-fixture",
       "name": "Synthetic quantized-mesh test pyramid",
       "kind": "test-fixture",

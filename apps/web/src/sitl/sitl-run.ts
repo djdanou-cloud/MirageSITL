@@ -35,7 +35,7 @@ import type { ProjectStore } from "@mirage/project/store";
 import type { SimulationRuntime } from "../runtime";
 import type { EffectControl, EffectRecovery } from "@mirage/protocol";
 import { LauncherError, type CatalogEntry, type ConnectionSpec, type LauncherConnection, type LauncherExperiment, type LauncherLogs, type LauncherPort,
-  type FlightTruth, type LauncherRunState, type PhysicsPort, type PreparedRun, type StartSpec } from "../run/session-controller";
+  type FlightTruth, type LauncherRunState, type PhysicsPort, type PreparedRun, type StartSpec, type TerrainChunk } from "../run/session-controller";
 
 /** Model ID of the vehicle an integrated session loads. */
 export const SITL_MODEL_ID = 153;
@@ -328,7 +328,7 @@ export class RuntimePhysics implements PhysicsPort {
     return this.vehicleValue;
   }
 
-  async load(physicsHz: 800 | 1200, environment: ExperimentEnvironment | null): Promise<{ betModuleSha256: string }> {
+  async load(physicsHz: 800 | 1200, environment: ExperimentEnvironment | null, terrain: readonly TerrainChunk[] | null = null): Promise<{ betModuleSha256: string }> {
     this.physicsHz = physicsHz;
     const { vehicle, runtime } = this;
     runtime.pauseWhenHidden = false;
@@ -345,6 +345,11 @@ export class RuntimePhysics implements PhysicsPort {
       const { gravityMps2, air } = environment.conditions;
       await this.request({ type: "environment.set", gravityMps2, originAir: { temperatureK: air.temperatureK, pressurePa: air.pressurePa } },
         "environment.ready", "environment.reject");
+    }
+    // TASK-186: the real terrain the session checks under the vehicle; nothing for a run on the pad.
+    if (terrain && terrain.length > 0) {
+      await this.request({ type: "terrain.chunks", tiles: terrain.map(chunk => ({ northIndex: chunk.northIndex, eastIndex: chunk.eastIndex, downM: chunk.downM })) },
+        "terrain.ready", "terrain.reject");
     }
     await this.control({ type: "sim.configure", hz: physicsHz, clockMode: "sitl-lockstep" });
     await this.control({ type: "model.load", modelId: SITL_MODEL_ID, manifestSha256: vehicle.derived.sha256 });

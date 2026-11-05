@@ -32,7 +32,7 @@ import {
   failureText, HEARTBEAT_DEADLINE_S, LauncherError, PARAMETER_DEADLINE_S, SessionController, type CatalogEntry, type ClockPort,
   type ConnectionSpec, type ControllerView, type LauncherConnection, type LauncherExperiment, type LauncherFirmware, type LauncherLogs,
   type LauncherPort, type LauncherRun, type LauncherRunState, type PhysicsPort, type PreparedRun, type RecordingPort, type RecordingStart, type RecordPort,
-  type RunState, type StartRequest, type StartSpec, MANUAL_RATE_HZ, type PilotInputPort,
+  type RunState, type StartRequest, type StartSpec, MANUAL_RATE_HZ, type PilotInputPort, type TerrainChunk,
   type FlightTruth,
 } from '../apps/web/src/run/session-controller.ts';
 import { initialEffectParameters, type EffectControl, type EffectRecovery, type PilotInput } from '../packages/protocol/src/index.ts';
@@ -366,9 +366,14 @@ class ScriptedPhysics implements PhysicsPort {
   loadAnswer: () => Promise<{ readonly betModuleSha256: string }> = () => Promise.resolve({ betModuleSha256: BET_SHA });
   constructor(private readonly events: string[]) {}
   readonly loads: (800 | 1200)[] = [];
-  load(physicsHz: 800 | 1200): Promise<{ readonly betModuleSha256: string }> {
+  /** The terrain chunks each load was handed (TASK-186). */
+  readonly terrains: (readonly TerrainChunk[] | null)[] = [];
+  readonly environments: unknown[] = [];
+  load(physicsHz: 800 | 1200, environment: unknown = null, terrain: readonly TerrainChunk[] | null = null): Promise<{ readonly betModuleSha256: string }> {
     this.events.push('physics.load');
     this.loads.push(physicsHz);
+    this.environments.push(environment);
+    this.terrains.push(terrain);
     return this.loadAnswer();
   }
   connect(port: number, bridgeEpoch: number, speedup: number): void {
@@ -1754,6 +1759,61 @@ describe('the run\'s recording (TASK-163)', () => {
     expect(stoppedBeforeFailed(h)).toBe(true);
     expect(h.events).not.toContain('physics.connect');
     expect(h.events).toContain('recording.stop');
+  });
+});
+
+describe('missing terrain (TASK-186)', () => {
+  const chunks: TerrainChunk[] = [{ northIndex: 0, eastIndex: 0, downM: new Float64Array(129 * 129).fill(-2) }, { northIndex: -1, eastIndex: 0, downM: new Float64Array(129 * 129) }];
+  const record = { sourceId: 'fabdem-elevation' as const, layerSha256: 'a'.repeat(64), manifestSha256: 'b'.repeat(64), radiusM: 256, level: 15, chunks: 2, missingChunks: 2,
+    latticeSha256: 'c'.repeat(64), homeHeightM: 602.5 };
+  const missing = (tick: number, northM = 520, eastM = -3) => ({ type: 'terrain.missing', tick, simTimeS: tick / 800, northM, eastM, count: 1 });
+  test('a real-terrain run hands its chunks to the physics and its terrain to the record; a run on the pad hands neither', async () => {
+    const h = harness();
+    h.records.answer = () => Promise.resolve({ sha256: 'd'.repeat(64) });
+    await h.controller.start({ ...h.request, terrain: { record, chunks } });
+    expect(h.physics.terrains).toEqual([chunks]);
+    expect(h.records.payloads[0]?.terrain).toEqual(record);
+    await h.controller.stop();
+    await h.controller.start(h.request);
+    expect(h.physics.terrains.at(-1)).toBeNull();
+    expect(h.records.payloads.at(-1)?.terrain).toBeNull();
+  });
+  test('missing terrain pauses the run on its tick with reason terrain and where; Resume is refused with why, and Stop ends it', async () => {
+    const h = harness();
+    const id = await reach(h, 'flying');
+    h.controller.worker(missing(41000));
+    expect(h.controller.state).toMatchObject({ name: 'paused', experimentId: id, reason: 'terrain' });
+    expect(h.controller.view.terrainMissing).toEqual({ tick: 41000, simTimeS: 41000 / 800, northM: 520, eastM: -3 });
+    expect(h.controller.view.pauses.at(-1)).toMatchObject({ reason: 'terrain', resumedWallMs: null });
+    expect(h.controller.resumeBlocker()).toBe('The terrain under the aircraft is not loaded, and a run loads its terrain only before it starts: stop the run');
+    expect(h.controller.resume()).toBe(false);
+    expect(h.controller.continueAfterAccident()).toBe(false);
+    await settle();
+    expect(h.events).not.toContain('physics.resume');
+    // The first place is kept; a malformed notice is ignored.
+    h.controller.worker(missing(41001, 521, -3));
+    h.controller.worker({ type: 'terrain.missing', tick: 'soon', simTimeS: 1, northM: 0, eastM: 0, count: 2 });
+    expect(h.controller.view.terrainMissing?.tick).toBe(41000);
+    await h.controller.stop();
+    expect(h.controller.state).toMatchObject({ name: 'idle' });
+    await reach(h, 'ready');
+    expect(h.controller.view.terrainMissing).toBeNull();
+  });
+  test('a run already paused by its user takes the terrain as its reason, and an accident pause keeps its own', async () => {
+    const h = harness();
+    await reach(h, 'flying');
+    expect(h.controller.pause('user')).toBe(true);
+    await settle();
+    expect(h.controller.state).toMatchObject({ name: 'paused', reason: 'user' });
+    h.controller.worker(missing(42000));
+    expect(h.controller.state).toMatchObject({ name: 'paused', reason: 'terrain' });
+    expect(h.controller.resume()).toBe(false);
+    await h.controller.stop();
+    await reach(h, 'flying');
+    h.controller.worker(accidentMessage(43000, 1));
+    h.controller.worker(missing(43000));
+    expect(h.controller.state).toMatchObject({ name: 'paused', reason: 'accident' });
+    expect(h.controller.view.terrainMissing?.tick).toBe(43000);
   });
 });
 

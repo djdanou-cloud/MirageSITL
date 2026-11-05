@@ -2575,6 +2575,160 @@ running native ArduCopter session, observes it in the recorded airspeed and
 removes it, and checks that a scheduled discrete gust lands on its tick; it needs
 the reference Mac.
 
+## Terrain source selection: TASK-186
+
+TASK-186 lets a run choose its ground at run time, not at build time: the
+explicitly labelled synthetic level pad, or real elevation from local data. It
+shows what each terrain source is, where it covers and how detailed it is, marks
+what needs data, keys or a deployment as not ready, and pauses a real-terrain
+run where its terrain is missing instead of substituting a plane. Automatic
+region downloads are excluded: nothing is downloaded or cached.
+
+**Source records** (`packages/terrain/src/coverage.ts`) come from the TASK-131
+terrain inventory (`data/terrain/inventory.json`): each has its ID, name, kind,
+layer, coverage, resolution, license and readiness. The layer distinguishes what
+a source gives: `ground` (elevation a run can stand on: the synthetic pad and
+FABDEM), `imagery` (imagery, land cover and the Google photorealistic tiles and
+the R2 region cache, shown and never chosen as ground) and `other` (geoids,
+vector features, test fixtures). Coverage is `any` for the pad, the bounding box
+of the served terrain's manifest for FABDEM, and none for what has no data. The
+pad is ready anywhere and offline. FABDEM, which the inventory lists as needing
+data, is ready only while the local FABDEM output of
+`scripts/geodata/build_terrain.py` is served at `/geodata/terrain/layer.json`
+(`MIRAGE_GEODATA_DIR`, loopback only; a missing file or the application page in
+its place is "not served") with a `terrain-manifest.json` whose bounding box
+holds the location; otherwise the record says which of these is missing. Every
+other source says why it is not ready: `Needs keys or a deployment` (the Google
+tiles, R2), `Available but not wired into a run` (WorldCover), `Needs data`
+(buildings, OSM), a test fixture, or not ground. The inventory gains the
+`r2-region-cache` row for this.
+
+**The choice** is a per-project local setting (`apps/web/src/weather/terrain-store.ts`,
+`terrain-choice.p<project>`): `{ schemaVersion: 1, sourceId, radiusM }` with
+`sourceId` `synthetic-pad` (the default) or `fabdem-elevation`, and the radius
+around the home that a real-terrain run loads, 256 m to 1500 m, 1000 m by
+default. A damaged setting reads as the pad.
+
+**Quantized-mesh decoding** (`packages/terrain/src/quantized-mesh.ts`) reads the
+quantized-mesh-1.0 tiles that the TASK-073 pipeline writes: the 88-byte header,
+the zig-zag delta-coded u, v and height arrays, and the high-water-mark coded
+triangle indices (16-bit below 65537 vertices, 32-bit otherwise, with its
+alignment), each index taken modulo its width as Cesium stores it, because
+encoders keep their vertices in their own order. Heights are WGS84 ellipsoidal:
+
+```text
+h = h_min + (q / 32767) (h_max - h_min)
+```
+
+A point of a tile is the triangle that contains it, interpolated
+barycentrically. Declared before the implementation: decoded vertices equal the
+encoder's quantized positions within one quantization step, (h_max −
+h_min)/32767, and a point inside a triangle equals the plane through its three
+decoded vertices within 10⁻⁹ m; a point outside every triangle of the tile, or a
+tile that is not there, is missing, never zero. Found while testing against the
+independent quantized-mesh-encoder package: it holds longitude and latitude in
+float32 before quantizing, which moves a vertex by up to half a float32 step
+(2⁻¹⁹ degrees between 32 and 64 degrees), so the budget against the plane the
+fixture was written from adds the slope times that step.
+
+**The collision lattice** (`packages/terrain/src/run-terrain.ts`) is built on
+Main before a run: chunks of 129 × 129 posts 4 m apart (512 m), counted north
+and east from the home, each post
+
+```text
+down = -(h(lat_home + n dlat/dn, lon_home + e dlon/de) - h_home)
+```
+
+with dlat/dn = 1/M and dlon/de = 1/(N cos φ) from the WGS84 meridian and
+prime-vertical radii at the home's latitude, h from the deepest tile level
+available at the post, and h_home the location's ellipsoidal height (TASK-148,
+elevation plus EGM96 undulation). Chunk indices run from ⌊−r/512⌋ to
+⌊(r − ε)/512⌋ on each axis for radius r, so 256 m loads 2 × 2 chunks and 1500 m
+6 × 6. A chunk with any post outside the terrain's bounding box, on a tile that
+is not served, or between triangles is not built: that ground is missing, with
+its reason. Neighbouring chunks compute their shared posts identically, so
+`CollisionChunks` accepts their seams. `latticeSha256` hashes the lattice: per
+chunk, in north then east index order, its two indices as int32 and its posts as
+float64, little-endian. `terrainHeightAt` gives one point's height for the tab.
+
+**The run.** `runTerrainFor` (`apps/web/src/weather/local-terrain.ts`) turns
+the choice into the run's terrain: nothing for the pad; for FABDEM the lattice
+around the run's home and its record, or a refusal that names the reason (no
+location, not served, the location outside the terrain, no chunk within the
+radius), which stops the start before anything runs. A repeat or variant stands
+on its parent's ground (the pad, or the local terrain with the parent's radius);
+a batch run, a connection and a run from a log on the tab's choice. The run
+controller hands the chunks to `RuntimePhysics.load`, which posts
+`terrain.chunks` to the physics Worker after `environment.set` and before
+`sim.configure`; the Worker stages and publishes them at tick 0 in a fresh
+`CollisionChunks` (epoch 1, at most 64 chunks, 64 MiB), attaches it with
+`PhysicsSessionV2.attachGround`, and answers `terrain.ready` with the count or
+`terrain.reject` with the reason.
+
+**Missing terrain.** After each step of a run with ground attached, the session
+asks it whether every chunk under the square of half-side
+`TERRAIN_READY_RADIUS_M` = 8 m around the vehicle's new position is published
+(`readyFrom`, allocation-free, with a preallocated query). When one is not, the
+session pauses on that tick through the path an accident takes (TASK-149,
+TASK-156) and records in `terrainMissing` the count of such ticks, the tick, its
+simulated time and the north and east position. After the compute batch the
+Worker posts `terrain.missing` once per such tick; the run controller enters the
+synchronized pause with reason `terrain` and keeps the first place in its view
+(`terrainMissing`); ArduPilot's lockstep time stops with the physics; and the Run
+tab says where the terrain ended. A run's terrain is loaded before it starts and
+never streamed, so ground that is missing stays missing: Resume is refused with
+that reason, and the run can only be stopped. A run already paused by its user
+takes `terrain` as its reason; an accident pause keeps its own. Within the
+loaded terrain the contact keeps its level plane at the home; contact on the
+sloped terrain itself is TASK-187.
+
+**Elevation from terrain.** With real terrain at the location, the Weather and
+location tab shows its height there as a ground elevation above mean sea level,
+the ellipsoidal height minus the EGM96 undulation of TASK-148, and for a
+location given by coordinates offers it as the ground elevation, saved with the
+location. FABDEM's heights were made ellipsoidal with EGM2008, which differs
+from EGM96 by up to about a metre there; the tab says so.
+
+**Records.** Experiment payload schema 9 adds `terrain`: null for the pad, or
+`{ sourceId: "fabdem-elevation", layerSha256, manifestSha256, radiusM, level,
+chunks, missingChunks, latticeSha256, homeHeightM }`, which needs the
+environment (real terrain is built around the location) and at least one
+chunk; schema 8 records read as schema 9 on the pad. `terrain` is a lineage
+input after `weather`, compared by its source, data hashes and radius; the
+lattice follows from them and the home.
+
+**Verification.** `tests/quantized-mesh.test.ts` decodes the four level-14
+tiles of `tests/fixtures/terrain-qm-slope/` (written from a tilted plane by
+quantized-mesh-encoder 1.1, `generate.py`) within the budget above, finds every
+sampled point's triangle by brute force, refuses truncated tiles and an index
+beyond the vertices, and reads a 65537-vertex tile's 32-bit indices after their
+alignment. `tests/terrain-coverage.test.ts` checks every inventory row's record,
+the pad and FABDEM readiness, the not-ready reasons, the parsers' refusals, a
+256 m lattice against the plane within the same budget with its seams accepted
+and its readiness, a 1500 m lattice whose chunks outside the fixture are missing
+with their reason, missing tiles and homes, and the WGS84 radii at 45°.
+`tests/terrain-pause.test.ts` holds a real session to a pause on the exact tick
+the ground goes missing, at the step's position, again after a resume, never
+without terrain, and runs on over a lattice that holds the vehicle.
+`tests/run-controller.test.ts` holds the chunks and the record of a terrain run,
+the pause with its place, the refused Resume, and the reasons a pause keeps;
+`tests/experiment-record.test.ts` the schema 9 record, its refusals, the schema
+8 migration and the input. `tests/browser/terrain-source.spec.ts` (Chromium)
+shows the section with only the loopback server contacted, the pad as the only
+ground and every other source's reason; with the fixture served, FABDEM ready
+at a location inside it, a refused radius, the choice saved and kept after a
+reload, the terrain's height used as the ground elevation, and the lattice a
+run builds in the browser equal in SHA-256 to the one Node builds; and a run
+refused at a location outside it. The allocation check's session graph
+(`node scripts/check-bet-runtime.mjs --allocation`) steps with a published
+lattice attached. On the reference Mac, `tests/browser/terrain-sitl.spec.ts`
+flies native ArduCopter on the fixture's terrain with a 256 m radius on a
+straight task 700 m north and declares that the run pauses with reason
+`terrain` between 504 and 504.02 m north, that Resume is refused and ArduPilot's
+simulated time stands still, and that the record holds the terrain; with
+`MIRAGE_GEODATA_DIR` serving the local FABDEM output it hovers on it at the area
+of operation without a pause.
+
 ## Implemented ArduPilot JSON lockstep: TASK-041
 
 The protocol is pinned to ArduPilot commit
@@ -7174,8 +7328,8 @@ network error; launcher-foreign needs an answer the browser may read.
 
 ### Experiment record
 
-`packages/aircraft/src/experiment.ts` defines experiment payload schema 8
-(TASK-167) in record envelope v1, and the application registers
+`packages/aircraft/src/experiment.ts` defines experiment payload schema 9
+(TASK-186) in record envelope v1, and the application registers
 `validateExperiment` for the `experiment` kind. The record has exactly one
 dependency, its aircraft-profile version, and the payload holds:
 
@@ -7193,18 +7347,20 @@ dependency, its aircraft-profile version, and the payload holds:
 | faults | the effects the run applies by itself, or null (TASK-169; see "Faults and interference tab") |
 | weather | the weather schedule the run applied by itself, its seeds and random streams included (TASK-167; see "Weather tab: TASK-167"), or null |
 | environment | the location of the run (site, coordinates, ground elevation, heading, measured QNH, temperature offset) with the effective conditions evaluated there (TASK-148), or null for a run without a location; the session's home must be the location, the conditions must be evaluated at it with h = H + N, the WMM zone must match the horizontal field, and the air must come from the location's sea-level pressure |
+| terrain | the local real terrain the run stood on: its source, the SHA-256 of its layer and manifest, the radius, the deepest level, the chunks loaded and missing, the lattice's SHA-256 and the terrain's height at the home (TASK-186; see "Terrain source selection: TASK-186"), or null for the synthetic pad; it needs the environment |
 
 Schema 1, which TASK-154 wrote, had `ardupilot` and `launcher` at the top
 level and a required speed-up; schema 2, which TASK-155 wrote, had no
 `recording`, schema 3, which TASK-163 wrote, no `lineage`, and schema 4, which
 TASK-165 wrote, no `flightTask`, schema 5, which TASK-172 wrote, no `faults`, and
-schema 6, which TASK-169 wrote, no `environment`, and schema 7, which
-TASK-148 wrote, no `weather`. All stay valid on reads and archive imports;
-`readExperiment` presents them as schema 8 runs without a weather schedule,
+schema 6, which TASK-169 wrote, no `environment`, schema 7, which
+TASK-148 wrote, no `weather`, and schema 8, which TASK-167 wrote, no `terrain`.
+All stay valid on reads and archive imports; `readExperiment` presents them as
+schema 9 runs on the synthetic pad, without a weather schedule before schema 8,
 without an environment before schema 7, with no fault schedule before schema 6,
 without a task before schema 5, original runs before schema 4, without a
 recording before schema 3 (schema 1 with a launcher-owned `sitl`), and
-`createExperimentRecord` writes only schema 8.
+`createExperimentRecord` writes only schema 9.
 
 `createExperimentRecord` recomputes the snapshot from the stored profile
 version and requires canonical-byte equality, cross-checks the frame and
@@ -8336,7 +8492,8 @@ a variant whose `changes` are not exactly the computed list; a variant needs
 at least one change. The parent is named as data, not as a store dependency,
 and is never changed. Older records read as original runs. Schema 5 appended
 `flight task` and schema 6 `fault schedule` to the inputs, schema 7 inserted
-`conditions` after `home`, and schema 8 `weather` after `conditions`; no
+`conditions` after `home`, schema 8 `weather` after `conditions`, and schema 9
+`terrain` after `weather`; no
 stored `changes` list holds an input added after it, so every stored list
 stays valid.
 
@@ -8376,8 +8533,8 @@ this browser does not hold and the build it needs.
 
 ### Verification (TASK-165)
 
-`tests/experiment-record.test.ts` checks schema 8, the migrations of schemas
-1 to 7, the environment's consistency checks and the weather schedule, the
+`tests/experiment-record.test.ts` checks schema 9, the migrations of schemas
+1 to 8, the environment's consistency checks, the weather schedule and the terrain, the
 input changes and what is not an input, the refusals of a false
 repeat or variant and of a parent from elsewhere, the unchanged parent, an
 exported experiment imported into an empty store and its external

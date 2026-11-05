@@ -38,7 +38,11 @@ function ConditionsList({ conditions }: { conditions: EffectiveConditions }) {
   );
 }
 
-export function LocationPicker({ store, projectId, onSaved }: { store: ProjectStore | null; projectId: string | null; onSaved?: (location: LocationChoice) => void }) {
+export function LocationPicker({ store, projectId, onSaved, revision = 0 }: {
+  store: ProjectStore | null; projectId: string | null; onSaved?: (location: LocationChoice) => void;
+  /** Changes when the location was saved elsewhere (the terrain's elevation, TASK-186), so the form reloads it. */
+  revision?: number;
+}) {
   const [saved, setSaved] = useState<LocationChoice>(DEFAULT_LOCATION);
   const [form, setForm] = useState<LocationForm>(formOf(DEFAULT_LOCATION));
   const [status, setStatus] = useState("");
@@ -55,7 +59,7 @@ export function LocationPicker({ store, projectId, onSaved }: { store: ProjectSt
     let cancelled = false;
     void loadLocation(store, projectId).then(location => { if (!cancelled) { setSaved(location); setForm(formOf(location)); setStatus(""); } });
     return () => { cancelled = true; };
-  }, [store, projectId]);
+  }, [store, projectId, revision]);
 
   const { location, problems } = useMemo(() => locationOf(form), [form]);
   const conditions = useMemo(() => {

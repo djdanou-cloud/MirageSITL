@@ -1,0 +1,44 @@
+{
+ "tilejson": "2.1.0",
+ "name": "MirageSITL synthetic sloped quantized-mesh fixture (CC0-1.0)",
+ "version": "1.0.0",
+ "format": "quantized-mesh-1.0",
+ "scheme": "tms",
+ "projection": "EPSG:4326",
+ "tiles": [
+  "{z}/{x}/{y}.terrain"
+ ],
+ "bounds": [
+  34.8486328125,
+  32.178955078125,
+  34.87060546875,
+  32.200927734375
+ ],
+ "minzoom": 0,
+ "maxzoom": 14,
+ "available": [
+  [],
+  [],
+  [],
+  [],
+  [],
+  [],
+  [],
+  [],
+  [],
+  [],
+  [],
+  [],
+  [],
+  [],
+  [
+   {
+    "startX": 19556,
+    "startY": 11121,
+    "endX": 19557,
+    "endY": 11122
+   }
+  ]
+ ],
+ "attribution": "MirageSITL synthetic fixture, CC0-1.0"
+}

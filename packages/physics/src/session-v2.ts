@@ -27,6 +27,15 @@ const STANDARD_GRAVITY_MPS2 = 9.80665;
 const EW_REGISTRY_FULL: ScheduledRejectV2 = { code: 'OVERLOAD', message: 'EW fault registry is full' };
 const EW_FAULT_REJECTED: ScheduledRejectV2 = { code: 'OUT_OF_RANGE', message: 'EW fault command was rejected' };
 const NOT_MODELED: ScheduledRejectV2 = { code: 'BAD_STATE', message: 'The backend cannot model this scheduled command' };
+/** TASK-186: the published terrain a session checks under the vehicle (implemented by @mirage/terrain CollisionChunks). */
+export interface SessionGround {
+  /** True when every chunk intersecting the [north, east, radius] safety square is published. Allocation-free. */
+  readyFrom(positionRadius: Float64Array): boolean;
+}
+/** The ground within this distance of the vehicle must be published, m: wider than a Phase 1 aircraft and its supports. */
+export const TERRAIN_READY_RADIUS_M = 8;
+/** Slots of PhysicsSessionV2.terrainMissing. */
+export const TERRAIN_MISSING_COUNT = 0, TERRAIN_MISSING_TICK = 1, TERRAIN_MISSING_NORTH = 2, TERRAIN_MISSING_EAST = 3, TERRAIN_MISSING_SIM_S = 4;
 /** TASK-166: the environment effects a session holds at once. */
 const ENVIRONMENT_WIND = 1, ENVIRONMENT_GUST = 2, ENVIRONMENT_ATMOSPHERE = 4, ENVIRONMENT_TURBULENCE = 8, ENVIRONMENT_DISCRETE_GUST = 16,
   /** What a weather.set states; turbulence is not among them. */
@@ -164,6 +173,10 @@ export class PhysicsSessionV2 {
    * TASK-168, TASK-169: what the link to ArduPilot holds back, drops or moves, read at every reply. Truth is untouched. The object stays
    * the same; its fields change in place, at tick boundaries and after each step.
    */
+  /** TASK-186: how many ticks found the terrain missing, the last one's tick, the north and east position there, m, and its simulated time, s. */
+  readonly terrainMissing = new Float64Array(5);
+  private ground: SessionGround | null = null;
+  private readonly groundQuery = new Float64Array(3);
   readonly delivery: SessionDelivery = { mask: 0, attached: false, gnssOffsetNedM: new Float64Array(3), gnssVelocityNedMps: new Float64Array(3),
     magRotationWxyz: new Float64Array([1, 0, 0, 0]), gnssActive: false, magActive: false };
   /** TASK-093: a due weather.set in the WEATHER_* slots, and its reject, whose message is the dynamics' reason. */
@@ -349,6 +362,15 @@ export class PhysicsSessionV2 {
     this.writer.setRuntimeFlags(0);
   }
   /** A link to ArduPilot opened or closed (TASK-168). */
+  /**
+   * TASK-186: the published terrain of a real-terrain run, or null for the synthetic pad. While attached, every tick whose step leaves
+   * the ground within TERRAIN_READY_RADIUS_M of the vehicle unpublished pauses the session on that tick, as an accident does, and
+   * `terrainMissing` says where; a later sim.start resumes, and the next such tick pauses again.
+   */
+  attachGround(ground: SessionGround | null): void {
+    this.ground = ground;
+    this.terrainMissing.fill(0);
+  }
   attachDelivery(attached: boolean): void {
     this.delivery.attached = attached;
     if (!attached) this.clearDelivery();
@@ -654,6 +676,21 @@ export class PhysicsSessionV2 {
     const wind = this.dynamics.windNedMps;
     this.wind.active = this.dynamics.weatherActive === true && wind !== undefined;
     if (this.wind.active && wind) this.wind.nedMps.set(wind);
+    // TASK-186: missing terrain under the vehicle pauses the run on this tick, through the same path, before the tick is published.
+    const ground = this.ground;
+    if (ground && this.runningValue) {
+      const d = this.dynamics.state, q = this.groundQuery;
+      q[0] = d.north; q[1] = d.east; q[2] = TERRAIN_READY_RADIUS_M;
+      if (!ground.readyFrom(q)) {
+        const missing = this.terrainMissing;
+        const at = tickToNumber(tick);
+        missing[TERRAIN_MISSING_COUNT] = (missing[TERRAIN_MISSING_COUNT] ?? 0) + 1; missing[TERRAIN_MISSING_TICK] = at; missing[TERRAIN_MISSING_SIM_S] = at / this.policy.hz;
+        missing[TERRAIN_MISSING_NORTH] = d.north; missing[TERRAIN_MISSING_EAST] = d.east;
+        this.pause();
+        this.processor.paused();
+        this.policy.clock.stopRequested = true;
+      }
+    }
     // TASK-149 (F-09): a strike pauses the run on this tick, through the user pause's path, before the tick is published.
     const accidents = this.dynamics.accidents;
     if (accidents) {

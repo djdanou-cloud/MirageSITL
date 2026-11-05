@@ -1,0 +1,20 @@
+{
+ "schemaVersion": 1,
+ "kind": "quantized-mesh-terrain",
+ "heights": "WGS84 ellipsoidal (EPSG:4979)",
+ "bbox": [
+  34.8486328125,
+  32.178955078125,
+  34.87060546875,
+  32.200927734375
+ ],
+ "maxZoom": 14,
+ "areaMaxZoom": 14,
+ "plane": {
+  "baseM": 120.0,
+  "lat0Deg": 32.2,
+  "lon0Deg": 34.87,
+  "metresPerDegLon": 900.0,
+  "metresPerDegLat": -1500.0
+ }
+}
