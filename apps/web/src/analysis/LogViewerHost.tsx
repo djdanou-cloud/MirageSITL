@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import {
-  VIEWER_PATH, dataflashRefusal, loadLogMessage, parseViewerBuild, parseViewerMessage, setEventsMessage, type ViewerBuild, type ViewerEvent,
+  VIEWER_PATH, clearSecondLogMessage, dataflashRefusal, loadLogMessage, loadSecondLogMessage, parseViewerBuild, parseViewerMessage, setAlignmentMessage, setEventsMessage, setSecondEventsMessage,
+  type ViewerBuild, type ViewerEvent,
 } from "./viewer-protocol";
+import { viewerAlignment, type LogAlignment } from "./log-alignment";
 
 // Analysis tab host for the offline UAVLogViewer (TASK-179, S14). The viewer is
 // the TASK-179 build served from this origin at /uavlogviewer/; it loads only
@@ -33,8 +35,10 @@ function describe(status: LogStatus): string {
 /** A log to open and the events to draw on its timeline; a new `id` opens it. */
 export interface ViewerRequest { readonly id: string; readonly name: string; readonly bytes: ArrayBuffer; readonly events: readonly ViewerEvent[] }
 
-export function LogViewerHost({ active, request = null, onFileChosen }: {
+export function LogViewerHost({ active, request = null, onFileChosen, second = null, alignment = null, onSecondParsed }: {
   active: boolean; request?: ViewerRequest | null; onFileChosen?: (name: string, bytes: ArrayBuffer) => void;
+  /** TASK-181: a second log to compare, and how to line it up. */
+  second?: ViewerRequest | null; alignment?: LogAlignment | null; onSecondParsed?: (name: string, messageTypes: number) => void;
 }) {
   const [opened, setOpened] = useState(false);
   const [availability, setAvailability] = useState<Availability>({ kind: "checking" });
@@ -102,12 +106,35 @@ export function LogViewerHost({ active, request = null, onFileChosen }: {
           setStatus({ kind: "parsed", name: message.name, messageTypes: message.messageTypes });
           break;
         case "mirage.eventsSet":
+        case "mirage.alignmentSet":
+          break;
+        case "mirage.secondLogParsed":
+          parsedSecond.current?.(message.name, message.messageTypes);
           break;
       }
     };
     globalThis.addEventListener("message", onMessage);
     return () => globalThis.removeEventListener("message", onMessage);
   }, []);
+
+  // TASK-181: a second log, once for each new id; none clears it. They wait for the viewer, as a first log does.
+  const parsedSecond = useRef(onSecondParsed);
+  parsedSecond.current = onSecondParsed;
+  const shownSecond = useRef("");
+  useEffect(() => {
+    const target = frame.current?.contentWindow;
+    if (!ready || !target) return;
+    const id = second?.id ?? "";
+    if (id === shownSecond.current) return;
+    shownSecond.current = id;
+    if (!second) { target.postMessage(clearSecondLogMessage(), globalThis.location.origin); return; }
+    target.postMessage(setSecondEventsMessage(second.events), globalThis.location.origin);
+    target.postMessage(loadSecondLogMessage(second.name, second.bytes), globalThis.location.origin, [second.bytes]);
+  }, [second, ready]);
+  useEffect(() => {
+    const target = frame.current?.contentWindow;
+    if (ready && target && alignment) target.postMessage(setAlignmentMessage(viewerAlignment(alignment)), globalThis.location.origin);
+  }, [alignment, ready]);
 
   // A log the tab asks for, once for each new id.
   const shown = useRef("");

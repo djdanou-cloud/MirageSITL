@@ -295,14 +295,16 @@ implementation.
   pymavlink's `mavlogdump`, reports damaged byte ranges, and writes MirageSITL
   truth, motor, event and parameter-change records under `MS` names that
   pymavlink reads back unchanged. TASK-179 is DONE: `scripts/build-uavlogviewer.mjs`
-  builds the pinned UAVLogViewer with patches 0000–0003
+  builds the pinned UAVLogViewer with patches 0000–0004
   (`third_party/uavlogviewer/patches/`) reproducibly into the launcher home, the
   installer runs it, Vite serves it at `/uavlogviewer/`, and the Analysis tab opens
   DataFlash logs in it offline through an origin-checked message interface, in Chrome
   on the M5. TASK-180 is DONE: a stored experiment opens there with ArduPilot's own log
   or a log written from its recording, its context beside the viewer and its requested,
   confirmed and rejected parameter changes on the plot, and a log from elsewhere marks
-  what it does not hold Unknown. TASK-182 is DONE: **Create experiment from log**
+  what it does not hold Unknown. TASK-181 is DONE: two flights, or two intervals of one, are
+  compared in the viewer, dashed on one value axis, overlaid or side by side, with aligned starts
+  and a manual shift, and a saved comparison keeps its alignment. TASK-182 is DONE: **Create experiment from log**
   reports field by field what a log and an interval give, with each source message, what
   is missing and what the run will not take, and the run it plans starts on the ground
   at the log's home with its settings on an aircraft the user chooses, which is not a

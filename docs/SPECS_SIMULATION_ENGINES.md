@@ -4329,7 +4329,7 @@ shows whether the origin's storage is persistent.
 ### Records
 
 ```typescript
-type ItemKind = "project" | "component-card" | "measurement-set" | "aircraft-profile" | "experiment" | "parameter-set" | "parameter-log" | "flight-task" | "experiment-batch" | "log-extraction" | "effect-log";
+type ItemKind = "project" | "component-card" | "measurement-set" | "aircraft-profile" | "experiment" | "parameter-set" | "parameter-log" | "flight-task" | "experiment-batch" | "log-extraction" | "effect-log" | "log-comparison";
 interface Dependency { kind: ItemKind; sha256: string }
 interface ProjectRecord {
   schemaVersion: 1;
@@ -4375,11 +4375,11 @@ interface ProjectRecord {
   `parameter-log` in the same way; each may depend only on an experiment.
   TASK-172 added `flight-task`, with no dependencies. TASK-176 added
   `experiment-batch`, which may depend on an aircraft profile and on experiments.
-  TASK-182 added `log-extraction` and TASK-169 `effect-log`, each of which may depend only on an experiment.
+  TASK-182 added `log-extraction`, TASK-169 `effect-log` and TASK-181 `log-comparison`, each of which may depend only on experiments.
 * **Payloads.** A project's payload is `{}`. The store does not interpret
   card, measurement-set, profile, experiment, parameter-set, parameter-log,
-  flight-task, experiment-batch, log-extraction and effect-log payloads beyond the canonical JSON limits. Their owner tasks (TASK-138,
-  TASK-139, TASK-140, TASK-154, TASK-160, TASK-165, TASK-169, TASK-172 and TASK-182) register
+  flight-task, experiment-batch, log-extraction, effect-log and log-comparison payloads beyond the canonical JSON limits. Their owner tasks (TASK-138,
+  TASK-139, TASK-140, TASK-154, TASK-160, TASK-165, TASK-169, TASK-172, TASK-181 and TASK-182) register
   payload validators, which apply when a version is written or imported, not
   when it is read.
 

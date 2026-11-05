@@ -14,7 +14,8 @@ patches 0000–0002, builds the viewer reproducibly and embeds it in the Analysi
 tab; on the reference M5 it opens DataFlash logs with no network request in
 Google Chrome 156. TASK-180 (DONE on 2026-11-05) adds patch 0003: a stored
 experiment opens there with its log, its context and its parameter changes on
-the plot's timeline.
+the plot's timeline. TASK-181 (DONE on 2026-11-05) adds patch 0004: two logs compared
+in it.
 
 ## Identity
 
@@ -80,8 +81,7 @@ Why:
   files are the published source of the changes.
 
 The patches are stored in `third_party/uavlogviewer/patches/` and applied in
-name order by the TASK-179 build. Patches 0–2 (TASK-179) and 3 (TASK-180) exist;
-patch 4 and what it adds to the message interface belong to TASK-181:
+name order by the TASK-179 build. Patches 0–2 (TASK-179), 3 (TASK-180) and 4 (TASK-181) exist:
 
 | Patch | Purpose | Upstream files it changes |
 | --- | --- | --- |
@@ -89,7 +89,7 @@ patch 4 and what it adds to the message interface belong to TASK-181:
 | 1 Offline (`0001-offline.patch`, TASK-179) | Remove analytics and the web font, bundle the Font Awesome 5.2.0 icon font from the npm package `@fortawesome/fontawesome-free` (added to `package.json` and `package-lock.json` with its registry integrity hash; the font rule of the webpack configuration gets `type: 'javascript/auto'` and `esModule: false` so the CSS references the real font files), replace the online probe with the setting `?online=1` (off by default), remove the MapTiler provider with the embedded key, disable IP geolocation unless online | `index.html`, `src/main.js`, `src/App.vue`, `src/components/Home.vue`, `src/components/CesiumViewer.vue`, `src/components/widgets/MagFitTool.vue`, `build/webpack.base.conf.js`, `package.json`, `package-lock.json` |
 | 2 Message interface (`0002-message-interface.patch`, TASK-179 part) | Replace the unchecked `message` listener with an origin-checked API (protocol 1, below): load a log with its name; report ready, accepted, rejected with a reason, and parsed with the number of message types. `?file=` opens same-origin URLs only. Context, a second log, a time shift and parameter-change markers follow in TASK-180 and TASK-181 | `src/components/SideBarFileManager.vue`, a new `src/mirage/bridge.js` |
 | 3 Experiment context (`0003-experiment-context.patch`, TASK-180) | Add `mirage.setEvents` and `mirage.eventsSet` to the message interface; keep the events in `annotationsMirage` and draw them on every Plotly relayout, through the upstream event and parameter-change annotations, in the colour of their status. The context itself is MirageSITL's own `ContextPanel.tsx`, beside the viewer, so no upstream sidebar changes | `src/components/Plotly.vue`, `src/components/SideBarFileManager.vue`, `src/mirage/bridge.js` |
-| 4 Two logs | Keep one dataset per log, parse the second log in its own worker, draw each log's traces in a distinct style on common axes, side by side or overlaid, with a manual time shift; select two intervals of one log | `src/components/Globals.js`, `src/components/SideBarFileManager.vue`, `src/components/Plotly.vue`, `src/components/PlotSetup.vue`, `src/components/Sidebar.vue` |
+| 4 Two logs (`0004-compare.patch`, TASK-181) | Parse a second log in its own worker and hold it outside Vue's reactivity (`src/mirage/compare.js`), draw its curves dashed for each plotted expression on the same value axis, overlaid or side by side, each log showing its own interval and the second shifted, with its events on its own timeline. The controls are MirageSITL's own `CompareLogs.tsx`, beside the viewer | `src/components/Plotly.vue`, `src/components/SideBarFileManager.vue`, `src/mirage/bridge.js`, a new `src/mirage/compare.js` |
 
 ## Offline build and embedding (TASK-179)
 
@@ -133,6 +133,12 @@ and send with the target origin set to their own origin:
 | Viewer → host | `{ type: "mirage.logParsed", protocol: 1, name, messageTypes }` | Parsing finished with this many message types |
 | Host → viewer | `{ type: "mirage.setEvents", protocol: 1, events }` (TASK-180) | Keep these events for the next plot: each `{ timeMs, text, status }`, at most 2,000, with `status` one of `requested`, `confirmed`, `rejected`, `superseded` or `logged` |
 | Viewer → host | `{ type: "mirage.eventsSet", protocol: 1, count }` (TASK-180) | The viewer holds this many events |
+| Host → viewer | `{ type: "mirage.loadSecondLog", protocol: 1, name, bytes }` (TASK-181) | Parse a second log to compare, in a worker of its own |
+| Host → viewer | `{ type: "mirage.setSecondEvents", protocol: 1, events }` (TASK-181) | Events on that log's own timeline, as `mirage.setEvents` |
+| Host → viewer | `{ type: "mirage.setAlignment", protocol: 1, alignment }` (TASK-181) | `{ mode, first, second, secondOffsetMs }`: `overlay` or `side-by-side`, the range of each log shown or null, and the shift of the second |
+| Host → viewer | `{ type: "mirage.clearSecondLog", protocol: 1 }` (TASK-181) | Back to one log |
+| Viewer → host | `{ type: "mirage.secondLogParsed", protocol: 1, name, messageTypes }` (TASK-181) | The second log is ready |
+| Viewer → host | `{ type: "mirage.alignmentSet", protocol: 1 }` (TASK-181) | The viewer took the alignment |
 
 The DJI parser (`src/tools/parsers/djiParser.js`) still requests decryption
 keys from `dev.dji.com` when a DJI `.txt` log is opened. Phase 1 opens
@@ -266,9 +272,13 @@ never invented.
   * `tests/experiment-adapter.test.ts` holds 11 cases: statuses, differences, the
     written log read back by the TASK-178 reader, and external logs.
 
+* TASK-181 on the same machine, the same day: two builds of the five-patch series gave
+  1,142 files, 52,656,833 bytes, digest
+  `745b5bb8bfb34c186cff33dee2a995ea80cb81d4141a556e44e58caff71c90f8`.
+  `tests/browser/log-compare.spec.ts` reads the viewer's own Plotly figure; see the roadmap.
+
 ## Remaining
 
-* **Patch 4** (a second log, time shift) belongs to TASK-181.
 * **Accessibility of the embedded viewer.** axe finds seven rule violations
   inside the upstream viewer at 390 px: `aria-command-name` (the icon-only menu
   button), `image-alt` (the GitHub images), `label` (the file input

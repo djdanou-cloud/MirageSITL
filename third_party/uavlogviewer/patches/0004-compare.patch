@@ -1,0 +1,444 @@
+diff --git a/src/components/Plotly.vue b/src/components/Plotly.vue
+index 17b3d54..b9af3d6 100644
+--- a/src/components/Plotly.vue
++++ b/src/components/Plotly.vue
+@@ -9,6 +9,7 @@ import * as d3 from 'd3'
+ import { faWindowRestore } from '@fortawesome/free-solid-svg-icons'
+ import Vue from 'vue'
+ import { isNumber } from 'underscore'
++import { compare, windowOf } from '../mirage/compare'
+ 
+ const Color = require('color')
+ 
+@@ -16,6 +17,9 @@ const timeformat = ':02,2f'
+ let annotationsEvents = []
+ const annotationsModes = []
+ let annotationsParams = []
++// MirageSITL: a second log's curves are the same quantity in a dashed line on the same value axis,
++// and its events keep to its own timeline.
++const secondXAxis = () => (compare.alignment.mode === 'side-by-side' ? 'x2' : 'x')
+ // MirageSITL: what its host put on the timeline, shown whichever annotations are chosen.
+ let annotationsMirage = []
+ const MIRAGE_COLORS = {
+@@ -162,6 +166,11 @@ const plotOptions = {
+ 
+ export default {
+     created () {
++        this.$eventHub.$on('mirageCompare', () => {
++            if (this.state.plotOn && this.state.expressions.length > 0) {
++                this.plot()
++            }
++        })
+         this.$eventHub.$on('cesium-time-changed', this.setCursorTime)
+         this.$eventHub.$on('hoveredTime', this.setCursorTime)
+         this.$eventHub.$on('force-resize-plotly', this.resize)
+@@ -666,11 +675,11 @@ export default {
+             }
+             return true
+         },
+-        evaluateExpression (expression1) {
++        evaluateExpression (expression1, source = this.state) {
+             const start = new Date()
+-            if (expression1 in this.state.plotCache) {
++            if (expression1 in source.plotCache) {
+                 console.log('HIT: ' + expression1)
+-                return this.state.plotCache[expression1]
++                return source.plotCache[expression1]
+             }
+             console.log('MISS! evaluating : ' + expression1)
+             // TODO: USE this regex with lookahead once firefox supports it
+@@ -682,19 +691,19 @@ export default {
+             // use time of first message for now
+             let x
+             if (messages.length > 0) {
+-                if (this.state.messages[messages[0]] === undefined) {
++                if (source.messages[messages[0]] === undefined) {
+                     console.log('ERROR: message ' + messages[0] + ' not found')
+                     return { error: 'message ' + messages[0] + ' not found' }
+                 }
+-                x = this.state.messages[messages[0]].time_boot_ms
++                x = source.messages[messages[0]].time_boot_ms
+             } else {
+                 try {
+-                    x = this.state.messages.ATT.time_boot_ms
++                    x = source.messages.ATT.time_boot_ms
+                 } catch {
+                     try {
+-                        x = this.state.messages.ATTITUDE.time_boot_ms
++                        x = source.messages.ATTITUDE.time_boot_ms
+                     } catch {
+-                        x = this.state.messages.osd.time_boot_ms
++                        x = source.messages.osd.time_boot_ms
+                     }
+                 }
+             }
+@@ -725,12 +734,12 @@ export default {
+             for (const time of x) {
+                 const vals = []
+                 for (const fieldIndex in timeIndexes) { // array of indexes, one for each field
+-                    while (this.state.messages[messages[fieldIndex]].time_boot_ms[timeIndexes[fieldIndex]] < time) {
++                    while (source.messages[messages[fieldIndex]].time_boot_ms[timeIndexes[fieldIndex]] < time) {
+                         timeIndexes[fieldIndex] += 1
+                     }
+                     const newobj = {}
+-                    for (const key of Object.keys(this.state.messages[messages[fieldIndex]])) {
+-                        newobj[key] = this.state.messages[messages[fieldIndex]][key][timeIndexes[fieldIndex]]
++                    for (const key of Object.keys(source.messages[messages[fieldIndex]])) {
++                        newobj[key] = source.messages[messages[fieldIndex]][key][timeIndexes[fieldIndex]]
+                     }
+                     vals.push(newobj)
+                 }
+@@ -751,8 +760,8 @@ export default {
+                 x: x,
+                 y: y
+             })
+-            Vue.set(this.state.plotCache, expression1, data)
+-            // this.state.plotCache[expression1] = data
++            Vue.set(source.plotCache, expression1, data)
++            // source.plotCache[expression1] = data
+             console.log('Evaluation took ' + (new Date() - start) + 'ms')
+             this.cleanupCache()
+             return data
+@@ -786,6 +795,43 @@ export default {
+             }
+             return newData
+         },
++        /** MirageSITL: the second log's curves, for each plotted expression. What it does not hold has no curve. */
++        mirageSecondTraces (datasets) {
++            const second = compare.second
++            if (second === null || !second.parsed) {
++                return
++            }
++            for (const expression of this.state.expressions) {
++                const needed = this.findMessagesInExpression(expression.name).map(message => message[0])
++                if (needed.some(message => !(message.split('[')[0] in (second.types || {})))) {
++                    continue
++                }
++                const missing = needed.filter(message => !(message in second.messages))
++                if (missing.length > 0) {
++                    for (const message of missing) {
++                        if (!second.requested[message]) {
++                            second.requested[message] = true
++                            this.$eventHub.$emit('mirageLoadSecondType', message)
++                        }
++                    }
++                    continue
++                }
++                const data = this.evaluateExpression(expression.name, second)
++                if ('error' in data) {
++                    continue
++                }
++                const shown = windowOf(data, compare.alignment.second)
++                datasets.push({
++                    name: expression.name + ' · ' + second.name,
++                    mode: 'lines',
++                    x: shown.x.map(time => time + compare.alignment.secondOffsetMs),
++                    y: shown.y,
++                    xaxis: secondXAxis(),
++                    yaxis: 'y' + (expression.axis + 1),
++                    line: { color: expression.color, width: 1.5, dash: 'dash' }
++                })
++            }
++        },
+         plot () {
+             console.log('plot()')
+             if (this.state.expressions.length === 0) {
+@@ -829,6 +875,7 @@ export default {
+                     this.state.expressionErrors.push(null)
+                 }
+                 console.log(data)
++                data = windowOf(data, compare.alignment.first)
+                 const mode = data.isSwissCheese ? 'lines+markers' : 'lines'
+ 
+                 const regularMarker = {
+@@ -875,6 +922,7 @@ export default {
+                     } */
+                 }
+             }
++            this.mirageSecondTraces(datasets)
+             let start = new Date()
+             console.log('starting plotting itself...')
+ 
+@@ -886,8 +934,31 @@ export default {
+                 title: 'time_boot (ms)',
+                 tickformat: ':04,2f'
+             }
++            // MirageSITL: side by side, each log has half the width and its own time axis, on one value axis.
++            delete plotOptions.xaxis2
++            if (compare.second !== null && compare.alignment.mode === 'side-by-side') {
++                const [from, to] = plotOptions.xaxis.domain
++                const middle = (from + to) / 2
++                plotOptions.xaxis.domain = [from, middle - 0.01]
++                plotOptions.xaxis.rangeslider = { visible: false }
++                plotOptions.xaxis2 = {
++                    domain: [middle + 0.01, to],
++                    anchor: 'y',
++                    title: compare.second.name,
++                    tickformat: ':04,2f'
++                }
++            }
+             if (this.plotInstance !== null) {
+-                plotOptions.xaxis.range = this.gd._fullLayout.xaxis.range
++                if (compare.resetRange) {
++                    compare.resetRange = false
++                    if (compare.alignment.first) {
++                        plotOptions.xaxis.range = compare.alignment.first
++                    } else {
++                        delete plotOptions.xaxis.range
++                    }
++                } else {
++                    plotOptions.xaxis.range = this.gd._fullLayout.xaxis.range
++                }
+                 Plotly.newPlot(this.gd, plotData, plotOptions, { scrollZoom: true, responsive: true })
+             } else {
+                 this.plotInstance = Plotly.newPlot(
+@@ -1012,6 +1083,21 @@ export default {
+                 ax: 0,
+                 ay: 30 + 16 * (index % 8)
+             }))
++            annotationsMirage = annotationsMirage.concat(compare.secondEvents.map((event, index) => ({
++                xref: secondXAxis(),
++                yref: 'paper',
++                x: event.timeMs + compare.alignment.secondOffsetMs,
++                y: 1,
++                yanchor: 'top',
++                text: event.text + (compare.second === null ? '' : ' · ' + compare.second.name),
++                captureevents: false,
++                showarrow: true,
++                arrowwidth: 2,
++                arrowcolor: MIRAGE_COLORS[event.status],
++                font: { color: MIRAGE_COLORS[event.status], size: 10 },
++                ax: 0,
++                ay: 140 + 16 * (index % 8)
++            })))
+             annotationsEvents = []
+             let i = -300
+             for (const event of this.state.events) {
+diff --git a/src/components/SideBarFileManager.vue b/src/components/SideBarFileManager.vue
+index 14766a2..44c762d 100644
+--- a/src/components/SideBarFileManager.vue
++++ b/src/components/SideBarFileManager.vue
+@@ -31,11 +31,14 @@
+ import VProgress from './SideBarFileManagerProgressBar.vue'
+ import Worker from '../tools/parsers/parser.worker.js'
+ import { store } from './Globals'
+-import { installBridge, reportParsed, sameOriginFileUrl } from '../mirage/bridge'
++import { installBridge, reportParsed, reportSecondParsed, sameOriginFileUrl } from '../mirage/bridge'
++import { compare, newSecondLog, NO_ALIGNMENT } from '../mirage/compare'
+ 
+ import { MAVLink20Processor as MAVLink } from '../libs/mavlink'
+ 
+ const worker = new Worker()
++// MirageSITL: a second log parses in a worker of its own, so its messages never meet the first's.
++const secondWorker = new Worker()
+ 
+ worker.addEventListener('message', function (event) {
+ })
+@@ -241,7 +244,50 @@ export default {
+             },
+             onSetEvents: (events) => {
+                 this.state.mirageEvents = events
++            },
++            onLoadSecondLog: (name, bytes) => {
++                compare.second = newSecondLog(name)
++                compare.resetRange = true
++                secondWorker.postMessage({ action: 'parse', file: bytes, isTlog: false, isDji: false }, [bytes])
++            },
++            onSetSecondEvents: (events) => {
++                compare.secondEvents = events
++            },
++            onSetAlignment: (alignment) => {
++                compare.alignment = alignment
++                compare.resetRange = true
++                this.$eventHub.$emit('mirageCompare')
++            },
++            onClearSecondLog: () => {
++                compare.second = null
++                compare.secondEvents = []
++                compare.alignment = NO_ALIGNMENT
++                compare.resetRange = true
++                this.$eventHub.$emit('mirageCompare')
++            }
++        })
++        secondWorker.onmessage = (event) => {
++            const second = compare.second
++            if (second === null) {
++                return
+             }
++            if (event.data.availableMessages) {
++                second.types = event.data.availableMessages
++            } else if (event.data.messages) {
++                second.messages = event.data.messages
++            } else if (event.data.messagesDoneLoading) {
++                if (!second.parsed) {
++                    second.parsed = true
++                    reportSecondParsed(second.name, Object.keys(second.types || {}).length)
++                }
++                this.$eventHub.$emit('mirageCompare')
++            } else if (event.data.messageType) {
++                second.messages[event.data.messageType] = event.data.messageList
++                this.$eventHub.$emit('mirageCompare')
++            }
++        }
++        this.$eventHub.$on('mirageLoadSecondType', (type) => {
++            secondWorker.postMessage({ action: 'loadType', type })
+         })
+         this.$eventHub.$on('messagesDoneLoading', () => {
+             reportParsed(this.state.file, Object.keys(this.state.messageTypes || {}).length)
+diff --git a/src/mirage/bridge.js b/src/mirage/bridge.js
+index c4e7f38..70a351e 100644
+--- a/src/mirage/bridge.js
++++ b/src/mirage/bridge.js
+@@ -8,12 +8,18 @@
+ // Host to viewer:
+ //   { type: 'mirage.loadLog', protocol: 1, name, bytes }   bytes: ArrayBuffer
+ //   { type: 'mirage.setEvents', protocol: 1, events }      events on the plot's timeline, sent before the log
++//   { type: 'mirage.loadSecondLog', protocol: 1, name, bytes }  a second log to compare (patch 0004)
++//   { type: 'mirage.setSecondEvents', protocol: 1, events }     events on that log's own timeline
++//   { type: 'mirage.setAlignment', protocol: 1, alignment }     { mode, first, second, secondOffsetMs }
++//   { type: 'mirage.clearSecondLog', protocol: 1 }
+ // Viewer to host (target origin: this origin only):
+ //   { type: 'mirage.ready', protocol: 1 }
+ //   { type: 'mirage.logAccepted', protocol: 1, name, bytes }
+ //   { type: 'mirage.logRejected', protocol: 1, reason }
+ //   { type: 'mirage.logParsed', protocol: 1, name, messageTypes }
+ //   { type: 'mirage.eventsSet', protocol: 1, count }
++//   { type: 'mirage.secondLogParsed', protocol: 1, name, messageTypes }
++//   { type: 'mirage.alignmentSet', protocol: 1 }
+ 
+ export const PROTOCOL = 1
+ export const MAX_LOG_BYTES = 512 * 1024 * 1024
+@@ -41,8 +47,8 @@ function post (message) {
+ }
+ 
+ /** Returns a loadable log or the reason it is refused. */
+-export function validateLoadLog (data) {
+-    if (data === null || typeof data !== 'object' || data.type !== 'mirage.loadLog') {
++export function validateLoadLog (data, type = 'mirage.loadLog') {
++    if (data === null || typeof data !== 'object' || data.type !== type) {
+         return { ignored: true }
+     }
+     if (data.protocol !== PROTOCOL) {
+@@ -84,7 +90,26 @@ export function validateEvents (events) {
+     return events.map(event => ({ timeMs: event.timeMs, text: event.text, status: event.status }))
+ }
+ 
+-export function installBridge ({ onLoadLog, onSetEvents }) {
++const ALIGNMENT_MODES = ['overlay', 'side-by-side']
++const validRange = (range) => range === null || (Array.isArray(range) && range.length === 2 &&
++    Number.isFinite(range[0]) && Number.isFinite(range[1]) && range[0] < range[1])
++/** An alignment the host names, or null when it is not well formed. */
++export function validateAlignment (alignment) {
++    if (alignment === null || typeof alignment !== 'object' || !ALIGNMENT_MODES.includes(alignment.mode) ||
++        !Number.isFinite(alignment.secondOffsetMs) || !validRange(alignment.first) || !validRange(alignment.second)) {
++        return null
++    }
++    return {
++        mode: alignment.mode,
++        first: alignment.first,
++        second: alignment.second,
++        secondOffsetMs: alignment.secondOffsetMs
++    }
++}
++
++export function installBridge ({
++    onLoadLog, onSetEvents, onLoadSecondLog, onSetSecondEvents, onSetAlignment, onClearSecondLog
++}) {
+     window.addEventListener('message', (event) => {
+         if (event.origin !== window.location.origin || event.source !== window.parent || window.parent === window) {
+             return
+@@ -98,6 +123,38 @@ export function installBridge ({ onLoadLog, onSetEvents }) {
+             }
+             return
+         }
++        if (event.data !== null && typeof event.data === 'object' && event.data.protocol === PROTOCOL) {
++            if (event.data.type === 'mirage.setSecondEvents') {
++                const events = validateEvents(event.data.events)
++                if (events !== null) {
++                    onSetSecondEvents(events)
++                }
++                return
++            }
++            if (event.data.type === 'mirage.setAlignment') {
++                const alignment = validateAlignment(event.data.alignment)
++                if (alignment === null) {
++                    post({ type: 'mirage.logRejected', reason: 'The alignment is not well formed' })
++                } else {
++                    onSetAlignment(alignment)
++                    post({ type: 'mirage.alignmentSet' })
++                }
++                return
++            }
++            if (event.data.type === 'mirage.clearSecondLog') {
++                onClearSecondLog()
++                return
++            }
++            if (event.data.type === 'mirage.loadSecondLog') {
++                const second = validateLoadLog(event.data, 'mirage.loadSecondLog')
++                if (second.reason !== undefined) {
++                    post({ type: 'mirage.logRejected', reason: second.reason })
++                } else {
++                    onLoadSecondLog(second.name, second.bytes)
++                }
++                return
++            }
++        }
+         const result = validateLoadLog(event.data)
+         if (result.ignored) {
+             return
+@@ -112,6 +169,10 @@ export function installBridge ({ onLoadLog, onSetEvents }) {
+     post({ type: 'mirage.ready' })
+ }
+ 
++export function reportSecondParsed (name, messageTypes) {
++    post({ type: 'mirage.secondLogParsed', name, messageTypes })
++}
++
+ export function reportParsed (name, messageTypes) {
+     post({ type: 'mirage.logParsed', name, messageTypes })
+ }
+diff --git a/src/mirage/compare.js b/src/mirage/compare.js
+new file mode 100644
+index 0000000..f1eb5bd
+--- /dev/null
++++ b/src/mirage/compare.js
+@@ -0,0 +1,39 @@
++// MirageSITL patch 0004: a second log beside the one the viewer has open, for comparing two flights
++// or two intervals of one flight (TASK-181). The viewer's own store holds one log, so this holds the
++// other, outside Vue's reactivity, because a log's arrays are too large to observe.
++// Alignment: `first` and `second` are the time ranges shown of each log, in each log's own
++// milliseconds, or null for all of it, and `secondOffsetMs` is added to the second log's times, in
++// overlay and in side by side alike. Both logs' curves share a value axis, so matching quantities
++// have one scale.
++
++export const NO_ALIGNMENT = Object.freeze({ mode: 'overlay', first: null, second: null, secondOffsetMs: 0 })
++
++export const compare = {
++    /** { name, messages, plotCache, types, requested, parsed } */
++    second: null,
++    alignment: NO_ALIGNMENT,
++    /** Events on the second flight's own timeline. */
++    secondEvents: [],
++    /** The next plot shows the aligned range instead of keeping the current zoom. */
++    resetRange: false
++}
++
++export function newSecondLog (name) {
++    return { name, messages: {}, plotCache: {}, types: null, requested: {}, parsed: false }
++}
++
++/** The part of a series inside `range`, or all of it. */
++export function windowOf (data, range) {
++    if (!range) {
++        return data
++    }
++    const x = []
++    const y = []
++    for (let i = 0; i < data.x.length; i++) {
++        if (data.x[i] >= range[0] && data.x[i] <= range[1]) {
++            x.push(data.x[i])
++            y.push(data.y[i])
++        }
++    }
++    return Object.assign({}, data, { x, y })
++}

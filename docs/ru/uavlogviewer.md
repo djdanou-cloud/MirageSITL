@@ -1,6 +1,6 @@
 # Решение об интеграции UAVLogViewer
 
-<!-- source-sha256: a6698346a260616d52c04abf593acc720665a93eb683f4d0b06f4349d3053084 -->
+<!-- source-sha256: a8576c179436a13df327b434291c2dbb228b1b84d167d907f475e9a91407827a -->
 
 Русское зеркало. [Английский источник](../decisions/uavlogviewer.md).
 
@@ -16,7 +16,8 @@ TASK-130 (S14), решение D-04 в [плане фазы 1](PHASE1_PLAN.md). 
 Analysis; на эталонном M5 он открывает логи DataFlash без единого сетевого
 запроса в Google Chrome 156. TASK-180 (выполнена 2026-11-05) добавляет патч 0003:
 сохранённый эксперимент открывается там со своим логом, контекстом и изменениями
-параметров на шкале времени графика.
+параметров на шкале времени графика. TASK-181 (выполнена 2026-11-05) добавляет патч 0004:
+сравнение двух логов в нём.
 
 ## Идентичность
 
@@ -84,8 +85,7 @@ MirageSITL через интерфейс сообщений с проверко�
   патчей являются опубликованным исходным кодом изменений.
 
 Патчи хранятся в `third_party/uavlogviewer/patches/` и применяются сборкой
-TASK-179 в порядке имён. Патчи 0–2 (TASK-179) и 3 (TASK-180) существуют; патч 4 и
-то, что он добавит в интерфейс сообщений, относятся к TASK-181:
+TASK-179 в порядке имён. Патчи 0–2 (TASK-179), 3 (TASK-180) и 4 (TASK-181) существуют:
 
 | Патч | Назначение | Изменяемые файлы исходного проекта |
 | --- | --- | --- |
@@ -93,7 +93,7 @@ TASK-179 в порядке имён. Патчи 0–2 (TASK-179) и 3 (TASK-180)
 | 1 Офлайн (`0001-offline.patch`, TASK-179) | Удалить аналитику и веб-шрифт, встроить шрифт значков Font Awesome 5.2.0 из npm-пакета `@fortawesome/fontawesome-free` (добавлен в `package.json` и `package-lock.json` с хешем целостности из реестра; правило шрифтов конфигурации webpack получает `type: 'javascript/auto'` и `esModule: false`, чтобы CSS ссылался на настоящие файлы шрифтов), заменить онлайн-проверку настройкой `?online=1` (по умолчанию выключена), удалить поставщика MapTiler со встроенным ключом, отключить геолокацию по IP вне онлайн-режима | `index.html`, `src/main.js`, `src/App.vue`, `src/components/Home.vue`, `src/components/CesiumViewer.vue`, `src/components/widgets/MagFitTool.vue`, `build/webpack.base.conf.js`, `package.json`, `package-lock.json` |
 | 2 Интерфейс сообщений (`0002-message-interface.patch`, часть TASK-179) | Заменить непроверяемый обработчик `message` на API с проверкой origin (протокол 1, ниже): загрузить лог с его именем; сообщать о готовности, о приёме, об отказе с причиной и о завершении разбора с числом типов сообщений. `?file=` открывает только URL того же origin. Контекст, второй лог, сдвиг времени и маркеры изменений параметров добавят TASK-180 и TASK-181 | `src/components/SideBarFileManager.vue`, новый `src/mirage/bridge.js` |
 | 3 Контекст эксперимента (`0003-experiment-context.patch`, TASK-180) | Добавить `mirage.setEvents` и `mirage.eventsSet` в интерфейс сообщений; хранить события в `annotationsMirage` и рисовать их при каждой перестройке Plotly, вместе с аннотациями событий и изменений параметров исходного проекта, цветом их статуса. Сам контекст — это собственный `ContextPanel.tsx` MirageSITL рядом с просмотрщиком, поэтому боковая панель исходного проекта не меняется | `src/components/Plotly.vue`, `src/components/SideBarFileManager.vue`, `src/mirage/bridge.js` |
-| 4 Два лога | Хранить отдельный набор данных для каждого лога, разбирать второй лог в собственном worker, рисовать кривые каждого лога своим стилем на общих осях рядом или наложением с ручным сдвигом времени; выбирать два интервала одного лога | `src/components/Globals.js`, `src/components/SideBarFileManager.vue`, `src/components/Plotly.vue`, `src/components/PlotSetup.vue`, `src/components/Sidebar.vue` |
+| 4 Два лога (`0004-compare.patch`, TASK-181) | Разбирать второй лог в собственном worker и хранить его вне реактивности Vue (`src/mirage/compare.js`), рисовать его кривые пунктиром для каждого построенного выражения на той же оси значений, наложением или рядом, причём каждый лог показывает свой интервал, второй сдвинут, а его события остаются на его шкале времени. Элементы управления — собственный `CompareLogs.tsx` MirageSITL рядом с просмотрщиком | `src/components/Plotly.vue`, `src/components/SideBarFileManager.vue`, `src/mirage/bridge.js`, новый `src/mirage/compare.js` |
 
 ## Офлайн-сборка и встраивание (TASK-179)
 
@@ -136,6 +136,12 @@ CORP `same-origin`, отказывая в путях вне каталога. В
 | Просмотрщик → хост | `{ type: "mirage.logParsed", protocol: 1, name, messageTypes }` | Разбор завершён с указанным числом типов сообщений |
 | Хост → просмотрщик | `{ type: "mirage.setEvents", protocol: 1, events }` (TASK-180) | Хранить эти события для следующего графика: каждое `{ timeMs, text, status }`, не более 2 000, `status` — одно из `requested`, `confirmed`, `rejected`, `superseded` или `logged` |
 | Просмотрщик → хост | `{ type: "mirage.eventsSet", protocol: 1, count }` (TASK-180) | Просмотрщик хранит столько событий |
+| Хост → просмотрщик | `{ type: "mirage.loadSecondLog", protocol: 1, name, bytes }` (TASK-181) | Разобрать второй лог для сравнения в собственном worker |
+| Хост → просмотрщик | `{ type: "mirage.setSecondEvents", protocol: 1, events }` (TASK-181) | События на собственной шкале времени этого лога, как `mirage.setEvents` |
+| Хост → просмотрщик | `{ type: "mirage.setAlignment", protocol: 1, alignment }` (TASK-181) | `{ mode, first, second, secondOffsetMs }`: `overlay` или `side-by-side`, показываемый диапазон каждого лога или null и сдвиг второго |
+| Хост → просмотрщик | `{ type: "mirage.clearSecondLog", protocol: 1 }` (TASK-181) | Снова один лог |
+| Просмотрщик → хост | `{ type: "mirage.secondLogParsed", protocol: 1, name, messageTypes }` (TASK-181) | Второй лог готов |
+| Просмотрщик → хост | `{ type: "mirage.alignmentSet", protocol: 1 }` (TASK-181) | Просмотрщик принял выравнивание |
 
 Парсер DJI (`src/tools/parsers/djiParser.js`) по-прежнему запрашивает ключи
 расшифровки у `dev.dji.com` при открытии лога DJI `.txt`. Фаза 1 открывает
@@ -271,9 +277,13 @@ MirageSITL и изменения параметров прогона. Вклад
   * `tests/experiment-adapter.test.ts` содержит 11 случаев: статусы, различия, записанный
     лог, прочитанный обратно модулем чтения TASK-178, и внешние логи.
 
+* TASK-181 на той же машине в тот же день: две сборки серии из пяти патчей дали
+  1 142 файла, 52 656 833 байта, дайджест
+  `745b5bb8bfb34c186cff33dee2a995ea80cb81d4141a556e44e58caff71c90f8`.
+  `tests/browser/log-compare.spec.ts` читает собственную фигуру Plotly просмотрщика; см. roadmap.
+
 ## Осталось
 
-* **Патч 4** (второй лог, сдвиг времени) относится к TASK-181.
 * **Доступность встроенного просмотрщика.** axe находит семь нарушений правил
   внутри исходного просмотрщика при 390 px: `aria-command-name` (кнопка меню
   только со значком), `image-alt` (изображения GitHub), `label` (поле выбора

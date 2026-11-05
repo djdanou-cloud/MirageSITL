@@ -121,7 +121,7 @@ model-report v7 заменяет схему одного профиля v6 об�
 отдельные доказательства; производственная интеграция BET ABI/сессии открыта.
 
 
-<!-- source-sha256: dc85ef3902e9833eaa5c2fad5d7f855f9e16f16b2d5d4128e5460d89af4e4808 -->
+<!-- source-sha256: bdd8a523e5765c0a73345ef0f5c18dd472dc2db4ba12396c00bbccf779e433e6 -->
 
 Английский источник: [Source of truth](../SPECS_SIMULATION_ENGINES.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -4465,7 +4465,7 @@ origin. Очистка данных сайта удаляет его проек�
 ### Записи
 
 ```typescript
-type ItemKind = "project" | "component-card" | "measurement-set" | "aircraft-profile" | "experiment" | "parameter-set" | "parameter-log" | "flight-task" | "experiment-batch" | "log-extraction" | "effect-log";
+type ItemKind = "project" | "component-card" | "measurement-set" | "aircraft-profile" | "experiment" | "parameter-set" | "parameter-log" | "flight-task" | "experiment-batch" | "log-extraction" | "effect-log" | "log-comparison";
 interface Dependency { kind: ItemKind; sha256: string }
 interface ProjectRecord {
   schemaVersion: 1;
@@ -4513,12 +4513,12 @@ interface ProjectRecord {
   `parameter-set` и `parameter-log`; каждый может зависеть только от
   эксперимента. TASK-172 добавила `flight-task` без зависимостей. TASK-176 добавила
   `experiment-batch`, который может зависеть от профиля аппарата и экспериментов.
-  TASK-182 добавила `log-extraction`, а TASK-169 — `effect-log`; каждый из них может зависеть только от эксперимента.
+  TASK-182 добавила `log-extraction`, TASK-169 — `effect-log`, а TASK-181 — `log-comparison`; каждый из них может зависеть только от экспериментов.
 * **Полезная нагрузка.** Полезная нагрузка (payload) проекта — `{}`.
   Хранилище не интерпретирует payload карточек, наборов измерений, профилей,
   экспериментов, наборов параметров, журналов параметров, полётных заданий, серий,
-  записей об извлечении из журнала и журналов воздействий сверх ограничений канонического JSON. Задачи-владельцы (TASK-138, TASK-139,
-  TASK-140, TASK-154, TASK-160, TASK-165, TASK-169, TASK-172 и TASK-182) регистрируют валидаторы
+  записей об извлечении из журнала, журналов воздействий и сравнений логов сверх ограничений канонического JSON. Задачи-владельцы (TASK-138, TASK-139,
+  TASK-140, TASK-154, TASK-160, TASK-165, TASK-169, TASK-172, TASK-181 и TASK-182) регистрируют валидаторы
   payload, которые применяются при
   записи или импорте версии, но не при её чтении.
 

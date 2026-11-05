@@ -13,7 +13,9 @@ export type ViewerMessage =
   | { readonly type: "mirage.logAccepted"; readonly name: string; readonly bytes: number }
   | { readonly type: "mirage.logRejected"; readonly reason: string }
   | { readonly type: "mirage.logParsed"; readonly name: string; readonly messageTypes: number }
-  | { readonly type: "mirage.eventsSet"; readonly count: number };
+  | { readonly type: "mirage.eventsSet"; readonly count: number }
+  | { readonly type: "mirage.secondLogParsed"; readonly name: string; readonly messageTypes: number }
+  | { readonly type: "mirage.alignmentSet" };
 
 export interface LoadLogMessage {
   readonly type: "mirage.loadLog";
@@ -44,6 +46,12 @@ export function parseViewerMessage(data: unknown): ViewerMessage | null {
       const events = field(data, "count");
       return count(events) ? { type, count: events } : null;
     }
+    case "mirage.alignmentSet":
+      return { type };
+    case "mirage.secondLogParsed": {
+      const messageTypes = field(data, "messageTypes");
+      return typeof name === "string" && count(messageTypes) ? { type, name, messageTypes } : null;
+    }
     case "mirage.logParsed": {
       const messageTypes = field(data, "messageTypes");
       return typeof name === "string" && count(messageTypes) ? { type, name, messageTypes } : null;
@@ -72,6 +80,12 @@ export function viewerLogName(name: string): string {
 /** Events on the plot's timeline, which the viewer keeps for the next plot (TASK-180). */
 export interface ViewerEvent { readonly timeMs: number; readonly text: string; readonly status: string }
 export const setEventsMessage = (events: readonly ViewerEvent[]) => ({ type: "mirage.setEvents", protocol: VIEWER_PROTOCOL, events: events.slice(0, 2000) }) as const;
+
+/** A second log to compare, its events and its alignment (TASK-181, patch 0004). */
+export const loadSecondLogMessage = (name: string, bytes: ArrayBuffer) => ({ type: "mirage.loadSecondLog", protocol: VIEWER_PROTOCOL, name: viewerLogName(name), bytes }) as const;
+export const setSecondEventsMessage = (events: readonly ViewerEvent[]) => ({ type: "mirage.setSecondEvents", protocol: VIEWER_PROTOCOL, events: events.slice(0, 2000) }) as const;
+export const clearSecondLogMessage = () => ({ type: "mirage.clearSecondLog", protocol: VIEWER_PROTOCOL }) as const;
+export const setAlignmentMessage = (alignment: unknown) => ({ type: "mirage.setAlignment", protocol: VIEWER_PROTOCOL, alignment }) as const;
 
 export function loadLogMessage(name: string, bytes: ArrayBuffer): LoadLogMessage {
   return { type: "mirage.loadLog", protocol: VIEWER_PROTOCOL, name: viewerLogName(name), bytes };

@@ -13,7 +13,7 @@ export const PROJECT_SCHEMA_VERSION = 1;
  * `parameter-set` and `parameter-log`, TASK-172 `flight-task`, and TASK-176 `experiment-batch`; records of the other kinds keep their
  * bytes and meaning, and a reader without a kind rejects its records.
  */
-export const ITEM_KINDS = ['project', 'component-card', 'measurement-set', 'aircraft-profile', 'experiment', 'parameter-set', 'parameter-log', 'log-extraction', 'effect-log', 'flight-task', 'experiment-batch'] as const;
+export const ITEM_KINDS = ['project', 'component-card', 'measurement-set', 'aircraft-profile', 'experiment', 'parameter-set', 'parameter-log', 'log-extraction', 'effect-log', 'log-comparison', 'flight-task', 'experiment-batch'] as const;
 export type ItemKind = typeof ITEM_KINDS[number];
 /** Kinds stored inside a project, as opposed to the project record itself. */
 export type ContentKind = Exclude<ItemKind, 'project'>;
@@ -28,6 +28,7 @@ export const ALLOWED_DEPENDENCIES: { readonly [kind in ItemKind]: readonly ItemK
   'parameter-log': ['experiment'],
   'log-extraction': ['experiment'],
   'effect-log': ['experiment'],
+  'log-comparison': ['experiment'],
   'flight-task': [],
   'experiment-batch': ['aircraft-profile', 'experiment'],
 };

@@ -55,9 +55,9 @@ describe("viewer messages", () => {
 });
 
 describe("viewer build identity", () => {
-  it("applies the four repository patches in name order, each touching only upstream paths it names", () => {
+  it("applies the five repository patches in name order, each touching only upstream paths it names", () => {
     const series = patchSeries();
-    expect(series.map(patch => patch.file)).toEqual(["0000-compatibility.patch", "0001-offline.patch", "0002-message-interface.patch", "0003-experiment-context.patch"]);
+    expect(series.map(patch => patch.file)).toEqual(["0000-compatibility.patch", "0001-offline.patch", "0002-message-interface.patch", "0003-experiment-context.patch", "0004-compare.patch"]);
     for (const patch of series) {
       const text = readFileSync(join(PATCH_DIRECTORY, patch.file), "utf8");
       expect(sha256(text)).toBe(patch.sha256);
