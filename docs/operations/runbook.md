@@ -360,19 +360,21 @@ The freeze command is one-time calibration and refuses existing envelopes. On la
 
 ## IMU noise-floor switch (TASK-089)
 
-ArduPilot's default IMU noise floors stay on unless you build the patched firmware and set `MIRAGE_SITL_IMU_NOISE_FLOOR=off`. Use the TASK-042 Linux/WSL environment above, including `MIRAGE_SITL_SOURCE`, `MIRAGE_SITL_PYTHON` and the driver variables. The source stays clean because the build script patches a copy; `MIRAGE_ARDUPILOT_VENV` optionally names the Python environment that waf uses.
+ArduPilot's default IMU noise floors stay on unless you build the patched firmware and set `MIRAGE_SITL_IMU_NOISE_FLOOR=off`. Use the TASK-042 environment above, on macOS, Linux or WSL, including `MIRAGE_SITL_SOURCE`, `MIRAGE_SITL_PYTHON` and the driver variables. The source stays clean because the build script patches a copy; `MIRAGE_ARDUPILOT_VENV` optionally names the Python environment that waf uses.
 
 ```bash
 node scripts/build-ardupilot-sitl.mjs --out "$HOME/mirage/build-sitl-patched"
 export MIRAGE_SITL_BINARY="$HOME/mirage/build-sitl-patched/build/sitl/bin/arducopter"
-export MIRAGE_SITL_BINARY_SHA256=$(sha256sum "$MIRAGE_SITL_BINARY" | cut -d ' ' -f 1)
-export MIRAGE_SITL_DRIVER_SHA256=$(sha256sum "$MIRAGE_SITL_DRIVER" | cut -d ' ' -f 1)
+export MIRAGE_SITL_BINARY_SHA256=$(shasum -a 256 "$MIRAGE_SITL_BINARY" | cut -d ' ' -f 1)
+export MIRAGE_SITL_DRIVER_SHA256=$(shasum -a 256 "$MIRAGE_SITL_DRIVER" | cut -d ' ' -f 1)
 export MIRAGE_SITL_CAPTURE_DIR="$PWD/.cache/task-089/floors-off"
 MIRAGE_SITL_IMU_NOISE_FLOOR=off node scripts/run-sitl.mjs
 node scripts/check-imu-noise-floor.mjs --input "$MIRAGE_SITL_CAPTURE_DIR" --expect off --output .cache/task-089/floors-off.json
 ```
 
 Unset, the variable means `ardupilot`, and the run is a normal TASK-042 flight. With `off`, the driver appends the `off` profile to its `quad.parm` and holds arming until the firmware reports `SIM_ACC_FLOOR 0` and `SIM_GYR_FLOOR 0`. On unpatched firmware it fails after 20 s of simulation, because upstream firmware skips the unknown names silently. `run.json` records the setting and the reported values. Audit the capture with `check-raw.py` and `check-sitl-capture.mjs` as in TASK-042. A patched ELF on default parameters behaves as upstream until the first driver command. Its captures carry a new firmware identity, so keep them separate from the historical TASK-042/043/059 reports. Never reuse a nonempty capture directory.
+
+`--reference` compares samples by firmware time. Now and then a flight takes a different noise sequence with the same statistics, even on identical bytes (2 of 12 flights compared on the M5), so a comparison showing no identical samples should be flown again before it is taken as a difference.
 
 The current driver differs from the one the frozen TASK-059 matrix names, so `report-ekf.mjs` rejects new EW validation captures until TASK-059 is re-frozen on the operator's machine. Re-freezing is a deliberate step. Keep the current matrix in git history and record the reason in the commit. Set `envelopes` back to `null` (the unfrozen template is `git show 1eb44f1:tests/fixtures/scenarios/ew-matrix.json`), then run the TASK-059 calibration, freeze and validation commands above with one firmware and one setting. EW calibration and validation bind the firmware and parameter hashes, so mixing settings fails closed.
 

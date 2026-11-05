@@ -143,6 +143,14 @@ function setup(parameters = vehicle(), metadata: ParameterMetadataSet | null = p
   const service = new ParameterService({ ground: new GroundStation(), send: autopilot.send, metadata });
   return { autopilot, service };
 }
+function guarded() {
+  const autopilot = new FakeAutopilot(vehicle(), GRIPPER);
+  const service = new ParameterService({ ground: new GroundStation(), send: autopilot.send, metadata: null,
+    writeConflict: name => (name === 'SIM_SPEEDUP' ? 'it sets a guarded test parameter' : null) });
+  service.requestList(0);
+  autopilot.flush(service, 0);
+  return { autopilot, service };
+}
 function downloaded() {
   const { autopilot, service } = setup();
   service.requestList(0);
@@ -289,6 +297,15 @@ describe('ParameterService writes', () => {
     expect(service.rebootPending()).toEqual([]);
   });
 
+  it('refuses a write the caller declares in conflict without sending anything, and writes the rest (TASK-089)', () => {
+    const { autopilot, service } = guarded();
+    const sent = autopilot.requests.length;
+    expect(service.set('SIM_SPEEDUP', 2, 1)).toMatchObject({ kind: 'refused', name: 'SIM_SPEEDUP', by: 'service', reason: 'it sets a guarded test parameter', reported: null });
+    expect(autopilot.requests.length).toBe(sent);
+    expect(service.get('SIM_SPEEDUP')?.value).toBe(1);
+    expect(service.set('INS_GYRO_FILTER', 40, 1).kind).toBe('requested');
+    expect(autopilot.requests.length).toBeGreaterThan(sent);
+  });
   it('classifies an autopilot that keeps the old value as refused once it has been quiet for a retry interval', () => {
     const { autopilot, service } = downloaded();
     const write = service.set('BARO1_DEVID', 1, 1);

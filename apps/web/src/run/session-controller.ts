@@ -75,6 +75,7 @@ import { autopilotModeName, taskCommandInto } from "@mirage/autopilot/guided";
 import { MissionUpload, routeMissionItems, routePointReached } from "@mirage/autopilot/mission";
 import { MotorCheck, type ExpectedMotor, type MotorCheckResult, type PhysicsRotor } from "@mirage/autopilot/motor-test";
 import type { ParameterMetadataCatalog, ParameterMetadataSet } from "@mirage/autopilot/param-metadata";
+import { parameterWriteConflictReason } from "@mirage/autopilot/error-ownership";
 import { ParameterService, type DownloadState, type ParameterValue } from "@mirage/autopilot/param-service";
 import { siteParameters } from "@mirage/aircraft/site-parameters";
 import { ParameterReadback, type AbsentRule, type ParameterDifference } from "@mirage/autopilot/parameter-readback";
@@ -1316,8 +1317,10 @@ export class SessionController {
     const now = this.status?.simTimeS ?? 0;
     this.parametersSinceS = now;
     this.paramMetadata = this.firmwareCommit === null ? null : this.metadata?.forCommit(this.firmwareCommit) ?? null;
+    // S08: this run's ownership matrix decides which SITL parameters a live write may not touch.
+    const ownership = this.prepared?.sensors.ownershipMatrix ?? null;
     this.params = new ParameterService({ ground: this.gcs, send: frame => this.physics.sendMavlink(frame.slice()), metadata: this.paramMetadata,
-      timing: { maxListRequests: PARAMETER_LIST_REQUESTS } });
+      timing: { maxListRequests: PARAMETER_LIST_REQUESTS }, writeConflict: name => (ownership ? parameterWriteConflictReason(ownership, name) : null) });
     this.set({ name: "loading-parameters", experimentId, received: 0, total: null });
     this.params.requestList(now);
   }

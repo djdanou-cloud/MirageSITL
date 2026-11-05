@@ -3769,11 +3769,11 @@ SIM_GYR_FLOOR 0
 ```
 
 `node scripts/build-ardupilot-sitl.mjs --out DIR` builds the patched native
-firmware on Linux or WSL. It verifies that `MIRAGE_SITL_SOURCE` is the clean
+firmware on macOS, Linux or WSL. It verifies that `MIRAGE_SITL_SOURCE` is the clean
 pinned checkout and copies it, then applies the patch to the copy and checks
 every file hash against the catalog. It builds with
-`./waf configure --board sitl` and `./waf copter`, checks that both parameter
-names are in the ELF, and writes `DIR/manifest.json`. Missing prerequisites exit
+`./waf configure --board sitl` and `./waf copter`, checks that it is a native
+executable of the host holding both parameter names, and writes `DIR/manifest.json`. Missing prerequisites exit
 2. Upstream firmware skips unknown defaults-file names without any log line or
 STATUSTEXT, so `off` on unpatched firmware changes nothing silently. Any runner
 that applies `off` therefore reads both values back from the running firmware
@@ -3867,6 +3867,36 @@ Open items:
   `browser-hal` join the patch's paths.
 * Re-freezing TASK-059 with the current driver on the operator's machine
   before new EW validation captures (decision 2026-10-27).
+
+### Every SITL parameter declared
+
+An error must not sit undecided, so `SIM_PARAMETERS_WITHOUT_A_SOURCE` declares why every
+SIM_ parameter of the catalog that no error source lists has none. Of the 323, 96 belong
+to a source and the other 227 fall in exactly one class. `tests/error-ownership.test.ts`
+fails on a name in neither, so a pin change cannot add one unseen, and on an error active
+by default outside a source.
+
+| Class | What it holds | Why it has no source |
+|---|---|---|
+| `fault` | `SIM_ACCELn_FAIL`, `SIM_BAROn_FREEZE`, `SIM_MAGn_FAIL`, `SIM_GPSn_JAM`, `SIM_RC_FAIL` and the like | A fault a user injects, not a standing error; TASK-168 and TASK-169 own these |
+| `inactive-error` | `SIM_GPSn_GLTCH`, `_DRFTALT`, `_ALT_OFS`, `SIM_AHRS_OFF_*`, `SIM_TIME_JITTER` and the like | Off at its default of zero; nothing here sets it, so if a user does, ArduPilot applies it once |
+| `shapes-a-source` | `SIM_DRIFT_TIME`, `SIM_VIB_MOT_*`, `SIM_MAG_ALY_HGT`, `SIM_INS_THR_MIN` | Shapes an error whose amplitude a source switches off |
+| `temperature` | `SIM_IMUT_*`, `SIM_TEMP_*` | An error only through the `SIM_IMUTn_` calibrations, disabled by default; TASK-115 defers temperature errors |
+| `sensor-settings` | Sensor counts, `SIM_GPSn_HZ`, `_ACC`, `_NUMSATS`, device IDs and the like | Which sensors exist and how they report |
+| `not-fitted` | `SIM_ARSPD*`, `SIM_SONAR_*`, `SIM_FLOW_*`, `SIM_GPS3_*`, `SIM_GPS4_*` and the like | A sensor S08 does not include and the S19 aircraft do not carry, or a GNSS instance that is not enabled |
+| `environment-or-vehicle` | `SIM_WIND_*`, `SIM_TERRAIN`, `SIM_SHOVE_*`, `SIM_BATT_*` and the like | ArduPilot's environment or its own vehicle model; TASK-166 decides environment effects |
+| `other-systems` | `SIM_ADSB_*`, `SIM_CAN_*`, `SIM_OSD_*`, `SIM_SPEEDUP` and the like | Simulated peripherals and the simulator itself |
+
+### Live writes (S08)
+
+`parameterWriteConflict(matrix, name)` reads the error a SITL parameter sets, counting a
+vector's `_X`, `_Y` and `_Z` as its parameter. A write conflicts when ArduPilot applies that
+error on the matrix's path and the matrix gives it to `mirage`, because it would be applied
+twice, or to `none`, because it would add an error the experiment record says is not there.
+An error ArduPilot owns stays free to change. The session passes the run's matrix to
+`ParameterService`, which refuses a conflicting write before sending, as `refused` by
+`service` with `parameterWriteConflictReason`, so every write path of the Parameters tab is
+covered. A batch's set names are already refused against the generated parameters.
 
 ## Step interfaces v2 (TASK-088)
 
@@ -7122,7 +7152,7 @@ PARAM_ERROR, which is outside the TASK-150 message set.
 |---|---|
 | `requested` | PARAM_SET sent; `attempts` sends so far |
 | `confirmed` | an answer outside the list holds the requested float32; `rebootRequired` and `outsideRange` come from the metadata, null without metadata for the commit |
-| `refused` by `service` | not sent: the name is not in the downloaded list, the value is not finite, the value is outside the float32 range, the parameter's integer type cannot carry it exactly (not an integer, outside the type's limits, or not exact in float32), or its type is not one PARAM_SET's float32 carries |
+| `refused` by `service` | not sent: the name is not in the downloaded list, the run's ownership matrix forbids the write (TASK-089, "Live writes"), the value is not finite, the value is outside the float32 range, the parameter's integer type cannot carry it exactly (not an integer, outside the type's limits, or not exact in float32), or its type is not one PARAM_SET's float32 carries |
 | `refused` by `autopilot` | answers kept another value: after the first differing answer one more read is sent, and the write is refused when the latest answer still differs after `writeRetryS` (1 s) without an answer; `reported` holds that value |
 | `timeout` | no answer after `writeAttempts` (3) sends, `writeRetryS` apart |
 | `stale` | the outcome no longer describes the autopilot: a newer write of the same name replaced a pending write or was confirmed after a confirmed one, or the autopilot still reports another value for a confirmed one after one more read and `writeRetryS` without an answer |

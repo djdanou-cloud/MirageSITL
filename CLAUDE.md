@@ -437,8 +437,9 @@ implementation.
   (accessibility sign-off; TASK-074 HUD freshness, TASK-075 fault ACKs, TASK-078 full-rate recording, and TASK-079 scenario ACK binding are done and do not admit browser READY), TASK-082 (multi-hour integrated soak), and TASK-083 (clean-machine
   release and assistive screen-reader sign-off) remain open.
 * **Physics fidelity program (TASK-087–TASK-123, roadmap Phases 7–13):** registered
-  2026-10-26 from the physics fidelity review. TASK-089 and TASK-090 are
-  IN_PROGRESS with a first increment each, and TASK-087 and TASK-088 are DONE:
+  2026-10-26 from the physics fidelity review. TASK-090 is
+  IN_PROGRESS with a first increment, and TASK-087, TASK-088 and the Phase 1 part of
+  TASK-089 are DONE:
   * TASK-087: the strict vehicle manifest v2 (`vehicle-manifest.ts`), an ArduPilot
     profile limited to evidenced names, and an optional `SessionModelPort` for
     `model.load`; the default demo backend is unchanged. The physics Worker
@@ -456,7 +457,10 @@ implementation.
     until the firmware confirms both values. The driver change means TASK-059 must be
     re-frozen before new EW validation (accepted 2026-10-27). Under guardrail 5 of the
     approved PROJECT_SCOPE.md, decision D-10 of 2026-10-28 is: no patch for now,
-    so Phase 1 runs use stock ArduPilot SITL and leave the patch unused.
+    so Phase 1 runs use stock ArduPilot SITL and leave the patch unused. Every SIM_
+    parameter of the catalog is declared, and a live write of a parameter of an error
+    MirageSITL applies or this run switches off is refused with its reason. Its
+    browser-path items stay with the preserved TASK-046 and TASK-047.
   * TASK-090: fidelity metrics and `scripts/check-fidelity.mjs`, which never passes
     synthetic data; real flight and bench data remain BLOCKED_EXTERNAL.
 

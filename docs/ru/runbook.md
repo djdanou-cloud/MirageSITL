@@ -8,7 +8,7 @@
 PowerShell/zsh и проверки перед расширением поддерживаемого покрытия.
 
 ## Локальные проверки
-<!-- source-sha256: b08c0862a60a2d6f7c03dfc1242c6ca87d65a22a0a8582ec08b3b7a713d6f76e -->
+<!-- source-sha256: fe3bdcbc7afd679462a08d642e037fc77468a4e6e6509695e15ee1d8cbd33151 -->
 
 Использовать существующий изолированный checkout, сохраняя локальные изменения. Node закреплён .nvmrc; Rust 1.97.0 и wasm32-unknown-unknown — native/rust-toolchain.toml. Зависимости ставить через npm ci. В облаке активировать CARGO_HOME=/workspace/.cache/mirage-cargo, RUSTUP_HOME=/workspace/.cache/mirage-rustup и добавить CARGO_HOME/bin в начало PATH; не переопределять HOME. Запустить lint, typecheck, check:docs, CI=true npm test, npm run build и locked native tests. Модульный набор тестов не изменяет отслеживаемые свидетельства в test-results/: тесты записывают создаваемые отчёты во временные или игнорируемые каталоги (validate-models, check-propeller-bem и bench-links-ew принимают --out DIR), а глобальная настройка Vitest tests/support/tracked-results.ts завершает прогон ошибкой, если меняется вывод git status --porcelain -- test-results/. Браузерные прогоны дают ту же гарантию: Playwright пишет отчёт JUnit, трассы и захваты прошивки TASK-045 в test-results/browser/, где нет отслеживаемых файлов, а последний настроенный репортёр tests/support/tracked-results-reporter.ts повторяет проверку после того, как остальные репортёры записали свои файлы. Браузерный артефакт CI выгружает test-results/browser/ и playwright-report/. Запустить npm run dev; проверить HTTP, COOP same-origin, COEP require-corp и настоящий Worker READY. Начать с нулевого газа, армировать, летать, приостановить и сбросить. Браузерные тесты используют системный Chromium только при наличии. Установка/запуск на чистой восстановленной машине для сертификации выпуска ещё не выполнялись.
 
@@ -375,19 +375,21 @@ node scripts/report-ekf.mjs --input test-results/validation/task-059-input.json 
 
 ## Переключатель минимального шума IMU (TASK-089)
 
-Минимумы шума IMU ArduPilot по умолчанию остаются включёнными, пока вы не соберёте пропатченную прошивку и не зададите `MIRAGE_SITL_IMU_NOISE_FLOOR=off`. Используйте окружение Linux/WSL из TASK-042 выше, включая `MIRAGE_SITL_SOURCE`, `MIRAGE_SITL_PYTHON` и переменные драйвера. Исходники остаются чистыми, потому что скрипт сборки патчит копию; `MIRAGE_ARDUPILOT_VENV` при необходимости задаёт окружение Python, которое использует waf.
+Минимумы шума IMU ArduPilot по умолчанию остаются включёнными, пока вы не соберёте пропатченную прошивку и не зададите `MIRAGE_SITL_IMU_NOISE_FLOOR=off`. Используйте окружение TASK-042 выше, в macOS, Linux или WSL, включая `MIRAGE_SITL_SOURCE`, `MIRAGE_SITL_PYTHON` и переменные драйвера. Исходники остаются чистыми, потому что скрипт сборки патчит копию; `MIRAGE_ARDUPILOT_VENV` при необходимости задаёт окружение Python, которое использует waf.
 
 ```bash
 node scripts/build-ardupilot-sitl.mjs --out "$HOME/mirage/build-sitl-patched"
 export MIRAGE_SITL_BINARY="$HOME/mirage/build-sitl-patched/build/sitl/bin/arducopter"
-export MIRAGE_SITL_BINARY_SHA256=$(sha256sum "$MIRAGE_SITL_BINARY" | cut -d ' ' -f 1)
-export MIRAGE_SITL_DRIVER_SHA256=$(sha256sum "$MIRAGE_SITL_DRIVER" | cut -d ' ' -f 1)
+export MIRAGE_SITL_BINARY_SHA256=$(shasum -a 256 "$MIRAGE_SITL_BINARY" | cut -d ' ' -f 1)
+export MIRAGE_SITL_DRIVER_SHA256=$(shasum -a 256 "$MIRAGE_SITL_DRIVER" | cut -d ' ' -f 1)
 export MIRAGE_SITL_CAPTURE_DIR="$PWD/.cache/task-089/floors-off"
 MIRAGE_SITL_IMU_NOISE_FLOOR=off node scripts/run-sitl.mjs
 node scripts/check-imu-noise-floor.mjs --input "$MIRAGE_SITL_CAPTURE_DIR" --expect off --output .cache/task-089/floors-off.json
 ```
 
 Незаданная переменная означает `ardupilot`, и прогон является обычным полётом TASK-042. При `off` драйвер дописывает профиль `off` в свой `quad.parm` и удерживает армирование, пока прошивка не сообщит `SIM_ACC_FLOOR 0` и `SIM_GYR_FLOOR 0`. На непропатченной прошивке он завершается с ошибкой через 20 с симуляции, потому что прошивка upstream молча пропускает неизвестные имена. `run.json` записывает настройку и полученные значения. Проверяйте запись с помощью `check-raw.py` и `check-sitl-capture.mjs`, как в TASK-042. Пропатченный ELF с параметрами по умолчанию ведёт себя как upstream до первой команды драйвера. Его записи несут новую идентичность прошивки, поэтому храните их отдельно от исторических отчётов TASK-042/043/059. Не используйте непустой каталог записи повторно.
+
+`--reference` сравнивает образцы по времени прошивки. Время от времени полёт идёт по другой последовательности шума с той же статистикой, даже на тех же байтах (2 из 12 сравнённых полётов на M5), поэтому сравнение без единого совпавшего образца следует повторить, прежде чем считать его различием.
 
 Текущий драйвер отличается от того, который называет замороженная матрица TASK-059, поэтому `report-ekf.mjs` отклоняет новые проверочные записи РЭБ, пока TASK-059 не будет повторно заморожен на машине оператора. Повторная заморозка — осознанный шаг. Сохраните текущую матрицу в истории git и запишите причину в коммите. Верните `envelopes` в `null` (незамороженный шаблон — `git show 1eb44f1:tests/fixtures/scenarios/ew-matrix.json`), затем выполните приведённые выше команды калибровки, заморозки и проверки TASK-059 с одной прошивкой и одной настройкой. Калибровка и проверка РЭБ привязаны к хешам прошивки и параметров, поэтому смешение настроек приводит к отказу.
 

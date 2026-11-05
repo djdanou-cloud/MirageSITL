@@ -157,6 +157,8 @@ export interface ParameterServiceOptions {
   /** Metadata of the autopilot's exact commit, or null when MirageSITL has none for it. */
   readonly metadata: ParameterMetadataSet | null;
   readonly timing?: Partial<ParameterTiming>;
+  /** Why this run must not write a parameter, or null (TASK-089: an error's owner). Refused like any other write the service refuses. */
+  readonly writeConflict?: (name: string) => string | null;
 }
 
 export class ParameterService {
@@ -164,6 +166,7 @@ export class ParameterService {
   private readonly sendFrame: (frame: Uint8Array) => void;
   private readonly metadata: ParameterMetadataSet | null;
   private readonly timing: ParameterTiming;
+  private readonly writeConflict: ((name: string) => string | null) | undefined;
   private readonly packet = new Uint8Array(64);
 
   private readonly entries = new Map<string, ParameterValue>();
@@ -194,6 +197,7 @@ export class ParameterService {
     this.ground = options.ground;
     this.sendFrame = options.send;
     this.metadata = options.metadata;
+    this.writeConflict = options.writeConflict;
     this.timing = Object.freeze({ ...DEFAULT_PARAMETER_TIMING, ...options.timing });
     const t = this.timing;
     for (const value of [t.listRetryS, t.gapS, t.writeRetryS]) if (!(Number.isFinite(value) && value > 0)) throw new Error("Parameter timing intervals must be positive");
@@ -248,14 +252,16 @@ export class ParameterService {
 
   /**
    * Writes `value` to `name`. Refused without sending when the name is not in
-   * the autopilot's list, the value is not finite, or the parameter's type
-   * cannot carry it exactly. A pending write of the same name becomes stale.
+   * the autopilot's list, the caller declares a conflict, the value is not
+   * finite, or the parameter's type cannot carry it exactly. A pending write of the same name becomes stale.
    */
   set(name: string, value: number, nowS: number): WriteState {
     const id = this.nextWriteId++;
     const refuse = (reason: string): WriteState => this.settle({ kind: "refused", id, name, requested: value, by: "service", reason, reported: null });
     const entry = this.entries.get(name);
     if (!entry) return refuse("the autopilot's parameter list has no parameter of this name");
+    const conflict = this.writeConflict?.(name) ?? null;
+    if (conflict !== null) return refuse(conflict);
     if (!Number.isFinite(value)) return refuse("the value is not a finite number");
     const limits = INTEGER_LIMITS.get(entry.type);
     if (limits) {
