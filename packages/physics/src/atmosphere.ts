@@ -18,7 +18,14 @@ export const AIR_DENSITY = 0, AIR_VISCOSITY = 1, AIR_SOUND = 2, AIR_TEMPERATURE 
  * air mass), the gust RMS, m/s, and its uint32 seed, which Wind.configure reads in this order, then the air at the origin.
  */
 export const WEATHER_WIND_NORTH = 0, WEATHER_WIND_EAST = 1, WEATHER_WIND_DOWN = 2, WEATHER_GUST_RMS = 3, WEATHER_SEED = 4,
-  WEATHER_TEMPERATURE = 5, WEATHER_PRESSURE = 6, WEATHER_SLOTS = 7;
+  WEATHER_TEMPERATURE = 5, WEATHER_PRESSURE = 6,
+  /** TASK-166: the gust's bandwidth, Hz; 0 keeps the one it has. */
+  WEATHER_GUST_BANDWIDTH = 7,
+  /** TASK-166: 1 keeps the gust running, so changing another effect does not restart it; 0 starts it again from the seed. */
+  WEATHER_GUST_KEEP = 8,
+  /** TASK-166: 1 leaves the configured atmosphere in place, so wind alone does not change the air; 0 takes it from the temperature and pressure slots. */
+  WEATHER_AIR_KEEP = 9,
+  WEATHER_SLOTS = 10;
 /**
  * The ISA troposphere `input[AIR_HEIGHT]` m above a reference point whose air temperature is
  * `input[AIR_REFERENCE_TEMPERATURE]` K and pressure `input[AIR_REFERENCE_PRESSURE]` Pa (TASK-093): T = T0 - L h,

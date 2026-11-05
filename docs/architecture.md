@@ -339,7 +339,7 @@ fixed IMU noise floors can be switched off.
 | Kernel interfaces | `bound.rs`, `bet_bound.h`, `body_abi.rs` | One versioned v2 extension (TASK-088) |
 | Vehicle adapter | `bet-dynamics.ts`, `session-v2.ts` | Per-tick composition of the kernels |
 | Vehicle data | `model.schema.json` (v1) and `vehicle.schema.json` (v2) | New vehicle parameters (TASK-087) |
-| Runtime environment | Control Protocol v2 | Weather, events and per-effect on/off and intensity controls (TASK-166) at tick boundaries |
+| Runtime environment | Control Protocol v2 and v3 | Weather, events and per-effect on/off and intensity controls (TASK-166) at tick boundaries |
 | Autopilot boundary | JSON state line, HAL mailbox, MAVLink injection | Sensor-error ownership (TASK-089) |
 | ArduPilot configuration | Generated parameter profile | Neutralize the ArduPilot errors MirageSITL owns |
 
@@ -916,6 +916,16 @@ above the origin's air and the mean wind plus the seeded gust, the published
 airspeed is relative to the air, and the SITL link sends the wind as
 `velocity_wind`. SPECS_SIMULATION_ENGINES ("Weather and atmosphere in flight
 sessions") gives the equations, the order within a step and the envelope.
+
+TASK-166 gives each effect its own on/off switch and intensity: a versioned
+control record in Control Protocol v3, read from one catalog of fields, units
+and ranges, with every range equal to its model's envelope. Mean wind, gust and
+air now switch separately, and off or zero is bitwise identical to absent. Faults
+go through the same record and reach `EwEngine` as a `fault.set` does. A
+`weather.set` or `fault.set` stands for the same records and flies as it did.
+Scenario schema 2 schedules a control with an onset and a duration as two ordinary
+commands, each acknowledged on its tick. A running session rejects sensor-error
+controls visibly, since those are set before the run on the Sensors tab.
 
 TASK-096 adds airframe drag on the same air: a drag-area tensor and center of
 pressure from the vehicle manifest give the body `−½·ρ·|v_a|·(C_D·A)·v_a` and
@@ -1511,7 +1521,7 @@ Thermal energy, LWIR WebGL2 materials and offset-only shutter calibration are in
 
 `EkfMonitor` and `EkfWarmup` provide independent diagnostics/admission contracts, with upstream wire fixtures. No timer, truth flag or Serial connection makes a live autopilot READY. While native ArduCopter SITL flight (TASK-042) and native `LiveEkfWarmup` admission (TASK-043) are verified, browser autopilot session wiring (TASK-080) retains its integration gate. TASK-074 copies accepted system/component 1/1 serial frames into the Main HUD snapshot: unknown, stale, and fresh are distinct, stale EKF bits are not displayed as valid, and mode numbers are autopilot `custom_mode` values with source/age. The physics publication stays unknown.
 
-The instructor console submits versioned commands to the real Worker. A bounded 32-entry ledger correlates request IDs, distinguishes pending/queued/applied/rejected/cancelled, ignores late queued ACKs after application, and cancels pending commands on epoch changes. Model-load/reset ACKs may advance exactly one epoch. Fault IDs are editable; all five typed effect kinds have explicit synthetic defaults. A session with the EW port admits `fault.set` into `EwEngine` at the due tick and publishes `ew_flags`. Weather and model requests stay rejected on the demo, and the console shows that rejection. The demo dynamics use one spool and read no motor-fault table, so the session rejects motor-loss at admission with BAD_STATE and the console shows that rejection too (TASK-124). A session fault reported after `ready-v2` leaves the Worker usable: the status reads FAULT, Start is disabled, and Reset starts a fault-free epoch without a page reload. Main follows the session's arm latch: when the session disarms on stale or interrupted input, or cannot arm because the throttle rose above 5% first, Main withdraws its arm request and says why, so rearming stays explicit. P/R/F shortcuts ignore inputs, selects, editable elements, composition, repeat and modifier shortcuts.
+The instructor console submits versioned commands to the real Worker. A bounded 32-entry ledger correlates request IDs, distinguishes pending/queued/applied/rejected/cancelled, ignores late queued ACKs after application, and cancels pending commands on epoch changes. Model-load/reset ACKs may advance exactly one epoch. Since TASK-166 the console has one form for every effect, generated from the protocol's catalog: effect, control ID, on/off, intensity, each parameter with its unit and range and, for a fault, how it ends. A value out of range is refused before it reaches the Worker, and an empty field is refused rather than read as zero. The ledger names an effect control by its effect and ID. The console stays on the demo page: TASK-167 and TASK-169 bring these controls to a real ArduPilot run, and TASK-168 delivers EW effects to it. A session with the EW port admits fault effects into `EwEngine` at the due tick and publishes `ew_flags`. Environment effects and model requests stay rejected on the demo, and the console shows that rejection. The demo dynamics use one spool and read no motor-fault table, so the session rejects motor-loss at admission with BAD_STATE and the console shows that rejection too (TASK-124). A session fault reported after `ready-v2` leaves the Worker usable: the status reads FAULT, Start is disabled, and Reset starts a fault-free epoch without a page reload. Main follows the session's arm latch: when the session disarms on stale or interrupted input, or cannot arm because the throttle rose above 5% first, Main withdraws its arm request and says why, so rearming stays explicit. P/R/F shortcuts ignore inputs, selects, editable elements, composition, repeat and modifier shortcuts.
 
 The active demo's Main runtime fans decimated truth/pilot samples into an entirely separate recording SAB. The recorder Worker owns its chronological ring and IndexedDB writes. No additional consumer is attached to sensor or actuator queues. AAR uses its own versioned 512-byte records and checksums; absence, decimation, queue loss, storage loss and ring eviction are explicit. Resimulation is a separate injected interface with hash/seed admission; ordinary replay never advances physics. The Review timeline selects an epoch and uses simulation seconds for pilot/actuator/response series. Import/export excludes arbitrary metadata and secrets through an allowlist and validates size/hash/records. Full binary layout and limits are specified in SPECS_SIMULATION_ENGINES.md under the thermal/diagnostics/recording contracts.
 

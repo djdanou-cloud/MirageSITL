@@ -3,7 +3,7 @@ import { AarRecord } from '@mirage/aar/record';
 import { RecordingHandoff } from '@mirage/aar/handoff';
 import { isProducerPlan, RecordingProducerV2 } from '@mirage/aar/recorder-v2';
 import { createSessionFaultPort } from '@mirage/ew/session-port';
-import { isWorkerInitV2, tickToNumber, validatePowerChannelV1, type CommandResultV2, type ControlCommandV2, type WorkerFaultV2 } from '@mirage/protocol';
+import { isWorkerInitV2, tickToNumber, validatePowerChannelV1, type CommandResultV2, type ControlCommand, type WorkerFaultV2 } from '@mirage/protocol';
 import { parseLimitRatings, type LimitEvent, type LimitRatings } from '@mirage/physics/limit-monitor';
 import type { AccidentEvent } from '@mirage/physics/accident';
 import { PhysicsSessionV2, type SessionClock } from '@mirage/physics';
@@ -50,7 +50,7 @@ type WorkerNotice = CommandResultV2 | WorkerFaultV2 | SitlNotice | { type: "sitl
   | { type: "sitl.input-stale"; simTimeS: number; staleMs: number }
   | { type: "power.attached" } | { type: "power.reject"; message: string }
   | { type: "recording-v2.armed" } | { type: "recording-v2.reject"; message: string }
-  | { type: "scenario.submit"; command: ControlCommandV2 }
+  | { type: "scenario.submit"; command: ControlCommand }
   | { type: "scenario.reject"; message: string }
   | { type: "pilot.rejected"; count: number; ageMs: number; wallMs: number; sampleWallMs: number; sampleId: number; expectedEpoch: number;
       sessionEpoch: number; flags: number; valuesValid: boolean };

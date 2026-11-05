@@ -1,22 +1,25 @@
-import type { ControlCommandV2, WorkerEventV2 } from "@mirage/protocol";
-export type CommandPayload<T = ControlCommandV2> = T extends ControlCommandV2
+import type { ControlCommand, WorkerEventV2 } from "@mirage/protocol";
+export type CommandPayload<T = ControlCommand> = T extends ControlCommand
   ? Omit<T, "protocolVersion" | "requestId" | "expectedEpoch">
   : never;
 export interface CommandEntry {
   requestId: number;
   epoch: number;
   type: string;
+  /** What the log calls it: an effect control by its effect and ID, any other command by its type. */
+  label: string;
   status: "pending" | "queued" | "applied" | "rejected" | "cancelled";
   message: string;
 }
 export class CommandLedger {
   readonly entries: CommandEntry[] = [];
-  track(c: ControlCommandV2): void {
+  track(c: ControlCommand): void {
     if (this.entries.length === 32) this.entries.shift();
     this.entries.push({
       requestId: c.requestId,
       epoch: c.expectedEpoch,
       type: c.type,
+      label: c.type === "effect.set" ? `${c.control.effect} ${c.control.id}` : c.type,
       status: "pending",
       message: "Waiting for Worker ACK",
     });

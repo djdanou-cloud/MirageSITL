@@ -1776,6 +1776,46 @@
           "derivation": "pymavlink 2.4.50 mavlogdump.py --format json of dataflash/sitl-copter.bin, of four damaged copies made by recorded edits, and of a writer sample written from fixed inputs by packages/dataflash/src/writer.ts, with units resolved from the logs' UNIT, MULT and FMTU records (scripts/generate-dataflash-fixtures.py, TASK-178). Parser oracle only, not physical measurements."
         }
       }
+    },
+    {
+      "path": "protocol/control-v3.json",
+      "manifest": {
+        "formatVersion": 1,
+        "id": "control-v3-commands",
+        "sourceSha256": "bf38c751e697d202fb905cfbeb862604c3c1f69017fe0684da348f92c802a547",
+        "units": {
+          "intensity": "1",
+          "windMps": "m/s",
+          "temperatureK": "K",
+          "pressurePa": "Pa"
+        },
+        "validityEnvelope": {
+          "intensity": {
+            "min": 0,
+            "max": 2
+          },
+          "windMps": {
+            "min": -200,
+            "max": 200
+          },
+          "temperatureK": {
+            "min": 180,
+            "max": 330
+          },
+          "pressurePa": {
+            "min": 1000,
+            "max": 120000
+          }
+        },
+        "tolerance": {
+          "absolute": 0,
+          "relative": 0
+        },
+        "provenance": {
+          "kind": "synthetic",
+          "derivation": "Hand-written from the Control Protocol v3 contract in docs/SPECS_SHARED_MEMORY.md and each model's envelope (TASK-166); values are exact; not generated from parser output."
+        }
+      }
     }
   ]
 }

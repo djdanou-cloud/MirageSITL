@@ -1,4 +1,4 @@
-import type { CommandResultV2, ControlCommandV2 } from "@mirage/protocol";
+import type { CommandResultV2, ControlCommand } from "@mirage/protocol";
 import { ScenarioRunner } from "./runner.ts";
 import type { Scenario } from "./schema.ts";
 
@@ -37,7 +37,7 @@ export class ScenarioBinder {
     this.boundEpoch = epoch >>> 0;
   }
   /** Returns the live command for this simulation tick, or null when none is due. */
-  poll(tick: number, paused: boolean, epoch: number): ControlCommandV2 | null {
+  poll(tick: number, paused: boolean, epoch: number): ControlCommand | null {
     if (this.haltedFlag) return null;
     if ((epoch >>> 0) !== epoch) return null;
     if (this.boundEpoch !== epoch) this.rewind(epoch);

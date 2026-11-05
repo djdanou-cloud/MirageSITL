@@ -461,6 +461,20 @@ pressure) and calls `setWeather(slots)`, so no number crosses a call where V8
 could box it; `Wind.configure` and `SeededRandom.resetFrom` read the slots in
 the same way.
 
+TASK-166 applies effect controls (SPECS_SHARED_MEMORY, "Control Protocol v3")
+through the same call. The session holds which of mean wind, gust and air are
+on, and their values in the slots, and calls `setWeather` when one changes;
+with none on it calls `clearWeather`, which restores still air and the
+configured atmosphere, and an effect that was never on calls nothing. Three
+slots serve this: `WEATHER_GUST_BANDWIDTH` (Hz, 0 keeps the bandwidth),
+`WEATHER_GUST_KEEP` (1 leaves a running gust alone; only the mean wind and the
+gain change) and `WEATHER_AIR_KEEP` (1 leaves the configured atmosphere in place
+and the published pressure the standard atmosphere's, so wind alone does not
+change the air). A `weather.set` sets all three effects on, with a bandwidth of
+1 Hz, a restarted gust and the air of its temperature and pressure, so it flies
+as it did. `setWeather` also refuses a bandwidth at or above Nyquist or too low
+to resolve. The table empties with every new epoch.
+
 Every step evaluates the ISA troposphere at the CG's height h = −down above
 the origin, from the origin's air T0 = `temperatureK` and p0 = `pressurePa`
 (`atmosphereAtHeightInto`): T = T0 − L·h, p = p0·(1 − L·h/T0)^(g/(R·L)),
@@ -500,8 +514,10 @@ mean sea level.
 gust RMS outside 0..50 m/s or a seed that is not a uint32 (the gust model's
 envelope), and air outside 180..330 K, 1..120 kPa or 0.05..2 kg/m³ at the
 origin or at the CG. The session rejects such a command with OUT_OF_RANGE at
-its tick and faults, as for any scheduled command a model refuses; admission
-keeps the protocol v2 ranges (200..340 K) until TASK-166 aligns them. A
+its tick and faults, as for any scheduled command a model refuses. Admission
+holds the same ranges (TASK-166), and refuses an `atmosphere` control's density
+as well, so what reaches the tick is a `weather.set`'s density or the air at the
+vehicle's height. A
 vehicle that flies out of the air envelope faults the dynamics ("BET
 atmosphere outside its envelope"). Every new epoch (`sim.reset`,
 `sim.configure`, `model.load`) starts without weather.
@@ -2668,7 +2684,7 @@ Collision construction belongs to a separate Worker. Stage owns a copy, validate
 
 ### Declarative scenario v1
 
-Scenario admission snapshots and freezes configuration: id, physics hz 400/800/1200, uint32 seed, model/firmware SHA-256, duration 1..4320000 ticks, <=128 ordered events and an altitude-hold rubric. Only validated weather.set/fault.set protocol-v2 templates are admitted, with expectedEpoch=0, consecutive requestIds from 1 and atTick exactly matching event tick. `ScenarioBinder` binds the active epoch, allocates the next accepted request id, submits through the session queue on that simulation tick, and claims a fault applied only after an applied ACK. The runner returns immutable event indices, never allocates in polling, and uses simulation ticks; pauses consume no simulated time. Backwards/missed ticks return -2 instead of late execution. Reset explicitly rewinds the cursor. Provenance/seed/hz mismatches reject startup.
+Scenario admission snapshots and freezes configuration: id, physics hz 400/800/1200, uint32 seed, model/firmware SHA-256, duration 1..4320000 ticks, <=128 ordered events and an altitude-hold rubric. Only validated weather.set/fault.set protocol-v2 templates are admitted, with expectedEpoch=0, consecutive requestIds from 1 and atTick exactly matching event tick. `ScenarioBinder` binds the active epoch, allocates the next accepted request id, submits through the session queue on that simulation tick, and claims a fault applied only after an applied ACK. The runner returns immutable event indices, never allocates in polling, and uses simulation ticks; pauses consume no simulated time. Backwards/missed ticks return -2 instead of late execution. Reset explicitly rewinds the cursor. Provenance/seed/hz mismatches reject startup. Scenario schema 2 (TASK-166) adds `effects`, entries of `{ control, onsetTick, durationTicks, recovery }` holding a TASK-166 control record, and lets `events` carry `effect.set` as well. Each entry becomes ordinary events, the effect on at its onset and off when its duration ends (null holds it to the end), which must end by the scenario's end and fit its 128 events, two for an effect with a duration. Admission merges them in tick order, on one tick in the order written, numbers their request IDs and refuses a control whose intensity leaves its range. Each is bound, submitted and acknowledged as above, so a scheduled effect applies on its exact tick and its end is as visible as its start. Schema 1 reads as it did and has no `effects`.
 
 The rubric requires every integer hold tick exactly once, finite altitude, actual autopilot source and healthy EKF when configured. Gaps, excess altitude error and unhealthy EKF fail; incomplete/synthetic traces block. Pilot-basics contains all-zero placeholder hashes for structural testing only; it is not a certified aircraft/firmware lesson. Native SITL EW closed-loop validation (TASK-042/043/059) is complete. TASK-075 admits instructor `fault.set` commands into the live session `EwEngine`; TASK-124 rejects motor-loss there while the active dynamics reads no motor-fault table. TASK-079 submits scenario faults on their tick and waits for the applied ACK. Weather events stay rejected on the demo. Placeholder lesson hashes are not a certified lesson.
 

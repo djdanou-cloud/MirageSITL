@@ -494,11 +494,15 @@ implementation.
   pulls EKF3's cross-wind estimate and heading. TASK-096 first put that
   error down to EKF3's per-axis drag form; the comparison of 2026-11-04
   corrects it. The physics tasks TASK-097–TASK-123
-  are not implemented. TASK-166 (not implemented) gives every
-  environment, sensor-error, EW and fault effect an on/off switch and an intensity
-  control. Effects that MirageSITL injects are off by default, and off must be
-  bitwise identical to absent; ArduPilot's own SITL errors keep the TASK-089
-  setting, whose default is ArduPilot's behaviour. That request of 2026-10-27 was first
+  are not implemented. TASK-166 is DONE: Control Protocol v3
+  (`packages/protocol/src/control-v3.ts`) gives every environment, EW, motor and
+  sensor-error effect a record with an on/off switch and an intensity, each range
+  equal to its model's envelope, and off or zero is bitwise identical to absent
+  over a seeded run. `weather.set` and `fault.set` map onto those records and fly
+  as they did, scenario schema 2 schedules them, and the instructor console has one
+  form per effect. A running session rejects `sensor.*` controls visibly, and the
+  console stays on the demo page until TASK-167 and TASK-169. ArduPilot's own SITL
+  errors keep the TASK-089 setting, whose default is ArduPilot's behaviour. That request of 2026-10-27 was first
   registered as TASK-124 on the physics-review branch, a number main already used.
   MirageSITL stays an external
   flight-dynamics model: do not modify

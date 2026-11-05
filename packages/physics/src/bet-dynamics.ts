@@ -9,7 +9,7 @@ import { BetRigidBodyBackend, newBodyTruth, type BodyTruth } from '../../wasm-be
 import type { MotorFaults } from './motor-fault.ts';
 import { validateModelManifest } from './model-manifest.ts';
 import { FrameLayout } from './frame.ts';
-import { AIR_DENSITY, AIR_HEIGHT, AIR_REFERENCE_PRESSURE, AIR_REFERENCE_TEMPERATURE, AIR_SOUND, AIR_VISCOSITY, WEATHER_GUST_RMS, WEATHER_PRESSURE,
+import { AIR_DENSITY, AIR_HEIGHT, AIR_REFERENCE_PRESSURE, AIR_REFERENCE_TEMPERATURE, AIR_SOUND, AIR_VISCOSITY, WEATHER_AIR_KEEP, WEATHER_GUST_BANDWIDTH, WEATHER_GUST_RMS, WEATHER_PRESSURE,
   WEATHER_SEED, WEATHER_TEMPERATURE, atmosphereAtHeightInto } from './atmosphere.ts';
 import { Wind } from './wind.ts';
 import { BatteryColumn, LimitMonitor, MotorColumn, MotorLimited, BatteryLimited, PowerTelemetry, type LimitRatings } from './limit-monitor.ts';
@@ -141,7 +141,9 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
   readonly atmosphere:Float64Array;
   /** A weather.set is in effect (TASK-093); until one is, the configured atmosphere and no wind stay, bit for bit. */
   weatherActive=false;
-  /** While weatherActive, the ISA air at the CG after the last step: atmosphereAtHeightInto's output (AIR_* slots). */
+  /** TASK-166: the air comes from a weather's temperature and pressure rather than the configured atmosphere. */
+  airActive=false;
+  /** While airActive, the ISA air at the CG after the last step: atmosphereAtHeightInto's output (AIR_* slots). */
   readonly air=new Float64Array(5);
   nowMs=0.5;
   validityFlags=0;
@@ -308,7 +310,7 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
     this.referenceRotorRpm=this.output[9]!*60/(2*Math.PI);
     this.limits?.reset();this.accidents?.reset();
     // A new epoch starts without weather, as configured.
-    this.weatherActive=false;this.windNedMps.fill(0);this.atmosphere.set(this.baseAtmosphere);
+    this.weatherActive=false;this.airActive=false;this.windNedMps.fill(0);this.atmosphere.set(this.baseAtmosphere);
     this.dragWrenchBody.fill(0);
     const t=this.power;
     if(t) {
@@ -338,17 +340,28 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
    * envelope there and at the CG. Returns why not, or null; a refused weather changes nothing. Allocation-free.
    */
   setWeather(weather:Float64Array):string|null {
-    const rms=weather[WEATHER_GUST_RMS]!,seed=weather[WEATHER_SEED]!,c=this.candidate,air=this.candidateAir;
+    const rms=weather[WEATHER_GUST_RMS]!,seed=weather[WEATHER_SEED]!,bandwidth=weather[WEATHER_GUST_BANDWIDTH]!,c=this.candidate,air=this.candidateAir;
     for(let axis=0;axis<3;axis++)if(!(Math.abs(weather[axis]!)<=200))return WIND_OUT_OF_ENVELOPE;
     if(!(rms>=0&&rms<=50)||!(seed>=0&&seed<=0xffffffff&&seed===Math.floor(seed)))return WIND_OUT_OF_ENVELOPE;
-    c[AIR_REFERENCE_TEMPERATURE]=weather[WEATHER_TEMPERATURE]!;c[AIR_REFERENCE_PRESSURE]=weather[WEATHER_PRESSURE]!;
-    c[AIR_HEIGHT]=0;if(!atmosphereAtHeightInto(c,air))return AIR_OUT_OF_ENVELOPE;
-    c[AIR_HEIGHT]=-this.truth.positionNedM[2]!;if(!atmosphereAtHeightInto(c,air))return AIR_OUT_OF_ENVELOPE;
-    this.airReference.set(c);this.air.set(air);
-    const a=this.atmosphere;a[0]=air[AIR_DENSITY]!;a[1]=air[AIR_VISCOSITY]!;a[2]=air[AIR_SOUND]!;
+    // Zero keeps the bandwidth; otherwise the first-order filter must be resolvable and below Nyquist, as the gust model's constructor requires.
+    if(!(bandwidth>=0&&bandwidth<this.hz/2)||(bandwidth>0&&!(Math.exp(-2*Math.PI*bandwidth/this.hz)<1)))return WIND_OUT_OF_ENVELOPE;
+    if(weather[WEATHER_AIR_KEEP]===1){
+      this.airActive=false;this.atmosphere.set(this.baseAtmosphere);
+    }else{
+      c[AIR_REFERENCE_TEMPERATURE]=weather[WEATHER_TEMPERATURE]!;c[AIR_REFERENCE_PRESSURE]=weather[WEATHER_PRESSURE]!;
+      c[AIR_HEIGHT]=0;if(!atmosphereAtHeightInto(c,air))return AIR_OUT_OF_ENVELOPE;
+      c[AIR_HEIGHT]=-this.truth.positionNedM[2]!;if(!atmosphereAtHeightInto(c,air))return AIR_OUT_OF_ENVELOPE;
+      this.airReference.set(c);this.air.set(air);
+      const a=this.atmosphere;a[0]=air[AIR_DENSITY]!;a[1]=air[AIR_VISCOSITY]!;a[2]=air[AIR_SOUND]!;
+      this.airActive=true;
+    }
     this.gust.configure(weather);
     this.weatherActive=true;
     return null;
+  }
+  /** TASK-166: back to no weather at a tick boundary: still air and the configured atmosphere, as an epoch that never had any. */
+  clearWeather():void {
+    this.weatherActive=false;this.airActive=false;this.windNedMps.fill(0);this.atmosphere.set(this.baseAtmosphere);
   }
   stepNow(pilot:PilotInput):void {
     if(this.fault!=='')return;
@@ -455,7 +468,7 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
     this.referenceRotorRpm=output[9]!*60/(2*Math.PI);this.pendingActuator=false;
     if(this.power&&this.bus)this.recordPower(this.power,this.bus.output,s.tick);
     this.copyTruth();
-    if(this.weatherActive&&!this.updateAir())this.fault='BET atmosphere outside its envelope';
+    if(this.airActive&&!this.updateAir())this.fault='BET atmosphere outside its envelope';
   }
   /** TASK-093: the ISA air at the CG's new height, for the next step's rotors and the session's published pressure. */
   private updateAir():boolean {

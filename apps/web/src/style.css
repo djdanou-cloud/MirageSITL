@@ -27,6 +27,11 @@
 .instructor-console h2,.aar-review h2 { font-size: 16px; }
 .instructor-console label,.aar-review label { display: grid; gap: 4px; margin: 8px 0; }
 .instructor-console input,.instructor-console select,.aar-review select { min-width: 0; max-width: 100%; background: #15262b; color: #d4eee5; border: 1px solid #506463; padding: 5px; }
+.instructor-console small { color: #9fb2b8; font-size: 10px; }
+.console-vector { border: 1px solid #30444a; border-radius: 4px; margin: 8px 0; padding: 4px 8px; min-width: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.console-vector legend { font-size: 11px; padding: 0 4px; }
+.console-vector label { margin: 0; }
+.console-vector small { grid-column: 1 / -1; }
 .control-section button { margin: 3px; }
 .command-log { padding-left: 18px; overflow-wrap: anywhere; font-size: 11px; }
 .aar-review svg { width: 100%; background: #101d23; border: 1px solid #30444a; }

@@ -186,6 +186,8 @@ if(!allocation){
   // windows, as in the Worker: in this process, after the graphs above, a forced full GC that collects an applied command's
   // shape makes V8 discard the optimized tick ("embedded weak objects cleared"), which then boxes numbers until recompiled
   // (TASK-093 measured 44 B per tick that way; a fresh process stays at 0 with or without the GC).
+  const EFFECT_CONTROLS=[{effect:'wind.mean',parameters:{windNedMps:[3,-2,0.5]}},{effect:'wind.gust',parameters:{rmsMps:1.5,bandwidthHz:2,seed:0x9e3779b9}},
+    {effect:'atmosphere',parameters:{temperatureK:293.15,pressurePa:98000}}];
   const stateBuffer=createSharedMemoryV2(),fake={mono:0};let sessionDynamics=null;
   const session=new PhysicsSessionV2({type:'init-v2',protocolVersion:2,stateBuffer,sensorBuffer:createSpscQueue('sensor'),actuatorBuffer:createSpscQueue('actuator')},
     {monotonicMs:()=>fake.mono,wallMs:()=>1.79e12+fake.mono},hz=>(sessionDynamics=new BetFlightDynamics(modules[0],padded(),hz)));
@@ -201,7 +203,11 @@ if(!allocation){
     if(!reader.latest(published))throw Error('No published state');
     const now=tickToNumber(published.tickId);
     for(let k=0;k<count;k++){
-      send({type:'weather.set',atTick:{lo:now+300+Math.floor(3300*k/count),hi:0},windNedMps:k&1?[-4,1,0.5]:[3,-2,0.5],temperatureK:293.15,
+      const atTick={lo:now+300+Math.floor(3300*k/count),hi:0};
+      // TASK-166: every third command is one effect control, in turn, each sometimes off, through the same tick boundary.
+      const effect=sent%3===0?EFFECT_CONTROLS[(sent/3)%EFFECT_CONTROLS.length]:null;
+      if(effect)send({protocolVersion:3,type:'effect.set',atTick,recovery:'hold-offset',control:{schemaVersion:1,id:effect.effect.replaceAll('.','-'),...effect,enabled:(sent&8)===0,intensity:sent&16?0.5:1}});
+      else send({type:'weather.set',atTick,windNedMps:k&1?[-4,1,0.5]:[3,-2,0.5],temperatureK:293.15,
         pressurePa:98000,turbulenceRmsMps:1.5,seed:k&1?0x9e3779b9:0xfffffffe});
       sent++;
     }
