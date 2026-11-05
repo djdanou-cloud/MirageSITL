@@ -461,8 +461,10 @@ implementation.
     `SIM_ACC_FLOOR`/`SIM_GYR_FLOOR`, which switch off the fixed IMU noise floors
     (`scripts/ownership-profile.mjs --imu-noise-floor off`). Unpatched firmware skips
     them silently, so `run-sitl.mjs` with `MIRAGE_SITL_IMU_NOISE_FLOOR=off` holds arming
-    until the firmware confirms both values. The driver change means TASK-059 must be
-    re-frozen before new EW validation (accepted 2026-10-27). Under guardrail 5 of the
+    until the firmware confirms both values. That driver change ended the TASK-059 matrix
+    (accepted 2026-10-27), and TASK-171 is DONE: `tests/fixtures/scenarios/ew-matrix.json`
+    is frozen again on macOS with the current driver, and six separate validation flights
+    pass it (`docs/validation/ew-macos-report.json`). Under guardrail 5 of the
     approved PROJECT_SCOPE.md, decision D-10 of 2026-10-28 is: no patch for now,
     so Phase 1 runs use stock ArduPilot SITL and leave the patch unused. Every SIM_
     parameter of the catalog is declared, and a live write of a parameter of an error

@@ -4000,11 +4000,10 @@ two firmware builds:
 | upstream | `off` | FAIL at 20 s, never armed | 4 requests, no reply | not applicable | not applicable |
 | patched | default | PASS | none sent | PASS; the 13,082 samples before the first command match the upstream run | PASS |
 
-These changes alter the driver, sidecar and raw-audit sources. The frozen
-TASK-059 matrix (`tests/fixtures/scenarios/ew-matrix.json`) still names the
-earlier `driver.mjs` and `telemetry.py`, so `scripts/report-ekf.mjs` rejects new
-EW validation captures until TASK-059 is re-frozen with the current driver. The
-user accepted this on 2026-10-27. EW calibration and validation also bind the
+These changes alter the driver, sidecar and raw-audit sources, so the frozen
+TASK-059 matrix (`tests/fixtures/scenarios/ew-matrix.json`) no longer applied, as the
+user accepted on 2026-10-27. TASK-171 froze it again with the current driver, on
+macOS. EW calibration and validation also bind the
 firmware and parameter hashes, so both must use the same firmware and setting.
 Earlier TASK-042/043 audits name the earlier `check-raw.py`; re-run it to
 refresh them.

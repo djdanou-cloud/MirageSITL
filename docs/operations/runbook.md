@@ -345,14 +345,14 @@ browser READY or apply EW effects.
 
 ## Native EW response acquisition (TASK-059)
 
-Use the same pinned Linux/WSL ELF, source, WASM, Node and MIRAGE_SITL_PYTHON environment as TASK-042. The driver owns each firmware/sidecar pair and enforces its deadline; cases are sequential. The existing native healthy flight remains a separate regression. Never reuse a nonempty capture directory.
+Use the same pinned binary (the Mach-O the installer builds on macOS, an ELF on Linux or WSL), source, WASM, Node and MIRAGE_SITL_PYTHON environment as TASK-042. The driver owns each firmware/sidecar pair and enforces its deadline; cases are sequential. The existing native healthy flight remains a separate regression. Never reuse a nonempty capture directory.
 
 ```bash
 export NODE_OPTIONS=--experimental-transform-types
-node scripts/run-ew-sitl.mjs --output .cache/task-059/calibration --case all
-node scripts/freeze-ew.mjs --calibration .cache/task-059/calibration
-node scripts/run-ew-sitl.mjs --output .cache/task-059/validation --case all
-node scripts/report-ekf.mjs --input test-results/validation/task-059-input.json --sha256 INPUT_SHA256
+node scripts/run-ew-sitl.mjs --output .cache/task-171/calibration --case all
+node scripts/freeze-ew.mjs --calibration .cache/task-171/calibration
+node scripts/run-ew-sitl.mjs --output .cache/task-171/validation --case all
+node scripts/report-ekf.mjs --input .cache/task-171/input.json --sha256 INPUT_SHA256 --output docs/validation/ew-macos-report.json
 ```
 
 The freeze command is one-time calibration and refuses existing envelopes. On later runs, evaluate new captures against the checked-in matrix; do not rerun calibration to repair a failure. The input JSON has schemaVersion 2 and caseDirectories ordered control, jamming, position-step, velocity-drift, magnetic, motor-loss. Use repository-relative directories for a portable manifest and SHA-256 of its exact bytes. Each case writes response-audit.json plus raw RX/TX bytes, original decoded telemetry, observations, full-rate physics, readiness decisions, actual parameter readbacks and owned firmware logs. report-ekf re-audits raw bytes and physics, rejects calibration reuse/source drift and writes ekf-report.json. Archive these owned simulation captures without firmware binaries or third-party source. Native reports do not enable browser READY or certify physical aircraft.
@@ -376,7 +376,7 @@ Unset, the variable means `ardupilot`, and the run is a normal TASK-042 flight. 
 
 `--reference` compares samples by firmware time. Now and then a flight takes a different noise sequence with the same statistics, even on identical bytes (2 of 12 flights compared on the M5), so a comparison showing no identical samples should be flown again before it is taken as a difference.
 
-The current driver differs from the one the frozen TASK-059 matrix names, so `report-ekf.mjs` rejects new EW validation captures until TASK-059 is re-frozen on the operator's machine. Re-freezing is a deliberate step. Keep the current matrix in git history and record the reason in the commit. Set `envelopes` back to `null` (the unfrozen template is `git show 1eb44f1:tests/fixtures/scenarios/ew-matrix.json`), then run the TASK-059 calibration, freeze and validation commands above with one firmware and one setting. EW calibration and validation bind the firmware and parameter hashes, so mixing settings fails closed.
+TASK-171 froze the current matrix on macOS with the current driver; the Linux matrix of TASK-059 and its reports stay in git history. A later change to the driver, or to any of the matrix's source files, makes `report-ekf.mjs` reject new EW validation captures until it is re-frozen on the operator's machine. Re-freezing is a deliberate step. Keep the current matrix in git history and record the reason in the commit. Set `envelopes` back to `null` (the unfrozen template is `git show 1eb44f1:tests/fixtures/scenarios/ew-matrix.json`), then run the TASK-059 calibration, freeze and validation commands above with one firmware and one setting. EW calibration and validation bind the firmware and parameter hashes, so mixing settings fails closed.
 
 
 ## Sensor errors on native SITL (TASK-147)
