@@ -79,8 +79,11 @@ for (const [type, extra] of [['sim.configure', { hz: HZ, clockMode: 'sitl-lockst
   session.drain(result => { status = result.status ?? result.type; });
   if (status !== 'applied') { console.error(`${type} was not applied: ${status}`); process.exit(1); }
 }
+// TASK-169: what interference adds to the line, off at first and on for the second measurement.
+const delivery = { mask: 0, gnssActive: false, gnssOffsetNedM: new Float64Array([30, -12.5, 0]), gnssVelocityNedMps: new Float64Array([0.2, -0.1, 0]),
+  magActive: false, magRotationWxyz: new Float64Array([0.9998, 0.01, -0.02, 0.005]) };
 const link = new M.SitlJsonLink(stateBuffer, actuatorBuffer, {
-  bridgeEpoch: EPOCH, motorChannels: derived.manifest.rotors.map(rotor => rotor.motorChannel + 1), motorMapId: derived.manifest.modelId });
+  bridgeEpoch: EPOCH, motorChannels: derived.manifest.rotors.map(rotor => rotor.motorChannel + 1), motorMapId: derived.manifest.modelId, delivery });
 
 // One preallocated channel 3 record: header, then a 16-channel servo packet.
 const record = new Uint8Array(16 + 40), view = new DataView(record.buffer);
@@ -114,19 +117,22 @@ run(100000); await measure(run, 10000);
 const onPad = onGear();
 const allocation = await measure(run, steps);
 const stillOnPad = onGear();
+delivery.gnssActive = true; delivery.magActive = true;
+run(100000); await measure(run, 10000);
+const interference = await measure(run, steps);
 const sink = { value: null };
 const positive = await measure(n => { for (let i = 0; i < n; i++) sink.value = { i }; }, 1000000);
 observer.disconnect();
 const controlDetected = positive.gcEvents > 0 || positive.bytes > 1000000;
 const counts = { ...link.lockstepStats, replies: link.stats.replies, held: link.stats.held, queueFull: link.stats.queueFull };
-const passed = allocation.gcEvents === 0 && allocation.bytesPerStep < 0.01 && controlDetected && onPad && stillOnPad &&
+const passed = allocation.gcEvents === 0 && allocation.bytesPerStep < 0.01 && interference.gcEvents === 0 && interference.bytesPerStep < 0.01 && controlDetected && onPad && stillOnPad &&
   counts.steps === frame && counts.duplicates === 0 && counts.gaps === 0 && session.fault === '';
 console.log(`G1 lockstep at ${HZ} Hz: ${allocation.steps} steps, ${allocation.bytesPerStep.toFixed(6)} B/step, ${allocation.gcEvents} GC events; ` +
-  `control detected ${controlDetected}; on the gear ${onPad && stillOnPad}`);
+  `with interference on the line ${interference.bytesPerStep.toFixed(6)} B/step, ${interference.gcEvents} GC events; control detected ${controlDetected}; on the gear ${onPad && stillOnPad}`);
 const report = {
   schemaVersion: 1, task: 'TASK-153', status: passed ? 'pass' : 'failed', generatedAt: new Date().toISOString(),
   scope: 'SitlJsonLink.receive + PhysicsSessionV2.pump + SitlJsonLink.poll per servo record, S19 quad X profile on the example cards; WebSocket I/O excluded; Node/V8, not browser or target-hardware evidence',
-  hz: HZ, pwmUs: PWM_US, warmupSteps: 110000, allocation: { ...allocation, positiveControl: positive, controlDetected },
+  hz: HZ, pwmUs: PWM_US, warmupSteps: 110000, allocation: { ...allocation, positiveControl: positive, controlDetected }, interferenceOnTheLine: interference,
   counts, replyBytes: sent,
   identity: { node: process.version, platform: process.platform, arch: process.arch, cpu: os.cpus()[0]?.model, wasmSha256: sha(wasmBytes),
     manifestSha256: derived.sha256, contactSha256: sha(contactBytes) },

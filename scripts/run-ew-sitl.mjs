@@ -8,7 +8,7 @@ import {runOwned} from './run-sitl.mjs';
 import {sha256,hash} from './validation/evidence.mjs';
 const root=fileURLToPath(new URL('../',import.meta.url));
 const args=process.argv.slice(2);
-if(process.platform==='win32'||args.length!==4||args[0]!=='--output'||args[2]!=='--case')throw Error('Linux: --output NEW_CAPTURE_DIRECTORY --case CASE_ID');
+if(process.platform==='win32'||args.length!==4||args[0]!=='--output'||args[2]!=='--case')throw Error('macOS or Linux: --output NEW_CAPTURE_DIRECTORY --case CASE_ID');
 const directory=resolve(args[1]),caseId=args[3];
 const cases=['control','jamming','position-step','velocity-drift','magnetic','motor-loss'];
 if(caseId==='all') {
@@ -24,7 +24,9 @@ if(!env.MIRAGE_SITL_SOURCE||!env.MIRAGE_SITL_BINARY||!env.MIRAGE_SITL_PYTHON||!h
 if(execFileSync('git',['rev-parse','HEAD'],{cwd:env.MIRAGE_SITL_SOURCE,encoding:'utf8'}).trim()!==pin.commit||
   execFileSync('git',['status','--porcelain','--untracked-files=no'],{cwd:env.MIRAGE_SITL_SOURCE,encoding:'utf8'}).trim())throw Error('Firmware source pin/cleanliness mismatch');
 const binary=readFileSync(env.MIRAGE_SITL_BINARY);
-if(binary.subarray(0,4).toString('hex')!=='7f454c46'||sha256(binary)!==env.MIRAGE_SITL_BINARY_SHA256)throw Error('Native ELF identity mismatch');
+// A 64-bit Mach-O on macOS, an ELF on Linux.
+const nativeMagic=process.platform==='darwin'?'cffaedfe':'7f454c46';
+if(binary.subarray(0,4).toString('hex')!==nativeMagic||sha256(binary)!==env.MIRAGE_SITL_BINARY_SHA256)throw Error('Native binary identity mismatch');
 env.MIRAGE_EW_CASE=caseId;env.MIRAGE_SITL_CAPTURE_DIR=directory;
 const cwd=mkdtempSync(join(tmpdir(),'mirage-ew-run-'));
 mkdirSync(directory,{recursive:true});

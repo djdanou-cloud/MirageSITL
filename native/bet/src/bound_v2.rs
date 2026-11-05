@@ -86,6 +86,23 @@ fn step_with(arena: &mut [u8], input: &[u8], out: &mut [u8], dt: f64, kernel: Ke
     0
 }
 
+/// The load one rotor's ESC puts on the bus this step (TASK-197): the filtered duty the
+/// step will compute and the speed it starts at. Reads the arena and changes nothing.
+pub fn esc_load(arena: &[u8], input: &[u8], dt: f64) -> Result<crate::bus_solve::MotorLoad, i32> {
+    if input.len() != INPUT_BYTES as usize { return Err(-2); }
+    if word(input, 0) != VERSION { return Err(-7); }
+    let drive_flags = word(input, 248);
+    if word(input, 8) != DRIVE_ESC_DUTY || drive_flags & !DRIVE_POWER_CUT != 0 || !zero(input, 252, 256) { return Err(-3); }
+    let (target, cut) = (value(input, 120), drive_flags & DRIVE_POWER_CUT != 0);
+    if !(0.0..=1.0).contains(&target) { return Err(-3); }
+    let Ok(motor) = DriveMotor::new(value(input, 192), value(input, 200), value(input, 208), value(input, 216),
+        value(input, 224), value(input, 232), value(input, 240)) else { return Err(-3); };
+    if bound::arena_len(arena) != Some(arena.len() as u32) { return Err(-1); }
+    let state = EscState { duty: value(arena, 32), held: value(arena, 40), countdown_s: value(arena, 48) };
+    let Ok(command) = motor.command(state, target, cut, dt) else { return Err(-3); };
+    Ok(crate::bus_solve::MotorLoad { motor, duty: command.duty, omega: value(arena, 16), power_cut: cut })
+}
+
 /// Drive mode 1: ESC command, torque law, rotor step and electrical outputs,
 /// all computed before anything is written.
 fn esc_step(arena: &mut [u8], input: &[u8], out: &mut [u8], dt: f64, kernel: Kernel) -> i32 {

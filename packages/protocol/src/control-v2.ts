@@ -1,5 +1,6 @@
 import { isPhysicsHz, type PhysicsHz } from './layout-v2.ts';
 import { MAX_SAFE_TICK_HI, compareTicks, copyTickInto, isUint32, tickToNumber, type TickId, type Vec3 } from './state-v2.ts';
+import { CONTROL_PROTOCOL_VERSION_3, EffectRangeError, EffectSchemaError, lowerEffectSet, parseEffectSet, type EffectSetCommand, type LoweredEffectSet } from './control-v3.ts';
 
 // Worker Control Protocol v2 (docs/SPECS_SHARED_MEMORY.md section 6).
 // parseControlCommandV2 validates low-frequency commands from unknown input;
@@ -29,6 +30,9 @@ export type LifecycleCommandV2 = EnvelopeV2 & (
   | { type: 'model.load'; modelId: number; manifestSha256: string }
 );
 export type ControlCommandV2 = ScheduledCommandV2 | LifecycleCommandV2;
+/** What Control Protocol v3 adds: `effect.set`, which carries an effect control record (control-v3.ts). */
+export type ScheduledCommand = ScheduledCommandV2 | LoweredEffectSet;
+export type ControlCommand = ControlCommandV2 | EffectSetCommand;
 export interface WorkerInitV2 {
   type: 'init-v2'; protocolVersion: 2; stateBuffer: SharedArrayBuffer;
   sensorBuffer: SharedArrayBuffer; actuatorBuffer: SharedArrayBuffer;
@@ -46,6 +50,8 @@ export type RejectCodeV2 = Extract<CommandResultV2, { type: 'reject-v2' }>['code
 export const CONTROL_PROTOCOL_VERSION = 2;
 export const MAX_COMMAND_BYTES_V2 = 16 * 1024;
 export const COMMAND_QUEUE_CAPACITY_V2 = 128;
+/** The reject of a command whose tick has gone by the time it was admitted. */
+export const AT_TICK_IN_THE_PAST = 'atTick is in the past';
 export const DEDUPE_CACHE_SIZE_V2 = 128;
 export const SCHEDULE_HORIZON_S = 10;
 /** Received requestId reported when a malformed command has no readable uint32 ID. */
@@ -57,6 +63,9 @@ export const UNKNOWN_REQUEST_ID = -1;
 
 export type ParseResultV2 =
   | { ok: true; command: ControlCommandV2 }
+  | { ok: false; code: 'SCHEMA' | 'OUT_OF_RANGE'; message: string; requestId: number };
+export type ParseResult =
+  | { ok: true; command: ControlCommand }
   | { ok: false; code: 'SCHEMA' | 'OUT_OF_RANGE'; message: string; requestId: number };
 
 class CommandError extends Error {
@@ -189,10 +198,11 @@ function parseCommand(c: Record<string, unknown>): ControlCommandV2 {
     case 'weather.set':
       exactKeys(c, [...ENVELOPE, 'atTick', 'windNedMps', 'temperatureK', 'pressurePa', 'turbulenceRmsMps', 'seed'], 'command');
       return { ...envelope, atTick: tick(c.atTick, 'atTick'), type,
-        windNedMps: vec3(c.windNedMps, 'windNedMps', -100, 100),
-        temperatureK: inRange(c.temperatureK, 'temperatureK', 200, 340),
-        pressurePa: inRange(c.pressurePa, 'pressurePa', 30000, 110000),
-        turbulenceRmsMps: inRange(c.turbulenceRmsMps, 'turbulenceRmsMps', 0, 30),
+        // TASK-166: the ranges of the models that apply them, so a value the model would refuse is refused at admission.
+        windNedMps: vec3(c.windNedMps, 'windNedMps', -200, 200),
+        temperatureK: inRange(c.temperatureK, 'temperatureK', 180, 330),
+        pressurePa: inRange(c.pressurePa, 'pressurePa', 1000, 120000),
+        turbulenceRmsMps: inRange(c.turbulenceRmsMps, 'turbulenceRmsMps', 0, 50),
         seed: uint32(c.seed, 'seed') };
     case 'fault.set': {
       exactKeys(c, [...ENVELOPE, 'atTick', 'faultId', 'enabled', 'effect', 'recovery'], 'command');
@@ -232,6 +242,31 @@ export function parseControlCommandV2(input: unknown): ParseResultV2 {
   }
 }
 
+/**
+ * Validates an untrusted command of either protocol version. Version 2 stays as it was. Version 3 adds `effect.set` and keeps the
+ * lifecycle commands, which it returns in their version 2 form; its schedule commands are `effect.set` alone, so a version 3
+ * `weather.set` or `fault.set` is refused. The results and the Worker messages keep their version 2 shapes.
+ */
+export function parseControlCommand(input: unknown): ParseResult {
+  if (typeof input !== 'object' || input === null || !('protocolVersion' in input) || input.protocolVersion !== CONTROL_PROTOCOL_VERSION_3) return parseControlCommandV2(input);
+  const received = 'requestId' in input && isUint32(input.requestId) ? input.requestId : UNKNOWN_REQUEST_ID;
+  const refused = (code: 'SCHEMA' | 'OUT_OF_RANGE', message: string): ParseResult => ({ ok: false, code, message, requestId: received });
+  if (serializedBytes(input) > MAX_COMMAND_BYTES_V2) return refused('SCHEMA', 'Command payload is not JSON or exceeds 16 KiB');
+  try {
+    const c = record(input, 'command');
+    if (c.type === 'weather.set' || c.type === 'fault.set') throw schema(`${c.type} is a version 2 command; version 3 schedules with effect.set`);
+    if (c.type !== 'effect.set') return parseControlCommandV2({ ...c, protocolVersion: CONTROL_PROTOCOL_VERSION });
+    exactKeys(c, [...ENVELOPE, 'atTick', 'control', 'recovery'], 'command');
+    const envelope = { requestId: uint32(c.requestId, 'requestId'), expectedEpoch: uint32(c.expectedEpoch, 'expectedEpoch'), atTick: tick(c.atTick, 'atTick') };
+    return { ok: true, command: parseEffectSet(c, envelope) };
+  } catch (error) {
+    if (error instanceof CommandError) return refused(error.code, error.message);
+    if (error instanceof EffectRangeError) return refused('OUT_OF_RANGE', error.message);
+    if (error instanceof EffectSchemaError) return refused('SCHEMA', error.message);
+    throw error;
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Processing
 // ---------------------------------------------------------------------------
@@ -256,9 +291,9 @@ export interface ControlTargetV2 {
    * Called before integrating `tick`; must not allocate. Returns null once the
    * command took effect, otherwise its final reject (never reported as applied).
    */
-  applyScheduled(command: ScheduledCommandV2, tick: TickId): ScheduledRejectV2 | null;
+  applyScheduled(command: ScheduledCommand, tick: TickId): ScheduledRejectV2 | null;
   /** Null when the backend can model this scheduled command, otherwise the BAD_STATE reason (checked at admission). */
-  unsupportedReason(command: ScheduledCommandV2): string | null;
+  unsupportedReason(command: ScheduledCommand): string | null;
 }
 
 /** Mutable result record; the outbox copies its scalars, so updating it later never rewrites a sent result. */
@@ -269,7 +304,7 @@ interface ResultRecord {
 function newRecord(requestId: number): ResultRecord {
   return { requestId, kind: 'ack', status: 'queued', epoch: 0, tick: { lo: 0, hi: 0 }, code: 'BAD_STATE', message: '' };
 }
-interface QueueSlot { command: ScheduledCommandV2 | null; record: ResultRecord | null; receipt: number }
+interface QueueSlot { command: ScheduledCommand | null; record: ResultRecord | null; receipt: number }
 
 export const OUTBOX_CAPACITY_V2 = 1024;
 
@@ -329,7 +364,7 @@ export class ControlProcessorV2 {
 
   /** Admits one command. Results go to the outbox; call drain() afterwards. */
   submit(input: unknown): void {
-    const parsed = parseControlCommandV2(input);
+    const parsed = parseControlCommand(input);
     if (!parsed.ok) {
       // Malformed commands do not consume request IDs or enter the deduplication cache.
       this.pushReject(parsed.requestId, parsed.code, parsed.message);
@@ -357,7 +392,7 @@ export class ControlProcessorV2 {
     this.push(result);
   }
 
-  private admit(command: ControlCommandV2, result: ResultRecord): void {
+  private admit(command: ControlCommand, result: ResultRecord): void {
     if (this.disposed) return reject(result, 'BAD_STATE', 'Worker is disposed');
     if (this.loading && command.type !== 'worker.dispose') return reject(result, 'BAD_STATE', 'A model load is in progress');
     if (command.expectedEpoch !== this.epochValue) return reject(result, 'STALE_EPOCH', `Current epoch is ${this.epochValue}`);
@@ -390,18 +425,21 @@ export class ControlProcessorV2 {
         return this.load(command.modelId, command.manifestSha256, result);
       case 'weather.set': case 'fault.set':
         return this.schedule(command, result);
+      case 'effect.set':
+        return this.schedule(lowerEffectSet(command), result);
       default: { const never: never = command; throw new Error(`Unhandled command ${JSON.stringify(never)}`); }
     }
   }
 
-  private schedule(command: ScheduledCommandV2, result: ResultRecord): void {
+  private schedule(command: ScheduledCommand, result: ResultRecord): void {
     const at = command.atTick, next = this.nextTick();
     if (at.hi > MAX_SAFE_TICK_HI) return reject(result, 'OUT_OF_RANGE', 'atTick exceeds 2^53');
-    if (compareTicks(at, next) < 0) return reject(result, 'OUT_OF_RANGE', 'atTick is in the past');
+    if (compareTicks(at, next) < 0) return reject(result, 'OUT_OF_RANGE', AT_TICK_IN_THE_PAST);
     if (tickToNumber(at) - tickToNumber(next) > SCHEDULE_HORIZON_S * this.hzValue) {
       return reject(result, 'OUT_OF_RANGE', 'atTick is beyond the 10 s horizon');
     }
-    if (command.type === 'fault.set' && command.effect.kind === 'motor-loss' && command.effect.motorIndex >= this.target.rotorCount()) {
+    const fault = command.type === 'fault.set' ? command : command.type === 'effect.set' && command.effective.family === 'fault' ? command.effective.fault : null;
+    if (fault && fault.effect.kind === 'motor-loss' && fault.effect.motorIndex >= this.target.rotorCount()) {
       return reject(result, 'OUT_OF_RANGE', 'motorIndex must be below the rotor count');
     }
     const unsupported = this.target.unsupportedReason(command);

@@ -9,8 +9,13 @@ replacement viewer is started.
 
 Status: decided (D-04, TASK-130 DONE on 2026-10-28). The pinned build opens
 the stakeholder's ArduCopter 4.6.2 DataFlash log in Chromium with all network
-access blocked, with no errors. The same check in Chrome on macOS runs on the
-M5 as part of TASK-179.
+access blocked, with no errors. TASK-179 (DONE on 2026-11-05) applies
+patches 0000–0002, builds the viewer reproducibly and embeds it in the Analysis
+tab; on the reference M5 it opens DataFlash logs with no network request in
+Google Chrome 156. TASK-180 (DONE on 2026-11-05) adds patch 0003: a stored
+experiment opens there with its log, its context and its parameter changes on
+the plot's timeline. TASK-181 (DONE on 2026-11-05) adds patch 0004: two logs compared
+in it.
 
 ## Identity
 
@@ -75,16 +80,69 @@ Why:
 * GPL version 3 permits modifying and bundling the viewer locally; the patch
   files are the published source of the changes.
 
-Planned patches, stored in `third_party/uavlogviewer/patches/` and applied by
-the TASK-179 build:
+The patches are stored in `third_party/uavlogviewer/patches/` and applied in
+name order by the TASK-179 build. Patches 0–2 (TASK-179), 3 (TASK-180) and 4 (TASK-181) exist:
 
 | Patch | Purpose | Upstream files it changes |
 | --- | --- | --- |
-| 0 Compatibility | Tolerate `CMD` messages without a `Frame` field (logs from older firmware), so mission extraction no longer aborts the remaining extraction steps | `src/tools/dataflashDataExtractor.js` |
-| 1 Offline | Remove analytics and web fonts, bundle the icons, replace the online probe with a setting, remove the provider with the embedded key, disable IP geolocation offline | `index.html`, `src/App.vue`, `src/components/Home.vue`, `src/components/CesiumViewer.vue`, `src/components/widgets/MagFitTool.vue`, `package.json` |
-| 2 Message interface | Replace the unchecked `message` listener with an origin-checked API: load a log with its name and context, load a second log, set a time shift, add parameter-change markers with requested, confirmed or rejected status, show the experiment context | `src/components/SideBarFileManager.vue`, `src/components/Home.vue`, a new `src/mirage/bridge.js` |
-| 3 Two logs | Keep one dataset per log, parse the second log in its own worker, draw each log's traces in a distinct style on common axes, side by side or overlaid, with a manual time shift; select two intervals of one log | `src/components/Globals.js`, `src/components/SideBarFileManager.vue`, `src/components/Plotly.vue`, `src/components/PlotSetup.vue`, `src/components/Sidebar.vue` |
-| 4 Markers and context | Colour parameter-change annotations by status; show aircraft and component versions, environment and parameter differences, marking missing context as unknown | `src/components/Plotly.vue`, `src/components/Sidebar.vue`, a new `src/mirage/ContextPanel.vue` |
+| 0 Compatibility (`0000-compatibility.patch`, TASK-179) | Tolerate `CMD` messages without a `Frame` field (logs from older firmware), so mission extraction no longer aborts the remaining extraction steps. Register the parser submodule's own worker listener only when that module is the worker: imported by the viewer's worker it parsed every log a second time and threw `TypeError` on every `loadType` request (first seen with native SITL logs, whose position opens the 3D view). Take `_COMMIT_` and `_BUILDDATE_` from `UAVLOGVIEWER_COMMIT` and `SOURCE_DATE_EPOCH`, so the build is reproducible outside a git checkout | `src/tools/dataflashDataExtractor.js`, `src/tools/parsers/parser.worker.js`, `src/tools/parsers/JsDataflashParser/parser.js`, `build/webpack.prod.conf.js` |
+| 1 Offline (`0001-offline.patch`, TASK-179) | Remove analytics and the web font, bundle the Font Awesome 5.2.0 icon font from the npm package `@fortawesome/fontawesome-free` (added to `package.json` and `package-lock.json` with its registry integrity hash; the font rule of the webpack configuration gets `type: 'javascript/auto'` and `esModule: false` so the CSS references the real font files), replace the online probe with the setting `?online=1` (off by default), remove the MapTiler provider with the embedded key, disable IP geolocation unless online | `index.html`, `src/main.js`, `src/App.vue`, `src/components/Home.vue`, `src/components/CesiumViewer.vue`, `src/components/widgets/MagFitTool.vue`, `build/webpack.base.conf.js`, `package.json`, `package-lock.json` |
+| 2 Message interface (`0002-message-interface.patch`, TASK-179 part) | Replace the unchecked `message` listener with an origin-checked API (protocol 1, below): load a log with its name; report ready, accepted, rejected with a reason, and parsed with the number of message types. `?file=` opens same-origin URLs only. Context, a second log, a time shift and parameter-change markers follow in TASK-180 and TASK-181 | `src/components/SideBarFileManager.vue`, a new `src/mirage/bridge.js` |
+| 3 Experiment context (`0003-experiment-context.patch`, TASK-180) | Add `mirage.setEvents` and `mirage.eventsSet` to the message interface; keep the events in `annotationsMirage` and draw them on every Plotly relayout, through the upstream event and parameter-change annotations, in the colour of their status. The context itself is MirageSITL's own `ContextPanel.tsx`, beside the viewer, so no upstream sidebar changes | `src/components/Plotly.vue`, `src/components/SideBarFileManager.vue`, `src/mirage/bridge.js` |
+| 4 Two logs (`0004-compare.patch`, TASK-181) | Parse a second log in its own worker and hold it outside Vue's reactivity (`src/mirage/compare.js`), draw its curves dashed for each plotted expression on the same value axis, overlaid or side by side, each log showing its own interval and the second shifted, with its events on its own timeline. The controls are MirageSITL's own `CompareLogs.tsx`, beside the viewer | `src/components/Plotly.vue`, `src/components/SideBarFileManager.vue`, `src/mirage/bridge.js`, a new `src/mirage/compare.js` |
+
+## Offline build and embedding (TASK-179)
+
+`node scripts/build-uavlogviewer.mjs [--source DIR] [--out DIR] [--work DIR]`
+checks the source checkout against the lock (by default the TASK-152 checkout
+in `<launcher home>/sources/uavlogviewer`), copies it into a fresh work folder,
+applies the patches with `git apply`, runs `npm ci --ignore-scripts` (npm
+verifies every integrity hash of the lockfile), the upstream `patch-package`
+step and `npm run build` with an empty Cesium token, `UAVLOGVIEWER_COMMIT` and
+`SOURCE_DATE_EPOCH` set to the upstream commit time. The output folder (default
+`<launcher home>/uavlogviewer`) holds the built viewer, `licenses/` (the GPL-3.0
+texts of the viewer and the parser, the patches, a README naming the
+corresponding source, and `THIRD-PARTY-NOTICES.txt` with the license of each of
+the 958 production npm packages) and `build-manifest.json` (commit, patch
+hashes, toolchain and the output digest by the TASK-130 rule, excluding the
+manifest itself). `scripts/install-macos.mjs` runs it in step 5 and skips it
+when the manifest still matches the patch series and the files on disk. The
+lock records the reproduced build under `patchedBuild`. Only the build uses
+the network (the npm registry).
+
+The Vite dev and preview servers serve the build at `/uavlogviewer/` from
+`MIRAGE_UAVLOGVIEWER_DIR` (default `<launcher home>/uavlogviewer`) to loopback
+clients only, for GET and HEAD, with COOP `same-origin`, COEP `require-corp` and
+CORP `same-origin`, refusing paths outside the folder. The Analysis tab
+(`apps/web/src/analysis/LogViewerHost.tsx`) loads the viewer only when the tab
+is first opened, shows the build's commit and patch count with a link to the
+license folder, and explains how to install the viewer when no build is
+served. A chosen file is refused unless it is a DataFlash binary log (the
+`0xA3 0x95` header, at most 512 MiB) and is then transferred to the frame.
+
+Message interface, protocol 1. Both sides accept a message only from the same
+origin and the expected window (the viewer: its parent; the host: the frame),
+and send with the target origin set to their own origin:
+
+| Direction | Message | Meaning |
+| --- | --- | --- |
+| Host → viewer | `{ type: "mirage.loadLog", protocol: 1, name, bytes }` | Open `bytes` (an ArrayBuffer, transferred) as a DataFlash log called `name` (1–255 characters, no path separators or control characters) |
+| Viewer → host | `{ type: "mirage.ready", protocol: 1 }` | The viewer listens; a log chosen earlier is sent now |
+| Viewer → host | `{ type: "mirage.logAccepted", protocol: 1, name, bytes }` | The log was handed to the parser |
+| Viewer → host | `{ type: "mirage.logRejected", protocol: 1, reason }` | The message was refused, for example another protocol version |
+| Viewer → host | `{ type: "mirage.logParsed", protocol: 1, name, messageTypes }` | Parsing finished with this many message types |
+| Host → viewer | `{ type: "mirage.setEvents", protocol: 1, events }` (TASK-180) | Keep these events for the next plot: each `{ timeMs, text, status }`, at most 2,000, with `status` one of `requested`, `confirmed`, `rejected`, `superseded` or `logged` |
+| Viewer → host | `{ type: "mirage.eventsSet", protocol: 1, count }` (TASK-180) | The viewer holds this many events |
+| Host → viewer | `{ type: "mirage.loadSecondLog", protocol: 1, name, bytes }` (TASK-181) | Parse a second log to compare, in a worker of its own |
+| Host → viewer | `{ type: "mirage.setSecondEvents", protocol: 1, events }` (TASK-181) | Events on that log's own timeline, as `mirage.setEvents` |
+| Host → viewer | `{ type: "mirage.setAlignment", protocol: 1, alignment }` (TASK-181) | `{ mode, first, second, secondOffsetMs }`: `overlay` or `side-by-side`, the range of each log shown or null, and the shift of the second |
+| Host → viewer | `{ type: "mirage.clearSecondLog", protocol: 1 }` (TASK-181) | Back to one log |
+| Viewer → host | `{ type: "mirage.secondLogParsed", protocol: 1, name, messageTypes }` (TASK-181) | The second log is ready |
+| Viewer → host | `{ type: "mirage.alignmentSet", protocol: 1 }` (TASK-181) | The viewer took the alignment |
+
+The DJI parser (`src/tools/parsers/djiParser.js`) still requests decryption
+keys from `dev.dji.com` when a DJI `.txt` log is opened. Phase 1 opens
+ArduPilot logs only; the offline smoke tests never reach that code.
 
 ## Adapter route for MirageSITL experiments
 
@@ -95,10 +153,26 @@ reads:
   is.
 * MirageSITL's own recordings are written as DataFlash by the TASK-178 writer.
 
-The experiment context (profile and component versions, environment, and
-parameter history with request status) travels through the message interface of
-patch 2, not inside the log. An external log without that context shows it as
-unknown; parameter history that the log does not contain is never invented.
+TASK-180 opens a stored experiment from the Experiments tab's **Open in Analysis**
+or the Analysis tab's own list. `apps/web/src/analysis/experiment-adapter.ts` chooses
+the file: the run's attached ArduPilot log while the launcher reached in this session
+still has it (a run that never armed has none); otherwise `recordingDataflash` writes
+one from the stored recording with the TASK-178 writer, holding MirageSITL's truth
+and the run's parameter changes. The tab says which of the two it opened.
+
+The context comes from the experiment record and the run's stored parameter log,
+not from inside the file, and `ContextPanel.tsx` shows it beside the viewer: aircraft
+profile and component versions, ArduPilot build, physics rate, speed, location,
+weather, initial parameters, flight task, each parameter change with its status, and
+what changed over the run. The changes reach the plot through `mirage.setEvents`, on
+the log's own clock, which is the run's simulated time, drawn in the colour of their
+outcome. A rejected change does not count as a difference, because it changed nothing.
+
+A log opened from elsewhere shows what it holds: its firmware and its `PARM` records,
+a parameter's first record being its value and each later different one a change
+that says nothing of who asked. The counters the firmware keeps (`STAT_*`) are left
+out. Everything else reads Unknown; parameter history that a source does not hold is
+never invented.
 
 ## Evidence
 
@@ -146,11 +220,69 @@ unknown; parameter history that the log does not contain is never invented.
   `quadcopterx`, no exception, in 2.8 s. The same five online origins were
   aborted without effect. A follow-up run plotted `ATT.Roll` and `ATT.DesRoll`
   offline.
+* TASK-179 on the reference MacBook Air (Apple M5), macOS 26.6, Node 24.22.1,
+  npm 11.19.1, on 2026-10-31:
+  * Two builds of the final patch series (the installer run and a separate
+    work folder) gave 1,140 files, 52,622,162 bytes, digest
+    `62f30cb61d2556b8e03450a32e406b0b16bc9697661a1223621dd80f92873e9c`, each in
+    about 50 s with 3 webpack size warnings; each earlier revision of the
+    series also built identically twice or three times.
+  * The first offline revision drew empty boxes instead of icons: for the
+    bundled icon font webpack 5 emitted its own asset next to `url-loader`'s,
+    so the CSS pointed at an 84-byte JavaScript stub, and with that fixed it
+    printed the URL as `[object Module]`. Patch 0001 therefore sets
+    `type: 'javascript/auto'` and `esModule: false` on the font rule of
+    `build/webpack.base.conf.js`, and the check and the browser test now
+    require the `Font Awesome 5 Free` face to load (the earlier build fails
+    that requirement).
+  * `node scripts/check-uavlogviewer.mjs` with the installed build PASS for all
+    ten native SITL DataFlash logs of TASK-128 (quad, hexa, octa, X8 and the
+    16-motor paired configuration, motor test and flight each, 188,416 to
+    2,101,248 bytes): 150 to 169 message types listed, 8 or 9 types decoded,
+    no exception, no request left the loopback server, the icon font loaded, build identity PASS and
+    equal to the locked digest. The viewer labels every one of these logs
+    `quadcopterx`; that is its own vehicle classification. Browser: Playwright's
+    Chromium 141.0.7390.37. Reports: `.cache/task-179/checks/`.
+  * In Google Chrome 156.0.8078.80 on the reference M5 on 2026-11-05 the same
+    check PASS for ten native SITL logs (four TASK-127 captures, the TASK-152 quad
+    flight and the five TASK-158 flights of 2026-11-04; 168 or 169 message types)
+    and for the lock's older-firmware log, 65,536 bytes with its recorded SHA-256,
+    ArduPlane V3.8.2-dev, 148 message types, which failed on 2026-10-28 before
+    patch 0: no exception, no request left the loopback server, build identity PASS.
+  * Before the listener fix of patch 0 the same check failed on the quad log
+    with `TypeError: Cannot read properties of undefined (reading 'loadType')`.
+  * `tests/browser/log-viewer.spec.ts` passes both cases: the missing-build
+    message with its fix and zero axe violations, and with the build served,
+    the isolation headers, a refused traversal, a refused non-DataFlash file, a
+    refused protocol 2 message, a TASK-178 MirageSITL log and the 16-motor SITL
+    reference log opened, with no exception and no request outside loopback.
+
+* TASK-180 on the same machine, macOS 27.2, Google Chrome 156, 2026-11-05:
+  * Two builds of the four-patch series (the installer's and one in a separate work
+    folder) gave 1,141 files, 52,631,031 bytes, digest
+    `6f95bb35eb8be1f1fb295c07d1c9cb0b03acb1e4c702476d6fc5596ae813d7d1`.
+  * `tests/browser/log-viewer-experiments.spec.ts` flies native ArduCopter `8ab6afde`
+    on a launcher, writes `RTL_ALT_FINAL_M` 0 → 1 (confirmed) and `FS_GCS_ENABLE`
+    0 → 1.5 (refused by its list type before sending), stops, and opens the
+    experiment: ArduPilot's own log with 87 message types, the context, both changes
+    told apart in the panel and on the plot, and the difference list naming only the
+    confirmed one. `sitl-copter.bin` opened from elsewhere names its firmware and
+    marks aircraft profile, component versions, physics rate, location, weather and
+    flight task Unknown, with no event invented.
+  * `tests/experiment-adapter.test.ts` holds 11 cases: statuses, differences, the
+    written log read back by the TASK-178 reader, and external logs.
+
+* TASK-181 on the same machine, the same day: two builds of the five-patch series gave
+  1,142 files, 52,656,833 bytes, digest
+  `745b5bb8bfb34c186cff33dee2a995ea80cb81d4141a556e44e58caff71c90f8`.
+  `tests/browser/log-compare.spec.ts` reads the viewer's own Plotly figure; see the roadmap.
 
 ## Remaining
 
-* **Chrome on macOS.** TASK-179 runs the same check in Chrome on the reference
-  M5 (decision A-01) when it bundles the patched viewer, for example with
-  `CHROMIUM_PATH` pointing at the Chrome binary.
-* **Older logs.** Logs from firmware that did not record `CMD.Frame` fail until
-  patch 0 lands in TASK-179.
+* **Accessibility of the embedded viewer.** axe finds seven rule violations
+  inside the upstream viewer at 390 px: `aria-command-name` (the icon-only menu
+  button), `image-alt` (the GitHub images), `label` (the file input
+  `#choosefile`), `landmark-unique`, `link-in-text-block`, `link-name` and
+  `listitem`. The shell's 390 px scan in `tests/browser/app-shell.spec.ts`
+  covers MirageSITL's own page and excludes the viewer frame; an accessibility
+  patch for the viewer is open for the TASK-080 sign-off.

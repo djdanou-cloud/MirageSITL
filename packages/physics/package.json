@@ -10,6 +10,7 @@
     "./ardupilot-profile": "./src/ardupilot-profile.ts",
     "./atmosphere": "./src/atmosphere.ts",
     "./wind": "./src/wind.ts",
+    "./turbulence": "./src/turbulence.ts",
     "./motor-config": "./src/motor-config.ts",
     "./frame": "./src/frame.ts",
     "./contact-backend": "./src/contact-backend.ts",
@@ -21,6 +22,7 @@
     "./profile-dynamics": "./src/profile-dynamics.ts",
     "./accident": "./src/accident.ts",
     "./limit-monitor": "./src/limit-monitor.ts",
+    "./thrust-capacity": "./src/thrust-capacity.ts",
     "./fidelity-metrics": "./src/fidelity-metrics.ts",
     "./bench-import": "./src/bench-import.ts"
   },

@@ -3,8 +3,8 @@ import { describe, expect, it } from 'vitest';
 import { createHash } from 'node:crypto';
 import {
   DELIVERY_PATHS, ERROR_SOURCES, ERROR_SOURCE_IDS, ERROR_SOURCE_IDS_V1, FIRMWARE_PATCHES, IMU_NOISE_FLOOR_SETTINGS, JSON_ORACLE_KEYS,
-  PINNED_ARDUPILOT_COMMIT, imuNoiseFloorMatrix, isImuNoiseFloorSetting, ownerOf, ownershipParameterProfile, parseArduPilotCatalog,
-  stockOwner, validateOwnershipMatrix, type ErrorSourceId,
+  PINNED_ARDUPILOT_COMMIT, SIM_PARAMETERS_WITHOUT_A_SOURCE, errorSourceOfParameter, imuNoiseFloorMatrix, isImuNoiseFloorSetting, ownerOf, ownershipParameterProfile,
+  parameterWriteConflict, parameterWriteConflictReason, parseArduPilotCatalog, stockOwner, validateOwnershipMatrix, type ErrorSourceId,
 } from '@mirage/autopilot/error-ownership';
 import catalogJson from './fixtures/sitl/ardupilot-catalog.json';
 import ownership from './fixtures/sitl/error-ownership.json';
@@ -319,5 +319,73 @@ describe('ownership matrix schema 3 (TASK-147)', () => {
       const matrix = imuNoiseFloorMatrix(setting, 'native-json');
       expect([matrix.schemaVersion, matrix.entries.length]).toEqual([2, 25]);
     }
+  });
+});
+
+// The failure criterion of TASK-089 is an error applied twice, or by nobody without a declaration.
+describe('every SITL parameter is declared', () => {
+  const classOf = (name: string) => SIM_PARAMETERS_WITHOUT_A_SOURCE.filter(entry => entry.names.test(name)).map(entry => entry.id);
+  it('puts each cataloged SIM_ parameter in an error source or in exactly one declared class', () => {
+    const undeclared: string[] = [], both: string[] = [], several: string[] = [];
+    for (const [name] of catalog.parameters) {
+      const source = errorSourceOfParameter(name), classes = classOf(name);
+      if (source === null && classes.length === 0) undeclared.push(name);
+      if (source !== null && classes.length > 0) both.push(name);
+      if (classes.length > 1) several.push(name);
+    }
+    expect(undeclared).toEqual([]);
+    expect(both).toEqual([]);
+    expect(several).toEqual([]);
+    for (const entry of SIM_PARAMETERS_WITHOUT_A_SOURCE) expect([...catalog.parameters.keys()].some(name => entry.names.test(name)), entry.id).toBe(true);
+  });
+  it('holds no error active by default outside a source: an inactive error defaults to zero', () => {
+    const active = [...catalog.parameters.values()].filter(parameter => classOf(parameter.name).includes('inactive-error') && parseFloat(parameter.default) !== 0);
+    expect(active.map(parameter => `${parameter.name}=${parameter.default}`)).toEqual([]);
+  });
+  it('gives each parameter to at most one source', () => {
+    const seen = new Map<string, string>();
+    for (const id of ERROR_SOURCE_IDS) for (const [name] of ERROR_SOURCES[id].neutralize) {
+      expect(seen.get(name), `${name} in ${id}`).toBeUndefined();
+      seen.set(name, id);
+      expect(errorSourceOfParameter(name)).toBe(id);
+    }
+  });
+  it('reads a vector component as its parameter, and nothing else as a source', () => {
+    expect(errorSourceOfParameter('SIM_ACC1_BIAS_X')).toBe('imu.accel.bias');
+    expect(errorSourceOfParameter('SIM_MAG2_OFS_Z')).toBe('mag.hard-iron');
+    expect(errorSourceOfParameter('SIM_ACC1_RND')).toBe('imu.accel.noise');
+    expect(errorSourceOfParameter('SIM_ACC_FLOOR')).toBe('imu.accel.noise-floor');
+    expect(errorSourceOfParameter('SIM_WIND_SPD')).toBeNull();
+    expect(errorSourceOfParameter('ATC_RAT_RLL_P')).toBeNull();
+  });
+});
+
+describe('a live write cannot apply an owned error twice', () => {
+  const stock = validateOwnershipMatrix(parityNative, catalog);
+  const mirage = validateOwnershipMatrix(own(parityNative, 'imu.accel.noise', 'mirage', ['json:imu.accel_body']), catalog);
+  const nobody = validateOwnershipMatrix(own(parityNative, 'baro.noise', 'none'), catalog);
+  it('allows every write while ArduPilot owns the error, and any parameter that sets no error', () => {
+    expect(parameterWriteConflict(stock, 'SIM_ACC1_RND')).toBeNull();
+    expect(parameterWriteConflict(stock, 'SIM_BARO_RND')).toBeNull();
+    expect(parameterWriteConflict(mirage, 'SIM_BARO_RND')).toBeNull();
+    expect(parameterWriteConflict(mirage, 'ATC_RAT_RLL_P')).toBeNull();
+    expect(parameterWriteConflict(mirage, 'SIM_WIND_SPD')).toBeNull();
+  });
+  it('refuses a parameter of an error MirageSITL applies, and says why', () => {
+    expect(parameterWriteConflict(mirage, 'SIM_ACC3_RND')).toEqual({ source: 'imu.accel.noise', owner: 'mirage' });
+    expect(parameterWriteConflictReason(mirage, 'SIM_ACC3_RND')).toBe('it sets IMU accel noise, which MirageSITL applies on this run, so writing it would apply that error twice; change it on the Sensors tab');
+  });
+  it('refuses a parameter of an error this run has switched off, and says why', () => {
+    expect(parameterWriteConflict(nobody, 'SIM_BAR2_RND')).toEqual({ source: 'baro.noise', owner: 'none' });
+    expect(parameterWriteConflictReason(nobody, 'SIM_BAR2_RND')).toBe('it sets barometer noise, which this run switches off, so writing it would add an error the experiment record says is not there; change it on the Sensors tab');
+  });
+  it('allows a write ArduPilot would never apply on this path', () => {
+    // The browser HAL bypasses the aircraft model's magnetic anomaly, so nobody owning it leaves nothing for the parameter to double.
+    const browser = validateOwnershipMatrix(parityBrowser, catalog);
+    expect(ownerOf(browser, 'mag.anomaly')).toBe('none');
+    expect(parameterWriteConflict(browser, 'SIM_MAG_ALY')).toBeNull();
+  });
+  it('has no reason to give when there is no conflict', () => {
+    expect(parameterWriteConflictReason(stock, 'SIM_ACC1_RND')).toBeNull();
   });
 });

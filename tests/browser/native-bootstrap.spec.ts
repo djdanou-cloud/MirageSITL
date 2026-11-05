@@ -62,7 +62,9 @@ test('bootstrap BET kernel builds reproducibly and runs in Chromium', async ({ p
       // Additive step interfaces v2: docs/SPECS_SIMULATION_ENGINES.md, section "Step interfaces v2 (TASK-088)".
       'bet_bound_v2_version', 'bet_bound_step_v2', 'bet_body_v2_version', 'bet_body_step_v2',
       // Shared battery bus: docs/SPECS_SIMULATION_ENGINES.md, section "Electromechanical drive (TASK-092)".
-      'bet_bus_version', 'bet_bus_step'].sort());
+      'bet_bus_version', 'bet_bus_step',
+      // The bus and the motors solved together: the same specification, "Solving the bus with the motors (TASK-197)".
+      'bet_bus_solve_version', 'bet_bound_bus_solve_v2'].sort());
     expect(result.abi).toBe(1);
     expect(result.bodyAbi).toBe(1);
     cases.forEach((c, i) => {

@@ -168,6 +168,59 @@ export function ownerOf(matrix: OwnershipMatrix, source: ErrorSourceId): ErrorOw
   return matrix.entries.find(entry => entry.source === source)?.owner ?? stockOwner(source, matrix.path);
 }
 
+const PARAMETER_SOURCES: ReadonlyMap<string, ErrorSourceId> = new Map(ERROR_SOURCE_IDS.flatMap(id => {
+  const { neutralize, patch } = ERROR_SOURCES[id];
+  return [...neutralize, ...(patch?.neutralize ?? [])].map(([name]): [string, ErrorSourceId] => [name, id]);
+}));
+/** The error a SITL parameter sets, or null: a vector's `_X`, `_Y` and `_Z` count as its parameter. */
+export function errorSourceOfParameter(name: string): ErrorSourceId | null {
+  return PARAMETER_SOURCES.get(name) ?? PARAMETER_SOURCES.get(name.replace(/_[XYZ]$/, '')) ?? null;
+}
+export interface ParameterWriteConflict { readonly source: ErrorSourceId; readonly owner: 'mirage' | 'none' }
+/**
+ * What writing `name` on a live run would break (S08): a parameter of an error MirageSITL applies would apply it twice, and one
+ * of an error nobody applies would add what the experiment record says is not there. An ArduPilot-owned error stays free to change.
+ */
+export function parameterWriteConflict(matrix: OwnershipMatrix, name: string): ParameterWriteConflict | null {
+  const source = errorSourceOfParameter(name);
+  if (source === null || !ERROR_SOURCES[source].ardupilotPaths.includes(matrix.path)) return null;
+  const owner = ownerOf(matrix, source);
+  return owner === 'ardupilot' ? null : { source, owner };
+}
+const SENSOR_LABELS: { readonly [sensor in ErrorSourceDefinition['sensor']]: string } = { imu: 'IMU', baro: 'barometer', mag: 'magnetometer', gnss: 'GNSS', battery: 'battery' };
+/** Why a write is refused, in words for the person writing it, or null when it is free. */
+export function parameterWriteConflictReason(matrix: OwnershipMatrix, name: string): string | null {
+  const conflict = parameterWriteConflict(matrix, name);
+  if (!conflict) return null;
+  const { source, owner } = conflict, label = `${SENSOR_LABELS[ERROR_SOURCES[source].sensor]} ${source.split('.').slice(1).join(' ').replace(/-/g, ' ')}`;
+  return owner === 'mirage'
+    ? `it sets ${label}, which MirageSITL applies on this run, so writing it would apply that error twice; change it on the Sensors tab`
+    : `it sets ${label}, which this run switches off, so writing it would add an error the experiment record says is not there; change it on the Sensors tab`;
+}
+
+/**
+ * Every other SIM_ parameter of the pinned catalog, declared so that none sits undecided (TASK-089): why it has no error source.
+ * tests/error-ownership.test.ts holds every cataloged name to one of these or to a source, so a new name after a pin change fails.
+ */
+export const SIM_PARAMETERS_WITHOUT_A_SOURCE: readonly { readonly id: string; readonly why: string; readonly names: RegExp }[] = [
+  { id: 'fault', why: 'A fault a user injects, not a standing error; TASK-168 and TASK-169 own these.',
+    names: /^SIM_(ACCEL\d_FAIL|ACC_FAIL_MSK|GYR_FAIL_MSK|BAR[O23]_(DISABLE|FREEZE)|MAG\d_FAIL|GPS[12]_(JAM|BYTELOS)|RC_FAIL|UART_LOSS)$/ },
+  { id: 'inactive-error', why: 'An error ArduPilot can add, off at its default of zero. Nothing here sets it, so if a user does, ArduPilot applies it once.',
+    names: /^SIM_(GPS[12]_(GLTCH|GLTV|DRFTALT|ALT_OFS|HDG_OFS)|AHRS_OFF_(RLL|PIT|YAW)|TIME_JITTER|LOOP_DELAY)$/ },
+  { id: 'shapes-a-source', why: 'Shapes an error whose amplitude a source switches off.',
+    names: /^SIM_(DRIFT_TIME|VIB_MOT_(HMNC|MASK|MULT)|MAG_ALY_HGT|INS_THR_MIN)$/ },
+  { id: 'temperature', why: 'ArduPilot\'s IMU temperature model: an error only through the SIM_IMUTn_ calibrations, disabled by default. TASK-115 defers temperature errors.',
+    names: /^SIM_(IMUT_(END|FIXED|START|TCONST)|TEMP_(BFACTOR|BRD_OFF|START|TCONST))$/ },
+  { id: 'sensor-settings', why: 'Which sensors exist and how they report, not an error in what they measure.',
+    names: /^SIM_(IMU_COUNT|BARO_COUNT|GPS[12]_(ACC|ENABLE|FIXTYPE|HDG|HZ|LCKTIME|NUMSATS|OPTIONS|POS|TYPE)|GPS_LOG_NUM|MAG\d_DEVID|MAG_SAVE_IDS|ACC_FILE_RW|GYR_FILE_RW)$/ },
+  { id: 'not-fitted', why: 'A sensor S08 does not include and the S19 aircraft do not carry, or a GNSS instance that is not enabled.',
+    names: /^SIM_(ARSPD2?_.*|SONAR_.*|FLOW_.*|ODOM_ENABLE|GPS[34]_.*|WOW_PIN)$/ },
+  { id: 'environment-or-vehicle', why: 'ArduPilot\'s environment or its own vehicle model, not a sensor error. TASK-166 decides environment effects.',
+    names: /^SIM_(WIND_.*|WAVE_.*|TIDE_.*|THML_SCENARI|TERRAIN|BUOYANCY|GND_BEHAV|SHOVE_.*|TWIST_.*|OPOS_.*|INIT_.*|SAIL_TYPE|ENGINE_(FAIL|MUL)|ESC_(ARM_RPM|TELEM)|BATT_.*|CLAMP_CH)$/ },
+  { id: 'other-systems', why: 'Simulated peripherals and the simulator itself.',
+    names: /^SIM_(ADSB_.*|CAN_.*|EFI_TYPE|OSD_.*|SF_JS_.*|LED_LAYOUT|PIN_MASK|BAUDLIMIT_EN|OH_.*|FLOAT_EXCEPT|JSON_MASTER|RATE_HZ|SPEEDUP|RC_CHANCOUNT)$/ },
+];
+
 export interface OwnershipEntry { readonly source: ErrorSourceId; readonly owner: ErrorOwner; readonly delivery: readonly DeliveryPath[] }
 export interface OwnershipMatrix {
   readonly schemaVersion: 1 | 2 | 3; readonly id: string; readonly path: AutopilotPath;

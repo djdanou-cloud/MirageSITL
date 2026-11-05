@@ -1,0 +1,229 @@
+diff --git a/build/webpack.base.conf.js b/build/webpack.base.conf.js
+index 0a41d2d..9f13dd5 100644
+--- a/build/webpack.base.conf.js
++++ b/build/webpack.base.conf.js
+@@ -93,8 +93,13 @@ module.exports = {
+       },
+       {
+         test: /\.(woff2?|eot|ttf|otf)(\?.*)?$/,
++        // MirageSITL: fonts referenced from CSS (the bundled icon font) must go through url-loader only;
++        // without this webpack 5 also emits its own asset and the CSS points at a JavaScript stub.
++        type: 'javascript/auto',
+         loader: 'url-loader',
+         options: {
++          // css-loader needs the URL string, not an ES module (which it would print as "[object Module]").
++          esModule: false,
+           limit: 10000,
+           name: utils.assetsPath('fonts/[name].[hash:7].[ext]')
+         }
+diff --git a/index.html b/index.html
+index 3f38caf..aa057ea 100644
+--- a/index.html
++++ b/index.html
+@@ -1,9 +1,8 @@
+ <!DOCTYPE html>
+ <html lang="en" style="height: 100%;">
+   <head>
+-    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.2.0/css/all.css" integrity="sha384-hWVjflwFxL6sNzntih27bfxkr27PmbbK/iSvJ+a4+0owXq79v+lsFkW54bOGbiDQ" crossorigin="anonymous">
+     <meta charset="utf-8">
+-    <meta name="description" content="online viewer for UAV log files">
++    <meta name="description" content="viewer for UAV log files">
+     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+     <title>UAV Log Viewer</title>
+     <script>
+@@ -11,24 +10,6 @@
+     </script>
+     <script src="./runtime-config.js"></script>
+   </head>
+-  <!-- Google tag (gtag.js) -->
+-  <script async src="https://www.googletagmanager.com/gtag/js?id=G-CVQXD7KT3F"></script>
+-  <script>
+-    window.dataLayer = window.dataLayer || [];
+-    function gtag(){dataLayer.push(arguments);}
+-    gtag('js', new Date());
+-
+-    gtag('config', 'G-CVQXD7KT3F');
+-  </script>
+-  <!-- Google tag (gtag.js) -->
+-  <script async src="https://www.googletagmanager.com/gtag/js?id=G-YTKXG38B06"></script>
+-  <script>
+-    window.dataLayer = window.dataLayer || [];
+-    function gtag(){dataLayer.push(arguments);}
+-    gtag('js', new Date());
+-
+-    gtag('config', 'G-YTKXG38B06');
+-  </script>
+   <body style="background-color: black; height: 100%">
+     <div id="app"></div>
+     <!-- built files will be auto injected -->
+diff --git a/package-lock.json b/package-lock.json
+index 7894a8d..514b88c 100644
+--- a/package-lock.json
++++ b/package-lock.json
+@@ -10,6 +10,7 @@
+       "hasInstallScript": true,
+       "dependencies": {
+         "@babel/register": "^7.22.5",
++        "@fortawesome/fontawesome-free": "5.2.0",
+         "@fortawesome/free-solid-svg-icons": "^6.4.0",
+         "@fortawesome/vue-fontawesome": "^2.0.10",
+         "assert": "^2.0.0",
+@@ -2150,6 +2151,14 @@
+         "node": ">=6"
+       }
+     },
++    "node_modules/@fortawesome/fontawesome-free": {
++      "version": "5.2.0",
++      "resolved": "https://registry.npmjs.org/@fortawesome/fontawesome-free/-/fontawesome-free-5.2.0.tgz",
++      "integrity": "sha512-4pgStJx9UmydKc7wwF6Xjw4dFqzUnQejeuP2aUNHWazayWbmMbrx5rieN9+oob4bUwkf1thS3am0Ko+uhFHpNA==",
++      "engines": {
++        "node": ">=6"
++      }
++    },
+     "node_modules/@fortawesome/fontawesome-svg-core": {
+       "version": "6.4.0",
+       "resolved": "https://registry.npmjs.org/@fortawesome/fontawesome-svg-core/-/fontawesome-svg-core-6.4.0.tgz",
+@@ -31676,6 +31685,11 @@
+       "resolved": "https://registry.npmjs.org/@fortawesome/fontawesome-common-types/-/fontawesome-common-types-6.4.0.tgz",
+       "integrity": "sha512-HNii132xfomg5QVZw0HwXXpN22s7VBHQBv9CeOu9tfJnhsWQNd2lmTNi8CSrnw5B+5YOmzu1UoPAyxaXsJ6RgQ=="
+     },
++    "@fortawesome/fontawesome-free": {
++      "version": "5.2.0",
++      "resolved": "https://registry.npmjs.org/@fortawesome/fontawesome-free/-/fontawesome-free-5.2.0.tgz",
++      "integrity": "sha512-4pgStJx9UmydKc7wwF6Xjw4dFqzUnQejeuP2aUNHWazayWbmMbrx5rieN9+oob4bUwkf1thS3am0Ko+uhFHpNA=="
++    },
+     "@fortawesome/fontawesome-svg-core": {
+       "version": "6.4.0",
+       "resolved": "https://registry.npmjs.org/@fortawesome/fontawesome-svg-core/-/fontawesome-svg-core-6.4.0.tgz",
+diff --git a/package.json b/package.json
+index aef2318..9d56471 100644
+--- a/package.json
++++ b/package.json
+@@ -18,6 +18,7 @@
+   },
+   "dependencies": {
+     "@babel/register": "^7.22.5",
++    "@fortawesome/fontawesome-free": "5.2.0",
+     "@fortawesome/free-solid-svg-icons": "^6.4.0",
+     "@fortawesome/vue-fontawesome": "^2.0.10",
+     "assert": "^2.0.0",
+diff --git a/src/App.vue b/src/App.vue
+index ba8680e..30251d3 100644
+--- a/src/App.vue
++++ b/src/App.vue
+@@ -12,10 +12,8 @@ export default {
+ 
+ <style>
+ 
+-@import url('https://fonts.googleapis.com/css?family=Nunito+Sans&display=swap');
+-
+  #app {
+-    font-family: 'Nunito Sans', sans-serif;
++    font-family: 'Nunito Sans', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif;
+     -webkit-font-smoothing: antialiased;
+     -moz-osx-font-smoothing: grayscale;
+  }
+diff --git a/src/components/CesiumViewer.vue b/src/components/CesiumViewer.vue
+index f49d382..c47e001 100644
+--- a/src/components/CesiumViewer.vue
++++ b/src/components/CesiumViewer.vue
+@@ -93,8 +93,6 @@ import {
+ const ESRI_WORLD_IMAGERY_URL =
+     'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
+ const ESRI_CREDIT = 'Imagery © Esri, Maxar, Earthstar Geographics'
+-const MAPTILER_SATELLITE_URL =
+-    'https://api.maptiler.com/tiles/satellite-v2/{z}/{x}/{y}.jpg?key=o3JREHNnXex8WSPPm2BU'
+ 
+ const colorCoderMode = new ColorCoderMode(store)
+ const colorCoderRange = new ColorCoderRange(store)
+@@ -323,7 +321,8 @@ export default {
+ 
+         createAdditionalProviders () {
+             // Base layer picker options. All keyless / non-ion. Esri satellite is the
+-            // default (this.esriProvider); StatKart, MapTiler, Eniro and OpenSeaMap follow.
++            // default (this.esriProvider); StatKart, Eniro and OpenSeaMap follow. MirageSITL removed
++            // MapTiler, whose API key was written into the source.
+             const imageryProviders = []
+             this.esriProvider = new ProviderViewModel({
+                 name: 'Satellite (Esri)',
+@@ -352,19 +351,6 @@ export default {
+                     })
+                 }
+             }))
+-            imageryProviders.push(new ProviderViewModel({
+-                name: 'MapTiler',
+-                iconUrl: require('../assets/maptiler.png').default,
+-                tooltip: 'Maptiler satellite imagery http://maptiler.com/',
+-                creationFunction: function () {
+-                    return new UrlTemplateImageryProvider({
+-                        url: MAPTILER_SATELLITE_URL,
+-                        minimumLevel: 0,
+-                        maximumLevel: 20,
+-                        credit: 'https://www.maptiler.com/copyright'
+-                    })
+-                }
+-            }))
+             imageryProviders.push(new ProviderViewModel({
+                 name: 'Eniro',
+                 iconUrl: require('../assets/eniro.png').default,
+diff --git a/src/components/Home.vue b/src/components/Home.vue
+index f95fac4..11c3689 100644
+--- a/src/components/Home.vue
++++ b/src/components/Home.vue
+@@ -58,7 +58,6 @@
+ </template>
+ 
+ <script>
+-import isOnline from 'is-online'
+ import Plotly from '@/components/Plotly.vue'
+ import CesiumViewer from '@/components/CesiumViewer.vue'
+ import Sidebar from '@/components/Sidebar.vue'
+@@ -86,7 +85,9 @@ export default {
+         this.state.timeAttitude = []
+         this.state.timeAttitudeQ = []
+         this.state.currentTrajectory = []
+-        isOnline().then(a => { this.state.isOnline = a })
++        // MirageSITL offline build: no probe of public endpoints. Online imagery is a
++        // setting of the embedding page (?online=1), off by default.
++        this.state.isOnline = new URLSearchParams(document.location.search).get('online') === '1'
+     },
+     beforeDestroy () {
+         this.$eventHub.$off('messages')
+diff --git a/src/components/widgets/MagFitTool.vue b/src/components/widgets/MagFitTool.vue
+index 383de6e..5afd800 100644
+--- a/src/components/widgets/MagFitTool.vue
++++ b/src/components/widgets/MagFitTool.vue
+@@ -27,7 +27,8 @@
+               </tr>
+               <tr v-if="!GpsPosition">
+                 <td></td><td>
+-                  <button @click="getLocationFromIp()" :disabled="fetchingLocation">
++                  <button @click="getLocationFromIp()" :disabled="fetchingLocation || !state.isOnline"
++                    :title="state.isOnline ? '' : 'Offline: enter the position by hand'">
+                     {{ fetchingLocation ? 'Locating...' : 'Get from IP' }}
+                   </button></td>
+               </tr>
+@@ -350,6 +351,10 @@ export default {
+         async getLocationFromIp () {
+             // fetch approximate coordinates from a geo-IP service when the log
+             // has no position. Used to estimate the earth's magnetic field.
++            if (!this.state.isOnline) {
++                this.locationError = 'Offline: enter the position by hand'
++                return
++            }
+             this.fetchingLocation = true
+             this.locationError = null
+             const sources = [
+diff --git a/src/main.js b/src/main.js
+index 64b6fa4..8eb4997 100644
+--- a/src/main.js
++++ b/src/main.js
+@@ -8,6 +8,8 @@ import router from './router'
+ import BootstrapVue from 'bootstrap-vue'
+ import 'bootstrap/dist/css/bootstrap.min.css'
+ import 'bootstrap-vue/dist/bootstrap-vue.css'
++// MirageSITL offline build: the icon font ships with the viewer.
++import '@fortawesome/fontawesome-free/css/all.css'
+ 
+ // Using imported components
+ import VueRouter from 'vue-router'

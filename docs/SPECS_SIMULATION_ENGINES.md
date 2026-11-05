@@ -449,6 +449,168 @@ The caller owns length-three NED output; render grouping never advances RNG.
 Atmospheric setup may allocate; wind stepping reuses storage. The allocation
 probe is `node scripts/bench-wind.mjs`, report test-results/bench/wind.json.
 
+### Dryden turbulence (TASK-106)
+
+The Phase 1 increment of TASK-106 adds MIL-F-8785C's low-altitude Dryden
+turbulence in `packages/physics/src/turbulence.ts`, as the effect
+`wind.turbulence` (SPECS_SHARED_MEMORY, "Control Protocol v3"). The synthetic
+AR(1) gust above stays, because a `weather.set` still names it and flies as it
+did. The two add when both are on.
+
+```text
+H_u(s)   = σ_u·√(2·L_u/(π·V)) / (1 + (L_u/V)·s)
+H_v,w(s) = σ·√(L/(π·V))·(1 + √3·(L/V)·s) / (1 + (L/V)·s)²
+
+With h in feet, for 10 ft ≤ h ≤ 1000 ft:
+L_w = h         L_u = L_v = h/(0.177 + 0.000823·h)^1.2
+σ_w = 0.1·W20   σ_u = σ_v = σ_w/(0.177 + 0.000823·h)^0.4
+
+One unit-variance step of a channel with θ = dt·V/L, x = 2·θ:
+u[k+1]     = e^(−θ)·u[k] + √(1 − e^(−x))·n
+[z p][k+1] = Φ·[z p][k] + chol(I − Φ·Φᵀ)·[n1 n2]
+Φ = e^(−θ)·[[1 + θ, θ], [−θ, 1 − θ]]
+v, w = σ·(z + √3·p)/2
+```
+
+u lies along the horizontal mean wind (north when there is none), v 90° to its
+right and w down. The filters are discretized exactly: the sampled states have
+the variance and autocovariance of the continuous filters at any step, with
+R_u(t) = σ²·e^(−|t|·V/L) and R_v,w(t) = σ²·(1 − |t|·V/(2·L))·e^(−|t|·V/L). The
+sampled spectrum is the continuous one folded at the sampling rate. The states
+have unit variance, so a change of σ moves the output and no state jumps. The
+noise covariance's entry 1 − e^(−x)·(1 + x + x²/2) cancels to x³/6 when the step
+is short against the eddy, as at 1200 Hz in a large eddy, so it comes from its
+series below x = 0.5.
+
+* **Inputs.** W20 is the mean wind at 20 ft (6 m) that sets the strength, 0..50
+  m/s (MIL-F-8785C calls 15, 30 and 45 knots light, moderate and severe). h is
+  the height above the origin, held at the 10 ft values below 10 ft and at the
+  1000 ft values above 1000 ft, where the three channels agree; the model has no
+  terrain yet. V is the speed through the air, from this tick's mean flow and the
+  vehicle's velocity.
+* **Hover.** V goes to zero in a hover in still air, where Taylor's frozen-eddy
+  assumption behind the filter has nothing to carry the eddies, so V reads as at
+  least W20: turbulence of that strength lives in a wind of about that speed. This
+  is a choice made for hover, not part of MIL-F-8785C; the Kaimal spectra the
+  roadmap names for hover are not implemented.
+* **Determinism.** Five fixed streams, one per normal draw (`DRYDEN_STREAMS`).
+  Coefficients refresh on tick indices, every `round(hz/50)` ticks, so a run
+  repeats whatever the wall pacing. A start draws the states from their stationary
+  distribution, so there is no spin-up.
+* **Controls.** Intensity multiplies σ, so one seed gives one realization, exactly
+  scaled while V and h are the same; W20 as written still sets the slowest
+  carrying speed. A new mean wind or new air leaves it running; its own control
+  starts it again from its seed. Off or W20 = 0 draws no random numbers and adds
+  nothing. A `weather.set` neither starts nor stops it.
+* **Not modelled.** One uniform field at the CG and every hub: no rotational gusts
+  or inter-hub coherence, no von Kármán or Kaimal spectra, no medium or high
+  altitude form. Those stay with TASK-106 beyond Phase 1.
+
+### Faults on the path to ArduPilot (TASK-168)
+
+Each fault goes in on the path that owns the reading, and truth stays in the
+session. Three families of `effect.set` carry them (SPECS_SHARED_MEMORY,
+"Control Protocol v3").
+
+| Effect | Path | What ArduPilot gets | What it showed on the native flights |
+|---|---|---|---|
+| `sensor.imu.frozen` | State line (`delivery`) | The last gyro and accelerometer values | RAW_IMU gyro stops; EKF failsafe, and the quad struck the ground within 8 s |
+| `sensor.gnss.frozen` | State line (`delivery`) | The last north and east position and ground velocity; height and vertical speed go on, because they also feed its barometer | GPS_RAW_INT latitude and longitude stop while the aircraft moves 1.4 m; it stays in GUIDED, unaware |
+| `sensor.mag.frozen` | State line (`delivery`) | The last attitude, from which SITL makes the magnetometer; the IMU still turns | RAW_IMU magnetometer stops through a 64° turn; it stays in GUIDED |
+| `sensor.baro.frozen` | `SIM_BAROn_FREEZE` (`ardupilot`) | The last altitude | Read back; it stays in GUIDED |
+| `sensor.baro.missing` | `SIM_BAROn_DISABLE` (`ardupilot`) | No barometer | SYS_STATUS barometer unhealthy; it stays in GUIDED |
+| `sensor.mag.missing` | `SIM_MAGn_FAIL` (`ardupilot`) | No magnetometer | SYS_STATUS magnetometer unhealthy; it stays in GUIDED |
+| `sensor.gnss.missing` | `SIM_GPS1_LCKTIME` (`ardupilot`; `SIM_GPS1_ENABLE` until TASK-169, whose write renumbers the parameter list) | No fix | Fix type 1 with 3 satellites; EKF failsafe and LAND, and after it ends "EKF Failsafe Cleared" with the mode left in LAND |
+| `sensor.imu.missing` | `SIM_ACC_FAIL_MSK`, `SIM_GYR_FAIL_MSK` (`ardupilot`) | No IMU samples | ArduPilot's main loop stops and sends nothing more, and switching the fault off cannot reach it: the run has to end |
+| `link.pilot` | Bridge (`delivery`) | No RC_CHANNELS_OVERRIDE | Nothing visible in GUIDED, which does not read the sticks |
+| `link.gcs` | Bridge (`delivery`) | No MAVLink either way | Silence, then the same state on recovery |
+
+* **Delivery effects.** The session holds a mask of DELIVERY_* bits, changed in
+  place at tick boundaries. The link reads it at every reply and leaves what is
+  frozen as it was on the last reply; the bridge client reads it for each MAVLink
+  frame. Neither allocates. Since MirageSITL sends the attitude and position only
+  on the state line, freezing the magnetometer and the GNSS is possible without a
+  firmware patch (D-10), and the JSON backend's IMU keys stay independent. Without
+  a link attached the session rejects them visibly; a closed link or a new epoch
+  clears the mask. A stick command is lost after the input watchdog, which watches
+  whether the pilot still commands.
+* **ArduPilot's own faults.** `SessionController.setEffect` writes the parameters
+  of `ARDUPILOT_FAULT_PARAMETERS` through the parameter service, logged as any
+  write, and restores each parameter's earlier value when the effect goes off. All
+  of an effect's parameters must be in the list or none is written. The effect
+  stands as its read-backs do. A session rejects these visibly, on or off.
+* **Motor faults** act on actuation only, through the same `motor.loss` record, on
+  the profile dynamics: a run's motor table is bound when its dynamics is adopted.
+* **Truth.** With a sensor or link effect on, every truth value is bitwise identical
+  to the run without it for the same servo frames (`tests/delivery-effects.test.ts`).
+  A closed loop with ArduPilot differs afterwards only because ArduPilot reacts.
+* **Recorded, not predicted.** `tests/sitl-fault-effects.test.ts`, on request with
+  `MIRAGE_SITL_FAULTS=1`, flies one flight per fault and asserts only that the fault
+  arrived; `test-results/validation/task-168-faults.json` keeps ArduPilot's modes,
+  messages, health bits and EKF flags. In a run, the recording keeps them.
+* **Not here.** The instructor console is on the demo page, where these are rejected.
+
+### Faults and interference tab (TASK-169)
+
+The tab offers the `fault`, `delivery` and `ardupilot` families of `EFFECT_CATALOG`, from one form per effect, and says for each how it reaches ArduPilot. Motor faults change the physical thrust; sensor and link effects change what ArduPilot observes, and the truth stays as it is.
+
+```typescript
+interface ScheduledEffect {
+  control: EffectControl;     // enabled; the protocol's own record
+  onsetS: number;             // simulated seconds after the first armed report
+  durationS: number | null;   // null keeps it on until the run ends
+  recovery: EffectRecovery;   // what a drift does when it ends
+}
+interface FaultSchedule { schemaVersion: 1; entries: ScheduledEffect[] }
+interface EffectEntry {
+  id: string; effect: EffectId; enabled: boolean; intensity: number;
+  status: "pending" | "applied" | "rejected"; message: string;
+  origin: "manual" | "schedule";
+  requestedSimS: number | null;  // asked for, or meant for on a schedule
+  appliedSimS: number | null;    // its tick in the session, or the last read-back
+  writes: string[];              // the ArduPilot parameters it writes
+}
+```
+
+* **Time.** A schedule counts simulated seconds from when ArduPilot first reports the aircraft armed, in a heartbeat, so a repeat meets its faults at the same point of the flight however long its warmup took. That report comes at the heartbeat's rate, so the zero itself is known to within a second of simulated time.
+* **Rules.** Two entries of one effect cannot overlap, nor two of one motor, because the later would replace the earlier. What cannot be delivered is refused where the user sees it, by hand or on the tab.
+* **Sending.** Effects the session applies are queued up to 5 s ahead on the tick of arming plus onset, and land on it. Parameter writes go when due, and their entry says when their read-back came. A control asked for now is aimed 0.25 s of simulated time ahead of the tick read now, and at twice that each time it is refused as past, because the Worker steps while the message crosses to it.
+* **Record.** The experiment record holds the schedule, and a repeat flies its parent's. `effect-log`, one item per run with a new version whenever an entry changes, holds the entries; it depends on the experiment. It says what reached ArduPilot; what ArduPilot did about it is in the run's recording and log.
+* **Delivery.** `PhysicsSessionV2.delivery` gains the GNSS offset and velocity and the magnetometer rotation, which the fault port copies out after each step while a link is attached, without allocating. With all of it off, what is delivered is bit for bit as without. A frozen reading wins over an offset.
+* **Jamming** cannot reach the state line: it has no field for a satellite count. The writes follow the kernel's arithmetic at its steady state, because a parameter write does not resolve its half-second low-pass, and a position accuracy grows in proportion to the DOP against SITL's fixed hDOP of 1.21.
+* **Magnetometer rotation** relies on SITL making its reading from the attitude on the line: q ⊗ conj(r) turns the body field by r and leaves the IMU keys alone.
+
+| Effect | Path | What ArduPilot gets | What it showed on the native flights |
+|---|---|---|---|
+| `ew.position-step` | State line, north and east | The offset, on its tick; a vertical one is refused | 30 m north: GPS_RAW_INT read 30.02 m from the truth, after one report halfway from SITL's own lag; EKF3 switched lane and said "GPS Glitch or Compass error", the truth moved 0.03 m, and it stayed in GUIDED |
+| `ew.velocity-drift` | State line, north and east | The offset and its velocity, on each tick; a vertical one is refused | 0.3 m/s² to 2 m/s for 8 s: 9.35 m from the truth (the form gives 9.33 m), with no message; the aircraft followed it, and the truth moved 9.52 m |
+| `ew.magnetic` | Rotation: the attitude on the state line. Bias: `SIM_MAGn_OFS`, added to what the run holds | A reading turned on its tick; a bias as logged writes | 0.3 rad with 0.1 G: the reading moved by 107 and 197 mG in its axes, the aircraft turned 0.84 rad, and it stayed in GUIDED |
+| `ew.gnss-jamming` | `SIM_GPS1_NUMSATS`, `SIM_GPS1_ACC`, `SIM_GPS1_LCKTIME` | Satellites and accuracy at the severity, no fix at 0.8 or when below 4 satellites; a DOP has no parameter | Severity 0.5: 6 satellites and 12.4 m read back, with no message and the same EKF flags |
+
+### EKF drift (TASK-170)
+
+An input error, never a change to ArduPilot's estimate: the GNSS position runs away from the truth in one direction, coherently with its velocity, on the coherent drift of TASK-055, and goes by the state line as TASK-169 delivers a drift. ArduPilot may follow, reject the readings or enter a failsafe, and nothing promises which. The Faults tab's form makes this profile:
+
+```typescript
+interface EkfDriftProfile {
+  schemaVersion: 1;
+  directionDeg: number;   // the way the GNSS position runs away, clockwise from north
+  growthMps2: number;     // above 0, at most 0.3, the drift model's range
+  topSpeedMps: number;    // above 0, at most 20
+  onsetS: number;         // simulated seconds after the first armed report
+  durationS: number;      // how long it grows
+  removal: "gradual" | "abrupt";
+}
+```
+
+\[
+v(t)=\min(a\,t,\;V),\qquad b(t)=\int_0^t v\,d\tau,\qquad V_p=\sqrt{a\,b_1+\tfrac{v_1^2}{2}}.
+\]
+
+While it grows, t counts from its onset, a is the growth rate and V the top speed. An abrupt removal drops b and v to 0 at once, an explicit discontinuity. A gradual one starts from (b₁, v₁): it accelerates at -a through zero speed to -V_p, or cruises at -V when V_p would pass it, and brakes at +a to stop at b = 0. The error therefore grows a little further while it brakes, because b never fades without its derivative (TASK-055). The profile becomes one schedule entry per stretch of constant acceleration, each starting where the one before ended, and the last ends with a step to the truth, which clears what a tick's rounding left. `FaultSchedule.ekfDrift` holds the profile, and a stored schedule whose entries are not exactly its profile's is refused.
+
+The Experiments tab charts `truthVsEstimate` for a run with a schedule and a recording. The estimate is what ArduPilot reports in GLOBAL_POSITION_INT, converted with its own metres per degree so the conversion adds no error near home, and the truth is read straight between its neighbouring rows at the simulated time of each report. Errors are the estimate minus the truth, on north, east and down. What the drift added to the input is drawn beside the error, from the form above. None of these numbers has a limit. Reports where the recording holds no truth are counted and left out.
+
 ### Weather and atmosphere in flight sessions (TASK-093)
 
 A dynamics with an atmosphere and wind implements `SessionDynamics.setWeather`;
@@ -460,6 +622,20 @@ integrating its tick: it copies the command into the `WEATHER_*` slots of
 pressure) and calls `setWeather(slots)`, so no number crosses a call where V8
 could box it; `Wind.configure` and `SeededRandom.resetFrom` read the slots in
 the same way.
+
+TASK-166 applies effect controls (SPECS_SHARED_MEMORY, "Control Protocol v3")
+through the same call. The session holds which of mean wind, gust and air are
+on, and their values in the slots, and calls `setWeather` when one changes;
+with none on it calls `clearWeather`, which restores still air and the
+configured atmosphere, and an effect that was never on calls nothing. Three
+slots serve this: `WEATHER_GUST_BANDWIDTH` (Hz, 0 keeps the bandwidth),
+`WEATHER_GUST_KEEP` (1 leaves a running gust alone; only the mean wind and the
+gain change) and `WEATHER_AIR_KEEP` (1 leaves the configured atmosphere in place
+and the published pressure the standard atmosphere's, so wind alone does not
+change the air). A `weather.set` sets all three effects on, with a bandwidth of
+1 Hz, a restarted gust and the air of its temperature and pressure, so it flies
+as it did. `setWeather` also refuses a bandwidth at or above Nyquist or too low
+to resolve. The table empties with every new epoch.
 
 Every step evaluates the ISA troposphere at the CG's height h = −down above
 the origin, from the origin's air T0 = `temperatureK` and p0 = `pressurePa`
@@ -500,8 +676,10 @@ mean sea level.
 gust RMS outside 0..50 m/s or a seed that is not a uint32 (the gust model's
 envelope), and air outside 180..330 K, 1..120 kPa or 0.05..2 kg/m³ at the
 origin or at the CG. The session rejects such a command with OUT_OF_RANGE at
-its tick and faults, as for any scheduled command a model refuses; admission
-keeps the protocol v2 ranges (200..340 K) until TASK-166 aligns them. A
+its tick and faults, as for any scheduled command a model refuses. Admission
+holds the same ranges (TASK-166), and refuses an `atmosphere` control's density
+as well, so what reaches the tick is a `weather.set`'s density or the air at the
+vehicle's height. A
 vehicle that flies out of the air envelope faults the dynamics ("BET
 atmosphere outside its envelope"). Every new epoch (`sim.reset`,
 `sim.configure`, `model.load`) starts without weather.
@@ -579,31 +757,28 @@ its drag areas with their source (profile schema 5); the derivation then
 writes that diagonal tensor in the profile's own dataset.
 
 In SITL (`tests/airframe-drag-sitl.test.ts`, native ArduCopter 8ab6afde)
-the S19 quad X holds position in GUIDED in a steady north wind. Its trimmed
-lean, shown and not judged (F-02), is 2.03° at 4 m/s and 4.58° at 8 m/s,
-against 0.44° and 1.76° for the body drag alone (1.65° and 2.83° without any
-airframe drag). The rotors' share calibrates `EK3_DRAG_MCOEF` (0.062 1/s,
-since EKF3 models rotor drag as `MCOEF·V·ρ/ρ0`), and `EK3_DRAG_BCOEF_X/Y` is
-m/(C_D·A) from the manifest (130 kg/m²), since EKF3 models body drag along
-each axis as `½·ρ·u²/BCOEF`. Set in flight, they let EKF3 learn the
-along-wind component within 10 s (−8.14 m/s against the true −8 m/s);
-without them its wind stays zero. The cross-wind component carries an error
-that EKF3's drag model explains. EKF3 predicts each body axis's drag from that
-axis's airspeed alone (`½·ρ·u²/BCOEF` and `MCOEF·u`), and ArduPilot's built-in
-SITL multicopter computes its drag in the same per-axis form
-(`SIM_Frame.cpp`), so its own SITL never shows a mismatch. Drag along the
-relative wind, the contract's and a bluff body's, together with the BET
-rotors' side forces, leaves a persistent sideways drag innovation (XKF2 `IDY`,
-+0.003 to +0.03 m/s² against about +0.001 on the built-in quad) that EKF3
-absorbs into heading and cross-wind. With ArduPilot's default simulated gyro
-drift (`SIM_DRIFT_SPEED`, 0.05°/s per minute, which both models' EKF tracks in
-`XKF1.GZ`) the heading then turns about 0.045°/s, and the cross-wind estimate
-reaches −2.07 m/s after 175 s; the built-in quad holds its heading in the same
-test. With the drift off, the heading settles about 2° off and the cross-wind
-estimate about 0.5 m/s off. The along-wind component converges either way. By
-the user's decision of 2026-11-03 this meets TASK-096's convergence, and
-MirageSITL keeps its drag along the relative wind rather than EKF3's per-axis
-form.
+the S19 quad X holds position in GUIDED in a steady north wind, with the 40 Hz
+gyro filter it needs to fly steadily (section "Attitude oscillation of the quad
+X at stock gains"). Its trimmed lean, shown and not judged (F-02), is 1.81° at
+4 m/s and 4.58° at 8 m/s, against 0.44° and 1.76° for the body drag alone. The
+rotors' share calibrates `EK3_DRAG_MCOEF` (0.060 1/s, since EKF3 models rotor
+drag as `MCOEF·V·ρ/ρ0`), and `EK3_DRAG_BCOEF_X/Y` is m/(C_D·A) from the manifest
+(130 kg/m²), since EKF3 models body drag along each axis as `½·ρ·u²/BCOEF`. Set
+in flight, they let EKF3 learn the wind within 10 s: after 60 s it reads
+−8.33 m/s along the true −8 m/s wind and −0.13 m/s across it, with the heading
+0.11° from where it was; without them its wind stays zero.
+
+At stock settings the quad's attitude oscillation pulls that estimate. Over a
+175 s fusion the cross-wind estimate reaches −1.90 m/s and the heading turns
+7.8°, with XKF2 `IDY` growing to +0.041 m/s², against −0.11 m/s, 0.17° and a
+steady +0.003 m/s² with the 40 Hz filter; the along-wind estimate is −8.23 m/s
+and −8.33 m/s. TASK-096 first put that error down to EKF3's drag form, which
+predicts each body axis's drag from that axis's airspeed alone
+(`½·ρ·u²/BCOEF` and `MCOEF·u`, as ArduPilot's built-in SITL multicopter computes
+it in `SIM_Frame.cpp`), while the contract's drag acts along the relative wind.
+The comparison of 2026-11-04 shows that the oscillation is the main cause. By
+the user's decision of 2026-11-03 MirageSITL keeps its drag along the relative
+wind rather than EKF3's per-axis form.
 
 Verification (TASK-096): `tests/airframe-drag.test.ts` checks the force and
 moment against the formula within 1e-12 on the first step of a level vehicle
@@ -1190,8 +1365,8 @@ Infeasible requested power saturates at the admissible maximum; return
 `power_limited` rather than a negative discriminant/NaN. A depleted pack is a
 hard cut. Update `SOC=max(0,SOC-I*dt/Qc)`; source power equals delivered power plus
 `I²Rb` at this step's held SOC. This is a lumped electrical model, not a chemical
-energy or calibrated battery-life claim. Power availability must be fed back to
-actuators by a future backend before flight dynamics can use the coupled model.
+energy or calibrated battery-life claim. TASK-197 feeds power availability back to the
+actuators (see "Solving the bus with the motors").
 
 ### Frame aggregation and body integration
 
@@ -1906,6 +2081,7 @@ generated-output notice is retained in packages/mavlink/NOTICE.
 | 75 | COMMAND_INT | 35 | 158 |
 | 76 | COMMAND_LONG | 33 | 152 |
 | 77 | COMMAND_ACK | 10 | 143 |
+| 82 | SET_ATTITUDE_TARGET | 51 | 49 |
 | 84 | SET_POSITION_TARGET_LOCAL_NED | 53 | 143 |
 | 85 | POSITION_TARGET_LOCAL_NED | 51 | 140 |
 | 86 | SET_POSITION_TARGET_GLOBAL_INT | 53 | 5 |
@@ -2276,19 +2452,26 @@ changes, the tab shows the effective conditions from the same models the run
 uses, loaded in the browser from the repository's data files (`WMM_2025.COF`
 after its SHA-256 check and `WW15MGH.DAC` through `loadEgm96Geoid`) at the
 current date; a saved location is the next run's home and environment. The Run
-tab starts a launcher run and connects an external SITL at that location:
-ArduPilot's `--home` is the location's latitude, longitude, elevation and
-heading, the barometer parameters of TASK-147 are generated at that elevation,
-and the physics Worker receives `environment.set` (the gravity and the origin
-air of the conditions, refused outside 9.7 to 9.9 m/s² or with an invalid air)
-before `model.load`, so `profileModelPort` builds the profile dynamics with
-them. A repeat or variant of an experiment keeps its parent's home and
-environment. On the Phase 1 path ArduPilot SITL computes its own magnetic field
-from its declination tables at the home; the WMM2025 field is shown and
-recorded for comparison and is not written to the autopilot. Experiment payload
-schema 5 records the location and its conditions as `environment` (null for a
-run recorded without one), which `validateExperiment` checks for consistency
-with the session's home and the location (see "Experiment record").
+tab starts a launcher run, every run of a TASK-176 batch, and connects an
+external SITL at that location: ArduPilot's `--home` is the location's
+latitude, longitude, elevation and heading, the barometer parameters of
+TASK-147 are generated at that elevation, the TASK-172 site parameters
+(COMPASS_DEC) follow the home, and the physics Worker receives
+`environment.set` (the gravity and the origin air of the conditions, refused
+outside 9.7 to 9.9 m/s² or with an invalid air) before `model.load`, so
+`profileModelPort` builds the profile dynamics with them. A repeat or variant
+of an experiment keeps its parent's home and environment; a run from a log
+(TASK-183) starts at the log's home in the conditions there, with the standard
+sea-level pressure and no temperature offset, since a log does not record them
+(`environmentAtHome`; outside the location envelope it flies without an
+environment). A weather that keeps the air (TASK-166) and the end of a weather
+return to the location's origin air, not to a sea-level origin. On the Phase 1
+path ArduPilot SITL computes its own magnetic field from its declination
+tables at the home; the WMM2025 field is shown and recorded for comparison and
+is not written to the autopilot. Experiment payload schema 7 records the
+location and its conditions as `environment` (null for a run recorded without
+one), which `validateExperiment` checks for consistency with the session's
+home and the location (see "Experiment record").
 `tests/weather-location.test.ts` checks the setting, the envelope and the form;
 `tests/browser/location.spec.ts` chooses a location through the UI alone,
 compares the shown conditions with the models evaluated in Node, and finds the
@@ -2806,7 +2989,7 @@ Collision construction belongs to a separate Worker. Stage owns a copy, validate
 
 ### Declarative scenario v1
 
-Scenario admission snapshots and freezes configuration: id, physics hz 400/800/1200, uint32 seed, model/firmware SHA-256, duration 1..4320000 ticks, <=128 ordered events and an altitude-hold rubric. Only validated weather.set/fault.set protocol-v2 templates are admitted, with expectedEpoch=0, consecutive requestIds from 1 and atTick exactly matching event tick. `ScenarioBinder` binds the active epoch, allocates the next accepted request id, submits through the session queue on that simulation tick, and claims a fault applied only after an applied ACK. The runner returns immutable event indices, never allocates in polling, and uses simulation ticks; pauses consume no simulated time. Backwards/missed ticks return -2 instead of late execution. Reset explicitly rewinds the cursor. Provenance/seed/hz mismatches reject startup.
+Scenario admission snapshots and freezes configuration: id, physics hz 400/800/1200, uint32 seed, model/firmware SHA-256, duration 1..4320000 ticks, <=128 ordered events and an altitude-hold rubric. Only validated weather.set/fault.set protocol-v2 templates are admitted, with expectedEpoch=0, consecutive requestIds from 1 and atTick exactly matching event tick. `ScenarioBinder` binds the active epoch, allocates the next accepted request id, submits through the session queue on that simulation tick, and claims a fault applied only after an applied ACK. The runner returns immutable event indices, never allocates in polling, and uses simulation ticks; pauses consume no simulated time. Backwards/missed ticks return -2 instead of late execution. Reset explicitly rewinds the cursor. Provenance/seed/hz mismatches reject startup. Scenario schema 2 (TASK-166) adds `effects`, entries of `{ control, onsetTick, durationTicks, recovery }` holding a TASK-166 control record, and lets `events` carry `effect.set` as well. Each entry becomes ordinary events, the effect on at its onset and off when its duration ends (null holds it to the end), which must end by the scenario's end and fit its 128 events, two for an effect with a duration. Admission merges them in tick order, on one tick in the order written, numbers their request IDs and refuses a control whose intensity leaves its range. Each is bound, submitted and acknowledged as above, so a scheduled effect applies on its exact tick and its end is as visible as its start. Schema 1 reads as it did and has no `effects`.
 
 The rubric requires every integer hold tick exactly once, finite altitude, actual autopilot source and healthy EKF when configured. Gaps, excess altitude error and unhealthy EKF fail; incomplete/synthetic traces block. Pilot-basics contains all-zero placeholder hashes for structural testing only; it is not a certified aircraft/firmware lesson. Native SITL EW closed-loop validation (TASK-042/043/059) is complete. TASK-075 admits instructor `fault.set` commands into the live session `EwEngine`; TASK-124 rejects motor-loss there while the active dynamics reads no motor-fault table. TASK-079 submits scenario faults on their tick and waits for the applied ACK. Weather events stay rejected on the demo. Placeholder lesson hashes are not a certified lesson.
 
@@ -3907,11 +4090,11 @@ SIM_GYR_FLOOR 0
 ```
 
 `node scripts/build-ardupilot-sitl.mjs --out DIR` builds the patched native
-firmware on Linux or WSL. It verifies that `MIRAGE_SITL_SOURCE` is the clean
+firmware on macOS, Linux or WSL. It verifies that `MIRAGE_SITL_SOURCE` is the clean
 pinned checkout and copies it, then applies the patch to the copy and checks
 every file hash against the catalog. It builds with
-`./waf configure --board sitl` and `./waf copter`, checks that both parameter
-names are in the ELF, and writes `DIR/manifest.json`. Missing prerequisites exit
+`./waf configure --board sitl` and `./waf copter`, checks that it is a native
+executable of the host holding both parameter names, and writes `DIR/manifest.json`. Missing prerequisites exit
 2. Upstream firmware skips unknown defaults-file names without any log line or
 STATUSTEXT, so `off` on unpatched firmware changes nothing silently. Any runner
 that applies `off` therefore reads both values back from the running firmware
@@ -3984,11 +4167,10 @@ two firmware builds:
 | upstream | `off` | FAIL at 20 s, never armed | 4 requests, no reply | not applicable | not applicable |
 | patched | default | PASS | none sent | PASS; the 13,082 samples before the first command match the upstream run | PASS |
 
-These changes alter the driver, sidecar and raw-audit sources. The frozen
-TASK-059 matrix (`tests/fixtures/scenarios/ew-matrix.json`) still names the
-earlier `driver.mjs` and `telemetry.py`, so `scripts/report-ekf.mjs` rejects new
-EW validation captures until TASK-059 is re-frozen with the current driver. The
-user accepted this on 2026-10-27. EW calibration and validation also bind the
+These changes alter the driver, sidecar and raw-audit sources, so the frozen
+TASK-059 matrix (`tests/fixtures/scenarios/ew-matrix.json`) no longer applied, as the
+user accepted on 2026-10-27. TASK-171 froze it again with the current driver, on
+macOS. EW calibration and validation also bind the
 firmware and parameter hashes, so both must use the same firmware and setting.
 Earlier TASK-042/043 audits name the earlier `check-raw.py`; re-run it to
 refresh them.
@@ -4005,6 +4187,36 @@ Open items:
   `browser-hal` join the patch's paths.
 * Re-freezing TASK-059 with the current driver on the operator's machine
   before new EW validation captures (decision 2026-10-27).
+
+### Every SITL parameter declared
+
+An error must not sit undecided, so `SIM_PARAMETERS_WITHOUT_A_SOURCE` declares why every
+SIM_ parameter of the catalog that no error source lists has none. Of the 323, 96 belong
+to a source and the other 227 fall in exactly one class. `tests/error-ownership.test.ts`
+fails on a name in neither, so a pin change cannot add one unseen, and on an error active
+by default outside a source.
+
+| Class | What it holds | Why it has no source |
+|---|---|---|
+| `fault` | `SIM_ACCELn_FAIL`, `SIM_BAROn_FREEZE`, `SIM_MAGn_FAIL`, `SIM_GPSn_JAM`, `SIM_RC_FAIL` and the like | A fault a user injects, not a standing error; TASK-168 and TASK-169 own these |
+| `inactive-error` | `SIM_GPSn_GLTCH`, `_DRFTALT`, `_ALT_OFS`, `SIM_AHRS_OFF_*`, `SIM_TIME_JITTER` and the like | Off at its default of zero; nothing here sets it, so if a user does, ArduPilot applies it once |
+| `shapes-a-source` | `SIM_DRIFT_TIME`, `SIM_VIB_MOT_*`, `SIM_MAG_ALY_HGT`, `SIM_INS_THR_MIN` | Shapes an error whose amplitude a source switches off |
+| `temperature` | `SIM_IMUT_*`, `SIM_TEMP_*` | An error only through the `SIM_IMUTn_` calibrations, disabled by default; TASK-115 defers temperature errors |
+| `sensor-settings` | Sensor counts, `SIM_GPSn_HZ`, `_ACC`, `_NUMSATS`, device IDs and the like | Which sensors exist and how they report |
+| `not-fitted` | `SIM_ARSPD*`, `SIM_SONAR_*`, `SIM_FLOW_*`, `SIM_GPS3_*`, `SIM_GPS4_*` and the like | A sensor S08 does not include and the S19 aircraft do not carry, or a GNSS instance that is not enabled |
+| `environment-or-vehicle` | `SIM_WIND_*`, `SIM_TERRAIN`, `SIM_SHOVE_*`, `SIM_BATT_*` and the like | ArduPilot's environment or its own vehicle model; TASK-166 decides environment effects |
+| `other-systems` | `SIM_ADSB_*`, `SIM_CAN_*`, `SIM_OSD_*`, `SIM_SPEEDUP` and the like | Simulated peripherals and the simulator itself |
+
+### Live writes (S08)
+
+`parameterWriteConflict(matrix, name)` reads the error a SITL parameter sets, counting a
+vector's `_X`, `_Y` and `_Z` as its parameter. A write conflicts when ArduPilot applies that
+error on the matrix's path and the matrix gives it to `mirage`, because it would be applied
+twice, or to `none`, because it would add an error the experiment record says is not there.
+An error ArduPilot owns stays free to change. The session passes the run's matrix to
+`ParameterService`, which refuses a conflicting write before sending, as `refused` by
+`service` with `parameterWriteConflictReason`, so every write path of the Parameters tab is
+covered. A batch's set names are already refused against the generated parameters.
 
 ## Step interfaces v2 (TASK-088)
 
@@ -4260,7 +4472,7 @@ shows whether the origin's storage is persistent.
 ### Records
 
 ```typescript
-type ItemKind = "project" | "component-card" | "measurement-set" | "aircraft-profile" | "experiment" | "parameter-set" | "parameter-log";
+type ItemKind = "project" | "component-card" | "measurement-set" | "aircraft-profile" | "experiment" | "parameter-set" | "parameter-log" | "flight-task" | "experiment-batch" | "log-extraction" | "effect-log" | "log-comparison";
 interface Dependency { kind: ItemKind; sha256: string }
 interface ProjectRecord {
   schemaVersion: 1;
@@ -4304,10 +4516,13 @@ interface ProjectRecord {
   other kinds keep their bytes and meaning, and a reader without the kind
   rejects its records as an unknown kind. TASK-160 added `parameter-set` and
   `parameter-log` in the same way; each may depend only on an experiment.
+  TASK-172 added `flight-task`, with no dependencies. TASK-176 added
+  `experiment-batch`, which may depend on an aircraft profile and on experiments.
+  TASK-182 added `log-extraction`, TASK-169 `effect-log` and TASK-181 `log-comparison`, each of which may depend only on experiments.
 * **Payloads.** A project's payload is `{}`. The store does not interpret
-  card, measurement-set, profile, experiment, parameter-set and parameter-log
-  payloads beyond the canonical JSON limits. Their owner tasks (TASK-138,
-  TASK-139, TASK-140, TASK-154, TASK-160 and TASK-165) register
+  card, measurement-set, profile, experiment, parameter-set, parameter-log,
+  flight-task, experiment-batch, log-extraction, effect-log and log-comparison payloads beyond the canonical JSON limits. Their owner tasks (TASK-138,
+  TASK-139, TASK-140, TASK-154, TASK-160, TASK-165, TASK-169, TASK-172, TASK-181 and TASK-182) register
   payload validators, which apply when a version is written or imported, not
   when it is read.
 
@@ -5644,16 +5859,82 @@ Statuses: 0, −2 record length or pointers, −3 invalid input or charge, −7
 version. `BetBus` (`@mirage/wasm-bet/bus`) owns one record pair in its own
 instance.
 
+### Solving the bus with the motors (TASK-197)
+
+An ESC multiplies the bus voltage by its duty, so what the motors draw depends on the
+voltage, and the voltage on what they draw. Physically the two agree at once, because the
+electrical time constants are far shorter than a tick. `bet_bound_bus_solve_v2(table, count,
+bus, output, dt)` finds that agreement for the step the rotors are about to take, from
+each motor's filtered duty for the step and the speed the step starts at. `table` holds
+`count` pairs of u32, an arena and its v2 input record as `bet_bound_step_v2` takes them,
+and `bus` is a shared bus input v1 with `motor_power` zero. It changes neither, and writes
+only the record below. `bet_bus_solve_version` returns 1.
+
+\[
+V\,(V_{oc} - V) = R_{\mathrm{int}}\Big(P_{\mathrm{house}} + \sum_k P_k(V)\Big),
+\qquad
+P_k(V) = i_k\,(i_k R_k + k_t \Omega_k),
+\qquad
+i_k = \operatorname{clamp}\Big(\frac{d_k V - k_t \Omega_k}{R_k},\, -I_{\mathrm{brake}},\, I_{\max}\Big)
+\]
+
+The upper branch of that equation is the bus voltage, found by a safeguarded Newton search
+to 1e-9 V, in at most 9 steps over 20 000 random mixes of motors and packs. When the
+motors at the pack's lowest voltage, V_oc − I_cap·R_int, still ask for more than it delivers,
+the pack stays at that voltage and at I_cap, flag 1 is set, and the voltage the ESCs
+multiply falls to the V_m below. That is the same as every ESC's effective duty falling by one
+shared factor, since the winding sees d·V either way. The house load is served first; if
+it takes everything, V_m is 0.
+
+\[
+P_{\mathrm{house}} + \sum_k P_k(V_m) = I_{\mathrm{cap}}\,(V_{oc} - I_{\mathrm{cap}} R_{\mathrm{int}})
+\]
+
+A real pack does not stop at its rated current: its voltage sags further and it heats. The
+model has treated the rating as a ceiling since TASK-026 and flags reaching it, so a result
+at the limit means the rating was reached, not what the pack would do beyond it.
+Regeneration beyond what the pack absorbs does not hold the motors back: the excess is not
+stored, as in the bus step, and flag 1 is set.
+
+### Shared bus solution v1
+
+| Byte Offset | Data Type | Units | Field Name |
+| ---: | --- | --- | --- |
+| 0 | f64 | V | motor_voltage |
+| 8 | f64 | V | pack_voltage |
+| 16 | u32 | bitmask | flags |
+| 20 | u32 | 1 | iterations |
+| 24..63 | u32[10] | — | reserved_zero |
+
+Statuses: those of the bus records and of `bet_bound_step_v2`, and −3 for a count outside
+1 to 32 or a rotor not in drive mode 1. A negative status leaves the output unchanged.
+
 ### Coupling and energy budget
 
-Each tick the rotors use the bus voltage the bus produced on the previous
-tick (the open-circuit voltage before the first step). The bus then delivers
-the sum of the motors' terminal powers: one-tick lag, no iteration. On every
-tick the bus is not limited, the source power V_oc·I equals the internal loss
-I²·R_int plus the delivered power, and the delivered power equals the summed
-terminal powers, each of which is copper loss plus k_t·i·Ω; the bus current
-reported per motor is its terminal power over the lagged voltage, and the
-pack current is the root above.
+Each tick, before the rotors step, the bus and the motors are solved together (see "Solving
+the bus with the motors"), and every rotor runs on the voltage found. A one-tick lag between
+them is unstable once the loop gain passes 1: on the example quad at full duty, 803 W/V
+times 0.0013 V/W is 1.05, and until TASK-197 the bus flipped every tick between 14.55 and 15.99 V.
+
+The rotors then step, and the bus delivers the sum of the motors' terminal powers,
+evaluated at the midpoint speed where the aerodynamics were. So the pack's voltage after a tick
+can differ from the one the motors ran on by what half a tick of spin-up changed the current:
+at most 0.042 V on the hardest steps of the example cards, and nothing once the speeds settle.
+On every tick the bus is not limited, the source power V_oc·I equals the internal
+loss I²·R_int plus the delivered power, and the delivered power equals the summed
+terminal powers, each of which is copper loss plus k_t·i·Ω. The bus current recorded per
+motor is its terminal power over the pack's voltage, so with the house load these sum to the
+pack's current, which is the root above.
+
+### Verification (TASK-197)
+
+`native/bet/tests/bus_solve.rs` checks the solver by hand: the voltage's closed form for equal
+motors, the pack's law at its limit, flat loads at a current limit, regeneration, a dead pack,
+and 20 000 random mixes for consistency and the step count. `tests/bus-coupling.test.ts`
+flies the dynamics on a body too heavy to move on all five S19 configurations: the bus settles
+at every duty, and a flight at full command matches `thrustCapacity` within 0.5 %.
+`tests/integration/flight-tasks-sitl.test.ts` flies a climb with native ArduCopter on a pack
+limited just above hover current, which stays within 0.1 A of the limit in every physics step.
 
 ### Flight dynamics, manifest and parameter profile
 
@@ -5663,8 +5944,8 @@ one `EscDriveMotor` per rotor in rotor order (R, k_t, I_max, I_brake, τ₀,
 constant house load ≥ 0 W. Absent, each rotor gets duty·`motorMaxTorqueNm`
 through interface v1, and a trajectory of 4000 state records hashes to the
 same SHA-256 as the d1aeaca code and WASM build. With it, the rotors run
-interface v2 drive mode 1 with the clamped duty as `esc_duty` and the lagged
-bus voltage, and the bus delivers their summed terminal power plus the house
+interface v2 drive mode 1 with the clamped duty as `esc_duty` and the voltage
+solved for this tick, and the bus delivers their summed terminal power plus the house
 load. `electrical` (a `Float64Array` of state of charge, bus voltage and bus
 current), `busLimited` and `driveLimited` report the last step; the
 `stateOfCharge` and `batteryCurrentA` getters read `electrical` for cold code,
@@ -6203,7 +6484,8 @@ compute alone, as before. It writes
 `test-results/bench/profile-dynamics-16.json` with the manifest, WASM and
 source hashes. The step is `BetFlightDynamics` alone, not the browser Worker
 or the session; the scalar WASM build is used. The budget is the step period
-(A-04 requires 400 Hz for every configuration), and A-05 judges the average
+(A-04: 400 Hz for every configuration, and 800 Hz in runs with ArduPilot SITL
+since its amendment of 2026-11-03), and A-05 judges the average
 real-time ratio, which must be at least 0.99. The run below is from the cloud
 container (Intel Xeon at 2.80 GHz, 4 CPUs), not the Apple Silicon target.
 
@@ -6259,7 +6541,7 @@ offsets:
 | Kind | Range |
 | --- | --- |
 | `skipped` | From the first byte that does not start a defined record up to the next header of a defined type, or to the end of the file. |
-| `truncated` | A record with a valid header that the end of the file cuts short. |
+| `truncated` | A record with a valid header that the end of the file cuts short, or the first one or two bytes of a header that end the file. |
 | `bad-format` | An FMT record that has an unknown format character, a Length that differs from the size of its format, a column count that differs from its format, or that redefines FMT. Its type stays undefined. |
 
 pymavlink instead fails on an unknown format character and later skips the
@@ -6465,6 +6747,9 @@ deoptimize it; the unoptimized code then boxes doubles until it is optimized
 again. Event values and limits pass through a typed array, never as call
 arguments.
 
+Since TASK-177 the recorder keeps these events as `events.limit` rows, so a stored
+experiment can say what it exceeded (see "Limit exceedances").
+
 ### Session, Worker and UI
 
 `PhysicsSessionV2.attachPowerChannel` publishes power telemetry v1
@@ -6648,9 +6933,41 @@ requested at 10 Hz.
 
 ArduCopter's pre-arm check requires the gyro at 1.8 times its 400 Hz loop
 (at 400 Hz physics: "PreArm: Gyro 0 rate 400Hz < loop rate*1.8 720Hz"), so
-integrated sessions run at 800 Hz or 1200 Hz. MOT_PWM_MIN and MOT_PWM_MAX are
-set to 1000 µs and 2000 µs, the link's duty span; the frame parameters come
-from the TASK-142 generator.
+integrated sessions run at 800 Hz or 1200 Hz; decision A-04, amended on
+2026-11-03, sets 800 Hz for runs with ArduPilot SITL. MOT_PWM_MIN and
+MOT_PWM_MAX are set to 1000 µs and 2000 µs, the link's duty span; the frame
+parameters come from the TASK-142 generator.
+
+### Attitude oscillation of the quad X at stock gains
+
+TASK-158 found it in the flights' own DataFlash logs. With ArduCopter's stock
+rate gains (`ATC_RAT_RLL_P` and `_I` 0.135, `_D` 0.0036) and 20 Hz gyro filter
+(`INS_GYRO_FILTER`), the S19 quad X on the example cards holds 5 m within 0.1 m
+while its roll rate swings ±85 deg/s at 10.3 Hz (standard deviation 61 deg/s)
+and its motor commands spread from 15 % to 61 %, drawing 238 to 403 W at the
+moments sampled against 128 W when steady. This airframe is light and has
+much authority: it hovers at a learned `MOT_THST_HOVER` of 0.23, with moments of
+inertia of 0.016 and 0.017 kg·m² about roll and pitch. The other four S19
+configurations stay within 0.22 deg/s at the same gains.
+
+The headless harness of `tests/external-sitl-flight.test.ts` shows the same
+oscillation as the Run tab, at 800 Hz and at 1200 Hz (62.3 and 62.7 deg/s, both
+at 10.3 Hz), so neither the browser nor the step rate causes it. The rate gains
+on both axes at 0.95 and 0.9 of stock leave it (59.5 and 50.4 deg/s); at 0.8 and
+0.6 the quad is still (0.13 and 0.10 deg/s). At stock gains it is also still
+with a gyro filter of 30 or 40 Hz (0.13 and 0.07 deg/s), and with both moments of
+inertia at 0.02 kg·m² (0.11 deg/s), but not at 0.017 kg·m² (40 deg/s on both
+axes). Lowering the roll gains alone moves it to pitch (56 deg/s): both axes are
+above the limit, and the axis that oscillates hides the other, since they share
+the motors. A hand estimate of the loop (thrust slope 15 N per unit of thrust
+demand, mixer factor 0.5, the 20 Hz filters, a motor lag of 37 ms and 5 ms of
+delay) puts its −180° phase crossing at 10 Hz, the measured frequency, with a
+gain of about half what the flights imply; it uses the steady thrust slope, and
+the difference is not resolved. This is a result about these gains on this
+aircraft, and no measured aircraft confirms it. Decision A-13 of 2026-11-04 limits
+the body rates in each hold of TASK-158's flight to a standard deviation of
+1 deg/s, so the quad flies that acceptance with `INS_GYRO_FILTER` at 40 Hz, typed
+into the Parameters tab after READY, and the other configurations fly stock.
 
 ### Allocation
 
@@ -6761,7 +7078,7 @@ network error; launcher-foreign needs an answer the browser may read.
 
 ### Experiment record
 
-`packages/aircraft/src/experiment.ts` defines experiment payload schema 5
+`packages/aircraft/src/experiment.ts` defines experiment payload schema 7
 (TASK-148) in record envelope v1, and the application registers
 `validateExperiment` for the `experiment` kind. The record has exactly one
 dependency, its aircraft-profile version, and the payload holds:
@@ -6771,20 +7088,25 @@ dependency, its aircraft-profile version, and the payload holds:
 | profile | SHA-256, item ID, version and name of the profile version |
 | sitl | `ownership: "launcher"`: the launcher experiment ID, which names `experiments/<id>/`, and `ardupilot`, the launcher catalog ID, firmware version, commit, binary SHA-256 and default-parameter SHA-256 of the build that ran, as the launcher's view reports them; or `ownership: "external"` for a SITL the user started (see the TASK-155 section) |
 | session | physics rate (800 or 1200 Hz), `sitl-lockstep`, speed-up (null for an external SITL), home, model ID, manifest SHA-256 and BET module SHA-256 |
-| parameters | exactly the list sent to the launcher, in its order, each tagged frame, output, pwm or sensor; for an external SITL the same generated list, which it was confirmed to hold |
+| parameters | exactly the list sent to the launcher, in its order, each tagged frame, output, pwm, sensor, set or site (`set`: TASK-176, see "Parameter batches"); for an external SITL the same generated list without site, which it was confirmed to hold |
 | frameScript | the Lua of a scripting-matrix frame, or null (always null for an external SITL) |
 | sensors | `sensorSnapshot()` of the profile version, verbatim |
 | recording | the run's recorder v2 record ID and the Logging tab settings it records with (common, group and signal rates, the run length and the storage reserve; TASK-163), or null for a run that records nothing |
 | lineage | an original run, or a repeat or variant of a parent experiment (TASK-165; see "Experiment lifecycle") |
+| flightTask | the flight task the run was started with: its definition, its name and the SHA-256 of the `flight-task` record as data (TASK-172; see "Flight tasks"), or null |
+| faults | the effects the run applies by itself, or null (TASK-169; see "Faults and interference tab") |
 | environment | the location of the run (site, coordinates, ground elevation, heading, measured QNH, temperature offset) with the effective conditions evaluated there (TASK-148), or null for a run without a location; the session's home must be the location, the conditions must be evaluated at it with h = H + N, the WMM zone must match the horizontal field, and the air must come from the location's sea-level pressure |
 
 Schema 1, which TASK-154 wrote, had `ardupilot` and `launcher` at the top
 level and a required speed-up; schema 2, which TASK-155 wrote, had no
 `recording`, schema 3, which TASK-163 wrote, no `lineage`, and schema 4, which
-TASK-165 wrote, no `environment`. All stay valid on reads and archive imports;
-`readExperiment` presents them as schema 5 original runs without an
-environment, without a recording before schema 3 (schema 1 with a
-launcher-owned `sitl`), and `createExperimentRecord` writes only schema 5.
+TASK-165 wrote, no `flightTask`, schema 5, which TASK-172 wrote, no `faults`, and
+schema 6, which TASK-169 wrote, no `environment`. All stay valid on reads and
+archive imports; `readExperiment` presents them as schema 7 runs without an
+environment, with no fault schedule before schema 6, without a task before
+schema 5, original runs before schema 4, without a recording before schema 3
+(schema 1 with a launcher-owned `sitl`), and `createExperimentRecord` writes
+only schema 7.
 
 `createExperimentRecord` recomputes the snapshot from the stored profile
 version and requires canonical-byte equality, cross-checks the frame and
@@ -6853,7 +7175,8 @@ running. The decisions of 2026-11-01 set the policy: a SITL with built-in
 physics is refused; only verified source commits connect; the SITL's
 parameters are read, never written, and every difference is a reason to
 refuse; a connection is recorded as experiment payload schema 2, which is
-schema 3 since TASK-163 and schema 4 since TASK-165.
+schema 3 since TASK-163, schema 4 since TASK-165, schema 5 since TASK-172 and
+schema 6 since TASK-169.
 
 ### Launcher API
 
@@ -7156,7 +7479,7 @@ PARAM_ERROR, which is outside the TASK-150 message set.
 |---|---|
 | `requested` | PARAM_SET sent; `attempts` sends so far |
 | `confirmed` | an answer outside the list holds the requested float32; `rebootRequired` and `outsideRange` come from the metadata, null without metadata for the commit |
-| `refused` by `service` | not sent: the name is not in the downloaded list, the value is not finite, the value is outside the float32 range, the parameter's integer type cannot carry it exactly (not an integer, outside the type's limits, or not exact in float32), or its type is not one PARAM_SET's float32 carries |
+| `refused` by `service` | not sent: the name is not in the downloaded list, the run's ownership matrix forbids the write (TASK-089, "Live writes"), the value is not finite, the value is outside the float32 range, the parameter's integer type cannot carry it exactly (not an integer, outside the type's limits, or not exact in float32), or its type is not one PARAM_SET's float32 carries |
 | `refused` by `autopilot` | answers kept another value: after the first differing answer one more read is sent, and the write is refused when the latest answer still differs after `writeRetryS` (1 s) without an answer; `reported` holds that value |
 | `timeout` | no answer after `writeAttempts` (3) sends, `writeRetryS` apart |
 | `stale` | the outcome no longer describes the autopilot: a newer write of the same name replaced a pending write or was confirmed after a confirmed one, or the autopilot still reports another value for a confirmed one after one more read and `writeRetryS` without an answer |
@@ -7585,20 +7908,315 @@ before the frame, unanswered, while the running state reported after a pump
 never refreshes it. `tests/browser/manual-flight.spec.ts` flies native
 ArduCopter 8ab6afde with a mocked controller through the Run tab.
 
+## Flight tasks (TASK-172)
+
+A flight task says what ArduPilot should fly, from what initial conditions and
+how it ends (S10). ArduPilot receives the commands, and the physics computes
+the motion; nothing moves the aircraft but the motors ArduPilot drives. Mass
+and payload belong to the aircraft profile.
+
+### Task definition v1
+
+`packages/scenarios/src/flight-tasks.ts` defines the definition, and
+`flightTaskProblems` gives every reason a value is not one:
+
+```typescript
+interface FlightTaskDefinition {
+  schemaVersion: 1 | 2;   // 2 for a tuning maneuver, 1 for every other type
+  type: "takeoff" | "hover" | "landing" | "straight" | "climb" | "descent" | "acceleration" | "braking" | "turn" | "route"
+    | "roll-step" | "roll-doublet" | "pitch-step" | "pitch-doublet" | "heading-step" | "heading-doublet" | "altitude-step" | "altitude-doublet";
+  parameters: Record<string, number>;   // the type's own numbers; empty for a route
+  route: { northM: number; eastM: number; altitudeM: number; speedMps: number }[] | null;   // 2 to 50 points; null unless a route
+  initial: {
+    ground: { northM: number; eastM: number; headingDeg: number; stateOfCharge: number };
+    air: { altitudeM: number; headingDeg: number; speedMps: number } | null;   // always null for a route
+  };
+  finish: "land" | "hold";   // a landing task always lands
+}
+```
+
+| Type | Parameters, with their limits |
+|---|---|
+| takeoff, landing | altitude 1–100 m |
+| hover | altitude, duration 1–3600 s |
+| straight | altitude, heading 0–360°, speed 0.5–20 m/s, distance 1–5000 m |
+| climb, descent | from and to altitude, rate 0.1–5 m/s |
+| acceleration, braking | altitude, heading, from and to speed 0–20 m/s, rate 0.1–5 m/s² |
+| turn | altitude, heading, speed, angle ±1080° (clockwise positive), rate 1–90 °/s |
+| route | its points: north and east ±5000 m, altitude, speed |
+| roll-step, roll-doublet, pitch-step, pitch-doublet | altitude, heading, amplitude ±30°, hold 0.5–10 s |
+| heading-step | altitude, heading, amplitude ±170°, hold 0.5–60 s |
+| heading-doublet | altitude, heading, amplitude ±85°, hold 0.5–60 s |
+| altitude-step, altitude-doublet | altitude, amplitude ±50 m, hold 0.5–60 s; every altitude it reaches stays within 1–100 m |
+
+Altitudes are metres above the pad, as the Run tab shows them; north and east
+are metres from the pad, in the session's frame; headings are degrees from
+north, clockwise. A task is a versioned `flight-task` item of the project
+store, with no dependencies, and `parseFlightTask` is its registered payload
+validator. Schema 2 adds the tuning maneuvers (see "Tuning maneuvers"). A task of
+an earlier type stays schema 1, byte for byte, so its stored versions and their
+SHA-256 do not change, and a definition whose version does not match its type is
+refused.
+
+### Initial conditions
+
+Ground values are in the physics at the first step: `ground.register` gives the
+Worker the values before `model.load`, bound to the manifest's SHA-256, and
+`buildProfileDynamics` places the vehicle (`initialGround`) with its battery
+(`initialStateOfCharge`). By the user's decision of 2026-11-04 an airborne
+start is a lead-in. ArduPilot needs about 41 s of simulated time to become
+READY, so an aircraft placed in the air at the start tick falls before anything
+can fly it. ArduPilot takes off and flies to the requested height, heading and
+speed instead, and the task's clock starts on arrival, with requested and actual
+shown there. Without `initial.air` the lead-in goes to the state the task's own
+parameters start from. Roll and pitch cannot be set on their own in the air;
+TASK-173 commands them. A route always starts from the ground. A SITL the user
+started stands at its own `--home`, so a task whose ground start is away from
+the pad cannot fly on a connection, and the Run tab says so.
+
+On the task's clock, an airborne start first flies to the state the task's own
+parameters start from: the same height and heading only change speed; another
+height or heading stops first, turns at 30 °/s, changes height at 1 m/s and then
+reaches the task's speed.
+
+### The compass declination at boot
+
+A vehicle keeps COMPASS_DEC between boots, and a MirageSITL run boots with an
+empty memory. Without it ArduPilot sets its first heading before it has a
+position, and is wrong by the local declination: 12.8° at the default home, at
+5.4 s of simulated time. When GPS arrives the heading swings back, and EKF3 takes
+part of that swing for a gyro error: it learned -1.76 °/s by 14 s, and had
+unlearned it only to -0.18 °/s at arming. It then holds the heading it believes
+while the true heading creeps away, about 2° during the first flight, although
+its own heading stays within 0.02° of the one commanded.
+
+A run the launcher starts is therefore given COMPASS_DEC before ArduPilot boots
+(`packages/aircraft/src/site-parameters.ts`), interpolated from ArduPilot's own
+table as `AP_Declination::get_mag_field_ef` does.
+`scripts/generate-declination.mjs` generates `data/ardupilot/declination.json`
+from the pinned source. COMPASS_AUTODEC stays on, and ArduPilot arrives at the
+same value once it knows where it is, so a run does not read this one back. The
+record holds it with source `site`, `createExperimentRecord` requires the value of
+the record's home, and comparing two experiments counts it as the home, so a
+record from before it can still be repeated. A parameter export leaves it out:
+where a run started is no part of the profile. A connection cannot set it, since
+its SITL is already running.
+
+### The runner
+
+`planFlightTask` turns a definition into stages, each measured (the task, on its
+clock) or not (the lead-in, the stop and the landing). `FlightTaskRunner` is a
+pure stage machine: `observe` takes the session's truth and the autopilot's mode,
+arming and mission reports, and returns the commands to send and what is
+requested at that moment. A stage's completion tolerances are operational,
+declared before the first flight, and do not judge fidelity (SA-01):
+
+| Stage ends | When |
+|---|---|
+| take-off or vertical | within 0.5 m of its altitude, vertical speed below 0.3 m/s, held for 2 s of simulated time |
+| heading | its turn done, within 5° |
+| speed | its change done, within 0.5 m/s, held for 2 s |
+| turn | its turn done, within 5° of the final heading, held for 2 s |
+| route leg | on ArduPilot's own MISSION_ITEM_REACHED |
+| maneuver | at the end of its timeline, whatever the response did |
+| recover | its stop done, ground speed below 0.5 m/s, held for 2 s |
+| landing | on ArduPilot's disarm |
+
+The 2 s holds count on the task's clock too, so a measured stage's trace shows any
+overshoot rather than ending on the moment it first arrived. A stage that takes
+60 s of simulated time beyond its plan fails the task, as does the autopilot
+disarming or leaving its flight mode.
+
+Every target is one ArduPilot can follow without correcting. A target whose speed
+changes in one step is one no aircraft can follow: ArduCopter's position
+controller shapes its correction within its own limits, so it falls behind, flies
+faster than asked to catch up, because the correction adds to the target's
+velocity, and then cannot stop in time. The first flights of this task did that: a
+2 m/s climb flew at 4.2 m/s and passed its end by 2.28 m, while the aircraft stayed
+within 5 cm of ArduPilot's own plan throughout. `packages/scenarios/src/smooth-motion.ts`
+therefore changes each value in the jerk limit's S-shape, within limits the runner
+reads from the autopilot's parameter list when the task starts
+(`guidanceLimitsOf`); a limit that is missing or unusable refuses the task.
+
+| What changes | Acceleration | Jerk |
+|---|---|---|
+| height | WP_ACC_Z | PSC_D_JERK |
+| speed | the stage's own rate; 2 m/s² in a lead-in or a stop | PSC_NE_JERK |
+| heading while flying | the smaller of ATC_ACC_Y_MAX and PSC_NE_JERK divided by the speed | not limited |
+| heading at rest, at 30 °/s | ATC_ACC_Y_MAX | not limited |
+
+What is requested is therefore what can be flown, and the trace shows it: with
+ArduCopter's defaults a climb at 2 m/s reaches 2 m/s after 2.2 s. A move too short
+for its rate peaks lower and still arrives. Each stage starts where the last one
+ended, so a moving target does not stall between stages.
+
+Guided stages (`packages/autopilot/src/guided.ts`) send
+SET_POSITION_TARGET_LOCAL_NED in MAV_FRAME_LOCAL_NED with `type_mask` 0: the
+position, velocity and acceleration of that moment, along a curve the sideways
+acceleration of speed times turn rate, and the yaw with its rate. ArduCopter
+carries them forward between messages. One goes out at every observation, which on
+the Run tab is every 80 physics steps (0.1 s at 800 Hz), well inside
+`GUID_TIMEOUT`. ArduPilot's local frame starts where
+it was at its first GPS fix, so the commands take the start position and the CG's
+rest height off. A route (`packages/autopilot/src/mission.ts`) is a mission: for
+each point a DO_CHANGE_SPEED and a NAV_WAYPOINT at a location computed as
+`Location::offset` does, uploaded by MISSION_COUNT, each MISSION_REQUEST_INT or
+MISSION_REQUEST answered with its MISSION_ITEM_INT, and MISSION_ACK. A route
+counts as uploaded only on ArduPilot's acceptance, and a refusal names its
+reason. It flies in AUTO after a guided take-off.
+
+### The run
+
+The Flight tasks tab (`apps/web/src/tasks/`) defines and versions tasks and shows
+the stages ArduPilot will be asked to fly. The route editor adds, removes and
+reorders points; the form's text and a definition convert both ways without
+change, percent included, so a stored task reopens unchanged and saving it again
+adds no version.
+
+The Run tab chooses a task before the start. `RunPanel` passes it to the
+controller as the experiment's `flightTask`, and from READY, `runTask` hands the
+flight to the runner, once per Worker status. A run flies its task once, as its
+first flight: ArduPilot's frame starts where the run started, and a repeat is a
+new experiment. A task that fails, or that the user ends with Land, hands the
+flight to ArduPilot's LAND, and the run goes on. Pause holds the task with the
+session. The panel shows the stage, the task's clock, requested next to actual,
+and the arrival; a value the stage does not request reads "not requested". The
+flight view draws a route's line and points.
+
+Each observation becomes an `events.flightTask` row at the latest physics tick,
+with the truth signals of the same ticks beside it. Experiment payload schema 5
+holds the definition with its record's SHA-256 (see "Experiment record"), and
+`createExperimentRecord` requires the definition and name of that stored version.
+
+### Verification (TASK-172)
+
+`tests/flight-tasks.test.ts` checks definitions, the plan, the runner against a
+simulated vehicle, the MAVLink packing and upload protocol, and the form's round
+trip. `tests/smooth-motion.test.ts` steps the profiles and checks them by
+differentiating and integrating numerically, and `tests/site-parameters.test.ts`
+checks the declination against the values ArduCopter itself reported at two
+places. `tests/profile-dynamics.test.ts` checks the ground start in the dynamics at
+400, 800 and 1200 Hz, and `tests/run-controller.test.ts` the controller's flow
+against scripted frames. `tests/integration/flight-tasks-sitl.test.ts` flies each
+of the ten types, an airborne start, a straight flight and a route from another
+place, and a climb and a descent at 5 m/s, with native ArduCopter 8ab6afde through
+the launcher's bridge at speed 4 and 800 Hz, observing as the Run tab does and
+reading the limits from the autopilot, and writes the traces to an ignored report.
+`tests/browser/flight-tasks.spec.ts` round-trips the route editor through a
+reload; flies a climb and a braking from the Run tab and measures their gaps from
+the recording, with the timing a user's run really has; and flies a stored route
+from another place in the application, reading the ground values and the requests
+back from the recording, then repeats it.
+
+### Tuning maneuvers (TASK-173)
+
+A maneuver is a flight task of its own type, so it is defined, versioned, flown,
+recorded and repeated like any other, and the experiment record holds it. It
+commands sudden changes in roll, pitch, heading or altitude and shows how the
+aircraft answered. `packages/scenarios/src/maneuvers.ts` holds what is its own:
+when each change comes, and the metrics.
+
+A maneuver holds its start for 2 s, on a clock that starts on its own first
+observation, then changes the request:
+
+| Shape | Changes, at task time, with H the hold |
+|---|---|
+| roll or pitch step | 2 s: 0 to A; 2 + H: A to 0; ends at 2 + 2H |
+| heading or altitude step | 2 s: 0 to A; ends at 2 + H |
+| doublet, on any axis | 2 s: 0 to A; 2 + H: A to -A; 2 + 2H: -A to 0; ends at 2 + 3H |
+
+A roll or pitch step comes back level because a lean held on keeps accelerating.
+A heading follows the shortest way round, so one change stays below half a turn,
+which is why a doublet's amplitude is limited to half a step's. Positive amplitude
+rolls right, pitches the nose up, turns clockwise and climbs.
+
+Unlike every other stage these targets have sharp corners, on purpose: how the
+aircraft answers a sudden change is what a maneuver measures. The way to the
+maneuver and from it stays smooth. Heading and altitude go as position targets of
+no speed, with the yaw or the height changed at once. Roll and pitch go as
+SET_ATTITUDE_TARGET in GUIDED, with the attitude at every observation, the three
+body rates ignored (`type_mask` 7) and the thrust field exactly 0.5, which
+ArduCopter reads as a climb rate of none, so it holds the height and not the
+position. With GUID_OPTIONS bit 3 set that field would be half thrust, so the Run
+tab refuses a roll or pitch maneuver then, and says why. If the messages stop,
+ArduPilot levels the aircraft (GUID_TIMEOUT). After a roll or pitch maneuver a
+`recover` stage, not measured, stops the aircraft smoothly from whatever speed and
+direction it ended with, starting from where it actually is.
+
+A request of roll or pitch becomes an `events.flightTaskAttitude` row at the tick
+of its `events.flightTask` row. It is a signal of its own because a recording's
+reader requires a row to hold exactly its signal's channels: two more channels on
+`events.flightTask` would make recordings already stored unreadable.
+
+The Experiments tab computes the response from the stored recording on the run's
+simulated clock (`packages/analysis/src/response-series.ts`). An edge is the first
+recorded row of a new request. The actual value is the physics truth: roll, pitch
+and yaw from `truth.attitude`, height from `truth.position`, at the rate the
+Logging tab set, 50 Hz by default. For each edge, with its window ending at the
+next edge or at the end of the maneuver:
+
+| Metric | Definition |
+|---|---|
+| delay | from the edge to 10 % of the way from where it actually was to the request |
+| rise time | from 10 % to 90 % of that way |
+| overshoot | how far it passes the request, as a percentage of the change requested |
+| settling | from the edge to the last entry into the band around the request, 2, 5 or 10 % of the change requested, with 5 % shown first; none if it is outside at the end of the window |
+| end error | actual minus requested, averaged over the last 0.5 s of the window, or its last fifth if that is shorter |
+
+Crossings are interpolated between samples, and where it was at the edge is the
+last sample at or before the edge, since a response cannot start before its
+command. These describe the response. No limit applies to any of them, and the user
+judges (SA-01). A value the recording cannot give reads as missing: no sample
+around the edge, or a hole longer than 0.1 s or five sample spacings inside the
+window. A heading keeps counting past north so the lines stay continuous, so 395°
+is 35°, and the actual heading counts the same turns as the request.
+
+The chart (`ResponsePlot.tsx`) draws requested and actual on one axis and one time
+scale, with the request's corners at their recorded moments. Hovering reads both at
+a moment, and a table holds the same values. The line colors pass the palette
+validator against the panel's surface.
+
+A roll or pitch can end slightly off the request. In the first flights the true
+roll held 9.76° for a request of 10°, with ArduPilot's own estimate at 9.97°, so
+the difference lies between its estimate and the truth. It exists from before
+take-off and does not change with the lean. The cause
+is ArduPilot's simulated gyro drift, SIM_DRIFT_SPEED, which stays at its compiled
+0.05 by the decision of TASK-089: EKF3's learned gyro bias lags a drift that keeps
+moving, and the lag shows as tilt. Flown with SIM_DRIFT_SPEED at 0, the same step
+ends within 0.004° of the request, and rises alike both ways. Ideal mode on the
+Sensors tab switches the drift off, and the Experiments tab says so beside a roll
+or pitch.
+
+### Verification (TASK-173)
+
+`tests/maneuvers.test.ts` checks the metrics against the closed-form step response
+of a second-order system at five dampings, 1000 and 50 Hz and two bands, with
+oracles found by bisecting that closed form and tolerances set before the
+implementation from the error of linear interpolation. It also checks what an edge
+cannot say, the timelines, definitions and plans, the runner against a vehicle that
+does what it is commanded, the attitude's bytes and quaternion, and the refusal.
+`tests/response-series.test.ts` checks the series from rows written out by hand,
+and that one time scale draws a response 0.25 s late as 0.25 s late.
+`tests/integration/flight-tasks-sitl.test.ts` flies each of the eight types with
+native ArduCopter 8ab6afde at speed 4 and 800 Hz, with the truth sampled at 50 Hz.
+`tests/browser/maneuvers.spec.ts` defines one on the Flight tasks tab, flies a roll
+doublet and an altitude step from the Run tab, and compares the table's numbers and
+the chart's drawn lines with what it computes from the recording's own rows.
+
 ## Experiment lifecycle (TASK-165)
 
 An experiment fixes its inputs: the aircraft profile version, the ArduPilot
 build, the speed, the physics rate, the home, the conditions of its location
 (the measured QNH and the temperature offset; TASK-148), the initial
 parameters, the frame script, the TASK-143 sensor snapshot of its profile
-version and the recording setup. Weather, the flight task and the fault
-schedule join them when their tasks land (TASK-167, TASK-169, TASK-172).
+version, the recording setup, the flight task (TASK-172) and the fault
+schedule (TASK-169). Weather joins them when its task lands (TASK-167).
 Results (the recording, the parameter log, the DataFlash files) belong to
 the run. Its inputs never change after version 1.
 
 ### Lineage
 
-Experiment payload schema 4 adds `lineage`:
+Experiment payload schema 4 added `lineage`:
 
 ```typescript
 type ExperimentLineage =
@@ -7606,7 +8224,7 @@ type ExperimentLineage =
   | { kind: "repeat"; of: string }   // the parent experiment record's SHA-256
   | { kind: "variant"; of: string; changes: ExperimentInput[] };
 type ExperimentInput = "aircraft profile" | "ArduPilot build" | "speed" | "physics rate" | "home" | "conditions" | "initial parameters" |
-  "frame script" | "sensors" | "recording setup" | "SITL";
+  "frame script" | "sensors" | "recording setup" | "SITL" | "flight task" | "fault schedule";
 ```
 
 `experimentChanges(parent, child)` lists the inputs that differ, in that
@@ -7618,8 +8236,10 @@ input. `createExperimentRecord` reads the parent, which must be an
 experiment of the same project, and refuses a repeat whose inputs differ and
 a variant whose `changes` are not exactly the computed list; a variant needs
 at least one change. The parent is named as data, not as a store dependency,
-and is never changed. Schema 3 and 4 records read as schema 5 original runs,
-and new records are always schema 5.
+and is never changed. Older records read as original runs. Schema 5 appended
+`flight task` and schema 6 `fault schedule` to the inputs, and schema 7
+inserted `conditions` after `home`; no stored `changes` list holds an input
+added after it, so every stored list stays valid.
 
 ### Repeat and Create variant
 
@@ -7666,6 +8286,299 @@ dependencies, and the trajectory difference against a hand-computed oracle.
 through the application alone: an original run, its repeat and a variant at
 another speed, the comparison, and an export imported into another browser
 profile.
+
+## Experiment comparison (TASK-177)
+
+Two flown experiments side by side, on the Experiments tab, which the twelve tabs of
+TASK-137 leave as its place: different conditions for one aircraft, or equal
+conditions for different configurations. `packages/analysis` is pure and reads a
+stored recording. Nothing in it says which experiment is better: the metrics
+describe, no limit applies to any of them, and the user judges (SA-01). A value the
+recording cannot give reads as missing, never as zero.
+
+### Inputs held equal and inputs that differ
+
+`comparisonControls` lists 22 inputs: arms and motor layout, motors, propellers, ESCs,
+battery, aircraft mass with CG and inertia, payload, other aircraft settings, flight
+task, start position and lead-in, battery charge at the start, weather, scheduled faults, home,
+ArduPilot build, initial parameters, frame script, sensors, physics rate, speed,
+recording setup and SITL ownership. Each row gives both values, whether they differ,
+and whether it is held equal. One held equal that differs is flagged, and the
+comparison still shows, because what that means is the user's to judge. The user may
+change what is held.
+
+| Comparison | Held equal by default |
+|---|---|
+| Different configurations, equal conditions | payload, battery, flight task, start, charge, weather, scheduled faults, home, ArduPilot build, physics rate |
+| One aircraft, different conditions | every aircraft input, payload, initial parameters, frame script, sensors, ArduPilot build, physics rate |
+
+Speed, recording setup and SITL ownership do not change the physics, so neither kind
+holds them by default. A run has no weather to choose until TASK-167, so that row reads
+still air. The start and the charge are inputs of their own, apart from what the task
+flies. A sensor snapshot names the profile version it was copied from; that name
+is left out of the comparison, as is the COMPASS_DEC that follows from the home.
+
+### Mass
+
+A profile states its aircraft's mass, and component cards state their own.
+`massAccounting` lists motors, propellers, ESCs and battery for each aircraft, the
+stated aircraft mass, the payload and the total. It flags a change of 1 g or more that
+the components and the stated mass do not agree on: heavier motors on an aircraft that
+states the same mass, or a stated change no component explains. Both using one card is
+no difference even if the card states no mass; a different card with no mass makes the
+difference not known, and nothing is flagged.
+
+### Metrics
+
+Each is computed from the recording, on its own clock, in `experimentMetrics`. Airborne
+means more than 0.5 m above the height of the first row. The two are compared over the
+task's measured part if both have one, or else from the first to the last moment
+airborne.
+
+| Metric | Definition | Unit |
+|---|---|---|
+| highest | largest height over the first row's | m |
+| mean and largest motor command | the mean over the motors at each row, then by trapezoids over time; the largest is any motor's | 0 to 1 |
+| mean and largest rotor speed | in the same way, `motors.speed` | rev/min |
+| mean and largest battery current, power | `battery`, by trapezoids; the largest is its largest row | A, W |
+| lowest battery voltage | its smallest row | V |
+| energy | ∫P dt by trapezoids, over 3600 | Wh |
+| charge | remaining at the start of the window less remaining at its end | Ah |
+| flight duration | (Q₀ − r·Q) / Ī, with Q₀ the charge the run started at, Q the capacity, r the reserve and Ī the window's mean current | min |
+| position | RMS and largest of horizontal and altitude difference between each measured request and the first truth row at or after its tick; none for a maneuver, whose request jumps on purpose | m |
+| maneuver response | as in "Tuning maneuvers", at a 5 % band | s, % |
+
+The duration estimate names its scenario and its reserve: it flies on as the window
+flew, from the charge the run started at to a reserve the user types, 20 % at first and
+theirs to change. It holds the current constant, so it leaves out the voltage falling
+as the pack empties, and it is not an endurance figure for a real aircraft.
+
+### Limit exceedances
+
+The recorder now keeps the limit monitor's events as `events.limit` rows, each at its
+own tick: code 0, the monitor reports into this recording; code 1, a change of an
+exceedance with its subject, quantity, edge, value and limit; code 2, events the monitor
+could not hold. `limitSummary` adds up each quantity on each subject: how many times,
+for how long, and against what limit, a rating warning kept apart from a modeled clamp.
+A recording without code 0 is older, and says it does not know, never that there were
+none. A brief clamp at the drive's current limit as a motor starts is normal, and shows.
+
+### Thrust at full command
+
+Takeoff capability and thrust margin come from `thrustCapacity`
+(`packages/physics/src/thrust-capacity.ts`), in a Worker: every rotor at full duty on
+the same rotor engine and battery as flight, in still air with the aircraft held
+still, until speeds and voltage settle, at the charge the run started at. The result is
+the upward force, the weight with the payload, and their ratio. Above 1 it can lift off,
+and the rest is its margin. It is a calculation and carries the profile's label.
+
+The rotors and the pack are solved together as in a flight (TASK-197), so a flight at full
+command settles on the same thrust. On the example cards, a 125 A pack of 0.018 Ω:
+
+| Aircraft | Bus at full duty | Pack current | Thrust | Thrust over weight | The pack holds it back |
+|---|---|---|---|---|---|
+| quad X, 4 motors | 15.29 V | 83.65 A | 78.45 N | 5.333 | no |
+| hexa X, 6 motors | 14.70 V | 116.94 A | 109.05 N | 4.044 | no |
+| octa X, 8 motors | 14.55 V | 125 A | 124.30 N | 3.018 | yes |
+| coaxial X8, 8 motors | 14.55 V | 125 A | 124.37 N | 3.523 | yes |
+| octa coaxial, 16 motors | 14.55 V | 125 A | 153.55 N | 1.842 | yes |
+
+Before TASK-197 a flight's motors drew on past the limit, up to 4458 W from the 1819 W this
+pack delivers on 16 motors, and reached 285.7 N. The tab says so when the pack limits an aircraft.
+
+### Verification (TASK-177)
+
+`tests/experiment-metrics.test.ts` and `tests/experiment-compare.test.ts` check the metrics
+and the comparison on rows and inputs written out by hand, with each expected figure's
+arithmetic next to it. `tests/thrust-capacity.test.ts` checks the thrust against an
+oracle, the flight dynamics on a body 100 000 times heavier with gravity off, on a stiff
+pack whose voltage hardly moves, within 0.5 % set beforehand; and the sag and the limit by
+hand against the pack's law. `tests/bus-coupling.test.ts` flies the real pack (TASK-197). `tests/browser/compare-experiments.spec.ts`
+flies one hover on two configurations with native ArduCopter 8ab6afde, and compares the page's
+numbers with what it works out from the recording's rows and the cards on its own.
+
+
+## Experiment from a log (TASK-182)
+
+**Create experiment from log**, on the Experiments tab, takes a DataFlash log and an
+interval on the log's own clock, and says what they give. Every run without a log goes
+on as it did: a log is never needed. `packages/analysis/src/log-to-experiment.ts` is
+pure and cold, and reads the log with the TASK-178 reader.
+
+### The report
+
+```typescript
+type ExtractionStatus = "extracted" | "user-supplied" | "missing";
+type ExtractionGroup = "initial conditions" | "parameters" | "task and control" | "weather" | "aircraft";
+interface ExtractionField {
+  key: string;
+  label: string;
+  group: ExtractionGroup;
+  status: ExtractionStatus;
+  value: string | null;   // as a person reads it; null exactly when missing
+  source: string | null;  // the log message, or "the user"; null exactly when missing
+  note?: string;          // what becomes of it, when that is not obvious
+}
+interface LogExtractionRecord {
+  schemaVersion: 1;
+  experimentSha256: string;
+  log: { name: string; bytes: number; sha256: string };
+  interval: { fromS: number; toS: number };  // the log's own clock, TimeUS
+  fields: ExtractionField[];
+  parameters: { name: string; value: number; defaultValue: number | null }[];  // the settings the run took
+  skipped: { name: string; value: number; why: string }[];
+}
+```
+
+| Field | Source message | What becomes of it |
+|---|---|---|
+| Home | `ORGN` | The new run starts here, with the heading from `ATT.Yaw` |
+| Attitude at the start | `ATT` | Read and not flown from |
+| Position from the origin, velocity at the start | `XKF1`, core 0 | Read and not flown from |
+| Battery at the start | `BAT`, instance 0 | Read; the profile's battery starts full |
+| Parameters | `PARM` | The value held at the interval's start; see below |
+| Frame in the log | `PARM` | Read; the chosen profile sets the frame |
+| Flight modes | `MODE` | Not replayed |
+| Commands in the interval | `CMD`, `MAVC` | Not replayed |
+| Pilot input | `RCIN` | Not replayed |
+| Wind | `XKF2`, core 0 | The EKF's estimate, not a measurement; not applied |
+| Air pressure, sensor temperature | `BARO`, instance 0 | Not applied; the temperature is the barometer's own |
+| Turbulence | None | Always missing: no log holds it |
+| Aircraft profile | None | Always missing, and the one field the user must supply |
+| Firmware in the log | `VER` | Read; the run flies the build the Run tab chooses |
+
+A field the log does not give is `missing`, with no value and no source, and the wizard
+lists it. A field the user supplied says so, and the log's own value cannot be overwritten.
+An interval outside the log, or a file with no timed records, is refused with its reason.
+
+### Parameters
+
+A parameter's value is its first record, or its last record at or before the interval's
+start. A value equal to its logged default stays out, because the run has it already.
+Parameters that belong to another machine or to the run stay out and are listed with the
+reason: `SIM_*`, counters and versions, values the firmware writes as it starts (device
+IDs, ground pressure, the mission count), telemetry rates a ground station asked for,
+hardware ports and sensor calibrations, and what the aircraft profile and the Logging tab
+set. The Run tab drops any the chosen build cannot write, and any the aircraft profile
+sets, so the aircraft stays the one the user chose. The hint before the start says "up
+to" that many, and the stored record says which the run really took.
+
+### The run and its record
+
+The wizard hands a `LogPlan` (log hash, report, chosen profile) to the Run tab, which shows
+it and starts it like any other run: on the ground, at the log's home, with stock simulated
+sensors. It is an experiment like that flight and not a replay, and the wizard and the Run
+tab both say so. Exact replay of an arbitrary log is not promised. `log-extraction` is one
+item per such run, depending on its experiment, and the Experiments tab shows it for as long
+as the experiment exists: the log's name, interval, settings taken and what the log did not
+hold.
+
+### Comparison with the original flight (TASK-183)
+
+The wizard takes parameter changes on top of the log's settings. `resimulationInputs` is all
+the Run tab reads of a log, its home and its parameters, so the physics integrates its own
+trajectory from the ground, and no recorded position reaches it. The run flies what the Run tab
+asks, not the log's commands.
+
+The log is not stored with the project, so `FromLogCompare.tsx` takes it again and refuses one
+whose SHA-256 differs from the record's. Both logs are read the same way: core 0 of `XKF1`, or
+`MSTR` in a log written from a recording. The start of the log's interval is lined up with the
+start of the run's log, and the panel gives duration, greatest height, farthest from the start,
+path length, and the root mean square and greatest gap between the two paths over the time they
+share. These describe the difference, and no limit applies to any of them. **Compare both in
+Analysis** opens the same alignment in the TASK-181 viewer.
+
+## Parameter batches (TASK-176)
+
+The user supplies several parameter sets on the Experiments tab. The scenario chosen
+on the Run tab runs once for each, in the order given, with every other input
+identical, and the results collect in one record. MirageSITL does not search for new
+values, does not choose what runs next from a result, never retries a failed run and
+does not say that a set is fit for real flight (S12, SA-01). There is no optimization
+path to switch on.
+
+### The record
+
+`packages/project/src/batch.ts` defines the payload of the `experiment-batch` item
+kind, and `validateExperimentBatch` checks it. The store keeps a new version after
+each run, so the runs finished so far survive a closed browser. A batch is not
+resumed: its record says how far it got.
+
+```typescript
+interface BatchParameter { name: string; value: number }
+interface BatchSet { name: string; parameters: BatchParameter[] }
+interface BatchScenario {
+  profileSha256: string;
+  flightTaskSha256: string;
+  firmwareId: string;
+  speedup: number;
+  physicsHz: 800 | 1200;
+  home: [number, number, number, number];
+}
+type BatchRun =
+  | { setIndex: number; state: "done"; experimentSha256: string }
+  | { setIndex: number; state: "failed"; experimentSha256: string | null; reason: string };
+interface ExperimentBatch {
+  schemaVersion: 1;
+  scenario: BatchScenario;
+  sets: BatchSet[];
+  runs: BatchRun[];
+  stopped: string | null;
+}
+```
+
+A batch holds 1 to 32 sets, each with its own name and at most 512 parameters, sorted
+by name, each once. An empty set runs the scenario as it stands, for comparison. Runs
+are in run order, at most one per set: a second run of one set is invalid, so a retry
+cannot be stored. A failed run's experiment is null when the run failed before it had
+one. `stopped` says why the batch stopped before its last set. The record depends on
+its aircraft profile version and the experiments so far (`batchDependencies`), and
+names its flight task as data, as an experiment does. The recording setup is the
+Logging tab's when each run starts, and that run's record holds it.
+
+### A set in an experiment
+
+A set's values are the run's initial parameters: ArduPilot boots with them and
+confirms them as it does the generated list, and a value it cannot confirm fails that
+run. `parameters` in the experiment record gains the tag `set`, with no new schema
+version, since a record without it means what it did. `createExperimentRecord` refuses
+a `set` parameter that names something the frame, PWM or site lists generate. The form
+(`batchSetOfText`) refuses such a name before the batch can start and names it in the
+reason, since the runs would otherwise not fly one aircraft. The run's start appends
+the set after the generated list and refuses a clash with any generated name. A planned
+repeat or variant carries its parent's `set` parameters, so a run of a batch can be
+repeated exactly. Two finished runs of one batch differ in `initial parameters` and
+nothing else, which is what `experimentChanges` reports for them.
+
+### The runner
+
+`BatchRunner` (`apps/web/src/experiments/batch-runner.ts`) is a state machine that the
+Run tab's views drive, through `RunDriver` in `apps/web/src/run/session-link.ts`. For
+each set in order it starts a fresh run with the set, flies the task from READY, stops
+the run when the task ends, records the outcome and stores the batch. Nothing in it
+reads a result to decide what runs next. While a batch runs, the Run tab's Start is
+disabled. A batch cannot start until the Run tab has a flight task and an ArduPilot
+build chosen.
+
+| What happens | What the batch records | What runs next |
+|---|---|---|
+| The task finishes | `done`, with the experiment | The next set |
+| The run cannot start, ArduPilot does not confirm the set, or the run fails | `failed`, with the reason and any experiment | The next set |
+| The task ends early, or an accident pauses the run | `failed`, with the reason, once the run has stopped | The next set |
+| The user stops the batch | The run under way as `failed`, and `stopped` | Nothing |
+| The run is stopped on the Run tab | That run as `failed`, and `stopped` | Nothing |
+| The Run tab's driver goes away | The run under way as `failed`, and `stopped` | Nothing |
+
+### Results
+
+The results table shows each run's highest point above where it stood, mean current,
+energy and minutes to a 20 % reserve, from `experimentMetrics` (see "Experiment
+comparison"), and a value the run cannot give reads as missing. Beside them it shows
+altitude RMS unless the task is a maneuver, whose request jumps on purpose. For a
+maneuver, a second table holds each run's rise time, overshoot, settling and end error
+for each change, grouped by change so that the sets read side by side. The two sets of
+a tuning batch may differ in little else. Nothing ranks the runs, and any two of them can
+be opened in the comparison.
 
 ## DataFlash capture per experiment (TASK-164)
 
@@ -7768,6 +8681,9 @@ records and never reused.
 | 36 | autopilot.ekf | flags, velocity, horizontal and vertical position, compass and terrain variances | f32 | EKF_STATUS_REPORT |
 | 64 | events.parameter | a parameter name (16 ASCII bytes) and its float32 value; a flag marks the snapshot | — | event |
 | 65–68 | events.weather, events.fault, events.pause, events.accident | a registry code and up to three numbers (pause: 1 paused, 0 resumed) | f64 | event |
+| 69 | events.flightTask | stage, measured, task time (s), requested north, east, altitude (m), speed (m/s), heading (deg), vertical speed (m/s); a channel the stage does not request is absent (TASK-172) | f64 | event |
+| 70 | events.flightTaskAttitude | requested roll and pitch (deg), at the tick of the events.flightTask row; a channel the maneuver does not request is absent (TASK-173) | f64 | event |
+| 71 | events.limit | code, subject (a motor's index, or -1 for the battery), quantity, edge, value and limit; code 0: the monitor reports into this recording; code 1: an exceedance changed; code 2: events the monitor could not hold, in the value channel (TASK-177) | f64 | event |
 | 127 | gap | rows lost here | — | recorder |
 
 ### Rates

@@ -3,6 +3,8 @@ import {
   validGps,
   type GpsSample,
 } from "../../mavlink/src/samples.ts";
+/** The receiver the version 1 preset leaves at full severity, and the severities at which it loses and regains its fix. */
+export const JAM_SATELLITES = 1, JAM_DOP = 99, JAM_DENIED_SEVERITY = 0.8, JAM_RECOVERY_SEVERITY = 0.6;
 /** Version 1 synthetic receiver preset. Severity evolves only on the physics clock. */
 export class GnssJamming {
   private filtered = 0;
@@ -10,8 +12,8 @@ export class GnssJamming {
   private denied = false;
   constructor(
     private readonly tauS = 0.5,
-    private readonly jamSatellites = 1,
-    private readonly jamDop = 99,
+    private readonly jamSatellites = JAM_SATELLITES,
+    private readonly jamDop = JAM_DOP,
   ) {
     if (
       !Number.isFinite(tauS) ||
@@ -56,7 +58,7 @@ export class GnssJamming {
       return false;
     this.filtered += (severity - this.filtered) * -Math.expm1(-dtS / this.tauS);
     // Satellite-dependent denial is also checked at observation time.
-    if (this.filtered >= 0.8) this.denied = true;
+    if (this.filtered >= JAM_DENIED_SEVERITY) this.denied = true;
     return true;
   }
   /** True while filtered severity or a latched denial still affects observations. */
@@ -87,8 +89,8 @@ export class GnssJamming {
       t.hdop = Math.max(s.hdop, (1 - q) * s.hdop + q * this.jamDop);
     if (s.vdopValid)
       t.vdop = Math.max(s.vdop, (1 - q) * s.vdop + q * this.jamDop);
-    if (q >= 0.8 || (s.satellitesValid && t.satellites < 4)) this.denied = true;
-    else if (q < 0.6 && s.satellitesValid && t.satellites >= 4)
+    if (q >= JAM_DENIED_SEVERITY || (s.satellitesValid && t.satellites < 4)) this.denied = true;
+    else if (q < JAM_RECOVERY_SEVERITY && s.satellitesValid && t.satellites >= 4)
       this.denied = false;
     if (this.denied) t.fixType = 0;
     return true;

@@ -27,6 +27,11 @@
 .instructor-console h2,.aar-review h2 { font-size: 16px; }
 .instructor-console label,.aar-review label { display: grid; gap: 4px; margin: 8px 0; }
 .instructor-console input,.instructor-console select,.aar-review select { min-width: 0; max-width: 100%; background: #15262b; color: #d4eee5; border: 1px solid #506463; padding: 5px; }
+.instructor-console small { color: #9fb2b8; font-size: 10px; }
+.console-vector { border: 1px solid #30444a; border-radius: 4px; margin: 8px 0; padding: 4px 8px; min-width: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.console-vector legend { font-size: 11px; padding: 0 4px; }
+.console-vector label { margin: 0; }
+.console-vector small { grid-column: 1 / -1; }
 .control-section button { margin: 3px; }
 .command-log { padding-left: 18px; overflow-wrap: anywhere; font-size: 11px; }
 .aar-review svg { width: 100%; background: #101d23; border: 1px solid #30444a; }
@@ -96,6 +101,33 @@ html[data-g3="1"] .terrain-status { top: 12px; bottom: auto; left: 50%; transfor
 .current-tag { font-size: 11px; color: #9af0d1; white-space: nowrap; }
 .project-status { margin-top: 16px; font-size: 13px; color: #d6e2ea; }
 .missing-list { font-size: 12px; color: #efbd8f; overflow-wrap: anywhere; }
+
+
+/* Analysis tab (TASK-179): the offline UAVLogViewer frame. */
+.log-viewer-host { display: grid; gap: 12px; min-width: 0; }
+.faults-tab h3 { margin-top: 20px; }
+.fault-fields { margin: 12px 0; }
+.fault-fields > label { display: grid; gap: 4px; min-width: 0; font-size: 12px; color: #a9bcc8; }
+.fault-fields .console-vector { grid-column: 1 / -1; }
+.fault-fields .console-vector label { display: grid; gap: 4px; font-size: 12px; color: #a9bcc8; }
+.fault-fields small { color: #9fb2b8; font-size: 10px; }
+.fault-ledger td:last-child { white-space: normal; min-width: 240px; }
+.analysis-tab { display: grid; gap: 12px; min-width: 0; }
+.analysis-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 340px); gap: 12px; align-items: start; }
+.analysis-context dl > div { display: grid; grid-template-columns: subgrid; grid-column: 1 / -1; }
+.analysis-context [data-unknown="true"] dd { font-style: italic; opacity: 0.75; }
+.analysis-context dd { overflow-wrap: anywhere; }
+@media (max-width: 1000px) { .analysis-layout { grid-template-columns: minmax(0, 1fr); } }
+.log-viewer-host h2 { font-size: 17px; font-weight: 600; margin: 0; color: #e1f4f2; }
+.log-viewer-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; min-width: 0; }
+.log-viewer-bar p { margin: 0; overflow-wrap: anywhere; }
+.log-viewer-open { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 12px; color: #a9bcc8; }
+.log-viewer-open input[type=file] { max-width: 100%; font-size: 12px; }
+.log-viewer-status { font-size: 13px; color: #d6e2ea; }
+.log-viewer-host a { color: #9af0d1; text-decoration: underline; }
+.log-viewer-missing { border: 1px solid #5a4a2a; border-radius: 8px; background: #1b1810; padding: 14px 18px; font-size: 13px; color: #efd59a; overflow-wrap: anywhere; }
+.log-viewer-missing p { margin: 6px 0; }
+.log-viewer-frame { width: 100%; height: max(560px, calc(100vh - 260px)); border: 1px solid #293541; border-radius: 8px; background: #000; }
 
 /* Components tab (TASK-140): cards, measurement sets and calculation modes. */
 .library-panel h2, .aircraft-panel h2 { font-size: 17px; font-weight: 600; margin: 0 0 10px; color: #e1f4f2; }
@@ -191,3 +223,59 @@ html[data-g3="1"] .terrain-status { top: 12px; bottom: auto; left: 50%; transfor
 .parameter-history .parameter-outcome { white-space: normal; min-width: 240px; }
 .parameter-earlier details { margin-top: 6px; }
 .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* TASK-172: the flight task of a run and the route editor. */
+.sitl-task { border: 1px solid #293541; border-radius: 8px; background: #101b26; padding: 12px; margin: 12px 0; min-width: 0; overflow-x: auto; }
+.sitl-task h4 { margin: 0 0 8px; }
+.sitl-task table { margin-top: 8px; }
+.route-editor { margin: 12px 0; overflow-x: auto; }
+.route-editor input[type=text] { width: 72px; }
+
+/* The response chart (TASK-173): two lines on one time axis. The line colours pass the palette validator against the panel's surface. */
+.response-panel { margin-top: 14px; }
+.response-panel h4 { margin: 0 0 8px; }
+.response-plot { margin: 0 0 12px; }
+.response-legend { display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: 6px; font-size: 12px; color: #d6e2ea; }
+.response-legend span, .response-tooltip span { display: inline-flex; align-items: center; gap: 6px; }
+.response-key { display: inline-block; width: 16px; height: 2px; border-radius: 1px; }
+.response-key-requested { background: #d95926; }
+.response-key-actual { background: #3987e5; }
+/* The chart's text scales with it, so its width stays near the size it is drawn for. */
+.response-canvas { position: relative; max-width: 860px; }
+.response-canvas svg { display: block; width: 100%; height: auto; touch-action: none; }
+.response-line { fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.response-requested { stroke: #d95926; }
+.response-actual { stroke: #3987e5; }
+.response-grid { stroke: #293541; stroke-width: 1; vector-effect: non-scaling-stroke; }
+.response-tick { fill: #9fb4c1; font-size: 11px; }
+.response-crosshair { stroke: #9fb4c1; stroke-width: 1; vector-effect: non-scaling-stroke; }
+.response-dot { stroke: #101b26; stroke-width: 2; }
+.response-dot-requested { fill: #d95926; }
+.response-dot-actual { fill: #3987e5; }
+.response-tooltip { position: absolute; top: 8px; margin-left: 10px; display: grid; gap: 2px; padding: 6px 8px; font-size: 11px; color: #d6e2ea; background: #0b121b; border: 1px solid #293541; border-radius: 4px; pointer-events: none; white-space: nowrap; }
+.response-tooltip[data-flip="true"] { transform: translateX(calc(-100% - 20px)); }
+.response-panel .hint { max-width: 860px; }
+.response-panel table { border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.response-panel th, .response-panel td { padding: 4px 16px 4px 0; font-size: 12px; font-weight: 400; text-align: left; white-space: nowrap; }
+.response-panel thead th { color: #9fb4c1; }
+.response-panel tbody th { color: #d6e2ea; min-width: 0; }
+.response-panel details { margin-top: 8px; font-size: 12px; }
+.response-panel details table { margin-top: 6px; }
+
+/* The comparison of two experiments (TASK-177). */
+.compare-panel table { border-collapse: collapse; font-variant-numeric: tabular-nums; margin-bottom: 8px; }
+.compare-panel th, .compare-panel td { padding: 3px 16px 3px 0; font-size: 12px; font-weight: 400; text-align: left; vertical-align: top; }
+.compare-panel thead th { color: #9fb4c1; }
+.compare-panel tbody th { color: #d6e2ea; min-width: 0; }
+.compare-panel tbody th[scope=rowgroup] { padding-top: 10px; font-weight: 600; }
+.compare-panel td.compare-number, .compare-panel th.compare-number { text-align: right; }
+.compare-panel tr[data-flagged="true"] td, .compare-panel tr[data-flagged="true"] th { color: #f0b37a; }
+.compare-panel .hint { max-width: 860px; }
+.compare-panel h4 { margin: 14px 0 6px; }
+.compare-panel .sitl-form { display: grid; grid-template-columns: max-content minmax(0, 420px); gap: 6px 12px; align-items: center; font-size: 12px; margin-bottom: 8px; }
+.compare-panel .sitl-form select, .compare-panel .sitl-form input { width: 100%; min-width: 0; }
+@media (max-width: 800px) { .compare-panel .sitl-form { grid-template-columns: minmax(0, 1fr); } }
+.compare-panel textarea { width: 100%; min-width: 0; font-family: ui-monospace, monospace; font-size: 12px; background: #15262b; color: #d4eee5; border: 1px solid #30444a; border-radius: 4px; }
+.compare-panel input[type=text] { padding: 4px 6px; background: #15262b; color: #d4eee5; border: 1px solid #30444a; border-radius: 4px; }
+.compare-panel .sitl-actions { margin: 6px 0; }
+.compare-panel .sitl-actions { display: flex; flex-wrap: wrap; gap: 8px; }

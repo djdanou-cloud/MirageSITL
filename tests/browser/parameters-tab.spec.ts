@@ -179,3 +179,59 @@ test("the Parameters tab writes, refuses, waits while paused, keeps a history an
     rmSync(home, { recursive: true, force: true });
   }
 });
+
+// TASK-089 (S08): with Ideal sensors this run switches ArduPilot's barometer noise off, and the experiment record says so. A write of
+// that parameter would add an error the record says is not there, so it is refused before sending, with the reason, and ArduPilot keeps
+// its 0. A parameter that sets no error is confirmed as usual. Terms MirageSITL itself applies are refused at the start of a Run tab run
+// (run-panel.spec.ts), so tests/error-ownership.test.ts covers that branch of the same check.
+test("the Parameters tab refuses a parameter of an error this run has switched off, against native SITL", async ({ page }) => {
+  test.setTimeout(600_000);
+  execFileSync(process.execPath, ["scripts/build-wasm.mjs"], { stdio: "pipe" });
+  execFileSync(process.execPath, ["scripts/build-contact.mjs"], { stdio: "pipe" });
+  const home = mkdtempSync(join(tmpdir(), "mirage-parameters-"));
+  copyFileSync(join(HOME, "token"), join(home, "token"));
+  chmodSync(join(home, "token"), 0o600);
+  copyFileSync(join(HOME, "catalog.json"), join(home, "catalog.json"));
+  const token = ensureToken(home);
+  const launcher = await startLauncher({ home, origin: ORIGIN, port: 0, python: join(HOME, "venv/bin/python") });
+  try {
+    await seedQuadProject(page, "Quad X ideal sensors", { idealSensors: true });
+    const panel = page.getByRole("tabpanel", { name: "Parameters" });
+    await page.getByRole("radio", { name: "ArduPilot SITL" }).check();
+    const run = page.getByRole("region", { name: "ArduPilot SITL" });
+    await run.getByLabel("Launcher port", { exact: true }).fill(String(launcher.port));
+    await run.getByLabel("Launcher token", { exact: true }).fill(token);
+    await run.getByRole("button", { name: "List ArduPilot builds" }).click();
+    await expect(run.getByLabel("ArduPilot build", { exact: true })).toHaveValue(FIRMWARE_ID);
+    await run.getByLabel("Speed").selectOption("4");
+    await run.getByRole("button", { name: "Start SITL run" }).click();
+    await expect(run.getByTestId("sitl-ready")).toHaveText("READY", { timeout: 180000 });
+    await page.getByRole("tab", { name: "Parameters" }).click();
+    await expect(panel.getByTestId("parameters-status")).toHaveAttribute("data-download", "complete");
+    const rows = (name: string): Locator => panel.getByTestId("parameter-history").locator(`tr[data-name="${name}"]`);
+    const value = (name: string): Locator => panel.getByTestId("parameter-table").locator(`tr[data-name="${name}"]`).getByTestId("parameter-value");
+    const write = async (name: string, text: string) => {
+      await panel.getByLabel("Search parameters").fill(name);
+      await panel.getByTestId("parameter-table").getByRole("button", { name, exact: true }).click();
+      await panel.getByLabel(`New value of ${name}`).fill(text);
+      await panel.getByRole("button", { name: "Write", exact: true }).click();
+    };
+
+    await write("SIM_BARO_RND", "0.25");
+    await expect(rows("SIM_BARO_RND").last()).toHaveAttribute("data-outcome", "refused");
+    await expect(rows("SIM_BARO_RND").last()).toContainText("Refused before sending: it sets barometer noise, which this run switches off, so writing it would add an error the experiment record says is not there; change it on the Sensors tab");
+    await expect(value("SIM_BARO_RND")).toHaveText("0");
+    console.log(`EVID refused ${(await rows("SIM_BARO_RND").last().textContent()) ?? ""}`);
+
+    await write("RTL_ALT_M", "20");
+    await expect(rows("RTL_ALT_M").last()).toHaveAttribute("data-outcome", "confirmed", { timeout: 30000 });
+    await expect(value("RTL_ALT_M")).toHaveText("20");
+
+    await page.getByRole("tab", { name: "Run" }).click();
+    await run.getByRole("button", { name: "Stop run", exact: true }).click();
+    await expect(run.getByTestId("sitl-stage")).toHaveAttribute("data-state", "idle", { timeout: 30000 });
+  } finally {
+    await launcher.close();
+    rmSync(home, { recursive: true, force: true });
+  }
+});

@@ -32,11 +32,12 @@ export {BetRigidBodyBackendV2,newBodyTruthV2} from './packages/wasm-bet/src/body
 export {BetFlightDynamics} from './packages/physics/src/bet-dynamics.ts';
 export {MotorFaults} from './packages/physics/src/motor-fault.ts';
 export {PhysicsSessionV2} from './packages/physics/src/session-v2.ts';
+export {createSessionFaultPort} from './packages/ew/src/session-port.ts';
 export {WEATHER_GUST_RMS,WEATHER_PRESSURE,WEATHER_SEED,WEATHER_SLOTS,WEATHER_TEMPERATURE,WEATHER_WIND_DOWN,WEATHER_WIND_EAST,WEATHER_WIND_NORTH} from './packages/physics/src/atmosphere.ts';
 export {StateReaderV2,createSharedMemoryV2,createSpscQueue,newFlightStateV2,newHeaderSnapshotV2,tickToNumber} from '@mirage/protocol';
 export {flightConfiguration,rotorDefinition} from './tests/bet-runtime-fixture.ts';`,resolveDir:root,sourcefile:'bet-runtime-entry.ts',loader:'ts'},
   bundle:true,platform:'node',format:'esm',packages:'external',outfile:bundle,metafile:true});
-const {BetRotorEngine,BetRotorEngineV2,BetRigidBodyBackendV2,newBodyTruthV2,BetFlightDynamics,MotorFaults,PhysicsSessionV2,WEATHER_GUST_RMS,WEATHER_PRESSURE,
+const {BetRotorEngine,BetRotorEngineV2,BetRigidBodyBackendV2,newBodyTruthV2,BetFlightDynamics,MotorFaults,PhysicsSessionV2,createSessionFaultPort,WEATHER_GUST_RMS,WEATHER_PRESSURE,
   WEATHER_SEED,WEATHER_SLOTS,WEATHER_TEMPERATURE,WEATHER_WIND_DOWN,WEATHER_WIND_EAST,WEATHER_WIND_NORTH,StateReaderV2,createSharedMemoryV2,createSpscQueue,
   newFlightStateV2,newHeaderSnapshotV2,tickToNumber,flightConfiguration,rotorDefinition}=await import(pathToFileURL(bundle).href);
 const modules=['scalar','simd128'].map(v=>new WebAssembly.Module(read(`packages/wasm-bet/dist/mirage_bet.${v}.wasm`)));
@@ -96,7 +97,7 @@ if(!allocation){
   if(report.status!=='pass')process.exitCode=1;
 }else{
   const native=execFileSync('cargo',['test','--release','-p','mirage-bet','--test','allocation','--locked'],{cwd:resolve(root,'native'),encoding:'utf8',stdio:['ignore','pipe','pipe'],timeout:300000});
-  if(!native.includes('production_bound_step_allocates_zero_over_one_million_steps ... ok') || !native.includes('test result: ok. 2 passed;'))throw Error('Native bound allocator check did not execute');
+  if(!native.includes('production_bound_step_allocates_zero_over_one_million_steps ... ok') || !native.includes('bus_solve_allocates_zero_over_one_million_steps ... ok') || !native.includes('test result: ok. 3 passed;'))throw Error('Native bound allocator check did not execute');
   // TASK-092: the ESC drive mode and the shared bus under the same counting allocator.
   const drive=execFileSync('cargo',['test','--release','-p','mirage-bet','--test','bound_v2','--locked','allocate'],{cwd:resolve(root,'native'),encoding:'utf8',stdio:['ignore','pipe','pipe'],timeout:300000});
   // TASK-091: the opt-in kernel modes run under the same counting allocator.
@@ -186,9 +187,30 @@ if(!allocation){
   // windows, as in the Worker: in this process, after the graphs above, a forced full GC that collects an applied command's
   // shape makes V8 discard the optimized tick ("embedded weak objects cleared"), which then boxes numbers until recompiled
   // (TASK-093 measured 44 B per tick that way; a fresh process stays at 0 with or without the GC).
+  const EFFECT_CONTROLS=[{effect:'wind.mean',parameters:{windNedMps:[3,-2,0.5]}},{effect:'wind.gust',parameters:{rmsMps:1.5,bandwidthHz:2,seed:0x9e3779b9}},{effect:'wind.turbulence',parameters:{w20Mps:6,seed:0x9e3779b9}},
+    {effect:'atmosphere',parameters:{temperatureK:293.15,pressurePa:98000}},{effect:'sensor.imu.frozen',parameters:{}},
+    // TASK-169: what goes on the state line, whose offsets and rotation the session copies out after each step.
+    {effect:'ew.position-step',parameters:{offsetNedM:[30,-12.5,0]}},{effect:'ew.velocity-drift',parameters:{accelerationNedMps2:[0.2,-0.1,0],maxSpeedMps:2}},
+    {effect:'ew.magnetic',parameters:{rotationRad:[0.1,-0.2,0.5],biasBodyGauss:[0.1,0,0]}},{effect:'ew.gnss-jamming',parameters:{severity:0.5}}];
   const stateBuffer=createSharedMemoryV2(),fake={mono:0};let sessionDynamics=null;
   const session=new PhysicsSessionV2({type:'init-v2',protocolVersion:2,stateBuffer,sensorBuffer:createSpscQueue('sensor'),actuatorBuffer:createSpscQueue('actuator')},
-    {monotonicMs:()=>fake.mono,wallMs:()=>1.79e12+fake.mono},hz=>(sessionDynamics=new BetFlightDynamics(modules[0],padded(),hz)));
+    {monotonicMs:()=>fake.mono,wallMs:()=>1.79e12+fake.mono},hz=>(sessionDynamics=new BetFlightDynamics(modules[0],padded(),hz)),createSessionFaultPort());
+  session.attachDelivery(true);
+  // TASK-169: a tick-boundary EW command is rare, and a drift reaches its top speed, slows and holds only after seconds, so V8 would still be interpreting these
+  // paths when the windows below reach them, and its first tiers box numbers. tests/ew-pipeline.test.ts holds them to zero when warmed; this warms every path the
+  // same way, on an engine of its own: each effect on, a drift to its top speed, off with its offset held, on again, and off by a step to the truth.
+  const warmPort=createSessionFaultPort(),warmContext={dtS:1/400,simTimeS:0,northM:0,eastM:0,downM:0};
+  warmPort.reset(1);
+  const warmSend=(tick,effect,enabled,recovery)=>warmPort.apply({protocolVersion:2,requestId:tick+1,expectedEpoch:1,type:'fault.set',atTick:{lo:tick,hi:0},faultId:effect.kind,enabled,effect,recovery},{lo:tick,hi:0});
+  const warmEffects=[{kind:'position-step',offsetNedM:[30,-12.5,0]},{kind:'velocity-drift',accelerationNedMps2:[0.2,-0.1,0.05],maxSpeedMps:0.05},{kind:'magnetic',rotationRad:[0.1,-0.2,0.5],biasBodyGauss:[0.1,0,0]},{kind:'gnss-jamming',severity:0.5}];
+  for(let tick=0;tick<400000;tick++){
+    const phase=tick%400;
+    if(phase===0||phase===300)for(const effect of warmEffects)warmSend(tick,effect,true,'hold-offset');
+    if(phase===200)for(const effect of warmEffects)warmSend(tick,effect,false,'hold-offset');
+    if(phase===350)for(const effect of warmEffects)warmSend(tick,effect,false,'step-to-truth');
+    warmPort.advanceInto(warmContext);warmPort.deliveryInto(session.delivery);warmContext.simTimeS+=warmContext.dtS;
+  }
+  warmPort.reset(1);session.delivery.gnssActive=false;session.delivery.magActive=false;
   const reader=new StateReaderV2(stateBuffer),header=newHeaderSnapshotV2(),published=newFlightStateV2(),results=[];
   let requestId=0,sent=0;
   const send=message=>{reader.readHeader(header);session.handle({protocolVersion:2,requestId:++requestId,expectedEpoch:header.sessionEpoch,...message});
@@ -201,7 +223,11 @@ if(!allocation){
     if(!reader.latest(published))throw Error('No published state');
     const now=tickToNumber(published.tickId);
     for(let k=0;k<count;k++){
-      send({type:'weather.set',atTick:{lo:now+300+Math.floor(3300*k/count),hi:0},windNedMps:k&1?[-4,1,0.5]:[3,-2,0.5],temperatureK:293.15,
+      const atTick={lo:now+300+Math.floor(3300*k/count),hi:0};
+      // TASK-166: every third command is one effect control, in turn, each sometimes off, through the same tick boundary.
+      const effect=sent%3===0?EFFECT_CONTROLS[(sent/3)%EFFECT_CONTROLS.length]:null;
+      if(effect)send({protocolVersion:3,type:'effect.set',atTick,recovery:'hold-offset',control:{schemaVersion:1,id:effect.effect.replaceAll('.','-'),...effect,enabled:(sent&8)===0,intensity:sent&16?0.5:1}});
+      else send({type:'weather.set',atTick,windNedMps:k&1?[-4,1,0.5]:[3,-2,0.5],temperatureK:293.15,
         pressurePa:98000,turbulenceRmsMps:1.5,seed:k&1?0x9e3779b9:0xfffffffe});
       sent++;
     }

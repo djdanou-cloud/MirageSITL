@@ -69,13 +69,14 @@ if(process.argv[1]===fileURLToPath(import.meta.url)) {
   try {
     if(process.argv.length===2)result=report('ekf-report','BLOCKED_EXTERNAL',['Provide a native capture matrix using --input PATH --sha256 HEX']);
     else {
-      if(process.argv.length!==6||process.argv[2]!=='--input'||process.argv[4]!=='--sha256')throw Error('Expected --input PATH --sha256 HEX');
+      if((process.argv.length!==6&&process.argv.length!==8)||process.argv[2]!=='--input'||process.argv[4]!=='--sha256'||(process.argv.length===8&&process.argv[6]!=='--output'))throw Error('Expected --input PATH --sha256 HEX [--output PATH]');
       result=await assessEkf(loadJson(process.argv[3],process.argv[5]));result.inputSha256=process.argv[5];
     }
   }catch(error){result=report('ekf-report','FAIL',[error.message]);}
   result.sourceRevision=execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim();
   result.validatorSha256=sha256(readFileSync(fileURLToPath(import.meta.url)));
   mkdirSync('test-results/validation',{recursive:true});
-  writeFileSync('test-results/validation/ekf-report.json',JSON.stringify(result,null,2)+'\n');
+  // TASK-171: a new platform's report goes beside the historical one, which stays as it was.
+  writeFileSync(process.argv[6]==='--output'?process.argv[7]:'test-results/validation/ekf-report.json',JSON.stringify(result,null,2)+'\n');
   console.log(`ekf-report: ${result.status}`);process.exitCode=result.status==='PASS'?0:result.status==='FAIL'?1:2;
 }

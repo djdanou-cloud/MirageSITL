@@ -79,4 +79,9 @@ int32_t bet_body_step_v2(uint32_t input, uint32_t output, double dt);
 #define BET_BUS_FLAG_CHARGE_LIMITED 2
 uint32_t bet_bus_version(void);
 int32_t bet_bus_step(uint32_t input, uint32_t output, double dt);
+/* TASK-197: the bus and ESC rotors solved together for one step. table: count pairs of u32 (arena, v2 input record). */
+#define BET_BUS_SOLUTION_VERSION 1
+#define BET_BUS_SOLUTION_BYTES 64
+uint32_t bet_bus_solve_version(void);
+int32_t bet_bound_bus_solve_v2(uint32_t table, uint32_t count, uint32_t bus, uint32_t output, double dt);
 #endif

@@ -1,5 +1,5 @@
 // Builds native ArduCopter SITL with the MirageSITL firmware patches (TASK-089)
-// on Linux or inside WSL, where scripts/run-sitl.mjs runs. MIRAGE_SITL_SOURCE is
+// on macOS, Linux or inside WSL, where scripts/run-sitl.mjs runs. MIRAGE_SITL_SOURCE is
 // the clean checkout at the pinned commit with its SITL submodules; it is never
 // modified: the script copies it into <out>/source and patches only the copy.
 // MIRAGE_ARDUPILOT_VENV optionally names the Python environment that waf needs.
@@ -14,6 +14,7 @@ import { createHash } from "node:crypto";
 import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { readNativeExecutable } from "./sitl/native-binary.ts";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const sha = (bytes) => createHash("sha256").update(bytes).digest("hex");
@@ -25,7 +26,7 @@ class Blocked extends Error {}
 const run = (command, args, options = {}) => execFileSync(command, args, { encoding: "utf8", maxBuffer: 1 << 26, ...options });
 
 export function buildSitl(env, out) {
-  if (process.platform === "win32") throw new Blocked("Run inside Linux or WSL, like scripts/run-sitl.mjs");
+  if (process.platform === "win32") throw new Blocked("Run on macOS, Linux or inside WSL, like scripts/run-sitl.mjs");
   const source = env.MIRAGE_SITL_SOURCE;
   if (!source || !out) throw new Blocked("MIRAGE_SITL_SOURCE and --out are required");
   if (!existsSync(join(source, "waf"))) throw new Blocked("MIRAGE_SITL_SOURCE is not an ArduPilot checkout");
@@ -49,7 +50,8 @@ export function buildSitl(env, out) {
   const copy = join(out, "source"), build = join(out, "build"), log = join(out, "build.log");
   run("mkdir", ["-p", copy]);
   // A literal "/." copies the checkout contents; path.join would drop it.
-  run("cp", ["-a", "--reflink=auto", `${source}/.`, `${copy}/`]);
+  // Both clone where the file system can and copy otherwise; macOS's cp has no --reflink.
+  run("cp", [...(process.platform === "darwin" ? ["-a", "-c"] : ["-a", "--reflink=auto"]), `${source}/.`, `${copy}/`]);
   for (const patch of patches) {
     run("git", ["-C", copy, "apply", "--check", join(root, patch.path)]);
     run("git", ["-C", copy, "apply", join(root, patch.path)]);
@@ -65,8 +67,8 @@ export function buildSitl(env, out) {
     writeFileSync(log, `${error.stdout ?? ""}${error.stderr ?? ""}`);
     throw new Error(`SITL build failed; see ${log}`, { cause: error });
   }
-  const binaryPath = join(build, "sitl/bin/arducopter"), binary = readFileSync(binaryPath);
-  if (binary.subarray(0, 4).toString("hex") !== "7f454c46") throw new Error("The build did not produce an ELF binary");
+  // Refuses anything but a native executable of this host: Mach-O on macOS, ELF on Linux.
+  const binaryPath = join(build, "sitl/bin/arducopter"), binary = Buffer.from(readNativeExecutable(binaryPath).bytes);
   // Each added parameter name is stored in the parameter table as a C string.
   for (const patch of patches) for (const parameter of patch.addedParameters) {
     if (!binary.includes(Buffer.from(parameter.name.slice("SIM_".length) + "\0"))) throw new Error(`${parameter.name} is absent from the binary`);

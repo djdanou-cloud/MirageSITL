@@ -203,17 +203,33 @@
       ]
     },
     {
+      "id": "ardupilot-declination-table",
+      "category": "reference-data",
+      "item": "ArduPilot compass declination table",
+      "version": "ArduPilot 8ab6afde107a91df1b5f60ade8f333cb8a61b190, libraries/AP_Declination/tables.cpp (scripts/generate-declination.mjs)",
+      "source": "Generated offline from the pinned ArduPilot checkout; tables.cpp is itself generated from the IGRF; no download beyond the source",
+      "license": "GPL-3.0-or-later (generated from the ArduPilot source)",
+      "licenseStatus": "restricted",
+      "decision": "TASK-172 generated it from the pinned source and keeps it in the repository, so a run's COMPASS_DEC comes from the table ArduPilot itself reads; D-02 covers redistribution with any prebuilt firmware.",
+      "neededFor": "COMPASS_DEC at the boot of a run (TASK-172)",
+      "installDownload": false,
+      "status": "ready",
+      "files": [
+        { "path": "data/ardupilot/declination.json", "bytes": 6891, "sha256": "1464d76226df8baeea4d14a1fc28fbcd3e12b9a694f119e20652f414ed9afde5" }
+      ]
+    },
+    {
       "id": "uavlogviewer",
       "category": "viewer",
       "item": "UAVLogViewer, patched and built locally for offline use",
       "version": "Commit 01f9d510b7df31687819a6c87415161041d73ae6 (third_party/uavlogviewer/source.lock.json)",
-      "source": "https://github.com/ArduPilot/UAVLogViewer with its parser submodule; dependencies from the npm registry",
-      "license": "GPL-3.0 (LICENSE file)",
+      "source": "https://github.com/ArduPilot/UAVLogViewer with its parser submodule; dependencies from the npm registry (locked, plus @fortawesome/fontawesome-free 5.2.0 added by patch 0001); built by scripts/build-uavlogviewer.mjs",
+      "license": "GPL-3.0 (LICENSE file); the build ships licenses/ with the GPL texts, the patches and every production npm package's notice",
       "licenseStatus": "reviewed",
-      "decision": "D-04 decided by TASK-130 on 2026-10-28: the pinned build opens a current ArduCopter log offline; TASK-179 applies the patch series and bundles it.",
+      "decision": "D-04 decided by TASK-130 on 2026-10-28. TASK-179, TASK-180 and TASK-181 apply patches 0000-0004 and build the viewer reproducibly into the launcher home (digest in third_party/uavlogviewer/source.lock.json); the build opens DataFlash logs with no network request, in Google Chrome on the M5.",
       "neededFor": "Log analysis (TASK-179, TASK-180, TASK-181)",
       "installDownload": true,
-      "status": "pending"
+      "status": "ready"
     },
     {
       "id": "chrome-macos",

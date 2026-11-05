@@ -3,7 +3,7 @@ import { AarRecord } from '@mirage/aar/record';
 import { RecordingHandoff } from '@mirage/aar/handoff';
 import { isProducerPlan, RecordingProducerV2 } from '@mirage/aar/recorder-v2';
 import { createSessionFaultPort } from '@mirage/ew/session-port';
-import { isWorkerInitV2, tickToNumber, validatePowerChannelV1, type CommandResultV2, type ControlCommandV2, type WorkerFaultV2 } from '@mirage/protocol';
+import { isWorkerInitV2, tickToNumber, validatePowerChannelV1, type CommandResultV2, type ControlCommand, type WorkerFaultV2 } from '@mirage/protocol';
 import { parseLimitRatings, type LimitEvent, type LimitRatings } from '@mirage/physics/limit-monitor';
 import type { AccidentEvent } from '@mirage/physics/accident';
 import { PhysicsSessionV2, type SessionClock } from '@mirage/physics';
@@ -12,6 +12,7 @@ import { atmosphereFromState } from '@mirage/physics/atmosphere';
 import { profileModelPort, type ProfileDynamicsOptions } from '@mirage/physics/profile-dynamics';
 import { VehicleRegistry } from '@mirage/physics/vehicle-manifest';
 import { ScenarioBinder } from '@mirage/scenarios/bind';
+import { parseGroundStart, type GroundStart } from '@mirage/scenarios/flight-tasks';
 import { SitlBridgeClient, bridgeSocketArguments, type SitlNotice } from './sitl/bridge-client';
 import { parseScenario } from '@mirage/scenarios/schema';
 
@@ -42,19 +43,21 @@ const ratings = new Map<string, LimitRatings>();
 // Run tab starts a fresh Worker for every run, so one run's environment never reaches the next.
 const environment: { gravityMps2?: number; originAir?: { readonly temperatureK: number; readonly pressurePa: number } } = {};
 const environmentOptions: ProfileDynamicsOptions = environment;
+const groundStarts = new Map<string, GroundStart>();
 type WorkerNotice = CommandResultV2 | WorkerFaultV2 | SitlNotice | { type: "sitl.reject"; message: string }
   | { type: "bet.module.ready"; sha256: string } | { type: "bet.module.reject"; message: string }
   | { type: "contact.module.ready"; sha256: string } | { type: "contact.module.reject"; message: string }
   | { type: "model.registered"; modelId: number; sha256: string } | { type: "model.reject"; message: string }
   | { type: "limits.registered"; sha256: string } | { type: "limits.reject"; message: string }
   | { type: "environment.ready" } | { type: "environment.reject"; message: string }
+  | { type: "ground.registered"; sha256: string } | { type: "ground.reject"; message: string }
   | { type: "limits.events"; events: LimitEvent[]; dropped: number }
   | { type: "accident.events"; events: AccidentEvent[]; dropped: number; total: number }
   /** Manual control's stick commands stopped for INPUT_TIMEOUT_MS: the session paused before its next tick (TASK-174). */
   | { type: "sitl.input-stale"; simTimeS: number; staleMs: number }
   | { type: "power.attached" } | { type: "power.reject"; message: string }
   | { type: "recording-v2.armed" } | { type: "recording-v2.reject"; message: string }
-  | { type: "scenario.submit"; command: ControlCommandV2 }
+  | { type: "scenario.submit"; command: ControlCommand }
   | { type: "scenario.reject"; message: string }
   | { type: "pilot.rejected"; count: number; ageMs: number; wallMs: number; sampleWallMs: number; sampleId: number; expectedEpoch: number;
       sessionEpoch: number; flags: number; valuesValid: boolean };
@@ -167,6 +170,8 @@ function connectSitl(data: Record<string, unknown>): void {
     bridgeEpoch, motorChannels: motorChannels.map(Number), motorMapId, sessionEpoch: current.currentEpoch, speedup: data.speedup,
     // TASK-093: a weather.set's wind goes to SITL as velocity_wind.
     wind: current.wind,
+    // TASK-168: what the link holds back or drops.
+    delivery: current.delivery,
   }, {
     pump: () => { current.pump(); },
     flush,
@@ -181,11 +186,12 @@ function connectSitl(data: Record<string, unknown>): void {
     },
   });
   sitl = { client, socket };
+  current.attachDelivery(true);
   socket.onopen = () => client.opened();
   socket.onmessage = event => { if (event.data instanceof ArrayBuffer) client.receive(new Uint8Array(event.data)); };
   socket.onclose = event => {
     client.closed(event.code, event.reason);
-    if (sitl?.client === client) sitl = null;
+    if (sitl?.client === client) { sitl = null; current.attachDelivery(false); }
   };
 }
 function handleSitl(data: unknown): boolean {
@@ -243,7 +249,10 @@ addEventListener('message', (event: MessageEvent<unknown>) => {
     if (!isWorkerInitV2(data)) { post({ type: 'fault-v2', protocolVersion: 2, message: 'Expected init-v2' }); return; }
     try {
       session = new PhysicsSessionV2(data, clock, undefined, createSessionFaultPort(),
-        profileModelPort(registry, () => betModule, environmentOptions, sha256 => ratings.get(sha256) ?? null));
+        profileModelPort(registry, () => betModule, environmentOptions, sha256 => ratings.get(sha256) ?? null, sha256 => {
+          const start = groundStarts.get(sha256);
+          return start ? { initialGround: start, initialStateOfCharge: start.stateOfCharge } : null;
+        }));
       const created = session;
       created.setBeforeTick((tick) => {
         if (!binder) return;
@@ -310,6 +319,18 @@ addEventListener('message', (event: MessageEvent<unknown>) => {
       post({ type: "environment.ready" });
     } catch (error) {
       post({ type: "environment.reject", message: error instanceof Error ? error.message : "Invalid environment" });
+    }
+    return;
+  }
+  // TASK-172: where the vehicle stands, and its charge, at the start tick of the load that follows.
+  if (isTyped(data, "ground.register")) {
+    try {
+      const sha256 = data.sha256;
+      if (typeof sha256 !== "string" || !/^[a-f0-9]{64}$/.test(sha256)) throw new Error("ground.register needs a manifest SHA-256");
+      groundStarts.set(sha256, parseGroundStart(data.ground));
+      post({ type: "ground.registered", sha256 });
+    } catch (error) {
+      post({ type: "ground.reject", message: error instanceof Error ? error.message : "Invalid ground start" });
     }
     return;
   }

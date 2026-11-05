@@ -33,4 +33,19 @@ export class SeededRandom {
     return (value ^ (value >>> 14)) >>> 0;
   }
   nextFloat(): number { return this.nextUint32() / 4294967296; }
+  /**
+   * A standard normal from the next two uniforms, x = √(−2·ln(1 − u1))·cos(2π·u2), into a slot, for the physics step (TASK-106). The
+   * draws of two nextFloat calls, written out: a uint32 returned from a call V8 does not inline is boxed, and several of these to a
+   * tick do not all inline. Allocation-free.
+   */
+  nextGaussianInto(out: Float64Array, index: number): void {
+    const first = (this.state + 0x6d2b79f5) >>> 0, second = (first + 0x6d2b79f5) >>> 0;
+    this.state = second;
+    let a = Math.imul(first ^ (first >>> 15), first | 1);
+    a ^= a + Math.imul(a ^ (a >>> 7), a | 61);
+    let b = Math.imul(second ^ (second >>> 15), second | 1);
+    b ^= b + Math.imul(b ^ (b >>> 7), b | 61);
+    const u1 = ((a ^ (a >>> 14)) >>> 0) / 4294967296, u2 = ((b ^ (b >>> 14)) >>> 0) / 4294967296;
+    out[index] = Math.sqrt(-2 * Math.log(1 - u1)) * Math.cos(2 * Math.PI * u2);
+  }
 }

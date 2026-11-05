@@ -265,8 +265,16 @@ describe('warnings never change physics; modeled clamps are limited', () => {
     run(q, 0.9, 400);
     const t = d.power!, events = drainAll(d);
     expect(t.batteryMasks[1]! & BatteryLimited.PackCurrent).toBe(BatteryLimited.PackCurrent);
-    expect(t.battery[BatteryColumn.CurrentA]).toBeCloseTo(20, 9);
+    // The pack holds the motors to what it delivers (TASK-197). They are still spinning up, and a motor draws less as its speed
+    // rises over the half tick between the solve and its power, so the current is at the limit or a little under it.
+    const spinningUp = t.battery[BatteryColumn.CurrentA]!;
+    expect(spinningUp).toBeLessThanOrEqual(20);
+    expect(spinningUp).toBeGreaterThan(19.9);
     expect(events).toContainEqual(expect.objectContaining({ subject: 'battery', quantity: 'pack-current-limit', kind: 'limited', edge: 'start', limit: 20 }));
+    // Once the speeds settle it stands on the limit.
+    run(q, 0.9, 4000);
+    expect(t.battery[BatteryColumn.CurrentA]).toBeCloseTo(20, 3);
+    expect(t.batteryMasks[1]! & BatteryLimited.PackCurrent).toBe(BatteryLimited.PackCurrent);
     d.dispose();
     const low = await quadDynamics({}, { soc: 0.01 });
     run(low, 0.7, 400);

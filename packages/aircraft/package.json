@@ -20,6 +20,7 @@
     "./output-mapping": "./src/output-mapping.ts",
     "./frame-parameters": "./src/frame-parameters.ts",
     "./experiment": "./src/experiment.ts",
+    "./site-parameters": "./src/site-parameters.ts",
     "./clearance": "./src/clearance.ts",
     "./standard-hull": "./src/standard-hull.ts",
     "./standard-hull-drag": "./src/standard-hull-drag.ts"
@@ -29,6 +30,7 @@
     "@mirage/physics": "0.1.0",
     "@mirage/project": "0.1.0",
     "@mirage/protocol": "0.1.0",
+    "@mirage/scenarios": "0.1.0",
     "@mirage/sensors": "0.1.0",
     "ajv": "8.20.0"
   }

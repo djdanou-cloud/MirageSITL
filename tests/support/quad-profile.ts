@@ -35,14 +35,16 @@ const PLACEHOLDERS: ExampleCardAddresses = { motor: MOTOR, propeller: PROPELLER,
  * profile with one spin reversed this way).
  */
 export async function quadProfile(addresses: ExampleCardAddresses = PLACEHOLDERS, layout = 'quad-x',
-  edit: (fixture: AircraftProfile) => AircraftProfile = fixture => fixture):
+  edit: (fixture: AircraftProfile) => AircraftProfile = fixture => fixture, packLimitA?: number):
 Promise<{ profile: AircraftProfile; derived: DerivedVehicleManifest }> {
   const fixture = validateAircraftProfile(edit(validateAircraftProfile(json(`aircraft/${layout}.json`))));
   const { motor, propeller, esc, battery } = addresses;
   const profile = withPropellerPolars(validateAircraftProfile({ ...fixture, battery: { card: battery },
     motors: fixture.motors.map(item => ({ ...item, components: { motor, propeller, esc } })) }),
   [{ card: propeller, polar: 'naca6409-neuralfoil-v1' }]);
-  const cards = new Map([[motor, exampleCard('motor')], [propeller, exampleCard('propeller')], [esc, exampleCard('esc')], [battery, exampleCard('battery')]]);
+  const pack = exampleCard('battery');
+  const batteryCard = packLimitA === undefined || pack.type !== 'battery' ? pack : validateComponentCard({ ...pack, values: { ...pack.values, maxDischargeCurrentA: packLimitA } });
+  const cards = new Map([[motor, exampleCard('motor')], [propeller, exampleCard('propeller')], [esc, exampleCard('esc')], [battery, batteryCard]]);
   const resolved = resolveComponents(profile, cards);
   if (!resolved.components) throw new Error(`Missing: ${resolved.missing.join('; ')}`);
   return { profile, derived: await deriveVehicleManifest(profile, resolved.components, { modelId: 153 }) };

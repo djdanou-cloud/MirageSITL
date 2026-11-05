@@ -1,10 +1,22 @@
 import { useEffect, useMemo, useState } from "react";
 import { experimentChanges, readExperiment, type ExperimentPayload } from "@mirage/aircraft/experiment";
 import { listRecordings, reopenRecording } from "@mirage/aar/recorder-v2-host";
+import { isManeuverType } from "@mirage/scenarios/maneuvers";
 import type { StoredVersion } from "@mirage/project/schema";
 import type { ImportReport } from "@mirage/project/store";
 import type { StoreState } from "../shell/AppShell";
 import type { SessionLink } from "../run/session-link";
+import { EffectsRecord } from "../faults/EffectsRecord";
+import { readEffectLog, type EffectLog } from "../faults/effect-log";
+import { FromLogCompare } from "./FromLogCompare";
+import { FromLogWizard } from "./FromLogWizard";
+import type { AnalysisOpen } from "../analysis/AnalysisTab";
+import { readLogExtraction, type LogExtractionRecord } from "./log-plan";
+import { ResponsePanel } from "../analysis/ResponsePanel";
+import { TruthVsEstimate } from "../analysis/TruthVsEstimate";
+import { ComparePanel } from "../compare/ComparePanel";
+import { BatchPanel } from "./BatchPanel";
+import { TASK_TYPE_LABELS } from "../tasks/flight-task-form";
 import { conditionsText, externalDependencies, lineageText, trajectoryDifference, type PositionRow, type TrajectoryDifference } from "./lifecycle";
 
 // The Experiments tab (TASK-165, S16): every experiment of the project with
@@ -38,8 +50,8 @@ async function positions(recordId: string): Promise<PositionRow[]> {
 }
 const metres = (value: number) => `${value.toFixed(value < 0.01 ? 4 : 3)} m`;
 
-export function ExperimentsTab({ storeState, project, link, active, onRun }: {
-  storeState: StoreState; project: StoredVersion | null; link: SessionLink; active: boolean; onRun: () => void;
+export function ExperimentsTab({ storeState, project, link, active, onRun, onAnalyse }: {
+  storeState: StoreState; project: StoredVersion | null; link: SessionLink; active: boolean; onRun: () => void; onAnalyse: (sha256: string, compare?: AnalysisOpen["compare"]) => void;
 }) {
   const store = storeState.status === "ready" ? storeState.store : null;
   const projectId = project?.record.id ?? null;
@@ -49,6 +61,20 @@ export function ExperimentsTab({ storeState, project, link, active, onRun }: {
   const [notice, setNotice] = useState("");
   const [imported, setImported] = useState<{ readonly report: ImportReport; readonly lacking: readonly string[] } | null>(null);
   const [reload, setReload] = useState(0);
+  const [profiles, setProfiles] = useState<readonly StoredVersion[]>([]);
+  const [fromLogs, setFromLogs] = useState<readonly LogExtractionRecord[]>([]);
+  const [effectLogs, setEffectLogs] = useState<readonly EffectLog[]>([]);
+  useEffect(() => {
+    if (!store || !projectId || !active) return;
+    let cancelled = false;
+    void Promise.all([store.listItems(projectId, "aircraft-profile"), store.listItems(projectId, "log-extraction"), store.listItems(projectId, "effect-log")]).then(([items, logs, effects]) => {
+      if (cancelled) return;
+      setProfiles(items);
+      setFromLogs(logs.map(readLogExtraction));
+      setEffectLogs(effects.map(readEffectLog));
+    });
+    return () => { cancelled = true; };
+  }, [store, projectId, active, reload]);
 
   useEffect(() => {
     if (!store || !projectId || !active) return;
@@ -155,14 +181,39 @@ export function ExperimentsTab({ storeState, project, link, active, onRun }: {
             <dt>Home</dt><dd>{current.payload.session.home.join(", ")}</dd>
             <dt>Conditions</dt><dd data-testid="experiment-conditions">{conditionsText(current.payload.environment)}</dd>
             <dt>Initial parameters</dt><dd>{current.payload.parameters.length}</dd>
+            <dt>Flight task</dt><dd data-testid="experiment-flight-task">{current.payload.flightTask ? `${current.payload.flightTask.name} (${TASK_TYPE_LABELS[current.payload.flightTask.definition.type]})` : "None"}</dd>
             <dt>Recording</dt><dd>{current.payload.recording ? `${current.payload.recording.commonHz} Hz common rate, record ${current.payload.recording.recordId}` : "None"}</dd>
           </dl>
           <div className="sitl-actions">
             <button type="button" onClick={() => plan("repeat")} disabled={!launcherOwned}>Repeat</button>
             <button type="button" onClick={() => plan("variant")} disabled={!launcherOwned}>Create variant</button>
             <button type="button" onClick={exportSelected} disabled={!store}>Export the experiment</button>
+            <button type="button" onClick={() => onAnalyse(current.stored.sha256)}>Open in Analysis</button>
           </div>
+          <EffectsRecord schedule={current.payload.faults} log={effectLogs.find(item => item.experimentSha256 === current.stored.sha256) ?? null} />
+          {current.payload.faults && current.payload.recording && (() => {
+            // TASK-170: where the schedule's clock started, from when its first drift stretch was meant for.
+            const log = effectLogs.find(item => item.experimentSha256 === current.stored.sha256), drift = current.payload.faults.ekfDrift ?? null;
+            const first = log?.entries.find(entry => entry.id === "ekf-drift-0" && entry.enabled)?.requestedSimS ?? null;
+            return <TruthVsEstimate recordId={current.payload.recording.recordId} home={current.payload.session.home} drift={drift} armedAtS={drift && first !== null ? first - drift.onsetS : null} />;
+          })()}
+          {(() => {
+            const log = fromLogs.find(item => item.experimentSha256 === current.stored.sha256);
+            if (!log) return null;
+            const missing = log.fields.filter(field => field.status === "missing");
+            return (
+              <div data-testid="experiment-from-log">
+                <p className="hint">{`From ${log.log.name}, ${log.interval.fromS.toFixed(2)} s to ${log.interval.toS.toFixed(2)} s, with ${log.parameters.length} of its settings. It started on the ground, so it is not a replay of that flight.`}</p>
+                {missing.length > 0 && <p className="hint">{`The log did not hold: ${missing.map(field => field.label).join(", ")}.`}</p>}
+                {store && projectId && <FromLogCompare key={current.stored.sha256} store={store} projectId={projectId} link={link} item={{ stored: current.stored, payload: current.payload }} log={log}
+                  onOpen={compare => onAnalyse(current.stored.sha256, compare)} />}
+              </div>
+            );
+          })()}
           {!launcherOwned && <p className="hint">A run with a SITL started by hand is repeated by connecting that SITL again in the Run tab.</p>}
+          {current.payload.flightTask && isManeuverType(current.payload.flightTask.definition.type) && (current.payload.recording
+            ? <ResponsePanel task={current.payload.flightTask.definition} recordId={current.payload.recording.recordId} />
+            : <p className="hint" data-testid="response-missing">This run recorded nothing, so its response cannot be shown.</p>)}
           {lineage && lineage.kind !== "original" && (
             <div data-testid="experiment-differences">
               <h4>{`Differences from ${nameOf(lineage.of)}`}</h4>
@@ -192,6 +243,9 @@ export function ExperimentsTab({ storeState, project, link, active, onRun }: {
           </ul>
         </section>
       )}
+      {store && experiments.length > 1 && <ComparePanel store={store} experiments={experiments} />}
+      {store && projectId && <BatchPanel store={store} projectId={projectId} link={link} active={active} onChanged={() => setReload(n => n + 1)} />}
+      {project && <FromLogWizard link={link} profiles={profiles} onRun={onRun} />}
       <section className="project-section" aria-labelledby="experiments-import-heading">
         <h3 id="experiments-import-heading">Import experiments</h3>
         <label htmlFor="experiments-import">Experiment archive (.mirageproj)</label>

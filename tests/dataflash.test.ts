@@ -216,8 +216,15 @@ describe('DataFlash reader against pymavlink mavlogdump (TASK-178)', () => {
     const header = fmt(10, 12, 'GOOD', 'QB', 'TimeUS,V');
     const one = readDataFlash(Uint8Array.from([...header, ...record(10, [1, 0, 0, 0])]));
     expect(one.damaged).toEqual([{ start: 89, end: 96, kind: 'truncated' }]);
+    // A file can end anywhere, so also inside a header, before the type byte: stopping a run does that about once in 26.
     const two = readDataFlash(Uint8Array.from([...header, 0xa3, 0x95]));
-    expect(two.damaged).toEqual([{ start: 89, end: 91, kind: 'skipped' }]);
+    expect(two.damaged).toEqual([{ start: 89, end: 91, kind: 'truncated' }]);
+    const oneByte = Uint8Array.from([...header, 0xa3]);
+    expect(readDataFlash(oneByte).damaged).toEqual([{ start: 89, end: 90, kind: 'truncated' }]);
+    expect(readInChunks(oneByte, 5).damaged).toEqual([{ start: 89, end: 90, kind: 'truncated' }]);
+    // Bytes that cannot start a header are not a cut record.
+    expect(readDataFlash(Uint8Array.from([...header, 0x41])).damaged).toEqual([{ start: 89, end: 90, kind: 'skipped' }]);
+    expect(readDataFlash(Uint8Array.from([...header, 0xa3, 0x41])).damaged).toEqual([{ start: 89, end: 91, kind: 'skipped' }]);
     expect(readDataFlash(new Uint8Array(0))).toMatchObject({ records: 0, damaged: [], clock: 'unsupported' });
   });
   it('switches to a redefined format and starts a new group', () => {

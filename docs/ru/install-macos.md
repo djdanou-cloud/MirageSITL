@@ -1,6 +1,6 @@
 # Установка MirageSITL на macOS (TASK-152)
 
-<!-- source-sha256: 17ec5e277cd7fc8fb324d8d042b3ddc3b3908ca56094a5ad7ce6ada229419975 -->
+<!-- source-sha256: f22f19b7727e31e78e908872a3d5daa0abfd2243fc5c8fc355184ac898e7cab1 -->
 
 Английский источник: [install-macos.md](../operations/install-macos.md).
 
@@ -45,7 +45,11 @@ node scripts/install-macos.mjs
    `catalog.json` с SHA-256 исполняемого файла и `copter.parm` ArduPilot;
 5. загружает UAVLogViewer на коммите и с подмодулем парсера из
    `third_party/uavlogviewer/source.lock.json` в `sources/uavlogviewer` и
-   проверяет хеш его LICENSE; офлайн-сборку просмотрщика делает TASK-179;
+   проверяет хеш его LICENSE, затем собирает пропатченный офлайн-просмотрщик в
+   `uavlogviewer/` скриптом `scripts/build-uavlogviewer.mjs` (TASK-179: патчи
+   из `third_party/uavlogviewer/patches/`, закреплённые npm-пакеты, лицензионные
+   уведомления и `build-manifest.json`); повторный запуск пересобирает его,
+   только если манифест больше не совпадает с серией патчей или файлами на диске;
 6. пишет `install-manifest.json`: каждый установленный элемент с версией,
    SHA-256, размером и лицензией из его строки `config/offline-inventory.json`.
 

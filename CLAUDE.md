@@ -119,7 +119,7 @@ implementation.
   an exported file back to the same values (`scripts/check-param-file-sitl.mjs`).
   TASK-165 is DONE: the Experiments tab repeats an experiment or runs a
   variant of it in the Run tab, as a new record (experiment payload schema 4,
-  schema 5 since TASK-148)
+  schema 7 since TASK-148)
   whose lineage names the parent and the changed inputs; differences are shown,
   never judged (user decision of 2026-11-03), and an exported experiment lists
   what its archive cannot hold.
@@ -286,8 +286,8 @@ implementation.
   tail margin, at 800 Hz, but not at 1200 Hz until TASK-091
   (`node scripts/bench-profile-dynamics.mjs`). TASK-150 is DONE: the MAVLink
   codec reads a message table that pymavlink 2.4.50 generates from the pinned
-  `ardupilotmega.xml` and its includes, and supports 39 messages (TASK-155 added
-  AUTOPILOT_VERSION), adding the
+  `ardupilotmega.xml` and its includes, and supports 40 messages (TASK-155 added
+  AUTOPILOT_VERSION and TASK-173 SET_ATTITUDE_TARGET), adding the
   parameter, command, status, telemetry, mission and position-target messages
   of Phase 1, with a cold `packInto` builder, field readers and preallocated
   decoders for the high-rate telemetry subset, all byte- and value-exact
@@ -295,7 +295,22 @@ implementation.
   DataFlash logs, in a Worker if needed, with the field values and times of
   pymavlink's `mavlogdump`, reports damaged byte ranges, and writes MirageSITL
   truth, motor, event and parameter-change records under `MS` names that
-  pymavlink reads back unchanged. TASK-146 is DONE: with the TASK-092 drive,
+  pymavlink reads back unchanged. TASK-179 is DONE: `scripts/build-uavlogviewer.mjs`
+  builds the pinned UAVLogViewer with patches 0000–0004
+  (`third_party/uavlogviewer/patches/`) reproducibly into the launcher home, the
+  installer runs it, Vite serves it at `/uavlogviewer/`, and the Analysis tab opens
+  DataFlash logs in it offline through an origin-checked message interface, in Chrome
+  on the M5. TASK-180 is DONE: a stored experiment opens there with ArduPilot's own log
+  or a log written from its recording, its context beside the viewer and its requested,
+  confirmed and rejected parameter changes on the plot, and a log from elsewhere marks
+  what it does not hold Unknown. TASK-181 is DONE: two flights, or two intervals of one, are
+  compared in the viewer, dashed on one value axis, overlaid or side by side, with aligned starts
+  and a manual shift, and a saved comparison keeps its alignment. TASK-182 is DONE: **Create experiment from log**
+  reports field by field what a log and an interval give, with each source message, what
+  is missing and what the run will not take, and the run it plans starts on the ground
+  at the log's home with its settings on an aircraft the user chooses, which is not a
+  replay. TASK-183 is DONE: that run takes changed parameters and computes its own path, and it
+  compares with the original flight by metrics and in the viewer. TASK-146 is DONE: with the TASK-092 drive,
   `BetFlightDynamics` checks every step against card ratings and the model's
   clamps, keeps a rating `warning` apart from a modeled `limited` clamp,
   publishes per-motor and battery values in the separate power telemetry v1
@@ -312,14 +327,57 @@ implementation.
   body integrator in place of the attitude-resetting synthetic pad; native
   ArduCopter takes off and lands on the D-07 supports in the harness and the
   Run tab. Terrain planes in sessions remain for TASK-187, and browser-hosted
-  ArduCopter is not a Phase 1 flight mode. TASK-148 is DONE: WGS84
+  ArduCopter is not a Phase 1 flight mode. TASK-158 is DONE, which completes
+  milestone M3: `node scripts/phase1/nominal-flight.mjs` takes each of the five
+  S19 configurations through the UI alone in Google Chrome with native
+  ArduCopter, from typed component cards to a stopped run, and writes the
+  verdicts of its profile-creation, output-mapping, start, flight-task and
+  pause-resume workflows into `docs/validation/phase1-matrix.json`, each citing
+  its evidence report in `test-results/validation/phase1-nominal/`. Decision
+  A-04 is amended: runs with ArduPilot SITL use 800 Hz. Decision A-13 requires
+  a steady hover (body rates within 1 °/s, standard deviation, in the flight's
+  own log), so the quad flies that acceptance with a 40 Hz gyro filter, set in
+  the Parameters tab; at stock settings it oscillates at 10 Hz. TASK-172 is DONE:
+  the Flight tasks tab defines takeoff, hover, landing, straight, climb,
+  descent, acceleration, braking, turn and route tasks as versioned project
+  items (`packages/scenarios/src/flight-tasks.ts`), and the Run tab flies a
+  stored one with native ArduCopter through guided targets and uploaded
+  missions, requested next to actual and both recorded, the definition in
+  experiment payload schema 5. Ground values apply at the first physics step;
+  by the user's decision of 2026-11-04 an airborne start is a lead-in that
+  ArduPilot flies, and the task's clock starts on arrival. Every guided target
+  is one ArduPilot can follow without correcting: position, velocity and
+  acceleration on a path smoothed within the limits it reports (WP_ACC_Z,
+  PSC_D_JERK, PSC_NE_JERK, ATC_ACC_Y_MAX), so what is requested is what can be
+  flown. A run the launcher starts gets COMPASS_DEC at boot from its home, or
+  EKF3 learns a false gyro error and the true heading creeps about 2° from the
+  one commanded. TASK-173 is DONE: tuning maneuvers are flight tasks of eight
+  more types (`packages/scenarios/src/maneuvers.ts`), steps and doublets in roll,
+  pitch, heading and altitude, whose changes are sharp on purpose. The
+  Experiments tab charts requested against actual from the stored recording, with
+  delay, rise time, overshoot, settling and end error of each change, shown and
+  not judged. Roll and pitch can end a few tenths of a degree off the request
+  because EKF3 lags ArduPilot's simulated gyro drift (SIM_DRIFT_SPEED). TASK-177 is
+  DONE: the Experiments tab compares two flown experiments (`packages/analysis`),
+  listing the inputs held equal and flagging one that differs, accounting for the
+  components' own mass, and showing thrust margin, RPM, current, power, energy, a
+  duration estimate with its scenario and reserve, position and maneuver response and
+  recorded limit exceedances, shown and not judged. `thrustCapacity` solves the thrust at
+  full command. TASK-197 is DONE: the flight step solves the battery bus and the motors
+  together (`native/bet/src/bus_solve.rs`), so the voltage no longer flips every tick at high
+  demand, a pack at its limit holds the motors back, and a flight at full command settles on
+  the thrust `thrustCapacity` gives. TASK-176 is DONE:
+  the Experiments tab runs a batch of parameter sets the user supplies
+  (`packages/project/src/batch.ts`), one scenario from the Run tab once per set with every
+  other input identical. A failed run is recorded and never retried, and the next set
+  still runs. Nothing searches for values or ranks the sets. TASK-148 is DONE: WGS84
   normal gravity (`gravity.ts`), the WMM2025 main field (`geomagnetic.ts`) and
   the hashed EGM96 grid (`data/geoid/`, which opens the TASK-036 MSL gate) pass
   their reference data; `effectiveConditions` combines them for a location,
   flight sessions take the location's gravity and origin air, the Weather and
   location tab keeps one location per project and shows its conditions, the
-  Run tab starts ArduPilot at it (`--home`, barometer parameters,
-  `environment.set` to the physics Worker), and experiment payload schema 5
+  Run tab starts ArduPilot at it (`--home`, barometer parameters, COMPASS_DEC,
+  `environment.set` to the physics Worker), and experiment payload schema 7
   records the location with its conditions. TASK-142 is DONE:
   the Aircraft tab maps each motor to an output and generates the frame
   parameters from the TASK-128 catalog (the S19 octa-x fixture spins the
@@ -398,8 +456,9 @@ implementation.
   (accessibility sign-off; TASK-074 HUD freshness, TASK-075 fault ACKs, TASK-078 full-rate recording, and TASK-079 scenario ACK binding are done and do not admit browser READY), TASK-082 (multi-hour integrated soak), and TASK-083 (clean-machine
   release and assistive screen-reader sign-off) remain open.
 * **Physics fidelity program (TASK-087–TASK-123, roadmap Phases 7–13):** registered
-  2026-10-26 from the physics fidelity review. TASK-089 and TASK-090 are
-  IN_PROGRESS with a first increment each, and TASK-087 and TASK-088 are DONE:
+  2026-10-26 from the physics fidelity review. TASK-090 is
+  IN_PROGRESS with a first increment, and TASK-087, TASK-088 and the Phase 1 part of
+  TASK-089 are DONE:
   * TASK-087: the strict vehicle manifest v2 (`vehicle-manifest.ts`), an ArduPilot
     profile limited to evidenced names, and an optional `SessionModelPort` for
     `model.load`; the default demo backend is unchanged. The physics Worker
@@ -414,10 +473,15 @@ implementation.
     `SIM_ACC_FLOOR`/`SIM_GYR_FLOOR`, which switch off the fixed IMU noise floors
     (`scripts/ownership-profile.mjs --imu-noise-floor off`). Unpatched firmware skips
     them silently, so `run-sitl.mjs` with `MIRAGE_SITL_IMU_NOISE_FLOOR=off` holds arming
-    until the firmware confirms both values. The driver change means TASK-059 must be
-    re-frozen before new EW validation (accepted 2026-10-27). Under guardrail 5 of the
+    until the firmware confirms both values. That driver change ended the TASK-059 matrix
+    (accepted 2026-10-27), and TASK-171 is DONE: `tests/fixtures/scenarios/ew-matrix.json`
+    is frozen again on macOS with the current driver, and six separate validation flights
+    pass it (`docs/validation/ew-macos-report.json`). Under guardrail 5 of the
     approved PROJECT_SCOPE.md, decision D-10 of 2026-10-28 is: no patch for now,
-    so Phase 1 runs use stock ArduPilot SITL and leave the patch unused.
+    so Phase 1 runs use stock ArduPilot SITL and leave the patch unused. Every SIM_
+    parameter of the catalog is declared, and a live write of a parameter of an error
+    MirageSITL applies or this run switches off is refused with its reason. Its
+    browser-path items stay with the preserved TASK-046 and TASK-047.
   * TASK-090: fidelity metrics and `scripts/check-fidelity.mjs`, which never passes
     synthetic data; real flight and bench data remain BLOCKED_EXTERNAL.
 
@@ -446,16 +510,35 @@ implementation.
   their source (profile schema 5, the Aircraft tab's Body drag section); in
   native SITL the quad holds station
   in wind with its lean shown against the body drag, and EKF3 drag fusion
-  learns the along-wind component; its cross-wind estimate and heading are
-  pulled because EKF3 models drag per body axis, as ArduPilot's built-in SITL
-  multicopter does, not along the relative wind (with ArduPilot's default
-  simulated gyro drift the heading turns about 0.045°/s); by the user's
-  decision of 2026-11-03 that result meets the DoD. The physics tasks TASK-097–TASK-123
-  are not implemented. TASK-166 (not implemented) gives every
-  environment, sensor-error, EW and fault effect an on/off switch and an intensity
-  control. Effects that MirageSITL injects are off by default, and off must be
-  bitwise identical to absent; ArduPilot's own SITL errors keep the TASK-089
-  setting, whose default is ArduPilot's behaviour. That request of 2026-10-27 was first
+  learns the wind. That test flies the quad with a 40 Hz gyro filter: at stock
+  settings it holds altitude in a 10 Hz attitude oscillation (TASK-158), which
+  pulls EKF3's cross-wind estimate and heading. TASK-096 first put that
+  error down to EKF3's per-axis drag form; the comparison of 2026-11-04
+  corrects it. The physics tasks TASK-097–TASK-123
+  are not implemented. TASK-166 is DONE: Control Protocol v3
+  (`packages/protocol/src/control-v3.ts`) gives every environment, EW, motor and
+  sensor-error effect a record with an on/off switch and an intensity, each range
+  equal to its model's envelope, and off or zero is bitwise identical to absent
+  over a seeded run. `weather.set` and `fault.set` map onto those records and fly
+  as they did, scenario schema 2 schedules them, and the instructor console has one
+  form per effect. A running session rejects `sensor.*` controls visibly, and the
+  console stays on the demo page until TASK-167 and TASK-169. TASK-106's Phase 1 part
+  is DONE: MIL-F-8785C low-altitude Dryden turbulence (`packages/physics/src/turbulence.ts`,
+  effect `wind.turbulence`), without rotational gusts or the other spectra. TASK-168 is DONE:
+  ten sensor and link faults reach stock native ArduCopter on the path that owns each reading
+  (the state line, ArduPilot's own fault parameters, the bridge), with truth bitwise untouched,
+  and motor faults act on the profile dynamics; ArduPilot's response is recorded, not predicted,
+  and TASK-169 gives them a tab. TASK-169 is DONE: the Faults and interference tab applies
+  those effects by hand or on a schedule the run keeps in its experiment record, counted from the
+  first armed report, and `effect-log` records each outcome; GNSS steps and drift reach ArduPilot on
+  the state line, north and east, jamming and magnetometer bias through its own parameters, and a
+  magnetometer rotation through the attitude on the line. TASK-170 is DONE: the tab's EKF drift
+  scenario flies as an input error on that path, ArduPilot's estimate is never written, and the
+  Experiments tab charts the truth against its estimate from the recording. TASK-188 is DONE: `node scripts/phase1/acceptance.mjs`
+  checks every matrix cell against its evidence and refuses what is forged, missing or stale,
+  and `node scripts/phase1/nominal-flight.mjs` gives nine workflows per configuration, so 45 of
+  the 51 cells pass on the A-01 machine. ArduPilot's own SITL
+  errors keep the TASK-089 setting, whose default is ArduPilot's behaviour. That request of 2026-10-27 was first
   registered as TASK-124 on the physics-review branch, a number main already used.
   MirageSITL stays an external
   flight-dynamics model: do not modify
@@ -555,6 +638,16 @@ audits captured runs. Missing host prerequisites produce `BLOCKED_EXTERNAL`
 (exit 2). A passing child-process or structural trace test alone is not proof
 that ArduPilot flew. See the operational [runbook](docs/operations/runbook.md)
 for environment variable names, trace schema, and ownership limitations.
+
+TASK-158 adds `node scripts/phase1/nominal-flight.mjs [--configuration ID]...
+[--chrome PATH] [--stock-settings]`, the Phase 1 nominal flight acceptance on the
+reference Mac: it runs the opt-in `tests/browser/phase1-nominal.spec.ts` in
+Google Chrome on the Mac's GPU, about 15 minutes for the five configurations, and
+rewrites the tracked reports in `test-results/validation/phase1-nominal/`, and
+the matrix only on the A-01 machine. `--stock-settings` is the negative control
+of decision A-13, which fails the quad and never writes the matrix. It exits 0
+when every workflow passed, 1 when one failed or was not reached, and 2 for
+`BLOCKED_EXTERNAL`. Run speed is reported, not judged.
 
 Cargo check does not validate physics or browser execution: run native tests,
 WASM smoke, and reference parity too. Install missing targets through the

@@ -6,6 +6,7 @@
   "exports": {
     "./volumes": "./src/volumes.ts",
     "./gnss-jamming": "./src/gnss-jamming.ts",
+    "./sitl-writes": "./src/sitl-writes.ts",
     "./magnetic": "./src/magnetic.ts",
     "./position-step": "./src/position-step.ts",
     "./velocity-drift": "./src/velocity-drift.ts",

@@ -4,7 +4,7 @@ import { WMM2025_SHA256, WorldMagneticModel, parseWmmCoefficients } from "@mirag
 import { loadEgm96Geoid, type GeoidModel } from "@mirage/sensors/geoid";
 import wmmCoefficients from "../../../../data/geomagnetic/WMM_2025.COF?raw";
 import egm96Url from "../../../../data/geoid/WW15MGH.DAC?url";
-import type { LocationChoice } from "./location";
+import { parseLocation, type LocationChoice } from "./location";
 
 // The effective conditions of a location in the application (TASK-148): the
 // WMM2025 coefficients travel in the bundle as text and the EGM96 grid as an
@@ -46,4 +46,16 @@ export function conditionsOf(location: LocationChoice, loaded: GeographicModels,
 /** The environment a run records (TASK-148): the location and its conditions at the run's date. */
 export async function environmentFor(location: LocationChoice, date = new Date()): Promise<ExperimentEnvironment> {
   return { location, conditions: conditionsOf(location, await geographicModels(), date) };
+}
+
+/**
+ * The environment at a home that came from elsewhere, such as a flight log's origin (TASK-183): coordinates with the
+ * standard sea-level pressure and no temperature offset, since a log does not say what they were; null when the home
+ * lies outside the location envelope, so the run flies at standard gravity with a sea-level ISA origin as before.
+ */
+export async function environmentAtHome(home: readonly [number, number, number, number], date = new Date()): Promise<ExperimentEnvironment | null> {
+  const [latitudeDeg, longitudeDeg, groundElevationMslM, headingDeg] = home;
+  const location = parseLocation({ site: null, latitudeDeg, longitudeDeg, groundElevationMslM, headingDeg: ((headingDeg % 360) + 360) % 360, measuredQnhPa: null,
+    temperatureOffsetK: 0 });
+  return location && location.headingDeg === headingDeg ? environmentFor(location, date) : null;
 }

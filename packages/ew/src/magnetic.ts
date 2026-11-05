@@ -4,6 +4,8 @@ export class MagneticAnomaly {
   private readonly bias: Float64Array;
   private readonly rotationInput: [number, number, number] = [0, 0, 0];
   private readonly biasInput: [number, number, number] = [0, 0, 0];
+  /** The rotation as a quaternion, w x y z: the same Rz*Ry*Rx, for a path that can only turn an attitude (TASK-169). */
+  readonly rotationWxyz = new Float64Array([1, 0, 0, 0]);
   constructor(
     rotationRad: readonly [number, number, number],
     biasBodyGauss: readonly [number, number, number],
@@ -57,6 +59,11 @@ export class MagneticAnomaly {
     m[3] = sy * cp; m[4] = sy * sp * sr + cy * cr; m[5] = sy * sp * cr - cy * sr;
     m[6] = -sp; m[7] = cp * sr; m[8] = cp * cr;
     this.bias[0] = bx; this.bias[1] = by; this.bias[2] = bz;
+    const c1 = Math.cos(roll / 2), s1 = Math.sin(roll / 2), c2 = Math.cos(pitch / 2), s2 = Math.sin(pitch / 2), c3 = Math.cos(yaw / 2), s3 = Math.sin(yaw / 2), q = this.rotationWxyz;
+    q[0] = c3 * c2 * c1 + s3 * s2 * s1;
+    q[1] = c3 * c2 * s1 - s3 * s2 * c1;
+    q[2] = c3 * s2 * c1 + s3 * c2 * s1;
+    q[3] = s3 * c2 * c1 - c3 * s2 * s1;
     return true;
   }
   distortInto(source: Float64Array, target: Float64Array): boolean {

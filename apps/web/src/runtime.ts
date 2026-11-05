@@ -2,9 +2,10 @@ import { RecorderHost } from "@mirage/aar/recorder-host";
 import demoDynamicsSource from "../../../packages/physics/src/demo-dynamics.ts?raw";
 import { CommandLedger, type CommandPayload } from "./instructor/commands";
 import {
-  parseControlCommandV2,
+  CONTROL_PROTOCOL_VERSION_3,
+  parseControlCommand,
   isPhysicsHz,
-  type ControlCommandV2,
+  type ControlCommand,
 } from "@mirage/protocol";
 import {
   ControlFlag,
@@ -282,16 +283,16 @@ export class SimulationRuntime {
   }
   submitControl(
     payload: CommandPayload | Record<string, unknown>,
-  ): ControlCommandV2 | null {
+  ): ControlCommand | null {
     if (!this.ready) return null;
     this.reader.readHeader(this.header);
     const value = {
       ...payload,
-      protocolVersion: 2,
+      protocolVersion: CONTROL_PROTOCOL_VERSION_3,
       requestId: ++this.requestId,
       expectedEpoch: this.epoch,
     };
-    const parsed = parseControlCommandV2(value);
+    const parsed = parseControlCommand(value);
     if (!parsed.ok) {
       this.notice = parsed.message;
       return null;
@@ -576,9 +577,9 @@ export class SimulationRuntime {
   }
 }
 
-function scenarioSubmit(data: unknown): ControlCommandV2 | null {
+function scenarioSubmit(data: unknown): ControlCommand | null {
   if (typeof data !== "object" || data === null || !("type" in data) || data.type !== "scenario.submit" || !("command" in data)) return null;
-  const parsed = parseControlCommandV2(data.command);
+  const parsed = parseControlCommand(data.command);
   return parsed.ok ? parsed.command : null;
 }
 export interface PilotRejectionNotice {

@@ -5,6 +5,9 @@ import { validateComponentCard } from "@mirage/aircraft/components";
 import { validateExperiment } from "@mirage/aircraft/experiment";
 import { LoggingTab } from "../logging/LoggingTab";
 import { validateParameterLog, validateParameterSet } from "../params/parameter-sets";
+import { validateExperimentBatch } from "@mirage/project/batch";
+import { parseFlightTask } from "@mirage/scenarios/flight-tasks";
+import { FlightTasksTab } from "../tasks/FlightTasksTab";
 import { ParametersTab } from "../params/ParametersTab";
 import { ExperimentsTab } from "../experiments/ExperimentsTab";
 import { SessionLink } from "../run/session-link";
@@ -12,6 +15,11 @@ import { validateMeasurementSet } from "@mirage/aircraft/measurements";
 import { validateAircraftProfile } from "@mirage/aircraft/profile";
 import { ProjectStore } from "@mirage/project/store";
 import { AircraftEditor } from "../aircraft/AircraftEditor";
+import { AnalysisTab, type AnalysisOpen } from "../analysis/AnalysisTab";
+import { validateLogComparison } from "../analysis/log-alignment";
+import { validateLogExtraction } from "../experiments/log-plan";
+import { validateEffectLog } from "../faults/effect-log";
+import { FaultsTab } from "../faults/FaultsTab";
 import { ComponentsPanel } from "../library/ComponentsPanel";
 import { SensorsTab } from "../sensors/SensorsTab";
 import { WeatherTab } from "../weather/WeatherTab";
@@ -36,10 +44,7 @@ export type StoreState =
   | { readonly status: "unavailable"; readonly reason: string };
 
 /** What each tab will hold; the shell says so until the tab's own task lands. */
-const PLANNED: { readonly [tab in Exclude<TabId, "project" | "aircraft" | "components" | "sensors" | "run" | "logging" | "parameters" | "experiments" | "weather">]: string } = {
-  faults: "Motor faults, sensor and GNSS interference, EKF drift and link loss, applied manually or on a schedule.",
-  tasks: "Takeoff, hover, landing, routes and tuning maneuvers, with initial conditions.",
-  analysis: "Flight logs in UAVLogViewer, with two flights or two intervals side by side.",
+const PLANNED: { readonly [tab in Exclude<TabId, "project" | "aircraft" | "components" | "sensors" | "run" | "logging" | "parameters" | "experiments" | "tasks" | "analysis" | "faults" | "weather">]: string } = {
 };
 
 // `?g3=1` (TASK-073) measures the full-screen flight view, which lives in the Run tab.
@@ -69,6 +74,8 @@ export function AppShell({ run }: { run: (visible: boolean, storeState: StoreSta
     FORCED_TAB ? { ...DEFAULT_NAVIGATION, tab: FORCED_TAB } : DEFAULT_NAVIGATION);
   const [projects, setProjects] = useState<readonly StoredVersion[]>([]);
   const [notice, setNotice] = useState("");
+  /** The experiment the Experiments tab asked the Analysis tab to open (TASK-180). */
+  const [analysisOpen, setAnalysisOpen] = useState<AnalysisOpen | null>(null);
   // Set once the user navigates; until then the stored navigation may replace the default.
   const changed = useRef(false);
   const tabs = useRef(new Map<TabId, HTMLButtonElement>());
@@ -82,7 +89,7 @@ export function AppShell({ run }: { run: (visible: boolean, storeState: StoreSta
         const ready = await ProjectStore.openIndexedDb({
           validators: {
             "component-card": validateComponentCard, "measurement-set": validateMeasurementSet, "aircraft-profile": validateAircraftProfile,
-            "experiment": validateExperiment, "parameter-set": validateParameterSet, "parameter-log": validateParameterLog,
+            "experiment": validateExperiment, "parameter-set": validateParameterSet, "parameter-log": validateParameterLog, "log-extraction": validateLogExtraction, "effect-log": validateEffectLog, "log-comparison": validateLogComparison, "flight-task": parseFlightTask, "experiment-batch": validateExperimentBatch,
           },
         });
         opened = ready;
@@ -159,8 +166,14 @@ export function AppShell({ run }: { run: (visible: boolean, storeState: StoreSta
         return <LoggingTab storeState={storeState} project={project} active={navigation.tab === "logging"} />;
       case "parameters":
         return <ParametersTab storeState={storeState} project={project} link={link} active={navigation.tab === "parameters"} />;
+      case "tasks":
+        return <FlightTasksTab storeState={storeState} project={project} active={navigation.tab === "tasks"} />;
+      case "faults":
+        return <FaultsTab storeState={storeState} project={project} link={link} active={navigation.tab === "faults"} />;
       case "experiments":
-        return <ExperimentsTab storeState={storeState} project={project} link={link} active={navigation.tab === "experiments"} onRun={() => selectTab("run")} />;
+        return <ExperimentsTab storeState={storeState} project={project} link={link} active={navigation.tab === "experiments"} onRun={() => selectTab("run")} onAnalyse={(sha256, compare) => { setAnalysisOpen({ sha256, at: Date.now(), ...(compare ? { compare } : {}) }); selectTab("analysis"); }} />;
+      case "analysis":
+        return <AnalysisTab storeState={storeState} project={project} link={link} active={navigation.tab === "analysis"} openSha={analysisOpen} />;
       default: {
         const label = TABS.find(entry => entry.id === tab)?.label ?? tab;
         return <PlannedPanel label={label} description={PLANNED[tab]} project={project} />;
@@ -218,7 +231,7 @@ export function AppShell({ run }: { run: (visible: boolean, storeState: StoreSta
             role="tabpanel"
             aria-labelledby={tabId(entry.id)}
             hidden={entry.id !== navigation.tab}
-            tabIndex={entry.id === "project" || entry.id === "aircraft" || entry.id === "components" || entry.id === "sensors" || entry.id === "run" ? undefined : 0}
+            tabIndex={entry.id === "project" || entry.id === "aircraft" || entry.id === "components" || entry.id === "sensors" || entry.id === "run" || entry.id === "analysis" ? undefined : 0}
           >
             {content(entry.id)}
           </div>

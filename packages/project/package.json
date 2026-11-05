@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     "./schema": "./src/schema.ts",
+    "./batch": "./src/batch.ts",
     "./versions": "./src/versions.ts",
     "./archive": "./src/archive.ts",
     "./store": "./src/store.ts"

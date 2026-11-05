@@ -1,27 +1,35 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { createExperimentRecord, experimentRecordName } from "@mirage/aircraft/experiment";
+import { createExperimentRecord, experimentRecordName, isSetParameter, type ExperimentFlightTask } from "@mirage/aircraft/experiment";
 import { deriveLayout, type AircraftLayout } from "@mirage/aircraft/layout";
 import { readAircraftProfile } from "@mirage/aircraft/profile";
 import { describeAccident } from "@mirage/physics/accident";
 import type { LimitEvent } from "@mirage/physics/limit-monitor";
+import type { RunDriver } from "./session-link";
 import type { StoredVersion } from "@mirage/project/schema";
 import { CopterMode } from "@mirage/autopilot/ground-station";
 import { GamepadAdapter, defaultCalibration } from "@mirage/input";
 import { loadCalibration } from "@mirage/input/calibration-store";
 import type { ParameterMetadataCatalog } from "@mirage/autopilot/param-metadata";
 import { lineageFor, loggingOf } from "../experiments/lifecycle";
+import { logPlanText, saveLogExtraction } from "../experiments/log-plan";
+import { resimulationInputs } from "@mirage/analysis/resimulate";
 import { loadLoggingSettings, type LoggingSettings } from "../logging/logging-settings";
 import { ParameterLogWriter } from "../params/log-writer";
+import { EffectLogWriter } from "../faults/effect-log";
+import { loadFaultSchedule } from "../faults/schedule-store";
+import type { FaultSchedule } from "@mirage/scenarios/fault-schedule";
 import { loadParameterMetadata } from "../params/metadata";
 import { RunRecorder } from "../logging/run-recorder";
 import { SimulationRuntime } from "../runtime";
 import type { StoreState } from "../shell/AppShell";
 import { DEFAULT_LAUNCHER_PORT } from "../shell/FirstRun";
 import { LauncherClient, RuntimePhysics, SITL_PHYSICS_HZ, preparedRun, verifiedCommits } from "../sitl/sitl-run";
-import { environmentFor } from "../weather/conditions";
+import { readFlightTask } from "../tasks/flight-task-form";
+import { FlightTaskPanel } from "./FlightTaskPanel";
+import { environmentAtHome, environmentFor } from "../weather/conditions";
 import { DEFAULT_LOCATION, describeLocation, homeOf, loadLocation, type LocationChoice } from "../weather/location";
 import { FlightTelemetry } from "./FlightTelemetry";
-import { FlightView, type FlightViewProbe } from "./FlightView";
+import { FlightView, type FlightViewProbe, type RoutePoint } from "./FlightView";
 import { CompatibilityList, ManualConnect } from "./ManualConnect";
 import { ManualControl } from "./ManualControl";
 import { MotorCheckPanel } from "./MotorCheck";
@@ -51,6 +59,10 @@ import type { SessionLink } from "./session-link";
 // planned (TASK-165) loads its parent's inputs: a repeat locks them, its
 // recording setup and home included, and a variant lets them change; the
 // record names its parent and the inputs that changed.
+// A flight task (TASK-172) is chosen before the start: its ground values are in
+// the physics from the first step and the experiment record holds it. Run task
+// flies it from READY, and the panel shows requested next to actual; the flight
+// view draws a route's line and points.
 // The session is attached to the shell's link, so the Parameters tab (TASK-160)
 // reads and writes the run's parameters, and each run's parameter changes are
 // saved as its parameter log. The project's location (TASK-148, the Weather
@@ -61,7 +73,7 @@ const MODE_NAMES: Readonly<Record<number, string>> = Object.fromEntries(Object.e
 const STEP_TEXT = { prepare: "preparing the vehicle", firmware: "checking the ArduPilot build", physics: "loading the physics",
   launcher: "starting SITL", record: "saving the experiment record", recording: "opening the recording", connecting: "connecting to SITL",
   probing: "waiting for the SITL's JSON physics packets", version: "checking the SITL's ArduPilot version" } as const;
-const FLIGHT_TEXT = { arming: "Arming", climbing: "Taking off", flying: "Flying", landing: "Landing", manual: "Manual control" } as const;
+const FLIGHT_TEXT = { arming: "Arming", climbing: "Taking off", flying: "Flying", landing: "Landing", manual: "Manual control", task: "Flying the task" } as const;
 const PAUSE_TEXT: Readonly<Record<PauseReason, string>> = { accident: "accident", user: "by you", visibility: "the tab was hidden", terrain: "no terrain",
   controller: "controller lost" };
 const PAUSE_HINT: Readonly<Record<PauseReason, string>> = {
@@ -116,8 +128,11 @@ export function RunPanel({ storeState, project, visible, link }: { storeState: S
   const [location, setLocation] = useState<LocationChoice>(DEFAULT_LOCATION);
   // TASK-165: the run the Experiments tab planned, and the stored profile version it names.
   const plan = useSyncExternalStore(link.subscribe, link.plan);
+  const batchRunning = useSyncExternalStore(link.subscribe, link.batchRunning);
   const [plannedProfile, setPlannedProfile] = useState<StoredVersion | null>(null);
   const repeat = plan?.kind === "repeat";
+  // TASK-182: the run the from-log wizard planned: the log's home and settings, on the aircraft the user chose.
+  const fromLog = useSyncExternalStore(link.subscribe, link.logPlan);
   const [port, setPort] = useState(String(DEFAULT_LAUNCHER_PORT));
   const [token, setToken] = useState("");
   const [builds, setBuilds] = useState<readonly CatalogEntry[] | null>(null);
@@ -129,6 +144,11 @@ export function RunPanel({ storeState, project, visible, link }: { storeState: S
   const [probe, setProbe] = useState("");
   const [motorRefusal, setMotorRefusal] = useState("");
   const [manualRefusal, setManualRefusal] = useState("");
+  // TASK-172: the project's flight tasks, the chosen item, and the version a planned run names, which need not be the head.
+  const [tasks, setTasks] = useState<readonly StoredVersion[]>([]);
+  const [taskId, setTaskId] = useState("");
+  const [plannedTask, setPlannedTask] = useState<StoredVersion | null>(null);
+  const [taskRefusal, setTaskRefusal] = useState("");
   // TASK-174: the controller calibrated in the radio panel (TASK-038), or the default axes.
   const adapter = useMemo(() => {
     const stored = (() => { try { return loadCalibration(localStorage); } catch { return null; } })();
@@ -137,6 +157,15 @@ export function RunPanel({ storeState, project, visible, link }: { storeState: S
     return pad;
   }, []);
   const store = storeState.status === "ready" ? storeState.store : null;
+  // TASK-169: what the next run applies by itself, said before it starts.
+  const [nextFaults, setNextFaults] = useState(0);
+  useEffect(() => {
+    if (!visible) return;
+    if (plan?.kind === "repeat") { setNextFaults(plan.parent.faults?.entries.length ?? 0); return; }
+    let cancelled = false;
+    if (store && project) void loadFaultSchedule(store, project.record.id).then(loaded => { if (!cancelled) setNextFaults(loaded.entries.length); });
+    return () => { cancelled = true; };
+  }, [visible, plan, store, project]);
   const projectId = project?.record.id ?? null;
 
   useEffect(() => () => {
@@ -161,6 +190,26 @@ export function RunPanel({ storeState, project, visible, link }: { storeState: S
     void loadLocation(store, projectId).then(found => { if (!cancelled) setLocation(found); });
     return () => { cancelled = true; };
   }, [store, projectId, visible]);
+  useEffect(() => {
+    if (!store || !projectId) { setTasks([]); return; }
+    let cancelled = false;
+    store.listItems(projectId, "flight-task").then(list => { if (!cancelled) setTasks(list); },
+      (cause: unknown) => { if (!cancelled) setError(cause instanceof Error ? cause.message : String(cause)); });
+    return () => { cancelled = true; };
+  }, [store, projectId, visible]);
+  // A planned run flies its parent's task, in the version the parent flew.
+  useEffect(() => {
+    const named = plan?.parent.flightTask ?? null;
+    if (!plan || !store) { setPlannedTask(null); return; }
+    if (!named) { setPlannedTask(null); setTaskId(""); return; }
+    let cancelled = false;
+    store.get(named.recordSha256).then(stored => {
+      if (cancelled) return;
+      setPlannedTask(stored);
+      setTaskId(stored.record.id);
+    }, (cause: unknown) => { if (!cancelled) setError(cause instanceof Error ? cause.message : String(cause)); });
+    return () => { cancelled = true; };
+  }, [plan, store]);
   // A planned run selects its parent's profile version, which need not be the head, its build and its speed.
   useEffect(() => {
     if (!plan || !store) { setPlannedProfile(null); return; }
@@ -194,7 +243,7 @@ export function RunPanel({ storeState, project, visible, link }: { storeState: S
   const active = controller.current?.active ?? false;
   const failed = state.name === "failed" ? state : null;
   const client = (): LauncherClient | null => {
-    try { return new LauncherClient(Number(port), token.trim()); } catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); return null; }
+    try { const made = new LauncherClient(Number(port), token.trim()); link.setLauncher(made); return made; } catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); return null; }
   };
   const listBuilds = () => {
     setError("");
@@ -208,11 +257,13 @@ export function RunPanel({ storeState, project, visible, link }: { storeState: S
     }, (cause: unknown) => { setBuilds(null); setError(cause instanceof Error ? cause.message : String(cause)); });
   };
   /** A fresh session for every Start and Connect: the previous run's model and epoch stay with the old Worker. */
-  const freshSession = (logging: LoggingSettings | null, metadata: ParameterMetadataCatalog | null, homeAltitudeM: number): { next: SessionController; prepare: () => Promise<PreparedRun> } | null => {
+  useEffect(() => { if (fromLog) setProfileSha(fromLog.profileSha256); }, [fromLog]);
+  const freshSession = (logging: LoggingSettings | null, metadata: ParameterMetadataCatalog | null, homeAltitudeM: number, flightTask: ExperimentFlightTask | null,
+    setParameters: readonly { readonly name: string; readonly value: number }[] = []): { next: SessionController; prepare: () => Promise<PreparedRun> } | null => {
     setError("");
     const stored = choices.find(entry => entry.sha256 === profileSha);
     // The plan belongs to this run: the record names its parent, and the next run is an original again.
-    const planned = plan;
+    const planned = plan, plannedLog = fromLog;
     const launcher = client();
     if (!launcher) return null;
     if (!store || !projectId || !stored) { setError("Open a project and choose an aircraft profile."); return null; }
@@ -225,15 +276,21 @@ export function RunPanel({ storeState, project, visible, link }: { storeState: S
     let profileName = stored.record.name;
     // TASK-160: the run's parameter changes are saved as versions of its parameter log.
     const changes = new ParameterLogWriter(store, projectId, setError);
+    // TASK-169: and what became of its effects as versions of its effect log.
+    const effectLog = new EffectLogWriter(store, projectId, setError);
     const next: SessionController = new SessionController(launcher, physics, {
       create: payload => {
         const { sitl } = payload;
         const name = experimentRecordName(profileName, sitl.ownership === "external" ? sitl.connectionId : sitl.experimentId, sitl.ownership);
-        return createExperimentRecord(store, projectId, { name, payload: { ...payload, lineage: lineageFor(planned, payload) } });
+        return createExperimentRecord(store, projectId, { name, payload: { ...payload, lineage: lineageFor(planned, payload) } }).then(async record => {
+          // TASK-182: the record of where this run came from, which depends on the experiment.
+          if (plannedLog) await saveLogExtraction(store, projectId, plannedLog, record.sha256, new Set(payload.parameters.filter(parameter => parameter.source === "set").map(parameter => parameter.name)));
+          return record;
+        });
       },
     }, { nowMs: () => performance.now(), utcNow: () => new Date().toISOString(),
       every: (ms, callback) => { const timer = setInterval(callback, ms); return () => clearInterval(timer); } },
-    view => { setView(view); link.publish(next, view); changes.update(view); },
+    view => { setView(view); link.publish(next, view); changes.update(view); effectLog.update(view); },
     // TASK-163: the run records with the Logging tab's settings.
     logging ? new RunRecorder(fresh, logging, SITL_PHYSICS_HZ) : null, metadata);
     controller.current = next;
@@ -244,9 +301,15 @@ export function RunPanel({ storeState, project, visible, link }: { storeState: S
       next,
       prepare: async () => {
         const { vehicle, run } = await preparedRun(store, stored, homeAltitudeM);
-        physics.use(vehicle);
+        physics.use(vehicle, flightTask?.definition.initial.ground);
         profileName = vehicle.profileName;
-        return run;
+        // TASK-182: what a log holds of the aircraft's own parameters stays the aircraft's, which the wizard says.
+        const usable = plannedLog ? setParameters.filter(parameter => !run.parameters.some(generated => generated.name === parameter.name)) : setParameters;
+        if (usable.length === 0) return run;
+        // TASK-176: a parameter set is part of what this run boots with; the aircraft's own parameters stay the aircraft's.
+        const clash = usable.filter(parameter => run.parameters.some(generated => generated.name === parameter.name)).map(parameter => parameter.name);
+        if (clash.length > 0) throw new Error(`The parameter set names ${clash.join(", ")}, which the aircraft profile sets`);
+        return { ...run, parameters: [...run.parameters, ...usable.map(parameter => ({ name: parameter.name, value: parameter.value, source: "set" as const }))] };
       },
     };
   };
@@ -254,37 +317,119 @@ export function RunPanel({ storeState, project, visible, link }: { storeState: S
     if (!store) { setError("Open a project and choose an aircraft profile."); return null; }
     return loadLoggingSettings(store);
   };
+  /** The schedule on the Faults and interference tab, or null when nothing is scheduled (TASK-169). */
+  const faultSchedule = async (): Promise<FaultSchedule | null> => {
+    if (!store || !projectId) return null;
+    const loaded = await loadFaultSchedule(store, projectId);
+    return loaded.entries.length > 0 ? loaded : null;
+  };
   /** ArduPilot's parameter metadata; a run without it shows its parameters without restart and range facts. */
   const metadata = (): Promise<ParameterMetadataCatalog | null> => loadParameterMetadata().catch((cause: unknown) => {
     setError(cause instanceof Error ? cause.message : String(cause));
     return null;
   });
   const failed_ = (cause: unknown) => setError(cause instanceof Error ? cause.message : String(cause));
+  /** The chosen flight task as the run's record holds it; null with the reason set when it cannot be read. */
+  const chosenFlightTask = (): { readonly entry: ExperimentFlightTask | null } | null => {
+    if (!chosenTask) return { entry: null };
+    try {
+      return { entry: { recordSha256: chosenTask.sha256, name: chosenTask.record.name, definition: readFlightTask(chosenTask) } };
+    } catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); return null; }
+  };
   const start = () => {
+    const task = chosenFlightTask();
+    if (!task) return;
+    setTaskRefusal("");
     // A planned run records with its parent's setup, or not at all when the parent recorded nothing, and starts at its home,
     // in its parent's environment (TASK-148: the parent's location, its conditions at today's date; none if the parent had none).
+    // A run from a log (TASK-183) starts at the log's home, in the conditions there with the standard sea-level pressure.
     const parent = plan?.parent ?? null;
     const settingsFor = parent ? Promise.resolve(parent.recording ? loggingOf(parent.recording) : null) : logging();
-    const environment = parent ? (parent.environment ? environmentFor(parent.environment.location) : Promise.resolve(null)) : environmentFor(location);
-    const home = parent?.session.home ?? homeOf(location);
-    void Promise.all([settingsFor, metadata(), environment]).then(([settings, catalog, conditions]) => {
+    // TASK-183: resimulationInputs is all a run reads of a log, so its path is computed afresh.
+    const logInputs = fromLog ? resimulationInputs(fromLog.extraction, fromLog.changes) : null;
+    const logHome = logInputs?.home ?? null;
+    const home = parent?.session.home ?? logHome ?? homeOf(location);
+    const environment = parent ? (parent.environment ? environmentFor(parent.environment.location) : Promise.resolve(null))
+      : logHome ? environmentAtHome(logHome) : environmentFor(location);
+    void Promise.all([settingsFor, metadata(), faultSchedule(), environment]).then(([settings, catalog, schedule, conditions]) => {
       if (!parent && !settings) return;
-      const session = freshSession(settings, catalog, home[2]);
+      // A planned run boots with its parent's parameter set, if it had one: the set is one of its inputs.
+      // A log from another build may name parameters this one lacks, which the start would refuse.
+      const knownSets = (catalog?.commits ?? []).flatMap(commit => catalog?.forCommit(commit) ?? []);
+      const writable = (name: string) => knownSets.length === 0 || knownSets.some(known => { const facts = known.get(name); return facts !== undefined && !facts.readOnly && !facts.volatile; });
+      const fromLogSet = (logInputs?.parameters ?? []).filter(parameter => isSetParameter(parameter.name) && writable(parameter.name));
+      const session = freshSession(settings, catalog, home[2], task.entry, fromLog ? fromLogSet : parent?.parameters.filter(parameter => parameter.source === "set") ?? []);
       if (!session) return;
+      // TASK-169: a repeat flies its parent's schedule; everything else the one on the Faults and interference tab.
+      const faults = plan?.kind === "repeat" ? plan.parent.faults : schedule;
       link.planRun(null);
+      link.planFromLog(null);
       void session.next.start({ prepare: session.prepare, firmwareId: buildId, speedup, physicsHz: parent?.session.physicsHz ?? SITL_PHYSICS_HZ,
-        home, environment: conditions });
+        home, environment: conditions, flightTask: task.entry, faults });
     }, failed_);
   };
   const connect = (endpoints: ConnectionSpec) => {
-    void Promise.all([logging(), metadata(), environmentFor(location)]).then(([settings, catalog, environment]) => {
-      const session = settings && freshSession(settings, catalog, location.groundElevationMslM);
+    const task = chosenFlightTask();
+    if (!task) return;
+    const ground = task.entry?.definition.initial.ground;
+    if (ground && (ground.northM !== 0 || ground.eastM !== 0)) {
+      setError("A SITL you started stands at its own --home, so a flight task that starts away from the pad cannot fly on it; choose another task, or let the launcher start the run.");
+      return;
+    }
+    setTaskRefusal("");
+    void Promise.all([logging(), metadata(), faultSchedule(), environmentFor(location)]).then(([settings, catalog, schedule, environment]) => {
+      const session = settings && freshSession(settings, catalog, location.groundElevationMslM, task.entry);
       if (session) {
-        void session.next.connect({ prepare: session.prepare, endpoints, physicsHz: SITL_PHYSICS_HZ, home: homeOf(location), environment, verifiedCommits: verifiedCommits() });
+        void session.next.connect({ prepare: session.prepare, endpoints, physicsHz: SITL_PHYSICS_HZ, home: homeOf(location), environment, verifiedCommits: verifiedCommits(),
+          flightTask: task.entry, faults: schedule });
       }
     }, failed_);
   };
+  // TASK-176: a batch runs the scenario chosen here, one fresh run per set.
+  const driverState = useRef<RunDriver | null>(null);
+  driverState.current = {
+    scenario: () => {
+      const profile = choices.find(entry => entry.sha256 === profileSha);
+      if (!profile) return { kind: "refused", reason: "Choose an aircraft profile on the Run tab" };
+      if (!chosenTask) return { kind: "refused", reason: "Choose a flight task on the Run tab: a batch flies one scenario" };
+      if (!buildId) return { kind: "refused", reason: "List the ArduPilot builds on the Run tab and choose one" };
+      if (plan) return { kind: "refused", reason: "The Run tab has a repeat or a variant planned: start it or cancel it first" };
+      if (active && !batchRunning) return { kind: "refused", reason: "A run is under way on the Run tab: stop it first" };
+      return { kind: "ready", label: `${profile.record.name}, ${chosenTask.record.name}, ${buildId}, ${speedup}×`,
+        scenario: { profileSha256: profile.sha256, flightTaskSha256: chosenTask.sha256, firmwareId: buildId, speedup, physicsHz: SITL_PHYSICS_HZ, home: [...homeOf(location)] } };
+    },
+    start: async set => {
+      const task = chosenFlightTask();
+      if (!task) return "The flight task cannot be read";
+      setTaskRefusal("");
+      // TASK-148: every run of a batch starts at the project's location, in its conditions.
+      const [settings, catalog, schedule, environment] = await Promise.all([logging(), metadata(), faultSchedule(), environmentFor(location)]);
+      if (!settings) return "The recording settings cannot be read";
+      const session = freshSession(settings, catalog, location.groundElevationMslM, task.entry, set.parameters);
+      if (!session) return "The run could not be set up";
+      void session.next.start({ prepare: session.prepare, firmwareId: buildId, speedup, physicsHz: SITL_PHYSICS_HZ, home: homeOf(location), environment, flightTask: task.entry,
+        faults: schedule });
+      return null;
+    },
+    // runTask answers null when it flies, so a missing controller cannot be told from it by `??`.
+    runTask: () => (controller.current ? controller.current.runTask() : "There is no run to fly"),
+    stop: () => controller.current?.stop() ?? Promise.resolve(),
+  };
+  useEffect(() => {
+    link.setDriver({
+      scenario: () => driverState.current?.scenario() ?? { kind: "refused", reason: "Open the Run tab to set up a run" },
+      start: set => driverState.current?.start(set) ?? Promise.resolve("The Run tab is not ready"),
+      runTask: () => (driverState.current ? driverState.current.runTask() : "The Run tab is not ready"),
+      stop: () => driverState.current?.stop() ?? Promise.resolve(),
+    });
+    return () => link.setDriver(null);
+  }, [link]);
   const chosen = choices.find(entry => entry.sha256 === profileSha);
+  const chosenTask = plannedTask?.record.id === taskId ? plannedTask : tasks.find(entry => entry.record.id === taskId) ?? null;
+  // The route of the running task, or of the chosen one before the run starts.
+  const routeDefinition = view?.flightTask?.task.definition ?? (() => { try { return chosenTask ? readFlightTask(chosenTask) : null; } catch { return null; } })();
+  const routePoints = routeDefinition?.route ?? null;
+  const route = useMemo((): readonly RoutePoint[] => (routePoints ?? []).map((point, index) => ({ northM: point.northM, eastM: point.eastM, downM: -point.altitudeM, label: `Route point ${index + 1}` })), [routePoints]);
   const layout = useMemo(() => layoutOf(chosen), [chosen]);
   const armIds = useMemo(() => armIdsOf(chosen), [chosen]);
   const accidents = view?.accidents ?? [];
@@ -330,24 +475,41 @@ export function RunPanel({ storeState, project, visible, link }: { storeState: S
             <option key={value} value={value}>{value === 1 ? "Real time" : value === AS_FAST_AS_POSSIBLE ? "As fast as possible" : `Accelerated, at most ${value}×`}</option>
           ))}
         </select>
+        <label htmlFor="sitl-task">Flight task</label>
+        <select id="sitl-task" value={taskId} disabled={active || repeat} onChange={event => { setPlannedTask(null); setTaskId(event.target.value); }}>
+          <option value="">None: fly from the buttons below</option>
+          {plannedTask && !tasks.some(entry => entry.sha256 === plannedTask.sha256) && <option value={plannedTask.record.id}>{plannedTask.record.name} (version {plannedTask.record.version})</option>}
+          {tasks.filter(entry => !(plannedTask?.record.id === entry.record.id && plannedTask.sha256 !== entry.sha256)).map(entry => (
+            <option key={entry.record.id} value={entry.record.id}>{entry.record.name} (version {entry.record.version})</option>
+          ))}
+        </select>
       </div>
+      {nextFaults > 0 && !active && (
+        <p className="hint" data-testid="sitl-fault-plan">{`${plan?.kind === "repeat" ? "This repeat flies its parent's schedule." : `This run applies the ${nextFaults === 1 ? "effect" : `${nextFaults} effects`} scheduled on the Faults and interference tab.`} They count from when ArduPilot reports the aircraft armed.`}</p>
+      )}
+      {fromLog && (
+        <p className="hint" role="status" data-testid="sitl-plan" data-kind="from-log">
+          {logPlanText(fromLog.extraction, fromLog.changes.length)}
+          <button type="button" onClick={() => link.planFromLog(null)} disabled={active}>Cancel</button>
+        </p>
+      )}
       {plan && (
         <p className="hint" role="status" data-testid="sitl-plan" data-kind={plan.kind}>
           {plan.kind === "repeat"
-            ? `Repeat of ${plan.parentName}: the same aircraft profile version, ArduPilot build, speed, home and recording setup. List the builds, then start it.`
-            : `Variant of ${plan.parentName}: its inputs are loaded; change the profile version, the build or the speed, then start it. The record lists what changed.`}
+            ? `Repeat of ${plan.parentName}: the same aircraft profile version, ArduPilot build, speed, home, recording setup and flight task. List the builds, then start it.`
+            : `Variant of ${plan.parentName}: its inputs are loaded; change the profile version, the build, the speed or the flight task, then start it. The record lists what changed.`}
           <button type="button" onClick={() => link.planRun(null)} disabled={active}>Cancel the {plan.kind}</button>
         </p>
       )}
       <div className="sitl-actions">
-        <button type="button" onClick={start} disabled={busy || !profileSha || !buildId}>
+        <button type="button" onClick={start} disabled={busy || batchRunning || !profileSha || !buildId}>
           {plan ? `Start ${plan.kind}` : failed && !external ? "Start again" : "Start SITL run"}
         </button>
         <label htmlFor="sitl-altitude">Take-off altitude, m</label>
         <input id="sitl-altitude" type="text" inputMode="decimal" value={altitude} onChange={event => setAltitude(event.target.value)} />
         <button type="button" onClick={() => controller.current?.takeOff(Number(altitude))} disabled={state.name !== "ready"}>Take off</button>
         <button type="button" onClick={() => controller.current?.land()}
-          disabled={state.name !== "running" || (state.flight !== "climbing" && state.flight !== "flying")}>Land</button>
+          disabled={state.name !== "running" || (state.flight !== "climbing" && state.flight !== "flying" && state.flight !== "task")}>Land</button>
         <button type="button" onClick={() => controller.current?.pause("user")} disabled={!PAUSABLE_STATES.has(state.name)}>Pause</button>
         <button type="button" onClick={() => { if (controller.current?.resume() === false) setManualRefusal(controller.current.resumeBlocker() ?? ""); else setManualRefusal(""); }}
           disabled={state.name !== "paused"}>
@@ -357,6 +519,10 @@ export function RunPanel({ storeState, project, visible, link }: { storeState: S
           {external ? (stopAgain ? "Disconnect again" : "Disconnect") : stopAgain ? "Stop again" : "Stop run"}
         </button>
       </div>
+      {view?.flightTask && (
+        <FlightTaskPanel task={view.flightTask} canRun={state.name === "ready" && view.flightTask.state === "waiting"} refusal={taskRefusal}
+          onRun={() => setTaskRefusal(controller.current?.runTask() ?? "")} />
+      )}
       <ManualConnect disabled={busy || !profileSha} again={Boolean(failed) && external} onConnect={connect} onError={setError} />
       <ManualControl adapter={adapter} manual={view?.manual ?? null}
         canTake={state.name === "ready" || (state.name === "running" && (state.flight === "climbing" || state.flight === "flying"))}
@@ -364,7 +530,7 @@ export function RunPanel({ storeState, project, visible, link }: { storeState: S
         onRelease={() => setManualRefusal(controller.current?.releaseManual() ?? "")} refusal={manualRefusal} />
       {layout && chosen && (
         <div className="flight-view-area" data-testid="flight-view" data-probe={probe}>
-          <FlightView runtime={runtime} layout={layout} name={chosen.record.name} active={visible} ringTurning={view?.motorCheck?.running === true}
+          <FlightView runtime={runtime} layout={layout} name={chosen.record.name} route={route} active={visible} ringTurning={view?.motorCheck?.running === true}
             onProbe={(next: FlightViewProbe) => setProbe(JSON.stringify(next))} />
           <div className="flight-view-panels">
             <MotorCheckPanel check={view?.motorCheck ?? null} refusal={motorRefusal}

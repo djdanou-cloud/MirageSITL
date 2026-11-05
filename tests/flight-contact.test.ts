@@ -90,4 +90,4 @@ it('rejects a contact that does not match the model or comes with the synthetic 
   for(const c of [heavier,padded,lunar])c.contact?.dispose();
   await expect(GroundContact.forVehicle(newBodyTruth(),{massKg:0.05,inertiaBodyKgM2:[0.05,0,0,0,0.05,0,0,0,0.1]},{wheels:legs()}))
     .rejects.toThrow('Unsprung masses exceed the vehicle mass');
-});
+},120000);

@@ -33,6 +33,18 @@ pub struct BatteryOutput {
     /// Regeneration met a full pack: the charge stayed at 1 and the excess was not stored.
     pub charge_limited: bool,
 }
+/// What the pack can do over one step at a charge: the numbers [`Battery::step`] limits a demand by.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct BusLimits {
+    /// Open-circuit voltage at this charge, V.
+    pub open_circuit_v: f64,
+    /// Internal resistance, ohm.
+    pub resistance_ohm: f64,
+    /// Largest discharge current, A.
+    pub max_discharge_a: f64,
+    /// Largest charging current, A.
+    pub max_charge_a: f64,
+}
 impl Battery {
     /// Voc endpoints V, nonnegative resistance ohm, capacity coulomb, current limit A.
     pub fn new(
@@ -62,6 +74,27 @@ impl Battery {
             current_limit,
         })
     }
+    /// The limits of a step at a charge.
+    pub fn limits(&self, soc: f64, house_power_w: f64, dt: f64) -> Result<BusLimits, BatteryError> {
+        if ![soc, house_power_w, dt].iter().all(|v| v.is_finite())
+            || !(0.0..=1.0).contains(&soc)
+            || house_power_w < 0.0
+            || dt <= 0.0
+            || dt > 0.01
+        {
+            return Err(BatteryError);
+        }
+        let voc = self.empty + (self.full - self.empty) * soc;
+        let max_i =
+            self.current_limit
+                .min(soc * self.capacity_c / dt)
+                .min(if self.resistance > 0.0 {
+                    voc / (2.0 * self.resistance)
+                } else {
+                    f64::INFINITY
+                });
+        Ok(BusLimits { open_circuit_v: voc, resistance_ohm: self.resistance, max_discharge_a: max_i, max_charge_a: self.current_limit })
+    }
     /// Stable low-current quadratic root. Motors <=32, house load counted separately.
     /// A motor's power is negative while it regenerates.
     pub fn step(
@@ -71,13 +104,8 @@ impl Battery {
         house_power_w: f64,
         dt: f64,
     ) -> Result<BatteryOutput, BatteryError> {
-        if ![soc, house_power_w, dt].iter().all(|v| v.is_finite())
-            || !(0.0..=1.0).contains(&soc)
-            || house_power_w < 0.0
-            || dt <= 0.0
-            || dt > 0.01
-            || motor_power_w.len() > 32
-        {
+        let BusLimits { open_circuit_v: voc, max_discharge_a: max_i, .. } = self.limits(soc, house_power_w, dt)?;
+        if motor_power_w.len() > 32 {
             return Err(BatteryError);
         }
         let mut demand = house_power_w;
@@ -102,18 +130,9 @@ impl Battery {
                 charge_limited: false,
             });
         }
-        let voc = self.empty + (self.full - self.empty) * soc;
         if demand < 0.0 {
             return self.charge(soc, voc, demand, dt);
         }
-        let max_i =
-            self.current_limit
-                .min(soc * self.capacity_c / dt)
-                .min(if self.resistance > 0.0 {
-                    voc / (2.0 * self.resistance)
-                } else {
-                    f64::INFINITY
-                });
         let max_power = max_i * (voc - max_i * self.resistance);
         let requested = demand.min(max_power);
         let current = if self.resistance == 0.0 {

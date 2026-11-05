@@ -7,7 +7,7 @@ English is the source of truth. [Russian mirror](ru/SPECS_SHARED_MEMORY.md).
 the v2 state ring, pilot mailbox, SPSC queues (TASK-013), `init-v2`, and the
 command processor. ABI v1 remains implemented and tested in
 `packages/protocol` but is no longer used by the application; removing it
-requires a recorded decision.** TASK-008/009 implement the v2 layout and transport;
+requires a recorded decision. Control Protocol v3 (TASK-166) adds effect controls to it, section 6.** TASK-008/009 implement the v2 layout and transport;
 TASK-010 implements commands. Do not assign EKF/EW meanings to v1 reserved
 words without changing the ABI version. Task IDs are defined in
 [PROJECT_ROADMAP.md](PROJECT_ROADMAP.md).
@@ -493,8 +493,9 @@ Normative runtime validation contract: TASK-010 implements JSON Schema
   weather outside its envelope (air of 180..330 K, 1..120 kPa and
   0.05..2 kg/m³ at the origin and at the vehicle; a mean wind within
   ±200 m/s per axis and an RMS of 0..50 m/s): the command receives
-  OUT_OF_RANGE at its tick and the session faults as above. Admission keeps
-  the v2 ranges until TASK-166 aligns them. While a weather is in effect the
+  OUT_OF_RANGE at its tick and the session faults as above. Admission holds
+  the same ranges (TASK-166), so what reaches the tick is a density outside
+  them, or a vehicle that took the air outside them. While a weather is in effect the
   published `trueAirspeedMps` is the speed relative to the air and
   `ambientPressurePa` the weather's pressure at the CG; without one the air
   is still and the pressure is the standard atmosphere's with the origin at
@@ -523,6 +524,109 @@ Valid JSON example, scheduled at one second with a 400 Hz physics clock:
   "recovery": "hold-offset"
 }
 ```
+
+### Control Protocol v3: effect controls (TASK-166)
+
+Protocol version 3 adds one scheduled command, `effect.set`, in
+`packages/protocol/src/control-v3.ts` and `control-v3.schema.json`. It carries
+a versioned control record for one effect: an identifier, an on/off switch, a
+dimensionless intensity and physical parameters with units.
+`parseControlCommand` reads both versions. Version 2 parses as it did. Version
+3 takes `effect.set` and the lifecycle commands, which it returns in their
+version 2 form, and refuses `weather.set` and `fault.set`. Only commands
+changed: results and Worker messages keep their version 2 shapes. The
+application's runtime sends version 3; the processor still takes version 2.
+
+```ts
+export type EffectId =
+  | 'wind.mean' | 'wind.gust' | 'atmosphere'
+  | 'ew.gnss-jamming' | 'ew.position-step' | 'ew.velocity-drift' | 'ew.magnetic' | 'motor.loss'
+  | 'sensor.imu.accel-noise' | 'sensor.imu.gyro-noise' | 'sensor.imu.accel-bias' | 'sensor.imu.gyro-bias'
+  | 'sensor.imu.latency' | 'sensor.battery.voltage' | 'sensor.battery.current';
+export interface EffectControl {
+  schemaVersion: 1; id: string; effect: EffectId; enabled: boolean;
+  intensity: number; // at least 0; 1 is the configured magnitude
+  parameters: Record<string, number | string | Vec3>;
+}
+export interface EffectSetCommand {
+  protocolVersion: 3; requestId: number; expectedEpoch: number; atTick: TickId;
+  type: 'effect.set'; control: EffectControl; recovery: 'hold-offset' | 'step-to-truth';
+}
+```
+
+`EFFECT_CATALOG` is the one statement of every effect's fields, units and
+ranges. Validation and the instructor console read it, and
+`tests/control-v3.test.ts` compares it with the JSON Schema and, at each limit,
+with the refusal of the model that owns the range.
+
+| Effect | Parameters, unit and range | What intensity i does | Owner of the range |
+|---|---|---|---|
+| `wind.mean` | `windNedMps`, m/s, ±200 per axis | Multiplies the wind | `Wind` |
+| `wind.gust` | `rmsMps`, m/s, 0..50; `bandwidthHz`, Hz, (0, 200); `seed`, uint32 | Multiplies the RMS, so one seed gives one gust, scaled | `Wind`; the bandwidth stays below Nyquist at 400 Hz, the lowest rate |
+| `wind.turbulence` | `w20Mps`, m/s, 0..50; `seed`, uint32 | Multiplies every RMS, and leaves W20 as the slowest carrying speed | `DrydenTurbulence` (TASK-106) |
+| `atmosphere` | `temperatureK`, K, 180..330; `pressurePa`, Pa, 1000..120000; together 0.05..2 kg/m³ | Moves the air at the origin from the standard atmosphere (288.15 K, 101325 Pa) at 0 to these values at 1, and on past them | `atmosphereAtHeightInto` |
+| `ew.gnss-jamming` | `severity`, 0..1 | Multiplies the severity | Jamming model |
+| `ew.position-step` | `offsetNedM`, m, length at most 10000 | Multiplies the offset | Position-step model |
+| `ew.velocity-drift` | `accelerationNedMps2`, m/s², length at most 0.3; `maxSpeedMps`, m/s, (0, 20] | Multiplies both | Drift model |
+| `ew.magnetic` | `rotationRad`, rad, ±π per axis; `biasBodyGauss`, G, ±2 per axis | Multiplies both | Magnetic model |
+| `motor.loss` | `motorIndex`, 0..31 and below the rotor count; `mode`, `power-cut` or `instant-thrust-loss`; `remainingThrustFraction`, 0..1 | Multiplies the thrust lost: remaining = 1 − i·(1 − r), exactly r at i = 1 | Motor fault table |
+| `sensor.imu.accel-noise` | `densityMps2PerSqrtHz`, m/s²/√Hz, 0..0.01 | Multiplies the density | Sensors tab field |
+| `sensor.imu.gyro-noise` | `densityRadSPerSqrtHz`, rad/s/√Hz, 0..0.001 | Multiplies the density | Sensors tab field |
+| `sensor.imu.accel-bias` | `biasMps2`, m/s², ±2 per axis | Multiplies the bias | Sensors tab field |
+| `sensor.imu.gyro-bias` | `biasRadS`, rad/s, ±0.2 per axis | Multiplies the bias | Sensors tab field |
+| `sensor.imu.latency` | `latencyUs`, whole µs, 0..100000 | Multiplies the latency | Sensors tab field |
+| `sensor.battery.voltage` | `gainError`, ±0.1; `offsetV`, V, ±2; `noiseRmsV`, V, 0..1 | Multiplies each error | Sensors tab field |
+| `sensor.battery.current` | `gainError`, ±0.2; `offsetA`, A, ±20; `noiseRmsA`, A, 0..10 | Multiplies each error | Sensors tab field |
+| `sensor.imu.frozen`, `sensor.gnss.frozen`, `sensor.mag.frozen`, `link.pilot`, `link.gcs` | None | Above 0 is on (family `delivery`, TASK-168) | The link to ArduPilot |
+| `sensor.imu.missing`, `sensor.gnss.missing`, `sensor.baro.missing`, `sensor.baro.frozen`, `sensor.mag.missing` | None | Above 0 is on (family `ardupilot`, TASK-168) | ArduPilot's fault parameters |
+
+* **Off is absent.** `enabled: false` and `intensity: 0` reduce to the same
+  thing (`effectiveControl`). An environment effect that was never on calls
+  nothing in the dynamics, and a fault that is off is a `fault.set` with
+  `enabled: false`, which changes nothing for an ID the registry does not hold.
+  Either is bitwise identical to no command at all over a seeded run, and is
+  acknowledged like any other command.
+* **Admission.** A value the intensity carries out of its range is OUT_OF_RANGE,
+  and so is an `atmosphere` whose density the model would refuse, rather than a
+  session fault on its tick. JSON Schema cannot state these, or the vector
+  lengths. The values worked out at admission wait in the queue, so a due
+  command allocates nothing on its tick (`lowerEffectSet`). What travels is the
+  plain command; re-parsing it gives the same command.
+* **One state per environment effect.** A session holds one mean wind, one gust,
+  one turbulence and one air; the newest control for an effect replaces it, whatever its ID. A
+  fault keeps its per-ID registry slot, as a `fault.set` does.
+* **Each effect keeps to itself.** Wind alone leaves the configured atmosphere in
+  place and the published pressure as still air has it; air alone brings no
+  wind. A new mean wind or new air leaves a running gust alone; a gust control
+  starts it again from its seed. When the last environment effect goes off the
+  weather ends (`SessionDynamics.clearWeather`), and an earlier gust never comes
+  back. Every new epoch forgets them all.
+* **Migration.** `migrateWeatherSet` gives three records, `weather-wind`,
+  `weather-gust` (bandwidth 1 Hz, the one `weather.set` always had) and
+  `weather-atmosphere`; on one tick, in any order, they fly bit for bit as the
+  `weather.set` does. `migrateFaultSet` gives one record with the fault's ID. A
+  `weather.set` and the records of the same effects replace one another.
+* **Version 2 ranges.** `weather.set` admission now holds the models' ranges:
+  wind ±200 m/s per axis, temperature 180..330 K, pressure 1000..120000 Pa and
+  RMS 0..50 m/s. It stays silent on density, which its tick still refuses.
+* **A backend that cannot apply an effect rejects it visibly,** with BAD_STATE
+  and the reason, on or off. A running session rejects every `sensor.*` control:
+  sensor errors are set on the Sensors tab, before the run. The demo backend
+  rejects the environment effects and `motor.loss`. A session without a link to
+  ArduPilot rejects the `delivery` effects, and every session rejects the `ardupilot`
+  effects, which only the run controller can write (TASK-168). On a run with ArduPilot the
+  `ew.*` effects also reach it, on the state line and through its parameters, and the run
+  controller refuses a vertical GNSS offset there, because that height also feeds its
+  barometer (TASK-169; SPECS_SIMULATION_ENGINES, "Faults and interference tab").
+* **Other effects.** An effect task adds its record to `EFFECT_CATALOG` when its
+  model exists, because the range must equal that model's envelope: the von
+  Kármán and Kaimal spectra of TASK-106, TASK-107 (shear and terrain flow),
+  TASK-121 and TASK-122 (thermals and hazard flows) have none yet. ArduPilot's own SITL errors are not
+  controls: they stay under the TASK-089 ownership setting.
+* **Schedules.** `scheduledEffects(control, { onsetTick, durationTicks, recovery })`
+  gives ordinary commands, the effect on at its onset and off when its duration
+  ends (a null duration holds it), each acknowledged on its own tick. Scenario
+  schema 2 stores them (`SPECS_SIMULATION_ENGINES.md`).
 
 ## 7. Protocol acceptance
 

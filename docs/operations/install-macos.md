@@ -43,7 +43,11 @@ and `--plan` prints the steps without changing anything. The installer:
    SHA-256 of the executable and of ArduPilot's `copter.parm`;
 5. fetches UAVLogViewer at the commit and parser submodule of
    `third_party/uavlogviewer/source.lock.json` into `sources/uavlogviewer` and
-   checks its LICENSE hash; TASK-179 builds the offline viewer bundle;
+   checks its LICENSE hash, then builds the patched offline viewer into
+   `uavlogviewer/` with `scripts/build-uavlogviewer.mjs` (TASK-179: the patches
+   of `third_party/uavlogviewer/patches/`, the locked npm packages, license
+   notices and `build-manifest.json`); a rerun rebuilds it only when its
+   manifest no longer matches the patch series or the files on disk;
 6. writes `install-manifest.json`: every installed item with its version,
    SHA-256, size and the license of its `config/offline-inventory.json` row.
 

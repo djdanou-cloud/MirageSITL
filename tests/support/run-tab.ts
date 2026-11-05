@@ -54,6 +54,8 @@ export interface SeedOptions {
    * (battery.voltageOffsetV), which the external-SITL path cannot apply yet.
    */
   readonly mirageOwnedSensorErrors?: boolean;
+  /** The Sensors tab's Ideal sensors: this run switches ArduPilot's removable errors off (TASK-089). */
+  readonly idealSensors?: boolean;
   /** Moves the aircraft's CG to this body FRD offset, m (TASK-156: a nose-heavy quad that tips over on take-off). */
   readonly cgOffsetBodyM?: readonly [number, number, number];
 }
@@ -61,7 +63,7 @@ export interface SeedOptions {
 /** Creates a project with the example component cards and the S19 quad X profile, and opens it on the Run tab after a reload. */
 export async function seedQuadProject(page: Page, profileName: string, options: SeedOptions = {}): Promise<SeededProject> {
   await page.goto("/");
-  const seeded = await page.evaluate(async ({ urls, quad, cards, profileName, mirageOwned, cg }) => {
+  const seeded = await page.evaluate(async ({ urls, quad, cards, profileName, mirageOwned, ideal, cg }) => {
     const { ProjectStore } = await import(urls.store) as Store;
     const { profileDraft, validateAircraftProfile, withPropellerPolars, withSensorConfiguration } = await import(urls.profile) as Profiles;
     const { DEFAULT_SENSOR_CONFIGURATION: D } = await import(urls.sensorFields) as SensorFields;
@@ -88,14 +90,14 @@ export async function seedQuadProject(page: Page, profileName: string, options: 
       [{ card: propeller, polar: "naca6409-neuralfoil-v1" }]);
       const profile = mirageOwned
         ? withSensorConfiguration(polared, { ...D, imu: { ...D.imu, accelBiasMps2: [0.1, 0, 0] }, battery: { ...D.battery, voltageOffsetV: 0.1 } })
-        : polared;
+        : ideal ? withSensorConfiguration(polared, { ...D, mode: "ideal" }) : polared;
       const stored = await store.createItem(project.record.id, "aircraft-profile", profileDraft(profileName, profile));
       await saveNavigation(store, { tab: "run", projectId: project.record.id });
       return { projectId: project.record.id, profileSha256: stored.sha256 };
     } finally {
       store.close();
     }
-  }, { urls, quad: QUAD, cards: CARDS, profileName, mirageOwned: options.mirageOwnedSensorErrors === true, cg: options.cgOffsetBodyM ? [...options.cgOffsetBodyM] : null });
+  }, { urls, quad: QUAD, cards: CARDS, profileName, mirageOwned: options.mirageOwnedSensorErrors === true, ideal: options.idealSensors === true, cg: options.cgOffsetBodyM ? [...options.cgOffsetBodyM] : null });
   await page.reload();
   return seeded;
 }

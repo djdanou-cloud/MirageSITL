@@ -133,8 +133,8 @@ describe('weather.set on the BET session', () => {
   it('rejects air outside the model envelope at its tick with OUT_OF_RANGE and faults the session until a new epoch', () => {
     const h = harness();
     h.command('sim.start');
-    // Admission accepts up to 340 K (TASK-166 aligns the ranges); the atmosphere envelope ends at 330 K.
-    const queued = h.command('weather.set', weatherSet(5, [1, 0, 0], 335, 101325));
+    // Each value lies in its own range (TASK-166), and together they are denser than the atmosphere envelope.
+    const queued = h.command('weather.set', weatherSet(5, [1, 0, 0], 180, 120000));
     expect(queued).toMatchObject({ status: 'queued' });
     h.runTo(5);
     const reject = h.results.find(result => result.type === 'reject-v2' && result.requestId === requestIdOf(queued));

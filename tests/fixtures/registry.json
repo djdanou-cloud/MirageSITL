@@ -186,7 +186,7 @@
       "manifest": {
         "formatVersion": 1,
         "id": "bet-step-interface-v2",
-        "sourceSha256": "fa956b94614b935fbc88261d58308971c8b24584b337a2e60e762523714df7fe",
+        "sourceSha256": "7a5a48ae03148f11f3eed55c364c2d0af35fb8f509520ebf9b78d698e854248e",
         "units": {
           "recordBytes": "1"
         },
@@ -784,7 +784,7 @@
       "manifest": {
         "formatVersion": 1,
         "id": "mavlink-common-v2-pymavlink-2450",
-        "sourceSha256": "985ce1cba692d006efbbc7659de2dcb363c902cfd571f1b6866adda9fe03cfef",
+        "sourceSha256": "c7b4f226ea74494d6d1f92bebcafc639f1b6368be862109f06f24c47570ded37",
         "units": {
           "messageId": "1"
         },
@@ -1778,6 +1778,46 @@
       }
     },
     {"path": "geomagnetic/WMM2025_TEST_VALUES.txt", "manifest": {"formatVersion": 1, "id": "wmm2025-noaa-test-values-v1", "sourceSha256": "e6975b093dddeb6153e0b23cc418425c438167e7c5b1dd795da379cb654f5819", "units": {"decimalYear": "1", "heightM": "m", "latitudeRad": "rad", "longitudeRad": "rad", "fieldGauss": "gauss"}, "validityEnvelope": {"decimalYear": {"min": 2025, "max": 2030}, "heightM": {"min": 0, "max": 100000}, "latitudeRad": {"min": -1.5533430342749535, "max": 1.5533430342749535}, "longitudeRad": {"min": -3.141592653589793, "max": 3.141592653589793}, "fieldGauss": {"min": -0.7, "max": 0.7}}, "tolerance": {"absolute": 1e-08, "relative": 0}, "provenance": {"kind": "synthetic", "derivation": "NOAA NCEI's WMM2025_TEST_VALUES.txt: 100 field values computed by NOAA from the WMM2025 coefficients (data/geomagnetic/WMM_2025.COF), public domain, as kept in github.com/boxpet/pygeomag at commit 2b8ac57f08bc100ee1f103dbca4e1a8de65ff5e8 (test/test_values). Model outputs, not measurements. The payload keeps NOAA's units (decimal year, km above the WGS84 ellipsoid, degrees, nT); the envelope gives the same quantities in SI. Tolerance: 1e-3 nT for X, H and F, tighter per quantity in tests/geomagnetic.test.ts (TASK-148)."}}},
-    {"path": "geoid/egm96-proj-nodes.json", "manifest": {"formatVersion": 1, "id": "egm96-proj-data-nodes-v1", "sourceSha256": "12b681f2c71721ffc2a848fa1e94149f711548d33fa3d80191c09bfccf22b3eb", "units": {"latitudeRad": "rad", "longitudeRad": "rad", "undulationM": "m"}, "validityEnvelope": {"latitudeRad": {"min": -1.5707963267948966, "max": 1.5707963267948966}, "longitudeRad": {"min": -3.141592653589793, "max": 3.141592653589793}, "undulationM": {"min": -107, "max": 86}}, "tolerance": {"absolute": 0.0056, "relative": 0}, "provenance": {"kind": "synthetic", "derivation": "2,666 EGM96 nodes (a 5-degree lattice and the global minimum and maximum) read by tests/fixtures/geoid/generate_proj_nodes.py from us_nga/us_nga_egm96_15.tif of github.com/OSGeo/PROJ-data at commit cdab44864a36a9f3c3e90a36637c5d8a86e624c6 (SHA-256 db493027562c9b004d7220fa881f5603adada4e1c5029b933fa7de4547b0e78d), an independent conversion of NGA's public-domain EGM96 grid. Model values, not measurements; latitude and longitude are stored in degrees. Tolerance: the DAC's centimetre rounding, PROJ's millimetre rounding and float32 (TASK-148)."}}}
+    {"path": "geoid/egm96-proj-nodes.json", "manifest": {"formatVersion": 1, "id": "egm96-proj-data-nodes-v1", "sourceSha256": "12b681f2c71721ffc2a848fa1e94149f711548d33fa3d80191c09bfccf22b3eb", "units": {"latitudeRad": "rad", "longitudeRad": "rad", "undulationM": "m"}, "validityEnvelope": {"latitudeRad": {"min": -1.5707963267948966, "max": 1.5707963267948966}, "longitudeRad": {"min": -3.141592653589793, "max": 3.141592653589793}, "undulationM": {"min": -107, "max": 86}}, "tolerance": {"absolute": 0.0056, "relative": 0}, "provenance": {"kind": "synthetic", "derivation": "2,666 EGM96 nodes (a 5-degree lattice and the global minimum and maximum) read by tests/fixtures/geoid/generate_proj_nodes.py from us_nga/us_nga_egm96_15.tif of github.com/OSGeo/PROJ-data at commit cdab44864a36a9f3c3e90a36637c5d8a86e624c6 (SHA-256 db493027562c9b004d7220fa881f5603adada4e1c5029b933fa7de4547b0e78d), an independent conversion of NGA's public-domain EGM96 grid. Model values, not measurements; latitude and longitude are stored in degrees. Tolerance: the DAC's centimetre rounding, PROJ's millimetre rounding and float32 (TASK-148)."}}},
+    {
+      "path": "protocol/control-v3.json",
+      "manifest": {
+        "formatVersion": 1,
+        "id": "control-v3-commands",
+        "sourceSha256": "bf38c751e697d202fb905cfbeb862604c3c1f69017fe0684da348f92c802a547",
+        "units": {
+          "intensity": "1",
+          "windMps": "m/s",
+          "temperatureK": "K",
+          "pressurePa": "Pa"
+        },
+        "validityEnvelope": {
+          "intensity": {
+            "min": 0,
+            "max": 2
+          },
+          "windMps": {
+            "min": -200,
+            "max": 200
+          },
+          "temperatureK": {
+            "min": 180,
+            "max": 330
+          },
+          "pressurePa": {
+            "min": 1000,
+            "max": 120000
+          }
+        },
+        "tolerance": {
+          "absolute": 0,
+          "relative": 0
+        },
+        "provenance": {
+          "kind": "synthetic",
+          "derivation": "Hand-written from the Control Protocol v3 contract in docs/SPECS_SHARED_MEMORY.md and each model's envelope (TASK-166); values are exact; not generated from parser output."
+        }
+      }
+    }
   ]
 }

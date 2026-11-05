@@ -10,6 +10,8 @@
 import { encodeInto } from "@mirage/mavlink/codec";
 import { packInto } from "@mirage/mavlink/messages";
 import { RcOverride } from "@mirage/mavlink/rc-override";
+import type { AttitudeTarget, GuidedTarget } from "../../scenarios/src/flight-tasks.ts";
+import type { MissionItem } from "./mission.ts";
 
 export const MavCommand = {
   NavTakeoff: 22, NavLand: 21, DoSetMode: 176, DoMotorTest: 209, ComponentArmDisarm: 400, SetMessageInterval: 511, RequestMessage: 512,
@@ -17,11 +19,17 @@ export const MavCommand = {
 /** MOTOR_TEST_THROTTLE_TYPE (common.xml): a raw PWM value, which ArduCopter accepts without the RC calibration check (motor_test.cpp). */
 const MOTOR_TEST_THROTTLE_PWM = 1;
 /** ArduCopter custom modes (ArduCopter/mode.h, enum class Mode::Number). */
-export const CopterMode = { Stabilize: 0, AltHold: 2, Guided: 4, Loiter: 5, Land: 9 } as const;
+export const CopterMode = { Stabilize: 0, AltHold: 2, Auto: 3, Guided: 4, Loiter: 5, Land: 9 } as const;
 /** MAV_MODE_FLAG_CUSTOM_MODE_ENABLED. */
 const CUSTOM_MODE_ENABLED = 1;
 /** MAVLink message IDs. */
-const HEARTBEAT = 0, PARAM_REQUEST_READ = 20, PARAM_REQUEST_LIST = 21, PARAM_SET = 23, RC_CHANNELS_OVERRIDE = 70, COMMAND_LONG = 76;
+const HEARTBEAT = 0, PARAM_REQUEST_READ = 20, PARAM_REQUEST_LIST = 21, PARAM_SET = 23, MISSION_COUNT = 44, RC_CHANNELS_OVERRIDE = 70, MISSION_ITEM_INT = 73, COMMAND_LONG = 76, SET_ATTITUDE_TARGET = 82, SET_POSITION_TARGET_LOCAL_NED = 84;
+/** ATTITUDE_TARGET_TYPEMASK: all three body rates ignored, the attitude and the thrust field used. */
+const ATTITUDE_ONLY = 7;
+/** SET_ATTITUDE_TARGET's thrust field while GUID_OPTIONS bit 3 is clear: a climb rate, where exactly 0.5 is none (GCS_MAVLink_Copter.cpp). */
+const HOLD_HEIGHT = 0.5;
+/** MAV_FRAME_LOCAL_NED; the acceleration fields of SET_POSITION_TARGET_LOCAL_NED ignored (POSITION_TARGET_TYPEMASK_AX, AY and AZ_IGNORE). */
+const FRAME_LOCAL_NED = 1, USE_EVERY_FIELD = 0;
 /** An ArduPilot parameter name: 1 to 16 (AP_MAX_NAME_SIZE) printable ASCII characters, no space. */
 const PARAMETER_NAME = /^[\x21-\x7e]{1,16}$/;
 /** MAV_TYPE_GCS, MAV_AUTOPILOT_INVALID, MAV_STATE_ACTIVE. */
@@ -34,6 +42,10 @@ export class GroundStation {
   private readonly listPayload = new Uint8Array(2);
   private readonly readPayload = new Uint8Array(20);
   private readonly setPayload = new Uint8Array(23);
+  private readonly targetPayload = new Uint8Array(53);
+  private readonly attitudePayload = new Uint8Array(51);
+  private readonly countPayload = new Uint8Array(9);
+  private readonly itemPayload = new Uint8Array(38);
   private readonly rcOverride = new RcOverride();
 
   /**
@@ -133,6 +145,42 @@ export class GroundStation {
     if (!packInto(PARAM_SET, { target_system: this.targetSystem, target_component: this.targetComponent, param_id: name,
       param_value: value, param_type: paramType }, this.setPayload)) return 0;
     return this.frame(PARAM_SET, this.setPayload, out);
+  }
+
+  /**
+   * SET_POSITION_TARGET_LOCAL_NED (TASK-172): a position in ArduPilot's own
+   * frame, its velocity and acceleration as feed-forward, and a yaw with its
+   * rate. ArduCopter takes it in GUIDED, carries it forward with those between
+   * messages, and holds position when it stops coming (GUID_TIMEOUT).
+   */
+  positionTargetInto(target: GuidedTarget, out: Uint8Array): number {
+    if (!packInto(SET_POSITION_TARGET_LOCAL_NED, { time_boot_ms: 0, x: target.northM, y: target.eastM, z: target.downM, vx: target.northMps, vy: target.eastMps, vz: target.downMps,
+      afx: target.northMps2, afy: target.eastMps2, afz: target.downMps2, yaw: target.yawRad, yaw_rate: target.yawRateRadS, type_mask: USE_EVERY_FIELD,
+      target_system: this.targetSystem, target_component: this.targetComponent, coordinate_frame: FRAME_LOCAL_NED }, this.targetPayload)) return 0;
+    return this.frame(SET_POSITION_TARGET_LOCAL_NED, this.targetPayload, out);
+  }
+  /**
+   * SET_ATTITUDE_TARGET (TASK-173): an attitude to hold in GUIDED, with the height held where it is. ArduPilot shapes the change
+   * within its own limits, and levels the aircraft if it stops coming (GUID_TIMEOUT). The quaternion is Quaternion::from_euler's.
+   */
+  attitudeTargetInto(target: AttitudeTarget, out: Uint8Array): number {
+    const cr = Math.cos(target.rollRad / 2), sr = Math.sin(target.rollRad / 2), cp = Math.cos(target.pitchRad / 2), sp = Math.sin(target.pitchRad / 2), cy = Math.cos(target.yawRad / 2), sy = Math.sin(target.yawRad / 2);
+    const q = [cr * cp * cy + sr * sp * sy, sr * cp * cy - cr * sp * sy, cr * sp * cy + sr * cp * sy, cr * cp * sy - sr * sp * cy];
+    if (!packInto(SET_ATTITUDE_TARGET, { time_boot_ms: 0, q, body_roll_rate: 0, body_pitch_rate: 0, body_yaw_rate: 0, thrust: HOLD_HEIGHT, target_system: this.targetSystem,
+      target_component: this.targetComponent, type_mask: ATTITUDE_ONLY }, this.attitudePayload)) return 0;
+    return this.frame(SET_ATTITUDE_TARGET, this.attitudePayload, out);
+  }
+  /** MISSION_COUNT of a waypoint mission (TASK-172), which starts an upload. */
+  missionCountInto(count: number, out: Uint8Array): number {
+    if (!packInto(MISSION_COUNT, { count, target_system: this.targetSystem, target_component: this.targetComponent, mission_type: 0, opaque_id: 0 }, this.countPayload)) return 0;
+    return this.frame(MISSION_COUNT, this.countPayload, out);
+  }
+  /** MISSION_ITEM_INT of a waypoint mission (TASK-172), as ArduPilot asked for it. */
+  missionItemInto(item: MissionItem, out: Uint8Array): number {
+    if (!packInto(MISSION_ITEM_INT, { param1: item.param1, param2: item.param2, param3: item.param3, param4: item.param4, x: item.x, y: item.y, z: item.z, seq: item.seq,
+      command: item.command, target_system: this.targetSystem, target_component: this.targetComponent, frame: item.frame, current: item.current, autocontinue: 1,
+      mission_type: 0 }, this.itemPayload)) return 0;
+    return this.frame(MISSION_ITEM_INT, this.itemPayload, out);
   }
 
   /**

@@ -5,12 +5,12 @@
   "samples": [
     {
       "steps": 1000000,
-      "bytes": 2800,
+      "bytes": 2944,
       "gcEvents": 0
     },
     {
       "steps": 2000000,
-      "bytes": 3120,
+      "bytes": 3288,
       "gcEvents": 0
     },
     {
@@ -36,15 +36,15 @@
   ],
   "positiveControl": {
     "steps": 2000000,
-    "bytes": -516216,
+    "bytes": -516656,
     "gcEvents": 62
   },
-  "bytesPerStep": 0.000128,
+  "bytesPerStep": 0,
   "zeroAllocation": true,
   "controlDetected": true,
   "lastWindNedMps": [
-    0.4643007791648559,
-    1.5641352372355222,
-    5.446690084163653
+    0.05441086129164879,
+    1.12821239374414,
+    5.3499624427743395
   ]
 }

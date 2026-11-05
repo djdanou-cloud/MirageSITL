@@ -135,9 +135,26 @@ export function parseLimitRatings(value: unknown, motorCount?: number): LimitRat
   });
 }
 
-// Event quantity codes, in `LimitQuantity` order; their kind follows from the code.
-const QUANTITIES: readonly LimitQuantity[] = ['motor-current', 'motor-power', 'esc-current', 'esc-voltage', 'rpm', 'battery-voltage',
+/** Event quantity codes, in `LimitQuantity` order, as a recording stores them (TASK-177): never reordered. Their kind follows from the code. */
+export const LIMIT_QUANTITIES: readonly LimitQuantity[] = ['motor-current', 'motor-power', 'esc-current', 'esc-voltage', 'rpm', 'battery-voltage',
   'current-limit', 'pack-current-limit', 'charge-limit'];
+/** A rating exceeded with physics unchanged, or a clamp the model applied. */
+export function limitKindOf(quantity: LimitQuantity): LimitKind {
+  return quantity === 'current-limit' || quantity === 'pack-current-limit' || quantity === 'charge-limit' ? 'limited' : 'warning';
+}
+/** Channels of the recording's events.limit (TASK-177). */
+export const LIMIT_ROW = Object.freeze({ code: 0, subject: 1, quantity: 2, edge: 3, value: 4, limit: 5 });
+/** Its codes: the monitor reports into this recording; an exceedance changed; events the monitor could not hold, in its value channel. */
+export const LIMIT_CODE = Object.freeze({ monitor: 0, event: 1, dropped: 2 });
+/** The subject of a limit event on the battery; a motor is its index. */
+export const LIMIT_BATTERY_SUBJECT = -1;
+/** The row that says a recording holds its limit events, so that a recording without any had none, and an older one can say it does not know. */
+export const limitMonitorRow = (): (number | null)[] => [LIMIT_CODE.monitor];
+/** A limit event as a row of events.limit; a limit the model does not state stays absent. */
+export function limitEventRow(event: LimitEvent): (number | null)[] {
+  return [LIMIT_CODE.event, event.subject === 'battery' ? LIMIT_BATTERY_SUBJECT : event.subject, LIMIT_QUANTITIES.indexOf(event.quantity), event.edge === 'start' ? 1 : 0, event.value, Number.isFinite(event.limit) ? event.limit : null];
+}
+export const limitDroppedRow = (count: number): (number | null)[] => [LIMIT_CODE.dropped, null, null, null, count, null];
 const Q = Object.freeze({ MotorCurrent: 0, MotorPower: 1, EscCurrent: 2, EscVoltage: 3, Rpm: 4, BatteryVoltage: 5,
   CurrentLimit: 6, PackCurrentLimit: 7, ChargeLimit: 8 });
 const BATTERY_SUBJECT = -1;
@@ -311,7 +328,7 @@ export class LimitMonitor {
   drain(sink: (event: LimitEvent) => void): number {
     const n = this.count;
     for (let k = 0; k < n; k++) {
-      const at = (this.head + k) % LIMIT_OUTBOX_CAPACITY, quantity = QUANTITIES[this.quantity[at]!] ?? 'motor-current';
+      const at = (this.head + k) % LIMIT_OUTBOX_CAPACITY, quantity = LIMIT_QUANTITIES[this.quantity[at]!] ?? 'motor-current';
       const code = this.quantity[at]!, subject = this.subject[at]!;
       sink(Object.freeze({
         tick: this.tick[at]!, simTimeS: this.tick[at]! / this.hz, subject: subject === BATTERY_SUBJECT ? 'battery' : subject,

@@ -57,21 +57,40 @@
 // it), and its GPS puts it at the session's home; the profile must need no
 // frame script. Its experiment record is written once all of that holds,
 // before READY can be shown.
+//
+// A flight task (TASK-172) is chosen before the start, so its ground values
+// are in the physics at the start tick, and the experiment record holds its
+// definition. From READY, Run task hands the flight to FlightTaskRunner: each
+// Worker status gives it the session's truth and the autopilot's reports, and
+// what it returns goes to the autopilot, with a route through MissionUpload.
+// A run flies its task once and only as its first flight: ArduPilot's own
+// frame starts where the run started, and a repeat is a new experiment. A
+// task that fails hands the flight to ArduPilot's LAND; the run goes on.
 import {
-  EXPERIMENT_SCHEMA_VERSION, type ExperimentEnvironment, type ExperimentLineage, type ExperimentParameter, type ExperimentPayload, type ExperimentRecording,
-  type ExperimentSitl,
+  EXPERIMENT_SCHEMA_VERSION, type ExperimentEnvironment, type ExperimentFlightTask, type ExperimentLineage, type ExperimentParameter, type ExperimentPayload,
+  type ExperimentRecording, type ExperimentSitl,
 } from "@mirage/aircraft/experiment";
 import { readAutopilotVersion, verifiedCommit } from "@mirage/autopilot/autopilot-version";
 import { CopterMode, GroundStation } from "@mirage/autopilot/ground-station";
+import { autopilotModeName, taskCommandInto } from "@mirage/autopilot/guided";
+import { MissionUpload, routeMissionItems, routePointReached } from "@mirage/autopilot/mission";
 import { MotorCheck, type ExpectedMotor, type MotorCheckResult, type PhysicsRotor } from "@mirage/autopilot/motor-test";
 import type { ParameterMetadataCatalog, ParameterMetadataSet } from "@mirage/autopilot/param-metadata";
+import { parameterWriteConflictReason } from "@mirage/autopilot/error-ownership";
 import { ParameterService, type DownloadState, type ParameterValue } from "@mirage/autopilot/param-service";
+import { faultParameters } from "@mirage/autopilot/fault-effects";
+import { JAMMING_PARAMETERS, MAGNETIC_PARAMETERS, SITL_GPS_ACC, SITL_GPS_LOCK, SITL_GPS_NO_LOCK_S, SITL_GPS_NUMSATS, jammingWrites, magneticBiasWrites, type ParameterWrite } from "@mirage/ew/sitl-writes";
+import { faultTimeline, sitlDeliveryRefusal, type FaultSchedule, type FaultTransition } from "@mirage/scenarios/fault-schedule";
+import { parseEffectControl, type EffectControl, type EffectId, type EffectRecovery } from "@mirage/protocol";
+import { siteParameters } from "@mirage/aircraft/site-parameters";
 import { ParameterReadback, type AbsentRule, type ParameterDifference } from "@mirage/autopilot/parameter-readback";
 import { MavParser, type MavFrame } from "@mirage/mavlink/codec";
 import { PilotRcMapper } from "@mirage/mavlink/rc-override";
 import { UNKNOWN_U32, newPilotInputV2, type PilotInput } from "@mirage/protocol";
 import { fieldOf, readNumber } from "@mirage/mavlink/messages";
 import type { AccidentEvent } from "@mirage/physics/accident";
+import { FlightTaskRunner, guidanceLimitsOf, type FlightTaskStep, type GuidanceLimits } from "@mirage/scenarios/flight-tasks";
+import { attitudeManeuverRefusal } from "@mirage/scenarios/maneuvers";
 import type { ParameterChange } from "../params/parameter-sets";
 import { RunSpeedMeter, type RunSpeedView } from "./run-speed";
 import type { SitlStatus } from "../sitl/bridge-client";
@@ -92,7 +111,7 @@ export interface LauncherExperiment {
   readonly firmware: LauncherFirmware; readonly runs: readonly LauncherRun[];
   readonly ports: { readonly bridge: number } | null;
 }
-export interface LauncherLogs { readonly stdout: string; readonly stderr: string; readonly dataflash: readonly string[] }
+export interface LauncherLogs { readonly stdout: string; readonly stderr: string; /** What the launcher hashed and attached when the run ended (TASK-164). */ readonly attachments?: readonly string[]; readonly dataflash: readonly string[] }
 export interface CatalogEntry { readonly id: string; readonly firmwareVersion: string; readonly usable: boolean; readonly reason: string | null }
 export interface StartSpec {
   readonly firmwareId: string; readonly parameters: readonly { readonly name: string; readonly value: number }[];
@@ -145,6 +164,14 @@ export interface PreparedRun {
   /** The motor check (TASK-157): ArduPilot's test order and the physics rotors in power-telemetry order. */
   readonly motorTest: { readonly expected: readonly ExpectedMotor[]; readonly physics: readonly PhysicsRotor[] };
 }
+/** Truth of the latest published tick in a flight task's terms: north and east from the pad, height above it, heading from north. */
+export interface FlightTruth {
+  readonly simTimeS: number;
+  readonly northM: number; readonly eastM: number; readonly altitudeM: number;
+  readonly northMps: number; readonly eastMps: number; readonly downMps: number;
+  readonly headingDeg: number;
+  readonly rollDeg: number; readonly pitchDeg: number;
+}
 export interface PhysicsPort {
   /**
    * Loads the BET module, the manifest and its ratings, gives the physics the environment's gravity and origin air
@@ -157,6 +184,8 @@ export interface PhysicsPort {
   /** Truth of the latest published tick, for the flight stages. */
   altitudeM(): number;
   verticalSpeedMps(): number;
+  /** The truth a flight task is flown from (TASK-172). */
+  flightTruth(): FlightTruth;
   /** Each rotor's speed, rev/min, in rotor order from the latest power telemetry; false when none was published. */
   motorSpeedsInto(out: Float64Array): boolean;
   /** Resumes a paused session with sim.start (TASK-149, TASK-156); resolves on its applied acknowledgement. */
@@ -167,6 +196,11 @@ export interface PhysicsPort {
   tickNow(): { readonly tick: number; readonly simTimeS: number };
   /** Manual control started or ended: the Worker's stale-input watchdog follows it (TASK-174). */
   manualInput(active: boolean): void;
+  /**
+   * One effect control on the next tick, or on the tick of simulated time `atSimS` if that is still ahead (TASK-166, TASK-168, TASK-169);
+   * resolves with the simulated time of the tick that applied it, rejects with the reason.
+   */
+  effect(control: EffectControl, recovery: EffectRecovery, atSimS?: number): Promise<number | null>;
 }
 /** The calibrated USB controller (GamepadAdapter of TASK-038). */
 export interface PilotInputPort {
@@ -197,6 +231,8 @@ export interface RecordingPort {
   parameters(list: readonly { readonly name: string; readonly value: number }[]): void;
   accidents(events: readonly AccidentEvent[]): void;
   pause(paused: boolean): void;
+  /** What a flight task requests now (TASK-172). */
+  flightTask(step: FlightTaskStep): void;
   /** Closes the record; idempotent. */
   stop(): Promise<void>;
 }
@@ -217,6 +253,10 @@ export interface StartRequest {
   readonly environment: ExperimentEnvironment | null;
   /** A repeat or a variant of a stored experiment (TASK-165); an original run when absent. */
   readonly lineage?: ExperimentLineage;
+  /** The flight task this run may fly (TASK-172). */
+  readonly flightTask?: ExperimentFlightTask | null;
+  /** The effects this run applies by itself (TASK-169). */
+  readonly faults?: FaultSchedule | null;
 }
 export interface ConnectRequest {
   readonly prepare: () => Promise<PreparedRun>;
@@ -233,13 +273,27 @@ export interface ConnectRequest {
   readonly environment: ExperimentEnvironment | null;
   /** Source commits whose SITL behaviour MirageSITL has verified (the pinned ArduPilot catalog). */
   readonly verifiedCommits: readonly string[];
+  /** The flight task this run may fly (TASK-172); a SITL the user started stands at its own home, so its ground start must be the pad. */
+  readonly flightTask?: ExperimentFlightTask | null;
+  /** The effects this run applies by itself (TASK-169). */
+  readonly faults?: FaultSchedule | null;
 }
 
 // ---- states ---------------------------------------------------------------------------------
 
 export type Ownership = ExperimentSitl["ownership"];
 export type StartStep = "prepare" | "firmware" | "physics" | "launcher" | "record" | "recording" | "connecting" | "probing" | "version";
-export type FlightStep = "arming" | "climbing" | "flying" | "landing" | "manual";
+export type FlightStep = "arming" | "climbing" | "flying" | "landing" | "manual" | "task";
+/** A run's flight task as the panel shows it (TASK-172). */
+export interface FlightTaskView {
+  readonly name: string;
+  readonly task: ExperimentFlightTask;
+  /** Waiting for Run task; flying; finished; failed, or stopped with `reason`. */
+  readonly state: "waiting" | "running" | "done" | "failed";
+  readonly reason: string | null;
+  /** The runner's latest report; null before the task runs. */
+  readonly step: FlightTaskStep | null;
+}
 /** The flight modes manual control can fly (ArduCopter's own). */
 export type ManualMode = "stabilize" | "alt-hold" | "loiter";
 const MANUAL_MODES: Readonly<Record<ManualMode, number>> = { stabilize: CopterMode.Stabilize, "alt-hold": CopterMode.AltHold, loiter: CopterMode.Loiter };
@@ -393,6 +447,8 @@ const GPS_LAT = gpsField("lat", "int32_t"), GPS_LON = gpsField("lon", "int32_t")
 
 export interface ControllerView {
   readonly state: RunState;
+  /** The flight task this run may fly (TASK-172), or null. */
+  readonly flightTask: FlightTaskView | null;
   readonly status: SitlStatus | null;
   readonly mode: number | null;
   readonly armed: boolean;
@@ -419,6 +475,36 @@ export interface ControllerView {
   readonly speed: RunSpeedView;
   /** Manual control (TASK-174), or null when MirageSITL flies the run. */
   readonly manual: ManualView | null;
+  /** Every effect control asked for in this run, oldest first (TASK-168). */
+  readonly effects: readonly EffectEntry[];
+  /** The effects this run applies by itself (TASK-169), or null. */
+  readonly faultPlan: FaultPlanView | null;
+}
+export interface FaultPlanView {
+  readonly schedule: FaultSchedule;
+  /** The simulated time ArduPilot first reported the aircraft armed, from which the schedule counts; null before that. */
+  readonly armedAtS: number | null;
+  /** How many changes of faultTimeline(schedule) have been sent. */
+  readonly sent: number;
+}
+/** One effect control and what became of it. What ArduPilot then does about it, the run's recording holds. */
+export interface EffectEntry {
+  readonly effect: EffectId;
+  readonly enabled: boolean;
+  readonly intensity: number;
+  readonly status: "pending" | "applied" | "rejected";
+  /** Names this control's instance. */
+  readonly id: string;
+  /** Asked for by hand, or by the run's schedule. */
+  readonly origin: "manual" | "schedule";
+  /** The simulated time it was asked for, or meant for on a schedule, s; null before the run has a time. */
+  readonly requestedSimS: number | null;
+  /** The simulated time it took effect, s: its tick in the session, or the last read-back of its parameters; null until then. */
+  readonly appliedSimS: number | null;
+  /** The ArduPilot parameters it writes. */
+  readonly writes: readonly string[];
+  /** Why it was rejected, or empty. */
+  readonly message: string;
 }
 export interface ManualView {
   readonly mode: ManualMode;
@@ -476,6 +562,16 @@ interface ExternalFacts {
   homeChecked: boolean;
 }
 
+/** One effect control of a run, as the controller follows it. */
+interface EffectItem {
+  entry: EffectEntry;
+  readonly writeIds: readonly number[];
+  session: "none" | "pending" | "applied" | "rejected";
+  writesAtS: number | null;
+}
+/** How far ahead of its time a scheduled control is queued on its tick, s of simulated time; the protocol allows 10. */
+const FAULT_QUEUE_LEAD_S = 5;
+
 export class SessionController {
   private stateValue: RunState = { name: "idle", last: null };
   private status: SitlStatus | null = null;
@@ -487,6 +583,8 @@ export class SessionController {
   private ownership: Ownership = "launcher";
   private external: ExternalFacts | null = null;
   private prepared: PreparedRun | null = null;
+  /** What a run the launcher starts gave ArduPilot at boot: the read-back's list, and what follows from the run's home. */
+  private bootParameters: readonly ExperimentParameter[] = [];
   private compatibility: CompatibilityCheck[] = [];
   private motorCheck: MotorCheck | null = null;
   private motorSpeeds = new Float64Array(0);
@@ -495,6 +593,14 @@ export class SessionController {
   private params: ParameterService | null = null;
   private paramMetadata: ParameterMetadataSet | null = null;
   private changes: ParameterChange[] = [];
+  /** TASK-168: effect controls sent, the parameter writes among them and what the session answered, which decide their status. */
+  private effects: EffectItem[] = [];
+  /** TASK-169: the run's schedule, what of it has gone, and when it started counting. */
+  private faultPlan: { readonly schedule: FaultSchedule; readonly timeline: readonly FaultTransition[]; sent: number; armedAtS: number | null } | null = null;
+  /** The value each fault parameter held before an effect changed it. */
+  private readonly faultRestore = new Map<string, number>();
+  /** The ground-station link effect is on: the autopilot's silence is that effect, not a lost SITL. */
+  private gcsLinkLost = false;
   private firmwareCommit: string | null = null;
   private speed = new RunSpeedMeter(1);
   private input: PilotInputPort | null = null;
@@ -514,13 +620,23 @@ export class SessionController {
   private resumeTo: RunState | null = null;
   private connectedAtMs = 0;
   private takeoffM = 0;
+  private everArmed = false;
+  private flightTaskEntry: ExperimentFlightTask | null = null;
+  private taskRunner: FlightTaskRunner | null = null;
+  private taskUpload: MissionUpload | null = null;
+  private taskRoutePoint = -1;
+  private taskStep: FlightTaskStep | null = null;
+  private taskState: FlightTaskView["state"] = "waiting";
+  private taskReason: string | null = null;
+  private home: readonly [number, number, number, number] | null = null;
   /** Wall time at which each stream's message last arrived. */
   private readonly streamSeenMs = new Map<number, number>();
   private stopTimer: (() => void) | null = null;
   /** Increased by every Start, Stop and failure stop, so a start chain that resumes after one of them ends instead of going on. */
   private generation = 0;
   private readonly gcs = new GroundStation();
-  private readonly packet = new Uint8Array(64);
+  /** The largest MAVLink 2 frame, for a mission item or a position target. */
+  private readonly packet = new Uint8Array(280);
   private readonly parser = new MavParser(frame => this.autopilot(frame));
 
   constructor(private readonly launcher: LauncherPort, private readonly physics: PhysicsPort, private readonly records: RecordPort,
@@ -532,8 +648,10 @@ export class SessionController {
     return { state: this.stateValue, status: this.status, mode: this.mode, armed: this.armed, statusText: this.statusText, recordSha256: this.recordSha256,
       ownership: this.ownership, compatibility: this.compatibility, motorCheck: this.motorCheckView(), accidents: this.accidents,
       afterAccident: this.afterAccident, pauses: this.pauses, pausedWallMs: this.pausedWallTotal(), parameters: this.parameterView(),
-      speed: this.speed.view,
-      manual: this.manual ? { mode: this.manual.mode, device: this.manual.device, waiting: this.manual.waiting } : null };
+      speed: this.speed.view, flightTask: this.flightTaskView(),
+      manual: this.manual ? { mode: this.manual.mode, device: this.manual.device, waiting: this.manual.waiting } : null,
+      effects: this.effects.map(item => this.effectEntry(item)),
+      faultPlan: this.faultPlan ? { schedule: this.faultPlan.schedule, armedAtS: this.faultPlan.armedAtS, sent: this.faultPlan.sent } : null };
   }
   get active(): boolean { return ACTIVE.has(this.stateValue.name); }
   /** The current state name, read afresh after an await (not narrowed by earlier checks). */
@@ -544,6 +662,9 @@ export class SessionController {
     const from = this.stateValue.name;
     if (from !== "idle" && from !== "failed") return;
     this.reset("launcher");
+    this.flightTaskEntry = request.flightTask ?? null;
+    this.planFaults(request.faults ?? null);
+    this.home = request.home;
     this.speed = new RunSpeedMeter(request.speedup);
     const generation = ++this.generation;
     const cancelled = () => generation !== this.generation;
@@ -573,9 +694,12 @@ export class SessionController {
     if (cancelled()) return;
 
     this.set({ name: "starting", step: "launcher", experimentId: null });
+    // ArduPilot boots with an empty memory: what a vehicle would have kept about this place is given at boot, and not read back (site-parameters.ts).
+    const parameters: readonly ExperimentParameter[] = [...prepared.parameters, ...siteParameters(request.home).map(p => ({ ...p, source: "site" as const }))];
+    this.bootParameters = parameters;
     let experiment: LauncherExperiment;
     try {
-      experiment = await this.launcher.start({ firmwareId: firmware.id, parameters: prepared.parameters.map(p => ({ name: p.name, value: p.value })),
+      experiment = await this.launcher.start({ firmwareId: firmware.id, parameters: parameters.map(p => ({ name: p.name, value: p.value })),
         frameScript: prepared.frameScript, speedup: request.speedup, rateHz: request.physicsHz, home: request.home });
     } catch (error) {
       // A 500 after the folder exists names the experiment, so its logs stay reachable.
@@ -609,8 +733,8 @@ export class SessionController {
         commit: experiment.firmware.commit, binarySha256: experiment.firmware.binarySha256, defaultParametersSha256: experiment.firmware.defaultParametersSha256 } },
       session: { physicsHz: request.physicsHz, clockMode: "sitl-lockstep", speedup: request.speedup, home: request.home, modelId: prepared.modelId,
         manifestSha256: prepared.manifestSha256, betModuleSha256 },
-      parameters: prepared.parameters, frameScript: prepared.frameScript, sensors: prepared.sensors, recording, lineage: request.lineage ?? { kind: "original" },
-      environment: request.environment,
+      parameters, frameScript: prepared.frameScript, sensors: prepared.sensors, recording, lineage: request.lineage ?? { kind: "original" },
+      flightTask: this.flightTaskEntry, faults: this.faultPlan?.schedule ?? null, environment: request.environment,
     };
     try { this.recordSha256 = (await this.records.create(payload)).sha256; } catch (error) {
       // No unrecorded run flies; after a Stop, the stop already ended the run.
@@ -640,6 +764,9 @@ export class SessionController {
     const from = this.stateValue.name;
     if (from !== "idle" && from !== "failed") return;
     this.reset("external");
+    this.flightTaskEntry = request.flightTask ?? null;
+    this.planFaults(request.faults ?? null);
+    this.home = request.home;
     // A SITL the user started paces itself by its own --speedup.
     this.speed = new RunSpeedMeter(null);
     const generation = ++this.generation;
@@ -776,9 +903,73 @@ export class SessionController {
     this.send(this.gcs.setModeInto(CopterMode.Guided, this.packet));
     return true;
   }
+  /**
+   * Flies the run's flight task from READY (TASK-172), or says why it cannot: a run flies its task once, as its first
+   * flight, because ArduPilot's frame starts where the run started and the task's position targets count from there.
+   */
+  runTask(): string | null {
+    const s = this.stateValue, entry = this.flightTaskEntry;
+    if (!entry) return "This run was started without a flight task";
+    if (this.taskState !== "waiting") return "This run has flown its task; start a new run to fly it again";
+    if (this.everArmed) return "This run has already flown; a task flies as a run's first flight, so start a new run";
+    if (s.name !== "ready") return "Run the task once the run is READY";
+    if (this.motorCheck !== null && !this.motorCheck.done) return "A motor check is running";
+    let limits: GuidanceLimits;
+    try { limits = guidanceLimitsOf(name => this.params?.get(name)?.value); } catch (error) { return messageOf(error); }
+    const refusal = attitudeManeuverRefusal(entry.definition.type, name => this.params?.get(name)?.value);
+    if (refusal !== null) return refusal;
+    this.taskRunner = new FlightTaskRunner(entry.definition, limits);
+    this.taskState = "running";
+    this.set({ name: "running", experimentId: s.experimentId, flight: "task", warning: null });
+    this.stepTask();
+    return null;
+  }
+  /** One observation of the flying task: what the runner returns goes to the autopilot, and its end hands the flight back. */
+  private stepTask(): void {
+    const runner = this.taskRunner, s = this.stateValue;
+    if (!runner || s.name !== "running" || s.flight !== "task" || this.status?.state !== "open") return;
+    const truth = this.physics.flightTruth();
+    this.taskUpload?.tick(truth.simTimeS);
+    const step = runner.observe({ ...truth, armed: this.armed, mode: autopilotModeName(this.mode), mission: this.taskUpload?.state ?? "idle", routePointReached: this.taskRoutePoint });
+    this.taskStep = step;
+    this.recording?.flightTask(step);
+    for (const command of step.commands) {
+      if (command.kind === "upload-route") this.uploadRoute(command.points, command.groundAltitudeM, truth.simTimeS);
+      else this.send(taskCommandInto(command, this.gcs, this.packet));
+    }
+    if (step.progress.state === "done") {
+      this.taskState = "done";
+      this.set(this.armed ? { ...s, flight: "flying" } : this.status.ready ? { name: "ready", experimentId: s.experimentId }
+        : { name: "warming", experimentId: s.experimentId, reason: this.status.reason });
+    } else if (step.progress.state === "failed") {
+      this.taskState = "failed";
+      this.taskReason = this.taskUpload?.state === "failed" ? `${step.progress.reason}: ${this.taskUpload.reason}` : step.progress.reason;
+      // The flight is ArduPilot's again, and comes down on its own LAND.
+      if (this.armed) {
+        this.set({ ...s, flight: "landing" });
+        this.send(this.gcs.setModeInto(CopterMode.Land, this.packet));
+      } else {
+        this.set(this.status.ready ? { name: "ready", experimentId: s.experimentId } : { name: "warming", experimentId: s.experimentId, reason: this.status.reason });
+      }
+    }
+  }
+  private uploadRoute(points: Parameters<typeof routeMissionItems>[0], groundAltitudeM: number, simTimeS: number): void {
+    const home = this.home;
+    if (!home) return;
+    const upload = new MissionUpload(routeMissionItems(points, { latitudeDeg: home[0], longitudeDeg: home[1] }, groundAltitudeM), {
+      sendCount: count => this.send(this.gcs.missionCountInto(count, this.packet)),
+      sendItem: item => this.send(this.gcs.missionItemInto(item, this.packet)),
+    });
+    this.taskUpload = upload;
+    upload.start(simTimeS);
+  }
   land(): boolean {
     const s = this.stateValue;
-    if (s.name !== "running" || (s.flight !== "climbing" && s.flight !== "flying")) return false;
+    if (s.name !== "running" || (s.flight !== "climbing" && s.flight !== "flying" && s.flight !== "task")) return false;
+    if (s.flight === "task") {
+      this.taskState = "failed";
+      this.taskReason = "You landed the aircraft during the task";
+    }
     this.set({ ...s, flight: "landing" });
     this.send(this.gcs.setModeInto(CopterMode.Land, this.packet));
     return true;
@@ -915,6 +1106,141 @@ export class SessionController {
     this.emit();
     return null;
   }
+  /**
+   * One effect control (TASK-168, TASK-169): on the next tick for what the session or the link applies, and as logged parameter writes
+   * for what only ArduPilot's own simulator can do, which go back to their earlier values when the effect goes off. An effect never on
+   * writes nothing. Returns why it was not sent, or null; either way `view.effects` shows what became of it.
+   */
+  setEffect(control: EffectControl, recovery: EffectRecovery = "hold-offset"): string | null {
+    return this.sendEffect(control, recovery, "manual", this.status?.simTimeS ?? null, undefined);
+  }
+  private sendEffect(control: EffectControl, recovery: EffectRecovery, origin: EffectEntry["origin"], requestedSimS: number | null, atSimS: number | undefined): string | null {
+    let parsed: EffectControl;
+    try { parsed = parseEffectControl(control); } catch (error) { return error instanceof Error ? error.message : "Invalid effect control"; }
+    if (!this.active) return "No run is active";
+    const on = parsed.enabled && parsed.intensity > 0;
+    const entry: EffectEntry = { id: parsed.id, effect: parsed.effect, enabled: parsed.enabled, intensity: parsed.intensity, status: "pending", message: "", origin, requestedSimS, appliedSimS: null, writes: [] };
+    const refused = (message: string): string => {
+      this.effects = [...this.effects, { entry: { ...entry, status: "rejected", message }, writeIds: [], session: "none", writesAtS: null }];
+      this.emit();
+      return message;
+    };
+    if (on) {
+      const refusal = sitlDeliveryRefusal(parsed);
+      if (refusal !== null) return refused(refusal);
+    }
+    const writes = this.effectWrites(parsed, on);
+    if (typeof writes === "string") return refused(writes);
+    const writeIds: number[] = [];
+    for (const { name, value } of writes) {
+      const why = this.setParameter(name, value);
+      if (why !== null) return refused(why);
+      const last = this.changes.at(-1);
+      if (last) writeIds.push(last.writeId);
+    }
+    const toSession = faultParameters(parsed.effect) === null;
+    const item: EffectItem = { entry: { ...entry, writes: writes.map(write => write.name) }, writeIds, session: toSession ? "pending" : "none", writesAtS: null };
+    this.effects = [...this.effects, item];
+    if (toSession) {
+      if (parsed.effect === "link.gcs") {
+        this.gcsLinkLost = on;
+        // Silence before this moment was the effect's; a lost SITL is counted from here.
+        if (!on) this.lastHeartbeatMs = this.clock.nowMs();
+      }
+      this.physics.effect(parsed, recovery, atSimS).then(appliedSimS => {
+        item.session = "applied";
+        item.entry = { ...item.entry, appliedSimS: appliedSimS ?? this.status?.simTimeS ?? null };
+        this.emit();
+      }, (cause: unknown) => {
+        item.session = "rejected";
+        item.entry = { ...item.entry, status: "rejected", message: cause instanceof Error ? cause.message : String(cause) };
+        this.emit();
+      });
+    }
+    this.emit();
+    return null;
+  }
+  /** The parameters an effect writes, each from what it held before any effect changed it, or why they cannot be written. */
+  private effectWrites(control: EffectControl, on: boolean): readonly ParameterWrite[] | string {
+    const fixed = faultParameters(control.effect);
+    const names = fixed ? fixed.map(item => item.name) : control.effect === "ew.gnss-jamming" ? JAMMING_PARAMETERS : control.effect === "ew.magnetic" ? MAGNETIC_PARAMETERS : [];
+    if (names.length === 0) return [];
+    if (!on) {
+      const back: ParameterWrite[] = [];
+      for (const name of names) {
+        const earlier = this.faultRestore.get(name);
+        if (earlier !== undefined) { back.push({ name, value: earlier }); this.faultRestore.delete(name); }
+      }
+      if (back.length > 0) {
+        const refusal = this.writeRefusal();
+        if (refusal !== null) return refusal;
+      }
+      return back;
+    }
+    // A rotation alone needs no parameter, so it also reaches a SITL MirageSITL did not start.
+    const bias = control.effect === "ew.magnetic" ? control.parameters.biasBodyGauss : null;
+    if (Array.isArray(bias) && bias.every(value => value === 0)) return [];
+    const refusal = this.writeRefusal();
+    if (refusal !== null) return refusal;
+    const params = this.params;
+    if (!params) return "No run has loaded its parameters";
+    const earlier = new Map<string, number>();
+    for (const name of names) {
+      const held = this.faultRestore.get(name) ?? params.get(name)?.value;
+      // Nothing is written unless all of it can be: half a fault would be another fault.
+      if (held === undefined) return `ArduPilot's parameter list has no ${name}`;
+      earlier.set(name, held);
+    }
+    const before = (name: string): number => earlier.get(name) ?? 0;
+    let writes: readonly ParameterWrite[];
+    if (fixed) writes = fixed.map(item => ({ name: item.name, value: item.on }));
+    else if (control.effect === "ew.gnss-jamming") {
+      const severity = control.parameters.severity;
+      writes = jammingWrites((typeof severity === "number" ? severity : 0) * control.intensity, { satellites: before(SITL_GPS_NUMSATS), accuracyM: before(SITL_GPS_ACC), lockS: before(SITL_GPS_LOCK) }, params.get(SITL_GPS_LOCK)?.value === SITL_GPS_NO_LOCK_S);
+    } else {
+      const scale = control.intensity, value: readonly number[] = Array.isArray(bias) ? bias : [0, 0, 0];
+      writes = magneticBiasWrites([(value[0] ?? 0) * scale, (value[1] ?? 0) * scale, (value[2] ?? 0) * scale], before);
+    }
+    for (const [name, held] of earlier) if (!this.faultRestore.has(name)) this.faultRestore.set(name, held);
+    return writes.map(write => ({ name: write.name, value: Math.fround(write.value) }));
+  }
+  /** An effect stands as its session acknowledgement and its parameter read-backs do: applied when all are, rejected when one failed. */
+  private effectEntry(item: EffectItem): EffectEntry {
+    if (item.entry.status === "rejected") return item.entry;
+    const outcomes = item.writeIds.map(id => this.changes.find(change => change.writeId === id)?.outcome);
+    const failed = outcomes.find(outcome => outcome !== undefined && (outcome.kind === "refused" || outcome.kind === "timeout"));
+    if (failed) return { ...item.entry, status: "rejected", message: failed.kind === "refused" ? `${failed.name}: ${failed.reason}` : `${failed.name}: ArduPilot did not answer` };
+    if (item.session === "pending" || !outcomes.every(outcome => outcome?.kind === "confirmed" || outcome?.kind === "stale")) return item.entry;
+    // The moment the last read-back was first seen, once; a session's tick when it has no parameters.
+    if (item.writeIds.length > 0) item.writesAtS ??= this.status?.simTimeS ?? null;
+    return { ...item.entry, status: "applied", appliedSimS: item.writeIds.length > 0 ? item.writesAtS : item.entry.appliedSimS };
+  }
+  /** A new run's schedule, with nothing sent yet. */
+  private planFaults(schedule: FaultSchedule | null): void {
+    this.faultPlan = schedule && schedule.entries.length > 0 ? { schedule, timeline: faultTimeline(schedule), sent: 0, armedAtS: null } : null;
+  }
+  /**
+   * Sends what the schedule asks for now. What goes on the session's own ticks is queued ahead, within the protocol's 10 s horizon, so it
+   * lands on its exact tick however rarely Worker statuses arrive. A parameter write takes the moment it is due; its read-back says when it stood.
+   */
+  private stepFaults(simTimeS: number): void {
+    const plan = this.faultPlan;
+    if (!plan || !this.active) return;
+    if (plan.armedAtS === null) {
+      if (!this.armed) return;
+      plan.armedAtS = simTimeS;
+    }
+    const elapsed = simTimeS - plan.armedAtS;
+    for (let next = plan.timeline[plan.sent]; next; next = plan.timeline[plan.sent]) {
+      const scheduled = plan.schedule.entries[next.entry];
+      if (!scheduled) { plan.sent++; continue; }
+      const queued = faultParameters(scheduled.control.effect) === null && scheduled.control.effect !== "ew.gnss-jamming" && scheduled.control.effect !== "ew.magnetic";
+      if (next.atS > elapsed + (queued ? FAULT_QUEUE_LEAD_S : 0)) return;
+      plan.sent++;
+      const atSimS = plan.armedAtS + next.atS;
+      this.sendEffect({ ...scheduled.control, enabled: next.on }, scheduled.recovery, "schedule", atSimS, queued ? atSimS : undefined);
+    }
+  }
   /** Downloads the complete list again, for example after the autopilot renumbered it; returns why not, or null. */
   refreshParameters(): string | null {
     const params = this.params;
@@ -1030,8 +1356,11 @@ export class SessionController {
 
   /** Advances on a status: version and parameter deadlines, warmup, READY revocation and the climb. */
   private progress(): void {
-    const s = this.stateValue, status = this.status;
+    const status = this.status;
     if (!status) return;
+    this.stepTask();
+    this.stepFaults(status.simTimeS);
+    const s = this.stateValue;
     if (this.motorCheck && !this.motorCheck.done) this.stepMotorCheck(status.simTimeS);
     // The Worker accepts MAVLink only while its bridge socket is open.
     if (this.params && status.state === "open") {
@@ -1079,6 +1408,11 @@ export class SessionController {
   private autopilot(frame: MavFrame): void {
     if (frame.systemId !== 1 || frame.componentId !== 1) return;
     this.recording?.telemetry(frame);
+    if (this.taskUpload) {
+      this.taskUpload.frame(frame, this.status?.simTimeS ?? 0);
+      const reached = routePointReached(frame);
+      if (reached !== null) this.taskRoutePoint = Math.max(this.taskRoutePoint, reached);
+    }
     if (frame.id === 193 || frame.id === 24 || frame.id === 33) this.streamSeenMs.set(frame.id, this.clock.nowMs());
     const s = this.stateValue;
     switch (frame.id) {
@@ -1088,6 +1422,7 @@ export class SessionController {
         this.mode = frame.view.getUint32(0, true);
         const armed = (frame.view.getUint8(6) & 128) !== 0, was = this.armed;
         this.armed = armed;
+        this.everArmed ||= armed;
         this.lastHeartbeatMs = this.clock.nowMs();
         if (!this.heartbeatSeen) {
           this.heartbeatSeen = true;
@@ -1138,7 +1473,7 @@ export class SessionController {
         if (this.ownership === "external") { this.judgeExternalParameters(s.experimentId); return; }
         switch (verdict.kind) {
           case "confirmed":
-            this.recording?.parameters(this.prepared?.parameters ?? []);
+            this.recording?.parameters(this.bootParameters);
             this.set(this.status?.ready ? { name: "ready", experimentId: s.experimentId } : { name: "warming", experimentId: s.experimentId, reason: this.status?.reason ?? "" });
             return;
           case "mismatch":
@@ -1192,8 +1527,10 @@ export class SessionController {
     const now = this.status?.simTimeS ?? 0;
     this.parametersSinceS = now;
     this.paramMetadata = this.firmwareCommit === null ? null : this.metadata?.forCommit(this.firmwareCommit) ?? null;
+    // S08: this run's ownership matrix decides which SITL parameters a live write may not touch.
+    const ownership = this.prepared?.sensors.ownershipMatrix ?? null;
     this.params = new ParameterService({ ground: this.gcs, send: frame => this.physics.sendMavlink(frame.slice()), metadata: this.paramMetadata,
-      timing: { maxListRequests: PARAMETER_LIST_REQUESTS } });
+      timing: { maxListRequests: PARAMETER_LIST_REQUESTS }, writeConflict: name => (ownership ? parameterWriteConflictReason(ownership, name) : null) });
     this.set({ name: "loading-parameters", experimentId, received: 0, total: null });
     this.params.requestList(now);
   }
@@ -1274,7 +1611,8 @@ export class SessionController {
       sitl: { ownership: "external", connectionId: external.connectionId, ardupilot: external.version, endpoints: external.spec },
       session: { physicsHz: external.physicsHz, clockMode: "sitl-lockstep", speedup: null, home: external.home, modelId: prepared.modelId,
         manifestSha256: prepared.manifestSha256, betModuleSha256: external.betModuleSha256 },
-      parameters: prepared.parameters, frameScript: null, sensors: prepared.sensors, recording, lineage: { kind: "original" }, environment: external.environment,
+      parameters: prepared.parameters, frameScript: null, sensors: prepared.sensors, recording, lineage: { kind: "original" },
+      flightTask: this.flightTaskEntry, faults: this.faultPlan?.schedule ?? null, environment: external.environment,
     };
     try {
       const { sha256 } = await this.records.create(payload);
@@ -1324,7 +1662,7 @@ export class SessionController {
     if (!this.active) return;
     if (this.stateValue.name === "starting") this.progress();
     // A paused autopilot waits in lockstep and sends nothing, so silence then is no loss.
-    if (this.ownership === "external" && this.heartbeatSeen && this.stateValue.name !== "paused" &&
+    if (this.ownership === "external" && this.heartbeatSeen && this.stateValue.name !== "paused" && !this.gcsLinkLost &&
       this.clock.nowMs() - this.lastHeartbeatMs > HEARTBEAT_LOSS_S * 1000) {
       void this.stopAfter({ kind: "sitl-silent", seconds: HEARTBEAT_LOSS_S }, this.stateValue.name);
       return;
@@ -1441,12 +1779,22 @@ export class SessionController {
     });
   }
 
+  private flightTaskView(): FlightTaskView | null {
+    const task = this.flightTaskEntry;
+    if (!task) return null;
+    // A run that ended under a flying task ended the task.
+    const ended = this.taskState === "running" && !this.active;
+    return { name: task.name, task, state: ended ? "failed" : this.taskState, reason: ended ? "The run ended during the task" : this.taskReason, step: this.taskStep };
+  }
   private reset(ownership: Ownership): void {
     this.status = null; this.mode = null; this.armed = false; this.statusText = []; this.recordSha256 = null;
     this.experimentId = null; this.readback = null; this.heartbeatSeen = false; this.streamSeenMs.clear();
     this.ownership = ownership; this.external = null; this.prepared = null; this.compatibility = []; this.motorCheck = null;
     this.accidents = []; this.afterAccident = false; this.resumeTo = null; this.pauses = []; this.pausing = false;
     this.params = null; this.paramMetadata = null; this.changes = []; this.firmwareCommit = null;
+    this.effects = []; this.faultRestore.clear(); this.gcsLinkLost = false; this.faultPlan = null;
+    this.everArmed = false; this.flightTaskEntry = null; this.taskRunner = null; this.taskUpload = null; this.taskRoutePoint = -1; this.taskStep = null;
+    this.taskState = "waiting"; this.taskReason = null; this.home = null;
     this.parser.reset();
   }
 

@@ -1,12 +1,12 @@
-import { ActuatorFrameCodecV2, ControlFlag, ControlProcessorV2, HeaderV2, INPUT_CLOCK_TOLERANCE_MS, INPUT_TIMEOUT_MS, PilotFlagV2, PilotReaderV2,
+import { WEATHER_SET_GUST_BANDWIDTH_HZ, ActuatorFrameCodecV2, ControlFlag, ControlProcessorV2, HeaderV2, INPUT_CLOCK_TOLERANCE_MS, INPUT_TIMEOUT_MS, PilotFlagV2, PilotReaderV2,
   PowerWriterV1, RuntimeFlagV2, SensorFrameCodecV2, SpscConsumer, StateWriterV2, UNKNOWN_U32, VehicleFlagV2, isValidPilotInputV2, newActuatorFrameV2,
   newFlightStateV2, newInput, newPilotInputV2, newSensorFrameV2, tickToNumber, validateSharedMemoryV2, validateSpscQueue,
-  type ClockModeV2, type CommandResultV2, type PhysicsHz, type ScheduledCommandV2, type ScheduledRejectV2, type TickId,
+  type ClockModeV2, type CommandResultV2, type EffectiveControl, type PhysicsHz, type ScheduledCommand, type ScheduledCommandV2, type ScheduledRejectV2, type TickId,
   type PowerTelemetrySource, type WorkerInitV2, type FlightState, type FlightStateV2, type PilotInput, type PilotInputV2, type ActuatorFrameV2, type SensorFrameV2 } from '@mirage/protocol';
 import { SteppingPolicy, newPumpReport, type StepGate } from './clock-policy.ts';
 import { DemoDynamics } from './demo-dynamics.ts';
 import { MotorFaults } from './motor-fault.ts';
-import { AIR_PRESSURE, WEATHER_GUST_RMS, WEATHER_PRESSURE, WEATHER_SEED, WEATHER_SLOTS, WEATHER_TEMPERATURE, WEATHER_WIND_DOWN, WEATHER_WIND_EAST,
+import { AIR_PRESSURE, WEATHER_AIR_KEEP, WEATHER_GUST_BANDWIDTH, WEATHER_GUST_KEEP, WEATHER_GUST_RMS, WEATHER_PRESSURE, WEATHER_TURBULENCE_INTENSITY, WEATHER_TURBULENCE_KEEP, WEATHER_TURBULENCE_SEED, WEATHER_TURBULENCE_W20, WEATHER_SEED, WEATHER_SLOTS, WEATHER_TEMPERATURE, WEATHER_WIND_DOWN, WEATHER_WIND_EAST,
   WEATHER_WIND_NORTH } from './atmosphere.ts';
 import type { LimitEvent } from './limit-monitor.ts';
 import type { AccidentEvent } from './accident.ts';
@@ -27,6 +27,10 @@ const STANDARD_GRAVITY_MPS2 = 9.80665;
 const EW_REGISTRY_FULL: ScheduledRejectV2 = { code: 'OVERLOAD', message: 'EW fault registry is full' };
 const EW_FAULT_REJECTED: ScheduledRejectV2 = { code: 'OUT_OF_RANGE', message: 'EW fault command was rejected' };
 const NOT_MODELED: ScheduledRejectV2 = { code: 'BAD_STATE', message: 'The backend cannot model this scheduled command' };
+/** TASK-166: the environment effects a session holds at once. */
+const ENVIRONMENT_WIND = 1, ENVIRONMENT_GUST = 2, ENVIRONMENT_ATMOSPHERE = 4, ENVIRONMENT_TURBULENCE = 8,
+  /** What a weather.set states; turbulence is not among them. */
+  ENVIRONMENT_WEATHER_SET = 7;
 /**
  * ISA troposphere (US Standard Atmosphere 1976): p = p0 (1 - L h / T0)^(g M / (R L)),
  * L/T0 = 0.0065/288.15 = 2.25577e-5 1/m, exponent 5.25588. Valid 0..11 km; the
@@ -78,7 +82,23 @@ export interface SessionFaultPort {
    */
   bindMotors(motors: MotorFaults | null): void;
   advanceInto(context: SessionFaultContext): boolean;
+  /** TASK-169: what the effects ask of the state line to ArduPilot, written without allocating after each step. */
+  deliveryInto?(target: SessionDelivery): void;
   readonly flags: number;
+}
+/** What the link to ArduPilot holds back, drops or moves, read at every reply; the session changes it in place. */
+export interface SessionDelivery {
+  /** DELIVERY_* bits (TASK-168). */
+  mask: number;
+  /** A link is there to act on it. */
+  attached: boolean;
+  /** TASK-169: the GNSS offset and velocity added to what ArduPilot receives, NED; truth is untouched. Used while `gnssActive`. */
+  readonly gnssOffsetNedM: Float64Array;
+  readonly gnssVelocityNedMps: Float64Array;
+  /** TASK-169: the rotation of ArduPilot's magnetometer reading, w x y z. Used while `magActive`. */
+  readonly magRotationWxyz: Float64Array;
+  gnssActive: boolean;
+  magActive: boolean;
 }
 
 /** A cold-selected dynamics implementation owns integration; the session owns transport. */
@@ -116,8 +136,10 @@ export interface SessionDynamics {
    * is the wind of the last step and `air` the ISA air at the CG after it (the AIR_* slots).
    */
   setWeather?(weather: Float64Array): string | null;
+  /** TASK-166: ends the weather at its tick boundary, allocation-free: as if no weather had been set. */
+  clearWeather?(): void;
   readonly weatherActive?: boolean;
-  /** TASK-148: the air follows the CG's height (a weather or the location's origin air); the session publishes `air`'s pressure. */
+  /** TASK-166, TASK-148: `air` holds the air at the CG, of a weather or of the location's origin air; otherwise the configured atmosphere is in place. */
   readonly airActive?: boolean;
   /** TASK-148: gravity the dynamics applies, m/s² down; the published specific force subtracts it. Absent: 9.80665. */
   readonly gravityMps2?: number;
@@ -138,9 +160,17 @@ interface PreparedModel { readonly modelId: number; readonly factory: (hz: Physi
 export class PhysicsSessionV2 {
   /** The wind of the latest tick (TASK-093): while a weather.set is in effect, the dynamics' NED wind, m/s; the object never changes. */
   readonly wind = { nedMps: new Float64Array(3), active: false };
+  /**
+   * TASK-168, TASK-169: what the link to ArduPilot holds back, drops or moves, read at every reply. Truth is untouched. The object stays
+   * the same; its fields change in place, at tick boundaries and after each step.
+   */
+  readonly delivery: SessionDelivery = { mask: 0, attached: false, gnssOffsetNedM: new Float64Array(3), gnssVelocityNedMps: new Float64Array(3),
+    magRotationWxyz: new Float64Array([1, 0, 0, 0]), gnssActive: false, magActive: false };
   /** TASK-093: a due weather.set in the WEATHER_* slots, and its reject, whose message is the dynamics' reason. */
   private readonly weather = new Float64Array(WEATHER_SLOTS);
   private readonly weatherReject: { code: 'OUT_OF_RANGE'; message: string } = { code: 'OUT_OF_RANGE', message: '' };
+  /** TASK-166: which environment effects are on (ENVIRONMENT_* bits); their values stay in `weather`. Empty at the start of each epoch. */
+  private environment = 0;
   private readonly writer: StateWriterV2;
   private readonly pilotReader: PilotReaderV2;
   private readonly actuators: SpscConsumer;
@@ -318,8 +348,19 @@ export class PhysicsSessionV2 {
     this.dynamics.dispose?.();
     this.writer.setRuntimeFlags(0);
   }
+  /** A link to ArduPilot opened or closed (TASK-168). */
+  attachDelivery(attached: boolean): void {
+    this.delivery.attached = attached;
+    if (!attached) this.clearDelivery();
+  }
+  private clearDelivery(): void {
+    const delivery = this.delivery;
+    delivery.mask = 0; delivery.gnssActive = false; delivery.magActive = false;
+  }
   reset(seed: number): void {
     this.dynamics.reset();
+    this.environment = 0;
+    this.clearDelivery();
     this.faultSeed = seed >>> 0;
     this.faults?.reset(this.faultSeed);
   }
@@ -327,6 +368,8 @@ export class PhysicsSessionV2 {
     const next = this.dynamicsFactory(hz);
     this.dynamics.dispose?.();
     this.dynamics = next;
+    this.environment = 0;
+    this.clearDelivery();
     // The new epoch starts fault-free, as after sim.reset, keeping the last reset's seed.
     this.bindMotorFaults();
     this.faults?.reset(this.faultSeed);
@@ -360,11 +403,13 @@ export class PhysicsSessionV2 {
     this.dynamics.dispose?.();
     this.dynamics = prepared.dynamics;
     this.dynamicsFactory = prepared.factory;
+    this.environment = 0;
+    this.clearDelivery();
     // As after sim.configure: the new model's motors get their own table and the new epoch starts fault-free.
     this.bindMotorFaults();
     this.faults?.reset(this.faultSeed);
   }
-  applyScheduled(command: ScheduledCommandV2, tick: TickId): ScheduledRejectV2 | null {
+  applyScheduled(command: ScheduledCommand, tick: TickId): ScheduledRejectV2 | null {
     // TASK-093: weather.set takes effect on its tick, before that tick's step; one the model refuses faults the session.
     if (command.type === "weather.set") {
       if (!this.dynamics.setWeather) return NOT_MODELED;
@@ -372,12 +417,83 @@ export class PhysicsSessionV2 {
       w[WEATHER_WIND_NORTH] = wind[0]; w[WEATHER_WIND_EAST] = wind[1]; w[WEATHER_WIND_DOWN] = wind[2];
       w[WEATHER_GUST_RMS] = command.turbulenceRmsMps; w[WEATHER_SEED] = command.seed;
       w[WEATHER_TEMPERATURE] = command.temperatureK; w[WEATHER_PRESSURE] = command.pressurePa;
-      const reason = this.dynamics.setWeather(w);
-      if (reason === null) return null;
-      this.weatherReject.message = reason;
-      this.enterFault(reason);
-      return this.weatherReject;
+      w[WEATHER_GUST_BANDWIDTH] = WEATHER_SET_GUST_BANDWIDTH_HZ; w[WEATHER_GUST_KEEP] = 0; w[WEATHER_AIR_KEEP] = 0;
+      if ((this.environment & ENVIRONMENT_TURBULENCE) === 0) w[WEATHER_TURBULENCE_W20] = 0;
+      w[WEATHER_TURBULENCE_KEEP] = 1;
+      this.environment |= ENVIRONMENT_WEATHER_SET;
+      return this.applyWeather();
     }
+    if (command.type === "effect.set") {
+      const effective = command.effective;
+      switch (effective.family) {
+        case "environment": return this.applyEnvironment(effective);
+        case "fault": return this.applyFault(effective.fault, tick);
+        case "delivery": {
+          const mask = this.delivery.mask;
+          this.delivery.mask = effective.active ? mask | effective.bit : mask & ~effective.bit;
+          return null;
+        }
+        // Admission keeps these out of the queue.
+        case "sensor": case "ardupilot": return NOT_MODELED;
+        default: { const never: never = effective; throw new Error(`Unhandled effect ${String(never)}`); }
+      }
+    }
+    return this.applyFault(command, tick);
+  }
+  /** TASK-166: one environment effect's values at its tick. With none left on the weather ends, so an effect that was never on changes nothing. */
+  private applyEnvironment(control: Extract<EffectiveControl, { family: "environment" }>): ScheduledRejectV2 | null {
+    if (!this.dynamics.setWeather) return NOT_MODELED;
+    const w = this.weather, before = this.environment, on = control.active;
+    // Changing the wind or the air leaves a running gust alone; only a change of the gust itself starts it again.
+    let bit: number, keepGust = 1, keepTurbulence = 1;
+    switch (control.effect) {
+      case "wind.mean": {
+        bit = ENVIRONMENT_WIND;
+        const wind = control.windNedMps;
+        w[WEATHER_WIND_NORTH] = on ? wind[0] : 0; w[WEATHER_WIND_EAST] = on ? wind[1] : 0; w[WEATHER_WIND_DOWN] = on ? wind[2] : 0;
+        break;
+      }
+      case "wind.gust":
+        bit = ENVIRONMENT_GUST; keepGust = 0;
+        w[WEATHER_GUST_RMS] = on ? control.rmsMps : 0; w[WEATHER_GUST_BANDWIDTH] = control.bandwidthHz; w[WEATHER_SEED] = control.seed;
+        break;
+      case "atmosphere":
+        bit = ENVIRONMENT_ATMOSPHERE;
+        w[WEATHER_TEMPERATURE] = control.temperatureK; w[WEATHER_PRESSURE] = control.pressurePa;
+        break;
+      case "wind.turbulence":
+        bit = ENVIRONMENT_TURBULENCE; keepTurbulence = 0;
+        w[WEATHER_TURBULENCE_W20] = on ? control.w20Mps : 0; w[WEATHER_TURBULENCE_INTENSITY] = control.intensity; w[WEATHER_TURBULENCE_SEED] = control.seed;
+        break;
+      default: { const never: never = control; throw new Error(`Unhandled environment effect ${String(never)}`); }
+    }
+    const after = on ? before | bit : before & ~bit;
+    this.environment = after;
+    // None on: the weather ends, and an effect that was never on calls nothing, so it cannot differ from an absent one.
+    if (after === 0) {
+      if (before !== 0) this.dynamics.clearWeather?.();
+      return null;
+    }
+    // The first effect on: nothing of an earlier weather comes back, and what is off holds no wind and no gust.
+    if (before === 0) {
+      keepGust = 0;
+      if (bit !== ENVIRONMENT_WIND) { w[WEATHER_WIND_NORTH] = 0; w[WEATHER_WIND_EAST] = 0; w[WEATHER_WIND_DOWN] = 0; }
+      if (bit !== ENVIRONMENT_GUST) { w[WEATHER_GUST_RMS] = 0; w[WEATHER_GUST_BANDWIDTH] = 0; w[WEATHER_SEED] = 0; }
+      if (bit !== ENVIRONMENT_TURBULENCE) { w[WEATHER_TURBULENCE_W20] = 0; w[WEATHER_TURBULENCE_INTENSITY] = 0; w[WEATHER_TURBULENCE_SEED] = 0; }
+    }
+    w[WEATHER_GUST_KEEP] = keepGust;
+    w[WEATHER_TURBULENCE_KEEP] = keepTurbulence;
+    w[WEATHER_AIR_KEEP] = (after & ENVIRONMENT_ATMOSPHERE) !== 0 ? 0 : 1;
+    return this.applyWeather();
+  }
+  private applyWeather(): ScheduledRejectV2 | null {
+    const reason = this.dynamics.setWeather?.(this.weather) ?? null;
+    if (reason === null) return null;
+    this.weatherReject.message = reason;
+    this.enterFault(reason);
+    return this.weatherReject;
+  }
+  private applyFault(command: Extract<ScheduledCommandV2, { type: "fault.set" }>, tick: TickId): ScheduledRejectV2 | null {
     // Admission keeps fault.set without the EW port out of the queue.
     if (!this.faults) return NOT_MODELED;
     const result = this.faults.apply(command, tick);
@@ -386,11 +502,26 @@ export class PhysicsSessionV2 {
     this.enterFault(failure.message);
     return failure;
   }
-  unsupportedReason(command: ScheduledCommandV2): string | null {
+  unsupportedReason(command: ScheduledCommand): string | null {
     if (command.type === "weather.set") {
       return this.dynamics.setWeather ? null : "The demo backend has no atmosphere/wind model; weather.set is not supported";
     }
-    if (!this.faults) return "The demo backend has no sensor or fault model; fault.set is not supported";
+    if (command.type === "effect.set") {
+      const effective = command.effective;
+      switch (effective.family) {
+        case "environment":
+          return this.dynamics.setWeather ? null : `The demo backend has no atmosphere/wind model; ${command.control.effect} is not supported`;
+        case "fault": return this.unsupportedFault(effective.fault, command.control.effect);
+        case "sensor": return `A running session cannot change ${command.control.effect}; sensor errors are set on the Sensors tab, before the run`;
+        case "delivery": return this.delivery.attached ? null : `${command.control.effect} acts on the link to ArduPilot, and this session has none`;
+        case "ardupilot": return `${command.control.effect} is ArduPilot's own fault parameter, which the run controller writes; a session cannot apply it`;
+        default: { const never: never = effective; throw new Error(`Unhandled effect ${String(never)}`); }
+      }
+    }
+    return this.unsupportedFault(command, "fault.set");
+  }
+  private unsupportedFault(command: Extract<ScheduledCommandV2, { type: "fault.set" }>, name: string): string | null {
+    if (!this.faults) return `The demo backend has no sensor or fault model; ${name} is not supported`;
     if (command.effect.kind === "motor-loss" && !this.motorFaults) {
       return "The active dynamics has no per-motor model; motor-loss is not supported";
     }
@@ -527,6 +658,7 @@ export class PhysicsSessionV2 {
       context.simTimeS = tickToNumber(tick) / this.policy.hz;
       context.northM = d.north; context.eastM = d.east; context.downM = d.down;
       if (!this.faults.advanceInto(context)) this.enterFault("EW step rejected");
+      if (this.delivery.attached) this.faults.deliveryInto?.(this.delivery);
     }
     if (this.dynamics.fault) this.enterFault(this.dynamics.fault);
     // Presentation time is the scheduled deadline in the shared wall timebase; freshness above used actual time.
@@ -562,7 +694,7 @@ export class PhysicsSessionV2 {
     // Only a dynamics with an electrical drive reports a bus current (TASK-092); the demo has none.
     s.batteryVoltage = d.batteryVoltage; const electrical = this.dynamics.electrical; s.batteryCurrentA = electrical ? electrical[2]! : 0;
     // The weather's (TASK-093) or the location's (TASK-148) ISA air at the CG, or the standard atmosphere with the origin at mean sea level.
-    const air = calm && this.dynamics.airActive !== true ? undefined : this.dynamics.air;
+    const air = this.dynamics.airActive === true ? this.dynamics.air : undefined;
     s.ambientPressurePa = air ? air[AIR_PRESSURE]! : isaPressurePa(-d.down);
     s.scheduledWallTimeMs = scheduledWallMs;
     s.groundClearanceM = -d.down; s.referenceRotorRpm = this.dynamics.referenceRotorRpm ?? 0;

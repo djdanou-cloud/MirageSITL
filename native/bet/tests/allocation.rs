@@ -73,6 +73,27 @@ fn production_bound_step_allocates_zero_over_one_million_steps(){
     assert_eq!(status,0);assert_eq!(CALLS.load(Ordering::Relaxed),0);assert_eq!(BYTES.load(Ordering::Relaxed),0);
 }
 #[test]
+fn bus_solve_allocates_zero_over_one_million_steps(){
+    let _lock=TEST_LOCK.lock().unwrap();
+    let battery=Battery::new(16.8,13.2,0.018,18000.0,125.0).unwrap();
+    let motor=mirage_bet::motor::DriveMotor::new(0.085,0.013642,30.0,30.0,0.0068,0.01,0.0025).unwrap();
+    // Sixteen motors: below the limit, at it, and with some at their own current limit.
+    let mut loads=[mirage_bet::bus_solve::MotorLoad{motor,duty:0.5,omega:500.0,power_cut:false};16];
+    CALLS.store(0,Ordering::Relaxed);BYTES.store(0,Ordering::Relaxed);
+    TRACK.with(|t|t.set(true));let control=black_box(vec![0u8;32]);black_box(control);
+    TRACK.with(|t|t.set(false));assert!(CALLS.load(Ordering::Relaxed)>0 && BYTES.load(Ordering::Relaxed)>=32);
+    CALLS.store(0,Ordering::Relaxed);BYTES.store(0,Ordering::Relaxed);
+    TRACK.with(|t|t.set(true));
+    let mut bad=0u32;
+    for tick in 0..1_000_000u32 {
+        let duty=f64::from(tick%100)/99.0;
+        for load in loads.iter_mut() { load.duty=duty; load.omega=f64::from(tick%1300); }
+        if black_box(mirage_bet::bus_solve::solve(&battery,1.0,10.0,1.0/800.0,&loads)).is_err() { bad+=1; }
+    }
+    TRACK.with(|t|t.set(false));
+    assert_eq!(bad,0);assert_eq!(CALLS.load(Ordering::Relaxed),0);assert_eq!(BYTES.load(Ordering::Relaxed),0);
+}
+#[test]
 fn all_scalar_kernels_allocate_zero_over_one_million_steps() {
     let _lock=TEST_LOCK.lock().unwrap();
     let polar = PolarTable::new(

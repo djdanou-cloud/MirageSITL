@@ -39,7 +39,7 @@ export const SignalId = {
   Battery: 15,
   SensorImu: 16, SensorGnss: 17, SensorMagnetometer: 18, SensorBarometer: 19, SensorAirspeed: 20,
   AutopilotAttitude: 32, AutopilotLocalPosition: 33, AutopilotGlobalPosition: 34, AutopilotGps: 35, AutopilotEkf: 36,
-  Parameter: 64, Weather: 65, Fault: 66, Pause: 67, Accident: 68,
+  Parameter: 64, Weather: 65, Fault: 66, Pause: 67, Accident: 68, FlightTaskRequest: 69, FlightTaskAttitudeRequest: 70, LimitEvent: 71,
   /** Rows lost before the row that follows; never a signal a plan selects. */
   Gap: 127,
 } as const;
@@ -91,6 +91,14 @@ const SIGNALS: readonly SignalInfo[] = [
   { id: SignalId.Fault, name: "events.fault", group: "events", source: "event", valueType: "f64", channels: ch("1", "code", "a", "b", "c") },
   { id: SignalId.Pause, name: "events.pause", group: "events", source: "event", valueType: "f64", channels: ch("1", "paused") },
   { id: SignalId.Accident, name: "events.accident", group: "events", source: "event", valueType: "f64", channels: ch("1", "code", "a", "b", "c") },
+  // TASK-172: what a flight task requests at this moment, beside the truth signals of the same ticks; a channel is absent where the stage requests nothing of it.
+  { id: SignalId.FlightTaskRequest, name: "events.flightTask", group: "events", source: "event", valueType: "f64",
+    channels: [...ch("1", "stage", "measured"), { name: "taskTime", unit: "s" }, ...ch("m", "north", "east", "altitude"), { name: "speed", unit: "m/s" },
+      { name: "heading", unit: "deg" }, { name: "verticalSpeed", unit: "m/s" }] },
+  // TASK-173: the attitude a roll or pitch maneuver requests, at the tick of its events.flightTask row. A signal of its own, because a row must hold exactly its signal's channels: more channels on events.flightTask would make recordings already stored unreadable.
+  { id: SignalId.FlightTaskAttitudeRequest, name: "events.flightTaskAttitude", group: "events", source: "event", valueType: "f64", channels: ch("deg", "roll", "pitch") },
+  // TASK-177: the limit monitor's events, each at its own tick, so a stored experiment can say what it exceeded. A first row says the monitor reports here: a recording without this signal is older, and cannot say there were none.
+  { id: SignalId.LimitEvent, name: "events.limit", group: "events", source: "event", valueType: "f64", channels: ch("1", "code", "subject", "quantity", "edge", "value", "limit") },
 ];
 export const SIGNAL_CATALOG: readonly SignalInfo[] = Object.freeze(SIGNALS.map(signal => Object.freeze({ ...signal, channels: Object.freeze(signal.channels) })));
 const BY_ID = new Map(SIGNAL_CATALOG.map(signal => [signal.id, signal]));

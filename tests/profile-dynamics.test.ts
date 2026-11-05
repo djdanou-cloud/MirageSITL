@@ -225,6 +225,32 @@ describe('geometry and component changes change the forces', () => {
   }, 300000);
 });
 
+describe('a flight task\'s ground start (TASK-172)', () => {
+  const ground = { northM: 10, eastM: -5, headingDeg: 90 };
+  it.each([400, 800, 1200] as const)('holds position, heading and charge from the first step at %i Hz', async hz => {
+    const { derived } = await build(profileOf('quad-x'));
+    const atPad = buildProfileDynamics(derived.manifest), placed = buildProfileDynamics(derived.manifest, { initialGround: ground, initialStateOfCharge: 0.8 });
+    const body = placed.configuration.initialBody;
+    expect([...body.positionNedM]).toEqual([10, -5, atPad.configuration.initialBody.positionNedM[2]]);
+    const d = profileFlightDynamics(module, placed, hz), pad = profileFlightDynamics(module, atPad, hz), pilot = newInput();
+    try {
+      for (const dynamics of [d, pad]) { dynamics.nowMs = 1000 / hz; dynamics.stepNow(pilot); }
+      expect(d.fault).toBe('');
+      expect(Math.abs(d.state.north - 10)).toBeLessThan(1e-6);
+      expect(Math.abs(d.state.east + 5)).toBeLessThan(1e-6);
+      // Heading 90: facing east. Yaw from the published attitude, against the independent definition atan2(2(wz+xy), 1-2(y²+z²)).
+      const { qw, qx, qy, qz } = d.state;
+      expect(Math.atan2(2 * (qw * qz + qx * qy), 1 - 2 * (qy * qy + qz * qz)) * 180 / Math.PI).toBeCloseTo(90, 6);
+      // The same pack at 80 % charge rests at a lower voltage than at 100 %.
+      expect(d.state.batteryVoltage).toBeLessThan(pad.state.batteryVoltage);
+    } finally { d.dispose(); pad.dispose(); }
+  }, 300000);
+  it('refuses a placement that is not finite', async () => {
+    const { derived } = await build(profileOf('quad-x'));
+    expect(() => buildProfileDynamics(derived.manifest, { initialGround: { northM: Number.NaN, eastM: 0, headingDeg: 0 } })).toThrow('finite');
+  }, 300000);
+});
+
 describe('model.load of profile dynamics through the session registry', () => {
   async function harness(withModule = true) {
     const { derived } = await build(profileOf('octa-coaxial-16'));

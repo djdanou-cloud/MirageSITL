@@ -99,7 +99,9 @@ export class OwnedProcess {
     try {
       process.kill(-this.info.pid, signal);
     } catch (error) {
-      if (!(error instanceof Error && "code" in error && error.code === "ESRCH")) throw error;
+      // ESRCH: the group is gone. EPERM: on macOS the group still exists with nothing alive in it, its members exited and not yet
+      // reaped. Either way there is nothing to signal, and this runs in the exit listener and a timer, where a throw is uncaught.
+      if (!(error instanceof Error && "code" in error && (error.code === "ESRCH" || error.code === "EPERM"))) throw error;
     }
   }
 }

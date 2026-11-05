@@ -5,16 +5,21 @@ import { PerformanceObserver, performance } from 'node:perf_hooks';
 import v8 from 'node:v8';
 import { fileURLToPath } from 'node:url';
 import { Wind } from '../packages/physics/src/wind.ts';
+import { DRYDEN_HEIGHT, DRYDEN_INPUT_SLOTS, DRYDEN_MEAN_NORTH, DRYDEN_RELATIVE_NORTH, DrydenTurbulence } from '../packages/physics/src/turbulence.ts';
 if (!globalThis.gc) {
   const child = spawnSync(process.execPath, ['--expose-gc', '--max-semi-space-size=64', '--single-threaded', fileURLToPath(import.meta.url)], { stdio: 'inherit' });
   process.exit(child.status ?? 1);
 }
+// TASK-106: one step here is the synthetic gust and the Dryden turbulence on top, coefficient refreshes included.
 const wind = new Wind({ meanNedMps: [1, 2, 3], gustRmsMps: 2, bandwidthHz: 2, hz: 400 }, 123);
 const out = new Float64Array(3), events = [], sink = { value: null };
 const observer = new PerformanceObserver(list => { for (const e of list.getEntries()) events.push(e.startTime); });
 observer.observe({ entryTypes: ['gc'] });
 function young() { return v8.getHeapSpaceStatistics().find(s => s.space_name === 'new_space').space_used_size; }
-function run(n) { for (let i = 0; i < n; i++) wind.stepInto(out); }
+const dryden = new DrydenTurbulence(400), drydenInput = new Float64Array(DRYDEN_INPUT_SLOTS), drydenSlots = new Float64Array([10, 1, 123]);
+drydenInput[DRYDEN_HEIGHT] = 30; drydenInput[DRYDEN_RELATIVE_NORTH] = 12; drydenInput[DRYDEN_MEAN_NORTH] = 3;
+dryden.setStrengthFrom(drydenSlots, 0, 1); dryden.restartFrom(drydenSlots, 2);
+function run(n) { for (let i = 0; i < n; i++) { wind.stepInto(out); dryden.stepAddInto(drydenInput, out); } }
 function control(n) { for (let i = 0; i < n; i++) sink.value = { i }; }
 const settle = () => new Promise(resolve => setTimeout(resolve, 50));
 async function window(body, n) {

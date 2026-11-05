@@ -29,6 +29,7 @@ export function createSessionFaultPort(): SessionFaultPort {
       scratch.truthDownM = context.downM;
       return engine.advanceInto(scratch);
     },
+    deliveryInto(target) { engine.deliveryInto(target); },
     get flags() { return engine.flags; },
   };
 }

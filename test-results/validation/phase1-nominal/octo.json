@@ -1,0 +1,911 @@
+{
+  "schemaVersion": 1,
+  "task": "TASK-158",
+  "configuration": {
+    "id": "octo",
+    "fixture": "octa-x",
+    "recipe": "Octa X",
+    "motors": 8,
+    "tuning": []
+  },
+  "settings": "acceptance",
+  "recordedAt": "2026-11-05T02:36:20.244Z",
+  "criteria": {
+    "physicsHz": 800,
+    "speedup": 1,
+    "takeoffAltitudeM": 5,
+    "hoverBandM": 0.5,
+    "holdSimS": 10,
+    "minimumReadings": 4,
+    "pauseWallS": 30,
+    "pauseSimS": 1,
+    "restToleranceM": 0.006,
+    "resentPerPause": 1,
+    "polar": "naca6409-neuralfoil-v1",
+    "dataflashStatuses": [
+      "complete",
+      "truncated"
+    ],
+    "steadinessSdDegS": 1
+  },
+  "stockSettings": {
+    "INS_GYRO_FILTER": 20,
+    "ATC_RAT_RLL_P": 0.135,
+    "ATC_RAT_RLL_I": 0.135,
+    "ATC_RAT_RLL_D": 0.0036,
+    "ATC_RAT_PIT_P": 0.135,
+    "ATC_RAT_PIT_I": 0.135,
+    "ATC_RAT_PIT_D": 0.0036
+  },
+  "host": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "model": "Mac17,4",
+    "chip": "Apple M5",
+    "memoryBytes": 34359738368,
+    "macOS": {
+      "productVersion": "27.2",
+      "buildVersion": "26B123"
+    },
+    "node": "v24.22.1",
+    "display": {
+      "mode": "1710 x 1107 @ 60.00Hz",
+      "pixels": "3420 x 2214"
+    },
+    "lowPowerMode": true,
+    "loadAverages": {
+      "before": [
+        1.92822265625,
+        1.51171875,
+        1.3408203125
+      ],
+      "after": [
+        1.43994140625,
+        1.45703125,
+        1.37890625
+      ]
+    }
+  },
+  "acceptanceMachine": {
+    "admitted": true,
+    "reasons": []
+  },
+  "browser": {
+    "name": "Google Chrome",
+    "executable": "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    "version": "156.0.8078.80",
+    "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36",
+    "headless": true,
+    "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)"
+  },
+  "application": {
+    "commit": "feb91c916aeaa061e8f763c871e9f682cfbc5db4",
+    "uncommitted": [
+      {
+        "status": " M",
+        "path": "CLAUDE.md",
+        "sha256": "9adb98e197019129e5d0ff5f92ed9ad2ff76469ac1f8a4630bbf4601c43bfb82"
+      },
+      {
+        "status": " M",
+        "path": "apps/web/src/instructor/Console.tsx",
+        "sha256": "a40703f160b92252216decbc860a169f9a3bcc4b70b5f17b64e0c153f3cf2535"
+      },
+      {
+        "status": " M",
+        "path": "apps/web/src/instructor/commands.ts",
+        "sha256": "4e4f0c5ea6c5110c293e1a3e4e27c3fd6c1412e05e6513873369e040e9864b41"
+      },
+      {
+        "status": " M",
+        "path": "apps/web/src/physics.worker.ts",
+        "sha256": "7e5fcc9c91bad67a8657e363c203bb7d55661b1c749649dc52419b3bb71f0b06"
+      },
+      {
+        "status": " M",
+        "path": "apps/web/src/run/session-controller.ts",
+        "sha256": "3401d7e6d15c4cc8f3e9da8265935160ba1d5b85677d52e723e5a0936cab32fd"
+      },
+      {
+        "status": " M",
+        "path": "apps/web/src/runtime.ts",
+        "sha256": "dc1d7c86c839c056f92bc36410d1cce8d1b0640d36b439233aaefe7517c93265"
+      },
+      {
+        "status": " M",
+        "path": "apps/web/src/sitl/bridge-client.ts",
+        "sha256": "3f82d8fb7bc120432b8147d8852e05af281bcd3c7f396a8936433eb578385cf6"
+      },
+      {
+        "status": " M",
+        "path": "apps/web/src/sitl/sitl-run.ts",
+        "sha256": "ef01399476fdbb75500ff63609bdb5e79586ca2af030b7d7e1a16ea758635733"
+      },
+      {
+        "status": " M",
+        "path": "apps/web/src/style.css",
+        "sha256": "c69c0a54fdcad9dec845d34cd3af632edc7f6406ea0dab400b9718c3619faa92"
+      },
+      {
+        "status": " M",
+        "path": "docs/PROJECT_ROADMAP.md",
+        "sha256": "108cbeebbf5507489fcaf73844af9960118898c4d32f5c6aa713bfd2626bb703"
+      },
+      {
+        "status": " M",
+        "path": "docs/SPECS_SHARED_MEMORY.md",
+        "sha256": "0e336c4f028547859a4168e0d712f22a79e583c0f7dd23ec33fbf548448f9417"
+      },
+      {
+        "status": " M",
+        "path": "docs/SPECS_SIMULATION_ENGINES.md",
+        "sha256": "d49da98bdc20811cac154e377a6788b2dcaac60478b1c9e2f97360fe074db283"
+      },
+      {
+        "status": " M",
+        "path": "docs/architecture.md",
+        "sha256": "3dfbff32a796e8eb7205ff400d5b675945bfad33929cdd736267a002c10d851d"
+      },
+      {
+        "status": " M",
+        "path": "docs/ru/CLAUDE.md",
+        "sha256": "1c69736311784634b0aad7b430744bf7d7688961a05cd6ec5042f43a764a385f"
+      },
+      {
+        "status": " M",
+        "path": "docs/ru/PROJECT_ROADMAP.md",
+        "sha256": "71f3ee37bcc6ee780d102ba491baafe44d76f455aaf1c4fdee5e73e6bb86da05"
+      },
+      {
+        "status": " M",
+        "path": "docs/ru/SPECS_SHARED_MEMORY.md",
+        "sha256": "03c31bd2f6b31d1592b2171756a67b7cad37c8c3667cd8e02a89107450ddb568"
+      },
+      {
+        "status": " M",
+        "path": "docs/ru/SPECS_SIMULATION_ENGINES.md",
+        "sha256": "d3876c534297c5497371244e43ba3ae1cf102e24cd51d61cde58c5b0d90783af"
+      },
+      {
+        "status": " M",
+        "path": "docs/ru/architecture.md",
+        "sha256": "f0e9753cb9bc4ecde05ba19fe35872af143bde74013d25f5cf247f296a01bd67"
+      },
+      {
+        "status": " M",
+        "path": "packages/autopilot/package.json",
+        "sha256": "42d9544b1c556a5008ffdc1eb7f24f3d762922c6de956a9ee7d3852e54ba6f4b"
+      },
+      {
+        "status": " M",
+        "path": "packages/autopilot/src/sitl-link.ts",
+        "sha256": "b19364c07e19b27329e790d00353640cbccf764f4d696759c8577aa566e0b604"
+      },
+      {
+        "status": " M",
+        "path": "packages/physics/package.json",
+        "sha256": "f87550b493d5ebca17a3cfd4256c3b7a3e8877f2da873dbf7660b3e085d129b6"
+      },
+      {
+        "status": " M",
+        "path": "packages/physics/src/atmosphere.ts",
+        "sha256": "4f3d27f56ebd5460df8d098ea23d0da018467680c64f36414c7c494b79c7d1e9"
+      },
+      {
+        "status": " M",
+        "path": "packages/physics/src/bet-dynamics.ts",
+        "sha256": "42d8b146002b4505f9685249694461f1fd5a5350b108701708974dfb80e0d5f0"
+      },
+      {
+        "status": " M",
+        "path": "packages/physics/src/session-v2.ts",
+        "sha256": "60b1cb50b53d1a3740d42af631c81657449889f3308d21f3ce6dfbbba9bdc5a6"
+      },
+      {
+        "status": " M",
+        "path": "packages/physics/src/wind.ts",
+        "sha256": "1b09b98f4c5bfd95a270fa3f6adf9a2fc8f8487d12a994c211bbf53f1a537295"
+      },
+      {
+        "status": " M",
+        "path": "packages/protocol/src/control-v2.schema.json",
+        "sha256": "2c5afc141a154b605964f4481242b4df9e1085511d520a16ae83af09330cc306"
+      },
+      {
+        "status": " M",
+        "path": "packages/protocol/src/control-v2.ts",
+        "sha256": "e71882232bac43154c3218ebf270830cf589d3f1cdc4709ef0875cf07506df6c"
+      },
+      {
+        "status": " M",
+        "path": "packages/protocol/src/index.ts",
+        "sha256": "c954efd8fa2e65005ca649f078a0be7152fe4f9257550666c1ae34cc157fae6d"
+      },
+      {
+        "status": " M",
+        "path": "packages/scenarios/src/bind.ts",
+        "sha256": "ac32da12248223cade97f3a8572fca9f4905a9edbb06ae8c8ef6a7777df38ba0"
+      },
+      {
+        "status": " M",
+        "path": "packages/scenarios/src/schema.ts",
+        "sha256": "b99bbf0207a3d45d286781dcad1f8641b96732eb7a06f9b4d19ae7bb32be14e1"
+      },
+      {
+        "status": " M",
+        "path": "packages/test-support/src/prng.ts",
+        "sha256": "4ddb70178a81f5698b684fb2694ce837f716102fa840b4edf04c9734381cfd9a"
+      },
+      {
+        "status": " M",
+        "path": "scripts/bench-wind.mjs",
+        "sha256": "0b1e65adbecf7ee36d2e5adb44bb9a8968ad2607c121f464d95ebd3adeb79cc7"
+      },
+      {
+        "status": " M",
+        "path": "scripts/build-wasm.mjs",
+        "sha256": "59740c5604971741f310bdf880e78e77ea886608fb0ce1ca47f95f54590a37d3"
+      },
+      {
+        "status": " M",
+        "path": "scripts/check-bet-runtime.mjs",
+        "sha256": "401464d6d9969ba04b56fbb001f307071afa359c20e3ccf64704b42b35d4a54c"
+      },
+      {
+        "status": " M",
+        "path": "scripts/phase1/nominal-rules.ts",
+        "sha256": "fd983873987f42474ee4f4a0d2460e4e2bec6064821574bfcaa743472bedb457"
+      },
+      {
+        "status": " M",
+        "path": "test-results/bench/wind.json",
+        "sha256": "a0bdb48cbdce9267dd97f1429b811dab06818e953244c80153687f4b8d3150b1"
+      },
+      {
+        "status": " M",
+        "path": "tests/browser/instructor.spec.ts",
+        "sha256": "b7bd9c165309cb16dbdb28a0789764327300fbf741405bb399277b0d889cf655"
+      },
+      {
+        "status": " M",
+        "path": "tests/browser/phase1-nominal.spec.ts",
+        "sha256": "69c2ee549cb6b814d2c88404465a79c166adbe454f2312ba843d0ef166a905e5"
+      },
+      {
+        "status": " M",
+        "path": "tests/control-v2.test.ts",
+        "sha256": "50d1e52ec89961f1a731ad33e64965238498d87b3466d5d83a05f80ba2cb7a6b"
+      },
+      {
+        "status": " M",
+        "path": "tests/fixtures.test.ts",
+        "sha256": "0b0b9fed61c72f6fead32292c31634b25ec2ec48e7df3dd90c0e7ae0517eb3e8"
+      },
+      {
+        "status": " M",
+        "path": "tests/fixtures/registry.json",
+        "sha256": "be9c80583dc6a771e0ee562cdfb10b67bea84e440652df7d87d8efcf414e2b2c"
+      },
+      {
+        "status": " M",
+        "path": "tests/integration/phase1-nominal.test.ts",
+        "sha256": "8c3ee823a9308fae1b8a14884b4217447a3833030a51a2afde811dcdc2bcbbd9"
+      },
+      {
+        "status": " M",
+        "path": "tests/run-controller.test.ts",
+        "sha256": "2a17a33f887f14922aa1e67c1f442366aa4dbb016d9c51373c5914cb6d27b557"
+      },
+      {
+        "status": " M",
+        "path": "tests/weather-plumbing.test.ts",
+        "sha256": "b8d96f5d08c6d96fd271c815e706b4fd2e22c1bfa9199936230c21f904243815"
+      },
+      {
+        "status": "??",
+        "path": "packages/autopilot/src/fault-effects.ts",
+        "sha256": "2ef1b95f5b87eaf25499f24361a9219d4cb07c8474d4aa50ab67ad9d7e5a94d2"
+      },
+      {
+        "status": "??",
+        "path": "packages/physics/src/turbulence.ts",
+        "sha256": "c5c1c9f133c74b8b1df7f90752f27b4ec8d3b23c4f16433b061f5c3e3f881349"
+      },
+      {
+        "status": "??",
+        "path": "packages/protocol/src/control-v3.schema.json",
+        "sha256": "2ca13543a8966c85f9b68a6478c0c6eca2fc81277ab4f702b52e40608d930971"
+      },
+      {
+        "status": "??",
+        "path": "packages/protocol/src/control-v3.ts",
+        "sha256": "4bc8a43d6e0fd01c71afd40b85ed74ee65dc4789781c38f80d63ec2e9e64a75a"
+      },
+      {
+        "status": "??",
+        "path": "scripts/phase1/acceptance-rules.ts",
+        "sha256": "c3d1843c968ada9e0010ed3d71b68708b7f83c8e2cc6c454f9fe1b7c32ca3a15"
+      },
+      {
+        "status": "??",
+        "path": "scripts/phase1/acceptance.mjs",
+        "sha256": "3cc02434a7ab10475235d2bcef2eccfcee09dd5e5578e2dd7794319d52b7d3c3"
+      },
+      {
+        "status": "??",
+        "path": "tests/control-v3.test.ts",
+        "sha256": "20a06c3fe57094679f3e8cc5c8e063d9bf44f8d12e8e3c460747d476b98d72e7"
+      },
+      {
+        "status": "??",
+        "path": "tests/delivery-effects.test.ts",
+        "sha256": "f3a16df7bf200e4f4aa448beb78b78e03c4cd5b122275ed0784a31e2cf6177ca"
+      },
+      {
+        "status": "??",
+        "path": "tests/effect-controls.test.ts",
+        "sha256": "f3fadcd5467666340a555c2009fa14d78caa0c69cbf6d0fc7023cb92edab86e4"
+      },
+      {
+        "status": "??",
+        "path": "tests/fixtures/protocol/control-v3.json",
+        "sha256": "bf38c751e697d202fb905cfbeb862604c3c1f69017fe0684da348f92c802a547"
+      },
+      {
+        "status": "??",
+        "path": "tests/phase1-acceptance.test.ts",
+        "sha256": "ed717f29b4861ee897c740462aa7626581413906117df036cd786547805a3f89"
+      },
+      {
+        "status": "??",
+        "path": "tests/sitl-fault-effects.test.ts",
+        "sha256": "dfb03ec926316ee0c3ea37c56f3da0b1a704279f2d2003fe5aa5ea09c0f40ca4"
+      },
+      {
+        "status": "??",
+        "path": "tests/turbulence.test.ts",
+        "sha256": "9b1a33ca83528c9629f4ccb43339946d34b751df59bfc0d46aebeb9c6c757153"
+      }
+    ]
+  },
+  "firmware": {
+    "id": "arducopter-8ab6afde",
+    "firmwareVersion": "ArduCopter V4.8.0-dev",
+    "commit": "8ab6afde107a91df1b5f60ade8f333cb8a61b190",
+    "binarySha256": "02066ec927d055ba302922407d8994facdcd89807dc58f5e02acf93b7afc17f7",
+    "defaultParametersSha256": "5e01345b45d1c6190b28bece5638bbdd4cf1cce35e05bbbf480ab24d2b51aa0e"
+  },
+  "verdicts": {
+    "profile-creation": {
+      "verdict": "PASS",
+      "reasons": []
+    },
+    "output-mapping": {
+      "verdict": "PASS",
+      "reasons": []
+    },
+    "start": {
+      "verdict": "PASS",
+      "reasons": []
+    },
+    "flight-task": {
+      "verdict": "PASS",
+      "reasons": []
+    },
+    "pause-resume": {
+      "verdict": "PASS",
+      "reasons": []
+    },
+    "parameter-changes": {
+      "verdict": "PASS",
+      "reasons": []
+    },
+    "recording": {
+      "verdict": "PASS",
+      "reasons": []
+    },
+    "reopen-results": {
+      "verdict": "PASS",
+      "reasons": []
+    },
+    "unsupported-refusal": {
+      "verdict": "PASS",
+      "reasons": []
+    }
+  },
+  "captures": {
+    "run": {
+      "path": "test-results/phase1/nominal/2026-11-05T02-28-41-483Z/octo.json",
+      "bytes": 11925,
+      "sha256": "d8958740773e84aae9358c5d5a13b46d9746030ad1006bfb4a92df3204a5f58f"
+    },
+    "experimentRecord": {
+      "sha256": "bf35d2ac9ccfa2ee1e264e4e296fbae08fe8863d49699ddb0915991ee3233387",
+      "launcherExperimentId": "20261105023353798-3d18239b"
+    },
+    "dataflash": [
+      {
+        "name": "00000001.BIN",
+        "bytes": 2887680,
+        "sha256": "77aa935001648eaf2d1de031f1f796f6943a859243d2df0ad6169867377cdda3",
+        "status": "truncated",
+        "records": 58048,
+        "truncatedBytes": 38,
+        "firmwareMatchesBuild": true
+      }
+    ],
+    "recording": {
+      "recordId": "8d8c9b16892f46752d72ae518de83a59",
+      "status": "closed",
+      "chunks": 115,
+      "bytes": 7116672,
+      "droppedChunks": 0,
+      "droppedRows": 0,
+      "producerLost": 0
+    },
+    "speed": {
+      "verdict": "Real time",
+      "average": 1.0010544800290497,
+      "dropped": 1,
+      "simElapsedS": 111.3,
+      "runningWallS": 111.18276000000536
+    },
+    "power": {
+      "hover": {
+        "voltageV": 16.29,
+        "currentA": 23.9,
+        "powerW": 390,
+        "commandPercent": [
+          48,
+          48,
+          48,
+          48,
+          48,
+          47,
+          47,
+          48
+        ]
+      },
+      "limitEvents": [
+        "Limited 107.88 s Motor 8: motor current at the drive's limit ended, -29.15 A (limit 30.00 A)",
+        "Limited 107.88 s Motor 7: motor current at the drive's limit ended, -29.10 A (limit 30.00 A)",
+        "Limited 107.88 s Motor 6: motor current at the drive's limit ended, -28.96 A (limit 30.00 A)",
+        "Limited 107.88 s Motor 5: motor current at the drive's limit ended, -28.70 A (limit 30.00 A)",
+        "Limited 107.88 s Motor 4: motor current at the drive's limit ended, -28.57 A (limit 30.00 A)",
+        "Limited 107.88 s Motor 3: motor current at the drive's limit ended, -28.60 A (limit 30.00 A)",
+        "Limited 107.88 s Motor 2: motor current at the drive's limit ended, -28.81 A (limit 30.00 A)",
+        "Limited 107.88 s Motor 1: motor current at the drive's limit ended, -29.05 A (limit 30.00 A)"
+      ]
+    },
+    "steadiness": {
+      "hold": {
+        "fromS": 76.6,
+        "toS": 86.6,
+        "samples": 100,
+        "roll": {
+          "sdDegS": 0.08278556092862284,
+          "peakDegS": 0.2869130074977875
+        },
+        "pitch": {
+          "sdDegS": 0.06915634515529406,
+          "peakDegS": 0.23793064057826996
+        },
+        "yaw": {
+          "sdDegS": 0.020382710125270872,
+          "peakDegS": 0.049307893961668015
+        }
+      },
+      "afterResume": {
+        "fromS": 87,
+        "toS": 97.2,
+        "samples": 102,
+        "roll": {
+          "sdDegS": 0.05442214905846894,
+          "peakDegS": 0.19208331406116486
+        },
+        "pitch": {
+          "sdDegS": 0.04938116244889797,
+          "peakDegS": 0.14686189591884613
+        },
+        "yaw": {
+          "sdDegS": 0.010764527718319246,
+          "peakDegS": 0.05269892141222954
+        }
+      }
+    },
+    "flownSettings": [
+      {
+        "name": "INS_GYRO_FILTER",
+        "value": 20
+      },
+      {
+        "name": "ATC_RAT_RLL_P",
+        "value": 0.13500000536441803
+      },
+      {
+        "name": "ATC_RAT_RLL_I",
+        "value": 0.13500000536441803
+      },
+      {
+        "name": "ATC_RAT_RLL_D",
+        "value": 0.003599999938160181
+      },
+      {
+        "name": "ATC_RAT_PIT_P",
+        "value": 0.13500000536441803
+      },
+      {
+        "name": "ATC_RAT_PIT_I",
+        "value": 0.13500000536441803
+      },
+      {
+        "name": "ATC_RAT_PIT_D",
+        "value": 0.003599999938160181
+      }
+    ]
+  },
+  "steps": {
+    "profile": {
+      "facts": {
+        "cards": [
+          {
+            "type": "motor",
+            "sha256": "0928113e054f6f3bce860c81bfda5c7202d58b0ba2c9eabc65f31ac7247fbbb0",
+            "sourceKind": "synthetic",
+            "differences": []
+          },
+          {
+            "type": "propeller",
+            "sha256": "4dff232279e8273ecf0c1a623d56abb9c0cffe00bfd69cdefb5b4132b1fa78f1",
+            "sourceKind": "synthetic",
+            "differences": []
+          },
+          {
+            "type": "esc",
+            "sha256": "578aef33f97ddae898d21f0958a6d863d4f98810bbf430f041b64cf496fc74dd",
+            "sourceKind": "synthetic",
+            "differences": []
+          },
+          {
+            "type": "battery",
+            "sha256": "591fb5ecbd635d083d27c93eec0a979e23502981cd7f1847ce54406d76ee5ef8",
+            "sourceKind": "synthetic",
+            "differences": []
+          }
+        ],
+        "sha256": "47bb1eb3e8ce6200ab911109d1651329e379ec0f8a0ae57ea160a45c1a1b6fc7",
+        "version": 1,
+        "motors": 8,
+        "differences": []
+      },
+      "error": null
+    },
+    "mapping": {
+      "facts": {
+        "frame": "Stock scripting matrix: FRAME_CLASS 15, FRAME_TYPE 1, 32-channel servo packets.",
+        "outputs": [
+          {
+            "motor": 1,
+            "output": 1
+          },
+          {
+            "motor": 2,
+            "output": 2
+          },
+          {
+            "motor": 3,
+            "output": 3
+          },
+          {
+            "motor": 4,
+            "output": 4
+          },
+          {
+            "motor": 5,
+            "output": 5
+          },
+          {
+            "motor": 6,
+            "output": 6
+          },
+          {
+            "motor": 7,
+            "output": 7
+          },
+          {
+            "motor": 8,
+            "output": 8
+          }
+        ]
+      },
+      "error": null
+    },
+    "refusal": {
+      "facts": {
+        "problems": [
+          "Output 1 is assigned to motors 1 and 2"
+        ],
+        "saveDisabled": true,
+        "layoutErrors": [
+          "The layout needs 1 to 8 arms"
+        ],
+        "versions": 1
+      },
+      "error": null
+    },
+    "start": {
+      "facts": {
+        "ready": "READY",
+        "readyAtSimS": 40.8,
+        "recordSha256": "bf35d2ac9ccfa2ee1e264e4e296fbae08fe8863d49699ddb0915991ee3233387",
+        "profileSha256": "47bb1eb3e8ce6200ab911109d1651329e379ec0f8a0ae57ea160a45c1a1b6fc7",
+        "physicsHz": 800,
+        "clockMode": "sitl-lockstep",
+        "speedup": 1,
+        "firmware": {
+          "id": "arducopter-8ab6afde",
+          "firmwareVersion": "ArduCopter V4.8.0-dev",
+          "commit": "8ab6afde107a91df1b5f60ade8f333cb8a61b190",
+          "binarySha256": "02066ec927d055ba302922407d8994facdcd89807dc58f5e02acf93b7afc17f7",
+          "defaultParametersSha256": "5e01345b45d1c6190b28bece5638bbdd4cf1cce35e05bbbf480ab24d2b51aa0e"
+        },
+        "hashed": {
+          "binarySha256": "02066ec927d055ba302922407d8994facdcd89807dc58f5e02acf93b7afc17f7",
+          "defaultParametersSha256": "5e01345b45d1c6190b28bece5638bbdd4cf1cce35e05bbbf480ab24d2b51aa0e"
+        }
+      },
+      "error": null
+    },
+    "parameters": {
+      "facts": {
+        "writes": [
+          {
+            "name": "RTL_ALT_FINAL_M",
+            "value": 1,
+            "outcome": "confirmed",
+            "rebootRequired": false,
+            "shown": "1"
+          }
+        ]
+      },
+      "error": null
+    },
+    "reopen": {
+      "facts": {
+        "listed": 1,
+        "recordId": "8d8c9b16892f46752d72ae518de83a59",
+        "recordingText": "50 Hz common rate, record 8d8c9b16892f46752d72ae518de83a59",
+        "profileText": "Octa X, version 1",
+        "truthRows": 5626,
+        "missingChunks": 0,
+        "corruptChunks": 0
+      },
+      "error": null
+    },
+    "tuning": {
+      "facts": {
+        "writes": []
+      },
+      "error": null
+    },
+    "motorCheck": {
+      "facts": {
+        "state": "passed",
+        "summary": "All 8 motors turn as the profile and ArduPilot's frame expect.",
+        "rows": [
+          {
+            "motor": 1,
+            "output": 1,
+            "order": 1,
+            "pass": true
+          },
+          {
+            "motor": 2,
+            "output": 2,
+            "order": 2,
+            "pass": true
+          },
+          {
+            "motor": 3,
+            "output": 3,
+            "order": 3,
+            "pass": true
+          },
+          {
+            "motor": 4,
+            "output": 4,
+            "order": 4,
+            "pass": true
+          },
+          {
+            "motor": 5,
+            "output": 5,
+            "order": 5,
+            "pass": true
+          },
+          {
+            "motor": 6,
+            "output": 6,
+            "order": 6,
+            "pass": true
+          },
+          {
+            "motor": 7,
+            "output": 7,
+            "order": 7,
+            "pass": true
+          },
+          {
+            "motor": 8,
+            "output": 8,
+            "order": 8,
+            "pass": true
+          }
+        ]
+      },
+      "error": null
+    },
+    "hold": {
+      "facts": {
+        "stage": "Flying",
+        "armed": "Armed",
+        "mode": "GUIDED",
+        "startSimS": 76.6,
+        "endSimS": 86.6,
+        "readingsM": [
+          4.91,
+          4.91,
+          4.92,
+          4.92,
+          4.93,
+          4.94,
+          4.95,
+          4.95,
+          4.95,
+          4.96,
+          4.96,
+          4.96,
+          4.97,
+          4.97,
+          4.97,
+          4.97,
+          4.97,
+          4.97,
+          4.96,
+          4.96,
+          4.96,
+          4.97,
+          4.97,
+          4.97,
+          4.97,
+          4.97,
+          4.97,
+          4.97,
+          4.98,
+          4.98,
+          4.98,
+          4.98,
+          4.98,
+          4.98,
+          4.98,
+          4.98
+        ]
+      },
+      "error": null
+    },
+    "pause": {
+      "facts": {
+        "stage": "paused",
+        "before": {
+          "simS": 87,
+          "altitudeM": 4.99,
+          "stepped": 69520
+        },
+        "after": {
+          "simS": 87,
+          "altitudeM": 4.99,
+          "stepped": 69520
+        },
+        "wallS": 31.334,
+        "resumedStage": "Flying",
+        "resumedAtSimS": 87,
+        "hold": {
+          "stage": "Flying",
+          "armed": "Armed",
+          "mode": "GUIDED",
+          "startSimS": 87,
+          "endSimS": 97.2,
+          "readingsM": [
+            4.99,
+            4.99,
+            4.99,
+            4.99,
+            4.99,
+            4.99,
+            4.99,
+            4.99,
+            4.99,
+            4.99,
+            4.99,
+            4.99,
+            4.99,
+            4.99,
+            4.99,
+            4.99,
+            4.99,
+            4.99,
+            4.99,
+            4.99,
+            4.99,
+            4.99,
+            4.99,
+            4.99,
+            4.99,
+            4.99,
+            4.99,
+            4.99,
+            4.99,
+            4.99,
+            4.99,
+            4.99,
+            4.99,
+            4.99,
+            4.99,
+            4.99
+          ]
+        },
+        "failsafeMessages": [],
+        "log": {
+          "count": 1,
+          "reason": "user",
+          "wallS": 32.4
+        }
+      },
+      "error": null
+    },
+    "landing": {
+      "facts": {
+        "mode": "LAND",
+        "armed": "Disarmed",
+        "state": "ready",
+        "ready": "READY",
+        "altitudeM": 0.01,
+        "restAltitudeM": 0.008498931354359925,
+        "frames": "89920 stepped, 0 lost, 0 resent, 28 held",
+        "failsafeMessages": []
+      },
+      "error": null
+    },
+    "stop": {
+      "facts": {
+        "state": "idle",
+        "text": "Run 20261105023353798-3d18239b stopped",
+        "launcherState": "stopped",
+        "group": "",
+        "members": [],
+        "signalZero": "ESRCH",
+        "processes": 0
+      },
+      "error": null
+    }
+  },
+  "sources": {
+    "tests/browser/phase1-nominal.spec.ts": "69c2ee549cb6b814d2c88404465a79c166adbe454f2312ba843d0ef166a905e5",
+    "scripts/phase1/nominal-flight.mjs": "13c12ae3cc46e79056620a03d80e6e2cd2e584cdda4f363e01155f654b662cc3",
+    "scripts/phase1/nominal-rules.ts": "fd983873987f42474ee4f4a0d2460e4e2bec6064821574bfcaa743472bedb457",
+    "tests/support/aircraft-ui.ts": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f",
+    "tests/support/aircraft-recipes.ts": "e4d5d0f1c99e06af4f11b633dae321a24e1a33247ad4a58da6207fee323236b1",
+    "tests/support/run-tab.ts": "515f411108f47cf7aa6601e1088004f27fd8e556ab342f748aaea1d33c5cab73",
+    "tests/support/standard-gear.ts": "7c43a4427fe7b8f56159990b8d3f99e4f2ef534e6cd563b247543aae3b1cb22d",
+    "playwright.config.ts": "0e76e629e0d560d9b4363f171f8008c71a072c74691f12daa33009e35abce9fb",
+    "tests/fixtures/components/motor-example.json": "8da613982ca1f4f6bc5cfa06a397426a2d0d1da3342e156c8d54f02622e2aece",
+    "tests/fixtures/components/propeller-example.json": "5944eeec045d0e449fe566be13142adef275dda27b4c6f57e6583e68addc36a5",
+    "tests/fixtures/components/esc-example.json": "50ef8893d000123e59b46d056733425eb442486f57330ef87f2d2f403fb0d40c",
+    "tests/fixtures/components/battery-example.json": "fe5ca2675ac0111195ca9d432e91e1c63f1244f0f8cdb2fb4cbe6ad62fe1b396",
+    "tests/fixtures/aircraft/quad-x.json": "946e68eba8c9312e431b407cea5107f7b99ead07dcb119d1c1b618850e1227b5",
+    "tests/fixtures/aircraft/hexa-x.json": "ec2cab44bb8ada5eb1cb17d2bcad0ecae5166a848009a113f5f1c81dd09a8e6b",
+    "tests/fixtures/aircraft/octa-x.json": "336735320d7f75b5839a6489cd3f7311dc1fdc0be86c8116889c204fd66d03e6",
+    "tests/fixtures/aircraft/coaxial-x8.json": "5aec44294071a65d8a2c486cfacf4a05ed7a80573c9ade253a578901d524244e",
+    "tests/fixtures/aircraft/octa-coaxial-16.json": "89d559537cbf5c4cb58495b8b4f19054ff48b6f86f867a1c7abcb68d58ceb6b9"
+  }
+}

@@ -1,0 +1,665 @@
+{
+  "schemaVersion": 1,
+  "task": "TASK-158",
+  "configuration": {
+    "id": "quad",
+    "fixture": "quad-x",
+    "recipe": "Quad X",
+    "motors": 4,
+    "tuning": [
+      {
+        "name": "INS_GYRO_FILTER",
+        "value": 40
+      }
+    ]
+  },
+  "settings": "stock",
+  "recordedAt": "2026-11-04T20:14:58.101Z",
+  "criteria": {
+    "physicsHz": 800,
+    "speedup": 1,
+    "takeoffAltitudeM": 5,
+    "hoverBandM": 0.5,
+    "holdSimS": 10,
+    "minimumReadings": 4,
+    "pauseWallS": 30,
+    "pauseSimS": 1,
+    "restToleranceM": 0.006,
+    "resentPerPause": 1,
+    "polar": "naca6409-neuralfoil-v1",
+    "dataflashStatuses": [
+      "complete",
+      "truncated"
+    ],
+    "steadinessSdDegS": 1
+  },
+  "stockSettings": {
+    "INS_GYRO_FILTER": 20,
+    "ATC_RAT_RLL_P": 0.135,
+    "ATC_RAT_RLL_I": 0.135,
+    "ATC_RAT_RLL_D": 0.0036,
+    "ATC_RAT_PIT_P": 0.135,
+    "ATC_RAT_PIT_I": 0.135,
+    "ATC_RAT_PIT_D": 0.0036
+  },
+  "host": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "model": "Mac17,4",
+    "chip": "Apple M5",
+    "memoryBytes": 34359738368,
+    "macOS": {
+      "productVersion": "27.2",
+      "buildVersion": "26B123"
+    },
+    "node": "v24.22.1",
+    "display": {
+      "mode": "1710 x 1107 @ 60.00Hz",
+      "pixels": "3420 x 2214"
+    },
+    "lowPowerMode": true,
+    "loadAverages": {
+      "before": [
+        1.365234375,
+        1.6728515625,
+        1.625
+      ],
+      "after": [
+        1.73193359375,
+        1.6904296875,
+        1.6376953125
+      ]
+    }
+  },
+  "acceptanceMachine": {
+    "admitted": true,
+    "reasons": []
+  },
+  "browser": {
+    "name": "Google Chrome",
+    "executable": "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    "version": "156.0.8078.80",
+    "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36",
+    "headless": true,
+    "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)"
+  },
+  "application": {
+    "commit": "9d490589c39291db7edbfb64ddfdcb24bd04a602",
+    "uncommitted": [
+      {
+        "status": " M",
+        "path": "docs/SPECS_SIMULATION_ENGINES.md",
+        "sha256": "ca652aa695b9930fe9322c7377c24a7cbe609f387e1a48ce3620e7b2bc4315d4"
+      },
+      {
+        "status": " M",
+        "path": "docs/ru/SPECS_SIMULATION_ENGINES.md",
+        "sha256": "20c3940c842237c151985203f0a5b7efe6bb394d282c54d0fbe16510f27bbbd8"
+      },
+      {
+        "status": " M",
+        "path": "native/bet/include/bet_bound.h",
+        "sha256": "8196dc88bae16dc7c4f27dd492459c759a3502086944e04c4d27ac6ccddd62c1"
+      },
+      {
+        "status": " M",
+        "path": "native/bet/src/battery.rs",
+        "sha256": "e86878b57f504b624f7b8e3868efe1408e3104934e189000adbb57e056ea31ec"
+      },
+      {
+        "status": " M",
+        "path": "native/bet/src/bound_v2.rs",
+        "sha256": "99e110c69b68330eb285c8a283e9e5c3bfe58d0dfefeff55d243385734e3a595"
+      },
+      {
+        "status": " M",
+        "path": "native/bet/src/bus_abi.rs",
+        "sha256": "2252b2120362d8fcd2ca4726e8b77d9509455515c99be82d4dec7e1c7d3b1697"
+      },
+      {
+        "status": " M",
+        "path": "native/bet/src/lib.rs",
+        "sha256": "f035f27fd9dddbcbc6bc9a0bcb8262b77bfa6efa8f18b13357d8c08fa3427146"
+      },
+      {
+        "status": " M",
+        "path": "native/bet/src/motor.rs",
+        "sha256": "072258fc95a561cdb85e3f4098dd7829aa675119a9a20c5ee117a4c395667bb3"
+      },
+      {
+        "status": " M",
+        "path": "native/bet/tests/allocation.rs",
+        "sha256": "8a0dd49f8ebfbbc0ce1f6b3764b801f037416943c099a9e46e82964109a3f96f"
+      },
+      {
+        "status": " M",
+        "path": "packages/physics/src/bet-dynamics.ts",
+        "sha256": "a81a1aba61904bf5b05adb9f2cc411737a5e94fc0c71819cff15b4716dd55767"
+      },
+      {
+        "status": " M",
+        "path": "packages/physics/src/thrust-capacity.ts",
+        "sha256": "7c76726cdb5b0f2c48c19e762ec7f7e025615f4f26cdaa4ba63f837eeae4f67a"
+      },
+      {
+        "status": " M",
+        "path": "packages/wasm-bet/src/rotor-v2.ts",
+        "sha256": "c7a686676317466915d55471c419bdda403b66fdf33b9a36256e487dd578c4ec"
+      },
+      {
+        "status": " M",
+        "path": "scripts/check-bet-runtime.mjs",
+        "sha256": "c5f603030be2d0c880720b408f1800cda1fc21ad776d675901f1c912c160202d"
+      },
+      {
+        "status": " M",
+        "path": "tests/browser/native-bootstrap.spec.ts",
+        "sha256": "920abb720e469e3f4ba24f2c3f7f4132efb90a42ae553303439293bfaf9be416"
+      },
+      {
+        "status": " M",
+        "path": "tests/fixtures/registry.json",
+        "sha256": "e03d2e442338aa9ecd0228fd9025cb3d028eb3ec7618bb0c926504137cc86e60"
+      },
+      {
+        "status": " M",
+        "path": "tests/fixtures/wasm-abi/generate.py",
+        "sha256": "8197dae4c02c6bd0491473807fb09f4733c6057f7af5e3903852171f5694b7f8"
+      },
+      {
+        "status": " M",
+        "path": "tests/fixtures/wasm-abi/interface-v2.json",
+        "sha256": "7a5a48ae03148f11f3eed55c364c2d0af35fb8f509520ebf9b78d698e854248e"
+      },
+      {
+        "status": " M",
+        "path": "tests/integration/flight-tasks-sitl.test.ts",
+        "sha256": "2f1c8afb7b0addc0361f8f7d04cfa23d3690770d7eb055d6c87001fef0b1daee"
+      },
+      {
+        "status": " M",
+        "path": "tests/limit-monitor.test.ts",
+        "sha256": "20c34f55e8d874327585dacdce4eba8beb9ba6a3966113d0ebafb0b70ab7adf0"
+      },
+      {
+        "status": " M",
+        "path": "tests/support/quad-profile.ts",
+        "sha256": "3dd46cefb63fe7a0b5a4e9c4ea4d98fb6f23206a843ac77b10b6d3f911ae11f6"
+      },
+      {
+        "status": " M",
+        "path": "tests/thrust-capacity.test.ts",
+        "sha256": "ffc17ce30c3460bfef63738691c7e1793a40d256461db083a4f8279cca20a052"
+      },
+      {
+        "status": " M",
+        "path": "tests/wasm-abi-v2.test.ts",
+        "sha256": "cfacac64f21bc05585b998dd506b6bb278b6921bec2d6299c82684cd2eab863c"
+      },
+      {
+        "status": "??",
+        "path": "native/bet/src/bus_solve.rs",
+        "sha256": "fa4cbf276319e6eeaf2894fc94a881227168a1a7c4fafd8292366bb7f8ece11b"
+      },
+      {
+        "status": "??",
+        "path": "native/bet/tests/bus_solve.rs",
+        "sha256": "8e59086c8591900ba56804742bc365abe46dd59097cefca3214daeab5f9ed5f4"
+      },
+      {
+        "status": "??",
+        "path": "tests/bus-coupling.test.ts",
+        "sha256": "89a49abeb67bf861b8c9e944d75acfec9177eaa423751e72090d410c1d2f9e9c"
+      }
+    ]
+  },
+  "firmware": {
+    "id": "arducopter-8ab6afde",
+    "firmwareVersion": "ArduCopter V4.8.0-dev",
+    "commit": "8ab6afde107a91df1b5f60ade8f333cb8a61b190",
+    "binarySha256": "02066ec927d055ba302922407d8994facdcd89807dc58f5e02acf93b7afc17f7",
+    "defaultParametersSha256": "5e01345b45d1c6190b28bece5638bbdd4cf1cce35e05bbbf480ab24d2b51aa0e"
+  },
+  "verdicts": {
+    "profile-creation": {
+      "verdict": "PASS",
+      "reasons": []
+    },
+    "output-mapping": {
+      "verdict": "PASS",
+      "reasons": []
+    },
+    "start": {
+      "verdict": "PASS",
+      "reasons": []
+    },
+    "flight-task": {
+      "verdict": "FAIL",
+      "reasons": [
+        "the hold: roll rate varies by 59.26 deg/s, above the 1 deg/s limit (A-13)",
+        "the hold: pitch rate varies by 1.80 deg/s, above the 1 deg/s limit (A-13)"
+      ]
+    },
+    "pause-resume": {
+      "verdict": "FAIL",
+      "reasons": [
+        "the hold after Resume: roll rate varies by 61.04 deg/s, above the 1 deg/s limit (A-13)",
+        "the hold after Resume: pitch rate varies by 1.00 deg/s, above the 1 deg/s limit (A-13)"
+      ]
+    }
+  },
+  "captures": {
+    "run": {
+      "path": "test-results/phase1/nominal/2026-11-04T20-12-34-461Z/quad.json",
+      "bytes": 10122,
+      "sha256": "d6467163294f6e54e7efa3342eb6e6b3d9cab402748c32607f60ac19d3eee7b8"
+    },
+    "experimentRecord": {
+      "sha256": "00e4bb62ce4b950c9d82121138054ddf8b65b8cbcf2e0825976e9c5ffc16e9b5",
+      "launcherExperimentId": "20261104201244279-8bf0c694"
+    },
+    "dataflash": [
+      {
+        "name": "00000001.BIN",
+        "bytes": 2568192,
+        "sha256": "5b00f2ebc545b5a8bc50092bb2125690bb93d68f69ff6dae1617f1e32a0a8cc3",
+        "status": "complete",
+        "records": 51507,
+        "truncatedBytes": 0,
+        "firmwareMatchesBuild": true
+      }
+    ],
+    "recording": {
+      "recordId": "1bbe6a428f8666cd2c352bebeb979fe6",
+      "status": "closed",
+      "chunks": 136,
+      "bytes": 6839720,
+      "droppedChunks": 0,
+      "droppedRows": 0,
+      "producerLost": 0
+    },
+    "speed": {
+      "verdict": "Real time",
+      "average": 1.0010849979871774,
+      "dropped": 0,
+      "simElapsedS": 98.9,
+      "runningWallS": 98.79281000000239
+    },
+    "power": {
+      "hover": {
+        "voltageV": 16.41,
+        "currentA": 18.5,
+        "powerW": 303,
+        "commandPercent": [
+          40,
+          47,
+          49,
+          38
+        ]
+      },
+      "limitEvents": [
+        "Limited 94.44 s Motor 3: motor current at the drive's limit ended, -28.47 A (limit 30.00 A)",
+        "Limited 94.44 s Motor 2: motor current at the drive's limit ended, -29.07 A (limit 30.00 A)",
+        "Limited 94.42 s Motor 3: motor current at the drive's limit, -30.00 A (limit 30.00 A)",
+        "Limited 94.42 s Motor 2: motor current at the drive's limit, -30.00 A (limit 30.00 A)",
+        "Limited 94.41 s Motor 4: motor current at the drive's limit ended, -22.07 A (limit 30.00 A)",
+        "Limited 94.41 s Motor 3: motor current at the drive's limit ended, 29.38 A (limit 30.00 A)",
+        "Limited 94.41 s Motor 2: motor current at the drive's limit ended, 27.41 A (limit 30.00 A)",
+        "Limited 94.40 s Motor 1: motor current at the drive's limit ended, -27.70 A (limit 30.00 A)"
+      ]
+    },
+    "steadiness": {
+      "hold": {
+        "fromS": 63,
+        "toS": 73.3,
+        "samples": 103,
+        "roll": {
+          "sdDegS": 59.258771423499454,
+          "peakDegS": 85.07701110839844
+        },
+        "pitch": {
+          "sdDegS": 1.7975246770795226,
+          "peakDegS": 4.4586992263793945
+        },
+        "yaw": {
+          "sdDegS": 0.6564139677240073,
+          "peakDegS": 1.1483031511306763
+        }
+      },
+      "afterResume": {
+        "fromS": 73.7,
+        "toS": 83.7,
+        "samples": 100,
+        "roll": {
+          "sdDegS": 61.03859953195359,
+          "peakDegS": 84.52430725097656
+        },
+        "pitch": {
+          "sdDegS": 1.0011548772023136,
+          "peakDegS": 2.0289456844329834
+        },
+        "yaw": {
+          "sdDegS": 0.6295483579133011,
+          "peakDegS": 1.0463926792144775
+        }
+      }
+    },
+    "flownSettings": [
+      {
+        "name": "INS_GYRO_FILTER",
+        "value": 20
+      },
+      {
+        "name": "ATC_RAT_RLL_P",
+        "value": 0.13500000536441803
+      },
+      {
+        "name": "ATC_RAT_RLL_I",
+        "value": 0.13500000536441803
+      },
+      {
+        "name": "ATC_RAT_RLL_D",
+        "value": 0.003599999938160181
+      },
+      {
+        "name": "ATC_RAT_PIT_P",
+        "value": 0.13500000536441803
+      },
+      {
+        "name": "ATC_RAT_PIT_I",
+        "value": 0.13500000536441803
+      },
+      {
+        "name": "ATC_RAT_PIT_D",
+        "value": 0.003599999938160181
+      }
+    ]
+  },
+  "steps": {
+    "profile": {
+      "facts": {
+        "cards": [
+          {
+            "type": "motor",
+            "sha256": "8d5eea0c0b971f78c90f6b42409b1adab6e229c3f48aa9c57c156eed7a40a283",
+            "sourceKind": "synthetic",
+            "differences": []
+          },
+          {
+            "type": "propeller",
+            "sha256": "a487ffb9270d3a03dace406ca328d52ef5b3822da96f4ff928b4e4140b67b3ed",
+            "sourceKind": "synthetic",
+            "differences": []
+          },
+          {
+            "type": "esc",
+            "sha256": "8986fb9f39d1d0ed77f7c4cd15a5bbcaace79aa181362fc94538b70b7bdb9452",
+            "sourceKind": "synthetic",
+            "differences": []
+          },
+          {
+            "type": "battery",
+            "sha256": "4d4dd570460d752e397f2605d7fd4b817f101f61c51295ed6d81491b8641ceea",
+            "sourceKind": "synthetic",
+            "differences": []
+          }
+        ],
+        "sha256": "4f02d8a0138ea93cad8949abddebb087495032d36cbbe25de9c2dd8eed060544",
+        "version": 1,
+        "motors": 4,
+        "differences": []
+      },
+      "error": null
+    },
+    "mapping": {
+      "facts": {
+        "frame": "Stock frame: FRAME_CLASS 1, FRAME_TYPE 1, 16-channel servo packets.",
+        "outputs": [
+          {
+            "motor": 1,
+            "output": 1
+          },
+          {
+            "motor": 2,
+            "output": 2
+          },
+          {
+            "motor": 3,
+            "output": 3
+          },
+          {
+            "motor": 4,
+            "output": 4
+          }
+        ]
+      },
+      "error": null
+    },
+    "start": {
+      "facts": {
+        "ready": "READY",
+        "readyAtSimS": 41.5,
+        "recordSha256": "00e4bb62ce4b950c9d82121138054ddf8b65b8cbcf2e0825976e9c5ffc16e9b5",
+        "profileSha256": "4f02d8a0138ea93cad8949abddebb087495032d36cbbe25de9c2dd8eed060544",
+        "physicsHz": 800,
+        "clockMode": "sitl-lockstep",
+        "speedup": 1,
+        "firmware": {
+          "id": "arducopter-8ab6afde",
+          "firmwareVersion": "ArduCopter V4.8.0-dev",
+          "commit": "8ab6afde107a91df1b5f60ade8f333cb8a61b190",
+          "binarySha256": "02066ec927d055ba302922407d8994facdcd89807dc58f5e02acf93b7afc17f7",
+          "defaultParametersSha256": "5e01345b45d1c6190b28bece5638bbdd4cf1cce35e05bbbf480ab24d2b51aa0e"
+        },
+        "hashed": {
+          "binarySha256": "02066ec927d055ba302922407d8994facdcd89807dc58f5e02acf93b7afc17f7",
+          "defaultParametersSha256": "5e01345b45d1c6190b28bece5638bbdd4cf1cce35e05bbbf480ab24d2b51aa0e"
+        }
+      },
+      "error": null
+    },
+    "tuning": {
+      "facts": {
+        "writes": []
+      },
+      "error": null
+    },
+    "motorCheck": {
+      "facts": {
+        "state": "passed",
+        "summary": "All 4 motors turn as the profile and ArduPilot's frame expect.",
+        "rows": [
+          {
+            "motor": 1,
+            "output": 1,
+            "order": 1,
+            "pass": true
+          },
+          {
+            "motor": 4,
+            "output": 4,
+            "order": 2,
+            "pass": true
+          },
+          {
+            "motor": 2,
+            "output": 2,
+            "order": 3,
+            "pass": true
+          },
+          {
+            "motor": 3,
+            "output": 3,
+            "order": 4,
+            "pass": true
+          }
+        ]
+      },
+      "error": null
+    },
+    "hold": {
+      "facts": {
+        "stage": "Flying",
+        "armed": "Armed",
+        "mode": "GUIDED",
+        "startSimS": 63,
+        "endSimS": 73.3,
+        "readingsM": [
+          5,
+          4.99,
+          4.99,
+          5,
+          5,
+          5.01,
+          5.02,
+          5.03,
+          5.03,
+          5.03,
+          5.04,
+          5.04,
+          5.05,
+          5.05,
+          5.05,
+          5.05,
+          5.05,
+          5.05,
+          5.05,
+          5.04,
+          5.04,
+          5.04,
+          5.04,
+          5.04,
+          5.04,
+          5.05,
+          5.05,
+          5.05,
+          5.05,
+          5.05,
+          5.05,
+          5.06,
+          5.06,
+          5.06,
+          5.06,
+          5.06,
+          5.06
+        ]
+      },
+      "error": null
+    },
+    "pause": {
+      "facts": {
+        "stage": "paused",
+        "before": {
+          "simS": 73.4,
+          "altitudeM": 5.06,
+          "stepped": 58720
+        },
+        "after": {
+          "simS": 73.4,
+          "altitudeM": 5.06,
+          "stepped": 58720
+        },
+        "wallS": 31.272,
+        "resumedStage": "Flying",
+        "resumedAtSimS": 73.4,
+        "hold": {
+          "stage": "Flying",
+          "armed": "Armed",
+          "mode": "GUIDED",
+          "startSimS": 73.7,
+          "endSimS": 83.7,
+          "readingsM": [
+            5.06,
+            5.07,
+            5.07,
+            5.07,
+            5.07,
+            5.07,
+            5.07,
+            5.07,
+            5.07,
+            5.07,
+            5.07,
+            5.07,
+            5.07,
+            5.07,
+            5.07,
+            5.07,
+            5.07,
+            5.07,
+            5.07,
+            5.07,
+            5.07,
+            5.07,
+            5.07,
+            5.07,
+            5.07,
+            5.07,
+            5.07,
+            5.07,
+            5.07,
+            5.07,
+            5.07,
+            5.07,
+            5.07,
+            5.07,
+            5.07,
+            5.07,
+            5.07
+          ]
+        },
+        "failsafeMessages": [],
+        "log": {
+          "count": 1,
+          "reason": "user",
+          "wallS": 32.5
+        }
+      },
+      "error": null
+    },
+    "landing": {
+      "facts": {
+        "mode": "LAND",
+        "armed": "Disarmed",
+        "state": "ready",
+        "ready": "READY",
+        "altitudeM": 0.1,
+        "restAltitudeM": 0.0999951111111111,
+        "frames": "80000 stepped, 0 lost, 0 resent, 28 held",
+        "failsafeMessages": []
+      },
+      "error": null
+    },
+    "stop": {
+      "facts": {
+        "state": "idle",
+        "text": "Run 20261104201244279-8bf0c694 stopped",
+        "launcherState": "stopped",
+        "group": "",
+        "members": [],
+        "signalZero": "ESRCH",
+        "processes": 0
+      },
+      "error": null
+    }
+  },
+  "sources": {
+    "tests/browser/phase1-nominal.spec.ts": "9493c6ad1eb3030dc8700fc4a8dc9762a940994a415265ea72f53ad63c090747",
+    "scripts/phase1/nominal-flight.mjs": "13c12ae3cc46e79056620a03d80e6e2cd2e584cdda4f363e01155f654b662cc3",
+    "scripts/phase1/nominal-rules.ts": "1befdd06a787a338c53b0feb95c57d58bff023c82ec0cca76905591900643205",
+    "tests/support/aircraft-ui.ts": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f",
+    "tests/support/aircraft-recipes.ts": "e4d5d0f1c99e06af4f11b633dae321a24e1a33247ad4a58da6207fee323236b1",
+    "tests/support/run-tab.ts": "d6401fb950087ec3b84bb5c3eb149ddb9ceefcb7b97129dfae198f09db11dd0d",
+    "tests/support/standard-gear.ts": "7c43a4427fe7b8f56159990b8d3f99e4f2ef534e6cd563b247543aae3b1cb22d",
+    "playwright.config.ts": "0e76e629e0d560d9b4363f171f8008c71a072c74691f12daa33009e35abce9fb",
+    "tests/fixtures/components/motor-example.json": "8da613982ca1f4f6bc5cfa06a397426a2d0d1da3342e156c8d54f02622e2aece",
+    "tests/fixtures/components/propeller-example.json": "5944eeec045d0e449fe566be13142adef275dda27b4c6f57e6583e68addc36a5",
+    "tests/fixtures/components/esc-example.json": "50ef8893d000123e59b46d056733425eb442486f57330ef87f2d2f403fb0d40c",
+    "tests/fixtures/components/battery-example.json": "fe5ca2675ac0111195ca9d432e91e1c63f1244f0f8cdb2fb4cbe6ad62fe1b396",
+    "tests/fixtures/aircraft/quad-x.json": "946e68eba8c9312e431b407cea5107f7b99ead07dcb119d1c1b618850e1227b5",
+    "tests/fixtures/aircraft/hexa-x.json": "ec2cab44bb8ada5eb1cb17d2bcad0ecae5166a848009a113f5f1c81dd09a8e6b",
+    "tests/fixtures/aircraft/octa-x.json": "336735320d7f75b5839a6489cd3f7311dc1fdc0be86c8116889c204fd66d03e6",
+    "tests/fixtures/aircraft/coaxial-x8.json": "5aec44294071a65d8a2c486cfacf4a05ed7a80573c9ade253a578901d524244e",
+    "tests/fixtures/aircraft/octa-coaxial-16.json": "89d559537cbf5c4cb58495b8b4f19054ff48b6f86f867a1c7abcb68d58ceb6b9"
+  }
+}

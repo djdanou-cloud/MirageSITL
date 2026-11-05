@@ -189,7 +189,9 @@ test("every tab fits 390 px without horizontal overflow and has no axe violation
     await tab(page, name).click();
     await expect(panel(page, name)).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), name).toBe(true);
-    const result = await new AxeBuilder({ page }).analyze();
+    // The Analysis tab embeds the upstream UAVLogViewer (TASK-179) when a build is served. This scan covers
+    // MirageSITL's own page; the viewer's own violations are listed as open in docs/decisions/uavlogviewer.md.
+    const result = await new AxeBuilder({ page }).exclude("iframe[title=UAVLogViewer]").analyze();
     expect(result.violations.map(v => ({ tab: name, id: v.id, nodes: v.nodes.map(n => n.target) }))).toEqual([]);
   }
 });

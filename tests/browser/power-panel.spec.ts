@@ -5,7 +5,8 @@ import { readFileSync } from 'node:fs';
 import { viteFileUrl } from '../support/vite-url';
 
 // TASK-146: the application's physics Worker runs a quad X profile on the
-// example cards with a 2 A pack limit and a 10 W motor power rating. The
+// example cards with a 2 A pack limit and a 5 W motor power rating, under the
+// 8.4 W each of the four gets of the 33.5 W that pack delivers (TASK-197). The
 // power panel must show the pack as Limited (the model clamps its current)
 // and each motor's power as a Warning (the rating is exceeded, physics runs on).
 // At 30 % throttle, below the hover's 40 %, the quad stays on its standard
@@ -65,7 +66,7 @@ test('the power panel keeps a rating warning apart from a modeled limit on a run
     const edited: Record<string, unknown> = { ...cards };
     const battery = edited.battery as { values: Record<string, unknown> }, motor = edited.motor as { values: Record<string, unknown> };
     edited.battery = { ...battery, values: { ...battery.values, maxDischargeCurrentA: 2 } };
-    edited.motor = { ...motor, values: { ...motor.values, maxPowerW: 10 } };
+    edited.motor = { ...motor, values: { ...motor.values, maxPowerW: 5 } };
     const cardMap = new Map(Object.entries(edited).map(([type, value]) => [ids[type as keyof typeof ids], components.validateComponentCard(value)]));
     const resolved = resolver.resolveComponents(fitted, cardMap);
     if (!resolved.components) throw new Error(`Missing: ${resolved.missing.join('; ')}`);
@@ -145,7 +146,9 @@ test('the power panel keeps a rating warning apart from a modeled limit on a run
   expect(report.rejectedRatings).toMatchObject({ type: 'limits.reject' });
   expect(report.load).toMatchObject({ type: 'ack-v2', status: 'applied' });
   expect(report).toMatchObject({ powerRead: true, motorCount: 4, batteryLimited: 1 });
-  expect(report.currentA).toBeCloseTo(2, 6);
+  // The pack holds the motors to what it delivers (TASK-197): at the limit, or a little under it while their speeds still move.
+  expect(report.currentA).toBeLessThanOrEqual(2);
+  expect(report.currentA).toBeGreaterThan(1.99);
   // On its feet: the CG no higher than where the quad X's fully extended supports touch the ground, 0.105 m (TASK-095, D-07).
   expect(report.downM).toBeGreaterThan(-0.106);
   expect(report.motorWarning).toEqual([2, 2, 2, 2]);

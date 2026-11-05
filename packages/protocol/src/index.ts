@@ -5,6 +5,7 @@ export * from './state-v2.ts';
 export * from './pilot-v2.ts';
 export * from './atomic-v2.ts';
 export * from './control-v2.ts';
+export * from './control-v3.ts';
 export * from './spsc-v2.ts';
 export * from './sensor-frame.ts';
 export * from './actuator-frame.ts';

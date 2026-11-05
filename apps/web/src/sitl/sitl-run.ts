@@ -27,12 +27,15 @@ import catalogFile from "../../../../tests/fixtures/sitl/ardupilot-catalog.json"
 import { catalogAbsentRule, type AbsentRule } from "@mirage/autopilot/parameter-readback";
 import { expectedMotors, physicsRotors, type ExpectedMotor, type PhysicsRotor } from "@mirage/autopilot/motor-test";
 import type { LimitRatings } from "@mirage/physics/limit-monitor";
-import { newFlightStateV2, newPowerSnapshotV1 } from "@mirage/protocol";
+import { AT_TICK_IN_THE_PAST, tickToNumber, newFlightStateV2, newPowerSnapshotV1 } from "@mirage/protocol";
+import { DEFAULT_GROUND_START, wrapDeg, type GroundStart } from "@mirage/scenarios/flight-tasks";
+import { eulerDegOf } from "@mirage/scenarios/maneuvers";
 import type { StoredVersion } from "@mirage/project/schema";
 import type { ProjectStore } from "@mirage/project/store";
 import type { SimulationRuntime } from "../runtime";
+import type { EffectControl, EffectRecovery } from "@mirage/protocol";
 import { LauncherError, type CatalogEntry, type ConnectionSpec, type LauncherConnection, type LauncherExperiment, type LauncherLogs, type LauncherPort,
-  type LauncherRunState, type PhysicsPort, type PreparedRun, type StartSpec } from "../run/session-controller";
+  type FlightTruth, type LauncherRunState, type PhysicsPort, type PreparedRun, type StartSpec } from "../run/session-controller";
 
 /** Model ID of the vehicle an integrated session loads. */
 export const SITL_MODEL_ID = 153;
@@ -293,28 +296,40 @@ export class LauncherClient implements LauncherPort {
   }
   async connection(id: string): Promise<LauncherConnection> { return parseLauncherConnection(await this.call("GET", `/v1/connections/${encodeURIComponent(id)}`)); }
   async experiment(id: string): Promise<LauncherExperiment> { return parseLauncherExperiment(await this.call("GET", `/v1/experiments/${encodeURIComponent(id)}`)); }
+  /** One DataFlash file of an experiment, as the launcher attached it (TASK-180). */
+  async dataflash(id: string, name: string): Promise<Uint8Array> {
+    const response = await fetch(`http://127.0.0.1:${this.port}/v1/experiments/${encodeURIComponent(id)}/dataflash/${encodeURIComponent(name)}`, { cache: "no-store", headers: { authorization: `Bearer ${this.token}` } });
+    if (!response.ok) throw new LauncherError("refused", `status ${response.status}`, response.status, null);
+    return new Uint8Array(await response.arrayBuffer());
+  }
   async logs(id: string): Promise<LauncherLogs> {
     const json = await this.call("GET", `/v1/experiments/${encodeURIComponent(id)}/logs`);
     const dataflash = field(json, "dataflash");
     const files: readonly unknown[] = Array.isArray(dataflash) ? dataflash : [];
     return { stdout: textOrNull(field(json, "stdout")) ?? "", stderr: textOrNull(field(json, "stderr")) ?? "",
+      attachments: (Array.isArray(field(json, "attachments")) ? field(json, "attachments") as readonly unknown[] : []).flatMap(file => { const name = field(file, "name"); return typeof name === "string" ? [name] : []; }),
       dataflash: files.flatMap(file => { const name = typeof file === "string" ? file : field(file, "name"); return typeof name === "string" ? [name] : []; }) };
   }
 }
 
 /** The physics Worker of a SimulationRuntime as the session controller's PhysicsPort. */
+/** How far ahead of the tick read now a control is first aimed, and how far at most, s of simulated time; the protocol's horizon is 10 s. */
+const EFFECT_LEAD_S = 0.25, EFFECT_MAX_LEAD_S = 8;
 export class RuntimePhysics implements PhysicsPort {
   private vehicleValue: PreparedVehicle | null = null;
+  private ground: GroundStart = DEFAULT_GROUND_START;
+  private physicsHz: 800 | 1200 = SITL_PHYSICS_HZ;
   constructor(private readonly runtime: SimulationRuntime, private readonly token: string) {}
 
-  /** The vehicle this session flies, set once it is prepared. */
-  use(vehicle: PreparedVehicle): void { this.vehicleValue = vehicle; }
+  /** The vehicle this session flies, set once it is prepared; a flight task's ground start with it (TASK-172). */
+  use(vehicle: PreparedVehicle, ground: GroundStart = DEFAULT_GROUND_START): void { this.vehicleValue = vehicle; this.ground = ground; }
   private get vehicle(): PreparedVehicle {
     if (!this.vehicleValue) throw new Error("The vehicle is not prepared");
     return this.vehicleValue;
   }
 
   async load(physicsHz: 800 | 1200, environment: ExperimentEnvironment | null): Promise<{ betModuleSha256: string }> {
+    this.physicsHz = physicsHz;
     const { vehicle, runtime } = this;
     runtime.pauseWhenHidden = false;
     const module = await fetchBetModule();
@@ -324,6 +339,7 @@ export class RuntimePhysics implements PhysicsPort {
     await this.request({ type: "contact.module", bytes: contact.bytes, manifest: contact.manifest }, "contact.module.ready", "contact.module.reject");
     await this.request({ type: "model.register", bytes: vehicle.derived.bytes, sha256: vehicle.derived.sha256 }, "model.registered", "model.reject");
     await this.request({ type: "limits.register", sha256: vehicle.derived.sha256, ratings: vehicle.ratings }, "limits.registered", "limits.reject");
+    await this.request({ type: "ground.register", sha256: vehicle.derived.sha256, ground: this.ground }, "ground.registered", "ground.reject");
     // TASK-148: the location's normal gravity and the air at its ground origin, before the model is built on them.
     if (environment) {
       const { gravityMps2, air } = environment.conditions;
@@ -352,6 +368,13 @@ export class RuntimePhysics implements PhysicsPort {
   }
   altitudeM(): number { return -this.runtime.current.downM; }
   verticalSpeedMps(): number { return this.runtime.current.vdMps; }
+  flightTruth(): FlightTruth {
+    const s = this.latest;
+    this.runtime.latestInto(s);
+    // Yaw of the body-to-NED quaternion is the heading: degrees from north, clockwise.
+    const { rollDeg, pitchDeg, yawDeg } = eulerDegOf(s.qw, s.qx, s.qy, s.qz);
+    return { simTimeS: s.simTimeS, northM: s.northM, eastM: s.eastM, altitudeM: -s.downM, northMps: s.vnMps, eastMps: s.veMps, downMps: s.vdMps, headingDeg: wrapDeg(yawDeg), rollDeg, pitchDeg };
+  }
   private readonly power = newPowerSnapshotV1();
   motorSpeedsInto(out: Float64Array): boolean {
     if (!this.runtime.power.latest(this.power)) return false;
@@ -370,14 +393,36 @@ export class RuntimePhysics implements PhysicsPort {
       this.runtime.postToWorker(message);
     });
   }
-  /** Submits a Control Protocol v2 command and resolves on its applied acknowledgement. */
-  private control(payload: Record<string, unknown>): Promise<void> {
+  /**
+   * The Worker steps while this message crosses to it, thousands of ticks a second on a sped-up run, so a control is aimed a little ahead of
+   * the tick read now, and further ahead if it still arrived late. A tick still further ahead is kept exactly, on the same clock as status.simTimeS.
+   */
+  async effect(control: EffectControl, recovery: EffectRecovery, atSimS?: number): Promise<number | null> {
+    const hz = this.physicsHz, wanted = atSimS === undefined ? 0 : Math.ceil(atSimS * hz);
+    for (let lead = Math.ceil(EFFECT_LEAD_S * hz); ; lead *= 2) {
+      const tick = Math.max(wanted, this.tickNow().tick + lead);
+      let applied: number | null = null;
+      try {
+        await this.control({ type: "effect.set", atTick: { lo: tick % 2 ** 32, hi: Math.floor(tick / 2 ** 32) }, control, recovery }, at => { applied = tickToNumber(at) / hz; });
+        return applied;
+      } catch (cause) {
+        if (lead >= EFFECT_MAX_LEAD_S * hz || !(cause instanceof Error) || !cause.message.includes(AT_TICK_IN_THE_PAST)) throw cause;
+      }
+    }
+  }
+  /** Submits a control command and resolves on its applied acknowledgement, handing `onApplied` the tick that applied it. */
+  private control(payload: Record<string, unknown>, onApplied?: (tick: { readonly lo: number; readonly hi: number }) => void): Promise<void> {
     return new Promise((resolve, fail) => {
       let requestId = -1;
       const stop = this.runtime.listen(data => {
         if (field(data, "requestId") !== requestId) return;
         if (field(data, "type") === "reject-v2") { stop(); fail(new Error(`${String(payload.type)}: ${String(field(data, "message"))}`)); }
-        if (field(data, "type") === "ack-v2" && field(data, "status") === "applied") { stop(); resolve(); }
+        if (field(data, "type") === "ack-v2" && field(data, "status") === "applied") {
+          stop();
+          const tick = field(data, "appliedTick");
+          if (onApplied && typeof tick === "object" && tick !== null) onApplied({ lo: Number(field(tick, "lo")), hi: Number(field(tick, "hi")) });
+          resolve();
+        }
       });
       const command = this.runtime.submitControl(payload);
       if (!command) { stop(); fail(new Error(`${String(payload.type)} was not accepted: ${this.runtime.notice}`)); return; }
@@ -396,7 +441,7 @@ async function fetchContactModule(): Promise<{ bytes: Uint8Array; manifest: unkn
 }
 
 /** The scalar BET module from /__bet/ (Vite, loopback only), checked against its manifest. */
-async function fetchBetModule(): Promise<{ bytes: Uint8Array; sha256: string }> {
+export async function fetchBetModule(): Promise<{ bytes: Uint8Array; sha256: string }> {
   const manifest: unknown = await (await fetch("/__bet/manifest.json", { cache: "no-store" })).json().catch(() => null);
   const artifacts = field(manifest, "artifacts");
   const list: readonly unknown[] = Array.isArray(artifacts) ? artifacts : [];

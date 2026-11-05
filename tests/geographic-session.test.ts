@@ -2,7 +2,7 @@ import {execFileSync} from 'node:child_process';
 import {readFileSync} from 'node:fs';
 import {beforeAll,describe,expect,it} from 'vitest';
 import {BetFlightDynamics,type BetFlightConfiguration} from '@mirage/physics/bet-dynamics';
-import {AIR_PRESSURE,atmosphereAtHeightInto} from '../packages/physics/src/atmosphere.ts';
+import {AIR_PRESSURE,AIR_TEMPERATURE,WEATHER_AIR_KEEP,WEATHER_PRESSURE,WEATHER_SLOTS,WEATHER_TEMPERATURE,atmosphereAtHeightInto} from '../packages/physics/src/atmosphere.ts';
 import {GroundContact,type ContactWheel} from '../packages/physics/src/ground-contact.ts';
 import {PhysicsSessionV2,isaPressurePa} from '../packages/physics/src/session-v2.ts';
 import {newBodyTruth} from '@mirage/wasm-bet/backend';
@@ -85,5 +85,28 @@ describe('the location in flight sessions (TASK-148)', () => {
     const outside=grounded(undefined,{temperatureK:400,pressurePa:90000});
     expect(()=>new BetFlightDynamics(module,outside,400)).toThrow('The origin air lies outside the atmosphere envelope');
     outside.contact?.dispose();
+  },120000);
+  it('returns to the location\'s air, not a sea-level origin, when a weather keeps the air or ends (TASK-166)', async () => {
+    const c=await conditions(),originAir={temperatureK:c.air.temperatureK,pressurePa:c.air.pressurePa};
+    const d=new BetFlightDynamics(module,grounded(c.gravityMps2,originAir),400);
+    try {
+      const height=-d.state.down;
+      const expected=new Float64Array(5);
+      expect(atmosphereAtHeightInto(new Float64Array([originAir.temperatureK,originAir.pressurePa,height]),expected)).toBe(true);
+      const atOrigin=()=>{expect(d.airActive).toBe(true);expect(d.air[AIR_PRESSURE]).toBeCloseTo(expected[AIR_PRESSURE]!,9);expect(d.air[AIR_TEMPERATURE]).toBeCloseTo(expected[AIR_TEMPERATURE]!,9);};
+      atOrigin();
+      // A weather with its own air replaces it...
+      const own=new Float64Array(WEATHER_SLOTS);own[WEATHER_TEMPERATURE]=300;own[WEATHER_PRESSURE]=101325;
+      expect(d.setWeather(own)).toBeNull();
+      expect(Math.abs(d.air[AIR_PRESSURE]!-expected[AIR_PRESSURE]!)).toBeGreaterThan(1000);
+      // ...one that keeps the air, wind alone, gives the location's back...
+      const windOnly=new Float64Array(WEATHER_SLOTS);windOnly[0]=3;windOnly[WEATHER_AIR_KEEP]=1;
+      expect(d.setWeather(windOnly)).toBeNull();
+      atOrigin();
+      // ...and so does the end of the weather.
+      expect(d.setWeather(own)).toBeNull();
+      d.clearWeather();
+      atOrigin();
+    } finally { d.dispose(); }
   },120000);
 });

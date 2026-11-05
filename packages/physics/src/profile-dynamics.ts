@@ -27,9 +27,13 @@ export const PROFILE_ROTOR_SETTINGS = Object.freeze({ inflowTauS: 0.1, inflowLim
 /** The propeller disc thickness lives with the hull shapes; it stays exported here too. */
 export { PROPELLER_DISC_HALF_THICKNESS_OF_RADIUS };
 
+/** Where a vehicle stands at the session's start tick (TASK-172): metres from the pad, and degrees from north, clockwise. */
+export interface GroundPlacement { readonly northM: number; readonly eastM: number; readonly headingDeg: number }
 export interface ProfileDynamicsOptions {
   /** Initial battery state of charge in (0, 1]; defaults to 1. */
   readonly initialStateOfCharge?: number;
+  /** Where it stands at the start tick; on the pad, facing north, by default. */
+  readonly initialGround?: GroundPlacement;
   /** Constant avionics load on the bus, W; defaults to 0. */
   readonly housePowerW?: number;
   /** Air state; defaults to the ISA troposphere at 0 m. */
@@ -133,6 +137,16 @@ export function buildProfileDynamics(input: VehicleManifest, options: ProfileDyn
   const air = isaTroposphere(0), n = model.rotorCount, initialBody = newBodyTruth();
   // On the gear the CG starts where the fully extended feet just touch the ground plane through the origin.
   if (gear) initialBody.positionNedM[2] = -Math.max(...gear.wheels.map(wheel => wheel.anchorBodyM[2] + wheel.tireRadiusM));
+  const ground = options.initialGround;
+  if (ground) {
+    if (![ground.northM, ground.eastM, ground.headingDeg].every(Number.isFinite)) throw new Error('The ground placement must be finite');
+    initialBody.positionNedM[0] = ground.northM;
+    initialBody.positionNedM[1] = ground.eastM;
+    // Body to NED, w x y z: a rotation about down by the heading.
+    const half = (ground.headingDeg * Math.PI) / 360;
+    initialBody.quaternionBodyToNed[0] = Math.cos(half);
+    initialBody.quaternionBodyToNed[3] = Math.sin(half);
+  }
   const configuration: BetFlightConfiguration = {
     manifest: model, polars,
     initialOmegaRadS: new Array<number>(n).fill(0), motorMaxTorqueNm: new Array<number>(n).fill(0),
@@ -223,10 +237,12 @@ export function profileFlightDynamics(module: WebAssembly.Module, build: Profile
  * build (`buildProfileDynamics`) before the session changes anything. The BET
  * module comes from `module()` at load time; without one the load fails, as it
  * does for a vehicle with gear before the contact artifact is initialized.
- * `ratings` gives the TASK-146 limit ratings bound to a manifest hash, or null.
+ * `ratings` gives the TASK-146 limit ratings bound to a manifest hash, or null;
+ * `initial` the run's ground start (TASK-172), bound the same way.
  */
 export function profileModelPort(registry: VehicleRegistry, module: () => WebAssembly.Module | null,
-  options: ProfileDynamicsOptions = {}, ratings: (manifestSha256: string) => LimitRatings | null = () => null): SessionModelPort {
+  options: ProfileDynamicsOptions = {}, ratings: (manifestSha256: string) => LimitRatings | null = () => null,
+  initial: (manifestSha256: string) => Pick<ProfileDynamicsOptions, 'initialGround' | 'initialStateOfCharge'> | null = () => null): SessionModelPort {
   return {
     prepare: (modelId, manifestSha256) => new Promise(resolve => {
       const record = registry.get(modelId);
@@ -239,7 +255,7 @@ export function profileModelPort(registry: VehicleRegistry, module: () => WebAss
       if (limitRatings && limitRatings.motors.length !== record.manifest.rotorCount) {
         throw new Error(`Model ${modelId} has ${record.manifest.rotorCount} rotors; its limit ratings list ${limitRatings.motors.length} motors`);
       }
-      const build = buildProfileDynamics(record.manifest, { ...options, limitRatings });
+      const build = buildProfileDynamics(record.manifest, { ...options, ...initial(record.sha256), limitRatings });
       if (build.gear && !GroundContact.ready) throw new Error('The contact module is not loaded');
       resolve((hz: PhysicsHz) => profileFlightDynamics(bet, build, hz));
     }),

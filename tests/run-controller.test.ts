@@ -33,12 +33,16 @@ import {
   type ConnectionSpec, type ControllerView, type LauncherConnection, type LauncherExperiment, type LauncherFirmware, type LauncherLogs,
   type LauncherPort, type LauncherRun, type LauncherRunState, type PhysicsPort, type PreparedRun, type RecordingPort, type RecordingStart, type RecordPort,
   type RunState, type StartRequest, type StartSpec, MANUAL_RATE_HZ, type PilotInputPort,
+  type FlightTruth,
 } from '../apps/web/src/run/session-controller.ts';
-import type { PilotInput } from '../packages/protocol/src/index.ts';
+import { initialEffectParameters, type EffectControl, type EffectRecovery, type PilotInput } from '../packages/protocol/src/index.ts';
+import { parseFaultSchedule, type FaultSchedule } from '../packages/scenarios/src/fault-schedule.ts';
 import type { ExperimentRecording } from '../packages/aircraft/src/experiment.ts';
 import type { MavFrame } from '../packages/mavlink/src/codec.ts';
 import type { AccidentEvent } from '../packages/physics/src/accident.ts';
 import type { SitlStatus } from '../apps/web/src/sitl/bridge-client.ts';
+import { parseFlightTask, type FlightTaskDefinition, type FlightTaskStep } from '../packages/scenarios/src/flight-tasks.ts';
+import { siteParameters } from '@mirage/aircraft/site-parameters';
 import { DEFAULT_HOME, LauncherClient, parseLauncherExperiment, preparedRun } from '../apps/web/src/sitl/sitl-run.ts';
 import { validateComponentCard } from '../packages/aircraft/src/components.ts';
 import {
@@ -127,7 +131,14 @@ function statusText(text: string): Uint8Array {
   return autopilotFrame(STATUSTEXT, { severity: 6, text });
 }
 /** Parameters the autopilot holds besides the generated ones (copter.parm and the build's own). */
-const OTHER_PARAMETERS: readonly (readonly [string, number])[] = [['SYSID_THISMAV', 1], ['FS_GCS_ENABLE', 0], ['ARMING_CHECK', 1]];
+const OTHER_PARAMETERS: readonly (readonly [string, number])[] = [
+  // What a flight task's targets stay within: ArduCopter's defaults at the pinned commit.
+  ['WP_ACC_Z', 1], ['PSC_D_JERK', 5], ['PSC_NE_JERK', 5], ['ATC_ACC_Y_MAX', 270],
+  // What jamming writes (TASK-169), at their defaults; a run's generated list holds the magnetometer offsets.
+  ['SIM_GPS1_NUMSATS', 10], ['SIM_GPS1_ACC', 0.3],
+  // ArduPilot's own fault parameters (TASK-168), at their defaults. SIM_BAR3_FREEZE is left out for the test of an incomplete list.
+  ['SIM_BARO_DISABLE', 0], ['SIM_BAR2_DISABLE', 0], ['SIM_BAR3_DISABLE', 0], ['SIM_GPS1_LCKTIME', 0], ['SIM_BARO_FREEZE', 0], ['SIM_BAR2_FREEZE', 0],
+  ['SYSID_THISMAV', 1], ['FS_GCS_ENABLE', 0], ['ARMING_CHECK', 1]];
 /** The autopilot's complete PARAM_VALUE list: every generated parameter (as float32 on the wire) plus others. */
 function parameterList(expected: readonly { readonly name: string; readonly value: number }[],
   change: { readonly name: string; readonly value: number | null } | null = null): Uint8Array[] {
@@ -376,6 +387,9 @@ class ScriptedPhysics implements PhysicsPort {
   }
   altitudeM(): number { return this.altitude; }
   verticalSpeedMps(): number { return this.verticalSpeed; }
+  /** The truth a flight task flies from (TASK-172). */
+  truth: FlightTruth = { simTimeS: 0, northM: 0, eastM: 0, altitudeM: 0.2, northMps: 0, eastMps: 0, downMps: 0, headingDeg: 0, rollDeg: 0, pitchDeg: 0 };
+  flightTruth(): FlightTruth { return this.truth; }
   /** Each rotor's speed as power telemetry would report it, rev/min (TASK-157). */
   speeds: number[] = [];
   motorSpeedsInto(out: Float64Array): boolean {
@@ -400,6 +414,13 @@ class ScriptedPhysics implements PhysicsPort {
   /** The Worker's stale-input watchdog, as manual control switched it (TASK-174). */
   readonly manual: boolean[] = [];
   manualInput(active: boolean): void { this.manual.push(active); }
+  /** Effect controls sent to the session, and how the next is answered: null applied, or the reason it is rejected. */
+  readonly effectsSent: { control: EffectControl; recovery: EffectRecovery; atSimS: number | undefined }[] = [];
+  effectAnswer: string | null = null;
+  effect(control: EffectControl, recovery: EffectRecovery, atSimS?: number): Promise<number | null> {
+    this.effectsSent.push({ control, recovery, atSimS });
+    return this.effectAnswer === null ? Promise.resolve(atSimS ?? null) : Promise.reject(new Error(this.effectAnswer));
+  }
   frames(): SentFrame[] { return decodeSent(this.sent); }
 }
 
@@ -626,7 +647,8 @@ describe('SessionController run states on scripted ports', () => {
     expect(h.events.indexOf('record.create')).toBeLessThan(h.events.indexOf('physics.connect'));
     expect(h.physics.connects).toEqual([{ port: h.launcher.bridgeOf(id), bridgeEpoch: 1, speedup: 1 }]);
     expect(h.controller.view.recordSha256).toBe(h.records.stored[0]?.sha256);
-    expect(h.launcher.starts).toEqual([{ firmwareId: BUILD.id, parameters: h.run.parameters.map(p => ({ name: p.name, value: p.value })),
+    // What a vehicle would have kept about this place goes after the generated list, for ArduPilot's first heading.
+    expect(h.launcher.starts).toEqual([{ firmwareId: BUILD.id, parameters: [...h.run.parameters.map(p => ({ name: p.name, value: p.value })), ...siteParameters(DEFAULT_HOME)],
       frameScript: h.run.frameScript, speedup: 1, rateHz: 800, home: DEFAULT_HOME }]);
 
     // The ground station beats once a wall second and asks for the EKF, GPS and position streams until their messages arrive.
@@ -781,7 +803,7 @@ describe('SessionController run states on scripted ports', () => {
     const posted = h.launcher.starts[0];
     if (!posted) throw new Error('No start request');
     expect(payload.parameters.map(p => ({ name: p.name, value: p.value }))).toEqual(posted.parameters);
-    expect(payload.parameters.map(p => p.source)).toEqual(h.run.parameters.map(p => p.source));
+    expect(payload.parameters.map(p => p.source)).toEqual([...h.run.parameters.map(p => p.source), 'site']);
     expect(payload.frameScript).toBe(posted.frameScript);
     // The build identity is the launcher's answer, not the catalog request.
     const view = h.launcher.view(h.launcher.lastId);
@@ -986,8 +1008,150 @@ class ScriptedRecording implements RecordingPort {
   parameters(list: readonly { readonly name: string; readonly value: number }[]): void { this.calls.push(`parameters:${list.length}`); }
   accidents(events: readonly AccidentEvent[]): void { this.calls.push(`accidents:${events.map(e => e.tick).join(',')}`); }
   pause(paused: boolean): void { this.calls.push(`pause:${paused ? 1 : 0}`); }
+  flightTask(step: FlightTaskStep): void { this.calls.push(`task:${step.stage}`); }
   stop(): Promise<void> { this.events.push('recording.stop'); return Promise.resolve(); }
 }
+
+describe('a flight task on the Run tab (TASK-172)', () => {
+  const SET_POSITION_TARGET = 84, MISSION_COUNT = 44, MISSION_ACK = 47;
+  const ground = { northM: 10, eastM: -5, headingDeg: 90, stateOfCharge: 0.8 };
+  const hover = parseFlightTask({ schemaVersion: 1, type: 'hover', parameters: { altitudeM: 5, durationS: 3 }, route: null, initial: { ground, air: null }, finish: 'land' });
+  const route = parseFlightTask({ schemaVersion: 1, type: 'route', parameters: {}, route: [{ northM: 20, eastM: 0, altitudeM: 8, speedMps: 4 }, { northM: 20, eastM: 20, altitudeM: 8, speedMps: 4 }],
+    initial: { ground: { northM: 0, eastM: 0, headingDeg: 0, stateOfCharge: 1 }, air: null }, finish: 'land' });
+  const stored = async (definition: FlightTaskDefinition, name: string) => {
+    const version = await fixture.store.createItem(fixture.projectId, 'flight-task', { name, payload: definition });
+    return { recordSha256: version.sha256, name, definition };
+  };
+  /** The next Worker status at `simTimeS`, with the truth the task flies from. */
+  const at = (h: Harness, simTimeS: number, truth: Partial<FlightTruth> = {}) => {
+    h.physics.truth = { ...h.physics.truth, ...truth, simTimeS };
+    status(h, { ready: true, reason: '', simTimeS });
+  };
+  const flightOf = (h: Harness) => (h.controller.state.name === 'running' ? h.controller.state.flight : null);
+
+  test('a task that ArduPilot\'s limits cannot shape is refused with the reason, and nothing flies', async () => {
+    const h = harness();
+    const flightTask = await stored(hover, 'Hover');
+    await reach({ ...h, request: { ...h.request, flightTask } }, 'ready');
+    const total = h.run.parameters.length + OTHER_PARAMETERS.length;
+    mav(h, paramValue('WP_ACC_Z', 0, total, h.run.parameters.length));
+    expect(h.controller.runTask()).toBe('ArduPilot reports WP_ACC_Z as 0, which cannot shape a flight task');
+    expect(h.controller.view.flightTask).toMatchObject({ state: 'waiting' });
+    expect(h.controller.state.name).toBe('ready');
+  });
+
+  test('flies from READY: the record holds the task, the runner\'s commands reach the autopilot, and the end hands the run back', async () => {
+    const recording: { current: ScriptedRecording | null } = { current: null };
+    const h = harness(undefined, events => (recording.current = new ScriptedRecording(events)));
+    const flightTask = await stored(hover, 'Hover');
+    await reach({ ...h, request: { ...h.request, flightTask } }, 'ready');
+    expect(h.records.payloads.at(-1)?.flightTask).toEqual(flightTask);
+    expect(h.controller.view.flightTask).toMatchObject({ name: 'Hover', state: 'waiting', step: null });
+
+    h.physics.truth = { ...h.physics.truth, northM: 10, eastM: -5, headingDeg: 90 };
+    expect(h.controller.runTask()).toBeNull();
+    expect(flightOf(h)).toBe('task');
+    expect(commands(h.physics.frames(), DO_SET_MODE).at(-1)?.params.slice(0, 2)).toEqual([1, GUIDED]);
+    mav(h, heartbeat(GUIDED, false));
+    at(h, 41);
+    expect(commands(h.physics.frames(), COMPONENT_ARM_DISARM).at(-1)?.params[0]).toBe(1);
+    mav(h, heartbeat(GUIDED, true));
+    at(h, 42);
+    at(h, 43);
+    expect(commands(h.physics.frames(), NAV_TAKEOFF).at(-1)?.params[6]).toBeCloseTo(4.8, 5);
+    expect(h.controller.view.flightTask?.step?.stage).toBe('takeoff');
+    // Arrived and settled: the hover's clock starts and position targets go out, from where ArduPilot's frame starts.
+    at(h, 50, { altitudeM: 5 });
+    at(h, 52, { altitudeM: 5 });
+    at(h, 52.3, { altitudeM: 5 });
+    const step = h.controller.view.flightTask?.step;
+    expect(step).toMatchObject({ stage: 'hold', measured: true, requested: { altitudeM: 5, northM: 10, eastM: -5 }, actual: { altitudeM: 5, northM: 10, eastM: -5 } });
+    expect(h.physics.frames().filter(frame => frame.id === SET_POSITION_TARGET).length).toBeGreaterThan(0);
+    expect(recording.current?.calls).toContain('task:hold');
+    // Land refuses nothing while it flies, but this one finishes: the hold ends, LAND follows, and the disarm is the end.
+    at(h, 55, { altitudeM: 5 });
+    at(h, 55.1, { altitudeM: 5 });
+    expect(commands(h.physics.frames(), DO_SET_MODE).at(-1)?.params.slice(0, 2)).toEqual([1, LAND]);
+    mav(h, heartbeat(LAND, true));
+    at(h, 60, { altitudeM: 0.2 });
+    mav(h, heartbeat(LAND, false));
+    at(h, 61, { altitudeM: 0.2 });
+    expect(h.controller.view.flightTask).toMatchObject({ state: 'done', reason: null });
+    expect(h.controller.state).toMatchObject({ name: 'ready' });
+    expect(h.controller.runTask()).toBe('This run has flown its task; start a new run to fly it again');
+  });
+
+  test('flies only as the first flight of a READY run, and a run without a task says so', async () => {
+    const h = harness();
+    await reach(h, 'ready');
+    expect(h.controller.runTask()).toBe('This run was started without a flight task');
+    expect(h.records.payloads.at(-1)?.flightTask).toBeNull();
+    const second = harness();
+    const request = { ...second.request, flightTask: await stored(hover, 'Hover') };
+    await reach({ ...second, request }, 'warming');
+    expect(second.controller.runTask()).toBe('Run the task once the run is READY');
+    status(second, { ready: true, reason: '', simTimeS: 40 });
+    expect(second.controller.takeOff(TAKEOFF_M)).toBe(true);
+    mav(second, heartbeat(GUIDED, true));
+    expect(second.controller.runTask()).toBe('This run has already flown; a task flies as a run\'s first flight, so start a new run');
+  });
+
+  test('a route waits for ArduPilot\'s acknowledgement, and a refusal ends the task on the ground with its reason', async () => {
+    const h = harness();
+    await reach({ ...h, request: { ...h.request, flightTask: await stored(route, 'Route') } }, 'ready');
+    expect(h.controller.runTask()).toBeNull();
+    expect(h.physics.frames().filter(frame => frame.id === MISSION_COUNT)).toHaveLength(1);
+    at(h, 41);
+    // No acknowledgement, no arming: only the upload's repeat goes out.
+    expect(commands(h.physics.frames(), COMPONENT_ARM_DISARM)).toEqual([]);
+    mav(h, autopilotFrame(MISSION_ACK, { target_system: 255, target_component: 190, type: 13, mission_type: 0 }));
+    at(h, 41.1);
+    expect(h.controller.view.flightTask).toMatchObject({ state: 'failed', reason: 'ArduPilot refused the route: ArduPilot refused the mission: invalid sequence' });
+    expect(h.controller.state).toMatchObject({ name: 'ready' });
+    expect(commands(h.physics.frames(), COMPONENT_ARM_DISARM)).toEqual([]);
+  });
+
+  test('a task that fails in the air hands the flight to LAND, and so does the Land button', async () => {
+    const start = async () => {
+      const h = harness();
+      await reach({ ...h, request: { ...h.request, flightTask: await stored(hover, 'Hover') } }, 'ready');
+      h.controller.runTask();
+      mav(h, heartbeat(GUIDED, true));
+      at(h, 41);
+      return h;
+    };
+    const failing = await start();
+    // ArduPilot left GUIDED on its own: the task stops, and the run lands.
+    mav(failing, heartbeat(STABILIZE, true));
+    at(failing, 42);
+    expect(failing.controller.view.flightTask).toMatchObject({ state: 'failed', reason: 'The autopilot left its flight mode during the takeoff stage' });
+    expect(flightOf(failing)).toBe('landing');
+    expect(commands(failing.physics.frames(), DO_SET_MODE).at(-1)?.params.slice(0, 2)).toEqual([1, LAND]);
+    const stopped = await start();
+    expect(stopped.controller.land()).toBe(true);
+    expect(stopped.controller.view.flightTask).toMatchObject({ state: 'failed', reason: 'You landed the aircraft during the task' });
+    // A status after Land does not fly the task on.
+    const sent = stopped.physics.frames().length;
+    at(stopped, 42);
+    expect(stopped.physics.frames().filter(frame => frame.id === SET_POSITION_TARGET)).toEqual([]);
+    expect(stopped.physics.frames().length).toBe(sent);
+  });
+
+  test('a run that stops during the task says the task ended, and a paused task sends nothing', async () => {
+    const h = harness();
+    await reach({ ...h, request: { ...h.request, flightTask: await stored(hover, 'Hover') } }, 'ready');
+    h.controller.runTask();
+    mav(h, heartbeat(GUIDED, true));
+    at(h, 41);
+    expect(h.controller.pause('user')).toBe(true);
+    await vi.waitFor(() => { expect(h.controller.state.name).toBe('paused'); });
+    const sent = h.physics.frames().length;
+    at(h, 41);
+    expect(h.physics.frames().length).toBe(sent);
+    await h.controller.stop();
+    expect(h.controller.view.flightTask).toMatchObject({ state: 'failed', reason: 'The run ended during the task' });
+  });
+});
 
 describe('one pause path (TASK-156)', () => {
   test('the user pauses a flying run and resumes it to the same flight, and each pause is logged with its tick and wall time', async () => {
@@ -1082,6 +1246,184 @@ function answer(h: Harness, name: string, value: number, type = REAL32): Uint8Ar
 }
 let catalog: ParameterMetadataCatalog;
 beforeAll(() => { catalog = parseParameterMetadata(readJson('data/ardupilot/param-metadata.json')); });
+
+describe('the Faults and interference tab on a run (TASK-169)', () => {
+  const control = (effect: EffectControl['effect'], parameters: Partial<Record<string, unknown>> = {}, enabled = true, intensity = 1) =>
+    ({ schemaVersion: 1, id: effect.replaceAll('.', '-'), effect, enabled, intensity, parameters: { ...initialEffectParameters(effect), ...parameters } }) as EffectControl;
+  const schedule = (...entries: readonly { control: EffectControl; onsetS: number; durationS: number | null }[]): FaultSchedule =>
+    parseFaultSchedule({ schemaVersion: 1, entries: entries.map(entry => ({ ...entry, recovery: 'hold-offset' })) });
+  /** A run that has reached READY and arms at `at` s of simulated time. */
+  async function armed(faults: FaultSchedule | null, at = 100) {
+    const base = harness(undefined, null, catalog), h = { ...base, request: { ...base.request, faults } };
+    await reach(h, 'ready');
+    status(h, { simTimeS: at });
+    expect(h.physics.effectsSent).toEqual([]);
+    mav(h, heartbeat(GUIDED, true));
+    status(h, { simTimeS: at });
+    return h;
+  }
+
+  test('a schedule counts from the first arming, keeps its record, and queues a session effect on its exact tick', async () => {
+    const faults = schedule({ control: control('link.pilot'), onsetS: 2, durationS: 6 }, { control: control('ew.position-step', { offsetNedM: [30, 0, 0] }), onsetS: 20, durationS: null });
+    const h = await armed(faults);
+    const stored = h.records.stored.at(-1);
+    if (!stored) throw new Error('No experiment was stored');
+    expect(readExperiment(stored).faults).toEqual(faults);
+    // Within the queue lead of its time: on the tick of arming + onset, and not before anything is due.
+    expect(h.physics.effectsSent).toMatchObject([{ control: { effect: 'link.pilot', enabled: true }, atSimS: 102 }]);
+    expect(h.controller.view.faultPlan).toMatchObject({ armedAtS: 100, sent: 1 });
+    status(h, { simTimeS: 103 });
+    expect(h.physics.effectsSent.at(-1)).toMatchObject({ control: { effect: 'link.pilot', enabled: false }, atSimS: 108 });
+    status(h, { simTimeS: 114 });
+    expect(h.physics.effectsSent).toHaveLength(2);
+    status(h, { simTimeS: 116 });
+    expect(h.physics.effectsSent.at(-1)).toMatchObject({ control: { effect: 'ew.position-step', enabled: true }, atSimS: 120 });
+    await Promise.resolve(); await Promise.resolve();
+    expect(h.controller.view.effects[0]).toMatchObject({ origin: 'schedule', status: 'applied', requestedSimS: 102, appliedSimS: 102 });
+    // A run that never arms never starts counting, and says so.
+    const idleBase = harness(undefined, null, catalog), idle = { ...idleBase, request: { ...idleBase.request, faults } };
+    await reach(idle, 'ready');
+    status(idle, { simTimeS: 500 });
+    expect(idle.physics.effectsSent).toEqual([]);
+    expect(idle.controller.view.faultPlan).toMatchObject({ armedAtS: null, sent: 0 });
+  });
+
+  test('jamming goes to the session for its flag and to the receiver as logged writes, which go back when it ends', async () => {
+    const h = await armed(schedule({ control: control('ew.gnss-jamming', { severity: 0.5 }), onsetS: 1, durationS: 4 }));
+    h.physics.sent.length = 0;
+    status(h, { simTimeS: 100.5 });
+    expect(paramSets(h)).toEqual([]);
+    status(h, { simTimeS: 101 });
+    expect(paramSets(h)).toEqual([{ name: 'SIM_GPS1_NUMSATS', value: 6 }, { name: 'SIM_GPS1_ACC', value: Math.fround(0.3 * ((0.5 * 1.21 + 0.5 * 99) / 1.21)) }, { name: 'SIM_GPS1_LCKTIME', value: 0 }]);
+    expect(h.physics.effectsSent.at(-1)).toMatchObject({ control: { effect: 'ew.gnss-jamming', enabled: true } });
+    await Promise.resolve(); await Promise.resolve();
+    // It stands as its session answer and its read-backs both do.
+    expect(h.controller.view.effects[0]?.status).toBe('pending');
+    mav(h, answer(h, 'SIM_GPS1_NUMSATS', 6), answer(h, 'SIM_GPS1_ACC', Math.fround(0.3 * ((0.5 * 1.21 + 0.5 * 99) / 1.21))), answer(h, 'SIM_GPS1_LCKTIME', 0));
+    expect(h.controller.view.effects[0]).toMatchObject({ status: 'applied', writes: ['SIM_GPS1_NUMSATS', 'SIM_GPS1_ACC', 'SIM_GPS1_LCKTIME'] });
+    h.physics.sent.length = 0;
+    status(h, { simTimeS: 105 });
+    expect(paramSets(h)).toEqual([{ name: 'SIM_GPS1_NUMSATS', value: 10 }, { name: 'SIM_GPS1_ACC', value: Math.fround(0.3) }, { name: 'SIM_GPS1_LCKTIME', value: 0 }]);
+  });
+
+  test('a magnetic bias adds to the offsets the run has and goes back to them; a rotation alone writes nothing', async () => {
+    const h = await armed(null);
+    h.physics.sent.length = 0;
+    expect(h.controller.setEffect(control('ew.magnetic', { rotationRad: [0, 0, 0.5], biasBodyGauss: [0, 0, 0] }))).toBeNull();
+    expect(paramSets(h)).toEqual([]);
+    expect(h.controller.setEffect(control('ew.magnetic', { rotationRad: [0, 0, 0], biasBodyGauss: [0.3, -0.2, 0] }))).toBeNull();
+    const sets = paramSets(h);
+    expect(sets).toHaveLength(9);
+    const held = new Map(h.controller.parameterList().map(parameter => [parameter.name, parameter.value]));
+    const offset = (name: string) => { const value = held.get(name); if (value === undefined) throw new Error(`No ${name}`); return value; };
+    expect(sets.find(set => set.name === 'SIM_MAG2_OFS_X')?.value).toBeCloseTo(offset('SIM_MAG2_OFS_X') - 300, 3);
+    expect(sets.find(set => set.name === 'SIM_MAG2_OFS_Y')?.value).toBeCloseTo(offset('SIM_MAG2_OFS_Y') + 200, 3);
+    expect(sets.find(set => set.name === 'SIM_MAG2_OFS_Z')?.value).toBeCloseTo(offset('SIM_MAG2_OFS_Z'), 3);
+    h.physics.sent.length = 0;
+    expect(h.controller.setEffect(control('ew.magnetic', { rotationRad: [0, 0, 0], biasBodyGauss: [0.3, -0.2, 0] }, false))).toBeNull();
+    expect(paramSets(h).map(set => [set.name, set.value])).toEqual(sets.map(set => [set.name, offset(set.name)]));
+  });
+
+  test('what cannot be delivered is rejected where it shows, by hand and on a schedule, and the ledger keeps it', async () => {
+    const h = await armed(schedule({ control: control('sensor.baro.frozen'), onsetS: 1, durationS: null }));
+    expect(h.controller.setEffect(control('ew.position-step', { offsetNedM: [0, 0, 5] }))).toContain('barometer');
+    expect(h.controller.view.effects[0]).toMatchObject({ effect: 'ew.position-step', status: 'rejected', origin: 'manual' });
+    // SIM_BAR3_FREEZE is left out of the test list, so this one cannot be written whole; none of it goes.
+    h.physics.sent.length = 0;
+    status(h, { simTimeS: 102 });
+    expect(paramSets(h)).toEqual([]);
+    expect(h.controller.view.effects.at(-1)).toMatchObject({ effect: 'sensor.baro.frozen', status: 'rejected', origin: 'schedule', requestedSimS: 101 });
+    expect(h.controller.view.effects.at(-1)?.message).toContain('SIM_BAR3_FREEZE');
+    h.physics.effectAnswer = 'The session refused it';
+    expect(h.controller.setEffect(control('link.pilot'))).toBeNull();
+    await Promise.resolve(); await Promise.resolve();
+    expect(h.controller.view.effects.at(-1)).toMatchObject({ effect: 'link.pilot', status: 'rejected', message: 'The session refused it' });
+  });
+
+  test('no run, no effect, and a stopped run stops its schedule', async () => {
+    const idle = harness(undefined, null, catalog);
+    expect(idle.controller.setEffect(control('link.pilot'))).toBe('No run is active');
+    const h = await armed(schedule({ control: control('link.pilot'), onsetS: 50, durationS: null }));
+    await h.controller.stop();
+    status(h, { simTimeS: 200 });
+    expect(h.physics.effectsSent).toEqual([]);
+  });
+});
+
+describe('effect controls in a run (TASK-168)', () => {
+  const control = (effect: EffectControl['effect'], enabled = true, intensity = 1): EffectControl => ({ schemaVersion: 1, id: effect.replaceAll('.', '-'), effect, enabled, intensity, parameters: {} });
+
+  test('an ArduPilot fault writes its parameters, logged, stands as their read-back, and goes back to the earlier values', async () => {
+    const h = harness(undefined, null, catalog);
+    await reach(h, 'flying');
+    expect(h.controller.setEffect(control('sensor.baro.missing'))).toBeNull();
+    expect(paramSets(h)).toEqual([{ name: 'SIM_BARO_DISABLE', value: 1 }, { name: 'SIM_BAR2_DISABLE', value: 1 }, { name: 'SIM_BAR3_DISABLE', value: 1 }]);
+    expect(h.controller.view.effects).toMatchObject([{ effect: 'sensor.baro.missing', enabled: true, intensity: 1, status: 'pending', message: '', origin: 'manual', writes: ['SIM_BARO_DISABLE', 'SIM_BAR2_DISABLE', 'SIM_BAR3_DISABLE'] }]);
+    expect(h.controller.view.parameters?.changes.map(change => [change.name, change.oldValue, change.newValue])).toEqual([['SIM_BARO_DISABLE', 0, 1], ['SIM_BAR2_DISABLE', 0, 1], ['SIM_BAR3_DISABLE', 0, 1]]);
+    mav(h, answer(h, 'SIM_BARO_DISABLE', 1), answer(h, 'SIM_BAR2_DISABLE', 1));
+    expect(h.controller.view.effects[0]?.status).toBe('pending');
+    mav(h, answer(h, 'SIM_BAR3_DISABLE', 1));
+    expect(h.controller.view.effects[0]?.status).toBe('applied');
+    // Off restores what each held, which for SIM_GPS1_LCKTIME below is the 0 it started from.
+    h.physics.sent.length = 0;
+    expect(h.controller.setEffect(control('sensor.baro.missing', false))).toBeNull();
+    expect(paramSets(h)).toEqual([{ name: 'SIM_BARO_DISABLE', value: 0 }, { name: 'SIM_BAR2_DISABLE', value: 0 }, { name: 'SIM_BAR3_DISABLE', value: 0 }]);
+    h.physics.sent.length = 0;
+    expect(h.controller.setEffect(control('sensor.gnss.missing'))).toBeNull();
+    expect(paramSets(h)).toEqual([{ name: 'SIM_GPS1_LCKTIME', value: 32767 }]);
+    mav(h, answer(h, 'SIM_GPS1_LCKTIME', 32767));
+    h.physics.sent.length = 0;
+    expect(h.controller.setEffect(control('sensor.gnss.missing', true, 0))).toBeNull();
+    expect(paramSets(h)).toEqual([{ name: 'SIM_GPS1_LCKTIME', value: 0 }]);
+    // No session command: these are the autopilot's.
+    expect(h.physics.effectsSent).toEqual([]);
+  });
+
+  test('an ArduPilot fault that was never on writes nothing, and ArduPilot refusing one shows', async () => {
+    const h = harness(undefined, null, catalog);
+    await reach(h, 'ready');
+    h.physics.sent.length = 0;
+    expect(h.controller.setEffect(control('sensor.baro.missing', false))).toBeNull();
+    expect(h.controller.setEffect(control('sensor.baro.frozen', true, 0))).toBeNull();
+    expect(paramSets(h)).toEqual([]);
+    expect(h.controller.setEffect(control('sensor.gnss.missing'))).toBeNull();
+    mav(h, answer(h, 'SIM_GPS1_LCKTIME', 1));
+    status(h, { ready: true, reason: '', simTimeS: 41.5 });
+    expect(h.controller.view.effects.at(-1)).toMatchObject({ effect: 'sensor.gnss.missing', status: 'rejected', message: expect.stringContaining('SIM_GPS1_LCKTIME') as string });
+  });
+
+  test('half a fault is never written: a parameter the list lacks refuses the whole effect', async () => {
+    const h = harness(undefined, null, catalog);
+    await reach(h, 'flying');
+    h.physics.sent.length = 0;
+    expect(h.controller.setEffect(control('sensor.baro.frozen'))).toContain('SIM_BAR3_FREEZE');
+    expect(paramSets(h)).toEqual([]);
+    expect(h.controller.view.effects).toMatchObject([{ effect: 'sensor.baro.frozen', status: 'rejected', writes: [] }]);
+  });
+
+  test('a link effect goes to the session, and its rejection shows', async () => {
+    const h = harness(undefined, null, catalog);
+    await reach(h, 'flying');
+    expect(h.controller.setEffect(control('sensor.imu.frozen'))).toBeNull();
+    expect(h.physics.effectsSent).toEqual([{ control: control('sensor.imu.frozen'), recovery: 'hold-offset' }]);
+    expect(h.controller.view.effects[0]?.status).toBe('pending');
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(h.controller.view.effects[0]?.status).toBe('applied');
+    h.physics.effectAnswer = 'BAD_STATE: no link';
+    expect(h.controller.setEffect(control('link.pilot'))).toBeNull();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(h.controller.view.effects[1]).toMatchObject({ status: 'rejected', message: 'BAD_STATE: no link' });
+  });
+
+  test('without a run, or with an invalid record, nothing is sent', () => {
+    const h = harness(undefined, null, catalog);
+    expect(h.controller.setEffect(control('sensor.imu.frozen'))).toBe('No run is active');
+    expect(h.physics.effectsSent).toEqual([]);
+    expect(h.controller.setEffect({ ...control('sensor.imu.frozen'), intensity: -1 })).toContain('intensity');
+  });
+});
 
 describe('the run\'s parameters (TASK-160)', () => {
   test('the run downloads the complete list, and a write in flight is confirmed, applied and logged with its old value and tick', async () => {
@@ -1336,7 +1678,7 @@ describe('the run\'s recording (TASK-163)', () => {
     expect(h.records.payloads.at(-1)?.recording?.recordId).toBe('c'.repeat(32));
     // Every autopilot frame reaches it, and the snapshot follows the confirmed parameters.
     expect(r.frames).toContain(0);
-    expect(r.calls).toEqual([`parameters:${h.run.parameters.length}`]);
+    expect(r.calls).toEqual([`parameters:${h.run.parameters.length + siteParameters(DEFAULT_HOME).length}`]);
     h.controller.worker(accidentMessage(41000, 3));
     expect(h.controller.continueAfterAccident()).toBe(true);
     await settle();
@@ -2385,7 +2727,7 @@ describe('the real launcher with the fake SITL', () => {
         const [name, value] = line.split(' ');
         return { name, value: Number(value) };
       });
-      expect(parm.length).toBe(prepared.parameters.length);
+      expect(parm.length).toBe(prepared.parameters.length + siteParameters(DEFAULT_HOME).length);
       expect(payload.parameters.map(p => ({ name: p.name, value: p.value }))).toEqual(parm);
       // The build is the one the launcher recorded and ran.
       const recorded = field(readJson(join(workDirectory(id), 'experiment.json')), 'firmware');
