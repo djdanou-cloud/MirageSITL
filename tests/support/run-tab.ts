@@ -58,12 +58,14 @@ export interface SeedOptions {
   readonly idealSensors?: boolean;
   /** Moves the aircraft's CG to this body FRD offset, m (TASK-156: a nose-heavy quad that tips over on take-off). */
   readonly cgOffsetBodyM?: readonly [number, number, number];
+  /** A barometer noise, Pa RMS (TASK-148: its SIM_BARO_RND scales with the home altitude). */
+  readonly barometerNoisePa?: number;
 }
 
 /** Creates a project with the example component cards and the S19 quad X profile, and opens it on the Run tab after a reload. */
 export async function seedQuadProject(page: Page, profileName: string, options: SeedOptions = {}): Promise<SeededProject> {
   await page.goto("/");
-  const seeded = await page.evaluate(async ({ urls, quad, cards, profileName, mirageOwned, ideal, cg }) => {
+  const seeded = await page.evaluate(async ({ urls, quad, cards, profileName, mirageOwned, ideal, cg, baroNoise }) => {
     const { ProjectStore } = await import(urls.store) as Store;
     const { profileDraft, validateAircraftProfile, withPropellerPolars, withSensorConfiguration } = await import(urls.profile) as Profiles;
     const { DEFAULT_SENSOR_CONFIGURATION: D } = await import(urls.sensorFields) as SensorFields;
@@ -90,14 +92,16 @@ export async function seedQuadProject(page: Page, profileName: string, options: 
       [{ card: propeller, polar: "naca6409-neuralfoil-v1" }]);
       const profile = mirageOwned
         ? withSensorConfiguration(polared, { ...D, imu: { ...D.imu, accelBiasMps2: [0.1, 0, 0] }, battery: { ...D.battery, voltageOffsetV: 0.1 } })
-        : ideal ? withSensorConfiguration(polared, { ...D, mode: "ideal" }) : polared;
+        : ideal ? withSensorConfiguration(polared, { ...D, mode: "ideal" })
+          : baroNoise !== null ? withSensorConfiguration(polared, { ...D, barometer: { ...D.barometer, noiseRmsPa: baroNoise } }) : polared;
       const stored = await store.createItem(project.record.id, "aircraft-profile", profileDraft(profileName, profile));
       await saveNavigation(store, { tab: "run", projectId: project.record.id });
       return { projectId: project.record.id, profileSha256: stored.sha256 };
     } finally {
       store.close();
     }
-  }, { urls, quad: QUAD, cards: CARDS, profileName, mirageOwned: options.mirageOwnedSensorErrors === true, ideal: options.idealSensors === true, cg: options.cgOffsetBodyM ? [...options.cgOffsetBodyM] : null });
+  }, { urls, quad: QUAD, cards: CARDS, profileName, mirageOwned: options.mirageOwnedSensorErrors === true, ideal: options.idealSensors === true,
+    cg: options.cgOffsetBodyM ? [...options.cgOffsetBodyM] : null, baroNoise: options.barometerNoisePa ?? null });
   await page.reload();
   return seeded;
 }

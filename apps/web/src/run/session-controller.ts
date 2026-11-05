@@ -316,7 +316,9 @@ export type FailureReason =
   /** A SITL the user started does not fit this profile or MirageSITL; every reason is named. */
   | { readonly kind: "incompatible"; readonly reasons: readonly string[] }
   /** A SITL the user started stopped sending heartbeats. */
-  | { readonly kind: "sitl-silent"; readonly seconds: number };
+  | { readonly kind: "sitl-silent"; readonly seconds: number }
+  /** TASK-148: the SITL the launcher started reports a position away from the session's home (the location). */
+  | { readonly kind: "home"; readonly message: string };
 export type RestartPath =
   /** Start (or, for a connection, Connect) again: a new experiment with a new record. */
   | { readonly kind: "start-again" }
@@ -390,6 +392,7 @@ export function failureText(reason: FailureReason): string {
     case "stop-failed": return `Stopping SITL failed: ${reason.message}`;
     case "incompatible": return `This SITL cannot be used with this profile: ${reason.reasons.join("; ")}`;
     case "sitl-silent": return `The SITL sent no heartbeat for ${reason.seconds} s; MirageSITL disconnected (the SITL itself was not stopped)`;
+    case "home": return `ArduPilot does not start at the session's home: ${reason.message}`;
     default: { const never: never = reason; return never; }
   }
 }
@@ -629,6 +632,8 @@ export class SessionController {
   private taskState: FlightTaskView["state"] = "waiting";
   private taskReason: string | null = null;
   private home: readonly [number, number, number, number] | null = null;
+  /** TASK-148: a launcher run's first 3D fix was found at its home. */
+  private launcherHomeChecked = false;
   /** Wall time at which each stream's message last arrived. */
   private readonly streamSeenMs = new Map<number, number>();
   private stopTimer: (() => void) | null = null;
@@ -1379,8 +1384,8 @@ export class SessionController {
         return;
       }
       case "warming":
-        // A connection's READY waits for its record, which follows the home check.
-        if (status.ready && (this.ownership === "launcher" || this.recordSha256 !== null)) this.set({ name: "ready", experimentId: s.experimentId });
+        // READY waits for the home check (TASK-148): a launcher run's own, a connection's through its record, which follows it.
+        if (status.ready && (this.ownership === "launcher" ? this.launcherHomeChecked : this.recordSha256 !== null)) this.set({ name: "ready", experimentId: s.experimentId });
         else if (status.reason !== s.reason) this.set({ ...s, reason: status.reason });
         return;
       case "ready":
@@ -1485,11 +1490,15 @@ export class SessionController {
           default: { const never: never = verdict; return never; }
         }
       }
-      case 24: { // GPS_RAW_INT: a connection's home check, once its parameters are confirmed
-        if (s.name !== "warming" || !this.external || this.external.homeChecked) return;
+      case 24: { // GPS_RAW_INT: the home check, a connection's once its parameters are confirmed, a launcher run's before READY
         if (readNumber(frame.view, GPS_FIX) < 3) return; // below a 3D fix
         // lat and lon in 1e-7 degrees, alt in millimetres above mean sea level.
-        this.checkHome(s.experimentId, readNumber(frame.view, GPS_LAT) / 1e7, readNumber(frame.view, GPS_LON) / 1e7, readNumber(frame.view, GPS_ALT) / 1000);
+        const latitudeDeg = readNumber(frame.view, GPS_LAT) / 1e7, longitudeDeg = readNumber(frame.view, GPS_LON) / 1e7, altitudeM = readNumber(frame.view, GPS_ALT) / 1000;
+        if (this.external) {
+          if (s.name === "warming" && !this.external.homeChecked) this.checkHome(s.experimentId, latitudeDeg, longitudeDeg, altitudeM);
+        } else if (!this.launcherHomeChecked && (s.name === "loading-parameters" || s.name === "warming")) {
+          this.checkLauncherHome(latitudeDeg, longitudeDeg, altitudeM);
+        }
         return;
       }
       case 77: { // COMMAND_ACK: only the motor test's acknowledgement is used
@@ -1579,14 +1588,35 @@ export class SessionController {
     this.compatibility = [...this.compatibility, { check: "parameters", text: `All ${count} frame, output, PWM and sensor parameters match the profile` }];
     this.set({ name: "warming", experimentId, reason: "Checking the SITL's home position" });
   }
+  /** How far a GPS fix is from `home`, metres: horizontally on the WGS-84 mean sphere, and vertically. */
+  private static homeDistance(home: readonly number[], latitudeDeg: number, longitudeDeg: number, altitudeM: number): { horizontal: number; vertical: number } {
+    const [homeLat = 0, homeLon = 0, homeAlt = 0] = home;
+    const north = (latitudeDeg - homeLat) * Math.PI / 180 * EARTH_RADIUS_M;
+    const east = (longitudeDeg - homeLon) * Math.PI / 180 * EARTH_RADIUS_M * Math.cos(homeLat * Math.PI / 180);
+    return { horizontal: Math.hypot(north, east), vertical: Math.abs(altitudeM - homeAlt) };
+  }
+  /**
+   * TASK-148: a run the launcher started must be where MirageSITL's physics and conditions put it. ArduPilot was given
+   * the session's home as --home, so its first 3D fix must lie within the connection limits of it; READY waits for this.
+   */
+  private checkLauncherHome(latitudeDeg: number, longitudeDeg: number, altitudeM: number): void {
+    const home = this.home;
+    if (!home) return;
+    this.launcherHomeChecked = true;
+    const { horizontal, vertical } = SessionController.homeDistance(home, latitudeDeg, longitudeDeg, altitudeM);
+    if (!(horizontal <= HOME_HORIZONTAL_M && vertical <= HOME_VERTICAL_M)) {
+      void this.stopAfter({ kind: "home", message: `its GPS puts it ${Math.round(horizontal)} m from and ${Math.round(vertical)} m above or below ${home.join(",")}` },
+        this.stateName());
+      return;
+    }
+    this.compatibility = [...this.compatibility, { check: "home", text: `GPS within ${horizontal.toFixed(1)} m and ${vertical.toFixed(1)} m of the session's home` }];
+    this.emit();
+  }
   private checkHome(experimentId: string, latitudeDeg: number, longitudeDeg: number, altitudeM: number): void {
     const external = this.external;
     if (!external) return;
     external.homeChecked = true;
-    const [homeLat, homeLon, homeAlt] = external.home;
-    const north = (latitudeDeg - homeLat) * Math.PI / 180 * EARTH_RADIUS_M;
-    const east = (longitudeDeg - homeLon) * Math.PI / 180 * EARTH_RADIUS_M * Math.cos(homeLat * Math.PI / 180);
-    const horizontal = Math.hypot(north, east), vertical = Math.abs(altitudeM - homeAlt);
+    const { horizontal, vertical } = SessionController.homeDistance(external.home, latitudeDeg, longitudeDeg, altitudeM);
     if (!(horizontal <= HOME_HORIZONTAL_M && vertical <= HOME_VERTICAL_M)) {
       void this.stopAfter({ kind: "incompatible", reasons: [`the SITL's GPS puts it ${Math.round(horizontal)} m from and ${Math.round(vertical)} m above or below the session's home: start it with --home ${external.home.join(",")}`] }, "warming");
       return;
@@ -1794,7 +1824,7 @@ export class SessionController {
     this.params = null; this.paramMetadata = null; this.changes = []; this.firmwareCommit = null;
     this.effects = []; this.faultRestore.clear(); this.gcsLinkLost = false; this.faultPlan = null;
     this.everArmed = false; this.flightTaskEntry = null; this.taskRunner = null; this.taskUpload = null; this.taskRoutePoint = -1; this.taskStep = null;
-    this.taskState = "waiting"; this.taskReason = null; this.home = null;
+    this.taskState = "waiting"; this.taskReason = null; this.home = null; this.launcherHomeChecked = false;
     this.parser.reset();
   }
 
@@ -1828,6 +1858,7 @@ function restartFor(reason: FailureReason, ownership: Ownership): RestartPath {
     case "sitl-ended": case "bridge-lost": case "sitl-restarted": case "sitl-silent":
       return { kind: "start-again" };
     case "stop-failed": return { kind: "start-again" };
+    case "home": return { kind: "fix-first", instruction: "Check the location in the Weather and location tab and the build's home handling, then press Start again" };
     default: { const never: never = reason; return never; }
   }
 }

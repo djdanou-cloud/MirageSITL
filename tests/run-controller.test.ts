@@ -585,6 +585,8 @@ async function reach(h: Harness, stage: Stage): Promise<string> {
   mav(h, ...parameterList(h.run.parameters));
   expect(h.controller.state).toMatchObject({ name: 'warming', experimentId: id });
   if (stage === 'warming') return id;
+  // TASK-148: READY waits for ArduPilot's first 3D fix at the session's home.
+  mav(h, streamMessage(24));
   status(h, { ready: true, reason: '', simTimeS: 40 });
   expect(h.controller.state).toEqual({ name: 'ready', experimentId: id });
   if (stage === 'ready') return id;
@@ -1081,6 +1083,32 @@ describe('a flight task on the Run tab (TASK-172)', () => {
     expect(h.controller.runTask()).toBe('This run has flown its task; start a new run to fly it again');
   });
 
+  test('READY of a launcher run waits for ArduPilot\'s first 3D fix at the session\'s home (TASK-148)', async () => {
+    const h = harness();
+    const id = await reach(h, 'warming');
+    // A 2D fix is not a position yet; the Worker's READY alone does not make the run ready.
+    mav(h, autopilotFrame(24, { time_usec: 0, fix_type: 2, lat: 0, lon: 0, alt: 0, eph: 0, epv: 0, vel: 0, cog: 0, satellites_visible: 4 }));
+    status(h, { ready: true, reason: '', simTimeS: 40 });
+    expect(h.controller.state).toMatchObject({ name: 'warming', experimentId: id });
+    mav(h, streamMessage(24));
+    status(h, { ready: true, reason: '', simTimeS: 41 });
+    expect(h.controller.state).toEqual({ name: 'ready', experimentId: id });
+    expect(h.controller.view.compatibility).toEqual([{ check: 'home', text: 'GPS within 0.0 m and 0.0 m of the session\'s home' }]);
+  });
+
+  test('a launcher run whose GPS is away from the session\'s home stops with the distance, never READY (TASK-148)', async () => {
+    // The run's home is elsewhere than CMAC, where the scripted autopilot reports its fix: 31.5° N, 34.9° E, 250 m.
+    const base = harness(), h = { ...base, request: { ...base.request, home: [31.5, 34.9, 250, 90] as const } };
+    await reach(h, 'warming');
+    mav(h, streamMessage(24));
+    await until(() => h.controller.state.name === 'failed', 5000, 'the run to fail');
+    const state = h.controller.state;
+    if (state.name !== 'failed') throw new Error('The run did not fail');
+    expect(state.reason).toMatchObject({ kind: 'home' });
+    expect(failureText(state.reason)).toMatch(/^ArduPilot does not start at the session's home: its GPS puts it \d+ m from and 334 m above or below 31\.5,34\.9,250,90$/);
+    expect(state.restart).toMatchObject({ kind: 'fix-first' });
+  });
+
   test('flies only as the first flight of a READY run, and a run without a task says so', async () => {
     const h = harness();
     await reach(h, 'ready');
@@ -1090,6 +1118,7 @@ describe('a flight task on the Run tab (TASK-172)', () => {
     const request = { ...second.request, flightTask: await stored(hover, 'Hover') };
     await reach({ ...second, request }, 'warming');
     expect(second.controller.runTask()).toBe('Run the task once the run is READY');
+    mav(second, streamMessage(24));
     status(second, { ready: true, reason: '', simTimeS: 40 });
     expect(second.controller.takeOff(TAKEOFF_M)).toBe(true);
     mav(second, heartbeat(GUIDED, true));
@@ -2581,6 +2610,8 @@ describe('the real launcher with the fake SITL', () => {
       status(h, { state: 'open', simTimeS: 0.4 });
       mav(h, heartbeat(STABILIZE, false), ...parameterList(prepared.parameters));
       expect(h.controller.state.name).toBe('warming');
+      // TASK-148: the first 3D fix at the session's home, which READY waits for.
+      mav(h, streamMessage(24));
     }
     /** A restart from failed on the real launcher: a new experiment (no 409) with a new record; then a user Stop that leaves no process. */
     async function restartAndStop(h: Harness, earlier: readonly string[], firmwareId = 'fake'): Promise<void> {
@@ -2847,6 +2878,8 @@ async function connectTo(h: Harness, stage: ConnectStage): Promise<string> {
   mav(h, ...parameterList(h.run.parameters));
   expect(h.controller.state).toMatchObject({ name: 'warming', experimentId: id });
   if (stage === 'warming') return id;
+  // TASK-148: READY waits for ArduPilot's first 3D fix at the session's home.
+  mav(h, streamMessage(24));
   status(h, { ready: true, reason: '', simTimeS: 40 });
   mav(h, gpsFix(1, 0.5));
   // The record goes through the real store (manifest derivation, hashing) before READY.

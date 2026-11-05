@@ -2459,7 +2459,10 @@ TASK-147 are generated at that elevation, the TASK-172 site parameters
 (COMPASS_DEC) follow the home, and the physics Worker receives
 `environment.set` (the gravity and the origin air of the conditions, refused
 outside 9.7 to 9.9 m/s² or with an invalid air) before `model.load`, so
-`profileModelPort` builds the profile dynamics with them. A repeat or variant
+`profileModelPort` builds the profile dynamics with them. Before READY the Run
+tab checks that ArduPilot's first 3D fix lies within 10 m horizontally and 5 m
+vertically of the home, for a run the launcher starts as for a connection, and
+stops the run with the distance otherwise. A repeat or variant
 of an experiment keeps its parent's home and environment; a run from a log
 (TASK-183) starts at the log's home in the conditions there, with the standard
 sea-level pressure and no temperature offset, since a log does not record them
