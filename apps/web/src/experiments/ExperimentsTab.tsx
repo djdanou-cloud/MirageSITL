@@ -43,8 +43,8 @@ async function positions(recordId: string): Promise<PositionRow[]> {
 }
 const metres = (value: number) => `${value.toFixed(value < 0.01 ? 4 : 3)} m`;
 
-export function ExperimentsTab({ storeState, project, link, active, onRun }: {
-  storeState: StoreState; project: StoredVersion | null; link: SessionLink; active: boolean; onRun: () => void;
+export function ExperimentsTab({ storeState, project, link, active, onRun, onAnalyse }: {
+  storeState: StoreState; project: StoredVersion | null; link: SessionLink; active: boolean; onRun: () => void; onAnalyse: (sha256: string) => void;
 }) {
   const store = storeState.status === "ready" ? storeState.store : null;
   const projectId = project?.record.id ?? null;
@@ -166,6 +166,7 @@ export function ExperimentsTab({ storeState, project, link, active, onRun }: {
             <button type="button" onClick={() => plan("repeat")} disabled={!launcherOwned}>Repeat</button>
             <button type="button" onClick={() => plan("variant")} disabled={!launcherOwned}>Create variant</button>
             <button type="button" onClick={exportSelected} disabled={!store}>Export the experiment</button>
+            <button type="button" onClick={() => onAnalyse(current.stored.sha256)}>Open in Analysis</button>
           </div>
           {!launcherOwned && <p className="hint">A run with a SITL started by hand is repeated by connecting that SITL again in the Run tab.</p>}
           {current.payload.flightTask && isManeuverType(current.payload.flightTask.definition.type) && (current.payload.recording

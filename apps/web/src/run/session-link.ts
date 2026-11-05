@@ -24,13 +24,26 @@ export interface RunDriver {
   stop(): Promise<void>;
 }
 
+/** What the Analysis tab reads of the launcher the Run tab talks to (TASK-180). */
+export interface LauncherFiles {
+  logs(id: string): Promise<{ readonly dataflash: readonly string[]; readonly attachments?: readonly string[] }>;
+  dataflash(id: string, name: string): Promise<Uint8Array>;
+}
+
 export class SessionLink {
   private current: LinkedSession | null = null;
   private runDriver: RunDriver | null = null;
   private batchIsRunning = false;
   private plannedRun: PlannedRun | null = null;
+  private launcherClient: LauncherFiles | null = null;
   private readonly listeners = new Set<() => void>();
 
+  /** The launcher the Run tab last reached; its token stays in the Run tab and in this object, never in a store. */
+  get launcher(): LauncherFiles | null { return this.launcherClient; }
+  setLauncher(client: LauncherFiles | null): void {
+    this.launcherClient = client;
+    this.notify();
+  }
   /** A new session replaces the previous one: every Start and Connect makes a fresh controller. */
   attach(controller: SessionController): void {
     this.current = { controller, view: null };

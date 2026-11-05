@@ -1,0 +1,153 @@
+diff --git a/src/components/Plotly.vue b/src/components/Plotly.vue
+index 73edf82..17b3d54 100644
+--- a/src/components/Plotly.vue
++++ b/src/components/Plotly.vue
+@@ -16,6 +16,15 @@ const timeformat = ':02,2f'
+ let annotationsEvents = []
+ const annotationsModes = []
+ let annotationsParams = []
++// MirageSITL: what its host put on the timeline, shown whichever annotations are chosen.
++let annotationsMirage = []
++const MIRAGE_COLORS = {
++    requested: '#2f6fb5',
++    confirmed: '#1f8a4c',
++    rejected: '#c0392b',
++    superseded: '#8a8a8a',
++    logged: '#7a5ab5'
++}
+ 
+ const updatemenus = [
+     {
+@@ -988,6 +997,21 @@ export default {
+             })
+         },
+         addEvents () {
++            annotationsMirage = (this.state.mirageEvents || []).map((event, index) => ({
++                xref: 'x',
++                yref: 'paper',
++                x: event.timeMs,
++                y: 1,
++                yanchor: 'top',
++                text: event.text,
++                captureevents: false,
++                showarrow: true,
++                arrowwidth: 2,
++                arrowcolor: MIRAGE_COLORS[event.status],
++                font: { color: MIRAGE_COLORS[event.status], size: 10 },
++                ax: 0,
++                ay: 30 + 16 * (index % 8)
++            }))
+             annotationsEvents = []
+             let i = -300
+             for (const event of this.state.events) {
+@@ -1033,13 +1057,14 @@ export default {
+                 )
+             }
+             Plotly.relayout(this.gd, {
+-                annotations: annotationsModes,
++                annotations: [...annotationsModes, ...annotationsMirage],
+                 updatemenus: updatemenus
+             })
+-            updatemenus[0].buttons[0].args = ['annotations', annotationsModes]
+-            updatemenus[0].buttons[1].args = ['annotations', [...annotationsEvents, ...annotationsModes]]
+-            updatemenus[0].buttons[2].args = ['annotations', [...annotationsEvents, ...annotationsModes,
+-                ...annotationsParams]]
++            updatemenus[0].buttons[0].args = ['annotations', [...annotationsModes, ...annotationsMirage]]
++            updatemenus[0].buttons[1].args = ['annotations', [
++                ...annotationsEvents, ...annotationsModes, ...annotationsMirage]]
++            updatemenus[0].buttons[2].args = ['annotations', [
++                ...annotationsEvents, ...annotationsModes, ...annotationsMirage, ...annotationsParams]]
+         },
+         addParamChanges () {
+             if (!this.state.params) {
+@@ -1095,7 +1120,8 @@ export default {
+             Plotly.relayout(this.gd, {
+                 annotations:
+                 [
+-                    ...annotationsModes
++                    ...annotationsModes,
++                    ...annotationsMirage
+                 ],
+                 updatemenus: updatemenus
+             })
+@@ -1105,7 +1131,8 @@ export default {
+                 [
+                     ...annotationsEvents,
+                     ...annotationsModes,
+-                    ...annotationsParams
++                    ...annotationsParams,
++                    ...annotationsMirage
+                 ]
+             ]
+         },
+diff --git a/src/components/SideBarFileManager.vue b/src/components/SideBarFileManager.vue
+index 91c1450..14766a2 100644
+--- a/src/components/SideBarFileManager.vue
++++ b/src/components/SideBarFileManager.vue
+@@ -238,6 +238,9 @@ export default {
+                 this.state.processPercentage = 100
+                 this.sampleLoaded = true
+                 worker.postMessage({ action: 'parse', file: bytes, isTlog: false, isDji: false }, [bytes])
++            },
++            onSetEvents: (events) => {
++                this.state.mirageEvents = events
+             }
+         })
+         this.$eventHub.$on('messagesDoneLoading', () => {
+diff --git a/src/mirage/bridge.js b/src/mirage/bridge.js
+index 19df24b..c4e7f38 100644
+--- a/src/mirage/bridge.js
++++ b/src/mirage/bridge.js
+@@ -7,11 +7,13 @@
+ //
+ // Host to viewer:
+ //   { type: 'mirage.loadLog', protocol: 1, name, bytes }   bytes: ArrayBuffer
++//   { type: 'mirage.setEvents', protocol: 1, events }      events on the plot's timeline, sent before the log
+ // Viewer to host (target origin: this origin only):
+ //   { type: 'mirage.ready', protocol: 1 }
+ //   { type: 'mirage.logAccepted', protocol: 1, name, bytes }
+ //   { type: 'mirage.logRejected', protocol: 1, reason }
+ //   { type: 'mirage.logParsed', protocol: 1, name, messageTypes }
++//   { type: 'mirage.eventsSet', protocol: 1, count }
+ 
+ export const PROTOCOL = 1
+ export const MAX_LOG_BYTES = 512 * 1024 * 1024
+@@ -65,11 +67,37 @@ export function sameOriginFileUrl (value) {
+     }
+ }
+ 
+-export function installBridge ({ onLoadLog }) {
++const EVENT_STATUSES = ['requested', 'confirmed', 'rejected', 'superseded', 'logged']
++export const MAX_EVENTS = 2000
++
++/** Events the host names for the plot's timeline, or null when they are not all well formed. */
++export function validateEvents (events) {
++    if (!Array.isArray(events) || events.length > MAX_EVENTS) {
++        return null
++    }
++    for (const event of events) {
++        if (event === null || typeof event !== 'object' || !Number.isFinite(event.timeMs) ||
++            typeof event.text !== 'string' || event.text.length > 200 || !EVENT_STATUSES.includes(event.status)) {
++            return null
++        }
++    }
++    return events.map(event => ({ timeMs: event.timeMs, text: event.text, status: event.status }))
++}
++
++export function installBridge ({ onLoadLog, onSetEvents }) {
+     window.addEventListener('message', (event) => {
+         if (event.origin !== window.location.origin || event.source !== window.parent || window.parent === window) {
+             return
+         }
++        if (event.data !== null && typeof event.data === 'object' && event.data.type === 'mirage.setEvents' &&
++            event.data.protocol === PROTOCOL) {
++            const events = validateEvents(event.data.events)
++            if (events !== null) {
++                onSetEvents(events)
++                post({ type: 'mirage.eventsSet', count: events.length })
++            }
++            return
++        }
+         const result = validateLoadLog(event.data)
+         if (result.ignored) {
+             return

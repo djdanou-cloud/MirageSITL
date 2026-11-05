@@ -15,7 +15,7 @@ import { validateMeasurementSet } from "@mirage/aircraft/measurements";
 import { validateAircraftProfile } from "@mirage/aircraft/profile";
 import { ProjectStore } from "@mirage/project/store";
 import { AircraftEditor } from "../aircraft/AircraftEditor";
-import { LogViewerHost } from "../analysis/LogViewerHost";
+import { AnalysisTab } from "../analysis/AnalysisTab";
 import { ComponentsPanel } from "../library/ComponentsPanel";
 import { SensorsTab } from "../sensors/SensorsTab";
 import {
@@ -71,6 +71,8 @@ export function AppShell({ run }: { run: (visible: boolean, storeState: StoreSta
     FORCED_TAB ? { ...DEFAULT_NAVIGATION, tab: FORCED_TAB } : DEFAULT_NAVIGATION);
   const [projects, setProjects] = useState<readonly StoredVersion[]>([]);
   const [notice, setNotice] = useState("");
+  /** The experiment the Experiments tab asked the Analysis tab to open (TASK-180). */
+  const [analysisOpen, setAnalysisOpen] = useState<{ readonly sha256: string; readonly at: number } | null>(null);
   // Set once the user navigates; until then the stored navigation may replace the default.
   const changed = useRef(false);
   const tabs = useRef(new Map<TabId, HTMLButtonElement>());
@@ -162,9 +164,9 @@ export function AppShell({ run }: { run: (visible: boolean, storeState: StoreSta
       case "tasks":
         return <FlightTasksTab storeState={storeState} project={project} active={navigation.tab === "tasks"} />;
       case "experiments":
-        return <ExperimentsTab storeState={storeState} project={project} link={link} active={navigation.tab === "experiments"} onRun={() => selectTab("run")} />;
+        return <ExperimentsTab storeState={storeState} project={project} link={link} active={navigation.tab === "experiments"} onRun={() => selectTab("run")} onAnalyse={sha256 => { setAnalysisOpen({ sha256, at: Date.now() }); selectTab("analysis"); }} />;
       case "analysis":
-        return <LogViewerHost active={navigation.tab === "analysis"} />;
+        return <AnalysisTab storeState={storeState} project={project} link={link} active={navigation.tab === "analysis"} openSha={analysisOpen} />;
       default: {
         const label = TABS.find(entry => entry.id === tab)?.label ?? tab;
         return <PlannedPanel label={label} description={PLANNED[tab]} project={project} />;

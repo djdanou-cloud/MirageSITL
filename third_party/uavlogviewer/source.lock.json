@@ -52,7 +52,7 @@
     "result": "FAIL on 2026-10-28: extractMission reads CMD.Frame, which this firmware did not log; PASS on 2026-11-05 with patch 0 in Google Chrome 156, 148 message types"
   },
   "patchedBuild": {
-    "task": "TASK-179",
+    "task": "TASK-179, TASK-180",
     "builder": "scripts/build-uavlogviewer.mjs",
     "patches": [
       {
@@ -66,6 +66,10 @@
       {
         "file": "0002-message-interface.patch",
         "sha256": "e476a018cbd4a82eb95e8755bad840ce54fdb286a16ea6f44bcf180fdb6c1cf2"
+      },
+      {
+        "file": "0003-experiment-context.patch",
+        "sha256": "debf6c95e380eaa88a3dc2e5c7fe9acf4d6bbbae55f24f3786c9d38c7c86f59d"
       }
     ],
     "addedPackages": [
@@ -85,11 +89,11 @@
       "arch": "arm64"
     },
     "outputs": {
-      "files": 1140,
-      "bytes": 52622162,
-      "sha256": "62f30cb61d2556b8e03450a32e406b0b16bc9697661a1223621dd80f92873e9c"
+      "files": 1141,
+      "bytes": 52631031,
+      "sha256": "6f95bb35eb8be1f1fb295c07d1c9cb0b03acb1e4c702476d6fc5596ae813d7d1"
     },
     "thirdPartyPackages": 958,
-    "reproduced": "2026-10-31: the installer build and a build in a separate work folder on the reference M5 gave the same digest"
+    "reproduced": "2026-11-05: the installer build and a build in a separate work folder on the reference M5 gave the same digest"
   }
 }

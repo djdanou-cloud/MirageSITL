@@ -12,7 +12,9 @@ the stakeholder's ArduCopter 4.6.2 DataFlash log in Chromium with all network
 access blocked, with no errors. TASK-179 (DONE on 2026-11-05) applies
 patches 0000–0002, builds the viewer reproducibly and embeds it in the Analysis
 tab; on the reference M5 it opens DataFlash logs with no network request in
-Google Chrome 156.
+Google Chrome 156. TASK-180 (DONE on 2026-11-05) adds patch 0003: a stored
+experiment opens there with its log, its context and its parameter changes on
+the plot's timeline.
 
 ## Identity
 
@@ -78,16 +80,16 @@ Why:
   files are the published source of the changes.
 
 The patches are stored in `third_party/uavlogviewer/patches/` and applied in
-name order by the TASK-179 build. Patches 0–2 exist (TASK-179); the rest of
-patch 2 and patches 3–4 belong to TASK-180 and TASK-181:
+name order by the TASK-179 build. Patches 0–2 (TASK-179) and 3 (TASK-180) exist;
+patch 4 and what it adds to the message interface belong to TASK-181:
 
 | Patch | Purpose | Upstream files it changes |
 | --- | --- | --- |
 | 0 Compatibility (`0000-compatibility.patch`, TASK-179) | Tolerate `CMD` messages without a `Frame` field (logs from older firmware), so mission extraction no longer aborts the remaining extraction steps. Register the parser submodule's own worker listener only when that module is the worker: imported by the viewer's worker it parsed every log a second time and threw `TypeError` on every `loadType` request (first seen with native SITL logs, whose position opens the 3D view). Take `_COMMIT_` and `_BUILDDATE_` from `UAVLOGVIEWER_COMMIT` and `SOURCE_DATE_EPOCH`, so the build is reproducible outside a git checkout | `src/tools/dataflashDataExtractor.js`, `src/tools/parsers/parser.worker.js`, `src/tools/parsers/JsDataflashParser/parser.js`, `build/webpack.prod.conf.js` |
 | 1 Offline (`0001-offline.patch`, TASK-179) | Remove analytics and the web font, bundle the Font Awesome 5.2.0 icon font from the npm package `@fortawesome/fontawesome-free` (added to `package.json` and `package-lock.json` with its registry integrity hash; the font rule of the webpack configuration gets `type: 'javascript/auto'` and `esModule: false` so the CSS references the real font files), replace the online probe with the setting `?online=1` (off by default), remove the MapTiler provider with the embedded key, disable IP geolocation unless online | `index.html`, `src/main.js`, `src/App.vue`, `src/components/Home.vue`, `src/components/CesiumViewer.vue`, `src/components/widgets/MagFitTool.vue`, `build/webpack.base.conf.js`, `package.json`, `package-lock.json` |
 | 2 Message interface (`0002-message-interface.patch`, TASK-179 part) | Replace the unchecked `message` listener with an origin-checked API (protocol 1, below): load a log with its name; report ready, accepted, rejected with a reason, and parsed with the number of message types. `?file=` opens same-origin URLs only. Context, a second log, a time shift and parameter-change markers follow in TASK-180 and TASK-181 | `src/components/SideBarFileManager.vue`, a new `src/mirage/bridge.js` |
-| 3 Two logs | Keep one dataset per log, parse the second log in its own worker, draw each log's traces in a distinct style on common axes, side by side or overlaid, with a manual time shift; select two intervals of one log | `src/components/Globals.js`, `src/components/SideBarFileManager.vue`, `src/components/Plotly.vue`, `src/components/PlotSetup.vue`, `src/components/Sidebar.vue` |
-| 4 Markers and context | Colour parameter-change annotations by status; show aircraft and component versions, environment and parameter differences, marking missing context as unknown | `src/components/Plotly.vue`, `src/components/Sidebar.vue`, a new `src/mirage/ContextPanel.vue` |
+| 3 Experiment context (`0003-experiment-context.patch`, TASK-180) | Add `mirage.setEvents` and `mirage.eventsSet` to the message interface; keep the events in `annotationsMirage` and draw them on every Plotly relayout, through the upstream event and parameter-change annotations, in the colour of their status. The context itself is MirageSITL's own `ContextPanel.tsx`, beside the viewer, so no upstream sidebar changes | `src/components/Plotly.vue`, `src/components/SideBarFileManager.vue`, `src/mirage/bridge.js` |
+| 4 Two logs | Keep one dataset per log, parse the second log in its own worker, draw each log's traces in a distinct style on common axes, side by side or overlaid, with a manual time shift; select two intervals of one log | `src/components/Globals.js`, `src/components/SideBarFileManager.vue`, `src/components/Plotly.vue`, `src/components/PlotSetup.vue`, `src/components/Sidebar.vue` |
 
 ## Offline build and embedding (TASK-179)
 
@@ -129,6 +131,8 @@ and send with the target origin set to their own origin:
 | Viewer → host | `{ type: "mirage.logAccepted", protocol: 1, name, bytes }` | The log was handed to the parser |
 | Viewer → host | `{ type: "mirage.logRejected", protocol: 1, reason }` | The message was refused, for example another protocol version |
 | Viewer → host | `{ type: "mirage.logParsed", protocol: 1, name, messageTypes }` | Parsing finished with this many message types |
+| Host → viewer | `{ type: "mirage.setEvents", protocol: 1, events }` (TASK-180) | Keep these events for the next plot: each `{ timeMs, text, status }`, at most 2,000, with `status` one of `requested`, `confirmed`, `rejected`, `superseded` or `logged` |
+| Viewer → host | `{ type: "mirage.eventsSet", protocol: 1, count }` (TASK-180) | The viewer holds this many events |
 
 The DJI parser (`src/tools/parsers/djiParser.js`) still requests decryption
 keys from `dev.dji.com` when a DJI `.txt` log is opened. Phase 1 opens
@@ -143,10 +147,26 @@ reads:
   is.
 * MirageSITL's own recordings are written as DataFlash by the TASK-178 writer.
 
-The experiment context (profile and component versions, environment, and
-parameter history with request status) travels through the message interface of
-patch 2, not inside the log. An external log without that context shows it as
-unknown; parameter history that the log does not contain is never invented.
+TASK-180 opens a stored experiment from the Experiments tab's **Open in Analysis**
+or the Analysis tab's own list. `apps/web/src/analysis/experiment-adapter.ts` chooses
+the file: the run's attached ArduPilot log while the launcher reached in this session
+still has it (a run that never armed has none); otherwise `recordingDataflash` writes
+one from the stored recording with the TASK-178 writer, holding MirageSITL's truth
+and the run's parameter changes. The tab says which of the two it opened.
+
+The context comes from the experiment record and the run's stored parameter log,
+not from inside the file, and `ContextPanel.tsx` shows it beside the viewer: aircraft
+profile and component versions, ArduPilot build, physics rate, speed, location,
+weather, initial parameters, flight task, each parameter change with its status, and
+what changed over the run. The changes reach the plot through `mirage.setEvents`, on
+the log's own clock, which is the run's simulated time, drawn in the colour of their
+outcome. A rejected change does not count as a difference, because it changed nothing.
+
+A log opened from elsewhere shows what it holds: its firmware and its `PARM` records,
+a parameter's first record being its value and each later different one a change
+that says nothing of who asked. The counters the firmware keeps (`STAT_*`) are left
+out. Everything else reads Unknown; parameter history that a source does not hold is
+never invented.
 
 ## Evidence
 
@@ -231,10 +251,24 @@ unknown; parameter history that the log does not contain is never invented.
     refused protocol 2 message, a TASK-178 MirageSITL log and the 16-motor SITL
     reference log opened, with no exception and no request outside loopback.
 
+* TASK-180 on the same machine, macOS 27.2, Google Chrome 156, 2026-11-05:
+  * Two builds of the four-patch series (the installer's and one in a separate work
+    folder) gave 1,141 files, 52,631,031 bytes, digest
+    `6f95bb35eb8be1f1fb295c07d1c9cb0b03acb1e4c702476d6fc5596ae813d7d1`.
+  * `tests/browser/log-viewer-experiments.spec.ts` flies native ArduCopter `8ab6afde`
+    on a launcher, writes `RTL_ALT_FINAL_M` 0 → 1 (confirmed) and `FS_GCS_ENABLE`
+    0 → 1.5 (refused by its list type before sending), stops, and opens the
+    experiment: ArduPilot's own log with 87 message types, the context, both changes
+    told apart in the panel and on the plot, and the difference list naming only the
+    confirmed one. `sitl-copter.bin` opened from elsewhere names its firmware and
+    marks aircraft profile, component versions, physics rate, location, weather and
+    flight task Unknown, with no event invented.
+  * `tests/experiment-adapter.test.ts` holds 11 cases: statuses, differences, the
+    written log read back by the TASK-178 reader, and external logs.
+
 ## Remaining
 
-* **Patches 3 and 4 and the rest of patch 2** (context, a second log, time
-  shift, markers) belong to TASK-180 and TASK-181.
+* **Patch 4** (a second log, time shift) belongs to TASK-181.
 * **Accessibility of the embedded viewer.** axe finds seven rule violations
   inside the upstream viewer at 390 px: `aria-command-name` (the icon-only menu
   button), `image-alt` (the GitHub images), `label` (the file input

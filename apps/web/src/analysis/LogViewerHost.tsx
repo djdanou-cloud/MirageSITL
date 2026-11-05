@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import {
-  VIEWER_PATH, dataflashRefusal, loadLogMessage, parseViewerBuild, parseViewerMessage, type ViewerBuild,
+  VIEWER_PATH, dataflashRefusal, loadLogMessage, parseViewerBuild, parseViewerMessage, setEventsMessage, type ViewerBuild, type ViewerEvent,
 } from "./viewer-protocol";
 
 // Analysis tab host for the offline UAVLogViewer (TASK-179, S14). The viewer is
@@ -30,14 +30,19 @@ function describe(status: LogStatus): string {
   }
 }
 
-export function LogViewerHost({ active }: { active: boolean }) {
+/** A log to open and the events to draw on its timeline; a new `id` opens it. */
+export interface ViewerRequest { readonly id: string; readonly name: string; readonly bytes: ArrayBuffer; readonly events: readonly ViewerEvent[] }
+
+export function LogViewerHost({ active, request = null, onFileChosen }: {
+  active: boolean; request?: ViewerRequest | null; onFileChosen?: (name: string, bytes: ArrayBuffer) => void;
+}) {
   const [opened, setOpened] = useState(false);
   const [availability, setAvailability] = useState<Availability>({ kind: "checking" });
   const [ready, setReady] = useState(false);
   const [status, setStatus] = useState<LogStatus>({ kind: "none" });
   const frame = useRef<HTMLIFrameElement>(null);
   // A log chosen before the viewer reported ready waits here.
-  const pending = useRef<{ name: string; bytes: ArrayBuffer } | null>(null);
+  const pending = useRef<{ name: string; bytes: ArrayBuffer; events: readonly ViewerEvent[] } | null>(null);
 
   useEffect(() => {
     if (active) setOpened(true);
@@ -61,14 +66,16 @@ export function LogViewerHost({ active }: { active: boolean }) {
     return () => { cancelled = true; };
   }, [opened]);
 
-  const send = (name: string, bytes: ArrayBuffer) => {
+  const send = (name: string, bytes: ArrayBuffer, events: readonly ViewerEvent[]) => {
     const target = frame.current?.contentWindow;
     if (!target) {
-      pending.current = { name, bytes };
+      pending.current = { name, bytes, events };
       return;
     }
     const message = loadLogMessage(name, bytes);
     setStatus({ kind: "sending", name: message.name });
+    // The viewer keeps these for the plot it makes of this log, so they go first; no events clears the last log's.
+    target.postMessage(setEventsMessage(events), globalThis.location.origin);
     target.postMessage(message, globalThis.location.origin, [bytes]);
   };
 
@@ -82,7 +89,7 @@ export function LogViewerHost({ active }: { active: boolean }) {
           setReady(true);
           const waiting = pending.current;
           pending.current = null;
-          if (waiting) send(waiting.name, waiting.bytes);
+          if (waiting) send(waiting.name, waiting.bytes, waiting.events);
           break;
         }
         case "mirage.logAccepted":
@@ -94,11 +101,25 @@ export function LogViewerHost({ active }: { active: boolean }) {
         case "mirage.logParsed":
           setStatus({ kind: "parsed", name: message.name, messageTypes: message.messageTypes });
           break;
+        case "mirage.eventsSet":
+          break;
       }
     };
     globalThis.addEventListener("message", onMessage);
     return () => globalThis.removeEventListener("message", onMessage);
   }, []);
+
+  // A log the tab asks for, once for each new id.
+  const shown = useRef("");
+  useEffect(() => {
+    if (!request || request.id === shown.current) return;
+    shown.current = request.id;
+    if (ready) send(request.name, request.bytes, request.events);
+    else {
+      pending.current = { name: request.name, bytes: request.bytes, events: request.events };
+      setStatus({ kind: "sending", name: request.name });
+    }
+  }, [request, ready]);
 
   const choose = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -110,9 +131,10 @@ export function LogViewerHost({ active }: { active: boolean }) {
         setStatus({ kind: "refused", reason: refusal });
         return;
       }
-      if (ready) send(file.name, buffer);
+      if (onFileChosen) { onFileChosen(file.name, buffer); return; }
+      if (ready) send(file.name, buffer, []);
       else {
-        pending.current = { name: file.name, bytes: buffer };
+        pending.current = { name: file.name, bytes: buffer, events: [] };
         setStatus({ kind: "sending", name: file.name });
       }
     }, (cause: unknown) => setStatus({ kind: "refused", reason: `${file.name} could not be read (${cause instanceof Error ? cause.message : String(cause)}).` }));

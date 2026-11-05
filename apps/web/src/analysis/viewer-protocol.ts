@@ -12,7 +12,8 @@ export type ViewerMessage =
   | { readonly type: "mirage.ready" }
   | { readonly type: "mirage.logAccepted"; readonly name: string; readonly bytes: number }
   | { readonly type: "mirage.logRejected"; readonly reason: string }
-  | { readonly type: "mirage.logParsed"; readonly name: string; readonly messageTypes: number };
+  | { readonly type: "mirage.logParsed"; readonly name: string; readonly messageTypes: number }
+  | { readonly type: "mirage.eventsSet"; readonly count: number };
 
 export interface LoadLogMessage {
   readonly type: "mirage.loadLog";
@@ -39,6 +40,10 @@ export function parseViewerMessage(data: unknown): ViewerMessage | null {
       const reason = field(data, "reason");
       return typeof reason === "string" ? { type, reason } : null;
     }
+    case "mirage.eventsSet": {
+      const events = field(data, "count");
+      return count(events) ? { type, count: events } : null;
+    }
     case "mirage.logParsed": {
       const messageTypes = field(data, "messageTypes");
       return typeof name === "string" && count(messageTypes) ? { type, name, messageTypes } : null;
@@ -63,6 +68,10 @@ export function viewerLogName(name: string): string {
   for (const char of name.replace(/[\\/]/g, "_")) cleaned += char.charCodeAt(0) < 0x20 ? "_" : char;
   return (cleaned.length === 0 ? "log.bin" : cleaned).slice(0, 255);
 }
+
+/** Events on the plot's timeline, which the viewer keeps for the next plot (TASK-180). */
+export interface ViewerEvent { readonly timeMs: number; readonly text: string; readonly status: string }
+export const setEventsMessage = (events: readonly ViewerEvent[]) => ({ type: "mirage.setEvents", protocol: VIEWER_PROTOCOL, events: events.slice(0, 2000) }) as const;
 
 export function loadLogMessage(name: string, bytes: ArrayBuffer): LoadLogMessage {
   return { type: "mirage.loadLog", protocol: VIEWER_PROTOCOL, name: viewerLogName(name), bytes };

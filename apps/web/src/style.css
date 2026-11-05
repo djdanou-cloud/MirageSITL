@@ -105,6 +105,12 @@ html[data-g3="1"] .terrain-status { top: 12px; bottom: auto; left: 50%; transfor
 
 /* Analysis tab (TASK-179): the offline UAVLogViewer frame. */
 .log-viewer-host { display: grid; gap: 12px; min-width: 0; }
+.analysis-tab { display: grid; gap: 12px; min-width: 0; }
+.analysis-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 340px); gap: 12px; align-items: start; }
+.analysis-context dl > div { display: grid; grid-template-columns: subgrid; grid-column: 1 / -1; }
+.analysis-context [data-unknown="true"] dd { font-style: italic; opacity: 0.75; }
+.analysis-context dd { overflow-wrap: anywhere; }
+@media (max-width: 1000px) { .analysis-layout { grid-template-columns: minmax(0, 1fr); } }
 .log-viewer-host h2 { font-size: 17px; font-weight: 600; margin: 0; color: #e1f4f2; }
 .log-viewer-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; min-width: 0; }
 .log-viewer-bar p { margin: 0; overflow-wrap: anywhere; }

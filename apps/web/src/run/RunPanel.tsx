@@ -215,7 +215,7 @@ export function RunPanel({ storeState, project, visible, link }: { storeState: S
   const active = controller.current?.active ?? false;
   const failed = state.name === "failed" ? state : null;
   const client = (): LauncherClient | null => {
-    try { return new LauncherClient(Number(port), token.trim()); } catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); return null; }
+    try { const made = new LauncherClient(Number(port), token.trim()); link.setLauncher(made); return made; } catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); return null; }
   };
   const listBuilds = () => {
     setError("");

@@ -290,11 +290,18 @@ export class LauncherClient implements LauncherPort {
   }
   async connection(id: string): Promise<LauncherConnection> { return parseLauncherConnection(await this.call("GET", `/v1/connections/${encodeURIComponent(id)}`)); }
   async experiment(id: string): Promise<LauncherExperiment> { return parseLauncherExperiment(await this.call("GET", `/v1/experiments/${encodeURIComponent(id)}`)); }
+  /** One DataFlash file of an experiment, as the launcher attached it (TASK-180). */
+  async dataflash(id: string, name: string): Promise<Uint8Array> {
+    const response = await fetch(`http://127.0.0.1:${this.port}/v1/experiments/${encodeURIComponent(id)}/dataflash/${encodeURIComponent(name)}`, { cache: "no-store", headers: { authorization: `Bearer ${this.token}` } });
+    if (!response.ok) throw new LauncherError("refused", `status ${response.status}`, response.status, null);
+    return new Uint8Array(await response.arrayBuffer());
+  }
   async logs(id: string): Promise<LauncherLogs> {
     const json = await this.call("GET", `/v1/experiments/${encodeURIComponent(id)}/logs`);
     const dataflash = field(json, "dataflash");
     const files: readonly unknown[] = Array.isArray(dataflash) ? dataflash : [];
     return { stdout: textOrNull(field(json, "stdout")) ?? "", stderr: textOrNull(field(json, "stderr")) ?? "",
+      attachments: (Array.isArray(field(json, "attachments")) ? field(json, "attachments") as readonly unknown[] : []).flatMap(file => { const name = field(file, "name"); return typeof name === "string" ? [name] : []; }),
       dataflash: files.flatMap(file => { const name = typeof file === "string" ? file : field(file, "name"); return typeof name === "string" ? [name] : []; }) };
   }
 }

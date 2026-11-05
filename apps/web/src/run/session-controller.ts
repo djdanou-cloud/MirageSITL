@@ -108,7 +108,7 @@ export interface LauncherExperiment {
   readonly firmware: LauncherFirmware; readonly runs: readonly LauncherRun[];
   readonly ports: { readonly bridge: number } | null;
 }
-export interface LauncherLogs { readonly stdout: string; readonly stderr: string; readonly dataflash: readonly string[] }
+export interface LauncherLogs { readonly stdout: string; readonly stderr: string; /** What the launcher hashed and attached when the run ended (TASK-164). */ readonly attachments?: readonly string[]; readonly dataflash: readonly string[] }
 export interface CatalogEntry { readonly id: string; readonly firmwareVersion: string; readonly usable: boolean; readonly reason: string | null }
 export interface StartSpec {
   readonly firmwareId: string; readonly parameters: readonly { readonly name: string; readonly value: number }[];
