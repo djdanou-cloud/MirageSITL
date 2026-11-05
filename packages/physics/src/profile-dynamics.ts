@@ -8,6 +8,8 @@ import { escDriveFromManifest } from './drive.ts';
 import { GroundContact, type ContactShape, type ContactWheel } from './ground-contact.ts';
 import type { LimitRatings } from './limit-monitor.ts';
 import { boundCatalogPolar } from './polar-catalog.ts';
+import { validateModelManifest } from './model-manifest.ts';
+import { CALIBRATION_DENSITY_MARGIN, CALIBRATION_RPM_MARGIN, CALIBRATION_STATIC_ADVANCE_RATIO, scaledPolar } from './propulsion-calibration.ts';
 import type { SessionModelPort } from './session-v2.ts';
 import {
   deriveVehicle, PROPELLER_DISC_HALF_THICKNESS_OF_RADIUS, projectVehicleToModelV1, validateVehicleManifest, withoutHull, withoutLandingGear,
@@ -24,6 +26,8 @@ import {
  * assumptions by the profile resolver, not properties of a propeller.
  */
 export const PROFILE_ROTOR_SETTINGS = Object.freeze({ inflowTauS: 0.1, inflowLimitMps: 500, minimumConfidence: 0.9 });
+/** TASK-145: a calibrated rotor's scaled polar flies under this ID plus the rotor's index, above every catalog polar's. */
+export const CALIBRATED_POLAR_BASE = 1_000_000;
 /** The propeller disc thickness lives with the hull shapes; it stays exported here too. */
 export { PROPELLER_DISC_HALF_THICKNESS_OF_RADIUS };
 
@@ -99,7 +103,14 @@ export interface ProfileDynamicsBuild {
  * runtime cannot consume (control surfaces).
  */
 export function buildProfileDynamics(input: VehicleManifest, options: ProfileDynamicsOptions = {}): ProfileDynamicsBuild {
-  const manifest = validateVehicleManifest(input);
+  // TASK-145: calibrated rotors take their fitted motor values here and their scaled polars below; the rest of the build never sees the section.
+  const { propulsionCalibrations: calibrations = [], ...uncalibrated } = validateVehicleManifest(input);
+  const manifest = validateVehicleManifest({ ...uncalibrated, datasets: uncalibrated.datasets.filter(dataset => !calibrations.some(item => item.datasetId === dataset.id)),
+    motors: uncalibrated.motors.map(motor => {
+      const fitted = calibrations.find(item => item.rotorId === motor.rotorId);
+      if (!fitted) return motor;
+      return { ...motor, ...(fitted.resistanceOhm === null ? {} : { resistanceOhm: fitted.resistanceOhm }), ...(fitted.noLoadCurrentA === null ? {} : { noLoadCurrentA: fitted.noLoadCurrentA }) };
+    }) });
   if (manifest.motors.length !== manifest.rotorCount || manifest.escs.length !== manifest.rotorCount || !manifest.battery) {
     throw new Error('Profile dynamics need a motor and an ESC for every rotor and a battery');
   }
@@ -109,6 +120,7 @@ export function buildProfileDynamics(input: VehicleManifest, options: ProfileDyn
   // A dataset that only consumed sections name leaves with them.
   const provenance = { ...manifest.provenance, motors: null, escs: null, battery: null, airframeDrag: null, sensorMounts: null, rotorWakePairs: null };
   const named = new Set<string | null | undefined>(Object.values(provenance));
+  const limitations: string[] = [], calibratedPolars = new Map<number, number>();
   const model = projectVehicleToModelV1(withoutHull(withoutLandingGear({
     ...manifest, motors: [], escs: [], battery: null, airframe: { drag: null }, sensorMounts: [], rotorWakePairs: [], ardupilot: null,
     provenance, datasets: manifest.datasets.filter(dataset => named.has(dataset.id)),
@@ -116,7 +128,22 @@ export function buildProfileDynamics(input: VehicleManifest, options: ProfileDyn
   const gear = options.syntheticPad === true ? null : profileGear(manifest, model);
   const polars = new Map<number, BoundPolar>();
   for (const rotor of model.rotors) if (!polars.has(rotor.polarId)) polars.set(rotor.polarId, boundCatalogPolar(rotor.polarId));
-  const limitations: string[] = [];
+  // A calibrated rotor flies its own scaled copy of its polar, under an ID above the catalog's, and checks its envelope every step.
+  const calibrationEnvelopes = calibrations.map(item => {
+    const index = model.rotors.findIndex(rotor => rotor.id === item.rotorId), rotor = model.rotors[index];
+    if (!rotor) throw new Error('A calibration names a rotor the build does not hold');
+    const polarId = CALIBRATED_POLAR_BASE + index;
+    polars.set(polarId, scaledPolar(boundCatalogPolar(rotor.polarId), { lift: item.liftScale, drag: item.dragScale }));
+    calibratedPolars.set(index, polarId);
+    return { rotorIndex: index, rpmLow: item.rpmMin * (1 - CALIBRATION_RPM_MARGIN), rpmHigh: item.rpmMax * (1 + CALIBRATION_RPM_MARGIN),
+      densityLowKgM3: item.densityKgM3 * (1 - CALIBRATION_DENSITY_MARGIN), densityHighKgM3: item.densityKgM3 * (1 + CALIBRATION_DENSITY_MARGIN),
+      advanceRatioMax: CALIBRATION_STATIC_ADVANCE_RATIO };
+  });
+  const flown = calibratedPolars.size === 0 ? model
+    : validateModelManifest({ ...model, rotors: model.rotors.map((rotor, i) => ({ ...rotor, polarId: calibratedPolars.get(i) ?? rotor.polarId })) });
+  if (calibrations.length > 0) {
+    limitations.push(`${calibrations.length} rotor${calibrations.length === 1 ? ' is' : 's are'} calibrated to bench data of their exact combination; outside its RPM range, density or a near-static advance ratio a step is flagged (TASK-145).`);
+  }
   let configurationFlags = 0;
   if (!gear && options.syntheticPad !== true) {
     limitations.push('The vehicle has no landing gear, so it stands on the synthetic pad, which holds it level on touchdown; decision F-07 ' +
@@ -148,7 +175,7 @@ export function buildProfileDynamics(input: VehicleManifest, options: ProfileDyn
     initialBody.quaternionBodyToNed[3] = Math.sin(half);
   }
   const configuration: BetFlightConfiguration = {
-    manifest: model, polars,
+    manifest: flown, polars,
     initialOmegaRadS: new Array<number>(n).fill(0), motorMaxTorqueNm: new Array<number>(n).fill(0),
     inflowTauS: new Array<number>(n).fill(PROFILE_ROTOR_SETTINGS.inflowTauS),
     inflowLimitMps: new Array<number>(n).fill(PROFILE_ROTOR_SETTINGS.inflowLimitMps),
@@ -158,6 +185,7 @@ export function buildProfileDynamics(input: VehicleManifest, options: ProfileDyn
     soundMps: options.soundMps ?? air.speedOfSoundMps, syntheticGroundDownM: gear ? undefined : 0, drive, configurationFlags,
     kernelOptions: options.kernelOptions ?? 0, limitRatings: options.limitRatings ?? null,
     ...(airframeDrag ? { airframeDrag } : {}),
+    ...(calibrationEnvelopes.length > 0 ? { calibrationEnvelopes } : {}),
     ...(options.gravityMps2 === undefined ? {} : { gravityMps2: options.gravityMps2 }),
     ...(options.originAir ? { originAir: options.originAir } : {}),
   };

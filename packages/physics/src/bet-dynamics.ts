@@ -69,6 +69,11 @@ export interface BetFlightConfiguration {
   /** TASK-096 airframe drag. Absent, the rotors alone meet the air, bit for bit as before. */
   airframeDrag?: AirframeDragConfiguration;
   /**
+   * TASK-145: the measured envelope of each calibrated rotor. A step outside any of them sets VALIDITY_FLAG_CALIBRATION_EXTRAPOLATION;
+   * absent, no step checks one, bit for bit as before.
+   */
+  calibrationEnvelopes?: readonly CalibrationEnvelopeConfiguration[];
+  /**
    * Configuration-level validity flags (TASK-144), ORed into `validityFlags`
    * every step, for model parts declared but not modeled; 0 by default.
    * Bits 16 and up, so they never alias rotor output flags.
@@ -117,6 +122,17 @@ const SAMPLING_FLAGS=ROTOR_FLAG_HOVER_SAMPLING|ROTOR_FLAG_REDUCED_PREDICTOR;
 export const CONFIGURATION_FLAG_WAKE_UNMODELED = 1 << 16;
 /** A step's airspeed exceeded the airframe drag data's range (TASK-096); a step flag, never a configuration flag. */
 export const VALIDITY_FLAG_DRAG_OUTSIDE_RANGE = 1 << 17;
+/** TASK-145: a calibrated rotor ran outside its bench data's RPM range, density or (near-zero) advance ratio, with their margins. */
+export const VALIDITY_FLAG_CALIBRATION_EXTRAPOLATION = 1 << 18;
+/** One calibrated rotor's envelope, margins included (SPECS_SIMULATION_ENGINES "Propulsion calibration: TASK-145"). */
+export interface CalibrationEnvelopeConfiguration {
+  /** Index of the rotor in the manifest's rotor order. */
+  readonly rotorIndex: number;
+  readonly rpmLow: number; readonly rpmHigh: number;
+  readonly densityLowKgM3: number; readonly densityHighKgM3: number;
+  /** The largest advance ratio V/(nD) of the airspeed at the CG. */
+  readonly advanceRatioMax: number;
+}
 
 /**
  * The bandwidth of a weather.set's synthetic gust (TASK-093): the first-order Gauss-Markov wind of TASK-032, which is
@@ -201,6 +217,8 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
   private readonly dragArea:Float64Array|null;
   private readonly dragCenter=new Float64Array(3);
   private readonly dragMaxAirspeedMps:number;
+  /** TASK-145: per calibrated rotor [index, rpm low, rpm high, density low, density high, J max, diameter]; empty without calibrations. */
+  private readonly envelopes:Float64Array;
   private readonly groundDown:number|undefined;
   private readonly contact:FlightContact|null;
   private readonly bus:BetBus|null;
@@ -247,6 +265,16 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
     const flags=configuration.configurationFlags??0;
     if((flags>>>0)!==flags || (flags&0xffff)!==0)throw Error('Configuration flags must use bits 16 to 31');
     if((flags&VALIDITY_FLAG_DRAG_OUTSIDE_RANGE)!==0)throw Error('Bit 17 is the airframe drag step flag, not a configuration flag');
+    if((flags&VALIDITY_FLAG_CALIBRATION_EXTRAPOLATION)!==0)throw Error('Bit 18 is the calibration step flag, not a configuration flag');
+    const envelopes=configuration.calibrationEnvelopes??[];
+    this.envelopes=new Float64Array(envelopes.length*7);
+    envelopes.forEach((e,k)=>{
+      const rotor=model.rotors[e.rotorIndex];
+      if(!rotor||!Number.isInteger(e.rotorIndex)||envelopes.findIndex(other=>other.rotorIndex===e.rotorIndex)!==k||
+          !(e.rpmLow>=0&&e.rpmHigh>e.rpmLow&&e.densityLowKgM3>0&&e.densityHighKgM3>e.densityLowKgM3&&e.advanceRatioMax>=0))
+        throw Error('Invalid calibration envelope');
+      this.envelopes.set([e.rotorIndex,e.rpmLow,e.rpmHigh,e.densityLowKgM3,e.densityHighKgM3,e.advanceRatioMax,2*rotor.radiusM],k*7);
+    });
     const drag=configuration.airframeDrag;
     if(drag) {
       const c=drag.dragAreaBodyM2,r=drag.centerOfPressureCgM;
@@ -506,6 +534,16 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
       d[0]=dx;d[1]=dy;d[2]=dz;d[3]=r[1]!*dz-r[2]!*dy;d[4]=r[2]!*dx-r[0]!*dz;d[5]=r[0]!*dy-r[1]!*dx;
       for(let i=0;i<6;i++)w[i]=w[i]!+d[i]!;
       if(fx*fx+fy*fy+fz*fz>this.dragMaxAirspeedMps*this.dragMaxAirspeedMps)this.validityFlags|=VALIDITY_FLAG_DRAG_OUTSIDE_RANGE;
+    }
+    // TASK-145: a calibrated rotor outside its bench data: its speed, the air's density, or an advance ratio a static bench never held.
+    const env=this.envelopes;
+    if(env.length>0){
+      const speed=Math.sqrt(fx*fx+fy*fy+fz*fz),density=this.atmosphere[0]!;
+      for(let k=0;k<env.length;k+=7){
+        const rpm=Math.abs(output[env[k]!*stride+9]!)*30/Math.PI;
+        // A rotor at rest is not operating, inside or outside its data.
+        if(rpm>=1&&(rpm<env[k+1]!||rpm>env[k+2]!||density<env[k+3]!||density>env[k+4]!||speed*60>env[k+5]!*rpm*env[k+6]!))this.validityFlags|=VALIDITY_FLAG_CALIBRATION_EXTRAPOLATION;
+      }
     }
     // TASK-095: with a contact, Rapier alone integrates the body, gravity and ground reaction included.
     if(this.contact){

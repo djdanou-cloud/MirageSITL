@@ -5,6 +5,9 @@ import {
   type SessionClock, type SessionGround,
 } from '../packages/physics/src/session-v2.ts';
 import { CollisionChunks } from '../packages/terrain/src/collision-chunks.ts';
+import { DemoDynamics } from '../packages/physics/src/demo-dynamics.ts';
+import { VALIDITY_RING } from '../packages/physics/src/session-v2.ts';
+import type { PilotInput } from '@mirage/protocol';
 import { RUN_CHUNK_RESOLUTION, RUN_CHUNK_SPACING_M, RUN_TERRAIN_EPOCH } from '../packages/terrain/src/run-terrain.ts';
 
 // TASK-186: a real-terrain run pauses on the tick whose step leaves the vehicle without published ground within
@@ -94,5 +97,49 @@ describe('missing terrain in a physics session (TASK-186)', () => {
     expect(s.running).toBe(true);
     expect(asked).toEqual([]);
     expect(s.terrainMissing[TERRAIN_MISSING_COUNT]).toBe(0);
+  });
+});
+
+// TASK-145: each change of the model's validity bits is kept with its tick for the recording's events.validity, and a full ring counts what it drops.
+/** The demo vehicle with validity bits set from a tick on and cleared at another. */
+class FlaggedDemo extends DemoDynamics {
+  validityFlags = 0;
+  steps = 0;
+  constructor(private readonly on: number, private readonly off: number, private readonly every = 0) { super(400); }
+  override stepNow(input: PilotInput): void {
+    super.stepNow(input);
+    this.steps++;
+    this.validityFlags = this.every > 0 ? (this.steps % this.every === 0 ? 1 << 18 : 0) : this.steps >= this.on && this.steps < this.off ? 1 << 18 : 0;
+  }
+}
+describe('validity changes of the flight model (TASK-145)', () => {
+  function flagged(dynamics: FlaggedDemo) {
+    let now = 0;
+    const clock: SessionClock = { monotonicMs: () => now, wallMs: () => 1.79e12 + now };
+    const stateBuffer = createSharedMemoryV2();
+    const s = new PhysicsSessionV2({ type: 'init-v2', protocolVersion: 2, stateBuffer, sensorBuffer: createSpscQueue('sensor'), actuatorBuffer: createSpscQueue('actuator') }, clock, () => dynamics);
+    const reader = new StateReaderV2(stateBuffer), header = newHeaderSnapshotV2();
+    reader.readHeader(header);
+    s.handle({ protocolVersion: 2, requestId: 1, expectedEpoch: header.sessionEpoch, type: 'sim.configure', hz: 400, clockMode: 'interactive' });
+    reader.readHeader(header);
+    s.handle({ protocolVersion: 2, requestId: 2, expectedEpoch: header.sessionEpoch, type: 'sim.start' });
+    return { s, advance: (ms: number) => { now += ms; s.pump(); } };
+  }
+  it('keeps the tick of each change, on and off, and nothing while the bits stay', () => {
+    const { s, advance } = flagged(new FlaggedDemo(10, 30));
+    for (let i = 0; i < 20; i++) advance(10);
+    const changes: number[][] = [];
+    expect(s.drainValidityChanges((tick, simTimeS, flags) => changes.push([tick, simTimeS, flags]))).toBe(2);
+    expect(changes).toEqual([[10, 10 / 400, 1 << 18], [30, 30 / 400, 0]]);
+    expect(s.drainValidityChanges(() => undefined)).toBe(0);
+    expect(s.validityChangesDropped).toBe(0);
+  });
+  it('drops the oldest changes beyond its ring and counts them', () => {
+    const { s, advance } = flagged(new FlaggedDemo(0, 0, 2));
+    for (let i = 0; i < 20; i++) advance(10);
+    const ticks: number[] = [];
+    expect(s.drainValidityChanges(tick => ticks.push(tick))).toBe(VALIDITY_RING);
+    expect(s.validityChangesDropped).toBeGreaterThan(0);
+    expect(ticks.every((tick, i) => i === 0 || tick > (ticks[i - 1] ?? Infinity))).toBe(true);
   });
 });

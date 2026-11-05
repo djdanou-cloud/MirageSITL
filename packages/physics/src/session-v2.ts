@@ -34,6 +34,8 @@ export interface SessionGround {
 }
 /** The ground within this distance of the vehicle must be published, m: wider than a Phase 1 aircraft and its supports. */
 export const TERRAIN_READY_RADIUS_M = 8;
+/** TASK-145: changes of the model's validity bits that wait for the Worker's next drain. */
+export const VALIDITY_RING = 64;
 /** Slots of PhysicsSessionV2.terrainMissing. */
 export const TERRAIN_MISSING_COUNT = 0, TERRAIN_MISSING_TICK = 1, TERRAIN_MISSING_NORTH = 2, TERRAIN_MISSING_EAST = 3, TERRAIN_MISSING_SIM_S = 4;
 /** TASK-166: the environment effects a session holds at once. */
@@ -173,6 +175,11 @@ export class PhysicsSessionV2 {
    * TASK-168, TASK-169: what the link to ArduPilot holds back, drops or moves, read at every reply. Truth is untouched. The object stays
    * the same; its fields change in place, at tick boundaries and after each step.
    */
+  private readonly validityRing = new Float64Array(VALIDITY_RING * 3);
+  private validityHead = 0;
+  private validityCount = 0;
+  private validityDropped = 0;
+  private lastValidity = 0;
   /** TASK-186: how many ticks found the terrain missing, the last one's tick, the north and east position there, m, and its simulated time, s. */
   readonly terrainMissing = new Float64Array(5);
   private ground: SessionGround | null = null;
@@ -293,6 +300,20 @@ export class PhysicsSessionV2 {
   get limitEventsDropped(): number { return this.dynamics.limits?.dropped ?? 0; }
   /** Cold: hands the active dynamics' accident events (TASK-149) to `sink` after a pump; returns how many. */
   drainAccidents(sink: (event: AccidentEvent) => void): number { return this.dynamics.accidents?.drain(sink) ?? 0; }
+  /**
+   * TASK-145: each change of the dynamics' validity bits since the last drain, oldest first, as (tick, simulated time s, flags); the
+   * recording keeps them as `events.validity`. At most VALIDITY_RING changes wait; older ones are counted in `validityChangesDropped`.
+   */
+  drainValidityChanges(sink: (tick: number, simTimeS: number, flags: number) => void): number {
+    const ring = this.validityRing, count = this.validityCount;
+    for (let k = 0; k < count; k++) {
+      const at = ((this.validityHead + k) % VALIDITY_RING) * 3;
+      sink(ring[at] ?? 0, ring[at + 1] ?? 0, ring[at + 2] ?? 0);
+    }
+    this.validityCount = 0; this.validityHead = 0;
+    return count;
+  }
+  get validityChangesDropped(): number { return this.validityDropped; }
   /** Accident events the active dynamics' outbox could not hold. */
   get accidentsDropped(): number { return this.dynamics.accidents?.dropped ?? 0; }
   /** Accidents raised in this epoch: once one is, the run continues only as not validated for a damaged aircraft. */
@@ -676,6 +697,15 @@ export class PhysicsSessionV2 {
     const wind = this.dynamics.windNedMps;
     this.wind.active = this.dynamics.weatherActive === true && wind !== undefined;
     if (this.wind.active && wind) this.wind.nedMps.set(wind);
+    // TASK-145: a change of the model's validity bits is kept with its tick for the recording; allocation-free.
+    const validity = this.dynamics.validityFlags ?? 0;
+    if (validity !== this.lastValidity) {
+      this.lastValidity = validity;
+      if (this.validityCount === VALIDITY_RING) { this.validityHead = (this.validityHead + 1) % VALIDITY_RING; this.validityCount--; this.validityDropped++; }
+      const at = ((this.validityHead + this.validityCount) % VALIDITY_RING) * 3, t = tickToNumber(tick);
+      this.validityRing[at] = t; this.validityRing[at + 1] = t / this.policy.hz; this.validityRing[at + 2] = validity;
+      this.validityCount++;
+    }
     // TASK-186: missing terrain under the vehicle pauses the run on this tick, through the same path, before the tick is published.
     const ground = this.ground;
     if (ground && this.runningValue) {

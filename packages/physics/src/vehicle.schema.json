@@ -865,6 +865,29 @@
         }
       }
     },
+    "propulsionCalibrations": {
+      "description": "Optional (TASK-145): rotors fitted to the bench data of their exact combination: polar scales, the fitted motor values and the measured envelope.",
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 32,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["rotorId", "liftScale", "dragScale", "resistanceOhm", "noLoadCurrentA", "rpmMin", "rpmMax", "densityKgM3", "datasetId", "calibrationSha256"],
+        "properties": {
+          "rotorId": { "type": "integer", "minimum": 0, "maximum": 31 },
+          "liftScale": { "type": "number", "minimum": 0.25, "maximum": 4 },
+          "dragScale": { "type": "number", "minimum": 0.25, "maximum": 4 },
+          "resistanceOhm": { "type": ["number", "null"], "exclusiveMinimum": 0, "maximum": 100 },
+          "noLoadCurrentA": { "type": ["number", "null"], "minimum": 0, "maximum": 1000 },
+          "rpmMin": { "type": "number", "exclusiveMinimum": 0, "maximum": 100000 },
+          "rpmMax": { "type": "number", "exclusiveMinimum": 0, "maximum": 100000 },
+          "densityKgM3": { "type": "number", "minimum": 0.3, "maximum": 1.6 },
+          "datasetId": { "$ref": "#/definitions/datasetId" },
+          "calibrationSha256": { "$ref": "#/definitions/sha256" }
+        }
+      }
+    },
     "hull": {
       "description": "Optional (TASK-095): the airframe's contact shapes, positions from the body reference point.",
       "type": "array",

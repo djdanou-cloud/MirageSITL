@@ -6327,20 +6327,38 @@ climb and descent do not; an engineering default under F-03), or when the air de
 bench's by more than 10% (F-03's margin applied to the single density of a
 run). These only raise the flag; static data are never extended silently.
 
-**Planned in the second increment of this task**, with the interfaces fixed
+**In the flight model.** The vehicle manifest v2 takes an optional
+`propulsionCalibrations` section (absent, a manifest keeps its bytes): per
+calibrated rotor its rotor ID, s_L and s_D, the fitted winding resistance and
+no-load current (null where the bench could not fit them), the bench's RPM range
+and density, the measured dataset it names (the bench data, kind `measured`) and
+the calibration record's SHA-256; at most one per rotor, and the v1 runtime
+refuses it. `buildProfileDynamics` gives each calibrated rotor its own scaled
+copy of its catalog polar under polar ID `CALIBRATED_POLAR_BASE` (10⁶) plus the
+rotor's index, takes the fitted R and I₀ into that rotor's drive, lists the
+calibration among its limitations, and hands `BetFlightDynamics` the envelope
+with its margins. Every step, a calibrated rotor that turns (1 rpm or more)
+outside 0.9·rpm_min to 1.1·rpm_max, in air whose density is more than 10% from
+the bench's, or with V·60 > J_max·rpm·D for the airspeed V at the CG, sets
+`VALIDITY_FLAG_CALIBRATION_EXTRAPOLATION` (bit 18), which the session reports as
+`ModelOutsideValidity`; allocation-free, from preallocated slots. The session
+keeps each change of the model's validity bits with its tick in a ring of 64
+(`drainValidityChanges`, the oldest dropped and counted beyond it), the Worker
+posts them after the compute batch (`validity.changes`), and the run recorder
+writes them as `events.validity` (ID 72), so a recording says from which tick to
+which a calibrated rotor flew outside its bench data.
+
+**Planned for the rest of the second increment**, with the interfaces fixed
 here: a `propulsion-calibration` record of the project store, holding the
 combination key, the measurement set's SHA-256, the polar and the BET module it
 was fitted with, s_L, s_D, R and I₀ (or what was not fitted), every residual and
 the envelope, and depending on the measurement set and the combination's cards;
 profile schema 6, whose calculation settings bind calibrations as they bind
 measurement sets, a motor using one only when its combination key is the
-calibration's; the vehicle manifest's optional `propulsionCalibrations` section
-(derivation 7), from which `buildProfileDynamics` scales each calibrated rotor's
-polar and takes R and I₀; `VALIDITY_FLAG_CALIBRATION_EXTRAPOLATION` (bit 18) in
-`BetFlightDynamics`, which the session reports as `ModelOutsideValidity`; the
-recorder v2 signal `truth.validity` (ID 21) with the dynamics' validity bits; and
-the Aircraft tab's calculation panel, which fits a bound measurement set, shows
-its residuals and binds the result as a new profile version.
+calibration's; derivation 7, which writes the bound calibrations into the
+manifest section above; and the Aircraft tab's calculation panel, which fits a
+bound measurement set, shows its residuals and binds the result as a new
+profile version.
 
 **Verification.** `tests/propulsion-calibration.test.ts` declares before the
 implementation: bench data that the rotor itself gives with its polar scaled by
@@ -6351,9 +6369,15 @@ what it could not fit; the static solve at a speed equals within 10⁻⁶ the th
 of the free shaft settled on the TASK-092 ESC drive at that speed (the same rotor
 reached by a motor balancing its aerodynamic torque); a motor fit alone gives R
 and I₀ back; the repository's bench CSV v2 fixture is refused on a rotor of
-another diameter and fitted on one of its own, with every residual kept. A real
-bench file (G4) is still to be fitted and its residuals shown before measured
-mode is called working.
+another diameter and fitted on one of its own, with every residual kept.
+`tests/profile-dynamics.test.ts` flies a calibrated rotor of the S19 quad on its
+scaled polar (every coefficient exactly s_L or s_D times the catalog's) and
+fitted motor with the other rotors unchanged, refuses five bad sections, and
+holds the flag to no step inside the envelope over 0.1 s of trimmed hover and to
+every step above or below the RPM range, outside the density band or at 5 m/s;
+`tests/terrain-pause.test.ts` holds the validity ring to the tick of each change
+and to counting what it drops. A real bench file (G4) is still to be fitted and
+its residuals shown before measured mode is called working.
 
 ## Profile-driven dynamics (TASK-144)
 
@@ -9123,6 +9147,7 @@ records and never reused.
 | 69 | events.flightTask | stage, measured, task time (s), requested north, east, altitude (m), speed (m/s), heading (deg), vertical speed (m/s); a channel the stage does not request is absent (TASK-172) | f64 | event |
 | 70 | events.flightTaskAttitude | requested roll and pitch (deg), at the tick of the events.flightTask row; a channel the maneuver does not request is absent (TASK-173) | f64 | event |
 | 71 | events.limit | code, subject (a motor's index, or -1 for the battery), quantity, edge, value and limit; code 0: the monitor reports into this recording; code 1: an exceedance changed; code 2: events the monitor could not hold, in the value channel (TASK-177) | f64 | event |
+| 72 | events.validity | flags (1): the flight model's validity bits at each change, from the session's first tick (TASK-145; bit 18 a calibrated rotor outside its bench data, bit 17 airframe drag beyond its data, lower bits the rotors' own) | f64 | event |
 | 127 | gap | rows lost here | — | recorder |
 
 ### Rates

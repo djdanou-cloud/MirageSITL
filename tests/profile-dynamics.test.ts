@@ -7,9 +7,10 @@ import { validateComponentCard, type ComponentCard } from '@mirage/aircraft/comp
 import { deriveVehicleManifest } from '@mirage/aircraft/derive-manifest';
 import { validateAircraftProfile, withPropellerPolars, type AircraftProfile } from '@mirage/aircraft/profile';
 import { resolveComponents } from '@mirage/aircraft/resolve-components';
-import { CONFIGURATION_FLAG_WAKE_UNMODELED } from '@mirage/physics/bet-dynamics';
-import { buildProfileDynamics, profileFlightDynamics, profileModelPort } from '@mirage/physics/profile-dynamics';
-import { VehicleRegistry, validateVehicleManifest, withoutAirframeDrag } from '@mirage/physics/vehicle-manifest';
+import { BetFlightDynamics, CONFIGURATION_FLAG_WAKE_UNMODELED, VALIDITY_FLAG_CALIBRATION_EXTRAPOLATION, type BetFlightConfiguration } from '@mirage/physics/bet-dynamics';
+import { validateModelManifest } from '@mirage/physics/model-manifest';
+import { CALIBRATED_POLAR_BASE, buildProfileDynamics, profileFlightDynamics, profileModelPort } from '@mirage/physics/profile-dynamics';
+import { VehicleRegistry, projectVehicleToModelV1, validateVehicleManifest, withoutAirframeDrag, type PropulsionCalibrationSpec, type VehicleManifest } from '@mirage/physics/vehicle-manifest';
 import { PhysicsSessionV2 } from '../packages/physics/src/session-v2.ts';
 import { ActuatorFlagV2, StateReaderV2, VehicleFlagV2, newActuatorFrameV2, newInput, createSharedMemoryV2, createSpscQueue, newFlightStateV2, newHeaderSnapshotV2,
   type CommandResultV2 } from '@mirage/protocol';
@@ -295,5 +296,72 @@ describe('model.load of profile dynamics through the session registry', () => {
     expect(wrong?.type === 'reject-v2' ? wrong.message : '').toContain('hash does not match');
     expect(h.session.rotorCount()).not.toBe(16);
     missing.session.dispose(); h.session.dispose();
+  }, 300000);
+});
+
+// TASK-145: a calibration in the manifest flies its rotor on the scaled polar and the fitted motor, and flags steps outside its bench data.
+describe('propulsion calibration in the flight model (TASK-145)', () => {
+  const BENCH = { id: 'bench-front-right', kind: 'measured' as const, sourceSha256: 'c'.repeat(64), license: 'Project data',
+    acquiredAt: '2026-11-05T00:00:00Z', reference: 'A synthetic bench of this test' };
+  const calibrated = (manifest: VehicleManifest, entries: PropulsionCalibrationSpec[]) =>
+    validateVehicleManifest({ ...manifest, datasets: [...manifest.datasets, BENCH], propulsionCalibrations: entries });
+  const entryFor = (manifest: VehicleManifest, change: Partial<PropulsionCalibrationSpec> = {}): PropulsionCalibrationSpec => ({
+    rotorId: manifest.rotors[0]?.id ?? 0, liftScale: 1.1, dragScale: 0.9, resistanceOhm: 0.2, noLoadCurrentA: 0.7, rpmMin: 1000, rpmMax: 20000,
+    densityKgM3: 1.2, datasetId: BENCH.id, calibrationSha256: 'd'.repeat(64), ...change });
+  it('flies the calibrated rotor on its scaled polar and fitted motor, and leaves the others as they were', async () => {
+    const { derived, configuration: base } = await build(profileOf('quad-x'));
+    const built = buildProfileDynamics(calibrated(derived.manifest, [entryFor(derived.manifest)]));
+    const plain = validateModelManifest(base.manifest), flown = validateModelManifest(built.configuration.manifest);
+    expect(flown.rotors[0]?.polarId).toBe(CALIBRATED_POLAR_BASE);
+    expect(flown.rotors.slice(1).map(rotor => rotor.polarId)).toEqual(plain.rotors.slice(1).map(rotor => rotor.polarId));
+    const scaled = built.configuration.polars.get(CALIBRATED_POLAR_BASE), source = base.polars.get(plain.rotors[0]?.polarId ?? -1);
+    if (!scaled || !source) throw new Error('No polar');
+    scaled.cl.forEach((value, i) => expect(value).toBe((source.cl[i] ?? NaN) * 1.1));
+    scaled.cd.forEach((value, i) => expect(value).toBe((source.cd[i] ?? NaN) * 0.9));
+    const [fitted, other] = built.configuration.drive?.motors ?? [], [was, untouched] = base.drive?.motors ?? [];
+    expect(fitted?.resistanceOhm).toBe(0.2);
+    expect(fitted?.noLoadTorqueNm).toBeCloseTo((was?.torqueConstantNmPerA ?? NaN) * 0.7, 15);
+    expect(other).toEqual(untouched);
+    expect(built.configuration.calibrationEnvelopes).toEqual([{ rotorIndex: 0, rpmLow: 900, rpmHigh: 22000, densityLowKgM3: 1.08, densityHighKgM3: 1.32, advanceRatioMax: 0.02 }]);
+    expect(built.limitations.some(text => text.includes('calibrated to bench data'))).toBe(true);
+    expect(base.calibrationEnvelopes).toBeUndefined();
+    // Refused: a calibration of an unknown rotor, one without measured data, two of one rotor; the v1 runtime takes none.
+    expect(() => calibrated(derived.manifest, [entryFor(derived.manifest, { rotorId: 31 })])).toThrow('A calibration names an unknown rotor');
+    expect(() => validateVehicleManifest({ ...derived.manifest, propulsionCalibrations: [entryFor(derived.manifest, { datasetId: derived.manifest.datasets[0]?.id ?? '' })] }))
+      .toThrow('A calibration must name a measured dataset');
+    expect(() => calibrated(derived.manifest, [entryFor(derived.manifest), entryFor(derived.manifest)])).toThrow('Two calibrations of one rotor');
+    expect(() => calibrated(derived.manifest, [entryFor(derived.manifest, { rpmMin: 5000, rpmMax: 4000 })])).toThrow('RPM range must be increasing');
+    expect(() => projectVehicleToModelV1(calibrated(derived.manifest, [entryFor(derived.manifest)]))).toThrow('cannot consume');
+  }, 300000);
+  it('flags a step of a calibrated rotor outside its speed, density or near-static advance ratio, and no step inside', async () => {
+    const { configuration: base } = await build(profileOf('quad-x'));
+    const trim = trimHover(module, base), hoverRpm = (trim.omegaRadS[0] ?? NaN) * 30 / Math.PI, model = validateModelManifest(base.manifest);
+    const flagged = (envelope: Partial<NonNullable<BetFlightConfiguration['calibrationEnvelopes']>[number]>, northMps = 0) => {
+      const configuration: BetFlightConfiguration = { ...base, initialOmegaRadS: [...trim.omegaRadS], syntheticGroundDownM: undefined,
+        initialBody: { ...base.initialBody, positionNedM: new Float64Array([0, 0, -20]), velocityNedMps: new Float64Array([northMps, 0, 0]) },
+        calibrationEnvelopes: [{ rotorIndex: 0, rpmLow: hoverRpm / 2, rpmHigh: hoverRpm * 2, densityLowKgM3: 1, densityHighKgM3: 1.4, advanceRatioMax: 0.02, ...envelope }] };
+      const d = new BetFlightDynamics(module, configuration, 800), frame = newActuatorFrameV2(), pilot = newInput();
+      frame.motorMapId = configuration.motorMapId; frame.actuatorFlags = ActuatorFlagV2.Armed;
+      frame.actuatorCount = Math.max(...model.rotors.map(rotor => rotor.motorChannel)) + 1;
+      let steps = 0;
+      try {
+        // 0.1 s: long enough for every check, short enough that the open-loop trim stays near static (J = 0.02 is 0.4 m/s here).
+        for (let tick = 0; tick < 80; tick++) {
+          const bus = d.electrical[1] ?? 1;
+          model.rotors.forEach((rotor, i) => { frame.normalizedActuators[rotor.motorChannel] = (trim.u[i] ?? 0) / bus; });
+          d.useActuators(frame); d.nowMs = (tick + 1) * 1.25; d.stepNow(pilot);
+          if (d.fault !== '') throw new Error(d.fault);
+          if ((d.validityFlags & VALIDITY_FLAG_CALIBRATION_EXTRAPOLATION) !== 0) steps++;
+        }
+      } finally { d.dispose(); }
+      return steps;
+    };
+    expect(flagged({})).toBe(0);
+    expect(flagged({ rpmLow: hoverRpm * 1.5, rpmHigh: hoverRpm * 3 })).toBe(80);
+    expect(flagged({ rpmLow: hoverRpm / 3, rpmHigh: hoverRpm / 2 })).toBe(80);
+    expect(flagged({ densityLowKgM3: 1.3 })).toBe(80);
+    // 5 m/s past a 10-inch propeller near hover speed is J of about 0.2, far beyond a static bench.
+    expect(flagged({}, 5)).toBe(80);
+    expect(flagged({ advanceRatioMax: 10 }, 5)).toBe(0);
   }, 300000);
 });

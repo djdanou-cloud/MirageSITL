@@ -39,7 +39,7 @@ export const SignalId = {
   Battery: 15,
   SensorImu: 16, SensorGnss: 17, SensorMagnetometer: 18, SensorBarometer: 19, SensorAirspeed: 20,
   AutopilotAttitude: 32, AutopilotLocalPosition: 33, AutopilotGlobalPosition: 34, AutopilotGps: 35, AutopilotEkf: 36,
-  Parameter: 64, Weather: 65, Fault: 66, Pause: 67, Accident: 68, FlightTaskRequest: 69, FlightTaskAttitudeRequest: 70, LimitEvent: 71,
+  Parameter: 64, Weather: 65, Fault: 66, Pause: 67, Accident: 68, FlightTaskRequest: 69, FlightTaskAttitudeRequest: 70, LimitEvent: 71, ValidityEvent: 72,
   /** Rows lost before the row that follows; never a signal a plan selects. */
   Gap: 127,
 } as const;
@@ -99,6 +99,8 @@ const SIGNALS: readonly SignalInfo[] = [
   { id: SignalId.FlightTaskAttitudeRequest, name: "events.flightTaskAttitude", group: "events", source: "event", valueType: "f64", channels: ch("deg", "roll", "pitch") },
   // TASK-177: the limit monitor's events, each at its own tick, so a stored experiment can say what it exceeded. A first row says the monitor reports here: a recording without this signal is older, and cannot say there were none.
   { id: SignalId.LimitEvent, name: "events.limit", group: "events", source: "event", valueType: "f64", channels: ch("1", "code", "subject", "quantity", "edge", "value", "limit") },
+  // TASK-145: each change of the flight model's validity bits at its tick (bit 18 a calibrated rotor outside its bench data, bit 17 drag beyond its data, the rotors' own bits below).
+  { id: SignalId.ValidityEvent, name: "events.validity", group: "events", source: "event", valueType: "f64", channels: ch("1", "flags") },
 ];
 export const SIGNAL_CATALOG: readonly SignalInfo[] = Object.freeze(SIGNALS.map(signal => Object.freeze({ ...signal, channels: Object.freeze(signal.channels) })));
 const BY_ID = new Map(SIGNAL_CATALOG.map(signal => [signal.id, signal]));

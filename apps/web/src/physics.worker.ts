@@ -61,6 +61,7 @@ type WorkerNotice = CommandResultV2 | WorkerFaultV2 | SitlNotice | { type: "sitl
   | { type: "sitl.input-stale"; simTimeS: number; staleMs: number }
   | { type: "power.attached" } | { type: "power.reject"; message: string }
   | { type: "terrain.ready"; chunks: number } | { type: "terrain.reject"; message: string }
+  | { type: "validity.changes"; changes: { tick: number; simTimeS: number; flags: number }[]; dropped: number }
   | { type: "terrain.missing"; tick: number; simTimeS: number; northM: number; eastM: number; count: number }
   | { type: "recording-v2.armed" } | { type: "recording-v2.reject"; message: string }
   | { type: "scenario.submit"; command: ControlCommand }
@@ -84,6 +85,11 @@ function flush(): void {
   const accidents: AccidentEvent[] = [];
   if (session && session.drainAccidents(event => accidents.push(event)) > 0) {
     post({ type: "accident.events", events: accidents, dropped: session.accidentsDropped, total: session.accidentTotal });
+  }
+  // TASK-145: changes of the model's validity bits, for the recording's events.validity.
+  const changes: { tick: number; simTimeS: number; flags: number }[] = [];
+  if (session && session.drainValidityChanges((tick, simTimeS, flags) => changes.push({ tick, simTimeS, flags })) > 0) {
+    post({ type: "validity.changes", changes, dropped: session.validityChangesDropped });
   }
   // TASK-186: a tick that found the terrain missing paused the session; say where, once per such tick.
   const missing = session?.terrainMissing;

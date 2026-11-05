@@ -73,6 +73,15 @@ export class RunRecorder implements RecordingPort {
     this.stopLimits = this.runtime.listen(data => {
       const limits = parseLimitEventsMessage(data);
       if (limits) this.limits(limits.events, limits.dropped);
+      // TASK-145: the flight model's validity bits at each change.
+      if (typeof data === "object" && data !== null && "type" in data && data.type === "validity.changes" && "changes" in data && Array.isArray(data.changes)) {
+        const changes: readonly unknown[] = data.changes, { epoch } = this.at();
+        for (const change of changes) {
+          if (typeof change !== "object" || change === null || !("tick" in change) || !("simTimeS" in change) || !("flags" in change)) continue;
+          const { tick, simTimeS, flags } = change;
+          if (typeof tick === "number" && typeof simTimeS === "number" && typeof flags === "number") this.host?.event("validity", [flags], { tick, simTimeS, epoch });
+        }
+      }
     });
     this.live = { recordId: host.recordId, experimentId: host.header.experimentId ?? "", state: "recording", simTimeS: at.simTimeS, startSimTimeS: at.simTimeS,
       wallMs: this.nowMs(), startWallMs: this.nowMs(), bytes: 0, rows: {}, lostRows: 0, droppedChunks: 0, error: "" };

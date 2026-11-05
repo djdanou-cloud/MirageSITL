@@ -200,7 +200,9 @@ if(!allocation){
     {effect:'ew.magnetic',parameters:{rotationRad:[0.1,-0.2,0.5],biasBodyGauss:[0.1,0,0]}},{effect:'ew.gnss-jamming',parameters:{severity:0.5}}];
   const stateBuffer=createSharedMemoryV2(),fake={mono:0};let sessionDynamics=null;
   const session=new PhysicsSessionV2({type:'init-v2',protocolVersion:2,stateBuffer,sensorBuffer:createSpscQueue('sensor'),actuatorBuffer:createSpscQueue('actuator')},
-    {monotonicMs:()=>fake.mono,wallMs:()=>1.79e12+fake.mono},hz=>(sessionDynamics=new BetFlightDynamics(modules[0],padded(),hz)),createSessionFaultPort());
+    // TASK-145: rotor 0 is calibrated, so every step checks its envelope and the session its validity changes.
+    {monotonicMs:()=>fake.mono,wallMs:()=>1.79e12+fake.mono},hz=>(sessionDynamics=new BetFlightDynamics(modules[0],{...padded(),
+      calibrationEnvelopes:[{rotorIndex:0,rpmLow:100,rpmHigh:1e5,densityLowKgM3:0.5,densityHighKgM3:2,advanceRatioMax:0.02}]},hz)),createSessionFaultPort());
   session.attachDelivery(true);
   // TASK-186: a real-terrain run checks the published ground under the vehicle every tick; four chunks around the pad hold it.
   const ground=new CollisionChunks(1,129,4);
@@ -253,6 +255,7 @@ if(!allocation){
   const appliedWeather=results.filter(r=>r.type==='ack-v2'&&r.status==='applied'&&r.requestId>1).length;
   if(appliedWeather!==sent||!session.wind.active||results.some(r=>r.type==='reject-v2'))throw Error('A scheduled weather.set was not applied');
   if(session.terrainMissing[0]!==0||!session.running)throw Error('The session left its terrain');
+  session.drainValidityChanges(()=>undefined);
   const sessionGraph={graph:'weather-session-synthetic-pad',variant:'scalar',...total,bytesPerStep:total.bytes/total.steps,windows,
     weatherApplications:sent-warmupApplications,warmupApplications,memoryStable:sessionDynamics?.engine.memoryStable===true};
   samples.push(sessionGraph);session.dispose();console.log(JSON.stringify(sessionGraph));
