@@ -6419,8 +6419,14 @@ a set of another combination is refused.
 Components tab in Chromium: seven residual rows, the record and profile
 version 2 at schema 6 in the store, the calibration shown on motors 1 and 2
 after a reload and none on the unmeasured motors 3 and 4, the tab fitting a
-phone and passing axe. A real bench file (G4) is still to be fitted and its
-residuals shown before measured mode is called working.
+phone and passing axe. `node scripts/check-bet-runtime.mjs --allocation`
+measures the envelope check in the graph `calibrated-esc-weather-pad-four-rotor`:
+four calibrated rotors on the ESC drive on the synthetic pad, whose weather,
+re-applied every 1000 steps, alternates between 98 and 90 kPa so that the bench
+density band flags every other window; over 1,000,000 steps it allocates
+nothing (0 GCs, the measurement's own 4,640 B) with the flag on in 500,000. A
+real bench file (G4) is still to be fitted and its residuals shown before
+measured mode is called working.
 
 ## Profile-driven dynamics (TASK-144)
 
