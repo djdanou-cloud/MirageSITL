@@ -302,7 +302,11 @@ implementation.
   on the M5. TASK-180 is DONE: a stored experiment opens there with ArduPilot's own log
   or a log written from its recording, its context beside the viewer and its requested,
   confirmed and rejected parameter changes on the plot, and a log from elsewhere marks
-  what it does not hold Unknown. TASK-146 is DONE: with the TASK-092 drive,
+  what it does not hold Unknown. TASK-182 is DONE: **Create experiment from log**
+  reports field by field what a log and an interval give, with each source message, what
+  is missing and what the run will not take, and the run it plans starts on the ground
+  at the log's home with its settings on an aircraft the user chooses, which is not a
+  replay. TASK-146 is DONE: with the TASK-092 drive,
   `BetFlightDynamics` checks every step against card ratings and the model's
   clamps, keeps a rating `warning` apart from a modeled `limited` clamp,
   publishes per-motor and battery values in the separate power telemetry v1

@@ -6,6 +6,8 @@ import type { StoredVersion } from "@mirage/project/schema";
 import type { ImportReport } from "@mirage/project/store";
 import type { StoreState } from "../shell/AppShell";
 import type { SessionLink } from "../run/session-link";
+import { FromLogWizard } from "./FromLogWizard";
+import { readLogExtraction, type LogExtractionRecord } from "./log-plan";
 import { ResponsePanel } from "../analysis/ResponsePanel";
 import { ComparePanel } from "../compare/ComparePanel";
 import { BatchPanel } from "./BatchPanel";
@@ -54,6 +56,18 @@ export function ExperimentsTab({ storeState, project, link, active, onRun, onAna
   const [notice, setNotice] = useState("");
   const [imported, setImported] = useState<{ readonly report: ImportReport; readonly lacking: readonly string[] } | null>(null);
   const [reload, setReload] = useState(0);
+  const [profiles, setProfiles] = useState<readonly StoredVersion[]>([]);
+  const [fromLogs, setFromLogs] = useState<readonly LogExtractionRecord[]>([]);
+  useEffect(() => {
+    if (!store || !projectId || !active) return;
+    let cancelled = false;
+    void Promise.all([store.listItems(projectId, "aircraft-profile"), store.listItems(projectId, "log-extraction")]).then(([items, logs]) => {
+      if (cancelled) return;
+      setProfiles(items);
+      setFromLogs(logs.map(readLogExtraction));
+    });
+    return () => { cancelled = true; };
+  }, [store, projectId, active, reload]);
 
   useEffect(() => {
     if (!store || !projectId || !active) return;
@@ -168,6 +182,17 @@ export function ExperimentsTab({ storeState, project, link, active, onRun, onAna
             <button type="button" onClick={exportSelected} disabled={!store}>Export the experiment</button>
             <button type="button" onClick={() => onAnalyse(current.stored.sha256)}>Open in Analysis</button>
           </div>
+          {(() => {
+            const log = fromLogs.find(item => item.experimentSha256 === current.stored.sha256);
+            if (!log) return null;
+            const missing = log.fields.filter(field => field.status === "missing");
+            return (
+              <div data-testid="experiment-from-log">
+                <p className="hint">{`From ${log.log.name}, ${log.interval.fromS.toFixed(2)} s to ${log.interval.toS.toFixed(2)} s, with ${log.parameters.length} of its settings. It started on the ground, so it is not a replay of that flight.`}</p>
+                {missing.length > 0 && <p className="hint">{`The log did not hold: ${missing.map(field => field.label).join(", ")}.`}</p>}
+              </div>
+            );
+          })()}
           {!launcherOwned && <p className="hint">A run with a SITL started by hand is repeated by connecting that SITL again in the Run tab.</p>}
           {current.payload.flightTask && isManeuverType(current.payload.flightTask.definition.type) && (current.payload.recording
             ? <ResponsePanel task={current.payload.flightTask.definition} recordId={current.payload.recording.recordId} />
@@ -203,6 +228,7 @@ export function ExperimentsTab({ storeState, project, link, active, onRun, onAna
       )}
       {store && experiments.length > 1 && <ComparePanel store={store} experiments={experiments} />}
       {store && projectId && <BatchPanel store={store} projectId={projectId} link={link} active={active} onChanged={() => setReload(n => n + 1)} />}
+      {project && <FromLogWizard link={link} profiles={profiles} onRun={onRun} />}
       <section className="project-section" aria-labelledby="experiments-import-heading">
         <h3 id="experiments-import-heading">Import experiments</h3>
         <label htmlFor="experiments-import">Experiment archive (.mirageproj)</label>

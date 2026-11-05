@@ -16,6 +16,7 @@ import { validateAircraftProfile } from "@mirage/aircraft/profile";
 import { ProjectStore } from "@mirage/project/store";
 import { AircraftEditor } from "../aircraft/AircraftEditor";
 import { AnalysisTab } from "../analysis/AnalysisTab";
+import { validateLogExtraction } from "../experiments/log-plan";
 import { ComponentsPanel } from "../library/ComponentsPanel";
 import { SensorsTab } from "../sensors/SensorsTab";
 import {
@@ -86,7 +87,7 @@ export function AppShell({ run }: { run: (visible: boolean, storeState: StoreSta
         const ready = await ProjectStore.openIndexedDb({
           validators: {
             "component-card": validateComponentCard, "measurement-set": validateMeasurementSet, "aircraft-profile": validateAircraftProfile,
-            "experiment": validateExperiment, "parameter-set": validateParameterSet, "parameter-log": validateParameterLog, "flight-task": parseFlightTask, "experiment-batch": validateExperimentBatch,
+            "experiment": validateExperiment, "parameter-set": validateParameterSet, "parameter-log": validateParameterLog, "log-extraction": validateLogExtraction, "flight-task": parseFlightTask, "experiment-batch": validateExperimentBatch,
           },
         });
         opened = ready;

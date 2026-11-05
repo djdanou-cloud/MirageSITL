@@ -341,6 +341,8 @@ function sessionOf(value: unknown, ownership: ExperimentSitl['ownership']): Expe
 }
 
 /** Whether a name may carry a source tag: SITL sensor parameters, the TASK-128 frame and output names, the PWM range, or what follows from the run's home. */
+/** Whether a parameter may be one of a run's own initial settings: anything but what the aircraft profile and the run set. */
+export function isSetParameter(name: string): boolean { return admits('set', name); }
 function admits(source: ParameterSource, name: string): boolean {
   switch (source) {
     case 'sensor': return name.startsWith('SIM_');

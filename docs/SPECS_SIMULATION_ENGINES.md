@@ -4272,7 +4272,7 @@ shows whether the origin's storage is persistent.
 ### Records
 
 ```typescript
-type ItemKind = "project" | "component-card" | "measurement-set" | "aircraft-profile" | "experiment" | "parameter-set" | "parameter-log" | "flight-task" | "experiment-batch";
+type ItemKind = "project" | "component-card" | "measurement-set" | "aircraft-profile" | "experiment" | "parameter-set" | "parameter-log" | "flight-task" | "experiment-batch" | "log-extraction";
 interface Dependency { kind: ItemKind; sha256: string }
 interface ProjectRecord {
   schemaVersion: 1;
@@ -4318,10 +4318,11 @@ interface ProjectRecord {
   `parameter-log` in the same way; each may depend only on an experiment.
   TASK-172 added `flight-task`, with no dependencies. TASK-176 added
   `experiment-batch`, which may depend on an aircraft profile and on experiments.
+  TASK-182 added `log-extraction`, which may depend only on an experiment.
 * **Payloads.** A project's payload is `{}`. The store does not interpret
   card, measurement-set, profile, experiment, parameter-set, parameter-log,
-  flight-task and experiment-batch payloads beyond the canonical JSON limits. Their owner tasks (TASK-138,
-  TASK-139, TASK-140, TASK-154, TASK-160, TASK-165 and TASK-172) register
+  flight-task, experiment-batch and log-extraction payloads beyond the canonical JSON limits. Their owner tasks (TASK-138,
+  TASK-139, TASK-140, TASK-154, TASK-160, TASK-165, TASK-172 and TASK-182) register
   payload validators, which apply when a version is written or imported, not
   when it is read.
 
@@ -8184,6 +8185,82 @@ pack whose voltage hardly moves, within 0.5 % set beforehand; and the sag and th
 hand against the pack's law. `tests/bus-coupling.test.ts` flies the real pack (TASK-197). `tests/browser/compare-experiments.spec.ts`
 flies one hover on two configurations with native ArduCopter 8ab6afde, and compares the page's
 numbers with what it works out from the recording's rows and the cards on its own.
+
+
+## Experiment from a log (TASK-182)
+
+**Create experiment from log**, on the Experiments tab, takes a DataFlash log and an
+interval on the log's own clock, and says what they give. Every run without a log goes
+on as it did: a log is never needed. `packages/analysis/src/log-to-experiment.ts` is
+pure and cold, and reads the log with the TASK-178 reader.
+
+### The report
+
+```typescript
+type ExtractionStatus = "extracted" | "user-supplied" | "missing";
+type ExtractionGroup = "initial conditions" | "parameters" | "task and control" | "weather" | "aircraft";
+interface ExtractionField {
+  key: string;
+  label: string;
+  group: ExtractionGroup;
+  status: ExtractionStatus;
+  value: string | null;   // as a person reads it; null exactly when missing
+  source: string | null;  // the log message, or "the user"; null exactly when missing
+  note?: string;          // what becomes of it, when that is not obvious
+}
+interface LogExtractionRecord {
+  schemaVersion: 1;
+  experimentSha256: string;
+  log: { name: string; bytes: number; sha256: string };
+  interval: { fromS: number; toS: number };  // the log's own clock, TimeUS
+  fields: ExtractionField[];
+  parameters: { name: string; value: number; defaultValue: number | null }[];  // the settings the run took
+  skipped: { name: string; value: number; why: string }[];
+}
+```
+
+| Field | Source message | What becomes of it |
+|---|---|---|
+| Home | `ORGN` | The new run starts here, with the heading from `ATT.Yaw` |
+| Attitude at the start | `ATT` | Read and not flown from |
+| Position from the origin, velocity at the start | `XKF1`, core 0 | Read and not flown from |
+| Battery at the start | `BAT`, instance 0 | Read; the profile's battery starts full |
+| Parameters | `PARM` | The value held at the interval's start; see below |
+| Frame in the log | `PARM` | Read; the chosen profile sets the frame |
+| Flight modes | `MODE` | Not replayed |
+| Commands in the interval | `CMD`, `MAVC` | Not replayed |
+| Pilot input | `RCIN` | Not replayed |
+| Wind | `XKF2`, core 0 | The EKF's estimate, not a measurement; not applied |
+| Air pressure, sensor temperature | `BARO`, instance 0 | Not applied; the temperature is the barometer's own |
+| Turbulence | None | Always missing: no log holds it |
+| Aircraft profile | None | Always missing, and the one field the user must supply |
+| Firmware in the log | `VER` | Read; the run flies the build the Run tab chooses |
+
+A field the log does not give is `missing`, with no value and no source, and the wizard
+lists it. A field the user supplied says so, and the log's own value cannot be overwritten.
+An interval outside the log, or a file with no timed records, is refused with its reason.
+
+### Parameters
+
+A parameter's value is its first record, or its last record at or before the interval's
+start. A value equal to its logged default stays out, because the run has it already.
+Parameters that belong to another machine or to the run stay out and are listed with the
+reason: `SIM_*`, counters and versions, values the firmware writes as it starts (device
+IDs, ground pressure, the mission count), telemetry rates a ground station asked for,
+hardware ports and sensor calibrations, and what the aircraft profile and the Logging tab
+set. The Run tab drops any the chosen build cannot write, and any the aircraft profile
+sets, so the aircraft stays the one the user chose. The hint before the start says "up
+to" that many, and the stored record says which the run really took.
+
+### The run and its record
+
+The wizard hands a `LogPlan` (log hash, report, chosen profile) to the Run tab, which shows
+it and starts it like any other run: on the ground, at the log's home, with stock simulated
+sensors. It is an experiment like that flight and not a replay, and the wizard and the Run
+tab both say so. Exact replay of an arbitrary log is not promised. `log-extraction` is one
+item per such run, depending on its experiment, and the Experiments tab shows it for as long
+as the experiment exists: the log's name, interval, settings taken and what the log did not
+hold. TASK-183 compares a new run with the log.
 
 ## Parameter batches (TASK-176)
 

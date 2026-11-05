@@ -5,6 +5,7 @@
 // plans the Run tab's next run through it: a repeat or a variant of a stored
 // experiment (TASK-165), which the Run tab loads and the user starts.
 import type { PlannedRun } from "../experiments/lifecycle";
+import type { LogPlan } from "../experiments/log-plan";
 import type { BatchScenario, BatchSet } from "@mirage/project/batch";
 import type { ControllerView, SessionController } from "./session-controller";
 
@@ -36,6 +37,7 @@ export class SessionLink {
   private batchIsRunning = false;
   private plannedRun: PlannedRun | null = null;
   private launcherClient: LauncherFiles | null = null;
+  private plannedFromLog: LogPlan | null = null;
   private readonly listeners = new Set<() => void>();
 
   /** The launcher the Run tab last reached; its token stays in the Run tab and in this object, never in a store. */
@@ -68,6 +70,12 @@ export class SessionLink {
   readonly batchRunning = (): boolean => this.batchIsRunning;
   /** For useSyncExternalStore: the planned run. */
   readonly plan = (): PlannedRun | null => this.plannedRun;
+  /** A run the from-log wizard planned (TASK-182), until it starts or is cancelled. */
+  readonly logPlan = (): LogPlan | null => this.plannedFromLog;
+  planFromLog(plan: LogPlan | null): void {
+    this.plannedFromLog = plan;
+    this.notify();
+  }
   /** For useSyncExternalStore: the snapshot changes identity on every attach and publish. */
   readonly snapshot = (): LinkedSession | null => this.current;
   readonly subscribe = (listener: () => void): (() => void) => {

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { createExperimentRecord, experimentRecordName, type ExperimentFlightTask } from "@mirage/aircraft/experiment";
+import { createExperimentRecord, experimentRecordName, isSetParameter, type ExperimentFlightTask } from "@mirage/aircraft/experiment";
 import { deriveLayout, type AircraftLayout } from "@mirage/aircraft/layout";
 import { readAircraftProfile } from "@mirage/aircraft/profile";
 import { describeAccident } from "@mirage/physics/accident";
@@ -11,6 +11,7 @@ import { GamepadAdapter, defaultCalibration } from "@mirage/input";
 import { loadCalibration } from "@mirage/input/calibration-store";
 import type { ParameterMetadataCatalog } from "@mirage/autopilot/param-metadata";
 import { lineageFor, loggingOf } from "../experiments/lifecycle";
+import { logPlanText, saveLogExtraction } from "../experiments/log-plan";
 import { loadLoggingSettings, type LoggingSettings } from "../logging/logging-settings";
 import { ParameterLogWriter } from "../params/log-writer";
 import { loadParameterMetadata } from "../params/metadata";
@@ -120,6 +121,8 @@ export function RunPanel({ storeState, project, visible, link }: { storeState: S
   const batchRunning = useSyncExternalStore(link.subscribe, link.batchRunning);
   const [plannedProfile, setPlannedProfile] = useState<StoredVersion | null>(null);
   const repeat = plan?.kind === "repeat";
+  // TASK-182: the run the from-log wizard planned: the log's home and settings, on the aircraft the user chose.
+  const fromLog = useSyncExternalStore(link.subscribe, link.logPlan);
   const [port, setPort] = useState(String(DEFAULT_LAUNCHER_PORT));
   const [token, setToken] = useState("");
   const [builds, setBuilds] = useState<readonly CatalogEntry[] | null>(null);
@@ -229,11 +232,12 @@ export function RunPanel({ storeState, project, visible, link }: { storeState: S
     }, (cause: unknown) => { setBuilds(null); setError(cause instanceof Error ? cause.message : String(cause)); });
   };
   /** A fresh session for every Start and Connect: the previous run's model and epoch stay with the old Worker. */
+  useEffect(() => { if (fromLog) setProfileSha(fromLog.profileSha256); }, [fromLog]);
   const freshSession = (logging: LoggingSettings | null, metadata: ParameterMetadataCatalog | null, flightTask: ExperimentFlightTask | null, setParameters: readonly { readonly name: string; readonly value: number }[] = []): { next: SessionController; prepare: () => Promise<PreparedRun> } | null => {
     setError("");
     const stored = choices.find(entry => entry.sha256 === profileSha);
     // The plan belongs to this run: the record names its parent, and the next run is an original again.
-    const planned = plan;
+    const planned = plan, plannedLog = fromLog;
     const launcher = client();
     if (!launcher) return null;
     if (!store || !projectId || !stored) { setError("Open a project and choose an aircraft profile."); return null; }
@@ -250,7 +254,11 @@ export function RunPanel({ storeState, project, visible, link }: { storeState: S
       create: payload => {
         const { sitl } = payload;
         const name = experimentRecordName(profileName, sitl.ownership === "external" ? sitl.connectionId : sitl.experimentId, sitl.ownership);
-        return createExperimentRecord(store, projectId, { name, payload: { ...payload, lineage: lineageFor(planned, payload) } });
+        return createExperimentRecord(store, projectId, { name, payload: { ...payload, lineage: lineageFor(planned, payload) } }).then(async record => {
+          // TASK-182: the record of where this run came from, which depends on the experiment.
+          if (plannedLog) await saveLogExtraction(store, projectId, plannedLog, record.sha256, new Set(payload.parameters.filter(parameter => parameter.source === "set").map(parameter => parameter.name)));
+          return record;
+        });
       },
     }, { nowMs: () => performance.now(), utcNow: () => new Date().toISOString(),
       every: (ms, callback) => { const timer = setInterval(callback, ms); return () => clearInterval(timer); } },
@@ -267,11 +275,13 @@ export function RunPanel({ storeState, project, visible, link }: { storeState: S
         const { vehicle, run } = await preparedRun(store, stored);
         physics.use(vehicle, flightTask?.definition.initial.ground);
         profileName = vehicle.profileName;
-        if (setParameters.length === 0) return run;
+        // TASK-182: what a log holds of the aircraft's own parameters stays the aircraft's, which the wizard says.
+        const usable = plannedLog ? setParameters.filter(parameter => !run.parameters.some(generated => generated.name === parameter.name)) : setParameters;
+        if (usable.length === 0) return run;
         // TASK-176: a parameter set is part of what this run boots with; the aircraft's own parameters stay the aircraft's.
-        const clash = setParameters.filter(parameter => run.parameters.some(generated => generated.name === parameter.name)).map(parameter => parameter.name);
+        const clash = usable.filter(parameter => run.parameters.some(generated => generated.name === parameter.name)).map(parameter => parameter.name);
         if (clash.length > 0) throw new Error(`The parameter set names ${clash.join(", ")}, which the aircraft profile sets`);
-        return { ...run, parameters: [...run.parameters, ...setParameters.map(parameter => ({ name: parameter.name, value: parameter.value, source: "set" as const }))] };
+        return { ...run, parameters: [...run.parameters, ...usable.map(parameter => ({ name: parameter.name, value: parameter.value, source: "set" as const }))] };
       },
     };
   };
@@ -301,11 +311,18 @@ export function RunPanel({ storeState, project, visible, link }: { storeState: S
     void Promise.all([settingsFor, metadata()]).then(([settings, catalog]) => {
       if (!parent && !settings) return;
       // A planned run boots with its parent's parameter set, if it had one: the set is one of its inputs.
-      const session = freshSession(settings, catalog, task.entry, parent?.parameters.filter(parameter => parameter.source === "set") ?? []);
+      // A log from another build may name parameters this one lacks, which the start would refuse.
+      const knownSets = (catalog?.commits ?? []).flatMap(commit => catalog?.forCommit(commit) ?? []);
+      const writable = (name: string) => knownSets.length === 0 || knownSets.some(known => { const facts = known.get(name); return facts !== undefined && !facts.readOnly && !facts.volatile; });
+      const fromLogSet = (fromLog?.extraction.parameters ?? []).filter(parameter => isSetParameter(parameter.name) && writable(parameter.name))
+        .map(parameter => ({ name: parameter.name, value: parameter.value }));
+      const session = freshSession(settings, catalog, task.entry, fromLog ? fromLogSet : parent?.parameters.filter(parameter => parameter.source === "set") ?? []);
       if (!session) return;
       link.planRun(null);
+      const logHome = fromLog?.extraction.home ?? null;
+      link.planFromLog(null);
       void session.next.start({ prepare: session.prepare, firmwareId: buildId, speedup, physicsHz: parent?.session.physicsHz ?? SITL_PHYSICS_HZ,
-        home: parent?.session.home ?? DEFAULT_HOME, flightTask: task.entry });
+        home: parent?.session.home ?? logHome ?? DEFAULT_HOME, flightTask: task.entry });
     });
   };
   const connect = (endpoints: ConnectionSpec) => {
@@ -416,6 +433,12 @@ export function RunPanel({ storeState, project, visible, link }: { storeState: S
           ))}
         </select>
       </div>
+      {fromLog && (
+        <p className="hint" role="status" data-testid="sitl-plan" data-kind="from-log">
+          {logPlanText(fromLog.extraction)}
+          <button type="button" onClick={() => link.planFromLog(null)} disabled={active}>Cancel</button>
+        </p>
+      )}
       {plan && (
         <p className="hint" role="status" data-testid="sitl-plan" data-kind={plan.kind}>
           {plan.kind === "repeat"
