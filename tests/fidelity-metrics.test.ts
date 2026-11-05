@@ -5,7 +5,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { SeededRandom } from '@mirage/test-support/prng';
-import capture from './fixtures/validation/fidelity-synthetic-capture.json';
+import captureV1 from './fixtures/validation/fidelity-synthetic-capture.json';
+import capture from './fixtures/validation/fidelity-synthetic-capture-v2.json';
 import {
   COST_GUIDELINE, PHASE_WEIGHT, coherenceWeight, fftInPlace, frequencyResponseCost, phaseDegrees, timeDomainMetrics,
   welchFrequencyResponse, type FrequencyResponse,
@@ -179,7 +180,9 @@ describe('time-domain metrics', () => {
 });
 
 describe('synthetic fidelity capture and check-fidelity CLI', () => {
-  const fixturePath = new URL('./fixtures/validation/fidelity-synthetic-capture.json', import.meta.url).pathname;
+  // TASK-184: capture schema 2 holds the same series without limits; the CLI reports metrics and never judges them (SA-01).
+  const fixturePath = new URL('./fixtures/validation/fidelity-synthetic-capture-v2.json', import.meta.url).pathname;
+  const v1Path = new URL('./fixtures/validation/fidelity-synthetic-capture.json', import.meta.url).pathname;
   const bytes = readFileSync(fixturePath);
   const csv = readFileSync(new URL('./fixtures/validation/bench-synthetic.csv', import.meta.url), 'utf8');
   /** Checked access into an untrusted JSON report. */
@@ -214,7 +217,7 @@ describe('synthetic fidelity capture and check-fidelity CLI', () => {
   const response = (c: typeof capture, change: Record<string, unknown>) => ({ ...c, frequencyResponse: [{ ...c.frequencyResponse[0]!, ...change }] });
   const unitCost = 20 * (1.58 * (1 - Math.exp(-1))) ** 2;
 
-  it('stores the analytic series it documents', () => {
+  it('stores the analytic series it documents, those of capture schema 1 without its limits', () => {
     const series = capture.frequencyResponse[0]!, input = multisine(4 * N);
     for (let i = 0; i < 4 * N; i++) {
       let y = 0;
@@ -230,42 +233,56 @@ describe('synthetic fidelity capture and check-fidelity CLI', () => {
     for (let i = 0; i < 100; i++) expect(Math.abs(roll.simulated[i]! - roll.measured[i]! - 0.01)).toBeLessThan(1e-15);
     expect(capture.bench.csv).toBe(csv);
     expect(capture.bench.csvSha256).toBe(sha256(csv));
+    const { limits: _timeLimits, ...v1Roll } = captureV1.timeDomain[0]!, { maxCost: _cost, ...v1Response } = captureV1.frequencyResponse[0]!;
+    const { limits: _benchLimits, ...v1Bench } = captureV1.bench;
+    expect([roll, series, capture.bench]).toEqual([v1Roll, v1Response, v1Bench]);
+    expect([_timeLimits, _cost, _benchLimits].every(value => value !== undefined)).toBe(true);
   });
 
-  it('reports BLOCKED_EXTERNAL without input and for synthetic provenance, never PASS', () => {
+  it('reports BLOCKED_EXTERNAL without input and for synthetic provenance, with the metrics and no verdict', () => {
     const missing = run([]);
     expect(missing.status).toBe(2);
     expect(at(missing.report, 'status')).toBe('BLOCKED_EXTERNAL');
     const synthetic = run(['--input', fixturePath, '--sha256', sha256(bytes)]);
     expect(synthetic.status).toBe(2);
     expect(at(synthetic.report, 'status')).toBe('BLOCKED_EXTERNAL');
-    expect(at(synthetic.report, 'metrics', 'limitsMet')).toBe(true);
     expect(Math.abs(numberAt(synthetic.report, 'metrics', 'frequencyResponse', 'roll-rate-response', 'cost') - unitCost)).toBeLessThan(1e-9);
     expect(numberAt(synthetic.report, 'metrics', 'timeDomain', 'roll-rate', 'bias')).toBeCloseTo(0.01, 12);
     expect(numberAt(synthetic.report, 'metrics', 'bench', 'flaggedRows')).toBe(0);
-    expect(numberAt(synthetic.report, 'metrics', 'bench', 'maxCtRelativeError')).toBeCloseTo(0.02, 9);
-    expect(numberAt(synthetic.report, 'metrics', 'bench', 'maxCpRelativeError')).toBeCloseTo(0.03, 9);
+    expect(numberAt(synthetic.report, 'metrics', 'bench', 'largestCtRelativeError')).toBeCloseTo(0.02, 9);
+    expect(numberAt(synthetic.report, 'metrics', 'bench', 'largestCpRelativeError')).toBeCloseTo(0.03, 9);
+    expect(JSON.stringify(synthetic.report)).not.toMatch(/limitsMet|"passed"|"limits"|maxCost/);
   });
 
-  it('passes a measured capture within its limits and fails it outside them', () => {
-    const passed = run(variant(flight));
-    expect(passed.status).toBe(0);
-    expect(at(passed.report, 'status')).toBe('PASS');
-    const tight = run(variant(c => response(flight(c), { maxCost: 10 })));
-    expect(tight.status).toBe(1);
-    expect(at(tight.report, 'reasons')).toEqual(['frequency-response roll-rate-response exceeds its declared limit']);
-    const biased = run(variant(c => ({ ...flight(c), timeDomain: [{ ...c.timeDomain[0]!, limits: { maxRms: 0.02, maxAbsBias: 0.005, maxTheil: 0.05 } }] })));
-    expect(biased.status).toBe(1);
-    expect(at(biased.report, 'reasons')).toEqual(['time-domain roll-rate exceeds its declared limit']);
+  it('reports a measured capture\'s metrics without a limit or a verdict, whatever they are', () => {
+    const reported = run(variant(flight));
+    expect(reported.status).toBe(0);
+    expect(at(reported.report, 'status')).toBe('REPORTED');
+    expect(at(reported.report, 'reasons')).toEqual(['The metrics are reported without a limit or a verdict (SA-01); the user judges them']);
+    expect(Math.abs(numberAt(reported.report, 'metrics', 'frequencyResponse', 'roll-rate-response', 'cost') - unitCost)).toBeLessThan(1e-9);
+    // A model ten times further off is reported the same way: nothing here passes or fails it.
+    const far = run(variant(c => ({ ...flight(c), timeDomain: [{ ...c.timeDomain[0]!, simulated: c.timeDomain[0]!.measured.map(x => x + 0.1) }] })));
+    expect(far.status).toBe(0);
+    expect(at(far.report, 'status')).toBe('REPORTED');
+    expect(numberAt(far.report, 'metrics', 'timeDomain', 'roll-rate', 'bias')).toBeCloseTo(0.1, 12);
   });
 
-  it('fails malformed, unhashed or over-permissive evidence', () => {
+  it('refuses capture schema 1, whose limits are no longer applied', () => {
+    const refused = run(['--input', v1Path, '--sha256', sha256(readFileSync(v1Path))]);
+    expect(refused.status).toBe(1);
+    expect(at(refused.report, 'status')).toBe('FAIL');
+    expect(at(refused.report, 'reasons')).toEqual(['Capture schema 1 declares limits, which MirageSITL no longer applies (SA-01, TASK-184): write capture schema 2 without them']);
+  });
+
+  it('fails malformed or unhashed evidence, and a limit written into schema 2', () => {
     const cases: [string, string[]][] = [
       ['hash mismatch', ['--input', fixturePath, '--sha256', 'f'.repeat(64)]],
       ['missing hash', ['--input', fixturePath]],
       ['unknown key', variant(c => ({ ...flight(c), extra: true }))],
-      ['cost limit above the guideline', variant(c => response(flight(c), { maxCost: COST_GUIDELINE + 1 }))],
-      ['coherence limit below the guideline', variant(c => response(flight(c), { minCoherence: 0.5 }))],
+      ['a time-domain limit', variant(c => ({ ...flight(c), timeDomain: [{ ...c.timeDomain[0]!, limits: { maxRms: 1, maxAbsBias: 1, maxTheil: 1 } }] }))],
+      ['a cost limit', variant(c => response(flight(c), { maxCost: COST_GUIDELINE }))],
+      ['a bench limit', variant(c => ({ ...flight(c), bench: { ...c.bench, limits: { maxCtRelativeError: 0.05, maxCpRelativeError: 0.05 } } }))],
+      ['coherence threshold below the method\'s', variant(c => response(flight(c), { minCoherence: 0.5 }))],
       ['zero firmware hash on a flight test', variant(c => ({ ...c, provenance: { ...c.provenance, source: 'flight-test' } }))],
       ['unknown source', variant(c => ({ ...c, provenance: { ...c.provenance, source: 'simulation' } }))],
       ['tampered bench CSV', variant(c => ({ ...flight(c), bench: { ...c.bench, csv: c.bench.csv.replace('2000,', '2001,') } }))],
@@ -278,12 +295,16 @@ describe('synthetic fidelity capture and check-fidelity CLI', () => {
     }
   });
 
-  it('fails a measured bench comparison with physically inconsistent rows', () => {
+  it('lists physically inconsistent bench rows and leaves them out of the bench errors', () => {
     const result = run(variant(c => {
       const text = c.bench.csv.replace('2000,0.610472757547,', '2000,-0.610472757547,');
       return { ...flight(c), bench: { ...c.bench, csv: text, csvSha256: sha256(text) } };
     }));
-    expect(result.status).toBe(1);
+    expect(result.status).toBe(0);
+    expect(at(result.report, 'status')).toBe('REPORTED');
     expect(numberAt(result.report, 'metrics', 'bench', 'flaggedRows')).toBe(1);
+    expect(numberAt(result.report, 'metrics', 'bench', 'comparedRows')).toBe(numberAt(result.report, 'metrics', 'bench', 'rows') - 1);
+    expect(at(result.report, 'metrics', 'bench', 'flagged')).toEqual([{ row: 1, rpm: 2000, flags: ['negative-thrust'] }]);
+    expect(at(result.report, 'reasons')).toContain('1 bench rows are physically inconsistent and left out of the bench errors');
   });
 });

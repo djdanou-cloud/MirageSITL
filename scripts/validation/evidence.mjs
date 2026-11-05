@@ -70,5 +70,6 @@ export function cli(url, kind, assess) {
   mkdirSync(dirname(path), { recursive: true });
   writeFileSync(path, JSON.stringify(result, null, 2) + "\n");
   console.log(`${kind}: ${result.status}; ${path}`);
-  process.exitCode = result.status === "PASS" ? 0 : result.status === "FAIL" ? 1 : 2;
+  // REPORTED (TASK-184): measured evidence whose metrics are shown without a limit or a verdict (SA-01).
+  process.exitCode = result.status === "PASS" || result.status === "REPORTED" ? 0 : result.status === "FAIL" ? 1 : 2;
 }

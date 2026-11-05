@@ -720,6 +720,31 @@
       }
     },
     {
+      "path": "validation/fidelity-synthetic-capture-v2.json",
+      "manifest": {
+        "formatVersion": 1,
+        "id": "validation-fidelity-synthetic-capture-v2",
+        "sourceSha256": "c5faaf8ed463979a6fc9d5e9aad9eca450e679b2161cf7fda6ea1e83ed8ee029",
+        "units": {
+          "rollRate": "rad/s"
+        },
+        "validityEnvelope": {
+          "rollRate": {
+            "min": -0.51,
+            "max": 0.51
+          }
+        },
+        "tolerance": {
+          "absolute": 1e-12,
+          "relative": 1e-12
+        },
+        "provenance": {
+          "kind": "synthetic",
+          "derivation": "Fidelity capture schema 2 (TASK-184): validation/fidelity-synthetic-capture.json with schemaVersion 2, its operator renamed, and its limits, maxCost and bench limits removed; every series, band, segment and bench prediction is that capture's. Not flight or bench measurements."
+        }
+      }
+    },
+    {
       "path": "validation/bench-synthetic.csv",
       "manifest": {
         "formatVersion": 1,

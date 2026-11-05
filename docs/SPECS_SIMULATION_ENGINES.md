@@ -4089,25 +4089,26 @@ conditions and only the measured columns, is in section "Calculation modes
 and measurement sets v1 (TASK-140)"; `importBenchCsv` still reads version 1
 only.
 
-Capture schema v1 has this skeleton; every series must hold 2..2^20 finite
-samples:
+Capture schema 2 (TASK-184) has this skeleton; every series must hold 2..2^20
+finite samples. Schema 1 also declared limits (`limits` per time-domain
+section, `maxCost`, and bench relative-error limits); by scope amendment SA-01
+MirageSITL sets none, so schema 2 holds the same sections without them and
+schema 1 is refused with that reason:
 
 ```json
 {
-  "schemaVersion": 1, "kind": "mirage-fidelity-capture",
+  "schemaVersion": 2, "kind": "mirage-fidelity-capture",
   "provenance": { "source": "flight-test", "operator": "<name>", "recordedAt": "2026-10-26T00:00:00Z",
     "firmwareSha256": "<64 hex>", "modelSha256": "<64 hex>" },
   "timeDomain": [{ "id": "roll-rate", "unit": "rad/s", "sampleRateHz": 100,
-    "measured": ["<samples>"], "simulated": ["<samples>"],
-    "limits": { "maxRms": 0.02, "maxAbsBias": 0.02, "maxTheil": 0.05 } }],
+    "measured": ["<samples>"], "simulated": ["<samples>"] }],
   "frequencyResponse": [{ "id": "roll-rate-response", "sampleRateHz": 100, "segmentLength": 64,
     "overlap": 0, "window": "rectangular", "bandHz": [1.5625, 46.875], "points": 20,
-    "minCoherence": 0.6, "maxCost": 100,
+    "minCoherence": 0.6,
     "measuredInput": ["<samples>"], "measuredOutput": ["<samples>"],
     "simulatedInput": ["<samples>"], "simulatedOutput": ["<samples>"] }],
   "bench": { "csv": "<bench CSV v1 text>", "csvSha256": "<64 hex>",
-    "predicted": [{ "rpm": 2000, "ct": 0.1122, "cp": 0.04365 }],
-    "limits": { "maxCtRelativeError": 0.05, "maxCpRelativeError": 0.05 } }
+    "predicted": [{ "rpm": 2000, "ct": 0.1122, "cp": 0.04365 }] }
 }
 ```
 
@@ -4118,30 +4119,37 @@ responses. Bench predictions list one row per measured row at the same rpm.
 `node scripts/check-fidelity.mjs --input CAPTURE.json --sha256 HEX` builds on
 `scripts/validation/evidence.mjs`, which enforces the hash and a 32 MiB size
 budget. It requires exact keys everywhere, unique section IDs, at most 32
-sections per kind and at least one section in total. Declared limits may be
-stricter than the guidelines but never looser: maxCost ≤ 100,
-minCoherence ≥ 0.6, maxTheil ≤ 1 and bench relative errors ≤ 1. A bench row
-with any consistency flag fails the bench comparison.
+sections per kind and at least one section in total, and it computes each
+section's metrics: RMS, bias and Theil per time-domain section, J with its
+points and excluded points per frequency response, and per bench file the
+rows compared, the rows with a consistency flag (listed with their flags and
+left out of the errors) and the largest CT and CP relative errors.
+`minCoherence` is part of the method, the coherence below which a frequency
+point is unusable, and is never below the 0.6 guideline; nothing in the capture
+or the report is a fidelity limit, and nothing passes or fails a model.
 
 Exit codes:
 
 * No input gives BLOCKED_EXTERNAL (2).
-* Malformed, unhashed or over-permissive input gives FAIL (1).
-* `synthetic` provenance gives BLOCKED_EXTERNAL (2) with the computed metrics
-  and `limitsMet`; it is never PASS.
+* Malformed or unhashed input, a capture schema 1, or a limit written into
+  schema 2 gives FAIL (1).
+* `synthetic` provenance gives BLOCKED_EXTERNAL (2) with the computed metrics;
+  synthetic data compare MirageSITL with no aircraft.
 * `flight-test` provenance with non-zero firmware and model hashes gives
-  PASS (0) or FAIL (1).
+  REPORTED (0): the metrics, for the user to judge.
 
 The report `test-results/validation/fidelity.json` (schema 1, kind `fidelity`)
 records the input hash, the git revision and the validator hash. The analytic
-fixture `tests/fixtures/validation/fidelity-synthetic-capture.json` reports
-J = 19.950 = 20·W_γ(1) for its +1 dB model error and exits 2.
+fixture `tests/fixtures/validation/fidelity-synthetic-capture-v2.json` (the
+schema 1 fixture's series without its limits) reports J = 19.950 = 20·W_γ(1)
+for its +1 dB model error and exits 2; the schema 1 fixture is kept for the
+refusal.
 
 Open items:
 
 * Score a real ArduCopter SYSTEMID flight capture and a real thrust-stand
   file (G4).
-* Convert DataFlash logs to capture v1.
+* Convert DataFlash logs to capture schema 2.
 * Build the simulation replay that produces the simulated series.
 
 ## Sensor-error ownership (TASK-089)
@@ -8868,10 +8876,11 @@ from the recording), takes the real log as a file, the interval (the real log's
 span by default) and the offset (the logs' starts aligned by default), shows
 the rows and scalars, charts the two series of a chosen quantity (real solid,
 simulated dashed), saves the comparison and shows the version's label with the
-comparisons that belong to other versions. `scripts/check-fidelity.mjs` still
-scores the TASK-090 capture v1 against its declared limits; reporting the same
-metrics without them is left to a later increment, because that capture format
-and its PASS and FAIL verdicts feed the release-gate tooling.
+comparisons that belong to other versions. `scripts/check-fidelity.mjs` takes
+the TASK-090 capture in schema 2, without limits, and reports a flight-test
+capture's metrics as REPORTED with no verdict; it refuses schema 1, whose
+declared limits it no longer applies (section "Fidelity evidence pipeline
+(TASK-090)").
 
 **Verification.** `tests/fidelity-assessment.test.ts` declares before the
 implementation, on a flight written here whose metrics follow in closed form
