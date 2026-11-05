@@ -6115,7 +6115,13 @@ V_{\mathrm{bus}} = V_{oc} - I\,R_{\mathrm{int}}
 
 Statuses: 0, −2 record length or pointers, −3 invalid input or charge, −7
 version. `BetBus` (`@mirage/wasm-bet/bus`) owns one record pair in its own
-instance.
+instance. A hot caller writes the charge, the motor power and the house power
+into its preallocated `input` slots and calls `stepFromInput()`;
+`stepInto(soc, motorPowerW, housePowerW)` is the cold form over the same slots.
+V8 boxes a double passed as an argument to a call it does not inline, and the
+flight step with its weather code is too large to inline the bus step: passed
+as arguments, those doubles cost 32 B on every tick of an ESC-drive run with a
+weather, until TASK-145's allocation graph found it.
 
 ### Solving the bus with the motors (TASK-197)
 

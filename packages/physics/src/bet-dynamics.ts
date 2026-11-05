@@ -522,7 +522,9 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
     if(this.bus) {
       // The bus delivers the summed terminal power of these motors, which ran on the voltage solved above.
       const e=this.electrical,o=this.bus.output;
-      if(!this.bus.stepInto(e[0]!,terminalPowerW,this.housePowerW)){this.fault='Battery bus step failed';return;}
+      // Through the bus's input slots: as call arguments, V8 boxes these doubles once this step is too large to inline the call.
+      const bi=this.bus.input;bi[0]=e[0]!;bi[1]=terminalPowerW;bi[2]=this.housePowerW;
+      if(!this.bus.stepFromInput()){this.fault='Battery bus step failed';return;}
       e[0]=o[0]!;e[1]=o[1]!;e[2]=o[2]!;
       this.busLimited=this.bus.output[6]!!==0||esc!.busLimited;
     }

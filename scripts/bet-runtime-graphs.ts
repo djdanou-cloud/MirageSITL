@@ -15,6 +15,8 @@ export const ALLOCATION_GRAPHS: readonly (readonly [graph: string, variant: Allo
   ["weather-synthetic-pad-four-rotor", "scalar"], ["weather-session-synthetic-pad", "scalar"],
   // TASK-096 airframe drag in a gusty wind, its validity flag switching on and off.
   ["airframe-drag-weather-pad-four-rotor", "scalar"],
+  // TASK-145 calibrated rotors on the ESC drive, checked against their bench envelope every step, its flag switching with the air's density.
+  ["calibrated-esc-weather-pad-four-rotor", "scalar"],
 ];
 
 function field(value: unknown, key: string): unknown {

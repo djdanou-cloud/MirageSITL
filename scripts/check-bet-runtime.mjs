@@ -275,12 +275,33 @@ if(!allocation){
     memoryStable:draggy.engine.memoryStable};
   if(!(flaggedSteps>0&&flaggedSteps<1000000))throw Error('The drag validity flag did not switch');
   samples.push(dragGraph);draggy.dispose();console.log(JSON.stringify(dragGraph));
+  // TASK-145: four calibrated rotors turning on the ESC drive on the same pad, each step checked against its bench envelope. The weather
+  // re-applied every 1000 steps alternates between 98 kPa and 90 kPa, so the air's density leaves the 1.12 to 1.25 kg/m³ band of the
+  // bench data every other window and the flag switches; the RPM and advance-ratio bounds stay wide, so every comparison is evaluated.
+  const calibratedConfig=padded();calibratedConfig.drive=driven.drive;
+  calibratedConfig.calibrationEnvelopes=[0,1,2,3].map(rotorIndex=>({rotorIndex,rpmLow:1,rpmHigh:1e6,densityLowKgM3:1.12,densityHighKgM3:1.25,advanceRatioMax:1e3}));
+  const thin=weatherOf(-4,1,0x9e3779b9);thin[WEATHER_PRESSURE]=90000;
+  const calibratedWeathers=[weathers[0],thin],calibrated=new BetFlightDynamics(modules[0],calibratedConfig,400);
+  if(calibrated.setWeather(calibratedWeathers[0])!==null)throw Error('Weather refused');
+  let calibratedApplications=0,calibratedSteps=0,calibratedEvery=5;flaggedSteps=0;
+  const calibratedRun=n=>{for(let i=0;i<n;i++){
+    if(++calibratedSteps%calibratedEvery===0){if(calibrated.setWeather(calibratedWeathers[(++calibratedApplications)&1])!==null)throw Error('Weather refused');}
+    calibrated.nowMs=0;calibrated.stepNow(escPilot);
+    if(calibrated.fault||calibrated.state.down!==0||!(calibrated.electrical[2]>0))throw Error('Calibrated rotor allocation step failed');
+    if(calibrated.validityFlags&(1<<18))flaggedSteps++;}};
+  // Warmed as the weather graph is, with an application every 5 steps; then one every 1000.
+  calibratedRun(100000);calibratedEvery=1000;calibratedSteps=0;await measure(calibratedRun,10000);
+  flaggedSteps=0;
+  const calibratedGraph={graph:'calibrated-esc-weather-pad-four-rotor',variant:'scalar',...await measure(calibratedRun,1000000),flaggedSteps,
+    memoryStable:calibrated.escEngine.memoryStable};
+  if(!(flaggedSteps>0&&flaggedSteps<1000000))throw Error('The calibration validity flag did not switch');
+  samples.push(calibratedGraph);calibrated.dispose();console.log(JSON.stringify(calibratedGraph));
   const sink={value:null};const control=n=>{for(let i=0;i<n;i++)sink.value={i};};
   const positive=await measure(control,1000000),controlDetected=positive.gcEvents>0 || positive.bytes>1000000;
   const passed=completeAllocationSamples(samples)&&samples.every(s=>s.gcEvents===0&&s.bytesPerStep<0.01&&s.memoryStable)&&controlDetected;
   const report={schemaVersion:1,status:passed?'pass':'failed',...identity,warmupSteps:100000,samples,positiveControl:positive,controlDetected,
     nativeAllocator:{steps:1000000,calls:0,bytes:0,positiveControlDetected:true,driveSteps:{boundV2:1000000,esc:1000000,bus:1000000}},
-    scope:'Active NeuralFoil rotor graph through step interfaces v1 and v2 and a stationary body through interface v2, each in both WASM variants, plus stationary four-rotor body, synthetic-pad and ESC-drive bus (synthetic pad) graphs, and the TASK-093 weather graphs (gust and per-step air with a weather re-applied every 1000 steps, and the real session applying scheduled weather.set commands, on the synthetic pad, and TASK-096 airframe drag in that wind); native counted allocator checks (bound v1, v2, ESC drive, bus) and WASM trapping allocator; no measured aerodynamic acceptance or hardware realtime claim'};
+    scope:'Active NeuralFoil rotor graph through step interfaces v1 and v2 and a stationary body through interface v2, each in both WASM variants, plus stationary four-rotor body, synthetic-pad and ESC-drive bus (synthetic pad) graphs, and the TASK-093 weather graphs (gust and per-step air with a weather re-applied every 1000 steps, and the real session applying scheduled weather.set commands, on the synthetic pad, and TASK-096 airframe drag in that wind, and TASK-145 calibrated rotors on the ESC drive checked against their bench envelope every step); native counted allocator checks (bound v1, v2, ESC drive, bus) and WASM trapping allocator; no measured aerodynamic acceptance or hardware realtime claim'};
   writeFileSync(resolve(root,'test-results/validation/bet-runtime-allocation.json'),JSON.stringify(report,null,2)+'\n');
   observer.disconnect();if(!passed)process.exitCode=1;
 }
