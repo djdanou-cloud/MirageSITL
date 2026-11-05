@@ -1,4 +1,5 @@
 import { effectDefinition, parseEffectControl, type EffectControl, type EffectFamily, type EffectId, type EffectRecovery } from "@mirage/protocol";
+import { ekfDriftEntries, isEkfDriftEntry, parseEkfDrift, type EkfDriftProfile } from "./ekf-drift.ts";
 
 // The schedule of the Faults and interference tab (TASK-169, S09): which effects a run applies by itself, when and for how long. A
 // schedule is an input of the run, so its experiment record keeps it. Time counts simulated seconds from the moment the aircraft
@@ -24,6 +25,8 @@ export interface ScheduledEffect {
 export interface FaultSchedule {
   readonly schemaVersion: typeof FAULT_SCHEDULE_SCHEMA_VERSION;
   readonly entries: readonly ScheduledEffect[];
+  /** TASK-170: the EKF drift scenario these entries include, if any; its entries are exactly ekfDriftEntries of this profile. */
+  readonly ekfDrift?: EkfDriftProfile;
 }
 export const EMPTY_FAULT_SCHEDULE: FaultSchedule = Object.freeze({ schemaVersion: FAULT_SCHEDULE_SCHEMA_VERSION, entries: Object.freeze([]) });
 
@@ -74,7 +77,14 @@ export function parseFaultSchedule(input: unknown): FaultSchedule {
     if (clash >= 0) fail(`entries[${index}] overlaps entries[${clash}] of ${entry.control.effect}`);
     if (entries.some((other, at) => at < index && other.control.id === entry.control.id && overlapKey(other.control) !== overlapKey(entry.control))) fail(`entries[${index}] reuses the ID ${entry.control.id} of another effect`);
   });
-  return { schemaVersion: FAULT_SCHEDULE_SCHEMA_VERSION, entries };
+  const drift = input.ekfDrift === undefined ? null : parseEkfDrift(input.ekfDrift), driftEntries = entries.filter(isEkfDriftEntry);
+  if (JSON.stringify(driftEntries) !== JSON.stringify(drift ? ekfDriftEntries(drift) : [])) fail("the EKF drift entries are not those of its profile");
+  return { schemaVersion: FAULT_SCHEDULE_SCHEMA_VERSION, entries, ...(drift ? { ekfDrift: drift } : {}) };
+}
+/** The schedule with this EKF drift in place of any before it, or with none; it refuses what overlaps, as parseFaultSchedule does. */
+export function withEkfDrift(schedule: FaultSchedule, profile: EkfDriftProfile | null): FaultSchedule {
+  const others = schedule.entries.filter(entry => !isEkfDriftEntry(entry));
+  return parseFaultSchedule({ schemaVersion: FAULT_SCHEDULE_SCHEMA_VERSION, entries: [...others, ...(profile ? ekfDriftEntries(profile) : [])], ...(profile ? { ekfDrift: profile } : {}) });
 }
 
 /** One change a schedule makes: entry `entry` goes on or off at `atS`. */

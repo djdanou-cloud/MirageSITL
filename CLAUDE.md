@@ -520,7 +520,9 @@ implementation.
   those effects by hand or on a schedule the run keeps in its experiment record, counted from the
   first armed report, and `effect-log` records each outcome; GNSS steps and drift reach ArduPilot on
   the state line, north and east, jamming and magnetometer bias through its own parameters, and a
-  magnetometer rotation through the attitude on the line. TASK-188 is DONE: `node scripts/phase1/acceptance.mjs`
+  magnetometer rotation through the attitude on the line. TASK-170 is DONE: the tab's EKF drift
+  scenario flies as an input error on that path, ArduPilot's estimate is never written, and the
+  Experiments tab charts the truth against its estimate from the recording. TASK-188 is DONE: `node scripts/phase1/acceptance.mjs`
   checks every matrix cell against its evidence and refuses what is forged, missing or stale,
   and `node scripts/phase1/nominal-flight.mjs` gives nine workflows per configuration, so 45 of
   the 51 cells pass on the A-01 machine. ArduPilot's own SITL

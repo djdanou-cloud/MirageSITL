@@ -11,6 +11,7 @@ import { readEffectLog, type EffectLog } from "../faults/effect-log";
 import { FromLogWizard } from "./FromLogWizard";
 import { readLogExtraction, type LogExtractionRecord } from "./log-plan";
 import { ResponsePanel } from "../analysis/ResponsePanel";
+import { TruthVsEstimate } from "../analysis/TruthVsEstimate";
 import { ComparePanel } from "../compare/ComparePanel";
 import { BatchPanel } from "./BatchPanel";
 import { TASK_TYPE_LABELS } from "../tasks/flight-task-form";
@@ -187,6 +188,12 @@ export function ExperimentsTab({ storeState, project, link, active, onRun, onAna
             <button type="button" onClick={() => onAnalyse(current.stored.sha256)}>Open in Analysis</button>
           </div>
           <EffectsRecord schedule={current.payload.faults} log={effectLogs.find(item => item.experimentSha256 === current.stored.sha256) ?? null} />
+          {current.payload.faults && current.payload.recording && (() => {
+            // TASK-170: where the schedule's clock started, from when its first drift stretch was meant for.
+            const log = effectLogs.find(item => item.experimentSha256 === current.stored.sha256), drift = current.payload.faults.ekfDrift ?? null;
+            const first = log?.entries.find(entry => entry.id === "ekf-drift-0" && entry.enabled)?.requestedSimS ?? null;
+            return <TruthVsEstimate recordId={current.payload.recording.recordId} home={current.payload.session.home} drift={drift} armedAtS={drift && first !== null ? first - drift.onsetS : null} />;
+          })()}
           {(() => {
             const log = fromLogs.find(item => item.experimentSha256 === current.stored.sha256);
             if (!log) return null;

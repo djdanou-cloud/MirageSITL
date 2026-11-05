@@ -587,6 +587,30 @@ interface EffectEntry {
 | `ew.magnetic` | Rotation: the attitude on the state line. Bias: `SIM_MAGn_OFS`, added to what the run holds | A reading turned on its tick; a bias as logged writes | 0.3 rad with 0.1 G: the reading moved by 107 and 197 mG in its axes, the aircraft turned 0.84 rad, and it stayed in GUIDED |
 | `ew.gnss-jamming` | `SIM_GPS1_NUMSATS`, `SIM_GPS1_ACC`, `SIM_GPS1_LCKTIME` | Satellites and accuracy at the severity, no fix at 0.8 or when below 4 satellites; a DOP has no parameter | Severity 0.5: 6 satellites and 12.4 m read back, with no message and the same EKF flags |
 
+### EKF drift (TASK-170)
+
+An input error, never a change to ArduPilot's estimate: the GNSS position runs away from the truth in one direction, coherently with its velocity, on the coherent drift of TASK-055, and goes by the state line as TASK-169 delivers a drift. ArduPilot may follow, reject the readings or enter a failsafe, and nothing promises which. The Faults tab's form makes this profile:
+
+```typescript
+interface EkfDriftProfile {
+  schemaVersion: 1;
+  directionDeg: number;   // the way the GNSS position runs away, clockwise from north
+  growthMps2: number;     // above 0, at most 0.3, the drift model's range
+  topSpeedMps: number;    // above 0, at most 20
+  onsetS: number;         // simulated seconds after the first armed report
+  durationS: number;      // how long it grows
+  removal: "gradual" | "abrupt";
+}
+```
+
+\[
+v(t)=\min(a\,t,\;V),\qquad b(t)=\int_0^t v\,d\tau,\qquad V_p=\sqrt{a\,b_1+\tfrac{v_1^2}{2}}.
+\]
+
+While it grows, t counts from its onset, a is the growth rate and V the top speed. An abrupt removal drops b and v to 0 at once, an explicit discontinuity. A gradual one starts from (b₁, v₁): it accelerates at -a through zero speed to -V_p, or cruises at -V when V_p would pass it, and brakes at +a to stop at b = 0. The error therefore grows a little further while it brakes, because b never fades without its derivative (TASK-055). The profile becomes one schedule entry per stretch of constant acceleration, each starting where the one before ended, and the last ends with a step to the truth, which clears what a tick's rounding left. `FaultSchedule.ekfDrift` holds the profile, and a stored schedule whose entries are not exactly its profile's is refused.
+
+The Experiments tab charts `truthVsEstimate` for a run with a schedule and a recording. The estimate is what ArduPilot reports in GLOBAL_POSITION_INT, converted with its own metres per degree so the conversion adds no error near home, and the truth is read straight between its neighbouring rows at the simulated time of each report. Errors are the estimate minus the truth, on north, east and down. What the drift added to the input is drawn beside the error, from the form above. None of these numbers has a limit. Reports where the recording holds no truth are counted and left out.
+
 ### Weather and atmosphere in flight sessions (TASK-093)
 
 A dynamics with an atmosphere and wind implements `SessionDynamics.setWeather`;

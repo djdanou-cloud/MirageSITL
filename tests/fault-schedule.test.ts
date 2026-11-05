@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { EFFECT_IDS, effectDefinition, initialEffectParameters, type EffectControl, type EffectId } from '@mirage/protocol';
-import { FAULT_TAB_FAMILIES, faultTimeline, parseFaultSchedule, sitlDeliveryRefusal, type ScheduledEffect } from '@mirage/scenarios/fault-schedule';
+import { FAULT_TAB_FAMILIES, faultTimeline, parseFaultSchedule, sitlDeliveryRefusal, withEkfDrift, type ScheduledEffect } from '@mirage/scenarios/fault-schedule';
 import { GnssJamming } from '@mirage/ew/gnss-jamming';
 import { JAMMING_PARAMETERS, MAGNETIC_PARAMETERS, SITL_GPS_ACC, SITL_GPS_HDOP, SITL_GPS_LOCK, SITL_GPS_NO_LOCK_S, SITL_GPS_NUMSATS, jammingWrites, magneticBiasWrites } from '@mirage/ew/sitl-writes';
 import type { GpsSample } from '@mirage/mavlink/samples';
@@ -96,5 +96,22 @@ describe('every parameter these writes name', () => {
     const catalog = parseArduPilotCatalog(catalogJson);
     // The catalog names a vector parameter once; the list ArduPilot sends has its _X, _Y and _Z.
     for (const name of [...JAMMING_PARAMETERS, ...MAGNETIC_PARAMETERS.map(item => item.replace(/_[XYZ]$/, ''))]) expect(catalog.parameters.has(name), name).toBe(true);
+  });
+});
+
+describe('an EKF drift on the schedule (TASK-170)', () => {
+  const profile = { schemaVersion: 1, directionDeg: 90, growthMps2: 0.2, topSpeedMps: 2, onsetS: 5, durationS: 6, removal: 'gradual' } as const;
+  it('stands with its entries, and a stored one whose entries are not its own is refused', () => {
+    const schedule = withEkfDrift(parseFaultSchedule({ schemaVersion: 1, entries: [entry('link.pilot', 1, 2)] }), profile);
+    expect(schedule.ekfDrift).toEqual(profile);
+    expect(parseFaultSchedule(JSON.parse(JSON.stringify(schedule)))).toEqual(schedule);
+    expect(() => parseFaultSchedule({ ...schedule, ekfDrift: { ...profile, durationS: 7 } })).toThrow('not those of its profile');
+    expect(() => parseFaultSchedule({ schemaVersion: 1, entries: schedule.entries })).toThrow('not those of its profile');
+    expect(withEkfDrift(schedule, null)).toEqual(parseFaultSchedule({ schemaVersion: 1, entries: [entry('link.pilot', 1, 2)] }));
+  });
+  it('refuses to overlap another drift, and takes one that ends first', () => {
+    const earlier = parseFaultSchedule({ schemaVersion: 1, entries: [entry('ew.velocity-drift', 1, 2, 'mine', { accelerationNedMps2: [0.1, 0, 0] })] });
+    expect(withEkfDrift(earlier, profile).entries.length).toBeGreaterThan(1);
+    expect(() => withEkfDrift(earlier, { ...profile, onsetS: 2 })).toThrow('overlaps');
   });
 });

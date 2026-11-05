@@ -41,7 +41,7 @@ test("a schedule of each class flies by itself, one more goes by hand, what cann
     await expect(panel.getByTestId("fault-no-run")).toBeVisible();
     const effect = panel.getByLabel("Effect", { exact: true });
     const add = async (label: string, onsetS: number, durationS: number | null) => {
-      await panel.getByLabel("Onset, s after arming").fill(String(onsetS));
+      await panel.getByLabel("Onset, s after arming", { exact: true }).fill(String(onsetS));
       await panel.getByLabel("Duration, s (empty: until the run ends)").fill(durationS === null ? "" : String(durationS));
       await panel.getByRole("button", { name: "Add to the schedule", exact: true }).click();
       await expect(panel.getByTestId("fault-schedule").locator("tbody tr", { hasText: label }).last()).toBeVisible();
@@ -78,7 +78,7 @@ test("a schedule of each class flies by itself, one more goes by hand, what cann
     await effect.selectOption({ label: "Ground-station link lost" });
     await add("Ground-station link lost", 29, 2);
     // One effect at once of one kind.
-    await panel.getByLabel("Onset, s after arming").fill("30");
+    await panel.getByLabel("Onset, s after arming", { exact: true }).fill("30");
     await panel.getByRole("button", { name: "Add to the schedule", exact: true }).click();
     await expect(panel.getByTestId("fault-refusal")).toContainText("overlaps");
     await effect.selectOption({ label: "GNSS missing" });

@@ -1,6 +1,7 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { EFFECT_CATALOG, EFFECT_IDS, effectDefinition, initialEffectParameters, parseEffectControl, type EffectControl, type EffectId, type EffectParameterValue, type EffectRecovery } from "@mirage/protocol";
-import { EMPTY_FAULT_SCHEDULE, FAULT_TAB_FAMILIES, MAX_SCHEDULED_EFFECTS, faultTimeline, parseFaultSchedule, scheduledEffectId, type FaultSchedule, type ScheduledEffect } from "@mirage/scenarios/fault-schedule";
+import { EMPTY_FAULT_SCHEDULE, FAULT_TAB_FAMILIES, MAX_SCHEDULED_EFFECTS, faultTimeline, parseFaultSchedule, scheduledEffectId, withEkfDrift, type FaultSchedule, type ScheduledEffect } from "@mirage/scenarios/fault-schedule";
+import { EKF_DRIFT_MAX_GROWTH_MPS2, EKF_DRIFT_MAX_SPEED_MPS, ekfDriftEndS, ekfDriftPeakM, isEkfDriftEntry, parseEkfDrift, type EkfDriftProfile, type EkfDriftRemoval } from "@mirage/scenarios/ekf-drift";
 import type { StoredVersion } from "@mirage/project/schema";
 import { EffectFieldInput, numberText } from "../instructor/effect-form";
 import type { SessionLink } from "../run/session-link";
@@ -38,6 +39,9 @@ export function FaultsTab({ storeState, project, link, active }: { storeState: S
   const [recovery, setRecovery] = useState<EffectRecovery>("hold-offset");
   const [onset, setOnset] = useState("10"), [duration, setDuration] = useState("10");
   const [refusal, setRefusal] = useState("");
+  // TASK-170: the EKF drift form.
+  const [drift, setDrift] = useState({ directionDeg: "0", growthMps2: "0.2", topSpeedMps: "2", onsetS: "10", durationS: "10" });
+  const [removal, setRemoval] = useState<EkfDriftRemoval>("gradual");
   useEffect(() => {
     if (!store || !projectId || !active) return;
     let cancelled = false;
@@ -86,9 +90,28 @@ export function FaultsTab({ storeState, project, link, active }: { storeState: S
       setRefusal(cause instanceof Error ? cause.message.replace(/^Invalid fault schedule: (entries\[\d+\]: )?/, "") : String(cause));
     }
   };
-  const remove = (index: number) => store_({ schemaVersion: schedule.schemaVersion, entries: schedule.entries.filter((_, at) => at !== index) });
+  const remove = (id: string) => store_(parseFaultSchedule({ ...schedule, entries: schedule.entries.filter(entry => entry.control.id !== id) }));
+  /** The form as a profile, or the reason it cannot be one. */
+  const driftProfile = (): EkfDriftProfile | string => {
+    try {
+      return parseEkfDrift({ schemaVersion: 1, directionDeg: Number(drift.directionDeg), growthMps2: Number(drift.growthMps2), topSpeedMps: Number(drift.topSpeedMps), onsetS: Number(drift.onsetS), durationS: Number(drift.durationS), removal });
+    } catch (cause) {
+      return cause instanceof Error ? cause.message.replace("Invalid EKF drift: ", "") : String(cause);
+    }
+  };
+  const addDrift = () => {
+    setRefusal("");
+    const profile = driftProfile();
+    if (typeof profile === "string") { setRefusal(profile); return; }
+    try {
+      store_(withEkfDrift(schedule, profile));
+    } catch (cause) {
+      setRefusal(cause instanceof Error ? cause.message.replace(/^Invalid fault schedule: (entries\[\d+\]: )?/, "") : String(cause));
+    }
+  };
   const plan = view?.faultPlan ?? null;
   const waiting = plan ? faultTimeline(plan.schedule).slice(plan.sent) : [];
+  const scheduled = schedule.entries.filter(entry => !isEkfDriftEntry(entry)), profile = schedule.ekfDrift, preview = driftProfile();
   if (!project) {
     return <section className="project-section" aria-label="Faults and interference"><h2>Faults and interference</h2><p className="hint">Open a project on the Project tab first.</p></section>;
   }
@@ -149,24 +172,51 @@ export function FaultsTab({ storeState, project, link, active }: { storeState: S
         </div>
       </div>
       <div className="button-row"><button type="button" onClick={add}>Add to the schedule</button></div>
-      {schedule.entries.length === 0 ? <p className="hint" data-testid="fault-schedule-empty">Nothing is scheduled.</p> : (
+      {scheduled.length === 0 ? <p className="hint" data-testid="fault-schedule-empty">No single effect is scheduled.</p> : (
         <div className="table-scroll" tabIndex={0} role="region" aria-label="The schedule of the next run, scrollable">
           <table className="scheme-table" aria-label="The schedule of the next run" data-testid="fault-schedule">
             <thead><tr><th scope="col">Effect</th><th scope="col">Values</th><th scope="col">Onset, s</th><th scope="col">Duration, s</th><th scope="col">When it ends</th><th scope="col"><span className="visually-hidden">Remove</span></th></tr></thead>
             <tbody>
-              {schedule.entries.map((entry, index) => (
+              {scheduled.map(entry => (
                 <tr key={entry.control.id} data-effect={entry.control.effect}>
                   <th scope="row">{EFFECT_CATALOG[entry.control.effect].label}</th>
                   <td>{summary(entry.control)}</td>
                   <td>{entry.onsetS}</td>
                   <td>{entry.durationS ?? "Until the run ends"}</td>
                   <td>{entry.control.effect === "ew.velocity-drift" ? (entry.recovery === "hold-offset" ? "Holds the offset" : "Steps back") : "—"}</td>
-                  <td><button type="button" onClick={() => remove(index)} aria-label={`Remove ${EFFECT_CATALOG[entry.control.effect].label}`}>Remove</button></td>
+                  <td><button type="button" onClick={() => remove(entry.control.id)} aria-label={`Remove ${EFFECT_CATALOG[entry.control.effect].label}`}>Remove</button></td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
+      )}
+
+      <h3 id="ekf-drift-heading">EKF drift</h3>
+      <p className="hint">An error put into the GNSS input, position and velocity together, which runs away from the truth in one direction. ArduPilot&apos;s estimate is never written. It may follow, reject the readings or enter a failsafe, and nothing here promises which: its experiment shows the truth against its estimate afterwards.</p>
+      <div className="field-grid fault-fields" role="group" aria-labelledby="ekf-drift-heading">
+        <div className="field"><label htmlFor="drift-direction">Direction, ° from north</label><input id="drift-direction" value={drift.directionDeg} onChange={event => setDrift({ ...drift, directionDeg: event.target.value })} /></div>
+        <div className="field"><label htmlFor="drift-growth">{`Growth rate, m/s² (up to ${EKF_DRIFT_MAX_GROWTH_MPS2})`}</label><input id="drift-growth" value={drift.growthMps2} onChange={event => setDrift({ ...drift, growthMps2: event.target.value })} /></div>
+        <div className="field"><label htmlFor="drift-speed">{`Top speed, m/s (up to ${EKF_DRIFT_MAX_SPEED_MPS})`}</label><input id="drift-speed" value={drift.topSpeedMps} onChange={event => setDrift({ ...drift, topSpeedMps: event.target.value })} /></div>
+        <div className="field"><label htmlFor="drift-onset">Drift onset, s after arming</label><input id="drift-onset" value={drift.onsetS} onChange={event => setDrift({ ...drift, onsetS: event.target.value })} /></div>
+        <div className="field"><label htmlFor="drift-duration">Grows for, s</label><input id="drift-duration" value={drift.durationS} onChange={event => setDrift({ ...drift, durationS: event.target.value })} /></div>
+        <div className="field">
+          <label htmlFor="drift-removal">Removal</label>
+          <select id="drift-removal" value={removal} onChange={event => { if (event.target.value === "gradual" || event.target.value === "abrupt") setRemoval(event.target.value); }}>
+            <option value="gradual">Gradual: slows and runs back</option>
+            <option value="abrupt">Abrupt: gone at once</option>
+          </select>
+        </div>
+      </div>
+      <p className="hint" data-testid="drift-preview">
+        {typeof preview === "string" ? preview : `This reaches ${ekfDriftPeakM(preview).toFixed(1)} m from the truth, and is gone ${ekfDriftEndS(preview).toFixed(1)} s after arming.`}
+      </p>
+      <div className="button-row">
+        <button type="button" onClick={addDrift}>{profile ? "Replace the EKF drift" : "Put EKF drift on the schedule"}</button>
+        {profile && <button type="button" onClick={() => store_(withEkfDrift(schedule, null))}>Remove the EKF drift</button>}
+      </div>
+      {profile && (
+        <p className="hint" data-testid="drift-scheduled">{`On the schedule: toward ${profile.directionDeg}°, growing at ${profile.growthMps2} m/s² up to ${profile.topSpeedMps} m/s, from ${profile.onsetS} s for ${profile.durationS} s, removed ${profile.removal === "gradual" ? "gradually" : "at once"}, reaching ${ekfDriftPeakM(profile).toFixed(1)} m.`}</p>
       )}
 
       <h3>This run</h3>
