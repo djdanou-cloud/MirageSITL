@@ -359,6 +359,105 @@
               "pattern": "^[A-Za-z0-9_-]{1,64}$"
             },
             "effect": {
+              "const": "wind.discrete-gust"
+            },
+            "enabled": {
+              "type": "boolean"
+            },
+            "intensity": {
+              "type": "number",
+              "minimum": 0
+            },
+            "parameters": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "amplitudeMps",
+                "durationS",
+                "fromDeg",
+                "upwardDeg"
+              ],
+              "properties": {
+                "amplitudeMps": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 50
+                },
+                "durationS": {
+                  "type": "number",
+                  "minimum": 0.1,
+                  "maximum": 60
+                },
+                "fromDeg": {
+                  "type": "number",
+                  "minimum": 0,
+                  "exclusiveMaximum": 360
+                },
+                "upwardDeg": {
+                  "type": "number",
+                  "minimum": -90,
+                  "maximum": 90
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "protocolVersion",
+        "requestId",
+        "expectedEpoch",
+        "atTick",
+        "type",
+        "control",
+        "recovery"
+      ],
+      "properties": {
+        "protocolVersion": {
+          "const": 3
+        },
+        "requestId": {
+          "$ref": "#/$defs/uint32"
+        },
+        "expectedEpoch": {
+          "$ref": "#/$defs/uint32"
+        },
+        "atTick": {
+          "$ref": "#/$defs/tickId"
+        },
+        "type": {
+          "const": "effect.set"
+        },
+        "recovery": {
+          "enum": [
+            "hold-offset",
+            "step-to-truth"
+          ]
+        },
+        "control": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schemaVersion",
+            "id",
+            "effect",
+            "enabled",
+            "intensity",
+            "parameters"
+          ],
+          "properties": {
+            "schemaVersion": {
+              "const": 1
+            },
+            "id": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,64}$"
+            },
+            "effect": {
               "const": "atmosphere"
             },
             "enabled": {

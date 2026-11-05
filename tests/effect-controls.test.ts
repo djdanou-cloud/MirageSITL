@@ -97,6 +97,7 @@ const APPLICABLE: readonly (readonly [EffectId, Parameters])[] = [
   ['wind.mean', { windNedMps: [6, -3, 1] }],
   ['wind.gust', { rmsMps: 2, bandwidthHz: 2, seed: 77 }],
   ['wind.turbulence', { w20Mps: 8, seed: 78 }],
+  ['wind.discrete-gust', { amplitudeMps: 6, durationS: 2, fromDeg: 90, upwardDeg: 10 }],
   ['atmosphere', { temperatureK: 300, pressurePa: 95000 }],
   ['ew.gnss-jamming', { severity: 1 }],
   ['ew.position-step', { offsetNedM: [100, 0, 0] }],

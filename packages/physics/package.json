@@ -11,6 +11,7 @@
     "./atmosphere": "./src/atmosphere.ts",
     "./wind": "./src/wind.ts",
     "./turbulence": "./src/turbulence.ts",
+    "./discrete-gust": "./src/discrete-gust.ts",
     "./motor-config": "./src/motor-config.ts",
     "./frame": "./src/frame.ts",
     "./contact-backend": "./src/contact-backend.ts",

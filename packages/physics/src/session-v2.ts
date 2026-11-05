@@ -6,7 +6,7 @@ import { WEATHER_SET_GUST_BANDWIDTH_HZ, ActuatorFrameCodecV2, ControlFlag, Contr
 import { SteppingPolicy, newPumpReport, type StepGate } from './clock-policy.ts';
 import { DemoDynamics } from './demo-dynamics.ts';
 import { MotorFaults } from './motor-fault.ts';
-import { AIR_PRESSURE, WEATHER_AIR_KEEP, WEATHER_GUST_BANDWIDTH, WEATHER_GUST_KEEP, WEATHER_GUST_RMS, WEATHER_PRESSURE, WEATHER_TURBULENCE_INTENSITY, WEATHER_TURBULENCE_KEEP, WEATHER_TURBULENCE_SEED, WEATHER_TURBULENCE_W20, WEATHER_SEED, WEATHER_SLOTS, WEATHER_TEMPERATURE, WEATHER_WIND_DOWN, WEATHER_WIND_EAST,
+import { AIR_PRESSURE, WEATHER_AIR_KEEP, WEATHER_DISCRETE_DOWN, WEATHER_DISCRETE_DURATION, WEATHER_DISCRETE_EAST, WEATHER_DISCRETE_KEEP, WEATHER_DISCRETE_NORTH, WEATHER_GUST_BANDWIDTH, WEATHER_GUST_KEEP, WEATHER_GUST_RMS, WEATHER_PRESSURE, WEATHER_TURBULENCE_INTENSITY, WEATHER_TURBULENCE_KEEP, WEATHER_TURBULENCE_SEED, WEATHER_TURBULENCE_W20, WEATHER_SEED, WEATHER_SLOTS, WEATHER_TEMPERATURE, WEATHER_WIND_DOWN, WEATHER_WIND_EAST,
   WEATHER_WIND_NORTH } from './atmosphere.ts';
 import type { LimitEvent } from './limit-monitor.ts';
 import type { AccidentEvent } from './accident.ts';
@@ -28,7 +28,7 @@ const EW_REGISTRY_FULL: ScheduledRejectV2 = { code: 'OVERLOAD', message: 'EW fau
 const EW_FAULT_REJECTED: ScheduledRejectV2 = { code: 'OUT_OF_RANGE', message: 'EW fault command was rejected' };
 const NOT_MODELED: ScheduledRejectV2 = { code: 'BAD_STATE', message: 'The backend cannot model this scheduled command' };
 /** TASK-166: the environment effects a session holds at once. */
-const ENVIRONMENT_WIND = 1, ENVIRONMENT_GUST = 2, ENVIRONMENT_ATMOSPHERE = 4, ENVIRONMENT_TURBULENCE = 8,
+const ENVIRONMENT_WIND = 1, ENVIRONMENT_GUST = 2, ENVIRONMENT_ATMOSPHERE = 4, ENVIRONMENT_TURBULENCE = 8, ENVIRONMENT_DISCRETE_GUST = 16,
   /** What a weather.set states; turbulence is not among them. */
   ENVIRONMENT_WEATHER_SET = 7;
 /**
@@ -420,6 +420,8 @@ export class PhysicsSessionV2 {
       w[WEATHER_GUST_BANDWIDTH] = WEATHER_SET_GUST_BANDWIDTH_HZ; w[WEATHER_GUST_KEEP] = 0; w[WEATHER_AIR_KEEP] = 0;
       if ((this.environment & ENVIRONMENT_TURBULENCE) === 0) w[WEATHER_TURBULENCE_W20] = 0;
       w[WEATHER_TURBULENCE_KEEP] = 1;
+      if ((this.environment & ENVIRONMENT_DISCRETE_GUST) === 0) w[WEATHER_DISCRETE_DURATION] = 0;
+      w[WEATHER_DISCRETE_KEEP] = 1;
       this.environment |= ENVIRONMENT_WEATHER_SET;
       return this.applyWeather();
     }
@@ -445,7 +447,7 @@ export class PhysicsSessionV2 {
     if (!this.dynamics.setWeather) return NOT_MODELED;
     const w = this.weather, before = this.environment, on = control.active;
     // Changing the wind or the air leaves a running gust alone; only a change of the gust itself starts it again.
-    let bit: number, keepGust = 1, keepTurbulence = 1;
+    let bit: number, keepGust = 1, keepTurbulence = 1, keepDiscrete = 1;
     switch (control.effect) {
       case "wind.mean": {
         bit = ENVIRONMENT_WIND;
@@ -465,6 +467,14 @@ export class PhysicsSessionV2 {
         bit = ENVIRONMENT_TURBULENCE; keepTurbulence = 0;
         w[WEATHER_TURBULENCE_W20] = on ? control.w20Mps : 0; w[WEATHER_TURBULENCE_INTENSITY] = control.intensity; w[WEATHER_TURBULENCE_SEED] = control.seed;
         break;
+      case "wind.discrete-gust": {
+        // TASK-167: on (again) starts a new pulse on this tick; off ends it.
+        bit = ENVIRONMENT_DISCRETE_GUST; keepDiscrete = 0;
+        const peak = control.peakNedMps;
+        w[WEATHER_DISCRETE_NORTH] = on ? peak[0] : 0; w[WEATHER_DISCRETE_EAST] = on ? peak[1] : 0; w[WEATHER_DISCRETE_DOWN] = on ? peak[2] : 0;
+        w[WEATHER_DISCRETE_DURATION] = on ? control.durationS : 0;
+        break;
+      }
       default: { const never: never = control; throw new Error(`Unhandled environment effect ${String(never)}`); }
     }
     const after = on ? before | bit : before & ~bit;
@@ -480,9 +490,11 @@ export class PhysicsSessionV2 {
       if (bit !== ENVIRONMENT_WIND) { w[WEATHER_WIND_NORTH] = 0; w[WEATHER_WIND_EAST] = 0; w[WEATHER_WIND_DOWN] = 0; }
       if (bit !== ENVIRONMENT_GUST) { w[WEATHER_GUST_RMS] = 0; w[WEATHER_GUST_BANDWIDTH] = 0; w[WEATHER_SEED] = 0; }
       if (bit !== ENVIRONMENT_TURBULENCE) { w[WEATHER_TURBULENCE_W20] = 0; w[WEATHER_TURBULENCE_INTENSITY] = 0; w[WEATHER_TURBULENCE_SEED] = 0; }
+      if (bit !== ENVIRONMENT_DISCRETE_GUST) { w[WEATHER_DISCRETE_NORTH] = 0; w[WEATHER_DISCRETE_EAST] = 0; w[WEATHER_DISCRETE_DOWN] = 0; w[WEATHER_DISCRETE_DURATION] = 0; }
     }
     w[WEATHER_GUST_KEEP] = keepGust;
     w[WEATHER_TURBULENCE_KEEP] = keepTurbulence;
+    w[WEATHER_DISCRETE_KEEP] = keepDiscrete;
     w[WEATHER_AIR_KEEP] = (after & ENVIRONMENT_ATMOSPHERE) !== 0 ? 0 : 1;
     return this.applyWeather();
   }

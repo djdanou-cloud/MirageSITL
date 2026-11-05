@@ -37,6 +37,7 @@ import {
 } from '../apps/web/src/run/session-controller.ts';
 import { initialEffectParameters, type EffectControl, type EffectRecovery, type PilotInput } from '../packages/protocol/src/index.ts';
 import { parseFaultSchedule, type FaultSchedule } from '../packages/scenarios/src/fault-schedule.ts';
+import { weatherSchedule } from '../packages/scenarios/src/weather-schedule.ts';
 import type { ExperimentRecording } from '../packages/aircraft/src/experiment.ts';
 import type { MavFrame } from '../packages/mavlink/src/codec.ts';
 import type { AccidentEvent } from '../packages/physics/src/accident.ts';
@@ -1291,6 +1292,30 @@ describe('the Faults and interference tab on a run (TASK-169)', () => {
     status(h, { simTimeS: at });
     return h;
   }
+
+  test('a weather schedule counts from the same first arming, keeps its record, and queues each change on its exact tick (TASK-167)', async () => {
+    const weather = weatherSchedule([
+      { control: control('wind.mean', { windNedMps: [-5, 0, 0] }), onsetS: 0, durationS: null, recovery: 'hold-offset' },
+      { control: control('wind.discrete-gust', { amplitudeMps: 6, durationS: 2, fromDeg: 270, upwardDeg: 0 }), onsetS: 3, durationS: 2, recovery: 'hold-offset' },
+    ]);
+    const base = harness(undefined, null, catalog), h = { ...base, request: { ...base.request, weather } };
+    await reach(h, 'ready');
+    status(h, { simTimeS: 100 });
+    expect(h.physics.effectsSent).toEqual([]);
+    mav(h, heartbeat(GUIDED, true));
+    status(h, { simTimeS: 100 });
+    const stored = h.records.stored.at(-1);
+    if (!stored) throw new Error('No experiment was stored');
+    expect(readExperiment(stored).weather).toEqual(weather);
+    expect(readExperiment(stored).faults).toBeNull();
+    // Within the 5 s queue lead: the wind on the tick of arming, the gust on and off at arming + 3 s and + 5 s.
+    expect(h.physics.effectsSent).toMatchObject([{ control: { effect: 'wind.mean', enabled: true }, atSimS: 100 },
+      { control: { effect: 'wind.discrete-gust', enabled: true }, atSimS: 103 }, { control: { effect: 'wind.discrete-gust', enabled: false }, atSimS: 105 }]);
+    expect(h.controller.view.weatherPlan).toMatchObject({ armedAtS: 100, sent: 3 });
+    await Promise.resolve(); await Promise.resolve();
+    // Logged with their values: the seeds and amplitudes a repeat needs.
+    expect(h.controller.view.effects[1]).toMatchObject({ effect: 'wind.discrete-gust', origin: 'schedule', parameters: { amplitudeMps: 6, durationS: 2, fromDeg: 270, upwardDeg: 0 } });
+  });
 
   test('a schedule counts from the first arming, keeps its record, and queues a session effect on its exact tick', async () => {
     const faults = schedule({ control: control('link.pilot'), onsetS: 2, durationS: 6 }, { control: control('ew.position-step', { offsetNedM: [30, 0, 0] }), onsetS: 20, durationS: null });

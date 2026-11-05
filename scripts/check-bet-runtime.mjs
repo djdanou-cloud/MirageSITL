@@ -33,11 +33,12 @@ export {BetFlightDynamics} from './packages/physics/src/bet-dynamics.ts';
 export {MotorFaults} from './packages/physics/src/motor-fault.ts';
 export {PhysicsSessionV2} from './packages/physics/src/session-v2.ts';
 export {createSessionFaultPort} from './packages/ew/src/session-port.ts';
-export {WEATHER_GUST_RMS,WEATHER_PRESSURE,WEATHER_SEED,WEATHER_SLOTS,WEATHER_TEMPERATURE,WEATHER_WIND_DOWN,WEATHER_WIND_EAST,WEATHER_WIND_NORTH} from './packages/physics/src/atmosphere.ts';
+export {WEATHER_DISCRETE_DOWN,WEATHER_DISCRETE_DURATION,WEATHER_DISCRETE_EAST,WEATHER_DISCRETE_NORTH,WEATHER_GUST_RMS,WEATHER_PRESSURE,WEATHER_SEED,WEATHER_SLOTS,WEATHER_TEMPERATURE,WEATHER_WIND_DOWN,WEATHER_WIND_EAST,WEATHER_WIND_NORTH} from './packages/physics/src/atmosphere.ts';
 export {StateReaderV2,createSharedMemoryV2,createSpscQueue,newFlightStateV2,newHeaderSnapshotV2,tickToNumber} from '@mirage/protocol';
 export {flightConfiguration,rotorDefinition} from './tests/bet-runtime-fixture.ts';`,resolveDir:root,sourcefile:'bet-runtime-entry.ts',loader:'ts'},
   bundle:true,platform:'node',format:'esm',packages:'external',outfile:bundle,metafile:true});
-const {BetRotorEngine,BetRotorEngineV2,BetRigidBodyBackendV2,newBodyTruthV2,BetFlightDynamics,MotorFaults,PhysicsSessionV2,createSessionFaultPort,WEATHER_GUST_RMS,WEATHER_PRESSURE,
+const {BetRotorEngine,BetRotorEngineV2,BetRigidBodyBackendV2,newBodyTruthV2,BetFlightDynamics,MotorFaults,PhysicsSessionV2,createSessionFaultPort,WEATHER_DISCRETE_DOWN,WEATHER_DISCRETE_DURATION,
+  WEATHER_DISCRETE_EAST,WEATHER_DISCRETE_NORTH,WEATHER_GUST_RMS,WEATHER_PRESSURE,
   WEATHER_SEED,WEATHER_SLOTS,WEATHER_TEMPERATURE,WEATHER_WIND_DOWN,WEATHER_WIND_EAST,WEATHER_WIND_NORTH,StateReaderV2,createSharedMemoryV2,createSpscQueue,
   newFlightStateV2,newHeaderSnapshotV2,tickToNumber,flightConfiguration,rotorDefinition}=await import(pathToFileURL(bundle).href);
 const modules=['scalar','simd128'].map(v=>new WebAssembly.Module(read(`packages/wasm-bet/dist/mirage_bet.${v}.wasm`)));
@@ -163,9 +164,11 @@ if(!allocation){
   samples.push(escGraph);esc.dispose();console.log(JSON.stringify(escGraph));
   // TASK-093: weather on the synthetic pad, rotors at rest in a 3.6 m/s mean wind with a 1.5 m/s RMS gust: the gust and the ISA
   // air every step, and a weather re-applied from preallocated slots with seeds above 2^31, every 5 steps while warming (as every
-  // graph here, warmed code: V8's first tiers box numbers) and every 1000 steps measured.
+  // graph here, warmed code: V8's first tiers box numbers) and every 1000 steps measured. TASK-167: each application starts a 2 s
+  // discrete gust, so the measured steps hold running pulses (800 steps of each 1000) and ended ones.
   const weatherOf=(north,east,seed)=>{const w=new Float64Array(WEATHER_SLOTS);w[WEATHER_WIND_NORTH]=north;w[WEATHER_WIND_EAST]=east;w[WEATHER_WIND_DOWN]=0.5;
-    w[WEATHER_GUST_RMS]=1.5;w[WEATHER_SEED]=seed;w[WEATHER_TEMPERATURE]=293.15;w[WEATHER_PRESSURE]=98000;return w;};
+    w[WEATHER_GUST_RMS]=1.5;w[WEATHER_SEED]=seed;w[WEATHER_TEMPERATURE]=293.15;w[WEATHER_PRESSURE]=98000;
+    w[WEATHER_DISCRETE_NORTH]=-4;w[WEATHER_DISCRETE_EAST]=1.5;w[WEATHER_DISCRETE_DOWN]=-0.8;w[WEATHER_DISCRETE_DURATION]=2;return w;};
   const weathers=[weatherOf(3,-2,0xfffffffe),weatherOf(-4,1,0x9e3779b9)];
   const padded=()=>{const c=flightConfiguration(0,4);c.initialBody.positionNedM[2]=0;c.initialOmegaRadS=[0,0,0,0];c.syntheticGroundDownM=0;return c;};
   const windy=new BetFlightDynamics(modules[0],padded(),400);
@@ -188,6 +191,8 @@ if(!allocation){
   // shape makes V8 discard the optimized tick ("embedded weak objects cleared"), which then boxes numbers until recompiled
   // (TASK-093 measured 44 B per tick that way; a fresh process stays at 0 with or without the GC).
   const EFFECT_CONTROLS=[{effect:'wind.mean',parameters:{windNedMps:[3,-2,0.5]}},{effect:'wind.gust',parameters:{rmsMps:1.5,bandwidthHz:2,seed:0x9e3779b9}},{effect:'wind.turbulence',parameters:{w20Mps:6,seed:0x9e3779b9}},
+    // TASK-167: a discrete gust's pulse, started again by each command.
+    {effect:'wind.discrete-gust',parameters:{amplitudeMps:5,durationS:3,fromDeg:45,upwardDeg:-10}},
     {effect:'atmosphere',parameters:{temperatureK:293.15,pressurePa:98000}},{effect:'sensor.imu.frozen',parameters:{}},
     // TASK-169: what goes on the state line, whose offsets and rotation the session copies out after each step.
     {effect:'ew.position-step',parameters:{offsetNedM:[30,-12.5,0]}},{effect:'ew.velocity-drift',parameters:{accelerationNedMps2:[0.2,-0.1,0],maxSpeedMps:2}},

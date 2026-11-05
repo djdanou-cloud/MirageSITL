@@ -564,6 +564,7 @@ with the refusal of the model that owns the range.
 | `wind.mean` | `windNedMps`, m/s, ±200 per axis | Multiplies the wind | `Wind` |
 | `wind.gust` | `rmsMps`, m/s, 0..50; `bandwidthHz`, Hz, (0, 200); `seed`, uint32 | Multiplies the RMS, so one seed gives one gust, scaled | `Wind`; the bandwidth stays below Nyquist at 400 Hz, the lowest rate |
 | `wind.turbulence` | `w20Mps`, m/s, 0..50; `seed`, uint32 | Multiplies every RMS, and leaves W20 as the slowest carrying speed | `DrydenTurbulence` (TASK-106) |
+| `wind.discrete-gust` | `amplitudeMps`, m/s, 0..50; `durationS`, s, 0.1..60; `fromDeg`, °, [0, 360); `upwardDeg`, °, −90..90 | Multiplies the amplitude; each time it goes on, one one-minus-cosine pulse | `DiscreteGust` (TASK-167) |
 | `atmosphere` | `temperatureK`, K, 180..330; `pressurePa`, Pa, 1000..120000; together 0.05..2 kg/m³ | Moves the air at the origin from the standard atmosphere (288.15 K, 101325 Pa) at 0 to these values at 1, and on past them | `atmosphereAtHeightInto` |
 | `ew.gnss-jamming` | `severity`, 0..1 | Multiplies the severity | Jamming model |
 | `ew.position-step` | `offsetNedM`, m, length at most 10000 | Multiplies the offset | Position-step model |
@@ -593,7 +594,7 @@ with the refusal of the model that owns the range.
   command allocates nothing on its tick (`lowerEffectSet`). What travels is the
   plain command; re-parsing it gives the same command.
 * **One state per environment effect.** A session holds one mean wind, one gust,
-  one turbulence and one air; the newest control for an effect replaces it, whatever its ID. A
+  one turbulence, one discrete gust and one air; the newest control for an effect replaces it, whatever its ID. A
   fault keeps its per-ID registry slot, as a `fault.set` does.
 * **Each effect keeps to itself.** Wind alone leaves the configured atmosphere in
   place and the published pressure as still air has it; air alone brings no

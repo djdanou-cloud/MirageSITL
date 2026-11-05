@@ -80,7 +80,8 @@ import { parameterWriteConflictReason } from "@mirage/autopilot/error-ownership"
 import { ParameterService, type DownloadState, type ParameterValue } from "@mirage/autopilot/param-service";
 import { faultParameters } from "@mirage/autopilot/fault-effects";
 import { JAMMING_PARAMETERS, MAGNETIC_PARAMETERS, SITL_GPS_ACC, SITL_GPS_LOCK, SITL_GPS_NO_LOCK_S, SITL_GPS_NUMSATS, jammingWrites, magneticBiasWrites, type ParameterWrite } from "@mirage/ew/sitl-writes";
-import { faultTimeline, sitlDeliveryRefusal, type FaultSchedule, type FaultTransition } from "@mirage/scenarios/fault-schedule";
+import { faultTimeline, sitlDeliveryRefusal, type FaultSchedule, type FaultTransition, type ScheduledEffect } from "@mirage/scenarios/fault-schedule";
+import type { WeatherSchedule } from "@mirage/scenarios/weather-schedule";
 import { parseEffectControl, type EffectControl, type EffectId, type EffectRecovery } from "@mirage/protocol";
 import { siteParameters } from "@mirage/aircraft/site-parameters";
 import { ParameterReadback, type AbsentRule, type ParameterDifference } from "@mirage/autopilot/parameter-readback";
@@ -257,6 +258,8 @@ export interface StartRequest {
   readonly flightTask?: ExperimentFlightTask | null;
   /** The effects this run applies by itself (TASK-169). */
   readonly faults?: FaultSchedule | null;
+  /** The weather this run applies by itself (TASK-167). */
+  readonly weather?: WeatherSchedule | null;
 }
 export interface ConnectRequest {
   readonly prepare: () => Promise<PreparedRun>;
@@ -277,6 +280,8 @@ export interface ConnectRequest {
   readonly flightTask?: ExperimentFlightTask | null;
   /** The effects this run applies by itself (TASK-169). */
   readonly faults?: FaultSchedule | null;
+  /** The weather this run applies by itself (TASK-167). */
+  readonly weather?: WeatherSchedule | null;
 }
 
 // ---- states ---------------------------------------------------------------------------------
@@ -482,6 +487,14 @@ export interface ControllerView {
   readonly effects: readonly EffectEntry[];
   /** The effects this run applies by itself (TASK-169), or null. */
   readonly faultPlan: FaultPlanView | null;
+  /** The weather this run applies by itself (TASK-167), or null; it counts from the same first arming. */
+  readonly weatherPlan: WeatherPlanView | null;
+}
+export interface WeatherPlanView {
+  readonly schedule: WeatherSchedule;
+  readonly armedAtS: number | null;
+  /** How many changes of faultTimeline(schedule) have been sent. */
+  readonly sent: number;
 }
 export interface FaultPlanView {
   readonly schedule: FaultSchedule;
@@ -508,6 +521,8 @@ export interface EffectEntry {
   readonly writes: readonly string[];
   /** Why it was rejected, or empty. */
   readonly message: string;
+  /** The control's values as sent (TASK-167: a weather change is logged with its values and seeds); null in a log from before them. */
+  readonly parameters: EffectControl["parameters"] | null;
 }
 export interface ManualView {
   readonly mode: ManualMode;
@@ -600,6 +615,8 @@ export class SessionController {
   private effects: EffectItem[] = [];
   /** TASK-169: the run's schedule, what of it has gone, and when it started counting. */
   private faultPlan: { readonly schedule: FaultSchedule; readonly timeline: readonly FaultTransition[]; sent: number; armedAtS: number | null } | null = null;
+  /** TASK-167: the weather schedule, run as the fault schedule is. */
+  private weatherPlan: { readonly schedule: WeatherSchedule; readonly timeline: readonly FaultTransition[]; sent: number; armedAtS: number | null } | null = null;
   /** The value each fault parameter held before an effect changed it. */
   private readonly faultRestore = new Map<string, number>();
   /** The ground-station link effect is on: the autopilot's silence is that effect, not a lost SITL. */
@@ -656,7 +673,8 @@ export class SessionController {
       speed: this.speed.view, flightTask: this.flightTaskView(),
       manual: this.manual ? { mode: this.manual.mode, device: this.manual.device, waiting: this.manual.waiting } : null,
       effects: this.effects.map(item => this.effectEntry(item)),
-      faultPlan: this.faultPlan ? { schedule: this.faultPlan.schedule, armedAtS: this.faultPlan.armedAtS, sent: this.faultPlan.sent } : null };
+      faultPlan: this.faultPlan ? { schedule: this.faultPlan.schedule, armedAtS: this.faultPlan.armedAtS, sent: this.faultPlan.sent } : null,
+      weatherPlan: this.weatherPlan ? { schedule: this.weatherPlan.schedule, armedAtS: this.weatherPlan.armedAtS, sent: this.weatherPlan.sent } : null };
   }
   get active(): boolean { return ACTIVE.has(this.stateValue.name); }
   /** The current state name, read afresh after an await (not narrowed by earlier checks). */
@@ -668,7 +686,7 @@ export class SessionController {
     if (from !== "idle" && from !== "failed") return;
     this.reset("launcher");
     this.flightTaskEntry = request.flightTask ?? null;
-    this.planFaults(request.faults ?? null);
+    this.planFaults(request.faults ?? null, request.weather ?? null);
     this.home = request.home;
     this.speed = new RunSpeedMeter(request.speedup);
     const generation = ++this.generation;
@@ -739,7 +757,7 @@ export class SessionController {
       session: { physicsHz: request.physicsHz, clockMode: "sitl-lockstep", speedup: request.speedup, home: request.home, modelId: prepared.modelId,
         manifestSha256: prepared.manifestSha256, betModuleSha256 },
       parameters, frameScript: prepared.frameScript, sensors: prepared.sensors, recording, lineage: request.lineage ?? { kind: "original" },
-      flightTask: this.flightTaskEntry, faults: this.faultPlan?.schedule ?? null, environment: request.environment,
+      flightTask: this.flightTaskEntry, faults: this.faultPlan?.schedule ?? null, environment: request.environment, weather: this.weatherPlan?.schedule ?? null,
     };
     try { this.recordSha256 = (await this.records.create(payload)).sha256; } catch (error) {
       // No unrecorded run flies; after a Stop, the stop already ended the run.
@@ -770,7 +788,7 @@ export class SessionController {
     if (from !== "idle" && from !== "failed") return;
     this.reset("external");
     this.flightTaskEntry = request.flightTask ?? null;
-    this.planFaults(request.faults ?? null);
+    this.planFaults(request.faults ?? null, request.weather ?? null);
     this.home = request.home;
     // A SITL the user started paces itself by its own --speedup.
     this.speed = new RunSpeedMeter(null);
@@ -1124,7 +1142,8 @@ export class SessionController {
     try { parsed = parseEffectControl(control); } catch (error) { return error instanceof Error ? error.message : "Invalid effect control"; }
     if (!this.active) return "No run is active";
     const on = parsed.enabled && parsed.intensity > 0;
-    const entry: EffectEntry = { id: parsed.id, effect: parsed.effect, enabled: parsed.enabled, intensity: parsed.intensity, status: "pending", message: "", origin, requestedSimS, appliedSimS: null, writes: [] };
+    const entry: EffectEntry = { id: parsed.id, effect: parsed.effect, enabled: parsed.enabled, intensity: parsed.intensity, status: "pending", message: "", origin, requestedSimS, appliedSimS: null, writes: [],
+      parameters: parsed.parameters };
     const refused = (message: string): string => {
       this.effects = [...this.effects, { entry: { ...entry, status: "rejected", message }, writeIds: [], session: "none", writesAtS: null }];
       this.emit();
@@ -1220,16 +1239,21 @@ export class SessionController {
     if (item.writeIds.length > 0) item.writesAtS ??= this.status?.simTimeS ?? null;
     return { ...item.entry, status: "applied", appliedSimS: item.writeIds.length > 0 ? item.writesAtS : item.entry.appliedSimS };
   }
-  /** A new run's schedule, with nothing sent yet. */
-  private planFaults(schedule: FaultSchedule | null): void {
+  /** A new run's schedules, with nothing sent yet. */
+  private planFaults(schedule: FaultSchedule | null, weather: WeatherSchedule | null): void {
     this.faultPlan = schedule && schedule.entries.length > 0 ? { schedule, timeline: faultTimeline(schedule), sent: 0, armedAtS: null } : null;
+    this.weatherPlan = weather && weather.entries.length > 0 ? { schedule: weather, timeline: faultTimeline(weather), sent: 0, armedAtS: null } : null;
   }
   /**
    * Sends what the schedule asks for now. What goes on the session's own ticks is queued ahead, within the protocol's 10 s horizon, so it
    * lands on its exact tick however rarely Worker statuses arrive. A parameter write takes the moment it is due; its read-back says when it stood.
    */
   private stepFaults(simTimeS: number): void {
-    const plan = this.faultPlan;
+    this.stepPlan(this.faultPlan, simTimeS);
+    this.stepPlan(this.weatherPlan, simTimeS);
+  }
+  private stepPlan(plan: { readonly schedule: { readonly entries: readonly ScheduledEffect[] }; readonly timeline: readonly FaultTransition[]; sent: number; armedAtS: number | null } | null,
+    simTimeS: number): void {
     if (!plan || !this.active) return;
     if (plan.armedAtS === null) {
       if (!this.armed) return;
@@ -1642,7 +1666,7 @@ export class SessionController {
       session: { physicsHz: external.physicsHz, clockMode: "sitl-lockstep", speedup: null, home: external.home, modelId: prepared.modelId,
         manifestSha256: prepared.manifestSha256, betModuleSha256: external.betModuleSha256 },
       parameters: prepared.parameters, frameScript: null, sensors: prepared.sensors, recording, lineage: { kind: "original" },
-      flightTask: this.flightTaskEntry, faults: this.faultPlan?.schedule ?? null, environment: external.environment,
+      flightTask: this.flightTaskEntry, faults: this.faultPlan?.schedule ?? null, environment: external.environment, weather: this.weatherPlan?.schedule ?? null,
     };
     try {
       const { sha256 } = await this.records.create(payload);
@@ -1822,7 +1846,7 @@ export class SessionController {
     this.ownership = ownership; this.external = null; this.prepared = null; this.compatibility = []; this.motorCheck = null;
     this.accidents = []; this.afterAccident = false; this.resumeTo = null; this.pauses = []; this.pausing = false;
     this.params = null; this.paramMetadata = null; this.changes = []; this.firmwareCommit = null;
-    this.effects = []; this.faultRestore.clear(); this.gcsLinkLost = false; this.faultPlan = null;
+    this.effects = []; this.faultRestore.clear(); this.gcsLinkLost = false; this.faultPlan = null; this.weatherPlan = null;
     this.everArmed = false; this.flightTaskEntry = null; this.taskRunner = null; this.taskUpload = null; this.taskRoutePoint = -1; this.taskStep = null;
     this.taskState = "waiting"; this.taskReason = null; this.home = null; this.launcherHomeChecked = false;
     this.parser.reset();

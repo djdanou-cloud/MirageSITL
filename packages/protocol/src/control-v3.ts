@@ -63,6 +63,9 @@ export const EFFECT_CATALOG = {
       { key: 'seed', label: 'Seed', unit: '1', kind: 'integer', min: 0, max: 0xffffffff, initial: 1 }] },
   'wind.turbulence': { family: 'environment', label: 'Turbulence (Dryden)', meaning: 'Intensity multiplies every RMS, so the same seed gives the same turbulence, scaled. W20 is the mean wind at 6 m that sets its strength, with RMS 0.1 W20 vertically; MIL-F-8785C calls 7.7 m/s light, 15.4 moderate and 23.2 severe. Range: the turbulence model.',
     fields: [number('w20Mps', 'Mean wind at 6 m (W20)', 'm/s', 0, 50, 7.7), { key: 'seed', label: 'Seed', unit: '1', kind: 'integer', min: 0, max: 0xffffffff, initial: 1 }] },
+  'wind.discrete-gust': { family: 'environment', label: 'Discrete gust', meaning: 'Intensity multiplies the amplitude. Each time it goes on, one one-minus-cosine pulse (MIL-F-8785C) rises from zero to the amplitude at half the duration and back to zero at its end; another weather change leaves a running pulse alone. Range: the discrete-gust model.',
+    fields: [number('amplitudeMps', 'Amplitude', 'm/s', 0, 50, 5), number('durationS', 'Duration', 's', 0.1, 60, 4),
+      number('fromDeg', 'From (bearing)', '°', 0, 360, 0, { exclusiveMax: true }), number('upwardDeg', 'Upward angle', '°', -90, 90, 0)] },
   atmosphere: { family: 'environment', label: 'Temperature and pressure', meaning: 'Intensity moves the air at the origin from the standard atmosphere (at 0) to these values (at 1). Range: the atmosphere model.',
     fields: [number('temperatureK', 'Temperature', 'K', 180, 330, ISA_TEMPERATURE_K), number('pressurePa', 'Pressure', 'Pa', 1000, 120000, ISA_PRESSURE_PA)] },
   'ew.gnss-jamming': { family: 'fault', label: 'GNSS jamming', meaning: 'Intensity multiplies the severity. Range: the jamming model.',
@@ -104,6 +107,15 @@ export const EFFECT_CATALOG = {
     fields: [number('gainError', 'Gain error', '1', -0.2, 0.2, 0), number('offsetA', 'Offset', 'A', -20, 20, 0), number('noiseRmsA', 'Noise (1σ)', 'A', 0, 10, 0)] },
 } as const satisfies Record<string, EffectDefinition>;
 export type EffectId = keyof typeof EFFECT_CATALOG;
+/**
+ * TASK-167: the random streams the seeded weather effects draw from, by effect: the synthetic gust's one per axis (wind.ts) and the
+ * Dryden turbulence's five (turbulence.ts DRYDEN_STREAMS). A seed repeats a realization only with these streams, so a weather schedule
+ * records them; tests/weather-schedule.test.ts holds the models to them.
+ */
+export const EFFECT_RANDOM_STREAMS = Object.freeze({
+  'wind.gust': Object.freeze([0, 1, 2]),
+  'wind.turbulence': Object.freeze([0x00106001, 0x00106002, 0x00106003, 0x00106004, 0x00106005]),
+});
 export const EFFECT_IDS = Object.keys(EFFECT_CATALOG) as readonly EffectId[];
 export function isEffectId(value: unknown): value is EffectId {
   return typeof value === 'string' && Object.hasOwn(EFFECT_CATALOG, value);
@@ -129,6 +141,8 @@ export type EffectiveControl =
   | { readonly family: 'environment'; readonly effect: 'wind.gust'; readonly active: boolean; readonly rmsMps: number; readonly bandwidthHz: number; readonly seed: number }
   | { readonly family: 'environment'; readonly effect: 'wind.turbulence'; readonly active: boolean; readonly w20Mps: number; readonly intensity: number; readonly seed: number }
   | { readonly family: 'environment'; readonly effect: 'atmosphere'; readonly active: boolean; readonly temperatureK: number; readonly pressurePa: number }
+  /** TASK-167: the peak air velocity of the pulse, NED m/s (intensity applied), and its duration, s. */
+  | { readonly family: 'environment'; readonly effect: 'wind.discrete-gust'; readonly active: boolean; readonly peakNedMps: Vec3; readonly durationS: number }
   | { readonly family: 'fault'; readonly fault: FaultSetV2 }
   | { readonly family: 'sensor' }
   | { readonly family: 'delivery'; readonly active: boolean; readonly bit: number }
@@ -289,6 +303,13 @@ export function effectiveControl(control: EffectControl, envelope: { requestId: 
         return { family: 'environment', effect: 'wind.turbulence', active: active && numberOf(control, 'w20Mps') > 0, w20Mps: numberOf(control, 'w20Mps'), intensity: i, seed: numberOf(control, 'seed') };
       }
       if (control.effect === 'wind.gust') return { family: 'environment', effect: 'wind.gust', active, rmsMps: scaledNumber(control, 'rmsMps', i), bandwidthHz: numberOf(control, 'bandwidthHz'), seed: numberOf(control, 'seed') };
+      if (control.effect === 'wind.discrete-gust') {
+        // A gust from the north blows south; a positive upward angle is an updraft (SPECS_SIMULATION_ENGINES, TASK-167).
+        const amplitude = scaledNumber(control, 'amplitudeMps', i), from = numberOf(control, 'fromDeg') * Math.PI / 180, up = numberOf(control, 'upwardDeg') * Math.PI / 180;
+        const horizontal = amplitude * Math.cos(up);
+        return { family: 'environment', effect: 'wind.discrete-gust', active: active && amplitude > 0,
+          peakNedMps: [-horizontal * Math.cos(from), -horizontal * Math.sin(from), -amplitude * Math.sin(up)], durationS: numberOf(control, 'durationS') };
+      }
       {
         const temperatureK = fromStandard(control, 'temperatureK', ISA_TEMPERATURE_K, i), pressurePa = fromStandard(control, 'pressurePa', ISA_PRESSURE_PA, i);
         // Refused here rather than on its tick, where a refusal would fault the session.

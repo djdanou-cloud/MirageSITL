@@ -38,7 +38,7 @@ function ConditionsList({ conditions }: { conditions: EffectiveConditions }) {
   );
 }
 
-export function LocationPicker({ store, projectId }: { store: ProjectStore | null; projectId: string | null }) {
+export function LocationPicker({ store, projectId, onSaved }: { store: ProjectStore | null; projectId: string | null; onSaved?: (location: LocationChoice) => void }) {
   const [saved, setSaved] = useState<LocationChoice>(DEFAULT_LOCATION);
   const [form, setForm] = useState<LocationForm>(formOf(DEFAULT_LOCATION));
   const [status, setStatus] = useState("");
@@ -70,7 +70,7 @@ export function LocationPicker({ store, projectId }: { store: ProjectStore | nul
   };
   const save = () => {
     if (!store || !projectId || !location) return;
-    saveLocation(store, projectId, location).then(() => { setSaved(location); setStatus("Saved. The next run starts here, and ArduPilot's home is this location."); },
+    saveLocation(store, projectId, location).then(() => { setSaved(location); onSaved?.(location); setStatus("Saved. The next run starts here, and ArduPilot's home is this location."); },
       (cause: unknown) => setStatus(`Not saved: ${cause instanceof Error ? cause.message : String(cause)}`));
   };
   const onSite = form.site !== COORDINATES;

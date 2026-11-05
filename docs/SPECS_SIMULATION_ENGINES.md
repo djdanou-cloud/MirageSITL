@@ -2482,6 +2482,99 @@ saved location in the Run tab after a reload; `tests/browser/profile-dynamics.sp
 sets the environment on the physics Worker and reads the location's gravity
 and air back from the published state.
 
+## Weather tab: TASK-167
+
+TASK-167 gives the Weather and location tab its weather: steady wind by speed
+and direction, the synthetic gust (TASK-032), discrete gusts, Dryden turbulence
+(TASK-106) and the air at the ground from a sea-level pressure and a
+temperature offset at the location's elevation (TASK-148), applied by hand
+during a run or from a saved schedule. Every weather value travels as a
+TASK-166 effect control, so off is absent and the session applies it on its
+tick.
+
+**The discrete gust** is the effect `wind.discrete-gust` (family
+`environment`): `amplitudeMps` in m/s, 0..50; `durationS` in s, 0.1..60;
+`fromDeg`, the bearing the gust blows from in degrees, [0, 360); and
+`upwardDeg`, its angle above the horizontal in degrees, −90..90. Intensity i
+multiplies the amplitude. Its peak air velocity in NED is
+
+$$
+\mathbf{g}=iA\,[-\cos\theta\cos\varphi,\;-\sin\theta\cos\varphi,\;-\sin\varphi]
+$$
+
+with θ = `fromDeg` and φ = `upwardDeg`, so a gust from the north blows south
+and a positive angle is an updraft. Its shape is the one-minus-cosine pulse of
+MIL-F-8785C 3.7.4 (CS-25.341 writes the same pulse over a gradient distance H,
+with T = 2H/V), in time. On the k-th tick of the pulse, k = 0 on the tick the
+control takes effect, before that tick's step, at physics rate f,
+
+$$
+\mathbf{u}_k=\frac{\mathbf{g}}{2}\left(1-\cos\frac{2\pi k}{fT}\right)\quad\text{for }k\le fT,\qquad\mathbf{u}_k=0\ \text{after},
+$$
+
+added to the wind of the CG and of every rotor hub as one uniform field: an
+aircraft of a metre is small against a gust of V·T. It rises from zero to the
+peak at T/2 and is back at zero at T. Switching it on again, or changing its
+values, starts a new pulse on that tick; another weather change leaves a
+running pulse alone; off ends it at once. Declared before the implementation:
+every tick equals the formula above within 10⁻¹² m/s at 400, 800 and 1200 Hz;
+the pulse at a common simulated time is the same at every rate within
+10⁻¹² m/s; i = 0.5 gives half the wind of i = 1 exactly; a pulse never on is
+bitwise absent; the step allocates nothing (G1).
+
+**Air at the location.** The tab's air is the TASK-148 location's air with its
+own sea-level pressure (standard or a measured QNH) and temperature offset:
+`airAtOrigin` gives the `atmosphere` control's temperature and pressure at the
+location's elevation, so the pressure stays consistent with the altitude.
+
+**The weather schedule** (`packages/scenarios/src/weather-schedule.ts`,
+schema 1) holds up to 64 entries of the TASK-169 form, `{control, onsetS,
+durationS, recovery}`, every control of family `environment`. Time counts
+simulated seconds from the first arming, as the fault schedule's does, so a
+repeat meets its weather at the same point of the flight; two entries of one
+effect may not overlap. It records the random streams its seeded effects draw
+from, `streams: { gust: [0, 1, 2], turbulence: [0x00106001, …, 0x00106005] }`,
+and a schedule with other streams is refused: its seeds would not repeat the
+same realization here. The run controller sends its entries as it sends the
+fault schedule's: queued 5 s ahead on their exact ticks.
+
+**Records.** Experiment payload schema 8 adds `weather`, the run's weather
+schedule or null; `weather` is an input after `conditions`, and older records
+read as schema 8 with none. The effect log (TASK-169) goes to schema 2: each
+entry holds the `parameters` of its control, so a weather change is logged
+with its values and seeds; schema 1 logs read with `parameters: null`.
+
+**In the application** the Weather and location tab's weather section
+(`apps/web/src/weather/WeatherPanel.tsx`, the form logic in `weather-form.ts`)
+offers a steady wind by speed and the bearing it blows from, the discrete gust,
+the synthetic gust and the turbulence with their seeds (New seed draws a fresh
+uint32), and the air at the ground from the location's sea-level pressure and
+temperature offset. Each has Apply now and Turn off, which send its control to
+the run going now through `SessionController.setEffect`, and Add to the
+schedule, at an onset after arming and for a duration or until the end. A value
+outside its range, or one the intensity would carry past it, is refused in the
+form with its problem named, as the session's admission would refuse it. The
+schedule is a per-project local setting (`weather-store.ts`) that the Run tab
+gives every run, batch run and connection; a repeat flies its parent's. The
+section lists what is in effect in the run (the last applied control of each
+effect, with its values), the changes still to come and what became of each, and
+the Experiments tab names a record's weather with its seeds.
+
+**Verification.** `tests/discrete-gust.test.ts` holds the pulse to its
+definition at 400, 800 and 1200 Hz and across rates, its restart, keep and off
+rules, its envelope, the control's direction and intensity, and, through the
+real `PhysicsSessionV2`, the wind the rotors see from the tick it takes effect,
+off and zero bitwise absent. `tests/weather-schedule.test.ts` checks the
+schedule's rules and streams against the models' and flies a schedule twice bit
+for bit, and differently with another seed. `tests/run-controller.test.ts`
+queues a schedule's changes on arming + onset and logs them with their values;
+`tests/experiment-record.test.ts` and `tests/effect-log.test.ts` check the
+records; `tests/weather-form.test.ts` the form; `tests/browser/weather-tab.spec.ts`
+the section through the UI. `tests/browser/weather-sitl.spec.ts` sets wind on a
+running native ArduCopter session, observes it in the recorded airspeed and
+removes it, and checks that a scheduled discrete gust lands on its tick; it needs
+the reference Mac.
+
 ## Implemented ArduPilot JSON lockstep: TASK-041
 
 The protocol is pinned to ArduPilot commit
@@ -7081,8 +7174,8 @@ network error; launcher-foreign needs an answer the browser may read.
 
 ### Experiment record
 
-`packages/aircraft/src/experiment.ts` defines experiment payload schema 7
-(TASK-148) in record envelope v1, and the application registers
+`packages/aircraft/src/experiment.ts` defines experiment payload schema 8
+(TASK-167) in record envelope v1, and the application registers
 `validateExperiment` for the `experiment` kind. The record has exactly one
 dependency, its aircraft-profile version, and the payload holds:
 
@@ -7098,18 +7191,20 @@ dependency, its aircraft-profile version, and the payload holds:
 | lineage | an original run, or a repeat or variant of a parent experiment (TASK-165; see "Experiment lifecycle") |
 | flightTask | the flight task the run was started with: its definition, its name and the SHA-256 of the `flight-task` record as data (TASK-172; see "Flight tasks"), or null |
 | faults | the effects the run applies by itself, or null (TASK-169; see "Faults and interference tab") |
+| weather | the weather schedule the run applied by itself, its seeds and random streams included (TASK-167; see "Weather tab: TASK-167"), or null |
 | environment | the location of the run (site, coordinates, ground elevation, heading, measured QNH, temperature offset) with the effective conditions evaluated there (TASK-148), or null for a run without a location; the session's home must be the location, the conditions must be evaluated at it with h = H + N, the WMM zone must match the horizontal field, and the air must come from the location's sea-level pressure |
 
 Schema 1, which TASK-154 wrote, had `ardupilot` and `launcher` at the top
 level and a required speed-up; schema 2, which TASK-155 wrote, had no
 `recording`, schema 3, which TASK-163 wrote, no `lineage`, and schema 4, which
 TASK-165 wrote, no `flightTask`, schema 5, which TASK-172 wrote, no `faults`, and
-schema 6, which TASK-169 wrote, no `environment`. All stay valid on reads and
-archive imports; `readExperiment` presents them as schema 7 runs without an
-environment, with no fault schedule before schema 6, without a task before
-schema 5, original runs before schema 4, without a recording before schema 3
-(schema 1 with a launcher-owned `sitl`), and `createExperimentRecord` writes
-only schema 7.
+schema 6, which TASK-169 wrote, no `environment`, and schema 7, which
+TASK-148 wrote, no `weather`. All stay valid on reads and archive imports;
+`readExperiment` presents them as schema 8 runs without a weather schedule,
+without an environment before schema 7, with no fault schedule before schema 6,
+without a task before schema 5, original runs before schema 4, without a
+recording before schema 3 (schema 1 with a launcher-owned `sitl`), and
+`createExperimentRecord` writes only schema 8.
 
 `createExperimentRecord` recomputes the snapshot from the stored profile
 version and requires canonical-byte equality, cross-checks the frame and
@@ -8210,10 +8305,10 @@ the chart's drawn lines with what it computes from the recording's own rows.
 
 An experiment fixes its inputs: the aircraft profile version, the ArduPilot
 build, the speed, the physics rate, the home, the conditions of its location
-(the measured QNH and the temperature offset; TASK-148), the initial
-parameters, the frame script, the TASK-143 sensor snapshot of its profile
-version, the recording setup, the flight task (TASK-172) and the fault
-schedule (TASK-169). Weather joins them when its task lands (TASK-167).
+(the measured QNH and the temperature offset; TASK-148), its weather schedule
+with its seeds (TASK-167), the initial parameters, the frame script, the
+TASK-143 sensor snapshot of its profile version, the recording setup, the
+flight task (TASK-172) and the fault schedule (TASK-169).
 Results (the recording, the parameter log, the DataFlash files) belong to
 the run. Its inputs never change after version 1.
 
@@ -8226,8 +8321,8 @@ type ExperimentLineage =
   | { kind: "original" }
   | { kind: "repeat"; of: string }   // the parent experiment record's SHA-256
   | { kind: "variant"; of: string; changes: ExperimentInput[] };
-type ExperimentInput = "aircraft profile" | "ArduPilot build" | "speed" | "physics rate" | "home" | "conditions" | "initial parameters" |
-  "frame script" | "sensors" | "recording setup" | "SITL" | "flight task" | "fault schedule";
+type ExperimentInput = "aircraft profile" | "ArduPilot build" | "speed" | "physics rate" | "home" | "conditions" | "weather" |
+  "initial parameters" | "frame script" | "sensors" | "recording setup" | "SITL" | "flight task" | "fault schedule";
 ```
 
 `experimentChanges(parent, child)` lists the inputs that differ, in that
@@ -8240,9 +8335,10 @@ experiment of the same project, and refuses a repeat whose inputs differ and
 a variant whose `changes` are not exactly the computed list; a variant needs
 at least one change. The parent is named as data, not as a store dependency,
 and is never changed. Older records read as original runs. Schema 5 appended
-`flight task` and schema 6 `fault schedule` to the inputs, and schema 7
-inserted `conditions` after `home`; no stored `changes` list holds an input
-added after it, so every stored list stays valid.
+`flight task` and schema 6 `fault schedule` to the inputs, schema 7 inserted
+`conditions` after `home`, and schema 8 `weather` after `conditions`; no
+stored `changes` list holds an input added after it, so every stored list
+stays valid.
 
 ### Repeat and Create variant
 
@@ -8280,8 +8376,9 @@ this browser does not hold and the build it needs.
 
 ### Verification (TASK-165)
 
-`tests/experiment-record.test.ts` checks schema 5, the migrations of schemas
-1 to 4 and the environment's consistency checks, the input changes and what is not an input, the refusals of a false
+`tests/experiment-record.test.ts` checks schema 8, the migrations of schemas
+1 to 7, the environment's consistency checks and the weather schedule, the
+input changes and what is not an input, the refusals of a false
 repeat or variant and of a parent from elsewhere, the unchanged parent, an
 exported experiment imported into an empty store and its external
 dependencies, and the trajectory difference against a hand-computed oracle.

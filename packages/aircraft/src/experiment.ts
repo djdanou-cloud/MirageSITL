@@ -8,6 +8,7 @@ import {
 import type { ProjectStore } from '@mirage/project/store';
 import { parseFlightTask, type FlightTaskDefinition } from '@mirage/scenarios/flight-tasks';
 import { parseFaultSchedule, type FaultSchedule } from '@mirage/scenarios/fault-schedule';
+import { parseWeatherSchedule, type WeatherSchedule } from '@mirage/scenarios/weather-schedule';
 import { readComponentCard, type ComponentCard } from './components.ts';
 import { deriveVehicleManifest } from './derive-manifest.ts';
 import { FRAME_PARAMETER_NAMES, frameConfiguration } from './frame-parameters.ts';
@@ -60,12 +61,16 @@ import { LOCATION_ENVELOPE, STANDARD_SEA_LEVEL_PRESSURE_PA, WMM_BLACKOUT_NT, WMM
 // and the effective conditions the calculation used there, which must be
 // consistent with the session's home. A record without one (null, and every
 // older schema) flew at standard gravity 9.80665 m/s² with a sea-level ISA
-// origin. Older schemas read as schema 7 runs without what they lack, and new
-// records are always schema 7. An experiment's inputs are fixed at version 1;
-// the store allows only renaming afterwards.
+// origin. Schema 8 (TASK-167) adds the weather schedule: the weather the run
+// applied by itself, its seeds and random streams included, or null. Older
+// schemas read as schema 8 runs without what they lack, and new records are
+// always schema 8. An experiment's inputs are fixed at version 1; the store
+// allows only renaming afterwards.
 // Configuration-time code only; never call it from a physics step.
 
-export const EXPERIMENT_SCHEMA_VERSION = 7;
+export const EXPERIMENT_SCHEMA_VERSION = 8;
+/** The TASK-148 schema, still accepted by validateExperiment and readExperiment. */
+export const EXPERIMENT_SCHEMA_VERSION_7 = 7;
 /** The TASK-169 schema, still accepted by validateExperiment and readExperiment. */
 export const EXPERIMENT_SCHEMA_VERSION_6 = 6;
 /** The TASK-172 schema, still accepted by validateExperiment and readExperiment. */
@@ -195,6 +200,8 @@ export interface ExperimentPayload {
   readonly faults: FaultSchedule | null;
   /** The location and the effective conditions of the run (TASK-148); null for a run at standard gravity with a sea-level ISA origin. */
   readonly environment: ExperimentEnvironment | null;
+  /** The weather the run applies by itself (TASK-167), its seeds and random streams included, or null for a run with none on a schedule. */
+  readonly weather: WeatherSchedule | null;
 }
 /** A flight task as a run used it: the definition itself, and the stored version it came from. */
 export interface ExperimentFlightTask {
@@ -223,8 +230,8 @@ export interface ExperimentEnvironment {
   readonly conditions: EffectiveConditions;
 }
 /** One input a variant changed (TASK-165), as experimentChanges names it. */
-export const EXPERIMENT_INPUTS = ['aircraft profile', 'ArduPilot build', 'speed', 'physics rate', 'home', 'conditions', 'initial parameters', 'frame script',
-  'sensors', 'recording setup', 'SITL', 'flight task', 'fault schedule'] as const;
+export const EXPERIMENT_INPUTS = ['aircraft profile', 'ArduPilot build', 'speed', 'physics rate', 'home', 'conditions', 'weather', 'initial parameters',
+  'frame script', 'sensors', 'recording setup', 'SITL', 'flight task', 'fault schedule'] as const;
 export type ExperimentInput = typeof EXPERIMENT_INPUTS[number];
 /**
  * An original run; a repeat of the experiment record `of` with the same inputs; or a variant of it with `changes`,
@@ -234,14 +241,16 @@ export type ExperimentLineage =
   | { readonly kind: 'original' }
   | { readonly kind: 'repeat'; readonly of: string }
   | { readonly kind: 'variant'; readonly of: string; readonly changes: readonly ExperimentInput[] };
+/** Experiment payload schema 7 (TASK-148): schema 8 without the weather schedule. */
+export type ExperimentPayloadV7 = Omit<ExperimentPayload, 'schemaVersion' | 'weather'> & { readonly schemaVersion: typeof EXPERIMENT_SCHEMA_VERSION_7 };
 /** Experiment payload schema 6 (TASK-169): schema 7 without the environment. */
-export type ExperimentPayloadV6 = Omit<ExperimentPayload, 'schemaVersion' | 'environment'> & { readonly schemaVersion: typeof EXPERIMENT_SCHEMA_VERSION_6 };
+export type ExperimentPayloadV6 = Omit<ExperimentPayload, 'schemaVersion' | 'environment' | 'weather'> & { readonly schemaVersion: typeof EXPERIMENT_SCHEMA_VERSION_6 };
 /** Experiment payload schema 5 (TASK-172): schema 6 without the fault schedule. */
-export type ExperimentPayloadV5 = Omit<ExperimentPayload, 'schemaVersion' | 'faults' | 'environment'> & { readonly schemaVersion: typeof EXPERIMENT_SCHEMA_VERSION_5 };
+export type ExperimentPayloadV5 = Omit<ExperimentPayload, 'schemaVersion' | 'faults' | 'environment' | 'weather'> & { readonly schemaVersion: typeof EXPERIMENT_SCHEMA_VERSION_5 };
 /** Experiment payload schema 4 (TASK-165): schema 5 without the flight task. */
-export type ExperimentPayloadV4 = Omit<ExperimentPayload, 'schemaVersion' | 'flightTask' | 'faults' | 'environment'> & { readonly schemaVersion: typeof EXPERIMENT_SCHEMA_VERSION_4 };
+export type ExperimentPayloadV4 = Omit<ExperimentPayload, 'schemaVersion' | 'flightTask' | 'faults' | 'environment' | 'weather'> & { readonly schemaVersion: typeof EXPERIMENT_SCHEMA_VERSION_4 };
 /** Experiment payload schema 3 (TASK-163): schema 4 without the lineage. */
-export type ExperimentPayloadV3 = Omit<ExperimentPayload, 'schemaVersion' | 'lineage' | 'flightTask' | 'faults' | 'environment'> & { readonly schemaVersion: typeof EXPERIMENT_SCHEMA_VERSION_3 };
+export type ExperimentPayloadV3 = Omit<ExperimentPayload, 'schemaVersion' | 'lineage' | 'flightTask' | 'faults' | 'environment' | 'weather'> & { readonly schemaVersion: typeof EXPERIMENT_SCHEMA_VERSION_3 };
 /**
  * The recording of a run (TASK-163): its recorder v2 record and the Logging tab settings it was made
  * with. Rates are 0 or whole hertz; a group or a signal absent here records at the common rate.
@@ -257,7 +266,7 @@ export interface ExperimentRecording {
   readonly reserveMb: number;
 }
 /** Experiment payload schema 2 (TASK-155): schema 3 without the recording. */
-export type ExperimentPayloadV2 = Omit<ExperimentPayload, 'schemaVersion' | 'recording' | 'lineage' | 'flightTask' | 'faults' | 'environment'> & { readonly schemaVersion: typeof EXPERIMENT_SCHEMA_VERSION_2 };
+export type ExperimentPayloadV2 = Omit<ExperimentPayload, 'schemaVersion' | 'recording' | 'lineage' | 'flightTask' | 'faults' | 'environment' | 'weather'> & { readonly schemaVersion: typeof EXPERIMENT_SCHEMA_VERSION_2 };
 /** Experiment payload schema 1 (TASK-154): a launcher-owned SITL only. */
 export interface ExperimentPayloadV1 {
   readonly schemaVersion: typeof EXPERIMENT_SCHEMA_VERSION_1;
@@ -778,11 +787,22 @@ function environmentOf(value: unknown, home: ExperimentSession['home']): Experim
   }
   return { location, conditions: conditionsOf(e.conditions, location) };
 }
-type ReadableVersion = typeof EXPERIMENT_SCHEMA_VERSION | typeof EXPERIMENT_SCHEMA_VERSION_6 | typeof EXPERIMENT_SCHEMA_VERSION_5 | typeof EXPERIMENT_SCHEMA_VERSION_4 |
-  typeof EXPERIMENT_SCHEMA_VERSION_3 | typeof EXPERIMENT_SCHEMA_VERSION_2;
+/** A stored weather schedule: never an empty one, so that a run with no weather on a schedule has one spelling (TASK-167). */
+function weatherOf(value: unknown): WeatherSchedule | null {
+  if (value === null) return null;
+  try {
+    const schedule = parseWeatherSchedule(value);
+    return schedule.entries.length === 0 ? fail('weather must be null when nothing is scheduled') : schedule;
+  } catch (error) {
+    return fail(error instanceof Error ? error.message : String(error));
+  }
+}
+type ReadableVersion = typeof EXPERIMENT_SCHEMA_VERSION | typeof EXPERIMENT_SCHEMA_VERSION_7 | typeof EXPERIMENT_SCHEMA_VERSION_6 | typeof EXPERIMENT_SCHEMA_VERSION_5 |
+  typeof EXPERIMENT_SCHEMA_VERSION_4 | typeof EXPERIMENT_SCHEMA_VERSION_3 | typeof EXPERIMENT_SCHEMA_VERSION_2;
 /** The fields each readable schema adds to schema 2's, in the order they were added. */
 const ADDED_FIELDS: Readonly<Record<ReadableVersion, readonly string[]>> = {
-  [EXPERIMENT_SCHEMA_VERSION]: ['recording', 'lineage', 'flightTask', 'faults', 'environment'],
+  [EXPERIMENT_SCHEMA_VERSION]: ['recording', 'lineage', 'flightTask', 'faults', 'environment', 'weather'],
+  [EXPERIMENT_SCHEMA_VERSION_7]: ['recording', 'lineage', 'flightTask', 'faults', 'environment'],
   [EXPERIMENT_SCHEMA_VERSION_6]: ['recording', 'lineage', 'flightTask', 'faults'],
   [EXPERIMENT_SCHEMA_VERSION_5]: ['recording', 'lineage', 'flightTask'],
   [EXPERIMENT_SCHEMA_VERSION_4]: ['recording', 'lineage'],
@@ -790,11 +810,11 @@ const ADDED_FIELDS: Readonly<Record<ReadableVersion, readonly string[]>> = {
   [EXPERIMENT_SCHEMA_VERSION_2]: [],
 };
 /**
- * Schema 7, 6 (no `environment`), 5 (no `faults` either), 4 (no `flightTask` either), 3 (no `lineage` either) or 2 (no
- * `recording` either): absent fields are absent from both the keys and the result.
+ * Schema 8, 7 (no `weather`), 6 (no `environment` either), 5 (no `faults` either), 4 (no `flightTask` either), 3 (no `lineage`
+ * either) or 2 (no `recording` either): absent fields are absent from both the keys and the result.
  */
 function payloadOf(payload: unknown, version: ReadableVersion):
-  ExperimentPayload | ExperimentPayloadV6 | ExperimentPayloadV5 | ExperimentPayloadV4 | ExperimentPayloadV3 | ExperimentPayloadV2 {
+  ExperimentPayload | ExperimentPayloadV7 | ExperimentPayloadV6 | ExperimentPayloadV5 | ExperimentPayloadV4 | ExperimentPayloadV3 | ExperimentPayloadV2 {
   const keys = ['schemaVersion', 'profile', 'sitl', 'session', 'parameters', 'frameScript', 'sensors'];
   const p = exact(payload, [...keys, ...ADDED_FIELDS[version]], 'the payload');
   const profile = profileOf(p.profile);
@@ -806,6 +826,9 @@ function payloadOf(payload: unknown, version: ReadableVersion):
   const common = { profile, sitl, session, parameters, frameScript, sensors: snapshotOf(p.sensors, profile.sha256) };
   switch (version) {
     case EXPERIMENT_SCHEMA_VERSION:
+      return { schemaVersion: version, ...common, recording: recordingOf(p.recording), lineage: lineageOf(p.lineage), flightTask: flightTaskOf(p.flightTask),
+        faults: faultsOf(p.faults), environment: environmentOf(p.environment, session.home), weather: weatherOf(p.weather) };
+    case EXPERIMENT_SCHEMA_VERSION_7:
       return { schemaVersion: version, ...common, recording: recordingOf(p.recording), lineage: lineageOf(p.lineage), flightTask: flightTaskOf(p.flightTask),
         faults: faultsOf(p.faults), environment: environmentOf(p.environment, session.home) };
     case EXPERIMENT_SCHEMA_VERSION_6:
@@ -824,15 +847,15 @@ function payloadOf(payload: unknown, version: ReadableVersion):
 }
 
 /**
- * Validates an experiment payload of schema 7, or of schema 6 (TASK-169), 5 (TASK-172), 4 (TASK-165), 3 (TASK-163),
+ * Validates an experiment payload of schema 8, or of schema 7 (TASK-148), 6 (TASK-169), 5 (TASK-172), 4 (TASK-165), 3 (TASK-163),
  * 2 (TASK-155) or 1 (TASK-154) as stored then, from `unknown`; returns a deep-frozen copy of what was given.
  * Registered for the `experiment` kind, so imports of older records keep working.
  */
 export function validateExperiment(payload: unknown):
-  ExperimentPayload | ExperimentPayloadV6 | ExperimentPayloadV5 | ExperimentPayloadV4 | ExperimentPayloadV3 | ExperimentPayloadV2 | ExperimentPayloadV1 {
+  ExperimentPayload | ExperimentPayloadV7 | ExperimentPayloadV6 | ExperimentPayloadV5 | ExperimentPayloadV4 | ExperimentPayloadV3 | ExperimentPayloadV2 | ExperimentPayloadV1 {
   const version = isRecord(payload) ? payload.schemaVersion : undefined;
-  if (version === EXPERIMENT_SCHEMA_VERSION || version === EXPERIMENT_SCHEMA_VERSION_6 || version === EXPERIMENT_SCHEMA_VERSION_5 || version === EXPERIMENT_SCHEMA_VERSION_4 ||
-    version === EXPERIMENT_SCHEMA_VERSION_3 || version === EXPERIMENT_SCHEMA_VERSION_2) {
+  if (version === EXPERIMENT_SCHEMA_VERSION || version === EXPERIMENT_SCHEMA_VERSION_7 || version === EXPERIMENT_SCHEMA_VERSION_6 || version === EXPERIMENT_SCHEMA_VERSION_5 ||
+    version === EXPERIMENT_SCHEMA_VERSION_4 || version === EXPERIMENT_SCHEMA_VERSION_3 || version === EXPERIMENT_SCHEMA_VERSION_2) {
     return freeze(payloadOf(payload, version));
   }
   if (version === EXPERIMENT_SCHEMA_VERSION_1) return freeze(payloadV1Of(payload));
@@ -840,19 +863,21 @@ export function validateExperiment(payload: unknown):
 }
 
 /**
- * An older payload as schema 7: without an environment before schema 7 (standard gravity and a sea-level ISA origin),
- * without a fault schedule before schema 6 and a flight task before schema 5; an original run before schema 4,
- * without a recording before schema 3; a schema 1 payload's launcher and ardupilot fields become a launcher-owned SITL.
+ * An older payload as schema 8: without a weather schedule before schema 8, an environment before schema 7 (standard gravity
+ * and a sea-level ISA origin), a fault schedule before schema 6 and a flight task before schema 5; an original run before
+ * schema 4, without a recording before schema 3; a schema 1 payload's launcher and ardupilot fields become a launcher-owned SITL.
  */
 export function migrateExperiment(
-  payload: ExperimentPayload | ExperimentPayloadV6 | ExperimentPayloadV5 | ExperimentPayloadV4 | ExperimentPayloadV3 | ExperimentPayloadV2 | ExperimentPayloadV1,
+  payload: ExperimentPayload | ExperimentPayloadV7 | ExperimentPayloadV6 | ExperimentPayloadV5 | ExperimentPayloadV4 | ExperimentPayloadV3 | ExperimentPayloadV2 |
+    ExperimentPayloadV1,
 ): ExperimentPayload {
   const original = { kind: 'original' } as const;
-  const absent = { flightTask: null, faults: null, environment: null } as const;
+  const absent = { flightTask: null, faults: null, environment: null, weather: null } as const;
   switch (payload.schemaVersion) {
     case EXPERIMENT_SCHEMA_VERSION: return payload;
-    case EXPERIMENT_SCHEMA_VERSION_6: return freeze({ ...payload, schemaVersion: EXPERIMENT_SCHEMA_VERSION, environment: null });
-    case EXPERIMENT_SCHEMA_VERSION_5: return freeze({ ...payload, schemaVersion: EXPERIMENT_SCHEMA_VERSION, faults: null, environment: null });
+    case EXPERIMENT_SCHEMA_VERSION_7: return freeze({ ...payload, schemaVersion: EXPERIMENT_SCHEMA_VERSION, weather: null });
+    case EXPERIMENT_SCHEMA_VERSION_6: return freeze({ ...payload, schemaVersion: EXPERIMENT_SCHEMA_VERSION, environment: null, weather: null });
+    case EXPERIMENT_SCHEMA_VERSION_5: return freeze({ ...payload, schemaVersion: EXPERIMENT_SCHEMA_VERSION, faults: null, environment: null, weather: null });
     case EXPERIMENT_SCHEMA_VERSION_4: return freeze({ ...payload, schemaVersion: EXPERIMENT_SCHEMA_VERSION, ...absent });
     case EXPERIMENT_SCHEMA_VERSION_3: return freeze({ ...payload, schemaVersion: EXPERIMENT_SCHEMA_VERSION, lineage: original, ...absent });
     case EXPERIMENT_SCHEMA_VERSION_2: {
@@ -901,6 +926,8 @@ export function experimentChanges(parent: ExperimentPayload, child: ExperimentPa
   check('physics rate', parent.session.physicsHz !== child.session.physicsHz);
   check('home', !same(parent.session.home, child.session.home));
   check('conditions', !same(conditionsInput(parent.environment), conditionsInput(child.environment)));
+  // TASK-167: the weather schedule as written, seeds included: another seed is another weather.
+  check('weather', !same(parent.weather, child.weather));
   // What follows from the home is compared as the home: a record from before TASK-172 has no such parameter and still has a repeat.
   const chosen = (parameters: readonly ExperimentParameter[]) => parameters.filter(p => p.source !== 'site');
   check('initial parameters', !same(chosen(parent.parameters), chosen(child.parameters)));

@@ -12,6 +12,7 @@ import { FrameLayout } from './frame.ts';
 import { AIR_DENSITY, AIR_HEIGHT, AIR_REFERENCE_PRESSURE, AIR_REFERENCE_TEMPERATURE, AIR_SOUND, AIR_VISCOSITY, WEATHER_AIR_KEEP, WEATHER_GUST_BANDWIDTH, WEATHER_GUST_RMS, WEATHER_PRESSURE, WEATHER_TURBULENCE_INTENSITY, WEATHER_TURBULENCE_KEEP, WEATHER_TURBULENCE_SEED, WEATHER_TURBULENCE_W20,
   WEATHER_SEED, WEATHER_TEMPERATURE, atmosphereAtHeightInto } from './atmosphere.ts';
 import { Wind } from './wind.ts';
+import { DiscreteGust } from './discrete-gust.ts';
 import { DRYDEN_HEIGHT, DRYDEN_INPUT_SLOTS, DRYDEN_MAX_W20_MPS, DRYDEN_MEAN_EAST, DRYDEN_MEAN_NORTH, DRYDEN_RELATIVE_DOWN, DRYDEN_RELATIVE_EAST, DRYDEN_RELATIVE_NORTH, DrydenTurbulence } from './turbulence.ts';
 import { BatteryColumn, LimitMonitor, MotorColumn, MotorLimited, BatteryLimited, PowerTelemetry, type LimitRatings } from './limit-monitor.ts';
 
@@ -192,6 +193,8 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
   private readonly gust:Wind;
   /** TASK-106: Dryden turbulence on top of the gust, while a weather holds a W20, with its inputs in slots. */
   private readonly turbulence:DrydenTurbulence;
+  /** TASK-167: the discrete gust's one-minus-cosine pulse. */
+  private readonly discreteGust:DiscreteGust;
   private readonly turbulenceInput=new Float64Array(DRYDEN_INPUT_SLOTS);
   private turbulenceActive=false;
   /** TASK-096: the drag-area tensor (row-major), the center of pressure from the CG and the airspeed range, or null without drag. */
@@ -314,6 +317,7 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
     this.baseAtmosphere=new Float64Array(this.atmosphere);
     this.gust=new Wind({meanNedMps:[0,0,0],gustRmsMps:0,bandwidthHz:WEATHER_GUST_BANDWIDTH_HZ,hz},0);
     this.turbulence=new DrydenTurbulence(hz);
+    this.discreteGust=new DiscreteGust(hz);
     for(let i=0;i<n;i++) {
       const r=model.rotors[i]!,q=r.hubToBody,norm=Math.sqrt(q[0]!**2+q[1]!**2+q[2]!**2+q[3]!**2);
       const w=q[0]!/norm,x=q[1]!/norm,y=q[2]!/norm,z=q[3]!/norm;
@@ -336,7 +340,7 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
     this.referenceRotorRpm=this.output[9]!*60/(2*Math.PI);
     this.limits?.reset();this.accidents?.reset();
     // A new epoch starts without weather, as configured; with an origin air (TASK-148) at the initial CG height.
-    this.turbulenceActive=false;this.weatherActive=false;this.windNedMps.fill(0);this.restoreConfiguredAir();
+    this.turbulenceActive=false;this.weatherActive=false;this.windNedMps.fill(0);this.discreteGust.stop();this.restoreConfiguredAir();
     this.dragWrenchBody.fill(0);
     const t=this.power;
     if(t) {
@@ -373,6 +377,8 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
     if(!(bandwidth>=0&&bandwidth<this.hz/2)||(bandwidth>0&&!(Math.exp(-2*Math.PI*bandwidth/this.hz)<1)))return WIND_OUT_OF_ENVELOPE;
     const w20=weather[WEATHER_TURBULENCE_W20]!,turbulenceSeed=weather[WEATHER_TURBULENCE_SEED]!;
     if(!(w20>=0&&w20*weather[WEATHER_TURBULENCE_INTENSITY]!<=DRYDEN_MAX_W20_MPS&&w20<=DRYDEN_MAX_W20_MPS)||!(turbulenceSeed>=0&&turbulenceSeed<=0xffffffff&&turbulenceSeed===Math.floor(turbulenceSeed)))return WIND_OUT_OF_ENVELOPE;
+    // TASK-167: the discrete gust's peak and duration.
+    if(!DiscreteGust.admits(weather))return WIND_OUT_OF_ENVELOPE;
     if(weather[WEATHER_AIR_KEEP]===1){
       // TASK-166: the weather leaves the air as configured: the location's origin air (TASK-148) or the configured atmosphere.
       this.restoreConfiguredAir();
@@ -390,12 +396,13 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
       if(!this.turbulenceActive||weather[WEATHER_TURBULENCE_KEEP]!==1)this.turbulence.restartFrom(weather,WEATHER_TURBULENCE_SEED);
       this.turbulenceActive=true;
     }else this.turbulenceActive=false;
+    this.discreteGust.configure(weather);
     this.weatherActive=true;
     return null;
   }
   /** TASK-166: back to no weather at a tick boundary: still air and the configured air, as an epoch that never had any. */
   clearWeather():void {
-    this.turbulenceActive=false;this.weatherActive=false;this.windNedMps.fill(0);this.restoreConfiguredAir();
+    this.turbulenceActive=false;this.weatherActive=false;this.windNedMps.fill(0);this.discreteGust.stop();this.restoreConfiguredAir();
   }
   /**
    * The air as configured, without a weather's: the location's origin air at the CG's height (TASK-148), or the
@@ -417,6 +424,8 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
         t[DRYDEN_MEAN_NORTH]=mean[0]!;t[DRYDEN_MEAN_EAST]=mean[1]!;
         this.turbulence.stepAddInto(t,air);
       }
+      // TASK-167: a discrete gust's pulse, on the tick count since it took effect.
+      this.discreteGust.stepAddInto(this.windNedMps);
     }
     const s=this.state,q=this.truth.quaternionBodyToNed,r=this.rotations,p=this.positions,v=this.truth.velocityNedMps;
     const rates=this.truth.angularVelocityBodyRadS,oldRx=rates[0]!,oldRy=rates[1]!,oldRz=rates[2]!;

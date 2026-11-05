@@ -6,6 +6,8 @@
 // recorded trajectory, and the user decides. An exported experiment lists
 // what its archive cannot hold. Cold path, configuration time.
 import { experimentChanges, type ExperimentEnvironment, type ExperimentLineage, type ExperimentPayload, type ExperimentRecording } from "@mirage/aircraft/experiment";
+import type { WeatherSchedule } from "@mirage/scenarios/weather-schedule";
+import { describeWeather, isWeatherEffect } from "../weather/weather-form";
 import type { LoggingSettings } from "../logging/logging-settings";
 
 /** A run the Experiments tab asked the Run tab to start (TASK-165). */
@@ -31,6 +33,14 @@ export function loggingOf(recording: ExperimentRecording): LoggingSettings {
     reserveMb: recording.reserveMb };
 }
 
+/** How the record describes the weather it applied by itself (TASK-167): each entry, when, and for how long, with its seeds. */
+export function weatherText(weather: WeatherSchedule | null): string {
+  if (!weather) return "None on a schedule";
+  return weather.entries.map(entry => {
+    const effect = entry.control.effect, what = isWeatherEffect(effect) ? describeWeather(effect, entry.control.parameters, entry.control.intensity) : effect;
+    return `${what}, from ${entry.onsetS} s after arming${entry.durationS === null ? " until the end" : ` for ${entry.durationS} s`}`;
+  }).join("; ");
+}
 /** How the record describes the conditions it flew in (TASK-148); a record without an environment flew before the location existed. */
 export function conditionsText(environment: ExperimentEnvironment | null): string {
   if (!environment) return "Standard gravity 9.80665 m/s² and a sea-level ISA origin (recorded without a location)";

@@ -30,7 +30,8 @@ export interface FaultSchedule {
 }
 export const EMPTY_FAULT_SCHEDULE: FaultSchedule = Object.freeze({ schemaVersion: FAULT_SCHEDULE_SCHEMA_VERSION, entries: Object.freeze([]) });
 
-const fail = (message: string): never => { throw new Error(`Invalid fault schedule: ${message}`); };
+const failAs = (what: string) => (message: string): never => { throw new Error(`Invalid ${what}: ${message}`); };
+const fail = failAs("fault schedule");
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value);
 
 /**
@@ -47,7 +48,7 @@ export function sitlDeliveryRefusal(control: EffectControl): string | null {
 const overlapKey = (control: EffectControl): string => control.effect === "motor.loss" ? `${control.effect}:${String(control.parameters.motorIndex)}` : control.effect;
 const endOf = (entry: ScheduledEffect): number => (entry.durationS === null ? Infinity : entry.onsetS + entry.durationS);
 
-function entryOf(value: unknown, index: number): ScheduledEffect {
+function entryOf(value: unknown, index: number, families: readonly EffectFamily[], fail: (message: string) => never): ScheduledEffect {
   const label = `entries[${index}]`;
   if (!isRecord(value)) return fail(`${label} must be an object`);
   const keys = ["control", "onsetS", "durationS", "recovery"];
@@ -56,27 +57,36 @@ function entryOf(value: unknown, index: number): ScheduledEffect {
   let control: EffectControl;
   try { control = parseEffectControl(value.control); } catch (cause) { return fail(`${label}: ${cause instanceof Error ? cause.message : String(cause)}`); }
   if (!control.enabled) fail(`${label} must be enabled; its end is its duration`);
-  if (!FAULT_TAB_FAMILIES.includes(effectDefinition(control.effect).family)) fail(`${label}: ${control.effect} does not belong on this schedule`);
+  if (!families.includes(effectDefinition(control.effect).family)) fail(`${label}: ${control.effect} does not belong on this schedule`);
   const refusal = sitlDeliveryRefusal(control);
   if (refusal !== null) fail(`${label}: ${refusal}`);
   if (typeof onsetS !== "number" || !Number.isFinite(onsetS) || onsetS < 0 || onsetS > MAX_SCHEDULE_S) fail(`${label}.onsetS must be 0 to ${MAX_SCHEDULE_S} s`);
   if (durationS !== null && (typeof durationS !== "number" || !Number.isFinite(durationS) || durationS <= 0 || durationS > MAX_SCHEDULE_S)) fail(`${label}.durationS must be above 0 and at most ${MAX_SCHEDULE_S} s, or null`);
   if (recovery !== "hold-offset" && recovery !== "step-to-truth") return fail(`${label}.recovery must be hold-offset or step-to-truth`);
-  return { control, onsetS: onsetS as number, durationS: durationS as number | null, recovery };
+  return { control, onsetS, durationS, recovery };
 }
 
+/**
+ * The entries of a schedule from unknown: at most MAX_SCHEDULED_EFFECTS, every control checked as the protocol checks it and of one of
+ * `families`, no two of one effect overlapping, and no ID shared by two effects. `what` names the schedule in errors (TASK-167 reuses it).
+ */
+export function scheduledEntries(input: unknown, families: readonly EffectFamily[], what: string): ScheduledEffect[] {
+  const failHere = failAs(what);
+  if (!Array.isArray(input)) return failHere("entries must be a list");
+  const raw: readonly unknown[] = input;
+  if (raw.length > MAX_SCHEDULED_EFFECTS) failHere(`at most ${MAX_SCHEDULED_EFFECTS} entries`);
+  const entries = raw.map((value, index) => entryOf(value, index, families, failHere));
+  entries.forEach((entry, index) => {
+    const clash = entries.findIndex((other, at) => at < index && overlapKey(other.control) === overlapKey(entry.control) && other.onsetS < endOf(entry) && entry.onsetS < endOf(other));
+    if (clash >= 0) failHere(`entries[${index}] overlaps entries[${clash}] of ${entry.control.effect}`);
+    if (entries.some((other, at) => at < index && other.control.id === entry.control.id && overlapKey(other.control) !== overlapKey(entry.control))) failHere(`entries[${index}] reuses the ID ${entry.control.id} of another effect`);
+  });
+  return entries;
+}
 /** A schedule from unknown (a stored value, or a form): every control checked as the protocol checks it, and no overlap. */
 export function parseFaultSchedule(input: unknown): FaultSchedule {
   if (!isRecord(input) || input.schemaVersion !== FAULT_SCHEDULE_SCHEMA_VERSION) return fail(`schemaVersion must be ${FAULT_SCHEDULE_SCHEMA_VERSION}`);
-  if (!Array.isArray(input.entries)) return fail("entries must be a list");
-  const raw: readonly unknown[] = input.entries;
-  if (raw.length > MAX_SCHEDULED_EFFECTS) fail(`at most ${MAX_SCHEDULED_EFFECTS} entries`);
-  const entries = raw.map(entryOf);
-  entries.forEach((entry, index) => {
-    const clash = entries.findIndex((other, at) => at < index && overlapKey(other.control) === overlapKey(entry.control) && other.onsetS < endOf(entry) && entry.onsetS < endOf(other));
-    if (clash >= 0) fail(`entries[${index}] overlaps entries[${clash}] of ${entry.control.effect}`);
-    if (entries.some((other, at) => at < index && other.control.id === entry.control.id && overlapKey(other.control) !== overlapKey(entry.control))) fail(`entries[${index}] reuses the ID ${entry.control.id} of another effect`);
-  });
+  const entries = scheduledEntries(input.entries, FAULT_TAB_FAMILIES, "fault schedule");
   const drift = input.ekfDrift === undefined ? null : parseEkfDrift(input.ekfDrift), driftEntries = entries.filter(isEkfDriftEntry);
   if (JSON.stringify(driftEntries) !== JSON.stringify(drift ? ekfDriftEntries(drift) : [])) fail("the EKF drift entries are not those of its profile");
   return { schemaVersion: FAULT_SCHEDULE_SCHEMA_VERSION, entries, ...(drift ? { ekfDrift: drift } : {}) };
@@ -94,7 +104,7 @@ export interface FaultTransition {
   readonly on: boolean;
 }
 /** Every change in the order it happens; at one moment, what goes off goes first, so that a following entry starts clean. */
-export function faultTimeline(schedule: FaultSchedule): readonly FaultTransition[] {
+export function faultTimeline(schedule: { readonly entries: readonly ScheduledEffect[] }): readonly FaultTransition[] {
   const transitions: FaultTransition[] = [];
   schedule.entries.forEach((item, entry) => {
     transitions.push({ atS: item.onsetS, entry, on: true });

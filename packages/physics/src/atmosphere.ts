@@ -27,7 +27,12 @@ export const WEATHER_WIND_NORTH = 0, WEATHER_WIND_EAST = 1, WEATHER_WIND_DOWN = 
   WEATHER_AIR_KEEP = 9,
   /** TASK-106: Dryden turbulence: W20, m/s, where 0 is none; the intensity; the seed; and 1 to keep it running, 0 to start it again from the seed. */
   WEATHER_TURBULENCE_W20 = 10, WEATHER_TURBULENCE_INTENSITY = 11, WEATHER_TURBULENCE_SEED = 12, WEATHER_TURBULENCE_KEEP = 13,
-  WEATHER_SLOTS = 14;
+  /**
+   * TASK-167: the discrete gust: its peak air velocity, NED m/s; its duration, s, where 0 is none; and 1 to keep a running pulse,
+   * 0 to start a new one on this tick.
+   */
+  WEATHER_DISCRETE_NORTH = 14, WEATHER_DISCRETE_EAST = 15, WEATHER_DISCRETE_DOWN = 16, WEATHER_DISCRETE_DURATION = 17, WEATHER_DISCRETE_KEEP = 18,
+  WEATHER_SLOTS = 19;
 /**
  * The ISA troposphere `input[AIR_HEIGHT]` m above a reference point whose air temperature is
  * `input[AIR_REFERENCE_TEMPERATURE]` K and pressure `input[AIR_REFERENCE_PRESSURE]` Pa (TASK-093): T = T0 - L h,

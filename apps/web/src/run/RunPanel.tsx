@@ -17,6 +17,8 @@ import { loadLoggingSettings, type LoggingSettings } from "../logging/logging-se
 import { ParameterLogWriter } from "../params/log-writer";
 import { EffectLogWriter } from "../faults/effect-log";
 import { loadFaultSchedule } from "../faults/schedule-store";
+import { loadWeatherSchedule } from "../weather/weather-store";
+import type { WeatherSchedule } from "@mirage/scenarios/weather-schedule";
 import type { FaultSchedule } from "@mirage/scenarios/fault-schedule";
 import { loadParameterMetadata } from "../params/metadata";
 import { RunRecorder } from "../logging/run-recorder";
@@ -318,6 +320,12 @@ export function RunPanel({ storeState, project, visible, link }: { storeState: S
     return loadLoggingSettings(store);
   };
   /** The schedule on the Faults and interference tab, or null when nothing is scheduled (TASK-169). */
+  /** The schedule on the Weather and location tab, or null when no weather is scheduled (TASK-167). */
+  const weatherSchedule = async (): Promise<WeatherSchedule | null> => {
+    if (!store || !projectId) return null;
+    const loaded = await loadWeatherSchedule(store, projectId);
+    return loaded.entries.length > 0 ? loaded : null;
+  };
   const faultSchedule = async (): Promise<FaultSchedule | null> => {
     if (!store || !projectId) return null;
     const loaded = await loadFaultSchedule(store, projectId);
@@ -351,7 +359,7 @@ export function RunPanel({ storeState, project, visible, link }: { storeState: S
     const home = parent?.session.home ?? logHome ?? homeOf(location);
     const environment = parent ? (parent.environment ? environmentFor(parent.environment.location) : Promise.resolve(null))
       : logHome ? environmentAtHome(logHome) : environmentFor(location);
-    void Promise.all([settingsFor, metadata(), faultSchedule(), environment]).then(([settings, catalog, schedule, conditions]) => {
+    void Promise.all([settingsFor, metadata(), faultSchedule(), environment, weatherSchedule()]).then(([settings, catalog, schedule, conditions, weatherNext]) => {
       if (!parent && !settings) return;
       // A planned run boots with its parent's parameter set, if it had one: the set is one of its inputs.
       // A log from another build may name parameters this one lacks, which the start would refuse.
@@ -362,10 +370,12 @@ export function RunPanel({ storeState, project, visible, link }: { storeState: S
       if (!session) return;
       // TASK-169: a repeat flies its parent's schedule; everything else the one on the Faults and interference tab.
       const faults = plan?.kind === "repeat" ? plan.parent.faults : schedule;
+      // TASK-167: and its weather, with its seeds; everything else the one on the Weather and location tab.
+      const weather = plan?.kind === "repeat" ? plan.parent.weather : weatherNext;
       link.planRun(null);
       link.planFromLog(null);
       void session.next.start({ prepare: session.prepare, firmwareId: buildId, speedup, physicsHz: parent?.session.physicsHz ?? SITL_PHYSICS_HZ,
-        home, environment: conditions, flightTask: task.entry, faults });
+        home, environment: conditions, flightTask: task.entry, faults, weather });
     }, failed_);
   };
   const connect = (endpoints: ConnectionSpec) => {
@@ -377,11 +387,11 @@ export function RunPanel({ storeState, project, visible, link }: { storeState: S
       return;
     }
     setTaskRefusal("");
-    void Promise.all([logging(), metadata(), faultSchedule(), environmentFor(location)]).then(([settings, catalog, schedule, environment]) => {
+    void Promise.all([logging(), metadata(), faultSchedule(), environmentFor(location), weatherSchedule()]).then(([settings, catalog, schedule, environment, weather]) => {
       const session = settings && freshSession(settings, catalog, location.groundElevationMslM, task.entry);
       if (session) {
         void session.next.connect({ prepare: session.prepare, endpoints, physicsHz: SITL_PHYSICS_HZ, home: homeOf(location), environment, verifiedCommits: verifiedCommits(),
-          flightTask: task.entry, faults: schedule });
+          flightTask: task.entry, faults: schedule, weather });
       }
     }, failed_);
   };
@@ -403,12 +413,12 @@ export function RunPanel({ storeState, project, visible, link }: { storeState: S
       if (!task) return "The flight task cannot be read";
       setTaskRefusal("");
       // TASK-148: every run of a batch starts at the project's location, in its conditions.
-      const [settings, catalog, schedule, environment] = await Promise.all([logging(), metadata(), faultSchedule(), environmentFor(location)]);
+      const [settings, catalog, schedule, environment, weather] = await Promise.all([logging(), metadata(), faultSchedule(), environmentFor(location), weatherSchedule()]);
       if (!settings) return "The recording settings cannot be read";
       const session = freshSession(settings, catalog, location.groundElevationMslM, task.entry, set.parameters);
       if (!session) return "The run could not be set up";
       void session.next.start({ prepare: session.prepare, firmwareId: buildId, speedup, physicsHz: SITL_PHYSICS_HZ, home: homeOf(location), environment, flightTask: task.entry,
-        faults: schedule });
+        faults: schedule, weather });
       return null;
     },
     // runTask answers null when it flies, so a missing controller cannot be told from it by `??`.

@@ -159,7 +159,7 @@ export function AppShell({ run }: { run: (visible: boolean, storeState: StoreSta
       case "sensors":
         return <SensorsTab storeState={storeState} project={project} active={navigation.tab === "sensors"} />;
       case "weather":
-        return <WeatherTab storeState={storeState} project={project} active={navigation.tab === "weather"} />;
+        return <WeatherTab storeState={storeState} project={project} link={link} active={navigation.tab === "weather"} />;
       case "run":
         return run(navigation.tab === "run", storeState, project, link);
       case "logging":
