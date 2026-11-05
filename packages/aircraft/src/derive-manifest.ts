@@ -8,7 +8,9 @@ import { hullLowestDepthM, propellerDisc, standardHull, standardHullDerivation }
 import { standardHullDrag, standardHullDragDerivation } from './standard-hull-drag.ts';
 import type { EulerZyxRad } from './sensor-fields.ts';
 import { sinCos } from './trig.ts';
-import { airframeDragOf, validateAircraftProfile, type AircraftProfile, type ComponentReferences } from './profile.ts';
+import { airframeDragOf, propulsionCalibrationsOf, validateAircraftProfile, type AircraftProfile, type ComponentReferences } from './profile.ts';
+import { motorCombination } from './calculation-mode.ts';
+import { combinationKey } from './measurements.ts';
 
 // Derivation of the vehicle manifest v2 (TASK-087) that physics consumes from
 // an aircraft profile (TASK-138). The profile gives geometry, spins, outputs
@@ -217,6 +219,20 @@ export async function deriveVehicleManifest(input: unknown, components: Resolved
     { id: STANDARD_HULL_DATASET_ID, kind: 'synthetic', sourceSha256: null, derivation: standardHullDerivation() },
     ...(stated ? [] : [{ id: STANDARD_HULL_DRAG_DATASET_ID, kind: 'synthetic', sourceSha256: null, derivation: standardHullDragDerivation() }]),
   ];
+  // TASK-145: a motor whose combination a bound calibration fitted flies its rotor calibrated, the bench data as a measured dataset.
+  // A profile that binds none derives the same bytes as before.
+  const bound = propulsionCalibrationsOf(profile), propulsionCalibrations: unknown[] = [], benchDatasets = new Map<string, unknown>();
+  for (const motor of bound.length > 0 ? profile.motors : []) {
+    const combination = motorCombination(profile, motor);
+    const key = combination ? await combinationKey(combination) : null;
+    const entry = bound.find(item => item.combinationKey === key);
+    if (!entry) continue;
+    const datasetId = `bench-${entry.measurementSet.slice(0, 16)}`;
+    benchDatasets.set(datasetId, { id: datasetId, kind: 'measured', sourceSha256: entry.measurementSet, license: 'Project measurement data',
+      acquiredAt: `${entry.measuredOn}T00:00:00Z`, reference: `Measurement set ${entry.measurementSet}, fitted by propulsion calibration ${entry.record} (TASK-145)` });
+    propulsionCalibrations.push({ rotorId: motor.id, liftScale: entry.liftScale, dragScale: entry.dragScale, resistanceOhm: entry.resistanceOhm,
+      noLoadCurrentA: entry.noLoadCurrentA, rpmMin: entry.rpmMin, rpmMax: entry.rpmMax, densityKgM3: entry.densityKgM3, datasetId, calibrationSha256: entry.record });
+  }
   const candidate = {
     schemaVersion: 2, modelId: options.modelId, kind: 'bet',
     units: 'SI', worldFrame: 'NED', bodyFrame: 'FRD', quaternionOrder: 'wxyz',
@@ -224,7 +240,7 @@ export async function deriveVehicleManifest(input: unknown, components: Resolved
       id: dataset, kind: 'synthetic', sourceSha256: inputSha256,
       derivation: `Derived by @mirage/aircraft derivation ${DERIVATION_VERSION} from the aircraft profile with canonical ` +
         `SHA-256 ${profileSha256}. Components: ${components.description}`,
-    }, ...contactDatasets],
+    }, ...contactDatasets, ...benchDatasets.values()],
     provenance: {
       massProperties: dataset, rotors: dataset, motors: motors.length > 0 ? dataset : null,
       escs: escs.length > 0 ? dataset : null, battery: battery ? dataset : null, airframeDrag: stated ? dataset : STANDARD_HULL_DRAG_DATASET_ID,
@@ -234,6 +250,7 @@ export async function deriveVehicleManifest(input: unknown, components: Resolved
     massProperties,
     rotorCount: rotors.length, rotorCapacity: 32, rotors, motors, escs, battery,
     airframe: { drag }, controlSurfaces: [], landingGear, sensorMounts, rotorWakePairs, ardupilot: null, hull,
+    ...(propulsionCalibrations.length > 0 ? { propulsionCalibrations } : {}),
   };
   // The canonical JSON round trip turns any -0 from the inputs into 0, so the manifest equals its bytes exactly.
   const manifest = validateVehicleManifest(JSON.parse(decodeUtf8(canonicalBytes(candidate))));

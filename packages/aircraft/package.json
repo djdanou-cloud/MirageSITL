@@ -21,6 +21,7 @@
     "./frame-parameters": "./src/frame-parameters.ts",
     "./experiment": "./src/experiment.ts",
     "./fidelity-comparison": "./src/fidelity-comparison.ts",
+    "./propulsion-calibration": "./src/propulsion-calibration.ts",
     "./site-parameters": "./src/site-parameters.ts",
     "./clearance": "./src/clearance.ts",
     "./standard-hull": "./src/standard-hull.ts",

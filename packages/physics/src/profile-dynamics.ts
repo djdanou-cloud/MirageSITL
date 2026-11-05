@@ -1,7 +1,7 @@
 import type { ContactShapePart } from './accident.ts';
 import type { PhysicsHz } from '@mirage/protocol';
 import { newBodyTruth } from '../../wasm-bet/src/backend.ts';
-import type { BoundPolar } from '../../wasm-bet/src/rotor.ts';
+import type { BoundPolar, BoundRotorDefinition } from '../../wasm-bet/src/rotor.ts';
 import { isaTroposphere } from './atmosphere.ts';
 import { BetFlightDynamics, CONFIGURATION_FLAG_WAKE_UNMODELED, type BetFlightConfiguration } from './bet-dynamics.ts';
 import { escDriveFromManifest } from './drive.ts';
@@ -244,6 +244,14 @@ function thrustAxis(q: readonly number[]): [number, number, number] {
  */
 const HULL_FRICTION = 0.6;
 
+/** One rotor of a build as a bound rotor definition, as the flight model binds it: for off-line static solves (TASK-145). */
+export function profileRotorDefinition(configuration: BetFlightConfiguration, rotorIndex: number): BoundRotorDefinition {
+  const model = validateModelManifest(configuration.manifest), geometry = model.rotors[rotorIndex];
+  const polar = geometry ? configuration.polars.get(geometry.polarId) : undefined;
+  if (!geometry || !polar) throw new Error(`The build has no rotor ${rotorIndex} with its polar`);
+  return { geometry, polar, initialOmegaRadS: configuration.initialOmegaRadS[rotorIndex] ?? 0, inflowTauS: configuration.inflowTauS[rotorIndex] ?? PROFILE_ROTOR_SETTINGS.inflowTauS,
+    inflowLimitMps: configuration.inflowLimitMps[rotorIndex] ?? PROFILE_ROTOR_SETTINGS.inflowLimitMps, minimumConfidence: configuration.minimumConfidence };
+}
 /**
  * The flight dynamics of a build at `hz`: on a new ground contact with the build's gear, or on
  * the synthetic pad without gear. Every call creates its own contact, which the dynamics owns;

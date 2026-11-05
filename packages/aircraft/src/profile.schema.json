@@ -38,7 +38,7 @@
     "sensorConfiguration"
   ],
   "properties": {
-    "schemaVersion": { "enum": [1, 2, 3, 4, 5] },
+    "schemaVersion": { "enum": [1, 2, 3, 4, 5, 6] },
     "units": { "const": "SI" },
     "bodyFrame": { "const": "FRD" },
     "arms": {
@@ -175,6 +175,30 @@
         "properties": {
           "card": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
           "polar": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,63}$" }
+        }
+      }
+    },
+    "propulsionCalibrations": {
+      "description": "Schema 6 only (TASK-145): the propulsion calibrations this profile version binds, one per combination key, with the values of each calibration record.",
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 16,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["record", "combinationKey", "measurementSet", "measuredOn", "liftScale", "dragScale", "resistanceOhm", "noLoadCurrentA", "rpmMin", "rpmMax", "densityKgM3"],
+        "properties": {
+          "record": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+          "combinationKey": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+          "measurementSet": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+          "measuredOn": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" },
+          "liftScale": { "type": "number", "minimum": 0.25, "maximum": 4 },
+          "dragScale": { "type": "number", "minimum": 0.25, "maximum": 4 },
+          "resistanceOhm": { "type": ["number", "null"], "exclusiveMinimum": 0, "maximum": 100 },
+          "noLoadCurrentA": { "type": ["number", "null"], "minimum": 0, "maximum": 1000 },
+          "rpmMin": { "type": "number", "exclusiveMinimum": 0, "maximum": 100000 },
+          "rpmMax": { "type": "number", "exclusiveMinimum": 0, "maximum": 100000 },
+          "densityKgM3": { "type": "number", "minimum": 0.3, "maximum": 1.6 }
         }
       }
     },

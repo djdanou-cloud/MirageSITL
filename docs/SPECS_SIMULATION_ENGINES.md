@@ -6348,17 +6348,37 @@ posts them after the compute batch (`validity.changes`), and the run recorder
 writes them as `events.validity` (ID 72), so a recording says from which tick to
 which a calibrated rotor flew outside its bench data.
 
-**Planned for the rest of the second increment**, with the interfaces fixed
-here: a `propulsion-calibration` record of the project store, holding the
-combination key, the measurement set's SHA-256, the polar and the BET module it
-was fitted with, s_L, s_D, R and I₀ (or what was not fitted), every residual and
-the envelope, and depending on the measurement set and the combination's cards;
-profile schema 6, whose calculation settings bind calibrations as they bind
-measurement sets, a motor using one only when its combination key is the
-calibration's; derivation 7, which writes the bound calibrations into the
-manifest section above; and the Aircraft tab's calculation panel, which fits a
-bound measurement set, shows its residuals and binds the result as a new
-profile version.
+**The calibration record and its binding.** A fit is stored as a
+`propulsion-calibration` item of the project store
+(`@mirage/aircraft/propulsion-calibration`, payload schema 1): the combination
+key, the measurement set's SHA-256, the motor and propeller cards, the date the
+bench measured, the polar's catalog ID and the SHA-256 of the BET module it was
+fitted with, and the fit itself (s_L, s_D, iterations, the RMS thrust and torque
+residuals, R and I₀ at the card's KV or null, every residual row, what was not
+fitted and the envelope); it depends on the measurement set and both cards.
+`calibrateMotor` fits the profile's own rotor of one motor, as the profile builds
+it without any bound calibration, and refuses a set of another combination.
+Profile schema 6 is schema 5 with its airframe drag optional and a
+`propulsionCalibrations` list of one to any number of entries, one per
+combination in ascending key order: each holds the record's SHA-256, the
+combination key, the measurement set, the bench date, s_L, s_D, R, I₀ and the
+envelope. Only a calculation from measurements binds them, and each needs its
+measurement set bound; a version whose calculation is changed (another mode, a
+newer set) drops the calibrations whose set is no longer bound, and without any
+the version keeps the lowest schema that holds it. `bindCalibration` replaces any
+calibration of the same combination. The derivation writes the section above for
+every motor whose combination key is a bound calibration's, and the bench data
+as a dataset of kind `measured` (`bench-` and the first 16 hex digits of the
+set's SHA-256, acquired on the bench date); a profile without calibrations
+derives the bytes it did before, so the derivation version stays 6.
+
+**In the Components tab** (`apps/web/src/library/CalibrationSection.tsx`), each
+motor with a bound measurement set offers **Fit to the bench data**: the page
+fits it on the served scalar BET module, shows s_L, s_D, R, I₀, the RMS
+residuals, what was not fitted, a table of every bench point against the model
+and the envelope, and on **Save and bind as a new profile version** stores the
+record and saves the profile version that binds it, for every motor of that
+combination and no other. Nothing in it says a fit is good or bad.
 
 **Verification.** `tests/propulsion-calibration.test.ts` declares before the
 implementation: bench data that the rotor itself gives with its polar scaled by
@@ -6376,8 +6396,17 @@ fitted motor with the other rotors unchanged, refuses five bad sections, and
 holds the flag to no step inside the envelope over 0.1 s of trimmed hover and to
 every step above or below the RPM range, outside the density band or at 5 m/s;
 `tests/terrain-pause.test.ts` holds the validity ring to the tick of each change
-and to counting what it drops. A real bench file (G4) is still to be fitted and
-its residuals shown before measured mode is called working.
+and to counting what it drops. In the same file, a calibration of the S19 quad
+on the repository's bench fixture is fitted, stored with its three dependencies,
+bound as schema 6 and derived for both motors of its combination with the bench
+data as a `measured` dataset, while the unbound profile derives no section and
+a set of another combination is refused.
+`tests/browser/propulsion-calibration.spec.ts` does the same through the
+Components tab in Chromium: seven residual rows, the record and profile
+version 2 at schema 6 in the store, the calibration shown on motors 1 and 2
+after a reload and none on the unmeasured motors 3 and 4, the tab fitting a
+phone and passing axe. A real bench file (G4) is still to be fitted and its
+residuals shown before measured mode is called working.
 
 ## Profile-driven dynamics (TASK-144)
 

@@ -8,6 +8,7 @@ import { calculationSettings, profileDraft, type AircraftProfile, type Calculati
 import type { ProjectStore } from "@mirage/project/store";
 import { nameLanguage } from "../shell/project-files";
 import { describeCombination, describeLibraryError, resolveVersions, type LibraryData, type LibraryEntry } from "./library-data";
+import { CalibrationSection } from "./CalibrationSection";
 
 // Calculation modes (TASK-140, S04): each aircraft profile version is either a
 // Preliminary calculation or a Calculation from measurements. In measured mode
@@ -127,6 +128,9 @@ export function CalculationPanel({ store, library, onSaved }: { store: ProjectSt
                         </p>
                         {motor.missing.length > 0 && <p>Not known: {motor.missing.join(", ")}.</p>}
                         {motor.limits.length > 0 && <ul className="limit-list">{motor.limits.map(limit => <li key={limit}>{limit}</li>)}</ul>}
+                        {/* TASK-145: the bound bench data fit this motor's rotor and motor, for its combination only. */}
+                        {motor.measurementSet && entry.value && <CalibrationSection store={store} entry={{ stored: entry.stored, value: entry.value }} motorId={motor.motorId}
+                          measurementSet={motor.measurementSet} onSaved={message => { setStatus(message); onSaved(); }} />}
                       </li>
                     ))}
                   </ul>

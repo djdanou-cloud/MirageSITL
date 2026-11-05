@@ -103,3 +103,62 @@ describe('propulsion calibration (TASK-145)', () => {
     expect(fit.motor).not.toBeNull();
   }, 120_000);
 });
+
+// TASK-145 increment 2b: a stored bench set of the example combination fitted on the profile's own rotor, kept as a calibration record,
+// bound by a new profile version (schema 6), derived into the manifest for every motor of that combination, and flown on its scales.
+describe('a calibration of a profile version (TASK-145)', () => {
+  it('fits, stores and binds a calibration, which the derivation writes for its combination and the build flies', async () => {
+    const { createHash } = await import('node:crypto');
+    const { MemoryBackend, ProjectStore } = await import('../packages/project/src/store.ts');
+    const { validateComponentCard } = await import('../packages/aircraft/src/components.ts');
+    const { measurementSetFromBenchCsv, measurementSetDraft, validateMeasurementSet } = await import('../packages/aircraft/src/measurements.ts');
+    const { validateAircraftProfile, profileDraft } = await import('../packages/aircraft/src/profile.ts');
+    const { bindMeasurements } = await import('../packages/aircraft/src/calculation-mode.ts');
+    const { resolveComponents } = await import('../packages/aircraft/src/resolve-components.ts');
+    const { deriveVehicleManifest } = await import('../packages/aircraft/src/derive-manifest.ts');
+    const { bindCalibration, calibrateMotor, savePropulsionCalibration, validatePropulsionCalibration } = await import('../packages/aircraft/src/propulsion-calibration.ts');
+    const { buildProfileDynamics, CALIBRATED_POLAR_BASE } = await import('../packages/physics/src/profile-dynamics.ts');
+    const { exampleCard, quadProfile } = await import('./support/quad-profile.ts');
+    const store = new ProjectStore(new MemoryBackend(), { storage: null, validators: { 'component-card': validateComponentCard, 'measurement-set': validateMeasurementSet,
+      'aircraft-profile': validateAircraftProfile, 'propulsion-calibration': validatePropulsionCalibration } });
+    const projectId = (await store.createProject('Bench')).record.id;
+    const cards = new Map<string, ReturnType<typeof exampleCard>>();
+    const card = async (type: 'motor' | 'propeller' | 'esc' | 'battery') => { const stored = await store.createItem(projectId, 'component-card', { name: type, payload: exampleCard(type) }); cards.set(stored.sha256, exampleCard(type)); return stored.sha256; };
+    const addresses = { motor: await card('motor'), propeller: await card('propeller'), esc: await card('esc'), battery: await card('battery') };
+    const set = await measurementSetFromBenchCsv(readFileSync('tests/fixtures/components/bench-combination.csv', 'utf8'), {
+      combination: { motor: addresses.motor, propeller: addresses.propeller, esc: addresses.esc, supply: { kind: 'battery', card: addresses.battery } },
+      fileName: 'bench-combination.csv', date: '2026-10-29', description: 'Synthetic thrust stand run', applicability: null });
+    const storedSet = await store.createItem(projectId, 'measurement-set', measurementSetDraft('Bench run', set));
+    const { profile: base } = await quadProfile(addresses);
+    const measured = await bindMeasurements(base, 'measured', [{ sha256: storedSet.sha256, createdAt: storedSet.record.createdAt, set }]);
+    const components = resolveComponents(measured, cards).components;
+    if (!components) throw new Error('Cards missing');
+    const betModuleSha256 = createHash('sha256').update(readFileSync('packages/wasm-bet/dist/mirage_bet.scalar.wasm')).digest('hex');
+    const calibration = await calibrateMotor({ module, betModuleSha256, profile: measured, components, motorId: measured.motors[0]?.id ?? 1, set: { sha256: storedSet.sha256, set } });
+    expect(calibration.fit.residuals).toHaveLength(7);
+    expect(calibration.measuredOn).toBe('2026-10-29');
+    expect(calibration.fit.motor?.kvRpmPerV).toBe(700);
+    const stored = await savePropulsionCalibration(store, projectId, 'Example motor and propeller', calibration);
+    expect(stored.record.dependencies.map(d => d.sha256).sort()).toEqual([storedSet.sha256, addresses.motor, addresses.propeller].sort());
+    // A new profile version binds it; every motor of that combination flies calibrated.
+    const bound = bindCalibration(measured, stored);
+    expect(bound.schemaVersion).toBe(6);
+    await store.createItem(projectId, 'aircraft-profile', profileDraft('Calibrated quad', bound));
+    const derived = await deriveVehicleManifest(bound, components, { modelId: 7 });
+    const sections = derived.manifest.propulsionCalibrations ?? [];
+    expect(sections.map(item => item.rotorId)).toEqual(bound.motors.map(motor => motor.id));
+    expect(sections.every(item => item.liftScale === calibration.fit.scales.lift && item.calibrationSha256 === stored.sha256)).toBe(true);
+    expect(derived.manifest.datasets.find(dataset => dataset.kind === 'measured')).toMatchObject({ sourceSha256: storedSet.sha256, acquiredAt: '2026-10-29T00:00:00Z' });
+    const build = buildProfileDynamics(derived.manifest, { syntheticPad: true });
+    expect(build.configuration.polars.has(CALIBRATED_POLAR_BASE)).toBe(true);
+    expect(build.configuration.calibrationEnvelopes).toHaveLength(bound.motors.length);
+    // The uncalibrated profile derives the bytes it always did; dropping the bench data unbinds the calibration.
+    expect((await deriveVehicleManifest(measured, components, { modelId: 7 })).manifest.propulsionCalibrations).toBeUndefined();
+    expect((await bindMeasurements(bound, 'preliminary', [])).schemaVersion).toBeLessThan(6);
+    // Never transferred: a set of another combination is refused, and a calibration cannot bind without its set.
+    const other = { ...set, combination: { ...set.combination, esc: addresses.motor } };
+    await expect(calibrateMotor({ module, betModuleSha256, profile: measured, components, motorId: measured.motors[0]?.id ?? 1, set: { sha256: 'e'.repeat(64), set: other } }))
+      .rejects.toThrow('another combination');
+    expect(() => bindCalibration(base, stored)).toThrow('is not bound by this profile version');
+  }, 300_000);
+});

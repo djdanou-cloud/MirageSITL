@@ -11,14 +11,15 @@ import type { SensorConfiguration } from './sensor-fields.ts';
 // a multirotor with one to eight arms and up to 16 motors. Schema 2 (TASK-140,
 // S04) adds the calculation mode of the profile version, schema 3 (TASK-143,
 // S08) its sensor configuration, schema 4 (TASK-144, S05) the airfoil polar
-// of each propeller, and schema 5 (TASK-096, S05) drag areas the user states
-// for the airframe. Each profile has one canonical schema: the lowest
+// of each propeller, schema 5 (TASK-096, S05) drag areas the user states
+// for the airframe, and schema 6 (TASK-145, S04) the propulsion calibrations it
+// binds, with or without stated drag. Each profile has one canonical schema: the lowest
 // that holds its content. Configuration-time code only; never call it from a
 // physics step. Units are SI; positions are body FRD metres from the body
 // reference point.
 
 /** The newest schema; a profile is written in the lowest schema that holds its content, and every schema stays valid. */
-export const PROFILE_SCHEMA_VERSION = 5;
+export const PROFILE_SCHEMA_VERSION = 6;
 export type MotorLevel = 'single' | 'upper' | 'lower';
 export type SpinDirection = 'ccw' | 'cw';
 export interface ArmSpec {
@@ -102,6 +103,15 @@ interface ProfileFields {
  * chosen propeller polars (TASK-144) to either sensor case, and schema 5
  * stated airframe drag (TASK-096), with any polars.
  */
+/**
+ * A propulsion calibration a profile version binds (TASK-145): the values of one `propulsion-calibration` record, named by its SHA-256,
+ * for the motors whose combination key it carries. The measurement set must be bound too.
+ */
+export interface BoundCalibration {
+  readonly record: string; readonly combinationKey: string; readonly measurementSet: string; readonly measuredOn: string;
+  readonly liftScale: number; readonly dragScale: number; readonly resistanceOhm: number | null; readonly noLoadCurrentA: number | null;
+  readonly rpmMin: number; readonly rpmMax: number; readonly densityKgM3: number;
+}
 export type AircraftProfile =
   | (ProfileFields & { readonly schemaVersion: 1; readonly sensorConfiguration: null })
   | (ProfileFields & { readonly schemaVersion: 2; readonly calculation: CalculationSettings; readonly sensorConfiguration: null })
@@ -116,6 +126,14 @@ export type AircraftProfile =
     /** Zero or more entries in ascending card order. */
     readonly propellerPolars: readonly PropellerPolar[];
     readonly airframeDrag: StatedAirframeDrag;
+  })
+  | (ProfileFields & {
+    readonly schemaVersion: 6; readonly calculation: CalculationSettings; readonly sensorConfiguration: SensorConfiguration | null;
+    readonly propellerPolars: readonly PropellerPolar[];
+    /** Stated drag, as in schema 5, or absent for the standard hull's estimate. */
+    readonly airframeDrag?: StatedAirframeDrag;
+    /** One or more, in ascending combination-key order. */
+    readonly propulsionCalibrations: readonly BoundCalibration[];
   });
 
 // Union types express nullable fields, as in the vehicle manifest schema.
@@ -188,8 +206,9 @@ export function validateAircraftProfile(input: unknown): AircraftProfile {
   if (profile.schemaVersion < 3 && profile.sensorConfiguration !== null) {
     fail(`Schema ${profile.schemaVersion} profiles hold no sensor configuration`);
   }
-  if ((profile.schemaVersion >= 4) !== ('propellerPolars' in profile)) fail('Propeller polars appear exactly in schemas 4 and 5');
-  if ((profile.schemaVersion === 5) !== ('airframeDrag' in profile)) fail('Stated airframe drag appears exactly in schema 5');
+  if ((profile.schemaVersion >= 4) !== ('propellerPolars' in profile)) fail('Propeller polars appear exactly in schemas 4 to 6');
+  if (profile.schemaVersion === 5 ? !('airframeDrag' in profile) : profile.schemaVersion < 5 && 'airframeDrag' in profile) fail('Stated airframe drag appears exactly in schema 5, and optionally in schema 6');
+  if ((profile.schemaVersion === 6) !== ('propulsionCalibrations' in profile)) fail('Propulsion calibrations appear exactly in schema 6');
   if (profile.schemaVersion === 3 && profile.sensorConfiguration === null) fail('Schema 3 profiles need a sensor configuration');
   if (profile.sensorConfiguration !== null) {
     try {
@@ -199,8 +218,9 @@ export function validateAircraftProfile(input: unknown): AircraftProfile {
     }
     if (isDefaultSensorConfiguration(profile.sensorConfiguration)) fail('ArduPilot sensor defaults are stored as null');
   }
-  if (profile.schemaVersion === 5 && profile.airframeDrag.source.trim() === '') fail('Stated airframe drag needs its source');
-  if (profile.schemaVersion === 4 || profile.schemaVersion === 5) {
+  const stated = airframeDragOf(profile);
+  if (stated && stated.source.trim() === '') fail('Stated airframe drag needs its source');
+  if (profile.schemaVersion >= 4 && 'propellerPolars' in profile) {
     const propellers = new Set(profile.motors.map(motor => motor.components.propeller));
     if (profile.schemaVersion === 4 && profile.propellerPolars.length === 0) fail('Schema 4 profiles choose at least one propeller polar');
     profile.propellerPolars.forEach((entry, index) => {
@@ -216,6 +236,15 @@ export function validateAircraftProfile(input: unknown): AircraftProfile {
     if (!measurementSets.every((sha, index) => index === 0 || sha > measurementSets[index - 1]!)) {
       fail('Measurement sets must be unique and in ascending order');
     }
+  }
+  if (profile.schemaVersion === 6) {
+    const bound = profile.propulsionCalibrations;
+    if (profile.calculation.mode !== 'measured') fail('Only a calculation from measurements binds propulsion calibrations');
+    bound.forEach((entry, index) => {
+      if (index > 0 && entry.combinationKey <= bound[index - 1]!.combinationKey) fail('Propulsion calibrations must be one per combination, in ascending key order');
+      if (!profile.calculation.measurementSets.includes(entry.measurementSet)) fail('A propulsion calibration needs its measurement set bound');
+      if (!(entry.rpmMin < entry.rpmMax)) fail('A propulsion calibration RPM range must be increasing');
+    });
   }
   if (!ascending(profile.arms.map(arm => arm.id))) fail('Arm IDs must be unique and ascending');
   if (!ascending(profile.motors.map(motor => motor.id))) fail('Motor IDs must be unique and ascending');
@@ -271,12 +300,16 @@ export function sensorConfigurationOf(profile: AircraftProfile): SensorConfigura
 
 /** The chosen propeller polars of a profile; none below schema 4. */
 export function propellerPolarsOf(profile: AircraftProfile): readonly PropellerPolar[] {
-  return profile.schemaVersion === 4 || profile.schemaVersion === 5 ? profile.propellerPolars : [];
+  return profile.schemaVersion >= 4 && 'propellerPolars' in profile ? profile.propellerPolars : [];
 }
 
 /** The airframe drag a profile states (TASK-096), or null: the standard hull's preliminary estimate. */
 export function airframeDragOf(profile: AircraftProfile): StatedAirframeDrag | null {
-  return profile.schemaVersion === 5 ? profile.airframeDrag : null;
+  return profile.schemaVersion === 5 ? profile.airframeDrag : profile.schemaVersion === 6 ? profile.airframeDrag ?? null : null;
+}
+/** The propulsion calibrations a profile version binds (TASK-145); none below schema 6. */
+export function propulsionCalibrationsOf(profile: AircraftProfile): readonly BoundCalibration[] {
+  return profile.schemaVersion === 6 ? profile.propulsionCalibrations : [];
 }
 
 /**
@@ -289,6 +322,7 @@ export function airframeDragOf(profile: AircraftProfile): StatedAirframeDrag | n
 export function withProfileContent(profile: AircraftProfile, content: {
   readonly calculation?: CalculationSettings; readonly sensorConfiguration?: SensorConfiguration | null;
   readonly propellerPolars?: readonly PropellerPolar[]; readonly airframeDrag?: StatedAirframeDrag | null;
+  readonly propulsionCalibrations?: readonly BoundCalibration[];
 }): AircraftProfile {
   const config = content.sensorConfiguration === undefined ? profile.sensorConfiguration : content.sensorConfiguration;
   const sensors = config && isDefaultSensorConfiguration(config) ? null : config;
@@ -300,6 +334,14 @@ export function withProfileContent(profile: AircraftProfile, content: {
     massProperties: profile.massProperties, payload: profile.payload, battery: profile.battery, groundClearanceM: profile.groundClearanceM,
   };
   const drag = content.airframeDrag === undefined ? airframeDragOf(profile) : content.airframeDrag;
+  // TASK-145: a calibration stays bound only while its measurement set is, in a calculation from measurements.
+  const calibrations = [...(content.propulsionCalibrations ?? propulsionCalibrationsOf(profile))]
+    .filter(entry => calculation.mode === 'measured' && calculation.measurementSets.includes(entry.measurementSet))
+    .sort((a, b) => (a.combinationKey < b.combinationKey ? -1 : a.combinationKey > b.combinationKey ? 1 : 0));
+  if (calibrations.length > 0) {
+    return validateAircraftProfile({ ...fields, schemaVersion: 6, calculation, sensorConfiguration: sensors, propellerPolars: polars,
+      ...(drag ? { airframeDrag: drag } : {}), propulsionCalibrations: calibrations });
+  }
   if (drag) {
     return validateAircraftProfile({ ...fields, schemaVersion: 5, calculation, sensorConfiguration: sensors, propellerPolars: polars, airframeDrag: drag });
   }
@@ -319,6 +361,11 @@ export function withProfileContent(profile: AircraftProfile, content: {
  */
 export function withSensorConfiguration(profile: AircraftProfile, config: SensorConfiguration | null): AircraftProfile {
   return withProfileContent(profile, { sensorConfiguration: config });
+}
+
+/** The profile binding these propulsion calibrations (TASK-145); an empty list returns it to schema 5 or lower. */
+export function withPropulsionCalibrations(profile: AircraftProfile, calibrations: readonly BoundCalibration[]): AircraftProfile {
+  return withProfileContent(profile, { propulsionCalibrations: calibrations });
 }
 
 /** The profile with stated airframe drag (TASK-096), or with null the standard hull's estimate again (schema 4 or lower). */
