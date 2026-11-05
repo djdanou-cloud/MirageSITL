@@ -1,6 +1,6 @@
 # Параметры приёмки фазы 1
 
-<!-- source-sha256: c86986423f4332f980a2b1dc427eead08891517a2e75a8b86eeff4929f051aee -->
+<!-- source-sha256: bb75476d1e6d1fd3ffd53ae5c6cbadcb85c4d6984eed8b40a71fbfe540bfc672 -->
 
 Русское зеркало. [Английский источник](../decisions/phase1-acceptance.md).
 
@@ -136,7 +136,12 @@ NOT_RUN, а провалы сохраняются. TASK-158 записывает
 output-mapping, start, flight-task и pause-resume каждой конфигурации из
 `node scripts/phase1/nominal-flight.mjs`, и только на машине A-01. Каждая
 ячейка ссылается на отчёт с доказательствами своей конфигурации в
-`test-results/validation/phase1-nominal/` с SHA-256 этого отчёта.
+`test-results/validation/phase1-nominal/` с SHA-256 этого отчёта. TASK-188
+добавляет к тому же прогону ячейки parameter-changes, recording, reopen-results и
+unsupported-refusal, а `node scripts/phase1/acceptance.mjs` проверяет каждую ячейку
+по её доказательству: поддельный, отсутствующий или недействительный отчёт
+отклоняется и проваливает матрицу, устаревший оставляет ячейку для запуска, а провал
+остаётся провалом, пока стоит его отчёт.
 
 ## Фиксация решения
 

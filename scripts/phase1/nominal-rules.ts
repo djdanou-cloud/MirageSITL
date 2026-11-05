@@ -1,4 +1,5 @@
-// Rules of the Phase 1 nominal flight acceptance (TASK-158), apart from its
+// Rules of the Phase 1 nominal flight acceptance (TASK-158, extended by TASK-188 with the parameter, recording, reopening and
+// refusal workflows of each configuration), apart from its
 // side effects so that they are tested directly: the five S19 configurations
 // of the TASK-132 matrix, the criteria declared before the first run, the
 // verdict of each workflow from a run's own facts, the host that may write
@@ -7,7 +8,7 @@
 // scripts/phase1/nominal-flight.mjs runs it and writes the evidence.
 
 export const NOMINAL_TASK = 'TASK-158';
-export const RUN_SCHEMA = 'mirage-phase1-nominal-run/1';
+export const RUN_SCHEMA = 'mirage-phase1-nominal-run/2';
 export const REPORT_SCHEMA_VERSION = 1;
 export const MATRIX_PATH = 'docs/validation/phase1-matrix.json';
 export const REPORT_DIRECTORY = 'test-results/validation/phase1-nominal';
@@ -40,6 +41,9 @@ export const CRITERIA = {
   steadinessSdDegS: 1,
 } as const;
 
+/** The write every run makes through the Parameters tab: what a flight in GUIDED that lands in LAND does not read (TASK-188). */
+export const PARAMETER_CHANGE = { name: 'RTL_ALT_FINAL_M', value: 1 } as const;
+
 /** ArduCopter 8ab6afde's stock values of the settings each report names, as its logs hold them. Tolerance: float32 rounding. */
 export const STOCK_SETTINGS = {
   INS_GYRO_FILTER: 20, ATC_RAT_RLL_P: 0.135, ATC_RAT_RLL_I: 0.135, ATC_RAT_RLL_D: 0.0036, ATC_RAT_PIT_P: 0.135, ATC_RAT_PIT_I: 0.135, ATC_RAT_PIT_D: 0.0036,
@@ -64,10 +68,10 @@ export type NominalConfiguration = (typeof NOMINAL_CONFIGURATIONS)[number];
 export type ConfigurationId = NominalConfiguration['id'];
 
 /** The matrix workflows this task writes; the other per-configuration workflows belong to other tasks. */
-export const NOMINAL_WORKFLOWS = ['profile-creation', 'output-mapping', 'start', 'flight-task', 'pause-resume'] as const;
+export const NOMINAL_WORKFLOWS = ['profile-creation', 'output-mapping', 'start', 'flight-task', 'pause-resume', 'parameter-changes', 'recording', 'reopen-results', 'unsupported-refusal'] as const;
 export type NominalWorkflow = (typeof NOMINAL_WORKFLOWS)[number];
 /** The steps of one run, in the order the spec takes them. */
-export const STEPS = ['profile', 'mapping', 'start', 'tuning', 'motorCheck', 'hold', 'pause', 'landing', 'stop'] as const;
+export const STEPS = ['profile', 'mapping', 'refusal', 'start', 'tuning', 'parameters', 'motorCheck', 'hold', 'pause', 'landing', 'stop', 'reopen'] as const;
 export type StepId = (typeof STEPS)[number];
 export const WORKFLOW_STEPS: { readonly [W in NominalWorkflow]: readonly StepId[] } = {
   'profile-creation': ['profile'],
@@ -75,6 +79,10 @@ export const WORKFLOW_STEPS: { readonly [W in NominalWorkflow]: readonly StepId[
   start: ['start', 'stop'],
   'flight-task': ['tuning', 'hold', 'landing'],
   'pause-resume': ['pause'],
+  'parameter-changes': ['parameters'],
+  recording: ['stop'],
+  'reopen-results': ['reopen'],
+  'unsupported-refusal': ['refusal'],
 };
 export const CARD_TYPES = ['motor', 'propeller', 'esc', 'battery'] as const;
 export type CardType = (typeof CARD_TYPES)[number];
@@ -99,6 +107,28 @@ export interface MappingFacts {
   /** The Aircraft tab's frame line, e.g. "Stock frame: FRAME_CLASS 1, FRAME_TYPE 1, 4-channel servo packets." */
   readonly frame: string;
   readonly outputs: readonly OutputPair[];
+}
+/** What the Aircraft tab refused of this aircraft, and that nothing was stored for it. */
+export interface RefusalFacts {
+  /** Its reasons for a repeated output. */
+  readonly problems: readonly string[];
+  readonly saveDisabled: boolean;
+  /** Its reasons for a ninth arm. */
+  readonly layoutErrors: readonly string[];
+  /** Versions of this profile stored afterwards. */
+  readonly versions: number;
+}
+/** The stopped run as the Experiments tab reopens it. */
+export interface ReopenFacts {
+  readonly listed: number;
+  readonly recordId: string;
+  /** The detail's Recording line. */
+  readonly recordingText: string;
+  readonly profileText: string;
+  /** Rows read back from the stored recording. */
+  readonly truthRows: number;
+  readonly missingChunks: number;
+  readonly corruptChunks: number;
 }
 /** Each setting written through the Parameters tab, as its history row and parameter table show it. */
 export interface TuningFacts {
@@ -180,8 +210,11 @@ export interface StopFacts {
 export interface StepFacts {
   readonly profile: ProfileFacts;
   readonly mapping: MappingFacts;
+  readonly refusal: RefusalFacts;
   readonly start: StartFacts;
   readonly tuning: TuningFacts;
+  readonly parameters: TuningFacts;
+  readonly reopen: ReopenFacts;
   readonly motorCheck: MotorCheckFacts;
   readonly hold: HoldFacts;
   readonly pause: PauseFacts;
@@ -366,6 +399,13 @@ const FACTS: { readonly [S in StepId]: (shape: Shape) => StepFacts[S] } = {
     sha256: sha(s.get('sha256')), version: s.get('version').number(), motors: s.get('motors').number(), differences: strings(s.get('differences')),
   }),
   mapping: s => ({ frame: s.get('frame').string(), outputs: s.get('outputs').list(pair) }),
+  refusal: s => ({ problems: strings(s.get('problems')), saveDisabled: s.get('saveDisabled').boolean(), layoutErrors: strings(s.get('layoutErrors')), versions: s.get('versions').number() }),
+  parameters: s => ({
+    writes: s.get('writes').list(write => ({ name: write.get('name').string(), value: write.get('value').number(), outcome: write.get('outcome').string(),
+      rebootRequired: write.get('rebootRequired').boolean(), shown: write.get('shown').string() })),
+  }),
+  reopen: s => ({ listed: s.get('listed').number(), recordId: s.get('recordId').string(), recordingText: s.get('recordingText').string(), profileText: s.get('profileText').string(),
+    truthRows: s.get('truthRows').number(), missingChunks: s.get('missingChunks').number(), corruptChunks: s.get('corruptChunks').number() }),
   start: s => ({
     ready: s.get('ready').string(), readyAtSimS: s.get('readyAtSimS').number(), recordSha256: sha(s.get('recordSha256')),
     profileSha256: sha(s.get('profileSha256')), physicsHz: s.get('physicsHz').number(), clockMode: s.get('clockMode').string(),
@@ -420,7 +460,8 @@ export function parseNominalRun(value: unknown): NominalRun {
     browser: { version: s.get('browser').get('version').string(), userAgent: s.get('browser').get('userAgent').string(),
       headless: s.get('browser').get('headless').boolean(), renderer: s.get('browser').get('renderer').string() },
     steps: {
-      profile: step('profile', steps.get('profile')), mapping: step('mapping', steps.get('mapping')), start: step('start', steps.get('start')),
+      profile: step('profile', steps.get('profile')), mapping: step('mapping', steps.get('mapping')), refusal: step('refusal', steps.get('refusal')), start: step('start', steps.get('start')),
+      parameters: step('parameters', steps.get('parameters')), reopen: step('reopen', steps.get('reopen')),
       tuning: step('tuning', steps.get('tuning')), motorCheck: step('motorCheck', steps.get('motorCheck')), hold: step('hold', steps.get('hold')), pause: step('pause', steps.get('pause')),
       landing: step('landing', steps.get('landing')), stop: step('stop', steps.get('stop')),
     },
@@ -485,6 +526,32 @@ function checks(run: NominalRun, configuration: NominalConfiguration): { readonl
       }
       if (f.motors !== configuration.motors) reasons.push(`${f.motors} motors, not ${configuration.motors}`);
       for (const difference of f.differences) reasons.push(`the profile: ${difference}`);
+      return reasons;
+    },
+    refusal: f => {
+      const reasons: string[] = [];
+      if (!f.problems.some(problem => /is assigned to motors/.test(problem))) reasons.push(`a repeated output was not refused: ${JSON.stringify(f.problems)}`);
+      if (!f.saveDisabled) reasons.push('Save stayed enabled with a repeated output');
+      if (!f.layoutErrors.some(error => /1 to 8 arms/.test(error))) reasons.push(`a ninth arm was not refused: ${JSON.stringify(f.layoutErrors)}`);
+      if (f.versions !== 1) reasons.push(`${f.versions} versions of the profile stored after the refusals, not 1`);
+      return reasons;
+    },
+    parameters: f => {
+      const reasons: string[] = [], write = f.writes.find(item => item.name === PARAMETER_CHANGE.name);
+      if (f.writes.length !== 1 || !write) return [`${f.writes.length} writes, not the one of ${PARAMETER_CHANGE.name}`];
+      if (write.value !== PARAMETER_CHANGE.value) reasons.push(`${write.name} written as ${write.value}`);
+      if (write.outcome !== 'confirmed') reasons.push(`${write.name} write ${write.outcome}, not confirmed`);
+      if (write.rebootRequired) reasons.push(`${write.name} needs a restart`);
+      if (Number.parseFloat(write.shown) !== PARAMETER_CHANGE.value) reasons.push(`the table shows ${write.name} as ${write.shown}`);
+      return reasons;
+    },
+    reopen: f => {
+      const reasons: string[] = [];
+      if (f.listed !== 1) reasons.push(`${f.listed} experiments listed, not 1`);
+      if (!f.recordingText.includes(f.recordId)) reasons.push(`the detail does not name the recording: ${f.recordingText}`);
+      if (!f.profileText.includes(configuration.recipe)) reasons.push(`the detail names another aircraft: ${f.profileText}`);
+      if (f.truthRows < 1) reasons.push('no position rows read back from the recording');
+      if (f.missingChunks > 0 || f.corruptChunks > 0) reasons.push(`${f.missingChunks} missing and ${f.corruptChunks} corrupt chunks`);
       return reasons;
     },
     mapping: f => {
@@ -580,12 +647,16 @@ function checks(run: NominalRun, configuration: NominalConfiguration): { readonl
 
 /** Why a flight's capture cannot stand as its evidence: its DataFlash file and its recording. */
 function captureReasons(run: NominalRun): string[] {
-  const reasons: string[] = [], { dataflash, recording } = run.captures, allowed: readonly string[] = CRITERIA.dataflashStatuses;
+  const reasons: string[] = [], { dataflash } = run.captures, allowed: readonly string[] = CRITERIA.dataflashStatuses;
   if (dataflash.length === 0) reasons.push('the run left no DataFlash file');
   for (const file of dataflash) {
     if (!allowed.includes(file.status)) reasons.push(`DataFlash ${file.name}: ${file.status}`);
     if (!file.firmwareMatchesBuild) reasons.push(`DataFlash ${file.name}: its VER record does not name the build`);
   }
+  return [...reasons, ...recordingReasons(run)];
+}
+function recordingReasons(run: NominalRun): string[] {
+  const reasons: string[] = [], { recording } = run.captures;
   if (!recording) reasons.push('the run left no recording');
   else {
     if (recording.status !== 'closed') reasons.push(`the recording is ${recording.status}, not closed`);
@@ -644,6 +715,10 @@ export function judgeRun(run: NominalRun): { readonly [W in NominalWorkflow]: Wo
     'profile-creation': workflow('profile-creation'), 'output-mapping': workflow('output-mapping'), start: workflow('start'),
     'flight-task': judged('flight-task', () => [...captureReasons(run), ...flownSettingsReasons(run), ...steadinessReasons(steady?.hold, 'the hold')]),
     'pause-resume': judged('pause-resume', () => steadinessReasons(steady?.afterResume, 'the hold after Resume')),
+    'parameter-changes': workflow('parameter-changes'),
+    recording: judged('recording', () => recordingReasons(run)),
+    'reopen-results': workflow('reopen-results'),
+    'unsupported-refusal': workflow('unsupported-refusal'),
   };
 }
 

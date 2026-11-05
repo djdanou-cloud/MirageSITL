@@ -31,6 +31,7 @@ const PASSING = {
     } },
     mapping: { error: null, facts: { frame: 'Stock frame: FRAME_CLASS 1, FRAME_TYPE 1, 4-channel servo packets.',
       outputs: [1, 2, 3, 4].map(motor => ({ motor, output: motor })) } },
+    refusal: { error: null, facts: { problems: ['Output 1 is assigned to motors 1 and 4.'], saveDisabled: true, layoutErrors: ['The layout needs 1 to 8 arms.'], versions: 1 } },
     start: { error: null, facts: {
       ready: 'READY', readyAtSimS: 41.1, recordSha256: SHA('b'), profileSha256: SHA('a'), physicsHz: 800, clockMode: 'sitl-lockstep', speedup: 1,
       firmware: { id: 'arducopter-8ab6afde', firmwareVersion: 'ArduCopter V4.8.0-dev', commit: '8ab6afde107a91df1b5f60ade8f333cb8a61b190',
@@ -39,6 +40,7 @@ const PASSING = {
     } },
     // The quad's one tuned setting (decision of 2026-11-04), typed into the Parameters tab after READY.
     tuning: { error: null, facts: { writes: [{ name: 'INS_GYRO_FILTER', value: 40, outcome: 'confirmed', rebootRequired: false, shown: '40' }] } },
+    parameters: { error: null, facts: { writes: [{ name: 'RTL_ALT_FINAL_M', value: 1, outcome: 'confirmed', rebootRequired: false, shown: '1' }] } },
     motorCheck: { error: null, facts: { state: 'passed', summary: 'All 4 motors turn as the profile and ArduPilot\'s frame expect.',
       rows: [[1, 1], [2, 4], [3, 2], [4, 3]].map(([order, motor]) => ({ order, motor, output: motor, pass: true })) } },
     hold: { error: null, facts: hold(READINGS) },
@@ -49,6 +51,7 @@ const PASSING = {
     landing: { error: null, facts: { mode: 'LAND', armed: 'Disarmed', state: 'ready', ready: 'READY', altitudeM: 0.1, restAltitudeM: 0.1012,
       frames: '81920 stepped, 0 lost, 1 resent, 25 held', failsafeMessages: [] } },
     stop: { error: null, facts: { state: 'idle', text: 'Idle: the run stopped.', launcherState: 'stopped', group: '', members: [], signalZero: 'ESRCH', processes: 0 } },
+    reopen: { error: null, facts: { listed: 1, recordId: 'r1', recordingText: '50 Hz common rate, record r1', profileText: 'Quad X, version 1', truthRows: 5000, missingChunks: 0, corruptChunks: 0 } },
   },
   captures: {
     launcherExperimentId: 'e1', dataflash: [{ name: '00000001.BIN', bytes: 1048576, sha256: SHA('e'), status: 'truncated', records: 52000, truncatedBytes: 12,
@@ -126,7 +129,8 @@ describe('the verdicts of a nominal run (TASK-158)', () => {
       const judged = judgeRun(withFacts(id, edit));
       expect(judged[workflow as keyof typeof judged].verdict, `${id} → ${workflow}`).toBe('FAIL');
       expect(judged[workflow as keyof typeof judged].reasons.join(' | '), `${id} → ${workflow}`).toMatch(reason);
-      for (const other of NOMINAL_WORKFLOWS) if (other !== workflow) expect(judged[other].verdict, `${id}: ${other}`).toBe('PASS');
+      // A run that does not stop cleanly also leaves its recording in doubt, so that step stands behind both.
+      for (const other of NOMINAL_WORKFLOWS) if (other !== workflow && !(id === 'stop' && other === 'recording')) expect(judged[other].verdict, `${id}: ${other}`).toBe('PASS');
     }
     // The card made with a datasheet source instead of the example's illustrative one also fails.
     expect(judgeRun(withFacts('profile', f => { (f.cards as Mutable[])[3] = { ...(f.cards as Mutable[])[3], sourceKind: 'measured' }; }))['profile-creation'].reasons)
@@ -141,7 +145,36 @@ describe('the verdicts of a nominal run (TASK-158)', () => {
     expect(judged['flight-task']).toEqual({ verdict: 'FAIL', reasons: ['hold: Timed out waiting for Flying', 'landing not reached: hold failed'] });
     expect(judged['pause-resume']).toEqual({ verdict: 'NOT_RUN', reasons: ['pause not reached: hold failed'] });
     // The stop after a failure still counts for the start workflow.
-    expect(verdicts(parseNominalRun(copy))).toEqual({ 'profile-creation': 'PASS', 'output-mapping': 'PASS', start: 'PASS', 'flight-task': 'FAIL', 'pause-resume': 'NOT_RUN' });
+    expect(verdicts(parseNominalRun(copy))).toEqual({ 'profile-creation': 'PASS', 'output-mapping': 'PASS', start: 'PASS', 'flight-task': 'FAIL', 'pause-resume': 'NOT_RUN',
+      'parameter-changes': 'PASS', recording: 'PASS', 'reopen-results': 'PASS', 'unsupported-refusal': 'PASS' });
+  });
+
+  it('judges the parameter, recording, reopening and refusal workflows of TASK-188 from their own facts', () => {
+    const cases: [StepId, (facts: Mutable) => void, string, RegExp][] = [
+      ['refusal', f => { f.problems = ['Arm 1 length is not a decimal number']; }, 'unsupported-refusal', /a repeated output was not refused/],
+      ['refusal', f => { f.saveDisabled = false; }, 'unsupported-refusal', /Save stayed enabled/],
+      ['refusal', f => { f.layoutErrors = []; }, 'unsupported-refusal', /a ninth arm was not refused/],
+      ['refusal', f => { f.versions = 2; }, 'unsupported-refusal', /2 versions of the profile stored/],
+      ['parameters', f => { f.writes = []; }, 'parameter-changes', /0 writes, not the one of RTL_ALT_FINAL_M/],
+      ['parameters', f => { f.writes = [{ name: 'RTL_ALT_FINAL_M', value: 1, outcome: 'refused', rebootRequired: false, shown: '1' }]; }, 'parameter-changes', /write refused, not confirmed/],
+      ['parameters', f => { f.writes = [{ name: 'RTL_ALT_FINAL_M', value: 1, outcome: 'confirmed', rebootRequired: true, shown: '1' }]; }, 'parameter-changes', /needs a restart/],
+      ['parameters', f => { f.writes = [{ name: 'RTL_ALT_FINAL_M', value: 1, outcome: 'confirmed', rebootRequired: false, shown: '0' }]; }, 'parameter-changes', /the table shows RTL_ALT_FINAL_M as 0/],
+      ['reopen', f => { f.listed = 2; }, 'reopen-results', /2 experiments listed/],
+      ['reopen', f => { f.recordingText = 'None'; }, 'reopen-results', /does not name the recording/],
+      ['reopen', f => { f.profileText = 'Hexa X, version 1'; }, 'reopen-results', /names another aircraft/],
+      ['reopen', f => { f.truthRows = 0; }, 'reopen-results', /no position rows/],
+      ['reopen', f => { f.corruptChunks = 1; }, 'reopen-results', /1 corrupt chunks/],
+    ];
+    for (const [id, edit, workflow, reason] of cases) {
+      const judged = judgeRun(withFacts(id, edit));
+      expect(judged[workflow as keyof typeof judged].verdict, `${id} → ${workflow}`).toBe('FAIL');
+      expect(judged[workflow as keyof typeof judged].reasons.join(' | '), `${id} → ${workflow}`).toMatch(reason);
+      for (const other of NOMINAL_WORKFLOWS) if (other !== workflow) expect(judged[other].verdict, `${id}: ${other}`).toBe('PASS');
+    }
+    // A recording that was not closed, or dropped rows, fails its own workflow by the capture's facts.
+    const copy = JSON.parse(JSON.stringify(PASSING)) as { captures: Mutable };
+    copy.captures.recording = { ...PASSING.captures.recording, droppedChunks: 1 };
+    expect(judgeRun(parseNominalRun(copy)).recording).toEqual({ verdict: 'FAIL', reasons: ['the recording dropped 1 chunks and 0 rows'] });
   });
 
   it('reports the speed and the power panel without judging them', () => {
@@ -237,7 +270,8 @@ describe('the verdicts of a nominal run (TASK-158)', () => {
     for (const [edit, reason] of cases) {
       const judged = judgeRun(captured(edit));
       expect(judged['flight-task'], reason).toEqual({ verdict: 'FAIL', reasons: [reason] });
-      for (const other of NOMINAL_WORKFLOWS) if (other !== 'flight-task') expect(judged[other].verdict, `${reason}: ${other}`).toBe('PASS');
+      // A recording that fails the flight's evidence fails the recording workflow too.
+      for (const other of NOMINAL_WORKFLOWS) if (other !== 'flight-task' && !(reason.startsWith('the r') && other === 'recording')) expect(judged[other].verdict, `${reason}: ${other}`).toBe('PASS');
     }
     // A complete log and declared producer gaps pass: the gaps belong to the recording workflow's tasks.
     expect(judgeRun(captured(c => { c.dataflash = file({ status: 'complete', truncatedBytes: 0 }); c.recording = { ...PASSING.captures.recording, producerLost: 2 }; }))['flight-task'].verdict).toBe('PASS');
@@ -253,7 +287,7 @@ describe('the verdicts of a nominal run (TASK-158)', () => {
 
   it('refuses a run file with a missing, mistyped or unknown field', () => {
     const broken: [string, (run: Mutable) => void, RegExp][] = [
-      ['schema', run => { run.schema = 'mirage-phase1-nominal-run/0'; }, /run.schema is not mirage-phase1-nominal-run\/1/],
+      ['schema', run => { run.schema = 'mirage-phase1-nominal-run/0'; }, /run.schema is not mirage-phase1-nominal-run\/2/],
       ['settings', run => { run.settings = 'tuned'; }, /run.settings is not one of acceptance, stock/],
       ['configuration', run => { run.configuration = 'tri'; }, /run.configuration is not one of quad, hexa/],
       ['a hash', run => { ((run.steps as Mutable).start as { facts: Mutable }).facts.recordSha256 = 'abc'; }, /abc is not a SHA-256/],

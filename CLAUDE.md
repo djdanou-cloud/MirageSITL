@@ -507,7 +507,10 @@ implementation.
   ten sensor and link faults reach stock native ArduCopter on the path that owns each reading
   (the state line, ArduPilot's own fault parameters, the bridge), with truth bitwise untouched,
   and motor faults act on the profile dynamics; ArduPilot's response is recorded, not predicted,
-  and they have no tab until TASK-169. ArduPilot's own SITL
+  and they have no tab until TASK-169. TASK-188 is DONE: `node scripts/phase1/acceptance.mjs`
+  checks every matrix cell against its evidence and refuses what is forged, missing or stale,
+  and `node scripts/phase1/nominal-flight.mjs` gives nine workflows per configuration, so 45 of
+  the 51 cells pass on the A-01 machine. ArduPilot's own SITL
   errors keep the TASK-089 setting, whose default is ArduPilot's behaviour. That request of 2026-10-27 was first
   registered as TASK-124 on the physics-review branch, a number main already used.
   MirageSITL stays an external

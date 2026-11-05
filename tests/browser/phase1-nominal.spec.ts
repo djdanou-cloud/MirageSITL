@@ -11,7 +11,7 @@ import { build, createProject, panel as aircraftPanel } from "../support/aircraf
 import { field, groupMembers, launcherCall, launcherExperiments, processesNaming, psGroup, signalZeroCode, stopEveryRun } from "../support/run-tab";
 import { viteFileUrl } from "../support/vite-url";
 import {
-  CARD_TYPES, CRITERIA, NOMINAL_CONFIGURATIONS, RUN_SCHEMA, STEPS, STOCK_SETTINGS, judgeRun, parseNominalRun, plannedTuning, steadinessOf,
+  CARD_TYPES, CRITERIA, NOMINAL_CONFIGURATIONS, RUN_SCHEMA, STEPS, STOCK_SETTINGS, judgeRun, parseNominalRun, PARAMETER_CHANGE, plannedTuning, steadinessOf,
   type CardType, type HoldFacts, type NominalConfiguration, type Steadiness, type StepFacts, type StepId,
 } from "../../scripts/phase1/nominal-rules";
 
@@ -205,7 +205,7 @@ async function recording(page: Page, recordId: string): Promise<unknown> {
 /** Each step's record as the run file holds it; parseNominalRun checks the file before any verdict. */
 class Steps {
   readonly records: Record<StepId, { readonly facts: unknown; readonly error: string | null } | null> = {
-    profile: null, mapping: null, start: null, tuning: null, motorCheck: null, hold: null, pause: null, landing: null, stop: null };
+    profile: null, mapping: null, refusal: null, start: null, tuning: null, parameters: null, motorCheck: null, hold: null, pause: null, landing: null, stop: null, reopen: null };
   failed = false;
   /** Runs a step unless an earlier one failed (`always` runs it anyway); an exception ends it with its message as the error. */
   async run<S extends StepId>(id: S, body: () => Promise<StepFacts[S]>, always = false): Promise<void> {
@@ -337,6 +337,24 @@ async function fly(page: Page, browserVersion: string, configuration: NominalCon
       return { frame: frame.trim(), outputs };
     });
 
+    // TASK-188: what this aircraft's tab refuses, and that nothing is stored for it.
+    await steps.run("refusal", async () => {
+      const tab = aircraftPanel(page), problems = tab.getByRole("list", { name: "Problems to fix before saving" });
+      const outputs = tab.getByLabel("ArduPilot output", { exact: true });
+      await outputs.nth(1).fill(await outputs.nth(0).inputValue());
+      await expect(problems).toContainText("is assigned to motors");
+      const problemTexts = await problems.getByRole("listitem").allTextContents();
+      const saveDisabled = await tab.getByRole("button", { name: "Save profile", exact: true }).isDisabled();
+      await tab.getByLabel("Number of arms", { exact: true }).fill("9");
+      await tab.getByRole("button", { name: "Lay out arms", exact: true }).click();
+      const layout = tab.getByRole("list", { name: "Layout errors" });
+      await expect(layout).toContainText("1 to 8 arms");
+      const layoutErrors = await layout.getByRole("listitem").allTextContents();
+      await tab.getByRole("button", { name: "Discard changes", exact: true }).click();
+      const versions = (await storedItems(page, "aircraft-profile")).filter(item => item.name === recipe.name);
+      return { problems: problemTexts, saveDisabled, layoutErrors, versions: versions.length };
+    });
+
     await steps.run("start", async () => {
       await page.getByRole("tab", { name: "Run", exact: true }).click();
       await page.getByRole("radio", { name: "ArduPilot SITL" }).check();
@@ -373,8 +391,9 @@ async function fly(page: Page, browserVersion: string, configuration: NominalCon
       };
     });
 
-    await steps.run("tuning", async () => {
-      const writes: StepFacts["tuning"]["writes"][number][] = [], planned = plannedTuning({ configuration: configuration.id, settings: SETTINGS });
+    /** Writes each through the Parameters tab, as a user would, and comes back to the Run tab. */
+    const writeParameters = async (planned: readonly { readonly name: string; readonly value: number }[]) => {
+      const writes: StepFacts["tuning"]["writes"][number][] = [];
       if (planned.length === 0) return { writes };
       await page.getByRole("tab", { name: "Parameters", exact: true }).click();
       const panel = page.getByRole("tabpanel", { name: "Parameters", exact: true });
@@ -393,7 +412,10 @@ async function fly(page: Page, browserVersion: string, configuration: NominalCon
       }
       await page.getByRole("tab", { name: "Run", exact: true }).click();
       return { writes };
-    });
+    };
+    await steps.run("tuning", () => writeParameters(plannedTuning({ configuration: configuration.id, settings: SETTINGS })));
+    // TASK-188: the parameter change every configuration makes, which this flight does not read.
+    await steps.run("parameters", () => writeParameters([PARAMETER_CHANGE]));
 
     await steps.run("motorCheck", async () => {
       const check = runTab.getByTestId("motor-check"), button = check.getByRole("button");
@@ -482,6 +504,27 @@ async function fly(page: Page, browserVersion: string, configuration: NominalCon
       return { state: (await stage.getAttribute("data-state")) ?? "", text: await text("sitl-stage"), launcherState: run?.state ?? "missing",
         group: psGroup(runPid), members: groupMembers(runPid), signalZero: signalZeroCode(runPid), processes: processesNaming(home).length };
     }, true);
+
+    // TASK-188: the stopped run, as the Experiments tab reopens it, and its recording read back.
+    await steps.run("reopen", async () => {
+      await page.getByRole("tab", { name: "Experiments", exact: true }).click();
+      const panel = page.getByRole("tabpanel", { name: "Experiments", exact: true }), rows = panel.getByTestId("experiment-list").locator("tbody tr");
+      await expect(rows.first()).toBeVisible({ timeout: 30_000 });
+      const listed = await rows.count();
+      await rows.first().getByRole("button").click();
+      const detail = panel.getByTestId("experiment-detail");
+      await expect(detail).toBeVisible();
+      const line = async (name: string) => (await detail.locator("dt", { hasText: name }).locator("+ dd").textContent()) ?? "";
+      const record = await experimentRecord(page, projectId), id = field(record.payload, "recording", "recordId");
+      if (typeof id !== "string") throw new Error("The experiment names no recording");
+      await recording(page, id);
+      const opened = await page.evaluate(async ({ urls, id }) => {
+        const { reopenRecording } = await import(urls.recordings) as Recordings;
+        const reopened = await reopenRecording(id);
+        return { truthRows: reopened.rows.get("truth.position")?.length ?? 0, missingChunks: reopened.missingChunks.length, corruptChunks: reopened.corruptChunks.length };
+      }, { urls, id });
+      return { listed, recordId: id, recordingText: await line("Recording"), profileText: await line("Aircraft profile"), ...opened };
+    });
   } finally {
     // A failed step may leave the run going; stop it through the API before closing the launcher.
     await stopEveryRun(launcher.port, token, ORIGIN).catch(() => undefined);

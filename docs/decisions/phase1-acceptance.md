@@ -132,7 +132,12 @@ preserved. TASK-158 writes the profile-creation, output-mapping, start,
 flight-task and pause-resume cells of each configuration from
 `node scripts/phase1/nominal-flight.mjs`, only on the A-01 machine. Each cell
 cites its configuration's evidence report in
-`test-results/validation/phase1-nominal/` with the report's SHA-256.
+`test-results/validation/phase1-nominal/` with the report's SHA-256. TASK-188
+adds the parameter-changes, recording, reopen-results and unsupported-refusal
+cells to the same run, and `node scripts/phase1/acceptance.mjs` checks every cell
+against its evidence: a forged, missing or invalid report is refused and fails
+the matrix, a stale one leaves its cell to run, and a failure stays a failure
+while its report stands.
 
 ## Recording a decision
 

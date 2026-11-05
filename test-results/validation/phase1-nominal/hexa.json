@@ -9,7 +9,7 @@
     "tuning": []
   },
   "settings": "acceptance",
-  "recordedAt": "2026-11-04T20:01:03.934Z",
+  "recordedAt": "2026-11-05T02:33:43.113Z",
   "criteria": {
     "physicsHz": 800,
     "speedup": 1,
@@ -55,14 +55,14 @@
     "lowPowerMode": true,
     "loadAverages": {
       "before": [
-        1.21044921875,
-        1.4287109375,
-        1.58251953125
+        1.92822265625,
+        1.51171875,
+        1.3408203125
       ],
       "after": [
-        2.33544921875,
-        1.85498046875,
-        1.6611328125
+        1.43994140625,
+        1.45703125,
+        1.37890625
       ]
     }
   },
@@ -79,122 +79,292 @@
     "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)"
   },
   "application": {
-    "commit": "9d490589c39291db7edbfb64ddfdcb24bd04a602",
+    "commit": "feb91c916aeaa061e8f763c871e9f682cfbc5db4",
     "uncommitted": [
       {
         "status": " M",
+        "path": "CLAUDE.md",
+        "sha256": "9adb98e197019129e5d0ff5f92ed9ad2ff76469ac1f8a4630bbf4601c43bfb82"
+      },
+      {
+        "status": " M",
+        "path": "apps/web/src/instructor/Console.tsx",
+        "sha256": "a40703f160b92252216decbc860a169f9a3bcc4b70b5f17b64e0c153f3cf2535"
+      },
+      {
+        "status": " M",
+        "path": "apps/web/src/instructor/commands.ts",
+        "sha256": "4e4f0c5ea6c5110c293e1a3e4e27c3fd6c1412e05e6513873369e040e9864b41"
+      },
+      {
+        "status": " M",
+        "path": "apps/web/src/physics.worker.ts",
+        "sha256": "7e5fcc9c91bad67a8657e363c203bb7d55661b1c749649dc52419b3bb71f0b06"
+      },
+      {
+        "status": " M",
+        "path": "apps/web/src/run/session-controller.ts",
+        "sha256": "3401d7e6d15c4cc8f3e9da8265935160ba1d5b85677d52e723e5a0936cab32fd"
+      },
+      {
+        "status": " M",
+        "path": "apps/web/src/runtime.ts",
+        "sha256": "dc1d7c86c839c056f92bc36410d1cce8d1b0640d36b439233aaefe7517c93265"
+      },
+      {
+        "status": " M",
+        "path": "apps/web/src/sitl/bridge-client.ts",
+        "sha256": "3f82d8fb7bc120432b8147d8852e05af281bcd3c7f396a8936433eb578385cf6"
+      },
+      {
+        "status": " M",
+        "path": "apps/web/src/sitl/sitl-run.ts",
+        "sha256": "ef01399476fdbb75500ff63609bdb5e79586ca2af030b7d7e1a16ea758635733"
+      },
+      {
+        "status": " M",
+        "path": "apps/web/src/style.css",
+        "sha256": "c69c0a54fdcad9dec845d34cd3af632edc7f6406ea0dab400b9718c3619faa92"
+      },
+      {
+        "status": " M",
+        "path": "docs/PROJECT_ROADMAP.md",
+        "sha256": "108cbeebbf5507489fcaf73844af9960118898c4d32f5c6aa713bfd2626bb703"
+      },
+      {
+        "status": " M",
+        "path": "docs/SPECS_SHARED_MEMORY.md",
+        "sha256": "0e336c4f028547859a4168e0d712f22a79e583c0f7dd23ec33fbf548448f9417"
+      },
+      {
+        "status": " M",
         "path": "docs/SPECS_SIMULATION_ENGINES.md",
-        "sha256": "ca652aa695b9930fe9322c7377c24a7cbe609f387e1a48ce3620e7b2bc4315d4"
+        "sha256": "d49da98bdc20811cac154e377a6788b2dcaac60478b1c9e2f97360fe074db283"
+      },
+      {
+        "status": " M",
+        "path": "docs/architecture.md",
+        "sha256": "3dfbff32a796e8eb7205ff400d5b675945bfad33929cdd736267a002c10d851d"
+      },
+      {
+        "status": " M",
+        "path": "docs/ru/CLAUDE.md",
+        "sha256": "1c69736311784634b0aad7b430744bf7d7688961a05cd6ec5042f43a764a385f"
+      },
+      {
+        "status": " M",
+        "path": "docs/ru/PROJECT_ROADMAP.md",
+        "sha256": "71f3ee37bcc6ee780d102ba491baafe44d76f455aaf1c4fdee5e73e6bb86da05"
+      },
+      {
+        "status": " M",
+        "path": "docs/ru/SPECS_SHARED_MEMORY.md",
+        "sha256": "03c31bd2f6b31d1592b2171756a67b7cad37c8c3667cd8e02a89107450ddb568"
       },
       {
         "status": " M",
         "path": "docs/ru/SPECS_SIMULATION_ENGINES.md",
-        "sha256": "20c3940c842237c151985203f0a5b7efe6bb394d282c54d0fbe16510f27bbbd8"
+        "sha256": "d3876c534297c5497371244e43ba3ae1cf102e24cd51d61cde58c5b0d90783af"
       },
       {
         "status": " M",
-        "path": "native/bet/include/bet_bound.h",
-        "sha256": "8196dc88bae16dc7c4f27dd492459c759a3502086944e04c4d27ac6ccddd62c1"
+        "path": "docs/ru/architecture.md",
+        "sha256": "f0e9753cb9bc4ecde05ba19fe35872af143bde74013d25f5cf247f296a01bd67"
       },
       {
         "status": " M",
-        "path": "native/bet/src/battery.rs",
-        "sha256": "e86878b57f504b624f7b8e3868efe1408e3104934e189000adbb57e056ea31ec"
+        "path": "packages/autopilot/package.json",
+        "sha256": "42d9544b1c556a5008ffdc1eb7f24f3d762922c6de956a9ee7d3852e54ba6f4b"
       },
       {
         "status": " M",
-        "path": "native/bet/src/bound_v2.rs",
-        "sha256": "99e110c69b68330eb285c8a283e9e5c3bfe58d0dfefeff55d243385734e3a595"
+        "path": "packages/autopilot/src/sitl-link.ts",
+        "sha256": "b19364c07e19b27329e790d00353640cbccf764f4d696759c8577aa566e0b604"
       },
       {
         "status": " M",
-        "path": "native/bet/src/bus_abi.rs",
-        "sha256": "2252b2120362d8fcd2ca4726e8b77d9509455515c99be82d4dec7e1c7d3b1697"
+        "path": "packages/physics/package.json",
+        "sha256": "f87550b493d5ebca17a3cfd4256c3b7a3e8877f2da873dbf7660b3e085d129b6"
       },
       {
         "status": " M",
-        "path": "native/bet/src/lib.rs",
-        "sha256": "f035f27fd9dddbcbc6bc9a0bcb8262b77bfa6efa8f18b13357d8c08fa3427146"
-      },
-      {
-        "status": " M",
-        "path": "native/bet/src/motor.rs",
-        "sha256": "072258fc95a561cdb85e3f4098dd7829aa675119a9a20c5ee117a4c395667bb3"
-      },
-      {
-        "status": " M",
-        "path": "native/bet/tests/allocation.rs",
-        "sha256": "8a0dd49f8ebfbbc0ce1f6b3764b801f037416943c099a9e46e82964109a3f96f"
+        "path": "packages/physics/src/atmosphere.ts",
+        "sha256": "4f3d27f56ebd5460df8d098ea23d0da018467680c64f36414c7c494b79c7d1e9"
       },
       {
         "status": " M",
         "path": "packages/physics/src/bet-dynamics.ts",
-        "sha256": "a81a1aba61904bf5b05adb9f2cc411737a5e94fc0c71819cff15b4716dd55767"
+        "sha256": "42d8b146002b4505f9685249694461f1fd5a5350b108701708974dfb80e0d5f0"
       },
       {
         "status": " M",
-        "path": "packages/physics/src/thrust-capacity.ts",
-        "sha256": "7c76726cdb5b0f2c48c19e762ec7f7e025615f4f26cdaa4ba63f837eeae4f67a"
+        "path": "packages/physics/src/session-v2.ts",
+        "sha256": "60b1cb50b53d1a3740d42af631c81657449889f3308d21f3ce6dfbbba9bdc5a6"
       },
       {
         "status": " M",
-        "path": "packages/wasm-bet/src/rotor-v2.ts",
-        "sha256": "c7a686676317466915d55471c419bdda403b66fdf33b9a36256e487dd578c4ec"
+        "path": "packages/physics/src/wind.ts",
+        "sha256": "1b09b98f4c5bfd95a270fa3f6adf9a2fc8f8487d12a994c211bbf53f1a537295"
+      },
+      {
+        "status": " M",
+        "path": "packages/protocol/src/control-v2.schema.json",
+        "sha256": "2c5afc141a154b605964f4481242b4df9e1085511d520a16ae83af09330cc306"
+      },
+      {
+        "status": " M",
+        "path": "packages/protocol/src/control-v2.ts",
+        "sha256": "e71882232bac43154c3218ebf270830cf589d3f1cdc4709ef0875cf07506df6c"
+      },
+      {
+        "status": " M",
+        "path": "packages/protocol/src/index.ts",
+        "sha256": "c954efd8fa2e65005ca649f078a0be7152fe4f9257550666c1ae34cc157fae6d"
+      },
+      {
+        "status": " M",
+        "path": "packages/scenarios/src/bind.ts",
+        "sha256": "ac32da12248223cade97f3a8572fca9f4905a9edbb06ae8c8ef6a7777df38ba0"
+      },
+      {
+        "status": " M",
+        "path": "packages/scenarios/src/schema.ts",
+        "sha256": "b99bbf0207a3d45d286781dcad1f8641b96732eb7a06f9b4d19ae7bb32be14e1"
+      },
+      {
+        "status": " M",
+        "path": "packages/test-support/src/prng.ts",
+        "sha256": "4ddb70178a81f5698b684fb2694ce837f716102fa840b4edf04c9734381cfd9a"
+      },
+      {
+        "status": " M",
+        "path": "scripts/bench-wind.mjs",
+        "sha256": "0b1e65adbecf7ee36d2e5adb44bb9a8968ad2607c121f464d95ebd3adeb79cc7"
+      },
+      {
+        "status": " M",
+        "path": "scripts/build-wasm.mjs",
+        "sha256": "59740c5604971741f310bdf880e78e77ea886608fb0ce1ca47f95f54590a37d3"
       },
       {
         "status": " M",
         "path": "scripts/check-bet-runtime.mjs",
-        "sha256": "c5f603030be2d0c880720b408f1800cda1fc21ad776d675901f1c912c160202d"
+        "sha256": "401464d6d9969ba04b56fbb001f307071afa359c20e3ccf64704b42b35d4a54c"
       },
       {
         "status": " M",
-        "path": "tests/browser/native-bootstrap.spec.ts",
-        "sha256": "920abb720e469e3f4ba24f2c3f7f4132efb90a42ae553303439293bfaf9be416"
+        "path": "scripts/phase1/nominal-rules.ts",
+        "sha256": "fd983873987f42474ee4f4a0d2460e4e2bec6064821574bfcaa743472bedb457"
+      },
+      {
+        "status": " M",
+        "path": "test-results/bench/wind.json",
+        "sha256": "a0bdb48cbdce9267dd97f1429b811dab06818e953244c80153687f4b8d3150b1"
+      },
+      {
+        "status": " M",
+        "path": "tests/browser/instructor.spec.ts",
+        "sha256": "b7bd9c165309cb16dbdb28a0789764327300fbf741405bb399277b0d889cf655"
+      },
+      {
+        "status": " M",
+        "path": "tests/browser/phase1-nominal.spec.ts",
+        "sha256": "69c2ee549cb6b814d2c88404465a79c166adbe454f2312ba843d0ef166a905e5"
+      },
+      {
+        "status": " M",
+        "path": "tests/control-v2.test.ts",
+        "sha256": "50d1e52ec89961f1a731ad33e64965238498d87b3466d5d83a05f80ba2cb7a6b"
+      },
+      {
+        "status": " M",
+        "path": "tests/fixtures.test.ts",
+        "sha256": "0b0b9fed61c72f6fead32292c31634b25ec2ec48e7df3dd90c0e7ae0517eb3e8"
       },
       {
         "status": " M",
         "path": "tests/fixtures/registry.json",
-        "sha256": "e03d2e442338aa9ecd0228fd9025cb3d028eb3ec7618bb0c926504137cc86e60"
+        "sha256": "be9c80583dc6a771e0ee562cdfb10b67bea84e440652df7d87d8efcf414e2b2c"
       },
       {
         "status": " M",
-        "path": "tests/fixtures/wasm-abi/generate.py",
-        "sha256": "8197dae4c02c6bd0491473807fb09f4733c6057f7af5e3903852171f5694b7f8"
+        "path": "tests/integration/phase1-nominal.test.ts",
+        "sha256": "8c3ee823a9308fae1b8a14884b4217447a3833030a51a2afde811dcdc2bcbbd9"
       },
       {
         "status": " M",
-        "path": "tests/fixtures/wasm-abi/interface-v2.json",
-        "sha256": "7a5a48ae03148f11f3eed55c364c2d0af35fb8f509520ebf9b78d698e854248e"
+        "path": "tests/run-controller.test.ts",
+        "sha256": "2a17a33f887f14922aa1e67c1f442366aa4dbb016d9c51373c5914cb6d27b557"
       },
       {
         "status": " M",
-        "path": "tests/limit-monitor.test.ts",
-        "sha256": "20c34f55e8d874327585dacdce4eba8beb9ba6a3966113d0ebafb0b70ab7adf0"
-      },
-      {
-        "status": " M",
-        "path": "tests/thrust-capacity.test.ts",
-        "sha256": "ffc17ce30c3460bfef63738691c7e1793a40d256461db083a4f8279cca20a052"
-      },
-      {
-        "status": " M",
-        "path": "tests/wasm-abi-v2.test.ts",
-        "sha256": "cfacac64f21bc05585b998dd506b6bb278b6921bec2d6299c82684cd2eab863c"
+        "path": "tests/weather-plumbing.test.ts",
+        "sha256": "b8d96f5d08c6d96fd271c815e706b4fd2e22c1bfa9199936230c21f904243815"
       },
       {
         "status": "??",
-        "path": "native/bet/src/bus_solve.rs",
-        "sha256": "fa4cbf276319e6eeaf2894fc94a881227168a1a7c4fafd8292366bb7f8ece11b"
+        "path": "packages/autopilot/src/fault-effects.ts",
+        "sha256": "2ef1b95f5b87eaf25499f24361a9219d4cb07c8474d4aa50ab67ad9d7e5a94d2"
       },
       {
         "status": "??",
-        "path": "native/bet/tests/bus_solve.rs",
-        "sha256": "8e59086c8591900ba56804742bc365abe46dd59097cefca3214daeab5f9ed5f4"
+        "path": "packages/physics/src/turbulence.ts",
+        "sha256": "c5c1c9f133c74b8b1df7f90752f27b4ec8d3b23c4f16433b061f5c3e3f881349"
       },
       {
         "status": "??",
-        "path": "tests/bus-coupling.test.ts",
-        "sha256": "89a49abeb67bf861b8c9e944d75acfec9177eaa423751e72090d410c1d2f9e9c"
+        "path": "packages/protocol/src/control-v3.schema.json",
+        "sha256": "2ca13543a8966c85f9b68a6478c0c6eca2fc81277ab4f702b52e40608d930971"
+      },
+      {
+        "status": "??",
+        "path": "packages/protocol/src/control-v3.ts",
+        "sha256": "4bc8a43d6e0fd01c71afd40b85ed74ee65dc4789781c38f80d63ec2e9e64a75a"
+      },
+      {
+        "status": "??",
+        "path": "scripts/phase1/acceptance-rules.ts",
+        "sha256": "c3d1843c968ada9e0010ed3d71b68708b7f83c8e2cc6c454f9fe1b7c32ca3a15"
+      },
+      {
+        "status": "??",
+        "path": "scripts/phase1/acceptance.mjs",
+        "sha256": "3cc02434a7ab10475235d2bcef2eccfcee09dd5e5578e2dd7794319d52b7d3c3"
+      },
+      {
+        "status": "??",
+        "path": "tests/control-v3.test.ts",
+        "sha256": "20a06c3fe57094679f3e8cc5c8e063d9bf44f8d12e8e3c460747d476b98d72e7"
+      },
+      {
+        "status": "??",
+        "path": "tests/delivery-effects.test.ts",
+        "sha256": "f3a16df7bf200e4f4aa448beb78b78e03c4cd5b122275ed0784a31e2cf6177ca"
+      },
+      {
+        "status": "??",
+        "path": "tests/effect-controls.test.ts",
+        "sha256": "f3fadcd5467666340a555c2009fa14d78caa0c69cbf6d0fc7023cb92edab86e4"
+      },
+      {
+        "status": "??",
+        "path": "tests/fixtures/protocol/control-v3.json",
+        "sha256": "bf38c751e697d202fb905cfbeb862604c3c1f69017fe0684da348f92c802a547"
+      },
+      {
+        "status": "??",
+        "path": "tests/phase1-acceptance.test.ts",
+        "sha256": "ed717f29b4861ee897c740462aa7626581413906117df036cd786547805a3f89"
+      },
+      {
+        "status": "??",
+        "path": "tests/sitl-fault-effects.test.ts",
+        "sha256": "dfb03ec926316ee0c3ea37c56f3da0b1a704279f2d2003fe5aa5ea09c0f40ca4"
+      },
+      {
+        "status": "??",
+        "path": "tests/turbulence.test.ts",
+        "sha256": "9b1a33ca83528c9629f4ccb43339946d34b751df59bfc0d46aebeb9c6c757153"
       }
     ]
   },
@@ -225,50 +395,66 @@
     "pause-resume": {
       "verdict": "PASS",
       "reasons": []
+    },
+    "parameter-changes": {
+      "verdict": "PASS",
+      "reasons": []
+    },
+    "recording": {
+      "verdict": "PASS",
+      "reasons": []
+    },
+    "reopen-results": {
+      "verdict": "PASS",
+      "reasons": []
+    },
+    "unsupported-refusal": {
+      "verdict": "PASS",
+      "reasons": []
     }
   },
   "captures": {
     "run": {
-      "path": "test-results/phase1/nominal/2026-11-04T19-56-03-066Z/hexa.json",
-      "bytes": 9703,
-      "sha256": "0238551a5aa2201cf7b075336c22396669abf0282d5485afe211f4ca88eb3a94"
+      "path": "test-results/phase1/nominal/2026-11-05T02-28-41-483Z/hexa.json",
+      "bytes": 10632,
+      "sha256": "7bff4eaf93e522174db1c4f42d0cb743f8e4d49c7698fc7226123486aca7b7a7"
     },
     "experimentRecord": {
-      "sha256": "7dee472a6259435c0ded8ecf1ae15a8e85331b9220c1dd00c782502aee9e4727",
-      "launcherExperimentId": "20261104195840643-081268ce"
+      "sha256": "bd501a389fc9a9608175d5f176f7b7caffce32a627e4b3c8d3c28eead4db35fc",
+      "launcherExperimentId": "20261105023118942-0595945a"
     },
     "dataflash": [
       {
         "name": "00000001.BIN",
-        "bytes": 2691072,
-        "sha256": "dec36046f2087dda670e34fc9cd764391b48345b79d111fd75370938f7511f1b",
+        "bytes": 2699264,
+        "sha256": "2bc1dcc704186a39e83f431e71eb5a28e174308bb79a2ac21ae546ad2499e5a4",
         "status": "truncated",
-        "records": 53965,
-        "truncatedBytes": 5,
+        "records": 54132,
+        "truncatedBytes": 21,
         "firmwareMatchesBuild": true
       }
     ],
     "recording": {
-      "recordId": "0da821dbd28eae395e6be583305073c8",
+      "recordId": "49a8246ff5b7fc43d50536e0ca893762",
       "status": "closed",
-      "chunks": 107,
-      "bytes": 6666920,
+      "chunks": 108,
+      "bytes": 6720248,
       "droppedChunks": 0,
       "droppedRows": 0,
       "producerLost": 0
     },
     "speed": {
       "verdict": "Real time",
-      "average": 1.0010038296297887,
-      "dropped": 1,
-      "simElapsedS": 104.5,
-      "runningWallS": 104.3952050000131
+      "average": 1.0010255988248202,
+      "dropped": 0,
+      "simElapsedS": 105.2,
+      "runningWallS": 105.08983999998867
     },
     "power": {
       "hover": {
         "voltageV": 16.48,
-        "currentA": 15,
-        "powerW": 246,
+        "currentA": 15.1,
+        "powerW": 248,
         "commandPercent": [
           47,
           44,
@@ -282,37 +468,37 @@
     },
     "steadiness": {
       "hold": {
-        "fromS": 69.9,
-        "toS": 79.9,
+        "fromS": 70.7,
+        "toS": 80.7,
         "samples": 100,
         "roll": {
-          "sdDegS": 0.09331524612541671,
-          "peakDegS": 0.220455139875412
+          "sdDegS": 0.10238561410390369,
+          "peakDegS": 0.2770237624645233
         },
         "pitch": {
-          "sdDegS": 0.14886340145489552,
-          "peakDegS": 0.45765408873558044
+          "sdDegS": 0.1798820886729406,
+          "peakDegS": 0.5504762530326843
         },
         "yaw": {
-          "sdDegS": 0.060154588328645855,
-          "peakDegS": 0.17362305521965027
+          "sdDegS": 0.06549164314275338,
+          "peakDegS": 0.15968924760818481
         }
       },
       "afterResume": {
-        "fromS": 80.2,
-        "toS": 90.2,
+        "fromS": 81.1,
+        "toS": 91.1,
         "samples": 100,
         "roll": {
-          "sdDegS": 0.07025101227301768,
-          "peakDegS": 0.23617957532405853
+          "sdDegS": 0.06007410357851226,
+          "peakDegS": 0.17786097526550293
         },
         "pitch": {
-          "sdDegS": 0.0831575011151228,
-          "peakDegS": 0.26592662930488586
+          "sdDegS": 0.07937739097700347,
+          "peakDegS": 0.22917617857456207
         },
         "yaw": {
-          "sdDegS": 0.018919946884428496,
-          "peakDegS": 0.07026812434196472
+          "sdDegS": 0.020290927290512007,
+          "peakDegS": 0.08685950934886932
         }
       }
     },
@@ -353,30 +539,30 @@
         "cards": [
           {
             "type": "motor",
-            "sha256": "ea722d3ea79ead7554f29974dacf9b72c2b4533664475dd61a4a48c1e14d1bc9",
+            "sha256": "d976398cc4391cf4eb10e954415fc91624f6ce6c715dab16e860a2c50c7d9087",
             "sourceKind": "synthetic",
             "differences": []
           },
           {
             "type": "propeller",
-            "sha256": "5810096e1655562d9c49f542d7126bb56fb8a37feb9e5e77ee9abfb7a9c07dae",
+            "sha256": "a83f34511dde0a6dbb48c533dcba9678b4a64b3932f91b42517fdf7a925a439f",
             "sourceKind": "synthetic",
             "differences": []
           },
           {
             "type": "esc",
-            "sha256": "167ea8baab92dbca3b66ddf30bee86a89a8bb119aef7483d47197940075c103f",
+            "sha256": "2c22c698718c36d43c44bf481d6230c65b6be0d1d0c9822b431abe1cf020d7ad",
             "sourceKind": "synthetic",
             "differences": []
           },
           {
             "type": "battery",
-            "sha256": "99c7731d96b650e08f022b5d38945953d14c7bf6b0c14be72960b744814a27e8",
+            "sha256": "61100b2208ea902215c4cc08316257ec95ee12a59b8be1c46d127d3d847b0c4a",
             "sourceKind": "synthetic",
             "differences": []
           }
         ],
-        "sha256": "e00d6c5e1caddd7067e053fbfc65027b04ba11c21decb0ab0ac75dcbe2927589",
+        "sha256": "fef0ce756941eb339a49ebc7837d8332b3bc0be140ecdbf4a0ebb4edb86fbd49",
         "version": 1,
         "motors": 6,
         "differences": []
@@ -415,12 +601,25 @@
       },
       "error": null
     },
+    "refusal": {
+      "facts": {
+        "problems": [
+          "Output 1 is assigned to motors 1 and 2"
+        ],
+        "saveDisabled": true,
+        "layoutErrors": [
+          "The layout needs 1 to 8 arms"
+        ],
+        "versions": 1
+      },
+      "error": null
+    },
     "start": {
       "facts": {
         "ready": "READY",
         "readyAtSimS": 41.2,
-        "recordSha256": "7dee472a6259435c0ded8ecf1ae15a8e85331b9220c1dd00c782502aee9e4727",
-        "profileSha256": "e00d6c5e1caddd7067e053fbfc65027b04ba11c21decb0ab0ac75dcbe2927589",
+        "recordSha256": "bd501a389fc9a9608175d5f176f7b7caffce32a627e4b3c8d3c28eead4db35fc",
+        "profileSha256": "fef0ce756941eb339a49ebc7837d8332b3bc0be140ecdbf4a0ebb4edb86fbd49",
         "physicsHz": 800,
         "clockMode": "sitl-lockstep",
         "speedup": 1,
@@ -435,6 +634,32 @@
           "binarySha256": "02066ec927d055ba302922407d8994facdcd89807dc58f5e02acf93b7afc17f7",
           "defaultParametersSha256": "5e01345b45d1c6190b28bece5638bbdd4cf1cce35e05bbbf480ab24d2b51aa0e"
         }
+      },
+      "error": null
+    },
+    "parameters": {
+      "facts": {
+        "writes": [
+          {
+            "name": "RTL_ALT_FINAL_M",
+            "value": 1,
+            "outcome": "confirmed",
+            "rebootRequired": false,
+            "shown": "1"
+          }
+        ]
+      },
+      "error": null
+    },
+    "reopen": {
+      "facts": {
+        "listed": 1,
+        "recordId": "49a8246ff5b7fc43d50536e0ca893762",
+        "recordingText": "50 Hz common rate, record 49a8246ff5b7fc43d50536e0ca893762",
+        "profileText": "Hexa X, version 1",
+        "truthRows": 5316,
+        "missingChunks": 0,
+        "corruptChunks": 0
       },
       "error": null
     },
@@ -494,16 +719,16 @@
         "stage": "Flying",
         "armed": "Armed",
         "mode": "GUIDED",
-        "startSimS": 69.9,
-        "endSimS": 79.9,
+        "startSimS": 70.7,
+        "endSimS": 80.7,
         "readingsM": [
+          5.03,
           5.03,
           5.04,
           5.04,
           5.05,
           5.06,
           5.06,
-          5.06,
           5.07,
           5.07,
           5.08,
@@ -513,7 +738,7 @@
           5.08,
           5.08,
           5.08,
-          5.07,
+          5.08,
           5.07,
           5.07,
           5.07,
@@ -529,7 +754,7 @@
           5.08,
           5.08,
           5.08,
-          5.09,
+          5.08,
           5.09,
           5.09,
           5.09
@@ -541,30 +766,31 @@
       "facts": {
         "stage": "paused",
         "before": {
-          "simS": 80.2,
+          "simS": 80.9,
           "altitudeM": 5.09,
-          "stepped": 64080
+          "stepped": 64640
         },
         "after": {
-          "simS": 80.2,
+          "simS": 80.9,
           "altitudeM": 5.09,
-          "stepped": 64080
+          "stepped": 64640
         },
-        "wallS": 31.332,
+        "wallS": 31.271,
         "resumedStage": "Flying",
-        "resumedAtSimS": 80.2,
+        "resumedAtSimS": 81.1,
         "hold": {
           "stage": "Flying",
           "armed": "Armed",
           "mode": "GUIDED",
-          "startSimS": 80.2,
-          "endSimS": 90.2,
+          "startSimS": 81.1,
+          "endSimS": 91.1,
           "readingsM": [
             5.09,
             5.09,
             5.09,
             5.09,
             5.09,
+            5.09,
             5.1,
             5.1,
             5.1,
@@ -588,12 +814,11 @@
             5.1,
             5.1,
             5.1,
-            5.11,
-            5.11,
-            5.11,
-            5.11,
-            5.11,
-            5.11,
+            5.1,
+            5.1,
+            5.1,
+            5.1,
+            5.1,
             5.11,
             5.11
           ]
@@ -615,7 +840,7 @@
         "ready": "READY",
         "altitudeM": 0.11,
         "restAltitudeM": 0.11486975999999997,
-        "frames": "84480 stepped, 0 lost, 0 resent, 28 held",
+        "frames": "84960 stepped, 0 lost, 0 resent, 28 held",
         "failsafeMessages": []
       },
       "error": null
@@ -623,7 +848,7 @@
     "stop": {
       "facts": {
         "state": "idle",
-        "text": "Run 20261104195840643-081268ce stopped",
+        "text": "Run 20261105023118942-0595945a stopped",
         "launcherState": "stopped",
         "group": "",
         "members": [],
@@ -634,12 +859,12 @@
     }
   },
   "sources": {
-    "tests/browser/phase1-nominal.spec.ts": "9493c6ad1eb3030dc8700fc4a8dc9762a940994a415265ea72f53ad63c090747",
+    "tests/browser/phase1-nominal.spec.ts": "69c2ee549cb6b814d2c88404465a79c166adbe454f2312ba843d0ef166a905e5",
     "scripts/phase1/nominal-flight.mjs": "13c12ae3cc46e79056620a03d80e6e2cd2e584cdda4f363e01155f654b662cc3",
-    "scripts/phase1/nominal-rules.ts": "1befdd06a787a338c53b0feb95c57d58bff023c82ec0cca76905591900643205",
+    "scripts/phase1/nominal-rules.ts": "fd983873987f42474ee4f4a0d2460e4e2bec6064821574bfcaa743472bedb457",
     "tests/support/aircraft-ui.ts": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f",
     "tests/support/aircraft-recipes.ts": "e4d5d0f1c99e06af4f11b633dae321a24e1a33247ad4a58da6207fee323236b1",
-    "tests/support/run-tab.ts": "d6401fb950087ec3b84bb5c3eb149ddb9ceefcb7b97129dfae198f09db11dd0d",
+    "tests/support/run-tab.ts": "515f411108f47cf7aa6601e1088004f27fd8e556ab342f748aaea1d33c5cab73",
     "tests/support/standard-gear.ts": "7c43a4427fe7b8f56159990b8d3f99e4f2ef534e6cd563b247543aae3b1cb22d",
     "playwright.config.ts": "0e76e629e0d560d9b4363f171f8008c71a072c74691f12daa33009e35abce9fb",
     "tests/fixtures/components/motor-example.json": "8da613982ca1f4f6bc5cfa06a397426a2d0d1da3342e156c8d54f02622e2aece",
