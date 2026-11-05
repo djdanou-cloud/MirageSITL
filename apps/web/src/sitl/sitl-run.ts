@@ -26,7 +26,7 @@ import catalogFile from "../../../../tests/fixtures/sitl/ardupilot-catalog.json"
 import { catalogAbsentRule, type AbsentRule } from "@mirage/autopilot/parameter-readback";
 import { expectedMotors, physicsRotors, type ExpectedMotor, type PhysicsRotor } from "@mirage/autopilot/motor-test";
 import type { LimitRatings } from "@mirage/physics/limit-monitor";
-import { newFlightStateV2, newPowerSnapshotV1 } from "@mirage/protocol";
+import { AT_TICK_IN_THE_PAST, tickToNumber, newFlightStateV2, newPowerSnapshotV1 } from "@mirage/protocol";
 import { DEFAULT_GROUND_START, wrapDeg, type GroundStart } from "@mirage/scenarios/flight-tasks";
 import { eulerDegOf } from "@mirage/scenarios/maneuvers";
 import type { StoredVersion } from "@mirage/project/schema";
@@ -307,9 +307,12 @@ export class LauncherClient implements LauncherPort {
 }
 
 /** The physics Worker of a SimulationRuntime as the session controller's PhysicsPort. */
+/** How far ahead of the tick read now a control is first aimed, and how far at most, s of simulated time; the protocol's horizon is 10 s. */
+const EFFECT_LEAD_S = 0.25, EFFECT_MAX_LEAD_S = 8;
 export class RuntimePhysics implements PhysicsPort {
   private vehicleValue: PreparedVehicle | null = null;
   private ground: GroundStart = DEFAULT_GROUND_START;
+  private physicsHz: 800 | 1200 = SITL_PHYSICS_HZ;
   constructor(private readonly runtime: SimulationRuntime, private readonly token: string) {}
 
   /** The vehicle this session flies, set once it is prepared; a flight task's ground start with it (TASK-172). */
@@ -320,6 +323,7 @@ export class RuntimePhysics implements PhysicsPort {
   }
 
   async load(physicsHz: 800 | 1200): Promise<{ betModuleSha256: string }> {
+    this.physicsHz = physicsHz;
     const { vehicle, runtime } = this;
     runtime.pauseWhenHidden = false;
     const module = await fetchBetModule();
@@ -377,17 +381,36 @@ export class RuntimePhysics implements PhysicsPort {
       this.runtime.postToWorker(message);
     });
   }
-  effect(control: EffectControl, recovery: EffectRecovery): Promise<void> {
-    return this.control({ type: "effect.set", atTick: this.runtime.nextTick(), control, recovery });
+  /**
+   * The Worker steps while this message crosses to it, thousands of ticks a second on a sped-up run, so a control is aimed a little ahead of
+   * the tick read now, and further ahead if it still arrived late. A tick still further ahead is kept exactly, on the same clock as status.simTimeS.
+   */
+  async effect(control: EffectControl, recovery: EffectRecovery, atSimS?: number): Promise<number | null> {
+    const hz = this.physicsHz, wanted = atSimS === undefined ? 0 : Math.ceil(atSimS * hz);
+    for (let lead = Math.ceil(EFFECT_LEAD_S * hz); ; lead *= 2) {
+      const tick = Math.max(wanted, this.tickNow().tick + lead);
+      let applied: number | null = null;
+      try {
+        await this.control({ type: "effect.set", atTick: { lo: tick % 2 ** 32, hi: Math.floor(tick / 2 ** 32) }, control, recovery }, at => { applied = tickToNumber(at) / hz; });
+        return applied;
+      } catch (cause) {
+        if (lead >= EFFECT_MAX_LEAD_S * hz || !(cause instanceof Error) || !cause.message.includes(AT_TICK_IN_THE_PAST)) throw cause;
+      }
+    }
   }
-  /** Submits a control command and resolves on its applied acknowledgement. */
-  private control(payload: Record<string, unknown>): Promise<void> {
+  /** Submits a control command and resolves on its applied acknowledgement, handing `onApplied` the tick that applied it. */
+  private control(payload: Record<string, unknown>, onApplied?: (tick: { readonly lo: number; readonly hi: number }) => void): Promise<void> {
     return new Promise((resolve, fail) => {
       let requestId = -1;
       const stop = this.runtime.listen(data => {
         if (field(data, "requestId") !== requestId) return;
         if (field(data, "type") === "reject-v2") { stop(); fail(new Error(`${String(payload.type)}: ${String(field(data, "message"))}`)); }
-        if (field(data, "type") === "ack-v2" && field(data, "status") === "applied") { stop(); resolve(); }
+        if (field(data, "type") === "ack-v2" && field(data, "status") === "applied") {
+          stop();
+          const tick = field(data, "appliedTick");
+          if (onApplied && typeof tick === "object" && tick !== null) onApplied({ lo: Number(field(tick, "lo")), hi: Number(field(tick, "hi")) });
+          resolve();
+        }
       });
       const command = this.runtime.submitControl(payload);
       if (!command) { stop(); fail(new Error(`${String(payload.type)} was not accepted: ${this.runtime.notice}`)); return; }

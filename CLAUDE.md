@@ -514,7 +514,11 @@ implementation.
   ten sensor and link faults reach stock native ArduCopter on the path that owns each reading
   (the state line, ArduPilot's own fault parameters, the bridge), with truth bitwise untouched,
   and motor faults act on the profile dynamics; ArduPilot's response is recorded, not predicted,
-  and they have no tab until TASK-169. TASK-188 is DONE: `node scripts/phase1/acceptance.mjs`
+  and TASK-169 gives them a tab. TASK-169 is DONE: the Faults and interference tab applies
+  those effects by hand or on a schedule the run keeps in its experiment record, counted from the
+  first armed report, and `effect-log` records each outcome; GNSS steps and drift reach ArduPilot on
+  the state line, north and east, jamming and magnetometer bias through its own parameters, and a
+  magnetometer rotation through the attitude on the line. TASK-188 is DONE: `node scripts/phase1/acceptance.mjs`
   checks every matrix cell against its evidence and refuses what is forged, missing or stale,
   and `node scripts/phase1/nominal-flight.mjs` gives nine workflows per configuration, so 45 of
   the 51 cells pass on the A-01 machine. ArduPilot's own SITL

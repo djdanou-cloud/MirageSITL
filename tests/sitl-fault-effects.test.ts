@@ -9,6 +9,7 @@ import { frameConfiguration } from '@mirage/aircraft/frame-parameters';
 import { ARDUPILOT_FAULT_PARAMETERS } from '@mirage/autopilot/fault-effects';
 import { GroundStation, CopterMode } from '@mirage/autopilot/ground-station';
 import { createSessionFaultPort } from '@mirage/ew/session-port';
+import { JAMMING_PARAMETERS, MAGNETIC_PARAMETERS, SITL_GPS_ACC, SITL_GPS_LOCK, SITL_GPS_NUMSATS, jammingWrites, magneticBiasWrites } from '@mirage/ew/sitl-writes';
 import { MavParser, type MavFrame } from '@mirage/mavlink/codec';
 import { profileModelPort } from '@mirage/physics/profile-dynamics';
 import { VehicleRegistry } from '@mirage/physics/vehicle-manifest';
@@ -24,6 +25,7 @@ import { quadProfile } from './support/quad-profile.ts';
 // checked is that the fault reached ArduPilot: a parameter read back, a reading that stopped, a link that went quiet. What ArduPilot
 // then does about it is recorded in test-results/validation/task-168-faults.json and not predicted: no mode, failsafe or landing is
 // asserted. It takes about six minutes, so it runs on request: MIRAGE_SITL_FAULTS=1 npx vitest run tests/sitl-fault-effects.test.ts
+// TASK-169's interference effects fly the same way, with MIRAGE_SITL_FAULTS=interference, and their answers go to task-169-interference.json.
 
 const ROOT = process.cwd();
 const HOME = join(ROOT, '.cache/task-152/home');
@@ -32,7 +34,8 @@ const HZ = 800, SPEEDUP = 4, TAKEOFF_M = 10, ON_S = 8, RECOVER_S = 8;
 /** MAVLink messages asked of ArduPilot, at 10 Hz: SYS_STATUS, GPS_RAW_INT, RAW_IMU, EKF_STATUS_REPORT. */
 const STREAMS = [[1, 100000], [24, 100000], [27, 100000], [193, 100000]] as const;
 const REAL32 = 9, CONDITION_YAW = 115;
-const wanted = existsSync(join(HOME, 'install-manifest.json')) && process.env.MIRAGE_SITL_FAULTS === '1';
+const REQUEST = process.env.MIRAGE_SITL_FAULTS;
+const wanted = existsSync(join(HOME, 'install-manifest.json')) && (REQUEST === '1' || REQUEST === 'interference');
 const SYS_STATUS_HEALTH = { gyro: 1, accel: 2, mag: 4, baro: 8, gps: 32 } as const;
 
 interface Span { min: number; max: number; samples: number }
@@ -43,10 +46,12 @@ const width = (s: Span) => (s.samples === 0 ? null : s.max - s.min);
 interface Measured {
   lat: Span; lon: Span; xmag: Span; ymag: Span; zmag: Span; gyro: Span; truthNorth: Span; truthYaw: Span; truthDown: Span;
   fixMin: number; healthLost: number; statusText: string[]; frames: number; modeAtEnd: number; armedAtEnd: boolean; ekfFlagsAtEnd: number;
+  /** TASK-169: the fewest satellites reported, and how far what GPS_RAW_INT says lies north of the truth at that moment, m, with the first report. */
+  satellitesMin: number; gpsMinusTruthNorth: Span; firstGpsMinusTruthNorthM: number | null;
 }
 const measured = (): Measured => ({ lat: span(), lon: span(), xmag: span(), ymag: span(), zmag: span(), gyro: span(), truthNorth: span(), truthYaw: span(), truthDown: span(),
-  fixMin: 99, healthLost: 0, statusText: [], frames: 0, modeAtEnd: -1, armedAtEnd: false, ekfFlagsAtEnd: -1 });
-const summary = (m: Measured) => ({ latSpan: width(m.lat), lonSpan: width(m.lon), fixMin: m.fixMin, magSpanMilliGauss: [width(m.xmag), width(m.ymag), width(m.zmag)], gyroSpan: width(m.gyro),
+  fixMin: 99, healthLost: 0, statusText: [], frames: 0, modeAtEnd: -1, armedAtEnd: false, ekfFlagsAtEnd: -1, satellitesMin: 99, gpsMinusTruthNorth: span(), firstGpsMinusTruthNorthM: null });
+const summary = (m: Measured) => ({ latSpan: width(m.lat), lonSpan: width(m.lon), fixMin: m.fixMin, satellitesMin: m.satellitesMin, gpsMinusTruthNorthMinM: m.gpsMinusTruthNorth.min, gpsMinusTruthNorthMaxM: m.gpsMinusTruthNorth.max, firstGpsMinusTruthNorthM: m.firstGpsMinusTruthNorthM, magSpanMilliGauss: [width(m.xmag), width(m.ymag), width(m.zmag)], gyroSpan: width(m.gyro),
   truthNorthSpanM: width(m.truthNorth), truthDownSpanM: width(m.truthDown), truthYawSpanRad: width(m.truthYaw), framesFromAutopilot: m.frames, healthLost: m.healthLost,
   modeAtEnd: m.modeAtEnd, armedAtEnd: m.armedAtEnd, ekfFlagsAtEnd: m.ekfFlagsAtEnd, statusText: m.statusText });
 
@@ -60,6 +65,26 @@ const STEPS: readonly { name: EffectId; control?: (enabled: boolean) => EffectCo
 ];
 type Plans = Partial<Record<EffectId, readonly { readonly name: string; readonly on: number }[]>>;
 const PLANS: Plans = ARDUPILOT_FAULT_PARAMETERS;
+/** TASK-169: what the interference effects deliver. Each is tried as far as it reaches ArduPilot; the response is recorded and not predicted. */
+const STEP_NORTH_M = 30, DRIFT_MPS2 = 0.3, DRIFT_TOP_MPS = 2, ROTATION_RAD = 0.3, BIAS_GAUSS = 0.1, JAM_SEVERITY = 0.5;
+const interference = (effect: EffectId, parameters: EffectControl['parameters']) => (enabled: boolean): EffectControl => ({ schemaVersion: 1, id: effect.replaceAll('.', '-'), effect, enabled, intensity: 1, parameters });
+/** A write for each of these parameters, from what it held before. */
+const WRITES: Partial<Record<EffectId, readonly string[]>> = { 'ew.gnss-jamming': JAMMING_PARAMETERS, 'ew.magnetic': MAGNETIC_PARAMETERS };
+const writesFor = (effect: EffectId, before: (name: string) => number): readonly { name: string; value: number }[] => {
+  if (effect === 'ew.gnss-jamming') return jammingWrites(JAM_SEVERITY, { satellites: before(SITL_GPS_NUMSATS), accuracyM: before(SITL_GPS_ACC), lockS: before(SITL_GPS_LOCK) }, false);
+  if (effect === 'ew.magnetic') return magneticBiasWrites([BIAS_GAUSS, 0, 0], before);
+  return [];
+};
+const INTERFERENCE: typeof STEPS = [
+  { name: 'ew.position-step', control: interference('ew.position-step', { offsetNedM: [STEP_NORTH_M, 0, 0] }) },
+  { name: 'ew.velocity-drift', control: interference('ew.velocity-drift', { accelerationNedMps2: [DRIFT_MPS2, 0, 0], maxSpeedMps: DRIFT_TOP_MPS }) },
+  { name: 'ew.magnetic', control: interference('ew.magnetic', { rotationRad: [0, 0, ROTATION_RAD], biasBodyGauss: [BIAS_GAUSS, 0, 0] }) },
+  { name: 'ew.gnss-jamming', control: interference('ew.gnss-jamming', { severity: JAM_SEVERITY }) },
+  // TASK-169 changed how the fix goes, so that a run can bring it back: its parameter must not renumber ArduPilot's list.
+  { name: 'sensor.gnss.missing' },
+];
+const FLOWN = REQUEST === 'interference' ? INTERFERENCE : STEPS;
+const METRES_PER_DEGREE_LAT = 111319.49, HOME_LAT_DEG = -35.363261;
 
 describe.skipIf(!wanted)('faults reaching native ArduCopter (TASK-168)', () => {
   test('each reaches ArduPilot through its own path while it hovers, and its response is recorded', async () => {
@@ -116,15 +141,26 @@ describe.skipIf(!wanted)('faults reaching native ArduCopter (TASK-168)', () => {
         const socket = new WebSocket(`ws://127.0.0.1:${bridgePort}`, ['mirage-v1', `session.${token}`], { origin: ORIGIN });
         ws = socket;
         let armed = false, mode = -1, simTimeS = 0, window = measured();
-        const text: string[] = [], paramValues = new Map<string, number>();
+        const text: string[] = [], paramValues = new Map<string, number>(), listCounts = new Set<number>();
         const parser = new MavParser((m: MavFrame) => {
           if (m.systemId !== 1 || m.componentId !== 1) return;
           window.frames++;
           switch (m.id) {
             case 0: mode = m.view.getUint32(0, true); armed = (m.view.getUint8(6) & 128) !== 0; break;
             case 1: window.healthLost |= m.view.getUint32(0, true) & ~m.view.getUint32(8, true); break;
-            case 22: paramValues.set(new TextDecoder().decode(m.payload.subarray(8, 24)).replace(/\0[\s\S]*$/, ''), m.view.getFloat32(0, true)); break;
-            case 24: widen(window.lat, m.view.getInt32(8, true)); widen(window.lon, m.view.getInt32(12, true)); window.fixMin = Math.min(window.fixMin, m.view.getUint8(28)); break;
+            case 22: listCounts.add(m.view.getUint16(4, true)); paramValues.set(new TextDecoder().decode(m.payload.subarray(8, 24)).replace(/\0[\s\S]*$/, ''), m.view.getFloat32(0, true)); break;
+            case 24: {
+              const lat = m.view.getInt32(8, true);
+              widen(window.lat, lat); widen(window.lon, m.view.getInt32(12, true)); window.fixMin = Math.min(window.fixMin, m.view.getUint8(28));
+              window.satellitesMin = Math.min(window.satellitesMin, m.view.getUint8(29));
+              // Only a fix says where it is; the truth is the latest step's, within SITL's own GPS lag.
+              if (m.view.getUint8(28) >= 3) {
+                const away = (lat * 1e-7 - HOME_LAT_DEG) * METRES_PER_DEGREE_LAT - client.link.state.northM;
+                widen(window.gpsMinusTruthNorth, away);
+                window.firstGpsMinusTruthNorthM ??= away;
+              }
+              break;
+            }
             case 27: widen(window.gyro, m.view.getInt16(14, true)); widen(window.xmag, m.view.getInt16(20, true)); widen(window.ymag, m.view.getInt16(22, true)); widen(window.zmag, m.view.getInt16(24, true)); break;
             case 193: window.ekfFlagsAtEnd = m.view.getUint16(20, true); break;
             case 253: { const line = new TextDecoder().decode(m.payload.subarray(1, 51)).replace(/\0[\s\S]*$/, ''); text.push(line); window.statusText.push(line); break; }
@@ -139,12 +175,16 @@ describe.skipIf(!wanted)('faults reaching native ArduCopter (TASK-168)', () => {
         session.attachDelivery(true);
         const gcs = new GroundStation(), packet = new Uint8Array(64);
         const send = (n: number) => { if (n > 0) client.sendMavlink(packet.slice(0, n)); };
-        const plan = PLANS[step.name];
+        const fixed = PLANS[step.name], computed = WRITES[step.name], names = fixed?.map(item => item.name) ?? computed ?? [];
         const nextTick = () => ({ lo: tickToNumber(client.link.state.tickId) + 2, hi: 0 });
         const apply = (enabled: boolean) => {
-          if (plan) {
-            for (const { name, on } of plan) send(gcs.paramSetInto(name, enabled ? on : earlier.get(name) ?? 0, REAL32, packet));
-          } else handle({ protocolVersion: 3, type: 'effect.set', atTick: nextTick(), control: step.control?.(enabled) ?? plain(step.name, enabled), recovery: 'hold-offset' });
+          if (fixed) {
+            for (const { name, on } of fixed) send(gcs.paramSetInto(name, enabled ? on : earlier.get(name) ?? 0, REAL32, packet));
+          } else if (computed) {
+            const before = (name: string) => earlier.get(name) ?? 0;
+            for (const { name, value } of enabled ? writesFor(step.name, before) : computed.map(name => ({ name, value: before(name) }))) send(gcs.paramSetInto(name, Math.fround(value), REAL32, packet));
+          }
+          if (!fixed) handle({ protocolVersion: 3, type: 'effect.set', atTick: nextTick(), control: step.control?.(enabled) ?? plain(step.name, enabled), recovery: 'hold-offset' });
           if (enabled && step.push === 'wind') handle({ protocolVersion: 3, type: 'effect.set', atTick: nextTick(), control: northWind, recovery: 'hold-offset' });
           if (enabled && step.push === 'turn') send(gcs.commandInto(CONDITION_YAW, [90, 30, 1, 1, 0, 0, 0], packet));
         };
@@ -178,7 +218,7 @@ describe.skipIf(!wanted)('faults reaching native ArduCopter (TASK-168)', () => {
             const retry = simTimeS - lastCommandS >= 2;
             const next = (to: Stage) => { stage = to; stageAtS = simTimeS; };
             switch (stage) {
-              case 'warmup': if (client.ready) { for (const { name } of plan ?? []) send(gcs.paramRequestReadInto(name, packet)); next('guided'); } break;
+              case 'warmup': if (client.ready) { for (const name of names) send(gcs.paramRequestReadInto(name, packet)); next('guided'); } break;
               case 'guided': if (mode === CopterMode.Guided) next('arm'); else if (retry) { send(gcs.setModeInto(CopterMode.Guided, packet)); lastCommandS = simTimeS; } break;
               case 'arm': if (armed) { send(gcs.takeoffInto(TAKEOFF_M, packet)); lastCommandS = simTimeS; next('takeoff'); } else if (retry) { send(gcs.armInto(true, packet)); lastCommandS = simTimeS; } break;
               case 'takeoff':
@@ -187,7 +227,7 @@ describe.skipIf(!wanted)('faults reaching native ArduCopter (TASK-168)', () => {
                 break;
               case 'settle':
                 if (simTimeS - stageAtS >= 3) {
-                  for (const { name } of plan ?? []) { const value = paramValues.get(name); if (value !== undefined) earlier.set(name, value); paramValues.delete(name); }
+                  for (const name of names) { const value = paramValues.get(name); if (value !== undefined) earlier.set(name, value); paramValues.delete(name); }
                   window = measured(); apply(true); next('on');
                 }
                 break;
@@ -196,7 +236,7 @@ describe.skipIf(!wanted)('faults reaching native ArduCopter (TASK-168)', () => {
                 if (simTimeS - lastRcS >= 0.1) { send(gcs.rcOverrideInto(Uint16Array.of(1500, 1500, 1500, 1500, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0), packet)); lastRcS = simTimeS; }
                 if (simTimeS - stageAtS >= ON_S) {
                   during = window; during.modeAtEnd = mode; during.armedAtEnd = armed;
-                  parametersOn = Object.fromEntries((plan ?? []).map(({ name }) => [name, paramValues.get(name) ?? null]));
+                  parametersOn = Object.fromEntries(names.map(name => [name, paramValues.get(name) ?? null]));
                   window = measured(); apply(false); next('recover');
                 }
                 break;
@@ -210,7 +250,7 @@ describe.skipIf(!wanted)('faults reaching native ArduCopter (TASK-168)', () => {
         await finished;
         expect(results.filter(result => result.type === 'reject-v2')).toEqual([]);
         return { effect: step.name, parameters: parametersOn, earlier: Object.fromEntries(earlier), accidentAtS: accident, during: during === null ? summary(window) : summary(during), after: during === null ? null : summary(window),
-          droppedFromAutopilot: client.droppedFromAutopilot, droppedToAutopilot: client.droppedToAutopilot };
+          listCountsSeen: [...listCounts], droppedFromAutopilot: client.droppedFromAutopilot, droppedToAutopilot: client.droppedToAutopilot };
       } finally {
         ws?.close();
         if (experimentId) await api('POST', `/v1/experiments/${experimentId}/stop`);
@@ -219,11 +259,31 @@ describe.skipIf(!wanted)('faults reaching native ArduCopter (TASK-168)', () => {
     };
     try {
       const rows: Awaited<ReturnType<typeof flight>>[] = [];
-      for (const step of STEPS) rows.push(await flight(step));
+      for (const step of FLOWN) rows.push(await flight(step));
       mkdirSync(join(ROOT, 'test-results/validation'), { recursive: true });
-      writeFileSync(join(ROOT, 'test-results/validation/task-168-faults.json'), `${JSON.stringify({ task: 'TASK-168', firmware: { id: firmware.id, commit: firmware.commit }, manifestSha256: derived.sha256, hz: HZ, speedup: SPEEDUP, healthBits: SYS_STATUS_HEALTH, rows }, null, 2)}\n`);
+      writeFileSync(join(ROOT, REQUEST === 'interference' ? 'test-results/validation/task-169-interference.json' : 'test-results/validation/task-168-faults.json'), `${JSON.stringify({ task: REQUEST === 'interference' ? 'TASK-169' : 'TASK-168', firmware: { id: firmware.id, commit: firmware.commit }, manifestSha256: derived.sha256, hz: HZ, speedup: SPEEDUP, healthBits: SYS_STATUS_HEALTH, rows }, null, 2)}\n`);
       const by = (effect: EffectId) => { const row = rows.find(item => item.effect === effect); if (!row) throw new Error(`No row for ${effect}`); return row; };
-      expect(rows.map(row => row.effect)).toEqual(STEPS.map(step => step.name));
+      expect(rows.map(row => row.effect)).toEqual(FLOWN.map(step => step.name));
+      if (REQUEST === 'interference') {
+        // Each reached ArduPilot: GNSS says otherwise than the truth by what was added, the magnetometer moved at once, and the receiver reports what it was told.
+        // SITL's receiver interpolates its lagged samples, so a report in the window can already be part of the way there; the farthest is the measure.
+        const away = (effect: EffectId) => by(effect).during.gpsMinusTruthNorthMaxM;
+        expect(away('ew.position-step')).toBeGreaterThan(0.95 * STEP_NORTH_M);
+        // v = a t up to its top speed over the 8 s it is on, with b the integral of that.
+        const rampS = DRIFT_TOP_MPS / DRIFT_MPS2, driftM = DRIFT_TOP_MPS * rampS / 2 + DRIFT_TOP_MPS * (ON_S - rampS);
+        expect(away('ew.velocity-drift')).toBeGreaterThan(0.9 * driftM);
+        const magnetic = by('ew.magnetic').during.magSpanMilliGauss;
+        expect(Math.max(magnetic[0] ?? 0, magnetic[1] ?? 0)).toBeGreaterThan(50);
+        expect(by('ew.magnetic').parameters.SIM_MAG1_OFS_X).toBeCloseTo((by('ew.magnetic').earlier.SIM_MAG1_OFS_X ?? Number.NaN) - 1000 * BIAS_GAUSS, 2);
+        const jammed = writesFor('ew.gnss-jamming', name => by('ew.gnss-jamming').earlier[name] ?? Number.NaN);
+        for (const { name, value } of jammed) expect(by('ew.gnss-jamming').parameters[name], name).toBeCloseTo(value, 3);
+        expect(by('ew.gnss-jamming').during.satellitesMin).toBe(jammed.find(item => item.name === SITL_GPS_NUMSATS)?.value);
+        expect(by('sensor.gnss.missing').during.fixMin).toBeLessThan(3);
+        // And its fix comes back when the lock delay does; the report then counts the time before it too, so this looks at the mode it held.
+        expect(by('sensor.gnss.missing').parameters.SIM_GPS1_LCKTIME).toBe(32767);
+        expect(by('sensor.gnss.missing').listCountsSeen, 'the parameter list kept its length').toHaveLength(1);
+        return;
+      }
       // A link that went quiet: nothing from the autopilot while lost, and it talks again after.
       expect(by('link.gcs').during.framesFromAutopilot).toBeLessThan(5);
       expect(by('link.gcs').after?.framesFromAutopilot).toBeGreaterThan(50);

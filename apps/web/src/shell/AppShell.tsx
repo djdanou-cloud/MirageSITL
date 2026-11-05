@@ -17,6 +17,8 @@ import { ProjectStore } from "@mirage/project/store";
 import { AircraftEditor } from "../aircraft/AircraftEditor";
 import { AnalysisTab } from "../analysis/AnalysisTab";
 import { validateLogExtraction } from "../experiments/log-plan";
+import { validateEffectLog } from "../faults/effect-log";
+import { FaultsTab } from "../faults/FaultsTab";
 import { ComponentsPanel } from "../library/ComponentsPanel";
 import { SensorsTab } from "../sensors/SensorsTab";
 import {
@@ -40,8 +42,7 @@ export type StoreState =
   | { readonly status: "unavailable"; readonly reason: string };
 
 /** What each tab will hold; the shell says so until the tab's own task lands. */
-const PLANNED: { readonly [tab in Exclude<TabId, "project" | "aircraft" | "components" | "sensors" | "run" | "logging" | "parameters" | "experiments" | "tasks" | "analysis">]: string } = {
-  faults: "Motor faults, sensor and GNSS interference, EKF drift and link loss, applied manually or on a schedule.",
+const PLANNED: { readonly [tab in Exclude<TabId, "project" | "aircraft" | "components" | "sensors" | "run" | "logging" | "parameters" | "experiments" | "tasks" | "analysis" | "faults">]: string } = {
   weather: "Wind, gusts, turbulence, temperature and pressure, and the location of the flight.",
 };
 
@@ -87,7 +88,7 @@ export function AppShell({ run }: { run: (visible: boolean, storeState: StoreSta
         const ready = await ProjectStore.openIndexedDb({
           validators: {
             "component-card": validateComponentCard, "measurement-set": validateMeasurementSet, "aircraft-profile": validateAircraftProfile,
-            "experiment": validateExperiment, "parameter-set": validateParameterSet, "parameter-log": validateParameterLog, "log-extraction": validateLogExtraction, "flight-task": parseFlightTask, "experiment-batch": validateExperimentBatch,
+            "experiment": validateExperiment, "parameter-set": validateParameterSet, "parameter-log": validateParameterLog, "log-extraction": validateLogExtraction, "effect-log": validateEffectLog, "flight-task": parseFlightTask, "experiment-batch": validateExperimentBatch,
           },
         });
         opened = ready;
@@ -164,6 +165,8 @@ export function AppShell({ run }: { run: (visible: boolean, storeState: StoreSta
         return <ParametersTab storeState={storeState} project={project} link={link} active={navigation.tab === "parameters"} />;
       case "tasks":
         return <FlightTasksTab storeState={storeState} project={project} active={navigation.tab === "tasks"} />;
+      case "faults":
+        return <FaultsTab storeState={storeState} project={project} link={link} active={navigation.tab === "faults"} />;
       case "experiments":
         return <ExperimentsTab storeState={storeState} project={project} link={link} active={navigation.tab === "experiments"} onRun={() => selectTab("run")} onAnalyse={sha256 => { setAnalysisOpen({ sha256, at: Date.now() }); selectTab("analysis"); }} />;
       case "analysis":

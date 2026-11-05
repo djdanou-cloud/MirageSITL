@@ -14,6 +14,9 @@ import { lineageFor, loggingOf } from "../experiments/lifecycle";
 import { logPlanText, saveLogExtraction } from "../experiments/log-plan";
 import { loadLoggingSettings, type LoggingSettings } from "../logging/logging-settings";
 import { ParameterLogWriter } from "../params/log-writer";
+import { EffectLogWriter } from "../faults/effect-log";
+import { loadFaultSchedule } from "../faults/schedule-store";
+import type { FaultSchedule } from "@mirage/scenarios/fault-schedule";
 import { loadParameterMetadata } from "../params/metadata";
 import { RunRecorder } from "../logging/run-recorder";
 import { SimulationRuntime } from "../runtime";
@@ -147,6 +150,15 @@ export function RunPanel({ storeState, project, visible, link }: { storeState: S
     return pad;
   }, []);
   const store = storeState.status === "ready" ? storeState.store : null;
+  // TASK-169: what the next run applies by itself, said before it starts.
+  const [nextFaults, setNextFaults] = useState(0);
+  useEffect(() => {
+    if (!visible) return;
+    if (plan?.kind === "repeat") { setNextFaults(plan.parent.faults?.entries.length ?? 0); return; }
+    let cancelled = false;
+    if (store && project) void loadFaultSchedule(store, project.record.id).then(loaded => { if (!cancelled) setNextFaults(loaded.entries.length); });
+    return () => { cancelled = true; };
+  }, [visible, plan, store, project]);
   const projectId = project?.record.id ?? null;
 
   useEffect(() => () => {
@@ -250,6 +262,8 @@ export function RunPanel({ storeState, project, visible, link }: { storeState: S
     let profileName = stored.record.name;
     // TASK-160: the run's parameter changes are saved as versions of its parameter log.
     const changes = new ParameterLogWriter(store, projectId, setError);
+    // TASK-169: and what became of its effects as versions of its effect log.
+    const effectLog = new EffectLogWriter(store, projectId, setError);
     const next: SessionController = new SessionController(launcher, physics, {
       create: payload => {
         const { sitl } = payload;
@@ -262,7 +276,7 @@ export function RunPanel({ storeState, project, visible, link }: { storeState: S
       },
     }, { nowMs: () => performance.now(), utcNow: () => new Date().toISOString(),
       every: (ms, callback) => { const timer = setInterval(callback, ms); return () => clearInterval(timer); } },
-    view => { setView(view); link.publish(next, view); changes.update(view); },
+    view => { setView(view); link.publish(next, view); changes.update(view); effectLog.update(view); },
     // TASK-163: the run records with the Logging tab's settings.
     logging ? new RunRecorder(fresh, logging, SITL_PHYSICS_HZ) : null, metadata);
     controller.current = next;
@@ -289,6 +303,12 @@ export function RunPanel({ storeState, project, visible, link }: { storeState: S
     if (!store) { setError("Open a project and choose an aircraft profile."); return null; }
     return loadLoggingSettings(store);
   };
+  /** The schedule on the Faults and interference tab, or null when nothing is scheduled (TASK-169). */
+  const faultSchedule = async (): Promise<FaultSchedule | null> => {
+    if (!store || !projectId) return null;
+    const loaded = await loadFaultSchedule(store, projectId);
+    return loaded.entries.length > 0 ? loaded : null;
+  };
   /** ArduPilot's parameter metadata; a run without it shows its parameters without restart and range facts. */
   const metadata = (): Promise<ParameterMetadataCatalog | null> => loadParameterMetadata().catch((cause: unknown) => {
     setError(cause instanceof Error ? cause.message : String(cause));
@@ -308,7 +328,7 @@ export function RunPanel({ storeState, project, visible, link }: { storeState: S
     // A planned run records with its parent's setup, or not at all when the parent recorded nothing, and starts at its home.
     const parent = plan?.parent ?? null;
     const settingsFor = parent ? Promise.resolve(parent.recording ? loggingOf(parent.recording) : null) : logging();
-    void Promise.all([settingsFor, metadata()]).then(([settings, catalog]) => {
+    void Promise.all([settingsFor, metadata(), faultSchedule()]).then(([settings, catalog, schedule]) => {
       if (!parent && !settings) return;
       // A planned run boots with its parent's parameter set, if it had one: the set is one of its inputs.
       // A log from another build may name parameters this one lacks, which the start would refuse.
@@ -318,11 +338,13 @@ export function RunPanel({ storeState, project, visible, link }: { storeState: S
         .map(parameter => ({ name: parameter.name, value: parameter.value }));
       const session = freshSession(settings, catalog, task.entry, fromLog ? fromLogSet : parent?.parameters.filter(parameter => parameter.source === "set") ?? []);
       if (!session) return;
+      // TASK-169: a repeat flies its parent's schedule; everything else the one on the Faults and interference tab.
+      const faults = plan?.kind === "repeat" ? plan.parent.faults : schedule;
       link.planRun(null);
       const logHome = fromLog?.extraction.home ?? null;
       link.planFromLog(null);
       void session.next.start({ prepare: session.prepare, firmwareId: buildId, speedup, physicsHz: parent?.session.physicsHz ?? SITL_PHYSICS_HZ,
-        home: parent?.session.home ?? logHome ?? DEFAULT_HOME, flightTask: task.entry });
+        home: parent?.session.home ?? logHome ?? DEFAULT_HOME, flightTask: task.entry, faults });
     });
   };
   const connect = (endpoints: ConnectionSpec) => {
@@ -334,9 +356,9 @@ export function RunPanel({ storeState, project, visible, link }: { storeState: S
       return;
     }
     setTaskRefusal("");
-    void Promise.all([logging(), metadata()]).then(([settings, catalog]) => {
+    void Promise.all([logging(), metadata(), faultSchedule()]).then(([settings, catalog, schedule]) => {
       const session = settings && freshSession(settings, catalog, task.entry);
-      if (session) void session.next.connect({ prepare: session.prepare, endpoints, physicsHz: SITL_PHYSICS_HZ, home: DEFAULT_HOME, verifiedCommits: verifiedCommits(), flightTask: task.entry });
+      if (session) void session.next.connect({ prepare: session.prepare, endpoints, physicsHz: SITL_PHYSICS_HZ, home: DEFAULT_HOME, verifiedCommits: verifiedCommits(), flightTask: task.entry, faults: schedule });
     });
   };
   // TASK-176: a batch runs the scenario chosen here, one fresh run per set.
@@ -356,11 +378,11 @@ export function RunPanel({ storeState, project, visible, link }: { storeState: S
       const task = chosenFlightTask();
       if (!task) return "The flight task cannot be read";
       setTaskRefusal("");
-      const [settings, catalog] = await Promise.all([logging(), metadata()]);
+      const [settings, catalog, schedule] = await Promise.all([logging(), metadata(), faultSchedule()]);
       if (!settings) return "The recording settings cannot be read";
       const session = freshSession(settings, catalog, task.entry, set.parameters);
       if (!session) return "The run could not be set up";
-      void session.next.start({ prepare: session.prepare, firmwareId: buildId, speedup, physicsHz: SITL_PHYSICS_HZ, home: DEFAULT_HOME, flightTask: task.entry });
+      void session.next.start({ prepare: session.prepare, firmwareId: buildId, speedup, physicsHz: SITL_PHYSICS_HZ, home: DEFAULT_HOME, flightTask: task.entry, faults: schedule });
       return null;
     },
     // runTask answers null when it flies, so a missing controller cannot be told from it by `??`.
@@ -433,6 +455,9 @@ export function RunPanel({ storeState, project, visible, link }: { storeState: S
           ))}
         </select>
       </div>
+      {nextFaults > 0 && !active && (
+        <p className="hint" data-testid="sitl-fault-plan">{`${plan?.kind === "repeat" ? "This repeat flies its parent's schedule." : `This run applies the ${nextFaults === 1 ? "effect" : `${nextFaults} effects`} scheduled on the Faults and interference tab.`} They count from when ArduPilot reports the aircraft armed.`}</p>
+      )}
       {fromLog && (
         <p className="hint" role="status" data-testid="sitl-plan" data-kind="from-log">
           {logPlanText(fromLog.extraction)}

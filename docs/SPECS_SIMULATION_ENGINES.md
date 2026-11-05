@@ -520,7 +520,7 @@ session. Three families of `effect.set` carry them (SPECS_SHARED_MEMORY,
 | `sensor.baro.frozen` | `SIM_BAROn_FREEZE` (`ardupilot`) | The last altitude | Read back; it stays in GUIDED |
 | `sensor.baro.missing` | `SIM_BAROn_DISABLE` (`ardupilot`) | No barometer | SYS_STATUS barometer unhealthy; it stays in GUIDED |
 | `sensor.mag.missing` | `SIM_MAGn_FAIL` (`ardupilot`) | No magnetometer | SYS_STATUS magnetometer unhealthy; it stays in GUIDED |
-| `sensor.gnss.missing` | `SIM_GPS1_ENABLE` (`ardupilot`) | No fix | Fix type 1; EKF failsafe and LAND |
+| `sensor.gnss.missing` | `SIM_GPS1_LCKTIME` (`ardupilot`; `SIM_GPS1_ENABLE` until TASK-169, whose write renumbers the parameter list) | No fix | Fix type 1 with 3 satellites; EKF failsafe and LAND, and after it ends "EKF Failsafe Cleared" with the mode left in LAND |
 | `sensor.imu.missing` | `SIM_ACC_FAIL_MSK`, `SIM_GYR_FAIL_MSK` (`ardupilot`) | No IMU samples | ArduPilot's main loop stops and sends nothing more, and switching the fault off cannot reach it: the run has to end |
 | `link.pilot` | Bridge (`delivery`) | No RC_CHANNELS_OVERRIDE | Nothing visible in GUIDED, which does not read the sticks |
 | `link.gcs` | Bridge (`delivery`) | No MAVLink either way | Silence, then the same state on recovery |
@@ -548,10 +548,44 @@ session. Three families of `effect.set` carry them (SPECS_SHARED_MEMORY,
   `MIRAGE_SITL_FAULTS=1`, flies one flight per fault and asserts only that the fault
   arrived; `test-results/validation/task-168-faults.json` keeps ArduPilot's modes,
   messages, health bits and EKF flags. In a run, the recording keeps them.
-* **Not here.** The instructor console is on the demo page, where these are rejected;
-  `SessionController.setEffect` has no tab yet, which is TASK-169. EW effects still
-  stop at `EwEngine` on this path, and the session reports them applied as before:
-  their delivery as GNSS and magnetometer changes belongs to TASK-169 and TASK-170.
+* **Not here.** The instructor console is on the demo page, where these are rejected.
+
+### Faults and interference tab (TASK-169)
+
+The tab offers the `fault`, `delivery` and `ardupilot` families of `EFFECT_CATALOG`, from one form per effect, and says for each how it reaches ArduPilot. Motor faults change the physical thrust; sensor and link effects change what ArduPilot observes, and the truth stays as it is.
+
+```typescript
+interface ScheduledEffect {
+  control: EffectControl;     // enabled; the protocol's own record
+  onsetS: number;             // simulated seconds after the first armed report
+  durationS: number | null;   // null keeps it on until the run ends
+  recovery: EffectRecovery;   // what a drift does when it ends
+}
+interface FaultSchedule { schemaVersion: 1; entries: ScheduledEffect[] }
+interface EffectEntry {
+  id: string; effect: EffectId; enabled: boolean; intensity: number;
+  status: "pending" | "applied" | "rejected"; message: string;
+  origin: "manual" | "schedule";
+  requestedSimS: number | null;  // asked for, or meant for on a schedule
+  appliedSimS: number | null;    // its tick in the session, or the last read-back
+  writes: string[];              // the ArduPilot parameters it writes
+}
+```
+
+* **Time.** A schedule counts simulated seconds from when ArduPilot first reports the aircraft armed, in a heartbeat, so a repeat meets its faults at the same point of the flight however long its warmup took. That report comes at the heartbeat's rate, so the zero itself is known to within a second of simulated time.
+* **Rules.** Two entries of one effect cannot overlap, nor two of one motor, because the later would replace the earlier. What cannot be delivered is refused where the user sees it, by hand or on the tab.
+* **Sending.** Effects the session applies are queued up to 5 s ahead on the tick of arming plus onset, and land on it. Parameter writes go when due, and their entry says when their read-back came. A control asked for now is aimed 0.25 s of simulated time ahead of the tick read now, and at twice that each time it is refused as past, because the Worker steps while the message crosses to it.
+* **Record.** The experiment record holds the schedule, and a repeat flies its parent's. `effect-log`, one item per run with a new version whenever an entry changes, holds the entries; it depends on the experiment. It says what reached ArduPilot; what ArduPilot did about it is in the run's recording and log.
+* **Delivery.** `PhysicsSessionV2.delivery` gains the GNSS offset and velocity and the magnetometer rotation, which the fault port copies out after each step while a link is attached, without allocating. With all of it off, what is delivered is bit for bit as without. A frozen reading wins over an offset.
+* **Jamming** cannot reach the state line: it has no field for a satellite count. The writes follow the kernel's arithmetic at its steady state, because a parameter write does not resolve its half-second low-pass, and a position accuracy grows in proportion to the DOP against SITL's fixed hDOP of 1.21.
+* **Magnetometer rotation** relies on SITL making its reading from the attitude on the line: q ⊗ conj(r) turns the body field by r and leaves the IMU keys alone.
+
+| Effect | Path | What ArduPilot gets | What it showed on the native flights |
+|---|---|---|---|
+| `ew.position-step` | State line, north and east | The offset, on its tick; a vertical one is refused | 30 m north: GPS_RAW_INT read 30.02 m from the truth, after one report halfway from SITL's own lag; EKF3 switched lane and said "GPS Glitch or Compass error", the truth moved 0.03 m, and it stayed in GUIDED |
+| `ew.velocity-drift` | State line, north and east | The offset and its velocity, on each tick; a vertical one is refused | 0.3 m/s² to 2 m/s for 8 s: 9.35 m from the truth (the form gives 9.33 m), with no message; the aircraft followed it, and the truth moved 9.52 m |
+| `ew.magnetic` | Rotation: the attitude on the state line. Bias: `SIM_MAGn_OFS`, added to what the run holds | A reading turned on its tick; a bias as logged writes | 0.3 rad with 0.1 G: the reading moved by 107 and 197 mG in its axes, the aircraft turned 0.84 rad, and it stayed in GUIDED |
+| `ew.gnss-jamming` | `SIM_GPS1_NUMSATS`, `SIM_GPS1_ACC`, `SIM_GPS1_LCKTIME` | Satellites and accuracy at the severity, no fix at 0.8 or when below 4 satellites; a DOP has no parameter | Severity 0.5: 6 satellites and 12.4 m read back, with no message and the same EKF flags |
 
 ### Weather and atmosphere in flight sessions (TASK-093)
 
@@ -4272,7 +4306,7 @@ shows whether the origin's storage is persistent.
 ### Records
 
 ```typescript
-type ItemKind = "project" | "component-card" | "measurement-set" | "aircraft-profile" | "experiment" | "parameter-set" | "parameter-log" | "flight-task" | "experiment-batch" | "log-extraction";
+type ItemKind = "project" | "component-card" | "measurement-set" | "aircraft-profile" | "experiment" | "parameter-set" | "parameter-log" | "flight-task" | "experiment-batch" | "log-extraction" | "effect-log";
 interface Dependency { kind: ItemKind; sha256: string }
 interface ProjectRecord {
   schemaVersion: 1;
@@ -4318,11 +4352,11 @@ interface ProjectRecord {
   `parameter-log` in the same way; each may depend only on an experiment.
   TASK-172 added `flight-task`, with no dependencies. TASK-176 added
   `experiment-batch`, which may depend on an aircraft profile and on experiments.
-  TASK-182 added `log-extraction`, which may depend only on an experiment.
+  TASK-182 added `log-extraction` and TASK-169 `effect-log`, each of which may depend only on an experiment.
 * **Payloads.** A project's payload is `{}`. The store does not interpret
   card, measurement-set, profile, experiment, parameter-set, parameter-log,
-  flight-task, experiment-batch and log-extraction payloads beyond the canonical JSON limits. Their owner tasks (TASK-138,
-  TASK-139, TASK-140, TASK-154, TASK-160, TASK-165, TASK-172 and TASK-182) register
+  flight-task, experiment-batch, log-extraction and effect-log payloads beyond the canonical JSON limits. Their owner tasks (TASK-138,
+  TASK-139, TASK-140, TASK-154, TASK-160, TASK-165, TASK-169, TASK-172 and TASK-182) register
   payload validators, which apply when a version is written or imported, not
   when it is read.
 
@@ -6878,8 +6912,8 @@ network error; launcher-foreign needs an answer the browser may read.
 
 ### Experiment record
 
-`packages/aircraft/src/experiment.ts` defines experiment payload schema 5
-(TASK-172) in record envelope v1, and the application registers
+`packages/aircraft/src/experiment.ts` defines experiment payload schema 6
+(TASK-169) in record envelope v1, and the application registers
 `validateExperiment` for the `experiment` kind. The record has exactly one
 dependency, its aircraft-profile version, and the payload holds:
 
@@ -6894,14 +6928,16 @@ dependency, its aircraft-profile version, and the payload holds:
 | recording | the run's recorder v2 record ID and the Logging tab settings it records with (common, group and signal rates, the run length and the storage reserve; TASK-163), or null for a run that records nothing |
 | lineage | an original run, or a repeat or variant of a parent experiment (TASK-165; see "Experiment lifecycle") |
 | flightTask | the flight task the run was started with: its definition, its name and the SHA-256 of the `flight-task` record as data (TASK-172; see "Flight tasks"), or null |
+| faults | the effects the run applies by itself, or null (TASK-169; see "Faults and interference tab") |
 
 Schema 1, which TASK-154 wrote, had `ardupilot` and `launcher` at the top
 level and a required speed-up; schema 2, which TASK-155 wrote, had no
 `recording`, schema 3, which TASK-163 wrote, no `lineage`, and schema 4, which
-TASK-165 wrote, no `flightTask`. All stay valid on reads and archive imports;
-`readExperiment` presents them as schema 5 runs without a task, original runs
+TASK-165 wrote, no `flightTask`, and schema 5, which TASK-172 wrote, no `faults`. All
+stay valid on reads and archive imports; `readExperiment` presents them as schema 6
+runs with no fault schedule, without a task before schema 5, original runs
 before schema 4, without a recording before schema 3 (schema 1 with a
-launcher-owned `sitl`), and `createExperimentRecord` writes only schema 5.
+launcher-owned `sitl`), and `createExperimentRecord` writes only schema 6.
 
 `createExperimentRecord` recomputes the snapshot from the stored profile
 version and requires canonical-byte equality, cross-checks the frame and
@@ -6970,7 +7006,8 @@ running. The decisions of 2026-11-01 set the policy: a SITL with built-in
 physics is refused; only verified source commits connect; the SITL's
 parameters are read, never written, and every difference is a reason to
 refuse; a connection is recorded as experiment payload schema 2, which is
-schema 3 since TASK-163, schema 4 since TASK-165 and schema 5 since TASK-172.
+schema 3 since TASK-163, schema 4 since TASK-165, schema 5 since TASK-172 and
+schema 6 since TASK-169.
 
 ### Launcher API
 
@@ -8087,9 +8124,9 @@ recording cannot give reads as missing, never as zero.
 
 ### Inputs held equal and inputs that differ
 
-`comparisonControls` lists 21 inputs: arms and motor layout, motors, propellers, ESCs,
+`comparisonControls` lists 22 inputs: arms and motor layout, motors, propellers, ESCs,
 battery, aircraft mass with CG and inertia, payload, other aircraft settings, flight
-task, start position and lead-in, battery charge at the start, weather, home,
+task, start position and lead-in, battery charge at the start, weather, scheduled faults, home,
 ArduPilot build, initial parameters, frame script, sensors, physics rate, speed,
 recording setup and SITL ownership. Each row gives both values, whether they differ,
 and whether it is held equal. One held equal that differs is flagged, and the
@@ -8098,7 +8135,7 @@ change what is held.
 
 | Comparison | Held equal by default |
 |---|---|
-| Different configurations, equal conditions | payload, battery, flight task, start, charge, weather, home, ArduPilot build, physics rate |
+| Different configurations, equal conditions | payload, battery, flight task, start, charge, weather, scheduled faults, home, ArduPilot build, physics rate |
 | One aircraft, different conditions | every aircraft input, payload, initial parameters, frame script, sensors, ArduPilot build, physics rate |
 
 Speed, recording setup and SITL ownership do not change the physics, so neither kind

@@ -56,7 +56,16 @@ export interface SitlLinkOptions {
    * What the link holds back or drops (TASK-168), read at every reply; the session's delivery object, whose mask changes in place
    * at tick boundaries. Only what is delivered changes: truth stays in the session.
    */
-  readonly delivery?: { readonly mask: number };
+  readonly delivery?: {
+    readonly mask: number;
+    /** TASK-169: added to the north and east position and velocity ArduPilot receives, while `gnssActive`. */
+    readonly gnssActive?: boolean;
+    readonly gnssOffsetNedM?: Float64Array;
+    readonly gnssVelocityNedMps?: Float64Array;
+    /** TASK-169: the rotation of its magnetometer reading, w x y z, while `magActive`. SITL makes that reading from the attitude on this line. */
+    readonly magActive?: boolean;
+    readonly magRotationWxyz?: Float64Array;
+  };
 }
 
 export interface SitlLinkStats {
@@ -232,11 +241,32 @@ export class SitlJsonLink {
       p.gyroBodyRadS[0] = s.pRadS; p.gyroBodyRadS[1] = s.qRadS; p.gyroBodyRadS[2] = s.rRadS;
       p.accelBodyMps2[0] = s.specificForceXBodyMps2; p.accelBodyMps2[1] = s.specificForceYBodyMps2; p.accelBodyMps2[2] = s.specificForceZBodyMps2;
     }
-    if ((mask & DELIVERY_GNSS_FROZEN) === 0) { p.positionNedM[0] = s.northM; p.positionNedM[1] = s.eastM; }
+    const delivery = this.delivery, offset = delivery?.gnssOffsetNedM, velocity = delivery?.gnssVelocityNedMps;
+    if ((mask & DELIVERY_GNSS_FROZEN) === 0) {
+      // TASK-169: an interference offset, only on north and east: the height on this line also feeds SITL's barometer.
+      if (delivery?.gnssActive === true && offset && velocity) {
+        p.positionNedM[0] = s.northM + (offset[0] as number); p.positionNedM[1] = s.eastM + (offset[1] as number); // length 3
+        p.velocityNedMps[0] = s.vnMps + (velocity[0] as number); p.velocityNedMps[1] = s.veMps + (velocity[1] as number);
+      } else {
+        p.positionNedM[0] = s.northM; p.positionNedM[1] = s.eastM;
+        p.velocityNedMps[0] = s.vnMps; p.velocityNedMps[1] = s.veMps;
+      }
+    }
     p.positionNedM[2] = s.downM;
-    if ((mask & DELIVERY_GNSS_FROZEN) === 0) { p.velocityNedMps[0] = s.vnMps; p.velocityNedMps[1] = s.veMps; }
     p.velocityNedMps[2] = s.vdMps;
-    if ((mask & DELIVERY_MAG_FROZEN) === 0) { p.quaternionWxyz[0] = s.qw; p.quaternionWxyz[1] = s.qx; p.quaternionWxyz[2] = s.qy; p.quaternionWxyz[3] = s.qz; }
+    if ((mask & DELIVERY_MAG_FROZEN) === 0) {
+      const r = delivery?.magRotationWxyz;
+      if (delivery?.magActive === true && r) {
+        // q ⊗ conj(r): the body field SITL computes, dcmᵀ·B, becomes R·dcmᵀ·B, the reading turned by R. The IMU keys stay as they are.
+        const a = r[0] as number, b = r[1] as number, c = r[2] as number, d = r[3] as number; // length 4
+        p.quaternionWxyz[0] = s.qw * a + s.qx * b + s.qy * c + s.qz * d;
+        p.quaternionWxyz[1] = -s.qw * b + s.qx * a - s.qy * d + s.qz * c;
+        p.quaternionWxyz[2] = -s.qw * c + s.qx * d + s.qy * a - s.qz * b;
+        p.quaternionWxyz[3] = -s.qw * d - s.qx * c + s.qy * b + s.qz * a;
+      } else {
+        p.quaternionWxyz[0] = s.qw; p.quaternionWxyz[1] = s.qx; p.quaternionWxyz[2] = s.qy; p.quaternionWxyz[3] = s.qz;
+      }
+    }
     // A bus-driven model publishes its pack voltage and current; a model without a bus publishes 0 V and sends none.
     p.batteryValid = s.batteryVoltage > 0;
     p.batteryVoltageV = s.batteryVoltage; p.batteryCurrentA = s.batteryCurrentA;

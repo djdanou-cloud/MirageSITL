@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { prepareContact } from './contact-support.ts';
 import { createSessionFaultPort } from '@mirage/ew/session-port';
+import { MagneticAnomaly } from '@mirage/ew/magnetic';
 import { profileModelPort } from '@mirage/physics/profile-dynamics';
 import { VehicleRegistry } from '@mirage/physics/vehicle-manifest';
 import {
@@ -148,9 +149,93 @@ describe('frozen readings on the state line', () => {
     h.step(0, CLIMB_PWM); h.step(1, CLIMB_PWM);
     expect(h.session.delivery.mask).not.toBe(0);
     h.session.attachDelivery(false);
-    expect(h.session.delivery).toEqual({ mask: 0, attached: false });
+    expect(h.session.delivery).toMatchObject({ mask: 0, attached: false });
     expect(h.control(5, record('sensor.imu.frozen'))).toMatchObject({ type: 'reject-v2', code: 'BAD_STATE', message: expect.stringContaining('no') as string });
   }, 120000);
+});
+
+describe('interference on the state line (TASK-169)', () => {
+  const run = async (controls: readonly (readonly [number, EffectControl])[]) => {
+    const h = await harness();
+    for (const [tick, control] of controls) expect(h.control(tick, control)).toMatchObject({ status: 'queued' });
+    const rows: ReturnType<typeof h.step>[] = [];
+    for (let frame = 0; frame < TICKS; frame++) rows.push(h.step(frame, CLIMB_PWM));
+    h.session.drain(item => h.results.push(item));
+    return { rows, h };
+  };
+  const withParameters = (effect: EffectId, parameters: Record<string, unknown>, enabled = true, intensity = 1) => ({ ...record(effect, enabled, intensity), parameters: { ...record(effect).parameters, ...parameters } }) as EffectControl;
+  const truthAndRest = (baseline: Awaited<ReturnType<typeof run>>, row: Awaited<ReturnType<typeof run>>['rows'][number], index: number) => {
+    const reference = baseline.rows[index];
+    if (!reference) throw new Error('No reference row');
+    expect(Float64Array.from(row.truth), `truth at tick ${row.tick}`).toEqual(Float64Array.from(reference.truth));
+    expect(row.line.imu, `IMU at tick ${row.tick}`).toEqual(reference.line.imu);
+    expect(row.line.position[2], `height at tick ${row.tick}`).toBe(reference.line.position[2]);
+    return reference;
+  };
+  it('a position step moves north and east by its offset, from its tick to its end, and nothing else', async () => {
+    const baseline = await run([]), offset = [30, -12.5, 0], stepped = await run([[ON, withParameters('ew.position-step', { offsetNedM: offset })], [OFF, withParameters('ew.position-step', { offsetNedM: offset }, false)]]);
+    stepped.rows.forEach((row, index) => {
+      const reference = truthAndRest(baseline, row, index), on = row.tick >= ON && row.tick < OFF;
+      expect(row.line.position[0], `north at ${row.tick}`).toBe((reference.line.position[0] ?? 0) + (on ? 30 : 0));
+      expect(row.line.position[1], `east at ${row.tick}`).toBe((reference.line.position[1] ?? 0) + (on ? -12.5 : 0));
+      expect(row.line.velocity).toEqual(reference.line.velocity);
+      expect(row.line.quaternion).toEqual(reference.line.quaternion);
+    });
+  }, 300000);
+  it('a drift moves position and velocity together, at its acceleration, and truth stays bit for bit', async () => {
+    const baseline = await run([]), drifted = await run([[ON, withParameters('ew.velocity-drift', { accelerationNedMps2: [0.2, -0.1, 0], maxSpeedMps: 2 })]]);
+    let last = 0;
+    drifted.rows.forEach((row, index) => {
+      const reference = truthAndRest(baseline, row, index), elapsed = (row.tick - ON + 1) / HZ;
+      if (row.tick < ON) { expect(row.line.position).toEqual(reference.line.position); expect(row.line.velocity).toEqual(reference.line.velocity); return; }
+      // The drift's own form, v = a t and b = a t² / 2, up to its one-step integration.
+      expect((row.line.velocity[0] ?? 0) - (reference.line.velocity[0] ?? 0)).toBeCloseTo(0.2 * elapsed, 6);
+      expect((row.line.velocity[1] ?? 0) - (reference.line.velocity[1] ?? 0)).toBeCloseTo(-0.1 * elapsed, 6);
+      const north = (row.line.position[0] ?? 0) - (reference.line.position[0] ?? 0);
+      expect(north).toBeCloseTo(0.5 * 0.2 * elapsed * elapsed, 5);
+      expect(north).toBeGreaterThanOrEqual(last);
+      last = north;
+      expect(row.line.velocity[2]).toBe(reference.line.velocity[2]);
+    });
+    expect(last).toBeGreaterThan(0);
+  }, 300000);
+  it('a magnetic rotation turns SITL\'s body field as the magnetic model turns it, and only that', async () => {
+    const rotationRad = [0.2, -0.3, 0.5], baseline = await run([]), turned = await run([[ON, withParameters('ew.magnetic', { rotationRad, biasBodyGauss: [0, 0, 0] })], [OFF, withParameters('ew.magnetic', { rotationRad, biasBodyGauss: [0, 0, 0] }, false)]]);
+    const anomaly = new MagneticAnomaly(rotationRad as [number, number, number], [0, 0, 0]);
+    // SITL's reading: dcmᵀ·B for the attitude on the line (SIM_Aircraft.cpp), with dcm built here from the quaternion, independently of the code under test.
+    const bodyField = (q: readonly number[], earth: readonly number[]) => {
+      const [w = 0, x = 0, y = 0, z = 0] = q, [n = 0, e = 0, d = 0] = earth;
+      const m = [[1 - 2 * (y * y + z * z), 2 * (x * y - w * z), 2 * (x * z + w * y)], [2 * (x * y + w * z), 1 - 2 * (x * x + z * z), 2 * (y * z - w * x)], [2 * (x * z - w * y), 2 * (y * z + w * x), 1 - 2 * (x * x + y * y)]];
+      return [0, 1, 2].map(i => (m[0]?.[i] ?? 0) * n + (m[1]?.[i] ?? 0) * e + (m[2]?.[i] ?? 0) * d);
+    };
+    const earth = [0.22, 0.05, 0.42];
+    turned.rows.forEach((row, index) => {
+      const reference = truthAndRest(baseline, row, index);
+      expect(row.line.position).toEqual(reference.line.position);
+      expect(row.line.velocity).toEqual(reference.line.velocity);
+      if (row.tick < ON || row.tick >= OFF) { expect(row.line.quaternion, `tick ${row.tick}`).toEqual(reference.line.quaternion); return; }
+      const source = Float64Array.from(bodyField(reference.line.quaternion, earth)), target = new Float64Array(3);
+      expect(anomaly.distortInto(source, target)).toBe(true);
+      const delivered = bodyField(row.line.quaternion, earth);
+      // The state line prints its quaternion to a fixed number of digits, which sets the tolerance.
+      delivered.forEach((value, axis) => expect(value, `axis ${axis} at tick ${row.tick}`).toBeCloseTo(target[axis] ?? Number.NaN, 7));
+      expect(Math.hypot(...row.line.quaternion)).toBeCloseTo(1, 7);
+    });
+  }, 300000);
+  it('a frozen GNSS holds through a step, and off leaves what is delivered exactly as without', async () => {
+    const baseline = await run([]);
+    const never = await run([[ON, withParameters('ew.position-step', { offsetNedM: [30, 0, 0] }, false)], [ON + 1, withParameters('ew.magnetic', { rotationRad: [0.2, 0, 0], biasBodyGauss: [0, 0, 0] }, true, 0)]]);
+    never.rows.forEach((row, index) => expect(row.line, `tick ${row.tick}`).toEqual(baseline.rows[index]?.line));
+    const frozen = await run([[ON, record('sensor.gnss.frozen')], [ON + 5, withParameters('ew.position-step', { offsetNedM: [30, 0, 0] })]]);
+    const held = frozen.rows.find(row => row.tick === ON)?.line.position[0];
+    for (const row of frozen.rows.filter(item => item.tick >= ON)) expect(row.line.position[0]).toBe(held);
+  }, 300000);
+  it('a closed link clears the offsets', async () => {
+    const { h } = await run([[ON, withParameters('ew.position-step', { offsetNedM: [30, 0, 0] })]]);
+    expect(h.session.delivery.gnssActive).toBe(true);
+    h.session.attachDelivery(false);
+    expect(h.session.delivery.gnssActive).toBe(false);
+  }, 300000);
 });
 
 describe('lost links at the bridge', () => {

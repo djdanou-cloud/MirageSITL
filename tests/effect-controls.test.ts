@@ -298,7 +298,7 @@ describe('each effect keeps to itself', () => {
     expect(h.session.delivery.mask).not.toBe(0);
     h.lifecycle('sim.pause');
     expect(h.lifecycle('sim.reset', { seed: 1 })).toMatchObject({ status: 'applied' });
-    expect(h.session.delivery).toEqual({ mask: 0, attached: true });
+    expect(h.session.delivery).toMatchObject({ mask: 0, attached: true });
   });
   it('a new epoch forgets every effect', () => {
     const h = harness();

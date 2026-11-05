@@ -35,7 +35,8 @@ import {
   type RunState, type StartRequest, type StartSpec, MANUAL_RATE_HZ, type PilotInputPort,
   type FlightTruth,
 } from '../apps/web/src/run/session-controller.ts';
-import type { EffectControl, EffectRecovery, PilotInput } from '../packages/protocol/src/index.ts';
+import { initialEffectParameters, type EffectControl, type EffectRecovery, type PilotInput } from '../packages/protocol/src/index.ts';
+import { parseFaultSchedule, type FaultSchedule } from '../packages/scenarios/src/fault-schedule.ts';
 import type { ExperimentRecording } from '../packages/aircraft/src/experiment.ts';
 import type { MavFrame } from '../packages/mavlink/src/codec.ts';
 import type { AccidentEvent } from '../packages/physics/src/accident.ts';
@@ -133,8 +134,10 @@ function statusText(text: string): Uint8Array {
 const OTHER_PARAMETERS: readonly (readonly [string, number])[] = [
   // What a flight task's targets stay within: ArduCopter's defaults at the pinned commit.
   ['WP_ACC_Z', 1], ['PSC_D_JERK', 5], ['PSC_NE_JERK', 5], ['ATC_ACC_Y_MAX', 270],
+  // What jamming writes (TASK-169), at their defaults; a run's generated list holds the magnetometer offsets.
+  ['SIM_GPS1_NUMSATS', 10], ['SIM_GPS1_ACC', 0.3],
   // ArduPilot's own fault parameters (TASK-168), at their defaults. SIM_BAR3_FREEZE is left out for the test of an incomplete list.
-  ['SIM_BARO_DISABLE', 0], ['SIM_BAR2_DISABLE', 0], ['SIM_BAR3_DISABLE', 0], ['SIM_GPS1_ENABLE', 1], ['SIM_BARO_FREEZE', 0], ['SIM_BAR2_FREEZE', 0],
+  ['SIM_BARO_DISABLE', 0], ['SIM_BAR2_DISABLE', 0], ['SIM_BAR3_DISABLE', 0], ['SIM_GPS1_LCKTIME', 0], ['SIM_BARO_FREEZE', 0], ['SIM_BAR2_FREEZE', 0],
   ['SYSID_THISMAV', 1], ['FS_GCS_ENABLE', 0], ['ARMING_CHECK', 1]];
 /** The autopilot's complete PARAM_VALUE list: every generated parameter (as float32 on the wire) plus others. */
 function parameterList(expected: readonly { readonly name: string; readonly value: number }[],
@@ -412,11 +415,11 @@ class ScriptedPhysics implements PhysicsPort {
   readonly manual: boolean[] = [];
   manualInput(active: boolean): void { this.manual.push(active); }
   /** Effect controls sent to the session, and how the next is answered: null applied, or the reason it is rejected. */
-  readonly effectsSent: { control: EffectControl; recovery: EffectRecovery }[] = [];
+  readonly effectsSent: { control: EffectControl; recovery: EffectRecovery; atSimS: number | undefined }[] = [];
   effectAnswer: string | null = null;
-  effect(control: EffectControl, recovery: EffectRecovery): Promise<void> {
-    this.effectsSent.push({ control, recovery });
-    return this.effectAnswer === null ? Promise.resolve() : Promise.reject(new Error(this.effectAnswer));
+  effect(control: EffectControl, recovery: EffectRecovery, atSimS?: number): Promise<number | null> {
+    this.effectsSent.push({ control, recovery, atSimS });
+    return this.effectAnswer === null ? Promise.resolve(atSimS ?? null) : Promise.reject(new Error(this.effectAnswer));
   }
   frames(): SentFrame[] { return decodeSent(this.sent); }
 }
@@ -1244,6 +1247,109 @@ function answer(h: Harness, name: string, value: number, type = REAL32): Uint8Ar
 let catalog: ParameterMetadataCatalog;
 beforeAll(() => { catalog = parseParameterMetadata(readJson('data/ardupilot/param-metadata.json')); });
 
+describe('the Faults and interference tab on a run (TASK-169)', () => {
+  const control = (effect: EffectControl['effect'], parameters: Partial<Record<string, unknown>> = {}, enabled = true, intensity = 1) =>
+    ({ schemaVersion: 1, id: effect.replaceAll('.', '-'), effect, enabled, intensity, parameters: { ...initialEffectParameters(effect), ...parameters } }) as EffectControl;
+  const schedule = (...entries: readonly { control: EffectControl; onsetS: number; durationS: number | null }[]): FaultSchedule =>
+    parseFaultSchedule({ schemaVersion: 1, entries: entries.map(entry => ({ ...entry, recovery: 'hold-offset' })) });
+  /** A run that has reached READY and arms at `at` s of simulated time. */
+  async function armed(faults: FaultSchedule | null, at = 100) {
+    const base = harness(undefined, null, catalog), h = { ...base, request: { ...base.request, faults } };
+    await reach(h, 'ready');
+    status(h, { simTimeS: at });
+    expect(h.physics.effectsSent).toEqual([]);
+    mav(h, heartbeat(GUIDED, true));
+    status(h, { simTimeS: at });
+    return h;
+  }
+
+  test('a schedule counts from the first arming, keeps its record, and queues a session effect on its exact tick', async () => {
+    const faults = schedule({ control: control('link.pilot'), onsetS: 2, durationS: 6 }, { control: control('ew.position-step', { offsetNedM: [30, 0, 0] }), onsetS: 20, durationS: null });
+    const h = await armed(faults);
+    const stored = h.records.stored.at(-1);
+    if (!stored) throw new Error('No experiment was stored');
+    expect(readExperiment(stored).faults).toEqual(faults);
+    // Within the queue lead of its time: on the tick of arming + onset, and not before anything is due.
+    expect(h.physics.effectsSent).toMatchObject([{ control: { effect: 'link.pilot', enabled: true }, atSimS: 102 }]);
+    expect(h.controller.view.faultPlan).toMatchObject({ armedAtS: 100, sent: 1 });
+    status(h, { simTimeS: 103 });
+    expect(h.physics.effectsSent.at(-1)).toMatchObject({ control: { effect: 'link.pilot', enabled: false }, atSimS: 108 });
+    status(h, { simTimeS: 114 });
+    expect(h.physics.effectsSent).toHaveLength(2);
+    status(h, { simTimeS: 116 });
+    expect(h.physics.effectsSent.at(-1)).toMatchObject({ control: { effect: 'ew.position-step', enabled: true }, atSimS: 120 });
+    await Promise.resolve(); await Promise.resolve();
+    expect(h.controller.view.effects[0]).toMatchObject({ origin: 'schedule', status: 'applied', requestedSimS: 102, appliedSimS: 102 });
+    // A run that never arms never starts counting, and says so.
+    const idleBase = harness(undefined, null, catalog), idle = { ...idleBase, request: { ...idleBase.request, faults } };
+    await reach(idle, 'ready');
+    status(idle, { simTimeS: 500 });
+    expect(idle.physics.effectsSent).toEqual([]);
+    expect(idle.controller.view.faultPlan).toMatchObject({ armedAtS: null, sent: 0 });
+  });
+
+  test('jamming goes to the session for its flag and to the receiver as logged writes, which go back when it ends', async () => {
+    const h = await armed(schedule({ control: control('ew.gnss-jamming', { severity: 0.5 }), onsetS: 1, durationS: 4 }));
+    h.physics.sent.length = 0;
+    status(h, { simTimeS: 100.5 });
+    expect(paramSets(h)).toEqual([]);
+    status(h, { simTimeS: 101 });
+    expect(paramSets(h)).toEqual([{ name: 'SIM_GPS1_NUMSATS', value: 6 }, { name: 'SIM_GPS1_ACC', value: Math.fround(0.3 * ((0.5 * 1.21 + 0.5 * 99) / 1.21)) }, { name: 'SIM_GPS1_LCKTIME', value: 0 }]);
+    expect(h.physics.effectsSent.at(-1)).toMatchObject({ control: { effect: 'ew.gnss-jamming', enabled: true } });
+    await Promise.resolve(); await Promise.resolve();
+    // It stands as its session answer and its read-backs both do.
+    expect(h.controller.view.effects[0]?.status).toBe('pending');
+    mav(h, answer(h, 'SIM_GPS1_NUMSATS', 6), answer(h, 'SIM_GPS1_ACC', Math.fround(0.3 * ((0.5 * 1.21 + 0.5 * 99) / 1.21))), answer(h, 'SIM_GPS1_LCKTIME', 0));
+    expect(h.controller.view.effects[0]).toMatchObject({ status: 'applied', writes: ['SIM_GPS1_NUMSATS', 'SIM_GPS1_ACC', 'SIM_GPS1_LCKTIME'] });
+    h.physics.sent.length = 0;
+    status(h, { simTimeS: 105 });
+    expect(paramSets(h)).toEqual([{ name: 'SIM_GPS1_NUMSATS', value: 10 }, { name: 'SIM_GPS1_ACC', value: Math.fround(0.3) }, { name: 'SIM_GPS1_LCKTIME', value: 0 }]);
+  });
+
+  test('a magnetic bias adds to the offsets the run has and goes back to them; a rotation alone writes nothing', async () => {
+    const h = await armed(null);
+    h.physics.sent.length = 0;
+    expect(h.controller.setEffect(control('ew.magnetic', { rotationRad: [0, 0, 0.5], biasBodyGauss: [0, 0, 0] }))).toBeNull();
+    expect(paramSets(h)).toEqual([]);
+    expect(h.controller.setEffect(control('ew.magnetic', { rotationRad: [0, 0, 0], biasBodyGauss: [0.3, -0.2, 0] }))).toBeNull();
+    const sets = paramSets(h);
+    expect(sets).toHaveLength(9);
+    const held = new Map(h.controller.parameterList().map(parameter => [parameter.name, parameter.value]));
+    const offset = (name: string) => { const value = held.get(name); if (value === undefined) throw new Error(`No ${name}`); return value; };
+    expect(sets.find(set => set.name === 'SIM_MAG2_OFS_X')?.value).toBeCloseTo(offset('SIM_MAG2_OFS_X') - 300, 3);
+    expect(sets.find(set => set.name === 'SIM_MAG2_OFS_Y')?.value).toBeCloseTo(offset('SIM_MAG2_OFS_Y') + 200, 3);
+    expect(sets.find(set => set.name === 'SIM_MAG2_OFS_Z')?.value).toBeCloseTo(offset('SIM_MAG2_OFS_Z'), 3);
+    h.physics.sent.length = 0;
+    expect(h.controller.setEffect(control('ew.magnetic', { rotationRad: [0, 0, 0], biasBodyGauss: [0.3, -0.2, 0] }, false))).toBeNull();
+    expect(paramSets(h).map(set => [set.name, set.value])).toEqual(sets.map(set => [set.name, offset(set.name)]));
+  });
+
+  test('what cannot be delivered is rejected where it shows, by hand and on a schedule, and the ledger keeps it', async () => {
+    const h = await armed(schedule({ control: control('sensor.baro.frozen'), onsetS: 1, durationS: null }));
+    expect(h.controller.setEffect(control('ew.position-step', { offsetNedM: [0, 0, 5] }))).toContain('barometer');
+    expect(h.controller.view.effects[0]).toMatchObject({ effect: 'ew.position-step', status: 'rejected', origin: 'manual' });
+    // SIM_BAR3_FREEZE is left out of the test list, so this one cannot be written whole; none of it goes.
+    h.physics.sent.length = 0;
+    status(h, { simTimeS: 102 });
+    expect(paramSets(h)).toEqual([]);
+    expect(h.controller.view.effects.at(-1)).toMatchObject({ effect: 'sensor.baro.frozen', status: 'rejected', origin: 'schedule', requestedSimS: 101 });
+    expect(h.controller.view.effects.at(-1)?.message).toContain('SIM_BAR3_FREEZE');
+    h.physics.effectAnswer = 'The session refused it';
+    expect(h.controller.setEffect(control('link.pilot'))).toBeNull();
+    await Promise.resolve(); await Promise.resolve();
+    expect(h.controller.view.effects.at(-1)).toMatchObject({ effect: 'link.pilot', status: 'rejected', message: 'The session refused it' });
+  });
+
+  test('no run, no effect, and a stopped run stops its schedule', async () => {
+    const idle = harness(undefined, null, catalog);
+    expect(idle.controller.setEffect(control('link.pilot'))).toBe('No run is active');
+    const h = await armed(schedule({ control: control('link.pilot'), onsetS: 50, durationS: null }));
+    await h.controller.stop();
+    status(h, { simTimeS: 200 });
+    expect(h.physics.effectsSent).toEqual([]);
+  });
+});
+
 describe('effect controls in a run (TASK-168)', () => {
   const control = (effect: EffectControl['effect'], enabled = true, intensity = 1): EffectControl => ({ schemaVersion: 1, id: effect.replaceAll('.', '-'), effect, enabled, intensity, parameters: {} });
 
@@ -1252,23 +1358,23 @@ describe('effect controls in a run (TASK-168)', () => {
     await reach(h, 'flying');
     expect(h.controller.setEffect(control('sensor.baro.missing'))).toBeNull();
     expect(paramSets(h)).toEqual([{ name: 'SIM_BARO_DISABLE', value: 1 }, { name: 'SIM_BAR2_DISABLE', value: 1 }, { name: 'SIM_BAR3_DISABLE', value: 1 }]);
-    expect(h.controller.view.effects).toEqual([{ effect: 'sensor.baro.missing', enabled: true, intensity: 1, status: 'pending', message: '' }]);
+    expect(h.controller.view.effects).toMatchObject([{ effect: 'sensor.baro.missing', enabled: true, intensity: 1, status: 'pending', message: '', origin: 'manual', writes: ['SIM_BARO_DISABLE', 'SIM_BAR2_DISABLE', 'SIM_BAR3_DISABLE'] }]);
     expect(h.controller.view.parameters?.changes.map(change => [change.name, change.oldValue, change.newValue])).toEqual([['SIM_BARO_DISABLE', 0, 1], ['SIM_BAR2_DISABLE', 0, 1], ['SIM_BAR3_DISABLE', 0, 1]]);
     mav(h, answer(h, 'SIM_BARO_DISABLE', 1), answer(h, 'SIM_BAR2_DISABLE', 1));
     expect(h.controller.view.effects[0]?.status).toBe('pending');
     mav(h, answer(h, 'SIM_BAR3_DISABLE', 1));
     expect(h.controller.view.effects[0]?.status).toBe('applied');
-    // Off restores what each held, which for SIM_GPS1_ENABLE below is the 1 it started from, not a zero.
+    // Off restores what each held, which for SIM_GPS1_LCKTIME below is the 0 it started from.
     h.physics.sent.length = 0;
     expect(h.controller.setEffect(control('sensor.baro.missing', false))).toBeNull();
     expect(paramSets(h)).toEqual([{ name: 'SIM_BARO_DISABLE', value: 0 }, { name: 'SIM_BAR2_DISABLE', value: 0 }, { name: 'SIM_BAR3_DISABLE', value: 0 }]);
     h.physics.sent.length = 0;
     expect(h.controller.setEffect(control('sensor.gnss.missing'))).toBeNull();
-    expect(paramSets(h)).toEqual([{ name: 'SIM_GPS1_ENABLE', value: 0 }]);
-    mav(h, answer(h, 'SIM_GPS1_ENABLE', 0));
+    expect(paramSets(h)).toEqual([{ name: 'SIM_GPS1_LCKTIME', value: 32767 }]);
+    mav(h, answer(h, 'SIM_GPS1_LCKTIME', 32767));
     h.physics.sent.length = 0;
     expect(h.controller.setEffect(control('sensor.gnss.missing', true, 0))).toBeNull();
-    expect(paramSets(h)).toEqual([{ name: 'SIM_GPS1_ENABLE', value: 1 }]);
+    expect(paramSets(h)).toEqual([{ name: 'SIM_GPS1_LCKTIME', value: 0 }]);
     // No session command: these are the autopilot's.
     expect(h.physics.effectsSent).toEqual([]);
   });
@@ -1281,9 +1387,9 @@ describe('effect controls in a run (TASK-168)', () => {
     expect(h.controller.setEffect(control('sensor.baro.frozen', true, 0))).toBeNull();
     expect(paramSets(h)).toEqual([]);
     expect(h.controller.setEffect(control('sensor.gnss.missing'))).toBeNull();
-    mav(h, answer(h, 'SIM_GPS1_ENABLE', 1));
+    mav(h, answer(h, 'SIM_GPS1_LCKTIME', 1));
     status(h, { ready: true, reason: '', simTimeS: 41.5 });
-    expect(h.controller.view.effects.at(-1)).toMatchObject({ effect: 'sensor.gnss.missing', status: 'rejected', message: expect.stringContaining('SIM_GPS1_ENABLE') as string });
+    expect(h.controller.view.effects.at(-1)).toMatchObject({ effect: 'sensor.gnss.missing', status: 'rejected', message: expect.stringContaining('SIM_GPS1_LCKTIME') as string });
   });
 
   test('half a fault is never written: a parameter the list lacks refuses the whole effect', async () => {
@@ -1292,7 +1398,7 @@ describe('effect controls in a run (TASK-168)', () => {
     h.physics.sent.length = 0;
     expect(h.controller.setEffect(control('sensor.baro.frozen'))).toContain('SIM_BAR3_FREEZE');
     expect(paramSets(h)).toEqual([]);
-    expect(h.controller.view.effects).toEqual([]);
+    expect(h.controller.view.effects).toMatchObject([{ effect: 'sensor.baro.frozen', status: 'rejected', writes: [] }]);
   });
 
   test('a link effect goes to the session, and its rejection shows', async () => {

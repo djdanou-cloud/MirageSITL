@@ -78,6 +78,8 @@ import type { ParameterMetadataCatalog, ParameterMetadataSet } from "@mirage/aut
 import { parameterWriteConflictReason } from "@mirage/autopilot/error-ownership";
 import { ParameterService, type DownloadState, type ParameterValue } from "@mirage/autopilot/param-service";
 import { faultParameters } from "@mirage/autopilot/fault-effects";
+import { JAMMING_PARAMETERS, MAGNETIC_PARAMETERS, SITL_GPS_ACC, SITL_GPS_LOCK, SITL_GPS_NO_LOCK_S, SITL_GPS_NUMSATS, jammingWrites, magneticBiasWrites, type ParameterWrite } from "@mirage/ew/sitl-writes";
+import { faultTimeline, sitlDeliveryRefusal, type FaultSchedule, type FaultTransition } from "@mirage/scenarios/fault-schedule";
 import { parseEffectControl, type EffectControl, type EffectId, type EffectRecovery } from "@mirage/protocol";
 import { siteParameters } from "@mirage/aircraft/site-parameters";
 import { ParameterReadback, type AbsentRule, type ParameterDifference } from "@mirage/autopilot/parameter-readback";
@@ -190,8 +192,11 @@ export interface PhysicsPort {
   tickNow(): { readonly tick: number; readonly simTimeS: number };
   /** Manual control started or ended: the Worker's stale-input watchdog follows it (TASK-174). */
   manualInput(active: boolean): void;
-  /** One effect control on the next tick (TASK-166, TASK-168); resolves on its applied acknowledgement, rejects with the reason. */
-  effect(control: EffectControl, recovery: EffectRecovery): Promise<void>;
+  /**
+   * One effect control on the next tick, or on the tick of simulated time `atSimS` if that is still ahead (TASK-166, TASK-168, TASK-169);
+   * resolves with the simulated time of the tick that applied it, rejects with the reason.
+   */
+  effect(control: EffectControl, recovery: EffectRecovery, atSimS?: number): Promise<number | null>;
 }
 /** The calibrated USB controller (GamepadAdapter of TASK-038). */
 export interface PilotInputPort {
@@ -244,6 +249,8 @@ export interface StartRequest {
   readonly lineage?: ExperimentLineage;
   /** The flight task this run may fly (TASK-172). */
   readonly flightTask?: ExperimentFlightTask | null;
+  /** The effects this run applies by itself (TASK-169). */
+  readonly faults?: FaultSchedule | null;
 }
 export interface ConnectRequest {
   readonly prepare: () => Promise<PreparedRun>;
@@ -260,6 +267,8 @@ export interface ConnectRequest {
   readonly verifiedCommits: readonly string[];
   /** The flight task this run may fly (TASK-172); a SITL the user started stands at its own home, so its ground start must be the pad. */
   readonly flightTask?: ExperimentFlightTask | null;
+  /** The effects this run applies by itself (TASK-169). */
+  readonly faults?: FaultSchedule | null;
 }
 
 // ---- states ---------------------------------------------------------------------------------
@@ -458,8 +467,17 @@ export interface ControllerView {
   readonly speed: RunSpeedView;
   /** Manual control (TASK-174), or null when MirageSITL flies the run. */
   readonly manual: ManualView | null;
-  /** Every effect control sent in this run, oldest first (TASK-168). */
+  /** Every effect control asked for in this run, oldest first (TASK-168). */
   readonly effects: readonly EffectEntry[];
+  /** The effects this run applies by itself (TASK-169), or null. */
+  readonly faultPlan: FaultPlanView | null;
+}
+export interface FaultPlanView {
+  readonly schedule: FaultSchedule;
+  /** The simulated time ArduPilot first reported the aircraft armed, from which the schedule counts; null before that. */
+  readonly armedAtS: number | null;
+  /** How many changes of faultTimeline(schedule) have been sent. */
+  readonly sent: number;
 }
 /** One effect control and what became of it. What ArduPilot then does about it, the run's recording holds. */
 export interface EffectEntry {
@@ -467,6 +485,16 @@ export interface EffectEntry {
   readonly enabled: boolean;
   readonly intensity: number;
   readonly status: "pending" | "applied" | "rejected";
+  /** Names this control's instance. */
+  readonly id: string;
+  /** Asked for by hand, or by the run's schedule. */
+  readonly origin: "manual" | "schedule";
+  /** The simulated time it was asked for, or meant for on a schedule, s; null before the run has a time. */
+  readonly requestedSimS: number | null;
+  /** The simulated time it took effect, s: its tick in the session, or the last read-back of its parameters; null until then. */
+  readonly appliedSimS: number | null;
+  /** The ArduPilot parameters it writes. */
+  readonly writes: readonly string[];
   /** Why it was rejected, or empty. */
   readonly message: string;
 }
@@ -525,6 +553,16 @@ interface ExternalFacts {
   homeChecked: boolean;
 }
 
+/** One effect control of a run, as the controller follows it. */
+interface EffectItem {
+  entry: EffectEntry;
+  readonly writeIds: readonly number[];
+  session: "none" | "pending" | "applied" | "rejected";
+  writesAtS: number | null;
+}
+/** How far ahead of its time a scheduled control is queued on its tick, s of simulated time; the protocol allows 10. */
+const FAULT_QUEUE_LEAD_S = 5;
+
 export class SessionController {
   private stateValue: RunState = { name: "idle", last: null };
   private status: SitlStatus | null = null;
@@ -546,8 +584,10 @@ export class SessionController {
   private params: ParameterService | null = null;
   private paramMetadata: ParameterMetadataSet | null = null;
   private changes: ParameterChange[] = [];
-  /** TASK-168: effect controls sent, and for an `ardupilot` effect its parameter writes, which decide its status. */
-  private effects: { entry: EffectEntry; writeIds: readonly number[] }[] = [];
+  /** TASK-168: effect controls sent, the parameter writes among them and what the session answered, which decide their status. */
+  private effects: EffectItem[] = [];
+  /** TASK-169: the run's schedule, what of it has gone, and when it started counting. */
+  private faultPlan: { readonly schedule: FaultSchedule; readonly timeline: readonly FaultTransition[]; sent: number; armedAtS: number | null } | null = null;
   /** The value each fault parameter held before an effect changed it. */
   private readonly faultRestore = new Map<string, number>();
   /** The ground-station link effect is on: the autopilot's silence is that effect, not a lost SITL. */
@@ -601,7 +641,8 @@ export class SessionController {
       afterAccident: this.afterAccident, pauses: this.pauses, pausedWallMs: this.pausedWallTotal(), parameters: this.parameterView(),
       speed: this.speed.view, flightTask: this.flightTaskView(),
       manual: this.manual ? { mode: this.manual.mode, device: this.manual.device, waiting: this.manual.waiting } : null,
-      effects: this.effects.map(item => this.effectEntry(item)) };
+      effects: this.effects.map(item => this.effectEntry(item)),
+      faultPlan: this.faultPlan ? { schedule: this.faultPlan.schedule, armedAtS: this.faultPlan.armedAtS, sent: this.faultPlan.sent } : null };
   }
   get active(): boolean { return ACTIVE.has(this.stateValue.name); }
   /** The current state name, read afresh after an await (not narrowed by earlier checks). */
@@ -613,6 +654,7 @@ export class SessionController {
     if (from !== "idle" && from !== "failed") return;
     this.reset("launcher");
     this.flightTaskEntry = request.flightTask ?? null;
+    this.planFaults(request.faults ?? null);
     this.home = request.home;
     this.speed = new RunSpeedMeter(request.speedup);
     const generation = ++this.generation;
@@ -683,7 +725,7 @@ export class SessionController {
       session: { physicsHz: request.physicsHz, clockMode: "sitl-lockstep", speedup: request.speedup, home: request.home, modelId: prepared.modelId,
         manifestSha256: prepared.manifestSha256, betModuleSha256 },
       parameters, frameScript: prepared.frameScript, sensors: prepared.sensors, recording, lineage: request.lineage ?? { kind: "original" },
-      flightTask: this.flightTaskEntry,
+      flightTask: this.flightTaskEntry, faults: this.faultPlan?.schedule ?? null,
     };
     try { this.recordSha256 = (await this.records.create(payload)).sha256; } catch (error) {
       // No unrecorded run flies; after a Stop, the stop already ended the run.
@@ -714,6 +756,7 @@ export class SessionController {
     if (from !== "idle" && from !== "failed") return;
     this.reset("external");
     this.flightTaskEntry = request.flightTask ?? null;
+    this.planFaults(request.faults ?? null);
     this.home = request.home;
     // A SITL the user started paces itself by its own --speedup.
     this.speed = new RunSpeedMeter(null);
@@ -1055,64 +1098,139 @@ export class SessionController {
     return null;
   }
   /**
-   * One effect control (TASK-168): on the next tick for what the session or the link applies, and as logged parameter writes for
-   * ArduPilot's own faults, which go back to their earlier values when the effect goes off. An effect never on writes nothing.
-   * Returns why it was not sent, or null; `view.effects` then follows what became of it.
+   * One effect control (TASK-168, TASK-169): on the next tick for what the session or the link applies, and as logged parameter writes
+   * for what only ArduPilot's own simulator can do, which go back to their earlier values when the effect goes off. An effect never on
+   * writes nothing. Returns why it was not sent, or null; either way `view.effects` shows what became of it.
    */
   setEffect(control: EffectControl, recovery: EffectRecovery = "hold-offset"): string | null {
+    return this.sendEffect(control, recovery, "manual", this.status?.simTimeS ?? null, undefined);
+  }
+  private sendEffect(control: EffectControl, recovery: EffectRecovery, origin: EffectEntry["origin"], requestedSimS: number | null, atSimS: number | undefined): string | null {
     let parsed: EffectControl;
     try { parsed = parseEffectControl(control); } catch (error) { return error instanceof Error ? error.message : "Invalid effect control"; }
     if (!this.active) return "No run is active";
-    const plan = faultParameters(parsed.effect), on = parsed.enabled && parsed.intensity > 0;
-    const entry = { effect: parsed.effect, enabled: parsed.enabled, intensity: parsed.intensity, status: "pending" as const, message: "" };
-    if (plan === null) {
-      const item: { entry: EffectEntry; writeIds: readonly number[] } = { entry, writeIds: [] };
-      this.effects = [...this.effects, item];
+    const on = parsed.enabled && parsed.intensity > 0;
+    const entry: EffectEntry = { id: parsed.id, effect: parsed.effect, enabled: parsed.enabled, intensity: parsed.intensity, status: "pending", message: "", origin, requestedSimS, appliedSimS: null, writes: [] };
+    const refused = (message: string): string => {
+      this.effects = [...this.effects, { entry: { ...entry, status: "rejected", message }, writeIds: [], session: "none", writesAtS: null }];
+      this.emit();
+      return message;
+    };
+    if (on) {
+      const refusal = sitlDeliveryRefusal(parsed);
+      if (refusal !== null) return refused(refusal);
+    }
+    const writes = this.effectWrites(parsed, on);
+    if (typeof writes === "string") return refused(writes);
+    const writeIds: number[] = [];
+    for (const { name, value } of writes) {
+      const why = this.setParameter(name, value);
+      if (why !== null) return refused(why);
+      const last = this.changes.at(-1);
+      if (last) writeIds.push(last.writeId);
+    }
+    const toSession = faultParameters(parsed.effect) === null;
+    const item: EffectItem = { entry: { ...entry, writes: writes.map(write => write.name) }, writeIds, session: toSession ? "pending" : "none", writesAtS: null };
+    this.effects = [...this.effects, item];
+    if (toSession) {
       if (parsed.effect === "link.gcs") {
         this.gcsLinkLost = on;
         // Silence before this moment was the effect's; a lost SITL is counted from here.
         if (!on) this.lastHeartbeatMs = this.clock.nowMs();
       }
-      const settle = (status: "applied" | "rejected", message: string) => { item.entry = { ...entry, status, message }; this.emit(); };
-      this.physics.effect(parsed, recovery).then(() => settle("applied", ""), (cause: unknown) => settle("rejected", cause instanceof Error ? cause.message : String(cause)));
-      this.emit();
-      return null;
+      this.physics.effect(parsed, recovery, atSimS).then(appliedSimS => {
+        item.session = "applied";
+        item.entry = { ...item.entry, appliedSimS: appliedSimS ?? this.status?.simTimeS ?? null };
+        this.emit();
+      }, (cause: unknown) => {
+        item.session = "rejected";
+        item.entry = { ...item.entry, status: "rejected", message: cause instanceof Error ? cause.message : String(cause) };
+        this.emit();
+      });
     }
+    this.emit();
+    return null;
+  }
+  /** The parameters an effect writes, each from what it held before any effect changed it, or why they cannot be written. */
+  private effectWrites(control: EffectControl, on: boolean): readonly ParameterWrite[] | string {
+    const fixed = faultParameters(control.effect);
+    const names = fixed ? fixed.map(item => item.name) : control.effect === "ew.gnss-jamming" ? JAMMING_PARAMETERS : control.effect === "ew.magnetic" ? MAGNETIC_PARAMETERS : [];
+    if (names.length === 0) return [];
+    if (!on) {
+      const back: ParameterWrite[] = [];
+      for (const name of names) {
+        const earlier = this.faultRestore.get(name);
+        if (earlier !== undefined) { back.push({ name, value: earlier }); this.faultRestore.delete(name); }
+      }
+      if (back.length > 0) {
+        const refusal = this.writeRefusal();
+        if (refusal !== null) return refusal;
+      }
+      return back;
+    }
+    // A rotation alone needs no parameter, so it also reaches a SITL MirageSITL did not start.
+    const bias = control.effect === "ew.magnetic" ? control.parameters.biasBodyGauss : null;
+    if (Array.isArray(bias) && bias.every(value => value === 0)) return [];
     const refusal = this.writeRefusal();
     if (refusal !== null) return refusal;
     const params = this.params;
     if (!params) return "No run has loaded its parameters";
-    const writes: { name: string; value: number }[] = [];
-    for (const { name, on: value } of plan) {
-      const current = params.get(name)?.value;
-      if (on) {
-        // Nothing is written unless all of it can be: half a fault would be another fault.
-        if (current === undefined) return `ArduPilot's parameter list has no ${name}`;
-        if (!this.faultRestore.has(name)) this.faultRestore.set(name, current);
-        writes.push({ name, value });
-      } else {
-        const earlier = this.faultRestore.get(name);
-        if (earlier !== undefined) { writes.push({ name, value: earlier }); this.faultRestore.delete(name); }
-      }
+    const earlier = new Map<string, number>();
+    for (const name of names) {
+      const held = this.faultRestore.get(name) ?? params.get(name)?.value;
+      // Nothing is written unless all of it can be: half a fault would be another fault.
+      if (held === undefined) return `ArduPilot's parameter list has no ${name}`;
+      earlier.set(name, held);
     }
-    const writeIds: number[] = [];
-    for (const { name, value } of writes) {
-      const why = this.setParameter(name, value);
-      if (why !== null) return why;
-      const last = this.changes.at(-1);
-      if (last) writeIds.push(last.writeId);
+    const before = (name: string): number => earlier.get(name) ?? 0;
+    let writes: readonly ParameterWrite[];
+    if (fixed) writes = fixed.map(item => ({ name: item.name, value: item.on }));
+    else if (control.effect === "ew.gnss-jamming") {
+      const severity = control.parameters.severity;
+      writes = jammingWrites((typeof severity === "number" ? severity : 0) * control.intensity, { satellites: before(SITL_GPS_NUMSATS), accuracyM: before(SITL_GPS_ACC), lockS: before(SITL_GPS_LOCK) }, params.get(SITL_GPS_LOCK)?.value === SITL_GPS_NO_LOCK_S);
+    } else {
+      const scale = control.intensity, value: readonly number[] = Array.isArray(bias) ? bias : [0, 0, 0];
+      writes = magneticBiasWrites([(value[0] ?? 0) * scale, (value[1] ?? 0) * scale, (value[2] ?? 0) * scale], before);
     }
-    this.effects = [...this.effects, { entry, writeIds }];
-    this.emit();
-    return null;
+    for (const [name, held] of earlier) if (!this.faultRestore.has(name)) this.faultRestore.set(name, held);
+    return writes.map(write => ({ name: write.name, value: Math.fround(write.value) }));
   }
-  /** An `ardupilot` effect stands as its writes do: applied when all are confirmed, rejected when one failed. */
-  private effectEntry(item: { entry: EffectEntry; writeIds: readonly number[] }): EffectEntry {
-    if (faultParameters(item.entry.effect) === null) return item.entry;
+  /** An effect stands as its session acknowledgement and its parameter read-backs do: applied when all are, rejected when one failed. */
+  private effectEntry(item: EffectItem): EffectEntry {
+    if (item.entry.status === "rejected") return item.entry;
     const outcomes = item.writeIds.map(id => this.changes.find(change => change.writeId === id)?.outcome);
     const failed = outcomes.find(outcome => outcome !== undefined && (outcome.kind === "refused" || outcome.kind === "timeout"));
     if (failed) return { ...item.entry, status: "rejected", message: failed.kind === "refused" ? `${failed.name}: ${failed.reason}` : `${failed.name}: ArduPilot did not answer` };
-    return outcomes.every(outcome => outcome?.kind === "confirmed" || outcome?.kind === "stale") ? { ...item.entry, status: "applied" } : item.entry;
+    if (item.session === "pending" || !outcomes.every(outcome => outcome?.kind === "confirmed" || outcome?.kind === "stale")) return item.entry;
+    // The moment the last read-back was first seen, once; a session's tick when it has no parameters.
+    if (item.writeIds.length > 0) item.writesAtS ??= this.status?.simTimeS ?? null;
+    return { ...item.entry, status: "applied", appliedSimS: item.writeIds.length > 0 ? item.writesAtS : item.entry.appliedSimS };
+  }
+  /** A new run's schedule, with nothing sent yet. */
+  private planFaults(schedule: FaultSchedule | null): void {
+    this.faultPlan = schedule && schedule.entries.length > 0 ? { schedule, timeline: faultTimeline(schedule), sent: 0, armedAtS: null } : null;
+  }
+  /**
+   * Sends what the schedule asks for now. What goes on the session's own ticks is queued ahead, within the protocol's 10 s horizon, so it
+   * lands on its exact tick however rarely Worker statuses arrive. A parameter write takes the moment it is due; its read-back says when it stood.
+   */
+  private stepFaults(simTimeS: number): void {
+    const plan = this.faultPlan;
+    if (!plan || !this.active) return;
+    if (plan.armedAtS === null) {
+      if (!this.armed) return;
+      plan.armedAtS = simTimeS;
+    }
+    const elapsed = simTimeS - plan.armedAtS;
+    for (let next = plan.timeline[plan.sent]; next; next = plan.timeline[plan.sent]) {
+      const scheduled = plan.schedule.entries[next.entry];
+      if (!scheduled) { plan.sent++; continue; }
+      const queued = faultParameters(scheduled.control.effect) === null && scheduled.control.effect !== "ew.gnss-jamming" && scheduled.control.effect !== "ew.magnetic";
+      if (next.atS > elapsed + (queued ? FAULT_QUEUE_LEAD_S : 0)) return;
+      plan.sent++;
+      const atSimS = plan.armedAtS + next.atS;
+      this.sendEffect({ ...scheduled.control, enabled: next.on }, scheduled.recovery, "schedule", atSimS, queued ? atSimS : undefined);
+    }
   }
   /** Downloads the complete list again, for example after the autopilot renumbered it; returns why not, or null. */
   refreshParameters(): string | null {
@@ -1232,6 +1350,7 @@ export class SessionController {
     const status = this.status;
     if (!status) return;
     this.stepTask();
+    this.stepFaults(status.simTimeS);
     const s = this.stateValue;
     if (this.motorCheck && !this.motorCheck.done) this.stepMotorCheck(status.simTimeS);
     // The Worker accepts MAVLink only while its bridge socket is open.
@@ -1484,7 +1603,7 @@ export class SessionController {
       session: { physicsHz: external.physicsHz, clockMode: "sitl-lockstep", speedup: null, home: external.home, modelId: prepared.modelId,
         manifestSha256: prepared.manifestSha256, betModuleSha256: external.betModuleSha256 },
       parameters: prepared.parameters, frameScript: null, sensors: prepared.sensors, recording, lineage: { kind: "original" },
-      flightTask: this.flightTaskEntry,
+      flightTask: this.flightTaskEntry, faults: this.faultPlan?.schedule ?? null,
     };
     try {
       const { sha256 } = await this.records.create(payload);
@@ -1664,7 +1783,7 @@ export class SessionController {
     this.ownership = ownership; this.external = null; this.prepared = null; this.compatibility = []; this.motorCheck = null;
     this.accidents = []; this.afterAccident = false; this.resumeTo = null; this.pauses = []; this.pausing = false;
     this.params = null; this.paramMetadata = null; this.changes = []; this.firmwareCommit = null;
-    this.effects = []; this.faultRestore.clear(); this.gcsLinkLost = false;
+    this.effects = []; this.faultRestore.clear(); this.gcsLinkLost = false; this.faultPlan = null;
     this.everArmed = false; this.flightTaskEntry = null; this.taskRunner = null; this.taskUpload = null; this.taskRoutePoint = -1; this.taskStep = null;
     this.taskState = "waiting"; this.taskReason = null; this.home = null;
     this.parser.reset();

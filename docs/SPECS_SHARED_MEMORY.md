@@ -614,7 +614,10 @@ with the refusal of the model that owns the range.
   sensor errors are set on the Sensors tab, before the run. The demo backend
   rejects the environment effects and `motor.loss`. A session without a link to
   ArduPilot rejects the `delivery` effects, and every session rejects the `ardupilot`
-  effects, which only the run controller can write (TASK-168).
+  effects, which only the run controller can write (TASK-168). On a run with ArduPilot the
+  `ew.*` effects also reach it, on the state line and through its parameters, and the run
+  controller refuses a vertical GNSS offset there, because that height also feeds its
+  barometer (TASK-169; SPECS_SIMULATION_ENGINES, "Faults and interference tab").
 * **Other effects.** An effect task adds its record to `EFFECT_CATALOG` when its
   model exists, because the range must equal that model's envelope: the von
   Kármán and Kaimal spectra of TASK-106, TASK-107 (shear and terrain flow),

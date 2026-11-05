@@ -2,6 +2,7 @@
 // differ, how the mass changed, and their results side by side. An input held equal that differs
 // is flagged; it does not stop the comparison, because what it means is the user's to judge.
 // Nothing here says which experiment is better (SA-01). Cold path.
+import type { FaultSchedule } from '@mirage/scenarios/fault-schedule';
 import type { ComponentCard } from '@mirage/aircraft/components';
 import type { ExperimentFlightTask, ExperimentParameter, ExperimentRecording, ExperimentSession, ExperimentSitl } from '@mirage/aircraft/experiment';
 import type { AircraftProfile, ProfileMotor } from '@mirage/aircraft/profile';
@@ -18,6 +19,7 @@ export interface ComparedInputs {
   readonly sensors: unknown;
   readonly recording: ExperimentRecording | null;
   readonly flightTask: ExperimentFlightTask | null;
+  readonly faults: FaultSchedule | null;
 }
 /** What a comparison reads of one experiment. */
 export interface ComparedExperiment {
@@ -31,7 +33,7 @@ export const COMPARISON_CONTROLS = [
   { id: 'layout', label: 'Arms and motor layout' }, { id: 'motors', label: 'Motors' }, { id: 'propellers', label: 'Propellers' }, { id: 'escs', label: 'ESCs' },
   { id: 'battery', label: 'Battery' }, { id: 'aircraft-mass', label: 'Aircraft mass, CG and inertia' }, { id: 'payload', label: 'Payload' }, { id: 'aircraft-other', label: 'Other aircraft settings' },
   { id: 'flight-task', label: 'Flight task' }, { id: 'start', label: 'Start position and lead-in' }, { id: 'charge', label: 'Battery charge at the start' },
-  { id: 'weather', label: 'Weather' }, { id: 'home', label: 'Home' }, { id: 'ardupilot', label: 'ArduPilot build' }, { id: 'parameters', label: 'Initial parameters' },
+  { id: 'weather', label: 'Weather' }, { id: 'faults', label: 'Scheduled faults' }, { id: 'home', label: 'Home' }, { id: 'ardupilot', label: 'ArduPilot build' }, { id: 'parameters', label: 'Initial parameters' },
   { id: 'frame-script', label: 'Frame script' }, { id: 'sensors', label: 'Sensors' }, { id: 'physics-rate', label: 'Physics rate' }, { id: 'speed', label: 'Speed' },
   { id: 'recording', label: 'Recording setup' }, { id: 'sitl', label: 'SITL ownership' },
 ] as const;
@@ -42,7 +44,7 @@ export type ComparisonKind = 'conditions' | 'configurations';
 /** What each kind holds equal by default. A user may change these; speed, recording and ownership do not change the physics, so nothing holds them unless asked. */
 const SHARED_HELD: readonly ComparisonControl[] = ['payload', 'ardupilot', 'physics-rate'];
 const AIRCRAFT: readonly ComparisonControl[] = ['layout', 'motors', 'propellers', 'escs', 'battery', 'aircraft-mass', 'aircraft-other', 'parameters', 'frame-script', 'sensors'];
-const CONDITIONS: readonly ComparisonControl[] = ['flight-task', 'start', 'charge', 'weather', 'home'];
+const CONDITIONS: readonly ComparisonControl[] = ['flight-task', 'start', 'charge', 'weather', 'faults', 'home'];
 export function heldByDefault(kind: ComparisonKind): ReadonlySet<ComparisonControl> {
   switch (kind) {
     case 'conditions': return new Set([...SHARED_HELD, ...AIRCRAFT]);
@@ -112,6 +114,7 @@ function controlValue(control: ComparisonControl, side: ComparedExperiment): Val
     case 'charge': return value(percent(task?.definition.initial.ground.stateOfCharge ?? 1));
     // A run has no weather to choose until TASK-167, so both flew in still air.
     case 'weather': return value('Still air');
+    case 'faults': return value(payload.faults ? `${payload.faults.entries.length} on the schedule` : 'None', payload.faults);
     case 'home': return value(payload.session.home.join(SEPARATOR));
     case 'ardupilot': return value(payload.sitl.ardupilot.firmwareVersion, payload.sitl.ownership === 'launcher' ? payload.sitl.ardupilot.binarySha256 : payload.sitl.ardupilot.commit);
     case 'parameters': return value(`${chosen.length} parameters`, chosen);

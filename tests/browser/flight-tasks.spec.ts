@@ -336,8 +336,8 @@ test("a stored route flies on native ArduCopter from another place, recorded and
     await expect(run.getByLabel("Flight task", { exact: true })).toBeDisabled();
     await expect(run.getByLabel("Flight task", { exact: true }).locator("option:checked")).toHaveText("Offset route (version 1)");
     await run.getByRole("button", { name: "Start repeat", exact: true }).click();
-    await expect(run.getByTestId("sitl-record")).toHaveText(/^[0-9a-f]{64}$/, { timeout: 120_000 });
-    await expect(run.getByTestId("sitl-record")).not.toHaveText(record, { timeout: 120_000 });
+    // A new run shows "None" until its record is written, so this waits for a record that is not the parent's.
+    await expect.poll(async () => { const shown = (await run.getByTestId("sitl-record").textContent()) ?? ""; return /^[0-9a-f]{64}$/.test(shown) && shown !== record; }, { timeout: 120_000 }).toBe(true);
     const repeat = (await run.getByTestId("sitl-record").textContent()) ?? "";
     await run.getByRole("button", { name: "Stop run", exact: true }).click();
     await expect(run.getByTestId("sitl-stage")).toHaveAttribute("data-state", "idle", { timeout: 30_000 });

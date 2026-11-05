@@ -39,6 +39,14 @@ const KIND_CODE: Record<EffectKind, number> = { "gnss-jamming": 0, "position-ste
 
 export type ApplyResult = "applied" | "registry-full" | "rejected";
 
+/** The session's `delivery` fields this engine writes (TASK-169). */
+export interface EwDelivery {
+  readonly gnssOffsetNedM: Float64Array;
+  readonly gnssVelocityNedMps: Float64Array;
+  readonly magRotationWxyz: Float64Array;
+  gnssActive: boolean;
+  magActive: boolean;
+}
 export class EwEngine {
   readonly jamming = new GnssJamming();
   readonly step: PositionStep;
@@ -195,6 +203,22 @@ export class EwEngine {
   advanceInto(context: EwContext): boolean {
     if (!this.jamming.advanceFrom(this.severity, context)) return false;
     return this.drift.advanceFrom(context);
+  }
+
+  /**
+   * What a run with ArduPilot delivers on the state line (TASK-169), without allocating: the same step plus drift as distortGpsInto, as
+   * an offset and a velocity, and the magnetic rotation. `target.active` is false while all of it is neutral.
+   */
+  deliveryInto(target: EwDelivery): void {
+    const o = target.gnssOffsetNedM, v = target.gnssVelocityNedMps, b = this.drift.offsetNedM, d = this.drift.velocityNedMps, s = this.step.offsetNedM, q = target.magRotationWxyz, r = this.magnetic.rotationWxyz;
+    const stepActive = this.step.isActive, driftOn = this.drift.mode !== "off";
+    o[0] = (stepActive ? (s[0] as number) : 0) + (driftOn ? (b[0] as number) : 0); // length 3
+    o[1] = (stepActive ? (s[1] as number) : 0) + (driftOn ? (b[1] as number) : 0);
+    o[2] = (stepActive ? (s[2] as number) : 0) + (driftOn ? (b[2] as number) : 0);
+    v[0] = driftOn ? (d[0] as number) : 0; v[1] = driftOn ? (d[1] as number) : 0; v[2] = driftOn ? (d[2] as number) : 0;
+    q[0] = r[0] as number; q[1] = r[1] as number; q[2] = r[2] as number; q[3] = r[3] as number; // length 4
+    target.gnssActive = stepActive || driftOn;
+    target.magActive = this.magneticActive && q[0] !== 1;
   }
 
   /** baseline -> step + drift -> jamming. False with `target` untouched for an invalid source. */

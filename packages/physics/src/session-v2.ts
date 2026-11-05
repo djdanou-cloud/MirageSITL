@@ -82,7 +82,23 @@ export interface SessionFaultPort {
    */
   bindMotors(motors: MotorFaults | null): void;
   advanceInto(context: SessionFaultContext): boolean;
+  /** TASK-169: what the effects ask of the state line to ArduPilot, written without allocating after each step. */
+  deliveryInto?(target: SessionDelivery): void;
   readonly flags: number;
+}
+/** What the link to ArduPilot holds back, drops or moves, read at every reply; the session changes it in place. */
+export interface SessionDelivery {
+  /** DELIVERY_* bits (TASK-168). */
+  mask: number;
+  /** A link is there to act on it. */
+  attached: boolean;
+  /** TASK-169: the GNSS offset and velocity added to what ArduPilot receives, NED; truth is untouched. Used while `gnssActive`. */
+  readonly gnssOffsetNedM: Float64Array;
+  readonly gnssVelocityNedMps: Float64Array;
+  /** TASK-169: the rotation of ArduPilot's magnetometer reading, w x y z. Used while `magActive`. */
+  readonly magRotationWxyz: Float64Array;
+  gnssActive: boolean;
+  magActive: boolean;
 }
 
 /** A cold-selected dynamics implementation owns integration; the session owns transport. */
@@ -143,10 +159,11 @@ export class PhysicsSessionV2 {
   /** The wind of the latest tick (TASK-093): while a weather.set is in effect, the dynamics' NED wind, m/s; the object never changes. */
   readonly wind = { nedMps: new Float64Array(3), active: false };
   /**
-   * TASK-168: what the link to ArduPilot holds back or drops, read at every reply (DELIVERY_* bits). Truth is untouched. The object
-   * stays the same; its mask changes in place, at tick boundaries. `attached` while a link is there to act on it.
+   * TASK-168, TASK-169: what the link to ArduPilot holds back, drops or moves, read at every reply. Truth is untouched. The object stays
+   * the same; its fields change in place, at tick boundaries and after each step.
    */
-  readonly delivery = { mask: 0, attached: false };
+  readonly delivery: SessionDelivery = { mask: 0, attached: false, gnssOffsetNedM: new Float64Array(3), gnssVelocityNedMps: new Float64Array(3),
+    magRotationWxyz: new Float64Array([1, 0, 0, 0]), gnssActive: false, magActive: false };
   /** TASK-093: a due weather.set in the WEATHER_* slots, and its reject, whose message is the dynamics' reason. */
   private readonly weather = new Float64Array(WEATHER_SLOTS);
   private readonly weatherReject: { code: 'OUT_OF_RANGE'; message: string } = { code: 'OUT_OF_RANGE', message: '' };
@@ -332,12 +349,16 @@ export class PhysicsSessionV2 {
   /** A link to ArduPilot opened or closed (TASK-168). */
   attachDelivery(attached: boolean): void {
     this.delivery.attached = attached;
-    if (!attached) this.delivery.mask = 0;
+    if (!attached) this.clearDelivery();
+  }
+  private clearDelivery(): void {
+    const delivery = this.delivery;
+    delivery.mask = 0; delivery.gnssActive = false; delivery.magActive = false;
   }
   reset(seed: number): void {
     this.dynamics.reset();
     this.environment = 0;
-    this.delivery.mask = 0;
+    this.clearDelivery();
     this.faultSeed = seed >>> 0;
     this.faults?.reset(this.faultSeed);
   }
@@ -346,7 +367,7 @@ export class PhysicsSessionV2 {
     this.dynamics.dispose?.();
     this.dynamics = next;
     this.environment = 0;
-    this.delivery.mask = 0;
+    this.clearDelivery();
     // The new epoch starts fault-free, as after sim.reset, keeping the last reset's seed.
     this.bindMotorFaults();
     this.faults?.reset(this.faultSeed);
@@ -381,7 +402,7 @@ export class PhysicsSessionV2 {
     this.dynamics = prepared.dynamics;
     this.dynamicsFactory = prepared.factory;
     this.environment = 0;
-    this.delivery.mask = 0;
+    this.clearDelivery();
     // As after sim.configure: the new model's motors get their own table and the new epoch starts fault-free.
     this.bindMotorFaults();
     this.faults?.reset(this.faultSeed);
@@ -635,6 +656,7 @@ export class PhysicsSessionV2 {
       context.simTimeS = tickToNumber(tick) / this.policy.hz;
       context.northM = d.north; context.eastM = d.east; context.downM = d.down;
       if (!this.faults.advanceInto(context)) this.enterFault("EW step rejected");
+      if (this.delivery.attached) this.faults.deliveryInto?.(this.delivery);
     }
     if (this.dynamics.fault) this.enterFault(this.dynamics.fault);
     // Presentation time is the scheduled deadline in the shared wall timebase; freshness above used actual time.

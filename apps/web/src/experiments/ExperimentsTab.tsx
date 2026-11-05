@@ -6,6 +6,8 @@ import type { StoredVersion } from "@mirage/project/schema";
 import type { ImportReport } from "@mirage/project/store";
 import type { StoreState } from "../shell/AppShell";
 import type { SessionLink } from "../run/session-link";
+import { EffectsRecord } from "../faults/EffectsRecord";
+import { readEffectLog, type EffectLog } from "../faults/effect-log";
 import { FromLogWizard } from "./FromLogWizard";
 import { readLogExtraction, type LogExtractionRecord } from "./log-plan";
 import { ResponsePanel } from "../analysis/ResponsePanel";
@@ -58,13 +60,15 @@ export function ExperimentsTab({ storeState, project, link, active, onRun, onAna
   const [reload, setReload] = useState(0);
   const [profiles, setProfiles] = useState<readonly StoredVersion[]>([]);
   const [fromLogs, setFromLogs] = useState<readonly LogExtractionRecord[]>([]);
+  const [effectLogs, setEffectLogs] = useState<readonly EffectLog[]>([]);
   useEffect(() => {
     if (!store || !projectId || !active) return;
     let cancelled = false;
-    void Promise.all([store.listItems(projectId, "aircraft-profile"), store.listItems(projectId, "log-extraction")]).then(([items, logs]) => {
+    void Promise.all([store.listItems(projectId, "aircraft-profile"), store.listItems(projectId, "log-extraction"), store.listItems(projectId, "effect-log")]).then(([items, logs, effects]) => {
       if (cancelled) return;
       setProfiles(items);
       setFromLogs(logs.map(readLogExtraction));
+      setEffectLogs(effects.map(readEffectLog));
     });
     return () => { cancelled = true; };
   }, [store, projectId, active, reload]);
@@ -182,6 +186,7 @@ export function ExperimentsTab({ storeState, project, link, active, onRun, onAna
             <button type="button" onClick={exportSelected} disabled={!store}>Export the experiment</button>
             <button type="button" onClick={() => onAnalyse(current.stored.sha256)}>Open in Analysis</button>
           </div>
+          <EffectsRecord schedule={current.payload.faults} log={effectLogs.find(item => item.experimentSha256 === current.stored.sha256) ?? null} />
           {(() => {
             const log = fromLogs.find(item => item.experimentSha256 === current.stored.sha256);
             if (!log) return null;

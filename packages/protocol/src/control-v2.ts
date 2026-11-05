@@ -50,6 +50,8 @@ export type RejectCodeV2 = Extract<CommandResultV2, { type: 'reject-v2' }>['code
 export const CONTROL_PROTOCOL_VERSION = 2;
 export const MAX_COMMAND_BYTES_V2 = 16 * 1024;
 export const COMMAND_QUEUE_CAPACITY_V2 = 128;
+/** The reject of a command whose tick has gone by the time it was admitted. */
+export const AT_TICK_IN_THE_PAST = 'atTick is in the past';
 export const DEDUPE_CACHE_SIZE_V2 = 128;
 export const SCHEDULE_HORIZON_S = 10;
 /** Received requestId reported when a malformed command has no readable uint32 ID. */
@@ -432,7 +434,7 @@ export class ControlProcessorV2 {
   private schedule(command: ScheduledCommand, result: ResultRecord): void {
     const at = command.atTick, next = this.nextTick();
     if (at.hi > MAX_SAFE_TICK_HI) return reject(result, 'OUT_OF_RANGE', 'atTick exceeds 2^53');
-    if (compareTicks(at, next) < 0) return reject(result, 'OUT_OF_RANGE', 'atTick is in the past');
+    if (compareTicks(at, next) < 0) return reject(result, 'OUT_OF_RANGE', AT_TICK_IN_THE_PAST);
     if (tickToNumber(at) - tickToNumber(next) > SCHEDULE_HORIZON_S * this.hzValue) {
       return reject(result, 'OUT_OF_RANGE', 'atTick is beyond the 10 s horizon');
     }

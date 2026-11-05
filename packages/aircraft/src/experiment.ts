@@ -7,6 +7,7 @@ import {
 } from '@mirage/project/schema';
 import type { ProjectStore } from '@mirage/project/store';
 import { parseFlightTask, type FlightTaskDefinition } from '@mirage/scenarios/flight-tasks';
+import { parseFaultSchedule, type FaultSchedule } from '@mirage/scenarios/fault-schedule';
 import { readComponentCard, type ComponentCard } from './components.ts';
 import { deriveVehicleManifest } from './derive-manifest.ts';
 import { FRAME_PARAMETER_NAMES, frameConfiguration } from './frame-parameters.ts';
@@ -56,7 +57,9 @@ import type { PresetCitation } from './sensor-presets.ts';
 // only renaming afterwards.
 // Configuration-time code only; never call it from a physics step.
 
-export const EXPERIMENT_SCHEMA_VERSION = 5;
+export const EXPERIMENT_SCHEMA_VERSION = 6;
+/** The TASK-172 schema, still accepted by validateExperiment and readExperiment. */
+export const EXPERIMENT_SCHEMA_VERSION_5 = 5;
 /** The TASK-165 schema, still accepted by validateExperiment and readExperiment. */
 export const EXPERIMENT_SCHEMA_VERSION_4 = 4;
 /** The TASK-163 schema, still accepted by validateExperiment and readExperiment. */
@@ -178,6 +181,8 @@ export interface ExperimentPayload {
   readonly lineage: ExperimentLineage;
   /** The flight task the run was started with (TASK-172), or null. */
   readonly flightTask: ExperimentFlightTask | null;
+  /** The effects the run applies by itself (TASK-169), or null for a run with none on a schedule. */
+  readonly faults: FaultSchedule | null;
 }
 /** A flight task as a run used it: the definition itself, and the stored version it came from. */
 export interface ExperimentFlightTask {
@@ -188,7 +193,7 @@ export interface ExperimentFlightTask {
 }
 /** One input a variant changed (TASK-165), as experimentChanges names it. */
 export const EXPERIMENT_INPUTS = ['aircraft profile', 'ArduPilot build', 'speed', 'physics rate', 'home', 'initial parameters', 'frame script', 'sensors',
-  'recording setup', 'SITL', 'flight task'] as const;
+  'recording setup', 'SITL', 'flight task', 'fault schedule'] as const;
 export type ExperimentInput = typeof EXPERIMENT_INPUTS[number];
 /**
  * An original run; a repeat of the experiment record `of` with the same inputs; or a variant of it with `changes`,
@@ -198,10 +203,12 @@ export type ExperimentLineage =
   | { readonly kind: 'original' }
   | { readonly kind: 'repeat'; readonly of: string }
   | { readonly kind: 'variant'; readonly of: string; readonly changes: readonly ExperimentInput[] };
-/** Experiment payload schema 4 (TASK-165): schema 5 without the flight task. */
-export type ExperimentPayloadV4 = Omit<ExperimentPayload, 'schemaVersion' | 'flightTask'> & { readonly schemaVersion: typeof EXPERIMENT_SCHEMA_VERSION_4 };
+/** Experiment payload schema 5 (TASK-172): schema 6 without the fault schedule. */
+export type ExperimentPayloadV5 = Omit<ExperimentPayload, 'schemaVersion' | 'faults'> & { readonly schemaVersion: typeof EXPERIMENT_SCHEMA_VERSION_5 };
+/** Experiment payload schema 4 (TASK-165): schema 6 without the flight task and the fault schedule. */
+export type ExperimentPayloadV4 = Omit<ExperimentPayload, 'schemaVersion' | 'flightTask' | 'faults'> & { readonly schemaVersion: typeof EXPERIMENT_SCHEMA_VERSION_4 };
 /** Experiment payload schema 3 (TASK-163): schema 4 without the lineage. */
-export type ExperimentPayloadV3 = Omit<ExperimentPayload, 'schemaVersion' | 'lineage' | 'flightTask'> & { readonly schemaVersion: typeof EXPERIMENT_SCHEMA_VERSION_3 };
+export type ExperimentPayloadV3 = Omit<ExperimentPayload, 'schemaVersion' | 'lineage' | 'flightTask' | 'faults'> & { readonly schemaVersion: typeof EXPERIMENT_SCHEMA_VERSION_3 };
 /**
  * The recording of a run (TASK-163): its recorder v2 record and the Logging tab settings it was made
  * with. Rates are 0 or whole hertz; a group or a signal absent here records at the common rate.
@@ -217,7 +224,7 @@ export interface ExperimentRecording {
   readonly reserveMb: number;
 }
 /** Experiment payload schema 2 (TASK-155): schema 3 without the recording. */
-export type ExperimentPayloadV2 = Omit<ExperimentPayload, 'schemaVersion' | 'recording' | 'lineage' | 'flightTask'> & { readonly schemaVersion: typeof EXPERIMENT_SCHEMA_VERSION_2 };
+export type ExperimentPayloadV2 = Omit<ExperimentPayload, 'schemaVersion' | 'recording' | 'lineage' | 'flightTask' | 'faults'> & { readonly schemaVersion: typeof EXPERIMENT_SCHEMA_VERSION_2 };
 /** Experiment payload schema 1 (TASK-154): a launcher-owned SITL only. */
 export interface ExperimentPayloadV1 {
   readonly schemaVersion: typeof EXPERIMENT_SCHEMA_VERSION_1;
@@ -648,11 +655,21 @@ function flightTaskOf(value: unknown): ExperimentFlightTask | null {
     return fail(error instanceof Error ? error.message : String(error));
   }
 }
-/** Schema 5, 4 (no `flightTask`), 3 (no `lineage`) or 2 (no `recording` either): absent fields are absent from both the keys and the result. */
-function payloadOf(payload: unknown, version: typeof EXPERIMENT_SCHEMA_VERSION | typeof EXPERIMENT_SCHEMA_VERSION_4 | typeof EXPERIMENT_SCHEMA_VERSION_3 | typeof EXPERIMENT_SCHEMA_VERSION_2):
-  ExperimentPayload | ExperimentPayloadV4 | ExperimentPayloadV3 | ExperimentPayloadV2 {
+/** A stored schedule: never an empty one, so that a run with no schedule has one spelling. */
+function faultsOf(value: unknown): FaultSchedule | null {
+  if (value === null) return null;
+  try {
+    const schedule = parseFaultSchedule(value);
+    return schedule.entries.length === 0 ? fail('faults must be null when nothing is scheduled') : schedule;
+  } catch (error) {
+    return fail(error instanceof Error ? error.message : String(error));
+  }
+}
+/** Schema 6, 5 (no `faults`), 4 (no `flightTask`), 3 (no `lineage`) or 2 (no `recording` either): absent fields are absent from both the keys and the result. */
+function payloadOf(payload: unknown, version: typeof EXPERIMENT_SCHEMA_VERSION | typeof EXPERIMENT_SCHEMA_VERSION_5 | typeof EXPERIMENT_SCHEMA_VERSION_4 | typeof EXPERIMENT_SCHEMA_VERSION_3 | typeof EXPERIMENT_SCHEMA_VERSION_2):
+  ExperimentPayload | ExperimentPayloadV5 | ExperimentPayloadV4 | ExperimentPayloadV3 | ExperimentPayloadV2 {
   const keys = ['schemaVersion', 'profile', 'sitl', 'session', 'parameters', 'frameScript', 'sensors'];
-  const p = exact(payload, version === EXPERIMENT_SCHEMA_VERSION ? [...keys, 'recording', 'lineage', 'flightTask'] : version === EXPERIMENT_SCHEMA_VERSION_4
+  const p = exact(payload, version === EXPERIMENT_SCHEMA_VERSION ? [...keys, 'recording', 'lineage', 'flightTask', 'faults'] : version === EXPERIMENT_SCHEMA_VERSION_5 ? [...keys, 'recording', 'lineage', 'flightTask'] : version === EXPERIMENT_SCHEMA_VERSION_4
     ? [...keys, 'recording', 'lineage'] : version === EXPERIMENT_SCHEMA_VERSION_3 ? [...keys, 'recording'] : keys, 'the payload');
   const profile = profileOf(p.profile);
   const sitl = sitlOf(p.sitl);
@@ -660,20 +677,21 @@ function payloadOf(payload: unknown, version: typeof EXPERIMENT_SCHEMA_VERSION |
   const frameScript = frameScriptOf(p.frameScript, parameters);
   if (sitl.ownership === 'external' && frameScript !== null) fail('an external SITL has no frame script: MirageSITL installs one only in a SITL it starts');
   const common = { profile, sitl, session: sessionOf(p.session, sitl.ownership), parameters, frameScript, sensors: snapshotOf(p.sensors, profile.sha256) };
-  if (version === EXPERIMENT_SCHEMA_VERSION) return { schemaVersion: version, ...common, recording: recordingOf(p.recording), lineage: lineageOf(p.lineage), flightTask: flightTaskOf(p.flightTask) };
+  if (version === EXPERIMENT_SCHEMA_VERSION) return { schemaVersion: version, ...common, recording: recordingOf(p.recording), lineage: lineageOf(p.lineage), flightTask: flightTaskOf(p.flightTask), faults: faultsOf(p.faults) };
+  if (version === EXPERIMENT_SCHEMA_VERSION_5) return { schemaVersion: version, ...common, recording: recordingOf(p.recording), lineage: lineageOf(p.lineage), flightTask: flightTaskOf(p.flightTask) };
   if (version === EXPERIMENT_SCHEMA_VERSION_4) return { schemaVersion: version, ...common, recording: recordingOf(p.recording), lineage: lineageOf(p.lineage) };
   return version === EXPERIMENT_SCHEMA_VERSION_3 ? { schemaVersion: version, ...common, recording: recordingOf(p.recording) } : { schemaVersion: version, ...common };
 }
 
 /**
- * Validates an experiment payload of schema 5, or of schema 4 (TASK-165), 3 (TASK-163), 2
+ * Validates an experiment payload of schema 6, or of schema 5 (TASK-172), 4 (TASK-165), 3 (TASK-163), 2
  * (TASK-155) or 1 (TASK-154) as stored then, from `unknown`; returns a
  * deep-frozen copy of what was given. Registered for the `experiment` kind, so
  * imports of older records keep working.
  */
-export function validateExperiment(payload: unknown): ExperimentPayload | ExperimentPayloadV4 | ExperimentPayloadV3 | ExperimentPayloadV2 | ExperimentPayloadV1 {
+export function validateExperiment(payload: unknown): ExperimentPayload | ExperimentPayloadV5 | ExperimentPayloadV4 | ExperimentPayloadV3 | ExperimentPayloadV2 | ExperimentPayloadV1 {
   const version = isRecord(payload) ? payload.schemaVersion : undefined;
-  if (version === EXPERIMENT_SCHEMA_VERSION || version === EXPERIMENT_SCHEMA_VERSION_4 || version === EXPERIMENT_SCHEMA_VERSION_3 || version === EXPERIMENT_SCHEMA_VERSION_2) {
+  if (version === EXPERIMENT_SCHEMA_VERSION || version === EXPERIMENT_SCHEMA_VERSION_5 || version === EXPERIMENT_SCHEMA_VERSION_4 || version === EXPERIMENT_SCHEMA_VERSION_3 || version === EXPERIMENT_SCHEMA_VERSION_2) {
     return freeze(payloadOf(payload, version));
   }
   if (version === EXPERIMENT_SCHEMA_VERSION_1) return freeze(payloadV1Of(payload));
@@ -681,21 +699,22 @@ export function validateExperiment(payload: unknown): ExperimentPayload | Experi
 }
 
 /**
- * An older payload as schema 5: without a flight task; an original run before schema 4, without a recording before
- * schema 3; a schema 1 payload's launcher and ardupilot fields become a launcher-owned SITL.
+ * An older payload as schema 6: without a fault schedule, and without a flight task before schema 5; an original run before schema 4,
+ * without a recording before schema 3; a schema 1 payload's launcher and ardupilot fields become a launcher-owned SITL.
  */
-export function migrateExperiment(payload: ExperimentPayload | ExperimentPayloadV4 | ExperimentPayloadV3 | ExperimentPayloadV2 | ExperimentPayloadV1): ExperimentPayload {
+export function migrateExperiment(payload: ExperimentPayload | ExperimentPayloadV5 | ExperimentPayloadV4 | ExperimentPayloadV3 | ExperimentPayloadV2 | ExperimentPayloadV1): ExperimentPayload {
   const original = { kind: 'original' } as const;
   if (payload.schemaVersion === EXPERIMENT_SCHEMA_VERSION) return payload;
-  if (payload.schemaVersion === EXPERIMENT_SCHEMA_VERSION_4) return freeze({ ...payload, schemaVersion: EXPERIMENT_SCHEMA_VERSION, flightTask: null });
-  if (payload.schemaVersion === EXPERIMENT_SCHEMA_VERSION_3) return freeze({ ...payload, schemaVersion: EXPERIMENT_SCHEMA_VERSION, lineage: original, flightTask: null });
+  if (payload.schemaVersion === EXPERIMENT_SCHEMA_VERSION_5) return freeze({ ...payload, schemaVersion: EXPERIMENT_SCHEMA_VERSION, faults: null });
+  if (payload.schemaVersion === EXPERIMENT_SCHEMA_VERSION_4) return freeze({ ...payload, schemaVersion: EXPERIMENT_SCHEMA_VERSION, flightTask: null, faults: null });
+  if (payload.schemaVersion === EXPERIMENT_SCHEMA_VERSION_3) return freeze({ ...payload, schemaVersion: EXPERIMENT_SCHEMA_VERSION, lineage: original, flightTask: null, faults: null });
   if (payload.schemaVersion === EXPERIMENT_SCHEMA_VERSION_2) {
     const { profile, sitl, session, parameters, frameScript, sensors } = payload;
-    return freeze({ schemaVersion: EXPERIMENT_SCHEMA_VERSION, profile, sitl, session, parameters, frameScript, sensors, recording: null, lineage: original, flightTask: null });
+    return freeze({ schemaVersion: EXPERIMENT_SCHEMA_VERSION, profile, sitl, session, parameters, frameScript, sensors, recording: null, lineage: original, flightTask: null, faults: null });
   }
   const { profile, ardupilot, launcher, session, parameters, frameScript, sensors } = payload;
   return freeze({ schemaVersion: EXPERIMENT_SCHEMA_VERSION, profile, sitl: { ownership: 'launcher', experimentId: launcher.experimentId, ardupilot },
-    session, parameters, frameScript, sensors, recording: null, lineage: original, flightTask: null });
+    session, parameters, frameScript, sensors, recording: null, lineage: original, flightTask: null, faults: null });
 }
 
 /** Canonical JSON text of a value, for comparing inputs. */
@@ -730,6 +749,7 @@ export function experimentChanges(parent: ExperimentPayload, child: ExperimentPa
   check('recording setup', !same(recordingSetup(parent.recording), recordingSetup(child.recording)));
   check('SITL', parent.sitl.ownership !== child.sitl.ownership);
   check('flight task', !same(parent.flightTask?.definition ?? null, child.flightTask?.definition ?? null));
+  check('fault schedule', !same(parent.faults, child.faults));
   return changes;
 }
 

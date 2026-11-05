@@ -18,7 +18,7 @@ import { deriveVehicleManifest } from '../packages/aircraft/src/derive-manifest.
 import {
   experimentChanges,
   createExperimentRecord, experimentRecordName, migrateExperiment, readExperiment, validateExperiment, type ExperimentParameter, type ExperimentPayload,
-  type ExperimentPayloadV1, type ExperimentPayloadV2, type ExperimentPayloadV3, type ExperimentPayloadV4, type ExternalSitl, type LauncherSitl,
+  type ExperimentPayloadV1, type ExperimentPayloadV2, type ExperimentPayloadV3, type ExperimentPayloadV4, type ExperimentPayloadV5, type ExternalSitl, type LauncherSitl,
 } from '../packages/aircraft/src/experiment.ts';
 import { siteParameters } from '@mirage/aircraft/site-parameters';
 import { externalDependencies, lineageFor, trajectoryDifference } from '../apps/web/src/experiments/lifecycle.ts';
@@ -61,9 +61,9 @@ function at<T>(items: readonly T[], index: number): T {
   if (item === undefined) throw new Error(`The fixture has no entry ${index}`);
   return item;
 }
-/** A schema 5 payload; the fixtures never build schema 1 to 4 through this. */
-function current(payload: ExperimentPayload | ExperimentPayloadV4 | ExperimentPayloadV3 | ExperimentPayloadV2 | ExperimentPayloadV1): ExperimentPayload {
-  if (payload.schemaVersion !== 5) throw new Error('The fixture is not schema 5');
+/** A schema 6 payload; the fixtures never build schema 1 to 5 through this. */
+function current(payload: ExperimentPayload | ExperimentPayloadV5 | ExperimentPayloadV4 | ExperimentPayloadV3 | ExperimentPayloadV2 | ExperimentPayloadV1): ExperimentPayload {
+  if (payload.schemaVersion !== 6) throw new Error('The fixture is not schema 6');
   return payload;
 }
 /** The launcher-owned SITL of a fixture payload, or of its mutable copy. */
@@ -133,12 +133,12 @@ function payloadOf(fixture: Fixture, stored = fixture.stored, profile = fixture.
     ...PWM, ...runtime.parameters.map((p): ExperimentParameter => ({ ...p, source: 'sensor' })),
   ];
   return current(validateExperiment({
-    schemaVersion: 5,
+    schemaVersion: 6,
     profile: { sha256: stored.sha256, id: stored.record.id, version: stored.record.version, name: stored.record.name },
     sitl: { ownership: 'launcher', experimentId: EXPERIMENT_ID, ardupilot: FIRMWARE },
     session: { physicsHz: 800, clockMode: 'sitl-lockstep', speedup: 4, home: HOME, modelId: 153, manifestSha256: fixture.manifestSha256,
       betModuleSha256: hash('mirage_bet.wasm') },
-    parameters, frameScript: frame.script, sensors: sensorSnapshot(stored), recording: RECORDING, lineage: { kind: 'original' }, flightTask: null,
+    parameters, frameScript: frame.script, sensors: sensorSnapshot(stored), recording: RECORDING, lineage: { kind: 'original' }, flightTask: null, faults: null,
   }));
 }
 function edit(payload: ExperimentPayload, change: (copy: Mutable<ExperimentPayload>) => void): unknown {
@@ -151,7 +151,7 @@ function edit(payload: ExperimentPayload, change: (copy: Mutable<ExperimentPaylo
 const RECORDING = { recordId: 'a'.repeat(32), commonHz: 50, groups: { motors: 400 }, signals: { 'truth.position': 800 }, durationMin: 60, reserveMb: 500 };
 const ICM_42688: SensorConfiguration = validateSensorConfiguration(applySensorPreset(DEFAULT_SENSOR_CONFIGURATION, { catalogVersion: 1, id: 'imu-icm-42688-p' }).configuration);
 
-describe('experiment payload schema 5', () => {
+describe('experiment payload schema 6', () => {
   test('the payload of an S19 quad X run validates, and its parameters are a start request the launcher accepts', async () => {
     const fixture = await storedProfile('quad-x', 'S19 quad X', null);
     const payload = payloadOf(fixture);
@@ -168,7 +168,7 @@ describe('experiment payload schema 5', () => {
     expect(spec.parameters.map(p => p.name)).toEqual(payload.parameters.map(p => p.name));
   });
 
-  test('refuses payloads outside schema 5 with a reason', async () => {
+  test('refuses payloads outside schema 6 with a reason', async () => {
     const fixture = await storedProfile('quad-x', 'S19 quad X', ICM_42688);
     const payload = payloadOf(fixture);
     expect(payload.parameters.filter(p => p.source === 'sensor').length).toBeGreaterThan(0);
@@ -210,7 +210,7 @@ describe('experiment payload schema 5', () => {
       ['a home heading beyond 360', edit(payload, p => { p.session.home[3] = 361; }), 'home heading must be a number from 0 to 360'],
       ['a launcher ID of another format', edit(payload, p => { ownedEdit(p).experimentId = 'run-1'; }), 'sitl.experimentId must be a launcher experiment ID'],
       ['a short commit', edit(payload, p => { ownedEdit(p).ardupilot.commit = '8ab6afd'; }), 'ardupilot.commit must be a 40-digit lowercase commit'],
-      ['another experiment schema', edit(payload, p => { Object.assign(p, { schemaVersion: 6 }); }), 'unsupported experiment schema 6'],
+      ['another experiment schema', edit(payload, p => { Object.assign(p, { schemaVersion: 7 }); }), 'unsupported experiment schema 7'],
       ['an empty firmware version', edit(payload, p => { ownedEdit(p).ardupilot.firmwareVersion = ''; }), 'ardupilot.firmwareVersion must be non-empty text'],
       ['another SITL ownership', edit(payload, p => { Object.assign(p.sitl, { ownership: 'user' }); }), 'sitl.ownership must be launcher or external'],
       ['schema 1 fields in schema 3', edit(payload, p => { Object.assign(p, { launcher: { experimentId: EXPERIMENT_ID } }); }), 'the payload has an unexpected field launcher'],
@@ -445,13 +445,13 @@ describe('schema 1 records and external SITLs (TASK-155)', () => {
     return edit(payload, p => { Object.assign(p, { sitl: structuredClone(EXTERNAL) }); p.session.speedup = null; });
   }
 
-  test('a TASK-154 schema 1 record still validates and reads as schema 5 without a recording, and new records are schema 5', async () => {
+  test('a TASK-154 schema 1 record still validates and reads as schema 6 without a recording, and new records are schema 6', async () => {
     const fixture = await storedProfile('quad-x', 'S19 quad X', ICM_42688);
     const payload = payloadOf(fixture);
     const v1 = schema1Of(payload);
     expect(validateExperiment(v1)).toMatchObject({ schemaVersion: 1, launcher: { experimentId: EXPERIMENT_ID }, ardupilot: FIRMWARE });
     await expect(createExperimentRecord(fixture.store, fixture.projectId, { name: 'Run 1', payload: v1 }))
-      .rejects.toThrow('new experiments are schema 5; schema 1 is only read');
+      .rejects.toThrow('new experiments are schema 6; schema 1 is only read');
     // Stored as TASK-154 stored it, it reads as the schema 4 payload of the same original run, which recorded nothing.
     const stored = await fixture.store.createItem(fixture.projectId, 'experiment', { name: 'Run 1', payload: v1, dependencies: [fixture.stored.sha256] });
     expect(readExperiment(stored)).toEqual({ ...payload, recording: null });
@@ -460,35 +460,35 @@ describe('schema 1 records and external SITLs (TASK-155)', () => {
     expect(() => validateExperiment(edit(payload, p => { Object.assign(p, { schemaVersion: 1 }); }))).toThrow('the payload lacks ardupilot');
   });
 
-  test('a TASK-155 schema 2 record still validates and reads as schema 5 without a recording', async () => {
+  test('a TASK-155 schema 2 record still validates and reads as schema 6 without a recording', async () => {
     const fixture = await storedProfile('quad-x', 'S19 quad X', ICM_42688);
     const payload = payloadOf(fixture);
-    const v2 = edit(payload, p => { Object.assign(p, { schemaVersion: 2 }); Reflect.deleteProperty(p, 'recording'); Reflect.deleteProperty(p, 'lineage'); Reflect.deleteProperty(p, 'flightTask'); });
+    const v2 = edit(payload, p => { Object.assign(p, { schemaVersion: 2 }); Reflect.deleteProperty(p, 'recording'); Reflect.deleteProperty(p, 'lineage'); Reflect.deleteProperty(p, 'flightTask'); Reflect.deleteProperty(p, 'faults'); });
     expect(validateExperiment(v2)).toMatchObject({ schemaVersion: 2, sitl: payload.sitl });
     expect(Object.hasOwn(validateExperiment(v2), 'recording')).toBe(false);
     await expect(createExperimentRecord(fixture.store, fixture.projectId, { name: 'Run 2', payload: v2 }))
-      .rejects.toThrow('new experiments are schema 5; schema 2 is only read');
+      .rejects.toThrow('new experiments are schema 6; schema 2 is only read');
     const stored = await fixture.store.createItem(fixture.projectId, 'experiment', { name: 'Run 2', payload: v2, dependencies: [fixture.stored.sha256] });
     expect(readExperiment(stored)).toEqual({ ...payload, recording: null });
     // Schema 2 has no recording field.
-    expect(() => validateExperiment(edit(payload, p => { Object.assign(p, { schemaVersion: 2 }); Reflect.deleteProperty(p, 'lineage'); Reflect.deleteProperty(p, 'flightTask'); })))
+    expect(() => validateExperiment(edit(payload, p => { Object.assign(p, { schemaVersion: 2 }); Reflect.deleteProperty(p, 'lineage'); Reflect.deleteProperty(p, 'flightTask'); Reflect.deleteProperty(p, 'faults'); })))
       .toThrow('the payload has an unexpected field recording');
     // A schema 4 run that recorded nothing says so.
     expect(current(validateExperiment(edit(payload, p => { Object.assign(p, { recording: null }); }))).recording).toBeNull();
     expect(payload.recording).toEqual(RECORDING);
   });
 
-  test('a TASK-163 schema 3 record still validates and reads as a schema 5 original run (TASK-165)', async () => {
+  test('a TASK-163 schema 3 record still validates and reads as a schema 6 original run (TASK-165)', async () => {
     const fixture = await storedProfile('quad-x', 'S19 quad X', ICM_42688);
     const payload = payloadOf(fixture);
-    const v3 = edit(payload, p => { Object.assign(p, { schemaVersion: 3 }); Reflect.deleteProperty(p, 'lineage'); Reflect.deleteProperty(p, 'flightTask'); });
+    const v3 = edit(payload, p => { Object.assign(p, { schemaVersion: 3 }); Reflect.deleteProperty(p, 'lineage'); Reflect.deleteProperty(p, 'flightTask'); Reflect.deleteProperty(p, 'faults'); });
     expect(validateExperiment(v3)).toMatchObject({ schemaVersion: 3, recording: RECORDING });
     expect(Object.hasOwn(validateExperiment(v3), 'lineage')).toBe(false);
     await expect(createExperimentRecord(fixture.store, fixture.projectId, { name: 'Run 3', payload: v3 }))
-      .rejects.toThrow('new experiments are schema 5; schema 3 is only read');
+      .rejects.toThrow('new experiments are schema 6; schema 3 is only read');
     const stored = await fixture.store.createItem(fixture.projectId, 'experiment', { name: 'Run 3', payload: v3, dependencies: [fixture.stored.sha256] });
     expect(readExperiment(stored)).toEqual(payload);
-    expect(() => validateExperiment(edit(payload, p => { Object.assign(p, { schemaVersion: 3 }); Reflect.deleteProperty(p, 'flightTask'); }))).toThrow('the payload has an unexpected field lineage');
+    expect(() => validateExperiment(edit(payload, p => { Object.assign(p, { schemaVersion: 3 }); Reflect.deleteProperty(p, 'flightTask'); Reflect.deleteProperty(p, 'faults'); }))).toThrow('the payload has an unexpected field lineage');
   });
 
   test('an external SITL payload validates and is stored, and its own rules refuse what MirageSITL cannot know or did not do', async () => {
@@ -578,13 +578,29 @@ describe('the flight task of an experiment (TASK-172)', () => {
 
   test('a schema 4 record still validates and reads as schema 5 without a task', async () => {
     const payload = payloadOf(await storedProfile('quad-x', 'S19 quad X', ICM_42688));
-    const v4 = edit(payload, p => { Object.assign(p, { schemaVersion: 4 }); Reflect.deleteProperty(p, 'flightTask'); });
+    const v4 = edit(payload, p => { Object.assign(p, { schemaVersion: 4 }); Reflect.deleteProperty(p, 'flightTask'); Reflect.deleteProperty(p, 'faults'); Reflect.deleteProperty(p, 'faults'); });
     const read = validateExperiment(v4);
     expect(read).toMatchObject({ schemaVersion: 4, lineage: { kind: 'original' } });
     expect(Object.hasOwn(read, 'flightTask')).toBe(false);
-    expect(migrateExperiment(read)).toMatchObject({ schemaVersion: 5, flightTask: null, recording: RECORDING });
-    expect(() => validateExperiment(edit(payload, p => { Object.assign(p, { schemaVersion: 4 }); }))).toThrow('the payload has an unexpected field flightTask');
-    expect(() => validateExperiment(edit(payload, p => { Reflect.deleteProperty(p, 'flightTask'); }))).toThrow('the payload lacks');
+    expect(migrateExperiment(read)).toMatchObject({ schemaVersion: 6, flightTask: null, faults: null, recording: RECORDING });
+    expect(() => validateExperiment(edit(payload, p => { Object.assign(p, { schemaVersion: 4 }); Reflect.deleteProperty(p, 'faults'); }))).toThrow('the payload has an unexpected field flightTask');
+    expect(() => validateExperiment(edit(payload, p => { Reflect.deleteProperty(p, 'flightTask'); Reflect.deleteProperty(p, 'faults'); }))).toThrow('the payload lacks');
+  });
+
+  test('keeps a fault schedule with the run, has one spelling for none, and reads schema 5 as a run with none', async () => {
+    const payload = payloadOf(await storedProfile('quad-x', 'S19 quad X', ICM_42688));
+    const faults = { schemaVersion: 1, entries: [{ control: { schemaVersion: 1, id: 'motor-loss-0', effect: 'motor.loss', enabled: true, intensity: 1, parameters: { motorIndex: 0, mode: 'power-cut', remainingThrustFraction: 0.5 } },
+      onsetS: 10, durationS: 5, recovery: 'hold-offset' }] };
+    const withFaults = current(validateExperiment(edit(payload, p => { Object.assign(p, { faults }); })));
+    expect(withFaults.faults).toEqual(faults);
+    expect(experimentChanges(payload, withFaults)).toEqual(['fault schedule']);
+    expect(() => validateExperiment(edit(payload, p => { Object.assign(p, { faults: { schemaVersion: 1, entries: [] } }); }))).toThrow('faults must be null when nothing is scheduled');
+    const down = { ...faults, entries: [{ ...faults.entries[0], control: { schemaVersion: 1, id: 'step', effect: 'ew.position-step', enabled: true, intensity: 1, parameters: { offsetNedM: [0, 0, 5] } } }] };
+    expect(() => validateExperiment(edit(payload, p => { Object.assign(p, { faults: down }); }))).toThrow('vertical GNSS step');
+    const v5 = validateExperiment(edit(payload, p => { Object.assign(p, { schemaVersion: 5 }); Reflect.deleteProperty(p, 'faults'); }));
+    expect(Object.hasOwn(v5, 'faults')).toBe(false);
+    expect(migrateExperiment(v5)).toMatchObject({ schemaVersion: 6, faults: null });
+    expect(() => validateExperiment(edit(payload, p => { Object.assign(p, { schemaVersion: 5 }); }))).toThrow('the payload has an unexpected field faults');
   });
 
   test('stores the stored version it names, byte for byte, and refuses any other', async () => {
