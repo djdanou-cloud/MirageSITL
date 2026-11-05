@@ -1,5 +1,6 @@
 import { useState, type ChangeEvent } from "react";
 import { extractFromLog, logSpan, missingFields, withSupplied, type LogExtraction } from "@mirage/analysis/log-to-experiment";
+import { parseParamFile } from "@mirage/autopilot/param-file";
 import { readDataFlash } from "@mirage/dataflash/reader";
 import type { StoredVersion } from "@mirage/project/schema";
 import type { SessionLink } from "../run/session-link";
@@ -17,6 +18,7 @@ export function FromLogWizard({ link, profiles, onRun }: { link: SessionLink; pr
   const [extraction, setExtraction] = useState<LogExtraction | null>(null);
   const [profileSha, setProfileSha] = useState("");
   const [refusal, setRefusal] = useState("");
+  const [changesText, setChangesText] = useState("");
   const choose = (event: ChangeEvent<HTMLInputElement>) => {
     const chosen = event.target.files?.[0];
     event.target.value = "";
@@ -40,7 +42,9 @@ export function FromLogWizard({ link, profiles, onRun }: { link: SessionLink; pr
   const profile = profiles.find(item => item.sha256 === profileSha);
   const load = () => {
     if (!file || !extraction || !profile) return;
-    link.planFromLog({ logSha256: file.sha256, profileSha256: profile.sha256, extraction: withSupplied(extraction, "aircraft", `${profile.record.name}, version ${profile.record.version}`) });
+    let changes: readonly { readonly name: string; readonly value: number }[];
+    try { changes = parseParamFile(changesText); } catch (cause) { setRefusal(`The changed parameters cannot be read: ${cause instanceof Error ? cause.message : String(cause)}`); return; }
+    link.planFromLog({ logSha256: file.sha256, profileSha256: profile.sha256, extraction: withSupplied(extraction, "aircraft", `${profile.record.name}, version ${profile.record.version}`), changes });
     onRun();
   };
   const missing = extraction ? missingFields(extraction).filter(field => field.key !== "aircraft" || !profile) : [];
@@ -101,6 +105,10 @@ export function FromLogWizard({ link, profiles, onRun }: { link: SessionLink; pr
               {profiles.map(item => <option key={item.sha256} value={item.sha256}>{`${item.record.name} (version ${item.record.version})`}</option>)}
             </select>
             <button type="button" onClick={load} disabled={!profile}>Load into the Run tab</button>
+          </div>
+          <div className="field">
+            <label htmlFor="from-log-changes">Change parameters for this run (NAME,VALUE on each line; empty flies the log's own)</label>
+            <textarea id="from-log-changes" rows={3} value={changesText} placeholder="NAME,VALUE on each line" onChange={event => setChangesText(event.target.value)} />
           </div>
           {profiles.length === 0 && <p className="hint">This project has no aircraft profile yet: make one on the Aircraft tab.</p>}
         </>

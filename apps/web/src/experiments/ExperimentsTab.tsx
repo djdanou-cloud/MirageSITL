@@ -8,7 +8,9 @@ import type { StoreState } from "../shell/AppShell";
 import type { SessionLink } from "../run/session-link";
 import { EffectsRecord } from "../faults/EffectsRecord";
 import { readEffectLog, type EffectLog } from "../faults/effect-log";
+import { FromLogCompare } from "./FromLogCompare";
 import { FromLogWizard } from "./FromLogWizard";
+import type { AnalysisOpen } from "../analysis/AnalysisTab";
 import { readLogExtraction, type LogExtractionRecord } from "./log-plan";
 import { ResponsePanel } from "../analysis/ResponsePanel";
 import { TruthVsEstimate } from "../analysis/TruthVsEstimate";
@@ -49,7 +51,7 @@ async function positions(recordId: string): Promise<PositionRow[]> {
 const metres = (value: number) => `${value.toFixed(value < 0.01 ? 4 : 3)} m`;
 
 export function ExperimentsTab({ storeState, project, link, active, onRun, onAnalyse }: {
-  storeState: StoreState; project: StoredVersion | null; link: SessionLink; active: boolean; onRun: () => void; onAnalyse: (sha256: string) => void;
+  storeState: StoreState; project: StoredVersion | null; link: SessionLink; active: boolean; onRun: () => void; onAnalyse: (sha256: string, compare?: AnalysisOpen["compare"]) => void;
 }) {
   const store = storeState.status === "ready" ? storeState.store : null;
   const projectId = project?.record.id ?? null;
@@ -202,6 +204,8 @@ export function ExperimentsTab({ storeState, project, link, active, onRun, onAna
               <div data-testid="experiment-from-log">
                 <p className="hint">{`From ${log.log.name}, ${log.interval.fromS.toFixed(2)} s to ${log.interval.toS.toFixed(2)} s, with ${log.parameters.length} of its settings. It started on the ground, so it is not a replay of that flight.`}</p>
                 {missing.length > 0 && <p className="hint">{`The log did not hold: ${missing.map(field => field.label).join(", ")}.`}</p>}
+                {store && projectId && <FromLogCompare key={current.stored.sha256} store={store} projectId={projectId} link={link} item={{ stored: current.stored, payload: current.payload }} log={log}
+                  onOpen={compare => onAnalyse(current.stored.sha256, compare)} />}
               </div>
             );
           })()}

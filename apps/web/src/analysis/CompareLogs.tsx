@@ -1,7 +1,7 @@
 import { useEffect, useState, type ChangeEvent, type RefObject } from "react";
 import type { StoredVersion } from "@mirage/project/schema";
 import type { ProjectStore } from "@mirage/project/store";
-import type { Listed } from "./AnalysisTab";
+import type { Listed } from "./experiment-log";
 import { ContextPanel } from "./ContextPanel";
 import { externalLogContext, viewerEvents, type AnalysisContext } from "./experiment-adapter";
 import { alignStarts, intervalOf, overlapS, readLogComparison, saveLogComparison, type CompareMode, type ComparedLog, type LogAlignment, type LogComparison } from "./log-alignment";
@@ -16,14 +16,13 @@ const SHIFTS = [-1, -0.1, 0.1, 1] as const;
 const seconds = (value: number) => Number(value.toFixed(6));
 const sha256Of = async (bytes: ArrayBuffer): Promise<string> => [...new Uint8Array(await crypto.subtle.digest("SHA-256", bytes))].map(byte => byte.toString(16).padStart(2, "0")).join("");
 
-export function CompareLogs({ store, projectId, experiments, firstLog, secondParsed, secondContext, alignment, experimentLog, onSecond, onAlignment }: {
+export function CompareLogs({ store, projectId, experiments, firstLog, secondLog, secondParsed, secondContext, alignment, experimentLog, onSecond, onAlignment }: {
   store: ProjectStore | null; projectId: string | null; experiments: readonly Listed[];
   firstLog: RefObject<{ readonly name: string; readonly bytes: ArrayBuffer; readonly events: readonly ViewerEvent[]; readonly experimentSha256: string | null } | null>;
-  secondParsed: string | null; secondContext: AnalysisContext | null; alignment: LogAlignment;
+  secondLog: ComparedLog | null; secondParsed: string | null; secondContext: AnalysisContext | null; alignment: LogAlignment;
   experimentLog: (item: Listed) => Promise<{ readonly request: ViewerRequest | null; readonly context: AnalysisContext; readonly note: string }>;
-  onSecond: (second: ViewerRequest, context: AnalysisContext | null) => void; onAlignment: (alignment: LogAlignment) => void;
+  onSecond: (second: ViewerRequest, context: AnalysisContext | null, log: ComparedLog) => void; onAlignment: (alignment: LogAlignment) => void;
 }) {
-  const [secondLog, setSecondLog] = useState<ComparedLog | null>(null);
   const [firstFrom, setFirstFrom] = useState(""), [firstTo, setFirstTo] = useState(""), [secondFrom, setSecondFrom] = useState(""), [secondTo, setSecondTo] = useState("");
   const [refusal, setRefusal] = useState("");
   const [saved, setSaved] = useState<readonly { readonly stored: StoredVersion; readonly comparison: LogComparison }[]>([]);
@@ -37,8 +36,7 @@ export function CompareLogs({ store, projectId, experiments, firstLog, secondPar
 
   const use = async (name: string, bytes: ArrayBuffer, events: readonly ViewerEvent[], experimentSha256: string | null, context: AnalysisContext | null) => {
     setRefusal(""); setStatus("");
-    setSecondLog({ name, sha256: await sha256Of(bytes), experimentSha256 });
-    onSecond({ id: `${name}:${bytes.byteLength}:${Date.now()}`, name, bytes, events }, context);
+    onSecond({ id: `${name}:${bytes.byteLength}:${Date.now()}`, name, bytes, events }, context, { name, sha256: await sha256Of(bytes), experimentSha256 });
   };
   const sameFlight = () => {
     const first = firstLog.current;
@@ -83,6 +81,12 @@ export function CompareLogs({ store, projectId, experiments, firstLog, secondPar
     void sha256Of(first.bytes).then(sha256 => saveLogComparison(store, projectId, { schemaVersion: 1, first: { name: first.name, sha256, experimentSha256: first.experimentSha256 }, second: secondLog, alignment })).then(
       stored => setStatus(`Saved as ${stored.record.name}.`), (cause: unknown) => setRefusal(`The comparison could not be saved: ${cause instanceof Error ? cause.message : String(cause)}`));
   };
+  // An alignment that arrives with its log (TASK-183) fills the form.
+  const { first: shownFirst, second: shownSecond } = alignment;
+  useEffect(() => {
+    setFirstFrom(shownFirst ? String(shownFirst.fromS) : ""); setFirstTo(shownFirst ? String(shownFirst.toS) : "");
+    setSecondFrom(shownSecond ? String(shownSecond.fromS) : ""); setSecondTo(shownSecond ? String(shownSecond.toS) : "");
+  }, [shownFirst, shownSecond]);
   const overlap = overlapS(alignment);
   return (
     <section className="project-section" aria-labelledby="compare-logs-heading" data-testid="compare-logs">

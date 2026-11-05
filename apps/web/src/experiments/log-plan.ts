@@ -12,6 +12,8 @@ export interface LogPlan {
   readonly extraction: LogExtraction;
   /** The aircraft the user chose: a log never holds one. */
   readonly profileSha256: string;
+  /** TASK-183: parameters the user changed for this run, on top of the log's. */
+  readonly changes: readonly { readonly name: string; readonly value: number }[];
 }
 export interface LogExtractionRecord {
   readonly schemaVersion: typeof LOG_EXTRACTION_SCHEMA_VERSION;
@@ -22,6 +24,8 @@ export interface LogExtractionRecord {
   readonly fields: readonly ExtractionField[];
   readonly parameters: readonly LogParameter[];
   readonly skipped: readonly SkippedParameter[];
+  /** TASK-183: what the user changed for this run; absent from a record made before that. */
+  readonly changes?: readonly { readonly name: string; readonly value: number }[];
 }
 
 const STATUSES: readonly string[] = ["extracted", "user-supplied", "missing"];
@@ -55,20 +59,25 @@ export function validateLogExtraction(value: unknown): LogExtractionRecord {
       if (!isRecord(item)) return fail(`skipped[${index}]`);
       return { name: text(item.name, "name"), value: finite(item.value, "value"), why: text(item.why, "why") };
     }),
+    ...(value.changes === undefined ? {} : { changes: (Array.isArray(value.changes) ? value.changes as unknown[] : fail("changes must be a list")).map((item, index) => {
+      if (!isRecord(item)) return fail(`changes[${index}]`);
+      return { name: text(item.name, "name"), value: finite(item.value, "value") };
+    }) }),
   };
 }
 export const readLogExtraction = (stored: StoredVersion): LogExtractionRecord => validateLogExtraction(stored.record.payload);
 /** What the Run tab says before it starts: the build it will fly is not chosen yet, so the settings it takes are at most these. */
-export function logPlanText(extraction: LogExtraction): string {
+export function logPlanText(extraction: LogExtraction, changes = 0): string {
   const place = extraction.home ? "its home" : "the Run tab's home, because the log does not give one";
-  return `From ${extraction.name}: ${place} and up to ${extraction.parameters.length} of its settings, on the aircraft you chose. Your aircraft keeps its own settings, and the build you choose may lack some of the log's. It starts on the ground, so this is an experiment like that flight and not a replay. List the builds, then start it.`;
+  const changed = changes === 0 ? "" : `, with ${changes} ${changes === 1 ? "parameter" : "parameters"} you changed`;
+  return `From ${extraction.name}: ${place} and up to ${extraction.parameters.length} of its settings${changed}, on the aircraft you chose. Your aircraft keeps its own settings, and the build you choose may lack some of the log's. It starts on the ground and its path is computed afresh, so this is an experiment like that flight and not a replay. List the builds, then start it.`;
 }
 const NOT_TAKEN = "The aircraft profile sets it for this run, or the chosen build has no such setting to write";
 /** The record of a run the wizard started: `taken` names the settings the run really booted with, and the rest say why they did not go. */
 export function logExtractionRecord(plan: LogPlan, experimentSha256: string, taken: ReadonlySet<string>): LogExtractionRecord {
   const { extraction } = plan;
   return { schemaVersion: LOG_EXTRACTION_SCHEMA_VERSION, experimentSha256, log: { name: extraction.name, bytes: extraction.bytes, sha256: plan.logSha256 }, interval: extraction.interval,
-    fields: extraction.fields, parameters: extraction.parameters.filter(parameter => taken.has(parameter.name)),
+    fields: extraction.fields, parameters: extraction.parameters.filter(parameter => taken.has(parameter.name)), changes: plan.changes,
     skipped: [...extraction.skipped, ...extraction.parameters.filter(parameter => !taken.has(parameter.name)).map(parameter => ({ name: parameter.name, value: parameter.value, why: NOT_TAKEN }))] };
 }
 export function saveLogExtraction(store: ProjectStore, projectId: string, plan: LogPlan, experimentSha256: string, taken: ReadonlySet<string>): Promise<StoredVersion> {

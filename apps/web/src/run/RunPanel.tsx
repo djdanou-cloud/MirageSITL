@@ -12,6 +12,7 @@ import { loadCalibration } from "@mirage/input/calibration-store";
 import type { ParameterMetadataCatalog } from "@mirage/autopilot/param-metadata";
 import { lineageFor, loggingOf } from "../experiments/lifecycle";
 import { logPlanText, saveLogExtraction } from "../experiments/log-plan";
+import { resimulationInputs } from "@mirage/analysis/resimulate";
 import { loadLoggingSettings, type LoggingSettings } from "../logging/logging-settings";
 import { ParameterLogWriter } from "../params/log-writer";
 import { EffectLogWriter } from "../faults/effect-log";
@@ -334,14 +335,15 @@ export function RunPanel({ storeState, project, visible, link }: { storeState: S
       // A log from another build may name parameters this one lacks, which the start would refuse.
       const knownSets = (catalog?.commits ?? []).flatMap(commit => catalog?.forCommit(commit) ?? []);
       const writable = (name: string) => knownSets.length === 0 || knownSets.some(known => { const facts = known.get(name); return facts !== undefined && !facts.readOnly && !facts.volatile; });
-      const fromLogSet = (fromLog?.extraction.parameters ?? []).filter(parameter => isSetParameter(parameter.name) && writable(parameter.name))
-        .map(parameter => ({ name: parameter.name, value: parameter.value }));
+      // TASK-183: resimulationInputs is all a run reads of a log, so its path is computed afresh.
+      const logInputs = fromLog ? resimulationInputs(fromLog.extraction, fromLog.changes) : null;
+      const fromLogSet = (logInputs?.parameters ?? []).filter(parameter => isSetParameter(parameter.name) && writable(parameter.name));
       const session = freshSession(settings, catalog, task.entry, fromLog ? fromLogSet : parent?.parameters.filter(parameter => parameter.source === "set") ?? []);
       if (!session) return;
       // TASK-169: a repeat flies its parent's schedule; everything else the one on the Faults and interference tab.
       const faults = plan?.kind === "repeat" ? plan.parent.faults : schedule;
       link.planRun(null);
-      const logHome = fromLog?.extraction.home ?? null;
+      const logHome = logInputs?.home ?? null;
       link.planFromLog(null);
       void session.next.start({ prepare: session.prepare, firmwareId: buildId, speedup, physicsHz: parent?.session.physicsHz ?? SITL_PHYSICS_HZ,
         home: parent?.session.home ?? logHome ?? DEFAULT_HOME, flightTask: task.entry, faults });
@@ -460,7 +462,7 @@ export function RunPanel({ storeState, project, visible, link }: { storeState: S
       )}
       {fromLog && (
         <p className="hint" role="status" data-testid="sitl-plan" data-kind="from-log">
-          {logPlanText(fromLog.extraction)}
+          {logPlanText(fromLog.extraction, fromLog.changes.length)}
           <button type="button" onClick={() => link.planFromLog(null)} disabled={active}>Cancel</button>
         </p>
       )}

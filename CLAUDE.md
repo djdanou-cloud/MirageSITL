@@ -308,7 +308,8 @@ implementation.
   reports field by field what a log and an interval give, with each source message, what
   is missing and what the run will not take, and the run it plans starts on the ground
   at the log's home with its settings on an aircraft the user chooses, which is not a
-  replay. TASK-146 is DONE: with the TASK-092 drive,
+  replay. TASK-183 is DONE: that run takes changed parameters and computes its own path, and it
+  compares with the original flight by metrics and in the viewer. TASK-146 is DONE: with the TASK-092 drive,
   `BetFlightDynamics` checks every step against card ratings and the model's
   clamps, keeps a rating `warning` apart from a modeled `limited` clamp,
   publishes per-motor and battery values in the separate power telemetry v1

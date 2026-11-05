@@ -15,7 +15,7 @@ import { validateMeasurementSet } from "@mirage/aircraft/measurements";
 import { validateAircraftProfile } from "@mirage/aircraft/profile";
 import { ProjectStore } from "@mirage/project/store";
 import { AircraftEditor } from "../aircraft/AircraftEditor";
-import { AnalysisTab } from "../analysis/AnalysisTab";
+import { AnalysisTab, type AnalysisOpen } from "../analysis/AnalysisTab";
 import { validateLogComparison } from "../analysis/log-alignment";
 import { validateLogExtraction } from "../experiments/log-plan";
 import { validateEffectLog } from "../faults/effect-log";
@@ -75,7 +75,7 @@ export function AppShell({ run }: { run: (visible: boolean, storeState: StoreSta
   const [projects, setProjects] = useState<readonly StoredVersion[]>([]);
   const [notice, setNotice] = useState("");
   /** The experiment the Experiments tab asked the Analysis tab to open (TASK-180). */
-  const [analysisOpen, setAnalysisOpen] = useState<{ readonly sha256: string; readonly at: number } | null>(null);
+  const [analysisOpen, setAnalysisOpen] = useState<AnalysisOpen | null>(null);
   // Set once the user navigates; until then the stored navigation may replace the default.
   const changed = useRef(false);
   const tabs = useRef(new Map<TabId, HTMLButtonElement>());
@@ -169,7 +169,7 @@ export function AppShell({ run }: { run: (visible: boolean, storeState: StoreSta
       case "faults":
         return <FaultsTab storeState={storeState} project={project} link={link} active={navigation.tab === "faults"} />;
       case "experiments":
-        return <ExperimentsTab storeState={storeState} project={project} link={link} active={navigation.tab === "experiments"} onRun={() => selectTab("run")} onAnalyse={sha256 => { setAnalysisOpen({ sha256, at: Date.now() }); selectTab("analysis"); }} />;
+        return <ExperimentsTab storeState={storeState} project={project} link={link} active={navigation.tab === "experiments"} onRun={() => selectTab("run")} onAnalyse={(sha256, compare) => { setAnalysisOpen({ sha256, at: Date.now(), ...(compare ? { compare } : {}) }); selectTab("analysis"); }} />;
       case "analysis":
         return <AnalysisTab storeState={storeState} project={project} link={link} active={navigation.tab === "analysis"} openSha={analysisOpen} />;
       default: {

@@ -8320,7 +8320,22 @@ sensors. It is an experiment like that flight and not a replay, and the wizard a
 tab both say so. Exact replay of an arbitrary log is not promised. `log-extraction` is one
 item per such run, depending on its experiment, and the Experiments tab shows it for as long
 as the experiment exists: the log's name, interval, settings taken and what the log did not
-hold. TASK-183 compares a new run with the log.
+hold.
+
+### Comparison with the original flight (TASK-183)
+
+The wizard takes parameter changes on top of the log's settings. `resimulationInputs` is all
+the Run tab reads of a log, its home and its parameters, so the physics integrates its own
+trajectory from the ground, and no recorded position reaches it. The run flies what the Run tab
+asks, not the log's commands.
+
+The log is not stored with the project, so `FromLogCompare.tsx` takes it again and refuses one
+whose SHA-256 differs from the record's. Both logs are read the same way: core 0 of `XKF1`, or
+`MSTR` in a log written from a recording. The start of the log's interval is lined up with the
+start of the run's log, and the panel gives duration, greatest height, farthest from the start,
+path length, and the root mean square and greatest gap between the two paths over the time they
+share. These describe the difference, and no limit applies to any of them. **Compare both in
+Analysis** opens the same alignment in the TASK-181 viewer.
 
 ## Parameter batches (TASK-176)
 

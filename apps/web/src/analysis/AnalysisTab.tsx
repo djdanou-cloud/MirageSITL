@@ -1,26 +1,29 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { reopenRecording } from "@mirage/aar/recorder-v2-host";
-import { readExperiment, type ExperimentPayload } from "@mirage/aircraft/experiment";
+import { readExperiment } from "@mirage/aircraft/experiment";
 import type { StoredVersion } from "@mirage/project/schema";
 import type { StoreState } from "../shell/AppShell";
 import type { SessionLink } from "../run/session-link";
-import { readParameterLog, type ParameterChange } from "../params/parameter-sets";
 import { CompareLogs } from "./CompareLogs";
 import { ContextPanel } from "./ContextPanel";
-import { experimentContext, externalLogContext, recordingDataflash, viewerEvents, type AnalysisContext } from "./experiment-adapter";
+import { externalLogContext, viewerEvents, type AnalysisContext } from "./experiment-adapter";
+import { findExperimentLog, type Listed } from "./experiment-log";
 import { LogViewerHost, type ViewerRequest } from "./LogViewerHost";
 import type { ViewerEvent } from "./viewer-protocol";
-import { NO_ALIGNMENT, type LogAlignment } from "./log-alignment";
+import { NO_ALIGNMENT, type ComparedLog, type LogAlignment, type LogInterval } from "./log-alignment";
 
 // The Analysis tab (TASK-179, TASK-180): the offline viewer, a stored experiment opened in it with its context, or a log from
 // elsewhere with what that log can say. An experiment's file is the run's own DataFlash log while the launcher has it; otherwise one
 // written from its stored recording, and the panel says which. Nothing leaves the machine.
 
-export interface Listed { readonly stored: StoredVersion; readonly payload: ExperimentPayload }
-const toBuffer = (bytes: Uint8Array): ArrayBuffer => bytes.slice().buffer;
 
+/** An experiment the Experiments tab opens here; with a log to compare it against, already aligned (TASK-183). */
+export interface AnalysisOpen {
+  readonly sha256: string;
+  readonly at: number;
+  readonly compare?: { readonly name: string; readonly bytes: ArrayBuffer; readonly sha256: string; readonly interval: LogInterval; readonly secondOffsetS: number };
+}
 export function AnalysisTab({ storeState, project, link, active, openSha }: {
-  storeState: StoreState; project: StoredVersion | null; link: SessionLink; active: boolean; openSha: { readonly sha256: string; readonly at: number } | null;
+  storeState: StoreState; project: StoredVersion | null; link: SessionLink; active: boolean; openSha: AnalysisOpen | null;
 }) {
   const store = storeState.status === "ready" ? storeState.store : null;
   const projectId = project?.record.id ?? null;
@@ -35,42 +38,28 @@ export function AnalysisTab({ storeState, project, link, active, openSha }: {
   const [alignment, setAlignment] = useState<LogAlignment>(NO_ALIGNMENT);
   const [secondParsed, setSecondParsed] = useState<string | null>(null);
   const [secondContext, setSecondContext] = useState<AnalysisContext | null>(null);
+  const [secondLog, setSecondLog] = useState<ComparedLog | null>(null);
   /** A copy of the first log, kept because the viewer takes the bytes it is sent, for comparing two intervals of one flight. */
   const firstLog = useRef<{ readonly name: string; readonly bytes: ArrayBuffer; readonly events: readonly ViewerEvent[]; readonly experimentSha256: string | null } | null>(null);
+  const wanted = useRef<AnalysisOpen["compare"] | null>(null);
   const open = (next: ViewerRequest, experimentSha256: string | null) => {
     firstLog.current = { name: next.name, bytes: next.bytes.slice(0), events: next.events, experimentSha256 };
-    setSecond(null); setSecondParsed(null); setSecondContext(null); setAlignment(NO_ALIGNMENT);
+    setSecond(null); setSecondParsed(null); setSecondContext(null); setSecondLog(null); setAlignment(NO_ALIGNMENT);
     setRequest(next);
+    // TASK-183: the log it came from comes with it, lined up at the start of the interval.
+    const compare = wanted.current;
+    wanted.current = null;
+    if (compare) {
+      const shown = externalLogContext(compare.name, new Uint8Array(compare.bytes));
+      setSecondContext(shown);
+      setSecondLog({ name: compare.name, sha256: compare.sha256, experimentSha256: null });
+      setSecond({ id: `${compare.sha256}:${next.id}`, name: compare.name, bytes: compare.bytes, events: viewerEvents(shown) });
+      setAlignment({ mode: "overlay", first: null, second: compare.interval, secondOffsetS: compare.secondOffsetS });
+    }
   };
-  /** A stored experiment's log and context, as the first log or the second. */
-  const experimentLog = useCallback(async (item: Listed): Promise<{ readonly request: ViewerRequest | null; readonly context: AnalysisContext; readonly note: string }> => {
-    if (!store || !projectId) throw new Error("No project is open");
-    // The run's own parameter history, if one was stored: none is ever made up.
-    const logs = await store.listItems(projectId, "parameter-log");
-    const own = logs.map(readParameterLog).filter(log => log.experimentSha256 === item.stored.sha256).at(-1);
-    const changes: readonly ParameterChange[] | null = own ? own.changes : null;
-    const shown = experimentContext(item.stored.record.name, item.payload, changes), events = viewerEvents(shown);
-    const { sitl, recording, session } = item.payload;
-    if (sitl.ownership === "launcher" && launcher) {
-      try {
-        const files = await launcher.logs(sitl.experimentId), name = (files.attachments ?? files.dataflash).at(-1);
-        if (name) {
-          const bytes = await launcher.dataflash(sitl.experimentId, name);
-          return { request: { id: `${item.stored.sha256}:${name}`, name, bytes: toBuffer(bytes), events }, context: shown, note: `ArduPilot's own log of this run, ${name}, from the launcher.` };
-        }
-      } catch {
-        // The launcher may be gone or no longer hold it: the recording is next.
-      }
-    }
-    if (recording) {
-      const opened = await reopenRecording(recording.recordId).catch(() => null);
-      const bytes = opened ? recordingDataflash(opened.rows, session.home, changes) : null;
-      if (bytes) {
-        return { request: { id: `${item.stored.sha256}:recording`, name: `${item.stored.record.name}.bin`, bytes: toBuffer(bytes), events }, context: shown,
-          note: `MirageSITL's truth from the stored recording, with no ArduPilot data: ${launcher ? "the launcher has no log of this run" : "enter the launcher's token on the Run tab for ArduPilot's own log"}.` };
-      }
-    }
-    return { request: null, context: shown, note: "No log of this run is at hand: neither the launcher nor a stored recording has one." };
+  const experimentLog = useCallback((item: Listed) => {
+    if (!store || !projectId) return Promise.reject(new Error("No project is open"));
+    return findExperimentLog(store, projectId, launcher, item);
   }, [store, projectId, launcher]);
 
   useEffect(() => {
@@ -82,7 +71,7 @@ export function AnalysisTab({ storeState, project, link, active, openSha }: {
     });
     return () => { cancelled = true; };
   }, [store, projectId, active]);
-  useEffect(() => { if (openSha) setSelected(openSha.sha256); }, [openSha]);
+  useEffect(() => { if (openSha) { wanted.current = openSha.compare ?? null; setSelected(openSha.sha256); } }, [openSha]);
   const current = useMemo(() => experiments.find(item => item.stored.sha256 === selected) ?? null, [experiments, selected]);
 
   useEffect(() => {
@@ -97,7 +86,7 @@ export function AnalysisTab({ storeState, project, link, active, openSha }: {
       if (found.request) open(found.request, current.stored.sha256);
     })();
     return () => { cancelled = true; };
-  }, [store, projectId, current, launcher]);
+  }, [store, projectId, current, experimentLog, openSha]);
 
   return (
     <div className="analysis-tab" data-testid="analysis-tab">
@@ -124,9 +113,9 @@ export function AnalysisTab({ storeState, project, link, active, openSha }: {
         {context && <ContextPanel context={context} />}
       </div>
       {request && (
-        <CompareLogs store={store} projectId={projectId} experiments={experiments} firstLog={firstLog} secondParsed={secondParsed} secondContext={secondContext} alignment={alignment}
+        <CompareLogs store={store} projectId={projectId} experiments={experiments} firstLog={firstLog} secondLog={secondLog} secondParsed={secondParsed} secondContext={secondContext} alignment={alignment}
           experimentLog={experimentLog}
-          onSecond={(next, shown) => { setSecondParsed(null); setSecondContext(shown); setSecond(next); }}
+          onSecond={(next, shown, log) => { setSecondParsed(null); setSecondContext(shown); setSecondLog(log); setSecond(next); }}
           onAlignment={setAlignment} />
       )}
     </div>
