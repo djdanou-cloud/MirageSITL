@@ -6,7 +6,7 @@ import { WEATHER_SET_GUST_BANDWIDTH_HZ, ActuatorFrameCodecV2, ControlFlag, Contr
 import { SteppingPolicy, newPumpReport, type StepGate } from './clock-policy.ts';
 import { DemoDynamics } from './demo-dynamics.ts';
 import { MotorFaults } from './motor-fault.ts';
-import { AIR_PRESSURE, WEATHER_AIR_KEEP, WEATHER_GUST_BANDWIDTH, WEATHER_GUST_KEEP, WEATHER_GUST_RMS, WEATHER_PRESSURE, WEATHER_SEED, WEATHER_SLOTS, WEATHER_TEMPERATURE, WEATHER_WIND_DOWN, WEATHER_WIND_EAST,
+import { AIR_PRESSURE, WEATHER_AIR_KEEP, WEATHER_GUST_BANDWIDTH, WEATHER_GUST_KEEP, WEATHER_GUST_RMS, WEATHER_PRESSURE, WEATHER_TURBULENCE_INTENSITY, WEATHER_TURBULENCE_KEEP, WEATHER_TURBULENCE_SEED, WEATHER_TURBULENCE_W20, WEATHER_SEED, WEATHER_SLOTS, WEATHER_TEMPERATURE, WEATHER_WIND_DOWN, WEATHER_WIND_EAST,
   WEATHER_WIND_NORTH } from './atmosphere.ts';
 import type { LimitEvent } from './limit-monitor.ts';
 import type { AccidentEvent } from './accident.ts';
@@ -28,7 +28,9 @@ const EW_REGISTRY_FULL: ScheduledRejectV2 = { code: 'OVERLOAD', message: 'EW fau
 const EW_FAULT_REJECTED: ScheduledRejectV2 = { code: 'OUT_OF_RANGE', message: 'EW fault command was rejected' };
 const NOT_MODELED: ScheduledRejectV2 = { code: 'BAD_STATE', message: 'The backend cannot model this scheduled command' };
 /** TASK-166: the environment effects a session holds at once. */
-const ENVIRONMENT_WIND = 1, ENVIRONMENT_GUST = 2, ENVIRONMENT_ATMOSPHERE = 4, ENVIRONMENT_ALL = 7;
+const ENVIRONMENT_WIND = 1, ENVIRONMENT_GUST = 2, ENVIRONMENT_ATMOSPHERE = 4, ENVIRONMENT_TURBULENCE = 8,
+  /** What a weather.set states; turbulence is not among them. */
+  ENVIRONMENT_WEATHER_SET = 7;
 /**
  * ISA troposphere (US Standard Atmosphere 1976): p = p0 (1 - L h / T0)^(g M / (R L)),
  * L/T0 = 0.0065/288.15 = 2.25577e-5 1/m, exponent 5.25588. Valid 0..11 km; the
@@ -380,7 +382,9 @@ export class PhysicsSessionV2 {
       w[WEATHER_GUST_RMS] = command.turbulenceRmsMps; w[WEATHER_SEED] = command.seed;
       w[WEATHER_TEMPERATURE] = command.temperatureK; w[WEATHER_PRESSURE] = command.pressurePa;
       w[WEATHER_GUST_BANDWIDTH] = WEATHER_SET_GUST_BANDWIDTH_HZ; w[WEATHER_GUST_KEEP] = 0; w[WEATHER_AIR_KEEP] = 0;
-      this.environment = ENVIRONMENT_ALL;
+      if ((this.environment & ENVIRONMENT_TURBULENCE) === 0) w[WEATHER_TURBULENCE_W20] = 0;
+      w[WEATHER_TURBULENCE_KEEP] = 1;
+      this.environment |= ENVIRONMENT_WEATHER_SET;
       return this.applyWeather();
     }
     if (command.type === "effect.set") {
@@ -400,7 +404,7 @@ export class PhysicsSessionV2 {
     if (!this.dynamics.setWeather) return NOT_MODELED;
     const w = this.weather, before = this.environment, on = control.active;
     // Changing the wind or the air leaves a running gust alone; only a change of the gust itself starts it again.
-    let bit: number, keepGust = 1;
+    let bit: number, keepGust = 1, keepTurbulence = 1;
     switch (control.effect) {
       case "wind.mean": {
         bit = ENVIRONMENT_WIND;
@@ -416,6 +420,10 @@ export class PhysicsSessionV2 {
         bit = ENVIRONMENT_ATMOSPHERE;
         w[WEATHER_TEMPERATURE] = control.temperatureK; w[WEATHER_PRESSURE] = control.pressurePa;
         break;
+      case "wind.turbulence":
+        bit = ENVIRONMENT_TURBULENCE; keepTurbulence = 0;
+        w[WEATHER_TURBULENCE_W20] = on ? control.w20Mps : 0; w[WEATHER_TURBULENCE_INTENSITY] = control.intensity; w[WEATHER_TURBULENCE_SEED] = control.seed;
+        break;
       default: { const never: never = control; throw new Error(`Unhandled environment effect ${String(never)}`); }
     }
     const after = on ? before | bit : before & ~bit;
@@ -430,8 +438,10 @@ export class PhysicsSessionV2 {
       keepGust = 0;
       if (bit !== ENVIRONMENT_WIND) { w[WEATHER_WIND_NORTH] = 0; w[WEATHER_WIND_EAST] = 0; w[WEATHER_WIND_DOWN] = 0; }
       if (bit !== ENVIRONMENT_GUST) { w[WEATHER_GUST_RMS] = 0; w[WEATHER_GUST_BANDWIDTH] = 0; w[WEATHER_SEED] = 0; }
+      if (bit !== ENVIRONMENT_TURBULENCE) { w[WEATHER_TURBULENCE_W20] = 0; w[WEATHER_TURBULENCE_INTENSITY] = 0; w[WEATHER_TURBULENCE_SEED] = 0; }
     }
     w[WEATHER_GUST_KEEP] = keepGust;
+    w[WEATHER_TURBULENCE_KEEP] = keepTurbulence;
     w[WEATHER_AIR_KEEP] = (after & ENVIRONMENT_ATMOSPHERE) !== 0 ? 0 : 1;
     return this.applyWeather();
   }

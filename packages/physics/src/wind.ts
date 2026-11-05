@@ -7,7 +7,8 @@ export interface WindConfig {
 }
 /** Synthetic bounded-innovation first-order gust; not a Dryden turbulence model. */
 export class Wind {
-  private readonly mean: Float64Array;
+  /** The mean wind, NED m/s. */
+  readonly mean: Float64Array;
   private readonly state = new Float64Array(3);
   private readonly streams: readonly SeededRandom[];
   private readonly hz: number;

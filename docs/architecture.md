@@ -927,6 +927,11 @@ Scenario schema 2 schedules a control with an onset and a duration as two ordina
 commands, each acknowledged on its tick. A running session rejects sensor-error
 controls visibly, since those are set before the run on the Sensors tab.
 
+TASK-106 adds MIL-F-8785C low-altitude Dryden turbulence as one of those effects,
+beside the synthetic gust that `weather.set` still names: three exactly discretized
+channels scaled by height and carried at the speed through the air, with one
+uniform field at the CG and every hub.
+
 TASK-096 adds airframe drag on the same air: a drag-area tensor and center of
 pressure from the vehicle manifest give the body `−½·ρ·|v_a|·(C_D·A)·v_a` and
 its moment every step, from the velocity relative to the air that the rotors

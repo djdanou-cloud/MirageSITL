@@ -186,7 +186,7 @@ if(!allocation){
   // windows, as in the Worker: in this process, after the graphs above, a forced full GC that collects an applied command's
   // shape makes V8 discard the optimized tick ("embedded weak objects cleared"), which then boxes numbers until recompiled
   // (TASK-093 measured 44 B per tick that way; a fresh process stays at 0 with or without the GC).
-  const EFFECT_CONTROLS=[{effect:'wind.mean',parameters:{windNedMps:[3,-2,0.5]}},{effect:'wind.gust',parameters:{rmsMps:1.5,bandwidthHz:2,seed:0x9e3779b9}},
+  const EFFECT_CONTROLS=[{effect:'wind.mean',parameters:{windNedMps:[3,-2,0.5]}},{effect:'wind.gust',parameters:{rmsMps:1.5,bandwidthHz:2,seed:0x9e3779b9}},{effect:'wind.turbulence',parameters:{w20Mps:6,seed:0x9e3779b9}},
     {effect:'atmosphere',parameters:{temperatureK:293.15,pressurePa:98000}}];
   const stateBuffer=createSharedMemoryV2(),fake={mono:0};let sessionDynamics=null;
   const session=new PhysicsSessionV2({type:'init-v2',protocolVersion:2,stateBuffer,sensorBuffer:createSpscQueue('sensor'),actuatorBuffer:createSpscQueue('actuator')},

@@ -449,6 +449,63 @@ The caller owns length-three NED output; render grouping never advances RNG.
 Atmospheric setup may allocate; wind stepping reuses storage. The allocation
 probe is `node scripts/bench-wind.mjs`, report test-results/bench/wind.json.
 
+### Dryden turbulence (TASK-106)
+
+The Phase 1 increment of TASK-106 adds MIL-F-8785C's low-altitude Dryden
+turbulence in `packages/physics/src/turbulence.ts`, as the effect
+`wind.turbulence` (SPECS_SHARED_MEMORY, "Control Protocol v3"). The synthetic
+AR(1) gust above stays, because a `weather.set` still names it and flies as it
+did. The two add when both are on.
+
+```text
+H_u(s)   = σ_u·√(2·L_u/(π·V)) / (1 + (L_u/V)·s)
+H_v,w(s) = σ·√(L/(π·V))·(1 + √3·(L/V)·s) / (1 + (L/V)·s)²
+
+With h in feet, for 10 ft ≤ h ≤ 1000 ft:
+L_w = h         L_u = L_v = h/(0.177 + 0.000823·h)^1.2
+σ_w = 0.1·W20   σ_u = σ_v = σ_w/(0.177 + 0.000823·h)^0.4
+
+One unit-variance step of a channel with θ = dt·V/L, x = 2·θ:
+u[k+1]     = e^(−θ)·u[k] + √(1 − e^(−x))·n
+[z p][k+1] = Φ·[z p][k] + chol(I − Φ·Φᵀ)·[n1 n2]
+Φ = e^(−θ)·[[1 + θ, θ], [−θ, 1 − θ]]
+v, w = σ·(z + √3·p)/2
+```
+
+u lies along the horizontal mean wind (north when there is none), v 90° to its
+right and w down. The filters are discretized exactly: the sampled states have
+the variance and autocovariance of the continuous filters at any step, with
+R_u(t) = σ²·e^(−|t|·V/L) and R_v,w(t) = σ²·(1 − |t|·V/(2·L))·e^(−|t|·V/L). The
+sampled spectrum is the continuous one folded at the sampling rate. The states
+have unit variance, so a change of σ moves the output and no state jumps. The
+noise covariance's entry 1 − e^(−x)·(1 + x + x²/2) cancels to x³/6 when the step
+is short against the eddy, as at 1200 Hz in a large eddy, so it comes from its
+series below x = 0.5.
+
+* **Inputs.** W20 is the mean wind at 20 ft (6 m) that sets the strength, 0..50
+  m/s (MIL-F-8785C calls 15, 30 and 45 knots light, moderate and severe). h is
+  the height above the origin, held at the 10 ft values below 10 ft and at the
+  1000 ft values above 1000 ft, where the three channels agree; the model has no
+  terrain yet. V is the speed through the air, from this tick's mean flow and the
+  vehicle's velocity.
+* **Hover.** V goes to zero in a hover in still air, where Taylor's frozen-eddy
+  assumption behind the filter has nothing to carry the eddies, so V reads as at
+  least W20: turbulence of that strength lives in a wind of about that speed. This
+  is a choice made for hover, not part of MIL-F-8785C; the Kaimal spectra the
+  roadmap names for hover are not implemented.
+* **Determinism.** Five fixed streams, one per normal draw (`DRYDEN_STREAMS`).
+  Coefficients refresh on tick indices, every `round(hz/50)` ticks, so a run
+  repeats whatever the wall pacing. A start draws the states from their stationary
+  distribution, so there is no spin-up.
+* **Controls.** Intensity multiplies σ, so one seed gives one realization, exactly
+  scaled while V and h are the same; W20 as written still sets the slowest
+  carrying speed. A new mean wind or new air leaves it running; its own control
+  starts it again from its seed. Off or W20 = 0 draws no random numbers and adds
+  nothing. A `weather.set` neither starts nor stops it.
+* **Not modelled.** One uniform field at the CG and every hub: no rotational gusts
+  or inter-hub coherence, no von Kármán or Kaimal spectra, no medium or high
+  altitude form. Those stay with TASK-106 beyond Phase 1.
+
 ### Weather and atmosphere in flight sessions (TASK-093)
 
 A dynamics with an atmosphere and wind implements `SessionDynamics.setWeather`;

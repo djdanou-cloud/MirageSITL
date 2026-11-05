@@ -51,9 +51,11 @@ const NED = ['north', 'east', 'down'] as const, FRD = ['forward', 'right', 'down
 export const EFFECT_CATALOG = {
   'wind.mean': { family: 'environment', label: 'Mean wind', meaning: 'Intensity multiplies the wind. Range: the wind model.',
     fields: [vector('windNedMps', 'Wind', 'm/s', NED, 200, [5, 0, 0])] },
-  'wind.gust': { family: 'environment', label: 'Gusts and turbulence', meaning: 'Intensity multiplies the RMS, so the same seed gives the same gusts, scaled. Range: the gust model.',
+  'wind.gust': { family: 'environment', label: 'Synthetic gust', meaning: 'Intensity multiplies the RMS, so the same seed gives the same gusts, scaled. Range: the gust model.',
     fields: [number('rmsMps', 'RMS per axis', 'm/s', 0, 50, 1), number('bandwidthHz', 'Bandwidth', 'Hz', 0, 200, 1, { exclusiveMin: true, exclusiveMax: true }),
       { key: 'seed', label: 'Seed', unit: '1', kind: 'integer', min: 0, max: 0xffffffff, initial: 1 }] },
+  'wind.turbulence': { family: 'environment', label: 'Turbulence (Dryden)', meaning: 'Intensity multiplies every RMS, so the same seed gives the same turbulence, scaled. W20 is the mean wind at 6 m that sets its strength, with RMS 0.1 W20 vertically; MIL-F-8785C calls 7.7 m/s light, 15.4 moderate and 23.2 severe. Range: the turbulence model.',
+    fields: [number('w20Mps', 'Mean wind at 6 m (W20)', 'm/s', 0, 50, 7.7), { key: 'seed', label: 'Seed', unit: '1', kind: 'integer', min: 0, max: 0xffffffff, initial: 1 }] },
   atmosphere: { family: 'environment', label: 'Temperature and pressure', meaning: 'Intensity moves the air at the origin from the standard atmosphere (at 0) to these values (at 1). Range: the atmosphere model.',
     fields: [number('temperatureK', 'Temperature', 'K', 180, 330, ISA_TEMPERATURE_K), number('pressurePa', 'Pressure', 'Pa', 1000, 120000, ISA_PRESSURE_PA)] },
   'ew.gnss-jamming': { family: 'fault', label: 'GNSS jamming', meaning: 'Intensity multiplies the severity. Range: the jamming model.',
@@ -108,6 +110,7 @@ type FaultSetV2 = Extract<ScheduledCommandV2, { type: 'fault.set' }>;
 export type EffectiveControl =
   | { readonly family: 'environment'; readonly effect: 'wind.mean'; readonly active: boolean; readonly windNedMps: Vec3 }
   | { readonly family: 'environment'; readonly effect: 'wind.gust'; readonly active: boolean; readonly rmsMps: number; readonly bandwidthHz: number; readonly seed: number }
+  | { readonly family: 'environment'; readonly effect: 'wind.turbulence'; readonly active: boolean; readonly w20Mps: number; readonly intensity: number; readonly seed: number }
   | { readonly family: 'environment'; readonly effect: 'atmosphere'; readonly active: boolean; readonly temperatureK: number; readonly pressurePa: number }
   | { readonly family: 'fault'; readonly fault: FaultSetV2 }
   | { readonly family: 'sensor' };
@@ -251,6 +254,11 @@ export function effectiveControl(control: EffectControl, envelope: { requestId: 
   switch (definition.family) {
     case 'environment':
       if (control.effect === 'wind.mean') return { family: 'environment', effect: 'wind.mean', active, windNedMps: scaledVector(control, 'windNedMps', i) };
+      if (control.effect === 'wind.turbulence') {
+        scaledNumber(control, 'w20Mps', i);
+        // W20 itself stays as written: intensity scales the strength, not the speed the turbulence is carried past at.
+        return { family: 'environment', effect: 'wind.turbulence', active: active && numberOf(control, 'w20Mps') > 0, w20Mps: numberOf(control, 'w20Mps'), intensity: i, seed: numberOf(control, 'seed') };
+      }
       if (control.effect === 'wind.gust') return { family: 'environment', effect: 'wind.gust', active, rmsMps: scaledNumber(control, 'rmsMps', i), bandwidthHz: numberOf(control, 'bandwidthHz'), seed: numberOf(control, 'seed') };
       {
         const temperatureK = fromStandard(control, 'temperatureK', ISA_TEMPERATURE_K, i), pressurePa = fromStandard(control, 'pressurePa', ISA_PRESSURE_PA, i);

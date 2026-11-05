@@ -563,6 +563,7 @@ with the refusal of the model that owns the range.
 |---|---|---|---|
 | `wind.mean` | `windNedMps`, m/s, ±200 per axis | Multiplies the wind | `Wind` |
 | `wind.gust` | `rmsMps`, m/s, 0..50; `bandwidthHz`, Hz, (0, 200); `seed`, uint32 | Multiplies the RMS, so one seed gives one gust, scaled | `Wind`; the bandwidth stays below Nyquist at 400 Hz, the lowest rate |
+| `wind.turbulence` | `w20Mps`, m/s, 0..50; `seed`, uint32 | Multiplies every RMS, and leaves W20 as the slowest carrying speed | `DrydenTurbulence` (TASK-106) |
 | `atmosphere` | `temperatureK`, K, 180..330; `pressurePa`, Pa, 1000..120000; together 0.05..2 kg/m³ | Moves the air at the origin from the standard atmosphere (288.15 K, 101325 Pa) at 0 to these values at 1, and on past them | `atmosphereAtHeightInto` |
 | `ew.gnss-jamming` | `severity`, 0..1 | Multiplies the severity | Jamming model |
 | `ew.position-step` | `offsetNedM`, m, length at most 10000 | Multiplies the offset | Position-step model |
@@ -589,8 +590,8 @@ with the refusal of the model that owns the range.
   lengths. The values worked out at admission wait in the queue, so a due
   command allocates nothing on its tick (`lowerEffectSet`). What travels is the
   plain command; re-parsing it gives the same command.
-* **One state per environment effect.** A session holds one mean wind, one gust
-  and one air; the newest control for an effect replaces it, whatever its ID. A
+* **One state per environment effect.** A session holds one mean wind, one gust,
+  one turbulence and one air; the newest control for an effect replaces it, whatever its ID. A
   fault keeps its per-ID registry slot, as a `fault.set` does.
 * **Each effect keeps to itself.** Wind alone leaves the configured atmosphere in
   place and the published pressure as still air has it; air alone brings no
@@ -611,9 +612,9 @@ with the refusal of the model that owns the range.
   sensor errors are set on the Sensors tab, before the run. The demo backend
   rejects the environment effects and `motor.loss`.
 * **Other effects.** An effect task adds its record to `EFFECT_CATALOG` when its
-  model exists, because the range must equal that model's envelope: TASK-106
-  (turbulence spectra), TASK-107 (shear and terrain flow), TASK-121 and TASK-122
-  (thermals and hazard flows) have none yet. ArduPilot's own SITL errors are not
+  model exists, because the range must equal that model's envelope: the von
+  Kármán and Kaimal spectra of TASK-106, TASK-107 (shear and terrain flow),
+  TASK-121 and TASK-122 (thermals and hazard flows) have none yet. ArduPilot's own SITL errors are not
   controls: they stay under the TASK-089 ownership setting.
 * **Schedules.** `scheduledEffects(control, { onsetTick, durationTicks, recovery })`
   gives ordinary commands, the effect on at its onset and off when its duration

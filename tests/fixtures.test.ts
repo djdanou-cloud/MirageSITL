@@ -29,6 +29,15 @@ describe('versioned fixture provenance and random streams', () => {
     for (const bad of [-1, 0.5, 2 ** 32, NaN, Infinity]) expect(() => rng.resetFrom(new Float64Array([bad]), 0, 0)).toThrow();
     expect(() => rng.resetFrom(new Float64Array([1]), 0, -1)).toThrow();
   });
+  it('draws a normal in a slot from the same two uniforms as two nextFloat calls (TASK-106)', () => {
+    const draws = new SeededRandom(321, 4), uniforms = new SeededRandom(321, 4), out = new Float64Array(2);
+    for (let i = 0; i < 1000; i++) {
+      draws.nextGaussianInto(out, 1);
+      const u1 = uniforms.nextFloat(), u2 = uniforms.nextFloat();
+      expect(out[1]).toBe(Math.sqrt(-2 * Math.log(1 - u1)) * Math.cos(2 * Math.PI * u2));
+    }
+    expect(draws.nextUint32()).toBe(uniforms.nextUint32());
+  });
   it('keeps stream state separate and accepts zero seeds', () => {
     const a = new SeededRandom(0, 0), b = new SeededRandom(0, 1), control = new SeededRandom(0, 1);
     const firstA = a.nextUint32();

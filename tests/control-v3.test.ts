@@ -39,7 +39,7 @@ const command = (c: EffectControl) => ({ protocolVersion: 3, requestId: 1, expec
 describe('the effect catalog', () => {
   it('names the effects Phase 1 has models for, each field with a unit and a range, and a starting value inside that range', () => {
     expect([...EFFECT_IDS].sort()).toEqual(['atmosphere', 'ew.gnss-jamming', 'ew.magnetic', 'ew.position-step', 'ew.velocity-drift', 'motor.loss', 'sensor.battery.current', 'sensor.battery.voltage',
-      'sensor.imu.accel-bias', 'sensor.imu.accel-noise', 'sensor.imu.gyro-bias', 'sensor.imu.gyro-noise', 'sensor.imu.latency', 'wind.gust', 'wind.mean']);
+      'sensor.imu.accel-bias', 'sensor.imu.accel-noise', 'sensor.imu.gyro-bias', 'sensor.imu.gyro-noise', 'sensor.imu.latency', 'wind.gust', 'wind.mean', 'wind.turbulence']);
     for (const id of EFFECT_IDS) {
       const parameters = initialEffectParameters(id);
       // Parsing is the check that every starting value lies inside its own range.
@@ -236,6 +236,13 @@ describe('intensity', () => {
   });
   it('multiplies gust RMS, and leaves the bandwidth and the seed alone', () => {
     expect(effective(control('wind.gust', { rmsMps: 1.5, bandwidthHz: 3, seed: 9 }, 2))).toMatchObject({ active: true, rmsMps: 3, bandwidthHz: 3, seed: 9 });
+  });
+  it('multiplies the strength of turbulence, and leaves W20 and the seed as written', () => {
+    expect(effective(control('wind.turbulence', { w20Mps: 10, seed: 4 }, 3))).toMatchObject({ active: true, w20Mps: 10, intensity: 3, seed: 4 });
+    expect(effective(control('wind.turbulence', { w20Mps: 10, seed: 4 }, 0))).toMatchObject({ active: false });
+    // No strength at all is no effect, on or off.
+    expect(effective(control('wind.turbulence', { w20Mps: 0, seed: 4 }))).toMatchObject({ active: false });
+    expect(() => effective(control('wind.turbulence', { w20Mps: 30, seed: 4 }, 2))).toThrow('at intensity');
   });
   it('moves the air from the standard atmosphere at 0 to its values at 1, and past them', () => {
     const parameters = { temperatureK: 300, pressurePa: 90000 };

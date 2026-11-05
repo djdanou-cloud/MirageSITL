@@ -9,9 +9,10 @@ import { BetRigidBodyBackend, newBodyTruth, type BodyTruth } from '../../wasm-be
 import type { MotorFaults } from './motor-fault.ts';
 import { validateModelManifest } from './model-manifest.ts';
 import { FrameLayout } from './frame.ts';
-import { AIR_DENSITY, AIR_HEIGHT, AIR_REFERENCE_PRESSURE, AIR_REFERENCE_TEMPERATURE, AIR_SOUND, AIR_VISCOSITY, WEATHER_AIR_KEEP, WEATHER_GUST_BANDWIDTH, WEATHER_GUST_RMS, WEATHER_PRESSURE,
+import { AIR_DENSITY, AIR_HEIGHT, AIR_REFERENCE_PRESSURE, AIR_REFERENCE_TEMPERATURE, AIR_SOUND, AIR_VISCOSITY, WEATHER_AIR_KEEP, WEATHER_GUST_BANDWIDTH, WEATHER_GUST_RMS, WEATHER_PRESSURE, WEATHER_TURBULENCE_INTENSITY, WEATHER_TURBULENCE_KEEP, WEATHER_TURBULENCE_SEED, WEATHER_TURBULENCE_W20,
   WEATHER_SEED, WEATHER_TEMPERATURE, atmosphereAtHeightInto } from './atmosphere.ts';
 import { Wind } from './wind.ts';
+import { DRYDEN_HEIGHT, DRYDEN_INPUT_SLOTS, DRYDEN_MAX_W20_MPS, DRYDEN_MEAN_EAST, DRYDEN_MEAN_NORTH, DRYDEN_RELATIVE_DOWN, DRYDEN_RELATIVE_EAST, DRYDEN_RELATIVE_NORTH, DrydenTurbulence } from './turbulence.ts';
 import { BatteryColumn, LimitMonitor, MotorColumn, MotorLimited, BatteryLimited, PowerTelemetry, type LimitRatings } from './limit-monitor.ts';
 
 /** One motor and its ESC for the production drive (TASK-092); SI units, k_t = k_e. */
@@ -176,6 +177,10 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
   private readonly candidate=new Float64Array(3);
   private readonly candidateAir=new Float64Array(5);
   private readonly gust:Wind;
+  /** TASK-106: Dryden turbulence on top of the gust, while a weather holds a W20, with its inputs in slots. */
+  private readonly turbulence:DrydenTurbulence;
+  private readonly turbulenceInput=new Float64Array(DRYDEN_INPUT_SLOTS);
+  private turbulenceActive=false;
   /** TASK-096: the drag-area tensor (row-major), the center of pressure from the CG and the airspeed range, or null without drag. */
   private readonly dragArea:Float64Array|null;
   private readonly dragCenter=new Float64Array(3);
@@ -288,6 +293,7 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
         this.atmosphere[1]!<=0 || this.atmosphere[2]!<=0)throw Error('Invalid BET atmosphere');
     this.baseAtmosphere=new Float64Array(this.atmosphere);
     this.gust=new Wind({meanNedMps:[0,0,0],gustRmsMps:0,bandwidthHz:WEATHER_GUST_BANDWIDTH_HZ,hz},0);
+    this.turbulence=new DrydenTurbulence(hz);
     for(let i=0;i<n;i++) {
       const r=model.rotors[i]!,q=r.hubToBody,norm=Math.sqrt(q[0]!**2+q[1]!**2+q[2]!**2+q[3]!**2);
       const w=q[0]!/norm,x=q[1]!/norm,y=q[2]!/norm,z=q[3]!/norm;
@@ -310,7 +316,7 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
     this.referenceRotorRpm=this.output[9]!*60/(2*Math.PI);
     this.limits?.reset();this.accidents?.reset();
     // A new epoch starts without weather, as configured.
-    this.weatherActive=false;this.airActive=false;this.windNedMps.fill(0);this.atmosphere.set(this.baseAtmosphere);
+    this.turbulenceActive=false;this.weatherActive=false;this.airActive=false;this.windNedMps.fill(0);this.atmosphere.set(this.baseAtmosphere);
     this.dragWrenchBody.fill(0);
     const t=this.power;
     if(t) {
@@ -345,6 +351,8 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
     if(!(rms>=0&&rms<=50)||!(seed>=0&&seed<=0xffffffff&&seed===Math.floor(seed)))return WIND_OUT_OF_ENVELOPE;
     // Zero keeps the bandwidth; otherwise the first-order filter must be resolvable and below Nyquist, as the gust model's constructor requires.
     if(!(bandwidth>=0&&bandwidth<this.hz/2)||(bandwidth>0&&!(Math.exp(-2*Math.PI*bandwidth/this.hz)<1)))return WIND_OUT_OF_ENVELOPE;
+    const w20=weather[WEATHER_TURBULENCE_W20]!,turbulenceSeed=weather[WEATHER_TURBULENCE_SEED]!;
+    if(!(w20>=0&&w20*weather[WEATHER_TURBULENCE_INTENSITY]!<=DRYDEN_MAX_W20_MPS&&w20<=DRYDEN_MAX_W20_MPS)||!(turbulenceSeed>=0&&turbulenceSeed<=0xffffffff&&turbulenceSeed===Math.floor(turbulenceSeed)))return WIND_OUT_OF_ENVELOPE;
     if(weather[WEATHER_AIR_KEEP]===1){
       this.airActive=false;this.atmosphere.set(this.baseAtmosphere);
     }else{
@@ -356,17 +364,31 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
       this.airActive=true;
     }
     this.gust.configure(weather);
+    if(w20>0){
+      this.turbulence.setStrengthFrom(weather,WEATHER_TURBULENCE_W20,WEATHER_TURBULENCE_INTENSITY);
+      if(!this.turbulenceActive||weather[WEATHER_TURBULENCE_KEEP]!==1)this.turbulence.restartFrom(weather,WEATHER_TURBULENCE_SEED);
+      this.turbulenceActive=true;
+    }else this.turbulenceActive=false;
     this.weatherActive=true;
     return null;
   }
   /** TASK-166: back to no weather at a tick boundary: still air and the configured atmosphere, as an epoch that never had any. */
   clearWeather():void {
-    this.weatherActive=false;this.airActive=false;this.windNedMps.fill(0);this.atmosphere.set(this.baseAtmosphere);
+    this.turbulenceActive=false;this.weatherActive=false;this.airActive=false;this.windNedMps.fill(0);this.atmosphere.set(this.baseAtmosphere);
   }
   stepNow(pilot:PilotInput):void {
     if(this.fault!=='')return;
     // TASK-093: the wind of this tick, one uniform field at the CG and every rotor hub; the air was set for this height.
-    if(this.weatherActive)this.gust.stepInto(this.windNedMps);
+    if(this.weatherActive){
+      this.gust.stepInto(this.windNedMps);
+      if(this.turbulenceActive){
+        // The speed it is carried past at is relative to this tick's mean flow, before the turbulence is added.
+        const t=this.turbulenceInput,air=this.windNedMps,ground=this.truth.velocityNedMps,mean=this.gust.mean;
+        t[DRYDEN_HEIGHT]=-this.truth.positionNedM[2]!;t[DRYDEN_RELATIVE_NORTH]=air[0]!-ground[0]!;t[DRYDEN_RELATIVE_EAST]=air[1]!-ground[1]!;t[DRYDEN_RELATIVE_DOWN]=air[2]!-ground[2]!;
+        t[DRYDEN_MEAN_NORTH]=mean[0]!;t[DRYDEN_MEAN_EAST]=mean[1]!;
+        this.turbulence.stepAddInto(t,air);
+      }
+    }
     const s=this.state,q=this.truth.quaternionBodyToNed,r=this.rotations,p=this.positions,v=this.truth.velocityNedMps;
     const rates=this.truth.angularVelocityBodyRadS,oldRx=rates[0]!,oldRy=rates[1]!,oldRz=rates[2]!;
     const rx=oldRx+0.5*this.dt*this.angularAcceleration[0]!,ry=oldRy+0.5*this.dt*this.angularAcceleration[1]!,

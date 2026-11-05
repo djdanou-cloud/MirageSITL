@@ -501,7 +501,9 @@ implementation.
   over a seeded run. `weather.set` and `fault.set` map onto those records and fly
   as they did, scenario schema 2 schedules them, and the instructor console has one
   form per effect. A running session rejects `sensor.*` controls visibly, and the
-  console stays on the demo page until TASK-167 and TASK-169. ArduPilot's own SITL
+  console stays on the demo page until TASK-167 and TASK-169. TASK-106's Phase 1 part
+  is DONE: MIL-F-8785C low-altitude Dryden turbulence (`packages/physics/src/turbulence.ts`,
+  effect `wind.turbulence`), without rotational gusts or the other spectra. ArduPilot's own SITL
   errors keep the TASK-089 setting, whose default is ArduPilot's behaviour. That request of 2026-10-27 was first
   registered as TASK-124 on the physics-review branch, a number main already used.
   MirageSITL stays an external

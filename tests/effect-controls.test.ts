@@ -96,6 +96,7 @@ const requestIdOf = (result: CommandResultV2 | undefined): number => (result && 
 const APPLICABLE: readonly (readonly [EffectId, Parameters])[] = [
   ['wind.mean', { windNedMps: [6, -3, 1] }],
   ['wind.gust', { rmsMps: 2, bandwidthHz: 2, seed: 77 }],
+  ['wind.turbulence', { w20Mps: 8, seed: 78 }],
   ['atmosphere', { temperatureK: 300, pressurePa: 95000 }],
   ['ew.gnss-jamming', { severity: 1 }],
   ['ew.position-step', { offsetNedM: [100, 0, 0] }],
@@ -232,6 +233,61 @@ describe('each effect keeps to itself', () => {
     // Started again at 40, it is the gust of tick 5 thirty-five ticks later.
     expect(c.find(row => row[0] === 40 + 10)?.slice(1)).toEqual(a.find(row => row[0] === 5 + 10)?.slice(1));
     expect(c.find(row => row[0] === 50)?.slice(1)).not.toEqual(a.find(row => row[0] === 50)?.slice(1));
+  });
+  it('turbulence adds to the wind, keeps running through a new mean wind, starts again on its own control, and replays whatever the wall pacing', () => {
+    const turbulence = record('wind.turbulence', { w20Mps: 8, seed: 31 });
+    const calm = harness(), steady = harness();
+    for (const h of [calm, steady]) { h.lifecycle('sim.start'); h.control(5, turbulence); }
+    calm.control(40, record('wind.mean', { windNedMps: [6, 0, 0] }));
+    const series = (h: ReturnType<typeof harness>, end: number) => {
+      const rows: { tick: number; wind: number[]; rms: number }[] = [];
+      h.runTo(end, tick => rows.push({ tick, wind: Array.from(h.dynamics().windNedMps), rms: 0 }));
+      return rows;
+    };
+    const a = series(calm, 39), b = series(steady, 39);
+    // Before the mean wind arrives the two runs are one run.
+    expect(a).toEqual(b);
+    expect(a.find(row => row.tick === 4)?.wind).toEqual([0, 0, 0]);
+    expect(Math.hypot(...(a.find(row => row.tick === 5)?.wind ?? []))).toBeGreaterThan(0);
+    // It keeps its state: the first tick of the new wind continues the turbulence rather than starting it again from the seed.
+    const started = harness();
+    started.lifecycle('sim.start'); started.control(40, turbulence);
+    const restarted = series(started, 40).at(-1)?.wind, windy = series(calm, 40).at(-1)?.wind;
+    if (!restarted || !windy) throw new Error('No rows');
+    // Relative to the mean wind the channels differ from a turbulence that started on this tick.
+    expect(windy[2]).not.toBe(restarted[2]);
+    const paced = (wakeMs: () => number) => {
+      const h = harness();
+      h.lifecycle('sim.start');
+      h.control(5, turbulence);
+      h.control(5, record('wind.mean', { windNedMps: [3, 1, 0] }));
+      for (let guard = 0; h.tick() < 300; guard++) {
+        if (guard > 1_000_000) throw new Error('The session did not reach tick 300');
+        h.time.mono += 300 - h.tick() > 8 ? wakeMs() : 0.1;
+        h.session.pump();
+      }
+      return h.snapshot();
+    };
+    let lcg = 12345;
+    const irregular = () => { lcg = (lcg * 1103515245 + 12345) % 2147483648; return 0.05 + 15 * lcg / 2147483648; };
+    const fine = paced(() => 0.1);
+    expect(paced(() => 10)).toEqual(fine);
+    expect(paced(irregular)).toEqual(fine);
+  });
+  it('a weather.set leaves turbulence running, and turbulence does not start with one', () => {
+    const weather = { atTick: { lo: 20, hi: 0 }, windNedMps: [2, 0, 0], temperatureK: 288.15, pressurePa: 101325, turbulenceRmsMps: 0, seed: 0 };
+    const h = harness();
+    h.lifecycle('sim.start');
+    h.raw({ protocolVersion: 2, type: 'weather.set', ...weather });
+    h.runTo(25);
+    expect(Array.from(h.dynamics().windNedMps)).toEqual([2, 0, 0]);
+    h.control(30, record('wind.turbulence', { w20Mps: 8, seed: 31 }));
+    h.raw({ protocolVersion: 2, type: 'weather.set', ...weather, atTick: { lo: 40, hi: 0 }, windNedMps: [1, 0, 0] });
+    h.runTo(41);
+    expect(h.dynamics().windNedMps[2]).not.toBe(0);
+    h.control(50, record('wind.turbulence', { w20Mps: 8, seed: 31 }, 1, false));
+    h.runTo(50);
+    expect(Array.from(h.dynamics().windNedMps)).toEqual([1, 0, 0]);
   });
   it('a new epoch forgets every effect', () => {
     const h = harness();
