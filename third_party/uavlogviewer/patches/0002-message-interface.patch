@@ -1,0 +1,151 @@
+diff --git a/src/components/SideBarFileManager.vue b/src/components/SideBarFileManager.vue
+index 139bcb4..91c1450 100644
+--- a/src/components/SideBarFileManager.vue
++++ b/src/components/SideBarFileManager.vue
+@@ -31,6 +31,7 @@
+ import VProgress from './SideBarFileManagerProgressBar.vue'
+ import Worker from '../tools/parsers/parser.worker.js'
+ import { store } from './Globals'
++import { installBridge, reportParsed, sameOriginFileUrl } from '../mirage/bridge'
+ 
+ import { MAVLink20Processor as MAVLink } from '../libs/mavlink'
+ 
+@@ -228,16 +229,20 @@ export default {
+         }
+     },
+     mounted () {
+-        window.addEventListener('message', (event) => {
+-            if (event.data.type === 'arrayBuffer') {
+-                worker.postMessage({
+-                    action: 'parse',
+-                    file: event.data.data,
+-                    isTlog: false,
+-                    isDji: false
+-                })
++        // MirageSITL: logs arrive only through the origin-checked message interface.
++        installBridge({
++            onLoadLog: (name, bytes) => {
++                this.state.file = name
++                this.state.logType = 'bin'
++                this.state.processStatus = 'Pre-processing...'
++                this.state.processPercentage = 100
++                this.sampleLoaded = true
++                worker.postMessage({ action: 'parse', file: bytes, isTlog: false, isDji: false }, [bytes])
+             }
+         })
++        this.$eventHub.$on('messagesDoneLoading', () => {
++            reportParsed(this.state.file, Object.keys(this.state.messageTypes || {}).length)
++        })
+         worker.onmessage = (event) => {
+             if (event.data.percentage) {
+                 this.state.processPercentage = event.data.percentage
+@@ -262,7 +267,13 @@ export default {
+         }
+         const url = document.location.search.split('?file=')[1]
+         if (url) {
+-            this.onLoadSample(decodeURIComponent(url))
++            // MirageSITL: the viewer opens files from its own origin only.
++            const local = sameOriginFileUrl(decodeURIComponent(url.split('&')[0]))
++            if (local === null) {
++                console.error('Refused to open a log from another origin')
++            } else {
++                this.onLoadSample(local)
++            }
+         }
+     },
+     components: {
+diff --git a/src/mirage/bridge.js b/src/mirage/bridge.js
+new file mode 100644
+index 0000000..19df24b
+--- /dev/null
++++ b/src/mirage/bridge.js
+@@ -0,0 +1,89 @@
++// MirageSITL message interface (protocol 1).
++//
++// The viewer is served by MirageSITL from the same origin and embedded in its
++// Analysis tab. Only the parent window of that same origin may talk to it:
++// every other origin, source or message shape is ignored. This replaces the
++// upstream listener that accepted an `arrayBuffer` message from any origin.
++//
++// Host to viewer:
++//   { type: 'mirage.loadLog', protocol: 1, name, bytes }   bytes: ArrayBuffer
++// Viewer to host (target origin: this origin only):
++//   { type: 'mirage.ready', protocol: 1 }
++//   { type: 'mirage.logAccepted', protocol: 1, name, bytes }
++//   { type: 'mirage.logRejected', protocol: 1, reason }
++//   { type: 'mirage.logParsed', protocol: 1, name, messageTypes }
++
++export const PROTOCOL = 1
++export const MAX_LOG_BYTES = 512 * 1024 * 1024
++
++function validName (name) {
++    if (typeof name !== 'string' || name.length === 0 || name.length > 255) {
++        return false
++    }
++    if (name.includes('/') || name.includes('\\')) {
++        return false
++    }
++    for (let i = 0; i < name.length; i++) {
++        if (name.charCodeAt(i) < 0x20) {
++            return false
++        }
++    }
++    return true
++}
++
++function post (message) {
++    if (window.parent === window) {
++        return
++    }
++    window.parent.postMessage(Object.assign({ protocol: PROTOCOL }, message), window.location.origin)
++}
++
++/** Returns a loadable log or the reason it is refused. */
++export function validateLoadLog (data) {
++    if (data === null || typeof data !== 'object' || data.type !== 'mirage.loadLog') {
++        return { ignored: true }
++    }
++    if (data.protocol !== PROTOCOL) {
++        return { reason: `Unsupported protocol ${String(data.protocol)}; this viewer speaks protocol ${PROTOCOL}` }
++    }
++    if (!validName(data.name)) {
++        return { reason: 'The log name must be 1 to 255 characters without path separators' }
++    }
++    if (!(data.bytes instanceof ArrayBuffer) || data.bytes.byteLength === 0 || data.bytes.byteLength > MAX_LOG_BYTES) {
++        return { reason: `The log must be a non-empty ArrayBuffer of at most ${MAX_LOG_BYTES} bytes` }
++    }
++    return { name: data.name, bytes: data.bytes }
++}
++
++/** A `?file=` URL is opened only when it stays on this origin. */
++export function sameOriginFileUrl (value) {
++    try {
++        const url = new URL(value, window.location.href)
++        return url.origin === window.location.origin ? url.href : null
++    } catch (error) {
++        return null
++    }
++}
++
++export function installBridge ({ onLoadLog }) {
++    window.addEventListener('message', (event) => {
++        if (event.origin !== window.location.origin || event.source !== window.parent || window.parent === window) {
++            return
++        }
++        const result = validateLoadLog(event.data)
++        if (result.ignored) {
++            return
++        }
++        if (result.reason !== undefined) {
++            post({ type: 'mirage.logRejected', reason: result.reason })
++            return
++        }
++        onLoadLog(result.name, result.bytes)
++        post({ type: 'mirage.logAccepted', name: result.name, bytes: result.bytes.byteLength })
++    })
++    post({ type: 'mirage.ready' })
++}
++
++export function reportParsed (name, messageTypes) {
++    post({ type: 'mirage.logParsed', name, messageTypes })
++}

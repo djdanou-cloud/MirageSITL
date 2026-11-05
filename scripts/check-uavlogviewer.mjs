@@ -1,4 +1,5 @@
-// TASK-130 feasibility check for the pinned UAVLogViewer.
+// TASK-130 feasibility check for the pinned UAVLogViewer, extended by TASK-179
+// for the patched offline build.
 //
 //   node scripts/check-uavlogviewer.mjs --source DIR [--dist DIR --log FILE] [--output PATH]
 //
@@ -9,26 +10,26 @@
 //    in Chromium, aborts every request that leaves the loopback server, and
 //    passes only when the viewer lists the log's message types. Every aborted
 //    origin is reported, so online dependencies stay visible.
+// 3. Build identity (TASK-179): when --dist holds build-manifest.json from
+//    scripts/build-uavlogviewer.mjs, its commit and patch hashes must match the
+//    repository lock and patch series, and its output digest the files on disk.
+//    A patched build also passes only when no request left the loopback server
+//    and its bundled icon font loads.
 //
 // The check never builds or installs the viewer. Exit 0 PASS, 1 FAIL,
 // 2 BLOCKED_EXTERNAL (missing checkout, build output or log).
-import { execFileSync } from "node:child_process";
-import { createHash } from "node:crypto";
-import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
-import { extname, join, relative, resolve, sep } from "node:path";
+import { extname, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import { BUILD_MANIFEST, checkBuildManifest, checkSource, readLock, sha256, treeDigest, treeFiles } from "./uavlogviewer/build-rules.ts";
 
-const root = fileURLToPath(new URL("../", import.meta.url));
-const LOCK = join(root, "third_party/uavlogviewer/source.lock.json");
 const LOG_ROUTE = "/mirage-check-log.bin";
 const MAX_LOG_BYTES = 256 * 1024 * 1024;
 const PARSE_TIMEOUT_MS = 180000;
 const TYPES = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".json": "application/json",
   ".svg": "image/svg+xml", ".png": "image/png", ".jpg": "image/jpeg", ".gif": "image/gif", ".woff": "font/woff",
   ".woff2": "font/woff2", ".ttf": "font/ttf", ".wasm": "application/wasm", ".glb": "model/gltf-binary", ".xml": "application/xml" };
-
-const sha256 = bytes => createHash("sha256").update(bytes).digest("hex");
 
 function argument(name) {
   const at = process.argv.indexOf(name);
@@ -37,28 +38,14 @@ function argument(name) {
 
 class Blocked extends Error {}
 
-function readLock() {
-  const lock = JSON.parse(readFileSync(LOCK, "utf8"));
-  if (lock?.schemaVersion !== 1 || !/^[0-9a-f]{40}$/.test(String(lock.commit)) || !Array.isArray(lock.submodules) ||
-    !/^[0-9a-f]{64}$/.test(String(lock.license?.sha256)) || !/^[0-9a-f]{64}$/.test(String(lock.buildInputs?.packageLockSha256))) {
-    throw new Error("third_party/uavlogviewer/source.lock.json is malformed");
+/** Runs in the page: whether the bundled Font Awesome face loads (a patched build must not depend on the CDN). */
+export async function iconFontLoaded() {
+  try {
+    const faces = await globalThis.document.fonts.load('900 16px "Font Awesome 5 Free"');
+    return faces.length > 0 && faces.every(face => face.status === "loaded");
+  } catch {
+    return false;
   }
-  return lock;
-}
-
-const gitHead = directory => execFileSync("git", ["-C", directory, "rev-parse", "HEAD"], { encoding: "utf8" }).trim();
-
-/** Source identity of a checkout against the lock; returns a list of mismatches. */
-function checkSource(lock, source) {
-  const failures = [];
-  if (gitHead(source) !== lock.commit) failures.push(`checkout is not at commit ${lock.commit}`);
-  for (const module of lock.submodules) {
-    const path = join(source, module.path);
-    if (!existsSync(path) || gitHead(path) !== module.commit) failures.push(`submodule ${module.path} is not at ${module.commit}`);
-  }
-  if (sha256(readFileSync(join(source, lock.license.file))) !== lock.license.sha256) failures.push("LICENSE differs from the lock");
-  if (sha256(readFileSync(join(source, "package-lock.json"))) !== lock.buildInputs.packageLockSha256) failures.push("package-lock.json differs from the lock");
-  return failures;
 }
 
 function serve(dist, logBytes) {
@@ -114,6 +101,7 @@ async function offlineSmoke(dist, logBytes) {
     const started = Date.now();
     await page.goto(`${origin}/?file=${encodeURIComponent(LOG_ROUTE)}`, { waitUntil: "domcontentloaded" });
     let messageTypes = [];
+    let iconFont = false;
     let parsed = { found: false, sampledTypes: [] };
     try {
       // The message list sits in a collapsed sidebar section, so wait for it to exist, not to be visible.
@@ -135,6 +123,7 @@ async function offlineSmoke(dist, logBytes) {
         return { found: false, sampledTypes: [] };
       });
       messageTypes = await page.$$eval("li.type a.section", nodes => nodes.map(node => (node.textContent ?? "").trim().split(/\s+/)[0] ?? ""));
+      iconFont = await page.evaluate(iconFontLoaded);
     } catch {
       // Leave the empty results; the verdict reports the failure.
     }
@@ -143,6 +132,7 @@ async function offlineSmoke(dist, logBytes) {
       parseSeconds: Math.round((Date.now() - started) / 100) / 10,
       messageTypes: messageTypes.filter(name => name !== "").sort(),
       parsed,
+      iconFont,
       appErrors: appErrors.map(text => text.split("\n").slice(0, 3).join(" | ").slice(0, 400)),
       abortedOrigins: [...aborted.entries()].map(([key, count]) => ({ origin: key, requests: count })).sort((a, b) => a.origin.localeCompare(b.origin)),
       consoleErrors,
@@ -153,25 +143,12 @@ async function offlineSmoke(dist, logBytes) {
   }
 }
 
-function distFiles(dist) {
-  const out = [];
-  const walk = path => {
-    for (const name of readdirSync(path).sort()) {
-      const full = join(path, name);
-      if (statSync(full).isDirectory()) walk(full);
-      else out.push({ path: relative(dist, full).split(sep).join("/"), bytes: statSync(full).size, sha256: sha256(readFileSync(full)) });
-    }
-  };
-  walk(dist);
-  return out;
-}
-
 async function main() {
   const lock = readLock();
   const source = argument("--source");
   const dist = argument("--dist");
   const logPath = argument("--log");
-  const report = { schemaVersion: 1, task: "TASK-130", repository: lock.repository, commit: lock.commit, checkerSha256: sha256(readFileSync(fileURLToPath(import.meta.url))) };
+  const report = { schemaVersion: 1, task: "TASK-179", repository: lock.repository, commit: lock.commit, checkerSha256: sha256(readFileSync(fileURLToPath(import.meta.url))) };
   if (source === undefined || !existsSync(join(source, ".git"))) throw new Blocked("Provide --source with a checkout of the pinned UAVLogViewer commit");
   const sourceFailures = checkSource(lock, source);
   report.source = { verdict: sourceFailures.length ? "FAIL" : "PASS", failures: sourceFailures };
@@ -183,14 +160,19 @@ async function main() {
   if (logBytes.length === 0 || logBytes.length > MAX_LOG_BYTES) throw new Error(`Log size ${logBytes.length} bytes is outside 1..${MAX_LOG_BYTES}`);
   // DataFlash binary logs start with the 0xA3 0x95 message header.
   if (logBytes[0] !== 0xa3 || logBytes[1] !== 0x95) throw new Error("The log is not a DataFlash binary log (missing 0xA3 0x95 header)");
-  const outputs = distFiles(dist);
-  report.dist = { files: outputs.length, bytes: outputs.reduce((sum, file) => sum + file.bytes, 0),
-    sha256: sha256(outputs.map(file => `${file.path}\t${file.sha256}\n`).join("")) };
+  report.dist = treeDigest(treeFiles(dist));
+  report.build = existsSync(join(dist, BUILD_MANIFEST))
+    ? checkBuildManifest(lock, JSON.parse(readFileSync(join(dist, BUILD_MANIFEST), "utf8")), report.dist)
+    : { verdict: "UNPATCHED" };
   const logSha256 = sha256(logBytes);
   report.log = { file: logPath.split(sep).pop(), bytes: logBytes.length, sha256: logSha256, isLockedTestLog: logSha256 === lock.testLog?.sha256 };
   report.smoke = await offlineSmoke(dist, logBytes);
   // PASS: the log's types are listed, decoded samples reached the viewer, and the viewer raised no exception.
-  report.verdict = report.smoke.messageTypes.length > 0 && report.smoke.parsed.sampledTypes.length > 0 && report.smoke.appErrors.length === 0 ? "PASS" : "FAIL";
+  // A patched build must also be the locked patch series and must not reach the network at all.
+  const parsedCleanly = report.smoke.messageTypes.length > 0 && report.smoke.parsed.sampledTypes.length > 0 && report.smoke.appErrors.length === 0;
+  const buildOk = report.build.verdict === "UNPATCHED" ||
+    (report.build.verdict === "PASS" && report.smoke.abortedOrigins.length === 0 && report.smoke.iconFont === true);
+  report.verdict = parsedCleanly && buildOk ? "PASS" : "FAIL";
   return report;
 }
 

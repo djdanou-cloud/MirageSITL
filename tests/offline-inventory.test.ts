@@ -87,7 +87,7 @@ describe("offline inventory (TASK-131)", () => {
     expect(report.fields.hashedFiles).toBe(5);
     // Unresolved items stay pending on their decisions rather than being marked ready; the metadata TASK-159 generated is ready.
     const pending = report.fields.pendingItems;
-    expect(isStrings(pending) ? pending : []).toEqual(expect.arrayContaining(["uavlogviewer", "ardupilot-source"]));
+    expect(isStrings(pending) ? pending : []).toEqual(expect.arrayContaining(["ardupilot-source"]));
     expect(isStrings(pending) ? pending : []).not.toContain("ardupilot-parameter-metadata");
     expect(rows(report, "openLicenses").filter(entry => typeof entry.decision !== "string" || entry.decision === "")).toEqual([]);
   }, 120000);

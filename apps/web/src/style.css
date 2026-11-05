@@ -97,6 +97,20 @@ html[data-g3="1"] .terrain-status { top: 12px; bottom: auto; left: 50%; transfor
 .project-status { margin-top: 16px; font-size: 13px; color: #d6e2ea; }
 .missing-list { font-size: 12px; color: #efbd8f; overflow-wrap: anywhere; }
 
+
+/* Analysis tab (TASK-179): the offline UAVLogViewer frame. */
+.log-viewer-host { display: grid; gap: 12px; min-width: 0; }
+.log-viewer-host h2 { font-size: 17px; font-weight: 600; margin: 0; color: #e1f4f2; }
+.log-viewer-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; min-width: 0; }
+.log-viewer-bar p { margin: 0; overflow-wrap: anywhere; }
+.log-viewer-open { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 12px; color: #a9bcc8; }
+.log-viewer-open input[type=file] { max-width: 100%; font-size: 12px; }
+.log-viewer-status { font-size: 13px; color: #d6e2ea; }
+.log-viewer-host a { color: #9af0d1; text-decoration: underline; }
+.log-viewer-missing { border: 1px solid #5a4a2a; border-radius: 8px; background: #1b1810; padding: 14px 18px; font-size: 13px; color: #efd59a; overflow-wrap: anywhere; }
+.log-viewer-missing p { margin: 6px 0; }
+.log-viewer-frame { width: 100%; height: max(560px, calc(100vh - 260px)); border: 1px solid #293541; border-radius: 8px; background: #000; }
+
 /* Components tab (TASK-140): cards, measurement sets and calculation modes. */
 .library-panel h2, .aircraft-panel h2 { font-size: 17px; font-weight: 600; margin: 0 0 10px; color: #e1f4f2; }
 .library-panel h3, .aircraft-panel h3 { font-size: 13px; font-weight: 600; margin: 0 0 12px; color: #d6e2ea; }

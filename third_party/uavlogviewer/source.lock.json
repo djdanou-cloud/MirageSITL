@@ -23,7 +23,9 @@
     "nodeUpstream": "20 (upstream Dockerfile)",
     "install": "npm ci",
     "build": "npm run build",
-    "postinstallPatches": ["patches/plotly.js+2.12.1.patch"],
+    "postinstallPatches": [
+      "patches/plotly.js+2.12.1.patch"
+    ],
     "notes": "The plotly.js patch names version 2.12.1 while package-lock.json resolves 2.24.2; patch-package applies it with a version warning. The build writes runtime-config.js from VUE_APP_CESIUM_TOKEN, which the offline build leaves empty."
   },
   "outputs": {
@@ -47,6 +49,47 @@
     "path": "tests/test.BIN",
     "bytes": 65536,
     "sha256": "a51f040b2ad7f55185c1da5705f226f51469b86562c4ff76d05c99e0e52c2bf4",
-    "result": "FAIL on 2026-10-28: extractMission reads CMD.Frame, which this firmware did not log (planned patch 0)"
+    "result": "FAIL on 2026-10-28: extractMission reads CMD.Frame, which this firmware did not log; PASS on 2026-11-05 with patch 0 in Google Chrome 156, 148 message types"
+  },
+  "patchedBuild": {
+    "task": "TASK-179",
+    "builder": "scripts/build-uavlogviewer.mjs",
+    "patches": [
+      {
+        "file": "0000-compatibility.patch",
+        "sha256": "54dfed94f5ea54324de74b50e9d2185ea30ad6525e9d07907616089206a1116f"
+      },
+      {
+        "file": "0001-offline.patch",
+        "sha256": "2f309388a50ae8a5b8dd8b78493df45b855d8400379c083dd26e9be8cb0236d6"
+      },
+      {
+        "file": "0002-message-interface.patch",
+        "sha256": "e476a018cbd4a82eb95e8755bad840ce54fdb286a16ea6f44bcf180fdb6c1cf2"
+      }
+    ],
+    "addedPackages": [
+      {
+        "name": "@fortawesome/fontawesome-free",
+        "version": "5.2.0",
+        "integrity": "sha512-4pgStJx9UmydKc7wwF6Xjw4dFqzUnQejeuP2aUNHWazayWbmMbrx5rieN9+oob4bUwkf1thS3am0Ko+uhFHpNA==",
+        "license": "(CC-BY-4.0 AND OFL-1.1 AND MIT)",
+        "reason": "Patch 0001 bundles the icon font instead of loading it from use.fontawesome.com"
+      }
+    ],
+    "sourceDateEpoch": 1785952687,
+    "toolchain": {
+      "node": "v24.22.1",
+      "npm": "11.19.1",
+      "platform": "darwin",
+      "arch": "arm64"
+    },
+    "outputs": {
+      "files": 1140,
+      "bytes": 52622162,
+      "sha256": "62f30cb61d2556b8e03450a32e406b0b16bc9697661a1223621dd80f92873e9c"
+    },
+    "thirdPartyPackages": 958,
+    "reproduced": "2026-10-31: the installer build and a build in a separate work folder on the reference M5 gave the same digest"
   }
 }

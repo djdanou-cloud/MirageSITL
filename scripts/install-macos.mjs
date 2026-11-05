@@ -13,13 +13,15 @@
 //   4. build/: native ArduCopter SITL built with waf, admitted as a host
 //      Mach-O64 executable and recorded in catalog.json with its SHA-256;
 //   5. sources/uavlogviewer: UAVLogViewer at the commit, parser submodule and
-//      LICENSE hash of third_party/uavlogviewer/source.lock.json; the offline
-//      bundle itself is built by TASK-179;
+//      LICENSE hash of third_party/uavlogviewer/source.lock.json, and
+//      uavlogviewer/: its patched offline build (TASK-179,
+//      scripts/build-uavlogviewer.mjs), rebuilt only when its build manifest no
+//      longer matches the patch series or the files on disk;
 //   6. install-manifest.json: every installed item with its SHA-256, size and
 //      license from config/offline-inventory.json.
 // Every step is checked again on a rerun and skipped when already correct, so
 // the installer resumes after an interruption. Only steps 2, 3 and 5 use the
-// network; afterwards the launcher and SITL run offline. --plan prints the
+// network (step 5 for the viewer's locked npm packages); afterwards the launcher and SITL run offline. --plan prints the
 // steps without changing anything. Exit 0 installed, 1 failed, 2 a missing
 // host prerequisite (BLOCKED_EXTERNAL).
 import { execFileSync } from "node:child_process";
@@ -82,14 +84,15 @@ export async function install({ home, jobs, plan }) {
   const requirements = join(root, "scripts/install/requirements-macos.txt");
   const paths = {
     venv: join(home, "venv"), python: join(home, "venv/bin/python"), ardupilot: join(home, "sources/ardupilot"),
-    build: join(home, "build"), viewer: join(home, "sources/uavlogviewer"), manifest: join(home, "install-manifest.json"),
+    build: join(home, "build"), viewer: join(home, "sources/uavlogviewer"), viewerBuild: join(home, "uavlogviewer"),
+    viewerWork: join(home, "work/uavlogviewer"), manifest: join(home, "install-manifest.json"),
   };
   const steps = [
     `1. Check the host: macOS on Apple Silicon, Node.js ${REQUIRED_NODE_MAJOR}, Xcode command line tools, git, Python 3`,
     `2. Python environment ${paths.venv} with the hash-pinned packages of scripts/install/requirements-macos.txt`,
     `3. ArduPilot ${lock.commit} with ${ARDUPILOT_SUBMODULES.length} submodules in ${paths.ardupilot}`,
     `4. Build native ArduCopter SITL in ${paths.build} and record it in ${join(home, "catalog.json")}`,
-    `5. UAVLogViewer ${viewerLock.commit} with its parser submodule in ${paths.viewer}`,
+    `5. UAVLogViewer ${viewerLock.commit} with its parser submodule in ${paths.viewer}, and its offline build in ${paths.viewerBuild}`,
     `6. Write ${paths.manifest}`,
   ];
   if (plan) {
@@ -140,6 +143,15 @@ export async function install({ home, jobs, plan }) {
   }
   const viewerLicense = fileIdentity(join(paths.viewer, viewerLock.license.file));
   if (viewerLicense.sha256 !== viewerLock.license.sha256) throw new Error("UAVLogViewer LICENSE hash differs from its source lock");
+  const rules = await import("./uavlogviewer/build-rules.ts");
+  const viewerManifest = join(paths.viewerBuild, rules.BUILD_MANIFEST);
+  const viewerBuilt = () => existsSync(viewerManifest) &&
+    rules.checkBuildManifest(rules.readLock(), JSON.parse(readFileSync(viewerManifest, "utf8")), rules.treeDigest(rules.treeFiles(paths.viewerBuild))).verdict === "PASS";
+  if (!viewerBuilt()) {
+    const { build } = await import("./build-uavlogviewer.mjs");
+    build({ source: paths.viewer, out: paths.viewerBuild, work: paths.viewerWork });
+  }
+  const viewerOutputs = JSON.parse(readFileSync(viewerManifest, "utf8")).outputs;
 
   log(steps[5]);
   const repositoryCommit = probe("git", ["-C", root, "rev-parse", "HEAD"]);
@@ -150,7 +162,8 @@ export async function install({ home, jobs, plan }) {
     manifestItem(inventory, "ardupilot-source", { id: "ardupilot-source", version: lock.commit, repository: ARDUPILOT_REPOSITORY, submodules: submoduleStatus }),
     manifestItem(inventory, "ardupilot-source", { id: firmwareId, version, path: binary, ...binaryFile, format: identity.format, architecture: identity.architecture }),
     manifestItem(inventory, "ardupilot-source", { id: "copter-default-parameters", version: lock.commit, path: defaults, ...defaultsFile }),
-    manifestItem(inventory, "uavlogviewer", { id: "uavlogviewer-source", version: viewerLock.commit, path: join(paths.viewer, viewerLock.license.file), ...viewerLicense, bundle: "built by TASK-179" }),
+    manifestItem(inventory, "uavlogviewer", { id: "uavlogviewer-source", version: viewerLock.commit, path: join(paths.viewer, viewerLock.license.file), ...viewerLicense }),
+    manifestItem(inventory, "uavlogviewer", { id: "uavlogviewer-build", version: viewerLock.commit, path: viewerManifest, ...fileIdentity(viewerManifest), outputs: viewerOutputs }),
   ];
   const manifest = parseInstallManifest({
     schemaVersion: 1, createdAt: new Date().toISOString(),

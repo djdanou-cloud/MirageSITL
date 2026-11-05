@@ -1,0 +1,60 @@
+diff --git a/build/webpack.prod.conf.js b/build/webpack.prod.conf.js
+index 80e000f..960aa50 100644
+--- a/build/webpack.prod.conf.js
++++ b/build/webpack.prod.conf.js
+@@ -49,8 +49,12 @@ const webpackConfig = merge(baseWebpackConfig, {
+     new webpack.DefinePlugin({
+       // Define relative base path in cesium for loading assets
+       CESIUM_BASE_URL: JSON.stringify(''),
+-      '_COMMIT_': JSON.stringify(gitRevisionPlugin.commithash()),
+-      '_BUILDDATE_': JSON.stringify((new Date().toString()))
++      // MirageSITL builds outside a git checkout and must be reproducible: the
++      // commit and the date come from the environment when they are given.
++      '_COMMIT_': JSON.stringify(process.env.UAVLOGVIEWER_COMMIT || gitRevisionPlugin.commithash()),
++      '_BUILDDATE_': JSON.stringify(process.env.SOURCE_DATE_EPOCH
++        ? new Date(Number(process.env.SOURCE_DATE_EPOCH) * 1000).toISOString()
++        : new Date().toString())
+     }),
+     // http://vuejs.github.io/vue-loader/en/workflow/production.html
+     new webpack.DefinePlugin({
+diff --git a/src/tools/dataflashDataExtractor.js b/src/tools/dataflashDataExtractor.js
+index 4255d67..1f321db 100644
+--- a/src/tools/dataflashDataExtractor.js
++++ b/src/tools/dataflashDataExtractor.js
+@@ -182,7 +182,8 @@ export class DataflashDataExtractor {
+                     const tot = cmdMsgs.CTot[i]
+                     const id = cmdMsgs.CId[i]
+                     const num = cmdMsgs.CNum[i]
+-                    const frame = cmdMsgs.Frame[i]
++                    // Older firmware (for example ArduPlane 3.8) logged CMD without a Frame field.
++                    const frame = cmdMsgs.Frame !== undefined ? cmdMsgs.Frame[i] : undefined
+                     if (Math.abs(lat) > 180) {
+                         lat = lat / 10e6
+                         lon = lon / 10e6
+diff --git a/src/tools/parsers/JsDataflashParser/parser.js b/src/tools/parsers/JsDataflashParser/parser.js
+index 1b20bee..2179771 100644
+--- a/src/tools/parsers/JsDataflashParser/parser.js
++++ b/src/tools/parsers/JsDataflashParser/parser.js
+@@ -1092,7 +1092,8 @@ class DataflashParser {
+ 
+ }
+ 
+-self.addEventListener('message', function (event) {
++// Standalone worker use only: the viewer's parser.worker.js sets the flag and owns the parser.
++self.__dataflashParserEmbedded || self.addEventListener('message', function (event) {
+     let parser
+     if (event.data === null) {
+         console.log('got bad file message!')
+diff --git a/src/tools/parsers/parser.worker.js b/src/tools/parsers/parser.worker.js
+index 403ab53..6d7f3d0 100644
+--- a/src/tools/parsers/parser.worker.js
++++ b/src/tools/parsers/parser.worker.js
+@@ -1,4 +1,8 @@
+ // Worker.js
++// The Dataflash parser module also registers a worker listener of its own for
++// standalone use. Imported here it would parse every log a second time and throw
++// on `loadType` (its own parser variable is never set), so it is told it is embedded.
++self.__dataflashParserEmbedded = true
+ // import MavlinkParser from 'mavlinkParser'
+ const mavparser = require('./mavlinkParser')
+ const DataflashParser = require('./JsDataflashParser/parser').default

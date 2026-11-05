@@ -1,8 +1,9 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
-import {readFileSync} from 'node:fs';
-import {extname, resolve, sep} from 'node:path';
+import {readFileSync, statSync} from 'node:fs';
+import {homedir} from 'node:os';
+import {extname, join, resolve, sep} from 'node:path';
 import {createHash} from 'node:crypto';
 import {fileURLToPath} from 'node:url';
 import type {Plugin} from 'vite';
@@ -132,13 +133,60 @@ function localGeodata(): Plugin {
   return { name: 'local-geodata', configureServer: attach, configurePreviewServer: attach };
 }
 
+// TASK-179 offline UAVLogViewer, built by scripts/build-uavlogviewer.mjs into
+// the launcher home (or MIRAGE_UAVLOGVIEWER_DIR) and served at /uavlogviewer/ to
+// loopback clients only, with the application's isolation headers so the
+// Analysis tab can embed it. The folder is read on every request, so a build made
+// after the server started is served; without a build every path is 404.
+const VIEWER_TYPES: Record<string, string> = {
+  '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json',
+  '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.gif': 'image/gif', '.woff': 'font/woff',
+  '.woff2': 'font/woff2', '.ttf': 'font/ttf', '.eot': 'application/vnd.ms-fontobject', '.wasm': 'application/wasm',
+  '.glb': 'model/gltf-binary', '.xml': 'application/xml', '.txt': 'text/plain; charset=utf-8',
+  '.patch': 'text/plain; charset=utf-8', '.md': 'text/plain; charset=utf-8', '.tlog': 'application/octet-stream',
+};
+function uavLogViewerDirectory(): string {
+  const home = process.env.MIRAGE_LAUNCHER_HOME ?? join(homedir(), 'Library', 'Application Support', 'MirageSITL', 'launcher');
+  return resolve(process.env.MIRAGE_UAVLOGVIEWER_DIR ?? join(home, 'uavlogviewer'));
+}
+function localUavLogViewer(): Plugin {
+  const attach = (server: { middlewares: { use: (handler: (req: import('node:http').IncomingMessage, res: import('node:http').ServerResponse, next: () => void) => void) => void } }) => {
+    const root = uavLogViewerDirectory();
+    server.middlewares.use((req, res, next) => {
+      const url = req.url ?? '';
+      if (url !== '/uavlogviewer' && !url.startsWith('/uavlogviewer/')) { next(); return; }
+      const peer = req.socket.remoteAddress;
+      if ((req.method !== 'GET' && req.method !== 'HEAD') || !['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(peer ?? '')) { res.statusCode = 403; res.end(); return; }
+      let name: string;
+      try { name = decodeURIComponent(url.slice('/uavlogviewer'.length).split('?')[0] ?? ''); } catch { res.statusCode = 400; res.end(); return; }
+      if (name === '') { res.statusCode = 308; res.setHeader('Location', '/uavlogviewer/'); res.end(); return; }
+      const path = resolve(root, '.' + (name.endsWith('/') ? name + 'index.html' : name));
+      // Reject traversal outside the build folder.
+      if (path !== root && !path.startsWith(root + sep)) { res.statusCode = 404; res.end(); return; }
+      let bytes: Buffer;
+      try {
+        if (!statSync(path).isFile()) throw Error('not a file');
+        bytes = readFileSync(path);
+      } catch { res.statusCode = 404; res.end(); return; }
+      res.setHeader('Content-Type', VIEWER_TYPES[extname(path).toLowerCase()] ?? 'application/octet-stream');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
+      res.setHeader('Cross-Origin-Embedder-Policy', 'require-corp');
+      res.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      res.end(req.method === 'HEAD' ? undefined : bytes);
+    });
+  };
+  return { name: 'local-uavlogviewer', configureServer: attach, configurePreviewServer: attach };
+}
+
 // Required for SharedArrayBuffer. Apply these on the production HTTPS server too.
 const headers = {
   'Cross-Origin-Opener-Policy': 'same-origin',
   'Cross-Origin-Embedder-Policy': 'require-corp',
 };
 export default defineConfig({
-  plugins: [react(), tailwindcss(), localArdupilot(), localTiles(), localGeodata(), localBetModule(), localContactModule()],
+  plugins: [react(), tailwindcss(), localArdupilot(), localTiles(), localGeodata(), localBetModule(), localContactModule(), localUavLogViewer()],
   server: { headers },
   preview: { headers },
   worker: { format: 'es' },

@@ -223,13 +223,13 @@
       "category": "viewer",
       "item": "UAVLogViewer, patched and built locally for offline use",
       "version": "Commit 01f9d510b7df31687819a6c87415161041d73ae6 (third_party/uavlogviewer/source.lock.json)",
-      "source": "https://github.com/ArduPilot/UAVLogViewer with its parser submodule; dependencies from the npm registry",
-      "license": "GPL-3.0 (LICENSE file)",
+      "source": "https://github.com/ArduPilot/UAVLogViewer with its parser submodule; dependencies from the npm registry (locked, plus @fortawesome/fontawesome-free 5.2.0 added by patch 0001); built by scripts/build-uavlogviewer.mjs",
+      "license": "GPL-3.0 (LICENSE file); the build ships licenses/ with the GPL texts, the patches and every production npm package's notice",
       "licenseStatus": "reviewed",
-      "decision": "D-04 decided by TASK-130 on 2026-10-28: the pinned build opens a current ArduCopter log offline; TASK-179 applies the patch series and bundles it.",
+      "decision": "D-04 decided by TASK-130 on 2026-10-28. TASK-179 applies patches 0000-0002 and builds the viewer reproducibly into the launcher home (digest in third_party/uavlogviewer/source.lock.json); the build opens DataFlash logs with no network request, in Google Chrome on the M5.",
       "neededFor": "Log analysis (TASK-179, TASK-180, TASK-181)",
       "installDownload": true,
-      "status": "pending"
+      "status": "ready"
     },
     {
       "id": "chrome-macos",

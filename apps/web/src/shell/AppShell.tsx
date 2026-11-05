@@ -15,6 +15,7 @@ import { validateMeasurementSet } from "@mirage/aircraft/measurements";
 import { validateAircraftProfile } from "@mirage/aircraft/profile";
 import { ProjectStore } from "@mirage/project/store";
 import { AircraftEditor } from "../aircraft/AircraftEditor";
+import { LogViewerHost } from "../analysis/LogViewerHost";
 import { ComponentsPanel } from "../library/ComponentsPanel";
 import { SensorsTab } from "../sensors/SensorsTab";
 import {
@@ -38,10 +39,9 @@ export type StoreState =
   | { readonly status: "unavailable"; readonly reason: string };
 
 /** What each tab will hold; the shell says so until the tab's own task lands. */
-const PLANNED: { readonly [tab in Exclude<TabId, "project" | "aircraft" | "components" | "sensors" | "run" | "logging" | "parameters" | "experiments" | "tasks">]: string } = {
+const PLANNED: { readonly [tab in Exclude<TabId, "project" | "aircraft" | "components" | "sensors" | "run" | "logging" | "parameters" | "experiments" | "tasks" | "analysis">]: string } = {
   faults: "Motor faults, sensor and GNSS interference, EKF drift and link loss, applied manually or on a schedule.",
   weather: "Wind, gusts, turbulence, temperature and pressure, and the location of the flight.",
-  analysis: "Flight logs in UAVLogViewer, with two flights or two intervals side by side.",
 };
 
 // `?g3=1` (TASK-073) measures the full-screen flight view, which lives in the Run tab.
@@ -163,6 +163,8 @@ export function AppShell({ run }: { run: (visible: boolean, storeState: StoreSta
         return <FlightTasksTab storeState={storeState} project={project} active={navigation.tab === "tasks"} />;
       case "experiments":
         return <ExperimentsTab storeState={storeState} project={project} link={link} active={navigation.tab === "experiments"} onRun={() => selectTab("run")} />;
+      case "analysis":
+        return <LogViewerHost active={navigation.tab === "analysis"} />;
       default: {
         const label = TABS.find(entry => entry.id === tab)?.label ?? tab;
         return <PlannedPanel label={label} description={PLANNED[tab]} project={project} />;
@@ -220,7 +222,7 @@ export function AppShell({ run }: { run: (visible: boolean, storeState: StoreSta
             role="tabpanel"
             aria-labelledby={tabId(entry.id)}
             hidden={entry.id !== navigation.tab}
-            tabIndex={entry.id === "project" || entry.id === "aircraft" || entry.id === "components" || entry.id === "sensors" || entry.id === "run" ? undefined : 0}
+            tabIndex={entry.id === "project" || entry.id === "aircraft" || entry.id === "components" || entry.id === "sensors" || entry.id === "run" || entry.id === "analysis" ? undefined : 0}
           >
             {content(entry.id)}
           </div>
