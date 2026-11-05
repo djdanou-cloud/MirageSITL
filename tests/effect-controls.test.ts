@@ -108,7 +108,7 @@ const TICKS = 300;
 
 describe('an effect that is off or at zero intensity', () => {
   it('names every effect in the catalog that is not a sensor error', () => {
-    expect(APPLICABLE.map(([id]) => id).sort()).toEqual(EFFECT_IDS.filter(id => EFFECT_CATALOG[id].family !== 'sensor').sort());
+    expect(APPLICABLE.map(([id]) => id).sort()).toEqual(EFFECT_IDS.filter(id => EFFECT_CATALOG[id].family === 'environment' || EFFECT_CATALOG[id].family === 'fault').sort());
   });
 
   const runOf = (send: (h: ReturnType<typeof harness>) => void) => {
@@ -288,6 +288,17 @@ describe('each effect keeps to itself', () => {
     h.control(50, record('wind.turbulence', { w20Mps: 8, seed: 31 }, 1, false));
     h.runTo(50);
     expect(Array.from(h.dynamics().windNedMps)).toEqual([1, 0, 0]);
+  });
+  it('a new epoch forgets what a link holds back, too', () => {
+    const h = harness();
+    h.lifecycle('sim.start');
+    h.session.attachDelivery(true);
+    h.control(3, { schemaVersion: 1, id: 'gcs', effect: 'link.gcs', enabled: true, intensity: 1, parameters: {} });
+    h.runTo(3);
+    expect(h.session.delivery.mask).not.toBe(0);
+    h.lifecycle('sim.pause');
+    expect(h.lifecycle('sim.reset', { seed: 1 })).toMatchObject({ status: 'applied' });
+    expect(h.session.delivery).toEqual({ mask: 0, attached: true });
   });
   it('a new epoch forgets every effect', () => {
     const h = harness();

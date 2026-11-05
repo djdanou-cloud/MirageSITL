@@ -163,6 +163,8 @@ function connectSitl(data: Record<string, unknown>): void {
     bridgeEpoch, motorChannels: motorChannels.map(Number), motorMapId, sessionEpoch: current.currentEpoch, speedup: data.speedup,
     // TASK-093: a weather.set's wind goes to SITL as velocity_wind.
     wind: current.wind,
+    // TASK-168: what the link holds back or drops.
+    delivery: current.delivery,
   }, {
     pump: () => { current.pump(); },
     flush,
@@ -177,11 +179,12 @@ function connectSitl(data: Record<string, unknown>): void {
     },
   });
   sitl = { client, socket };
+  current.attachDelivery(true);
   socket.onopen = () => client.opened();
   socket.onmessage = event => { if (event.data instanceof ArrayBuffer) client.receive(new Uint8Array(event.data)); };
   socket.onclose = event => {
     client.closed(event.code, event.reason);
-    if (sitl?.client === client) sitl = null;
+    if (sitl?.client === client) { sitl = null; current.attachDelivery(false); }
   };
 }
 function handleSitl(data: unknown): boolean {

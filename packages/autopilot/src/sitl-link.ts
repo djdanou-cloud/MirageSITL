@@ -15,7 +15,7 @@
 // a preallocated buffer and outbound records are written into `outbound`.
 // The owner sends `outbound` bytes [0, length) and forwards MAVLink bytes
 // [mavlinkOffset, mavlinkOffset + mavlinkLength) of `inbound`.
-import { ActuatorFlagV2, ActuatorFrameCodecV2, SpscProducer, StateReaderV2, newActuatorFrameV2, newFlightStateV2,
+import { DELIVERY_GNSS_FROZEN, DELIVERY_IMU_FROZEN, DELIVERY_MAG_FROZEN, ActuatorFlagV2, ActuatorFrameCodecV2, SpscProducer, StateReaderV2, newActuatorFrameV2, newFlightStateV2,
   type FlightStateV2 } from "@mirage/protocol";
 import { ExternalSitlLockstep, MAX_STATE_LINE_BYTES, SERVO_PACKET_16_BYTES, SERVO_PACKET_32_BYTES, newSitlPhysicsState,
   type ExternalSitlStats } from "./external-sitl.ts";
@@ -52,6 +52,11 @@ export interface SitlLinkOptions {
    * as velocity_wind. The object stays the same; its fields change in place.
    */
   readonly wind?: { readonly nedMps: Float64Array; readonly active: boolean };
+  /**
+   * What the link holds back or drops (TASK-168), read at every reply; the session's delivery object, whose mask changes in place
+   * at tick boundaries. Only what is delivered changes: truth stays in the session.
+   */
+  readonly delivery?: { readonly mask: number };
 }
 
 export interface SitlLinkStats {
@@ -92,6 +97,7 @@ export class SitlJsonLink {
   private readonly reader: StateReaderV2;
   private readonly physics = newSitlPhysicsState();
   private readonly wind: SitlLinkOptions["wind"] | null;
+  private readonly delivery: SitlLinkOptions["delivery"] | null;
   /** The tick the pending actuator frame is for, while its reply is outstanding. */
   private awaitingLo = 0;
   private awaitingHi = 0;
@@ -112,6 +118,7 @@ export class SitlJsonLink {
     this.producer = new SpscProducer(actuatorBuffer, "actuator", "sitl-would-block");
     this.reader = new StateReaderV2(stateBuffer);
     this.wind = options.wind ?? null;
+    this.delivery = options.delivery ?? null;
   }
 
   get lockstepStats(): ExternalSitlStats { return this.lockstep.stats; }
@@ -219,11 +226,17 @@ export class SitlJsonLink {
   private copyState(s: FlightStateV2): void {
     const p = this.physics;
     p.timestampS = s.simTimeS;
-    p.gyroBodyRadS[0] = s.pRadS; p.gyroBodyRadS[1] = s.qRadS; p.gyroBodyRadS[2] = s.rRadS;
-    p.accelBodyMps2[0] = s.specificForceXBodyMps2; p.accelBodyMps2[1] = s.specificForceYBodyMps2; p.accelBodyMps2[2] = s.specificForceZBodyMps2;
-    p.positionNedM[0] = s.northM; p.positionNedM[1] = s.eastM; p.positionNedM[2] = s.downM;
-    p.velocityNedMps[0] = s.vnMps; p.velocityNedMps[1] = s.veMps; p.velocityNedMps[2] = s.vdMps;
-    p.quaternionWxyz[0] = s.qw; p.quaternionWxyz[1] = s.qx; p.quaternionWxyz[2] = s.qy; p.quaternionWxyz[3] = s.qz;
+    // TASK-168: what is frozen is what `p` still holds from the last reply.
+    const mask = this.delivery?.mask ?? 0;
+    if ((mask & DELIVERY_IMU_FROZEN) === 0) {
+      p.gyroBodyRadS[0] = s.pRadS; p.gyroBodyRadS[1] = s.qRadS; p.gyroBodyRadS[2] = s.rRadS;
+      p.accelBodyMps2[0] = s.specificForceXBodyMps2; p.accelBodyMps2[1] = s.specificForceYBodyMps2; p.accelBodyMps2[2] = s.specificForceZBodyMps2;
+    }
+    if ((mask & DELIVERY_GNSS_FROZEN) === 0) { p.positionNedM[0] = s.northM; p.positionNedM[1] = s.eastM; }
+    p.positionNedM[2] = s.downM;
+    if ((mask & DELIVERY_GNSS_FROZEN) === 0) { p.velocityNedMps[0] = s.vnMps; p.velocityNedMps[1] = s.veMps; }
+    p.velocityNedMps[2] = s.vdMps;
+    if ((mask & DELIVERY_MAG_FROZEN) === 0) { p.quaternionWxyz[0] = s.qw; p.quaternionWxyz[1] = s.qx; p.quaternionWxyz[2] = s.qy; p.quaternionWxyz[3] = s.qz; }
     // A bus-driven model publishes its pack voltage and current; a model without a bus publishes 0 V and sends none.
     p.batteryValid = s.batteryVoltage > 0;
     p.batteryVoltageV = s.batteryVoltage; p.batteryCurrentA = s.batteryCurrentA;

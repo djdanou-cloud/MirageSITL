@@ -1,6 +1,6 @@
 # SPECS_SHARED_MEMORY.md
 
-<!-- source-sha256: 4ed38697b17c0dec097ada3971527e76ee378794bba176d37137e339bfd26622 -->
+<!-- source-sha256: 0e336c4f028547859a4168e0d712f22a79e583c0f7dd23ec33fbf548448f9417 -->
 
 Английский источник: [Source of truth](../SPECS_SHARED_MEMORY.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -572,6 +572,8 @@ export interface EffectSetCommand {
 | `sensor.imu.latency` | `latencyUs`, целые мкс, 0..100000 | Умножает задержку | Поле вкладки Sensors |
 | `sensor.battery.voltage` | `gainError`, ±0.1; `offsetV`, В, ±2; `noiseRmsV`, В, 0..1 | Умножает каждую ошибку | Поле вкладки Sensors |
 | `sensor.battery.current` | `gainError`, ±0.2; `offsetA`, А, ±20; `noiseRmsA`, А, 0..10 | Умножает каждую ошибку | Поле вкладки Sensors |
+| `sensor.imu.frozen`, `sensor.gnss.frozen`, `sensor.mag.frozen`, `link.pilot`, `link.gcs` | Нет | Выше 0 — включено (семейство `delivery`, TASK-168) | Канал к ArduPilot |
+| `sensor.imu.missing`, `sensor.gnss.missing`, `sensor.baro.missing`, `sensor.baro.frozen`, `sensor.mag.missing` | Нет | Выше 0 — включено (семейство `ardupilot`, TASK-168) | Параметры отказов ArduPilot |
 
 * **Выключенное равно отсутствующему.** `enabled: false` и `intensity: 0` сводятся
   к одному и тому же (`effectiveControl`). Воздействие среды, которое никогда не
@@ -606,7 +608,9 @@ export interface EffectSetCommand {
 * **Backend, который не может применить воздействие, отклоняет его видимо,** с
   BAD_STATE и причиной, включённое или выключенное. Работающая сессия отклоняет
   каждую запись `sensor.*`: ошибки датчиков задаются на вкладке Sensors до прогона.
-  Demo backend отклоняет воздействия среды и `motor.loss`.
+  Demo backend отклоняет воздействия среды и `motor.loss`. Сессия без канала к
+  ArduPilot отклоняет воздействия `delivery`, а каждая сессия отклоняет воздействия
+  `ardupilot`, которые может записывать только контроллер прогона (TASK-168).
 * **Другие воздействия.** Задача воздействия добавляет свою запись в
   `EFFECT_CATALOG`, когда появляется её модель, потому что диапазон должен равняться
   области применимости этой модели: у спектров фон Кармана и Кеймала из TASK-106,

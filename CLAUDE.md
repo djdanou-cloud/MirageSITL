@@ -503,7 +503,11 @@ implementation.
   form per effect. A running session rejects `sensor.*` controls visibly, and the
   console stays on the demo page until TASK-167 and TASK-169. TASK-106's Phase 1 part
   is DONE: MIL-F-8785C low-altitude Dryden turbulence (`packages/physics/src/turbulence.ts`,
-  effect `wind.turbulence`), without rotational gusts or the other spectra. ArduPilot's own SITL
+  effect `wind.turbulence`), without rotational gusts or the other spectra. TASK-168 is DONE:
+  ten sensor and link faults reach stock native ArduCopter on the path that owns each reading
+  (the state line, ArduPilot's own fault parameters, the bridge), with truth bitwise untouched,
+  and motor faults act on the profile dynamics; ArduPilot's response is recorded, not predicted,
+  and they have no tab until TASK-169. ArduPilot's own SITL
   errors keep the TASK-089 setting, whose default is ArduPilot's behaviour. That request of 2026-10-27 was first
   registered as TASK-124 on the physics-review branch, a number main already used.
   MirageSITL stays an external

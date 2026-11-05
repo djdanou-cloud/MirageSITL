@@ -142,6 +142,11 @@ interface PreparedModel { readonly modelId: number; readonly factory: (hz: Physi
 export class PhysicsSessionV2 {
   /** The wind of the latest tick (TASK-093): while a weather.set is in effect, the dynamics' NED wind, m/s; the object never changes. */
   readonly wind = { nedMps: new Float64Array(3), active: false };
+  /**
+   * TASK-168: what the link to ArduPilot holds back or drops, read at every reply (DELIVERY_* bits). Truth is untouched. The object
+   * stays the same; its mask changes in place, at tick boundaries. `attached` while a link is there to act on it.
+   */
+  readonly delivery = { mask: 0, attached: false };
   /** TASK-093: a due weather.set in the WEATHER_* slots, and its reject, whose message is the dynamics' reason. */
   private readonly weather = new Float64Array(WEATHER_SLOTS);
   private readonly weatherReject: { code: 'OUT_OF_RANGE'; message: string } = { code: 'OUT_OF_RANGE', message: '' };
@@ -324,9 +329,15 @@ export class PhysicsSessionV2 {
     this.dynamics.dispose?.();
     this.writer.setRuntimeFlags(0);
   }
+  /** A link to ArduPilot opened or closed (TASK-168). */
+  attachDelivery(attached: boolean): void {
+    this.delivery.attached = attached;
+    if (!attached) this.delivery.mask = 0;
+  }
   reset(seed: number): void {
     this.dynamics.reset();
     this.environment = 0;
+    this.delivery.mask = 0;
     this.faultSeed = seed >>> 0;
     this.faults?.reset(this.faultSeed);
   }
@@ -335,6 +346,7 @@ export class PhysicsSessionV2 {
     this.dynamics.dispose?.();
     this.dynamics = next;
     this.environment = 0;
+    this.delivery.mask = 0;
     // The new epoch starts fault-free, as after sim.reset, keeping the last reset's seed.
     this.bindMotorFaults();
     this.faults?.reset(this.faultSeed);
@@ -369,6 +381,7 @@ export class PhysicsSessionV2 {
     this.dynamics = prepared.dynamics;
     this.dynamicsFactory = prepared.factory;
     this.environment = 0;
+    this.delivery.mask = 0;
     // As after sim.configure: the new model's motors get their own table and the new epoch starts fault-free.
     this.bindMotorFaults();
     this.faults?.reset(this.faultSeed);
@@ -392,8 +405,13 @@ export class PhysicsSessionV2 {
       switch (effective.family) {
         case "environment": return this.applyEnvironment(effective);
         case "fault": return this.applyFault(effective.fault, tick);
-        // Admission keeps a sensor control out of the queue.
-        case "sensor": return NOT_MODELED;
+        case "delivery": {
+          const mask = this.delivery.mask;
+          this.delivery.mask = effective.active ? mask | effective.bit : mask & ~effective.bit;
+          return null;
+        }
+        // Admission keeps these out of the queue.
+        case "sensor": case "ardupilot": return NOT_MODELED;
         default: { const never: never = effective; throw new Error(`Unhandled effect ${String(never)}`); }
       }
     }
@@ -472,6 +490,8 @@ export class PhysicsSessionV2 {
           return this.dynamics.setWeather ? null : `The demo backend has no atmosphere/wind model; ${command.control.effect} is not supported`;
         case "fault": return this.unsupportedFault(effective.fault, command.control.effect);
         case "sensor": return `A running session cannot change ${command.control.effect}; sensor errors are set on the Sensors tab, before the run`;
+        case "delivery": return this.delivery.attached ? null : `${command.control.effect} acts on the link to ArduPilot, and this session has none`;
+        case "ardupilot": return `${command.control.effect} is ArduPilot's own fault parameter, which the run controller writes; a session cannot apply it`;
         default: { const never: never = effective; throw new Error(`Unhandled effect ${String(never)}`); }
       }
     }

@@ -506,6 +506,53 @@ series below x = 0.5.
   or inter-hub coherence, no von Kármán or Kaimal spectra, no medium or high
   altitude form. Those stay with TASK-106 beyond Phase 1.
 
+### Faults on the path to ArduPilot (TASK-168)
+
+Each fault goes in on the path that owns the reading, and truth stays in the
+session. Three families of `effect.set` carry them (SPECS_SHARED_MEMORY,
+"Control Protocol v3").
+
+| Effect | Path | What ArduPilot gets | What it showed on the native flights |
+|---|---|---|---|
+| `sensor.imu.frozen` | State line (`delivery`) | The last gyro and accelerometer values | RAW_IMU gyro stops; EKF failsafe, and the quad struck the ground within 8 s |
+| `sensor.gnss.frozen` | State line (`delivery`) | The last north and east position and ground velocity; height and vertical speed go on, because they also feed its barometer | GPS_RAW_INT latitude and longitude stop while the aircraft moves 1.4 m; it stays in GUIDED, unaware |
+| `sensor.mag.frozen` | State line (`delivery`) | The last attitude, from which SITL makes the magnetometer; the IMU still turns | RAW_IMU magnetometer stops through a 64° turn; it stays in GUIDED |
+| `sensor.baro.frozen` | `SIM_BAROn_FREEZE` (`ardupilot`) | The last altitude | Read back; it stays in GUIDED |
+| `sensor.baro.missing` | `SIM_BAROn_DISABLE` (`ardupilot`) | No barometer | SYS_STATUS barometer unhealthy; it stays in GUIDED |
+| `sensor.mag.missing` | `SIM_MAGn_FAIL` (`ardupilot`) | No magnetometer | SYS_STATUS magnetometer unhealthy; it stays in GUIDED |
+| `sensor.gnss.missing` | `SIM_GPS1_ENABLE` (`ardupilot`) | No fix | Fix type 1; EKF failsafe and LAND |
+| `sensor.imu.missing` | `SIM_ACC_FAIL_MSK`, `SIM_GYR_FAIL_MSK` (`ardupilot`) | No IMU samples | ArduPilot's main loop stops and sends nothing more, and switching the fault off cannot reach it: the run has to end |
+| `link.pilot` | Bridge (`delivery`) | No RC_CHANNELS_OVERRIDE | Nothing visible in GUIDED, which does not read the sticks |
+| `link.gcs` | Bridge (`delivery`) | No MAVLink either way | Silence, then the same state on recovery |
+
+* **Delivery effects.** The session holds a mask of DELIVERY_* bits, changed in
+  place at tick boundaries. The link reads it at every reply and leaves what is
+  frozen as it was on the last reply; the bridge client reads it for each MAVLink
+  frame. Neither allocates. Since MirageSITL sends the attitude and position only
+  on the state line, freezing the magnetometer and the GNSS is possible without a
+  firmware patch (D-10), and the JSON backend's IMU keys stay independent. Without
+  a link attached the session rejects them visibly; a closed link or a new epoch
+  clears the mask. A stick command is lost after the input watchdog, which watches
+  whether the pilot still commands.
+* **ArduPilot's own faults.** `SessionController.setEffect` writes the parameters
+  of `ARDUPILOT_FAULT_PARAMETERS` through the parameter service, logged as any
+  write, and restores each parameter's earlier value when the effect goes off. All
+  of an effect's parameters must be in the list or none is written. The effect
+  stands as its read-backs do. A session rejects these visibly, on or off.
+* **Motor faults** act on actuation only, through the same `motor.loss` record, on
+  the profile dynamics: a run's motor table is bound when its dynamics is adopted.
+* **Truth.** With a sensor or link effect on, every truth value is bitwise identical
+  to the run without it for the same servo frames (`tests/delivery-effects.test.ts`).
+  A closed loop with ArduPilot differs afterwards only because ArduPilot reacts.
+* **Recorded, not predicted.** `tests/sitl-fault-effects.test.ts`, on request with
+  `MIRAGE_SITL_FAULTS=1`, flies one flight per fault and asserts only that the fault
+  arrived; `test-results/validation/task-168-faults.json` keeps ArduPilot's modes,
+  messages, health bits and EKF flags. In a run, the recording keeps them.
+* **Not here.** The instructor console is on the demo page, where these are rejected;
+  `SessionController.setEffect` has no tab yet, which is TASK-169. EW effects still
+  stop at `EwEngine` on this path, and the session reports them applied as before:
+  their delivery as GNSS and magnetometer changes belongs to TASK-169 and TASK-170.
+
 ### Weather and atmosphere in flight sessions (TASK-093)
 
 A dynamics with an atmosphere and wind implements `SessionDynamics.setWeather`;

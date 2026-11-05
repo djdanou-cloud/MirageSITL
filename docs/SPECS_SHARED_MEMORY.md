@@ -577,6 +577,8 @@ with the refusal of the model that owns the range.
 | `sensor.imu.latency` | `latencyUs`, whole µs, 0..100000 | Multiplies the latency | Sensors tab field |
 | `sensor.battery.voltage` | `gainError`, ±0.1; `offsetV`, V, ±2; `noiseRmsV`, V, 0..1 | Multiplies each error | Sensors tab field |
 | `sensor.battery.current` | `gainError`, ±0.2; `offsetA`, A, ±20; `noiseRmsA`, A, 0..10 | Multiplies each error | Sensors tab field |
+| `sensor.imu.frozen`, `sensor.gnss.frozen`, `sensor.mag.frozen`, `link.pilot`, `link.gcs` | None | Above 0 is on (family `delivery`, TASK-168) | The link to ArduPilot |
+| `sensor.imu.missing`, `sensor.gnss.missing`, `sensor.baro.missing`, `sensor.baro.frozen`, `sensor.mag.missing` | None | Above 0 is on (family `ardupilot`, TASK-168) | ArduPilot's fault parameters |
 
 * **Off is absent.** `enabled: false` and `intensity: 0` reduce to the same
   thing (`effectiveControl`). An environment effect that was never on calls
@@ -610,7 +612,9 @@ with the refusal of the model that owns the range.
 * **A backend that cannot apply an effect rejects it visibly,** with BAD_STATE
   and the reason, on or off. A running session rejects every `sensor.*` control:
   sensor errors are set on the Sensors tab, before the run. The demo backend
-  rejects the environment effects and `motor.loss`.
+  rejects the environment effects and `motor.loss`. A session without a link to
+  ArduPilot rejects the `delivery` effects, and every session rejects the `ardupilot`
+  effects, which only the run controller can write (TASK-168).
 * **Other effects.** An effect task adds its record to `EFFECT_CATALOG` when its
   model exists, because the range must equal that model's envelope: the von
   Kármán and Kaimal spectra of TASK-106, TASK-107 (shear and terrain flow),

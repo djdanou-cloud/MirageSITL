@@ -15,7 +15,14 @@ export const EFFECT_ID_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
 export const ISA_TEMPERATURE_K = 288.15;
 export const ISA_PRESSURE_PA = 101325;
 
-export type EffectFamily = 'environment' | 'fault' | 'sensor';
+/**
+ * Who applies an effect. `environment` and `fault` act in the session's models; `sensor` is set before the run; `delivery` (TASK-168)
+ * acts on what the link to ArduPilot carries, truth untouched; `ardupilot` (TASK-168) is ArduPilot's own fault parameters, written
+ * over MAVLink by the run controller, since only it has a parameter service.
+ */
+export type EffectFamily = 'environment' | 'fault' | 'sensor' | 'delivery' | 'ardupilot';
+/** Bits of a session's delivery mask, one per `delivery` effect. */
+export const DELIVERY_IMU_FROZEN = 1, DELIVERY_GNSS_FROZEN = 2, DELIVERY_MAG_FROZEN = 4, DELIVERY_PILOT_LINK_LOST = 8, DELIVERY_GCS_LINK_LOST = 16;
 export type EffectRecovery = 'hold-offset' | 'step-to-truth';
 
 interface FieldBase { readonly key: string; readonly label: string; readonly unit: string }
@@ -71,6 +78,16 @@ export const EFFECT_CATALOG = {
     fields: [{ key: 'motorIndex', label: 'Motor index', unit: '1', kind: 'integer', min: 0, max: 31, initial: 0 },
       { key: 'mode', label: 'Mode', unit: '', kind: 'enum', options: ['power-cut', 'instant-thrust-loss'], initial: 'power-cut' },
       number('remainingThrustFraction', 'Remaining thrust', '1', 0, 1, 0)] },
+  'sensor.imu.frozen': { family: 'delivery', label: 'IMU frozen', meaning: 'ArduPilot keeps receiving the last gyro and accelerometer values MirageSITL sent; the flight itself goes on. Any intensity above 0 is on. Only on a run with ArduPilot.', fields: [] },
+  'sensor.gnss.frozen': { family: 'delivery', label: 'GNSS position frozen', meaning: 'ArduPilot keeps receiving the last north and east position and ground velocity, from which its GNSS is made, so the fix stops moving. Height and vertical speed go on, because they also feed its barometer. Any intensity above 0 is on. Only on a run with ArduPilot.', fields: [] },
+  'sensor.mag.frozen': { family: 'delivery', label: 'Magnetometer frozen', meaning: 'ArduPilot keeps receiving the last attitude, from which its magnetometer is made; its IMU still turns. Any intensity above 0 is on. Only on a run with ArduPilot.', fields: [] },
+  'link.pilot': { family: 'delivery', label: 'Pilot control lost', meaning: 'Stick commands stop at the bridge, as if the radio had gone; everything else still flows. Any intensity above 0 is on. Only on a run with ArduPilot.', fields: [] },
+  'link.gcs': { family: 'delivery', label: 'Ground-station link lost', meaning: 'All MAVLink stops at the bridge in both directions, so MirageSITL can neither see nor command the autopilot; the physics goes on. Any intensity above 0 is on. Only on a run with ArduPilot.', fields: [] },
+  'sensor.imu.missing': { family: 'ardupilot', label: 'IMU missing', meaning: 'ArduPilot stops producing IMU samples (SIM_ACC_FAIL_MSK, SIM_GYR_FAIL_MSK). Any intensity above 0 is on. Only on a run with ArduPilot that MirageSITL started.', fields: [] },
+  'sensor.gnss.missing': { family: 'ardupilot', label: 'GNSS missing', meaning: 'ArduPilot\'s GNSS loses its fix and its satellites (SIM_GPS1_ENABLE). Any intensity above 0 is on. Only on a run with ArduPilot that MirageSITL started.', fields: [] },
+  'sensor.baro.missing': { family: 'ardupilot', label: 'Barometer missing', meaning: 'ArduPilot\'s barometers stop reporting (SIM_BAROn_DISABLE). Any intensity above 0 is on. Only on a run with ArduPilot that MirageSITL started.', fields: [] },
+  'sensor.baro.frozen': { family: 'ardupilot', label: 'Barometer frozen', meaning: 'ArduPilot\'s barometers keep reporting the last altitude (SIM_BAROn_FREEZE). Any intensity above 0 is on. Only on a run with ArduPilot that MirageSITL started.', fields: [] },
+  'sensor.mag.missing': { family: 'ardupilot', label: 'Magnetometer missing', meaning: 'ArduPilot\'s magnetometers stop reporting (SIM_MAGn_FAIL). Any intensity above 0 is on. Only on a run with ArduPilot that MirageSITL started.', fields: [] },
   'sensor.imu.accel-noise': { family: 'sensor', label: 'Accelerometer noise', meaning: 'Intensity multiplies the density. Range: the Sensors tab.',
     fields: [number('densityMps2PerSqrtHz', 'Noise density', 'm/s²/√Hz', 0, 0.01, 0)] },
   'sensor.imu.gyro-noise': { family: 'sensor', label: 'Gyroscope noise', meaning: 'Intensity multiplies the density. Range: the Sensors tab.',
@@ -113,7 +130,9 @@ export type EffectiveControl =
   | { readonly family: 'environment'; readonly effect: 'wind.turbulence'; readonly active: boolean; readonly w20Mps: number; readonly intensity: number; readonly seed: number }
   | { readonly family: 'environment'; readonly effect: 'atmosphere'; readonly active: boolean; readonly temperatureK: number; readonly pressurePa: number }
   | { readonly family: 'fault'; readonly fault: FaultSetV2 }
-  | { readonly family: 'sensor' };
+  | { readonly family: 'sensor' }
+  | { readonly family: 'delivery'; readonly active: boolean; readonly bit: number }
+  | { readonly family: 'ardupilot'; readonly active: boolean };
 /** The command as it travels. */
 export interface EffectSetCommand {
   readonly protocolVersion: typeof CONTROL_PROTOCOL_VERSION_3;
@@ -222,6 +241,16 @@ function scaledVector(control: EffectControl, key: string, intensity: number): V
   checkVector(value, field, `${key} at intensity ${intensity}`);
   return value;
 }
+function deliveryBit(effect: EffectId): number {
+  switch (effect) {
+    case 'sensor.imu.frozen': return DELIVERY_IMU_FROZEN;
+    case 'sensor.gnss.frozen': return DELIVERY_GNSS_FROZEN;
+    case 'sensor.mag.frozen': return DELIVERY_MAG_FROZEN;
+    case 'link.pilot': return DELIVERY_PILOT_LINK_LOST;
+    case 'link.gcs': return DELIVERY_GCS_LINK_LOST;
+    default: throw shape(`${effect} is not a delivery effect`);
+  }
+}
 /** The air density the atmosphere model accepts at the origin, kg/m³, and its gas constant (packages/physics/src/atmosphere.ts). */
 const AIR_DENSITY_MIN_KGM3 = 0.05, AIR_DENSITY_MAX_KGM3 = 2, AIR_GAS_CONSTANT = 287.05287;
 /** A value that intensity moves from the standard atmosphere: exactly the value at 1, and within the envelope. */
@@ -278,6 +307,12 @@ export function effectiveControl(control: EffectControl, envelope: { requestId: 
         if (field.kind === 'integer' && numberOf(control, field.key) * i > field.max) throw range(`${field.key} at intensity ${i} must be at most ${field.max}`);
       }
       return { family: 'sensor' };
+    case 'delivery': {
+      const bit = deliveryBit(control.effect);
+      return { family: 'delivery', active, bit };
+    }
+    case 'ardupilot':
+      return { family: 'ardupilot', active };
     default: { const never: never = definition.family; throw shape(`Unhandled family ${String(never)}`); }
   }
 }

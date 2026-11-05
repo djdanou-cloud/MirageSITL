@@ -29,6 +29,8 @@ const FAMILIES: readonly { family: EffectFamily; label: string }[] = [
   { family: "environment", label: "Environment" },
   { family: "fault", label: "Faults and electronic warfare" },
   { family: "sensor", label: "Sensor errors" },
+  { family: "delivery", label: "Frozen readings and lost links" },
+  { family: "ardupilot", label: "ArduPilot's own sensor faults" },
 ];
 const newDraft = (effect: EffectId): Draft => ({
   id: effect.replaceAll(".", "-"),

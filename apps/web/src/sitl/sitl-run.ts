@@ -32,6 +32,7 @@ import { eulerDegOf } from "@mirage/scenarios/maneuvers";
 import type { StoredVersion } from "@mirage/project/schema";
 import type { ProjectStore } from "@mirage/project/store";
 import type { SimulationRuntime } from "../runtime";
+import type { EffectControl, EffectRecovery } from "@mirage/protocol";
 import { LauncherError, type CatalogEntry, type ConnectionSpec, type LauncherConnection, type LauncherExperiment, type LauncherLogs, type LauncherPort,
   type FlightTruth, type LauncherRunState, type PhysicsPort, type PreparedRun, type StartSpec } from "../run/session-controller";
 
@@ -369,7 +370,10 @@ export class RuntimePhysics implements PhysicsPort {
       this.runtime.postToWorker(message);
     });
   }
-  /** Submits a Control Protocol v2 command and resolves on its applied acknowledgement. */
+  effect(control: EffectControl, recovery: EffectRecovery): Promise<void> {
+    return this.control({ type: "effect.set", atTick: this.runtime.nextTick(), control, recovery });
+  }
+  /** Submits a control command and resolves on its applied acknowledgement. */
   private control(payload: Record<string, unknown>): Promise<void> {
     return new Promise((resolve, fail) => {
       let requestId = -1;

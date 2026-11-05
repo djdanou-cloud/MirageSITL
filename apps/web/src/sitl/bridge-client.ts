@@ -17,6 +17,7 @@
 // INPUT_TIMEOUT_MS, the session pauses before stepping, so ArduPilot never
 // flies on to a held stick command while Main is stalled.
 import { INPUT_TIMEOUT_MS } from "@mirage/protocol";
+import { DELIVERY_GCS_LINK_LOST, DELIVERY_PILOT_LINK_LOST } from "@mirage/protocol";
 import { LiveEkfWarmup } from "@mirage/autopilot/live-warmup";
 import { BRIDGE_HEADER_BYTES, SitlJsonLink, type LinkEvent, type SitlLinkOptions } from "@mirage/autopilot/sitl-link";
 
@@ -82,6 +83,11 @@ export class SitlBridgeClient {
   /** Manual control (TASK-174): while active, a frame arriving INPUT_TIMEOUT_MS after the last RC override pauses the session. */
   private manualActive = false;
   private lastRcMs = 0;
+  /** What the bridge's links drop (TASK-168): the session's delivery object; never the physics channel. */
+  private readonly delivery: SitlConnectOptions["delivery"] | null;
+  /** MAVLink frames the link-loss effects dropped, from the autopilot and to it. */
+  droppedFromAutopilot = 0;
+  droppedToAutopilot = 0;
 
   constructor(stateBuffer: SharedArrayBuffer, actuatorBuffer: SharedArrayBuffer, options: SitlConnectOptions, host: SitlBridgeHost,
     statusEverySteps = 80) {
@@ -89,6 +95,7 @@ export class SitlBridgeClient {
     this.link = new SitlJsonLink(stateBuffer, actuatorBuffer, options);
     this.warmup = new LiveEkfWarmup("external-sitl", options.sessionEpoch, 0, host.nowMs(), options.speedup, { imuSource: "json-lockstep" });
     this.host = host;
+    this.delivery = options.delivery ?? null;
     this.statusEverySteps = statusEverySteps;
     this.report();
   }
@@ -145,6 +152,7 @@ export class SitlBridgeClient {
         this.host.send(link.outbound.subarray(0, BRIDGE_HEADER_BYTES + new DataView(link.outbound.buffer).getUint32(12, true)));
         return event;
       case "mavlink": {
+        if (((this.delivery?.mask ?? 0) & DELIVERY_GCS_LINK_LOST) !== 0) { this.droppedFromAutopilot++; return event; }
         const bytes = link.inbound.slice(link.mavlinkOffset, link.mavlinkOffset + link.mavlinkLength);
         this.warmup.ingest(bytes, Math.max(0, link.state.simTimeS));
         this.host.post({ type: "sitl.mavlink", bytes });
@@ -193,7 +201,11 @@ export class SitlBridgeClient {
   sendMavlink(bytes: Uint8Array): boolean {
     if (this.state !== "open") return false;
     // A MAVLink2 frame (0xFD) whose 24-bit message ID at bytes 7..9 is RC_CHANNELS_OVERRIDE (70) feeds the watchdog.
-    if (bytes[0] === 0xfd && bytes[7] === RC_CHANNELS_OVERRIDE && bytes[8] === 0 && bytes[9] === 0) this.lastRcMs = this.host.nowMs();
+    const rcOverride = bytes[0] === 0xfd && bytes[7] === RC_CHANNELS_OVERRIDE && bytes[8] === 0 && bytes[9] === 0;
+    if (rcOverride) this.lastRcMs = this.host.nowMs();
+    // TASK-168: lost after the watchdog, which watches whether the pilot still commands, not whether ArduPilot still hears.
+    const mask = this.delivery?.mask ?? 0;
+    if ((mask & DELIVERY_GCS_LINK_LOST) !== 0 || (rcOverride && (mask & DELIVERY_PILOT_LINK_LOST) !== 0)) { this.droppedToAutopilot++; return true; }
     const n = this.link.mavlinkRecordInto(bytes, this.mavlinkOut);
     if (n === 0) return false;
     this.host.send(this.mavlinkOut.subarray(0, n));

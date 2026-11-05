@@ -35,7 +35,7 @@ import {
   type RunState, type StartRequest, type StartSpec, MANUAL_RATE_HZ, type PilotInputPort,
   type FlightTruth,
 } from '../apps/web/src/run/session-controller.ts';
-import type { PilotInput } from '../packages/protocol/src/index.ts';
+import type { EffectControl, EffectRecovery, PilotInput } from '../packages/protocol/src/index.ts';
 import type { ExperimentRecording } from '../packages/aircraft/src/experiment.ts';
 import type { MavFrame } from '../packages/mavlink/src/codec.ts';
 import type { AccidentEvent } from '../packages/physics/src/accident.ts';
@@ -133,6 +133,8 @@ function statusText(text: string): Uint8Array {
 const OTHER_PARAMETERS: readonly (readonly [string, number])[] = [
   // What a flight task's targets stay within: ArduCopter's defaults at the pinned commit.
   ['WP_ACC_Z', 1], ['PSC_D_JERK', 5], ['PSC_NE_JERK', 5], ['ATC_ACC_Y_MAX', 270],
+  // ArduPilot's own fault parameters (TASK-168), at their defaults. SIM_BAR3_FREEZE is left out for the test of an incomplete list.
+  ['SIM_BARO_DISABLE', 0], ['SIM_BAR2_DISABLE', 0], ['SIM_BAR3_DISABLE', 0], ['SIM_GPS1_ENABLE', 1], ['SIM_BARO_FREEZE', 0], ['SIM_BAR2_FREEZE', 0],
   ['SYSID_THISMAV', 1], ['FS_GCS_ENABLE', 0], ['ARMING_CHECK', 1]];
 /** The autopilot's complete PARAM_VALUE list: every generated parameter (as float32 on the wire) plus others. */
 function parameterList(expected: readonly { readonly name: string; readonly value: number }[],
@@ -409,6 +411,13 @@ class ScriptedPhysics implements PhysicsPort {
   /** The Worker's stale-input watchdog, as manual control switched it (TASK-174). */
   readonly manual: boolean[] = [];
   manualInput(active: boolean): void { this.manual.push(active); }
+  /** Effect controls sent to the session, and how the next is answered: null applied, or the reason it is rejected. */
+  readonly effectsSent: { control: EffectControl; recovery: EffectRecovery }[] = [];
+  effectAnswer: string | null = null;
+  effect(control: EffectControl, recovery: EffectRecovery): Promise<void> {
+    this.effectsSent.push({ control, recovery });
+    return this.effectAnswer === null ? Promise.resolve() : Promise.reject(new Error(this.effectAnswer));
+  }
   frames(): SentFrame[] { return decodeSent(this.sent); }
 }
 
@@ -1234,6 +1243,81 @@ function answer(h: Harness, name: string, value: number, type = REAL32): Uint8Ar
 }
 let catalog: ParameterMetadataCatalog;
 beforeAll(() => { catalog = parseParameterMetadata(readJson('data/ardupilot/param-metadata.json')); });
+
+describe('effect controls in a run (TASK-168)', () => {
+  const control = (effect: EffectControl['effect'], enabled = true, intensity = 1): EffectControl => ({ schemaVersion: 1, id: effect.replaceAll('.', '-'), effect, enabled, intensity, parameters: {} });
+
+  test('an ArduPilot fault writes its parameters, logged, stands as their read-back, and goes back to the earlier values', async () => {
+    const h = harness(undefined, null, catalog);
+    await reach(h, 'flying');
+    expect(h.controller.setEffect(control('sensor.baro.missing'))).toBeNull();
+    expect(paramSets(h)).toEqual([{ name: 'SIM_BARO_DISABLE', value: 1 }, { name: 'SIM_BAR2_DISABLE', value: 1 }, { name: 'SIM_BAR3_DISABLE', value: 1 }]);
+    expect(h.controller.view.effects).toEqual([{ effect: 'sensor.baro.missing', enabled: true, intensity: 1, status: 'pending', message: '' }]);
+    expect(h.controller.view.parameters?.changes.map(change => [change.name, change.oldValue, change.newValue])).toEqual([['SIM_BARO_DISABLE', 0, 1], ['SIM_BAR2_DISABLE', 0, 1], ['SIM_BAR3_DISABLE', 0, 1]]);
+    mav(h, answer(h, 'SIM_BARO_DISABLE', 1), answer(h, 'SIM_BAR2_DISABLE', 1));
+    expect(h.controller.view.effects[0]?.status).toBe('pending');
+    mav(h, answer(h, 'SIM_BAR3_DISABLE', 1));
+    expect(h.controller.view.effects[0]?.status).toBe('applied');
+    // Off restores what each held, which for SIM_GPS1_ENABLE below is the 1 it started from, not a zero.
+    h.physics.sent.length = 0;
+    expect(h.controller.setEffect(control('sensor.baro.missing', false))).toBeNull();
+    expect(paramSets(h)).toEqual([{ name: 'SIM_BARO_DISABLE', value: 0 }, { name: 'SIM_BAR2_DISABLE', value: 0 }, { name: 'SIM_BAR3_DISABLE', value: 0 }]);
+    h.physics.sent.length = 0;
+    expect(h.controller.setEffect(control('sensor.gnss.missing'))).toBeNull();
+    expect(paramSets(h)).toEqual([{ name: 'SIM_GPS1_ENABLE', value: 0 }]);
+    mav(h, answer(h, 'SIM_GPS1_ENABLE', 0));
+    h.physics.sent.length = 0;
+    expect(h.controller.setEffect(control('sensor.gnss.missing', true, 0))).toBeNull();
+    expect(paramSets(h)).toEqual([{ name: 'SIM_GPS1_ENABLE', value: 1 }]);
+    // No session command: these are the autopilot's.
+    expect(h.physics.effectsSent).toEqual([]);
+  });
+
+  test('an ArduPilot fault that was never on writes nothing, and ArduPilot refusing one shows', async () => {
+    const h = harness(undefined, null, catalog);
+    await reach(h, 'ready');
+    h.physics.sent.length = 0;
+    expect(h.controller.setEffect(control('sensor.baro.missing', false))).toBeNull();
+    expect(h.controller.setEffect(control('sensor.baro.frozen', true, 0))).toBeNull();
+    expect(paramSets(h)).toEqual([]);
+    expect(h.controller.setEffect(control('sensor.gnss.missing'))).toBeNull();
+    mav(h, answer(h, 'SIM_GPS1_ENABLE', 1));
+    status(h, { ready: true, reason: '', simTimeS: 41.5 });
+    expect(h.controller.view.effects.at(-1)).toMatchObject({ effect: 'sensor.gnss.missing', status: 'rejected', message: expect.stringContaining('SIM_GPS1_ENABLE') as string });
+  });
+
+  test('half a fault is never written: a parameter the list lacks refuses the whole effect', async () => {
+    const h = harness(undefined, null, catalog);
+    await reach(h, 'flying');
+    h.physics.sent.length = 0;
+    expect(h.controller.setEffect(control('sensor.baro.frozen'))).toContain('SIM_BAR3_FREEZE');
+    expect(paramSets(h)).toEqual([]);
+    expect(h.controller.view.effects).toEqual([]);
+  });
+
+  test('a link effect goes to the session, and its rejection shows', async () => {
+    const h = harness(undefined, null, catalog);
+    await reach(h, 'flying');
+    expect(h.controller.setEffect(control('sensor.imu.frozen'))).toBeNull();
+    expect(h.physics.effectsSent).toEqual([{ control: control('sensor.imu.frozen'), recovery: 'hold-offset' }]);
+    expect(h.controller.view.effects[0]?.status).toBe('pending');
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(h.controller.view.effects[0]?.status).toBe('applied');
+    h.physics.effectAnswer = 'BAD_STATE: no link';
+    expect(h.controller.setEffect(control('link.pilot'))).toBeNull();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(h.controller.view.effects[1]).toMatchObject({ status: 'rejected', message: 'BAD_STATE: no link' });
+  });
+
+  test('without a run, or with an invalid record, nothing is sent', () => {
+    const h = harness(undefined, null, catalog);
+    expect(h.controller.setEffect(control('sensor.imu.frozen'))).toBe('No run is active');
+    expect(h.physics.effectsSent).toEqual([]);
+    expect(h.controller.setEffect({ ...control('sensor.imu.frozen'), intensity: -1 })).toContain('intensity');
+  });
+});
 
 describe('the run\'s parameters (TASK-160)', () => {
   test('the run downloads the complete list, and a write in flight is confirmed, applied and logged with its old value and tick', async () => {

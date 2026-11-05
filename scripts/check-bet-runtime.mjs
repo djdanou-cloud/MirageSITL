@@ -187,10 +187,11 @@ if(!allocation){
   // shape makes V8 discard the optimized tick ("embedded weak objects cleared"), which then boxes numbers until recompiled
   // (TASK-093 measured 44 B per tick that way; a fresh process stays at 0 with or without the GC).
   const EFFECT_CONTROLS=[{effect:'wind.mean',parameters:{windNedMps:[3,-2,0.5]}},{effect:'wind.gust',parameters:{rmsMps:1.5,bandwidthHz:2,seed:0x9e3779b9}},{effect:'wind.turbulence',parameters:{w20Mps:6,seed:0x9e3779b9}},
-    {effect:'atmosphere',parameters:{temperatureK:293.15,pressurePa:98000}}];
+    {effect:'atmosphere',parameters:{temperatureK:293.15,pressurePa:98000}},{effect:'sensor.imu.frozen',parameters:{}}];
   const stateBuffer=createSharedMemoryV2(),fake={mono:0};let sessionDynamics=null;
   const session=new PhysicsSessionV2({type:'init-v2',protocolVersion:2,stateBuffer,sensorBuffer:createSpscQueue('sensor'),actuatorBuffer:createSpscQueue('actuator')},
     {monotonicMs:()=>fake.mono,wallMs:()=>1.79e12+fake.mono},hz=>(sessionDynamics=new BetFlightDynamics(modules[0],padded(),hz)));
+  session.attachDelivery(true);
   const reader=new StateReaderV2(stateBuffer),header=newHeaderSnapshotV2(),published=newFlightStateV2(),results=[];
   let requestId=0,sent=0;
   const send=message=>{reader.readHeader(header);session.handle({protocolVersion:2,requestId:++requestId,expectedEpoch:header.sessionEpoch,...message});

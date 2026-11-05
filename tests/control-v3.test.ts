@@ -39,7 +39,8 @@ const command = (c: EffectControl) => ({ protocolVersion: 3, requestId: 1, expec
 describe('the effect catalog', () => {
   it('names the effects Phase 1 has models for, each field with a unit and a range, and a starting value inside that range', () => {
     expect([...EFFECT_IDS].sort()).toEqual(['atmosphere', 'ew.gnss-jamming', 'ew.magnetic', 'ew.position-step', 'ew.velocity-drift', 'motor.loss', 'sensor.battery.current', 'sensor.battery.voltage',
-      'sensor.imu.accel-bias', 'sensor.imu.accel-noise', 'sensor.imu.gyro-bias', 'sensor.imu.gyro-noise', 'sensor.imu.latency', 'wind.gust', 'wind.mean', 'wind.turbulence']);
+      'sensor.imu.accel-bias', 'sensor.imu.accel-noise', 'sensor.imu.gyro-bias', 'sensor.imu.gyro-noise', 'sensor.imu.latency', 'wind.gust', 'wind.mean', 'wind.turbulence',
+      'link.gcs', 'link.pilot', 'sensor.baro.frozen', 'sensor.baro.missing', 'sensor.gnss.frozen', 'sensor.gnss.missing', 'sensor.imu.frozen', 'sensor.imu.missing', 'sensor.mag.frozen', 'sensor.mag.missing'].sort());
     for (const id of EFFECT_IDS) {
       const parameters = initialEffectParameters(id);
       // Parsing is the check that every starting value lies inside its own range.

@@ -77,6 +77,8 @@ import { MotorCheck, type ExpectedMotor, type MotorCheckResult, type PhysicsRoto
 import type { ParameterMetadataCatalog, ParameterMetadataSet } from "@mirage/autopilot/param-metadata";
 import { parameterWriteConflictReason } from "@mirage/autopilot/error-ownership";
 import { ParameterService, type DownloadState, type ParameterValue } from "@mirage/autopilot/param-service";
+import { faultParameters } from "@mirage/autopilot/fault-effects";
+import { parseEffectControl, type EffectControl, type EffectId, type EffectRecovery } from "@mirage/protocol";
 import { siteParameters } from "@mirage/aircraft/site-parameters";
 import { ParameterReadback, type AbsentRule, type ParameterDifference } from "@mirage/autopilot/parameter-readback";
 import { MavParser, type MavFrame } from "@mirage/mavlink/codec";
@@ -188,6 +190,8 @@ export interface PhysicsPort {
   tickNow(): { readonly tick: number; readonly simTimeS: number };
   /** Manual control started or ended: the Worker's stale-input watchdog follows it (TASK-174). */
   manualInput(active: boolean): void;
+  /** One effect control on the next tick (TASK-166, TASK-168); resolves on its applied acknowledgement, rejects with the reason. */
+  effect(control: EffectControl, recovery: EffectRecovery): Promise<void>;
 }
 /** The calibrated USB controller (GamepadAdapter of TASK-038). */
 export interface PilotInputPort {
@@ -454,6 +458,17 @@ export interface ControllerView {
   readonly speed: RunSpeedView;
   /** Manual control (TASK-174), or null when MirageSITL flies the run. */
   readonly manual: ManualView | null;
+  /** Every effect control sent in this run, oldest first (TASK-168). */
+  readonly effects: readonly EffectEntry[];
+}
+/** One effect control and what became of it. What ArduPilot then does about it, the run's recording holds. */
+export interface EffectEntry {
+  readonly effect: EffectId;
+  readonly enabled: boolean;
+  readonly intensity: number;
+  readonly status: "pending" | "applied" | "rejected";
+  /** Why it was rejected, or empty. */
+  readonly message: string;
 }
 export interface ManualView {
   readonly mode: ManualMode;
@@ -531,6 +546,12 @@ export class SessionController {
   private params: ParameterService | null = null;
   private paramMetadata: ParameterMetadataSet | null = null;
   private changes: ParameterChange[] = [];
+  /** TASK-168: effect controls sent, and for an `ardupilot` effect its parameter writes, which decide its status. */
+  private effects: { entry: EffectEntry; writeIds: readonly number[] }[] = [];
+  /** The value each fault parameter held before an effect changed it. */
+  private readonly faultRestore = new Map<string, number>();
+  /** The ground-station link effect is on: the autopilot's silence is that effect, not a lost SITL. */
+  private gcsLinkLost = false;
   private firmwareCommit: string | null = null;
   private speed = new RunSpeedMeter(1);
   private input: PilotInputPort | null = null;
@@ -579,7 +600,8 @@ export class SessionController {
       ownership: this.ownership, compatibility: this.compatibility, motorCheck: this.motorCheckView(), accidents: this.accidents,
       afterAccident: this.afterAccident, pauses: this.pauses, pausedWallMs: this.pausedWallTotal(), parameters: this.parameterView(),
       speed: this.speed.view, flightTask: this.flightTaskView(),
-      manual: this.manual ? { mode: this.manual.mode, device: this.manual.device, waiting: this.manual.waiting } : null };
+      manual: this.manual ? { mode: this.manual.mode, device: this.manual.device, waiting: this.manual.waiting } : null,
+      effects: this.effects.map(item => this.effectEntry(item)) };
   }
   get active(): boolean { return ACTIVE.has(this.stateValue.name); }
   /** The current state name, read afresh after an await (not narrowed by earlier checks). */
@@ -1032,6 +1054,66 @@ export class SessionController {
     this.emit();
     return null;
   }
+  /**
+   * One effect control (TASK-168): on the next tick for what the session or the link applies, and as logged parameter writes for
+   * ArduPilot's own faults, which go back to their earlier values when the effect goes off. An effect never on writes nothing.
+   * Returns why it was not sent, or null; `view.effects` then follows what became of it.
+   */
+  setEffect(control: EffectControl, recovery: EffectRecovery = "hold-offset"): string | null {
+    let parsed: EffectControl;
+    try { parsed = parseEffectControl(control); } catch (error) { return error instanceof Error ? error.message : "Invalid effect control"; }
+    if (!this.active) return "No run is active";
+    const plan = faultParameters(parsed.effect), on = parsed.enabled && parsed.intensity > 0;
+    const entry = { effect: parsed.effect, enabled: parsed.enabled, intensity: parsed.intensity, status: "pending" as const, message: "" };
+    if (plan === null) {
+      const item: { entry: EffectEntry; writeIds: readonly number[] } = { entry, writeIds: [] };
+      this.effects = [...this.effects, item];
+      if (parsed.effect === "link.gcs") {
+        this.gcsLinkLost = on;
+        // Silence before this moment was the effect's; a lost SITL is counted from here.
+        if (!on) this.lastHeartbeatMs = this.clock.nowMs();
+      }
+      const settle = (status: "applied" | "rejected", message: string) => { item.entry = { ...entry, status, message }; this.emit(); };
+      this.physics.effect(parsed, recovery).then(() => settle("applied", ""), (cause: unknown) => settle("rejected", cause instanceof Error ? cause.message : String(cause)));
+      this.emit();
+      return null;
+    }
+    const refusal = this.writeRefusal();
+    if (refusal !== null) return refusal;
+    const params = this.params;
+    if (!params) return "No run has loaded its parameters";
+    const writes: { name: string; value: number }[] = [];
+    for (const { name, on: value } of plan) {
+      const current = params.get(name)?.value;
+      if (on) {
+        // Nothing is written unless all of it can be: half a fault would be another fault.
+        if (current === undefined) return `ArduPilot's parameter list has no ${name}`;
+        if (!this.faultRestore.has(name)) this.faultRestore.set(name, current);
+        writes.push({ name, value });
+      } else {
+        const earlier = this.faultRestore.get(name);
+        if (earlier !== undefined) { writes.push({ name, value: earlier }); this.faultRestore.delete(name); }
+      }
+    }
+    const writeIds: number[] = [];
+    for (const { name, value } of writes) {
+      const why = this.setParameter(name, value);
+      if (why !== null) return why;
+      const last = this.changes.at(-1);
+      if (last) writeIds.push(last.writeId);
+    }
+    this.effects = [...this.effects, { entry, writeIds }];
+    this.emit();
+    return null;
+  }
+  /** An `ardupilot` effect stands as its writes do: applied when all are confirmed, rejected when one failed. */
+  private effectEntry(item: { entry: EffectEntry; writeIds: readonly number[] }): EffectEntry {
+    if (faultParameters(item.entry.effect) === null) return item.entry;
+    const outcomes = item.writeIds.map(id => this.changes.find(change => change.writeId === id)?.outcome);
+    const failed = outcomes.find(outcome => outcome !== undefined && (outcome.kind === "refused" || outcome.kind === "timeout"));
+    if (failed) return { ...item.entry, status: "rejected", message: failed.kind === "refused" ? `${failed.name}: ${failed.reason}` : `${failed.name}: ArduPilot did not answer` };
+    return outcomes.every(outcome => outcome?.kind === "confirmed" || outcome?.kind === "stale") ? { ...item.entry, status: "applied" } : item.entry;
+  }
   /** Downloads the complete list again, for example after the autopilot renumbered it; returns why not, or null. */
   refreshParameters(): string | null {
     const params = this.params;
@@ -1452,7 +1534,7 @@ export class SessionController {
     if (!this.active) return;
     if (this.stateValue.name === "starting") this.progress();
     // A paused autopilot waits in lockstep and sends nothing, so silence then is no loss.
-    if (this.ownership === "external" && this.heartbeatSeen && this.stateValue.name !== "paused" &&
+    if (this.ownership === "external" && this.heartbeatSeen && this.stateValue.name !== "paused" && !this.gcsLinkLost &&
       this.clock.nowMs() - this.lastHeartbeatMs > HEARTBEAT_LOSS_S * 1000) {
       void this.stopAfter({ kind: "sitl-silent", seconds: HEARTBEAT_LOSS_S }, this.stateValue.name);
       return;
@@ -1582,6 +1664,7 @@ export class SessionController {
     this.ownership = ownership; this.external = null; this.prepared = null; this.compatibility = []; this.motorCheck = null;
     this.accidents = []; this.afterAccident = false; this.resumeTo = null; this.pauses = []; this.pausing = false;
     this.params = null; this.paramMetadata = null; this.changes = []; this.firmwareCommit = null;
+    this.effects = []; this.faultRestore.clear(); this.gcsLinkLost = false;
     this.everArmed = false; this.flightTaskEntry = null; this.taskRunner = null; this.taskUpload = null; this.taskRoutePoint = -1; this.taskStep = null;
     this.taskState = "waiting"; this.taskReason = null; this.home = null;
     this.parser.reset();
