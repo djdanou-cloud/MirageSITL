@@ -20,6 +20,7 @@
     "./output-mapping": "./src/output-mapping.ts",
     "./frame-parameters": "./src/frame-parameters.ts",
     "./experiment": "./src/experiment.ts",
+    "./fidelity-comparison": "./src/fidelity-comparison.ts",
     "./site-parameters": "./src/site-parameters.ts",
     "./clearance": "./src/clearance.ts",
     "./standard-hull": "./src/standard-hull.ts",

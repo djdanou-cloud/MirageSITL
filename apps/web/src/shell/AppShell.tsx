@@ -3,6 +3,7 @@ import { Radio } from "lucide-react";
 import type { StoredVersion } from "@mirage/project/schema";
 import { validateComponentCard } from "@mirage/aircraft/components";
 import { validateExperiment } from "@mirage/aircraft/experiment";
+import { validateFidelityComparison } from "@mirage/aircraft/fidelity-comparison";
 import { LoggingTab } from "../logging/LoggingTab";
 import { validateParameterLog, validateParameterSet } from "../params/parameter-sets";
 import { validateExperimentBatch } from "@mirage/project/batch";
@@ -89,7 +90,7 @@ export function AppShell({ run }: { run: (visible: boolean, storeState: StoreSta
         const ready = await ProjectStore.openIndexedDb({
           validators: {
             "component-card": validateComponentCard, "measurement-set": validateMeasurementSet, "aircraft-profile": validateAircraftProfile,
-            "experiment": validateExperiment, "parameter-set": validateParameterSet, "parameter-log": validateParameterLog, "log-extraction": validateLogExtraction, "effect-log": validateEffectLog, "log-comparison": validateLogComparison, "flight-task": parseFlightTask, "experiment-batch": validateExperimentBatch,
+            "experiment": validateExperiment, "parameter-set": validateParameterSet, "parameter-log": validateParameterLog, "log-extraction": validateLogExtraction, "effect-log": validateEffectLog, "log-comparison": validateLogComparison, "flight-task": parseFlightTask, "experiment-batch": validateExperimentBatch, "fidelity-comparison": validateFidelityComparison,
           },
         });
         opened = ready;

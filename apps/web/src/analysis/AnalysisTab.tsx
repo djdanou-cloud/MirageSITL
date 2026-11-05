@@ -4,6 +4,7 @@ import type { StoredVersion } from "@mirage/project/schema";
 import type { StoreState } from "../shell/AppShell";
 import type { SessionLink } from "../run/session-link";
 import { CompareLogs } from "./CompareLogs";
+import { FidelityReport } from "../experiments/FidelityReport";
 import { ContextPanel } from "./ContextPanel";
 import { externalLogContext, viewerEvents, type AnalysisContext } from "./experiment-adapter";
 import { findExperimentLog, type Listed } from "./experiment-log";
@@ -118,6 +119,8 @@ export function AnalysisTab({ storeState, project, link, active, openSha }: {
           onSecond={(next, shown, log) => { setSecondParsed(null); setSecondContext(shown); setSecondLog(log); setSecond(next); }}
           onAlignment={setAlignment} />
       )}
+      {/* TASK-184: an experiment beside a real flight log, kept as a comparison of its profile version. */}
+      {experiments.length > 0 && <FidelityReport store={store} projectId={projectId} experiments={experiments} experimentLog={experimentLog} />}
     </div>
   );
 }

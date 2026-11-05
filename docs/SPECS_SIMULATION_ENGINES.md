@@ -8794,18 +8794,31 @@ These bounds only sort samples (an engineering default); the result lists the
 seconds of each regime, and a quantity with no sample in a regime has a missing
 row there with the reason.
 
-**Planned in the second increment of this task**, with the interfaces fixed
-here: a `fidelity-comparison` record of the project store, holding the profile
-version's SHA-256, the experiment, both logs' SHA-256 and origins, the interval
-and offset, the regimes and every row and number above, and no limit and no
-verdict, depending on the profile version and the experiment, and refusing
-unhashed input; the `flight-checked` label of TASK-133, which a profile version
-shows, with the regimes compared, only while it has a comparison with a real log
-— a new profile version has none, so a change of geometry, mass, motor or
-propeller resets it and earlier comparisons show as belonging to the previous
-version; the Experiments tab's fidelity report (`FidelityReport.tsx`) with the
-two series of each quantity charted; and `scripts/check-fidelity.mjs` reporting
-the same metrics with no limit, exit 0 when compared, 2 without real data.
+**Comparison records and the label.** `fidelityReport`
+(`apps/web/src/experiments/fidelity-report.ts`) reads both logs, assesses them
+and builds a `fidelity-comparison` record (`packages/aircraft/src/fidelity-comparison.ts`,
+schema 1): the profile version's SHA-256, name and version, the experiment's
+SHA-256 as data, each log's name, SHA-256, size and origin with its reason, the
+interval and offset, the regimes, and every row, scalar and the path above. Its
+one dependency is the profile version. `validateFidelityComparison` refuses an
+unhashed log or profile, the same file as both logs, a missing row that holds a
+number or a compared row without its metrics, and any field it does not know,
+so a limit or a verdict cannot be stored. `flightCheckOf` gives a profile
+version the TASK-133 label `flight-checked`, with the regimes in which at least
+one quantity was compared, only while it has a comparison whose real log is a
+real flight: a SITL log earns nothing, and a new profile version has no
+comparison, so a change of geometry, mass, motor or propeller resets the label
+while the earlier comparisons stay their version's. The Analysis tab's fidelity
+report (`FidelityReport.tsx`) chooses the experiment, whose log is found as the
+Analysis tab finds it (ArduPilot's own log from the launcher, or one written
+from the recording), takes the real log as a file, the interval (the real log's
+span by default) and the offset (the logs' starts aligned by default), shows
+the rows and scalars, charts the two series of a chosen quantity (real solid,
+simulated dashed), saves the comparison and shows the version's label with the
+comparisons that belong to other versions. `scripts/check-fidelity.mjs` still
+scores the TASK-090 capture v1 against its declared limits; reporting the same
+metrics without them is left to a later increment, because that capture format
+and its PASS and FAIL verdicts feed the release-gate tooling.
 
 **Verification.** `tests/fidelity-assessment.test.ts` declares before the
 implementation, on a flight written here whose metrics follow in closed form
@@ -8815,8 +8828,14 @@ RMS 2, an identical pitch RMS 0, a height 10% above bias 0.1·mean(h) and RMS
 0; the regimes 1.5, 3.5, 4, 4 and 3 s within one sample; overshoots of 20% and
 40%; 4 Hz oscillations of amplitude 4 and 2 with spreads 4/√2 and 2/√2;
 energies 0.8 and 0.96 Wh; missing rows with their reasons; and the origin of
-each log. At least one real flight log (G4) is still to be compared before
-the task is done.
+each log. The same file holds the record: both logs' hashes and origins kept
+as stored, eight refusals, and `flight-checked` earned only with a real log, in
+the five regimes, absent for a new profile version and for a SITL log. On the
+reference Mac, `tests/browser/fidelity-report.spec.ts` flies a hover of native
+ArduCopter, compares it through the report with the repository's SITL log (or a
+real one given as `MIRAGE_REAL_FLIGHT_LOG`), saves the comparison and checks the
+label. At least one real flight log (G4) is still to be compared before the
+task is done.
 
 ## Experiment from a log (TASK-182)
 
