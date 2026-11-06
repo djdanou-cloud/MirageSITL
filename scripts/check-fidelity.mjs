@@ -76,7 +76,13 @@ export function assessFidelity(v) {
   }
   exact(v, ["schemaVersion", "kind", "provenance", "timeDomain", "frequencyResponse", "bench"]);
   if (v.schemaVersion !== 2 || v.kind !== "mirage-fidelity-capture") throw new Error("Unsupported fidelity capture");
-  exact(v.provenance, ["source", "operator", "recordedAt", "firmwareSha256", "modelSha256"]);
+  // scripts/fidelity-capture.mjs also names the two logs it read, by their SHA-256.
+  const fromLogs = object(v.provenance) && Object.hasOwn(v.provenance, "logs");
+  exact(v.provenance, ["source", "operator", "recordedAt", "firmwareSha256", "modelSha256", ...(fromLogs ? ["logs"] : [])]);
+  if (fromLogs) {
+    exact(v.provenance.logs, ["realSha256", "simulatedSha256"]);
+    if (!hash(v.provenance.logs.realSha256) || !hash(v.provenance.logs.simulatedSha256)) throw new Error("The logs' SHA-256 are invalid");
+  }
   const { source, recordedAt, firmwareSha256, modelSha256 } = v.provenance;
   if (!SOURCES.has(source)) throw new Error("Capture source must be flight-test or synthetic");
   text(v.provenance.operator);

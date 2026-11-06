@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { SeededRandom } from '@mirage/test-support/prng';
+import { ARDUPILOT_MESSAGES, syntheticLog, type SyntheticValue } from './support/synthetic-log';
 import captureV1 from './fixtures/validation/fidelity-synthetic-capture.json';
 import capture from './fixtures/validation/fidelity-synthetic-capture-v2.json';
 import {
@@ -306,5 +307,93 @@ describe('synthetic fidelity capture and check-fidelity CLI', () => {
     expect(numberAt(result.report, 'metrics', 'bench', 'comparedRows')).toBe(numberAt(result.report, 'metrics', 'bench', 'rows') - 1);
     expect(at(result.report, 'metrics', 'bench', 'flagged')).toEqual([{ row: 1, rpm: 2000, flags: ['negative-thrust'] }]);
     expect(at(result.report, 'reasons')).toContain('1 bench rows are physically inconsistent and left out of the bench errors');
+  });
+});
+
+// TASK-090: scripts/fidelity-capture.mjs turns two DataFlash logs into a capture schema 2. Declared before the first run:
+//  - a real log and a simulated one whose roll is 2° off give RMS 2 and bias 2 through scripts/check-fidelity.mjs within the logs' float32
+//    storage (1e-5), with a REPORTED status and no limit or verdict in it;
+//  - a requested rate answered by a first-order lag at 2 Hz in both logs gives J = 0 within 1e-9, and the same lag at another corner a J above 0;
+//  - a SITL log as the "real" one is a synthetic capture, BLOCKED_EXTERNAL, whatever the file is called;
+//  - a quantity a log lacks is left out and listed; missing input exits 2, invalid input exits 1.
+
+const HEX = 'ab'.repeat(32), RATE = 50, SECONDS = 60;
+/** An uneven multisine that excites the band, deg/s. */
+const requested = (t: number): number => [0.7, 1.3, 2.3, 3.7, 5.3, 7.1, 11, 17].reduce((sum, f, i) => sum + Math.sin(2 * Math.PI * f * t + i * i), 0);
+function log(options: { simulated?: boolean; rollOffsetDeg?: number; cornerHz?: number; noRate?: boolean }): Uint8Array {
+  const rows: { message: string; values: SyntheticValue[] }[] = [], us = (t: number) => Math.round(t * 1e6);
+  rows.push({ message: 'PARM', values: [0, options.simulated ? 'SIM_RATE_HZ' : 'ATC_RAT_RLL_P', options.simulated ? 1200 : 0.135, 0] });
+  const a = 1 - Math.exp(-2 * Math.PI * (options.cornerHz ?? 2) / RATE);
+  let actual = 0;
+  for (let i = 0; i <= SECONDS * RATE; i++) {
+    const t = i / RATE, wanted = requested(t);
+    actual += a * (wanted - actual);
+    rows.push({ message: 'ATT', values: [us(t), 0, 5 * Math.sin(t) + (options.rollOffsetDeg ?? 0), 0, 3 * Math.cos(t), 0, 10] });
+    if (!options.noRate) rows.push({ message: 'RATE', values: [us(t), wanted, actual, 0, 0, 0, 0] });
+  }
+  return syntheticLog(ARDUPILOT_MESSAGES.filter(message => ['PARM', 'ATT', ...(options.noRate ? [] : ['RATE'])].includes(message.name)), rows);
+}
+const directory = mkdtempSync(join(tmpdir(), 'mirage-capture-'));
+const write = (name: string, bytes: Uint8Array) => { const path = join(directory, name); writeFileSync(path, bytes); return path; };
+function fromLogs(real: string, simulated: string, name: string) {
+  const out = join(directory, name);
+  const run = spawnSync(process.execPath, ['scripts/fidelity-capture.mjs', '--real', real, '--simulated', simulated, '--firmware-sha256', HEX, '--model-sha256', HEX,
+    '--operator', 'test', '--recorded-at', '2026-11-06T00:00:00Z', '--out', out], { encoding: 'utf8' });
+  return { run, out };
+}
+function checkCapture(path: string) {
+  const sha = createHash('sha256').update(readFileSync(path)).digest('hex');
+  // The checker writes one report file, so these run in this file's sequence, beside its other uses of it.
+  const run = spawnSync(process.execPath, ['scripts/check-fidelity.mjs', '--input', path, '--sha256', sha], { encoding: 'utf8' });
+  const report = JSON.parse(readFileSync('test-results/validation/fidelity.json', 'utf8')) as { status: string; reasons: string[]; metrics: { source: string; timeDomain: Record<string, { rms: number; bias: number }>; frequencyResponse: Record<string, { cost: number }> } };
+  return { status: run.status, report };
+}
+
+describe('a capture from two logs', () => {
+  const real = write('real.bin', log({})), off = write('off.bin', log({ simulated: true, rollOffsetDeg: 2 }));
+  it('reports a real flight beside its simulation, with no limit and no verdict', () => {
+    const { run, out } = fromLogs(real, off, 'flight.json');
+    expect(run.status, run.stderr).toBe(0);
+    const made = JSON.parse(readFileSync(out, 'utf8')) as { provenance: { source: string; logs: { realSha256: string } } };
+    expect(made.provenance.source).toBe('flight-test');
+    expect(made.provenance.logs.realSha256).toBe(createHash('sha256').update(readFileSync(real)).digest('hex'));
+    const { status, report } = checkCapture(out);
+    expect(status).toBe(0);
+    expect(report.status).toBe('REPORTED');
+    expect(report.metrics.timeDomain.roll?.rms).toBeCloseTo(2, 4);
+    expect(report.metrics.timeDomain.roll?.bias).toBeCloseTo(2, 4);
+    expect(report.metrics.frequencyResponse['roll-rate-response']?.cost).toBeLessThan(1e-9);
+    expect(JSON.stringify(report).toLowerCase()).not.toMatch(/"(pass|fail|limit|verdict)"/);
+  });
+  it('sees a different response as a cost above zero', () => {
+    const slower = write('slower.bin', log({ simulated: true, cornerHz: 1 }));
+    const { run, out } = fromLogs(real, slower, 'slower.json');
+    expect(run.status, run.stderr).toBe(0);
+    expect(checkCapture(out).report.metrics.frequencyResponse['roll-rate-response']?.cost).toBeGreaterThan(1);
+  });
+  it('never takes a SITL log for a flight, whatever the file is called', () => {
+    const named = write('real-flight.bin', log({ simulated: true }));
+    const { run, out } = fromLogs(named, off, 'sitl.json');
+    expect(run.status, run.stderr).toBe(0);
+    const { status, report } = checkCapture(out);
+    expect(status).toBe(2);
+    expect(report.status).toBe('BLOCKED_EXTERNAL');
+    expect(report.metrics.source).toBe('synthetic');
+  });
+  it('leaves out what a log lacks, and lists it', () => {
+    const { run, out } = fromLogs(write('no-rate.bin', log({ noRate: true })), off, 'no-rate.json');
+    expect(run.status, run.stderr).toBe(0);
+    const summary = JSON.parse(run.stdout) as { timeDomain: string[]; frequencyResponse: string[]; skipped: { id: string; reason: string }[] };
+    expect(summary.timeDomain).toContain('roll');
+    expect(summary.timeDomain).not.toContain('roll-rate');
+    expect(summary.frequencyResponse).toEqual([]);
+    expect(summary.skipped.map(item => item.id)).toEqual(expect.arrayContaining(['roll-rate', 'altitude', 'roll-rate-response']));
+    expect((JSON.parse(readFileSync(out, 'utf8')) as { frequencyResponse: unknown[] }).frequencyResponse).toEqual([]);
+  });
+  it('exits 2 without its input and 1 for what it cannot read', () => {
+    expect(spawnSync(process.execPath, ['scripts/fidelity-capture.mjs'], { encoding: 'utf8' }).status).toBe(2);
+    const bad = write('bad.bin', new Uint8Array([1, 2, 3]));
+    expect(fromLogs(bad, off, 'bad.json').run.status).toBe(1);
+    expect(spawnSync(process.execPath, ['scripts/fidelity-capture.mjs', '--unknown', 'x'], { encoding: 'utf8' }).status).toBe(1);
   });
 });

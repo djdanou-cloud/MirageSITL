@@ -4288,6 +4288,15 @@ The simulated series come from replaying the measured excitation: the same
 samples in the time domain and the same injected input for frequency
 responses. Bench predictions list one row per measured row at the same rpm.
 
+`node scripts/fidelity-capture.mjs --real REAL.bin --simulated RUN.bin ...` writes
+such a capture from two DataFlash logs, a flight and the simulation of it: a
+time-domain section for each `FIDELITY_SERIES` quantity both logs hold, and for each
+axis the requested-to-actual rate response of the RATE message, resampled to the real
+log's rate. The source comes from the real log (`logOrigin`), so a log with SITL
+settings or MirageSITL's messages is `synthetic` whatever the file is called; the
+capture names both logs by SHA-256. What a log lacks or what cannot be computed is
+left out and listed, never given a number.
+
 `node scripts/check-fidelity.mjs --input CAPTURE.json --sha256 HEX` builds on
 `scripts/validation/evidence.mjs`, which enforces the hash and a 32 MiB size
 budget. It requires exact keys everywhere, unique section IDs, at most 32
