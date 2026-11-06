@@ -14,7 +14,11 @@ SITL and the web application run without the network.
   npm packages installed (`npm ci`).
 * The Xcode command line tools (`xcode-select --install`), which bring git,
   clang and Python 3.9 or later.
-* A network connection for the installation only, and about 3 GB free.
+* rustup (`brew install rustup`, or the installer at rustup.rs), which fetches
+  the pinned Rust toolchain for the physics modules.
+* A network connection for the installation only, and about 6 GB free: the
+  launcher folder takes 2.1 GB, Rust and its crates 2.9 GB, and the contact
+  module's build 0.6 GB.
 
 ## Install
 
@@ -28,8 +32,8 @@ default; `MIRAGE_LAUNCHER_HOME` sets both), `--jobs N` the build parallelism,
 and `--plan` prints the steps without changing anything. The installer:
 
 1. checks the host: macOS on Apple Silicon, Node.js 24, the Xcode command
-   line tools, git and Python 3.9 or later, naming the fix for each missing
-   one;
+   line tools, git, Python 3.9 or later and rustup, naming the fix for each
+   missing one;
 2. creates `venv/` and installs the Python packages of
    `scripts/install/requirements-macos.txt` with `pip --require-hashes`:
    every package is pinned to one version and only files with the listed
@@ -48,7 +52,12 @@ and `--plan` prints the steps without changing anything. The installer:
    of `third_party/uavlogviewer/patches/`, the locked npm packages, license
    notices and `build-manifest.json`); a rerun rebuilds it only when its
    manifest no longer matches the patch series or the files on disk;
-6. writes `install-manifest.json`: every installed item with its version,
+6. installs the Rust toolchain of `native/rust-toolchain.toml` with its wasm32
+   target, and builds the physics modules a run needs and the repository does
+   not track: `packages/wasm-bet/dist` (`scripts/build-wasm.mjs`) and
+   `packages/physics/dist/contact` (`scripts/build-contact.mjs`). With nothing
+   changed, a rerun fetches nothing here;
+7. writes `install-manifest.json`: every installed item with its version,
    SHA-256, size and the license of its `config/offline-inventory.json` row.
 
 A rerun checks every step again and skips what is already correct, so an

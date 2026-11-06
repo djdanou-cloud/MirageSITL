@@ -5,7 +5,7 @@
 // Installs into the launcher home (default ~/Library/Application Support/
 // MirageSITL/launcher), the folder `npm run start -w @mirage/launcher` uses:
 //   1. host checks: macOS on Apple Silicon, Node.js 24, Xcode command line
-//      tools, git and Python 3;
+//      tools, git, Python 3 and rustup;
 //   2. venv/: Python packages from scripts/install/requirements-macos.txt,
 //      installed with --require-hashes, so only the pinned files install;
 //   3. sources/ardupilot: ArduPilot at the commit in scripts/sitl.lock.json
@@ -17,11 +17,15 @@
 //      uavlogviewer/: its patched offline build (TASK-179,
 //      scripts/build-uavlogviewer.mjs), rebuilt only when its build manifest no
 //      longer matches the patch series or the files on disk;
-//   6. install-manifest.json: every installed item with its SHA-256, size and
+//   6. the pinned Rust toolchain with its wasm32 target, and the physics modules a
+//      run needs and the repository does not track: packages/wasm-bet/dist
+//      (scripts/build-wasm.mjs) and packages/physics/dist/contact
+//      (scripts/build-contact.mjs) (TASK-190);
+//   7. install-manifest.json: every installed item with its SHA-256, size and
 //      license from config/offline-inventory.json.
 // Every step is checked again on a rerun and skipped when already correct, so
-// the installer resumes after an interruption. Only steps 2, 3 and 5 use the
-// network (step 5 for the viewer's locked npm packages); afterwards the launcher and SITL run offline. --plan prints the
+// the installer resumes after an interruption. Only steps 2, 3, 5 and 6 use the
+// network (step 5 for the viewer's locked npm packages, step 6 for the toolchain and the contact module's crates); afterwards the launcher and SITL run offline. --plan prints the
 // steps without changing anything. Exit 0 installed, 1 failed, 2 a missing
 // host prerequisite (BLOCKED_EXTERNAL).
 import { execFileSync } from "node:child_process";
@@ -82,18 +86,21 @@ export async function install({ home, jobs, plan }) {
   const viewerLock = JSON.parse(readFileSync(join(root, "third_party/uavlogviewer/source.lock.json"), "utf8"));
   const inventory = JSON.parse(readFileSync(join(root, "config/offline-inventory.json"), "utf8"));
   const requirements = join(root, "scripts/install/requirements-macos.txt");
+  const rust = /^channel\s*=\s*"([^"]+)"/m.exec(readFileSync(join(root, "native/rust-toolchain.toml"), "utf8"))?.[1];
+  if (!rust) throw new Error("native/rust-toolchain.toml names no channel");
   const paths = {
     venv: join(home, "venv"), python: join(home, "venv/bin/python"), ardupilot: join(home, "sources/ardupilot"),
     build: join(home, "build"), viewer: join(home, "sources/uavlogviewer"), viewerBuild: join(home, "uavlogviewer"),
     viewerWork: join(home, "work/uavlogviewer"), manifest: join(home, "install-manifest.json"),
   };
   const steps = [
-    `1. Check the host: macOS on Apple Silicon, Node.js ${REQUIRED_NODE_MAJOR}, Xcode command line tools, git, Python 3`,
+    `1. Check the host: macOS on Apple Silicon, Node.js ${REQUIRED_NODE_MAJOR}, Xcode command line tools, git, Python 3, rustup`,
     `2. Python environment ${paths.venv} with the hash-pinned packages of scripts/install/requirements-macos.txt`,
     `3. ArduPilot ${lock.commit} with ${ARDUPILOT_SUBMODULES.length} submodules in ${paths.ardupilot}`,
     `4. Build native ArduCopter SITL in ${paths.build} and record it in ${join(home, "catalog.json")}`,
     `5. UAVLogViewer ${viewerLock.commit} with its parser submodule in ${paths.viewer}, and its offline build in ${paths.viewerBuild}`,
-    `6. Write ${paths.manifest}`,
+    `6. Rust ${rust} with its wasm32 target, and the physics modules in packages/wasm-bet/dist and packages/physics/dist/contact`,
+    `7. Write ${paths.manifest}`,
   ];
   if (plan) {
     for (const step of steps) log(step);
@@ -161,6 +168,17 @@ export async function install({ home, jobs, plan }) {
   const viewerOutputs = JSON.parse(readFileSync(viewerManifest, "utf8")).outputs;
 
   log(steps[5]);
+  // TASK-190: without these a run stops at "No BET module is built", and only a clean checkout shows it. Each build checks itself: with
+  // nothing changed they fetch nothing, so a repair still works without the network.
+  const targets = probe("rustup", [`+${rust}`, "target", "list", "--installed"]);
+  if (targets === null || !targets.split("\n").includes("wasm32-unknown-unknown")) {
+    run("rustup", ["toolchain", "install", rust, "--profile", "minimal", "--target", "wasm32-unknown-unknown", "--no-self-update"], { stdio: "inherit" });
+  }
+  run(process.execPath, [join(root, "scripts/build-wasm.mjs")], { cwd: root, stdio: "inherit" });
+  run(process.execPath, [join(root, "scripts/build-contact.mjs")], { cwd: root, stdio: "inherit" });
+  const betManifest = join(root, "packages/wasm-bet/dist/manifest.json"), contactManifest = join(root, "packages/physics/dist/contact/manifest.json");
+
+  log(steps[6]);
   const repositoryCommit = probe("git", ["-C", root, "rev-parse", "HEAD"]);
   const items = [
     manifestItem(inventory, "web-application", { id: "mirage-sitl", version: repositoryCommit ?? "unknown", path: join(root, "package-lock.json"), ...fileIdentity(join(root, "package-lock.json")) }),
@@ -171,6 +189,9 @@ export async function install({ home, jobs, plan }) {
     manifestItem(inventory, "ardupilot-source", { id: "copter-default-parameters", version: lock.commit, path: defaults, ...defaultsFile }),
     manifestItem(inventory, "uavlogviewer", { id: "uavlogviewer-source", version: viewerLock.commit, path: join(paths.viewer, viewerLock.license.file), ...viewerLicense }),
     manifestItem(inventory, "uavlogviewer", { id: "uavlogviewer-build", version: viewerLock.commit, path: viewerManifest, ...fileIdentity(viewerManifest), outputs: viewerOutputs }),
+    manifestItem(inventory, "rust-toolchain", { id: "rust-toolchain", version: rust, compiler: probe("rustc", [`+${rust}`, "-V"]) }),
+    manifestItem(inventory, "wasm-bet-artifacts", { id: "wasm-bet-artifacts", version: repositoryCommit ?? "unknown", path: betManifest, ...fileIdentity(betManifest) }),
+    manifestItem(inventory, "contact-wasm", { id: "contact-wasm", version: repositoryCommit ?? "unknown", path: contactManifest, ...fileIdentity(contactManifest) }),
   ];
   const manifest = parseInstallManifest({
     schemaVersion: 1, createdAt: new Date().toISOString(),

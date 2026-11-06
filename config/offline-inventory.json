@@ -144,7 +144,7 @@
       "source": "https://github.com/ArduPilot/ardupilot with its submodules",
       "license": "GPL-3.0-or-later",
       "licenseStatus": "restricted",
-      "decision": "D-02 (TASK-127): building on the user's Mac from the pinned source distributes nothing; shipping a prebuilt SITL binary carries GPL-3.0 source obligations and needs a recorded decision. D-01 (TASK-128) selects the version.",
+      "decision": "D-01 (TASK-128) selects the version. D-02, decided on 2026-11-06: building on the user's Mac from the pinned source distributes nothing; shipping a prebuilt SITL binary carries GPL-3.0 source obligations and needs its own decision.",
       "neededFor": "Every integrated session (TASK-151, TASK-153)",
       "installDownload": true,
       "status": "pending"

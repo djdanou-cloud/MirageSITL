@@ -24,8 +24,13 @@ import { writeFakeFirmware } from "./support/fake-firmware.ts";
 
 const ORIGIN = "http://127.0.0.1:5173";
 const ROOT = new URL("..", import.meta.url).pathname;
-const REAL_BINARY = join(ROOT, ".cache/task-127/build-stock/sitl/bin/arducopter");
-const REAL_DEFAULTS = join(ROOT, ".cache/task-127/ardupilot/Tools/autotest/default_params/copter.parm");
+// The TASK-127 build when this checkout still has it, otherwise what the installer built: a clean installation has only that, and
+// scripts/phase1/global-workflows.mjs counts a skipped test as a failure (TASK-190).
+const TASK_127 = join(ROOT, ".cache/task-127"), INSTALLED = join(ROOT, ".cache/task-152/home");
+const builtBy127 = existsSync(join(TASK_127, "build-stock/sitl/bin/arducopter"));
+const REAL_BINARY = builtBy127 ? join(TASK_127, "build-stock/sitl/bin/arducopter") : join(INSTALLED, "build/sitl/bin/arducopter");
+const REAL_DEFAULTS = join(builtBy127 ? join(TASK_127, "ardupilot") : join(INSTALLED, "sources/ardupilot"), "Tools/autotest/default_params/copter.parm");
+const REAL_PYTHON = builtBy127 ? join(TASK_127, "venv/bin/python") : join(INSTALLED, "venv/bin/python");
 const sha256 = (path: string) => createHash("sha256").update(readFileSync(path)).digest("hex");
 const scratch = mkdtempSync(join(tmpdir(), "mirage-launcher-test-"));
 afterAll(() => rmSync(scratch, { recursive: true, force: true }));
@@ -483,13 +488,12 @@ async function flyLockstep(launcher: Launcher, token: string, firmwareId: string
 }
 
 const realAvailable = existsSync(REAL_BINARY) && existsSync(REAL_DEFAULTS);
-describe.skipIf(!realAvailable)("launcher with the real pinned ArduCopter SITL (TASK-127 build)", () => {
+describe.skipIf(!realAvailable)("launcher with the real pinned ArduCopter SITL", () => {
   test("runs JSON lockstep through the hosted bridge, carries MAVLink through the relay, and stops the owned group", async () => {
     const home = join(scratch, "real-home");
     const token = ensureToken(home);
     writeCatalogEntry(home, entry("arducopter-8ab6afde", REAL_BINARY, REAL_DEFAULTS));
-    const python = join(ROOT, ".cache/task-127/venv/bin/python");
-    const launcher = await startLauncher({ home, origin: ORIGIN, port: 0, python });
+    const launcher = await startLauncher({ home, origin: ORIGIN, port: 0, python: REAL_PYTHON });
     try {
       const checks = await call(launcher, token, "GET", "/v1/prerequisites");
       const list = field(checks.json, "checks");

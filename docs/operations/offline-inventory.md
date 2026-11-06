@@ -77,7 +77,7 @@ With `--dist apps/web/dist`, all 27 are named and none is unused.
 | Rust toolchain with wasm32 | 1.97.0 | Yes (rustup) | Reviewed (MIT or Apache-2.0) | Ready | — |
 | BET WebAssembly artifacts | Built from `native/bet` | No (built locally) | Not applicable (project-owned) | Ready | — |
 | Rapier contact WebAssembly | Rapier `b716d375`, patched parry3d-f64 0.31.1 | Yes (source clone and crates) | Reviewed (Apache-2.0) | Ready | — |
-| ArduPilot ArduCopter source | `8ab6afde` | Yes (source clone and submodules) | Restricted (GPL-3.0-or-later) | Pending | D-01, D-02 |
+| ArduPilot ArduCopter source | `8ab6afde` | Yes (source clone and submodules) | Restricted (GPL-3.0-or-later) | Pending | D-01 |
 | ArduPilot build prerequisites on macOS | Not pinned | Yes | Reviewed (open-source tools) | Pending | D-02 (TASK-127) |
 | pymavlink | 2.4.50 | Yes | Reviewed (LGPL-3.0, unmodified tool) | Ready | — |
 | MAVLink message definitions | `2e2b6af9` | No (subset in the repository) | Reviewed (MIT) | Ready | — |
@@ -143,8 +143,9 @@ stakeholder again; license facts are recorded here instead. Google
 Photorealistic 3D Tiles stay an online-only source that is not ready, because
 they need keys and a deployment and their terms forbid offline caching.
 
-The remaining open rows wait on tasks, not on license questions: D-01 and D-02
-(ArduPilot version and macOS build method) and D-04 (UAVLogViewer, TASK-130).
+The remaining open rows wait on tasks, not on license questions: D-01 (ArduPilot
+version) and D-04 (UAVLogViewer, TASK-130). D-02 is decided: the native build on the
+user's Mac from the pinned source.
 TASK-148 added the WMM and EGM96 files.
 
 ## Maintaining the inventory

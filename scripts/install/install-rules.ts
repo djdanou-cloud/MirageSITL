@@ -39,6 +39,8 @@ export function hostChecks(host: { platform: string; arch: string; nodeVersion: 
   const python = host.probe("python3", ["-c", "import sys; print('%d.%d' % sys.version_info[:2])"]);
   const [major = 0, minor = 0] = (python ?? "0.0").split(".").map(Number);
   add("python", major === 3 && minor >= 9, python ? `Python ${python}` : "not found", "Install Python 3.9 or later; the Xcode command line tools include one.");
+  const rustup = host.probe("rustup", ["--version"]);
+  add("rustup", rustup !== null, rustup ?? "not found", "Install rustup, which fetches the pinned Rust toolchain for the physics modules: brew install rustup, or the installer at rustup.rs");
   return checks;
 }
 

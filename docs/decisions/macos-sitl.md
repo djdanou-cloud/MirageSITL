@@ -4,6 +4,8 @@ English source. [Russian mirror](../ru/macos-sitl.md).
 
 Status: PASS on 2026-10-29. This records the native launch evidence
 for D-02; it does not select a virtual machine/container or a release package.
+The stakeholder decided D-02 on 2026-11-06: the native build on the user's Mac from
+the pinned source.
 The supported Phase 1 path is stock ArduCopter on Apple Silicon, a Node 24
 owned-process driver, a pymavlink 2.4.50 sidecar and MirageSITL's Rust body WASM.
 The aircraft is the existing synthetic quad X, not a measured aircraft model.

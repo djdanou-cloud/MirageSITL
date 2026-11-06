@@ -19,7 +19,7 @@ describe("installer rules", () => {
   test("host checks name each missing tool with its fix", () => {
     const none = () => null;
     const checks = hostChecks({ platform: "linux", arch: "x64", nodeVersion: "22.3.0", probe: none });
-    expect(checks.map(check => [check.id, check.ok])).toEqual([["platform", false], ["node", false], ["xcode-tools", false], ["git", false], ["python", false]]);
+    expect(checks.map(check => [check.id, check.ok])).toEqual([["platform", false], ["node", false], ["xcode-tools", false], ["git", false], ["python", false], ["rustup", false]]);
     for (const check of checks) expect(check.fix.length).toBeGreaterThan(20);
     const tools = (command: string) => (command === "python3" ? "3.9" : command === "git" ? "git version 2.50.1" : "/Library/Developer/CommandLineTools");
     const ok = hostChecks({ platform: "darwin", arch: "arm64", nodeVersion: "24.22.1", probe: tools });
@@ -46,9 +46,11 @@ describe("installer rules", () => {
     expect(parseInstallManifest({ schemaVersion: 1, items: [item] }).items).toHaveLength(1);
   });
 
-  test("--plan lists the six steps without changing anything", () => {
+  test("--plan lists the seven steps without changing anything", () => {
     const output = execFileSync(process.execPath, [join(ROOT, "scripts/install-macos.mjs"), "--plan", "--home", "/nonexistent/mirage-plan"], { encoding: "utf8" });
-    expect(output.trim().split("\n").map(line => line.slice(0, 2))).toEqual(["1.", "2.", "3.", "4.", "5.", "6."]);
+    expect(output.trim().split("\n").map(line => line.slice(0, 2))).toEqual(["1.", "2.", "3.", "4.", "5.", "6.", "7."]);
+    // TASK-190: a run cannot start without the physics modules, and neither is tracked, so the installation builds them.
+    expect(output).toMatch(/^6\. .*physics modules/m);
     expect(existsSync("/nonexistent/mirage-plan")).toBe(false);
   });
 });
@@ -60,6 +62,13 @@ describe.skipIf(!existsSync(join(HOME, "install-manifest.json")))("the clean ins
     for (const item of manifest.items) {
       if (item.path === undefined || !String(item.path).startsWith(HOME)) continue;
       expect(createHash("sha256").update(readFileSync(String(item.path))).digest("hex")).toBe(item.sha256);
+    }
+    // TASK-190: what a run needs that is not tracked: the installer built it and recorded it. These live in the checkout, so a later
+    // build changes them, as with the other files outside the launcher folder: they are recorded, and only their presence is checked.
+    for (const id of ["wasm-bet-artifacts", "contact-wasm"]) {
+      const module = manifest.items.find(item => item.id === id);
+      expect(module?.sha256, id).toMatch(/^[0-9a-f]{64}$/);
+      expect(existsSync(String(module?.path)), id).toBe(true);
     }
     const checks = checkPrerequisites({ home: HOME, python: join(HOME, "venv/bin/python") });
     expect(checks.filter(check => check.status !== "ok")).toEqual([]);
