@@ -26,7 +26,7 @@
 // host prerequisite (BLOCKED_EXTERNAL).
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { homedir, cpus, release } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -119,6 +119,13 @@ export async function install({ home, jobs, plan }) {
   log(steps[3]);
   const binary = join(paths.build, "sitl/bin/arducopter");
   const env = { ...process.env, PATH: `${join(paths.venv, "bin")}:${process.env.PATH}` };
+  // TASK-190: an executable that changed since it was built is rebuilt, never taken as it is: its recorded hash would follow the damage.
+  const { readCatalog } = await import("../apps/launcher/src/catalog.ts");
+  const recorded = existsSync(join(home, "catalog.json")) ? readCatalog(home).find((entry) => entry.binaryPath === binary)?.binarySha256 : undefined;
+  if (recorded !== undefined && existsSync(binary) && fileIdentity(binary).sha256 !== recorded) {
+    log("  The executable changed since it was built: building it again");
+    rmSync(paths.build, { recursive: true, force: true });
+  }
   if (!existsSync(binary)) {
     run(paths.python, ["waf", "configure", "--board", "sitl", "--out", paths.build], { cwd: paths.ardupilot, env, stdio: "inherit" });
     run(paths.python, ["waf", "--out", paths.build, "copter", "-j", String(jobs)], { cwd: paths.ardupilot, env, stdio: "inherit" });

@@ -1,0 +1,462 @@
+{
+  "schemaVersion": 1,
+  "kind": "delivery-manifest",
+  "status": "BLOCKED_DECISION",
+  "reasons": [
+    "ardupilot-source: restricted, and waiting for a decision: D-02 (TASK-127): building on the user's Mac from the pinned source distributes nothing; shipping a prebuilt SITL binary carries GPL-3.0 source obligations and needs a recorded decision. D-01 (TASK-128) selects the version.",
+    "The checkout has uncommitted changes, so this manifest describes no commit"
+  ],
+  "metrics": {},
+  "sources": {
+    "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
+    "dirty": true,
+    "node": "v24.22.1",
+    "locks": {
+      "package-lock.json": "d76aad7264cdb823d490bcd360ee91df7ff6a5193ca2e18cfc68d3b47893331a",
+      "scripts/sitl.lock.json": "cc11bac9e2ca0aa55fbb015775d53067ab1f1de09c3f6a5ba3d4ea6b69c31bbd",
+      "third_party/uavlogviewer/source.lock.json": "ce05b0d2165dc698a08406e78821ff78e07d613b94c4cf9cd45c467427940474",
+      "native/rapier/source.lock.json": "4de27890011351af904fd552af164b913fb9ef613c00ed7d17bb7ab962e33981",
+      "native/Cargo.lock": "3495cbba177ebcf8cd325c90b2fd60c1336af4a2b9067caddb1da31e46769634",
+      "scripts/install/requirements-macos.txt": "5d026e5376385d1f1f2bcfecd44880bf098e913acc296032973f24eaa7a5a292"
+    }
+  },
+  "artifacts": [
+    {
+      "path": "apps/web/dist/assets/WW15MGH-cqTGfywc.DAC",
+      "sha256": "9dcaf4efd6857aaa2e1e2e2c574d3f5264eacf47024cdcd5291c40ddad5e5acc",
+      "bytes": 2076480,
+      "license": "Project-owned; the repository declares no license"
+    },
+    {
+      "path": "apps/web/dist/assets/capacity.worker-DLpx-fkJ.js",
+      "sha256": "c95a4ecf231df44da93c2bdb82c2c17b7ffce1992e01a3d50d0d799d0c63d39a",
+      "bytes": 1074547,
+      "license": "Project-owned; the repository declares no license"
+    },
+    {
+      "path": "apps/web/dist/assets/g3-passes-Cvp-gvQ4.js",
+      "sha256": "3080ed4c5e517ea83f4633f902d00ff2ecf8a641d2f9be93c12c8409bf0b8f3b",
+      "bytes": 48040,
+      "license": "Project-owned; the repository declares no license"
+    },
+    {
+      "path": "apps/web/dist/assets/g3-passes-webgpu-hLgyGSQz.js",
+      "sha256": "e33fd4276ef15db6f6be158ab2037d3b130398a03d77a6484619dffe0d8a4d63",
+      "bytes": 17437,
+      "license": "Project-owned; the repository declares no license"
+    },
+    {
+      "path": "apps/web/dist/assets/index-BqWkWW5N.css",
+      "sha256": "68b1bc1c160fe4e36684064ec8038657f9fcae54ab70cce557956e7ccaabc4ea",
+      "bytes": 34239,
+      "license": "Project-owned; the repository declares no license"
+    },
+    {
+      "path": "apps/web/dist/assets/index-X0W94VDc.js",
+      "sha256": "ec6c57c181fef0a19f6f1fcdbc76b74cc49ab12fe313edce3a87c3241ab1336c",
+      "bytes": 3453550,
+      "license": "Project-owned; the repository declares no license"
+    },
+    {
+      "path": "apps/web/dist/assets/material-drape-DYAuawUK.js",
+      "sha256": "6aa8331917dd746de72eae979d3ebf6c925a91a1c59b6e2d65403027f91ad654",
+      "bytes": 7339,
+      "license": "Project-owned; the repository declares no license"
+    },
+    {
+      "path": "apps/web/dist/assets/material-drape-node-DJP3dVMM.js",
+      "sha256": "f4eda8110acd0918058fe565cf9d7a0e0e05445b170fabe42136576cb75ec5f0",
+      "bytes": 542,
+      "license": "Project-owned; the repository declares no license"
+    },
+    {
+      "path": "apps/web/dist/assets/param-metadata-3BGslxVe.json",
+      "sha256": "1b0645bc1d0cc38253231512d24e21092273ccfd6c81aa749d4aadc0fd9f98cd",
+      "bytes": 1734597,
+      "license": "Project-owned; the repository declares no license"
+    },
+    {
+      "path": "apps/web/dist/assets/physics.worker-BID6skS5.js",
+      "sha256": "b26352fc6c6431fba31806701a3ecb76a42816aac6f8c32126b44c84802c5fd4",
+      "bytes": 1291316,
+      "license": "Project-owned; the repository declares no license"
+    },
+    {
+      "path": "apps/web/dist/assets/recorder-v2.worker-BaTEgkS0.js",
+      "sha256": "57646b4fab0d050e0421c819f26172695fcbcefe0143d707214b86fb5619c38a",
+      "bytes": 22093,
+      "license": "Project-owned; the repository declares no license"
+    },
+    {
+      "path": "apps/web/dist/assets/recorder.worker-wE_HrQgF.js",
+      "sha256": "0ac880123ded69ce40e2b71fcfe12e30124674a10efb4b45214a60d5ffef7916",
+      "bytes": 21013,
+      "license": "Project-owned; the repository declares no license"
+    },
+    {
+      "path": "apps/web/dist/assets/serial-io.worker-DYMUpLdQ.js",
+      "sha256": "d0519f834dc4061455e482413270bc01ba61f037a72007b5c53a8dd71278e3d1",
+      "bytes": 17469,
+      "license": "Project-owned; the repository declares no license"
+    },
+    {
+      "path": "apps/web/dist/assets/three.tsl-_Qe1lCgm.js",
+      "sha256": "75c8472c61559551254b8c2c7b38ea38d6b8af09d19cfded4cb210831e86c94d",
+      "bytes": 9540,
+      "license": "Project-owned; the repository declares no license"
+    },
+    {
+      "path": "apps/web/dist/assets/three.webgpu-9nPIB9iO.js",
+      "sha256": "b45d633d530fa80525c6e3643cd882e4037d42debeec016fd18f8f71440eb825",
+      "bytes": 556981,
+      "license": "Project-owned; the repository declares no license"
+    },
+    {
+      "path": "apps/web/dist/assets/tiles-scene-DNqk3-Gq.js",
+      "sha256": "56f178fb0cb845f0db1db1f599306638e8497406edbe52bcc9489dcf2dee862f",
+      "bytes": 153279,
+      "license": "Project-owned; the repository declares no license"
+    },
+    {
+      "path": "apps/web/dist/assets/webgpu-FvvcBpai.js",
+      "sha256": "97cbe3a2f2242cac9338d4952dfab2144308655cfa2e3c554c48dc21315c81c7",
+      "bytes": 2674,
+      "license": "Project-owned; the repository declares no license"
+    },
+    {
+      "path": "apps/web/dist/index.html",
+      "sha256": "3f99336079497089705e608653334e70a6dcf9390fbdfc85a4991a59171b4dee",
+      "bytes": 458,
+      "license": "Project-owned; the repository declares no license"
+    },
+    {
+      "path": "packages/wasm-bet/dist/manifest.json",
+      "sha256": "ec3560cf51dc19e86b519a497770c26a668fb867042ab15fa8e06523bdcf80a4",
+      "bytes": 599,
+      "license": "Project-owned; the crate has no external dependencies"
+    },
+    {
+      "path": "packages/wasm-bet/dist/mirage_bet.scalar.wasm",
+      "sha256": "28e4204601a6ca2d3055a048cac2be7d2a9192ff26c6920a1cd7244e0185de3a",
+      "bytes": 153990,
+      "license": "Project-owned; the crate has no external dependencies"
+    },
+    {
+      "path": "packages/wasm-bet/dist/mirage_bet.simd128.wasm",
+      "sha256": "402b7c1cc73b30ca0380aaac386e72297f59a714d9e4b148a96e169814ad8db6",
+      "bytes": 155935,
+      "license": "Project-owned; the crate has no external dependencies"
+    },
+    {
+      "path": "packages/physics/dist/contact/LICENSE.rapier.txt",
+      "sha256": "ceacfa4d7fa67df64ab09a56fe248c50a3bfc9bc00374d69bd74ad763b14b89c",
+      "bytes": 11347,
+      "license": "Apache-2.0 (Rapier, license SHA-256 pinned in the source lock; parry3d-f64)"
+    },
+    {
+      "path": "packages/physics/dist/contact/contact.wasm",
+      "sha256": "1cd7aca68ed131bc5757fd456051894f76347900923b8b89e82fca35d2f73b0d",
+      "bytes": 2062039,
+      "license": "Apache-2.0 (Rapier, license SHA-256 pinned in the source lock; parry3d-f64)"
+    },
+    {
+      "path": "packages/physics/dist/contact/manifest.json",
+      "sha256": "9b6c0915987f968909d610a7a96b9bc1de186d1f688449463620f188dec63519",
+      "bytes": 2356,
+      "license": "Apache-2.0 (Rapier, license SHA-256 pinned in the source lock; parry3d-f64)"
+    }
+  ],
+  "totalBytes": 12907860,
+  "restricted": [
+    {
+      "id": "ardupilot-source",
+      "used": true,
+      "decision": "D-02 (TASK-127): building on the user's Mac from the pinned source distributes nothing; shipping a prebuilt SITL binary carries GPL-3.0 source obligations and needs a recorded decision. D-01 (TASK-128) selects the version."
+    },
+    {
+      "id": "ardupilot-parameter-metadata",
+      "used": true,
+      "decision": "TASK-159 generated it from the pinned source and keeps it in the repository, so the parameter service and the Parameters tab read it offline; D-02 covers redistribution with any prebuilt firmware."
+    },
+    {
+      "id": "ardupilot-declination-table",
+      "used": true,
+      "decision": "TASK-172 generated it from the pinned source and keeps it in the repository, so a run's COMPASS_DEC comes from the table ArduPilot itself reads; D-02 covers redistribution with any prebuilt firmware."
+    },
+    {
+      "id": "ardupilot-wasm",
+      "used": false,
+      "decision": "Redistribution stays BLOCKED_DECISION (TASK-045); Phase 1 uses the external native SITL instead."
+    },
+    {
+      "id": "flir-adas-sample",
+      "used": false,
+      "decision": "Thermal work is outside Phase 1; any use needs the dataset agreement reviewed first."
+    }
+  ],
+  "datasets": [
+    {
+      "id": "web-application",
+      "category": "application",
+      "version": "repository commit",
+      "license": "Project-owned; the repository declares no license",
+      "licenseStatus": "not-applicable",
+      "status": "ready"
+    },
+    {
+      "id": "npm-runtime-packages",
+      "category": "application",
+      "version": "As pinned by package-lock.json",
+      "license": "MIT, ISC, BSD-3-Clause and Apache-2.0; scripts/check-offline.mjs checks every runtime package's declared license",
+      "licenseStatus": "reviewed",
+      "status": "ready"
+    },
+    {
+      "id": "npm-development-tools",
+      "category": "toolchain",
+      "version": "As pinned by package-lock.json",
+      "license": "Per package; build tools only, not shipped in the bundle",
+      "licenseStatus": "not-applicable",
+      "status": "ready"
+    },
+    {
+      "id": "node-runtime",
+      "category": "toolchain",
+      "version": "24 LTS (.nvmrc)",
+      "license": "MIT",
+      "licenseStatus": "reviewed",
+      "status": "ready"
+    },
+    {
+      "id": "rust-toolchain",
+      "category": "toolchain",
+      "version": "1.97.0 (native/rust-toolchain.toml)",
+      "license": "MIT OR Apache-2.0",
+      "licenseStatus": "reviewed",
+      "status": "ready"
+    },
+    {
+      "id": "wasm-bet-artifacts",
+      "category": "native-artifact",
+      "version": "Built from native/bet at the repository commit",
+      "license": "Project-owned; the crate has no external dependencies",
+      "licenseStatus": "not-applicable",
+      "status": "ready"
+    },
+    {
+      "id": "contact-wasm",
+      "category": "native-artifact",
+      "version": "Rapier commit b716d375efc0201003f0cd9ef7168eee0b62c177 and parry3d-f64 0.31.1 with its storage-reuse patch (native/rapier/source.lock.json)",
+      "license": "Apache-2.0 (Rapier, license SHA-256 pinned in the source lock; parry3d-f64)",
+      "licenseStatus": "reviewed",
+      "status": "ready"
+    },
+    {
+      "id": "ardupilot-source",
+      "category": "native-artifact",
+      "version": "Commit 8ab6afde107a91df1b5f60ade8f333cb8a61b190 (scripts/sitl.lock.json); the Phase 1 version or versions are decision D-01",
+      "license": "GPL-3.0-or-later",
+      "licenseStatus": "restricted",
+      "status": "pending"
+    },
+    {
+      "id": "ardupilot-build-toolchain",
+      "category": "toolchain",
+      "version": "To be pinned by TASK-127",
+      "license": "Apple developer tools and open-source Python packages, per tool",
+      "licenseStatus": "reviewed",
+      "status": "pending"
+    },
+    {
+      "id": "pymavlink",
+      "category": "python",
+      "version": "2.4.50",
+      "license": "LGPL-3.0; used unmodified as a local tool",
+      "licenseStatus": "reviewed",
+      "status": "ready"
+    },
+    {
+      "id": "mavlink-definitions",
+      "category": "metadata",
+      "version": "Commit 2e2b6af99084e4fde9bb304c84bb9253a1a98b6f (packages/mavlink/dialect.lock.json)",
+      "license": "MIT (MAVLink message definitions)",
+      "licenseStatus": "reviewed",
+      "status": "ready"
+    },
+    {
+      "id": "ardupilot-parameter-metadata",
+      "category": "metadata",
+      "version": "ArduPilot 8ab6afde107a91df1b5f60ade8f333cb8a61b190, ArduCopter, 5799 parameters (scripts/generate-param-metadata.mjs)",
+      "license": "GPL-3.0-or-later (generated from the ArduPilot source)",
+      "licenseStatus": "restricted",
+      "status": "ready",
+      "files": [
+        {
+          "path": "data/ardupilot/param-metadata.json",
+          "bytes": 1734597,
+          "sha256": "1b0645bc1d0cc38253231512d24e21092273ccfd6c81aa749d4aadc0fd9f98cd"
+        }
+      ]
+    },
+    {
+      "id": "ardupilot-declination-table",
+      "category": "reference-data",
+      "version": "ArduPilot 8ab6afde107a91df1b5f60ade8f333cb8a61b190, libraries/AP_Declination/tables.cpp (scripts/generate-declination.mjs)",
+      "license": "GPL-3.0-or-later (generated from the ArduPilot source)",
+      "licenseStatus": "restricted",
+      "status": "ready",
+      "files": [
+        {
+          "path": "data/ardupilot/declination.json",
+          "bytes": 6891,
+          "sha256": "1464d76226df8baeea4d14a1fc28fbcd3e12b9a694f119e20652f414ed9afde5"
+        }
+      ]
+    },
+    {
+      "id": "uavlogviewer",
+      "category": "viewer",
+      "version": "Commit 01f9d510b7df31687819a6c87415161041d73ae6 (third_party/uavlogviewer/source.lock.json)",
+      "license": "GPL-3.0 (LICENSE file); the build ships licenses/ with the GPL texts, the patches and every production npm package's notice",
+      "licenseStatus": "reviewed",
+      "status": "ready"
+    },
+    {
+      "id": "chrome-macos",
+      "category": "browser",
+      "version": "Not selected",
+      "license": "Google Chrome terms of service",
+      "licenseStatus": "not-applicable",
+      "status": "pending"
+    },
+    {
+      "id": "wmm-coefficients",
+      "category": "reference-data",
+      "version": "WMM2025, released 11/13/2024",
+      "license": "Public domain (United States Government work)",
+      "licenseStatus": "reviewed",
+      "status": "ready",
+      "files": [
+        {
+          "path": "data/geomagnetic/WMM_2025.COF",
+          "sha256": "dfa8597825af4e0b87ff4198a5b4fb661b3c49f4cd090cd0164e0259b075582f",
+          "bytes": 4554
+        }
+      ]
+    },
+    {
+      "id": "egm96-geoid",
+      "category": "reference-data",
+      "version": "EGM96",
+      "license": "Public domain (United States Government work)",
+      "licenseStatus": "reviewed",
+      "status": "ready",
+      "files": [
+        {
+          "path": "data/geoid/WW15MGH.DAC",
+          "sha256": "9dcaf4efd6857aaa2e1e2e2c574d3f5264eacf47024cdcd5291c40ddad5e5acc",
+          "bytes": 2076480
+        }
+      ]
+    },
+    {
+      "id": "uiuc-propeller-database",
+      "category": "reference-data",
+      "version": "Archive README dated 2022-06-27",
+      "license": "No explicit license; citation requested",
+      "licenseStatus": "reviewed",
+      "status": "ready"
+    },
+    {
+      "id": "jsbsim-wasm",
+      "category": "native-artifact",
+      "version": "Commit 570e8115a102df8f877b11e0e59b964ea483e3c0 (native/jsbsim/source.lock.json)",
+      "license": "LGPL-2.1",
+      "licenseStatus": "reviewed",
+      "status": "not-needed-phase1"
+    },
+    {
+      "id": "ardupilot-wasm",
+      "category": "native-artifact",
+      "version": "As pinned by native/ardupilot/toolchain.lock.json",
+      "license": "GPL-3.0-or-later",
+      "licenseStatus": "restricted",
+      "status": "not-needed-phase1"
+    },
+    {
+      "id": "geodata-pipeline-toolchain",
+      "category": "toolchain",
+      "version": "As pinned in scripts/geodata/setup-wsl.sh",
+      "license": "Open-source tools, per tool",
+      "licenseStatus": "reviewed",
+      "status": "not-needed-phase1"
+    },
+    {
+      "id": "flir-adas-sample",
+      "category": "reference-data",
+      "version": "ADAS dataset v2",
+      "license": "FLIR ADAS dataset agreement",
+      "licenseStatus": "restricted",
+      "status": "not-needed-phase1"
+    }
+  ],
+  "installed": {
+    "createdAt": "2026-10-31T09:18:04.787Z",
+    "items": [
+      {
+        "id": "mirage-sitl",
+        "version": "7fb6640201fb894b0d8e84a3b704cc675085065d",
+        "sha256": "5e634d38cb3db913771b15a6a99f4f28a9d203b463d7f22fecb4c9d877ac6f55",
+        "bytes": 169665,
+        "license": "Project-owned; the repository declares no license"
+      },
+      {
+        "id": "node",
+        "version": "v24.22.1",
+        "sha256": "866c14a9a2b5e95db35ff3632d9d4508517465e81bc6b4448e463b7d0f61ba77",
+        "bytes": 50320,
+        "license": "MIT"
+      },
+      {
+        "id": "python-environment",
+        "version": "pymavlink 2.4.50",
+        "sha256": "5d026e5376385d1f1f2bcfecd44880bf098e913acc296032973f24eaa7a5a292",
+        "bytes": 37953,
+        "license": "LGPL-3.0; used unmodified as a local tool"
+      },
+      {
+        "id": "ardupilot-source",
+        "version": "8ab6afde107a91df1b5f60ade8f333cb8a61b190",
+        "license": "GPL-3.0-or-later"
+      },
+      {
+        "id": "arducopter-8ab6afde",
+        "version": "ArduCopter V4.8.0-dev",
+        "sha256": "02066ec927d055ba302922407d8994facdcd89807dc58f5e02acf93b7afc17f7",
+        "bytes": 5364104,
+        "license": "GPL-3.0-or-later"
+      },
+      {
+        "id": "copter-default-parameters",
+        "version": "8ab6afde107a91df1b5f60ade8f333cb8a61b190",
+        "sha256": "5e01345b45d1c6190b28bece5638bbdd4cf1cce35e05bbbf480ab24d2b51aa0e",
+        "bytes": 1957,
+        "license": "GPL-3.0-or-later"
+      },
+      {
+        "id": "uavlogviewer-source",
+        "version": "01f9d510b7df31687819a6c87415161041d73ae6",
+        "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+        "bytes": 35149,
+        "license": "GPL-3.0 (LICENSE file); the build ships licenses/ with the GPL texts, the patches and every production npm package's notice"
+      },
+      {
+        "id": "uavlogviewer-build",
+        "version": "01f9d510b7df31687819a6c87415161041d73ae6",
+        "sha256": "7a4a43978880c4458e5a9ac88635b001726e714d2656a45fe1d0a9fb8bbbf966",
+        "bytes": 1351,
+        "license": "GPL-3.0 (LICENSE file); the build ships licenses/ with the GPL texts, the patches and every production npm package's notice"
+      }
+    ]
+  }
+}

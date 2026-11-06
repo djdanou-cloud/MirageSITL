@@ -33,3 +33,44 @@ try{
  assert.throws(()=>buildReleaseManifest({...input,artifacts:[{...input.artifacts[0],path:'apps/web/dist/alias/alias.json'}]},root));
 }finally{rmSync(root,{recursive:true,force:true})}
 `));
+
+it("the delivery manifest blocks on an unsettled license or a pending decision, and lists what is restricted", () => nodeCheck(`
+import {deliveryOpenItems} from './scripts/release-manifest.mjs';
+const row=(id,licenseStatus,status,decision)=>({id,licenseStatus,status,decision});
+assert.deepEqual(deliveryOpenItems([row('a','reviewed','ready'),row('b','not-applicable','pending')]),{blockers:[],restricted:[]});
+assert.deepEqual(deliveryOpenItems([row('c','unreviewed','ready')]).blockers,['c: license unreviewed']);
+const pending=deliveryOpenItems([row('d','restricted','pending','D-02')]);
+assert.deepEqual(pending.blockers,['d: restricted, and waiting for a decision: D-02']);
+assert.deepEqual(pending.restricted,[{id:'d',used:true,decision:'D-02'}]);
+const settled=deliveryOpenItems([row('e','restricted','ready','taken'),row('f','restricted','not-needed-phase1','later')]);
+assert.deepEqual(settled.blockers,[]);
+assert.deepEqual(settled.restricted,[{id:'e',used:true,decision:'taken'},{id:'f',used:false,decision:'later'}]);
+`));
+
+it("the delivery manifest of the checkout names its sources, built files and datasets, and writes nothing else", () => nodeCheck(`
+import {mkdtempSync,mkdirSync,writeFileSync,rmSync} from 'node:fs';
+import {tmpdir} from 'node:os';import {join} from 'node:path';import {execFileSync} from 'node:child_process';
+import {buildDeliveryManifest} from './scripts/release-manifest.mjs';
+import {sha256} from './scripts/validation/evidence.mjs';
+const root=mkdtempSync(join(tmpdir(),'mirage-delivery-'));
+try{
+ execFileSync('git',['init','--quiet',root]);
+ mkdirSync(join(root,'config'));mkdirSync(join(root,'apps/web/dist/assets'),{recursive:true});
+ const inventory={items:[{id:'web-application',category:'application',version:'repository commit',license:'Project-owned',licenseStatus:'not-applicable',status:'ready'}]};
+ writeFileSync(join(root,'config/offline-inventory.json'),JSON.stringify(inventory));
+ writeFileSync(join(root,'package-lock.json'),'{}');
+ const page=Buffer.from('<html>Own-work schema fixture</html>');writeFileSync(join(root,'apps/web/dist/assets/index.html'),page);
+ execFileSync('git',['-C',root,'add','config','package-lock.json']);
+ execFileSync('git',['-C',root,'-c','user.name=Schema test','-c','user.email=test@example.invalid','commit','--quiet','-m','Initialize isolated fixture']);
+ // Nothing built yet elsewhere, and a dirty tree: blocked, by name.
+ const open=buildDeliveryManifest(root);
+ assert.equal(open.status,'BLOCKED_EXTERNAL');
+ assert.ok(open.reasons.some(reason=>reason.includes('packages/wasm-bet/dist is not built')));
+ assert.deepEqual(open.artifacts,[{path:'apps/web/dist/assets/index.html',sha256:sha256(page),bytes:page.length,license:'Project-owned'}]);
+ assert.equal(open.sources.locks['package-lock.json'],sha256(Buffer.from('{}')));
+ assert.equal(open.datasets[0].id,'web-application');
+ assert.equal(open.installed,null);
+ const noHome=buildDeliveryManifest(root,{home:join(root,'nowhere')});
+ assert.ok(noHome.reasons.some(reason=>reason.includes('has no installation')));
+}finally{rmSync(root,{recursive:true,force:true});}
+`));

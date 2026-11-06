@@ -533,3 +533,32 @@ layer, including connect and disconnect cycles against the pinned build:
 ```bash
 npx --no-install vitest run tests/launcher-connections.test.ts
 ```
+
+## Phase 1 acceptance runs (TASK-158, TASK-189, TASK-190)
+
+These run on the acceptance machine of A-01 with the TASK-152 installation in
+`.cache/task-152/home`, one at a time, since native flights must not overlap.
+Each writes its report under `test-results/validation/` and, on that machine, its
+cells of `docs/validation/phase1-matrix.json`, citing the report by SHA-256.
+
+```bash
+node scripts/phase1/nominal-flight.mjs
+node scripts/phase1/endurance.mjs
+node scripts/phase1/global-workflows.mjs
+node scripts/phase1/acceptance.mjs
+node scripts/release-manifest.mjs --delivery --home .cache/task-152/home
+node scripts/fidelity-capture.mjs --real REAL.bin --simulated RUN.bin --firmware-sha256 HEX --model-sha256 HEX --operator NAME --recorded-at 2026-11-06T12:00:00Z --out CAPTURE.json
+```
+
+`nominal-flight.mjs` flies each S19 configuration through the UI. `endurance.mjs`
+flies the 16-motor hour of decision A-07 as fast as the computer goes, about 17
+minutes on the M5 with Low Power Mode off. `global-workflows.mjs` runs the global
+workflows with outbound connections denied to everything except this computer, for
+its own processes only, so no system setting changes; a probe shows the block
+before the tests start, and a skipped test counts as a failure. `acceptance.mjs`
+checks every cell against the evidence it cites and refuses evidence made from
+other versions of the files that define a run. The delivery manifest lists sources,
+built files, datasets and licenses, and stays BLOCKED_DECISION while a restricted
+item Phase 1 needs waits for its decision; it publishes nothing.
+`fidelity-capture.mjs` turns a flight log and its simulated run into a capture for
+`scripts/check-fidelity.mjs`.

@@ -8,7 +8,7 @@
 PowerShell/zsh и проверки перед расширением поддерживаемого покрытия.
 
 ## Локальные проверки
-<!-- source-sha256: 80da05a3362e8fafc5b89d967869db72fa3f65faf5df8bc11bff4dd355f6f4dc -->
+<!-- source-sha256: aaac638d1ef5d7866cb892d0f2e10df668801b96a997c35b46d9c10a2ff44093 -->
 
 Использовать существующий изолированный checkout, сохраняя локальные изменения. Node закреплён .nvmrc; Rust 1.97.0 и wasm32-unknown-unknown — native/rust-toolchain.toml. Зависимости ставить через npm ci. В облаке активировать CARGO_HOME=/workspace/.cache/mirage-cargo, RUSTUP_HOME=/workspace/.cache/mirage-rustup и добавить CARGO_HOME/bin в начало PATH; не переопределять HOME. Запустить lint, typecheck, check:docs, CI=true npm test, npm run build и locked native tests. Модульный набор тестов не изменяет отслеживаемые свидетельства в test-results/: тесты записывают создаваемые отчёты во временные или игнорируемые каталоги (validate-models, check-propeller-bem и bench-links-ew принимают --out DIR), а глобальная настройка Vitest tests/support/tracked-results.ts завершает прогон ошибкой, если меняется вывод git status --porcelain -- test-results/. Браузерные прогоны дают ту же гарантию: Playwright пишет отчёт JUnit, трассы и захваты прошивки TASK-045 в test-results/browser/, где нет отслеживаемых файлов, а последний настроенный репортёр tests/support/tracked-results-reporter.ts повторяет проверку после того, как остальные репортёры записали свои файлы. Браузерный артефакт CI выгружает test-results/browser/ и playwright-report/. Запустить npm run dev; проверить HTTP, COOP same-origin, COEP require-corp и настоящий Worker READY. Начать с нулевого газа, армировать, летать, приостановить и сбросить. Браузерные тесты используют системный Chromium только при наличии. Установка/запуск на чистой восстановленной машине для сертификации выпуска ещё не выполнялись.
 
@@ -558,3 +558,33 @@ arducopter --model JSON:127.0.0.1 --speedup 1 --home -35.363261,149.16523,584,0 
 ```bash
 npx --no-install vitest run tests/launcher-connections.test.ts
 ```
+
+## Приёмочные прогоны Phase 1 (TASK-158, TASK-189, TASK-190)
+
+Они выполняются на приёмочной машине A-01 с установкой TASK-152 в
+`.cache/task-152/home`, по одному, поскольку нативные полёты не должны пересекаться.
+Каждый записывает свой отчёт в `test-results/validation/` и на этой машине свои ячейки
+в `docs/validation/phase1-matrix.json`, ссылаясь на отчёт по SHA-256.
+
+```bash
+node scripts/phase1/nominal-flight.mjs
+node scripts/phase1/endurance.mjs
+node scripts/phase1/global-workflows.mjs
+node scripts/phase1/acceptance.mjs
+node scripts/release-manifest.mjs --delivery --home .cache/task-152/home
+node scripts/fidelity-capture.mjs --real REAL.bin --simulated RUN.bin --firmware-sha256 HEX --model-sha256 HEX --operator NAME --recorded-at 2026-11-06T12:00:00Z --out CAPTURE.json
+```
+
+`nominal-flight.mjs` выполняет полёт каждой конфигурации S19 через интерфейс.
+`endurance.mjs` выполняет 16-моторный час решения A-07 так быстро, как позволяет
+компьютер, примерно за 17 минут на M5 при выключенном Low Power Mode.
+`global-workflows.mjs` запускает глобальные рабочие процессы с запретом исходящих
+соединений ко всему, кроме этого компьютера, только для своих процессов, поэтому
+системные настройки не меняются; проба показывает блокировку до начала тестов, а
+пропущенный тест считается отказом. `acceptance.mjs` сверяет каждую ячейку с
+указанными в ней свидетельствами и отклоняет свидетельства, полученные с другими
+версиями файлов, определяющих прогон. Манифест поставки перечисляет исходники,
+собранные файлы, наборы данных и лицензии и остаётся в состоянии BLOCKED_DECISION,
+пока ограниченный элемент, нужный Phase 1, ожидает решения; он ничего не публикует.
+`fidelity-capture.mjs` превращает журнал полёта и его моделируемый прогон в захват для
+`scripts/check-fidelity.mjs`.

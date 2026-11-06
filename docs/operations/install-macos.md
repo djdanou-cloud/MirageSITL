@@ -74,6 +74,26 @@ a launcher that does not answer and a refused token. The installation check
 recomputes the SHA-256 of every file the manifest recorded inside the
 launcher folder.
 
+## Recovery (TASK-190)
+
+The installer is also the repair. It checks every step again, and everything it
+fetched stays in the launcher folder, so most of these need no network.
+
+| What happened | What you see | What to do | Network |
+| --- | --- | --- | --- |
+| The installation stopped partway | The installer exits 1, or the setup check says the installation is missing | Run `node scripts/install-macos.mjs` again with the same folder; it goes on from where it stopped | Only for what it had not fetched yet |
+| An installed file changed or was deleted | The setup check names it and says Needs attention, or a run says the firmware cannot be started | Run the installer again: it rebuilds a changed executable and a changed viewer from the fetched sources | No |
+| A fetched source changed | The installer stops and says the checkout is not clean | Delete that folder under `sources/` and run the installer again | Yes |
+| The Python environment is damaged | The installer stops at its Python step | Delete `venv/` and run the installer again | Yes |
+| The token file is deleted or damaged | The launcher stops and names the file, or the setup check refuses the token | Delete the `token` file, start the launcher again and paste the new token from the new file; it is never printed | No |
+| The launcher does not answer | The setup check says so | Start it again with `npm run start -w @mirage/launcher`, or another port with `MIRAGE_LAUNCHER_PORT` | No |
+| A run failed | The Run tab shows why, with the launcher's diagnostics | Start again: that is a new experiment with a new record, and the failed one stays as it was | No |
+| The browser's data is lost, or the work moves to another Mac | The Project tab has no project | Import the project archive (`.mirageproj`) you exported on the Project tab; recordings stay in that browser unless exported with their experiment | No |
+
+`tests/integration/recovery-drill.test.ts` runs the installer's repairs on a
+copy of a real installation, with the network blocked when
+`scripts/phase1/global-workflows.mjs` runs it.
+
 ## Verification (TASK-152)
 
 `tests/install-macos.test.ts` checks the host checks, the pinned requirements,
