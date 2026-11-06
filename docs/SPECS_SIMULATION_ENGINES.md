@@ -1031,7 +1031,9 @@ each annulus solves `F v W = dT/(4 pi r dr rho)` with the Prandtl tip and hub fa
 the helix angle `sin(phi) = W/sqrt(W^2 + (Omega r)^2)`, by at most four iterations; the
 area-weighted mean over Glauert's root is the loss, each annulus over the mean its shape
 `s_k`, and both follow with the mean's lag. In descent the mean's target is the baseline
-of Johnson's model (NASA TP-2005-213477, tables 3 and 4), and the field relaxes to uniform.
+of Johnson's model (NASA TP-2005-213477, tables 3 and 4), and the field, which is zero
+climb's, fades to uniform by a descent of 0.2 hover inflows, Johnson's boundary D, so a
+hover that crosses zero climb meets no step in its thrust (TASK-101 found one of 7.6 %).
 Descent, an advance ratio above 0.3 and an iteration cap set the inflow's validity flag.
 The configuration ends with a state region of (3 + strips) f64, zero at initialization and
 reset: the two harmonics, the loss minus 1 and each strip's shape minus 1. Interface v2
@@ -1070,6 +1072,35 @@ the neighbours (Sanchez-Cuevas et al. 2017): per other rotor at lateral distance
 than half a radius, a coaxial partner among them, is not a neighbour: TASK-101 owns that
 pair. Their body term needs data a profile does not have and is left out. Control Protocol
 v3's `rotor.ground-effect` switches it, and only the ESC drive's interface has its fields.
+
+Rotor wakes (TASK-101). `packages/physics/src/rotor-wake.ts` computes them between rotor
+steps, one way and with no swirl, a synthetic model with nothing measured behind it. From
+each rotor's last thrust T and its air, with V >= 0 down through the disk and V_t across
+it: the induced velocity v from `v sqrt(V_t^2 + (V + v)^2) = T/(2 rho A)`; a straight
+top-hat tube along `(V_t, V + 2 v)`, of radius `R_w = R sqrt(U_near/U_far)` where U_near
+and U_far are the speeds with v and 2 v, growing as `R_s = R_w + S s` with the distance s
+along it, S = 0.1 sqrt(2/ln 2) = 0.17 (a round jet's half-width grows about 0.1 per metre,
+Pope 2000, and a top hat with a Gaussian jet's mass and momentum flux has sqrt(2/ln 2)
+times that radius); and an excess speed e along the source's thrust axis from
+`e sqrt(V_t^2 + (V + e)^2) = (T - F)/(rho pi R_s^2)`, so the tube's momentum flux is what
+the rotor gave, less the download, at every distance. A receiver takes e times the
+fraction of its disk inside the tube, in its own hub axes, into `external_wake_hub`,
+which the step adds to its air once. Seen along the tube a disk is an ellipse, integrated
+by 16 chords: to rounding when one shape holds the other, within 0.5 % of its area
+otherwise. Several sources add. The lag is one step, from the source's last output, and
+pairs run sorted, so the order they are given in changes nothing. Thrust while descending
+beyond 0.2 v through the disk sets the inflow's validity flag, and a wake that no longer
+leaves below its rotor gives nothing. The download `F = 1/2 rho ((V + 2 v)^2 - V^2) C_D A`
+comes off the hub's force, the free stream's own part being the airframe drag's. C_D A
+comes from the manifest's hull at configuration, inside the contracted hover radius
+`R/sqrt(2)`, for shapes not above the disk: an arm's width times its length inside, with
+C_D 1.2, and a body's plan area inside, with C_D 1.17, the numbers of TASK-096. In hover
+`F/T = C_D A / A_disk`. Not modeled, and listed as limitations: swirl, a lower rotor's
+effect on its upper rotor, and transport delay.
+
+`buildProfileDynamics` takes the option `rotorWake`: `all` by default, every ordered pair,
+because a wake's reach depends on the flight; `declared`, the manifest's `rotorWakePairs`;
+`off`, none. TASK-177's thrust at full command runs the same coupling.
 
 Configuration version 3 (TASK-097) adds option 8, rotational lift augmentation,
 which an extended table asks for: bytes 112 and 120 hold the f64 lift slope (1/rad)
@@ -4243,7 +4274,8 @@ Bound-rotor fields owned by later tasks, with their neutral values:
 * `drive_mode` 0 (torque) with zero `esc_duty`, `bus_voltage` and drive
   parameters. TASK-092 implements mode 1 (section "Electromechanical drive");
   without valid drive parameters a mode 1 record is invalid (−3).
-* Zero `external_wake_hub_x/y/z` (TASK-101).
+* Zero `external_wake_hub_x/y/z`. TASK-101 implements them (above, "Rotor wakes"): the step adds them to its air once, and a
+  record without them is used as it came.
 * `input_flags` bit 0 clear, with zero `ground_normal_hub_x/y/z` and
   `ground_distance`. TASK-100 implements the bit (above, "Ground effect").
 
@@ -6068,8 +6100,8 @@ ID; without an autopilot the pilot sticks command collective only, and the
 vehicle starts with the motors stopped on its landing gear over the origin
 (section "Standard landing gear"), or at the origin on the synthetic pad when
 the manifest has no gear.
-Declared rotor-wake pairs are not modeled until TASK-101: the build lists the
-limitation and sets `CONFIGURATION_FLAG_WAKE_UNMODELED` (bit 16) in the new
+Since TASK-101 the rotor wakes are modeled. With its option `off` a declared rotor-wake pair
+is not: the build lists the limitation and sets `CONFIGURATION_FLAG_WAKE_UNMODELED` (bit 16) in the
 `configurationFlags` of `BetFlightConfiguration`, which `BetFlightDynamics` ORs
 into `validityFlags` every step, so the session reports ModelOutsideValidity.
 Configuration flags use bits 16 to 31 only; with none, the step is unchanged.

@@ -9,6 +9,7 @@ import { BetRigidBodyBackend, newBodyTruth, type BodyTruth } from '../../wasm-be
 import type { MotorFaults } from './motor-fault.ts';
 import { validateModelManifest } from './model-manifest.ts';
 import { FrameLayout } from './frame.ts';
+import { RotorWakeCoupler, type RotorWakeConfiguration } from './rotor-wake.ts';
 import { AIR_DENSITY, AIR_HEIGHT, AIR_REFERENCE_PRESSURE, AIR_REFERENCE_TEMPERATURE, AIR_SOUND, AIR_VISCOSITY, WEATHER_AIR_KEEP, WEATHER_GUST_BANDWIDTH, WEATHER_GUST_RMS, WEATHER_PRESSURE, WEATHER_TURBULENCE_INTENSITY, WEATHER_TURBULENCE_KEEP, WEATHER_TURBULENCE_SEED, WEATHER_TURBULENCE_W20,
   WEATHER_SEED, WEATHER_TEMPERATURE, atmosphereAtHeightInto } from './atmosphere.ts';
 import { Wind } from './wind.ts';
@@ -76,6 +77,8 @@ export interface BetFlightConfiguration {
   dynamicInflow?: boolean;
   /** TASK-099, with `dynamicInflow`: Johnson's vortex ring state; each rotor's thrust fluctuation is seeded from this and its index. */
   vortexRingSeed?: number;
+  /** TASK-101: the wakes between rotors and on the airframe. Without it every rotor sees free-stream air. Needs the ESC drive. */
+  rotorWake?: RotorWakeConfiguration;
   /** TASK-100: the ground the rotor ground effect sees; without it a flat plane at the session's ground. */
   groundPlanes?: GroundPlaneSource;
   /**
@@ -136,6 +139,8 @@ export interface FlightContact {
 const SAMPLING_FLAGS=ROTOR_FLAG_HOVER_SAMPLING|ROTOR_FLAG_REDUCED_PREDICTOR;
 /** A vehicle declares rotor-wake pairs that the dynamics does not model until TASK-101. */
 export const CONFIGURATION_FLAG_WAKE_UNMODELED = 1 << 16;
+/** The rotor flag for an inflow outside its validity; a wake outside its own says so the same way (TASK-101). */
+const FLAG_INFLOW_OUTSIDE_VALIDITY = 8;
 /** A step's airspeed exceeded the airframe drag data's range (TASK-096); a step flag, never a configuration flag. */
 export const VALIDITY_FLAG_DRAG_OUTSIDE_RANGE = 1 << 17;
 
@@ -233,6 +238,8 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
   private readonly housePowerW:number;
   private readonly configurationFlags:number;
   private readonly inputStride:number;
+  /** TASK-101: the wakes between rotors and on the airframe, or null without any. */
+  private readonly wake:RotorWakeCoupler|null;
   private readonly outputStride:number;
   private readonly input:Float64Array;
   private readonly output:Float64Array;
@@ -355,8 +362,13 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
       this.rotations.set([1-2*(y*y+z*z),2*(x*y-w*z),2*(x*z+w*y),
         2*(x*y+w*z),1-2*(x*x+z*z),2*(y*z-w*x),2*(x*z-w*y),2*(y*z+w*x),1-2*(x*x+y*y)],i*9);
     }
+    const wakes=configuration.rotorWake;
+    if(wakes&&!this.escEngine)throw Error('Rotor wakes need the ESC drive');
+    this.wake=wakes?new RotorWakeCoupler({hubPositionsBodyM:this.positions,hubToBody:this.rotations,radiiM:Float64Array.from(model.rotors,r=>r.radiusM)},wakes):null;
     this.reset();
   }
+  /** TASK-101: the rotor wakes, read by tests and by the capacity report's reader. */
+  get rotorWakes():RotorWakeCoupler|null {return this.wake;}
   /** TASK-100: the ground effect's intensity now, 0 for off. */
   get groundEffectIntensity():number {return this.groundIntensity;}
   /** TASK-100: the rotor ground effect's intensity from this step, 0 for off. Only the ESC drive's interface has its fields. */
@@ -427,6 +439,7 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
     this.referenceRotorRpm=this.output[9]!*60/(2*Math.PI);
     this.limits?.reset();this.accidents?.reset();
     this.clearGroundEffect();
+    if(this.wake){this.wake.reset();for(let i=0;i<this.rotorCount;i++){const b=i*this.inputStride;this.input[b+15]=0;this.input[b+16]=0;this.input[b+17]=0;}}
     // A new epoch starts without weather, as configured.
     this.turbulenceActive=false;this.weatherActive=false;this.airActive=false;this.windNedMps.fill(0);this.atmosphere.set(this.baseAtmosphere);
     this.dragWrenchBody.fill(0);
@@ -519,7 +532,7 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
       Number.isFinite(pilot.throttle) && Number.isFinite(pilot.roll) && Number.isFinite(pilot.pitch) && Number.isFinite(pilot.yaw);
     const external=this.pendingActuator;let sum=0;
     if(!external)this.externalArmed=false;
-    const input=this.input,esc=this.escEngine,faults=this.faults;
+    const input=this.input,esc=this.escEngine,faults=this.faults,wake=this.wake;
     if(this.groundIntensity>0){const a=this.groundAttitude;a[0]=w;a[1]=x;a[2]=y;a[3]=z;this.groundInto();}
     for(let i=0;i<this.rotorCount;i++) {
       const a=i*9,b=i*this.inputStride,c=i*3,m=i*4;
@@ -540,6 +553,16 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
         esc.driveFlags[i]=fraction===0?BOUND_V2.drivePowerCut:0;
       } else input[b+12]=faults?duty*this.torque[i]!*fraction:duty*this.torque[i]!;
     }
+    if(wake){
+      // TASK-101: each rotor's last thrust and this step's air give what it blows onto the others on this step.
+      const air=wake.airHubMps,density=wake.densityKgM3,blown=wake.wakeHubMps;
+      for(let i=0;i<this.rotorCount;i++){
+        const b=i*this.inputStride,c=i*3;
+        air[c]=input[b+3]!+input[b+15]!;air[c+1]=input[b+4]!+input[b+16]!;air[c+2]=input[b+5]!+input[b+17]!;density[i]=input[b]!;
+      }
+      wake.step();
+      for(let i=0;i<this.rotorCount;i++){const b=i*this.inputStride,c=i*3;input[b+15]=blown[c]!;input[b+16]=blown[c+1]!;input[b+17]=blown[c+2]!;}
+    }
     if(esc){
       // TASK-197: the motors and the bus agree within this step, as they physically do, and a pack at its limit holds the motors back.
       const q=esc.busState;q[0]=this.electrical[0]!;q[1]=this.housePowerW;
@@ -548,7 +571,7 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
       for(let i=0;i<this.rotorCount;i++)input[i*this.inputStride+14]=voltage[0]!;
     }
     if(esc?!esc.stepInto():!this.engine!.stepInto()){this.fault='BET rotor step failed';return;}
-    this.validityFlags=this.configurationFlags;this.samplingFlags=0;
+    this.validityFlags=this.configurationFlags|(wake?.outsideValidity?FLAG_INFLOW_OUTSIDE_VALIDITY:0);this.samplingFlags=0;
     const output=this.output,stride=this.outputStride;let terminalPowerW=0;this.driveLimited=false;
     for(let i=0;i<this.rotorCount;i++) {
       const a=i*stride,b=i*6;
@@ -565,6 +588,8 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
         if(!faults.wrenchInto(i,this.faultWrench,this.faultScaled)){this.fault='BET motor fault table mismatch';return;}
         for(let j=0;j<6;j++)this.hub[b+j]=this.faultScaled[j]!;
       }
+      // TASK-101: the next step's wake is what this rotor gave; its download leaves the wrench at its hub.
+      if(wake){const thrust=this.hub[b+2]!;wake.thrustN[i]=thrust;this.hub[b+2]=thrust-wake.downloadN[i]!;}
     }
     if(this.bus) {
       // The bus delivers the summed terminal power of these motors, which ran on the voltage solved above.
@@ -647,6 +672,8 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
   get contactShapeCount():number {return this.contact?.shapeCount??0;}
   /** Rotor `index`'s speed after the last step, rad/s; cold, as a boxed return. */
   rotorSpeedRadS(index:number):number {return this.output[index*this.outputStride+9]!;}
+  /** TASK-101: a rotor's own thrust from the last step, along its axis, N. Not for a high-rate caller: the number boxes. */
+  rotorThrustN(index:number):number {return this.output[index*this.outputStride+2]!;}
   /** Every rotor's speed after the last step, rad/s, into `out` in rotor order (TASK-149); allocation-free. */
   rotorSpeedsInto(out:Float64Array):void {for(let i=0;i<this.rotorCount&&i<out.length;i++)out[i]=this.output[i*this.outputStride+9]!;}
   /** Shape `index`'s contact report of the last step (`GroundContact.shapeStateInto`); false without one. */

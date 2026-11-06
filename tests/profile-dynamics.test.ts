@@ -59,11 +59,13 @@ async function build(profile: AircraftProfile, propeller: Record<string, unknown
 describe('S19 configurations on the example cards', () => {
   for (const name of FIXTURE_NAMES) {
     it(`${name} loads and holds a trimmed hover`, async () => {
-      const { derived, configuration, limitations } = await build(profileOf(name));
-      expect(configuration.drive?.motors).toHaveLength(derived.manifest.rotorCount);
-      const coaxial = derived.manifest.rotorWakePairs.length > 0;
-      expect(limitations.some(text => text.includes('rotor-wake pairs'))).toBe(coaxial);
-      expect((configuration.configurationFlags ?? 0) & CONFIGURATION_FLAG_WAKE_UNMODELED).toBe(coaxial ? CONFIGURATION_FLAG_WAKE_UNMODELED : 0);
+      const { derived, configuration: flown, limitations } = await build(profileOf(name));
+      expect(flown.drive?.motors).toHaveLength(derived.manifest.rotorCount);
+      // TASK-101: the wakes are on, and only switching off a declared pair is a flagged limitation.
+      expect(limitations.some(text => text.includes('rotor-wake pairs'))).toBe(false);
+      expect((flown.configurationFlags ?? 0) & CONFIGURATION_FLAG_WAKE_UNMODELED).toBe(0);
+      // The oracle sweeps each rotor alone in free air, so this holds it to the model without wakes; `rotor-interference` has them.
+      const configuration: typeof flown = { ...flown, rotorWake: undefined };
       const trim = trimHover(module, configuration);
       // The static balance converges and leaves every motor inside its range.
       expect(trim.residual).toBeLessThan(1e-6);
@@ -273,13 +275,13 @@ describe('model.load of profile dynamics through the session registry', () => {
     return { derived, session, command, reader, state };
   }
 
-  it('loads the 16-rotor profile model, publishes it and flags the unmodeled coaxial wakes', async () => {
+  it('loads the 16-rotor profile model and publishes it, with no flag now its coaxial wakes are modeled (TASK-101)', async () => {
     const h = await harness();
     expect(await h.command('model.load', { modelId: 144, manifestSha256: h.derived.sha256 })).toMatchObject({ type: 'ack-v2', status: 'applied' });
     expect(h.session.rotorCount()).toBe(16);
     expect(h.reader.latest(h.state)).toBe(true);
     expect(h.state.modelId).toBe(144);
-    expect(h.state.vehicleFlags & VehicleFlagV2.ModelOutsideValidity).toBeTruthy();
+    expect(h.state.vehicleFlags & VehicleFlagV2.ModelOutsideValidity).toBeFalsy();
     // The battery bus is live: the unloaded pack's voltage is published.
     expect(h.state.batteryVoltage).toBeCloseTo(16.8, 5);
     h.session.dispose();

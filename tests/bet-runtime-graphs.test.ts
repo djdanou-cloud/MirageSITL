@@ -23,6 +23,9 @@ describe('BET runtime allocation graphs', () => {
   it('include the TASK-098 dynamic inflow in both WASM variants', () => {
     expect(ALLOCATION_GRAPHS.filter(([name]) => name === 'dynamic-inflow-synthetic-pad-four-rotor').map(([, variant]) => variant)).toEqual(['scalar', 'simd128']);
   });
+  it('include the TASK-101 rotor wakes', () => {
+    expect(ALLOCATION_GRAPHS.filter(([name]) => name === 'rotor-wake-esc-drive-pad-four-rotor').map(([, variant]) => variant)).toEqual(['scalar']);
+  });
   it('include the TASK-100 ground effect', () => {
     expect(ALLOCATION_GRAPHS.filter(([name]) => name === 'ground-effect-esc-drive-pad-four-rotor').map(([, variant]) => variant)).toEqual(['scalar']);
   });

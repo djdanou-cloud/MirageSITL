@@ -178,6 +178,8 @@ export interface HoverHold {
   readonly verticalSpeedMps: number; readonly bodyRateRadS: number;
   /** Angle between the final attitude and the trim attitude, rad. */
   readonly attitudeErrorRad: number;
+  /** The steady loop correction per rotor, V: a trim the rotor tables could not know, such as a wake's, is the trim plus this. */
+  readonly correctionV: readonly number[];
 }
 /**
  * Flies the configuration in the air from the trim attitude, rotors at their
@@ -224,7 +226,7 @@ export function holdHover(module: WebAssembly.Module, base: BetFlightConfigurati
     const s = d.state, dot = Math.min(1, Math.abs(q0[0]! * s.qw + q0[1]! * s.qx + q0[2]! * s.qy + q0[3]! * s.qz));
     return {
       correctionRelative: Math.max(...correction.map((c, i) => Math.abs(c) / trim.u[i]!)),
-      verticalSpeedMps: Math.abs(s.vd), bodyRateRadS: Math.hypot(s.p, s.q, s.r), attitudeErrorRad: 2 * Math.acos(dot),
+      verticalSpeedMps: Math.abs(s.vd), bodyRateRadS: Math.hypot(s.p, s.q, s.r), attitudeErrorRad: 2 * Math.acos(dot), correctionV: correction,
     };
   } finally {
     d.dispose();

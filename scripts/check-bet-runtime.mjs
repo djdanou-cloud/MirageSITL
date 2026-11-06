@@ -290,6 +290,18 @@ if(!allocation){
     const nearGraph={graph:'ground-effect-esc-drive-pad-four-rotor',variant:'scalar',...await measure(nearRun,1000000),memoryStable:near.escEngine.memoryStable};
     samples.push(nearGraph);near.dispose();console.log(JSON.stringify(nearGraph));
   }
+  // TASK-101: the rotor wakes: rotor 1 under rotor 0 on one arm, so a wake reaches it at every step; every ordered pair checked.
+  {
+    const stacked=flightConfiguration(0,4);stacked.initialBody.positionNedM[2]=0;stacked.initialOmegaRadS=[0,0,0,0];stacked.syntheticGroundDownM=0;
+    const hub=stacked.manifest.rotors[0].hubPositionBodyM;stacked.manifest.rotors[1].hubPositionBodyM=[hub[0],hub[1],hub[2]+0.05];
+    stacked.drive=driven.drive;stacked.rotorWake={pairs:'all',washedDragAreaM2:[0.001,0,0.001,0.001]};
+    const washed=new BetFlightDynamics(modules[0],stacked,400);
+    const washedRun=n=>{for(let i=0;i<n;i++){washed.nowMs=0;washed.stepNow(escPilot);if(washed.fault||washed.state.down!==0)throw Error('Rotor wake allocation step failed');}};
+    washedRun(100000);await measure(washedRun,10000);
+    const washedGraph={graph:'rotor-wake-esc-drive-pad-four-rotor',variant:'scalar',...await measure(washedRun,1000000),memoryStable:washed.escEngine.memoryStable};
+    if(!(washed.rotorWakes.wakeHubMps[5]<-0.1)||!(washed.rotorWakes.downloadN[0]>0))throw Error('The rotor wake allocation graph has no wake');
+    samples.push(washedGraph);washed.dispose();console.log(JSON.stringify(washedGraph));
+  }
   // TASK-098 and TASK-099: dynamic inflow with its annular solve and the vortex ring option, in a gusty wind on the pad.
   for(const [variantIndex,variant] of ['scalar','simd128'].entries()){
     const dynamic=padded();dynamic.dynamicInflow=true;dynamic.vortexRingSeed=7;dynamic.inflowTauS=dynamic.inflowTauS.map(()=>0);

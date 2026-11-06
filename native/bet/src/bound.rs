@@ -1,8 +1,11 @@
 //! Versioned caller-owned production rotor/polar binding; see bet_bound.h.
 use crate::{blade::{InflowField, RotationalAugmentation, Rotor, RotorGeometry, RotorInput},
-    inflow::{AnnularMomentum, AxialInflow, DynamicInflow, InflowStates, ThrustFluctuation, MAX_INFLOW_STRIPS},
+    inflow::{glauert_root, AnnularMomentum, AxialInflow, DynamicInflow, InflowStates, ThrustFluctuation, MAX_INFLOW_STRIPS},
     ground_effect, motor::DriveTorque, polar::PolarTable, quadrature::AzimuthGrid, shaft::Shaft, Vec3};
 
+/// Descent, over the hover inflow, by which the annular field has faded to uniform: Johnson's boundary D, where his vortex ring
+/// state begins (NASA TP-2005-213477, table 4). Momentum theory has no annular balance below zero climb (F-01).
+const DESCENT_FIELD_FADE: f64 = 0.2;
 /// Independent binding version (legacy arena ABI remains v1).
 pub const VERSION: u32 = 1;
 /// Configuration header bytes.
@@ -389,18 +392,25 @@ pub(crate) fn advance_with(arena: &[u8], input: &[u8], out_len: usize, dt: f64, 
                 let climb=-i.air_velocity_hub_mps.z*sign;
                 let mut region=InflowRegion{at:*at,strips:n,cos_mps:r.states.cos_mps,sin_mps:r.states.sin_mps,loss_excess:loss_now-1.0,shape_excess:[0.0;MAX_INFLOW_STRIPS]};
                 let mut converged=true;
-                if climb<0.0 {
-                    // The annular balance holds at zero or positive climb (F-01): in descent the field relaxes to uniform.
+                // The annular balance holds at zero or positive climb (F-01). In descent the field is zero climb's, fading to
+                // uniform by Johnson's boundary D, so a hover that crosses zero climb meets no step in its thrust.
+                let loading=(mean_aero.force_n.z*mid_factor).abs()/(2.0*i.density_kg_m3*std::f64::consts::PI*c.geometry.radius_m*c.geometry.radius_m);
+                let hover_mps=loading.sqrt();
+                let field=if climb>=0.0 {1.0} else if hover_mps>0.0 {(1.0+climb/(DESCENT_FIELD_FADE*hover_mps)).max(0.0)} else {0.0};
+                if field==0.0 {
                     region.loss_excess=(loss_now-1.0)*(1.0-r.relaxation);
                     for k in 0..n {region.shape_excess[k]=(shape[k]-1.0)*(1.0-r.relaxation);}
                 } else {
-                    let solved=annuli.solve(&strip_thrust[..n],i.density_kg_m3,half_shaft.omega_rad_s,sign,climb,transverse,&mut annular[..n]);
-                    converged=solved.converged;
-                    let (mean,root)=(solved.mean_mps,r.glauert_root_mps);
+                    let balance_climb=if climb>=0.0 {climb} else {0.0};
+                    let solved=annuli.solve(&strip_thrust[..n],i.density_kg_m3,half_shaft.omega_rad_s,sign,balance_climb,transverse,&mut annular[..n]);
+                    // In the fade the field is not the balance's, so four iterations from it say nothing of the flight's validity.
+                    if climb>=0.0 {converged=solved.converged;}
+                    let root=if climb>=0.0 {r.glauert_root_mps} else {glauert_root(loading,0.0,transverse,hover_mps).0};
+                    let mean=solved.mean_mps;
                     if mean>0.0 && root>0.0 {
-                        let loss_target=(mean/root).clamp(0.2,5.0);
+                        let loss_target=1.0+field*((mean/root).clamp(0.2,5.0)-1.0);
                         region.loss_excess=loss_now+r.relaxation*(loss_target-loss_now)-1.0;
-                        for k in 0..n {region.shape_excess[k]=shape[k]+r.relaxation*(annular[k]/mean-shape[k])-1.0;}
+                        for k in 0..n {region.shape_excess[k]=shape[k]+r.relaxation*(1.0+field*(annular[k]/mean-1.0)-shape[k])-1.0;}
                     } else {
                         for k in 0..n {region.shape_excess[k]=shape[k]-1.0;}
                     }

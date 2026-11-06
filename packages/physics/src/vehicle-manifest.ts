@@ -160,7 +160,7 @@ function quaternionNormalized(q: readonly number[]): boolean {
   return Math.abs(Math.hypot(q[0]!, q[1]!, q[2]!, q[3]!) - 1) <= QUATERNION_NORM_TOLERANCE;
 }
 /** Third column of the rotation matrix of a unit wxyz quaternion: the frame's +z axis in the parent. */
-function zAxis(q: readonly number[]): readonly [number, number, number] {
+export function zAxis(q: readonly number[]): readonly [number, number, number] {
   const norm = Math.hypot(q[0]!, q[1]!, q[2]!, q[3]!);
   const w = q[0]! / norm, x = q[1]! / norm, y = q[2]! / norm, z = q[3]! / norm;
   return [2 * (x * z + w * y), 2 * (y * z - w * x), 1 - 2 * (x * x + y * y)];

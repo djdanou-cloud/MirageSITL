@@ -101,7 +101,9 @@ describe('the thrust at full command', () => {
   it('counts each rotor once, and weighs the aircraft with its payload', async () => {
     const plain = thrustCapacity(module, await configurationOf(profileOf('quad-x')));
     expect(plain.rotors).toHaveLength(4);
-    expect(plain.thrustN).toBeCloseTo(plain.rotors.reduce((sum, rotor) => sum + rotor.thrustN, 0), 6);
+    // The airframe under the wakes takes its download off the total (TASK-101).
+    expect(plain.airframeDownloadN).toBeGreaterThan(0);
+    expect(plain.thrustN + plain.airframeDownloadN).toBeCloseTo(plain.rotors.reduce((sum, rotor) => sum + rotor.thrustN, 0), 6);
     const manifest = validateModelManifest((await configurationOf(profileOf('quad-x'))).manifest);
     expect(plain.weightN).toBeCloseTo(manifest.massKg * 9.80665, 9);
     expect(plain.thrustToWeight).toBeCloseTo(plain.thrustN / plain.weightN, 12);

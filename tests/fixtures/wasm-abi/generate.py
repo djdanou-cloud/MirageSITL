@@ -227,7 +227,6 @@ interface = {
         {"why": "ESC drive mode without drive parameters (TASK-092)", "status": -3, "patch": patch(8, "I", 1)},
         {"why": "drive parameter in torque mode (TASK-092)", "status": -3, "patch": patch(192, "d", 0.05)},
         {"why": "bus voltage in torque mode", "status": UNSUPPORTED, "patch": patch(128, "d", 16.8)},
-        {"why": "external wake (TASK-101)", "status": UNSUPPORTED, "patch": patch(144, "d", 1.0)},
         {"why": "ground plane without a unit normal (TASK-100)", "status": -3, "patch": patch(4, "I", 1)},
         {"why": "ground distance without the plane flag (TASK-100)", "status": UNSUPPORTED, "patch": patch(184, "d", 0.5)},
     ],

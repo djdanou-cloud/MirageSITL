@@ -501,7 +501,11 @@ implementation.
   (D-11). TASK-100 adds the rotor ground effect, off unless effect
   `rotor.ground-effect` asks for it, with the closed-form thrust ratio at equal
   power and the multirotor's neighbours; only its comparison with hover-height
-  sweeps or landing logs stays BLOCKED_EXTERNAL (D-11). TASK-093 is DONE: `weather.set`
+  sweeps or landing logs stays BLOCKED_EXTERNAL (D-11). TASK-101 adds the rotor
+  wakes (`packages/physics/src/rotor-wake.ts`): a top-hat tube from every rotor to
+  any other in reach, on by default, so a coaxial pair is not twice one rotor,
+  and the airframe's download from the hull; only its comparison with measured
+  data stays BLOCKED_EXTERNAL (D-11). TASK-093 is DONE: `weather.set`
   applies on its tick to `BetFlightDynamics` (the demo still rejects it); every
   step the rotors read the ISA air at the CG's height above the origin's air
   and a uniform mean wind with a seeded TASK-032 gust, the published airspeed

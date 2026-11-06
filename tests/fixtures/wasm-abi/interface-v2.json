@@ -1040,14 +1040,6 @@
       }
     },
     {
-      "why": "external wake (TASK-101)",
-      "status": -8,
-      "patch": {
-        "offset": 144,
-        "hex": "000000000000f03f"
-      }
-    },
-    {
       "why": "ground plane without a unit normal (TASK-100)",
       "status": -3,
       "patch": {

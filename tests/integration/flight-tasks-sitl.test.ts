@@ -435,7 +435,8 @@ describe.skipIf(!installed)('each maneuver with native ArduCopter (TASK-173)', (
 describe.skipIf(!installed)('the pack limit with native ArduCopter (TASK-197)', () => {
   test('a climb on a pack limited just above hover current stays at the limit and still gets there', async () => {
     const task: FlightTaskDefinition = { ...taskOf('altitude-step'), parameters: { altitudeM: 10, amplitudeM: 6, holdS: 12 } };
-    const limitA = 9;
+    // Hover draws 9.13 A with the airframe's download (TASK-101; 8.83 A without it), so 9 A would no longer hold it: the same 2 % margin.
+    const limitA = 9.3;
     const free = await fly(task), limited = await fly(task, limitA);
     const response = { free: responseOf(free, 'altitude-step'), limited: responseOf(limited, 'altitude-step') };
     const line = (flight: Flight, edges: readonly EdgeResponse[]) => ({ sim: flight.simTimeS, maxCurrentA: +flight.pack.maxCurrentA.toFixed(2), minVoltageV: +flight.pack.minVoltageV.toFixed(3),

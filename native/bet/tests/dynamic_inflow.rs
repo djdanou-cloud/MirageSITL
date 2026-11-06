@@ -372,3 +372,27 @@ fn descent_keeps_a_finite_continuous_inflow_and_is_flagged() {
     assert!(get(&out, 96).is_finite() && get(&out, 96).abs() < 30.0, "{}", get(&out, 96));
     assert_eq!(u32::from_le_bytes(out[112..116].try_into().unwrap()) & 8, 8);
 }
+
+/// A hover crosses zero climb all the time: the annular field must not step there, or the thrust flips with the sign of a
+/// millimetre per second. Found by TASK-101, where the step held a hover against a 2.7 % download.
+#[test]
+fn crossing_zero_climb_has_no_step_in_thrust() {
+    let (dt, omega) = (1.0 / 800.0, 700.0);
+    let thrust = |climb: f64| {
+        let c = config(dt, omega, true, 0.0);
+        let mut arena = arena_of(&c);
+        get(&settle(&mut arena, &input(Vec3::new(0.0, 0.0, -climb)), dt, 1.5), 16)
+    };
+    let (above, below) = (thrust(1e-3), thrust(-1e-3));
+    println!("thrust at +1 mm/s {above:.6} N, at -1 mm/s {below:.6} N");
+    assert!((below / above - 1.0).abs() <= 1e-3, "{below} against {above}");
+    let mut last = thrust(0.2);
+    let mut worst: f64 = 0.0;
+    for k in 1..=60 {
+        let now = thrust(0.2 - k as f64 * 0.04);
+        worst = worst.max((now / last - 1.0).abs());
+        last = now;
+    }
+    println!("largest change between speeds 0.04 m/s apart: {:.4} %", worst * 100.0);
+    assert!(worst <= 0.02, "{worst}");
+}

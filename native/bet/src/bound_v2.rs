@@ -67,8 +67,15 @@ fn step_with(arena: &mut [u8], input: &[u8], out: &mut [u8], dt: f64, kernel: Ke
     let (flags, drive) = (word(input, 4), word(input, 8));
     if flags & !INPUT_GROUND_PLANE != 0 || drive > DRIVE_ESC_DUTY || !zero(input, 12, 16) { return -3; }
     if !(16..192).step_by(8).all(|p| value(input, p).is_finite()) { return -3; }
-    // External wake (TASK-101) stays fail-closed.
-    if !neutral(input, 136, 160) { return UNSUPPORTED; }
+    // External wake (TASK-101): more air at this hub, added here once. Without one the record is used as it came.
+    let wake = !neutral(input, 136, 160);
+    let mut with_wake = [0u8; INPUT_BYTES as usize];
+    let input: &[u8] = if wake {
+        with_wake.copy_from_slice(input);
+        for axis in 0..3 { put(&mut with_wake, 40 + 8 * axis, value(input, 40 + 8 * axis) + value(input, 136 + 8 * axis)); }
+        &with_wake
+    } else { input };
+    let wake_validity = if wake { VALID_EXTERNAL_WAKE } else { 0 };
     // The ground plane (TASK-100): with its flag a unit normal and a height; without it, neutral.
     let ground = if flags & INPUT_GROUND_PLANE != 0 {
         let (nx, ny, nz) = (value(input, 160), value(input, 168), value(input, 176));
@@ -78,7 +85,7 @@ fn step_with(arena: &mut [u8], input: &[u8], out: &mut [u8], dt: f64, kernel: Ke
         if !neutral(input, 160, 192) { return UNSUPPORTED; }
         None
     };
-    if drive == DRIVE_ESC_DUTY { return esc_step(arena, input, out, dt, kernel, ground); }
+    if drive == DRIVE_ESC_DUTY { return esc_step(arena, input, out, dt, kernel, ground, wake_validity); }
     // Torque mode: ESC duty, bus voltage and the drive parameters stay neutral.
     if !zero(input, 192, 256) { return -3; }
     if !neutral(input, 120, 136) { return UNSUPPORTED; }
@@ -95,7 +102,7 @@ fn step_with(arena: &mut [u8], input: &[u8], out: &mut [u8], dt: f64, kernel: Ke
     out.fill(0);
     out[0..128].copy_from_slice(&staged);
     // The validity word at 116 stays zero unless a later-task output is available.
-    let validity = if ground.is_some() { VALID_GROUND_EFFECT } else { 0 };
+    let validity = wake_validity | if ground.is_some() { VALID_GROUND_EFFECT } else { 0 };
     if validity != 0 { put_word(out, 116, validity); }
     publish_harmonics(arena, out, validity);
     0
@@ -129,7 +136,7 @@ pub fn esc_load(arena: &[u8], input: &[u8], dt: f64) -> Result<crate::bus_solve:
 
 /// Drive mode 1: ESC command, torque law, rotor step and electrical outputs,
 /// all computed before anything is written.
-fn esc_step(arena: &mut [u8], input: &[u8], out: &mut [u8], dt: f64, kernel: Kernel, ground: Option<GroundPlane>) -> i32 {
+fn esc_step(arena: &mut [u8], input: &[u8], out: &mut [u8], dt: f64, kernel: Kernel, ground: Option<GroundPlane>, wake_validity: u32) -> i32 {
     let drive_flags = word(input, 248);
     if drive_flags & !DRIVE_POWER_CUT != 0 || !zero(input, 252, 256) || !(192..248).step_by(8).all(|p| value(input, p).is_finite())
         || value(input, 112) != 0.0 {
@@ -162,7 +169,7 @@ fn esc_step(arena: &mut [u8], input: &[u8], out: &mut [u8], dt: f64, kernel: Ker
         let flags = word(&staged, 112) | FLAG_CURRENT_LIMITED;
         put_word(&mut staged, 112, flags);
     }
-    let validity = VALID_ELECTRICAL | if ground.is_some() { VALID_GROUND_EFFECT } else { 0 };
+    let validity = VALID_ELECTRICAL | wake_validity | if ground.is_some() { VALID_GROUND_EFFECT } else { 0 };
     put_word(&mut staged, 116, validity);
     put(&mut staged, 144, electrical.current_a);
     put(&mut staged, 152, bus_current);

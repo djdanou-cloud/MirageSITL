@@ -13,7 +13,17 @@ import { BOUND_V2, BOUND_V2_DRIVE_DOUBLES, BOUND_V2_INPUT_DOUBLES, BOUND_V2_OUTP
 import type { BetFlightConfiguration } from './bet-dynamics.ts';
 import { FrameLayout } from './frame.ts';
 import { validateModelManifest } from './model-manifest.ts';
+import { RotorWakeCoupler } from './rotor-wake.ts';
 
+/** The record's `external_wake_hub`, in doubles (byte 136). */
+const INPUT_WAKE = 15;
+/** Hub to body quaternions (w x y z) as row-major rotations. */
+function rotationsOf(quaternions: readonly (readonly number[])[]): Float64Array {
+  return Float64Array.from(quaternions.flatMap(q => {
+    const norm = Math.hypot(q[0] ?? 0, q[1] ?? 0, q[2] ?? 0, q[3] ?? 0), w = (q[0] ?? 0) / norm, x = (q[1] ?? 0) / norm, y = (q[2] ?? 0) / norm, z = (q[3] ?? 0) / norm;
+    return [1 - 2 * (y * y + z * z), 2 * (x * y - w * z), 2 * (x * z + w * y), 2 * (x * y + w * z), 1 - 2 * (x * x + z * z), 2 * (y * z - w * x), 2 * (x * z - w * y), 2 * (y * z + w * x), 1 - 2 * (x * x + y * y)];
+  }));
+}
 export interface RotorAtFullCommand {
   readonly rotorId: number;
   readonly rpm: number;
@@ -26,8 +36,10 @@ export interface RotorAtFullCommand {
 export interface ThrustCapacity {
   readonly stateOfCharge: number;
   readonly densityKgM3: number;
-  /** The aircraft's upward force at full command, N: along body up, so a tilted rotor counts only for what lifts. */
+  /** The aircraft's upward force at full command, N: along body up, so a tilted rotor counts only for what lifts, and net of its download. */
   readonly thrustN: number;
+  /** TASK-101: what the rotors' wakes push down on the airframe, summed along their own axes, N. */
+  readonly airframeDownloadN: number;
   readonly weightN: number;
   /** Thrust over weight. Above 1 it can lift off; the rest is its margin. */
   readonly thrustToWeight: number;
@@ -72,8 +84,23 @@ export function thrustCapacity(module: WebAssembly.Module, configuration: BetFli
     let voltage = bus.openCircuitV(soc), settled = false, powerW = 0, previousVoltage = voltage;
     engine.busState[0] = soc; engine.busState[1] = house;
     const previous = new Float64Array(count), checkEvery = Math.round(CHECK_EVERY_S * HZ);
+    // TASK-101: as in a flight, a rotor in another's wake gives less, and the airframe in a wake takes its download off the total.
+    const wake = configuration.rotorWake ? new RotorWakeCoupler({
+      hubPositionsBodyM: Float64Array.from(model.rotors.flatMap(rotor => [...rotor.hubPositionBodyM])), hubToBody: rotationsOf(model.rotors.map(rotor => rotor.hubToBody)),
+      radiiM: Float64Array.from(model.rotors, rotor => rotor.radiusM),
+    }, configuration.rotorWake) : null;
     for (let tick = 1; tick <= MAX_SETTLE_S * HZ && !settled; tick++) {
       powerW = 0;
+      if (wake) {
+        for (let i = 0; i < count; i++) {
+          const row = i * BOUND_V2_INPUT_DOUBLES;
+          for (let j = 0; j < 3; j++) wake.airHubMps[i * 3 + j] = engine.input[row + INPUT_WAKE + j] ?? 0;
+          wake.densityKgM3[i] = configuration.densityKgM3;
+          wake.thrustN[i] = engine.output[i * BOUND_V2_OUTPUT_SLOTS + OUTPUT.thrust] ?? 0;
+        }
+        wake.step();
+        for (let i = 0; i < count; i++) for (let j = 0; j < 3; j++) engine.input[i * BOUND_V2_INPUT_DOUBLES + INPUT_WAKE + j] = wake.wakeHubMps[i * 3 + j] ?? 0;
+      }
       if (!engine.solveBusInto()) throw new Error(`The battery bus failed at full command: status ${engine.lastStatus}`);
       voltage = engine.busSolution[0] ?? voltage;
       for (let i = 0; i < count; i++) engine.input[i * BOUND_V2_INPUT_DOUBLES + INPUT.busVoltage] = voltage;
@@ -96,6 +123,7 @@ export function thrustCapacity(module: WebAssembly.Module, configuration: BetFli
     for (let i = 0; i < count; i++) {
       const at = i * BOUND_V2_OUTPUT_SLOTS, read = (slot: number): number => engine.output[at + slot] ?? 0;
       for (let j = 0; j < 3; j++) { hub[i * 6 + j] = read(j); hub[i * 6 + 3 + j] = read(6 + j); }
+      hub[i * 6 + 2] = read(2) - (wake?.downloadN[i] ?? 0);
       const rotor = model.rotors[i];
       if (!rotor) throw new Error('Missing rotor');
       rotors.push({ rotorId: rotor.id, rpm: omegaAt(i) * 60 / (2 * Math.PI), thrustN: read(OUTPUT.thrust), motorCurrentA: read(OUTPUT.motorCurrent), currentLimited: (read(OUTPUT.flags) & BOUND_V2.flagCurrentLimited) !== 0 });
@@ -103,7 +131,7 @@ export function thrustCapacity(module: WebAssembly.Module, configuration: BetFli
     if (!layout.sumInto(hub, wrench)) throw new Error('The rotors\' wrench could not be summed');
     const weightN = model.massKg * (configuration.gravityMps2 ?? 9.80665), thrustN = -(wrench[2] ?? 0);
     return {
-      stateOfCharge: soc, densityKgM3: configuration.densityKgM3, thrustN, weightN, thrustToWeight: thrustN / weightN, busVoltageV: bus.output[1] ?? voltage, busCurrentA: bus.output[2] ?? 0,
+      stateOfCharge: soc, densityKgM3: configuration.densityKgM3, thrustN, airframeDownloadN: wake ? wake.downloadN.reduce((sum, value) => sum + value, 0) : 0, weightN, thrustToWeight: thrustN / weightN, busVoltageV: bus.output[1] ?? voltage, busCurrentA: bus.output[2] ?? 0,
       packLimited: engine.busLimited, motorPowerW: powerW, rotors,
     };
   } finally {

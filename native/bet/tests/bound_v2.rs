@@ -96,7 +96,6 @@ fn invalid_and_unsupported_records_change_neither_state_nor_output() {
         ("drive parameters in torque mode", Box::new(|b| put(b, 192, 0.05)), -3),
         ("ESC duty in torque mode", Box::new(|b| put(b, 120, 0.5)), bound_v2::UNSUPPORTED),
         ("bus voltage", Box::new(|b| put(b, 128, 16.8)), bound_v2::UNSUPPORTED),
-        ("external wake", Box::new(|b| put(b, 144, 1.0)), bound_v2::UNSUPPORTED),
         // TASK-100 opened the flag: with it the normal must be a unit vector.
         ("ground plane flag without a unit normal", Box::new(|b| word(b, 4, bound_v2::INPUT_GROUND_PLANE)), -3),
         ("ground normal", Box::new(|b| put(b, 176, -1.0)), bound_v2::UNSUPPORTED),

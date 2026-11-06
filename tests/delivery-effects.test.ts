@@ -176,8 +176,9 @@ describe('interference on the state line (TASK-169)', () => {
     const baseline = await run([]), offset = [30, -12.5, 0], stepped = await run([[ON, withParameters('ew.position-step', { offsetNedM: offset })], [OFF, withParameters('ew.position-step', { offsetNedM: offset }, false)]]);
     stepped.rows.forEach((row, index) => {
       const reference = truthAndRest(baseline, row, index), on = row.tick >= ON && row.tick < OFF;
-      expect(row.line.position[0], `north at ${row.tick}`).toBe((reference.line.position[0] ?? 0) + (on ? 30 : 0));
-      expect(row.line.position[1], `east at ${row.tick}`).toBe((reference.line.position[1] ?? 0) + (on ? -12.5 : 0));
+      // The line carries nine decimals, so a sum of its numbers can miss by a unit there; off, it is the same number.
+      expect(Math.abs((row.line.position[0] ?? NaN) - (reference.line.position[0] ?? 0) - (on ? 30 : 0)), `north at ${row.tick}`).toBeLessThanOrEqual(on ? 1.5e-9 : 0);
+      expect(Math.abs((row.line.position[1] ?? NaN) - (reference.line.position[1] ?? 0) - (on ? -12.5 : 0)), `east at ${row.tick}`).toBeLessThanOrEqual(on ? 1.5e-9 : 0);
       expect(row.line.velocity).toEqual(reference.line.velocity);
       expect(row.line.quaternion).toEqual(reference.line.quaternion);
     });

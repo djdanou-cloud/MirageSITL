@@ -162,7 +162,7 @@ const metricsOf = (edit: Partial<ExperimentMetrics> = {}): ExperimentMetrics => 
   flight: { liftedOff: true, restAltitudeM: 0.1, highestAboveRestM: 5, startS: 5, endS: 25 }, task: windowOf(), wholeFlight: windowOf({ startS: 5, endS: 25, durationS: 20, current: { mean: 22, max: 30 } }),
   pack: { remainingAh: 5, capacityAh: 5 }, position: { samples: 100, horizontalRmsM: 0.1, horizontalMaxM: 0.2, altitudeRmsM: 0.05, altitudeMaxM: 0.1 }, response: null, limits: { recorded: true, dropped: 0, entries: [] }, ...edit,
 });
-const CAPACITY: ThrustCapacity = { stateOfCharge: 1, densityKgM3: 1.225, thrustN: 40, weightN: 20, thrustToWeight: 2, busVoltageV: 15, busCurrentA: 80, packLimited: false, motorPowerW: 1200, rotors: [] };
+const CAPACITY: ThrustCapacity = { stateOfCharge: 1, densityKgM3: 1.225, thrustN: 40, airframeDownloadN: 0, weightN: 20, thrustToWeight: 2, busVoltageV: 15, busCurrentA: 80, packLimited: false, motorPowerW: 1200, rotors: [] };
 const valueOf = (rows: ReturnType<typeof metricRows>, id: string) => rows.find(row => row.id === id);
 
 describe('the results side by side', () => {

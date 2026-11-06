@@ -8,9 +8,10 @@ import { escDriveFromManifest } from './drive.ts';
 import { GroundContact, type ContactShape, type ContactWheel } from './ground-contact.ts';
 import type { LimitRatings } from './limit-monitor.ts';
 import { boundCatalogPolar } from './polar-catalog.ts';
+import { rotorWashedDragAreasM2, type RotorWakeConfiguration } from './rotor-wake.ts';
 import type { SessionModelPort } from './session-v2.ts';
 import {
-  deriveVehicle, PROPELLER_DISC_HALF_THICKNESS_OF_RADIUS, projectVehicleToModelV1, validateVehicleManifest, withoutHull, withoutLandingGear,
+  deriveVehicle, PROPELLER_DISC_HALF_THICKNESS_OF_RADIUS, projectVehicleToModelV1, validateVehicleManifest, zAxis, withoutHull, withoutLandingGear,
   type VehicleManifest, type VehicleRegistry,
 } from './vehicle-manifest.ts';
 
@@ -42,6 +43,11 @@ export interface ProfileDynamicsOptions {
   readonly kernelOptions?: number;
   /** TASK-098: dynamic inflow, on unless a caller asks for the fixed-lag model of TASK-033. */
   readonly dynamicInflow?: boolean;
+  /**
+   * TASK-101: which wakes the rotors feel. `all`, the default, is every ordered pair, since a wake's reach depends on the flight;
+   * `declared` the manifest's `rotorWakePairs`; `off` none, with the limitation and the flag saying so for a declared pair.
+   */
+  readonly rotorWake?: 'all' | 'declared' | 'off';
   /** TASK-099: the vortex ring state's seed; a profile flight on dynamic inflow has it, seeded from the model ID unless given. */
   readonly vortexRingSeed?: number;
   /** TASK-146 component ratings, in rotor order; null or absent checks none. */
@@ -130,9 +136,14 @@ export function buildProfileDynamics(input: VehicleManifest, options: ProfileDyn
   if (drag && drag.maxAirspeedMps === undefined) {
     limitations.push('The airframe drag data state no airspeed range, so no step flags the drag as outside its data (TASK-096).');
   }
-  if (manifest.rotorWakePairs.length > 0) {
-    limitations.push(`${manifest.rotorWakePairs.length} declared rotor-wake pairs are not modeled until TASK-101; each rotor sees free-stream inflow.`);
+  const rotorWake = rotorWakeOf(manifest, options.rotorWake ?? 'all');
+  if (!rotorWake && manifest.rotorWakePairs.length > 0) {
+    limitations.push(`${manifest.rotorWakePairs.length} declared rotor-wake pairs are switched off; each rotor sees free-stream inflow.`);
     configurationFlags |= CONFIGURATION_FLAG_WAKE_UNMODELED;
+  }
+  if (rotorWake) {
+    limitations.push('The rotor wakes are a synthetic one-way top-hat model with no swirl, no effect of a lower rotor on its upper rotor and no transport delay (TASK-101); nothing measured confirms them.');
+    if (!manifest.hull) limitations.push('This manifest has no hull, so no rotor wake puts a download on the airframe (TASK-101).');
   }
   const air = isaTroposphere(0), n = model.rotorCount, initialBody = newBodyTruth();
   // On the gear the CG starts where the fully extended feet just touch the ground plane through the origin.
@@ -160,8 +171,18 @@ export function buildProfileDynamics(input: VehicleManifest, options: ProfileDyn
     kernelOptions: options.kernelOptions ?? 0, dynamicInflow: options.dynamicInflow !== false,
     ...(options.dynamicInflow === false ? {} : { vortexRingSeed: options.vortexRingSeed ?? manifest.modelId }), limitRatings: options.limitRatings ?? null,
     ...(airframeDrag ? { airframeDrag } : {}),
+    ...(rotorWake ? { rotorWake } : {}),
   };
   return Object.freeze({ configuration, limitations: Object.freeze(limitations), gear });
+}
+
+function rotorWakeOf(manifest: VehicleManifest, mode: 'all' | 'declared' | 'off'): RotorWakeConfiguration | null {
+  if (mode === 'off') return null;
+  const indexOf = (id: number): number => manifest.rotors.findIndex(rotor => rotor.id === id);
+  const pairs = mode === 'all' ? 'all' as const : manifest.rotorWakePairs.map(pair => [indexOf(pair.upstreamRotorId), indexOf(pair.downstreamRotorId)] as const);
+  if (!manifest.hull) return { pairs };
+  const hubs = manifest.rotors.map(rotor => ({ hubBodyM: rotor.hubPositionBodyM, axisBody: zAxis(rotor.hubToBody), radiusM: rotor.radiusM }));
+  return { pairs, washedDragAreaM2: rotorWashedDragAreasM2(hubs, manifest.hull) };
 }
 
 function profileGear(manifest: VehicleManifest, vehicle: ProfileGear['vehicle']): ProfileGear | null {
