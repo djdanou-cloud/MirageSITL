@@ -79,6 +79,8 @@ const COMMAND_TYPE = {
   reset: "sim.reset",
 } as const;
 
+const SESSION_DISARMED_NOTICE = "The physics session disarmed the motors after stale or interrupted input. Lower the throttle and arm again.";
+
 export class SimulationRuntime {
   recording: RecorderHost | null = null;
   async startRecording(): Promise<void> {
@@ -199,6 +201,9 @@ export class SimulationRuntime {
         this.pilotRejection = data;
         Reflect.set(globalThis, "__miragePilotRejection", data); // read by the G3 capture's flight log
         console.warn("Pilot sample rejected; armed latch blocked", JSON.stringify(data));
+        // The session will not arm again until the request is withdrawn. If it blocked before this thread ever read
+        // it armed, the published state looks just like a request it has not seen yet, so only this notice tells them apart.
+        if (this.armed && data.sessionEpoch === this.epoch) this.withdrawArm(SESSION_DISARMED_NOTICE);
         return;
       }
       this.onWorkerEvent(data);
@@ -442,12 +447,14 @@ export class SimulationRuntime {
       return;
     }
     if (this.armConfirmed) {
-      this.notice = "The physics session disarmed the motors after stale or interrupted input. Lower the throttle and arm again.";
+      this.withdrawArm(SESSION_DISARMED_NOTICE);
     } else if (this.input.throttle > REARM_THROTTLE_MAX) {
-      this.notice = "The physics session did not arm before the throttle rose above 5%. Lower the throttle and arm again.";
-    } else {
-      return; // the session has not seen this request yet
+      this.withdrawArm("The physics session did not arm before the throttle rose above 5%. Lower the throttle and arm again.");
     }
+    // Otherwise the session has not seen this request yet, or a pilot.rejected notice is on its way.
+  }
+  private withdrawArm(notice: string): void {
+    this.notice = notice;
     this.armConfirmed = false;
     this.disarm();
   }

@@ -70,6 +70,25 @@ test('a stalled Main thread disarms the session and the UI, and rearming is expl
   await armAndClimb(page);
 });
 
+test('a stall in the frame that requests arming withdraws the request instead of leaving it stuck', async ({ page }) => {
+  test.setTimeout(60_000);
+  await page.goto('/');
+  await expect(page.getByTestId('worker-status')).toHaveText('READY');
+  await page.getByRole('button', { name: 'Start', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Arm motors', exact: true }).evaluate(button => {
+    if (!(button instanceof HTMLButtonElement)) throw new Error('The arm control is not a button');
+    button.click();
+    // The runtime's own callback was registered first, so it publishes the request and reads the state before this
+    // one blocks: the session latches the request, then drops it on stale input before Main ever reads it armed.
+    requestAnimationFrame(() => { const until = performance.now() + 400; while (performance.now() < until) { /* block Main */ } });
+  });
+  await expect(page.getByRole('alert')).toContainText('disarmed the motors');
+  await expect(page.getByRole('button', { name: 'Arm motors', exact: true })).toBeVisible();
+  await expect(page.getByTestId('input-protection')).toHaveText('DISARMED / STALE');
+  await armAndClimb(page);
+});
+
 test('real worker keeps fixed dt, detects stale control and acknowledges lifecycle', async ({ page }) => {
   await page.goto('/');
   const result = await page.evaluate(async (protocolUrl) => {
