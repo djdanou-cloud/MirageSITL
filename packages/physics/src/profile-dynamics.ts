@@ -1,7 +1,7 @@
 import type { ContactShapePart } from './accident.ts';
 import type { PhysicsHz } from '@mirage/protocol';
 import { newBodyTruth } from '../../wasm-bet/src/backend.ts';
-import type { BoundPolar } from '../../wasm-bet/src/rotor.ts';
+import type { BoundPolar, BoundRotorDefinition } from '../../wasm-bet/src/rotor.ts';
 import { isaTroposphere } from './atmosphere.ts';
 import { BetFlightDynamics, CONFIGURATION_FLAG_WAKE_UNMODELED, type BetFlightConfiguration } from './bet-dynamics.ts';
 import { escDriveFromManifest } from './drive.ts';
@@ -9,6 +9,8 @@ import { GroundContact, type ContactShape, type ContactWheel } from './ground-co
 import type { LimitRatings } from './limit-monitor.ts';
 import { boundCatalogPolar } from './polar-catalog.ts';
 import { rotorWashedDragAreasM2, type RotorWakeConfiguration } from './rotor-wake.ts';
+import { validateModelManifest } from './model-manifest.ts';
+import { CALIBRATION_DENSITY_MARGIN, CALIBRATION_RPM_MARGIN, CALIBRATION_STATIC_ADVANCE_RATIO, scaledPolar } from './propulsion-calibration.ts';
 import type { SessionModelPort } from './session-v2.ts';
 import {
   deriveVehicle, PROPELLER_DISC_HALF_THICKNESS_OF_RADIUS, projectVehicleToModelV1, validateVehicleManifest, zAxis, withoutHull, withoutLandingGear,
@@ -25,6 +27,8 @@ import {
  * assumptions by the profile resolver, not properties of a propeller.
  */
 export const PROFILE_ROTOR_SETTINGS = Object.freeze({ inflowTauS: 0.1, inflowLimitMps: 500, minimumConfidence: 0.9 });
+/** TASK-145: a calibrated rotor's scaled polar flies under this ID plus the rotor's index, above every catalog polar's. */
+export const CALIBRATED_POLAR_BASE = 1_000_000;
 /** The propeller disc thickness lives with the hull shapes; it stays exported here too. */
 export { PROPELLER_DISC_HALF_THICKNESS_OF_RADIUS };
 
@@ -57,6 +61,10 @@ export interface ProfileDynamicsOptions {
    * BET compute alone (scripts/bench-bet.mjs, bench-profile-dynamics.mjs). Flight sessions never set it.
    */
   readonly syntheticPad?: boolean;
+  /** TASK-148: the location's normal gravity, m/s² down, for the body and the ground contact; defaults to 9.80665. */
+  readonly gravityMps2?: number;
+  /** TASK-148: the air at the ground origin; the rotors then meet ISA air at the CG's height (`BetFlightConfiguration.originAir`). */
+  readonly originAir?: { readonly temperatureK: number; readonly pressurePa: number };
 }
 /** What a contact shape of a build stands for: a hull shape of the manifest, or the disc of a rotor. */
 export type ProfileShapePart = ContactShapePart;
@@ -105,7 +113,14 @@ export interface ProfileDynamicsBuild {
  * runtime cannot consume (control surfaces).
  */
 export function buildProfileDynamics(input: VehicleManifest, options: ProfileDynamicsOptions = {}): ProfileDynamicsBuild {
-  const manifest = validateVehicleManifest(input);
+  // TASK-145: calibrated rotors take their fitted motor values here and their scaled polars below; the rest of the build never sees the section.
+  const { propulsionCalibrations: calibrations = [], ...uncalibrated } = validateVehicleManifest(input);
+  const manifest = validateVehicleManifest({ ...uncalibrated, datasets: uncalibrated.datasets.filter(dataset => !calibrations.some(item => item.datasetId === dataset.id)),
+    motors: uncalibrated.motors.map(motor => {
+      const fitted = calibrations.find(item => item.rotorId === motor.rotorId);
+      if (!fitted) return motor;
+      return { ...motor, ...(fitted.resistanceOhm === null ? {} : { resistanceOhm: fitted.resistanceOhm }), ...(fitted.noLoadCurrentA === null ? {} : { noLoadCurrentA: fitted.noLoadCurrentA }) };
+    }) });
   if (manifest.motors.length !== manifest.rotorCount || manifest.escs.length !== manifest.rotorCount || !manifest.battery) {
     throw new Error('Profile dynamics need a motor and an ESC for every rotor and a battery');
   }
@@ -115,6 +130,7 @@ export function buildProfileDynamics(input: VehicleManifest, options: ProfileDyn
   // A dataset that only consumed sections name leaves with them.
   const provenance = { ...manifest.provenance, motors: null, escs: null, battery: null, airframeDrag: null, sensorMounts: null, rotorWakePairs: null };
   const named = new Set<string | null | undefined>(Object.values(provenance));
+  const limitations: string[] = [], calibratedPolars = new Map<number, number>();
   const model = projectVehicleToModelV1(withoutHull(withoutLandingGear({
     ...manifest, motors: [], escs: [], battery: null, airframe: { drag: null }, sensorMounts: [], rotorWakePairs: [], ardupilot: null,
     provenance, datasets: manifest.datasets.filter(dataset => named.has(dataset.id)),
@@ -122,7 +138,22 @@ export function buildProfileDynamics(input: VehicleManifest, options: ProfileDyn
   const gear = options.syntheticPad === true ? null : profileGear(manifest, model);
   const polars = new Map<number, BoundPolar>();
   for (const rotor of model.rotors) if (!polars.has(rotor.polarId)) polars.set(rotor.polarId, boundCatalogPolar(rotor.polarId));
-  const limitations: string[] = [];
+  // A calibrated rotor flies its own scaled copy of its polar, under an ID above the catalog's, and checks its envelope every step.
+  const calibrationEnvelopes = calibrations.map(item => {
+    const index = model.rotors.findIndex(rotor => rotor.id === item.rotorId), rotor = model.rotors[index];
+    if (!rotor) throw new Error('A calibration names a rotor the build does not hold');
+    const polarId = CALIBRATED_POLAR_BASE + index;
+    polars.set(polarId, scaledPolar(boundCatalogPolar(rotor.polarId), { lift: item.liftScale, drag: item.dragScale }));
+    calibratedPolars.set(index, polarId);
+    return { rotorIndex: index, rpmLow: item.rpmMin * (1 - CALIBRATION_RPM_MARGIN), rpmHigh: item.rpmMax * (1 + CALIBRATION_RPM_MARGIN),
+      densityLowKgM3: item.densityKgM3 * (1 - CALIBRATION_DENSITY_MARGIN), densityHighKgM3: item.densityKgM3 * (1 + CALIBRATION_DENSITY_MARGIN),
+      advanceRatioMax: CALIBRATION_STATIC_ADVANCE_RATIO };
+  });
+  const flown = calibratedPolars.size === 0 ? model
+    : validateModelManifest({ ...model, rotors: model.rotors.map((rotor, i) => ({ ...rotor, polarId: calibratedPolars.get(i) ?? rotor.polarId })) });
+  if (calibrations.length > 0) {
+    limitations.push(`${calibrations.length} rotor${calibrations.length === 1 ? ' is' : 's are'} calibrated to bench data of their exact combination; outside its RPM range, density or a near-static advance ratio a step is flagged (TASK-145).`);
+  }
   let configurationFlags = 0;
   if (!gear && options.syntheticPad !== true) {
     limitations.push('The vehicle has no landing gear, so it stands on the synthetic pad, which holds it level on touchdown; decision F-07 ' +
@@ -159,7 +190,7 @@ export function buildProfileDynamics(input: VehicleManifest, options: ProfileDyn
     initialBody.quaternionBodyToNed[3] = Math.sin(half);
   }
   const configuration: BetFlightConfiguration = {
-    manifest: model, polars,
+    manifest: flown, polars,
     initialOmegaRadS: new Array<number>(n).fill(0), motorMaxTorqueNm: new Array<number>(n).fill(0),
     // Dynamic inflow derives its time constant from the flow (TASK-098): 0 asks for it.
     inflowTauS: new Array<number>(n).fill(options.dynamicInflow === false ? PROFILE_ROTOR_SETTINGS.inflowTauS : 0),
@@ -172,6 +203,9 @@ export function buildProfileDynamics(input: VehicleManifest, options: ProfileDyn
     ...(options.dynamicInflow === false ? {} : { vortexRingSeed: options.vortexRingSeed ?? manifest.modelId }), limitRatings: options.limitRatings ?? null,
     ...(airframeDrag ? { airframeDrag } : {}),
     ...(rotorWake ? { rotorWake } : {}),
+    ...(calibrationEnvelopes.length > 0 ? { calibrationEnvelopes } : {}),
+    ...(options.gravityMps2 === undefined ? {} : { gravityMps2: options.gravityMps2 }),
+    ...(options.originAir ? { originAir: options.originAir } : {}),
   };
   return Object.freeze({ configuration, limitations: Object.freeze(limitations), gear });
 }
@@ -237,6 +271,14 @@ function thrustAxis(q: readonly number[]): [number, number, number] {
  */
 const HULL_FRICTION = 0.6;
 
+/** One rotor of a build as a bound rotor definition, as the flight model binds it: for off-line static solves (TASK-145). */
+export function profileRotorDefinition(configuration: BetFlightConfiguration, rotorIndex: number): BoundRotorDefinition {
+  const model = validateModelManifest(configuration.manifest), geometry = model.rotors[rotorIndex];
+  const polar = geometry ? configuration.polars.get(geometry.polarId) : undefined;
+  if (!geometry || !polar) throw new Error(`The build has no rotor ${rotorIndex} with its polar`);
+  return { geometry, polar, initialOmegaRadS: configuration.initialOmegaRadS[rotorIndex] ?? 0, inflowTauS: configuration.inflowTauS[rotorIndex] ?? PROFILE_ROTOR_SETTINGS.inflowTauS,
+    inflowLimitMps: configuration.inflowLimitMps[rotorIndex] ?? PROFILE_ROTOR_SETTINGS.inflowLimitMps, minimumConfidence: configuration.minimumConfidence };
+}
 /**
  * The flight dynamics of a build at `hz`: on a new ground contact with the build's gear, or on
  * the synthetic pad without gear. Every call creates its own contact, which the dynamics owns;
@@ -246,7 +288,8 @@ export function profileFlightDynamics(module: WebAssembly.Module, build: Profile
   const { configuration, gear } = build;
   if (!gear) return new BetFlightDynamics(module, configuration, hz);
   const contact = GroundContact.forVehicleNow(configuration.initialBody, gear.vehicle,
-    { wheels: gear.wheels, hullRadiusM: gear.hullRadiusM, friction: HULL_FRICTION, ...(gear.shapes.length > 0 ? { shapes: gear.shapes } : {}) });
+    { wheels: gear.wheels, hullRadiusM: gear.hullRadiusM, friction: HULL_FRICTION, gravityMps2: configuration.gravityMps2 ?? 9.80665,
+      ...(gear.shapes.length > 0 ? { shapes: gear.shapes } : {}) });
   // TASK-149: the dynamics checks the shapes' contact reports against decision F-09.
   return new BetFlightDynamics(module, { ...configuration, contact, ...(gear.shapes.length > 0 ? { contactParts: gear.parts } : {}) }, hz);
 }

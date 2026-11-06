@@ -23,6 +23,8 @@ export const ALLOCATION_GRAPHS: readonly (readonly [graph: string, variant: Allo
   ["ground-effect-esc-drive-pad-four-rotor", "scalar"],
   // TASK-101 the rotor wakes, every ordered pair checked and one reaching a rotor at every step, with a download.
   ["rotor-wake-esc-drive-pad-four-rotor", "scalar"],
+  // TASK-145 calibrated rotors on the ESC drive, checked against their bench envelope every step, its flag switching with the air's density.
+  ["calibrated-esc-weather-pad-four-rotor", "scalar"],
 ];
 
 function field(value: unknown, key: string): unknown {

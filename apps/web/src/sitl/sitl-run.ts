@@ -19,6 +19,7 @@ import { FRAME_PARAMETER_NAMES, frameConfiguration, type ParameterValue } from "
 import { profileDependencies, readAircraftProfile, type AircraftProfile } from "@mirage/aircraft/profile";
 import { componentRatings, resolveComponents } from "@mirage/aircraft/resolve-components";
 import { sensorField, type Vector3 } from "@mirage/aircraft/sensor-fields";
+import type { ExperimentEnvironment } from "@mirage/aircraft/experiment";
 import { resolveSensorConfiguration, sensorSnapshot, type SensorSnapshot } from "@mirage/aircraft/sensor-ownership";
 import { sensorRuntime, STOCK_COMPASS_OFFSETS_MILLIGAUSS } from "@mirage/aircraft/sensor-parameters";
 import { parseArduPilotCatalog, type ArduPilotCatalog } from "@mirage/autopilot/error-ownership";
@@ -34,7 +35,7 @@ import type { ProjectStore } from "@mirage/project/store";
 import type { SimulationRuntime } from "../runtime";
 import type { EffectControl, EffectRecovery } from "@mirage/protocol";
 import { LauncherError, type CatalogEntry, type ConnectionSpec, type LauncherConnection, type LauncherExperiment, type LauncherLogs, type LauncherPort,
-  type FlightTruth, type LauncherRunState, type PhysicsPort, type PreparedRun, type StartSpec } from "../run/session-controller";
+  type FlightTruth, type LauncherRunState, type PhysicsPort, type PreparedRun, type StartSpec, type TerrainChunk } from "../run/session-controller";
 
 /** Model ID of the vehicle an integrated session loads. */
 export const SITL_MODEL_ID = 153;
@@ -126,8 +127,12 @@ function cgBodyM(profile: AircraftProfile): Vector3 {
   return [x, y, z];
 }
 
-/** Resolves a stored profile version and the exact card versions it names into what an integrated session needs. */
-export async function prepareVehicle(store: ProjectStore, stored: StoredVersion): Promise<PreparedVehicle> {
+/**
+ * Resolves a stored profile version and the exact card versions it names into what an integrated session needs.
+ * `homeAltitudeM` is the run's home altitude above mean sea level (TASK-148: the location's ground elevation),
+ * which the barometer parameters scale with.
+ */
+export async function prepareVehicle(store: ProjectStore, stored: StoredVersion, homeAltitudeM: number = DEFAULT_HOME[2]): Promise<PreparedVehicle> {
   const profile = readAircraftProfile(stored);
   refuseMirageSensorErrors(profile);
   const cards = new Map<string, ComponentCard>();
@@ -139,9 +144,10 @@ export async function prepareVehicle(store: ProjectStore, stored: StoredVersion)
   refuseClashes(profile, resolved.components.motors);
   const frame = frameConfiguration(profile, stored.sha256);
   if (!frame.ok) throw new Error(`ArduPilot has no frame for this profile: ${frame.reasons.map(reason => reason.message).join(" ")}`);
-  // The barometer parameters scale with the home altitude, so the launcher's home and this context share DEFAULT_HOME.
+  // The barometer parameters scale with the home altitude, so this context and the SITL's --home share the run's home.
+  if (!Number.isFinite(homeAltitudeM)) throw new Error("The home altitude must be a finite number of metres");
   const sensors = sensorRuntime(profile.sensorConfiguration, pinnedArduPilotCatalog(),
-    { homeAltitudeM: DEFAULT_HOME[2], compassOffsetsMilliGauss: STOCK_COMPASS_OFFSETS_MILLIGAUSS, cgBodyM: cgBodyM(profile) });
+    { homeAltitudeM, compassOffsetsMilliGauss: STOCK_COMPASS_OFFSETS_MILLIGAUSS, cgBodyM: cgBodyM(profile) });
   const parameters: TaggedParameter[] = [
     ...frame.parameters.map(parameter => ({ name: parameter.name, value: parameter.value, source: frameSource(parameter.name) })),
     ...PWM_PARAMETERS.map(parameter => ({ name: parameter.name, value: parameter.value, source: "pwm" as const })),
@@ -173,9 +179,9 @@ export function parameterAbsentRule(): AbsentRule {
   return catalogAbsentRule(pinnedArduPilotCatalog());
 }
 
-/** What the session controller starts from: the prepared vehicle with the identity of its profile version. */
-export async function preparedRun(store: ProjectStore, stored: StoredVersion): Promise<{ vehicle: PreparedVehicle; run: PreparedRun }> {
-  const vehicle = await prepareVehicle(store, stored);
+/** What the session controller starts from: the prepared vehicle with the identity of its profile version, at the run's home altitude. */
+export async function preparedRun(store: ProjectStore, stored: StoredVersion, homeAltitudeM: number = DEFAULT_HOME[2]): Promise<{ vehicle: PreparedVehicle; run: PreparedRun }> {
+  const vehicle = await prepareVehicle(store, stored, homeAltitudeM);
   return {
     vehicle,
     run: {
@@ -322,7 +328,7 @@ export class RuntimePhysics implements PhysicsPort {
     return this.vehicleValue;
   }
 
-  async load(physicsHz: 800 | 1200): Promise<{ betModuleSha256: string }> {
+  async load(physicsHz: 800 | 1200, environment: ExperimentEnvironment | null, terrain: readonly TerrainChunk[] | null = null): Promise<{ betModuleSha256: string }> {
     this.physicsHz = physicsHz;
     const { vehicle, runtime } = this;
     runtime.pauseWhenHidden = false;
@@ -334,6 +340,17 @@ export class RuntimePhysics implements PhysicsPort {
     await this.request({ type: "model.register", bytes: vehicle.derived.bytes, sha256: vehicle.derived.sha256 }, "model.registered", "model.reject");
     await this.request({ type: "limits.register", sha256: vehicle.derived.sha256, ratings: vehicle.ratings }, "limits.registered", "limits.reject");
     await this.request({ type: "ground.register", sha256: vehicle.derived.sha256, ground: this.ground }, "ground.registered", "ground.reject");
+    // TASK-148: the location's normal gravity and the air at its ground origin, before the model is built on them.
+    if (environment) {
+      const { gravityMps2, air } = environment.conditions;
+      await this.request({ type: "environment.set", gravityMps2, originAir: { temperatureK: air.temperatureK, pressurePa: air.pressurePa } },
+        "environment.ready", "environment.reject");
+    }
+    // TASK-186: the real terrain the session checks under the vehicle; nothing for a run on the pad.
+    if (terrain && terrain.length > 0) {
+      await this.request({ type: "terrain.chunks", tiles: terrain.map(chunk => ({ northIndex: chunk.northIndex, eastIndex: chunk.eastIndex, downM: chunk.downM })) },
+        "terrain.ready", "terrain.reject");
+    }
     await this.control({ type: "sim.configure", hz: physicsHz, clockMode: "sitl-lockstep" });
     await this.control({ type: "model.load", modelId: SITL_MODEL_ID, manifestSha256: vehicle.derived.sha256 });
     await this.control({ type: "sim.start" });

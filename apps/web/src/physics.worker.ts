@@ -6,9 +6,12 @@ import { createSessionFaultPort } from '@mirage/ew/session-port';
 import { isWorkerInitV2, tickToNumber, validatePowerChannelV1, type CommandResultV2, type ControlCommand, type WorkerFaultV2 } from '@mirage/protocol';
 import { parseLimitRatings, type LimitEvent, type LimitRatings } from '@mirage/physics/limit-monitor';
 import type { AccidentEvent } from '@mirage/physics/accident';
-import { PhysicsSessionV2, type SessionClock } from '@mirage/physics';
+import { PhysicsSessionV2, TERRAIN_MISSING_COUNT, TERRAIN_MISSING_EAST, TERRAIN_MISSING_NORTH, TERRAIN_MISSING_SIM_S, TERRAIN_MISSING_TICK, type SessionClock } from '@mirage/physics';
+import { CollisionChunks } from '@mirage/terrain/collision-chunks';
+import { RUN_CHUNK_RESOLUTION, RUN_CHUNK_SPACING_M, RUN_TERRAIN_EPOCH } from '@mirage/terrain/run-terrain';
 import { GroundContact } from '@mirage/physics/ground-contact';
-import { profileModelPort } from '@mirage/physics/profile-dynamics';
+import { atmosphereFromState } from '@mirage/physics/atmosphere';
+import { profileModelPort, type ProfileDynamicsOptions } from '@mirage/physics/profile-dynamics';
 import { VehicleRegistry } from '@mirage/physics/vehicle-manifest';
 import { ScenarioBinder } from '@mirage/scenarios/bind';
 import { parseGroundStart, type GroundStart } from '@mirage/scenarios/flight-tasks';
@@ -37,18 +40,29 @@ const registry = new VehicleRegistry();
 let betModule: WebAssembly.Module | null = null;
 // TASK-146 limit ratings by manifest SHA-256, bound before model.load; a model without ratings checks none.
 const ratings = new Map<string, LimitRatings>();
+// TASK-148: the location's gravity and origin air, set by environment.set before model.load; without them a model
+// flies at standard gravity with a sea-level ISA origin. The model port reads this object when it builds, and the
+// Run tab starts a fresh Worker for every run, so one run's environment never reaches the next.
+const environment: { gravityMps2?: number; originAir?: { readonly temperatureK: number; readonly pressurePa: number } } = {};
+const environmentOptions: ProfileDynamicsOptions = environment;
 const groundStarts = new Map<string, GroundStart>();
+// TASK-186: the published lattice of a real-terrain run, and how many missing-terrain ticks have been posted.
+let terrainPosted = 0;
 type WorkerNotice = CommandResultV2 | WorkerFaultV2 | SitlNotice | { type: "sitl.reject"; message: string }
   | { type: "bet.module.ready"; sha256: string } | { type: "bet.module.reject"; message: string }
   | { type: "contact.module.ready"; sha256: string } | { type: "contact.module.reject"; message: string }
   | { type: "model.registered"; modelId: number; sha256: string } | { type: "model.reject"; message: string }
   | { type: "limits.registered"; sha256: string } | { type: "limits.reject"; message: string }
+  | { type: "environment.ready" } | { type: "environment.reject"; message: string }
   | { type: "ground.registered"; sha256: string } | { type: "ground.reject"; message: string }
   | { type: "limits.events"; events: LimitEvent[]; dropped: number }
   | { type: "accident.events"; events: AccidentEvent[]; dropped: number; total: number }
   /** Manual control's stick commands stopped for INPUT_TIMEOUT_MS: the session paused before its next tick (TASK-174). */
   | { type: "sitl.input-stale"; simTimeS: number; staleMs: number }
   | { type: "power.attached" } | { type: "power.reject"; message: string }
+  | { type: "terrain.ready"; chunks: number } | { type: "terrain.reject"; message: string }
+  | { type: "validity.changes"; changes: { tick: number; simTimeS: number; flags: number }[]; dropped: number }
+  | { type: "terrain.missing"; tick: number; simTimeS: number; northM: number; eastM: number; count: number }
   | { type: "recording-v2.armed" } | { type: "recording-v2.reject"; message: string }
   | { type: "scenario.submit"; command: ControlCommand }
   | { type: "scenario.reject"; message: string }
@@ -72,6 +86,38 @@ function flush(): void {
   if (session && session.drainAccidents(event => accidents.push(event)) > 0) {
     post({ type: "accident.events", events: accidents, dropped: session.accidentsDropped, total: session.accidentTotal });
   }
+  // TASK-145: changes of the model's validity bits, for the recording's events.validity.
+  const changes: { tick: number; simTimeS: number; flags: number }[] = [];
+  if (session && session.drainValidityChanges((tick, simTimeS, flags) => changes.push({ tick, simTimeS, flags })) > 0) {
+    post({ type: "validity.changes", changes, dropped: session.validityChangesDropped });
+  }
+  // TASK-186: a tick that found the terrain missing paused the session; say where, once per such tick.
+  const missing = session?.terrainMissing;
+  if (missing && (missing[TERRAIN_MISSING_COUNT] ?? 0) > terrainPosted) {
+    terrainPosted = missing[TERRAIN_MISSING_COUNT] ?? 0;
+    post({ type: "terrain.missing", tick: missing[TERRAIN_MISSING_TICK] ?? 0, simTimeS: missing[TERRAIN_MISSING_SIM_S] ?? 0, northM: missing[TERRAIN_MISSING_NORTH] ?? 0, eastM: missing[TERRAIN_MISSING_EAST] ?? 0, count: terrainPosted });
+  }
+}
+/**
+ * `terrain.chunks` (TASK-186): the real terrain of a run, built on Main as 129 by 129 posts 4 m apart, staged and published
+ * before the run starts and checked under the vehicle every tick. An empty list is a run on the synthetic pad.
+ */
+function attachTerrain(current: PhysicsSessionV2, value: unknown): number {
+  if (current.running) throw new Error("Terrain is loaded before a run starts");
+  if (!Array.isArray(value) || value.length > 64) throw new Error("terrain.chunks needs at most 64 chunks");
+  const tiles: readonly unknown[] = value;
+  if (tiles.length === 0) { current.attachGround(null); return 0; }
+  const chunks = new CollisionChunks(RUN_TERRAIN_EPOCH, RUN_CHUNK_RESOLUTION, RUN_CHUNK_SPACING_M);
+  for (const tile of tiles) {
+    if (typeof tile !== "object" || tile === null || !("northIndex" in tile) || !("eastIndex" in tile) || !("downM" in tile) ||
+      typeof tile.northIndex !== "number" || typeof tile.eastIndex !== "number" || !(tile.downM instanceof Float64Array)) throw new Error("Invalid terrain chunk");
+    if (!chunks.stage({ version: 1, epoch: RUN_TERRAIN_EPOCH, revision: 0, resolution: RUN_CHUNK_RESOLUTION, spacingM: RUN_CHUNK_SPACING_M,
+      northIndex: tile.northIndex, eastIndex: tile.eastIndex, downM: tile.downM })) throw new Error(`Terrain chunk ${tile.northIndex}, ${tile.eastIndex} was refused: a repeat, a seam that does not match, or over the byte cap`);
+  }
+  if (!chunks.publishAtTick(RUN_TERRAIN_EPOCH, 0)) throw new Error("The terrain could not be published");
+  current.attachGround(chunks);
+  terrainPosted = 0;
+  return tiles.length;
 }
 function isTyped<T extends string>(data: unknown, type: T): data is { type: T } & Record<string, unknown> {
   return typeof data === "object" && data !== null && !Array.isArray(data) && "type" in data && data.type === type;
@@ -242,7 +288,7 @@ addEventListener('message', (event: MessageEvent<unknown>) => {
     if (!isWorkerInitV2(data)) { post({ type: 'fault-v2', protocolVersion: 2, message: 'Expected init-v2' }); return; }
     try {
       session = new PhysicsSessionV2(data, clock, undefined, createSessionFaultPort(),
-        profileModelPort(registry, () => betModule, {}, sha256 => ratings.get(sha256) ?? null, sha256 => {
+        profileModelPort(registry, () => betModule, environmentOptions, sha256 => ratings.get(sha256) ?? null, sha256 => {
           const start = groundStarts.get(sha256);
           return start ? { initialGround: start, initialStateOfCharge: start.stateOfCharge } : null;
         }));
@@ -299,6 +345,22 @@ addEventListener('message', (event: MessageEvent<unknown>) => {
     }
     return;
   }
+  if (isTyped(data, "environment.set")) {
+    try {
+      const gravity = data.gravityMps2, air = data.originAir;
+      if (typeof gravity !== "number" || !Number.isFinite(gravity) || gravity < 9.7 || gravity > 9.9) throw new Error("environment.set needs a gravity of 9.7 to 9.9 m/s²");
+      if (typeof air !== "object" || air === null || !("temperatureK" in air) || !("pressurePa" in air) ||
+        typeof air.temperatureK !== "number" || typeof air.pressurePa !== "number") throw new Error("environment.set needs the origin air's temperature and pressure");
+      // The atmosphere envelope, as the model will check it again.
+      atmosphereFromState({ temperatureK: air.temperatureK, pressurePa: air.pressurePa });
+      environment.gravityMps2 = gravity;
+      environment.originAir = { temperatureK: air.temperatureK, pressurePa: air.pressurePa };
+      post({ type: "environment.ready" });
+    } catch (error) {
+      post({ type: "environment.reject", message: error instanceof Error ? error.message : "Invalid environment" });
+    }
+    return;
+  }
   // TASK-172: where the vehicle stands, and its charge, at the start tick of the load that follows.
   if (isTyped(data, "ground.register")) {
     try {
@@ -309,6 +371,11 @@ addEventListener('message', (event: MessageEvent<unknown>) => {
     } catch (error) {
       post({ type: "ground.reject", message: error instanceof Error ? error.message : "Invalid ground start" });
     }
+    return;
+  }
+  if (isTyped(data, "terrain.chunks")) {
+    try { post({ type: "terrain.ready", chunks: attachTerrain(current, data.tiles) }); }
+    catch (error) { post({ type: "terrain.reject", message: error instanceof Error ? error.message : "Invalid terrain" }); }
     return;
   }
   if (isTyped(data, "power.attach")) {

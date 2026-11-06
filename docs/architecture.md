@@ -355,7 +355,7 @@ compute p99 to half of `dt`. The review measurement (BET quad tick about 0.35 ms
 in browser WASM; octocopter about 0.70 ms, above the 0.4167 ms G3 limit at
 1200 Hz) made the TASK-091 kernel speed-up the first performance dependency of
 every later fidelity task; on the M5 an octocopter step at 1200 Hz now has a
-compute p99 of 0.065 ms in a Chrome Worker (`test-results/bench/bet-chrome.json`).
+compute p99 of 0.045 ms in a Chrome Worker, with its wakes, (`test-results/bench/bet-chrome.json`).
 Lockstep tolerates slow physics because ArduPilot
 waits for each frame, so real time is required only for interactive and HIL
 runs. Lower-rate updates (turbulence coefficients, wakes, GNSS visibility) use
@@ -415,7 +415,8 @@ location, Flight tasks, Parameters, Logging, Run, Experiments and Analysis
 The shell holds only navigation and project metadata. Physics stays in its
 Worker and reaches the UI only in decimated form, as before. TASK-140 fills
 the Components tab, TASK-141 the Aircraft tab, TASK-143 the Sensors tab and
-TASK-172 the Flight tasks tab. The tabs whose tasks have not landed state what
+TASK-172 the Flight tasks tab and TASK-148 the location section of the Weather
+and location tab. The tabs and sections whose tasks have not landed state what
 they will hold and that it is not available yet. The stored navigation format is in
 [SPECS_SIMULATION_ENGINES.md](SPECS_SIMULATION_ENGINES.md), section "Local
 settings (TASK-137)".
@@ -968,6 +969,18 @@ excludes swirl, VRS, transient transport and receiver feedback. Its JSON oracle
 is SHA-256 registered. Native and scalar/SIMD WASM tests verify conservation,
 limits and 1e6 allocation-free steps. See the engine specification for formulas,
 units and validity. Production BET C ABI and the demo remain unchanged.
+
+### Rotor wakes in flight (TASK-101)
+
+`packages/physics/src/rotor-wake.ts` gives each rotor the wakes of the others in
+flight, for every pair by default, as closed forms between rotor steps with a
+lag of one step. A receiver adds the area-averaged wake velocity once, through
+the `external_wake_hub` field of bound-rotor interface v2, and an arm or body in
+a rotor's wash takes a download off that rotor's force. `coaxial.rs` stays the
+reference the wake is checked against. Nothing flows upstream: there is no swirl,
+no effect of a lower rotor on its upper rotor and no transport delay. TASK-177's
+thrust at full command runs the same coupling. The engine specification has the
+formulas, tolerances and limitations.
 
 
 ## Contact, propulsion, and JSBSim backends (TASK-025–035, TASK-086)

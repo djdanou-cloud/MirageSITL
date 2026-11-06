@@ -49,6 +49,19 @@
       "offline": true
     },
     {
+      "id": "egm96-geoid",
+      "name": "EGM96 15-minute geoid grid (WW15MGH.DAC)",
+      "kind": "geoid",
+      "source": "US NGA, stored in data/geoid with its provenance (data/geoid/inventory.json)",
+      "license": "Public domain (United States Government work)",
+      "licenseStatus": "reviewed",
+      "coverage": "Global",
+      "resolution": "15 arc-minutes, centimetre values",
+      "readiness": "ready",
+      "decision": "Stored with source and SHA-256; it opens the absolute-MSL gate (TASK-148).",
+      "offline": true
+    },
+    {
       "id": "egm2008-geoid",
       "name": "EGM2008 geoid grid (us_nga_egm08_25.tif)",
       "kind": "geoid",
@@ -58,7 +71,7 @@
       "coverage": "Global",
       "resolution": "2.5 arc-minutes",
       "readiness": "needs-data",
-      "decision": "Reviewed for MirageSITL's non-commercial use (stakeholder decision D-09, 2026-10-28). TASK-148 stores the grid with source and SHA-256 in data/geoid/inventory.json.",
+      "decision": "Reviewed for MirageSITL's non-commercial use (stakeholder decision D-09, 2026-10-28). At 80 MB it is not stored in the repository; data/geoid/inventory.json records its SHA-256 from PROJ-data, and Phase 1 uses the EGM96 grid (TASK-148).",
       "offline": true
     },
     {
@@ -101,6 +114,19 @@
       "offline": false
     },
     {
+      "id": "r2-region-cache",
+      "name": "Persistent region cache on Cloudflare R2",
+      "kind": "imagery-and-mesh",
+      "source": "services/tiles-worker/src/r2-cache.ts (TASK-064)",
+      "license": "Only for permitted datasets: the Google tiles' terms forbid persistent caching without permission",
+      "licenseStatus": "restricted",
+      "coverage": "The regions a deployment has cached; online only",
+      "resolution": "As the cached dataset",
+      "readiness": "needs-keys-or-deployment",
+      "decision": "Not a Phase 1 source: the proxy binds no bucket by default, and persistent caching needs a deployment, keys and the stakeholder's permission (CLAUDE.md section 9); TASK-186 shows it as not ready.",
+      "offline": false
+    },
+    {
       "id": "quantized-mesh-fixture",
       "name": "Synthetic quantized-mesh test pyramid",
       "kind": "test-fixture",
@@ -129,7 +155,7 @@
     "No offline imagery exists for any region; the only imagery source is the online Google proxy, which needs keys and a deployment.",
     "No elevation data is in the repository; the FABDEM tooling exists, but its output is prepared by hand, kept outside the repository and licensed for non-commercial use only.",
     "WorldCover land cover for Israel is validated but not wired into the runtime.",
-    "No geoid grid is in the repository, so elevation above sea level cannot yet be converted to ellipsoidal height offline (TASK-148).",
+    "Only the EGM96 geoid grid is in the repository; FABDEM heights refer to EGM2008, which differs from EGM96 by up to about a metre (TASK-148).",
     "Outside the Israel WorldCover tiles and any locally prepared FABDEM area, only the synthetic pad is available."
   ]
 }

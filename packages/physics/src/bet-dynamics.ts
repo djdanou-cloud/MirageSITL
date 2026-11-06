@@ -13,6 +13,7 @@ import { RotorWakeCoupler, type RotorWakeConfiguration } from './rotor-wake.ts';
 import { AIR_DENSITY, AIR_HEIGHT, AIR_REFERENCE_PRESSURE, AIR_REFERENCE_TEMPERATURE, AIR_SOUND, AIR_VISCOSITY, WEATHER_AIR_KEEP, WEATHER_GUST_BANDWIDTH, WEATHER_GUST_RMS, WEATHER_PRESSURE, WEATHER_TURBULENCE_INTENSITY, WEATHER_TURBULENCE_KEEP, WEATHER_TURBULENCE_SEED, WEATHER_TURBULENCE_W20,
   WEATHER_SEED, WEATHER_TEMPERATURE, atmosphereAtHeightInto } from './atmosphere.ts';
 import { Wind } from './wind.ts';
+import { DiscreteGust } from './discrete-gust.ts';
 import { DRYDEN_HEIGHT, DRYDEN_INPUT_SLOTS, DRYDEN_MAX_W20_MPS, DRYDEN_MEAN_EAST, DRYDEN_MEAN_NORTH, DRYDEN_RELATIVE_DOWN, DRYDEN_RELATIVE_EAST, DRYDEN_RELATIVE_NORTH, DrydenTurbulence } from './turbulence.ts';
 import { BatteryColumn, LimitMonitor, MotorColumn, MotorLimited, BatteryLimited, PowerTelemetry, type LimitRatings } from './limit-monitor.ts';
 
@@ -54,6 +55,13 @@ export interface BetFlightConfiguration {
   densityKgM3: number; viscosityPaS: number; soundMps: number;
   /** Defaults to Earth gravity; zero is useful for inertial/support allocation fixtures. */
   gravityMps2?: number;
+  /**
+   * TASK-148: the air at the ground origin (the location's effective conditions). With it the rotors
+   * and drag meet ISA air at the CG's height above the origin every step, and the session publishes
+   * that pressure; a weather.set replaces it until the next reset. Absent, the air is the configured
+   * constant state, bit for bit as before.
+   */
+  originAir?: { readonly temperatureK: number; readonly pressurePa: number };
   /** Opt-in synthetic flat pad: inelastic, no-slip support at this NED down.
    * This numerical fixture is independent of Rapier/measured landing fidelity. */
   syntheticGroundDownM?: number;
@@ -61,6 +69,11 @@ export interface BetFlightConfiguration {
   drive?: EscDriveConfiguration;
   /** TASK-096 airframe drag. Absent, the rotors alone meet the air, bit for bit as before. */
   airframeDrag?: AirframeDragConfiguration;
+  /**
+   * TASK-145: the measured envelope of each calibrated rotor. A step outside any of them sets VALIDITY_FLAG_CALIBRATION_EXTRAPOLATION;
+   * absent, no step checks one, bit for bit as before.
+   */
+  calibrationEnvelopes?: readonly CalibrationEnvelopeConfiguration[];
   /**
    * Configuration-level validity flags (TASK-144), ORed into `validityFlags`
    * every step, for model parts declared but not modeled; 0 by default.
@@ -143,6 +156,17 @@ export const CONFIGURATION_FLAG_WAKE_UNMODELED = 1 << 16;
 const FLAG_INFLOW_OUTSIDE_VALIDITY = 8;
 /** A step's airspeed exceeded the airframe drag data's range (TASK-096); a step flag, never a configuration flag. */
 export const VALIDITY_FLAG_DRAG_OUTSIDE_RANGE = 1 << 17;
+/** TASK-145: a calibrated rotor ran outside its bench data's RPM range, density or (near-zero) advance ratio, with their margins. */
+export const VALIDITY_FLAG_CALIBRATION_EXTRAPOLATION = 1 << 18;
+/** One calibrated rotor's envelope, margins included (SPECS_SIMULATION_ENGINES "Propulsion calibration: TASK-145"). */
+export interface CalibrationEnvelopeConfiguration {
+  /** Index of the rotor in the manifest's rotor order. */
+  readonly rotorIndex: number;
+  readonly rpmLow: number; readonly rpmHigh: number;
+  readonly densityLowKgM3: number; readonly densityHighKgM3: number;
+  /** The largest advance ratio V/(nD) of the airspeed at the CG. */
+  readonly advanceRatioMax: number;
+}
 
 /**
  * The bandwidth of a weather.set's synthetic gust (TASK-093): the first-order Gauss-Markov wind of TASK-032, which is
@@ -176,8 +200,14 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
   readonly atmosphere:Float64Array;
   /** A weather.set is in effect (TASK-093); until one is, the configured atmosphere and no wind stay, bit for bit. */
   weatherActive=false;
-  /** TASK-166: the air comes from a weather's temperature and pressure rather than the configured atmosphere. */
-  airActive=false;
+  /** Gravity the body integrator applies, m/s² down (the configuration's, 9.80665 by default). */
+  readonly gravityMps2:number;
+  /** TASK-166: the air comes from a weather's temperature and pressure rather than the configured air. */
+  private weatherAir=false;
+  /** True when the air follows the CG's height: a weather's air (TASK-166) is in effect, or the configuration has an origin air (TASK-148). */
+  get airActive():boolean {return this.weatherAir||this.originAir!==null;}
+  /** TASK-148: the configured air at the origin (atmosphereAtHeightInto's input with height 0), or null. */
+  private readonly originAir:Float64Array|null;
   /** While airActive, the ISA air at the CG after the last step: atmosphereAtHeightInto's output (AIR_* slots). */
   readonly air=new Float64Array(5);
   nowMs=0.5;
@@ -213,12 +243,16 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
   private readonly gust:Wind;
   /** TASK-106: Dryden turbulence on top of the gust, while a weather holds a W20, with its inputs in slots. */
   private readonly turbulence:DrydenTurbulence;
+  /** TASK-167: the discrete gust's one-minus-cosine pulse. */
+  private readonly discreteGust:DiscreteGust;
   private readonly turbulenceInput=new Float64Array(DRYDEN_INPUT_SLOTS);
   private turbulenceActive=false;
   /** TASK-096: the drag-area tensor (row-major), the center of pressure from the CG and the airspeed range, or null without drag. */
   private readonly dragArea:Float64Array|null;
   private readonly dragCenter=new Float64Array(3);
   private readonly dragMaxAirspeedMps:number;
+  /** TASK-145: per calibrated rotor [index, rpm low, rpm high, density low, density high, J max, diameter]; empty without calibrations. */
+  private readonly envelopes:Float64Array;
   private readonly groundDown:number|undefined;
   private readonly contact:FlightContact|null;
   /** TASK-100: the ground effect's intensity, 0 for off, and what it needs: hub lateral distances squared (negative: not a neighbour). */
@@ -279,6 +313,16 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
     const flags=configuration.configurationFlags??0;
     if((flags>>>0)!==flags || (flags&0xffff)!==0)throw Error('Configuration flags must use bits 16 to 31');
     if((flags&VALIDITY_FLAG_DRAG_OUTSIDE_RANGE)!==0)throw Error('Bit 17 is the airframe drag step flag, not a configuration flag');
+    if((flags&VALIDITY_FLAG_CALIBRATION_EXTRAPOLATION)!==0)throw Error('Bit 18 is the calibration step flag, not a configuration flag');
+    const envelopes=configuration.calibrationEnvelopes??[];
+    this.envelopes=new Float64Array(envelopes.length*7);
+    envelopes.forEach((e,k)=>{
+      const rotor=model.rotors[e.rotorIndex];
+      if(!rotor||!Number.isInteger(e.rotorIndex)||envelopes.findIndex(other=>other.rotorIndex===e.rotorIndex)!==k||
+          !(e.rpmLow>=0&&e.rpmHigh>e.rpmLow&&e.densityLowKgM3>0&&e.densityHighKgM3>e.densityLowKgM3&&e.advanceRatioMax>=0))
+        throw Error('Invalid calibration envelope');
+      this.envelopes.set([e.rotorIndex,e.rpmLow,e.rpmHigh,e.densityLowKgM3,e.densityHighKgM3,e.advanceRatioMax,2*rotor.radiusM],k*7);
+    });
     const drag=configuration.airframeDrag;
     if(drag) {
       const c=drag.dragAreaBodyM2,r=drag.centerOfPressureCgM;
@@ -351,9 +395,17 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
     this.atmosphere=new Float64Array([configuration.densityKgM3,configuration.viscosityPaS,configuration.soundMps]);
     if(!this.atmosphere.every(Number.isFinite) || this.atmosphere[0]!<0.05 || this.atmosphere[0]!>2 ||
         this.atmosphere[1]!<=0 || this.atmosphere[2]!<=0)throw Error('Invalid BET atmosphere');
+    this.gravityMps2=configuration.gravityMps2??9.80665;
+    const origin=configuration.originAir;
+    if(origin) {
+      const reference=new Float64Array([origin.temperatureK,origin.pressurePa,0]),probe=new Float64Array(5);
+      if(!atmosphereAtHeightInto(reference,probe))throw Error('The origin air lies outside the atmosphere envelope');
+      this.originAir=reference;
+    } else this.originAir=null;
     this.baseAtmosphere=new Float64Array(this.atmosphere);
     this.gust=new Wind({meanNedMps:[0,0,0],gustRmsMps:0,bandwidthHz:WEATHER_GUST_BANDWIDTH_HZ,hz},0);
     this.turbulence=new DrydenTurbulence(hz);
+    this.discreteGust=new DiscreteGust(hz);
     for(let i=0;i<n;i++) {
       const r=model.rotors[i]!,q=r.hubToBody,norm=Math.sqrt(q[0]!**2+q[1]!**2+q[2]!**2+q[3]!**2);
       const w=q[0]!/norm,x=q[1]!/norm,y=q[2]!/norm,z=q[3]!/norm;
@@ -440,8 +492,8 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
     this.limits?.reset();this.accidents?.reset();
     this.clearGroundEffect();
     if(this.wake){this.wake.reset();for(let i=0;i<this.rotorCount;i++){const b=i*this.inputStride;this.input[b+15]=0;this.input[b+16]=0;this.input[b+17]=0;}}
-    // A new epoch starts without weather, as configured.
-    this.turbulenceActive=false;this.weatherActive=false;this.airActive=false;this.windNedMps.fill(0);this.atmosphere.set(this.baseAtmosphere);
+    // A new epoch starts without weather, as configured; with an origin air (TASK-148) at the initial CG height.
+    this.turbulenceActive=false;this.weatherActive=false;this.windNedMps.fill(0);this.discreteGust.stop();this.restoreConfiguredAir();
     this.dragWrenchBody.fill(0);
     const t=this.power;
     if(t) {
@@ -478,15 +530,18 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
     if(!(bandwidth>=0&&bandwidth<this.hz/2)||(bandwidth>0&&!(Math.exp(-2*Math.PI*bandwidth/this.hz)<1)))return WIND_OUT_OF_ENVELOPE;
     const w20=weather[WEATHER_TURBULENCE_W20]!,turbulenceSeed=weather[WEATHER_TURBULENCE_SEED]!;
     if(!(w20>=0&&w20*weather[WEATHER_TURBULENCE_INTENSITY]!<=DRYDEN_MAX_W20_MPS&&w20<=DRYDEN_MAX_W20_MPS)||!(turbulenceSeed>=0&&turbulenceSeed<=0xffffffff&&turbulenceSeed===Math.floor(turbulenceSeed)))return WIND_OUT_OF_ENVELOPE;
+    // TASK-167: the discrete gust's peak and duration.
+    if(!DiscreteGust.admits(weather))return WIND_OUT_OF_ENVELOPE;
     if(weather[WEATHER_AIR_KEEP]===1){
-      this.airActive=false;this.atmosphere.set(this.baseAtmosphere);
+      // TASK-166: the weather leaves the air as configured: the location's origin air (TASK-148) or the configured atmosphere.
+      this.restoreConfiguredAir();
     }else{
       c[AIR_REFERENCE_TEMPERATURE]=weather[WEATHER_TEMPERATURE]!;c[AIR_REFERENCE_PRESSURE]=weather[WEATHER_PRESSURE]!;
       c[AIR_HEIGHT]=0;if(!atmosphereAtHeightInto(c,air))return AIR_OUT_OF_ENVELOPE;
       c[AIR_HEIGHT]=-this.truth.positionNedM[2]!;if(!atmosphereAtHeightInto(c,air))return AIR_OUT_OF_ENVELOPE;
       this.airReference.set(c);this.air.set(air);
       const a=this.atmosphere;a[0]=air[AIR_DENSITY]!;a[1]=air[AIR_VISCOSITY]!;a[2]=air[AIR_SOUND]!;
-      this.airActive=true;
+      this.weatherAir=true;
     }
     this.gust.configure(weather);
     if(w20>0){
@@ -494,12 +549,21 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
       if(!this.turbulenceActive||weather[WEATHER_TURBULENCE_KEEP]!==1)this.turbulence.restartFrom(weather,WEATHER_TURBULENCE_SEED);
       this.turbulenceActive=true;
     }else this.turbulenceActive=false;
+    this.discreteGust.configure(weather);
     this.weatherActive=true;
     return null;
   }
-  /** TASK-166: back to no weather at a tick boundary: still air and the configured atmosphere, as an epoch that never had any. */
+  /** TASK-166: back to no weather at a tick boundary: still air and the configured air, as an epoch that never had any. */
   clearWeather():void {
-    this.turbulenceActive=false;this.weatherActive=false;this.airActive=false;this.windNedMps.fill(0);this.atmosphere.set(this.baseAtmosphere);
+    this.turbulenceActive=false;this.weatherActive=false;this.windNedMps.fill(0);this.discreteGust.stop();this.restoreConfiguredAir();
+  }
+  /**
+   * The air as configured, without a weather's: the location's origin air at the CG's height (TASK-148), or the
+   * configured atmosphere. Allocation-free.
+   */
+  private restoreConfiguredAir():void {
+    this.weatherAir=false;
+    if(this.originAir){this.airReference.set(this.originAir);this.updateAir();}else this.atmosphere.set(this.baseAtmosphere);
   }
   stepNow(pilot:PilotInput):void {
     if(this.fault!=='')return;
@@ -513,6 +577,8 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
         t[DRYDEN_MEAN_NORTH]=mean[0]!;t[DRYDEN_MEAN_EAST]=mean[1]!;
         this.turbulence.stepAddInto(t,air);
       }
+      // TASK-167: a discrete gust's pulse, on the tick count since it took effect.
+      this.discreteGust.stepAddInto(this.windNedMps);
     }
     const s=this.state,q=this.truth.quaternionBodyToNed,r=this.rotations,p=this.positions,v=this.truth.velocityNedMps;
     const rates=this.truth.angularVelocityBodyRadS,oldRx=rates[0]!,oldRy=rates[1]!,oldRz=rates[2]!;
@@ -594,7 +660,9 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
     if(this.bus) {
       // The bus delivers the summed terminal power of these motors, which ran on the voltage solved above.
       const e=this.electrical,o=this.bus.output;
-      if(!this.bus.stepInto(e[0]!,terminalPowerW,this.housePowerW)){this.fault='Battery bus step failed';return;}
+      // Through the bus's input slots: as call arguments, V8 boxes these doubles once this step is too large to inline the call.
+      const bi=this.bus.input;bi[0]=e[0]!;bi[1]=terminalPowerW;bi[2]=this.housePowerW;
+      if(!this.bus.stepFromInput()){this.fault='Battery bus step failed';return;}
       e[0]=o[0]!;e[1]=o[1]!;e[2]=o[2]!;
       this.busLimited=this.bus.output[6]!!==0||esc!.busLimited;
     }
@@ -606,6 +674,16 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
       d[0]=dx;d[1]=dy;d[2]=dz;d[3]=r[1]!*dz-r[2]!*dy;d[4]=r[2]!*dx-r[0]!*dz;d[5]=r[0]!*dy-r[1]!*dx;
       for(let i=0;i<6;i++)w[i]=w[i]!+d[i]!;
       if(fx*fx+fy*fy+fz*fz>this.dragMaxAirspeedMps*this.dragMaxAirspeedMps)this.validityFlags|=VALIDITY_FLAG_DRAG_OUTSIDE_RANGE;
+    }
+    // TASK-145: a calibrated rotor outside its bench data: its speed, the air's density, or an advance ratio a static bench never held.
+    const env=this.envelopes;
+    if(env.length>0){
+      const speed=Math.sqrt(fx*fx+fy*fy+fz*fz),density=this.atmosphere[0]!;
+      for(let k=0;k<env.length;k+=7){
+        const rpm=Math.abs(output[env[k]!*stride+9]!)*30/Math.PI;
+        // A rotor at rest is not operating, inside or outside its data.
+        if(rpm>=1&&(rpm<env[k+1]!||rpm>env[k+2]!||density<env[k+3]!||density>env[k+4]!||speed*60>env[k+5]!*rpm*env[k+6]!))this.validityFlags|=VALIDITY_FLAG_CALIBRATION_EXTRAPOLATION;
+      }
     }
     // TASK-095: with a contact, Rapier alone integrates the body, gravity and ground reaction included.
     if(this.contact){

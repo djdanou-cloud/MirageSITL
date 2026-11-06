@@ -37,13 +37,15 @@ export {BetRigidBodyBackendV2,newBodyTruthV2} from './packages/wasm-bet/src/body
 export {BetFlightDynamics} from './packages/physics/src/bet-dynamics.ts';
 export {MotorFaults} from './packages/physics/src/motor-fault.ts';
 export {PhysicsSessionV2} from './packages/physics/src/session-v2.ts';
+export {CollisionChunks} from './packages/terrain/src/collision-chunks.ts';
 export {createSessionFaultPort} from './packages/ew/src/session-port.ts';
-export {WEATHER_GUST_RMS,WEATHER_PRESSURE,WEATHER_SEED,WEATHER_SLOTS,WEATHER_TEMPERATURE,WEATHER_WIND_DOWN,WEATHER_WIND_EAST,WEATHER_WIND_NORTH} from './packages/physics/src/atmosphere.ts';
+export {WEATHER_DISCRETE_DOWN,WEATHER_DISCRETE_DURATION,WEATHER_DISCRETE_EAST,WEATHER_DISCRETE_NORTH,WEATHER_GUST_RMS,WEATHER_PRESSURE,WEATHER_SEED,WEATHER_SLOTS,WEATHER_TEMPERATURE,WEATHER_WIND_DOWN,WEATHER_WIND_EAST,WEATHER_WIND_NORTH} from './packages/physics/src/atmosphere.ts';
 export {StateReaderV2,createSharedMemoryV2,createSpscQueue,newFlightStateV2,newHeaderSnapshotV2,tickToNumber} from '@mirage/protocol';
 export {flightConfiguration,rotorDefinition} from './tests/bet-runtime-fixture.ts';
 export {parseNeuralFoilPolar} from './packages/wasm-bet/src/rotor.ts';`,resolveDir:root,sourcefile:'bet-runtime-entry.ts',loader:'ts'},
   bundle:true,platform:'node',format:'esm',packages:'external',outfile:bundle,metafile:true});
-const {BetRotorEngine,BetRotorEngineV2,BetRigidBodyBackendV2,newBodyTruthV2,BetFlightDynamics,MotorFaults,PhysicsSessionV2,createSessionFaultPort,WEATHER_GUST_RMS,WEATHER_PRESSURE,
+const {BetRotorEngine,BetRotorEngineV2,BetRigidBodyBackendV2,newBodyTruthV2,BetFlightDynamics,MotorFaults,PhysicsSessionV2,CollisionChunks,createSessionFaultPort,WEATHER_DISCRETE_DOWN,WEATHER_DISCRETE_DURATION,
+  WEATHER_DISCRETE_EAST,WEATHER_DISCRETE_NORTH,WEATHER_GUST_RMS,WEATHER_PRESSURE,
   WEATHER_SEED,WEATHER_SLOTS,WEATHER_TEMPERATURE,WEATHER_WIND_DOWN,WEATHER_WIND_EAST,WEATHER_WIND_NORTH,StateReaderV2,createSharedMemoryV2,createSpscQueue,
   newFlightStateV2,newHeaderSnapshotV2,tickToNumber,flightConfiguration,rotorDefinition,parseNeuralFoilPolar}=await import(pathToFileURL(bundle).href);
 const modules=['scalar','simd128'].map(v=>new WebAssembly.Module(read(`packages/wasm-bet/dist/mirage_bet.${v}.wasm`)));
@@ -172,9 +174,11 @@ if(!allocation){
   samples.push(escGraph);esc.dispose();console.log(JSON.stringify(escGraph));
   // TASK-093: weather on the synthetic pad, rotors at rest in a 3.6 m/s mean wind with a 1.5 m/s RMS gust: the gust and the ISA
   // air every step, and a weather re-applied from preallocated slots with seeds above 2^31, every 5 steps while warming (as every
-  // graph here, warmed code: V8's first tiers box numbers) and every 1000 steps measured.
+  // graph here, warmed code: V8's first tiers box numbers) and every 1000 steps measured. TASK-167: each application starts a 2 s
+  // discrete gust, so the measured steps hold running pulses (800 steps of each 1000) and ended ones.
   const weatherOf=(north,east,seed)=>{const w=new Float64Array(WEATHER_SLOTS);w[WEATHER_WIND_NORTH]=north;w[WEATHER_WIND_EAST]=east;w[WEATHER_WIND_DOWN]=0.5;
-    w[WEATHER_GUST_RMS]=1.5;w[WEATHER_SEED]=seed;w[WEATHER_TEMPERATURE]=293.15;w[WEATHER_PRESSURE]=98000;return w;};
+    w[WEATHER_GUST_RMS]=1.5;w[WEATHER_SEED]=seed;w[WEATHER_TEMPERATURE]=293.15;w[WEATHER_PRESSURE]=98000;
+    w[WEATHER_DISCRETE_NORTH]=-4;w[WEATHER_DISCRETE_EAST]=1.5;w[WEATHER_DISCRETE_DOWN]=-0.8;w[WEATHER_DISCRETE_DURATION]=2;return w;};
   const weathers=[weatherOf(3,-2,0xfffffffe),weatherOf(-4,1,0x9e3779b9)];
   const padded=()=>{const c=flightConfiguration(0,4);c.initialBody.positionNedM[2]=0;c.initialOmegaRadS=[0,0,0,0];c.syntheticGroundDownM=0;return c;};
   const windy=new BetFlightDynamics(modules[0],padded(),400);
@@ -197,14 +201,22 @@ if(!allocation){
   // shape makes V8 discard the optimized tick ("embedded weak objects cleared"), which then boxes numbers until recompiled
   // (TASK-093 measured 44 B per tick that way; a fresh process stays at 0 with or without the GC).
   const EFFECT_CONTROLS=[{effect:'wind.mean',parameters:{windNedMps:[3,-2,0.5]}},{effect:'wind.gust',parameters:{rmsMps:1.5,bandwidthHz:2,seed:0x9e3779b9}},{effect:'wind.turbulence',parameters:{w20Mps:6,seed:0x9e3779b9}},
+    // TASK-167: a discrete gust's pulse, started again by each command.
+    {effect:'wind.discrete-gust',parameters:{amplitudeMps:5,durationS:3,fromDeg:45,upwardDeg:-10}},
     {effect:'atmosphere',parameters:{temperatureK:293.15,pressurePa:98000}},{effect:'sensor.imu.frozen',parameters:{}},
     // TASK-169: what goes on the state line, whose offsets and rotation the session copies out after each step.
     {effect:'ew.position-step',parameters:{offsetNedM:[30,-12.5,0]}},{effect:'ew.velocity-drift',parameters:{accelerationNedMps2:[0.2,-0.1,0],maxSpeedMps:2}},
     {effect:'ew.magnetic',parameters:{rotationRad:[0.1,-0.2,0.5],biasBodyGauss:[0.1,0,0]}},{effect:'ew.gnss-jamming',parameters:{severity:0.5}}];
   const stateBuffer=createSharedMemoryV2(),fake={mono:0};let sessionDynamics=null;
   const session=new PhysicsSessionV2({type:'init-v2',protocolVersion:2,stateBuffer,sensorBuffer:createSpscQueue('sensor'),actuatorBuffer:createSpscQueue('actuator')},
-    {monotonicMs:()=>fake.mono,wallMs:()=>1.79e12+fake.mono},hz=>(sessionDynamics=new BetFlightDynamics(modules[0],padded(),hz)),createSessionFaultPort());
+    // TASK-145: rotor 0 is calibrated, so every step checks its envelope and the session its validity changes.
+    {monotonicMs:()=>fake.mono,wallMs:()=>1.79e12+fake.mono},hz=>(sessionDynamics=new BetFlightDynamics(modules[0],{...padded(),
+      calibrationEnvelopes:[{rotorIndex:0,rpmLow:100,rpmHigh:1e5,densityLowKgM3:0.5,densityHighKgM3:2,advanceRatioMax:0.02}]},hz)),createSessionFaultPort());
   session.attachDelivery(true);
+  // TASK-186: a real-terrain run checks the published ground under the vehicle every tick; four chunks around the pad hold it.
+  const ground=new CollisionChunks(1,129,4);
+  for(const [northIndex,eastIndex] of [[-1,-1],[-1,0],[0,-1],[0,0]])ground.stage({version:1,epoch:1,revision:0,resolution:129,spacingM:4,northIndex,eastIndex,downM:new Float64Array(129*129)});
+  ground.publishAtTick(1,0);session.attachGround(ground);
   // TASK-169: a tick-boundary EW command is rare, and a drift reaches its top speed, slows and holds only after seconds, so V8 would still be interpreting these
   // paths when the windows below reach them, and its first tiers box numbers. tests/ew-pipeline.test.ts holds them to zero when warmed; this warms every path the
   // same way, on an engine of its own: each effect on, a drift to its top speed, off with its offset held, on again, and off by a step to the truth.
@@ -251,6 +263,8 @@ if(!allocation){
   }
   const appliedWeather=results.filter(r=>r.type==='ack-v2'&&r.status==='applied'&&r.requestId>1).length;
   if(appliedWeather!==sent||!session.wind.active||results.some(r=>r.type==='reject-v2'))throw Error('A scheduled weather.set was not applied');
+  if(session.terrainMissing[0]!==0||!session.running)throw Error('The session left its terrain');
+  session.drainValidityChanges(()=>undefined);
   const sessionGraph={graph:'weather-session-synthetic-pad',variant:'scalar',...total,bytesPerStep:total.bytes/total.steps,windows,
     weatherApplications:sent-warmupApplications,warmupApplications,memoryStable:sessionDynamics?.engine.memoryStable===true};
   samples.push(sessionGraph);session.dispose();console.log(JSON.stringify(sessionGraph));
@@ -312,12 +326,33 @@ if(!allocation){
     const flowGraph={graph:'dynamic-inflow-synthetic-pad-four-rotor',variant,...await measure(flowRun,1000000),memoryStable:flow.engine.memoryStable};
     samples.push(flowGraph);flow.dispose();console.log(JSON.stringify(flowGraph));
   }
+  // TASK-145: four calibrated rotors turning on the ESC drive on the same pad, each step checked against its bench envelope. The weather
+  // re-applied every 1000 steps alternates between 98 kPa and 90 kPa, so the air's density leaves the 1.12 to 1.25 kg/m³ band of the
+  // bench data every other window and the flag switches; the RPM and advance-ratio bounds stay wide, so every comparison is evaluated.
+  const calibratedConfig=padded();calibratedConfig.drive=driven.drive;
+  calibratedConfig.calibrationEnvelopes=[0,1,2,3].map(rotorIndex=>({rotorIndex,rpmLow:1,rpmHigh:1e6,densityLowKgM3:1.12,densityHighKgM3:1.25,advanceRatioMax:1e3}));
+  const thin=weatherOf(-4,1,0x9e3779b9);thin[WEATHER_PRESSURE]=90000;
+  const calibratedWeathers=[weathers[0],thin],calibrated=new BetFlightDynamics(modules[0],calibratedConfig,400);
+  if(calibrated.setWeather(calibratedWeathers[0])!==null)throw Error('Weather refused');
+  let calibratedApplications=0,calibratedSteps=0,calibratedEvery=5;flaggedSteps=0;
+  const calibratedRun=n=>{for(let i=0;i<n;i++){
+    if(++calibratedSteps%calibratedEvery===0){if(calibrated.setWeather(calibratedWeathers[(++calibratedApplications)&1])!==null)throw Error('Weather refused');}
+    calibrated.nowMs=0;calibrated.stepNow(escPilot);
+    if(calibrated.fault||calibrated.state.down!==0||!(calibrated.electrical[2]>0))throw Error('Calibrated rotor allocation step failed');
+    if(calibrated.validityFlags&(1<<18))flaggedSteps++;}};
+  // Warmed as the weather graph is, with an application every 5 steps; then one every 1000.
+  calibratedRun(100000);calibratedEvery=1000;calibratedSteps=0;await measure(calibratedRun,10000);
+  flaggedSteps=0;
+  const calibratedGraph={graph:'calibrated-esc-weather-pad-four-rotor',variant:'scalar',...await measure(calibratedRun,1000000),flaggedSteps,
+    memoryStable:calibrated.escEngine.memoryStable};
+  if(!(flaggedSteps>0&&flaggedSteps<1000000))throw Error('The calibration validity flag did not switch');
+  samples.push(calibratedGraph);calibrated.dispose();console.log(JSON.stringify(calibratedGraph));
   const sink={value:null};const control=n=>{for(let i=0;i<n;i++)sink.value={i};};
   const positive=await measure(control,1000000),controlDetected=positive.gcEvents>0 || positive.bytes>1000000;
   const passed=completeAllocationSamples(samples)&&samples.every(s=>s.gcEvents===0&&s.bytesPerStep<0.01&&s.memoryStable)&&controlDetected;
   const report={schemaVersion:1,status:passed?'pass':'failed',...identity,warmupSteps:100000,samples,positiveControl:positive,controlDetected,
     nativeAllocator:{steps:1000000,calls:0,bytes:0,positiveControlDetected:true,driveSteps:{boundV2:1000000,esc:1000000,bus:1000000}},
-    scope:'Active NeuralFoil rotor graph through step interfaces v1 and v2 and a stationary body through interface v2, each in both WASM variants, plus stationary four-rotor body, synthetic-pad and ESC-drive bus (synthetic pad) graphs, and the TASK-093 weather graphs (gust and per-step air with a weather re-applied every 1000 steps, and the real session applying scheduled weather.set commands, on the synthetic pad, and TASK-096 airframe drag in that wind); native counted allocator checks (bound v1, v2, ESC drive, bus) and WASM trapping allocator; no measured aerodynamic acceptance or hardware realtime claim'};
+    scope:'Active NeuralFoil rotor graph through step interfaces v1 and v2 and a stationary body through interface v2, each in both WASM variants, plus stationary four-rotor body, synthetic-pad and ESC-drive bus (synthetic pad) graphs, and the TASK-093 weather graphs (gust and per-step air with a weather re-applied every 1000 steps, and the real session applying scheduled weather.set commands, on the synthetic pad, and TASK-096 airframe drag in that wind, and TASK-145 calibrated rotors on the ESC drive checked against their bench envelope every step); native counted allocator checks (bound v1, v2, ESC drive, bus) and WASM trapping allocator; no measured aerodynamic acceptance or hardware realtime claim'};
   writeFileSync(resolve(root,'test-results/validation/bet-runtime-allocation.json'),JSON.stringify(report,null,2)+'\n');
   observer.disconnect();if(!passed)process.exitCode=1;
 }

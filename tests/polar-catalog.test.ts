@@ -83,8 +83,8 @@ describe('profile schema 4', () => {
   it('rejects polars outside schema 4, for unused cards, for unknown entries or out of order', () => {
     const chosen = withPropellerPolars(quadWithPropellers(), [{ card: PROPELLER_A, polar: 'naca6409-neuralfoil-v1' }]);
     const invalid: [string, unknown, string][] = [
-      ['polars in schema 3', { ...chosen, schemaVersion: 3, sensorConfiguration: null }, 'Propeller polars appear exactly in schemas 4 and 5'],
-      ['schema 4 without polars', { ...chosen, propellerPolars: undefined }, 'Propeller polars appear exactly in schemas 4 and 5'],
+      ['polars in schema 3', { ...chosen, schemaVersion: 3, sensorConfiguration: null }, 'Propeller polars appear exactly in schemas 4 to 6'],
+      ['schema 4 without polars', { ...chosen, propellerPolars: undefined }, 'Propeller polars appear exactly in schemas 4 to 6'],
       ['an empty list', { ...chosen, propellerPolars: [] }, 'Schema 4 profiles choose at least one propeller polar'],
       ['an unused card', { ...chosen, propellerPolars: [{ card: 'c3'.repeat(32), polar: 'naca6409-neuralfoil-v1' }] }, 'which no motor uses'],
       ['an unknown polar', { ...chosen, propellerPolars: [{ card: PROPELLER_A, polar: 'clark-y-v1' }] }, 'Unknown catalog polar clark-y-v1'],

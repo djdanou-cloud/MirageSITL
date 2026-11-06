@@ -122,3 +122,28 @@ export function mslAccuracyGate(geoid: GeoidModel, expectedSha256?: string): Msl
   }
   return { status: "AVAILABLE", model: p.model, sha256: p.sha256 };
 }
+
+/** SHA-256 of data/geoid/WW15MGH.DAC, NGA's EGM96 15-minute grid as distributed (TASK-148). */
+export const EGM96_15_SHA256 = "9dcaf4efd6857aaa2e1e2e2c574d3f5264eacf47024cdcd5291c40ddad5e5acc";
+/** WW15MGH.DAC layout: 721 rows from 90 N to 90 S, 1440 columns from 0 E eastward, 15 minutes, big-endian int16 centimetres. */
+export const EGM96_15_LAYOUT = Object.freeze({ rows: 721, columns: 1440, latitudeStartDeg: 90, stepDeg: 0.25, longitudeStartDeg: 0, bytes: 721 * 1440 * 2 });
+
+/**
+ * The EGM96 15-minute grid from NGA's WW15MGH.DAC bytes (TASK-148). The bytes must match the pinned
+ * SHA-256 before they are decoded, so the absolute-MSL gate opens only for the authoritative payload.
+ */
+export async function loadEgm96Geoid(bytes: Uint8Array<ArrayBuffer>): Promise<GridGeoid> {
+  const layout = EGM96_15_LAYOUT;
+  if (bytes.byteLength !== layout.bytes) throw new Error(`WW15MGH.DAC must be ${layout.bytes} bytes`);
+  const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", bytes));
+  const sha256 = Array.from(digest, b => b.toString(16).padStart(2, "0")).join("");
+  if (sha256 !== EGM96_15_SHA256) throw new Error("WW15MGH.DAC does not match the pinned EGM96 SHA-256");
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength), undulationM = new Float64Array(layout.rows * layout.columns);
+  for (let i = 0; i < undulationM.length; i++) undulationM[i] = view.getInt16(2 * i, false) / 100;
+  return new GridGeoid({
+    latStartDeg: layout.latitudeStartDeg, latStepDeg: -layout.stepDeg, latCount: layout.rows,
+    lonStartDeg: layout.longitudeStartDeg, lonStepDeg: layout.stepDeg, lonCount: layout.columns, undulationM,
+    provenance: { model: "EGM96-15min", source: "US National Geospatial-Intelligence Agency, WW15MGH.DAC (data/geoid/inventory.json)",
+      license: "Public domain (United States Government work)", sha256 },
+  });
+}

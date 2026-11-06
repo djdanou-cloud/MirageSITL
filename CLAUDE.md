@@ -118,7 +118,8 @@ implementation.
   the aircraft profile as a separate project archive; native ArduCopter loads
   an exported file back to the same values (`scripts/check-param-file-sitl.mjs`).
   TASK-165 is DONE: the Experiments tab repeats an experiment or runs a
-  variant of it in the Run tab, as a new record (experiment payload schema 4)
+  variant of it in the Run tab, as a new record (experiment payload schema 4,
+  schema 7 since TASK-148)
   whose lineage names the parent and the changed inputs; differences are shown,
   never judged (user decision of 2026-11-03), and an exported experiment lists
   what its archive cannot hold.
@@ -368,7 +369,15 @@ implementation.
   the Experiments tab runs a batch of parameter sets the user supplies
   (`packages/project/src/batch.ts`), one scenario from the Run tab once per set with every
   other input identical. A failed run is recorded and never retried, and the next set
-  still runs. Nothing searches for values or ranks the sets. TASK-142 is DONE:
+  still runs. Nothing searches for values or ranks the sets. TASK-148 is DONE: WGS84
+  normal gravity (`gravity.ts`), the WMM2025 main field (`geomagnetic.ts`) and
+  the hashed EGM96 grid (`data/geoid/`, which opens the TASK-036 MSL gate) pass
+  their reference data; `effectiveConditions` combines them for a location,
+  flight sessions take the location's gravity and origin air, the Weather and
+  location tab keeps one location per project and shows its conditions, the
+  Run tab starts ArduPilot at it (`--home`, barometer parameters, COMPASS_DEC,
+  `environment.set` to the physics Worker), and experiment payload schema 7
+  records the location with its conditions. TASK-142 is DONE:
   the Aircraft tab maps each motor to an output and generates the frame
   parameters from the TASK-128 catalog (the S19 octa-x fixture spins the
   mirror of stock OCTA X, so it uses the scripting matrix). TASK-151 (the

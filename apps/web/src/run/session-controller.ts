@@ -67,7 +67,8 @@
 // frame starts where the run started, and a repeat is a new experiment. A
 // task that fails hands the flight to ArduPilot's LAND; the run goes on.
 import {
-  EXPERIMENT_SCHEMA_VERSION, type ExperimentFlightTask, type ExperimentLineage, type ExperimentParameter, type ExperimentPayload, type ExperimentRecording, type ExperimentSitl,
+  EXPERIMENT_SCHEMA_VERSION, type ExperimentEnvironment, type ExperimentFlightTask, type ExperimentLineage, type ExperimentParameter, type ExperimentPayload, type ExperimentTerrain,
+  type ExperimentRecording, type ExperimentSitl,
 } from "@mirage/aircraft/experiment";
 import { readAutopilotVersion, verifiedCommit } from "@mirage/autopilot/autopilot-version";
 import { CopterMode, GroundStation } from "@mirage/autopilot/ground-station";
@@ -79,7 +80,8 @@ import { parameterWriteConflictReason } from "@mirage/autopilot/error-ownership"
 import { ParameterService, type DownloadState, type ParameterValue } from "@mirage/autopilot/param-service";
 import { faultParameters } from "@mirage/autopilot/fault-effects";
 import { JAMMING_PARAMETERS, MAGNETIC_PARAMETERS, SITL_GPS_ACC, SITL_GPS_LOCK, SITL_GPS_NO_LOCK_S, SITL_GPS_NUMSATS, jammingWrites, magneticBiasWrites, type ParameterWrite } from "@mirage/ew/sitl-writes";
-import { faultTimeline, sitlDeliveryRefusal, type FaultSchedule, type FaultTransition } from "@mirage/scenarios/fault-schedule";
+import { faultTimeline, sitlDeliveryRefusal, type FaultSchedule, type FaultTransition, type ScheduledEffect } from "@mirage/scenarios/fault-schedule";
+import type { WeatherSchedule } from "@mirage/scenarios/weather-schedule";
 import { parseEffectControl, type EffectControl, type EffectId, type EffectRecovery } from "@mirage/protocol";
 import { siteParameters } from "@mirage/aircraft/site-parameters";
 import { ParameterReadback, type AbsentRule, type ParameterDifference } from "@mirage/autopilot/parameter-readback";
@@ -172,8 +174,11 @@ export interface FlightTruth {
   readonly rollDeg: number; readonly pitchDeg: number;
 }
 export interface PhysicsPort {
-  /** Loads the BET module, the manifest and its ratings and starts the session in sitl-lockstep at `physicsHz`; resolves with the module's SHA-256. */
-  load(physicsHz: 800 | 1200): Promise<{ readonly betModuleSha256: string }>;
+  /**
+   * Loads the BET module, the manifest and its ratings, gives the physics the environment's gravity and origin air
+   * (TASK-148) and starts the session in sitl-lockstep at `physicsHz`; resolves with the module's SHA-256.
+   */
+  load(physicsHz: 800 | 1200, environment: ExperimentEnvironment | null, terrain?: readonly TerrainChunk[] | null): Promise<{ readonly betModuleSha256: string }>;
   connect(port: number, bridgeEpoch: number, speedup: number): void;
   disconnect(): void;
   sendMavlink(bytes: Uint8Array): void;
@@ -239,18 +244,28 @@ export interface ClockPort {
   every(ms: number, callback: () => void): () => void;
 }
 
+/** One chunk of a real-terrain run's lattice (TASK-186): 129 by 129 posts 4 m apart, down from the home, m. */
+export interface TerrainChunk { readonly northIndex: number; readonly eastIndex: number; readonly downM: Float64Array }
+/** The real terrain a run stands on (TASK-186): what its record says, and the chunks the physics checks under the vehicle. */
+export interface RunTerrainInput { readonly record: ExperimentTerrain; readonly chunks: readonly TerrainChunk[] }
 export interface StartRequest {
   readonly prepare: () => Promise<PreparedRun>;
   readonly firmwareId: string;
   readonly speedup: number;
   readonly physicsHz: 800 | 1200;
   readonly home: readonly [number, number, number, number];
+  /** The location and its effective conditions (TASK-148), which `home` must be the location of; null flies at standard gravity with a sea-level ISA origin. */
+  readonly environment: ExperimentEnvironment | null;
   /** A repeat or a variant of a stored experiment (TASK-165); an original run when absent. */
   readonly lineage?: ExperimentLineage;
   /** The flight task this run may fly (TASK-172). */
   readonly flightTask?: ExperimentFlightTask | null;
   /** The effects this run applies by itself (TASK-169). */
   readonly faults?: FaultSchedule | null;
+  /** The weather this run applies by itself (TASK-167). */
+  readonly weather?: WeatherSchedule | null;
+  /** The real terrain this run stands on (TASK-186); the synthetic pad when absent. */
+  readonly terrain?: RunTerrainInput | null;
 }
 export interface ConnectRequest {
   readonly prepare: () => Promise<PreparedRun>;
@@ -263,12 +278,18 @@ export interface ConnectRequest {
   readonly physicsHz: 800 | 1200;
   /** The session's home, which the SITL's own --home must match. */
   readonly home: readonly [number, number, number, number];
+  /** The location and its effective conditions (TASK-148), or null; `home` is its location. */
+  readonly environment: ExperimentEnvironment | null;
   /** Source commits whose SITL behaviour MirageSITL has verified (the pinned ArduPilot catalog). */
   readonly verifiedCommits: readonly string[];
   /** The flight task this run may fly (TASK-172); a SITL the user started stands at its own home, so its ground start must be the pad. */
   readonly flightTask?: ExperimentFlightTask | null;
   /** The effects this run applies by itself (TASK-169). */
   readonly faults?: FaultSchedule | null;
+  /** The weather this run applies by itself (TASK-167). */
+  readonly weather?: WeatherSchedule | null;
+  /** The real terrain this run stands on (TASK-186); the synthetic pad when absent. */
+  readonly terrain?: RunTerrainInput | null;
 }
 
 // ---- states ---------------------------------------------------------------------------------
@@ -308,7 +329,9 @@ export type FailureReason =
   /** A SITL the user started does not fit this profile or MirageSITL; every reason is named. */
   | { readonly kind: "incompatible"; readonly reasons: readonly string[] }
   /** A SITL the user started stopped sending heartbeats. */
-  | { readonly kind: "sitl-silent"; readonly seconds: number };
+  | { readonly kind: "sitl-silent"; readonly seconds: number }
+  /** TASK-148: the SITL the launcher started reports a position away from the session's home (the location). */
+  | { readonly kind: "home"; readonly message: string };
 export type RestartPath =
   /** Start (or, for a connection, Connect) again: a new experiment with a new record. */
   | { readonly kind: "start-again" }
@@ -382,6 +405,7 @@ export function failureText(reason: FailureReason): string {
     case "stop-failed": return `Stopping SITL failed: ${reason.message}`;
     case "incompatible": return `This SITL cannot be used with this profile: ${reason.reasons.join("; ")}`;
     case "sitl-silent": return `The SITL sent no heartbeat for ${reason.seconds} s; MirageSITL disconnected (the SITL itself was not stopped)`;
+    case "home": return `ArduPilot does not start at the session's home: ${reason.message}`;
     default: { const never: never = reason; return never; }
   }
 }
@@ -471,6 +495,23 @@ export interface ControllerView {
   readonly effects: readonly EffectEntry[];
   /** The effects this run applies by itself (TASK-169), or null. */
   readonly faultPlan: FaultPlanView | null;
+  /** The weather this run applies by itself (TASK-167), or null; it counts from the same first arming. */
+  readonly weatherPlan: WeatherPlanView | null;
+  /** Where the run reached ground its real terrain does not hold (TASK-186), or null. */
+  readonly terrainMissing: TerrainMissing | null;
+}
+/** The first tick of a real-terrain run with no published ground within 8 m of the vehicle (TASK-186). */
+export interface TerrainMissing {
+  readonly tick: number;
+  readonly simTimeS: number;
+  readonly northM: number;
+  readonly eastM: number;
+}
+export interface WeatherPlanView {
+  readonly schedule: WeatherSchedule;
+  readonly armedAtS: number | null;
+  /** How many changes of faultTimeline(schedule) have been sent. */
+  readonly sent: number;
 }
 export interface FaultPlanView {
   readonly schedule: FaultSchedule;
@@ -497,6 +538,8 @@ export interface EffectEntry {
   readonly writes: readonly string[];
   /** Why it was rejected, or empty. */
   readonly message: string;
+  /** The control's values as sent (TASK-167: a weather change is logged with its values and seeds); null in a log from before them. */
+  readonly parameters: EffectControl["parameters"] | null;
 }
 export interface ManualView {
   readonly mode: ManualMode;
@@ -547,6 +590,8 @@ interface ExternalFacts {
   physicsHz: 800 | 1200;
   betModuleSha256: string;
   home: readonly [number, number, number, number];
+  environment: ExperimentEnvironment | null;
+  terrain: ExperimentTerrain | null;
   verifiedCommits: readonly string[];
   version: { readonly commit: string; readonly gitHash: string; readonly firmwareVersion: string } | null;
   versionSinceS: number;
@@ -588,6 +633,8 @@ export class SessionController {
   private effects: EffectItem[] = [];
   /** TASK-169: the run's schedule, what of it has gone, and when it started counting. */
   private faultPlan: { readonly schedule: FaultSchedule; readonly timeline: readonly FaultTransition[]; sent: number; armedAtS: number | null } | null = null;
+  /** TASK-167: the weather schedule, run as the fault schedule is. */
+  private weatherPlan: { readonly schedule: WeatherSchedule; readonly timeline: readonly FaultTransition[]; sent: number; armedAtS: number | null } | null = null;
   /** The value each fault parameter held before an effect changed it. */
   private readonly faultRestore = new Map<string, number>();
   /** The ground-station link effect is on: the autopilot's silence is that effect, not a lost SITL. */
@@ -603,6 +650,7 @@ export class SessionController {
   private heartbeatSeen = false;
   private lastHeartbeatMs = 0;
   private accidents: AccidentEvent[] = [];
+  private terrainMiss: TerrainMissing | null = null;
   private afterAccident = false;
   private pauses: PauseEvent[] = [];
   /** A user or hidden-tab pause waiting for its acknowledgement. */
@@ -620,6 +668,8 @@ export class SessionController {
   private taskState: FlightTaskView["state"] = "waiting";
   private taskReason: string | null = null;
   private home: readonly [number, number, number, number] | null = null;
+  /** TASK-148: a launcher run's first 3D fix was found at its home. */
+  private launcherHomeChecked = false;
   /** Wall time at which each stream's message last arrived. */
   private readonly streamSeenMs = new Map<number, number>();
   private stopTimer: (() => void) | null = null;
@@ -638,11 +688,12 @@ export class SessionController {
   get view(): ControllerView {
     return { state: this.stateValue, status: this.status, mode: this.mode, armed: this.armed, statusText: this.statusText, recordSha256: this.recordSha256,
       ownership: this.ownership, compatibility: this.compatibility, motorCheck: this.motorCheckView(), accidents: this.accidents,
-      afterAccident: this.afterAccident, pauses: this.pauses, pausedWallMs: this.pausedWallTotal(), parameters: this.parameterView(),
+      afterAccident: this.afterAccident, terrainMissing: this.terrainMiss, pauses: this.pauses, pausedWallMs: this.pausedWallTotal(), parameters: this.parameterView(),
       speed: this.speed.view, flightTask: this.flightTaskView(),
       manual: this.manual ? { mode: this.manual.mode, device: this.manual.device, waiting: this.manual.waiting } : null,
       effects: this.effects.map(item => this.effectEntry(item)),
-      faultPlan: this.faultPlan ? { schedule: this.faultPlan.schedule, armedAtS: this.faultPlan.armedAtS, sent: this.faultPlan.sent } : null };
+      faultPlan: this.faultPlan ? { schedule: this.faultPlan.schedule, armedAtS: this.faultPlan.armedAtS, sent: this.faultPlan.sent } : null,
+      weatherPlan: this.weatherPlan ? { schedule: this.weatherPlan.schedule, armedAtS: this.weatherPlan.armedAtS, sent: this.weatherPlan.sent } : null };
   }
   get active(): boolean { return ACTIVE.has(this.stateValue.name); }
   /** The current state name, read afresh after an await (not narrowed by earlier checks). */
@@ -654,7 +705,7 @@ export class SessionController {
     if (from !== "idle" && from !== "failed") return;
     this.reset("launcher");
     this.flightTaskEntry = request.flightTask ?? null;
-    this.planFaults(request.faults ?? null);
+    this.planFaults(request.faults ?? null, request.weather ?? null);
     this.home = request.home;
     this.speed = new RunSpeedMeter(request.speedup);
     const generation = ++this.generation;
@@ -678,7 +729,7 @@ export class SessionController {
     if (!firmware.usable) { this.fail({ kind: "firmware", message: `ArduPilot build ${firmware.id} cannot be started: ${firmware.reason ?? "unusable"}` }, "starting", null); return; }
     this.set({ name: "starting", step: "physics", experimentId: null });
     let betModuleSha256: string;
-    try { ({ betModuleSha256 } = await this.physics.load(request.physicsHz)); } catch (error) {
+    try { ({ betModuleSha256 } = await this.physics.load(request.physicsHz, request.environment, request.terrain?.chunks ?? null)); } catch (error) {
       if (!cancelled()) this.fail({ kind: "physics", message: messageOf(error) }, "starting", null);
       return;
     }
@@ -725,7 +776,8 @@ export class SessionController {
       session: { physicsHz: request.physicsHz, clockMode: "sitl-lockstep", speedup: request.speedup, home: request.home, modelId: prepared.modelId,
         manifestSha256: prepared.manifestSha256, betModuleSha256 },
       parameters, frameScript: prepared.frameScript, sensors: prepared.sensors, recording, lineage: request.lineage ?? { kind: "original" },
-      flightTask: this.flightTaskEntry, faults: this.faultPlan?.schedule ?? null,
+      flightTask: this.flightTaskEntry, faults: this.faultPlan?.schedule ?? null, environment: request.environment, weather: this.weatherPlan?.schedule ?? null,
+      terrain: request.terrain?.record ?? null,
     };
     try { this.recordSha256 = (await this.records.create(payload)).sha256; } catch (error) {
       // No unrecorded run flies; after a Stop, the stop already ended the run.
@@ -756,7 +808,7 @@ export class SessionController {
     if (from !== "idle" && from !== "failed") return;
     this.reset("external");
     this.flightTaskEntry = request.flightTask ?? null;
-    this.planFaults(request.faults ?? null);
+    this.planFaults(request.faults ?? null, request.weather ?? null);
     this.home = request.home;
     // A SITL the user started paces itself by its own --speedup.
     this.speed = new RunSpeedMeter(null);
@@ -816,7 +868,7 @@ export class SessionController {
 
     this.set({ name: "starting", step: "physics", experimentId: connection.id });
     let betModuleSha256: string;
-    try { ({ betModuleSha256 } = await this.physics.load(physicsHz)); } catch (error) {
+    try { ({ betModuleSha256 } = await this.physics.load(physicsHz, request.environment, request.terrain?.chunks ?? null)); } catch (error) {
       if (!cancelled()) await this.stopAfter({ kind: "physics", message: messageOf(error) }, "starting");
       return;
     }
@@ -825,7 +877,8 @@ export class SessionController {
       await this.stopAfter({ kind: "sitl-ended", during: "starting", ending: connection.closedReason ?? "the connection closed" }, "starting");
       return;
     }
-    this.external = { spec: request.endpoints, connectionId: connection.id, physicsHz, betModuleSha256, home: request.home,
+    this.external = { spec: request.endpoints, connectionId: connection.id, physicsHz, betModuleSha256, home: request.home, environment: request.environment,
+      terrain: request.terrain?.record ?? null,
       verifiedCommits: request.verifiedCommits, version: null, versionSinceS: 0, homeChecked: false };
     this.readback = new ParameterReadback(prepared.parameters, prepared.absentRule);
     this.set({ name: "starting", step: "connecting", experimentId: connection.id });
@@ -1065,6 +1118,8 @@ export class SessionController {
   /** Why Resume is not possible now, or null (TASK-174: a run paused for its controller waits for it). */
   resumeBlocker(): string | null {
     const s = this.stateValue;
+    // TASK-186: a run's terrain is loaded before it starts and never streamed, so ground that is missing stays missing.
+    if (s.name === "paused" && s.reason === "terrain") return "The terrain under the aircraft is not loaded, and a run loads its terrain only before it starts: stop the run";
     if (s.name !== "paused" || s.reason !== "controller" || !this.manual || !this.input) return null;
     this.input.poll(this.pilot, this.clock.nowMs(), this.armed);
     return this.input.status === "connected" ? null : "Reconnect the controller, or release manual control";
@@ -1110,7 +1165,8 @@ export class SessionController {
     try { parsed = parseEffectControl(control); } catch (error) { return error instanceof Error ? error.message : "Invalid effect control"; }
     if (!this.active) return "No run is active";
     const on = parsed.enabled && parsed.intensity > 0;
-    const entry: EffectEntry = { id: parsed.id, effect: parsed.effect, enabled: parsed.enabled, intensity: parsed.intensity, status: "pending", message: "", origin, requestedSimS, appliedSimS: null, writes: [] };
+    const entry: EffectEntry = { id: parsed.id, effect: parsed.effect, enabled: parsed.enabled, intensity: parsed.intensity, status: "pending", message: "", origin, requestedSimS, appliedSimS: null, writes: [],
+      parameters: parsed.parameters };
     const refused = (message: string): string => {
       this.effects = [...this.effects, { entry: { ...entry, status: "rejected", message }, writeIds: [], session: "none", writesAtS: null }];
       this.emit();
@@ -1206,16 +1262,21 @@ export class SessionController {
     if (item.writeIds.length > 0) item.writesAtS ??= this.status?.simTimeS ?? null;
     return { ...item.entry, status: "applied", appliedSimS: item.writeIds.length > 0 ? item.writesAtS : item.entry.appliedSimS };
   }
-  /** A new run's schedule, with nothing sent yet. */
-  private planFaults(schedule: FaultSchedule | null): void {
+  /** A new run's schedules, with nothing sent yet. */
+  private planFaults(schedule: FaultSchedule | null, weather: WeatherSchedule | null): void {
     this.faultPlan = schedule && schedule.entries.length > 0 ? { schedule, timeline: faultTimeline(schedule), sent: 0, armedAtS: null } : null;
+    this.weatherPlan = weather && weather.entries.length > 0 ? { schedule: weather, timeline: faultTimeline(weather), sent: 0, armedAtS: null } : null;
   }
   /**
    * Sends what the schedule asks for now. What goes on the session's own ticks is queued ahead, within the protocol's 10 s horizon, so it
    * lands on its exact tick however rarely Worker statuses arrive. A parameter write takes the moment it is due; its read-back says when it stood.
    */
   private stepFaults(simTimeS: number): void {
-    const plan = this.faultPlan;
+    this.stepPlan(this.faultPlan, simTimeS);
+    this.stepPlan(this.weatherPlan, simTimeS);
+  }
+  private stepPlan(plan: { readonly schedule: { readonly entries: readonly ScheduledEffect[] }; readonly timeline: readonly FaultTransition[]; sent: number; armedAtS: number | null } | null,
+    simTimeS: number): void {
     if (!plan || !this.active) return;
     if (plan.armedAtS === null) {
       if (!this.armed) return;
@@ -1249,6 +1310,14 @@ export class SessionController {
     if (type === "accident.events") {
       const events = parseAccidents(field(data, "events"));
       if (events.length > 0 && this.active) this.accident(events);
+      return;
+    }
+    if (type === "terrain.missing") {
+      // The session paused itself on the tick: the ground under the aircraft is not in the run's terrain (TASK-186).
+      const tick = field(data, "tick"), simTimeS = field(data, "simTimeS"), northM = field(data, "northM"), eastM = field(data, "eastM");
+      if (this.active && [tick, simTimeS, northM, eastM].every(value => typeof value === "number" && Number.isFinite(value))) {
+        this.terrainMissed({ tick: Number(tick), simTimeS: Number(simTimeS), northM: Number(northM), eastM: Number(eastM) });
+      }
       return;
     }
     if (type === "sitl.input-stale") {
@@ -1285,6 +1354,14 @@ export class SessionController {
     const s = this.stateValue;
     if (PAUSABLE.has(s.name) || (s.name === "starting" && ACCIDENT_STEPS.has(s.step))) { this.enterPause("accident", events); return; }
     if (s.name === "paused") { this.set({ ...s, reason: "accident", accidents: [...s.accidents, ...events] }); return; }
+    this.emit();
+  }
+  /** A real-terrain run reached ground it does not hold (TASK-186): the session paused on that tick, and the autopilot waits with it. */
+  private terrainMissed(at: TerrainMissing): void {
+    this.terrainMiss ??= at;
+    const s = this.stateValue;
+    if (PAUSABLE.has(s.name) || (s.name === "starting" && ACCIDENT_STEPS.has(s.step))) { this.enterPause("terrain", []); return; }
+    if (s.name === "paused" && s.reason !== "accident") { this.set({ ...s, reason: "terrain" }); return; }
     this.emit();
   }
   /** The one path into `paused` (TASK-156): the state to return to, the pause row and the log entry. */
@@ -1370,8 +1447,8 @@ export class SessionController {
         return;
       }
       case "warming":
-        // A connection's READY waits for its record, which follows the home check.
-        if (status.ready && (this.ownership === "launcher" || this.recordSha256 !== null)) this.set({ name: "ready", experimentId: s.experimentId });
+        // READY waits for the home check (TASK-148): a launcher run's own, a connection's through its record, which follows it.
+        if (status.ready && (this.ownership === "launcher" ? this.launcherHomeChecked : this.recordSha256 !== null)) this.set({ name: "ready", experimentId: s.experimentId });
         else if (status.reason !== s.reason) this.set({ ...s, reason: status.reason });
         return;
       case "ready":
@@ -1476,11 +1553,15 @@ export class SessionController {
           default: { const never: never = verdict; return never; }
         }
       }
-      case 24: { // GPS_RAW_INT: a connection's home check, once its parameters are confirmed
-        if (s.name !== "warming" || !this.external || this.external.homeChecked) return;
+      case 24: { // GPS_RAW_INT: the home check, a connection's once its parameters are confirmed, a launcher run's before READY
         if (readNumber(frame.view, GPS_FIX) < 3) return; // below a 3D fix
         // lat and lon in 1e-7 degrees, alt in millimetres above mean sea level.
-        this.checkHome(s.experimentId, readNumber(frame.view, GPS_LAT) / 1e7, readNumber(frame.view, GPS_LON) / 1e7, readNumber(frame.view, GPS_ALT) / 1000);
+        const latitudeDeg = readNumber(frame.view, GPS_LAT) / 1e7, longitudeDeg = readNumber(frame.view, GPS_LON) / 1e7, altitudeM = readNumber(frame.view, GPS_ALT) / 1000;
+        if (this.external) {
+          if (s.name === "warming" && !this.external.homeChecked) this.checkHome(s.experimentId, latitudeDeg, longitudeDeg, altitudeM);
+        } else if (!this.launcherHomeChecked && (s.name === "loading-parameters" || s.name === "warming")) {
+          this.checkLauncherHome(latitudeDeg, longitudeDeg, altitudeM);
+        }
         return;
       }
       case 77: { // COMMAND_ACK: only the motor test's acknowledgement is used
@@ -1570,14 +1651,35 @@ export class SessionController {
     this.compatibility = [...this.compatibility, { check: "parameters", text: `All ${count} frame, output, PWM and sensor parameters match the profile` }];
     this.set({ name: "warming", experimentId, reason: "Checking the SITL's home position" });
   }
+  /** How far a GPS fix is from `home`, metres: horizontally on the WGS-84 mean sphere, and vertically. */
+  private static homeDistance(home: readonly number[], latitudeDeg: number, longitudeDeg: number, altitudeM: number): { horizontal: number; vertical: number } {
+    const [homeLat = 0, homeLon = 0, homeAlt = 0] = home;
+    const north = (latitudeDeg - homeLat) * Math.PI / 180 * EARTH_RADIUS_M;
+    const east = (longitudeDeg - homeLon) * Math.PI / 180 * EARTH_RADIUS_M * Math.cos(homeLat * Math.PI / 180);
+    return { horizontal: Math.hypot(north, east), vertical: Math.abs(altitudeM - homeAlt) };
+  }
+  /**
+   * TASK-148: a run the launcher started must be where MirageSITL's physics and conditions put it. ArduPilot was given
+   * the session's home as --home, so its first 3D fix must lie within the connection limits of it; READY waits for this.
+   */
+  private checkLauncherHome(latitudeDeg: number, longitudeDeg: number, altitudeM: number): void {
+    const home = this.home;
+    if (!home) return;
+    this.launcherHomeChecked = true;
+    const { horizontal, vertical } = SessionController.homeDistance(home, latitudeDeg, longitudeDeg, altitudeM);
+    if (!(horizontal <= HOME_HORIZONTAL_M && vertical <= HOME_VERTICAL_M)) {
+      void this.stopAfter({ kind: "home", message: `its GPS puts it ${Math.round(horizontal)} m from and ${Math.round(vertical)} m above or below ${home.join(",")}` },
+        this.stateName());
+      return;
+    }
+    this.compatibility = [...this.compatibility, { check: "home", text: `GPS within ${horizontal.toFixed(1)} m and ${vertical.toFixed(1)} m of the session's home` }];
+    this.emit();
+  }
   private checkHome(experimentId: string, latitudeDeg: number, longitudeDeg: number, altitudeM: number): void {
     const external = this.external;
     if (!external) return;
     external.homeChecked = true;
-    const [homeLat, homeLon, homeAlt] = external.home;
-    const north = (latitudeDeg - homeLat) * Math.PI / 180 * EARTH_RADIUS_M;
-    const east = (longitudeDeg - homeLon) * Math.PI / 180 * EARTH_RADIUS_M * Math.cos(homeLat * Math.PI / 180);
-    const horizontal = Math.hypot(north, east), vertical = Math.abs(altitudeM - homeAlt);
+    const { horizontal, vertical } = SessionController.homeDistance(external.home, latitudeDeg, longitudeDeg, altitudeM);
     if (!(horizontal <= HOME_HORIZONTAL_M && vertical <= HOME_VERTICAL_M)) {
       void this.stopAfter({ kind: "incompatible", reasons: [`the SITL's GPS puts it ${Math.round(horizontal)} m from and ${Math.round(vertical)} m above or below the session's home: start it with --home ${external.home.join(",")}`] }, "warming");
       return;
@@ -1603,7 +1705,8 @@ export class SessionController {
       session: { physicsHz: external.physicsHz, clockMode: "sitl-lockstep", speedup: null, home: external.home, modelId: prepared.modelId,
         manifestSha256: prepared.manifestSha256, betModuleSha256: external.betModuleSha256 },
       parameters: prepared.parameters, frameScript: null, sensors: prepared.sensors, recording, lineage: { kind: "original" },
-      flightTask: this.flightTaskEntry, faults: this.faultPlan?.schedule ?? null,
+      flightTask: this.flightTaskEntry, faults: this.faultPlan?.schedule ?? null, environment: external.environment, weather: this.weatherPlan?.schedule ?? null,
+      terrain: external.terrain,
     };
     try {
       const { sha256 } = await this.records.create(payload);
@@ -1781,11 +1884,11 @@ export class SessionController {
     this.status = null; this.mode = null; this.armed = false; this.statusText = []; this.recordSha256 = null;
     this.experimentId = null; this.readback = null; this.heartbeatSeen = false; this.streamSeenMs.clear();
     this.ownership = ownership; this.external = null; this.prepared = null; this.compatibility = []; this.motorCheck = null;
-    this.accidents = []; this.afterAccident = false; this.resumeTo = null; this.pauses = []; this.pausing = false;
+    this.accidents = []; this.afterAccident = false; this.terrainMiss = null; this.resumeTo = null; this.pauses = []; this.pausing = false;
     this.params = null; this.paramMetadata = null; this.changes = []; this.firmwareCommit = null;
-    this.effects = []; this.faultRestore.clear(); this.gcsLinkLost = false; this.faultPlan = null;
+    this.effects = []; this.faultRestore.clear(); this.gcsLinkLost = false; this.faultPlan = null; this.weatherPlan = null;
     this.everArmed = false; this.flightTaskEntry = null; this.taskRunner = null; this.taskUpload = null; this.taskRoutePoint = -1; this.taskStep = null;
-    this.taskState = "waiting"; this.taskReason = null; this.home = null;
+    this.taskState = "waiting"; this.taskReason = null; this.home = null; this.launcherHomeChecked = false;
     this.parser.reset();
   }
 
@@ -1819,6 +1922,7 @@ function restartFor(reason: FailureReason, ownership: Ownership): RestartPath {
     case "sitl-ended": case "bridge-lost": case "sitl-restarted": case "sitl-silent":
       return { kind: "start-again" };
     case "stop-failed": return { kind: "start-again" };
+    case "home": return { kind: "fix-first", instruction: "Check the location in the Weather and location tab and the build's home handling, then press Start again" };
     default: { const never: never = reason; return never; }
   }
 }

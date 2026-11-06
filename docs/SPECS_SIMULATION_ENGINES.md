@@ -2456,9 +2456,402 @@ so poles and the antimeridian need no special cases; longitude is reported in
 bilinearly (longitude wraps, latitude clamps) and requires model, source,
 license and SHA-256 provenance. Without one, `NO_GEOID` sets `N=0`, MSL values
 are provisional, and `mslAccuracyGate` returns `BLOCKED_EXTERNAL`; a hash
-mismatch against the pinned payload also blocks. No authoritative grid
-(EGM96/EGM2008) is in the repository yet, so absolute MSL accuracy remains
-blocked while local NED/ECEF/geodetic conversions are verified.
+mismatch against the pinned payload also blocks. TASK-148 adds the
+authoritative EGM96 grid (below), which opens the gate.
+
+## Geographic environment: TASK-148
+
+TASK-148 supplies what a location changes in the physics: normal gravity, the
+geomagnetic main field and the geoid. Each model is verified against
+independent reference data, the effective-conditions record combines them for
+one location, and the flight sessions, the Run tab and the experiment record
+carry them.
+
+**Normal gravity** (`packages/sensors/src/gravity.ts`) is the gravity of the
+WGS84 level ellipsoid after NIMA TR8350.2 (3rd edition, amendment 1). On the
+ellipsoid it is Somigliana's closed formula (equation 4-1)
+
+$$
+\gamma(\varphi)=\gamma_e\,\frac{1+k\sin^2\varphi}{\sqrt{1-e^2\sin^2\varphi}}
+$$
+
+with the Table 3.4 constants γe = 9.7803253359 m/s², k = 0.00193185265241 and
+e² = 6.69437999014·10⁻³. Above and below the ellipsoid `normalGravity` evaluates
+the closed form in ellipsoidal-harmonic coordinates (equations 4-4 to 4-7),
+which is exact for the normal field at any height in the declared envelope of
+−1 km to 20 km; it also returns the component along the reduced latitude that
+tilts gravity from the ellipsoid normal. The second-order series of equation 4-3
+is not used: its free-air gradient is 3.5·10⁻⁵ too small at the equator, which
+is already 1.04·10⁻⁸ relative at 1 km and failed the declared 10⁻⁹ budget. The
+tests (`tests/gravity.test.ts`) derive γe and γp from the four defining
+constants and reproduce Table 3.4, integrate Somigliana over the ellipsoid
+surface to the tabulated mean 9.7976432222 m/s², and check every height against
+the gradient of the closed-form normal potential, differentiated numerically in
+ECEF (steps of 2 and 4 km with Richardson extrapolation; the oracle is good to
+about 10⁻¹⁰): all within 10⁻⁹ relative. Normal gravity has no anomalies or
+deflection of the vertical; those are TASK-108's deferred anomaly fields.
+
+**The WMM2025 main field** (`packages/sensors/src/geomagnetic.ts`) follows the
+WMM2025 technical report. The geodetic point is converted to geocentric
+spherical coordinates on WGS84, the degree-12 expansion with Schmidt
+semi-normalized associated Legendre functions gives the field with linear
+secular variation, and the result is rotated back to the geodetic
+north-east-down frame. `fieldInto` writes north, east and down components,
+horizontal and total intensity, declination and inclination, and their yearly
+rates into preallocated slots. Its envelope is the model's five years from
+2025.0, heights from −1 km to 850 km, and latitudes off the geographic poles.
+`parseWmmCoefficients` accepts only the complete WMM2025 file;
+`data/geomagnetic/WMM_2025.COF` (SHA-256 `dfa85978…582f`) was taken from
+pygeomag, since NOAA's site is not reachable from the build environment, and is
+authenticated by reproducing NOAA's 100 test values
+(`tests/fixtures/geomagnetic/WMM2025_TEST_VALUES.txt`). Y and Z agree within
+2.2·10⁻⁶ nT, every rate within 10⁻⁶ nT/yr, D and I to their published
+0.01°. X agrees within 7.2·10⁻⁴ nT (7.7·10⁻⁸ relative), above the 10⁻⁴ nT
+declared before the implementation; the implementation's geocentric north
+component equals the numerical θ-derivative of its own potential within
+2·10⁻¹² relative, so the residual is not in this code. NOAA states no numeric
+tolerance; the test budget is 10⁻³ nT for X, H and F and 10⁻⁵ nT for Y and Z.
+Only the main field is modeled: crustal anomalies, external fields and vehicle
+interference are TASK-108's, deferred in Phase 1.
+
+**The geoid** is NGA's EGM96 15-minute grid `data/geoid/WW15MGH.DAC` (721 rows
+from 90° N, 1440 columns from 0° E, big-endian int16 centimetres, SHA-256
+`9dcaf4ef…5acc`). `loadEgm96Geoid` checks the bytes against the pinned hash
+before decoding them into a `GridGeoid`, and `mslAccuracyGate` then reports
+`AVAILABLE`. [data/geoid/inventory.json](../data/geoid/inventory.json) records
+the provenance: every node agrees within 5.50 mm with OSGeo PROJ-data's
+independent GeoTIFF conversion of the same NGA model, the DAC rounding to
+centimetres and PROJ to millimetres (the test tolerance is 5.6 mm). EGM2008,
+whose 80 MB grid is too large for the repository, is recorded with its PROJ-data
+SHA-256 for a later local install; FABDEM heights refer to EGM2008, which
+differs from EGM96 by up to about a metre.
+
+**Effective conditions** (`packages/sensors/src/environment.ts`) combine these
+for one location. `effectiveConditions` takes the latitude and longitude, the
+ground elevation above mean sea level H, the decimal year (`decimalYearOf` a UTC
+date), an optional measured QNH and an ISA temperature offset, and returns the
+record that is shown and recorded (schema 1): the geoid undulation N with the
+gate status, the ellipsoidal height h = H + N, the normal gravity at h, the WMM
+field at h in nT with declination, inclination and the WMM zone (blackout below
+2000 nT of horizontal field, caution below 6000 nT), and the air at the ground
+from TASK-093's `airAtOrigin` (temperature, pressure and density, and whether the
+sea-level pressure is standard or measured). The ISA formula takes the elevation
+as geopotential height. Without the hashed grid N is 0, h equals H and the
+record carries the blocked gate. The envelope is latitudes within ±89.9°, H from
+−500 m to 9000 m (ArduPilot's home range), QNH from 870 to 1085 hPa and offsets
+within ±50 K. `magneticNedGauss` gives the field as `IdealSensors` takes it.
+`tests/environment.test.ts` checks the composition: each model evaluated at h,
+standard air equal to ISA at H, a measured QNH that round-trips, the blocked
+gate without the grid, and the blackout zone near the magnetic pole.
+
+**In flight sessions** the conditions enter through two opt-in options, which
+leave every configuration without them bit for bit as before.
+`BetFlightConfiguration.gravityMps2` (and `ProfileDynamicsOptions.gravityMps2`)
+sets the body integrator's gravity; `ContactOptions.gravityMps2` sets the Rapier
+world's, and the contact must match the model's as before.
+`BetFlightConfiguration.originAir` is the air at the ground origin: from reset the
+rotors and drag meet ISA air at the CG's height above the origin every step, a
+`weather.set` replaces it until the next reset, and `airActive` tells the
+session so. `PhysicsSessionV2` subtracts the dynamics' `gravityMps2` in the
+published specific force and publishes the dynamics' air pressure while
+`airActive`, instead of 9.80665 and a sea-level origin. In
+`tests/geographic-session.test.ts` an aircraft at rest on its legs at the CMAC
+site publishes its local normal gravity as specific force within 10⁻⁶ m/s² and
+exactly the float32 rounding of the origin air's pressure at its height, 6.6 kPa
+below the former sea-level value; without the options the session publishes
+exactly the former values. `node scripts/bench-flight-contact.mjs --location`
+repeats takeoffs and landings there for 10⁶ steps at 0.00296 B/step with no GC
+event and no native allocator call (`test-results/bench/flight-contact-location.json`),
+and `node scripts/bench-physics.mjs` keeps the session step at zero allocation.
+
+**In the application** the Weather and location tab (`apps/web/src/weather/`)
+keeps one location per project in the store's local setting `weather.location`
+(`LocationChoice`: a built-in site or coordinates, the ground elevation above
+mean sea level, the heading, a measured QNH or the standard sea-level pressure,
+and an ISA temperature offset, all inside the envelope above; the default is
+ArduPilot's SITL test site CMAC, the Run tab's former fixed home). Phase 1 has
+no offline map and the TASK-131 inventory holds no elevation data, so the
+elevation is typed and the synthetic pad stands at any coordinates. As the form
+changes, the tab shows the effective conditions from the same models the run
+uses, loaded in the browser from the repository's data files (`WMM_2025.COF`
+after its SHA-256 check and `WW15MGH.DAC` through `loadEgm96Geoid`) at the
+current date; a saved location is the next run's home and environment. The Run
+tab starts a launcher run, every run of a TASK-176 batch, and connects an
+external SITL at that location: ArduPilot's `--home` is the location's
+latitude, longitude, elevation and heading, the barometer parameters of
+TASK-147 are generated at that elevation, the TASK-172 site parameters
+(COMPASS_DEC) follow the home, and the physics Worker receives
+`environment.set` (the gravity and the origin air of the conditions, refused
+outside 9.7 to 9.9 m/s² or with an invalid air) before `model.load`, so
+`profileModelPort` builds the profile dynamics with them. Before READY the Run
+tab checks that ArduPilot's first 3D fix lies within 10 m horizontally and 5 m
+vertically of the home, for a run the launcher starts as for a connection, and
+stops the run with the distance otherwise. A repeat or variant
+of an experiment keeps its parent's home and environment; a run from a log
+(TASK-183) starts at the log's home in the conditions there, with the standard
+sea-level pressure and no temperature offset, since a log does not record them
+(`environmentAtHome`; outside the location envelope it flies without an
+environment). A weather that keeps the air (TASK-166) and the end of a weather
+return to the location's origin air, not to a sea-level origin. On the Phase 1
+path ArduPilot SITL computes its own magnetic field from its declination
+tables at the home; the WMM2025 field is shown and recorded for comparison and
+is not written to the autopilot. Experiment payload schema 7 records the
+location and its conditions as `environment` (null for a run recorded without
+one), which `validateExperiment` checks for consistency with the session's
+home and the location (see "Experiment record").
+`tests/weather-location.test.ts` checks the setting, the envelope and the form;
+`tests/browser/location.spec.ts` chooses a location through the UI alone,
+compares the shown conditions with the models evaluated in Node, and finds the
+saved location in the Run tab after a reload; `tests/browser/profile-dynamics.spec.ts`
+sets the environment on the physics Worker and reads the location's gravity
+and air back from the published state.
+
+## Weather tab: TASK-167
+
+TASK-167 gives the Weather and location tab its weather: steady wind by speed
+and direction, the synthetic gust (TASK-032), discrete gusts, Dryden turbulence
+(TASK-106) and the air at the ground from a sea-level pressure and a
+temperature offset at the location's elevation (TASK-148), applied by hand
+during a run or from a saved schedule. Every weather value travels as a
+TASK-166 effect control, so off is absent and the session applies it on its
+tick.
+
+**The discrete gust** is the effect `wind.discrete-gust` (family
+`environment`): `amplitudeMps` in m/s, 0..50; `durationS` in s, 0.1..60;
+`fromDeg`, the bearing the gust blows from in degrees, [0, 360); and
+`upwardDeg`, its angle above the horizontal in degrees, −90..90. Intensity i
+multiplies the amplitude. Its peak air velocity in NED is
+
+$$
+\mathbf{g}=iA\,[-\cos\theta\cos\varphi,\;-\sin\theta\cos\varphi,\;-\sin\varphi]
+$$
+
+with θ = `fromDeg` and φ = `upwardDeg`, so a gust from the north blows south
+and a positive angle is an updraft. Its shape is the one-minus-cosine pulse of
+MIL-F-8785C 3.7.4 (CS-25.341 writes the same pulse over a gradient distance H,
+with T = 2H/V), in time. On the k-th tick of the pulse, k = 0 on the tick the
+control takes effect, before that tick's step, at physics rate f,
+
+$$
+\mathbf{u}_k=\frac{\mathbf{g}}{2}\left(1-\cos\frac{2\pi k}{fT}\right)\quad\text{for }k\le fT,\qquad\mathbf{u}_k=0\ \text{after},
+$$
+
+added to the wind of the CG and of every rotor hub as one uniform field: an
+aircraft of a metre is small against a gust of V·T. It rises from zero to the
+peak at T/2 and is back at zero at T. Switching it on again, or changing its
+values, starts a new pulse on that tick; another weather change leaves a
+running pulse alone; off ends it at once. Declared before the implementation:
+every tick equals the formula above within 10⁻¹² m/s at 400, 800 and 1200 Hz;
+the pulse at a common simulated time is the same at every rate within
+10⁻¹² m/s; i = 0.5 gives half the wind of i = 1 exactly; a pulse never on is
+bitwise absent; the step allocates nothing (G1).
+
+**Air at the location.** The tab's air is the TASK-148 location's air with its
+own sea-level pressure (standard or a measured QNH) and temperature offset:
+`airAtOrigin` gives the `atmosphere` control's temperature and pressure at the
+location's elevation, so the pressure stays consistent with the altitude.
+
+**The weather schedule** (`packages/scenarios/src/weather-schedule.ts`,
+schema 1) holds up to 64 entries of the TASK-169 form, `{control, onsetS,
+durationS, recovery}`, every control of family `environment`. Time counts
+simulated seconds from the first arming, as the fault schedule's does, so a
+repeat meets its weather at the same point of the flight; two entries of one
+effect may not overlap. It records the random streams its seeded effects draw
+from, `streams: { gust: [0, 1, 2], turbulence: [0x00106001, …, 0x00106005] }`,
+and a schedule with other streams is refused: its seeds would not repeat the
+same realization here. The run controller sends its entries as it sends the
+fault schedule's: queued 5 s ahead on their exact ticks.
+
+**Records.** Experiment payload schema 8 adds `weather`, the run's weather
+schedule or null; `weather` is an input after `conditions`, and older records
+read as schema 8 with none. The effect log (TASK-169) goes to schema 2: each
+entry holds the `parameters` of its control, so a weather change is logged
+with its values and seeds; schema 1 logs read with `parameters: null`.
+
+**In the application** the Weather and location tab's weather section
+(`apps/web/src/weather/WeatherPanel.tsx`, the form logic in `weather-form.ts`)
+offers a steady wind by speed and the bearing it blows from, the discrete gust,
+the synthetic gust and the turbulence with their seeds (New seed draws a fresh
+uint32), and the air at the ground from the location's sea-level pressure and
+temperature offset. Each has Apply now and Turn off, which send its control to
+the run going now through `SessionController.setEffect`, and Add to the
+schedule, at an onset after arming and for a duration or until the end. A value
+outside its range, or one the intensity would carry past it, is refused in the
+form with its problem named, as the session's admission would refuse it. The
+schedule is a per-project local setting (`weather-store.ts`) that the Run tab
+gives every run, batch run and connection; a repeat flies its parent's. The
+section lists what is in effect in the run (the last applied control of each
+effect, with its values), the changes still to come and what became of each, and
+the Experiments tab names a record's weather with its seeds.
+
+**Verification.** `tests/discrete-gust.test.ts` holds the pulse to its
+definition at 400, 800 and 1200 Hz and across rates, its restart, keep and off
+rules, its envelope, the control's direction and intensity, and, through the
+real `PhysicsSessionV2`, the wind the rotors see from the tick it takes effect,
+off and zero bitwise absent. `tests/weather-schedule.test.ts` checks the
+schedule's rules and streams against the models' and flies a schedule twice bit
+for bit, and differently with another seed. `tests/run-controller.test.ts`
+queues a schedule's changes on arming + onset and logs them with their values;
+`tests/experiment-record.test.ts` and `tests/effect-log.test.ts` check the
+records; `tests/weather-form.test.ts` the form; `tests/browser/weather-tab.spec.ts`
+the section through the UI. `tests/browser/weather-sitl.spec.ts` sets wind on a
+running native ArduCopter session, observes it in the recorded airspeed and
+removes it, and checks that a scheduled discrete gust lands on its tick; it needs
+the reference Mac.
+
+## Terrain source selection: TASK-186
+
+TASK-186 lets a run choose its ground at run time, not at build time: the
+explicitly labelled synthetic level pad, or real elevation from local data. It
+shows what each terrain source is, where it covers and how detailed it is, marks
+what needs data, keys or a deployment as not ready, and pauses a real-terrain
+run where its terrain is missing instead of substituting a plane. Automatic
+region downloads are excluded: nothing is downloaded or cached.
+
+**Source records** (`packages/terrain/src/coverage.ts`) come from the TASK-131
+terrain inventory (`data/terrain/inventory.json`): each has its ID, name, kind,
+layer, coverage, resolution, license and readiness. The layer distinguishes what
+a source gives: `ground` (elevation a run can stand on: the synthetic pad and
+FABDEM), `imagery` (imagery, land cover and the Google photorealistic tiles and
+the R2 region cache, shown and never chosen as ground) and `other` (geoids,
+vector features, test fixtures). Coverage is `any` for the pad, the bounding box
+of the served terrain's manifest for FABDEM, and none for what has no data. The
+pad is ready anywhere and offline. FABDEM, which the inventory lists as needing
+data, is ready only while the local FABDEM output of
+`scripts/geodata/build_terrain.py` is served at `/geodata/terrain/layer.json`
+(`MIRAGE_GEODATA_DIR`, loopback only; a missing file or the application page in
+its place is "not served") with a `terrain-manifest.json` whose bounding box
+holds the location; otherwise the record says which of these is missing. Every
+other source says why it is not ready: `Needs keys or a deployment` (the Google
+tiles, R2), `Available but not wired into a run` (WorldCover), `Needs data`
+(buildings, OSM), a test fixture, or not ground. The inventory gains the
+`r2-region-cache` row for this.
+
+**The choice** is a per-project local setting (`apps/web/src/weather/terrain-store.ts`,
+`terrain-choice.p<project>`): `{ schemaVersion: 1, sourceId, radiusM }` with
+`sourceId` `synthetic-pad` (the default) or `fabdem-elevation`, and the radius
+around the home that a real-terrain run loads, 256 m to 1500 m, 1000 m by
+default. A damaged setting reads as the pad.
+
+**Quantized-mesh decoding** (`packages/terrain/src/quantized-mesh.ts`) reads the
+quantized-mesh-1.0 tiles that the TASK-073 pipeline writes: the 88-byte header,
+the zig-zag delta-coded u, v and height arrays, and the high-water-mark coded
+triangle indices (16-bit below 65537 vertices, 32-bit otherwise, with its
+alignment), each index taken modulo its width as Cesium stores it, because
+encoders keep their vertices in their own order. Heights are WGS84 ellipsoidal:
+
+```text
+h = h_min + (q / 32767) (h_max - h_min)
+```
+
+A point of a tile is the triangle that contains it, interpolated
+barycentrically. Declared before the implementation: decoded vertices equal the
+encoder's quantized positions within one quantization step, (h_max −
+h_min)/32767, and a point inside a triangle equals the plane through its three
+decoded vertices within 10⁻⁹ m; a point outside every triangle of the tile, or a
+tile that is not there, is missing, never zero. Found while testing against the
+independent quantized-mesh-encoder package: it holds longitude and latitude in
+float32 before quantizing, which moves a vertex by up to half a float32 step
+(2⁻¹⁹ degrees between 32 and 64 degrees), so the budget against the plane the
+fixture was written from adds the slope times that step.
+
+**The collision lattice** (`packages/terrain/src/run-terrain.ts`) is built on
+Main before a run: chunks of 129 × 129 posts 4 m apart (512 m), counted north
+and east from the home, each post
+
+```text
+down = -(h(lat_home + n dlat/dn, lon_home + e dlon/de) - h_home)
+```
+
+with dlat/dn = 1/M and dlon/de = 1/(N cos φ) from the WGS84 meridian and
+prime-vertical radii at the home's latitude, h from the deepest tile level
+available at the post, and h_home the location's ellipsoidal height (TASK-148,
+elevation plus EGM96 undulation). Chunk indices run from ⌊−r/512⌋ to
+⌊(r − ε)/512⌋ on each axis for radius r, so 256 m loads 2 × 2 chunks and 1500 m
+6 × 6. A chunk with any post outside the terrain's bounding box, on a tile that
+is not served, or between triangles is not built: that ground is missing, with
+its reason. Neighbouring chunks compute their shared posts identically, so
+`CollisionChunks` accepts their seams. `latticeSha256` hashes the lattice: per
+chunk, in north then east index order, its two indices as int32 and its posts as
+float64, little-endian. `terrainHeightAt` gives one point's height for the tab.
+
+**The run.** `runTerrainFor` (`apps/web/src/weather/local-terrain.ts`) turns
+the choice into the run's terrain: nothing for the pad; for FABDEM the lattice
+around the run's home and its record, or a refusal that names the reason (no
+location, not served, the location outside the terrain, no chunk within the
+radius), which stops the start before anything runs. A repeat or variant stands
+on its parent's ground (the pad, or the local terrain with the parent's radius);
+a batch run, a connection and a run from a log on the tab's choice. The run
+controller hands the chunks to `RuntimePhysics.load`, which posts
+`terrain.chunks` to the physics Worker after `environment.set` and before
+`sim.configure`; the Worker stages and publishes them at tick 0 in a fresh
+`CollisionChunks` (epoch 1, at most 64 chunks, 64 MiB), attaches it with
+`PhysicsSessionV2.attachGround`, and answers `terrain.ready` with the count or
+`terrain.reject` with the reason.
+
+**Missing terrain.** After each step of a run with ground attached, the session
+asks it whether every chunk under the square of half-side
+`TERRAIN_READY_RADIUS_M` = 8 m around the vehicle's new position is published
+(`readyFrom`, allocation-free, with a preallocated query). When one is not, the
+session pauses on that tick through the path an accident takes (TASK-149,
+TASK-156) and records in `terrainMissing` the count of such ticks, the tick, its
+simulated time and the north and east position. After the compute batch the
+Worker posts `terrain.missing` once per such tick; the run controller enters the
+synchronized pause with reason `terrain` and keeps the first place in its view
+(`terrainMissing`); ArduPilot's lockstep time stops with the physics; and the Run
+tab says where the terrain ended. A run's terrain is loaded before it starts and
+never streamed, so ground that is missing stays missing: Resume is refused with
+that reason, and the run can only be stopped. A run already paused by its user
+takes `terrain` as its reason; an accident pause keeps its own. Within the
+loaded terrain the contact keeps its level plane at the home; contact on the
+sloped terrain itself is TASK-187.
+
+**Elevation from terrain.** With real terrain at the location, the Weather and
+location tab shows its height there as a ground elevation above mean sea level,
+the ellipsoidal height minus the EGM96 undulation of TASK-148, and for a
+location given by coordinates offers it as the ground elevation, saved with the
+location. FABDEM's heights were made ellipsoidal with EGM2008, which differs
+from EGM96 by up to about a metre there; the tab says so.
+
+**Records.** Experiment payload schema 9 adds `terrain`: null for the pad, or
+`{ sourceId: "fabdem-elevation", layerSha256, manifestSha256, radiusM, level,
+chunks, missingChunks, latticeSha256, homeHeightM }`, which needs the
+environment (real terrain is built around the location) and at least one
+chunk; schema 8 records read as schema 9 on the pad. `terrain` is a lineage
+input after `weather`, compared by its source, data hashes and radius; the
+lattice follows from them and the home.
+
+**Verification.** `tests/quantized-mesh.test.ts` decodes the four level-14
+tiles of `tests/fixtures/terrain-qm-slope/` (written from a tilted plane by
+quantized-mesh-encoder 1.1, `generate.py`) within the budget above, finds every
+sampled point's triangle by brute force, refuses truncated tiles and an index
+beyond the vertices, and reads a 65537-vertex tile's 32-bit indices after their
+alignment. `tests/terrain-coverage.test.ts` checks every inventory row's record,
+the pad and FABDEM readiness, the not-ready reasons, the parsers' refusals, a
+256 m lattice against the plane within the same budget with its seams accepted
+and its readiness, a 1500 m lattice whose chunks outside the fixture are missing
+with their reason, missing tiles and homes, and the WGS84 radii at 45°.
+`tests/terrain-pause.test.ts` holds a real session to a pause on the exact tick
+the ground goes missing, at the step's position, again after a resume, never
+without terrain, and runs on over a lattice that holds the vehicle.
+`tests/run-controller.test.ts` holds the chunks and the record of a terrain run,
+the pause with its place, the refused Resume, and the reasons a pause keeps;
+`tests/experiment-record.test.ts` the schema 9 record, its refusals, the schema
+8 migration and the input. `tests/browser/terrain-source.spec.ts` (Chromium)
+shows the section with only the loopback server contacted, the pad as the only
+ground and every other source's reason; with the fixture served, FABDEM ready
+at a location inside it, a refused radius, the choice saved and kept after a
+reload, the terrain's height used as the ground elevation, and the lattice a
+run builds in the browser equal in SHA-256 to the one Node builds; and a run
+refused at a location outside it. The allocation check's session graph
+(`node scripts/check-bet-runtime.mjs --allocation`) steps with a published
+lattice attached. On the reference Mac, `tests/browser/terrain-sitl.spec.ts`
+flies native ArduCopter on the fixture's terrain with a 256 m radius on a
+straight task 700 m north and declares that the run pauses with reason
+`terrain` between 504 and 504.02 m north, that Resume is refused and ArduPilot's
+simulated time stands still, and that the record holds the terrain; with
+`MIRAGE_GEODATA_DIR` serving the local FABDEM output it hovers on it at the area
+of operation without a pause.
 
 ## Implemented ArduPilot JSON lockstep: TASK-041
 
@@ -3820,25 +4213,26 @@ conditions and only the measured columns, is in section "Calculation modes
 and measurement sets v1 (TASK-140)"; `importBenchCsv` still reads version 1
 only.
 
-Capture schema v1 has this skeleton; every series must hold 2..2^20 finite
-samples:
+Capture schema 2 (TASK-184) has this skeleton; every series must hold 2..2^20
+finite samples. Schema 1 also declared limits (`limits` per time-domain
+section, `maxCost`, and bench relative-error limits); by scope amendment SA-01
+MirageSITL sets none, so schema 2 holds the same sections without them and
+schema 1 is refused with that reason:
 
 ```json
 {
-  "schemaVersion": 1, "kind": "mirage-fidelity-capture",
+  "schemaVersion": 2, "kind": "mirage-fidelity-capture",
   "provenance": { "source": "flight-test", "operator": "<name>", "recordedAt": "2026-10-26T00:00:00Z",
     "firmwareSha256": "<64 hex>", "modelSha256": "<64 hex>" },
   "timeDomain": [{ "id": "roll-rate", "unit": "rad/s", "sampleRateHz": 100,
-    "measured": ["<samples>"], "simulated": ["<samples>"],
-    "limits": { "maxRms": 0.02, "maxAbsBias": 0.02, "maxTheil": 0.05 } }],
+    "measured": ["<samples>"], "simulated": ["<samples>"] }],
   "frequencyResponse": [{ "id": "roll-rate-response", "sampleRateHz": 100, "segmentLength": 64,
     "overlap": 0, "window": "rectangular", "bandHz": [1.5625, 46.875], "points": 20,
-    "minCoherence": 0.6, "maxCost": 100,
+    "minCoherence": 0.6,
     "measuredInput": ["<samples>"], "measuredOutput": ["<samples>"],
     "simulatedInput": ["<samples>"], "simulatedOutput": ["<samples>"] }],
   "bench": { "csv": "<bench CSV v1 text>", "csvSha256": "<64 hex>",
-    "predicted": [{ "rpm": 2000, "ct": 0.1122, "cp": 0.04365 }],
-    "limits": { "maxCtRelativeError": 0.05, "maxCpRelativeError": 0.05 } }
+    "predicted": [{ "rpm": 2000, "ct": 0.1122, "cp": 0.04365 }] }
 }
 ```
 
@@ -3849,30 +4243,37 @@ responses. Bench predictions list one row per measured row at the same rpm.
 `node scripts/check-fidelity.mjs --input CAPTURE.json --sha256 HEX` builds on
 `scripts/validation/evidence.mjs`, which enforces the hash and a 32 MiB size
 budget. It requires exact keys everywhere, unique section IDs, at most 32
-sections per kind and at least one section in total. Declared limits may be
-stricter than the guidelines but never looser: maxCost ≤ 100,
-minCoherence ≥ 0.6, maxTheil ≤ 1 and bench relative errors ≤ 1. A bench row
-with any consistency flag fails the bench comparison.
+sections per kind and at least one section in total, and it computes each
+section's metrics: RMS, bias and Theil per time-domain section, J with its
+points and excluded points per frequency response, and per bench file the
+rows compared, the rows with a consistency flag (listed with their flags and
+left out of the errors) and the largest CT and CP relative errors.
+`minCoherence` is part of the method, the coherence below which a frequency
+point is unusable, and is never below the 0.6 guideline; nothing in the capture
+or the report is a fidelity limit, and nothing passes or fails a model.
 
 Exit codes:
 
 * No input gives BLOCKED_EXTERNAL (2).
-* Malformed, unhashed or over-permissive input gives FAIL (1).
-* `synthetic` provenance gives BLOCKED_EXTERNAL (2) with the computed metrics
-  and `limitsMet`; it is never PASS.
+* Malformed or unhashed input, a capture schema 1, or a limit written into
+  schema 2 gives FAIL (1).
+* `synthetic` provenance gives BLOCKED_EXTERNAL (2) with the computed metrics;
+  synthetic data compare MirageSITL with no aircraft.
 * `flight-test` provenance with non-zero firmware and model hashes gives
-  PASS (0) or FAIL (1).
+  REPORTED (0): the metrics, for the user to judge.
 
 The report `test-results/validation/fidelity.json` (schema 1, kind `fidelity`)
 records the input hash, the git revision and the validator hash. The analytic
-fixture `tests/fixtures/validation/fidelity-synthetic-capture.json` reports
-J = 19.950 = 20·W_γ(1) for its +1 dB model error and exits 2.
+fixture `tests/fixtures/validation/fidelity-synthetic-capture-v2.json` (the
+schema 1 fixture's series without its limits) reports J = 19.950 = 20·W_γ(1)
+for its +1 dB model error and exits 2; the schema 1 fixture is kept for the
+refusal.
 
 Open items:
 
 * Score a real ArduCopter SYSTEMID flight capture and a real thrust-stand
   file (G4).
-* Convert DataFlash logs to capture v1.
+* Convert DataFlash logs to capture schema 2.
 * Build the simulation replay that produces the simulated series.
 
 ## Sensor-error ownership (TASK-089)
@@ -5839,7 +6240,13 @@ V_{\mathrm{bus}} = V_{oc} - I\,R_{\mathrm{int}}
 
 Statuses: 0, −2 record length or pointers, −3 invalid input or charge, −7
 version. `BetBus` (`@mirage/wasm-bet/bus`) owns one record pair in its own
-instance.
+instance. A hot caller writes the charge, the motor power and the house power
+into its preallocated `input` slots and calls `stepFromInput()`;
+`stepInto(soc, motorPowerW, housePowerW)` is the cold form over the same slots.
+V8 boxes a double passed as an argument to a call it does not inline, and the
+flight step with its weather code is too large to inline the bus step: passed
+as arguments, those doubles cost 32 B on every tick of an ESC-drive run with a
+weather, until TASK-145's allocation graph found it.
 
 ### Solving the bus with the motors (TASK-197)
 
@@ -5991,6 +6398,160 @@ balance within 1e-9; the cut and partial-cut faults; the manifest mapping;
 the thrust fit; and the torque-path digest. `scripts/check-bet-runtime.mjs
 --allocation` adds the ESC-drive graph and the native drive allocator tests.
 The roadmap entry records the native ArduCopter flight on the drive.
+
+## Propulsion calibration: TASK-145
+
+In measured mode (TASK-140), TASK-145 fits the BET rotor and the DC motor of
+one exact bench combination to that combination's static bench data, records
+and shows the residuals, and flags flight outside what the bench measured.
+MirageSITL sets no fit tolerance (SA-01): the residuals are shown, never
+judged. A calibration belongs to its combination and is never transferred.
+
+**Scaling the BET model, not the TASK-103 table mode.** The fit scales the
+section polar of the combination's propeller: every lift coefficient by s_L and
+every drag coefficient by s_D, with the angle, Reynolds-number and Mach axes and
+the confidence unchanged. The reasons: (1) a table of the bench's C_T and C_P
+versus RPM holds only where a static bench measured, at one density and zero
+advance ratio, while a flight needs loads in climb, descent, forward flight and
+wind, which the BET gives from the geometry and the inflow; scaling its polar
+moves the level of its static loads to the bench and keeps their dependence on
+inflow, advance ratio, density and Reynolds number; (2) the two scales are what
+the two measured curves, thrust and torque versus RPM, can set: a static bench
+cannot identify more free parameters, and RPM-dependent factors would fit the
+noise; (3) the table mode of TASK-103 does not exist yet. Scales are confined to
+0.25 to 4: beyond them the polar, not its level, is wrong.
+
+**The static solve** (`staticLoads`, `packages/physics/src/propulsion-calibration.ts`)
+gives the BET rotor's thrust and torque at each bench speed in still air at the
+bench's air (density as measured or p/(R·T); viscosity and sound speed from the
+temperature, or of the ISA sea level when only a density is given): each speed
+is a bound rotor of its own on the drive-mode-0 shaft with no motor torque and a
+shaft inertia of 10⁶ kg·m², so it holds its speed to 10⁻⁶ while its inflow
+(lag 5 ms) settles over 400 steps at 800 Hz; thrust is the axial hub force,
+torque the magnitude of the aerodynamic shaft torque. A speed that does not
+settle to 10⁻⁹ or does not hold throws.
+
+**The rotor fit** (`fitPropulsion`) minimizes, by Levenberg–Marquardt in
+x = (ln s_L, ln s_D) with central differences,
+
+```text
+S(x) = Σ_i ((T_i(x) - T_i,bench) / rms(T_bench))² + Σ_i ((Q_i(x) - Q_i,bench) / rms(Q_bench))²
+```
+
+from s_L = s_D = 1, so both curves count alike whatever their units, until a
+step moves x by less than 10⁻¹¹. Without torque at every point it fits s_L
+alone, keeps s_D = 1 and says so. It needs 3 to 32 points of a bench propeller
+whose diameter is the rotor's.
+
+**The motor fit** (`fitMotor`), when the bench has torque, voltage and current at
+every point, holds the motor card's KV (supply-side data cannot separate KV from
+the winding resistance) and fits the winding resistance R and the no-load current
+I₀ of the TASK-092 DC motor, with a lossless ESC, to the supply power by
+Gauss–Newton:
+
+```text
+I_m = K_v Q + I_0,   V_m = ω / K_v + R I_m,   P_model = V_m I_m = V I
+```
+
+K_v in rad/s per volt. The ESC's losses therefore appear in R and I₀, which the
+record says. A point whose model motor voltage exceeds its supply voltage lies
+beyond full duty and is shown as such.
+
+**The envelope** is the bench's RPM range, its density and its advance ratio,
+J = 0 for a static bench. A flight step is outside it when a rotor turns more
+than 10% beyond the RPM range (F-03), when J = V/(nD) of the airspeed at the CG
+exceeds 0.02 (the J of a 0.5 m/s draught on a 10-inch propeller at 6000 rpm:
+the drift of a hover in still air stays below it, while wind, forward flight,
+climb and descent do not; an engineering default under F-03), or when the air density differs from the
+bench's by more than 10% (F-03's margin applied to the single density of a
+run). These only raise the flag; static data are never extended silently.
+
+**In the flight model.** The vehicle manifest v2 takes an optional
+`propulsionCalibrations` section (absent, a manifest keeps its bytes): per
+calibrated rotor its rotor ID, s_L and s_D, the fitted winding resistance and
+no-load current (null where the bench could not fit them), the bench's RPM range
+and density, the measured dataset it names (the bench data, kind `measured`) and
+the calibration record's SHA-256; at most one per rotor, and the v1 runtime
+refuses it. `buildProfileDynamics` gives each calibrated rotor its own scaled
+copy of its catalog polar under polar ID `CALIBRATED_POLAR_BASE` (10⁶) plus the
+rotor's index, takes the fitted R and I₀ into that rotor's drive, lists the
+calibration among its limitations, and hands `BetFlightDynamics` the envelope
+with its margins. Every step, a calibrated rotor that turns (1 rpm or more)
+outside 0.9·rpm_min to 1.1·rpm_max, in air whose density is more than 10% from
+the bench's, or with V·60 > J_max·rpm·D for the airspeed V at the CG, sets
+`VALIDITY_FLAG_CALIBRATION_EXTRAPOLATION` (bit 18), which the session reports as
+`ModelOutsideValidity`; allocation-free, from preallocated slots. The session
+keeps each change of the model's validity bits with its tick in a ring of 64
+(`drainValidityChanges`, the oldest dropped and counted beyond it), the Worker
+posts them after the compute batch (`validity.changes`), and the run recorder
+writes them as `events.validity` (ID 72), so a recording says from which tick to
+which a calibrated rotor flew outside its bench data.
+
+**The calibration record and its binding.** A fit is stored as a
+`propulsion-calibration` item of the project store
+(`@mirage/aircraft/propulsion-calibration`, payload schema 1): the combination
+key, the measurement set's SHA-256, the motor and propeller cards, the date the
+bench measured, the polar's catalog ID and the SHA-256 of the BET module it was
+fitted with, and the fit itself (s_L, s_D, iterations, the RMS thrust and torque
+residuals, R and I₀ at the card's KV or null, every residual row, what was not
+fitted and the envelope); it depends on the measurement set and both cards.
+`calibrateMotor` fits the profile's own rotor of one motor, as the profile builds
+it without any bound calibration, and refuses a set of another combination.
+Profile schema 6 is schema 5 with its airframe drag optional and a
+`propulsionCalibrations` list of one to any number of entries, one per
+combination in ascending key order: each holds the record's SHA-256, the
+combination key, the measurement set, the bench date, s_L, s_D, R, I₀ and the
+envelope. Only a calculation from measurements binds them, and each needs its
+measurement set bound; a version whose calculation is changed (another mode, a
+newer set) drops the calibrations whose set is no longer bound, and without any
+the version keeps the lowest schema that holds it. `bindCalibration` replaces any
+calibration of the same combination. The derivation writes the section above for
+every motor whose combination key is a bound calibration's, and the bench data
+as a dataset of kind `measured` (`bench-` and the first 16 hex digits of the
+set's SHA-256, acquired on the bench date); a profile without calibrations
+derives the bytes it did before, so the derivation version stays 6.
+
+**In the Components tab** (`apps/web/src/library/CalibrationSection.tsx`), each
+motor with a bound measurement set offers **Fit to the bench data**: the page
+fits it on the served scalar BET module, shows s_L, s_D, R, I₀, the RMS
+residuals, what was not fitted, a table of every bench point against the model
+and the envelope, and on **Save and bind as a new profile version** stores the
+record and saves the profile version that binds it, for every motor of that
+combination and no other. Nothing in it says a fit is good or bad.
+
+**Verification.** `tests/propulsion-calibration.test.ts` declares before the
+implementation: bench data that the rotor itself gives with its polar scaled by
+s_L = 0.9 and s_D = 1.2, and the electrical power of a known motor (KV 900, R =
+0.08 Ω, I₀ = 0.6 A), are fitted back from the unscaled polar within 10⁻⁹
+relative; a thrust-only bench gives s_L back within 10⁻⁹ with s_D = 1 and names
+what it could not fit; the static solve at a speed equals within 10⁻⁶ the thrust
+of the free shaft settled on the TASK-092 ESC drive at that speed (the same rotor
+reached by a motor balancing its aerodynamic torque); a motor fit alone gives R
+and I₀ back; the repository's bench CSV v2 fixture is refused on a rotor of
+another diameter and fitted on one of its own, with every residual kept.
+`tests/profile-dynamics.test.ts` flies a calibrated rotor of the S19 quad on its
+scaled polar (every coefficient exactly s_L or s_D times the catalog's) and
+fitted motor with the other rotors unchanged, refuses five bad sections, and
+holds the flag to no step inside the envelope over 0.1 s of trimmed hover and to
+every step above or below the RPM range, outside the density band or at 5 m/s;
+`tests/terrain-pause.test.ts` holds the validity ring to the tick of each change
+and to counting what it drops. In the same file, a calibration of the S19 quad
+on the repository's bench fixture is fitted, stored with its three dependencies,
+bound as schema 6 and derived for both motors of its combination with the bench
+data as a `measured` dataset, while the unbound profile derives no section and
+a set of another combination is refused.
+`tests/browser/propulsion-calibration.spec.ts` does the same through the
+Components tab in Chromium: seven residual rows, the record and profile
+version 2 at schema 6 in the store, the calibration shown on motors 1 and 2
+after a reload and none on the unmeasured motors 3 and 4, the tab fitting a
+phone and passing axe. `node scripts/check-bet-runtime.mjs --allocation`
+measures the envelope check in the graph `calibrated-esc-weather-pad-four-rotor`:
+four calibrated rotors on the ESC drive on the synthetic pad, whose weather,
+re-applied every 1000 steps, alternates between 98 and 90 kPa so that the bench
+density band flags every other window; over 1,000,000 steps it allocates
+nothing (0 GCs, the measurement's own 4,640 B) with the flag on in 500,000. A
+real bench file (G4) is still to be fitted and its residuals shown before
+measured mode is called working.
 
 ## Profile-driven dynamics (TASK-144)
 
@@ -7060,8 +7621,8 @@ network error; launcher-foreign needs an answer the browser may read.
 
 ### Experiment record
 
-`packages/aircraft/src/experiment.ts` defines experiment payload schema 6
-(TASK-169) in record envelope v1, and the application registers
+`packages/aircraft/src/experiment.ts` defines experiment payload schema 9
+(TASK-186) in record envelope v1, and the application registers
 `validateExperiment` for the `experiment` kind. The record has exactly one
 dependency, its aircraft-profile version, and the payload holds:
 
@@ -7077,15 +7638,22 @@ dependency, its aircraft-profile version, and the payload holds:
 | lineage | an original run, or a repeat or variant of a parent experiment (TASK-165; see "Experiment lifecycle") |
 | flightTask | the flight task the run was started with: its definition, its name and the SHA-256 of the `flight-task` record as data (TASK-172; see "Flight tasks"), or null |
 | faults | the effects the run applies by itself, or null (TASK-169; see "Faults and interference tab") |
+| weather | the weather schedule the run applied by itself, its seeds and random streams included (TASK-167; see "Weather tab: TASK-167"), or null |
+| environment | the location of the run (site, coordinates, ground elevation, heading, measured QNH, temperature offset) with the effective conditions evaluated there (TASK-148), or null for a run without a location; the session's home must be the location, the conditions must be evaluated at it with h = H + N, the WMM zone must match the horizontal field, and the air must come from the location's sea-level pressure |
+| terrain | the local real terrain the run stood on: its source, the SHA-256 of its layer and manifest, the radius, the deepest level, the chunks loaded and missing, the lattice's SHA-256 and the terrain's height at the home (TASK-186; see "Terrain source selection: TASK-186"), or null for the synthetic pad; it needs the environment |
 
 Schema 1, which TASK-154 wrote, had `ardupilot` and `launcher` at the top
 level and a required speed-up; schema 2, which TASK-155 wrote, had no
 `recording`, schema 3, which TASK-163 wrote, no `lineage`, and schema 4, which
-TASK-165 wrote, no `flightTask`, and schema 5, which TASK-172 wrote, no `faults`. All
-stay valid on reads and archive imports; `readExperiment` presents them as schema 6
-runs with no fault schedule, without a task before schema 5, original runs
-before schema 4, without a recording before schema 3 (schema 1 with a
-launcher-owned `sitl`), and `createExperimentRecord` writes only schema 6.
+TASK-165 wrote, no `flightTask`, schema 5, which TASK-172 wrote, no `faults`, and
+schema 6, which TASK-169 wrote, no `environment`, schema 7, which
+TASK-148 wrote, no `weather`, and schema 8, which TASK-167 wrote, no `terrain`.
+All stay valid on reads and archive imports; `readExperiment` presents them as
+schema 9 runs on the synthetic pad, without a weather schedule before schema 8,
+without an environment before schema 7, with no fault schedule before schema 6,
+without a task before schema 5, original runs before schema 4, without a
+recording before schema 3 (schema 1 with a launcher-owned `sitl`), and
+`createExperimentRecord` writes only schema 9.
 
 `createExperimentRecord` recomputes the snapshot from the stored profile
 version and requires canonical-byte equality, cross-checks the frame and
@@ -8185,10 +8753,11 @@ the chart's drawn lines with what it computes from the recording's own rows.
 ## Experiment lifecycle (TASK-165)
 
 An experiment fixes its inputs: the aircraft profile version, the ArduPilot
-build, the speed, the physics rate, the home, the initial parameters, the
-frame script, the TASK-143 sensor snapshot of its profile version, the
-recording setup and the flight task (TASK-172). Weather, location and the
-fault schedule join them when their tasks land (TASK-148, TASK-167, TASK-169).
+build, the speed, the physics rate, the home, the conditions of its location
+(the measured QNH and the temperature offset; TASK-148), its weather schedule
+with its seeds (TASK-167), the initial parameters, the frame script, the
+TASK-143 sensor snapshot of its profile version, the recording setup, the
+flight task (TASK-172) and the fault schedule (TASK-169).
 Results (the recording, the parameter log, the DataFlash files) belong to
 the run. Its inputs never change after version 1.
 
@@ -8201,19 +8770,25 @@ type ExperimentLineage =
   | { kind: "original" }
   | { kind: "repeat"; of: string }   // the parent experiment record's SHA-256
   | { kind: "variant"; of: string; changes: ExperimentInput[] };
-type ExperimentInput = "aircraft profile" | "ArduPilot build" | "speed" | "physics rate" | "home" | "initial parameters" | "frame script" |
-  "sensors" | "recording setup" | "SITL" | "flight task";
+type ExperimentInput = "aircraft profile" | "ArduPilot build" | "speed" | "physics rate" | "home" | "conditions" | "weather" |
+  "initial parameters" | "frame script" | "sensors" | "recording setup" | "SITL" | "flight task" | "fault schedule";
 ```
 
 `experimentChanges(parent, child)` lists the inputs that differ, in that
-order. The run's own identity (launcher experiment or connection ID, the
+order; the `conditions` input compares the location's measured QNH and
+temperature offset, and the date of a run, with the magnetic field of its
+conditions, is not an input. The run's own identity (launcher experiment or connection ID, the
 recording record it made, its lineage and the BET module build) is not an
 input. `createExperimentRecord` reads the parent, which must be an
 experiment of the same project, and refuses a repeat whose inputs differ and
 a variant whose `changes` are not exactly the computed list; a variant needs
 at least one change. The parent is named as data, not as a store dependency,
 and is never changed. Older records read as original runs. Schema 5 appended
-`flight task` to the inputs, so a stored `changes` list stays valid.
+`flight task` and schema 6 `fault schedule` to the inputs, schema 7 inserted
+`conditions` after `home`, schema 8 `weather` after `conditions`, and schema 9
+`terrain` after `weather`; no
+stored `changes` list holds an input added after it, so every stored list
+stays valid.
 
 ### Repeat and Create variant
 
@@ -8251,8 +8826,9 @@ this browser does not hold and the build it needs.
 
 ### Verification (TASK-165)
 
-`tests/experiment-record.test.ts` checks schema 4 and the migration of
-schema 3, the input changes and what is not an input, the refusals of a false
+`tests/experiment-record.test.ts` checks schema 9, the migrations of schemas
+1 to 8, the environment's consistency checks, the weather schedule and the terrain, the
+input changes and what is not an input, the refusals of a false
 repeat or variant and of a parent from elsewhere, the unchanged parent, an
 exported experiment imported into an empty store and its external
 dependencies, and the trajectory difference against a hand-computed oracle.
@@ -8371,6 +8947,94 @@ hand against the pack's law. `tests/bus-coupling.test.ts` flies the real pack (T
 flies one hover on two configurations with native ArduCopter 8ab6afde, and compares the page's
 numbers with what it works out from the recording's rows and the cards on its own.
 
+
+## Fidelity assessment: TASK-184
+
+TASK-184 sets a real flight log beside the log of a simulated run of one
+aircraft profile version and compares them quantity by quantity and regime by
+regime with the TASK-090 time-domain metrics. MirageSITL sets no fidelity limit
+and gives no verdict (SA-01, F-05): every number is shown, and the user judges
+how far to trust the results. What a log lacks is shown as missing, never
+filled in. Operational acceptance (TASK-188) and fidelity stay separate reports.
+
+**Logs and alignment** (`assessFidelity`, `packages/analysis/src/fidelity.ts`).
+Both logs are ArduPilot DataFlash logs, read the same way: the real one, and
+ArduPilot's own log of the simulated run or the one written from its recording.
+The comparison takes an interval of the real log and an offset for the simulated
+one, t_sim = t_real + offset, and reads the simulated series at the real
+instants, straight between its neighbours; instants outside the simulated log
+are left out. `logOrigin` tells a real log from a simulated one: a log that sets
+any `SIM_` parameter, or holds MirageSITL's `MS` messages, is simulated.
+
+**Quantities.** Roll, pitch and heading (ATT; a heading is unwrapped and the
+simulated one moved by the whole turns that bring its start nearest the real
+start), roll, pitch and yaw rate (RATE), height above the origin and climb rate
+(XKF1, first EKF core), battery voltage and current (BAT, first battery) and the
+first motor output (RCOU). For each, over the interval and in each regime:
+
+```text
+e_i = s(t_i + offset) - m(t_i),   RMS = sqrt(mean(e²)),   bias = mean(e),   Theil = RMS / (sqrt(mean(s²)) + sqrt(mean(m²))),   max |e_i|
+```
+
+with the mean, minimum and maximum of each series. Side by side, one number
+per log: the energy used (BAT.EnrgTot at the end of the interval minus at its
+start), the overshoot of the largest step of the desired roll and pitch of at
+least 5° (the peak of (actual − before)/(desired − before) until the desired
+value moves again, minus 1, in percent), and for each body rate its spread
+about its mean and the dominant frequency of a Hann-windowed FFT over the
+largest power-of-two number of samples. The paths, north, east and height each
+from its log's own origin, are compared with the TASK-183 `pathDifference`.
+
+**Regimes** come from the real log's EKF height (from its first sample) and
+velocity at the latest XKF1 row: ground below 0.5 m, then forward at 1 m/s or
+more horizontally, climb or descent at 0.5 m/s or more vertically, else hover.
+These bounds only sort samples (an engineering default); the result lists the
+seconds of each regime, and a quantity with no sample in a regime has a missing
+row there with the reason.
+
+**Comparison records and the label.** `fidelityReport`
+(`apps/web/src/experiments/fidelity-report.ts`) reads both logs, assesses them
+and builds a `fidelity-comparison` record (`packages/aircraft/src/fidelity-comparison.ts`,
+schema 1): the profile version's SHA-256, name and version, the experiment's
+SHA-256 as data, each log's name, SHA-256, size and origin with its reason, the
+interval and offset, the regimes, and every row, scalar and the path above. Its
+one dependency is the profile version. `validateFidelityComparison` refuses an
+unhashed log or profile, the same file as both logs, a missing row that holds a
+number or a compared row without its metrics, and any field it does not know,
+so a limit or a verdict cannot be stored. `flightCheckOf` gives a profile
+version the TASK-133 label `flight-checked`, with the regimes in which at least
+one quantity was compared, only while it has a comparison whose real log is a
+real flight: a SITL log earns nothing, and a new profile version has no
+comparison, so a change of geometry, mass, motor or propeller resets the label
+while the earlier comparisons stay their version's. The Analysis tab's fidelity
+report (`FidelityReport.tsx`) chooses the experiment, whose log is found as the
+Analysis tab finds it (ArduPilot's own log from the launcher, or one written
+from the recording), takes the real log as a file, the interval (the real log's
+span by default) and the offset (the logs' starts aligned by default), shows
+the rows and scalars, charts the two series of a chosen quantity (real solid,
+simulated dashed), saves the comparison and shows the version's label with the
+comparisons that belong to other versions. `scripts/check-fidelity.mjs` takes
+the TASK-090 capture in schema 2, without limits, and reports a flight-test
+capture's metrics as REPORTED with no verdict; it refuses schema 1, whose
+declared limits it no longer applies (section "Fidelity evidence pipeline
+(TASK-090)").
+
+**Verification.** `tests/fidelity-assessment.test.ts` declares before the
+implementation, on a flight written here whose metrics follow in closed form
+(float32 storage the only error): a roll 2° above the real one gives bias and
+RMS 2, an identical pitch RMS 0, a height 10% above bias 0.1·mean(h) and RMS
+0.1·rms(h), a heading written 0..360 in one log and −180..180 in the other RMS
+0; the regimes 1.5, 3.5, 4, 4 and 3 s within one sample; overshoots of 20% and
+40%; 4 Hz oscillations of amplitude 4 and 2 with spreads 4/√2 and 2/√2;
+energies 0.8 and 0.96 Wh; missing rows with their reasons; and the origin of
+each log. The same file holds the record: both logs' hashes and origins kept
+as stored, eight refusals, and `flight-checked` earned only with a real log, in
+the five regimes, absent for a new profile version and for a SITL log. On the
+reference Mac, `tests/browser/fidelity-report.spec.ts` flies a hover of native
+ArduCopter, compares it through the report with the repository's SITL log (or a
+real one given as `MIRAGE_REAL_FLIGHT_LOG`), saves the comparison and checks the
+label. At least one real flight log (G4) is still to be compared before the
+task is done.
 
 ## Experiment from a log (TASK-182)
 
@@ -8658,6 +9322,7 @@ records and never reused.
 | 69 | events.flightTask | stage, measured, task time (s), requested north, east, altitude (m), speed (m/s), heading (deg), vertical speed (m/s); a channel the stage does not request is absent (TASK-172) | f64 | event |
 | 70 | events.flightTaskAttitude | requested roll and pitch (deg), at the tick of the events.flightTask row; a channel the maneuver does not request is absent (TASK-173) | f64 | event |
 | 71 | events.limit | code, subject (a motor's index, or -1 for the battery), quantity, edge, value and limit; code 0: the monitor reports into this recording; code 1: an exceedance changed; code 2: events the monitor could not hold, in the value channel (TASK-177) | f64 | event |
+| 72 | events.validity | flags (1): the flight model's validity bits at each change, from the session's first tick (TASK-145; bit 18 a calibrated rotor outside its bench data, bit 17 airframe drag beyond its data, lower bits the rotors' own) | f64 | event |
 | 127 | gap | rows lost here | — | recorder |
 
 ### Rates

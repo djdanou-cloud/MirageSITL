@@ -5,7 +5,10 @@
 // rest with the motors cut for 1 s. Every cycle touches down; the report counts the touchdowns. Rapier
 // (GroundContact) integrates the body every step.
 //
-//   node scripts/bench-flight-contact.mjs [--steps N] [--timing-steps N] [--out PATH]
+//   node scripts/bench-flight-contact.mjs [--steps N] [--timing-steps N] [--location] [--out PATH]
+//
+// --location (TASK-148) flies at ArduPilot's SITL test site: the effective conditions' normal gravity
+// in the body and the contact, and the origin air, so the rotors' air follows the CG's height every step.
 //
 // Reports, per rate (400, 800, 1200 Hz), the per-step compute distribution against the step period, and
 // at 400 Hz the young-generation bytes and GC events over N warmed steps (G1), with an allocating
@@ -31,7 +34,8 @@ function option(name, fallback) {
   return index >= 0 && index + 1 < process.argv.length ? process.argv[index + 1] : fallback;
 }
 const steps = Number(option('steps', '1000000')), timingSteps = Number(option('timing-steps', '20000'));
-const out = resolve(root, option('out', 'test-results/bench/flight-contact.json'));
+const location = process.argv.includes('--location');
+const out = resolve(root, option('out', location ? 'test-results/bench/flight-contact-location.json' : 'test-results/bench/flight-contact.json'));
 if (!Number.isInteger(steps) || steps < 1000 || !Number.isInteger(timingSteps) || timingSteps < 1000) { console.error('Invalid arguments'); process.exit(2); }
 
 for (const script of ['scripts/build-wasm.mjs', 'scripts/build-contact.mjs'])
@@ -44,7 +48,10 @@ const bundled = await build({ stdin: { contents: `
 export { BetFlightDynamics } from './packages/physics/src/bet-dynamics.ts';
 export { GroundContact } from './packages/physics/src/ground-contact.ts';
 export { flightConfiguration } from './tests/bet-runtime-fixture.ts';
-export { newInput, ControlFlag } from './packages/protocol/src/index.ts';`, resolveDir: root, sourcefile: 'bench-entry.ts', loader: 'ts' },
+export { newInput, ControlFlag } from './packages/protocol/src/index.ts';
+export { effectiveConditions } from './packages/sensors/src/environment.ts';
+export { WorldMagneticModel, parseWmmCoefficients } from './packages/sensors/src/geomagnetic.ts';
+export { loadEgm96Geoid } from './packages/sensors/src/geoid.ts';`, resolveDir: root, sourcefile: 'bench-entry.ts', loader: 'ts' },
 bundle: true, platform: 'node', format: 'esm', outfile: bundle, metafile: true });
 const M = await import(pathToFileURL(bundle).href);
 const sha = bytes => createHash('sha256').update(bytes).digest('hex');
@@ -54,6 +61,9 @@ const wasmBytes = read('packages/wasm-bet/dist/mirage_bet.scalar.wasm'), contact
 const module = new WebAssembly.Module(wasmBytes);
 await M.GroundContact.initialize(new Uint8Array(contactBytes), JSON.parse(read('packages/physics/dist/contact/manifest.json').toString('utf8')));
 const TOUCH_DOWN_M = -0.17;
+const site = location ? M.effectiveConditions({ latitudeDeg: -35.363261, longitudeDeg: 149.16523, groundElevationMslM: 584, decimalYear: 2026.5 },
+  { geoid: await M.loadEgm96Geoid(new Uint8Array(read('data/geoid/WW15MGH.DAC'))),
+    magnetic: new M.WorldMagneticModel(M.parseWmmCoefficients(read('data/geomagnetic/WMM_2025.COF').toString('utf8'))) }) : null;
 const legs = [[0.2, 0.2], [0.2, -0.2], [-0.2, -0.2], [-0.2, 0.2]].map(([x, y]) => ({ anchorBodyM: [x, y, 0.15], unsprungMassKg: 0.02,
   tireRadiusM: 0.02, rimRadiusM: 0.01, strutTravelM: 0.05,
   suspension: { kind: 'linear', stiffnessNpm: 2000, preloadN: 0, compressionDamping: 40, reboundDamping: 40, dampingLaw: 'linear' },
@@ -63,7 +73,8 @@ async function vehicle(hz) {
   const c = M.flightConfiguration();
   c.initialOmegaRadS = [0, 0, 0, 0]; c.motorMaxTorqueNm = [0.6, 0.6, 0.6, 0.6];
   c.initialBody.positionNedM[2] = TOUCH_DOWN_M - 0.001;
-  c.contact = await M.GroundContact.forVehicle(c.initialBody, c.manifest, { wheels: legs, hullRadiusM: 0.05 });
+  if (site) { c.gravityMps2 = site.gravityMps2; c.originAir = { temperatureK: site.air.temperatureK, pressurePa: site.air.pressurePa }; }
+  c.contact = await M.GroundContact.forVehicle(c.initialBody, c.manifest, { wheels: legs, hullRadiusM: 0.05, ...(site ? { gravityMps2: site.gravityMps2 } : {}) });
   const d = new M.BetFlightDynamics(module, c, hz), pilot = M.newInput(), cycle = 7 * hz;
   let tick = 0, airborne = 0, touchdowns = 0, aloft = false;
   const run = n => {
@@ -128,7 +139,8 @@ console.log(`G1 at 400 Hz: ${allocation.steps} steps, ${allocation.bytesPerStep.
 
 const sources = Object.keys(bundled.metafile.inputs).filter(p => p !== 'bench-entry.ts').map(p => p.replaceAll('\\', '/')).sort();
 const report = {
-  schemaVersion: 1, task: 'TASK-095', status: passed ? 'pass' : 'failed',
+  schemaVersion: 1, task: location ? 'TASK-095, TASK-148' : 'TASK-095', status: passed ? 'pass' : 'failed',
+  ...(site ? { location: { latitudeDeg: site.latitudeDeg, longitudeDeg: site.longitudeDeg, gravityMps2: site.gravityMps2, originAir: site.air } } : {}),
   vehicle: { fixture: 'tests/bet-runtime-fixture.ts flightConfiguration() with 0.6 N m motors on four legs (tests/flight-contact.test.ts)',
     load: 'repeated 7 s cycle on a vertical-speed loop: climb toward 1 m/s for 1 s, descend toward 1 m/s for 5 s onto the legs, rest 1 s with the motors cut' },
   budget: 'Step period 1/hz', timing, allocation: { ...allocation, positiveControl: positive, controlDetected },

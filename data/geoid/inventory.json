@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "task": "TASK-148",
+  "description": "Geoid grids for converting heights above mean sea level to WGS84 ellipsoidal heights. A grid opens the absolute-MSL gate only when its bytes match the SHA-256 recorded here.",
+  "grids": [
+    {
+      "id": "egm96-15",
+      "model": "EGM96",
+      "name": "EGM96 15-minute geoid undulation grid (WW15MGH.DAC)",
+      "readiness": "ready",
+      "files": [{ "path": "data/geoid/WW15MGH.DAC", "sha256": "9dcaf4efd6857aaa2e1e2e2c574d3f5264eacf47024cdcd5291c40ddad5e5acc", "bytes": 2076480 }],
+      "layout": { "encoding": "int16 big-endian", "unit": "cm", "rows": 721, "columns": 1440, "latitudeStartDeg": 90, "latitudeStepDeg": -0.25, "longitudeStartDeg": 0, "longitudeStepDeg": 0.25, "nodes": "grid nodes (pixel is point)" },
+      "source": "US National Geospatial-Intelligence Agency (NGA), EGM96 WW15MGH.DAC with its INTPTDAC interpolation program",
+      "obtainedFrom": "github.com/nicolas-van/egm96-universal at commit db359c5fbdef592b8c9c720487dd5316511af042 (the same bytes are embedded in the npm package egm96-universal 1.1.1); NGA's site is not reachable from the build environment",
+      "license": "Public domain (United States Government work)",
+      "licenseStatus": "reviewed",
+      "crossCheck": "Every one of the 1,038,240 nodes agrees within 5.50 mm with an independent conversion of the same NGA model, us_nga/us_nga_egm96_15.tif of github.com/OSGeo/PROJ-data at commit cdab44864a36a9f3c3e90a36637c5d8a86e624c6 (SHA-256 db493027562c9b004d7220fa881f5603adada4e1c5029b933fa7de4547b0e78d): the DAC rounds to whole centimetres. tests/fixtures/geoid/egm96-proj-nodes.json keeps 2,666 of those nodes for the test.",
+      "notes": "Global. FABDEM elevations refer to EGM2008, whose undulations differ from EGM96 by up to about a metre; heights from FABDEM converted with this grid carry that difference."
+    },
+    {
+      "id": "egm2008-25",
+      "model": "EGM2008",
+      "name": "EGM2008 2.5-minute geoid undulation grid (us_nga_egm08_25.tif)",
+      "readiness": "needs-data",
+      "source": "US NGA EGM2008, converted by GeographicLib and distributed in OSGeo PROJ-data us_nga/us_nga_egm08_25.tif at commit cdab44864a36a9f3c3e90a36637c5d8a86e624c6",
+      "sha256": "4191d471eefebf24091b56dbc604353cb3b8cf8cc70e448bb9ae56a272bef17a",
+      "bytes": 80585622,
+      "license": "Public domain (US NGA), as stated by PROJ-data us_nga/us_nga_README.txt",
+      "licenseStatus": "reviewed",
+      "decision": "80 MB is too large for the repository. Phase 1 uses the EGM96 grid; a local EGM2008 install verified against this SHA-256 is not implemented yet."
+    }
+  ]
+}

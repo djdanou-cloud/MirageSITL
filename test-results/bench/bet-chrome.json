@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "benchmark": "bet-kernel-chrome",
   "task": "TASK-091",
-  "generatedAt": "2026-11-05T10:02:14.362Z",
+  "generatedAt": "2026-11-05T22:53:08.980Z",
   "load": "synthetic pad at 0.8 x hover-trim duty, as scripts/bench-bet.mjs; cards tests/fixtures/components/*-example.json; polar naca6409-neuralfoil-v1",
   "limit": {
     "g3ComputeMs": 0.4167,
@@ -16,11 +16,11 @@
       "hz": 1200,
       "warmupSteps": 20000,
       "steps": 20000,
-      "meanMs": 0.05906700000017882,
-      "p50Ms": 0.06000000238418579,
-      "p95Ms": 0.06499999761581421,
-      "p99Ms": 0.0650000274181366,
-      "maxMs": 0.125
+      "meanMs": 0.03716724996864796,
+      "p50Ms": 0.034999996423721313,
+      "p95Ms": 0.04000002145767212,
+      "p99Ms": 0.04500001668930054,
+      "maxMs": 0.09000000357627869
     },
     {
       "variant": "simd128",
@@ -29,11 +29,11 @@
       "hz": 1200,
       "warmupSteps": 20000,
       "steps": 20000,
-      "meanMs": 0.11657250002175569,
-      "p50Ms": 0.11500000953674316,
-      "p95Ms": 0.12000000476837158,
-      "p99Ms": 0.12999999523162842,
-      "maxMs": 0.19499999284744263
+      "meanMs": 0.07522000002115965,
+      "p50Ms": 0.07499998807907104,
+      "p95Ms": 0.08000001311302185,
+      "p99Ms": 0.09000000357627869,
+      "maxMs": 0.125
     },
     {
       "variant": "scalar",
@@ -42,11 +42,11 @@
       "hz": 1200,
       "warmupSteps": 20000,
       "steps": 20000,
-      "meanMs": 0.08378724999129772,
-      "p50Ms": 0.08499997854232788,
-      "p95Ms": 0.09000000357627869,
-      "p99Ms": 0.0949999988079071,
-      "maxMs": 0.1499999761581421
+      "meanMs": 0.04996800000667572,
+      "p50Ms": 0.050000011920928955,
+      "p95Ms": 0.05500000715255737,
+      "p99Ms": 0.06000000238418579,
+      "maxMs": 0.11500000953674316
     },
     {
       "variant": "scalar",
@@ -55,11 +55,11 @@
       "hz": 1200,
       "warmupSteps": 20000,
       "steps": 20000,
-      "meanMs": 0.16622425000220536,
-      "p50Ms": 0.16499999165534973,
-      "p95Ms": 0.17000001668930054,
-      "p99Ms": 0.1850000023841858,
-      "maxMs": 0.2749999761581421
+      "meanMs": 0.10096350001692772,
+      "p50Ms": 0.09999999403953552,
+      "p95Ms": 0.10999998450279236,
+      "p99Ms": 0.12000000476837158,
+      "maxMs": 0.1550000011920929
     }
   ],
   "identity": {
@@ -69,24 +69,24 @@
     "platform": "darwin",
     "release": "27.2.0",
     "memoryBytes": 34359738368,
-    "lowPowerMode": true,
+    "lowPowerMode": false,
     "loadAverage": {
       "start": [
-        1.26806640625,
-        1.2978515625,
-        1.44921875
+        1.7734375,
+        1.5927734375,
+        1.28955078125
       ],
       "end": [
-        1.30029296875,
-        1.3046875,
-        1.4462890625
+        1.89697265625,
+        1.6279296875,
+        1.30712890625
       ]
     },
-    "commit": "940143a6cc33173460bc2b55849f05d979339dbe",
+    "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
     "dirty": true,
     "wasmSha256": {
-      "simd128": "796e7da2705a1278f2c6732ff7de215d27c07edfb69b871ec6422989ae069c8b",
-      "scalar": "3c7b0b83dda9456e1080ba3d32f41379a971ed8efe4778c5e23b5735028fd317"
+      "simd128": "402b7c1cc73b30ca0380aaac386e72297f59a714d9e4b148a96e169814ad8db6",
+      "scalar": "28e4204601a6ca2d3055a048cac2be7d2a9192ff26c6920a1cd7244e0185de3a"
     }
   },
   "scope": "Compute of BetFlightDynamics flight steps in a Chrome module Worker on this machine, with the 5 us timer of an isolated page; not wakeup lateness, a session or a rendered application."

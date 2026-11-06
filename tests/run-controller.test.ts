@@ -32,11 +32,12 @@ import {
   failureText, HEARTBEAT_DEADLINE_S, LauncherError, PARAMETER_DEADLINE_S, SessionController, type CatalogEntry, type ClockPort,
   type ConnectionSpec, type ControllerView, type LauncherConnection, type LauncherExperiment, type LauncherFirmware, type LauncherLogs,
   type LauncherPort, type LauncherRun, type LauncherRunState, type PhysicsPort, type PreparedRun, type RecordingPort, type RecordingStart, type RecordPort,
-  type RunState, type StartRequest, type StartSpec, MANUAL_RATE_HZ, type PilotInputPort,
+  type RunState, type StartRequest, type StartSpec, MANUAL_RATE_HZ, type PilotInputPort, type TerrainChunk,
   type FlightTruth,
 } from '../apps/web/src/run/session-controller.ts';
 import { initialEffectParameters, type EffectControl, type EffectRecovery, type PilotInput } from '../packages/protocol/src/index.ts';
 import { parseFaultSchedule, type FaultSchedule } from '../packages/scenarios/src/fault-schedule.ts';
+import { weatherSchedule } from '../packages/scenarios/src/weather-schedule.ts';
 import type { ExperimentRecording } from '../packages/aircraft/src/experiment.ts';
 import type { MavFrame } from '../packages/mavlink/src/codec.ts';
 import type { AccidentEvent } from '../packages/physics/src/accident.ts';
@@ -365,9 +366,14 @@ class ScriptedPhysics implements PhysicsPort {
   loadAnswer: () => Promise<{ readonly betModuleSha256: string }> = () => Promise.resolve({ betModuleSha256: BET_SHA });
   constructor(private readonly events: string[]) {}
   readonly loads: (800 | 1200)[] = [];
-  load(physicsHz: 800 | 1200): Promise<{ readonly betModuleSha256: string }> {
+  /** The terrain chunks each load was handed (TASK-186). */
+  readonly terrains: (readonly TerrainChunk[] | null)[] = [];
+  readonly environments: unknown[] = [];
+  load(physicsHz: 800 | 1200, environment: unknown = null, terrain: readonly TerrainChunk[] | null = null): Promise<{ readonly betModuleSha256: string }> {
     this.events.push('physics.load');
     this.loads.push(physicsHz);
+    this.environments.push(environment);
+    this.terrains.push(terrain);
     return this.loadAnswer();
   }
   connect(port: number, bridgeEpoch: number, speedup: number): void {
@@ -534,7 +540,7 @@ function harness(prepare: () => Promise<PreparedRun> = () => Promise.resolve(pre
     if (events.at(-1) !== `state:${view.state.name}`) events.push(`state:${view.state.name}`);
   }, recording, metadata);
   physics.deliver = data => { controller.worker(data); };
-  const request: StartRequest = { prepare, firmwareId: BUILD.id, speedup: 1, physicsHz: 800, home: DEFAULT_HOME };
+  const request: StartRequest = { prepare, firmwareId: BUILD.id, speedup: 1, physicsHz: 800, home: DEFAULT_HOME, environment: null };
   return { controller, launcher, physics, clock, records, events, views, request, run: prepared };
 }
 const BASE_STATUS: SitlStatus = {
@@ -585,6 +591,8 @@ async function reach(h: Harness, stage: Stage): Promise<string> {
   mav(h, ...parameterList(h.run.parameters));
   expect(h.controller.state).toMatchObject({ name: 'warming', experimentId: id });
   if (stage === 'warming') return id;
+  // TASK-148: READY waits for ArduPilot's first 3D fix at the session's home.
+  mav(h, streamMessage(24));
   status(h, { ready: true, reason: '', simTimeS: 40 });
   expect(h.controller.state).toEqual({ name: 'ready', experimentId: id });
   if (stage === 'ready') return id;
@@ -1081,6 +1089,32 @@ describe('a flight task on the Run tab (TASK-172)', () => {
     expect(h.controller.runTask()).toBe('This run has flown its task; start a new run to fly it again');
   });
 
+  test('READY of a launcher run waits for ArduPilot\'s first 3D fix at the session\'s home (TASK-148)', async () => {
+    const h = harness();
+    const id = await reach(h, 'warming');
+    // A 2D fix is not a position yet; the Worker's READY alone does not make the run ready.
+    mav(h, autopilotFrame(24, { time_usec: 0, fix_type: 2, lat: 0, lon: 0, alt: 0, eph: 0, epv: 0, vel: 0, cog: 0, satellites_visible: 4 }));
+    status(h, { ready: true, reason: '', simTimeS: 40 });
+    expect(h.controller.state).toMatchObject({ name: 'warming', experimentId: id });
+    mav(h, streamMessage(24));
+    status(h, { ready: true, reason: '', simTimeS: 41 });
+    expect(h.controller.state).toEqual({ name: 'ready', experimentId: id });
+    expect(h.controller.view.compatibility).toEqual([{ check: 'home', text: 'GPS within 0.0 m and 0.0 m of the session\'s home' }]);
+  });
+
+  test('a launcher run whose GPS is away from the session\'s home stops with the distance, never READY (TASK-148)', async () => {
+    // The run's home is elsewhere than CMAC, where the scripted autopilot reports its fix: 31.5° N, 34.9° E, 250 m.
+    const base = harness(), h = { ...base, request: { ...base.request, home: [31.5, 34.9, 250, 90] as const } };
+    await reach(h, 'warming');
+    mav(h, streamMessage(24));
+    await until(() => h.controller.state.name === 'failed', 5000, 'the run to fail');
+    const state = h.controller.state;
+    if (state.name !== 'failed') throw new Error('The run did not fail');
+    expect(state.reason).toMatchObject({ kind: 'home' });
+    expect(failureText(state.reason)).toMatch(/^ArduPilot does not start at the session's home: its GPS puts it \d+ m from and 334 m above or below 31\.5,34\.9,250,90$/);
+    expect(state.restart).toMatchObject({ kind: 'fix-first' });
+  });
+
   test('flies only as the first flight of a READY run, and a run without a task says so', async () => {
     const h = harness();
     await reach(h, 'ready');
@@ -1090,6 +1124,7 @@ describe('a flight task on the Run tab (TASK-172)', () => {
     const request = { ...second.request, flightTask: await stored(hover, 'Hover') };
     await reach({ ...second, request }, 'warming');
     expect(second.controller.runTask()).toBe('Run the task once the run is READY');
+    mav(second, streamMessage(24));
     status(second, { ready: true, reason: '', simTimeS: 40 });
     expect(second.controller.takeOff(TAKEOFF_M)).toBe(true);
     mav(second, heartbeat(GUIDED, true));
@@ -1262,6 +1297,30 @@ describe('the Faults and interference tab on a run (TASK-169)', () => {
     status(h, { simTimeS: at });
     return h;
   }
+
+  test('a weather schedule counts from the same first arming, keeps its record, and queues each change on its exact tick (TASK-167)', async () => {
+    const weather = weatherSchedule([
+      { control: control('wind.mean', { windNedMps: [-5, 0, 0] }), onsetS: 0, durationS: null, recovery: 'hold-offset' },
+      { control: control('wind.discrete-gust', { amplitudeMps: 6, durationS: 2, fromDeg: 270, upwardDeg: 0 }), onsetS: 3, durationS: 2, recovery: 'hold-offset' },
+    ]);
+    const base = harness(undefined, null, catalog), h = { ...base, request: { ...base.request, weather } };
+    await reach(h, 'ready');
+    status(h, { simTimeS: 100 });
+    expect(h.physics.effectsSent).toEqual([]);
+    mav(h, heartbeat(GUIDED, true));
+    status(h, { simTimeS: 100 });
+    const stored = h.records.stored.at(-1);
+    if (!stored) throw new Error('No experiment was stored');
+    expect(readExperiment(stored).weather).toEqual(weather);
+    expect(readExperiment(stored).faults).toBeNull();
+    // Within the 5 s queue lead: the wind on the tick of arming, the gust on and off at arming + 3 s and + 5 s.
+    expect(h.physics.effectsSent).toMatchObject([{ control: { effect: 'wind.mean', enabled: true }, atSimS: 100 },
+      { control: { effect: 'wind.discrete-gust', enabled: true }, atSimS: 103 }, { control: { effect: 'wind.discrete-gust', enabled: false }, atSimS: 105 }]);
+    expect(h.controller.view.weatherPlan).toMatchObject({ armedAtS: 100, sent: 3 });
+    await Promise.resolve(); await Promise.resolve();
+    // Logged with their values: the seeds and amplitudes a repeat needs.
+    expect(h.controller.view.effects[1]).toMatchObject({ effect: 'wind.discrete-gust', origin: 'schedule', parameters: { amplitudeMps: 6, durationS: 2, fromDeg: 270, upwardDeg: 0 } });
+  });
 
   test('a schedule counts from the first arming, keeps its record, and queues a session effect on its exact tick', async () => {
     const faults = schedule({ control: control('link.pilot'), onsetS: 2, durationS: 6 }, { control: control('ew.position-step', { offsetNedM: [30, 0, 0] }), onsetS: 20, durationS: null });
@@ -1700,6 +1759,61 @@ describe('the run\'s recording (TASK-163)', () => {
     expect(stoppedBeforeFailed(h)).toBe(true);
     expect(h.events).not.toContain('physics.connect');
     expect(h.events).toContain('recording.stop');
+  });
+});
+
+describe('missing terrain (TASK-186)', () => {
+  const chunks: TerrainChunk[] = [{ northIndex: 0, eastIndex: 0, downM: new Float64Array(129 * 129).fill(-2) }, { northIndex: -1, eastIndex: 0, downM: new Float64Array(129 * 129) }];
+  const record = { sourceId: 'fabdem-elevation' as const, layerSha256: 'a'.repeat(64), manifestSha256: 'b'.repeat(64), radiusM: 256, level: 15, chunks: 2, missingChunks: 2,
+    latticeSha256: 'c'.repeat(64), homeHeightM: 602.5 };
+  const missing = (tick: number, northM = 520, eastM = -3) => ({ type: 'terrain.missing', tick, simTimeS: tick / 800, northM, eastM, count: 1 });
+  test('a real-terrain run hands its chunks to the physics and its terrain to the record; a run on the pad hands neither', async () => {
+    const h = harness();
+    h.records.answer = () => Promise.resolve({ sha256: 'd'.repeat(64) });
+    await h.controller.start({ ...h.request, terrain: { record, chunks } });
+    expect(h.physics.terrains).toEqual([chunks]);
+    expect(h.records.payloads[0]?.terrain).toEqual(record);
+    await h.controller.stop();
+    await h.controller.start(h.request);
+    expect(h.physics.terrains.at(-1)).toBeNull();
+    expect(h.records.payloads.at(-1)?.terrain).toBeNull();
+  });
+  test('missing terrain pauses the run on its tick with reason terrain and where; Resume is refused with why, and Stop ends it', async () => {
+    const h = harness();
+    const id = await reach(h, 'flying');
+    h.controller.worker(missing(41000));
+    expect(h.controller.state).toMatchObject({ name: 'paused', experimentId: id, reason: 'terrain' });
+    expect(h.controller.view.terrainMissing).toEqual({ tick: 41000, simTimeS: 41000 / 800, northM: 520, eastM: -3 });
+    expect(h.controller.view.pauses.at(-1)).toMatchObject({ reason: 'terrain', resumedWallMs: null });
+    expect(h.controller.resumeBlocker()).toBe('The terrain under the aircraft is not loaded, and a run loads its terrain only before it starts: stop the run');
+    expect(h.controller.resume()).toBe(false);
+    expect(h.controller.continueAfterAccident()).toBe(false);
+    await settle();
+    expect(h.events).not.toContain('physics.resume');
+    // The first place is kept; a malformed notice is ignored.
+    h.controller.worker(missing(41001, 521, -3));
+    h.controller.worker({ type: 'terrain.missing', tick: 'soon', simTimeS: 1, northM: 0, eastM: 0, count: 2 });
+    expect(h.controller.view.terrainMissing?.tick).toBe(41000);
+    await h.controller.stop();
+    expect(h.controller.state).toMatchObject({ name: 'idle' });
+    await reach(h, 'ready');
+    expect(h.controller.view.terrainMissing).toBeNull();
+  });
+  test('a run already paused by its user takes the terrain as its reason, and an accident pause keeps its own', async () => {
+    const h = harness();
+    await reach(h, 'flying');
+    expect(h.controller.pause('user')).toBe(true);
+    await settle();
+    expect(h.controller.state).toMatchObject({ name: 'paused', reason: 'user' });
+    h.controller.worker(missing(42000));
+    expect(h.controller.state).toMatchObject({ name: 'paused', reason: 'terrain' });
+    expect(h.controller.resume()).toBe(false);
+    await h.controller.stop();
+    await reach(h, 'flying');
+    h.controller.worker(accidentMessage(43000, 1));
+    h.controller.worker(missing(43000));
+    expect(h.controller.state).toMatchObject({ name: 'paused', reason: 'accident' });
+    expect(h.controller.view.terrainMissing?.tick).toBe(43000);
   });
 });
 
@@ -2546,7 +2660,7 @@ describe('the real launcher with the fake SITL', () => {
         if (events.at(-1) !== `state:${view.state.name}`) events.push(`state:${view.state.name}`);
       });
       physics.deliver = data => { controller.worker(data); };
-      const request: StartRequest = { prepare: () => Promise.resolve(prepared), firmwareId: 'fake', speedup: 1, physicsHz: 800, home: DEFAULT_HOME };
+      const request: StartRequest = { prepare: () => Promise.resolve(prepared), firmwareId: 'fake', speedup: 1, physicsHz: 800, home: DEFAULT_HOME, environment: null };
       // ScriptedLauncher is only used for its event counting here.
       return { controller, launcher: new ScriptedLauncher(events), physics, clock, records, events, views, request, run: prepared };
     }
@@ -2581,6 +2695,8 @@ describe('the real launcher with the fake SITL', () => {
       status(h, { state: 'open', simTimeS: 0.4 });
       mav(h, heartbeat(STABILIZE, false), ...parameterList(prepared.parameters));
       expect(h.controller.state.name).toBe('warming');
+      // TASK-148: the first 3D fix at the session's home, which READY waits for.
+      mav(h, streamMessage(24));
     }
     /** A restart from failed on the real launcher: a new experiment (no 409) with a new record; then a user Stop that leaves no process. */
     async function restartAndStop(h: Harness, earlier: readonly string[], firmwareId = 'fake'): Promise<void> {
@@ -2823,7 +2939,7 @@ function gpsFix(northM = 0, upM = 0): Uint8Array {
     alt: Math.round((alt + upM) * 1000), eph: 100, epv: 100, vel: 0, cog: 0, satellites_visible: 10 });
 }
 function connectRequest(prepare: () => Promise<PreparedRun> = () => Promise.resolve(prepared)) {
-  return { prepare, endpoints: ENDPOINTS, physicsHz: 800 as const, home: DEFAULT_HOME, verifiedCommits: [SITL_COMMIT] };
+  return { prepare, endpoints: ENDPOINTS, physicsHz: 800 as const, home: DEFAULT_HOME, environment: null, verifiedCommits: [SITL_COMMIT] };
 }
 /** True when the connection was released before the panel showed failed, and nothing was ever stopped. */
 function disconnectedBeforeFailed(h: Harness): boolean {
@@ -2847,6 +2963,8 @@ async function connectTo(h: Harness, stage: ConnectStage): Promise<string> {
   mav(h, ...parameterList(h.run.parameters));
   expect(h.controller.state).toMatchObject({ name: 'warming', experimentId: id });
   if (stage === 'warming') return id;
+  // TASK-148: READY waits for ArduPilot's first 3D fix at the session's home.
+  mav(h, streamMessage(24));
   status(h, { ready: true, reason: '', simTimeS: 40 });
   mav(h, gpsFix(1, 0.5));
   // The record goes through the real store (manifest derivation, hashing) before READY.

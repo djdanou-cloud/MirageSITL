@@ -11,7 +11,10 @@
     "./resource-cache": "./src/resource-cache.ts",
     "./region-manifest": "./src/region-manifest.ts",
     "./collision-chunks": "./src/collision-chunks.ts",
-    "./collision-build": "./src/collision-build.ts"
+    "./collision-build": "./src/collision-build.ts",
+    "./coverage": "./src/coverage.ts",
+    "./quantized-mesh": "./src/quantized-mesh.ts",
+    "./run-terrain": "./src/run-terrain.ts"
   },
   "dependencies": {
     "3d-tiles-renderer": "0.5.3",

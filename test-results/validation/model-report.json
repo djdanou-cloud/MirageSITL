@@ -19,7 +19,7 @@
       "polarSha256": "d6d9793ea030c6b957fa9018ed5c3307891665829773574b2bacb26f1909c9a1",
       "suiteSha256": "608d6a9fdeafd14766139d2509b2d8a0f66b51b42c0bf550cffbb9d533cc5871",
       "reportPath": "test-results/validation/rotor-bet.json",
-      "reportSha256": "52f2c9c6cb1dd30e7767a4766a732ea29ee22cb3e9e7792c3a8a1754fde87e1a"
+      "reportSha256": "e7956dad6718556a47db8ba9a53efaf4a554fce7764e564364c87c5e6b6818c1"
     },
     {
       "configurationId": "tapered-three-blade",
@@ -33,7 +33,7 @@
       "polarSha256": "d6d9793ea030c6b957fa9018ed5c3307891665829773574b2bacb26f1909c9a1",
       "suiteSha256": "608d6a9fdeafd14766139d2509b2d8a0f66b51b42c0bf550cffbb9d533cc5871",
       "reportPath": "test-results/validation/rotor-bet.json",
-      "reportSha256": "52f2c9c6cb1dd30e7767a4766a732ea29ee22cb3e9e7792c3a8a1754fde87e1a"
+      "reportSha256": "e7956dad6718556a47db8ba9a53efaf4a554fce7764e564364c87c5e6b6818c1"
     },
     {
       "configurationId": "symmetric-four-blade",
@@ -47,7 +47,7 @@
       "polarSha256": "b65b811583008327d517505e2995ed2bd1ee9fa66cad207288bf0a436a01dab1",
       "suiteSha256": "608d6a9fdeafd14766139d2509b2d8a0f66b51b42c0bf550cffbb9d533cc5871",
       "reportPath": "test-results/validation/rotor-bet.json",
-      "reportSha256": "52f2c9c6cb1dd30e7767a4766a732ea29ee22cb3e9e7792c3a8a1754fde87e1a"
+      "reportSha256": "e7956dad6718556a47db8ba9a53efaf4a554fce7764e564364c87c5e6b6818c1"
     }
   ],
   "measuredValidation": [],
@@ -1282,8 +1282,8 @@
   ],
   "referenceSha256": "f61ee6afa5124d5dfb2d70eea92975e287b7c916e378ecf51f0c418a3ba72500",
   "artifactSha256": {
-    "scalar": "8c8ccd013733d6eb6debd1142967eb21f617f8cb9c176d20b9e0444d4bf18b2a",
-    "simd128": "637d166a6c721e9d936f25d05259544f3c5a3b258528cada98d716c80d92b69f"
+    "scalar": "28e4204601a6ca2d3055a048cac2be7d2a9192ff26c6920a1cd7244e0185de3a",
+    "simd128": "402b7c1cc73b30ca0380aaac386e72297f59a714d9e4b148a96e169814ad8db6"
   },
   "cases": [
     {
@@ -1406,12 +1406,12 @@
   "diagnostics": {
     "betRuntime": {
       "path": "test-results/validation/bet-runtime.json",
-      "reportSha256": "d84f3051a4f250ef88cc1ca5c6eb0f2a653b0906504240dcab1bd171f4a3ec6f",
+      "reportSha256": "a4049da31865cc9e801b2e71ab5657fbaf41b59d697d98c82779b252aad41c98",
       "status": "pass"
     },
     "betRuntimeAllocation": {
       "path": "test-results/validation/bet-runtime-allocation.json",
-      "reportSha256": "c6cf871d811d6fdde16a649d6090670ccaff46b1e0b6b3a6f90275a04a5ae1ac",
+      "reportSha256": "fe32a27b52d5ed3fbd1d4a0434ff0cac17d3b643e9f436a0e6a968732e151791",
       "status": "pass"
     },
     "jsbsimBackend": {
@@ -1432,7 +1432,7 @@
     "contact": {
       "path": "test-results/bench/contact.json",
       "reportSha256": "4d85134d4f60a42a3c9fc105ba7fb7c0713ae36a9a88751df76c3a57d2c57ba5",
-      "status": "pass"
+      "status": "stale"
     },
     "jsbsimNative": {
       "path": "test-results/validation/jsbsim-native.json",

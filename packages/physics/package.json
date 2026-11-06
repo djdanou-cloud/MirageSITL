@@ -12,6 +12,7 @@
     "./atmosphere": "./src/atmosphere.ts",
     "./wind": "./src/wind.ts",
     "./turbulence": "./src/turbulence.ts",
+    "./discrete-gust": "./src/discrete-gust.ts",
     "./motor-config": "./src/motor-config.ts",
     "./frame": "./src/frame.ts",
     "./contact-backend": "./src/contact-backend.ts",
@@ -25,7 +26,8 @@
     "./limit-monitor": "./src/limit-monitor.ts",
     "./thrust-capacity": "./src/thrust-capacity.ts",
     "./fidelity-metrics": "./src/fidelity-metrics.ts",
-    "./bench-import": "./src/bench-import.ts"
+    "./bench-import": "./src/bench-import.ts",
+    "./propulsion-calibration": "./src/propulsion-calibration.ts"
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "0.21.0",

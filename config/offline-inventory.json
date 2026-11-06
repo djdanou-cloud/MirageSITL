@@ -247,15 +247,29 @@
     {
       "id": "wmm-coefficients",
       "category": "reference-data",
-      "item": "World Magnetic Model coefficients",
-      "version": "WMM2025",
-      "source": "NOAA NCEI",
+      "item": "World Magnetic Model coefficients (WMM_2025.COF)",
+      "version": "WMM2025, released 11/13/2024",
+      "source": "NOAA NCEI; the file kept in github.com/boxpet/pygeomag at commit 2b8ac57f08bc100ee1f103dbca4e1a8de65ff5e8 and byte-identical in its PyPI release 1.1.0, since NOAA's site is not reachable from the build environment",
       "license": "Public domain (United States Government work)",
       "licenseStatus": "reviewed",
-      "decision": "TASK-148 records the coefficient file with source and SHA-256.",
+      "decision": "Authenticity: the coefficients reproduce all 100 NOAA WMM2025 test values (tests/geomagnetic.test.ts, TASK-148).",
       "neededFor": "Location-dependent magnetic field (TASK-148)",
       "installDownload": false,
-      "status": "pending"
+      "status": "ready",
+      "files": [{ "path": "data/geomagnetic/WMM_2025.COF", "sha256": "dfa8597825af4e0b87ff4198a5b4fb661b3c49f4cd090cd0164e0259b075582f", "bytes": 4554 }]
+    },
+    {
+      "id": "egm96-geoid",
+      "category": "reference-data",
+      "item": "EGM96 15-minute geoid undulation grid (WW15MGH.DAC)",
+      "version": "EGM96",
+      "source": "US NGA; the file kept in github.com/nicolas-van/egm96-universal at commit db359c5fbdef592b8c9c720487dd5316511af042, cross-checked against OSGeo PROJ-data (data/geoid/inventory.json)",
+      "license": "Public domain (United States Government work)",
+      "licenseStatus": "reviewed",
+      "neededFor": "Heights above mean sea level and the absolute-MSL gate (TASK-036, TASK-148)",
+      "installDownload": false,
+      "status": "ready",
+      "files": [{ "path": "data/geoid/WW15MGH.DAC", "sha256": "9dcaf4efd6857aaa2e1e2e2c574d3f5264eacf47024cdcd5291c40ddad5e5acc", "bytes": 2076480 }]
     },
     {
       "id": "uiuc-propeller-database",

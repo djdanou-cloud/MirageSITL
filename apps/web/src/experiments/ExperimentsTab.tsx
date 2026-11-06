@@ -17,7 +17,7 @@ import { TruthVsEstimate } from "../analysis/TruthVsEstimate";
 import { ComparePanel } from "../compare/ComparePanel";
 import { BatchPanel } from "./BatchPanel";
 import { TASK_TYPE_LABELS } from "../tasks/flight-task-form";
-import { externalDependencies, lineageText, trajectoryDifference, type PositionRow, type TrajectoryDifference } from "./lifecycle";
+import { conditionsText, externalDependencies, lineageText, weatherText, trajectoryDifference, type PositionRow, type TrajectoryDifference } from "./lifecycle";
 
 // The Experiments tab (TASK-165, S16): every experiment of the project with
 // its fixed inputs and where it comes from. Repeat runs an experiment's inputs
@@ -179,6 +179,8 @@ export function ExperimentsTab({ storeState, project, link, active, onRun, onAna
               ? `${current.payload.sitl.ardupilot.firmwareVersion} (${current.payload.sitl.ardupilot.catalogId})` : `${current.payload.sitl.ardupilot.firmwareVersion}, a SITL started by hand`}</dd>
             <dt>Speed and physics</dt><dd>{`${current.payload.session.speedup === null ? "set by the SITL" : `${current.payload.session.speedup}×`}, ${current.payload.session.physicsHz} Hz`}</dd>
             <dt>Home</dt><dd>{current.payload.session.home.join(", ")}</dd>
+            <dt>Conditions</dt><dd data-testid="experiment-conditions">{conditionsText(current.payload.environment)}</dd>
+            <dt>Weather</dt><dd data-testid="experiment-weather">{weatherText(current.payload.weather)}</dd>
             <dt>Initial parameters</dt><dd>{current.payload.parameters.length}</dd>
             <dt>Flight task</dt><dd data-testid="experiment-flight-task">{current.payload.flightTask ? `${current.payload.flightTask.name} (${TASK_TYPE_LABELS[current.payload.flightTask.definition.type]})` : "None"}</dd>
             <dt>Recording</dt><dd>{current.payload.recording ? `${current.payload.recording.commonHz} Hz common rate, record ${current.payload.recording.recordId}` : "None"}</dd>

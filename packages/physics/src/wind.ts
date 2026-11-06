@@ -5,6 +5,8 @@ export interface WindConfig {
   /** The physics rate; 4800 Hz is the BET convergence rate (TASK-033). */
   bandwidthHz: number; hz: 400 | 800 | 1200 | 4800;
 }
+/** The random stream of each axis (north, east, down): the gust repeats a realization from a seed only with these (TASK-167). */
+export const GUST_STREAMS = Object.freeze([0, 1, 2] as const);
 /** Synthetic bounded-innovation first-order gust; not a Dryden turbulence model. */
 export class Wind {
   /** The mean wind, NED m/s. */
@@ -22,7 +24,7 @@ export class Wind {
       !Number.isFinite(config.bandwidthHz) || config.bandwidthHz <= 0 || config.bandwidthHz >= config.hz / 2 ||
       ![400, 800, 1200, 4800].includes(config.hz)) throw new Error('Invalid wind configuration');
     this.mean = new Float64Array(config.meanNedMps);
-    this.streams = [new SeededRandom(seed, 0), new SeededRandom(seed, 1), new SeededRandom(seed, 2)];
+    this.streams = GUST_STREAMS.map(stream => new SeededRandom(seed, stream));
     this.hz = config.hz;
     this.decay[0] = Math.exp(-2 * Math.PI * config.bandwidthHz / config.hz);
     if (this.decay[0] >= 1) throw new Error('Wind bandwidth is below numerical resolution');
@@ -40,11 +42,11 @@ export class Wind {
     this.scale[0] = weather[WEATHER_GUST_RMS]! * Math.sqrt(3 * (1 - this.decay[0]! * this.decay[0]!));
     if (weather[WEATHER_GUST_KEEP] === 1) return;
     this.state.fill(0);
-    for (let axis = 0; axis < 3; axis++) this.streams[axis]!.resetFrom(weather, WEATHER_SEED, axis);
+    for (let axis = 0; axis < 3; axis++) this.streams[axis]!.resetFrom(weather, WEATHER_SEED, GUST_STREAMS[axis]!);
   }
   reset(seed: number): void {
     this.state.fill(0);
-    for (let axis = 0; axis < 3; axis++) this.streams[axis]!.reset(seed, axis);
+    for (let axis = 0; axis < 3; axis++) this.streams[axis]!.reset(seed, GUST_STREAMS[axis]!);
   }
   /** Caller owns a length >=3 output; fixed three-axis storage proves indices. */
   stepInto(out: Float64Array): void {

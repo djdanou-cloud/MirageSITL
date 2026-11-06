@@ -181,6 +181,8 @@ test("a project is renamed, exported, and imported here and into a fresh profile
 });
 
 test("every tab fits 390 px without horizontal overflow and has no axe violations", async ({ page }) => {
+  // Twelve tabs, each with an axe scan: more than the default 30 s once the Weather and location tab lists the terrain sources (TASK-186).
+  test.setTimeout(60_000);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
   await expect(page.getByTestId("worker-status")).toHaveText("READY");

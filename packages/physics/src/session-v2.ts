@@ -6,7 +6,7 @@ import { WEATHER_SET_GUST_BANDWIDTH_HZ, ActuatorFrameCodecV2, ControlFlag, Contr
 import { SteppingPolicy, newPumpReport, type StepGate } from './clock-policy.ts';
 import { DemoDynamics } from './demo-dynamics.ts';
 import { MotorFaults } from './motor-fault.ts';
-import { AIR_PRESSURE, WEATHER_AIR_KEEP, WEATHER_GUST_BANDWIDTH, WEATHER_GUST_KEEP, WEATHER_GUST_RMS, WEATHER_PRESSURE, WEATHER_TURBULENCE_INTENSITY, WEATHER_TURBULENCE_KEEP, WEATHER_TURBULENCE_SEED, WEATHER_TURBULENCE_W20, WEATHER_SEED, WEATHER_SLOTS, WEATHER_TEMPERATURE, WEATHER_WIND_DOWN, WEATHER_WIND_EAST,
+import { AIR_PRESSURE, WEATHER_AIR_KEEP, WEATHER_DISCRETE_DOWN, WEATHER_DISCRETE_DURATION, WEATHER_DISCRETE_EAST, WEATHER_DISCRETE_KEEP, WEATHER_DISCRETE_NORTH, WEATHER_GUST_BANDWIDTH, WEATHER_GUST_KEEP, WEATHER_GUST_RMS, WEATHER_PRESSURE, WEATHER_TURBULENCE_INTENSITY, WEATHER_TURBULENCE_KEEP, WEATHER_TURBULENCE_SEED, WEATHER_TURBULENCE_W20, WEATHER_SEED, WEATHER_SLOTS, WEATHER_TEMPERATURE, WEATHER_WIND_DOWN, WEATHER_WIND_EAST,
   WEATHER_WIND_NORTH } from './atmosphere.ts';
 import type { LimitEvent } from './limit-monitor.ts';
 import type { AccidentEvent } from './accident.ts';
@@ -27,8 +27,19 @@ const STANDARD_GRAVITY_MPS2 = 9.80665;
 const EW_REGISTRY_FULL: ScheduledRejectV2 = { code: 'OVERLOAD', message: 'EW fault registry is full' };
 const EW_FAULT_REJECTED: ScheduledRejectV2 = { code: 'OUT_OF_RANGE', message: 'EW fault command was rejected' };
 const NOT_MODELED: ScheduledRejectV2 = { code: 'BAD_STATE', message: 'The backend cannot model this scheduled command' };
+/** TASK-186: the published terrain a session checks under the vehicle (implemented by @mirage/terrain CollisionChunks). */
+export interface SessionGround {
+  /** True when every chunk intersecting the [north, east, radius] safety square is published. Allocation-free. */
+  readyFrom(positionRadius: Float64Array): boolean;
+}
+/** The ground within this distance of the vehicle must be published, m: wider than a Phase 1 aircraft and its supports. */
+export const TERRAIN_READY_RADIUS_M = 8;
+/** TASK-145: changes of the model's validity bits that wait for the Worker's next drain. */
+export const VALIDITY_RING = 64;
+/** Slots of PhysicsSessionV2.terrainMissing. */
+export const TERRAIN_MISSING_COUNT = 0, TERRAIN_MISSING_TICK = 1, TERRAIN_MISSING_NORTH = 2, TERRAIN_MISSING_EAST = 3, TERRAIN_MISSING_SIM_S = 4;
 /** TASK-166: the environment effects a session holds at once. */
-const ENVIRONMENT_WIND = 1, ENVIRONMENT_GUST = 2, ENVIRONMENT_ATMOSPHERE = 4, ENVIRONMENT_TURBULENCE = 8,
+const ENVIRONMENT_WIND = 1, ENVIRONMENT_GUST = 2, ENVIRONMENT_ATMOSPHERE = 4, ENVIRONMENT_TURBULENCE = 8, ENVIRONMENT_DISCRETE_GUST = 16,
   /** What a weather.set states; turbulence is not among them. */
   ENVIRONMENT_WEATHER_SET = 7;
 /**
@@ -141,8 +152,10 @@ export interface SessionDynamics {
   /** TASK-166: ends the weather at its tick boundary, allocation-free: as if no weather had been set. */
   clearWeather?(): void;
   readonly weatherActive?: boolean;
-  /** TASK-166: `air` holds the air of a weather; otherwise the configured atmosphere is in place. */
+  /** TASK-166, TASK-148: `air` holds the air at the CG, of a weather or of the location's origin air; otherwise the configured atmosphere is in place. */
   readonly airActive?: boolean;
+  /** TASK-148: gravity the dynamics applies, m/s² down; the published specific force subtracts it. Absent: 9.80665. */
+  readonly gravityMps2?: number;
   readonly windNedMps?: Float64Array;
   readonly air?: Float64Array;
 }
@@ -164,6 +177,15 @@ export class PhysicsSessionV2 {
    * TASK-168, TASK-169: what the link to ArduPilot holds back, drops or moves, read at every reply. Truth is untouched. The object stays
    * the same; its fields change in place, at tick boundaries and after each step.
    */
+  private readonly validityRing = new Float64Array(VALIDITY_RING * 3);
+  private validityHead = 0;
+  private validityCount = 0;
+  private validityDropped = 0;
+  private lastValidity = 0;
+  /** TASK-186: how many ticks found the terrain missing, the last one's tick, the north and east position there, m, and its simulated time, s. */
+  readonly terrainMissing = new Float64Array(5);
+  private ground: SessionGround | null = null;
+  private readonly groundQuery = new Float64Array(3);
   readonly delivery: SessionDelivery = { mask: 0, attached: false, gnssOffsetNedM: new Float64Array(3), gnssVelocityNedMps: new Float64Array(3),
     magRotationWxyz: new Float64Array([1, 0, 0, 0]), gnssActive: false, magActive: false };
   /** TASK-093: a due weather.set in the WEATHER_* slots, and its reject, whose message is the dynamics' reason. */
@@ -280,6 +302,20 @@ export class PhysicsSessionV2 {
   get limitEventsDropped(): number { return this.dynamics.limits?.dropped ?? 0; }
   /** Cold: hands the active dynamics' accident events (TASK-149) to `sink` after a pump; returns how many. */
   drainAccidents(sink: (event: AccidentEvent) => void): number { return this.dynamics.accidents?.drain(sink) ?? 0; }
+  /**
+   * TASK-145: each change of the dynamics' validity bits since the last drain, oldest first, as (tick, simulated time s, flags); the
+   * recording keeps them as `events.validity`. At most VALIDITY_RING changes wait; older ones are counted in `validityChangesDropped`.
+   */
+  drainValidityChanges(sink: (tick: number, simTimeS: number, flags: number) => void): number {
+    const ring = this.validityRing, count = this.validityCount;
+    for (let k = 0; k < count; k++) {
+      const at = ((this.validityHead + k) % VALIDITY_RING) * 3;
+      sink(ring[at] ?? 0, ring[at + 1] ?? 0, ring[at + 2] ?? 0);
+    }
+    this.validityCount = 0; this.validityHead = 0;
+    return count;
+  }
+  get validityChangesDropped(): number { return this.validityDropped; }
   /** Accident events the active dynamics' outbox could not hold. */
   get accidentsDropped(): number { return this.dynamics.accidents?.dropped ?? 0; }
   /** Accidents raised in this epoch: once one is, the run continues only as not validated for a damaged aircraft. */
@@ -349,6 +385,15 @@ export class PhysicsSessionV2 {
     this.writer.setRuntimeFlags(0);
   }
   /** A link to ArduPilot opened or closed (TASK-168). */
+  /**
+   * TASK-186: the published terrain of a real-terrain run, or null for the synthetic pad. While attached, every tick whose step leaves
+   * the ground within TERRAIN_READY_RADIUS_M of the vehicle unpublished pauses the session on that tick, as an accident does, and
+   * `terrainMissing` says where; a later sim.start resumes, and the next such tick pauses again.
+   */
+  attachGround(ground: SessionGround | null): void {
+    this.ground = ground;
+    this.terrainMissing.fill(0);
+  }
   attachDelivery(attached: boolean): void {
     this.delivery.attached = attached;
     if (!attached) this.clearDelivery();
@@ -420,6 +465,8 @@ export class PhysicsSessionV2 {
       w[WEATHER_GUST_BANDWIDTH] = WEATHER_SET_GUST_BANDWIDTH_HZ; w[WEATHER_GUST_KEEP] = 0; w[WEATHER_AIR_KEEP] = 0;
       if ((this.environment & ENVIRONMENT_TURBULENCE) === 0) w[WEATHER_TURBULENCE_W20] = 0;
       w[WEATHER_TURBULENCE_KEEP] = 1;
+      if ((this.environment & ENVIRONMENT_DISCRETE_GUST) === 0) w[WEATHER_DISCRETE_DURATION] = 0;
+      w[WEATHER_DISCRETE_KEEP] = 1;
       this.environment |= ENVIRONMENT_WEATHER_SET;
       return this.applyWeather();
     }
@@ -450,7 +497,7 @@ export class PhysicsSessionV2 {
     if (!this.dynamics.setWeather) return NOT_MODELED;
     const w = this.weather, before = this.environment, on = control.active;
     // Changing the wind or the air leaves a running gust alone; only a change of the gust itself starts it again.
-    let bit: number, keepGust = 1, keepTurbulence = 1;
+    let bit: number, keepGust = 1, keepTurbulence = 1, keepDiscrete = 1;
     switch (control.effect) {
       case "wind.mean": {
         bit = ENVIRONMENT_WIND;
@@ -470,6 +517,14 @@ export class PhysicsSessionV2 {
         bit = ENVIRONMENT_TURBULENCE; keepTurbulence = 0;
         w[WEATHER_TURBULENCE_W20] = on ? control.w20Mps : 0; w[WEATHER_TURBULENCE_INTENSITY] = control.intensity; w[WEATHER_TURBULENCE_SEED] = control.seed;
         break;
+      case "wind.discrete-gust": {
+        // TASK-167: on (again) starts a new pulse on this tick; off ends it.
+        bit = ENVIRONMENT_DISCRETE_GUST; keepDiscrete = 0;
+        const peak = control.peakNedMps;
+        w[WEATHER_DISCRETE_NORTH] = on ? peak[0] : 0; w[WEATHER_DISCRETE_EAST] = on ? peak[1] : 0; w[WEATHER_DISCRETE_DOWN] = on ? peak[2] : 0;
+        w[WEATHER_DISCRETE_DURATION] = on ? control.durationS : 0;
+        break;
+      }
       default: { const never: never = control; throw new Error(`Unhandled environment effect ${String(never)}`); }
     }
     const after = on ? before | bit : before & ~bit;
@@ -485,9 +540,11 @@ export class PhysicsSessionV2 {
       if (bit !== ENVIRONMENT_WIND) { w[WEATHER_WIND_NORTH] = 0; w[WEATHER_WIND_EAST] = 0; w[WEATHER_WIND_DOWN] = 0; }
       if (bit !== ENVIRONMENT_GUST) { w[WEATHER_GUST_RMS] = 0; w[WEATHER_GUST_BANDWIDTH] = 0; w[WEATHER_SEED] = 0; }
       if (bit !== ENVIRONMENT_TURBULENCE) { w[WEATHER_TURBULENCE_W20] = 0; w[WEATHER_TURBULENCE_INTENSITY] = 0; w[WEATHER_TURBULENCE_SEED] = 0; }
+      if (bit !== ENVIRONMENT_DISCRETE_GUST) { w[WEATHER_DISCRETE_NORTH] = 0; w[WEATHER_DISCRETE_EAST] = 0; w[WEATHER_DISCRETE_DOWN] = 0; w[WEATHER_DISCRETE_DURATION] = 0; }
     }
     w[WEATHER_GUST_KEEP] = keepGust;
     w[WEATHER_TURBULENCE_KEEP] = keepTurbulence;
+    w[WEATHER_DISCRETE_KEEP] = keepDiscrete;
     w[WEATHER_AIR_KEEP] = (after & ENVIRONMENT_ATMOSPHERE) !== 0 ? 0 : 1;
     return this.applyWeather();
   }
@@ -648,6 +705,30 @@ export class PhysicsSessionV2 {
     const wind = this.dynamics.windNedMps;
     this.wind.active = this.dynamics.weatherActive === true && wind !== undefined;
     if (this.wind.active && wind) this.wind.nedMps.set(wind);
+    // TASK-145: a change of the model's validity bits is kept with its tick for the recording; allocation-free.
+    const validity = this.dynamics.validityFlags ?? 0;
+    if (validity !== this.lastValidity) {
+      this.lastValidity = validity;
+      if (this.validityCount === VALIDITY_RING) { this.validityHead = (this.validityHead + 1) % VALIDITY_RING; this.validityCount--; this.validityDropped++; }
+      const at = ((this.validityHead + this.validityCount) % VALIDITY_RING) * 3, t = tickToNumber(tick);
+      this.validityRing[at] = t; this.validityRing[at + 1] = t / this.policy.hz; this.validityRing[at + 2] = validity;
+      this.validityCount++;
+    }
+    // TASK-186: missing terrain under the vehicle pauses the run on this tick, through the same path, before the tick is published.
+    const ground = this.ground;
+    if (ground && this.runningValue) {
+      const d = this.dynamics.state, q = this.groundQuery;
+      q[0] = d.north; q[1] = d.east; q[2] = TERRAIN_READY_RADIUS_M;
+      if (!ground.readyFrom(q)) {
+        const missing = this.terrainMissing;
+        const at = tickToNumber(tick);
+        missing[TERRAIN_MISSING_COUNT] = (missing[TERRAIN_MISSING_COUNT] ?? 0) + 1; missing[TERRAIN_MISSING_TICK] = at; missing[TERRAIN_MISSING_SIM_S] = at / this.policy.hz;
+        missing[TERRAIN_MISSING_NORTH] = d.north; missing[TERRAIN_MISSING_EAST] = d.east;
+        this.pause();
+        this.processor.paused();
+        this.policy.clock.stopRequested = true;
+      }
+    }
     // TASK-149 (F-09): a strike pauses the run on this tick, through the user pause's path, before the tick is published.
     const accidents = this.dynamics.accidents;
     if (accidents) {
@@ -690,7 +771,7 @@ export class PhysicsSessionV2 {
     s.anMps2 = d.an; s.aeMps2 = d.ae; s.adMps2 = d.ad;
     s.pRadS = d.p; s.qRadS = d.q; s.rRadS = d.r;
     // Ideal specific force f_b = R_nb^T (a_n - g_n), g_n = [0, 0, g] (SPECS_SIMULATION_ENGINES section 1).
-    rotateNedToBody(d.qw, d.qx, d.qy, d.qz, d.an, d.ae, d.ad - STANDARD_GRAVITY_MPS2, this.bodyScratch);
+    rotateNedToBody(d.qw, d.qx, d.qy, d.qz, d.an, d.ae, d.ad - (this.dynamics.gravityMps2 ?? STANDARD_GRAVITY_MPS2), this.bodyScratch);
     s.specificForceXBodyMps2 = this.bodyScratch[0]!; s.specificForceYBodyMps2 = this.bodyScratch[1]!;
     s.specificForceZBodyMps2 = this.bodyScratch[2]!;
     // Relative to the air: the weather's wind (TASK-093), or still air. Not Math.hypot (allocates).
@@ -699,7 +780,7 @@ export class PhysicsSessionV2 {
     s.trueAirspeedMps = Math.sqrt(rn * rn + re * re + rd * rd);
     // Only a dynamics with an electrical drive reports a bus current (TASK-092); the demo has none.
     s.batteryVoltage = d.batteryVoltage; const electrical = this.dynamics.electrical; s.batteryCurrentA = electrical ? electrical[2]! : 0;
-    // The weather's ISA air at the CG (TASK-093), or the standard atmosphere with the origin at mean sea level.
+    // The weather's (TASK-093) or the location's (TASK-148) ISA air at the CG, or the standard atmosphere with the origin at mean sea level.
     const air = this.dynamics.airActive === true ? this.dynamics.air : undefined;
     s.ambientPressurePa = air ? air[AIR_PRESSURE]! : isaPressurePa(-d.down);
     s.scheduledWallTimeMs = scheduledWallMs;

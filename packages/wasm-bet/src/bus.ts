@@ -24,6 +24,12 @@ function callable(value: unknown): value is (...args: number[]) => number { retu
  */
 export class BetBus {
   readonly output = new Float64Array(7);
+  /**
+   * The step's inputs for `stepFromInput`: [soc, motor power W, house power W]. A hot caller writes them here: V8 boxes a
+   * double passed as a call argument when the call is not inlined, which a large caller (the flight step with its weather)
+   * cannot rely on.
+   */
+  readonly input = new Float64Array(3);
   readonly dtS: number;
   lastStatus = 0;
   private readonly memory: WebAssembly.Memory;
@@ -60,12 +66,18 @@ export class BetBus {
     const full = v.getFloat64(at + I.openCircuitFull, true), empty = v.getFloat64(at + I.openCircuitEmpty, true);
     return soc <= 0 ? 0 : empty + (full - empty) * soc;
   }
-  /** One allocation-free bus step; false on a non-zero status (see `lastStatus`), leaving `output` unchanged. */
+  /** One bus step from scalar arguments, through `input`; false on a non-zero status (see `lastStatus`), leaving `output` unchanged. */
   stepInto(soc: number, motorPowerW: number, housePowerW: number): boolean {
+    const input = this.input;
+    input[0] = soc; input[1] = motorPowerW; input[2] = housePowerW;
+    return this.stepFromInput();
+  }
+  /** One allocation-free bus step from `input`; false on a non-zero status (see `lastStatus`), leaving `output` unchanged. */
+  stepFromInput(): boolean {
     if (!this.memoryStable) { this.lastStatus = -5; return false; }
-    const v = this.view, at = this.inputAt, I = BUS_V1.input;
-    v.setFloat64(at + I.stateOfCharge, soc, true); v.setFloat64(at + I.motorPower, motorPowerW, true);
-    v.setFloat64(at + I.housePower, housePowerW, true);
+    const v = this.view, at = this.inputAt, I = BUS_V1.input, input = this.input;
+    v.setFloat64(at + I.stateOfCharge, input[0]!, true); v.setFloat64(at + I.motorPower, input[1]!, true);
+    v.setFloat64(at + I.housePower, input[2]!, true);
     const status = this.nativeStep(at, this.outputAt, this.dtS);
     this.lastStatus = status;
     if (status !== 0) return false;

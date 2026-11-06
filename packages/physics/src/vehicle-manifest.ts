@@ -87,6 +87,17 @@ export interface SensorMount {
   readonly positionBodyM: readonly number[]; readonly sensorToBody: readonly number[];
 }
 export interface RotorWakePair { readonly upstreamRotorId: number; readonly downstreamRotorId: number }
+/**
+ * A rotor fitted to the bench data of its exact combination (TASK-145): its section polar's lift and drag scales, the motor's fitted
+ * winding resistance and no-load current (null where the bench could not fit them), and the bench's RPM range and density. The
+ * dataset it names is the measured bench data; the calibration record is named by its SHA-256.
+ */
+export interface PropulsionCalibrationSpec {
+  readonly rotorId: number; readonly liftScale: number; readonly dragScale: number;
+  readonly resistanceOhm: number | null; readonly noLoadCurrentA: number | null;
+  readonly rpmMin: number; readonly rpmMax: number; readonly densityKgM3: number;
+  readonly datasetId: string; readonly calibrationSha256: string;
+}
 export interface ArduPilotFrame { readonly vehicle: 'copter'; readonly frameClass: number; readonly frameType: number }
 export interface VehicleManifest {
   readonly schemaVersion: 2; readonly modelId: number; readonly kind: 'demo' | 'bet' | 'jsbsim';
@@ -106,6 +117,8 @@ export interface VehicleManifest {
    * its bytes; the contact then gives the airframe a single sphere.
    */
   readonly hull?: readonly HullShape[];
+  /** Optional (TASK-145): calibrated rotors. A manifest without them keeps its bytes. */
+  readonly propulsionCalibrations?: readonly PropulsionCalibrationSpec[];
 }
 export interface DerivedVehicle {
   /** Ascending principal moments about the CG. */
@@ -331,6 +344,15 @@ export function validateVehicleManifest(input: unknown): VehicleManifest {
     if (!manifest.datasets.some(item => item.id === manifest.provenance.hull)) throw new Error('Provenance for hull names an unknown dataset');
     referenced.add(manifest.provenance.hull);
   }
+  const calibrations = manifest.propulsionCalibrations ?? [];
+  unique(calibrations.map(item => item.rotorId), 'Two calibrations of one rotor');
+  for (const item of calibrations) {
+    if (!manifest.rotors.some(rotor => rotor.id === item.rotorId)) throw new Error('A calibration names an unknown rotor');
+    if (!(item.rpmMin < item.rpmMax)) throw new Error('A calibration RPM range must be increasing');
+    const dataset = manifest.datasets.find(entry => entry.id === item.datasetId);
+    if (dataset?.kind !== 'measured') throw new Error('A calibration must name a measured dataset');
+    referenced.add(item.datasetId);
+  }
   if (referenced.size !== manifest.datasets.length) throw new Error('Every dataset must be referenced by a section');
 
   const rotorIds = manifest.rotors.map(rotor => rotor.id);
@@ -449,6 +471,7 @@ export function projectVehicleToModelV1(input: VehicleManifest): ModelDescriptor
   }
   if (manifest.ardupilot) throw new Error('The v1 runtime does not consume ArduPilot frame declarations');
   if (manifest.hull) throw new Error('The v1 runtime cannot consume hull (TASK-095)');
+  if (manifest.propulsionCalibrations) throw new Error('The v1 runtime cannot consume propulsion calibrations (TASK-145)');
   return validateModelManifest(projectRotorBody(manifest));
 }
 
