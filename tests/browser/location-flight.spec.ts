@@ -172,7 +172,8 @@ test("a run at a typed location starts ArduPilot there, and its gravity, air, pa
     expect(Math.abs(mean(pressure) - originAirAtCg)).toBeLessThan(50);
     expect(101325 * Math.pow(1 - lapse * height / 288.15, exponent) - mean(pressure)).toBeGreaterThan(2000);
     // ArduPilot's own GPS altitude while it stands.
-    const gpsAltitude = resting("autopilot.gps").map(row => row.values[2] ?? Number.NaN);
+    // Before its first 3D fix (fix type 3) ArduPilot reports an altitude of 0, which says nothing of the location.
+    const gpsAltitude = resting("autopilot.gps").filter(row => (row.values[3] ?? 0) >= 3).map(row => row.values[2] ?? Number.NaN);
     expect(gpsAltitude.length).toBeGreaterThan(0);
     for (const altitude of gpsAltitude) expect(Math.abs(altitude - 250)).toBeLessThan(5);
 

@@ -124,8 +124,10 @@ test("wind set by hand on a running SITL session is felt and removed, and a sche
     const gustMeant = Number(await row("wind.discrete-gust", true, "schedule").locator("td").nth(2).textContent());
     const gustAt = Number(await row("wind.discrete-gust", true, "schedule").locator("td").nth(3).textContent());
     expect(gustAt).toBe(gustMeant);
-    // Hold the wind for 25 s of simulated time, then take it away.
+    // Hold the wind for 25 s of simulated time, then take it away. The simulated time is on the Run tab, and a role locator finds nothing on a hidden one.
+    await page.getByRole("tab", { name: "Run", exact: true }).click();
     await expect.poll(async () => Number.parseFloat((await run.getByTestId("sitl-sim-time").textContent()) ?? "NaN"), { timeout: 120_000 }).toBeGreaterThan(onAt + 25);
+    await page.getByRole("tab", { name: "Weather and location", exact: true }).click();
     await weather.getByRole("button", { name: "Turn the steady wind off" }).click();
     await expect(row("wind.mean", false, "manual")).toHaveAttribute("data-status", "applied", { timeout: 30_000 });
     const offAt = Number(await row("wind.mean", false, "manual").locator("td").nth(3).textContent());
@@ -154,7 +156,8 @@ test("wind set by hand on a running SITL session is felt and removed, and a sche
       { effect: "wind.mean", enabled: false, parameters: { windNedMps: [expect.closeTo(0, 9), 6, 0] } }]);
 
     mkdirSync(join(ROOT, "test-results/browser"), { recursive: true });
-    writeFileSync(EVIDENCE, `${JSON.stringify({ task: "TASK-167", windOnAtS: onAt, windOffAtS: offAt, windyAirspeedMps: windy, windyGroundSpeedMps: windyGround, calmAirspeedMps: calm,
+    writeFileSync(EVIDENCE, `${JSON.stringify({ task: "TASK-167", windOnAtS: onAt, windOffAtS: offAt, windyAirspeedMps: windy,
+      windyOutsideGustMps: mean(window_(read.air, onAt + 10, onAt + 20).filter(row => row.simTimeS < gustAt || row.simTimeS >= gustAt + 2).map(row => row.airspeed)), windyGroundSpeedMps: windyGround, calmAirspeedMps: calm,
       gustMeantS: gustMeant, gustAppliedS: gustAt, gustRiseMps: gustPeak - beforeGust }, null, 2)}\n`);
     console.log(`EVID ${readFileSync(EVIDENCE, "utf8")}`);
   } finally {
