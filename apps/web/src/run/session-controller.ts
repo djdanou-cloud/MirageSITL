@@ -1331,7 +1331,9 @@ export class SessionController {
       return;
     }
     if (type === "sitl.reject") {
-      if (this.active) void this.stopAfter({ kind: "physics", message: String(field(data, "message")) }, this.stateValue.name);
+      // A frame already on its way when the bridge closed is refused too; the close has already been reported and keeps its reason.
+      const ended = this.status?.state === "closed" || this.status?.state === "fault";
+      if (this.active && !ended) void this.stopAfter({ kind: "physics", message: String(field(data, "message")) }, this.stateValue.name);
       return;
     }
     if (!isStatus(data)) return;
@@ -1651,28 +1653,32 @@ export class SessionController {
     this.compatibility = [...this.compatibility, { check: "parameters", text: `All ${count} frame, output, PWM and sensor parameters match the profile` }];
     this.set({ name: "warming", experimentId, reason: "Checking the SITL's home position" });
   }
-  /** How far a GPS fix is from `home`, metres: horizontally on the WGS-84 mean sphere, and vertically. */
-  private static homeDistance(home: readonly number[], latitudeDeg: number, longitudeDeg: number, altitudeM: number): { horizontal: number; vertical: number } {
+  /** How far a GPS fix is from `start` metres north and east of `home`: horizontally on the WGS-84 mean sphere, and vertically. */
+  private static homeDistance(home: readonly number[], latitudeDeg: number, longitudeDeg: number, altitudeM: number, start: { readonly northM: number; readonly eastM: number } = { northM: 0, eastM: 0 }): { horizontal: number; vertical: number } {
     const [homeLat = 0, homeLon = 0, homeAlt = 0] = home;
-    const north = (latitudeDeg - homeLat) * Math.PI / 180 * EARTH_RADIUS_M;
-    const east = (longitudeDeg - homeLon) * Math.PI / 180 * EARTH_RADIUS_M * Math.cos(homeLat * Math.PI / 180);
+    const north = (latitudeDeg - homeLat) * Math.PI / 180 * EARTH_RADIUS_M - start.northM;
+    const east = (longitudeDeg - homeLon) * Math.PI / 180 * EARTH_RADIUS_M * Math.cos(homeLat * Math.PI / 180) - start.eastM;
     return { horizontal: Math.hypot(north, east), vertical: Math.abs(altitudeM - homeAlt) };
   }
   /**
    * TASK-148: a run the launcher started must be where MirageSITL's physics and conditions put it. ArduPilot was given
-   * the session's home as --home, so its first 3D fix must lie within the connection limits of it; READY waits for this.
+   * the session's home as --home, so its first 3D fix must lie within the connection limits of it, or of the flight task's ground
+   * start, which the physics stands the aircraft on away from the pad; READY waits for this.
    */
   private checkLauncherHome(latitudeDeg: number, longitudeDeg: number, altitudeM: number): void {
     const home = this.home;
     if (!home) return;
     this.launcherHomeChecked = true;
-    const { horizontal, vertical } = SessionController.homeDistance(home, latitudeDeg, longitudeDeg, altitudeM);
+    const ground = this.flightTaskEntry?.definition.initial.ground;
+    const away = ground !== undefined && (ground.northM !== 0 || ground.eastM !== 0);
+    const { horizontal, vertical } = SessionController.homeDistance(home, latitudeDeg, longitudeDeg, altitudeM, ground);
     if (!(horizontal <= HOME_HORIZONTAL_M && vertical <= HOME_VERTICAL_M)) {
-      void this.stopAfter({ kind: "home", message: `its GPS puts it ${Math.round(horizontal)} m from and ${Math.round(vertical)} m above or below ${home.join(",")}` },
+      const where = away ? `the flight task's start, ${ground.northM} m north and ${ground.eastM} m east of ${home.join(",")}` : home.join(",");
+      void this.stopAfter({ kind: "home", message: `its GPS puts it ${Math.round(horizontal)} m from and ${Math.round(vertical)} m above or below ${where}` },
         this.stateName());
       return;
     }
-    this.compatibility = [...this.compatibility, { check: "home", text: `GPS within ${horizontal.toFixed(1)} m and ${vertical.toFixed(1)} m of the session's home` }];
+    this.compatibility = [...this.compatibility, { check: "home", text: `GPS within ${horizontal.toFixed(1)} m and ${vertical.toFixed(1)} m of ${away ? "the flight task's start" : "the session's home"}` }];
     this.emit();
   }
   private checkHome(experimentId: string, latitudeDeg: number, longitudeDeg: number, altitudeM: number): void {

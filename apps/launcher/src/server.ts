@@ -5,11 +5,12 @@ import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { startBridge } from "../../bridge/src/server.ts";
+import { messageLimitFor } from "../../bridge/src/session.ts";
 import { nativeAdmission, readCatalog, verifyEntry, type ExecutableAdmission, type FirmwareEntry } from "./catalog.ts";
 import { captureDataflash, dataflashPath, listDataflash, snapshotDataflash, tail, writeDataflashManifest, type DataflashCapture, type DataflashStamp } from "./logs.ts";
 import { checkLoggingParameters, LOGGING_PARAMETER } from "../../../packages/autopilot/src/dataflash-logging.ts";
 import { parseParameterMetadata, type ParameterMetadataCatalog } from "../../../packages/autopilot/src/param-metadata.ts";
-import { ConnectionRefused, ExternalConnection, type ConnectionSpec } from "./connections.ts";
+import { ConnectionRefused, ExternalConnection, MOST_RATE_HZ, MOST_SPEEDUP, type ConnectionSpec } from "./connections.ts";
 import { checkPrerequisites } from "./prerequisites.ts";
 import { OwnedProcess, type RunInfo, type RunState } from "./processes.ts";
 import { MavlinkRelay } from "./relay.ts";
@@ -159,7 +160,7 @@ export function parseExperimentSpec(input: unknown): ExperimentSpec {
   if (!Array.isArray(home) || home.length !== 4) throw new HttpError(400, "home must be [latitudeDeg, longitudeDeg, altitudeM, headingDeg]");
   const location: readonly unknown[] = home;
   return {
-    firmwareId, parameters: list, frameScript, speedup: finite(speedup, "speedup", 0.1, 100), rateHz: finite(rateHz, "rateHz", 100, 2000),
+    firmwareId, parameters: list, frameScript, speedup: finite(speedup, "speedup", 0.1, MOST_SPEEDUP), rateHz: finite(rateHz, "rateHz", 100, MOST_RATE_HZ),
     home: [finite(location[0], "latitude", -90, 90), finite(location[1], "longitude", -180, 180), finite(location[2], "altitude", -500, 9000), finite(location[3], "heading", 0, 360)],
   };
 }
@@ -290,7 +291,7 @@ export async function startLauncher(options: LauncherOptions) {
       }
       try {
         // physicsPort is unused in ArduPilot JSON mode; the bridge only requires it to differ from the MAVLink port.
-        bridge = await startBridge({ port: 0, origin: options.origin, token, epoch: run, udp: { mavlinkPort: relay.bridgePort, physicsPort: relay.sitlPort }, ardupilotJson: { localPort: 0 } });
+        bridge = await startBridge({ port: 0, origin: options.origin, token, epoch: run, maxMessagesPerS: messageLimitFor(experiment.spec.rateHz, experiment.spec.speedup), udp: { mavlinkPort: relay.bridgePort, physicsPort: relay.sitlPort }, ardupilotJson: { localPort: 0 } });
       } catch (error) {
         relay.close();
         throw new HttpError(500, `The bridge did not start: ${error instanceof Error ? error.message : String(error)}`, experiment.id);

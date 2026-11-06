@@ -1,4 +1,5 @@
 import { startBridge } from "../../bridge/src/server.ts";
+import { messageLimitFor } from "../../bridge/src/session.ts";
 import { MavlinkRelay, MavlinkTcpRelay, type MavlinkLink } from "./relay.ts";
 
 // Manual connection to a SITL the user started (TASK-155, S02). The launcher
@@ -15,6 +16,8 @@ import { MavlinkRelay, MavlinkTcpRelay, type MavlinkLink } from "./relay.ts";
 
 /** Every connection's bridge uses this record epoch. */
 export const CONNECTION_BRIDGE_EPOCH = 1;
+/** The most a launcher run may ask for. */
+export const MOST_RATE_HZ = 2000, MOST_SPEEDUP = 100;
 
 export interface ConnectionSpec {
   /** The UDP port SITL sends JSON servo packets to. */
@@ -79,7 +82,8 @@ export class ExternalConnection {
     let bridge: Awaited<ReturnType<typeof startBridge>>;
     try {
       // physicsPort is unused in ArduPilot JSON mode; the bridge only requires it to differ from the MAVLink port.
-      bridge = await startBridge({ port: 0, origin: auth.origin, token: auth.token, epoch: CONNECTION_BRIDGE_EPOCH,
+      // A SITL the user started paces itself by its own --speedup, which only it knows: the most a launcher run may ask for.
+      bridge = await startBridge({ port: 0, origin: auth.origin, token: auth.token, epoch: CONNECTION_BRIDGE_EPOCH, maxMessagesPerS: messageLimitFor(MOST_RATE_HZ, MOST_SPEEDUP),
         udp: { mavlinkPort: relay.bridgePort, physicsPort: spec.jsonPhysicsPort }, ardupilotJson: { localPort: spec.jsonPhysicsPort } });
     } catch (error) {
       relay.close();

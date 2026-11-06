@@ -126,7 +126,8 @@ test('the physics Worker registers and loads 16-rotor profile dynamics, keeping 
   expect(report.load).toMatchObject({ type: 'ack-v2', status: 'applied' });
   expect(report.modelId).toBe(144);
   expect(report.batteryVoltage).toBeCloseTo(16.8, 4);
-  expect(report.outsideValidity).toBe(true);
+  // TASK-101 models the wakes of its coaxial pairs, so the 16-rotor profile no longer raises this flag for leaving them out.
+  expect(report.outsideValidity).toBe(false);
   expect(report.rejectedEnvironment).toMatchObject({ type: 'environment.reject', message: 'environment.set needs a gravity of 9.7 to 9.9 m/s²' });
   // The published air is the origin air at the CG's height above the pad (a few metres at most), not the sea-level ISA.
   expect(Math.abs(report.ambientPressurePa - originAir.pressurePa)).toBeLessThan(100);

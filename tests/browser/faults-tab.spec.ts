@@ -2,9 +2,10 @@ import { execFileSync } from "node:child_process";
 import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { expect, test, type Locator } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 import { ensureToken, startLauncher } from "../../apps/launcher/src/server";
 import { seedQuadProject } from "../support/run-tab";
+import { viteFileUrl } from "../support/vite-url";
 
 // TASK-169 (S09): the Faults and interference tab against native ArduCopter 8ab6afde. A schedule built through the UI holds one effect of
 // each class, the run applies it by itself from the first arming, one more is applied by hand, and a vertical step and an effect without
@@ -22,6 +23,21 @@ async function vector(panel: Locator, label: string, values: readonly [number, n
   for (let index = 0; index < 3; index++) await panel.getByLabel(`${label} ${axes[index]}`, { exact: true }).fill(String(values[index]));
 }
 const NED = ["north", "east", "down"] as const, RPY = ["roll", "pitch", "yaw"] as const, FRD = ["forward", "right", "down"] as const;
+type Store = typeof import("../../packages/project/src/store");
+const STORE_URL = viteFileUrl(new URL("../../packages/project/src/store.ts", import.meta.url));
+/** How many entries the store holds for the project's fault schedule, as a reload would read them. */
+async function storedEntries(page: Page, projectId: string): Promise<number> {
+  return page.evaluate(async ({ url, key }) => {
+    const { ProjectStore } = await import(url) as Store;
+    const store = await ProjectStore.openIndexedDb();
+    try {
+      const stored = await store.readSetting(key) as { readonly entries?: readonly unknown[] } | undefined;
+      return stored?.entries?.length ?? 0;
+    } finally {
+      store.close();
+    }
+  }, { url: STORE_URL, key: `fault-schedule.p${projectId.replaceAll("-", "").slice(0, 31)}` });
+}
 
 test("a schedule of each class flies by itself, one more goes by hand, what cannot be delivered is refused, and all of it is recorded", async ({ page }) => {
   test.setTimeout(600_000);
@@ -34,7 +50,7 @@ test("a schedule of each class flies by itself, one more goes by hand, what cann
   const token = ensureToken(home);
   const launcher = await startLauncher({ home, origin: ORIGIN, port: 0, python: join(HOME, "venv/bin/python") });
   try {
-    await seedQuadProject(page, "Quad X faults");
+    const { projectId } = await seedQuadProject(page, "Quad X faults");
     await page.getByRole("tab", { name: "Faults and interference", exact: true }).click();
     const panel = page.getByTestId("faults-tab");
     await expect(panel.getByTestId("fault-schedule-empty")).toBeVisible();
@@ -85,7 +101,8 @@ test("a schedule of each class flies by itself, one more goes by hand, what cann
     await add("GNSS missing", 33, 2);
     await expect(panel.getByTestId("fault-schedule").locator("tbody tr")).toHaveCount(9);
 
-    // It survives a reload, as the tab's draft.
+    // It survives a reload, as the tab's draft. A row shows before its save has finished, so the reload waits for the store to hold all nine.
+    await expect.poll(() => storedEntries(page, projectId), { timeout: 10_000 }).toBe(9);
     await page.reload();
     await page.getByRole("tab", { name: "Faults and interference", exact: true }).click();
     await expect(panel.getByTestId("fault-schedule").locator("tbody tr")).toHaveCount(9);

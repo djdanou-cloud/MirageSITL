@@ -609,7 +609,7 @@ v(t)=\min(a\,t,\;V),\qquad b(t)=\int_0^t v\,d\tau,\qquad V_p=\sqrt{a\,b_1+\tfrac
 
 While it grows, t counts from its onset, a is the growth rate and V the top speed. An abrupt removal drops b and v to 0 at once, an explicit discontinuity. A gradual one starts from (b₁, v₁): it accelerates at -a through zero speed to -V_p, or cruises at -V when V_p would pass it, and brakes at +a to stop at b = 0. The error therefore grows a little further while it brakes, because b never fades without its derivative (TASK-055). The profile becomes one schedule entry per stretch of constant acceleration, each starting where the one before ended, and the last ends with a step to the truth, which clears what a tick's rounding left. `FaultSchedule.ekfDrift` holds the profile, and a stored schedule whose entries are not exactly its profile's is refused.
 
-The Experiments tab charts `truthVsEstimate` for a run with a schedule and a recording. The estimate is what ArduPilot reports in GLOBAL_POSITION_INT, converted with its own metres per degree so the conversion adds no error near home, and the truth is read straight between its neighbouring rows at the simulated time of each report. Errors are the estimate minus the truth, on north, east and down. What the drift added to the input is drawn beside the error, from the form above. None of these numbers has a limit. Reports where the recording holds no truth are counted and left out.
+The Experiments tab charts `truthVsEstimate` for a run with a schedule and a recording. The estimate is what ArduPilot reports in GLOBAL_POSITION_INT, converted with its own metres per degree so the conversion adds no error near home, and the truth is read straight between its neighbouring rows at the simulated time of each report. Errors are the estimate minus the truth, on north, east and down. What the drift added to the input is drawn beside the error, from the form above. None of these numbers has a limit. Reports where the recording holds no truth are counted and left out, and so are reports of all zeros, which ArduPilot sends until the EKF has a position.
 
 ### Weather and atmosphere in flight sessions (TASK-093)
 
@@ -2321,8 +2321,12 @@ two records inside one message is invalid. All header integers are little endian
 
 Inbound client channel 3 is rejected. UDP sockets are connected to their selected
 loopback peer, so arbitrary remote senders are not accepted. Duplicate/stale
-records, more than 4096 messages/second, oversized records and backpressure close
-the session. Default queued-byte budget is 65536; queues cannot grow indefinitely.
+records, more than the session's message limit, oversized records and backpressure
+close the session. The limit is 4096 messages/second, and for a lockstep run the
+launcher adds one message per step at the run's rate and speed-up, because a flat
+limit would close any run above 4096/rate times real time, about 5.1 times at
+800 Hz. A connection to a SITL the user started takes the most a launcher run may
+ask for, since only that SITL knows its `--speedup`. Default queued-byte budget is 65536; queues cannot grow indefinitely.
 A client that does not answer a WebSocket ping closes after 5 seconds. The bridge sends a ping every 1 s. A pong proves the peer is alive, so silence of physics payloads during a lockstep pause does not close the session. Tests exercise real WS/UDP transfer,
 fragmentation, origin/token rejection, reconnect, epoch/flood/size checks and
 injected backpressure. CLI startup is verified separately.
@@ -2586,7 +2590,9 @@ outside 9.7 to 9.9 m/s² or with an invalid air) before `model.load`, so
 `profileModelPort` builds the profile dynamics with them. Before READY the Run
 tab checks that ArduPilot's first 3D fix lies within 10 m horizontally and 5 m
 vertically of the home, for a run the launcher starts as for a connection, and
-stops the run with the distance otherwise. A repeat or variant
+stops the run with the distance otherwise. A flight task with a ground start
+away from the pad flies only on a launcher run, whose physics stands the
+aircraft there, so the check measures from that start. A repeat or variant
 of an experiment keeps its parent's home and environment; a run from a log
 (TASK-183) starts at the log's home in the conditions there, with the standard
 sea-level pressure and no temperature offset, since a log does not record them

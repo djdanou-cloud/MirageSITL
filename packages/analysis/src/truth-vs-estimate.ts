@@ -21,6 +21,8 @@ export interface TruthVsEstimate {
   readonly estimateHz: number | null;
   /** Reports whose simulated time has no truth on both sides, left out. */
   readonly withoutTruth: number;
+  /** Reports of all zeros, sent before ArduPilot has a position of its own, left out. */
+  readonly beforePosition: number;
 }
 export type TruthVsEstimateResult = { readonly kind: "series"; readonly series: TruthVsEstimate } | { readonly kind: "missing"; readonly reason: string };
 
@@ -53,12 +55,15 @@ export function truthVsEstimate(rows: RecordedRows, home: readonly [number, numb
   const metresEast = METRES_PER_DEGREE * Math.cos(home[0] * Math.PI / 180);
   const out = { position: { north: empty(), east: empty(), down: empty() }, velocity: { north: empty(), east: empty(), down: empty() } };
   const atPosition = { index: 0 }, atVelocity = { index: 0 };
-  let withoutTruth = 0;
+  let withoutTruth = 0, beforePosition = 0;
   const add = (series: ReturnType<typeof empty>, timeS: number, truth: number, estimate: number) => {
     series.timeS.push(timeS); series.truth.push(truth); series.estimate.push(estimate); series.error.push(estimate - truth);
   };
   for (const report of reports) {
     const lat = channel(report, LAT), lon = channel(report, LON), alt = channel(report, ALT_MSL), vn = channel(report, V_NORTH), ve = channel(report, V_EAST), vd = channel(report, V_DOWN);
+    // Until the EKF has a position, ArduPilot sends this message with latitude, longitude and altitude all zero. Read as a place, that is
+    // thousands of kilometres from home, and it would swamp every error in the chart.
+    if (lat === 0 && lon === 0 && alt === 0) { beforePosition++; continue; }
     const p = truthAt(position, report.simTimeS, atPosition), v = truthAt(velocity, report.simTimeS, atVelocity);
     if (!p || !v) { withoutTruth++; continue; }
     if (lat === null || lon === null || alt === null || vn === null || ve === null || vd === null) continue;
@@ -71,5 +76,5 @@ export function truthVsEstimate(rows: RecordedRows, home: readonly [number, numb
   }
   const times = out.position.north.timeS, first = times[0], last = times[times.length - 1];
   if (first === undefined || last === undefined) return { kind: "missing", reason: "No report of the estimate falls where the recording holds the truth." };
-  return { kind: "series", series: { startS: first, endS: last, position: out.position, velocity: out.velocity, estimateHz: times.length > 1 && last > first ? (times.length - 1) / (last - first) : null, withoutTruth } };
+  return { kind: "series", series: { startS: first, endS: last, position: out.position, velocity: out.velocity, estimateHz: times.length > 1 && last > first ? (times.length - 1) / (last - first) : null, withoutTruth, beforePosition } };
 }

@@ -2,7 +2,7 @@ import { expect, it, vi } from "vitest";
 import { createSocket } from "node:dgram";
 import { WebSocket } from "ws";
 import { startBridge } from "../apps/bridge/src/server";
-import { BridgeSession } from "../apps/bridge/src/session";
+import { BridgeSession, DEFAULT_MESSAGE_LIMIT, messageLimitFor } from "../apps/bridge/src/session";
 import { encodeRecord, decodeRecord } from "../apps/bridge/src/framing";
 const token = "a".repeat(64),
   origin = "http://localhost:5173";
@@ -48,6 +48,36 @@ it("checks framing, wrap, epoch, flood limits and rejects coalesced or truncated
   expect(s.accept({ ...f, sequence: 1 }, 1000)).toBe(true);
   expect(s.accept({ ...f, epoch: 8, sequence: 2 }, 1000)).toBe(false);
   expect(s.accept({ ...f, sequence: 1 }, 1000)).toBe(false);
+});
+it("limits records per wall second by what the run asks for, so a fast run is not taken for a flood", async () => {
+  const record = (sequence: number) => ({ channel: 1 as const, epoch: 7, sequence, payload: new Uint8Array() });
+  const accepted = (session: BridgeSession, count: number) => {
+    let sequence = 0;
+    while (sequence < count && session.accept(record(sequence), 500)) sequence++;
+    return sequence;
+  };
+  // One second of a run at six times real time and 800 Hz is 4800 lockstep records: past the flat limit that closed such a run.
+  expect(accepted(new BridgeSession(7), 4800)).toBe(DEFAULT_MESSAGE_LIMIT);
+  expect(accepted(new BridgeSession(7, messageLimitFor(800, 6)), 4800)).toBe(4800);
+  // What it asks for is still a limit.
+  expect(messageLimitFor(800, 6)).toBe(DEFAULT_MESSAGE_LIMIT + 4800);
+  expect(accepted(new BridgeSession(7, messageLimitFor(800, 6)), 20000)).toBe(DEFAULT_MESSAGE_LIMIT + 4800);
+  await expect(startBridge({ port: 0, origin, token, epoch: 1, maxMessagesPerS: 0 })).rejects.toThrow("Invalid bridge message limit");
+  await expect(startBridge({ port: 0, origin, token, epoch: 1, maxMessagesPerS: 1.5 })).rejects.toThrow("Invalid bridge message limit");
+  // The real server holds a client to its limit, and closes with the code the panel reports.
+  const mav = await udp(), physics = await udp();
+  const b = await startBridge({ port: 0, origin, token, epoch: 1, maxMessagesPerS: 2, udp: { mavlinkPort: mav.address().port, physicsPort: physics.address().port } }), ws = connect(b.port);
+  try {
+    await opened(ws);
+    const ending = closed(ws);
+    for (let sequence = 0; sequence < 3; sequence++) ws.send(encodeRecord({ channel: 1, epoch: 1, sequence, payload: new Uint8Array() }));
+    expect(await ending).toBe(1008);
+  } finally {
+    ws.close();
+    await b.close();
+    mav.close();
+    physics.close();
+  }
 });
 it("runs real loopback WS/UDP channels, fragmented WS delivery, authentication and reconnect", async () => {
   const mav = await udp(),

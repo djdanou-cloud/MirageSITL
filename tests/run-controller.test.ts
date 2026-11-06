@@ -121,10 +121,13 @@ function commandAck(command: number, result: number): Uint8Array {
   return autopilotFrame(COMMAND_ACK, { command, result });
 }
 /** One message of a requested stream as ArduCopter sends it: EKF_STATUS_REPORT, GPS_RAW_INT or GLOBAL_POSITION_INT. */
-function streamMessage(id: 193 | 24 | 33): Uint8Array {
+/** Degrees of latitude per metre on the sphere the controller's home check uses; the tests work out where a fix lies apart from it. */
+const DEGREES_PER_METRE = 180 / (Math.PI * 6371008.8);
+/** A stream message; a GPS fix stands where the physics stands the aircraft, at the pad or at a flight task's ground start. */
+function streamMessage(id: 193 | 24 | 33, start: { readonly northM: number; readonly eastM: number } = { northM: 0, eastM: 0 }): Uint8Array {
   switch (id) {
     case 193: return autopilotFrame(193, { velocity_variance: 0.1, pos_horiz_variance: 0.1, pos_vert_variance: 0.1, compass_variance: 0.1, terrain_alt_variance: 0, flags: 1 | 2 | 4 | 16 | 32 });
-    case 24: return autopilotFrame(24, { time_usec: 1000000, fix_type: 3, lat: -353632610, lon: 1491652300, alt: 584000, eph: 100, epv: 100, vel: 0, cog: 0, satellites_visible: 10 });
+    case 24: return autopilotFrame(24, { time_usec: 1000000, fix_type: 3, lat: -353632610 + Math.round(start.northM * DEGREES_PER_METRE * 1e7), lon: 1491652300 + Math.round(start.eastM * DEGREES_PER_METRE / Math.cos(-35.363261 * Math.PI / 180) * 1e7), alt: 584000, eph: 100, epv: 100, vel: 0, cog: 0, satellites_visible: 10 });
     case 33: return autopilotFrame(33, { time_boot_ms: 1000, lat: -353632610, lon: 1491652300, alt: 584000, relative_alt: 0, vx: 0, vy: 0, vz: 0, hdg: 0 });
   }
 }
@@ -591,8 +594,8 @@ async function reach(h: Harness, stage: Stage): Promise<string> {
   mav(h, ...parameterList(h.run.parameters));
   expect(h.controller.state).toMatchObject({ name: 'warming', experimentId: id });
   if (stage === 'warming') return id;
-  // TASK-148: READY waits for ArduPilot's first 3D fix at the session's home.
-  mav(h, streamMessage(24));
+  // TASK-148: READY waits for ArduPilot's first 3D fix at the session's home, or at the flight task's ground start.
+  mav(h, streamMessage(24, h.request.flightTask?.definition.initial.ground));
   status(h, { ready: true, reason: '', simTimeS: 40 });
   expect(h.controller.state).toEqual({ name: 'ready', experimentId: id });
   if (stage === 'ready') return id;
@@ -1030,6 +1033,19 @@ describe('a flight task on the Run tab (TASK-172)', () => {
     const version = await fixture.store.createItem(fixture.projectId, 'flight-task', { name, payload: definition });
     return { recordSha256: version.sha256, name, definition };
   };
+  test('the home check stands at the task\'s ground start, which the physics puts away from the pad (TASK-148)', async () => {
+    const h = harness();
+    await reach({ ...h, request: { ...h.request, flightTask: await stored(hover, 'Hover') } }, 'ready');
+    expect(h.controller.view.compatibility).toEqual([{ check: 'home', text: 'GPS within 0.0 m and 0.0 m of the flight task\'s start' }]);
+    // A fix at the pad is hypot(10, 5) = 11.2 m from that start, beyond the 10 m limit: the aircraft is not where the physics stands it.
+    const away = harness(), request = { ...away.request, flightTask: await stored(hover, 'Hover') };
+    await reach({ ...away, request }, 'warming');
+    mav(away, streamMessage(24));
+    await until(() => away.controller.state.name === 'failed', 5000, 'the run to fail');
+    const state = away.controller.state;
+    if (state.name !== 'failed') throw new Error('The run did not fail');
+    expect(failureText(state.reason)).toBe('ArduPilot does not start at the session\'s home: its GPS puts it 11 m from and 0 m above or below the flight task\'s start, 10 m north and -5 m east of -35.363261,149.16523,584,0');
+  });
   /** The next Worker status at `simTimeS`, with the truth the task flies from. */
   const at = (h: Harness, simTimeS: number, truth: Partial<FlightTruth> = {}) => {
     h.physics.truth = { ...h.physics.truth, ...truth, simTimeS };
@@ -1124,7 +1140,7 @@ describe('a flight task on the Run tab (TASK-172)', () => {
     const request = { ...second.request, flightTask: await stored(hover, 'Hover') };
     await reach({ ...second, request }, 'warming');
     expect(second.controller.runTask()).toBe('Run the task once the run is READY');
-    mav(second, streamMessage(24));
+    mav(second, streamMessage(24, ground));
     status(second, { ready: true, reason: '', simTimeS: 40 });
     expect(second.controller.takeOff(TAKEOFF_M)).toBe(true);
     mav(second, heartbeat(GUIDED, true));
@@ -2963,8 +2979,8 @@ async function connectTo(h: Harness, stage: ConnectStage): Promise<string> {
   mav(h, ...parameterList(h.run.parameters));
   expect(h.controller.state).toMatchObject({ name: 'warming', experimentId: id });
   if (stage === 'warming') return id;
-  // TASK-148: READY waits for ArduPilot's first 3D fix at the session's home.
-  mav(h, streamMessage(24));
+  // TASK-148: READY waits for ArduPilot's first 3D fix at the session's home, or at the flight task's ground start.
+  mav(h, streamMessage(24, h.request.flightTask?.definition.initial.ground));
   status(h, { ready: true, reason: '', simTimeS: 40 });
   mav(h, gpsFix(1, 0.5));
   // The record goes through the real store (manifest derivation, hashing) before READY.

@@ -99,6 +99,7 @@ export function TruthVsEstimate({ recordId, home, drift, armedAtS }: { recordId:
       <p className="hint" data-testid="truth-estimate-note">
         {`The estimate is what ArduPilot reports in GLOBAL_POSITION_INT${series.estimateHz === null ? "" : `, about ${series.estimateHz.toFixed(0)} times a second`}, read against the truth at the same simulated moment. These describe the flight; none has a limit, and you decide what they mean.`}
         {series.withoutTruth > 0 ? ` ${series.withoutTruth} reports fall where the recording holds no truth and are left out.` : ""}
+        {series.beforePosition > 0 ? ` ${series.beforePosition} reports came before ArduPilot had a position and are left out.` : ""}
       </p>
       <details>
         <summary>The values as a table</summary>

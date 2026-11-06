@@ -8,7 +8,7 @@ import {
   MAX_BRIDGE_PAYLOAD,
   type BridgeChannel,
 } from "./framing.ts";
-import { BridgeSession } from "./session.ts";
+import { BridgeSession, DEFAULT_MESSAGE_LIMIT } from "./session.ts";
 import { JsonPhysicsEndpoint } from "./ardupilot-json.ts";
 import { fileURLToPath } from "node:url";
 import { resolve } from "node:path";
@@ -25,6 +25,8 @@ export interface BridgeOptions {
    */
   ardupilotJson?: { localPort: number };
   maxBufferedBytes?: number;
+  /** Records the client may send per wall second; DEFAULT_MESSAGE_LIMIT without it. */
+  maxMessagesPerS?: number;
 }
 /** Local explicit token handoff; never accept a token in URLs, logs or persisted browser state. */
 export async function startBridge(options: BridgeOptions) {
@@ -38,6 +40,8 @@ export async function startBridge(options: BridgeOptions) {
   )
     throw new Error("Invalid bridge origin/session configuration");
   const maxBuffered = options.maxBufferedBytes ?? 65536;
+  const maxMessages = options.maxMessagesPerS ?? DEFAULT_MESSAGE_LIMIT;
+  if (!Number.isInteger(maxMessages) || maxMessages < 1) throw new Error("Invalid bridge message limit");
   if (
     !Number.isInteger(maxBuffered) ||
     maxBuffered < 1 ||
@@ -153,7 +157,7 @@ export async function startBridge(options: BridgeOptions) {
       });
       client = ws;
       outboundSequence.fill(0);
-      const session = new BridgeSession(options.epoch);
+      const session = new BridgeSession(options.epoch, maxMessages);
       // Physics payload silence is expected during a lockstep pause.
       // WebSocket pong proves transport liveness independently of simulated time.
       let lastPongTime = performance.now();

@@ -61,9 +61,9 @@ test("every effect has a form with its own fields and ranges, and the protocol's
   await expect(send).toBeEnabled();
   const effect = page.getByLabel("Effect", { exact: true });
   const console_ = page.getByRole("region", { name: "Instructor console" });
-  // One form per effect, from the protocol's catalog: five families, twenty-seven effects (TASK-167 added the discrete gust).
+  // One form per effect, from the protocol's catalog: five families, twenty-eight effects (TASK-167 added the discrete gust, TASK-100 the rotor ground effect).
   await expect(effect.locator("optgroup")).toHaveCount(5);
-  await expect(effect.locator("option")).toHaveCount(27);
+  await expect(effect.locator("option")).toHaveCount(28);
   // Mean wind has all three axes, not the north wind of old, and states the wind model's range.
   await expect(console_.getByLabel("Wind north", { exact: true })).toHaveValue("5");
   await expect(console_.getByLabel("Wind east", { exact: true })).toBeVisible();

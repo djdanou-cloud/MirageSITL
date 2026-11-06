@@ -148,6 +148,17 @@ describe('truth against the estimate', () => {
   });
   it('says what the recording lacks, and makes up nothing', () => {
     expect(truthVsEstimate(new Map(), HOME)).toMatchObject({ kind: 'missing', reason: expect.stringContaining('no estimate') as string });
+    // All zeros is ArduPilot before it has a position, not a place about 4000 km away. With nothing else left, there is nothing to chart.
+    const zeros = row(0.1, [0, 0, 0, 0, 0, 0, 0, 0]);
+    const beforeOnly = new Map<string, readonly RecordedRow[]>([...rows, ['autopilot.globalPosition', [zeros]]]);
+    expect(truthVsEstimate(beforeOnly, HOME)).toMatchObject({ kind: 'missing', reason: expect.stringContaining('No report') as string });
+    const mixed = truthVsEstimate(new Map([...rows, ['autopilot.globalPosition', [zeros, report(0.2), report(0.33)]]]), HOME);
+    if (mixed.kind !== 'series') throw new Error(mixed.reason);
+    expect(mixed.series.beforePosition).toBe(1);
+    expect(mixed.series.withoutTruth).toBe(0);
+    expect(mixed.series.position.north.timeS).toEqual([0.2, 0.33]);
+    expect(mixed.series.startS).toBe(0.2);
+    expect(Math.max(...mixed.series.position.north.error.map(Math.abs))).toBeLessThan(4);
     expect(truthVsEstimate(new Map([['autopilot.globalPosition', [report(0.1)]]]), HOME)).toMatchObject({ kind: 'missing', reason: expect.stringContaining('no truth') as string });
     expect(truthVsEstimate(new Map([['autopilot.globalPosition', [report(9)]], ['truth.position', [row(0, [0, 0, 0])]], ['truth.velocity', [row(0, [0, 0, 0])]]]), HOME)).toMatchObject({ kind: 'missing' });
   });
