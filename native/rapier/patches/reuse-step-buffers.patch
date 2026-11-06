@@ -143,3 +143,16 @@
      }
 
      /// Removes a joint from the world.
+--- a/src/geometry/broad_phase_bvh/update.rs
++++ b/src/geometry/broad_phase_bvh/update.rs
+@@ -324,6 +324,10 @@
+             // beyond the (amortized) buffer.
+             let mut candidates = core::mem::take(&mut self.candidates_workspace);
+             candidates.clear();
++            // MirageSITL: a traversal reports each pair of leaves at most once. Sized from the tree
++            // here, no later attitude can grow the list inside a step of constant leaves.
++            let leaves = self.tree.leaf_count() as usize;
++            candidates.reserve(leaves * leaves.saturating_sub(1) / 2);
+             self.tree
+                 .traverse_bvtt_single_tree::<{ Self::CHANGE_DETECTION_ENABLED }>(
+                     &mut self.workspace,

@@ -1567,6 +1567,14 @@ hull shape in contact allocated at every step;
 `native/rapier/patches/parry-halfspace-reuse.patch` keeps the storage and copies
 the previous points (at most four) to the stack for the impulse transfer. The
 manifest records the patch's SHA-256 as `parryPatchSha256`.
+The same patch and `reuse-step-buffers.patch` size the broad phase's work lists from
+the tree on their first use: the traversal's list of branches still to visit, the
+optimizer's lists and the list of candidate pairs. How long they get in a step depends
+on the tree's shape and on which leaves changed, so a warmup can only meet some of it:
+about 5 flights in 36 of the 16-motor aircraft stopped with status -6 during their
+descent because the traversal's list grew (found 2026-11-06). Each bound follows from
+the tree's size, which a session keeps constant: the lists hold distinct nodes, and a
+traversal reports a pair of leaves at most once.
 No imports, shared memory or concurrent/reentrant ABI access are allowed.
 The separate contact lockfile is required; standalone BET retains its own ABI
 and trapping allocator through the explicit `embedded-kernels` composition feature.

@@ -13,39 +13,39 @@
       "steps": 20000,
       "warmupSteps": 20000,
       "periodMs": 2.5,
-      "meanMs": 0.11640261769999934,
-      "p50Ms": 0.11483299999963492,
-      "p95Ms": 0.12683299999935116,
-      "p99Ms": 0.17374999999992724,
-      "maxMs": 2.317917000000307,
+      "meanMs": 0.05561179199999831,
+      "p50Ms": 0.055833000000347965,
+      "p95Ms": 0.05983299999934388,
+      "p99Ms": 0.06779100000039762,
+      "maxMs": 1.1582499999999527,
       "p99WithinPeriod": true,
-      "realtimeRatioAtMean": 21.477180233550833
+      "realtimeRatioAtMean": 44.95449454317308
     },
     {
       "hz": 800,
       "steps": 20000,
       "warmupSteps": 20000,
       "periodMs": 1.25,
-      "meanMs": 0.11719352744999587,
-      "p50Ms": 0.11533400000007532,
-      "p95Ms": 0.12745799999902374,
-      "p99Ms": 0.1770410000008269,
-      "maxMs": 2.5663750000003347,
+      "meanMs": 0.05582293364999864,
+      "p50Ms": 0.05587500000001455,
+      "p95Ms": 0.06000000000040018,
+      "p99Ms": 0.06770800000049348,
+      "maxMs": 1.356457999999293,
       "p99WithinPeriod": true,
-      "realtimeRatioAtMean": 10.666118062990723
+      "realtimeRatioAtMean": 22.39223054519691
     },
     {
       "hz": 1200,
       "steps": 20000,
       "warmupSteps": 20000,
       "periodMs": 0.8333333333333334,
-      "meanMs": 0.11669639280001229,
-      "p50Ms": 0.11487500000293949,
-      "p95Ms": 0.1266670000004524,
-      "p99Ms": 0.17712499999834108,
-      "maxMs": 0.4055419999967853,
+      "meanMs": 0.05573952424999243,
+      "p50Ms": 0.055791999999200925,
+      "p95Ms": 0.06020900000112306,
+      "p99Ms": 0.06741599999986647,
+      "maxMs": 0.10841699999946286,
       "p99WithinPeriod": true,
-      "realtimeRatioAtMean": 7.141037639110689
+      "realtimeRatioAtMean": 14.95049239379625
     }
   ],
   "allocation": {
@@ -53,7 +53,7 @@
     "bytes": 2960,
     "bytesPerStep": 0.00296,
     "gcEvents": 0,
-    "elapsedMs": 116439.374833,
+    "elapsedMs": 55405.612917000006,
     "warmupSteps": 110000,
     "airborneSteps": 299304,
     "touchdowns": 358,
@@ -62,10 +62,10 @@
     "nativeAllocationBytes": 0,
     "positiveControl": {
       "steps": 1000000,
-      "bytes": 742872,
-      "bytesPerStep": 0.742872,
+      "bytes": 743200,
+      "bytesPerStep": 0.7432,
       "gcEvents": 30,
-      "elapsedMs": 9.95441700000083
+      "elapsedMs": 6.656958999999915
     },
     "controlDetected": true
   },
@@ -75,8 +75,8 @@
     "arch": "arm64",
     "cpu": "Apple M5",
     "cpus": 10,
-    "wasmSha256": "906011473ab3e49338f0c5e6a63a4c91dbf553e87d6f2cc56a8df698e3e57f13",
-    "contactSha256": "1cd7aca68ed131bc5757fd456051894f76347900923b8b89e82fca35d2f73b0d",
+    "wasmSha256": "28e4204601a6ca2d3055a048cac2be7d2a9192ff26c6920a1cd7244e0185de3a",
+    "contactSha256": "30bed7ed2558bb90f22dd8a9a22a73812b4acaf8718da51886e016a5cf2ca976",
     "sourceInputs": [
       {
         "file": "node_modules/fast-deep-equal/index.js",
@@ -351,8 +351,20 @@
         "sha256": "666d1a2aa25c0dfe3cf41312d0f9d40e9f99eb2c19be7469134ad89005aadd52"
       },
       {
+        "file": "packages/physics/src/accident.ts",
+        "sha256": "3cd5145f29834b87e97c19b300bda3febe21c9c06dbd7d67212930d9f67038a5"
+      },
+      {
+        "file": "packages/physics/src/atmosphere.ts",
+        "sha256": "daeb8663714ad64701d82f8f40d7bfe32c8ee6cdd9c45339786289cdb1ecf7f1"
+      },
+      {
         "file": "packages/physics/src/bet-dynamics.ts",
-        "sha256": "32fbe14805eee440621208dbeaa32f36472ab2c9345c3c973e494cddd0b3e404"
+        "sha256": "ee824714afad5156279e330642fd48f0bcc9edb700b2030b3a8ca594627159e0"
+      },
+      {
+        "file": "packages/physics/src/discrete-gust.ts",
+        "sha256": "7ff055b3ec53d11d6e7e968cef2bd142e865331bbb0de3988008f7333c1067c1"
       },
       {
         "file": "packages/physics/src/frame.ts",
@@ -360,11 +372,11 @@
       },
       {
         "file": "packages/physics/src/ground-contact.ts",
-        "sha256": "6341593c9dce34fedbf672a9cf8bd7b17f8afba0c1918818fe189cc55e8e4c04"
+        "sha256": "57176b716e055329298a8edcee50cd3b44fb3cd84d46f130bad11cb549c9a254"
       },
       {
         "file": "packages/physics/src/limit-monitor.ts",
-        "sha256": "08c09d117d08b73f0292d1cf929cd40fa02efa488e957ac2175ac1036b99bd79"
+        "sha256": "5ac60377845c754db6ff57da6a46c4c03b3975d11a6475ee74f645ed64049d14"
       },
       {
         "file": "packages/physics/src/model-manifest.ts",
@@ -373,6 +385,22 @@
       {
         "file": "packages/physics/src/model.schema.json",
         "sha256": "0fcf0f774a81403b01e10041d31d369998fe900561c41c82b122905cf4295540"
+      },
+      {
+        "file": "packages/physics/src/rotor-wake.ts",
+        "sha256": "dd431958a02778c0f98d4ed604f1702eb24474177a6030d4d7dade33058bd63f"
+      },
+      {
+        "file": "packages/physics/src/terrain-contact.ts",
+        "sha256": "86ecf71748c2d727951dcb007d7afeb31b5f17e78bfe68a46b561c467923dd60"
+      },
+      {
+        "file": "packages/physics/src/turbulence.ts",
+        "sha256": "c5c1c9f133c74b8b1df7f90752f27b4ec8d3b23c4f16433b061f5c3e3f881349"
+      },
+      {
+        "file": "packages/physics/src/wind.ts",
+        "sha256": "7150f5716cd975c8e5674df68c729dd0ed9aa29e64884e01193e426b6a2d6d64"
       },
       {
         "file": "packages/protocol/src/actuator-frame.ts",
@@ -384,11 +412,15 @@
       },
       {
         "file": "packages/protocol/src/control-v2.ts",
-        "sha256": "8f35f1642211711fd5d85e2ef574e1fbee77145028d80552007379d480feee05"
+        "sha256": "2d15134280f8b88b7221afeb18aa66a733282d6d9b28bff2a481711de36f81ad"
+      },
+      {
+        "file": "packages/protocol/src/control-v3.ts",
+        "sha256": "7fae63ed19e808e220142831afd94970cd78a17b2d4e7af9c1f9062b9a1b820f"
       },
       {
         "file": "packages/protocol/src/index.ts",
-        "sha256": "39ce55bf6e239d73afdbf058395fa337809e25ba3eb61b009db1df3a007f74c7"
+        "sha256": "c954efd8fa2e65005ca649f078a0be7152fe4f9257550666c1ae34cc157fae6d"
       },
       {
         "file": "packages/protocol/src/interpolation.ts",
@@ -419,20 +451,48 @@
         "sha256": "dd3973ff459bf58e1accee3d669050c14acfd4157ede1d1d16f862244cfb9c64"
       },
       {
+        "file": "packages/sensors/src/environment.ts",
+        "sha256": "1e4dfc779e44af619c5f605bf477a242d966a0a7581ff46bb3272df1ebaa3017"
+      },
+      {
+        "file": "packages/sensors/src/geoid.ts",
+        "sha256": "97228430a054a2d5422fa7e562e8d6633b77ebc971a8b525f99702abd003c893"
+      },
+      {
+        "file": "packages/sensors/src/geomagnetic.ts",
+        "sha256": "f23b1ab1a0be125103799cb2d86a0f2c82eac005de3c0f374f65c196592fb13f"
+      },
+      {
+        "file": "packages/sensors/src/gravity.ts",
+        "sha256": "0f059d7013af5d50f756abc91912a1bbc6ae8e2e9398f2dda5ea5fca15dcd45f"
+      },
+      {
+        "file": "packages/terrain/src/collision-build.ts",
+        "sha256": "6bc6e8bebac5e7cc4ec564e883cad3c9ceca6bb3795a17f57ca9ff8d9518e549"
+      },
+      {
+        "file": "packages/terrain/src/collision-chunks.ts",
+        "sha256": "f097a5e110b7a32cfca9066296e3fca2777dda7ca549a4733132b10bb3a61140"
+      },
+      {
+        "file": "packages/test-support/src/prng.ts",
+        "sha256": "4ddb70178a81f5698b684fb2694ce837f716102fa840b4edf04c9734381cfd9a"
+      },
+      {
         "file": "packages/wasm-bet/src/backend.ts",
         "sha256": "97bba31761cf32717ea24473e5678fd8bcb75394b3e8af4a394cbab01ea0de35"
       },
       {
         "file": "packages/wasm-bet/src/bus.ts",
-        "sha256": "1288f7a7f802006054929956fd7f41769defe1760ad764a3fc2b67ec25d7df26"
+        "sha256": "dc386dfd0b195073ce259cf2d4e42f294ebb8c5a03fb9de4efeddbad541bf497"
       },
       {
         "file": "packages/wasm-bet/src/rotor-v2.ts",
-        "sha256": "3aee10adc45ce9c0fa815b5153064305caaa162351778015472b778aadf10840"
+        "sha256": "c7a686676317466915d55471c419bdda403b66fdf33b9a36256e487dd578c4ec"
       },
       {
         "file": "packages/wasm-bet/src/rotor.ts",
-        "sha256": "81d4cabd4d7e5fd52f152204de234d93a35802c1a3ec3d6a298f55755aaaaa6c"
+        "sha256": "27b7874bcd03cb6246f2df5610f1906a9875bd68d718f63e9d5f89644ef5ea75"
       },
       {
         "file": "tests/bet-runtime-fixture.ts",

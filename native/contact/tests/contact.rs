@@ -895,3 +895,176 @@ fn a_tumbling_hull_on_the_ground_never_allocates() {
         contact_dispose();
     }
 }
+
+// A flight of the 16-motor aircraft faulted about once in ten, with status -6, because the broad
+// phase's tree traversal grew the list of branches it still has to visit. That list's length
+// depends on the tree's shape and on which leaves changed in that step, and the warmup only sizes
+// it for the shapes the warmup happens to meet. Its bound is the tree's size, so the test takes
+// a tree the warmup-sized list cannot hold. Limit, set before the fix: no allocator call.
+mod tree_buffers {
+    use mirage_contact::allocations_during;
+    use rapier3d_f64::parry::bounding_volume::Aabb;
+    use rapier3d_f64::parry::partitioning::{Bvh, BvhBuildStrategy, BvhWorkspace};
+    use rapier3d_f64::prelude::Vector;
+    const LEAVES: u32 = 64;
+    /// Leaf 0 stands far off, so the build gives it a branch of its own next to all the others,
+    /// as a ground plane's endless box gets: what meets it walks the whole of that other branch.
+    fn apart(i: u32) -> Aabb {
+        let x = if i == 0 { 1.0e6 } else { f64::from(i) * 10.0 };
+        Aabb::new(Vector::new(x, 0.0, 0.0), Vector::new(x + 1.0, 1.0, 1.0))
+    }
+    fn together() -> Aabb {
+        Aabb::new(Vector::splat(-1.0), Vector::splat(1.0))
+    }
+    /// A tree of leaves that overlap nothing, traversed once, then moved so that every leaf overlaps every other.
+    fn reshaped() -> (Bvh, BvhWorkspace) {
+        let mut tree = Bvh::from_iter(BvhBuildStrategy::Binned, (0..LEAVES).map(|i| (i as usize, apart(i))));
+        let mut workspace = BvhWorkspace::default();
+        tree.refit(&mut workspace);
+        let mut seen = 0;
+        tree.traverse_bvtt_single_tree::<false>(&mut workspace, &mut |_, _| seen += 1);
+        assert_eq!(seen, 0);
+        for i in 0..LEAVES {
+            tree.insert_or_update_partially(together(), i, 0.0);
+        }
+        tree.refit(&mut workspace);
+        (tree, workspace)
+    }
+    #[test]
+    fn the_tree_traversal_never_grows_its_list_whatever_the_tree_s_shape() {
+        let (tree, mut workspace) = reshaped();
+        let (pairs, calls) = allocations_during(|| {
+            let mut pairs = 0;
+            tree.traverse_bvtt_single_tree::<false>(&mut workspace, &mut |_, _| pairs += 1);
+            pairs
+        });
+        assert_eq!(pairs, LEAVES * (LEAVES - 1) / 2, "every leaf overlaps every other");
+        assert_eq!(calls, 0, "allocator calls in the traversal");
+    }
+    #[test]
+    fn the_tree_optimizer_never_grows_its_lists_whatever_the_tree_s_shape() {
+        let (mut tree, mut workspace) = reshaped();
+        // Its first run may size its lists, as the warmup's does; every later shape must fit them.
+        tree.optimize_incremental(&mut workspace);
+        for round in 0..200u32 {
+            for i in 0..LEAVES {
+                let spread = f64::from((i * (round + 1)) % 17);
+                let aabb = Aabb::new(Vector::new(spread, f64::from(i % 5), f64::from(round % 3)), Vector::new(spread + f64::from(1 + round % 9), f64::from(i % 5) + 1.0, 4.0));
+                tree.insert_or_update_partially(aabb, i, 0.0);
+            }
+            tree.refit(&mut workspace);
+            let ((), calls) = allocations_during(|| tree.optimize_incremental(&mut workspace));
+            assert_eq!(calls, 0, "allocator calls in optimizer run {round}");
+        }
+    }
+}
+
+// The whole world with the most shapes a Phase 1 aircraft has: eight supports, a body, eight arms
+// and sixteen propeller discs. Its geometry follows tests/fixtures/aircraft/octa-coaxial-16.json.
+// Random thrust and torque climb, drop, tumble and bounce it, so that the wheels and shapes meet the
+// ground in any order and the tree goes through many shapes. Limit: every step returns 0, since the
+// ABI faults a session on an armed allocation.
+mod sixteen_motors {
+    use mirage_contact::contact::{CONFIG_COUNT, INPUT_COUNT, SHAPE_BASE, SHAPE_STRIDE};
+    use mirage_contact::*;
+    const MASS_KG: f64 = 8.5;
+    const GRAVITY_MPS2: f64 = 9.80665;
+    fn coaxial_octocopter() -> [f64; CONFIG_COUNT] {
+        let mut c = [0.0; CONFIG_COUNT];
+        c[0] = 5.0;
+        c[1] = 25.0;
+        c[2] = MASS_KG - 8.0 * 0.0106;
+        c[3] = 0.0064;
+        c[5] = 0.6;
+        c[8] = -0.202;
+        c[12] = 1.0;
+        c[19] = 0.32;
+        c[20] = 0.33;
+        c[21] = 0.59;
+        c[24] = -1.0;
+        c[26] = GRAVITY_MPS2;
+        c[27] = 8.0;
+        let body = SHAPE_BASE;
+        c[body] = 2.0;
+        c[body + 3] = -0.053;
+        c[body + 6] = 1.0;
+        c[body + 7] = 0.105;
+        c[body + 8] = 0.042;
+        for arm in 0..8 {
+            let angle = (22.5 + 45.0 * arm as f64).to_radians();
+            let (x, y) = (0.415 * angle.cos(), 0.415 * angle.sin());
+            let wheel = 32 + arm * 160;
+            c[wheel] = x;
+            c[wheel + 1] = y;
+            c[wheel + 2] = 0.192;
+            c[wheel + 3] = 0.0106;
+            c[wheel + 4] = 0.01;
+            c[wheel + 5] = 0.005;
+            c[wheel + 6] = 0.025;
+            c[wheel + 8] = 2315.0;
+            c[wheel + 10] = 66.0;
+            c[wheel + 11] = 66.0;
+            c[wheel + 13] = 0.6;
+            c[wheel + 14] = 0.6;
+            c[wheel + 15] = 0.6;
+            c[wheel + 16] = 21.0;
+            c[wheel + 17] = 2.0;
+            c[wheel + 29] = 0.83;
+            c[wheel + 33] = 0.005;
+            c[wheel + 97] = 104.0;
+            let capsule = SHAPE_BASE + (1 + arm) * SHAPE_STRIDE;
+            c[capsule] = 1.0;
+            c[capsule + 3] = -0.053;
+            c[capsule + 4] = x;
+            c[capsule + 5] = y;
+            c[capsule + 6] = -0.053;
+            c[capsule + 7] = 0.0064;
+            for (level, down) in [-0.103, -0.003].iter().enumerate() {
+                let disc = SHAPE_BASE + (9 + arm + 8 * level) * SHAPE_STRIDE;
+                c[disc] = 2.0;
+                c[disc + 1] = x;
+                c[disc + 2] = y;
+                c[disc + 3] = *down;
+                c[disc + 6] = -1.0;
+                c[disc + 7] = 0.127;
+                c[disc + 8] = 0.0032;
+            }
+        }
+        c
+    }
+    #[test]
+    fn the_sixteen_motor_aircraft_never_allocates_however_it_tumbles() {
+        let _abi = super::ABI.lock().unwrap();
+        let mut state: u64 = 0x9E37_79B9_7F4A_7C15;
+        let mut next = move |low: f64, high: f64| {
+            state = state.wrapping_mul(6_364_136_223_846_793_005).wrapping_add(1_442_695_040_888_963_407);
+            low + (high - low) * ((state >> 11) as f64) / ((1u64 << 53) as f64)
+        };
+        unsafe {
+            for flight in 0..6 {
+                let config = coaxial_octocopter();
+                std::ptr::copy_nonoverlapping(config.as_ptr(), contact_config_ptr(), CONFIG_COUNT);
+                assert_eq!(contact_initialize(), 0);
+                let mut input = [0.0; INPUT_COUNT];
+                input[14] = [1.0 / 400.0, 1.0 / 800.0, 1.0 / 1200.0][flight % 3];
+                let mut step = 0;
+                while step < 20_000 {
+                    let weight = MASS_KG * GRAVITY_MPS2;
+                    let turn = next(0.0, 1.0) * next(0.0, 1.0) * 12.0;
+                    input[0] = next(-0.5, 0.5) * weight;
+                    input[1] = next(-0.5, 0.5) * weight;
+                    input[2] = next(-3.0, 1.0) * weight;
+                    input[3] = next(-1.0, 1.0) * turn;
+                    input[4] = next(-1.0, 1.0) * turn;
+                    input[5] = next(-0.5, 0.5) * turn;
+                    std::ptr::copy_nonoverlapping(input.as_ptr(), contact_input_ptr(), INPUT_COUNT);
+                    for _ in 0..next(40.0, 2400.0) as usize {
+                        assert_eq!(contact_step(), 0, "flight {flight} step {step}");
+                        step += 1;
+                    }
+                }
+                contact_dispose();
+            }
+        }
+    }
+}

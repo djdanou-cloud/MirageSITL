@@ -86,6 +86,16 @@ pub extern "C" fn contact_allocation_calls() -> f64 {
 pub extern "C" fn contact_allocation_bytes() -> f64 {
     BYTES.with(|c| c.get() as f64)
 }
+/// The allocator calls `f` makes on this thread, for a test of what runs inside a step.
+pub fn allocations_during<R>(f: impl FnOnce() -> R) -> (R, u64) {
+    CALLS.with(|c| c.set(0));
+    BYTES.with(|c| c.set(0));
+    TRACK.with(|t| t.set(true));
+    let result = f();
+    TRACK.with(|t| t.set(false));
+    BYTES.with(|c| c.set(0));
+    (result, CALLS.with(|c| c.replace(0)))
+}
 #[no_mangle]
 pub extern "C" fn contact_allocator_probe() -> u32 {
     CALLS.with(|c| c.set(0));

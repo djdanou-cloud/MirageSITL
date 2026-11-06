@@ -482,7 +482,14 @@ async function fly(page: Page, browserVersion: string, configuration: NominalCon
       await runTab.getByRole("button", { name: "Land" }).click();
       await expect(runTab.getByTestId("sitl-mode")).toHaveText("LAND", { timeout: 30_000 });
       const mode = await text("sitl-mode");
-      await expect(runTab.getByTestId("sitl-armed")).toHaveText("Disarmed", { timeout: 180_000 });
+      await expect(runTab.getByTestId("sitl-armed")).toHaveText("Disarmed", { timeout: 180_000 }).catch(async (error: unknown) => {
+        // What was still moving when it did not land: whether the simulated time and each frame counter advance tells where a stall is.
+        const reading = async () => ({ simS: await text("sitl-sim-time"), frames: await text("sitl-frames"), stage: await text("sitl-stage"), armed: await text("sitl-armed"), altitudeM: await altitude() });
+        const first = await reading();
+        await page.waitForTimeout(5000);
+        const alerts = await runTab.getByRole("alert").allTextContents().catch(() => []);
+        throw new Error(`Not disarmed: ${JSON.stringify({ first, fiveSecondsLater: await reading(), alerts })} (${error instanceof Error ? (error.message.split("\n")[0] ?? "") : String(error)})`);
+      });
       await expect(stage).toHaveAttribute("data-state", "ready", { timeout: 60_000 });
       // On its supports at rest: the CG settles on the gear within a second or two of the disarm.
       await page.waitForTimeout(2000);
@@ -498,7 +505,9 @@ async function fly(page: Page, browserVersion: string, configuration: NominalCon
 
     // Stop runs after a failed step too, unless no run started.
     if (runPid !== 0) await steps.run("stop", async () => {
-      await runTab.getByRole("button", { name: "Stop run" }).click();
+      // A fault may have stopped the run already: its Stop button is then disabled, and waiting on it would only use up the test's time.
+      const stop = runTab.getByRole("button", { name: "Stop run" });
+      if (await stop.isEnabled()) await stop.click();
       await expect(stage).toHaveAttribute("data-state", "idle", { timeout: 60_000 });
       const run = (await launcherExperiments(launcher.port, token, ORIGIN))[0]?.runs.at(-1);
       return { state: (await stage.getAttribute("data-state")) ?? "", text: await text("sitl-stage"), launcherState: run?.state ?? "missing",

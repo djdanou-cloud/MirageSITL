@@ -1406,12 +1406,12 @@
   "diagnostics": {
     "betRuntime": {
       "path": "test-results/validation/bet-runtime.json",
-      "reportSha256": "ba59b91e049a8a3c148ff9fcdf1a2def3e37fb0ac05620678d450f3923475ddb",
+      "reportSha256": "fa67fa1542ed4efa01c1123dfd4beef834a8c35c5db7851596b69e86c0f11eb0",
       "status": "pass"
     },
     "betRuntimeAllocation": {
       "path": "test-results/validation/bet-runtime-allocation.json",
-      "reportSha256": "656c0c46058c57f0e90783ec6632fbaffb3fa565c3264de365fb7b4ee5b51cd8",
+      "reportSha256": "418b7b961c7b8469d76d37e8f2e47d39195ba0e9f5595e539aa4bb922f26fdae",
       "status": "pass"
     },
     "jsbsimBackend": {
@@ -1431,8 +1431,8 @@
     },
     "contact": {
       "path": "test-results/bench/contact.json",
-      "reportSha256": "4d85134d4f60a42a3c9fc105ba7fb7c0713ae36a9a88751df76c3a57d2c57ba5",
-      "status": "stale"
+      "reportSha256": "9619827f08cf231d82b4581829b1cb264916caec94623ba818c813ddcd7b608c",
+      "status": "pass"
     },
     "jsbsimNative": {
       "path": "test-results/validation/jsbsim-native.json",

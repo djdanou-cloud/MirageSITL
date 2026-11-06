@@ -74,21 +74,26 @@ try {
         const build = join(cache, "binding");
         mkdirSync(build, { recursive: true });
         const manifest = `[package]\nname="mirage-contact"\nversion="0.1.0"\nedition="2021"\nrust-version="1.97"\n[lib]\npath=${JSON.stringify(join(root, "native/contact/src/lib.rs").replaceAll("\\", "/"))}\ncrate-type=["cdylib","rlib"]\n[dependencies]\nrapier3d-f64={path=${JSON.stringify(join(prepared, "crates/rapier3d-f64").replaceAll("\\", "/"))},default-features=false,features=["dim3","f64","std","enhanced-determinism"]}\nmirage-bet={path=${JSON.stringify(join(root, "native/bet").replaceAll("\\", "/"))}}\n[patch.crates-io]\nparry3d-f64={path=${JSON.stringify(parry.replaceAll("\\", "/"))}}\n[profile.release]\nlto=true\ncodegen-units=1\npanic="abort"\nstrip=true\n`;
-        const extra = `\n[[bin]]\nname="contact-probe"\npath=${JSON.stringify(join(root, "native/contact/src/probe.rs").replaceAll("\\", "/"))}\n[[test]]\nname="contract"\npath=${JSON.stringify(join(root, "native/contact/tests/contact.rs").replaceAll("\\", "/"))}\n`;
+        // Cargo builds a package's binaries for its integration tests with the release profile's abort, beside the unwinding
+        // libraries the test needs. Both write the same unhashed libmirage_*.rlib (a cdylib crate's name carries no hash), so
+        // after a partial rebuild the test could link the abort one and fail on the panic strategy. The tests do not use the
+        // probe, so a test build leaves it out and has one strategy (TASK-095).
+        const testing = process.argv.includes("--test-native");
+        const probe = testing ? "" : `\n[[bin]]\nname="contact-probe"\npath=${JSON.stringify(join(root, "native/contact/src/probe.rs").replaceAll("\\", "/"))}`;
+        const extra = `${probe}\n[[test]]\nname="contract"\npath=${JSON.stringify(join(root, "native/contact/tests/contact.rs").replaceAll("\\", "/"))}\n`;
         writeFileSync(join(build, "Cargo.toml"), manifest.replace("mirage-bet={path=", 'mirage-bet={features=["embedded-kernels"],path=') + extra);
         const committed = join(root, "native/contact/Cargo.lock");
         if (!existsSync(committed))
             throw new Error("Missing frozen contact dependency lockfile");
         copyFileSync(committed, join(build, "Cargo.lock"));
         const args = ["build", "--manifest-path", join(build, "Cargo.toml"), "--release"];
-        if (process.argv.includes("--test-native")) {
+        if (testing) {
             args[0] = "test";
-            // Cargo emits both abort/unwind cdylibs for integration tests;
-            // serialize their linker outputs on Windows.
             args.push("--test", "contract", "--jobs", "1");
             // Tests build their dependencies with unwinding; a target shared with the abort-only
             // library builds (check-contact-binding.mjs) fails on the panic strategy (TASK-095).
-            args.push("--target-dir", join(build, "target-test"));
+            // Not target-test: that folder may still hold abort libraries from builds with the probe.
+            args.push("--target-dir", join(build, "target-contract"));
         }
         args.push("--locked");
         if (!process.argv.includes("--native"))

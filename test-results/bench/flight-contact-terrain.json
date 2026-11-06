@@ -13,39 +13,39 @@
       "steps": 20000,
       "warmupSteps": 20000,
       "periodMs": 2.5,
-      "meanMs": 0.055624517850000506,
-      "p50Ms": 0.05604200000016135,
-      "p95Ms": 0.05866699999978664,
-      "p99Ms": 0.06670800000028976,
-      "maxMs": 0.8982920000003105,
+      "meanMs": 0.05575092445000102,
+      "p50Ms": 0.055917000000135886,
+      "p95Ms": 0.059957999999824096,
+      "p99Ms": 0.06791699999985212,
+      "maxMs": 1.0592500000002474,
       "p99WithinPeriod": true,
-      "realtimeRatioAtMean": 44.944209795069305
+      "realtimeRatioAtMean": 44.84230574942429
     },
     {
       "hz": 800,
       "steps": 20000,
       "warmupSteps": 20000,
       "periodMs": 1.25,
-      "meanMs": 0.05578527719999957,
-      "p50Ms": 0.05604200000016135,
-      "p95Ms": 0.058541999999761174,
-      "p99Ms": 0.06591600000047038,
-      "maxMs": 1.220208000000639,
+      "meanMs": 0.05599928344999648,
+      "p50Ms": 0.05595900000025722,
+      "p95Ms": 0.06058300000040617,
+      "p99Ms": 0.06808300000011513,
+      "maxMs": 1.2837079999999332,
       "p99WithinPeriod": true,
-      "realtimeRatioAtMean": 22.4073458579141
+      "realtimeRatioAtMean": 22.321714189721092
     },
     {
       "hz": 1200,
       "steps": 20000,
       "warmupSteps": 20000,
       "periodMs": 0.8333333333333334,
-      "meanMs": 0.05584457430000266,
-      "p50Ms": 0.05612500000097498,
-      "p95Ms": 0.05866699999933189,
-      "p99Ms": 0.06716600000072503,
-      "maxMs": 0.11237500000061118,
+      "meanMs": 0.05590444235000605,
+      "p50Ms": 0.05595800000082818,
+      "p95Ms": 0.060459000000264496,
+      "p99Ms": 0.06845900000007532,
+      "maxMs": 0.08500000000094587,
       "p99WithinPeriod": true,
-      "realtimeRatioAtMean": 14.922368802680507
+      "realtimeRatioAtMean": 14.906388442550007
     }
   ],
   "allocation": {
@@ -53,7 +53,7 @@
     "bytes": 2960,
     "bytesPerStep": 0.00296,
     "gcEvents": 0,
-    "elapsedMs": 55432.58208400001,
+    "elapsedMs": 55578.254541999995,
     "warmupSteps": 110000,
     "airborneSteps": 299304,
     "touchdowns": 358,
@@ -65,7 +65,7 @@
       "bytes": 742776,
       "bytesPerStep": 0.742776,
       "gcEvents": 30,
-      "elapsedMs": 6.551042000006419
+      "elapsedMs": 6.318749999991269
     },
     "controlDetected": true
   },
@@ -76,7 +76,7 @@
     "cpu": "Apple M5",
     "cpus": 10,
     "wasmSha256": "28e4204601a6ca2d3055a048cac2be7d2a9192ff26c6920a1cd7244e0185de3a",
-    "contactSha256": "1cd7aca68ed131bc5757fd456051894f76347900923b8b89e82fca35d2f73b0d",
+    "contactSha256": "30bed7ed2558bb90f22dd8a9a22a73812b4acaf8718da51886e016a5cf2ca976",
     "sourceInputs": [
       {
         "file": "node_modules/fast-deep-equal/index.js",
@@ -360,7 +360,7 @@
       },
       {
         "file": "packages/physics/src/bet-dynamics.ts",
-        "sha256": "8b5ec195057abb24245d3d014c085cc885505eccdb2cbde833f7b77c27bd6f1b"
+        "sha256": "ee824714afad5156279e330642fd48f0bcc9edb700b2030b3a8ca594627159e0"
       },
       {
         "file": "packages/physics/src/discrete-gust.ts",
@@ -392,7 +392,7 @@
       },
       {
         "file": "packages/physics/src/terrain-contact.ts",
-        "sha256": "1996e608ebc9ba034784c8c489e3a596a70f27b1b87bf694f2ed90fc5733100d"
+        "sha256": "86ecf71748c2d727951dcb007d7afeb31b5f17e78bfe68a46b561c467923dd60"
       },
       {
         "file": "packages/physics/src/turbulence.ts",

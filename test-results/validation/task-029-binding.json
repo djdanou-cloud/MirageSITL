@@ -1,18 +1,18 @@
 {
   "schemaVersion": 1,
-  "wasmSha256": "1cd7aca68ed131bc5757fd456051894f76347900923b8b89e82fca35d2f73b0d",
+  "wasmSha256": "30bed7ed2558bb90f22dd8a9a22a73812b4acaf8718da51886e016a5cf2ca976",
   "manifest": {
     "schemaVersion": 1,
     "abiVersion": 3,
     "toolchain": "1.97.0",
     "sourceCommit": "b716d375efc0201003f0cd9ef7168eee0b62c177",
-    "patchSha256": "327d04277393a775987e92a2c16c49d08f930646ea808723d82e864ae07eac09",
-    "parryPatchSha256": "3cfcb33ef5c3a2d0ecba042e9fad3bcb242d3b6c26f11941f8e9170f84dd6666",
+    "patchSha256": "9e5d7df38bef975a5fe19bf475557889ccc53744454dda44125371bc52e24da1",
+    "parryPatchSha256": "eac310515375fbedf182ac39210a165ef325ca3bfbf66e644c7624644deccd79",
     "engineVersion": "0.36.0",
     "precision": "f64",
     "memoryBytes": 16777216,
-    "bytes": 2062039,
-    "sha256": "1cd7aca68ed131bc5757fd456051894f76347900923b8b89e82fca35d2f73b0d",
+    "bytes": 2062734,
+    "sha256": "30bed7ed2558bb90f22dd8a9a22a73812b4acaf8718da51886e016a5cf2ca976",
     "inputs": [
       {
         "file": "native/bet/Cargo.toml",
@@ -20,7 +20,7 @@
       },
       {
         "file": "native/bet/src/lib.rs",
-        "sha256": "f77211e4e5348230dde708a279430e5c354fef43bd2b33932470649b59569858"
+        "sha256": "38b586c8e1a90b655577a9bd33332604975db8b15fa2fea2f78b6554ccc33d26"
       },
       {
         "file": "native/bet/src/frame.rs",
@@ -36,7 +36,7 @@
       },
       {
         "file": "native/contact/src/lib.rs",
-        "sha256": "5bb49ca74136de0bab9556b567c89ba11afca565c7a9b370c554e3b401c2109c"
+        "sha256": "8245ff7aca969575a77df73aac8a539b905b6624a55f9bfead76bced1bd02fab"
       },
       {
         "file": "native/contact/src/contact.rs",
@@ -52,11 +52,11 @@
       },
       {
         "file": "native/rapier/patches/reuse-step-buffers.patch",
-        "sha256": "327d04277393a775987e92a2c16c49d08f930646ea808723d82e864ae07eac09"
+        "sha256": "9e5d7df38bef975a5fe19bf475557889ccc53744454dda44125371bc52e24da1"
       },
       {
         "file": "native/rapier/patches/parry-halfspace-reuse.patch",
-        "sha256": "3cfcb33ef5c3a2d0ecba042e9fad3bcb242d3b6c26f11941f8e9170f84dd6666"
+        "sha256": "eac310515375fbedf182ac39210a165ef325ca3bfbf66e644c7624644deccd79"
       },
       {
         "file": "native/bet/src/landing_gear.rs",
@@ -64,7 +64,7 @@
       },
       {
         "file": "scripts/build-contact.mjs",
-        "sha256": "3883a45125c55ca5147ed9464cad36c0e0e2dfc9cb91cb5f0f3eb49498e4574a"
+        "sha256": "4c8e1adf1c6b1d5e2215715130efe1581abb0cc2e2babd66c320a9baef67aa11"
       }
     ]
   },

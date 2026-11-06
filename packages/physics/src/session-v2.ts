@@ -638,6 +638,8 @@ export class PhysicsSessionV2 {
    * sim.start is refused and only a new epoch (reset/configure/model swap)
    * clears it. Allocation-free.
    */
+  /** Cold: the host caught a step that threw; the session is faulted like any other, and this names why. */
+  failFromHost(message: string): void { this.enterFault(message); }
   private enterFault(message: string): void {
     this.faultMessage = message;
     this.runningValue = false; this.latch = 'blocked';

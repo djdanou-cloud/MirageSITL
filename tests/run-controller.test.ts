@@ -2178,6 +2178,19 @@ describe('fault injection on scripted ports', () => {
     expect(h.launcher.stops).toEqual([id]);
   });
 
+  test('a physics fault during a run stops SITL and says why, so the flight never freezes without a word', async () => {
+    const h = harness();
+    const id = await reach(h, 'ready');
+    h.controller.worker({ type: 'fault-v2', protocolVersion: 2, message: 'Contact step failed (status -6)' });
+    await settle();
+    const state = failed(h);
+    expect(state.reason).toEqual({ kind: 'physics-fault', message: 'Contact step failed (status -6)' });
+    expect(state.during).toBe('ready');
+    expect(failureText(state.reason)).toContain('Contact step failed (status -6)');
+    expect(h.launcher.stops).toEqual([id]);
+    expect(stoppedBeforeFailed(h)).toBe(true);
+  });
+
   test('SITL restarting on its own fails with sitl-restarted after stopping', async () => {
     const h = harness();
     const id = await reach(h, 'flying');

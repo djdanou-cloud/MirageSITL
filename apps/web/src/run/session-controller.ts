@@ -325,6 +325,8 @@ export type FailureReason =
   | { readonly kind: "sitl-ended"; readonly during: RunStateName; readonly ending: string }
   | { readonly kind: "bridge-lost"; readonly message: string }
   | { readonly kind: "sitl-restarted" }
+  /** The physics session faulted during the run: ArduPilot's frames would go unanswered and the flight would stand still with no word. */
+  | { readonly kind: "physics-fault"; readonly message: string }
   | { readonly kind: "stop-failed"; readonly message: string }
   /** A SITL the user started does not fit this profile or MirageSITL; every reason is named. */
   | { readonly kind: "incompatible"; readonly reasons: readonly string[] }
@@ -402,6 +404,7 @@ export function failureText(reason: FailureReason): string {
     case "sitl-ended": return `SITL ended ${STATE_PHRASE[reason.during]} (${reason.ending})`;
     case "bridge-lost": return `The bridge to SITL closed (${reason.message}) while SITL kept running; MirageSITL stopped the run`;
     case "sitl-restarted": return "SITL restarted on its own; MirageSITL stopped the run";
+    case "physics-fault": return `The physics session stopped with a fault (${reason.message}); MirageSITL stopped the run`;
     case "stop-failed": return `Stopping SITL failed: ${reason.message}`;
     case "incompatible": return `This SITL cannot be used with this profile: ${reason.reasons.join("; ")}`;
     case "sitl-silent": return `The SITL sent no heartbeat for ${reason.seconds} s; MirageSITL disconnected (the SITL itself was not stopped)`;
@@ -1330,6 +1333,10 @@ export class SessionController {
       if (bytes instanceof Uint8Array && this.active) this.parser.push(bytes);
       return;
     }
+    if (type === "fault-v2") {
+      if (this.active) void this.stopAfter({ kind: "physics-fault", message: String(field(data, "message")) }, this.stateValue.name);
+      return;
+    }
     if (type === "sitl.reject") {
       // A frame already on its way when the bridge closed is refused too; the close has already been reported and keeps its reason.
       const ended = this.status?.state === "closed" || this.status?.state === "fault";
@@ -1925,7 +1932,7 @@ function restartFor(reason: FailureReason, ownership: Ownership): RestartPath {
       return ownership === "external" ? { kind: "fix-first", instruction: "Check that your SITL is running and which ports it uses, then press Connect again" } : { kind: "start-again" };
     case "recording": return { kind: "fix-first", instruction: `Free storage or lower the rates in the Logging tab, then press ${again} again` };
     case "physics": case "record": case "no-heartbeat": case "parameters":
-    case "sitl-ended": case "bridge-lost": case "sitl-restarted": case "sitl-silent":
+    case "sitl-ended": case "bridge-lost": case "sitl-restarted": case "physics-fault": case "sitl-silent":
       return { kind: "start-again" };
     case "stop-failed": return { kind: "start-again" };
     case "home": return { kind: "fix-first", instruction: "Check the location in the Weather and location tab and the build's home handling, then press Start again" };

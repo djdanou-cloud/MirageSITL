@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "engine": "rapier",
   "version": "0.36.0",
-  "adapterSha256": "6341593c9dce34fedbf672a9cf8bd7b17f8afba0c1918818fe189cc55e8e4c04",
+  "adapterSha256": "57176b716e055329298a8edcee50cd3b44fb3cd84d46f130bad11cb549c9a254",
   "hz": 1200,
   "wheelCount": 3,
   "warmupSteps": 4000000,

@@ -146,6 +146,8 @@ export function groundEffectCorrectionsInto(n:number,radius:Float64Array,heightM
 }
 /** What `BetFlightDynamics` needs of its contact; `GroundContact` provides it. */
 export interface FlightContact {
+  /** The contact engine's last status, for a failed step's message. */
+  readonly lastStatus?:number;
   readonly integrationOwner: 'rapier';
   readonly gravityMps2: number;
   readonly vehicleMassKg: number;
@@ -728,8 +730,8 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
     if(this.contact){
       // On terrain a step with no ground under a support does not run: the state stands, and the session pauses on this tick.
       const terrain=this.terrain;
-      if(terrain){if(terrain.stepInto(this.truth,this.wrench,this.dt)===TERRAIN_REJECTED){this.fault='Contact step failed';return;}}
-      else if(!this.contact.stepInto(this.wrench,this.dt,this.truth)){this.fault='Contact step failed';return;}
+      if(terrain){if(terrain.stepInto(this.truth,this.wrench,this.dt)===TERRAIN_REJECTED){this.fault=`Contact step failed (status ${this.contact.lastStatus??'unknown'})`;return;}}
+      else if(!this.contact.stepInto(this.wrench,this.dt,this.truth)){this.fault=`Contact step failed (status ${this.contact.lastStatus??'unknown'})`;return;}
       const loads=this.contactLoads;
       if(loads!==null){
         const report=this.supportState,normal=loads.normalN;

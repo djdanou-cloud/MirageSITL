@@ -218,7 +218,7 @@ function connectSitl(data: Record<string, unknown>): void {
     // TASK-168: what the link holds back or drops.
     delivery: current.delivery,
   }, {
-    pump: () => { current.pump(); },
+    pump: () => { current.pump(); reportFault(); },
     flush,
     post,
     send: record => { if (socket.readyState === WebSocket.OPEN) socket.send(record); },
@@ -233,7 +233,14 @@ function connectSitl(data: Record<string, unknown>): void {
   sitl = { client, socket };
   current.attachDelivery(true);
   socket.onopen = () => client.opened();
-  socket.onmessage = event => { if (event.data instanceof ArrayBuffer) client.receive(new Uint8Array(event.data)); };
+  socket.onmessage = event => {
+    if (!(event.data instanceof ArrayBuffer)) return;
+    try {
+      client.receive(new Uint8Array(event.data));
+    } catch (error) {
+      stepThrew(error);
+    }
+  };
   socket.onclose = event => {
     client.closed(event.code, event.reason);
     if (sitl?.client === client) { sitl = null; current.attachDelivery(false); }
@@ -262,11 +269,31 @@ function isScenarioArm(data: unknown): data is { type: "scenario.arm"; scenario:
   return typeof data === "object" && data !== null && "type" in data && data.type === "scenario.arm" && "scenario" in data;
 }
 
+/** The fault Main last heard of: each session fault reaches it once, from a SITL frame's step as from this thread's own pump. */
+let reportedFault = "";
+function reportFault(): void {
+  const fault = session?.fault ?? "";
+  if (fault === reportedFault) return;
+  reportedFault = fault;
+  if (fault !== "") post({ type: 'fault-v2', protocolVersion: 2, message: fault });
+}
+/** A step that throws is a fault with its reason. Left alone it would end the handler, and ArduPilot would wait for that frame's reply forever. */
+function stepThrew(error: unknown): void {
+  console.error(error);
+  session?.failFromHost(`The physics step threw ${error instanceof Error ? `${error.name}: ${error.message}` : String(error)}`);
+  reportFault();
+}
 /** Steps the session, then sends results after the compute batch, never inside a step. */
 function pump(): void {
   timer = undefined;
   if (!session) return;
-  const delay = session.pump();
+  let delay: number;
+  try {
+    delay = session.pump();
+  } catch (error) {
+    stepThrew(error);
+    return;
+  }
   // A SITL frame that waited while the session was paused is answered once a resumed pump has stepped it.
   sitl?.client.answer();
   // An accident pauses the session inside the pump (TASK-149, TASK-156).
@@ -280,8 +307,8 @@ function pump(): void {
       sampleId: rejection.sampleId, expectedEpoch: rejection.expectedEpoch, sessionEpoch: rejection.sessionEpoch, flags: rejection.flags,
       valuesValid: rejection.valuesValid });
   }
-  if (session.fault) post({ type: 'fault-v2', protocolVersion: 2, message: session.fault });
-  else if (delay >= 0) timer = setTimeout(pump, delay);
+  reportFault();
+  if (!session.fault && delay >= 0) timer = setTimeout(pump, delay);
 }
 function schedule(): void {
   if (session?.running && timer === undefined && !session.fault) timer = setTimeout(pump, 0);
