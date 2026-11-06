@@ -1384,7 +1384,7 @@ Dynamic battery and motor models, standard turbulence, wind shear and Earth fiel
 
 ### TASK-108 — Earth gravity and magnetic fields
 
-- **Status:** TODO — registered 2026-10-26 from the physics fidelity review; baseline 4593971.
+- **Status:** DEFERRED — Claude; 2026-11-06 (registered 2026-10-26 from the physics fidelity review, baseline 4593971). The part Phase 1 requires is done and its evidence is under TASK-148: normal gravity within 1e-9 relative of the differentiated potential (worst 2.3e-10), the WMM2025 test values, and the MSL gate open only with the hashed EGM96 grid. Earth rate in gyro truth, EMAG2v3 anomalies, dipole sources, current-driven interference and the EGM2008 grid are not implemented; as the disposition below says they are deferred, and work on them needs separate approval.
 - **Phase 1 disposition:** Partly required (S07): normal gravity, the WMM main field and a hashed geoid grid, delivered by TASK-148. Anomaly fields and vehicle interference are deferred.
 - **Title & Description:** Use WGS84 normal gravity, Earth rotation and a geomagnetic model with anomalies and vehicle interference instead of constant gravity and a constant magnetic vector.
 - **Dependencies:** TASK-036, TASK-089, TASK-092, TASK-094.
@@ -1482,7 +1482,7 @@ Vibration and IMU, barometer, GNSS, magnetometer, airspeed and rangefinder error
 
 ### TASK-115 — IMU error model v2
 
-- **Status:** TODO — registered 2026-10-26 from the physics fidelity review; baseline 4593971.
+- **Status:** DEFERRED — Claude; 2026-11-06 (registered 2026-10-26 from the physics fidelity review, baseline 4593971). The part Phase 1 requires is done and its evidence is under TASK-147: the IMU's lever arm from the CG and its mounting rotation against their analytic results (`tests/lever-arm.test.ts`, `tests/sensor-configured.test.ts`). Allan-variance errors, temperature dependence, scale-factor nonlinearity, g-sensitivity, vibration rectification and quantization are not implemented; as the disposition below says they are deferred, and work on them needs separate approval.
 - **Phase 1 disposition:** Partly required (S08): placement (lever arm) and orientation, delivered by TASK-147. Temperature, Allan-variance and vibration-rectification terms are deferred.
 - **Title & Description:** Replace the single AR(1) plus bias walk with Allan-variance-calibrated, temperature-dependent IMU errors.
 - **Dependencies:** TASK-035, TASK-087, TASK-089, TASK-166.
