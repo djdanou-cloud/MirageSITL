@@ -1037,6 +1037,21 @@ The configuration ends with a state region of (3 + strips) f64, zero at initiali
 reset: the two harmonics, the loss minus 1 and each strip's shape minus 1. Interface v2
 reports the harmonics in `inflow_cos` and `inflow_sin` with validity bit 2.
 
+Descent and the vortex ring state (TASK-099). In descent the mean's target is Johnson's
+model (NASA TP-2005-213477, tables 3 and 4), in velocities scaled with the hover inflow
+`v_h = sqrt(|T|/(2 rho A))`: momentum theory on its two branches, joined between
+`V_z = -2.1` and `-1.5` by a cubic, plus, with option 32 of configuration version 5, the
+increment `Delta(V_z + v)` through D (-0.2), N (-0.45, total inflow 0.85), X (-1.5, total
+inflow 1.25) and E (-2.0), scaled by `(1 - (V_x/0.95)^6)^0.5`, with N and X moving with V_x.
+Between N and X the total inflow rises with the descent rate, so thrust falls as descent
+rises: the negative damping in heave and, through each hub's own V_z, in roll. Inside the
+boundary a seeded fluctuation multiplies the force and moment by `1 + n`: n is a filtered
+Gaussian with `omega R/v_h = 1` and an RMS from 2.5 % at the boundary to 15 % at the centre,
+with a hysteresis of 10 % of the half width, and output flag 256 marks it. The 15 % is an
+engineering choice inside the report's range. The stream is a 64-bit xorshift from a u64 seed
+that follows the tables; three more state words follow the state region. With the option a
+descent is outside validity only below -2 v_h at V_x < 0.95 v_h, or with the fluctuation active.
+
 Configuration version 3 (TASK-097) adds option 8, rotational lift augmentation,
 which an extended table asks for: bytes 112 and 120 hold the f64 lift slope (1/rad)
 and zero-lift angle (rad), and stay reserved zero otherwise, as in versions 1 and 2,

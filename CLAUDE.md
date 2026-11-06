@@ -495,7 +495,10 @@ implementation.
   version 3; source tables keep their IDs and bytes. TASK-098 is DONE: profile
   flights use Pitt-Peters dynamic inflow with annular tip and hub losses and the
   derived millisecond time constant (bound configuration version 4), and a rotor
-  that does not ask for it runs the old model bitwise. TASK-093 is DONE: `weather.set`
+  that does not ask for it runs the old model bitwise. TASK-099 adds Johnson's
+  descent and vortex ring model with a seeded thrust fluctuation (configuration
+  version 5); only its comparison with descent flight data stays BLOCKED_EXTERNAL
+  (D-11). TASK-093 is DONE: `weather.set`
   applies on its tick to `BetFlightDynamics` (the demo still rejects it); every
   step the rotors read the ISA air at the CG's height above the origin's air
   and a uniform mean wind with a seeded TASK-032 gust, the published airspeed

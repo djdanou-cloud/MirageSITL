@@ -142,11 +142,16 @@ pub struct DynamicInflowReport {
 /// function is increasing and convex, so an iteration from above the root stays above it. Returns the root and
 /// whether it converged. In descent `descent_root` gives it.
 pub fn glauert_root(loading: f64, climb: f64, transverse: f64, warm: f64) -> (f64, bool) {
+    root_of(loading, climb, transverse, warm, false)
+}
+
+/// `glauert_root`, with Johnson's vortex ring state in descent if asked for.
+fn root_of(loading: f64, climb: f64, transverse: f64, warm: f64, vortex_ring: bool) -> (f64, bool) {
     if loading <= 0.0 {
         return (0.0, true);
     }
     if climb < 0.0 {
-        return (descent_root(loading, climb, transverse), true);
+        return (descent_root(loading, climb, transverse, vortex_ring), true);
     }
     edgewise_root(loading, climb, transverse, warm)
 }
@@ -256,8 +261,14 @@ pub fn descent_baseline(vz: f64, vx: f64) -> (f64, f64) {
     let (va, vb) = (momentum_working(a, vx), momentum_windmill(b, vx));
     let sa = momentum_slope(a, vx, va);
     // Value and slope at A and value at B, for v = b1 Vz + c1 Vz^2 + d1 Vz^3 with no constant term.
+    cubic_without_constant(vz, a, va, sa, b, vb)
+}
+
+/// The cubic `b1 z + c1 z^2 + d1 z^3` matching value and slope at `a` and value at `b`, at z, and its slope.
+#[inline]
+fn cubic_without_constant(z: f64, a: f64, va: f64, sa: f64, b: f64, vb: f64) -> (f64, f64) {
+    // va/a = b1 + c1 a + d1 a^2, sa = b1 + 2 c1 a + 3 d1 a^2, vb/b = b1 + c1 b + d1 b^2.
     let (r1, r3) = (va / a, vb / b);
-    // r1 = b1 + c1 a + d1 a^2, sa = b1 + 2 c1 a + 3 d1 a^2, r3 = b1 + c1 b + d1 b^2.
     let (p1, q1) = (a, 2.0 * a * a);
     let rhs1 = sa - r1;
     let (p2, q2) = (b - a, b * b - a * a);
@@ -266,13 +277,130 @@ pub fn descent_baseline(vz: f64, vx: f64) -> (f64, f64) {
     let d1 = (p1 * rhs2 - p2 * rhs1) / det;
     let c1 = (rhs1 - q1 * d1) / p1;
     let b1 = r1 - c1 * a - d1 * a * a;
-    (vz * (b1 + vz * (c1 + vz * d1)), b1 + vz * (2.0 * c1 + 3.0 * vz * d1))
+    (z * (b1 + z * (c1 + z * d1)), b1 + z * (2.0 * c1 + 3.0 * z * d1))
 }
 
-/// The mean inflow target's root in descent, from the baseline of Johnson's model.
-fn descent_root(loading: f64, climb: f64, transverse: f64) -> f64 {
+/// Johnson's vortex ring points (NASA TP-2005-213477, table 4): the descent rates and total inflows.
+const JOHNSON_VZ_D: f64 = -0.2;
+const JOHNSON_VZ_N: f64 = -0.45;
+const JOHNSON_FLOW_N: f64 = 0.85;
+const JOHNSON_VZ_X: f64 = -1.5;
+const JOHNSON_FLOW_X: f64 = 1.25;
+const JOHNSON_VZ_E: f64 = -2.0;
+const JOHNSON_VX_M: f64 = 0.95;
+
+/// The boundary of the vortex ring region at scaled transverse speed `vx < 0.95`: N and X (table 3, step 3.1).
+#[inline]
+fn vortex_boundary(vx: f64) -> (f64, f64) {
+    let m = vx / JOHNSON_VX_M;
+    let k = 1.0 - m * m;
+    let (middle, half) = (0.5 * (JOHNSON_VZ_N + JOHNSON_VZ_X), 0.5 * (JOHNSON_VZ_N - JOHNSON_VZ_X));
+    (middle + half * k.powf(0.2), middle - half * k.powf(1.5))
+}
+
+/// The cubic with values and slopes at two points, at z, and its slope.
+#[inline]
+fn hermite_between(z: f64, z0: f64, v0: f64, s0: f64, z1: f64, v1: f64, s1: f64) -> f64 {
+    let h = z1 - z0;
+    let t = (z - z0) / h;
+    let (t2, t3) = (t * t, t * t * t);
+    (2.0 * t3 - 3.0 * t2 + 1.0) * v0 + (t3 - 2.0 * t2 + t) * h * s0 + (3.0 * t2 - 2.0 * t3) * v1 + (t3 - t2) * h * s1
+}
+
+/// Johnson's increment `Delta(V_z + v)` over the baseline in the vortex ring state (table 3, step 3), scaled with the
+/// hover inflow, at scaled climb `vz` and transverse speed `vx`.
+pub fn vortex_ring_increment(vz: f64, vx: f64) -> f64 {
+    if vz >= JOHNSON_VZ_D || vx >= JOHNSON_VX_M {
+        return 0.0;
+    }
+    let (n, x) = vortex_boundary(vx);
+    let e = JOHNSON_VZ_E + (x - JOHNSON_VZ_X);
+    if vz <= e {
+        return 0.0;
+    }
+    let m = vx / JOHNSON_VX_M;
+    let m2 = m * m;
+    let scale = (1.0 - m2 * m2 * m2).sqrt();
+    let axial_momentum = |z: f64| 0.5 * (-z + (z * z + 4.0).sqrt());
+    let delta_n = (JOHNSON_FLOW_N - (JOHNSON_VZ_N + axial_momentum(JOHNSON_VZ_N))) * scale;
+    let delta_x = (JOHNSON_FLOW_X - (JOHNSON_VZ_X + axial_momentum(JOHNSON_VZ_X))) * scale;
+    // At N and X the total inflow has zero slope, so the increment's slope cancels the baseline's.
+    let slope_n = -(1.0 + descent_baseline(n, vx).1);
+    let slope_x = -(1.0 + descent_baseline(x, vx).1);
+    if vz >= n {
+        return hermite_between(vz, JOHNSON_VZ_D, 0.0, 0.0, n, delta_n, slope_n);
+    }
+    if vz >= x {
+        return hermite_between(vz, n, delta_n, slope_n, x, delta_x, slope_x);
+    }
+    // X to E: value and slope at X and zero at E, the slope at E not matched, so the polynomial has no constant term.
+    cubic_without_constant(vz, x, delta_x, slope_x, e, 0.0).0
+}
+
+/// The induced velocity of Johnson's whole model, scaled with the hover inflow.
+pub fn descent_inflow(vz: f64, vx: f64) -> f64 {
+    descent_baseline(vz, vx).0 + vortex_ring_increment(vz, vx)
+}
+
+/// The mean inflow target's root in descent, on the baseline of Johnson's model, with his vortex ring state if asked for.
+fn descent_root(loading: f64, climb: f64, transverse: f64, vortex_ring: bool) -> f64 {
     let hover = loading.sqrt();
-    hover * descent_baseline(climb / hover, transverse / hover).0
+    let (vz, vx) = (climb / hover, transverse / hover);
+    hover * if vortex_ring { descent_inflow(vz, vx) } else { descent_baseline(vz, vx).0 }
+}
+
+/// The seeded thrust fluctuation of the vortex ring state (TASK-099): a first-order filtered Gaussian, advanced only
+/// while active. The state is what a step keeps; a generator of 0 has not started.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct ThrustFluctuation {
+    /// Inside the region, with hysteresis.
+    pub active: bool,
+    /// The filter's value: the fractional change of the rotor's loads.
+    pub value: f64,
+    /// The generator's state.
+    pub generator: u64,
+}
+
+impl ThrustFluctuation {
+    /// RMS at the boundary: the level at which the report's V-22 points mark the approach to the region.
+    pub const RMS_AT_BOUNDARY: f64 = 0.025;
+    /// RMS at the centre of the region: an engineering choice inside the report's range (at most 30 to 52 %).
+    pub const RMS_AT_CENTRE: f64 = 0.15;
+    const HYSTERESIS: f64 = 1.1;
+
+    /// One step at scaled climb `vz` and transverse speed `vx`, with the hover inflow and rotor radius setting the band.
+    pub fn step(self, seed: u64, vz: f64, vx: f64, hover_mps: f64, radius_m: f64, dt_s: f64) -> Self {
+        // The distance from the centre of the region, as a share of its half width: at most 1 is inside.
+        let (inside, share) = if vz < 0.0 && vx < JOHNSON_VX_M * Self::HYSTERESIS {
+            let (n, x) = vortex_boundary(vx.min(JOHNSON_VX_M * (1.0 - 1e-9)));
+            let (centre, half) = (0.5 * (n + x), 0.5 * (n - x));
+            let share = if half > 0.0 { (vz - centre).abs() / half } else { f64::INFINITY };
+            (share <= 1.0 && vx < JOHNSON_VX_M, share)
+        } else {
+            (false, f64::INFINITY)
+        };
+        let active = if self.active { share <= Self::HYSTERESIS } else { inside };
+        let tau = if hover_mps > 0.0 { radius_m / hover_mps } else { 1.0 };
+        let keep = (-dt_s / tau).exp();
+        if !active {
+            return Self { active, value: self.value * keep, generator: self.generator };
+        }
+        // Xorshift64, started from the seed; four 16-bit uniforms sum to a nearly Gaussian variate of unit variance.
+        let mut g = if self.generator == 0 { seed.wrapping_mul(0x9E37_79B9_7F4A_7C15) | 1 } else { self.generator };
+        g ^= g << 13;
+        g ^= g >> 7;
+        g ^= g << 17;
+        let uniform = |shift: u32| ((g >> shift) & 0xFFFF) as f64 / 65536.0;
+        let gauss = (uniform(0) + uniform(16) + uniform(32) + uniform(48) - 2.0) * 1.732_050_807_568_877_2;
+        let depth = (1.0 - share * share).max(0.0);
+        let rms = Self::RMS_AT_BOUNDARY + (Self::RMS_AT_CENTRE - Self::RMS_AT_BOUNDARY) * depth;
+        Self { active, value: self.value * keep + rms * (1.0 - keep * keep).sqrt() * gauss, generator: g }
+    }
+
+    /// The factor on the rotor's force and moment.
+    pub fn factor(&self) -> f64 {
+        (1.0 + self.value).clamp(0.5, 1.5)
+    }
 }
 
 /// Pitt-Peters three-state dynamic inflow (TASK-098), in dimensional form, so that a stopped rotor is not singular:
@@ -285,6 +413,8 @@ pub struct DynamicInflow {
     limit_mps: f64,
     /// A manual time constant, s; 0 asks for the derived one.
     manual_tau_s: f64,
+    /// Johnson's vortex ring state in descent (TASK-099).
+    vortex_ring: bool,
 }
 
 impl DynamicInflow {
@@ -298,7 +428,13 @@ impl DynamicInflow {
         {
             return Err(InflowError);
         }
-        Ok(Self { rho_area: rho * std::f64::consts::PI * radius_m * radius_m, radius_m, limit_mps, manual_tau_s })
+        Ok(Self { rho_area: rho * std::f64::consts::PI * radius_m * radius_m, radius_m, limit_mps, manual_tau_s, vortex_ring: false })
+    }
+
+    /// This model with Johnson's vortex ring state in descent.
+    pub fn with_vortex_ring(mut self, on: bool) -> Self {
+        self.vortex_ring = on;
+        self
     }
 
     /// One step from `states`. `moment_cos_nm` and `moment_sin_nm` are the first harmonics of the thrust moment:
@@ -315,7 +451,7 @@ impl DynamicInflow {
         let climb = -air_hub_mps.z * sign;
         let transverse = (air_hub_mps.x * air_hub_mps.x + air_hub_mps.y * air_hub_mps.y).sqrt();
         let loading = thrust_n.abs() / (2.0 * self.rho_area);
-        let (root, converged) = glauert_root(loading, climb, transverse, states.mean_mps * sign / loss);
+        let (root, converged) = root_of(loading, climb, transverse, states.mean_mps * sign / loss, self.vortex_ring);
         let flow = climb + root;
         let w = (transverse * transverse + flow * flow).sqrt();
         let half_skew = if w > 0.0 { transverse / (w + flow.abs()) } else { 0.0 };
@@ -360,8 +496,14 @@ impl DynamicInflow {
             return Err(InflowError);
         }
         let advance = if tip_speed_mps > 0.0 { transverse / tip_speed_mps } else if transverse > 0.0 { f64::INFINITY } else { 0.0 };
-        let outside_validity = !converged || (thrust_n != 0.0 && climb < 0.0) || advance > MAX_ADVANCE_RATIO
-            || raw_mean.abs() > limit;
+        // With the vortex ring state, the curve has data down to -2 hover inflows, and forward of its boundary momentum theory holds.
+        let hover = loading.sqrt();
+        let descent_outside = if self.vortex_ring {
+            thrust_n != 0.0 && hover > 0.0 && climb / hover < JOHNSON_VZ_E && transverse / hover < JOHNSON_VX_M
+        } else {
+            thrust_n != 0.0 && climb < 0.0
+        };
+        let outside_validity = !converged || descent_outside || advance > MAX_ADVANCE_RATIO || raw_mean.abs() > limit;
         Ok(DynamicInflowReport { states: next, targets, tau_s: tau, glauert_root_mps: root, relaxation: 1.0 - keep, outside_validity })
     }
 }

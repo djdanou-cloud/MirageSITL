@@ -1,6 +1,6 @@
 //! Versioned caller-owned production rotor/polar binding; see bet_bound.h.
 use crate::{blade::{InflowField, RotationalAugmentation, Rotor, RotorGeometry, RotorInput},
-    inflow::{AnnularMomentum, AxialInflow, DynamicInflow, InflowStates, MAX_INFLOW_STRIPS},
+    inflow::{AnnularMomentum, AxialInflow, DynamicInflow, InflowStates, ThrustFluctuation, MAX_INFLOW_STRIPS},
     motor::DriveTorque, polar::PolarTable, quadrature::AzimuthGrid, shaft::Shaft, Vec3};
 
 /// Independent binding version (legacy arena ABI remains v1).
@@ -21,6 +21,8 @@ pub const CONFIG_VERSION_OPTIONS: u32 = 2;
 pub const CONFIG_VERSION_ROTATIONAL: u32 = 3;
 /// Configuration version 4 (TASK-098): version 3 plus `OPTION_DYNAMIC_INFLOW` and its state region.
 pub const CONFIG_VERSION_INFLOW: u32 = 4;
+/// Configuration version 5 (TASK-099): version 4 plus `OPTION_VORTEX_RING`, its seed and its state.
+pub const CONFIG_VERSION_VORTEX: u32 = 5;
 /// Kernel option: the half-step prediction uses azimuth samples 0 and N/2 (N even).
 pub const OPTION_REDUCED_PREDICTOR: u32 = 1;
 /// Kernel option: near hover the midpoint uses every other azimuth sample (N even, at least 4).
@@ -36,6 +38,11 @@ pub const OPTION_ROTATIONAL: u32 = 8;
 /// (3 + strips) f64, zero at initialization and reset: the harmonics on cos and sin (m/s), the loss minus 1, and each
 /// strip's shape minus 1.
 pub const OPTION_DYNAMIC_INFLOW: u32 = 16;
+/// Option of configuration version 5, which needs `OPTION_DYNAMIC_INFLOW`: Johnson's vortex ring state in descent, with
+/// a seeded thrust fluctuation. A u64 seed follows the tables, and three words (active, value, generator) the state region.
+pub const OPTION_VORTEX_RING: u32 = 32;
+/// Output flag: this step's thrust fluctuation was active (TASK-099).
+pub const FLAG_VORTEX_RING: u32 = 256;
 /// Output flag: this step's midpoint loads used hover sampling.
 pub const FLAG_HOVER_SAMPLING: u32 = 64;
 /// Output flag: this step's half-step prediction used the reduced predictor.
@@ -69,6 +76,8 @@ struct Config<'a> {
     rotational: Option<RotationalAugmentation>,
     /// Where the dynamic-inflow state region starts in the configuration, with the option.
     inflow_state_at: Option<usize>,
+    /// The vortex ring state's seed and where its state words start, with the option.
+    vortex: Option<(u64,usize)>,
 }
 
 /// Full validation of a configuration: every axis, coefficient and confidence
@@ -83,16 +92,18 @@ fn step_config(b: &[u8]) -> Result<Config<'_>, i32> { parse_config(b, false) }
 
 fn parse_config(b: &[u8], full: bool) -> Result<Config<'_>, i32> {
     let version = u(b,0);
-    if version != Some(VERSION) && version != Some(CONFIG_VERSION_OPTIONS) && version != Some(CONFIG_VERSION_ROTATIONAL) && version != Some(CONFIG_VERSION_INFLOW) { return Err(-7); }
+    if version != Some(VERSION) && version != Some(CONFIG_VERSION_OPTIONS) && version != Some(CONFIG_VERSION_ROTATIONAL) && version != Some(CONFIG_VERSION_INFLOW) && version != Some(CONFIG_VERSION_VORTEX) { return Err(-7); }
     let parse = || {
         if b.len() < CONFIG_HEADER || u(b,4)? as usize != b.len() { return None; }
         // Version 1 keeps byte 36 reserved zero; versions 2 and 3 carry the kernel options there.
         let options=if version==Some(VERSION) {if !zero(b,36,40) {return None;} 0} else {u(b,36)?};
         let known=OPTION_REDUCED_PREDICTOR|OPTION_HOVER_SAMPLING|OPTION_EXACT_KERNEL
-            |if version==Some(CONFIG_VERSION_ROTATIONAL) || version==Some(CONFIG_VERSION_INFLOW) {OPTION_ROTATIONAL} else {0}
-            |if version==Some(CONFIG_VERSION_INFLOW) {OPTION_DYNAMIC_INFLOW} else {0};
+            |if version==Some(CONFIG_VERSION_ROTATIONAL) || version==Some(CONFIG_VERSION_INFLOW) || version==Some(CONFIG_VERSION_VORTEX) {OPTION_ROTATIONAL} else {0}
+            |if version==Some(CONFIG_VERSION_INFLOW) || version==Some(CONFIG_VERSION_VORTEX) {OPTION_DYNAMIC_INFLOW} else {0}
+            |if version==Some(CONFIG_VERSION_VORTEX) {OPTION_VORTEX_RING} else {0};
         if options & !known != 0
-            || (options & OPTION_EXACT_KERNEL != 0 && options & (OPTION_REDUCED_PREDICTOR|OPTION_HOVER_SAMPLING) != 0) { return None; }
+            || (options & OPTION_EXACT_KERNEL != 0 && options & (OPTION_REDUCED_PREDICTOR|OPTION_HOVER_SAMPLING) != 0)
+            || (options & OPTION_VORTEX_RING != 0 && options & OPTION_DYNAMIC_INFLOW == 0) { return None; }
         // Bytes 112..128 stay reserved zero unless the rotational option is on.
         let rotational=if options & OPTION_ROTATIONAL != 0 {
             let (lift_slope_per_rad,zero_lift_alpha_rad)=(f(b,112)?,f(b,120)?);
@@ -107,9 +118,14 @@ fn parse_config(b: &[u8], full: bool) -> Result<Config<'_>, i32> {
         if !(1..=361).contains(&na) || !(1..=32).contains(&nr) || !(1..=8).contains(&nm)
             || !(1..=64).contains(&ns) || count > 16384 { return None; }
         let tables=CONFIG_HEADER+(4*ns+na+nr+nm+3*count)*8;
-        let inflow_state_at=(options & OPTION_DYNAMIC_INFLOW != 0).then_some(tables);
-        let expected=tables+if inflow_state_at.is_some() {(3+ns)*8} else {0};
+        let with_vortex=options & OPTION_VORTEX_RING != 0;
+        let inflow_state_at=(options & OPTION_DYNAMIC_INFLOW != 0).then_some(tables+if with_vortex {8} else {0});
+        let expected=tables+if inflow_state_at.is_some() {(3+ns)*8} else {0}+if with_vortex {8+3*8} else {0};
         if b.len()!=expected { return None; }
+        let vortex=if with_vortex {
+            let seed=u64::from_le_bytes(b.get(tables..tables+8)?.try_into().ok()?);
+            Some((seed,tables+8+(3+ns)*8))
+        } else {None};
         let mut at=CONFIG_HEADER;
         let mut take=|n| { let values=doubles(b,at,n);at+=n*8;values };
         let radius=take(ns)?;let chord=take(ns)?;let twist=take(ns)?;let width=take(ns)?;
@@ -128,7 +144,7 @@ fn parse_config(b: &[u8], full: bool) -> Result<Config<'_>, i32> {
         if ![initial,tau,limit].iter().all(|v|v.is_finite()) || initial<0.0 || !tau_valid || limit<=0.0
             || ![400.0,800.0,1200.0,4800.0].iter().any(|hz|dt==1.0/hz) {return None;}
         Shaft::new(inertia,damping,geometry.spin_sign).ok()?;
-        Some(Config{geometry,polar,azimuth,inertia,damping,dt,initial,tau,limit,options,rotational,inflow_state_at})
+        Some(Config{geometry,polar,azimuth,inertia,damping,dt,initial,tau,limit,options,rotational,inflow_state_at,vortex})
     };
     parse().ok_or(-3)
 }
@@ -190,6 +206,8 @@ pub(crate) struct Advanced {
     pub(crate) hover_state: Option<f64>,
     /// The next dynamic-inflow state region when the option is on.
     pub(crate) inflow_state: Option<InflowRegion>,
+    /// The next fluctuation state and where it goes, when the vortex ring option is on.
+    pub(crate) vortex_state: Option<(usize,ThrustFluctuation)>,
 }
 
 /// The dynamic-inflow state region of a step, not yet written.
@@ -212,13 +230,18 @@ pub(crate) fn commit(arena: &mut [u8], out: &mut [u8], a: &Advanced) {
         put(arena,at,region.cos_mps);put(arena,at+8,region.sin_mps);put(arena,at+16,region.loss_excess);
         for k in 0..region.strips {put(arena,at+24+k*8,region.shape_excess[k]);}
     }
+    if let Some((at,state))=&a.vortex_state {
+        let at=ARENA_HEADER+at;
+        put(arena,at,if state.active {1.0} else {0.0});put(arena,at+8,state.value);
+        arena[at+16..at+24].copy_from_slice(&state.generator.to_le_bytes());
+    }
     out.copy_from_slice(&a.staged);
 }
 
 /// The inflow harmonics the arena holds (cos, sin, m/s), for a configuration with dynamic inflow.
 pub(crate) fn inflow_harmonics(arena: &[u8]) -> Option<(f64,f64)> {
     let bytes=arena.get(ARENA_HEADER..)?;
-    if u(bytes,0)!=Some(CONFIG_VERSION_INFLOW) {return None;}
+    if u(bytes,0)!=Some(CONFIG_VERSION_INFLOW) && u(bytes,0)!=Some(CONFIG_VERSION_VORTEX) {return None;}
     let at=step_config(bytes).ok()?.inflow_state_at?;
     Some((f(bytes,at)?,f(bytes,at+8)?))
 }
@@ -304,7 +327,7 @@ pub(crate) fn advance_with(arena: &[u8], input: &[u8], out_len: usize, dt: f64, 
         let start_states=InflowStates{mean_mps:induced,cos_mps:cos_now,sin_mps:sin_now};
         let tip=|speed:f64| speed.abs()*c.geometry.radius_m;
         // Dynamic inflow (TASK-098), or the fixed-lag axial model.
-        let dynamic_model=if dynamic.is_some() {Some(DynamicInflow::new(i.density_kg_m3,c.geometry.radius_m,c.tau,c.limit).ok()?)} else {None};
+        let dynamic_model=if dynamic.is_some() {Some(DynamicInflow::new(i.density_kg_m3,c.geometry.radius_m,c.tau,c.limit).ok()?.with_vortex_ring(c.vortex.is_some()))} else {None};
         let (half_mean,half_outside,half_cos,half_sin)=match &dynamic_model {
             Some(model)=>{
                 let r=model.step(start_states,loss_now,first.force_n.z,first.flap_load_nm.y,first.flap_load_nm.z,i.air_velocity_hub_mps,tip(omega),dt*0.5).ok()?;
@@ -317,12 +340,28 @@ pub(crate) fn advance_with(arena: &[u8], input: &[u8], out_len: usize, dt: f64, 
         let mut strip_thrust=[0.0;MAX_INFLOW_STRIPS];
         let thrust_out:Option<&mut [f64]>=if dynamic.is_some() {Some(&mut strip_thrust[..ns.min(MAX_INFLOW_STRIPS)])} else {None};
         let aero=if hover {rotor.evaluate_sampled_field(midpoint,2,mid_field,thrust_out)} else {evaluate(&rotor,midpoint,mid_field,thrust_out)}.ok()?;
+        // The inflow follows the mean thrust; the fluctuation (TASK-099) acts on what the rotor gives the shaft and the body.
+        let mean_aero=aero;
+        let vortex_state=match c.vortex {
+            Some((seed,at))=>{
+                let previous=ThrustFluctuation{active:f(bytes,at)?!=0.0,value:f(bytes,at+8)?,generator:u64::from_le_bytes(bytes.get(at+16..at+24)?.try_into().ok()?)};
+                let sign=if aero.force_n.z<0.0 {-1.0} else {1.0};
+                let hover_mps=(aero.force_n.z.abs()/(2.0*i.density_kg_m3*std::f64::consts::PI*c.geometry.radius_m*c.geometry.radius_m)).sqrt();
+                let (vz,vx)=if hover_mps>0.0 {(-i.air_velocity_hub_mps.z*sign/hover_mps,transverse/hover_mps)} else {(0.0,f64::INFINITY)};
+                Some((at,previous.step(seed,vz,vx,hover_mps,c.geometry.radius_m,dt)))
+            }
+            None=>None,
+        };
+        let aero=match &vortex_state {
+            Some((_,state))=>{let factor=state.factor();let mut scaled=aero;scaled.force_n=aero.force_n.scale(factor);scaled.moment_nm=aero.moment_nm.scale(factor);scaled}
+            None=>aero,
+        };
         let shaft=shaft_step(aero.moment_nm.z,dt).ok()?;
         let (next_mean,mut full_outside,inflow_state)=match (&dynamic_model,&dynamic) {
             (Some(model),Some((at,_,_,_,shape)))=>{
-                let r=model.step(start_states,loss_now,aero.force_n.z,aero.flap_load_nm.y,aero.flap_load_nm.z,i.air_velocity_hub_mps,tip(half_shaft.omega_rad_s),dt).ok()?;
+                let r=model.step(start_states,loss_now,mean_aero.force_n.z,mean_aero.flap_load_nm.y,mean_aero.flap_load_nm.z,i.air_velocity_hub_mps,tip(half_shaft.omega_rad_s),dt).ok()?;
                 // The annular balance, once per step: it sets the loss and the shape, which follow with the mean's lag.
-                let sign=if aero.force_n.z<0.0 {-1.0} else {1.0};
+                let sign=if mean_aero.force_n.z<0.0 {-1.0} else {1.0};
                 let annuli=AnnularMomentum{blade_count:c.geometry.blade_count,radius_m:c.geometry.radius_m,cutout_m:c.geometry.cutout_m,
                     strip_radius_m:c.geometry.radius,strip_width_m:c.geometry.width};
                 let n=ns.min(MAX_INFLOW_STRIPS);
@@ -362,16 +401,17 @@ pub(crate) fn advance_with(arena: &[u8], input: &[u8], out_len: usize, dt: f64, 
         if !transmitted.norm().is_finite() || !power.is_finite() {return None;}
         let flags=first.flags | aero.flags | if full_outside {8}else{0}
             | if shaft.reverse_limited || half_shaft.reverse_limited {16}else{0}
-            | if hover {FLAG_HOVER_SAMPLING}else{0} | if reduced_predictor {FLAG_REDUCED_PREDICTOR}else{0};
-        Some((aero,shaft,next_mean,inflow_state,transmitted,power,flags,spin*c.inertia*shaft.omega_rad_s,half_shaft.omega_rad_s,hover))
+            | if hover {FLAG_HOVER_SAMPLING}else{0} | if reduced_predictor {FLAG_REDUCED_PREDICTOR}else{0}
+            | if vortex_state.is_some_and(|(_,state)| state.active) {FLAG_VORTEX_RING}else{0};
+        Some((aero,shaft,next_mean,inflow_state,vortex_state,transmitted,power,flags,spin*c.inertia*shaft.omega_rad_s,half_shaft.omega_rad_s,hover))
     };
-    let Some((aero,shaft,next_mean,inflow_state,transmitted,power,flags,h,half_omega,hover))=compute() else{return Err(-3);};
+    let Some((aero,shaft,next_mean,inflow_state,vortex_state,transmitted,power,flags,h,half_omega,hover))=compute() else{return Err(-3);};
     let mut staged=[0u8;128];
     write_vec(&mut staged,0,aero.force_n);write_vec(&mut staged,24,aero.moment_nm);write_vec(&mut staged,48,transmitted);
     put(&mut staged,72,shaft.omega_rad_s);put(&mut staged,80,aero.moment_nm.z);put(&mut staged,88,power);
     put(&mut staged,96,next_mean);word(&mut staged,112,flags);put(&mut staged,120,h);
     let hover_state=(production && hover_option).then_some(if hover {1.0} else {0.0});
-    Ok(Advanced{staged,omega:shaft.omega_rad_s,induced:next_mean,half_omega,hover_state,inflow_state})
+    Ok(Advanced{staged,omega:shaft.omega_rad_s,induced:next_mean,half_omega,hover_state,inflow_state,vortex_state})
 }
 
 /// Restores initial speed and zero inflow; invalid handles remain untouched.

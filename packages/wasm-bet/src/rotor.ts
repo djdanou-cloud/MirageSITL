@@ -14,6 +14,8 @@ export interface BoundRotorDefinition {
   kernelOptions?: number;
   /** TASK-098: Pitt-Peters dynamic inflow with annular tip and hub losses. An `inflowTauS` of 0 then asks for the derived time constant. */
   dynamicInflow?: boolean;
+  /** TASK-099, with `dynamicInflow`: Johnson's vortex ring state in descent, its thrust fluctuation seeded by this unsigned integer. */
+  vortexRingSeed?: number;
 }
 /** Kernel option (configuration version 2, TASK-091): the half-step prediction uses azimuth samples 0 and N/2. */
 export const KERNEL_OPTION_REDUCED_PREDICTOR = 1;
@@ -26,6 +28,10 @@ export const KERNEL_OPTION_EXACT = 4;
 const KERNEL_OPTION_ROTATIONAL = 8;
 /** Option of configuration version 4 (TASK-098), set by `dynamicInflow`. */
 const KERNEL_OPTION_DYNAMIC_INFLOW = 16;
+/** Option of configuration version 5 (TASK-099), set by `vortexRingSeed`. */
+const KERNEL_OPTION_VORTEX_RING = 32;
+/** Rotor output flag: this step's vortex ring thrust fluctuation was active (TASK-099). */
+export const ROTOR_FLAG_VORTEX_RING = 256;
 /** Rotor output flag: the midpoint loads used hover sampling. Informational, not a validity breach. */
 export const ROTOR_FLAG_HOVER_SAMPLING = 64;
 /** Rotor output flag: the half-step prediction used the reduced predictor. Informational, not a validity breach. */
@@ -151,12 +157,16 @@ export function encodeBoundRotor(d: BoundRotorDefinition, dtS: number): Uint8Arr
   if(!Number.isInteger(options) || options<0 || (options>(KERNEL_OPTION_REDUCED_PREDICTOR|KERNEL_OPTION_HOVER_SAMPLING) && options!==KERNEL_OPTION_EXACT))
     throw Error('Invalid bound rotor kernel options');
   // TASK-098: dynamic inflow ends the configuration with its state region, zero here and written by the step.
-  const inflowState=d.dynamicInflow?(3+ns):0;
+  const seed=d.vortexRingSeed;
+  if(seed!==undefined && (!d.dynamicInflow || !Number.isSafeInteger(seed) || seed<0))throw Error('Invalid vortex ring seed');
+  // TASK-099: a u64 seed before the state region, and three state words after it.
+  const inflowState=(d.dynamicInflow?(3+ns):0)+(seed!==undefined?4:0);
   const bytes=new Uint8Array(128+(ns*4+na+nr+nm+count*3+inflowState)*8),v=new DataView(bytes.buffer);
   // Version 1 unless a kernel option is on (TASK-091); version 2 carries the options word at byte 36, version 3
-  // (TASK-097) adds the rotational option, with its two values at bytes 112 and 120, and version 4 (TASK-098) dynamic inflow.
-  const version=d.dynamicInflow?4:p.rotational?3:options===0?1:2;
-  const word=options|(p.rotational?KERNEL_OPTION_ROTATIONAL:0)|(d.dynamicInflow?KERNEL_OPTION_DYNAMIC_INFLOW:0);
+  // (TASK-097) adds the rotational option, with its two values at bytes 112 and 120, version 4 (TASK-098) dynamic inflow
+  // and version 5 (TASK-099) the vortex ring state.
+  const version=seed!==undefined?5:d.dynamicInflow?4:p.rotational?3:options===0?1:2;
+  const word=options|(p.rotational?KERNEL_OPTION_ROTATIONAL:0)|(d.dynamicInflow?KERNEL_OPTION_DYNAMIC_INFLOW:0)|(seed!==undefined?KERNEL_OPTION_VORTEX_RING:0);
   const integers=[version,bytes.length,na,nr,nm,ns,g.bladeCount,g.spinSign,g.azimuthSamples,word];
   for(let i=0;i<integers.length;i++)v.setUint32(i*4,integers[i]!,true);
   const scalars=[g.radiusM,g.rootCutoutM,g.shaftInertiaKgM2,g.bearingViscousNmPerRadS,dtS,
@@ -166,6 +176,7 @@ export function encodeBoundRotor(d: BoundRotorDefinition, dtS: number): Uint8Arr
   let at=128;
   for(const values of [g.radialStationM,g.chordM,g.twistRad,g.quadratureWidthM,p.alphaRad,p.reynolds,p.mach,p.cl,p.cd,p.confidence])
     for(const x of values){v.setFloat64(at,x,true);at+=8;}
+  if(seed!==undefined)v.setBigUint64(at,BigInt(seed),true);
   return bytes;
 }
 function callable(value: unknown): value is (...args:number[])=>number {return typeof value==='function';}

@@ -42,6 +42,8 @@ export interface ProfileDynamicsOptions {
   readonly kernelOptions?: number;
   /** TASK-098: dynamic inflow, on unless a caller asks for the fixed-lag model of TASK-033. */
   readonly dynamicInflow?: boolean;
+  /** TASK-099: the vortex ring state's seed; a profile flight on dynamic inflow has it, seeded from the model ID unless given. */
+  readonly vortexRingSeed?: number;
   /** TASK-146 component ratings, in rotor order; null or absent checks none. */
   readonly limitRatings?: LimitRatings | null;
   /**
@@ -155,7 +157,8 @@ export function buildProfileDynamics(input: VehicleManifest, options: ProfileDyn
     initialBody, minimumConfidence: PROFILE_ROTOR_SETTINGS.minimumConfidence,
     densityKgM3: options.densityKgM3 ?? air.densityKgM3, viscosityPaS: options.viscosityPaS ?? air.dynamicViscosityPaS,
     soundMps: options.soundMps ?? air.speedOfSoundMps, syntheticGroundDownM: gear ? undefined : 0, drive, configurationFlags,
-    kernelOptions: options.kernelOptions ?? 0, dynamicInflow: options.dynamicInflow !== false, limitRatings: options.limitRatings ?? null,
+    kernelOptions: options.kernelOptions ?? 0, dynamicInflow: options.dynamicInflow !== false,
+    ...(options.dynamicInflow === false ? {} : { vortexRingSeed: options.vortexRingSeed ?? manifest.modelId }), limitRatings: options.limitRatings ?? null,
     ...(airframeDrag ? { airframeDrag } : {}),
   };
   return Object.freeze({ configuration, limitations: Object.freeze(limitations), gear });

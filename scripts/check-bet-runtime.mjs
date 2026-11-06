@@ -281,9 +281,9 @@ if(!allocation){
     const fullGraph={graph:'extended-polar-synthetic-pad-four-rotor',variant,...await measure(fullRun,1000000),memoryStable:full.engine.memoryStable};
     samples.push(fullGraph);full.dispose();console.log(JSON.stringify(fullGraph));
   }
-  // TASK-098: dynamic inflow and its annular solve, in a gusty wind on the pad.
+  // TASK-098 and TASK-099: dynamic inflow with its annular solve and the vortex ring option, in a gusty wind on the pad.
   for(const [variantIndex,variant] of ['scalar','simd128'].entries()){
-    const dynamic=padded();dynamic.dynamicInflow=true;dynamic.inflowTauS=dynamic.inflowTauS.map(()=>0);
+    const dynamic=padded();dynamic.dynamicInflow=true;dynamic.vortexRingSeed=7;dynamic.inflowTauS=dynamic.inflowTauS.map(()=>0);
     const flow=new BetFlightDynamics(modules[variantIndex],dynamic,400);
     if(flow.setWeather(weathers[0])!==null)throw Error('Weather refused');
     const flowRun=n=>{for(let i=0;i<n;i++){flow.nowMs=0;flow.stepNow(pilot);if(flow.fault||flow.state.down!==0)throw Error('Dynamic inflow allocation step failed');}};

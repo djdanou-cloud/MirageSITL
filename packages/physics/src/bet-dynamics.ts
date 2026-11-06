@@ -74,6 +74,8 @@ export interface BetFlightConfiguration {
   kernelOptions?: number;
   /** TASK-098: Pitt-Peters dynamic inflow with annular tip and hub losses on every rotor. */
   dynamicInflow?: boolean;
+  /** TASK-099, with `dynamicInflow`: Johnson's vortex ring state; each rotor's thrust fluctuation is seeded from this and its index. */
+  vortexRingSeed?: number;
   /**
    * TASK-146 component ratings checked every step with the ESC drive; null or
    * absent checks none, and the modeled clamps are reported either way.
@@ -256,7 +258,8 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
       if(!polar)throw Error('Missing rotor polar binding');
       return {geometry:r,polar,initialOmegaRadS:configuration.initialOmegaRadS[i]!,
         inflowTauS:configuration.inflowTauS[i]!,inflowLimitMps:configuration.inflowLimitMps[i]!,minimumConfidence:configuration.minimumConfidence,
-        kernelOptions:configuration.kernelOptions??0,dynamicInflow:configuration.dynamicInflow===true};
+        kernelOptions:configuration.kernelOptions??0,dynamicInflow:configuration.dynamicInflow===true,
+        ...(configuration.vortexRingSeed===undefined?{}:{vortexRingSeed:configuration.vortexRingSeed+i})};
     });
     this.hz=hz;this.dt=1/hz;this.rotorCount=n;this.modelId=model.modelId;this.motorMapId=configuration.motorMapId;
     const drive=configuration.drive;

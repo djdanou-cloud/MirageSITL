@@ -32,7 +32,11 @@
  * inflow with annular tip and hub losses. The configuration then ends with (3 + nStations)
  * f64, zero at init and reset and written by the step inside the arena: harmonics on
  * cos and sin (m/s), the loss minus 1, and each strip's shape minus 1. An inflow tau of 0
- * asks for the derived time constant. */
+ * asks for the derived time constant.
+ * Configuration version 5 (TASK-099): version 4 plus option 32, which needs option 16:
+ * Johnson's vortex ring state with a seeded thrust fluctuation. A u64 seed follows the
+ * tables, before the state region, and three more words follow it, zero at init and reset:
+ * active, the filter's value and the generator. Output flag 256 marks the fluctuation active. */
 #define BET_BOUND_CONFIG_VERSION_OPTIONS 2
 #define BET_BOUND_OPTION_REDUCED_PREDICTOR 1
 #define BET_BOUND_OPTION_HOVER_SAMPLING 2
