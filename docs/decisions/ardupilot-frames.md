@@ -224,3 +224,80 @@ investigated, and every value is inside the unchanged limits. The repeated alloc
 probe `rerun-20261030/allocation.json` records 13,000,000 steps, zero GC in
 all six windows, a zero N/2N byte-per-step slope, stable WASM memory and 61
 positive-control GC events.
+
+## Copter-4.7.2 beside the pin — 2026-11-06
+
+Evidence for D-01, requested by the stakeholder on 2026-11-06 ("Test Copter-4.7.2
+first"). It selects nothing: the pin stays at `8ab6afd`, and these runs were made
+in a throwaway copy of the repository with its lock set to the stable release
+**ArduCopter V4.7.2**, commit `fb773567896014da007bca58358704d4a0d8516f`, dated
+2026-10-11, four days before the pinned development commit. No firmware patch was
+applied. Same Mac, binary SHA-256
+`09413f3c55f8073c06b22f8353ccff4c85db7223c844b66123702b3660797da5`. The captures
+stay outside the repository.
+
+**Installation and frames.** `node scripts/install-macos.mjs` installed it from
+nothing into a new home, with `copter` built in 54.457 s. The frame catalog
+generated from 4.7.2 holds the same 5 configurations and 42 motors, row for row;
+only the source hashes and the version differ. The motor limit moved from
+`AP_Motors_Class.h` to `AP_Motors_config.h` with the same values, and the 32 servo
+slots, 32-channel JSON packets, `SERVO_32_ENABLE`, `MotorsMatrix:add_motor_raw` and
+the motor functions are unchanged. `ARMING_SKIPCHK` already exists in 4.7. The
+declination table is the same file, and the 40 MAVLink messages the dialect lock
+lists have the same definitions.
+
+**Frame probes.** All ten runs, ten `check-raw.py` audits and ten
+`check-sitl-frames.mjs` audits exit 0, with zero gaps, duplicates and drops, and
+all 406,085 frames replay with zero position and quaternion error:
+
+| Frame | Motor checks | Bench frames | Flight frames | Hold s | Truth hold range m |
+| --- | --- | --- | --- | --- | --- |
+| quad-x | 4/4 | 10881 | 67129 | 10.20 | 9.767398–9.984110 |
+| hexa-x | 6/6 | 12322 | 67145 | 10.20 | 9.753268–9.989921 |
+| octo-x | 8/8 | 13764 | 67145 | 10.20 | 9.737805–9.985086 |
+| x8 | 8/8 | 13764 | 67129 | 10.20 | 9.766275–9.984296 |
+| paired-16 | 16/16 | 19533 | 67273 | 10.21 | 9.738670–9.984216 |
+
+**Flights through the application.** `node scripts/phase1/nominal-flight.mjs`
+passed 5 of 5 configurations and all nine workflows of each, in real time. The
+reports name ArduCopter V4.7.2. The standard deviation of the body rates in each
+10 s hold, roll/pitch/yaw in °/s, reads alike on both versions:
+
+| Configuration | `8ab6afd` | V4.7.2 |
+| --- | --- | --- |
+| quad | 0.07/0.07/0.05 | 0.07/0.08/0.04 |
+| hexa | 0.08/0.16/0.08 | 0.10/0.14/0.08 |
+| octo | 0.12/0.05/0.02 | 0.12/0.07/0.02 |
+| x8 | 0.07/0.10/0.01 | 0.05/0.07/0.01 |
+| octo-paired-16 | 0.13/0.19/0.03 | 0.11/0.19/0.03 |
+
+**Browser suite.** With its tests pointed at this build, 153 passed, 2 failed, 23
+were skipped and 2 did not run, against 156 passed, 1 failed and 23 skipped on
+`8ab6afd`, whose failure was a test's assumption that has since been fixed. The
+first failure was `manual-connect.spec.ts`: the application correctly refused a
+SITL from a commit it had not verified, because `verifiedCommits` in the copy
+still read the pinned catalog, and the file's two later serial tests then did not
+run. With that one value and the test's version text changed, the file passes 3 of
+3. The second failure is a real difference, below.
+
+**What 4.7.2 lacks.** Its parameter metadata lists 5,687 parameters against 5,799:
+131 exist only at the pin and 19 only at 4.7.2. Of the 33 error sources, 3 name
+parameters that 4.7.2 does not have: `imu.board-trim` (`SIM_BRD_TRIM`; 4.7.2 has
+`SIM_ACC_TRIM`), `baro.ground-effect` (`SIM_BARO_GEFF_M`, `SIM_BAR2_GEFF_M`,
+`SIM_BAR3_GEFF_M`) and `gnss.position-noise` (`SIM_GPS1_HNSE`, `SIM_GPS2_HNSE`). A
+run that switches these errors off stops at its start with "ArduPilot did not
+confirm the initial parameters: SIM_BAR2_GEFF_M does not exist in this ArduPilot
+build", so `parameters-tab.spec.ts` fails there. At 4.7.2 `SIM_GPS1_NOISE` moves
+altitude only, so the Sensors tab's GNSS horizontal position error has no
+parameter to set. The sensor catalog does not regenerate as it is: 12 of the 53
+source lines it cites read differently, 6 of them because the compass code left
+`SIM_Compass.cpp`.
+
+**What moving would take.** The lock, the generated catalogs and the parameter
+metadata; the 3 error sources and the 12 cited lines; a decision on the GNSS
+horizontal error; the commit named in 22 source files and 57 test files; and the
+whole matrix again, whose evidence names `8ab6afd`.
+
+**Not run on 4.7.2:** `npm test`, the one-hour flight and the five global workflows
+of the acceptance matrix, and any real aircraft. The browser suite's 23 skipped
+tests include the WASM firmware specs.
