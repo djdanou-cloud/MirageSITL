@@ -38,6 +38,15 @@
       "sourceSha256": "ae1a73416210aaf64d51e3f2ff76e971d9c95995a976fcdcdfb7bc27dee46af3",
       "datasetId": "UIUC-Propeller-Database-Vols-1-4",
       "referenceUrl": "https://m-selig.ae.illinois.edu/props/propDB.html"
+    },
+    {
+      "id": "uiuc-da4002-da4022-propellers-inflow",
+      "adapter": "uiuc-propeller-bet-inflow-v1",
+      "fixture": "tests/fixtures/rotors/uiuc-propellers.json",
+      "registryId": "uiuc-propdb-da4002-da4022-v1",
+      "sourceSha256": "ae1a73416210aaf64d51e3f2ff76e971d9c95995a976fcdcdfb7bc27dee46af3",
+      "datasetId": "UIUC-Propeller-Database-Vols-1-4",
+      "referenceUrl": "https://m-selig.ae.illinois.edu/props/propDB.html"
     }
   ],
   "cases": [

@@ -12,6 +12,8 @@ export interface BoundRotorDefinition {
   inflowTauS: number; inflowLimitMps: number; minimumConfidence: number;
   /** TASK-091 opt-in kernel options (`KERNEL_OPTION_*`); absent or 0 encodes configuration version 1. */
   kernelOptions?: number;
+  /** TASK-098: Pitt-Peters dynamic inflow with annular tip and hub losses. An `inflowTauS` of 0 then asks for the derived time constant. */
+  dynamicInflow?: boolean;
 }
 /** Kernel option (configuration version 2, TASK-091): the half-step prediction uses azimuth samples 0 and N/2. */
 export const KERNEL_OPTION_REDUCED_PREDICTOR = 1;
@@ -22,6 +24,8 @@ export const KERNEL_OPTION_HOVER_SAMPLING = 2;
 export const KERNEL_OPTION_EXACT = 4;
 /** Option of configuration version 3 (TASK-097), set by a polar that asks for rotational lift augmentation. */
 const KERNEL_OPTION_ROTATIONAL = 8;
+/** Option of configuration version 4 (TASK-098), set by `dynamicInflow`. */
+const KERNEL_OPTION_DYNAMIC_INFLOW = 16;
 /** Rotor output flag: the midpoint loads used hover sampling. Informational, not a validity breach. */
 export const ROTOR_FLAG_HOVER_SAMPLING = 64;
 /** Rotor output flag: the half-step prediction used the reduced predictor. Informational, not a validity breach. */
@@ -146,11 +150,14 @@ export function encodeBoundRotor(d: BoundRotorDefinition, dtS: number): Uint8Arr
   const options=d.kernelOptions??0;
   if(!Number.isInteger(options) || options<0 || (options>(KERNEL_OPTION_REDUCED_PREDICTOR|KERNEL_OPTION_HOVER_SAMPLING) && options!==KERNEL_OPTION_EXACT))
     throw Error('Invalid bound rotor kernel options');
-  const bytes=new Uint8Array(128+(ns*4+na+nr+nm+count*3)*8),v=new DataView(bytes.buffer);
-  // Version 1 unless a kernel option is on (TASK-091); version 2 carries the options word at byte 36, and
-  // version 3 (TASK-097) adds the rotational option, with its two values at bytes 112 and 120.
-  const version=p.rotational?3:options===0?1:2;
-  const integers=[version,bytes.length,na,nr,nm,ns,g.bladeCount,g.spinSign,g.azimuthSamples,p.rotational?options|KERNEL_OPTION_ROTATIONAL:options];
+  // TASK-098: dynamic inflow ends the configuration with its state region, zero here and written by the step.
+  const inflowState=d.dynamicInflow?(3+ns):0;
+  const bytes=new Uint8Array(128+(ns*4+na+nr+nm+count*3+inflowState)*8),v=new DataView(bytes.buffer);
+  // Version 1 unless a kernel option is on (TASK-091); version 2 carries the options word at byte 36, version 3
+  // (TASK-097) adds the rotational option, with its two values at bytes 112 and 120, and version 4 (TASK-098) dynamic inflow.
+  const version=d.dynamicInflow?4:p.rotational?3:options===0?1:2;
+  const word=options|(p.rotational?KERNEL_OPTION_ROTATIONAL:0)|(d.dynamicInflow?KERNEL_OPTION_DYNAMIC_INFLOW:0);
+  const integers=[version,bytes.length,na,nr,nm,ns,g.bladeCount,g.spinSign,g.azimuthSamples,word];
   for(let i=0;i<integers.length;i++)v.setUint32(i*4,integers[i]!,true);
   const scalars=[g.radiusM,g.rootCutoutM,g.shaftInertiaKgM2,g.bearingViscousNmPerRadS,dtS,
     d.initialOmegaRadS,d.inflowTauS,d.inflowLimitMps,d.minimumConfidence];

@@ -47,8 +47,8 @@ it('rejects version/pointer/overlap/dt/growth errors and preserves raw output',(
   const ap=Math.ceil((cp+bytes.length)/64)*64,al=bytes.length+64,ip=Math.ceil((ap+al)/64)*64,op=ip+128;
   memory.grow(Math.max(0,Math.ceil((op+128-memory.buffer.byteLength)/65536)));
   const view=new DataView(memory.buffer);new Uint8Array(memory.buffer,cp,bytes.length).set(bytes);
-  // Configuration versions 2 and 3 carry the kernel options; 4 is unknown.
-  view.setUint32(cp,4,true);expect(init(cp,bytes.length,ap,al)).toBe(-7);view.setUint32(cp,1,true);
+  // Configuration versions 2, 3 and 4 carry the kernel options; 5 is unknown.
+  view.setUint32(cp,5,true);expect(init(cp,bytes.length,ap,al)).toBe(-7);view.setUint32(cp,1,true);
   expect(init(cp+1,bytes.length,ap,al)).toBe(-2);expect(init(cp,bytes.length,cp,al)).toBe(-2);
   expect(init(cp,bytes.length,ap,al)).toBe(0);view.setUint32(ip,1,true);
   view.setFloat64(ip+8,1.225,true);view.setFloat64(ip+16,1.789e-5,true);view.setFloat64(ip+24,340,true);

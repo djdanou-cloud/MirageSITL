@@ -1,5 +1,6 @@
 //! Versioned caller-owned production rotor/polar binding; see bet_bound.h.
-use crate::{blade::{RotationalAugmentation, Rotor, RotorGeometry, RotorInput}, inflow::AxialInflow,
+use crate::{blade::{InflowField, RotationalAugmentation, Rotor, RotorGeometry, RotorInput},
+    inflow::{AnnularMomentum, AxialInflow, DynamicInflow, InflowStates, MAX_INFLOW_STRIPS},
     motor::DriveTorque, polar::PolarTable, quadrature::AzimuthGrid, shaft::Shaft, Vec3};
 
 /// Independent binding version (legacy arena ABI remains v1).
@@ -18,6 +19,8 @@ pub const MAGIC: u32 = 0x424e4431;
 pub const CONFIG_VERSION_OPTIONS: u32 = 2;
 /// Configuration version 3 (TASK-097): version 2 plus `OPTION_ROTATIONAL` and its values at bytes 112..128.
 pub const CONFIG_VERSION_ROTATIONAL: u32 = 3;
+/// Configuration version 4 (TASK-098): version 3 plus `OPTION_DYNAMIC_INFLOW` and its state region.
+pub const CONFIG_VERSION_INFLOW: u32 = 4;
 /// Kernel option: the half-step prediction uses azimuth samples 0 and N/2 (N even).
 pub const OPTION_REDUCED_PREDICTOR: u32 = 1;
 /// Kernel option: near hover the midpoint uses every other azimuth sample (N even, at least 4).
@@ -28,6 +31,11 @@ pub const OPTION_EXACT_KERNEL: u32 = 4;
 /// Option of configuration version 3: rotational lift augmentation, with the lift slope (1/rad) at
 /// byte 112 and the zero-lift angle (rad) at byte 120. It changes the physics, not the numerics, so the reference kernel applies it too.
 pub const OPTION_ROTATIONAL: u32 = 8;
+/// Option of configuration version 4: Pitt-Peters dynamic inflow with annular tip and hub losses. A manual time
+/// constant is the positive inflow tau, and 0 asks for the derived one. The configuration ends with a state region of
+/// (3 + strips) f64, zero at initialization and reset: the harmonics on cos and sin (m/s), the loss minus 1, and each
+/// strip's shape minus 1.
+pub const OPTION_DYNAMIC_INFLOW: u32 = 16;
 /// Output flag: this step's midpoint loads used hover sampling.
 pub const FLAG_HOVER_SAMPLING: u32 = 64;
 /// Output flag: this step's half-step prediction used the reduced predictor.
@@ -59,6 +67,8 @@ struct Config<'a> {
     /// Kernel options (configuration versions 2 and 3); 0 for version 1.
     options: u32,
     rotational: Option<RotationalAugmentation>,
+    /// Where the dynamic-inflow state region starts in the configuration, with the option.
+    inflow_state_at: Option<usize>,
 }
 
 /// Full validation of a configuration: every axis, coefficient and confidence
@@ -73,13 +83,14 @@ fn step_config(b: &[u8]) -> Result<Config<'_>, i32> { parse_config(b, false) }
 
 fn parse_config(b: &[u8], full: bool) -> Result<Config<'_>, i32> {
     let version = u(b,0);
-    if version != Some(VERSION) && version != Some(CONFIG_VERSION_OPTIONS) && version != Some(CONFIG_VERSION_ROTATIONAL) { return Err(-7); }
+    if version != Some(VERSION) && version != Some(CONFIG_VERSION_OPTIONS) && version != Some(CONFIG_VERSION_ROTATIONAL) && version != Some(CONFIG_VERSION_INFLOW) { return Err(-7); }
     let parse = || {
         if b.len() < CONFIG_HEADER || u(b,4)? as usize != b.len() { return None; }
         // Version 1 keeps byte 36 reserved zero; versions 2 and 3 carry the kernel options there.
         let options=if version==Some(VERSION) {if !zero(b,36,40) {return None;} 0} else {u(b,36)?};
         let known=OPTION_REDUCED_PREDICTOR|OPTION_HOVER_SAMPLING|OPTION_EXACT_KERNEL
-            |if version==Some(CONFIG_VERSION_ROTATIONAL) {OPTION_ROTATIONAL} else {0};
+            |if version==Some(CONFIG_VERSION_ROTATIONAL) || version==Some(CONFIG_VERSION_INFLOW) {OPTION_ROTATIONAL} else {0}
+            |if version==Some(CONFIG_VERSION_INFLOW) {OPTION_DYNAMIC_INFLOW} else {0};
         if options & !known != 0
             || (options & OPTION_EXACT_KERNEL != 0 && options & (OPTION_REDUCED_PREDICTOR|OPTION_HOVER_SAMPLING) != 0) { return None; }
         // Bytes 112..128 stay reserved zero unless the rotational option is on.
@@ -95,7 +106,9 @@ fn parse_config(b: &[u8], full: bool) -> Result<Config<'_>, i32> {
         let ns=u(b,20)? as usize;let count=na.checked_mul(nr)?.checked_mul(nm)?;
         if !(1..=361).contains(&na) || !(1..=32).contains(&nr) || !(1..=8).contains(&nm)
             || !(1..=64).contains(&ns) || count > 16384 { return None; }
-        let expected=CONFIG_HEADER+(4*ns+na+nr+nm+3*count)*8;
+        let tables=CONFIG_HEADER+(4*ns+na+nr+nm+3*count)*8;
+        let inflow_state_at=(options & OPTION_DYNAMIC_INFLOW != 0).then_some(tables);
+        let expected=tables+if inflow_state_at.is_some() {(3+ns)*8} else {0};
         if b.len()!=expected { return None; }
         let mut at=CONFIG_HEADER;
         let mut take=|n| { let values=doubles(b,at,n);at+=n*8;values };
@@ -110,10 +123,12 @@ fn parse_config(b: &[u8], full: bool) -> Result<Config<'_>, i32> {
         if full {Rotor::new(geometry,polar,azimuth).ok()?;}
         let inertia=f(b,56)?;let damping=f(b,64)?;let dt=f(b,72)?;
         let initial=f(b,80)?;let tau=f(b,88)?;let limit=f(b,96)?;
-        if ![initial,tau,limit].iter().all(|v|v.is_finite()) || initial<0.0 || tau<=0.0 || limit<=0.0
+        // With dynamic inflow a tau of 0 asks for the derived time constant.
+        let tau_valid=if inflow_state_at.is_some() {tau>=0.0} else {tau>0.0};
+        if ![initial,tau,limit].iter().all(|v|v.is_finite()) || initial<0.0 || !tau_valid || limit<=0.0
             || ![400.0,800.0,1200.0,4800.0].iter().any(|hz|dt==1.0/hz) {return None;}
         Shaft::new(inertia,damping,geometry.spin_sign).ok()?;
-        Some(Config{geometry,polar,azimuth,inertia,damping,dt,initial,tau,limit,options,rotational})
+        Some(Config{geometry,polar,azimuth,inertia,damping,dt,initial,tau,limit,options,rotational,inflow_state_at})
     };
     parse().ok_or(-3)
 }
@@ -121,6 +136,7 @@ fn parse_config(b: &[u8], full: bool) -> Result<Config<'_>, i32> {
 /// Cold initialization validates and copies config; failure writes no arena byte.
 pub fn init(cfg: &[u8], arena: &mut [u8], pages: u32) -> i32 {
     let c=match config(cfg) {Ok(c)=>c,Err(e)=>return e};
+    if c.inflow_state_at.is_some_and(|at| !zero(cfg,at,cfg.len())) {return -3;}
     if arena.len()!=ARENA_HEADER+cfg.len() || arena.len()>u32::MAX as usize {return -6;}
     arena.fill(0);word(arena,0,MAGIC);word(arena,4,arena.len() as u32);word(arena,8,pages);
     put(arena,16,c.initial);arena[ARENA_HEADER..].copy_from_slice(cfg);0
@@ -172,13 +188,39 @@ pub(crate) struct Advanced {
     pub(crate) half_omega: f64,
     /// The next hover-sampling state (arena bytes 56..64) when the option is on.
     pub(crate) hover_state: Option<f64>,
+    /// The next dynamic-inflow state region when the option is on.
+    pub(crate) inflow_state: Option<InflowRegion>,
+}
+
+/// The dynamic-inflow state region of a step, not yet written.
+#[derive(Clone, Copy)]
+pub(crate) struct InflowRegion {
+    at: usize,
+    strips: usize,
+    cos_mps: f64,
+    sin_mps: f64,
+    loss_excess: f64,
+    shape_excess: [f64; MAX_INFLOW_STRIPS],
 }
 
 /// Writes a computed step into the arena state and the output record.
 pub(crate) fn commit(arena: &mut [u8], out: &mut [u8], a: &Advanced) {
     put(arena,16,a.omega);put(arena,24,a.induced);
     if let Some(state)=a.hover_state {put(arena,56,state);}
+    if let Some(region)=&a.inflow_state {
+        let at=ARENA_HEADER+region.at;
+        put(arena,at,region.cos_mps);put(arena,at+8,region.sin_mps);put(arena,at+16,region.loss_excess);
+        for k in 0..region.strips {put(arena,at+24+k*8,region.shape_excess[k]);}
+    }
     out.copy_from_slice(&a.staged);
+}
+
+/// The inflow harmonics the arena holds (cos, sin, m/s), for a configuration with dynamic inflow.
+pub(crate) fn inflow_harmonics(arena: &[u8]) -> Option<(f64,f64)> {
+    let bytes=arena.get(ARENA_HEADER..)?;
+    if u(bytes,0)!=Some(CONFIG_VERSION_INFLOW) {return None;}
+    let at=step_config(bytes).ok()?.inflow_state_at?;
+    Some((f(bytes,at)?,f(bytes,at+8)?))
 }
 
 /// Computes one step without writing anything. `esc` is `None` for the v1
@@ -212,11 +254,19 @@ pub(crate) fn advance_with(arena: &[u8], input: &[u8], out_len: usize, dt: f64, 
     let hover_capable=production && hover_option && samples % 2 == 0 && samples >= 4;
     // The T1 kernel by default (TASK-091 increment 3); the exact kernel with OPTION_EXACT_KERNEL.
     let exact=c.options & OPTION_EXACT_KERNEL != 0;
-    let evaluate=|rotor:&Rotor<'_>,i:RotorInput| match (kernel,exact) {
-        (Kernel::Reference,_)=>rotor.evaluate(i),
-        (Kernel::Production,true)=>rotor.evaluate_fast(i),
-        (Kernel::Production,false)=>rotor.evaluate_sampled(i,1),
+    let evaluate=|rotor:&Rotor<'_>,i:RotorInput,field:InflowField<'_>,thrust:Option<&mut [f64]>| match (kernel,exact) {
+        (Kernel::Reference,_)=>rotor.evaluate_field(i,field,thrust),
+        (Kernel::Production,true)=>rotor.evaluate_fast_field(i,field,thrust),
+        (Kernel::Production,false)=>rotor.evaluate_sampled_field(i,1,field,thrust),
     };
+    // The dynamic-inflow state, as `InflowStates` from the arena's inflow word and the state region.
+    let ns=c.geometry.radius.len();
+    let dynamic=c.inflow_state_at.map(|at| {
+        let bytes_at=|k:usize| f(bytes,at+k*8).unwrap_or(f64::NAN);
+        let mut shape=[1.0;MAX_INFLOW_STRIPS];
+        for k in 0..ns.min(MAX_INFLOW_STRIPS) {shape[k]=1.0+bytes_at(3+k);}
+        (at,bytes_at(0),bytes_at(1),1.0+bytes_at(2),shape)
+    });
     let compute=|| {
         let omega=f(state,16)?;let induced=f(state,24)?;
         let motor=f(input,104)?;
@@ -227,8 +277,14 @@ pub(crate) fn advance_with(arena: &[u8], input: &[u8], out_len: usize, dt: f64, 
         let rotor=if production {Rotor::from_validated(c.geometry,c.polar,AzimuthGrid::cached(c.azimuth)?)}
             else {Rotor::new(c.geometry,c.polar,c.azimuth).ok()?};
         let rotor=rotor.with_rotational(c.rotational);
+        let empty:&[f64]=&[];
+        let (shape_now,cos_now,sin_now,loss_now):(&[f64],f64,f64,f64)=match &dynamic {
+            Some((_,cos,sin,loss,shape))=>(&shape[..ns.min(MAX_INFLOW_STRIPS)],*cos,*sin,*loss),
+            None=>(empty,0.0,0.0,1.0),
+        };
+        let start_field=InflowField{shape:shape_now,cos_mps:cos_now,sin_mps:sin_now};
         // Reduced predictor: samples 0 and N/2, whose first harmonics cancel; only the axial force and torque are used.
-        let first=if reduced_predictor {rotor.evaluate_sampled(i,samples/2)} else {evaluate(&rotor,i)}.ok()?;
+        let first=if reduced_predictor {rotor.evaluate_sampled_field(i,samples/2,start_field,None)} else {evaluate(&rotor,i,start_field,None)}.ok()?;
         // Hover sampling: the regime measure at the start of the step, with hysteresis between HOVER_ENTER and HOVER_LEAVE.
         // Only configurations with the option form it (its hypot calls are libm calls on wasm32).
         let regime=|| { let tip=omega*c.geometry.radius_m; if omega>0.0 && tip>0.0 {
@@ -238,18 +294,64 @@ pub(crate) fn advance_with(arena: &[u8], input: &[u8], out_len: usize, dt: f64, 
         } else {f64::INFINITY} };
         let hover=hover_capable && { let m=regime(); if hover_previous==1.0 {m<=HOVER_LEAVE} else {m<HOVER_ENTER} };
         let shaft_model=Shaft::new(c.inertia,c.damping,c.geometry.spin_sign).ok()?;
-        let flow_model=AxialInflow::new(i.density_kg_m3,c.geometry.radius_m,c.tau,c.limit).ok()?;
+        let flow_model=if dynamic.is_some() {None} else {Some(AxialInflow::new(i.density_kg_m3,c.geometry.radius_m,c.tau,c.limit).ok()?)};
         let transverse=i.air_velocity_hub_mps.x.hypot(i.air_velocity_hub_mps.y);
         let shaft_step=|q:f64,h:f64| match esc {
             None=>shaft_model.step(omega,q,motor,h),
             Some(t)=>shaft_model.step_driven(omega,q,t.constant_nm,t.damping,t.friction_nm,h),
         };
         let half_shaft=shaft_step(first.moment_nm.z,dt*0.5).ok()?;
-        let half_flow=flow_model.step(induced,first.force_n.z,i.air_velocity_hub_mps.z,transverse,dt*0.5).ok()?;
-        let mut midpoint=i;midpoint.omega_rad_s=half_shaft.omega_rad_s;midpoint.induced_mps=half_flow.velocity_mps;
-        let aero=if hover {rotor.evaluate_sampled(midpoint,2)} else {evaluate(&rotor,midpoint)}.ok()?;
+        let start_states=InflowStates{mean_mps:induced,cos_mps:cos_now,sin_mps:sin_now};
+        let tip=|speed:f64| speed.abs()*c.geometry.radius_m;
+        // Dynamic inflow (TASK-098), or the fixed-lag axial model.
+        let dynamic_model=if dynamic.is_some() {Some(DynamicInflow::new(i.density_kg_m3,c.geometry.radius_m,c.tau,c.limit).ok()?)} else {None};
+        let (half_mean,half_outside,half_cos,half_sin)=match &dynamic_model {
+            Some(model)=>{
+                let r=model.step(start_states,loss_now,first.force_n.z,first.flap_load_nm.y,first.flap_load_nm.z,i.air_velocity_hub_mps,tip(omega),dt*0.5).ok()?;
+                (r.states.mean_mps,r.outside_validity,r.states.cos_mps,r.states.sin_mps)
+            }
+            None=>{let r=flow_model.as_ref()?.step(induced,first.force_n.z,i.air_velocity_hub_mps.z,transverse,dt*0.5).ok()?;(r.velocity_mps,r.outside_validity,0.0,0.0)}
+        };
+        let mut midpoint=i;midpoint.omega_rad_s=half_shaft.omega_rad_s;midpoint.induced_mps=half_mean;
+        let mid_field=InflowField{shape:shape_now,cos_mps:half_cos,sin_mps:half_sin};
+        let mut strip_thrust=[0.0;MAX_INFLOW_STRIPS];
+        let thrust_out:Option<&mut [f64]>=if dynamic.is_some() {Some(&mut strip_thrust[..ns.min(MAX_INFLOW_STRIPS)])} else {None};
+        let aero=if hover {rotor.evaluate_sampled_field(midpoint,2,mid_field,thrust_out)} else {evaluate(&rotor,midpoint,mid_field,thrust_out)}.ok()?;
         let shaft=shaft_step(aero.moment_nm.z,dt).ok()?;
-        let flow=flow_model.step(induced,aero.force_n.z,i.air_velocity_hub_mps.z,transverse,dt).ok()?;
+        let (next_mean,mut full_outside,inflow_state)=match (&dynamic_model,&dynamic) {
+            (Some(model),Some((at,_,_,_,shape)))=>{
+                let r=model.step(start_states,loss_now,aero.force_n.z,aero.flap_load_nm.y,aero.flap_load_nm.z,i.air_velocity_hub_mps,tip(half_shaft.omega_rad_s),dt).ok()?;
+                // The annular balance, once per step: it sets the loss and the shape, which follow with the mean's lag.
+                let sign=if aero.force_n.z<0.0 {-1.0} else {1.0};
+                let annuli=AnnularMomentum{blade_count:c.geometry.blade_count,radius_m:c.geometry.radius_m,cutout_m:c.geometry.cutout_m,
+                    strip_radius_m:c.geometry.radius,strip_width_m:c.geometry.width};
+                let n=ns.min(MAX_INFLOW_STRIPS);
+                let mut annular=[0.0;MAX_INFLOW_STRIPS];
+                for k in 0..n {annular[k]=induced*shape[k]*sign;}
+                let climb=-i.air_velocity_hub_mps.z*sign;
+                let mut region=InflowRegion{at:*at,strips:n,cos_mps:r.states.cos_mps,sin_mps:r.states.sin_mps,loss_excess:loss_now-1.0,shape_excess:[0.0;MAX_INFLOW_STRIPS]};
+                let mut converged=true;
+                if climb<0.0 {
+                    // The annular balance holds at zero or positive climb (F-01): in descent the field relaxes to uniform.
+                    region.loss_excess=(loss_now-1.0)*(1.0-r.relaxation);
+                    for k in 0..n {region.shape_excess[k]=(shape[k]-1.0)*(1.0-r.relaxation);}
+                } else {
+                    let solved=annuli.solve(&strip_thrust[..n],i.density_kg_m3,half_shaft.omega_rad_s,sign,climb,transverse,&mut annular[..n]);
+                    converged=solved.converged;
+                    let (mean,root)=(solved.mean_mps,r.glauert_root_mps);
+                    if mean>0.0 && root>0.0 {
+                        let loss_target=(mean/root).clamp(0.2,5.0);
+                        region.loss_excess=loss_now+r.relaxation*(loss_target-loss_now)-1.0;
+                        for k in 0..n {region.shape_excess[k]=shape[k]+r.relaxation*(annular[k]/mean-shape[k])-1.0;}
+                    } else {
+                        for k in 0..n {region.shape_excess[k]=shape[k]-1.0;}
+                    }
+                }
+                (r.states.mean_mps,r.outside_validity||!converged,Some(region))
+            }
+            _=>{let r=flow_model.as_ref()?.step(induced,aero.force_n.z,i.air_velocity_hub_mps.z,transverse,dt).ok()?;(r.velocity_mps,r.outside_validity,None)}
+        };
+        full_outside|=half_outside;
         let spin=c.geometry.spin_sign as f64;
         let h=spin*c.inertia*half_shaft.omega_rad_s;
         let dh=Vec3::new(0.0,0.0,spin*c.inertia*(shaft.omega_rad_s-omega)/dt)
@@ -258,24 +360,25 @@ pub(crate) fn advance_with(arena: &[u8], input: &[u8], out_len: usize, dt: f64, 
         // The motor's electromagnetic torque at the start speed times that speed.
         let power=match esc {None=>motor*omega,Some(t)=>(t.constant_nm-t.damping*omega)*omega};
         if !transmitted.norm().is_finite() || !power.is_finite() {return None;}
-        let flags=first.flags | aero.flags | if flow.outside_validity || half_flow.outside_validity {8}else{0}
+        let flags=first.flags | aero.flags | if full_outside {8}else{0}
             | if shaft.reverse_limited || half_shaft.reverse_limited {16}else{0}
             | if hover {FLAG_HOVER_SAMPLING}else{0} | if reduced_predictor {FLAG_REDUCED_PREDICTOR}else{0};
-        Some((aero,shaft,flow,transmitted,power,flags,spin*c.inertia*shaft.omega_rad_s,half_shaft.omega_rad_s,hover))
+        Some((aero,shaft,next_mean,inflow_state,transmitted,power,flags,spin*c.inertia*shaft.omega_rad_s,half_shaft.omega_rad_s,hover))
     };
-    let Some((aero,shaft,flow,transmitted,power,flags,h,half_omega,hover))=compute() else{return Err(-3);};
+    let Some((aero,shaft,next_mean,inflow_state,transmitted,power,flags,h,half_omega,hover))=compute() else{return Err(-3);};
     let mut staged=[0u8;128];
     write_vec(&mut staged,0,aero.force_n);write_vec(&mut staged,24,aero.moment_nm);write_vec(&mut staged,48,transmitted);
     put(&mut staged,72,shaft.omega_rad_s);put(&mut staged,80,aero.moment_nm.z);put(&mut staged,88,power);
-    put(&mut staged,96,flow.velocity_mps);word(&mut staged,112,flags);put(&mut staged,120,h);
+    put(&mut staged,96,next_mean);word(&mut staged,112,flags);put(&mut staged,120,h);
     let hover_state=(production && hover_option).then_some(if hover {1.0} else {0.0});
-    Ok(Advanced{staged,omega:shaft.omega_rad_s,induced:flow.velocity_mps,half_omega,hover_state})
+    Ok(Advanced{staged,omega:shaft.omega_rad_s,induced:next_mean,half_omega,hover_state,inflow_state})
 }
 
 /// Restores initial speed and zero inflow; invalid handles remain untouched.
 pub fn reset(arena: &mut [u8]) -> i32 {
     if arena_len(arena)!=Some(arena.len() as u32) {return -1;}
-    let initial=match config(&arena[ARENA_HEADER..]) {Ok(c)=>c.initial,Err(e)=>return e};
+    let (initial,inflow_at)=match config(&arena[ARENA_HEADER..]) {Ok(c)=>(c.initial,c.inflow_state_at),Err(e)=>return e};
+    if let Some(at)=inflow_at {arena[ARENA_HEADER+at..].fill(0);}
     // Bytes 32..56 hold the TASK-092 ESC state, 56..64 the hover-sampling state; a reset returns
     // them to an unpowered ESC and full sampling.
     put(arena,16,initial);put(arena,24,0.0);arena[32..64].fill(0);0

@@ -82,8 +82,18 @@ fn step_with(arena: &mut [u8], input: &[u8], out: &mut [u8], dt: f64, kernel: Ke
     if status != 0 { return status; }
     out.fill(0);
     out[0..128].copy_from_slice(&staged);
-    // Validity word at 116 stays zero: no later-task output is available yet.
+    // Without dynamic inflow the validity word at 116 stays zero: no later-task output is available.
+    publish_harmonics(arena, out, 0);
     0
+}
+
+/// Writes the inflow harmonics and their validity bit when the configuration has them (TASK-098).
+fn publish_harmonics(arena: &[u8], out: &mut [u8], validity: u32) {
+    if let Some((cos_mps, sin_mps)) = bound::inflow_harmonics(arena) {
+        put_word(out, 116, validity | VALID_INFLOW_HARMONICS);
+        put(out, 128, cos_mps);
+        put(out, 136, sin_mps);
+    }
 }
 
 /// The load one rotor's ESC puts on the bus this step (TASK-197): the filtered duty the
@@ -149,5 +159,6 @@ fn esc_step(arena: &mut [u8], input: &[u8], out: &mut [u8], dt: f64, kernel: Ker
     put(arena, 40, command.held);
     put(arena, 48, command.countdown_s);
     out.copy_from_slice(&staged);
+    publish_harmonics(arena, out, VALID_ELECTRICAL);
     0
 }

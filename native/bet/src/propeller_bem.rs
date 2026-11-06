@@ -81,7 +81,13 @@ pub fn prandtl_loss(
     tip_on: bool,
     hub_on: bool,
 ) -> f64 {
-    let s = phi.sin().abs().max(1e-12);
+    prandtl_factor(blades, r, tip, hub, phi.sin().abs(), tip_on, hub_on)
+}
+
+/// `prandtl_loss` from |sin(phi)|, for a caller that holds it (TASK-098).
+#[inline]
+pub fn prandtl_factor(blades: u32, r: f64, tip: f64, hub: f64, sin_phi: f64, tip_on: bool, hub_on: bool) -> f64 {
+    let s = sin_phi.max(1e-12);
     let factor = |distance: f64, denominator: f64| {
         (2.0 / PI)
             * (-0.5 * blades as f64 * distance / (denominator * s))

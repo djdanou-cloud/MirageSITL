@@ -53,7 +53,7 @@ export function sweepRotor(module: WebAssembly.Module, configuration: BetFlightC
   const polar = configuration.polars.get(geometry.polarId), motor = drive.motors[rotorIndex];
   if (!polar || !motor) throw new Error('Missing polar or motor');
   const engine = new BetRotorEngineV2(module, [{ geometry, polar, initialOmegaRadS: 0, inflowTauS: configuration.inflowTauS[rotorIndex]!,
-    inflowLimitMps: configuration.inflowLimitMps[rotorIndex]!, minimumConfidence: configuration.minimumConfidence }], hz);
+    inflowLimitMps: configuration.inflowLimitMps[rotorIndex]!, minimumConfidence: configuration.minimumConfidence, dynamicInflow: configuration.dynamicInflow === true }], hz);
   try {
     const vRef = drive.battery.openCircuitFullV;
     engine.drive.set([motor.resistanceOhm, motor.torqueConstantNmPerA, motor.currentLimitA, motor.brakeCurrentLimitA,

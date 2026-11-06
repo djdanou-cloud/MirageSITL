@@ -18,13 +18,15 @@
 //! ```
 //! Output: `ok <CT> <CP> <eta> <inducedMps> <residualN> <polarFlags> <outside 0|1>`
 //! or `err`. A `rotor` block applies to the following points until the next one.
-//! Optional `--annular` selects the separate BEM diagnostic. Its fifth numeric
+//! Optional `--dynamic-inflow` (TASK-098) marches the flight model's dynamic inflow to a steady state instead of the
+//! uniform momentum closure. Optional `--annular` selects the separate BEM diagnostic. Its fifth numeric
 //! output is a dimensionless residual (legacy: N); nonconverged points are `err`.
 //! Detailed `bem` lines on stderr record final section coverage and convergence.
 use mirage_bet::{
     blade::{RotationalAugmentation, Rotor, RotorGeometry},
     polar::PolarTable,
-    propeller::{steady_point, PropellerCondition},
+    inflow::AnnularMomentum,
+    propeller::{steady_dynamic_point, steady_point, PropellerCondition},
     propeller_bem::{steady_annular, BemOptions},
 };
 use std::io::{self, BufRead, Write};
@@ -61,10 +63,12 @@ struct RotorBlock {
 
 fn run() -> Result<(), String> {
     let mut annular = false;
+    let mut dynamic_inflow = false;
     let mut options = BemOptions::default();
     for argument in std::env::args().skip(1) {
         match argument.as_str() {
             "--annular" => annular = true,
+            "--dynamic-inflow" => dynamic_inflow = true,
             "--no-tip-loss" => options.tip_loss = false,
             "--no-hub-loss" => options.hub_loss = false,
             "--no-swirl" => options.swirl = false,
@@ -199,7 +203,13 @@ fn run() -> Result<(), String> {
                         }
                     }
                 } else {
-                    match steady_point(&rotor, r.radius, 1, condition) {
+                    let point = if dynamic_inflow {
+                        let annuli = AnnularMomentum { blade_count: r.blades, radius_m: r.radius, cutout_m: r.cutout, strip_radius_m: &s[0], strip_width_m: &s[3] };
+                        steady_dynamic_point(&rotor, annuli, 1, condition)
+                    } else {
+                        steady_point(&rotor, r.radius, 1, condition)
+                    };
+                    match point {
                         Ok(p) => format!(
                             "ok {:?} {:?} {:?} {:?} {:?} {} {}",
                             p.ct,

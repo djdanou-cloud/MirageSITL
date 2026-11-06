@@ -338,3 +338,35 @@ fn rotational_option_allocates_zero_over_one_million_steps() {
     assert_eq!(status, 0);
     assert_eq!((CALLS.load(Ordering::Relaxed), BYTES.load(Ordering::Relaxed)), (0, 0));
 }
+
+/// TASK-098: dynamic inflow and its annular solve add no allocation, in forward flight, over a million steps.
+#[test]
+fn dynamic_inflow_allocates_zero_over_one_million_steps() {
+    let (c, _, _) = fixture();
+    let mut with_state = c.clone();
+    with_state.resize(c.len() + (3 + stations(&c)) * 8, 0);
+    let len = with_state.len() as u32;
+    word(&mut with_state, 0, bound::CONFIG_VERSION_INFLOW);
+    word(&mut with_state, 4, len);
+    word(&mut with_state, 36, bound::OPTION_DYNAMIC_INFLOW);
+    let mut arena = vec![0u8; 64 + with_state.len()];
+    assert_eq!(bound::init(&with_state, &mut arena, 0), 0);
+    let (_, mut input) = inputs();
+    let mut out = [0u8; 256];
+    put(&mut input, 40, 3.0);
+    CALLS.store(0, Ordering::Relaxed);
+    BYTES.store(0, Ordering::Relaxed);
+    TRACK.with(|t| t.set(true));
+    let mut status = 0;
+    for _ in 0..1_000_000 {
+        status |= black_box(bound_v2::step(&mut arena, &input, &mut out, DT));
+    }
+    TRACK.with(|t| t.set(false));
+    assert_eq!(status, 0);
+    assert_eq!((CALLS.load(Ordering::Relaxed), BYTES.load(Ordering::Relaxed)), (0, 0));
+    assert_eq!(read_word(&out, 116) & bound_v2::VALID_INFLOW_HARMONICS, bound_v2::VALID_INFLOW_HARMONICS);
+}
+
+fn stations(config: &[u8]) -> usize {
+    u32::from_le_bytes(config[20..24].try_into().unwrap()) as usize
+}

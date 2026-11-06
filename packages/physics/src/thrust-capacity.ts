@@ -53,7 +53,7 @@ export function thrustCapacity(module: WebAssembly.Module, configuration: BetFli
   const definitions = model.rotors.map((rotor, i) => {
     const polar = configuration.polars.get(rotor.polarId), inflowTauS = configuration.inflowTauS[i], inflowLimitMps = configuration.inflowLimitMps[i];
     if (!polar || inflowTauS === undefined || inflowLimitMps === undefined) throw new Error('Missing rotor polar binding');
-    return { geometry: rotor, polar, initialOmegaRadS: 0, inflowTauS, inflowLimitMps, minimumConfidence: configuration.minimumConfidence };
+    return { geometry: rotor, polar, initialOmegaRadS: 0, inflowTauS, inflowLimitMps, minimumConfidence: configuration.minimumConfidence, dynamicInflow: configuration.dynamicInflow === true };
   });
   const engine = new BetRotorEngineV2(module, definitions, HZ), bus = new BetBus(module, drive.battery, HZ);
   try {

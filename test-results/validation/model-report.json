@@ -19,7 +19,7 @@
       "polarSha256": "d6d9793ea030c6b957fa9018ed5c3307891665829773574b2bacb26f1909c9a1",
       "suiteSha256": "608d6a9fdeafd14766139d2509b2d8a0f66b51b42c0bf550cffbb9d533cc5871",
       "reportPath": "test-results/validation/rotor-bet.json",
-      "reportSha256": "0c71d7c71ac2b0562e3ae254c97a3abd2360ee6b76dc8d8f39fcd1d9889da807"
+      "reportSha256": "7c17331bb7816d36120263acb809215d1f5e1a31f87bf34f1c4b5408f7035a01"
     },
     {
       "configurationId": "tapered-three-blade",
@@ -33,7 +33,7 @@
       "polarSha256": "d6d9793ea030c6b957fa9018ed5c3307891665829773574b2bacb26f1909c9a1",
       "suiteSha256": "608d6a9fdeafd14766139d2509b2d8a0f66b51b42c0bf550cffbb9d533cc5871",
       "reportPath": "test-results/validation/rotor-bet.json",
-      "reportSha256": "0c71d7c71ac2b0562e3ae254c97a3abd2360ee6b76dc8d8f39fcd1d9889da807"
+      "reportSha256": "7c17331bb7816d36120263acb809215d1f5e1a31f87bf34f1c4b5408f7035a01"
     },
     {
       "configurationId": "symmetric-four-blade",
@@ -47,7 +47,7 @@
       "polarSha256": "b65b811583008327d517505e2995ed2bd1ee9fa66cad207288bf0a436a01dab1",
       "suiteSha256": "608d6a9fdeafd14766139d2509b2d8a0f66b51b42c0bf550cffbb9d533cc5871",
       "reportPath": "test-results/validation/rotor-bet.json",
-      "reportSha256": "0c71d7c71ac2b0562e3ae254c97a3abd2360ee6b76dc8d8f39fcd1d9889da807"
+      "reportSha256": "7c17331bb7816d36120263acb809215d1f5e1a31f87bf34f1c4b5408f7035a01"
     }
   ],
   "measuredValidation": [],
@@ -971,12 +971,319 @@
           "status": "failed"
         }
       ]
+    },
+    {
+      "id": "uiuc-da4002-da4022-propellers-inflow",
+      "datasetId": "UIUC-Propeller-Database-Vols-1-4",
+      "referenceUrl": "https://m-selig.ae.illinois.edu/props/propDB.html",
+      "license": "UIUC-Propeller-Database-citation-requested-no-explicit-license",
+      "acquiredAt": "2022-06-27T00:00:00Z",
+      "sourceSha256": "ae1a73416210aaf64d51e3f2ff76e971d9c95995a976fcdcdfb7bc27dee46af3",
+      "inventorySha256": "61b65ba5c71634a63bfcc4ace60997755c9f99ea55924e2880768648678fa998",
+      "archiveDataSha256": "0b00acaffdacef96f21973960ea3bb7a64b94d385fef5b00b6323b8330c42069",
+      "consistencyStatus": "pass",
+      "audit": {
+        "points": 716,
+        "applicable": 674,
+        "etaInconsistent": 0,
+        "aboveFroudeBound": 0
+      },
+      "status": "failed",
+      "polar": {
+        "kind": "extended-xfoil",
+        "airfoil": "SDA1075",
+        "sourceSha256": "96878564e362ec18184bf09167c87546d665c34b64c88c009598ab8943f6393b",
+        "tableSha256": "6e6e15c81fee8e95c54c8437616148de902e162a15e498af88e143e5034ba1f3",
+        "rotational": {
+          "liftSlopePerRad": 6.283185307179586,
+          "zeroLiftAlphaRad": -0.02565974
+        },
+        "inflowModel": "pitt-peters-annular",
+        "alphaRangeRad": [
+          -3.141592653589793,
+          3.141592653589793
+        ],
+        "reynoldsRange": [
+          20000,
+          200000
+        ]
+      },
+      "tolerance": {
+        "ctRelative": 0.1,
+        "ctAbsolute": 0.005,
+        "cpRelative": 0.1,
+        "cpAbsolute": 0.003
+      },
+      "totals": {
+        "points": 958,
+        "compared": 345,
+        "passed": 102,
+        "ctWithinTolerance": 129,
+        "cpWithinTolerance": 107,
+        "outsidePolar": 553,
+        "outsideMomentum": 60,
+        "errors": 0
+      },
+      "propellers": [
+        {
+          "id": "da4002-5x1.58-2b",
+          "bladeCount": 2,
+          "diameterM": 0.127,
+          "points": 37,
+          "compared": 0,
+          "passed": 0,
+          "ctWithinTolerance": 0,
+          "cpWithinTolerance": 0,
+          "outsidePolar": 33,
+          "outsideMomentum": 4,
+          "errors": 0,
+          "maxAbsCtError": null,
+          "maxAbsCpError": null,
+          "meanCtError": null,
+          "meanCpError": null,
+          "status": "unvalidated"
+        },
+        {
+          "id": "da4002-5x2.65-2b",
+          "bladeCount": 2,
+          "diameterM": 0.127,
+          "points": 41,
+          "compared": 0,
+          "passed": 0,
+          "ctWithinTolerance": 0,
+          "cpWithinTolerance": 0,
+          "outsidePolar": 32,
+          "outsideMomentum": 9,
+          "errors": 0,
+          "maxAbsCtError": null,
+          "maxAbsCpError": null,
+          "meanCtError": null,
+          "meanCpError": null,
+          "status": "unvalidated"
+        },
+        {
+          "id": "da4002-5x3.75-2b",
+          "bladeCount": 2,
+          "diameterM": 0.127,
+          "points": 50,
+          "compared": 0,
+          "passed": 0,
+          "ctWithinTolerance": 0,
+          "cpWithinTolerance": 0,
+          "outsidePolar": 44,
+          "outsideMomentum": 6,
+          "errors": 0,
+          "maxAbsCtError": null,
+          "maxAbsCpError": null,
+          "meanCtError": null,
+          "meanCpError": null,
+          "status": "unvalidated"
+        },
+        {
+          "id": "da4002-5x4.92-2b",
+          "bladeCount": 2,
+          "diameterM": 0.127,
+          "points": 74,
+          "compared": 0,
+          "passed": 0,
+          "ctWithinTolerance": 0,
+          "cpWithinTolerance": 0,
+          "outsidePolar": 63,
+          "outsideMomentum": 11,
+          "errors": 0,
+          "maxAbsCtError": null,
+          "maxAbsCpError": null,
+          "meanCtError": null,
+          "meanCpError": null,
+          "status": "unvalidated"
+        },
+        {
+          "id": "da4002-9x2.85-2b",
+          "bladeCount": 2,
+          "diameterM": 0.2286,
+          "points": 55,
+          "compared": 31,
+          "passed": 24,
+          "ctWithinTolerance": 24,
+          "cpWithinTolerance": 25,
+          "outsidePolar": 17,
+          "outsideMomentum": 7,
+          "errors": 0,
+          "maxAbsCtError": 0.010499414191459455,
+          "maxAbsCpError": 0.006150305211740923,
+          "meanCtError": -0.00113186809677543,
+          "meanCpError": -0.0011875185163123603,
+          "status": "failed"
+        },
+        {
+          "id": "da4002-9x4.76-2b",
+          "bladeCount": 2,
+          "diameterM": 0.2286,
+          "points": 73,
+          "compared": 3,
+          "passed": 0,
+          "ctWithinTolerance": 0,
+          "cpWithinTolerance": 3,
+          "outsidePolar": 67,
+          "outsideMomentum": 3,
+          "errors": 0,
+          "maxAbsCtError": 0.01297417326449253,
+          "maxAbsCpError": 0.003820538253797502,
+          "meanCtError": 0.012837549553597552,
+          "meanCpError": 0.003242830244282418,
+          "status": "failed"
+        },
+        {
+          "id": "da4002-9x6.75-2b",
+          "bladeCount": 2,
+          "diameterM": 0.2286,
+          "points": 94,
+          "compared": 57,
+          "passed": 26,
+          "ctWithinTolerance": 40,
+          "cpWithinTolerance": 26,
+          "outsidePolar": 30,
+          "outsideMomentum": 7,
+          "errors": 0,
+          "maxAbsCtError": 0.014707612707638113,
+          "maxAbsCpError": 0.015416023093753773,
+          "meanCtError": -0.003928858367348,
+          "meanCpError": -0.007009233959602977,
+          "status": "failed"
+        },
+        {
+          "id": "da4002-9x8.95-2b",
+          "bladeCount": 2,
+          "diameterM": 0.2286,
+          "points": 114,
+          "compared": 69,
+          "passed": 51,
+          "ctWithinTolerance": 64,
+          "cpWithinTolerance": 51,
+          "outsidePolar": 40,
+          "outsideMomentum": 5,
+          "errors": 0,
+          "maxAbsCtError": 0.01104682681194763,
+          "maxAbsCpError": 0.03202830776036525,
+          "meanCtError": 0.0034470937820173216,
+          "meanCpError": -0.00489998654000402,
+          "status": "failed"
+        },
+        {
+          "id": "da4022-5x3.75-2b",
+          "bladeCount": 2,
+          "diameterM": 0.127,
+          "points": 66,
+          "compared": 0,
+          "passed": 0,
+          "ctWithinTolerance": 0,
+          "cpWithinTolerance": 0,
+          "outsidePolar": 65,
+          "outsideMomentum": 1,
+          "errors": 0,
+          "maxAbsCtError": null,
+          "maxAbsCpError": null,
+          "meanCtError": null,
+          "meanCpError": null,
+          "status": "unvalidated"
+        },
+        {
+          "id": "da4022-5x3.75-3b",
+          "bladeCount": 3,
+          "diameterM": 0.127,
+          "points": 65,
+          "compared": 0,
+          "passed": 0,
+          "ctWithinTolerance": 0,
+          "cpWithinTolerance": 0,
+          "outsidePolar": 62,
+          "outsideMomentum": 3,
+          "errors": 0,
+          "maxAbsCtError": null,
+          "maxAbsCpError": null,
+          "meanCtError": null,
+          "meanCpError": null,
+          "status": "unvalidated"
+        },
+        {
+          "id": "da4022-5x3.75-4b",
+          "bladeCount": 4,
+          "diameterM": 0.127,
+          "points": 61,
+          "compared": 0,
+          "passed": 0,
+          "ctWithinTolerance": 0,
+          "cpWithinTolerance": 0,
+          "outsidePolar": 58,
+          "outsideMomentum": 3,
+          "errors": 0,
+          "maxAbsCtError": null,
+          "maxAbsCpError": null,
+          "meanCtError": null,
+          "meanCpError": null,
+          "status": "unvalidated"
+        },
+        {
+          "id": "da4022-9x6.75-2b",
+          "bladeCount": 2,
+          "diameterM": 0.2286,
+          "points": 88,
+          "compared": 74,
+          "passed": 0,
+          "ctWithinTolerance": 0,
+          "cpWithinTolerance": 1,
+          "outsidePolar": 14,
+          "outsideMomentum": 0,
+          "errors": 0,
+          "maxAbsCtError": 0.033739984535895495,
+          "maxAbsCpError": 0.01899219511857078,
+          "meanCtError": 0.01910618519302194,
+          "meanCpError": 0.01148004945833983,
+          "status": "failed"
+        },
+        {
+          "id": "da4022-9x6.75-3b",
+          "bladeCount": 3,
+          "diameterM": 0.2286,
+          "points": 83,
+          "compared": 68,
+          "passed": 0,
+          "ctWithinTolerance": 0,
+          "cpWithinTolerance": 0,
+          "outsidePolar": 15,
+          "outsideMomentum": 0,
+          "errors": 0,
+          "maxAbsCtError": 0.047601413521060176,
+          "maxAbsCpError": 0.02981608862047938,
+          "meanCtError": 0.029326323370438126,
+          "meanCpError": 0.01948630262802806,
+          "status": "failed"
+        },
+        {
+          "id": "da4022-9x6.75-4b",
+          "bladeCount": 4,
+          "diameterM": 0.2286,
+          "points": 57,
+          "compared": 43,
+          "passed": 1,
+          "ctWithinTolerance": 1,
+          "cpWithinTolerance": 1,
+          "outsidePolar": 13,
+          "outsideMomentum": 1,
+          "errors": 0,
+          "maxAbsCtError": 0.06016383142094936,
+          "maxAbsCpError": 0.03986916232099,
+          "meanCtError": 0.03323585279806693,
+          "meanCpError": 0.023247954918673736,
+          "status": "failed"
+        }
+      ]
     }
   ],
-  "referenceSha256": "e857a34003f5bb317f06d0fa4121da32a6da83c50bcbd19eca25e7afd3b0697a",
+  "referenceSha256": "f61ee6afa5124d5dfb2d70eea92975e287b7c916e378ecf51f0c418a3ba72500",
   "artifactSha256": {
-    "scalar": "7cca1810dafd0ce84cbb434bed78bdc4aaa7de9aef265ae74fc3335cec567e89",
-    "simd128": "245191c9b0882e3e6e007f083dadcfdad21f6a1a287b49328c8fdd70dadbe660"
+    "scalar": "01c0f1fd8a5bb52a63d4711cc1b9166fe84f5efc25af44dd98ffd2c13a91fc7f",
+    "simd128": "fcf695b3078c6d3da89951c6e0f0fe95547e8bec7053df13f7f6cc1014cc0007"
   },
   "cases": [
     {
@@ -1090,7 +1397,7 @@
   ],
   "blockers": [
     "Measured airframe validation is not certified: no airframe dataset is archived.",
-    "UIUC DA4002/DA4022 propellers still fail the fixed CT/CP tolerances with the analytic, XFOIL and extended polars. The separate annular tip/hub/swirl sensitivity diagnostic is not a fidelity override; coverage and low-Re polar accuracy remain unresolved.",
+    "UIUC DA4002/DA4022 propellers still fail the fixed CT/CP tolerances with the analytic, XFOIL and extended polars, and with the extended polar on dynamic inflow. The separate annular tip/hub/swirl sensitivity diagnostic is not a fidelity override; coverage and low-Re polar accuracy remain unresolved.",
     "NASA measured fidelity is deferred by the user, not passed. The historical failing comparison is hash-checked and retained separately from active acceptance.",
     "Configurable BET polar/rotor-to-body session injection is implemented; the application still selects its demo backend by default. Browser autopilot admission remains separate.",
     "Configuration-driven NeuralFoil surrogate numerical validation is separate from fidelity: 61/72 cases carry confidence or validity flags; no measured rotor/airframe acceptance is claimed.",
@@ -1099,12 +1406,12 @@
   "diagnostics": {
     "betRuntime": {
       "path": "test-results/validation/bet-runtime.json",
-      "reportSha256": "849d29be8c46cf854b2ee8ba2f75b113a9d4af63aa8e9470344311d5bf9bfdbe",
+      "reportSha256": "4ecfb0e0587d0d600f5e0b39e16357d58897cd6d6b9d775cf3499ad06d21bfc5",
       "status": "pass"
     },
     "betRuntimeAllocation": {
       "path": "test-results/validation/bet-runtime-allocation.json",
-      "reportSha256": "34a6a52d7bf9aa63faf1fdcacfe06844513d4182becea295f419124584f4a653",
+      "reportSha256": "69b98b724b2076b7eb9b0cb197686ff88447f42e9469005aa8f18adfa5257a12",
       "status": "pass"
     },
     "jsbsimBackend": {

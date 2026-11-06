@@ -40,6 +40,8 @@ export interface ProfileDynamicsOptions {
   readonly densityKgM3?: number; readonly viscosityPaS?: number; readonly soundMps?: number;
   /** TASK-091 opt-in rotor kernel options (`KERNEL_OPTION_*` of @mirage/wasm-bet/rotor); 0 by default. */
   readonly kernelOptions?: number;
+  /** TASK-098: dynamic inflow, on unless a caller asks for the fixed-lag model of TASK-033. */
+  readonly dynamicInflow?: boolean;
   /** TASK-146 component ratings, in rotor order; null or absent checks none. */
   readonly limitRatings?: LimitRatings | null;
   /**
@@ -146,13 +148,14 @@ export function buildProfileDynamics(input: VehicleManifest, options: ProfileDyn
   const configuration: BetFlightConfiguration = {
     manifest: model, polars,
     initialOmegaRadS: new Array<number>(n).fill(0), motorMaxTorqueNm: new Array<number>(n).fill(0),
-    inflowTauS: new Array<number>(n).fill(PROFILE_ROTOR_SETTINGS.inflowTauS),
+    // Dynamic inflow derives its time constant from the flow (TASK-098): 0 asks for it.
+    inflowTauS: new Array<number>(n).fill(options.dynamicInflow === false ? PROFILE_ROTOR_SETTINGS.inflowTauS : 0),
     inflowLimitMps: new Array<number>(n).fill(PROFILE_ROTOR_SETTINGS.inflowLimitMps),
     pilotMix: Array.from({ length: n }, () => [1, 0, 0, 0]).flat(), motorMapId: manifest.modelId,
     initialBody, minimumConfidence: PROFILE_ROTOR_SETTINGS.minimumConfidence,
     densityKgM3: options.densityKgM3 ?? air.densityKgM3, viscosityPaS: options.viscosityPaS ?? air.dynamicViscosityPaS,
     soundMps: options.soundMps ?? air.speedOfSoundMps, syntheticGroundDownM: gear ? undefined : 0, drive, configurationFlags,
-    kernelOptions: options.kernelOptions ?? 0, limitRatings: options.limitRatings ?? null,
+    kernelOptions: options.kernelOptions ?? 0, dynamicInflow: options.dynamicInflow !== false, limitRatings: options.limitRatings ?? null,
     ...(airframeDrag ? { airframeDrag } : {}),
   };
   return Object.freeze({ configuration, limitations: Object.freeze(limitations), gear });

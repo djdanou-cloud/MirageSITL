@@ -28,9 +28,9 @@ fn loads_and_transmitted_shaft_reaction_match_closed_form(){
 }
 #[test]
 fn errors_preserve_output_and_state_and_old_versions_are_rejected(){
-    // Configuration versions 2 and 3 carry the kernel options; 0 and 4 are unknown.
+    // Configuration versions 2, 3 and 4 carry the kernel options; 0 and 5 are unknown.
     let(mut c,mut a,mut i)=fixture();let before=a.clone();
-    for version in [0,4] {word(&mut c,0,version);assert_eq!(bound::init(&c,&mut a,0),-7);assert_eq!(before,a);}
+    for version in [0,5] {word(&mut c,0,version);assert_eq!(bound::init(&c,&mut a,0),-7);assert_eq!(before,a);}
     word(&mut c,0,1);
     assert_eq!(bound::init(&c,&mut a,0),0);let before=a.clone();let mut o=[0x5au8;128];
     assert_eq!(bound::step(&mut a,&i,&mut o,1.0/800.0),-4);assert_eq!(before,a);assert_eq!(o,[0x5a;128]);

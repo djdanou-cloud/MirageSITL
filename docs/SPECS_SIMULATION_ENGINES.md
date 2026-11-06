@@ -1014,6 +1014,29 @@ empirical models on a surrogate table, not measured data. A source table keeps i
 catalog ID and bytes, so a profile that stored one keeps its numbers; a card's
 airfoil name selects the extended table.
 
+Dynamic inflow (TASK-098). Configuration version 4 adds option 16, which a
+profile flight asks for. The induced velocity is
+`v(r, psi) = v0 s_k + (r/R) (v_c cos psi + v_s sin psi)` with three Pitt-Peters
+states, in the dimensional form `M R dv/dt + V L^-1 v = (T/(rho A), M_c/(rho A R),
+M_s/(rho A R))`, `M = diag(128/(75 pi), 16/(45 pi), 16/(45 pi))`. With climb V_c along
+the thrust, transverse speed V_x and `W = sqrt(V_x^2 + (V_c + v)^2)`: the mean's target
+solves Glauert's `v W = T/(2 rho A)`; `tan(chi/2) = V_x/(W + |V_c + v|)`; in wind axes
+`L11 = 1/2`, `L13 = L31 = (15 pi/64) tan(chi/2)`, lateral `L = 2 (1 + tan^2(chi/2))`,
+longitudinal `L = 2 (1 - tan^2(chi/2))`, and the quasi-steady states are `L V^-1 F` with
+`V = diag(W, H, H)`, `H = (V_x^2 + |(V_c + v)(V_c + 2 v)|)/W`. Each state relaxes exactly
+towards its target over a step, with the mean's `tau = M0 R/(2 (W + v |V_c + v|/W))`,
+which is `M0 R/(4 v)` in hover, and the harmonics' `M2 R 2/H`, capped at 1 s; an inflow
+tau above 0 replaces both, and 0 asks for these. Once per step, at zero or positive climb,
+each annulus solves `F v W = dT/(4 pi r dr rho)` with the Prandtl tip and hub factor F of
+the helix angle `sin(phi) = W/sqrt(W^2 + (Omega r)^2)`, by at most four iterations; the
+area-weighted mean over Glauert's root is the loss, each annulus over the mean its shape
+`s_k`, and both follow with the mean's lag. In descent the mean's target is the baseline
+of Johnson's model (NASA TP-2005-213477, tables 3 and 4), and the field relaxes to uniform.
+Descent, an advance ratio above 0.3 and an iteration cap set the inflow's validity flag.
+The configuration ends with a state region of (3 + strips) f64, zero at initialization and
+reset: the two harmonics, the loss minus 1 and each strip's shape minus 1. Interface v2
+reports the harmonics in `inflow_cos` and `inflow_sin` with validity bit 2.
+
 Configuration version 3 (TASK-097) adds option 8, rotational lift augmentation,
 which an extended table asks for: bytes 112 and 120 hold the f64 lift slope (1/rad)
 and zero-lift angle (rad), and stay reserved zero otherwise, as in versions 1 and 2,

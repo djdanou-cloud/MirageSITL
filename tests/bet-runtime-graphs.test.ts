@@ -20,6 +20,9 @@ describe('BET runtime allocation graphs', () => {
   it('include the TASK-097 full-range table in both WASM variants', () => {
     expect(ALLOCATION_GRAPHS.filter(([name]) => name === 'extended-polar-synthetic-pad-four-rotor').map(([, variant]) => variant)).toEqual(['scalar', 'simd128']);
   });
+  it('include the TASK-098 dynamic inflow in both WASM variants', () => {
+    expect(ALLOCATION_GRAPHS.filter(([name]) => name === 'dynamic-inflow-synthetic-pad-four-rotor').map(([, variant]) => variant)).toEqual(['scalar', 'simd128']);
+  });
   it('admit exactly the complete set', () => {
     expect(completeAllocationSamples(complete())).toBe(true);
     expect(completeAllocationSamples(complete().reverse())).toBe(true);

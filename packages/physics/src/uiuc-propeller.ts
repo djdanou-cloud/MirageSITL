@@ -162,6 +162,8 @@ export type PolarReport =
       readonly sourceSha256: string;
       readonly tableSha256: string;
       readonly rotational: { readonly liftSlopePerRad: number; readonly zeroLiftAlphaRad: number };
+      /** TASK-098: the flight model's dynamic inflow at a steady state, instead of the uniform momentum closure. */
+      readonly inflowModel?: "pitt-peters-annular";
       readonly alphaRangeRad: readonly [number, number];
       readonly reynoldsRange: readonly [number, number];
     };
@@ -505,7 +507,7 @@ export function parseXfoilPolar(value: unknown, sourceSha256: string): PolarChoi
  * polar. It changes which points can be compared (those the XFOIL table leaves outside) and it adds the rotational
  * augmentation; its source stops at +-7.5 degrees, before stall, so its post-stall values are empirical from there on.
  */
-export function extendedChoice(polar: BoundPolar, sourceSha256: string, tableSha256: string): PolarChoice {
+export function extendedChoice(polar: BoundPolar, sourceSha256: string, tableSha256: string, dynamicInflow = false): PolarChoice {
   if (!polar.rotational) fail("sda1075-extended.rotational");
   return {
     table: { alphaRad: polar.alphaRad, reynolds: polar.reynolds, mach: polar.mach, cl: polar.cl, cd: polar.cd, rotational: polar.rotational },
@@ -515,6 +517,7 @@ export function extendedChoice(polar: BoundPolar, sourceSha256: string, tableSha
       sourceSha256: sha256(sourceSha256, "sda1075-extended.sourceSha256"),
       tableSha256: sha256(tableSha256, "sda1075-extended.tableSha256"),
       rotational: polar.rotational,
+      ...(dynamicInflow ? { inflowModel: "pitt-peters-annular" as const } : {}),
       alphaRangeRad: [polar.alphaRad[0] ?? NaN, polar.alphaRad[polar.alphaRad.length - 1] ?? NaN],
       reynoldsRange: [polar.reynolds[0] ?? NaN, polar.reynolds[polar.reynolds.length - 1] ?? NaN],
     },

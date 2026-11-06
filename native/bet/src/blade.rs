@@ -75,6 +75,40 @@ pub struct Rotor<'a> {
     rotational: Option<RotationalAugmentation>,
 }
 
+/// How induced velocity varies over the disk (TASK-098): at a strip and azimuth it is
+/// `induced_mps shape[k] + (r/R) (cos_mps cos(psi) + sin_mps sin(psi))`.
+#[derive(Clone, Copy, Debug)]
+pub struct InflowField<'a> {
+    /// Each strip's multiplier of the mean; empty for 1 everywhere.
+    pub shape: &'a [f64],
+    /// First harmonic on cos(psi) at the tip, m/s.
+    pub cos_mps: f64,
+    /// First harmonic on sin(psi) at the tip, m/s.
+    pub sin_mps: f64,
+}
+
+impl InflowField<'static> {
+    /// The uniform inflow of `RotorInput::induced_mps` alone.
+    pub const UNIFORM: Self = Self { shape: &[], cos_mps: 0.0, sin_mps: 0.0 };
+}
+
+impl InflowField<'_> {
+    #[inline(always)]
+    fn harmonics(&self) -> bool {
+        self.cos_mps != 0.0 || self.sin_mps != 0.0
+    }
+    /// The induced velocity at a strip and azimuth; exactly `induced` for the uniform field.
+    #[inline(always)]
+    fn local(&self, induced: f64, k: usize, r_over_tip: f64, c: f64, s: f64) -> f64 {
+        let mean = if self.shape.is_empty() { induced } else { induced * self.shape[k] };
+        if self.harmonics() { mean + r_over_tip * (self.cos_mps * c + self.sin_mps * s) } else { mean }
+    }
+    /// A shape of the strip count or none, and finite values.
+    fn valid(&self, strips: usize) -> bool {
+        (self.shape.is_empty() || self.shape.len() == strips) && self.cos_mps.is_finite() && self.sin_mps.is_finite() && self.shape.iter().all(|x| x.is_finite())
+    }
+}
+
 /// Rotational lift augmentation (TASK-097): Snel et al. 1994,
 /// `dC_L = 3 (c/r)^2 (C_L,inv - C_L)` with `C_L,inv = slope (alpha - alpha_0)`.
 /// The source gives no limit at high angle of attack, so a smoothstep fades it
@@ -175,6 +209,16 @@ impl<'a> Rotor<'a> {
     }
     /// Integrates section 3. Invalid states/overflow are errors, never zero-force success.
     pub fn evaluate(&self, i: RotorInput) -> Result<RotorWrench, RotorError> {
+        self.evaluate_field(i, InflowField::UNIFORM, None)
+    }
+    /// `evaluate` on an inflow field; with `strip_thrust_n`, also each strip's thrust over the azimuth rule.
+    pub fn evaluate_field(&self, i: RotorInput, field: InflowField<'_>, mut strip_thrust_n: Option<&mut [f64]>) -> Result<RotorWrench, RotorError> {
+        if !field.valid(self.geometry.radius.len()) {
+            return Err(RotorError);
+        }
+        if let Some(thrust) = strip_thrust_n.as_deref_mut() {
+            thrust.fill(0.0);
+        }
         let scalars = [
             i.density_kg_m3,
             i.viscosity_pa_s,
@@ -219,7 +263,7 @@ impl<'a> Rotor<'a> {
                     .air_velocity_hub_mps
                     .add(i.body_rate_hub_rad_s.cross(r).scale(-1.0))
                     .add(et.scale(-i.omega_rad_s * g.radius[k]))
-                    .add(Vec3::new(0.0, 0.0, -i.induced_mps));
+                    .add(Vec3::new(0.0, 0.0, -field.local(i.induced_mps, k, g.radius[k] / g.radius_m, c, s)));
                 let perpendicular = v.add(er.scale(-v.dot(er)));
                 let speed = perpendicular.norm();
                 if speed < MIN_RELATIVE_SPEED_MPS {
@@ -248,6 +292,9 @@ impl<'a> Rotor<'a> {
                     p.cd,
                 )
                 .scale(weight);
+                if let Some(thrust) = strip_thrust_n.as_deref_mut() {
+                    thrust[k] += f.z;
+                }
                 out.force_n = out.force_n.add(f);
                 out.moment_nm = out.moment_nm.add(r.cross(f));
                 out.flap_load_nm = out
@@ -276,6 +323,16 @@ impl<'a> Rotor<'a> {
     /// attack wraps without `fmod` (`wrap_angle`), and the element speed is
     /// taken once. Configurations without kernel options run it.
     pub fn evaluate_fast(&self, i: RotorInput) -> Result<RotorWrench, RotorError> {
+        self.evaluate_fast_field(i, InflowField::UNIFORM, None)
+    }
+    /// `evaluate_fast` on an inflow field; the same bits as `evaluate_field`.
+    pub fn evaluate_fast_field(&self, i: RotorInput, field: InflowField<'_>, mut strip_thrust_n: Option<&mut [f64]>) -> Result<RotorWrench, RotorError> {
+        if !field.valid(self.geometry.radius.len()) {
+            return Err(RotorError);
+        }
+        if let Some(thrust) = strip_thrust_n.as_deref_mut() {
+            thrust.fill(0.0);
+        }
         let scalars = [
             i.density_kg_m3,
             i.viscosity_pa_s,
@@ -321,7 +378,7 @@ impl<'a> Rotor<'a> {
                     .air_velocity_hub_mps
                     .add(i.body_rate_hub_rad_s.cross(r).scale(-1.0))
                     .add(et.scale(-i.omega_rad_s * g.radius[k]))
-                    .add(Vec3::new(0.0, 0.0, -i.induced_mps));
+                    .add(Vec3::new(0.0, 0.0, -field.local(i.induced_mps, k, g.radius[k] / g.radius_m, c, s)));
                 let perpendicular = v.add(er.scale(-v.dot(er)));
                 let speed = perpendicular.norm();
                 if speed < MIN_RELATIVE_SPEED_MPS {
@@ -350,6 +407,9 @@ impl<'a> Rotor<'a> {
                     p.cd,
                 )
                 .scale(weight);
+                if let Some(thrust) = strip_thrust_n.as_deref_mut() {
+                    thrust[k] += f.z;
+                }
                 out.force_n = out.force_n.add(f);
                 out.moment_nm = out.moment_nm.add(r.cross(f));
                 out.flap_load_nm = out
@@ -385,22 +445,32 @@ impl<'a> Rotor<'a> {
     /// intermediates and angles outside the conditional wrap fall back to
     /// `evaluate_resolved`, the increment 2 kernel.
     pub fn evaluate_sampled(&self, i: RotorInput, stride: usize) -> Result<RotorWrench, RotorError> {
-        KERNEL_SCRATCH.with_borrow_mut(|scratch| self.evaluate_in(i, stride, scratch))
+        self.evaluate_sampled_field(i, stride, InflowField::UNIFORM, None)
+    }
+    /// `evaluate_sampled` on an inflow field; within T1 of `evaluate_field`.
+    pub fn evaluate_sampled_field(&self, i: RotorInput, stride: usize, field: InflowField<'_>, strip_thrust_n: Option<&mut [f64]>) -> Result<RotorWrench, RotorError> {
+        if !field.valid(self.geometry.radius.len()) {
+            return Err(RotorError);
+        }
+        KERNEL_SCRATCH.with_borrow_mut(|scratch| self.evaluate_in(i, stride, field, strip_thrust_n, scratch))
     }
 
     /// `evaluate_sampled` on the thread's scratch. Every lane it reads is written
     /// earlier in this evaluation, and the Reynolds logarithms are checked against
     /// the table's axis, so what the scratch last held cannot change a result.
     #[inline]
-    fn evaluate_in(&self, i: RotorInput, stride: usize, scratch: &mut KernelScratch) -> Result<RotorWrench, RotorError> {
+    fn evaluate_in(&self, i: RotorInput, stride: usize, field: InflowField<'_>, mut strip_thrust_n: Option<&mut [f64]>, scratch: &mut KernelScratch) -> Result<RotorWrench, RotorError> {
         if stride == 0 || self.grid.len() % stride != 0 {
             return Err(RotorError);
         }
-        let KernelScratch { strips, logs, u_t: lane_u_t, u_z: lane_u_z, reynolds_per_speed, force_per_speed, rotational_factor, force_t: lane_force_t, force_z: lane_force_z,
+        if let Some(thrust) = strip_thrust_n.as_deref_mut() {
+            thrust.fill(0.0);
+        }
+        let KernelScratch { strips, logs, u_t: lane_u_t, u_z: lane_u_z, axial: lane_axial, reynolds_per_speed, force_per_speed, rotational_factor, force_t: lane_force_t, force_z: lane_force_z,
             moment_t: lane_moment_t, moment_z: lane_moment_z } = scratch;
         let polar = self.polar.prepare_kernel(logs);
         if !polar.usable() {
-            return self.evaluate_resolved(i, stride);
+            return self.evaluate_resolved(i, stride, field, strip_thrust_n);
         }
         let scalars = [
             i.density_kg_m3,
@@ -452,6 +522,15 @@ impl<'a> Rotor<'a> {
         let inverse_sound = 1.0 / i.sound_speed_mps;
         let (air, rate) = (i.air_velocity_hub_mps, i.body_rate_hub_rad_s);
         let axial_air = air.z - i.induced_mps;
+        if field.shape.is_empty() {
+            lane_axial[..n].fill(axial_air);
+        } else {
+            for k in 0..n {
+                lane_axial[k] = air.z - i.induced_mps * field.shape[k];
+            }
+        }
+        let harmonics = field.harmonics();
+        let inverse_tip = 1.0 / g.radius_m;
         let z = Vec3::new(0.0, 0.0, 1.0);
         let (re_first, re_last) = polar.reynolds_bounds();
         // Each strip's Reynolds bracket is carried across azimuth samples.
@@ -460,14 +539,15 @@ impl<'a> Rotor<'a> {
             let (c, s) = self.grid.sample(j).ok_or(RotorError)?;
             let et = Vec3::new(-spin * s, spin * c, 0.0);
             let swept = rate.cross(Vec3::new(c, s, 0.0));
-            let (air_t, per_radius_t, per_radius_z) = (air.dot(et), swept.dot(et) + i.omega_rad_s, swept.z);
+            let (air_t, per_radius_t) = (air.dot(et), swept.dot(et) + i.omega_rad_s);
+            let per_radius_z = if harmonics { swept.z + inverse_tip * (field.cos_mps * c + field.sin_mps * s) } else { swept.z };
             let pitch = i.collective_rad + i.cyclic_cos_rad * c + i.cyclic_sin_rad * s;
             // Pass 1, branch-free so that it vectorizes, in two loops that each keep their constants in
             // registers: velocity, speed and angle of attack; then Re, Mach and ln Re.
             let mut regular = true;
             for k in 0..n {
                 let r = radius[k];
-                let (u_t, u_z) = (air_t - r * per_radius_t, axial_air - r * per_radius_z);
+                let (u_t, u_z) = (air_t - r * per_radius_t, lane_axial[k] - r * per_radius_z);
                 let speed = crate::sqrt(u_t * u_t + u_z * u_z);
                 let x = pitch + twist[k] - atan2_kernel(-u_z, -u_t) + PI;
                 // `wrap_angle` on [-TAU, 2 TAU); anything else (or a non-finite value) takes the fallback.
@@ -488,7 +568,7 @@ impl<'a> Rotor<'a> {
                 strips.mach[k] = speed * inverse_sound;
             }
             if !regular {
-                return self.evaluate_resolved(i, stride);
+                return self.evaluate_resolved(i, stride, field, strip_thrust_n);
             }
             // Pass 2: the polar lookups, then the rotational augmentation, branch-free, if this rotor asks for it.
             out.flags |= polar.sample_strips(strips, n, MIN_RELATIVE_SPEED_MPS, out.flags);
@@ -511,6 +591,11 @@ impl<'a> Rotor<'a> {
                 lane_force_z[k] = f_z;
                 lane_moment_t[k] = r * f_t;
                 lane_moment_z[k] = r * f_z;
+            }
+            if let Some(thrust) = strip_thrust_n.as_deref_mut() {
+                for k in 0..n {
+                    thrust[k] += lane_force_z[k];
+                }
             }
             // The sums along the blade, in strip order in every build.
             let (mut force_t, mut force_z, mut moment_t, mut moment_z) = (0.0, 0.0, 0.0, 0.0);
@@ -537,9 +622,12 @@ impl<'a> Rotor<'a> {
     /// The T1 kernel of TASK-091 increment 2, kept as the fallback of
     /// `evaluate_sampled` for tables `KernelPolar` cannot serve and for steps
     /// with a non-finite intermediate or an angle outside the conditional wrap.
-    fn evaluate_resolved(&self, i: RotorInput, stride: usize) -> Result<RotorWrench, RotorError> {
+    fn evaluate_resolved(&self, i: RotorInput, stride: usize, field: InflowField<'_>, mut strip_thrust_n: Option<&mut [f64]>) -> Result<RotorWrench, RotorError> {
         if stride == 0 || self.grid.len() % stride != 0 {
             return Err(RotorError);
+        }
+        if let Some(thrust) = strip_thrust_n.as_deref_mut() {
+            thrust.fill(0.0);
         }
         let scalars = [
             i.density_kg_m3,
@@ -594,13 +682,15 @@ impl<'a> Rotor<'a> {
             // The element's in-plane relative velocity lies in span(et, z): u_t = v.et and u_z = v.z,
             // with v = air - rate x (r er) - omega r et - induced z, linear in r along each azimuth.
             let swept = rate.cross(er);
-            let (air_t, per_radius_t, per_radius_z) = (air.dot(et), swept.dot(et) + i.omega_rad_s, swept.z);
+            let (air_t, per_radius_t) = (air.dot(et), swept.dot(et) + i.omega_rad_s);
+            let per_radius_z = if field.harmonics() { swept.z + (field.cos_mps * c + field.sin_mps * s) / g.radius_m } else { swept.z };
             let pitch = i.collective_rad + i.cyclic_cos_rad * c + i.cyclic_sin_rad * s;
             // Sums along the blade of the element force on et and z and of their moments.
             let (mut force_t, mut force_z, mut moment_t, mut moment_z) = (0.0, 0.0, 0.0, 0.0);
             for k in 0..n {
                 let r = g.radius[k];
-                let (u_t, u_z) = (air_t - r * per_radius_t, axial_air - r * per_radius_z);
+                let axial = if field.shape.is_empty() { axial_air } else { air.z - i.induced_mps * field.shape[k] };
+                let (u_t, u_z) = (air_t - r * per_radius_t, axial - r * per_radius_z);
                 let speed = crate::sqrt(u_t * u_t + u_z * u_z);
                 if speed < MIN_RELATIVE_SPEED_MPS {
                     continue;
@@ -617,6 +707,9 @@ impl<'a> Rotor<'a> {
                 let q = force_per_speed[k] * speed;
                 let cl = self.section_lift(p.cl, alpha, k);
                 let (f_t, f_z) = (q * (cl * u_z + p.cd * u_t), q * (p.cd * u_z - cl * u_t));
+                if let Some(thrust) = strip_thrust_n.as_deref_mut() {
+                    thrust[k] += f_z;
+                }
                 force_t += f_t;
                 force_z += f_z;
                 moment_t += r * f_t;
@@ -644,6 +737,7 @@ struct KernelScratch {
     logs: ReynoldsLogs,
     u_t: [f64; MAX_STRIPS],
     u_z: [f64; MAX_STRIPS],
+    axial: [f64; MAX_STRIPS],
     reynolds_per_speed: [f64; MAX_STRIPS],
     force_per_speed: [f64; MAX_STRIPS],
     rotational_factor: [f64; MAX_STRIPS],
@@ -658,7 +752,7 @@ thread_local! {
     /// no destructor, so that reaching it allocates nothing either.
     static KERNEL_SCRATCH: RefCell<KernelScratch> = const {
         const ZERO: [f64; MAX_STRIPS] = [0.0; MAX_STRIPS];
-        RefCell::new(KernelScratch { strips: StripLanes::new(), logs: ReynoldsLogs::new(), u_t: ZERO, u_z: ZERO, reynolds_per_speed: ZERO,
+        RefCell::new(KernelScratch { strips: StripLanes::new(), logs: ReynoldsLogs::new(), u_t: ZERO, u_z: ZERO, axial: ZERO, reynolds_per_speed: ZERO,
             force_per_speed: ZERO, rotational_factor: ZERO, force_t: ZERO, force_z: ZERO, moment_t: ZERO, moment_z: ZERO })
     };
 }

@@ -492,7 +492,10 @@ implementation.
   cover every angle of attack and Mach numbers to 0.7 from the NeuralFoil tables
   (`tests/fixtures/polars/generate_extended.py`), flagged low confidence outside
   the source range, with rotational lift augmentation in bound configuration
-  version 3; source tables keep their IDs and bytes. TASK-093 is DONE: `weather.set`
+  version 3; source tables keep their IDs and bytes. TASK-098 is DONE: profile
+  flights use Pitt-Peters dynamic inflow with annular tip and hub losses and the
+  derived millisecond time constant (bound configuration version 4), and a rotor
+  that does not ask for it runs the old model bitwise. TASK-093 is DONE: `weather.set`
   applies on its tick to `BetFlightDynamics` (the demo still rejects it); every
   step the rotors read the ISA air at the CG's height above the origin's air
   and a uniform mean wind with a seeded TASK-032 gust, the published airspeed

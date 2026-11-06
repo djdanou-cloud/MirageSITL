@@ -3,7 +3,7 @@
 //
 //   node scripts/bench-bet.mjs [--steps N] [--out PATH] [--baseline PATH] [--fixtures a,b] [--variants a,b] [--rates a,b]
 //                              [--kernel-options N] [--sections flight,rotor,native]
-//                              [--scenario still-air|crossflow] [--minimum-confidence C] [--polar CATALOG_ID]
+//                              [--scenario still-air|crossflow] [--minimum-confidence C] [--polar CATALOG_ID] [--dynamic-inflow]
 //
 // --kernel-options turns on the TASK-091 opt-in modes (1 reduced predictor, 2 hover sampling, 3 both) or the
 // exact kernel (4) for every rotor. --sections selects the parts of the report to run (all by default).
@@ -51,6 +51,7 @@ const sections = list('sections', ['flight', 'rotor', 'native']);
 const scenario = option('scenario', 'still-air');
 if (!['still-air', 'crossflow'].includes(scenario)) { console.error('Invalid --scenario'); process.exit(2); }
 const polarId = option('polar', 'naca6409-neuralfoil-v1');
+const dynamicInflow = process.argv.includes('--dynamic-inflow');
 const minimumConfidence = Number(option('minimum-confidence', '0.9'));
 if (!(minimumConfidence >= 0 && minimumConfidence <= 1)) { console.error('Invalid --minimum-confidence'); process.exit(2); }
 const loadStart = os.loadavg();
@@ -88,7 +89,7 @@ async function vehicleOf(fixture) {
   if (!resolved.components) throw new Error(`Missing: ${resolved.missing.join('; ')}`);
   const derived = await M.deriveVehicleManifest(profile, resolved.components, { modelId: 91 });
   // The BET compute alone, on the synthetic pad as before TASK-095: the gear's contact is timed by scripts/bench-flight-contact.mjs.
-  return { fixture, derived, configuration: M.buildProfileDynamics(derived.manifest, { kernelOptions, syntheticPad: true }).configuration };
+  return { fixture, derived, configuration: M.buildProfileDynamics(derived.manifest, { kernelOptions, syntheticPad: true, dynamicInflow }).configuration };
 }
 const vehicles = [];
 for (const fixture of fixtures) vehicles.push(await vehicleOf(fixture));
@@ -132,7 +133,7 @@ for (const variant of sections.includes('flight') ? variants : []) {
 
 // ---- one sixteen-motor rotor, for the rotor ticks and the native steps ---------------------------
 const sixteen = (await vehicleOf('octa-coaxial-16')).configuration, rotor = sixteen.manifest.rotors[0];
-const definition = { geometry: rotor, polar: sixteen.polars.get(rotor.polarId), initialOmegaRadS: 500, inflowTauS: 0.1, inflowLimitMps: 500, minimumConfidence, kernelOptions };
+const definition = { geometry: rotor, polar: sixteen.polars.get(rotor.polarId), initialOmegaRadS: 500, dynamicInflow, inflowTauS: dynamicInflow ? 0 : 0.1, inflowLimitMps: 500, minimumConfidence, kernelOptions };
 
 // ---- WASM bound-rotor ticks -------------------------------------------------------------------
 const rotorTicks = [];
@@ -211,7 +212,7 @@ const report = {
   vehicles: vehicles.map(v => ({ fixture: v.fixture, rotors: v.derived.manifest.rotorCount, manifestSha256: v.derived.sha256 })),
   load: 'synthetic pad at 0.8 x hover-trim duty, spun up from rest; cards tests/fixtures/components/*-example.json; polar naca6409-neuralfoil-v1',
   budget: 'Step period 1/hz; A-05 judges the mean real-time ratio (at least 0.99); the G3 compute limit is 0.4167 ms at 1200 Hz',
-  rows: { fixtures, variants: variantNames, rates, sections, scenario, minimumConfidence, polar: polarId }, kernelOptions, wasm, rotorTicks, native, comparison,
+  rows: { fixtures, variants: variantNames, rates, sections, scenario, minimumConfidence, polar: polarId, dynamicInflow }, kernelOptions, wasm, rotorTicks, native, comparison,
   identity: { commit: git('rev-parse', 'HEAD'), dirty: git('status', '--porcelain', '--', 'native/bet/src', 'packages') !== '',
     node: process.version, platform: process.platform, arch: process.arch, cpu, cpus: os.cpus().length, rustc,
     loadAverage: { start: loadStart, end: os.loadavg() },

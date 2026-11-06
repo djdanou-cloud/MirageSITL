@@ -32,6 +32,7 @@ const adapters = [
   "uiuc-propeller-bet-v1",
   "uiuc-propeller-bet-xfoil-v1",
   "uiuc-propeller-bet-extended-v1",
+  "uiuc-propeller-bet-inflow-v1",
 ];
 const XFOIL_POLAR = "tests/fixtures/polars/sda1075-xfoil.json";
 const EXTENDED_POLAR = "tests/fixtures/polars/sda1075-extended.json";
@@ -118,6 +119,8 @@ async function measuredCase(m) {
     return propellerCase(common, bytes, await registeredPolar(registry));
   if (m.adapter === "uiuc-propeller-bet-extended-v1")
     return propellerCase(common, bytes, await registeredExtendedPolar(registry));
+  if (m.adapter === "uiuc-propeller-bet-inflow-v1")
+    return propellerCase(common, bytes, await registeredExtendedPolar(registry, true), runPropellerBetDynamic);
   const result = await evaluateNasaDrop(
     parseNasaDropFixture(JSON.parse(bytes.toString("utf8"))),
   );
@@ -137,6 +140,14 @@ function runPropellerBet(input) {
     { cwd: join(root, "native"), input, encoding: "utf8", maxBuffer: 1 << 26 },
   );
 }
+/** The same runner with the flight model's dynamic inflow (TASK-098), in release, because it marches each point to a steady state. */
+function runPropellerBetDynamic(input) {
+  return execFileSync(
+    "cargo",
+    ["run", "-q", "--release", "--locked", "-p", "mirage-bet", "--example", "propeller_points", "--", "--dynamic-inflow"],
+    { cwd: join(root, "native"), input, encoding: "utf8", maxBuffer: 1 << 26 },
+  );
+}
 /** Hash-checks the synthetic XFOIL polar against its registry entry. */
 async function registeredPolar(registry) {
   const bytes = readFileSync(join(root, XFOIL_POLAR)),
@@ -149,7 +160,7 @@ async function registeredPolar(registry) {
     throw new Error("The XFOIL polar must carry synthetic provenance");
   return parseXfoilPolar(JSON.parse(bytes.toString("utf8")), manifest.sourceSha256);
 }
-async function registeredExtendedPolar(registry) {
+async function registeredExtendedPolar(registry, dynamicInflow = false) {
   const bytes = readFileSync(join(root, EXTENDED_POLAR)),
     entry = registry.fixtures.find((item) => `tests/fixtures/${item.path}` === EXTENDED_POLAR);
   if (!entry) throw new Error(`Unregistered polar fixture: ${EXTENDED_POLAR}`);
@@ -158,9 +169,9 @@ async function registeredExtendedPolar(registry) {
   const table = JSON.parse(bytes.toString("utf8"));
   // The table must name the source that is in the repository now.
   if (table.source?.sha256 !== sha(readFileSync(join(root, XFOIL_POLAR)))) throw new Error("The extended polar does not match its source");
-  return extendedChoice(parseNeuralFoilPolar(table), table.source.sha256, manifest.sourceSha256);
+  return extendedChoice(parseNeuralFoilPolar(table), table.source.sha256, manifest.sourceSha256, dynamicInflow);
 }
-function propellerCase(common, bytes, polar) {
+function propellerCase(common, bytes, polar, runner = runPropellerBet) {
   const payload = JSON.parse(bytes.toString("utf8")),
     fixture = parseUiucPropellerFixture(payload),
     inventoryBytes = readFileSync(join(root, "data/uiuc-propdb/inventory.json")),
@@ -173,7 +184,7 @@ function propellerCase(common, bytes, polar) {
   )
     throw new Error(`UIUC fixture does not match the archive inventory: ${common.id}`);
   const { points, ...summary } = polar
-    ? evaluateUiucPropellers(fixture, runPropellerBet, polar)
+    ? evaluateUiucPropellers(fixture, runner, polar)
     : evaluateUiucPropellers(fixture, runPropellerBet);
   return {
     kind: "propeller",
@@ -427,7 +438,7 @@ export async function validateModels() {
     cases,
     blockers: [
       "Measured airframe validation is not certified: no airframe dataset is archived.",
-      "UIUC DA4002/DA4022 propellers still fail the fixed CT/CP tolerances with the analytic, XFOIL and extended polars. The separate annular tip/hub/swirl sensitivity diagnostic is not a fidelity override; coverage and low-Re polar accuracy remain unresolved.",
+      "UIUC DA4002/DA4022 propellers still fail the fixed CT/CP tolerances with the analytic, XFOIL and extended polars, and with the extended polar on dynamic inflow. The separate annular tip/hub/swirl sensitivity diagnostic is not a fidelity override; coverage and low-Re polar accuracy remain unresolved.",
       "NASA measured fidelity is deferred by the user, not passed. The historical failing comparison is hash-checked and retained separately from active acceptance.",
       "Configurable BET polar/rotor-to-body session injection is implemented; the application still selects its demo backend by default. Browser autopilot admission remains separate.",
       `Configuration-driven NeuralFoil surrogate numerical validation is separate from fidelity: ${surrogate.counts.flagged}/${surrogate.counts.numerical} cases carry confidence or validity flags; no measured rotor/airframe acceptance is claimed.`,

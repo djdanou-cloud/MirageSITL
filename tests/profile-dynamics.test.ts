@@ -176,7 +176,7 @@ describe('geometry and component changes change the forces', () => {
       // Pitch balance about the CG (x = 0.005 m): T_front·(L/√2 − x_cg) = T_rear·(L/√2 + x_cg).
       const half = lengthM / Math.SQRT2, cg = 0.005, front = trim.thrustN[0]!, rear = trim.thrustN[1]!;
       expect(Math.abs(front / rear - (half + cg) / (half - cg))).toBeLessThan(1e-6);
-      expect(trim.thrustN[0]).toBe(trim.thrustN[2]);
+      expect(Math.abs(trim.thrustN[0]! - trim.thrustN[2]!)).toBeLessThan(1e-9);
       // The total carries the weight.
       expect(Math.abs(trim.thrustN.reduce((s, t) => s + t, 0) - 1.5 * 9.80665)).toBeLessThan(1e-6);
     }

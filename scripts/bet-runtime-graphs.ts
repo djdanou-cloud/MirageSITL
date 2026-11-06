@@ -17,6 +17,8 @@ export const ALLOCATION_GRAPHS: readonly (readonly [graph: string, variant: Allo
   ["airframe-drag-weather-pad-four-rotor", "scalar"],
   // TASK-097 a full-range table: four Mach nodes, and rotational augmentation on every strip.
   ["extended-polar-synthetic-pad-four-rotor", "scalar"], ["extended-polar-synthetic-pad-four-rotor", "simd128"],
+  // TASK-098 dynamic inflow with its annular solve.
+  ["dynamic-inflow-synthetic-pad-four-rotor", "scalar"], ["dynamic-inflow-synthetic-pad-four-rotor", "simd128"],
 ];
 
 function field(value: unknown, key: string): unknown {

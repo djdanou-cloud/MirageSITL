@@ -21,6 +21,8 @@ if(![0,1,2,3].includes(kernelOptions))throw Error('Invalid --kernel-options');
 // TASK-097: --extended-polar runs the 18 comparisons on the full-range NACA 6409 table, with its rotational
 // augmentation, and writes test-results/validation/bet-runtime-extended.json.
 const extendedPolarRun=process.argv.includes('--extended-polar');
+// TASK-098: --dynamic-inflow runs the 18 comparisons with Pitt-Peters inflow and annular losses, and writes test-results/validation/bet-runtime-inflow.json.
+const dynamicInflowRun=process.argv.includes('--dynamic-inflow');
 if(allocation && !globalThis.gc){
   const result=spawnSync(process.execPath,['--expose-gc','--single-threaded','--max-semi-space-size=64',fileURLToPath(import.meta.url),'--allocation'],{stdio:'inherit'});
   process.exit(result.status??1);
@@ -62,6 +64,7 @@ if(!allocation){
   // `forward` adds a pitch doublet (0.2 for 1 s, then -0.2 for 1 s), which leaves the vehicle tilted and translating.
   function trajectory(module,index,count,hz,options=0,forward=false){
     const configuration=flightConfiguration(index,count,options);
+    if(dynamicInflowRun){configuration.dynamicInflow=true;configuration.inflowTauS=configuration.inflowTauS.map(()=>0);}
     if(extendedPolarRun)configuration.polars=new Map([[0,parseNeuralFoilPolar(JSON.parse(read('tests/fixtures/polars/naca6409-extended.json').toString('utf8')))]]);
     const d=new BetFlightDynamics(module,configuration,hz);
     const pilot={flags:3,throttle:0.5,roll:0,pitch:0,yaw:0,wallTimeMs:0};
@@ -99,7 +102,7 @@ if(!allocation){
   }
   const report={schemaVersion:1,status:cases.every(c=>c.passed)?'pass':'failed',...identity,cases,
     tolerance:{positionM:0.1,attitudeRad:Math.PI/360},scope:'Actual rotor/polar/free-shaft/axial-inflow/frame/body graph; synthetic geometry and NeuralFoil predictions; flags remain active; no measured-fidelity or target-device timing claim'};
-  writeFileSync(resolve(root,`test-results/validation/${extendedPolarRun?'bet-runtime-extended':kernelOptions===0?'bet-runtime':'bet-runtime-modes'}.json`),JSON.stringify(kernelOptions===0?{...report,...(extendedPolarRun?{polar:'naca6409-extended.json'}:{})}:{...report,kernelOptions},null,2)+'\n');
+  writeFileSync(resolve(root,`test-results/validation/${dynamicInflowRun?'bet-runtime-inflow':extendedPolarRun?'bet-runtime-extended':kernelOptions===0?'bet-runtime':'bet-runtime-modes'}.json`),JSON.stringify(kernelOptions===0?{...report,...(extendedPolarRun?{polar:'naca6409-extended.json'}:{})}:{...report,kernelOptions},null,2)+'\n');
   if(report.status!=='pass')process.exitCode=1;
 }else{
   const native=execFileSync('cargo',['test','--release','-p','mirage-bet','--test','allocation','--locked'],{cwd:resolve(root,'native'),encoding:'utf8',stdio:['ignore','pipe','pipe'],timeout:300000});
@@ -277,6 +280,16 @@ if(!allocation){
     fullRun(100000);await measure(fullRun,10000);
     const fullGraph={graph:'extended-polar-synthetic-pad-four-rotor',variant,...await measure(fullRun,1000000),memoryStable:full.engine.memoryStable};
     samples.push(fullGraph);full.dispose();console.log(JSON.stringify(fullGraph));
+  }
+  // TASK-098: dynamic inflow and its annular solve, in a gusty wind on the pad.
+  for(const [variantIndex,variant] of ['scalar','simd128'].entries()){
+    const dynamic=padded();dynamic.dynamicInflow=true;dynamic.inflowTauS=dynamic.inflowTauS.map(()=>0);
+    const flow=new BetFlightDynamics(modules[variantIndex],dynamic,400);
+    if(flow.setWeather(weathers[0])!==null)throw Error('Weather refused');
+    const flowRun=n=>{for(let i=0;i<n;i++){flow.nowMs=0;flow.stepNow(pilot);if(flow.fault||flow.state.down!==0)throw Error('Dynamic inflow allocation step failed');}};
+    flowRun(100000);await measure(flowRun,10000);
+    const flowGraph={graph:'dynamic-inflow-synthetic-pad-four-rotor',variant,...await measure(flowRun,1000000),memoryStable:flow.engine.memoryStable};
+    samples.push(flowGraph);flow.dispose();console.log(JSON.stringify(flowGraph));
   }
   const sink={value:null};const control=n=>{for(let i=0;i<n;i++)sink.value={i};};
   const positive=await measure(control,1000000),controlDetected=positive.gcEvents>0 || positive.bytes>1000000;

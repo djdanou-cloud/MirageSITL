@@ -808,6 +808,9 @@
                     "type": "string",
                     "pattern": "^[a-f0-9]{64}$"
                   },
+                  "inflowModel": {
+                    "const": "pitt-peters-annular"
+                  },
                   "tableSha256": {
                     "type": "string",
                     "pattern": "^[a-f0-9]{64}$"
