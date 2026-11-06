@@ -7,6 +7,28 @@ export interface GroundLattice {
   /** True when every tile intersecting the [north, east, radius] safety square is published. */
   readyFrom(positionRadius: Float64Array): boolean;
 }
+/** The ground within this distance of the vehicle must be published, m: wider than a Phase 1 aircraft and its supports. */
+export const TERRAIN_READY_RADIUS_M = 8;
+/**
+ * TASK-187: the pose of an aircraft standing on `plane` ([nN, nE, nD, offset], the unit normal pointing out of the ground, nD < 0),
+ * from `flat`, its pose on level ground at down 0: its supports square to the slope, the same CG height above the ground measured along
+ * the normal, and the heading it had. Without this a start on a slope pushes its uphill supports into the ground. Cold path.
+ */
+export function standOnPlane(flat: BodyTruth, plane: Float64Array, out: BodyTruth): void {
+  const nN = plane[0] as number, nE = plane[1] as number, nD = plane[2] as number, offset = plane[3] as number; // length 4
+  const north = flat.positionNedM[0] as number, east = flat.positionNedM[1] as number, height = -(flat.positionNedM[2] as number); // length 3
+  out.positionNedM[0] = north; out.positionNedM[1] = east; out.positionNedM[2] = (offset + height - nN * north - nE * east) / nD;
+  // The shortest turn of world down (0, 0, 1) onto the slope's down (-n), then the level pose: (w, x, y, z) = (1 - nD, nE, -nN, 0), normalized.
+  const raw = Math.hypot(1 - nD, nE, nN), tw = (1 - nD) / raw, tx = nE / raw, ty = -nN / raw;
+  const q = flat.quaternionBodyToNed, w = q[0] as number, x = q[1] as number, y = q[2] as number, z = q[3] as number; // length 4
+  out.quaternionBodyToNed[0] = tw * w - tx * x - ty * y;
+  out.quaternionBodyToNed[1] = tw * x + tx * w + ty * z;
+  out.quaternionBodyToNed[2] = tw * y - tx * z + ty * w;
+  out.quaternionBodyToNed[3] = tw * z + tx * y - ty * x;
+  out.velocityNedMps.set(flat.velocityNedMps);
+  out.angularVelocityBodyRadS.set(flat.angularVelocityBodyRadS);
+  out.accelerationNedMps2.set(flat.accelerationNedMps2);
+}
 export const TERRAIN_STEPPED = 0;
 /** Ground under the vehicle is not published: the step did not run and state is unchanged. */
 export const TERRAIN_PAUSED_MISSING_GROUND = 1;
@@ -25,12 +47,11 @@ export class TerrainContactCoupler {
   private readonly planes: Float64Array;
   private readonly query = new Float64Array(3);
   private readonly plane = new Float64Array(4);
-  constructor(
-    private readonly contact: GroundContact,
-    private readonly lattice: GroundLattice,
-    anchorsBodyM: readonly (readonly [number, number, number])[],
-    private readonly readinessRadiusM: number,
-  ) {
+  private readonly contact: GroundContact;
+  private readonly lattice: GroundLattice;
+  private readonly readinessRadiusM: number;
+  constructor(contact: GroundContact, lattice: GroundLattice, anchorsBodyM: readonly (readonly [number, number, number])[], readinessRadiusM: number) {
+    this.contact = contact; this.lattice = lattice; this.readinessRadiusM = readinessRadiusM;
     if (anchorsBodyM.length !== contact.wheelCount) throw new Error("Anchor count must match the contact wheels");
     this.anchors = new Float64Array(anchorsBodyM.length * 3);
     let reach = 0;

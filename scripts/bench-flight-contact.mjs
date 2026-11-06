@@ -5,7 +5,11 @@
 // rest with the motors cut for 1 s. Every cycle touches down; the report counts the touchdowns. Rapier
 // (GroundContact) integrates the body every step.
 //
-//   node scripts/bench-flight-contact.mjs [--steps N] [--timing-steps N] [--location] [--out PATH]
+//   node scripts/bench-flight-contact.mjs [--steps N] [--timing-steps N] [--location] [--terrain] [--out PATH]
+//
+// --terrain (TASK-187) flies over published collision chunks, so every step reads a plane per support. They are level, because this
+// vehicle has no attitude control: on a slope each take-off would drift it off the chunks within the run. tests/terrain-slope-contact.test.ts
+// checks the slopes themselves.
 //
 // --location (TASK-148) flies at ArduPilot's SITL test site: the effective conditions' normal gravity
 // in the body and the contact, and the origin air, so the rotors' air follows the CG's height every step.
@@ -34,8 +38,8 @@ function option(name, fallback) {
   return index >= 0 && index + 1 < process.argv.length ? process.argv[index + 1] : fallback;
 }
 const steps = Number(option('steps', '1000000')), timingSteps = Number(option('timing-steps', '20000'));
-const location = process.argv.includes('--location');
-const out = resolve(root, option('out', location ? 'test-results/bench/flight-contact-location.json' : 'test-results/bench/flight-contact.json'));
+const location = process.argv.includes('--location'), terrain = process.argv.includes('--terrain');
+const out = resolve(root, option('out', terrain ? 'test-results/bench/flight-contact-terrain.json' : location ? 'test-results/bench/flight-contact-location.json' : 'test-results/bench/flight-contact.json'));
 if (!Number.isInteger(steps) || steps < 1000 || !Number.isInteger(timingSteps) || timingSteps < 1000) { console.error('Invalid arguments'); process.exit(2); }
 
 for (const script of ['scripts/build-wasm.mjs', 'scripts/build-contact.mjs'])
@@ -47,6 +51,8 @@ const bundle = resolve(root, '.cache/bench-flight-contact/entry.mjs');
 const bundled = await build({ stdin: { contents: `
 export { BetFlightDynamics } from './packages/physics/src/bet-dynamics.ts';
 export { GroundContact } from './packages/physics/src/ground-contact.ts';
+export { TerrainContactCoupler, TERRAIN_READY_RADIUS_M } from './packages/physics/src/terrain-contact.ts';
+export { CollisionChunks } from './packages/terrain/src/collision-chunks.ts';
 export { flightConfiguration } from './tests/bet-runtime-fixture.ts';
 export { newInput, ControlFlag } from './packages/protocol/src/index.ts';
 export { effectiveConditions } from './packages/sensors/src/environment.ts';
@@ -61,6 +67,16 @@ const wasmBytes = read('packages/wasm-bet/dist/mirage_bet.scalar.wasm'), contact
 const module = new WebAssembly.Module(wasmBytes);
 await M.GroundContact.initialize(new Uint8Array(contactBytes), JSON.parse(read('packages/physics/dist/contact/manifest.json').toString('utf8')));
 const TOUCH_DOWN_M = -0.17;
+/** Chunks of 129 by 129 posts 4 m apart around the origin, at down 0. */
+function levelChunks() {
+  const n = 129, spacing = 4, store = new M.CollisionChunks(1, n, spacing, 32);
+  for (const northIndex of [-1, 0]) for (const eastIndex of [-1, 0]) {
+    const downM = new Float64Array(n * n);
+    if (!store.stage({ version: 1, epoch: 1, revision: 0, resolution: n, spacingM: spacing, northIndex, eastIndex, downM })) throw new Error('A chunk was refused');
+  }
+  if (!store.publishAtTick(1, 0)) throw new Error('The terrain was not published');
+  return store;
+}
 const site = location ? M.effectiveConditions({ latitudeDeg: -35.363261, longitudeDeg: 149.16523, groundElevationMslM: 584, decimalYear: 2026.5 },
   { geoid: await M.loadEgm96Geoid(new Uint8Array(read('data/geoid/WW15MGH.DAC'))),
     magnetic: new M.WorldMagneticModel(M.parseWmmCoefficients(read('data/geomagnetic/WMM_2025.COF').toString('utf8'))) }) : null;
@@ -75,7 +91,12 @@ async function vehicle(hz) {
   c.initialBody.positionNedM[2] = TOUCH_DOWN_M - 0.001;
   if (site) { c.gravityMps2 = site.gravityMps2; c.originAir = { temperatureK: site.air.temperatureK, pressurePa: site.air.pressurePa }; }
   c.contact = await M.GroundContact.forVehicle(c.initialBody, c.manifest, { wheels: legs, hullRadiusM: 0.05, ...(site ? { gravityMps2: site.gravityMps2 } : {}) });
+  if (terrain) {
+    const anchors = legs.map(leg => leg.anchorBodyM);
+    c.contactGround = ground => new M.TerrainContactCoupler(c.contact, ground, anchors, M.TERRAIN_READY_RADIUS_M);
+  }
   const d = new M.BetFlightDynamics(module, c, hz), pilot = M.newInput(), cycle = 7 * hz;
+  if (terrain) d.attachGround(levelChunks());
   let tick = 0, airborne = 0, touchdowns = 0, aloft = false;
   const run = n => {
     for (let i = 0; i < n; i++) {
@@ -139,7 +160,7 @@ console.log(`G1 at 400 Hz: ${allocation.steps} steps, ${allocation.bytesPerStep.
 
 const sources = Object.keys(bundled.metafile.inputs).filter(p => p !== 'bench-entry.ts').map(p => p.replaceAll('\\', '/')).sort();
 const report = {
-  schemaVersion: 1, task: location ? 'TASK-095, TASK-148' : 'TASK-095', status: passed ? 'pass' : 'failed',
+  schemaVersion: 1, task: terrain ? 'TASK-095, TASK-187' : location ? 'TASK-095, TASK-148' : 'TASK-095', status: passed ? 'pass' : 'failed',
   ...(site ? { location: { latitudeDeg: site.latitudeDeg, longitudeDeg: site.longitudeDeg, gravityMps2: site.gravityMps2, originAir: site.air } } : {}),
   vehicle: { fixture: 'tests/bet-runtime-fixture.ts flightConfiguration() with 0.6 N m motors on four legs (tests/flight-contact.test.ts)',
     load: 'repeated 7 s cycle on a vertical-speed loop: climb toward 1 m/s for 1 s, descend toward 1 m/s for 5 s onto the legs, rest 1 s with the motors cut' },

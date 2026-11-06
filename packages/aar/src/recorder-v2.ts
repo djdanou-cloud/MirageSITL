@@ -54,6 +54,8 @@ export interface ProducerSample {
   readonly actuator: ActuatorFrameV2 | null;
   readonly sensor: SensorFrameV2 | null;
   readonly power: PowerTelemetrySource | null;
+  /** TASK-187: each support's normal load of this tick; null or absent without supports. */
+  readonly contact?: { readonly count: number; readonly normalN: Float64Array } | null;
 }
 
 /** The physics and sensor part of a plan, as plain numbers the physics Worker receives. */
@@ -63,19 +65,21 @@ export interface ProducerPlan {
   readonly effectiveHz: readonly number[];
 }
 export function producerPlan(plan: RatePlan): ProducerPlan {
-  const effectiveHz = new Array<number>(21).fill(0);
+  const effectiveHz = new Array<number>(PRODUCER_SIGNALS).fill(0);
   for (const signal of plan.signals) if ((signal.source === "physics" || signal.source === "sensor") && signal.effectiveHz) effectiveHz[signal.id] = signal.effectiveHz;
   return { physicsHz: plan.physicsHz, effectiveHz };
 }
 export function isProducerPlan(value: unknown): value is ProducerPlan {
   if (typeof value !== "object" || value === null || !("physicsHz" in value) || !("effectiveHz" in value)) return false;
   const { physicsHz, effectiveHz } = value;
-  return typeof physicsHz === "number" && [400, 800, 1200].includes(physicsHz) && Array.isArray(effectiveHz) && effectiveHz.length === 21 &&
-    effectiveHz.every((hz: unknown, id: number) => typeof hz === "number" && Number.isInteger(hz) && hz >= 0 && hz <= physicsHz && (hz === 0 || (id >= 1 && id <= 20)));
+  return typeof physicsHz === "number" && [400, 800, 1200].includes(physicsHz) && Array.isArray(effectiveHz) && effectiveHz.length === PRODUCER_SIGNALS &&
+    effectiveHz.every((hz: unknown, id: number) => typeof hz === "number" && Number.isInteger(hz) && hz >= 0 && hz <= physicsHz && (hz === 0 || (id >= 1 && id < PRODUCER_SIGNALS)));
 }
 
 const PHYSICS_FIRST = SignalId.TruthPosition, PHYSICS_LAST = SignalId.Battery;
 const SENSOR_FIRST = SignalId.SensorImu, SENSOR_LAST = SignalId.SensorAirspeed;
+/** Rate slots of the producer's signals, by signal ID: the physics signals, the sensors and `truth.contact`. */
+const PRODUCER_SIGNALS = SignalId.TruthContact + 1;
 /** Power telemetry rows per motor: rpm, motor current, bus current, electrical power, command (power-v1.ts). */
 const POWER_STRIDE = 5;
 
@@ -83,9 +87,9 @@ const POWER_STRIDE = 5;
 export class RecordingProducerV2 {
   private readonly words: Int32Array;
   private readonly physicsHz: number;
-  private readonly effective = new Int32Array(21);
-  private readonly accumulator = new Int32Array(21);
-  private readonly lastKept = new Float64Array(21).fill(-1);
+  private readonly effective = new Int32Array(PRODUCER_SIGNALS);
+  private readonly accumulator = new Int32Array(PRODUCER_SIGNALS);
+  private readonly lastKept = new Float64Array(PRODUCER_SIGNALS).fill(-1);
   private readonly row = new Uint8Array(SLOT_BYTES);
   private readonly rowView = new DataView(this.row.buffer);
   private readonly rowWords = new Int32Array(this.row.buffer);
@@ -95,7 +99,7 @@ export class RecordingProducerV2 {
     if (!isProducerPlan(plan)) throw new Error("Invalid recording producer plan");
     this.words = queueWords(buffer);
     this.physicsHz = plan.physicsHz;
-    for (let id = 0; id < 21; id++) this.effective[id] = plan.effectiveHz[id] ?? 0;
+    for (let id = 0; id < PRODUCER_SIGNALS; id++) this.effective[id] = plan.effectiveHz[id] ?? 0;
   }
 
   /** Called once per physics tick from the session's record hook. */
@@ -110,6 +114,17 @@ export class RecordingProducerV2 {
       this.accumulator[id] = sum - this.physicsHz;
       if (this.encodePhysics(id, sample)) this.push(id);
       else Atomics.add(this.words, ABSENT_WORD + id * 2, 1);
+    }
+    // TASK-187: the supports' loads, a physics signal whose ID came after the sensors'.
+    const contactRate = this.effective[SignalId.TruthContact]!;
+    if (contactRate > 0) {
+      const sum = this.accumulator[SignalId.TruthContact]! + contactRate;
+      if (sum < this.physicsHz) this.accumulator[SignalId.TruthContact] = sum;
+      else {
+        this.accumulator[SignalId.TruthContact] = sum - this.physicsHz;
+        if (this.encodePhysics(SignalId.TruthContact, sample)) this.push(SignalId.TruthContact);
+        else Atomics.add(this.words, ABSENT_WORD + SignalId.TruthContact * 2, 1);
+      }
     }
     const sensor = sample.sensor;
     if (sensor !== null && sensor.kind >= 1 && sensor.kind <= 5) {
@@ -166,6 +181,15 @@ export class RecordingProducerV2 {
       case SignalId.TruthAir:
         this.begin(id, 3, 24, 7); v.setFloat64(at, s.trueAirspeedMps, true); v.setFloat64(at + 8, s.ambientPressurePa, true);
         v.setFloat64(at + 16, s.groundClearanceM, true); return true;
+      case SignalId.TruthContact: {
+        const contact = sample.contact;
+        if (contact === null || contact === undefined || contact.count === 0) return false;
+        const count = contact.count < 8 ? contact.count : 8, normal = contact.normalN;
+        this.begin(id, 8, 32, (1 << count) - 1);
+        for (let i = 0; i < count; i++) v.setFloat32(at + i * 4, normal[i]!, true);
+        for (let i = count; i < 8; i++) v.setFloat32(at + i * 4, 0, true);
+        return true;
+      }
       case SignalId.Pilot: {
         const p = sample.pilot;
         this.begin(id, 4, 16, 15);

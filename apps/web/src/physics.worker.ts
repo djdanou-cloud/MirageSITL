@@ -62,6 +62,7 @@ type WorkerNotice = CommandResultV2 | WorkerFaultV2 | SitlNotice | { type: "sitl
   | { type: "power.attached" } | { type: "power.reject"; message: string }
   | { type: "terrain.ready"; chunks: number } | { type: "terrain.reject"; message: string }
   | { type: "validity.changes"; changes: { tick: number; simTimeS: number; flags: number }[]; dropped: number }
+  | { type: "contact.events"; events: { tick: number; simTimeS: number; code: number; value: number }[]; dropped: number }
   | { type: "terrain.missing"; tick: number; simTimeS: number; northM: number; eastM: number; count: number }
   | { type: "recording-v2.armed" } | { type: "recording-v2.reject"; message: string }
   | { type: "scenario.submit"; command: ControlCommand }
@@ -90,6 +91,11 @@ function flush(): void {
   const changes: { tick: number; simTimeS: number; flags: number }[] = [];
   if (session && session.drainValidityChanges((tick, simTimeS, flags) => changes.push({ tick, simTimeS, flags })) > 0) {
     post({ type: "validity.changes", changes, dropped: session.validityChangesDropped });
+  }
+  // TASK-187: touchdowns and lift-offs, for the recording's events.contact.
+  const contacts: { tick: number; simTimeS: number; code: number; value: number }[] = [];
+  if (session && session.drainContactEvents((tick, simTimeS, code, value) => contacts.push({ tick, simTimeS, code, value })) > 0) {
+    post({ type: "contact.events", events: contacts, dropped: session.contactEventsDropped });
   }
   // TASK-186: a tick that found the terrain missing paused the session; say where, once per such tick.
   const missing = session?.terrainMissing;

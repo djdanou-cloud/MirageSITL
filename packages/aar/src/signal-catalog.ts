@@ -38,8 +38,9 @@ export const SignalId = {
   MotorSpeed: 10, MotorCurrent: 11, MotorBusCurrent: 12, MotorPower: 13, MotorCommand: 14,
   Battery: 15,
   SensorImu: 16, SensorGnss: 17, SensorMagnetometer: 18, SensorBarometer: 19, SensorAirspeed: 20,
+  TruthContact: 21,
   AutopilotAttitude: 32, AutopilotLocalPosition: 33, AutopilotGlobalPosition: 34, AutopilotGps: 35, AutopilotEkf: 36,
-  Parameter: 64, Weather: 65, Fault: 66, Pause: 67, Accident: 68, FlightTaskRequest: 69, FlightTaskAttitudeRequest: 70, LimitEvent: 71, ValidityEvent: 72,
+  Parameter: 64, Weather: 65, Fault: 66, Pause: 67, Accident: 68, FlightTaskRequest: 69, FlightTaskAttitudeRequest: 70, LimitEvent: 71, ValidityEvent: 72, ContactEvent: 73,
   /** Rows lost before the row that follows; never a signal a plan selects. */
   Gap: 127,
 } as const;
@@ -53,6 +54,8 @@ const SIGNALS: readonly SignalInfo[] = [
   { id: SignalId.TruthSpecificForce, name: "truth.specificForce", group: "truth", source: "physics", valueType: "f64", channels: ch("m/s^2", "x", "y", "z") },
   { id: SignalId.TruthAir, name: "truth.air", group: "truth", source: "physics", valueType: "f64",
     channels: [{ name: "trueAirspeed", unit: "m/s" }, { name: "ambientPressure", unit: "Pa" }, { name: "groundClearance", unit: "m" }] },
+  { id: SignalId.TruthContact, name: "truth.contact", group: "truth", source: "physics", valueType: "f32",
+    channels: Array.from({ length: 8 }, (_, i) => ({ name: `support${i + 1}`, unit: "N" })) },
   { id: SignalId.Pilot, name: "pilot", group: "pilot", source: "physics", valueType: "f32", channels: ch("1", "roll", "pitch", "yaw", "throttle") },
   { id: SignalId.Actuators, name: "actuators", group: "actuators", source: "physics", valueType: "f32",
     channels: Array.from({ length: 16 }, (_, i) => ({ name: `output${i + 1}`, unit: "1" })) },
@@ -91,6 +94,8 @@ const SIGNALS: readonly SignalInfo[] = [
   { id: SignalId.Fault, name: "events.fault", group: "events", source: "event", valueType: "f64", channels: ch("1", "code", "a", "b", "c") },
   { id: SignalId.Pause, name: "events.pause", group: "events", source: "event", valueType: "f64", channels: ch("1", "paused") },
   { id: SignalId.Accident, name: "events.accident", group: "events", source: "event", valueType: "f64", channels: ch("1", "code", "a", "b", "c") },
+  // TASK-187: code 1 is a touchdown with its descent speed, m/s; code 2 a lift-off with the peak total support load since its touchdown, N.
+  { id: SignalId.ContactEvent, name: "events.contact", group: "events", source: "event", valueType: "f64", channels: ch("1", "code", "value") },
   // TASK-172: what a flight task requests at this moment, beside the truth signals of the same ticks; a channel is absent where the stage requests nothing of it.
   { id: SignalId.FlightTaskRequest, name: "events.flightTask", group: "events", source: "event", valueType: "f64",
     channels: [...ch("1", "stage", "measured"), { name: "taskTime", unit: "s" }, ...ch("m", "north", "east", "altitude"), { name: "speed", unit: "m/s" },

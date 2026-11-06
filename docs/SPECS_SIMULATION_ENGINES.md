@@ -2859,6 +2859,48 @@ simulated time stands still, and that the record holds the terrain; with
 `MIRAGE_GEODATA_DIR` serving the local FABDEM output it hovers on it at the area
 of operation without a pause.
 
+## Contact on sloped terrain: TASK-187
+
+A real-terrain run's supports stand on the ground under them.
+`PhysicsSessionV2.attachGround` hands the published chunks to the dynamics as well
+as checking their readiness, before a run and again for a new model or rate. Each
+contact step then takes one plane per support, under its anchor at the step's
+attitude, and one under the CG for the hull and propeller shapes
+(`TerrainContactCoupler`, TASK-065), and the rotor ground effect reads the same
+planes (TASK-100). A step with no ground under a support does not run: the state
+stands, and the session's readiness check pauses on that tick.
+
+A start stands on the slope under it. `standOnPlane` turns body down onto the
+slope's down by the shortest turn, keeps the heading and keeps the CG's height
+along the normal, so the uphill supports do not start inside the ground; a level
+plane leaves the pose as it was. On terrain, `groundClearanceM` (the third channel
+of `truth.air`) is the height above the ground under the CG along its normal.
+
+A recording holds the loads and the events. Signal 21, `truth.contact`, is each
+support's normal load in newtons at its planned rate, with a presence bit for each
+support the aircraft has. Signal 73, `events.contact`, is code 1, a touchdown, with
+its descent speed in m/s, and code 2, a lift-off, with the peak total load since
+its touchdown in newtons. What the aircraft stands on when an epoch starts is not a
+touchdown: the first 0.1 s of an epoch only settles onto its supports. At most 64 events wait for the Worker's next drain, and older ones are
+counted. Strikes of the hull or a propeller stay `events.accident` (TASK-149).
+
+The limits are those of the basic approximation (F-07, F-08): one plane per support
+and one for all the hull and propeller shapes, on a lattice of 4 m, no gear editor
+and no landing-gear fidelity claimed. A flight task that starts more than 5 m above
+or below the home on real terrain stops at the home check with its distance. The
+Run tab's 3D view still draws the pad.
+
+Declared before the first run. `standOnPlane`: body down along the slope's down
+within 1e-12 and the height along the normal within 1e-9 m. A level lattice equals
+level ground within 1e-9 m. Below breakaway, tan θ < μ_s: after settling, creep
+under 1 cm/s, tilt within 0.5° of the slope, and the supports carrying m g cos θ
+within 2 %. Above it, the acceleration down the slope is g (sin θ − μ_k cos θ) within
+5 %. A drop onto a slope has no rate-dependent peak: the peak load at 400, 800 and
+1200 Hz within 10 % of their mean. On native ArduCopter, on the TASK-186 fixture
+with its heights scaled to 7.55°: tilt on the ground within 1° of the slope, a
+landing within 0.5 m of the ground the plane gives, the resting load m g cos θ
+within 5 %, a lift-off then a touchdown under 3 m/s, and no accident.
+
 ## Implemented ArduPilot JSON lockstep: TASK-041
 
 The protocol is pinned to ArduPilot commit
@@ -9318,6 +9360,7 @@ records and never reused.
 | 10–14 | motors.speed, motors.current, motors.busCurrent, motors.power, motors.command | motor1..motor16 (rev/min, A, A, W, 1) | f32 | physics tick, when the dynamics has an electrical drive (power telemetry v1) |
 | 15 | battery | stateOfCharge (1), voltage (V), current (A), power (W), remaining (Ah) | f64 | physics tick, with an electrical drive |
 | 16–20 | sensors.imu, sensors.gnss, sensors.magnetometer, sensors.barometer, sensors.airspeed | the SensorFrameV2 values of the kind; GNSS adds latitude, longitude (deg) and altitude (m MSL) | f64 | sensor frames, aperiodic |
+| 21 | truth.contact | support1 to support8 (N): each support's normal load, a presence bit for each the aircraft has (TASK-187) | f32 | physics tick |
 | 32 | autopilot.attitude | roll, pitch, yaw (rad), roll/pitch/yaw rates (rad/s) | f32 | ATTITUDE |
 | 33 | autopilot.localPosition | north, east, down (m), velocities (m/s) | f32 | LOCAL_POSITION_NED |
 | 34 | autopilot.globalPosition | latitude, longitude (deg), MSL and relative altitude (m), velocities (m/s), heading (deg) | f64 | GLOBAL_POSITION_INT |
@@ -9329,6 +9372,7 @@ records and never reused.
 | 70 | events.flightTaskAttitude | requested roll and pitch (deg), at the tick of the events.flightTask row; a channel the maneuver does not request is absent (TASK-173) | f64 | event |
 | 71 | events.limit | code, subject (a motor's index, or -1 for the battery), quantity, edge, value and limit; code 0: the monitor reports into this recording; code 1: an exceedance changed; code 2: events the monitor could not hold, in the value channel (TASK-177) | f64 | event |
 | 72 | events.validity | flags (1): the flight model's validity bits at each change, from the session's first tick (TASK-145; bit 18 a calibrated rotor outside its bench data, bit 17 airframe drag beyond its data, lower bits the rotors' own) | f64 | event |
+| 73 | events.contact | code, value: code 1 a touchdown with its descent speed (m/s), code 2 a lift-off with the peak total support load since its touchdown (N); what the aircraft stands on when an epoch starts is not a touchdown (TASK-187) | f64 | event |
 | 127 | gap | rows lost here | — | recorder |
 
 ### Rates

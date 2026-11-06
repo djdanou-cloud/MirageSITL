@@ -66,6 +66,9 @@ async function locate(page: Page, latitudeDeg: number, longitudeDeg: number, gro
   await terrain.getByLabel(/^Terrain radius around the home/).fill(String(radiusM));
   await terrain.getByRole("button", { name: "Save the terrain choice" }).click();
   await expect(terrain.getByTestId("terrain-status")).toHaveText(/^Saved\. The next run loads the local terrain/);
+  // TASK-187: the aircraft stands on this terrain, so the location's elevation is the terrain's there, through the tab.
+  await terrain.getByRole("button", { name: "Use the terrain height as the ground elevation" }).click();
+  await expect(form.getByLabel("Ground elevation above mean sea level (m)", { exact: true })).not.toHaveValue(String(groundElevationMslM));
 }
 async function launch(page: Page, port: number, token: string, task: string | null) {
   await page.getByRole("tab", { name: "Run", exact: true }).click();
@@ -173,10 +176,8 @@ test("with the local FABDEM output served, a hover at the area of operation stan
   const config = JSON.parse(readFileSync("config/geodata.json", "utf8")) as { area: { centerLatDeg: number; centerLonDeg: number } };
   await withLauncher(async (port, token) => {
     const seeded = await seedQuadProject(page, "Quad X on FABDEM");
-    // Rounded to the location's six decimals; the elevation from the terrain itself, through the tab.
+    // Rounded to the location's six decimals; `locate` takes the elevation from the terrain itself, through the tab.
     await locate(page, Number(config.area.centerLatDeg.toFixed(6)), Number(config.area.centerLonDeg.toFixed(6)), 50, 1000);
-    const tab = page.getByRole("tabpanel", { name: "Weather and location", exact: true });
-    await tab.getByRole("button", { name: "Use the terrain height as the ground elevation" }).click();
     const run = await launch(page, port, token, null);
     await run.getByLabel("Take-off altitude, m").fill("5");
     await run.getByRole("button", { name: "Take off" }).click();

@@ -10,6 +10,7 @@ import type { MotorFaults } from './motor-fault.ts';
 import { validateModelManifest } from './model-manifest.ts';
 import { FrameLayout } from './frame.ts';
 import { RotorWakeCoupler, type RotorWakeConfiguration } from './rotor-wake.ts';
+import { TERRAIN_REJECTED, standOnPlane, type GroundLattice, type TerrainContactCoupler } from './terrain-contact.ts';
 import { AIR_DENSITY, AIR_HEIGHT, AIR_REFERENCE_PRESSURE, AIR_REFERENCE_TEMPERATURE, AIR_SOUND, AIR_VISCOSITY, WEATHER_AIR_KEEP, WEATHER_GUST_BANDWIDTH, WEATHER_GUST_RMS, WEATHER_PRESSURE, WEATHER_TURBULENCE_INTENSITY, WEATHER_TURBULENCE_KEEP, WEATHER_TURBULENCE_SEED, WEATHER_TURBULENCE_W20,
   WEATHER_SEED, WEATHER_TEMPERATURE, atmosphereAtHeightInto } from './atmosphere.ts';
 import { Wind } from './wind.ts';
@@ -111,7 +112,15 @@ export interface BetFlightConfiguration {
    * dynamics checks every step's shape reports against decision F-09 (`accidents`).
    */
   contactParts?: readonly ContactShapePart[];
+  /** TASK-187: makes the contact's coupler to published terrain, `attachGround`'s; without it a contact stands on level ground. */
+  contactGround?: (ground: GroundLattice) => TerrainContactCoupler;
 }
+const copyBody=(from:BodyTruth,to:BodyTruth):void=>{
+  to.positionNedM.set(from.positionNedM);to.velocityNedMps.set(from.velocityNedMps);to.quaternionBodyToNed.set(from.quaternionBodyToNed);
+  to.angularVelocityBodyRadS.set(from.angularVelocityBodyRadS);to.accelerationNedMps2.set(from.accelerationNedMps2);
+};
+/** TASK-187: each support's normal load after the last step, N, for the recording and its contact events. */
+export interface ContactLoads { readonly count: number; readonly normalN: Float64Array }
 /**
  * Where the ground is under a point (TASK-100): `out` is [nN, nE, nD, offset], the unit normal pointing out of the ground and
  * `n.p - offset` the height above it; a NaN offset means no ground there. `@mirage/terrain` CollisionChunks provides it.
@@ -147,6 +156,9 @@ export interface FlightContact {
   /** Hull and propeller shapes and their last-step contact reports (TASK-095, `GroundContact`). */
   readonly shapeCount?: number;
   shapeStateInto?(index: number, out: Float64Array): boolean;
+  /** The supports and their last-step reports, slot 2 the normal load, N (TASK-187, `GroundContact`). */
+  readonly wheelCount?: number;
+  wheelStateInto?(index: number, out: Float64Array): boolean;
 }
 /** Rotor output flags of the TASK-091 opt-in modes: informational, never validity breaches. */
 const SAMPLING_FLAGS=ROTOR_FLAG_HOVER_SAMPLING|ROTOR_FLAG_REDUCED_PREDICTOR;
@@ -221,6 +233,8 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
   private readonly body:BetRigidBodyBackend;
   private readonly truth=newBodyTruth();
   private readonly initial:BodyTruth;
+  /** TASK-187: where the configuration stands on level ground, from which a start on terrain is worked out. */
+  private readonly levelInitial:BodyTruth;
   private readonly frame:FrameLayout;
   private readonly rotations:Float64Array;
   private readonly positions:Float64Array;
@@ -257,7 +271,13 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
   private readonly contact:FlightContact|null;
   /** TASK-100: the ground effect's intensity, 0 for off, and what it needs: hub lateral distances squared (negative: not a neighbour). */
   private groundIntensity=0;
-  private readonly groundPlanes:GroundPlaneSource;
+  private groundPlanes:GroundPlaneSource;
+  private readonly levelGround:GroundPlaneSource;
+  private readonly contactGround:((ground:GroundLattice)=>TerrainContactCoupler)|null;
+  private terrain:TerrainContactCoupler|null=null;
+  /** TASK-187: the supports' normal loads; null without a contact that has supports. */
+  readonly contactLoads:ContactLoads|null;
+  private readonly supportState=new Float64Array(8);
   /** The step's midpoint attitude and each rotor's correction, in slots: a double crossing a call boxes. */
   private readonly groundAttitude=new Float64Array(4);
   private readonly groundCorrection:Float64Array;
@@ -376,10 +396,14 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
     const parts=configuration.contactParts;
     if(parts&&(!contact||parts.length!==(contact.shapeCount??0)))throw Error('Contact parts must name every contact shape');
     this.accidents=parts&&parts.length>0?new AccidentMonitor(this,parts,model.rotors.map(r=>r.id),model.massKg):null;
-    this.initial=structuredClone(configuration.initialBody);
+    this.initial=structuredClone(configuration.initialBody);this.levelInitial=structuredClone(configuration.initialBody);
+    const supports=contact?.wheelCount??0;
+    this.contactLoads=supports>0?{count:supports,normalN:new Float64Array(supports)}:null;
+    this.contactGround=configuration.contactGround??null;
     this.frame=new FrameLayout(model);this.rotations=new Float64Array(n*9);this.positions=new Float64Array(n*3);
     const flatDown=configuration.syntheticGroundDownM??0;
-    this.groundPlanes=configuration.groundPlanes??{planeInto:(_position,out)=>{out[0]=0;out[1]=0;out[2]=-1;out[3]=-flatDown;}};
+    this.levelGround=configuration.groundPlanes??{planeInto:(_position,out)=>{out[0]=0;out[1]=0;out[2]=-1;out[3]=-flatDown;}};
+    this.groundPlanes=this.levelGround;
     this.groundLateral=new Float64Array(n*n);this.groundRadius=new Float64Array(n);this.groundZ=new Float64Array(n);this.groundCos=new Float64Array(n);this.groundCorrection=new Float64Array(n);
     model.rotors.forEach((rotor,i)=>{
       this.groundRadius[i]=rotor.radiusM;
@@ -441,6 +465,21 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
     }
   }
   /** The ground plane under each hub, the effect's height and the normal in hub axes, written to the rotor records. */
+  /**
+   * TASK-187: the published terrain a real-terrain run stands on, or null for level ground. Its planes reach the contact and the rotor
+   * ground effect, and a start stands on the slope under it. Before a run: this resets the dynamics. Cold path.
+   */
+  attachGround(ground:GroundLattice|null):void {
+    this.terrain=ground&&this.contact&&this.contactGround?this.contactGround(ground):null;
+    this.groundPlanes=ground??this.levelGround;
+    copyBody(this.levelInitial,this.initial);
+    if(ground&&this.terrain){
+      const start=this.levelInitial.positionNedM,plane=new Float64Array(4);
+      ground.planeInto(Float64Array.of(start[0]!,start[1]!,0),plane);
+      if(Number.isFinite(plane[3]))standOnPlane(this.levelInitial,plane,this.initial);
+    }
+    this.reset();
+  }
   private groundInto():void {
     const esc=this.escEngine,n=this.rotorCount,p=this.positions,r=this.rotations,input=this.input,plane=this.groundPlane,query=this.groundQuery;
     const position=this.truth.positionNedM,lateral=this.groundLateral,radius=this.groundRadius,heights=this.groundZ,cosines=this.groundCos,corrections=this.groundCorrection;
@@ -489,7 +528,7 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
     this.truth.accelerationNedMps2.fill(0);this.angularAcceleration.fill(0);Object.assign(this.state,newState());this.state.batteryVoltage=e[1]!;
     this.state.flags=StateFlag.InputFailsafe;this.pendingActuator=false;this.externalArmed=false;this.fault='';this.validityFlags=this.configurationFlags;
     this.referenceRotorRpm=this.output[9]!*60/(2*Math.PI);
-    this.limits?.reset();this.accidents?.reset();
+    this.limits?.reset();this.accidents?.reset();this.contactLoads?.normalN.fill(0);
     this.clearGroundEffect();
     if(this.wake){this.wake.reset();for(let i=0;i<this.rotorCount;i++){const b=i*this.inputStride;this.input[b+15]=0;this.input[b+16]=0;this.input[b+17]=0;}}
     // A new epoch starts without weather, as configured; with an origin air (TASK-148) at the initial CG height.
@@ -687,7 +726,15 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
     }
     // TASK-095: with a contact, Rapier alone integrates the body, gravity and ground reaction included.
     if(this.contact){
-      if(!this.contact.stepInto(this.wrench,this.dt,this.truth)){this.fault='Contact step failed';return;}
+      // On terrain a step with no ground under a support does not run: the state stands, and the session pauses on this tick.
+      const terrain=this.terrain;
+      if(terrain){if(terrain.stepInto(this.truth,this.wrench,this.dt)===TERRAIN_REJECTED){this.fault='Contact step failed';return;}}
+      else if(!this.contact.stepInto(this.wrench,this.dt,this.truth)){this.fault='Contact step failed';return;}
+      const loads=this.contactLoads;
+      if(loads!==null){
+        const report=this.supportState,normal=loads.normalN;
+        for(let i=0;i<loads.count;i++){this.contact.wheelStateInto?.(i,report);normal[i]=report[2]!;}
+      }
     } else if(!this.body.stepInto(this.wrench,this.dt,this.truth)){
       this.fault='BET body integration failed';return;
     }

@@ -6,6 +6,8 @@ import { WEATHER_SET_GUST_BANDWIDTH_HZ, ActuatorFrameCodecV2, ControlFlag, Contr
 import { SteppingPolicy, newPumpReport, type StepGate } from './clock-policy.ts';
 import { DemoDynamics } from './demo-dynamics.ts';
 import { MotorFaults } from './motor-fault.ts';
+import { TERRAIN_READY_RADIUS_M, type GroundLattice } from './terrain-contact.ts';
+import type { ContactLoads } from './bet-dynamics.ts';
 import { AIR_PRESSURE, WEATHER_AIR_KEEP, WEATHER_DISCRETE_DOWN, WEATHER_DISCRETE_DURATION, WEATHER_DISCRETE_EAST, WEATHER_DISCRETE_KEEP, WEATHER_DISCRETE_NORTH, WEATHER_GUST_BANDWIDTH, WEATHER_GUST_KEEP, WEATHER_GUST_RMS, WEATHER_PRESSURE, WEATHER_TURBULENCE_INTENSITY, WEATHER_TURBULENCE_KEEP, WEATHER_TURBULENCE_SEED, WEATHER_TURBULENCE_W20, WEATHER_SEED, WEATHER_SLOTS, WEATHER_TEMPERATURE, WEATHER_WIND_DOWN, WEATHER_WIND_EAST,
   WEATHER_WIND_NORTH } from './atmosphere.ts';
 import type { LimitEvent } from './limit-monitor.ts';
@@ -27,13 +29,16 @@ const STANDARD_GRAVITY_MPS2 = 9.80665;
 const EW_REGISTRY_FULL: ScheduledRejectV2 = { code: 'OVERLOAD', message: 'EW fault registry is full' };
 const EW_FAULT_REJECTED: ScheduledRejectV2 = { code: 'OUT_OF_RANGE', message: 'EW fault command was rejected' };
 const NOT_MODELED: ScheduledRejectV2 = { code: 'BAD_STATE', message: 'The backend cannot model this scheduled command' };
-/** TASK-186: the published terrain a session checks under the vehicle (implemented by @mirage/terrain CollisionChunks). */
-export interface SessionGround {
-  /** True when every chunk intersecting the [north, east, radius] safety square is published. Allocation-free. */
-  readyFrom(positionRadius: Float64Array): boolean;
-}
-/** The ground within this distance of the vehicle must be published, m: wider than a Phase 1 aircraft and its supports. */
-export const TERRAIN_READY_RADIUS_M = 8;
+/**
+ * TASK-186: the published terrain a session checks under the vehicle (implemented by @mirage/terrain CollisionChunks). TASK-187: its
+ * planes also reach the dynamics' contact and rotor ground effect, and the published height above the ground.
+ */
+export type SessionGround = GroundLattice;
+export { TERRAIN_READY_RADIUS_M };
+/** TASK-187: touchdowns and lift-offs that wait for the Worker's next drain, and their codes. */
+export const CONTACT_EVENT_RING = 64, CONTACT_TOUCHDOWN = 1, CONTACT_LIFTOFF = 2;
+/** How long an epoch's start settles onto its supports, s. */
+const CONTACT_SETTLE_S = 0.1;
 /** TASK-145: changes of the model's validity bits that wait for the Worker's next drain. */
 export const VALIDITY_RING = 64;
 /** Slots of PhysicsSessionV2.terrainMissing. */
@@ -78,6 +83,8 @@ export interface SessionRecordSample {
   pilot: Float64Array;
   actuator: ActuatorFrameV2 | null;
   sensor: SensorFrameV2 | null;
+  /** TASK-187: each support's normal load of this tick; null when the dynamics has no supports. */
+  contact: ContactLoads | null;
 }
 
 /**
@@ -149,6 +156,10 @@ export interface SessionDynamics {
   setWeather?(weather: Float64Array): string | null;
   /** TASK-100: the rotor ground effect's intensity from this tick, 0 for off; absent where the backend has none. */
   setGroundEffect?(intensity: number): void;
+  /** TASK-187: the published terrain the dynamics stands on, or null for level ground. Before a run; absent where the backend has none. */
+  attachGround?(ground: GroundLattice | null): void;
+  /** TASK-187: each support's normal load after the last step; null or absent without supports. */
+  readonly contactLoads?: ContactLoads | null;
   /** TASK-166: ends the weather at its tick boundary, allocation-free: as if no weather had been set. */
   clearWeather?(): void;
   readonly weatherActive?: boolean;
@@ -177,6 +188,14 @@ export class PhysicsSessionV2 {
    * TASK-168, TASK-169: what the link to ArduPilot holds back, drops or moves, read at every reply. Truth is untouched. The object stays
    * the same; its fields change in place, at tick boundaries and after each step.
    */
+  /** TASK-187: the ring of (tick, simulated time s, code, value), the running touch and peak load; slots, since a double in a field boxes. */
+  private readonly contactRing = new Float64Array(CONTACT_EVENT_RING * 4);
+  private contactHead = 0;
+  private contactCount = 0;
+  private contactDropped = 0;
+  private touching = false;
+  private readonly contactPeakN = new Float64Array(1);
+  private readonly groundPlane = new Float64Array(4);
   private readonly validityRing = new Float64Array(VALIDITY_RING * 3);
   private validityHead = 0;
   private validityCount = 0;
@@ -259,7 +278,7 @@ export class PhysicsSessionV2 {
     // into init.sensorBuffer so it can never overflow or be read by Main.
     this.actuators = new SpscConsumer(init.actuatorBuffer, 'actuator');
     this.sensors = new SpscConsumer(init.sensorBuffer, 'sensor');
-    this.recordSample = { state: this.state, power: null, pilot: this.recordPilot, actuator: null, sensor: null };
+    this.recordSample = { state: this.state, power: null, pilot: this.recordPilot, actuator: null, sensor: null, contact: null };
     const hz = this.hzFromHeader();
     this.epoch = Atomics.load(this.header, HeaderV2.SessionEpoch) >>> 0;
     this.dynamicsFactory = dynamicsFactory;
@@ -316,6 +335,21 @@ export class PhysicsSessionV2 {
     return count;
   }
   get validityChangesDropped(): number { return this.validityDropped; }
+  /**
+   * TASK-187: each touchdown and lift-off since the last drain, oldest first, as (tick, simulated time s, code, value): a touchdown's
+   * descent speed in m/s, and a lift-off's peak total support load since its touchdown in N. The recording keeps them as `events.contact`.
+   * At most CONTACT_EVENT_RING wait; older ones are counted in `contactEventsDropped`.
+   */
+  drainContactEvents(sink: (tick: number, simTimeS: number, code: number, value: number) => void): number {
+    const ring = this.contactRing, count = this.contactCount;
+    for (let k = 0; k < count; k++) {
+      const at = ((this.contactHead + k) % CONTACT_EVENT_RING) * 4;
+      sink(ring[at] ?? 0, ring[at + 1] ?? 0, ring[at + 2] ?? 0, ring[at + 3] ?? 0);
+    }
+    this.contactCount = 0; this.contactHead = 0;
+    return count;
+  }
+  get contactEventsDropped(): number { return this.contactDropped; }
   /** Accident events the active dynamics' outbox could not hold. */
   get accidentsDropped(): number { return this.dynamics.accidents?.dropped ?? 0; }
   /** Accidents raised in this epoch: once one is, the run continues only as not validated for a damaged aircraft. */
@@ -393,6 +427,7 @@ export class PhysicsSessionV2 {
   attachGround(ground: SessionGround | null): void {
     this.ground = ground;
     this.terrainMissing.fill(0);
+    this.dynamics.attachGround?.(ground);
   }
   attachDelivery(attached: boolean): void {
     this.delivery.attached = attached;
@@ -404,6 +439,7 @@ export class PhysicsSessionV2 {
   }
   reset(seed: number): void {
     this.dynamics.reset();
+    this.contactPeakN[0] = 0;
     this.environment = 0;
     this.clearDelivery();
     this.faultSeed = seed >>> 0;
@@ -413,6 +449,8 @@ export class PhysicsSessionV2 {
     const next = this.dynamicsFactory(hz);
     this.dynamics.dispose?.();
     this.dynamics = next;
+    if (this.ground) next.attachGround?.(this.ground);
+    this.contactPeakN[0] = 0;
     this.environment = 0;
     this.clearDelivery();
     // The new epoch starts fault-free, as after sim.reset, keeping the last reset's seed.
@@ -448,6 +486,8 @@ export class PhysicsSessionV2 {
     this.dynamics.dispose?.();
     this.dynamics = prepared.dynamics;
     this.dynamicsFactory = prepared.factory;
+    if (this.ground) this.dynamics.attachGround?.(this.ground);
+    this.contactPeakN[0] = 0;
     this.environment = 0;
     this.clearDelivery();
     // As after sim.configure: the new model's motors get their own table and the new epoch starts fault-free.
@@ -714,6 +754,26 @@ export class PhysicsSessionV2 {
       this.validityRing[at] = t; this.validityRing[at + 1] = t / this.policy.hz; this.validityRing[at + 2] = validity;
       this.validityCount++;
     }
+    // TASK-187: a touchdown or lift-off is kept with its tick for the recording; allocation-free.
+    const loads = this.dynamics.contactLoads;
+    if (loads) {
+      const peak = this.contactPeakN, normal = loads.normalN;
+      let total = 0;
+      for (let i = 0; i < loads.count; i++) total += normal[i] ?? 0;
+      const touching = total > 0;
+      if (touching && total > (peak[0] ?? 0)) peak[0] = total;
+      // The start settles onto its supports: what it stands on when an epoch starts is no touchdown.
+      if (tickToNumber(tick) < CONTACT_SETTLE_S * this.policy.hz) this.touching = touching;
+      else if (touching !== this.touching) {
+        this.touching = touching;
+        if (this.contactCount === CONTACT_EVENT_RING) { this.contactHead = (this.contactHead + 1) % CONTACT_EVENT_RING; this.contactCount--; this.contactDropped++; }
+        const at = ((this.contactHead + this.contactCount) % CONTACT_EVENT_RING) * 4, t = tickToNumber(tick), ring = this.contactRing;
+        ring[at] = t; ring[at + 1] = t / this.policy.hz; ring[at + 2] = touching ? CONTACT_TOUCHDOWN : CONTACT_LIFTOFF;
+        ring[at + 3] = touching ? this.dynamics.state.vd : (peak[0] ?? 0);
+        if (!touching) peak[0] = 0;
+        this.contactCount++;
+      }
+    }
     // TASK-186: missing terrain under the vehicle pauses the run on this tick, through the same path, before the tick is published.
     const ground = this.ground;
     if (ground && this.runningValue) {
@@ -784,7 +844,17 @@ export class PhysicsSessionV2 {
     const air = this.dynamics.airActive === true ? this.dynamics.air : undefined;
     s.ambientPressurePa = air ? air[AIR_PRESSURE]! : isaPressurePa(-d.down);
     s.scheduledWallTimeMs = scheduledWallMs;
-    s.groundClearanceM = -d.down; s.referenceRotorRpm = this.dynamics.referenceRotorRpm ?? 0;
+    // TASK-187: on terrain, the height above the ground under the CG; on level ground its plane is at down 0.
+    s.groundClearanceM = -d.down;
+    const ground = this.ground;
+    if (ground) {
+      const q = this.groundQuery, plane = this.groundPlane;
+      q[0] = d.north; q[1] = d.east;
+      ground.planeInto(q, plane);
+      const offset = plane[3] ?? Number.NaN;
+      if (Number.isFinite(offset)) s.groundClearanceM = (plane[0] ?? 0) * d.north + (plane[1] ?? 0) * d.east + (plane[2] ?? 0) * d.down - offset;
+    }
+    s.referenceRotorRpm = this.dynamics.referenceRotorRpm ?? 0;
     s.vehicleFlags = ((d.flags & 1) !== 0 ? VehicleFlagV2.GroundContact : 0) |
       ((d.flags & 2) !== 0 ? VehicleFlagV2.InputFailsafe : 0) |
       (this.isArmed() ? VehicleFlagV2.Armed : 0) |
@@ -814,6 +884,7 @@ export class PhysicsSessionV2 {
     pilot[0] = input.roll; pilot[1] = input.pitch; pilot[2] = input.yaw; pilot[3] = input.throttle;
     const sample = this.recordSample;
     sample.power = this.dynamics.power ?? null;
+    sample.contact = this.dynamics.contactLoads ?? null;
     sample.actuator = this.actuatorPending ? this.actuator : null;
     sample.sensor = this.sensors.tryPop(this.sensorCodec.words) && this.sensorCodec.decode(this.sensorFrame) && this.sensorFrame.epoch === this.epoch
       ? this.sensorFrame : null;

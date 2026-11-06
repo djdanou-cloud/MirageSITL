@@ -2,7 +2,7 @@ import type { ExperimentEnvironment, ExperimentTerrain } from "@mirage/aircraft/
 import { covers, parseManifestBox, parseQuantizedLayer, parseTerrainInventory, terrainSources, type InventorySource, type LocalTerrain, type TerrainSourceRecord } from "@mirage/terrain/coverage";
 import { buildRunTerrain, latticeSha256, terrainHeightAt } from "@mirage/terrain/run-terrain";
 import inventoryJson from "../../../../data/terrain/inventory.json" with { type: "json" };
-import type { RunTerrainInput } from "../run/session-controller";
+import { HOME_VERTICAL_M, type RunTerrainInput } from "../run/session-controller";
 import type { TerrainChoice } from "./terrain-store";
 
 // The local real terrain of a run (TASK-186): the FABDEM output of scripts/geodata/build_terrain.py that the dev server serves at
@@ -77,6 +77,11 @@ export async function runTerrainFor(choice: TerrainChoice, environment: Experime
   const home = { latitudeDeg, longitudeDeg, ellipsoidalHeightM: environment.conditions.ellipsoidalHeightM };
   const built = await buildRunTerrain({ layer: local.layer, bbox: local.bbox, fetchTile: tileFetcher(local), home, radiusM: choice.radiusM });
   if (built.tiles.length === 0) throw new Error(`The local terrain holds no ground within ${choice.radiusM} m of the home: ${built.missing[0]?.reason ?? "no chunk"}`);
+  // TASK-187: the aircraft stands on this ground, and ArduPilot's home is the location's elevation. Far apart, the run could only stop at
+  // its home check, after starting SITL: this says so now, and the Weather and location tab offers the terrain's height.
+  if (Number.isFinite(built.homeHeightM) && Math.abs(built.homeHeightM - home.ellipsoidalHeightM) > HOME_VERTICAL_M) {
+    throw new Error(`The location's ground elevation is ${Math.round(Math.abs(built.homeHeightM - home.ellipsoidalHeightM))} m ${built.homeHeightM > home.ellipsoidalHeightM ? "below" : "above"} the terrain there: use the terrain height as the ground elevation in the Weather and location tab`);
+  }
   const record: ExperimentTerrain = {
     sourceId: "fabdem-elevation", layerSha256: found.layerSha256, manifestSha256: found.manifestSha256, radiusM: choice.radiusM, level: built.level,
     chunks: built.tiles.length, missingChunks: built.missing.length, latticeSha256: await latticeSha256(built.tiles),

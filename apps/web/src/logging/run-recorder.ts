@@ -82,6 +82,15 @@ export class RunRecorder implements RecordingPort {
           if (typeof tick === "number" && typeof simTimeS === "number" && typeof flags === "number") this.host?.event("validity", [flags], { tick, simTimeS, epoch });
         }
       }
+      // TASK-187: touchdowns and lift-offs.
+      if (typeof data === "object" && data !== null && "type" in data && data.type === "contact.events" && "events" in data && Array.isArray(data.events)) {
+        const events: readonly unknown[] = data.events, { epoch } = this.at();
+        for (const event of events) {
+          if (typeof event !== "object" || event === null || !("tick" in event) || !("simTimeS" in event) || !("code" in event) || !("value" in event)) continue;
+          const { tick, simTimeS, code, value } = event;
+          if (typeof tick === "number" && typeof simTimeS === "number" && typeof code === "number" && typeof value === "number") this.host?.event("contact", [code, value], { tick, simTimeS, epoch });
+        }
+      }
     });
     this.live = { recordId: host.recordId, experimentId: host.header.experimentId ?? "", state: "recording", simTimeS: at.simTimeS, startSimTimeS: at.simTimeS,
       wallMs: this.nowMs(), startWallMs: this.nowMs(), bytes: 0, rows: {}, lostRows: 0, droppedChunks: 0, error: "" };

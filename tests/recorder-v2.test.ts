@@ -36,7 +36,7 @@ class SyntheticSession {
   readonly actuator = newActuatorFrameV2();
   readonly sensor = newSensorFrameV2();
   readonly power: PowerTelemetrySource;
-  readonly sample: { state: ProducerSample['state']; pilot: Float64Array; actuator: ProducerSample['actuator']; sensor: ProducerSample['sensor']; power: PowerTelemetrySource | null };
+  readonly sample: { state: ProducerSample['state']; pilot: Float64Array; actuator: ProducerSample['actuator']; sensor: ProducerSample['sensor']; power: PowerTelemetrySource | null; contact: ProducerSample['contact'] };
   powered = true;
   constructor(readonly hz: number, motors: number) {
     this.power = { motorCount: motors, motors: new Float64Array(80), motorWarning: new Uint32Array(16), motorLimited: new Uint32Array(16),
@@ -46,7 +46,7 @@ class SyntheticSession {
     this.actuator.actuatorCount = motors;
     this.sensor.kind = 1;
     this.sensor.valueCount = 6;
-    this.sample = { state: this.state, pilot: this.pilot, actuator: this.actuator, sensor: this.sensor, power: this.power };
+    this.sample = { state: this.state, pilot: this.pilot, actuator: this.actuator, sensor: this.sensor, power: this.power, contact: { count: 4, normalN: new Float64Array(4) } };
   }
   /** Advances one tick and returns the record hook's sample. */
   next(): ProducerSample {

@@ -24,7 +24,7 @@ function session(hz: number) {
     battery: new Float64Array([0.9, 16.4, 20, 328, 4.5, 5]), batteryMasks: new Uint32Array(2) };
   state.epoch = actuator.epoch = 1;
   actuator.actuatorCount = 4;
-  const sample: ProducerSample = { state, pilot, actuator, sensor: null, power };
+  const sample: ProducerSample = { state, pilot, actuator, sensor: null, power, contact: { count: 4, normalN: new Float64Array(4) } };
   return (tick: number): ProducerSample => {
     state.tickId.lo = tick; state.tickId.hi = 0; state.simTimeS = tick / hz;
     return sample;

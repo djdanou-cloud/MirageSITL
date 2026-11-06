@@ -6,6 +6,7 @@ import { isaTroposphere } from './atmosphere.ts';
 import { BetFlightDynamics, CONFIGURATION_FLAG_WAKE_UNMODELED, type BetFlightConfiguration } from './bet-dynamics.ts';
 import { escDriveFromManifest } from './drive.ts';
 import { GroundContact, type ContactShape, type ContactWheel } from './ground-contact.ts';
+import { TERRAIN_READY_RADIUS_M, TerrainContactCoupler } from './terrain-contact.ts';
 import type { LimitRatings } from './limit-monitor.ts';
 import { boundCatalogPolar } from './polar-catalog.ts';
 import { rotorWashedDragAreasM2, type RotorWakeConfiguration } from './rotor-wake.ts';
@@ -291,7 +292,9 @@ export function profileFlightDynamics(module: WebAssembly.Module, build: Profile
     { wheels: gear.wheels, hullRadiusM: gear.hullRadiusM, friction: HULL_FRICTION, gravityMps2: configuration.gravityMps2 ?? 9.80665,
       ...(gear.shapes.length > 0 ? { shapes: gear.shapes } : {}) });
   // TASK-149: the dynamics checks the shapes' contact reports against decision F-09.
-  return new BetFlightDynamics(module, { ...configuration, contact, ...(gear.shapes.length > 0 ? { contactParts: gear.parts } : {}) }, hz);
+  const anchors = gear.wheels.map(wheel => wheel.anchorBodyM);
+  return new BetFlightDynamics(module, { ...configuration, contact, ...(gear.shapes.length > 0 ? { contactParts: gear.parts } : {}),
+    contactGround: ground => new TerrainContactCoupler(contact, ground, anchors, TERRAIN_READY_RADIUS_M) }, hz);
 }
 
 /**

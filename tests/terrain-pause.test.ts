@@ -33,7 +33,7 @@ function session(hz: 400 | 800 = 400) {
 /** A ground that is there for the first `ready` checks, and then missing; it keeps what it was asked. */
 function countedGround(ready: number) {
   const asked: number[][] = [];
-  const ground: SessionGround = { readyFrom: q => { asked.push(Array.from(q)); return asked.length <= ready; } };
+  const ground: SessionGround = { readyFrom: q => { asked.push(Array.from(q)); return asked.length <= ready; }, planeInto: (_position, out) => { out.fill(Number.NaN); } };
   return { ground, asked };
 }
 function lattice(chunks: readonly (readonly [number, number])[]): CollisionChunks {
