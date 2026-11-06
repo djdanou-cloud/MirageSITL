@@ -65,6 +65,8 @@ test("offline, the pad is the only ground and every other source says why it is 
   // Offline: the page talks to its loopback server alone (Chrome's offline mode would cut that server too).
   const hosts = new Set<string>();
   page.on("request", request => { hosts.add(new URL(request.url()).host); });
+  // Nothing served, even when the dev server was started with MIRAGE_GEODATA_DIR for the FABDEM flight of terrain-sitl.spec.ts.
+  await page.route("**/geodata/terrain/**", route => route.fulfill({ status: 404, body: "" }));
   await seed(page);
   const terrain = section(page);
   await expect(terrain.getByRole("radio", { name: "Synthetic level pad (synthetic)" })).toBeChecked();

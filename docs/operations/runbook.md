@@ -212,6 +212,19 @@ Node's `process.hrtime` on Windows, so the side record keeps only the frames
 inside the measurement window and reports `DisplayedTime` (on-screen time per
 frame), `GPUBusy` and the present mode.
 
+On macOS a run on real ground needs only the terrain (TASK-186). `setup-macos.sh`
+installs its tools in user space, with no `sudo` or Homebrew, then the tiles are
+fetched and the terrain built, and `MIRAGE_GEODATA_DIR`, set before the
+development server starts, serves it. On the reference Mac this took about 5
+minutes and holds 636 MB of tools, 184 MB of tiles and 360 MB of terrain:
+
+```bash
+bash scripts/geodata/setup-macos.sh
+python3 -I scripts/geodata/fetch_fabdem.py --config config/geodata.json --out ~/mirage-geodata/fabdem
+MAMBA_ROOT_PREFIX=~/.mirage-geo/mamba ~/.mirage-geo/bin/micromamba run -n mirage-geo python -I scripts/geodata/build_terrain.py --config config/geodata.json --fabdem ~/mirage-geodata/fabdem --out ~/mirage-geodata/israel/terrain
+MIRAGE_GEODATA_DIR=~/mirage-geodata/israel npm run dev
+```
+
 The generated terrain and buildings (see `docs/architecture.md`) are built in
 WSL and never committed:
 

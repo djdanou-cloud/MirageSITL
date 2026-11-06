@@ -90,7 +90,7 @@ With `--dist apps/web/dist`, all 27 are named and none is unused.
 | UIUC propeller database | README of 2022-06-27 | No (provided offline) | Reviewed (cited; non-commercial use) | Ready | D-06 (TASK-133) |
 | JSBSim WebAssembly | `570e8115` | Yes | Reviewed (LGPL-2.1) | Not needed in Phase 1 | — |
 | ArduPilot browser WebAssembly | `native/ardupilot/toolchain.lock.json` | Yes | Restricted (GPL-3.0-or-later) | Not needed in Phase 1 | TASK-045 |
-| Geodata pipeline environment | `scripts/geodata/setup-wsl.sh` | No (manual setup) | Reviewed (open-source tools) | Not needed in Phase 1 | — |
+| Geodata pipeline environment | `scripts/geodata/setup-wsl.sh`, `scripts/geodata/setup-macos.sh` | No (manual setup) | Reviewed (open-source tools) | Not needed in Phase 1 | — |
 | FLIR ADAS thermal sample | ADAS v2 | No (manual, after the agreement) | Restricted | Not needed in Phase 1 | Dataset agreement review |
 
 ## Terrain sources

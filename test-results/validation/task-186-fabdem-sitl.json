@@ -1,0 +1,25 @@
+{
+  "task": "TASK-186",
+  "firmware": "arducopter-8ab6afde",
+  "record": "d8bd762c5e7249889a8f63ea3c24f62545a992a93fa782512e7659247e59769c",
+  "terrain": {
+    "sourceId": "fabdem-elevation",
+    "layerSha256": "9f2541dfa42cc3e7ed44b11fe29421538ed83f00d249fa3adeee2cf9db01f3bb",
+    "manifestSha256": "61e982d59d0627c420a67f7520116aaa5c88bc6c4e63571b6260a26d81760855",
+    "radiusM": 1000,
+    "level": 15,
+    "chunks": 16,
+    "missingChunks": 0,
+    "latticeSha256": "b7ae3b93d7c3a5a9c7ad7f4a5ebd3dcf566ddf4b6057fe326cdbc93c41a92c55",
+    "homeHeightM": 62.83108712365169
+  },
+  "area": {
+    "centerLatDeg": 32.20065261195932,
+    "centerLonDeg": 34.87163838506722,
+    "radiusM": 1000
+  },
+  "layerSha256": "9f2541dfa42cc3e7ed44b11fe29421538ed83f00d249fa3adeee2cf9db01f3bb",
+  "manifestSha256": "61e982d59d0627c420a67f7520116aaa5c88bc6c4e63571b6260a26d81760855",
+  "lastNorthM": 0.014449829768133457,
+  "lastEastM": -0.02434609181936974
+}

@@ -8,7 +8,7 @@
 PowerShell/zsh и проверки перед расширением поддерживаемого покрытия.
 
 ## Локальные проверки
-<!-- source-sha256: aaac638d1ef5d7866cb892d0f2e10df668801b96a997c35b46d9c10a2ff44093 -->
+<!-- source-sha256: 43d543f1393a4e43312d9e5c4be34676511025135cb39c8114336af56ff42e7e -->
 
 Использовать существующий изолированный checkout, сохраняя локальные изменения. Node закреплён .nvmrc; Rust 1.97.0 и wasm32-unknown-unknown — native/rust-toolchain.toml. Зависимости ставить через npm ci. В облаке активировать CARGO_HOME=/workspace/.cache/mirage-cargo, RUSTUP_HOME=/workspace/.cache/mirage-rustup и добавить CARGO_HOME/bin в начало PATH; не переопределять HOME. Запустить lint, typecheck, check:docs, CI=true npm test, npm run build и locked native tests. Модульный набор тестов не изменяет отслеживаемые свидетельства в test-results/: тесты записывают создаваемые отчёты во временные или игнорируемые каталоги (validate-models, check-propeller-bem и bench-links-ew принимают --out DIR), а глобальная настройка Vitest tests/support/tracked-results.ts завершает прогон ошибкой, если меняется вывод git status --porcelain -- test-results/. Браузерные прогоны дают ту же гарантию: Playwright пишет отчёт JUnit, трассы и захваты прошивки TASK-045 в test-results/browser/, где нет отслеживаемых файлов, а последний настроенный репортёр tests/support/tracked-results-reporter.ts повторяет проверку после того, как остальные репортёры записали свои файлы. Браузерный артефакт CI выгружает test-results/browser/ и playwright-report/. Запустить npm run dev; проверить HTTP, COOP same-origin, COEP require-corp и настоящий Worker READY. Начать с нулевого газа, армировать, летать, приостановить и сбросить. Браузерные тесты используют системный Chromium только при наличии. Установка/запуск на чистой восстановленной машине для сертификации выпуска ещё не выполнялись.
 
@@ -221,6 +221,20 @@ FPV. Захваты и тесты открывают `view=chase`. PresentMon з
 поэтому сопроводительная запись оставляет только кадры внутри окна измерения и
 сообщает `DisplayedTime` (время показа каждого кадра на экране), `GPUBusy` и
 режим вывода.
+
+В macOS для прогона на настоящей земле нужен только ландшафт (TASK-186).
+`setup-macos.sh` устанавливает его инструменты в пространство пользователя, без
+`sudo` и Homebrew, затем загружаются тайлы и собирается ландшафт, а
+`MIRAGE_GEODATA_DIR`, заданная до запуска сервера разработки, раздаёт его. На
+эталонном Mac это заняло около 5 минут и занимает 636 МБ инструментов, 184 МБ
+тайлов и 360 МБ ландшафта:
+
+```bash
+bash scripts/geodata/setup-macos.sh
+python3 -I scripts/geodata/fetch_fabdem.py --config config/geodata.json --out ~/mirage-geodata/fabdem
+MAMBA_ROOT_PREFIX=~/.mirage-geo/mamba ~/.mirage-geo/bin/micromamba run -n mirage-geo python -I scripts/geodata/build_terrain.py --config config/geodata.json --fabdem ~/mirage-geodata/fabdem --out ~/mirage-geodata/israel/terrain
+MIRAGE_GEODATA_DIR=~/mirage-geodata/israel npm run dev
+```
 
 Сгенерированные ландшафт и здания (см. `docs/architecture.md`) собираются в WSL и
 никогда не фиксируются:

@@ -35,6 +35,7 @@ const ORIGIN = "http://127.0.0.1:5173";
 const FIRMWARE_ID = "arducopter-8ab6afde";
 const FIXTURE = new URL("../fixtures/terrain-qm-slope/", import.meta.url);
 const EVIDENCE = join(ROOT, "test-results/browser/task-186-terrain-sitl.json");
+const FABDEM_EVIDENCE = join(ROOT, "test-results/browser/task-186-fabdem-sitl.json");
 /** The terrain ends 512 m north; the run pauses once the 8 m square around the vehicle crosses it. */
 const EDGE_M = 512 - 8, TICK_TRAVEL_M = 16 / 800;
 const GEODATA = process.env.MIRAGE_GEODATA_DIR;
@@ -191,5 +192,9 @@ test("with the local FABDEM output served, a hover at the area of operation stan
     expect(read.terrain?.sourceId).toBe("fabdem-elevation");
     expect(read.terrain?.chunks).toBeGreaterThan(0);
     expect(read.terrain?.homeHeightM).not.toBeNull();
+    const served = (name: string) => createHash("sha256").update(readFileSync(join(GEODATA ?? "", "terrain", name))).digest("hex");
+    mkdirSync(dirname(FABDEM_EVIDENCE), { recursive: true });
+    writeFileSync(FABDEM_EVIDENCE, `${JSON.stringify({ task: "TASK-186", firmware: FIRMWARE_ID, record: read.sha256, terrain: read.terrain, area: config.area,
+      layerSha256: served("layer.json"), manifestSha256: served("terrain-manifest.json"), lastNorthM: read.lastNorthM, lastEastM: read.lastEastM }, null, 2)}\n`);
   });
 });

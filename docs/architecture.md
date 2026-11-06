@@ -1288,7 +1288,8 @@ Miniflare.
 34.87163838506722 E, radius 1000 m). `setup-wsl.sh` installs the toolchain in
 WSL user space without `sudo` (micromamba with GDAL, PROJ, PostgreSQL/PostGIS
 and the Python packages, the .NET 8 SDK with `pg2b3dm`, the EGM2008 grid) and
-records an explicit package lock.
+records an explicit package lock. `setup-macos.sh` installs what the terrain
+alone needs, in macOS user space, with the same versions.
 
 * `fetch_fabdem.py` reads the FABDEM V1-2 10-degree archives through HTTP byte
   ranges and extracts only the 1-degree tiles inside the box, with retries.
