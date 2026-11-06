@@ -14,11 +14,14 @@
  *
  * A second comparison uses the XFOIL 6.99 SDA1075 polar
  * (tests/fixtures/polars/sda1075-xfoil.json) with the same blade, inflow and
- * tolerances; see parseXfoilPolar.
+ * tolerances; see parseXfoilPolar. A third (TASK-097) uses that table extended to
+ * every angle of attack, with rotational lift augmentation; see extendedChoice.
  *
  * This module is pure: the BET itself runs in native Rust
  * (native/bet/examples/propeller_points.rs) through an injected runner.
  */
+import type { BoundPolar } from "../../wasm-bet/src/rotor.ts";
+
 export type ComparisonStatus = "pass" | "failed" | "unvalidated";
 export interface UiucRun {
   readonly source: string;
@@ -80,6 +83,8 @@ export interface PolarTableData {
   readonly mach: readonly number[];
   /** Index (iMach * nRe + iRe) * nAlpha + iAlpha. */
   readonly cl: readonly number[];
+  /** Rotational lift augmentation, on the extended table (TASK-097). */
+  readonly rotational?: { readonly liftSlopePerRad: number; readonly zeroLiftAlphaRad: number };
   readonly cd: readonly number[];
 }
 export interface BladeStations {
@@ -148,6 +153,15 @@ export type PolarReport =
       readonly solverVersion: string;
       readonly sourceSha256: string;
       readonly ncrit: number;
+      readonly alphaRangeRad: readonly [number, number];
+      readonly reynoldsRange: readonly [number, number];
+    }
+  | {
+      readonly kind: "extended-xfoil";
+      readonly airfoil: "SDA1075";
+      readonly sourceSha256: string;
+      readonly tableSha256: string;
+      readonly rotational: { readonly liftSlopePerRad: number; readonly zeroLiftAlphaRad: number };
       readonly alphaRangeRad: readonly [number, number];
       readonly reynoldsRange: readonly [number, number];
     };
@@ -486,6 +500,27 @@ export function parseXfoilPolar(value: unknown, sourceSha256: string): PolarChoi
   };
 }
 
+/**
+ * The XFOIL table extended to every angle of attack by tests/fixtures/polars/generate_extended.py, as a bound
+ * polar. It changes which points can be compared (those the XFOIL table leaves outside) and it adds the rotational
+ * augmentation; its source stops at +-7.5 degrees, before stall, so its post-stall values are empirical from there on.
+ */
+export function extendedChoice(polar: BoundPolar, sourceSha256: string, tableSha256: string): PolarChoice {
+  if (!polar.rotational) fail("sda1075-extended.rotational");
+  return {
+    table: { alphaRad: polar.alphaRad, reynolds: polar.reynolds, mach: polar.mach, cl: polar.cl, cd: polar.cd, rotational: polar.rotational },
+    report: {
+      kind: "extended-xfoil",
+      airfoil: "SDA1075",
+      sourceSha256: sha256(sourceSha256, "sda1075-extended.sourceSha256"),
+      tableSha256: sha256(tableSha256, "sda1075-extended.tableSha256"),
+      rotational: polar.rotational,
+      alphaRangeRad: [polar.alphaRad[0] ?? NaN, polar.alphaRad[polar.alphaRad.length - 1] ?? NaN],
+      reynoldsRange: [polar.reynolds[0] ?? NaN, polar.reynolds[polar.reynolds.length - 1] ?? NaN],
+    },
+  };
+}
+
 /** Midpoint strips over [start, 1] R with linearly interpolated measured chord/twist. */
 export function bladeStations(p: UiucPropeller, startRadiusRatio: number, strips = BLADE_STRIPS): BladeStations {
   const radiusM = p.diameterM / 2, cutoutM = startRadiusRatio * radiusM;
@@ -527,6 +562,7 @@ export function betRequest(fixture: UiucFixture, polar: PolarTableData): string 
     `polar ${polar.alphaRad.length} ${polar.reynolds.length} ${polar.mach.length}`,
     line(polar.alphaRad), line(polar.reynolds), line(polar.mach), line(polar.cl), line(polar.cd),
   ];
+  if (polar.rotational) parts.push(`rotational ${polar.rotational.liftSlopePerRad} ${polar.rotational.zeroLiftAlphaRad}`);
   let current: UiucPropeller | null = null;
   for (const q of queue(fixture)) {
     if (q.propeller !== current) {

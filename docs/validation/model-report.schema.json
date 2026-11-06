@@ -784,6 +784,69 @@
                     }
                   }
                 }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "kind",
+                  "airfoil",
+                  "sourceSha256",
+                  "tableSha256",
+                  "rotational",
+                  "alphaRangeRad",
+                  "reynoldsRange"
+                ],
+                "properties": {
+                  "kind": {
+                    "const": "extended-xfoil"
+                  },
+                  "airfoil": {
+                    "const": "SDA1075"
+                  },
+                  "sourceSha256": {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{64}$"
+                  },
+                  "tableSha256": {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{64}$"
+                  },
+                  "rotational": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "liftSlopePerRad",
+                      "zeroLiftAlphaRad"
+                    ],
+                    "properties": {
+                      "liftSlopePerRad": {
+                        "type": "number",
+                        "exclusiveMinimum": 0
+                      },
+                      "zeroLiftAlphaRad": {
+                        "type": "number"
+                      }
+                    }
+                  },
+                  "alphaRangeRad": {
+                    "type": "array",
+                    "minItems": 2,
+                    "maxItems": 2,
+                    "items": {
+                      "type": "number"
+                    }
+                  },
+                  "reynoldsRange": {
+                    "type": "array",
+                    "minItems": 2,
+                    "maxItems": 2,
+                    "items": {
+                      "type": "number",
+                      "exclusiveMinimum": 0
+                    }
+                  }
+                }
               }
             ]
           },

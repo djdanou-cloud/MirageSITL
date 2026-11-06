@@ -15,6 +15,8 @@ export const ALLOCATION_GRAPHS: readonly (readonly [graph: string, variant: Allo
   ["weather-synthetic-pad-four-rotor", "scalar"], ["weather-session-synthetic-pad", "scalar"],
   // TASK-096 airframe drag in a gusty wind, its validity flag switching on and off.
   ["airframe-drag-weather-pad-four-rotor", "scalar"],
+  // TASK-097 a full-range table: four Mach nodes, and rotational augmentation on every strip.
+  ["extended-polar-synthetic-pad-four-rotor", "scalar"], ["extended-polar-synthetic-pad-four-rotor", "simd128"],
 ];
 
 function field(value: unknown, key: string): unknown {

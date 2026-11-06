@@ -19,7 +19,7 @@
       "polarSha256": "d6d9793ea030c6b957fa9018ed5c3307891665829773574b2bacb26f1909c9a1",
       "suiteSha256": "608d6a9fdeafd14766139d2509b2d8a0f66b51b42c0bf550cffbb9d533cc5871",
       "reportPath": "test-results/validation/rotor-bet.json",
-      "reportSha256": "29d29a35b818eb6e38d3b3898cfcf22561d876ca67565260276c40923b2d5e0d"
+      "reportSha256": "0c71d7c71ac2b0562e3ae254c97a3abd2360ee6b76dc8d8f39fcd1d9889da807"
     },
     {
       "configurationId": "tapered-three-blade",
@@ -33,7 +33,7 @@
       "polarSha256": "d6d9793ea030c6b957fa9018ed5c3307891665829773574b2bacb26f1909c9a1",
       "suiteSha256": "608d6a9fdeafd14766139d2509b2d8a0f66b51b42c0bf550cffbb9d533cc5871",
       "reportPath": "test-results/validation/rotor-bet.json",
-      "reportSha256": "29d29a35b818eb6e38d3b3898cfcf22561d876ca67565260276c40923b2d5e0d"
+      "reportSha256": "0c71d7c71ac2b0562e3ae254c97a3abd2360ee6b76dc8d8f39fcd1d9889da807"
     },
     {
       "configurationId": "symmetric-four-blade",
@@ -47,7 +47,7 @@
       "polarSha256": "b65b811583008327d517505e2995ed2bd1ee9fa66cad207288bf0a436a01dab1",
       "suiteSha256": "608d6a9fdeafd14766139d2509b2d8a0f66b51b42c0bf550cffbb9d533cc5871",
       "reportPath": "test-results/validation/rotor-bet.json",
-      "reportSha256": "29d29a35b818eb6e38d3b3898cfcf22561d876ca67565260276c40923b2d5e0d"
+      "reportSha256": "0c71d7c71ac2b0562e3ae254c97a3abd2360ee6b76dc8d8f39fcd1d9889da807"
     }
   ],
   "measuredValidation": [],
@@ -123,8 +123,8 @@
           "errors": 0,
           "maxAbsCtError": 0.019084968332800614,
           "maxAbsCpError": 0.004443802254851862,
-          "meanCtError": 0.011457832157381444,
-          "meanCpError": -0.0023200090906180157,
+          "meanCtError": 0.011457832157381442,
+          "meanCpError": -0.0023200090906180166,
           "status": "failed"
         },
         {
@@ -141,8 +141,8 @@
           "errors": 0,
           "maxAbsCtError": 0.010624307418815065,
           "maxAbsCpError": 0.012852457040414857,
-          "meanCtError": 0.001424634149459979,
-          "meanCpError": -0.010585063541243762,
+          "meanCtError": 0.0014246341494599725,
+          "meanCpError": -0.010585063541243767,
           "status": "failed"
         },
         {
@@ -158,8 +158,8 @@
           "outsideMomentum": 3,
           "errors": 0,
           "maxAbsCtError": 0.02593136844991524,
-          "maxAbsCpError": 0.012110715569030643,
-          "meanCtError": 0.009687716546538473,
+          "maxAbsCpError": 0.012110715569030647,
+          "meanCtError": 0.00968771654653847,
           "meanCpError": -0.008165840302845296,
           "status": "failed"
         },
@@ -175,10 +175,10 @@
           "outsidePolar": 30,
           "outsideMomentum": 7,
           "errors": 0,
-          "maxAbsCtError": 0.03521156657136841,
-          "maxAbsCpError": 0.021844014932909904,
-          "meanCtError": 0.011621222434020449,
-          "meanCpError": -0.009493788825702959,
+          "maxAbsCtError": 0.03521156657136838,
+          "maxAbsCpError": 0.021844014932909918,
+          "meanCtError": 0.011621222434020436,
+          "meanCpError": -0.009493788825702967,
           "status": "failed"
         },
         {
@@ -193,9 +193,9 @@
           "outsidePolar": 27,
           "outsideMomentum": 4,
           "errors": 0,
-          "maxAbsCtError": 0.007876422051615374,
-          "maxAbsCpError": 0.008417661742877492,
-          "meanCtError": -0.0016200366664605908,
+          "maxAbsCtError": 0.007876422051615381,
+          "maxAbsCpError": 0.008417661742877496,
+          "meanCtError": -0.0016200366664605927,
           "meanCpError": -0.006162185439852402,
           "status": "failed"
         },
@@ -211,10 +211,10 @@
           "outsidePolar": 31,
           "outsideMomentum": 1,
           "errors": 0,
-          "maxAbsCtError": 0.021132325651948836,
-          "maxAbsCpError": 0.004657899113963599,
-          "meanCtError": 0.012249687251332754,
-          "meanCpError": 0.00009722816335228012,
+          "maxAbsCtError": 0.021132325651948808,
+          "maxAbsCpError": 0.004657899113963592,
+          "meanCtError": 0.01224968725133275,
+          "meanCpError": 0.00009722816335227741,
           "status": "failed"
         },
         {
@@ -229,10 +229,10 @@
           "outsidePolar": 40,
           "outsideMomentum": 7,
           "errors": 0,
-          "maxAbsCtError": 0.014694799341241955,
+          "maxAbsCtError": 0.01469479934124196,
           "maxAbsCpError": 0.02062430639656771,
-          "meanCtError": -0.001624800075525525,
-          "meanCpError": -0.011913257484901246,
+          "meanCtError": -0.00162480007552553,
+          "meanCpError": -0.011913257484901248,
           "status": "failed"
         },
         {
@@ -248,9 +248,9 @@
           "outsideMomentum": 5,
           "errors": 0,
           "maxAbsCtError": 0.028911774492229605,
-          "maxAbsCpError": 0.018975905678761087,
-          "meanCtError": 0.00950834055817693,
-          "meanCpError": -0.006134095203331836,
+          "maxAbsCpError": 0.018975905678761094,
+          "meanCtError": 0.009508340558176927,
+          "meanCpError": -0.00613409520333184,
           "status": "failed"
         },
         {
@@ -265,10 +265,10 @@
           "outsidePolar": 27,
           "outsideMomentum": 0,
           "errors": 0,
-          "maxAbsCtError": 0.05137838240502457,
+          "maxAbsCtError": 0.05137838240502454,
           "maxAbsCpError": 0.01528367158057315,
-          "meanCtError": 0.032111304660315074,
-          "meanCpError": 0.011639847857553804,
+          "meanCtError": 0.03211130466031506,
+          "meanCpError": 0.0116398478575538,
           "status": "failed"
         },
         {
@@ -285,8 +285,8 @@
           "errors": 0,
           "maxAbsCtError": 0.07014152923799069,
           "maxAbsCpError": 0.021539202643369434,
-          "meanCtError": 0.04878667260179984,
-          "meanCpError": 0.016467934093087992,
+          "meanCtError": 0.048786672601799835,
+          "meanCpError": 0.016467934093087985,
           "status": "failed"
         },
         {
@@ -301,10 +301,10 @@
           "outsidePolar": 20,
           "outsideMomentum": 0,
           "errors": 0,
-          "maxAbsCtError": 0.10158928653575239,
-          "maxAbsCpError": 0.031289597017941234,
-          "meanCtError": 0.06714272081446802,
-          "meanCpError": 0.02348522446707075,
+          "maxAbsCtError": 0.10158928653575233,
+          "maxAbsCpError": 0.03128959701794115,
+          "meanCtError": 0.067142720814468,
+          "meanCpError": 0.023485224467070735,
           "status": "failed"
         },
         {
@@ -321,8 +321,8 @@
           "errors": 0,
           "maxAbsCtError": 0.03838055822840364,
           "maxAbsCpError": 0.009392179722191654,
-          "meanCtError": 0.02044576799144793,
-          "meanCpError": 0.004608838965919687,
+          "meanCtError": 0.020445767991447934,
+          "meanCpError": 0.004608838965919684,
           "status": "failed"
         },
         {
@@ -337,10 +337,10 @@
           "outsidePolar": 29,
           "outsideMomentum": 0,
           "errors": 0,
-          "maxAbsCtError": 0.05711420319424618,
+          "maxAbsCtError": 0.05711420319424612,
           "maxAbsCpError": 0.014383707300284612,
-          "meanCtError": 0.033338137575312135,
-          "meanCpError": 0.009451649764231998,
+          "meanCtError": 0.033338137575312114,
+          "meanCpError": 0.009451649764231993,
           "status": "failed"
         },
         {
@@ -357,8 +357,8 @@
           "errors": 0,
           "maxAbsCtError": 0.06840215313459092,
           "maxAbsCpError": 0.016001676081106253,
-          "meanCtError": 0.037135519757712745,
-          "meanCpError": 0.008409365346887973,
+          "meanCtError": 0.03713551975771273,
+          "meanCpError": 0.00840936534688796,
           "status": "failed"
         }
       ]
@@ -497,9 +497,9 @@
           "outsideMomentum": 7,
           "errors": 0,
           "maxAbsCtError": 0.008255700582151061,
-          "maxAbsCpError": 0.005133225517001922,
-          "meanCtError": -0.0015431319714764532,
-          "meanCpError": -0.0016760034573279664,
+          "maxAbsCpError": 0.005133225517001924,
+          "meanCtError": -0.0015431319714764569,
+          "meanCpError": -0.001676003457327968,
           "status": "failed"
         },
         {
@@ -534,8 +534,8 @@
           "errors": 0,
           "maxAbsCtError": 0.006855007735421748,
           "maxAbsCpError": 0.0038398582643355827,
-          "meanCtError": 0.003636545282537627,
-          "meanCpError": -0.0025048756063858015,
+          "meanCtError": 0.003636545282537622,
+          "meanCpError": -0.0025048756063858037,
           "status": "pass"
         },
         {
@@ -551,9 +551,9 @@
           "outsideMomentum": 7,
           "errors": 0,
           "maxAbsCtError": 0.0183462825583299,
-          "maxAbsCpError": 0.007575195360481582,
-          "meanCtError": 0.014099899917485786,
-          "meanCpError": 0.005334949490178391,
+          "maxAbsCpError": 0.007575195360481568,
+          "meanCtError": 0.014099899917485784,
+          "meanCpError": 0.005334949490178387,
           "status": "failed"
         },
         {
@@ -625,7 +625,7 @@
           "maxAbsCtError": 0.03673780742562399,
           "maxAbsCpError": 0.01931080890181209,
           "meanCtError": 0.024239121552637227,
-          "meanCpError": 0.01395689452638663,
+          "meanCpError": 0.013956894526386628,
           "status": "failed"
         },
         {
@@ -640,10 +640,10 @@
           "outsidePolar": 39,
           "outsideMomentum": 1,
           "errors": 0,
-          "maxAbsCtError": 0.0531727767658734,
-          "maxAbsCpError": 0.029454647140431528,
-          "meanCtError": 0.038595305922610304,
-          "meanCpError": 0.02323044099881715,
+          "maxAbsCtError": 0.05317277676587337,
+          "maxAbsCpError": 0.0294546471404315,
+          "meanCtError": 0.03859530592261029,
+          "meanCpError": 0.023230440998817138,
           "status": "failed"
         },
         {
@@ -660,17 +660,323 @@
           "errors": 0,
           "maxAbsCtError": 0.06818980409344974,
           "maxAbsCpError": 0.035429619812529456,
-          "meanCtError": 0.04087709612404463,
+          "meanCtError": 0.040877096124044617,
           "meanCpError": 0.02568296751997418,
+          "status": "failed"
+        }
+      ]
+    },
+    {
+      "id": "uiuc-da4002-da4022-propellers-extended",
+      "datasetId": "UIUC-Propeller-Database-Vols-1-4",
+      "referenceUrl": "https://m-selig.ae.illinois.edu/props/propDB.html",
+      "license": "UIUC-Propeller-Database-citation-requested-no-explicit-license",
+      "acquiredAt": "2022-06-27T00:00:00Z",
+      "sourceSha256": "ae1a73416210aaf64d51e3f2ff76e971d9c95995a976fcdcdfb7bc27dee46af3",
+      "inventorySha256": "61b65ba5c71634a63bfcc4ace60997755c9f99ea55924e2880768648678fa998",
+      "archiveDataSha256": "0b00acaffdacef96f21973960ea3bb7a64b94d385fef5b00b6323b8330c42069",
+      "consistencyStatus": "pass",
+      "audit": {
+        "points": 716,
+        "applicable": 674,
+        "etaInconsistent": 0,
+        "aboveFroudeBound": 0
+      },
+      "status": "failed",
+      "polar": {
+        "kind": "extended-xfoil",
+        "airfoil": "SDA1075",
+        "sourceSha256": "96878564e362ec18184bf09167c87546d665c34b64c88c009598ab8943f6393b",
+        "tableSha256": "6e6e15c81fee8e95c54c8437616148de902e162a15e498af88e143e5034ba1f3",
+        "rotational": {
+          "liftSlopePerRad": 6.283185307179586,
+          "zeroLiftAlphaRad": -0.02565974
+        },
+        "alphaRangeRad": [
+          -3.141592653589793,
+          3.141592653589793
+        ],
+        "reynoldsRange": [
+          20000,
+          200000
+        ]
+      },
+      "tolerance": {
+        "ctRelative": 0.1,
+        "ctAbsolute": 0.005,
+        "cpRelative": 0.1,
+        "cpAbsolute": 0.003
+      },
+      "totals": {
+        "points": 958,
+        "compared": 345,
+        "passed": 47,
+        "ctWithinTolerance": 73,
+        "cpWithinTolerance": 115,
+        "outsidePolar": 553,
+        "outsideMomentum": 60,
+        "errors": 0
+      },
+      "propellers": [
+        {
+          "id": "da4002-5x1.58-2b",
+          "bladeCount": 2,
+          "diameterM": 0.127,
+          "points": 37,
+          "compared": 0,
+          "passed": 0,
+          "ctWithinTolerance": 0,
+          "cpWithinTolerance": 0,
+          "outsidePolar": 33,
+          "outsideMomentum": 4,
+          "errors": 0,
+          "maxAbsCtError": null,
+          "maxAbsCpError": null,
+          "meanCtError": null,
+          "meanCpError": null,
+          "status": "unvalidated"
+        },
+        {
+          "id": "da4002-5x2.65-2b",
+          "bladeCount": 2,
+          "diameterM": 0.127,
+          "points": 41,
+          "compared": 0,
+          "passed": 0,
+          "ctWithinTolerance": 0,
+          "cpWithinTolerance": 0,
+          "outsidePolar": 32,
+          "outsideMomentum": 9,
+          "errors": 0,
+          "maxAbsCtError": null,
+          "maxAbsCpError": null,
+          "meanCtError": null,
+          "meanCpError": null,
+          "status": "unvalidated"
+        },
+        {
+          "id": "da4002-5x3.75-2b",
+          "bladeCount": 2,
+          "diameterM": 0.127,
+          "points": 50,
+          "compared": 0,
+          "passed": 0,
+          "ctWithinTolerance": 0,
+          "cpWithinTolerance": 0,
+          "outsidePolar": 44,
+          "outsideMomentum": 6,
+          "errors": 0,
+          "maxAbsCtError": null,
+          "maxAbsCpError": null,
+          "meanCtError": null,
+          "meanCpError": null,
+          "status": "unvalidated"
+        },
+        {
+          "id": "da4002-5x4.92-2b",
+          "bladeCount": 2,
+          "diameterM": 0.127,
+          "points": 74,
+          "compared": 0,
+          "passed": 0,
+          "ctWithinTolerance": 0,
+          "cpWithinTolerance": 0,
+          "outsidePolar": 63,
+          "outsideMomentum": 11,
+          "errors": 0,
+          "maxAbsCtError": null,
+          "maxAbsCpError": null,
+          "meanCtError": null,
+          "meanCpError": null,
+          "status": "unvalidated"
+        },
+        {
+          "id": "da4002-9x2.85-2b",
+          "bladeCount": 2,
+          "diameterM": 0.2286,
+          "points": 55,
+          "compared": 31,
+          "passed": 12,
+          "ctWithinTolerance": 12,
+          "cpWithinTolerance": 28,
+          "outsidePolar": 17,
+          "outsideMomentum": 7,
+          "errors": 0,
+          "maxAbsCtError": 0.012641204981692078,
+          "maxAbsCpError": 0.004630037301629265,
+          "meanCtError": 0.005276439295822183,
+          "meanCpError": -0.0002278663124802587,
+          "status": "failed"
+        },
+        {
+          "id": "da4002-9x4.76-2b",
+          "bladeCount": 2,
+          "diameterM": 0.2286,
+          "points": 73,
+          "compared": 3,
+          "passed": 0,
+          "ctWithinTolerance": 0,
+          "cpWithinTolerance": 3,
+          "outsidePolar": 67,
+          "outsideMomentum": 3,
+          "errors": 0,
+          "maxAbsCtError": 0.02429428356209508,
+          "maxAbsCpError": 0.0027606516122611197,
+          "meanCtError": 0.024196211622310837,
+          "meanCpError": 0.0021841632997179894,
+          "status": "failed"
+        },
+        {
+          "id": "da4002-9x6.75-2b",
+          "bladeCount": 2,
+          "diameterM": 0.2286,
+          "points": 94,
+          "compared": 57,
+          "passed": 27,
+          "ctWithinTolerance": 37,
+          "cpWithinTolerance": 37,
+          "outsidePolar": 30,
+          "outsideMomentum": 7,
+          "errors": 0,
+          "maxAbsCtError": 0.014278616463715671,
+          "maxAbsCpError": 0.015336309505796328,
+          "meanCtError": 0.005219477680491149,
+          "meanCpError": -0.005103578772798695,
+          "status": "failed"
+        },
+        {
+          "id": "da4002-9x8.95-2b",
+          "bladeCount": 2,
+          "diameterM": 0.2286,
+          "points": 114,
+          "compared": 69,
+          "passed": 8,
+          "ctWithinTolerance": 24,
+          "cpWithinTolerance": 47,
+          "outsidePolar": 40,
+          "outsideMomentum": 5,
+          "errors": 0,
+          "maxAbsCtError": 0.020871232313158836,
+          "maxAbsCpError": 0.0382640455702027,
+          "meanCtError": 0.011482036962244618,
+          "meanCpError": -0.0037070222344670564,
+          "status": "failed"
+        },
+        {
+          "id": "da4022-5x3.75-2b",
+          "bladeCount": 2,
+          "diameterM": 0.127,
+          "points": 66,
+          "compared": 0,
+          "passed": 0,
+          "ctWithinTolerance": 0,
+          "cpWithinTolerance": 0,
+          "outsidePolar": 65,
+          "outsideMomentum": 1,
+          "errors": 0,
+          "maxAbsCtError": null,
+          "maxAbsCpError": null,
+          "meanCtError": null,
+          "meanCpError": null,
+          "status": "unvalidated"
+        },
+        {
+          "id": "da4022-5x3.75-3b",
+          "bladeCount": 3,
+          "diameterM": 0.127,
+          "points": 65,
+          "compared": 0,
+          "passed": 0,
+          "ctWithinTolerance": 0,
+          "cpWithinTolerance": 0,
+          "outsidePolar": 62,
+          "outsideMomentum": 3,
+          "errors": 0,
+          "maxAbsCtError": null,
+          "maxAbsCpError": null,
+          "meanCtError": null,
+          "meanCpError": null,
+          "status": "unvalidated"
+        },
+        {
+          "id": "da4022-5x3.75-4b",
+          "bladeCount": 4,
+          "diameterM": 0.127,
+          "points": 61,
+          "compared": 0,
+          "passed": 0,
+          "ctWithinTolerance": 0,
+          "cpWithinTolerance": 0,
+          "outsidePolar": 58,
+          "outsideMomentum": 3,
+          "errors": 0,
+          "maxAbsCtError": null,
+          "maxAbsCpError": null,
+          "meanCtError": null,
+          "meanCpError": null,
+          "status": "unvalidated"
+        },
+        {
+          "id": "da4022-9x6.75-2b",
+          "bladeCount": 2,
+          "diameterM": 0.2286,
+          "points": 88,
+          "compared": 74,
+          "passed": 0,
+          "ctWithinTolerance": 0,
+          "cpWithinTolerance": 0,
+          "outsidePolar": 14,
+          "outsideMomentum": 0,
+          "errors": 0,
+          "maxAbsCtError": 0.052006440367024426,
+          "maxAbsCpError": 0.022115112073428658,
+          "meanCtError": 0.03357045800253653,
+          "meanCpError": 0.015076051324647649,
+          "status": "failed"
+        },
+        {
+          "id": "da4022-9x6.75-3b",
+          "bladeCount": 3,
+          "diameterM": 0.2286,
+          "points": 83,
+          "compared": 68,
+          "passed": 0,
+          "ctWithinTolerance": 0,
+          "cpWithinTolerance": 0,
+          "outsidePolar": 15,
+          "outsideMomentum": 0,
+          "errors": 0,
+          "maxAbsCtError": 0.07308095646497348,
+          "maxAbsCpError": 0.0336470069567351,
+          "meanCtError": 0.048171514765915975,
+          "meanCpError": 0.025004834068926143,
+          "status": "failed"
+        },
+        {
+          "id": "da4022-9x6.75-4b",
+          "bladeCount": 4,
+          "diameterM": 0.2286,
+          "points": 57,
+          "compared": 43,
+          "passed": 0,
+          "ctWithinTolerance": 0,
+          "cpWithinTolerance": 0,
+          "outsidePolar": 13,
+          "outsideMomentum": 1,
+          "errors": 0,
+          "maxAbsCtError": 0.09112644842112058,
+          "maxAbsCpError": 0.04367853165588967,
+          "meanCtError": 0.05454716619852631,
+          "meanCpError": 0.030369751433147792,
           "status": "failed"
         }
       ]
     }
   ],
-  "referenceSha256": "8c598b3072fd60ce24045af5f3da499dc4cd4e59b98bb3b88440f29b940bdc8f",
+  "referenceSha256": "e857a34003f5bb317f06d0fa4121da32a6da83c50bcbd19eca25e7afd3b0697a",
   "artifactSha256": {
-    "scalar": "b419d52c59e71ae161f052a08d9cc1ba9d6f973663c8faf233f7d139adbaca96",
-    "simd128": "bd60e4cd7b70bcff4ab6c3125917b4c5d30b03dd701e79db2e23109b0b5398eb"
+    "scalar": "7cca1810dafd0ce84cbb434bed78bdc4aaa7de9aef265ae74fc3335cec567e89",
+    "simd128": "245191c9b0882e3e6e007f083dadcfdad21f6a1a287b49328c8fdd70dadbe660"
   },
   "cases": [
     {
@@ -784,7 +1090,7 @@
   ],
   "blockers": [
     "Measured airframe validation is not certified: no airframe dataset is archived.",
-    "UIUC DA4002/DA4022 propellers still fail the fixed CT/CP tolerances with the analytic and XFOIL polars. The separate annular tip/hub/swirl sensitivity diagnostic is not a fidelity override; coverage and low-Re polar accuracy remain unresolved.",
+    "UIUC DA4002/DA4022 propellers still fail the fixed CT/CP tolerances with the analytic, XFOIL and extended polars. The separate annular tip/hub/swirl sensitivity diagnostic is not a fidelity override; coverage and low-Re polar accuracy remain unresolved.",
     "NASA measured fidelity is deferred by the user, not passed. The historical failing comparison is hash-checked and retained separately from active acceptance.",
     "Configurable BET polar/rotor-to-body session injection is implemented; the application still selects its demo backend by default. Browser autopilot admission remains separate.",
     "Configuration-driven NeuralFoil surrogate numerical validation is separate from fidelity: 61/72 cases carry confidence or validity flags; no measured rotor/airframe acceptance is claimed.",
@@ -793,12 +1099,12 @@
   "diagnostics": {
     "betRuntime": {
       "path": "test-results/validation/bet-runtime.json",
-      "reportSha256": "2007b6372aca5d98aabaf08cef17e1ea445341a8ea7db394038cd188c793c885",
+      "reportSha256": "849d29be8c46cf854b2ee8ba2f75b113a9d4af63aa8e9470344311d5bf9bfdbe",
       "status": "pass"
     },
     "betRuntimeAllocation": {
       "path": "test-results/validation/bet-runtime-allocation.json",
-      "reportSha256": "0a000d2fe8e58a0fc1175af999149b5c9bd720ac398cef73ebf18a695d77ac1d",
+      "reportSha256": "34a6a52d7bf9aa63faf1fdcacfe06844513d4182becea295f419124584f4a653",
       "status": "pass"
     },
     "jsbsimBackend": {
@@ -818,7 +1124,7 @@
     },
     "contact": {
       "path": "test-results/bench/contact.json",
-      "reportSha256": "cb9e8a47c1705c129510d0d7e07bec795b2fec0beff4a2e4fc59d75b62ff969e",
+      "reportSha256": "4d85134d4f60a42a3c9fc105ba7fb7c0713ae36a9a88751df76c3a57d2c57ba5",
       "status": "pass"
     },
     "jsbsimNative": {

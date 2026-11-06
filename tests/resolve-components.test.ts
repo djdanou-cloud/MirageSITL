@@ -76,7 +76,7 @@ describe('component resolution', () => {
 
   it('takes the polar from a matching card airfoil, flagged, and otherwise blocks flight', () => {
     const named = resolveComponents(quad(), cardsWith({ propeller: { airfoil: 'naca 0012' } }));
-    expect(named.components?.motors[0]?.rotor.polarId).toBe(2);
+    expect(named.components?.motors[0]?.rotor.polarId).toBe(4);
     expect(ids(named)).toContain('polar-from-card-airfoil');
     // A chosen polar wins over the card's airfoil, and is not an assumption.
     const chosen = resolveComponents(withPolar(quad()), cardsWith({ propeller: { airfoil: 'NACA0012' } }));

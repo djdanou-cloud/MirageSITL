@@ -272,6 +272,64 @@ fn production_kernel_serves_every_mach_axis_within_t1() {
     }
 }
 
+/// TASK-097: the rotational augmentation in every kernel. The closed form holds
+/// at the strip, the exact kernel stays bitwise with the reference, the default
+/// kernel stays within T1 with equal flags on all strip counts and the extended
+/// table's Mach axis, and a rotor without it is untouched.
+#[test]
+fn rotational_augmentation_holds_in_every_kernel() {
+    use mirage_bet::blade::RotationalAugmentation;
+    let augmentation = RotationalAugmentation { lift_slope_per_rad: 2.0 * PI, zero_lift_alpha_rad: -0.09 };
+    // The closed form: the full correction inside 30 degrees of zero lift, none beyond 50, between them continuous.
+    let degrees = PI / 180.0;
+    let (cl, factor) = (0.8, 3.0 * 0.25f64 * 0.25);
+    for at_deg in [-29.0, -10.0, 0.0, 5.0, 29.9] {
+        let alpha = -0.09 + at_deg * degrees;
+        let want = cl + factor * (2.0 * PI * at_deg * degrees - cl);
+        assert!((augmentation.lift(cl, alpha, factor) - want).abs() <= 1e-12, "{at_deg}");
+    }
+    for at_deg in [50.0, 60.0, 120.0, 180.0, -50.0, -175.0] {
+        assert_eq!(augmentation.lift(cl, -0.09 + at_deg * degrees, factor), cl, "{at_deg}");
+    }
+    let mut last = augmentation.lift(cl, -0.09 + 25.0 * degrees, factor);
+    for tenth in 251..=550 {
+        let next = augmentation.lift(cl, -0.09 + tenth as f64 * 0.1 * degrees, factor);
+        assert!((next - last).abs() <= 0.012, "a jump at {} deg: {last} to {next}", tenth as f64 * 0.1);
+        last = next;
+    }
+    assert_eq!(RotationalAugmentation::factor(0.03, 0.06), 3.0 * 0.25);
+    // Every kernel, with the extended Mach axis and some reversed flow.
+    let p = neuralfoil::naca6409(&[0.0, 0.3, 0.5, 0.7]);
+    let polar = PolarTable::new(&p.alpha, &p.re, &p.mach, &p.cl, &p.cd).unwrap().with_confidence(&p.confidence, 0.9).unwrap();
+    let (radius_m, cutout_m) = (0.127, 0.0127);
+    let mut changed = 0usize;
+    for n in [16usize, 1, 3, 5, 63] {
+        let width = (radius_m - cutout_m) / n as f64;
+        let r: Vec<f64> = (0..n).map(|k| cutout_m + (k as f64 + 0.5) * width).collect();
+        let chord: Vec<f64> = r.iter().map(|x| 0.025 - 0.08 * (x - 0.06)).collect();
+        let twist: Vec<f64> = r.iter().map(|x| (0.1143 / (2.0 * PI * x)).atan()).collect();
+        let widths = vec![width; n];
+        let g = RotorGeometry { blade_count: 2, spin_sign: 1, radius_m, cutout_m, radius: &r, chord: &chord, twist: &twist, width: &widths };
+        let plain = Rotor::new(g, polar, 8).unwrap();
+        let rotor = plain.with_rotational(Some(augmentation));
+        for omega in [0.0, 150.0, 530.0, 900.0] {
+            for (vx, vz, rate, induced) in [(0.0, 0.0, 0.0, 2.0), (20.0, 0.0, 1.0, 1.0), (-4.0, -8.0, -2.0, -0.5), (2.0, 12.0, 0.5, 9.0)] {
+                let i = RotorInput { density_kg_m3: 1.225, viscosity_pa_s: 1.7894e-5, sound_speed_mps: 340.294, air_velocity_hub_mps: Vec3::new(vx, 1.0, vz),
+                    body_rate_hub_rad_s: Vec3::new(rate, -rate, 0.3 * rate), omega_rad_s: omega, induced_mps: induced, collective_rad: 0.05, cyclic_cos_rad: 0.02, cyclic_sin_rad: -0.03 };
+                let (a, b, t) = (rotor.evaluate(i).unwrap(), rotor.evaluate_fast(i).unwrap(), rotor.evaluate_sampled(i, 1).unwrap());
+                assert_eq!(a, b, "the exact kernel with {n} strips");
+                assert!(within_t1(a.force_n, t.force_n) && within_t1(a.moment_nm, t.moment_nm) && within_t1(a.flap_load_nm, t.flap_load_nm), "{a:?} {t:?}");
+                assert_eq!(a.flags, t.flags);
+                let none = plain.evaluate(i).unwrap();
+                if none.force_n != a.force_n { changed += 1; }
+                let off = plain.with_rotational(None).evaluate_sampled(i, 1).unwrap();
+                assert_eq!(off, plain.evaluate_sampled(i, 1).unwrap());
+            }
+        }
+    }
+    assert!(changed > 50, "the augmentation changed only {changed} states");
+}
+
 /// TASK-091 increment 4: what `evaluate_sampled`'s scratch held from other
 /// evaluations cannot change a result. Rotors on different Reynolds axes, strip
 /// counts and sample counts take turns on one thread, and each result has the

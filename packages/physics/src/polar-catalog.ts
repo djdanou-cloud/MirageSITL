@@ -1,16 +1,20 @@
 import { parseNeuralFoilPolar, type BoundPolar } from '../../wasm-bet/src/rotor.ts';
 import naca6409 from '../polars/naca6409-neuralfoil-v1.json';
 import naca0012 from '../polars/naca0012-neuralfoil-v1.json';
+import naca6409Extended from '../polars/naca6409-extended-v1.json';
+import naca0012Extended from '../polars/naca0012-extended-v1.json';
 
 // Runtime airfoil polar catalog (TASK-144). An aircraft profile chooses one
 // catalog polar per propeller; the derived vehicle manifest carries its
 // numeric ID as each rotor's `polarId`. The files are byte-identical copies of
 // tests/fixtures/polars/ (tests/polar-catalog.test.ts checks the SHA-256), so
-// their provenance and limitations are those fixtures'. Configuration-time
-// code only; never call from a physics step.
+// their provenance and limitations are those fixtures'. The extended tables
+// (TASK-097) cover every angle of attack and Mach numbers to 0.7 from the same
+// sources; the source tables keep their IDs and bytes, so a profile that stored
+// one keeps its numbers. Configuration-time code only; never call from a physics step.
 
 /** Bumped whenever an entry is added, removed or changes its bytes or numeric ID. */
-export const POLAR_CATALOG_VERSION = 1;
+export const POLAR_CATALOG_VERSION = 2;
 
 export interface CatalogPolar {
   /** Stable text ID, stored in aircraft profiles. */
@@ -19,13 +23,24 @@ export interface CatalogPolar {
   readonly numericId: number;
   /** Airfoil name, as a propeller card would state it. */
   readonly airfoil: string;
-  readonly provenance: 'neural-surrogate';
+  readonly provenance: 'neural-surrogate' | 'extended-model';
   /** SHA-256 of the catalog file. */
   readonly sha256: string;
   readonly description: string;
 }
 
+// A card's airfoil name selects the first entry of that airfoil, so the extended tables come first.
 export const POLAR_CATALOG: readonly CatalogPolar[] = Object.freeze([
+  Object.freeze({
+    id: 'naca6409-extended-v1', numericId: 3, airfoil: 'NACA6409', provenance: 'extended-model',
+    sha256: '526a0d5837349dad49b0d09487177329be285f49fa2203240f49a3b3d492be6b',
+    description: 'NACA 6409, every angle of attack and Mach numbers to 0.7: the NeuralFoil prediction inside +-30 degrees at Mach 0, with empirical models outside it and at higher Mach (flagged low confidence outside the source range); not measured data.',
+  }),
+  Object.freeze({
+    id: 'naca0012-extended-v1', numericId: 4, airfoil: 'NACA0012', provenance: 'extended-model',
+    sha256: '6c379b3664d984820ac5e0d049911dd1f4e1bd0b85c307a8409bb8533bc1ce43',
+    description: 'NACA 0012, every angle of attack and Mach numbers to 0.7: the NeuralFoil prediction inside +-30 degrees at Mach 0, with empirical models outside it and at higher Mach (flagged low confidence outside the source range); not measured data.',
+  }),
   Object.freeze({
     id: 'naca6409-neuralfoil-v1', numericId: 1, airfoil: 'NACA6409', provenance: 'neural-surrogate',
     sha256: 'd6d9793ea030c6b957fa9018ed5c3307891665829773574b2bacb26f1909c9a1',
@@ -40,6 +55,7 @@ export const POLAR_CATALOG: readonly CatalogPolar[] = Object.freeze([
 
 const SOURCES: ReadonlyMap<string, unknown> = new Map<string, unknown>([
   ['naca6409-neuralfoil-v1', naca6409], ['naca0012-neuralfoil-v1', naca0012],
+  ['naca6409-extended-v1', naca6409Extended], ['naca0012-extended-v1', naca0012Extended],
 ]);
 const parsed = new Map<number, BoundPolar>();
 

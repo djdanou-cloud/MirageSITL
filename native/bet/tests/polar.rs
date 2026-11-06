@@ -182,7 +182,7 @@ fn prepared_lookup_returns_the_reference_bits() {
 
 /// TASK-091 increment 4: the strip-wise lookup returns the bits of the
 /// query-at-a-time lookup for every strip, with the union of its flags, on every
-/// table shape it serves (one or two Mach nodes, one or many Reynolds nodes,
+/// table shape (one to four Mach nodes, one or many Reynolds nodes,
 /// regular and irregular alpha axes, with and without confidence) and every
 /// tail length; strips below the minimum speed keep their lanes and add no flag.
 #[test]
@@ -195,7 +195,7 @@ fn strip_lookup_returns_the_bits_of_the_query_lookup() {
     let mut check = |table: &PolarTable, alpha_axis: &[f64], re_axis: &[f64], mach_axis: &[f64]| {
         let mut logs = ReynoldsLogs::new();
         let polar = table.prepare_kernel(&mut logs);
-        assert!(polar.usable() && polar.strip_wise());
+        assert!(polar.usable());
         let (re_first, re_last) = polar.reynolds_bounds();
         let mut lanes = Box::new(StripLanes::new());
         for n in [1usize, 2, 3, 5, 16, 63, 64] {
@@ -242,7 +242,7 @@ fn strip_lookup_returns_the_bits_of_the_query_lookup() {
             }
         }
     };
-    for mach_nodes in [vec![0.0], vec![0.0, 0.3]] {
+    for mach_nodes in [vec![0.0], vec![0.0, 0.3], vec![0.0, 0.15, 0.3], vec![0.0, 0.3, 0.5, 0.7]] {
         let p = neuralfoil::naca6409(&mach_nodes);
         let table = PolarTable::new(&p.alpha, &p.re, &p.mach, &p.cl, &p.cd).unwrap().with_confidence(&p.confidence, 0.9).unwrap();
         check(&table, &p.alpha, &p.re, &p.mach);
@@ -277,5 +277,5 @@ fn strip_lookup_returns_the_bits_of_the_query_lookup() {
     let (cl, cd): (Vec<f64>, Vec<f64>) = (0..count).map(|k| ((k as f64 * 0.37).sin(), 0.01 + (k as f64 * 0.11).cos().abs())).unzip();
     let rounded = PolarTable::new(&irregular_alpha, &re_axis, &mach_axis, &cl, &cd).unwrap();
     check(&rounded, &irregular_alpha, &re_axis, &mach_axis);
-    assert!(checked > 1_000_000, "{checked} strips");
+    assert!(checked > 1_500_000, "{checked} strips");
 }

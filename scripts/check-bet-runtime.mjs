@@ -18,6 +18,9 @@ const allocation=process.argv.includes('--allocation');
 const optionIndex=process.argv.indexOf('--kernel-options');
 const kernelOptions=optionIndex>=0?Number(process.argv[optionIndex+1]):0;
 if(![0,1,2,3].includes(kernelOptions))throw Error('Invalid --kernel-options');
+// TASK-097: --extended-polar runs the 18 comparisons on the full-range NACA 6409 table, with its rotational
+// augmentation, and writes test-results/validation/bet-runtime-extended.json.
+const extendedPolarRun=process.argv.includes('--extended-polar');
 if(allocation && !globalThis.gc){
   const result=spawnSync(process.execPath,['--expose-gc','--single-threaded','--max-semi-space-size=64',fileURLToPath(import.meta.url),'--allocation'],{stdio:'inherit'});
   process.exit(result.status??1);
@@ -35,11 +38,12 @@ export {PhysicsSessionV2} from './packages/physics/src/session-v2.ts';
 export {createSessionFaultPort} from './packages/ew/src/session-port.ts';
 export {WEATHER_GUST_RMS,WEATHER_PRESSURE,WEATHER_SEED,WEATHER_SLOTS,WEATHER_TEMPERATURE,WEATHER_WIND_DOWN,WEATHER_WIND_EAST,WEATHER_WIND_NORTH} from './packages/physics/src/atmosphere.ts';
 export {StateReaderV2,createSharedMemoryV2,createSpscQueue,newFlightStateV2,newHeaderSnapshotV2,tickToNumber} from '@mirage/protocol';
-export {flightConfiguration,rotorDefinition} from './tests/bet-runtime-fixture.ts';`,resolveDir:root,sourcefile:'bet-runtime-entry.ts',loader:'ts'},
+export {flightConfiguration,rotorDefinition} from './tests/bet-runtime-fixture.ts';
+export {parseNeuralFoilPolar} from './packages/wasm-bet/src/rotor.ts';`,resolveDir:root,sourcefile:'bet-runtime-entry.ts',loader:'ts'},
   bundle:true,platform:'node',format:'esm',packages:'external',outfile:bundle,metafile:true});
 const {BetRotorEngine,BetRotorEngineV2,BetRigidBodyBackendV2,newBodyTruthV2,BetFlightDynamics,MotorFaults,PhysicsSessionV2,createSessionFaultPort,WEATHER_GUST_RMS,WEATHER_PRESSURE,
   WEATHER_SEED,WEATHER_SLOTS,WEATHER_TEMPERATURE,WEATHER_WIND_DOWN,WEATHER_WIND_EAST,WEATHER_WIND_NORTH,StateReaderV2,createSharedMemoryV2,createSpscQueue,
-  newFlightStateV2,newHeaderSnapshotV2,tickToNumber,flightConfiguration,rotorDefinition}=await import(pathToFileURL(bundle).href);
+  newFlightStateV2,newHeaderSnapshotV2,tickToNumber,flightConfiguration,rotorDefinition,parseNeuralFoilPolar}=await import(pathToFileURL(bundle).href);
 const modules=['scalar','simd128'].map(v=>new WebAssembly.Module(read(`packages/wasm-bet/dist/mirage_bet.${v}.wasm`)));
 const sourceFiles=Object.keys(bundled.metafile.inputs).filter(p=>p!=='bet-runtime-entry.ts').map(p=>p.replaceAll('\\','/'));
 sourceFiles.push('scripts/check-bet-runtime.mjs','scripts/bet-runtime-graphs.ts','native/bet/src/bound.rs','native/bet/src/polar.rs','native/bet/src/lib.rs',
@@ -57,7 +61,9 @@ if(!allocation){
   const cases=[];
   // `forward` adds a pitch doublet (0.2 for 1 s, then -0.2 for 1 s), which leaves the vehicle tilted and translating.
   function trajectory(module,index,count,hz,options=0,forward=false){
-    const d=new BetFlightDynamics(module,flightConfiguration(index,count,options),hz);
+    const configuration=flightConfiguration(index,count,options);
+    if(extendedPolarRun)configuration.polars=new Map([[0,parseNeuralFoilPolar(JSON.parse(read('tests/fixtures/polars/naca6409-extended.json').toString('utf8')))]]);
+    const d=new BetFlightDynamics(module,configuration,hz);
     const pilot={flags:3,throttle:0.5,roll:0,pitch:0,yaw:0,wallTimeMs:0};
     let flags=0,sampling=0;
     for(let i=0;i<hz*10;i++){
@@ -93,7 +99,7 @@ if(!allocation){
   }
   const report={schemaVersion:1,status:cases.every(c=>c.passed)?'pass':'failed',...identity,cases,
     tolerance:{positionM:0.1,attitudeRad:Math.PI/360},scope:'Actual rotor/polar/free-shaft/axial-inflow/frame/body graph; synthetic geometry and NeuralFoil predictions; flags remain active; no measured-fidelity or target-device timing claim'};
-  writeFileSync(resolve(root,`test-results/validation/${kernelOptions===0?'bet-runtime':'bet-runtime-modes'}.json`),JSON.stringify(kernelOptions===0?report:{...report,kernelOptions},null,2)+'\n');
+  writeFileSync(resolve(root,`test-results/validation/${extendedPolarRun?'bet-runtime-extended':kernelOptions===0?'bet-runtime':'bet-runtime-modes'}.json`),JSON.stringify(kernelOptions===0?{...report,...(extendedPolarRun?{polar:'naca6409-extended.json'}:{})}:{...report,kernelOptions},null,2)+'\n');
   if(report.status!=='pass')process.exitCode=1;
 }else{
   const native=execFileSync('cargo',['test','--release','-p','mirage-bet','--test','allocation','--locked'],{cwd:resolve(root,'native'),encoding:'utf8',stdio:['ignore','pipe','pipe'],timeout:300000});
@@ -261,6 +267,17 @@ if(!allocation){
     memoryStable:draggy.engine.memoryStable};
   if(!(flaggedSteps>0&&flaggedSteps<1000000))throw Error('The drag validity flag did not switch');
   samples.push(dragGraph);draggy.dispose();console.log(JSON.stringify(dragGraph));
+  // TASK-097: a full-range table, with the Reynolds and Mach brackets moving and rotational augmentation on every strip.
+  for(const [variantIndex,variant] of ['scalar','simd128'].entries()){
+    const extended=padded();
+    extended.polars=new Map([[0,parseNeuralFoilPolar(JSON.parse(read('tests/fixtures/polars/naca6409-extended.json').toString('utf8')))]]);
+    const full=new BetFlightDynamics(modules[variantIndex],extended,400);
+    if(full.setWeather(weathers[0])!==null)throw Error('Weather refused');
+    const fullRun=n=>{for(let i=0;i<n;i++){full.nowMs=0;full.stepNow(pilot);if(full.fault||full.state.down!==0)throw Error('Extended polar allocation step failed');}};
+    fullRun(100000);await measure(fullRun,10000);
+    const fullGraph={graph:'extended-polar-synthetic-pad-four-rotor',variant,...await measure(fullRun,1000000),memoryStable:full.engine.memoryStable};
+    samples.push(fullGraph);full.dispose();console.log(JSON.stringify(fullGraph));
+  }
   const sink={value:null};const control=n=>{for(let i=0;i<n;i++)sink.value={i};};
   const positive=await measure(control,1000000),controlDetected=positive.gcEvents>0 || positive.bytes>1000000;
   const passed=completeAllocationSamples(samples)&&samples.every(s=>s.gcEvents===0&&s.bytesPerStep<0.01&&s.memoryStable)&&controlDetected;

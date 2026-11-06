@@ -1816,6 +1816,156 @@
           "derivation": "Hand-written from the Control Protocol v3 contract in docs/SPECS_SHARED_MEMORY.md and each model's envelope (TASK-166); values are exact; not generated from parser output."
         }
       }
+    },
+    {
+      "path": "polars/naca6409-extended.json",
+      "manifest": {
+        "formatVersion": 1,
+        "id": "naca6409-extended-v1",
+        "sourceSha256": "526a0d5837349dad49b0d09487177329be285f49fa2203240f49a3b3d492be6b",
+        "units": {
+          "alphaRad": "rad",
+          "reynolds": "1",
+          "mach": "1",
+          "cl": "1",
+          "cd": "1",
+          "analysisConfidence": "1"
+        },
+        "validityEnvelope": {
+          "alphaRad": {
+            "min": -3.141592653589793,
+            "max": 3.141592653589793
+          },
+          "reynolds": {
+            "min": 1000,
+            "max": 1000000
+          },
+          "mach": {
+            "min": 0,
+            "max": 0.7
+          },
+          "cl": {
+            "min": -1.171864,
+            "max": 2.344197
+          },
+          "cd": {
+            "min": 0.006306,
+            "max": 1.290012
+          },
+          "analysisConfidence": {
+            "min": 0,
+            "max": 1
+          }
+        },
+        "tolerance": {
+          "absolute": 1e-06,
+          "relative": 1e-06
+        },
+        "provenance": {
+          "kind": "synthetic",
+          "derivation": "Full-range extension of naca6409-neuralfoil.json (SHA-256 d6d9793ea030c6b957fa9018ed5c3307891665829773574b2bacb26f1909c9a1) by tests/fixtures/polars/generate_extended.py: Viterna-Corrigan, reverse flow, Prandtl-Glauert and Korn-Lock models outside the source's range. Empirical models on a surrogate or solver table, not measured data."
+        }
+      }
+    },
+    {
+      "path": "polars/naca0012-extended.json",
+      "manifest": {
+        "formatVersion": 1,
+        "id": "naca0012-extended-v1",
+        "sourceSha256": "6c379b3664d984820ac5e0d049911dd1f4e1bd0b85c307a8409bb8533bc1ce43",
+        "units": {
+          "alphaRad": "rad",
+          "reynolds": "1",
+          "mach": "1",
+          "cl": "1",
+          "cd": "1",
+          "analysisConfidence": "1"
+        },
+        "validityEnvelope": {
+          "alphaRad": {
+            "min": -3.141592653589793,
+            "max": 3.141592653589793
+          },
+          "reynolds": {
+            "min": 1000,
+            "max": 1000000
+          },
+          "mach": {
+            "min": 0,
+            "max": 0.7
+          },
+          "cl": {
+            "min": -1.957313,
+            "max": 1.957313
+          },
+          "cd": {
+            "min": 0.0054,
+            "max": 1.290222
+          },
+          "analysisConfidence": {
+            "min": 0,
+            "max": 1
+          }
+        },
+        "tolerance": {
+          "absolute": 1e-06,
+          "relative": 1e-06
+        },
+        "provenance": {
+          "kind": "synthetic",
+          "derivation": "Full-range extension of naca0012-neuralfoil.json (SHA-256 b65b811583008327d517505e2995ed2bd1ee9fa66cad207288bf0a436a01dab1) by tests/fixtures/polars/generate_extended.py: Viterna-Corrigan, reverse flow, Prandtl-Glauert and Korn-Lock models outside the source's range. Empirical models on a surrogate or solver table, not measured data."
+        }
+      }
+    },
+    {
+      "path": "polars/sda1075-extended.json",
+      "manifest": {
+        "formatVersion": 1,
+        "id": "sda1075-extended-v1",
+        "sourceSha256": "6e6e15c81fee8e95c54c8437616148de902e162a15e498af88e143e5034ba1f3",
+        "units": {
+          "alphaRad": "rad",
+          "reynolds": "1",
+          "mach": "1",
+          "cl": "1",
+          "cd": "1",
+          "analysisConfidence": "1"
+        },
+        "validityEnvelope": {
+          "alphaRad": {
+            "min": -3.141592653589793,
+            "max": 3.141592653589793
+          },
+          "reynolds": {
+            "min": 20000,
+            "max": 200000
+          },
+          "mach": {
+            "min": 0,
+            "max": 0.7
+          },
+          "cl": {
+            "min": -0.826224,
+            "max": 1.18032
+          },
+          "cd": {
+            "min": 0.00994,
+            "max": 1.29022
+          },
+          "analysisConfidence": {
+            "min": 0,
+            "max": 1
+          }
+        },
+        "tolerance": {
+          "absolute": 1e-06,
+          "relative": 1e-06
+        },
+        "provenance": {
+          "kind": "synthetic",
+          "derivation": "Full-range extension of sda1075-xfoil.json (SHA-256 96878564e362ec18184bf09167c87546d665c34b64c88c009598ab8943f6393b) by tests/fixtures/polars/generate_extended.py: Viterna-Corrigan, reverse flow, Prandtl-Glauert and Korn-Lock models outside the source's range. Empirical models on a surrogate or solver table, not measured data."
+        }
+      }
     }
   ]
 }

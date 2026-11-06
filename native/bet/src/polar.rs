@@ -379,6 +379,9 @@ pub struct StripLanes {
     /// Drag coefficient.
     pub cd: [f64; MAX_STRIPS],
     clamped_alpha: [f64; MAX_STRIPS],
+    clamped_mach: [f64; MAX_STRIPS],
+    mach_low: [f64; MAX_STRIPS],
+    mach_high: [f64; MAX_STRIPS],
     alpha_guess: [f64; MAX_STRIPS],
     alpha_low: [f64; MAX_STRIPS],
     alpha_high: [f64; MAX_STRIPS],
@@ -396,7 +399,7 @@ impl StripLanes {
         const ZERO: [f64; MAX_STRIPS] = [0.0; MAX_STRIPS];
         Self {
             speed: ZERO, alpha: ZERO, reynolds: ZERO, clamped_reynolds: ZERO, ln_reynolds: ZERO, mach: ZERO, hint: [usize::MAX; MAX_STRIPS], cl: ZERO, cd: ZERO,
-            clamped_alpha: ZERO, alpha_guess: ZERO, alpha_low: ZERO, alpha_high: ZERO, ln_low: ZERO, inverse_ln: ZERO,
+            clamped_alpha: ZERO, clamped_mach: ZERO, mach_low: ZERO, mach_high: ZERO, alpha_guess: ZERO, alpha_low: ZERO, alpha_high: ZERO, ln_low: ZERO, inverse_ln: ZERO,
             alpha_weight: ZERO, re_weight: ZERO, mach_weight: ZERO, corner: [0; MAX_STRIPS],
         }
     }
@@ -540,14 +543,9 @@ impl KernelPolar<'_> {
         v0 + ta * (v1 - v0)
     }
 
-    /// True when `sample_strips` serves this table: at most two Mach nodes.
-    pub fn strip_wise(&self) -> bool {
-        self.n_mach <= 2
-    }
-
     /// `sample` for the first `n` strips of `s` at or above `min_speed`, in
     /// passes across strips so that the clamps and the weights, the alpha
-    /// division among them, take vector lanes. A usable, `strip_wise` table only.
+    /// division among them, take vector lanes. A usable table only.
     /// Each strip's result has the bits of `sample` with the same `known_flags`,
     /// and the flags returned are the union of `sample`'s. A hint is only a start
     /// for its bracket, so a wrong hint cannot change a result.
@@ -558,6 +556,8 @@ impl KernelPolar<'_> {
         let inverse_mach = self.inverse_mach_width;
         // A query clamped onto the last node keeps the reference weight 1 exactly; a single-node axis keeps weight 0.
         let mach_full = if self.n_mach == 2 { mach_last } else { f64::INFINITY };
+        let several_mach = self.n_mach > 2;
+        let mach_scale = self.mach_scale;
         let mut outside = false;
         for k in 0..n {
             let (alpha, mach) = (s.alpha[k], s.mach[k]);
@@ -568,6 +568,7 @@ impl KernelPolar<'_> {
             outside |= !inside & (s.speed[k] >= min_speed);
             s.clamped_alpha[k] = a;
             s.alpha_guess[k] = (a - alpha_first) * alpha_scale;
+            s.clamped_mach[k] = m;
             s.mach_weight[k] = if m >= mach_full { 1.0 } else { clamp_select((m - mach_first) * inverse_mach, 0.0, 1.0) };
         }
         // The brackets, against the axes: scalar, and well predicted because the guesses are nearly always right.
@@ -575,6 +576,7 @@ impl KernelPolar<'_> {
         let several_re = self.n_re >= 2;
         let last_alpha = alpha_axis.len() - 2;
         let last_re = re_axis.len().saturating_sub(2);
+        let (mach_axis, n_re) = (self.mach, self.n_re);
         for k in 0..n {
             if !(s.speed[k] >= min_speed) {
                 continue;
@@ -607,7 +609,17 @@ impl KernelPolar<'_> {
             let at = ir & (MAX_REYNOLDS_NODES - 1);
             s.ln_low[k] = self.logs.ln_re[at];
             s.inverse_ln[k] = self.logs.inverse_ln_width[at];
-            s.corner[k] = ir * n_alpha + ia;
+            let im = if several_mach {
+                let m = s.clamped_mach[k];
+                let i = guessed_index(mach_axis, m, (m - mach_first) * mach_scale);
+                let Some((m0, m1)) = pair(mach_axis, i) else { continue };
+                s.mach_low[k] = m0;
+                s.mach_high[k] = m1;
+                i
+            } else {
+                0
+            };
+            s.corner[k] = (im * n_re + ir) * n_alpha + ia;
         }
         // A single-node Reynolds axis keeps weight 0: its width's reciprocal is 0 and this limit is never reached.
         let re_full = if several_re { re_last } else { f64::INFINITY };
@@ -616,6 +628,11 @@ impl KernelPolar<'_> {
             s.alpha_weight[k] = clamp_select((s.clamped_alpha[k] - s.alpha_low[k]) / span, 0.0, 1.0);
             let weight = clamp_select((s.ln_reynolds[k] - s.ln_low[k]) * s.inverse_ln[k], 0.0, 1.0);
             s.re_weight[k] = if s.clamped_reynolds[k] >= re_full { 1.0 } else { weight };
+        }
+        if several_mach {
+            for k in 0..n {
+                s.mach_weight[k] = clamp_select((s.clamped_mach[k] - s.mach_low[k]) / (s.mach_high[k] - s.mach_low[k]), 0.0, 1.0);
+            }
         }
         // The corners. Once a corner flags, the rest could only flag again, as with `known_flags`.
         let mut low = known_flags & FLAG_LOW_CONFIDENCE != 0 || self.confidence.is_empty();

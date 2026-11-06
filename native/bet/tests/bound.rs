@@ -28,9 +28,9 @@ fn loads_and_transmitted_shaft_reaction_match_closed_form(){
 }
 #[test]
 fn errors_preserve_output_and_state_and_old_versions_are_rejected(){
-    // Configuration version 2 carries the TASK-091 kernel options; 0 and 3 are unknown.
+    // Configuration versions 2 and 3 carry the kernel options; 0 and 4 are unknown.
     let(mut c,mut a,mut i)=fixture();let before=a.clone();
-    for version in [0,3] {word(&mut c,0,version);assert_eq!(bound::init(&c,&mut a,0),-7);assert_eq!(before,a);}
+    for version in [0,4] {word(&mut c,0,version);assert_eq!(bound::init(&c,&mut a,0),-7);assert_eq!(before,a);}
     word(&mut c,0,1);
     assert_eq!(bound::init(&c,&mut a,0),0);let before=a.clone();let mut o=[0x5au8;128];
     assert_eq!(bound::step(&mut a,&i,&mut o,1.0/800.0),-4);assert_eq!(before,a);assert_eq!(o,[0x5a;128]);
@@ -288,4 +288,70 @@ fn opt_in_modes_stay_close_to_the_reference_in_hover_and_forward_flight() {
         assert!(worst < 5e-3, "{name}: thrust deviation {worst}");
         assert!((wf - wr).abs() < 5e-3 * wr, "{name}: shaft speed {wf} vs {wr}");
     }
+}
+
+/// TASK-097: configuration version 3 carries the rotational option and its two
+/// values; versions 1 and 2 keep rejecting them, and without the option it steps
+/// exactly as version 1. With it, the production step stays within T1 of the
+/// reference step, which applies the same physics.
+#[test]
+fn configuration_version_three_carries_the_rotational_augmentation() {
+    let dt = 1.0 / 400.0;
+    let v1 = naca_config(dt);
+    let rejected = |config: &[u8], why: &str| {
+        let mut a = vec![0u8; 64 + config.len()];
+        assert_eq!(bound::init(config, &mut a, 0), -3, "{why}");
+        assert!(a.iter().all(|b| *b == 0), "a rejected init writes nothing");
+    };
+    let with_values = |version: u32, options: u32, slope: f64, zero_lift: f64| {
+        let mut config = v1.clone();
+        word(&mut config, 0, version);
+        word(&mut config, 36, options);
+        put(&mut config, 112, slope);
+        put(&mut config, 120, zero_lift);
+        config
+    };
+    let (version, option) = (bound::CONFIG_VERSION_ROTATIONAL, bound::OPTION_ROTATIONAL);
+    rejected(&with_values(bound::CONFIG_VERSION_OPTIONS, option, 6.28, -0.09), "version 2 rejects the option");
+    rejected(&with_values(bound::CONFIG_VERSION_OPTIONS, 0, 6.28, -0.09), "version 2 keeps the bytes reserved");
+    rejected(&with_values(version, 0, 6.28, -0.09), "the bytes need the option");
+    rejected(&with_values(version, option, 0.0, -0.09), "a positive slope");
+    rejected(&with_values(version, option, -1.0, -0.09), "a positive slope");
+    rejected(&with_values(version, option, f64::NAN, -0.09), "a finite slope");
+    rejected(&with_values(version, option, 6.28, f64::INFINITY), "a finite angle");
+    rejected(&with_values(version, option, 6.28, 1.0), "an angle below a radian");
+    rejected(&with_values(version, 16 | option, 6.28, -0.09), "no unknown option");
+    rejected(&with_values(version, bound::OPTION_EXACT_KERNEL | bound::OPTION_HOVER_SAMPLING | option, 6.28, -0.09), "the exact kernel takes no mode");
+    let mut input = vec![0u8; 128];
+    word(&mut input, 0, 1);
+    for (at, v) in [(8, 1.225), (16, 1.7894e-5), (24, 340.294), (32, 4.0), (56, 0.3), (104, 0.11)] { put(&mut input, at, v); }
+    // Without the option, version 3 is version 1, bit for bit.
+    let (mut a1, mut a3) = (arena_for(&v1), arena_for(&with_values(version, 0, 0.0, 0.0)));
+    let (mut o1, mut o3) = ([0u8; 128], [0u8; 128]);
+    for _ in 0..200 {
+        assert_eq!(bound::step(&mut a1, &input, &mut o1, dt), 0);
+        assert_eq!(bound::step(&mut a3, &input, &mut o3, dt), 0);
+        assert_eq!(o1, o3);
+    }
+    // With it, production and reference agree, and differ from the plain rotor.
+    let config = with_values(version, option, 2.0 * std::f64::consts::PI, -0.09);
+    let (mut production, mut reference) = (arena_for(&config), arena_for(&config));
+    let (mut op, mut or) = ([0u8; 128], [0u8; 128]);
+    let (mut exact_config, mut plain) = (config.clone(), arena_for(&v1));
+    word(&mut exact_config, 36, option | bound::OPTION_EXACT_KERNEL);
+    let mut exact = arena_for(&exact_config);
+    let (mut oe, mut oplain) = ([0u8; 128], [0u8; 128]);
+    let float = |b: &[u8], at: usize| f64::from_le_bytes(b[at..at + 8].try_into().unwrap());
+    for _ in 0..200 {
+        assert_eq!(bound::step(&mut production, &input, &mut op, dt), 0);
+        assert_eq!(bound::step_reference(&mut reference, &input, &mut or, dt), 0);
+        assert_eq!(bound::step(&mut exact, &input, &mut oe, dt), 0);
+        assert_eq!(bound::step(&mut plain, &input, &mut oplain, dt), 0);
+        assert_eq!(oe, or, "the exact kernel is the reference");
+        for at in (0..96).step_by(8) {
+            let (x, y) = (float(&op, at), float(&or, at));
+            assert!((x - y).abs() <= 1e-9 * x.abs().max(y.abs()) + 1e-12, "byte {at}: {x} {y}");
+        }
+    }
+    assert!((float(&op, 16) - float(&oplain, 16)).abs() > 1e-6, "the augmentation changed nothing");
 }

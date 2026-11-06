@@ -313,3 +313,28 @@ fn opt_in_kernel_modes_allocate_zero_over_one_million_steps() {
         assert!(read_word(&out, 112) & bound::FLAG_REDUCED_PREDICTOR != 0);
     }
 }
+
+/// TASK-097: the rotational option adds no allocation, in forward flight, over a million steps.
+#[test]
+fn rotational_option_allocates_zero_over_one_million_steps() {
+    let (mut c, _, _) = fixture();
+    word(&mut c, 0, bound::CONFIG_VERSION_ROTATIONAL);
+    word(&mut c, 36, bound::OPTION_ROTATIONAL);
+    put(&mut c, 112, 2.0 * std::f64::consts::PI);
+    put(&mut c, 120, -0.09);
+    let mut arena = vec![0u8; 64 + c.len()];
+    assert_eq!(bound::init(&c, &mut arena, 0), 0);
+    let (_, mut input) = inputs();
+    let mut out = [0u8; 256];
+    put(&mut input, 40, 3.0);
+    CALLS.store(0, Ordering::Relaxed);
+    BYTES.store(0, Ordering::Relaxed);
+    TRACK.with(|t| t.set(true));
+    let mut status = 0;
+    for _ in 0..1_000_000 {
+        status |= black_box(bound_v2::step(&mut arena, &input, &mut out, DT));
+    }
+    TRACK.with(|t| t.set(false));
+    assert_eq!(status, 0);
+    assert_eq!((CALLS.load(Ordering::Relaxed), BYTES.load(Ordering::Relaxed)), (0, 0));
+}

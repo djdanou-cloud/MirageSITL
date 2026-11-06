@@ -11,6 +11,7 @@
 //! <Mach x nMach>
 //! <CL x nMach*nRe*nAlpha>
 //! <CD x nMach*nRe*nAlpha>
+//! rotational <liftSlopePerRad> <zeroLiftAlphaRad>             (optional, TASK-097; after polar)
 //! rotor <blades> <radiusM> <cutoutM> <stations> <azimuthSamples>
 //! <station radius m> / <chord m> / <twist rad> / <width m>   (four lines)
 //! point <rpm> <J> <rhoKgM3> <muPaS> <soundMps>
@@ -21,7 +22,7 @@
 //! output is a dimensionless residual (legacy: N); nonconverged points are `err`.
 //! Detailed `bem` lines on stderr record final section coverage and convergence.
 use mirage_bet::{
-    blade::{Rotor, RotorGeometry},
+    blade::{RotationalAugmentation, Rotor, RotorGeometry},
     polar::PolarTable,
     propeller::{steady_point, PropellerCondition},
     propeller_bem::{steady_annular, BemOptions},
@@ -75,6 +76,7 @@ fn run() -> Result<(), String> {
     let mut out = io::BufWriter::new(io::stdout().lock());
     let mut polar_data: Option<[Vec<f64>; 5]> = None;
     let mut rotor_data: Option<RotorBlock> = None;
+    let mut rotational: Option<RotationalAugmentation> = None;
     while let Some(line) = lines.next() {
         let line = line.map_err(|e| e.to_string())?;
         let mut tokens = line.split_whitespace();
@@ -94,6 +96,11 @@ fn run() -> Result<(), String> {
                     numbers(lines.next(), n)?,
                     numbers(lines.next(), n)?,
                 ]);
+            }
+            Some("rotational") => {
+                let lift_slope_per_rad: f64 = tokens.next().and_then(|t| t.parse().ok()).ok_or("bad lift slope")?;
+                let zero_lift_alpha_rad: f64 = tokens.next().and_then(|t| t.parse().ok()).ok_or("bad zero-lift angle")?;
+                rotational = Some(RotationalAugmentation { lift_slope_per_rad, zero_lift_alpha_rad });
             }
             Some("rotor") => {
                 let blades = count(tokens.next())? as u32;
@@ -143,7 +150,8 @@ fn run() -> Result<(), String> {
                     width: &s[3],
                 };
                 let rotor = Rotor::new(geometry, polar, r.azimuth)
-                    .map_err(|_| "rotor rejected".to_string())?;
+                    .map_err(|_| "rotor rejected".to_string())?
+                    .with_rotational(rotational);
                 let condition = PropellerCondition {
                     rpm,
                     advance_ratio: j,

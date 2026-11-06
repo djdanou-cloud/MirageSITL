@@ -18,7 +18,7 @@ interface Harness {
   ) => number;
   memory: WebAssembly.Memory;
   blade: (n: number, az: number, spin: number, kind: number) => number;
-  kernelT1: (n: number, az: number) => number;
+  kernelT1: (n: number, az: number, machNodes: number, rotational: number) => number;
   dynamics: (kind: number, steps: number, dt: number) => number;
 }
 function numericExport(
@@ -82,7 +82,7 @@ beforeAll(async () => {
       coaxial: (d, overlap, enabled, quantity, n) =>
         Number(wake(d, overlap, enabled, quantity, n)),
       blade: (n, az, spin, kind) => Number(blade(n, az, spin, kind)),
-      kernelT1: (n, az) => Number(kernelT1(n, az)),
+      kernelT1: (n, az, machNodes, rotational) => Number(kernelT1(n, az, machNodes, rotational)),
       dynamics: (kind, steps, dt) => Number(dynamics(kind, steps, dt)),
     });
   }
@@ -113,11 +113,13 @@ it("keeps the TASK-091 default rotor kernel within T1 of the reference for SIMD 
   // (floor 1e-15) and identical flags; the export returns the largest ratio to that bound.
   for (const module of modules)
     for (const n of [1, 3, 5, 16, 63])
-      for (const az of [1, 3, 8]) {
-        const ratio = module.kernelT1(n, az);
-        expect(Number.isFinite(ratio), `${n} strips, ${az} azimuth samples`).toBe(true);
-        expect(ratio).toBeLessThanOrEqual(1);
-      }
+      for (const az of [1, 3, 8])
+        // Two Mach nodes as the source tables, and TASK-097's four with and without its augmentation.
+        for (const [machNodes, rotational] of [[2, 0], [1, 0], [4, 0], [4, 1], [2, 1]] as const) {
+          const ratio = module.kernelT1(n, az, machNodes, rotational);
+          expect(Number.isFinite(ratio), `${n} strips, ${az} azimuth samples, ${machNodes} Mach nodes, rotational ${rotational}`).toBe(true);
+          expect(ratio).toBeLessThanOrEqual(1);
+        }
 });
 it("matches analytic inflow, passive shaft, oscillator and inertial moment on scalar/SIMD WASM", () => {
   for (const module of modules)

@@ -1,5 +1,5 @@
 //! Versioned caller-owned production rotor/polar binding; see bet_bound.h.
-use crate::{blade::{Rotor, RotorGeometry, RotorInput}, inflow::AxialInflow,
+use crate::{blade::{RotationalAugmentation, Rotor, RotorGeometry, RotorInput}, inflow::AxialInflow,
     motor::DriveTorque, polar::PolarTable, quadrature::AzimuthGrid, shaft::Shaft, Vec3};
 
 /// Independent binding version (legacy arena ABI remains v1).
@@ -16,6 +16,8 @@ pub const OUTPUT_BYTES: u32 = 128;
 pub const MAGIC: u32 = 0x424e4431;
 /// Configuration version 2 (TASK-091): version 1 plus the kernel options word at byte 36.
 pub const CONFIG_VERSION_OPTIONS: u32 = 2;
+/// Configuration version 3 (TASK-097): version 2 plus `OPTION_ROTATIONAL` and its values at bytes 112..128.
+pub const CONFIG_VERSION_ROTATIONAL: u32 = 3;
 /// Kernel option: the half-step prediction uses azimuth samples 0 and N/2 (N even).
 pub const OPTION_REDUCED_PREDICTOR: u32 = 1;
 /// Kernel option: near hover the midpoint uses every other azimuth sample (N even, at least 4).
@@ -23,6 +25,9 @@ pub const OPTION_HOVER_SAMPLING: u32 = 2;
 /// Kernel option (TASK-091 increment 3): the exact kernel `Rotor::evaluate_fast`, bitwise equal
 /// to the reference, instead of the default T1 kernel; not combinable with options 1 and 2.
 pub const OPTION_EXACT_KERNEL: u32 = 4;
+/// Option of configuration version 3: rotational lift augmentation, with the lift slope (1/rad) at
+/// byte 112 and the zero-lift angle (rad) at byte 120. It changes the physics, not the numerics, so the reference kernel applies it too.
+pub const OPTION_ROTATIONAL: u32 = 8;
 /// Output flag: this step's midpoint loads used hover sampling.
 pub const FLAG_HOVER_SAMPLING: u32 = 64;
 /// Output flag: this step's half-step prediction used the reduced predictor.
@@ -51,8 +56,9 @@ fn doubles(b: &[u8], start: usize, n: usize) -> Option<&[f64]> {
 struct Config<'a> {
     geometry: RotorGeometry<'a>, polar: PolarTable<'a>, azimuth: usize,
     inertia: f64, damping: f64, dt: f64, initial: f64, tau: f64, limit: f64,
-    /// Kernel options (configuration version 2); 0 for version 1.
+    /// Kernel options (configuration versions 2 and 3); 0 for version 1.
     options: u32,
+    rotational: Option<RotationalAugmentation>,
 }
 
 /// Full validation of a configuration: every axis, coefficient and confidence
@@ -67,13 +73,24 @@ fn step_config(b: &[u8]) -> Result<Config<'_>, i32> { parse_config(b, false) }
 
 fn parse_config(b: &[u8], full: bool) -> Result<Config<'_>, i32> {
     let version = u(b,0);
-    if version != Some(VERSION) && version != Some(CONFIG_VERSION_OPTIONS) { return Err(-7); }
+    if version != Some(VERSION) && version != Some(CONFIG_VERSION_OPTIONS) && version != Some(CONFIG_VERSION_ROTATIONAL) { return Err(-7); }
     let parse = || {
-        if b.len() < CONFIG_HEADER || u(b,4)? as usize != b.len() || !zero(b,112,128) { return None; }
-        // Version 1 keeps byte 36 reserved zero; version 2 carries the kernel options there.
+        if b.len() < CONFIG_HEADER || u(b,4)? as usize != b.len() { return None; }
+        // Version 1 keeps byte 36 reserved zero; versions 2 and 3 carry the kernel options there.
         let options=if version==Some(VERSION) {if !zero(b,36,40) {return None;} 0} else {u(b,36)?};
-        if options & !(OPTION_REDUCED_PREDICTOR|OPTION_HOVER_SAMPLING|OPTION_EXACT_KERNEL) != 0
-            || (options & OPTION_EXACT_KERNEL != 0 && options != OPTION_EXACT_KERNEL) { return None; }
+        let known=OPTION_REDUCED_PREDICTOR|OPTION_HOVER_SAMPLING|OPTION_EXACT_KERNEL
+            |if version==Some(CONFIG_VERSION_ROTATIONAL) {OPTION_ROTATIONAL} else {0};
+        if options & !known != 0
+            || (options & OPTION_EXACT_KERNEL != 0 && options & (OPTION_REDUCED_PREDICTOR|OPTION_HOVER_SAMPLING) != 0) { return None; }
+        // Bytes 112..128 stay reserved zero unless the rotational option is on.
+        let rotational=if options & OPTION_ROTATIONAL != 0 {
+            let (lift_slope_per_rad,zero_lift_alpha_rad)=(f(b,112)?,f(b,120)?);
+            if !lift_slope_per_rad.is_finite() || lift_slope_per_rad<=0.0 || !zero_lift_alpha_rad.is_finite() || zero_lift_alpha_rad.abs()>=1.0 {return None;}
+            Some(RotationalAugmentation{lift_slope_per_rad,zero_lift_alpha_rad})
+        } else {
+            if !zero(b,112,128) {return None;}
+            None
+        };
         let na=u(b,8)? as usize;let nr=u(b,12)? as usize;let nm=u(b,16)? as usize;
         let ns=u(b,20)? as usize;let count=na.checked_mul(nr)?.checked_mul(nm)?;
         if !(1..=361).contains(&na) || !(1..=32).contains(&nr) || !(1..=8).contains(&nm)
@@ -96,7 +113,7 @@ fn parse_config(b: &[u8], full: bool) -> Result<Config<'_>, i32> {
         if ![initial,tau,limit].iter().all(|v|v.is_finite()) || initial<0.0 || tau<=0.0 || limit<=0.0
             || ![400.0,800.0,1200.0,4800.0].iter().any(|hz|dt==1.0/hz) {return None;}
         Shaft::new(inertia,damping,geometry.spin_sign).ok()?;
-        Some(Config{geometry,polar,azimuth,inertia,damping,dt,initial,tau,limit,options})
+        Some(Config{geometry,polar,azimuth,inertia,damping,dt,initial,tau,limit,options,rotational})
     };
     parse().ok_or(-3)
 }
@@ -209,6 +226,7 @@ pub(crate) fn advance_with(arena: &[u8], input: &[u8], out_len: usize, dt: f64, 
         // The production step reads a configuration `config` validated at initialization (TASK-091).
         let rotor=if production {Rotor::from_validated(c.geometry,c.polar,AzimuthGrid::cached(c.azimuth)?)}
             else {Rotor::new(c.geometry,c.polar,c.azimuth).ok()?};
+        let rotor=rotor.with_rotational(c.rotational);
         // Reduced predictor: samples 0 and N/2, whose first harmonics cancel; only the axial force and torque are used.
         let first=if reduced_predictor {rotor.evaluate_sampled(i,samples/2)} else {evaluate(&rotor,i)}.ok()?;
         // Hover sampling: the regime measure at the start of the step, with hysteresis between HOVER_ENTER and HOVER_LEAVE.

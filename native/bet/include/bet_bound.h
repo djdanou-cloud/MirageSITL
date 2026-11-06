@@ -24,7 +24,10 @@
  * steps that used them and are not validity breaches. Option 4 (TASK-091
  * increment 3) runs the exact kernel, bitwise equal to the reference, instead
  * of the default kernel, which agrees with it within T1 (1e-12 relative);
- * it cannot combine with options 1 and 2. */
+ * it cannot combine with options 1 and 2.
+ * Configuration version 3 (TASK-097): version 2 plus option 8, rotational lift
+ * augmentation, with the f64 lift slope (1/rad) at config byte 112 and the f64
+ * zero-lift angle (rad) at byte 120. Bytes 112..127 stay reserved zero otherwise. */
 #define BET_BOUND_CONFIG_VERSION_OPTIONS 2
 #define BET_BOUND_OPTION_REDUCED_PREDICTOR 1
 #define BET_BOUND_OPTION_HOVER_SAMPLING 2

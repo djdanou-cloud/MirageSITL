@@ -4,6 +4,8 @@ import type { BetRotorConfig } from './arena.ts';
 export interface BoundPolar {
   alphaRad: readonly number[]; reynolds: readonly number[]; mach: readonly number[];
   cl: readonly number[]; cd: readonly number[]; confidence: readonly number[];
+  /** Rotational lift augmentation this table asks for (TASK-097); absent in the source tables. */
+  rotational?: { readonly liftSlopePerRad: number; readonly zeroLiftAlphaRad: number };
 }
 export interface BoundRotorDefinition {
   geometry: BetRotorConfig; polar: BoundPolar; initialOmegaRadS: number;
@@ -18,6 +20,8 @@ export const KERNEL_OPTION_HOVER_SAMPLING = 2;
 /** Kernel option (configuration version 2, TASK-091 increment 3): the exact kernel, bitwise equal to the
  * reference, instead of the default kernel (within T1, 1e-12 relative); not combinable with the other options. */
 export const KERNEL_OPTION_EXACT = 4;
+/** Option of configuration version 3 (TASK-097), set by a polar that asks for rotational lift augmentation. */
+const KERNEL_OPTION_ROTATIONAL = 8;
 /** Rotor output flag: the midpoint loads used hover sampling. Informational, not a validity breach. */
 export const ROTOR_FLAG_HOVER_SAMPLING = 64;
 /** Rotor output flag: the half-step prediction used the reduced predictor. Informational, not a validity breach. */
@@ -36,6 +40,7 @@ function array(value: unknown, cap: number): number[] {
 /** Cold parser. Mach=0 predictions may be explicitly used as an incompressible
  * approximation up to maxMach<=0.3; values outside it remain flagged. */
 export function parseNeuralFoilPolar(value: unknown, maxMach = 0.3): BoundPolar {
+  if (record(value) && value.schemaVersion === 2) return parseExtendedPolar(value);
   if (!record(value) || value.schemaVersion !== 1 || value.provenance !== 'neural-surrogate' ||
       typeof value.airfoil !== 'string' || !Array.isArray(value.mach) || value.mach.length !== 1 || value.mach[0] !== 0 ||
       !Number.isFinite(maxMach) || maxMach < 0 || maxMach > 0.3) throw Error('Invalid NeuralFoil polar identity');
@@ -58,6 +63,41 @@ export function parseNeuralFoilPolar(value: unknown, maxMach = 0.3): BoundPolar 
   };
   return {alphaRad:alpha.map(v=>v*Math.PI/180),reynolds:re,mach:maxMach===0?[0]:[0,maxMach],
     cl:grid(value.cl,'cl'),cd:grid(value.cd,'cd'),confidence:grid(value.analysisConfidence,'confidence')};
+}
+
+/**
+ * Cold parser of a full-range table (TASK-097, `tests/fixtures/polars/generate_extended.py`): schema 2, with
+ * a real Mach axis. Above its last Mach node the lookup clamps and flags, as on any axis.
+ */
+function parseExtendedPolar(value: Record<string, unknown>): BoundPolar {
+  if (value.provenance !== 'extended-model' || typeof value.airfoil !== 'string' || typeof value.id !== 'string') throw Error('Invalid extended polar identity');
+  const alpha = array(value.alphaDeg,361), re = array(value.reynolds,32), mach = array(value.mach,8);
+  for (const axis of [alpha,re,mach]) for (let i=1;i<axis.length;i++)
+    if (!(axis[i]! > axis[i-1]!)) throw Error('Polar axes must increase');
+  if (!(re[0]! > 0) || mach[0] !== 0) throw Error('Invalid polar axis');
+  const augmentation = value.rotationalAugmentation;
+  if (!record(augmentation)) throw Error('Invalid rotational augmentation');
+  const liftSlopePerRad = finite(augmentation.liftSlopePerRad), zeroLiftAlphaRad = finite(augmentation.zeroLiftAlphaRad);
+  if (liftSlopePerRad <= 0 || Math.abs(zeroLiftAlphaRad) >= 1) throw Error('Invalid rotational augmentation');
+  const grid = (raw: unknown, kind: 'cl'|'cd'|'confidence'): number[] => {
+    if (!Array.isArray(raw) || raw.length !== mach.length) throw Error('Invalid polar Mach count');
+    const flat: number[] = [];
+    for (const table of raw) {
+      if (!Array.isArray(table) || table.length !== re.length) throw Error('Invalid polar row count');
+      for (const row of table) {
+        const values = array(row,361);
+        if (values.length !== alpha.length) throw Error('Invalid polar column count');
+        for (const v of values) {
+          if ((kind === 'cd' && v < 0) || (kind === 'confidence' && (v < 0 || v > 1))) throw Error('Invalid polar coefficient');
+          flat.push(v);
+        }
+      }
+    }
+    return flat;
+  };
+  return { alphaRad: alpha.map(v => v * Math.PI / 180), reynolds: re, mach,
+    cl: grid(value.cl,'cl'), cd: grid(value.cd,'cd'), confidence: grid(value.analysisConfidence,'confidence'),
+    rotational: { liftSlopePerRad, zeroLiftAlphaRad } };
 }
 
 /** Converts a synthetic span distribution to explicit midpoint geometry. */
@@ -107,12 +147,15 @@ export function encodeBoundRotor(d: BoundRotorDefinition, dtS: number): Uint8Arr
   if(!Number.isInteger(options) || options<0 || (options>(KERNEL_OPTION_REDUCED_PREDICTOR|KERNEL_OPTION_HOVER_SAMPLING) && options!==KERNEL_OPTION_EXACT))
     throw Error('Invalid bound rotor kernel options');
   const bytes=new Uint8Array(128+(ns*4+na+nr+nm+count*3)*8),v=new DataView(bytes.buffer);
-  // Version 1 unless a kernel option is on (TASK-091); version 2 carries the options word at byte 36.
-  const integers=[options===0?1:2,bytes.length,na,nr,nm,ns,g.bladeCount,g.spinSign,g.azimuthSamples,options];
+  // Version 1 unless a kernel option is on (TASK-091); version 2 carries the options word at byte 36, and
+  // version 3 (TASK-097) adds the rotational option, with its two values at bytes 112 and 120.
+  const version=p.rotational?3:options===0?1:2;
+  const integers=[version,bytes.length,na,nr,nm,ns,g.bladeCount,g.spinSign,g.azimuthSamples,p.rotational?options|KERNEL_OPTION_ROTATIONAL:options];
   for(let i=0;i<integers.length;i++)v.setUint32(i*4,integers[i]!,true);
   const scalars=[g.radiusM,g.rootCutoutM,g.shaftInertiaKgM2,g.bearingViscousNmPerRadS,dtS,
     d.initialOmegaRadS,d.inflowTauS,d.inflowLimitMps,d.minimumConfidence];
   for(let i=0;i<scalars.length;i++)v.setFloat64(40+i*8,scalars[i]!,true);
+  if(p.rotational){v.setFloat64(112,p.rotational.liftSlopePerRad,true);v.setFloat64(120,p.rotational.zeroLiftAlphaRad,true);}
   let at=128;
   for(const values of [g.radialStationM,g.chordM,g.twistRad,g.quadratureWidthM,p.alphaRad,p.reynolds,p.mach,p.cl,p.cd,p.confidence])
     for(const x of values){v.setFloat64(at,x,true);at+=8;}

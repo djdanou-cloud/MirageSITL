@@ -72,6 +72,40 @@ pub struct Rotor<'a> {
     geometry: RotorGeometry<'a>,
     polar: PolarTable<'a>,
     grid: AzimuthGrid,
+    rotational: Option<RotationalAugmentation>,
+}
+
+/// Rotational lift augmentation (TASK-097): Snel et al. 1994,
+/// `dC_L = 3 (c/r)^2 (C_L,inv - C_L)` with `C_L,inv = slope (alpha - alpha_0)`.
+/// The source gives no limit at high angle of attack, so a smoothstep fades it
+/// out between 30 and 50 degrees from `alpha_0`: an engineering limit, stated as one.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct RotationalAugmentation {
+    /// Inviscid lift slope, 1/rad.
+    pub lift_slope_per_rad: f64,
+    /// Zero-lift angle of attack, rad.
+    pub zero_lift_alpha_rad: f64,
+}
+
+impl RotationalAugmentation {
+    const FADE_FROM_RAD: f64 = 30.0 * PI / 180.0;
+    const INVERSE_FADE_WIDTH_PER_RAD: f64 = 180.0 / (20.0 * PI);
+
+    /// The strip's `3 (c/r)^2`.
+    #[inline(always)]
+    pub fn factor(chord_m: f64, radius_m: f64) -> f64 {
+        let ratio = chord_m / radius_m;
+        3.0 * ratio * ratio
+    }
+
+    /// The augmented lift coefficient; branch-free, so that a strip pass vectorizes.
+    #[inline(always)]
+    pub fn lift(self, cl: f64, alpha_rad: f64, factor: f64) -> f64 {
+        let from_zero_lift = alpha_rad - self.zero_lift_alpha_rad;
+        let t = clamp_select((from_zero_lift.abs() - Self::FADE_FROM_RAD) * Self::INVERSE_FADE_WIDTH_PER_RAD, 0.0, 1.0);
+        let weight = 1.0 - t * t * (3.0 - 2.0 * t);
+        cl + factor * weight * (self.lift_slope_per_rad * from_zero_lift - cl)
+    }
 }
 impl<'a> Rotor<'a> {
     /// Validates finite geometry once and constructs the azimuth rule.
@@ -118,12 +152,26 @@ impl<'a> Rotor<'a> {
             geometry: g,
             polar,
             grid: AzimuthGrid::new(samples).ok_or(RotorError)?,
+            rotational: None,
         })
     }
     /// A rotor from a geometry and a grid that `new` has already accepted: a
     /// step reads a configuration validated at initialization (TASK-091).
     pub fn from_validated(geometry: RotorGeometry<'a>, polar: PolarTable<'a>, grid: AzimuthGrid) -> Self {
-        Self { geometry, polar, grid }
+        Self { geometry, polar, grid, rotational: None }
+    }
+    /// This rotor with rotational lift augmentation, or without it for `None`.
+    pub fn with_rotational(mut self, rotational: Option<RotationalAugmentation>) -> Self {
+        self.rotational = rotational;
+        self
+    }
+    /// The lift coefficient an element uses: the polar's, augmented if this rotor asks for it.
+    #[inline(always)]
+    fn section_lift(&self, cl: f64, alpha_rad: f64, k: usize) -> f64 {
+        match self.rotational {
+            Some(rotational) => rotational.lift(cl, alpha_rad, RotationalAugmentation::factor(self.geometry.chord[k], self.geometry.radius[k])),
+            None => cl,
+        }
     }
     /// Integrates section 3. Invalid states/overflow are errors, never zero-force success.
     pub fn evaluate(&self, i: RotorInput) -> Result<RotorWrench, RotorError> {
@@ -196,7 +244,7 @@ impl<'a> Rotor<'a> {
                     perpendicular,
                     er,
                     spin,
-                    p.cl,
+                    self.section_lift(p.cl, alpha, k),
                     p.cd,
                 )
                 .scale(weight);
@@ -298,7 +346,7 @@ impl<'a> Rotor<'a> {
                     speed,
                     er,
                     spin,
-                    p.cl,
+                    self.section_lift(p.cl, alpha, k),
                     p.cd,
                 )
                 .scale(weight);
@@ -329,9 +377,9 @@ impl<'a> Rotor<'a> {
     /// products. Per azimuth sample, a branch-free strip pass that the compiler
     /// vectorizes forms the speed, the angle of attack (`atan2_kernel` and the
     /// exact conditional wrap), the Reynolds and Mach numbers and the Reynolds
-    /// logarithm (`ln_kernel`); the polar lookups follow (`KernelPolar::sample_strips`,
-    /// or `sample` for more than two Mach nodes), each strip's Reynolds bracket
-    /// starting from its bracket at the previous sample; then a branch-free pass of
+    /// logarithm (`ln_kernel`); the polar lookups follow (`KernelPolar::sample_strips`),
+    /// each strip's Reynolds bracket starting from its bracket at the previous sample;
+    /// then the rotational augmentation, if this rotor asks for it; then a branch-free pass of
     /// element forces and moments, and four sums along the blade, in strip order,
     /// rotated into the force, moment and flapping loads. Tables `KernelPolar` cannot serve, non-finite
     /// intermediates and angles outside the conditional wrap fall back to
@@ -348,7 +396,7 @@ impl<'a> Rotor<'a> {
         if stride == 0 || self.grid.len() % stride != 0 {
             return Err(RotorError);
         }
-        let KernelScratch { strips, logs, u_t: lane_u_t, u_z: lane_u_z, reynolds_per_speed, force_per_speed, force_t: lane_force_t, force_z: lane_force_z,
+        let KernelScratch { strips, logs, u_t: lane_u_t, u_z: lane_u_z, reynolds_per_speed, force_per_speed, rotational_factor, force_t: lane_force_t, force_z: lane_force_z,
             moment_t: lane_moment_t, moment_z: lane_moment_z } = scratch;
         let polar = self.polar.prepare_kernel(logs);
         if !polar.usable() {
@@ -395,12 +443,17 @@ impl<'a> Rotor<'a> {
             reynolds_per_speed[k] = i.density_kg_m3 * g.chord[k] / i.viscosity_pa_s;
             force_per_speed[k] = 0.5 * i.density_kg_m3 * g.chord[k] * g.width[k] * weight;
         }
+        let rotational = self.rotational;
+        if rotational.is_some() {
+            for k in 0..n {
+                rotational_factor[k] = RotationalAugmentation::factor(g.chord[k], radius[k]);
+            }
+        }
         let inverse_sound = 1.0 / i.sound_speed_mps;
         let (air, rate) = (i.air_velocity_hub_mps, i.body_rate_hub_rad_s);
         let axial_air = air.z - i.induced_mps;
         let z = Vec3::new(0.0, 0.0, 1.0);
         let (re_first, re_last) = polar.reynolds_bounds();
-        let strip_wise = polar.strip_wise();
         // Each strip's Reynolds bracket is carried across azimuth samples.
         strips.hint[..n].fill(usize::MAX);
         for j in (0..self.grid.len()).step_by(stride) {
@@ -437,21 +490,11 @@ impl<'a> Rotor<'a> {
             if !regular {
                 return self.evaluate_resolved(i, stride);
             }
-            // Pass 2: the polar lookups.
-            if strip_wise {
-                out.flags |= polar.sample_strips(strips, n, MIN_RELATIVE_SPEED_MPS, out.flags);
-            } else {
+            // Pass 2: the polar lookups, then the rotational augmentation, branch-free, if this rotor asks for it.
+            out.flags |= polar.sample_strips(strips, n, MIN_RELATIVE_SPEED_MPS, out.flags);
+            if let Some(rotational) = rotational {
                 for k in 0..n {
-                    if !(strips.speed[k] >= MIN_RELATIVE_SPEED_MPS) {
-                        continue;
-                    }
-                    if strips.hint[k] == usize::MAX {
-                        strips.hint[k] = polar.reynolds_guess(strips.ln_reynolds[k]);
-                    }
-                    let p = polar.sample(strips.alpha[k], strips.reynolds[k], strips.ln_reynolds[k], strips.mach[k], &mut strips.hint[k], out.flags);
-                    out.flags |= p.flags;
-                    strips.cl[k] = p.cl;
-                    strips.cd[k] = p.cd;
+                    strips.cl[k] = rotational.lift(strips.cl[k], strips.alpha[k], rotational_factor[k]);
                 }
             }
             // Pass 3, branch-free: the element force on et and z and its moment. An element below the
@@ -572,7 +615,8 @@ impl<'a> Rotor<'a> {
                 }
                 // Drag along (u_t, u_z)/U, lift along (u_z, -u_t)/U (spin x (d x e_r)); q/U = force_per_speed U.
                 let q = force_per_speed[k] * speed;
-                let (f_t, f_z) = (q * (p.cl * u_z + p.cd * u_t), q * (p.cd * u_z - p.cl * u_t));
+                let cl = self.section_lift(p.cl, alpha, k);
+                let (f_t, f_z) = (q * (cl * u_z + p.cd * u_t), q * (p.cd * u_z - cl * u_t));
                 force_t += f_t;
                 force_z += f_z;
                 moment_t += r * f_t;
@@ -602,6 +646,7 @@ struct KernelScratch {
     u_z: [f64; MAX_STRIPS],
     reynolds_per_speed: [f64; MAX_STRIPS],
     force_per_speed: [f64; MAX_STRIPS],
+    rotational_factor: [f64; MAX_STRIPS],
     force_t: [f64; MAX_STRIPS],
     force_z: [f64; MAX_STRIPS],
     moment_t: [f64; MAX_STRIPS],
@@ -614,7 +659,7 @@ thread_local! {
     static KERNEL_SCRATCH: RefCell<KernelScratch> = const {
         const ZERO: [f64; MAX_STRIPS] = [0.0; MAX_STRIPS];
         RefCell::new(KernelScratch { strips: StripLanes::new(), logs: ReynoldsLogs::new(), u_t: ZERO, u_z: ZERO, reynolds_per_speed: ZERO,
-            force_per_speed: ZERO, force_t: ZERO, force_z: ZERO, moment_t: ZERO, moment_z: ZERO })
+            force_per_speed: ZERO, rotational_factor: ZERO, force_t: ZERO, force_z: ZERO, moment_t: ZERO, moment_z: ZERO })
     };
 }
 

@@ -488,7 +488,11 @@ implementation.
   the opt-in modes of bound configuration version 2 (off by default) reach
   12.5x, and an octocopter step at 1200 Hz has a p99 of 0.065 ms in a Chrome
   Worker on the M5 against the 0.4167 ms G3 limit (`node scripts/bench-bet.mjs`,
-  `tests/browser/bet-compute.spec.ts`). TASK-093 is DONE: `weather.set`
+  `tests/browser/bet-compute.spec.ts`). TASK-097 is DONE: extended catalog polars
+  cover every angle of attack and Mach numbers to 0.7 from the NeuralFoil tables
+  (`tests/fixtures/polars/generate_extended.py`), flagged low confidence outside
+  the source range, with rotational lift augmentation in bound configuration
+  version 3; source tables keep their IDs and bytes. TASK-093 is DONE: `weather.set`
   applies on its tick to `BetFlightDynamics` (the demo still rejects it); every
   step the rotors read the ISA air at the CG's height above the origin's air
   and a uniform mean wind with a seeded TASK-032 gust, the published airspeed

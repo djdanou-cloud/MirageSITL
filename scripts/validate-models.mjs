@@ -19,18 +19,22 @@ import {
   evaluateUiucPropellers,
   parseUiucPropellerFixture,
   parseXfoilPolar,
+  extendedChoice,
 } from "../packages/physics/src/uiuc-propeller.ts";
+import { parseNeuralFoilPolar } from "../packages/wasm-bet/src/rotor.ts";
 const root = fileURLToPath(new URL("../", import.meta.url));
 const sha = (b) => createHash("sha256").update(b).digest("hex");
 // Supported measured-data adapters: NASA TM X-3561 level drops and the UIUC
 // propeller database (DA4002/DA4022) against the steady BET + momentum closure,
-// once with the declared thin-airfoil polar and once with the XFOIL polar.
+// with the declared thin-airfoil polar, with the XFOIL polar and with that polar extended (TASK-097).
 const adapters = [
   "nasa-drop-contact-v1",
   "uiuc-propeller-bet-v1",
   "uiuc-propeller-bet-xfoil-v1",
+  "uiuc-propeller-bet-extended-v1",
 ];
 const XFOIL_POLAR = "tests/fixtures/polars/sda1075-xfoil.json";
+const EXTENDED_POLAR = "tests/fixtures/polars/sda1075-extended.json";
 const measurementKeys = [
   "id",
   "adapter",
@@ -112,6 +116,8 @@ async function measuredCase(m) {
   if (m.adapter === "uiuc-propeller-bet-v1") return propellerCase(common, bytes, null);
   if (m.adapter === "uiuc-propeller-bet-xfoil-v1")
     return propellerCase(common, bytes, await registeredPolar(registry));
+  if (m.adapter === "uiuc-propeller-bet-extended-v1")
+    return propellerCase(common, bytes, await registeredExtendedPolar(registry));
   const result = await evaluateNasaDrop(
     parseNasaDropFixture(JSON.parse(bytes.toString("utf8"))),
   );
@@ -142,6 +148,17 @@ async function registeredPolar(registry) {
   if (manifest.provenance.kind !== "synthetic")
     throw new Error("The XFOIL polar must carry synthetic provenance");
   return parseXfoilPolar(JSON.parse(bytes.toString("utf8")), manifest.sourceSha256);
+}
+async function registeredExtendedPolar(registry) {
+  const bytes = readFileSync(join(root, EXTENDED_POLAR)),
+    entry = registry.fixtures.find((item) => `tests/fixtures/${item.path}` === EXTENDED_POLAR);
+  if (!entry) throw new Error(`Unregistered polar fixture: ${EXTENDED_POLAR}`);
+  const manifest = await verifyFixture(entry.manifest, bytes);
+  if (manifest.provenance.kind !== "synthetic") throw new Error("The extended polar must carry synthetic provenance");
+  const table = JSON.parse(bytes.toString("utf8"));
+  // The table must name the source that is in the repository now.
+  if (table.source?.sha256 !== sha(readFileSync(join(root, XFOIL_POLAR)))) throw new Error("The extended polar does not match its source");
+  return extendedChoice(parseNeuralFoilPolar(table), table.source.sha256, manifest.sourceSha256);
 }
 function propellerCase(common, bytes, polar) {
   const payload = JSON.parse(bytes.toString("utf8")),
@@ -410,7 +427,7 @@ export async function validateModels() {
     cases,
     blockers: [
       "Measured airframe validation is not certified: no airframe dataset is archived.",
-      "UIUC DA4002/DA4022 propellers still fail the fixed CT/CP tolerances with the analytic and XFOIL polars. The separate annular tip/hub/swirl sensitivity diagnostic is not a fidelity override; coverage and low-Re polar accuracy remain unresolved.",
+      "UIUC DA4002/DA4022 propellers still fail the fixed CT/CP tolerances with the analytic, XFOIL and extended polars. The separate annular tip/hub/swirl sensitivity diagnostic is not a fidelity override; coverage and low-Re polar accuracy remain unresolved.",
       "NASA measured fidelity is deferred by the user, not passed. The historical failing comparison is hash-checked and retained separately from active acceptance.",
       "Configurable BET polar/rotor-to-body session injection is implemented; the application still selects its demo backend by default. Browser autopilot admission remains separate.",
       `Configuration-driven NeuralFoil surrogate numerical validation is separate from fidelity: ${surrogate.counts.flagged}/${surrogate.counts.numerical} cases carry confidence or validity flags; no measured rotor/airframe acceptance is claimed.`,

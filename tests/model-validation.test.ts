@@ -62,6 +62,12 @@ it("writes numerical and UIUC evidence, retains the deferred NASA failure, and f
         polar: { kind: "xfoil", airfoil: "SDA1075", solverVersion: "6.99", ncrit: 9 },
         tolerance: { ctRelative: 0.1, ctAbsolute: 0.005, cpRelative: 0.1, cpAbsolute: 0.003 },
       },
+      {
+        id: "uiuc-da4002-da4022-propellers-extended",
+        consistencyStatus: "pass",
+        polar: { kind: "extended-xfoil", airfoil: "SDA1075" },
+        tolerance: { ctRelative: 0.1, ctAbsolute: 0.005, cpRelative: 0.1, cpAbsolute: 0.003 },
+      },
     ],
     measuredValidation: [],
     deferredMeasurements: [
@@ -82,7 +88,7 @@ it("writes numerical and UIUC evidence, retains the deferred NASA failure, and f
   expect(rotor.status).toMatch(/^(pass|missing|stale|invalid)$/);
   expect(allocation.status).toMatch(/^(pass|missing|stale|invalid)$/);
   expect(report.runtimeStatus).toBe(rotor.status === "pass" && allocation.status === "pass" ? "pass" : "blocked");
-  expect(result.stdout).toContain("12 cases; 2 measured");
+  expect(result.stdout).toContain("12 cases; 3 measured");
 }, 300000);
 it("retains pinned reference rate and rejects a missing JSBSim source", () => {
   expect(() =>

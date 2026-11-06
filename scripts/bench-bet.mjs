@@ -3,7 +3,7 @@
 //
 //   node scripts/bench-bet.mjs [--steps N] [--out PATH] [--baseline PATH] [--fixtures a,b] [--variants a,b] [--rates a,b]
 //                              [--kernel-options N] [--sections flight,rotor,native]
-//                              [--scenario still-air|crossflow] [--minimum-confidence C]
+//                              [--scenario still-air|crossflow] [--minimum-confidence C] [--polar CATALOG_ID]
 //
 // --kernel-options turns on the TASK-091 opt-in modes (1 reduced predictor, 2 hover sampling, 3 both) or the
 // exact kernel (4) for every rotor. --sections selects the parts of the report to run (all by default).
@@ -50,6 +50,7 @@ if (![0, 1, 2, 3, 4].includes(kernelOptions)) { console.error('Invalid --kernel-
 const sections = list('sections', ['flight', 'rotor', 'native']);
 const scenario = option('scenario', 'still-air');
 if (!['still-air', 'crossflow'].includes(scenario)) { console.error('Invalid --scenario'); process.exit(2); }
+const polarId = option('polar', 'naca6409-neuralfoil-v1');
 const minimumConfidence = Number(option('minimum-confidence', '0.9'));
 if (!(minimumConfidence >= 0 && minimumConfidence <= 1)) { console.error('Invalid --minimum-confidence'); process.exit(2); }
 const loadStart = os.loadavg();
@@ -82,7 +83,7 @@ async function vehicleOf(fixture) {
   const base = M.validateAircraftProfile(json(`tests/fixtures/aircraft/${fixture}.json`));
   const profile = M.withPropellerPolars(M.validateAircraftProfile({ ...base, battery: { card: ids.battery },
     motors: base.motors.map(motor => ({ ...motor, components: { motor: ids.motor, propeller: ids.propeller, esc: ids.esc } })) }),
-  [{ card: ids.propeller, polar: 'naca6409-neuralfoil-v1' }]);
+  [{ card: ids.propeller, polar: polarId }]);
   const resolved = M.resolveComponents(profile, cards);
   if (!resolved.components) throw new Error(`Missing: ${resolved.missing.join('; ')}`);
   const derived = await M.deriveVehicleManifest(profile, resolved.components, { modelId: 91 });
@@ -210,7 +211,7 @@ const report = {
   vehicles: vehicles.map(v => ({ fixture: v.fixture, rotors: v.derived.manifest.rotorCount, manifestSha256: v.derived.sha256 })),
   load: 'synthetic pad at 0.8 x hover-trim duty, spun up from rest; cards tests/fixtures/components/*-example.json; polar naca6409-neuralfoil-v1',
   budget: 'Step period 1/hz; A-05 judges the mean real-time ratio (at least 0.99); the G3 compute limit is 0.4167 ms at 1200 Hz',
-  rows: { fixtures, variants: variantNames, rates, sections, scenario, minimumConfidence }, kernelOptions, wasm, rotorTicks, native, comparison,
+  rows: { fixtures, variants: variantNames, rates, sections, scenario, minimumConfidence, polar: polarId }, kernelOptions, wasm, rotorTicks, native, comparison,
   identity: { commit: git('rev-parse', 'HEAD'), dirty: git('status', '--porcelain', '--', 'native/bet/src', 'packages') !== '',
     node: process.version, platform: process.platform, arch: process.arch, cpu, cpus: os.cpus().length, rustc,
     loadAverage: { start: loadStart, end: os.loadavg() },

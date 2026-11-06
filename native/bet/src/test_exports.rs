@@ -112,16 +112,18 @@ pub extern "C" fn bet_test_blade(stations: u32, azimuth: u32, spin: i32, kind: u
 /// Reynolds and two Mach nodes, some low-confidence cells) and a tapered,
 /// twisted rotor of `stations` strips are evaluated over 96 states (both spin
 /// directions, stopped and spinning shafts, axial, edgewise and oblique flow,
-/// body rates and cyclic). Returns the largest T1 ratio
+/// body rates and cyclic). `mach_nodes` (1 to 4, TASK-097) sets the table's Mach
+/// axis and nonzero `rotational` turns on the rotational augmentation. Returns the largest T1 ratio
 /// |a - b| / (1e-12 max(|a|, |b|) + 1e-15) over every vector component (at most
 /// 1 passes), or +inf when the flags or the error status differ.
 #[no_mangle]
-pub extern "C" fn bet_test_kernel_t1(stations: u32, azimuth: u32) -> f64 {
+pub extern "C" fn bet_test_kernel_t1(stations: u32, azimuth: u32, mach_nodes: u32, rotational: u32) -> f64 {
     const NA: usize = 25;
     const NR: usize = 6;
-    const COUNT: usize = NA * NR * 2;
+    const COUNT: usize = NA * NR * 4;
     let n = stations as usize;
-    if n == 0 || n > 64 {
+    let nm = mach_nodes as usize;
+    if n == 0 || n > 64 || nm == 0 || nm > 4 {
         return f64::NAN;
     }
     let mut alpha = [0.0; NA];
@@ -129,9 +131,9 @@ pub extern "C" fn bet_test_kernel_t1(stations: u32, azimuth: u32) -> f64 {
         *a = -0.5 + k as f64 / (NA - 1) as f64 + 0.004 * (k as f64).sin();
     }
     let reynolds = [1e3, 3e3, 2e4, 1e5, 4e5, 1e6];
-    let mach = [0.0, 0.3];
+    let mach = [0.0, 0.3, 0.5, 0.7];
     let (mut cl, mut cd, mut confidence) = ([0.0; COUNT], [0.0; COUNT], [0.0; COUNT]);
-    for m in 0..2 {
+    for m in 0..nm {
         for r in 0..NR {
             for a in 0..NA {
                 let at = (m * NR + r) * NA + a;
@@ -142,7 +144,8 @@ pub extern "C" fn bet_test_kernel_t1(stations: u32, azimuth: u32) -> f64 {
             }
         }
     }
-    let Ok(polar) = PolarTable::new(&alpha, &reynolds, &mach, &cl, &cd).and_then(|p| p.with_confidence(&confidence, 0.9)) else {
+    let cells = NA * NR * nm;
+    let Ok(polar) = PolarTable::new(&alpha, &reynolds, &mach[..nm], &cl[..cells], &cd[..cells]).and_then(|p| p.with_confidence(&confidence[..cells], 0.9)) else {
         return f64::NAN;
     };
     let (radius_m, cutout_m) = (0.127, 0.0127);
@@ -160,6 +163,7 @@ pub extern "C" fn bet_test_kernel_t1(stations: u32, azimuth: u32) -> f64 {
             radius: &radius[..n], chord: &chord[..n], twist: &twist[..n], width: &width[..n],
         };
         let Ok(rotor) = Rotor::new(geometry, polar, azimuth as usize) else { return f64::NAN };
+        let rotor = rotor.with_rotational((rotational != 0).then_some(crate::blade::RotationalAugmentation { lift_slope_per_rad: 2.0 * std::f64::consts::PI, zero_lift_alpha_rad: -0.09 }));
         for omega in [0.0, 150.0, 900.0] {
             for induced in [-0.5, 2.5] {
                 for air in [Vec3::new(0.0, 0.0, 0.0), Vec3::new(0.3 * 530.0 * radius_m, 0.0, 0.0), Vec3::new(-4.0, 6.0, 0.0), Vec3::new(0.0, 0.0, -8.0)] {

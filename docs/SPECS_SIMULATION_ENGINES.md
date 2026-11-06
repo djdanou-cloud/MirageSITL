@@ -912,10 +912,10 @@ This separate interface leaves the legacy rotor arena ABI v1 unchanged.
 `bet_bound_dispose(arena)` use disjoint caller-owned 8-byte-aligned regions.
 Configuration header: 128 bytes; u32 version/totalBytes/nAlpha/nRe/nMach/
 nStations/bladeCount/spinSign/azimuthSamples at 0/4/8/12/16/20/24/28/32;
-36..39 reserved zero in version 1 and the kernel options word in version 2
-(TASK-091, below); f64 radius/root/inertia/bearing/dt/initialOmega/
+36..39 reserved zero in version 1 and the kernel options word in versions 2 and 3
+(TASK-091, TASK-097, below); f64 radius/root/inertia/bearing/dt/initialOmega/
 inflowTau/inflowLimit/minConfidence at 40/48/56/64/72/80/88/96/104;
-112..127 reserved zero. Then four station f64 arrays (radius/chord/twist/width),
+112..127 reserved zero, except for version 3's option 8 (below). Then four station f64 arrays (radius/chord/twist/width),
 alpha-radian/Re/Mach axes, and flattened CL/CD/confidence arrays in
 (Mach,Re,alpha) order. Counts are bounded by 361/32/8/64 and 16384 table cells.
 The native initializer validates and copies this payload into an arena with
@@ -997,6 +997,30 @@ and `bound_v2::step_reference` for tests and benchmarks; no production WASM
 export calls them. The feature-gated test export `bet_test_kernel_t1`
 compares the default kernel with the reference inside the scalar and
 SIMD128 test builds.
+
+Full-range polars (TASK-097). A schema 2 table covers alpha from -180 to 180
+degrees at every degree, the source's Reynolds axis and Mach nodes 0, 0.3, 0.5
+and 0.7. Inside the source's alpha range at Mach 0 it holds the source's values.
+Beyond the edge, Viterna and Corrigan's `C_D = C_Dmax sin^2 a + B2 cos a` and
+`C_L = C_Dmax sin a cos a + A2 cos^2 a / sin a` take over, with B2 and A2 from the
+values at the edge and C_Dmax = 1.29 (blade aspect ratio 10), joined to the source's
+value and slope by a cubic Hermite over 15 degrees. For |a| > 90 degrees
+`C_L(a) = -0.7 C_L(+-180 - a)` and `C_D(a) = C_D(+-180 - a)`, joined over 80 to 100
+degrees. At higher Mach numbers attached lift follows Prandtl-Glauert and all drag
+adds `20 (M - M_cr)^4` above `M_cr = 0.87 - t/c - |C_L|/10 - (0.1/80)^(1/3)`. Every
+cell outside the source's alpha range has confidence 0, so that using it raises
+`FLAG_LOW_CONFIDENCE`; above Mach 0.7 the lookup clamps and flags. These are
+empirical models on a surrogate table, not measured data. A source table keeps its
+catalog ID and bytes, so a profile that stored one keeps its numbers; a card's
+airfoil name selects the extended table.
+
+Configuration version 3 (TASK-097) adds option 8, rotational lift augmentation,
+which an extended table asks for: bytes 112 and 120 hold the f64 lift slope (1/rad)
+and zero-lift angle (rad), and stay reserved zero otherwise, as in versions 1 and 2,
+which reject the option. Each element uses
+`C_L + 3 (c/r)^2 w (slope (a - a0) - C_L)` (Snel et al. 1994), where w fades from 1
+to 0 by a smoothstep between 30 and 50 degrees from a0, an engineering limit. It
+changes the physics, so the reference and exact kernels apply it too.
 
 Configuration version 2 (TASK-091) carries the kernel options word at byte
 36: two opt-in modes that change the numerics (options 1 and 2) and the

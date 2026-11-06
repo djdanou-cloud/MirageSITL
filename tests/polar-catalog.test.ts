@@ -18,11 +18,13 @@ import { canonicalBytes } from '@mirage/project/schema';
 const sha = (bytes: Buffer): string => createHash('sha256').update(bytes).digest('hex');
 const FIXTURES: Record<string, string> = {
   'naca6409-neuralfoil-v1': 'naca6409-neuralfoil.json', 'naca0012-neuralfoil-v1': 'naca0012-neuralfoil.json',
+  'naca6409-extended-v1': 'naca6409-extended.json', 'naca0012-extended-v1': 'naca0012-extended.json',
 };
 
-describe('polar catalog v1', () => {
-  it('holds byte-identical copies of the repository NeuralFoil fixtures with their hashes', () => {
+describe('polar catalog v2', () => {
+  it('holds byte-identical copies of the repository polar fixtures with their hashes, extended tables first', () => {
     expect(POLAR_CATALOG.map(entry => [entry.id, entry.numericId, entry.airfoil])).toEqual([
+      ['naca6409-extended-v1', 3, 'NACA6409'], ['naca0012-extended-v1', 4, 'NACA0012'],
       ['naca6409-neuralfoil-v1', 1, 'NACA6409'], ['naca0012-neuralfoil-v1', 2, 'NACA0012'],
     ]);
     for (const entry of POLAR_CATALOG) {
@@ -41,7 +43,7 @@ describe('polar catalog v1', () => {
   });
 
   it('matches card airfoil names without case, spaces, hyphens or underscores, and nothing else', () => {
-    for (const name of ['NACA6409', 'naca 6409', 'NACA-6409', 'naca_6409']) expect(catalogPolarForAirfoil(name)?.id).toBe('naca6409-neuralfoil-v1');
+    for (const name of ['NACA6409', 'naca 6409', 'NACA-6409', 'naca_6409']) expect(catalogPolarForAirfoil(name)?.id).toBe('naca6409-extended-v1');
     for (const name of [null, '', '  ', 'NACA 4412', 'NACA640', 'Clark Y']) expect(catalogPolarForAirfoil(name)).toBeNull();
   });
 });
