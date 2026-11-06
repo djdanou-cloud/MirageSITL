@@ -117,3 +117,35 @@ export function assessMatrix(matrix: unknown, access: EvidenceAccess): MatrixAss
     : counts.PASS === cells.length ? 'PASS' : counts.NOT_RUN > 0 ? 'NOT_RUN' : counts.BLOCKED_DECISION > 0 ? 'BLOCKED_DECISION' : 'BLOCKED_EXTERNAL';
   return { status, counts, refused, cells };
 }
+
+/** What Phase 1 still waits on beside the matrix (TASK-191). */
+export interface OpenItem { readonly id: string; readonly kind: 'task' | 'decision' | 'measurement'; readonly status: string; readonly what: string }
+/**
+ * The tasks milestone M6 needs that are not DONE, from the roadmap's own text: TASK-185 to TASK-190 and whatever TASK-191 depends on. Each
+ * with its status and the sentence after it, or the whole list empty when they are done. A task the roadmap does not hold is named too.
+ */
+export function openTasksOf(roadmap: string): OpenItem[] {
+  const section = (id: string): string | null => {
+    const at = roadmap.indexOf(`### TASK-${id} `);
+    if (at < 0) return null;
+    const next = roadmap.indexOf('\n### ', at + 1);
+    return next < 0 ? roadmap.slice(at) : roadmap.slice(at, next);
+  };
+  const dependencies = /\*\*Dependencies:\*\*\s*([^\n]*)/.exec(section('191') ?? '')?.[1] ?? '';
+  const ids = new Set<string>(['185', '186', '187', '188', '189', '190', ...[...dependencies.matchAll(/TASK-(\d+)/g)].map(match => match[1] ?? '')]);
+  const open: OpenItem[] = [];
+  for (const id of [...ids].sort((a, b) => Number(a) - Number(b))) {
+    const text = section(id);
+    if (text === null) { open.push({ id: `TASK-${id}`, kind: 'task', status: 'MISSING', what: 'The roadmap does not hold this task' }); continue; }
+    const status = /\*\*Status:\*\*\s*([A-Z_]+)([^\n]*)/.exec(text);
+    if (status?.[1] === 'DONE') continue;
+    open.push({ id: `TASK-${id}`, kind: 'task', status: status?.[1] ?? 'UNKNOWN', what: (/^### TASK-\d+\s+—\s+([^\n]*)/.exec(text)?.[1] ?? '').trim() });
+  }
+  return open;
+}
+/** Accepted only with every cell PASS and nothing open; the reasons say what stands in the way. */
+export function acceptanceOf(assessment: Pick<MatrixAssessment, 'status' | 'counts'>, open: readonly OpenItem[]): { readonly accepted: boolean; readonly reasons: readonly string[] } {
+  const reasons = [...(assessment.status === 'PASS' ? [] : [`The matrix is ${assessment.status}: ${Object.entries(assessment.counts).map(([verdict, count]) => `${count} ${verdict}`).join(', ')}`]),
+    ...open.map(item => `${item.id} is ${item.status}: ${item.what}`)];
+  return { accepted: reasons.length === 0, reasons };
+}

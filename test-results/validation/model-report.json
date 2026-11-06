@@ -1406,12 +1406,12 @@
   "diagnostics": {
     "betRuntime": {
       "path": "test-results/validation/bet-runtime.json",
-      "reportSha256": "a4049da31865cc9e801b2e71ab5657fbaf41b59d697d98c82779b252aad41c98",
+      "reportSha256": "ba59b91e049a8a3c148ff9fcdf1a2def3e37fb0ac05620678d450f3923475ddb",
       "status": "pass"
     },
     "betRuntimeAllocation": {
       "path": "test-results/validation/bet-runtime-allocation.json",
-      "reportSha256": "fe32a27b52d5ed3fbd1d4a0434ff0cac17d3b643e9f436a0e6a968732e151791",
+      "reportSha256": "656c0c46058c57f0e90783ec6632fbaffb3fa565c3264de365fb7b4ee5b51cd8",
       "status": "pass"
     },
     "jsbsimBackend": {

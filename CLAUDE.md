@@ -438,7 +438,20 @@ implementation.
   ([sitl-clock.md](docs/decisions/sitl-clock.md)). TASK-136 defined the project archive of D-05, TASK-139 its
   component-card format and TASK-140 its measured-data format. TASK-073,
   TASK-080, TASK-082 and TASK-083 below are not Phase 1 gates; see their Phase 1
-  dispositions in the roadmap.
+  dispositions in the roadmap. On 2026-11-06 the matrix stands at 51 PASS on current
+  evidence (`node scripts/phase1/acceptance.mjs`), Phase 1 not yet accepted: TASK-187
+  feeds per-tick terrain planes to the contact and records `truth.contact` and
+  `events.contact`; TASK-189 flew the 16-motor hour (`node scripts/phase1/endurance.mjs`,
+  3.70 times real time, 250 MB, 3.25 GB); `node scripts/phase1/global-workflows.mjs`
+  runs the global workflows with the network blocked per process under `sandbox-exec`,
+  no system setting changed; `node scripts/release-manifest.mjs --delivery` writes the
+  delivery manifest; TASK-190 and TASK-191 wait on the stakeholder's D-01, D-02, a clean
+  installation and the A-06 run, and TASK-099, TASK-100, TASK-101, TASK-145, TASK-184
+  and TASK-186 on measured data or a built FABDEM output. TASK-090's
+  `scripts/fidelity-capture.mjs` writes a capture from two logs; TASK-108 and TASK-115
+  are DEFERRED with their Phase 1 parts done. The bridge's message limit follows the
+  run's rate and speed-up (TASK-175): a flat 4096 per second closed any run above 5.1
+  times real time at 800 Hz, hidden while Low Power Mode held this Mac at 4.7.
 * **Measured model fidelity (separate from the TASK-033 synthetic baseline):** `node scripts/validate-models.mjs`
   reports numerical/runtime PASS, contact deferred/blocked, propeller FAIL,
   and exits 2. Synthetic geometry and NeuralFoil complete the software validation

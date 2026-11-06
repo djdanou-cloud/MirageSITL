@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { assessMatrix, parseMatrix, type EvidenceAccess } from '../scripts/phase1/acceptance-rules.ts';
+import { acceptanceOf, assessMatrix, openTasksOf, parseMatrix, type EvidenceAccess } from '../scripts/phase1/acceptance-rules.ts';
 
 // TASK-188. Hand-built reports and matrices: what is forged, stale or missing must never stand as PASS, a failure must stay one, and
 // the repository's own matrix must be whole.
@@ -112,6 +112,26 @@ describe('the matrix itself', () => {
     expect([0, 1, 2]).toContain(run.status);
     expect(run.stdout).toMatch(/\d+ PASS, \d+ FAIL/);
     const written: unknown = JSON.parse(readFileSync('test-results/phase1/acceptance-test.json', 'utf8'));
-    expect(written).toMatchObject({ task: 'TASK-188', kind: 'phase1-acceptance' });
+    expect(written).toMatchObject({ task: 'TASK-191', kind: 'phase1-acceptance' });
+  });
+});
+
+describe('what Phase 1 still waits on (TASK-191)', () => {
+  const roadmap = (status189: string, dependencies = 'TASK-096, TASK-189') => [
+    ...['185', '186', '187', '188', '190', '096'].map(id => `### TASK-${id} — Task ${id}\n\n- **Status:** DONE — done.\n`),
+    `### TASK-189 — The hour\n\n- **Status:** ${status189} — why.\n`,
+    `### TASK-191 — The report\n\n- **Status:** TODO\n- **Dependencies:** ${dependencies}.\n`,
+  ].join('\n');
+  it('lists the tasks that are not DONE, with their status and title, and nothing else', () => {
+    expect(openTasksOf(roadmap('DONE'))).toEqual([]);
+    expect(openTasksOf(roadmap('BLOCKED_EXTERNAL'))).toEqual([{ id: 'TASK-189', kind: 'task', status: 'BLOCKED_EXTERNAL', what: 'The hour' }]);
+    expect(openTasksOf(roadmap('DONE', 'TASK-404'))).toEqual([{ id: 'TASK-404', kind: 'task', status: 'MISSING', what: 'The roadmap does not hold this task' }]);
+  });
+  it('accepts only with every cell passing and nothing open', () => {
+    const counts = { PASS: 51, FAIL: 0, BLOCKED_EXTERNAL: 0, BLOCKED_DECISION: 0, NOT_RUN: 0 };
+    expect(acceptanceOf({ status: 'PASS', counts }, [])).toEqual({ accepted: true, reasons: [] });
+    const open = [{ id: 'TASK-186', kind: 'task' as const, status: 'BLOCKED_EXTERNAL', what: 'Terrain' }];
+    expect(acceptanceOf({ status: 'PASS', counts }, open)).toEqual({ accepted: false, reasons: ['TASK-186 is BLOCKED_EXTERNAL: Terrain'] });
+    expect(acceptanceOf({ status: 'NOT_RUN', counts: { ...counts, PASS: 50, NOT_RUN: 1 } }, []).accepted).toBe(false);
   });
 });

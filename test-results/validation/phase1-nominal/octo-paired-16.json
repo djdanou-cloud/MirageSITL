@@ -9,7 +9,7 @@
     "tuning": []
   },
   "settings": "acceptance",
-  "recordedAt": "2026-11-05T02:42:04.699Z",
+  "recordedAt": "2026-11-06T01:55:29.650Z",
   "criteria": {
     "physicsHz": 800,
     "speedup": 1,
@@ -52,17 +52,17 @@
       "mode": "1710 x 1107 @ 60.00Hz",
       "pixels": "3420 x 2214"
     },
-    "lowPowerMode": true,
+    "lowPowerMode": false,
     "loadAverages": {
       "before": [
-        1.92822265625,
-        1.51171875,
-        1.3408203125
+        1.5400390625,
+        2.41455078125,
+        2.64404296875
       ],
       "after": [
-        1.43994140625,
-        1.45703125,
-        1.37890625
+        0.99658203125,
+        1.15380859375,
+        1.677734375
       ]
     }
   },
@@ -79,292 +79,672 @@
     "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)"
   },
   "application": {
-    "commit": "feb91c916aeaa061e8f763c871e9f682cfbc5db4",
+    "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
     "uncommitted": [
       {
         "status": " M",
         "path": "CLAUDE.md",
-        "sha256": "9adb98e197019129e5d0ff5f92ed9ad2ff76469ac1f8a4630bbf4601c43bfb82"
+        "sha256": "7710a78a937ad7b7343e7236db43db0e5331e9572b252f2361262b108ef5eeb4"
       },
       {
         "status": " M",
-        "path": "apps/web/src/instructor/Console.tsx",
-        "sha256": "a40703f160b92252216decbc860a169f9a3bcc4b70b5f17b64e0c153f3cf2535"
+        "path": "apps/bridge/src/server.ts",
+        "sha256": "f96b7c5186bd4d9db42cabdc2318344b49857da85c14ee4536c3f189ee290f3b"
       },
       {
         "status": " M",
-        "path": "apps/web/src/instructor/commands.ts",
-        "sha256": "4e4f0c5ea6c5110c293e1a3e4e27c3fd6c1412e05e6513873369e040e9864b41"
+        "path": "apps/bridge/src/session.ts",
+        "sha256": "eea9ca1c802dab052125153d72641960b29560aef4b18fcf5318155c87554831"
+      },
+      {
+        "status": " M",
+        "path": "apps/launcher/src/connections.ts",
+        "sha256": "170dd609791d5c5439341bcaba56dcabdc22894a88a257d2c47e7d07c67417ee"
+      },
+      {
+        "status": " M",
+        "path": "apps/launcher/src/server.ts",
+        "sha256": "24675235db414c7321d35ebd85c7b3dc76e7321143a6d8e8a9e36ca30057ada9"
+      },
+      {
+        "status": " M",
+        "path": "apps/web/src/analysis/TruthVsEstimate.tsx",
+        "sha256": "482bf52cd2e255ae1e1dbf0c0bbd77ebbaf9d87580f09da1f4573b30958f7679"
+      },
+      {
+        "status": " M",
+        "path": "apps/web/src/logging/run-recorder.ts",
+        "sha256": "b5c813b9bfa0ad41caf679f70e1da7a9a968defe29693d114d84a07007c14292"
       },
       {
         "status": " M",
         "path": "apps/web/src/physics.worker.ts",
-        "sha256": "7e5fcc9c91bad67a8657e363c203bb7d55661b1c749649dc52419b3bb71f0b06"
+        "sha256": "2353e2a30b32c992204d458a4b66036cc67e09d54e56bd2d1c0980f02d64491f"
       },
       {
         "status": " M",
         "path": "apps/web/src/run/session-controller.ts",
-        "sha256": "3401d7e6d15c4cc8f3e9da8265935160ba1d5b85677d52e723e5a0936cab32fd"
+        "sha256": "7da1a74027a554776bfc25fff0fb86467ed3eb2bb23f225725de357d6d02353a"
       },
       {
         "status": " M",
         "path": "apps/web/src/runtime.ts",
-        "sha256": "dc1d7c86c839c056f92bc36410d1cce8d1b0640d36b439233aaefe7517c93265"
+        "sha256": "d3543a12b0c70fc945e9b1b320c9556bfad3af794f0d8427eb3f205accbe9c46"
       },
       {
         "status": " M",
-        "path": "apps/web/src/sitl/bridge-client.ts",
-        "sha256": "3f82d8fb7bc120432b8147d8852e05af281bcd3c7f396a8936433eb578385cf6"
-      },
-      {
-        "status": " M",
-        "path": "apps/web/src/sitl/sitl-run.ts",
-        "sha256": "ef01399476fdbb75500ff63609bdb5e79586ca2af030b7d7e1a16ea758635733"
-      },
-      {
-        "status": " M",
-        "path": "apps/web/src/style.css",
-        "sha256": "c69c0a54fdcad9dec845d34cd3af632edc7f6406ea0dab400b9718c3619faa92"
+        "path": "apps/web/src/weather/local-terrain.ts",
+        "sha256": "f5f467268e50ece95818a7d4d0b5fb80abf16373e37506bceca8fb6a6af46edf"
       },
       {
         "status": " M",
         "path": "docs/PROJECT_ROADMAP.md",
-        "sha256": "108cbeebbf5507489fcaf73844af9960118898c4d32f5c6aa713bfd2626bb703"
+        "sha256": "f7d409542dc903e11c7d8990c73d45d728bdf714c43dc875da2bfe845d315f7e"
       },
       {
         "status": " M",
         "path": "docs/SPECS_SHARED_MEMORY.md",
-        "sha256": "0e336c4f028547859a4168e0d712f22a79e583c0f7dd23ec33fbf548448f9417"
+        "sha256": "b0f6f109464f26d9b2e6f24db50b08e463d3cd584b59c17cb5ddab214f6b9eac"
       },
       {
         "status": " M",
         "path": "docs/SPECS_SIMULATION_ENGINES.md",
-        "sha256": "d49da98bdc20811cac154e377a6788b2dcaac60478b1c9e2f97360fe074db283"
+        "sha256": "ebe2b86ead4f39880016472a0862edbe24604b44efdf204064683bc033e2265b"
       },
       {
         "status": " M",
         "path": "docs/architecture.md",
-        "sha256": "3dfbff32a796e8eb7205ff400d5b675945bfad33929cdd736267a002c10d851d"
+        "sha256": "ae6cdee8151f443effce617cbc028e7465f0099a5948cc59c2b2bd4b094f2b90"
+      },
+      {
+        "status": " M",
+        "path": "docs/operations/install-macos.md",
+        "sha256": "407a6d972b165d5adc160ad68e7f7a6e38c7e0909ce281762809200a61b53919"
+      },
+      {
+        "status": " M",
+        "path": "docs/operations/runbook.md",
+        "sha256": "aaac638d1ef5d7866cb892d0f2e10df668801b96a997c35b46d9c10a2ff44093"
       },
       {
         "status": " M",
         "path": "docs/ru/CLAUDE.md",
-        "sha256": "1c69736311784634b0aad7b430744bf7d7688961a05cd6ec5042f43a764a385f"
+        "sha256": "7a43fec35b089d76adf8559fcfd8d413f554a47fd4bcc1cc27184bdc85047162"
       },
       {
         "status": " M",
         "path": "docs/ru/PROJECT_ROADMAP.md",
-        "sha256": "71f3ee37bcc6ee780d102ba491baafe44d76f455aaf1c4fdee5e73e6bb86da05"
+        "sha256": "b2efaa28fb47dbde2af93c9981628f4e78815a7cd9cec3f9eda5daa3185c340c"
       },
       {
         "status": " M",
         "path": "docs/ru/SPECS_SHARED_MEMORY.md",
-        "sha256": "03c31bd2f6b31d1592b2171756a67b7cad37c8c3667cd8e02a89107450ddb568"
+        "sha256": "e17ad3c33aafa9561b51a8202a6a1f181852cf7861c433d01bb3dc2707b86965"
       },
       {
         "status": " M",
         "path": "docs/ru/SPECS_SIMULATION_ENGINES.md",
-        "sha256": "d3876c534297c5497371244e43ba3ae1cf102e24cd51d61cde58c5b0d90783af"
+        "sha256": "ad7b79ff6f81f9a5acf7083433739c2b47ef6ab0bdf0ff9842d08d6380013eb6"
       },
       {
         "status": " M",
         "path": "docs/ru/architecture.md",
-        "sha256": "f0e9753cb9bc4ecde05ba19fe35872af143bde74013d25f5cf247f296a01bd67"
+        "sha256": "395a03552468398879a9d0f664f40a007f0cf2665d684f6d97e972519d59cc74"
       },
       {
         "status": " M",
-        "path": "packages/autopilot/package.json",
-        "sha256": "42d9544b1c556a5008ffdc1eb7f24f3d762922c6de956a9ee7d3852e54ba6f4b"
+        "path": "docs/ru/install-macos.md",
+        "sha256": "917c79ccf0a070fd8bace7d33d6222777500d1032cdc629e3fb627153ccdbd35"
       },
       {
         "status": " M",
-        "path": "packages/autopilot/src/sitl-link.ts",
-        "sha256": "b19364c07e19b27329e790d00353640cbccf764f4d696759c8577aa566e0b604"
+        "path": "docs/ru/runbook.md",
+        "sha256": "f54e28eb96ce320d0519013f310643cbe87db2c6da4f2cb913174b0c07df129e"
+      },
+      {
+        "status": " M",
+        "path": "docs/validation/model-report.schema.json",
+        "sha256": "ff8a757e8914cabb36b561f50de39c1ddca1520defee8d65bac852689474adad"
+      },
+      {
+        "status": " M",
+        "path": "native/bet/examples/propeller_points.rs",
+        "sha256": "c51d13937062e37ba53a36273513248ea28b3125245d5ec142174a9e460cac6d"
+      },
+      {
+        "status": " M",
+        "path": "native/bet/include/bet_bound.h",
+        "sha256": "ad5cd25bb64e0017dae2ebe3e84d1a5c92a368b21e4e3046a4e73e5f204dfcd8"
+      },
+      {
+        "status": " M",
+        "path": "native/bet/src/blade.rs",
+        "sha256": "af520eb172ce56e787dccea8a19eb693a1d467462a15573f36faac4e2ecfa846"
+      },
+      {
+        "status": " M",
+        "path": "native/bet/src/bound.rs",
+        "sha256": "06b25dd08f27ace6a24f075c56d7dabcda11581d5689a64bf7dc8c650b677cb4"
+      },
+      {
+        "status": " M",
+        "path": "native/bet/src/bound_v2.rs",
+        "sha256": "48ca5c8d2531baeedb161678653d393ead909420426209f5490f5e6d6d78b221"
+      },
+      {
+        "status": " M",
+        "path": "native/bet/src/inflow.rs",
+        "sha256": "d9d7622d8b184eb7027686da584e7670dfc30017d14e5cfd5015a7047fd4ca88"
+      },
+      {
+        "status": " M",
+        "path": "native/bet/src/lib.rs",
+        "sha256": "38b586c8e1a90b655577a9bd33332604975db8b15fa2fea2f78b6554ccc33d26"
+      },
+      {
+        "status": " M",
+        "path": "native/bet/src/polar.rs",
+        "sha256": "9b34c1b9143c056c5bf64578a2e1a2fec2db1978a473fc5050f63859e0906a70"
+      },
+      {
+        "status": " M",
+        "path": "native/bet/src/propeller.rs",
+        "sha256": "9a2e98ab58ef8a6874c2042bff2c93cdc7a6b31d2afb2feba3e2dd2fdf925573"
+      },
+      {
+        "status": " M",
+        "path": "native/bet/src/propeller_bem.rs",
+        "sha256": "77c45f4589cbedcdbcfa82705bb25f537754b2db8237c37e3636f88ba3b61ac3"
+      },
+      {
+        "status": " M",
+        "path": "native/bet/src/quadrature.rs",
+        "sha256": "090af27959b4ee96a98f5d54c8d38fd3263921b1f57b85fa22bbc6512f000fbd"
+      },
+      {
+        "status": " M",
+        "path": "native/bet/src/test_exports.rs",
+        "sha256": "6f524a354e05b789232970a9db179fb2279f301c29bb1f95ea3ee99b546fd3ce"
+      },
+      {
+        "status": " M",
+        "path": "native/bet/tests/blade.rs",
+        "sha256": "bc1f7badc6ddae4b8d2454b710d60bf72dcbfd5df77bb76e66ddbbd73f6f4560"
+      },
+      {
+        "status": " M",
+        "path": "native/bet/tests/bound.rs",
+        "sha256": "5d530108ad9ec2bab4a72b9ee563d06d8cb9ce72f7ce55e234ab04c9909f1f39"
+      },
+      {
+        "status": " M",
+        "path": "native/bet/tests/bound_v2.rs",
+        "sha256": "6d9cf56014434898b7d39369a0ad0c0d71926e4f3717ffb82cb4d8ccbb00e30e"
+      },
+      {
+        "status": " M",
+        "path": "native/bet/tests/polar.rs",
+        "sha256": "8b08b8b303d274cde06b50d3077d04bac7b84720494c6cda8c38544da01befd4"
+      },
+      {
+        "status": " M",
+        "path": "packages/aar/src/recorder-v2-host.ts",
+        "sha256": "e39909c1b9ec87b85ad7b7eb27e929abcf03b0b6d2e43a37c2739b75e5c99603"
+      },
+      {
+        "status": " M",
+        "path": "packages/aar/src/recorder-v2.ts",
+        "sha256": "9185c3febbe75dd8d372bcddd56a34dca97be6ec7efeae55c57a3630fb1c5a1d"
+      },
+      {
+        "status": " M",
+        "path": "packages/aar/src/signal-catalog.ts",
+        "sha256": "305334beb9e450e595ce70bf9dbce31d8f00c7e742e5be6a9de2dbc90c5a65cf"
+      },
+      {
+        "status": " M",
+        "path": "packages/analysis/src/truth-vs-estimate.ts",
+        "sha256": "e9408dfce6f16ae0055f91cdeec1ccbb712a16f4f2dfd354e17de8d4d7050662"
       },
       {
         "status": " M",
         "path": "packages/physics/package.json",
-        "sha256": "f87550b493d5ebca17a3cfd4256c3b7a3e8877f2da873dbf7660b3e085d129b6"
-      },
-      {
-        "status": " M",
-        "path": "packages/physics/src/atmosphere.ts",
-        "sha256": "4f3d27f56ebd5460df8d098ea23d0da018467680c64f36414c7c494b79c7d1e9"
+        "sha256": "411a0a2a8d3b1d165a32353dc00e544903a68f8d268497350bfb2a04457bbeb2"
       },
       {
         "status": " M",
         "path": "packages/physics/src/bet-dynamics.ts",
-        "sha256": "42d8b146002b4505f9685249694461f1fd5a5350b108701708974dfb80e0d5f0"
+        "sha256": "8b5ec195057abb24245d3d014c085cc885505eccdb2cbde833f7b77c27bd6f1b"
+      },
+      {
+        "status": " M",
+        "path": "packages/physics/src/polar-catalog.ts",
+        "sha256": "78eb802d1954f2b0d0b7e9cde6be6a36751eda595dee69698ddd3ed217abf173"
+      },
+      {
+        "status": " M",
+        "path": "packages/physics/src/profile-dynamics.ts",
+        "sha256": "57ff474a419e1ad6f828c6f3af44d72cfb1b0a775a707a1523aa602460d992ab"
       },
       {
         "status": " M",
         "path": "packages/physics/src/session-v2.ts",
-        "sha256": "60b1cb50b53d1a3740d42af631c81657449889f3308d21f3ce6dfbbba9bdc5a6"
+        "sha256": "f763038232d1c0bf6a5b704da7ade0e498bc821195d811e18d72129e44da4d6c"
       },
       {
         "status": " M",
-        "path": "packages/physics/src/wind.ts",
-        "sha256": "1b09b98f4c5bfd95a270fa3f6adf9a2fc8f8487d12a994c211bbf53f1a537295"
+        "path": "packages/physics/src/terrain-contact.ts",
+        "sha256": "1996e608ebc9ba034784c8c489e3a596a70f27b1b87bf694f2ed90fc5733100d"
       },
       {
         "status": " M",
-        "path": "packages/protocol/src/control-v2.schema.json",
-        "sha256": "2c5afc141a154b605964f4481242b4df9e1085511d520a16ae83af09330cc306"
+        "path": "packages/physics/src/thrust-capacity.ts",
+        "sha256": "7a0ca779162876cc5b5220442491c30bdb3b9263b0eaaffcb6685da229003bc8"
       },
       {
         "status": " M",
-        "path": "packages/protocol/src/control-v2.ts",
-        "sha256": "e71882232bac43154c3218ebf270830cf589d3f1cdc4709ef0875cf07506df6c"
+        "path": "packages/physics/src/uiuc-propeller.ts",
+        "sha256": "7d135195c11968dfc0841dc9281449291bbd7fc92aecf445ddef13b02b0f4d50"
       },
       {
         "status": " M",
-        "path": "packages/protocol/src/index.ts",
-        "sha256": "c954efd8fa2e65005ca649f078a0be7152fe4f9257550666c1ae34cc157fae6d"
+        "path": "packages/physics/src/vehicle-manifest.ts",
+        "sha256": "533c1aae6a90394a7b772e8677cd67db5c6e98996296c0cbb973486221d8d3dd"
       },
       {
         "status": " M",
-        "path": "packages/scenarios/src/bind.ts",
-        "sha256": "ac32da12248223cade97f3a8572fca9f4905a9edbb06ae8c8ef6a7777df38ba0"
+        "path": "packages/protocol/src/control-v3.schema.json",
+        "sha256": "ce67aa2df04008fca8e43e00ab889820071a9c883521ebeceaf15b8266368507"
       },
       {
         "status": " M",
-        "path": "packages/scenarios/src/schema.ts",
-        "sha256": "b99bbf0207a3d45d286781dcad1f8641b96732eb7a06f9b4d19ae7bb32be14e1"
+        "path": "packages/protocol/src/control-v3.ts",
+        "sha256": "7fae63ed19e808e220142831afd94970cd78a17b2d4e7af9c1f9062b9a1b820f"
       },
       {
         "status": " M",
-        "path": "packages/test-support/src/prng.ts",
-        "sha256": "4ddb70178a81f5698b684fb2694ce837f716102fa840b4edf04c9734381cfd9a"
+        "path": "packages/wasm-bet/src/rotor.ts",
+        "sha256": "27b7874bcd03cb6246f2df5610f1906a9875bd68d718f63e9d5f89644ef5ea75"
       },
       {
         "status": " M",
-        "path": "scripts/bench-wind.mjs",
-        "sha256": "0b1e65adbecf7ee36d2e5adb44bb9a8968ad2607c121f464d95ebd3adeb79cc7"
+        "path": "scripts/bench-bet.mjs",
+        "sha256": "2365158345fa92db8c4a675efb21926918d2fc5e2a3da9042ef2dc72e5580e94"
       },
       {
         "status": " M",
-        "path": "scripts/build-wasm.mjs",
-        "sha256": "59740c5604971741f310bdf880e78e77ea886608fb0ce1ca47f95f54590a37d3"
+        "path": "scripts/bench-flight-contact.mjs",
+        "sha256": "211bdece78e0fadc76a2899602018975e7afe5dbb6922693da7ac682f13835e1"
+      },
+      {
+        "status": " M",
+        "path": "scripts/bet-runtime-graphs.ts",
+        "sha256": "5de174b038fe2df8bbc154902f526930db676dfe15550c14252a59ad9522f09b"
       },
       {
         "status": " M",
         "path": "scripts/check-bet-runtime.mjs",
-        "sha256": "401464d6d9969ba04b56fbb001f307071afa359c20e3ccf64704b42b35d4a54c"
+        "sha256": "b9ea4ec6d414666817ea8c226e928ac8ab7b9a8d4110d045b43715a79e37a06a"
       },
       {
         "status": " M",
-        "path": "scripts/phase1/nominal-rules.ts",
-        "sha256": "fd983873987f42474ee4f4a0d2460e4e2bec6064821574bfcaa743472bedb457"
+        "path": "scripts/check-fidelity.mjs",
+        "sha256": "0bb0e909f74cd9158fac33076ae22243d1fbe945f5cb6d517c11deb4ecc1ebc9"
       },
       {
         "status": " M",
-        "path": "test-results/bench/wind.json",
-        "sha256": "a0bdb48cbdce9267dd97f1429b811dab06818e953244c80153687f4b8d3150b1"
+        "path": "scripts/install-macos.mjs",
+        "sha256": "e1d20884da1733578a484f45d0f15fa2c2d5bec295ce0182cac3b3b1275f5ae6"
+      },
+      {
+        "status": " M",
+        "path": "scripts/phase1/nominal-flight.mjs",
+        "sha256": "216c3f7d7eb37986cbcb7fd85f43a97e750cd34f8454c27e03b97c70657e4bab"
+      },
+      {
+        "status": " M",
+        "path": "scripts/release-manifest.mjs",
+        "sha256": "8caa63a43b9b034dafbad2166404ff65187379f1ce56ec206753e3c09a04d856"
+      },
+      {
+        "status": " M",
+        "path": "scripts/validate-models.mjs",
+        "sha256": "0a7256e599bc969dfc90719dd1f6c910678829c776d043a1d7456f0b07f78808"
+      },
+      {
+        "status": " M",
+        "path": "test-results/bench/bet-modes.json",
+        "sha256": "f0971cf79eab70576b5a750b51ce9a2ec38c4bfb573d944a0820d54785f9b89c"
+      },
+      {
+        "status": " M",
+        "path": "test-results/bench/bet.json",
+        "sha256": "58a3219fd7a2b01d96e654c880d7d4655e09e693105754a83caad27197ae53e5"
+      },
+      {
+        "status": " M",
+        "path": "test-results/bench/profile-dynamics-16.json",
+        "sha256": "92c0f29c546cfdbe035f260fe7ae2fa6ba03d3ef30a8bc4be37ed44a3d134433"
+      },
+      {
+        "status": " M",
+        "path": "test-results/validation/model-report.json",
+        "sha256": "5acbb7c365261cbaf643b800679e742aff245b088b94d99cc4e66a36b917c9ac"
+      },
+      {
+        "status": " M",
+        "path": "tests/bet-runtime-graphs.test.ts",
+        "sha256": "bc2ce070e8e01f56cf8b2d440553161815fdad8a66275b133bbb38a651ead9dd"
+      },
+      {
+        "status": " M",
+        "path": "tests/bet-runtime.test.ts",
+        "sha256": "bd00fa46f51388a9f62e3dbee5b8afa4e2b119befb60c1e7a1b36c592d23dfdd"
+      },
+      {
+        "status": " M",
+        "path": "tests/bridge.test.ts",
+        "sha256": "4356698111019f802c76a8968fee0ac7723e9cb7578482dea7669fcc35695f93"
+      },
+      {
+        "status": " M",
+        "path": "tests/browser/faults-tab.spec.ts",
+        "sha256": "3df4bbd47a7183b29268489f95c01b1c14e033519f4ae74d7a61dd4cff948837"
       },
       {
         "status": " M",
         "path": "tests/browser/instructor.spec.ts",
-        "sha256": "b7bd9c165309cb16dbdb28a0789764327300fbf741405bb399277b0d889cf655"
+        "sha256": "ae1c7c710f320f270d62e10e221a58e8e7e180938e4a7b7f1063d8a4c093abbc"
       },
       {
         "status": " M",
-        "path": "tests/browser/phase1-nominal.spec.ts",
-        "sha256": "69c2ee549cb6b814d2c88404465a79c166adbe454f2312ba843d0ef166a905e5"
+        "path": "tests/browser/location-flight.spec.ts",
+        "sha256": "47e2b008f5a60dab797ed49c16bda8d2698ef0bdb0f4e7f017c5be345e81ccfa"
       },
       {
         "status": " M",
-        "path": "tests/control-v2.test.ts",
-        "sha256": "50d1e52ec89961f1a731ad33e64965238498d87b3466d5d83a05f80ba2cb7a6b"
+        "path": "tests/browser/profile-dynamics.spec.ts",
+        "sha256": "6ed0e505b90772a65bf1684212b3a67d348c119bd43620ff4682f7050aed066b"
       },
       {
         "status": " M",
-        "path": "tests/fixtures.test.ts",
-        "sha256": "0b0b9fed61c72f6fead32292c31634b25ec2ec48e7df3dd90c0e7ae0517eb3e8"
+        "path": "tests/browser/simulation.spec.ts",
+        "sha256": "70b1d5576690f2a26b809d84f8397648622fae6da01c0d7004ba872727c19506"
+      },
+      {
+        "status": " M",
+        "path": "tests/browser/terrain-sitl.spec.ts",
+        "sha256": "516fa5d14bfa6541376d1d2bce576ed9fd449ccc0b33b4a7f7cb748661f09543"
+      },
+      {
+        "status": " M",
+        "path": "tests/browser/weather-sitl.spec.ts",
+        "sha256": "8cdafcec4ad8828067662c25f703688aea8abe587a188c50caf12d5172927d51"
+      },
+      {
+        "status": " M",
+        "path": "tests/control-v3.test.ts",
+        "sha256": "139dfa9764e03c2bf57097cd77293dab043100e7ea2376aa064aa07513992a5f"
+      },
+      {
+        "status": " M",
+        "path": "tests/delivery-effects.test.ts",
+        "sha256": "2ed179d94c7673ac53f555cb1752568888ca2fa23fd405b13656efa7c71ed297"
+      },
+      {
+        "status": " M",
+        "path": "tests/effect-controls.test.ts",
+        "sha256": "acdf265ba3d493bab48c190400fe529b105522db08916cb62ed5ccb816ee6dff"
+      },
+      {
+        "status": " M",
+        "path": "tests/ekf-drift.test.ts",
+        "sha256": "a32c6207cc68bfbd9df8b5969f0956c8c6d35b827419602b351e9da3c7cbc5dd"
+      },
+      {
+        "status": " M",
+        "path": "tests/experiment-compare.test.ts",
+        "sha256": "1d8f1f6982e7fbaec996d20b7d0903576fc02ff3ae7a47e6dd38ad848121c520"
+      },
+      {
+        "status": " M",
+        "path": "tests/fidelity-metrics.test.ts",
+        "sha256": "5835998c92ff3540e4fb8868ba354cae5c47cb252dfc20af4462856821d3ff00"
       },
       {
         "status": " M",
         "path": "tests/fixtures/registry.json",
-        "sha256": "be9c80583dc6a771e0ee562cdfb10b67bea84e440652df7d87d8efcf414e2b2c"
+        "sha256": "b83388a04693f2538559fb0f5815b60dd8b55c950e9b1479f75b0cb464b544f9"
       },
       {
         "status": " M",
-        "path": "tests/integration/phase1-nominal.test.ts",
-        "sha256": "8c3ee823a9308fae1b8a14884b4217447a3833030a51a2afde811dcdc2bcbbd9"
+        "path": "tests/fixtures/validation/reference-manifest.json",
+        "sha256": "f61ee6afa5124d5dfb2d70eea92975e287b7c916e378ecf51f0c418a3ba72500"
+      },
+      {
+        "status": " M",
+        "path": "tests/fixtures/wasm-abi/generate.py",
+        "sha256": "3c2178a3c1fca53c9e6a93355c8ca5a1f25ffdb0b48c0f8d6ca4f6cda262f4fd"
+      },
+      {
+        "status": " M",
+        "path": "tests/fixtures/wasm-abi/interface-v2.json",
+        "sha256": "e478d5551869711fa43238f951211d6f61c2c4bed89f52c82731798c4b324d20"
+      },
+      {
+        "status": " M",
+        "path": "tests/integration/flight-tasks-sitl.test.ts",
+        "sha256": "0593e2f8c9850fb07e9c38f70b2097fe33a3afb28da5ad382eef623e874d12b8"
+      },
+      {
+        "status": " M",
+        "path": "tests/model-validation.test.ts",
+        "sha256": "03a3951a8316f060886431243ff66420dad2401a6ed44b8c8d42b64b4e7550c7"
+      },
+      {
+        "status": " M",
+        "path": "tests/polar-catalog.test.ts",
+        "sha256": "3799430e9bb14d1bf1ba9b8bf27fd82ee29de2631c53e5da7c6c2d7356b6613b"
+      },
+      {
+        "status": " M",
+        "path": "tests/profile-dynamics.test.ts",
+        "sha256": "6d6c2a3bec6ea05a699284f912b4b0bfb03c9068a3cef582bf6708b9f99f24a5"
+      },
+      {
+        "status": " M",
+        "path": "tests/recorder-v2.test.ts",
+        "sha256": "98946d8eceb54a56b2463013cc1a28ca9f9bf14101fdc7440dead19bdbc20da3"
+      },
+      {
+        "status": " M",
+        "path": "tests/release-manifest.test.ts",
+        "sha256": "459daec619640c583a32599e1737900b963d7364787dedf47d117b095e10440a"
+      },
+      {
+        "status": " M",
+        "path": "tests/resolve-components.test.ts",
+        "sha256": "9f6ebfed9afc7f20fcd4555b718516f5996223c656be5111ad2b4dc5b2e65cd2"
+      },
+      {
+        "status": " M",
+        "path": "tests/rotor-kernels.test.ts",
+        "sha256": "59a385281bab0bb58827c098634d3959fc964d53a65ffb0c3fabfb2aaed7ad31"
       },
       {
         "status": " M",
         "path": "tests/run-controller.test.ts",
-        "sha256": "2a17a33f887f14922aa1e67c1f442366aa4dbb016d9c51373c5914cb6d27b557"
+        "sha256": "67538a58cc814b3aed2fdfc11e789ae2f3c30cedaf8bd035e704ea24d7eecef7"
       },
       {
         "status": " M",
-        "path": "tests/weather-plumbing.test.ts",
-        "sha256": "b8d96f5d08c6d96fd271c815e706b4fd2e22c1bfa9199936230c21f904243815"
+        "path": "tests/size-estimate.test.ts",
+        "sha256": "8cd74c625e611408556c49270c6d948e6d4e7af0d1c78dc8c937e38e6b3dd9e2"
+      },
+      {
+        "status": " M",
+        "path": "tests/support/hover-trim.ts",
+        "sha256": "87dbd90063a0350ac0edc52806689f50bb1bc7ada234f1f3a6facab40bde961b"
+      },
+      {
+        "status": " M",
+        "path": "tests/support/run-tab.ts",
+        "sha256": "9cc28dc5ac110f9f5114cc4482fbcdf5050cd7c2b7d8dd837a7070fd829ef78e"
+      },
+      {
+        "status": " M",
+        "path": "tests/terrain-contact.test.ts",
+        "sha256": "39f0fefd35bfd1c4421e85e3d0158acaafa5db3436de4ff968758750e2f0a587"
+      },
+      {
+        "status": " M",
+        "path": "tests/terrain-pause.test.ts",
+        "sha256": "d6d8d19d2651290e8701497ea0878f31a38adbe837f5eb987ba6fb67f21e9604"
+      },
+      {
+        "status": " M",
+        "path": "tests/thrust-capacity.test.ts",
+        "sha256": "8ae2eca53ae53dfb00d8cb5c424a96ecb02018d9b8b92f2ea67c4d47da0789ec"
       },
       {
         "status": "??",
-        "path": "packages/autopilot/src/fault-effects.ts",
-        "sha256": "2ef1b95f5b87eaf25499f24361a9219d4cb07c8474d4aa50ab67ad9d7e5a94d2"
+        "path": "native/bet/src/ground_effect.rs",
+        "sha256": "ac6cfc9a25064796a723eec37eaeefa3e9b19c626f734453bce7a3a3f3a81262"
       },
       {
         "status": "??",
-        "path": "packages/physics/src/turbulence.ts",
-        "sha256": "c5c1c9f133c74b8b1df7f90752f27b4ec8d3b23c4f16433b061f5c3e3f881349"
+        "path": "native/bet/tests/descent_inflow.rs",
+        "sha256": "fdd3cc625065806ff3c868847dd8bee14c701161bfe8ab2880f9747b6a1868d5"
       },
       {
         "status": "??",
-        "path": "packages/protocol/src/control-v3.schema.json",
-        "sha256": "2ca13543a8966c85f9b68a6478c0c6eca2fc81277ab4f702b52e40608d930971"
+        "path": "native/bet/tests/dynamic_inflow.rs",
+        "sha256": "3090fd0d23c1e19432470d96eb7cf383fe8af69bd3596e03501f9cb8feb88338"
       },
       {
         "status": "??",
-        "path": "packages/protocol/src/control-v3.ts",
-        "sha256": "4bc8a43d6e0fd01c71afd40b85ed74ee65dc4789781c38f80d63ec2e9e64a75a"
+        "path": "native/bet/tests/ground_effect.rs",
+        "sha256": "ef3ff64587fac05984edb1a7d4b4e5a16ddf35e21ed305c62ea85b2e7de01782"
       },
       {
         "status": "??",
-        "path": "scripts/phase1/acceptance-rules.ts",
-        "sha256": "c3d1843c968ada9e0010ed3d71b68708b7f83c8e2cc6c454f9fe1b7c32ca3a15"
+        "path": "native/bet/tests/wake.rs",
+        "sha256": "d9e78e51027e39a3fa1b9856f459311574137fbf6b802d178fe9f8640f225d24"
       },
       {
         "status": "??",
-        "path": "scripts/phase1/acceptance.mjs",
-        "sha256": "3cc02434a7ab10475235d2bcef2eccfcee09dd5e5578e2dd7794319d52b7d3c3"
+        "path": "packages/physics/polars/naca0012-extended-v1.json",
+        "sha256": "6c379b3664d984820ac5e0d049911dd1f4e1bd0b85c307a8409bb8533bc1ce43"
       },
       {
         "status": "??",
-        "path": "tests/control-v3.test.ts",
-        "sha256": "20a06c3fe57094679f3e8cc5c8e063d9bf44f8d12e8e3c460747d476b98d72e7"
+        "path": "packages/physics/polars/naca6409-extended-v1.json",
+        "sha256": "526a0d5837349dad49b0d09487177329be285f49fa2203240f49a3b3d492be6b"
       },
       {
         "status": "??",
-        "path": "tests/delivery-effects.test.ts",
-        "sha256": "f3a16df7bf200e4f4aa448beb78b78e03c4cd5b122275ed0784a31e2cf6177ca"
+        "path": "packages/physics/src/rotor-wake.ts",
+        "sha256": "dd431958a02778c0f98d4ed604f1702eb24474177a6030d4d7dade33058bd63f"
       },
       {
         "status": "??",
-        "path": "tests/effect-controls.test.ts",
-        "sha256": "f3fadcd5467666340a555c2009fa14d78caa0c69cbf6d0fc7023cb92edab86e4"
+        "path": "scripts/fidelity-capture.mjs",
+        "sha256": "66ae387c03ddf32e3945f0e8efbc4149284d506a8f42a39b136c629b18e82306"
       },
       {
         "status": "??",
-        "path": "tests/fixtures/protocol/control-v3.json",
-        "sha256": "bf38c751e697d202fb905cfbeb862604c3c1f69017fe0684da348f92c802a547"
+        "path": "scripts/phase1/endurance-rules.ts",
+        "sha256": "f23f086110d0d93d329a71f44b79916cb599a2a11409f32c5d3999ae43c31943"
       },
       {
         "status": "??",
-        "path": "tests/phase1-acceptance.test.ts",
-        "sha256": "ed717f29b4861ee897c740462aa7626581413906117df036cd786547805a3f89"
+        "path": "scripts/phase1/endurance.mjs",
+        "sha256": "cc9b37bac3d36aa89d43a3fde8d6f225aad67c291b31e33de1a47e21cc848c29"
       },
       {
         "status": "??",
-        "path": "tests/sitl-fault-effects.test.ts",
-        "sha256": "dfb03ec926316ee0c3ea37c56f3da0b1a704279f2d2003fe5aa5ea09c0f40ca4"
+        "path": "scripts/phase1/global-rules.ts",
+        "sha256": "6c150a6c449a9d9db250e381498f7e41b9f8e530c1cf65465e3b0602b549db10"
       },
       {
         "status": "??",
-        "path": "tests/turbulence.test.ts",
-        "sha256": "9b1a33ca83528c9629f4ccb43339946d34b751df59bfc0d46aebeb9c6c757153"
+        "path": "scripts/phase1/global-workflows.mjs",
+        "sha256": "2b2b314dc13bb4a959110e16e92a7efe7126c7a0771ae03e4373c1e6139f65a0"
+      },
+      {
+        "status": "??",
+        "path": "scripts/phase1/run-facts.mjs",
+        "sha256": "4902ac0cc21e5c1b2a048d07625e37b527571ce8d4ff704417fd3387b081146e"
+      },
+      {
+        "status": "??",
+        "path": "tests/browser/bet-compute-worker.ts",
+        "sha256": "fe413408a80bd7c175b736243a64ecf4d46d2f7bf5c56213b2788fc2cd576a6f"
+      },
+      {
+        "status": "??",
+        "path": "tests/browser/bet-compute.spec.ts",
+        "sha256": "4f671822720fcf611ab5c031f80656e039d01c4334c15618c67586caea6eb845"
+      },
+      {
+        "status": "??",
+        "path": "tests/browser/phase1-endurance.spec.ts",
+        "sha256": "2f71054cacd98907afce70e4ca8bf479d33f80d5ef2d172cf3c622bc8ed99cd6"
+      },
+      {
+        "status": "??",
+        "path": "tests/browser/terrain-contact-session.spec.ts",
+        "sha256": "b491de8db8fdbcfb68410d1ffa763c680891a53f28cf7896795cb418c1f0c2ee"
+      },
+      {
+        "status": "??",
+        "path": "tests/fixtures/polars/generate_extended.py",
+        "sha256": "8a63cff175e57af84775665323de4781c70e42bacae208e215126aff75e406fb"
+      },
+      {
+        "status": "??",
+        "path": "tests/fixtures/polars/naca0012-extended.json",
+        "sha256": "6c379b3664d984820ac5e0d049911dd1f4e1bd0b85c307a8409bb8533bc1ce43"
+      },
+      {
+        "status": "??",
+        "path": "tests/fixtures/polars/naca6409-extended.json",
+        "sha256": "526a0d5837349dad49b0d09487177329be285f49fa2203240f49a3b3d492be6b"
+      },
+      {
+        "status": "??",
+        "path": "tests/fixtures/polars/sda1075-extended.json",
+        "sha256": "6e6e15c81fee8e95c54c8437616148de902e162a15e498af88e143e5034ba1f3"
+      },
+      {
+        "status": "??",
+        "path": "tests/integration/phase1-endurance.test.ts",
+        "sha256": "3ecbc9e7a38d1c6db9d775d0e8ff10cf9af380e3862a14eaf878eb33d93502bc"
+      },
+      {
+        "status": "??",
+        "path": "tests/integration/recovery-drill.test.ts",
+        "sha256": "2647ff766d63f6838fcb26002c4df253808ff29024b80f91da05df38af56d887"
+      },
+      {
+        "status": "??",
+        "path": "tests/polar-extension.test.ts",
+        "sha256": "dd4ceb5ec80a6d12e7172a1adb7cfa2f6f7d4611038e6f33735febae4e457d35"
+      },
+      {
+        "status": "??",
+        "path": "tests/rotor-ground-effect.test.ts",
+        "sha256": "9fe3e58eae85d5b79c89ba10fc5c1138b4abb9d622fe0cab8fb24947ac37e11e"
+      },
+      {
+        "status": "??",
+        "path": "tests/rotor-interference.test.ts",
+        "sha256": "fc5d36c7d7e7ad948e34b8a9e120352a04f5456b1eff57836421b1ee27d78c0d"
+      },
+      {
+        "status": "??",
+        "path": "tests/terrain-slope-contact.test.ts",
+        "sha256": "366068e06dcbb7bf394381d690a4450f0c2b2f8d64c76cd5dc9fc6cddf5cedf4"
       }
     ]
   },
@@ -415,109 +795,103 @@
   },
   "captures": {
     "run": {
-      "path": "test-results/phase1/nominal/2026-11-05T02-28-41-483Z/octo-paired-16.json",
-      "bytes": 13654,
-      "sha256": "3d87d424c1fa5e2d031c2518c1cfa2008a9a235055f9cb9303af6a3d3d062ac3"
+      "path": "test-results/phase1/nominal/2026-11-06T01-42-25-917Z/octo-paired-16.json",
+      "bytes": 13062,
+      "sha256": "2966ca952923ba06bccf001931e6df195bc63986c9057e47db4c2e8cc2e1bc44"
     },
     "experimentRecord": {
-      "sha256": "b0f198fe325a2e6202a767f147d728ece00ec5cba0901e020b53070eb97eef4e",
-      "launcherExperimentId": "20261105023910523-dd6a4981"
+      "sha256": "9617ea648733574e5ea5a98fe61cb64804474da4e094231072bee7fa4d97714d",
+      "launcherExperimentId": "20261106015238341-113076ed"
     },
     "dataflash": [
       {
         "name": "00000001.BIN",
-        "bytes": 3407872,
-        "sha256": "93568c5218bf13d7cc4c3079bf4441c75cea63cee97ab12088893a101afcb968",
+        "bytes": 3485696,
+        "sha256": "ff8e0b04626db7492a1bd65781067ae9771d3c4f2b65323d2b38b1e62034760d",
         "status": "truncated",
-        "records": 68504,
-        "truncatedBytes": 20,
+        "records": 70049,
+        "truncatedBytes": 15,
         "firmwareMatchesBuild": true
       }
     ],
     "recording": {
-      "recordId": "4b8604ed063fce29c449ee1d3acc3389",
+      "recordId": "2f5d8933119ead67aefcbb87a29182a8",
       "status": "closed",
-      "chunks": 139,
-      "bytes": 8587912,
+      "chunks": 272,
+      "bytes": 9231536,
       "droppedChunks": 0,
       "droppedRows": 0,
       "producerLost": 0
     },
     "speed": {
       "verdict": "Real time",
-      "average": 1.000776918923968,
-      "dropped": 2,
-      "simElapsedS": 134.9,
-      "runningWallS": 134.79527499999105
+      "average": 1.00079480276413,
+      "dropped": 1,
+      "simElapsedS": 136.4,
+      "runningWallS": 136.29167499998212
     },
     "power": {
       "hover": {
-        "voltageV": 15.73,
-        "currentA": 50.5,
-        "powerW": 793,
+        "voltageV": 15.05,
+        "currentA": 82.4,
+        "powerW": 1240,
         "commandPercent": [
-          50,
-          50,
-          49,
-          49,
-          49,
-          50,
-          50,
-          50,
-          50,
-          50,
-          49,
-          49,
-          49,
-          50,
-          50,
-          50
+          64,
+          64,
+          63,
+          63,
+          63,
+          63,
+          64,
+          64,
+          64,
+          64,
+          63,
+          63,
+          63,
+          63,
+          64,
+          64
         ]
       },
       "limitEvents": [
-        "Limited 130.41 s Motor 13: motor current at the drive's limit ended, -28.25 A (limit 30.00 A)",
-        "Limited 130.41 s Motor 12: motor current at the drive's limit ended, -28.46 A (limit 30.00 A)",
-        "Limited 130.41 s Motor 11: motor current at the drive's limit ended, -28.34 A (limit 30.00 A)",
-        "Limited 130.41 s Motor 5: motor current at the drive's limit ended, -28.25 A (limit 30.00 A)",
-        "Limited 130.41 s Motor 4: motor current at the drive's limit ended, -28.46 A (limit 30.00 A)",
-        "Limited 130.41 s Motor 3: motor current at the drive's limit ended, -28.34 A (limit 30.00 A)",
-        "Limited 130.41 s Motor 14: motor current at the drive's limit ended, -28.62 A (limit 30.00 A)",
-        "Limited 130.41 s Motor 10: motor current at the drive's limit ended, -28.87 A (limit 30.00 A)"
+        "Limited 41.73 s Battery: regeneration into a full pack ended, 1.00 (limit 1.00)",
+        "Limited 41.72 s Battery: regeneration into a full pack, 1.00 (limit 1.00)"
       ]
     },
     "steadiness": {
       "hold": {
-        "fromS": 99.2,
-        "toS": 109.2,
+        "fromS": 100.8,
+        "toS": 110.8,
         "samples": 100,
         "roll": {
-          "sdDegS": 0.07627348144420165,
-          "peakDegS": 0.2603992521762848
+          "sdDegS": 0.12117384316950802,
+          "peakDegS": 0.33231303095817566
         },
         "pitch": {
-          "sdDegS": 0.08752516036569583,
-          "peakDegS": 0.31411388516426086
+          "sdDegS": 0.18060632706929208,
+          "peakDegS": 0.6463679075241089
         },
         "yaw": {
-          "sdDegS": 0.026904229152276398,
-          "peakDegS": 0.0786934345960617
+          "sdDegS": 0.03169988308312952,
+          "peakDegS": 0.07686612755060196
         }
       },
       "afterResume": {
-        "fromS": 109.7,
-        "toS": 119.7,
+        "fromS": 111.2,
+        "toS": 121.2,
         "samples": 100,
         "roll": {
-          "sdDegS": 0.06398513715064608,
-          "peakDegS": 0.21004706621170044
+          "sdDegS": 0.12919237153010207,
+          "peakDegS": 0.27214515209198
         },
         "pitch": {
-          "sdDegS": 0.07614081417910736,
-          "peakDegS": 0.23618628084659576
+          "sdDegS": 0.17720012986588118,
+          "peakDegS": 0.32795897126197815
         },
         "yaw": {
-          "sdDegS": 0.005660047806054976,
-          "peakDegS": 0.03769657388329506
+          "sdDegS": 0.010292978762755034,
+          "peakDegS": 0.04504678398370743
         }
       }
     },
@@ -558,30 +932,30 @@
         "cards": [
           {
             "type": "motor",
-            "sha256": "8e58c3b48f22ec75d1d765c49f014746237bfc11dbfe0585617e9cde06f39299",
+            "sha256": "3389afc60fad1adaffe5c26479a61347280ba7c6238344eff442bfe94529be11",
             "sourceKind": "synthetic",
             "differences": []
           },
           {
             "type": "propeller",
-            "sha256": "ec826000b2d7d896ed0fe6eccc50c4d1d81f2422eb1d69e217e1042ff395ef6e",
+            "sha256": "e3e603ba9c0368910a4d2310c35c40f5cf963a77e58793e038b4ccca6d787577",
             "sourceKind": "synthetic",
             "differences": []
           },
           {
             "type": "esc",
-            "sha256": "c14ff0cb1555fef2d6a8afc03a8e89cd4547804f4ef60312c5ee1b676aa5e1b0",
+            "sha256": "f087485da260e2c234fc43e167b9fe3b8c16e9e1f477ca68c3a53eb00e15486f",
             "sourceKind": "synthetic",
             "differences": []
           },
           {
             "type": "battery",
-            "sha256": "1add2d19e1b925d7d841ae8a89b3d92865b12311bbfd13822ce4053460872572",
+            "sha256": "a126a8788708c3eb67c7774776af5db48a78a530a284fc11294e0f13ba44bbf6",
             "sourceKind": "synthetic",
             "differences": []
           }
         ],
-        "sha256": "e19e7fbd6b87360cd46ad9c58a9ac453024492a5f37922162efd29ce4b74d8ec",
+        "sha256": "8f8f9b26525d1170cb9c05f96a72785d02c51eab7eb5b825a0c1ceb6f06a2a32",
         "version": 1,
         "motors": 16,
         "differences": []
@@ -676,9 +1050,9 @@
     "start": {
       "facts": {
         "ready": "READY",
-        "readyAtSimS": 41.2,
-        "recordSha256": "b0f198fe325a2e6202a767f147d728ece00ec5cba0901e020b53070eb97eef4e",
-        "profileSha256": "e19e7fbd6b87360cd46ad9c58a9ac453024492a5f37922162efd29ce4b74d8ec",
+        "readyAtSimS": 41.3,
+        "recordSha256": "9617ea648733574e5ea5a98fe61cb64804474da4e094231072bee7fa4d97714d",
+        "profileSha256": "8f8f9b26525d1170cb9c05f96a72785d02c51eab7eb5b825a0c1ceb6f06a2a32",
         "physicsHz": 800,
         "clockMode": "sitl-lockstep",
         "speedup": 1,
@@ -713,10 +1087,10 @@
     "reopen": {
       "facts": {
         "listed": 1,
-        "recordId": "4b8604ed063fce29c449ee1d3acc3389",
-        "recordingText": "50 Hz common rate, record 4b8604ed063fce29c449ee1d3acc3389",
+        "recordId": "2f5d8933119ead67aefcbb87a29182a8",
+        "recordingText": "50 Hz common rate, record 2f5d8933119ead67aefcbb87a29182a8",
         "profileText": "Octa coaxial 16, version 1",
-        "truthRows": 6807,
+        "truthRows": 6877,
         "missingChunks": 0,
         "corruptChunks": 0
       },
@@ -838,13 +1212,13 @@
         "stage": "Flying",
         "armed": "Armed",
         "mode": "GUIDED",
-        "startSimS": 99.2,
-        "endSimS": 109.2,
+        "startSimS": 100.8,
+        "endSimS": 110.8,
         "readingsM": [
-          5.11,
-          5.1,
+          5.08,
+          5.07,
+          5.08,
           5.09,
-          5.1,
           5.1,
           5.11,
           5.12,
@@ -852,18 +1226,6 @@
           5.13,
           5.14,
           5.14,
-          5.14,
-          5.15,
-          5.15,
-          5.15,
-          5.16,
-          5.16,
-          5.15,
-          5.15,
-          5.15,
-          5.15,
-          5.15,
-          5.15,
           5.15,
           5.15,
           5.15,
@@ -872,10 +1234,24 @@
           5.16,
           5.16,
           5.16,
-          5.16,
-          5.16,
-          5.16,
-          5.16
+          5.17,
+          5.17,
+          5.17,
+          5.17,
+          5.18,
+          5.18,
+          5.18,
+          5.18,
+          5.18,
+          5.18,
+          5.18,
+          5.18,
+          5.18,
+          5.19,
+          5.19,
+          5.19,
+          5.19,
+          5.19
         ]
       },
       "error": null
@@ -884,67 +1260,69 @@
       "facts": {
         "stage": "paused",
         "before": {
-          "simS": 109.5,
-          "altitudeM": 5.17,
-          "stepped": 87600
+          "simS": 111.1,
+          "altitudeM": 5.19,
+          "stepped": 88800
         },
         "after": {
-          "simS": 109.5,
-          "altitudeM": 5.17,
-          "stepped": 87600
+          "simS": 111.1,
+          "altitudeM": 5.19,
+          "stepped": 88800
         },
-        "wallS": 31.384,
+        "wallS": 31.223,
         "resumedStage": "Flying",
-        "resumedAtSimS": 109.7,
+        "resumedAtSimS": 111.2,
         "hold": {
           "stage": "Flying",
           "armed": "Armed",
           "mode": "GUIDED",
-          "startSimS": 109.7,
-          "endSimS": 119.7,
+          "startSimS": 111.2,
+          "endSimS": 121.2,
           "readingsM": [
-            5.17,
-            5.17,
-            5.17,
-            5.17,
-            5.17,
-            5.17,
-            5.17,
-            5.17,
-            5.17,
-            5.17,
-            5.17,
-            5.17,
-            5.17,
-            5.17,
-            5.18,
-            5.18,
-            5.18,
-            5.18,
-            5.18,
-            5.18,
-            5.18,
-            5.18,
-            5.18,
-            5.18,
-            5.18,
-            5.18,
-            5.18,
-            5.18,
-            5.18,
-            5.18,
-            5.18,
-            5.18,
-            5.18,
-            5.18,
-            5.18
+            5.19,
+            5.19,
+            5.19,
+            5.19,
+            5.19,
+            5.19,
+            5.19,
+            5.19,
+            5.19,
+            5.19,
+            5.19,
+            5.19,
+            5.19,
+            5.19,
+            5.19,
+            5.19,
+            5.19,
+            5.19,
+            5.19,
+            5.19,
+            5.19,
+            5.19,
+            5.19,
+            5.19,
+            5.19,
+            5.19,
+            5.19,
+            5.19,
+            5.19,
+            5.19,
+            5.19,
+            5.19,
+            5.19,
+            5.19,
+            5.19,
+            5.19,
+            5.19
           ]
         },
         "failsafeMessages": [],
         "log": {
           "count": 1,
           "reason": "user",
-          "wallS": 32.6
+          "wallS": 32.4
         }
       },
       "error": null
@@ -957,7 +1335,7 @@
         "ready": "READY",
         "altitudeM": 0.2,
         "restAltitudeM": 0.19705707577148507,
-        "frames": "108800 stepped, 0 lost, 0 resent, 28 held",
+        "frames": "109920 stepped, 0 lost, 0 resent, 28 held",
         "failsafeMessages": []
       },
       "error": null
@@ -965,7 +1343,7 @@
     "stop": {
       "facts": {
         "state": "idle",
-        "text": "Run 20261105023910523-dd6a4981 stopped",
+        "text": "Run 20261106015238341-113076ed stopped",
         "launcherState": "stopped",
         "group": "",
         "members": [],
@@ -977,11 +1355,11 @@
   },
   "sources": {
     "tests/browser/phase1-nominal.spec.ts": "69c2ee549cb6b814d2c88404465a79c166adbe454f2312ba843d0ef166a905e5",
-    "scripts/phase1/nominal-flight.mjs": "13c12ae3cc46e79056620a03d80e6e2cd2e584cdda4f363e01155f654b662cc3",
+    "scripts/phase1/nominal-flight.mjs": "216c3f7d7eb37986cbcb7fd85f43a97e750cd34f8454c27e03b97c70657e4bab",
     "scripts/phase1/nominal-rules.ts": "fd983873987f42474ee4f4a0d2460e4e2bec6064821574bfcaa743472bedb457",
     "tests/support/aircraft-ui.ts": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f",
     "tests/support/aircraft-recipes.ts": "e4d5d0f1c99e06af4f11b633dae321a24e1a33247ad4a58da6207fee323236b1",
-    "tests/support/run-tab.ts": "515f411108f47cf7aa6601e1088004f27fd8e556ab342f748aaea1d33c5cab73",
+    "tests/support/run-tab.ts": "9cc28dc5ac110f9f5114cc4482fbcdf5050cd7c2b7d8dd837a7070fd829ef78e",
     "tests/support/standard-gear.ts": "7c43a4427fe7b8f56159990b8d3f99e4f2ef534e6cd563b247543aae3b1cb22d",
     "playwright.config.ts": "0e76e629e0d560d9b4363f171f8008c71a072c74691f12daa33009e35abce9fb",
     "tests/fixtures/components/motor-example.json": "8da613982ca1f4f6bc5cfa06a397426a2d0d1da3342e156c8d54f02622e2aece",

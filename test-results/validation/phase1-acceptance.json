@@ -1,0 +1,2737 @@
+{
+  "schemaVersion": 1,
+  "task": "TASK-191",
+  "kind": "phase1-acceptance",
+  "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
+  "matrix": {
+    "path": "docs/validation/phase1-matrix.json",
+    "sha256": "5e78919ec60de2b2d608c860cef5319668f529f12072ec9eba79791220db8131"
+  },
+  "status": "PASS",
+  "counts": {
+    "PASS": 51,
+    "FAIL": 0,
+    "BLOCKED_EXTERNAL": 0,
+    "BLOCKED_DECISION": 0,
+    "NOT_RUN": 0
+  },
+  "refused": 0,
+  "cells": [
+    {
+      "configuration": "quad",
+      "workflow": "profile-creation",
+      "stated": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/quad.json",
+        "sha256": "f77b5b5e86ce97e05ce5dd504630b02fef9877322bf980963ef9aa24b7dde8aa"
+      },
+      "blockedBy": [],
+      "verdict": "PASS",
+      "refused": null
+    },
+    {
+      "configuration": "hexa",
+      "workflow": "profile-creation",
+      "stated": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/hexa.json",
+        "sha256": "6f0e4df5b1c8f0219c921741e22767962cd97b85cd8fe61b14adaaefce915028"
+      },
+      "blockedBy": [],
+      "verdict": "PASS",
+      "refused": null
+    },
+    {
+      "configuration": "octo",
+      "workflow": "profile-creation",
+      "stated": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/octo.json",
+        "sha256": "e5576bae5a291abc27d8cf55ec26762a1e920405b84934e0e0db1592a8e47da6"
+      },
+      "blockedBy": [],
+      "verdict": "PASS",
+      "refused": null
+    },
+    {
+      "configuration": "x8",
+      "workflow": "profile-creation",
+      "stated": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/x8.json",
+        "sha256": "3c4add42c2cf879048fd5935180f4021b95dd8d0ac438740e8d303b2b63686b3"
+      },
+      "blockedBy": [],
+      "verdict": "PASS",
+      "refused": null
+    },
+    {
+      "configuration": "octo-paired-16",
+      "workflow": "profile-creation",
+      "stated": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/octo-paired-16.json",
+        "sha256": "dbd53fcd1bff928ebe42807e69f8a77667d4e8cb51b45aa3868427fc25067144"
+      },
+      "blockedBy": [],
+      "verdict": "PASS",
+      "refused": null
+    },
+    {
+      "configuration": "quad",
+      "workflow": "output-mapping",
+      "stated": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/quad.json",
+        "sha256": "f77b5b5e86ce97e05ce5dd504630b02fef9877322bf980963ef9aa24b7dde8aa"
+      },
+      "blockedBy": [],
+      "verdict": "PASS",
+      "refused": null
+    },
+    {
+      "configuration": "hexa",
+      "workflow": "output-mapping",
+      "stated": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/hexa.json",
+        "sha256": "6f0e4df5b1c8f0219c921741e22767962cd97b85cd8fe61b14adaaefce915028"
+      },
+      "blockedBy": [],
+      "verdict": "PASS",
+      "refused": null
+    },
+    {
+      "configuration": "octo",
+      "workflow": "output-mapping",
+      "stated": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/octo.json",
+        "sha256": "e5576bae5a291abc27d8cf55ec26762a1e920405b84934e0e0db1592a8e47da6"
+      },
+      "blockedBy": [],
+      "verdict": "PASS",
+      "refused": null
+    },
+    {
+      "configuration": "x8",
+      "workflow": "output-mapping",
+      "stated": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/x8.json",
+        "sha256": "3c4add42c2cf879048fd5935180f4021b95dd8d0ac438740e8d303b2b63686b3"
+      },
+      "blockedBy": [],
+      "verdict": "PASS",
+      "refused": null
+    },
+    {
+      "configuration": "octo-paired-16",
+      "workflow": "output-mapping",
+      "stated": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/octo-paired-16.json",
+        "sha256": "dbd53fcd1bff928ebe42807e69f8a77667d4e8cb51b45aa3868427fc25067144"
+      },
+      "blockedBy": [],
+      "verdict": "PASS",
+      "refused": null
+    },
+    {
+      "configuration": "quad",
+      "workflow": "start",
+      "stated": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/quad.json",
+        "sha256": "f77b5b5e86ce97e05ce5dd504630b02fef9877322bf980963ef9aa24b7dde8aa"
+      },
+      "blockedBy": [],
+      "verdict": "PASS",
+      "refused": null
+    },
+    {
+      "configuration": "hexa",
+      "workflow": "start",
+      "stated": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/hexa.json",
+        "sha256": "6f0e4df5b1c8f0219c921741e22767962cd97b85cd8fe61b14adaaefce915028"
+      },
+      "blockedBy": [],
+      "verdict": "PASS",
+      "refused": null
+    },
+    {
+      "configuration": "octo",
+      "workflow": "start",
+      "stated": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/octo.json",
+        "sha256": "e5576bae5a291abc27d8cf55ec26762a1e920405b84934e0e0db1592a8e47da6"
+      },
+      "blockedBy": [],
+      "verdict": "PASS",
+      "refused": null
+    },
+    {
+      "configuration": "x8",
+      "workflow": "start",
+      "stated": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/x8.json",
+        "sha256": "3c4add42c2cf879048fd5935180f4021b95dd8d0ac438740e8d303b2b63686b3"
+      },
+      "blockedBy": [],
+      "verdict": "PASS",
+      "refused": null
+    },
+    {
+      "configuration": "octo-paired-16",
+      "workflow": "start",
+      "stated": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/octo-paired-16.json",
+        "sha256": "dbd53fcd1bff928ebe42807e69f8a77667d4e8cb51b45aa3868427fc25067144"
+      },
+      "blockedBy": [],
+      "verdict": "PASS",
+      "refused": null
+    },
+    {
+      "configuration": "quad",
+      "workflow": "flight-task",
+      "stated": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/quad.json",
+        "sha256": "f77b5b5e86ce97e05ce5dd504630b02fef9877322bf980963ef9aa24b7dde8aa"
+      },
+      "blockedBy": [],
+      "verdict": "PASS",
+      "refused": null
+    },
+    {
+      "configuration": "hexa",
+      "workflow": "flight-task",
+      "stated": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/hexa.json",
+        "sha256": "6f0e4df5b1c8f0219c921741e22767962cd97b85cd8fe61b14adaaefce915028"
+      },
+      "blockedBy": [],
+      "verdict": "PASS",
+      "refused": null
+    },
+    {
+      "configuration": "octo",
+      "workflow": "flight-task",
+      "stated": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/octo.json",
+        "sha256": "e5576bae5a291abc27d8cf55ec26762a1e920405b84934e0e0db1592a8e47da6"
+      },
+      "blockedBy": [],
+      "verdict": "PASS",
+      "refused": null
+    },
+    {
+      "configuration": "x8",
+      "workflow": "flight-task",
+      "stated": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/x8.json",
+        "sha256": "3c4add42c2cf879048fd5935180f4021b95dd8d0ac438740e8d303b2b63686b3"
+      },
+      "blockedBy": [],
+      "verdict": "PASS",
+      "refused": null
+    },
+    {
+      "configuration": "octo-paired-16",
+      "workflow": "flight-task",
+      "stated": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/octo-paired-16.json",
+        "sha256": "dbd53fcd1bff928ebe42807e69f8a77667d4e8cb51b45aa3868427fc25067144"
+      },
+      "blockedBy": [],
+      "verdict": "PASS",
+      "refused": null
+    },
+    {
+      "configuration": "quad",
+      "workflow": "pause-resume",
+      "stated": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/quad.json",
+        "sha256": "f77b5b5e86ce97e05ce5dd504630b02fef9877322bf980963ef9aa24b7dde8aa"
+      },
+      "blockedBy": [],
+      "verdict": "PASS",
+      "refused": null
+    },
+    {
+      "configuration": "hexa",
+      "workflow": "pause-resume",
+      "stated": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/hexa.json",
+        "sha256": "6f0e4df5b1c8f0219c921741e22767962cd97b85cd8fe61b14adaaefce915028"
+      },
+      "blockedBy": [],
+      "verdict": "PASS",
+      "refused": null
+    },
+    {
+      "configuration": "octo",
+      "workflow": "pause-resume",
+      "stated": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/octo.json",
+        "sha256": "e5576bae5a291abc27d8cf55ec26762a1e920405b84934e0e0db1592a8e47da6"
+      },
+      "blockedBy": [],
+      "verdict": "PASS",
+      "refused": null
+    },
+    {
+      "configuration": "x8",
+      "workflow": "pause-resume",
+      "stated": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/x8.json",
+        "sha256": "3c4add42c2cf879048fd5935180f4021b95dd8d0ac438740e8d303b2b63686b3"
+      },
+      "blockedBy": [],
+      "verdict": "PASS",
+      "refused": null
+    },
+    {
+      "configuration": "octo-paired-16",
+      "workflow": "pause-resume",
+      "stated": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/octo-paired-16.json",
+        "sha256": "dbd53fcd1bff928ebe42807e69f8a77667d4e8cb51b45aa3868427fc25067144"
+      },
+      "blockedBy": [],
+      "verdict": "PASS",
+      "refused": null
+    },
+    {
+      "configuration": "quad",
+      "workflow": "parameter-changes",
+      "stated": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/quad.json",
+        "sha256": "f77b5b5e86ce97e05ce5dd504630b02fef9877322bf980963ef9aa24b7dde8aa"
+      },
+      "blockedBy": [],
+      "verdict": "PASS",
+      "refused": null
+    },
+    {
+      "configuration": "hexa",
+      "workflow": "parameter-changes",
+      "stated": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/hexa.json",
+        "sha256": "6f0e4df5b1c8f0219c921741e22767962cd97b85cd8fe61b14adaaefce915028"
+      },
+      "blockedBy": [],
+      "verdict": "PASS",
+      "refused": null
+    },
+    {
+      "configuration": "octo",
+      "workflow": "parameter-changes",
+      "stated": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/octo.json",
+        "sha256": "e5576bae5a291abc27d8cf55ec26762a1e920405b84934e0e0db1592a8e47da6"
+      },
+      "blockedBy": [],
+      "verdict": "PASS",
+      "refused": null
+    },
+    {
+      "configuration": "x8",
+      "workflow": "parameter-changes",
+      "stated": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/x8.json",
+        "sha256": "3c4add42c2cf879048fd5935180f4021b95dd8d0ac438740e8d303b2b63686b3"
+      },
+      "blockedBy": [],
+      "verdict": "PASS",
+      "refused": null
+    },
+    {
+      "configuration": "octo-paired-16",
+      "workflow": "parameter-changes",
+      "stated": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/octo-paired-16.json",
+        "sha256": "dbd53fcd1bff928ebe42807e69f8a77667d4e8cb51b45aa3868427fc25067144"
+      },
+      "blockedBy": [],
+      "verdict": "PASS",
+      "refused": null
+    },
+    {
+      "configuration": "quad",
+      "workflow": "recording",
+      "stated": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/quad.json",
+        "sha256": "f77b5b5e86ce97e05ce5dd504630b02fef9877322bf980963ef9aa24b7dde8aa"
+      },
+      "blockedBy": [],
+      "verdict": "PASS",
+      "refused": null
+    },
+    {
+      "configuration": "hexa",
+      "workflow": "recording",
+      "stated": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/hexa.json",
+        "sha256": "6f0e4df5b1c8f0219c921741e22767962cd97b85cd8fe61b14adaaefce915028"
+      },
+      "blockedBy": [],
+      "verdict": "PASS",
+      "refused": null
+    },
+    {
+      "configuration": "octo",
+      "workflow": "recording",
+      "stated": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/octo.json",
+        "sha256": "e5576bae5a291abc27d8cf55ec26762a1e920405b84934e0e0db1592a8e47da6"
+      },
+      "blockedBy": [],
+      "verdict": "PASS",
+      "refused": null
+    },
+    {
+      "configuration": "x8",
+      "workflow": "recording",
+      "stated": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/x8.json",
+        "sha256": "3c4add42c2cf879048fd5935180f4021b95dd8d0ac438740e8d303b2b63686b3"
+      },
+      "blockedBy": [],
+      "verdict": "PASS",
+      "refused": null
+    },
+    {
+      "configuration": "octo-paired-16",
+      "workflow": "recording",
+      "stated": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/octo-paired-16.json",
+        "sha256": "dbd53fcd1bff928ebe42807e69f8a77667d4e8cb51b45aa3868427fc25067144"
+      },
+      "blockedBy": [],
+      "verdict": "PASS",
+      "refused": null
+    },
+    {
+      "configuration": "quad",
+      "workflow": "reopen-results",
+      "stated": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/quad.json",
+        "sha256": "f77b5b5e86ce97e05ce5dd504630b02fef9877322bf980963ef9aa24b7dde8aa"
+      },
+      "blockedBy": [],
+      "verdict": "PASS",
+      "refused": null
+    },
+    {
+      "configuration": "hexa",
+      "workflow": "reopen-results",
+      "stated": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/hexa.json",
+        "sha256": "6f0e4df5b1c8f0219c921741e22767962cd97b85cd8fe61b14adaaefce915028"
+      },
+      "blockedBy": [],
+      "verdict": "PASS",
+      "refused": null
+    },
+    {
+      "configuration": "octo",
+      "workflow": "reopen-results",
+      "stated": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/octo.json",
+        "sha256": "e5576bae5a291abc27d8cf55ec26762a1e920405b84934e0e0db1592a8e47da6"
+      },
+      "blockedBy": [],
+      "verdict": "PASS",
+      "refused": null
+    },
+    {
+      "configuration": "x8",
+      "workflow": "reopen-results",
+      "stated": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/x8.json",
+        "sha256": "3c4add42c2cf879048fd5935180f4021b95dd8d0ac438740e8d303b2b63686b3"
+      },
+      "blockedBy": [],
+      "verdict": "PASS",
+      "refused": null
+    },
+    {
+      "configuration": "octo-paired-16",
+      "workflow": "reopen-results",
+      "stated": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/octo-paired-16.json",
+        "sha256": "dbd53fcd1bff928ebe42807e69f8a77667d4e8cb51b45aa3868427fc25067144"
+      },
+      "blockedBy": [],
+      "verdict": "PASS",
+      "refused": null
+    },
+    {
+      "configuration": "quad",
+      "workflow": "unsupported-refusal",
+      "stated": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/quad.json",
+        "sha256": "f77b5b5e86ce97e05ce5dd504630b02fef9877322bf980963ef9aa24b7dde8aa"
+      },
+      "blockedBy": [],
+      "verdict": "PASS",
+      "refused": null
+    },
+    {
+      "configuration": "hexa",
+      "workflow": "unsupported-refusal",
+      "stated": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/hexa.json",
+        "sha256": "6f0e4df5b1c8f0219c921741e22767962cd97b85cd8fe61b14adaaefce915028"
+      },
+      "blockedBy": [],
+      "verdict": "PASS",
+      "refused": null
+    },
+    {
+      "configuration": "octo",
+      "workflow": "unsupported-refusal",
+      "stated": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/octo.json",
+        "sha256": "e5576bae5a291abc27d8cf55ec26762a1e920405b84934e0e0db1592a8e47da6"
+      },
+      "blockedBy": [],
+      "verdict": "PASS",
+      "refused": null
+    },
+    {
+      "configuration": "x8",
+      "workflow": "unsupported-refusal",
+      "stated": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/x8.json",
+        "sha256": "3c4add42c2cf879048fd5935180f4021b95dd8d0ac438740e8d303b2b63686b3"
+      },
+      "blockedBy": [],
+      "verdict": "PASS",
+      "refused": null
+    },
+    {
+      "configuration": "octo-paired-16",
+      "workflow": "unsupported-refusal",
+      "stated": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/octo-paired-16.json",
+        "sha256": "dbd53fcd1bff928ebe42807e69f8a77667d4e8cb51b45aa3868427fc25067144"
+      },
+      "blockedBy": [],
+      "verdict": "PASS",
+      "refused": null
+    },
+    {
+      "configuration": "octo-paired-16",
+      "workflow": "one-hour-recording",
+      "stated": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-endurance/octo-paired-16.json",
+        "sha256": "688e76edbd609602d62ec1c4ef7f451000b96a7a4f8f4bfe346e4a0e13e4a0d4"
+      },
+      "blockedBy": [],
+      "verdict": "PASS",
+      "refused": null
+    },
+    {
+      "configuration": null,
+      "workflow": "installation-restart",
+      "stated": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-global/installation-restart.json",
+        "sha256": "33040872ef80392472c3e52654e26340a88a8f2f62647035ad47022a20e80ba3"
+      },
+      "blockedBy": [],
+      "verdict": "PASS",
+      "refused": null
+    },
+    {
+      "configuration": null,
+      "workflow": "offline-workflow",
+      "stated": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-global/offline-workflow.json",
+        "sha256": "186407771b9ab7f7a00c24733b27ea7d59d0e6ad4c6d213c7961fa275e83be9c"
+      },
+      "blockedBy": [],
+      "verdict": "PASS",
+      "refused": null
+    },
+    {
+      "configuration": null,
+      "workflow": "export-import",
+      "stated": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-global/export-import.json",
+        "sha256": "c99b981c5927ea326d89ed477c0723d8634a4b729c6ef8812ed4c85fad7e0792"
+      },
+      "blockedBy": [],
+      "verdict": "PASS",
+      "refused": null
+    },
+    {
+      "configuration": null,
+      "workflow": "comparisons",
+      "stated": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-global/comparisons.json",
+        "sha256": "14e8e31d9a2270f66bdde5e9d8c87b9da1dc715e3e4869f2ffeceaf273ac0108"
+      },
+      "blockedBy": [],
+      "verdict": "PASS",
+      "refused": null
+    },
+    {
+      "configuration": null,
+      "workflow": "parameter-export",
+      "stated": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-global/parameter-export.json",
+        "sha256": "cdbaaf1d7ccb29f83bc0c3361768fa243f2082307cf079d6c06a866ecaa6a2fd"
+      },
+      "blockedBy": [],
+      "verdict": "PASS",
+      "refused": null
+    }
+  ],
+  "s19": [
+    {
+      "sId": "S19",
+      "configuration": "quad",
+      "workflow": "profile-creation",
+      "criterion": "Create the aircraft profile through the UI",
+      "verdict": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/quad.json",
+        "sha256": "f77b5b5e86ce97e05ce5dd504630b02fef9877322bf980963ef9aa24b7dde8aa"
+      },
+      "device": {
+        "model": "Mac17,4",
+        "chip": "Apple M5",
+        "memoryBytes": 34359738368,
+        "macOS": "27.2",
+        "chrome": "156.0.8078.80",
+        "lowPowerMode": false
+      },
+      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
+      "uncommittedFiles": 133,
+      "sources": {
+        "tests/browser/phase1-nominal.spec.ts": "69c2ee549cb6b814d2c88404465a79c166adbe454f2312ba843d0ef166a905e5",
+        "scripts/phase1/nominal-flight.mjs": "216c3f7d7eb37986cbcb7fd85f43a97e750cd34f8454c27e03b97c70657e4bab",
+        "scripts/phase1/nominal-rules.ts": "fd983873987f42474ee4f4a0d2460e4e2bec6064821574bfcaa743472bedb457",
+        "tests/support/aircraft-ui.ts": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f",
+        "tests/support/aircraft-recipes.ts": "e4d5d0f1c99e06af4f11b633dae321a24e1a33247ad4a58da6207fee323236b1",
+        "tests/support/run-tab.ts": "9cc28dc5ac110f9f5114cc4482fbcdf5050cd7c2b7d8dd837a7070fd829ef78e",
+        "tests/support/standard-gear.ts": "7c43a4427fe7b8f56159990b8d3f99e4f2ef534e6cd563b247543aae3b1cb22d",
+        "playwright.config.ts": "0e76e629e0d560d9b4363f171f8008c71a072c74691f12daa33009e35abce9fb",
+        "tests/fixtures/components/motor-example.json": "8da613982ca1f4f6bc5cfa06a397426a2d0d1da3342e156c8d54f02622e2aece",
+        "tests/fixtures/components/propeller-example.json": "5944eeec045d0e449fe566be13142adef275dda27b4c6f57e6583e68addc36a5",
+        "tests/fixtures/components/esc-example.json": "50ef8893d000123e59b46d056733425eb442486f57330ef87f2d2f403fb0d40c",
+        "tests/fixtures/components/battery-example.json": "fe5ca2675ac0111195ca9d432e91e1c63f1244f0f8cdb2fb4cbe6ad62fe1b396",
+        "tests/fixtures/aircraft/quad-x.json": "946e68eba8c9312e431b407cea5107f7b99ead07dcb119d1c1b618850e1227b5",
+        "tests/fixtures/aircraft/hexa-x.json": "ec2cab44bb8ada5eb1cb17d2bcad0ecae5166a848009a113f5f1c81dd09a8e6b",
+        "tests/fixtures/aircraft/octa-x.json": "336735320d7f75b5839a6489cd3f7311dc1fdc0be86c8116889c204fd66d03e6",
+        "tests/fixtures/aircraft/coaxial-x8.json": "5aec44294071a65d8a2c486cfacf4a05ed7a80573c9ade253a578901d524244e",
+        "tests/fixtures/aircraft/octa-coaxial-16.json": "89d559537cbf5c4cb58495b8b4f19054ff48b6f86f867a1c7abcb68d58ceb6b9"
+      }
+    },
+    {
+      "sId": "S19",
+      "configuration": "hexa",
+      "workflow": "profile-creation",
+      "criterion": "Create the aircraft profile through the UI",
+      "verdict": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/hexa.json",
+        "sha256": "6f0e4df5b1c8f0219c921741e22767962cd97b85cd8fe61b14adaaefce915028"
+      },
+      "device": {
+        "model": "Mac17,4",
+        "chip": "Apple M5",
+        "memoryBytes": 34359738368,
+        "macOS": "27.2",
+        "chrome": "156.0.8078.80",
+        "lowPowerMode": false
+      },
+      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
+      "uncommittedFiles": 133,
+      "sources": {
+        "tests/browser/phase1-nominal.spec.ts": "69c2ee549cb6b814d2c88404465a79c166adbe454f2312ba843d0ef166a905e5",
+        "scripts/phase1/nominal-flight.mjs": "216c3f7d7eb37986cbcb7fd85f43a97e750cd34f8454c27e03b97c70657e4bab",
+        "scripts/phase1/nominal-rules.ts": "fd983873987f42474ee4f4a0d2460e4e2bec6064821574bfcaa743472bedb457",
+        "tests/support/aircraft-ui.ts": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f",
+        "tests/support/aircraft-recipes.ts": "e4d5d0f1c99e06af4f11b633dae321a24e1a33247ad4a58da6207fee323236b1",
+        "tests/support/run-tab.ts": "9cc28dc5ac110f9f5114cc4482fbcdf5050cd7c2b7d8dd837a7070fd829ef78e",
+        "tests/support/standard-gear.ts": "7c43a4427fe7b8f56159990b8d3f99e4f2ef534e6cd563b247543aae3b1cb22d",
+        "playwright.config.ts": "0e76e629e0d560d9b4363f171f8008c71a072c74691f12daa33009e35abce9fb",
+        "tests/fixtures/components/motor-example.json": "8da613982ca1f4f6bc5cfa06a397426a2d0d1da3342e156c8d54f02622e2aece",
+        "tests/fixtures/components/propeller-example.json": "5944eeec045d0e449fe566be13142adef275dda27b4c6f57e6583e68addc36a5",
+        "tests/fixtures/components/esc-example.json": "50ef8893d000123e59b46d056733425eb442486f57330ef87f2d2f403fb0d40c",
+        "tests/fixtures/components/battery-example.json": "fe5ca2675ac0111195ca9d432e91e1c63f1244f0f8cdb2fb4cbe6ad62fe1b396",
+        "tests/fixtures/aircraft/quad-x.json": "946e68eba8c9312e431b407cea5107f7b99ead07dcb119d1c1b618850e1227b5",
+        "tests/fixtures/aircraft/hexa-x.json": "ec2cab44bb8ada5eb1cb17d2bcad0ecae5166a848009a113f5f1c81dd09a8e6b",
+        "tests/fixtures/aircraft/octa-x.json": "336735320d7f75b5839a6489cd3f7311dc1fdc0be86c8116889c204fd66d03e6",
+        "tests/fixtures/aircraft/coaxial-x8.json": "5aec44294071a65d8a2c486cfacf4a05ed7a80573c9ade253a578901d524244e",
+        "tests/fixtures/aircraft/octa-coaxial-16.json": "89d559537cbf5c4cb58495b8b4f19054ff48b6f86f867a1c7abcb68d58ceb6b9"
+      }
+    },
+    {
+      "sId": "S19",
+      "configuration": "octo",
+      "workflow": "profile-creation",
+      "criterion": "Create the aircraft profile through the UI",
+      "verdict": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/octo.json",
+        "sha256": "e5576bae5a291abc27d8cf55ec26762a1e920405b84934e0e0db1592a8e47da6"
+      },
+      "device": {
+        "model": "Mac17,4",
+        "chip": "Apple M5",
+        "memoryBytes": 34359738368,
+        "macOS": "27.2",
+        "chrome": "156.0.8078.80",
+        "lowPowerMode": false
+      },
+      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
+      "uncommittedFiles": 133,
+      "sources": {
+        "tests/browser/phase1-nominal.spec.ts": "69c2ee549cb6b814d2c88404465a79c166adbe454f2312ba843d0ef166a905e5",
+        "scripts/phase1/nominal-flight.mjs": "216c3f7d7eb37986cbcb7fd85f43a97e750cd34f8454c27e03b97c70657e4bab",
+        "scripts/phase1/nominal-rules.ts": "fd983873987f42474ee4f4a0d2460e4e2bec6064821574bfcaa743472bedb457",
+        "tests/support/aircraft-ui.ts": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f",
+        "tests/support/aircraft-recipes.ts": "e4d5d0f1c99e06af4f11b633dae321a24e1a33247ad4a58da6207fee323236b1",
+        "tests/support/run-tab.ts": "9cc28dc5ac110f9f5114cc4482fbcdf5050cd7c2b7d8dd837a7070fd829ef78e",
+        "tests/support/standard-gear.ts": "7c43a4427fe7b8f56159990b8d3f99e4f2ef534e6cd563b247543aae3b1cb22d",
+        "playwright.config.ts": "0e76e629e0d560d9b4363f171f8008c71a072c74691f12daa33009e35abce9fb",
+        "tests/fixtures/components/motor-example.json": "8da613982ca1f4f6bc5cfa06a397426a2d0d1da3342e156c8d54f02622e2aece",
+        "tests/fixtures/components/propeller-example.json": "5944eeec045d0e449fe566be13142adef275dda27b4c6f57e6583e68addc36a5",
+        "tests/fixtures/components/esc-example.json": "50ef8893d000123e59b46d056733425eb442486f57330ef87f2d2f403fb0d40c",
+        "tests/fixtures/components/battery-example.json": "fe5ca2675ac0111195ca9d432e91e1c63f1244f0f8cdb2fb4cbe6ad62fe1b396",
+        "tests/fixtures/aircraft/quad-x.json": "946e68eba8c9312e431b407cea5107f7b99ead07dcb119d1c1b618850e1227b5",
+        "tests/fixtures/aircraft/hexa-x.json": "ec2cab44bb8ada5eb1cb17d2bcad0ecae5166a848009a113f5f1c81dd09a8e6b",
+        "tests/fixtures/aircraft/octa-x.json": "336735320d7f75b5839a6489cd3f7311dc1fdc0be86c8116889c204fd66d03e6",
+        "tests/fixtures/aircraft/coaxial-x8.json": "5aec44294071a65d8a2c486cfacf4a05ed7a80573c9ade253a578901d524244e",
+        "tests/fixtures/aircraft/octa-coaxial-16.json": "89d559537cbf5c4cb58495b8b4f19054ff48b6f86f867a1c7abcb68d58ceb6b9"
+      }
+    },
+    {
+      "sId": "S19",
+      "configuration": "x8",
+      "workflow": "profile-creation",
+      "criterion": "Create the aircraft profile through the UI",
+      "verdict": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/x8.json",
+        "sha256": "3c4add42c2cf879048fd5935180f4021b95dd8d0ac438740e8d303b2b63686b3"
+      },
+      "device": {
+        "model": "Mac17,4",
+        "chip": "Apple M5",
+        "memoryBytes": 34359738368,
+        "macOS": "27.2",
+        "chrome": "156.0.8078.80",
+        "lowPowerMode": false
+      },
+      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
+      "uncommittedFiles": 133,
+      "sources": {
+        "tests/browser/phase1-nominal.spec.ts": "69c2ee549cb6b814d2c88404465a79c166adbe454f2312ba843d0ef166a905e5",
+        "scripts/phase1/nominal-flight.mjs": "216c3f7d7eb37986cbcb7fd85f43a97e750cd34f8454c27e03b97c70657e4bab",
+        "scripts/phase1/nominal-rules.ts": "fd983873987f42474ee4f4a0d2460e4e2bec6064821574bfcaa743472bedb457",
+        "tests/support/aircraft-ui.ts": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f",
+        "tests/support/aircraft-recipes.ts": "e4d5d0f1c99e06af4f11b633dae321a24e1a33247ad4a58da6207fee323236b1",
+        "tests/support/run-tab.ts": "9cc28dc5ac110f9f5114cc4482fbcdf5050cd7c2b7d8dd837a7070fd829ef78e",
+        "tests/support/standard-gear.ts": "7c43a4427fe7b8f56159990b8d3f99e4f2ef534e6cd563b247543aae3b1cb22d",
+        "playwright.config.ts": "0e76e629e0d560d9b4363f171f8008c71a072c74691f12daa33009e35abce9fb",
+        "tests/fixtures/components/motor-example.json": "8da613982ca1f4f6bc5cfa06a397426a2d0d1da3342e156c8d54f02622e2aece",
+        "tests/fixtures/components/propeller-example.json": "5944eeec045d0e449fe566be13142adef275dda27b4c6f57e6583e68addc36a5",
+        "tests/fixtures/components/esc-example.json": "50ef8893d000123e59b46d056733425eb442486f57330ef87f2d2f403fb0d40c",
+        "tests/fixtures/components/battery-example.json": "fe5ca2675ac0111195ca9d432e91e1c63f1244f0f8cdb2fb4cbe6ad62fe1b396",
+        "tests/fixtures/aircraft/quad-x.json": "946e68eba8c9312e431b407cea5107f7b99ead07dcb119d1c1b618850e1227b5",
+        "tests/fixtures/aircraft/hexa-x.json": "ec2cab44bb8ada5eb1cb17d2bcad0ecae5166a848009a113f5f1c81dd09a8e6b",
+        "tests/fixtures/aircraft/octa-x.json": "336735320d7f75b5839a6489cd3f7311dc1fdc0be86c8116889c204fd66d03e6",
+        "tests/fixtures/aircraft/coaxial-x8.json": "5aec44294071a65d8a2c486cfacf4a05ed7a80573c9ade253a578901d524244e",
+        "tests/fixtures/aircraft/octa-coaxial-16.json": "89d559537cbf5c4cb58495b8b4f19054ff48b6f86f867a1c7abcb68d58ceb6b9"
+      }
+    },
+    {
+      "sId": "S19",
+      "configuration": "octo-paired-16",
+      "workflow": "profile-creation",
+      "criterion": "Create the aircraft profile through the UI",
+      "verdict": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/octo-paired-16.json",
+        "sha256": "dbd53fcd1bff928ebe42807e69f8a77667d4e8cb51b45aa3868427fc25067144"
+      },
+      "device": {
+        "model": "Mac17,4",
+        "chip": "Apple M5",
+        "memoryBytes": 34359738368,
+        "macOS": "27.2",
+        "chrome": "156.0.8078.80",
+        "lowPowerMode": false
+      },
+      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
+      "uncommittedFiles": 133,
+      "sources": {
+        "tests/browser/phase1-nominal.spec.ts": "69c2ee549cb6b814d2c88404465a79c166adbe454f2312ba843d0ef166a905e5",
+        "scripts/phase1/nominal-flight.mjs": "216c3f7d7eb37986cbcb7fd85f43a97e750cd34f8454c27e03b97c70657e4bab",
+        "scripts/phase1/nominal-rules.ts": "fd983873987f42474ee4f4a0d2460e4e2bec6064821574bfcaa743472bedb457",
+        "tests/support/aircraft-ui.ts": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f",
+        "tests/support/aircraft-recipes.ts": "e4d5d0f1c99e06af4f11b633dae321a24e1a33247ad4a58da6207fee323236b1",
+        "tests/support/run-tab.ts": "9cc28dc5ac110f9f5114cc4482fbcdf5050cd7c2b7d8dd837a7070fd829ef78e",
+        "tests/support/standard-gear.ts": "7c43a4427fe7b8f56159990b8d3f99e4f2ef534e6cd563b247543aae3b1cb22d",
+        "playwright.config.ts": "0e76e629e0d560d9b4363f171f8008c71a072c74691f12daa33009e35abce9fb",
+        "tests/fixtures/components/motor-example.json": "8da613982ca1f4f6bc5cfa06a397426a2d0d1da3342e156c8d54f02622e2aece",
+        "tests/fixtures/components/propeller-example.json": "5944eeec045d0e449fe566be13142adef275dda27b4c6f57e6583e68addc36a5",
+        "tests/fixtures/components/esc-example.json": "50ef8893d000123e59b46d056733425eb442486f57330ef87f2d2f403fb0d40c",
+        "tests/fixtures/components/battery-example.json": "fe5ca2675ac0111195ca9d432e91e1c63f1244f0f8cdb2fb4cbe6ad62fe1b396",
+        "tests/fixtures/aircraft/quad-x.json": "946e68eba8c9312e431b407cea5107f7b99ead07dcb119d1c1b618850e1227b5",
+        "tests/fixtures/aircraft/hexa-x.json": "ec2cab44bb8ada5eb1cb17d2bcad0ecae5166a848009a113f5f1c81dd09a8e6b",
+        "tests/fixtures/aircraft/octa-x.json": "336735320d7f75b5839a6489cd3f7311dc1fdc0be86c8116889c204fd66d03e6",
+        "tests/fixtures/aircraft/coaxial-x8.json": "5aec44294071a65d8a2c486cfacf4a05ed7a80573c9ade253a578901d524244e",
+        "tests/fixtures/aircraft/octa-coaxial-16.json": "89d559537cbf5c4cb58495b8b4f19054ff48b6f86f867a1c7abcb68d58ceb6b9"
+      }
+    },
+    {
+      "sId": "S19",
+      "configuration": "quad",
+      "workflow": "output-mapping",
+      "criterion": "Correct ArduPilot output mapping",
+      "verdict": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/quad.json",
+        "sha256": "f77b5b5e86ce97e05ce5dd504630b02fef9877322bf980963ef9aa24b7dde8aa"
+      },
+      "device": {
+        "model": "Mac17,4",
+        "chip": "Apple M5",
+        "memoryBytes": 34359738368,
+        "macOS": "27.2",
+        "chrome": "156.0.8078.80",
+        "lowPowerMode": false
+      },
+      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
+      "uncommittedFiles": 133,
+      "sources": {
+        "tests/browser/phase1-nominal.spec.ts": "69c2ee549cb6b814d2c88404465a79c166adbe454f2312ba843d0ef166a905e5",
+        "scripts/phase1/nominal-flight.mjs": "216c3f7d7eb37986cbcb7fd85f43a97e750cd34f8454c27e03b97c70657e4bab",
+        "scripts/phase1/nominal-rules.ts": "fd983873987f42474ee4f4a0d2460e4e2bec6064821574bfcaa743472bedb457",
+        "tests/support/aircraft-ui.ts": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f",
+        "tests/support/aircraft-recipes.ts": "e4d5d0f1c99e06af4f11b633dae321a24e1a33247ad4a58da6207fee323236b1",
+        "tests/support/run-tab.ts": "9cc28dc5ac110f9f5114cc4482fbcdf5050cd7c2b7d8dd837a7070fd829ef78e",
+        "tests/support/standard-gear.ts": "7c43a4427fe7b8f56159990b8d3f99e4f2ef534e6cd563b247543aae3b1cb22d",
+        "playwright.config.ts": "0e76e629e0d560d9b4363f171f8008c71a072c74691f12daa33009e35abce9fb",
+        "tests/fixtures/components/motor-example.json": "8da613982ca1f4f6bc5cfa06a397426a2d0d1da3342e156c8d54f02622e2aece",
+        "tests/fixtures/components/propeller-example.json": "5944eeec045d0e449fe566be13142adef275dda27b4c6f57e6583e68addc36a5",
+        "tests/fixtures/components/esc-example.json": "50ef8893d000123e59b46d056733425eb442486f57330ef87f2d2f403fb0d40c",
+        "tests/fixtures/components/battery-example.json": "fe5ca2675ac0111195ca9d432e91e1c63f1244f0f8cdb2fb4cbe6ad62fe1b396",
+        "tests/fixtures/aircraft/quad-x.json": "946e68eba8c9312e431b407cea5107f7b99ead07dcb119d1c1b618850e1227b5",
+        "tests/fixtures/aircraft/hexa-x.json": "ec2cab44bb8ada5eb1cb17d2bcad0ecae5166a848009a113f5f1c81dd09a8e6b",
+        "tests/fixtures/aircraft/octa-x.json": "336735320d7f75b5839a6489cd3f7311dc1fdc0be86c8116889c204fd66d03e6",
+        "tests/fixtures/aircraft/coaxial-x8.json": "5aec44294071a65d8a2c486cfacf4a05ed7a80573c9ade253a578901d524244e",
+        "tests/fixtures/aircraft/octa-coaxial-16.json": "89d559537cbf5c4cb58495b8b4f19054ff48b6f86f867a1c7abcb68d58ceb6b9"
+      }
+    },
+    {
+      "sId": "S19",
+      "configuration": "hexa",
+      "workflow": "output-mapping",
+      "criterion": "Correct ArduPilot output mapping",
+      "verdict": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/hexa.json",
+        "sha256": "6f0e4df5b1c8f0219c921741e22767962cd97b85cd8fe61b14adaaefce915028"
+      },
+      "device": {
+        "model": "Mac17,4",
+        "chip": "Apple M5",
+        "memoryBytes": 34359738368,
+        "macOS": "27.2",
+        "chrome": "156.0.8078.80",
+        "lowPowerMode": false
+      },
+      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
+      "uncommittedFiles": 133,
+      "sources": {
+        "tests/browser/phase1-nominal.spec.ts": "69c2ee549cb6b814d2c88404465a79c166adbe454f2312ba843d0ef166a905e5",
+        "scripts/phase1/nominal-flight.mjs": "216c3f7d7eb37986cbcb7fd85f43a97e750cd34f8454c27e03b97c70657e4bab",
+        "scripts/phase1/nominal-rules.ts": "fd983873987f42474ee4f4a0d2460e4e2bec6064821574bfcaa743472bedb457",
+        "tests/support/aircraft-ui.ts": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f",
+        "tests/support/aircraft-recipes.ts": "e4d5d0f1c99e06af4f11b633dae321a24e1a33247ad4a58da6207fee323236b1",
+        "tests/support/run-tab.ts": "9cc28dc5ac110f9f5114cc4482fbcdf5050cd7c2b7d8dd837a7070fd829ef78e",
+        "tests/support/standard-gear.ts": "7c43a4427fe7b8f56159990b8d3f99e4f2ef534e6cd563b247543aae3b1cb22d",
+        "playwright.config.ts": "0e76e629e0d560d9b4363f171f8008c71a072c74691f12daa33009e35abce9fb",
+        "tests/fixtures/components/motor-example.json": "8da613982ca1f4f6bc5cfa06a397426a2d0d1da3342e156c8d54f02622e2aece",
+        "tests/fixtures/components/propeller-example.json": "5944eeec045d0e449fe566be13142adef275dda27b4c6f57e6583e68addc36a5",
+        "tests/fixtures/components/esc-example.json": "50ef8893d000123e59b46d056733425eb442486f57330ef87f2d2f403fb0d40c",
+        "tests/fixtures/components/battery-example.json": "fe5ca2675ac0111195ca9d432e91e1c63f1244f0f8cdb2fb4cbe6ad62fe1b396",
+        "tests/fixtures/aircraft/quad-x.json": "946e68eba8c9312e431b407cea5107f7b99ead07dcb119d1c1b618850e1227b5",
+        "tests/fixtures/aircraft/hexa-x.json": "ec2cab44bb8ada5eb1cb17d2bcad0ecae5166a848009a113f5f1c81dd09a8e6b",
+        "tests/fixtures/aircraft/octa-x.json": "336735320d7f75b5839a6489cd3f7311dc1fdc0be86c8116889c204fd66d03e6",
+        "tests/fixtures/aircraft/coaxial-x8.json": "5aec44294071a65d8a2c486cfacf4a05ed7a80573c9ade253a578901d524244e",
+        "tests/fixtures/aircraft/octa-coaxial-16.json": "89d559537cbf5c4cb58495b8b4f19054ff48b6f86f867a1c7abcb68d58ceb6b9"
+      }
+    },
+    {
+      "sId": "S19",
+      "configuration": "octo",
+      "workflow": "output-mapping",
+      "criterion": "Correct ArduPilot output mapping",
+      "verdict": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/octo.json",
+        "sha256": "e5576bae5a291abc27d8cf55ec26762a1e920405b84934e0e0db1592a8e47da6"
+      },
+      "device": {
+        "model": "Mac17,4",
+        "chip": "Apple M5",
+        "memoryBytes": 34359738368,
+        "macOS": "27.2",
+        "chrome": "156.0.8078.80",
+        "lowPowerMode": false
+      },
+      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
+      "uncommittedFiles": 133,
+      "sources": {
+        "tests/browser/phase1-nominal.spec.ts": "69c2ee549cb6b814d2c88404465a79c166adbe454f2312ba843d0ef166a905e5",
+        "scripts/phase1/nominal-flight.mjs": "216c3f7d7eb37986cbcb7fd85f43a97e750cd34f8454c27e03b97c70657e4bab",
+        "scripts/phase1/nominal-rules.ts": "fd983873987f42474ee4f4a0d2460e4e2bec6064821574bfcaa743472bedb457",
+        "tests/support/aircraft-ui.ts": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f",
+        "tests/support/aircraft-recipes.ts": "e4d5d0f1c99e06af4f11b633dae321a24e1a33247ad4a58da6207fee323236b1",
+        "tests/support/run-tab.ts": "9cc28dc5ac110f9f5114cc4482fbcdf5050cd7c2b7d8dd837a7070fd829ef78e",
+        "tests/support/standard-gear.ts": "7c43a4427fe7b8f56159990b8d3f99e4f2ef534e6cd563b247543aae3b1cb22d",
+        "playwright.config.ts": "0e76e629e0d560d9b4363f171f8008c71a072c74691f12daa33009e35abce9fb",
+        "tests/fixtures/components/motor-example.json": "8da613982ca1f4f6bc5cfa06a397426a2d0d1da3342e156c8d54f02622e2aece",
+        "tests/fixtures/components/propeller-example.json": "5944eeec045d0e449fe566be13142adef275dda27b4c6f57e6583e68addc36a5",
+        "tests/fixtures/components/esc-example.json": "50ef8893d000123e59b46d056733425eb442486f57330ef87f2d2f403fb0d40c",
+        "tests/fixtures/components/battery-example.json": "fe5ca2675ac0111195ca9d432e91e1c63f1244f0f8cdb2fb4cbe6ad62fe1b396",
+        "tests/fixtures/aircraft/quad-x.json": "946e68eba8c9312e431b407cea5107f7b99ead07dcb119d1c1b618850e1227b5",
+        "tests/fixtures/aircraft/hexa-x.json": "ec2cab44bb8ada5eb1cb17d2bcad0ecae5166a848009a113f5f1c81dd09a8e6b",
+        "tests/fixtures/aircraft/octa-x.json": "336735320d7f75b5839a6489cd3f7311dc1fdc0be86c8116889c204fd66d03e6",
+        "tests/fixtures/aircraft/coaxial-x8.json": "5aec44294071a65d8a2c486cfacf4a05ed7a80573c9ade253a578901d524244e",
+        "tests/fixtures/aircraft/octa-coaxial-16.json": "89d559537cbf5c4cb58495b8b4f19054ff48b6f86f867a1c7abcb68d58ceb6b9"
+      }
+    },
+    {
+      "sId": "S19",
+      "configuration": "x8",
+      "workflow": "output-mapping",
+      "criterion": "Correct ArduPilot output mapping",
+      "verdict": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/x8.json",
+        "sha256": "3c4add42c2cf879048fd5935180f4021b95dd8d0ac438740e8d303b2b63686b3"
+      },
+      "device": {
+        "model": "Mac17,4",
+        "chip": "Apple M5",
+        "memoryBytes": 34359738368,
+        "macOS": "27.2",
+        "chrome": "156.0.8078.80",
+        "lowPowerMode": false
+      },
+      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
+      "uncommittedFiles": 133,
+      "sources": {
+        "tests/browser/phase1-nominal.spec.ts": "69c2ee549cb6b814d2c88404465a79c166adbe454f2312ba843d0ef166a905e5",
+        "scripts/phase1/nominal-flight.mjs": "216c3f7d7eb37986cbcb7fd85f43a97e750cd34f8454c27e03b97c70657e4bab",
+        "scripts/phase1/nominal-rules.ts": "fd983873987f42474ee4f4a0d2460e4e2bec6064821574bfcaa743472bedb457",
+        "tests/support/aircraft-ui.ts": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f",
+        "tests/support/aircraft-recipes.ts": "e4d5d0f1c99e06af4f11b633dae321a24e1a33247ad4a58da6207fee323236b1",
+        "tests/support/run-tab.ts": "9cc28dc5ac110f9f5114cc4482fbcdf5050cd7c2b7d8dd837a7070fd829ef78e",
+        "tests/support/standard-gear.ts": "7c43a4427fe7b8f56159990b8d3f99e4f2ef534e6cd563b247543aae3b1cb22d",
+        "playwright.config.ts": "0e76e629e0d560d9b4363f171f8008c71a072c74691f12daa33009e35abce9fb",
+        "tests/fixtures/components/motor-example.json": "8da613982ca1f4f6bc5cfa06a397426a2d0d1da3342e156c8d54f02622e2aece",
+        "tests/fixtures/components/propeller-example.json": "5944eeec045d0e449fe566be13142adef275dda27b4c6f57e6583e68addc36a5",
+        "tests/fixtures/components/esc-example.json": "50ef8893d000123e59b46d056733425eb442486f57330ef87f2d2f403fb0d40c",
+        "tests/fixtures/components/battery-example.json": "fe5ca2675ac0111195ca9d432e91e1c63f1244f0f8cdb2fb4cbe6ad62fe1b396",
+        "tests/fixtures/aircraft/quad-x.json": "946e68eba8c9312e431b407cea5107f7b99ead07dcb119d1c1b618850e1227b5",
+        "tests/fixtures/aircraft/hexa-x.json": "ec2cab44bb8ada5eb1cb17d2bcad0ecae5166a848009a113f5f1c81dd09a8e6b",
+        "tests/fixtures/aircraft/octa-x.json": "336735320d7f75b5839a6489cd3f7311dc1fdc0be86c8116889c204fd66d03e6",
+        "tests/fixtures/aircraft/coaxial-x8.json": "5aec44294071a65d8a2c486cfacf4a05ed7a80573c9ade253a578901d524244e",
+        "tests/fixtures/aircraft/octa-coaxial-16.json": "89d559537cbf5c4cb58495b8b4f19054ff48b6f86f867a1c7abcb68d58ceb6b9"
+      }
+    },
+    {
+      "sId": "S19",
+      "configuration": "octo-paired-16",
+      "workflow": "output-mapping",
+      "criterion": "Correct ArduPilot output mapping",
+      "verdict": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/octo-paired-16.json",
+        "sha256": "dbd53fcd1bff928ebe42807e69f8a77667d4e8cb51b45aa3868427fc25067144"
+      },
+      "device": {
+        "model": "Mac17,4",
+        "chip": "Apple M5",
+        "memoryBytes": 34359738368,
+        "macOS": "27.2",
+        "chrome": "156.0.8078.80",
+        "lowPowerMode": false
+      },
+      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
+      "uncommittedFiles": 133,
+      "sources": {
+        "tests/browser/phase1-nominal.spec.ts": "69c2ee549cb6b814d2c88404465a79c166adbe454f2312ba843d0ef166a905e5",
+        "scripts/phase1/nominal-flight.mjs": "216c3f7d7eb37986cbcb7fd85f43a97e750cd34f8454c27e03b97c70657e4bab",
+        "scripts/phase1/nominal-rules.ts": "fd983873987f42474ee4f4a0d2460e4e2bec6064821574bfcaa743472bedb457",
+        "tests/support/aircraft-ui.ts": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f",
+        "tests/support/aircraft-recipes.ts": "e4d5d0f1c99e06af4f11b633dae321a24e1a33247ad4a58da6207fee323236b1",
+        "tests/support/run-tab.ts": "9cc28dc5ac110f9f5114cc4482fbcdf5050cd7c2b7d8dd837a7070fd829ef78e",
+        "tests/support/standard-gear.ts": "7c43a4427fe7b8f56159990b8d3f99e4f2ef534e6cd563b247543aae3b1cb22d",
+        "playwright.config.ts": "0e76e629e0d560d9b4363f171f8008c71a072c74691f12daa33009e35abce9fb",
+        "tests/fixtures/components/motor-example.json": "8da613982ca1f4f6bc5cfa06a397426a2d0d1da3342e156c8d54f02622e2aece",
+        "tests/fixtures/components/propeller-example.json": "5944eeec045d0e449fe566be13142adef275dda27b4c6f57e6583e68addc36a5",
+        "tests/fixtures/components/esc-example.json": "50ef8893d000123e59b46d056733425eb442486f57330ef87f2d2f403fb0d40c",
+        "tests/fixtures/components/battery-example.json": "fe5ca2675ac0111195ca9d432e91e1c63f1244f0f8cdb2fb4cbe6ad62fe1b396",
+        "tests/fixtures/aircraft/quad-x.json": "946e68eba8c9312e431b407cea5107f7b99ead07dcb119d1c1b618850e1227b5",
+        "tests/fixtures/aircraft/hexa-x.json": "ec2cab44bb8ada5eb1cb17d2bcad0ecae5166a848009a113f5f1c81dd09a8e6b",
+        "tests/fixtures/aircraft/octa-x.json": "336735320d7f75b5839a6489cd3f7311dc1fdc0be86c8116889c204fd66d03e6",
+        "tests/fixtures/aircraft/coaxial-x8.json": "5aec44294071a65d8a2c486cfacf4a05ed7a80573c9ade253a578901d524244e",
+        "tests/fixtures/aircraft/octa-coaxial-16.json": "89d559537cbf5c4cb58495b8b4f19054ff48b6f86f867a1c7abcb68d58ceb6b9"
+      }
+    },
+    {
+      "sId": "S19",
+      "configuration": "quad",
+      "workflow": "start",
+      "criterion": "Start the experiment and reach autopilot readiness",
+      "verdict": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/quad.json",
+        "sha256": "f77b5b5e86ce97e05ce5dd504630b02fef9877322bf980963ef9aa24b7dde8aa"
+      },
+      "device": {
+        "model": "Mac17,4",
+        "chip": "Apple M5",
+        "memoryBytes": 34359738368,
+        "macOS": "27.2",
+        "chrome": "156.0.8078.80",
+        "lowPowerMode": false
+      },
+      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
+      "uncommittedFiles": 133,
+      "sources": {
+        "tests/browser/phase1-nominal.spec.ts": "69c2ee549cb6b814d2c88404465a79c166adbe454f2312ba843d0ef166a905e5",
+        "scripts/phase1/nominal-flight.mjs": "216c3f7d7eb37986cbcb7fd85f43a97e750cd34f8454c27e03b97c70657e4bab",
+        "scripts/phase1/nominal-rules.ts": "fd983873987f42474ee4f4a0d2460e4e2bec6064821574bfcaa743472bedb457",
+        "tests/support/aircraft-ui.ts": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f",
+        "tests/support/aircraft-recipes.ts": "e4d5d0f1c99e06af4f11b633dae321a24e1a33247ad4a58da6207fee323236b1",
+        "tests/support/run-tab.ts": "9cc28dc5ac110f9f5114cc4482fbcdf5050cd7c2b7d8dd837a7070fd829ef78e",
+        "tests/support/standard-gear.ts": "7c43a4427fe7b8f56159990b8d3f99e4f2ef534e6cd563b247543aae3b1cb22d",
+        "playwright.config.ts": "0e76e629e0d560d9b4363f171f8008c71a072c74691f12daa33009e35abce9fb",
+        "tests/fixtures/components/motor-example.json": "8da613982ca1f4f6bc5cfa06a397426a2d0d1da3342e156c8d54f02622e2aece",
+        "tests/fixtures/components/propeller-example.json": "5944eeec045d0e449fe566be13142adef275dda27b4c6f57e6583e68addc36a5",
+        "tests/fixtures/components/esc-example.json": "50ef8893d000123e59b46d056733425eb442486f57330ef87f2d2f403fb0d40c",
+        "tests/fixtures/components/battery-example.json": "fe5ca2675ac0111195ca9d432e91e1c63f1244f0f8cdb2fb4cbe6ad62fe1b396",
+        "tests/fixtures/aircraft/quad-x.json": "946e68eba8c9312e431b407cea5107f7b99ead07dcb119d1c1b618850e1227b5",
+        "tests/fixtures/aircraft/hexa-x.json": "ec2cab44bb8ada5eb1cb17d2bcad0ecae5166a848009a113f5f1c81dd09a8e6b",
+        "tests/fixtures/aircraft/octa-x.json": "336735320d7f75b5839a6489cd3f7311dc1fdc0be86c8116889c204fd66d03e6",
+        "tests/fixtures/aircraft/coaxial-x8.json": "5aec44294071a65d8a2c486cfacf4a05ed7a80573c9ade253a578901d524244e",
+        "tests/fixtures/aircraft/octa-coaxial-16.json": "89d559537cbf5c4cb58495b8b4f19054ff48b6f86f867a1c7abcb68d58ceb6b9"
+      }
+    },
+    {
+      "sId": "S19",
+      "configuration": "hexa",
+      "workflow": "start",
+      "criterion": "Start the experiment and reach autopilot readiness",
+      "verdict": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/hexa.json",
+        "sha256": "6f0e4df5b1c8f0219c921741e22767962cd97b85cd8fe61b14adaaefce915028"
+      },
+      "device": {
+        "model": "Mac17,4",
+        "chip": "Apple M5",
+        "memoryBytes": 34359738368,
+        "macOS": "27.2",
+        "chrome": "156.0.8078.80",
+        "lowPowerMode": false
+      },
+      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
+      "uncommittedFiles": 133,
+      "sources": {
+        "tests/browser/phase1-nominal.spec.ts": "69c2ee549cb6b814d2c88404465a79c166adbe454f2312ba843d0ef166a905e5",
+        "scripts/phase1/nominal-flight.mjs": "216c3f7d7eb37986cbcb7fd85f43a97e750cd34f8454c27e03b97c70657e4bab",
+        "scripts/phase1/nominal-rules.ts": "fd983873987f42474ee4f4a0d2460e4e2bec6064821574bfcaa743472bedb457",
+        "tests/support/aircraft-ui.ts": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f",
+        "tests/support/aircraft-recipes.ts": "e4d5d0f1c99e06af4f11b633dae321a24e1a33247ad4a58da6207fee323236b1",
+        "tests/support/run-tab.ts": "9cc28dc5ac110f9f5114cc4482fbcdf5050cd7c2b7d8dd837a7070fd829ef78e",
+        "tests/support/standard-gear.ts": "7c43a4427fe7b8f56159990b8d3f99e4f2ef534e6cd563b247543aae3b1cb22d",
+        "playwright.config.ts": "0e76e629e0d560d9b4363f171f8008c71a072c74691f12daa33009e35abce9fb",
+        "tests/fixtures/components/motor-example.json": "8da613982ca1f4f6bc5cfa06a397426a2d0d1da3342e156c8d54f02622e2aece",
+        "tests/fixtures/components/propeller-example.json": "5944eeec045d0e449fe566be13142adef275dda27b4c6f57e6583e68addc36a5",
+        "tests/fixtures/components/esc-example.json": "50ef8893d000123e59b46d056733425eb442486f57330ef87f2d2f403fb0d40c",
+        "tests/fixtures/components/battery-example.json": "fe5ca2675ac0111195ca9d432e91e1c63f1244f0f8cdb2fb4cbe6ad62fe1b396",
+        "tests/fixtures/aircraft/quad-x.json": "946e68eba8c9312e431b407cea5107f7b99ead07dcb119d1c1b618850e1227b5",
+        "tests/fixtures/aircraft/hexa-x.json": "ec2cab44bb8ada5eb1cb17d2bcad0ecae5166a848009a113f5f1c81dd09a8e6b",
+        "tests/fixtures/aircraft/octa-x.json": "336735320d7f75b5839a6489cd3f7311dc1fdc0be86c8116889c204fd66d03e6",
+        "tests/fixtures/aircraft/coaxial-x8.json": "5aec44294071a65d8a2c486cfacf4a05ed7a80573c9ade253a578901d524244e",
+        "tests/fixtures/aircraft/octa-coaxial-16.json": "89d559537cbf5c4cb58495b8b4f19054ff48b6f86f867a1c7abcb68d58ceb6b9"
+      }
+    },
+    {
+      "sId": "S19",
+      "configuration": "octo",
+      "workflow": "start",
+      "criterion": "Start the experiment and reach autopilot readiness",
+      "verdict": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/octo.json",
+        "sha256": "e5576bae5a291abc27d8cf55ec26762a1e920405b84934e0e0db1592a8e47da6"
+      },
+      "device": {
+        "model": "Mac17,4",
+        "chip": "Apple M5",
+        "memoryBytes": 34359738368,
+        "macOS": "27.2",
+        "chrome": "156.0.8078.80",
+        "lowPowerMode": false
+      },
+      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
+      "uncommittedFiles": 133,
+      "sources": {
+        "tests/browser/phase1-nominal.spec.ts": "69c2ee549cb6b814d2c88404465a79c166adbe454f2312ba843d0ef166a905e5",
+        "scripts/phase1/nominal-flight.mjs": "216c3f7d7eb37986cbcb7fd85f43a97e750cd34f8454c27e03b97c70657e4bab",
+        "scripts/phase1/nominal-rules.ts": "fd983873987f42474ee4f4a0d2460e4e2bec6064821574bfcaa743472bedb457",
+        "tests/support/aircraft-ui.ts": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f",
+        "tests/support/aircraft-recipes.ts": "e4d5d0f1c99e06af4f11b633dae321a24e1a33247ad4a58da6207fee323236b1",
+        "tests/support/run-tab.ts": "9cc28dc5ac110f9f5114cc4482fbcdf5050cd7c2b7d8dd837a7070fd829ef78e",
+        "tests/support/standard-gear.ts": "7c43a4427fe7b8f56159990b8d3f99e4f2ef534e6cd563b247543aae3b1cb22d",
+        "playwright.config.ts": "0e76e629e0d560d9b4363f171f8008c71a072c74691f12daa33009e35abce9fb",
+        "tests/fixtures/components/motor-example.json": "8da613982ca1f4f6bc5cfa06a397426a2d0d1da3342e156c8d54f02622e2aece",
+        "tests/fixtures/components/propeller-example.json": "5944eeec045d0e449fe566be13142adef275dda27b4c6f57e6583e68addc36a5",
+        "tests/fixtures/components/esc-example.json": "50ef8893d000123e59b46d056733425eb442486f57330ef87f2d2f403fb0d40c",
+        "tests/fixtures/components/battery-example.json": "fe5ca2675ac0111195ca9d432e91e1c63f1244f0f8cdb2fb4cbe6ad62fe1b396",
+        "tests/fixtures/aircraft/quad-x.json": "946e68eba8c9312e431b407cea5107f7b99ead07dcb119d1c1b618850e1227b5",
+        "tests/fixtures/aircraft/hexa-x.json": "ec2cab44bb8ada5eb1cb17d2bcad0ecae5166a848009a113f5f1c81dd09a8e6b",
+        "tests/fixtures/aircraft/octa-x.json": "336735320d7f75b5839a6489cd3f7311dc1fdc0be86c8116889c204fd66d03e6",
+        "tests/fixtures/aircraft/coaxial-x8.json": "5aec44294071a65d8a2c486cfacf4a05ed7a80573c9ade253a578901d524244e",
+        "tests/fixtures/aircraft/octa-coaxial-16.json": "89d559537cbf5c4cb58495b8b4f19054ff48b6f86f867a1c7abcb68d58ceb6b9"
+      }
+    },
+    {
+      "sId": "S19",
+      "configuration": "x8",
+      "workflow": "start",
+      "criterion": "Start the experiment and reach autopilot readiness",
+      "verdict": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/x8.json",
+        "sha256": "3c4add42c2cf879048fd5935180f4021b95dd8d0ac438740e8d303b2b63686b3"
+      },
+      "device": {
+        "model": "Mac17,4",
+        "chip": "Apple M5",
+        "memoryBytes": 34359738368,
+        "macOS": "27.2",
+        "chrome": "156.0.8078.80",
+        "lowPowerMode": false
+      },
+      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
+      "uncommittedFiles": 133,
+      "sources": {
+        "tests/browser/phase1-nominal.spec.ts": "69c2ee549cb6b814d2c88404465a79c166adbe454f2312ba843d0ef166a905e5",
+        "scripts/phase1/nominal-flight.mjs": "216c3f7d7eb37986cbcb7fd85f43a97e750cd34f8454c27e03b97c70657e4bab",
+        "scripts/phase1/nominal-rules.ts": "fd983873987f42474ee4f4a0d2460e4e2bec6064821574bfcaa743472bedb457",
+        "tests/support/aircraft-ui.ts": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f",
+        "tests/support/aircraft-recipes.ts": "e4d5d0f1c99e06af4f11b633dae321a24e1a33247ad4a58da6207fee323236b1",
+        "tests/support/run-tab.ts": "9cc28dc5ac110f9f5114cc4482fbcdf5050cd7c2b7d8dd837a7070fd829ef78e",
+        "tests/support/standard-gear.ts": "7c43a4427fe7b8f56159990b8d3f99e4f2ef534e6cd563b247543aae3b1cb22d",
+        "playwright.config.ts": "0e76e629e0d560d9b4363f171f8008c71a072c74691f12daa33009e35abce9fb",
+        "tests/fixtures/components/motor-example.json": "8da613982ca1f4f6bc5cfa06a397426a2d0d1da3342e156c8d54f02622e2aece",
+        "tests/fixtures/components/propeller-example.json": "5944eeec045d0e449fe566be13142adef275dda27b4c6f57e6583e68addc36a5",
+        "tests/fixtures/components/esc-example.json": "50ef8893d000123e59b46d056733425eb442486f57330ef87f2d2f403fb0d40c",
+        "tests/fixtures/components/battery-example.json": "fe5ca2675ac0111195ca9d432e91e1c63f1244f0f8cdb2fb4cbe6ad62fe1b396",
+        "tests/fixtures/aircraft/quad-x.json": "946e68eba8c9312e431b407cea5107f7b99ead07dcb119d1c1b618850e1227b5",
+        "tests/fixtures/aircraft/hexa-x.json": "ec2cab44bb8ada5eb1cb17d2bcad0ecae5166a848009a113f5f1c81dd09a8e6b",
+        "tests/fixtures/aircraft/octa-x.json": "336735320d7f75b5839a6489cd3f7311dc1fdc0be86c8116889c204fd66d03e6",
+        "tests/fixtures/aircraft/coaxial-x8.json": "5aec44294071a65d8a2c486cfacf4a05ed7a80573c9ade253a578901d524244e",
+        "tests/fixtures/aircraft/octa-coaxial-16.json": "89d559537cbf5c4cb58495b8b4f19054ff48b6f86f867a1c7abcb68d58ceb6b9"
+      }
+    },
+    {
+      "sId": "S19",
+      "configuration": "octo-paired-16",
+      "workflow": "start",
+      "criterion": "Start the experiment and reach autopilot readiness",
+      "verdict": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/octo-paired-16.json",
+        "sha256": "dbd53fcd1bff928ebe42807e69f8a77667d4e8cb51b45aa3868427fc25067144"
+      },
+      "device": {
+        "model": "Mac17,4",
+        "chip": "Apple M5",
+        "memoryBytes": 34359738368,
+        "macOS": "27.2",
+        "chrome": "156.0.8078.80",
+        "lowPowerMode": false
+      },
+      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
+      "uncommittedFiles": 133,
+      "sources": {
+        "tests/browser/phase1-nominal.spec.ts": "69c2ee549cb6b814d2c88404465a79c166adbe454f2312ba843d0ef166a905e5",
+        "scripts/phase1/nominal-flight.mjs": "216c3f7d7eb37986cbcb7fd85f43a97e750cd34f8454c27e03b97c70657e4bab",
+        "scripts/phase1/nominal-rules.ts": "fd983873987f42474ee4f4a0d2460e4e2bec6064821574bfcaa743472bedb457",
+        "tests/support/aircraft-ui.ts": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f",
+        "tests/support/aircraft-recipes.ts": "e4d5d0f1c99e06af4f11b633dae321a24e1a33247ad4a58da6207fee323236b1",
+        "tests/support/run-tab.ts": "9cc28dc5ac110f9f5114cc4482fbcdf5050cd7c2b7d8dd837a7070fd829ef78e",
+        "tests/support/standard-gear.ts": "7c43a4427fe7b8f56159990b8d3f99e4f2ef534e6cd563b247543aae3b1cb22d",
+        "playwright.config.ts": "0e76e629e0d560d9b4363f171f8008c71a072c74691f12daa33009e35abce9fb",
+        "tests/fixtures/components/motor-example.json": "8da613982ca1f4f6bc5cfa06a397426a2d0d1da3342e156c8d54f02622e2aece",
+        "tests/fixtures/components/propeller-example.json": "5944eeec045d0e449fe566be13142adef275dda27b4c6f57e6583e68addc36a5",
+        "tests/fixtures/components/esc-example.json": "50ef8893d000123e59b46d056733425eb442486f57330ef87f2d2f403fb0d40c",
+        "tests/fixtures/components/battery-example.json": "fe5ca2675ac0111195ca9d432e91e1c63f1244f0f8cdb2fb4cbe6ad62fe1b396",
+        "tests/fixtures/aircraft/quad-x.json": "946e68eba8c9312e431b407cea5107f7b99ead07dcb119d1c1b618850e1227b5",
+        "tests/fixtures/aircraft/hexa-x.json": "ec2cab44bb8ada5eb1cb17d2bcad0ecae5166a848009a113f5f1c81dd09a8e6b",
+        "tests/fixtures/aircraft/octa-x.json": "336735320d7f75b5839a6489cd3f7311dc1fdc0be86c8116889c204fd66d03e6",
+        "tests/fixtures/aircraft/coaxial-x8.json": "5aec44294071a65d8a2c486cfacf4a05ed7a80573c9ade253a578901d524244e",
+        "tests/fixtures/aircraft/octa-coaxial-16.json": "89d559537cbf5c4cb58495b8b4f19054ff48b6f86f867a1c7abcb68d58ceb6b9"
+      }
+    },
+    {
+      "sId": "S19",
+      "configuration": "quad",
+      "workflow": "flight-task",
+      "criterion": "Fly a flight task",
+      "verdict": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/quad.json",
+        "sha256": "f77b5b5e86ce97e05ce5dd504630b02fef9877322bf980963ef9aa24b7dde8aa"
+      },
+      "device": {
+        "model": "Mac17,4",
+        "chip": "Apple M5",
+        "memoryBytes": 34359738368,
+        "macOS": "27.2",
+        "chrome": "156.0.8078.80",
+        "lowPowerMode": false
+      },
+      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
+      "uncommittedFiles": 133,
+      "sources": {
+        "tests/browser/phase1-nominal.spec.ts": "69c2ee549cb6b814d2c88404465a79c166adbe454f2312ba843d0ef166a905e5",
+        "scripts/phase1/nominal-flight.mjs": "216c3f7d7eb37986cbcb7fd85f43a97e750cd34f8454c27e03b97c70657e4bab",
+        "scripts/phase1/nominal-rules.ts": "fd983873987f42474ee4f4a0d2460e4e2bec6064821574bfcaa743472bedb457",
+        "tests/support/aircraft-ui.ts": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f",
+        "tests/support/aircraft-recipes.ts": "e4d5d0f1c99e06af4f11b633dae321a24e1a33247ad4a58da6207fee323236b1",
+        "tests/support/run-tab.ts": "9cc28dc5ac110f9f5114cc4482fbcdf5050cd7c2b7d8dd837a7070fd829ef78e",
+        "tests/support/standard-gear.ts": "7c43a4427fe7b8f56159990b8d3f99e4f2ef534e6cd563b247543aae3b1cb22d",
+        "playwright.config.ts": "0e76e629e0d560d9b4363f171f8008c71a072c74691f12daa33009e35abce9fb",
+        "tests/fixtures/components/motor-example.json": "8da613982ca1f4f6bc5cfa06a397426a2d0d1da3342e156c8d54f02622e2aece",
+        "tests/fixtures/components/propeller-example.json": "5944eeec045d0e449fe566be13142adef275dda27b4c6f57e6583e68addc36a5",
+        "tests/fixtures/components/esc-example.json": "50ef8893d000123e59b46d056733425eb442486f57330ef87f2d2f403fb0d40c",
+        "tests/fixtures/components/battery-example.json": "fe5ca2675ac0111195ca9d432e91e1c63f1244f0f8cdb2fb4cbe6ad62fe1b396",
+        "tests/fixtures/aircraft/quad-x.json": "946e68eba8c9312e431b407cea5107f7b99ead07dcb119d1c1b618850e1227b5",
+        "tests/fixtures/aircraft/hexa-x.json": "ec2cab44bb8ada5eb1cb17d2bcad0ecae5166a848009a113f5f1c81dd09a8e6b",
+        "tests/fixtures/aircraft/octa-x.json": "336735320d7f75b5839a6489cd3f7311dc1fdc0be86c8116889c204fd66d03e6",
+        "tests/fixtures/aircraft/coaxial-x8.json": "5aec44294071a65d8a2c486cfacf4a05ed7a80573c9ade253a578901d524244e",
+        "tests/fixtures/aircraft/octa-coaxial-16.json": "89d559537cbf5c4cb58495b8b4f19054ff48b6f86f867a1c7abcb68d58ceb6b9"
+      }
+    },
+    {
+      "sId": "S19",
+      "configuration": "hexa",
+      "workflow": "flight-task",
+      "criterion": "Fly a flight task",
+      "verdict": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/hexa.json",
+        "sha256": "6f0e4df5b1c8f0219c921741e22767962cd97b85cd8fe61b14adaaefce915028"
+      },
+      "device": {
+        "model": "Mac17,4",
+        "chip": "Apple M5",
+        "memoryBytes": 34359738368,
+        "macOS": "27.2",
+        "chrome": "156.0.8078.80",
+        "lowPowerMode": false
+      },
+      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
+      "uncommittedFiles": 133,
+      "sources": {
+        "tests/browser/phase1-nominal.spec.ts": "69c2ee549cb6b814d2c88404465a79c166adbe454f2312ba843d0ef166a905e5",
+        "scripts/phase1/nominal-flight.mjs": "216c3f7d7eb37986cbcb7fd85f43a97e750cd34f8454c27e03b97c70657e4bab",
+        "scripts/phase1/nominal-rules.ts": "fd983873987f42474ee4f4a0d2460e4e2bec6064821574bfcaa743472bedb457",
+        "tests/support/aircraft-ui.ts": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f",
+        "tests/support/aircraft-recipes.ts": "e4d5d0f1c99e06af4f11b633dae321a24e1a33247ad4a58da6207fee323236b1",
+        "tests/support/run-tab.ts": "9cc28dc5ac110f9f5114cc4482fbcdf5050cd7c2b7d8dd837a7070fd829ef78e",
+        "tests/support/standard-gear.ts": "7c43a4427fe7b8f56159990b8d3f99e4f2ef534e6cd563b247543aae3b1cb22d",
+        "playwright.config.ts": "0e76e629e0d560d9b4363f171f8008c71a072c74691f12daa33009e35abce9fb",
+        "tests/fixtures/components/motor-example.json": "8da613982ca1f4f6bc5cfa06a397426a2d0d1da3342e156c8d54f02622e2aece",
+        "tests/fixtures/components/propeller-example.json": "5944eeec045d0e449fe566be13142adef275dda27b4c6f57e6583e68addc36a5",
+        "tests/fixtures/components/esc-example.json": "50ef8893d000123e59b46d056733425eb442486f57330ef87f2d2f403fb0d40c",
+        "tests/fixtures/components/battery-example.json": "fe5ca2675ac0111195ca9d432e91e1c63f1244f0f8cdb2fb4cbe6ad62fe1b396",
+        "tests/fixtures/aircraft/quad-x.json": "946e68eba8c9312e431b407cea5107f7b99ead07dcb119d1c1b618850e1227b5",
+        "tests/fixtures/aircraft/hexa-x.json": "ec2cab44bb8ada5eb1cb17d2bcad0ecae5166a848009a113f5f1c81dd09a8e6b",
+        "tests/fixtures/aircraft/octa-x.json": "336735320d7f75b5839a6489cd3f7311dc1fdc0be86c8116889c204fd66d03e6",
+        "tests/fixtures/aircraft/coaxial-x8.json": "5aec44294071a65d8a2c486cfacf4a05ed7a80573c9ade253a578901d524244e",
+        "tests/fixtures/aircraft/octa-coaxial-16.json": "89d559537cbf5c4cb58495b8b4f19054ff48b6f86f867a1c7abcb68d58ceb6b9"
+      }
+    },
+    {
+      "sId": "S19",
+      "configuration": "octo",
+      "workflow": "flight-task",
+      "criterion": "Fly a flight task",
+      "verdict": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/octo.json",
+        "sha256": "e5576bae5a291abc27d8cf55ec26762a1e920405b84934e0e0db1592a8e47da6"
+      },
+      "device": {
+        "model": "Mac17,4",
+        "chip": "Apple M5",
+        "memoryBytes": 34359738368,
+        "macOS": "27.2",
+        "chrome": "156.0.8078.80",
+        "lowPowerMode": false
+      },
+      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
+      "uncommittedFiles": 133,
+      "sources": {
+        "tests/browser/phase1-nominal.spec.ts": "69c2ee549cb6b814d2c88404465a79c166adbe454f2312ba843d0ef166a905e5",
+        "scripts/phase1/nominal-flight.mjs": "216c3f7d7eb37986cbcb7fd85f43a97e750cd34f8454c27e03b97c70657e4bab",
+        "scripts/phase1/nominal-rules.ts": "fd983873987f42474ee4f4a0d2460e4e2bec6064821574bfcaa743472bedb457",
+        "tests/support/aircraft-ui.ts": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f",
+        "tests/support/aircraft-recipes.ts": "e4d5d0f1c99e06af4f11b633dae321a24e1a33247ad4a58da6207fee323236b1",
+        "tests/support/run-tab.ts": "9cc28dc5ac110f9f5114cc4482fbcdf5050cd7c2b7d8dd837a7070fd829ef78e",
+        "tests/support/standard-gear.ts": "7c43a4427fe7b8f56159990b8d3f99e4f2ef534e6cd563b247543aae3b1cb22d",
+        "playwright.config.ts": "0e76e629e0d560d9b4363f171f8008c71a072c74691f12daa33009e35abce9fb",
+        "tests/fixtures/components/motor-example.json": "8da613982ca1f4f6bc5cfa06a397426a2d0d1da3342e156c8d54f02622e2aece",
+        "tests/fixtures/components/propeller-example.json": "5944eeec045d0e449fe566be13142adef275dda27b4c6f57e6583e68addc36a5",
+        "tests/fixtures/components/esc-example.json": "50ef8893d000123e59b46d056733425eb442486f57330ef87f2d2f403fb0d40c",
+        "tests/fixtures/components/battery-example.json": "fe5ca2675ac0111195ca9d432e91e1c63f1244f0f8cdb2fb4cbe6ad62fe1b396",
+        "tests/fixtures/aircraft/quad-x.json": "946e68eba8c9312e431b407cea5107f7b99ead07dcb119d1c1b618850e1227b5",
+        "tests/fixtures/aircraft/hexa-x.json": "ec2cab44bb8ada5eb1cb17d2bcad0ecae5166a848009a113f5f1c81dd09a8e6b",
+        "tests/fixtures/aircraft/octa-x.json": "336735320d7f75b5839a6489cd3f7311dc1fdc0be86c8116889c204fd66d03e6",
+        "tests/fixtures/aircraft/coaxial-x8.json": "5aec44294071a65d8a2c486cfacf4a05ed7a80573c9ade253a578901d524244e",
+        "tests/fixtures/aircraft/octa-coaxial-16.json": "89d559537cbf5c4cb58495b8b4f19054ff48b6f86f867a1c7abcb68d58ceb6b9"
+      }
+    },
+    {
+      "sId": "S19",
+      "configuration": "x8",
+      "workflow": "flight-task",
+      "criterion": "Fly a flight task",
+      "verdict": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/x8.json",
+        "sha256": "3c4add42c2cf879048fd5935180f4021b95dd8d0ac438740e8d303b2b63686b3"
+      },
+      "device": {
+        "model": "Mac17,4",
+        "chip": "Apple M5",
+        "memoryBytes": 34359738368,
+        "macOS": "27.2",
+        "chrome": "156.0.8078.80",
+        "lowPowerMode": false
+      },
+      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
+      "uncommittedFiles": 133,
+      "sources": {
+        "tests/browser/phase1-nominal.spec.ts": "69c2ee549cb6b814d2c88404465a79c166adbe454f2312ba843d0ef166a905e5",
+        "scripts/phase1/nominal-flight.mjs": "216c3f7d7eb37986cbcb7fd85f43a97e750cd34f8454c27e03b97c70657e4bab",
+        "scripts/phase1/nominal-rules.ts": "fd983873987f42474ee4f4a0d2460e4e2bec6064821574bfcaa743472bedb457",
+        "tests/support/aircraft-ui.ts": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f",
+        "tests/support/aircraft-recipes.ts": "e4d5d0f1c99e06af4f11b633dae321a24e1a33247ad4a58da6207fee323236b1",
+        "tests/support/run-tab.ts": "9cc28dc5ac110f9f5114cc4482fbcdf5050cd7c2b7d8dd837a7070fd829ef78e",
+        "tests/support/standard-gear.ts": "7c43a4427fe7b8f56159990b8d3f99e4f2ef534e6cd563b247543aae3b1cb22d",
+        "playwright.config.ts": "0e76e629e0d560d9b4363f171f8008c71a072c74691f12daa33009e35abce9fb",
+        "tests/fixtures/components/motor-example.json": "8da613982ca1f4f6bc5cfa06a397426a2d0d1da3342e156c8d54f02622e2aece",
+        "tests/fixtures/components/propeller-example.json": "5944eeec045d0e449fe566be13142adef275dda27b4c6f57e6583e68addc36a5",
+        "tests/fixtures/components/esc-example.json": "50ef8893d000123e59b46d056733425eb442486f57330ef87f2d2f403fb0d40c",
+        "tests/fixtures/components/battery-example.json": "fe5ca2675ac0111195ca9d432e91e1c63f1244f0f8cdb2fb4cbe6ad62fe1b396",
+        "tests/fixtures/aircraft/quad-x.json": "946e68eba8c9312e431b407cea5107f7b99ead07dcb119d1c1b618850e1227b5",
+        "tests/fixtures/aircraft/hexa-x.json": "ec2cab44bb8ada5eb1cb17d2bcad0ecae5166a848009a113f5f1c81dd09a8e6b",
+        "tests/fixtures/aircraft/octa-x.json": "336735320d7f75b5839a6489cd3f7311dc1fdc0be86c8116889c204fd66d03e6",
+        "tests/fixtures/aircraft/coaxial-x8.json": "5aec44294071a65d8a2c486cfacf4a05ed7a80573c9ade253a578901d524244e",
+        "tests/fixtures/aircraft/octa-coaxial-16.json": "89d559537cbf5c4cb58495b8b4f19054ff48b6f86f867a1c7abcb68d58ceb6b9"
+      }
+    },
+    {
+      "sId": "S19",
+      "configuration": "octo-paired-16",
+      "workflow": "flight-task",
+      "criterion": "Fly a flight task",
+      "verdict": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/octo-paired-16.json",
+        "sha256": "dbd53fcd1bff928ebe42807e69f8a77667d4e8cb51b45aa3868427fc25067144"
+      },
+      "device": {
+        "model": "Mac17,4",
+        "chip": "Apple M5",
+        "memoryBytes": 34359738368,
+        "macOS": "27.2",
+        "chrome": "156.0.8078.80",
+        "lowPowerMode": false
+      },
+      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
+      "uncommittedFiles": 133,
+      "sources": {
+        "tests/browser/phase1-nominal.spec.ts": "69c2ee549cb6b814d2c88404465a79c166adbe454f2312ba843d0ef166a905e5",
+        "scripts/phase1/nominal-flight.mjs": "216c3f7d7eb37986cbcb7fd85f43a97e750cd34f8454c27e03b97c70657e4bab",
+        "scripts/phase1/nominal-rules.ts": "fd983873987f42474ee4f4a0d2460e4e2bec6064821574bfcaa743472bedb457",
+        "tests/support/aircraft-ui.ts": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f",
+        "tests/support/aircraft-recipes.ts": "e4d5d0f1c99e06af4f11b633dae321a24e1a33247ad4a58da6207fee323236b1",
+        "tests/support/run-tab.ts": "9cc28dc5ac110f9f5114cc4482fbcdf5050cd7c2b7d8dd837a7070fd829ef78e",
+        "tests/support/standard-gear.ts": "7c43a4427fe7b8f56159990b8d3f99e4f2ef534e6cd563b247543aae3b1cb22d",
+        "playwright.config.ts": "0e76e629e0d560d9b4363f171f8008c71a072c74691f12daa33009e35abce9fb",
+        "tests/fixtures/components/motor-example.json": "8da613982ca1f4f6bc5cfa06a397426a2d0d1da3342e156c8d54f02622e2aece",
+        "tests/fixtures/components/propeller-example.json": "5944eeec045d0e449fe566be13142adef275dda27b4c6f57e6583e68addc36a5",
+        "tests/fixtures/components/esc-example.json": "50ef8893d000123e59b46d056733425eb442486f57330ef87f2d2f403fb0d40c",
+        "tests/fixtures/components/battery-example.json": "fe5ca2675ac0111195ca9d432e91e1c63f1244f0f8cdb2fb4cbe6ad62fe1b396",
+        "tests/fixtures/aircraft/quad-x.json": "946e68eba8c9312e431b407cea5107f7b99ead07dcb119d1c1b618850e1227b5",
+        "tests/fixtures/aircraft/hexa-x.json": "ec2cab44bb8ada5eb1cb17d2bcad0ecae5166a848009a113f5f1c81dd09a8e6b",
+        "tests/fixtures/aircraft/octa-x.json": "336735320d7f75b5839a6489cd3f7311dc1fdc0be86c8116889c204fd66d03e6",
+        "tests/fixtures/aircraft/coaxial-x8.json": "5aec44294071a65d8a2c486cfacf4a05ed7a80573c9ade253a578901d524244e",
+        "tests/fixtures/aircraft/octa-coaxial-16.json": "89d559537cbf5c4cb58495b8b4f19054ff48b6f86f867a1c7abcb68d58ceb6b9"
+      }
+    },
+    {
+      "sId": "S19",
+      "configuration": "quad",
+      "workflow": "pause-resume",
+      "criterion": "Pause and resume",
+      "verdict": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/quad.json",
+        "sha256": "f77b5b5e86ce97e05ce5dd504630b02fef9877322bf980963ef9aa24b7dde8aa"
+      },
+      "device": {
+        "model": "Mac17,4",
+        "chip": "Apple M5",
+        "memoryBytes": 34359738368,
+        "macOS": "27.2",
+        "chrome": "156.0.8078.80",
+        "lowPowerMode": false
+      },
+      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
+      "uncommittedFiles": 133,
+      "sources": {
+        "tests/browser/phase1-nominal.spec.ts": "69c2ee549cb6b814d2c88404465a79c166adbe454f2312ba843d0ef166a905e5",
+        "scripts/phase1/nominal-flight.mjs": "216c3f7d7eb37986cbcb7fd85f43a97e750cd34f8454c27e03b97c70657e4bab",
+        "scripts/phase1/nominal-rules.ts": "fd983873987f42474ee4f4a0d2460e4e2bec6064821574bfcaa743472bedb457",
+        "tests/support/aircraft-ui.ts": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f",
+        "tests/support/aircraft-recipes.ts": "e4d5d0f1c99e06af4f11b633dae321a24e1a33247ad4a58da6207fee323236b1",
+        "tests/support/run-tab.ts": "9cc28dc5ac110f9f5114cc4482fbcdf5050cd7c2b7d8dd837a7070fd829ef78e",
+        "tests/support/standard-gear.ts": "7c43a4427fe7b8f56159990b8d3f99e4f2ef534e6cd563b247543aae3b1cb22d",
+        "playwright.config.ts": "0e76e629e0d560d9b4363f171f8008c71a072c74691f12daa33009e35abce9fb",
+        "tests/fixtures/components/motor-example.json": "8da613982ca1f4f6bc5cfa06a397426a2d0d1da3342e156c8d54f02622e2aece",
+        "tests/fixtures/components/propeller-example.json": "5944eeec045d0e449fe566be13142adef275dda27b4c6f57e6583e68addc36a5",
+        "tests/fixtures/components/esc-example.json": "50ef8893d000123e59b46d056733425eb442486f57330ef87f2d2f403fb0d40c",
+        "tests/fixtures/components/battery-example.json": "fe5ca2675ac0111195ca9d432e91e1c63f1244f0f8cdb2fb4cbe6ad62fe1b396",
+        "tests/fixtures/aircraft/quad-x.json": "946e68eba8c9312e431b407cea5107f7b99ead07dcb119d1c1b618850e1227b5",
+        "tests/fixtures/aircraft/hexa-x.json": "ec2cab44bb8ada5eb1cb17d2bcad0ecae5166a848009a113f5f1c81dd09a8e6b",
+        "tests/fixtures/aircraft/octa-x.json": "336735320d7f75b5839a6489cd3f7311dc1fdc0be86c8116889c204fd66d03e6",
+        "tests/fixtures/aircraft/coaxial-x8.json": "5aec44294071a65d8a2c486cfacf4a05ed7a80573c9ade253a578901d524244e",
+        "tests/fixtures/aircraft/octa-coaxial-16.json": "89d559537cbf5c4cb58495b8b4f19054ff48b6f86f867a1c7abcb68d58ceb6b9"
+      }
+    },
+    {
+      "sId": "S19",
+      "configuration": "hexa",
+      "workflow": "pause-resume",
+      "criterion": "Pause and resume",
+      "verdict": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/hexa.json",
+        "sha256": "6f0e4df5b1c8f0219c921741e22767962cd97b85cd8fe61b14adaaefce915028"
+      },
+      "device": {
+        "model": "Mac17,4",
+        "chip": "Apple M5",
+        "memoryBytes": 34359738368,
+        "macOS": "27.2",
+        "chrome": "156.0.8078.80",
+        "lowPowerMode": false
+      },
+      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
+      "uncommittedFiles": 133,
+      "sources": {
+        "tests/browser/phase1-nominal.spec.ts": "69c2ee549cb6b814d2c88404465a79c166adbe454f2312ba843d0ef166a905e5",
+        "scripts/phase1/nominal-flight.mjs": "216c3f7d7eb37986cbcb7fd85f43a97e750cd34f8454c27e03b97c70657e4bab",
+        "scripts/phase1/nominal-rules.ts": "fd983873987f42474ee4f4a0d2460e4e2bec6064821574bfcaa743472bedb457",
+        "tests/support/aircraft-ui.ts": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f",
+        "tests/support/aircraft-recipes.ts": "e4d5d0f1c99e06af4f11b633dae321a24e1a33247ad4a58da6207fee323236b1",
+        "tests/support/run-tab.ts": "9cc28dc5ac110f9f5114cc4482fbcdf5050cd7c2b7d8dd837a7070fd829ef78e",
+        "tests/support/standard-gear.ts": "7c43a4427fe7b8f56159990b8d3f99e4f2ef534e6cd563b247543aae3b1cb22d",
+        "playwright.config.ts": "0e76e629e0d560d9b4363f171f8008c71a072c74691f12daa33009e35abce9fb",
+        "tests/fixtures/components/motor-example.json": "8da613982ca1f4f6bc5cfa06a397426a2d0d1da3342e156c8d54f02622e2aece",
+        "tests/fixtures/components/propeller-example.json": "5944eeec045d0e449fe566be13142adef275dda27b4c6f57e6583e68addc36a5",
+        "tests/fixtures/components/esc-example.json": "50ef8893d000123e59b46d056733425eb442486f57330ef87f2d2f403fb0d40c",
+        "tests/fixtures/components/battery-example.json": "fe5ca2675ac0111195ca9d432e91e1c63f1244f0f8cdb2fb4cbe6ad62fe1b396",
+        "tests/fixtures/aircraft/quad-x.json": "946e68eba8c9312e431b407cea5107f7b99ead07dcb119d1c1b618850e1227b5",
+        "tests/fixtures/aircraft/hexa-x.json": "ec2cab44bb8ada5eb1cb17d2bcad0ecae5166a848009a113f5f1c81dd09a8e6b",
+        "tests/fixtures/aircraft/octa-x.json": "336735320d7f75b5839a6489cd3f7311dc1fdc0be86c8116889c204fd66d03e6",
+        "tests/fixtures/aircraft/coaxial-x8.json": "5aec44294071a65d8a2c486cfacf4a05ed7a80573c9ade253a578901d524244e",
+        "tests/fixtures/aircraft/octa-coaxial-16.json": "89d559537cbf5c4cb58495b8b4f19054ff48b6f86f867a1c7abcb68d58ceb6b9"
+      }
+    },
+    {
+      "sId": "S19",
+      "configuration": "octo",
+      "workflow": "pause-resume",
+      "criterion": "Pause and resume",
+      "verdict": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/octo.json",
+        "sha256": "e5576bae5a291abc27d8cf55ec26762a1e920405b84934e0e0db1592a8e47da6"
+      },
+      "device": {
+        "model": "Mac17,4",
+        "chip": "Apple M5",
+        "memoryBytes": 34359738368,
+        "macOS": "27.2",
+        "chrome": "156.0.8078.80",
+        "lowPowerMode": false
+      },
+      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
+      "uncommittedFiles": 133,
+      "sources": {
+        "tests/browser/phase1-nominal.spec.ts": "69c2ee549cb6b814d2c88404465a79c166adbe454f2312ba843d0ef166a905e5",
+        "scripts/phase1/nominal-flight.mjs": "216c3f7d7eb37986cbcb7fd85f43a97e750cd34f8454c27e03b97c70657e4bab",
+        "scripts/phase1/nominal-rules.ts": "fd983873987f42474ee4f4a0d2460e4e2bec6064821574bfcaa743472bedb457",
+        "tests/support/aircraft-ui.ts": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f",
+        "tests/support/aircraft-recipes.ts": "e4d5d0f1c99e06af4f11b633dae321a24e1a33247ad4a58da6207fee323236b1",
+        "tests/support/run-tab.ts": "9cc28dc5ac110f9f5114cc4482fbcdf5050cd7c2b7d8dd837a7070fd829ef78e",
+        "tests/support/standard-gear.ts": "7c43a4427fe7b8f56159990b8d3f99e4f2ef534e6cd563b247543aae3b1cb22d",
+        "playwright.config.ts": "0e76e629e0d560d9b4363f171f8008c71a072c74691f12daa33009e35abce9fb",
+        "tests/fixtures/components/motor-example.json": "8da613982ca1f4f6bc5cfa06a397426a2d0d1da3342e156c8d54f02622e2aece",
+        "tests/fixtures/components/propeller-example.json": "5944eeec045d0e449fe566be13142adef275dda27b4c6f57e6583e68addc36a5",
+        "tests/fixtures/components/esc-example.json": "50ef8893d000123e59b46d056733425eb442486f57330ef87f2d2f403fb0d40c",
+        "tests/fixtures/components/battery-example.json": "fe5ca2675ac0111195ca9d432e91e1c63f1244f0f8cdb2fb4cbe6ad62fe1b396",
+        "tests/fixtures/aircraft/quad-x.json": "946e68eba8c9312e431b407cea5107f7b99ead07dcb119d1c1b618850e1227b5",
+        "tests/fixtures/aircraft/hexa-x.json": "ec2cab44bb8ada5eb1cb17d2bcad0ecae5166a848009a113f5f1c81dd09a8e6b",
+        "tests/fixtures/aircraft/octa-x.json": "336735320d7f75b5839a6489cd3f7311dc1fdc0be86c8116889c204fd66d03e6",
+        "tests/fixtures/aircraft/coaxial-x8.json": "5aec44294071a65d8a2c486cfacf4a05ed7a80573c9ade253a578901d524244e",
+        "tests/fixtures/aircraft/octa-coaxial-16.json": "89d559537cbf5c4cb58495b8b4f19054ff48b6f86f867a1c7abcb68d58ceb6b9"
+      }
+    },
+    {
+      "sId": "S19",
+      "configuration": "x8",
+      "workflow": "pause-resume",
+      "criterion": "Pause and resume",
+      "verdict": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/x8.json",
+        "sha256": "3c4add42c2cf879048fd5935180f4021b95dd8d0ac438740e8d303b2b63686b3"
+      },
+      "device": {
+        "model": "Mac17,4",
+        "chip": "Apple M5",
+        "memoryBytes": 34359738368,
+        "macOS": "27.2",
+        "chrome": "156.0.8078.80",
+        "lowPowerMode": false
+      },
+      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
+      "uncommittedFiles": 133,
+      "sources": {
+        "tests/browser/phase1-nominal.spec.ts": "69c2ee549cb6b814d2c88404465a79c166adbe454f2312ba843d0ef166a905e5",
+        "scripts/phase1/nominal-flight.mjs": "216c3f7d7eb37986cbcb7fd85f43a97e750cd34f8454c27e03b97c70657e4bab",
+        "scripts/phase1/nominal-rules.ts": "fd983873987f42474ee4f4a0d2460e4e2bec6064821574bfcaa743472bedb457",
+        "tests/support/aircraft-ui.ts": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f",
+        "tests/support/aircraft-recipes.ts": "e4d5d0f1c99e06af4f11b633dae321a24e1a33247ad4a58da6207fee323236b1",
+        "tests/support/run-tab.ts": "9cc28dc5ac110f9f5114cc4482fbcdf5050cd7c2b7d8dd837a7070fd829ef78e",
+        "tests/support/standard-gear.ts": "7c43a4427fe7b8f56159990b8d3f99e4f2ef534e6cd563b247543aae3b1cb22d",
+        "playwright.config.ts": "0e76e629e0d560d9b4363f171f8008c71a072c74691f12daa33009e35abce9fb",
+        "tests/fixtures/components/motor-example.json": "8da613982ca1f4f6bc5cfa06a397426a2d0d1da3342e156c8d54f02622e2aece",
+        "tests/fixtures/components/propeller-example.json": "5944eeec045d0e449fe566be13142adef275dda27b4c6f57e6583e68addc36a5",
+        "tests/fixtures/components/esc-example.json": "50ef8893d000123e59b46d056733425eb442486f57330ef87f2d2f403fb0d40c",
+        "tests/fixtures/components/battery-example.json": "fe5ca2675ac0111195ca9d432e91e1c63f1244f0f8cdb2fb4cbe6ad62fe1b396",
+        "tests/fixtures/aircraft/quad-x.json": "946e68eba8c9312e431b407cea5107f7b99ead07dcb119d1c1b618850e1227b5",
+        "tests/fixtures/aircraft/hexa-x.json": "ec2cab44bb8ada5eb1cb17d2bcad0ecae5166a848009a113f5f1c81dd09a8e6b",
+        "tests/fixtures/aircraft/octa-x.json": "336735320d7f75b5839a6489cd3f7311dc1fdc0be86c8116889c204fd66d03e6",
+        "tests/fixtures/aircraft/coaxial-x8.json": "5aec44294071a65d8a2c486cfacf4a05ed7a80573c9ade253a578901d524244e",
+        "tests/fixtures/aircraft/octa-coaxial-16.json": "89d559537cbf5c4cb58495b8b4f19054ff48b6f86f867a1c7abcb68d58ceb6b9"
+      }
+    },
+    {
+      "sId": "S19",
+      "configuration": "octo-paired-16",
+      "workflow": "pause-resume",
+      "criterion": "Pause and resume",
+      "verdict": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/octo-paired-16.json",
+        "sha256": "dbd53fcd1bff928ebe42807e69f8a77667d4e8cb51b45aa3868427fc25067144"
+      },
+      "device": {
+        "model": "Mac17,4",
+        "chip": "Apple M5",
+        "memoryBytes": 34359738368,
+        "macOS": "27.2",
+        "chrome": "156.0.8078.80",
+        "lowPowerMode": false
+      },
+      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
+      "uncommittedFiles": 133,
+      "sources": {
+        "tests/browser/phase1-nominal.spec.ts": "69c2ee549cb6b814d2c88404465a79c166adbe454f2312ba843d0ef166a905e5",
+        "scripts/phase1/nominal-flight.mjs": "216c3f7d7eb37986cbcb7fd85f43a97e750cd34f8454c27e03b97c70657e4bab",
+        "scripts/phase1/nominal-rules.ts": "fd983873987f42474ee4f4a0d2460e4e2bec6064821574bfcaa743472bedb457",
+        "tests/support/aircraft-ui.ts": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f",
+        "tests/support/aircraft-recipes.ts": "e4d5d0f1c99e06af4f11b633dae321a24e1a33247ad4a58da6207fee323236b1",
+        "tests/support/run-tab.ts": "9cc28dc5ac110f9f5114cc4482fbcdf5050cd7c2b7d8dd837a7070fd829ef78e",
+        "tests/support/standard-gear.ts": "7c43a4427fe7b8f56159990b8d3f99e4f2ef534e6cd563b247543aae3b1cb22d",
+        "playwright.config.ts": "0e76e629e0d560d9b4363f171f8008c71a072c74691f12daa33009e35abce9fb",
+        "tests/fixtures/components/motor-example.json": "8da613982ca1f4f6bc5cfa06a397426a2d0d1da3342e156c8d54f02622e2aece",
+        "tests/fixtures/components/propeller-example.json": "5944eeec045d0e449fe566be13142adef275dda27b4c6f57e6583e68addc36a5",
+        "tests/fixtures/components/esc-example.json": "50ef8893d000123e59b46d056733425eb442486f57330ef87f2d2f403fb0d40c",
+        "tests/fixtures/components/battery-example.json": "fe5ca2675ac0111195ca9d432e91e1c63f1244f0f8cdb2fb4cbe6ad62fe1b396",
+        "tests/fixtures/aircraft/quad-x.json": "946e68eba8c9312e431b407cea5107f7b99ead07dcb119d1c1b618850e1227b5",
+        "tests/fixtures/aircraft/hexa-x.json": "ec2cab44bb8ada5eb1cb17d2bcad0ecae5166a848009a113f5f1c81dd09a8e6b",
+        "tests/fixtures/aircraft/octa-x.json": "336735320d7f75b5839a6489cd3f7311dc1fdc0be86c8116889c204fd66d03e6",
+        "tests/fixtures/aircraft/coaxial-x8.json": "5aec44294071a65d8a2c486cfacf4a05ed7a80573c9ade253a578901d524244e",
+        "tests/fixtures/aircraft/octa-coaxial-16.json": "89d559537cbf5c4cb58495b8b4f19054ff48b6f86f867a1c7abcb68d58ceb6b9"
+      }
+    },
+    {
+      "sId": "S19",
+      "configuration": "quad",
+      "workflow": "parameter-changes",
+      "criterion": "Change parameters",
+      "verdict": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/quad.json",
+        "sha256": "f77b5b5e86ce97e05ce5dd504630b02fef9877322bf980963ef9aa24b7dde8aa"
+      },
+      "device": {
+        "model": "Mac17,4",
+        "chip": "Apple M5",
+        "memoryBytes": 34359738368,
+        "macOS": "27.2",
+        "chrome": "156.0.8078.80",
+        "lowPowerMode": false
+      },
+      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
+      "uncommittedFiles": 133,
+      "sources": {
+        "tests/browser/phase1-nominal.spec.ts": "69c2ee549cb6b814d2c88404465a79c166adbe454f2312ba843d0ef166a905e5",
+        "scripts/phase1/nominal-flight.mjs": "216c3f7d7eb37986cbcb7fd85f43a97e750cd34f8454c27e03b97c70657e4bab",
+        "scripts/phase1/nominal-rules.ts": "fd983873987f42474ee4f4a0d2460e4e2bec6064821574bfcaa743472bedb457",
+        "tests/support/aircraft-ui.ts": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f",
+        "tests/support/aircraft-recipes.ts": "e4d5d0f1c99e06af4f11b633dae321a24e1a33247ad4a58da6207fee323236b1",
+        "tests/support/run-tab.ts": "9cc28dc5ac110f9f5114cc4482fbcdf5050cd7c2b7d8dd837a7070fd829ef78e",
+        "tests/support/standard-gear.ts": "7c43a4427fe7b8f56159990b8d3f99e4f2ef534e6cd563b247543aae3b1cb22d",
+        "playwright.config.ts": "0e76e629e0d560d9b4363f171f8008c71a072c74691f12daa33009e35abce9fb",
+        "tests/fixtures/components/motor-example.json": "8da613982ca1f4f6bc5cfa06a397426a2d0d1da3342e156c8d54f02622e2aece",
+        "tests/fixtures/components/propeller-example.json": "5944eeec045d0e449fe566be13142adef275dda27b4c6f57e6583e68addc36a5",
+        "tests/fixtures/components/esc-example.json": "50ef8893d000123e59b46d056733425eb442486f57330ef87f2d2f403fb0d40c",
+        "tests/fixtures/components/battery-example.json": "fe5ca2675ac0111195ca9d432e91e1c63f1244f0f8cdb2fb4cbe6ad62fe1b396",
+        "tests/fixtures/aircraft/quad-x.json": "946e68eba8c9312e431b407cea5107f7b99ead07dcb119d1c1b618850e1227b5",
+        "tests/fixtures/aircraft/hexa-x.json": "ec2cab44bb8ada5eb1cb17d2bcad0ecae5166a848009a113f5f1c81dd09a8e6b",
+        "tests/fixtures/aircraft/octa-x.json": "336735320d7f75b5839a6489cd3f7311dc1fdc0be86c8116889c204fd66d03e6",
+        "tests/fixtures/aircraft/coaxial-x8.json": "5aec44294071a65d8a2c486cfacf4a05ed7a80573c9ade253a578901d524244e",
+        "tests/fixtures/aircraft/octa-coaxial-16.json": "89d559537cbf5c4cb58495b8b4f19054ff48b6f86f867a1c7abcb68d58ceb6b9"
+      }
+    },
+    {
+      "sId": "S19",
+      "configuration": "hexa",
+      "workflow": "parameter-changes",
+      "criterion": "Change parameters",
+      "verdict": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/hexa.json",
+        "sha256": "6f0e4df5b1c8f0219c921741e22767962cd97b85cd8fe61b14adaaefce915028"
+      },
+      "device": {
+        "model": "Mac17,4",
+        "chip": "Apple M5",
+        "memoryBytes": 34359738368,
+        "macOS": "27.2",
+        "chrome": "156.0.8078.80",
+        "lowPowerMode": false
+      },
+      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
+      "uncommittedFiles": 133,
+      "sources": {
+        "tests/browser/phase1-nominal.spec.ts": "69c2ee549cb6b814d2c88404465a79c166adbe454f2312ba843d0ef166a905e5",
+        "scripts/phase1/nominal-flight.mjs": "216c3f7d7eb37986cbcb7fd85f43a97e750cd34f8454c27e03b97c70657e4bab",
+        "scripts/phase1/nominal-rules.ts": "fd983873987f42474ee4f4a0d2460e4e2bec6064821574bfcaa743472bedb457",
+        "tests/support/aircraft-ui.ts": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f",
+        "tests/support/aircraft-recipes.ts": "e4d5d0f1c99e06af4f11b633dae321a24e1a33247ad4a58da6207fee323236b1",
+        "tests/support/run-tab.ts": "9cc28dc5ac110f9f5114cc4482fbcdf5050cd7c2b7d8dd837a7070fd829ef78e",
+        "tests/support/standard-gear.ts": "7c43a4427fe7b8f56159990b8d3f99e4f2ef534e6cd563b247543aae3b1cb22d",
+        "playwright.config.ts": "0e76e629e0d560d9b4363f171f8008c71a072c74691f12daa33009e35abce9fb",
+        "tests/fixtures/components/motor-example.json": "8da613982ca1f4f6bc5cfa06a397426a2d0d1da3342e156c8d54f02622e2aece",
+        "tests/fixtures/components/propeller-example.json": "5944eeec045d0e449fe566be13142adef275dda27b4c6f57e6583e68addc36a5",
+        "tests/fixtures/components/esc-example.json": "50ef8893d000123e59b46d056733425eb442486f57330ef87f2d2f403fb0d40c",
+        "tests/fixtures/components/battery-example.json": "fe5ca2675ac0111195ca9d432e91e1c63f1244f0f8cdb2fb4cbe6ad62fe1b396",
+        "tests/fixtures/aircraft/quad-x.json": "946e68eba8c9312e431b407cea5107f7b99ead07dcb119d1c1b618850e1227b5",
+        "tests/fixtures/aircraft/hexa-x.json": "ec2cab44bb8ada5eb1cb17d2bcad0ecae5166a848009a113f5f1c81dd09a8e6b",
+        "tests/fixtures/aircraft/octa-x.json": "336735320d7f75b5839a6489cd3f7311dc1fdc0be86c8116889c204fd66d03e6",
+        "tests/fixtures/aircraft/coaxial-x8.json": "5aec44294071a65d8a2c486cfacf4a05ed7a80573c9ade253a578901d524244e",
+        "tests/fixtures/aircraft/octa-coaxial-16.json": "89d559537cbf5c4cb58495b8b4f19054ff48b6f86f867a1c7abcb68d58ceb6b9"
+      }
+    },
+    {
+      "sId": "S19",
+      "configuration": "octo",
+      "workflow": "parameter-changes",
+      "criterion": "Change parameters",
+      "verdict": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/octo.json",
+        "sha256": "e5576bae5a291abc27d8cf55ec26762a1e920405b84934e0e0db1592a8e47da6"
+      },
+      "device": {
+        "model": "Mac17,4",
+        "chip": "Apple M5",
+        "memoryBytes": 34359738368,
+        "macOS": "27.2",
+        "chrome": "156.0.8078.80",
+        "lowPowerMode": false
+      },
+      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
+      "uncommittedFiles": 133,
+      "sources": {
+        "tests/browser/phase1-nominal.spec.ts": "69c2ee549cb6b814d2c88404465a79c166adbe454f2312ba843d0ef166a905e5",
+        "scripts/phase1/nominal-flight.mjs": "216c3f7d7eb37986cbcb7fd85f43a97e750cd34f8454c27e03b97c70657e4bab",
+        "scripts/phase1/nominal-rules.ts": "fd983873987f42474ee4f4a0d2460e4e2bec6064821574bfcaa743472bedb457",
+        "tests/support/aircraft-ui.ts": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f",
+        "tests/support/aircraft-recipes.ts": "e4d5d0f1c99e06af4f11b633dae321a24e1a33247ad4a58da6207fee323236b1",
+        "tests/support/run-tab.ts": "9cc28dc5ac110f9f5114cc4482fbcdf5050cd7c2b7d8dd837a7070fd829ef78e",
+        "tests/support/standard-gear.ts": "7c43a4427fe7b8f56159990b8d3f99e4f2ef534e6cd563b247543aae3b1cb22d",
+        "playwright.config.ts": "0e76e629e0d560d9b4363f171f8008c71a072c74691f12daa33009e35abce9fb",
+        "tests/fixtures/components/motor-example.json": "8da613982ca1f4f6bc5cfa06a397426a2d0d1da3342e156c8d54f02622e2aece",
+        "tests/fixtures/components/propeller-example.json": "5944eeec045d0e449fe566be13142adef275dda27b4c6f57e6583e68addc36a5",
+        "tests/fixtures/components/esc-example.json": "50ef8893d000123e59b46d056733425eb442486f57330ef87f2d2f403fb0d40c",
+        "tests/fixtures/components/battery-example.json": "fe5ca2675ac0111195ca9d432e91e1c63f1244f0f8cdb2fb4cbe6ad62fe1b396",
+        "tests/fixtures/aircraft/quad-x.json": "946e68eba8c9312e431b407cea5107f7b99ead07dcb119d1c1b618850e1227b5",
+        "tests/fixtures/aircraft/hexa-x.json": "ec2cab44bb8ada5eb1cb17d2bcad0ecae5166a848009a113f5f1c81dd09a8e6b",
+        "tests/fixtures/aircraft/octa-x.json": "336735320d7f75b5839a6489cd3f7311dc1fdc0be86c8116889c204fd66d03e6",
+        "tests/fixtures/aircraft/coaxial-x8.json": "5aec44294071a65d8a2c486cfacf4a05ed7a80573c9ade253a578901d524244e",
+        "tests/fixtures/aircraft/octa-coaxial-16.json": "89d559537cbf5c4cb58495b8b4f19054ff48b6f86f867a1c7abcb68d58ceb6b9"
+      }
+    },
+    {
+      "sId": "S19",
+      "configuration": "x8",
+      "workflow": "parameter-changes",
+      "criterion": "Change parameters",
+      "verdict": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/x8.json",
+        "sha256": "3c4add42c2cf879048fd5935180f4021b95dd8d0ac438740e8d303b2b63686b3"
+      },
+      "device": {
+        "model": "Mac17,4",
+        "chip": "Apple M5",
+        "memoryBytes": 34359738368,
+        "macOS": "27.2",
+        "chrome": "156.0.8078.80",
+        "lowPowerMode": false
+      },
+      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
+      "uncommittedFiles": 133,
+      "sources": {
+        "tests/browser/phase1-nominal.spec.ts": "69c2ee549cb6b814d2c88404465a79c166adbe454f2312ba843d0ef166a905e5",
+        "scripts/phase1/nominal-flight.mjs": "216c3f7d7eb37986cbcb7fd85f43a97e750cd34f8454c27e03b97c70657e4bab",
+        "scripts/phase1/nominal-rules.ts": "fd983873987f42474ee4f4a0d2460e4e2bec6064821574bfcaa743472bedb457",
+        "tests/support/aircraft-ui.ts": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f",
+        "tests/support/aircraft-recipes.ts": "e4d5d0f1c99e06af4f11b633dae321a24e1a33247ad4a58da6207fee323236b1",
+        "tests/support/run-tab.ts": "9cc28dc5ac110f9f5114cc4482fbcdf5050cd7c2b7d8dd837a7070fd829ef78e",
+        "tests/support/standard-gear.ts": "7c43a4427fe7b8f56159990b8d3f99e4f2ef534e6cd563b247543aae3b1cb22d",
+        "playwright.config.ts": "0e76e629e0d560d9b4363f171f8008c71a072c74691f12daa33009e35abce9fb",
+        "tests/fixtures/components/motor-example.json": "8da613982ca1f4f6bc5cfa06a397426a2d0d1da3342e156c8d54f02622e2aece",
+        "tests/fixtures/components/propeller-example.json": "5944eeec045d0e449fe566be13142adef275dda27b4c6f57e6583e68addc36a5",
+        "tests/fixtures/components/esc-example.json": "50ef8893d000123e59b46d056733425eb442486f57330ef87f2d2f403fb0d40c",
+        "tests/fixtures/components/battery-example.json": "fe5ca2675ac0111195ca9d432e91e1c63f1244f0f8cdb2fb4cbe6ad62fe1b396",
+        "tests/fixtures/aircraft/quad-x.json": "946e68eba8c9312e431b407cea5107f7b99ead07dcb119d1c1b618850e1227b5",
+        "tests/fixtures/aircraft/hexa-x.json": "ec2cab44bb8ada5eb1cb17d2bcad0ecae5166a848009a113f5f1c81dd09a8e6b",
+        "tests/fixtures/aircraft/octa-x.json": "336735320d7f75b5839a6489cd3f7311dc1fdc0be86c8116889c204fd66d03e6",
+        "tests/fixtures/aircraft/coaxial-x8.json": "5aec44294071a65d8a2c486cfacf4a05ed7a80573c9ade253a578901d524244e",
+        "tests/fixtures/aircraft/octa-coaxial-16.json": "89d559537cbf5c4cb58495b8b4f19054ff48b6f86f867a1c7abcb68d58ceb6b9"
+      }
+    },
+    {
+      "sId": "S19",
+      "configuration": "octo-paired-16",
+      "workflow": "parameter-changes",
+      "criterion": "Change parameters",
+      "verdict": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/octo-paired-16.json",
+        "sha256": "dbd53fcd1bff928ebe42807e69f8a77667d4e8cb51b45aa3868427fc25067144"
+      },
+      "device": {
+        "model": "Mac17,4",
+        "chip": "Apple M5",
+        "memoryBytes": 34359738368,
+        "macOS": "27.2",
+        "chrome": "156.0.8078.80",
+        "lowPowerMode": false
+      },
+      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
+      "uncommittedFiles": 133,
+      "sources": {
+        "tests/browser/phase1-nominal.spec.ts": "69c2ee549cb6b814d2c88404465a79c166adbe454f2312ba843d0ef166a905e5",
+        "scripts/phase1/nominal-flight.mjs": "216c3f7d7eb37986cbcb7fd85f43a97e750cd34f8454c27e03b97c70657e4bab",
+        "scripts/phase1/nominal-rules.ts": "fd983873987f42474ee4f4a0d2460e4e2bec6064821574bfcaa743472bedb457",
+        "tests/support/aircraft-ui.ts": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f",
+        "tests/support/aircraft-recipes.ts": "e4d5d0f1c99e06af4f11b633dae321a24e1a33247ad4a58da6207fee323236b1",
+        "tests/support/run-tab.ts": "9cc28dc5ac110f9f5114cc4482fbcdf5050cd7c2b7d8dd837a7070fd829ef78e",
+        "tests/support/standard-gear.ts": "7c43a4427fe7b8f56159990b8d3f99e4f2ef534e6cd563b247543aae3b1cb22d",
+        "playwright.config.ts": "0e76e629e0d560d9b4363f171f8008c71a072c74691f12daa33009e35abce9fb",
+        "tests/fixtures/components/motor-example.json": "8da613982ca1f4f6bc5cfa06a397426a2d0d1da3342e156c8d54f02622e2aece",
+        "tests/fixtures/components/propeller-example.json": "5944eeec045d0e449fe566be13142adef275dda27b4c6f57e6583e68addc36a5",
+        "tests/fixtures/components/esc-example.json": "50ef8893d000123e59b46d056733425eb442486f57330ef87f2d2f403fb0d40c",
+        "tests/fixtures/components/battery-example.json": "fe5ca2675ac0111195ca9d432e91e1c63f1244f0f8cdb2fb4cbe6ad62fe1b396",
+        "tests/fixtures/aircraft/quad-x.json": "946e68eba8c9312e431b407cea5107f7b99ead07dcb119d1c1b618850e1227b5",
+        "tests/fixtures/aircraft/hexa-x.json": "ec2cab44bb8ada5eb1cb17d2bcad0ecae5166a848009a113f5f1c81dd09a8e6b",
+        "tests/fixtures/aircraft/octa-x.json": "336735320d7f75b5839a6489cd3f7311dc1fdc0be86c8116889c204fd66d03e6",
+        "tests/fixtures/aircraft/coaxial-x8.json": "5aec44294071a65d8a2c486cfacf4a05ed7a80573c9ade253a578901d524244e",
+        "tests/fixtures/aircraft/octa-coaxial-16.json": "89d559537cbf5c4cb58495b8b4f19054ff48b6f86f867a1c7abcb68d58ceb6b9"
+      }
+    },
+    {
+      "sId": "S19",
+      "configuration": "quad",
+      "workflow": "recording",
+      "criterion": "Record the experiment",
+      "verdict": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/quad.json",
+        "sha256": "f77b5b5e86ce97e05ce5dd504630b02fef9877322bf980963ef9aa24b7dde8aa"
+      },
+      "device": {
+        "model": "Mac17,4",
+        "chip": "Apple M5",
+        "memoryBytes": 34359738368,
+        "macOS": "27.2",
+        "chrome": "156.0.8078.80",
+        "lowPowerMode": false
+      },
+      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
+      "uncommittedFiles": 133,
+      "sources": {
+        "tests/browser/phase1-nominal.spec.ts": "69c2ee549cb6b814d2c88404465a79c166adbe454f2312ba843d0ef166a905e5",
+        "scripts/phase1/nominal-flight.mjs": "216c3f7d7eb37986cbcb7fd85f43a97e750cd34f8454c27e03b97c70657e4bab",
+        "scripts/phase1/nominal-rules.ts": "fd983873987f42474ee4f4a0d2460e4e2bec6064821574bfcaa743472bedb457",
+        "tests/support/aircraft-ui.ts": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f",
+        "tests/support/aircraft-recipes.ts": "e4d5d0f1c99e06af4f11b633dae321a24e1a33247ad4a58da6207fee323236b1",
+        "tests/support/run-tab.ts": "9cc28dc5ac110f9f5114cc4482fbcdf5050cd7c2b7d8dd837a7070fd829ef78e",
+        "tests/support/standard-gear.ts": "7c43a4427fe7b8f56159990b8d3f99e4f2ef534e6cd563b247543aae3b1cb22d",
+        "playwright.config.ts": "0e76e629e0d560d9b4363f171f8008c71a072c74691f12daa33009e35abce9fb",
+        "tests/fixtures/components/motor-example.json": "8da613982ca1f4f6bc5cfa06a397426a2d0d1da3342e156c8d54f02622e2aece",
+        "tests/fixtures/components/propeller-example.json": "5944eeec045d0e449fe566be13142adef275dda27b4c6f57e6583e68addc36a5",
+        "tests/fixtures/components/esc-example.json": "50ef8893d000123e59b46d056733425eb442486f57330ef87f2d2f403fb0d40c",
+        "tests/fixtures/components/battery-example.json": "fe5ca2675ac0111195ca9d432e91e1c63f1244f0f8cdb2fb4cbe6ad62fe1b396",
+        "tests/fixtures/aircraft/quad-x.json": "946e68eba8c9312e431b407cea5107f7b99ead07dcb119d1c1b618850e1227b5",
+        "tests/fixtures/aircraft/hexa-x.json": "ec2cab44bb8ada5eb1cb17d2bcad0ecae5166a848009a113f5f1c81dd09a8e6b",
+        "tests/fixtures/aircraft/octa-x.json": "336735320d7f75b5839a6489cd3f7311dc1fdc0be86c8116889c204fd66d03e6",
+        "tests/fixtures/aircraft/coaxial-x8.json": "5aec44294071a65d8a2c486cfacf4a05ed7a80573c9ade253a578901d524244e",
+        "tests/fixtures/aircraft/octa-coaxial-16.json": "89d559537cbf5c4cb58495b8b4f19054ff48b6f86f867a1c7abcb68d58ceb6b9"
+      }
+    },
+    {
+      "sId": "S19",
+      "configuration": "hexa",
+      "workflow": "recording",
+      "criterion": "Record the experiment",
+      "verdict": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/hexa.json",
+        "sha256": "6f0e4df5b1c8f0219c921741e22767962cd97b85cd8fe61b14adaaefce915028"
+      },
+      "device": {
+        "model": "Mac17,4",
+        "chip": "Apple M5",
+        "memoryBytes": 34359738368,
+        "macOS": "27.2",
+        "chrome": "156.0.8078.80",
+        "lowPowerMode": false
+      },
+      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
+      "uncommittedFiles": 133,
+      "sources": {
+        "tests/browser/phase1-nominal.spec.ts": "69c2ee549cb6b814d2c88404465a79c166adbe454f2312ba843d0ef166a905e5",
+        "scripts/phase1/nominal-flight.mjs": "216c3f7d7eb37986cbcb7fd85f43a97e750cd34f8454c27e03b97c70657e4bab",
+        "scripts/phase1/nominal-rules.ts": "fd983873987f42474ee4f4a0d2460e4e2bec6064821574bfcaa743472bedb457",
+        "tests/support/aircraft-ui.ts": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f",
+        "tests/support/aircraft-recipes.ts": "e4d5d0f1c99e06af4f11b633dae321a24e1a33247ad4a58da6207fee323236b1",
+        "tests/support/run-tab.ts": "9cc28dc5ac110f9f5114cc4482fbcdf5050cd7c2b7d8dd837a7070fd829ef78e",
+        "tests/support/standard-gear.ts": "7c43a4427fe7b8f56159990b8d3f99e4f2ef534e6cd563b247543aae3b1cb22d",
+        "playwright.config.ts": "0e76e629e0d560d9b4363f171f8008c71a072c74691f12daa33009e35abce9fb",
+        "tests/fixtures/components/motor-example.json": "8da613982ca1f4f6bc5cfa06a397426a2d0d1da3342e156c8d54f02622e2aece",
+        "tests/fixtures/components/propeller-example.json": "5944eeec045d0e449fe566be13142adef275dda27b4c6f57e6583e68addc36a5",
+        "tests/fixtures/components/esc-example.json": "50ef8893d000123e59b46d056733425eb442486f57330ef87f2d2f403fb0d40c",
+        "tests/fixtures/components/battery-example.json": "fe5ca2675ac0111195ca9d432e91e1c63f1244f0f8cdb2fb4cbe6ad62fe1b396",
+        "tests/fixtures/aircraft/quad-x.json": "946e68eba8c9312e431b407cea5107f7b99ead07dcb119d1c1b618850e1227b5",
+        "tests/fixtures/aircraft/hexa-x.json": "ec2cab44bb8ada5eb1cb17d2bcad0ecae5166a848009a113f5f1c81dd09a8e6b",
+        "tests/fixtures/aircraft/octa-x.json": "336735320d7f75b5839a6489cd3f7311dc1fdc0be86c8116889c204fd66d03e6",
+        "tests/fixtures/aircraft/coaxial-x8.json": "5aec44294071a65d8a2c486cfacf4a05ed7a80573c9ade253a578901d524244e",
+        "tests/fixtures/aircraft/octa-coaxial-16.json": "89d559537cbf5c4cb58495b8b4f19054ff48b6f86f867a1c7abcb68d58ceb6b9"
+      }
+    },
+    {
+      "sId": "S19",
+      "configuration": "octo",
+      "workflow": "recording",
+      "criterion": "Record the experiment",
+      "verdict": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/octo.json",
+        "sha256": "e5576bae5a291abc27d8cf55ec26762a1e920405b84934e0e0db1592a8e47da6"
+      },
+      "device": {
+        "model": "Mac17,4",
+        "chip": "Apple M5",
+        "memoryBytes": 34359738368,
+        "macOS": "27.2",
+        "chrome": "156.0.8078.80",
+        "lowPowerMode": false
+      },
+      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
+      "uncommittedFiles": 133,
+      "sources": {
+        "tests/browser/phase1-nominal.spec.ts": "69c2ee549cb6b814d2c88404465a79c166adbe454f2312ba843d0ef166a905e5",
+        "scripts/phase1/nominal-flight.mjs": "216c3f7d7eb37986cbcb7fd85f43a97e750cd34f8454c27e03b97c70657e4bab",
+        "scripts/phase1/nominal-rules.ts": "fd983873987f42474ee4f4a0d2460e4e2bec6064821574bfcaa743472bedb457",
+        "tests/support/aircraft-ui.ts": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f",
+        "tests/support/aircraft-recipes.ts": "e4d5d0f1c99e06af4f11b633dae321a24e1a33247ad4a58da6207fee323236b1",
+        "tests/support/run-tab.ts": "9cc28dc5ac110f9f5114cc4482fbcdf5050cd7c2b7d8dd837a7070fd829ef78e",
+        "tests/support/standard-gear.ts": "7c43a4427fe7b8f56159990b8d3f99e4f2ef534e6cd563b247543aae3b1cb22d",
+        "playwright.config.ts": "0e76e629e0d560d9b4363f171f8008c71a072c74691f12daa33009e35abce9fb",
+        "tests/fixtures/components/motor-example.json": "8da613982ca1f4f6bc5cfa06a397426a2d0d1da3342e156c8d54f02622e2aece",
+        "tests/fixtures/components/propeller-example.json": "5944eeec045d0e449fe566be13142adef275dda27b4c6f57e6583e68addc36a5",
+        "tests/fixtures/components/esc-example.json": "50ef8893d000123e59b46d056733425eb442486f57330ef87f2d2f403fb0d40c",
+        "tests/fixtures/components/battery-example.json": "fe5ca2675ac0111195ca9d432e91e1c63f1244f0f8cdb2fb4cbe6ad62fe1b396",
+        "tests/fixtures/aircraft/quad-x.json": "946e68eba8c9312e431b407cea5107f7b99ead07dcb119d1c1b618850e1227b5",
+        "tests/fixtures/aircraft/hexa-x.json": "ec2cab44bb8ada5eb1cb17d2bcad0ecae5166a848009a113f5f1c81dd09a8e6b",
+        "tests/fixtures/aircraft/octa-x.json": "336735320d7f75b5839a6489cd3f7311dc1fdc0be86c8116889c204fd66d03e6",
+        "tests/fixtures/aircraft/coaxial-x8.json": "5aec44294071a65d8a2c486cfacf4a05ed7a80573c9ade253a578901d524244e",
+        "tests/fixtures/aircraft/octa-coaxial-16.json": "89d559537cbf5c4cb58495b8b4f19054ff48b6f86f867a1c7abcb68d58ceb6b9"
+      }
+    },
+    {
+      "sId": "S19",
+      "configuration": "x8",
+      "workflow": "recording",
+      "criterion": "Record the experiment",
+      "verdict": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/x8.json",
+        "sha256": "3c4add42c2cf879048fd5935180f4021b95dd8d0ac438740e8d303b2b63686b3"
+      },
+      "device": {
+        "model": "Mac17,4",
+        "chip": "Apple M5",
+        "memoryBytes": 34359738368,
+        "macOS": "27.2",
+        "chrome": "156.0.8078.80",
+        "lowPowerMode": false
+      },
+      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
+      "uncommittedFiles": 133,
+      "sources": {
+        "tests/browser/phase1-nominal.spec.ts": "69c2ee549cb6b814d2c88404465a79c166adbe454f2312ba843d0ef166a905e5",
+        "scripts/phase1/nominal-flight.mjs": "216c3f7d7eb37986cbcb7fd85f43a97e750cd34f8454c27e03b97c70657e4bab",
+        "scripts/phase1/nominal-rules.ts": "fd983873987f42474ee4f4a0d2460e4e2bec6064821574bfcaa743472bedb457",
+        "tests/support/aircraft-ui.ts": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f",
+        "tests/support/aircraft-recipes.ts": "e4d5d0f1c99e06af4f11b633dae321a24e1a33247ad4a58da6207fee323236b1",
+        "tests/support/run-tab.ts": "9cc28dc5ac110f9f5114cc4482fbcdf5050cd7c2b7d8dd837a7070fd829ef78e",
+        "tests/support/standard-gear.ts": "7c43a4427fe7b8f56159990b8d3f99e4f2ef534e6cd563b247543aae3b1cb22d",
+        "playwright.config.ts": "0e76e629e0d560d9b4363f171f8008c71a072c74691f12daa33009e35abce9fb",
+        "tests/fixtures/components/motor-example.json": "8da613982ca1f4f6bc5cfa06a397426a2d0d1da3342e156c8d54f02622e2aece",
+        "tests/fixtures/components/propeller-example.json": "5944eeec045d0e449fe566be13142adef275dda27b4c6f57e6583e68addc36a5",
+        "tests/fixtures/components/esc-example.json": "50ef8893d000123e59b46d056733425eb442486f57330ef87f2d2f403fb0d40c",
+        "tests/fixtures/components/battery-example.json": "fe5ca2675ac0111195ca9d432e91e1c63f1244f0f8cdb2fb4cbe6ad62fe1b396",
+        "tests/fixtures/aircraft/quad-x.json": "946e68eba8c9312e431b407cea5107f7b99ead07dcb119d1c1b618850e1227b5",
+        "tests/fixtures/aircraft/hexa-x.json": "ec2cab44bb8ada5eb1cb17d2bcad0ecae5166a848009a113f5f1c81dd09a8e6b",
+        "tests/fixtures/aircraft/octa-x.json": "336735320d7f75b5839a6489cd3f7311dc1fdc0be86c8116889c204fd66d03e6",
+        "tests/fixtures/aircraft/coaxial-x8.json": "5aec44294071a65d8a2c486cfacf4a05ed7a80573c9ade253a578901d524244e",
+        "tests/fixtures/aircraft/octa-coaxial-16.json": "89d559537cbf5c4cb58495b8b4f19054ff48b6f86f867a1c7abcb68d58ceb6b9"
+      }
+    },
+    {
+      "sId": "S19",
+      "configuration": "octo-paired-16",
+      "workflow": "recording",
+      "criterion": "Record the experiment",
+      "verdict": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/octo-paired-16.json",
+        "sha256": "dbd53fcd1bff928ebe42807e69f8a77667d4e8cb51b45aa3868427fc25067144"
+      },
+      "device": {
+        "model": "Mac17,4",
+        "chip": "Apple M5",
+        "memoryBytes": 34359738368,
+        "macOS": "27.2",
+        "chrome": "156.0.8078.80",
+        "lowPowerMode": false
+      },
+      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
+      "uncommittedFiles": 133,
+      "sources": {
+        "tests/browser/phase1-nominal.spec.ts": "69c2ee549cb6b814d2c88404465a79c166adbe454f2312ba843d0ef166a905e5",
+        "scripts/phase1/nominal-flight.mjs": "216c3f7d7eb37986cbcb7fd85f43a97e750cd34f8454c27e03b97c70657e4bab",
+        "scripts/phase1/nominal-rules.ts": "fd983873987f42474ee4f4a0d2460e4e2bec6064821574bfcaa743472bedb457",
+        "tests/support/aircraft-ui.ts": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f",
+        "tests/support/aircraft-recipes.ts": "e4d5d0f1c99e06af4f11b633dae321a24e1a33247ad4a58da6207fee323236b1",
+        "tests/support/run-tab.ts": "9cc28dc5ac110f9f5114cc4482fbcdf5050cd7c2b7d8dd837a7070fd829ef78e",
+        "tests/support/standard-gear.ts": "7c43a4427fe7b8f56159990b8d3f99e4f2ef534e6cd563b247543aae3b1cb22d",
+        "playwright.config.ts": "0e76e629e0d560d9b4363f171f8008c71a072c74691f12daa33009e35abce9fb",
+        "tests/fixtures/components/motor-example.json": "8da613982ca1f4f6bc5cfa06a397426a2d0d1da3342e156c8d54f02622e2aece",
+        "tests/fixtures/components/propeller-example.json": "5944eeec045d0e449fe566be13142adef275dda27b4c6f57e6583e68addc36a5",
+        "tests/fixtures/components/esc-example.json": "50ef8893d000123e59b46d056733425eb442486f57330ef87f2d2f403fb0d40c",
+        "tests/fixtures/components/battery-example.json": "fe5ca2675ac0111195ca9d432e91e1c63f1244f0f8cdb2fb4cbe6ad62fe1b396",
+        "tests/fixtures/aircraft/quad-x.json": "946e68eba8c9312e431b407cea5107f7b99ead07dcb119d1c1b618850e1227b5",
+        "tests/fixtures/aircraft/hexa-x.json": "ec2cab44bb8ada5eb1cb17d2bcad0ecae5166a848009a113f5f1c81dd09a8e6b",
+        "tests/fixtures/aircraft/octa-x.json": "336735320d7f75b5839a6489cd3f7311dc1fdc0be86c8116889c204fd66d03e6",
+        "tests/fixtures/aircraft/coaxial-x8.json": "5aec44294071a65d8a2c486cfacf4a05ed7a80573c9ade253a578901d524244e",
+        "tests/fixtures/aircraft/octa-coaxial-16.json": "89d559537cbf5c4cb58495b8b4f19054ff48b6f86f867a1c7abcb68d58ceb6b9"
+      }
+    },
+    {
+      "sId": "S19",
+      "configuration": "quad",
+      "workflow": "reopen-results",
+      "criterion": "Reopen the results",
+      "verdict": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/quad.json",
+        "sha256": "f77b5b5e86ce97e05ce5dd504630b02fef9877322bf980963ef9aa24b7dde8aa"
+      },
+      "device": {
+        "model": "Mac17,4",
+        "chip": "Apple M5",
+        "memoryBytes": 34359738368,
+        "macOS": "27.2",
+        "chrome": "156.0.8078.80",
+        "lowPowerMode": false
+      },
+      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
+      "uncommittedFiles": 133,
+      "sources": {
+        "tests/browser/phase1-nominal.spec.ts": "69c2ee549cb6b814d2c88404465a79c166adbe454f2312ba843d0ef166a905e5",
+        "scripts/phase1/nominal-flight.mjs": "216c3f7d7eb37986cbcb7fd85f43a97e750cd34f8454c27e03b97c70657e4bab",
+        "scripts/phase1/nominal-rules.ts": "fd983873987f42474ee4f4a0d2460e4e2bec6064821574bfcaa743472bedb457",
+        "tests/support/aircraft-ui.ts": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f",
+        "tests/support/aircraft-recipes.ts": "e4d5d0f1c99e06af4f11b633dae321a24e1a33247ad4a58da6207fee323236b1",
+        "tests/support/run-tab.ts": "9cc28dc5ac110f9f5114cc4482fbcdf5050cd7c2b7d8dd837a7070fd829ef78e",
+        "tests/support/standard-gear.ts": "7c43a4427fe7b8f56159990b8d3f99e4f2ef534e6cd563b247543aae3b1cb22d",
+        "playwright.config.ts": "0e76e629e0d560d9b4363f171f8008c71a072c74691f12daa33009e35abce9fb",
+        "tests/fixtures/components/motor-example.json": "8da613982ca1f4f6bc5cfa06a397426a2d0d1da3342e156c8d54f02622e2aece",
+        "tests/fixtures/components/propeller-example.json": "5944eeec045d0e449fe566be13142adef275dda27b4c6f57e6583e68addc36a5",
+        "tests/fixtures/components/esc-example.json": "50ef8893d000123e59b46d056733425eb442486f57330ef87f2d2f403fb0d40c",
+        "tests/fixtures/components/battery-example.json": "fe5ca2675ac0111195ca9d432e91e1c63f1244f0f8cdb2fb4cbe6ad62fe1b396",
+        "tests/fixtures/aircraft/quad-x.json": "946e68eba8c9312e431b407cea5107f7b99ead07dcb119d1c1b618850e1227b5",
+        "tests/fixtures/aircraft/hexa-x.json": "ec2cab44bb8ada5eb1cb17d2bcad0ecae5166a848009a113f5f1c81dd09a8e6b",
+        "tests/fixtures/aircraft/octa-x.json": "336735320d7f75b5839a6489cd3f7311dc1fdc0be86c8116889c204fd66d03e6",
+        "tests/fixtures/aircraft/coaxial-x8.json": "5aec44294071a65d8a2c486cfacf4a05ed7a80573c9ade253a578901d524244e",
+        "tests/fixtures/aircraft/octa-coaxial-16.json": "89d559537cbf5c4cb58495b8b4f19054ff48b6f86f867a1c7abcb68d58ceb6b9"
+      }
+    },
+    {
+      "sId": "S19",
+      "configuration": "hexa",
+      "workflow": "reopen-results",
+      "criterion": "Reopen the results",
+      "verdict": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/hexa.json",
+        "sha256": "6f0e4df5b1c8f0219c921741e22767962cd97b85cd8fe61b14adaaefce915028"
+      },
+      "device": {
+        "model": "Mac17,4",
+        "chip": "Apple M5",
+        "memoryBytes": 34359738368,
+        "macOS": "27.2",
+        "chrome": "156.0.8078.80",
+        "lowPowerMode": false
+      },
+      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
+      "uncommittedFiles": 133,
+      "sources": {
+        "tests/browser/phase1-nominal.spec.ts": "69c2ee549cb6b814d2c88404465a79c166adbe454f2312ba843d0ef166a905e5",
+        "scripts/phase1/nominal-flight.mjs": "216c3f7d7eb37986cbcb7fd85f43a97e750cd34f8454c27e03b97c70657e4bab",
+        "scripts/phase1/nominal-rules.ts": "fd983873987f42474ee4f4a0d2460e4e2bec6064821574bfcaa743472bedb457",
+        "tests/support/aircraft-ui.ts": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f",
+        "tests/support/aircraft-recipes.ts": "e4d5d0f1c99e06af4f11b633dae321a24e1a33247ad4a58da6207fee323236b1",
+        "tests/support/run-tab.ts": "9cc28dc5ac110f9f5114cc4482fbcdf5050cd7c2b7d8dd837a7070fd829ef78e",
+        "tests/support/standard-gear.ts": "7c43a4427fe7b8f56159990b8d3f99e4f2ef534e6cd563b247543aae3b1cb22d",
+        "playwright.config.ts": "0e76e629e0d560d9b4363f171f8008c71a072c74691f12daa33009e35abce9fb",
+        "tests/fixtures/components/motor-example.json": "8da613982ca1f4f6bc5cfa06a397426a2d0d1da3342e156c8d54f02622e2aece",
+        "tests/fixtures/components/propeller-example.json": "5944eeec045d0e449fe566be13142adef275dda27b4c6f57e6583e68addc36a5",
+        "tests/fixtures/components/esc-example.json": "50ef8893d000123e59b46d056733425eb442486f57330ef87f2d2f403fb0d40c",
+        "tests/fixtures/components/battery-example.json": "fe5ca2675ac0111195ca9d432e91e1c63f1244f0f8cdb2fb4cbe6ad62fe1b396",
+        "tests/fixtures/aircraft/quad-x.json": "946e68eba8c9312e431b407cea5107f7b99ead07dcb119d1c1b618850e1227b5",
+        "tests/fixtures/aircraft/hexa-x.json": "ec2cab44bb8ada5eb1cb17d2bcad0ecae5166a848009a113f5f1c81dd09a8e6b",
+        "tests/fixtures/aircraft/octa-x.json": "336735320d7f75b5839a6489cd3f7311dc1fdc0be86c8116889c204fd66d03e6",
+        "tests/fixtures/aircraft/coaxial-x8.json": "5aec44294071a65d8a2c486cfacf4a05ed7a80573c9ade253a578901d524244e",
+        "tests/fixtures/aircraft/octa-coaxial-16.json": "89d559537cbf5c4cb58495b8b4f19054ff48b6f86f867a1c7abcb68d58ceb6b9"
+      }
+    },
+    {
+      "sId": "S19",
+      "configuration": "octo",
+      "workflow": "reopen-results",
+      "criterion": "Reopen the results",
+      "verdict": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/octo.json",
+        "sha256": "e5576bae5a291abc27d8cf55ec26762a1e920405b84934e0e0db1592a8e47da6"
+      },
+      "device": {
+        "model": "Mac17,4",
+        "chip": "Apple M5",
+        "memoryBytes": 34359738368,
+        "macOS": "27.2",
+        "chrome": "156.0.8078.80",
+        "lowPowerMode": false
+      },
+      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
+      "uncommittedFiles": 133,
+      "sources": {
+        "tests/browser/phase1-nominal.spec.ts": "69c2ee549cb6b814d2c88404465a79c166adbe454f2312ba843d0ef166a905e5",
+        "scripts/phase1/nominal-flight.mjs": "216c3f7d7eb37986cbcb7fd85f43a97e750cd34f8454c27e03b97c70657e4bab",
+        "scripts/phase1/nominal-rules.ts": "fd983873987f42474ee4f4a0d2460e4e2bec6064821574bfcaa743472bedb457",
+        "tests/support/aircraft-ui.ts": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f",
+        "tests/support/aircraft-recipes.ts": "e4d5d0f1c99e06af4f11b633dae321a24e1a33247ad4a58da6207fee323236b1",
+        "tests/support/run-tab.ts": "9cc28dc5ac110f9f5114cc4482fbcdf5050cd7c2b7d8dd837a7070fd829ef78e",
+        "tests/support/standard-gear.ts": "7c43a4427fe7b8f56159990b8d3f99e4f2ef534e6cd563b247543aae3b1cb22d",
+        "playwright.config.ts": "0e76e629e0d560d9b4363f171f8008c71a072c74691f12daa33009e35abce9fb",
+        "tests/fixtures/components/motor-example.json": "8da613982ca1f4f6bc5cfa06a397426a2d0d1da3342e156c8d54f02622e2aece",
+        "tests/fixtures/components/propeller-example.json": "5944eeec045d0e449fe566be13142adef275dda27b4c6f57e6583e68addc36a5",
+        "tests/fixtures/components/esc-example.json": "50ef8893d000123e59b46d056733425eb442486f57330ef87f2d2f403fb0d40c",
+        "tests/fixtures/components/battery-example.json": "fe5ca2675ac0111195ca9d432e91e1c63f1244f0f8cdb2fb4cbe6ad62fe1b396",
+        "tests/fixtures/aircraft/quad-x.json": "946e68eba8c9312e431b407cea5107f7b99ead07dcb119d1c1b618850e1227b5",
+        "tests/fixtures/aircraft/hexa-x.json": "ec2cab44bb8ada5eb1cb17d2bcad0ecae5166a848009a113f5f1c81dd09a8e6b",
+        "tests/fixtures/aircraft/octa-x.json": "336735320d7f75b5839a6489cd3f7311dc1fdc0be86c8116889c204fd66d03e6",
+        "tests/fixtures/aircraft/coaxial-x8.json": "5aec44294071a65d8a2c486cfacf4a05ed7a80573c9ade253a578901d524244e",
+        "tests/fixtures/aircraft/octa-coaxial-16.json": "89d559537cbf5c4cb58495b8b4f19054ff48b6f86f867a1c7abcb68d58ceb6b9"
+      }
+    },
+    {
+      "sId": "S19",
+      "configuration": "x8",
+      "workflow": "reopen-results",
+      "criterion": "Reopen the results",
+      "verdict": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/x8.json",
+        "sha256": "3c4add42c2cf879048fd5935180f4021b95dd8d0ac438740e8d303b2b63686b3"
+      },
+      "device": {
+        "model": "Mac17,4",
+        "chip": "Apple M5",
+        "memoryBytes": 34359738368,
+        "macOS": "27.2",
+        "chrome": "156.0.8078.80",
+        "lowPowerMode": false
+      },
+      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
+      "uncommittedFiles": 133,
+      "sources": {
+        "tests/browser/phase1-nominal.spec.ts": "69c2ee549cb6b814d2c88404465a79c166adbe454f2312ba843d0ef166a905e5",
+        "scripts/phase1/nominal-flight.mjs": "216c3f7d7eb37986cbcb7fd85f43a97e750cd34f8454c27e03b97c70657e4bab",
+        "scripts/phase1/nominal-rules.ts": "fd983873987f42474ee4f4a0d2460e4e2bec6064821574bfcaa743472bedb457",
+        "tests/support/aircraft-ui.ts": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f",
+        "tests/support/aircraft-recipes.ts": "e4d5d0f1c99e06af4f11b633dae321a24e1a33247ad4a58da6207fee323236b1",
+        "tests/support/run-tab.ts": "9cc28dc5ac110f9f5114cc4482fbcdf5050cd7c2b7d8dd837a7070fd829ef78e",
+        "tests/support/standard-gear.ts": "7c43a4427fe7b8f56159990b8d3f99e4f2ef534e6cd563b247543aae3b1cb22d",
+        "playwright.config.ts": "0e76e629e0d560d9b4363f171f8008c71a072c74691f12daa33009e35abce9fb",
+        "tests/fixtures/components/motor-example.json": "8da613982ca1f4f6bc5cfa06a397426a2d0d1da3342e156c8d54f02622e2aece",
+        "tests/fixtures/components/propeller-example.json": "5944eeec045d0e449fe566be13142adef275dda27b4c6f57e6583e68addc36a5",
+        "tests/fixtures/components/esc-example.json": "50ef8893d000123e59b46d056733425eb442486f57330ef87f2d2f403fb0d40c",
+        "tests/fixtures/components/battery-example.json": "fe5ca2675ac0111195ca9d432e91e1c63f1244f0f8cdb2fb4cbe6ad62fe1b396",
+        "tests/fixtures/aircraft/quad-x.json": "946e68eba8c9312e431b407cea5107f7b99ead07dcb119d1c1b618850e1227b5",
+        "tests/fixtures/aircraft/hexa-x.json": "ec2cab44bb8ada5eb1cb17d2bcad0ecae5166a848009a113f5f1c81dd09a8e6b",
+        "tests/fixtures/aircraft/octa-x.json": "336735320d7f75b5839a6489cd3f7311dc1fdc0be86c8116889c204fd66d03e6",
+        "tests/fixtures/aircraft/coaxial-x8.json": "5aec44294071a65d8a2c486cfacf4a05ed7a80573c9ade253a578901d524244e",
+        "tests/fixtures/aircraft/octa-coaxial-16.json": "89d559537cbf5c4cb58495b8b4f19054ff48b6f86f867a1c7abcb68d58ceb6b9"
+      }
+    },
+    {
+      "sId": "S19",
+      "configuration": "octo-paired-16",
+      "workflow": "reopen-results",
+      "criterion": "Reopen the results",
+      "verdict": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/octo-paired-16.json",
+        "sha256": "dbd53fcd1bff928ebe42807e69f8a77667d4e8cb51b45aa3868427fc25067144"
+      },
+      "device": {
+        "model": "Mac17,4",
+        "chip": "Apple M5",
+        "memoryBytes": 34359738368,
+        "macOS": "27.2",
+        "chrome": "156.0.8078.80",
+        "lowPowerMode": false
+      },
+      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
+      "uncommittedFiles": 133,
+      "sources": {
+        "tests/browser/phase1-nominal.spec.ts": "69c2ee549cb6b814d2c88404465a79c166adbe454f2312ba843d0ef166a905e5",
+        "scripts/phase1/nominal-flight.mjs": "216c3f7d7eb37986cbcb7fd85f43a97e750cd34f8454c27e03b97c70657e4bab",
+        "scripts/phase1/nominal-rules.ts": "fd983873987f42474ee4f4a0d2460e4e2bec6064821574bfcaa743472bedb457",
+        "tests/support/aircraft-ui.ts": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f",
+        "tests/support/aircraft-recipes.ts": "e4d5d0f1c99e06af4f11b633dae321a24e1a33247ad4a58da6207fee323236b1",
+        "tests/support/run-tab.ts": "9cc28dc5ac110f9f5114cc4482fbcdf5050cd7c2b7d8dd837a7070fd829ef78e",
+        "tests/support/standard-gear.ts": "7c43a4427fe7b8f56159990b8d3f99e4f2ef534e6cd563b247543aae3b1cb22d",
+        "playwright.config.ts": "0e76e629e0d560d9b4363f171f8008c71a072c74691f12daa33009e35abce9fb",
+        "tests/fixtures/components/motor-example.json": "8da613982ca1f4f6bc5cfa06a397426a2d0d1da3342e156c8d54f02622e2aece",
+        "tests/fixtures/components/propeller-example.json": "5944eeec045d0e449fe566be13142adef275dda27b4c6f57e6583e68addc36a5",
+        "tests/fixtures/components/esc-example.json": "50ef8893d000123e59b46d056733425eb442486f57330ef87f2d2f403fb0d40c",
+        "tests/fixtures/components/battery-example.json": "fe5ca2675ac0111195ca9d432e91e1c63f1244f0f8cdb2fb4cbe6ad62fe1b396",
+        "tests/fixtures/aircraft/quad-x.json": "946e68eba8c9312e431b407cea5107f7b99ead07dcb119d1c1b618850e1227b5",
+        "tests/fixtures/aircraft/hexa-x.json": "ec2cab44bb8ada5eb1cb17d2bcad0ecae5166a848009a113f5f1c81dd09a8e6b",
+        "tests/fixtures/aircraft/octa-x.json": "336735320d7f75b5839a6489cd3f7311dc1fdc0be86c8116889c204fd66d03e6",
+        "tests/fixtures/aircraft/coaxial-x8.json": "5aec44294071a65d8a2c486cfacf4a05ed7a80573c9ade253a578901d524244e",
+        "tests/fixtures/aircraft/octa-coaxial-16.json": "89d559537cbf5c4cb58495b8b4f19054ff48b6f86f867a1c7abcb68d58ceb6b9"
+      }
+    },
+    {
+      "sId": "S19",
+      "configuration": "quad",
+      "workflow": "unsupported-refusal",
+      "criterion": "Refuse unsupported operations explicitly",
+      "verdict": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/quad.json",
+        "sha256": "f77b5b5e86ce97e05ce5dd504630b02fef9877322bf980963ef9aa24b7dde8aa"
+      },
+      "device": {
+        "model": "Mac17,4",
+        "chip": "Apple M5",
+        "memoryBytes": 34359738368,
+        "macOS": "27.2",
+        "chrome": "156.0.8078.80",
+        "lowPowerMode": false
+      },
+      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
+      "uncommittedFiles": 133,
+      "sources": {
+        "tests/browser/phase1-nominal.spec.ts": "69c2ee549cb6b814d2c88404465a79c166adbe454f2312ba843d0ef166a905e5",
+        "scripts/phase1/nominal-flight.mjs": "216c3f7d7eb37986cbcb7fd85f43a97e750cd34f8454c27e03b97c70657e4bab",
+        "scripts/phase1/nominal-rules.ts": "fd983873987f42474ee4f4a0d2460e4e2bec6064821574bfcaa743472bedb457",
+        "tests/support/aircraft-ui.ts": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f",
+        "tests/support/aircraft-recipes.ts": "e4d5d0f1c99e06af4f11b633dae321a24e1a33247ad4a58da6207fee323236b1",
+        "tests/support/run-tab.ts": "9cc28dc5ac110f9f5114cc4482fbcdf5050cd7c2b7d8dd837a7070fd829ef78e",
+        "tests/support/standard-gear.ts": "7c43a4427fe7b8f56159990b8d3f99e4f2ef534e6cd563b247543aae3b1cb22d",
+        "playwright.config.ts": "0e76e629e0d560d9b4363f171f8008c71a072c74691f12daa33009e35abce9fb",
+        "tests/fixtures/components/motor-example.json": "8da613982ca1f4f6bc5cfa06a397426a2d0d1da3342e156c8d54f02622e2aece",
+        "tests/fixtures/components/propeller-example.json": "5944eeec045d0e449fe566be13142adef275dda27b4c6f57e6583e68addc36a5",
+        "tests/fixtures/components/esc-example.json": "50ef8893d000123e59b46d056733425eb442486f57330ef87f2d2f403fb0d40c",
+        "tests/fixtures/components/battery-example.json": "fe5ca2675ac0111195ca9d432e91e1c63f1244f0f8cdb2fb4cbe6ad62fe1b396",
+        "tests/fixtures/aircraft/quad-x.json": "946e68eba8c9312e431b407cea5107f7b99ead07dcb119d1c1b618850e1227b5",
+        "tests/fixtures/aircraft/hexa-x.json": "ec2cab44bb8ada5eb1cb17d2bcad0ecae5166a848009a113f5f1c81dd09a8e6b",
+        "tests/fixtures/aircraft/octa-x.json": "336735320d7f75b5839a6489cd3f7311dc1fdc0be86c8116889c204fd66d03e6",
+        "tests/fixtures/aircraft/coaxial-x8.json": "5aec44294071a65d8a2c486cfacf4a05ed7a80573c9ade253a578901d524244e",
+        "tests/fixtures/aircraft/octa-coaxial-16.json": "89d559537cbf5c4cb58495b8b4f19054ff48b6f86f867a1c7abcb68d58ceb6b9"
+      }
+    },
+    {
+      "sId": "S19",
+      "configuration": "hexa",
+      "workflow": "unsupported-refusal",
+      "criterion": "Refuse unsupported operations explicitly",
+      "verdict": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/hexa.json",
+        "sha256": "6f0e4df5b1c8f0219c921741e22767962cd97b85cd8fe61b14adaaefce915028"
+      },
+      "device": {
+        "model": "Mac17,4",
+        "chip": "Apple M5",
+        "memoryBytes": 34359738368,
+        "macOS": "27.2",
+        "chrome": "156.0.8078.80",
+        "lowPowerMode": false
+      },
+      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
+      "uncommittedFiles": 133,
+      "sources": {
+        "tests/browser/phase1-nominal.spec.ts": "69c2ee549cb6b814d2c88404465a79c166adbe454f2312ba843d0ef166a905e5",
+        "scripts/phase1/nominal-flight.mjs": "216c3f7d7eb37986cbcb7fd85f43a97e750cd34f8454c27e03b97c70657e4bab",
+        "scripts/phase1/nominal-rules.ts": "fd983873987f42474ee4f4a0d2460e4e2bec6064821574bfcaa743472bedb457",
+        "tests/support/aircraft-ui.ts": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f",
+        "tests/support/aircraft-recipes.ts": "e4d5d0f1c99e06af4f11b633dae321a24e1a33247ad4a58da6207fee323236b1",
+        "tests/support/run-tab.ts": "9cc28dc5ac110f9f5114cc4482fbcdf5050cd7c2b7d8dd837a7070fd829ef78e",
+        "tests/support/standard-gear.ts": "7c43a4427fe7b8f56159990b8d3f99e4f2ef534e6cd563b247543aae3b1cb22d",
+        "playwright.config.ts": "0e76e629e0d560d9b4363f171f8008c71a072c74691f12daa33009e35abce9fb",
+        "tests/fixtures/components/motor-example.json": "8da613982ca1f4f6bc5cfa06a397426a2d0d1da3342e156c8d54f02622e2aece",
+        "tests/fixtures/components/propeller-example.json": "5944eeec045d0e449fe566be13142adef275dda27b4c6f57e6583e68addc36a5",
+        "tests/fixtures/components/esc-example.json": "50ef8893d000123e59b46d056733425eb442486f57330ef87f2d2f403fb0d40c",
+        "tests/fixtures/components/battery-example.json": "fe5ca2675ac0111195ca9d432e91e1c63f1244f0f8cdb2fb4cbe6ad62fe1b396",
+        "tests/fixtures/aircraft/quad-x.json": "946e68eba8c9312e431b407cea5107f7b99ead07dcb119d1c1b618850e1227b5",
+        "tests/fixtures/aircraft/hexa-x.json": "ec2cab44bb8ada5eb1cb17d2bcad0ecae5166a848009a113f5f1c81dd09a8e6b",
+        "tests/fixtures/aircraft/octa-x.json": "336735320d7f75b5839a6489cd3f7311dc1fdc0be86c8116889c204fd66d03e6",
+        "tests/fixtures/aircraft/coaxial-x8.json": "5aec44294071a65d8a2c486cfacf4a05ed7a80573c9ade253a578901d524244e",
+        "tests/fixtures/aircraft/octa-coaxial-16.json": "89d559537cbf5c4cb58495b8b4f19054ff48b6f86f867a1c7abcb68d58ceb6b9"
+      }
+    },
+    {
+      "sId": "S19",
+      "configuration": "octo",
+      "workflow": "unsupported-refusal",
+      "criterion": "Refuse unsupported operations explicitly",
+      "verdict": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/octo.json",
+        "sha256": "e5576bae5a291abc27d8cf55ec26762a1e920405b84934e0e0db1592a8e47da6"
+      },
+      "device": {
+        "model": "Mac17,4",
+        "chip": "Apple M5",
+        "memoryBytes": 34359738368,
+        "macOS": "27.2",
+        "chrome": "156.0.8078.80",
+        "lowPowerMode": false
+      },
+      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
+      "uncommittedFiles": 133,
+      "sources": {
+        "tests/browser/phase1-nominal.spec.ts": "69c2ee549cb6b814d2c88404465a79c166adbe454f2312ba843d0ef166a905e5",
+        "scripts/phase1/nominal-flight.mjs": "216c3f7d7eb37986cbcb7fd85f43a97e750cd34f8454c27e03b97c70657e4bab",
+        "scripts/phase1/nominal-rules.ts": "fd983873987f42474ee4f4a0d2460e4e2bec6064821574bfcaa743472bedb457",
+        "tests/support/aircraft-ui.ts": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f",
+        "tests/support/aircraft-recipes.ts": "e4d5d0f1c99e06af4f11b633dae321a24e1a33247ad4a58da6207fee323236b1",
+        "tests/support/run-tab.ts": "9cc28dc5ac110f9f5114cc4482fbcdf5050cd7c2b7d8dd837a7070fd829ef78e",
+        "tests/support/standard-gear.ts": "7c43a4427fe7b8f56159990b8d3f99e4f2ef534e6cd563b247543aae3b1cb22d",
+        "playwright.config.ts": "0e76e629e0d560d9b4363f171f8008c71a072c74691f12daa33009e35abce9fb",
+        "tests/fixtures/components/motor-example.json": "8da613982ca1f4f6bc5cfa06a397426a2d0d1da3342e156c8d54f02622e2aece",
+        "tests/fixtures/components/propeller-example.json": "5944eeec045d0e449fe566be13142adef275dda27b4c6f57e6583e68addc36a5",
+        "tests/fixtures/components/esc-example.json": "50ef8893d000123e59b46d056733425eb442486f57330ef87f2d2f403fb0d40c",
+        "tests/fixtures/components/battery-example.json": "fe5ca2675ac0111195ca9d432e91e1c63f1244f0f8cdb2fb4cbe6ad62fe1b396",
+        "tests/fixtures/aircraft/quad-x.json": "946e68eba8c9312e431b407cea5107f7b99ead07dcb119d1c1b618850e1227b5",
+        "tests/fixtures/aircraft/hexa-x.json": "ec2cab44bb8ada5eb1cb17d2bcad0ecae5166a848009a113f5f1c81dd09a8e6b",
+        "tests/fixtures/aircraft/octa-x.json": "336735320d7f75b5839a6489cd3f7311dc1fdc0be86c8116889c204fd66d03e6",
+        "tests/fixtures/aircraft/coaxial-x8.json": "5aec44294071a65d8a2c486cfacf4a05ed7a80573c9ade253a578901d524244e",
+        "tests/fixtures/aircraft/octa-coaxial-16.json": "89d559537cbf5c4cb58495b8b4f19054ff48b6f86f867a1c7abcb68d58ceb6b9"
+      }
+    },
+    {
+      "sId": "S19",
+      "configuration": "x8",
+      "workflow": "unsupported-refusal",
+      "criterion": "Refuse unsupported operations explicitly",
+      "verdict": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/x8.json",
+        "sha256": "3c4add42c2cf879048fd5935180f4021b95dd8d0ac438740e8d303b2b63686b3"
+      },
+      "device": {
+        "model": "Mac17,4",
+        "chip": "Apple M5",
+        "memoryBytes": 34359738368,
+        "macOS": "27.2",
+        "chrome": "156.0.8078.80",
+        "lowPowerMode": false
+      },
+      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
+      "uncommittedFiles": 133,
+      "sources": {
+        "tests/browser/phase1-nominal.spec.ts": "69c2ee549cb6b814d2c88404465a79c166adbe454f2312ba843d0ef166a905e5",
+        "scripts/phase1/nominal-flight.mjs": "216c3f7d7eb37986cbcb7fd85f43a97e750cd34f8454c27e03b97c70657e4bab",
+        "scripts/phase1/nominal-rules.ts": "fd983873987f42474ee4f4a0d2460e4e2bec6064821574bfcaa743472bedb457",
+        "tests/support/aircraft-ui.ts": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f",
+        "tests/support/aircraft-recipes.ts": "e4d5d0f1c99e06af4f11b633dae321a24e1a33247ad4a58da6207fee323236b1",
+        "tests/support/run-tab.ts": "9cc28dc5ac110f9f5114cc4482fbcdf5050cd7c2b7d8dd837a7070fd829ef78e",
+        "tests/support/standard-gear.ts": "7c43a4427fe7b8f56159990b8d3f99e4f2ef534e6cd563b247543aae3b1cb22d",
+        "playwright.config.ts": "0e76e629e0d560d9b4363f171f8008c71a072c74691f12daa33009e35abce9fb",
+        "tests/fixtures/components/motor-example.json": "8da613982ca1f4f6bc5cfa06a397426a2d0d1da3342e156c8d54f02622e2aece",
+        "tests/fixtures/components/propeller-example.json": "5944eeec045d0e449fe566be13142adef275dda27b4c6f57e6583e68addc36a5",
+        "tests/fixtures/components/esc-example.json": "50ef8893d000123e59b46d056733425eb442486f57330ef87f2d2f403fb0d40c",
+        "tests/fixtures/components/battery-example.json": "fe5ca2675ac0111195ca9d432e91e1c63f1244f0f8cdb2fb4cbe6ad62fe1b396",
+        "tests/fixtures/aircraft/quad-x.json": "946e68eba8c9312e431b407cea5107f7b99ead07dcb119d1c1b618850e1227b5",
+        "tests/fixtures/aircraft/hexa-x.json": "ec2cab44bb8ada5eb1cb17d2bcad0ecae5166a848009a113f5f1c81dd09a8e6b",
+        "tests/fixtures/aircraft/octa-x.json": "336735320d7f75b5839a6489cd3f7311dc1fdc0be86c8116889c204fd66d03e6",
+        "tests/fixtures/aircraft/coaxial-x8.json": "5aec44294071a65d8a2c486cfacf4a05ed7a80573c9ade253a578901d524244e",
+        "tests/fixtures/aircraft/octa-coaxial-16.json": "89d559537cbf5c4cb58495b8b4f19054ff48b6f86f867a1c7abcb68d58ceb6b9"
+      }
+    },
+    {
+      "sId": "S19",
+      "configuration": "octo-paired-16",
+      "workflow": "unsupported-refusal",
+      "criterion": "Refuse unsupported operations explicitly",
+      "verdict": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-nominal/octo-paired-16.json",
+        "sha256": "dbd53fcd1bff928ebe42807e69f8a77667d4e8cb51b45aa3868427fc25067144"
+      },
+      "device": {
+        "model": "Mac17,4",
+        "chip": "Apple M5",
+        "memoryBytes": 34359738368,
+        "macOS": "27.2",
+        "chrome": "156.0.8078.80",
+        "lowPowerMode": false
+      },
+      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
+      "uncommittedFiles": 133,
+      "sources": {
+        "tests/browser/phase1-nominal.spec.ts": "69c2ee549cb6b814d2c88404465a79c166adbe454f2312ba843d0ef166a905e5",
+        "scripts/phase1/nominal-flight.mjs": "216c3f7d7eb37986cbcb7fd85f43a97e750cd34f8454c27e03b97c70657e4bab",
+        "scripts/phase1/nominal-rules.ts": "fd983873987f42474ee4f4a0d2460e4e2bec6064821574bfcaa743472bedb457",
+        "tests/support/aircraft-ui.ts": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f",
+        "tests/support/aircraft-recipes.ts": "e4d5d0f1c99e06af4f11b633dae321a24e1a33247ad4a58da6207fee323236b1",
+        "tests/support/run-tab.ts": "9cc28dc5ac110f9f5114cc4482fbcdf5050cd7c2b7d8dd837a7070fd829ef78e",
+        "tests/support/standard-gear.ts": "7c43a4427fe7b8f56159990b8d3f99e4f2ef534e6cd563b247543aae3b1cb22d",
+        "playwright.config.ts": "0e76e629e0d560d9b4363f171f8008c71a072c74691f12daa33009e35abce9fb",
+        "tests/fixtures/components/motor-example.json": "8da613982ca1f4f6bc5cfa06a397426a2d0d1da3342e156c8d54f02622e2aece",
+        "tests/fixtures/components/propeller-example.json": "5944eeec045d0e449fe566be13142adef275dda27b4c6f57e6583e68addc36a5",
+        "tests/fixtures/components/esc-example.json": "50ef8893d000123e59b46d056733425eb442486f57330ef87f2d2f403fb0d40c",
+        "tests/fixtures/components/battery-example.json": "fe5ca2675ac0111195ca9d432e91e1c63f1244f0f8cdb2fb4cbe6ad62fe1b396",
+        "tests/fixtures/aircraft/quad-x.json": "946e68eba8c9312e431b407cea5107f7b99ead07dcb119d1c1b618850e1227b5",
+        "tests/fixtures/aircraft/hexa-x.json": "ec2cab44bb8ada5eb1cb17d2bcad0ecae5166a848009a113f5f1c81dd09a8e6b",
+        "tests/fixtures/aircraft/octa-x.json": "336735320d7f75b5839a6489cd3f7311dc1fdc0be86c8116889c204fd66d03e6",
+        "tests/fixtures/aircraft/coaxial-x8.json": "5aec44294071a65d8a2c486cfacf4a05ed7a80573c9ade253a578901d524244e",
+        "tests/fixtures/aircraft/octa-coaxial-16.json": "89d559537cbf5c4cb58495b8b4f19054ff48b6f86f867a1c7abcb68d58ceb6b9"
+      }
+    },
+    {
+      "sId": "S19",
+      "configuration": "octo-paired-16",
+      "workflow": "one-hour-recording",
+      "criterion": "At least one continuous hour of simulated time with recording on the agreed reference hardware in Chrome, with the actual rate reported",
+      "verdict": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-endurance/octo-paired-16.json",
+        "sha256": "688e76edbd609602d62ec1c4ef7f451000b96a7a4f8f4bfe346e4a0e13e4a0d4"
+      },
+      "device": {
+        "model": "Mac17,4",
+        "chip": "Apple M5",
+        "memoryBytes": 34359738368,
+        "macOS": "27.2",
+        "chrome": "156.0.8078.80",
+        "lowPowerMode": false
+      },
+      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
+      "uncommittedFiles": 131,
+      "sources": {
+        "tests/browser/phase1-endurance.spec.ts": "2f71054cacd98907afce70e4ca8bf479d33f80d5ef2d172cf3c622bc8ed99cd6",
+        "scripts/phase1/endurance.mjs": "cc9b37bac3d36aa89d43a3fde8d6f225aad67c291b31e33de1a47e21cc848c29",
+        "scripts/phase1/endurance-rules.ts": "f23f086110d0d93d329a71f44b79916cb599a2a11409f32c5d3999ae43c31943",
+        "tests/support/run-tab.ts": "9cc28dc5ac110f9f5114cc4482fbcdf5050cd7c2b7d8dd837a7070fd829ef78e",
+        "playwright.config.ts": "0e76e629e0d560d9b4363f171f8008c71a072c74691f12daa33009e35abce9fb",
+        "tests/fixtures/aircraft/octa-coaxial-16.json": "89d559537cbf5c4cb58495b8b4f19054ff48b6f86f867a1c7abcb68d58ceb6b9",
+        "tests/fixtures/components/motor-example.json": "8da613982ca1f4f6bc5cfa06a397426a2d0d1da3342e156c8d54f02622e2aece",
+        "tests/fixtures/components/propeller-example.json": "5944eeec045d0e449fe566be13142adef275dda27b4c6f57e6583e68addc36a5",
+        "tests/fixtures/components/esc-example.json": "50ef8893d000123e59b46d056733425eb442486f57330ef87f2d2f403fb0d40c",
+        "tests/fixtures/components/battery-example.json": "fe5ca2675ac0111195ca9d432e91e1c63f1244f0f8cdb2fb4cbe6ad62fe1b396"
+      }
+    },
+    {
+      "sId": "S19",
+      "configuration": null,
+      "workflow": "installation-restart",
+      "criterion": "Supported macOS installation and restart",
+      "verdict": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-global/installation-restart.json",
+        "sha256": "33040872ef80392472c3e52654e26340a88a8f2f62647035ad47022a20e80ba3"
+      },
+      "device": {
+        "model": "Mac17,4",
+        "chip": "Apple M5",
+        "memoryBytes": 34359738368,
+        "macOS": "27.2",
+        "chrome": null,
+        "lowPowerMode": false
+      },
+      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
+      "uncommittedFiles": 131,
+      "sources": {
+        "scripts/phase1/global-workflows.mjs": "2b2b314dc13bb4a959110e16e92a7efe7126c7a0771ae03e4373c1e6139f65a0",
+        "scripts/phase1/global-rules.ts": "6c150a6c449a9d9db250e381498f7e41b9f8e530c1cf65465e3b0602b549db10",
+        "playwright.config.ts": "0e76e629e0d560d9b4363f171f8008c71a072c74691f12daa33009e35abce9fb",
+        "tests/browser/first-run.spec.ts": "b9d67580191ebafad429c8af891687f6167ea1587292808dc653fdba847ac333",
+        "tests/install-macos.test.ts": "d44e76015f9710a96e8a0d71c8588ee85d5139bc024de44b15304bc4ae006599",
+        "tests/launcher.test.ts": "3e2a43b60513370367c326be0857471195db6c5d834b067a4d50697dd0782844",
+        "tests/integration/recovery-drill.test.ts": "2647ff766d63f6838fcb26002c4df253808ff29024b80f91da05df38af56d887"
+      }
+    },
+    {
+      "sId": "S19",
+      "configuration": null,
+      "workflow": "offline-workflow",
+      "criterion": "Local and offline workflows after installation",
+      "verdict": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-global/offline-workflow.json",
+        "sha256": "186407771b9ab7f7a00c24733b27ea7d59d0e6ad4c6d213c7961fa275e83be9c"
+      },
+      "device": {
+        "model": "Mac17,4",
+        "chip": "Apple M5",
+        "memoryBytes": 34359738368,
+        "macOS": "27.2",
+        "chrome": null,
+        "lowPowerMode": false
+      },
+      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
+      "uncommittedFiles": 131,
+      "sources": {
+        "scripts/phase1/global-workflows.mjs": "2b2b314dc13bb4a959110e16e92a7efe7126c7a0771ae03e4373c1e6139f65a0",
+        "scripts/phase1/global-rules.ts": "6c150a6c449a9d9db250e381498f7e41b9f8e530c1cf65465e3b0602b549db10",
+        "playwright.config.ts": "0e76e629e0d560d9b4363f171f8008c71a072c74691f12daa33009e35abce9fb",
+        "tests/browser/run-panel.spec.ts": "966c5fe1b2016cef3d5efeea51fc61a1c9def24fa7ca920ab1f4a54b886be660",
+        "tests/browser/parameters-tab.spec.ts": "332e18bef325837d2f819c13fdd9e827fbf918e019bca103c4d94e55caaa5908",
+        "tests/browser/card-editor.spec.ts": "c9da2379d33c762e5e0ec05d29b5d57f4e09a3fdd14878b36af5190458c8d9de",
+        "tests/browser/aircraft-editor.spec.ts": "287b7812219a3328c77cef80c48a428924daa25efa03312a4da6912339ec046e",
+        "tests/browser/logging-tab.spec.ts": "d55aa189fa6e5e201662be6ee8fbb038505a54239a594eb5fc4df4a97e20c16e",
+        "tests/browser/log-viewer.spec.ts": "c33a345b7ed2614f674b9e206373858b33a0fbf423f8b3dd45cfff77fe78ed3f"
+      }
+    },
+    {
+      "sId": "S19",
+      "configuration": null,
+      "workflow": "export-import",
+      "criterion": "Experiment export and import",
+      "verdict": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-global/export-import.json",
+        "sha256": "c99b981c5927ea326d89ed477c0723d8634a4b729c6ef8812ed4c85fad7e0792"
+      },
+      "device": {
+        "model": "Mac17,4",
+        "chip": "Apple M5",
+        "memoryBytes": 34359738368,
+        "macOS": "27.2",
+        "chrome": null,
+        "lowPowerMode": false
+      },
+      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
+      "uncommittedFiles": 131,
+      "sources": {
+        "scripts/phase1/global-workflows.mjs": "2b2b314dc13bb4a959110e16e92a7efe7126c7a0771ae03e4373c1e6139f65a0",
+        "scripts/phase1/global-rules.ts": "6c150a6c449a9d9db250e381498f7e41b9f8e530c1cf65465e3b0602b549db10",
+        "playwright.config.ts": "0e76e629e0d560d9b4363f171f8008c71a072c74691f12daa33009e35abce9fb",
+        "tests/browser/experiments-tab.spec.ts": "b42726473f5fc1a842bfbab2770d52182fb630bf9d9a03c84dcb3dbaac831679"
+      }
+    },
+    {
+      "sId": "S19",
+      "configuration": null,
+      "workflow": "comparisons",
+      "criterion": "Experiment and log comparisons",
+      "verdict": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-global/comparisons.json",
+        "sha256": "14e8e31d9a2270f66bdde5e9d8c87b9da1dc715e3e4869f2ffeceaf273ac0108"
+      },
+      "device": {
+        "model": "Mac17,4",
+        "chip": "Apple M5",
+        "memoryBytes": 34359738368,
+        "macOS": "27.2",
+        "chrome": null,
+        "lowPowerMode": false
+      },
+      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
+      "uncommittedFiles": 131,
+      "sources": {
+        "scripts/phase1/global-workflows.mjs": "2b2b314dc13bb4a959110e16e92a7efe7126c7a0771ae03e4373c1e6139f65a0",
+        "scripts/phase1/global-rules.ts": "6c150a6c449a9d9db250e381498f7e41b9f8e530c1cf65465e3b0602b549db10",
+        "playwright.config.ts": "0e76e629e0d560d9b4363f171f8008c71a072c74691f12daa33009e35abce9fb",
+        "tests/browser/compare-experiments.spec.ts": "65d6c3d82da1413f0bb173a9400cf5d7d269d08b0e132f3ecfb9604c39c6f9f0",
+        "tests/browser/log-compare.spec.ts": "efbfd5597f56d7e0520a094c09cae7e8c089563e3d2d5b5d32d0cecc93d9b6ae",
+        "tests/browser/from-log-compare.spec.ts": "82d3df935007dca5db4329dd60eb82590f4b62dc725f286d87d8d2bad34ced7f"
+      }
+    },
+    {
+      "sId": "S19",
+      "configuration": null,
+      "workflow": "parameter-export",
+      "criterion": "ArduPilot parameter file export",
+      "verdict": "PASS",
+      "evidence": {
+        "path": "test-results/validation/phase1-global/parameter-export.json",
+        "sha256": "cdbaaf1d7ccb29f83bc0c3361768fa243f2082307cf079d6c06a866ecaa6a2fd"
+      },
+      "device": {
+        "model": "Mac17,4",
+        "chip": "Apple M5",
+        "memoryBytes": 34359738368,
+        "macOS": "27.2",
+        "chrome": null,
+        "lowPowerMode": false
+      },
+      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
+      "uncommittedFiles": 131,
+      "sources": {
+        "scripts/phase1/global-workflows.mjs": "2b2b314dc13bb4a959110e16e92a7efe7126c7a0771ae03e4373c1e6139f65a0",
+        "scripts/phase1/global-rules.ts": "6c150a6c449a9d9db250e381498f7e41b9f8e530c1cf65465e3b0602b549db10",
+        "playwright.config.ts": "0e76e629e0d560d9b4363f171f8008c71a072c74691f12daa33009e35abce9fb",
+        "tests/browser/parameter-export.spec.ts": "853eea1398ece138693ed6cca8095c7b224d0575e9109ef92ad23dde852275cf"
+      }
+    }
+  ],
+  "performance": {
+    "A-04": {
+      "physicsHz": 800
+    },
+    "A-05": {
+      "realTimeRuns": [
+        {
+          "configuration": "quad",
+          "averageRatio": 1.001163032846357,
+          "droppedIntervals": 0
+        },
+        {
+          "configuration": "hexa",
+          "averageRatio": 1.0010426279966362,
+          "droppedIntervals": 0
+        },
+        {
+          "configuration": "octo",
+          "averageRatio": 1.0010661936458076,
+          "droppedIntervals": 1
+        },
+        {
+          "configuration": "x8",
+          "averageRatio": 1.001030443547442,
+          "droppedIntervals": 1
+        },
+        {
+          "configuration": "octo-paired-16",
+          "averageRatio": 1.00079480276413,
+          "droppedIntervals": 1
+        }
+      ],
+      "hour": {
+        "mode": "as-fast-as-possible",
+        "averageRatio": 3.6981396386236454,
+        "simElapsedS": 3644.9,
+        "runningWallS": 985.6036700000167,
+        "executedHz": 2959.3233961881965,
+        "droppedIntervals": 0,
+        "steps": 2916720,
+        "lost": 0,
+        "resent": 0,
+        "held": 0
+      }
+    },
+    "A-08": {
+      "recordingBytes": 250111288,
+      "simulatedS": 3645.1,
+      "limitBytesPerSimHour": 2000000000
+    },
+    "A-12": {
+      "peakResidentBytes": 3251388416,
+      "limitBytes": 8000000000
+    }
+  },
+  "open": [
+    {
+      "id": "TASK-099",
+      "kind": "task",
+      "status": "BLOCKED_EXTERNAL",
+      "what": "Vortex ring state, windmill brake and descent inflow"
+    },
+    {
+      "id": "TASK-100",
+      "kind": "task",
+      "status": "BLOCKED_EXTERNAL",
+      "what": "Rotor ground effect"
+    },
+    {
+      "id": "TASK-101",
+      "kind": "task",
+      "status": "BLOCKED_EXTERNAL",
+      "what": "Rotor–rotor and rotor–airframe interference"
+    },
+    {
+      "id": "TASK-145",
+      "kind": "task",
+      "status": "BLOCKED_EXTERNAL",
+      "what": "Measured-mode propulsion calibration"
+    },
+    {
+      "id": "TASK-184",
+      "kind": "task",
+      "status": "BLOCKED_EXTERNAL",
+      "what": "Fidelity assessment per profile version and regime"
+    },
+    {
+      "id": "TASK-186",
+      "kind": "task",
+      "status": "BLOCKED_EXTERNAL",
+      "what": "Terrain source selection, coverage and missing-terrain pause"
+    },
+    {
+      "id": "TASK-190",
+      "kind": "task",
+      "status": "BLOCKED_DECISION",
+      "what": "macOS delivery: installation, restart, offline operation and recovery"
+    },
+    {
+      "id": "ardupilot-source",
+      "kind": "decision",
+      "status": "BLOCKED_DECISION",
+      "what": "ardupilot-source: restricted, and waiting for a decision: D-02 (TASK-127): building on the user's Mac from the pinned source distributes nothing; shipping a prebuilt SITL binary carries GPL-3.0 source obligations and needs a recorded decision. D-01 (TASK-128) selects the version."
+    },
+    {
+      "id": "A-06",
+      "kind": "measurement",
+      "status": "NOT_RUN",
+      "what": "The frame times of the Run tab on this code: MIRAGE_FRAME_TIME=1 opens a full-screen Chrome that must not be disturbed, last run 2026-11-01 (median 16.665 ms, no late frame)"
+    }
+  ],
+  "accepted": false,
+  "reasons": [
+    "TASK-099 is BLOCKED_EXTERNAL: Vortex ring state, windmill brake and descent inflow",
+    "TASK-100 is BLOCKED_EXTERNAL: Rotor ground effect",
+    "TASK-101 is BLOCKED_EXTERNAL: Rotor–rotor and rotor–airframe interference",
+    "TASK-145 is BLOCKED_EXTERNAL: Measured-mode propulsion calibration",
+    "TASK-184 is BLOCKED_EXTERNAL: Fidelity assessment per profile version and regime",
+    "TASK-186 is BLOCKED_EXTERNAL: Terrain source selection, coverage and missing-terrain pause",
+    "TASK-190 is BLOCKED_DECISION: macOS delivery: installation, restart, offline operation and recovery",
+    "ardupilot-source is BLOCKED_DECISION: ardupilot-source: restricted, and waiting for a decision: D-02 (TASK-127): building on the user's Mac from the pinned source distributes nothing; shipping a prebuilt SITL binary carries GPL-3.0 source obligations and needs a recorded decision. D-01 (TASK-128) selects the version.",
+    "A-06 is NOT_RUN: The frame times of the Run tab on this code: MIRAGE_FRAME_TIME=1 opens a full-screen Chrome that must not be disturbed, last run 2026-11-01 (median 16.665 ms, no late frame)"
+  ],
+  "fidelity": "Fidelity comparisons are data without verdicts (SA-01, TASK-133): they are not part of this report's verdicts."
+}
