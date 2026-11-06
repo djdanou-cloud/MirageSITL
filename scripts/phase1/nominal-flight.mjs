@@ -20,9 +20,8 @@
 // and never the matrix. Exit codes: 0 when every workflow passed; 1 when one failed or
 // was not reached, or a run file is missing or refused; 2 BLOCKED_EXTERNAL
 // (not macOS on Apple Silicon, no TASK-152 installation, or no Chrome).
-import { execFileSync, spawnSync } from 'node:child_process';
-import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { loadavg } from 'node:os';
 import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -30,6 +29,7 @@ import {
   CRITERIA, MATRIX_PATH, NOMINAL_CONFIGURATIONS, NOMINAL_TASK, REPORT_DIRECTORY, REPORT_SCHEMA_VERSION, STOCK_SETTINGS,
   acceptanceMachineReasons, configurationOf, judgeRun, parseNominalRun, writeNominalCells,
 } from './nominal-rules.ts';
+import { applicationFacts, hostFacts, sha256 } from './run-facts.mjs';
 
 const ROOT = fileURLToPath(new URL('../..', import.meta.url));
 const HOME = join(ROOT, '.cache/task-152/home');
@@ -42,8 +42,6 @@ const SOURCES = [
   ...['motor', 'propeller', 'esc', 'battery'].map(type => `tests/fixtures/components/${type}-example.json`),
   ...NOMINAL_CONFIGURATIONS.map(c => `tests/fixtures/aircraft/${c.fixture}.json`),
 ];
-const sha256 = bytes => createHash('sha256').update(bytes).digest('hex');
-const text = (command, args) => execFileSync(command, args, { cwd: ROOT, encoding: 'utf8' }).trim();
 
 function parseArguments(argv) {
   const chosen = [];
@@ -63,44 +61,6 @@ function blocked(reason) {
   process.exit(2);
 }
 
-/** The host as A-01 describes the acceptance machine, with macOS and its built-in display's mode. */
-function hostFacts() {
-  const sysctl = name => text('/usr/sbin/sysctl', ['-n', name]);
-  let display = null;
-  try {
-    const report = JSON.parse(text('/usr/sbin/system_profiler', ['SPDisplaysDataType', '-json']));
-    for (const gpu of report.SPDisplaysDataType ?? []) {
-      for (const screen of gpu.spdisplays_ndrvs ?? []) {
-        if (screen.spdisplays_connection_type === 'spdisplays_internal') display = { mode: screen._spdisplays_resolution ?? null, pixels: screen._spdisplays_pixels ?? null };
-      }
-    }
-  } catch (error) {
-    display = { error: error instanceof Error ? error.message : String(error) };
-  }
-  // Low Power Mode limits the processor, which sets the measured run speed.
-  const lowPower = /lowpowermode\s+(\d)/.exec(text('/usr/bin/pmset', ['-g']))?.[1];
-  return {
-    platform: process.platform, arch: process.arch, model: sysctl('hw.model'), chip: sysctl('machdep.cpu.brand_string'), memoryBytes: Number(sysctl('hw.memsize')),
-    macOS: { productVersion: text('/usr/bin/sw_vers', ['-productVersion']), buildVersion: text('/usr/bin/sw_vers', ['-buildVersion']) },
-    node: process.version, display, lowPowerMode: lowPower === undefined ? null : lowPower === '1',
-  };
-}
-
-/** The checkout's commit and every uncommitted path, files with their SHA-256 (this script's own outputs left out). */
-function applicationFacts() {
-  const outputs = [REPORT_DIRECTORY, MATRIX_PATH];
-  // Not trimmed: each line's two status columns may start with a space.
-  const lines = execFileSync('git', ['status', '--porcelain=v1', '--untracked-files=normal'], { cwd: ROOT, encoding: 'utf8' }).split('\n').filter(line => line !== '');
-  const uncommitted = lines.map(line => ({ status: line.slice(0, 2), path: line.slice(3) }))
-    .filter(entry => !outputs.some(output => entry.path === output || entry.path.startsWith(`${output}/`)))
-    .map(entry => {
-      const path = join(ROOT, entry.path);
-      const file = existsSync(path) && statSync(path).isFile();
-      return { ...entry, sha256: file ? sha256(readFileSync(path)) : null };
-    });
-  return { commit: text('git', ['rev-parse', 'HEAD']), uncommitted };
-}
-
 function main() {
   const { ids, chrome, settings } = parseArguments(process.argv.slice(2));
   if (process.platform !== 'darwin' || process.arch !== 'arm64') blocked(`${process.platform} ${process.arch}: Phase 1 acceptance runs on macOS on Apple Silicon`);
@@ -108,7 +68,7 @@ function main() {
   if (!existsSync(chrome)) blocked(`no Google Chrome at ${chrome}: install it or pass --chrome PATH`);
 
   // What this run is, taken before it: the checkout and the files that define it.
-  const application = applicationFacts();
+  const application = applicationFacts(ROOT, [REPORT_DIRECTORY, MATRIX_PATH]);
   const sources = Object.fromEntries(SOURCES.map(path => [path, sha256(readFileSync(join(ROOT, path)))]));
   const started = Date.now();
   const out = join(ROOT, 'test-results/phase1/nominal', new Date(started).toISOString().replace(/[:.]/g, '-'));
@@ -124,7 +84,7 @@ function main() {
   console.log(`Playwright exited with ${playwright.status ?? playwright.signal}`);
 
   // Other programs share the CPU, which sets the measured run speed, so the load averages go with the evidence.
-  const host = { ...hostFacts(), loadAverages: { before: loadBefore, after: loadavg() } };
+  const host = { ...hostFacts(ROOT), loadAverages: { before: loadBefore, after: loadavg() } };
   const machine = acceptanceMachineReasons(host);
   let matrix = JSON.parse(readFileSync(join(ROOT, MATRIX_PATH), 'utf8')), allPassed = true;
   mkdirSync(join(ROOT, REPORT_DIRECTORY), { recursive: true });

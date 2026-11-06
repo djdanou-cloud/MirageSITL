@@ -111,10 +111,10 @@ export async function seedQuadProject(page: Page, profileName: string, options: 
  * fixture (named after the fixture), every motor on the example motor,
  * propeller and ESC, and opens it on the Run tab after a reload.
  */
-export async function seedProfiles(page: Page, fixtures: readonly (typeof S19_FIXTURES)[number][]): Promise<{ projectId: string; profiles: Record<string, string> }> {
+export async function seedProfiles(page: Page, fixtures: readonly (typeof S19_FIXTURES)[number][], options: { readonly batteryCapacityAh?: number } = {}): Promise<{ projectId: string; profiles: Record<string, string> }> {
   const texts = Object.fromEntries(fixtures.map(name => [name, read(`../fixtures/aircraft/${name}.json`)]));
   await page.goto("/");
-  const seeded = await page.evaluate(async ({ urls, texts, cards }) => {
+  const seeded = await page.evaluate(async ({ urls, texts, cards, capacityAh }) => {
     const { ProjectStore } = await import(urls.store) as Store;
     const { profileDraft, validateAircraftProfile, withPropellerPolars } = await import(urls.profile) as Profiles;
     const { saveNavigation } = await import(urls.navigation) as Navigation;
@@ -128,7 +128,9 @@ export async function seedProfiles(page: Page, fixtures: readonly (typeof S19_FI
         const values: unknown = Reflect.get(card, "values");
         const provenance = Object.fromEntries(Object.entries(typeof values === "object" && values !== null ? values : {})
           .map(([key, value]) => [key, value === null ? null : "example"]));
-        ids[type] = (await store.createItem(project.record.id, "component-card", { name: `Example ${type}`, payload: { ...card, provenance } })).sha256;
+        // A battery of another capacity is a test input (TASK-189: an hour's flight), not a measured pack.
+        const payload = type === "battery" && capacityAh !== null ? { ...card, values: { ...(values as Record<string, unknown>), capacityAh }, provenance } : { ...card, provenance };
+        ids[type] = (await store.createItem(project.record.id, "component-card", { name: `Example ${type}`, payload })).sha256;
       }
       const propeller = ids.propeller, motor = ids.motor, esc = ids.esc, battery = ids.battery;
       if (propeller === undefined || motor === undefined || esc === undefined || battery === undefined) throw new Error("A component card fixture is missing");
@@ -144,7 +146,7 @@ export async function seedProfiles(page: Page, fixtures: readonly (typeof S19_FI
     } finally {
       store.close();
     }
-  }, { urls, texts, cards: CARDS });
+  }, { urls, texts, cards: CARDS, capacityAh: options.batteryCapacityAh ?? null });
   await page.reload();
   return seeded;
 }
