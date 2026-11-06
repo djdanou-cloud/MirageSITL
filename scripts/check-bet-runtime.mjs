@@ -281,6 +281,15 @@ if(!allocation){
     const fullGraph={graph:'extended-polar-synthetic-pad-four-rotor',variant,...await measure(fullRun,1000000),memoryStable:full.engine.memoryStable};
     samples.push(fullGraph);full.dispose();console.log(JSON.stringify(fullGraph));
   }
+  // TASK-100: the rotor ground effect on the ESC drive's interface.
+  {
+    const near=new BetFlightDynamics(modules[0],driven,400);
+    near.setGroundEffect(1);
+    const nearRun=n=>{for(let i=0;i<n;i++){near.nowMs=0;near.stepNow(escPilot);if(near.fault||near.state.down!==0)throw Error('Ground effect allocation step failed');}};
+    nearRun(100000);await measure(nearRun,10000);
+    const nearGraph={graph:'ground-effect-esc-drive-pad-four-rotor',variant:'scalar',...await measure(nearRun,1000000),memoryStable:near.escEngine.memoryStable};
+    samples.push(nearGraph);near.dispose();console.log(JSON.stringify(nearGraph));
+  }
   // TASK-098 and TASK-099: dynamic inflow with its annular solve and the vortex ring option, in a gusty wind on the pad.
   for(const [variantIndex,variant] of ['scalar','simd128'].entries()){
     const dynamic=padded();dynamic.dynamicInflow=true;dynamic.vortexRingSeed=7;dynamic.inflowTauS=dynamic.inflowTauS.map(()=>0);

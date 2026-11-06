@@ -1,6 +1,6 @@
 # SPECS_SHARED_MEMORY.md
 
-<!-- source-sha256: 7fbd132c3a200bbff3a0d377a4103d868de484ab7662fa763031a7e27e0477ac -->
+<!-- source-sha256: deca9f56d20b5e4e6881c5c2efe467a9ffcd7a0d79bc52cfc3e08a77e868f517 -->
 
 Английский источник: [Source of truth](../SPECS_SHARED_MEMORY.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -564,6 +564,7 @@ export interface EffectSetCommand {
 | `ew.position-step` | `offsetNedM`, м, длина не больше 10000 | Умножает смещение | Модель скачка позиции |
 | `ew.velocity-drift` | `accelerationNedMps2`, м/с², длина не больше 0.3; `maxSpeedMps`, м/с, (0, 20] | Умножает оба | Модель дрейфа |
 | `ew.magnetic` | `rotationRad`, рад, ±π по каждой оси; `biasBodyGauss`, Гс, ±2 по каждой оси | Умножает оба | Магнитная модель |
+| `rotor.ground-effect` | Нет | Умножает поправку `(R/4z)^2` и сумму соседей: 0 — влияния нет, 1 — замкнутая формула | Влияние земли на ротор (TASK-100), которому нужен привод ESC |
 | `motor.loss` | `motorIndex`, 0..31 и меньше числа роторов; `mode`, `power-cut` или `instant-thrust-loss`; `remainingThrustFraction`, 0..1 | Умножает потерянную тягу: остаток = 1 − i·(1 − r), ровно r при i = 1 | Таблица отказов моторов |
 | `sensor.imu.accel-noise` | `densityMps2PerSqrtHz`, м/с²/√Гц, 0..0.01 | Умножает плотность | Поле вкладки Sensors |
 | `sensor.imu.gyro-noise` | `densityRadSPerSqrtHz`, рад/с/√Гц, 0..0.001 | Умножает плотность | Поле вкладки Sensors |

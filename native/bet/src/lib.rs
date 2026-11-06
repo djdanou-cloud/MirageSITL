@@ -40,6 +40,7 @@ pub mod flapping;
 pub mod momentum;
 #[cfg(all(target_arch = "wasm32", feature = "kernel-test-exports"))]
 mod test_exports;
+pub mod ground_effect;
 pub mod quadrature;
 pub mod polar;
 pub mod propeller;

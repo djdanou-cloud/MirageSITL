@@ -136,6 +136,8 @@ export interface SessionDynamics {
    * is the wind of the last step and `air` the ISA air at the CG after it (the AIR_* slots).
    */
   setWeather?(weather: Float64Array): string | null;
+  /** TASK-100: the rotor ground effect's intensity from this tick, 0 for off; absent where the backend has none. */
+  setGroundEffect?(intensity: number): void;
   /** TASK-166: ends the weather at its tick boundary, allocation-free: as if no weather had been set. */
   clearWeather?(): void;
   readonly weatherActive?: boolean;
@@ -440,6 +442,11 @@ export class PhysicsSessionV2 {
   }
   /** TASK-166: one environment effect's values at its tick. With none left on the weather ends, so an effect that was never on changes nothing. */
   private applyEnvironment(control: Extract<EffectiveControl, { family: "environment" }>): ScheduledRejectV2 | null {
+    if (control.effect === "rotor.ground-effect") {
+      if (!this.dynamics.setGroundEffect) return NOT_MODELED;
+      this.dynamics.setGroundEffect(control.active ? control.intensity : 0);
+      return null;
+    }
     if (!this.dynamics.setWeather) return NOT_MODELED;
     const w = this.weather, before = this.environment, on = control.active;
     // Changing the wind or the air leaves a running gust alone; only a change of the gust itself starts it again.
@@ -508,6 +515,7 @@ export class PhysicsSessionV2 {
       const effective = command.effective;
       switch (effective.family) {
         case "environment":
+          if (effective.effect === "rotor.ground-effect") return this.dynamics.setGroundEffect ? null : "This backend has no rotor ground effect; it needs the ESC drive";
           return this.dynamics.setWeather ? null : `The demo backend has no atmosphere/wind model; ${command.control.effect} is not supported`;
         case "fault": return this.unsupportedFault(effective.fault, command.control.effect);
         case "sensor": return `A running session cannot change ${command.control.effect}; sensor errors are set on the Sensors tab, before the run`;

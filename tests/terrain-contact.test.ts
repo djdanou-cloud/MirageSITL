@@ -121,3 +121,17 @@ it("samples each wheel at its rotated anchor position", async () => {
     contact.dispose();
   }
 }, 120000);
+
+it("serves the plane under a hub for the rotor ground effect, and says where there is none (TASK-100)", async () => {
+  const contact = await GroundContact.create(newBodyTruth(), 10, 0.1, 0, 0, syntheticGearOptions());
+  const k = Math.tan(8 * Math.PI / 180), length = Math.hypot(k, 1);
+  const coupler = new TerrainContactCoupler(contact, lattice(k, [0], [0]), anchors(), 0.6);
+  try {
+    const plane = new Float64Array(4);
+    expect(coupler.hubPlaneInto(2, 1, plane)).toBe(true);
+    // D = -k N: the normal faces up and leans to the South, and the surface passes through the origin.
+    for (const [got, want] of [[plane[0], -k / length], [plane[1], 0], [plane[2], -1 / length], [plane[3], 0]] as const) expect(Math.abs((got ?? NaN) - want)).toBeLessThan(1e-12);
+    expect(coupler.hubPlaneInto(-1, 1, plane)).toBe(false);
+    expect(Number.isNaN(plane[3])).toBe(true);
+  } finally { contact.dispose(); }
+});

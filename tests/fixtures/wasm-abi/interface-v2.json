@@ -1048,15 +1048,15 @@
       }
     },
     {
-      "why": "ground plane (TASK-100)",
-      "status": -8,
+      "why": "ground plane without a unit normal (TASK-100)",
+      "status": -3,
       "patch": {
         "offset": 4,
         "hex": "01000000"
       }
     },
     {
-      "why": "ground distance (TASK-100)",
+      "why": "ground distance without the plane flag (TASK-100)",
       "status": -8,
       "patch": {
         "offset": 184,

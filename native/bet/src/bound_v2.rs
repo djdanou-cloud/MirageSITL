@@ -6,7 +6,7 @@
 //! Drive mode 1 (TASK-092) runs the ESC and voltage-driven motor: the drive
 //! parameters sit in input bytes 192..256 and the ESC state in arena header
 //! bytes 32..56.
-use crate::bound::{self, Kernel};
+use crate::bound::{self, GroundPlane, Kernel};
 use crate::motor::{DriveMotor, EscState};
 
 /// Step record version.
@@ -67,9 +67,18 @@ fn step_with(arena: &mut [u8], input: &[u8], out: &mut [u8], dt: f64, kernel: Ke
     let (flags, drive) = (word(input, 4), word(input, 8));
     if flags & !INPUT_GROUND_PLANE != 0 || drive > DRIVE_ESC_DUTY || !zero(input, 12, 16) { return -3; }
     if !(16..192).step_by(8).all(|p| value(input, p).is_finite()) { return -3; }
-    // External wake (TASK-101) and ground plane (TASK-100) stay fail-closed.
-    if !neutral(input, 136, 160) || flags & INPUT_GROUND_PLANE != 0 || !neutral(input, 160, 192) { return UNSUPPORTED; }
-    if drive == DRIVE_ESC_DUTY { return esc_step(arena, input, out, dt, kernel); }
+    // External wake (TASK-101) stays fail-closed.
+    if !neutral(input, 136, 160) { return UNSUPPORTED; }
+    // The ground plane (TASK-100): with its flag a unit normal and a height; without it, neutral.
+    let ground = if flags & INPUT_GROUND_PLANE != 0 {
+        let (nx, ny, nz) = (value(input, 160), value(input, 168), value(input, 176));
+        if ((nx * nx + ny * ny + nz * nz).sqrt() - 1.0).abs() > 1e-6 { return -3; }
+        Some(GroundPlane { height_m: value(input, 184), cos_tilt: nz })
+    } else {
+        if !neutral(input, 160, 192) { return UNSUPPORTED; }
+        None
+    };
+    if drive == DRIVE_ESC_DUTY { return esc_step(arena, input, out, dt, kernel, ground); }
     // Torque mode: ESC duty, bus voltage and the drive parameters stay neutral.
     if !zero(input, 192, 256) { return -3; }
     if !neutral(input, 120, 136) { return UNSUPPORTED; }
@@ -77,13 +86,18 @@ fn step_with(arena: &mut [u8], input: &[u8], out: &mut [u8], dt: f64, kernel: Ke
     let mut v1 = [0u8; bound::INPUT_BYTES as usize];
     v1[0..4].copy_from_slice(&bound::VERSION.to_le_bytes());
     v1[8..112].copy_from_slice(&input[16..120]);
+    let advanced = match bound::advance_with(arena, &v1, bound::OUTPUT_BYTES as usize, dt, None, kernel, ground) {
+        Ok(a) => a,
+        Err(status) => return status,
+    };
     let mut staged = [0u8; bound::OUTPUT_BYTES as usize];
-    let status = if kernel == Kernel::Production { bound::step(arena, &v1, &mut staged, dt) } else { bound::step_reference(arena, &v1, &mut staged, dt) };
-    if status != 0 { return status; }
+    bound::commit(arena, &mut staged, &advanced);
     out.fill(0);
     out[0..128].copy_from_slice(&staged);
-    // Without dynamic inflow the validity word at 116 stays zero: no later-task output is available.
-    publish_harmonics(arena, out, 0);
+    // The validity word at 116 stays zero unless a later-task output is available.
+    let validity = if ground.is_some() { VALID_GROUND_EFFECT } else { 0 };
+    if validity != 0 { put_word(out, 116, validity); }
+    publish_harmonics(arena, out, validity);
     0
 }
 
@@ -115,7 +129,7 @@ pub fn esc_load(arena: &[u8], input: &[u8], dt: f64) -> Result<crate::bus_solve:
 
 /// Drive mode 1: ESC command, torque law, rotor step and electrical outputs,
 /// all computed before anything is written.
-fn esc_step(arena: &mut [u8], input: &[u8], out: &mut [u8], dt: f64, kernel: Kernel) -> i32 {
+fn esc_step(arena: &mut [u8], input: &[u8], out: &mut [u8], dt: f64, kernel: Kernel, ground: Option<GroundPlane>) -> i32 {
     let drive_flags = word(input, 248);
     if drive_flags & !DRIVE_POWER_CUT != 0 || !zero(input, 252, 256) || !(192..248).step_by(8).all(|p| value(input, p).is_finite())
         || value(input, 112) != 0.0 {
@@ -134,7 +148,7 @@ fn esc_step(arena: &mut [u8], input: &[u8], out: &mut [u8], dt: f64, kernel: Ker
     let mut v1 = [0u8; bound::INPUT_BYTES as usize];
     v1[0..4].copy_from_slice(&bound::VERSION.to_le_bytes());
     v1[8..112].copy_from_slice(&input[16..120]);
-    let advanced = match bound::advance_with(arena, &v1, bound::OUTPUT_BYTES as usize, dt, Some(torque), kernel) {
+    let advanced = match bound::advance_with(arena, &v1, bound::OUTPUT_BYTES as usize, dt, Some(torque), kernel, ground) {
         Ok(a) => a,
         Err(status) => return status,
     };
@@ -148,7 +162,8 @@ fn esc_step(arena: &mut [u8], input: &[u8], out: &mut [u8], dt: f64, kernel: Ker
         let flags = word(&staged, 112) | FLAG_CURRENT_LIMITED;
         put_word(&mut staged, 112, flags);
     }
-    put_word(&mut staged, 116, VALID_ELECTRICAL);
+    let validity = VALID_ELECTRICAL | if ground.is_some() { VALID_GROUND_EFFECT } else { 0 };
+    put_word(&mut staged, 116, validity);
     put(&mut staged, 144, electrical.current_a);
     put(&mut staged, 152, bus_current);
     put(&mut staged, 160, electrical.terminal_power_w);
@@ -159,6 +174,6 @@ fn esc_step(arena: &mut [u8], input: &[u8], out: &mut [u8], dt: f64, kernel: Ker
     put(arena, 40, command.held);
     put(arena, 48, command.countdown_s);
     out.copy_from_slice(&staged);
-    publish_harmonics(arena, out, VALID_ELECTRICAL);
+    publish_harmonics(arena, out, validity);
     0
 }

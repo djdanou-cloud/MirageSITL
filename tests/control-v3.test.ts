@@ -38,7 +38,7 @@ const command = (c: EffectControl) => ({ protocolVersion: 3, requestId: 1, expec
 
 describe('the effect catalog', () => {
   it('names the effects Phase 1 has models for, each field with a unit and a range, and a starting value inside that range', () => {
-    expect([...EFFECT_IDS].sort()).toEqual(['atmosphere', 'ew.gnss-jamming', 'ew.magnetic', 'ew.position-step', 'ew.velocity-drift', 'motor.loss', 'sensor.battery.current', 'sensor.battery.voltage',
+    expect([...EFFECT_IDS].sort()).toEqual(['atmosphere', 'ew.gnss-jamming', 'ew.magnetic', 'ew.position-step', 'ew.velocity-drift', 'motor.loss', 'rotor.ground-effect', 'sensor.battery.current', 'sensor.battery.voltage',
       'sensor.imu.accel-bias', 'sensor.imu.accel-noise', 'sensor.imu.gyro-bias', 'sensor.imu.gyro-noise', 'sensor.imu.latency', 'wind.gust', 'wind.mean', 'wind.turbulence',
       'link.gcs', 'link.pilot', 'sensor.baro.frozen', 'sensor.baro.missing', 'sensor.gnss.frozen', 'sensor.gnss.missing', 'sensor.imu.frozen', 'sensor.imu.missing', 'sensor.mag.frozen', 'sensor.mag.missing'].sort());
     for (const id of EFFECT_IDS) {
@@ -239,6 +239,9 @@ describe('intensity', () => {
     expect(effective(control('wind.gust', { rmsMps: 1.5, bandwidthHz: 3, seed: 9 }, 2))).toMatchObject({ active: true, rmsMps: 3, bandwidthHz: 3, seed: 9 });
   });
   it('multiplies the strength of turbulence, and leaves W20 and the seed as written', () => {
+    expect(effective(control('rotor.ground-effect', {}, 0.5))).toMatchObject({ family: 'environment', effect: 'rotor.ground-effect', active: true, intensity: 0.5 });
+    expect(effective(control('rotor.ground-effect', {}, 0))).toMatchObject({ active: false });
+    expect(effective(control('rotor.ground-effect', {}, 1, false))).toMatchObject({ active: false });
     expect(effective(control('wind.turbulence', { w20Mps: 10, seed: 4 }, 3))).toMatchObject({ active: true, w20Mps: 10, intensity: 3, seed: 4 });
     expect(effective(control('wind.turbulence', { w20Mps: 10, seed: 4 }, 0))).toMatchObject({ active: false });
     // No strength at all is no effect, on or off.

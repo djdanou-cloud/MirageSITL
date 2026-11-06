@@ -19,6 +19,8 @@ export const ALLOCATION_GRAPHS: readonly (readonly [graph: string, variant: Allo
   ["extended-polar-synthetic-pad-four-rotor", "scalar"], ["extended-polar-synthetic-pad-four-rotor", "simd128"],
   // TASK-098 dynamic inflow with its annular solve.
   ["dynamic-inflow-synthetic-pad-four-rotor", "scalar"], ["dynamic-inflow-synthetic-pad-four-rotor", "simd128"],
+  // TASK-100 the rotor ground effect, on every rotor at every step.
+  ["ground-effect-esc-drive-pad-four-rotor", "scalar"],
 ];
 
 function field(value: unknown, key: string): unknown {

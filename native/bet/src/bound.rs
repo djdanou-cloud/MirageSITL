@@ -1,7 +1,7 @@
 //! Versioned caller-owned production rotor/polar binding; see bet_bound.h.
 use crate::{blade::{InflowField, RotationalAugmentation, Rotor, RotorGeometry, RotorInput},
     inflow::{AnnularMomentum, AxialInflow, DynamicInflow, InflowStates, ThrustFluctuation, MAX_INFLOW_STRIPS},
-    motor::DriveTorque, polar::PolarTable, quadrature::AzimuthGrid, shaft::Shaft, Vec3};
+    ground_effect, motor::DriveTorque, polar::PolarTable, quadrature::AzimuthGrid, shaft::Shaft, Vec3};
 
 /// Independent binding version (legacy arena ABI remains v1).
 pub const VERSION: u32 = 1;
@@ -179,7 +179,7 @@ pub fn step(arena: &mut [u8], input: &[u8], out: &mut [u8], dt: f64) -> i32 {
 /// revalidated and `Rotor::evaluate` on every step, as before TASK-091. For
 /// tests and benchmarks only; no WASM export calls it.
 pub fn step_reference(arena: &mut [u8], input: &[u8], out: &mut [u8], dt: f64) -> i32 {
-    match advance_with(arena,input,out.len(),dt,None,Kernel::Reference) {
+    match advance_with(arena,input,out.len(),dt,None,Kernel::Reference,None) {
         Ok(a) => { commit(arena,out,&a); 0 }
         Err(status) => status,
     }
@@ -246,16 +246,23 @@ pub(crate) fn inflow_harmonics(arena: &[u8]) -> Option<(f64,f64)> {
     Some((f(bytes,at)?,f(bytes,at+8)?))
 }
 
+/// The ground plane of a step (TASK-100): the hub's height along the plane's normal and the hub axis on that normal.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct GroundPlane {
+    pub(crate) height_m: f64,
+    pub(crate) cos_tilt: f64,
+}
+
 /// Computes one step without writing anything. `esc` is `None` for the v1
 /// torque drive, read from the record, and the ESC drive's torque law for
 /// interface v2 drive mode 1 (TASK-092), whose ESC state occupies arena
 /// header bytes 32..56.
 pub(crate) fn advance(arena: &[u8], input: &[u8], out_len: usize, dt: f64, esc: Option<DriveTorque>) -> Result<Advanced, i32> {
-    advance_with(arena,input,out_len,dt,esc,Kernel::Production)
+    advance_with(arena,input,out_len,dt,esc,Kernel::Production,None)
 }
 
 /// `advance` on a chosen kernel.
-pub(crate) fn advance_with(arena: &[u8], input: &[u8], out_len: usize, dt: f64, esc: Option<DriveTorque>, kernel: Kernel)
+pub(crate) fn advance_with(arena: &[u8], input: &[u8], out_len: usize, dt: f64, esc: Option<DriveTorque>, kernel: Kernel, ground: Option<GroundPlane>)
     -> Result<Advanced, i32> {
     if arena_len(arena)!=Some(arena.len() as u32) {return Err(-1);}
     if input.len()!=INPUT_BYTES as usize || out_len!=OUTPUT_BYTES as usize {return Err(-2);}
@@ -306,6 +313,15 @@ pub(crate) fn advance_with(arena: &[u8], input: &[u8], out_len: usize, dt: f64, 
             None=>(empty,0.0,0.0,1.0),
         };
         let start_field=InflowField{shape:shape_now,cos_mps:cos_now,sin_mps:sin_now};
+        // Ground effect (TASK-100): the kernels take the induced velocity times the factor, and the inflow state follows the
+        // loads times the same factor. It therefore stays at the velocity of the same power out of ground effect, as in the
+        // closed form: induced power T k v is unchanged when T grows by 1/k. A state following T alone would give k^(-2/3).
+        let across=if ground.is_some() {i.air_velocity_hub_mps.x.hypot(i.air_velocity_hub_mps.y)} else {0.0};
+        let near_ground=|mean:f64| ground.map(|plane| ground_effect::induced_factor(c.geometry.radius_m,plane.height_m,plane.cos_tilt,across,mean));
+        let mut below_envelope=false;
+        let mut i=i;
+        let mut start_factor=1.0;
+        if let Some(effect)=near_ground(induced) {i.induced_mps=induced*effect.factor;start_factor=effect.factor;below_envelope|=effect.below_envelope;}
         // Reduced predictor: samples 0 and N/2, whose first harmonics cancel; only the axial force and torque are used.
         let first=if reduced_predictor {rotor.evaluate_sampled_field(i,samples/2,start_field,None)} else {evaluate(&rotor,i,start_field,None)}.ok()?;
         // Hover sampling: the regime measure at the start of the step, with hysteresis between HOVER_ENTER and HOVER_LEAVE.
@@ -330,12 +346,14 @@ pub(crate) fn advance_with(arena: &[u8], input: &[u8], out_len: usize, dt: f64, 
         let dynamic_model=if dynamic.is_some() {Some(DynamicInflow::new(i.density_kg_m3,c.geometry.radius_m,c.tau,c.limit).ok()?.with_vortex_ring(c.vortex.is_some()))} else {None};
         let (half_mean,half_outside,half_cos,half_sin)=match &dynamic_model {
             Some(model)=>{
-                let r=model.step(start_states,loss_now,first.force_n.z,first.flap_load_nm.y,first.flap_load_nm.z,i.air_velocity_hub_mps,tip(omega),dt*0.5).ok()?;
+                let r=model.step(start_states,loss_now,first.force_n.z*start_factor,first.flap_load_nm.y*start_factor,first.flap_load_nm.z*start_factor,i.air_velocity_hub_mps,tip(omega),dt*0.5).ok()?;
                 (r.states.mean_mps,r.outside_validity,r.states.cos_mps,r.states.sin_mps)
             }
-            None=>{let r=flow_model.as_ref()?.step(induced,first.force_n.z,i.air_velocity_hub_mps.z,transverse,dt*0.5).ok()?;(r.velocity_mps,r.outside_validity,0.0,0.0)}
+            None=>{let r=flow_model.as_ref()?.step(induced,first.force_n.z*start_factor,i.air_velocity_hub_mps.z,transverse,dt*0.5).ok()?;(r.velocity_mps,r.outside_validity,0.0,0.0)}
         };
         let mut midpoint=i;midpoint.omega_rad_s=half_shaft.omega_rad_s;midpoint.induced_mps=half_mean;
+        let mut mid_factor=1.0;
+        if let Some(effect)=near_ground(half_mean) {midpoint.induced_mps=half_mean*effect.factor;mid_factor=effect.factor;below_envelope|=effect.below_envelope;}
         let mid_field=InflowField{shape:shape_now,cos_mps:half_cos,sin_mps:half_sin};
         let mut strip_thrust=[0.0;MAX_INFLOW_STRIPS];
         let thrust_out:Option<&mut [f64]>=if dynamic.is_some() {Some(&mut strip_thrust[..ns.min(MAX_INFLOW_STRIPS)])} else {None};
@@ -346,7 +364,7 @@ pub(crate) fn advance_with(arena: &[u8], input: &[u8], out_len: usize, dt: f64, 
             Some((seed,at))=>{
                 let previous=ThrustFluctuation{active:f(bytes,at)?!=0.0,value:f(bytes,at+8)?,generator:u64::from_le_bytes(bytes.get(at+16..at+24)?.try_into().ok()?)};
                 let sign=if aero.force_n.z<0.0 {-1.0} else {1.0};
-                let hover_mps=(aero.force_n.z.abs()/(2.0*i.density_kg_m3*std::f64::consts::PI*c.geometry.radius_m*c.geometry.radius_m)).sqrt();
+                let hover_mps=(aero.force_n.z.abs()*mid_factor/(2.0*i.density_kg_m3*std::f64::consts::PI*c.geometry.radius_m*c.geometry.radius_m)).sqrt();
                 let (vz,vx)=if hover_mps>0.0 {(-i.air_velocity_hub_mps.z*sign/hover_mps,transverse/hover_mps)} else {(0.0,f64::INFINITY)};
                 Some((at,previous.step(seed,vz,vx,hover_mps,c.geometry.radius_m,dt)))
             }
@@ -359,12 +377,13 @@ pub(crate) fn advance_with(arena: &[u8], input: &[u8], out_len: usize, dt: f64, 
         let shaft=shaft_step(aero.moment_nm.z,dt).ok()?;
         let (next_mean,mut full_outside,inflow_state)=match (&dynamic_model,&dynamic) {
             (Some(model),Some((at,_,_,_,shape)))=>{
-                let r=model.step(start_states,loss_now,mean_aero.force_n.z,mean_aero.flap_load_nm.y,mean_aero.flap_load_nm.z,i.air_velocity_hub_mps,tip(half_shaft.omega_rad_s),dt).ok()?;
+                let r=model.step(start_states,loss_now,mean_aero.force_n.z*mid_factor,mean_aero.flap_load_nm.y*mid_factor,mean_aero.flap_load_nm.z*mid_factor,i.air_velocity_hub_mps,tip(half_shaft.omega_rad_s),dt).ok()?;
                 // The annular balance, once per step: it sets the loss and the shape, which follow with the mean's lag.
                 let sign=if mean_aero.force_n.z<0.0 {-1.0} else {1.0};
                 let annuli=AnnularMomentum{blade_count:c.geometry.blade_count,radius_m:c.geometry.radius_m,cutout_m:c.geometry.cutout_m,
                     strip_radius_m:c.geometry.radius,strip_width_m:c.geometry.width};
                 let n=ns.min(MAX_INFLOW_STRIPS);
+                if ground.is_some() {for thrust in strip_thrust[..n].iter_mut() {*thrust*=mid_factor;}}
                 let mut annular=[0.0;MAX_INFLOW_STRIPS];
                 for k in 0..n {annular[k]=induced*shape[k]*sign;}
                 let climb=-i.air_velocity_hub_mps.z*sign;
@@ -388,9 +407,9 @@ pub(crate) fn advance_with(arena: &[u8], input: &[u8], out_len: usize, dt: f64, 
                 }
                 (r.states.mean_mps,r.outside_validity||!converged,Some(region))
             }
-            _=>{let r=flow_model.as_ref()?.step(induced,aero.force_n.z,i.air_velocity_hub_mps.z,transverse,dt).ok()?;(r.velocity_mps,r.outside_validity,None)}
+            _=>{let r=flow_model.as_ref()?.step(induced,aero.force_n.z*mid_factor,i.air_velocity_hub_mps.z,transverse,dt).ok()?;(r.velocity_mps,r.outside_validity,None)}
         };
-        full_outside|=half_outside;
+        full_outside|=half_outside||below_envelope;
         let spin=c.geometry.spin_sign as f64;
         let h=spin*c.inertia*half_shaft.omega_rad_s;
         let dh=Vec3::new(0.0,0.0,spin*c.inertia*(shaft.omega_rad_s-omega)/dt)

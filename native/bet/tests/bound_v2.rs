@@ -97,7 +97,8 @@ fn invalid_and_unsupported_records_change_neither_state_nor_output() {
         ("ESC duty in torque mode", Box::new(|b| put(b, 120, 0.5)), bound_v2::UNSUPPORTED),
         ("bus voltage", Box::new(|b| put(b, 128, 16.8)), bound_v2::UNSUPPORTED),
         ("external wake", Box::new(|b| put(b, 144, 1.0)), bound_v2::UNSUPPORTED),
-        ("ground plane flag", Box::new(|b| word(b, 4, bound_v2::INPUT_GROUND_PLANE)), bound_v2::UNSUPPORTED),
+        // TASK-100 opened the flag: with it the normal must be a unit vector.
+        ("ground plane flag without a unit normal", Box::new(|b| word(b, 4, bound_v2::INPUT_GROUND_PLANE)), -3),
         ("ground normal", Box::new(|b| put(b, 176, -1.0)), bound_v2::UNSUPPORTED),
         ("ground distance", Box::new(|b| put(b, 184, 0.5)), bound_v2::UNSUPPORTED),
     ];
@@ -397,6 +398,30 @@ fn vortex_ring_state_allocates_zero_over_one_million_steps() {
     TRACK.with(|t| t.set(false));
     assert_eq!(status, 0);
     assert_eq!((CALLS.load(Ordering::Relaxed), BYTES.load(Ordering::Relaxed)), (0, 0));
+}
+
+/// TASK-100: a step with a ground plane adds no allocation, over a million steps.
+#[test]
+fn ground_effect_allocates_zero_over_one_million_steps() {
+    let (c, _, _) = fixture();
+    let mut arena = vec![0u8; 64 + c.len()];
+    assert_eq!(bound::init(&c, &mut arena, 0), 0);
+    let (_, mut input) = inputs();
+    let mut out = [0u8; 256];
+    word(&mut input, 4, bound_v2::INPUT_GROUND_PLANE);
+    put(&mut input, 176, 1.0);
+    put(&mut input, 184, 0.2);
+    CALLS.store(0, Ordering::Relaxed);
+    BYTES.store(0, Ordering::Relaxed);
+    TRACK.with(|t| t.set(true));
+    let mut status = 0;
+    for _ in 0..1_000_000 {
+        status |= black_box(bound_v2::step(&mut arena, &input, &mut out, DT));
+    }
+    TRACK.with(|t| t.set(false));
+    assert_eq!(status, 0);
+    assert_eq!((CALLS.load(Ordering::Relaxed), BYTES.load(Ordering::Relaxed)), (0, 0));
+    assert_eq!(read_word(&out, 116) & bound_v2::VALID_GROUND_EFFECT, bound_v2::VALID_GROUND_EFFECT);
 }
 
 fn stations(config: &[u8]) -> usize {

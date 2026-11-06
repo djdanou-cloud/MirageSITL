@@ -76,6 +76,8 @@ export interface BetFlightConfiguration {
   dynamicInflow?: boolean;
   /** TASK-099, with `dynamicInflow`: Johnson's vortex ring state; each rotor's thrust fluctuation is seeded from this and its index. */
   vortexRingSeed?: number;
+  /** TASK-100: the ground the rotor ground effect sees; without it a flat plane at the session's ground. */
+  groundPlanes?: GroundPlaneSource;
   /**
    * TASK-146 component ratings checked every step with the ESC drive; null or
    * absent checks none, and the modeled clamps are reported either way.
@@ -93,6 +95,29 @@ export interface BetFlightConfiguration {
    * dynamics checks every step's shape reports against decision F-09 (`accidents`).
    */
   contactParts?: readonly ContactShapePart[];
+}
+/**
+ * Where the ground is under a point (TASK-100): `out` is [nN, nE, nD, offset], the unit normal pointing out of the ground and
+ * `n.p - offset` the height above it; a NaN offset means no ground there. `@mirage/terrain` CollisionChunks provides it.
+ */
+export interface GroundPlaneSource { planeInto(position: Float64Array, out: Float64Array): void }
+/**
+ * TASK-100: each rotor's correction `(R/4z)^2` at its axial height, with each neighbour's
+ * `(R_j^2/2) z / (D^2 + 4 z^2)^(3/2)` (Sanchez-Cuevas et al. 2017, whose quadrotor has two adjacent rotors and one diagonal).
+ * `lateral` holds n x n squared lateral distances; a negative one is not a neighbour. Arrays only: a double crossing a call boxes.
+ */
+export function groundEffectCorrectionsInto(n:number,radius:Float64Array,heightM:Float64Array,lateral:Float64Array,out:Float64Array):void {
+  for(let i=0;i<n;i++){
+    const zM=heightM[i]!,own=radius[i]!/(4*zM);
+    let term=own*own;
+    for(let j=0;j<n;j++){
+      const d2=lateral[i*n+j]!;
+      if(d2<0)continue;
+      const s=d2+4*zM*zM;
+      term+=0.5*radius[j]!*radius[j]!*zM/(s*Math.sqrt(s));
+    }
+    out[i]=term;
+  }
 }
 /** What `BetFlightDynamics` needs of its contact; `GroundContact` provides it. */
 export interface FlightContact {
@@ -191,6 +216,18 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
   private readonly dragMaxAirspeedMps:number;
   private readonly groundDown:number|undefined;
   private readonly contact:FlightContact|null;
+  /** TASK-100: the ground effect's intensity, 0 for off, and what it needs: hub lateral distances squared (negative: not a neighbour). */
+  private groundIntensity=0;
+  private readonly groundPlanes:GroundPlaneSource;
+  /** The step's midpoint attitude and each rotor's correction, in slots: a double crossing a call boxes. */
+  private readonly groundAttitude=new Float64Array(4);
+  private readonly groundCorrection:Float64Array;
+  private readonly groundLateral:Float64Array;
+  private readonly groundRadius:Float64Array;
+  private readonly groundZ:Float64Array;
+  private readonly groundCos:Float64Array;
+  private readonly groundQuery=new Float64Array(3);
+  private readonly groundPlane=new Float64Array(4);
   private readonly bus:BetBus|null;
   private readonly initialSoc:number;
   private readonly housePowerW:number;
@@ -290,6 +327,17 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
     this.accidents=parts&&parts.length>0?new AccidentMonitor(this,parts,model.rotors.map(r=>r.id),model.massKg):null;
     this.initial=structuredClone(configuration.initialBody);
     this.frame=new FrameLayout(model);this.rotations=new Float64Array(n*9);this.positions=new Float64Array(n*3);
+    const flatDown=configuration.syntheticGroundDownM??0;
+    this.groundPlanes=configuration.groundPlanes??{planeInto:(_position,out)=>{out[0]=0;out[1]=0;out[2]=-1;out[3]=-flatDown;}};
+    this.groundLateral=new Float64Array(n*n);this.groundRadius=new Float64Array(n);this.groundZ=new Float64Array(n);this.groundCos=new Float64Array(n);this.groundCorrection=new Float64Array(n);
+    model.rotors.forEach((rotor,i)=>{
+      this.groundRadius[i]=rotor.radiusM;
+      model.rotors.forEach((other,j)=>{
+        const dx=rotor.hubPositionBodyM[0]!-other.hubPositionBodyM[0]!,dy=rotor.hubPositionBodyM[1]!-other.hubPositionBodyM[1]!,d2=dx*dx+dy*dy;
+        // A rotor nearer than half a radius, a coaxial partner among them, is not a neighbour here (TASK-101 owns that pair).
+        this.groundLateral[i*n+j]=i!==j&&d2>=0.25*rotor.radiusM*rotor.radiusM?d2:-1;
+      });
+    });
     this.channels=new Uint32Array(n);this.hub=new Float64Array(n*6);
     this.mix=new Float64Array(configuration.pilotMix);this.torque=new Float64Array(configuration.motorMaxTorqueNm);
     if(!this.mix.every(Number.isFinite) || !this.torque.every(v=>Number.isFinite(v)&&v>=0))throw Error('Invalid BET mixer/torque');
@@ -309,6 +357,64 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
     }
     this.reset();
   }
+  /** TASK-100: the ground effect's intensity now, 0 for off. */
+  get groundEffectIntensity():number {return this.groundIntensity;}
+  /** TASK-100: the rotor ground effect's intensity from this step, 0 for off. Only the ESC drive's interface has its fields. */
+  get setGroundEffect():((intensity:number)=>void)|undefined {return this.escEngine?this.applyGroundEffect:undefined;}
+  private readonly applyGroundEffect=(intensity:number):void=>{
+    this.groundIntensity=intensity;
+    if(intensity===0)this.clearGroundEffect();
+  };
+  /** Back to neutral fields, so that off is what a run without the effect does. */
+  private clearGroundEffect():void {
+    this.groundIntensity=0;
+    const esc=this.escEngine;
+    if(!esc)return;
+    for(let i=0;i<this.rotorCount;i++){
+      esc.inputFlags[i]=0;
+      const b=i*this.inputStride;
+      for(let k=18;k<22;k++)this.input[b+k]=0;
+    }
+  }
+  /** The ground plane under each hub, the effect's height and the normal in hub axes, written to the rotor records. */
+  private groundInto():void {
+    const esc=this.escEngine,n=this.rotorCount,p=this.positions,r=this.rotations,input=this.input,plane=this.groundPlane,query=this.groundQuery;
+    const position=this.truth.positionNedM,lateral=this.groundLateral,radius=this.groundRadius,heights=this.groundZ,cosines=this.groundCos,corrections=this.groundCorrection;
+    const attitude=this.groundAttitude,w=attitude[0]!,x=attitude[1]!,y=attitude[2]!,z=attitude[3]!;
+    if(!esc)return;
+    // (w, x, y, z) turns NED into body, as for the air's velocity in the step; the body-to-NED matrix is its transpose.
+    for(let i=0;i<n;i++){
+      const c=i*3,bx=p[c]!,by=p[c+1]!,bz=p[c+2]!;
+      // The conjugate of (w, x, y, z) turns body into NED: v + 2 w s + 2 q x s, with s = q x v.
+      const qx=-x,qy=-y,qz=-z,sx=qy*bz-qz*by,sy=qz*bx-qx*bz,sz=qx*by-qy*bx;
+      query[0]=position[0]!+bx+2*(w*sx+qy*sz-qz*sy);query[1]=position[1]!+by+2*(w*sy+qz*sx-qx*sz);query[2]=position[2]!+bz+2*(w*sz+qx*sy-qy*sx);
+      this.groundPlanes.planeInto(query,plane);
+      const offset=plane[3]!;
+      if(!Number.isFinite(offset)){cosines[i]=0;heights[i]=Infinity;esc.inputFlags[i]=0;for(let k=18;k<22;k++)input[i*this.inputStride+k]=0;continue;}
+      const nN=plane[0]!,nE=plane[1]!,nD=plane[2]!,height=nN*query[0]+nE*query[1]+nD*query[2]-offset;
+      // The normal in body axes, then in hub axes.
+      const cx=y*nD-z*nE,cy=z*nN-x*nD,cz=x*nE-y*nN;
+      const fx=nN+2*(w*cx+y*cz-z*cy),fy=nE+2*(w*cy+z*cx-x*cz),fz=nD+2*(w*cz+x*cy-y*cx);
+      const a=i*9,b=i*this.inputStride;
+      const hx=r[a]!*fx+r[a+3]!*fy+r[a+6]!*fz,hy=r[a+1]!*fx+r[a+4]!*fy+r[a+7]!*fz,hz=r[a+2]!*fx+r[a+5]!*fy+r[a+8]!*fz;
+      input[b+18]=hx;input[b+19]=hy;input[b+20]=hz;
+      cosines[i]=hz;
+      heights[i]=hz>0?height/hz:Infinity;
+      esc.inputFlags[i]=1;
+    }
+    // The height whose (R/4z)^2 is the correction: the rotor's own, the neighbours' (Sanchez-Cuevas et al. 2017), and the intensity.
+    const intensity=this.groundIntensity;
+    groundEffectCorrectionsInto(n,radius,heights,lateral,corrections);
+    for(let i=0;i<n;i++){
+      if(esc.inputFlags[i]===0)continue;
+      const b=i*this.inputStride,R=radius[i]!,zi=heights[i]!;
+      const term=intensity*corrections[i]!;
+      const effective=term>0?R/(4*Math.sqrt(term)):Infinity;
+      // Below the envelope the record says so, whatever the intensity.
+      const reported=zi<0.5*R?Math.min(effective,zi):effective;
+      input[b+21]=Number.isFinite(reported)?reported*cosines[i]!:1e9;
+    }
+  }
   reset():void {
     this.engine?.reset();this.escEngine?.reset();this.body.reset(this.initial);this.contact?.reset(this.initial);
     const e=this.electrical;e[0]=this.initialSoc;e[2]=0;this.busLimited=false;this.driveLimited=false;
@@ -320,6 +426,7 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
     this.state.flags=StateFlag.InputFailsafe;this.pendingActuator=false;this.externalArmed=false;this.fault='';this.validityFlags=this.configurationFlags;
     this.referenceRotorRpm=this.output[9]!*60/(2*Math.PI);
     this.limits?.reset();this.accidents?.reset();
+    this.clearGroundEffect();
     // A new epoch starts without weather, as configured.
     this.turbulenceActive=false;this.weatherActive=false;this.airActive=false;this.windNedMps.fill(0);this.atmosphere.set(this.baseAtmosphere);
     this.dragWrenchBody.fill(0);
@@ -413,6 +520,7 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
     const external=this.pendingActuator;let sum=0;
     if(!external)this.externalArmed=false;
     const input=this.input,esc=this.escEngine,faults=this.faults;
+    if(this.groundIntensity>0){const a=this.groundAttitude;a[0]=w;a[1]=x;a[2]=y;a[3]=z;this.groundInto();}
     for(let i=0;i<this.rotorCount;i++) {
       const a=i*9,b=i*this.inputStride,c=i*3,m=i*4;
       const ax=fx-(ry*p[c+2]!-rz*p[c+1]!),ay=fy-(rz*p[c]!-rx*p[c+2]!),az=fz-(rx*p[c+1]!-ry*p[c]!);

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 8,
-  "runtimeStatus": "pass",
+  "runtimeStatus": "blocked",
   "status": "failed",
   "numericalStatus": "pass",
   "fidelityStatus": "blocked",
@@ -19,7 +19,7 @@
       "polarSha256": "d6d9793ea030c6b957fa9018ed5c3307891665829773574b2bacb26f1909c9a1",
       "suiteSha256": "608d6a9fdeafd14766139d2509b2d8a0f66b51b42c0bf550cffbb9d533cc5871",
       "reportPath": "test-results/validation/rotor-bet.json",
-      "reportSha256": "f564b6cd4fb5660fbd7603431b6c6c04312683b72493c4163af7c0ced1cc1a15"
+      "reportSha256": "7184b2a184707659e7e2eff16fa67e1d53b8008854ec4177698694764538856f"
     },
     {
       "configurationId": "tapered-three-blade",
@@ -33,7 +33,7 @@
       "polarSha256": "d6d9793ea030c6b957fa9018ed5c3307891665829773574b2bacb26f1909c9a1",
       "suiteSha256": "608d6a9fdeafd14766139d2509b2d8a0f66b51b42c0bf550cffbb9d533cc5871",
       "reportPath": "test-results/validation/rotor-bet.json",
-      "reportSha256": "f564b6cd4fb5660fbd7603431b6c6c04312683b72493c4163af7c0ced1cc1a15"
+      "reportSha256": "7184b2a184707659e7e2eff16fa67e1d53b8008854ec4177698694764538856f"
     },
     {
       "configurationId": "symmetric-four-blade",
@@ -47,7 +47,7 @@
       "polarSha256": "b65b811583008327d517505e2995ed2bd1ee9fa66cad207288bf0a436a01dab1",
       "suiteSha256": "608d6a9fdeafd14766139d2509b2d8a0f66b51b42c0bf550cffbb9d533cc5871",
       "reportPath": "test-results/validation/rotor-bet.json",
-      "reportSha256": "f564b6cd4fb5660fbd7603431b6c6c04312683b72493c4163af7c0ced1cc1a15"
+      "reportSha256": "7184b2a184707659e7e2eff16fa67e1d53b8008854ec4177698694764538856f"
     }
   ],
   "measuredValidation": [],
@@ -1282,8 +1282,8 @@
   ],
   "referenceSha256": "f61ee6afa5124d5dfb2d70eea92975e287b7c916e378ecf51f0c418a3ba72500",
   "artifactSha256": {
-    "scalar": "0b4c5a819b3fccc6d467aec521d28269a606442c18b3a6dd9768b7121b5359ac",
-    "simd128": "db48fb92e7d65782b3b19ad9cb33c9602bfd121387039b6bb4a5243f448e3ec3"
+    "scalar": "53e0668825ae8c773a2bb0205cc13845b3ce4de205b40eee9894e778416a1ea9",
+    "simd128": "8db778eee8059224b6b23dfa3868bbf611efc91abedeba820a1f7ecb360b35d3"
   },
   "cases": [
     {
@@ -1406,12 +1406,12 @@
   "diagnostics": {
     "betRuntime": {
       "path": "test-results/validation/bet-runtime.json",
-      "reportSha256": "31737243220c9922bce6954bd0819364a11a09308af27cf563ed834783afcd32",
-      "status": "pass"
+      "reportSha256": "e0dfb5c5ee9458a925a238b31856fcf866ca739626931f92ec9f37ce7ec38131",
+      "status": "stale"
     },
     "betRuntimeAllocation": {
       "path": "test-results/validation/bet-runtime-allocation.json",
-      "reportSha256": "e49e603f7b881ee3156723ed7c12be7935927f3bd50ae4cc6b0db57737da8a5a",
+      "reportSha256": "9e9b0ce5cb400cb97d8f094db700f315ca87a1c27de0da6e02ec46680084ae93",
       "status": "pass"
     },
     "jsbsimBackend": {

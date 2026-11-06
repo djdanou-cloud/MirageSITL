@@ -186,7 +186,7 @@
       "manifest": {
         "formatVersion": 1,
         "id": "bet-step-interface-v2",
-        "sourceSha256": "7a5a48ae03148f11f3eed55c364c2d0af35fb8f509520ebf9b78d698e854248e",
+        "sourceSha256": "1aa0625bb4b6e3019493bc961f30a37ae76512a60b5dbad811f93e82eb7d4bce",
         "units": {
           "recordBytes": "1"
         },

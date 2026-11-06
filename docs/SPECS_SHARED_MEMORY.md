@@ -569,6 +569,7 @@ with the refusal of the model that owns the range.
 | `ew.position-step` | `offsetNedM`, m, length at most 10000 | Multiplies the offset | Position-step model |
 | `ew.velocity-drift` | `accelerationNedMps2`, m/s², length at most 0.3; `maxSpeedMps`, m/s, (0, 20] | Multiplies both | Drift model |
 | `ew.magnetic` | `rotationRad`, rad, ±π per axis; `biasBodyGauss`, G, ±2 per axis | Multiplies both | Magnetic model |
+| `rotor.ground-effect` | None | Multiplies the correction `(R/4z)^2` and the neighbours' sum: 0 is none, 1 the closed form | Rotor ground effect (TASK-100), which needs the ESC drive |
 | `motor.loss` | `motorIndex`, 0..31 and below the rotor count; `mode`, `power-cut` or `instant-thrust-loss`; `remainingThrustFraction`, 0..1 | Multiplies the thrust lost: remaining = 1 − i·(1 − r), exactly r at i = 1 | Motor fault table |
 | `sensor.imu.accel-noise` | `densityMps2PerSqrtHz`, m/s²/√Hz, 0..0.01 | Multiplies the density | Sensors tab field |
 | `sensor.imu.gyro-noise` | `densityRadSPerSqrtHz`, rad/s/√Hz, 0..0.001 | Multiplies the density | Sensors tab field |

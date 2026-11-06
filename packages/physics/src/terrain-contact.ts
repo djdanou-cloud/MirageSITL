@@ -52,6 +52,12 @@ export class TerrainContactCoupler {
     for (let k = 0; k < 4; k++) this.planes[4 * slot + k] = this.plane[k] as number; // length 4
     return true;
   }
+  /** TASK-100: the published plane under one hub, for its ground effect, or false where the ground is missing. */
+  hubPlaneInto(northM: number, eastM: number, out: Float64Array): boolean {
+    this.query[0] = northM; this.query[1] = eastM;
+    this.lattice.planeInto(this.query, out);
+    return Number.isFinite(out[3]);
+  }
   /** Advances `state` in place by one contact step on the published terrain. */
   stepInto(state: BodyTruth, wrenchBody: Float64Array, dt: number, brakes?: Float64Array): TerrainStepStatus {
     const p = state.positionNedM, q = state.quaternionBodyToNed;

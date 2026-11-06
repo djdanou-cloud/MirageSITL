@@ -1052,6 +1052,25 @@ engineering choice inside the report's range. The stream is a 64-bit xorshift fr
 that follows the tables; three more state words follow the state region. With the option a
 descent is outside validity only below -2 v_h at V_x < 0.95 v_h, or with the fluctuation active.
 
+Ground effect (TASK-100). `input_flags` bit 0 with a unit `ground_normal_hub` and
+`ground_distance`, the hub's height d above a plane along its normal, turns it on, and
+output `validity` bit 4 says so. With z = d / cos(theta) the height along the hub axis,
+`kappa = 1 - (R/(4 z))^2 cos(theta) / (1 + (V_t/v_i)^2)`. The kernels take the mean induced
+velocity times kappa, and the inflow state follows the thrust, the moments and the strip
+loads times kappa, so it stays at the velocity of the same power out of ground effect: at
+one induced power thrust is `1/kappa` times its value out of ground effect, the closed form
+of Cheeseman and Bennett (1955). Below z/R = 0.5 kappa holds its value at 0.5 and output
+flag 8 is set; a disk whose axis does not point at the plane gets none. A set flag with a
+normal that is not unit is status -3, and a clear flag with a nonzero field stays
+`UNSUPPORTED`. `BetFlightDynamics` takes d from a `GroundPlaneSource`, a flat plane at the
+session's ground unless its configuration gives another (`CollisionChunks.planeInto` and
+`TerrainContactCoupler.hubPlaneInto` serve the published terrain, for TASK-187), and adds
+the neighbours (Sanchez-Cuevas et al. 2017): per other rotor at lateral distance D,
+`(R_j^2/2) z / (D^2 + 4 z^2)^(3/2)`, passing the height that gives the sum. A rotor nearer
+than half a radius, a coaxial partner among them, is not a neighbour: TASK-101 owns that
+pair. Their body term needs data a profile does not have and is left out. Control Protocol
+v3's `rotor.ground-effect` switches it, and only the ESC drive's interface has its fields.
+
 Configuration version 3 (TASK-097) adds option 8, rotational lift augmentation,
 which an extended table asks for: bytes 112 and 120 hold the f64 lift slope (1/rad)
 and zero-lift angle (rad), and stay reserved zero otherwise, as in versions 1 and 2,
@@ -4226,7 +4245,7 @@ Bound-rotor fields owned by later tasks, with their neutral values:
   without valid drive parameters a mode 1 record is invalid (−3).
 * Zero `external_wake_hub_x/y/z` (TASK-101).
 * `input_flags` bit 0 clear, with zero `ground_normal_hub_x/y/z` and
-  `ground_distance` (TASK-100).
+  `ground_distance`. TASK-100 implements the bit (above, "Ground effect").
 
 Output `validity` bits mark quantities that need later tasks:
 
