@@ -353,8 +353,10 @@ certifies Tier A against Tiers B and C so fast regression stays trustworthy.
 The tick budget is `1/(f·S)` for physics rate `f` and speedup `S`, and G3 limits
 compute p99 to half of `dt`. The review measurement (BET quad tick about 0.35 ms
 in browser WASM; octocopter about 0.70 ms, above the 0.4167 ms G3 limit at
-1200 Hz) makes the TASK-091 kernel speed-up the first performance dependency of
-every later fidelity task. Lockstep tolerates slow physics because ArduPilot
+1200 Hz) made the TASK-091 kernel speed-up the first performance dependency of
+every later fidelity task; on the M5 an octocopter step at 1200 Hz now has a
+compute p99 of 0.065 ms in a Chrome Worker (`test-results/bench/bet-chrome.json`).
+Lockstep tolerates slow physics because ArduPilot
 waits for each frame, so real time is required only for interactive and HIL
 runs. Lower-rate updates (turbulence coefficients, wakes, GNSS visibility) use
 integer-phase, tick-indexed schedulers, so results do not depend on host speed.

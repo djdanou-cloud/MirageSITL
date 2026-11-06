@@ -1,0 +1,93 @@
+{
+  "schemaVersion": 1,
+  "benchmark": "bet-kernel-chrome",
+  "task": "TASK-091",
+  "generatedAt": "2026-11-05T10:02:14.362Z",
+  "load": "synthetic pad at 0.8 x hover-trim duty, as scripts/bench-bet.mjs; cards tests/fixtures/components/*-example.json; polar naca6409-neuralfoil-v1",
+  "limit": {
+    "g3ComputeMs": 0.4167,
+    "row": "octa-x at 1200 Hz, p99"
+  },
+  "rows": [
+    {
+      "variant": "simd128",
+      "fixture": "octa-x",
+      "rotors": 8,
+      "hz": 1200,
+      "warmupSteps": 20000,
+      "steps": 20000,
+      "meanMs": 0.05906700000017882,
+      "p50Ms": 0.06000000238418579,
+      "p95Ms": 0.06499999761581421,
+      "p99Ms": 0.0650000274181366,
+      "maxMs": 0.125
+    },
+    {
+      "variant": "simd128",
+      "fixture": "octa-coaxial-16",
+      "rotors": 16,
+      "hz": 1200,
+      "warmupSteps": 20000,
+      "steps": 20000,
+      "meanMs": 0.11657250002175569,
+      "p50Ms": 0.11500000953674316,
+      "p95Ms": 0.12000000476837158,
+      "p99Ms": 0.12999999523162842,
+      "maxMs": 0.19499999284744263
+    },
+    {
+      "variant": "scalar",
+      "fixture": "octa-x",
+      "rotors": 8,
+      "hz": 1200,
+      "warmupSteps": 20000,
+      "steps": 20000,
+      "meanMs": 0.08378724999129772,
+      "p50Ms": 0.08499997854232788,
+      "p95Ms": 0.09000000357627869,
+      "p99Ms": 0.0949999988079071,
+      "maxMs": 0.1499999761581421
+    },
+    {
+      "variant": "scalar",
+      "fixture": "octa-coaxial-16",
+      "rotors": 16,
+      "hz": 1200,
+      "warmupSteps": 20000,
+      "steps": 20000,
+      "meanMs": 0.16622425000220536,
+      "p50Ms": 0.16499999165534973,
+      "p95Ms": 0.17000001668930054,
+      "p99Ms": 0.1850000023841858,
+      "maxMs": 0.2749999761581421
+    }
+  ],
+  "identity": {
+    "browser": "156.0.8078.80",
+    "cpu": "Apple M5",
+    "cpus": 10,
+    "platform": "darwin",
+    "release": "27.2.0",
+    "memoryBytes": 34359738368,
+    "lowPowerMode": true,
+    "loadAverage": {
+      "start": [
+        1.26806640625,
+        1.2978515625,
+        1.44921875
+      ],
+      "end": [
+        1.30029296875,
+        1.3046875,
+        1.4462890625
+      ]
+    },
+    "commit": "940143a6cc33173460bc2b55849f05d979339dbe",
+    "dirty": true,
+    "wasmSha256": {
+      "simd128": "796e7da2705a1278f2c6732ff7de215d27c07edfb69b871ec6422989ae069c8b",
+      "scalar": "3c7b0b83dda9456e1080ba3d32f41379a971ed8efe4778c5e23b5735028fd317"
+    }
+  },
+  "scope": "Compute of BetFlightDynamics flight steps in a Chrome module Worker on this machine, with the 5 us timer of an isolated page; not wakeup lateness, a session or a rendered application."
+}

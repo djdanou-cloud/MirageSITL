@@ -943,8 +943,9 @@ No new SAB byte layout or autopilot admission follows from this interface.
 Kernel cost (TASK-091, in progress). Initialization and reset validate the
 whole configuration; each step rechecks only the header, the counts, the
 dt, the scalar ranges and the slice bounds, and reads the polar without
-rescanning its values, since the configuration is immutable. The default
-kernel (increment 3) is `Rotor::evaluate_sampled`, which agrees with the
+rescanning its values, since the configuration is immutable; it takes its
+azimuth grid from a cache of the thread's last grid, with the same bits. The
+default kernel (increments 3 and 4) is `Rotor::evaluate_sampled`, which agrees with the
 reference kernel (`Rotor::evaluate`, `PolarTable::lookup`) within the
 declared tolerance T1: every force, moment and flapping component within
 1e-12 of its vector's norm (absolute floor 1e-15) and identical flags, with
@@ -958,15 +959,26 @@ Its `atan2` and `ln` are kernel functions with exact Taylor coefficients,
 within 2e-15 of the platform functions: atan after reduction by multiples
 of pi/8 to |t| <= tan(pi/16), with terms up to t^19, and ln through
 2 atanh((m - 1)/(m + 1)) with m in [sqrt(1/2), sqrt(2)), with terms up to
-s^17. A pass of scalar polar lookups (`KernelPolar`) follows. It keeps the
-reference clamping, flags and brackets; the Reynolds bracket starts from the
+s^17, both polynomials evaluated by Estrin's scheme. The polar lookups
+(`KernelPolar`) follow. For a table of at most two Mach nodes they run in
+passes across strips (`sample_strips`): a branch-free pass forms the clamps,
+the validity flag, the alpha guess and the Mach weight; a scalar pass corrects
+the brackets against the axes and reads their nodes; a branch-free pass forms
+the alpha and Reynolds weights; and a last pass reads the corners. More Mach
+nodes take `sample`, one query at a time, which returns the same bits. Both
+keep the reference clamping, flags and brackets; the Reynolds bracket starts from the
 strip's bracket at the previous azimuth sample, and the Reynolds-axis
 logarithms use the same `ln`. The Reynolds and two-node Mach weights
 multiply by interval reciprocals, and a query clamped onto the last node
 keeps the weight 1. The confidence corners are skipped once the evaluation
-has flagged a low-confidence corner, and the trilinear sums take Re and Mach
-first on both alpha nodes, then alpha. Four sums along the blade per
-azimuth sample are rotated into the force, moment and flapping loads. Three
+has flagged a low-confidence corner, and their weights matter only when one
+of the eight corners is low. The trilinear sums take Re and Mach
+first on both alpha nodes, then alpha. A branch-free pass forms each element's
+force and moment, and four sums along the blade per
+azimuth sample, in strip order, are rotated into the force, moment and flapping loads.
+The kernel works on one fixed scratch per thread, without allocation: its lanes,
+written before they are read, and the Reynolds logarithms, reused while the axis
+keeps the same bits, so the scratch cannot change a result. Three
 cases fall back to the increment 2 kernel: a table with fewer than two
 alpha nodes, more than 32 Reynolds nodes or a Reynolds node that is not a
 positive normal number; a non-finite intermediate; and a shifted angle

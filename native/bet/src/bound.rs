@@ -1,6 +1,6 @@
 //! Versioned caller-owned production rotor/polar binding; see bet_bound.h.
 use crate::{blade::{Rotor, RotorGeometry, RotorInput}, inflow::AxialInflow,
-    motor::DriveTorque, polar::PolarTable, shaft::Shaft, Vec3};
+    motor::DriveTorque, polar::PolarTable, quadrature::AzimuthGrid, shaft::Shaft, Vec3};
 
 /// Independent binding version (legacy arena ABI remains v1).
 pub const VERSION: u32 = 1;
@@ -90,7 +90,7 @@ fn parse_config(b: &[u8], full: bool) -> Result<Config<'_>, i32> {
         let geometry=RotorGeometry{blade_count:u(b,24)?,spin_sign:u(b,28)? as i32,radius_m:f(b,40)?,
             cutout_m:f(b,48)?,radius,chord,twist,width};
         let azimuth=u(b,32)? as usize;
-        Rotor::new(geometry,polar,azimuth).ok()?;
+        if full {Rotor::new(geometry,polar,azimuth).ok()?;}
         let inertia=f(b,56)?;let damping=f(b,64)?;let dt=f(b,72)?;
         let initial=f(b,80)?;let tau=f(b,88)?;let limit=f(b,96)?;
         if ![initial,tau,limit].iter().all(|v|v.is_finite()) || initial<0.0 || tau<=0.0 || limit<=0.0
@@ -206,7 +206,9 @@ pub(crate) fn advance_with(arena: &[u8], input: &[u8], out_len: usize, dt: f64, 
         let i=RotorInput{density_kg_m3:f(input,8)?,viscosity_pa_s:f(input,16)?,sound_speed_mps:f(input,24)?,
             air_velocity_hub_mps:vec(input,32)?,body_rate_hub_rad_s:vec(input,56)?,omega_rad_s:omega,
             induced_mps:induced,collective_rad:f(input,80)?,cyclic_cos_rad:f(input,88)?,cyclic_sin_rad:f(input,96)?};
-        let rotor=Rotor::new(c.geometry,c.polar,c.azimuth).ok()?;
+        // The production step reads a configuration `config` validated at initialization (TASK-091).
+        let rotor=if production {Rotor::from_validated(c.geometry,c.polar,AzimuthGrid::cached(c.azimuth)?)}
+            else {Rotor::new(c.geometry,c.polar,c.azimuth).ok()?};
         // Reduced predictor: samples 0 and N/2, whose first harmonics cancel; only the axial force and torque are used.
         let first=if reduced_predictor {rotor.evaluate_sampled(i,samples/2)} else {evaluate(&rotor,i)}.ok()?;
         // Hover sampling: the regime measure at the start of the step, with hysteresis between HOVER_ENTER and HOVER_LEAVE.

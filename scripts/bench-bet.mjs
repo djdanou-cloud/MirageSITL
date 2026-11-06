@@ -3,9 +3,13 @@
 //
 //   node scripts/bench-bet.mjs [--steps N] [--out PATH] [--baseline PATH] [--fixtures a,b] [--variants a,b] [--rates a,b]
 //                              [--kernel-options N] [--sections flight,rotor,native]
+//                              [--scenario still-air|crossflow] [--minimum-confidence C]
 //
 // --kernel-options turns on the TASK-091 opt-in modes (1 reduced predictor, 2 hover sampling, 3 both) or the
 // exact kernel (4) for every rotor. --sections selects the parts of the report to run (all by default).
+// --scenario and --minimum-confidence apply to the rotor ticks (TASK-091 increment 4): crossflow adds air speed,
+// body rates and cyclic, and --minimum-confidence 0 gives a rotor with no low-confidence corner, which scans every
+// corner of every lookup. A baseline must have the same scenario and minimum confidence.
 //
 // WASM: BetFlightDynamics with the TASK-092 drive for the S19 quad X (4 rotors), octa X
 // (8 rotors) and sixteen-motor (16 rotors) fixtures on the example component cards and
@@ -44,6 +48,10 @@ const rates = list('rates', ['400', '800', '1200']).map(Number);
 const kernelOptions = Number(option('kernel-options', '0'));
 if (![0, 1, 2, 3, 4].includes(kernelOptions)) { console.error('Invalid --kernel-options'); process.exit(2); }
 const sections = list('sections', ['flight', 'rotor', 'native']);
+const scenario = option('scenario', 'still-air');
+if (!['still-air', 'crossflow'].includes(scenario)) { console.error('Invalid --scenario'); process.exit(2); }
+const minimumConfidence = Number(option('minimum-confidence', '0.9'));
+if (!(minimumConfidence >= 0 && minimumConfidence <= 1)) { console.error('Invalid --minimum-confidence'); process.exit(2); }
 const loadStart = os.loadavg();
 
 const require = createRequire(import.meta.url);
@@ -123,7 +131,7 @@ for (const variant of sections.includes('flight') ? variants : []) {
 
 // ---- one sixteen-motor rotor, for the rotor ticks and the native steps ---------------------------
 const sixteen = (await vehicleOf('octa-coaxial-16')).configuration, rotor = sixteen.manifest.rotors[0];
-const definition = { geometry: rotor, polar: sixteen.polars.get(rotor.polarId), initialOmegaRadS: 500, inflowTauS: 0.1, inflowLimitMps: 500, minimumConfidence: 0.9, kernelOptions };
+const definition = { geometry: rotor, polar: sixteen.polars.get(rotor.polarId), initialOmegaRadS: 500, inflowTauS: 0.1, inflowLimitMps: 500, minimumConfidence, kernelOptions };
 
 // ---- WASM bound-rotor ticks -------------------------------------------------------------------
 const rotorTicks = [];
@@ -133,7 +141,15 @@ for (const variant of sections.includes('rotor') ? variants : []) {
     for (const hz of rates) {
       const e = new M.BetRotorEngine(variant.module, definitions, hz);
       // ISA sea level and still air (the engine's defaults), and the native example's motor torque.
-      for (let i = 0; i < count; i++) e.input[i * 13 + 12] = 0.12;
+      for (let i = 0; i < count; i++) {
+        e.input[i * 13 + 12] = 0.12;
+        if (scenario === 'crossflow') {
+          // An advance ratio near 0.1 with body rates and cyclic, so that the brackets move with azimuth.
+          e.input[i * 13 + 3] = 8; e.input[i * 13 + 4] = -3; e.input[i * 13 + 5] = 1;
+          e.input[i * 13 + 6] = 0.5; e.input[i * 13 + 7] = -0.3; e.input[i * 13 + 8] = 0.2;
+          e.input[i * 13 + 10] = 0.02; e.input[i * 13 + 11] = -0.02;
+        }
+      }
       const tick = () => { if (!e.stepInto()) throw new Error(`rotor tick failed: ${variant.name} ${count} rotors ${hz} Hz`); };
       for (let i = 0; i < 20000; i++) tick();
       const samples = new Float64Array(steps);
@@ -170,6 +186,9 @@ let comparison = null;
 if (baselinePath) {
   const baseline = JSON.parse(readFileSync(resolve(root, baselinePath), 'utf8'));
   if (baseline.identity?.cpu !== cpu) throw new Error(`Baseline CPU ${baseline.identity?.cpu} differs from ${cpu}; speed-ups need one machine`);
+  // Reports from before these options held the still-air scenario and the 0.9 minimum confidence.
+  const baselineRun = `${baseline.rows?.scenario ?? 'still-air'} ${baseline.rows?.minimumConfidence ?? 0.9}`;
+  if (baselineRun !== `${scenario} ${minimumConfidence}`) throw new Error(`Baseline ran ${baselineRun}, this run ${scenario} ${minimumConfidence}`);
   const key = r => `${r.variant}/${r.fixture}/${r.hz}`;
   const before = new Map(baseline.wasm.map(r => [key(r), r]));
   comparison = { baseline: baselinePath, baselineCommit: baseline.identity.commit,
@@ -191,7 +210,7 @@ const report = {
   vehicles: vehicles.map(v => ({ fixture: v.fixture, rotors: v.derived.manifest.rotorCount, manifestSha256: v.derived.sha256 })),
   load: 'synthetic pad at 0.8 x hover-trim duty, spun up from rest; cards tests/fixtures/components/*-example.json; polar naca6409-neuralfoil-v1',
   budget: 'Step period 1/hz; A-05 judges the mean real-time ratio (at least 0.99); the G3 compute limit is 0.4167 ms at 1200 Hz',
-  rows: { fixtures, variants: variantNames, rates, sections }, kernelOptions, wasm, rotorTicks, native, comparison,
+  rows: { fixtures, variants: variantNames, rates, sections, scenario, minimumConfidence }, kernelOptions, wasm, rotorTicks, native, comparison,
   identity: { commit: git('rev-parse', 'HEAD'), dirty: git('status', '--porcelain', '--', 'native/bet/src', 'packages') !== '',
     node: process.version, platform: process.platform, arch: process.arch, cpu, cpus: os.cpus().length, rustc,
     loadAverage: { start: loadStart, end: os.loadavg() },

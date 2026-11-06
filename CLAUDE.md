@@ -280,10 +280,9 @@ implementation.
   flight on missing ones, profile schema 4 picks each propeller's polar from the
   runtime catalog, `buildProfileDynamics` and `profileModelPort` load it through
   `model.load`, and the physics Worker accepts the BET module and manifests by
-  hash); all five S19 configurations hold a trimmed hover, and in Node the
-  16-rotor step averages 1.15 ms, which keeps real time at 400 Hz and, without
-  tail margin, at 800 Hz, but not at 1200 Hz until TASK-091
-  (`node scripts/bench-profile-dynamics.mjs`). TASK-150 is DONE: the MAVLink
+  hash); all five S19 configurations hold a trimmed hover, and in Node on the
+  M5 the 16-rotor step has a p99 of 0.19 ms, inside the period at 400, 800 and
+  1200 Hz (`node scripts/bench-profile-dynamics.mjs`). TASK-150 is DONE: the MAVLink
   codec reads a message table that pymavlink 2.4.50 generates from the pinned
   `ardupilotmega.xml` and its includes, and supports 40 messages (TASK-155 added
   AUTOPILOT_VERSION and TASK-173 SET_ATTITUDE_TARGET), adding the
@@ -483,11 +482,13 @@ implementation.
   `MOT_THST_EXPO`, and native ArduCopter hovers on it with measured bus current
   (`MIRAGE_PARITY_DRIVE=esc`); the browser WASM hover is BLOCKED_EXTERNAL without
   an Emscripten toolchain and the TASK-045 artifact. TASK-091 (BET compute
-  headroom) is IN_PROGRESS: the default rotor step stays bit-identical and is
-  about 1.3x faster, and the opt-in kernel modes of bound configuration
-  version 2 (reduced predictor, hover sampling; off by default) reach about
-  3.5x and keep the octocopter at 1200 Hz inside G3 in Node, short of the 5x
-  target (`node scripts/bench-bet.mjs`). TASK-093 is DONE: `weather.set`
+  headroom) is DONE: the default rotor kernel, within the T1 tolerance of the
+  reference, runs 5.3x faster than the recorded baseline in the SIMD128 build
+  Chrome runs (3.6x in scalar), option 4 keeps the bit-identical exact kernel,
+  the opt-in modes of bound configuration version 2 (off by default) reach
+  12.5x, and an octocopter step at 1200 Hz has a p99 of 0.065 ms in a Chrome
+  Worker on the M5 against the 0.4167 ms G3 limit (`node scripts/bench-bet.mjs`,
+  `tests/browser/bet-compute.spec.ts`). TASK-093 is DONE: `weather.set`
   applies on its tick to `BetFlightDynamics` (the demo still rejects it); every
   step the rotors read the ISA air at the CG's height above the origin's air
   and a uniform mean wind with a seeded TASK-032 gust, the published airspeed

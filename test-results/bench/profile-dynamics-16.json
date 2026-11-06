@@ -5,45 +5,45 @@
   "vehicle": {
     "fixture": "octa-coaxial-16",
     "rotors": 16,
-    "manifestSha256": "3dc0c2e1297c2ce8152fe4832c10845705fb97c1852112974bb22d310f44cb44",
+    "manifestSha256": "be9ba38973048d29cb8ce724730f8779c4bce0efbb8b5c2fcc733e5cca41403a",
     "cards": "tests/fixtures/components/*-example.json",
     "polar": "naca6409-neuralfoil-v1",
     "load": "synthetic pad at 0.8 x hover-trim duty, spun up from rest",
     "trimDuty": [
-      0.49730495414765236,
-      0.4931524157812926,
-      0.48873399357253633,
-      0.48665772438929844,
-      0.48813053179222915,
-      0.49228307015861217,
-      0.49670149236740196,
-      0.49877776155057796,
-      0.49731018329494936,
-      0.4931444548869335,
-      0.4887400228299307,
-      0.4866571586259716,
-      0.48812530264498366,
-      0.492291031052937,
-      0.49669546310995283,
-      0.49877832731393607
+      0.4973049541476843,
+      0.49315241578127844,
+      0.48873399357250125,
+      0.4866577243893064,
+      0.4881305317922156,
+      0.4922830701586409,
+      0.4967014923673805,
+      0.4987777615505987,
+      0.4973101832949135,
+      0.49314445488697284,
+      0.48874002282992707,
+      0.4866571586259866,
+      0.48812530264498766,
+      0.49229103105293015,
+      0.49669546310994567,
+      0.49877832731392713
     ],
     "trimRpm": [
-      5153.964724459977,
-      5113.4304125465305,
-      5070.300719772125,
-      5050.033563814836,
-      5064.410128073087,
-      5104.944439986762,
-      5148.074132761494,
-      5168.34128871818,
-      5154.015767910725,
-      5113.35270360164,
-      5070.359573364379,
-      5050.028041210314,
-      5064.3590846228435,
-      5105.022148931316,
-      5148.015279168706,
-      5168.3468113230065
+      5153.964724460288,
+      5113.430412546391,
+      5070.3007197717825,
+      5050.033563814913,
+      5064.410128072956,
+      5104.944439987041,
+      5148.074132761284,
+      5168.341288718382,
+      5154.015767910374,
+      5113.352703602025,
+      5070.359573364342,
+      5050.028041210459,
+      5064.359084622882,
+      5105.022148931249,
+      5148.015279168636,
+      5168.346811322918
     ]
   },
   "budget": "Step period 1/hz (A-04: 400 Hz for every configuration; A-05: real-time ratio at least 0.99)",
@@ -53,45 +53,45 @@
       "steps": 20000,
       "warmupSteps": 20000,
       "periodMs": 2.5,
-      "meanMs": 0.5803966653000125,
-      "p50Ms": 0.5384130000020377,
-      "p95Ms": 0.7976479999997537,
-      "p99Ms": 0.9499889999970037,
-      "maxMs": 4.555926000000909,
+      "meanMs": 0.17121766425000387,
+      "p50Ms": 0.1702080000004571,
+      "p95Ms": 0.17400000000088767,
+      "p99Ms": 0.18966699999964476,
+      "maxMs": 2.0689579999998386,
       "p99WithinPeriod": true,
-      "realtimeRatioAtMean": 4.307398972920918,
+      "realtimeRatioAtMean": 14.601297190631097,
       "meanMeetsA05": true,
-      "realtimeRatioAtP50": 4.643275700977759
+      "realtimeRatioAtP50": 14.687911261475877
     },
     {
       "hz": 800,
       "steps": 20000,
       "warmupSteps": 20000,
       "periodMs": 1.25,
-      "meanMs": 0.5909242682999917,
-      "p50Ms": 0.5385929999974906,
-      "p95Ms": 0.8224300000001676,
-      "p99Ms": 0.9720630000010715,
-      "maxMs": 37.21143700000539,
+      "meanMs": 0.1712823099000072,
+      "p50Ms": 0.17016700000021956,
+      "p95Ms": 0.17479099999945902,
+      "p99Ms": 0.19037500000013097,
+      "maxMs": 2.342957999999271,
       "p99WithinPeriod": true,
-      "realtimeRatioAtMean": 2.1153302835168355,
+      "realtimeRatioAtMean": 7.297893172562518,
       "meanMeetsA05": true,
-      "realtimeRatioAtP50": 2.320861949571985
+      "realtimeRatioAtP50": 7.345725081821899
     },
     {
       "hz": 1200,
       "steps": 20000,
       "warmupSteps": 20000,
       "periodMs": 0.8333333333333334,
-      "meanMs": 0.5981674102999285,
-      "p50Ms": 0.5486680000030901,
-      "p95Ms": 0.8397030000051018,
-      "p99Ms": 1.0730159999948228,
-      "maxMs": 4.611516999997548,
-      "p99WithinPeriod": false,
-      "realtimeRatioAtMean": 1.3931439911035772,
+      "meanMs": 0.1707792583499957,
+      "p50Ms": 0.1699159999989206,
+      "p95Ms": 0.17345900000145775,
+      "p99Ms": 0.189250000003085,
+      "maxMs": 0.2834579999980633,
+      "p99WithinPeriod": true,
+      "realtimeRatioAtMean": 4.879593349828799,
       "meanMeetsA05": true,
-      "realtimeRatioAtP50": 1.5188298448763915
+      "realtimeRatioAtP50": 4.904384127090016
     }
   ],
   "allocation": {
@@ -99,25 +99,25 @@
     "bytes": 2960,
     "bytesPerStep": 0.00296,
     "gcEvents": 0,
-    "elapsedMs": 181317.04453600003,
+    "elapsedMs": 142118.368667,
     "warmupSteps": 110000,
     "memoryStable": true,
     "positiveControl": {
       "steps": 1000000,
-      "bytes": 742888,
-      "bytesPerStep": 0.742888,
+      "bytes": 742872,
+      "bytesPerStep": 0.742872,
       "gcEvents": 30,
-      "elapsedMs": 25.38575299998047
+      "elapsedMs": 9.763042000005953
     },
     "controlDetected": true
   },
   "identity": {
-    "node": "v24.22.2",
-    "platform": "linux",
-    "arch": "x64",
-    "cpu": "Intel(R) Xeon(R) Processor @ 2.10GHz",
-    "cpus": 4,
-    "wasmSha256": "0faa9237d88a64b929d3a45c38abd4cd1db8cb0f9023978e9f0bbdbc2a3d821e",
+    "node": "v24.22.1",
+    "platform": "darwin",
+    "arch": "arm64",
+    "cpu": "Apple M5",
+    "cpus": 10,
+    "wasmSha256": "3c7b0b83dda9456e1080ba3d32f41379a971ed8efe4778c5e23b5735028fd317",
     "sourceInputs": [
       {
         "file": "node_modules/fast-deep-equal/index.js",
@@ -401,7 +401,7 @@
       },
       {
         "file": "packages/aircraft/src/derive-manifest.ts",
-        "sha256": "d2bc75584a9ecb5ab5c7ca4915bd1654a23fe9f0a24a186df5687480bd947e04"
+        "sha256": "cdcb38527b6721c453bf08a61d91ecf00a44f595f7fd6b85e8488695f0436b99"
       },
       {
         "file": "packages/aircraft/src/layout.ts",
@@ -409,11 +409,11 @@
       },
       {
         "file": "packages/aircraft/src/profile.schema.json",
-        "sha256": "0639d496188db730627ee88c50448a5e4a2c6c9ffc4cdcf32e69f13060d5237a"
+        "sha256": "282c1e74c6542bf2b86f1b665e5843f6b32b278cb97548fb768337c06215cc01"
       },
       {
         "file": "packages/aircraft/src/profile.ts",
-        "sha256": "30d108e4471364123c2baf18a881e3c348e6801c7e76a187c09b6e738035a7fb"
+        "sha256": "1982bac5a56f8031b709f438caabe54d0a10aa75fab3d6ca30fbf363b5f4adb4"
       },
       {
         "file": "packages/aircraft/src/propeller-geometry.ts",
@@ -442,6 +442,18 @@
       {
         "file": "packages/aircraft/src/sensor-presets.ts",
         "sha256": "4c0d2b8780978cde999a21924fb333810632817031b1ab321093b975a3ec5679"
+      },
+      {
+        "file": "packages/aircraft/src/standard-gear.ts",
+        "sha256": "b1061acbb56f319336e8781eb9cd6ffdcd5cd1e43fe385159997404e5d484eec"
+      },
+      {
+        "file": "packages/aircraft/src/standard-hull-drag.ts",
+        "sha256": "2da30128539b85e348dba1540a12d27a6f9516fc9ab24966cbebbf436ebb4028"
+      },
+      {
+        "file": "packages/aircraft/src/standard-hull.ts",
+        "sha256": "7493acec55cf307452b0e860b9d2cb3403c22f78ee7193f79fd21e354a268a1f"
       },
       {
         "file": "packages/aircraft/src/trig.ts",
@@ -708,12 +720,16 @@
         "sha256": "d6d9793ea030c6b957fa9018ed5c3307891665829773574b2bacb26f1909c9a1"
       },
       {
+        "file": "packages/physics/src/accident.ts",
+        "sha256": "3cd5145f29834b87e97c19b300bda3febe21c9c06dbd7d67212930d9f67038a5"
+      },
+      {
         "file": "packages/physics/src/atmosphere.ts",
-        "sha256": "058f0ad592814f76d3ed88960ad0358d0c221d795ce15c4f4ba98569be702ac3"
+        "sha256": "4f3d27f56ebd5460df8d098ea23d0da018467680c64f36414c7c494b79c7d1e9"
       },
       {
         "file": "packages/physics/src/bet-dynamics.ts",
-        "sha256": "bc6e3963b6b783f93d43ee0fbb1ce92f1daac798fcd3f77221946df4b6a31fde"
+        "sha256": "42d8b146002b4505f9685249694461f1fd5a5350b108701708974dfb80e0d5f0"
       },
       {
         "file": "packages/physics/src/drive.ts",
@@ -724,8 +740,12 @@
         "sha256": "70ccd4a728aa5dc86157c06ca866994e83f086171de1d08654aa4aed967a4d9e"
       },
       {
+        "file": "packages/physics/src/ground-contact.ts",
+        "sha256": "6341593c9dce34fedbf672a9cf8bd7b17f8afba0c1918818fe189cc55e8e4c04"
+      },
+      {
         "file": "packages/physics/src/limit-monitor.ts",
-        "sha256": "08c09d117d08b73f0292d1cf929cd40fa02efa488e957ac2175ac1036b99bd79"
+        "sha256": "5ac60377845c754db6ff57da6a46c4c03b3975d11a6475ee74f645ed64049d14"
       },
       {
         "file": "packages/physics/src/model-manifest.ts",
@@ -741,15 +761,23 @@
       },
       {
         "file": "packages/physics/src/profile-dynamics.ts",
-        "sha256": "45ccfe8dcfda2ca552d5c1ef506229f533a72b59fbccd20bde07ad072c14f9de"
+        "sha256": "8822e239822d342159110a34650a479225112e725dd9043d40f32df24faddc94"
+      },
+      {
+        "file": "packages/physics/src/turbulence.ts",
+        "sha256": "c5c1c9f133c74b8b1df7f90752f27b4ec8d3b23c4f16433b061f5c3e3f881349"
       },
       {
         "file": "packages/physics/src/vehicle-manifest.ts",
-        "sha256": "56e720a4a3e397204dfcf8d255cb9ef41a3c123ec0bf89cbe6a391bbfdaf654e"
+        "sha256": "6494487d944f2e552f22ac097e85a9494cec1a8a827d4b69e4df93821319998e"
       },
       {
         "file": "packages/physics/src/vehicle.schema.json",
-        "sha256": "1a55261807a4c6729de30fcce085dfd83d40074d251d53033572ed8b6e33b64c"
+        "sha256": "627be5573aad745a0f72f0b01a31548dfca0f655bb5ec4a7fe12d00ab01943ac"
+      },
+      {
+        "file": "packages/physics/src/wind.ts",
+        "sha256": "1b09b98f4c5bfd95a270fa3f6adf9a2fc8f8487d12a994c211bbf53f1a537295"
       },
       {
         "file": "packages/project/node_modules/ajv/dist/ajv.js",
@@ -1005,11 +1033,11 @@
       },
       {
         "file": "packages/project/src/project.schema.json",
-        "sha256": "b890e0f18f2a2625aea502f41bdfcac3535422b43a28bf74e0f7e303ef0b01c4"
+        "sha256": "b49e971d55c3f4925bd14046999edf1c3639751ea318c6baf00a96fc2a592058"
       },
       {
         "file": "packages/project/src/schema.ts",
-        "sha256": "76e69931df9d0dc251ab64c0a74f0d065e84147fa26fe85e75e8127c1baf4c1a"
+        "sha256": "4776fb4587eb81169158514fe6f84f6434ef1ae893818bd69ae2af904729de2e"
       },
       {
         "file": "packages/protocol/src/actuator-frame.ts",
@@ -1021,11 +1049,15 @@
       },
       {
         "file": "packages/protocol/src/control-v2.ts",
-        "sha256": "8f35f1642211711fd5d85e2ef574e1fbee77145028d80552007379d480feee05"
+        "sha256": "2d15134280f8b88b7221afeb18aa66a733282d6d9b28bff2a481711de36f81ad"
+      },
+      {
+        "file": "packages/protocol/src/control-v3.ts",
+        "sha256": "dab313dcd48b5b8f28b89ff0797e0ceb6d22dac89ab845fbfb0133f9424f280c"
       },
       {
         "file": "packages/protocol/src/index.ts",
-        "sha256": "39ce55bf6e239d73afdbf058395fa337809e25ba3eb61b009db1df3a007f74c7"
+        "sha256": "c954efd8fa2e65005ca649f078a0be7152fe4f9257550666c1ae34cc157fae6d"
       },
       {
         "file": "packages/protocol/src/interpolation.ts",
@@ -1056,6 +1088,10 @@
         "sha256": "dd3973ff459bf58e1accee3d669050c14acfd4157ede1d1d16f862244cfb9c64"
       },
       {
+        "file": "packages/test-support/src/prng.ts",
+        "sha256": "4ddb70178a81f5698b684fb2694ce837f716102fa840b4edf04c9734381cfd9a"
+      },
+      {
         "file": "packages/wasm-bet/src/backend.ts",
         "sha256": "97bba31761cf32717ea24473e5678fd8bcb75394b3e8af4a394cbab01ea0de35"
       },
@@ -1065,11 +1101,11 @@
       },
       {
         "file": "packages/wasm-bet/src/rotor-v2.ts",
-        "sha256": "3aee10adc45ce9c0fa815b5153064305caaa162351778015472b778aadf10840"
+        "sha256": "c7a686676317466915d55471c419bdda403b66fdf33b9a36256e487dd578c4ec"
       },
       {
         "file": "packages/wasm-bet/src/rotor.ts",
-        "sha256": "1503a8ef01bf24dbd556d3dd9ca7b8995e0f6dd87b6907526d442d05598a1818"
+        "sha256": "81d4cabd4d7e5fd52f152204de234d93a35802c1a3ec3d6a298f55755aaaaa6c"
       },
       {
         "file": "tests/support/hover-trim.ts",

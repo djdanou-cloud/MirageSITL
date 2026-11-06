@@ -1,10 +1,11 @@
 //! Prescribed-state scalar BET, SI hub coordinates; section 3 of engine spec.
 use crate::{
     element_force,
-    polar::{clamp_select, ln_kernel, PolarTable},
+    polar::{clamp_select, ln_kernel, PolarTable, ReynoldsLogs, StripLanes, MAX_STRIPS},
     quadrature::AzimuthGrid,
     Vec3, MIN_RELATIVE_SPEED_MPS,
 };
+use std::cell::RefCell;
 use std::f64::consts::{FRAC_PI_2, FRAC_PI_4, FRAC_PI_8, PI, TAU};
 /// Configuration, non-finite input, or numerical overflow error.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -118,6 +119,11 @@ impl<'a> Rotor<'a> {
             polar,
             grid: AzimuthGrid::new(samples).ok_or(RotorError)?,
         })
+    }
+    /// A rotor from a geometry and a grid that `new` has already accepted: a
+    /// step reads a configuration validated at initialization (TASK-091).
+    pub fn from_validated(geometry: RotorGeometry<'a>, polar: PolarTable<'a>, grid: AzimuthGrid) -> Self {
+        Self { geometry, polar, grid }
     }
     /// Integrates section 3. Invalid states/overflow are errors, never zero-force success.
     pub fn evaluate(&self, i: RotorInput) -> Result<RotorWrench, RotorError> {
@@ -323,17 +329,28 @@ impl<'a> Rotor<'a> {
     /// products. Per azimuth sample, a branch-free strip pass that the compiler
     /// vectorizes forms the speed, the angle of attack (`atan2_kernel` and the
     /// exact conditional wrap), the Reynolds and Mach numbers and the Reynolds
-    /// logarithm (`ln_kernel`); a pass of `KernelPolar::sample` lookups follows,
-    /// each strip's Reynolds bracket starting from its bracket at the previous
-    /// sample, with four sums along the blade rotated into the force, moment and
-    /// flapping loads. Tables `KernelPolar` cannot serve, non-finite
+    /// logarithm (`ln_kernel`); the polar lookups follow (`KernelPolar::sample_strips`,
+    /// or `sample` for more than two Mach nodes), each strip's Reynolds bracket
+    /// starting from its bracket at the previous sample; then a branch-free pass of
+    /// element forces and moments, and four sums along the blade, in strip order,
+    /// rotated into the force, moment and flapping loads. Tables `KernelPolar` cannot serve, non-finite
     /// intermediates and angles outside the conditional wrap fall back to
     /// `evaluate_resolved`, the increment 2 kernel.
     pub fn evaluate_sampled(&self, i: RotorInput, stride: usize) -> Result<RotorWrench, RotorError> {
+        KERNEL_SCRATCH.with_borrow_mut(|scratch| self.evaluate_in(i, stride, scratch))
+    }
+
+    /// `evaluate_sampled` on the thread's scratch. Every lane it reads is written
+    /// earlier in this evaluation, and the Reynolds logarithms are checked against
+    /// the table's axis, so what the scratch last held cannot change a result.
+    #[inline]
+    fn evaluate_in(&self, i: RotorInput, stride: usize, scratch: &mut KernelScratch) -> Result<RotorWrench, RotorError> {
         if stride == 0 || self.grid.len() % stride != 0 {
             return Err(RotorError);
         }
-        let polar = self.polar.prepare_kernel();
+        let KernelScratch { strips, logs, u_t: lane_u_t, u_z: lane_u_z, reynolds_per_speed, force_per_speed, force_t: lane_force_t, force_z: lane_force_z,
+            moment_t: lane_moment_t, moment_z: lane_moment_z } = scratch;
+        let polar = self.polar.prepare_kernel(logs);
         if !polar.usable() {
             return self.evaluate_resolved(i, stride);
         }
@@ -374,7 +391,6 @@ impl<'a> Rotor<'a> {
         let spin = g.spin_sign as f64;
         let weight = g.blade_count as f64 / (self.grid.len() / stride) as f64;
         // Per-strip factors: Re = (rho c / mu) U and the element force over U, 1/2 rho c dr weight.
-        let (mut reynolds_per_speed, mut force_per_speed) = ([0.0; MAX_STRIPS], [0.0; MAX_STRIPS]);
         for k in 0..n {
             reynolds_per_speed[k] = i.density_kg_m3 * g.chord[k] / i.viscosity_pa_s;
             force_per_speed[k] = 0.5 * i.density_kg_m3 * g.chord[k] * g.width[k] * weight;
@@ -384,9 +400,9 @@ impl<'a> Rotor<'a> {
         let axial_air = air.z - i.induced_mps;
         let z = Vec3::new(0.0, 0.0, 1.0);
         let (re_first, re_last) = polar.reynolds_bounds();
-        // Strip pass outputs, and each strip's Reynolds bracket carried across azimuth samples.
-        let mut lanes = Lanes::new();
-        let mut hint = [usize::MAX; MAX_STRIPS];
+        let strip_wise = polar.strip_wise();
+        // Each strip's Reynolds bracket is carried across azimuth samples.
+        strips.hint[..n].fill(usize::MAX);
         for j in (0..self.grid.len()).step_by(stride) {
             let (c, s) = self.grid.sample(j).ok_or(RotorError)?;
             let et = Vec3::new(-spin * s, spin * c, 0.0);
@@ -404,41 +420,62 @@ impl<'a> Rotor<'a> {
                 // `wrap_angle` on [-TAU, 2 TAU); anything else (or a non-finite value) takes the fallback.
                 regular &= (x >= -TAU) & (x < 2.0 * TAU) & (speed <= f64::MAX);
                 let wrapped = if x < 0.0 { x + TAU } else if x >= TAU { x - TAU } else { x };
-                lanes.u_t[k] = u_t;
-                lanes.u_z[k] = u_z;
-                lanes.speed[k] = speed;
-                lanes.alpha[k] = wrapped - PI;
+                lane_u_t[k] = u_t;
+                lane_u_z[k] = u_z;
+                strips.speed[k] = speed;
+                strips.alpha[k] = wrapped - PI;
             }
             for k in 0..n {
-                let speed = lanes.speed[k];
+                let speed = strips.speed[k];
                 let reynolds = reynolds_per_speed[k] * speed;
-                lanes.reynolds[k] = reynolds;
-                lanes.ln_reynolds[k] = ln_kernel(clamp_select(reynolds, re_first, re_last));
-                lanes.mach[k] = speed * inverse_sound;
+                strips.reynolds[k] = reynolds;
+                let clamped = clamp_select(reynolds, re_first, re_last);
+                strips.clamped_reynolds[k] = clamped;
+                strips.ln_reynolds[k] = ln_kernel(clamped);
+                strips.mach[k] = speed * inverse_sound;
             }
             if !regular {
                 return self.evaluate_resolved(i, stride);
             }
-            // Pass 2: polar lookups and the element force on et and z, summed along the blade with its moments.
+            // Pass 2: the polar lookups.
+            if strip_wise {
+                out.flags |= polar.sample_strips(strips, n, MIN_RELATIVE_SPEED_MPS, out.flags);
+            } else {
+                for k in 0..n {
+                    if !(strips.speed[k] >= MIN_RELATIVE_SPEED_MPS) {
+                        continue;
+                    }
+                    if strips.hint[k] == usize::MAX {
+                        strips.hint[k] = polar.reynolds_guess(strips.ln_reynolds[k]);
+                    }
+                    let p = polar.sample(strips.alpha[k], strips.reynolds[k], strips.ln_reynolds[k], strips.mach[k], &mut strips.hint[k], out.flags);
+                    out.flags |= p.flags;
+                    strips.cl[k] = p.cl;
+                    strips.cd[k] = p.cd;
+                }
+            }
+            // Pass 3, branch-free: the element force on et and z and its moment. An element below the
+            // minimum speed adds nothing, whatever its lanes hold.
+            for k in 0..n {
+                let (speed, u_t, u_z, r) = (strips.speed[k], lane_u_t[k], lane_u_z[k], radius[k]);
+                let (cl, cd) = (strips.cl[k], strips.cd[k]);
+                // Drag along (u_t, u_z)/U, lift along (u_z, -u_t)/U (spin x (d x e_r)); q/U = force_per_speed U.
+                let q = force_per_speed[k] * speed;
+                let (f_t, f_z) = (q * (cl * u_z + cd * u_t), q * (cd * u_z - cl * u_t));
+                let active = speed >= MIN_RELATIVE_SPEED_MPS;
+                let (f_t, f_z) = (if active { f_t } else { 0.0 }, if active { f_z } else { 0.0 });
+                lane_force_t[k] = f_t;
+                lane_force_z[k] = f_z;
+                lane_moment_t[k] = r * f_t;
+                lane_moment_z[k] = r * f_z;
+            }
+            // The sums along the blade, in strip order in every build.
             let (mut force_t, mut force_z, mut moment_t, mut moment_z) = (0.0, 0.0, 0.0, 0.0);
             for k in 0..n {
-                let speed = lanes.speed[k];
-                if !(speed >= MIN_RELATIVE_SPEED_MPS) {
-                    continue;
-                }
-                if hint[k] == usize::MAX {
-                    hint[k] = polar.reynolds_guess(lanes.ln_reynolds[k]);
-                }
-                let p = polar.sample(lanes.alpha[k], lanes.reynolds[k], lanes.ln_reynolds[k], lanes.mach[k], &mut hint[k], out.flags);
-                out.flags |= p.flags;
-                // Drag along (u_t, u_z)/U, lift along (u_z, -u_t)/U (spin x (d x e_r)); q/U = force_per_speed U.
-                let (u_t, u_z, r) = (lanes.u_t[k], lanes.u_z[k], radius[k]);
-                let q = force_per_speed[k] * speed;
-                let (f_t, f_z) = (q * (p.cl * u_z + p.cd * u_t), q * (p.cd * u_z - p.cl * u_t));
-                force_t += f_t;
-                force_z += f_z;
-                moment_t += r * f_t;
-                moment_z += r * f_z;
+                force_t += lane_force_t[k];
+                force_z += lane_force_z[k];
+                moment_t += lane_moment_t[k];
+                moment_z += lane_moment_z[k];
             }
             // r er x (f_t et + f_z z) = spin r f_t z - spin r f_z et; flap loads (1, c, s) r f_z.
             out.force_n = out.force_n.add(et.scale(force_t)).add(z.scale(force_z));
@@ -556,25 +593,29 @@ impl<'a> Rotor<'a> {
     }
 }
 
-/// Most strips of a rotor (`RotorGeometry`).
-const MAX_STRIPS: usize = 64;
-
-/// Per-strip results of the strip pass of `evaluate_sampled`.
-struct Lanes {
+/// The working memory of `evaluate_sampled` (TASK-091 increment 4): the strip
+/// lanes, the per-strip factors and the Reynolds logarithms.
+struct KernelScratch {
+    strips: StripLanes,
+    logs: ReynoldsLogs,
     u_t: [f64; MAX_STRIPS],
     u_z: [f64; MAX_STRIPS],
-    speed: [f64; MAX_STRIPS],
-    alpha: [f64; MAX_STRIPS],
-    reynolds: [f64; MAX_STRIPS],
-    ln_reynolds: [f64; MAX_STRIPS],
-    mach: [f64; MAX_STRIPS],
+    reynolds_per_speed: [f64; MAX_STRIPS],
+    force_per_speed: [f64; MAX_STRIPS],
+    force_t: [f64; MAX_STRIPS],
+    force_z: [f64; MAX_STRIPS],
+    moment_t: [f64; MAX_STRIPS],
+    moment_z: [f64; MAX_STRIPS],
 }
 
-impl Lanes {
-    fn new() -> Self {
-        let zero = [0.0; MAX_STRIPS];
-        Self { u_t: zero, u_z: zero, speed: zero, alpha: zero, reynolds: zero, ln_reynolds: zero, mach: zero }
-    }
+thread_local! {
+    /// One scratch per thread, so an evaluation neither clears nor allocates it; `const`, with
+    /// no destructor, so that reaching it allocates nothing either.
+    static KERNEL_SCRATCH: RefCell<KernelScratch> = const {
+        const ZERO: [f64; MAX_STRIPS] = [0.0; MAX_STRIPS];
+        RefCell::new(KernelScratch { strips: StripLanes::new(), logs: ReynoldsLogs::new(), u_t: ZERO, u_z: ZERO, reynolds_per_speed: ZERO,
+            force_per_speed: ZERO, force_t: ZERO, force_z: ZERO, moment_t: ZERO, moment_z: ZERO })
+    };
 }
 
 /// tan(pi/16) and tan(3 pi/16): the bounds between the reduction centres of `atan2_kernel`.
@@ -608,8 +649,11 @@ pub fn atan2_kernel(y: f64, x: f64) -> f64 {
     let divisor = den + c * num;
     let t = (num - c * den) / if divisor < f64::MIN_POSITIVE { f64::MIN_POSITIVE } else { divisor };
     let z = t * t;
-    let series = -1.0 / 3.0 + z * (1.0 / 5.0 + z * (-1.0 / 7.0 + z * (1.0 / 9.0 + z * (-1.0 / 11.0
-        + z * (1.0 / 13.0 + z * (-1.0 / 15.0 + z * (1.0 / 17.0 + z * (-1.0 / 19.0))))))));
+    // Estrin's scheme: the same polynomial with a shorter chain of dependent operations.
+    let z2 = z * z;
+    let z4 = z2 * z2;
+    let series = (-1.0 / 3.0 + z * (1.0 / 5.0)) + z2 * (-1.0 / 7.0 + z * (1.0 / 9.0))
+        + z4 * ((-1.0 / 11.0 + z * (1.0 / 13.0)) + z2 * (-1.0 / 15.0 + z * (1.0 / 17.0)) + z4 * (-1.0 / 19.0));
     let octant = base + (t + t * (z * series));
     let quadrant = if swap { FRAC_PI_2 - octant } else { octant };
     let half = if x < 0.0 { PI - quadrant } else { quadrant };

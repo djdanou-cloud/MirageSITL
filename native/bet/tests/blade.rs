@@ -246,6 +246,81 @@ fn production_kernel_matches_the_reference_within_t1() {
     }
 }
 
+/// TASK-091 increment 4: T1 on every kind of Mach axis, including three nodes,
+/// which `evaluate_sampled` serves with the query-at-a-time lookup.
+#[test]
+fn production_kernel_serves_every_mach_axis_within_t1() {
+    let (radius_m, cutout_m, n) = (0.127, 0.0127, 16usize);
+    let width = (radius_m - cutout_m) / n as f64;
+    let r: Vec<f64> = (0..n).map(|k| cutout_m + (k as f64 + 0.5) * width).collect();
+    let chord: Vec<f64> = r.iter().map(|x| 0.025 - 0.08 * (x - 0.06)).collect();
+    let twist: Vec<f64> = r.iter().map(|x| (0.1143 / (2.0 * PI * x)).atan()).collect();
+    let widths = vec![width; n];
+    for mach_nodes in [vec![0.0], vec![0.0, 0.3], vec![0.0, 0.15, 0.3]] {
+        let p = neuralfoil::naca6409(&mach_nodes);
+        let polar = PolarTable::new(&p.alpha, &p.re, &p.mach, &p.cl, &p.cd).unwrap().with_confidence(&p.confidence, 0.9).unwrap();
+        let rotor = Rotor::new(RotorGeometry { blade_count: 2, spin_sign: 1, radius_m, cutout_m, radius: &r, chord: &chord, twist: &twist, width: &widths }, polar, 8).unwrap();
+        for omega in [0.0, 5.0, 530.0, 900.0] {
+            for (vx, vz, rate) in [(0.0, 0.0, 0.0), (20.0, 0.0, 1.0), (-4.0, -8.0, -2.0), (2.0, 12.0, 0.5)] {
+                let i = RotorInput { density_kg_m3: 1.225, viscosity_pa_s: 1.7894e-5, sound_speed_mps: 340.294, air_velocity_hub_mps: Vec3::new(vx, 1.0, vz),
+                    body_rate_hub_rad_s: Vec3::new(rate, -rate, 0.3 * rate), omega_rad_s: omega, induced_mps: 2.0, collective_rad: 0.05, cyclic_cos_rad: 0.02, cyclic_sin_rad: -0.03 };
+                let (a, t) = (rotor.evaluate(i).unwrap(), rotor.evaluate_sampled(i, 1).unwrap());
+                assert!(within_t1(a.force_n, t.force_n) && within_t1(a.moment_nm, t.moment_nm) && within_t1(a.flap_load_nm, t.flap_load_nm), "{a:?} {t:?}");
+                assert_eq!(a.flags, t.flags);
+            }
+        }
+    }
+}
+
+/// TASK-091 increment 4: what `evaluate_sampled`'s scratch held from other
+/// evaluations cannot change a result. Rotors on different Reynolds axes, strip
+/// counts and sample counts take turns on one thread, and each result has the
+/// bits of the same evaluation on a fresh thread, whose scratch is untouched.
+#[test]
+fn the_kernel_scratch_cannot_change_a_result() {
+    use mirage_bet::quadrature::AzimuthGrid;
+    let fresh = |mach: Vec<f64>, re_shift: f64, n: usize, samples: usize, stride: usize| {
+        let p = neuralfoil::naca6409(&mach);
+        let re: Vec<f64> = p.re.iter().map(|x| x * re_shift).collect();
+        let polar = PolarTable::new(&p.alpha, &re, &p.mach, &p.cl, &p.cd).unwrap().with_confidence(&p.confidence, 0.9).unwrap();
+        let (radius_m, cutout_m) = (0.127, 0.0127);
+        let width = (radius_m - cutout_m) / n as f64;
+        let r: Vec<f64> = (0..n).map(|k| cutout_m + (k as f64 + 0.5) * width).collect();
+        let chord = vec![0.02; n];
+        let twist: Vec<f64> = r.iter().map(|x| (0.1143 / (2.0 * PI * x)).atan()).collect();
+        let widths = vec![width; n];
+        let g = RotorGeometry { blade_count: 2, spin_sign: 1, radius_m, cutout_m, radius: &r, chord: &chord, twist: &twist, width: &widths };
+        let rotor = Rotor::new(g, polar, samples).unwrap();
+        // A step's route: the cached grid and a validated configuration give the same rotor.
+        let stepped = Rotor::from_validated(g, polar, AzimuthGrid::cached(samples).unwrap());
+        let i = RotorInput { density_kg_m3: 1.225, viscosity_pa_s: 1.7894e-5, sound_speed_mps: 340.294, air_velocity_hub_mps: Vec3::new(6.0, -2.0, 1.0),
+            body_rate_hub_rad_s: Vec3::new(0.5, -0.3, 0.2), omega_rad_s: 600.0, induced_mps: 3.0, collective_rad: 0.04, cyclic_cos_rad: 0.02, cyclic_sin_rad: -0.01 };
+        let (a, b) = (rotor.evaluate_sampled(i, stride).unwrap(), stepped.evaluate_sampled(i, stride).unwrap());
+        assert_eq!(format!("{a:?}"), format!("{b:?}"));
+        format!("{a:?}")
+    };
+    let cases = [(vec![0.0, 0.3], 1.0, 16, 8, 1), (vec![0.0, 0.3], 1.5, 5, 8, 2), (vec![0.0], 1.0, 63, 3, 1), (vec![0.0, 0.15, 0.3], 0.7, 16, 64, 4), (vec![0.0, 0.3], 1.0, 1, 1, 1)];
+    let alone: Vec<String> = cases.iter().map(|c| {
+        let c = c.clone();
+        std::thread::spawn(move || fresh(c.0, c.1, c.2, c.3, c.4)).join().unwrap()
+    }).collect();
+    for turn in 0..40 {
+        // A different order each turn, so that every case follows every other.
+        let at = (turn * turn + turn) % cases.len();
+        let c = cases[at].clone();
+        assert_eq!(fresh(c.0, c.1, c.2, c.3, c.4), alone[at], "case {at} on turn {turn}");
+    }
+    for count in [8usize, 3, 64, 1, 8, 16] {
+        let (new, cached) = (AzimuthGrid::new(count).unwrap(), AzimuthGrid::cached(count).unwrap());
+        for j in 0..count {
+            let (a, b) = (new.sample(j).unwrap(), cached.sample(j).unwrap());
+            assert_eq!((a.0.to_bits(), a.1.to_bits()), (b.0.to_bits(), b.1.to_bits()));
+        }
+        assert_eq!(cached.len(), count);
+    }
+    assert!(AzimuthGrid::cached(0).is_none() && AzimuthGrid::cached(65).is_none());
+}
+
 /// TASK-091 increment 3 component accuracy, declared before implementation:
 /// the kernel atan2 within 2e-15 rad and the kernel ln within
 /// 2e-15 x max(1, |ln x|) of the platform functions, over 1e6+ arguments each.

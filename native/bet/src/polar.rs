@@ -92,9 +92,15 @@ pub const MAX_REYNOLDS_NODES: usize = 32;
 /// the index) and corrected against the neighbours: the result is the largest
 /// `i <= n - 2` with `axis[i] <= x`, the same index the binary search returns.
 fn guessed_index(axis: &[f64], x: f64, guess: f64) -> usize {
-    let last = axis.len() - 2;
     // A NaN or negative guess starts at 0; `as` saturates large guesses.
-    let mut i = if guess > 0.0 { (guess as usize).min(last) } else { 0 };
+    corrected_index(axis, x, if guess > 0.0 { guess as usize } else { 0 })
+}
+
+/// `guessed_index` from an index that is already a number.
+#[inline(always)]
+fn corrected_index(axis: &[f64], x: f64, start: usize) -> usize {
+    let last = axis.len() - 2;
+    let mut i = start.min(last);
     while i > 0 && axis[i] > x {
         i -= 1;
     }
@@ -235,8 +241,11 @@ pub fn ln_kernel(x: f64) -> f64 {
     let e = if high { exponent + 1.0 } else { exponent };
     let s = (m - 1.0) / (m + 1.0);
     let z = s * s;
-    let series = 1.0 / 3.0 + z * (1.0 / 5.0 + z * (1.0 / 7.0 + z * (1.0 / 9.0 + z * (1.0 / 11.0
-        + z * (1.0 / 13.0 + z * (1.0 / 15.0 + z * (1.0 / 17.0)))))));
+    // Estrin's scheme: the same polynomial with a shorter chain of dependent operations.
+    let z2 = z * z;
+    let z4 = z2 * z2;
+    let series = (1.0 / 3.0 + z * (1.0 / 5.0)) + z2 * (1.0 / 7.0 + z * (1.0 / 9.0))
+        + z4 * ((1.0 / 11.0 + z * (1.0 / 13.0)) + z2 * (1.0 / 15.0 + z * (1.0 / 17.0)));
     let atanh2 = 2.0 * s + 2.0 * s * (z * series);
     e * LN2_HI + (atanh2 + e * LN2_LO)
 }
@@ -258,9 +267,8 @@ pub struct KernelPolar<'a> {
     /// Confidence values and threshold; an empty slice without confidence.
     confidence: &'a [f64],
     threshold: f64,
-    ln_re: [f64; MAX_REYNOLDS_NODES],
-    /// 1 / (ln_re[i + 1] - ln_re[i]) for each Reynolds interval.
-    inverse_ln_width: [f64; MAX_REYNOLDS_NODES],
+    /// The Reynolds logarithms and the reciprocal widths of their intervals.
+    logs: &'a ReynoldsLogs,
     usable: bool,
     alpha_first: f64,
     alpha_last: f64,
@@ -279,6 +287,125 @@ pub struct KernelPolar<'a> {
     /// Flat-index strides to the next Re and Mach node; 0 on a single-node axis.
     stride_re: usize,
     stride_mach: usize,
+}
+
+/// The Reynolds logarithms of the TASK-091 production kernel, formed once and
+/// reused while the axis keeps the same bits, so that a step does not take them
+/// again for each evaluation. Reuse cannot change a result: the values depend on
+/// those bits alone.
+#[derive(Clone, Copy, Debug)]
+pub struct ReynoldsLogs {
+    /// The bits of the axis these values were formed from.
+    axis_bits: [u64; MAX_REYNOLDS_NODES],
+    nodes: usize,
+    usable: bool,
+    ln_re: [f64; MAX_REYNOLDS_NODES],
+    /// 1 / (ln_re[i + 1] - ln_re[i]) for each Reynolds interval.
+    inverse_ln_width: [f64; MAX_REYNOLDS_NODES],
+}
+
+impl ReynoldsLogs {
+    /// No axis yet: the first `refresh` of any axis with nodes forms the values.
+    pub const fn new() -> Self {
+        Self {
+            axis_bits: [0; MAX_REYNOLDS_NODES],
+            nodes: 0,
+            usable: false,
+            ln_re: [0.0; MAX_REYNOLDS_NODES],
+            inverse_ln_width: [0.0; MAX_REYNOLDS_NODES],
+        }
+    }
+
+    /// Makes the values those of `axis`; false when `KernelPolar` cannot serve
+    /// it (more than `MAX_REYNOLDS_NODES` nodes, or a node that is not a positive
+    /// normal number).
+    fn refresh(&mut self, axis: &[f64]) -> bool {
+        if axis.len() > MAX_REYNOLDS_NODES {
+            self.nodes = 0;
+            self.usable = false;
+            return false;
+        }
+        if axis.len() == self.nodes && axis.iter().zip(self.axis_bits.iter()).all(|(node, bits)| node.to_bits() == *bits) {
+            return self.usable;
+        }
+        self.nodes = axis.len();
+        self.usable = axis.iter().all(|re| re.is_normal() && *re > 0.0);
+        self.ln_re = [0.0; MAX_REYNOLDS_NODES];
+        self.inverse_ln_width = [0.0; MAX_REYNOLDS_NODES];
+        for (k, re) in axis.iter().enumerate() {
+            self.axis_bits[k] = re.to_bits();
+            if self.usable {
+                self.ln_re[k] = ln_kernel(*re);
+                if k > 0 {
+                    self.inverse_ln_width[k - 1] = 1.0 / (self.ln_re[k] - self.ln_re[k - 1]);
+                }
+            }
+        }
+        self.usable
+    }
+}
+
+impl Default for ReynoldsLogs {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// Most strips of a rotor, the length of the lanes of a strip-wise lookup.
+pub const MAX_STRIPS: usize = 64;
+
+/// The lanes of `KernelPolar::sample_strips`, one element per strip. The caller
+/// fills `speed`, `alpha`, `reynolds`, `ln_reynolds` and `mach`, keeps `hint`
+/// between queries of one evaluation, and reads `cl` and `cd`. Only elements at
+/// or above the minimum speed hold results; the others keep what they held.
+#[derive(Clone, Copy, Debug)]
+pub struct StripLanes {
+    /// Relative speed of the strip's element, m/s.
+    pub speed: [f64; MAX_STRIPS],
+    /// Angle of attack, rad.
+    pub alpha: [f64; MAX_STRIPS],
+    /// Reynolds number, finite or +inf.
+    pub reynolds: [f64; MAX_STRIPS],
+    /// `reynolds` clamped onto the table's axis.
+    pub clamped_reynolds: [f64; MAX_STRIPS],
+    /// `ln_kernel` of `clamped_reynolds`.
+    pub ln_reynolds: [f64; MAX_STRIPS],
+    /// Mach number, finite or +inf.
+    pub mach: [f64; MAX_STRIPS],
+    /// The strip's last Reynolds bracket, `usize::MAX` before its first query.
+    pub hint: [usize; MAX_STRIPS],
+    /// Lift coefficient.
+    pub cl: [f64; MAX_STRIPS],
+    /// Drag coefficient.
+    pub cd: [f64; MAX_STRIPS],
+    clamped_alpha: [f64; MAX_STRIPS],
+    alpha_guess: [f64; MAX_STRIPS],
+    alpha_low: [f64; MAX_STRIPS],
+    alpha_high: [f64; MAX_STRIPS],
+    ln_low: [f64; MAX_STRIPS],
+    inverse_ln: [f64; MAX_STRIPS],
+    alpha_weight: [f64; MAX_STRIPS],
+    re_weight: [f64; MAX_STRIPS],
+    mach_weight: [f64; MAX_STRIPS],
+    corner: [usize; MAX_STRIPS],
+}
+
+impl StripLanes {
+    /// Zeroed lanes with no hints.
+    pub const fn new() -> Self {
+        const ZERO: [f64; MAX_STRIPS] = [0.0; MAX_STRIPS];
+        Self {
+            speed: ZERO, alpha: ZERO, reynolds: ZERO, clamped_reynolds: ZERO, ln_reynolds: ZERO, mach: ZERO, hint: [usize::MAX; MAX_STRIPS], cl: ZERO, cd: ZERO,
+            clamped_alpha: ZERO, alpha_guess: ZERO, alpha_low: ZERO, alpha_high: ZERO, ln_low: ZERO, inverse_ln: ZERO,
+            alpha_weight: ZERO, re_weight: ZERO, mach_weight: ZERO, corner: [0; MAX_STRIPS],
+        }
+    }
+}
+
+impl Default for StripLanes {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 /// `x` clamped onto `[first, last]` by comparisons, which compile to selects;
@@ -316,7 +443,7 @@ impl KernelPolar<'_> {
     /// The Reynolds bracket guess for `ln_reynolds`, used to seed `sample`'s hint.
     pub fn reynolds_guess(&self, ln_reynolds: f64) -> usize {
         let last = self.n_re.saturating_sub(2);
-        let guess = (ln_reynolds - self.ln_re[0]) * self.re_scale;
+        let guess = (ln_reynolds - self.logs.ln_re[0]) * self.re_scale;
         if guess > 0.0 { (guess as usize).min(last) } else { 0 }
     }
 
@@ -359,36 +486,153 @@ impl KernelPolar<'_> {
         } else {
             let i = guessed_index(self.reynolds, r, *hint as f64 + 0.5);
             *hint = i;
-            let (Some(&l0), Some(&inverse)) = (self.ln_re.get(i), self.inverse_ln_width.get(i)) else { return MISSING };
+            let (Some(&l0), Some(&inverse)) = (self.logs.ln_re.get(i), self.logs.inverse_ln_width.get(i)) else { return MISSING };
             // The interval's reciprocal; a query clamped onto the last node keeps the reference weight 1 exactly.
             (i, if r >= self.re_last { 1.0 } else { ((ln_reynolds - l0) * inverse).clamp(0.0, 1.0) })
         };
         let base = (im * self.n_re + ir) * self.n_alpha + ia;
-        let (sr, sm) = (self.stride_re, self.stride_mach);
-        if known_flags & FLAG_LOW_CONFIDENCE == 0 && !self.confidence.is_empty() {
-            // As the reference: a corner flags when it is low and its weight product is positive.
-            let rows = [(0, 1.0 - tm, 1.0 - tr), (sr, 1.0 - tm, tr), (sm, tm, 1.0 - tr), (sm + sr, tm, tr)];
-            for (offset, wm, wr) in rows {
-                if let Some((c0, c1)) = pair(self.confidence, base + offset) {
-                    if (c0 < self.threshold && wm * wr * (1.0 - ta) > 0.0) || (c1 < self.threshold && wm * wr * ta > 0.0) {
-                        flags |= FLAG_LOW_CONFIDENCE;
-                        break;
-                    }
-                }
-            }
+        if known_flags & FLAG_LOW_CONFIDENCE == 0 && !self.confidence.is_empty() && self.low_confidence(base, ta, tr, tm) {
+            flags |= FLAG_LOW_CONFIDENCE;
         }
         // The trilinear interpolation with Re and Mach first, on both alpha nodes at once (they are
         // adjacent, so the two lanes vectorize), and alpha last: the same weights as `trilinear`,
         // whose order (alpha, Re, Mach) differs from it in rounding only.
-        let interpolate = |table: &[f64]| -> f64 {
-            let (Some(r00), Some(r01), Some(r10), Some(r11)) = (pair(table, base), pair(table, base + sr), pair(table, base + sm), pair(table, base + sm + sr))
-            else { return f64::NAN };
-            let (low0, low1) = (r00.0 + tr * (r01.0 - r00.0), r00.1 + tr * (r01.1 - r00.1));
-            let (high0, high1) = (r10.0 + tr * (r11.0 - r10.0), r10.1 + tr * (r11.1 - r10.1));
-            let (v0, v1) = (low0 + tm * (high0 - low0), low1 + tm * (high1 - low1));
-            v0 + ta * (v1 - v0)
-        };
-        PolarSample { cl: interpolate(self.cl), cd: interpolate(self.cd), flags }
+        PolarSample { cl: self.corners(self.cl, base, ta, tr, tm), cd: self.corners(self.cd, base, ta, tr, tm), flags }
+    }
+
+    /// As the reference: a corner flags when it is low and its weight product is positive.
+    #[inline(always)]
+    fn low_confidence(&self, base: usize, ta: f64, tr: f64, tm: f64) -> bool {
+        let (sr, sm) = (self.stride_re, self.stride_mach);
+        let th = self.threshold;
+        let Some(window) = self.confidence.get(base..base.wrapping_add(sm + sr + 2)) else { return false };
+        // SAFETY: `window` holds sm + sr + 2 values, so the largest offset read, sm + sr + 1, is inside it.
+        let rows = unsafe {[
+            (*window.get_unchecked(0), *window.get_unchecked(1), 1.0 - tm, 1.0 - tr),
+            (*window.get_unchecked(sr), *window.get_unchecked(sr + 1), 1.0 - tm, tr),
+            (*window.get_unchecked(sm), *window.get_unchecked(sm + 1), tm, 1.0 - tr),
+            (*window.get_unchecked(sm + sr), *window.get_unchecked(sm + sr + 1), tm, tr),
+        ]};
+        // All eight high is the usual case, and then no weight matters; `&` so that the comparisons take lanes.
+        let [r0, r1, r2, r3] = rows;
+        if (r0.0 >= th) & (r0.1 >= th) & (r1.0 >= th) & (r1.1 >= th) & (r2.0 >= th) & (r2.1 >= th) & (r3.0 >= th) & (r3.1 >= th) {
+            return false;
+        }
+        rows.iter().any(|&(c0, c1, wm, wr)| (c0 < th && wm * wr * (1.0 - ta) > 0.0) || (c1 < th && wm * wr * ta > 0.0))
+    }
+
+    /// One coefficient from the corners at `base`, or NaN if the table is too
+    /// short for them.
+    #[inline(always)]
+    fn corners(&self, table: &[f64], base: usize, ta: f64, tr: f64, tm: f64) -> f64 {
+        let (sr, sm) = (self.stride_re, self.stride_mach);
+        let Some(window) = table.get(base..base.wrapping_add(sm + sr + 2)) else { return f64::NAN };
+        // SAFETY: `window` holds sm + sr + 2 values, so the largest offset read, sm + sr + 1, is inside it.
+        let (r00, r01, r10, r11) = unsafe {(
+            (*window.get_unchecked(0), *window.get_unchecked(1)),
+            (*window.get_unchecked(sr), *window.get_unchecked(sr + 1)),
+            (*window.get_unchecked(sm), *window.get_unchecked(sm + 1)),
+            (*window.get_unchecked(sm + sr), *window.get_unchecked(sm + sr + 1)),
+        )};
+        let (low0, low1) = (r00.0 + tr * (r01.0 - r00.0), r00.1 + tr * (r01.1 - r00.1));
+        let (high0, high1) = (r10.0 + tr * (r11.0 - r10.0), r10.1 + tr * (r11.1 - r10.1));
+        let (v0, v1) = (low0 + tm * (high0 - low0), low1 + tm * (high1 - low1));
+        v0 + ta * (v1 - v0)
+    }
+
+    /// True when `sample_strips` serves this table: at most two Mach nodes.
+    pub fn strip_wise(&self) -> bool {
+        self.n_mach <= 2
+    }
+
+    /// `sample` for the first `n` strips of `s` at or above `min_speed`, in
+    /// passes across strips so that the clamps and the weights, the alpha
+    /// division among them, take vector lanes. A usable, `strip_wise` table only.
+    /// Each strip's result has the bits of `sample` with the same `known_flags`,
+    /// and the flags returned are the union of `sample`'s. A hint is only a start
+    /// for its bracket, so a wrong hint cannot change a result.
+    pub fn sample_strips(&self, s: &mut StripLanes, n: usize, min_speed: f64, known_flags: u32) -> u32 {
+        let n = n.min(MAX_STRIPS);
+        let (alpha_first, alpha_last, alpha_scale) = (self.alpha_first, self.alpha_last, self.alpha_scale);
+        let (re_last, mach_first, mach_last) = (self.re_last, self.mach_first, self.mach_last);
+        let inverse_mach = self.inverse_mach_width;
+        // A query clamped onto the last node keeps the reference weight 1 exactly; a single-node axis keeps weight 0.
+        let mach_full = if self.n_mach == 2 { mach_last } else { f64::INFINITY };
+        let mut outside = false;
+        for k in 0..n {
+            let (alpha, mach) = (s.alpha[k], s.mach[k]);
+            let a = clamp_select(alpha, alpha_first, alpha_last);
+            let m = clamp_select(mach, mach_first, mach_last);
+            // A clamp changes a query outside its axis and nothing else; these queries are never NaN.
+            let inside = (a == alpha) & (s.clamped_reynolds[k] == s.reynolds[k]) & (m == mach);
+            outside |= !inside & (s.speed[k] >= min_speed);
+            s.clamped_alpha[k] = a;
+            s.alpha_guess[k] = (a - alpha_first) * alpha_scale;
+            s.mach_weight[k] = if m >= mach_full { 1.0 } else { clamp_select((m - mach_first) * inverse_mach, 0.0, 1.0) };
+        }
+        // The brackets, against the axes: scalar, and well predicted because the guesses are nearly always right.
+        let (alpha_axis, re_axis, n_alpha) = (self.alpha, self.reynolds, self.n_alpha);
+        let several_re = self.n_re >= 2;
+        let last_alpha = alpha_axis.len() - 2;
+        let last_re = re_axis.len().saturating_sub(2);
+        for k in 0..n {
+            if !(s.speed[k] >= min_speed) {
+                continue;
+            }
+            let a = s.clamped_alpha[k];
+            // `as` sends a negative guess to 0.
+            let mut ia = (s.alpha_guess[k] as usize).min(last_alpha);
+            // SAFETY: ia <= last_alpha = len - 2, here and after `corrected_index`, on a usable table's axis of at least two nodes.
+            let (mut a0, mut a1) = unsafe { (*alpha_axis.get_unchecked(ia), *alpha_axis.get_unchecked(ia + 1)) };
+            if a0 > a || (a1 <= a && ia < last_alpha) {
+                ia = corrected_index(alpha_axis, a, ia);
+                (a0, a1) = unsafe { (*alpha_axis.get_unchecked(ia), *alpha_axis.get_unchecked(ia + 1)) };
+            }
+            s.alpha_low[k] = a0;
+            s.alpha_high[k] = a1;
+            let ir = if several_re {
+                let r = s.clamped_reynolds[k];
+                let mut i = if s.hint[k] == usize::MAX { self.reynolds_guess(s.ln_reynolds[k]) } else { s.hint[k].min(last_re) };
+                // SAFETY: i <= last_re = len - 2 on an axis of at least two nodes.
+                let (r0, r1) = unsafe { (*re_axis.get_unchecked(i), *re_axis.get_unchecked(i + 1)) };
+                if r0 > r || (r1 <= r && i < last_re) {
+                    i = corrected_index(re_axis, r, i);
+                }
+                s.hint[k] = i;
+                i
+            } else {
+                0
+            };
+            // ir < MAX_REYNOLDS_NODES on a usable table; the mask keeps this read free of a panic path.
+            let at = ir & (MAX_REYNOLDS_NODES - 1);
+            s.ln_low[k] = self.logs.ln_re[at];
+            s.inverse_ln[k] = self.logs.inverse_ln_width[at];
+            s.corner[k] = ir * n_alpha + ia;
+        }
+        // A single-node Reynolds axis keeps weight 0: its width's reciprocal is 0 and this limit is never reached.
+        let re_full = if several_re { re_last } else { f64::INFINITY };
+        for k in 0..n {
+            let span = s.alpha_high[k] - s.alpha_low[k];
+            s.alpha_weight[k] = clamp_select((s.clamped_alpha[k] - s.alpha_low[k]) / span, 0.0, 1.0);
+            let weight = clamp_select((s.ln_reynolds[k] - s.ln_low[k]) * s.inverse_ln[k], 0.0, 1.0);
+            s.re_weight[k] = if s.clamped_reynolds[k] >= re_full { 1.0 } else { weight };
+        }
+        // The corners. Once a corner flags, the rest could only flag again, as with `known_flags`.
+        let mut low = known_flags & FLAG_LOW_CONFIDENCE != 0 || self.confidence.is_empty();
+        let mut flags = if outside { FLAG_OUTSIDE_POLAR_VALIDITY } else { 0 };
+        for k in 0..n {
+            if !(s.speed[k] >= min_speed) {
+                continue;
+            }
+            let (base, ta, tr, tm) = (s.corner[k], s.alpha_weight[k], s.re_weight[k], s.mach_weight[k]);
+            if !low && self.low_confidence(base, ta, tr, tm) {
+                low = true;
+                flags |= FLAG_LOW_CONFIDENCE;
+            }
+            s.cl[k] = self.corners(self.cl, base, ta, tr, tm);
+            s.cd[k] = self.corners(self.cd, base, ta, tr, tm);
+        }
+        flags
     }
 }
 
@@ -513,27 +757,23 @@ impl<'a> PolarTable<'a> {
         }
     }
 
-    /// The lookup state of the TASK-091 production kernel (`KernelPolar`).
-    pub fn prepare_kernel(&self) -> KernelPolar<'a> {
-        let (mut ln_re, mut inverse_ln_width) = ([0.0; MAX_REYNOLDS_NODES], [0.0; MAX_REYNOLDS_NODES]);
+    /// The lookup state of the TASK-091 production kernel (`KernelPolar`), on
+    /// `logs`, which it brings up to date with this table's Reynolds axis.
+    pub fn prepare_kernel<'b>(&self, logs: &'b mut ReynoldsLogs) -> KernelPolar<'b>
+    where
+        'a: 'b,
+    {
         let (na, nr, nm) = (self.alpha_rad.len(), self.reynolds.len(), self.mach.len());
-        let usable = na >= 2 && nr <= MAX_REYNOLDS_NODES && self.reynolds.iter().all(|re| re.is_normal() && *re > 0.0);
-        if usable {
-            for (slot, re) in ln_re.iter_mut().zip(self.reynolds.iter()) {
-                *slot = ln_kernel(*re);
-            }
-            for i in 1..nr {
-                inverse_ln_width[i - 1] = 1.0 / (ln_re[i] - ln_re[i - 1]);
-            }
-        }
+        let usable = logs.refresh(self.reynolds) && na >= 2;
+        let logs = &*logs;
         let bounds = |axis: &[f64]| (axis.first().copied().unwrap_or(0.0), axis.last().copied().unwrap_or(0.0));
         let ((alpha_first, alpha_last), (re_first, re_last), (mach_first, mach_last)) = (bounds(self.alpha_rad), bounds(self.reynolds), bounds(self.mach));
         let (confidence, threshold) = self.confidence.unwrap_or((&[], 0.0));
         KernelPolar {
             alpha: self.alpha_rad, reynolds: self.reynolds, mach: self.mach, cl: self.cl, cd: self.cd, confidence, threshold,
-            ln_re, inverse_ln_width, usable,
+            logs, usable,
             alpha_first, alpha_last, alpha_scale: guess_scale(alpha_first, alpha_last, na),
-            re_first, re_last, re_scale: if usable && nr >= 2 { guess_scale(ln_re[0], ln_re[nr - 1], nr) } else { 0.0 },
+            re_first, re_last, re_scale: if usable && nr >= 2 { guess_scale(logs.ln_re[0], logs.ln_re[nr - 1], nr) } else { 0.0 },
             mach_first, mach_last, mach_scale: guess_scale(mach_first, mach_last, nm),
             inverse_mach_width: if nm == 2 { 1.0 / (mach_last - mach_first) } else { 0.0 },
             n_alpha: na, n_re: nr, n_mach: nm,
